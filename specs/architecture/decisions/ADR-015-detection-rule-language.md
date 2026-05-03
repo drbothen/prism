@@ -3,7 +3,7 @@ document_type: adr
 adr_id: "ADR-015"
 title: "Detection Rule Language"
 status: PROPOSED
-version: "0.1"
+version: "0.2"
 date: 2026-05-02
 wave: 4
 phase: 4.A
@@ -28,7 +28,7 @@ locked_decisions: [D-208, D-211]
 references_decisions: [D-207, D-208, D-209, D-211]
 references_research: [R-1, R-7]
 verification_properties: [VP-018, VP-027, VP-139, VP-140]
-subsystems_affected: [SS-13]
+subsystems_affected: [SS-13, SS-12]
 traces_to: specs/architecture/ARCH-INDEX.md
 ---
 
@@ -36,7 +36,7 @@ traces_to: specs/architecture/ARCH-INDEX.md
 
 ## Status
 
-PROPOSED 2026-05-02, v0.1. Pending review and acceptance prior to story remediation and BC authoring.
+PROPOSED 2026-05-02, v0.2. Pending review and acceptance prior to story remediation and BC authoring.
 
 ---
 
@@ -128,16 +128,33 @@ ADR locks the dual form). Represented as `scope.kind = "client"` + `scope.org_id
 **Analyst(OrgId, AnalystId)**: applies to a specific analyst within an org. Represented as
 `scope.kind = "analyst"` + `scope.org_id` + `scope.analyst_id`.
 
-**Three-scope merge resolution order** at evaluation time:
-1. Global rules evaluated first (apply to all orgs).
-2. Client rules narrowed to the `(OrgId, ClientId)` pair in the current evaluation context.
-3. Analyst rules narrowed to the `(OrgId, AnalystId)` pair for the current session.
+**Three-scope UNION evaluation model** at evaluation time:
 
-Conflict semantics: explicit ENABLED beats inherited DISABLED. Analyst > Client > Global
-precedence on overlap. Explicit-name match beats glob match within the same scope tier.
+All three scope tiers are UNIONED at evaluation time. Each rule fires independently regardless
+of name collision across scopes. To suppress a Global rule for a specific Client or Analyst
+context, use an explicit `disabled_for: [<org_id>/<client_id>]` or
+`disabled_for: [<org_id>/<analyst_id>]` list on the Global rule. Silent scope-override by
+name shadowing is explicitly prohibited — there is no implicit precedence. This eliminates
+ambiguity and matches detection-engineering best practice where every active rule is visible
+and independently auditable.
 
-**Precedence invariant:** An Analyst rule can suppress or extend any Client or Global rule
-for that analyst's session only. This override does not affect other sessions.
+**Suppression model (vs. precedence):** An Analyst or Client rule with the same name as a
+Global rule does NOT suppress the Global rule. Both rules fire independently. The `disabled_for`
+list on the Global rule is the only mechanism to exclude it for a specific target scope.
+
+### §2.2.1 Global Rule Storage
+
+Global rules are stored in the `detection_rules` CF under a sentinel prefix `__global__:`
+(not org-prefixed). The key format is: `__global__:{rule_id}`. This is a deliberate
+exception to the ADR-008 `{org_id}:` universal prefix — Global rules apply across all orgs
+and have no org-specific key space. Access control enforces the platform-admin scope
+requirement at the CRUD boundary before any key is written or read.
+
+Detection state for Global rules is still **per-org-keyed** in the `detection_state` CF
+(format: `{org_id}:\x00:__global__:{rule_id}:{group_key}` etc.). Each org gets its own
+detection state copy for Global rules, cloned on first match. This preserves per-org
+isolation for correlation counts, dedup windows, and sequence state, even though the rule
+definition itself is shared.
 
 ### 2.3 RuleCondition Enum
 
@@ -168,7 +185,10 @@ observed for the same `group_by` key within `time_window`. State persisted in
 `condition.group_by`, `condition.min_count`, `condition.time_window`.
 
 **Sequence**: fires when all ordered `events` steps match in sequence within `time_window`,
-with each step's WHERE clause matching a distinct event in arrival order. TOML:
+with each step's WHERE clause matching a distinct event in arrival order. Events are matched
+against records sorted by `event_time` ascending; ties are broken by record-insertion order
+in MemTable. `events.len() >= 2` is required; load-time validation rejects shorter sequences
+with `E-RULE-SEQ-TOO-SHORT`. TOML:
 `condition.kind = "sequence"` + `condition.events = [{where = "..."}]` + `condition.time_window`.
 
 ### 2.4 DataFusion Compilation Strategy (R-1)
@@ -211,20 +231,22 @@ from R-6 (defer does not run if profile uses `panic = "abort"`).
 
 ### 2.5 Security UDF Registry
 
-Three UDFs are registered at `SessionContext` init. All are pure, deterministic, side-effect
-free. Volatility: `Volatility::Immutable` for all three.
+Three UDFs are registered at `SessionContext` init.
 
-| UDF | Signature | Implementation | Pin |
-|-----|-----------|---------------|-----|
-| `subnet_contains` | `(ip: Utf8, cidr: Utf8) -> Boolean` | `ipnet` crate; checks whether `ip` is within `cidr` range | `ipnet = "2"` |
-| `ioc_match` | `(value: Utf8, ioc_set: Utf8) -> Boolean` | Delegates to the `PatternStore` (§2.6); `ioc_set` is a named set identifier | — (internal) |
-| `time_window` | `(timestamp: Timestamp, window: Utf8) -> Boolean` | Checks whether `timestamp` falls within a rolling window; `window` accepts duration strings (`"5m"`, `"1h"`, `"24h"`) | — (internal) |
+| UDF | Signature | Implementation | Pin | Volatility |
+|-----|-----------|---------------|-----|-----------|
+| `subnet_contains` | `(ip: Utf8, cidr: Utf8) -> Boolean` | `ipnet` crate; checks whether `ip` is within `cidr` range | `ipnet = "2"` | `Volatility::Immutable` |
+| `ioc_match` | `(value: Utf8, ioc_set: Utf8) -> Boolean` | Delegates to the `PatternStore` (§2.6); `ioc_set` is a named set identifier | — (internal) | `Volatility::Stable` |
+| `time_window` | `(timestamp: Timestamp, window: Utf8) -> Boolean` | Checks whether `timestamp` falls within a rolling window; `window` accepts duration strings (`"5m"`, `"1h"`, `"24h"`) via `humantime::parse_duration` | — (internal) | `Volatility::Stable` |
 
-UDFs are registered at `SessionContext` construction, not per-query. The `ioc_match` UDF
-reads from the `PatternStore` (held in `Arc<ArcSwap<Arc<PatternStore>>>`); it does NOT
-mutate the store. `time_window` resolves against `Utc::now()` at evaluation time; it is
-`Immutable` within a single evaluation session but varies across sessions — this is
-acceptable and by design.
+**Volatility semantics:**
+- `subnet_contains`: `Volatility::Immutable` — purely computes CIDR membership from two static strings. DataFusion may constant-fold across queries.
+- `ioc_match`: `Volatility::Stable` — deterministic within one query, but the underlying `PatternStore` may be hot-reloaded between queries. DataFusion will NOT constant-fold across queries.
+- `time_window`: `Volatility::Stable` — deterministic within one query (evaluates against a fixed `Utc::now()` snapshot captured at `SessionContext` construction), but varies across queries. DataFusion will NOT constant-fold across queries.
+
+Note: `Stable` means the UDF produces the same result for the same inputs within a single query plan execution, but may return different results in a different query invocation. This is the correct semantics for both `ioc_match` (IOC store may reload) and `time_window` (wall clock advances between queries).
+
+UDFs are registered at `SessionContext` construction, not per-query. The `ioc_match` UDF reads from the `PatternStore` (held in `Arc<ArcSwap<Arc<PatternStore>>>`); it does NOT mutate the store. `time_window` uses `humantime::parse_duration` for the `window` parameter.
 
 **`ipnet = "2"` rationale:** R-7 confirms no soundness or CVE issues; resolves to 2.12.0
 in Cargo.lock. Used exclusively for subnet CIDR math in the `subnet_contains` UDF — a
@@ -263,6 +285,15 @@ sets (regex Issue #1059). This is an architectural defect, not a configuration i
 **Overflow behavior:** When the regex-IOC cap is reached, new regex patterns are rejected
 with `Err(RegexCapExceeded)` at validation time (load time), not silently dropped.
 
+**IOC load-time error code registry:**
+
+| Code | Condition |
+|------|-----------|
+| `E-IOC-001` | Invalid regex pattern (compilation failure) |
+| `E-IOC-002` | File size exceeds 10 MB cap |
+| `E-IOC-003` | Pattern count exceeds 100,000 limit |
+| `E-IOC-004` | File count exceeds 50 limit |
+
 ### 2.7 Dedup Window Resolution (D-211 — OWNED BY THIS ADR)
 
 ADR-013 §2.7 established the schedule-change reload hook (`tokio::sync::watch` channel,
@@ -293,6 +324,13 @@ cache + invalidate keeps dedup semantics dynamic without per-eval cost).
 **NOT runtime resolution.** The dedup-window is never resolved during
 per-detection evaluation. Any code path that calls OrgRegistry inside the detection
 evaluation hot path is a correctness defect (VP-140 covers this invariant).
+
+**Eventual-consistency window:** Cache invalidation is delivered asynchronously via the
+`tokio::sync::watch` channel from ADR-013 §2.7. Convergence occurs within the next watch
+receiver poll cycle (≤60 seconds by default, bounded by tick interval). Pre-existing
+in-flight evaluations that began before the invalidation is processed may use a stale dedup
+window for at most one tick cycle. This bounded staleness is documented as acceptable;
+operators should not assume sub-second dedup window updates after a schedule change.
 
 ### 2.8 `detection_state` Column Family Design
 
@@ -431,6 +469,23 @@ Extracting the `PatternStore` (aho-corasick + RegexSet) into a standalone
 to Wave 5: the IOC pattern matching surface is currently consumed only by S-4.03 and the
 `ioc_match` UDF. Premature extraction adds a dependency edge without clear benefit.
 Flag for re-evaluation when a second consumer appears.
+
+---
+
+## Phase 4.A Pass 1 Remediation Notes
+
+Applied during Wave 4 Phase 4.A adversarial Pass 1 fix-burst (2026-05-02). Version bumped 0.1 → 0.2.
+
+- **P1-ADR-015-A-H-001 fix:** `subsystems_affected` updated from `[SS-13]` to `[SS-13, SS-12]`. SS-12 (Scheduler) is affected because dedup-window resolution receives `ScheduleChangeNotification` from SS-12.
+- **P1-ADR-015-A-H-002 fix:** Added §2.2.1 specifying Global rule storage: `__global__:` sentinel prefix in `detection_rules` CF; per-org detection state cloned on first match; platform-admin scope required.
+- **P1-ADR-015-A-H-003 fix:** Resolved scope-overlap to UNION model (no silent precedence). §2.2 now: three-scope rules are unioned; each fires independently; `disabled_for` list on Global rules is the only suppression mechanism. Eliminates implicit Analyst > Client > Global precedence.
+- **P1-ADR-015-A-H-004 fix:** UDF volatility corrected: `ioc_match` and `time_window` changed from `Volatility::Immutable` to `Volatility::Stable`. Only `subnet_contains` is `Immutable`. Explanatory note added: Stable = deterministic within one query, may vary across queries; DataFusion will not constant-fold across queries.
+- **P1-ADR-015-A-M-005 fix:** §2.3 Sequence ordering specified: records sorted by `event_time` ascending; ties broken by record-insertion order in MemTable.
+- **P1-ADR-015-A-M-006 fix:** IOC error code table added to §2.6: E-IOC-001..E-IOC-004.
+- **P1-ADR-015-A-M-007:** Resolved by H-003 fix (merge model only; no precedence to specify).
+- **P1-ADR-015-A-M-008 fix:** §2.3 now requires `events.len() >= 2`; load-time validation rejects shorter sequences with `E-RULE-SEQ-TOO-SHORT`.
+- **P1-ADR-015-A-M-009 fix:** Eventual-consistency window documented in §2.7: async via watch channel; convergence ≤60s (next tick); pre-existing in-flight evaluations may use stale dedup window for one tick.
+- **P1-ADR-015-A-L-010 fix:** `humantime::parse_duration` pinned for `time_window` UDF `window` parameter parsing (§2.5 UDF table).
 
 ---
 

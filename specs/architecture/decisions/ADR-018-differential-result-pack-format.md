@@ -3,7 +3,7 @@ document_type: adr
 adr_id: "ADR-018"
 title: "Differential Result Pack Format"
 status: PROPOSED
-version: "0.1"
+version: "0.2"
 date: 2026-05-02
 wave: 4
 phase: 4.A
@@ -32,7 +32,7 @@ related_decisions:
   - D-208
   - D-210
   - D-213
-subsystems_affected: [SS-04]
+subsystems_affected: [SS-12, SS-13]
 traces_to: specs/architecture/ARCH-INDEX.md
 ---
 
@@ -40,7 +40,7 @@ traces_to: specs/architecture/ARCH-INDEX.md
 
 ## Status
 
-PROPOSED 2026-05-02, v0.1. Pending review and acceptance prior to S-4.02 story remediation and BC authoring.
+PROPOSED 2026-05-02, v0.2. Pending review and acceptance prior to S-4.02 story remediation and BC authoring.
 
 ---
 
@@ -212,6 +212,16 @@ Pack execution is conditional on the S-1.08 feature flag system, evaluated at lo
 
 **Rationale for load-time gating (not per-fire):** Capability flag checks on every tick fire would add a cross-module RPC-equivalent call (or a shared-state read) on every schedule evaluation. Capability flag changes are low-frequency admin events; per-fire checking adds cost for a condition that changes rarely. Load-time gating with event-driven re-evaluation gives the same correctness guarantee with negligible steady-state overhead.
 
+### §2.5.1 Capability-Flag-Changed Event Source
+
+Capability-flag-changed events are emitted by `prism-security` (S-1.08 owner). Emission is via `tokio::sync::watch::channel<FeatureFlagSnapshot>`, exposed at:
+
+```rust
+prism_security::feature_flags::flag_change_watcher() -> tokio::sync::watch::Receiver<FeatureFlagSnapshot>
+```
+
+The pack manager (S-4.02) subscribes to this channel at startup. On receipt of a `FeatureFlagSnapshot`, the pack manager re-evaluates all packs for the affected org whose `required_capability` matches any changed flag. Pack manager is the only consumer of this channel for the purpose of toggling `ScheduleEntry.enabled`; other subsystems that need flag state call `is_enabled()` directly.
+
 ### 2.6 `diff_results` Column Family Design
 
 CF name: `diff_results`. Key prefix: `diff:{org_id}:` per ADR-008 universal re-keying rule (referencing ADR-008 §2.2). Full key structure:
@@ -226,7 +236,14 @@ CF name: `diff_results`. Key prefix: `diff:{org_id}:` per ADR-008 universal re-k
 
 **Value encoding:** bincode 2.x with serde feature (workspace standard per ADR-008). Hash vectors are stored as sorted `Vec<[u8; 32]>` to enable binary search membership queries without a `HashSet` deserialization round-trip.
 
-**Compression:** zstd at level 3 (configured via `rocksdb::Options::set_compression_type(DBCompressionType::Zstd)` on the CF). Hash sets and row vectors compress well under zstd due to structural repetition.
+**Version-prefixed value format for `:cur` and `:prev`:** To support future hash-size changes, the `:cur` and `:prev` values include a 1-byte version prefix: `[version_byte: 0x01][bincode-encoded Vec<[u8; 32]>]`. A future change to a different hash size bumps the version byte to `0x02` (etc.), allowing the reader to dispatch on version without a format migration. All other keys (`:added`, `:removed`, epoch) do not use version prefixing.
+
+**Compression:** Configured via the rocksdb 0.24 API call sequence:
+```rust
+Options::set_compression_type(DBCompressionType::Zstd)
+Options::set_compression_options(/*window_bits=*/-14, /*level=*/3, /*strategy=*/0, /*max_dict_bytes=*/0)
+```
+Hash sets and row vectors compress well under zstd due to structural repetition.
 
 **Memory cap:** The 200MB figure in story drafts applies to the RocksDB block cache for this CF, not total disk usage (disk is unbounded by the block cache setting). Block cache is configured via `BlockBasedOptions::set_block_cache`. Disk usage is managed via:
 
@@ -251,7 +268,11 @@ If a pack-derived schedule qualified name `{pack_name}:{schedule_name}` collides
 - Pack-derived schedules WIN over individually-defined schedules with the same name.
 - Attempting to register an individually-defined schedule with a name that matches an existing pack-derived schedule returns `Err(ScheduleNamePackCollision { pack_id, schedule_name })`.
 - Error code: `E-SCHEDULE-NAME-PACK-COLLISION`.
-- Two packs with the same `pack_name` registered for the same org: second registration returns `Err(PackAlreadyRegistered)` if same version, or proceeds as an update if version differs.
+- Two packs with the same `pack_name` (same `pack_id`) registered for the same org use the following collision semantics:
+  - Same `pack_id` + same `version` + same `org_id` → no-op (success; second registration is idempotent).
+  - Same `pack_id` + DIFFERENT `version` (higher) + same `org_id` → update (replace existing derived schedules).
+  - Same `pack_id` + DIFFERENT `version` (lower, regression) + same `org_id` → `Err(PackVersionRegression)`.
+  - Different `pack_id` with same `pack.name` (name only, not ID) → `Err(PackNameCollision)` (pack names must be globally unique per org).
 
 **Rationale:** Packs are system-managed, vetted artifacts (shipped by 1898 & Co. or tenant admins with elevated privilege). Individual schedules are operator-authored. When names collide, the more-carefully-vetted artifact takes precedence. The explicit error code ensures the collision is visible to the registering operator rather than silently overwriting.
 
@@ -326,6 +347,18 @@ An alternative collision policy would allow individually-defined schedules to ov
 
 - Packs are versioned, tested artifacts. Allowing an operator-authored schedule to silently shadow a pack schedule creates an invisible override that may be discovered only when the pack fires differently than expected.
 - The explicit `E-SCHEDULE-NAME-PACK-COLLISION` error ensures the operator is aware of the collision and must resolve it (rename their individual schedule or deregister the conflicting pack).
+
+---
+
+## Phase 4.A Pass 1 Remediation Notes
+
+Applied during Wave 4 Phase 4.A adversarial Pass 1 fix-burst (2026-05-02). Version bumped 0.1 → 0.2.
+
+- **P1-ADR-018-A-H-001 fix:** `subsystems_affected` corrected from `[SS-04]` to `[SS-12, SS-13]`. SS-12 (Scheduler) produces diff results; SS-13 (Detection) consumes them.
+- **P1-ADR-018-A-H-002 fix:** §2.5.1 added: capability-flag-changed events emitted by `prism-security` (S-1.08 owner) via `tokio::sync::watch::channel<FeatureFlagSnapshot>` at `prism_security::feature_flags::flag_change_watcher()`. Pack manager (S-4.02) subscribes at startup.
+- **P1-ADR-018-A-M-003 fix:** §2.6 `:cur` and `:prev` values now include a 1-byte version prefix `[0x01][bincode-encoded data]`. Future hash-size changes bump the version byte.
+- **P1-ADR-018-A-M-004 fix:** §2.7 pack idempotence/collision semantics fully specified: same pack_id + same version → no-op; same pack_id + higher version → update; same pack_id + lower version → `Err(PackVersionRegression)`; different pack_id + same name → `Err(PackNameCollision)`.
+- **P1-ADR-018-A-M-005 fix:** §2.6 zstd compression specification replaced with exact rocksdb 0.24 API call sequence: `Options::set_compression_type(DBCompressionType::Zstd)` + `Options::set_compression_options(-14, 3, 0, 0)`.
 
 ---
 

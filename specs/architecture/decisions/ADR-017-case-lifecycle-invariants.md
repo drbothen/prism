@@ -4,7 +4,7 @@ adr_id: "ADR-017"
 title: "Case Lifecycle Invariants"
 status: PROPOSED
 date: 2026-05-02
-version: "0.1"
+version: "0.2"
 producer: architect
 timestamp: 2026-05-02T00:00:00Z
 subsystems_affected: [SS-14, SS-21]
@@ -41,13 +41,14 @@ verification_properties:
   - VP-053 (Wave 4 — prism-operations)
   - VP-054 (Wave 4 — prism-operations)
   - VP-138 (Wave 4 — prism-operations; cross-org case access denied)
+  - VP-145 (Wave 4 — prism-operations; reopen_count monotonic increment)
 ---
 
 # ADR-017: Case Lifecycle Invariants
 
 ## Status
 
-PROPOSED v0.1 — 2026-05-02. Authored by architect as part of Wave 4 Phase 4.A ADR drafting
+PROPOSED v0.2 — 2026-05-02. Authored by architect as part of Wave 4 Phase 4.A ADR drafting
 (D-207). Pending acceptance by product-owner review.
 
 ---
@@ -189,9 +190,10 @@ Conflating reopens with TTR inflates reported resolution speed on cases that req
 multiple investigation cycles. S-4.07 exposes TTR as a percentile metric; the pinning
 semantics must be enforced at write time to prevent metric corruption.
 
-**Reopen count:** Cases that reopen SHOULD track `reopen_count: u32` (incremented on
-every `Resolved → Investigating` or `Closed → Investigating` transition). S-4.06 owns
-the field specification; this ADR establishes the requirement.
+**Reopen count:** Cases that reopen MUST track `reopen_count: u32` (incremented on
+every `Resolved → Investigating` or `Closed → Investigating` transition, per INV-CASE-006).
+Never reset. S-4.06 owns the field implementation; this ADR establishes the invariant.
+See INV-CASE-006 in §4 and VP-145.
 
 **Verification:** VP-054 is the proptest property in `prism-operations` verifying
 INV-CASE-002.
@@ -211,12 +213,10 @@ MSSP operator > `OrgId` (tenant) > `ClientId` (protected entity).
 **RocksDB cases CF key pattern** (per ADR-008 universal re-keying rule):
 
 ```
-case:{org_id}:{client_id}:{case_id}
+{org_id}:case:{client_id}:{case_id}
 ```
 
-All three UUID components are UUID v7. The `{org_id}:` prefix ensures that RocksDB
-range scans are naturally org-scoped; the cases CF key space for Org A and Org B
-never overlaps.
+All three UUID components are UUID v7. The `{org_id}:` prefix comes FIRST per ADR-008's universal re-keying rule; the `case:` type discriminator follows the OrgId prefix. This ensures that RocksDB range scans are naturally org-scoped; the cases CF key space for Org A and Org B never overlaps. Note: the previous key format `case:{org_id}:...` violated ADR-008's mandatory `{org_id}:`-first rule — this is the corrected form. Story-writer must apply the same correction to S-4.06.
 
 ### 3.5 Cross-Org Access Control
 
@@ -300,15 +300,17 @@ label signals intentional divergence without obscuring the influences.
 | INV-CASE-002 | `time_to_resolution` pinned at first `Resolved` transition; never reset on reopen | `prism-operations` | VP-054 | Wave 4. Write-once field. |
 | INV-CASE-003 | Cross-org case access denied; `case.org_id` must match session `org_id` | `prism-operations` | VP-138 | Wave 4. Error: `E-CASE-ORG-MISMATCH`. Existence not leaked on mismatch. |
 | INV-CASE-004 | Self-transitions invalid (E-CASE-005) | `prism-core::case` | VP-006 | Existing. Reproduced as scope reminder. |
-| INV-CASE-005 | `Closed` state transitions only to `{Investigating}` | `prism-core::case` | VP-005 | Existing. Reproduced as scope reminder. |
+| INV-CASE-005 | `Closed` state transitions only to `{Investigating}` | `prism-core::case` | VP-005 | Existing. Informational duplicate of the prism-core Kani-verified property. References `prism-core::case::VALID_TRANSITIONS` for the canonical 12-transition table. |
+| INV-CASE-006 | `reopen_count` is incremented on every `Resolved → Investigating` and `Closed → Investigating` transition. Never reset. | `prism-operations` | VP-145 | Wave 4. Used by S-4.07 metrics for case-quality measurement. |
+| INV-CASE-007 | Case timeline entries are append-only and ordered by `created_at` ascending. Concurrent transitions on the same case serialized via per-case Mutex. | `prism-operations` | — | Wave 4. Implementation detail owned by S-4.06. |
 
 ---
 
-## 5. Industry-Informed Narrative (D-213)
+## 5. (Reserved — see Annex A for Industry-Informed Narrative)
 
-**Authoritative position:** The 5-state, 12-transition machine is 1898-curated. It is
-informed by but does not strictly trace to any single standard. This framing is locked
-per D-213.
+The industry-informed narrative (formerly §5) has been moved to Annex A at the end of this document to make clear that it is informational context, not normative specification.
+
+---
 
 ### 5.1 NIST SP 800-61
 
@@ -377,7 +379,7 @@ handles via workbook restart rather than first-class status transitions.
    can adopt the most ergonomic model for MSSP operations without needing to reconcile
    with NIST r3's CSF 2.0 outcome functions or ITIL 4's value streams.
 
-5. **OrgId structural isolation.** The `case:{org_id}:{client_id}:{case_id}` key pattern
+5. **OrgId structural isolation.** The `{org_id}:case:{client_id}:{case_id}` key pattern
    provides structural isolation in RocksDB (per ADR-008); cross-org access control
    (INV-CASE-003) provides the runtime enforcement layer.
 
@@ -446,6 +448,7 @@ explicitly retains both fields as distinct concepts.
 | VP-053 | Resolved case always has non-null disposition; transition rejects without disposition | Kani | prism-operations | P0 | draft (Wave 4 / S-4.06) |
 | VP-054 | TTR uses first resolution timestamp across reopen cycles | Proptest | prism-operations | P1 | draft (Wave 4 / S-4.06) |
 | VP-138 | Cross-org case lookup returns empty/Err; org_id_A case not returned for org_id_B | Proptest | prism-operations | P0 | draft (Wave 4 / S-4.06) |
+| VP-145 | reopen_count monotonically incremented on every reopen transition; never reset | Proptest | prism-operations | P1 | draft (Wave 4 / S-4.06) |
 
 ### 8.1 VP-138 Proof Strategy
 
@@ -521,3 +524,70 @@ This ADR is a greenfield Wave 4 architectural decision. Its provenance spans thr
 | Cortex XSOAR | Pending/Active/Closed/Archived incident lifecycle | Palo Alto Cortex XSOAR documentation |
 | Splunk SOAR | New/Open/Resolved/Closed case status taxonomy | Splunk SOAR platform documentation |
 | R-11 | Research finding: NIST r3 abandons four-phase model | `.factory/cycles/wave-4-operations/preflight-findings/research-findings.md` |
+
+---
+
+## Phase 4.A Pass 1 Remediation Notes
+
+Applied during Wave 4 Phase 4.A adversarial Pass 1 fix-burst (2026-05-02). Version bumped 0.1 → 0.2.
+
+- **P1-ADR-017-A-H-001 fix:** §3.3 `reopen_count` changed from SHOULD to MUST. INV-CASE-006 added to §4: `reopen_count` incremented on every `Resolved → Investigating` and `Closed → Investigating` transition; never reset; used by S-4.07 metrics. VP-145 assigned.
+- **P1-ADR-017-A-M-002 fix:** INV-CASE-005 in §4 retains the existing text; informational note added clarifying it references `prism-core::case::VALID_TRANSITIONS` for the canonical 12-transition table and is an informational duplicate of the prism-core Kani-verified property.
+- **P1-ADR-017-A-M-003 fix:** §3.4 RocksDB key format corrected from `case:{org_id}:{client_id}:{case_id}` to `{org_id}:case:{client_id}:{case_id}` per ADR-008 universal re-keying rule (OrgId prefix must come first). Story-writer to apply same fix to S-4.06.
+- **P1-ADR-017-A-M-004 fix:** §5 Industry-Informed Narrative moved to Annex A (appended below References). Section heading replaced with a redirect note. Content is informational, not normative.
+- **P1-ADR-017-A-M-005 fix:** INV-CASE-007 added to §4: case timeline entries append-only, ordered by `created_at` ascending; concurrent transitions serialized via per-case Mutex.
+
+---
+
+## Annex A: Industry-Informed Narrative (D-213)
+
+This annex is informational. It documents the industry inputs that informed the 1898-curated 5-state case lifecycle design. It is not normative; no implementation requirement traces to this annex alone.
+
+**Authoritative position:** The 5-state, 12-transition machine is 1898-curated. It is
+informed by but does not strictly trace to any single standard. This framing is locked
+per D-213.
+
+### A.1 NIST SP 800-61
+
+**NIST SP 800-61 r2** (Computer Security Incident Handling Guide, August 2012;
+https://csrc.nist.gov/publications/detail/sp/800-61/rev-2/final) defines a four-phase
+incident lifecycle: Preparation → Detection and Analysis → Containment, Eradication and
+Recovery → Post-Incident Activity. Phases map loosely to case states: Detection/Analysis
+≈ New/Acknowledged; Containment/Eradication ≈ Investigating; Recovery ≈ Resolved;
+Post-Incident ≈ Closed.
+
+> **Footnote — r3 supersession:** NIST SP 800-61 r3 (April 2025;
+> https://csrc.nist.gov/pubs/sp/800/61/r3/final) abandoned the four-phase lifecycle
+> in favor of CSF 2.0 outcome-driven functions (Govern, Identify, Protect, Detect,
+> Respond, Recover). r3 provides no state-machine reference model. r2 is cited despite
+> supersession because it provides the closest normative phase model to a case lifecycle
+> state machine. ADR-017 does NOT claim r3 traceability.
+
+### A.2 ITIL Incident Management
+
+**ITIL v3** Incident Management (IT Infrastructure Library, v3 Service Operation, 2007)
+defines an incident workflow with states commonly implemented by ITSM tools as:
+New → Assigned → In Progress → On Hold → Resolved → Closed. The
+Resolved → Closed promotion pattern and the reopen path (Resolved/Closed →
+In Progress) are direct ITIL v3 conventions preserved in the 1898-curated machine.
+
+> **Footnote — ITIL 4:** ITIL 4 (2019 onwards) abandoned prescriptive process flows
+> in favor of value streams. ITIL 4 provides no equivalent state-machine reference.
+> This citation refers to ITIL v3 conventions still widely deployed in ServiceNow,
+> Jira Service Management, and similar ITSM platforms encountered at MSSP scale.
+
+### A.3 Cortex XSOAR
+
+Palo Alto Cortex XSOAR (formerly Demisto) incident lifecycle: Pending → Active →
+Closed → Archived. The Pending/Active split (similar to New/Acknowledged) and the
+Closed terminal state informed the design. XSOAR does not natively expose a
+"Resolved" pending-closure state; the 1898-curated machine adds that step to
+distinguish analyst sign-off (Resolved) from final archival (Closed).
+
+### A.4 Splunk SOAR
+
+Splunk SOAR (formerly Phantom) case status taxonomy: New → Open → Resolved → Closed,
+with workbook phases overlaid on top. The four-status linear progression is structurally
+similar; the 1898-curated machine extends it with skip-ahead transitions (New → Resolved,
+New → Closed) and reopen paths (Resolved/Closed → Investigating) that Splunk SOAR
+handles via workbook restart rather than first-class status transitions.

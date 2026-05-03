@@ -3,7 +3,7 @@ document_type: adr
 adr_id: "ADR-016"
 title: "Action Delivery Framework"
 status: PROPOSED
-version: "0.1"
+version: "0.2"
 date: 2026-05-02
 wave: 4
 phase: 4.A
@@ -28,7 +28,7 @@ references_phase3_siblings: [ADR-019]
 locked_decisions: [D-208, D-209, D-210, D-211]
 references_research: [R-2, R-3, R-12, R-13]
 verification_properties: [VP-044, VP-045, VP-046, VP-047, VP-143]
-subsystems_affected: [SS-04]
+subsystems_affected: [SS-18]
 supersedes: []
 superseded_by: null
 traces_to: specs/architecture/ARCH-INDEX.md
@@ -38,7 +38,7 @@ traces_to: specs/architecture/ARCH-INDEX.md
 
 ## Status
 
-PROPOSED 2026-05-02, v0.1. Pending review and acceptance prior to story remediation and BC authoring.
+PROPOSED 2026-05-02, v0.2. Pending review and acceptance prior to story remediation and BC authoring.
 
 ---
 
@@ -110,7 +110,7 @@ Top-level field validation follows the same `deny_unknown_fields` + explicit err
 
 **Schedule trigger** (`kind = "schedule"`): registers an entry in the `schedules` CF (ADR-013 §2.6) with `kind = "action"` discriminator field in the `ScheduleEntry`. The schedule executor tick loop fires action delivery at the cron-computed interval. Cron parsing uses `croner = "3"` (R-2, canonical decision at ADR-013 §2.8). Semantics: best-effort — if delivery fails, the next scheduled tick fires fresh; no catch-up retry (consistent with ADR-013 §2.4 skip-not-queue policy).
 
-**Manual trigger** (`kind = "manual"`): invoked via MCP tool call (`prism_fire_action`). A confirmation token (`S-1.09` gate) is required before delivery. Semantics: fire-and-forget — the MCP tool call returns the error inline if delivery fails; no automatic retry.
+**Manual trigger** (`kind = "manual"`): invoked via MCP tool call (`prism_fire_action`). Semantics: fire-and-forget execution with no confirmation token required inside the action delivery engine. The MCP confirmation gate (S-1.09) is enforced at the MCP-tool-call boundary, NOT inside the `ActionDeliveryEngine`. The engine receives an already-confirmed manual trigger; it performs the delivery and returns the result inline. No automatic retry on failure; the MCP tool call returns the error directly to the caller (AC-11 in S-4.08).
 
 ### 2.3 Credential Reference Model (Extends ADR-010 §2.3.1)
 
@@ -121,7 +121,9 @@ The `credential_ref` field in `.action.toml` `[destination]` blocks uses the ide
 | `vault://` | `vault://action-creds/slack/webhook` | HashiCorp Vault KV path |
 | `env://` | `env://SLACK_WEBHOOK_URL` | Environment variable |
 | `file://` | `file:///etc/prism/action-creds/smtp-pass` | File on disk (mode 0600 enforced at load) |
-| `keyring://` | `keyring://prism/actions/smtp` | OS keyring (wire-up deferred to S-1.07; TD-S-1.07-01 P1 blocks Wave 5 close) |
+| `keyring://` | `keyring://prism/actions/smtp` | OS keyring (wire-up deferred to S-1.07; TD-S-1.07-01 P1 blocks Wave 5 close) — **REJECTED AT LOAD TIME** until S-1.07 completes |
+
+**`keyring://` load-time rejection:** Any `.action.toml` file whose `credential_ref` uses the `keyring://` scheme is rejected at load time with `E-ACTION-KEYRING-DEFERRED` (pending S-1.07 completion per TD-S-1.07-01). This prevents accepting actions that will never deliver due to the unimplemented keyring backend.
 
 Credential values never appear in the `.action.toml` file. ADR-010 §2.3.1 is the single source of truth for the allowed scheme set; this ADR consumes that scheme set without extending it.
 
@@ -166,6 +168,10 @@ enum ClientFilter {
 
 **`action_state` CF key design (per ADR-008 universal re-keying):**
 
+All action-related state (rate limits, last-fire, dedup, dead-letter) lives exclusively in the `action_state` CF. Action state MUST NOT be written to the `detection_state` CF — that CF is owned by ADR-015 (correlation trackers, sequence trackers, dedup trackers keyed by rule). S-4.05 alert-rate-limiting writes go to `action_state` CF, NOT `detection_state` CF; story-writer will remediate S-4.05 in lockstep with this fix.
+
+Note: a future `prism-storage::cf_keys::DiscriminatorRegistry` (planned, not yet implemented) will provide a canonical registry of per-CF discriminator byte assignments to prevent cross-CF collisions.
+
 All keys in the `action_state` CF are prefixed with `{org_id_bytes}:` per ADR-008's universal re-keying rule. Single-byte type discriminators follow the OrgId prefix for efficient per-type scans within an org:
 
 | Entry type | Key format | Value encoding |
@@ -179,17 +185,19 @@ The `{org_id}:` prefix ensures per-org `reset_for(org_id)` semantics are correct
 
 ### 2.6 Retry and Exponential Backoff (VP-044)
 
-The `[retry]` block in `.action.toml` configures delivery retry. Two schedules are supported:
+The `[retry]` block in `.action.toml` configures delivery retry. Default and recommended schedule is `exp`.
 
-**`exp` (exponential backoff with jitter):**
-- Base: 2s. Multiplier: 2x. Cap: 60s. Max attempts: 5.
-- Sequence (nominal): 2s, 4s, 8s, 16s, 32s (cumulative ~62s to terminal failure).
+**`exp` (exponential backoff with jitter) — default:**
+- Base: 2s. Multiplier: 2x. Cap: 32s. Max attempts: 5 (default).
+- Sequence (nominal): 2s, 4s, 8s, 16s, 32s. Cumulative range: 55.8s–68.2s (nominal ±10% jitter applied per attempt).
 - Jitter: ±10% per attempt, applied uniformly. Avoids thundering herd on shared upstreams when many actions target the same destination (e.g., a common Slack webhook).
 
-**`linear` (linear backoff with jitter):**
+**`linear` (linear backoff with jitter) — opt-in:**
+- Enabled via `[retry] schedule = "linear"` in `.action.toml`. Not the default.
 - Base: 5s. Increment: 5s per attempt. Max attempts: 5.
 - Sequence (nominal): 5s, 10s, 15s, 20s, 25s.
 - Jitter: ±10% per attempt.
+- Use case: destinations with known fixed recovery times (e.g., a scheduled maintenance window with predictable end time).
 
 **Terminal failure:** after `max_attempts` exhausted, the event is written to the dead-letter entry in the `action_state` CF (§2.5) for operator inspection. A `ActionDeliveryFailed` event is emitted to the audit log with: `action_id`, `org_id`, `trigger_kind`, `destination_kind`, `attempts`, `last_error`.
 
@@ -234,6 +242,10 @@ world prism-action-plugin {
 
 **Action plugin authoring SDK** (helper crate for plugin authors) is OUT OF SCOPE for Wave 4. This ADR specifies the host embedder side only. Wave 5+ work.
 
+### §2.7.1 WIT Type Synchronization
+
+Build-time enforcement: `cargo check` in `prism-operations` fails if WIT record definitions in `crates/prism-operations/wit/action-delivery.wit` drift from the canonical Rust struct shapes in `crates/prism-operations/src/types/`. Enforcement mechanism: `cargo-component` or a `bindgen!`-generated output diff'd against canonical Rust types. The CI pipeline runs this check on every PR that touches either the WIT file or the types module. Drift produces a compile error, not a runtime failure.
+
 ### 2.8 SMTP / Email Destination with XOAUTH2 (R-3)
 
 **Library pin (R-3):** `lettre = "0.11"` with features:
@@ -263,6 +275,15 @@ The deprecated `tokio1-rustls-tls` feature flag MUST NOT be used. Story drafts r
 - `tenant_id`, `client_id`, and either `client_secret` or `client_certificate` — all stored as opaque `credential_ref` values (§2.3).
 
 Attempting to use `Login` or `Plain` against Exchange Online without SMTP auth re-enabled in the Exchange admin center will produce a `535 5.7.3 Authentication unsuccessful` error at the first delivery attempt, surfaced as a `ActionDeliveryFailed` audit event.
+
+### §2.8.1 OAuth2 Token Refresh
+
+XOAUTH2 bearer tokens have limited lifetimes and must be refreshed before use. Token refresh is handled by the `oauth2 = "4"` crate (or the latest compatible version — verify the current Rust ecosystem pin in the workspace `Cargo.toml`). Refresh flow:
+
+1. On delivery attempt, check if the cached token expires within 60 seconds (`expires_in - 60s` grace window).
+2. If within the grace window, proactively refresh the token before initiating the SMTP connection.
+3. Refresh failure is mapped to `DeliveryError::Transient` and enters the standard retry backoff schedule (§2.6). The delivery is NOT immediately dead-lettered on token refresh failure — the retry may succeed if the OAuth2 endpoint recovers.
+4. Tokens are cached in memory per `(org_id, action_id, credential_ref)` tuple for `expires_in - 60s` seconds.
 
 ### 2.9 Webhook Destination with Injection Scanning
 
@@ -484,6 +505,20 @@ proptest! {
 Not applicable. The `prism-operations` crate's action delivery subsystem is greenfield for Wave 4. There is no prior action delivery engine to migrate from. The `action_state` CF does not exist in production RocksDB instances prior to Wave 4 deployment.
 
 Upgrade note for Wave 4 deployment: the `action_state` CF must be created via `create_cf` during process startup if it does not exist. Missing CF on first run is not an error; it is created on-demand at `ActionDeliveryEngine::init()` or pre-created in the RocksDB startup initialization sequence (to be specified in BC-2.14.001 by the story-writer).
+
+---
+
+## Phase 4.A Pass 1 Remediation Notes
+
+Applied during Wave 4 Phase 4.A adversarial Pass 1 fix-burst (2026-05-02). Version bumped 0.1 → 0.2.
+
+- **P1-ADR-016-A-H-001 fix:** `subsystems_affected` corrected from `[SS-04]` to `[SS-18]` (Action Delivery Engine). SS-04 = Feature Flags; action delivery framework lives in SS-18.
+- **P1-ADR-016-A-H-002 fix:** §2.6 retry schedule reconciled: `exp` mode is the default and authoritative sequence (2s, 4s, 8s, 16s, 32s; cumulative 55.8s–68.2s nominal-jittered). `linear` mode retained as opt-in via `[retry] schedule = "linear"` field. Removed the presentation ambiguity that suggested both were co-equal alternatives.
+- **P1-ADR-016-A-H-003 fix:** §2.5 discriminator collision resolved. ALL action-related state (rate limits, last-fire, dedup, dead-letter) lives in `action_state` CF, NOT `detection_state` CF. S-4.05 alert-rate-limiting writes go to `action_state`; story-writer to remediate S-4.05 in lockstep. `DiscriminatorRegistry` future addition noted.
+- **P1-ADR-016-A-H-004 fix:** §2.2 Manual trigger clarified: fire-and-forget WITHOUT confirmation token inside the action engine. MCP confirmation gate (S-1.09) enforced at MCP-tool-call boundary; engine receives already-confirmed trigger.
+- **P1-ADR-016-A-M-006 fix:** §2.8.1 added: OAuth2 token refresh via `oauth2 = "4"` crate; refresh failure → `DeliveryError::Transient`; `expires_in - 60s` grace window; per-tuple token cache.
+- **P1-ADR-016-A-M-007 fix:** §2.7.1 added: build-time WIT type sync check via `cargo-component` / `bindgen!` diff; CI enforced; drift is a compile error.
+- **P1-ADR-016-A-M-008 fix:** §2.3 `keyring://` scheme now explicitly rejected at load time with `E-ACTION-KEYRING-DEFERRED` (pending S-1.07). Prevents silent delivery failures from unimplemented keyring backend.
 
 ---
 

@@ -3,7 +3,7 @@ document_type: adr
 adr_id: ADR-013
 title: "Schedule Execution Semantics"
 status: PROPOSED
-version: "0.1"
+version: "0.2"
 date: 2026-05-02
 wave: 4
 phase: 4.A
@@ -46,7 +46,7 @@ verification_properties:
   - VP-026
   - VP-030
   - VP-137
-subsystems_affected: [SS-04]
+subsystems_affected: [SS-12]
 traces_to: specs/architecture/ARCH-INDEX.md
 ---
 
@@ -54,7 +54,7 @@ traces_to: specs/architecture/ARCH-INDEX.md
 
 ## Status
 
-PROPOSED 2026-05-02, v0.1. Pending review and acceptance prior to story remediation and BC authoring.
+PROPOSED 2026-05-02, v0.2. Pending review and acceptance prior to story remediation and BC authoring.
 
 ---
 
@@ -109,11 +109,13 @@ Rationale: 60 seconds matches common operational cadence (default polling interv
 **Decision:** Splay offsets are computed per-schedule at schedule-load time, not per-tick. The formula is:
 
 ```
-splay_seconds = blake3_hash(schedule_id_bytes) as u64 % (interval_seconds / 4)
+splay_seconds = u64::from_le_bytes(blake3_hash(schedule_id_bytes)[0..8]) % (interval_seconds / 4)
 splay_seconds = min(splay_seconds, 900)  // cap at 15 minutes
 ```
 
-The hash function is blake3 (per R-4: `blake3 = "1.8"`, no CVEs, workspace standard). Only the first 8 bytes of the 32-byte hash output are used to derive the u64 modulus operand; the full entropy of schedule_id is mixed into the splay without bias from the low-order bits alone.
+The hash function is blake3 (per R-4: `blake3 = "1.8"`, no CVEs, workspace standard). Only the first 8 bytes of the 32-byte hash output are used via `u64::from_le_bytes` (little-endian, explicitly pinned) to derive the u64 modulus operand; the full entropy of schedule_id is mixed into the splay without bias from the low-order bits alone.
+
+`interval_seconds` is a derived field computed at schedule-load time from the `ScheduleEntry.cron_expr` via `croner::Cron` shortest-period analysis (see §2.6 for the `ScheduleEntry` struct). It is not stored independently in the cron expression; it is computed once at load and cached alongside the splay offset in the in-memory splay-target cache.
 
 Splay is stable for the lifetime of a schedule: the same `schedule_id` always maps to the same splay offset. Splay is recomputed only on schedule reload (see §2.7). This guarantees that VP-026 (splay computation deterministic per schedule_id) is satisfied.
 
@@ -162,6 +164,8 @@ This guarantees VP-026: the fire-eligibility decision is deterministic for a giv
 
 The `DashMap` is not persisted. On process restart, the in-flight map is empty and all schedules are treated as idle. This is correct: the scheduler must re-evaluate fire eligibility from persisted `next_run_at` timestamps on startup.
 
+**`next_run_at` write-ordering:** `next_run_at` is NOT updated at the moment of schedule fire. It is written to RocksDB only at fire-completion (after the query result is returned and diff computation finishes). This means `next_run_at` in the persisted `ScheduleEntry` lags the in-memory splay-target cache during active execution. On crash before `next_run_at` is updated, the schedule may double-fire on next startup; idempotency at the alert/case layer prevents duplicate-effect side-effects. `next_run_at` is held in a separate in-memory cache during the fire window and only flushed on completion.
+
 ### 2.6 Schedule Store Column Family Design
 
 **Decision:** RocksDB column family for schedules:
@@ -172,11 +176,15 @@ The `DashMap` is not persisted. On process restart, the in-flight map is empty a
 | Key format | `{org_id_bytes}:{schedule_id_bytes}` |
 | Key prefix | `{org_id_bytes}:` per ADR-008 universal re-keying rule |
 | Value encoding | bincode 2.x with serde feature (workspace standard) |
-| Value type | `ScheduleEntry` (Rust struct, includes: `schedule_id: ScheduleId`, `org_id: OrgId`, `cron_expr: String`, `next_run_at: DateTime<Utc>`, `splay_seconds: u64`, `created_at: DateTime<Utc>`, `client_scope: Vec<ClientId>`) |
+| Value type | `ScheduleEntry` (Rust struct, includes: `schedule_id: ScheduleId`, `org_id: OrgId`, `cron_expr: String`, `next_run_at: DateTime<Utc>`, `splay_seconds: u64`, `created_at: DateTime<Utc>`, `client_scope: Vec<ClientId>`, `enabled: bool`, `interval_seconds: u64`) |
 
 The `{org_id_bytes}:` prefix satisfies ADR-008's universal re-keying rule: every cross-tenant isolation guarantee that ADR-008 makes for DTU state also applies to schedule entries. Per-org `reset_for(org_id)` semantics work correctly because all org-A schedule keys share the same CF prefix and can be deleted by prefix-scan without touching org-B entries.
 
-VP-030 covers per-org schedule count enforcement: `create_schedule` performs a prefix-count scan before insertion; if the count meets or exceeds the cap, it returns `Err(ScheduleLimitExceeded)`. The cap value is a product decision owned by S-4.01's BC spec; this ADR establishes the enforcement mechanism.
+**`enabled` field:** Defaults to `true`. Capability-gated packs (per ADR-018 §2.5) set this to `false` for schedules belonging to packs whose required capability flag is disabled for the org. The schedule executor tick loop skips any `ScheduleEntry` where `enabled == false`.
+
+**`interval_seconds` field:** Derived at schedule-load time from `croner::Cron` shortest-period analysis of `cron_expr`. Not stored independently — computed once at load and persisted in the `ScheduleEntry` for use by the splay formula (§2.2) and dedup-window resolution (ADR-015 §2.7) without re-parsing the cron expression on every tick.
+
+**Per-org schedule cap:** The cap is **per-org**, default 500, overridable via `PRISM_MAX_SCHEDULES`. VP-030 harness range `(0, 10000]` is the enforcement bound. `create_schedule` performs a prefix-count scan before insertion; if the count meets or exceeds the cap, it returns `Err(ScheduleLimitExceeded)`.
 
 ### 2.7 Schedule-Change Reload Hook
 
@@ -194,7 +202,7 @@ On receipt, the executor:
 
 1. Removes the affected `schedule_id` from its in-memory splay-target cache (`Vec<(DateTime<Utc>, ScheduleEntry)>`).
 2. For `Created` and `Updated`: reloads the entry from RocksDB; recomputes splay; inserts into the cache.
-3. For `Deleted`: the removal in step 1 is sufficient. If the schedule is currently in-flight, the in-flight task completes but no subsequent fire is scheduled.
+3. For `Deleted`: the removal in step 1 is sufficient. Additionally, the `Deleted` handler MUST also remove the entry from the in-flight `DashMap<(OrgId, ScheduleId), JoinHandle<()>>` (step 4 of §2.5). If the schedule is currently in-flight, the in-flight task completes but no subsequent fire is scheduled and no stale DashMap entry remains.
 
 This hook is the enabler for D-211: when a detection rule's associated schedule changes, the dedup-window resolution previously baked into the `RuleCondition` is invalidated. ADR-015 will define the precise invalidation semantics for dedup-window resolution. This ADR establishes only that the notification exists and that the executor's in-memory cache is invalidated on schedule change.
 
@@ -283,6 +291,20 @@ The `tokio-cron-scheduler` crate provides a full async scheduler with optional P
 - Couples scheduler lifecycle to its own task management model, conflicting with Prism's single tick-loop architecture.
 - Persistence backends (PostgreSQL, NATS) conflict with Prism's RocksDB-first persistence architecture (ADR-008).
 - Adds significant dependency weight for capabilities Prism does not need (external storage, job registry API).
+
+---
+
+## Phase 4.A Pass 1 Remediation Notes
+
+Applied during Wave 4 Phase 4.A adversarial Pass 1 fix-burst (2026-05-02). Version bumped 0.1 → 0.2.
+
+- **P1-ADR-013-A-H-001 fix:** `subsystems_affected` corrected from `[SS-04]` to `[SS-12]` (Scheduler). SS-04 = Feature Flags; schedule executor lives in SS-12 per ARCH-INDEX Subsystem Registry.
+- **P1-ADR-013-A-M-002 fix:** Splay formula now references `interval_seconds` as an explicit derived field in `ScheduleEntry`, computed at load time from `croner::Cron` shortest-period analysis. §2.6 struct updated to include the field.
+- **P1-ADR-013-A-M-003 fix:** Endianness explicitly pinned: `u64::from_le_bytes(hash[0..8])` in §2.2 formula.
+- **P1-ADR-013-A-M-004 fix:** `enabled: bool` field added to `ScheduleEntry` in §2.6. Defaults `true`; capability-gated packs set `false` for disabled-capability schedules.
+- **P1-ADR-013-A-M-005 fix:** `next_run_at` write-ordering documented in §2.5: written only at fire-completion, not at fire-start. Crash-before-update may cause double-fire; idempotency at alert/case layer is the mitigation.
+- **P1-ADR-013-A-M-006 fix:** `Deleted` notification handler in §2.7 now explicitly requires removing the entry from the in-flight DashMap in addition to the splay-target cache.
+- **P1-ADR-013-A-M-007 fix:** Cap source-of-truth in §2.6 clarified: per-org, default 500, override via `PRISM_MAX_SCHEDULES`, VP-030 harness range `(0, 10000]`.
 
 ---
 

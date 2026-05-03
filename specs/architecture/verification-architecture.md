@@ -269,6 +269,7 @@ Properties are organized by the domain invariant or BC postcondition they verify
 | VP-142 | Pack expansion idempotence (double-register produces identical ScheduleEntry set) | prism-operations | proptest | feasible | P1 | ADR-018 §3, §6 |
 | VP-143 | Action delivery non-starvation (per-subsystem semaphore non-starvation for action delivery side) | prism-operations | proptest | feasible | P1 | ADR-016 §11 |
 | VP-144 | CEF v0 + LEEF 2.0 encoder correctness (13 proptest invariants: INV-CEF-001..005, INV-LEEF-001..005, INV-RT-001..003) | prism-siem-formats | proptest | feasible | P1 | ADR-019 §7 |
+| VP-145 | Case reopen_count monotonic increment (INV-CASE-006) | prism-operations | proptest | feasible | P1 | ADR-017 §3.3 |
 
 ## Verification Priority
 

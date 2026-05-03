@@ -4,7 +4,7 @@ adr_id: "ADR-019"
 title: "SIEM Output Formats"
 status: PROPOSED
 date: "2026-05-02"
-version: "0.1"
+version: "0.2"
 producer: architect
 subsystems_affected: [SS-18]
 supersedes: null
@@ -163,6 +163,19 @@ CEF:0|Device Vendor|Device Product|Device Version|Signature ID|Name|Severity|Ext
 **Severity**: integer 0–10 only. Wave 4 emits ONLY integer form for determinism; legacy
 string forms (`Low`, `Medium`, `High`, `Very-High`) are not produced.
 
+**OCSF `severity_id` to CEF severity mapping:** The encoder accepts a CEF severity integer (0–10). Downstream callers (S-4.08 syslog destination) are responsible for mapping OCSF `severity_id` to CEF severity before calling `CefEvent::new`:
+
+| OCSF `severity_id` | OCSF Label | CEF Severity |
+|--------------------|------------|-------------|
+| 0 | Unknown | 0 |
+| 1 | Informational | 1–3 (use 2 as canonical midpoint) |
+| 2 | Low | 4 |
+| 3 | Medium | 6 |
+| 4 | High | 8 |
+| 5 | Critical | 10 |
+
+This mapping is NOT enforced by the encoder (the encoder accepts any valid 0–10 integer). The mapping is documented here as a convention for `prism-operations` callers; the `prism-siem-formats` crate remains caller-mapping-agnostic.
+
 **Determinism**: `BTreeMap` ensures lexicographic key ordering; `encode(event) == encode(event)`
 for any valid input (INV-CEF-005).
 
@@ -178,7 +191,7 @@ pub mod leef {
             Tab,           // default; encoded as \t (0x09)
             Pipe,          // |
             Caret,         // ^
-            Custom(char),  // validated against forbidden set on construction
+            Custom(char),  // validated against forbidden set on construction (see §5 below)
         }
 
         pub struct LeefEvent {
@@ -224,6 +237,21 @@ by default.
 
 **Delimiter field (6th pipe-delimited field)**: always emitted explicitly for robustness,
 even for `Delim::Tab`. Custom delimiters are emitted as the raw character.
+
+**`Delim::Custom(c)` validation — forbidden set:** The following characters are rejected at `Delim::Custom` construction, returning `FormatError::InvalidAttributeKey` with reason `"forbidden delimiter"`:
+
+| Character | Reason |
+|-----------|--------|
+| Tab `\t` (0x09) | Reserved for `Delim::Tab` |
+| Pipe `\|` | Reserved for `Delim::Pipe` and LEEF header delimiters |
+| Caret `^` | Reserved for `Delim::Caret` |
+| Newline `\n` (0x0A) | Record separator in syslog |
+| Carriage return `\r` (0x0D) | Record separator in syslog |
+| Equals `=` | LEEF attribute key-value separator |
+| Double-quote `"` | Ambiguous quoting in SIEM parsers |
+| NUL `\0` (0x00) | C-string terminator; invalid in syslog framing |
+
+Allowed: any other ASCII printable character or single-codepoint Unicode character not in the forbidden set above.
 
 **Attribute key rules**: keys containing tab (`\t`), pipe (`|`), or caret (`^`) are rejected
 with `FormatError::InvalidAttributeKey`. Safe characters: `A-Z`, `a-z`, `0-9`, `_`, `-`, `.`.
@@ -292,6 +320,7 @@ with no collision.
 2. `prism-operations` adds: `prism-siem-formats = { path = "../prism-siem-formats" }`.
 3. No `prism-core` dependency; consumers map their domain types to `CefEvent` / `LeefEvent`.
 4. ADR-012 `src/` layout compliance confirmed per §1.
+5. **ARCH-INDEX SS-18 update (story-writer / state-manager task):** In the same burst that introduces `prism-siem-formats`, update the ARCH-INDEX.md SS-18 (Action Delivery Engine) subsystem registry entry to include `prism-siem-formats` in the crate list. This ensures the subsystem-to-crate mapping remains accurate.
 
 ### §10 — Maintenance and Version Cadence
 
@@ -367,6 +396,16 @@ in CI.
   format logic to the transport layer makes escape-rule changes ripple into the delivery
   subsystem. A dedicated crate enables independent versioning, isolated proptest coverage,
   and future reuse by other output destinations.
+
+## Phase 4.A Pass 1 Remediation Notes
+
+Applied during Wave 4 Phase 4.A adversarial Pass 1 fix-burst (2026-05-02). Version bumped 0.1 → 0.2.
+
+- **P1-ADR-019-A-H-001 fix:** `subsystems_affected: [SS-18]` was already correct; no frontmatter change needed. §9 (Workspace Integration) now includes an explicit task: "Story-writer / state-manager: in the same burst that introduces `prism-siem-formats`, update ARCH-INDEX.md SS-18 entry to include the new crate."
+- **P1-ADR-019-A-M-002 fix:** `Delim::Custom(c)` forbidden character set specified in §5 (LEEF 2.0 Format Rules). Eight forbidden characters: `\t`, `|`, `^`, `\n`, `\r`, `=`, `"`, `\0`. Allowed: any other ASCII printable or single-codepoint Unicode.
+- **P1-ADR-019-A-M-004 fix:** OCSF `severity_id` to CEF severity mapping table added to §3 (CEF v0 Format Rules). Mapping: 0→0, 1→2, 2→4, 3→6, 4→8, 5→10. Encoder remains caller-mapping-agnostic; S-4.08 syslog destination is responsible for applying the mapping.
+
+---
 
 ## Source / Origin
 
