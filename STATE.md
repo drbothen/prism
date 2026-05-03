@@ -395,7 +395,7 @@ user_directive_persistent: "No pragmatic convergence. Fix all issues before buil
 | **Last Updated** | 2026-05-03 (Wave 4 Pass 16 BLOCKED → REMEDIATED; TD-VSDD-043; STORY-INDEX v1.98; ARCH-INDEX v2.13; STATE v6.44→v6.45) |
 | **Current Phase** | Phase 4.A — Wave 4 adversarial spec convergence (16 passes consumed; 0/3 clean window; Pass 17 next) |
 | **Current Step** | Wave 4 Phase 4.A — Pass 16 REMEDIATED (2H+2M: STORY-INDEX per-row VP enumeration + ADR Status H2 drift + VP-143 anchor + process-gap TD-VSDD-043); Pass 17 (window 1/3 attempt) |
-| **factory-artifacts HEAD** | `15fa97e6` |
+| **factory-artifacts HEAD** | `9eb307b9` |
 
 ## Phase Progress
 
@@ -474,9 +474,9 @@ Cycle files: [burst-log](cycles/phase-2-patch/burst-log.md) | [convergence-traje
 
 _Previous checkpoint archived: [cycles/wave-4-operations/session-checkpoints.md](cycles/wave-4-operations/session-checkpoints.md)_
 
-**STATE v6.45 (canonical SHA `15fa97e6`). WAVE 4 PHASE 4.A — PASS 16 BLOCKED → REMEDIATED. READY FOR PASS 17 (WINDOW 1/3).**
+**STATE v6.45 (canonical SHA `9eb307b9`). WAVE 4 PHASE 4.A — PASS 16 BLOCKED → REMEDIATED. READY FOR PASS 17 (WINDOW 1/3).**
 
-develop HEAD: `ba3b10c7` | factory-artifacts: `15fa97e6` | workspace tests: 2363 | PRs merged: 125
+develop HEAD: `ba3b10c7` | factory-artifacts: `9eb307b9` | workspace tests: 2363 | PRs merged: 125
 
 **PASS 16 SUMMARY:** 2H+2M (F-P16-H-001 STORY-INDEX 6-row per-row VP enumeration drift; F-P16-H-002 ADR-015/018 Status H2 vs frontmatter sister-file drift; F-P16-M-001 VP-143 anchor asymmetry ADR-016 §5.5; F-P16-M-002 process-gap → TD-VSDD-043). ADR-015 v0.6, ADR-016 v0.8, ADR-018 v0.6, STORY-INDEX v1.98, ARCH-INDEX v2.13.
 

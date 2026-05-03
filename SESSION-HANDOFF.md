@@ -104,12 +104,12 @@ factory-artifacts canonical: 84455d7d (canonical SHA). develop HEAD: ba3b10c7."
 
 ## Current State
 
-develop HEAD `ba3b10c7` | factory-artifacts `15fa97e6` (Pass 16 BLOCKED → REMEDIATED; STATE v6.45)
+develop HEAD `ba3b10c7` | factory-artifacts `9eb307b9` (Pass 16 BLOCKED → REMEDIATED; STATE v6.45)
 
 | Metric | Value |
 |--------|-------|
 | develop HEAD | `ba3b10c7` (W3-FIX-SEC-005 — Wave 3.4 final PR, PR #125, 2026-05-02) |
-| factory-artifacts HEAD | `15fa97e6` (Pass 16 BLOCKED → REMEDIATED; STATE v6.45) |
+| factory-artifacts HEAD | `9eb307b9` (Pass 16 BLOCKED → REMEDIATED; STATE v6.45) |
 | PR count merged | 125 |
 | Workspace test count | 2363 (nextest-verified; +133 from CI nextest split + doctest migration) |
 | Open PRs | None |
@@ -175,7 +175,7 @@ KEY REFERENCES:
 - 8 W4 stories current versions: S-4.01 v1.12, S-4.02 v1.11, S-4.03 v1.9, S-4.04 v1.11, S-4.05 v1.12, S-4.06 v1.13, S-4.07 v1.8, S-4.08 v1.22
 - 4 W4 BCs current versions: BC-2.12.004 v1.8, BC-2.18.001 v1.7, BC-2.18.002 v1.4, BC-2.18.004 v1.4
 - verification-architecture v1.26, ARCH-INDEX v2.13, STORY-INDEX v1.98, BC-INDEX v4.30
-- factory-artifacts canonical SHA: `15fa97e6`
+- factory-artifacts canonical SHA: `9eb307b9`
 - develop HEAD: ba3b10c7 (Wave 3 CONVERGED 2026-05-02)
 
 ### Carry-Forward Debt (Wave 4 — REMEDIATE ALL per D-203)
