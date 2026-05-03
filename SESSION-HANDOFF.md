@@ -97,7 +97,7 @@ develop HEAD `ba3b10c7` | factory-artifacts `55b75700` (W4 Phase 4.A Pass 4 reme
 | Metric | Value |
 |--------|-------|
 | develop HEAD | `ba3b10c7` (W3-FIX-SEC-005 — Wave 3.4 final PR, PR #125, 2026-05-02) |
-| factory-artifacts HEAD | `<Stage 1 SHA>` (W4 Phase 4.A Pass 11 remediation — STRUCTURAL PREVENTION; S-4.08 v1.19; S-4.05 v1.9; TD-VSDD-038; STATE v6.37) |
+| factory-artifacts HEAD | `4a47ddd5` (W4 Phase 4.A Pass 11 remediation — STRUCTURAL PREVENTION; S-4.08 v1.19; S-4.05 v1.9; TD-VSDD-038; STATE v6.37) |
 | PR count merged | 125 |
 | Workspace test count | 2363 (nextest-verified; +133 from CI nextest split + doctest migration) |
 | Open PRs | None |

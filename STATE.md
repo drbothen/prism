@@ -86,7 +86,7 @@ wave_4_phase_4_a_preflight:
   pass_11_structural_prevention: dropped_version_pins_from_story_prose
   pass_11_stories_aligned: { S-4.05: 1.9, S-4.08: 1.19 }
   pass_11_td_filed: TD-VSDD-038 (agent-routing edge cases)
-  pass_11_stage1_sha: <Stage 1 SHA>
+  pass_11_stage1_sha: 4a47ddd5
   convergence_window: "0/3 (reset; pass-11 BLOCKED)"
   pass_trajectory: "38→17→8→7→7→5→5→6→6→5→5 (flat at 5; structural fix adopted Pass 11; expect Pass 12 convergence)"
   vsdd_plugin_td_count: 17 (was 16)
@@ -388,7 +388,7 @@ user_directive_persistent: "No pragmatic convergence. Fix all issues before buil
 | **Last Updated** | 2026-05-04 (Wave 4 Phase 4.A Pass 11 BLOCKED + remediated — STRUCTURAL PREVENTION adopted; S-4.08 v1.19; S-4.05 v1.9; 7 version pins removed; TD-VSDD-038 filed; STATE v6.36→v6.37) |
 | **Current Phase** | Phase 4.A — Wave 4 adversarial spec convergence (Pass 12 queued; 0/3 clean window; trajectory 38→17→8→7→7→5→5→6→6→5→5) |
 | **Current Step** | Adversarial Pass 12 (re-run on Pass 11 remediated specs; STRUCTURAL PREVENTION adopted; expect convergence) |
-| **factory-artifacts HEAD** | `<Stage 1 SHA>` (W4 Phase 4.A Pass 11 remediation — STRUCTURAL PREVENTION; S-4.08 v1.19; S-4.05 v1.9; TD-VSDD-038; STATE v6.37) |
+| **factory-artifacts HEAD** | `4a47ddd5` (W4 Phase 4.A Pass 11 remediation — STRUCTURAL PREVENTION; S-4.08 v1.19; S-4.05 v1.9; TD-VSDD-038; STATE v6.37) |
 
 ## Phase Progress
 
@@ -461,9 +461,9 @@ Cycle files: [burst-log](cycles/phase-2-patch/burst-log.md) | [convergence-traje
 
 _Previous checkpoint archived: [cycles/wave-4-operations/session-checkpoints.md](cycles/wave-4-operations/session-checkpoints.md)_
 
-**STATE v6.37 (canonical SHA <Stage 1 SHA>). WAVE 4 PHASE 4.A — PASS 11 BLOCKED + REMEDIATED. STRUCTURAL PREVENTION ADOPTED. PASS 12 QUEUED.**
+**STATE v6.37 (canonical SHA 4a47ddd5). WAVE 4 PHASE 4.A — PASS 11 BLOCKED + REMEDIATED. STRUCTURAL PREVENTION ADOPTED. PASS 12 QUEUED.**
 
-develop HEAD: `ba3b10c7` | factory-artifacts: `<Stage 1 SHA>` | workspace tests: 2363 | PRs merged: 125
+develop HEAD: `ba3b10c7` | factory-artifacts: `4a47ddd5` | workspace tests: 2363 | PRs merged: 125
 
 **NEXT ACTION: Dispatch vsdd-factory:adversary for Pass 12 on remediated specs. Trajectory 38→17→8→7→7→5→5→6→6→5→5. STRUCTURAL PREVENTION adopted (dropped vN.M pins from story-body cross-refs). Target: CLEAN to open convergence window 1/3. See SESSION-HANDOFF.md.**
 
