@@ -2,7 +2,7 @@
 document_type: cycle-manifest
 cycle_id: wave-4-operations
 cycle_type: feature
-version: wave-4-preflight-v1.28
+version: wave-4-preflight-v1.29
 status: in-progress
 started: pending
 completed: pending
@@ -224,6 +224,7 @@ Story inventory will be remediated post-ADR-acceptance per drift audit categorie
 
 | Version | Date | Change |
 |---------|------|--------|
+| wave-4-preflight-v1.29 | 2026-05-03T00:00:00Z | wave-4-prepass17-sweep — F-PreP17-H-001: S-4.01 STORY-INDEX row VPs cell corrected `VP-026,030` → `VP-026, VP-030, VP-137` per frontmatter source-of-truth. Pass 16 H-001 fix listed only 6 rows; S-4.01 was 7th un-listed drift. STORY-INDEX v1.98→v1.99. STATE v6.46, HANDOFF v6.46. Stage 1 SHA `15fa97e6` (placeholder). |
 | wave-4-preflight-v1.28 | 2026-05-03T12:00:00Z | wave-4-pass16-burst — Pass 16 BLOCKED → REMEDIATED: 2 HIGH (F-P16-H-001 STORY-INDEX 6-row per-row VP enumeration drift; F-P16-H-002 ADR-015/018 Status H2 vs frontmatter drift) + 2 MEDIUM (F-P16-M-001 VP-143 anchor asymmetry; F-P16-M-002 process-gap → TD-VSDD-043). ADR-015 v0.6, ADR-016 v0.8, ADR-018 v0.6, STORY-INDEX v1.98, ARCH-INDEX v2.13. STATE v6.45, HANDOFF v6.45. |
 | wave-4-preflight-v1.27 | 2026-05-03T00:00:00Z | wave-4-pass15-burst — Pass 15 BLOCKED → REMEDIATED: 2 HIGH (F-P15-H-001 S-4.08 cron tick sister-text Pass-8 propagation gap; F-P15-H-002 STORY-INDEX total_vps_assigned cascade gap). S-4.08 v1.22, STORY-INDEX v1.97. TD-VSDD-042 filed. STATE v6.44, HANDOFF v6.44. |
 | wave-4-preflight-v1.26 | 2026-05-03T00:00:00Z | wave-4-pass14-burst — Pass 14 BLOCKED → REMEDIATED: 2 HIGH (F-P14-H-001 audit-event terminology: S-4.01 ScheduleFireSkipped → ScheduleFireMissed{miss_reason: SemaphoreExhausted} per ADR-013 §2.4; v1.12), F-P14-H-002 (BC-2.12.004 future-date 2026-05-04 → 2026-05-03; v1.8), F-P14-M-001 + 13-site cascade (ScheduleChangeNotification enum tuple form; ADR-013 v0.7, ADR-015 v0.5, ADR-018 v0.5, S-4.01 v1.12, S-4.02 v1.11), F-P14-M-002 (producer attribution; ADR-013), F-P14-M-003 (pack_id tuple semantics; S-4.02 v1.11), F-P14-M-004 (OCSF→CEF canonical mapping; S-4.08 v1.21), F-P14-L-001 (S-4.05 EC-007 detection_state→action_state; v1.12; adversary attribution corrected), F-P14-L-002 (ADR-013 Status H2 sync); STORY-INDEX v1.96, ARCH-INDEX v2.12, BC-INDEX v4.30, STATE v6.43, HANDOFF v6.43, TD-VSDD-040+041 filed; ready for Pass 15. Stage 1 SHA `166e5af2` (placeholder). |

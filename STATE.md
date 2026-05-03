@@ -1,9 +1,9 @@
 ---
 document_type: pipeline-state
 level: ops
-version: "6.45"
+version: "6.46"
 producer: state-manager
-timestamp: 2026-05-04T00:30:00Z
+timestamp: 2026-05-03T00:00:00Z
 inputs: []
 input-hash: "[live-state]"
 traces_to: ""
@@ -103,6 +103,7 @@ wave_4_phase_4_a_preflight:
   proactive_sweep_status: "COMPLETE_2026-05-03 + Pass 13 surfaced 2 HIGH not caught by sweep methodology — TD-VSDD-039 filed"
   proactive_sweep_findings: "F-PSweep-H-001 HIGH (ADR-019 Status), F-PSweep-M-001 MEDIUM (10 body-prose pins) — both remediated"
   pre_pass14_sweep_status: "COMPLETE_2026-05-03 (TD-VSDD-039 methodology applied); findings: F-PreP14-H-003 + F-PreP14-H-004 — both remediated"
+  pre_pass17_sweep_status: "COMPLETE_2026-05-03 (TD-VSDD-042 codified) — F-PreP17-H-001 (S-4.01 VP-137 row drift) remediated"
   next_action: "Adversary Pass 17 (window 1/3 attempt)"
   vsdd_plugin_td_count: 22 (was 21; TD-VSDD-043 added this burst)
 gate_status_hook_compat_remediation: 2026-04-24
@@ -348,7 +349,7 @@ bc_count_corrected: 230
 cap_count: 40  # active; highest_cap_id: CAP-040 (CAP-038 Multi-Tenant Identity, CAP-039 Multi-Tenant Fixture Gen, CAP-040 Multi-Tenant Adapter Dispatch — Wave 3 Phase 3.A Step 2)
 bc_index_version: "4.30"
 vp_index_version: "1.25"
-story_index_version: "v1.98"
+story_index_version: "v1.99"
 red_gate_wave_0a_complete: 2026-04-21
 test_vectors_version: "2.7"
 prd_version: "1.7"
@@ -432,7 +433,7 @@ _D-001..D-046 archived: [cycles/phase-3-dtu-wave-2/decisions-archive-d001-d032.m
 |----|----------|-----------|-------|------|
 | D-214 | Wave 4 Phase 4.A Convergence Strategy — B+A Hybrid with Subagent Context Discipline. Component 1 (Option B): Proactive structural sweep. Component 2 (Option A): Formal adversarial passes 13+ to 3-clean window. Component 3: Subagent context discipline MANDATORY (orchestrator NEVER reads large files; state-manager LAST per burst). | Wave 4 Phase 4.A B+A hybrid convergence + mandatory subagent context discipline | 4 | 2026-05-04 |
 
-**D-214 sweep COMPLETE + Passes 1..14 REMEDIATED.** Detail: [cycles/wave-4-operations/burst-log.md](cycles/wave-4-operations/burst-log.md).
+**D-214 sweep COMPLETE + Passes 1..16 REMEDIATED (incl. F-PreP17-H-001 S-4.01 VP-137 row drift).** Detail: [cycles/wave-4-operations/burst-log.md](cycles/wave-4-operations/burst-log.md).
 
 ### Wave 4 Phase 4.A Adversary Pass 16 (2026-05-03) — BLOCKED → REMEDIATED
 
@@ -470,19 +471,19 @@ _TD-VSDD-014..019, TD-W3-COMPLIANCE-001, TD-VSDD-025..029 archived to [tech-debt
 
 Cycle files: [burst-log](cycles/phase-2-patch/burst-log.md) | [convergence-trajectory](cycles/phase-2-patch/convergence-trajectory.md) | [session-checkpoints](cycles/phase-2-patch/session-checkpoints.md) | [lessons](cycles/phase-2-patch/lessons.md) | [resolved-blockers](cycles/phase-2-patch/blocking-issues-resolved.md)
 ---
-## Session Resume Checkpoint (2026-05-03-wave4-phase4a-pass16-remediated-v6.45)
+## Session Resume Checkpoint (2026-05-03-wave4-phase4a-prepass17-sweep-v6.46)
 
 _Previous checkpoint archived: [cycles/wave-4-operations/session-checkpoints.md](cycles/wave-4-operations/session-checkpoints.md)_
 
-**STATE v6.45 (canonical SHA `9eb307b9`). WAVE 4 PHASE 4.A — PASS 16 BLOCKED → REMEDIATED. READY FOR PASS 17 (WINDOW 1/3).**
+**STATE v6.46 (canonical SHA `15fa97e6`). WAVE 4 PHASE 4.A — PRE-PASS-17 SWEEP COMPLETE. READY FOR PASS 17 (WINDOW 1/3).**
 
-develop HEAD: `ba3b10c7` | factory-artifacts: `9eb307b9` | workspace tests: 2363 | PRs merged: 125
+develop HEAD: `ba3b10c7` | factory-artifacts: `15fa97e6` | workspace tests: 2363 | PRs merged: 125
 
-**PASS 16 SUMMARY:** 2H+2M (F-P16-H-001 STORY-INDEX 6-row per-row VP enumeration drift; F-P16-H-002 ADR-015/018 Status H2 vs frontmatter sister-file drift; F-P16-M-001 VP-143 anchor asymmetry ADR-016 §5.5; F-P16-M-002 process-gap → TD-VSDD-043). ADR-015 v0.6, ADR-016 v0.8, ADR-018 v0.6, STORY-INDEX v1.98, ARCH-INDEX v2.13.
+**PRE-PASS-17 SWEEP SUMMARY:** F-PreP17-H-001 — S-4.01 STORY-INDEX row VPs cell `VP-026,030` corrected to `VP-026, VP-030, VP-137` per frontmatter source-of-truth. Pass 16 H-001 listed only 6 rows; S-4.01 was 7th un-listed drift. STORY-INDEX v1.98→v1.99.
 
 **NEXT ACTION: Adversary Pass 17 (window 1/3 attempt). See SESSION-HANDOFF.md STEP 2.**
 
-**Current spec versions:** ADR-013 v0.7, ADR-015 v0.6, ADR-016 v0.8, ADR-017 v0.4, ADR-018 v0.6, ADR-019 v0.4, S-4.01 v1.12, S-4.02 v1.11, S-4.05 v1.12, S-4.08 v1.22, BC-2.12.004 v1.8, STORY-INDEX v1.98, ARCH-INDEX v2.13, BC-INDEX v4.30.
+**Current spec versions:** ADR-013 v0.7, ADR-015 v0.6, ADR-016 v0.8, ADR-017 v0.4, ADR-018 v0.6, ADR-019 v0.4, S-4.01 v1.12, S-4.02 v1.11, S-4.05 v1.12, S-4.08 v1.22, BC-2.12.004 v1.8, STORY-INDEX v1.99, ARCH-INDEX v2.13, BC-INDEX v4.30.
 
 **Key files:** [SESSION-HANDOFF.md](SESSION-HANDOFF.md) | [cycle-manifest.md](cycles/wave-4-operations/cycle-manifest.md)
 

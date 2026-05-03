@@ -1,7 +1,7 @@
 ---
 document_type: story-index
 level: "L4"
-version: "v1.98"
+version: "v1.99"
 status: draft
 producer: state-manager
 timestamp: 2026-05-03T12:00:00
@@ -281,7 +281,7 @@ pursuing maximum parallelism should schedule by topological layer, not wave numb
 | S-3.11 | In-Query Dedup Caching | prism-query | 0 | -- | 1 | S-3.02 |
 | S-3.12 | Column Pruning and Field Selection Push-Down | prism-query | 0 | -- | 1 | S-3.02,S-2.06 |
 | S-3.13 | Dynamic Table Availability | prism-query | 0 | -- | 1 | S-3.02,S-1.12 |
-| S-4.01 | Schedule CRUD and Execution Loop [v1.12 ADR-013] | prism-operations | 5 | VP-026,030 | 3 | S-3.02,S-2.01 |
+| S-4.01 | Schedule CRUD and Execution Loop [v1.12 ADR-013] | prism-operations | 5 | VP-026, VP-030, VP-137 | 3 | S-3.02,S-2.01 |
 | S-4.02 | Differential Results and Packs [v1.11 ADR-015] | prism-operations | 3 | VP-019, VP-141, VP-142 | 2 | S-4.01 |
 | S-4.03 | Detection Rule Loading and Compilation [v1.9 ADR-015] | prism-operations | 8 | VP-018, VP-139, VP-140 | 3 | S-3.02,S-1.08,S-2.01 |
 | S-4.04 | Detection Evaluation (Single/Correlation/Sequence) [v1.11 ADR-015] | prism-operations | 5 | VP-027, VP-140 | 3 | S-4.03 |
@@ -925,6 +925,7 @@ All 13 new DTU clones: Wave 0, 0 BCs, priority P0, depends_on: [S-6.06].
 | v1.81 | 2026-05-02 | W4 Phase 4.A story remediation complete — all 8 W4 stories updated; 43 drift findings + 5 spec-quality HIGH findings addressed; ADR refs added per story (ADR-013/015/016/017/018/019); library pins updated per research-findings.md; S-4.03 5→8 pts, S-4.05 1→4 pts, S-4.06 5→9 pts, S-4.08 5→9 pts (stories already at new points in index); v1.80 story versions bumped per story frontmatter; pre-flight re-run queued. |
 | v1.82 | 2026-05-02 | Wave 4 Phase 4.A iter-2 fixes — S-4.04/4.05/4.06 version bumps; NEW-004 ADR-018→019 annotation correction; NEW-003 S-4.02 points reconciliation 5→3. |
 | v1.83 | 2026-05-02 | Wave 4 Phase 4.A Pass 1 remediation — 8 W4 story version bumps (S-4.01..S-4.08); CF discriminator collision RESOLVED (S-4.05 rate limits moved to action_state CF); UNION merge model adopted; UDF Volatility=Stable; ADR alignments per architect v0.2. |
+| v1.99 | 2026-05-03 | F-PreP17-H-001 (state-manager): Pre-Pass-17 sweep — S-4.01 row VPs cell corrected `VP-026,030` → `VP-026, VP-030, VP-137` per frontmatter source-of-truth. Pass 16 H-001 fix listed only 6 rows; S-4.01 was a 7th un-listed drift. |
 | v1.98 | 2026-05-03 | F-P16-H-001 (state-manager): Pass 16 HIGH — Full Story List per-row VP enumeration corrected for 6 Wave 4 rows (S-4.02 +VP-141/142; S-4.03 +VP-139/140; S-4.04 +VP-140; S-4.06 +VP-138/145; S-4.07 added VP-145; S-4.08 +VP-143). Pass 15 H-002 fix had updated only aggregate counts; per-row enumerations were missed. POLICY 9 cascade extension (TD-VSDD-042 + TD-VSDD-043). |
 | v1.97 | 2026-05-03 | F-P15-H-002 + S-4.08-v1.22: Pass 15 HIGH — total_vps_assigned 136→145 (Wave 4 ADR-burst VP-137..145 cascade gap); prose tally 77→86 proptests. POLICY 9 cascade gap codified as TD-VSDD-042. S-4.08 v1.21→v1.22 (F-P15-H-001 cron tick fix). |
 | v1.96 | 2026-05-03 | Wave 4 Pass 14 BLOCKED → REMEDIATED: S-4.01 v1.10→v1.12 (F-P14-H-001 ScheduleFireSkipped→ScheduleFireMissed{miss_reason:SemaphoreExhausted}; F-P14-M-001 cascade); S-4.02 v1.9→v1.11 (F-P14-M-001 cascade + F-P14-M-003 pack_id); S-4.05 v1.11→v1.12 (F-P14-L-001 detection_state→action_state); S-4.08 v1.20→v1.21 (F-P14-M-004 OCSF→CEF mapping). |
