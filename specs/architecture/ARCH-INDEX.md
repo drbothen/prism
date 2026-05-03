@@ -1,7 +1,7 @@
 ---
 document_type: architecture-index
 level: L3
-version: "2.8"
+version: "2.9"
 status: draft
 producer: architect
 timestamp: 2026-04-26T20:30:00
@@ -83,7 +83,7 @@ deployment_topology: single-service
 | ADR-016 | Action Delivery Framework | PROPOSED v0.7 | 2026-05-03 | decisions/ADR-016-action-delivery-framework.md |
 | ADR-017 | Case Lifecycle Invariants | PROPOSED v0.3 | 2026-05-02 | decisions/ADR-017-case-lifecycle-invariants.md |
 | ADR-018 | Differential Result Pack Format | PROPOSED v0.4 | 2026-05-02 | decisions/ADR-018-differential-result-pack-format.md |
-| ADR-019 | SIEM Output Formats | PROPOSED v0.3 | 2026-05-02 | decisions/ADR-019-siem-output-formats.md |
+| ADR-019 | SIEM Output Formats | PROPOSED v0.4 | 2026-05-03 | decisions/ADR-019-siem-output-formats.md |
 
 ## Architecture Decisions
 
@@ -142,6 +142,7 @@ deployment_topology: single-service
 
 | Version | Pass | Date | Author | Change |
 |---------|------|------|--------|--------|
+| 2.9 | W4-Phase4A-D214-Sweep | 2026-05-03 | state-manager | D-214 Component 1 proactive structural sweep: ADR-019 v0.3→v0.4 (F-PSweep-H-001: missing ## Status H2 section added). |
 | 2.8 | W4-Phase4A-Pass10-fix | 2026-05-03 | state-manager | Wave 4 Phase 4.A Pass 10 fix-burst: ADR-016 ADR Registry version propagated v0.5→v0.7 (catches both Pass 9 and Pass 10 ADR-016 bumps; F-P10-H-001 partial-fix regression). |
 | 2.7 | W4-Phase4A-Pass9-fix | 2026-05-03 | state-manager | P9 fix-burst: changelog row order normalized (rows were non-monotonic: 2.1, 2.6, 2.5, 2.3, 2.2, 2.0 → reordered descending 2.6, 2.5, 2.3, 2.2, 2.1, 2.0). |
 | 2.6 | W4-Phase4A-Pass8-fix | 2026-05-03 | state-manager | Pass 8 remediation: ADR-013 upgraded PROPOSED v0.4→v0.5 (§2.1 croner 2.0→2.1 per research R-2); ADR-016 upgraded PROPOSED v0.4→v0.5 (§5.5 120s→60s retry scanner tick; retry-state row \x04 + dead-letter row \x03 discriminators per BC-2.18.001 H-002 alignment). |

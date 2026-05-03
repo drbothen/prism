@@ -1,7 +1,7 @@
 ---
 document_type: session-handoff
 level: ops
-version: "6.39"
+version: "6.40"
 status: current
 timestamp: 2026-05-02T02:00:00Z
 predecessor_session: "Wave 4 Phase 4.A decisions logged 2026-05-02. D-207..D-213 logged: 6-ADR topology, OrgId/ClientId hierarchy, per-subsystem semaphores, clients=[] reject, dedup scheduling-time, prism-siem-formats in-house, ADR-017 narrative. Research complete (research-findings.md). Architect cleared for Phase 1 ADRs. STATE v6.20→v6.21. factory-artifacts 41c711cf (prior canonical SHA)."
@@ -33,6 +33,8 @@ factory-artifacts canonical: 84455d7d (canonical SHA). develop HEAD: ba3b10c7."
 # Session Handoff — WAVE 4 PHASE 4.A DECISIONS LOGGED (2026-05-02)
 
 ## TL;DR
+
+**Wave 4 Phase 4.A — D-214 Component 1 Proactive Structural Sweep COMPLETE (2026-05-03) — STATE v6.40:** F-PSweep-H-001 (ADR-019 Status H2 added; v0.3→v0.4) + F-PSweep-M-001 (10 body-prose version pins stripped; S-4.02/4.04/4.08 bumped). All other sweep classes verified clean. Ready for Adversary Pass 13.
 
 **Wave 4 Phase 4.A — D-214 Strategic Decision (2026-05-04) — STATE v6.39:** B+A hybrid convergence strategy. Proactive structural sweep first (Option B), THEN continue formal passes 13+ to 3-clean window (Option A). Subagent context discipline mandatory.
 
@@ -96,12 +98,12 @@ factory-artifacts canonical: 84455d7d (canonical SHA). develop HEAD: ba3b10c7."
 
 ## Current State
 
-develop HEAD `ba3b10c7` | factory-artifacts `2ed3dd88` (W4 Phase 4.A D-214 strategic decision — B+A hybrid convergence strategy; STATE v6.39)
+develop HEAD `ba3b10c7` | factory-artifacts `15fa97e6` (Stage 1 placeholder — Stage 2 will backfill; W4 Phase 4.A D-214 Component 1 sweep COMPLETE; STATE v6.40)
 
 | Metric | Value |
 |--------|-------|
 | develop HEAD | `ba3b10c7` (W3-FIX-SEC-005 — Wave 3.4 final PR, PR #125, 2026-05-02) |
-| factory-artifacts HEAD | `2ed3dd88` (W4 Phase 4.A D-214 strategic decision — B+A hybrid convergence strategy; STATE v6.39) |
+| factory-artifacts HEAD | `15fa97e6` (Stage 1 placeholder — Stage 2 backfill pending; W4 Phase 4.A sweep COMPLETE; STATE v6.40) |
 | PR count merged | 125 |
 | Workspace test count | 2363 (nextest-verified; +133 from CI nextest split + doctest migration) |
 | Open PRs | None |
@@ -110,7 +112,7 @@ develop HEAD `ba3b10c7` | factory-artifacts `2ed3dd88` (W4 Phase 4.A D-214 strat
 | Wave 2 gate status | CONVERGED 2026-04-27 — Pass 9 CLEAN (3-clean-passes: P6+P8+P9) |
 | Wave 3 gate status | **CONVERGED 2026-05-02 — 3-clean window pass-52+53+54; develop@ba3b10c7** |
 | Wave 4 status | **PHASE 4.A — D-207..D-213 logged; architect cleared for 6 ADRs (3 phases); implementation BLOCKED** |
-| Status | **WAVE 4 PHASE 4.A — Pass 12 BLOCKED + remediated. 12 passes consumed. Strategic pause queued.** |
+| Status | **WAVE 4 PHASE 4.A — D-214 Component 1 sweep COMPLETE 2026-05-03. Ready for Adversary Pass 13.** |
 
 
 ---
@@ -136,26 +138,7 @@ SUBAGENT CONTEXT DISCIPLINE (MANDATORY per D-214 component 3):
 
 POST-COMPACT RESUME SEQUENCE:
 
-STEP 1 — Proactive Structural Sweep (Option B, parallel dispatches):
-
-  1a. Dispatch grep/Bash command to inventory ALL stale-pattern occurrences across Wave 4 specs:
-      - Stale subsystem refs: `grep -rn "SS-04" /Users/jmagady/Dev/prism/.factory/specs/ /Users/jmagady/Dev/prism/.factory/stories/S-4.*` (filter for Wave-4-relevant matches; exclude Pass-N remediation notes documenting OLD bug)
-      - Stale version pins in prose: `grep -rnE "(BC-[0-9.]+|ADR-[0-9]+) v[0-9]+\.[0-9]+" /Users/jmagady/Dev/prism/.factory/stories/S-4.*` (filter to body prose only; exclude changelog rows + Phase 4.A Remediation Notes)
-      - ADR body Status vs frontmatter version: for each of ADR-013..019, check `version:` frontmatter vs body `## Status` section text
-      - Frontmatter↔body subsystem drift: for each Wave 4 story, check `subsystems:` frontmatter vs body Architecture Mapping table
-      - Retired CF key formats: `grep -rnE ":(retry|dead_letter|alert|case|action|epoch|diff):" /Users/jmagady/Dev/prism/.factory/specs/ /Users/jmagady/Dev/prism/.factory/stories/S-4.*` filtered for keys NOT prefixed by {org_id}:
-      - Fire-loop iteration model: grep BC corpus for "(schedule, client_id) pair" / "next_run[client_id]" patterns
-      - Cross-doc terminology drift: scan for inconsistent idempotency_key resolution prose, dedup-window terminology, etc.
-
-  1b. Aggregate findings into a structured remediation matrix (matrix only — orchestrator does NOT read each file's content). Matrix columns: file:line, defect-pattern-class, suggested-fix, target-agent.
-
-  1c. Dispatch fix-bursts in parallel by target-agent:
-      - architect: ADR fixes (Status sync, §x.x prose subsystem refs, body↔frontmatter sync)
-      - product-owner: BC body fixes (terminology drift, model alignment)
-      - story-writer: story body fixes (subsystem drift, version pin removal beyond Pass 11, CF key alignment)
-      - state-manager: index/aggregate fixes (ARCH-INDEX, VP-INDEX, coverage-matrix, BC-INDEX)
-
-  1d. State-manager commit burst (Stage 1 + Stage 2 atomic per FACTORY.md two-commit protocol).
+STEP 1 — Proactive Structural Sweep (Option B, parallel dispatches): COMPLETE 2026-05-03. Resolved F-PSweep-H-001 (ADR-019 Status H2 added; v0.3→v0.4) + F-PSweep-M-001 (10 body-prose ADR version pins stripped from S-4.02/S-4.04/S-4.08). All other sweep classes verified clean (SS-04 refs, CF keys, fire-loop phrases, per-story SS-XX body mentions). Skip to STEP 2.
 
 STEP 2 — Resume formal adversary passes (Option A — VSDD discipline):
 
@@ -177,10 +160,10 @@ KEY REFERENCES:
 - All adversarial reviews: .factory/cycles/wave-4-operations/adversarial-reviews/pass-{1..12}.md
 - All preflight findings: .factory/cycles/wave-4-operations/preflight-findings/
 - Wave 4 cycle-manifest: .factory/cycles/wave-4-operations/cycle-manifest.md (v1.22)
-- 6 ADRs current versions: 013 v0.5, 015 v0.4, 016 v0.7, 017 v0.3, 018 v0.4, 019 v0.3
-- 8 W4 stories current versions: S-4.01 v1.10, S-4.02 v1.7, S-4.03 v1.9, S-4.04 v1.8, S-4.05 v1.10, S-4.06 v1.13, S-4.07 v1.8, S-4.08 v1.19
+- 6 ADRs current versions: 013 v0.5, 015 v0.4, 016 v0.7, 017 v0.3, 018 v0.4, 019 v0.4
+- 8 W4 stories current versions: S-4.01 v1.10, S-4.02 v1.8, S-4.03 v1.9, S-4.04 v1.9, S-4.05 v1.10, S-4.06 v1.13, S-4.07 v1.8, S-4.08 v1.20
 - 4 W4 BCs current versions: BC-2.12.004 v1.6, BC-2.18.001 v1.7, BC-2.18.002 v1.4, BC-2.18.004 v1.4
-- factory-artifacts canonical SHA: `2ed3dd88` (this burst)
+- factory-artifacts canonical SHA: `15fa97e6` (Stage 1 placeholder — Stage 2 backfill pending)
 - develop HEAD: ba3b10c7 (Wave 3 CONVERGED 2026-05-02)
 
 ### Carry-Forward Debt (Wave 4 — REMEDIATE ALL per D-203)

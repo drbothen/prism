@@ -2,7 +2,7 @@
 document_type: cycle-manifest
 cycle_id: wave-4-operations
 cycle_type: feature
-version: wave-4-preflight-v1.22
+version: wave-4-preflight-v1.23
 status: in-progress
 started: pending
 completed: pending
@@ -224,6 +224,7 @@ Story inventory will be remediated post-ADR-acceptance per drift audit categorie
 
 | Version | Date | Change |
 |---------|------|--------|
+| wave-4-preflight-v1.23 | 2026-05-03T00:00:00Z | F-PSweep-CONVERGENCE — D-214 Component 1 (proactive structural sweep) COMPLETE: F-PSweep-H-001 + F-PSweep-M-001 remediated; ARCH-INDEX v2.9, STORY-INDEX v1.93, STATE v6.40, HANDOFF v6.40. Ready for Adversary Pass 13. |
 | wave-4-preflight-v1.22 | 2026-05-04T20:00:00Z | D-214 strategic decision logged — B+A hybrid convergence strategy (proactive structural sweep first, then formal passes 13+ to 3-clean window) + subagent context discipline mandatory. STATE v6.38→v6.39. SESSION-HANDOFF comprehensive post-compact resume protocol added. Stage 1 SHA `2ed3dd88`. |
 | wave-4-preflight-v1.21 | 2026-05-04T19:00:00Z | Pass 12 remediation — ADR-013 body Status v0.4→v0.5 sync + line 65 SS-04 inline ref removed (F-P12-H-001/H-002). BC-2.12.004 v1.5→v1.6 fire-loop model aligned to ADR-013 §2.5/§2.6 (F-P12-M-001). S-4.05 v1.9→v1.10 SS-14 body sweep confirmed clean (F-P12-L-001). STORY-INDEX v1.92→v1.93. pass-12.md persisted. Convergence window 0/3 (reset; pass-12 BLOCKED). Trajectory 38→17→8→7→7→5→5→6→6→5→5→4. 12 passes consumed. Strategic pause queued. Stage 1 SHA 1849145b. |
 | wave-4-preflight-v1.20 | 2026-05-04T00:30:00Z | Pass 11 remediation — STRUCTURAL PREVENTION adopted: dropped vN.M version pins from story-body ADR/BC cross-references (7 pins removed). S-4.08 v1.18→v1.19 (4 pins removed; dead-letter prose extended F-P11-M-002; AC-18 re-anchored F-P11-L-002). S-4.05 v1.8→v1.9 (3 pins removed; stale ADR-016 v0.2 ref removed F-P11-M-001). TD-VSDD-038 filed (agent routing process-gap). STORY-INDEX v1.91→v1.92. Convergence window 0/3 (reset; pass-11 BLOCKED). Trajectory 38→17→8→7→7→5→5→6→6→5→5. Stage 1 SHA 4a47ddd5. |

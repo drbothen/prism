@@ -3,8 +3,8 @@ document_type: adr
 adr_id: "ADR-019"
 title: "SIEM Output Formats"
 status: PROPOSED
-date: "2026-05-02"
-version: "0.3"
+date: "2026-05-03"
+version: "0.4"
 producer: architect
 subsystems_affected: [SS-18]
 supersedes: null
@@ -27,6 +27,10 @@ new_workspace_crate: prism-siem-formats
 ---
 
 # ADR-019: SIEM Output Formats
+
+## Status
+
+PROPOSED 2026-05-03, v0.4. Pending review and acceptance prior to S-4.08 story remediation completion.
 
 ## Context
 
@@ -410,6 +414,15 @@ Applied during Wave 4 Phase 4.A adversarial Pass 1 fix-burst (2026-05-02). Versi
 - **P1-ADR-019-A-H-001 fix:** `subsystems_affected: [SS-18]` was already correct; no frontmatter change needed. §9 (Workspace Integration) now includes an explicit task: "Story-writer / state-manager: in the same burst that introduces `prism-siem-formats`, update ARCH-INDEX.md SS-18 entry to include the new crate."
 - **P1-ADR-019-A-M-002 fix:** `Delim::Custom(c)` forbidden character set specified in §5 (LEEF 2.0 Format Rules). Eight forbidden characters: `\t`, `|`, `^`, `\n`, `\r`, `=`, `"`, `\0`. Allowed: any other ASCII printable or single-codepoint Unicode.
 - **P1-ADR-019-A-M-004 fix:** OCSF `severity_id` to CEF severity mapping table added to §3 (CEF v0 Format Rules). Mapping: 0→0, 1→2, 2→4, 3→6, 4→8, 5→10. Encoder remains caller-mapping-agnostic; S-4.08 syslog destination is responsible for applying the mapping.
+
+## Changelog
+
+| Version | Change ID | Date | Author | Notes |
+|---------|-----------|------|--------|-------|
+| 0.4 | F-PSweep-H-001 | 2026-05-03 | architect | Proactive structural sweep fix: added `## Status` H2 body section matching siblings ADR-013/015/016/017/018 — was the only Wave 4 ADR missing it; v0.3 → v0.4. |
+| 0.3 | P3-ADR-019-A-H-003 | 2026-05-02 | architect | All three occurrences of "ADR-016 §10" corrected to "ADR-016 §2.10"; v0.2 → v0.3. |
+| 0.2 | P1-ADR-019-A-H-001 | 2026-05-02 | architect | Version bumped 0.1 → 0.2 per Pass 1 fix-burst. |
+| 0.1 | P1-ADR-019-A-H-001, P1-ADR-019-A-M-002, P1-ADR-019-A-M-004 | 2026-05-02 | architect | Initial ADR; SS-18 subsystem confirmed; Delim::Custom forbidden set specified; OCSF severity_id → CEF mapping table added. |
 
 ---
 
