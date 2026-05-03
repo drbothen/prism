@@ -396,7 +396,7 @@ user_directive_persistent: "No pragmatic convergence. Fix all issues before buil
 | **Last Updated** | 2026-05-03 (Pass 19 ALL-ZERO CLEAN — window 2/3 OPEN; CONVERGENCE_REACHED verdict; STATE v6.53) |
 | **Current Phase** | Phase 4.A — Wave 4 adversarial spec convergence (19 passes consumed; 2/3 clean window OPEN; Pass 20 next) |
 | **Current Step** | Wave 4 Phase 4.A — Pass 19 ALL-ZERO CLEAN (0/0/0/0/0; CONVERGENCE_REACHED; window 2/3 OPEN; 10+ cross-cut chains verified); Pass 20 (window 3/3 — convergence closure) next |
-| **factory-artifacts HEAD** | `15fa97e6` |
+| **factory-artifacts HEAD** | `3d8d40bf` |
 
 ## Phase Progress
 
@@ -459,9 +459,9 @@ Cycle files: [burst-log](cycles/phase-2-patch/burst-log.md) | [convergence-traje
 
 _Previous checkpoint archived: [cycles/wave-4-operations/session-checkpoints.md](cycles/wave-4-operations/session-checkpoints.md)_
 
-**STATE v6.53 (canonical SHA `15fa97e6`). WAVE 4 PHASE 4.A — PASS 19 ALL-ZERO CLEAN. WINDOW 2/3 OPEN. CONVERGENCE_REACHED.**
+**STATE v6.53 (canonical SHA `3d8d40bf`). WAVE 4 PHASE 4.A — PASS 19 ALL-ZERO CLEAN. WINDOW 2/3 OPEN. CONVERGENCE_REACHED.**
 
-develop HEAD: `ba3b10c7` | factory-artifacts: `15fa97e6` | workspace tests: 2363 | PRs merged: 125
+develop HEAD: `ba3b10c7` | factory-artifacts: `3d8d40bf` | workspace tests: 2363 | PRs merged: 125
 
 **PASS 19:** 0/0/0/0/0 all-zero. First all-zero pass. 10+ cross-cut chains verified. Verdict: CONVERGENCE_REACHED. Window 2/3 OPEN.
 
