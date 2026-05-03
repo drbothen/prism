@@ -1,7 +1,7 @@
 ---
 document_type: session-handoff
 level: ops
-version: "6.28"
+version: "6.29"
 status: current
 timestamp: 2026-05-02T02:00:00Z
 predecessor_session: "Wave 4 Phase 4.A decisions logged 2026-05-02. D-207..D-213 logged: 6-ADR topology, OrgId/ClientId hierarchy, per-subsystem semaphores, clients=[] reject, dedup scheduling-time, prism-siem-formats in-house, ADR-017 narrative. Research complete (research-findings.md). Architect cleared for Phase 1 ADRs. STATE v6.20→v6.21. factory-artifacts 41c711cf (prior canonical SHA)."
@@ -33,6 +33,8 @@ factory-artifacts canonical: 84455d7d (canonical SHA). develop HEAD: ba3b10c7."
 # Session Handoff — WAVE 4 PHASE 4.A DECISIONS LOGGED (2026-05-02)
 
 ## TL;DR
+
+**Wave 4 Phase 4.A Pass 3 BLOCKED + Remediated (2026-05-02) — STATE v6.29:** 8 findings (3H/4M/1L/0OBS); 5 ADRs to v0.4 + v0.3; 4 stories VP frontmatter swept. Trajectory 38→17→8. Pass 4 queued.
 
 **Wave 4 Phase 4.A Pass 2 BLOCKED + Remediated (2026-05-02) — STATE v6.28:** 17 findings (4H/7M/4L/2OBS); 5 ADRs v0.2→v0.3; 5 stories aligned; idempotency_key + timeline_entry_id defined; Pass 3 queued.
 
@@ -74,12 +76,12 @@ factory-artifacts canonical: 84455d7d (canonical SHA). develop HEAD: ba3b10c7."
 
 ## Current State
 
-develop HEAD `ba3b10c7` | factory-artifacts `15d1bf73` (W4 Phase 4.A Pass 2 remediation — 5 ADRs v0.3 + 5 stories aligned; Stage 1; STATE v6.28 backfill in progress)
+develop HEAD `ba3b10c7` | factory-artifacts `64f4ea81` (W4 Phase 4.A Pass 3 remediation — 5 ADRs + 4 stories VP frontmatter sweep; Stage 1; STATE v6.29 backfill in progress)
 
 | Metric | Value |
 |--------|-------|
 | develop HEAD | `ba3b10c7` (W3-FIX-SEC-005 — Wave 3.4 final PR, PR #125, 2026-05-02) |
-| factory-artifacts HEAD | `15d1bf73` (W4 Phase 4.A Pass 2 remediation — 5 ADRs v0.3 + 5 stories aligned; Stage 1; STATE v6.28 backfill in progress) |
+| factory-artifacts HEAD | `64f4ea81` (W4 Phase 4.A Pass 3 remediation — 5 ADRs + 4 stories VP frontmatter sweep; Stage 1; STATE v6.29 backfill in progress) |
 | PR count merged | 125 |
 | Workspace test count | 2363 (nextest-verified; +133 from CI nextest split + doctest migration) |
 | Open PRs | None |
@@ -101,7 +103,7 @@ STATE v6.21. factory-artifacts 84455d7d (canonical SHA). 11-step remediation seq
 
 ### Resume Steps
 
-1. **Adversarial Pass 3 (vsdd-factory:adversary):** re-run on Pass 2 remediated specs (5 ADRs at v0.3 + 5 stories aligned). Target: CLEAN to open convergence window 1/3.
+1. **Adversarial Pass 4 (vsdd-factory:adversary):** re-run on Pass 3 remediated specs. Target: CLEAN to open convergence window 1/3.
 2. Spec-quality remediation (S-4.06/4.08 sizing, AC measurability HIGHs)
 3. 3-clean adversarial spec convergence on all 6 new ADRs
 4. Story-writer comprehensive drift remediation on all 8 W4 stories (per drift audit categories K, I, D, M, F + spec-quality findings + research-findings library updates + ADR refs to new ADRs)
