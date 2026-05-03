@@ -111,7 +111,7 @@ wave_4_phase_4_a_preflight:
   pass_21_adversary_verdict: "BLOCKED (3 findings: 0C/2H/1M/0L/0OBS)"
   pass_21_remediation_complete: true
   pass_21_fixes: [data-layer.md v1.2→v1.3 (F-P21-H-001 concurrency 16→D-209 8/8+2ad-hoc; F-P21-H-002 CF count 16→17+case_dedup_idx per P5-XADR-A-M-006; F-P21-M-001 retry key canonical per ADR-016 §2.5), ARCH-INDEX v2.19]
-  pass_21_stage1_sha: 15fa97e6
+  pass_21_stage1_sha: 4048c5ec
   pre_pass21_sweep_status: "COMPLETE_2026-05-03 — F-PreP21-H-001 (foundation arch docs: actions.md v1.1 16-permit→8-permit+1s→60s; module-decomposition v1.13; api-surface v1.6; data-layer v1.2; verification-architecture v1.28 Mermaid P13 sister-fix); F-PreP21-H-002 (BC-2.18.003/008 v1.4 ActionEngine→ActionDeliveryEngine sister-BC drift); F-PreP21-M-001 (S-5.06 v1.11 cross-wave); TD-VSDD-046 filed"
   next_action: "Adversary Pass 22 (window 1/3 attempt)"
   vsdd_plugin_td_count: 25 (was 24; TD-VSDD-046 foundation-architecture-doc consistency sweep methodology added 2026-05-03)
@@ -405,7 +405,7 @@ user_directive_persistent: "No pragmatic convergence. Fix all issues before buil
 | **Last Updated** | 2026-05-03 (Pass 21 BLOCKED→REMEDIATED: data-layer.md v1.3 + ARCH-INDEX v2.19; STATE v6.56) |
 | **Current Phase** | Phase 4.A — Wave 4 adversarial spec convergence (21 passes consumed; Pass 21 BLOCKED→REMEDIATED; window 0/3; Pass 22 next) |
 | **Current Step** | Wave 4 Phase 4.A — Pass 21 REMEDIATED (3 SUBSTANTIVE findings in data-layer.md; laggard sister-file cleaned); Pass 22 (window 1/3 attempt) next |
-| **factory-artifacts HEAD** | `15fa97e6` |
+| **factory-artifacts HEAD** | `4048c5ec` |
 
 ## Phase Progress
 
@@ -468,9 +468,9 @@ Cycle files: [burst-log](cycles/phase-2-patch/burst-log.md) | [convergence-traje
 
 _Previous checkpoint archived: [cycles/wave-4-operations/session-checkpoints.md](cycles/wave-4-operations/session-checkpoints.md)_
 
-**STATE v6.56 (canonical SHA `15fa97e6`). WAVE 4 PHASE 4.A — PASS 21 BLOCKED→REMEDIATED. WINDOW 0/3. PASS 22 NEXT.**
+**STATE v6.56 (canonical SHA `4048c5ec`). WAVE 4 PHASE 4.A — PASS 21 BLOCKED→REMEDIATED. WINDOW 0/3. PASS 22 NEXT.**
 
-develop HEAD: `ba3b10c7` | factory-artifacts: `15fa97e6` | workspace tests: 2363 | PRs merged: 125
+develop HEAD: `ba3b10c7` | factory-artifacts: `4048c5ec` | workspace tests: 2363 | PRs merged: 125
 
 **PASS 21:** 3 SUBSTANTIVE findings all in data-layer.md (laggard sister-file). F-P21-H-001 concurrency "16 scheduled" stale → D-209 8/8+2 ad-hoc. F-P21-H-002 CF count 16→17 + case_dedup_idx row per P5-XADR-A-M-006. F-P21-M-001 retry key format → canonical per ADR-016 §2.5. All remediated by architect (data-layer.md v1.3). ARCH-INDEX v2.19.
 
