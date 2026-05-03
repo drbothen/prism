@@ -1,7 +1,7 @@
 ---
 document_type: behavioral-contract
 level: L3
-version: "1.4"
+version: "1.5"
 status: draft
 producer: product-owner
 timestamp: 2026-04-13T12:00:00
@@ -11,7 +11,7 @@ subsystem: "SS-12"
 capability: "CAP-017"
 lifecycle_status: active
 introduced: cycle-1
-modified: null
+modified: 2026-05-02
 deprecated: null
 deprecated_by: null
 replacement: null
@@ -83,7 +83,7 @@ prevents unbounded lag when queries run long.
 | ID | Description | Expected Behavior |
 |----|-------------|-------------------|
 | EC-12-009 | Server restarts mid-interval | On startup, `next_run` is loaded from persisted state; if `next_run` is in the past, execution fires on the next tick |
-| EC-12-010 | Schedule with `interval: 60` and query taking 90 seconds | In-flight skip prevents overlap; next execution starts after completion; drift compensation adjusts timing |
+| EC-12-010 | Schedule with `interval: 60` (at default tick) and query taking 90 seconds | In-flight skip prevents overlap; next execution starts after completion; drift compensation adjusts timing; in-flight skip semantics generalize across the configurable [10, 3600]s tick range |
 | EC-12-011 | 100+ schedules all due on the same tick | Executions are spawned as async tasks with bounded concurrency (max 8 concurrent schedule executions across all schedules per ADR-013 §2.3); schedules beyond the cap emit E-SCHED-004 and are skipped until the next tick (DI-032) |
 | EC-12-012 | Client removed from config while schedule targets it | Execution for removed client silently skipped; schedule continues for remaining clients |
 
@@ -130,6 +130,7 @@ shared semaphore, contradicting locked ADR-013 §2.1, ADR-013 §2.3, and D-209.
 
 | Version | Burst | Date | Author | Change |
 |---------|-------|------|--------|--------|
+| 1.5 | wave4-pass7-surgical | 2026-05-02 | state-manager | P7-MEDIUM-002: set modified date to 2026-05-02. P7-LOW-002: EC-12-010 — added "(at default tick)" parenthetical and tick-range generalization note. |
 | 1.4 | wave4-pass6-bc-sweep | 2026-05-02 | product-owner | Phase 4.A Pass 6 remediation (HIGH-001): corrected tick interval to 60s default (ADR-013 §2.1) and semaphore to 8-permit module-private schedule_executor_semaphore (ADR-013 §2.3 + D-209). |
 | 1.3 | pass-73-fix | 2026-04-20 | state-manager | Deterministic changelog reorder: sorted all rows to descending version order (pass-73 bash script). |
 | 1.2 | pass-69-housekeeping | 2026-04-20 | product-owner | Normalized changelog schema to canonical 5-col schema. |
