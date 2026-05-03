@@ -2,7 +2,7 @@
 document_type: cycle-manifest
 cycle_id: wave-4-operations
 cycle_type: feature
-version: wave-4-preflight-v1.31
+version: wave-4-preflight-v1.32
 status: in-progress
 started: pending
 completed: pending
@@ -224,6 +224,7 @@ Story inventory will be remediated post-ADR-acceptance per drift audit categorie
 
 | Version | Date | Change |
 |---------|------|--------|
+| wave-4-preflight-v1.32 | 2026-05-03T00:00:00Z | wave-4-prepass18-sweep-1 — F-PreP18-M-001: STORY-INDEX S-4.06 VPs cell normalized to fully-prefixed (`VP-052,053,054,060, VP-138, VP-145` → `VP-052, VP-053, VP-054, VP-060, VP-138, VP-145`). STORY-INDEX v2.01. STATE v6.49, HANDOFF v6.49. |
 | wave-4-preflight-v1.31 | 2026-05-03T00:00:00Z | wave-4-pass17-burst — Pass 17 BLOCKED → REMEDIATED: 1 HIGH (F-P17-H-001 STORY-INDEX 3-row ADR annotation drift; SUBSTANTIVE) + 2 MEDIUM (M-001 ADR-016/017 date sync; M-002 deferred → TD-VSDD-045). ADR-016 v0.9, ADR-017 v0.5, STORY-INDEX v2.00, ARCH-INDEX v2.14. STATE v6.48, HANDOFF v6.48. |
 | wave-4-preflight-v1.30 | 2026-05-03T00:00:00Z | wave-4-pre-pass17-cite-repair — SHA-cite repair: STATE.md factory-artifacts cite `9eb307b9` → `6aa11611` (had been missed in Pre-Pass-17 burst). Pass 17 unblocked. TD-VSDD-044 candidate filed. STATE v6.47, HANDOFF v6.47. |
 | wave-4-preflight-v1.29 | 2026-05-03T00:00:00Z | wave-4-prepass17-sweep — F-PreP17-H-001: S-4.01 STORY-INDEX row VPs cell corrected `VP-026,030` → `VP-026, VP-030, VP-137` per frontmatter source-of-truth. Pass 16 H-001 fix listed only 6 rows; S-4.01 was 7th un-listed drift. STORY-INDEX v1.98→v1.99. STATE v6.46, HANDOFF v6.46. Stage 1 SHA `6aa11611` (placeholder). |

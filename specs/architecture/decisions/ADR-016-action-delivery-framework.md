@@ -3,7 +3,7 @@ document_type: adr
 adr_id: "ADR-016"
 title: "Action Delivery Framework"
 status: PROPOSED
-version: "0.9"
+version: "0.10"
 date: 2026-05-03
 wave: 4
 phase: 4.A
@@ -38,7 +38,7 @@ traces_to: specs/architecture/ARCH-INDEX.md
 
 ## Status
 
-PROPOSED 2026-05-03, v0.8. Pending review and acceptance prior to story remediation and BC authoring.
+PROPOSED 2026-05-03, v0.10. Pending review and acceptance prior to story remediation and BC authoring.
 
 ---
 
@@ -574,6 +574,7 @@ Applied during Wave 4 Phase 4.A adversarial Pass 16 fix-burst (2026-05-03). Vers
 Applied during Wave 4 Phase 4.A adversarial Pass 17 fix-burst (2026-05-03). Version bumped 0.8 → 0.9.
 
 | 0.9 | F-P17-M-001 | 2026-05-03 | architect | Pass 17 MEDIUM: frontmatter `date:` synced 2026-05-02 → 2026-05-03 (matches body Status). Sibling-fix gap with ADR-013 v0.7 / ADR-018 v0.6 which were already synced. |
+| 0.10 | F-PreP18-H-001 | 2026-05-03 | architect | Pre-Pass-18 sweep: Status H2 line synced from stale v0.8 to v0.10 — was missed in Pass 17 M-001 date-fix burst (sister-line regression of F-P16-H-002 pattern). |
 
 ---
 

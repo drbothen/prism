@@ -1,7 +1,7 @@
 ---
 document_type: pipeline-state
 level: ops
-version: "6.48"
+version: "6.49"
 producer: state-manager
 timestamp: 2026-05-03T00:00:00Z
 inputs: []
@@ -349,7 +349,7 @@ bc_count_corrected: 230
 cap_count: 40  # active; highest_cap_id: CAP-040 (CAP-038 Multi-Tenant Identity, CAP-039 Multi-Tenant Fixture Gen, CAP-040 Multi-Tenant Adapter Dispatch — Wave 3 Phase 3.A Step 2)
 bc_index_version: "4.30"
 vp_index_version: "1.25"
-story_index_version: "v2.00"
+story_index_version: "v2.01"
 red_gate_wave_0a_complete: 2026-04-21
 test_vectors_version: "2.7"
 prd_version: "1.7"
@@ -393,7 +393,7 @@ user_directive_persistent: "No pragmatic convergence. Fix all issues before buil
 | **Language** | Rust |
 | **Target Workspace** | per-analyst stdio (MCP server) |
 | **Started** | 2026-04-13 |
-| **Last Updated** | 2026-05-03 (Wave 4 Pass 17 BLOCKED → REMEDIATED; F-P17-H-001 STORY-INDEX 3-row ADR annotation drift; STORY-INDEX v2.00; ARCH-INDEX v2.14; STATE v6.48) |
+| **Last Updated** | 2026-05-03 (Pre-Pass-18 sweep F-PreP18-M-001 — STORY-INDEX S-4.06 VPs cell normalized to fully-prefixed; STORY-INDEX v2.01; STATE v6.49) |
 | **Current Phase** | Phase 4.A — Wave 4 adversarial spec convergence (17 passes consumed; 0/3 clean window; Pass 18 next) |
 | **Current Step** | Wave 4 Phase 4.A — Pass 17 REMEDIATED (1H+2M: STORY-INDEX 3-row ADR annotation drift SUBSTANTIVE + ADR-016/017 date sync COSMETIC + VP Matrix gap deferred TD-VSDD-045); Pass 18 (window 1/3 attempt) |
 | **factory-artifacts HEAD** | `efe338d8` |
@@ -472,19 +472,19 @@ _TD-VSDD-014..019, TD-W3-COMPLIANCE-001, TD-VSDD-025..029 archived to [tech-debt
 
 Cycle files: [burst-log](cycles/phase-2-patch/burst-log.md) | [convergence-trajectory](cycles/phase-2-patch/convergence-trajectory.md) | [session-checkpoints](cycles/phase-2-patch/session-checkpoints.md) | [lessons](cycles/phase-2-patch/lessons.md) | [resolved-blockers](cycles/phase-2-patch/blocking-issues-resolved.md)
 ---
-## Session Resume Checkpoint (2026-05-03-wave4-phase4a-pass17-remediated-v6.48)
+## Session Resume Checkpoint (2026-05-03-wave4-phase4a-prepass18-sweep-v6.49)
 
 _Previous checkpoint archived: [cycles/wave-4-operations/session-checkpoints.md](cycles/wave-4-operations/session-checkpoints.md)_
 
-**STATE v6.48 (canonical SHA `efe338d8`). WAVE 4 PHASE 4.A — PASS 17 BLOCKED → REMEDIATED. READY FOR PASS 18 (WINDOW 1/3).**
+**STATE v6.49 (canonical SHA `15fa97e6`). WAVE 4 PHASE 4.A — PRE-PASS-18 SWEEP COMPLETE. READY FOR PASS 18 (WINDOW 1/3).**
 
-develop HEAD: `ba3b10c7` | factory-artifacts: `efe338d8` | workspace tests: 2363 | PRs merged: 125
+develop HEAD: `ba3b10c7` | factory-artifacts: `15fa97e6` | workspace tests: 2363 | PRs merged: 125
 
-**PASS 17 SUMMARY:** F-P17-H-001 (SUBSTANTIVE) — STORY-INDEX 3-row ADR annotation drift corrected: S-4.02 ADR-015→ADR-018; S-4.05 ADR-016→ADR-015; S-4.06 dropped over-claimed ADR-019. STORY-INDEX v1.99→v2.00. F-P17-M-001 (COSMETIC) — ADR-016 v0.9, ADR-017 v0.5 (frontmatter date sync). F-P17-M-002 (COSMETIC) — deferred → TD-VSDD-045 (VP Assignment Matrix structural gap). Trajectory P13-P17: 8→9→2→4→3; HIGH count declining 2→2→2→2→1.
+**PRE-PASS-18 SWEEP:** F-PreP18-M-001 — STORY-INDEX S-4.06 VPs cell normalized to fully-prefixed: `VP-052,053,054,060, VP-138, VP-145` → `VP-052, VP-053, VP-054, VP-060, VP-138, VP-145`. STORY-INDEX v2.00→v2.01.
 
 **NEXT ACTION: Adversary Pass 18 (window 1/3 attempt). See SESSION-HANDOFF.md STEP 2.**
 
-**Current spec versions:** ADR-013 v0.7, ADR-015 v0.6, ADR-016 v0.9, ADR-017 v0.5, ADR-018 v0.6, ADR-019 v0.4, S-4.01 v1.12, S-4.02 v1.11, S-4.05 v1.12, S-4.08 v1.22, BC-2.12.004 v1.8, STORY-INDEX v2.00, ARCH-INDEX v2.14, BC-INDEX v4.30.
+**Current spec versions:** ADR-013 v0.7, ADR-015 v0.6, ADR-016 v0.9, ADR-017 v0.5, ADR-018 v0.6, ADR-019 v0.4, S-4.01 v1.12, S-4.02 v1.11, S-4.05 v1.12, S-4.08 v1.22, BC-2.12.004 v1.8, STORY-INDEX v2.01, ARCH-INDEX v2.14, BC-INDEX v4.30.
 
 **Key files:** [SESSION-HANDOFF.md](SESSION-HANDOFF.md) | [cycle-manifest.md](cycles/wave-4-operations/cycle-manifest.md)
 

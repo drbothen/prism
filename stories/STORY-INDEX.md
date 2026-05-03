@@ -1,7 +1,7 @@
 ---
 document_type: story-index
 level: "L4"
-version: "v2.00"
+version: "v2.01"
 status: draft
 producer: state-manager
 timestamp: 2026-05-03T12:00:00
@@ -286,7 +286,7 @@ pursuing maximum parallelism should schedule by topological layer, not wave numb
 | S-4.03 | Detection Rule Loading and Compilation [v1.9 ADR-015] | prism-operations | 8 | VP-018, VP-139, VP-140 | 3 | S-3.02,S-1.08,S-2.01 |
 | S-4.04 | Detection Evaluation (Single/Correlation/Sequence) [v1.11 ADR-015] | prism-operations | 5 | VP-027, VP-140 | 3 | S-4.03 |
 | S-4.05 | Alert Generation [v1.12 ADR-015] | prism-operations | 4 | VP-028 | 1 | S-4.04 |
-| S-4.06 | Case Management [v1.13 ADR-017] | prism-operations | 9 | VP-052,053,054,060, VP-138, VP-145 | 3 | S-4.05,S-2.01 |
+| S-4.06 | Case Management [v1.13 ADR-017] | prism-operations | 9 | VP-052, VP-053, VP-054, VP-060, VP-138, VP-145 | 3 | S-4.05,S-2.01 |
 | S-4.07 | Case Metrics and Acknowledge Alert [v1.8 ADR-017] | prism-operations | 3 | VP-145 | 2 | S-4.06 |
 | S-4.08 | Action Delivery Framework [v1.22 ADR-016,ADR-019] | prism-operations | 9 | VP-044,VP-045,VP-046,VP-047,VP-137,VP-143,VP-144 | 3 | S-4.05,S-4.06,S-4.01,S-1.15,S-6.11,S-6.12,S-6.13 |
 | S-5.01 | Server Bootstrap and Tool Registration | prism-mcp | 7 | -- | 3 | S-1.08,S-3.02,S-4.01 |
@@ -926,6 +926,7 @@ All 13 new DTU clones: Wave 0, 0 BCs, priority P0, depends_on: [S-6.06].
 | v1.82 | 2026-05-02 | Wave 4 Phase 4.A iter-2 fixes — S-4.04/4.05/4.06 version bumps; NEW-004 ADR-018→019 annotation correction; NEW-003 S-4.02 points reconciliation 5→3. |
 | v1.83 | 2026-05-02 | Wave 4 Phase 4.A Pass 1 remediation — 8 W4 story version bumps (S-4.01..S-4.08); CF discriminator collision RESOLVED (S-4.05 rate limits moved to action_state CF); UNION merge model adopted; UDF Volatility=Stable; ADR alignments per architect v0.2. |
 | v1.99 | 2026-05-03 | F-PreP17-H-001 (state-manager): Pre-Pass-17 sweep — S-4.01 row VPs cell corrected `VP-026,030` → `VP-026, VP-030, VP-137` per frontmatter source-of-truth. Pass 16 H-001 fix listed only 6 rows; S-4.01 was a 7th un-listed drift. |
+| v2.01 | 2026-05-03 | F-PreP18-M-001 (state-manager): Pre-Pass-18 sweep — S-4.06 VPs cell normalized to fully-prefixed form: `VP-052,053,054,060, VP-138, VP-145` → `VP-052, VP-053, VP-054, VP-060, VP-138, VP-145`. Format now matches all sibling W4 rows. |
 | v2.00 | 2026-05-03 | F-P17-H-001 (state-manager): Pass 17 HIGH (SUBSTANTIVE): Full Story List ADR title-annotation drift corrected for 3 W4 rows — S-4.02 ADR-015→ADR-018 (anchor is Differential Result Pack, not Detection Rule); S-4.05 ADR-016→ADR-015 (anchor is Detection Rule, not Action Delivery; v1.12 fix touched action_state CF but anchor unchanged); S-4.06 ADR-017,ADR-019→ADR-017 (frontmatter has only ADR-017; ADR-019 was over-claimed). Source-of-truth: each story's anchor_adrs frontmatter. |
 | v1.98 | 2026-05-03 | F-P16-H-001 (state-manager): Pass 16 HIGH — Full Story List per-row VP enumeration corrected for 6 Wave 4 rows (S-4.02 +VP-141/142; S-4.03 +VP-139/140; S-4.04 +VP-140; S-4.06 +VP-138/145; S-4.07 added VP-145; S-4.08 +VP-143). Pass 15 H-002 fix had updated only aggregate counts; per-row enumerations were missed. POLICY 9 cascade extension (TD-VSDD-042 + TD-VSDD-043). |
 | v1.97 | 2026-05-03 | F-P15-H-002 + S-4.08-v1.22: Pass 15 HIGH — total_vps_assigned 136→145 (Wave 4 ADR-burst VP-137..145 cascade gap); prose tally 77→86 proptests. POLICY 9 cascade gap codified as TD-VSDD-042. S-4.08 v1.21→v1.22 (F-P15-H-001 cron tick fix). |
