@@ -78,6 +78,8 @@ deployment_topology: single-service
 | ADR-010 | Customer Config Schema — customers/{org_slug}.toml Structure, Validation Rules, Loading Lifecycle, and Schema Versioning | ACCEPTED | 2026-04-27 | decisions/ADR-010-customer-config-schema.md |
 | ADR-011 | DTU Harness Isolation Modes — Logical (In-Process) and Network (Per-Port) | ACCEPTED | 2026-04-27 | decisions/ADR-011-harness-isolation-modes.md |
 | ADR-012 | Workspace src/ Convention Normalization — Canonical Crate Layout | ACCEPTED | 2026-04-27 | decisions/ADR-012-src-convention.md |
+| ADR-013 | Schedule Execution Semantics | PROPOSED | 2026-05-02 | decisions/ADR-013-schedule-execution-semantics.md |
+| ADR-017 | Case Lifecycle Invariants | PROPOSED | 2026-05-02 | decisions/ADR-017-case-lifecycle-invariants.md |
 
 ## Architecture Decisions
 

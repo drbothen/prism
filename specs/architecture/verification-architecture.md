@@ -2,10 +2,10 @@
 document_type: architecture-section
 level: L3
 section: "verification-architecture"
-version: "1.21"
+version: "1.22"
 status: draft
 producer: product-owner
-timestamp: 2026-04-27T00:00:00
+timestamp: 2026-05-02T00:00:00
 phase: 1b
 inputs: [prd.md, domain-spec/invariants.md]
 traces_to: ARCH-INDEX.md
@@ -47,7 +47,7 @@ graph TB
         K19["Generator idempotent (VP-108)"]
     end
 
-    subgraph TIER2["Tier 2: Proptest — Property-Based Testing (77 properties) + Unit Tests (4 properties — VP-095..VP-098)"]
+    subgraph TIER2["Tier 2: Proptest — Property-Based Testing (79 properties) + Unit Tests (4 properties — VP-095..VP-098)"]
         P1["OCSF normalization validity (VP-016/017)"]
         P2["Detection rule validation (VP-018)"]
         P3["Diff computation determinism (VP-019)"]
@@ -79,6 +79,7 @@ graph TB
         P29a["Multi-tenant data generator (VP-109..VP-111, VP-113..VP-114, VP-116..VP-121)"]
         P29b["DTU test harness (VP-122, VP-123, VP-125, VP-128)"]
         P29c["Workspace layout lint (VP-135)"]
+        P30["Wave 4 Phase 1 ADR proptest (VP-137, VP-138)"]
     end
 
     subgraph TIER3["Tier 3: Fuzz — Coverage-Guided Mutation (6 targets)"]
@@ -96,7 +97,7 @@ graph TB
         I3["Wave 3 integration VPs (VP-068, VP-083, VP-090, VP-094, VP-107, VP-112, VP-115, VP-124, VP-126, VP-127, VP-129, VP-130, VP-131, VP-132, VP-133, VP-134, VP-136)"]
     end
 
-    TIER1 -->|"Proves correctness<br/>for ALL inputs"| SAFE["136 Verified Properties"]
+    TIER1 -->|"Proves correctness<br/>for ALL inputs"| SAFE["138 Verified Properties"]
     TIER2 -->|"Explores complex<br/>input spaces"| SAFE
     TIER3 -->|"Finds crashes in<br/>untrusted input paths"| SAFE
     INTEG -->|"Verifies I/O ordering<br/>and lifecycle"| SAFE
@@ -260,12 +261,14 @@ Properties are organized by the domain invariant or BC postcondition they verify
 | VP-134 | check-crate-layout.sh exits 0 for all 22 workspace crates after fixture migration | prism-bin | integration_test | feasible | P1 | BC-3.7.001 |
 | VP-135 | check-crate-layout.sh exits non-zero for synthetic non-conformant crate | prism-bin | proptest | feasible | P1 | BC-3.7.001 |
 | VP-136 | check-crate-layout.sh is read-only: no files created, modified, or deleted | prism-bin | integration_test | feasible | P1 | BC-3.7.001 |
+| VP-137 | Schedule executor liveness: per-subsystem semaphore non-starvation | prism-operations | proptest | feasible | P1 | ADR-013 / D-209 |
+| VP-138 | Cross-org case access denied (INV-CASE-003): Wave 4 case-management isolation invariant | prism-operations | proptest | feasible | P1 | ADR-017 / D-213 |
 
 ## Verification Priority
 
 **P0 (must-verify before release):** VP-001 through VP-024, VP-027, VP-028, VP-031, VP-033, VP-034, VP-036, VP-038, VP-039, VP-044, VP-045, VP-046, VP-047, VP-050, VP-051, VP-052, VP-053, VP-057, VP-058, VP-060 (Phase 1-2 baseline, 43); plus Wave 3 P0: VP-063, VP-064, VP-066, VP-067, VP-068, VP-069, VP-070, VP-071, VP-072, VP-073, VP-074, VP-075, VP-076, VP-077, VP-078, VP-079, VP-080, VP-081, VP-082, VP-083, VP-084, VP-085, VP-086, VP-087, VP-088, VP-089, VP-090, VP-091, VP-092, VP-093, VP-094, VP-095, VP-096, VP-097, VP-098, VP-099, VP-100, VP-101, VP-102, VP-103, VP-104, VP-105, VP-106, VP-107, VP-108, VP-109, VP-110, VP-111, VP-112, VP-113, VP-114, VP-115, VP-116, VP-117, VP-118, VP-119, VP-120, VP-121, VP-122, VP-123, VP-124, VP-125, VP-126, VP-127, VP-128, VP-129, VP-130, VP-131, VP-132, VP-133 (70) — all safety-critical invariants and security properties. (**113 total P0**)
 
-**P1 (verify during hardening):** VP-025, VP-026, VP-029, VP-030, VP-032, VP-035, VP-037, VP-040, VP-041, VP-042, VP-043, VP-048, VP-049, VP-054, VP-055, VP-056, VP-059, VP-061, VP-062 (Phase 1-2 baseline, 19); plus Wave 3 P1: VP-065, VP-134, VP-135, VP-136 (4) — correctness properties that are important but not safety-critical. (**23 total P1**)
+**P1 (verify during hardening):** VP-025, VP-026, VP-029, VP-030, VP-032, VP-035, VP-037, VP-040, VP-041, VP-042, VP-043, VP-048, VP-049, VP-054, VP-055, VP-056, VP-059, VP-061, VP-062 (Phase 1-2 baseline, 19); plus Wave 3 P1: VP-065, VP-134, VP-135, VP-136 (4); plus Wave 4 Phase 1 ADR P1: VP-137, VP-138 (2) — correctness properties that are important but not safety-critical. (**25 total P1**)
 
 ## Proof Harness Patterns
 
@@ -288,6 +291,7 @@ Proptest strategies generate complex inputs (alias graphs, detection rules, OCSF
 
 | Version | Pass | Date | Author | Notes |
 |---------|------|------|--------|-------|
+| 1.22 | W4-ADR-burst | 2026-05-02 | state-manager | Wave 4 Phase 1 ADR burst: VP-137 + VP-138 added to Provable Properties Catalog (proptest, P1, prism-operations). TIER2 Mermaid header updated 77→79 proptest properties; P30 node added for VP-137/VP-138. SAFE node updated 136→138 Verified Properties. P1 enumeration updated 23→25 total P1 (added Wave 4 Phase 1 ADR P1: VP-137, VP-138). |
 | 1.21 | pass-30-remediation | 2026-04-27 | product-owner | m-30-002: VP-001 source invariant corrected — changed from DI-033 (OrgRegistry Bijectivity, which is bijection-only) to BC-3.1.001 (OrgRegistry resolution, which depends on valid slug characters). Aligns with Wave 3 VP convention used by VP-063..VP-136. |
 | 1.20 | pass-16-remediation | 2026-04-27 | product-owner | m-16-003: VP-127 description updated from prose "devices(OrgA) and devices(OrgB) are disjoint for all org pairs in 3-org scenario" to set notation "devices(OrgA) ∩ devices(OrgB) = ∅ for all org pairs in 3-org canonical scenario" to match VP-INDEX entry exactly. |
 | 1.19 | pass-15-remediation | 2026-04-27 | product-owner | m-15-002: VP-001 source invariant re-anchored DI-008 → DI-033 (OrgRegistry Bijectivity). DI-008 (Client Data Separation / cache scoping) was a semantic mismatch for OrgSlug character validation; DI-033 is the correct anchor as it governs OrgSlug validity via the OrgRegistry bijection invariant. |

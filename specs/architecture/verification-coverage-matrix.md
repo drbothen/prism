@@ -25,7 +25,7 @@ See detailed tables below.
 | prism-security | CRITICAL | 5 | 1 | 0 | 1 | 0 | 90% | VP-007, VP-008, VP-009, VP-010, VP-020 (kani); VP-024 (proptest); VP-038 (fuzz) |
 | prism-query | CRITICAL | 4 | 2 | 0 | 2 | 0 | 90% | VP-012, VP-014, VP-015, VP-025 (kani); VP-013, VP-031 (proptest); VP-021, VP-037 (fuzz) |
 | prism-ocsf | CRITICAL | 0 | 2 | 0 | 1 | 0 | 90% | VP-016, VP-017 (proptest); VP-022 (fuzz) |
-| prism-operations | HIGH | 3 | 9 | 0 | 1 | 0 | 85% | VP-026, VP-030, VP-044 (kani); VP-018, VP-019, VP-027, VP-045, VP-046, VP-047, VP-052, VP-054, VP-060 (proptest); VP-028 (fuzz) |
+| prism-operations | HIGH | 3 | 11 | 0 | 1 | 0 | 85% | VP-026, VP-030, VP-044 (kani); VP-018, VP-019, VP-027, VP-045, VP-046, VP-047, VP-052, VP-054, VP-060, VP-137, VP-138 (proptest); VP-028 (fuzz) |
 | prism-spec-engine | HIGH | 2 | 14 | 4 | 1 | 1 | 85% | VP-040, VP-048 (kani); VP-032, VP-041, VP-042, VP-043, VP-049, VP-059, VP-099, VP-100, VP-101, VP-102, VP-103, VP-104, VP-105, VP-106 (proptest); VP-095, VP-096, VP-097, VP-098 (unit_test); VP-023 (fuzz); VP-107 (integration_test) |
 | prism-sensors | HIGH | 0 | 10 | 0 | 0 | 2 | 80% | VP-077, VP-078, VP-079, VP-080, VP-087, VP-088, VP-089, VP-091, VP-092, VP-093 (proptest); VP-090, VP-094 (integration_test) |
 | prism-credentials | CRITICAL | 0 | 7 | 0 | 0 | 1 | 90% | VP-034, VP-035, VP-081, VP-082, VP-084, VP-085, VP-086 (proptest); VP-083 (integration_test) |
@@ -36,23 +36,24 @@ See detailed tables below.
 | prism-dtu-common | HIGH | 1 | 11 | 0 | 0 | 2 | 80% | VP-108 (kani); VP-109, VP-110, VP-111, VP-113, VP-114, VP-116, VP-117, VP-118, VP-119, VP-120, VP-121 (proptest); VP-112, VP-115 (integration_test) |
 | prism-dtu-harness | HIGH | 0 | 4 | 0 | 0 | 8 | 80% | VP-122, VP-123, VP-125, VP-128 (proptest); VP-124, VP-126, VP-127, VP-129, VP-130, VP-131, VP-132, VP-133 (integration_test) |
 | prism-bin | LOW | 0 | 1 | 0 | 0 | 2 | 60% | VP-135 (proptest); VP-134, VP-136 (integration_test) |
-| **Totals** | | **30** | **77** | **4** | **6** | **19** | | **136** |
+| **Totals** | | **30** | **79** | **4** | **6** | **19** | | **138** |
 
 ## Totals
 
 | Method | Planned Count | P0 | P1 |
 |--------|--------------|----|----|
 | Kani proofs | 30 | 23 | 7 |
-| Proptest properties | 77 | 64 | 13 |
+| Proptest properties | 79 | 64 | 15 |
 | Unit test VPs | 4 | 4 | 0 |
 | Fuzz targets | 6 | 5 | 1 |
 | Integration test VPs | 19 | 17 | 2 |
-| **Total VPs** | **136** | **113** | **23** |
+| **Total VPs** | **138** | **113** | **25** |
 
-<!-- P0/P1 per-method breakdown from VP-INDEX v1.14 recount (pass-4-remediation):
-     Kani: 23 P0 / 7 P1; Proptest: 64 P0 / 13 P1; Unit test: 4 P0 / 0 P1;
-     Fuzz: 5 P0 / 1 P1; Integration: 17 P0 / 2 P1; Total: 113 P0 / 23 P1 / 136 VPs.
-     Unit test VPs = VP-095..VP-098 (BC-3.3.001 bounded DTU type enumeration). -->
+<!-- P0/P1 per-method breakdown from VP-INDEX v1.20 recount (Wave 4 Phase 1 ADR burst):
+     Kani: 23 P0 / 7 P1; Proptest: 64 P0 / 15 P1; Unit test: 4 P0 / 0 P1;
+     Fuzz: 5 P0 / 1 P1; Integration: 17 P0 / 2 P1; Total: 113 P0 / 25 P1 / 138 VPs.
+     Unit test VPs = VP-095..VP-098 (BC-3.3.001 bounded DTU type enumeration).
+     VP-137 + VP-138 added Wave 4 Phase 1 ADR burst (2026-05-02): proptest P1 13→15. -->
 
 
 ## Coverage Gaps and Mitigations
