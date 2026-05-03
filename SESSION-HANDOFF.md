@@ -1,7 +1,7 @@
 ---
 document_type: session-handoff
 level: ops
-version: "6.38"
+version: "6.39"
 status: current
 timestamp: 2026-05-02T02:00:00Z
 predecessor_session: "Wave 4 Phase 4.A decisions logged 2026-05-02. D-207..D-213 logged: 6-ADR topology, OrgId/ClientId hierarchy, per-subsystem semaphores, clients=[] reject, dedup scheduling-time, prism-siem-formats in-house, ADR-017 narrative. Research complete (research-findings.md). Architect cleared for Phase 1 ADRs. STATE v6.20→v6.21. factory-artifacts 41c711cf (prior canonical SHA)."
@@ -33,6 +33,8 @@ factory-artifacts canonical: 84455d7d (canonical SHA). develop HEAD: ba3b10c7."
 # Session Handoff — WAVE 4 PHASE 4.A DECISIONS LOGGED (2026-05-02)
 
 ## TL;DR
+
+**Wave 4 Phase 4.A — D-214 Strategic Decision (2026-05-04) — STATE v6.39:** B+A hybrid convergence strategy. Proactive structural sweep first (Option B), THEN continue formal passes 13+ to 3-clean window (Option A). Subagent context discipline mandatory.
 
 **Wave 4 Phase 4.A Pass 12 BLOCKED + Remediated (2026-05-04) — STATE v6.38:** 4 findings (2H/1M/1L); ADR-013 body sync + SS-04 line removed; BC-2.12.004 v1.6 fire-loop align; S-4.05 v1.10 SS-14 remove. 12 passes consumed; partial-fix regression treadmill — strategic pause queued.
 
@@ -94,12 +96,12 @@ factory-artifacts canonical: 84455d7d (canonical SHA). develop HEAD: ba3b10c7."
 
 ## Current State
 
-develop HEAD `ba3b10c7` | factory-artifacts `1849145b` (W4 Phase 4.A Pass 12 remediation — ADR-013 body Status sync + SS-04 line 65; BC-2.12.004 v1.6; S-4.05 v1.10; STATE v6.38)
+develop HEAD `ba3b10c7` | factory-artifacts `<Stage 1 SHA>` (W4 Phase 4.A D-214 strategic decision — B+A hybrid convergence strategy; STATE v6.39)
 
 | Metric | Value |
 |--------|-------|
 | develop HEAD | `ba3b10c7` (W3-FIX-SEC-005 — Wave 3.4 final PR, PR #125, 2026-05-02) |
-| factory-artifacts HEAD | `1849145b` (W4 Phase 4.A Pass 12 remediation — ADR-013 body Status sync + SS-04 line 65; BC-2.12.004 v1.6; S-4.05 v1.10; STATE v6.38) |
+| factory-artifacts HEAD | `<Stage 1 SHA>` (W4 Phase 4.A D-214 strategic decision — B+A hybrid convergence strategy; STATE v6.39) |
 | PR count merged | 125 |
 | Workspace test count | 2363 (nextest-verified; +133 from CI nextest split + doctest migration) |
 | Open PRs | None |
@@ -121,16 +123,65 @@ STATE v6.21. factory-artifacts 84455d7d (canonical SHA). 11-step remediation seq
 
 ### Resume Steps
 
-1. **Strategic decision required**: 12 adversary passes consumed (~60 dispatches); trajectory 38→...→4 (descending but not converged). Each pass finds 4-7 new partial-fix-regression layers. OPTIONS: (a) continue pass-by-pass [estimate 3-5 more passes to converge]; (b) proactive structural sweep [grep all Wave 4 specs for stale subsystem refs/version pins/key formats; one-shot prevention]; (c) accept residual findings as polish-tier [defer to Phase 4.B story-implementation]; (d) document meta-patterns as TD-VSDD entries + continue. Present to human.
-2. Spec-quality remediation (S-4.06/4.08 sizing, AC measurability HIGHs)
-3. 3-clean adversarial spec convergence on all 6 new ADRs
-4. Story-writer comprehensive drift remediation on all 8 W4 stories (per drift audit categories K, I, D, M, F + spec-quality findings + research-findings library updates + ADR refs to new ADRs)
-5. Spec-quality remediation (S-4.06/4.08 sizing, AC measurability HIGHs)
-6. Re-run pre-flight (consistency-validator + spec-reviewer)
-7. 3-clean adversarial spec convergence on remediated stories
-8. Final fresh-context audit + input-hash drift check
-9. Human approval gate (Phase 4.A complete)
-10. Then dispatch S-4.01 + S-4.03 entry stories in parallel
+WAVE 4 PHASE 4.A — POST-COMPACT RESUME (2026-05-04, STATE v6.39)
+
+CONTEXT: 12 adversary passes consumed. Trajectory 38→17→8→7→7→5→5→6→6→5→5→4 (descending but not converged). Each pass found partial-fix regressions in NEW layers. User decision D-214: Proactive structural sweep (Option B) FIRST to break the regression treadmill, THEN continue formal adversary passes 13+ to VSDD-pure 3-clean window (Option A).
+
+SUBAGENT CONTEXT DISCIPLINE (MANDATORY per D-214 component 3):
+- Orchestrator NEVER reads large files itself (use grep/Bash for snippets only)
+- Every substantive task delegated to subagent with TIGHT scope (specific files only)
+- Subagents return COMPACT results (no verbose dumps in chat)
+- State-manager runs LAST in every burst (POL-3)
+- Product-owner BEFORE story-writer for any BC-array-affecting burst
+
+POST-COMPACT RESUME SEQUENCE:
+
+STEP 1 — Proactive Structural Sweep (Option B, parallel dispatches):
+
+  1a. Dispatch grep/Bash command to inventory ALL stale-pattern occurrences across Wave 4 specs:
+      - Stale subsystem refs: `grep -rn "SS-04" /Users/jmagady/Dev/prism/.factory/specs/ /Users/jmagady/Dev/prism/.factory/stories/S-4.*` (filter for Wave-4-relevant matches; exclude Pass-N remediation notes documenting OLD bug)
+      - Stale version pins in prose: `grep -rnE "(BC-[0-9.]+|ADR-[0-9]+) v[0-9]+\.[0-9]+" /Users/jmagady/Dev/prism/.factory/stories/S-4.*` (filter to body prose only; exclude changelog rows + Phase 4.A Remediation Notes)
+      - ADR body Status vs frontmatter version: for each of ADR-013..019, check `version:` frontmatter vs body `## Status` section text
+      - Frontmatter↔body subsystem drift: for each Wave 4 story, check `subsystems:` frontmatter vs body Architecture Mapping table
+      - Retired CF key formats: `grep -rnE ":(retry|dead_letter|alert|case|action|epoch|diff):" /Users/jmagady/Dev/prism/.factory/specs/ /Users/jmagady/Dev/prism/.factory/stories/S-4.*` filtered for keys NOT prefixed by {org_id}:
+      - Fire-loop iteration model: grep BC corpus for "(schedule, client_id) pair" / "next_run[client_id]" patterns
+      - Cross-doc terminology drift: scan for inconsistent idempotency_key resolution prose, dedup-window terminology, etc.
+
+  1b. Aggregate findings into a structured remediation matrix (matrix only — orchestrator does NOT read each file's content). Matrix columns: file:line, defect-pattern-class, suggested-fix, target-agent.
+
+  1c. Dispatch fix-bursts in parallel by target-agent:
+      - architect: ADR fixes (Status sync, §x.x prose subsystem refs, body↔frontmatter sync)
+      - product-owner: BC body fixes (terminology drift, model alignment)
+      - story-writer: story body fixes (subsystem drift, version pin removal beyond Pass 11, CF key alignment)
+      - state-manager: index/aggregate fixes (ARCH-INDEX, VP-INDEX, coverage-matrix, BC-INDEX)
+
+  1d. State-manager commit burst (Stage 1 + Stage 2 atomic per FACTORY.md two-commit protocol).
+
+STEP 2 — Resume formal adversary passes (Option A — VSDD discipline):
+
+  2a. Dispatch Adversary Pass 13 (vsdd-factory:adversary fresh context). Goal: 0 CRITICAL + 0 HIGH = CLEAN (opens convergence window 1/3).
+  2b. If CLEAN: dispatch Pass 14 (window 2/3); if also CLEAN: Pass 15 (window 3/3 — CONVERGED).
+  2c. If BLOCKED at any pass: route findings tightly per defect-class; remediate; re-pass.
+  2d. NO skipping the formal 3-clean window. Per VSDD discipline.
+
+STEP 3 — Once convergence window achieved (R7 complete):
+  - Mark task #99 R7 completed
+  - Move to R8: Final fresh-context audit (consistency-validator + spec-reviewer iter-3) + input-hash drift check
+  - Then R9: Human approval gate
+  - Then R10: Dispatch S-4.01 + S-4.03 entry stories (Phase 4.B begins)
+
+KEY REFERENCES:
+- D-214 in STATE.md Decisions Log (this burst)
+- TD-VSDD-038 (agent routing edge cases — filed Pass 11)
+- TD-VSDD-035/036/037 (pre-flight methodology pending vsdd-factory codification)
+- All adversarial reviews: .factory/cycles/wave-4-operations/adversarial-reviews/pass-{1..12}.md
+- All preflight findings: .factory/cycles/wave-4-operations/preflight-findings/
+- Wave 4 cycle-manifest: .factory/cycles/wave-4-operations/cycle-manifest.md (v1.22)
+- 6 ADRs current versions: 013 v0.5, 015 v0.4, 016 v0.7, 017 v0.3, 018 v0.4, 019 v0.3
+- 8 W4 stories current versions: S-4.01 v1.10, S-4.02 v1.7, S-4.03 v1.9, S-4.04 v1.8, S-4.05 v1.10, S-4.06 v1.13, S-4.07 v1.8, S-4.08 v1.19
+- 4 W4 BCs current versions: BC-2.12.004 v1.6, BC-2.18.001 v1.7, BC-2.18.002 v1.4, BC-2.18.004 v1.4
+- factory-artifacts canonical SHA: `<Stage 1 SHA>` (this burst)
+- develop HEAD: ba3b10c7 (Wave 3 CONVERGED 2026-05-02)
 
 ### Carry-Forward Debt (Wave 4 — REMEDIATE ALL per D-203)
 

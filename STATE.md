@@ -1,7 +1,7 @@
 ---
 document_type: pipeline-state
 level: ops
-version: "6.38"
+version: "6.39"
 producer: state-manager
 timestamp: 2026-05-04T00:30:00Z
 inputs: []
@@ -22,7 +22,7 @@ repos:
   - axiathon
   - ocsf-proto-gen
   - mcp-claroty-xdome
-current_step: "Pause for orchestrator strategic decision (12 passes completed; trajectory 38→17→8→7→7→5→5→6→6→5→5→4; partial-fix regression treadmill)"
+current_step: "Wave 4 Phase 4.A Convergence — B+A Hybrid (D-214): proactive structural sweep first, then continue formal passes 13+ to 3-clean window"
 wave_3_carry_forward_debt: "ALL_REMEDIATE — W4-FIX-PERF-001/002, W4-FIX-CODE-001, W4-FIX-SEC-001..004 stories planned per D-203"
 wave_4_status: "PHASE_4_A_DECISIONS_LOGGED — D-207..D-213 logged 2026-05-02; architect cleared for ADR drafting (6 ADRs in 3 phases); implementation BLOCKED until pre-flight clears"
 wave_4_phase_4_a_preflight:
@@ -94,6 +94,9 @@ wave_4_phase_4_a_preflight:
   convergence_window: "0/3 (reset; pass-12 BLOCKED)"
   pass_trajectory: "38→17→8→7→7→5→5→6→6→5→5→4 (12 passes; resumed descent; partial-fix regression treadmill)"
   passes_consumed: 12
+  convergence_strategy: B+A_hybrid (D-214)
+  subagent_context_discipline: MANDATORY
+  next_action: proactive_structural_sweep_dispatch
   vsdd_plugin_td_count: 17 (was 16)
 gate_status_hook_compat_remediation: 2026-04-24
 wave_0a_complete: 2026-04-22
@@ -390,10 +393,10 @@ user_directive_persistent: "No pragmatic convergence. Fix all issues before buil
 | **Language** | Rust |
 | **Target Workspace** | per-analyst stdio (MCP server) |
 | **Started** | 2026-04-13 |
-| **Last Updated** | 2026-05-04 (Wave 4 Phase 4.A Pass 12 BLOCKED + remediated — ADR-013 body Status sync + SS-04 line 65; BC-2.12.004 v1.6 fire-loop align; S-4.05 v1.10 SS-14 remove; STATE v6.37→v6.38) |
-| **Current Phase** | Phase 4.A — Wave 4 adversarial spec convergence (12 passes consumed; 0/3 clean window; trajectory 38→17→8→7→7→5→5→6→6→5→5→4; STRATEGIC PAUSE) |
-| **Current Step** | Pause for orchestrator strategic decision (12 passes completed; trajectory 38→17→8→7→7→5→5→6→6→5→5→4; partial-fix regression treadmill) |
-| **factory-artifacts HEAD** | `1849145b` (W4 Phase 4.A Pass 12 remediation — ADR-013 body Status sync + SS-04 line 65; BC-2.12.004 v1.6; S-4.05 v1.10; STATE v6.38) |
+| **Last Updated** | 2026-05-04 (Wave 4 Phase 4.A D-214 strategic decision — B+A hybrid convergence strategy + subagent context discipline mandatory; STATE v6.38→v6.39) |
+| **Current Phase** | Phase 4.A — Wave 4 adversarial spec convergence (12 passes consumed; 0/3 clean window; trajectory 38→17→8→7→7→5→5→6→6→5→5→4; D-214 B+A hybrid) |
+| **Current Step** | Wave 4 Phase 4.A Convergence — B+A Hybrid (D-214): proactive structural sweep first, then continue formal passes 13+ to 3-clean window |
+| **factory-artifacts HEAD** | `<Stage 1 SHA>` (W4 Phase 4.A D-214 strategic decision — B+A hybrid convergence strategy; STATE v6.39) |
 
 ## Phase Progress
 
@@ -441,6 +444,7 @@ _D-001..D-046 archived: [cycles/phase-3-dtu-wave-2/decisions-archive-d001-d032.m
 | D-211 | Alert dedup window — resolved at scheduling-time + reload-on-schedule-change. Dedup window value resolved at rule load time; baked into `RuleCondition` per detection rule. Schedule changes (S-4.01 CRUD) invalidate cached dedup-window resolutions for affected rules; rules reload. ADR-015 documents the resolve-once + invalidation pattern. Rationale: per-detection-eval lookup adds OrgRegistry round-trip cost; cache + invalidate keeps it dynamic without per-eval cost. | Dedup window resolved at scheduling-time; invalidated on schedule change | 4 | 2026-05-02 |
 | D-212 | Build `prism-siem-formats` crate in-house — CEF v0 + LEEF 2.0 + proptest fuzzed. No maintained Rust crates exist for CEF or LEEF (rust-cef abandoned 2021; no LEEF crate published). New workspace crate `prism-siem-formats` to be added in Wave 4 (S-4.08 dependency or separate fix-wave story). Modules: `cef::v0::Encoder`, `leef::v2::Encoder`. Proptest invariants: (a) round-trip parse cleanly; (b) no SIEM-toxic characters survive in wrong position; (c) escape rules per ArcSight CEF Implementation Standard + IBM QRadar LEEF v2 Format Guide. Adds ADR-019 (SIEM Output Formats) to the Wave 4 ADR set per D-207. | In-house prism-siem-formats crate; CEF v0 + LEEF 2.0; proptest fuzz invariants | 4 | 2026-05-02 |
 | D-213 | ADR-017 narrative: "1898-curated, industry-informed" — citations to NIST 800-61 r2 (footnote: r3 supersedes with non-state-machine model), ITIL v3 incident-management conventions, Cortex XSOAR Pending/Active/Closed/Archived lifecycle, and Splunk SOAR case status taxonomy. DO NOT claim NIST 800-61 r3 traceability (r3 abandoned four-phase lifecycle, April 2025). DO NOT rework `prism-core::case` — Kani proofs (VP-005/006/051) lock the 12-transition table; disposition-on-Resolved enforcement is Wave 4 scope (S-4.06 / VP-053). ADR-017 SCOPE = lifecycle invariants (5 states + 12 transitions referencing prism-core::case) + disposition-on-Resolved enforcement (Wave 4) + first-resolution TTR semantics + OrgId scoping + open transition graph diagram. | ADR-017 narrative citations; scope reduced to invariants + disposition enforcement; prism-core::case not reworked | 4 | 2026-05-02 |
+| D-214 | Wave 4 Phase 4.A Convergence Strategy — B+A Hybrid with Subagent Context Discipline (2026-05-04). User direction (verbatim): "I'm fine with trying B, but we need A, we need to fix it right. We need to reach convergence. We all need to make sure we are leveraging subagents to manage our context." Component 1 (Option B): Proactive structural sweep across ALL Wave 4 specs (6 ADRs / 8 stories / 4 BCs / indices) — stale subsystem refs, stale version pins in prose, retired CF key formats, ADR body Status sections, cross-doc terminology drift. Multiple targeted subagent dispatches. Component 2 (Option A): Continue formal adversarial passes 13+ to VSDD-pure 3-clean convergence window. Sweep accelerates; does NOT replace formal discipline. Component 3 (subagent context discipline MANDATORY): orchestrator NEVER reads large files; every substantive task delegated; tight scope per dispatch; compact returns; state-manager LAST per burst. | Wave 4 Phase 4.A B+A hybrid convergence + mandatory subagent context discipline | 4 | 2026-05-04 |
 ## Skip Log
 
 | Step | Skipped? | Justification |
@@ -462,15 +466,15 @@ _TD-VSDD-014..019, TD-W3-COMPLIANCE-001, TD-VSDD-025..029 archived to [tech-debt
 
 Cycle files: [burst-log](cycles/phase-2-patch/burst-log.md) | [convergence-trajectory](cycles/phase-2-patch/convergence-trajectory.md) | [session-checkpoints](cycles/phase-2-patch/session-checkpoints.md) | [lessons](cycles/phase-2-patch/lessons.md) | [resolved-blockers](cycles/phase-2-patch/blocking-issues-resolved.md)
 ---
-## Session Resume Checkpoint (2026-05-04-wave4-phase4a-pass12-remediated-v6.38)
+## Session Resume Checkpoint (2026-05-04-wave4-phase4a-d214-v6.39)
 
 _Previous checkpoint archived: [cycles/wave-4-operations/session-checkpoints.md](cycles/wave-4-operations/session-checkpoints.md)_
 
-**STATE v6.38 (canonical SHA 1849145b). WAVE 4 PHASE 4.A — PASS 12 BLOCKED + REMEDIATED. 12 PASSES CONSUMED. STRATEGIC PAUSE QUEUED.**
+**STATE v6.39 (canonical SHA `<Stage 1 SHA>`). WAVE 4 PHASE 4.A — D-214 STRATEGIC DECISION LOGGED. B+A HYBRID CONVERGENCE STRATEGY. SUBAGENT CONTEXT DISCIPLINE MANDATORY.**
 
-develop HEAD: `ba3b10c7` | factory-artifacts: `1849145b` | workspace tests: 2363 | PRs merged: 125
+develop HEAD: `ba3b10c7` | factory-artifacts: `<Stage 1 SHA>` | workspace tests: 2363 | PRs merged: 125
 
-**NEXT ACTION: Orchestrator strategic decision required. 12 passes (~60 dispatches); trajectory 38→...→4 (descending, not converged). OPTIONS: (a) continue pass-by-pass; (b) proactive structural sweep; (c) accept residual as polish-tier; (d) TD-VSDD meta-patterns + continue. See SESSION-HANDOFF.md.**
+**NEXT ACTION: Dispatch proactive structural sweep (Option B) — subagent-driven grep inventory across all Wave 4 specs (6 ADRs / 8 stories / 4 BCs / indices), then continue formal passes 13+ to 3-clean window (Option A). See SESSION-HANDOFF.md.**
 
 **Key files:** [SESSION-HANDOFF.md](SESSION-HANDOFF.md) | [cycle-manifest.md](cycles/wave-4-operations/cycle-manifest.md)
 
