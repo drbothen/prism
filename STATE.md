@@ -396,7 +396,7 @@ user_directive_persistent: "No pragmatic convergence. Fix all issues before buil
 | **Last Updated** | 2026-05-03 (Wave 4 Pass 16 BLOCKED → REMEDIATED; TD-VSDD-043; STORY-INDEX v1.98; ARCH-INDEX v2.13; STATE v6.44→v6.45) |
 | **Current Phase** | Phase 4.A — Wave 4 adversarial spec convergence (16 passes consumed; 0/3 clean window; Pass 17 next) |
 | **Current Step** | Wave 4 Phase 4.A — Pass 16 REMEDIATED (2H+2M: STORY-INDEX per-row VP enumeration + ADR Status H2 drift + VP-143 anchor + process-gap TD-VSDD-043); Pass 17 (window 1/3 attempt) |
-| **factory-artifacts HEAD** | `6aa11611` |
+| **factory-artifacts HEAD** | `0a04e934` |
 
 ## Phase Progress
 
@@ -471,13 +471,13 @@ _TD-VSDD-014..019, TD-W3-COMPLIANCE-001, TD-VSDD-025..029 archived to [tech-debt
 
 Cycle files: [burst-log](cycles/phase-2-patch/burst-log.md) | [convergence-trajectory](cycles/phase-2-patch/convergence-trajectory.md) | [session-checkpoints](cycles/phase-2-patch/session-checkpoints.md) | [lessons](cycles/phase-2-patch/lessons.md) | [resolved-blockers](cycles/phase-2-patch/blocking-issues-resolved.md)
 ---
-## Session Resume Checkpoint (2026-05-03-wave4-phase4a-prepass17-sweep-v6.46)
+## Session Resume Checkpoint (2026-05-03-wave4-phase4a-prepass17-sweep-v6.47)
 
 _Previous checkpoint archived: [cycles/wave-4-operations/session-checkpoints.md](cycles/wave-4-operations/session-checkpoints.md)_
 
-**STATE v6.46 (canonical SHA `6aa11611`). WAVE 4 PHASE 4.A — PRE-PASS-17 SWEEP COMPLETE. READY FOR PASS 17 (WINDOW 1/3).**
+**STATE v6.47 (canonical SHA `0a04e934`). WAVE 4 PHASE 4.A — PRE-PASS-17 SWEEP COMPLETE + SHA-CITE REPAIRED. READY FOR PASS 17 (WINDOW 1/3).**
 
-develop HEAD: `ba3b10c7` | factory-artifacts: `6aa11611` | workspace tests: 2363 | PRs merged: 125
+develop HEAD: `ba3b10c7` | factory-artifacts: `0a04e934` | workspace tests: 2363 | PRs merged: 125
 
 **PRE-PASS-17 SWEEP SUMMARY:** F-PreP17-H-001 — S-4.01 STORY-INDEX row VPs cell `VP-026,030` corrected to `VP-026, VP-030, VP-137` per frontmatter source-of-truth. Pass 16 H-001 listed only 6 rows; S-4.01 was 7th un-listed drift. STORY-INDEX v1.98→v1.99.
 
