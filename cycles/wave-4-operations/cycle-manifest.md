@@ -2,7 +2,7 @@
 document_type: cycle-manifest
 cycle_id: wave-4-operations
 cycle_type: feature
-version: wave-4-preflight-v1.33
+version: wave-4-preflight-v1.34
 status: in-progress
 started: pending
 completed: pending
@@ -224,6 +224,7 @@ Story inventory will be remediated post-ADR-acceptance per drift audit categorie
 
 | Version | Date | Change |
 |---------|------|--------|
+| wave-4-preflight-v1.34 | 2026-05-03T00:00:00Z | cite-repair-3 — F-CITE-REPAIR-002: STATE.md line 399 `7d9bc158`→`988e06ec` (3rd TD-VSDD-044 manifestation; Project Metadata table stale while line 480 + HANDOFF already correct). STATE v6.51, HANDOFF v6.51. |
 | wave-4-preflight-v1.33 | 2026-05-03T00:00:00Z | wave-4-pre-pass18-sweep-2 — F-PreP18-H-001 architect-burst capture: ADR-016 v0.10 + ADR-017 v0.6 Status H2 synced (sister-line regression class per F-P16-H-002 still pending structural lint hook). ARCH-INDEX v2.15, STATE v6.50, HANDOFF v6.50. Ready for Pass 18. |
 | wave-4-preflight-v1.32 | 2026-05-03T00:00:00Z | wave-4-prepass18-sweep-1 — F-PreP18-M-001: STORY-INDEX S-4.06 VPs cell normalized to fully-prefixed (`VP-052,053,054,060, VP-138, VP-145` → `VP-052, VP-053, VP-054, VP-060, VP-138, VP-145`). STORY-INDEX v2.01. STATE v6.49, HANDOFF v6.49. |
 | wave-4-preflight-v1.31 | 2026-05-03T00:00:00Z | wave-4-pass17-burst — Pass 17 BLOCKED → REMEDIATED: 1 HIGH (F-P17-H-001 STORY-INDEX 3-row ADR annotation drift; SUBSTANTIVE) + 2 MEDIUM (M-001 ADR-016/017 date sync; M-002 deferred → TD-VSDD-045). ADR-016 v0.9, ADR-017 v0.5, STORY-INDEX v2.00, ARCH-INDEX v2.14. STATE v6.48, HANDOFF v6.48. |
