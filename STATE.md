@@ -401,7 +401,7 @@ user_directive_persistent: "No pragmatic convergence. Fix all issues before buil
 | **Last Updated** | 2026-05-03 (Pre-Pass-21 broad-sweep: foundation arch docs + BC-2.18.003/008 v1.4 + S-5.06 v1.11 + ARCH-INDEX v2.18 + BC-INDEX v4.32 + STORY-INDEX v2.03; STATE v6.55) |
 | **Current Phase** | Phase 4.A — Wave 4 adversarial spec convergence (20 passes consumed; Pre-Pass-21 broad-sweep COMPLETE; window 0/3; Pass 21 next) |
 | **Current Step** | Wave 4 Phase 4.A — Pre-Pass-21 broad-sweep COMPLETE (F-PreP21-H-001/002 + F-PreP21-M-001 remediated; foundation arch docs + BC-2.18.003/008 + S-5.06 cleaned); Pass 21 (fresh 3-clean window slot 1/3) next |
-| **factory-artifacts HEAD** | `15fa97e6` |
+| **factory-artifacts HEAD** | `9fb2bd73` |
 
 ## Phase Progress
 
@@ -464,9 +464,9 @@ Cycle files: [burst-log](cycles/phase-2-patch/burst-log.md) | [convergence-traje
 
 _Previous checkpoint archived: [cycles/wave-4-operations/session-checkpoints.md](cycles/wave-4-operations/session-checkpoints.md)_
 
-**STATE v6.55 (canonical SHA `15fa97e6`). WAVE 4 PHASE 4.A — PRE-PASS-21 BROAD-SWEEP COMPLETE. WINDOW 0/3. PASS 21 NEXT.**
+**STATE v6.55 (canonical SHA `9fb2bd73`). WAVE 4 PHASE 4.A — PRE-PASS-21 BROAD-SWEEP COMPLETE. WINDOW 0/3. PASS 21 NEXT.**
 
-develop HEAD: `ba3b10c7` | factory-artifacts: `15fa97e6` | workspace tests: 2363 | PRs merged: 125
+develop HEAD: `ba3b10c7` | factory-artifacts: `9fb2bd73` | workspace tests: 2363 | PRs merged: 125
 
 **PRE-PASS-21 BROAD-SWEEP:** F-PreP21-H-001 (foundation arch docs: actions.md v1.1 16-permit→8-permit + 1-second→60s; module-decomposition v1.13; api-surface v1.6; data-layer v1.2; verification-architecture v1.28 Mermaid P13 sister-fix). F-PreP21-H-002 (BC-2.18.003/008 v1.4 ActionEngine→ActionDeliveryEngine sister-BC drift). F-PreP21-M-001 (S-5.06 v1.11 cross-wave consistency). ARCH-INDEX v2.18, BC-INDEX v4.32, STORY-INDEX v2.03. TD-VSDD-046 filed.
 

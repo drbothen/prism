@@ -19,7 +19,7 @@ successor_focus: "Wave 4 Phase 4.A Decisions Logged (2026-05-02) — STATE v6.21
 11. Then dispatch S-4.01 + S-4.03 entry stories in parallel
 
 **KEY REFERENCES:**
-- STATE.md v6.55: develop@ba3b10c7; factory-artifacts 15fa97e6 (canonical SHA — Stage 1 Pre-Pass-21 broad-sweep)
+- STATE.md v6.55: develop@ba3b10c7; factory-artifacts 9fb2bd73 (canonical SHA — Stage 1 Pre-Pass-21 broad-sweep)
 - ADR-016 v0.12 (current)
 - BC-2.18.003 v1.4 (NEW — ActionEngine→ActionDeliveryEngine F-PreP21-H-002)
 - BC-2.18.008 v1.4 (NEW — ActionEngine→ActionDeliveryEngine F-PreP21-H-002)
@@ -31,7 +31,7 @@ successor_focus: "Wave 4 Phase 4.A Decisions Logged (2026-05-02) — STATE v6.21
 - Product TD register: tech-debt-register.md (57 active product items)
 - TD-VSDD-046 filed: vsdd-plugin-tech-debt.md (25 items)
 
-factory-artifacts canonical: 15fa97e6 (canonical SHA). develop HEAD: ba3b10c7."
+factory-artifacts canonical: 9fb2bd73 (canonical SHA). develop HEAD: ba3b10c7."
 ---
 
 # Session Handoff — WAVE 4 PHASE 4.A DECISIONS LOGGED (2026-05-02)
@@ -116,12 +116,12 @@ factory-artifacts canonical: 15fa97e6 (canonical SHA). develop HEAD: ba3b10c7."
 
 ## Current State
 
-develop HEAD `ba3b10c7` | factory-artifacts `15fa97e6` (Pre-Pass-21 broad-sweep COMPLETE — window 0/3; STATE v6.55)
+develop HEAD `ba3b10c7` | factory-artifacts `9fb2bd73` (Pre-Pass-21 broad-sweep COMPLETE — window 0/3; STATE v6.55)
 
 | Metric | Value |
 |--------|-------|
 | develop HEAD | `ba3b10c7` (W3-FIX-SEC-005 — Wave 3.4 final PR, PR #125, 2026-05-02) |
-| factory-artifacts HEAD | `15fa97e6` (Pre-Pass-21 broad-sweep COMPLETE — window 0/3; STATE v6.55) |
+| factory-artifacts HEAD | `9fb2bd73` (Pre-Pass-21 broad-sweep COMPLETE — window 0/3; STATE v6.55) |
 | PR count merged | 125 |
 | Workspace test count | 2363 (nextest-verified; +133 from CI nextest split + doctest migration) |
 | Open PRs | None |
