@@ -87,6 +87,6 @@ STATE.md v6.43 compaction: Decisions D-200 through D-213 (Wave 4 pre-flight + ar
 | F-P18-M-002 | MEDIUM | COSMETIC | ADR-016/017 fix-burst stale-narrative voice | architect: same burst; past-tense "REMEDIATED" applied |
 | F-P18-L-001 | LOW | COSMETIC | S-4.06 frontmatter inputs missing VP-138/VP-145 | DEFERRED — pending intent verification |
 
-0H+2M+1L. HIGH count: 0 (exhausted). Disposition: CLEAN. Verdict: FINDINGS_REMAIN (window 1/3 OPEN; Pass 19 + Pass 20 required). ADR-016 v0.11, ADR-017 v0.7, ARCH-INDEX v2.16. STATE v6.52, HANDOFF v6.52, cycle-manifest v1.35. Stage 1 SHA `15fa97e6` (placeholder — to be backfilled).
+0H+2M+1L. HIGH count: 0 (exhausted). Disposition: CLEAN. Verdict: FINDINGS_REMAIN (window 1/3 OPEN; Pass 19 + Pass 20 required). ADR-016 v0.11, ADR-017 v0.7, ARCH-INDEX v2.16. STATE v6.52, HANDOFF v6.52, cycle-manifest v1.35. Stage 1 SHA `0063cedd`.
 
 ---

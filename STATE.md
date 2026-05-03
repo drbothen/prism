@@ -396,7 +396,7 @@ user_directive_persistent: "No pragmatic convergence. Fix all issues before buil
 | **Last Updated** | 2026-05-03 (Pass 18 CLEAN — window 1/3 OPEN; FINDINGS_REMAIN; ADR-016 v0.11 + ADR-017 v0.7; ARCH-INDEX v2.16; STATE v6.52) |
 | **Current Phase** | Phase 4.A — Wave 4 adversarial spec convergence (18 passes consumed; 1/3 clean window OPEN; Pass 19 next) |
 | **Current Step** | Wave 4 Phase 4.A — Pass 18 CLEAN (0H+2M+1L; F-P18-M-001/M-002 cosmetic remediated by architect; F-P18-L-001 deferred; window 1/3 OPEN; FINDINGS_REMAIN); Pass 19 (window 2/3 attempt) next |
-| **factory-artifacts HEAD** | `15fa97e6` |
+| **factory-artifacts HEAD** | `0063cedd` |
 
 ## Phase Progress
 
@@ -463,9 +463,9 @@ Cycle files: [burst-log](cycles/phase-2-patch/burst-log.md) | [convergence-traje
 
 _Previous checkpoint archived: [cycles/wave-4-operations/session-checkpoints.md](cycles/wave-4-operations/session-checkpoints.md)_
 
-**STATE v6.52 (canonical SHA `15fa97e6`). WAVE 4 PHASE 4.A — PASS 18 CLEAN. WINDOW 1/3 OPEN. FINDINGS_REMAIN.**
+**STATE v6.52 (canonical SHA `0063cedd`). WAVE 4 PHASE 4.A — PASS 18 CLEAN. WINDOW 1/3 OPEN. FINDINGS_REMAIN.**
 
-develop HEAD: `ba3b10c7` | factory-artifacts: `15fa97e6` | workspace tests: 2363 | PRs merged: 125
+develop HEAD: `ba3b10c7` | factory-artifacts: `0063cedd` | workspace tests: 2363 | PRs merged: 125
 
 **PASS 18:** 0H+2M+1L all COSMETIC. F-P18-M-001/M-002 remediated by architect (ADR-016 v0.11, ADR-017 v0.7). F-P18-L-001 deferred (intent). Window 1/3 OPEN. Verdict: FINDINGS_REMAIN.
 
