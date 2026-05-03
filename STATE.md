@@ -398,7 +398,7 @@ user_directive_persistent: "No pragmatic convergence. Fix all issues before buil
 | **Last Updated** | 2026-05-03 (Wave 4 Phase 4.A D-214 Component 1 proactive structural sweep COMPLETE; STATE v6.39→v6.40) |
 | **Current Phase** | Phase 4.A — Wave 4 adversarial spec convergence (12 passes consumed; 0/3 clean window; sweep COMPLETE; ready for Pass 13) |
 | **Current Step** | Wave 4 Phase 4.A — Proactive sweep COMPLETE (D-214 Component 1); Adversary Pass 13 next (Option A — VSDD discipline) |
-| **factory-artifacts HEAD** | `15fa97e6` (placeholder — Stage 1 SHA; to be replaced by Stage 2 backfill; STATE v6.40) |
+| **factory-artifacts HEAD** | `cd016cda` (placeholder — Stage 1 SHA; to be replaced by Stage 2 backfill; STATE v6.40) |
 
 ## Phase Progress
 
@@ -475,9 +475,9 @@ Cycle files: [burst-log](cycles/phase-2-patch/burst-log.md) | [convergence-traje
 
 _Previous checkpoint archived: [cycles/wave-4-operations/session-checkpoints.md](cycles/wave-4-operations/session-checkpoints.md)_
 
-**STATE v6.40 (canonical SHA `15fa97e6` placeholder — Stage 2 will backfill). WAVE 4 PHASE 4.A — D-214 COMPONENT 1 PROACTIVE STRUCTURAL SWEEP COMPLETE. READY FOR PASS 13.**
+**STATE v6.40 (canonical SHA `cd016cda` placeholder — Stage 2 will backfill). WAVE 4 PHASE 4.A — D-214 COMPONENT 1 PROACTIVE STRUCTURAL SWEEP COMPLETE. READY FOR PASS 13.**
 
-develop HEAD: `ba3b10c7` | factory-artifacts: `15fa97e6` (Stage 1 placeholder) | workspace tests: 2363 | PRs merged: 125
+develop HEAD: `ba3b10c7` | factory-artifacts: `cd016cda` (Stage 1 placeholder) | workspace tests: 2363 | PRs merged: 125
 
 **NEXT ACTION: Adversary Pass 13 (Option A — VSDD discipline). Sweep remediated F-PSweep-H-001 (ADR-019 v0.4) + F-PSweep-M-001 (10 body-prose pins; S-4.02/4.04/4.08). See SESSION-HANDOFF.md STEP 2.**
 
