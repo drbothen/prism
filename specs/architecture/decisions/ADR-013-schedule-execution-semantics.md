@@ -3,7 +3,7 @@ document_type: adr
 adr_id: ADR-013
 title: "Schedule Execution Semantics"
 status: PROPOSED
-version: "0.4"
+version: "0.5"
 date: 2026-05-02
 wave: 4
 phase: 4.A
@@ -71,7 +71,7 @@ The executor's job: on each tick, evaluate which persisted schedules are fire-el
 The S-4.01 story draft as of 2026-04-16 contained several under-specified or conflicting design points that, if left to per-story implementation choice, would produce inconsistent behavior or verifiability gaps:
 
 - **Semaphore sharing conflict.** S-4.01 specified a 16-permit shared semaphore between schedule execution and action delivery. D-209 (LOCKED 2026-05-02) overrides this: independent 8-permit semaphores per subsystem, no sharing. The story text must be remediated; this ADR is the authoritative record.
-- **Cron library gap.** Story drafts cited `cron 0.12.x`. R-2 (research-findings.md) found `croner 3.0.1` is the correct choice for DST/timezone correctness. Story drafts must be updated.
+- **Cron library gap.** Story drafts cited `cron 0.12.x`; current latest at adversarial review is 0.15.0; both rejected for the same R-2 reasons (DST/timezone correctness gap). R-2 (research-findings.md) found `croner 3.0.1` is the correct choice. Story drafts must be updated.
 - **Missed-fire policy unspecified.** Neither S-4.01 nor any BC defines behavior when a tick is missed due to system pause or semaphore exhaustion. This ADR establishes skip-not-queue.
 - **Schedule-change notification.** D-211 requires that dedup-window resolutions be invalidated on schedule change. The notification mechanism (reload hook) must be established here; its consumers are ADR-015's responsibility.
 
@@ -265,9 +265,9 @@ The eight decisions in Section 2 are jointly necessary. Each addresses a distinc
 
 The S-4.01 story draft proposed a single 16-permit `Arc<Semaphore>` shared between schedule execution and action delivery. This was rejected by D-209 for the starvation hazard documented in §2.3. No further analysis is needed; D-209 is LOCKED.
 
-### 4.2 `cron` Crate 0.15.0 (Rejected — R-2)
+### 4.2 `cron` Crate (Rejected — R-2)
 
-The `cron` crate (zslayton/cron) 0.15.0 is the latest version of the original cron parser used in early story drafts. It is rejected because:
+Story drafts cited `cron 0.12.x`; current latest at adversarial review is 0.15.0; both rejected for the same R-2 reasons (DST/timezone correctness gap). The `cron` crate (zslayton/cron) is rejected because:
 - No DST awareness: schedules expressed in local timezones mis-fire at spring/fall transitions.
 - No timezone handling: all computations are UTC-only.
 - No `L`/`#`/`W` Quartz extensions: limits expressibility for end-of-month / nth-weekday schedules common in MSSP operational patterns.
@@ -293,6 +293,14 @@ The `tokio-cron-scheduler` crate provides a full async scheduler with optional P
 - Couples scheduler lifecycle to its own task management model, conflicting with Prism's single tick-loop architecture.
 - Persistence backends (PostgreSQL, NATS) conflict with Prism's RocksDB-first persistence architecture (ADR-008).
 - Adds significant dependency weight for capabilities Prism does not need (external storage, job registry API).
+
+---
+
+## Phase 4.A Pass 8 Remediation Notes
+
+Applied during Wave 4 Phase 4.A adversarial Pass 8 fix-burst (2026-05-02). Version bumped 0.4 → 0.5.
+
+- **P8-ADR-013-A-M-005 fix (cron version reconcile):** §1.2 and §4.2 cron library rejection now use the canonical phrasing: "Story drafts cited cron 0.12.x; current latest at adversarial review is 0.15.0; both rejected for the same R-2 reasons (DST/timezone correctness gap)." Section heading for §4.2 updated from "`cron` Crate 0.15.0 (Rejected — R-2)" to "`cron` Crate (Rejected — R-2)" to avoid implying only 0.15.0 was rejected.
 
 ---
 

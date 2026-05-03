@@ -2,7 +2,7 @@
 document_type: architecture-section
 level: L3
 section: "verification-coverage-matrix"
-version: "1.28"
+version: "1.29"
 status: draft
 producer: architect
 timestamp: 2026-04-20T18:00:00
@@ -58,7 +58,7 @@ See detailed tables below.
      VP-139..VP-142 added Wave 4 Phase 2 ADR burst (2026-05-02): proptest P1 15→19.
      VP-143 + VP-144 added Wave 4 Phase 3 ADR burst (2026-05-02): proptest P1 19→21.
      VP-138 elevated P1→P0 (W4-Phase4A-Pass4 2026-05-03): proptest P0 64→65, P1 21→20; Total P0 113→114, P1 31→30.
-     VP-145 added P1 (W4-Phase4A-Pass1 2026-05-02; INV-CASE-006): proptest P1 20→21, total Proptest 85→86, total VPs 144→145, total P1 30→31.
+     VP-145 added (W4-Phase4A-Pass5 2026-05-03 — reopen_count monotonic increment, INV-CASE-006): proptest P1 20→21; Total P1 30→31, Total VPs 144→145.
      Net post-Pass-6: Proptest 86 / P0=65 / P1=21; Total VPs=145 / P0=114 / P1=31. (P7-MEDIUM-001 reconciliation 2026-05-02) -->
 
 
@@ -141,6 +141,7 @@ See detailed tables below.
 
 | Version | Author | Date | Description |
 |---------|--------|------|-------------|
+| 1.29 | state-manager | 2026-05-03 | P8-VCM-A-L-006: HTML comment audit trail completed — VP-145 addition line appended in correct voice (W4-Phase4A-Pass5, INV-CASE-006, proptest P1 20→21, Total P1 30→31, Total VPs 144→145). Closes audit chain after VP-138 P1→P0 elevation. |
 | 1.28 | state-manager | 2026-05-02 | P7-MEDIUM-001: HTML comment reconciled — VP-145 P1 addition (W4-Phase4A-Pass1) documented alongside VP-138 P1→P0 elevation. Net post-Pass-6 totals: Proptest 86 / P0=65 / P1=21; Total VPs=145 / P0=114 / P1=31. |
 | 1.27 | state-manager | 2026-05-02 | P6-MED-001: VP-053 module mis-attribution corrected. Moved VP-053 from prism-core kani (13→12) to prism-operations kani (3→4). BC-2.14.006 row module annotation updated prism-core→prism-operations. Totals row Kani unchanged (30). VP-052/054 sibling moved in v1.10; VP-053 was missed in same sweep — partial-fix-regression of S-7.01 class. |
 | 1.26 | state-manager | 2026-05-02 | P5 architecture aggregate sync: Totals row Proptest 85→86, Total VPs 144→145; method-totals table Proptest 85→86, Total VPs 144→145 (VP-145 INV-CASE-006 proptest). |

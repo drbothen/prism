@@ -1,7 +1,7 @@
 ---
 document_type: behavioral-contract
 level: L3
-version: "1.4"
+version: "1.5"
 status: draft
 producer: product-owner
 timestamp: 2026-04-16T12:00:00
@@ -11,7 +11,7 @@ subsystem: "SS-18"
 capability: "CAP-033"
 lifecycle_status: active
 introduced: cycle-1
-modified: 2026-05-02
+modified: 2026-05-03
 deprecated: ~
 deprecated_by: ~
 replacement: ~
@@ -37,9 +37,11 @@ extracted_from: ".factory/specs/prd.md"
 When an alert or case event triggers an action, the delivery is guaranteed at-least-once.
 Failed deliveries are retried with exponential backoff (maximum 5 attempts, schedule
 **2s, 4s, 8s, 16s, 32s** with ±10% jitter per attempt; cumulative 55.8s–68.2s; per
-ADR-016 §2.6). Retry state is persisted to RocksDB `action_state` CF before each attempt.
-After 5 failures, a dead-letter record is written and an audit event is emitted. The source
-alert is NOT lost (it remains in the `alerts` CF). This is INV-ACTION-001.
+ADR-016 §2.6). Retry state is persisted to RocksDB `action_state` CF before each attempt
+using key discriminator `\x04` (retry-state row per ADR-016 §2.5), prefixed by OrgId per
+ADR-008 universal re-keying rule. After 5 failures, a dead-letter record is written using
+key discriminator `\x03` (dead-letter row per ADR-016 §2.5) and an audit event is emitted.
+The source alert is NOT lost (it remains in the `alerts` CF). This is INV-ACTION-001.
 
 ## Preconditions
 
@@ -53,16 +55,18 @@ alert is NOT lost (it remains in the `alerts` CF). This is INV-ACTION-001.
 
 - **Retryable failure (HTTP 429, 5xx, network error):**
   - Retry state is written to `action_state` CF:
-    `"{action_id}:retry:{alert_id}"` → `{ attempt: u32, next_retry_at: Timestamp, last_error: String }`
+    key `"{org_id}:\x04:{action_id}:{alert_id}"` → bincode-encoded `RetryState { attempt: u8, next_attempt_at: Timestamp, last_error: Option<String> }`; TTL 24h
+    (discriminator `\x04` = retry-state row per ADR-016 §2.5; OrgId-first prefix per ADR-008)
   - Backoff schedule (per ADR-016 §2.6): attempt 1 = 2s ±10%, 2 = 4s ±10%, 3 = 8s ±10%,
     4 = 16s ±10%, 5 = 32s ±10%; cumulative range 55.8s–68.2s
   - Retry is executed via `tokio::time::sleep` (does NOT block the trigger evaluation loop)
   - On success: retry key is deleted from `action_state` CF
 - **Non-retryable failure (HTTP 4xx except 429):**
   - No retry; audit-logged as `action_delivery_failed` with `retryable: false`
-  - Dead-letter record written: `"{action_id}:dead_letter:{alert_id}"` → JSON with final error
+  - Dead-letter record written: key `"{org_id}:\x03:{action_id}:{alert_id}"` → bincode-encoded `DeadLetterEntry { final_attempt: u8, terminal_error: String, dead_lettered_at: Timestamp }`
+    (discriminator `\x03` = dead-letter row per ADR-016 §2.5; OrgId-first prefix per ADR-008; terminal — written only after max_attempts exhausted or non-retryable error)
 - **Exhausted retries (5 failures):**
-  - Dead-letter record written to `action_state` CF
+  - Dead-letter record written to `action_state` CF (same key format as non-retryable above)
   - Audit event: `action_delivery_failed` with `attempts: 5`, `final_error: String`
   - The source alert record in the `alerts` CF is NOT modified or deleted
 
@@ -119,7 +123,9 @@ alert is NOT lost (it remains in the `alerts` CF). This is INV-ACTION-001.
 
 ## Architecture Anchors
 
+- ADR-016 §2.5: `action_state` CF key discriminators (`\x03` dead-letter, `\x04` retry-state); OrgId-first prefix per ADR-008
 - ADR-016 §2.6: Action delivery retry backoff schedule (`2s, 4s, 8s, 16s, 32s` ±10% jitter)
+- ADR-008: Universal OrgId-first re-keying rule (applies to all `action_state` CF keys)
 - AD-021: Actions — at-least-once delivery
 - `specs/architecture/actions.md` — retry logic, exponential backoff, dead-letter
 - S-4.08 Task 7: `action/retry.rs`
@@ -138,7 +144,7 @@ Integration test: `tests/action_tests.rs` — "Simulate webhook returning 500 �
 |-------|-------|
 | L2 Capability | CAP-033 |
 | Story Invariant | INV-ACTION-001 |
-| ADR | ADR-016 §2.6 |
+| ADR | ADR-016 §2.5 (CF key discriminators), ADR-016 §2.6 (backoff schedule), ADR-008 (OrgId prefix) |
 | Story | S-4.08 |
 | Priority | P0 |
 
@@ -156,10 +162,15 @@ Integration test: `tests/action_tests.rs` — "Simulate webhook returning 500 �
 - Added Architecture Anchor for ADR-016 §2.6
 - Added supersedes note at top of body
 
+## Phase 4.A Pass 8 Remediation Notes
+
+v1.5 (P8 fix): Retry/dead-letter CF keys aligned with ADR-016 §2.5 retry-state row (NEW `\x04`) and dead-letter row `\x03`; OrgId-first prefix per ADR-008 (P8-BC-2.18.001-A-H-002).
+
 ## Changelog
 
 | Version | Burst | Date | Author | Change |
 |---------|-------|------|--------|--------|
+| 1.5 | wave4-pass8-bc-sweep | 2026-05-03 | product-owner | P8 fix (P8-BC-2.18.001-A-H-002): retry key `{org_id}:\x04:{action_id}:{alert_id}` + bincode RetryState per ADR-016 §2.5; dead-letter key `{org_id}:\x03:{action_id}:{alert_id}` + bincode DeadLetterEntry per ADR-016 §2.5; OrgId-first prefix per ADR-008; value types specified; Architecture Anchors and Traceability updated. |
 | 1.4 | wave4-pass6-bc-sweep | 2026-05-02 | product-owner | Phase 4.A Pass 6 remediation (HIGH-002): corrected backoff to 2s/4s/8s/16s/32s ±10% jitter per ADR-016 §2.6; cumulative range 55.8s–68.2s; removed non-standard 30s/60s cap. |
 | 1.3 | pass-69-housekeeping | 2026-04-20 | product-owner | Normalized changelog schema to canonical 5-col schema. |
 | 1.2 | pass-69-housekeeping | 2026-04-20 | product-owner | Resolved VP-TBD placeholder per decision matrix (ADD-VP-044); normalized changelog schema to canonical 5-col form. |

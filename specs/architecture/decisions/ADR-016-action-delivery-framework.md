@@ -3,7 +3,7 @@ document_type: adr
 adr_id: "ADR-016"
 title: "Action Delivery Framework"
 status: PROPOSED
-version: "0.4"
+version: "0.5"
 date: 2026-05-02
 wave: 4
 phase: 4.A
@@ -65,7 +65,7 @@ Each mode has distinct delivery semantics. Sharing a single framework across all
 Three gaps in the S-4.08 story draft (as of 2026-04-16) required formal resolution:
 
 - **Semaphore sharing.** Story draft proposed a shared semaphore with the schedule executor. D-209 (LOCKED 2026-05-02) overrides this with independent 8-permit semaphores (see §2.11).
-- **Cron library.** Story draft cited `cron 0.12.x`. R-2 established `croner = "3"` as the required library for DST/timezone correctness (see ADR-013 §2.8 for the canonical decision; ADR-016 inherits it for the schedule trigger mode).
+- **Cron library.** Story drafts cited `cron 0.12.x`; current latest at adversarial review is 0.15.0; both rejected for the same R-2 reasons (DST/timezone correctness gap). R-2 established `croner = "3"` as the required library (see ADR-013 §2.8 for the canonical decision; ADR-016 inherits it for the schedule trigger mode).
 - **Email auth.** Story draft did not address Microsoft Exchange Online's 2026-04-30 SMTP auth deprecation (R-3). XOAUTH2 is now first-class for the email destination.
 
 ---
@@ -188,7 +188,8 @@ All keys in the `action_state` CF are prefixed with `{org_id_bytes}:` per ADR-00
 | Rate limit counter | `{org_id}:\x00:{action_id}:{hour_bucket}` | bincode 2.x: `u64` counter (RocksDB merge_operator per ADR-018 §2 pattern) |
 | Last-fire timestamp | `{org_id}:\x01:{action_id}` | bincode 2.x: `DateTime<Utc>` |
 | Dedup entry | `{org_id}:\x02:{action_id}:{idempotency_key}` | bincode 2.x: ack `DateTime<Utc>`; TTL 24h |
-| Dead-letter entry | `{org_id}:\x03:{action_id}:{event_id}` | bincode 2.x: `DeadLetterRecord` |
+| Dead-letter entry | `{org_id}:\x03:{action_id}:{event_id}` | bincode 2.x: `DeadLetterRecord`; terminal — written after max_attempts exhausted |
+| Retry state | `{org_id}:\x04:{action_id}:{alert_id}` | bincode 2.x: `RetryState { attempt: u8, next_attempt_at: Timestamp, last_error: Option<String> }`; TTL 24h (matches dedup TTL) |
 
 The `{org_id}:` prefix ensures per-org `reset_for(org_id)` semantics are correct: a prefix-scan on `{org_id}:` deletes all org-A action state without touching org-B entries (ADR-008 guarantee).
 
@@ -437,9 +438,9 @@ The S-4.08 story draft proposed a shared `Arc<Semaphore>` with 16 permits coveri
 
 An alternative design would treat `clients = []` as a sentinel for "all clients in the org," saving operators from typing `["*"]`. Rejected by D-210 (LOCKED 2026-05-02) because an empty list is ambiguous: it could represent an operator error (forgot to specify clients), a future "no clients" scope for org-level actions, or the "all clients" intent. Forcing the explicit `["*"]` sentinel makes intent unambiguous and prevents the silent misconfiguration of a broad-scope action caused by a typo or partial edit.
 
-### 4.3 Bare `cron 0.12.x` for Schedule Trigger (Rejected — R-2)
+### 4.3 Bare `cron` Crate for Schedule Trigger (Rejected — R-2)
 
-The story draft referenced `cron 0.12.x` (zslayton/cron). Rejected for the same reasons established in ADR-013 §4.2: no DST awareness, no timezone handling, no Quartz-compatible extensions. `croner = "3"` strictly dominates for multi-tenant MSSP scheduling. Canonical decision is at ADR-013 §2.8; this ADR inherits it.
+Story drafts cited `cron 0.12.x`; current latest at adversarial review is 0.15.0; both rejected for the same R-2 reasons (DST/timezone correctness gap). Rejected for the same reasons established in ADR-013 §4.2: no DST awareness, no timezone handling, no Quartz-compatible extensions. `croner = "3"` strictly dominates for multi-tenant MSSP scheduling. Canonical decision is at ADR-013 §2.8; this ADR inherits it.
 
 ### 4.4 `tokio1-rustls-tls` Feature Flag for Email (Rejected — R-3)
 
@@ -539,7 +540,7 @@ proptest! {
 
 **Structural test:** Verify at compile time (via module visibility rules) that `action_delivery_semaphore` is constructed inside `action/delivery.rs` and is not exported; and `schedule_executor_semaphore` is constructed inside `schedule/executor.rs` and is not exported. The semaphore types are module-private; cross-module access is a compile error.
 
-**Integration test:** Saturate the `action_delivery_semaphore` with 8 concurrent mock deliveries that hold their permits for 5 seconds. Trigger 3 schedule fires during this period. Assert all 3 schedule fires complete within 2 tick intervals (120s default tick), confirming schedule execution is not blocked by action delivery saturation.
+**Integration test:** Saturate the `action_delivery_semaphore` with 8 concurrent mock deliveries that hold their permits for 5 seconds. Trigger 3 schedule fires during this period. Assert all 3 schedule fires complete within 2 tick intervals (2 × 60s default tick = 120s wall-clock), confirming schedule execution is not blocked by action delivery saturation.
 
 **Symmetric pair:** VP-143 is the action-delivery counterpart to VP-137 (schedule-execution liveness, defined in ADR-013 §5.3). Together they cover the full starvation-freedom invariant for the dual-semaphore design (D-209).
 
@@ -555,6 +556,16 @@ proptest! {
 Not applicable. The `prism-operations` crate's action delivery subsystem is greenfield for Wave 4. There is no prior action delivery engine to migrate from. The `action_state` CF does not exist in production RocksDB instances prior to Wave 4 deployment.
 
 Upgrade note for Wave 4 deployment: the `action_state` CF must be created via `create_cf` during process startup if it does not exist. Missing CF on first run is not an error; it is created on-demand at `ActionDeliveryEngine::init()` or pre-created in the RocksDB startup initialization sequence (to be specified in BC-2.14.001 by the story-writer).
+
+---
+
+## Phase 4.A Pass 8 Remediation Notes
+
+Applied during Wave 4 Phase 4.A adversarial Pass 8 fix-burst (2026-05-02). Version bumped 0.4 → 0.5.
+
+- **P8-BC-2.18.001-A-H-002 prerequisite fix (retry-state CF row):** Added `\x04` discriminator row to §2.5 `action_state` CF key table. Key format: `{org_id}:\x04:{action_id}:{alert_id}`; value: bincode 2.x `RetryState { attempt: u8, next_attempt_at: Timestamp, last_error: Option<String> }`; TTL 24h. Dead-letter row description updated to mark it as terminal (written after max_attempts exhausted), distinct from retry-state (which tracks in-progress retry attempts).
+- **P8-ADR-016-A-M-004 fix (VP-143 tick disambiguation):** §5.5 VP-143 integration test updated from "120s default tick" to "2 × 60s default tick = 120s wall-clock". Default tick is 60s per ADR-013 §2.1; the prior phrasing implied 120s was the default.
+- **P8-ADR-013-A-M-005 fix (cron version reconcile, inherited):** §1.3 and §4.3 cron library rejection now use the canonical phrasing: "Story drafts cited cron 0.12.x; current latest at adversarial review is 0.15.0; both rejected for the same R-2 reasons (DST/timezone correctness gap)."
 
 ---
 
