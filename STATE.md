@@ -1,7 +1,7 @@
 ---
 document_type: pipeline-state
 level: ops
-version: "6.51"
+version: "6.52"
 producer: state-manager
 timestamp: 2026-05-03T00:00:00Z
 inputs: []
@@ -95,16 +95,16 @@ wave_4_phase_4_a_preflight:
   pass_13_remediation_complete: true
   pass_13_fixes: [verification-architecture VP-053 prism-core→prism-operations v1.26, ADR-013 date sync v0.6, ARCH-INDEX v2.10, S-4.02 v1.9 CF keys, S-4.04 v1.10 tick wording, BC-2.12.004 v1.7 VP-137 row]
   pass_13_stage1_sha: 398c5273
-  convergence_window: "0/3 (reset; pass-16 BLOCKED → REMEDIATED)"
-  pass_trajectory: "38→17→8→7→7→5→5→6→6→5→5→4→7→9→2→4→3 (17 passes; TD-VSDD-039/041/042/043/045 filed) → 17:BLOCKED→REMEDIATED(1H+2M; HIGH count declining)"
-  passes_consumed: 17
+  convergence_window: "1/3 OPEN (pass-18 CLEAN; Pass 19 + Pass 20 required)"
+  pass_trajectory: "38→17→8→7→7→5→5→6→6→5→5→4→7→9→2→4→3→3(CLEAN) (18 passes; TD-VSDD-039/041/042/043/045 filed) → 18:CLEAN(0H+2M+1L; window 1/3 OPEN; FINDINGS_REMAIN)"
+  passes_consumed: 18
   convergence_strategy: B+A_hybrid (D-214)
   subagent_context_discipline: MANDATORY
   proactive_sweep_status: "COMPLETE_2026-05-03 + Pass 13 surfaced 2 HIGH not caught by sweep methodology — TD-VSDD-039 filed"
   proactive_sweep_findings: "F-PSweep-H-001 HIGH (ADR-019 Status), F-PSweep-M-001 MEDIUM (10 body-prose pins) — both remediated"
   pre_pass14_sweep_status: "COMPLETE_2026-05-03 (TD-VSDD-039 methodology applied); findings: F-PreP14-H-003 + F-PreP14-H-004 — both remediated"
   pre_pass17_sweep_status: "COMPLETE_2026-05-03 (TD-VSDD-042 codified) — F-PreP17-H-001 (S-4.01 VP-137 row drift) remediated"
-  next_action: "Adversary Pass 18 (window 1/3 attempt)"
+  next_action: "Adversary Pass 19 (window 2/3 attempt)"
   vsdd_plugin_td_count: 24 (was 22; TD-VSDD-044 cite-repair + TD-VSDD-045 Pass 17 VP Matrix gap added)
 gate_status_hook_compat_remediation: 2026-04-24
 wave_0a_complete: 2026-04-22
@@ -358,7 +358,7 @@ holdout_index_version: "1.2"
 capabilities_version: "1.14"
 l2_index_version: "1.10"
 module_decomposition_version: "1.12"
-arch_index_version: "2.15"
+arch_index_version: "2.16"
 security_architecture_version: "1.1"
 verification_coverage_matrix_version: "1.23"
 verification_architecture_version: "1.26"
@@ -393,10 +393,10 @@ user_directive_persistent: "No pragmatic convergence. Fix all issues before buil
 | **Language** | Rust |
 | **Target Workspace** | per-analyst stdio (MCP server) |
 | **Started** | 2026-04-13 |
-| **Last Updated** | 2026-05-03 (Pre-Pass-18 sweep F-PreP18-M-001 — STORY-INDEX S-4.06 VPs cell normalized to fully-prefixed; STORY-INDEX v2.01; STATE v6.49) |
-| **Current Phase** | Phase 4.A — Wave 4 adversarial spec convergence (17 passes consumed; 0/3 clean window; Pass 18 next) |
-| **Current Step** | Wave 4 Phase 4.A — Pass 17 REMEDIATED (1H+2M: STORY-INDEX 3-row ADR annotation drift SUBSTANTIVE + ADR-016/017 date sync COSMETIC + VP Matrix gap deferred TD-VSDD-045); Pass 18 (window 1/3 attempt) |
-| **factory-artifacts HEAD** | `9fc7376e` |
+| **Last Updated** | 2026-05-03 (Pass 18 CLEAN — window 1/3 OPEN; FINDINGS_REMAIN; ADR-016 v0.11 + ADR-017 v0.7; ARCH-INDEX v2.16; STATE v6.52) |
+| **Current Phase** | Phase 4.A — Wave 4 adversarial spec convergence (18 passes consumed; 1/3 clean window OPEN; Pass 19 next) |
+| **Current Step** | Wave 4 Phase 4.A — Pass 18 CLEAN (0H+2M+1L; F-P18-M-001/M-002 cosmetic remediated by architect; F-P18-L-001 deferred; window 1/3 OPEN; FINDINGS_REMAIN); Pass 19 (window 2/3 attempt) next |
+| **factory-artifacts HEAD** | `15fa97e6` |
 
 ## Phase Progress
 
@@ -432,23 +432,11 @@ _D-001..D-046 archived: [cycles/phase-3-dtu-wave-2/decisions-archive-d001-d032.m
 | ID | Decision | Rationale | Phase | Date |
 |----|----------|-----------|-------|------|
 | D-214 | Wave 4 Phase 4.A Convergence Strategy — B+A Hybrid with Subagent Context Discipline. Component 1 (Option B): Proactive structural sweep. Component 2 (Option A): Formal adversarial passes 13+ to 3-clean window. Component 3: Subagent context discipline MANDATORY (orchestrator NEVER reads large files; state-manager LAST per burst). | Wave 4 Phase 4.A B+A hybrid convergence + mandatory subagent context discipline | 4 | 2026-05-04 |
-**D-214 sweep COMPLETE + Passes 1..17 REMEDIATED. Pre-Pass-18 sweep-2 (F-PreP18-H-001): architect-burst ADR-016 v0.9→v0.10 + ADR-017 v0.5→v0.6 (Status H2 synced) captured; ARCH-INDEX v2.15; STATE v6.51. Cite-repair: line 399 `7d9bc158`→`988e06ec` (3rd TD-VSDD-044 manifestation; structural fix pending).** Detail: [burst-log.md](cycles/wave-4-operations/burst-log.md). Pass 17: F-P17-H-001 SUBSTANTIVE (STORY-INDEX 3-row ADR annotation drift); F-P17-M-001/002 COSMETIC; TD-VSDD-044+045 filed.
+**Pass 17 REMEDIATED (1H+2M): STORY-INDEX 3-row ADR-anchor drift SUBSTANTIVE (F-P17-H-001) + ADR-016/017 date sync COSMETIC (F-P17-M-001) + VP Matrix gap deferred TD-VSDD-045. STORY-INDEX v2.00, ARCH-INDEX v2.14.** Detail: [adversarial-reviews/pass-17.md](cycles/wave-4-operations/adversarial-reviews/pass-17.md) | [burst-log.md](cycles/wave-4-operations/burst-log.md).
 
-**Pass 16 REMEDIATED (2H+2M).** Detail: [adversarial-reviews/pass-16.md](cycles/wave-4-operations/adversarial-reviews/pass-16.md).
+**Pass 18 CLEAN — WINDOW 1/3 OPEN — FINDINGS_REMAIN: 0H+2M+1L all COSMETIC. F-P18-M-001/M-002 remediated by architect (ADR-016 v0.11, ADR-017 v0.7); F-P18-L-001 deferred (intent). HIGH count exhausted (0). Pass 19 + Pass 20 required.** Detail: [adversarial-reviews/pass-18.md](cycles/wave-4-operations/adversarial-reviews/pass-18.md).
 
-### Wave 4 Phase 4.A Adversary Pass 17 (2026-05-03) — BLOCKED → REMEDIATED
-
-| Finding | Severity | Substance | Class | Site | Resolution |
-|---------|----------|-----------|-------|------|------------|
-| F-P17-H-001 | HIGH | SUBSTANTIVE | STORY-INDEX↔frontmatter ADR-anchor sync (3 rows) | STORY-INDEX W4 rows | state-manager: S-4.02 ADR-015→ADR-018; S-4.05 ADR-016→ADR-015; S-4.06 dropped over-claimed ADR-019 |
-| F-P17-M-001 | MEDIUM | COSMETIC | ADR frontmatter date sync | ADR-016, ADR-017 | architect: 2026-05-02 → 2026-05-03; v0.9, v0.5 |
-| F-P17-M-002 | MEDIUM | COSMETIC | STORY-INDEX VP Assignment Matrix missing W3/W4 VPs | STORY-INDEX matrix | DEFERRED → TD-VSDD-045 (structural gap, requires major rebuild; deferred to post-convergence) |
-
-**Trajectory:** 5 passes (P13-P17): findings 8→9→2→4→3; HIGH count 2→2→2→2→1 (declining). First pass distinguishing SUBSTANTIVE vs COSMETIC.
-
-**Window status:** 0/3 (BLOCKED → REMEDIATED). Pass 18 required.
-
-**Passes 14–15 REMEDIATED.** Detail: [cycles/wave-4-operations/burst-log.md](cycles/wave-4-operations/burst-log.md) + [adversarial-reviews/pass-14.md](cycles/wave-4-operations/adversarial-reviews/pass-14.md) + [pass-15.md](cycles/wave-4-operations/adversarial-reviews/pass-15.md).
+**Passes 8–16 REMEDIATED.** Detail: [burst-log.md](cycles/wave-4-operations/burst-log.md) + [adversarial-reviews/](cycles/wave-4-operations/adversarial-reviews/).
 
 ## Skip Log
 
@@ -471,19 +459,19 @@ _TD-VSDD-014..019, TD-W3-COMPLIANCE-001, TD-VSDD-025..029 archived to [tech-debt
 
 Cycle files: [burst-log](cycles/phase-2-patch/burst-log.md) | [convergence-trajectory](cycles/phase-2-patch/convergence-trajectory.md) | [session-checkpoints](cycles/phase-2-patch/session-checkpoints.md) | [lessons](cycles/phase-2-patch/lessons.md) | [resolved-blockers](cycles/phase-2-patch/blocking-issues-resolved.md)
 ---
-## Session Resume Checkpoint (2026-05-03-wave4-phase4a-prepass18-sweep2-v6.50)
+## Session Resume Checkpoint (2026-05-03-wave4-phase4a-pass18-clean-v6.52)
 
 _Previous checkpoint archived: [cycles/wave-4-operations/session-checkpoints.md](cycles/wave-4-operations/session-checkpoints.md)_
 
-**STATE v6.51 (canonical SHA `9fc7376e`). WAVE 4 PHASE 4.A — PRE-PASS-18 SWEEP-2 COMPLETE. READY FOR PASS 18 (WINDOW 1/3).**
+**STATE v6.52 (canonical SHA `15fa97e6`). WAVE 4 PHASE 4.A — PASS 18 CLEAN. WINDOW 1/3 OPEN. FINDINGS_REMAIN.**
 
-develop HEAD: `ba3b10c7` | factory-artifacts: `9fc7376e` | workspace tests: 2363 | PRs merged: 125
+develop HEAD: `ba3b10c7` | factory-artifacts: `15fa97e6` | workspace tests: 2363 | PRs merged: 125
 
-**PRE-PASS-18 SWEEP-2:** F-PreP18-H-001 — ADR-016 v0.9→v0.10 (Status H2 synced) + ADR-017 v0.5→v0.6 (Status H2 synced); architect-burst uncommitted changes captured. ARCH-INDEX v2.14→v2.15. F-PreP18-M-001 (sweep-1): STORY-INDEX S-4.06 VPs cell normalized. STORY-INDEX v2.01.
+**PASS 18:** 0H+2M+1L all COSMETIC. F-P18-M-001/M-002 remediated by architect (ADR-016 v0.11, ADR-017 v0.7). F-P18-L-001 deferred (intent). Window 1/3 OPEN. Verdict: FINDINGS_REMAIN.
 
-**NEXT ACTION: Adversary Pass 18 (window 1/3 attempt). See SESSION-HANDOFF.md STEP 2.**
+**NEXT ACTION: Adversary Pass 19 (window 2/3 attempt). See SESSION-HANDOFF.md STEP 2.**
 
-**Current spec versions:** ADR-013 v0.7, ADR-015 v0.6, ADR-016 v0.10, ADR-017 v0.6, ADR-018 v0.6, ADR-019 v0.4, S-4.01 v1.12, S-4.02 v1.11, S-4.05 v1.12, S-4.08 v1.22, BC-2.12.004 v1.8, STORY-INDEX v2.01, ARCH-INDEX v2.15, BC-INDEX v4.30.
+**Current spec versions:** ADR-013 v0.7, ADR-015 v0.6, ADR-016 v0.11, ADR-017 v0.7, ADR-018 v0.6, ADR-019 v0.4, S-4.01 v1.12, S-4.02 v1.11, S-4.05 v1.12, S-4.08 v1.22, BC-2.12.004 v1.8, STORY-INDEX v2.01, ARCH-INDEX v2.16, BC-INDEX v4.30.
 
 **Key files:** [SESSION-HANDOFF.md](SESSION-HANDOFF.md) | [cycle-manifest.md](cycles/wave-4-operations/cycle-manifest.md)
 

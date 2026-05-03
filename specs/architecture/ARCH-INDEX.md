@@ -1,7 +1,7 @@
 ---
 document_type: architecture-index
 level: L3
-version: "2.15"
+version: "2.16"
 status: draft
 producer: architect
 timestamp: 2026-04-26T20:30:00
@@ -80,8 +80,8 @@ deployment_topology: single-service
 | ADR-012 | Workspace src/ Convention Normalization — Canonical Crate Layout | ACCEPTED | 2026-04-27 | decisions/ADR-012-src-convention.md |
 | ADR-013 | Schedule Execution Semantics | PROPOSED v0.7 | 2026-05-03 | decisions/ADR-013-schedule-execution-semantics.md |
 | ADR-015 | Detection Rule Language | PROPOSED v0.6 | 2026-05-03 | decisions/ADR-015-detection-rule-language.md |
-| ADR-016 | Action Delivery Framework | PROPOSED v0.10 | 2026-05-03 | decisions/ADR-016-action-delivery-framework.md |
-| ADR-017 | Case Lifecycle Invariants | PROPOSED v0.6 | 2026-05-03 | decisions/ADR-017-case-lifecycle-invariants.md |
+| ADR-016 | Action Delivery Framework | PROPOSED v0.11 | 2026-05-03 | decisions/ADR-016-action-delivery-framework.md |
+| ADR-017 | Case Lifecycle Invariants | PROPOSED v0.7 | 2026-05-03 | decisions/ADR-017-case-lifecycle-invariants.md |
 | ADR-018 | Differential Result Pack Format | PROPOSED v0.6 | 2026-05-03 | decisions/ADR-018-differential-result-pack-format.md |
 | ADR-019 | SIEM Output Formats | PROPOSED v0.4 | 2026-05-03 | decisions/ADR-019-siem-output-formats.md |
 
@@ -142,6 +142,7 @@ deployment_topology: single-service
 
 | Version | Pass | Date | Author | Change |
 |---------|------|------|--------|--------|
+| 2.16 | W4-Phase4A-Pass18-burst | 2026-05-03 | state-manager | Pass 18 CLEAN (window 1/3 OPEN; FINDINGS_REMAIN): ADR-016 v0.10→v0.11 (F-P18-M-001/M-002 remediation-notes table header + stale-narrative fixes); ADR-017 v0.6→v0.7 (same). |
 | 2.15 | W4-Phase4A-PrePass18-Sweep-2 | 2026-05-03 | state-manager | F-PreP18-H-001 architect-burst capture: ADR-016 v0.9→v0.10 (Status H2 synced v0.8→v0.10; sister-line regression class per F-P16-H-002); ADR-017 v0.5→v0.6 (Status H2 synced v0.4→v0.6; same class). Ready for Pass 18. |
 | 2.14 | W4-Phase4A-Pass17-fix | 2026-05-03 | state-manager | Pass 17 BLOCKED → REMEDIATED: ADR-016 v0.8→v0.9 (F-P17-M-001 frontmatter date 2026-05-02→2026-05-03; COSMETIC); ADR-017 v0.4→v0.5 (F-P17-M-001 frontmatter date 2026-05-02→2026-05-03; COSMETIC). |
 | 2.13 | W4-Phase4A-Pass16-fix | 2026-05-03 | state-manager | Pass 16 BLOCKED → REMEDIATED: ADR-015 v0.5→v0.6 (F-P16-H-002 Status H2 sync); ADR-016 v0.7→v0.8 (F-P16-M-001 §5.5 VP-143 anchor corrected to S-4.08 only); ADR-018 v0.5→v0.6 (F-P16-H-002 Status H2 sync). |

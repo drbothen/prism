@@ -1,7 +1,7 @@
 ---
 document_type: session-handoff
 level: ops
-version: "6.51"
+version: "6.52"
 status: current
 timestamp: 2026-05-02T02:00:00Z
 predecessor_session: "Wave 4 Phase 4.A decisions logged 2026-05-02. D-207..D-213 logged: 6-ADR topology, OrgId/ClientId hierarchy, per-subsystem semaphores, clients=[] reject, dedup scheduling-time, prism-siem-formats in-house, ADR-017 narrative. Research complete (research-findings.md). Architect cleared for Phase 1 ADRs. STATE v6.20→v6.21. factory-artifacts 41c711cf (prior canonical SHA)."
@@ -34,7 +34,7 @@ factory-artifacts canonical: 84455d7d (canonical SHA). develop HEAD: ba3b10c7."
 
 ## TL;DR
 
-**Wave 4 Phase 4.A — Pre-Pass-18 Sweep-2 COMPLETE (2026-05-03) — STATE v6.50:** F-PreP18-H-001 architect-burst capture: ADR-016 v0.9→v0.10 (Status H2 synced) + ADR-017 v0.5→v0.6 (Status H2 synced); sister-line regression class per F-P16-H-002 still pending structural lint hook. ARCH-INDEX v2.15. STATE v6.50, HANDOFF v6.50. Ready for Pass 18 (window 1/3 attempt).
+**Wave 4 Phase 4.A — Pass 18 CLEAN (2026-05-03) — STATE v6.52:** 0H+2M+1L all COSMETIC. F-P18-M-001/M-002 remediated by architect (ADR-016 v0.11, ADR-017 v0.7); F-P18-L-001 deferred (intent). Window 1/3 OPEN; FINDINGS_REMAIN. ARCH-INDEX v2.16. Ready for Pass 19 (window 2/3 attempt).
 
 **Wave 4 Pre-Pass-18 Sweep-1 COMPLETE (2026-05-03) — STATE v6.49:** F-PreP18-M-001 STORY-INDEX S-4.06 VPs cell normalized to fully-prefixed. STORY-INDEX v2.01. STATE v6.49.
 
@@ -110,21 +110,21 @@ factory-artifacts canonical: 84455d7d (canonical SHA). develop HEAD: ba3b10c7."
 
 ## Current State
 
-develop HEAD `ba3b10c7` | factory-artifacts `9fc7376e` (cite-repair-3 F-CITE-REPAIR-002; STATE v6.51)
+develop HEAD `ba3b10c7` | factory-artifacts `15fa97e6` (Pass 18 CLEAN — window 1/3 OPEN; STATE v6.52)
 
 | Metric | Value |
 |--------|-------|
 | develop HEAD | `ba3b10c7` (W3-FIX-SEC-005 — Wave 3.4 final PR, PR #125, 2026-05-02) |
-| factory-artifacts HEAD | `9fc7376e` (cite-repair-3 F-CITE-REPAIR-002; STATE v6.51) |
+| factory-artifacts HEAD | `15fa97e6` (Pass 18 CLEAN — window 1/3 OPEN; STATE v6.52) |
 | PR count merged | 125 |
 | Workspace test count | 2363 (nextest-verified; +133 from CI nextest split + doctest migration) |
 | Open PRs | None |
 | Active worktrees | main (`develop`) + `.factory` (`factory-artifacts`) |
-| Tech debt items | 57 active product items (70 prior − 13 VSDD items extracted); vsdd-plugin-tech-debt.md: 23 items (+TD-VSDD-042 Pass 15; +TD-VSDD-043 Pass 16; +TD-VSDD-044 cite-repair) |
+| Tech debt items | 57 active product items (70 prior − 13 VSDD items extracted); vsdd-plugin-tech-debt.md: 24 items (+TD-VSDD-042/043/044/045) |
 | Wave 2 gate status | CONVERGED 2026-04-27 — Pass 9 CLEAN (3-clean-passes: P6+P8+P9) |
 | Wave 3 gate status | **CONVERGED 2026-05-02 — 3-clean window pass-52+53+54; develop@ba3b10c7** |
 | Wave 4 status | **PHASE 4.A — D-207..D-213 logged; architect cleared for 6 ADRs (3 phases); implementation BLOCKED** |
-| Status | **WAVE 4 PHASE 4.A — Pre-Pass-18 sweep-2 (F-PreP18-H-001) captured: ADR-016 v0.10 + ADR-017 v0.6 Status H2 synced (architect burst). Ready for Adversary Pass 18 (window 1/3).** |
+| Status | **WAVE 4 PHASE 4.A — Pass 18 CLEAN (0H+2M+1L; F-P18-M-001/M-002 remediated ADR-016 v0.11 + ADR-017 v0.7; F-P18-L-001 deferred). Window 1/3 OPEN; FINDINGS_REMAIN. Ready for Adversary Pass 19 (window 2/3).** |
 
 
 ---
@@ -166,9 +166,9 @@ STEP 2 — Resume formal adversary passes (Option A — VSDD discipline):
 
   Pre-Pass-18 sweep-1 COMPLETE — F-PreP18-M-001 (STORY-INDEX S-4.06 VPs cell normalized: `VP-052,053,054,060, VP-138, VP-145` → `VP-052, VP-053, VP-054, VP-060, VP-138, VP-145`; fully-prefixed, matches sibling rows). STORY-INDEX v2.01. STATE v6.49.
 
-  Pre-Pass-18 sweep-2 COMPLETE — F-PreP18-H-001 captured: ADR-016 v0.10 + ADR-017 v0.6 Status H2 synced (architect burst). ARCH-INDEX v2.15. STATE v6.50, HANDOFF v6.50. Next: Pass 18 (window 1/3 attempt).
+  Pass 18 dispatched 2026-05-03 — CLEAN (window 1/3 OPEN; FINDINGS_REMAIN). 0H+2M+1L all COSMETIC. F-P18-M-001/M-002 remediated by architect (ADR-016 v0.11, ADR-017 v0.7); F-P18-L-001 deferred (intent). HIGH count exhausted (0). ARCH-INDEX v2.16. Next: Pass 19 (window 2/3 attempt).
 
-  2b. If CLEAN: dispatch Pass 15 (window 2/3); if also CLEAN: Pass 16 (window 3/3 — CONVERGED).
+  2b. If CLEAN: dispatch Pass 20 (window 3/3 — CONVERGED if also CLEAN).
   2c. If BLOCKED at any pass: route findings tightly per defect-class; remediate; re-pass.
   2d. NO skipping the formal 3-clean window. Per VSDD discipline.
 
@@ -185,11 +185,11 @@ KEY REFERENCES:
 - All adversarial reviews: .factory/cycles/wave-4-operations/adversarial-reviews/pass-{1..12}.md
 - All preflight findings: .factory/cycles/wave-4-operations/preflight-findings/
 - Wave 4 cycle-manifest: .factory/cycles/wave-4-operations/cycle-manifest.md (v1.22)
-- 6 ADRs current versions: 013 v0.7, 015 v0.6, 016 v0.10, 017 v0.6, 018 v0.6, 019 v0.4
+- 6 ADRs current versions: 013 v0.7, 015 v0.6, 016 v0.11, 017 v0.7, 018 v0.6, 019 v0.4
 - 8 W4 stories current versions: S-4.01 v1.12, S-4.02 v1.11, S-4.03 v1.9, S-4.04 v1.11, S-4.05 v1.12, S-4.06 v1.13, S-4.07 v1.8, S-4.08 v1.22
 - 4 W4 BCs current versions: BC-2.12.004 v1.8, BC-2.18.001 v1.7, BC-2.18.002 v1.4, BC-2.18.004 v1.4
-- verification-architecture v1.26, ARCH-INDEX v2.15, STORY-INDEX v2.01, BC-INDEX v4.30
-- factory-artifacts canonical SHA: `9fc7376e`
+- verification-architecture v1.26, ARCH-INDEX v2.16, STORY-INDEX v2.01, BC-INDEX v4.30
+- factory-artifacts canonical SHA: `15fa97e6`
 - develop HEAD: ba3b10c7 (Wave 3 CONVERGED 2026-05-02)
 
 ### Carry-Forward Debt (Wave 4 — REMEDIATE ALL per D-203)

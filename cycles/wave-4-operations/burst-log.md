@@ -66,3 +66,27 @@ STATE.md v6.43 compaction: Decisions D-200 through D-213 (Wave 4 pre-flight + ar
 2H+4M+2L+13-site cascade (F-P14-M-001). TD-VSDD-040+041 filed. Stage 1 SHA `166e5af2`.
 
 ---
+
+## Pass 17 BLOCKED → REMEDIATED (2026-05-03) — STATE v6.47→v6.48
+
+| Finding | Severity | Substance | Site | Resolution |
+|---------|----------|-----------|------|------------|
+| F-P17-H-001 | HIGH | SUBSTANTIVE | STORY-INDEX W4 rows | S-4.02 ADR-015→ADR-018; S-4.05 ADR-016→ADR-015; S-4.06 dropped over-claimed ADR-019; STORY-INDEX v2.00 |
+| F-P17-M-001 | MEDIUM | COSMETIC | ADR-016, ADR-017 frontmatter date | 2026-05-02 → 2026-05-03; ADR-016 v0.9, ADR-017 v0.5 |
+| F-P17-M-002 | MEDIUM | COSMETIC | STORY-INDEX VP Assignment Matrix | DEFERRED → TD-VSDD-045 (structural gap; post-convergence) |
+
+1H+2M. HIGH count trajectory: 2→2→2→2→1 (declining). STORY-INDEX v2.00, ARCH-INDEX v2.14. Window reset 0/3. Stage 1 SHA from cite-repair burst `988e06ec`.
+
+---
+
+## Pass 18 CLEAN — WINDOW 1/3 OPEN (2026-05-03) — STATE v6.51→v6.52
+
+| Finding | Severity | Substance | Site | Resolution |
+|---------|----------|-----------|------|------------|
+| F-P18-M-001 | MEDIUM | COSMETIC | ADR-016/017 §Pass-17-Remediation-Notes table header missing | architect: header row added; ADR-016 v0.11, ADR-017 v0.7 |
+| F-P18-M-002 | MEDIUM | COSMETIC | ADR-016/017 fix-burst stale-narrative voice | architect: same burst; past-tense "REMEDIATED" applied |
+| F-P18-L-001 | LOW | COSMETIC | S-4.06 frontmatter inputs missing VP-138/VP-145 | DEFERRED — pending intent verification |
+
+0H+2M+1L. HIGH count: 0 (exhausted). Disposition: CLEAN. Verdict: FINDINGS_REMAIN (window 1/3 OPEN; Pass 19 + Pass 20 required). ADR-016 v0.11, ADR-017 v0.7, ARCH-INDEX v2.16. STATE v6.52, HANDOFF v6.52, cycle-manifest v1.35. Stage 1 SHA `15fa97e6` (placeholder — to be backfilled).
+
+---
