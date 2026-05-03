@@ -3,7 +3,7 @@ document_type: adr
 adr_id: ADR-013
 title: "Schedule Execution Semantics"
 status: PROPOSED
-version: "0.2"
+version: "0.3"
 date: 2026-05-02
 wave: 4
 phase: 4.A
@@ -54,7 +54,7 @@ traces_to: specs/architecture/ARCH-INDEX.md
 
 ## Status
 
-PROPOSED 2026-05-02, v0.2. Pending review and acceptance prior to story remediation and BC authoring.
+PROPOSED 2026-05-02, v0.3. Pending review and acceptance prior to story remediation and BC authoring.
 
 ---
 
@@ -120,6 +120,8 @@ The hash function is blake3 (per R-4: `blake3 = "1.8"`, no CVEs, workspace stand
 Splay is stable for the lifetime of a schedule: the same `schedule_id` always maps to the same splay offset. Splay is recomputed only on schedule reload (see §2.7). This guarantees that VP-026 (splay computation deterministic per schedule_id) is satisfied.
 
 The 15-minute cap ensures that no schedule is artificially deferred beyond a quarter-hour from its nominal fire time regardless of how large the interval is. The `interval/4` modulus ensures splay is proportionate: a 60-second interval splays up to 15 seconds; a 3600-second (1-hour) interval splays up to 900 seconds (15 minutes, capped).
+
+**Non-periodic cron edge case (splay clamping):** If the splay-adjusted fire time exceeds the next legal cron slot, splay is clamped to `(next_slot - 1s)`. This prevents a splay-deferred fire from being pushed past a gap in the cron schedule. Example: for a weekday-only cron (`0 9 * * MON-FRI`), a splay that would defer Friday 9:00am past 9:15am must not push the fire to the following Monday — it must be clamped to fire before the Friday slot closes. Implementers MUST compute `next_slot` via `croner::Cron.upcoming()` peek before applying splay and use the clamped value if `nominal_fire_time + splay_seconds >= next_slot`.
 
 ### 2.3 Per-Subsystem Semaphore Allocation (D-209 — LOCKED)
 
@@ -293,6 +295,12 @@ The `tokio-cron-scheduler` crate provides a full async scheduler with optional P
 - Adds significant dependency weight for capabilities Prism does not need (external storage, job registry API).
 
 ---
+
+## Phase 4.A Pass 2 Remediation Notes
+
+Applied during Wave 4 Phase 4.A adversarial Pass 2 fix-burst (2026-05-02). Version bumped 0.2 → 0.3.
+
+- **P2-ADR-013-A-M-001 fix (splay edge case for non-periodic cron):** §2.2 extended with a non-periodic cron splay-clamping clause. If splay-adjusted fire time exceeds the next legal cron slot, splay is clamped to `(next_slot - 1s)`. Implementers must compute `next_slot` via `croner::Cron.upcoming()` peek before applying splay. This prevents weekday-only crons (e.g., `0 9 * * MON-FRI`) from having Friday fires splay-deferred past the weekend gap.
 
 ## Phase 4.A Pass 1 Remediation Notes
 

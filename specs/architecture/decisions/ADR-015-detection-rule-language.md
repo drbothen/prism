@@ -3,7 +3,7 @@ document_type: adr
 adr_id: "ADR-015"
 title: "Detection Rule Language"
 status: PROPOSED
-version: "0.2"
+version: "0.3"
 date: 2026-05-02
 wave: 4
 phase: 4.A
@@ -36,7 +36,7 @@ traces_to: specs/architecture/ARCH-INDEX.md
 
 ## Status
 
-PROPOSED 2026-05-02, v0.2. Pending review and acceptance prior to story remediation and BC authoring.
+PROPOSED 2026-05-02, v0.3. Pending review and acceptance prior to story remediation and BC authoring.
 
 ---
 
@@ -316,8 +316,7 @@ cache + invalidate keeps dedup semantics dynamic without per-eval cost).
   `ScheduleChangeNotification::Updated(schedule_id)` or `::Deleted(schedule_id)`,
   the detection engine invalidates all `DetectionRuleCache` entries whose `schedule_id`
   matches the changed schedule and reloads them from the persistent rule store.
-  `ScheduleChangeNotification::Created(schedule_id)` does not trigger invalidation
-  (no rule yet references a brand-new schedule).
+  `ScheduleChangeNotification::Created(schedule_id)` triggers a scan of all `DetectionRuleCache` entries whose `schedule_id` matches the newly-created schedule. Rules with a cached `effective_dedup_window` that was resolved via the default fallback (`Duration::hours(1)` — priority 3 in the resolution order above) get invalidated and re-resolved against the newly-created schedule's interval. This handles the case where rules are authored before their schedule exists: the rule loads with a default dedup window and is correctly updated to the linked schedule's interval when the schedule is created. Rules whose `effective_dedup_window` was resolved via an explicit `dedup_window` field (priority 1) are NOT invalidated on `Created`, as the explicit field takes precedence over the schedule interval.
 - **Rule file change** (via `notify` file watcher, same watcher as IOC hot-reload §2.6):
   invalidates the specific rule's cache entry and reloads that rule.
 
@@ -471,6 +470,12 @@ to Wave 5: the IOC pattern matching surface is currently consumed only by S-4.03
 Flag for re-evaluation when a second consumer appears.
 
 ---
+
+## Phase 4.A Pass 2 Remediation Notes
+
+Applied during Wave 4 Phase 4.A adversarial Pass 2 fix-burst (2026-05-02). Version bumped 0.2 → 0.3.
+
+- **P2-ADR-015-A-M-001 fix (Created notification invalidation):** §2.7 invalidation triggers updated. `ScheduleChangeNotification::Created(schedule_id)` now triggers a scan of all `DetectionRuleCache` entries with a matching `schedule_id` that were resolved via the default fallback (`Duration::hours(1)`); those entries are invalidated and re-resolved against the newly-created schedule's interval. Rules resolved via an explicit `dedup_window` field are not affected. This handles the case where rules are authored before their schedule exists.
 
 ## Phase 4.A Pass 1 Remediation Notes
 

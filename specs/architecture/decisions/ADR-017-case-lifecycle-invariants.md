@@ -4,7 +4,7 @@ adr_id: "ADR-017"
 title: "Case Lifecycle Invariants"
 status: PROPOSED
 date: 2026-05-02
-version: "0.2"
+version: "0.3"
 producer: architect
 timestamp: 2026-05-02T00:00:00Z
 subsystems_affected: [SS-14, SS-21]
@@ -48,7 +48,7 @@ verification_properties:
 
 ## Status
 
-PROPOSED v0.2 — 2026-05-02. Authored by architect as part of Wave 4 Phase 4.A ADR drafting
+PROPOSED v0.3 — 2026-05-02. Authored by architect as part of Wave 4 Phase 4.A ADR drafting
 (D-207). Pending acceptance by product-owner review.
 
 ---
@@ -239,6 +239,8 @@ MUST produce a `TimelineEntryType::StatusChange` entry in the case's timeline
 (`TimelineEntryType` defined at `crates/prism-core/src/case.rs:150-158`). This
 provides the audit trail required by S-4.06.
 
+Each `TimelineEntry` carries `id: Uuid` (UUID v7) per `prism-core::case::TimelineEntry`. This `id` field is the `timeline_entry_id` that ADR-016 §2.4 uses as the `idempotency_key` for case-trigger action delivery dedup. The `TimelineEntry.id` is stable for the lifetime of the entry and uniquely identifies a specific state-change event, guaranteeing that at-least-once dedup for case triggers is scoped to the individual timeline event, not the case as a whole.
+
 This ADR does NOT specify timeline storage mechanics; that is S-4.06's implementation
 scope. The constraint is: no transition completes without a corresponding timeline entry.
 
@@ -308,54 +310,7 @@ label signals intentional divergence without obscuring the influences.
 
 ## 5. (Reserved — see Annex A for Industry-Informed Narrative)
 
-The industry-informed narrative (formerly §5) has been moved to Annex A at the end of this document to make clear that it is informational context, not normative specification.
-
----
-
-### 5.1 NIST SP 800-61
-
-**NIST SP 800-61 r2** (Computer Security Incident Handling Guide, August 2012;
-https://csrc.nist.gov/publications/detail/sp/800-61/rev-2/final) defines a four-phase
-incident lifecycle: Preparation → Detection and Analysis → Containment, Eradication and
-Recovery → Post-Incident Activity. Phases map loosely to case states: Detection/Analysis
-≈ New/Acknowledged; Containment/Eradication ≈ Investigating; Recovery ≈ Resolved;
-Post-Incident ≈ Closed.
-
-> **Footnote — r3 supersession:** NIST SP 800-61 r3 (April 2025;
-> https://csrc.nist.gov/pubs/sp/800/61/r3/final) abandoned the four-phase lifecycle
-> in favor of CSF 2.0 outcome-driven functions (Govern, Identify, Protect, Detect,
-> Respond, Recover). r3 provides no state-machine reference model. r2 is cited despite
-> supersession because it provides the closest normative phase model to a case lifecycle
-> state machine. ADR-017 does NOT claim r3 traceability.
-
-### 5.2 ITIL Incident Management
-
-**ITIL v3** Incident Management (IT Infrastructure Library, v3 Service Operation, 2007)
-defines an incident workflow with states commonly implemented by ITSM tools as:
-New → Assigned → In Progress → On Hold → Resolved → Closed. The
-Resolved → Closed promotion pattern and the reopen path (Resolved/Closed →
-In Progress) are direct ITIL v3 conventions preserved in the 1898-curated machine.
-
-> **Footnote — ITIL 4:** ITIL 4 (2019 onwards) abandoned prescriptive process flows
-> in favor of value streams. ITIL 4 provides no equivalent state-machine reference.
-> This citation refers to ITIL v3 conventions still widely deployed in ServiceNow,
-> Jira Service Management, and similar ITSM platforms encountered at MSSP scale.
-
-### 5.3 Cortex XSOAR
-
-Palo Alto Cortex XSOAR (formerly Demisto) incident lifecycle: Pending → Active →
-Closed → Archived. The Pending/Active split (similar to New/Acknowledged) and the
-Closed terminal state informed the design. XSOAR does not natively expose a
-"Resolved" pending-closure state; the 1898-curated machine adds that step to
-distinguish analyst sign-off (Resolved) from final archival (Closed).
-
-### 5.4 Splunk SOAR
-
-Splunk SOAR (formerly Phantom) case status taxonomy: New → Open → Resolved → Closed,
-with workbook phases overlaid on top. The four-status linear progression is structurally
-similar; the 1898-curated machine extends it with skip-ahead transitions (New → Resolved,
-New → Closed) and reopen paths (Resolved/Closed → Investigating) that Splunk SOAR
-handles via workbook restart rather than first-class status transitions.
+The industry-informed narrative (formerly §5) has been moved to Annex A at the end of this document to make clear that it is informational context, not normative specification. Sections §5.1–§5.4 are deleted; Annex A is the canonical location for all industry-informed content (NIST SP 800-61, ITIL v3, Cortex XSOAR, Splunk SOAR). No normative requirements trace to this section.
 
 ---
 
@@ -526,6 +481,13 @@ This ADR is a greenfield Wave 4 architectural decision. Its provenance spans thr
 | R-11 | Research finding: NIST r3 abandons four-phase model | `.factory/cycles/wave-4-operations/preflight-findings/research-findings.md` |
 
 ---
+
+## Phase 4.A Pass 2 Remediation Notes
+
+Applied during Wave 4 Phase 4.A adversarial Pass 2 fix-burst (2026-05-02). Version bumped 0.2 → 0.3.
+
+- **P2-ADR-017-A-L-001 fix (§5 / Annex A duplication):** §5.1–§5.4 inline content deleted. §5 now contains only the redirect note pointing to Annex A as the canonical location. Annex A (NIST SP 800-61, ITIL v3, Cortex XSOAR, Splunk SOAR) is unchanged and remains the authoritative informational narrative per D-213.
+- **P2-ADR-016-A-H-002 alignment fix:** §3.6 Timeline Integration extended with an explicit reference: each `TimelineEntry` carries `id: Uuid` (UUID v7) per `prism-core::case::TimelineEntry`. ADR-016 §2.4 case-trigger dedup uses this `id` as `idempotency_key`. The `TimelineEntry.id` is stable and unique per state-change event, providing correct at-least-once dedup granularity for case triggers.
 
 ## Phase 4.A Pass 1 Remediation Notes
 

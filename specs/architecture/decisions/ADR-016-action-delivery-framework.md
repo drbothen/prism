@@ -3,7 +3,7 @@ document_type: adr
 adr_id: "ADR-016"
 title: "Action Delivery Framework"
 status: PROPOSED
-version: "0.2"
+version: "0.3"
 date: 2026-05-02
 wave: 4
 phase: 4.A
@@ -28,7 +28,7 @@ references_phase3_siblings: [ADR-019]
 locked_decisions: [D-208, D-209, D-210, D-211]
 references_research: [R-2, R-3, R-12, R-13]
 verification_properties: [VP-044, VP-045, VP-046, VP-047, VP-143]
-subsystems_affected: [SS-18]
+subsystems_affected: [SS-18, SS-12, SS-13, SS-14]
 supersedes: []
 superseded_by: null
 traces_to: specs/architecture/ARCH-INDEX.md
@@ -38,7 +38,7 @@ traces_to: specs/architecture/ARCH-INDEX.md
 
 ## Status
 
-PROPOSED 2026-05-02, v0.2. Pending review and acceptance prior to story remediation and BC authoring.
+PROPOSED 2026-05-02, v0.3. Pending review and acceptance prior to story remediation and BC authoring.
 
 ---
 
@@ -133,10 +133,19 @@ Credential values never appear in the `.action.toml` file. ADR-010 §2.3.1 is th
 
 ### 2.4 Delivery Semantics Per Trigger Mode
 
-| Trigger | Delivery Semantics | Idempotency | Rationale |
+**Idempotency key definition by trigger mode:**
+
+- **Alert trigger:** `idempotency_key = alert_id` (UUID v7 from the alert generator in S-4.05).
+- **Case trigger:** `idempotency_key = timeline_entry_id` (UUID v7 of the `TimelineEntry.id` field in `prism-core::case::TimelineEntry` that caused the state-change event — see §3.6 and ADR-017 §3.6).
+- **Schedule trigger:** `idempotency_key = N/A` (best-effort; no dedup applied).
+- **Manual trigger:** `idempotency_key = client_supplied_token` (opaque token provided by the MCP caller at invocation; treated as a one-time nonce).
+
+The dedup key stored in the `action_state` CF (§2.5) is uniformly `{org_id}:\x02:{action_id}:{idempotency_key}` for all trigger modes that use dedup (alert and case). The mode-specific idempotency_key definitions above specify what that field contains per trigger type.
+
+| Trigger | Delivery Semantics | Idempotency Key | Rationale |
 |---|---|---|---|
-| Alert | At-least-once with idempotency-key dedup | dedup key: `{org_id}:{action_id}:{alert_id}` | A lost alert notification is a security event; dedup prevents double-fire on retry |
-| Case | At-least-once | dedup key: `{org_id}:{action_id}:{case_id}:{event_seq}` | Audit-relevant; must not lose state-change notifications |
+| Alert | At-least-once with idempotency-key dedup | `alert_id` (UUID v7 from alert generator) | A lost alert notification is a security event; dedup prevents double-fire on retry |
+| Case | At-least-once with idempotency-key dedup | `timeline_entry_id` (UUID v7 of `TimelineEntry.id` per `prism-core::case::TimelineEntry`) | Audit-relevant; each state-change event has a unique timeline entry; see ADR-017 §3.6 |
 | Schedule | Best-effort | N/A | Next tick fires fresh; thundering-herd avoidance (ADR-013 §2.4) |
 | Manual | Fire-and-forget | N/A | Operator sees error inline; confirmation token already consumed |
 
@@ -215,9 +224,48 @@ VP-045 (in-flight skip): if the semaphore `try_acquire` fails (non-blocking) bec
 
 ```wit
 interface action-delivery {
-    record alert { /* fields */ }
-    record case  { /* fields */ }
-    record report { /* fields */ }
+    enum severity {
+        critical,
+        high,
+        medium,
+        low,
+        info,
+    }
+
+    enum case-status {
+        new,
+        acknowledged,
+        investigating,
+        resolved,
+        closed,
+    }
+
+    record alert {
+        alert-id: string,           // UUID v7 stringified
+        org-id: string,             // UUID v7
+        client-id: string,          // string slug
+        rule-id: string,            // UUID v7
+        severity: severity,         // enum: critical, high, medium, low, info
+        triggered-at: u64,          // unix epoch micros
+        metadata: list<tuple<string, string>>,
+    }
+
+    record case {
+        case-id: string,
+        org-id: string,
+        client-id: string,
+        status: case-status,        // enum: new, acknowledged, investigating, resolved, closed
+        timeline-entry-id: string,  // UUID v7 of triggering TimelineEntry.id (prism-core::case::TimelineEntry)
+        triggered-at: u64,
+    }
+
+    record report {
+        report-id: string,
+        org-id: string,
+        schedule-id: string,
+        fire-epoch: u64,
+        metadata: list<tuple<string, string>>,
+    }
 
     fire-alert: func(alert: alert) -> result<_, string>;
     fire-case:  func(case: case)   -> result<_, string>;
@@ -268,7 +316,7 @@ The deprecated `tokio1-rustls-tls` feature flag MUST NOT be used. Story drafts r
 - Default: `Tls::Required(TlsParameters::new(host)?)` — STARTTLS on submission port 587.
 - Opt-in: `Tls::Wrapper(...)` — implicit TLS on port 465. Configured via `[destination].tls = "wrapper"` in `.action.toml`.
 
-**Auth mechanisms list:** `[Plain, Xoauth2]` default. `Login` available as opt-in override for legacy Microsoft tenants (configured via `[destination].smtp_auth_fallback = true`).
+**Auth mechanisms list:** `[Mechanism::Xoauth2, Mechanism::Plain]` default — XOAUTH2 is attempted first; Plain is attempted only as a fallback. `Login` available as opt-in override for legacy Microsoft tenants (configured via `[destination].smtp_auth_fallback = true`). **Ops note:** `Plain` is transmitted only inside a successfully-negotiated TLS session (STARTTLS or TLS wrapper per §2.8 TLS modes); if TLS negotiation fails, no credentials are transmitted and the delivery returns `DeliveryError::TlsFailure`.
 
 **Microsoft Exchange Online (R-3):** Microsoft deprecated basic SMTP auth for Exchange Online on **2026-04-30**. XOAUTH2 is first-class for Wave 4 outbound email to Exchange Online. Deployment note: operators connecting to Exchange Online MUST configure XOAUTH2 with:
 - A registered Azure AD application with `SMTP.Send` permission.
@@ -345,6 +393,8 @@ Lagged events MUST increment an observability counter. Silently dropping lagged 
 ---
 
 ## Rationale
+
+**`subsystems_affected` lists all subsystems whose events trigger or are consumed by the framework.** ADR-016 owns the action-delivery framework (SS-18). The `subsystems_affected` field is extended to `[SS-18, SS-12, SS-13, SS-14]` because: SS-12 (Scheduler) provides schedule-trigger events; SS-13 (Alert/Detection) provides alert-trigger events as broadcast channel source; SS-14 (Case Management) provides case-trigger events as state-change sources; SS-18 owns the delivery engine itself. This extension aligns `subsystems_affected` with S-4.08's declared `subsystems: [SS-12, SS-13, SS-14, SS-18]`.
 
 **Per-subsystem semaphore (§2.11) is required for formal liveness.** D-209 rejected the shared 16-permit design because it could not structurally guarantee starvation-freedom between two independent consumers. Independent 8-permit pools allow VP-143 and VP-137 to be proven by structural argument (module-private semaphores with no cross-module passing), not by runtime analysis. This is a stronger guarantee.
 
@@ -507,6 +557,16 @@ Not applicable. The `prism-operations` crate's action delivery subsystem is gree
 Upgrade note for Wave 4 deployment: the `action_state` CF must be created via `create_cf` during process startup if it does not exist. Missing CF on first run is not an error; it is created on-demand at `ActionDeliveryEngine::init()` or pre-created in the RocksDB startup initialization sequence (to be specified in BC-2.14.001 by the story-writer).
 
 ---
+
+## Phase 4.A Pass 2 Remediation Notes
+
+Applied during Wave 4 Phase 4.A adversarial Pass 2 fix-burst (2026-05-02). Version bumped 0.2 → 0.3.
+
+- **P2-ADR-016-A-H-001 fix (alert dedup-key contradiction):** §2.4 and §2.5 were inconsistent. Resolved by defining `idempotency_key` explicitly for each trigger mode at the top of §2.4: alert → `alert_id` (UUID v7); case → `timeline_entry_id` (UUID v7 of `prism-core::case::TimelineEntry.id`); schedule → N/A; manual → `client_supplied_token`. The dedup-key format in §2.5 (`{org_id}:\x02:{action_id}:{idempotency_key}`) is now the single canonical form. The §2.4 table was updated to use `idempotency_key` column naming rather than embedding the raw key fragments inline.
+- **P2-ADR-016-A-H-002 fix (case dedup key references undefined event_seq):** Case dedup key changed from `{org_id}:{action_id}:{case_id}:{event_seq}` to `{org_id}:\x02:{action_id}:{timeline_entry_id}` where `timeline_entry_id: Uuid` is the existing `TimelineEntry.id` field in `prism-core::case::TimelineEntry`. Cross-reference to `prism-core::case::TimelineEntry` added in §2.4 table and idempotency_key definition block.
+- **P2-S-4.08-A-H-001 fix (subsystem mismatch — ADR-016 side):** `subsystems_affected` extended from `[SS-18]` to `[SS-18, SS-12, SS-13, SS-14]`. Rationale added to Rationale section: ADR-016 owns the action-delivery framework; `subsystems_affected` lists all subsystems whose events trigger or are consumed by the framework. This aligns with S-4.08's declared `subsystems:` list.
+- **P2-ADR-016-A-M-001 fix (auth order):** §2.8 auth mechanisms list reordered from `[Plain, Xoauth2]` to `[Mechanism::Xoauth2, Mechanism::Plain]`. Ops note added: Plain transmitted only inside successfully-negotiated TLS; if TLS fails, no credentials are transmitted.
+- **P2-ADR-016-A-M-002 fix (WIT fields elided):** §2.7 WIT `record alert`, `record case`, `record report` now contain canonical field definitions matching AlertContext/CaseContext/ReportContext. `case.timeline-entry-id` documents the UUID v7 of the triggering `TimelineEntry.id`. Supporting `severity` and `case-status` enums added to the WIT interface.
 
 ## Phase 4.A Pass 1 Remediation Notes
 

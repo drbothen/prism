@@ -3,7 +3,7 @@ document_type: adr
 adr_id: "ADR-018"
 title: "Differential Result Pack Format"
 status: PROPOSED
-version: "0.2"
+version: "0.3"
 date: 2026-05-02
 wave: 4
 phase: 4.A
@@ -40,7 +40,7 @@ traces_to: specs/architecture/ARCH-INDEX.md
 
 ## Status
 
-PROPOSED 2026-05-02, v0.2. Pending review and acceptance prior to S-4.02 story remediation and BC authoring.
+PROPOSED 2026-05-02, v0.3. Pending review and acceptance prior to S-4.02 story remediation and BC authoring.
 
 ---
 
@@ -159,12 +159,12 @@ interval_seconds = 300
 
 **Field semantics:**
 
-- `pack.name`: globally unique pack identifier; used as the `PackId`. Must match `^[a-z0-9-]+$` (same rules as OrgSlug per ADR-006 §2.1).
+- `pack.name`: the file-supplied identifier matching `^[a-z0-9-]+$` (same rules as OrgSlug per ADR-006 §2.1). `PackId` is derived as the `(org_id, pack.name)` tuple — pack names are unique **within an org**, not across orgs. Two different MSSP customers can both register a vendor-supplied pack with the same `pack.name` because their `org_id` differentiates them. See §2.7 for collision semantics.
 - `pack.version`: semver-compatible string; stored in each derived `ScheduleEntry.pack_version` for traceability.
 - `pack.required_capability`: capability flag name (S-1.08). If omitted, the pack is unconditionally enabled for all orgs.
 - `schedules[*].name`: schedule name within the pack; must be unique within the pack. Qualified name for the derived `ScheduleEntry` is `{pack_name}:{schedule_name}`.
 - `schedules[*].sql_query`: PrismQL query string. Validated at pack-load time against the PrismQL parser (S-3.01).
-- `schedules[*].interval_seconds`: integer; the derived `ScheduleEntry.cron_expr` is generated as `*/{interval_seconds} * * * * *` (croner format, per ADR-013 §2.8).
+- `schedules[*].interval_seconds`: integer. The derived `ScheduleEntry.cron_expr` is generated as a **5-field** cron: `*/{interval_minutes} * * * *` where `interval_minutes = interval_seconds / 60` (integer division). **Minimum `interval_seconds` is 60** — packs specifying `interval_seconds < 60` are rejected at registration with `E-PACK-INTERVAL-TOO-SHORT` (minimum tick rate is 60s per ADR-013 §2.1). The 6-field `*/{interval_seconds} * * * * *` form is NOT used — action-delivery (ADR-016) accepts only 5-field cron expressions via `croner = "3"` (ADR-013 §2.8), and 6-field crons would be rejected by the schedule executor's cron parser.
 
 **Pack-derived `ScheduleEntry` additions:**
 
@@ -268,11 +268,11 @@ If a pack-derived schedule qualified name `{pack_name}:{schedule_name}` collides
 - Pack-derived schedules WIN over individually-defined schedules with the same name.
 - Attempting to register an individually-defined schedule with a name that matches an existing pack-derived schedule returns `Err(ScheduleNamePackCollision { pack_id, schedule_name })`.
 - Error code: `E-SCHEDULE-NAME-PACK-COLLISION`.
-- Two packs with the same `pack_name` (same `pack_id`) registered for the same org use the following collision semantics:
-  - Same `pack_id` + same `version` + same `org_id` → no-op (success; second registration is idempotent).
-  - Same `pack_id` + DIFFERENT `version` (higher) + same `org_id` → update (replace existing derived schedules).
-  - Same `pack_id` + DIFFERENT `version` (lower, regression) + same `org_id` → `Err(PackVersionRegression)`.
-  - Different `pack_id` with same `pack.name` (name only, not ID) → `Err(PackNameCollision)` (pack names must be globally unique per org).
+- Two packs with the same `(org_id, pack.name)` tuple (same `PackId`) use the following collision semantics:
+  - Same `(org_id, pack.name)` + same `version` → no-op (success; second registration is idempotent).
+  - Same `(org_id, pack.name)` + DIFFERENT `version` (higher) → update (replace existing derived schedules).
+  - Same `(org_id, pack.name)` + DIFFERENT `version` (lower, regression) → `Err(PackVersionRegression)`.
+  - Different org (`org_id_A` vs `org_id_B`) with the same `pack.name` → allowed; pack names are unique WITHIN an org only. This is the normal case for vendor-supplied packs deployed to multiple tenants.
 
 **Rationale:** Packs are system-managed, vetted artifacts (shipped by 1898 & Co. or tenant admins with elevated privilege). Individual schedules are operator-authored. When names collide, the more-carefully-vetted artifact takes precedence. The explicit error code ensures the collision is visible to the registering operator rather than silently overwriting.
 
@@ -349,6 +349,13 @@ An alternative collision policy would allow individually-defined schedules to ov
 - The explicit `E-SCHEDULE-NAME-PACK-COLLISION` error ensures the operator is aware of the collision and must resolve it (rename their individual schedule or deregister the conflicting pack).
 
 ---
+
+## Phase 4.A Pass 2 Remediation Notes
+
+Applied during Wave 4 Phase 4.A adversarial Pass 2 fix-burst (2026-05-02). Version bumped 0.2 → 0.3.
+
+- **P2-ADR-018-A-M-001 fix (cron 5-vs-6 field discrepancy):** §2.3 `schedules[*].interval_seconds` updated. Pack-derived cron changed from 6-field `*/{interval_seconds} * * * * *` to 5-field `*/{interval_minutes} * * * *` where `interval_minutes = interval_seconds / 60`. `interval_seconds < 60` is now rejected at pack registration with `E-PACK-INTERVAL-TOO-SHORT`. Rationale: action-delivery (ADR-016) and the schedule executor (ADR-013 §2.8) use `croner = "3"` which accepts 5-field cron expressions; 6-field crons would be rejected at runtime.
+- **P2-ADR-018-A-M-002 fix (pack name uniqueness scope ambiguity):** §2.3 `pack.name` description updated: `PackId` is now explicitly defined as the `(org_id, pack.name)` tuple — pack names are unique WITHIN an org, not across orgs. §2.7 collision semantics updated to use `(org_id, pack.name)` as the dedup key. The case of different orgs with the same `pack.name` is now explicitly documented as allowed (normal multi-tenant vendor pack deployment).
 
 ## Phase 4.A Pass 1 Remediation Notes
 
