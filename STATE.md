@@ -1,7 +1,7 @@
 ---
 document_type: pipeline-state
 level: ops
-version: "6.52"
+version: "6.53"
 producer: state-manager
 timestamp: 2026-05-03T00:00:00Z
 inputs: []
@@ -95,16 +95,16 @@ wave_4_phase_4_a_preflight:
   pass_13_remediation_complete: true
   pass_13_fixes: [verification-architecture VP-053 prism-core→prism-operations v1.26, ADR-013 date sync v0.6, ARCH-INDEX v2.10, S-4.02 v1.9 CF keys, S-4.04 v1.10 tick wording, BC-2.12.004 v1.7 VP-137 row]
   pass_13_stage1_sha: 398c5273
-  convergence_window: "1/3 OPEN (pass-18 CLEAN; Pass 19 + Pass 20 required)"
-  pass_trajectory: "38→17→8→7→7→5→5→6→6→5→5→4→7→9→2→4→3→3(CLEAN) (18 passes; TD-VSDD-039/041/042/043/045 filed) → 18:CLEAN(0H+2M+1L; window 1/3 OPEN; FINDINGS_REMAIN)"
-  passes_consumed: 18
+  convergence_window: "2/3 OPEN (pass-18 CLEAN; pass-19 ALL-ZERO CLEAN; Pass 20 required)"
+  pass_trajectory: "38→17→8→7→7→5→5→6→6→5→5→4→7→9→2→4→3→3(CLEAN) (18 passes; TD-VSDD-039/041/042/043/045 filed) → 18:CLEAN(0H+2M+1L; window 1/3 OPEN; FINDINGS_REMAIN) → 19:CLEAN(0/0/0/0/0; CONVERGENCE_REACHED; window 2/3 OPEN)"
+  passes_consumed: 19
   convergence_strategy: B+A_hybrid (D-214)
   subagent_context_discipline: MANDATORY
   proactive_sweep_status: "COMPLETE_2026-05-03 + Pass 13 surfaced 2 HIGH not caught by sweep methodology — TD-VSDD-039 filed"
   proactive_sweep_findings: "F-PSweep-H-001 HIGH (ADR-019 Status), F-PSweep-M-001 MEDIUM (10 body-prose pins) — both remediated"
   pre_pass14_sweep_status: "COMPLETE_2026-05-03 (TD-VSDD-039 methodology applied); findings: F-PreP14-H-003 + F-PreP14-H-004 — both remediated"
   pre_pass17_sweep_status: "COMPLETE_2026-05-03 (TD-VSDD-042 codified) — F-PreP17-H-001 (S-4.01 VP-137 row drift) remediated"
-  next_action: "Adversary Pass 19 (window 2/3 attempt)"
+  next_action: "Adversary Pass 20 (window 3/3 — convergence closure)"
   vsdd_plugin_td_count: 24 (was 22; TD-VSDD-044 cite-repair + TD-VSDD-045 Pass 17 VP Matrix gap added)
 gate_status_hook_compat_remediation: 2026-04-24
 wave_0a_complete: 2026-04-22
@@ -393,10 +393,10 @@ user_directive_persistent: "No pragmatic convergence. Fix all issues before buil
 | **Language** | Rust |
 | **Target Workspace** | per-analyst stdio (MCP server) |
 | **Started** | 2026-04-13 |
-| **Last Updated** | 2026-05-03 (Pass 18 CLEAN — window 1/3 OPEN; FINDINGS_REMAIN; ADR-016 v0.11 + ADR-017 v0.7; ARCH-INDEX v2.16; STATE v6.52) |
-| **Current Phase** | Phase 4.A — Wave 4 adversarial spec convergence (18 passes consumed; 1/3 clean window OPEN; Pass 19 next) |
-| **Current Step** | Wave 4 Phase 4.A — Pass 18 CLEAN (0H+2M+1L; F-P18-M-001/M-002 cosmetic remediated by architect; F-P18-L-001 deferred; window 1/3 OPEN; FINDINGS_REMAIN); Pass 19 (window 2/3 attempt) next |
-| **factory-artifacts HEAD** | `0063cedd` |
+| **Last Updated** | 2026-05-03 (Pass 19 ALL-ZERO CLEAN — window 2/3 OPEN; CONVERGENCE_REACHED verdict; STATE v6.53) |
+| **Current Phase** | Phase 4.A — Wave 4 adversarial spec convergence (19 passes consumed; 2/3 clean window OPEN; Pass 20 next) |
+| **Current Step** | Wave 4 Phase 4.A — Pass 19 ALL-ZERO CLEAN (0/0/0/0/0; CONVERGENCE_REACHED; window 2/3 OPEN; 10+ cross-cut chains verified); Pass 20 (window 3/3 — convergence closure) next |
+| **factory-artifacts HEAD** | `15fa97e6` |
 
 ## Phase Progress
 
@@ -432,11 +432,7 @@ _D-001..D-046 archived: [cycles/phase-3-dtu-wave-2/decisions-archive-d001-d032.m
 | ID | Decision | Rationale | Phase | Date |
 |----|----------|-----------|-------|------|
 | D-214 | Wave 4 Phase 4.A Convergence Strategy — B+A Hybrid with Subagent Context Discipline. Component 1 (Option B): Proactive structural sweep. Component 2 (Option A): Formal adversarial passes 13+ to 3-clean window. Component 3: Subagent context discipline MANDATORY (orchestrator NEVER reads large files; state-manager LAST per burst). | Wave 4 Phase 4.A B+A hybrid convergence + mandatory subagent context discipline | 4 | 2026-05-04 |
-**Pass 17 REMEDIATED (1H+2M): STORY-INDEX 3-row ADR-anchor drift SUBSTANTIVE (F-P17-H-001) + ADR-016/017 date sync COSMETIC (F-P17-M-001) + VP Matrix gap deferred TD-VSDD-045. STORY-INDEX v2.00, ARCH-INDEX v2.14.** Detail: [adversarial-reviews/pass-17.md](cycles/wave-4-operations/adversarial-reviews/pass-17.md) | [burst-log.md](cycles/wave-4-operations/burst-log.md).
-
-**Pass 18 CLEAN — WINDOW 1/3 OPEN — FINDINGS_REMAIN: 0H+2M+1L all COSMETIC. F-P18-M-001/M-002 remediated by architect (ADR-016 v0.11, ADR-017 v0.7); F-P18-L-001 deferred (intent). HIGH count exhausted (0). Pass 19 + Pass 20 required.** Detail: [adversarial-reviews/pass-18.md](cycles/wave-4-operations/adversarial-reviews/pass-18.md).
-
-**Passes 8–16 REMEDIATED.** Detail: [burst-log.md](cycles/wave-4-operations/burst-log.md) + [adversarial-reviews/](cycles/wave-4-operations/adversarial-reviews/).
+**Passes 8–17 REMEDIATED; Pass 18 CLEAN (1/3); Pass 19 ALL-ZERO CLEAN (2/3) — CONVERGENCE_REACHED; window 2/3 OPEN; Pass 20 next (3/3 closure). Trajectory: P14(2H+4M+3L)→P15(2H)→P16(2H+2M)→P17(1H+2M)→P18(0H+2M+1L;1/3)→P19(0/0/0/0/0;2/3).** Detail: [adversarial-reviews/](cycles/wave-4-operations/adversarial-reviews/) | [burst-log.md](cycles/wave-4-operations/burst-log.md).
 
 ## Skip Log
 
@@ -459,17 +455,17 @@ _TD-VSDD-014..019, TD-W3-COMPLIANCE-001, TD-VSDD-025..029 archived to [tech-debt
 
 Cycle files: [burst-log](cycles/phase-2-patch/burst-log.md) | [convergence-trajectory](cycles/phase-2-patch/convergence-trajectory.md) | [session-checkpoints](cycles/phase-2-patch/session-checkpoints.md) | [lessons](cycles/phase-2-patch/lessons.md) | [resolved-blockers](cycles/phase-2-patch/blocking-issues-resolved.md)
 ---
-## Session Resume Checkpoint (2026-05-03-wave4-phase4a-pass18-clean-v6.52)
+## Session Resume Checkpoint (2026-05-03-wave4-phase4a-pass19-clean-v6.53)
 
 _Previous checkpoint archived: [cycles/wave-4-operations/session-checkpoints.md](cycles/wave-4-operations/session-checkpoints.md)_
 
-**STATE v6.52 (canonical SHA `0063cedd`). WAVE 4 PHASE 4.A — PASS 18 CLEAN. WINDOW 1/3 OPEN. FINDINGS_REMAIN.**
+**STATE v6.53 (canonical SHA `15fa97e6`). WAVE 4 PHASE 4.A — PASS 19 ALL-ZERO CLEAN. WINDOW 2/3 OPEN. CONVERGENCE_REACHED.**
 
-develop HEAD: `ba3b10c7` | factory-artifacts: `0063cedd` | workspace tests: 2363 | PRs merged: 125
+develop HEAD: `ba3b10c7` | factory-artifacts: `15fa97e6` | workspace tests: 2363 | PRs merged: 125
 
-**PASS 18:** 0H+2M+1L all COSMETIC. F-P18-M-001/M-002 remediated by architect (ADR-016 v0.11, ADR-017 v0.7). F-P18-L-001 deferred (intent). Window 1/3 OPEN. Verdict: FINDINGS_REMAIN.
+**PASS 19:** 0/0/0/0/0 all-zero. First all-zero pass. 10+ cross-cut chains verified. Verdict: CONVERGENCE_REACHED. Window 2/3 OPEN.
 
-**NEXT ACTION: Adversary Pass 19 (window 2/3 attempt). See SESSION-HANDOFF.md STEP 2.**
+**NEXT ACTION: Adversary Pass 20 (window 3/3 — convergence closure). See SESSION-HANDOFF.md STEP 2.**
 
 **Current spec versions:** ADR-013 v0.7, ADR-015 v0.6, ADR-016 v0.11, ADR-017 v0.7, ADR-018 v0.6, ADR-019 v0.4, S-4.01 v1.12, S-4.02 v1.11, S-4.05 v1.12, S-4.08 v1.22, BC-2.12.004 v1.8, STORY-INDEX v2.01, ARCH-INDEX v2.16, BC-INDEX v4.30.
 

@@ -3,7 +3,7 @@ document_type: adr
 adr_id: "ADR-016"
 title: "Action Delivery Framework"
 status: PROPOSED
-version: "0.10"
+version: "0.11"
 date: 2026-05-03
 wave: 4
 phase: 4.A
@@ -38,7 +38,7 @@ traces_to: specs/architecture/ARCH-INDEX.md
 
 ## Status
 
-PROPOSED 2026-05-03, v0.10. Pending review and acceptance prior to story remediation and BC authoring.
+PROPOSED 2026-05-03, v0.11. Pending review and acceptance prior to story remediation and BC authoring.
 
 ---
 
@@ -569,10 +569,22 @@ Applied during Wave 4 Phase 4.A adversarial Pass 16 fix-burst (2026-05-03). Vers
 
 ---
 
+## Phase 4.A Pass 18 Remediation Notes
+
+Applied during Wave 4 Phase 4.A adversarial Pass 18 fix-burst (2026-05-03). Version bumped 0.10 → 0.11.
+
+| Version | Change ID | Date | Author | Notes |
+|---------|-----------|------|--------|-------|
+| 0.11 | F-P18-M-001+M-002 | 2026-05-03 | architect | Pass 18 COSMETIC: Pass 17 Remediation Notes table got proper markdown header; narrative updated to reflect v0.7→v0.10 full range. |
+
+---
+
 ## Phase 4.A Pass 17 Remediation Notes
 
-Applied during Wave 4 Phase 4.A adversarial Pass 17 fix-burst (2026-05-03). Version bumped 0.8 → 0.9.
+Applied during Wave 4 Phase 4.A adversarial Pass 17 fix-burst (2026-05-03). Version bumped 0.7 → 0.10 (Pass 17 v0.7→v0.8 + v0.8→v0.9 frontmatter date; Pre-Pass-18 sweep v0.9→v0.10 Status H2 sync).
 
+| Version | Change ID | Date | Author | Notes |
+|---------|-----------|------|--------|-------|
 | 0.9 | F-P17-M-001 | 2026-05-03 | architect | Pass 17 MEDIUM: frontmatter `date:` synced 2026-05-02 → 2026-05-03 (matches body Status). Sibling-fix gap with ADR-013 v0.7 / ADR-018 v0.6 which were already synced. |
 | 0.10 | F-PreP18-H-001 | 2026-05-03 | architect | Pre-Pass-18 sweep: Status H2 line synced from stale v0.8 to v0.10 — was missed in Pass 17 M-001 date-fix burst (sister-line regression of F-P16-H-002 pattern). |
 

@@ -126,4 +126,18 @@ _Archived when v6.52 checkpoint (Pass 18 CLEAN — window 1/3 OPEN) replaced thi
 
 ---
 
+## Checkpoint: 2026-05-03-wave4-phase4a-pass18-clean-v6.52
+
+**STATE v6.52 (canonical SHA `0063cedd`). WAVE 4 PHASE 4.A — PASS 18 CLEAN. WINDOW 1/3 OPEN. FINDINGS_REMAIN.**
+
+develop HEAD: `ba3b10c7` | factory-artifacts: `0063cedd` | workspace tests: 2363 | PRs merged: 125
+
+**PASS 18:** 0H+2M+1L all COSMETIC. F-P18-M-001/M-002 remediated by architect (ADR-016 v0.11, ADR-017 v0.7). F-P18-L-001 deferred (intent). Window 1/3 OPEN. Verdict: FINDINGS_REMAIN.
+
+**Current spec versions:** ADR-013 v0.7, ADR-015 v0.6, ADR-016 v0.11, ADR-017 v0.7, ADR-018 v0.6, ADR-019 v0.4, S-4.01 v1.12, S-4.02 v1.11, S-4.05 v1.12, S-4.08 v1.22, BC-2.12.004 v1.8, STORY-INDEX v2.01, ARCH-INDEX v2.16, BC-INDEX v4.30.
+
+_Archived when v6.53 checkpoint (Pass 19 ALL-ZERO CLEAN — window 2/3 OPEN) replaced this entry in STATE.md._
+
+---
+
 <!-- Repeat for each archived checkpoint. Maintain chronological order. -->

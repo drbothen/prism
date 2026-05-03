@@ -2,7 +2,7 @@
 document_type: cycle-manifest
 cycle_id: wave-4-operations
 cycle_type: feature
-version: wave-4-preflight-v1.35
+version: wave-4-preflight-v1.36
 status: in-progress
 started: pending
 completed: pending
@@ -224,6 +224,7 @@ Story inventory will be remediated post-ADR-acceptance per drift audit categorie
 
 | Version | Date | Change |
 |---------|------|--------|
+| wave-4-preflight-v1.36 | 2026-05-03T00:00:00Z | wave-4-pass19-CLEAN — PASS 19 ALL-ZERO CLEAN: 0/0/0/0/0; CONVERGENCE_REACHED verdict; window slot 2/3 OPEN; 10+ cross-cut chains verified. STATE v6.53, HANDOFF v6.53. Pass 20 next (window 3/3 closure). |
 | wave-4-preflight-v1.35 | 2026-05-03T00:00:00Z | wave-4-pass18-burst — Pass 18 CLEAN (window 1/3 OPEN; FINDINGS_REMAIN): 0H+2M+1L all COSMETIC. F-P18-M-001/M-002 remediated by architect (ADR-016 v0.10→v0.11, ADR-017 v0.6→v0.7; remediation-notes table header + stale-narrative). F-P18-L-001 deferred (intent). ARCH-INDEX v2.15→v2.16. STATE v6.52, HANDOFF v6.52. Pass 19 next (window 2/3). |
 | wave-4-preflight-v1.34 | 2026-05-03T00:00:00Z | cite-repair-3 — F-CITE-REPAIR-002: STATE.md line 399 `7d9bc158`→`988e06ec` (3rd TD-VSDD-044 manifestation; Project Metadata table stale while line 480 + HANDOFF already correct). STATE v6.51, HANDOFF v6.51. |
 | wave-4-preflight-v1.33 | 2026-05-03T00:00:00Z | wave-4-pre-pass18-sweep-2 — F-PreP18-H-001 architect-burst capture: ADR-016 v0.10 + ADR-017 v0.6 Status H2 synced (sister-line regression class per F-P16-H-002 still pending structural lint hook). ARCH-INDEX v2.15, STATE v6.50, HANDOFF v6.50. Ready for Pass 18. |

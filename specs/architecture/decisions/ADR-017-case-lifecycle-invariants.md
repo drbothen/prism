@@ -4,7 +4,7 @@ adr_id: "ADR-017"
 title: "Case Lifecycle Invariants"
 status: PROPOSED
 date: 2026-05-03
-version: "0.6"
+version: "0.7"
 producer: architect
 timestamp: 2026-05-02T00:00:00Z
 subsystems_affected: [SS-14, SS-21]
@@ -48,7 +48,7 @@ verification_properties:
 
 ## Status
 
-PROPOSED v0.6 — 2026-05-03. Authored by architect as part of Wave 4 Phase 4.A ADR drafting
+PROPOSED v0.7 — 2026-05-03. Authored by architect as part of Wave 4 Phase 4.A ADR drafting
 (D-207). Pending acceptance by product-owner review.
 
 ---
@@ -490,10 +490,22 @@ Applied during Wave 4 Phase 4.A pre-Pass-14 sweep (2026-05-03). Version bumped 0
 
 ---
 
+## Phase 4.A Pass 18 Remediation Notes
+
+Applied during Wave 4 Phase 4.A adversarial Pass 18 fix-burst (2026-05-03). Version bumped 0.6 → 0.7.
+
+| Version | Change ID | Date | Author | Notes |
+|---------|-----------|------|--------|-------|
+| 0.7 | F-P18-M-001+M-002 | 2026-05-03 | architect | Pass 18 COSMETIC: same table header + narrative fixes as ADR-016. |
+
+---
+
 ## Phase 4.A Pass 17 Remediation Notes
 
-Applied during Wave 4 Phase 4.A adversarial Pass 17 fix-burst (2026-05-03). Version bumped 0.4 → 0.5.
+Applied during Wave 4 Phase 4.A adversarial Pass 17 fix-burst (2026-05-03). Version bumped 0.4 → 0.6 (Pass 17 frontmatter date sync v0.4→v0.5; Pre-Pass-18 sweep v0.5→v0.6 Status H2 sync).
 
+| Version | Change ID | Date | Author | Notes |
+|---------|-----------|------|--------|-------|
 | 0.5 | F-P17-M-001 | 2026-05-03 | architect | Pass 17 MEDIUM: frontmatter `date:` synced 2026-05-02 → 2026-05-03 (matches body Status). Sibling-fix gap with ADR-013 v0.7 / ADR-018 v0.6 / ADR-016 v0.9. |
 | 0.6 | F-PreP18-H-001 | 2026-05-03 | architect | Pre-Pass-18 sweep: Status H2 line synced from stale v0.4 to v0.6 — was missed in Pass 17 M-001 date-fix burst (sister-line regression of F-P16-H-002 pattern). |
 

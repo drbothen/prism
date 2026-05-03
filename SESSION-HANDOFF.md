@@ -1,7 +1,7 @@
 ---
 document_type: session-handoff
 level: ops
-version: "6.52"
+version: "6.53"
 status: current
 timestamp: 2026-05-02T02:00:00Z
 predecessor_session: "Wave 4 Phase 4.A decisions logged 2026-05-02. D-207..D-213 logged: 6-ADR topology, OrgId/ClientId hierarchy, per-subsystem semaphores, clients=[] reject, dedup scheduling-time, prism-siem-formats in-house, ADR-017 narrative. Research complete (research-findings.md). Architect cleared for Phase 1 ADRs. STATE v6.20→v6.21. factory-artifacts 41c711cf (prior canonical SHA)."
@@ -110,12 +110,12 @@ factory-artifacts canonical: 84455d7d (canonical SHA). develop HEAD: ba3b10c7."
 
 ## Current State
 
-develop HEAD `ba3b10c7` | factory-artifacts `0063cedd` (Pass 18 CLEAN — window 1/3 OPEN; STATE v6.52)
+develop HEAD `ba3b10c7` | factory-artifacts `15fa97e6` (Pass 19 ALL-ZERO CLEAN — window 2/3 OPEN; STATE v6.53)
 
 | Metric | Value |
 |--------|-------|
 | develop HEAD | `ba3b10c7` (W3-FIX-SEC-005 — Wave 3.4 final PR, PR #125, 2026-05-02) |
-| factory-artifacts HEAD | `0063cedd` (Pass 18 CLEAN — window 1/3 OPEN; STATE v6.52) |
+| factory-artifacts HEAD | `15fa97e6` (Pass 19 ALL-ZERO CLEAN — window 2/3 OPEN; STATE v6.53) |
 | PR count merged | 125 |
 | Workspace test count | 2363 (nextest-verified; +133 from CI nextest split + doctest migration) |
 | Open PRs | None |
@@ -124,7 +124,7 @@ develop HEAD `ba3b10c7` | factory-artifacts `0063cedd` (Pass 18 CLEAN — window
 | Wave 2 gate status | CONVERGED 2026-04-27 — Pass 9 CLEAN (3-clean-passes: P6+P8+P9) |
 | Wave 3 gate status | **CONVERGED 2026-05-02 — 3-clean window pass-52+53+54; develop@ba3b10c7** |
 | Wave 4 status | **PHASE 4.A — D-207..D-213 logged; architect cleared for 6 ADRs (3 phases); implementation BLOCKED** |
-| Status | **WAVE 4 PHASE 4.A — Pass 18 CLEAN (0H+2M+1L; F-P18-M-001/M-002 remediated ADR-016 v0.11 + ADR-017 v0.7; F-P18-L-001 deferred). Window 1/3 OPEN; FINDINGS_REMAIN. Ready for Adversary Pass 19 (window 2/3).** |
+| Status | **WAVE 4 PHASE 4.A — Pass 19 ALL-ZERO CLEAN (0/0/0/0/0; CONVERGENCE_REACHED; 10+ cross-cut chains verified). Window 2/3 OPEN. Ready for Adversary Pass 20 (window 3/3 — convergence closure).** |
 
 
 ---
@@ -166,9 +166,11 @@ STEP 2 — Resume formal adversary passes (Option A — VSDD discipline):
 
   Pre-Pass-18 sweep-1 COMPLETE — F-PreP18-M-001 (STORY-INDEX S-4.06 VPs cell normalized: `VP-052,053,054,060, VP-138, VP-145` → `VP-052, VP-053, VP-054, VP-060, VP-138, VP-145`; fully-prefixed, matches sibling rows). STORY-INDEX v2.01. STATE v6.49.
 
-  Pass 18 dispatched 2026-05-03 — CLEAN (window 1/3 OPEN; FINDINGS_REMAIN). 0H+2M+1L all COSMETIC. F-P18-M-001/M-002 remediated by architect (ADR-016 v0.11, ADR-017 v0.7); F-P18-L-001 deferred (intent). HIGH count exhausted (0). ARCH-INDEX v2.16. Next: Pass 19 (window 2/3 attempt).
+  Pass 18 dispatched 2026-05-03 — CLEAN (window 1/3 OPEN; FINDINGS_REMAIN). 0H+2M+1L all COSMETIC. F-P18-M-001/M-002 remediated by architect (ADR-016 v0.11, ADR-017 v0.7); F-P18-L-001 deferred (intent). HIGH count exhausted (0). ARCH-INDEX v2.16.
 
-  2b. If CLEAN: dispatch Pass 20 (window 3/3 — CONVERGED if also CLEAN).
+  **Pass 19 dispatched 2026-05-03 — CLEAN (window 2/3 OPEN; CONVERGENCE_REACHED). 0/0/0/0/0 all-zero. First all-zero pass. 10+ cross-cut chains verified: ADR Status H2 sync ×6; VP-INDEX self-arithmetic 145; VP-INDEX→arch-docs propagation; BC H1↔BC-INDEX ×4; CF key prefix ×4; VP-137/VP-143 closed-loop chains; ScheduleChangeNotification tuple ×4 sites; frontmatter date uniformity ×6. Trajectory: P14(2H+4M+3L)→P15(2H)→P16(2H+2M)→P17(1H+2M)→P18(0H+2M+1L; 1/3)→P19(0; 2/3). Next: Pass 20 (window 3/3 — convergence closure).**
+
+  2b. If CLEAN: Pass 20 closes convergence window (3/3 CONVERGED).
   2c. If BLOCKED at any pass: route findings tightly per defect-class; remediate; re-pass.
   2d. NO skipping the formal 3-clean window. Per VSDD discipline.
 
