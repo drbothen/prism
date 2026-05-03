@@ -98,4 +98,18 @@ _Archived when v6.45 checkpoint (Pass 16 BLOCKED → REMEDIATED) replaced this e
 
 ---
 
+## Checkpoint: 2026-05-03-wave4-phase4a-prepass17-sweep-v6.47
+
+**STATE v6.47 (canonical SHA `d07cbff4`). WAVE 4 PHASE 4.A — PRE-PASS-17 SWEEP COMPLETE + SHA-CITE REPAIRED. READY FOR PASS 17 (WINDOW 1/3).**
+
+develop HEAD: `ba3b10c7` | factory-artifacts: `d07cbff4` | workspace tests: 2363 | PRs merged: 125
+
+**PRE-PASS-17 SWEEP SUMMARY:** F-PreP17-H-001 — S-4.01 STORY-INDEX row VPs cell `VP-026,030` corrected to `VP-026, VP-030, VP-137` per frontmatter source-of-truth. Pass 16 H-001 listed only 6 rows; S-4.01 was 7th un-listed drift. STORY-INDEX v1.98→v1.99.
+
+**Current spec versions:** ADR-013 v0.7, ADR-015 v0.6, ADR-016 v0.8, ADR-017 v0.4, ADR-018 v0.6, ADR-019 v0.4, S-4.01 v1.12, S-4.02 v1.11, S-4.05 v1.12, S-4.08 v1.22, BC-2.12.004 v1.8, STORY-INDEX v1.99, ARCH-INDEX v2.13, BC-INDEX v4.30.
+
+_Archived when v6.48 checkpoint (Pass 17 BLOCKED → REMEDIATED) replaced this entry in STATE.md._
+
+---
+
 <!-- Repeat for each archived checkpoint. Maintain chronological order. -->

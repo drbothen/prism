@@ -3,8 +3,8 @@ document_type: adr
 adr_id: "ADR-017"
 title: "Case Lifecycle Invariants"
 status: PROPOSED
-date: 2026-05-02
-version: "0.4"
+date: 2026-05-03
+version: "0.5"
 producer: architect
 timestamp: 2026-05-02T00:00:00Z
 subsystems_affected: [SS-14, SS-21]
@@ -487,6 +487,14 @@ This ADR is a greenfield Wave 4 architectural decision. Its provenance spans thr
 Applied during Wave 4 Phase 4.A pre-Pass-14 sweep (2026-05-03). Version bumped 0.3 → 0.4.
 
 | 0.4 | F-PreP14-H-003 | 2026-05-03 | architect | Pre-Pass-14 sweep (TD-VSDD-039 codified methodology): fixed sister-section partial-fix regression inside ADR-017 — lines ~230 (§3.5 Implementation Site) and ~282 (Rationale section) updated stale `case:{org_id}:...` body prose to canonical `{org_id}:case:{client_id}:{case_id}` per §3.4. Section §3.4 was corrected in P1-ADR-017-A-M-003 but propagation to §3.5/Rationale was missed. |
+
+---
+
+## Phase 4.A Pass 17 Remediation Notes
+
+Applied during Wave 4 Phase 4.A adversarial Pass 17 fix-burst (2026-05-03). Version bumped 0.4 → 0.5.
+
+| 0.5 | F-P17-M-001 | 2026-05-03 | architect | Pass 17 MEDIUM: frontmatter `date:` synced 2026-05-02 → 2026-05-03 (matches body Status). Sibling-fix gap with ADR-013 v0.7 / ADR-018 v0.6 / ADR-016 v0.9. |
 
 ---
 

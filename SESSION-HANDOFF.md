@@ -1,7 +1,7 @@
 ---
 document_type: session-handoff
 level: ops
-version: "6.47"
+version: "6.48"
 status: current
 timestamp: 2026-05-02T02:00:00Z
 predecessor_session: "Wave 4 Phase 4.A decisions logged 2026-05-02. D-207..D-213 logged: 6-ADR topology, OrgId/ClientId hierarchy, per-subsystem semaphores, clients=[] reject, dedup scheduling-time, prism-siem-formats in-house, ADR-017 narrative. Research complete (research-findings.md). Architect cleared for Phase 1 ADRs. STATE v6.20→v6.21. factory-artifacts 41c711cf (prior canonical SHA)."
@@ -104,12 +104,12 @@ factory-artifacts canonical: 84455d7d (canonical SHA). develop HEAD: ba3b10c7."
 
 ## Current State
 
-develop HEAD `ba3b10c7` | factory-artifacts `d07cbff4` (SHA-cite repair COMPLETE; STATE v6.47)
+develop HEAD `ba3b10c7` | factory-artifacts `15fa97e6` (Pass 17 BLOCKED → REMEDIATED; STATE v6.48)
 
 | Metric | Value |
 |--------|-------|
 | develop HEAD | `ba3b10c7` (W3-FIX-SEC-005 — Wave 3.4 final PR, PR #125, 2026-05-02) |
-| factory-artifacts HEAD | `d07cbff4` (SHA-cite repair COMPLETE; STATE v6.47) |
+| factory-artifacts HEAD | `15fa97e6` (Pass 17 BLOCKED → REMEDIATED; STATE v6.48) |
 | PR count merged | 125 |
 | Workspace test count | 2363 (nextest-verified; +133 from CI nextest split + doctest migration) |
 | Open PRs | None |
@@ -156,6 +156,8 @@ STEP 2 — Resume formal adversary passes (Option A — VSDD discipline):
 
   Pre-Pass-17 sweep COMPLETE — F-PreP17-H-001 (S-4.01 STORY-INDEX VP-137 row drift) remediated. Next: Pass 17 (window 1/3 attempt).
 
+  Pass 17 dispatched 2026-05-03 — BLOCKED → REMEDIATED (1 HIGH + 2 MEDIUM; declining trajectory). F-P17-H-001 SUBSTANTIVE (STORY-INDEX 3-row ADR annotation drift: S-4.02 ADR-015→ADR-018; S-4.05 ADR-016→ADR-015; S-4.06 dropped over-claimed ADR-019); F-P17-M-001 COSMETIC (ADR-016/017 frontmatter date sync; v0.9, v0.5); F-P17-M-002 COSMETIC deferred → TD-VSDD-045 (VP Assignment Matrix structural gap). STORY-INDEX v2.00, ARCH-INDEX v2.14. Next: Pass 18 (window 1/3 attempt).
+
   2b. If CLEAN: dispatch Pass 15 (window 2/3); if also CLEAN: Pass 16 (window 3/3 — CONVERGED).
   2c. If BLOCKED at any pass: route findings tightly per defect-class; remediate; re-pass.
   2d. NO skipping the formal 3-clean window. Per VSDD discipline.
@@ -173,11 +175,11 @@ KEY REFERENCES:
 - All adversarial reviews: .factory/cycles/wave-4-operations/adversarial-reviews/pass-{1..12}.md
 - All preflight findings: .factory/cycles/wave-4-operations/preflight-findings/
 - Wave 4 cycle-manifest: .factory/cycles/wave-4-operations/cycle-manifest.md (v1.22)
-- 6 ADRs current versions: 013 v0.7, 015 v0.6, 016 v0.8, 017 v0.4, 018 v0.6, 019 v0.4
+- 6 ADRs current versions: 013 v0.7, 015 v0.6, 016 v0.9, 017 v0.5, 018 v0.6, 019 v0.4
 - 8 W4 stories current versions: S-4.01 v1.12, S-4.02 v1.11, S-4.03 v1.9, S-4.04 v1.11, S-4.05 v1.12, S-4.06 v1.13, S-4.07 v1.8, S-4.08 v1.22
 - 4 W4 BCs current versions: BC-2.12.004 v1.8, BC-2.18.001 v1.7, BC-2.18.002 v1.4, BC-2.18.004 v1.4
-- verification-architecture v1.26, ARCH-INDEX v2.13, STORY-INDEX v1.99, BC-INDEX v4.30
-- factory-artifacts canonical SHA: `d07cbff4`
+- verification-architecture v1.26, ARCH-INDEX v2.14, STORY-INDEX v2.00, BC-INDEX v4.30
+- factory-artifacts canonical SHA: `15fa97e6`
 - develop HEAD: ba3b10c7 (Wave 3 CONVERGED 2026-05-02)
 
 ### Carry-Forward Debt (Wave 4 — REMEDIATE ALL per D-203)

@@ -3,8 +3,8 @@ document_type: adr
 adr_id: "ADR-016"
 title: "Action Delivery Framework"
 status: PROPOSED
-version: "0.8"
-date: 2026-05-02
+version: "0.9"
+date: 2026-05-03
 wave: 4
 phase: 4.A
 authors: [architect]
@@ -566,6 +566,14 @@ Upgrade note for Wave 4 deployment: the `action_state` CF must be created via `c
 Applied during Wave 4 Phase 4.A adversarial Pass 16 fix-burst (2026-05-03). Version bumped 0.7 → 0.8.
 
 - **F-P16-M-001 fix (VP-143 anchor §5.5 correction):** Dropped "S-4.01 (secondary)" claim from §5.5 Anchor stories — it was inconsistent with VP-INDEX line 164 (S-4.08 only) and S-4.01 frontmatter (which does NOT carry VP-143). Added explanatory note: VP-137 is the symmetric VP for schedule executor (S-4.01/S-4.08 anchors per ADR-013 §5.3); VP-143 is action-delivery-only (S-4.08 anchor), because the action-delivery semaphore lives in prism-operations/action_dispatcher built by S-4.08, not S-4.01.
+
+---
+
+## Phase 4.A Pass 17 Remediation Notes
+
+Applied during Wave 4 Phase 4.A adversarial Pass 17 fix-burst (2026-05-03). Version bumped 0.8 → 0.9.
+
+| 0.9 | F-P17-M-001 | 2026-05-03 | architect | Pass 17 MEDIUM: frontmatter `date:` synced 2026-05-02 → 2026-05-03 (matches body Status). Sibling-fix gap with ADR-013 v0.7 / ADR-018 v0.6 which were already synced. |
 
 ---
 
