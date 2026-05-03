@@ -2,7 +2,7 @@
 document_type: cycle-manifest
 cycle_id: wave-4-operations
 cycle_type: feature
-version: wave-4-preflight-v1.8
+version: wave-4-preflight-v1.9
 status: in-progress
 started: pending
 completed: pending
@@ -85,7 +85,7 @@ Wave 4 introduces the operations runtime: scheduled sensor polling, differential
 | Story | Title | Pts | BCs | VPs | Layer | Depends On |
 |-------|-------|-----|-----|-----|-------|------------|
 | S-4.01 | Schedule CRUD and Execution Loop | 5 | 5 | VP-026, VP-030 | 3 | S-3.02, S-2.01 |
-| S-4.02 | Differential Results and Packs | 5 | 2 | VP-019 | 2 | S-4.01 |
+| S-4.02 | Differential Results and Packs | 3 | 2 | VP-019 | 2 | S-4.01 |
 | S-4.03 | Detection Rule Loading and Compilation | 8 | 5 | VP-018 | 3 | S-3.02, S-1.08, S-2.01 |
 | S-4.04 | Detection Evaluation (Single/Correlation/Sequence) | 5 | 5 | VP-027 | 3 | S-4.03 |
 | S-4.05 | Alert Generation | 4 | 2 | VP-028 | 1 | S-4.04 |
@@ -224,6 +224,7 @@ Story inventory will be remediated post-ADR-acceptance per drift audit categorie
 
 | Version | Date | Change |
 |---------|------|--------|
+| wave-4-preflight-v1.9 | 2026-05-02T22:00:00Z | iter-2 fixes — S-4.02 points reconciled to 3 (was 5 in manifest); STORY-INDEX NEW-004 ADR annotation fix; total 46 points (verified). |
 | wave-4-preflight-v1.8 | 2026-05-02T21:30:00Z | Story remediation complete (b881b0d2): 8 W4 stories updated; 43 drift + 5 spec-quality HIGH addressed; S-4.03: 5→8 pts, S-4.05: 1→4 pts; total 45→46 pts; ADR refs + library pins added; STORY-INDEX updated. Pre-flight re-run queued. |
 | wave-4-preflight-v1.7 | 2026-05-02T20:50:00Z | Phase 3 ADRs committed (ADR-016 + ADR-019 PROPOSED v0.1); VP-143 + VP-144 stubs added. ALL 6 Wave 4 ADRs complete. Story-writer drift remediation queued. |
 | wave-4-preflight-v1.6 | 2026-05-02T20:30:00Z | Phase 2 ADRs committed (ADR-015 + ADR-018 PROPOSED v0.1); VP-139..142 stubs added. Phase 3 (ADR-016 + ADR-019) queued. |

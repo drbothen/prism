@@ -1,7 +1,7 @@
 ---
 document_type: pipeline-state
 level: ops
-version: "6.25"
+version: "6.26"
 producer: state-manager
 timestamp: 2026-05-02T02:00:00Z
 inputs: []
@@ -22,7 +22,7 @@ repos:
   - axiathon
   - ocsf-proto-gen
   - mcp-claroty-xdome
-current_step: "Re-run pre-flight (consistency-validator + spec-reviewer fresh-context) on remediated stories — Phase 4.A iteration 2"
+current_step: "Adversarial spec convergence (3-clean window) on remediated stories + 6 new ADRs — Phase 4.A R7"
 awaiting: "Architect Phase 1 ADR drafts (ADR-013 Schedule Execution Semantics + ADR-017 Case Lifecycle Invariants) — parallel authoring"
 wave_3_carry_forward_debt: "ALL_REMEDIATE — W4-FIX-PERF-001/002, W4-FIX-CODE-001, W4-FIX-SEC-001..004 stories planned per D-203"
 wave_4_status: "PHASE_4_A_DECISIONS_LOGGED — D-207..D-213 logged 2026-05-02; architect cleared for ADR drafting (6 ADRs in 3 phases); implementation BLOCKED until pre-flight clears"
@@ -55,6 +55,10 @@ wave_4_phase_4_a_preflight:
   re_pointed_stories: { S-4.03: '5->8', S-4.05: '2->4', S-4.06: '5->9', S-4.08: '5->9' }
   deferred_items: [kani_version_pin_S406, keyring_uri_TD-S-1.07-01_W5_prereq, plugin_authoring_sdk_W5plus, cycle_manifest_point_total_reconcile]
   next_step: re-run-preflight-iteration-2
+  iter2_consistency_verdict: CONDITIONAL_PASS (26/28 closed, 2 HIGH new fixed via S-4.04/4.05 line-level edits)
+  iter2_quality_verdict: APPROVED_WITH_CONDITIONS (8/8 HIGH closed; 4 MEDIUM polish deferred to Phase 4.B per spec-reviewer)
+  iter2_HIGH_fixes: [S-4.04 v1.6 (NEW-002), S-4.05 v1.6 (NEW-001), S-4.06 v1.10 (NEW-005 LOW), STORY-INDEX (NEW-004), cycle-manifest (NEW-003)]
+  iter2_remaining_MEDIUM_deferred: [SR-401-001, SR-403-001, SR-405-001, SR-406-001 — Phase 4.B polish]
   findings_files:
     - .factory/cycles/wave-4-operations/preflight-findings/architect-adr-identification.md
     - .factory/cycles/wave-4-operations/preflight-findings/consistency-drift-audit.md
@@ -354,7 +358,7 @@ bc_count_corrected: 230
 cap_count: 40  # active; highest_cap_id: CAP-040 (CAP-038 Multi-Tenant Identity, CAP-039 Multi-Tenant Fixture Gen, CAP-040 Multi-Tenant Adapter Dispatch — Wave 3 Phase 3.A Step 2)
 bc_index_version: "4.27"
 vp_index_version: "1.22"
-story_index_version: "v1.81"
+story_index_version: "v1.82"
 red_gate_wave_0a_complete: 2026-04-21
 test_vectors_version: "2.7"
 prd_version: "1.7"
@@ -402,7 +406,7 @@ user_directive_persistent: "No pragmatic convergence. Fix all issues before buil
 | **Last Updated** | 2026-05-02 (Wave 4 Phase 4.A Phase 3 ADRs committed — ADR-016 + ADR-019; VP-143..144 added; ALL 6 W4 ADRs PROPOSED v0.1; STATE v6.23→v6.24) |
 | **Current Phase** | Phase 4.A — Wave 4 spec-drift remediation + new ADR authoring (BLOCKING for implementation) |
 | **Current Step** | Re-run pre-flight (consistency-validator + spec-reviewer fresh-context) on remediated stories — Phase 4.A iteration 2 |
-| **factory-artifacts HEAD** | `b881b0d2` (W4 Phase 4.A story remediation — 8 stories updated, STATE v6.25) |
+| **factory-artifacts HEAD** | `<Stage 1 SHA>` (W4 Phase 4.A iter-2 fixes — S-4.04/4.05/4.06 version bumps; STORY-INDEX + cycle-manifest reconciled; STATE v6.26) |
 
 ## Phase Progress
 
