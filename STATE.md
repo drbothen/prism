@@ -406,7 +406,7 @@ user_directive_persistent: "No pragmatic convergence. Fix all issues before buil
 | **Last Updated** | 2026-05-02 (Wave 4 Phase 4.A Phase 3 ADRs committed — ADR-016 + ADR-019; VP-143..144 added; ALL 6 W4 ADRs PROPOSED v0.1; STATE v6.23→v6.24) |
 | **Current Phase** | Phase 4.A — Wave 4 spec-drift remediation + new ADR authoring (BLOCKING for implementation) |
 | **Current Step** | Re-run pre-flight (consistency-validator + spec-reviewer fresh-context) on remediated stories — Phase 4.A iteration 2 |
-| **factory-artifacts HEAD** | `<Stage 1 SHA>` (W4 Phase 4.A iter-2 fixes — S-4.04/4.05/4.06 version bumps; STORY-INDEX + cycle-manifest reconciled; STATE v6.26) |
+| **factory-artifacts HEAD** | `042a10e0` (W4 Phase 4.A iter-2 fixes — S-4.04/4.05/4.06 version bumps; STORY-INDEX + cycle-manifest reconciled; STATE v6.26) |
 
 ## Phase Progress
 

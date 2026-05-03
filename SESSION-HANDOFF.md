@@ -70,12 +70,12 @@ factory-artifacts canonical: 84455d7d (canonical SHA). develop HEAD: ba3b10c7."
 
 ## Current State
 
-develop HEAD `ba3b10c7` | factory-artifacts `<Stage 1 SHA>` (W4 Phase 4.A iter-2 fixes — S-4.04/4.05/4.06 version bumps; STORY-INDEX + cycle-manifest reconciled; STATE v6.26)
+develop HEAD `ba3b10c7` | factory-artifacts `042a10e0` (W4 Phase 4.A iter-2 fixes — S-4.04/4.05/4.06 version bumps; STORY-INDEX + cycle-manifest reconciled; STATE v6.26)
 
 | Metric | Value |
 |--------|-------|
 | develop HEAD | `ba3b10c7` (W3-FIX-SEC-005 — Wave 3.4 final PR, PR #125, 2026-05-02) |
-| factory-artifacts HEAD | `<Stage 1 SHA>` (W4 Phase 4.A iter-2 fixes — S-4.04/4.05/4.06 version bumps; STORY-INDEX + cycle-manifest reconciled; STATE v6.26) |
+| factory-artifacts HEAD | `042a10e0` (W4 Phase 4.A iter-2 fixes — S-4.04/4.05/4.06 version bumps; STORY-INDEX + cycle-manifest reconciled; STATE v6.26) |
 | PR count merged | 125 |
 | Workspace test count | 2363 (nextest-verified; +133 from CI nextest split + doctest migration) |
 | Open PRs | None |
