@@ -1,7 +1,7 @@
 ---
 document_type: verification-property-index
 level: L4
-version: "1.21"
+version: "1.22"
 status: draft
 producer: product-owner
 timestamp: 2026-05-02T00:00:00
@@ -161,17 +161,19 @@ traces_to: architecture/ARCH-INDEX.md
 | VP-140 | Dedup window scheduling-time resolution + invalidation correctness | prism-operations | proptest | P1 | draft | S-4.03, S-4.04 |
 | VP-141 | Epoch counter merge_operator atomicity (concurrent increments never lost) | prism-operations | proptest | P1 | draft | S-4.02 |
 | VP-142 | Pack expansion idempotence (double-register produces identical ScheduleEntry set) | prism-operations | proptest | P1 | draft | S-4.02 |
+| VP-143 | Action delivery non-starvation (per-subsystem semaphore non-starvation for action delivery side) | prism-operations | proptest | P1 | draft | S-4.08 |
+| VP-144 | CEF v0 + LEEF 2.0 encoder correctness (13 proptest invariants: INV-CEF-001..005, INV-LEEF-001..005, INV-RT-001..003) | prism-siem-formats | proptest | P1 | draft | S-4.08 |
 
 ## Summary
 
 | Method | Count | P0 | P1 |
 |--------|-------|----|----|
 | Kani | 30 | 23 | 7 |
-| Proptest | 83 | 64 | 19 |
+| Proptest | 85 | 64 | 21 |
 | Unit test | 4 | 4 | 0 |
 | Fuzz | 6 | 5 | 1 |
 | Integration test | 19 | 17 | 2 |
-| **Total** | **142** | **113** | **29** |
+| **Total** | **144** | **113** | **31** |
 
 ### Phase 3-Patch Addition (2026-04-16, Burst 2.5)
 

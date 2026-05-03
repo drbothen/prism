@@ -1,7 +1,7 @@
 ---
 document_type: architecture-index
 level: L3
-version: "1.9"
+version: "2.0"
 status: draft
 producer: architect
 timestamp: 2026-04-26T20:30:00
@@ -80,8 +80,10 @@ deployment_topology: single-service
 | ADR-012 | Workspace src/ Convention Normalization — Canonical Crate Layout | ACCEPTED | 2026-04-27 | decisions/ADR-012-src-convention.md |
 | ADR-013 | Schedule Execution Semantics | PROPOSED | 2026-05-02 | decisions/ADR-013-schedule-execution-semantics.md |
 | ADR-015 | Detection Rule Language | PROPOSED | 2026-05-02 | decisions/ADR-015-detection-rule-language.md |
+| ADR-016 | Action Delivery Framework | PROPOSED | 2026-05-02 | decisions/ADR-016-action-delivery-framework.md |
 | ADR-017 | Case Lifecycle Invariants | PROPOSED | 2026-05-02 | decisions/ADR-017-case-lifecycle-invariants.md |
 | ADR-018 | Differential Result Pack Format | PROPOSED | 2026-05-02 | decisions/ADR-018-differential-result-pack-format.md |
+| ADR-019 | SIEM Output Formats | PROPOSED | 2026-05-02 | decisions/ADR-019-siem-output-formats.md |
 
 ## Architecture Decisions
 
@@ -140,6 +142,7 @@ deployment_topology: single-service
 
 | Version | Pass | Date | Author | Change |
 |---------|------|------|--------|--------|
+| 2.0 | W4-ADR-Phase3-burst | 2026-05-02 | state-manager | Wave 4 Phase 3 ADR burst: ADR-016 (Action Delivery Framework) + ADR-019 (SIEM Output Formats) PROPOSED v0.1 registered in ADR Registry table. ALL 6 Wave 4 ADRs now PROPOSED v0.1. |
 | 1.9 | W4-ADR-burst | 2026-05-02 | state-manager | Wave 4 Phase 2 ADR burst: ADR-015 (Detection Rule Language) + ADR-018 (Differential Result Pack Format) PROPOSED v0.1 registered in ADR Registry table. |
 | 1.8 | pass-18-remediation | 2026-04-27 | product-owner | M-18-002: SS-01 crates column — annotated `prism-dtu-harness` as *(planned per ADR-011)*. AD-001 narrative updated to clarify harness is planned, total becomes 23 crates at end of Wave 3. m-18-001: ADR Registry Status column uppercased to match canonical ADR frontmatter (PROPOSED/ACCEPTED per POL 7 source-of-truth). |
 | 1.7 | pass-17-remediation | 2026-04-27 | product-owner | m-17-003: SS-21 Phase Introduced corrected "Phase 1" → "Phase 3". SS-21 was created in Wave 3 (Phase 3.A) per D-095, consistent with SS-17/18/19/20 which all say "Phase 3". |

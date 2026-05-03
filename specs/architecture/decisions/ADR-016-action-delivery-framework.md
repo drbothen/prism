@@ -1,0 +1,560 @@
+---
+document_type: adr
+adr_id: "ADR-016"
+title: "Action Delivery Framework"
+status: PROPOSED
+version: "0.1"
+date: 2026-05-02
+wave: 4
+phase: 4.A
+authors: [architect]
+producer: architect
+timestamp: 2026-05-02T00:00:00Z
+inputs:
+  - .factory/cycles/wave-4-operations/cycle-manifest.md
+  - .factory/cycles/wave-4-operations/preflight-findings/research-findings.md
+  - .factory/STATE.md
+  - .factory/stories/S-4.08-action-delivery.md
+  - .factory/stories/S-4.05-alert-generation.md
+  - .factory/stories/S-4.06-case-management.md
+  - .factory/specs/architecture/decisions/ADR-006-multi-tenant-dtu-topology.md
+  - .factory/specs/architecture/decisions/ADR-008-dtu-state-segregation.md
+  - .factory/specs/architecture/decisions/ADR-010-customer-config-schema.md
+  - .factory/specs/architecture/decisions/ADR-013-schedule-execution-semantics.md
+  - .factory/specs/architecture/decisions/ADR-015-detection-rule-language.md
+anchor_stories: [S-4.08, S-4.05, S-4.06]
+aligns_with: [ADR-006, ADR-008, ADR-010, ADR-013, ADR-015]
+references_phase3_siblings: [ADR-019]
+locked_decisions: [D-208, D-209, D-210, D-211]
+references_research: [R-2, R-3, R-12, R-13]
+verification_properties: [VP-044, VP-045, VP-046, VP-047, VP-143]
+subsystems_affected: [SS-04]
+supersedes: []
+superseded_by: null
+traces_to: specs/architecture/ARCH-INDEX.md
+---
+
+# ADR-016: Action Delivery Framework
+
+## Status
+
+PROPOSED 2026-05-02, v0.1. Pending review and acceptance prior to story remediation and BC authoring.
+
+---
+
+## 1. Context
+
+### 1.1 The Need for a Unified Action Delivery Surface
+
+Wave 4 introduces three categories of operational output that must reach external systems: alert notifications (S-4.05), case lifecycle events (S-4.06), and scheduled report deliveries (S-4.01/S-4.08). Prior to this ADR, each category was siloed in story-level implementation notes with no shared design for credential handling, retry semantics, or observability.
+
+The Action Delivery Framework unifies these under a single `.action.toml` configuration model, a shared `ActionDeliveryEngine` in `prism-operations` (`action/delivery.rs` per ADR-012 `src/` convention), and a common set of verifiable invariants. The framework delivers to four destination kinds: webhook, email (SMTP), syslog (CEF/LEEF), and WASM plugin. Each action spec declares one trigger mode and one destination.
+
+### 1.2 Trigger Plurality
+
+Four trigger modes are required:
+- **Alert** — fires when the detection engine (ADR-015) emits an alert matching the filter predicate.
+- **Case** — fires when a case undergoes a state-change transition (S-4.06 timeline events).
+- **Schedule** — fires at cron-scheduled intervals, registered in the schedule executor (ADR-013 §2.6).
+- **Manual** — fires on explicit MCP tool invocation with a confirmation token (S-1.09 gate).
+
+Each mode has distinct delivery semantics. Sharing a single framework across all four while preserving per-mode semantics is the central design challenge this ADR resolves.
+
+### 1.3 Why Separate Decisions Were Needed
+
+Three gaps in the S-4.08 story draft (as of 2026-04-16) required formal resolution:
+
+- **Semaphore sharing.** Story draft proposed a shared semaphore with the schedule executor. D-209 (LOCKED 2026-05-02) overrides this with independent 8-permit semaphores (see §2.11).
+- **Cron library.** Story draft cited `cron 0.12.x`. R-2 established `croner = "3"` as the required library for DST/timezone correctness (see ADR-013 §2.8 for the canonical decision; ADR-016 inherits it for the schedule trigger mode).
+- **Email auth.** Story draft did not address Microsoft Exchange Online's 2026-04-30 SMTP auth deprecation (R-3). XOAUTH2 is now first-class for the email destination.
+
+---
+
+## 2. Decision
+
+### 2.1 `.action.toml` Specification Format
+
+Action specs are declared in TOML files with the `.action.toml` extension. The schema:
+
+```toml
+[action]
+name        = "slack-critical-alerts"     # unique name within org
+description = "..."                       # optional
+version     = "1.0"                       # semver string
+
+[trigger]
+kind        = "alert"                     # alert | case | schedule | manual
+filter      = { severity = ["critical", "high"] }  # optional predicate; see §2.2
+
+# OrgId / ClientId scoping per D-208
+org_id      = "01975e4e-9f00-7abc-8def-000000000001"  # UUID v7; required (D-208)
+clients     = ["client-acme"]            # non-empty list or ["*"]; see §2.5
+
+[destination]
+kind        = "webhook"                  # webhook | email | syslog | plugin
+url         = "https://hooks.slack.com/..."
+credential_ref = "vault://action-creds/slack/webhook"  # opaque ref per ADR-010 §2.3.1
+
+[retry]
+max_attempts = 5                         # bounded per VP-044
+schedule     = "exp"                     # exp | linear
+```
+
+Top-level field validation follows the same `deny_unknown_fields` + explicit error model as ADR-010 §2.3 (unknown fields are rejected at load time, not silently ignored).
+
+### 2.2 Trigger Model (4 Modes)
+
+**Alert trigger** (`kind = "alert"`): subscribes to the alert broadcast channel (§2.12). The `[trigger].filter` predicate is evaluated against alert metadata fields (`severity`, `rule_id`, `client_id`, `org_id`). Predicate evaluation is performed in the `ActionDeliveryEngine`; non-matching alerts are dropped without delivery attempt. Alert trigger semantics: at-least-once with idempotency-key dedup (§2.5).
+
+**Case trigger** (`kind = "case"`): subscribes to case state-change events emitted by S-4.06 timeline. Filter predicates on case fields (`status`, `severity`, `client_id`). Semantics: at-least-once (audit-relevant).
+
+**Schedule trigger** (`kind = "schedule"`): registers an entry in the `schedules` CF (ADR-013 §2.6) with `kind = "action"` discriminator field in the `ScheduleEntry`. The schedule executor tick loop fires action delivery at the cron-computed interval. Cron parsing uses `croner = "3"` (R-2, canonical decision at ADR-013 §2.8). Semantics: best-effort — if delivery fails, the next scheduled tick fires fresh; no catch-up retry (consistent with ADR-013 §2.4 skip-not-queue policy).
+
+**Manual trigger** (`kind = "manual"`): invoked via MCP tool call (`prism_fire_action`). A confirmation token (`S-1.09` gate) is required before delivery. Semantics: fire-and-forget — the MCP tool call returns the error inline if delivery fails; no automatic retry.
+
+### 2.3 Credential Reference Model (Extends ADR-010 §2.3.1)
+
+The `credential_ref` field in `.action.toml` `[destination]` blocks uses the identical opaque reference scheme set established in ADR-010 §2.3.1:
+
+| Scheme prefix | Example | Resolved by |
+|---|---|---|
+| `vault://` | `vault://action-creds/slack/webhook` | HashiCorp Vault KV path |
+| `env://` | `env://SLACK_WEBHOOK_URL` | Environment variable |
+| `file://` | `file:///etc/prism/action-creds/smtp-pass` | File on disk (mode 0600 enforced at load) |
+| `keyring://` | `keyring://prism/actions/smtp` | OS keyring (wire-up deferred to S-1.07; TD-S-1.07-01 P1 blocks Wave 5 close) |
+
+Credential values never appear in the `.action.toml` file. ADR-010 §2.3.1 is the single source of truth for the allowed scheme set; this ADR consumes that scheme set without extending it.
+
+**Inline credential rejection (VP-046):** Any `.action.toml` file whose `[destination]` block contains a literal credential value (a value not prefixed by one of the four allowed scheme strings) returns `E-ACTION-INLINE-CRED` at validation time. Validation occurs at file load, not at delivery time.
+
+**UUID v7 validation for interpolated values (VP-047):** Body template variables (`{{var}}`) in webhook payloads and email subjects are validated at action-spec load time. Each `{{var}}` must be a UUID v7 reference OR an explicitly typed scalar (string literal, integer, or boolean). Free-form template variable names that are not resolvable at load time are rejected with `E-ACTION-TEMPLATE-INJECTION-UNTYPED`.
+
+### 2.4 Delivery Semantics Per Trigger Mode
+
+| Trigger | Delivery Semantics | Idempotency | Rationale |
+|---|---|---|---|
+| Alert | At-least-once with idempotency-key dedup | dedup key: `{org_id}:{action_id}:{alert_id}` | A lost alert notification is a security event; dedup prevents double-fire on retry |
+| Case | At-least-once | dedup key: `{org_id}:{action_id}:{case_id}:{event_seq}` | Audit-relevant; must not lose state-change notifications |
+| Schedule | Best-effort | N/A | Next tick fires fresh; thundering-herd avoidance (ADR-013 §2.4) |
+| Manual | Fire-and-forget | N/A | Operator sees error inline; confirmation token already consumed |
+
+Alert and case dedup entries are stored in the `action_state` CF (§2.5) with a 24-hour TTL. After TTL expiry, a re-fired alert with the same `alert_id` will fire again — this is the intended behaviour (stale dedup entries should not suppress new firings in a new dedup window).
+
+Dedup window for alert trigger is derived from the linked rule's `effective_dedup_window` (ADR-015 §2.7 owns the resolution; this ADR consumes the resolved value). No OrgRegistry calls occur in the delivery hot path.
+
+### 2.5 OrgId / ClientId Scoping (D-208 + D-210 — LOCKED)
+
+**Rust types:**
+
+```rust
+struct ActionSpec {
+    org_id: OrgId,                          // required (D-208)
+    client_id_filter: ClientFilter,          // see below
+    name: String,
+    trigger: TriggerConfig,
+    destination: DestinationConfig,
+    retry: RetryConfig,
+}
+
+enum ClientFilter {
+    All,                                     // TOML: clients = ["*"]
+    Specific(Vec<ClientId>),                 // TOML: clients = ["client-a", "client-b"]
+}
+```
+
+**`clients = []` is REJECTED (D-210 — LOCKED):** An empty `clients` list returns `E-ACTION-CLIENTS-EMPTY` at validation time. The empty list is an operator error (ambiguous intent: does it mean "no clients" or "all clients"?). The `["*"]` sentinel is the explicit form for "all clients in the org," deserializing to `ClientFilter::All`.
+
+**`action_state` CF key design (per ADR-008 universal re-keying):**
+
+All keys in the `action_state` CF are prefixed with `{org_id_bytes}:` per ADR-008's universal re-keying rule. Single-byte type discriminators follow the OrgId prefix for efficient per-type scans within an org:
+
+| Entry type | Key format | Value encoding |
+|---|---|---|
+| Rate limit counter | `{org_id}:\x00:{action_id}:{hour_bucket}` | bincode 2.x: `u64` counter (RocksDB merge_operator per ADR-018 §2 pattern) |
+| Last-fire timestamp | `{org_id}:\x01:{action_id}` | bincode 2.x: `DateTime<Utc>` |
+| Dedup entry | `{org_id}:\x02:{action_id}:{idempotency_key}` | bincode 2.x: ack `DateTime<Utc>`; TTL 24h |
+| Dead-letter entry | `{org_id}:\x03:{action_id}:{event_id}` | bincode 2.x: `DeadLetterRecord` |
+
+The `{org_id}:` prefix ensures per-org `reset_for(org_id)` semantics are correct: a prefix-scan on `{org_id}:` deletes all org-A action state without touching org-B entries (ADR-008 guarantee).
+
+### 2.6 Retry and Exponential Backoff (VP-044)
+
+The `[retry]` block in `.action.toml` configures delivery retry. Two schedules are supported:
+
+**`exp` (exponential backoff with jitter):**
+- Base: 2s. Multiplier: 2x. Cap: 60s. Max attempts: 5.
+- Sequence (nominal): 2s, 4s, 8s, 16s, 32s (cumulative ~62s to terminal failure).
+- Jitter: ±10% per attempt, applied uniformly. Avoids thundering herd on shared upstreams when many actions target the same destination (e.g., a common Slack webhook).
+
+**`linear` (linear backoff with jitter):**
+- Base: 5s. Increment: 5s per attempt. Max attempts: 5.
+- Sequence (nominal): 5s, 10s, 15s, 20s, 25s.
+- Jitter: ±10% per attempt.
+
+**Terminal failure:** after `max_attempts` exhausted, the event is written to the dead-letter entry in the `action_state` CF (§2.5) for operator inspection. A `ActionDeliveryFailed` event is emitted to the audit log with: `action_id`, `org_id`, `trigger_kind`, `destination_kind`, `attempts`, `last_error`.
+
+VP-044 formally verifies: (a) the retry loop terminates after at most `max_attempts` attempts for any combination of inputs; (b) no infinite retry loop is possible.
+
+VP-045 (in-flight skip): if the semaphore `try_acquire` fails (non-blocking) because all 8 permits are held, the delivery is skipped for this tick/event and a `ActionDeliverySkipped { reason: SemaphoreExhausted }` audit event is emitted. No blocking wait; no queue growth.
+
+### 2.7 WASM Plugin Delegation (R-13)
+
+**Destination kind:** `kind = "plugin"`.
+
+**Wasmtime version pin (R-13):** `wasmtime = "44"` with `features = ["component-model"]`. Major-version bumps follow a 1–2 day per-quarter cadence (R-13 caveat: wasmtime's API surface drifts on each major release; the cadence is necessary to stay current).
+
+**WIT world definition:** Host call surfaces are defined in a WIT file under `crates/prism-operations/wit/action-delivery.wit` (or shared workspace `wit/`):
+
+```wit
+interface action-delivery {
+    record alert { /* fields */ }
+    record case  { /* fields */ }
+    record report { /* fields */ }
+
+    fire-alert: func(alert: alert) -> result<_, string>;
+    fire-case:  func(case: case)   -> result<_, string>;
+    fire-report: func(report: report) -> result<_, string>;
+}
+
+world prism-action-plugin {
+    import action-delivery;
+    export fire: func() -> result<_, string>;
+}
+```
+
+**Embedder pattern (per Wasmtime 44 component-model API):**
+
+1. Component compiled at plugin load: `Component::new(&engine, wasm_bytes)?`
+2. Linker: `Linker::<PrismActionHost>::new(&engine)`; `<generated>::add_to_linker(&mut linker, |state| state)?` where `<generated>` comes from `wasmtime::component::bindgen!` reading the WIT world.
+3. Instantiate per-fire: `<generated>::instantiate(&mut store, &component, &linker)?`
+4. Host function calls: `instance.fire_alert(&mut store, &alert)?` (etc.)
+5. Isolation: instantiating per-fire bounds side effects to a single delivery; the component's internal state does not persist across fires.
+
+**Async host functions:** Use `Linker::func_wrap_async` when the host must `await` on Tokio (e.g., HTTP fanout from within the plugin host context).
+
+**Action plugin authoring SDK** (helper crate for plugin authors) is OUT OF SCOPE for Wave 4. This ADR specifies the host embedder side only. Wave 5+ work.
+
+### 2.8 SMTP / Email Destination with XOAUTH2 (R-3)
+
+**Library pin (R-3):** `lettre = "0.11"` with features:
+
+```toml
+features = [
+  "tokio1",
+  "smtp-transport",
+  "rustls",
+  "rustls-aws-lc-rs",
+  "rustls-platform-verifier",
+  "builder",
+  "tracing"
+]
+```
+
+The deprecated `tokio1-rustls-tls` feature flag MUST NOT be used. Story drafts referencing it must be remediated (Wave 4 drift audit item).
+
+**TLS modes:**
+- Default: `Tls::Required(TlsParameters::new(host)?)` — STARTTLS on submission port 587.
+- Opt-in: `Tls::Wrapper(...)` — implicit TLS on port 465. Configured via `[destination].tls = "wrapper"` in `.action.toml`.
+
+**Auth mechanisms list:** `[Plain, Xoauth2]` default. `Login` available as opt-in override for legacy Microsoft tenants (configured via `[destination].smtp_auth_fallback = true`).
+
+**Microsoft Exchange Online (R-3):** Microsoft deprecated basic SMTP auth for Exchange Online on **2026-04-30**. XOAUTH2 is first-class for Wave 4 outbound email to Exchange Online. Deployment note: operators connecting to Exchange Online MUST configure XOAUTH2 with:
+- A registered Azure AD application with `SMTP.Send` permission.
+- `tenant_id`, `client_id`, and either `client_secret` or `client_certificate` — all stored as opaque `credential_ref` values (§2.3).
+
+Attempting to use `Login` or `Plain` against Exchange Online without SMTP auth re-enabled in the Exchange admin center will produce a `535 5.7.3 Authentication unsuccessful` error at the first delivery attempt, surfaced as a `ActionDeliveryFailed` audit event.
+
+### 2.9 Webhook Destination with Injection Scanning
+
+**HTTP client:** `reqwest = "0.12"` with features `["json", "rustls-tls", "cookies"]`. Aligned with workspace pin (per research findings; verify in `Cargo.toml` root `[workspace.dependencies]`).
+
+**Body templating:** Handlebars-style `{{var}}` interpolation. All interpolated values pass through `prism-security::InjectionScanner::scan()` BEFORE template render (BC-2.09.004). The scanner detects: SQL injection characters, shell metacharacters, JSON injection sequences, template injection markers. Injection detection returns `E-ACTION-TEMPLATE-INJECTION`; delivery is aborted.
+
+**UUID v7 validation for template variables** is also enforced here at spec-load time (VP-047, §2.3).
+
+**Request signing (optional):** HMAC-SHA256 signature over the request body using a shared secret stored via `credential_ref`. The signature is placed in the `X-Prism-Signature: sha256=<hex>` header. Enabled when `[destination].signing_secret_ref` is set to an opaque `credential_ref`.
+
+### 2.10 Syslog Destination (CEF / LEEF)
+
+Format encoding is defined in **ADR-019** (sibling Phase 3 dispatch — `prism-siem-formats` crate providing `cef::v0::Encoder` and `leef::v2::Encoder`). ADR-016 specifies the syslog DESTINATION semantics; format semantics are delegated to ADR-019.
+
+**Transport:** RFC 3164 / RFC 5424 syslog. Transport selection:
+- Default: UDP port 514.
+- Opt-in: TCP port 514 (`[destination].transport = "tcp"`).
+- Opt-in: TLS port 6514 (`[destination].transport = "tls"`); `credential_ref` for client cert if mutual TLS required.
+
+**Format selection:** `[destination].format = "cef" | "leef"`. Default: `"cef"`. The selected format is passed to the `prism-siem-formats` encoder at delivery time.
+
+### 2.11 Per-Subsystem Semaphore (D-209 — LOCKED)
+
+Per ADR-013 §2.3 (D-209 LOCKED): the `ActionDeliveryEngine` constructs its own `Arc<Semaphore>` with 8 permits at init time inside `action/delivery.rs`. This semaphore is not shared with the `schedule_executor_semaphore` from `schedule/executor.rs`.
+
+**Action delivery liveness invariant (VP-143 — proposed in this ADR):** Action delivery cannot be starved by schedule execution, and schedule execution cannot be starved by action delivery. Proof: the semaphores are disjoint by construction (module-private, not passed between modules). No code path in `action/delivery.rs` can block on `schedule_executor_semaphore`; no code path in `schedule/executor.rs` can block on `action_delivery_semaphore`.
+
+VP-143 is the symmetric pair to VP-137 (per ADR-013 §5.3). Together VP-137 and VP-143 cover the full starvation-freedom invariant for the dual-semaphore design.
+
+**Coordination note re sibling ADR-019:** VP-143 is assigned to this ADR (action delivery non-starvation). ADR-019 (SIEM Output Formats) takes VP-144 as its next available number. No collision.
+
+### 2.12 Broadcast Channel Sizing (R-12)
+
+Alert trigger mode subscribes to the alert broadcast channel via `tokio::sync::broadcast`. Channel capacity: **1000** (rounds to 1024 internally — `tokio::sync::broadcast` uses a power-of-two ring buffer; a capacity request of 1000 produces a ring of 1024 slots per R-12 finding).
+
+This rounding behavior must be documented in the operational runbook so that operators do not assume exactly 1000 in-flight alerts can be buffered before lag occurs.
+
+**Lagged receiver handling:**
+
+```rust
+loop {
+    match rx.recv().await {
+        Ok(alert) => {
+            // deliver
+        }
+        Err(RecvError::Lagged(n)) => {
+            metrics::counter!("action_delivery.broadcast.lagged", n);
+            warn!(lagged = n, "action delivery receiver lagged; {} alerts dropped");
+            // continue — do not break; the receiver is still valid after a lag
+        }
+        Err(RecvError::Closed) => break,
+    }
+}
+```
+
+Lagged events MUST increment an observability counter. Silently dropping lagged alerts with no metric is a security observability gap — lagging means alerts are being lost without any signal to the operator. The `action_delivery.broadcast.lagged` counter is the actionable signal for tuning the channel capacity or the delivery semaphore permits.
+
+---
+
+## Rationale
+
+**Per-subsystem semaphore (§2.11) is required for formal liveness.** D-209 rejected the shared 16-permit design because it could not structurally guarantee starvation-freedom between two independent consumers. Independent 8-permit pools allow VP-143 and VP-137 to be proven by structural argument (module-private semaphores with no cross-module passing), not by runtime analysis. This is a stronger guarantee.
+
+**XOAUTH2 first-class (§2.8) is required for Exchange Online continuity.** R-3 documents Microsoft's 2026-04-30 deprecation of basic SMTP auth. Any Wave 4 deployment that targets Exchange Online for alert notifications will fail at first delivery after this date unless XOAUTH2 is available. Adding XOAUTH2 as an opt-in or post-Wave-5 feature would make the action delivery framework non-functional for Exchange Online operators from day one.
+
+**Broadcast capacity 1000 (§2.12) is required for observability.** A capacity that is too small causes silent alert drops (lagged receivers). R-12 found that 1000 (1024 effective) provides adequate headroom for realistic MSSP alert bursts (a policy violation sweep might produce 50–200 alerts; capacity 1000 provides 5–20x headroom). The `RecvError::Lagged` metric path ensures drops are not silent even when capacity is exceeded.
+
+**Credential reference extends ADR-010 §2.3.1 without modification.** Introducing a new credential scheme for `.action.toml` would fragment the credential model across two ADRs. ADR-010's scheme set (vault, env, file, keyring) covers all action-delivery credential scenarios. Reuse ensures the credential store resolver has a single code path.
+
+**WASM plugin isolation per-fire (§2.7) prevents state leakage.** Instantiating a fresh component per `fire_*` call bounds side effects and state to a single delivery. A long-lived component instance would accumulate Wasm linear memory state across fires, creating an implicit state coupling between deliveries that cannot be verified or reasoned about. Per-fire instantiation is a deliberate correctness choice, not a performance oversight; the performance cost (component instantiation) is acceptable at action delivery rates (seconds-to-minutes between fires).
+
+---
+
+## 3. Consequences
+
+### 3.1 Positive
+
+- **Unified outbound surface.** All four trigger modes converge on the same `ActionDeliveryEngine`, `ActionSpec` struct, and `action_state` CF. Observability, retry, and dead-letter handling are centralized — no per-trigger ad-hoc implementation.
+- **Per-subsystem isolation (D-209).** Independent semaphores structurally prevent cross-subsystem starvation, enabling VP-137 + VP-143 to be proven. Operational reliability of schedule execution is not coupled to action delivery load, and vice versa.
+- **XOAUTH2 future-proofing.** Exchange Online operators are not broken by the 2026-04-30 auth deprecation (R-3). First-class XOAUTH2 support means no emergency patch immediately after Wave 4 deployment.
+- **Bounded retry with dead-letter.** VP-044's formal proof of retry termination means operators can rely on at-most-5-attempt behaviour with dead-letter visibility, rather than an action that silently loops forever.
+- **Credential model consistency.** Using ADR-010 §2.3.1 scheme set for `.action.toml` means operators familiar with `customers/*.toml` credential references need no new mental model for action credential configuration.
+
+### 3.2 Negative
+
+- **WASM plugin debuggability.** Per-fire instantiation and the WIT interface boundary make step-debugging plugin behavior difficult. Plugin authors must rely on the `fire_*` return value and log output surfaced through the host; native debugger attach is not possible across the host/guest boundary. Mitigation: the plugin authoring SDK (Wave 5+) will provide test harness utilities.
+- **Broadcast capacity sizing constraints.** The 1024-slot ring buffer is fixed at channel construction. If sustained alert rates exceed channel throughput, lagged drops occur. The `action_delivery.broadcast.lagged` counter provides the signal, but the only remediation is increasing the capacity constant (requires code change + redeploy). A dynamic capacity is not supported by `tokio::sync::broadcast`.
+- **XOAUTH2 configuration complexity.** Exchange Online operators must pre-provision an Azure AD application with `SMTP.Send` permission, register the tenant/client/secret via opaque `credential_ref`, and test the flow before deployment. This is operationally more complex than the deprecated `Login` flow. The deployment note (§2.8) documents the required steps.
+- **`lettre` feature flag discipline.** The `tokio1-rustls-tls` deprecation flag is easy to accidentally include from stale documentation or pre-existing `Cargo.toml` stubs. Story-writer must audit all S-4.08-related `Cargo.toml` changes for this flag.
+
+---
+
+## 4. Alternatives Considered
+
+### 4.1 Shared 16-Permit Semaphore (Rejected — D-209)
+
+The S-4.08 story draft proposed a shared `Arc<Semaphore>` with 16 permits covering both schedule execution and action delivery. Rejected by D-209 (LOCKED 2026-05-02) for the cross-subsystem starvation hazard: a burst of action deliveries (e.g., a policy-violation sweep firing 16 simultaneous webhook calls) would starve schedule execution until all permits were released. The 8/8 split eliminates this hazard structurally. No further analysis required; D-209 is locked.
+
+### 4.2 `clients = []` as "All Clients" Default (Rejected — D-210 — LOCKED)
+
+An alternative design would treat `clients = []` as a sentinel for "all clients in the org," saving operators from typing `["*"]`. Rejected by D-210 (LOCKED 2026-05-02) because an empty list is ambiguous: it could represent an operator error (forgot to specify clients), a future "no clients" scope for org-level actions, or the "all clients" intent. Forcing the explicit `["*"]` sentinel makes intent unambiguous and prevents the silent misconfiguration of a broad-scope action caused by a typo or partial edit.
+
+### 4.3 Bare `cron 0.12.x` for Schedule Trigger (Rejected — R-2)
+
+The story draft referenced `cron 0.12.x` (zslayton/cron). Rejected for the same reasons established in ADR-013 §4.2: no DST awareness, no timezone handling, no Quartz-compatible extensions. `croner = "3"` strictly dominates for multi-tenant MSSP scheduling. Canonical decision is at ADR-013 §2.8; this ADR inherits it.
+
+### 4.4 `tokio1-rustls-tls` Feature Flag for Email (Rejected — R-3)
+
+The deprecated `tokio1-rustls-tls` feature flag in `lettre 0.11` was present in story draft `Cargo.toml` stubs. Rejected: this flag is a legacy alias that adds no capability over the `rustls` + `rustls-aws-lc-rs` feature combination and is explicitly deprecated in the lettre 0.11 changelog. Using deprecated flags creates confusion and will break on the next major release.
+
+### 4.5 Inline Credential Values (Rejected — AI-Opaque Credentials Policy)
+
+Placing API keys or webhook URLs as literal string values in `.action.toml` would simplify operator configuration but would expose credentials in any context where the action spec file is read (MCP tool output, git history, log files). The AI-opaque credentials policy (memory: `project_ai_opaque_credentials.md`) prohibits credentials from transiting the AI context. VP-046 formalizes this rejection at the code level.
+
+---
+
+## 5. Verification Plan
+
+### 5.1 VP-044 — Retry Loop Termination (Pre-existing)
+
+**Property:** For any delivery attempt sequence, the retry loop terminates after at most `max_attempts` attempts. No infinite loop is possible regardless of whether the destination returns errors, timeouts, or HTTP 5xx responses on every attempt.
+
+**Method:** Kani (model checking).
+
+**Harness skeleton:**
+
+```rust
+#[cfg(kani)]
+#[kani::proof]
+fn verify_retry_terminates() {
+    let max: u32 = kani::any_where(|m| *m >= 1 && *m <= 5);
+    let mut attempts = 0u32;
+    loop {
+        if attempts >= max {
+            break;
+        }
+        attempts += 1;
+        let _: bool = kani::any(); // simulated success/failure
+        // unconditional break after max attempts
+    }
+    kani::assert(attempts <= max, "retry must not exceed max_attempts");
+}
+```
+
+**Status:** draft (VP-044 file exists; harness skeleton to be added per S-4.08 remediation).
+**Module:** `prism-operations` | **Priority:** P0 | **Anchor story:** S-4.08
+
+### 5.2 VP-045 — In-Flight Delivery Skip is Non-Blocking (Pre-existing)
+
+**Property:** When the `action_delivery_semaphore` is exhausted (0 permits), `try_acquire` returns `Err(TryAcquireError::NoPermits)` immediately without blocking the calling task. The delivery is skipped; no task is parked waiting for a permit.
+
+**Method:** Proptest + integration test.
+
+**Approach:** Integration test saturates the semaphore with 8 long-running mock deliveries, then calls `try_deliver` for a 9th. Assert the 9th returns `Skipped` within 1ms (no blocking). Proptest verifies the `try_acquire` path is reached (not the blocking `acquire` path) in all code paths through `ActionDeliveryEngine::deliver`.
+
+**Status:** draft (VP-045 file exists; harness skeleton to be added per S-4.08 remediation).
+**Module:** `prism-operations` | **Priority:** P1 | **Anchor story:** S-4.08
+
+### 5.3 VP-046 — Inline Credential Rejection (Pre-existing)
+
+**Property:** `ActionSpec::validate` returns `Err(E-ACTION-INLINE-CRED)` for any `.action.toml` where the `[destination].credential_ref` field is set to a value that does not begin with one of the four allowed scheme prefixes (`vault://`, `env://`, `file://`, `keyring://`).
+
+**Method:** Proptest.
+
+**Harness skeleton:**
+
+```rust
+proptest! {
+    #[test]
+    fn inline_cred_rejected(
+        value in any::<String>().prop_filter("not a scheme prefix", |s| {
+            !s.starts_with("vault://") && !s.starts_with("env://")
+            && !s.starts_with("file://") && !s.starts_with("keyring://")
+        })
+    ) {
+        let spec = make_action_spec_with_credential_ref(value);
+        let err = ActionSpec::validate(&spec).unwrap_err();
+        prop_assert_eq!(err.code(), "E-ACTION-INLINE-CRED");
+    }
+}
+```
+
+**Status:** draft (VP-046 file exists; harness skeleton to be added per S-4.08 remediation).
+**Module:** `prism-operations` | **Priority:** P0 | **Anchor story:** S-4.08
+
+### 5.4 VP-047 — Template Variable UUID v7 Validation (Pre-existing)
+
+**Property:** `ActionSpec::validate` returns `Err(E-ACTION-TEMPLATE-INJECTION-UNTYPED)` for any `.action.toml` whose webhook body or email subject contains a `{{var}}` expression where `var` is neither a valid UUID v7 nor a recognized explicitly typed scalar binding.
+
+**Method:** Proptest.
+
+**Approach:** Generate arbitrary `{{var}}` expression strings. For each, verify that only UUID v7 strings and explicitly typed scalar bindings pass validation; all others are rejected with the canonical error code.
+
+**Status:** draft (VP-047 file exists; harness skeleton to be added per S-4.08 remediation).
+**Module:** `prism-operations` | **Priority:** P1 | **Anchor story:** S-4.08
+
+### 5.5 VP-143 — Action Delivery Non-Starvation (PROPOSED — NEW)
+
+**Property:** Action delivery cannot be starved by schedule execution, and schedule execution cannot be starved by action delivery. Formally: no code path in `action/delivery.rs` holds or waits on `schedule_executor_semaphore`; no code path in `schedule/executor.rs` holds or waits on `action_delivery_semaphore`.
+
+**Method:** Proptest (structural module-boundary check) + integration test.
+
+**Structural test:** Verify at compile time (via module visibility rules) that `action_delivery_semaphore` is constructed inside `action/delivery.rs` and is not exported; and `schedule_executor_semaphore` is constructed inside `schedule/executor.rs` and is not exported. The semaphore types are module-private; cross-module access is a compile error.
+
+**Integration test:** Saturate the `action_delivery_semaphore` with 8 concurrent mock deliveries that hold their permits for 5 seconds. Trigger 3 schedule fires during this period. Assert all 3 schedule fires complete within 2 tick intervals (120s default tick), confirming schedule execution is not blocked by action delivery saturation.
+
+**Symmetric pair:** VP-143 is the action-delivery counterpart to VP-137 (schedule-execution liveness, defined in ADR-013 §5.3). Together they cover the full starvation-freedom invariant for the dual-semaphore design (D-209).
+
+**Coordination note:** VP-143 is assigned here (action delivery non-starvation). Sibling ADR-019 takes VP-144 (SIEM format correctness). No collision between Phase 3 sibling ADRs.
+
+**Status:** proposed; VP-143 assigned in this ADR. VP file and VP-INDEX update to be produced before Phase 4.B BC authoring begins.
+**Module:** `prism-operations` | **Priority:** P1 | **Anchor stories:** S-4.08 (primary), S-4.01 (secondary)
+
+---
+
+## 6. Migration Path
+
+Not applicable. The `prism-operations` crate's action delivery subsystem is greenfield for Wave 4. There is no prior action delivery engine to migrate from. The `action_state` CF does not exist in production RocksDB instances prior to Wave 4 deployment.
+
+Upgrade note for Wave 4 deployment: the `action_state` CF must be created via `create_cf` during process startup if it does not exist. Missing CF on first run is not an error; it is created on-demand at `ActionDeliveryEngine::init()` or pre-created in the RocksDB startup initialization sequence (to be specified in BC-2.14.001 by the story-writer).
+
+---
+
+## Source / Origin
+
+- **Architectural decisions (STATE.md §Wave 4 Decision Log):**
+  - D-207: 6-ADR topology; ADR-016 scoped to action delivery framework; action semaphore half of D-209 documented here (logged 2026-05-02).
+  - D-208 (LOCKED): OrgId/ClientId dual hierarchy; `ActionSpec` carries `org_id: OrgId` and `client_id_filter: ClientFilter` (logged 2026-05-02).
+  - D-209 (LOCKED): Independent 8-permit semaphores per subsystem; no shared semaphore; `action_delivery_semaphore` is the action-side half (logged 2026-05-02).
+  - D-210 (LOCKED): `clients = []` rejected at validation time; `clients = ["*"]` is the explicit sentinel for "all clients in org" (logged 2026-05-02).
+  - D-211: Dedup window resolved at scheduling-time; ADR-015 §2.7 owns the resolution; ADR-016 consumes `effective_dedup_window` from `DetectionRuleCache` for alert-trigger dedup TTL (logged 2026-05-02).
+- **Research findings (research-findings.md):**
+  - R-2 §croner: `croner 3.0.1` recommended; `cron 0.12.x` rejected for DST/timezone deficiency. Canonical decision at ADR-013 §2.8; ADR-016 schedule trigger mode inherits it (2026-05-02).
+  - R-3 §lettre+XOAUTH2: `lettre = "0.11"` with `tokio1` + `rustls` features; `tokio1-rustls-tls` deprecated; Exchange Online basic SMTP auth deprecated 2026-04-30; XOAUTH2 first-class for Wave 4 (2026-05-02).
+  - R-12 §broadcast: `tokio::sync::broadcast` capacity 1000 rounds to 1024 power-of-two ring; `RecvError::Lagged(n)` must emit observability counter to avoid silent drops (2026-05-02).
+  - R-13 §wasmtime: `wasmtime = "44"` with `component-model` feature; `bindgen!` macro; per-fire instantiation for isolation; 1–2 day major-bump cadence per quarter (2026-05-02).
+- **Story drafts:**
+  - S-4.08-action-delivery.md: primary source for `.action.toml` schema, destination kinds, retry block, VPs (VP-044..VP-047). Story text contains pre-D-209 shared semaphore, pre-R-2 `cron 0.12.x`, pre-R-3 `tokio1-rustls-tls` flag, and non-standard retry sequence — all superseded by this ADR.
+  - S-4.05-alert-generation.md: alert broadcast channel as source of alert-trigger events; alert idempotency-key dedup requirement.
+  - S-4.06-case-management.md: case state-change timeline events as source of case-trigger events.
+- **Prior ADRs:**
+  - ADR-006 §2.1: OrgId canonical routing key; `ActionSpec.org_id: OrgId` derives from this.
+  - ADR-008: Universal `{org_id}:` CF key prefix rule; `action_state` CF key design derives from this rule.
+  - ADR-010 §2.3.1: Opaque `credential_ref` scheme set (`vault://`, `env://`, `file://`, `keyring://`); `.action.toml` uses the identical scheme set without extension.
+  - ADR-013 §2.3: D-209 (LOCKED) semaphore split; ADR-016 documents the action-delivery half.
+  - ADR-013 §2.6: `schedules` CF `ScheduleEntry`; schedule trigger mode adds `kind = "action"` discriminator.
+  - ADR-013 §2.7: `tokio::sync::watch` schedule-change reload hook; ADR-015 consumes it; ADR-016 uses the resulting `effective_dedup_window`.
+  - ADR-015 §5: Dedup-window resolution timing (D-211 owned by ADR-015); ADR-016 references the resolved value for alert-trigger dedup TTL.
+- **Verification properties:**
+  - VP-044 (vp-044-retry-bound.md): pre-existing; harness skeleton to be added per S-4.08 remediation.
+  - VP-045 (vp-045-inflight-skip.md): pre-existing; harness skeleton to be added per S-4.08 remediation.
+  - VP-046 (vp-046-inline-cred-rejection.md): pre-existing; harness skeleton to be added per S-4.08 remediation.
+  - VP-047 (vp-047-uuid-v7-interpolation.md): pre-existing; harness skeleton to be added per S-4.08 remediation.
+  - VP-143: proposed in this ADR (action delivery non-starvation; symmetric to VP-137). VP file and VP-INDEX update to be produced before Phase 4.B BC authoring begins. Sibling ADR-019 takes VP-144 — no collision.
+
+---
+
+## 7. References
+
+### Research Findings
+
+- **R-2** (`research-findings.md §R-2`): `croner 3.0.1` recommended for schedule trigger DST/timezone correctness; `cron 0.12.x` and `cron 0.15.0` rejected. Canonical decision at ADR-013 §2.8; ADR-016 inherits it.
+- **R-3** (`research-findings.md §R-3`): `lettre = "0.11"` with `tokio1` + `rustls` + `rustls-aws-lc-rs` features; `tokio1-rustls-tls` deprecated and rejected; Microsoft Exchange Online basic SMTP auth deprecated 2026-04-30; XOAUTH2 is first-class.
+- **R-12** (`research-findings.md §R-12`): `tokio::sync::broadcast` capacity 1000 rounds to 1024 power-of-two ring; `RecvError::Lagged(n)` must emit observability counters to prevent silent drops.
+- **R-13** (`research-findings.md §R-13`): `wasmtime = "44"` with `component-model` feature; `wasmtime::component::bindgen!` macro; `Linker::func_wrap_async` for async host functions; 1–2 day major-bump cadence per quarter.
+
+### Architectural Decisions
+
+- **D-208** (STATE.md §Wave 4 Decision Log — LOCKED): OrgId/ClientId dual hierarchy; all Wave 4 domain types gain `org_id: OrgId`; `ActionSpec` carries `org_id: OrgId` and `client_id_filter: ClientFilter`.
+- **D-209** (STATE.md §Wave 4 Decision Log — LOCKED): Independent 8-permit semaphores per subsystem; no shared semaphore; starvation hazard eliminated. ADR-013 §2.3 is authoritative; this ADR consumes the action-delivery half.
+- **D-210** (STATE.md §Wave 4 Decision Log — LOCKED): `clients = []` is rejected at validation time; `clients = ["*"]` is the explicit sentinel for "all clients in org." Locked in this ADR.
+- **D-211** (STATE.md §Wave 4 Decision Log): Dedup-window resolved at scheduling-time; invalidated on schedule change. ADR-015 §2.7 owns the resolution mechanic; ADR-016 consumes the `effective_dedup_window` value in alert-trigger dedup logic without re-resolving it at delivery time.
+
+### Prior ADRs
+
+- **ADR-006 §2.1**: OrgId is canonical routing key; `ActionSpec.org_id: OrgId` derives from this.
+- **ADR-008**: Universal `{org_id}:` CF key prefix rule; `action_state` CF key design in §2.5 derives from this rule.
+- **ADR-010 §2.3.1**: Opaque `credential_ref` scheme set (`vault://`, `env://`, `file://`, `keyring://`); `.action.toml` `credential_ref` fields use the identical scheme set.
+- **ADR-013 §2.3**: Per-subsystem semaphore split (D-209 LOCKED); ADR-016's `action_delivery_semaphore` is the action-side half of this design.
+- **ADR-013 §2.6**: `schedules` CF `ScheduleEntry` — schedule trigger mode adds a `kind = "action"` discriminator entry here.
+- **ADR-013 §2.7**: `tokio::sync::watch` schedule-change reload hook; ADR-015 §2.7 consumes this for dedup-window invalidation; ADR-016 alert-trigger delivery uses `effective_dedup_window` from the `DetectionRuleCache` populated by that path.
+- **ADR-013 §2.8**: `croner = "3"` cron library decision; schedule trigger mode inherits this.
+- **ADR-015 §5**: Alert dedup-window is resolved at scheduling-time (D-211); ADR-016 consumes the resolved `effective_dedup_window` from `DetectionRuleCache` for alert-trigger dedup key TTL. No re-resolution at delivery time.
+
+### Phase 3 Sibling ADR
+
+- **ADR-019** (SIEM Output Formats — Phase 3 sibling dispatch): defines the `prism-siem-formats` crate, `cef::v0::Encoder`, and `leef::v2::Encoder`. ADR-016's syslog destination (§2.10) delegates format encoding to ADR-019; no encoding logic is duplicated here.
+
+### Drift Audit Items Addressed
+
+- Story drift: S-4.08 `[retry]` block cited "2s, 4s, 8s, 30s, 60s" non-standard sequence — resolved by §2.6 establishing standard exponential-backoff sequence (2s, 4s, 8s, 16s, 32s).
+- Story drift: S-4.08 referenced `cron 0.12.x` — resolved by inheriting ADR-013 §2.8 `croner = "3"` decision.
+- Story drift: S-4.08 referenced `tokio1-rustls-tls` feature flag — resolved by §2.8 rejecting the deprecated flag.
+- Story drift: S-4.08 shared 16-permit semaphore — resolved by D-209 (LOCKED); §2.11 documents the 8-permit action-delivery semaphore.

@@ -267,6 +267,8 @@ Properties are organized by the domain invariant or BC postcondition they verify
 | VP-140 | Dedup window scheduling-time resolution + invalidation correctness | prism-operations | proptest | feasible | P1 | ADR-015 §5 |
 | VP-141 | Epoch counter merge_operator atomicity (concurrent increments never lost) | prism-operations | proptest | feasible | P1 | ADR-018 §2 |
 | VP-142 | Pack expansion idempotence (double-register produces identical ScheduleEntry set) | prism-operations | proptest | feasible | P1 | ADR-018 §3, §6 |
+| VP-143 | Action delivery non-starvation (per-subsystem semaphore non-starvation for action delivery side) | prism-operations | proptest | feasible | P1 | ADR-016 §11 |
+| VP-144 | CEF v0 + LEEF 2.0 encoder correctness (13 proptest invariants: INV-CEF-001..005, INV-LEEF-001..005, INV-RT-001..003) | prism-siem-formats | proptest | feasible | P1 | ADR-019 §7 |
 
 ## Verification Priority
 
