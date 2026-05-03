@@ -19,7 +19,7 @@ successor_focus: "Wave 4 Phase 4.A Decisions Logged (2026-05-02) — STATE v6.21
 11. Then dispatch S-4.01 + S-4.03 entry stories in parallel
 
 **KEY REFERENCES:**
-- STATE.md v6.57: develop@ba3b10c7; factory-artifacts 15fa97e6 (canonical SHA — Pre-Pass-22 broad-scope sweep COMPLETE)
+- STATE.md v6.57: develop@ba3b10c7; factory-artifacts 146e6fae (canonical SHA — Pre-Pass-22 broad-scope sweep COMPLETE)
 - concurrency-architecture.md v1.1 (NEW — F-PreP22-H-001: 8/8 split per D-209)
 - observability.md v1.1 (NEW — F-PreP22-H-002: user-facing examples updated)
 - interface-definitions.md v2.5 (NEW — F-PreP22-H-003: ActionEngine→ActionDeliveryEngine)
@@ -35,7 +35,7 @@ successor_focus: "Wave 4 Phase 4.A Decisions Logged (2026-05-02) — STATE v6.21
 - Product TD register: tech-debt-register.md (57 active product items)
 - TD-VSDD-046 filed: vsdd-plugin-tech-debt.md (25 items)
 
-factory-artifacts canonical: 15fa97e6 (canonical SHA). develop HEAD: ba3b10c7."
+factory-artifacts canonical: 146e6fae (canonical SHA). develop HEAD: ba3b10c7."
 ---
 
 # Session Handoff — WAVE 4 PHASE 4.A DECISIONS LOGGED (2026-05-02)
@@ -124,12 +124,12 @@ factory-artifacts canonical: 15fa97e6 (canonical SHA). develop HEAD: ba3b10c7."
 
 ## Current State
 
-develop HEAD `ba3b10c7` | factory-artifacts `4048c5ec` (Pass 21 BLOCKED→REMEDIATED — window 0/3; STATE v6.56)
+develop HEAD `ba3b10c7` | factory-artifacts `146e6fae` (Pre-Pass-22 broad-scope sweep COMPLETE — window 0/3; STATE v6.57)
 
 | Metric | Value |
 |--------|-------|
 | develop HEAD | `ba3b10c7` (W3-FIX-SEC-005 — Wave 3.4 final PR, PR #125, 2026-05-02) |
-| factory-artifacts HEAD | `4048c5ec` (Pass 21 BLOCKED→REMEDIATED — window 0/3; STATE v6.56) |
+| factory-artifacts HEAD | `146e6fae` (Pre-Pass-22 broad-scope sweep COMPLETE — window 0/3; STATE v6.57) |
 | PR count merged | 125 |
 | Workspace test count | 2363 (nextest-verified; +133 from CI nextest split + doctest migration) |
 | Open PRs | None |
@@ -137,8 +137,8 @@ develop HEAD `ba3b10c7` | factory-artifacts `4048c5ec` (Pass 21 BLOCKED→REMEDI
 | Tech debt items | 57 active product items (70 prior − 13 VSDD items extracted); vsdd-plugin-tech-debt.md: 25 items (+TD-VSDD-046) |
 | Wave 2 gate status | CONVERGED 2026-04-27 — Pass 9 CLEAN (3-clean-passes: P6+P8+P9) |
 | Wave 3 gate status | **CONVERGED 2026-05-02 — 3-clean window pass-52+53+54; develop@ba3b10c7** |
-| Wave 4 status | **PHASE 4.A — 21 passes consumed; Pass 21 BLOCKED→REMEDIATED (data-layer.md v1.3); window 0/3; Pass 22 (slot 1/3) next** |
-| Status | **WAVE 4 PHASE 4.A — Pass 21 BLOCKED→REMEDIATED (3 SUBSTANTIVE in data-layer.md). Window 0/3. Ready for Adversary Pass 22 (slot 1/3).** |
+| Wave 4 status | **PHASE 4.A — 21 passes consumed; Pre-Pass-22 sweep COMPLETE (4 SUBSTANTIVE in foundation docs); window 0/3; Pass 22 (slot 1/3) next** |
+| Status | **WAVE 4 PHASE 4.A — Pre-Pass-22 broad-scope sweep COMPLETE. Window 0/3. Ready for Adversary Pass 22 (slot 1/3).** |
 
 
 ---
@@ -186,7 +186,9 @@ STEP 2 — Resume formal adversary passes (Option A — VSDD discipline):
 
   **Pass 20 dispatched 2026-05-03 — BLOCKED → REMEDIATED (2H+0M+2L; WINDOW RESET 2/3→0/3). F-P20-H-001 SUBSTANTIVE (VP-045 desc "Schedule semaphore" stale — Pass-6 BC-2.18.004 rename "Action Delivery Semaphore" failed to cascade to VP-INDEX+verification-architecture+coverage-matrix); F-P20-H-002 SUBSTANTIVE (VP-045+VP-047 priority P1→P0 per POL-9 not synced in ADR-016 v0.11 VP table); F-P20-L-001 COSMETIC (S-4.08 croner 0.7.0 token version pin dropped v1.22→v1.23); F-P20-L-002 COSMETIC (ActionEngine→ActionDeliveryEngine rename cascade gap: BC-2.18.001 v1.8 + BC-2.18.002/004 v1.5). All remediated. ARCH-INDEX v2.17. Stage 1 SHA: a9f3356a.**
 
-  **Pass 21 dispatched 2026-05-03 — BLOCKED → REMEDIATED (2H+1M; window stays 0/3). All 3 findings SUBSTANTIVE, all in data-layer.md (laggard sister-file). F-P21-H-001 concurrency claim "16 scheduled" stale → D-209 8/8+2 ad-hoc per-subsystem (data-layer.md v1.3). F-P21-H-002 CF count 16→17 + case_dedup_idx row missing per P5-XADR-A-M-006 (data-layer.md v1.3). F-P21-M-001 retry CF key format stale → canonical `{org_id}:\x04:{action_id}:{idempotency_key}` per ADR-016 §2.5 (data-layer.md v1.3). ARCH-INDEX v2.19. Stage 1 SHA: 4048c5ec. Next: Pass 22 (fresh 3-clean window — slot 1/3).**
+  **Pass 21 dispatched 2026-05-03 — BLOCKED → REMEDIATED (2H+1M; window stays 0/3). All 3 findings SUBSTANTIVE, all in data-layer.md (laggard sister-file). F-P21-H-001 concurrency claim "16 scheduled" stale → D-209 8/8+2 ad-hoc per-subsystem (data-layer.md v1.3). F-P21-H-002 CF count 16→17 + case_dedup_idx row missing per P5-XADR-A-M-006 (data-layer.md v1.3). F-P21-M-001 retry CF key format stale → canonical `{org_id}:\x04:{action_id}:{idempotency_key}` per ADR-016 §2.5 (data-layer.md v1.3). ARCH-INDEX v2.19. Stage 1 SHA: 4048c5ec.**
+
+  **Pre-Pass-22 broad-scope sweep COMPLETE (2026-05-03). 4 HIGH SUBSTANTIVE findings: F-PreP22-H-001 (concurrency-architecture.md v1.1 8/8 split per D-209); F-PreP22-H-002 (observability.md v1.1 user-facing examples); F-PreP22-H-003 (interface-definitions.md v2.5 ActionEngine→ActionDeliveryEngine); F-PreP22-H-004 (vp-045 spec body v1.2 full rewrite + slug-preservation banner per POL-1). ARCH-INDEX v2.20. Stage 1 SHA: 146e6fae. Next: Pass 22 (fresh 3-clean window — slot 1/3).**
 
   2b. If CLEAN: window slot fills. At 3/3 CONVERGED.
   2c. If BLOCKED at any pass: route findings tightly per defect-class; remediate; re-pass.
@@ -208,9 +210,10 @@ KEY REFERENCES:
 - 6 ADRs current versions: 013 v0.7, 015 v0.6, 016 v0.12, 017 v0.7, 018 v0.6, 019 v0.4
 - 8 W4 stories current versions: S-4.01 v1.12, S-4.02 v1.11, S-4.03 v1.9, S-4.04 v1.11, S-4.05 v1.12, S-4.06 v1.13, S-4.07 v1.8, S-4.08 v1.23
 - 6 W4 BCs current versions: BC-2.12.004 v1.8, BC-2.18.001 v1.8, BC-2.18.002 v1.5, BC-2.18.004 v1.5
-- data-layer.md v1.3 (NEW — Pass 21 remediation)
-- verification-architecture v1.28, verification-coverage-matrix v1.31, ARCH-INDEX v2.19, STORY-INDEX v2.03, BC-INDEX v4.32, VP-INDEX v1.26
-- factory-artifacts canonical SHA: `4048c5ec`
+- data-layer.md v1.3 (Pass 21 remediation)
+- concurrency-architecture.md v1.1, observability.md v1.1, interface-definitions.md v2.5 (Pre-Pass-22 sweep)
+- verification-architecture v1.28, verification-coverage-matrix v1.31, ARCH-INDEX v2.20, STORY-INDEX v2.03, BC-INDEX v4.32, VP-INDEX v1.26
+- factory-artifacts canonical SHA: `146e6fae`
 - develop HEAD: ba3b10c7 (Wave 3 CONVERGED 2026-05-02)
 
 ### Carry-Forward Debt (Wave 4 — REMEDIATE ALL per D-203)

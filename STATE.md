@@ -400,7 +400,7 @@ user_directive_persistent: "No pragmatic convergence. Fix all issues before buil
 | **Last Updated** | 2026-05-03 (Pre-Pass-22 broad-scope sweep COMPLETE: concurrency-architecture v1.1, observability v1.1, interface-definitions v2.5, vp-045 v1.2; ARCH-INDEX v2.20; STATE v6.57) |
 | **Current Phase** | Phase 4.A — Wave 4 adversarial spec convergence (21 passes consumed; Pre-Pass-22 sweep COMPLETE; window 0/3; Pass 22 next) |
 | **Current Step** | Wave 4 Phase 4.A — Pre-Pass-22 broad-scope sweep COMPLETE (4 SUBSTANTIVE findings in foundation docs remediated); Pass 22 (window 1/3 attempt) next |
-| **factory-artifacts HEAD** | `15fa97e6` |
+| **factory-artifacts HEAD** | `146e6fae` |
 
 ## Phase Progress
 
@@ -476,9 +476,9 @@ Cycle files: [burst-log](cycles/phase-2-patch/burst-log.md) | [convergence-traje
 
 _Previous checkpoint archived: [cycles/wave-4-operations/session-checkpoints.md](cycles/wave-4-operations/session-checkpoints.md)_
 
-**STATE v6.57 (canonical SHA `15fa97e6`). WAVE 4 PHASE 4.A — PRE-PASS-22 BROAD-SCOPE SWEEP COMPLETE. WINDOW 0/3. PASS 22 NEXT.**
+**STATE v6.57 (canonical SHA `146e6fae`). WAVE 4 PHASE 4.A — PRE-PASS-22 BROAD-SCOPE SWEEP COMPLETE. WINDOW 0/3. PASS 22 NEXT.**
 
-develop HEAD: `ba3b10c7` | factory-artifacts: `15fa97e6` | workspace tests: 2363 | PRs merged: 125
+develop HEAD: `ba3b10c7` | factory-artifacts: `146e6fae` | workspace tests: 2363 | PRs merged: 125
 
 **PRE-PASS-22 SWEEP:** 4 HIGH SUBSTANTIVE findings. F-PreP22-H-001: concurrency-architecture.md v1.1 (8/8 split per D-209). F-PreP22-H-002: observability.md v1.1 (user-facing examples updated). F-PreP22-H-003: interface-definitions.md v2.5 (ActionEngine→ActionDeliveryEngine). F-PreP22-H-004: vp-045 spec body v1.2 (full rewrite + slug-preservation banner per POL-1). ARCH-INDEX v2.20.
 
