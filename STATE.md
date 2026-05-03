@@ -1,7 +1,7 @@
 ---
 document_type: pipeline-state
 level: ops
-version: "6.37"
+version: "6.38"
 producer: state-manager
 timestamp: 2026-05-04T00:30:00Z
 inputs: []
@@ -22,7 +22,7 @@ repos:
   - axiathon
   - ocsf-proto-gen
   - mcp-claroty-xdome
-current_step: "Adversarial Pass 12 (re-run on Pass 11 remediated specs; STRUCTURAL PREVENTION adopted; expect convergence)"
+current_step: "Pause for orchestrator strategic decision (12 passes completed; trajectory 38→17→8→7→7→5→5→6→6→5→5→4; partial-fix regression treadmill)"
 wave_3_carry_forward_debt: "ALL_REMEDIATE — W4-FIX-PERF-001/002, W4-FIX-CODE-001, W4-FIX-SEC-001..004 stories planned per D-203"
 wave_4_status: "PHASE_4_A_DECISIONS_LOGGED — D-207..D-213 logged 2026-05-02; architect cleared for ADR drafting (6 ADRs in 3 phases); implementation BLOCKED until pre-flight clears"
 wave_4_phase_4_a_preflight:
@@ -87,8 +87,13 @@ wave_4_phase_4_a_preflight:
   pass_11_stories_aligned: { S-4.05: 1.9, S-4.08: 1.19 }
   pass_11_td_filed: TD-VSDD-038 (agent-routing edge cases)
   pass_11_stage1_sha: 4a47ddd5
-  convergence_window: "0/3 (reset; pass-11 BLOCKED)"
-  pass_trajectory: "38→17→8→7→7→5→5→6→6→5→5 (flat at 5; structural fix adopted Pass 11; expect Pass 12 convergence)"
+  pass_12_adversary_verdict: "BLOCKED (4 findings: 0C/2H/1M/1L/0OBS)"
+  pass_12_remediation_complete: true
+  pass_12_fixes: [ADR-013 body Status sync + SS-04 line 65, BC-2.12.004 v1.6 fire-loop align, S-4.05 v1.10 SS-14 remove]
+  pass_12_stage1_sha: 1849145b
+  convergence_window: "0/3 (reset; pass-12 BLOCKED)"
+  pass_trajectory: "38→17→8→7→7→5→5→6→6→5→5→4 (12 passes; resumed descent; partial-fix regression treadmill)"
+  passes_consumed: 12
   vsdd_plugin_td_count: 17 (was 16)
 gate_status_hook_compat_remediation: 2026-04-24
 wave_0a_complete: 2026-04-22
@@ -385,10 +390,10 @@ user_directive_persistent: "No pragmatic convergence. Fix all issues before buil
 | **Language** | Rust |
 | **Target Workspace** | per-analyst stdio (MCP server) |
 | **Started** | 2026-04-13 |
-| **Last Updated** | 2026-05-04 (Wave 4 Phase 4.A Pass 11 BLOCKED + remediated — STRUCTURAL PREVENTION adopted; S-4.08 v1.19; S-4.05 v1.9; 7 version pins removed; TD-VSDD-038 filed; STATE v6.36→v6.37) |
-| **Current Phase** | Phase 4.A — Wave 4 adversarial spec convergence (Pass 12 queued; 0/3 clean window; trajectory 38→17→8→7→7→5→5→6→6→5→5) |
-| **Current Step** | Adversarial Pass 12 (re-run on Pass 11 remediated specs; STRUCTURAL PREVENTION adopted; expect convergence) |
-| **factory-artifacts HEAD** | `4a47ddd5` (W4 Phase 4.A Pass 11 remediation — STRUCTURAL PREVENTION; S-4.08 v1.19; S-4.05 v1.9; TD-VSDD-038; STATE v6.37) |
+| **Last Updated** | 2026-05-04 (Wave 4 Phase 4.A Pass 12 BLOCKED + remediated — ADR-013 body Status sync + SS-04 line 65; BC-2.12.004 v1.6 fire-loop align; S-4.05 v1.10 SS-14 remove; STATE v6.37→v6.38) |
+| **Current Phase** | Phase 4.A — Wave 4 adversarial spec convergence (12 passes consumed; 0/3 clean window; trajectory 38→17→8→7→7→5→5→6→6→5→5→4; STRATEGIC PAUSE) |
+| **Current Step** | Pause for orchestrator strategic decision (12 passes completed; trajectory 38→17→8→7→7→5→5→6→6→5→5→4; partial-fix regression treadmill) |
+| **factory-artifacts HEAD** | `1849145b` (W4 Phase 4.A Pass 12 remediation — ADR-013 body Status sync + SS-04 line 65; BC-2.12.004 v1.6; S-4.05 v1.10; STATE v6.38) |
 
 ## Phase Progress
 
@@ -457,15 +462,15 @@ _TD-VSDD-014..019, TD-W3-COMPLIANCE-001, TD-VSDD-025..029 archived to [tech-debt
 
 Cycle files: [burst-log](cycles/phase-2-patch/burst-log.md) | [convergence-trajectory](cycles/phase-2-patch/convergence-trajectory.md) | [session-checkpoints](cycles/phase-2-patch/session-checkpoints.md) | [lessons](cycles/phase-2-patch/lessons.md) | [resolved-blockers](cycles/phase-2-patch/blocking-issues-resolved.md)
 ---
-## Session Resume Checkpoint (2026-05-04-wave4-phase4a-pass11-remediated-v6.37)
+## Session Resume Checkpoint (2026-05-04-wave4-phase4a-pass12-remediated-v6.38)
 
 _Previous checkpoint archived: [cycles/wave-4-operations/session-checkpoints.md](cycles/wave-4-operations/session-checkpoints.md)_
 
-**STATE v6.37 (canonical SHA 4a47ddd5). WAVE 4 PHASE 4.A — PASS 11 BLOCKED + REMEDIATED. STRUCTURAL PREVENTION ADOPTED. PASS 12 QUEUED.**
+**STATE v6.38 (canonical SHA 1849145b). WAVE 4 PHASE 4.A — PASS 12 BLOCKED + REMEDIATED. 12 PASSES CONSUMED. STRATEGIC PAUSE QUEUED.**
 
-develop HEAD: `ba3b10c7` | factory-artifacts: `4a47ddd5` | workspace tests: 2363 | PRs merged: 125
+develop HEAD: `ba3b10c7` | factory-artifacts: `1849145b` | workspace tests: 2363 | PRs merged: 125
 
-**NEXT ACTION: Dispatch vsdd-factory:adversary for Pass 12 on remediated specs. Trajectory 38→17→8→7→7→5→5→6→6→5→5. STRUCTURAL PREVENTION adopted (dropped vN.M pins from story-body cross-refs). Target: CLEAN to open convergence window 1/3. See SESSION-HANDOFF.md.**
+**NEXT ACTION: Orchestrator strategic decision required. 12 passes (~60 dispatches); trajectory 38→...→4 (descending, not converged). OPTIONS: (a) continue pass-by-pass; (b) proactive structural sweep; (c) accept residual as polish-tier; (d) TD-VSDD meta-patterns + continue. See SESSION-HANDOFF.md.**
 
 **Key files:** [SESSION-HANDOFF.md](SESSION-HANDOFF.md) | [cycle-manifest.md](cycles/wave-4-operations/cycle-manifest.md)
 
