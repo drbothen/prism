@@ -1,7 +1,7 @@
 ---
 document_type: story-index
 level: "L4"
-version: "v1.95"
+version: "v1.96"
 status: draft
 producer: state-manager
 timestamp: 2026-05-02T23:30:00
@@ -84,6 +84,7 @@ before its dependencies are complete.
 - **W3.3 fix wave CLOSED (2026-05-02):** Wave 3.3 fix wave delivery complete (2 PRs merged). (1) W3-FIX-SEC-004 (PR #122 4e053105) + W3-FIX-CODE-005 (PR #123 e4be29ae) registered in E-3.5 epic table + Full Story List with MERGED annotations. (2) Story files status: draft → merged for both. (3) E-3.5 epic header: (12 stories) → (14 stories). (4) BC Traceability Matrix: BC-3.2.001 += W3-FIX-CODE-005; BC-3.3.004 += W3-FIX-SEC-004; BC-3.5.001 += W3-FIX-SEC-004 + W3-FIX-CODE-005; BC-3.5.002 += W3-FIX-SEC-004 + W3-FIX-CODE-005; BC-3.6.001 += W3-FIX-CODE-005. (5) total_stories 125 → 127; overview updated. Pass-51 gate dispatch queued. STORY-INDEX v1.77 → v1.78. D-188.
 - **W3.4 fix wave story authoring (2026-05-02):** Filed 2 new Wave 3.4 fix stories. (1) W3-FIX-SEC-005 (5-DTU admin-token uniformity: cyberint+jira+nvd+pagerduty+threatintel × post_configure ct_eq + post_reset admin gate = 10 sites; BC-3.5.001,BC-3.5.002; 5 pts; P1) registered in E-3.5 epic table + Full Story List at status: planned. (2) W3-FIX-CODE-006 (CR-023: Armis get_device_activity + get_device_risk org-id guard test coverage; BC-3.5.001; 2 pts; P3) registered in E-3.5 epic table + Full Story List at status: planned. (3) E-3.5 epic header: (14 stories) → (16 stories); wave annotation updated Wave 3.1–3.3 → Wave 3.1–3.4. (4) BC Traceability Matrix: BC-3.5.001 += W3-FIX-SEC-005 + W3-FIX-CODE-006; BC-3.5.002 += W3-FIX-SEC-005. (5) total_stories 127 → 129; overview updated. W3.4 dispatch next. STORY-INDEX v1.78 → v1.79. D-189 (pass-51 not-clean decision already in STATE.md).
 - **W3.4-G hygiene burst (2026-05-02):** W3.4 fix wave CLOSED (2 PRs merged). (1) MERGED annotations + test counts added: W3-FIX-SEC-004 [MERGED PR #122 4e053105 2026-05-02 +18t], W3-FIX-CODE-005 [MERGED PR #123 e4be29ae 2026-05-02 +14t], W3-FIX-SEC-005 [MERGED PR #125 ba3b10c7 2026-05-02 +21t], W3-FIX-CODE-006 [MERGED PR #124 981e17d4 2026-05-02 +6t] — in both E-3.5 epic table and Full Story List. (2) WGCV3-P3-007 CLOSED: W3-FIX-CODE-002 epic-view BC column corrected from `BC-3.3.001,BC-3.3.004,BC-3.2.005` to `BC-3.3.001,BC-3.3.004,BC-3.5.001,BC-3.5.002,BC-3.1.002` to match story frontmatter SoT. (3) BC Traceability Matrix: BC-3.1.002 += W3-FIX-CODE-002; BC-3.2.005 -= W3-FIX-CODE-002 (error from D-186 anchor_bcs mismatch); BC-3.5.001 += W3-FIX-CODE-002; BC-3.5.002 += W3-FIX-CODE-002. STORY-INDEX v1.79 → v1.80. D-192.
+- **Wave 4 Pass 14 BLOCKED → REMEDIATED (2026-05-03):** S-4.01 v1.10→v1.12 (F-P14-H-001 audit-event terminology ScheduleFireSkipped→ScheduleFireMissed{miss_reason:SemaphoreExhausted} per ADR-013 §2.4 + F-P14-M-001 enum tuple cascade 4 sites). S-4.02 v1.9→v1.11 (F-P14-M-001 cascade 1 site + F-P14-M-003 pack_id org_id clarification). S-4.05 v1.11→v1.12 (F-P14-L-001 detection_state→action_state EC-007; adversary attribution corrected from S-4.07). S-4.08 v1.20→v1.21 (F-P14-M-004 OCSF→CEF canonical mapping per ADR-019 §3). STORY-INDEX v1.95 → v1.96.
 
 Every story contains: narrative, behavioral contracts table, numbered tasks, acceptance
 criteria (Given/When/Then), verification properties, and notes. No story exceeds 5
@@ -280,14 +281,14 @@ pursuing maximum parallelism should schedule by topological layer, not wave numb
 | S-3.11 | In-Query Dedup Caching | prism-query | 0 | -- | 1 | S-3.02 |
 | S-3.12 | Column Pruning and Field Selection Push-Down | prism-query | 0 | -- | 1 | S-3.02,S-2.06 |
 | S-3.13 | Dynamic Table Availability | prism-query | 0 | -- | 1 | S-3.02,S-1.12 |
-| S-4.01 | Schedule CRUD and Execution Loop [v1.10 ADR-013] | prism-operations | 5 | VP-026,030 | 3 | S-3.02,S-2.01 |
-| S-4.02 | Differential Results and Packs [v1.9 ADR-015] | prism-operations | 3 | VP-019 | 2 | S-4.01 |
+| S-4.01 | Schedule CRUD and Execution Loop [v1.12 ADR-013] | prism-operations | 5 | VP-026,030 | 3 | S-3.02,S-2.01 |
+| S-4.02 | Differential Results and Packs [v1.11 ADR-015] | prism-operations | 3 | VP-019 | 2 | S-4.01 |
 | S-4.03 | Detection Rule Loading and Compilation [v1.9 ADR-015] | prism-operations | 8 | VP-018 | 3 | S-3.02,S-1.08,S-2.01 |
 | S-4.04 | Detection Evaluation (Single/Correlation/Sequence) [v1.11 ADR-015] | prism-operations | 5 | VP-027 | 3 | S-4.03 |
-| S-4.05 | Alert Generation [v1.11 ADR-016] | prism-operations | 4 | VP-028 | 1 | S-4.04 |
+| S-4.05 | Alert Generation [v1.12 ADR-016] | prism-operations | 4 | VP-028 | 1 | S-4.04 |
 | S-4.06 | Case Management [v1.13 ADR-017,ADR-019] | prism-operations | 9 | VP-052,053,054,060 | 3 | S-4.05,S-2.01 |
 | S-4.07 | Case Metrics and Acknowledge Alert [v1.8 ADR-017] | prism-operations | 3 | -- | 2 | S-4.06 |
-| S-4.08 | Action Delivery Framework [v1.20 ADR-016,ADR-019] | prism-operations | 9 | VP-044,VP-045,VP-046,VP-047,VP-137,VP-144 | 3 | S-4.05,S-4.06,S-4.01,S-1.15,S-6.11,S-6.12,S-6.13 |
+| S-4.08 | Action Delivery Framework [v1.21 ADR-016,ADR-019] | prism-operations | 9 | VP-044,VP-045,VP-046,VP-047,VP-137,VP-144 | 3 | S-4.05,S-4.06,S-4.01,S-1.15,S-6.11,S-6.12,S-6.13 |
 | S-5.01 | Server Bootstrap and Tool Registration | prism-mcp | 7 | -- | 3 | S-1.08,S-3.02,S-4.01 |
 | S-5.02 | Tool Routing, Errors, and Client Scoping | prism-mcp | 3 | -- | 2 | S-5.01 |
 | S-5.03 | Resources and Prompts | prism-mcp | 4 | VP-050 | 2 | S-5.02 |
@@ -924,6 +925,7 @@ All 13 new DTU clones: Wave 0, 0 BCs, priority P0, depends_on: [S-6.06].
 | v1.81 | 2026-05-02 | W4 Phase 4.A story remediation complete — all 8 W4 stories updated; 43 drift findings + 5 spec-quality HIGH findings addressed; ADR refs added per story (ADR-013/015/016/017/018/019); library pins updated per research-findings.md; S-4.03 5→8 pts, S-4.05 1→4 pts, S-4.06 5→9 pts, S-4.08 5→9 pts (stories already at new points in index); v1.80 story versions bumped per story frontmatter; pre-flight re-run queued. |
 | v1.82 | 2026-05-02 | Wave 4 Phase 4.A iter-2 fixes — S-4.04/4.05/4.06 version bumps; NEW-004 ADR-018→019 annotation correction; NEW-003 S-4.02 points reconciliation 5→3. |
 | v1.83 | 2026-05-02 | Wave 4 Phase 4.A Pass 1 remediation — 8 W4 story version bumps (S-4.01..S-4.08); CF discriminator collision RESOLVED (S-4.05 rate limits moved to action_state CF); UNION merge model adopted; UDF Volatility=Stable; ADR alignments per architect v0.2. |
+| v1.96 | 2026-05-03 | Wave 4 Pass 14 BLOCKED → REMEDIATED: S-4.01 v1.10→v1.12 (F-P14-H-001 ScheduleFireSkipped→ScheduleFireMissed{miss_reason:SemaphoreExhausted}; F-P14-M-001 cascade); S-4.02 v1.9→v1.11 (F-P14-M-001 cascade + F-P14-M-003 pack_id); S-4.05 v1.11→v1.12 (F-P14-L-001 detection_state→action_state); S-4.08 v1.20→v1.21 (F-P14-M-004 OCSF→CEF mapping). |
 | v1.95 | 2026-05-03 | Wave 4 Pre-Pass-14 sweep (TD-VSDD-039 codified methodology): F-PreP14-H-004 — S-4.04 v1.10→v1.11 (CF-name vs key notation corrected: ~157 separated CF=action_state from key={org_id}:\x00:... per ADR-016 §2.5); S-4.05 v1.10→v1.11 (same notation fix at ~398 Phase 4.A Remediation Notes). |
 | v1.94 | 2026-05-03 | Wave 4 Phase 4.A Pass 13 BLOCKED → REMEDIATED — S-4.02 v1.8→v1.9 (F-P13-H-001: CF keys rewritten to ADR-018 v0.4 §2.6 canon; F-P13-M-001: ACR sibling text corrected). S-4.04 v1.9→v1.10 (F-P13-L-002: Task 6 "≤60s" replaced with tick-interval-bounded wording per ADR-013 §2.1). |
 | v1.93 | 2026-05-03 | D-214 Component 1 proactive structural sweep COMPLETE — S-4.02 v1.7→v1.8 (4 ADR-018 body-prose version pins dropped; F-PSweep-M-001). S-4.04 v1.8→v1.9 (2 ADR-016 body-prose version pins dropped; F-PSweep-M-001). S-4.08 v1.19→v1.20 (4 ADR-016/019 body-prose version pins dropped; F-PSweep-M-001). ARCH-INDEX v2.9 (ADR-019 v0.3→v0.4; F-PSweep-H-001). Ready for Adversary Pass 13. |

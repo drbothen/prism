@@ -1,7 +1,7 @@
 ---
 document_type: vsdd-plugin-tech-debt-register
 level: ops
-version: "2026-05-03T00:00:00Z"
+version: "2026-05-03T12:00:00Z"
 status: current
 producer: state-manager
 timestamp: 2026-05-02T00:00:00Z
@@ -55,6 +55,8 @@ Items included here meet one or more of the following criteria:
 | TD-VSDD-035 | wave-4-operations pre-flight (2026-05-02); user-flagged methodology innovation | Pre-flight cycle-manifest pattern — formalize wave-kickoff artifact as a vsdd-factory skill. Currently authored ad-hoc by orchestrator. Pattern includes: charter section, story inventory table, topology/dispatch order diagram, pre-flight blocking checklist, spec-first decision section, architecture gates, convergence targets, open questions for human approval, resume steps. Wave 4 was the first wave to receive a pre-flight cycle-manifest before story dispatch (.factory/cycles/wave-4-operations/cycle-manifest.md, 0cd3565d). Wave 3 kicked off via D-040..D-046 decisions only — no pre-flight artifact existed. Codify as `/vsdd-factory:author-wave-preflight` skill with template at `.factory/templates/wave-preflight-template.md`. | P3 | wave-4-operations pre-flight (2026-05-02) | vsdd-factory plugin maintenance cycle |
 | TD-VSDD-036 | wave-4-operations pre-flight (2026-05-02); first surfaced as D-045 in Wave 3 (2026-04-27); user-flagged methodology innovation | Spec-first phasing (Phase N.A BLOCKING per D-045) is currently a per-wave decision made ad-hoc. Wave 3 was BLOCKING; Wave 4 question is open. Formalize as a wave-kickoff policy with explicit human approval gate and templated decision rationale. Should be a question in the wave-preflight cycle-manifest (Open Questions section) with explicit options: (a) BLOCKING — full Phase N.A spec convergence required, (b) DRIFT-AUDIT-ONLY — verify existing drafts align with current architecture, (c) NON-BLOCKING — proceed directly to story implementation. Add to `/vsdd-factory:author-wave-preflight` skill template + policy registry. | P3 | wave-4-operations pre-flight (2026-05-02) | vsdd-factory wave-gate skill + policy registry maintenance cycle |
 | TD-VSDD-037 | wave-3-multi-tenant closure + Wave 4 pre-flight (2026-05-02); user-flagged methodology innovation | Cross-wave carry-forward debt bucketing at gate close is currently ad-hoc. Wave 3 closure required manual categorization of TD items into: (a) fix-wave-N+1 candidates, (b) deferred to later wave, (c) stay-in-product-register, (d) extract-to-vsdd-plugin-tech-debt. Codify as a state-manager step at gate-close: each open TD must be tagged with one of the four buckets. Pattern emerged organically in Wave 3 closure (W3.4 fix wave, vsdd-plugin-tech-debt.md extraction). Add as a mandatory section in cycle-manifest closure blocks: 'Carry-Forward Debt Bucketing' with table mapping TD IDs to buckets. | P3 | wave-3-multi-tenant closure + Wave 4 pre-flight (2026-05-02) | vsdd-factory state-manager skill maintenance cycle |
+| TD-VSDD-040 | Wave 4 Phase 4.A Pass 3 + Pass 5 + pre-Pass-14 — 3rd chain-corruption occurrence | state-manager two-commit-protocol chain-corruption recurring pattern. Three prior occurrences (Pass 3, Pass 5, pre-Pass-14): root cause is hook re-detecting stale citation after each SHA-fix commit, creating an infinite-fixup chain. Symptom: `verify-sha-currency.sh` reports stale SHA in STATE.md/SESSION-HANDOFF.md after Stage 2 push, tempting a 3rd commit. Suggested fix: (a) atomic Stage 2 approach — write placeholder SHA `15fa97e6` in Stage 1, then amend Stage 2 in-place with real SHA (no 3rd commit needed); or (b) hook suppression with `SKIP_SHA_CHECK=1` mid-burst exclusively for the Stage 2 amend operation. Either eliminates the multi-commit fixup chain. | P2 | wave-4-phase-4a-pass14 (2026-05-03) | vsdd-factory state-manager skill + verify-sha-currency.sh hook maintenance |
+| TD-VSDD-041 | Wave 4 Phase 4.A Pass 14 F-P14-H-001 — pre-pass sweep missed audit-event terminology class | Pre-pass sweep methodology (TD-VSDD-039) currently checks CF-key prefix order and VP module-column cross-check but does NOT check audit-event-terminology consistency: ADR §X.Y declared event names vs story Task body emit-call names. F-P14-H-001 (ScheduleFireSkipped vs ScheduleFireMissed{miss_reason:SemaphoreExhausted} in S-4.01) would have been caught by this check. Recommend extending standard pre-pass sweep checklist: (1) for each ADR in scope, grep §X.Y Event Taxonomy / audit event sections for declared event token names; (2) for each story in scope, grep Task body + EC emit-call literals; (3) flag any mismatch as HIGH candidate before adversary dispatch. | P2 | wave-4-phase-4a-pass14 (2026-05-03) | vsdd-factory sweep skill checklist maintenance |
 
 ---
 
@@ -144,10 +146,43 @@ Both gaps contributed to HIGH-001 and HIGH-003 findings surviving until Wave 2 g
 
 ---
 
+---
+
+### TD-VSDD-040 — state-manager Two-Commit-Protocol Chain-Corruption Recurring Pattern
+
+**Filed:** 2026-05-03 (Wave 4 Phase 4.A Pass 14 process-gap codification — 3rd occurrence)
+**Severity:** P2
+**Source:** Pass 3 + Pass 5 + pre-Pass-14 chain-corruption episodes. Root cause: `verify-sha-currency.sh` hook re-fires after each SHA-fix commit, detecting the old placeholder SHA and demanding another fix commit, creating an infinite-fixup chain.
+
+**Pattern:** Stage 1 commit contains placeholder SHA `15fa97e6`. Stage 2 replaces placeholder with real Stage 1 SHA. If Stage 2 contains any residual reference to the OLD placeholder (e.g., from a partially-swept file), the hook fires again and demands a 3rd commit — which is explicitly forbidden by the two-commit protocol.
+
+**Suggested fix options:**
+- (a) Atomic Stage 2 with empty-SHA-then-amend: write literal `15fa97e6` in Stage 1 for all SHA citation fields; in Stage 2, amend in-place with `git commit --amend` after all files are updated (no 3rd commit created).
+- (b) Hook suppression mid-burst: `SKIP_SHA_CHECK=1` for the Stage 2 amend operation only; re-enable immediately after. Documents the suppression in commit message.
+
+**Recommended action:** Defer to vsdd-factory plugin maintenance cycle. Out of Wave 4 scope.
+
+---
+
+### TD-VSDD-041 — Pre-Pass Sweep Missing Audit-Event-Terminology Cross-Check
+
+**Filed:** 2026-05-03 (Wave 4 Phase 4.A Pass 14 F-P14-H-001 process-gap codification)
+**Severity:** P2
+**Source:** F-P14-H-001 — `ScheduleFireSkipped` vs `ScheduleFireMissed{miss_reason: SemaphoreExhausted}` in S-4.01. The pre-Pass-14 sweep (TD-VSDD-039 codified methodology) did NOT include audit-event-terminology cross-checking and therefore missed this HIGH finding.
+
+**Gap:** Standard sweep checks CF-key prefix order and VP module-column cross-check but has no step for: (1) grep ADR §X.Y Event Taxonomy / audit event sections for declared event token names; (2) grep story Task body + EC emit-call literals; (3) flag mismatch as HIGH candidate before adversary dispatch.
+
+**F-P14-H-001 would have been caught** by this check: ADR-013 §2.4 declares `ScheduleFireMissed { miss_reason: SemaphoreExhausted }`; S-4.01 Task 5 used `ScheduleFireSkipped` — a grep of both would have flagged the mismatch pre-dispatch.
+
+**Recommended action:** Extend standard pre-pass sweep checklist with audit-event-name cross-checking step before Pass 16+.
+
+---
+
 ## Changelog
 
 | Date | Change |
 |------|--------|
+| 2026-05-03T12:00:00Z | v1.4 — TD-VSDD-040+041 added. 18 → 20 items. TD-VSDD-040: two-commit-protocol chain-corruption 3rd recurrence (Pass 3+5+pre-P14). TD-VSDD-041: pre-pass sweep missing audit-event-terminology class (F-P14-H-001 trigger). |
 | 2026-05-03T00:00:00Z | v1.3 — TD-VSDD-039 added. 17 → 18 items. Filed per Pass 13 process-gap codification: proactive sweep missed CF-key-prefix-order and VP-module-column-drift defect classes. |
 | 2026-05-02 | v1.0 — Initial creation. 13 items carved out from `.factory/tech-debt-register.md` per user directive. Items moved: TD-VSDD-001/002/003/004/005, TD-W2-PASS1-TOOLING-001, TD-VSDD-029/030/031/032/033/034, TD-W2-FIXK-001. |
 | 2026-05-02T12:00:00Z | v1.1 — TD-VSDD-035/036/037 added. 13 → 16 items. Filed per user catch: Wave 4 pre-flight cycle-manifest pattern is itself a methodology innovation pending vsdd-factory codification. |

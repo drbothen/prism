@@ -3,7 +3,7 @@ document_type: adr
 adr_id: ADR-013
 title: "Schedule Execution Semantics"
 status: PROPOSED
-version: "0.6"
+version: "0.7"
 date: 2026-05-03
 wave: 4
 phase: 4.A
@@ -54,7 +54,7 @@ traces_to: specs/architecture/ARCH-INDEX.md
 
 ## Status
 
-PROPOSED 2026-05-02, v0.5. Pending review and acceptance prior to story remediation and BC authoring.
+PROPOSED 2026-05-03, v0.7. Pending review and acceptance prior to story remediation and BC authoring.
 
 ---
 
@@ -194,17 +194,21 @@ The `{org_id_bytes}:` prefix satisfies ADR-008's universal re-keying rule: every
 
 ```
 enum ScheduleChangeNotification {
-    Created(ScheduleId),
-    Updated(ScheduleId),
-    Deleted(ScheduleId),
+    Created(OrgId, ScheduleId),
+    Updated(OrgId, ScheduleId),
+    Deleted(OrgId, ScheduleId),
 }
 ```
 
+All variants carry `(OrgId, ScheduleId)` so that the in-flight `DashMap<(OrgId, ScheduleId), JoinHandle<()>>` (§2.5) and the splay-target cache (§2.2) can be addressed without scanning. The OrgId is supplied by the producer of the notification (CRUD MCP tool layer or pack manager) which has it in scope.
+
+**Producer attribution.** `Created` and `Deleted` are produced by the schedule CRUD MCP tool layer (S-4.01 Tasks 2/4: `create_schedule`/`delete_schedule`). `Updated` is produced exclusively by the pack manager (S-4.02) when capability-flag toggles cause pack-derived schedules' `enabled` field to change; the CRUD layer does NOT emit `Updated` because there is no `update_schedule` MCP tool in Wave 4 (replace-via-delete-then-create per ADR-013 design).
+
 On receipt, the executor:
 
-1. Removes the affected `schedule_id` from its in-memory splay-target cache (`Vec<(DateTime<Utc>, ScheduleEntry)>`).
-2. For `Created` and `Updated`: reloads the entry from RocksDB; recomputes splay; inserts into the cache.
-3. For `Deleted`: the removal in step 1 is sufficient. Additionally, the `Deleted` handler MUST also remove the entry from the in-flight `DashMap<(OrgId, ScheduleId), JoinHandle<()>>` (step 4 of §2.5). If the schedule is currently in-flight, the in-flight task completes but no subsequent fire is scheduled and no stale DashMap entry remains.
+1. Removes the affected `(org_id, schedule_id)` from its in-memory splay-target cache (`Vec<(DateTime<Utc>, ScheduleEntry)>`).
+2. For `Created(org_id, sid)` and `Updated(org_id, sid)`: reloads the entry from RocksDB by `(org_id, sid)`; recomputes splay; inserts into the cache.
+3. For `Deleted(org_id, sid)`: the removal in step 1 is sufficient. Additionally, the `Deleted(org_id, sid)` handler MUST also remove the entry from the in-flight `DashMap<(OrgId, ScheduleId), JoinHandle<()>>` and the splay-target cache, both addressed by `(org_id, sid)`. If the schedule is currently in-flight, the in-flight task completes but no subsequent fire is scheduled and no stale DashMap entry remains.
 
 This hook is the enabler for D-211: when a detection rule's associated schedule changes, the dedup-window resolution previously baked into the `RuleCondition` is invalidated. ADR-015 will define the precise invalidation semantics for dedup-window resolution. This ADR establishes only that the notification exists and that the executor's in-memory cache is invalidated on schedule change.
 
@@ -466,3 +470,13 @@ Going forward: when bumping ADR frontmatter `version`, scan body for `## Status`
 Applied during Wave 4 Phase 4.A adversarial Pass 13 fix-burst (2026-05-03). Version bumped 0.5 → 0.6.
 
 - **F-P13-L-001 fix (orphan duplicate ADR-012 bullet):** Deleted orphan duplicate ADR-012 References bullet that appeared at line ~461 after the Pass 12 remediation notes block. The identical entry (`ADR-012: prism-operations crate layout; src/schedule/ and src/action/ as sibling modules`) already exists in the Source / Origin section (line 354) under "Prior ADRs". The orphan bullet survived the Pass 12 v0.4→v0.5 body sync without being removed.
+
+---
+
+## Phase 4.A Pass 14 Remediation Notes
+
+Applied during Wave 4 Phase 4.A adversarial Pass 14 fix-burst (2026-05-03). Version bumped 0.6 → 0.7.
+
+| Version | Finding(s) | Date | Author | Notes |
+|---------|-----------|------|--------|-------|
+| 0.7 | F-P14-L-002+M-001+M-002 | 2026-05-03 | architect | Pass 14 fixes: (L-002) Status H2 line synced from v0.5 → v0.7; (M-001) ScheduleChangeNotification enum updated to carry `(OrgId, ScheduleId)` in all 3 variants — fixes §2.7 Deleted/Created/Updated handler key-resolution gap (was addressing DashMap by ScheduleId alone, but DashMap key is `(OrgId, ScheduleId)`); (M-002) added Producer attribution paragraph clarifying CRUD layer emits Created/Deleted only, pack manager (S-4.02) emits Updated for capability-flag toggles. |

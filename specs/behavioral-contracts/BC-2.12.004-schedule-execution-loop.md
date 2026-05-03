@@ -1,7 +1,7 @@
 ---
 document_type: behavioral-contract
 level: L3
-version: "1.7"
+version: "1.8"
 status: draft
 producer: product-owner
 timestamp: 2026-04-13T12:00:00
@@ -11,7 +11,7 @@ subsystem: "SS-12"
 capability: "CAP-017"
 lifecycle_status: active
 introduced: cycle-1
-modified: 2026-05-04
+modified: 2026-05-03
 deprecated: null
 deprecated_by: null
 replacement: null
@@ -136,8 +136,9 @@ v1.6 (P12 fix): Fire-loop iteration model aligned to ADR-013 §2.5/§2.6 — sin
 
 | Version | Burst | Date | Author | Change |
 |---------|-------|------|--------|--------|
-| 1.7 | wave4-pass13-surgical | 2026-05-04 | product-owner | F-P13-M-003: added VP-137 (per-subsystem semaphore liveness) to Verification Properties table — was missing despite S-4.01 v1.10 anchoring VP-137 to BC-2.12.004 + VP-INDEX listing S-4.01 as VP-137 anchor story. Reverse traceability restored (POL-4). |
-| 1.6 | wave4-pass12-surgical | 2026-05-04 | product-owner | P12 fix (F-P12-M-001): fire-loop iteration model aligned to ADR-013 §2.5/§2.6 — single fire per schedule with internal client iteration; in-flight tracked by (OrgId, ScheduleId), not (ScheduleId, ClientId). |
+| 1.8 | wave4-pass14-surgical | 2026-05-03 | product-owner | F-P14-H-002: corrected future-dated `modified` frontmatter field + v1.7 changelog row date (2026-05-04 → 2026-05-03; Pass 13 burst was 2026-05-03 per sibling Wave 4 BC dates). |
+| 1.7 | wave4-pass13-surgical | 2026-05-03 | product-owner | F-P13-M-003: added VP-137 (per-subsystem semaphore liveness) to Verification Properties table — was missing despite S-4.01 v1.10 anchoring VP-137 to BC-2.12.004 + VP-INDEX listing S-4.01 as VP-137 anchor story. Reverse traceability restored (POL-4). |
+| 1.6 | wave4-pass12-surgical | 2026-05-03 | product-owner | P12 fix (F-P12-M-001): fire-loop iteration model aligned to ADR-013 §2.5/§2.6 — single fire per schedule with internal client iteration; in-flight tracked by (OrgId, ScheduleId), not (ScheduleId, ClientId). |
 | 1.5 | wave4-pass7-surgical | 2026-05-02 | state-manager | P7-MEDIUM-002: set modified date to 2026-05-02. P7-LOW-002: EC-12-010 — added "(at default tick)" parenthetical and tick-range generalization note. |
 | 1.4 | wave4-pass6-bc-sweep | 2026-05-02 | product-owner | Phase 4.A Pass 6 remediation (HIGH-001): corrected tick interval to 60s default (ADR-013 §2.1) and semaphore to 8-permit module-private schedule_executor_semaphore (ADR-013 §2.3 + D-209). |
 | 1.3 | pass-73-fix | 2026-04-20 | state-manager | Deterministic changelog reorder: sorted all rows to descending version order (pass-73 bash script). |

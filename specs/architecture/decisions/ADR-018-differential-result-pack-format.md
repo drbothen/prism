@@ -3,8 +3,8 @@ document_type: adr
 adr_id: "ADR-018"
 title: "Differential Result Pack Format"
 status: PROPOSED
-version: "0.4"
-date: 2026-05-02
+version: "0.5"
+date: 2026-05-03
 wave: 4
 phase: 4.A
 authors: [architect]
@@ -207,8 +207,8 @@ Pack execution is conditional on the S-1.08 feature flag system, evaluated at lo
 
 1. A capability-flag-changed event is emitted.
 2. The pack manager receives the event and re-evaluates all packs for the org that reference the changed capability.
-3. For newly-enabled packs: update derived `ScheduleEntry` records to `enabled: true`; emit `ScheduleChangeNotification::Updated(schedule_id)` for each via the ADR-013 §2.7 watch channel.
-4. For newly-disabled packs: update to `enabled: false`; emit `ScheduleChangeNotification::Updated(schedule_id)`.
+3. For newly-enabled packs: update derived `ScheduleEntry` records to `enabled: true`; emit `ScheduleChangeNotification::Updated(org_id, schedule_id)` for each via the ADR-013 §2.7 watch channel.
+4. For newly-disabled packs: update to `enabled: false`; emit `ScheduleChangeNotification::Updated(org_id, schedule_id)`.
 
 **Rationale for load-time gating (not per-fire):** Capability flag checks on every tick fire would add a cross-module RPC-equivalent call (or a shared-state read) on every schedule evaluation. Capability flag changes are low-frequency admin events; per-fire checking adds cost for a condition that changes rarely. Load-time gating with event-driven re-evaluation gives the same correctness guarantee with negligible steady-state overhead.
 
@@ -347,6 +347,14 @@ An alternative collision policy would allow individually-defined schedules to ov
 
 - Packs are versioned, tested artifacts. Allowing an operator-authored schedule to silently shadow a pack schedule creates an invisible override that may be discovered only when the pack fires differently than expected.
 - The explicit `E-SCHEDULE-NAME-PACK-COLLISION` error ensures the operator is aware of the collision and must resolve it (rename their individual schedule or deregister the conflicting pack).
+
+---
+
+## Phase 4.A Pass 14 Remediation Notes
+
+Applied during Wave 4 Phase 4.A adversarial Pass 14 fix-burst (2026-05-03). Version bumped 0.4 → 0.5.
+
+- **F-P14-M-001-CASCADE-A fix (ScheduleChangeNotification tuple form):** 3 enum-variant references updated to tuple form `(OrgId, ScheduleId)` per ADR-013 v0.7 §2.7 enum signature change. Sites: §2.5 flag toggle propagation steps 3–4 (lines ~210, ~211), §7 References ADR-013 §2.7 cross-reference (line ~547). All `Updated(schedule_id)` occurrences updated to `Updated(org_id, schedule_id)`; bare `::Updated` reference in §7 updated to `::Updated(org_id, schedule_id)`.
 
 ---
 
@@ -544,7 +552,7 @@ Deployment note: the `diff_results` CF must be created via `create_cf` during pr
 - **ADR-006 §2.1**: OrgId is canonical routing key; packs and diff results are org-scoped.
 - **ADR-008 §2.2**: Universal `{org_id}:` CF key prefix rule; `diff_results` CF key format `{org_id}:diff:{schedule_id}:*` derives directly from this rule.
 - **ADR-010**: Config-driven sensor spec pattern; `.pack.toml` follows the same config-file-as-spec convention. `PRISM_DIFF_EVICTION_DAYS` env-var follows the `PRISM_*` convention.
-- **ADR-013 §2.2**: Blake3 splay hash — workspace standard for blake3 established here. ADR-018 adopts the same pin (`blake3 = "1.8"`). ADR-013 §2.6: `schedules` CF key format; derived `ScheduleEntry` fields defined there, extended here with `pack_origin` and `pack_version`. ADR-013 §2.7: Schedule-change watch channel; pack capability-flag toggles emit `ScheduleChangeNotification::Updated` via this channel.
+- **ADR-013 §2.2**: Blake3 splay hash — workspace standard for blake3 established here. ADR-018 adopts the same pin (`blake3 = "1.8"`). ADR-013 §2.6: `schedules` CF key format; derived `ScheduleEntry` fields defined there, extended here with `pack_origin` and `pack_version`. ADR-013 §2.7: Schedule-change watch channel; pack capability-flag toggles emit `ScheduleChangeNotification::Updated(org_id, schedule_id)` via this channel.
 
 ### Verification Properties
 

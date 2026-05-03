@@ -1,7 +1,7 @@
 ---
 document_type: pipeline-state
 level: ops
-version: "6.42"
+version: "6.43"
 producer: state-manager
 timestamp: 2026-05-04T00:30:00Z
 inputs: []
@@ -95,16 +95,16 @@ wave_4_phase_4_a_preflight:
   pass_13_remediation_complete: true
   pass_13_fixes: [verification-architecture VP-053 prism-core→prism-operations v1.26, ADR-013 date sync v0.6, ARCH-INDEX v2.10, S-4.02 v1.9 CF keys, S-4.04 v1.10 tick wording, BC-2.12.004 v1.7 VP-137 row]
   pass_13_stage1_sha: 398c5273
-  convergence_window: "0/3 (reset; pass-13 BLOCKED → REMEDIATED)"
-  pass_trajectory: "38→17→8→7→7→5→5→6→6→5→5→4→7 (13 passes; sweep missed CF-key-order + VP-module-drift classes — TD-VSDD-039 filed)"
-  passes_consumed: 13
+  convergence_window: "0/3 (reset; pass-14 BLOCKED → REMEDIATED)"
+  pass_trajectory: "38→17→8→7→7→5→5→6→6→5→5→4→7→9 (14 passes; sweep missed CF-key-order + VP-module-drift + audit-event-terminology classes — TD-VSDD-039/041 filed)"
+  passes_consumed: 14
   convergence_strategy: B+A_hybrid (D-214)
   subagent_context_discipline: MANDATORY
   proactive_sweep_status: "COMPLETE_2026-05-03 + Pass 13 surfaced 2 HIGH not caught by sweep methodology — TD-VSDD-039 filed"
   proactive_sweep_findings: "F-PSweep-H-001 HIGH (ADR-019 Status), F-PSweep-M-001 MEDIUM (10 body-prose pins) — both remediated"
   pre_pass14_sweep_status: "COMPLETE_2026-05-03 (TD-VSDD-039 methodology applied); findings: F-PreP14-H-003 + F-PreP14-H-004 — both remediated"
-  next_action: "Adversary Pass 14 (window 1/3)"
-  vsdd_plugin_td_count: 17 (was 16)
+  next_action: "Adversary Pass 15 (window 1/3 attempt)"
+  vsdd_plugin_td_count: 20 (was 18; TD-VSDD-040+041 added this burst)
 gate_status_hook_compat_remediation: 2026-04-24
 wave_0a_complete: 2026-04-22
 wave_0b_complete: 2026-04-22
@@ -279,15 +279,7 @@ pre_build_sweep_requested: 2026-04-19
 recent_passes_summary: "p59:11→p60:6→p61:4→p62:1→p63:3→p64:3→p65:2→p66:1→p67:0✓→p68:0✓→p69:0✓ RE-CONVERGED →housekeeping RESET 3→0→p70:8→p71:7→p72:5→p73 reorder→p74:4→p75:6→p76:6→p77:6→p78:3→p79:3 (9-pass adjacent-regression; see convergence-trajectory.md) →drift-rebaseline(v0.47.0)→p80:9(1C+4H+3M+1L)→p81:10(1C+4H+4M+1L)→p81remediated(10 fixed)→p82:7(3H+3M+1L)→p82remediated(7fixed+1obs)→p83:6(4H+2M)→p83remediated(6 fixed)→p84:3(3H)→p84remediated(3fixed)→p85:4(1C+1H+2M)→p85remediated(4fixed+1obs)→p86:8(2C+4H+2M)→p86remediated(8fixed)→p87:6(3H+3M)→p87remediated(6fixed)→p88:12(3H+6M+2L)→p88remediated(12fixed)→p89:6(3H+2M+1L)→p89remediated(5fixed)→p90:5(1C+2H+2M)→p90remediated(5fixed)→p91:1(1H)→p91remediated(1fixed)→p92:7(4H+3M)→p92remediated(7fixed)→p93:2(2M)→p93remediated(2fixed)→p94:3(3H)→p94remediated(3fixed)→p95:1(1H)→p95remediated(1fixed)→p96:4(3H+1M)→p96remediated(4fixed)→p97:4(2H+2M)→p97remediated(4fixed)→p98:3(2H+1M)→p98remediated→p99:4(1H+2M+1L)→CONVERGED-user-override→wv1.5p7clean(1/3)→wv1.5p8clean(2/3)→wv1.5p9clean(3/3)→wv1.5_GATE_CONVERGED"
 convergence_counter: 3
 convergence_status: "PHASE_3_WAVE_1_5_GATE_CONVERGED"
-adversary_wave_1_5_gate_pass_1_wave_integration_gate: { passed: false, findings: 11, findings_high: 1, findings_medium: 4, findings_low: 5, findings_observation: 2, remediated: 7, remediation_sha: 28a085c9, remediation_pr: 41, timestamp: 2026-04-24 }
-adversary_wave_1_5_gate_pass_2_wave_integration_gate: { passed: false, findings: 12, findings_high: 2, findings_medium: 4, findings_low: 4, findings_observation: 2, regressions: 2, remediated: 12, remediation_sha: e45159b9, remediation_pr: 42, timestamp: 2026-04-24 }
-adversary_wave_1_5_gate_pass_3_wave_integration_gate: { passed: false, findings: 10, findings_high: 2, findings_medium: 4, findings_low: 2, findings_observation: 2, regressions: 2, remediated: 8, remediation_sha: b1b145b3, remediation_pr: null, timestamp: 2026-04-24 }
-adversary_wave_1_5_gate_pass_4_wave_integration_gate: { passed: false, findings: 10, findings_high: 2, findings_medium: 4, findings_low: 2, findings_observation: 2, regressions: 2, remediation_pr: null, remediation_sha: 99563fd1, findings_remediated: 10, findings_deferred_in_remediation: 0, timestamp: 2026-04-24 }
-adversary_wave_1_5_gate_pass_5_wave_integration_gate: { passed: false, findings: 11, findings_high: 2, findings_medium: 5, findings_low: 2, findings_observation: 2, regressions: 1, remediation_pr: null, remediation_sha: 99563fd1, findings_remediated: 11, findings_deferred_in_remediation: 0, timestamp: 2026-04-24 }
-adversary_wave_1_5_gate_pass_6_wave_integration_gate: { passed: false, findings: 7, findings_high: 1, findings_medium: 3, findings_low: 1, findings_observation: 2, regressions: 0, remediation_pr: null, remediation_sha: ddb1a258, findings_remediated: 7, findings_deferred_in_remediation: 0, timestamp: 2026-04-24, notes: "1H cross-record SHA contamination (Pass 3 frontmatter SHA was 3e2359ac, corrected to b1b145b3 to match wave-state.yaml); 3M partial sweeps + counter drift + schema-semantics hazard; manually remediated by orchestrator (not via state-manager agent) per user directive" }
-adversary_wave_1_5_gate_pass_7_wave_integration_gate: { passed: true, findings: 3, findings_high: 0, findings_critical: 0, findings_medium: 0, findings_low: 1, findings_observation: 2, regressions: 0, remediation_pr: null, remediation_sha: 42c5c3826fe4721a3d6361720e473e07fb39f5c7, findings_remediated: 3, findings_deferred_in_remediation: 0, clean_window_count: 1, timestamp: 2026-04-24, notes: "1st clean pass of Wave 1.5 gate convergence window; 1 LOW polish (outcome-presumptive awaiting: field — P3WV15G-A-L-001) + 2 OBS (CHECKLIST grep namespace collision — OBS-001; two-commit protocol footnote — OBS-002); all 3 remediated this burst" }
-adversary_wave_1_5_gate_pass_8_wave_integration_gate: { passed: true, findings: 6, findings_high: 0, findings_critical: 0, findings_medium: 0, findings_low: 1, findings_observation: 5, regressions: 0, remediation_pr: null, remediation_sha: e9342c67, findings_remediated: 6, findings_deferred_in_remediation: 0, clean_window_count: 2, timestamp: 2026-04-24, notes: "2nd clean pass of Wave 1.5 gate convergence window; 1 LOW (line-25 PR-count breakdown phrasing — P3WV15H-A-L-001) + 5 OBS (CHECKLIST comment-correctness, hard-coded pass loop, Pass 7 row asymmetry, convergence_status template, version-bump template — OBS-001..005); all 6 remediated this burst" }
-adversary_wave_1_5_gate_pass_9_wave_integration_gate: { passed: true, findings: 5, findings_high: 0, findings_critical: 0, findings_medium: 0, findings_low: 1, findings_observation: 4, regressions: 0, remediation_pr: null, remediation_sha: c687b340, findings_remediated: 5, findings_deferred_in_remediation: 0, clean_window_count: 3, gate_converged: true, timestamp: 2026-04-24, notes: "3rd clean pass — Wave 1.5 integration gate CONVERGED. 1 LOW (SESSION-HANDOFF.md line 72 stale v5.7 cite — P3WV15I-A-L-001) + 4 OBS (recent_passes_summary nomenclature, Pass 7/8 SHA notation asymmetry, wave_1.gate_status stale sub-annotation, 3-commit-chain reset episode audit-trail gap — OBS-001..004); all 5 remediated this burst. Trajectory: 11→12→10→10→11→7→3→6→5. Total passes consumed: 9 (6 BLOCKED + 3 CLEAN). Structural prevention validated across 8 remediation bursts including 1 manual orchestrator-executed." }
+adversary_wave_1_5_gate_passes: "CONVERGED 2026-04-24 — 9 passes (P1-P6 BLOCKED; P7+P8+P9 CLEAN). Trajectory 11→12→10→10→11→7→3→6→5. Detail: cycles/phase-3-dtu-wave-2/adversarial-reviews/"
 wave_1_5_integration_gate_converged: 2026-04-24
 wave_1_5_integration_gate_convergence_passes: 9
 wave_1_5_integration_gate_total_blocked_passes: 6
@@ -354,9 +346,9 @@ subsystem_count: 20
 story_count: 113
 bc_count_corrected: 230
 cap_count: 40  # active; highest_cap_id: CAP-040 (CAP-038 Multi-Tenant Identity, CAP-039 Multi-Tenant Fixture Gen, CAP-040 Multi-Tenant Adapter Dispatch — Wave 3 Phase 3.A Step 2)
-bc_index_version: "4.29"
+bc_index_version: "4.30"
 vp_index_version: "1.25"
-story_index_version: "v1.95"
+story_index_version: "v1.96"
 red_gate_wave_0a_complete: 2026-04-21
 test_vectors_version: "2.7"
 prd_version: "1.7"
@@ -365,7 +357,7 @@ holdout_index_version: "1.2"
 capabilities_version: "1.14"
 l2_index_version: "1.10"
 module_decomposition_version: "1.12"
-arch_index_version: "2.11"
+arch_index_version: "2.12"
 security_architecture_version: "1.1"
 verification_coverage_matrix_version: "1.23"
 verification_architecture_version: "1.26"
@@ -400,10 +392,10 @@ user_directive_persistent: "No pragmatic convergence. Fix all issues before buil
 | **Language** | Rust |
 | **Target Workspace** | per-analyst stdio (MCP server) |
 | **Started** | 2026-04-13 |
-| **Last Updated** | 2026-05-03 (Wave 4 Pre-Pass-14 sweep COMPLETE — TD-VSDD-039; STATE v6.41→v6.42) |
-| **Current Phase** | Phase 4.A — Wave 4 adversarial spec convergence (13 passes consumed; 0/3 clean window; Pre-Pass-14 sweep done; Pass 14 next) |
-| **Current Step** | Wave 4 Phase 4.A — Pre-Pass-14 sweep REMEDIATED; Adversary Pass 14 next (window 1/3) |
-| **factory-artifacts HEAD** | `2550ddf9` (canonical SHA; Pre-Pass-14 sweep burst; STATE v6.42) |
+| **Last Updated** | 2026-05-03 (Wave 4 Pass 14 BLOCKED → REMEDIATED; TD-VSDD-040+041; STATE v6.42→v6.43) |
+| **Current Phase** | Phase 4.A — Wave 4 adversarial spec convergence (14 passes consumed; 0/3 clean window; Pass 15 next) |
+| **Current Step** | Wave 4 Phase 4.A — Pass 14 REMEDIATED (2H+4M+2L+13-site cascade); Pass 15 (window 1/3 attempt) |
+| **factory-artifacts HEAD** | `15fa97e6` (placeholder; Stage 1 SHA TBD — Pass 14 burst) |
 
 ## Phase Progress
 
@@ -434,26 +426,28 @@ user_directive_persistent: "No pragmatic convergence. Fix all issues before buil
 | **Phase 4.A: All 6 ADR phases complete (ADR-013/015/016/017/018/019)** | architect | **COMPLETE** | 3 phased parallel rounds; 8 VPs added (VP-137..144); stage1 SHAs 6d6fbfb6/20b067e7/e4315c91 |
 | **Phase 4.A: Story remediation + iter-2 pre-flight** | story-writer + spec-reviewer | **COMPLETE** | 8 stories remediated; CONDITIONAL_PASS (26/28); 4 MEDIUM deferred Phase 4.B; STATE v6.25→v6.26 |
 ## Decisions Log
-_D-001..D-046 archived: [cycles/phase-3-dtu-wave-2/decisions-archive-d001-d032.md](cycles/phase-3-dtu-wave-2/decisions-archive-d001-d032.md). D-047..D-174 archived: [cycles/wave-3-multi-tenant/decisions-archive-d047-d114.md](cycles/wave-3-multi-tenant/decisions-archive-d047-d114.md). D-175..D-188 archived: [cycles/wave-3-multi-tenant/burst-log.md](cycles/wave-3-multi-tenant/burst-log.md) (v6.12 compaction)._
+_D-001..D-046 archived: [cycles/phase-3-dtu-wave-2/decisions-archive-d001-d032.md](cycles/phase-3-dtu-wave-2/decisions-archive-d001-d032.md). D-047..D-174 archived: [cycles/wave-3-multi-tenant/decisions-archive-d047-d114.md](cycles/wave-3-multi-tenant/decisions-archive-d047-d114.md). D-175..D-188 archived: [cycles/wave-3-multi-tenant/burst-log.md](cycles/wave-3-multi-tenant/burst-log.md) (v6.12 compaction). D-200..D-213 archived: [cycles/wave-4-operations/burst-log.md](cycles/wave-4-operations/burst-log.md) (v6.43 compaction)._
+
 | ID | Decision | Rationale | Phase | Date |
 |----|----------|-----------|-------|------|
-| D-200 | VSDD/methodology tech debt extracted to .factory/vsdd-plugin-tech-debt.md (13 items moved: TD-VSDD-001/002/003/004/005, TD-W2-PASS1-TOOLING-001, TD-VSDD-029/030/031/032/033/034, TD-W2-FIXK-001). Product tech-debt-register count: 70 → 57. Wave 4 pre-flight plan authored at .factory/cycles/wave-4-operations/cycle-manifest.md (8 stories, all status: draft, P0, prism-operations crate). STATE v6.16 → v6.17. | VSDD TD extraction + Wave 4 pre-flight plan | 3 | 2026-05-02 |
-| D-201 | Filed TD-VSDD-035/036/037 to capture methodology innovations introduced by Wave 4 pre-flight pattern (user-flagged 2026-05-02). Pre-flight cycle-manifest authored at 0cd3565d is itself a process innovation pending vsdd-factory codification. TD-VSDD-035: pre-flight cycle-manifest as formal wave-kickoff artifact (`/vsdd-factory:author-wave-preflight` skill). TD-VSDD-036: per-wave spec-first phasing decision (BLOCKING/DRIFT-AUDIT/NON-BLOCKING policy). TD-VSDD-037: cross-wave carry-forward debt bucketing protocol (state-manager gate-close step). vsdd-plugin-tech-debt.md: 13 → 16 items. Section 10 Methodology Innovation Disclosure added to cycles/wave-4-operations/cycle-manifest.md. STATE v6.17 → v6.18. | TD-VSDD-035/036/037 filed; methodology innovation disclosure | 3 | 2026-05-02 |
-| D-202 | Wave 4 Spec-First Phasing — DRIFT-REMEDIATION + FULL VSDD ON NEW SPECS (effectively BLOCKING). (a) Spec-drift remediation BLOCKING: all 8 W4 stories (S-4.01..S-4.08, drafted 2026-04-16/17) must be drift-audited and fully remediated before story dispatch — spec-drift-analyzer + uncertainty-scanner on each story, plus product-owner/story-writer remediation pass to align with current architecture (post-Wave-2/3 state). All identified drift MUST be fixed (not deferred). (b) Full VSDD on new specs BLOCKING: any new ADR or BC authored for Wave 4 must go through the full VSDD process: architect/spec-writer drafts → 3-clean adversarial spec convergence (mirroring Phase 3.A) → consistency-validator fresh-context pass → spec-reviewer sign-off → input-hash drift check → human approval gate. Rationale: user directive 2026-05-02 "we need to remediate all drift" + "if you are creating new specs docs, you will need to do the full vsdd process on them." Origin: Wave 4 pre-flight cycle-manifest §9 Q1 human approval. | Wave 4 spec-first phasing; drift-remediation BLOCKING + full VSDD on new specs | 4 | 2026-05-02 |
-| D-203 | Wave 4 Carry-Forward Debt — REMEDIATE ALL. All Wave 3 carry-forward tech debt items are scheduled as W4-FIX-* candidates for in-wave remediation: TD-W3-TIMING-001 (P2) → W4-FIX-PERF-001 (BC-3.5.001/002 wall-clock budget tests #[ignore] → Criterion bench migration or BC amendment); TD-W3-QUOTA-SOAK-001 (P3) → W4-FIX-PERF-002 (cross-tenant API quota soak test gap); TD-W3-CT-EQ-COVERAGE-001 (P3) → W4-FIX-CODE-001 (prism-dtu-harness != patterns sweep to ct_eq); 4 sustained Wave 3 sec LOWs (SEC-P3-004, SEC-P3-005, SEC-P3-006, SEC-005) → W4-FIX-SEC-001..004. Pre-existing W4 capability TDs (TD-W4-AUDIT-QUERY-REPLAY-001 P2, TD-W4-LOG-FORWARDING-001 P2, TD-W4-ALERTING-WORKFLOWS-001 P2) also covered by W4 stories or W4-FIX-*. Wave 5 prerequisite DO NOT close in Wave 4: TD-S-1.07-01 (P1 KeyringBackend production wire-up). Rationale: user directive 2026-05-02 "i want to fix all of them." Origin: Wave 4 pre-flight cycle-manifest §9 Q2 human approval. | Wave 4 carry-forward debt; remediate all W3 items as W4-FIX-* | 4 | 2026-05-02 |
-| D-204 | Wave 4 ADR Authoring Authority — ARCHITECT-DRIVEN, FULL VSDD. Architect identifies and authors all ADRs needed for Wave 4. Likely candidates: ADR-013 (Schedule semantics — cron-style, event-driven, hybrid); ADR-014 (Detection rule language design — DSL, embedded, declarative); ADR-015 (Action delivery framework — idempotency, retry, dedup, backpressure); ADR-016 (Case state machine — statuses, transitions, locking, audit). Additional ADRs as architect surfaces during spec-drift audit. All new ADRs/BCs/specs follow full VSDD process per D-202. Rationale: user directive 2026-05-02 "create all the ADRs you need. if you are creating new specs docs, you will need to do the full vsdd process on them." Origin: Wave 4 pre-flight cycle-manifest §9 Q3 human approval. | Wave 4 ADR authoring authority; architect-driven; full VSDD on all new specs | 4 | 2026-05-02 |
-| D-205 | Wave 4 Cycle Name — `wave-4-operations` CONFIRMED. Wave 4 cycle directory name is `wave-4-operations` (anchoring on the prism-operations crate). Pre-flight cycle-manifest already created at `.factory/cycles/wave-4-operations/cycle-manifest.md`. Rationale: user directive 2026-05-02 "this is fine" in response to wave-cycle name confirmation question. Origin: Wave 4 pre-flight cycle-manifest §9 Q4 human approval. | Wave 4 cycle name `wave-4-operations` confirmed | 4 | 2026-05-02 |
-| D-206 | Wave 4 Phase 4.A pre-flight FINDINGS_OPEN — 116 findings (31H/51M/26L/8K) across 4 passes: consistency-drift verdict FAIL (11H/12M/5L); spec-quality APPROVED_WITH_CONDITIONS (6H/21M/12L/8K); 14 uncertainty HIGHs require research dispatch (13 tasks); 5 new ADRs proposed by architect (ADR-013/015/016/017/018-borderline). Top blockers: prism-operations crate does not exist; zero OrgId scoping on W4 domain types; S-3.02 dependency unmerged; DataFusion 53 API unverified; cron 0.12.x outdated; all 8 stories missing cycle/tdd_mode/traces_to/input-hash hygiene. Remediation sequence per `.factory/cycles/wave-4-operations/preflight-findings/preflight-summary.md`. Implementation BLOCKED until pre-flight clears. | Wave 4 Phase 4.A pre-flight FINDINGS_OPEN; 116 findings; REMEDIATION_REQUIRED | 4 | 2026-05-02 |
-| D-207 | Wave 4 ADR topology — SPLIT into 6 ADRs: ADR-013 (Schedule Execution Semantics), ADR-015 (Detection Rule Language), ADR-016 (Action Delivery Framework), ADR-017 (Case Lifecycle Invariants), ADR-018 (Differential Result Pack Format), ADR-019 (SIEM Output Formats — NEW per D-212). Authoring order (dependency-aware): Phase 1 no intra-Wave-4 deps: ADR-013 + ADR-017 parallel; Phase 2 after 013: ADR-015 + ADR-018 parallel; Phase 3 after 013+015: ADR-016 + ADR-019 parallel. Rationale: per-decision ADRs are independently amendable; co-locating creates monolithic documents harder to amend per-cycle. | 6-ADR topology; phased parallel authoring | 4 | 2026-05-02 |
-| D-208 | OrgId / ClientId hierarchy retained — both are distinct concepts. `OrgId` (UUID v7, ADR-006) = MSSP tenant (1898 & Co's customer org). `ClientId` = downstream client of an MSSP tenant (the customer's customer / protected entity). All Wave 4 operational objects scope as `(OrgId, ClientId)` where applicable. `Client(ClientId)` references in stories (e.g., RuleScope) MUST become `Client(OrgId, ClientId)` per drift audit category I. Story-writer adds `org_id: OrgId` to all 8 W4 domain types (ScheduleEntry, DiffResult, DetectionRule, Alert, Case, ActionSpec); RocksDB CF keys gain `{org_id}:` prefix per ADR-008 universal re-keying rule. Wave 3 D-157 TenantId alias removal proceeds; ClientId concept retained. | OrgId/ClientId dual hierarchy; all W4 domain types gain OrgId scoping | 4 | 2026-05-02 |
-| D-209 | Per-subsystem semaphore allocation — 8/8 split (S-4.01 ↔ S-4.08). Schedule execution semaphore: 8 permits (S-4.01). Action delivery semaphore: 8 permits (S-4.08). No shared semaphore; eliminates cross-subsystem starvation hazard. ADR-013 documents the per-subsystem ownership model and adds VP for liveness (no Schedule starves Action delivery; no Action starves Schedule). | Independent 8-permit semaphores per subsystem; no cross-starvation | 4 | 2026-05-02 |
-| D-210 | `clients = []` in `.action.toml` is a configuration error (rejected at validation time). Empty `clients` list MUST be rejected with a clear error code (E-ACTION-CLIENTS-EMPTY or similar). Org-wide broadcast requires an explicit sentinel (`clients = ["*"]` OR `scope = "all"` — canonical form to be chosen by architect in ADR-016). Rationale: explicit > implicit; prevents accidental org-wide broadcast (safety hazard). | Empty clients list = config error; explicit sentinel required for broadcast | 4 | 2026-05-02 |
-| D-211 | Alert dedup window — resolved at scheduling-time + reload-on-schedule-change. Dedup window value resolved at rule load time; baked into `RuleCondition` per detection rule. Schedule changes (S-4.01 CRUD) invalidate cached dedup-window resolutions for affected rules; rules reload. ADR-015 documents the resolve-once + invalidation pattern. Rationale: per-detection-eval lookup adds OrgRegistry round-trip cost; cache + invalidate keeps it dynamic without per-eval cost. | Dedup window resolved at scheduling-time; invalidated on schedule change | 4 | 2026-05-02 |
-| D-212 | Build `prism-siem-formats` crate in-house — CEF v0 + LEEF 2.0 + proptest fuzzed. No maintained Rust crates exist for CEF or LEEF (rust-cef abandoned 2021; no LEEF crate published). New workspace crate `prism-siem-formats` to be added in Wave 4 (S-4.08 dependency or separate fix-wave story). Modules: `cef::v0::Encoder`, `leef::v2::Encoder`. Proptest invariants: (a) round-trip parse cleanly; (b) no SIEM-toxic characters survive in wrong position; (c) escape rules per ArcSight CEF Implementation Standard + IBM QRadar LEEF v2 Format Guide. Adds ADR-019 (SIEM Output Formats) to the Wave 4 ADR set per D-207. | In-house prism-siem-formats crate; CEF v0 + LEEF 2.0; proptest fuzz invariants | 4 | 2026-05-02 |
-| D-213 | ADR-017 narrative: "1898-curated, industry-informed" — citations to NIST 800-61 r2 (footnote: r3 supersedes with non-state-machine model), ITIL v3 incident-management conventions, Cortex XSOAR Pending/Active/Closed/Archived lifecycle, and Splunk SOAR case status taxonomy. DO NOT claim NIST 800-61 r3 traceability (r3 abandoned four-phase lifecycle, April 2025). DO NOT rework `prism-core::case` — Kani proofs (VP-005/006/051) lock the 12-transition table; disposition-on-Resolved enforcement is Wave 4 scope (S-4.06 / VP-053). ADR-017 SCOPE = lifecycle invariants (5 states + 12 transitions referencing prism-core::case) + disposition-on-Resolved enforcement (Wave 4) + first-resolution TTR semantics + OrgId scoping + open transition graph diagram. | ADR-017 narrative citations; scope reduced to invariants + disposition enforcement; prism-core::case not reworked | 4 | 2026-05-02 |
-| D-214 | Wave 4 Phase 4.A Convergence Strategy — B+A Hybrid with Subagent Context Discipline (2026-05-04). User direction (verbatim): "I'm fine with trying B, but we need A, we need to fix it right. We need to reach convergence. We all need to make sure we are leveraging subagents to manage our context." Component 1 (Option B): Proactive structural sweep across ALL Wave 4 specs (6 ADRs / 8 stories / 4 BCs / indices) — stale subsystem refs, stale version pins in prose, retired CF key formats, ADR body Status sections, cross-doc terminology drift. Multiple targeted subagent dispatches. Component 2 (Option A): Continue formal adversarial passes 13+ to VSDD-pure 3-clean convergence window. Sweep accelerates; does NOT replace formal discipline. Component 3 (subagent context discipline MANDATORY): orchestrator NEVER reads large files; every substantive task delegated; tight scope per dispatch; compact returns; state-manager LAST per burst. | Wave 4 Phase 4.A B+A hybrid convergence + mandatory subagent context discipline | 4 | 2026-05-04 |
+| D-214 | Wave 4 Phase 4.A Convergence Strategy — B+A Hybrid with Subagent Context Discipline. Component 1 (Option B): Proactive structural sweep. Component 2 (Option A): Formal adversarial passes 13+ to 3-clean window. Component 3: Subagent context discipline MANDATORY (orchestrator NEVER reads large files; state-manager LAST per burst). | Wave 4 Phase 4.A B+A hybrid convergence + mandatory subagent context discipline | 4 | 2026-05-04 |
 
-**D-214 Component 1 sweep COMPLETE + Pass 13 REMEDIATED 2026-05-03.** Pre-Pass-14 sweep (TD-VSDD-039 codified methodology) COMPLETE 2026-05-03: F-PreP14-H-003 (ADR-017 sister-section stale `case:{org_id}:` prose; v0.4) + F-PreP14-H-004 (CF-name vs key notation in S-4.04:~157 + S-4.05:~398; v1.11 each) — both remediated. Detail: cycles/wave-4-operations/burst-log.md.
+**D-214 sweep COMPLETE + Passes 1..14 REMEDIATED.** Detail: [cycles/wave-4-operations/burst-log.md](cycles/wave-4-operations/burst-log.md).
+
+### Wave 4 Phase 4.A Adversary Pass 14 (2026-05-03) — BLOCKED → REMEDIATED
+
+| Finding | Severity | Site | Resolution |
+|---------|----------|------|------------|
+| F-P14-H-001 | HIGH | S-4.01 Task 5 + EC-12-006 | ScheduleFireSkipped → ScheduleFireMissed{miss_reason: SemaphoreExhausted}; S-4.01 v1.12 |
+| F-P14-H-002 | HIGH | BC-2.12.004 modified field | 2026-05-04 → 2026-05-03; BC-2.12.004 v1.8 |
+| F-P14-M-001 | MEDIUM | ADR-013 §2.7 + 13 sister sites | enum tuple cascade: ADR-013 v0.7, ADR-015 v0.5, ADR-018 v0.5, S-4.01 v1.12, S-4.02 v1.11 |
+| F-P14-M-002 | MEDIUM | ADR-013 §2.7 | producer attribution paragraph; ADR-013 v0.7 |
+| F-P14-M-003 | MEDIUM | S-4.02 Task 7 | pack_id org_id clarified; S-4.02 v1.11 |
+| F-P14-M-004 | MEDIUM | S-4.08 line 188 | OCSF→CEF canonical table per ADR-019 §3; S-4.08 v1.21 |
+| F-P14-L-001 | LOW | S-4.05 EC-007 (adversary misattributed to S-4.07) | detection_state → action_state; S-4.05 v1.12 |
+| F-P14-L-002 | LOW | ADR-013 line 56 | Status H2 v0.5 → v0.7; ADR-013 v0.7 |
+
+**2 HIGH + 4 MEDIUM + 2 LOW remediated. 13-site enum tuple cascade (F-P14-M-001) atomic. TD-VSDD-040+041 filed. Window: 0/3 BLOCKED → REMEDIATED. Pass 15 required.**
 
 ## Skip Log
 
@@ -476,15 +470,19 @@ _TD-VSDD-014..019, TD-W3-COMPLIANCE-001, TD-VSDD-025..029 archived to [tech-debt
 
 Cycle files: [burst-log](cycles/phase-2-patch/burst-log.md) | [convergence-trajectory](cycles/phase-2-patch/convergence-trajectory.md) | [session-checkpoints](cycles/phase-2-patch/session-checkpoints.md) | [lessons](cycles/phase-2-patch/lessons.md) | [resolved-blockers](cycles/phase-2-patch/blocking-issues-resolved.md)
 ---
-## Session Resume Checkpoint (2026-05-03-wave4-phase4a-prepass14-sweep-v6.42)
+## Session Resume Checkpoint (2026-05-03-wave4-phase4a-pass14-remediated-v6.43)
 
 _Previous checkpoint archived: [cycles/wave-4-operations/session-checkpoints.md](cycles/wave-4-operations/session-checkpoints.md)_
 
-**STATE v6.42 (canonical SHA `2550ddf9`). WAVE 4 PHASE 4.A — PRE-PASS-14 SWEEP COMPLETE (TD-VSDD-039). READY FOR PASS 14 (WINDOW 1/3).**
+**STATE v6.43 (canonical SHA `15fa97e6` placeholder — update after Stage 1 push). WAVE 4 PHASE 4.A — PASS 14 BLOCKED → REMEDIATED. READY FOR PASS 15 (WINDOW 1/3).**
 
-develop HEAD: `ba3b10c7` | factory-artifacts: `2550ddf9` | workspace tests: 2363 | PRs merged: 125
+develop HEAD: `ba3b10c7` | factory-artifacts: `15fa97e6` (Stage 1 TBD) | workspace tests: 2363 | PRs merged: 125
 
-**NEXT ACTION: Adversary Pass 14 (window 1/3). Pre-Pass-14 sweep remediated F-PreP14-H-003 (ADR-017 v0.4) + F-PreP14-H-004 (S-4.04/S-4.05 v1.11). See SESSION-HANDOFF.md STEP 2.**
+**PASS 14 SUMMARY:** 2 HIGH (F-P14-H-001 audit-event terminology S-4.01; F-P14-H-002 future-dated BC-2.12.004) + 4 MEDIUM (F-P14-M-001 13-site enum tuple cascade ADR-013/015/018/S-4.01/S-4.02; F-P14-M-002 producer attribution; F-P14-M-003 pack_id; F-P14-M-004 OCSF→CEF) + 2 LOW (F-P14-L-001 S-4.05 detection_state; F-P14-L-002 ADR-013 Status H2). TD-VSDD-040+041 filed.
+
+**NEXT ACTION: Adversary Pass 15 (window 1/3 attempt). See SESSION-HANDOFF.md STEP 2.**
+
+**Current spec versions:** ADR-013 v0.7, ADR-015 v0.5, ADR-018 v0.5, S-4.01 v1.12, S-4.02 v1.11, S-4.05 v1.12, S-4.08 v1.21, BC-2.12.004 v1.8, STORY-INDEX v1.96, ARCH-INDEX v2.12, BC-INDEX v4.30.
 
 **Key files:** [SESSION-HANDOFF.md](SESSION-HANDOFF.md) | [cycle-manifest.md](cycles/wave-4-operations/cycle-manifest.md)
 

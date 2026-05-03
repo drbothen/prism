@@ -3,8 +3,8 @@ document_type: adr
 adr_id: "ADR-015"
 title: "Detection Rule Language"
 status: PROPOSED
-version: "0.4"
-date: 2026-05-02
+version: "0.5"
+date: 2026-05-03
 wave: 4
 phase: 4.A
 producer: architect
@@ -313,10 +313,10 @@ cache + invalidate keeps dedup semantics dynamic without per-eval cost).
 
 **Invalidation triggers:**
 - **Schedule change** (via ADR-013 §2.7 `watch` channel): on receipt of
-  `ScheduleChangeNotification::Updated(schedule_id)` or `::Deleted(schedule_id)`,
+  `ScheduleChangeNotification::Updated(org_id, schedule_id)` or `::Deleted(org_id, schedule_id)`,
   the detection engine invalidates all `DetectionRuleCache` entries whose `schedule_id`
   matches the changed schedule and reloads them from the persistent rule store.
-  `ScheduleChangeNotification::Created(schedule_id)` triggers a scan of all `DetectionRuleCache` entries whose `schedule_id` matches the newly-created schedule. Rules with a cached `effective_dedup_window` that was resolved via the default fallback (`Duration::hours(1)` — priority 3 in the resolution order above) get invalidated and re-resolved against the newly-created schedule's interval. This handles the case where rules are authored before their schedule exists: the rule loads with a default dedup window and is correctly updated to the linked schedule's interval when the schedule is created. Rules whose `effective_dedup_window` was resolved via an explicit `dedup_window` field (priority 1) are NOT invalidated on `Created`, as the explicit field takes precedence over the schedule interval.
+  `ScheduleChangeNotification::Created(org_id, schedule_id)` triggers a scan of all `DetectionRuleCache` entries whose `schedule_id` matches the newly-created schedule. Rules with a cached `effective_dedup_window` that was resolved via the default fallback (`Duration::hours(1)` — priority 3 in the resolution order above) get invalidated and re-resolved against the newly-created schedule's interval. This handles the case where rules are authored before their schedule exists: the rule loads with a default dedup window and is correctly updated to the linked schedule's interval when the schedule is created. Rules whose `effective_dedup_window` was resolved via an explicit `dedup_window` field (priority 1) are NOT invalidated on `Created`, as the explicit field takes precedence over the schedule interval.
 - **Rule file change** (via `notify` file watcher, same watcher as IOC hot-reload §2.6):
   invalidates the specific rule's cache entry and reloads that rule.
 
@@ -481,6 +481,14 @@ Flag for re-evaluation when a second consumer appears.
 
 ---
 
+## Phase 4.A Pass 14 Remediation Notes
+
+Applied during Wave 4 Phase 4.A adversarial Pass 14 fix-burst (2026-05-03). Version bumped 0.4 → 0.5.
+
+- **F-P14-M-001-CASCADE-A fix (ScheduleChangeNotification tuple form):** 5 enum-variant references updated to tuple form `(OrgId, ScheduleId)` per ADR-013 v0.7 §2.7 enum signature change. Sites: §2.7 invalidation triggers (lines ~316, ~319), Pass 2 remediation note (line ~500), VP-140 property definition (line ~659), VP-140 integration test description (line ~673). All occurrences of `Created(schedule_id)`, `Updated(schedule_id)`, `Deleted(schedule_id)`, and `Updated(sid)` / `Updated(S)` updated to include the leading `org_id` / `org_id` parameter.
+
+---
+
 ## Phase 4.A Pass 4 Remediation Notes
 
 v0.4 body Status section synced from stale v0.3 (P4-XADR-A-H-001).
@@ -497,7 +505,7 @@ Applied during Wave 4 Phase 4.A adversarial Pass 3 fix-burst (2026-05-02). Versi
 
 Applied during Wave 4 Phase 4.A adversarial Pass 2 fix-burst (2026-05-02). Version bumped 0.2 → 0.3.
 
-- **P2-ADR-015-A-M-001 fix (Created notification invalidation):** §2.7 invalidation triggers updated. `ScheduleChangeNotification::Created(schedule_id)` now triggers a scan of all `DetectionRuleCache` entries with a matching `schedule_id` that were resolved via the default fallback (`Duration::hours(1)`); those entries are invalidated and re-resolved against the newly-created schedule's interval. Rules resolved via an explicit `dedup_window` field are not affected. This handles the case where rules are authored before their schedule exists.
+- **P2-ADR-015-A-M-001 fix (Created notification invalidation):** §2.7 invalidation triggers updated. `ScheduleChangeNotification::Created(org_id, schedule_id)` now triggers a scan of all `DetectionRuleCache` entries with a matching `schedule_id` that were resolved via the default fallback (`Duration::hours(1)`); those entries are invalidated and re-resolved against the newly-created schedule's interval. Rules resolved via an explicit `dedup_window` field are not affected. This handles the case where rules are authored before their schedule exists.
 
 ## Phase 4.A Pass 1 Remediation Notes
 
@@ -656,7 +664,7 @@ produced before Phase 4.B BC authoring begins.
 
 **Property:** (a) `effective_dedup_window` for any rule is never resolved during
 detection-evaluation (i.e., no OrgRegistry call occurs in the detection hot path).
-(b) After a `ScheduleChangeNotification::Updated(sid)` is delivered via the ADR-013 §2.7
+(b) After a `ScheduleChangeNotification::Updated(org_id, sid)` is delivered via the ADR-013 §2.7
 `watch` channel, all `DetectionRuleCache` entries whose `schedule_id == sid` have their
 `effective_dedup_window` recomputed from the updated `ScheduleEntry` before the next
 evaluation cycle.
@@ -670,7 +678,7 @@ does not hold a reference to `OrgRegistry` at any call site (module-boundary che
 build a mock `DetectionRuleCache` and verify `evaluate` takes no `OrgRegistry` parameter.
 
 Integration test: construct a `DetectionRuleCache` with a rule linked to `schedule_id = S`.
-Deliver `ScheduleChangeNotification::Updated(S)` via the watch channel. Assert the
+Deliver `ScheduleChangeNotification::Updated(org_id, S)` via the watch channel. Assert the
 `effective_dedup_window` in the cache changes to match the new `ScheduleEntry.interval`
 within one watch-receive cycle.
 
