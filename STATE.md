@@ -399,10 +399,10 @@ user_directive_persistent: "No pragmatic convergence. Fix all issues before buil
 | **Language** | Rust |
 | **Target Workspace** | per-analyst stdio (MCP server) |
 | **Started** | 2026-04-13 |
-| **Last Updated** | 2026-05-03 (Wave 4 Phase 4.A D-214 Component 1 proactive structural sweep COMPLETE; STATE v6.39→v6.40) |
-| **Current Phase** | Phase 4.A — Wave 4 adversarial spec convergence (12 passes consumed; 0/3 clean window; sweep COMPLETE; ready for Pass 13) |
-| **Current Step** | Wave 4 Phase 4.A — Proactive sweep COMPLETE (D-214 Component 1); Adversary Pass 13 next (Option A — VSDD discipline) |
-| **factory-artifacts HEAD** | `cd016cda` (placeholder — Stage 1 SHA; to be replaced by Stage 2 backfill; STATE v6.40) |
+| **Last Updated** | 2026-05-03 (Wave 4 Phase 4.A Pass 13 BLOCKED → REMEDIATED; STATE v6.40→v6.41) |
+| **Current Phase** | Phase 4.A — Wave 4 adversarial spec convergence (13 passes consumed; 0/3 clean window; Pass 13 remediated; Pass 14 next) |
+| **Current Step** | Wave 4 Phase 4.A — Pass 13 REMEDIATED; Adversary Pass 14 next (window 1/3) |
+| **factory-artifacts HEAD** | `b9f86bc0` (Stage 1 canonical SHA; Pass 13 remediation burst; STATE v6.41) |
 
 ## Phase Progress
 
@@ -479,9 +479,9 @@ Cycle files: [burst-log](cycles/phase-2-patch/burst-log.md) | [convergence-traje
 
 _Previous checkpoint archived: [cycles/wave-4-operations/session-checkpoints.md](cycles/wave-4-operations/session-checkpoints.md)_
 
-**STATE v6.40 (canonical SHA `cd016cda` placeholder — Stage 2 will backfill). WAVE 4 PHASE 4.A — D-214 COMPONENT 1 PROACTIVE STRUCTURAL SWEEP COMPLETE. READY FOR PASS 13.**
+**STATE v6.41 (canonical SHA `b9f86bc0`). WAVE 4 PHASE 4.A — PASS 13 BLOCKED → REMEDIATED. READY FOR PASS 14 (WINDOW 1/3).**
 
-develop HEAD: `ba3b10c7` | factory-artifacts: `cd016cda` (Stage 1 placeholder) | workspace tests: 2363 | PRs merged: 125
+develop HEAD: `ba3b10c7` | factory-artifacts: `b9f86bc0` | workspace tests: 2363 | PRs merged: 125
 
 **NEXT ACTION: Adversary Pass 13 (Option A — VSDD discipline). Sweep remediated F-PSweep-H-001 (ADR-019 v0.4) + F-PSweep-M-001 (10 body-prose pins; S-4.02/4.04/4.08). See SESSION-HANDOFF.md STEP 2.**
 
