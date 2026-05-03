@@ -1,7 +1,7 @@
 ---
 document_type: pipeline-state
 level: ops
-version: "6.27"
+version: "6.28"
 producer: state-manager
 timestamp: 2026-05-02T02:00:00Z
 inputs: []
@@ -22,7 +22,7 @@ repos:
   - axiathon
   - ocsf-proto-gen
   - mcp-claroty-xdome
-current_step: "Adversarial Pass 2 (re-run on remediated specs; need 3 consecutive CLEAN passes for Phase 4.A convergence)"
+current_step: "Adversarial Pass 3 (re-run on Pass 2 remediated specs; need 3 consecutive CLEAN passes)"
 awaiting: "Architect Phase 1 ADR drafts (ADR-013 Schedule Execution Semantics + ADR-017 Case Lifecycle Invariants) — parallel authoring"
 wave_3_carry_forward_debt: "ALL_REMEDIATE — W4-FIX-PERF-001/002, W4-FIX-CODE-001, W4-FIX-SEC-001..004 stories planned per D-203"
 wave_4_status: "PHASE_4_A_DECISIONS_LOGGED — D-207..D-213 logged 2026-05-02; architect cleared for ADR drafting (6 ADRs in 3 phases); implementation BLOCKED until pre-flight clears"
@@ -65,7 +65,12 @@ wave_4_phase_4_a_preflight:
   pass_1_adrs_upgraded: [013→v0.2, 015→v0.2, 016→v0.2, 017→v0.2 (+VP-145), 018→v0.2, 019→v0.2]
   pass_1_stories_aligned_versions: { S-4.01: 1.9, S-4.02: 1.6, S-4.03: 1.7, S-4.04: 1.7, S-4.05: 1.7, S-4.06: 1.11, S-4.07: 1.7, S-4.08: 1.12 }
   pass_1_stage1_sha: 618b453e
-  convergence_window: "0/3 (reset; pass-1 BLOCKED)"
+  pass_2_adversary_verdict: "BLOCKED (17 findings: 0C/4H/7M/4L/2OBS)"
+  pass_2_remediation_complete: true
+  pass_2_adrs_upgraded: [013→v0.3, 015→v0.3, 016→v0.3, 017→v0.3, 018→v0.3]
+  pass_2_stories_aligned: { S-4.03: 1.8, S-4.05: 1.8, S-4.06: 1.12, S-4.07: 1.8, S-4.08: 1.13 }
+  pass_2_stage1_sha: 15d1bf73
+  convergence_window: "0/3 (reset; pass-2 BLOCKED)"
 gate_status_hook_compat_remediation: 2026-04-24
 wave_0a_complete: 2026-04-22
 wave_0b_complete: 2026-04-22
@@ -132,27 +137,9 @@ wave_3_integration_gate_step_c: { date: 2026-05-02, verdict: CONVERGENCE_REACHED
 wave_3_integration_gate_step_d: { date: 2026-05-02, verdict: APPROVED, h: 0, m: 0, l: 4, report: "cycles/wave-3-multi-tenant/gate-step-d-security-review-pass7.md" }
 wave_3_integration_gate_step_e: { date: 2026-05-02, verdict: PASS, prior_verdict: PASS, fixes_in: W3-FIX-G, converged_3_clean: true, report: "cycles/wave-3-multi-tenant/gate-step-e-consistency-validation-pass7.md" }
 wave_3_integration_gate_step_f: { date: 2026-05-02, verdict: PASS, mean_satisfaction: 0.907, must_pass_ratio: "28/30 ABOVE_BAR", report: "cycles/wave-3-multi-tenant/gate-step-f-holdout-evaluation-pass7.md" }
-wave_3_integration_gate_pass_51:
-  date: 2026-05-02
-  adversary: { verdict: CLEAN_WITH_LOW, findings: "1L + 4OBS + 1PG", report: "cycles/wave-3-multi-tenant/adversarial-reviews/pass-51.md" }
-  code_reviewer: { verdict: FINDINGS_REMAIN, findings: "CR-021 MEDIUM, CR-022 LOW, CR-023 LOW", report: "cycles/wave-3-multi-tenant/gate-step-c-code-review-pass4.md" }
-  security_reviewer: { verdict: APPROVED, findings: 0, report: "cycles/wave-3-multi-tenant/gate-step-d-security-review-pass4.md" }
-  consistency_validator: { verdict: PASS, findings: "WGCV3-P3-007 carry-over LOW", report: "cycles/wave-3-multi-tenant/gate-step-e-consistency-validation-pass4.md" }
-  holdout_evaluator: { verdict: PASS, mean_satisfaction: 0.886, must_pass_ratio: "27/30 ABOVE_BAR", report: "cycles/wave-3-multi-tenant/gate-step-f-holdout-evaluation-pass4.md" }
-wave_3_integration_gate_pass_52:
-  date: 2026-05-02
-  adversary: { verdict: CLEAN, findings: "0H/0M/0L + 2OBS", report: "cycles/wave-3-multi-tenant/adversarial-reviews/pass-52.md" }
-  code_reviewer: { verdict: CONVERGENCE_REACHED, findings: "0 findings", report: "cycles/wave-3-multi-tenant/gate-step-c-code-review-pass5.md" }
-  security_reviewer: { verdict: APPROVED, findings: "0 H/M; 4 LOW carry-forward", report: "cycles/wave-3-multi-tenant/gate-step-d-security-review-pass5.md" }
-  consistency_validator: { verdict: PASS, findings: "0 findings", report: "cycles/wave-3-multi-tenant/gate-step-e-consistency-validation-pass5.md" }
-  holdout_evaluator: { verdict: PASS, mean_satisfaction: 0.907, must_pass_ratio: "28/30 ABOVE_BAR", report: "cycles/wave-3-multi-tenant/gate-step-f-holdout-evaluation-pass5.md" }
-wave_3_integration_gate_pass_53:
-  date: 2026-05-02
-  adversary: { verdict: CLEAN, findings: "0H/0M/0L + 3OBS + 1PG", note: "O-53-001 + O-53-003 race-conditions from concurrent state-manager burst — RESOLVED post-burst", report: "cycles/wave-3-multi-tenant/adversarial-reviews/pass-53.md" }
-  code_reviewer: { verdict: APPROVE, findings: "0 findings; 10 inspection angles", report: "cycles/wave-3-multi-tenant/gate-step-c-code-review-pass6.md" }
-  security_reviewer: { verdict: APPROVED, findings: "0 H/M; 4 LOW carry-forward sustained", report: "cycles/wave-3-multi-tenant/gate-step-d-security-review-pass6.md" }
-  consistency_validator: { verdict: PASS, findings: "CLEAN; declared CONVERGED on 3-clean (pass-4+5+6)", report: "cycles/wave-3-multi-tenant/gate-step-e-consistency-validation-pass6.md" }
-  holdout_evaluator: { verdict: PASS, mean_satisfaction: 0.907, must_pass_ratio: "28/30 ABOVE_BAR; sustained", report: "cycles/wave-3-multi-tenant/gate-step-f-holdout-evaluation-pass6.md" }
+wave_3_integration_gate_pass_51: { date: 2026-05-02, summary: "CLEAN_WITH_LOW; code FINDINGS_REMAIN; holdout 0.886/27-of-30", detail: "cycles/wave-3-multi-tenant/adversarial-reviews/pass-51.md" }
+wave_3_integration_gate_pass_52: { date: 2026-05-02, summary: "CLEAN; all sub-reviewers PASS; holdout 0.907/28-of-30", detail: "cycles/wave-3-multi-tenant/adversarial-reviews/pass-52.md" }
+wave_3_integration_gate_pass_53: { date: 2026-05-02, summary: "CLEAN; consistency CONVERGED 3-clean; holdout 0.907 sustained", detail: "cycles/wave-3-multi-tenant/adversarial-reviews/pass-53.md" }
 wave_3_integration_gate_pass_54:
   date: 2026-05-02
   adversary: { verdict: CLEAN, findings: "0H/0M/0L + 1OBS", note: "O-54-001 SIGTERM CI artifact — informational", report: "cycles/wave-3-multi-tenant/adversarial-reviews/pass-54.md" }
@@ -161,7 +148,6 @@ wave_3_integration_gate_pass_54:
   consistency_validator: { verdict: PASS, findings: "CLEAN; 14/14 checks PASS", report: "cycles/wave-3-multi-tenant/gate-step-e-consistency-validation-pass7.md" }
   holdout_evaluator: { verdict: PASS, mean_satisfaction: 0.907, must_pass_ratio: "28/30 ABOVE_BAR; 3-pass plateau", report: "cycles/wave-3-multi-tenant/gate-step-f-holdout-evaluation-pass7.md" }
 wave_3_integration_gate_status: "CONVERGED"
-convergence_window: "3_of_3_CLEAN — Wave 3 integration gate CONVERGED 2026-05-02"
 wave_3_3_fix_wave_status: "CLOSED — 2 PRs merged 2026-05-02"
 wave_3_3_prs: ["#122 SEC-004 4e053105", "#123 CODE-005 e4be29ae"]
 wave_3_4_fix_wave_status: "CLOSED — 2 PRs merged 2026-05-02"
@@ -358,7 +344,7 @@ bc_count_corrected: 230
 cap_count: 40  # active; highest_cap_id: CAP-040 (CAP-038 Multi-Tenant Identity, CAP-039 Multi-Tenant Fixture Gen, CAP-040 Multi-Tenant Adapter Dispatch — Wave 3 Phase 3.A Step 2)
 bc_index_version: "4.27"
 vp_index_version: "1.22"
-story_index_version: "v1.83"
+story_index_version: "v1.84"
 red_gate_wave_0a_complete: 2026-04-21
 test_vectors_version: "2.7"
 prd_version: "1.7"
@@ -367,7 +353,7 @@ holdout_index_version: "1.2"
 capabilities_version: "1.14"
 l2_index_version: "1.10"
 module_decomposition_version: "1.12"
-arch_index_version: "2.1"
+arch_index_version: "2.2"
 security_architecture_version: "1.1"
 verification_coverage_matrix_version: "1.23"
 verification_architecture_version: "1.22"
@@ -402,10 +388,10 @@ user_directive_persistent: "No pragmatic convergence. Fix all issues before buil
 | **Language** | Rust |
 | **Target Workspace** | per-analyst stdio (MCP server) |
 | **Started** | 2026-04-13 |
-| **Last Updated** | 2026-05-02 (Wave 4 Phase 4.A Pass 1 BLOCKED + remediated — 6 ADRs v0.2; 8 stories aligned; CF discriminator collision RESOLVED; VP-145 added; STATE v6.26→v6.27) |
-| **Current Phase** | Phase 4.A — Wave 4 adversarial spec convergence (Pass 2 queued; 0/3 clean window) |
-| **Current Step** | Adversarial Pass 2 (re-run on remediated specs; need 3 consecutive CLEAN passes for Phase 4.A convergence) |
-| **factory-artifacts HEAD** | `618b453e` (W4 Phase 4.A Pass 1 remediation — 6 ADRs v0.2 + 8 stories aligned; Stage 1; STATE v6.27 backfill in progress) |
+| **Last Updated** | 2026-05-02 (Wave 4 Phase 4.A Pass 2 BLOCKED + remediated — 5 ADRs v0.3; 5 stories aligned; idempotency_key + timeline_entry_id; STATE v6.27→v6.28) |
+| **Current Phase** | Phase 4.A — Wave 4 adversarial spec convergence (Pass 3 queued; 0/3 clean window) |
+| **Current Step** | Adversarial Pass 3 (re-run on Pass 2 remediated specs; need 3 consecutive CLEAN passes) |
+| **factory-artifacts HEAD** | `15d1bf73` (W4 Phase 4.A Pass 2 remediation — 5 ADRs v0.3 + 5 stories aligned; Stage 1; STATE v6.28 backfill in progress) |
 
 ## Phase Progress
 
@@ -474,15 +460,15 @@ _TD-VSDD-014..019, TD-W3-COMPLIANCE-001, TD-VSDD-025..029 archived to [tech-debt
 
 Cycle files: [burst-log](cycles/phase-2-patch/burst-log.md) | [convergence-trajectory](cycles/phase-2-patch/convergence-trajectory.md) | [session-checkpoints](cycles/phase-2-patch/session-checkpoints.md) | [lessons](cycles/phase-2-patch/lessons.md) | [resolved-blockers](cycles/phase-2-patch/blocking-issues-resolved.md)
 ---
-## Session Resume Checkpoint (2026-05-02-wave4-phase4a-pass1-remediated-v6.27)
+## Session Resume Checkpoint (2026-05-02-wave4-phase4a-pass2-remediated-v6.28)
 
 _Previous checkpoint archived: [cycles/wave-4-operations/session-checkpoints.md](cycles/wave-4-operations/session-checkpoints.md)_
 
-**STATE v6.27 (canonical SHA 618b453e — Stage 2 backfill in progress). WAVE 4 PHASE 4.A — PASS 1 BLOCKED + REMEDIATED. PASS 2 QUEUED.**
+**STATE v6.28 (canonical SHA 15d1bf73 — Stage 2 backfill in progress). WAVE 4 PHASE 4.A — PASS 2 BLOCKED + REMEDIATED. PASS 3 QUEUED.**
 
-develop HEAD: `ba3b10c7` | factory-artifacts: `618b453e` (Stage 1) | workspace tests: 2363 | PRs merged: 125
+develop HEAD: `ba3b10c7` | factory-artifacts: `15d1bf73` (Stage 1) | workspace tests: 2363 | PRs merged: 125
 
-**NEXT ACTION: Dispatch vsdd-factory:adversary for Pass 2 on remediated specs (6 ADRs at v0.2 + 8 stories aligned). Target: CLEAN to open convergence window 1/3. See SESSION-HANDOFF.md.**
+**NEXT ACTION: Dispatch vsdd-factory:adversary for Pass 3 on remediated specs (5 ADRs at v0.3 + 5 stories aligned). Target: CLEAN to open convergence window 1/3. See SESSION-HANDOFF.md.**
 
 **Key files:** [SESSION-HANDOFF.md](SESSION-HANDOFF.md) | [cycle-manifest.md](cycles/wave-4-operations/cycle-manifest.md)
 

@@ -2,7 +2,7 @@
 document_type: cycle-manifest
 cycle_id: wave-4-operations
 cycle_type: feature
-version: wave-4-preflight-v1.10
+version: wave-4-preflight-v1.11
 status: in-progress
 started: pending
 completed: pending
@@ -224,6 +224,7 @@ Story inventory will be remediated post-ADR-acceptance per drift audit categorie
 
 | Version | Date | Change |
 |---------|------|--------|
+| wave-4-preflight-v1.11 | 2026-05-02T22:30:00Z | Pass 2 remediation — 5 ADRs v0.2→v0.3 (ADR-013/015/016/017/018); 5 stories aligned (S-4.03 v1.8, S-4.05 v1.8, S-4.06 v1.12, S-4.07 v1.8, S-4.08 v1.13); idempotency_key canonicalized; timeline_entry_id defined; convergence window 0/3 (reset; pass-2 BLOCKED). |
 | wave-4-preflight-v1.10 | 2026-05-02T22:00:00Z | Pass 1 remediation — 6 ADRs v0.2; 8 stories aligned; CF discriminator collision resolved (S-4.05 → action_state CF); VP-145 added (INV-CASE-006); convergence window 0/3. |
 | wave-4-preflight-v1.9 | 2026-05-02T22:00:00Z | iter-2 fixes — S-4.02 points reconciled to 3 (was 5 in manifest); STORY-INDEX NEW-004 ADR annotation fix; total 46 points (verified). |
 | wave-4-preflight-v1.8 | 2026-05-02T21:30:00Z | Story remediation complete (b881b0d2): 8 W4 stories updated; 43 drift + 5 spec-quality HIGH addressed; S-4.03: 5→8 pts, S-4.05: 1→4 pts; total 45→46 pts; ADR refs + library pins added; STORY-INDEX updated. Pre-flight re-run queued. |
