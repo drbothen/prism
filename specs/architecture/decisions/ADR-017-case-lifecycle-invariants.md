@@ -4,7 +4,7 @@ adr_id: "ADR-017"
 title: "Case Lifecycle Invariants"
 status: PROPOSED
 date: 2026-05-02
-version: "0.3"
+version: "0.4"
 producer: architect
 timestamp: 2026-05-02T00:00:00Z
 subsystems_affected: [SS-14, SS-21]
@@ -48,7 +48,7 @@ verification_properties:
 
 ## Status
 
-PROPOSED v0.3 — 2026-05-02. Authored by architect as part of Wave 4 Phase 4.A ADR drafting
+PROPOSED v0.4 — 2026-05-03. Authored by architect as part of Wave 4 Phase 4.A ADR drafting
 (D-207). Pending acceptance by product-owner review.
 
 ---
@@ -227,7 +227,7 @@ MUST NOT leak any case field values (including the case's existence).
 
 **Implementation site:** `prism-operations`, at the case-fetch and case-update
 boundaries. This check is the runtime complement to the structural key isolation
-provided by the `case:{org_id}:...` RocksDB key pattern.
+provided by the `{org_id}:case:{client_id}:{case_id}` RocksDB key pattern (per §3.4).
 
 **Verification:** VP-138 formally verifies INV-CASE-003 via proptest in
 `prism-operations` (see Section 8).
@@ -279,7 +279,7 @@ detection-to-first-closure signal as a distinct, uncontaminated metric axis.
 
 The OrgId/ClientId dual hierarchy (INV-CASE-003/§3.4) is a direct consequence of D-208,
 which establishes that `OrgId` (MSSP tenant) and `ClientId` (protected entity within
-that tenant) are structurally distinct. The RocksDB key prefix `case:{org_id}:...` mirrors
+that tenant) are structurally distinct. The RocksDB key prefix `{org_id}:case:{client_id}:{case_id}` (per §3.4) mirrors
 the universal re-keying rule established by ADR-008 for all Security Telemetry DTU state.
 The structural key isolation plus the runtime org-mismatch check compose defense-in-depth:
 the key space cannot physically overlap, and the access-control check provides an
@@ -479,6 +479,14 @@ This ADR is a greenfield Wave 4 architectural decision. Its provenance spans thr
 | Cortex XSOAR | Pending/Active/Closed/Archived incident lifecycle | Palo Alto Cortex XSOAR documentation |
 | Splunk SOAR | New/Open/Resolved/Closed case status taxonomy | Splunk SOAR platform documentation |
 | R-11 | Research finding: NIST r3 abandons four-phase model | `.factory/cycles/wave-4-operations/preflight-findings/research-findings.md` |
+
+---
+
+## Phase 4.A Pre-Pass-14 Remediation Notes
+
+Applied during Wave 4 Phase 4.A pre-Pass-14 sweep (2026-05-03). Version bumped 0.3 → 0.4.
+
+| 0.4 | F-PreP14-H-003 | 2026-05-03 | architect | Pre-Pass-14 sweep (TD-VSDD-039 codified methodology): fixed sister-section partial-fix regression inside ADR-017 — lines ~230 (§3.5 Implementation Site) and ~282 (Rationale section) updated stale `case:{org_id}:...` body prose to canonical `{org_id}:case:{client_id}:{case_id}` per §3.4. Section §3.4 was corrected in P1-ADR-017-A-M-003 but propagation to §3.5/Rationale was missed. |
 
 ---
 

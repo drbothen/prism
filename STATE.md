@@ -1,7 +1,7 @@
 ---
 document_type: pipeline-state
 level: ops
-version: "6.41"
+version: "6.42"
 producer: state-manager
 timestamp: 2026-05-04T00:30:00Z
 inputs: []
@@ -102,6 +102,7 @@ wave_4_phase_4_a_preflight:
   subagent_context_discipline: MANDATORY
   proactive_sweep_status: "COMPLETE_2026-05-03 + Pass 13 surfaced 2 HIGH not caught by sweep methodology — TD-VSDD-039 filed"
   proactive_sweep_findings: "F-PSweep-H-001 HIGH (ADR-019 Status), F-PSweep-M-001 MEDIUM (10 body-prose pins) — both remediated"
+  pre_pass14_sweep_status: "COMPLETE_2026-05-03 (TD-VSDD-039 methodology applied); findings: F-PreP14-H-003 + F-PreP14-H-004 — both remediated"
   next_action: "Adversary Pass 14 (window 1/3)"
   vsdd_plugin_td_count: 17 (was 16)
 gate_status_hook_compat_remediation: 2026-04-24
@@ -355,7 +356,7 @@ bc_count_corrected: 230
 cap_count: 40  # active; highest_cap_id: CAP-040 (CAP-038 Multi-Tenant Identity, CAP-039 Multi-Tenant Fixture Gen, CAP-040 Multi-Tenant Adapter Dispatch — Wave 3 Phase 3.A Step 2)
 bc_index_version: "4.29"
 vp_index_version: "1.25"
-story_index_version: "v1.94"
+story_index_version: "v1.95"
 red_gate_wave_0a_complete: 2026-04-21
 test_vectors_version: "2.7"
 prd_version: "1.7"
@@ -364,7 +365,7 @@ holdout_index_version: "1.2"
 capabilities_version: "1.14"
 l2_index_version: "1.10"
 module_decomposition_version: "1.12"
-arch_index_version: "2.10"
+arch_index_version: "2.11"
 security_architecture_version: "1.1"
 verification_coverage_matrix_version: "1.23"
 verification_architecture_version: "1.26"
@@ -452,7 +453,7 @@ _D-001..D-046 archived: [cycles/phase-3-dtu-wave-2/decisions-archive-d001-d032.m
 | D-213 | ADR-017 narrative: "1898-curated, industry-informed" — citations to NIST 800-61 r2 (footnote: r3 supersedes with non-state-machine model), ITIL v3 incident-management conventions, Cortex XSOAR Pending/Active/Closed/Archived lifecycle, and Splunk SOAR case status taxonomy. DO NOT claim NIST 800-61 r3 traceability (r3 abandoned four-phase lifecycle, April 2025). DO NOT rework `prism-core::case` — Kani proofs (VP-005/006/051) lock the 12-transition table; disposition-on-Resolved enforcement is Wave 4 scope (S-4.06 / VP-053). ADR-017 SCOPE = lifecycle invariants (5 states + 12 transitions referencing prism-core::case) + disposition-on-Resolved enforcement (Wave 4) + first-resolution TTR semantics + OrgId scoping + open transition graph diagram. | ADR-017 narrative citations; scope reduced to invariants + disposition enforcement; prism-core::case not reworked | 4 | 2026-05-02 |
 | D-214 | Wave 4 Phase 4.A Convergence Strategy — B+A Hybrid with Subagent Context Discipline (2026-05-04). User direction (verbatim): "I'm fine with trying B, but we need A, we need to fix it right. We need to reach convergence. We all need to make sure we are leveraging subagents to manage our context." Component 1 (Option B): Proactive structural sweep across ALL Wave 4 specs (6 ADRs / 8 stories / 4 BCs / indices) — stale subsystem refs, stale version pins in prose, retired CF key formats, ADR body Status sections, cross-doc terminology drift. Multiple targeted subagent dispatches. Component 2 (Option A): Continue formal adversarial passes 13+ to VSDD-pure 3-clean convergence window. Sweep accelerates; does NOT replace formal discipline. Component 3 (subagent context discipline MANDATORY): orchestrator NEVER reads large files; every substantive task delegated; tight scope per dispatch; compact returns; state-manager LAST per burst. | Wave 4 Phase 4.A B+A hybrid convergence + mandatory subagent context discipline | 4 | 2026-05-04 |
 
-**F-PSweep COMPLETE 2026-05-03 (D-214 Component 1):** F-PSweep-H-001 HIGH (ADR-019 missing Status H2; v0.3→v0.4) + F-PSweep-M-001 MEDIUM (10 body-prose version pins; S-4.02/4.04/4.08 bumped). All other sweep classes CLEAN. Detail: cycles/wave-4-operations/burst-log.md. **Pass 13 BLOCKED → REMEDIATED 2026-05-03:** 2H+3M+2L+1I. F-P13-H-001 (S-4.02 CF keys v1.9), F-P13-H-002 (verification-architecture VP-053 module v1.26), F-P13-M-002 (ADR-013 date v0.6; ARCH-INDEX v2.10), F-P13-M-003 (BC-2.12.004 VP-137 v1.7), F-P13-L-001 (ADR-013 orphan), F-P13-L-002 (S-4.04 v1.10). TD-VSDD-039 filed. Detail: cycles/wave-4-operations/adversarial-reviews/pass-13.md.
+**D-214 Component 1 sweep COMPLETE + Pass 13 REMEDIATED 2026-05-03.** Pre-Pass-14 sweep (TD-VSDD-039 codified methodology) COMPLETE 2026-05-03: F-PreP14-H-003 (ADR-017 sister-section stale `case:{org_id}:` prose; v0.4) + F-PreP14-H-004 (CF-name vs key notation in S-4.04:~157 + S-4.05:~398; v1.11 each) — both remediated. Detail: cycles/wave-4-operations/burst-log.md.
 
 ## Skip Log
 
@@ -475,15 +476,15 @@ _TD-VSDD-014..019, TD-W3-COMPLIANCE-001, TD-VSDD-025..029 archived to [tech-debt
 
 Cycle files: [burst-log](cycles/phase-2-patch/burst-log.md) | [convergence-trajectory](cycles/phase-2-patch/convergence-trajectory.md) | [session-checkpoints](cycles/phase-2-patch/session-checkpoints.md) | [lessons](cycles/phase-2-patch/lessons.md) | [resolved-blockers](cycles/phase-2-patch/blocking-issues-resolved.md)
 ---
-## Session Resume Checkpoint (2026-05-03-wave4-phase4a-sweep-complete-v6.40)
+## Session Resume Checkpoint (2026-05-03-wave4-phase4a-prepass14-sweep-v6.42)
 
 _Previous checkpoint archived: [cycles/wave-4-operations/session-checkpoints.md](cycles/wave-4-operations/session-checkpoints.md)_
 
-**STATE v6.41 (canonical SHA `398c5273`). WAVE 4 PHASE 4.A — PASS 13 BLOCKED → REMEDIATED. READY FOR PASS 14 (WINDOW 1/3).**
+**STATE v6.42 (canonical SHA `15fa97e6`). WAVE 4 PHASE 4.A — PRE-PASS-14 SWEEP COMPLETE (TD-VSDD-039). READY FOR PASS 14 (WINDOW 1/3).**
 
-develop HEAD: `ba3b10c7` | factory-artifacts: `398c5273` | workspace tests: 2363 | PRs merged: 125
+develop HEAD: `ba3b10c7` | factory-artifacts: `15fa97e6` | workspace tests: 2363 | PRs merged: 125
 
-**NEXT ACTION: Adversary Pass 13 (Option A — VSDD discipline). Sweep remediated F-PSweep-H-001 (ADR-019 v0.4) + F-PSweep-M-001 (10 body-prose pins; S-4.02/4.04/4.08). See SESSION-HANDOFF.md STEP 2.**
+**NEXT ACTION: Adversary Pass 14 (window 1/3). Pre-Pass-14 sweep remediated F-PreP14-H-003 (ADR-017 v0.4) + F-PreP14-H-004 (S-4.04/S-4.05 v1.11). See SESSION-HANDOFF.md STEP 2.**
 
 **Key files:** [SESSION-HANDOFF.md](SESSION-HANDOFF.md) | [cycle-manifest.md](cycles/wave-4-operations/cycle-manifest.md)
 

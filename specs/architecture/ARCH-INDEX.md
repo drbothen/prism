@@ -1,7 +1,7 @@
 ---
 document_type: architecture-index
 level: L3
-version: "2.10"
+version: "2.11"
 status: draft
 producer: architect
 timestamp: 2026-04-26T20:30:00
@@ -81,7 +81,7 @@ deployment_topology: single-service
 | ADR-013 | Schedule Execution Semantics | PROPOSED v0.6 | 2026-05-03 | decisions/ADR-013-schedule-execution-semantics.md |
 | ADR-015 | Detection Rule Language | PROPOSED v0.4 | 2026-05-02 | decisions/ADR-015-detection-rule-language.md |
 | ADR-016 | Action Delivery Framework | PROPOSED v0.7 | 2026-05-03 | decisions/ADR-016-action-delivery-framework.md |
-| ADR-017 | Case Lifecycle Invariants | PROPOSED v0.3 | 2026-05-02 | decisions/ADR-017-case-lifecycle-invariants.md |
+| ADR-017 | Case Lifecycle Invariants | PROPOSED v0.4 | 2026-05-03 | decisions/ADR-017-case-lifecycle-invariants.md |
 | ADR-018 | Differential Result Pack Format | PROPOSED v0.4 | 2026-05-02 | decisions/ADR-018-differential-result-pack-format.md |
 | ADR-019 | SIEM Output Formats | PROPOSED v0.4 | 2026-05-03 | decisions/ADR-019-siem-output-formats.md |
 
@@ -142,6 +142,7 @@ deployment_topology: single-service
 
 | Version | Pass | Date | Author | Change |
 |---------|------|------|--------|--------|
+| 2.11 | W4-PrePass14-Sweep | 2026-05-03 | state-manager | Pre-Pass-14 sweep (TD-VSDD-039 codified methodology): F-PreP14-H-003 — ADR-017 v0.3→v0.4 (sister-section partial-fix regression: stale `case:{org_id}:` body prose at lines ~230 §3.5 and ~282 Rationale updated to canonical `{org_id}:case:{client_id}:{case_id}` per §3.4). |
 | 2.10 | F-P13-M-002 | 2026-05-03 | state-manager | Pass 13 MEDIUM: ADR-013 row updated v0.5 → v0.6 (date sync to 2026-05-03 per architect F-P13-L-001 burst; ARCH-INDEX date was already 2026-05-03). |
 | 2.9 | W4-Phase4A-D214-Sweep | 2026-05-03 | state-manager | D-214 Component 1 proactive structural sweep: ADR-019 v0.3→v0.4 (F-PSweep-H-001: missing ## Status H2 section added). |
 | 2.8 | W4-Phase4A-Pass10-fix | 2026-05-03 | state-manager | Wave 4 Phase 4.A Pass 10 fix-burst: ADR-016 ADR Registry version propagated v0.5→v0.7 (catches both Pass 9 and Pass 10 ADR-016 bumps; F-P10-H-001 partial-fix regression). |
