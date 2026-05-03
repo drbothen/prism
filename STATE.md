@@ -1,7 +1,7 @@
 ---
 document_type: pipeline-state
 level: ops
-version: "6.32"
+version: "6.33"
 producer: state-manager
 timestamp: 2026-05-02T02:00:00Z
 inputs: []
@@ -22,7 +22,7 @@ repos:
   - axiathon
   - ocsf-proto-gen
   - mcp-claroty-xdome
-current_step: "Adversarial Pass 7 (re-run on Pass 6 remediated specs; trajectory 38→17→8→7→7→5; CLEAN target)"
+current_step: "Adversarial Pass 8 (re-run on Pass 7 remediated specs; trajectory 38→17→8→7→7→5→5; CLEAN target)"
 awaiting: "Architect Phase 1 ADR drafts (ADR-013 Schedule Execution Semantics + ADR-017 Case Lifecycle Invariants) — parallel authoring"
 wave_3_carry_forward_debt: "ALL_REMEDIATE — W4-FIX-PERF-001/002, W4-FIX-CODE-001, W4-FIX-SEC-001..004 stories planned per D-203"
 wave_4_status: "PHASE_4_A_DECISIONS_LOGGED — D-207..D-213 logged 2026-05-02; architect cleared for ADR drafting (6 ADRs in 3 phases); implementation BLOCKED until pre-flight clears"
@@ -89,8 +89,13 @@ wave_4_phase_4_a_preflight:
   pass_6_bcs_swept: [BC-2.12.004→1.4, BC-2.18.001→1.4, BC-2.18.002→1.4, BC-2.18.004→1.4 (+H1 change)]
   pass_6_index_fixes: [BC-INDEX H1 sync for BC-2.18.004, coverage-matrix VP-053 module]
   pass_6_stage1_sha: bae288ad
-  convergence_window: "0/3 (reset; pass-6 BLOCKED)"
-  pass_trajectory: "38→17→8→7→7→5 (resumed descent; partial-fix-regression class issues now propagated to BC corpus)"
+  pass_7_adversary_verdict: "BLOCKED (5 findings: 0C/1H/2M/2L/0OBS)"
+  pass_7_remediation_complete: true
+  pass_7_fixes: [S-4.08 v1.15 BC title sync, BC-2.12.004 v1.5 modified+EC-12-010, verification-coverage-matrix VP totals comment]
+  pass_7_stage1_sha: 246b9f71
+  pass_7_deferred: "P7-LOW-001 VP-INDEX version drift (process-gap — pass-handoff scope should derive versions from files)"
+  convergence_window: "0/3 (reset; pass-7 BLOCKED)"
+  pass_trajectory: "38→17→8→7→7→5→5 (descent stalled at 5; consumer-table sweep gap pattern)"
 gate_status_hook_compat_remediation: 2026-04-24
 wave_0a_complete: 2026-04-22
 wave_0b_complete: 2026-04-22
@@ -349,7 +354,7 @@ bc_count_corrected: 230
 cap_count: 40  # active; highest_cap_id: CAP-040 (CAP-038 Multi-Tenant Identity, CAP-039 Multi-Tenant Fixture Gen, CAP-040 Multi-Tenant Adapter Dispatch — Wave 3 Phase 3.A Step 2)
 bc_index_version: "4.27"
 vp_index_version: "1.25"
-story_index_version: "v1.87"
+story_index_version: "v1.88"
 red_gate_wave_0a_complete: 2026-04-21
 test_vectors_version: "2.7"
 prd_version: "1.7"
@@ -393,10 +398,10 @@ user_directive_persistent: "No pragmatic convergence. Fix all issues before buil
 | **Language** | Rust |
 | **Target Workspace** | per-analyst stdio (MCP server) |
 | **Started** | 2026-04-13 |
-| **Last Updated** | 2026-05-03 (Wave 4 Phase 4.A Pass 5 BLOCKED + remediated — arch aggregates synced SAFE 138→145 Tier2 79→86; coverage-matrix 144→145; ARCH-INDEX AD-004 17 CFs; S-4.08 v1.14; STATE v6.30→v6.31) |
-| **Current Phase** | Phase 4.A — Wave 4 adversarial spec convergence (Pass 6 queued; 0/3 clean window; trajectory 38→17→8→7→7) |
-| **Current Step** | Adversarial Pass 6 (re-run on Pass 5 remediated specs; trajectory 38→17→8→7→7; CLEAN target) |
-| **factory-artifacts HEAD** | `0c7c88d0` (W4 Phase 4.A Pass 6 remediation — 4 BCs v1.3→1.4; BC-INDEX H1 sync; coverage-matrix VP-053; STATE v6.32) |
+| **Last Updated** | 2026-05-03 (Wave 4 Phase 4.A Pass 7 BLOCKED + remediated — S-4.08 v1.15 BC title sync; BC-2.12.004 v1.5; coverage-matrix VP totals comment; STATE v6.32→v6.33) |
+| **Current Phase** | Phase 4.A — Wave 4 adversarial spec convergence (Pass 8 queued; 0/3 clean window; trajectory 38→17→8→7→7→5→5) |
+| **Current Step** | Adversarial Pass 8 (re-run on Pass 7 remediated specs; trajectory 38→17→8→7→7→5→5; CLEAN target) |
+| **factory-artifacts HEAD** | `246b9f71` (W4 Phase 4.A Pass 7 remediation — S-4.08 v1.15 BC title sync; BC-2.12.004 v1.5; coverage-matrix VP totals; STATE v6.33) |
 
 ## Phase Progress
 
@@ -465,15 +470,15 @@ _TD-VSDD-014..019, TD-W3-COMPLIANCE-001, TD-VSDD-025..029 archived to [tech-debt
 
 Cycle files: [burst-log](cycles/phase-2-patch/burst-log.md) | [convergence-trajectory](cycles/phase-2-patch/convergence-trajectory.md) | [session-checkpoints](cycles/phase-2-patch/session-checkpoints.md) | [lessons](cycles/phase-2-patch/lessons.md) | [resolved-blockers](cycles/phase-2-patch/blocking-issues-resolved.md)
 ---
-## Session Resume Checkpoint (2026-05-03-wave4-phase4a-pass5-remediated-v6.31)
+## Session Resume Checkpoint (2026-05-03-wave4-phase4a-pass7-remediated-v6.33)
 
 _Previous checkpoint archived: [cycles/wave-4-operations/session-checkpoints.md](cycles/wave-4-operations/session-checkpoints.md)_
 
-**STATE v6.32 (canonical SHA 0c7c88d0). WAVE 4 PHASE 4.A — PASS 6 BLOCKED + REMEDIATED. PASS 7 QUEUED.**
+**STATE v6.33 (canonical SHA 246b9f71). WAVE 4 PHASE 4.A — PASS 7 BLOCKED + REMEDIATED. PASS 8 QUEUED.**
 
-develop HEAD: `ba3b10c7` | factory-artifacts: `0c7c88d0` | workspace tests: 2363 | PRs merged: 125
+develop HEAD: `ba3b10c7` | factory-artifacts: `246b9f71` | workspace tests: 2363 | PRs merged: 125
 
-**NEXT ACTION: Dispatch vsdd-factory:adversary for Pass 6 on remediated specs. Trajectory 38→17→8→7→7. Target: CLEAN to open convergence window 1/3. See SESSION-HANDOFF.md.**
+**NEXT ACTION: Dispatch vsdd-factory:adversary for Pass 8 on remediated specs. Trajectory 38→17→8→7→7→5→5. Target: CLEAN to open convergence window 1/3. See SESSION-HANDOFF.md.**
 
 **Key files:** [SESSION-HANDOFF.md](SESSION-HANDOFF.md) | [cycle-manifest.md](cycles/wave-4-operations/cycle-manifest.md)
 
