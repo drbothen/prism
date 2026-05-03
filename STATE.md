@@ -475,9 +475,9 @@ Cycle files: [burst-log](cycles/phase-2-patch/burst-log.md) | [convergence-traje
 
 _Previous checkpoint archived: [cycles/wave-4-operations/session-checkpoints.md](cycles/wave-4-operations/session-checkpoints.md)_
 
-**STATE v6.46 (canonical SHA `15fa97e6`). WAVE 4 PHASE 4.A — PRE-PASS-17 SWEEP COMPLETE. READY FOR PASS 17 (WINDOW 1/3).**
+**STATE v6.46 (canonical SHA `6aa11611`). WAVE 4 PHASE 4.A — PRE-PASS-17 SWEEP COMPLETE. READY FOR PASS 17 (WINDOW 1/3).**
 
-develop HEAD: `ba3b10c7` | factory-artifacts: `15fa97e6` | workspace tests: 2363 | PRs merged: 125
+develop HEAD: `ba3b10c7` | factory-artifacts: `6aa11611` | workspace tests: 2363 | PRs merged: 125
 
 **PRE-PASS-17 SWEEP SUMMARY:** F-PreP17-H-001 — S-4.01 STORY-INDEX row VPs cell `VP-026,030` corrected to `VP-026, VP-030, VP-137` per frontmatter source-of-truth. Pass 16 H-001 listed only 6 rows; S-4.01 was 7th un-listed drift. STORY-INDEX v1.98→v1.99.
 
