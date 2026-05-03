@@ -1,7 +1,7 @@
 ---
 document_type: session-handoff
 level: ops
-version: "6.24"
+version: "6.25"
 status: current
 timestamp: 2026-05-02T02:00:00Z
 predecessor_session: "Wave 4 Phase 4.A decisions logged 2026-05-02. D-207..D-213 logged: 6-ADR topology, OrgId/ClientId hierarchy, per-subsystem semaphores, clients=[] reject, dedup scheduling-time, prism-siem-formats in-house, ADR-017 narrative. Research complete (research-findings.md). Architect cleared for Phase 1 ADRs. STATE v6.20→v6.21. factory-artifacts 41c711cf (prior canonical SHA)."
@@ -33,6 +33,8 @@ factory-artifacts canonical: 84455d7d (canonical SHA). develop HEAD: ba3b10c7."
 # Session Handoff — WAVE 4 PHASE 4.A DECISIONS LOGGED (2026-05-02)
 
 ## TL;DR
+
+**Wave 4 Phase 4.A Story Remediation Complete (2026-05-02) — STATE v6.25:** All 8 W4 stories remediated; 43 drift findings + 5 spec-quality HIGH findings addressed; library pins updated per research; ADR refs added; pre-flight re-run queued.
 
 **Wave 4 Phase 4.A ALL 6 ADRs Complete (2026-05-02) — STATE v6.24:** ADR-013/015/016/017/018/019 PROPOSED v0.1; VP-137..144 added (8 VPs); story-writer drift remediation queued.
 
@@ -66,12 +68,12 @@ factory-artifacts canonical: 84455d7d (canonical SHA). develop HEAD: ba3b10c7."
 
 ## Current State
 
-develop HEAD `ba3b10c7` | factory-artifacts `e4315c91` (Wave 4 Phase 3 ADRs committed — ADR-016 + ADR-019; VP-143+144 added; ALL 6 W4 ADRs PROPOSED v0.1; STATE v6.24)
+develop HEAD `ba3b10c7` | factory-artifacts `b881b0d2` (W4 Phase 4.A story remediation — 8 stories updated, 43 drift + 5 quality HIGH addressed; STATE v6.25)
 
 | Metric | Value |
 |--------|-------|
 | develop HEAD | `ba3b10c7` (W3-FIX-SEC-005 — Wave 3.4 final PR, PR #125, 2026-05-02) |
-| factory-artifacts HEAD | `e4315c91` (Wave 4 Phase 3 ADRs committed — ADR-016 + ADR-019; VP-143+144 added; ALL 6 W4 ADRs PROPOSED v0.1; STATE v6.24) |
+| factory-artifacts HEAD | `b881b0d2` (W4 Phase 4.A story remediation — 8 stories updated, 43 drift + 5 quality HIGH addressed; STATE v6.25) |
 | PR count merged | 125 |
 | Workspace test count | 2363 (nextest-verified; +133 from CI nextest split + doctest migration) |
 | Open PRs | None |
@@ -93,7 +95,7 @@ STATE v6.21. factory-artifacts 84455d7d (canonical SHA). 11-step remediation seq
 
 ### Resume Steps
 
-1. **Story-writer comprehensive drift remediation** on all 8 W4 stories (per drift audit categories K, I, D, M, F + research findings + new ADR refs to ADR-013/015/016/017/018/019)
+1. **Re-run pre-flight:** dispatch vsdd-factory:consistency-validator (fresh context) + vsdd-factory:spec-reviewer (verify spec-quality findings closed) — Phase 4.A iteration 2 BEFORE adversarial convergence.
 2. Spec-quality remediation (S-4.06/4.08 sizing, AC measurability HIGHs)
 3. 3-clean adversarial spec convergence on all 6 new ADRs
 4. Story-writer comprehensive drift remediation on all 8 W4 stories (per drift audit categories K, I, D, M, F + spec-quality findings + research-findings library updates + ADR refs to new ADRs)

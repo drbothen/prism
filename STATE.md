@@ -50,7 +50,7 @@ wave_4_phase_4_a_preflight:
   total_vps_added: "8 [VP-137..VP-144]"
   story_remediation_complete: true
   stories_remediated: [S-4.01, S-4.02, S-4.03, S-4.04, S-4.05, S-4.06, S-4.07, S-4.08]
-  story_remediation_stage1_sha: 15fa97e6
+  story_remediation_stage1_sha: b881b0d2
   drift_findings_addressed: 43_of_28_drift_5_quality_HIGH_8_quality_KUDO_preserved
   re_pointed_stories: { S-4.03: '5->8', S-4.05: '2->4', S-4.06: '5->9', S-4.08: '5->9' }
   deferred_items: [kani_version_pin_S406, keyring_uri_TD-S-1.07-01_W5_prereq, plugin_authoring_sdk_W5plus, cycle_manifest_point_total_reconcile]
@@ -402,7 +402,7 @@ user_directive_persistent: "No pragmatic convergence. Fix all issues before buil
 | **Last Updated** | 2026-05-02 (Wave 4 Phase 4.A Phase 3 ADRs committed — ADR-016 + ADR-019; VP-143..144 added; ALL 6 W4 ADRs PROPOSED v0.1; STATE v6.23→v6.24) |
 | **Current Phase** | Phase 4.A — Wave 4 spec-drift remediation + new ADR authoring (BLOCKING for implementation) |
 | **Current Step** | Re-run pre-flight (consistency-validator + spec-reviewer fresh-context) on remediated stories — Phase 4.A iteration 2 |
-| **factory-artifacts HEAD** | `15fa97e6` (W4 Phase 4.A story remediation — 8 stories updated, STATE v6.25) |
+| **factory-artifacts HEAD** | `b881b0d2` (W4 Phase 4.A story remediation — 8 stories updated, STATE v6.25) |
 
 ## Phase Progress
 

@@ -2,7 +2,7 @@
 document_type: cycle-manifest
 cycle_id: wave-4-operations
 cycle_type: feature
-version: wave-4-preflight-v1.7
+version: wave-4-preflight-v1.8
 status: in-progress
 started: pending
 completed: pending
@@ -88,12 +88,12 @@ Wave 4 introduces the operations runtime: scheduled sensor polling, differential
 | S-4.02 | Differential Results and Packs | 5 | 2 | VP-019 | 2 | S-4.01 |
 | S-4.03 | Detection Rule Loading and Compilation | 8 | 5 | VP-018 | 3 | S-3.02, S-1.08, S-2.01 |
 | S-4.04 | Detection Evaluation (Single/Correlation/Sequence) | 5 | 5 | VP-027 | 3 | S-4.03 |
-| S-4.05 | Alert Generation | 1 | 2 | VP-028 | 1 | S-4.04 |
+| S-4.05 | Alert Generation | 4 | 2 | VP-028 | 1 | S-4.04 |
 | S-4.06 | Case Management | 9 | 5 | VP-052/53/54/60 | 3 | S-4.05, S-2.01 |
 | S-4.07 | Case Metrics + Acknowledge Alert | 3 | 3 | — | 2 | S-4.06 |
 | S-4.08 | Action Delivery Framework | 9 | 5 | VP-044/45/46/47 | 3 | S-4.05, S-4.06, S-4.01, S-1.15, S-6.11/12/13 |
 
-**Total story points:** 45
+**Total story points:** 46
 **Total BCs covered:** ~32 unique (per STORY-INDEX wave-4 raw count = 45)
 
 ### Topology / Dispatch Order
@@ -224,6 +224,7 @@ Story inventory will be remediated post-ADR-acceptance per drift audit categorie
 
 | Version | Date | Change |
 |---------|------|--------|
+| wave-4-preflight-v1.8 | 2026-05-02T21:30:00Z | Story remediation complete (b881b0d2): 8 W4 stories updated; 43 drift + 5 spec-quality HIGH addressed; S-4.03: 5→8 pts, S-4.05: 1→4 pts; total 45→46 pts; ADR refs + library pins added; STORY-INDEX updated. Pre-flight re-run queued. |
 | wave-4-preflight-v1.7 | 2026-05-02T20:50:00Z | Phase 3 ADRs committed (ADR-016 + ADR-019 PROPOSED v0.1); VP-143 + VP-144 stubs added. ALL 6 Wave 4 ADRs complete. Story-writer drift remediation queued. |
 | wave-4-preflight-v1.6 | 2026-05-02T20:30:00Z | Phase 2 ADRs committed (ADR-015 + ADR-018 PROPOSED v0.1); VP-139..142 stubs added. Phase 3 (ADR-016 + ADR-019) queued. |
 | wave-4-preflight-v1.5 | 2026-05-02T20:00:00Z | Phase 1 ADRs committed (ADR-013 + ADR-017 PROPOSED v0.1); VP-137 + VP-138 stubs added. Phase 2 (ADR-015 + ADR-018) queued. |
