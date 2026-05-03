@@ -395,7 +395,7 @@ user_directive_persistent: "No pragmatic convergence. Fix all issues before buil
 | **Last Updated** | 2026-05-03 (Wave 4 Pass 15 BLOCKED → REMEDIATED; TD-VSDD-042; STORY-INDEX v1.97; STATE v6.43→v6.44) |
 | **Current Phase** | Phase 4.A — Wave 4 adversarial spec convergence (15 passes consumed; 0/3 clean window; Pass 16 next) |
 | **Current Step** | Wave 4 Phase 4.A — Pass 15 REMEDIATED (2H: cron-tick sister-text + STORY-INDEX VP cascade gap); Pass 16 (window 1/3 attempt) |
-| **factory-artifacts HEAD** | `15fa97e6` |
+| **factory-artifacts HEAD** | `73a76bb8` |
 
 ## Phase Progress
 
@@ -474,9 +474,9 @@ Cycle files: [burst-log](cycles/phase-2-patch/burst-log.md) | [convergence-traje
 
 _Previous checkpoint archived: [cycles/wave-4-operations/session-checkpoints.md](cycles/wave-4-operations/session-checkpoints.md)_
 
-**STATE v6.44 (canonical SHA `15fa97e6`). WAVE 4 PHASE 4.A — PASS 15 BLOCKED → REMEDIATED. READY FOR PASS 16 (WINDOW 1/3).**
+**STATE v6.44 (canonical SHA `73a76bb8`). WAVE 4 PHASE 4.A — PASS 15 BLOCKED → REMEDIATED. READY FOR PASS 16 (WINDOW 1/3).**
 
-develop HEAD: `ba3b10c7` | factory-artifacts: `15fa97e6` | workspace tests: 2363 | PRs merged: 125
+develop HEAD: `ba3b10c7` | factory-artifacts: `73a76bb8` | workspace tests: 2363 | PRs merged: 125
 
 **PASS 15 SUMMARY:** 2 HIGH (F-P15-H-001 S-4.08 cron-tick sister-text Pass-8 propagation gap; F-P15-H-002 STORY-INDEX total_vps_assigned 136→145 + proptests 77→86 POLICY 3+9 cascade gap). TD-VSDD-042 filed. S-4.08 v1.22, STORY-INDEX v1.97.
 
