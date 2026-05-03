@@ -1,7 +1,7 @@
 ---
 document_type: pipeline-state
 level: ops
-version: "6.24"
+version: "6.25"
 producer: state-manager
 timestamp: 2026-05-02T02:00:00Z
 inputs: []
@@ -22,7 +22,7 @@ repos:
   - axiathon
   - ocsf-proto-gen
   - mcp-claroty-xdome
-current_step: "Story-writer comprehensive drift remediation on all 8 W4 stories (ADRs complete; per drift audit + research findings + new ADR refs)"
+current_step: "Re-run pre-flight (consistency-validator + spec-reviewer fresh-context) on remediated stories — Phase 4.A iteration 2"
 awaiting: "Architect Phase 1 ADR drafts (ADR-013 Schedule Execution Semantics + ADR-017 Case Lifecycle Invariants) — parallel authoring"
 wave_3_carry_forward_debt: "ALL_REMEDIATE — W4-FIX-PERF-001/002, W4-FIX-CODE-001, W4-FIX-SEC-001..004 stories planned per D-203"
 wave_4_status: "PHASE_4_A_DECISIONS_LOGGED — D-207..D-213 logged 2026-05-02; architect cleared for ADR drafting (6 ADRs in 3 phases); implementation BLOCKED until pre-flight clears"
@@ -48,7 +48,13 @@ wave_4_phase_4_a_preflight:
   all_wave_4_adrs_complete: true
   total_adrs_authored: "6 [ADR-013, ADR-015, ADR-016, ADR-017, ADR-018, ADR-019]"
   total_vps_added: "8 [VP-137..VP-144]"
-  next_step: story-writer-comprehensive-drift-remediation
+  story_remediation_complete: true
+  stories_remediated: [S-4.01, S-4.02, S-4.03, S-4.04, S-4.05, S-4.06, S-4.07, S-4.08]
+  story_remediation_stage1_sha: 15fa97e6
+  drift_findings_addressed: 43_of_28_drift_5_quality_HIGH_8_quality_KUDO_preserved
+  re_pointed_stories: { S-4.03: '5->8', S-4.05: '2->4', S-4.06: '5->9', S-4.08: '5->9' }
+  deferred_items: [kani_version_pin_S406, keyring_uri_TD-S-1.07-01_W5_prereq, plugin_authoring_sdk_W5plus, cycle_manifest_point_total_reconcile]
+  next_step: re-run-preflight-iteration-2
   findings_files:
     - .factory/cycles/wave-4-operations/preflight-findings/architect-adr-identification.md
     - .factory/cycles/wave-4-operations/preflight-findings/consistency-drift-audit.md
@@ -348,7 +354,7 @@ bc_count_corrected: 230
 cap_count: 40  # active; highest_cap_id: CAP-040 (CAP-038 Multi-Tenant Identity, CAP-039 Multi-Tenant Fixture Gen, CAP-040 Multi-Tenant Adapter Dispatch — Wave 3 Phase 3.A Step 2)
 bc_index_version: "4.27"
 vp_index_version: "1.22"
-story_index_version: "v1.80"
+story_index_version: "v1.81"
 red_gate_wave_0a_complete: 2026-04-21
 test_vectors_version: "2.7"
 prd_version: "1.7"
@@ -395,8 +401,8 @@ user_directive_persistent: "No pragmatic convergence. Fix all issues before buil
 | **Started** | 2026-04-13 |
 | **Last Updated** | 2026-05-02 (Wave 4 Phase 4.A Phase 3 ADRs committed — ADR-016 + ADR-019; VP-143..144 added; ALL 6 W4 ADRs PROPOSED v0.1; STATE v6.23→v6.24) |
 | **Current Phase** | Phase 4.A — Wave 4 spec-drift remediation + new ADR authoring (BLOCKING for implementation) |
-| **Current Step** | Story-writer comprehensive drift remediation on all 8 W4 stories (ADRs complete; per drift audit + research findings + new ADR refs) |
-| **factory-artifacts HEAD** | `e4315c91` (Wave 4 Phase 3 ADRs committed — ADR-016 + ADR-019; VP-143+144 added; ALL 6 W4 ADRs PROPOSED v0.1; STATE v6.24) |
+| **Current Step** | Re-run pre-flight (consistency-validator + spec-reviewer fresh-context) on remediated stories — Phase 4.A iteration 2 |
+| **factory-artifacts HEAD** | `15fa97e6` (W4 Phase 4.A story remediation — 8 stories updated, STATE v6.25) |
 
 ## Phase Progress
 
@@ -430,10 +436,7 @@ user_directive_persistent: "No pragmatic convergence. Fix all issues before buil
 | **Phase 4.A: Pre-flight summary** | state-manager | **COMPLETE** | D-206 logged; 116 total findings; REMEDIATION_REQUIRED; see preflight-findings/preflight-summary.md |
 | **Phase 4.A: Research dispatch (13 tasks)** | research-agent | **COMPLETE** | research-findings.md at cycles/wave-4-operations/preflight-findings/research-findings.md; 13 tasks completed (DataFusion 53/cron/lettre/blake3/libfuzzer-sys/rocksdb/CEF-LEEF/percentile/wasmtime) |
 | **Phase 4.A: Architect open-questions resolution** | human + orchestrator | **COMPLETE** | 7 questions answered; D-207..D-213 logged 2026-05-02 |
-| **Phase 4.A: Architect Phase 1 ADR drafting (ADR-013 + ADR-017)** | architect | **QUEUED** | Phase 1 (no intra-Wave-4 deps): ADR-013 (Schedule Execution Semantics) + ADR-017 (Case Lifecycle Invariants) in parallel |
-| **Phase 4.A: Architect Phase 2 ADR drafting (ADR-015 + ADR-018)** | architect | **NOT_STARTED** | Gated on Phase 1 completion; ADR-015 (Detection Rule Language) + ADR-018 (Differential Result Pack Format) |
-| **Phase 4.A: Architect Phase 3 ADR drafting (ADR-016 + ADR-019)** | architect | **NOT_STARTED** | Gated on Phase 2 completion; ADR-016 (Action Delivery Framework) + ADR-019 (SIEM Output Formats) |
----
+| **Phase 4.A: All 6 ADR phases complete (ADR-013/015/016/017/018/019)** | architect | **COMPLETE** | 3 phased parallel rounds; 8 VPs added (VP-137..144); stage1 SHAs 6d6fbfb6/20b067e7/e4315c91 |
 ## Decisions Log
 _D-001..D-046 archived: [cycles/phase-3-dtu-wave-2/decisions-archive-d001-d032.md](cycles/phase-3-dtu-wave-2/decisions-archive-d001-d032.md). D-047..D-174 archived: [cycles/wave-3-multi-tenant/decisions-archive-d047-d114.md](cycles/wave-3-multi-tenant/decisions-archive-d047-d114.md). D-175..D-188 archived: [cycles/wave-3-multi-tenant/burst-log.md](cycles/wave-3-multi-tenant/burst-log.md) (v6.12 compaction)._
 | ID | Decision | Rationale | Phase | Date |
