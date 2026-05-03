@@ -107,7 +107,7 @@ wave_4_phase_4_a_preflight:
   pass_20_adversary_verdict: "BLOCKED (4 findings: 0C/2H/0M/2L/0OBS)"
   pass_20_remediation_complete: true
   pass_20_fixes: [VP-INDEX v1.26 VP-045 desc cascade fix, verification-architecture v1.27 VP-045 line, coverage-matrix v1.31 VP-045 BC parenthetical, ADR-016 v0.12 VP-045/047 P1→P0 POL-9 sync, S-4.08 v1.23 token version pin drop, BC-2.18.001 v1.8 ActionEngine→ActionDeliveryEngine + BC-2.18.002/004 v1.5, ARCH-INDEX v2.17]
-  pass_20_stage1_sha: 15fa97e6
+  pass_20_stage1_sha: 5f96ef36
   next_action: "Adversary Pass 21 (fresh 3-clean window required; window reset 2/3→0/3)"
   vsdd_plugin_td_count: 24 (was 22; TD-VSDD-044 cite-repair + TD-VSDD-045 Pass 17 VP Matrix gap added)
 gate_status_hook_compat_remediation: 2026-04-24
@@ -400,7 +400,7 @@ user_directive_persistent: "No pragmatic convergence. Fix all issues before buil
 | **Last Updated** | 2026-05-03 (Pass 20 BLOCKED → REMEDIATED — 2H+2L; window RESET 2/3→0/3; STATE v6.54) |
 | **Current Phase** | Phase 4.A — Wave 4 adversarial spec convergence (20 passes consumed; window RESET 0/3; Pass 21 next) |
 | **Current Step** | Wave 4 Phase 4.A — Pass 20 BLOCKED (2H+2L; FINDINGS_REMAIN); VP-045 cascade + ADR-016 priority sync + ActionDeliveryEngine rename REMEDIATED; Pass 21 (fresh 3-clean window slot 1/3) next |
-| **factory-artifacts HEAD** | `15fa97e6` |
+| **factory-artifacts HEAD** | `5f96ef36` |
 
 ## Phase Progress
 
@@ -463,9 +463,9 @@ Cycle files: [burst-log](cycles/phase-2-patch/burst-log.md) | [convergence-traje
 
 _Previous checkpoint archived: [cycles/wave-4-operations/session-checkpoints.md](cycles/wave-4-operations/session-checkpoints.md)_
 
-**STATE v6.54 (canonical SHA `15fa97e6`). WAVE 4 PHASE 4.A — PASS 20 BLOCKED → REMEDIATED. WINDOW RESET 2/3→0/3. FINDINGS_REMAIN.**
+**STATE v6.54 (canonical SHA `5f96ef36`). WAVE 4 PHASE 4.A — PASS 20 BLOCKED → REMEDIATED. WINDOW RESET 2/3→0/3. FINDINGS_REMAIN.**
 
-develop HEAD: `ba3b10c7` | factory-artifacts: `15fa97e6` | workspace tests: 2363 | PRs merged: 125
+develop HEAD: `ba3b10c7` | factory-artifacts: `5f96ef36` | workspace tests: 2363 | PRs merged: 125
 
 **PASS 20:** 2H+0M+2L. F-P20-H-001 (VP-045 desc cascade gap — Pass-6 BC rename unpropagated), F-P20-H-002 (VP-045+047 priority P1→P0 POL-9 sync gap), F-P20-L-001 (S-4.08 token version pin dropped), F-P20-L-002 (ActionEngine→ActionDeliveryEngine rename cascade). All remediated. Window RESET 2/3→0/3.
 

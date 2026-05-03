@@ -170,7 +170,7 @@ STEP 2 — Resume formal adversary passes (Option A — VSDD discipline):
 
   **Pass 19 dispatched 2026-05-03 — CLEAN (window 2/3 OPEN; CONVERGENCE_REACHED). 0/0/0/0/0 all-zero. First all-zero pass. 10+ cross-cut chains verified. Trajectory: P14(2H+4M+3L)→P15(2H)→P16(2H+2M)→P17(1H+2M)→P18(0H+2M+1L; 1/3)→P19(0; 2/3).**
 
-  **Pass 20 dispatched 2026-05-03 — BLOCKED → REMEDIATED (2H+0M+2L; WINDOW RESET 2/3→0/3). F-P20-H-001 SUBSTANTIVE (VP-045 desc "Schedule semaphore" stale — Pass-6 BC-2.18.004 rename "Action Delivery Semaphore" failed to cascade to VP-INDEX+verification-architecture+coverage-matrix); F-P20-H-002 SUBSTANTIVE (VP-045+VP-047 priority P1→P0 per POL-9 not synced in ADR-016 v0.11 VP table); F-P20-L-001 COSMETIC (S-4.08 croner 0.7.0 token version pin dropped v1.22→v1.23); F-P20-L-002 COSMETIC (ActionEngine→ActionDeliveryEngine rename cascade gap: BC-2.18.001 v1.8 + BC-2.18.002/004 v1.5). All remediated. ARCH-INDEX v2.17. Stage 1 SHA: 15fa97e6. Next: Pass 21 (fresh 3-clean window — slot 1/3).**
+  **Pass 20 dispatched 2026-05-03 — BLOCKED → REMEDIATED (2H+0M+2L; WINDOW RESET 2/3→0/3). F-P20-H-001 SUBSTANTIVE (VP-045 desc "Schedule semaphore" stale — Pass-6 BC-2.18.004 rename "Action Delivery Semaphore" failed to cascade to VP-INDEX+verification-architecture+coverage-matrix); F-P20-H-002 SUBSTANTIVE (VP-045+VP-047 priority P1→P0 per POL-9 not synced in ADR-016 v0.11 VP table); F-P20-L-001 COSMETIC (S-4.08 croner 0.7.0 token version pin dropped v1.22→v1.23); F-P20-L-002 COSMETIC (ActionEngine→ActionDeliveryEngine rename cascade gap: BC-2.18.001 v1.8 + BC-2.18.002/004 v1.5). All remediated. ARCH-INDEX v2.17. Stage 1 SHA: 5f96ef36. Next: Pass 21 (fresh 3-clean window — slot 1/3).**
 
   2b. If CLEAN: window slot fills. At 3/3 CONVERGED.
   2c. If BLOCKED at any pass: route findings tightly per defect-class; remediate; re-pass.
@@ -193,7 +193,7 @@ KEY REFERENCES:
 - 8 W4 stories current versions: S-4.01 v1.12, S-4.02 v1.11, S-4.03 v1.9, S-4.04 v1.11, S-4.05 v1.12, S-4.06 v1.13, S-4.07 v1.8, S-4.08 v1.23
 - 6 W4 BCs current versions: BC-2.12.004 v1.8, BC-2.18.001 v1.8, BC-2.18.002 v1.5, BC-2.18.004 v1.5
 - verification-architecture v1.27, verification-coverage-matrix v1.31, ARCH-INDEX v2.17, STORY-INDEX v2.02, BC-INDEX v4.31, VP-INDEX v1.26
-- factory-artifacts canonical SHA: `15fa97e6`
+- factory-artifacts canonical SHA: `5f96ef36`
 - develop HEAD: ba3b10c7 (Wave 3 CONVERGED 2026-05-02)
 
 ### Carry-Forward Debt (Wave 4 — REMEDIATE ALL per D-203)
