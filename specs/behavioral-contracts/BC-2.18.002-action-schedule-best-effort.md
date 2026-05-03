@@ -1,7 +1,7 @@
 ---
 document_type: behavioral-contract
 level: L3
-version: "1.3"
+version: "1.4"
 status: draft
 producer: product-owner
 timestamp: 2026-04-16T12:00:00
@@ -11,7 +11,7 @@ subsystem: "SS-18"
 capability: "CAP-033"
 lifecycle_status: active
 introduced: cycle-1
-modified: 2026-04-20
+modified: 2026-05-02
 deprecated: ~
 deprecated_by: ~
 replacement: ~
@@ -27,6 +27,11 @@ extracted_from: ".factory/specs/prd.md"
 ---
 
 # BC-2.18.002: Schedule Action Triggers — Best-Effort, Retry on Next Cron Tick
+
+> **Supersedes note:** Earlier draft stated a 1-second cron tick loop and referenced 16
+> schedule permits. Current spec reflects ADR-013 §2.1 60-second default tick (configurable
+> via `PRISM_SCHEDULER_TICK_SECS`) and ADR-016 §2.11 + D-209 8-permit
+> `action_delivery_semaphore` (module-private to `action/delivery.rs`; NOT shared).
 
 ## Description
 
@@ -51,17 +56,21 @@ evaluation. There is no catch-up for missed windows. This is INV-ACTION-002.
   No retry state is written. No dead-letter. The next cron tick evaluates normally.
 - **Missed tick (Prism down at tick time):** The tick is silently skipped. Prism does
   not attempt to "catch up" missed scheduled actions on restart.
-- **Semaphore unavailable (all 16 schedule permits held):** Tick is skipped with log
-  `"Schedule action '{action_id}' skipped: schedule semaphore unavailable"`. This is
+- **Semaphore unavailable (all 8 `action_delivery_semaphore` permits held; per ADR-016
+  §2.11 + D-209):** Tick is skipped with log
+  `"Schedule action '{action_id}' skipped: action delivery semaphore unavailable"`. This is
   covered separately in BC-2.18.004.
 
 ## Invariants
 
 - INV-ACTION-002: Schedule triggers are best-effort — no catch-up for missed windows, no retry on failure
-- The cron tick loop runs on a 1-second `tokio::time::interval`; it MUST NOT block
+- The cron tick loop runs on a **60-second default `tokio::time::interval`** (configurable
+  via `PRISM_SCHEDULER_TICK_SECS`, range 10–3600 s; per ADR-013 §2.1); it MUST NOT block
 - Failed scheduled deliveries are logged but do not create retry or dead-letter state
 - Schedule action delivery runs via `ActionEngine::fire_schedule`, not the same retry
   infrastructure as alert/case triggers (BC-2.18.001)
+- The `action_delivery_semaphore` is module-private to `action/delivery.rs` and is NOT
+  shared with the schedule executor (per D-209)
 
 ## Error Conditions
 
@@ -75,7 +84,7 @@ evaluation. There is no catch-up for missed windows. This is INV-ACTION-002.
 | ID | Description | Expected Behavior |
 |----|-------------|-------------------|
 | EC-18-006 | Prism restarts mid-scheduled-action delivery | Delivery is abandoned; next scheduled tick fires normally (no catch-up) |
-| EC-18-007 | Cron fires every second (`* * * * * *`) and delivery takes 2 seconds | The 1-second ticker fires again while previous delivery is in progress; `try_acquire()` on semaphore prevents overlap (BC-2.18.004) |
+| EC-18-007 | Cron fires and delivery takes longer than tick interval | The next tick fires while previous delivery is in progress; `try_acquire()` on `action_delivery_semaphore` prevents overlap (BC-2.18.004) |
 | EC-18-008 | Schedule action with only one client; client removed from config | Next tick: `clients` list is empty; action skips with log; no delivery |
 
 ## Canonical Test Vectors
@@ -96,10 +105,13 @@ evaluation. There is no catch-up for missed windows. This is INV-ACTION-002.
 
 - BC-2.18.001 — Alert/Case At-Least-Once Delivery (stricter guarantee for alert/case triggers)
 - BC-2.18.003 — Manual Fire-and-Forget (third trigger type)
-- BC-2.18.004 — Schedule Semaphore Enforcement (semaphore governs concurrency, not delivery guarantee)
+- BC-2.18.004 — Action Delivery Semaphore Enforcement (semaphore governs concurrency, not delivery guarantee)
 
 ## Architecture Anchors
 
+- ADR-013 §2.1: Scheduler tick interval 60s default, configurable via `PRISM_SCHEDULER_TICK_SECS`
+- ADR-016 §2.11: `action_delivery_semaphore` — 8-permit, module-private to `action/delivery.rs`
+- D-209: Per-subsystem 8-permit independent semaphores; action delivery NOT shared with schedule executor
 - AD-021: Actions — schedule trigger best-effort semantics
 - `specs/architecture/actions.md` — schedule trigger, cron evaluation
 - S-4.08 Task 9: `action/cron.rs`
@@ -118,14 +130,32 @@ No dedicated test for missed-tick behavior (non-deterministic timing). Covered i
 |-------|-------|
 | L2 Capability | CAP-033 |
 | Story Invariant | INV-ACTION-002 |
-| ADR | AD-021 |
+| ADR | ADR-013 §2.1, ADR-016 §2.11, D-209 |
 | Story | S-4.08 |
 | Priority | P0 |
+
+## Phase 4.A Pass 6 Remediation Notes
+
+**Adversary finding:** HIGH-003 (Pass 6) — BC body stated 1-second cron tick loop and
+referenced 16 schedule permits, contradicting locked ADR-013 §2.1, ADR-016 §2.11, and D-209.
+
+**Changes made (2026-05-02):**
+- Semaphore corrected in Postconditions: "all 16 schedule permits" → **"all 8
+  `action_delivery_semaphore` permits"** (module-private; per ADR-016 §2.11 + D-209)
+- Tick interval corrected in Invariants: "1-second `tokio::time::interval`" → **"60-second
+  default `tokio::time::interval`"** configurable via `PRISM_SCHEDULER_TICK_SECS` (per ADR-013 §2.1)
+- Added module-private invariant for `action_delivery_semaphore` (per D-209)
+- Updated EC-18-007 to remove hardcoded "1-second" reference
+- Added Architecture Anchors for ADR-013 §2.1, ADR-016 §2.11, D-209
+- Updated Related BCs entry for BC-2.18.004 to use new title
+- Updated Traceability ADR field
+- Added supersedes note at top of body
 
 ## Changelog
 
 | Version | Burst | Date | Author | Change |
 |---------|-------|------|--------|--------|
+| 1.4 | wave4-pass6-bc-sweep | 2026-05-02 | product-owner | Phase 4.A Pass 6 remediation (HIGH-003): corrected semaphore to 8-permit action_delivery_semaphore (ADR-016 §2.11 + D-209) and tick to 60s default (ADR-013 §2.1). |
 | 1.3 | pass-69-housekeeping | 2026-04-20 | product-owner | Normalized changelog schema to canonical 5-col schema. |
 | 1.2 | pass-69-housekeeping | 2026-04-20 | product-owner | Resolved VP-TBD placeholder per decision matrix (MARK-NONE); normalized changelog schema to canonical 5-col form. |
 | 1.1 | Wave-6-pre-build-sweep | 2026-04-20 | product-owner | Added frontmatter (inputs, input-hash, traces_to, extracted_from, lifecycle fields); added Error Conditions (from inline entries), Canonical Test Vectors, Verification Properties, Changelog |

@@ -1,7 +1,7 @@
 ---
 document_type: behavioral-contract
 level: L3
-version: "1.3"
+version: "1.4"
 status: draft
 producer: product-owner
 timestamp: 2026-04-16T12:00:00
@@ -11,7 +11,7 @@ subsystem: "SS-18"
 capability: "CAP-033"
 lifecycle_status: active
 introduced: cycle-1
-modified: 2026-04-20
+modified: 2026-05-02
 deprecated: ~
 deprecated_by: ~
 replacement: ~
@@ -28,13 +28,18 @@ extracted_from: ".factory/specs/prd.md"
 
 # BC-2.18.001: Alert and Case Action Triggers — At-Least-Once Delivery with Exponential Backoff Retry
 
+> **Supersedes note:** Earlier draft used a non-standard backoff sequence of `2s/4s/8s/30s/60s`.
+> Current spec reflects ADR-016 §2.6 standard exponential backoff `2s, 4s, 8s, 16s, 32s`
+> with ±10% jitter per attempt (cumulative range 55.8s–68.2s nominal-jittered; max 5 attempts).
+
 ## Description
 
 When an alert or case event triggers an action, the delivery is guaranteed at-least-once.
-Failed deliveries are retried with exponential backoff (maximum 5 attempts, base 2 seconds,
-maximum 60 seconds per attempt). Retry state is persisted to RocksDB `action_state` CF
-before each attempt. After 5 failures, a dead-letter record is written and an audit event
-is emitted. The source alert is NOT lost (it remains in the `alerts` CF). This is INV-ACTION-001.
+Failed deliveries are retried with exponential backoff (maximum 5 attempts, schedule
+**2s, 4s, 8s, 16s, 32s** with ±10% jitter per attempt; cumulative 55.8s–68.2s; per
+ADR-016 §2.6). Retry state is persisted to RocksDB `action_state` CF before each attempt.
+After 5 failures, a dead-letter record is written and an audit event is emitted. The source
+alert is NOT lost (it remains in the `alerts` CF). This is INV-ACTION-001.
 
 ## Preconditions
 
@@ -49,7 +54,8 @@ is emitted. The source alert is NOT lost (it remains in the `alerts` CF). This i
 - **Retryable failure (HTTP 429, 5xx, network error):**
   - Retry state is written to `action_state` CF:
     `"{action_id}:retry:{alert_id}"` → `{ attempt: u32, next_retry_at: Timestamp, last_error: String }`
-  - Backoff schedule: attempt 1 = 2s, 2 = 4s, 3 = 8s, 4 = 30s, 5 = 60s
+  - Backoff schedule (per ADR-016 §2.6): attempt 1 = 2s ±10%, 2 = 4s ±10%, 3 = 8s ±10%,
+    4 = 16s ±10%, 5 = 32s ±10%; cumulative range 55.8s–68.2s
   - Retry is executed via `tokio::time::sleep` (does NOT block the trigger evaluation loop)
   - On success: retry key is deleted from `action_state` CF
 - **Non-retryable failure (HTTP 4xx except 429):**
@@ -62,7 +68,9 @@ is emitted. The source alert is NOT lost (it remains in the `alerts` CF). This i
 
 ## Invariants
 
-- INV-ACTION-001: Alert and case triggers deliver at-least-once with retry (max 5, exponential backoff 2s base, 60s max)
+- INV-ACTION-001: Alert and case triggers deliver at-least-once with retry (max 5 attempts,
+  exponential backoff `2s, 4s, 8s, 16s, 32s` with ±10% jitter per ADR-016 §2.6; cap 32s
+  per attempt)
 - Retry state persistence MUST complete before the retry delay begins
 - The trigger evaluation loop (subscribing to the alert broadcast channel) MUST NOT block
   during retry delays — retries run in separate tokio tasks
@@ -91,8 +99,8 @@ is emitted. The source alert is NOT lost (it remains in the `alerts` CF). This i
 | ID | Input | Expected Output | Notes |
 |----|-------|----------------|-------|
 | TV-18-001-happy | Webhook returns 200 on first attempt | Delivery success; retry key not written | Baseline |
-| TV-18-001-retry | Webhook returns 503 on attempts 1-2, 200 on attempt 3 | Success after 3 attempts; retry key deleted | EC-18-002 |
-| TV-18-001-exhaust | Webhook returns 500 on all 5 attempts | Dead-letter written; `action_delivery_failed` audit event | EC-18-001 |
+| TV-18-001-retry | Webhook returns 503 on attempts 1-2, 200 on attempt 3 | Success after 3 attempts; retry key deleted; delays ~2s and ~4s (±10%) | EC-18-002 |
+| TV-18-001-exhaust | Webhook returns 500 on all 5 attempts | Dead-letter written; `action_delivery_failed` audit event; total delay 55.8s–68.2s | EC-18-001 |
 | TV-18-001-restart | 2 failures; Prism restarts; RocksDB state present | Remaining 3 attempts executed post-restart | EC-18-003 |
 
 ## Verification Properties
@@ -111,6 +119,7 @@ is emitted. The source alert is NOT lost (it remains in the `alerts` CF). This i
 
 ## Architecture Anchors
 
+- ADR-016 §2.6: Action delivery retry backoff schedule (`2s, 4s, 8s, 16s, 32s` ±10% jitter)
 - AD-021: Actions — at-least-once delivery
 - `specs/architecture/actions.md` — retry logic, exponential backoff, dead-letter
 - S-4.08 Task 7: `action/retry.rs`
@@ -121,7 +130,7 @@ S-4.08 — prism-operations: Action Delivery Framework (INV-ACTION-001, AC-1, AC
 
 ## VP Anchors
 
-Integration test: `tests/action_tests.rs` — "Simulate webhook returning 500 → verify retry with backoff → verify dead-letter after 5 failures."
+Integration test: `tests/action_tests.rs` — "Simulate webhook returning 500 → verify retry with backoff (2s/4s/8s/16s/32s ±10%) → verify dead-letter after 5 failures."
 
 ## Traceability
 
@@ -129,14 +138,29 @@ Integration test: `tests/action_tests.rs` — "Simulate webhook returning 500 �
 |-------|-------|
 | L2 Capability | CAP-033 |
 | Story Invariant | INV-ACTION-001 |
-| ADR | AD-021 |
+| ADR | ADR-016 §2.6 |
 | Story | S-4.08 |
 | Priority | P0 |
+
+## Phase 4.A Pass 6 Remediation Notes
+
+**Adversary finding:** HIGH-002 (Pass 6) — BC body specified non-standard backoff sequence
+`2s/4s/8s/30s/60s`, contradicting locked ADR-016 §2.6.
+
+**Changes made (2026-05-02):**
+- Backoff schedule corrected: `2s/4s/8s/30s/60s` → **`2s, 4s, 8s, 16s, 32s`** (cap 32s per
+  attempt) with **±10% jitter** per attempt per ADR-016 §2.6
+- Cumulative range added: 55.8s–68.2s nominal-jittered
+- Updated: Description, Postconditions backoff schedule row, INV-ACTION-001 invariant,
+  Canonical Test Vectors (TV-18-001-retry and TV-18-001-exhaust notes), VP Anchors, Traceability ADR field
+- Added Architecture Anchor for ADR-016 §2.6
+- Added supersedes note at top of body
 
 ## Changelog
 
 | Version | Burst | Date | Author | Change |
 |---------|-------|------|--------|--------|
+| 1.4 | wave4-pass6-bc-sweep | 2026-05-02 | product-owner | Phase 4.A Pass 6 remediation (HIGH-002): corrected backoff to 2s/4s/8s/16s/32s ±10% jitter per ADR-016 §2.6; cumulative range 55.8s–68.2s; removed non-standard 30s/60s cap. |
 | 1.3 | pass-69-housekeeping | 2026-04-20 | product-owner | Normalized changelog schema to canonical 5-col schema. |
 | 1.2 | pass-69-housekeeping | 2026-04-20 | product-owner | Resolved VP-TBD placeholder per decision matrix (ADD-VP-044); normalized changelog schema to canonical 5-col form. |
 | 1.1 | Wave-6-pre-build-sweep | 2026-04-20 | product-owner | Added frontmatter (inputs, input-hash, traces_to, extracted_from, lifecycle fields); renamed Error Cases → Error Conditions; added Canonical Test Vectors, Verification Properties, Changelog |

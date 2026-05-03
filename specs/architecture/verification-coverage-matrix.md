@@ -2,7 +2,7 @@
 document_type: architecture-section
 level: L3
 section: "verification-coverage-matrix"
-version: "1.26"
+version: "1.27"
 status: draft
 producer: architect
 timestamp: 2026-04-20T18:00:00
@@ -21,11 +21,11 @@ See detailed tables below.
 
 | Module | Criticality | Kani Proofs | Proptest | Unit Tests | Fuzz Targets | Integration Tests | Coverage Target | VPs |
 |--------|------------|-------------|----------|------------|-------------|-------------------|----------------|-----|
-| prism-core | CRITICAL | 13 | 8 | 0 | 0 | 0 | 95% | VP-001, VP-002, VP-003, VP-004, VP-005, VP-006, VP-011, VP-029, VP-051, VP-053, VP-065, VP-070, VP-071 (kani); VP-063, VP-064, VP-069, VP-072, VP-073, VP-074, VP-075, VP-076 (proptest) |
+| prism-core | CRITICAL | 12 | 8 | 0 | 0 | 0 | 95% | VP-001, VP-002, VP-003, VP-004, VP-005, VP-006, VP-011, VP-029, VP-051, VP-065, VP-070, VP-071 (kani); VP-063, VP-064, VP-069, VP-072, VP-073, VP-074, VP-075, VP-076 (proptest) |
 | prism-security | CRITICAL | 5 | 1 | 0 | 1 | 0 | 90% | VP-007, VP-008, VP-009, VP-010, VP-020 (kani); VP-024 (proptest); VP-038 (fuzz) |
 | prism-query | CRITICAL | 4 | 2 | 0 | 2 | 0 | 90% | VP-012, VP-014, VP-015, VP-025 (kani); VP-013, VP-031 (proptest); VP-021, VP-037 (fuzz) |
 | prism-ocsf | CRITICAL | 0 | 2 | 0 | 1 | 0 | 90% | VP-016, VP-017 (proptest); VP-022 (fuzz) |
-| prism-operations | HIGH | 3 | 17 | 0 | 1 | 0 | 85% | VP-026, VP-030, VP-044 (kani); VP-018, VP-019, VP-027, VP-045, VP-046, VP-047, VP-052, VP-054, VP-060, VP-137, VP-138, VP-139, VP-140, VP-141, VP-142, VP-143, VP-145 (proptest); VP-028 (fuzz) |
+| prism-operations | HIGH | 4 | 17 | 0 | 1 | 0 | 85% | VP-026, VP-030, VP-044, VP-053 (kani); VP-018, VP-019, VP-027, VP-045, VP-046, VP-047, VP-052, VP-054, VP-060, VP-137, VP-138, VP-139, VP-140, VP-141, VP-142, VP-143, VP-145 (proptest); VP-028 (fuzz) |
 | prism-spec-engine | HIGH | 2 | 14 | 4 | 1 | 1 | 85% | VP-040, VP-048 (kani); VP-032, VP-041, VP-042, VP-043, VP-049, VP-059, VP-099, VP-100, VP-101, VP-102, VP-103, VP-104, VP-105, VP-106 (proptest); VP-095, VP-096, VP-097, VP-098 (unit_test); VP-023 (fuzz); VP-107 (integration_test) |
 | prism-sensors | HIGH | 0 | 10 | 0 | 0 | 2 | 80% | VP-077, VP-078, VP-079, VP-080, VP-087, VP-088, VP-089, VP-091, VP-092, VP-093 (proptest); VP-090, VP-094 (integration_test) |
 | prism-credentials | CRITICAL | 0 | 7 | 0 | 0 | 1 | 90% | VP-034, VP-035, VP-081, VP-082, VP-084, VP-085, VP-086 (proptest); VP-083 (integration_test) |
@@ -126,7 +126,7 @@ See detailed tables below.
 | BC-2.10.008 (MCP sensor resource credential redaction) | Response redacts credentials and full API URLs | VP-050 (module: prism-mcp, proptest) | P0 |
 | BC-2.14.002 (Case state machine exhaustive transitions) | 5×5 transition table: exactly 12 Ok, 13 Err; self-transitions always Err(E-CASE-005) | VP-051 (module: prism-core, kani) | P0 |
 | BC-2.14.003 (Case update disposition ordering) | Disposition applied before status transition in single-call update | VP-052 (module: prism-operations, proptest) | P0 |
-| BC-2.14.006 (Resolved case disposition required) | Resolved case always has non-null disposition; transition rejects without | VP-053 (module: prism-core, kani) | P0 |
+| BC-2.14.006 (Resolved case disposition required) | Resolved case always has non-null disposition; transition rejects without | VP-053 (module: prism-operations, kani) | P0 |
 | BC-2.14.008 (TTR first-resolution timestamp) | TTR uses first resolution timestamp across reopen cycles; null aggregate when none | VP-054 (module: prism-operations, proptest) | P1 |
 | BC-2.15.002 (StorageEngine put_batch atomicity) | put_batch atomicity and domain isolation (MockStorageEngine) | VP-055 (module: prism-storage, proptest) | P1 |
 | BC-2.15.004 (Audit buffer overflow purge) | Oldest entries deleted, newest preserved, purge-event produced | VP-056 (module: prism-audit, proptest) | P1 |
@@ -139,6 +139,7 @@ See detailed tables below.
 
 | Version | Author | Date | Description |
 |---------|--------|------|-------------|
+| 1.27 | state-manager | 2026-05-02 | P6-MED-001: VP-053 module mis-attribution corrected. Moved VP-053 from prism-core kani (13→12) to prism-operations kani (3→4). BC-2.14.006 row module annotation updated prism-core→prism-operations. Totals row Kani unchanged (30). VP-052/054 sibling moved in v1.10; VP-053 was missed in same sweep — partial-fix-regression of S-7.01 class. |
 | 1.26 | state-manager | 2026-05-02 | P5 architecture aggregate sync: Totals row Proptest 85→86, Total VPs 144→145; method-totals table Proptest 85→86, Total VPs 144→145 (VP-145 INV-CASE-006 proptest). |
 | 1.25 | state-manager | 2026-05-02 | W4-Phase4A-Pass4: VP-138 elevated P1→P0 (INV-CASE-003 cross-org case isolation safety-critical). Proptest P0 64→65, P1 21→20. Total P0 113→114, P1 31→30. |
 | 1.24 | state-manager | 2026-05-02 | W4-ADR-Phase3-burst: VP-143 added to prism-operations proptest list. VP-144 added as new prism-siem-formats row (new crate per ADR-019). Total VPs 142→144 (Proptest 83→85). P1 enumeration 29→31. |

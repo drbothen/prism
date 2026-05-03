@@ -218,7 +218,7 @@ Phase 3-patch additions (2026-04-16): 22 new BCs added in Burst 1 to close trace
 | BC-2.18.001 | Alert and Case Action Triggers — At-Least-Once Delivery with Exponential Backoff Retry | 18 - Action Delivery Engine | CAP-033 | P0 | draft |
 | BC-2.18.002 | Schedule Action Triggers — Best-Effort, Retry on Next Cron Tick | 18 - Action Delivery Engine | CAP-033 | P0 | draft |
 | BC-2.18.003 | Manual Action Triggers — Fire-and-Forget, Result Returned Immediately to AI Caller | 18 - Action Delivery Engine | CAP-033 | P0 | draft |
-| BC-2.18.004 | Scheduled Report Queries — try_acquire() on 16-Permit Semaphore, Skip If Unavailable | 18 - Action Delivery Engine | CAP-033 | P0 | draft |
+| BC-2.18.004 | Action Delivery Semaphore — 8-Permit Independent Pool, try_acquire() Skip-If-Unavailable | 18 - Action Delivery Engine | CAP-033 | P0 | draft |
 | BC-2.18.005 | Partial Report Failure — Failed Sections Include Error Note, Others Delivered | 18 - Action Delivery Engine | CAP-033 | P0 | draft |
 | BC-2.18.006 | Action Template Variables from Sensor/Alert Data — Injection-Scanned Before Interpolation | 18 - Action Delivery Engine | CAP-033 | P0 | draft |
 | BC-2.18.007 | Action Credentials Must Use AI-Opaque Reference Model — No Inline Values (E-ACTION-001) | 18 - Action Delivery Engine | CAP-033 | P0 | draft |
