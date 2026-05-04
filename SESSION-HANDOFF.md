@@ -10,9 +10,9 @@ successor_focus: "WAVE 4 PHASE 4.A CONVERGED. Pass 31 PERFECT CLEAN. Window 3/3 
 **STEP 2 — NEXT ACTION: WAVE 4 PHASE 4.A CONVERGED. Pass 31 PERFECT CLEAN (0 findings of any severity; 17 cross-cuts verified incl. 2 NOVEL-AXIS). Window 3/3 CLOSED. Trajectory: P29(0)→P30(0)→P31(0; CONVERGED). VSDD 3-clean window discipline satisfied. F-P29-L-001 still DEFERRED (cosmetic, non-blocking). Next: R8 (final fresh-context audit: consistency-validator + spec-reviewer iter-3 + input-hash drift check), then R9 (human approval gate), then R10 (Phase 4.B begins — S-4.01 + S-4.03 entry stories dispatch).**
 
 **KEY REFERENCES:**
-- STATE.md v6.68: develop@ba3b10c7; factory-artifacts 15fa97e6 (Stage 1 canonical SHA — Stage 2 SHA TBD post-commit)
+- STATE.md v6.68: develop@ba3b10c7; factory-artifacts 190c32df (canonical SHA — Pass 31 CONVERGED)
 - pass-31.md: cycles/wave-4-operations/adversarial-reviews/pass-31.md (PERFECT CLEAN; 0 findings; 17 cross-cuts incl. 2 NOVEL-AXIS; CONVERGED)
-- cycle-manifest v1.51 (NEW — wave-4-pass31-CONVERGED)
+- cycle-manifest v1.51 (NEW — wave-4-pass31-CONVERGED; 190c32df)
 - vp-045-schedule-semaphore-try-acquire-nonblocking.md v1.4 (F-P28-H-001 fix; current; RE-VERIFIED CLEAN)
 - ARCH-INDEX v2.28 (current)
 - ADR-016 v0.14 (F-P27-H-001 fix; current; RE-VERIFIED CLEAN)
@@ -35,7 +35,7 @@ successor_focus: "WAVE 4 PHASE 4.A CONVERGED. Pass 31 PERFECT CLEAN. Window 3/3 
 - Wave 4 cycle-manifest: cycles/wave-4-operations/cycle-manifest.md (v1.51)
 - Product TD register: tech-debt-register.md (57 active product items)
 
-factory-artifacts canonical: 15fa97e6 (Stage 1 SHA; Stage 2 SHA TBD). develop HEAD: ba3b10c7."
+factory-artifacts canonical: 190c32df (canonical SHA — Pass 31 CONVERGED). develop HEAD: ba3b10c7."
 ---
 
 # Session Handoff — WAVE 4 PHASE 4.A DECISIONS LOGGED (2026-05-02)
@@ -144,12 +144,12 @@ factory-artifacts canonical: 15fa97e6 (Stage 1 SHA; Stage 2 SHA TBD). develop HE
 
 ## Current State
 
-develop HEAD `ba3b10c7` | factory-artifacts `1212cd91` (Pass 30 CLEAN — window 2/3 OPEN; STATE v6.67)
+develop HEAD `ba3b10c7` | factory-artifacts `190c32df` (Pass 31 CONVERGED — window 3/3 CLOSED; STATE v6.68)
 
 | Metric | Value |
 |--------|-------|
 | develop HEAD | `ba3b10c7` (W3-FIX-SEC-005 — Wave 3.4 final PR, PR #125, 2026-05-02) |
-| factory-artifacts HEAD | `1212cd91` (Pass 30 CLEAN — window 2/3 OPEN; STATE v6.67) |
+| factory-artifacts HEAD | `190c32df` (Pass 31 PERFECT CLEAN — CONVERGED; window 3/3 CLOSED; STATE v6.68) |
 | PR count merged | 125 |
 | Workspace test count | 2363 (nextest-verified; +133 from CI nextest split + doctest migration) |
 | Open PRs | None |
@@ -157,8 +157,8 @@ develop HEAD `ba3b10c7` | factory-artifacts `1212cd91` (Pass 30 CLEAN — window
 | Tech debt items | 57 active product items (70 prior − 13 VSDD items extracted); vsdd-plugin-tech-debt.md: 31 items (+TD-VSDD-052) |
 | Wave 2 gate status | CONVERGED 2026-04-27 — Pass 9 CLEAN (3-clean-passes: P6+P8+P9) |
 | Wave 3 gate status | **CONVERGED 2026-05-02 — 3-clean window pass-52+53+54; develop@ba3b10c7** |
-| Wave 4 status | **PHASE 4.A — 28 passes consumed; Pass 28 BLOCKED→REMEDIATED (1H: vp-045 H1 sister-line gap; 7th orchestrator-prompt drift); window 0/3; Pass 29 (slot 1/3) next** |
-| Status | **WAVE 4 PHASE 4.A — Pass 28 REMEDIATED. Window 0/3. Ready for Adversary Pass 29 (slot 1/3).** |
+| Wave 4 status | **PHASE 4.A CONVERGED — 31 passes consumed; Pass 31 PERFECT CLEAN; window 3/3 CLOSED; VSDD 3-clean discipline satisfied** |
+| Status | **WAVE 4 PHASE 4.A CONVERGED. Ready for R8 (final fresh-context audit) + R9 (human approval gate) + R10 (Phase 4.B begins).** |
 
 
 ---

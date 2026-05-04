@@ -376,7 +376,7 @@ user_directive_persistent: "No pragmatic convergence. Fix all issues before buil
 | **Last Updated** | 2026-05-04 (Pass 31 PERFECT CLEAN: 0 findings of any severity; 17 cross-cuts verified incl. 2 NOVEL-AXIS; window 3/3 CLOSED; PHASE 4.A CONVERGED; STATE v6.68) |
 | **Current Phase** | Phase 4.A — CONVERGED (31 passes consumed; Pass 31 PERFECT CLEAN; window 3/3 CLOSED; VSDD 3-clean discipline satisfied) |
 | **Current Step** | Wave 4 Phase 4.A CONVERGED — R8 (final fresh-context audit + input-hash drift check), then R9 (human approval gate), then R10 (Phase 4.B begins) |
-| **factory-artifacts HEAD** | `15fa97e6` |
+| **factory-artifacts HEAD** | `190c32df` |
 
 ## Phase Progress
 
@@ -522,9 +522,9 @@ Cycle files: [burst-log](cycles/phase-2-patch/burst-log.md) | [convergence-traje
 
 _Previous checkpoint archived: [cycles/wave-4-operations/session-checkpoints.md](cycles/wave-4-operations/session-checkpoints.md)_
 
-**STATE v6.68 (canonical SHA `15fa97e6` — Stage 1; Stage 2 SHA TBD). WAVE 4 PHASE 4.A CONVERGED. PASS 31 PERFECT CLEAN. WINDOW 3/3 CLOSED.**
+**STATE v6.68 (canonical SHA `190c32df`). WAVE 4 PHASE 4.A CONVERGED. PASS 31 PERFECT CLEAN. WINDOW 3/3 CLOSED.**
 
-develop HEAD: `ba3b10c7` | factory-artifacts: `15fa97e6` (Stage 1) | workspace tests: 2363 | PRs merged: 125
+develop HEAD: `ba3b10c7` | factory-artifacts: `190c32df` | workspace tests: 2363 | PRs merged: 125
 
 **PASS 31 (PERFECT CLEAN — CONVERGED):** 0 findings of any severity. 17 cross-cuts verified (15 routine + 2 NOVEL-AXIS). F-P29-L-001 still DEFERRED (not blocking). Window closes 3/3. VSDD 3-clean window discipline satisfied. cycle-manifest v1.51.
 
