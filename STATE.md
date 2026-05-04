@@ -375,7 +375,7 @@ user_directive_persistent: "No pragmatic convergence. Fix all issues before buil
 | **Last Updated** | 2026-05-04 (Pass 27 BLOCKED→REMEDIATED: ADR-016 v0.14 F-P27-H-001 §5.4 footer + v0.12 changelog VP-047 rationale "action delivery dedup correctness" → "template variable UUID v7 validation"; sole site confirmed by grep; TD-VSDD-052 codified; ARCH-INDEX v2.27; STATE v6.64) |
 | **Current Phase** | Phase 4.A — Wave 4 adversarial spec convergence (27 passes consumed; Pass 27 BLOCKED→REMEDIATED; window 0/3; Pass 28 next) |
 | **Current Step** | Wave 4 Phase 4.A — Pass 27 BLOCKED→REMEDIATED (1H: ADR-016 v0.14 VP-047 semantic mis-anchor; 6th orchestrator-prompt drift class; TD-VSDD-052 codified); Pass 28 (window 1/3 attempt) next |
-| **factory-artifacts HEAD** | `9a49d6a7` |
+| **factory-artifacts HEAD** | `a0a2d42b` |
 
 ## Phase Progress
 
@@ -461,9 +461,9 @@ Cycle files: [burst-log](cycles/phase-2-patch/burst-log.md) | [convergence-traje
 
 _Previous checkpoint archived: [cycles/wave-4-operations/session-checkpoints.md](cycles/wave-4-operations/session-checkpoints.md)_
 
-**STATE v6.64 (canonical SHA `15fa97e6`). WAVE 4 PHASE 4.A — PASS 27 BLOCKED→REMEDIATED. WINDOW 0/3. PASS 28 NEXT.**
+**STATE v6.64 (canonical SHA `a0a2d42b`). WAVE 4 PHASE 4.A — PASS 27 BLOCKED→REMEDIATED. WINDOW 0/3. PASS 28 NEXT.**
 
-develop HEAD: `ba3b10c7` | factory-artifacts: `15fa97e6` | workspace tests: 2363 | PRs merged: 125
+develop HEAD: `ba3b10c7` | factory-artifacts: `a0a2d42b` | workspace tests: 2363 | PRs merged: 125
 
 **PASS 27 (BLOCKED→REMEDIATED):** 1H. F-P27-H-001: ADR-016 v0.14 (§5.4 footer + v0.12 changelog VP-047 rationale "action delivery dedup correctness" → canonical "template variable UUID v7 validation" per VP-INDEX line 68 + BC-2.18.009; sole site confirmed by grep across all 6 W4 ADRs; SUBSTANTIVE). META-INSIGHT: 6th orchestrator-prompt-introduced defect — semantic mis-anchor in VP rationale text (NEW class beyond stale module names). TD-VSDD-052 codified (pre-dispatch VP scope verification: when fix-burst prompt mentions VP-NNN rationale, grep VP-INDEX `Property` field). ARCH-INDEX v2.27. cycle-manifest v1.47. Window stays 0/3; Pass 28 next.
 
