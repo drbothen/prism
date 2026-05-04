@@ -15,7 +15,7 @@ findings_tally:
   total: 1
 verdict: FINDINGS_REMAIN
 remediation_status: REMEDIATED
-stage1_sha: 15fa97e6
+stage1_sha: 3855623d
 ---
 
 # Adversarial Review — Pass 28

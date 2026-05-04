@@ -375,7 +375,7 @@ user_directive_persistent: "No pragmatic convergence. Fix all issues before buil
 | **Last Updated** | 2026-05-04 (Pass 28 BLOCKED→REMEDIATED: vp-045 spec v1.3→v1.4 F-P28-H-001 H1 "Schedule Semaphore" → "Action Delivery Semaphore"; Pass 26 body-rewrite sister-line gap; 7th orchestrator-prompt drift (H1-axis); ARCH-INDEX v2.28; STATE v6.65) |
 | **Current Phase** | Phase 4.A — Wave 4 adversarial spec convergence (28 passes consumed; Pass 28 BLOCKED→REMEDIATED; window 0/3; Pass 29 next) |
 | **Current Step** | Wave 4 Phase 4.A — Pass 28 BLOCKED→REMEDIATED (1H: vp-045 H1 sister-line gap; 7th orchestrator-prompt drift class); Pass 29 (window 1/3 attempt) next |
-| **factory-artifacts HEAD** | `15fa97e6` |
+| **factory-artifacts HEAD** | `3855623d` |
 
 ## Phase Progress
 
@@ -461,9 +461,9 @@ Cycle files: [burst-log](cycles/phase-2-patch/burst-log.md) | [convergence-traje
 
 _Previous checkpoint archived: [cycles/wave-4-operations/session-checkpoints.md](cycles/wave-4-operations/session-checkpoints.md)_
 
-**STATE v6.65 (canonical SHA `15fa97e6`). WAVE 4 PHASE 4.A — PASS 28 BLOCKED→REMEDIATED. WINDOW 0/3. PASS 29 NEXT.**
+**STATE v6.65 (canonical SHA `3855623d`). WAVE 4 PHASE 4.A — PASS 28 BLOCKED→REMEDIATED. WINDOW 0/3. PASS 29 NEXT.**
 
-develop HEAD: `ba3b10c7` | factory-artifacts: `15fa97e6` | workspace tests: 2363 | PRs merged: 125
+develop HEAD: `ba3b10c7` | factory-artifacts: `3855623d` | workspace tests: 2363 | PRs merged: 125
 
 **PASS 28 (BLOCKED→REMEDIATED):** 1H. F-P28-H-001: vp-045 spec v1.3→v1.4 (H1 heading "Schedule Semaphore" → "Action Delivery Semaphore" per VP-INDEX line 66 canonical + BC-2.18.004 H1; Pass 26 body-rewrite sister-line gap; SUBSTANTIVE). META-INSIGHT: 7th orchestrator-prompt-introduced defect — H1-axis (fix-burst targets specific line positions but misses adjacent H1). 12 cross-cuts CLEAN. ARCH-INDEX v2.28. cycle-manifest v1.48. Window stays 0/3; Pass 29 next.
 

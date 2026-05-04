@@ -10,7 +10,7 @@ successor_focus: "Wave 4 Phase 4.A Pass 28 BLOCKED→REMEDIATED — 1H (F-P28-H-
 **STEP 2 — NEXT ACTION: Dispatch Adversary Pass 29 (window 1/3 attempt). Pass 28 BLOCKED→REMEDIATED: vp-045 spec v1.4 (F-P28-H-001: H1 heading 'Schedule Semaphore' → 'Action Delivery Semaphore' per VP-INDEX line 66 canonical + BC-2.18.004 H1; Pass 26 body-rewrite sister-line gap; 7th orchestrator-prompt drift class — H1-axis; SUBSTANTIVE). ARCH-INDEX v2.28. Verify vp-045 v1.4 + ADR-016 v0.14 + all prior pass fixes still hold.**
 
 **KEY REFERENCES:**
-- STATE.md v6.65: develop@ba3b10c7; factory-artifacts 15fa97e6 (canonical SHA — Pass 28 REMEDIATED)
+- STATE.md v6.65: develop@ba3b10c7; factory-artifacts 3855623d (canonical SHA — Pass 28 REMEDIATED)
 - vp-045-schedule-semaphore-try-acquire-nonblocking.md v1.4 (NEW — F-P28-H-001: H1 heading corrected)
 - ARCH-INDEX v2.28 (NEW — vp-045 spec v1.3→v1.4 + pass 28 changelog row)
 - ADR-016 v0.14 (F-P27-H-001: §5.4 footer + v0.12 changelog VP-047 rationale corrected; current)
@@ -33,7 +33,7 @@ successor_focus: "Wave 4 Phase 4.A Pass 28 BLOCKED→REMEDIATED — 1H (F-P28-H-
 - Wave 4 cycle-manifest: cycles/wave-4-operations/cycle-manifest.md (v1.47)
 - Product TD register: tech-debt-register.md (57 active product items)
 
-factory-artifacts canonical: 15fa97e6 (canonical SHA). develop HEAD: ba3b10c7."
+factory-artifacts canonical: 3855623d (canonical SHA). develop HEAD: ba3b10c7."
 ---
 
 # Session Handoff — WAVE 4 PHASE 4.A DECISIONS LOGGED (2026-05-02)
@@ -136,12 +136,12 @@ factory-artifacts canonical: 15fa97e6 (canonical SHA). develop HEAD: ba3b10c7."
 
 ## Current State
 
-develop HEAD `ba3b10c7` | factory-artifacts `15fa97e6` (Pass 28 BLOCKED→REMEDIATED — window 0/3; STATE v6.65)
+develop HEAD `ba3b10c7` | factory-artifacts `3855623d` (Pass 28 BLOCKED→REMEDIATED — window 0/3; STATE v6.65)
 
 | Metric | Value |
 |--------|-------|
 | develop HEAD | `ba3b10c7` (W3-FIX-SEC-005 — Wave 3.4 final PR, PR #125, 2026-05-02) |
-| factory-artifacts HEAD | `15fa97e6` (Pass 28 BLOCKED→REMEDIATED — window 0/3; STATE v6.65) |
+| factory-artifacts HEAD | `3855623d` (Pass 28 BLOCKED→REMEDIATED — window 0/3; STATE v6.65) |
 | PR count merged | 125 |
 | Workspace test count | 2363 (nextest-verified; +133 from CI nextest split + doctest migration) |
 | Open PRs | None |
@@ -216,7 +216,7 @@ STEP 2 — Resume formal adversary passes (Option A — VSDD discipline):
 
   **Pass 27 dispatched 2026-05-04 — BLOCKED → REMEDIATED (1H; window stays 0/3). F-P27-H-001 SUBSTANTIVE (ADR-016 v0.14 §5.4 footer + v0.12 changelog VP-047 rationale "action delivery dedup correctness" → "template variable UUID v7 validation" per VP-INDEX line 68 + BC-2.18.009; sole site confirmed by grep across all 6 W4 ADRs; architect). META-INSIGHT: 6th orchestrator-prompt-introduced defect — semantic mis-anchor in VP rationale text (NEW class). TD-VSDD-052 codified (pre-dispatch VP scope verification). ARCH-INDEX v2.27. Stage 1 SHA: a0a2d42b. Next: Pass 28 (window 1/3 attempt).**
 
-  **Pass 28 dispatched 2026-05-04 — BLOCKED → REMEDIATED (1H; window stays 0/3). F-P28-H-001 SUBSTANTIVE (vp-045 spec v1.3→v1.4 H1 heading "Schedule Semaphore" → "Action Delivery Semaphore" per VP-INDEX line 66 canonical + BC-2.18.004 H1; Pass 26 body-rewrite sister-line gap; fix-burst targeted lines 37/44/68 but missed adjacent H1 at line 39). META-INSIGHT: 7th orchestrator-prompt-introduced defect — H1-axis. 12 cross-cuts verified CLEAN. ARCH-INDEX v2.28. Stage 1 SHA: 15fa97e6. Next: Pass 29 (window 1/3 attempt).**
+  **Pass 28 dispatched 2026-05-04 — BLOCKED → REMEDIATED (1H; window stays 0/3). F-P28-H-001 SUBSTANTIVE (vp-045 spec v1.3→v1.4 H1 heading "Schedule Semaphore" → "Action Delivery Semaphore" per VP-INDEX line 66 canonical + BC-2.18.004 H1; Pass 26 body-rewrite sister-line gap; fix-burst targeted lines 37/44/68 but missed adjacent H1 at line 39). META-INSIGHT: 7th orchestrator-prompt-introduced defect — H1-axis. 12 cross-cuts verified CLEAN. ARCH-INDEX v2.28. Stage 1 SHA: 3855623d. Next: Pass 29 (window 1/3 attempt).**
 
   2b. If CLEAN: window slot fills. At 3/3 CONVERGED.
   2c. If BLOCKED at any pass: route findings tightly per defect-class; remediate; re-pass.
