@@ -1,10 +1,10 @@
 ---
 document_type: architecture-index
 level: L3
-version: "2.23"
+version: "2.24"
 status: draft
 producer: architect
-timestamp: 2026-04-26T20:30:00
+timestamp: 2026-05-04T00:00:00
 phase: 1b
 inputs: [domain-spec/L2-INDEX.md, prd.md, prd-supplements/interface-definitions.md, prd-supplements/nfr-catalog.md, prd-supplements/error-taxonomy.md]
 traces_to: prd.md
@@ -142,6 +142,7 @@ deployment_topology: single-service
 
 | Version | Pass | Date | Author | Change |
 |---------|------|------|--------|--------|
+| 2.24 | W4-Phase4A-Pass24-fix | 2026-05-04 | state-manager | F-P24-CRIT-001: prd.md v1.8→v1.9 (PRD §2 line 389 BC-2.18.004 cell title sync to BC H1 — "Scheduled Report Queries — try_acquire() on 16-Permit Semaphore" → "Action Delivery Semaphore — 8-Permit Independent Pool"; comprehensive TD-VSDD-049 sweep across 200 PRD §2 BC rows found ONLY this drift; SUBSTANTIVE). TD-VSDD-049 filed. ARCH-INDEX version 2.23→2.24. Pass 25 next (window stays 0/3). |
 | 2.23 | W4-Phase4A-PrePass24-Sweep | 2026-05-04 | state-manager | F-PreP24-CRIT-001: prd.md v1.7→v1.8 (INV-ACTION-004 root contract "shared 16-permit semaphore" contradicts D-209 LOCKED — PRD root contract corrected). F-PreP24-H-001: interface-definitions.md v2.5→v2.6 (6 sites Subsystem 18 "Action Engine" label corrected to "Action Delivery Engine"). F-PreP24-H-002: query-engine.md v1.1→v1.2 (16 concurrent→8 concurrent + 3.2 GB→1.6 GB memory math). Document Map rows updated: query-engine v1.2; module-decomposition v1.13 (missing annotation added); api-surface v1.6 (missing annotation added); verification-architecture v1.28 (missing annotation added). ARCH-INDEX version 2.22→2.23. TD-VSDD-048 methodology applied. |
 | 2.22 | W4-Phase4A-Pass23-fix | 2026-05-04 | state-manager | F-P23-H-001: operational-pipeline.md v1.1→v1.2 (3 stale refs fixed: 16-permit + Action Engine + 60s tick; missed by Pre-Pass-21 hand-curated sweep target list). F-P23-H-002: actions.md v1.2→v1.3 (Mermaid participant display labels Action Engine→ActionDeliveryEngine claim-vs-reality drift). Document Map rows updated. ARCH-INDEX version 2.21→2.22. TD-VSDD-048 filed. |
 | 2.21 | W4-Phase4A-Pass22-fix | 2026-05-03 | state-manager | F-P22-L-001: Document Map line 39 actions.md annotation updated to v1.2 (D-209 8/8 split + 60s tick + ActionDeliveryEngine + ADR-016 §2.5 CF table per F-P22-H-001). ARCH-INDEX version 2.20→2.21. |

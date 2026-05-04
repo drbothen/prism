@@ -1,7 +1,7 @@
 ---
 document_type: prd
 level: L3
-version: "1.8"
+version: "1.9"
 status: draft
 producer: product-owner
 timestamp: 2026-04-14T06:00:00
@@ -386,7 +386,7 @@ Config-driven alert delivery and scheduled reporting per AD-021. Three trigger m
 | [BC-2.18.001](behavioral-contracts/BC-2.18.001-action-at-least-once-delivery.md) | Alert and Case Action Triggers — At-Least-Once Delivery with Exponential Backoff Retry | P0 |
 | [BC-2.18.002](behavioral-contracts/BC-2.18.002-action-schedule-best-effort.md) | Schedule Action Triggers — Best-Effort, Retry on Next Cron Tick | P0 |
 | [BC-2.18.003](behavioral-contracts/BC-2.18.003-action-manual-fire-and-forget.md) | Manual Action Triggers — Fire-and-Forget, Result Returned Immediately to AI Caller | P0 |
-| [BC-2.18.004](behavioral-contracts/BC-2.18.004-action-schedule-semaphore.md) | Scheduled Report Queries — try_acquire() on 16-Permit Semaphore, Skip If Unavailable | P0 |
+| [BC-2.18.004](behavioral-contracts/BC-2.18.004-action-schedule-semaphore.md) | Action Delivery Semaphore — 8-Permit Independent Pool, try_acquire() Skip-If-Unavailable | P0 |
 | [BC-2.18.005](behavioral-contracts/BC-2.18.005-action-partial-report-failure.md) | Partial Report Failure — Failed Sections Include Error Note, Others Delivered | P0 |
 | [BC-2.18.006](behavioral-contracts/BC-2.18.006-action-template-injection-scan.md) | Action Template Variables from Sensor/Alert Data — Injection-Scanned Before Interpolation | P0 |
 | [BC-2.18.007](behavioral-contracts/BC-2.18.007-action-credential-opaque-reference.md) | Action Credentials Must Use AI-Opaque Reference Model — No Inline Values (E-ACTION-001) | P0 |
@@ -932,6 +932,7 @@ Regenerated from BC file `capability:` frontmatter fields (Burst 13 Part B, upda
 
 ## Change Log
 
+- 2026-05-04 (Pass-24 F-P24-CRIT-001+sweep): §2 line 389 BC-2.18.004 cell title corrected from superseded "Scheduled Report Queries — try_acquire() on 16-Permit Semaphore, Skip If Unavailable" to canonical "Action Delivery Semaphore — 8-Permit Independent Pool, try_acquire() Skip-If-Unavailable" (matches BC H1 + BC-INDEX). PLUS proactive TD-VSDD-049-style sweep across ALL 200 PRD §2 BC table rows — programmatic H1↔PRD-cell comparison confirmed zero additional drift sites. Version bumped 1.8→1.9.
 - 2026-05-03 (Pre-Pass-24 F-PreP24-CRIT-001): §2 SS-18 INV-ACTION-004 root contract corrected from "shared 16-permit semaphore" to D-209 LOCKED 8/8 independent split (schedule_executor_semaphore + action_delivery_semaphore, structurally independent, no shared budget). PRD-level architectural drift surviving 23 prior adversary passes — would have shipped as wrong product contract. TD-VSDD-048 grep-completeness sweep finding. Version bumped 1.7→1.8.
 - 2026-04-21 (pass-97 F97-001): §2 SS-10 subsystem header corrected from `Capabilities: CAP-034, CAP-005, CAP-009` to `Capabilities: CAP-034, CAP-005, CAP-008, CAP-009, CAP-015` — BC-2.10.002 dual-anchors CAP-005/CAP-015 and BC-2.10.008 dual-anchors CAP-008/CAP-009; secondary CAPs added per F96-004 precedent. Version bumped 1.6→1.7.
 - 2026-04-21 (pass-96 F96-004): §2 SS-19 subsystem header corrected from `Capability: CAP-031` to `Capabilities: CAP-031, CAP-030` — BC-2.19.004 dual-anchors both capabilities; §7 RTM and Capability Coverage Summary were already correct. Version bumped 1.5→1.6.

@@ -63,6 +63,7 @@ Items included here meet one or more of the following criteria:
 | TD-VSDD-045 | Wave 4 Phase 4.A Pass 17 F-P17-M-002 — STORY-INDEX VP Assignment Matrix missing W3/W4 VPs | STORY-INDEX VP Assignment Matrix stops at VP-062. Wave 3 added VP-063..VP-136 and Wave 4 added VP-137..VP-145; these 83 VPs have no rows in the matrix. The gap is structural — requires a major rebuild of the matrix section, not a targeted fix. Severity: MEDIUM (cosmetic; does not affect implementation correctness; VP-INDEX and verification-architecture are the authoritative coverage sources). Discovered: Pass 17 (Wave 4 Phase 4.A). Remediation: deferred to post-Phase-4.A convergence cleanup or Wave 5 baseline. | P3 | wave-4-phase-4a-pass17 (2026-05-03) | state-manager: STORY-INDEX VP Assignment Matrix rebuild at next major index maintenance window |
 | TD-VSDD-047 | Wave 4 Phase 4.A Pass 22 F-P22-H-001 — CF key format fixes must grep all architecture docs for the same CF name in lockstep | When fixing a CF key format, grep all architecture docs for that CF name and audit all key-format tables in lockstep. Discovered: Pass 22 (actions.md §"Delivery state" had 4 stale rows even after Pre-Pass-21 broad sweep + Pass 21 fix to data-layer.md). The Pre-Pass-21 broad-sweep fixed actions.md surface-level claims (names, constants) but did not audit the action_state CF key table against ADR-016 §2.5 canonical form. Severity: MEDIUM. Hook recommendation: when state-manager bumps a CF-related doc, grep for CF name + key-format table patterns across all architecture/*.md and BC files; flag any non-canonical format. Pattern: `:{action_id}:\|:{schedule_id}:\|:diff:\|:case:\|:alert:\|:retry:\|:dedup:` | P2 | wave-4-phase-4a-pass22 (2026-05-03) | vsdd-factory pre-pass sweep checklist + CF-key-format audit class extension |
 | TD-VSDD-048 | Wave 4 Phase 4.A Pass 23 F-P23-L-001 — Broad-sweep methodology must include exhaustive grep-completeness check | Broad-sweep target lists are hand-curated with no mechanical enforcement of exhaustiveness. Discovered: Pass 23 — Pre-Pass-21 sweep target list missed operational-pipeline.md, allowing 3 stale references (16-permit, Action Engine, 1-second tick) to survive two pre-pass sweeps and be caught only in Pass 23. Severity: MEDIUM. Hook recommendation: at end of every broad-sweep burst, run grep for canonical stale tokens (16-permit, 16 max, 16 concurrent, Action Engine, 1-second tick, ActionEngine[^a-zA-Z]) across ALL specs/architecture/*.md and abort if hits found. Replaces hand-curated target lists with mechanical completeness verification. | P2 | wave-4-phase-4a-pass23 (2026-05-04) | vsdd-factory pre-pass sweep skill + grep-completeness enforcement hook |
+| TD-VSDD-049 | Wave 4 Phase 4.A Pass 24 — Comprehensive PRD §2 BC-table↔BC H1 byte-equal sync check | Comprehensive PRD §2 BC-table↔BC H1 byte-equal sync check. Discovered: Pass 24 — pre-Pass-24 sweep (TD-VSDD-048) fixed prd.md §X INV-ACTION-004 prose but a separate PRD §2 BC table cell (BC-2.18.004 title column) still contained the superseded title "Scheduled Report Queries — try_acquire() on 16-Permit Semaphore" while the canonical BC H1 is "Action Delivery Semaphore — 8-Permit Independent Pool". These are two different drift classes: (1) root-contract prose drift (caught by TD-VSDD-048 grep) and (2) BC table cell title drift (not caught by grep on architecture tokens). Severity: HIGH. Hook recommendation: at end of EVERY PRD-affecting burst AND every BC-H1-renaming burst, mechanically extract all `| [BC-X.YY.ZZZ](...) | <title> |` rows from PRD §2 BC table and compare each title to the corresponding BC file H1; abort if any mismatch. Result of first run (Pass 24): 1/200 drift found and fixed (prd.md v1.9). | P2 | wave-4-phase-4a-pass24 (2026-05-04) | vsdd-factory PRD §2 BC-table title sync hook + pre-pass sweep checklist extension |
 
 ---
 
@@ -119,6 +120,42 @@ Items included here meet one or more of the following criteria:
 4. **Process change:** State-manager and orchestrator must run this grep check BEFORE declaring a broad-sweep burst complete. The old pattern of "I swept the files I thought were relevant" must be replaced by "I grepped for the tokens and swept every file that matched."
 
 **Recommended action:** Codify grep-completeness check in vsdd-factory pre-pass sweep skill checklist before next broad-sweep dispatch. Priority: P2 — the current methodology has failed in 2+ consecutive Pre-Pass sweeps (Pre-Pass-21 and Pre-Pass-22 both had completeness gaps caught in the subsequent adversary pass).
+
+---
+
+### TD-VSDD-049 — Comprehensive PRD §2 BC-table ↔ BC H1 Byte-Equal Sync Check
+
+**Filed:** 2026-05-04 (Wave 4 Phase 4.A Pass 24 F-P24-CRIT-001 process implication)
+**Severity:** P2 (HIGH)
+**Source:** Pass 24 discovered that PRD §2 line 389 BC-2.18.004 table cell title read "Scheduled Report Queries — try_acquire() on 16-Permit Semaphore" — the superseded pre-D-209 title. The canonical BC H1 (source of truth per POL-9) is "Action Delivery Semaphore — 8-Permit Independent Pool". The pre-Pass-24 TD-VSDD-048 sweep fixed the INV-ACTION-004 root-contract prose in PRD §X but did NOT sweep the PRD §2 BC table column for title drift — that is a distinct drift class.
+
+**Gap:** No pre-pass sweep class covers "PRD §2 BC table cell title ↔ BC file H1 byte-equal check." When a BC is renamed or its H1 changes (e.g., D-209 split 16-permit → 8-permit independent pools), the PRD §2 BC table title column may retain the old title independently from the BC file H1.
+
+**Defects surfaced:**
+- F-P24-CRIT-001: PRD §2 line 389 BC-2.18.004 title column stale ("Scheduled Report Queries — try_acquire() on 16-Permit Semaphore"); canonical BC H1 is "Action Delivery Semaphore — 8-Permit Independent Pool" per D-209 + ADR-016 §2.1.
+
+**Sweep result (first run, Pass 24):** Comprehensive check of ALL 200 PRD §2 BC rows vs corresponding BC H1 titles found ONLY BC-2.18.004 drift. 199/200 rows were correct. This is a strong signal that the spec corpus is approaching convergence.
+
+**Recommended additions to pre-pass sweep methodology:**
+
+1. **PRD §2 BC table title audit (mandatory for PRD-affecting and BC-H1-renaming bursts):** Mechanically extract all `| [BC-X.YY.ZZZ](...) | <title> |` rows from PRD §2 BC table. For each row, read the corresponding BC file H1. Compare byte-for-byte. Flag any mismatch.
+
+2. **Trigger conditions:** Run this check:
+   - At end of EVERY PRD-affecting burst (any change to prd.md)
+   - At end of EVERY BC-H1-renaming burst (any BC version bump that changes H1)
+   - As part of pre-pass sweep baseline for each adversary pass
+
+3. **Hook recommendation:**
+   ```bash
+   # Extract BC IDs and titles from PRD §2 BC table
+   # Compare each title to the corresponding BC file H1
+   # Abort if any mismatch found
+   # (implementation: parse markdown table rows matching | [BC-X.YY.ZZZ] | <title> | pattern)
+   ```
+
+4. **Process change:** State-manager and product-owner must run this check after every BC-H1 or PRD-table-affecting burst. The old assumption "PRD table stays in sync automatically" is disproven — PRD §2 BC table is a separate copy of BC titles that requires active sync maintenance.
+
+**Recommended action:** Extend vsdd-factory PRD integrity checks to include BC-table-title sync. Priority: P2 — PRD §2 BC table titles encode architectural claims (semaphore sizes, subsystem names) that must be byte-equal to BC H1 canonical titles. A wrong title here misleads implementers about the actual BC they are implementing.
 
 ---
 

@@ -1,23 +1,24 @@
 ---
 document_type: session-handoff
 level: ops
-version: "6.60"
+version: "6.61"
 status: current
-timestamp: 2026-05-03T00:00:00Z
-predecessor_session: "Wave 4 Phase 4.A decisions logged 2026-05-02. D-207..D-213 logged: 6-ADR topology, OrgId/ClientId hierarchy, per-subsystem semaphores, clients=[] reject, dedup scheduling-time, prism-siem-formats in-house, ADR-017 narrative. Research complete (research-findings.md). Architect cleared for Phase 1 ADRs. STATE v6.20→v6.21. factory-artifacts 41c711cf (prior canonical SHA)."
-successor_focus: "Wave 4 Phase 4.A Pre-Pass-24 TD-VSDD-048 sweep COMPLETE — 1 CRITICAL (PRD INV-ACTION-004 D-209 contract drift) + 2 HIGH remediated. STATE v6.60. Next: Pass 24 (window 1/3 attempt).
+timestamp: 2026-05-04T00:00:00Z
+predecessor_session: "Wave 4 Phase 4.A Pre-Pass-24 TD-VSDD-048 sweep COMPLETE 2026-05-04. STATE v6.60. factory-artifacts 7894d7df (prior canonical SHA)."
+successor_focus: "Wave 4 Phase 4.A Pass 24 BLOCKED→REMEDIATED — 1 CRITICAL (F-P24-CRIT-001: prd.md v1.9 PRD §2 BC-2.18.004 title sync to BC H1). TD-VSDD-049 filed. STATE v6.61. Next: Pass 25 (window 1/3 attempt).
 
-**STEP 2 — NEXT ACTION: Dispatch Adversary Pass 24 (window 1/3 attempt). Pre-Pass-24 TD-VSDD-048 sweep COMPLETE — 1 CRITICAL (PRD INV-ACTION-004 D-209 contract drift) + 2 HIGH remediated. Verify prd.md v1.8 + interface-definitions.md v2.6 + query-engine.md v1.2 + all prior pass fixes still hold.**
+**STEP 2 — NEXT ACTION: Dispatch Adversary Pass 25 (window 1/3 attempt). Pass 24 BLOCKED→REMEDIATED: prd.md v1.9 (F-P24-CRIT-001 PRD §2 BC-2.18.004 title sync to BC H1). TD-VSDD-049 filed: comprehensive PRD §2 BC-table↔BC H1 sync check; 200 rows checked; 1/200 drift found = approaching convergence. Verify prd.md v1.9 + all prior pass fixes still hold.**
 
 **KEY REFERENCES:**
-- STATE.md v6.60: develop@ba3b10c7; factory-artifacts 7894d7df (canonical SHA — Pre-Pass-24 sweep COMPLETE)
-- prd.md v1.8 (NEW — F-PreP24-CRIT-001: INV-ACTION-004 root contract D-209 8/8 split corrected; was wrong for 23 prior passes)
-- interface-definitions.md v2.6 (NEW — F-PreP24-H-001: 6 sites Subsystem 18 label ActionEngine→ActionDeliveryEngine)
+- STATE.md v6.61: develop@ba3b10c7; factory-artifacts 15fa97e6 (canonical SHA — Pass 24 REMEDIATED)
+- prd.md v1.9 (NEW — F-P24-CRIT-001: PRD §2 line 389 BC-2.18.004 title sync to BC H1)
+- interface-definitions.md v2.6 (F-PreP24-H-001: 6 sites Subsystem 18 label ActionEngine→ActionDeliveryEngine)
 - query-engine.md v1.2 (NEW — F-PreP24-H-002: 16 concurrent→8 per D-209; 3.2 GB→1.6 GB memory math)
-- ARCH-INDEX v2.23 (NEW — query-engine v1.2 row + 3 missing annotations added)
+- ARCH-INDEX v2.24 (NEW — F-P24-CRIT-001 pass 24 remediation row added)
 - operational-pipeline.md v1.2 (F-P23-H-001: 3 stale refs fixed)
 - actions.md v1.3 (F-P23-H-002: Mermaid participant labels)
-- TD-VSDD-048 filed: vsdd-plugin-tech-debt.md (27 items)
+- TD-VSDD-049 filed: vsdd-plugin-tech-debt.md (28 items — PRD §2 BC-table↔BC H1 sync)
+- TD-VSDD-048 filed: vsdd-plugin-tech-debt.md (27 items — broad-sweep grep-completeness)
 - actions.md v1.2 (F-P22-H-001: action_state CF key table 5-row canonical ADR-016 §2.5)
 - concurrency-architecture.md v1.1 (F-PreP22-H-001: 8/8 split per D-209)
 - observability.md v1.1 (F-PreP22-H-002: user-facing examples updated)
@@ -29,15 +30,17 @@ successor_focus: "Wave 4 Phase 4.A Pre-Pass-24 TD-VSDD-048 sweep COMPLETE — 1 
 - BC-2.18.008 v1.4 (current)
 - BC-INDEX v4.32 (current)
 - STORY-INDEX v2.03 (current)
-- Wave 4 cycle-manifest: cycles/wave-4-operations/cycle-manifest.md (v1.43)
+- Wave 4 cycle-manifest: cycles/wave-4-operations/cycle-manifest.md (v1.44)
 - Product TD register: tech-debt-register.md (57 active product items)
 
-factory-artifacts canonical: 7894d7df (canonical SHA). develop HEAD: ba3b10c7."
+factory-artifacts canonical: 15fa97e6 (canonical SHA). develop HEAD: ba3b10c7."
 ---
 
 # Session Handoff — WAVE 4 PHASE 4.A DECISIONS LOGGED (2026-05-02)
 
 ## TL;DR
+
+**Wave 4 Phase 4.A — Pass 24 BLOCKED→REMEDIATED (2026-05-04) — STATE v6.61:** 1C. F-P24-CRIT-001: prd.md v1.9 (PRD §2 line 389 BC-2.18.004 cell title "Scheduled Report Queries — try_acquire() on 16-Permit Semaphore" → "Action Delivery Semaphore — 8-Permit Independent Pool"; BC H1 canonical per D-209 8/8 split). TD-VSDD-049 filed (comprehensive PRD §2 BC-table↔BC H1 byte-equal sync check; 200 rows checked; 1/200 drift only — approaching convergence). ARCH-INDEX v2.24. cycle-manifest v1.44. Window stays 0/3. Pass 25 (slot 1/3) next.
 
 **Wave 4 Phase 4.A — Pass 23 BLOCKED→REMEDIATED (2026-05-04) — STATE v6.59:** 2H+1M+1L. F-P23-H-001: operational-pipeline.md v1.2 (3 stale refs: 16-permit + Action Engine + 1-second tick; missed by Pre-Pass-21 hand-curated sweep target list). F-P23-H-002: actions.md v1.3 (Mermaid participant display labels Action Engine→ActionDeliveryEngine). F-P23-M-001: operational-pipeline.md W4 changelog entry added. F-P23-L-001: process-gap → TD-VSDD-048 filed. ARCH-INDEX v2.22. cycle-manifest v1.42. Window stays 0/3. Pass 24 (slot 1/3) next.
 
@@ -125,21 +128,21 @@ factory-artifacts canonical: 7894d7df (canonical SHA). develop HEAD: ba3b10c7."
 
 ## Current State
 
-develop HEAD `ba3b10c7` | factory-artifacts `7894d7df` (Pre-Pass-24 sweep COMPLETE — window 0/3; STATE v6.60)
+develop HEAD `ba3b10c7` | factory-artifacts `15fa97e6` (Pass 24 BLOCKED→REMEDIATED — window 0/3; STATE v6.61)
 
 | Metric | Value |
 |--------|-------|
 | develop HEAD | `ba3b10c7` (W3-FIX-SEC-005 — Wave 3.4 final PR, PR #125, 2026-05-02) |
-| factory-artifacts HEAD | `7894d7df` (Pre-Pass-24 sweep COMPLETE — window 0/3; STATE v6.60) |
+| factory-artifacts HEAD | `15fa97e6` (Pass 24 BLOCKED→REMEDIATED — window 0/3; STATE v6.61) |
 | PR count merged | 125 |
 | Workspace test count | 2363 (nextest-verified; +133 from CI nextest split + doctest migration) |
 | Open PRs | None |
 | Active worktrees | main (`develop`) + `.factory` (`factory-artifacts`) |
-| Tech debt items | 57 active product items (70 prior − 13 VSDD items extracted); vsdd-plugin-tech-debt.md: 27 items (+TD-VSDD-048) |
+| Tech debt items | 57 active product items (70 prior − 13 VSDD items extracted); vsdd-plugin-tech-debt.md: 28 items (+TD-VSDD-049) |
 | Wave 2 gate status | CONVERGED 2026-04-27 — Pass 9 CLEAN (3-clean-passes: P6+P8+P9) |
 | Wave 3 gate status | **CONVERGED 2026-05-02 — 3-clean window pass-52+53+54; develop@ba3b10c7** |
-| Wave 4 status | **PHASE 4.A — 23 passes consumed; Pre-Pass-24 TD-VSDD-048 sweep COMPLETE (1 CRITICAL + 2 HIGH remediated); window 0/3; Pass 24 (slot 1/3) next** |
-| Status | **WAVE 4 PHASE 4.A — Pre-Pass-24 sweep COMPLETE. Window 0/3. Ready for Adversary Pass 24 (slot 1/3).** |
+| Wave 4 status | **PHASE 4.A — 24 passes consumed; Pass 24 BLOCKED→REMEDIATED (1 CRITICAL: PRD §2 BC-2.18.004 title drift; prd.md v1.9); TD-VSDD-049 filed; window 0/3; Pass 25 (slot 1/3) next** |
+| Status | **WAVE 4 PHASE 4.A — Pass 24 REMEDIATED. Window 0/3. Ready for Adversary Pass 25 (slot 1/3).** |
 
 
 ---
@@ -197,6 +200,8 @@ STEP 2 — Resume formal adversary passes (Option A — VSDD discipline):
 
   **Pre-Pass-24 TD-VSDD-048 grep-completeness sweep COMPLETE (2026-05-04) — 1 CRITICAL + 2 HIGH. F-PreP24-CRIT-001 CRITICAL (prd.md INV-ACTION-004 root contract "shared 16-permit semaphore" contradicts D-209 LOCKED; wrong for 23 prior passes; v1.8). F-PreP24-H-001 SUBSTANTIVE (interface-definitions.md 6 sites Subsystem 18 label "Action Engine" → "Action Delivery Engine"; v2.6). F-PreP24-H-002 SUBSTANTIVE (query-engine.md 16 concurrent schedule tasks → 8 per D-209; 3.2 GB → 1.6 GB memory math; v1.2). ARCH-INDEX v2.23 (query-engine row + 3 missing annotations). Stage 1 SHA: 7894d7df. Next: Pass 24 (window 1/3 attempt).**
 
+  **Pass 24 dispatched 2026-05-04 — BLOCKED → REMEDIATED (1C; window stays 0/3). F-P24-CRIT-001 SUBSTANTIVE (prd.md PRD §2 line 389 BC-2.18.004 cell title "Scheduled Report Queries — try_acquire() on 16-Permit Semaphore" → "Action Delivery Semaphore — 8-Permit Independent Pool"; BC H1 canonical; v1.9; product-owner). TD-VSDD-049 filed (comprehensive PRD §2 BC-table↔BC H1 byte-equal sync check; 200 rows checked; 1/200 drift = approaching convergence). ARCH-INDEX v2.24. Stage 1 SHA: 15fa97e6. Next: Pass 25 (window 1/3 attempt).**
+
   2b. If CLEAN: window slot fills. At 3/3 CONVERGED.
   2c. If BLOCKED at any pass: route findings tightly per defect-class; remediate; re-pass.
   2d. NO skipping the formal 3-clean window. Per VSDD discipline.
@@ -224,10 +229,11 @@ KEY REFERENCES:
 - prd.md v1.8 (NEW — Pre-Pass-24 F-PreP24-CRIT-001: INV-ACTION-004 root contract D-209 8/8 corrected)
 - verification-architecture v1.28, verification-coverage-matrix v1.31, ARCH-INDEX v2.23, STORY-INDEX v2.03, BC-INDEX v4.32, VP-INDEX v1.26
 - actions.md v1.2 (Pass 22 F-P22-H-001: action_state CF key table 5-row canonical ADR-016 §2.5)
-- ARCH-INDEX v2.23 (NEW — Pre-Pass-24: query-engine v1.2 + 3 missing annotations; Pass 23: operational-pipeline v1.2 + actions v1.3)
+- ARCH-INDEX v2.24 (NEW — Pass 24: F-P24-CRIT-001 changelog row; Pre-Pass-24: query-engine v1.2 + 3 missing annotations; Pass 23: operational-pipeline v1.2 + actions v1.3)
+- prd.md v1.9 (NEW — Pass 24 F-P24-CRIT-001: PRD §2 BC-2.18.004 title sync to BC H1)
 - operational-pipeline.md v1.2 (Pass 23 F-P23-H-001: 3 stale refs fixed)
 - actions.md v1.3 (Pass 23 F-P23-H-002: Mermaid participant labels)
-- factory-artifacts canonical SHA: `7894d7df`
+- factory-artifacts canonical SHA: `15fa97e6`
 - develop HEAD: ba3b10c7 (Wave 3 CONVERGED 2026-05-02)
 
 ### Carry-Forward Debt (Wave 4 — REMEDIATE ALL per D-203)

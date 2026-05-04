@@ -2,7 +2,7 @@
 document_type: cycle-manifest
 cycle_id: wave-4-operations
 cycle_type: feature
-version: wave-4-preflight-v1.43
+version: wave-4-preflight-v1.44
 status: in-progress
 started: pending
 completed: pending
@@ -224,6 +224,7 @@ Story inventory will be remediated post-ADR-acceptance per drift audit categorie
 
 | Version | Date | Change |
 |---------|------|--------|
+| wave-4-preflight-v1.44 | 2026-05-04T00:00:00Z | wave-4-pass24-BLOCKED-REMEDIATED — Pass 24 BLOCKED (1C): F-P24-CRIT-001 (prd.md v1.8→v1.9; PRD §2 line 389 BC-2.18.004 cell title sync to BC H1: "Scheduled Report Queries — try_acquire() on 16-Permit Semaphore" → "Action Delivery Semaphore — 8-Permit Independent Pool"; product-owner; SUBSTANTIVE). TD-VSDD-049 filed (comprehensive PRD §2 BC-table↔BC H1 byte-equal sync check; 200 rows checked; 1/200 drift found = approaching convergence). ARCH-INDEX v2.23→v2.24. STATE v6.61, HANDOFF v6.61. Window stays 0/3; Pass 25 next (slot 1/3). |
 | wave-4-preflight-v1.43 | 2026-05-04T00:00:00Z | wave-4-prepass24-sweep-COMPLETE — Pre-Pass-24 TD-VSDD-048 grep-completeness sweep: F-PreP24-CRIT-001 (prd.md v1.7→v1.8; INV-ACTION-004 root contract "shared 16-permit semaphore" contradicts D-209 LOCKED; CRITICAL — was wrong for 23 prior passes); F-PreP24-H-001 (interface-definitions.md v2.5→v2.6; 6 sites Subsystem 18 label ActionEngine→ActionDeliveryEngine); F-PreP24-H-002 (query-engine.md v1.1→v1.2; 16 concurrent→8 per D-209; 3.2 GB→1.6 GB memory math). ARCH-INDEX v2.22→v2.23 (query-engine row + 3 missing annotations). STATE v6.60, HANDOFF v6.60. Window stays 0/3; Pass 24 next (slot 1/3). |
 | wave-4-preflight-v1.42 | 2026-05-04T00:00:00Z | wave-4-pass23-BLOCKED-REMEDIATED — Pass 23 BLOCKED (2H+1M+1L): F-P23-H-001 (operational-pipeline.md v1.1→v1.2; 3 stale refs: 16-permit + Action Engine + 1-second tick; missed by Pre-Pass-21 hand-curated sweep target list); F-P23-H-002 (actions.md v1.2→v1.3; Mermaid participant display labels Action Engine→ActionDeliveryEngine claim-vs-reality drift in v1.1 changelog); F-P23-M-001 (operational-pipeline.md W4 changelog entry added); F-P23-L-001 (process-gap: hand-curated sweep target lists → TD-VSDD-048 filed). ARCH-INDEX v2.21→v2.22. STATE v6.59, HANDOFF v6.59. Window stays 0/3; Pass 24 next (slot 1/3). |
 | wave-4-preflight-v1.41 | 2026-05-03T00:00:00Z | wave-4-pass22-BLOCKED-REMEDIATED — Pass 22 BLOCKED (1H+1M+1L): F-P22-H-001 (actions.md v1.1→v1.2 action_state CF key table 4-row→5-row canonical ADR-016 §2.5; `{org_id}:` prefix + `{idempotency_key}` retry sort-key); F-P22-M-001 (subsumed by H-001); F-P22-L-001 (ARCH-INDEX line 39 actions.md v1.2 annotation; ARCH-INDEX v2.20→v2.21). TD-VSDD-047 filed. STATE v6.58, HANDOFF v6.58. Window stays 0/3; Pass 23 next (slot 1/3). |
