@@ -1,7 +1,7 @@
 ---
 document_type: architecture-index
 level: L3
-version: "2.22"
+version: "2.23"
 status: draft
 producer: architect
 timestamp: 2026-04-26T20:30:00
@@ -22,17 +22,17 @@ deployment_topology: single-service
 | Section | File | Tokens | Primary Consumer | Purpose |
 |---------|------|--------|-----------------|---------|
 | System Overview | system-overview.md | ~1,000 | orchestrator, all agents | Architecture vision, principles, deployment model, constraints |
-| Module Decomposition | module-decomposition.md | ~1,200 | story-writer, implementer | Crate catalog with boundaries, responsibilities, public APIs |
+| Module Decomposition | module-decomposition.md | ~1,200 | story-writer, implementer | Crate catalog with boundaries, responsibilities, public APIs — v1.13 (3 ActionEngine sites cleaned per F-PreP21-H-001) |
 | Dependency Graph | dependency-graph.md | ~800 | story-writer, consistency-validator | Inter-crate dependencies, topological build order |
-| API Surface | api-surface.md | ~1,000 | test-writer, implementer | MCP tool registry, error contract, resource/prompt surface |
+| API Surface | api-surface.md | ~1,000 | test-writer, implementer | MCP tool registry, error contract, resource/prompt surface — v1.6 (ActionEngine→ActionDeliveryEngine per F-PreP21-H-001) |
 | Data Layer | data-layer.md | ~1,000 | implementer, test-writer | RocksDB domains, Arrow materialization, caching strategy — v1.3 (17 CFs, D-209 concurrency, ADR-016 §2.5 retry key) |
-| Query Engine | query-engine.md | ~1,200 | implementer, test-writer | PrismQL parser, DataFusion integration, fan-out pipeline |
+| Query Engine | query-engine.md | ~1,200 | implementer, test-writer | PrismQL parser, DataFusion integration, fan-out pipeline — v1.2 (D-209 8/8 + memory math corrected per F-PreP24-H-002) |
 | Sensor Adapters | sensor-adapters.md | ~1,000 | implementer, test-writer | Config-driven TOML specs, CustomAdapter escape hatch |
 | Security Architecture | security-architecture.md | ~1,000 | security-reviewer, implementer | Credentials, feature flags, audit, prompt injection defense |
 | Operational Pipeline | operational-pipeline.md | ~1,000 | implementer, test-writer | Scheduler, differential results, detection, alerts, cases — v1.2 (D-209 8/8 + 60s tick + ActionDeliveryEngine per F-P23-H-001) |
 | Concurrency Architecture | concurrency-architecture.md | ~800 | implementer, formal-verifier | Tokio runtime, arc-swap, shared state protection — v1.1 (Mermaid diagram + 6 edits; 16-permit→8/8 split per D-209) |
 | Purity Boundary Map | purity-boundary-map.md | ~800 | implementer, formal-verifier | Pure core / effectful shell classification per crate |
-| Verification Architecture | verification-architecture.md | ~1,000 | formal-verifier, architect | Provable Properties Catalog, proof strategy |
+| Verification Architecture | verification-architecture.md | ~1,000 | formal-verifier, architect | Provable Properties Catalog, proof strategy — v1.28 (Mermaid P13 + 145 VPs per F-PreP21-H-001 + Pass 13 F-P13-H-002) |
 | Tooling Selection | tooling-selection.md | ~400 | formal-verifier, devops-engineer | Kani, proptest, fuzz tool versions and config |
 | Detection Rule Format | detection-rule-format.md | ~1,200 | implementer, test-writer | .detect rule structure, condition modes, rule-to-SQL compilation |
 | Infusions | infusions.md | ~1,500 | implementer, test-writer | Enrichment framework — GeoIP, threat intel, asset inventory, CVSS. TOML specs + .prx plugins. |
@@ -142,6 +142,7 @@ deployment_topology: single-service
 
 | Version | Pass | Date | Author | Change |
 |---------|------|------|--------|--------|
+| 2.23 | W4-Phase4A-PrePass24-Sweep | 2026-05-04 | state-manager | F-PreP24-CRIT-001: prd.md v1.7→v1.8 (INV-ACTION-004 root contract "shared 16-permit semaphore" contradicts D-209 LOCKED — PRD root contract corrected). F-PreP24-H-001: interface-definitions.md v2.5→v2.6 (6 sites Subsystem 18 "Action Engine" label corrected to "Action Delivery Engine"). F-PreP24-H-002: query-engine.md v1.1→v1.2 (16 concurrent→8 concurrent + 3.2 GB→1.6 GB memory math). Document Map rows updated: query-engine v1.2; module-decomposition v1.13 (missing annotation added); api-surface v1.6 (missing annotation added); verification-architecture v1.28 (missing annotation added). ARCH-INDEX version 2.22→2.23. TD-VSDD-048 methodology applied. |
 | 2.22 | W4-Phase4A-Pass23-fix | 2026-05-04 | state-manager | F-P23-H-001: operational-pipeline.md v1.1→v1.2 (3 stale refs fixed: 16-permit + Action Engine + 60s tick; missed by Pre-Pass-21 hand-curated sweep target list). F-P23-H-002: actions.md v1.2→v1.3 (Mermaid participant display labels Action Engine→ActionDeliveryEngine claim-vs-reality drift). Document Map rows updated. ARCH-INDEX version 2.21→2.22. TD-VSDD-048 filed. |
 | 2.21 | W4-Phase4A-Pass22-fix | 2026-05-03 | state-manager | F-P22-L-001: Document Map line 39 actions.md annotation updated to v1.2 (D-209 8/8 split + 60s tick + ActionDeliveryEngine + ADR-016 §2.5 CF table per F-P22-H-001). ARCH-INDEX version 2.20→2.21. |
 | 2.20 | W4-Phase4A-PrePass22-BroadSweep | 2026-05-03 | state-manager | F-PreP22-H-001: concurrency-architecture.md v1.0→v1.1 (Mermaid + 6 edits; 16-permit→8/8 split per D-209). F-PreP22-H-002: observability.md v1.0→v1.1 (debug log + JSON user-facing examples updated to 8/8 per D-209). F-PreP22-H-003: interface-definitions.md v2.4→v2.5 (ActionEngine→ActionDeliveryEngine). F-PreP22-H-004: vp-045-schedule-semaphore-try-acquire-nonblocking.md v1.1→v1.2 (full body rewrite + slug-preservation banner per POL-1). Document Map rows updated: concurrency-architecture v1.1, observability v1.1. Window stays 0/3; Pass 22 dispatch ready. |

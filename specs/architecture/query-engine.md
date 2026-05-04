@@ -2,7 +2,7 @@
 document_type: architecture-section
 level: L3
 section: "query-engine"
-version: "1.1"
+version: "1.2"
 status: draft
 producer: architect
 timestamp: 2026-04-27T00:00:00
@@ -175,7 +175,7 @@ The `QueryEngine` provides two execution methods:
 
 2. **`execute_scheduled(query, scope) -> ScheduledQueryResult`** — Scheduled query execution for detection integration. Creates a `SessionContext` with `GreedyMemoryPool`, executes the query, collects results, but **does not drop the context**. Returns `ScheduledQueryResult` containing `Vec<RecordBatch>`, metadata, `sensor_errors`, and the live `SessionContext`. The caller (`prism-operations::Scheduler`) is responsible for: (a) computing differential results, (b) registering the differential as a MemTable in the returned `SessionContext`, (c) running detection evaluation, and (d) dropping the `SessionContext` when complete. This enables detection to reuse the same `GreedyMemoryPool` without creating a separate allocation.
 
-   **Error path (REQUIRED):** The `SessionContext` MUST be dropped before any error is propagated from the scheduler task. Use `scopeguard::defer!(drop(ctx))` at the call site or wrap the `SessionContext` in an RAII guard type that drops on any exit path. Rust's implicit drop on stack unwind may defer the drop during `?` propagation, holding the `GreedyMemoryPool` allocation (up to 200 MB) alive until the task stack unwinds. With 16 concurrent schedule tasks, deferred drops during error cascades could temporarily hold 3.2 GB — exceeding the 512 MB RSS budget before the process-level watchdog fires. Verified by VP-036 (integration test).
+   **Error path (REQUIRED):** The `SessionContext` MUST be dropped before any error is propagated from the scheduler task. Use `scopeguard::defer!(drop(ctx))` at the call site or wrap the `SessionContext` in an RAII guard type that drops on any exit path. Rust's implicit drop on stack unwind may defer the drop during `?` propagation, holding the `GreedyMemoryPool` allocation (up to 200 MB) alive until the task stack unwinds. With 8 concurrent schedule tasks (per D-209 LOCKED 8/8 independent split), deferred drops during error cascades could temporarily hold 1.6 GB — exceeding the 512 MB RSS budget before the process-level watchdog fires. Verified by VP-036 (integration test).
 
 ## IOC File Specification
 
@@ -504,4 +504,5 @@ These fields are prefixed with `_` to distinguish them from OCSF fields. They ar
 
 | Version | Date | Author | Change |
 |---------|------|--------|--------|
+| 1.2 | 2026-05-03 | architect | F-PreP24-H-002: corrected `execute_scheduled` error-path memory-budget text — 16 concurrent tasks → 8 (D-209 LOCKED), 3.2 GB → 1.6 GB (8 × 200 MB). Watchdog-exceeds-512-MB-RSS risk reasoning preserved. POL-6 compliance. |
 | 1.1 | 2026-04-27 | product-owner | Pass 15 sweep: `_client` virtual field description updated TenantId → OrgSlug (ADR-006); added `## [Section Content]` template compliance marker. |

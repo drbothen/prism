@@ -1,7 +1,7 @@
 ---
 document_type: pipeline-state
 level: ops
-version: "6.59"
+version: "6.60"
 producer: state-manager
 timestamp: 2026-05-03T00:00:00Z
 inputs: []
@@ -88,6 +88,8 @@ wave_4_phase_4_a_preflight:
   pass_23_fixes: [operational-pipeline.md v1.1→v1.2 (F-P23-H-001 3 stale refs: 16-permit+Action Engine+tick missed by Pre-Pass-21 hand-curated sweep; F-P23-M-001 changelog W4 entry added), actions.md v1.2→v1.3 (F-P23-H-002 Mermaid participant labels Action Engine→ActionDeliveryEngine), ARCH-INDEX v2.22]
   pass_23_td_filed: TD-VSDD-048
   pass_23_stage1_sha: 08da90f8
+  pre_pass24_sweep_status: COMPLETE_TD-VSDD-048-applied
+  pre_pass24_findings: "1 CRITICAL (prd.md INV-ACTION-004 D-209 contract drift; v1.8) + 2 HIGH (interface-definitions.md 6 sites; v2.6; query-engine.md 16→8 concurrent + 3.2GB→1.6GB; v1.2) — ALL REMEDIATED"
   vsdd_plugin_td_count: 27 (was 26; TD-VSDD-048 broad-sweep grep-completeness enforcement added 2026-05-04)
 gate_status_hook_compat_remediation: 2026-04-24
 wave_0a_complete: 2026-04-22
@@ -329,13 +331,13 @@ vp_index_version: "1.26"
 story_index_version: "v2.03"
 red_gate_wave_0a_complete: 2026-04-21
 test_vectors_version: "2.7"
-prd_version: "1.7"
+prd_version: "1.8"
 error_taxonomy_version: "1.13"
 holdout_index_version: "1.2"
 capabilities_version: "1.14"
 l2_index_version: "1.10"
 module_decomposition_version: "1.13"
-arch_index_version: "2.22"
+arch_index_version: "2.23"
 security_architecture_version: "1.1"
 verification_coverage_matrix_version: "1.31"
 verification_architecture_version: "1.28"
@@ -370,10 +372,10 @@ user_directive_persistent: "No pragmatic convergence. Fix all issues before buil
 | **Language** | Rust |
 | **Target Workspace** | per-analyst stdio (MCP server) |
 | **Started** | 2026-04-13 |
-| **Last Updated** | 2026-05-04 (Pass 23 BLOCKED→REMEDIATED: operational-pipeline.md v1.2 + actions.md v1.3 + ARCH-INDEX v2.22; TD-VSDD-048; STATE v6.59) |
-| **Current Phase** | Phase 4.A — Wave 4 adversarial spec convergence (23 passes consumed; Pass 23 REMEDIATED; window 0/3; Pass 24 next) |
-| **Current Step** | Wave 4 Phase 4.A — Pass 23 BLOCKED→REMEDIATED (2H+1M+1L; operational-pipeline.md v1.2 + actions.md v1.3 + ARCH-INDEX v2.22 + TD-VSDD-048); Pass 24 (window 1/3 attempt) next |
-| **factory-artifacts HEAD** | `08da90f8` |
+| **Last Updated** | 2026-05-04 (Pre-Pass-24 TD-VSDD-048 sweep COMPLETE: prd.md v1.8 CRITICAL INV-ACTION-004 D-209 contract; interface-definitions.md v2.6 HIGH 6 sites; query-engine.md v1.2 HIGH 16→8 concurrent + memory math; ARCH-INDEX v2.23; STATE v6.60) |
+| **Current Phase** | Phase 4.A — Wave 4 adversarial spec convergence (23 passes consumed; Pre-Pass-24 TD-VSDD-048 sweep COMPLETE; window 0/3; Pass 24 next) |
+| **Current Step** | Wave 4 Phase 4.A — Pre-Pass-24 TD-VSDD-048 grep-completeness sweep COMPLETE (1 CRITICAL + 2 HIGH remediated); Pass 24 (window 1/3 attempt) next |
+| **factory-artifacts HEAD** | `15fa97e6` |
 
 ## Phase Progress
 
@@ -411,6 +413,16 @@ _D-001..D-046 archived: [cycles/phase-3-dtu-wave-2/decisions-archive-d001-d032.m
 | D-214 | Wave 4 Phase 4.A Convergence Strategy — B+A Hybrid with Subagent Context Discipline. Component 1 (Option B): Proactive structural sweep. Component 2 (Option A): Formal adversarial passes 13+ to 3-clean window. Component 3: Subagent context discipline MANDATORY (orchestrator NEVER reads large files; state-manager LAST per burst). | Wave 4 Phase 4.A B+A hybrid convergence + mandatory subagent context discipline | 4 | 2026-05-04 |
 **Passes 8–22 REMEDIATED/CLEAN (detail archived); Pass 23 BLOCKED→REMEDIATED (2H+1M+1L; operational-pipeline.md v1.2 F-P23-H-001 3 stale refs missed by Pre-Pass-21 hand-curated target list; actions.md v1.3 F-P23-H-002 Mermaid participant labels; ARCH-INDEX v2.22; TD-VSDD-048 filed); window stays 0/3; Pass 24 next. Trajectory: …→P20(2H+2L;RESET 0/3)→PreSweep→P21(2H+1M;REMEDIATED;0/3)→PreP22Sweep(COMPLETE;0/3)→P22(1H+1M+1L;REMEDIATED;0/3)→P23(2H+1M+1L;REMEDIATED;0/3). Detail: [pass-23.md](cycles/wave-4-operations/adversarial-reviews/pass-23.md) | [burst-log.md](cycles/wave-4-operations/burst-log.md).**
 
+### Wave 4 Phase 4.A Pre-Pass-24 TD-VSDD-048 Grep-Completeness Sweep (2026-05-04) — CRITICAL PRD-level drift caught
+
+| Finding | Severity | Substance | File | Resolution |
+|---------|----------|-----------|------|------------|
+| F-PreP24-CRIT-001 | CRITICAL | SUBSTANTIVE | prd.md INV-ACTION-004 ("shared 16-permit semaphore" contradicts D-209 LOCKED) | product-owner: D-209 8/8 split corrected at root; v1.8 |
+| F-PreP24-H-001 | HIGH | SUBSTANTIVE | interface-definitions.md (6 sites "Action Engine" subsystem labels) | architect: ActionDeliveryEngine canonical; v2.6 |
+| F-PreP24-H-002 | HIGH | SUBSTANTIVE | query-engine.md (16 concurrent schedule tasks + 3.2 GB stale memory math) | architect: 8 concurrent + 1.6 GB; v1.2 |
+
+**Insight:** The PRD ROOT CONTRACT was wrong for 23 prior adversary passes — would have shipped as substantively incorrect product spec. TD-VSDD-048 codified methodology (grep-completeness check at end of broad-sweep) caught this.
+
 ### Wave 4 Phase 4.A Pre-Pass-22 Broad-Scope Sweep (2026-05-03) — User Directive: "Don't Defer" — Continued
 
 | Finding | Severity | Substance | File | Resolution |
@@ -445,19 +457,19 @@ _TD-VSDD-014..019, TD-W3-COMPLIANCE-001, TD-VSDD-025..029 archived to [tech-debt
 
 Cycle files: [burst-log](cycles/phase-2-patch/burst-log.md) | [convergence-trajectory](cycles/phase-2-patch/convergence-trajectory.md) | [session-checkpoints](cycles/phase-2-patch/session-checkpoints.md) | [lessons](cycles/phase-2-patch/lessons.md) | [resolved-blockers](cycles/phase-2-patch/blocking-issues-resolved.md)
 ---
-## Session Resume Checkpoint (2026-05-04-wave4-phase4a-pass23-remediated-v6.59)
+## Session Resume Checkpoint (2026-05-04-wave4-phase4a-prepass24-sweep-v6.60)
 
 _Previous checkpoint archived: [cycles/wave-4-operations/session-checkpoints.md](cycles/wave-4-operations/session-checkpoints.md)_
 
-**STATE v6.59 (canonical SHA `08da90f8`). WAVE 4 PHASE 4.A — PASS 23 BLOCKED→REMEDIATED. WINDOW 0/3. PASS 24 NEXT.**
+**STATE v6.60 (canonical SHA `15fa97e6`). WAVE 4 PHASE 4.A — PRE-PASS-24 TD-VSDD-048 SWEEP COMPLETE. WINDOW 0/3. PASS 24 NEXT.**
 
-develop HEAD: `ba3b10c7` | factory-artifacts: `08da90f8` | workspace tests: 2363 | PRs merged: 125
+develop HEAD: `ba3b10c7` | factory-artifacts: `15fa97e6` | workspace tests: 2363 | PRs merged: 125
 
-**PASS 23 REMEDIATION:** 2H+1M+1L. F-P23-H-001: operational-pipeline.md v1.2 (3 stale refs: 16-permit→8-permit per D-209; Action Engine→ActionDeliveryEngine; 1-second→60s per ADR-013 §2.1; missed by Pre-Pass-21 hand-curated sweep target list). F-P23-H-002: actions.md v1.3 (Mermaid participant display labels Action Engine→ActionDeliveryEngine claim-vs-reality drift in v1.1 changelog). F-P23-M-001: operational-pipeline.md W4 changelog entry added. F-P23-L-001: process-gap → TD-VSDD-048 filed (broad-sweep grep-completeness enforcement). ARCH-INDEX v2.22.
+**PRE-PASS-24 SWEEP (TD-VSDD-048):** 1 CRITICAL + 2 HIGH. F-PreP24-CRIT-001: prd.md v1.8 (INV-ACTION-004 root contract "shared 16-permit semaphore" contradicted D-209 LOCKED — PRD root corrected; would have shipped wrong). F-PreP24-H-001: interface-definitions.md v2.6 (6 sites Subsystem 18 label "Action Engine" → "Action Delivery Engine"). F-PreP24-H-002: query-engine.md v1.2 (16 concurrent schedule tasks → 8 per D-209; 3.2 GB → 1.6 GB memory math corrected). ARCH-INDEX v2.23 (query-engine row + 3 missing annotations added).
 
 **NEXT ACTION: Adversary Pass 24 (window 1/3 attempt). See SESSION-HANDOFF.md STEP 2.**
 
-**Current spec versions:** ADR-013 v0.7, ADR-015 v0.6, ADR-016 v0.12, ADR-017 v0.7, ADR-018 v0.6, ADR-019 v0.4, actions.md v1.3, operational-pipeline.md v1.2, concurrency-architecture.md v1.1, observability.md v1.1, interface-definitions.md v2.5, data-layer.md v1.3, S-4.01 v1.12, S-4.02 v1.11, S-4.05 v1.12, S-4.08 v1.23, BC-2.12.004 v1.8, BC-2.18.001 v1.8, BC-2.18.002 v1.5, BC-2.18.004 v1.5, BC-2.18.003 v1.4, BC-2.18.008 v1.4, S-5.06 v1.11, STORY-INDEX v2.03, ARCH-INDEX v2.22, BC-INDEX v4.32, VP-INDEX v1.26, verification-architecture v1.28, coverage-matrix v1.31.
+**Current spec versions:** ADR-013 v0.7, ADR-015 v0.6, ADR-016 v0.12, ADR-017 v0.7, ADR-018 v0.6, ADR-019 v0.4, prd.md v1.8, actions.md v1.3, operational-pipeline.md v1.2, concurrency-architecture.md v1.1, observability.md v1.1, interface-definitions.md v2.6, query-engine.md v1.2, data-layer.md v1.3, S-4.01 v1.12, S-4.02 v1.11, S-4.05 v1.12, S-4.08 v1.23, BC-2.12.004 v1.8, BC-2.18.001 v1.8, BC-2.18.002 v1.5, BC-2.18.004 v1.5, BC-2.18.003 v1.4, BC-2.18.008 v1.4, S-5.06 v1.11, STORY-INDEX v2.03, ARCH-INDEX v2.23, BC-INDEX v4.32, VP-INDEX v1.26, verification-architecture v1.28, coverage-matrix v1.31.
 
 **Key files:** [SESSION-HANDOFF.md](SESSION-HANDOFF.md) | [cycle-manifest.md](cycles/wave-4-operations/cycle-manifest.md)
 

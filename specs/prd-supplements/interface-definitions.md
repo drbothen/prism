@@ -2,7 +2,7 @@
 document_type: prd-supplement
 level: L3
 section: "interface-definitions"
-version: "2.5"
+version: "2.6"
 status: draft
 producer: product-owner
 timestamp: 2026-04-14T05:00:00
@@ -2490,7 +2490,7 @@ Triggers an immediate data reload for the named infusion: re-reads the source fi
 }
 ```
 
-### 1.44 List Actions Tool — list_actions (Subsystem 18: Action Engine)
+### 1.44 List Actions Tool — list_actions (Subsystem 18: Action Delivery Engine)
 
 Always-visible read-only tool. Lists configured actions with status, trigger type, and last fired timestamp.
 
@@ -2534,7 +2534,7 @@ Always-visible read-only tool. Lists configured actions with status, trigger typ
 }
 ```
 
-### 1.45 Action Status Tool — action_status (Subsystem 18: Action Engine)
+### 1.45 Action Status Tool — action_status (Subsystem 18: Action Delivery Engine)
 
 Always-visible read-only tool. Returns detailed status for a named action: last fire time, success/failure counts, rate limit state, and suppressed count.
 
@@ -2587,7 +2587,7 @@ Always-visible read-only tool. Returns detailed status for a named action: last 
 }
 ```
 
-### 1.46 Fire Action Tool — fire_action (Subsystem 18: Action Engine)
+### 1.46 Fire Action Tool — fire_action (Subsystem 18: Action Delivery Engine)
 
 **Capability gate:** `action.write` — Reversible
 
@@ -2640,7 +2640,7 @@ Manually triggers an action with a supplied context payload. Uses the dry-run pa
 }
 ```
 
-### 1.47 Test Action Tool — test_action (Subsystem 18: Action Engine)
+### 1.47 Test Action Tool — test_action (Subsystem 18: Action Delivery Engine)
 
 **Capability gate:** `action.write` — Reversible
 
@@ -2679,7 +2679,7 @@ Sends a synthetic test payload to an action's configured destination to validate
 }
 ```
 
-### 1.48 Create Action Tool — create_action (Subsystem 18: Action Engine)
+### 1.48 Create Action Tool — create_action (Subsystem 18: Action Delivery Engine)
 
 **Capability gate:** `action.write` — Reversible
 
@@ -2716,7 +2716,7 @@ Validates and loads a new action spec from TOML content. Writes to `{config_dir}
 }
 ```
 
-### 1.49 Delete Action Tool — delete_action (Subsystem 18: Action Engine)
+### 1.49 Delete Action Tool — delete_action (Subsystem 18: Action Delivery Engine)
 
 **Capability gate:** `action.write` — Irreversible
 
@@ -2931,6 +2931,7 @@ OPTIONS:
 
 | Version | Burst | Date | Author | Change |
 |---------|-------|------|--------|--------|
+| 2.6 | F-PreP24-H-001 | 2026-05-03 | architect | Propagated ARCH-INDEX SS-18 canonical name: replaced all 6 occurrences of `(Subsystem 18: Action Engine)` with `(Subsystem 18: Action Delivery Engine)` in §§1.44–1.49 headers (lines 2493, 2537, 2590, 2643, 2682, 2719). POL-6 compliance. |
 | 2.5 | F-PreP22-H-003 | 2026-05-03 | architect | ADR-016 §1.1 canonical type name propagation: replaced `ActionEngine` with `ActionDeliveryEngine` in delete_action §1.49 description (line ~2723). |
 | 2.4 | pass-71-fix | 2026-04-20 | product-owner | CRIT-001: converted changelog to canonical 5-col schema (Version/Burst/Date/Author/Change); corrected column order on pre-build-sweep row. |
 | 2.3 | pre-build-sweep | 2026-04-20 | architect | Template-compliance sweep: added inputs/input-hash/traces_to frontmatter. |
