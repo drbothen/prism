@@ -1,7 +1,7 @@
 ---
 document_type: prd
 level: L3
-version: "1.9"
+version: "1.10"
 status: draft
 producer: product-owner
 timestamp: 2026-04-14T06:00:00
@@ -379,7 +379,7 @@ WASM Component Model plugin runtime per AD-019. Enables polyglot plugins (Rust, 
 
 Capability: CAP-033
 
-Config-driven alert delivery and scheduled reporting per AD-021. Three trigger modes with different delivery guarantees: alert/case triggers (at-least-once with exponential backoff retry, INV-ACTION-001), schedule triggers (best-effort, INV-ACTION-002), manual triggers (fire-and-forget, INV-ACTION-003). Scheduled report queries acquire the action_delivery_semaphore via try_acquire() per D-209 LOCKED 8/8 independent split — schedule_executor_semaphore (8 permits, owned by prism-operations::scheduler) and action_delivery_semaphore (8 permits, owned by prism-operations::action_dispatcher) are STRUCTURALLY INDEPENDENT pools, no shared budget (INV-ACTION-004 — supersedes pre-D-209 16-permit shared design) and tolerate per-section failures (INV-ACTION-005). Template variables injection-scanned before interpolation (INV-ACTION-006). Credentials use AI-opaque reference model (INV-ACTION-007). All outcomes audit-logged (INV-ACTION-008). UUID v7 validation for `${case.alert_ids_quoted}` (INV-ACTION-009).
+Config-driven alert delivery and scheduled reporting per AD-021. Three trigger modes with different delivery guarantees: alert/case triggers (at-least-once with exponential backoff retry, INV-ACTION-001), schedule triggers (best-effort, INV-ACTION-002), manual triggers (fire-and-forget, INV-ACTION-003). Scheduled report queries acquire the action_delivery_semaphore via try_acquire() per D-209 LOCKED 8/8 independent split — schedule_executor_semaphore (8 permits, owned by prism-operations::scheduler) and action_delivery_semaphore (8 permits, owned by prism-operations::action_delivery) are STRUCTURALLY INDEPENDENT pools, no shared budget (INV-ACTION-004 — supersedes pre-D-209 16-permit shared design) and tolerate per-section failures (INV-ACTION-005). Template variables injection-scanned before interpolation (INV-ACTION-006). Credentials use AI-opaque reference model (INV-ACTION-007). All outcomes audit-logged (INV-ACTION-008). UUID v7 validation for `${case.alert_ids_quoted}` (INV-ACTION-009).
 
 | BC ID | Title | Priority |
 |-------|-------|----------|
@@ -932,6 +932,7 @@ Regenerated from BC file `capability:` frontmatter fields (Burst 13 Part B, upda
 
 ## Change Log
 
+- 2026-05-04 (Pass-25 F-P25-H-001): §2 line 382 token `prism-operations::action_dispatcher` → `prism-operations::action_delivery` (canonical per concurrency-architecture.md v1.1 + BC-2.18.004 v1.5 module path `action/delivery.rs`). Stale orphan introduced by pre-Pass-24 fix-burst prompt; corrected. Version bumped 1.9→1.10.
 - 2026-05-04 (Pass-24 F-P24-CRIT-001+sweep): §2 line 389 BC-2.18.004 cell title corrected from superseded "Scheduled Report Queries — try_acquire() on 16-Permit Semaphore, Skip If Unavailable" to canonical "Action Delivery Semaphore — 8-Permit Independent Pool, try_acquire() Skip-If-Unavailable" (matches BC H1 + BC-INDEX). PLUS proactive TD-VSDD-049-style sweep across ALL 200 PRD §2 BC table rows — programmatic H1↔PRD-cell comparison confirmed zero additional drift sites. Version bumped 1.8→1.9.
 - 2026-05-03 (Pre-Pass-24 F-PreP24-CRIT-001): §2 SS-18 INV-ACTION-004 root contract corrected from "shared 16-permit semaphore" to D-209 LOCKED 8/8 independent split (schedule_executor_semaphore + action_delivery_semaphore, structurally independent, no shared budget). PRD-level architectural drift surviving 23 prior adversary passes — would have shipped as wrong product contract. TD-VSDD-048 grep-completeness sweep finding. Version bumped 1.7→1.8.
 - 2026-04-21 (pass-97 F97-001): §2 SS-10 subsystem header corrected from `Capabilities: CAP-034, CAP-005, CAP-009` to `Capabilities: CAP-034, CAP-005, CAP-008, CAP-009, CAP-015` — BC-2.10.002 dual-anchors CAP-005/CAP-015 and BC-2.10.008 dual-anchors CAP-008/CAP-009; secondary CAPs added per F96-004 precedent. Version bumped 1.6→1.7.

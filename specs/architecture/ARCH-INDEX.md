@@ -1,7 +1,7 @@
 ---
 document_type: architecture-index
 level: L3
-version: "2.24"
+version: "2.25"
 status: draft
 producer: architect
 timestamp: 2026-05-04T00:00:00
@@ -142,6 +142,7 @@ deployment_topology: single-service
 
 | Version | Pass | Date | Author | Change |
 |---------|------|------|--------|--------|
+| 2.25 | W4-Phase4A-Pass25-fix | 2026-05-04 | state-manager | F-P25-H-001: prd.md v1.9→v1.10 (PRD §2 line 382 stale `action_dispatcher` token in subsystem-introduction prose → `action_delivery` per concurrency-architecture v1.1 + module-decomposition v1.13 canonicals; orphan introduced by orchestrator-authored pre-Pass-24 fix-burst prompt; SUBSTANTIVE). TD-VSDD-050 filed (PRD §2 SUBSYSTEM PROSE sync check — sibling to TD-VSDD-049 BC-table sync). ARCH-INDEX version 2.24→2.25. Window stays 0/3; Pass 26 next. |
 | 2.24 | W4-Phase4A-Pass24-fix | 2026-05-04 | state-manager | F-P24-CRIT-001: prd.md v1.8→v1.9 (PRD §2 line 389 BC-2.18.004 cell title sync to BC H1 — "Scheduled Report Queries — try_acquire() on 16-Permit Semaphore" → "Action Delivery Semaphore — 8-Permit Independent Pool"; comprehensive TD-VSDD-049 sweep across 200 PRD §2 BC rows found ONLY this drift; SUBSTANTIVE). TD-VSDD-049 filed. ARCH-INDEX version 2.23→2.24. Pass 25 next (window stays 0/3). |
 | 2.23 | W4-Phase4A-PrePass24-Sweep | 2026-05-04 | state-manager | F-PreP24-CRIT-001: prd.md v1.7→v1.8 (INV-ACTION-004 root contract "shared 16-permit semaphore" contradicts D-209 LOCKED — PRD root contract corrected). F-PreP24-H-001: interface-definitions.md v2.5→v2.6 (6 sites Subsystem 18 "Action Engine" label corrected to "Action Delivery Engine"). F-PreP24-H-002: query-engine.md v1.1→v1.2 (16 concurrent→8 concurrent + 3.2 GB→1.6 GB memory math). Document Map rows updated: query-engine v1.2; module-decomposition v1.13 (missing annotation added); api-surface v1.6 (missing annotation added); verification-architecture v1.28 (missing annotation added). ARCH-INDEX version 2.22→2.23. TD-VSDD-048 methodology applied. |
 | 2.22 | W4-Phase4A-Pass23-fix | 2026-05-04 | state-manager | F-P23-H-001: operational-pipeline.md v1.1→v1.2 (3 stale refs fixed: 16-permit + Action Engine + 60s tick; missed by Pre-Pass-21 hand-curated sweep target list). F-P23-H-002: actions.md v1.2→v1.3 (Mermaid participant display labels Action Engine→ActionDeliveryEngine claim-vs-reality drift). Document Map rows updated. ARCH-INDEX version 2.21→2.22. TD-VSDD-048 filed. |
