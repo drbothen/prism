@@ -1,46 +1,45 @@
 ---
 document_type: session-handoff
 level: ops
-version: "6.68"
+version: "6.69"
 status: current
 timestamp: 2026-05-04T00:00:00Z
-predecessor_session: "Wave 4 Phase 4.A Pass 30 PERFECT CLEAN 2026-05-04. STATE v6.67. factory-artifacts 15fa97e6 (prior canonical SHA)."
-successor_focus: "WAVE 4 PHASE 4.A CONVERGED. Pass 31 PERFECT CLEAN. Window 3/3 CLOSED. Trajectory: P29(0)→P30(0)→P31(0; CONVERGED). STATE v6.68. Next: R8 (final fresh-context audit) + R9 (human approval gate) + R10 (Phase 4.B begins).
+predecessor_session: "Wave 4 Phase 4.A Pass 31 PERFECT CLEAN 2026-05-04. STATE v6.68. factory-artifacts 190c32df (prior canonical SHA — Pass 31 CONVERGED)."
+successor_focus: "WAVE 4 PHASE 4.A APPROVED + CONVERGED. R9 HUMAN APPROVED. D-215 (no W1/W2/W3 audit needed; optional R11 sweep) + D-216 (W4 holdout scenarios GAP — BLOCKER for Phase 4.B wave gate). STATE v6.69. Post-compact resume sequence below.
 
-**STEP 2 — NEXT ACTION: WAVE 4 PHASE 4.A CONVERGED. Pass 31 PERFECT CLEAN (0 findings of any severity; 17 cross-cuts verified incl. 2 NOVEL-AXIS). Window 3/3 CLOSED. Trajectory: P29(0)→P30(0)→P31(0; CONVERGED). VSDD 3-clean window discipline satisfied. F-P29-L-001 still DEFERRED (cosmetic, non-blocking). Next: R8 (final fresh-context audit: consistency-validator + spec-reviewer iter-3 + input-hash drift check), then R9 (human approval gate), then R10 (Phase 4.B begins — S-4.01 + S-4.03 entry stories dispatch).**
+**STEP 1 (R10 PREREQUISITE — D-216 BLOCKER):** Dispatch product-owner to author W4-specific holdout scenarios. 5+ new HS files (HS-009 through HS-013+) covering: schedule execution loop liveness, action delivery at-least-once retry, case management lifecycle, alert generation, differential pack deltas, detection rule validation. Add frontmatter with wave/story/BC anchoring (BC-2.12.004, BC-2.18.001/002/004, S-4.01..S-4.08). Update HOLDOUT-INDEX. State-manager commits LAST.
+
+**STEP 2 (R10):** Dispatch S-4.01 + S-4.03 entry stories in parallel (per-story-delivery skill). These have no upstream story dependencies in W4. Gated on STEP 1 completion.
+
+**STEP 3 (R11):** W4-FIX-* fix-wave for W3 carry-forward debt per D-203 + 4 W4 LOW TD items captured at R9 gate (TD-W4-RETRY-OBS-001, TD-W4-INJECTION-VOCAB-001, TD-W4-CV-LOW-001, TD-W4-CV-LOW-002).
 
 **KEY REFERENCES:**
-- STATE.md v6.68: develop@ba3b10c7; factory-artifacts 190c32df (canonical SHA — Pass 31 CONVERGED)
+- STATE.md v6.69: develop@ba3b10c7; factory-artifacts 15fa97e6 (Stage 1 placeholder — update to canonical SHA after Stage 2)
+- D-215: No W1/W2/W3 audit needed (optional R11 structural-drift sweep using TD-VSDD-039..052 methodologies — low-priority, NOT Phase 4.B blocker)
+- D-216: W4 holdout scenarios GAP — 8 HS files (HS-001..HS-008) have NO W4 BC/story references; BLOCKER for Phase 4.B wave gate; product-owner must author HS-009+ before S-4.01/S-4.03 dispatch
+- 4 LOW COSMETIC findings deferred: TD-W4-RETRY-OBS-001 (SR-LOW-001), TD-W4-INJECTION-VOCAB-001 (SR-LOW-002), TD-W4-CV-LOW-001 (STORY-INDEX BC-INDEX version pin staleness), TD-W4-CV-LOW-002 (ARCH-INDEX ADR-016 registry date vs frontmatter)
 - pass-31.md: cycles/wave-4-operations/adversarial-reviews/pass-31.md (PERFECT CLEAN; 0 findings; 17 cross-cuts incl. 2 NOVEL-AXIS; CONVERGED)
-- cycle-manifest v1.51 (NEW — wave-4-pass31-CONVERGED; 190c32df)
-- vp-045-schedule-semaphore-try-acquire-nonblocking.md v1.4 (F-P28-H-001 fix; current; RE-VERIFIED CLEAN)
-- ARCH-INDEX v2.28 (current)
+- cycle-manifest v1.52 (NEW — wave-4-r9-APPROVED; 15fa97e6 placeholder)
+- ARCH-INDEX v2.28 (current; RE-VERIFIED CLEAN)
 - ADR-016 v0.14 (F-P27-H-001 fix; current; RE-VERIFIED CLEAN)
-- TD-VSDD-052 filed: vsdd-plugin-tech-debt.md (31 items — pre-dispatch VP scope verification)
-- prd.md v1.10 (F-P25-H-001: PRD §2 line 382 stale `action_dispatcher` → `action_delivery`; RE-VERIFIED CLEAN)
-- TD-VSDD-050/051 filed: vsdd-plugin-tech-debt.md (PRD §2 subsystem-prose + sibling-ADR sweep)
-- interface-definitions.md v2.6 (F-PreP24-H-001: 6 sites Subsystem 18 label ActionEngine→ActionDeliveryEngine; RE-VERIFIED CLEAN)
-- query-engine.md v1.2 (F-PreP24-H-002: 16 concurrent→8 per D-209; RE-VERIFIED CLEAN)
-- operational-pipeline.md v1.2 (F-P23-H-001: 3 stale refs fixed; RE-VERIFIED CLEAN)
-- actions.md v1.3 (F-P23-H-002: Mermaid participant labels; RE-VERIFIED CLEAN)
-- TD-VSDD-049 filed: vsdd-plugin-tech-debt.md (PRD §2 BC-table↔BC H1 sync)
-- TD-VSDD-048 filed: vsdd-plugin-tech-debt.md (broad-sweep grep-completeness)
-- concurrency-architecture.md v1.1 (F-PreP22-H-001: 8/8 split per D-209; RE-VERIFIED CLEAN)
-- observability.md v1.1 (F-PreP22-H-002: user-facing examples updated; RE-VERIFIED CLEAN)
-- data-layer.md v1.3 (F-P21-H-001/H-002/M-001; RE-VERIFIED CLEAN)
-- BC-2.18.003 v1.4 (current; RE-VERIFIED CLEAN)
-- BC-2.18.008 v1.4 (current; RE-VERIFIED CLEAN)
+- prd.md v1.10 (current; RE-VERIFIED CLEAN)
+- interface-definitions.md v2.6 (current; RE-VERIFIED CLEAN)
+- query-engine.md v1.2 (current; RE-VERIFIED CLEAN)
+- data-layer.md v1.3 (current; RE-VERIFIED CLEAN)
 - BC-INDEX v4.32 (current)
 - STORY-INDEX v2.03 (current)
-- Wave 4 cycle-manifest: cycles/wave-4-operations/cycle-manifest.md (v1.51)
+- Wave 4 cycle-manifest: cycles/wave-4-operations/cycle-manifest.md (v1.52)
 - Product TD register: tech-debt-register.md (57 active product items)
+- vsdd-plugin-tech-debt.md: 31 items (TD-VSDD-052 most recent)
 
-factory-artifacts canonical: 190c32df (canonical SHA — Pass 31 CONVERGED). develop HEAD: ba3b10c7."
+factory-artifacts canonical: 15fa97e6 (Stage 1 placeholder — replace globally after Stage 2 push). develop HEAD: ba3b10c7."
 ---
 
 # Session Handoff — WAVE 4 PHASE 4.A DECISIONS LOGGED (2026-05-02)
 
 ## TL;DR
+
+**WAVE 4 PHASE 4.A R9 HUMAN APPROVED (2026-05-04) — STATE v6.69:** Phase 4.A APPROVED + CONVERGED. D-215 filed (no W1/W2/W3 audit needed; optional R11 sweep). D-216 filed (W4 holdout scenarios GAP — 8 HS files have no W4 BC/story anchoring; BLOCKER for Phase 4.B wave gate; product-owner must author HS-009+ before S-4.01/S-4.03 dispatch). 4 LOW COSMETIC R8 findings tracked as TD items (non-blocking). cycle-manifest v1.52. Post-compact resume: STEP 1 (D-216 holdout authoring) → STEP 2 (R10 S-4.01/S-4.03) → STEP 3 (R11 W4-FIX-*).
 
 **WAVE 4 PHASE 4.A CONVERGED (2026-05-04) — Pass 31 PERFECT CLEAN — STATE v6.68:** 0 findings of any severity. 17 cross-cuts verified (15 routine + 2 NOVEL-AXIS: S-4.08 frontmatter↔AC trace closure + BC-2.18.001 invariant↔ADR-016 §2.5 retry key chain). Window 3/3 CLOSED. VSDD 3-clean discipline satisfied. cycle-manifest v1.51. F-P29-L-001 still DEFERRED (cosmetic, non-blocking). Next: R8 (final fresh-context audit) + R9 (human approval gate) + R10 (Phase 4.B begins).
 
@@ -144,12 +143,12 @@ factory-artifacts canonical: 190c32df (canonical SHA — Pass 31 CONVERGED). dev
 
 ## Current State
 
-develop HEAD `ba3b10c7` | factory-artifacts `190c32df` (Pass 31 CONVERGED — window 3/3 CLOSED; STATE v6.68)
+develop HEAD `ba3b10c7` | factory-artifacts `15fa97e6` (Stage 1 placeholder — R9 HUMAN APPROVED; STATE v6.69)
 
 | Metric | Value |
 |--------|-------|
 | develop HEAD | `ba3b10c7` (W3-FIX-SEC-005 — Wave 3.4 final PR, PR #125, 2026-05-02) |
-| factory-artifacts HEAD | `190c32df` (Pass 31 PERFECT CLEAN — CONVERGED; window 3/3 CLOSED; STATE v6.68) |
+| factory-artifacts HEAD | `15fa97e6` (Stage 1 placeholder — R9 HUMAN APPROVED; STATE v6.69) |
 | PR count merged | 125 |
 | Workspace test count | 2363 (nextest-verified; +133 from CI nextest split + doctest migration) |
 | Open PRs | None |
@@ -157,8 +156,8 @@ develop HEAD `ba3b10c7` | factory-artifacts `190c32df` (Pass 31 CONVERGED — wi
 | Tech debt items | 57 active product items (70 prior − 13 VSDD items extracted); vsdd-plugin-tech-debt.md: 31 items (+TD-VSDD-052) |
 | Wave 2 gate status | CONVERGED 2026-04-27 — Pass 9 CLEAN (3-clean-passes: P6+P8+P9) |
 | Wave 3 gate status | **CONVERGED 2026-05-02 — 3-clean window pass-52+53+54; develop@ba3b10c7** |
-| Wave 4 status | **PHASE 4.A CONVERGED — 31 passes consumed; Pass 31 PERFECT CLEAN; window 3/3 CLOSED; VSDD 3-clean discipline satisfied** |
-| Status | **WAVE 4 PHASE 4.A CONVERGED. Ready for R8 (final fresh-context audit) + R9 (human approval gate) + R10 (Phase 4.B begins).** |
+| Wave 4 status | **PHASE 4.A APPROVED + CONVERGED — R9 HUMAN APPROVED 2026-05-04; D-215 (no W1/W2/W3 audit) + D-216 (W4 holdout scenarios GAP — BLOCKER for Phase 4.B)** |
+| Status | **WAVE 4 PHASE 4.A APPROVED. Post-compact resume: STEP 1 (D-216 holdout authoring) → STEP 2 (R10 S-4.01/S-4.03) → STEP 3 (R11 W4-FIX-*).** |
 
 
 ---

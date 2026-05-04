@@ -1,7 +1,7 @@
 ---
 document_type: pipeline-state
 level: ops
-version: "6.68"
+version: "6.69"
 producer: state-manager
 timestamp: 2026-05-03T00:00:00Z
 inputs: []
@@ -76,8 +76,9 @@ wave_4_phase_4_a_preflight:
   pass_21_fixes: [data-layer.md v1.2→v1.3 (F-P21-H-001 concurrency 16→D-209 8/8+2ad-hoc; F-P21-H-002 CF count 16→17+case_dedup_idx per P5-XADR-A-M-006; F-P21-M-001 retry key canonical per ADR-016 §2.5), ARCH-INDEX v2.19]
   pass_21_stage1_sha: 4048c5ec
   pre_pass21_sweep_status: "COMPLETE_2026-05-03 — F-PreP21-H-001 (foundation arch docs: actions.md v1.1 16-permit→8-permit+1s→60s; module-decomposition v1.13; api-surface v1.6; data-layer v1.2; verification-architecture v1.28 Mermaid P13 sister-fix); F-PreP21-H-002 (BC-2.18.003/008 v1.4 ActionEngine→ActionDeliveryEngine sister-BC drift); F-PreP21-M-001 (S-5.06 v1.11 cross-wave); TD-VSDD-046 filed"
-  phase_4a_status: CONVERGED
-  next_action: "R8 final fresh-context audit (consistency-validator + spec-reviewer iter-3) + input-hash drift check, then R9 human approval gate"
+  phase_4a_status: APPROVED
+  r9_human_approval: APPROVED 2026-05-04
+  next_action: "R10 prerequisite — dispatch product-owner to author W4 holdout scenarios per D-216 user catch (BEFORE S-4.01/S-4.03 entry stories)"
   pre_pass22_sweep_status: "COMPLETE_2026-05-03 — F-PreP22-H-001 (concurrency-architecture v1.1 8/8 split per D-209); F-PreP22-H-002 (observability v1.1 user-facing examples updated); F-PreP22-H-003 (interface-definitions v2.5 ActionEngine→ActionDeliveryEngine); F-PreP22-H-004 (vp-045 spec body v1.2 rewritten + slug-preservation banner per POL-1). ARCH-INDEX v2.20. Window stays 0/3; Pass 22 dispatch ready."
   pass_22_adversary_verdict: "BLOCKED (3 findings: 0C/1H/1M/1L/0OBS)"
   pass_22_remediation_complete: true
@@ -373,10 +374,10 @@ user_directive_persistent: "No pragmatic convergence. Fix all issues before buil
 | **Language** | Rust |
 | **Target Workspace** | per-analyst stdio (MCP server) |
 | **Started** | 2026-04-13 |
-| **Last Updated** | 2026-05-04 (Pass 31 PERFECT CLEAN: 0 findings of any severity; 17 cross-cuts verified incl. 2 NOVEL-AXIS; window 3/3 CLOSED; PHASE 4.A CONVERGED; STATE v6.68) |
-| **Current Phase** | Phase 4.A — CONVERGED (31 passes consumed; Pass 31 PERFECT CLEAN; window 3/3 CLOSED; VSDD 3-clean discipline satisfied) |
-| **Current Step** | Wave 4 Phase 4.A CONVERGED — R8 (final fresh-context audit + input-hash drift check), then R9 (human approval gate), then R10 (Phase 4.B begins) |
-| **factory-artifacts HEAD** | `190c32df` |
+| **Last Updated** | 2026-05-04 (R9 HUMAN APPROVED: Phase 4.A APPROVED + CONVERGED; D-215 + D-216 logged; 4 LOW TD items tracked; STATE v6.69) |
+| **Current Phase** | Phase 4.A — APPROVED + CONVERGED (31 passes consumed; Pass 31 PERFECT CLEAN; window 3/3 CLOSED; R9 HUMAN APPROVED 2026-05-04) |
+| **Current Step** | Wave 4 Phase 4.A APPROVED — post-compact: STEP 1 (D-216 W4 holdout scenarios authoring — BLOCKER for Phase 4.B), STEP 2 (R10 S-4.01/S-4.03), STEP 3 (R11 W4-FIX-*) |
+| **factory-artifacts HEAD** | `15fa97e6` (Stage 1 placeholder) |
 
 ## Phase Progress
 
@@ -412,6 +413,8 @@ _D-001..D-046 archived: [cycles/phase-3-dtu-wave-2/decisions-archive-d001-d032.m
 | ID | Decision | Rationale | Phase | Date |
 |----|----------|-----------|-------|------|
 | D-214 | Wave 4 Phase 4.A Convergence Strategy — B+A Hybrid with Subagent Context Discipline. Component 1 (Option B): Proactive structural sweep. Component 2 (Option A): Formal adversarial passes 13+ to 3-clean window. Component 3: Subagent context discipline MANDATORY (orchestrator NEVER reads large files; state-manager LAST per burst). | Wave 4 Phase 4.A B+A hybrid convergence + mandatory subagent context discipline | 4 | 2026-05-04 |
+| D-215 | R9 gate user question: "Do we need to audit other completed waves (W1/W2/W3)?" — NO formal audit needed. W1/W2/W3 stories grep-clean of W4-class drift (zero live-text 16-permit/1-second-tick/Action Engine references). W4 cleanup focused on W4-specific surfaces (W4 ADRs + W4-greenfield SS-18 + PRD §2 SS-18 paragraph). W3 already passed strict 3-clean integration gate (P51/P52/P53; holdout 0.907). W3 carry-forward debt already captured as W4-FIX-* per D-203. OPTIONAL: structural-drift sweep applying TD-VSDD-039..052 methodologies across W1/W2/W3 stories during R11 (W4-FIX-*) — low-priority, NOT Phase 4.B blocker. | No W1/W2/W3 audit needed at R9 gate | 4 | 2026-05-04 |
+| D-216 | R9 gate user question: "Did we create all holdout scenarios needed for W4?" — NO — REAL GAP. 8 HS files exist (HS-001..HS-008) but NO frontmatter wave/story/BC anchoring; ZERO W4 BC references (BC-2.12.004 / BC-2.18.001/002/004) or W4 story references (S-4.01..S-4.08). Wave 3 success bar: 28/30 ABOVE_BAR holdout coverage at gate. BLOCKER for Phase 4.B wave gate: dispatch product-owner to author W4-specific holdout scenarios (HS-009 through HS-013+) covering schedule execution loop liveness, action delivery at-least-once retry, case management lifecycle, alert generation, differential pack deltas, detection rule validation. Required BEFORE any W4 wave gate can run. | W4 holdout scenarios gap — must author HS-009+ before Phase 4.B wave gate | 4 | 2026-05-04 |
 **Passes 8–27 REMEDIATED/CLEAN (detail archived); Pass 28 BLOCKED→REMEDIATED (1H: vp-045 spec v1.3→v1.4 [F-P28-H-001]; H1 heading "Schedule Semaphore" → "Action Delivery Semaphore" per VP-INDEX line 66 canonical; Pass 26 body-rewrite sister-line gap; META-INSIGHT: 7th orchestrator-prompt-introduced defect — H1-axis (fix-burst prompt targeted specific line positions 37/44/68 but missed adjacent H1 at line 39); 12 cross-cuts verified CLEAN; ARCH-INDEX v2.28); window stays 0/3; Pass 29 next. Trajectory: …→P26(1H+1H-preP27;orphan PATTERN codified TD-VSDD-051)→P27(1H;VP rationale semantic mis-anchor — 6th class)→P28(1H;VP H1 sister-line gap — 7th class). Detail: [pass-28.md](cycles/wave-4-operations/adversarial-reviews/pass-28.md) | [burst-log.md](cycles/wave-4-operations/burst-log.md).**
 
 ### Wave 4 Phase 4.A CONVERGED (2026-05-04) — Adversary Pass 31 Window 3/3 CLOSED
@@ -518,17 +521,17 @@ _TD-VSDD-014..019, TD-W3-COMPLIANCE-001, TD-VSDD-025..029 archived to [tech-debt
 
 Cycle files: [burst-log](cycles/phase-2-patch/burst-log.md) | [convergence-trajectory](cycles/phase-2-patch/convergence-trajectory.md) | [session-checkpoints](cycles/phase-2-patch/session-checkpoints.md) | [lessons](cycles/phase-2-patch/lessons.md) | [resolved-blockers](cycles/phase-2-patch/blocking-issues-resolved.md)
 ---
-## Session Resume Checkpoint (2026-05-04-wave4-phase4a-pass31-CONVERGED-v6.68)
+## Session Resume Checkpoint (2026-05-04-wave4-phase4a-R9-APPROVED-v6.69)
 
 _Previous checkpoint archived: [cycles/wave-4-operations/session-checkpoints.md](cycles/wave-4-operations/session-checkpoints.md)_
 
-**STATE v6.68 (canonical SHA `190c32df`). WAVE 4 PHASE 4.A CONVERGED. PASS 31 PERFECT CLEAN. WINDOW 3/3 CLOSED.**
+**STATE v6.69 (canonical SHA `15fa97e6` — Stage 1 placeholder; replace after Stage 2). WAVE 4 PHASE 4.A APPROVED + CONVERGED. R9 HUMAN APPROVED.**
 
-develop HEAD: `ba3b10c7` | factory-artifacts: `190c32df` | workspace tests: 2363 | PRs merged: 125
+develop HEAD: `ba3b10c7` | factory-artifacts: `15fa97e6` (Stage 1 placeholder) | workspace tests: 2363 | PRs merged: 125
 
-**PASS 31 (PERFECT CLEAN — CONVERGED):** 0 findings of any severity. 17 cross-cuts verified (15 routine + 2 NOVEL-AXIS). F-P29-L-001 still DEFERRED (not blocking). Window closes 3/3. VSDD 3-clean window discipline satisfied. cycle-manifest v1.51.
+**R9 HUMAN APPROVAL:** Phase 4.A APPROVED + CONVERGED. D-215 (no W1/W2/W3 audit needed; optional R11 sweep). D-216 (W4 holdout scenarios GAP — 8 HS files have no W4 BC/story anchoring; BLOCKER for Phase 4.B wave gate). 4 LOW COSMETIC findings deferred (TD-W4-RETRY-OBS-001, TD-W4-INJECTION-VOCAB-001, TD-W4-CV-LOW-001, TD-W4-CV-LOW-002). cycle-manifest v1.52.
 
-**NEXT ACTION: R8 (final fresh-context audit: consistency-validator + spec-reviewer iter-3 + input-hash drift check), then R9 (human approval gate), then R10 (Phase 4.B begins). See SESSION-HANDOFF.md STEP 2.**
+**NEXT ACTION (post-compact resume):** STEP 1 — dispatch product-owner to author W4 holdout scenarios (HS-009..HS-013+) per D-216 (BLOCKER for Phase 4.B). STEP 2 — R10: dispatch S-4.01 + S-4.03 entry stories. STEP 3 — R11: W4-FIX-* wave. See SESSION-HANDOFF.md successor_focus.
 
 **Current spec versions:** ADR-013 v0.7, ADR-015 v0.6, ADR-016 v0.14, ADR-017 v0.7, ADR-018 v0.6, ADR-019 v0.4, prd.md v1.10, vp-045 spec v1.4, actions.md v1.3, operational-pipeline.md v1.2, concurrency-architecture.md v1.1, observability.md v1.1, interface-definitions.md v2.6, query-engine.md v1.2, data-layer.md v1.3, S-4.01 v1.12, S-4.02 v1.11, S-4.05 v1.12, S-4.08 v1.23, BC-2.12.004 v1.8, BC-2.18.001 v1.8, BC-2.18.002 v1.5, BC-2.18.004 v1.5, BC-2.18.003 v1.4, BC-2.18.008 v1.4, S-5.06 v1.11, STORY-INDEX v2.03, ARCH-INDEX v2.28, BC-INDEX v4.32, VP-INDEX v1.26, verification-architecture v1.28, coverage-matrix v1.31.
 
