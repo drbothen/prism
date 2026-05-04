@@ -1,44 +1,48 @@
 ---
 document_type: session-handoff
 level: ops
-version: "6.65"
+version: "6.66"
 status: current
 timestamp: 2026-05-04T00:00:00Z
-predecessor_session: "Wave 4 Phase 4.A Pass 27 BLOCKED→REMEDIATED 2026-05-04. STATE v6.64. factory-artifacts a0a2d42b (prior canonical SHA)."
-successor_focus: "Wave 4 Phase 4.A Pass 28 BLOCKED→REMEDIATED — 1H (F-P28-H-001: vp-045 spec v1.3→v1.4 H1 'Schedule Semaphore' → 'Action Delivery Semaphore'; Pass 26 body-rewrite sister-line gap; 7th orchestrator-prompt drift). STATE v6.65. Next: Pass 29 (window 1/3 attempt).
+predecessor_session: "Wave 4 Phase 4.A Pass 28 BLOCKED→REMEDIATED 2026-05-04. STATE v6.65. factory-artifacts 3855623d (prior canonical SHA)."
+successor_focus: "Wave 4 Phase 4.A Pass 29 CLEAN — 0 SUBSTANTIVE; 17 cross-cuts verified; F-P29-L-001 COSMETIC deferred; window 1/3 OPEN post-Pass-20 reset. STATE v6.66. Next: Pass 30 (window 2/3 attempt). 2 more clean passes needed for full convergence.
 
-**STEP 2 — NEXT ACTION: Dispatch Adversary Pass 29 (window 1/3 attempt). Pass 28 BLOCKED→REMEDIATED: vp-045 spec v1.4 (F-P28-H-001: H1 heading 'Schedule Semaphore' → 'Action Delivery Semaphore' per VP-INDEX line 66 canonical + BC-2.18.004 H1; Pass 26 body-rewrite sister-line gap; 7th orchestrator-prompt drift class — H1-axis; SUBSTANTIVE). ARCH-INDEX v2.28. Verify vp-045 v1.4 + ADR-016 v0.14 + all prior pass fixes still hold.**
+**STEP 2 — NEXT ACTION: Dispatch Adversary Pass 30 (window 2/3 attempt). Pass 29 CLEAN: 0 SUBSTANTIVE findings; 17 cross-cuts RE-VERIFIED clean (all Pass 22-28 fix outcomes hold); F-P29-L-001 COSMETIC DEFERRED. Window advances 0/3 → 1/3 OPEN. 2 more clean passes needed for full convergence.**
 
 **KEY REFERENCES:**
-- STATE.md v6.65: develop@ba3b10c7; factory-artifacts 3855623d (canonical SHA — Pass 28 REMEDIATED)
-- vp-045-schedule-semaphore-try-acquire-nonblocking.md v1.4 (NEW — F-P28-H-001: H1 heading corrected)
-- ARCH-INDEX v2.28 (NEW — vp-045 spec v1.3→v1.4 + pass 28 changelog row)
-- ADR-016 v0.14 (F-P27-H-001: §5.4 footer + v0.12 changelog VP-047 rationale corrected; current)
+- STATE.md v6.66: develop@ba3b10c7; factory-artifacts 15fa97e6 (canonical SHA — Pass 29 CLEAN)
+- pass-29.md: cycles/wave-4-operations/adversarial-reviews/pass-29.md (CLEAN; 0 substantive; 17 cross-cuts verified)
+- cycle-manifest v1.49 (NEW — wave-4-pass29-CLEAN)
+- vp-045-schedule-semaphore-try-acquire-nonblocking.md v1.4 (F-P28-H-001 fix; current; RE-VERIFIED CLEAN)
+- ARCH-INDEX v2.28 (current)
+- ADR-016 v0.14 (F-P27-H-001 fix; current; RE-VERIFIED CLEAN)
 - TD-VSDD-052 filed: vsdd-plugin-tech-debt.md (31 items — pre-dispatch VP scope verification)
-- prd.md v1.10 (F-P25-H-001: PRD §2 line 382 stale `action_dispatcher` → `action_delivery`)
+- prd.md v1.10 (F-P25-H-001: PRD §2 line 382 stale `action_dispatcher` → `action_delivery`; RE-VERIFIED CLEAN)
 - TD-VSDD-050/051 filed: vsdd-plugin-tech-debt.md (PRD §2 subsystem-prose + sibling-ADR sweep)
-- interface-definitions.md v2.6 (F-PreP24-H-001: 6 sites Subsystem 18 label ActionEngine→ActionDeliveryEngine)
-- query-engine.md v1.2 (F-PreP24-H-002: 16 concurrent→8 per D-209; 3.2 GB→1.6 GB memory math)
-- operational-pipeline.md v1.2 (F-P23-H-001: 3 stale refs fixed)
-- actions.md v1.3 (F-P23-H-002: Mermaid participant labels)
+- interface-definitions.md v2.6 (F-PreP24-H-001: 6 sites Subsystem 18 label ActionEngine→ActionDeliveryEngine; RE-VERIFIED CLEAN)
+- query-engine.md v1.2 (F-PreP24-H-002: 16 concurrent→8 per D-209; RE-VERIFIED CLEAN)
+- operational-pipeline.md v1.2 (F-P23-H-001: 3 stale refs fixed; RE-VERIFIED CLEAN)
+- actions.md v1.3 (F-P23-H-002: Mermaid participant labels; RE-VERIFIED CLEAN)
 - TD-VSDD-049 filed: vsdd-plugin-tech-debt.md (PRD §2 BC-table↔BC H1 sync)
 - TD-VSDD-048 filed: vsdd-plugin-tech-debt.md (broad-sweep grep-completeness)
-- concurrency-architecture.md v1.1 (F-PreP22-H-001: 8/8 split per D-209)
-- observability.md v1.1 (F-PreP22-H-002: user-facing examples updated)
-- data-layer.md v1.3 (F-P21-H-001/H-002/M-001)
-- BC-2.18.003 v1.4 (current)
-- BC-2.18.008 v1.4 (current)
+- concurrency-architecture.md v1.1 (F-PreP22-H-001: 8/8 split per D-209; RE-VERIFIED CLEAN)
+- observability.md v1.1 (F-PreP22-H-002: user-facing examples updated; RE-VERIFIED CLEAN)
+- data-layer.md v1.3 (F-P21-H-001/H-002/M-001; RE-VERIFIED CLEAN)
+- BC-2.18.003 v1.4 (current; RE-VERIFIED CLEAN)
+- BC-2.18.008 v1.4 (current; RE-VERIFIED CLEAN)
 - BC-INDEX v4.32 (current)
 - STORY-INDEX v2.03 (current)
-- Wave 4 cycle-manifest: cycles/wave-4-operations/cycle-manifest.md (v1.47)
+- Wave 4 cycle-manifest: cycles/wave-4-operations/cycle-manifest.md (v1.49)
 - Product TD register: tech-debt-register.md (57 active product items)
 
-factory-artifacts canonical: 3855623d (canonical SHA). develop HEAD: ba3b10c7."
+factory-artifacts canonical: 15fa97e6 (canonical SHA). develop HEAD: ba3b10c7."
 ---
 
 # Session Handoff — WAVE 4 PHASE 4.A DECISIONS LOGGED (2026-05-02)
 
 ## TL;DR
+
+**Wave 4 Phase 4.A — Pass 29 CLEAN (2026-05-04) — STATE v6.66:** 0 SUBSTANTIVE findings. F-P29-L-001 COSMETIC DEFERRED (BC-2.18.004 v1.4 changelog row historical narrative inconsistency vs Pass 6 Remediation Notes section post-Pass-20 rewrite mismatch; body content correct; pending intent verification). 17 cross-cuts RE-VERIFIED clean (all Pass 22-28 fix outcomes hold). cycle-manifest v1.49. WINDOW 1/3 OPEN (post-Pass-20 reset). Pass 30 (slot 2/3) next. 2 more clean passes needed for full convergence.
 
 **Wave 4 Phase 4.A — Pass 28 BLOCKED→REMEDIATED (2026-05-04) — STATE v6.65:** 1H. F-P28-H-001: vp-045 spec v1.3→v1.4 (H1 heading "Schedule Semaphore" → "Action Delivery Semaphore" per VP-INDEX line 66 canonical + BC-2.18.004 H1; Pass 26 body-rewrite sister-line gap; fix-burst targeted lines 37/44/68 but missed adjacent H1 at line 39; SUBSTANTIVE). META-INSIGHT: 7th orchestrator-prompt-introduced defect — H1-axis specifically. 12 cross-cuts verified CLEAN. ARCH-INDEX v2.28. cycle-manifest v1.48. Window stays 0/3. Pass 29 (slot 1/3) next.
 
@@ -136,7 +140,7 @@ factory-artifacts canonical: 3855623d (canonical SHA). develop HEAD: ba3b10c7."
 
 ## Current State
 
-develop HEAD `ba3b10c7` | factory-artifacts `3855623d` (Pass 28 BLOCKED→REMEDIATED — window 0/3; STATE v6.65)
+develop HEAD `ba3b10c7` | factory-artifacts `15fa97e6` (Pass 29 CLEAN — window 1/3 OPEN post-reset; STATE v6.66)
 
 | Metric | Value |
 |--------|-------|

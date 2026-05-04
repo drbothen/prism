@@ -2,7 +2,7 @@
 document_type: cycle-manifest
 cycle_id: wave-4-operations
 cycle_type: feature
-version: wave-4-preflight-v1.48
+version: wave-4-preflight-v1.49
 status: in-progress
 started: pending
 completed: pending
@@ -224,6 +224,7 @@ Story inventory will be remediated post-ADR-acceptance per drift audit categorie
 
 | Version | Date | Change |
 |---------|------|--------|
+| wave-4-preflight-v1.49 | 2026-05-04T00:00:00Z | wave-4-pass29-CLEAN | 2026-05-04 | state-manager | PASS 29 CLEAN: 0 SUBSTANTIVE; window 1/3 OPEN post-Pass-20 reset; 17 cross-cuts verified; F-P29-L-001 COSMETIC deferred. STATE v6.66, HANDOFF v6.66. Pass 30 next (window 2/3). |
 | wave-4-preflight-v1.48 | 2026-05-04T00:00:00Z | wave-4-pass28-BLOCKED-REMEDIATED — Pass 28 BLOCKED (1H): F-P28-H-001 (vp-045-schedule-semaphore-try-acquire-nonblocking.md v1.3→v1.4; H1 heading "Schedule Semaphore" → "Action Delivery Semaphore" per VP-INDEX line 66 canonical + BC-2.18.004 H1; Pass 26 body-rewrite sister-line gap; fix-burst targeted lines 37/44/68 but missed adjacent H1 at line 39; SUBSTANTIVE). META-INSIGHT: 7th orchestrator-prompt-introduced defect — H1-axis. 12 cross-cuts verified CLEAN. ARCH-INDEX v2.27→v2.28 (vp-045 spec v1.4; pass 28 changelog row). STATE v6.65, HANDOFF v6.65. Window stays 0/3; Pass 29 next (slot 1/3). |
 | wave-4-preflight-v1.47 | 2026-05-04T00:00:00Z | wave-4-pass27-BLOCKED-REMEDIATED — Pass 27 BLOCKED (1H): F-P27-H-001 (ADR-016 v0.13→v0.14; §5.4 footer + v0.12 changelog VP-047 rationale "action delivery dedup correctness" → canonical "template variable UUID v7 validation" per VP-INDEX line 68 + BC-2.18.009; SUBSTANTIVE; architect burst). Comprehensive grep across all 6 W4 ADRs confirmed sole VP-INDEX mis-anchor site. META-INSIGHT: 6th orchestrator-prompt-introduced defect — semantic mis-anchor in VP rationale text (NEW class beyond stale module names). TD-VSDD-052 codified (pre-dispatch VP scope verification: when fix-burst prompt mentions VP-NNN with rationale, grep VP-INDEX `Property` field; require canonical terms; abort dispatch otherwise). ARCH-INDEX v2.26→v2.27 (ADR-016 registry row v0.14; pass 27 changelog row). STATE v6.64, HANDOFF v6.64. Window stays 0/3; Pass 28 next (slot 1/3). |
 | wave-4-preflight-v1.46 | 2026-05-04T00:00:00Z | wave-4-pass26-BLOCKED-REMEDIATED — Pass 26 BLOCKED (1H+1H-preP27): F-P26-H-001 (ADR-016 v0.12→v0.13; lines 552+568 orphan `action_dispatcher` → `action_delivery`; sibling-file regression of F-P25-H-001 PRD fix; SUBSTANTIVE). F-PreP27-H-001 (vp-045-schedule-semaphore-try-acquire-nonblocking.md v1.2→v1.3; lines 37/44/68 same orphan `action_dispatcher` → `action_delivery`; 3 sites; caught proactively before Pass 27; SUBSTANTIVE). META-INSIGHT: 5 total orphan sites across 3 docs (PRD §2, ADR-016, vp-045 spec) all introduced by orchestrator-authored fix-burst prompt text. TD-VSDD-051 codified (pre-dispatch verification: grep orchestrator fix-burst prompt for module names + cross-check against canonical glossary; sibling-ADR prose sweep when drift class closed in PRD/BC). ARCH-INDEX v2.25→v2.26 (ADR-016 registry row v0.13; pass 26 changelog row). STATE v6.63, HANDOFF v6.63. Window stays 0/3; Pass 27 next (slot 1/3). |
