@@ -1,18 +1,18 @@
 ---
 document_type: session-handoff
 level: ops
-version: "6.67"
+version: "6.68"
 status: current
 timestamp: 2026-05-04T00:00:00Z
-predecessor_session: "Wave 4 Phase 4.A Pass 28 BLOCKED→REMEDIATED 2026-05-04. STATE v6.65. factory-artifacts 3855623d (prior canonical SHA)."
-successor_focus: "Wave 4 Phase 4.A Pass 30 PERFECT CLEAN — 0 findings of any severity; 15 cross-cuts verified; window 2/3 OPEN post-Pass-20 reset. STATE v6.67. Next: Pass 31 (window 3/3 — convergence closure). 1 more clean pass needed for full convergence.
+predecessor_session: "Wave 4 Phase 4.A Pass 30 PERFECT CLEAN 2026-05-04. STATE v6.67. factory-artifacts 15fa97e6 (prior canonical SHA)."
+successor_focus: "WAVE 4 PHASE 4.A CONVERGED. Pass 31 PERFECT CLEAN. Window 3/3 CLOSED. Trajectory: P29(0)→P30(0)→P31(0; CONVERGED). STATE v6.68. Next: R8 (final fresh-context audit) + R9 (human approval gate) + R10 (Phase 4.B begins).
 
-**STEP 2 — NEXT ACTION: Dispatch Adversary Pass 31 (window 3/3 — convergence closure). PASS 30 = PERFECT CLEAN: 0 findings of any severity; 15 cross-cuts RE-VERIFIED clean; F-P29-L-001 still DEFERRED (not blocking). Window advances 1/3 → 2/3 OPEN. 1 more clean pass needed for full convergence.**
+**STEP 2 — NEXT ACTION: WAVE 4 PHASE 4.A CONVERGED. Pass 31 PERFECT CLEAN (0 findings of any severity; 17 cross-cuts verified incl. 2 NOVEL-AXIS). Window 3/3 CLOSED. Trajectory: P29(0)→P30(0)→P31(0; CONVERGED). VSDD 3-clean window discipline satisfied. F-P29-L-001 still DEFERRED (cosmetic, non-blocking). Next: R8 (final fresh-context audit: consistency-validator + spec-reviewer iter-3 + input-hash drift check), then R9 (human approval gate), then R10 (Phase 4.B begins — S-4.01 + S-4.03 entry stories dispatch).**
 
 **KEY REFERENCES:**
-- STATE.md v6.67: develop@ba3b10c7; factory-artifacts 15fa97e6 (canonical SHA — Pass 30 PERFECT CLEAN)
-- pass-30.md: cycles/wave-4-operations/adversarial-reviews/pass-30.md (PERFECT CLEAN; 0 findings of any severity; 15 cross-cuts verified)
-- cycle-manifest v1.50 (NEW — wave-4-pass30-CLEAN)
+- STATE.md v6.68: develop@ba3b10c7; factory-artifacts 15fa97e6 (Stage 1 canonical SHA — Stage 2 SHA TBD post-commit)
+- pass-31.md: cycles/wave-4-operations/adversarial-reviews/pass-31.md (PERFECT CLEAN; 0 findings; 17 cross-cuts incl. 2 NOVEL-AXIS; CONVERGED)
+- cycle-manifest v1.51 (NEW — wave-4-pass31-CONVERGED)
 - vp-045-schedule-semaphore-try-acquire-nonblocking.md v1.4 (F-P28-H-001 fix; current; RE-VERIFIED CLEAN)
 - ARCH-INDEX v2.28 (current)
 - ADR-016 v0.14 (F-P27-H-001 fix; current; RE-VERIFIED CLEAN)
@@ -32,15 +32,17 @@ successor_focus: "Wave 4 Phase 4.A Pass 30 PERFECT CLEAN — 0 findings of any s
 - BC-2.18.008 v1.4 (current; RE-VERIFIED CLEAN)
 - BC-INDEX v4.32 (current)
 - STORY-INDEX v2.03 (current)
-- Wave 4 cycle-manifest: cycles/wave-4-operations/cycle-manifest.md (v1.50)
+- Wave 4 cycle-manifest: cycles/wave-4-operations/cycle-manifest.md (v1.51)
 - Product TD register: tech-debt-register.md (57 active product items)
 
-factory-artifacts canonical: 15fa97e6 (canonical SHA). develop HEAD: ba3b10c7."
+factory-artifacts canonical: 15fa97e6 (Stage 1 SHA; Stage 2 SHA TBD). develop HEAD: ba3b10c7."
 ---
 
 # Session Handoff — WAVE 4 PHASE 4.A DECISIONS LOGGED (2026-05-02)
 
 ## TL;DR
+
+**WAVE 4 PHASE 4.A CONVERGED (2026-05-04) — Pass 31 PERFECT CLEAN — STATE v6.68:** 0 findings of any severity. 17 cross-cuts verified (15 routine + 2 NOVEL-AXIS: S-4.08 frontmatter↔AC trace closure + BC-2.18.001 invariant↔ADR-016 §2.5 retry key chain). Window 3/3 CLOSED. VSDD 3-clean discipline satisfied. cycle-manifest v1.51. F-P29-L-001 still DEFERRED (cosmetic, non-blocking). Next: R8 (final fresh-context audit) + R9 (human approval gate) + R10 (Phase 4.B begins).
 
 **Wave 4 Phase 4.A — Pass 30 PERFECT CLEAN (2026-05-04) — STATE v6.67:** 0 findings of any severity. PERFECT CLEAN. F-P29-L-001 still DEFERRED (not blocking). 15 cross-cuts RE-VERIFIED clean. cycle-manifest v1.50. WINDOW 2/3 OPEN (post-Pass-20 reset). Pass 31 (window 3/3 — convergence closure) next. 1 more clean pass needed for full convergence.
 
