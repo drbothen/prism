@@ -3,7 +3,7 @@ document_type: adr
 adr_id: "ADR-016"
 title: "Action Delivery Framework"
 status: PROPOSED
-version: "0.12"
+version: "0.13"
 date: 2026-05-03
 wave: 4
 phase: 4.A
@@ -38,7 +38,7 @@ traces_to: specs/architecture/ARCH-INDEX.md
 
 ## Status
 
-PROPOSED 2026-05-03, v0.12. Pending review and acceptance prior to story remediation and BC authoring.
+PROPOSED 2026-05-03, v0.13. Pending review and acceptance prior to story remediation and BC authoring.
 
 ---
 
@@ -549,7 +549,7 @@ proptest! {
 **Status:** proposed; VP-143 assigned in this ADR. VP file and VP-INDEX update to be produced before Phase 4.B BC authoring begins.
 **Module:** `prism-operations` | **Priority:** P1 | **Anchor stories:** S-4.08
 
-(VP-137 — the symmetric semaphore-liveness VP for schedule executor — has its own anchors S-4.01/S-4.08 per ADR-013 §5.3; VP-143 is anchored to S-4.08 only because the action-delivery semaphore lives in prism-operations/action_dispatcher built by S-4.08, not S-4.01.)
+(VP-137 — the symmetric semaphore-liveness VP for schedule executor — has its own anchors S-4.01/S-4.08 per ADR-013 §5.3; VP-143 is anchored to S-4.08 only because the action-delivery semaphore lives in prism-operations/action_delivery built by S-4.08, not S-4.01.)
 
 ---
 
@@ -565,7 +565,7 @@ Upgrade note for Wave 4 deployment: the `action_state` CF must be created via `c
 
 Applied during Wave 4 Phase 4.A adversarial Pass 16 fix-burst (2026-05-03). Version bumped 0.7 → 0.8.
 
-- **F-P16-M-001 fix (VP-143 anchor §5.5 correction):** Dropped "S-4.01 (secondary)" claim from §5.5 Anchor stories — it was inconsistent with VP-INDEX line 164 (S-4.08 only) and S-4.01 frontmatter (which does NOT carry VP-143). Added explanatory note: VP-137 is the symmetric VP for schedule executor (S-4.01/S-4.08 anchors per ADR-013 §5.3); VP-143 is action-delivery-only (S-4.08 anchor), because the action-delivery semaphore lives in prism-operations/action_dispatcher built by S-4.08, not S-4.01.
+- **F-P16-M-001 fix (VP-143 anchor §5.5 correction):** Dropped "S-4.01 (secondary)" claim from §5.5 Anchor stories — it was inconsistent with VP-INDEX line 164 (S-4.08 only) and S-4.01 frontmatter (which does NOT carry VP-143). Added explanatory note: VP-137 is the symmetric VP for schedule executor (S-4.01/S-4.08 anchors per ADR-013 §5.3); VP-143 is action-delivery-only (S-4.08 anchor), because the action-delivery semaphore lives in prism-operations/action_delivery built by S-4.08, not S-4.01.
 
 ---
 
@@ -577,6 +577,7 @@ Applied during Wave 4 Phase 4.A adversarial Pass 18 fix-burst (2026-05-03). Vers
 |---------|-----------|------|--------|-------|
 | 0.11 | F-P18-M-001+M-002 | 2026-05-03 | architect | Pass 18 COSMETIC: Pass 17 Remediation Notes table got proper markdown header; narrative updated to reflect v0.7→v0.10 full range. |
 | 0.12 | F-P20-H-002 | 2026-05-03 | architect | Pass 20 SUBSTANTIVE HIGH: VP-045 + VP-047 priority synced from P1 (stale provisional) to P0 (VP-INDEX SoT per POL-9). VP-045 anchors action_delivery_semaphore non-blocking liveness; VP-047 anchors action delivery dedup correctness — both critical for at-least-once delivery contract. |
+| 0.13 | F-P26-H-001 | 2026-05-04 | architect | Pass 26 SUBSTANTIVE HIGH: 2 orphan tokens `prism-operations/action_dispatcher` → `prism-operations/action_delivery` (lines 552 §5.5 + 568 Pass 16 Notes). Same drift class as F-P25-H-001 PRD fix. Self-contradicted ADR-016 §1.1 line 51 own canonical declaration `action/delivery.rs`. Orchestrator-prompt-introduced orphan caught by S-7.01 sibling-files axis. |
 
 ---
 

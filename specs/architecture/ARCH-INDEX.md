@@ -1,7 +1,7 @@
 ---
 document_type: architecture-index
 level: L3
-version: "2.25"
+version: "2.26"
 status: draft
 producer: architect
 timestamp: 2026-05-04T00:00:00
@@ -80,7 +80,7 @@ deployment_topology: single-service
 | ADR-012 | Workspace src/ Convention Normalization — Canonical Crate Layout | ACCEPTED | 2026-04-27 | decisions/ADR-012-src-convention.md |
 | ADR-013 | Schedule Execution Semantics | PROPOSED v0.7 | 2026-05-03 | decisions/ADR-013-schedule-execution-semantics.md |
 | ADR-015 | Detection Rule Language | PROPOSED v0.6 | 2026-05-03 | decisions/ADR-015-detection-rule-language.md |
-| ADR-016 | Action Delivery Framework | PROPOSED v0.12 | 2026-05-03 | decisions/ADR-016-action-delivery-framework.md |
+| ADR-016 | Action Delivery Framework | PROPOSED v0.13 | 2026-05-04 | decisions/ADR-016-action-delivery-framework.md |
 | ADR-017 | Case Lifecycle Invariants | PROPOSED v0.7 | 2026-05-03 | decisions/ADR-017-case-lifecycle-invariants.md |
 | ADR-018 | Differential Result Pack Format | PROPOSED v0.6 | 2026-05-03 | decisions/ADR-018-differential-result-pack-format.md |
 | ADR-019 | SIEM Output Formats | PROPOSED v0.4 | 2026-05-03 | decisions/ADR-019-siem-output-formats.md |
@@ -142,6 +142,7 @@ deployment_topology: single-service
 
 | Version | Pass | Date | Author | Change |
 |---------|------|------|--------|--------|
+| 2.26 | W4-Phase4A-Pass26-fix | 2026-05-04 | state-manager | Pass 26 BLOCKED→REMEDIATED. F-P26-H-001: ADR-016 v0.12→v0.13 (lines 552+568 orphan `action_dispatcher` token → `action_delivery`; sibling-file regression of F-P25-H-001 PRD fix; SUBSTANTIVE). F-PreP27-H-001: vp-045 spec v1.2→v1.3 (lines 37/44/68 same orphan token; 3 sites; caught proactively before Pass 27; SUBSTANTIVE). META-INSIGHT: all 5 orphan sites across 3 docs (PRD, ADR-016, vp-045 spec) introduced by orchestrator-authored fix-burst prompt text; TD-VSDD-051 codified (orchestrator-prompt verification + sibling-ADR prose sweep). ARCH-INDEX version 2.25→2.26. ADR-016 v0.13 in registry. Window stays 0/3; Pass 27 next. |
 | 2.25 | W4-Phase4A-Pass25-fix | 2026-05-04 | state-manager | F-P25-H-001: prd.md v1.9→v1.10 (PRD §2 line 382 stale `action_dispatcher` token in subsystem-introduction prose → `action_delivery` per concurrency-architecture v1.1 + module-decomposition v1.13 canonicals; orphan introduced by orchestrator-authored pre-Pass-24 fix-burst prompt; SUBSTANTIVE). TD-VSDD-050 filed (PRD §2 SUBSYSTEM PROSE sync check — sibling to TD-VSDD-049 BC-table sync). ARCH-INDEX version 2.24→2.25. Window stays 0/3; Pass 26 next. |
 | 2.24 | W4-Phase4A-Pass24-fix | 2026-05-04 | state-manager | F-P24-CRIT-001: prd.md v1.8→v1.9 (PRD §2 line 389 BC-2.18.004 cell title sync to BC H1 — "Scheduled Report Queries — try_acquire() on 16-Permit Semaphore" → "Action Delivery Semaphore — 8-Permit Independent Pool"; comprehensive TD-VSDD-049 sweep across 200 PRD §2 BC rows found ONLY this drift; SUBSTANTIVE). TD-VSDD-049 filed. ARCH-INDEX version 2.23→2.24. Pass 25 next (window stays 0/3). |
 | 2.23 | W4-Phase4A-PrePass24-Sweep | 2026-05-04 | state-manager | F-PreP24-CRIT-001: prd.md v1.7→v1.8 (INV-ACTION-004 root contract "shared 16-permit semaphore" contradicts D-209 LOCKED — PRD root contract corrected). F-PreP24-H-001: interface-definitions.md v2.5→v2.6 (6 sites Subsystem 18 "Action Engine" label corrected to "Action Delivery Engine"). F-PreP24-H-002: query-engine.md v1.1→v1.2 (16 concurrent→8 concurrent + 3.2 GB→1.6 GB memory math). Document Map rows updated: query-engine v1.2; module-decomposition v1.13 (missing annotation added); api-surface v1.6 (missing annotation added); verification-architecture v1.28 (missing annotation added). ARCH-INDEX version 2.22→2.23. TD-VSDD-048 methodology applied. |

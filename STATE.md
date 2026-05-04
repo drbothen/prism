@@ -1,7 +1,7 @@
 ---
 document_type: pipeline-state
 level: ops
-version: "6.62"
+version: "6.63"
 producer: state-manager
 timestamp: 2026-05-03T00:00:00Z
 inputs: []
@@ -61,9 +61,9 @@ wave_4_phase_4_a_preflight:
   findings_dir: ".factory/cycles/wave-4-operations/preflight-findings/"
   passes_1_7_archived: "cycles/wave-4-operations/adversarial-reviews/ — all BLOCKED+remediated; SHAs 618b453e/15d1bf73/64f4ea81/55b75700/3f393b44/bae288ad/246b9f71"
   passes_8_13_archived: "cycles/wave-4-operations/adversarial-reviews/ — all BLOCKED+remediated; SHAs 39f065c7/6576df60/40458029/4a47ddd5/1849145b/398c5273"
-  convergence_window: "0/3 (BLOCKED — window stays 0/3; Pass 25 found 1H: PRD §2 line 382 stale `action_dispatcher` token in subsystem prose; REMEDIATED (prd.md v1.10); TD-VSDD-050 filed; Pass 26 next)"
-  pass_trajectory: "38→17→8→7→7→5→5→6→6→5→5→4→7→9→2→4→3→3(CLEAN)→18:CLEAN(1/3)→19:CLEAN(2/3)→20:BLOCKED(RESET 0/3)→PreSweep→21:BLOCKED→REMEDIATED(0/3)→PreP22Sweep(COMPLETE;0/3)→22:BLOCKED→REMEDIATED(1H+1M+1L;TD-VSDD-047)→23:BLOCKED→REMEDIATED(2H+1M+1L;sweep-target-list gap)→24:BLOCKED→REMEDIATED(1CRIT;comprehensive sweep found 1/200 drift = encouraging)→25:BLOCKED→REMEDIATED(1H;orchestrator-prompt-introduced orphan token caught)"
-  passes_consumed: 25
+  convergence_window: "0/3 (BLOCKED — window stays 0/3; Pass 26 found 1H+1H-preP27: ADR-016 lines 552+568 orphan `action_dispatcher` (v0.13); vp-045 spec lines 37/44/68 same orphan (v1.3); all 5 orphan sites across 3 docs from orchestrator-prompt; TD-VSDD-051 codified; Pass 27 next)"
+  pass_trajectory: "38→17→8→7→7→5→5→6→6→5→5→4→7→9→2→4→3→3(CLEAN)→18:CLEAN(1/3)→19:CLEAN(2/3)→20:BLOCKED(RESET 0/3)→PreSweep→21:BLOCKED→REMEDIATED(0/3)→PreP22Sweep(COMPLETE;0/3)→22:BLOCKED→REMEDIATED(1H+1M+1L;TD-VSDD-047)→23:BLOCKED→REMEDIATED(2H+1M+1L;sweep-target-list gap)→24:BLOCKED→REMEDIATED(1CRIT;comprehensive sweep found 1/200 drift = encouraging)→25:BLOCKED→REMEDIATED(1H;orchestrator-prompt-introduced orphan token caught)→26:BLOCKED→REMEDIATED(1H+1H-preP27;orchestrator-prompt-introduced orphan PATTERN now codified TD-VSDD-051)"
+  passes_consumed: 26
   convergence_strategy: B+A_hybrid (D-214)
   subagent_context_discipline: MANDATORY
   proactive_sweep_status: "COMPLETE_2026-05-03 + Pass 13 surfaced 2 HIGH not caught by sweep methodology — TD-VSDD-039 filed"
@@ -76,7 +76,7 @@ wave_4_phase_4_a_preflight:
   pass_21_fixes: [data-layer.md v1.2→v1.3 (F-P21-H-001 concurrency 16→D-209 8/8+2ad-hoc; F-P21-H-002 CF count 16→17+case_dedup_idx per P5-XADR-A-M-006; F-P21-M-001 retry key canonical per ADR-016 §2.5), ARCH-INDEX v2.19]
   pass_21_stage1_sha: 4048c5ec
   pre_pass21_sweep_status: "COMPLETE_2026-05-03 — F-PreP21-H-001 (foundation arch docs: actions.md v1.1 16-permit→8-permit+1s→60s; module-decomposition v1.13; api-surface v1.6; data-layer v1.2; verification-architecture v1.28 Mermaid P13 sister-fix); F-PreP21-H-002 (BC-2.18.003/008 v1.4 ActionEngine→ActionDeliveryEngine sister-BC drift); F-PreP21-M-001 (S-5.06 v1.11 cross-wave); TD-VSDD-046 filed"
-  next_action: "Adversary Pass 26 (window 1/3 attempt)"
+  next_action: "Adversary Pass 27 (window 1/3 attempt)"
   pre_pass22_sweep_status: "COMPLETE_2026-05-03 — F-PreP22-H-001 (concurrency-architecture v1.1 8/8 split per D-209); F-PreP22-H-002 (observability v1.1 user-facing examples updated); F-PreP22-H-003 (interface-definitions v2.5 ActionEngine→ActionDeliveryEngine); F-PreP22-H-004 (vp-045 spec body v1.2 rewritten + slug-preservation banner per POL-1). ARCH-INDEX v2.20. Window stays 0/3; Pass 22 dispatch ready."
   pass_22_adversary_verdict: "BLOCKED (3 findings: 0C/1H/1M/1L/0OBS)"
   pass_22_remediation_complete: true
@@ -90,7 +90,7 @@ wave_4_phase_4_a_preflight:
   pass_23_stage1_sha: 08da90f8
   pre_pass24_sweep_status: COMPLETE_TD-VSDD-048-applied
   pre_pass24_findings: "1 CRITICAL (prd.md INV-ACTION-004 D-209 contract drift; v1.8) + 2 HIGH (interface-definitions.md 6 sites; v2.6; query-engine.md 16→8 concurrent + 3.2GB→1.6GB; v1.2) — ALL REMEDIATED"
-  vsdd_plugin_td_count: 29 (was 28; TD-VSDD-050 PRD §2 subsystem-prose sync check added 2026-05-04)
+  vsdd_plugin_td_count: 30 (was 29; TD-VSDD-051 orchestrator-prompt verification + sibling-ADR prose sweep added 2026-05-04)
 gate_status_hook_compat_remediation: 2026-04-24
 wave_0a_complete: 2026-04-22
 wave_0b_complete: 2026-04-22
@@ -120,7 +120,7 @@ wave_1_started: 2026-04-22
 develop_head: "ba3b10c7"
 td_wv1_04_resolved: "2026-04-23 (PR #32, 4a9dffb1)"
 tech_debt_register_entries: 57  # product register (70 prior - 13 VSDD items extracted 2026-05-02)
-vsdd_plugin_tech_debt_entries: 29  # .factory/vsdd-plugin-tech-debt.md (TD-VSDD-050 PRD §2 subsystem-prose sync check; 28+1)
+vsdd_plugin_tech_debt_entries: 30  # .factory/vsdd-plugin-tech-debt.md (TD-VSDD-051 orchestrator-prompt verification + sibling-ADR prose sweep; 29+1)
 wave_1_integration_gate_passes: "P3-P18 CONVERGED (3-clean envelope P16+P17+P18; detail: cycles/phase-3-dtu-wave-1/adversarial-reviews/)"
 workspace_test_count: 2363  # nextest-verified 2363/2363 passing (W3-FIX-CI-001 PR #112). +133 from CI nextest split (doctest migration + per-platform counts reconciled). Previous estimate ~2230. 0 FAIL.
 pre_wave_2_audit_complete: 2026-04-24
@@ -337,7 +337,7 @@ holdout_index_version: "1.2"
 capabilities_version: "1.14"
 l2_index_version: "1.10"
 module_decomposition_version: "1.13"
-arch_index_version: "2.25"
+arch_index_version: "2.26"
 security_architecture_version: "1.1"
 verification_coverage_matrix_version: "1.31"
 verification_architecture_version: "1.28"
@@ -372,10 +372,10 @@ user_directive_persistent: "No pragmatic convergence. Fix all issues before buil
 | **Language** | Rust |
 | **Target Workspace** | per-analyst stdio (MCP server) |
 | **Started** | 2026-04-13 |
-| **Last Updated** | 2026-05-04 (Pass 25 BLOCKED→REMEDIATED: prd.md v1.10 HIGH F-P25-H-001 PRD §2 line 382 stale `action_dispatcher` → `action_delivery`; orchestrator-prompt-introduced orphan caught; TD-VSDD-050 filed; ARCH-INDEX v2.25; STATE v6.62) |
-| **Current Phase** | Phase 4.A — Wave 4 adversarial spec convergence (25 passes consumed; Pass 25 BLOCKED→REMEDIATED; window 0/3; Pass 26 next) |
-| **Current Step** | Wave 4 Phase 4.A — Pass 25 BLOCKED→REMEDIATED (1 HIGH: PRD §2 line 382 stale `action_dispatcher` token in subsystem prose; prd.md v1.10; TD-VSDD-050 filed); Pass 26 (window 1/3 attempt) next |
-| **factory-artifacts HEAD** | `c11febbd` |
+| **Last Updated** | 2026-05-04 (Pass 26 BLOCKED→REMEDIATED: ADR-016 v0.13 F-P26-H-001 lines 552+568 orphan `action_dispatcher`; vp-045 v1.3 F-PreP27-H-001 lines 37/44/68 same orphan; 5 total orphan sites across 3 docs from orchestrator-prompt; TD-VSDD-051 codified; ARCH-INDEX v2.26; STATE v6.63) |
+| **Current Phase** | Phase 4.A — Wave 4 adversarial spec convergence (26 passes consumed; Pass 26 BLOCKED→REMEDIATED; window 0/3; Pass 27 next) |
+| **Current Step** | Wave 4 Phase 4.A — Pass 26 BLOCKED→REMEDIATED (1H+1H-preP27: ADR-016 v0.13 + vp-045 v1.3; orchestrator-prompt orphan PATTERN codified TD-VSDD-051); Pass 27 (window 1/3 attempt) next |
+| **factory-artifacts HEAD** | `15fa97e6` |
 
 ## Phase Progress
 
@@ -411,7 +411,7 @@ _D-001..D-046 archived: [cycles/phase-3-dtu-wave-2/decisions-archive-d001-d032.m
 | ID | Decision | Rationale | Phase | Date |
 |----|----------|-----------|-------|------|
 | D-214 | Wave 4 Phase 4.A Convergence Strategy — B+A Hybrid with Subagent Context Discipline. Component 1 (Option B): Proactive structural sweep. Component 2 (Option A): Formal adversarial passes 13+ to 3-clean window. Component 3: Subagent context discipline MANDATORY (orchestrator NEVER reads large files; state-manager LAST per burst). | Wave 4 Phase 4.A B+A hybrid convergence + mandatory subagent context discipline | 4 | 2026-05-04 |
-**Passes 8–24 REMEDIATED/CLEAN (detail archived); Pass 25 BLOCKED→REMEDIATED (1H: PRD §2 line 382 stale `action_dispatcher` → `action_delivery`; orchestrator-prompt-introduced orphan token caught by fresh-context Pass 25; prd.md v1.10; TD-VSDD-050 filed — PRD §2 subsystem-prose sync check (sibling class to TD-VSDD-049 BC-table sync); ARCH-INDEX v2.25); window stays 0/3; Pass 26 next. Trajectory: …→P22(1H+1M+1L)→P23(2H+1M+1L)→P24(1CRIT)→P25(1H;orchestrator-prompt orphan). Detail: [pass-25.md](cycles/wave-4-operations/adversarial-reviews/pass-25.md) | [burst-log.md](cycles/wave-4-operations/burst-log.md).**
+**Passes 8–25 REMEDIATED/CLEAN (detail archived); Pass 26 BLOCKED→REMEDIATED (1H+1H-preP27: ADR-016 v0.13 lines 552+568 orphan `action_dispatcher` → `action_delivery` [F-P26-H-001]; vp-045 spec v1.3 lines 37/44/68 same orphan [F-PreP27-H-001]; 5 total orphan sites across 3 docs [PRD, ADR-016, vp-045] all introduced by orchestrator-authored fix-burst prompt text; TD-VSDD-051 codified [orchestrator-prompt verification + sibling-ADR prose sweep]; ARCH-INDEX v2.26); window stays 0/3; Pass 27 next. Trajectory: …→P23(2H+1M+1L)→P24(1CRIT)→P25(1H;orchestrator-prompt orphan)→P26(1H+1H-preP27;orchestrator-prompt orphan PATTERN codified). Detail: [pass-26.md](cycles/wave-4-operations/adversarial-reviews/pass-26.md) | [burst-log.md](cycles/wave-4-operations/burst-log.md).**
 
 ### Wave 4 Phase 4.A Pre-Pass-24 TD-VSDD-048 Grep-Completeness Sweep (2026-05-04) — CRITICAL PRD-level drift caught
 
@@ -457,19 +457,19 @@ _TD-VSDD-014..019, TD-W3-COMPLIANCE-001, TD-VSDD-025..029 archived to [tech-debt
 
 Cycle files: [burst-log](cycles/phase-2-patch/burst-log.md) | [convergence-trajectory](cycles/phase-2-patch/convergence-trajectory.md) | [session-checkpoints](cycles/phase-2-patch/session-checkpoints.md) | [lessons](cycles/phase-2-patch/lessons.md) | [resolved-blockers](cycles/phase-2-patch/blocking-issues-resolved.md)
 ---
-## Session Resume Checkpoint (2026-05-04-wave4-phase4a-pass25-remediated-v6.62)
+## Session Resume Checkpoint (2026-05-04-wave4-phase4a-pass26-remediated-v6.63)
 
 _Previous checkpoint archived: [cycles/wave-4-operations/session-checkpoints.md](cycles/wave-4-operations/session-checkpoints.md)_
 
-**STATE v6.62 (canonical SHA `c11febbd`). WAVE 4 PHASE 4.A — PASS 25 BLOCKED→REMEDIATED. WINDOW 0/3. PASS 26 NEXT.**
+**STATE v6.63 (canonical SHA `15fa97e6`). WAVE 4 PHASE 4.A — PASS 26 BLOCKED→REMEDIATED. WINDOW 0/3. PASS 27 NEXT.**
 
-develop HEAD: `ba3b10c7` | factory-artifacts: `c11febbd` | workspace tests: 2363 | PRs merged: 125
+develop HEAD: `ba3b10c7` | factory-artifacts: `15fa97e6` | workspace tests: 2363 | PRs merged: 125
 
-**PASS 25 (BLOCKED→REMEDIATED):** 1 HIGH. F-P25-H-001: prd.md v1.10 (PRD §2 line 382 stale `action_dispatcher` → `action_delivery` per concurrency-architecture v1.1 canonical; orchestrator-authored fix-burst prompt introduced orphan without verifying against architecture canonicals). TD-VSDD-050 filed (PRD §2 SUBSYSTEM PROSE sync check — sibling class to TD-VSDD-049 BC-table sync). ARCH-INDEX v2.25. cycle-manifest v1.45. Window stays 0/3; Pass 26 next.
+**PASS 26 (BLOCKED→REMEDIATED):** 1H+1H-preP27. F-P26-H-001: ADR-016 v0.13 (lines 552+568 orphan `action_dispatcher` → `action_delivery`; sibling-file regression of F-P25-H-001 PRD fix). F-PreP27-H-001: vp-045 spec v1.3 (lines 37/44/68 same orphan; 3 sites; caught proactively). META-INSIGHT: 5 total orphan sites across 3 docs (PRD, ADR-016, vp-045) all introduced by orchestrator-authored fix-burst prompt text. TD-VSDD-051 codified (orchestrator-prompt verification + sibling-ADR prose sweep). ARCH-INDEX v2.26. cycle-manifest v1.46. Window stays 0/3; Pass 27 next.
 
-**NEXT ACTION: Adversary Pass 26 (window 1/3 attempt). See SESSION-HANDOFF.md STEP 2.**
+**NEXT ACTION: Adversary Pass 27 (window 1/3 attempt). See SESSION-HANDOFF.md STEP 2.**
 
-**Current spec versions:** ADR-013 v0.7, ADR-015 v0.6, ADR-016 v0.12, ADR-017 v0.7, ADR-018 v0.6, ADR-019 v0.4, prd.md v1.10, actions.md v1.3, operational-pipeline.md v1.2, concurrency-architecture.md v1.1, observability.md v1.1, interface-definitions.md v2.6, query-engine.md v1.2, data-layer.md v1.3, S-4.01 v1.12, S-4.02 v1.11, S-4.05 v1.12, S-4.08 v1.23, BC-2.12.004 v1.8, BC-2.18.001 v1.8, BC-2.18.002 v1.5, BC-2.18.004 v1.5, BC-2.18.003 v1.4, BC-2.18.008 v1.4, S-5.06 v1.11, STORY-INDEX v2.03, ARCH-INDEX v2.25, BC-INDEX v4.32, VP-INDEX v1.26, verification-architecture v1.28, coverage-matrix v1.31.
+**Current spec versions:** ADR-013 v0.7, ADR-015 v0.6, ADR-016 v0.13 (NEW), ADR-017 v0.7, ADR-018 v0.6, ADR-019 v0.4, prd.md v1.10, vp-045 spec v1.3 (NEW), actions.md v1.3, operational-pipeline.md v1.2, concurrency-architecture.md v1.1, observability.md v1.1, interface-definitions.md v2.6, query-engine.md v1.2, data-layer.md v1.3, S-4.01 v1.12, S-4.02 v1.11, S-4.05 v1.12, S-4.08 v1.23, BC-2.12.004 v1.8, BC-2.18.001 v1.8, BC-2.18.002 v1.5, BC-2.18.004 v1.5, BC-2.18.003 v1.4, BC-2.18.008 v1.4, S-5.06 v1.11, STORY-INDEX v2.03, ARCH-INDEX v2.26, BC-INDEX v4.32, VP-INDEX v1.26, verification-architecture v1.28, coverage-matrix v1.31.
 
 **Key files:** [SESSION-HANDOFF.md](SESSION-HANDOFF.md) | [cycle-manifest.md](cycles/wave-4-operations/cycle-manifest.md)
 

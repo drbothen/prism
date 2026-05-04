@@ -1,46 +1,46 @@
 ---
 document_type: session-handoff
 level: ops
-version: "6.62"
+version: "6.63"
 status: current
 timestamp: 2026-05-04T00:00:00Z
-predecessor_session: "Wave 4 Phase 4.A Pass 24 BLOCKED→REMEDIATED 2026-05-04. STATE v6.61. factory-artifacts 27707379 (prior canonical SHA)."
-successor_focus: "Wave 4 Phase 4.A Pass 25 BLOCKED→REMEDIATED — 1 HIGH (F-P25-H-001: prd.md v1.10 PRD §2 line 382 stale `action_dispatcher` → `action_delivery`). TD-VSDD-050 filed. STATE v6.62. Next: Pass 26 (window 1/3 attempt).
+predecessor_session: "Wave 4 Phase 4.A Pass 25 BLOCKED→REMEDIATED 2026-05-04. STATE v6.62. factory-artifacts c11febbd (prior canonical SHA)."
+successor_focus: "Wave 4 Phase 4.A Pass 26 BLOCKED→REMEDIATED — 1H+1H-preP27 (F-P26-H-001: ADR-016 v0.13 lines 552+568 orphan `action_dispatcher`; F-PreP27-H-001: vp-045 v1.3 lines 37/44/68 same orphan). TD-VSDD-051 codified. STATE v6.63. Next: Pass 27 (window 1/3 attempt).
 
-**STEP 2 — NEXT ACTION: Dispatch Adversary Pass 26 (window 1/3 attempt). Pass 25 BLOCKED→REMEDIATED: prd.md v1.10 (F-P25-H-001 PRD §2 line 382 stale `action_dispatcher` → `action_delivery` per concurrency-architecture v1.1; orchestrator-prompt-introduced orphan). TD-VSDD-050 filed: PRD §2 subsystem-prose sync check (sibling class to TD-VSDD-049). Verify prd.md v1.10 + all prior pass fixes still hold.**
+**STEP 2 — NEXT ACTION: Dispatch Adversary Pass 27 (window 1/3 attempt). Pass 26 BLOCKED→REMEDIATED: ADR-016 v0.13 (F-P26-H-001 lines 552+568 orphan `action_dispatcher` → `action_delivery`) + vp-045 v1.3 (F-PreP27-H-001 lines 37/44/68 same orphan; caught proactively). 5 total orphan sites across 3 docs all from orchestrator-prompt; TD-VSDD-051 codified. Verify ADR-016 v0.13 + vp-045 v1.3 + all prior pass fixes still hold.**
 
 **KEY REFERENCES:**
-- STATE.md v6.62: develop@ba3b10c7; factory-artifacts c11febbd (canonical SHA — Pass 25 REMEDIATED)
-- prd.md v1.10 (NEW — F-P25-H-001: PRD §2 line 382 stale `action_dispatcher` → `action_delivery`)
-- TD-VSDD-050 filed: vsdd-plugin-tech-debt.md (29 items — PRD §2 subsystem-prose sync check)
-- ARCH-INDEX v2.25 (NEW — F-P25-H-001 pass 25 remediation row added)
-- prd.md v1.9 (F-P24-CRIT-001: PRD §2 line 389 BC-2.18.004 title sync to BC H1; superseded by v1.10)
+- STATE.md v6.63: develop@ba3b10c7; factory-artifacts 15fa97e6 (canonical SHA — Pass 26 REMEDIATED)
+- ADR-016 v0.13 (NEW — F-P26-H-001: lines 552+568 orphan `action_dispatcher` → `action_delivery`)
+- vp-045-schedule-semaphore-try-acquire-nonblocking.md v1.3 (NEW — F-PreP27-H-001: lines 37/44/68 same orphan → `action_delivery`)
+- TD-VSDD-051 filed: vsdd-plugin-tech-debt.md (30 items — orchestrator-prompt verification + sibling-ADR prose sweep)
+- ARCH-INDEX v2.26 (NEW — ADR-016 registry row v0.13; pass 26 changelog row)
+- prd.md v1.10 (F-P25-H-001: PRD §2 line 382 stale `action_dispatcher` → `action_delivery`)
+- TD-VSDD-050 filed: vsdd-plugin-tech-debt.md (PRD §2 subsystem-prose sync check)
 - interface-definitions.md v2.6 (F-PreP24-H-001: 6 sites Subsystem 18 label ActionEngine→ActionDeliveryEngine)
 - query-engine.md v1.2 (F-PreP24-H-002: 16 concurrent→8 per D-209; 3.2 GB→1.6 GB memory math)
 - operational-pipeline.md v1.2 (F-P23-H-001: 3 stale refs fixed)
 - actions.md v1.3 (F-P23-H-002: Mermaid participant labels)
-- TD-VSDD-049 filed: vsdd-plugin-tech-debt.md (28 items — PRD §2 BC-table↔BC H1 sync)
-- TD-VSDD-048 filed: vsdd-plugin-tech-debt.md (27 items — broad-sweep grep-completeness)
-- actions.md v1.2 (F-P22-H-001: action_state CF key table 5-row canonical ADR-016 §2.5)
+- TD-VSDD-049 filed: vsdd-plugin-tech-debt.md (PRD §2 BC-table↔BC H1 sync)
+- TD-VSDD-048 filed: vsdd-plugin-tech-debt.md (broad-sweep grep-completeness)
 - concurrency-architecture.md v1.1 (F-PreP22-H-001: 8/8 split per D-209)
 - observability.md v1.1 (F-PreP22-H-002: user-facing examples updated)
-- interface-definitions.md v2.6 (latest — F-PreP22-H-003 v2.5 superseded by F-PreP24-H-001 v2.6)
-- vp-045-schedule-semaphore-try-acquire-nonblocking.md v1.2 (F-PreP22-H-004)
 - data-layer.md v1.3 (F-P21-H-001/H-002/M-001)
-- ADR-016 v0.12 (current)
 - BC-2.18.003 v1.4 (current)
 - BC-2.18.008 v1.4 (current)
 - BC-INDEX v4.32 (current)
 - STORY-INDEX v2.03 (current)
-- Wave 4 cycle-manifest: cycles/wave-4-operations/cycle-manifest.md (v1.45)
+- Wave 4 cycle-manifest: cycles/wave-4-operations/cycle-manifest.md (v1.46)
 - Product TD register: tech-debt-register.md (57 active product items)
 
-factory-artifacts canonical: c11febbd (canonical SHA). develop HEAD: ba3b10c7."
+factory-artifacts canonical: 15fa97e6 (canonical SHA). develop HEAD: ba3b10c7."
 ---
 
 # Session Handoff — WAVE 4 PHASE 4.A DECISIONS LOGGED (2026-05-02)
 
 ## TL;DR
+
+**Wave 4 Phase 4.A — Pass 26 BLOCKED→REMEDIATED (2026-05-04) — STATE v6.63:** 1H+1H-preP27. F-P26-H-001: ADR-016 v0.13 (lines 552+568 orphan `action_dispatcher` → `action_delivery`; sibling-file regression of F-P25-H-001 PRD fix; SUBSTANTIVE). F-PreP27-H-001: vp-045 spec v1.3 (lines 37/44/68 same orphan; 3 sites; caught proactively before Pass 27; SUBSTANTIVE). META-INSIGHT: 5 total orphan sites across 3 docs (PRD, ADR-016, vp-045 spec) all introduced by orchestrator-authored fix-burst prompt text. TD-VSDD-051 codified (orchestrator-prompt verification + sibling-ADR prose sweep). ARCH-INDEX v2.26. cycle-manifest v1.46. Window stays 0/3. Pass 27 (slot 1/3) next.
 
 **Wave 4 Phase 4.A — Pass 25 BLOCKED→REMEDIATED (2026-05-04) — STATE v6.62:** 1H. F-P25-H-001: prd.md v1.10 (PRD §2 line 382 stale `action_dispatcher` → `action_delivery` per concurrency-architecture v1.1 canonical; orchestrator-authored fix-burst prompt introduced orphan without verifying against architecture canonicals; SUBSTANTIVE). TD-VSDD-050 filed (PRD §2 SUBSYSTEM PROSE sync check — sibling class to TD-VSDD-049 BC-table sync). ARCH-INDEX v2.25. cycle-manifest v1.45. Window stays 0/3. Pass 26 (slot 1/3) next.
 
@@ -132,21 +132,21 @@ factory-artifacts canonical: c11febbd (canonical SHA). develop HEAD: ba3b10c7."
 
 ## Current State
 
-develop HEAD `ba3b10c7` | factory-artifacts `27707379` (Pass 24 BLOCKED→REMEDIATED — window 0/3; STATE v6.61)
+develop HEAD `ba3b10c7` | factory-artifacts `15fa97e6` (Pass 26 BLOCKED→REMEDIATED — window 0/3; STATE v6.63)
 
 | Metric | Value |
 |--------|-------|
 | develop HEAD | `ba3b10c7` (W3-FIX-SEC-005 — Wave 3.4 final PR, PR #125, 2026-05-02) |
-| factory-artifacts HEAD | `c11febbd` (Pass 25 BLOCKED→REMEDIATED — window 0/3; STATE v6.62) |
+| factory-artifacts HEAD | `15fa97e6` (Pass 26 BLOCKED→REMEDIATED — window 0/3; STATE v6.63) |
 | PR count merged | 125 |
 | Workspace test count | 2363 (nextest-verified; +133 from CI nextest split + doctest migration) |
 | Open PRs | None |
 | Active worktrees | main (`develop`) + `.factory` (`factory-artifacts`) |
-| Tech debt items | 57 active product items (70 prior − 13 VSDD items extracted); vsdd-plugin-tech-debt.md: 29 items (+TD-VSDD-050) |
+| Tech debt items | 57 active product items (70 prior − 13 VSDD items extracted); vsdd-plugin-tech-debt.md: 30 items (+TD-VSDD-051) |
 | Wave 2 gate status | CONVERGED 2026-04-27 — Pass 9 CLEAN (3-clean-passes: P6+P8+P9) |
 | Wave 3 gate status | **CONVERGED 2026-05-02 — 3-clean window pass-52+53+54; develop@ba3b10c7** |
-| Wave 4 status | **PHASE 4.A — 25 passes consumed; Pass 25 BLOCKED→REMEDIATED (1 HIGH: PRD §2 line 382 stale `action_dispatcher` → `action_delivery`; prd.md v1.10); TD-VSDD-050 filed; window 0/3; Pass 26 (slot 1/3) next** |
-| Status | **WAVE 4 PHASE 4.A — Pass 25 REMEDIATED. Window 0/3. Ready for Adversary Pass 26 (slot 1/3).** |
+| Wave 4 status | **PHASE 4.A — 26 passes consumed; Pass 26 BLOCKED→REMEDIATED (1H+1H-preP27: ADR-016 v0.13 + vp-045 v1.3; TD-VSDD-051 codified); window 0/3; Pass 27 (slot 1/3) next** |
+| Status | **WAVE 4 PHASE 4.A — Pass 26 REMEDIATED. Window 0/3. Ready for Adversary Pass 27 (slot 1/3).** |
 
 
 ---
@@ -208,6 +208,8 @@ STEP 2 — Resume formal adversary passes (Option A — VSDD discipline):
 
   **Pass 25 dispatched 2026-05-04 — BLOCKED → REMEDIATED (1H; window stays 0/3). F-P25-H-001 SUBSTANTIVE (prd.md PRD §2 line 382 stale `action_dispatcher` → `action_delivery` per concurrency-architecture v1.1 canonical; orchestrator-authored fix-burst prompt introduced orphan without architecture canonical verification; v1.10; product-owner). TD-VSDD-050 filed (PRD §2 SUBSYSTEM PROSE sync check — sibling class to TD-VSDD-049 BC-table sync). ARCH-INDEX v2.25. Stage 1 SHA: c11febbd. Next: Pass 26 (window 1/3 attempt).**
 
+  **Pass 26 dispatched 2026-05-04 — BLOCKED → REMEDIATED (1H+1H-preP27; window stays 0/3). F-P26-H-001 SUBSTANTIVE (ADR-016 v0.13 lines 552+568 orphan `action_dispatcher` → `action_delivery`; sibling-file regression of F-P25-H-001 PRD fix; architect). F-PreP27-H-001 SUBSTANTIVE (vp-045 spec v1.3 lines 37/44/68 same orphan; 3 sites; caught proactively; product-owner). META-INSIGHT: 5 orphan sites across 3 docs all from orchestrator-prompt. TD-VSDD-051 codified. ARCH-INDEX v2.26. Stage 1 SHA: 15fa97e6. Next: Pass 27 (window 1/3 attempt).**
+
   2b. If CLEAN: window slot fills. At 3/3 CONVERGED.
   2c. If BLOCKED at any pass: route findings tightly per defect-class; remediate; re-pass.
   2d. NO skipping the formal 3-clean window. Per VSDD discipline.
@@ -240,7 +242,7 @@ KEY REFERENCES:
 - prd.md v1.9 (Pass 24 F-P24-CRIT-001: PRD §2 BC-2.18.004 title sync to BC H1; superseded by v1.10)
 - operational-pipeline.md v1.2 (Pass 23 F-P23-H-001: 3 stale refs fixed)
 - actions.md v1.3 (Pass 23 F-P23-H-002: Mermaid participant labels)
-- factory-artifacts canonical SHA: `c11febbd`
+- factory-artifacts canonical SHA: `15fa97e6`
 - develop HEAD: ba3b10c7 (Wave 3 CONVERGED 2026-05-02)
 
 ### Carry-Forward Debt (Wave 4 — REMEDIATE ALL per D-203)

@@ -1,7 +1,7 @@
 ---
 document_type: verification-property
 level: L4
-version: "1.2"
+version: "1.3"
 status: draft
 producer: architect
 timestamp: 2026-04-20T00:00:00Z
@@ -23,7 +23,7 @@ proof_completed_date: null
 proof_file_hash: null
 lifecycle_status: active
 introduced: cycle-2-patch
-modified: []
+modified: ["2026-05-04"]
 deprecated: null
 deprecated_by: null
 replacement: null
@@ -34,14 +34,14 @@ removed: null
 removal_reason: null
 ---
 
-> **Naming history note:** This VP's filename slug (`vp-045-schedule-semaphore-try-acquire-nonblocking`) preserves the original Wave 1 nomenclature when the property was anchored to a single shared semaphore. Per D-209 LOCKED (2026-05-02), the semaphore design split into two independent pools; this VP now anchors specifically to the `action_delivery_semaphore` (8-permit, prism-operations::action_dispatcher per ADR-016 §2.11). Filename slug preserved per POL-1 (append-only-numbering: filename slugs immutable).
+> **Naming history note:** This VP's filename slug (`vp-045-schedule-semaphore-try-acquire-nonblocking`) preserves the original Wave 1 nomenclature when the property was anchored to a single shared semaphore. Per D-209 LOCKED (2026-05-02), the semaphore design split into two independent pools; this VP now anchors specifically to the `action_delivery_semaphore` (8-permit, prism-operations::action_delivery per ADR-016 §2.11). Filename slug preserved per POL-1 (append-only-numbering: filename slugs immutable).
 
 # VP-045: Schedule Semaphore — try_acquire Used (Non-Blocking), Never acquire
 
 ## Property Statement
 
 When all 8 permits in the `action_delivery_semaphore` (module-private to
-`prism-operations::action_dispatcher` per ADR-016 §2.11 / D-209 LOCKED) are held by
+`prism-operations::action_delivery` per ADR-016 §2.11 / D-209 LOCKED) are held by
 other concurrent action deliveries, `ActionDeliveryEngine::fire()` returns immediately
 (within 10ms) without acquiring a permit. The function never blocks or awaits on a
 blocking semaphore `acquire()`. This prevents deadlock in the cron tick loop: a
@@ -65,7 +65,7 @@ saturated executor must skip the tick, not stall indefinitely.
 ```rust
 // [TODO: harness skeleton — author during Phase 5 formal-verify]
 // Method: proptest
-// Target: prism_operations::action_dispatcher::ActionDeliveryEngine::fire
+// Target: prism_operations::action_delivery::ActionDeliveryEngine::fire
 //
 // Sketch:
 // proptest!(|(schedule_id in arb_schedule_id())| {
@@ -111,6 +111,7 @@ saturated executor must skip the tick, not stall indefinitely.
 
 | Version | Burst | Date | Author | Notes |
 |---------|-------|------|--------|-------|
+| 1.3 | F-PreP27-H-001 | 2026-05-04 | product-owner | Pre-Pass-27 sibling-spec sweep: 3 orphan tokens `action_dispatcher` → `action_delivery` (line 37 banner note + line 44 Property Statement + line 68 Proof Harness target). Same drift class as F-P25-H-001 (PRD) + F-P26-H-001 (ADR-016) — orchestrator-prompt-introduced orphans across multiple bursts. |
 | 1.2 | F-PreP22-H-004 | 2026-05-03 | product-owner | Pre-Pass-22 sweep: body content rewritten to reflect VP-045 current scope (action_delivery_semaphore 8-permit, ADR-016 §2.11 / D-209 LOCKED). Was completely outdated post-Pass-20 F-P20-H-001 cascade. Filename slug preserved per POL-1. Banner note added explaining slug-vs-content drift. |
 | 1.1 | pass-87-remediation | 2026-04-21 | architect | F87-006: Source BC label corrected "Schedule Semaphore try_acquire" → "Scheduled Report Queries — try_acquire() on 16-Permit Semaphore, Skip If Unavailable" (matches BC-2.18.004 H1). |
 | 1.0 | pass-69-housekeeping | 2026-04-20 | architect | Initial draft. Resolves VP-TBD in BC-2.18.004. P0 because blocking acquire() in cron tick loop causes deadlock (safety-critical failure mode FM-018). |
