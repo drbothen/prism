@@ -1,18 +1,18 @@
 ---
 document_type: session-handoff
 level: ops
-version: "6.66"
+version: "6.67"
 status: current
 timestamp: 2026-05-04T00:00:00Z
 predecessor_session: "Wave 4 Phase 4.A Pass 28 BLOCKED→REMEDIATED 2026-05-04. STATE v6.65. factory-artifacts 3855623d (prior canonical SHA)."
-successor_focus: "Wave 4 Phase 4.A Pass 29 CLEAN — 0 SUBSTANTIVE; 17 cross-cuts verified; F-P29-L-001 COSMETIC deferred; window 1/3 OPEN post-Pass-20 reset. STATE v6.66. Next: Pass 30 (window 2/3 attempt). 2 more clean passes needed for full convergence.
+successor_focus: "Wave 4 Phase 4.A Pass 30 PERFECT CLEAN — 0 findings of any severity; 15 cross-cuts verified; window 2/3 OPEN post-Pass-20 reset. STATE v6.67. Next: Pass 31 (window 3/3 — convergence closure). 1 more clean pass needed for full convergence.
 
-**STEP 2 — NEXT ACTION: Dispatch Adversary Pass 30 (window 2/3 attempt). Pass 29 CLEAN: 0 SUBSTANTIVE findings; 17 cross-cuts RE-VERIFIED clean (all Pass 22-28 fix outcomes hold); F-P29-L-001 COSMETIC DEFERRED. Window advances 0/3 → 1/3 OPEN. 2 more clean passes needed for full convergence.**
+**STEP 2 — NEXT ACTION: Dispatch Adversary Pass 31 (window 3/3 — convergence closure). PASS 30 = PERFECT CLEAN: 0 findings of any severity; 15 cross-cuts RE-VERIFIED clean; F-P29-L-001 still DEFERRED (not blocking). Window advances 1/3 → 2/3 OPEN. 1 more clean pass needed for full convergence.**
 
 **KEY REFERENCES:**
-- STATE.md v6.66: develop@ba3b10c7; factory-artifacts 37ce17cc (canonical SHA — Pass 29 CLEAN)
-- pass-29.md: cycles/wave-4-operations/adversarial-reviews/pass-29.md (CLEAN; 0 substantive; 17 cross-cuts verified)
-- cycle-manifest v1.49 (NEW — wave-4-pass29-CLEAN)
+- STATE.md v6.67: develop@ba3b10c7; factory-artifacts 15fa97e6 (canonical SHA — Pass 30 PERFECT CLEAN)
+- pass-30.md: cycles/wave-4-operations/adversarial-reviews/pass-30.md (PERFECT CLEAN; 0 findings of any severity; 15 cross-cuts verified)
+- cycle-manifest v1.50 (NEW — wave-4-pass30-CLEAN)
 - vp-045-schedule-semaphore-try-acquire-nonblocking.md v1.4 (F-P28-H-001 fix; current; RE-VERIFIED CLEAN)
 - ARCH-INDEX v2.28 (current)
 - ADR-016 v0.14 (F-P27-H-001 fix; current; RE-VERIFIED CLEAN)
@@ -32,15 +32,17 @@ successor_focus: "Wave 4 Phase 4.A Pass 29 CLEAN — 0 SUBSTANTIVE; 17 cross-cut
 - BC-2.18.008 v1.4 (current; RE-VERIFIED CLEAN)
 - BC-INDEX v4.32 (current)
 - STORY-INDEX v2.03 (current)
-- Wave 4 cycle-manifest: cycles/wave-4-operations/cycle-manifest.md (v1.49)
+- Wave 4 cycle-manifest: cycles/wave-4-operations/cycle-manifest.md (v1.50)
 - Product TD register: tech-debt-register.md (57 active product items)
 
-factory-artifacts canonical: 37ce17cc (canonical SHA). develop HEAD: ba3b10c7."
+factory-artifacts canonical: 15fa97e6 (canonical SHA). develop HEAD: ba3b10c7."
 ---
 
 # Session Handoff — WAVE 4 PHASE 4.A DECISIONS LOGGED (2026-05-02)
 
 ## TL;DR
+
+**Wave 4 Phase 4.A — Pass 30 PERFECT CLEAN (2026-05-04) — STATE v6.67:** 0 findings of any severity. PERFECT CLEAN. F-P29-L-001 still DEFERRED (not blocking). 15 cross-cuts RE-VERIFIED clean. cycle-manifest v1.50. WINDOW 2/3 OPEN (post-Pass-20 reset). Pass 31 (window 3/3 — convergence closure) next. 1 more clean pass needed for full convergence.
 
 **Wave 4 Phase 4.A — Pass 29 CLEAN (2026-05-04) — STATE v6.66:** 0 SUBSTANTIVE findings. F-P29-L-001 COSMETIC DEFERRED (BC-2.18.004 v1.4 changelog row historical narrative inconsistency vs Pass 6 Remediation Notes section post-Pass-20 rewrite mismatch; body content correct; pending intent verification). 17 cross-cuts RE-VERIFIED clean (all Pass 22-28 fix outcomes hold). cycle-manifest v1.49. WINDOW 1/3 OPEN (post-Pass-20 reset). Pass 30 (slot 2/3) next. 2 more clean passes needed for full convergence.
 

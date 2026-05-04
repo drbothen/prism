@@ -2,7 +2,7 @@
 document_type: cycle-manifest
 cycle_id: wave-4-operations
 cycle_type: feature
-version: wave-4-preflight-v1.49
+version: wave-4-preflight-v1.50
 status: in-progress
 started: pending
 completed: pending
@@ -224,6 +224,7 @@ Story inventory will be remediated post-ADR-acceptance per drift audit categorie
 
 | Version | Date | Change |
 |---------|------|--------|
+| wave-4-preflight-v1.50 | 2026-05-04T00:00:00Z | wave-4-pass30-CLEAN | 2026-05-04 | state-manager | PASS 30 PERFECT CLEAN: 0/0/0/0/0; window 2/3 OPEN; 15 cross-cuts verified. STATE v6.67, HANDOFF v6.67. Pass 31 closes window. |
 | wave-4-preflight-v1.49 | 2026-05-04T00:00:00Z | wave-4-pass29-CLEAN | 2026-05-04 | state-manager | PASS 29 CLEAN: 0 SUBSTANTIVE; window 1/3 OPEN post-Pass-20 reset; 17 cross-cuts verified; F-P29-L-001 COSMETIC deferred. STATE v6.66, HANDOFF v6.66. Pass 30 next (window 2/3). |
 | wave-4-preflight-v1.48 | 2026-05-04T00:00:00Z | wave-4-pass28-BLOCKED-REMEDIATED — Pass 28 BLOCKED (1H): F-P28-H-001 (vp-045-schedule-semaphore-try-acquire-nonblocking.md v1.3→v1.4; H1 heading "Schedule Semaphore" → "Action Delivery Semaphore" per VP-INDEX line 66 canonical + BC-2.18.004 H1; Pass 26 body-rewrite sister-line gap; fix-burst targeted lines 37/44/68 but missed adjacent H1 at line 39; SUBSTANTIVE). META-INSIGHT: 7th orchestrator-prompt-introduced defect — H1-axis. 12 cross-cuts verified CLEAN. ARCH-INDEX v2.27→v2.28 (vp-045 spec v1.4; pass 28 changelog row). STATE v6.65, HANDOFF v6.65. Window stays 0/3; Pass 29 next (slot 1/3). |
 | wave-4-preflight-v1.47 | 2026-05-04T00:00:00Z | wave-4-pass27-BLOCKED-REMEDIATED — Pass 27 BLOCKED (1H): F-P27-H-001 (ADR-016 v0.13→v0.14; §5.4 footer + v0.12 changelog VP-047 rationale "action delivery dedup correctness" → canonical "template variable UUID v7 validation" per VP-INDEX line 68 + BC-2.18.009; SUBSTANTIVE; architect burst). Comprehensive grep across all 6 W4 ADRs confirmed sole VP-INDEX mis-anchor site. META-INSIGHT: 6th orchestrator-prompt-introduced defect — semantic mis-anchor in VP rationale text (NEW class beyond stale module names). TD-VSDD-052 codified (pre-dispatch VP scope verification: when fix-burst prompt mentions VP-NNN with rationale, grep VP-INDEX `Property` field; require canonical terms; abort dispatch otherwise). ARCH-INDEX v2.26→v2.27 (ADR-016 registry row v0.14; pass 27 changelog row). STATE v6.64, HANDOFF v6.64. Window stays 0/3; Pass 28 next (slot 1/3). |
