@@ -2,7 +2,7 @@
 document_type: architecture-section
 level: L3
 section: "operational-pipeline"
-version: "1.1"
+version: "1.2"
 status: draft
 producer: architect
 timestamp: 2026-04-27T00:00:00
@@ -22,7 +22,7 @@ Beyond ad-hoc queries, Prism provides a continuous operations loop: scheduled qu
 ```mermaid
 graph TD
     subgraph LOOP["Continuous Operations Loop"]
-        TICK["Scheduler Tick<br/><i>tokio::time::interval<br/>try_acquire semaphore (16 max)</i>"]
+        TICK["Scheduler Tick<br/><i>tokio::time::interval (60s default per ADR-013 §2.1)<br/>try_acquire schedule_executor_semaphore (8 permits per D-209 LOCKED)</i>"]
         QE["Query Engine<br/><i>execute_scheduled()<br/>Same pipeline as ad-hoc</i>"]
         DIFF["Differential Engine<br/><i>SHA-256 hash compare<br/>Row-level added/removed</i>"]
         DET["Detection Engine<br/><i>Single / Correlation / Sequence<br/>Serialized, in-memory only</i>"]
@@ -132,7 +132,7 @@ stateDiagram-v2
 The scheduler operates on a tick-based loop using `tokio::time::interval`. Each tick:
 
 1. Scan all active schedules
-2. For each schedule where `now >= next_run`: check concurrency semaphore (max 16 concurrent)
+2. For each schedule where `now >= next_run`: check schedule_executor_semaphore (8 permits per D-209 LOCKED 8/8 split; action_delivery_semaphore is independent 8-permit pool per ADR-016 §2.11)
 3. If previous execution for same `(query, client)` is in-flight → skip (DEC-028)
 4. Execute via standard query engine pipeline
 5. Compute differential results
@@ -237,7 +237,7 @@ sequenceDiagram
     participant DET as Detection Engine
     participant DB as RocksDB
     participant ALERT as Alert Generator
-    participant ACT as Action Engine
+    participant ACT as ActionDeliveryEngine
     participant SLACK as Slack
     participant MCP as MCP → Claude Code
 
@@ -310,3 +310,4 @@ The entire detection → enrichment → notification chain happened automaticall
 | Version | Date | Author | Change |
 |---------|------|--------|--------|
 | 1.1 | 2026-04-27 | product-owner | Pass 15 sweep: Case scoping line updated TenantId → OrgSlug (ADR-006 Wave 3); added `## [Section Content]` template compliance marker. |
+| 1.2 | F-P23-H-001+M-001 | 2026-05-04 | architect | Pass 23 SUBSTANTIVE: D-209 8/8 split + ADR-013 §2.1 60s tick + ActionDeliveryEngine rename propagated. Sites: line 25 Mermaid Scheduler Tick label, line 135 prose, line 240 Mermaid participant. Pre-Pass-21 sweep target list missed this file (TD-VSDD-048 candidate — broad-sweep methodology needs grep-completeness enforcement). |

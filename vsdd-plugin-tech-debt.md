@@ -62,6 +62,7 @@ Items included here meet one or more of the following criteria:
 | TD-VSDD-044 | Wave 4 Phase 4.A pre-Pass-17 cite-repair burst (2026-05-03) | state-manager commit-burst Stage 2 code path must update BOTH STATE.md and HANDOFF.md `factory-artifacts canonical SHA:` fields uniformly. Discovered: pre-Pass-17 burst (Wave 4 Phase 4.A) updated HANDOFF only; STATE was missed; hook validate-wave-gate-prerequisite.sh blocked subsequent operations. Severity: MEDIUM. Hook recommendation: state-burst skill should grep both STATE.md and HANDOFF.md for SHA-cite fields and update all matches in lockstep. | P2 | wave-4-phase-4a-pre-pass17-cite-repair (2026-05-03) | vsdd-factory state-burst skill + Stage 2 backfill code path maintenance |
 | TD-VSDD-045 | Wave 4 Phase 4.A Pass 17 F-P17-M-002 — STORY-INDEX VP Assignment Matrix missing W3/W4 VPs | STORY-INDEX VP Assignment Matrix stops at VP-062. Wave 3 added VP-063..VP-136 and Wave 4 added VP-137..VP-145; these 83 VPs have no rows in the matrix. The gap is structural — requires a major rebuild of the matrix section, not a targeted fix. Severity: MEDIUM (cosmetic; does not affect implementation correctness; VP-INDEX and verification-architecture are the authoritative coverage sources). Discovered: Pass 17 (Wave 4 Phase 4.A). Remediation: deferred to post-Phase-4.A convergence cleanup or Wave 5 baseline. | P3 | wave-4-phase-4a-pass17 (2026-05-03) | state-manager: STORY-INDEX VP Assignment Matrix rebuild at next major index maintenance window |
 | TD-VSDD-047 | Wave 4 Phase 4.A Pass 22 F-P22-H-001 — CF key format fixes must grep all architecture docs for the same CF name in lockstep | When fixing a CF key format, grep all architecture docs for that CF name and audit all key-format tables in lockstep. Discovered: Pass 22 (actions.md §"Delivery state" had 4 stale rows even after Pre-Pass-21 broad sweep + Pass 21 fix to data-layer.md). The Pre-Pass-21 broad-sweep fixed actions.md surface-level claims (names, constants) but did not audit the action_state CF key table against ADR-016 §2.5 canonical form. Severity: MEDIUM. Hook recommendation: when state-manager bumps a CF-related doc, grep for CF name + key-format table patterns across all architecture/*.md and BC files; flag any non-canonical format. Pattern: `:{action_id}:\|:{schedule_id}:\|:diff:\|:case:\|:alert:\|:retry:\|:dedup:` | P2 | wave-4-phase-4a-pass22 (2026-05-03) | vsdd-factory pre-pass sweep checklist + CF-key-format audit class extension |
+| TD-VSDD-048 | Wave 4 Phase 4.A Pass 23 F-P23-L-001 — Broad-sweep methodology must include exhaustive grep-completeness check | Broad-sweep target lists are hand-curated with no mechanical enforcement of exhaustiveness. Discovered: Pass 23 — Pre-Pass-21 sweep target list missed operational-pipeline.md, allowing 3 stale references (16-permit, Action Engine, 1-second tick) to survive two pre-pass sweeps and be caught only in Pass 23. Severity: MEDIUM. Hook recommendation: at end of every broad-sweep burst, run grep for canonical stale tokens (16-permit, 16 max, 16 concurrent, Action Engine, 1-second tick, ActionEngine[^a-zA-Z]) across ALL specs/architecture/*.md and abort if hits found. Replaces hand-curated target lists with mechanical completeness verification. | P2 | wave-4-phase-4a-pass23 (2026-05-04) | vsdd-factory pre-pass sweep skill + grep-completeness enforcement hook |
 
 ---
 
@@ -81,6 +82,43 @@ Items included here meet one or more of the following criteria:
 1. Add sweep class: **CF key format audit** — for every CF named in a finding or ADR change, grep all `architecture/*.md` files for that CF name and audit every key-format table found. Verify canonical form matches the ADR §2.5 (or equivalent) specification.
 2. Extend the sweep pattern to include BC files that contain CF key format specifications (e.g., BC-2.18.001).
 3. Hook recommendation: validate-cf-key-format.sh — grep for common CF key component tokens and flag non-canonical patterns before commit.
+
+---
+
+### TD-VSDD-048 — Broad-Sweep Methodology Must Include Exhaustive Grep-Completeness Check
+
+**Filed:** 2026-05-04 (Wave 4 Phase 4.A Pass 23 F-P23-L-001 process-gap codification)
+**Severity:** P2 (MEDIUM)
+**Source:** Pass 23 discovered that `operational-pipeline.md` contained 3 stale references (16-permit, Action Engine, 1-second tick) that survived the Pre-Pass-21 hand-curated broad-sweep target list. The target list for Pre-Pass-21 included: `actions.md`, `module-decomposition.md`, `api-surface.md`, `data-layer.md`, `verification-architecture.md` — but excluded `operational-pipeline.md`. No mechanical check confirmed that all architecture/*.md files containing the canonical stale tokens were in scope.
+
+**Gap:** Every broad-sweep dispatch relies on a hand-curated target list assembled by the orchestrator or state-manager at dispatch time. There is no automated step that:
+1. Greps all `specs/architecture/*.md` for canonical stale tokens before the sweep
+2. Verifies the resulting hit list is a subset of the sweep target list
+3. Fails (aborts dispatch) if any file containing a stale token was not included in the target list
+
+**Defects surfaced:**
+- F-P23-H-001: `operational-pipeline.md` had `16-permit` (should be `8-permit` per D-209), `Action Engine` (should be `ActionDeliveryEngine`), and `1-second tick` (should be `60s` per ADR-013 §2.1) — all surviving 2 prior pre-pass sweeps.
+- F-P23-M-001: `operational-pipeline.md` changelog had no Wave 4 entries despite Wave 4 architectural changes being reflected in the doc.
+
+**Recommended additions to pre-pass sweep methodology:**
+
+1. **Token-first completeness check (mandatory pre-sweep step):** Before assembling the target list, grep ALL `specs/architecture/*.md` files for the canonical stale tokens relevant to the current sweep context. The grep results define the mandatory minimum target list. Any file producing a hit MUST be in scope.
+
+2. **Canonical stale token list for D-209/ADR-013/rename sweeps:**
+   ```
+   16-permit | 16 max | 16 concurrent | Action Engine | 1-second tick | ActionEngine[^a-zA-Z]
+   ```
+
+3. **Hook recommendation:** `validate-sweep-completeness.sh` — run at the end of every broad-sweep burst:
+   ```bash
+   # Abort if any stale token survives in any architecture doc
+   grep -r "16-permit\|16 max\|16 concurrent\|Action Engine\|1-second tick\|ActionEngine[^a-zA-Z]" \
+     .factory/specs/architecture/*.md && echo "STALE TOKENS REMAIN — FIX BEFORE COMMIT" && exit 1 || true
+   ```
+
+4. **Process change:** State-manager and orchestrator must run this grep check BEFORE declaring a broad-sweep burst complete. The old pattern of "I swept the files I thought were relevant" must be replaced by "I grepped for the tokens and swept every file that matched."
+
+**Recommended action:** Codify grep-completeness check in vsdd-factory pre-pass sweep skill checklist before next broad-sweep dispatch. Priority: P2 — the current methodology has failed in 2+ consecutive Pre-Pass sweeps (Pre-Pass-21 and Pre-Pass-22 both had completeness gaps caught in the subsequent adversary pass).
 
 ---
 
@@ -257,6 +295,7 @@ Both gaps contributed to HIGH-001 and HIGH-003 findings surviving until Wave 2 g
 
 | Date | Change |
 |------|--------|
+| 2026-05-04T00:00:00Z | v2.0 — TD-VSDD-048 added. 26 → 27 items. TD-VSDD-048: broad-sweep methodology must include exhaustive grep-completeness check; Pre-Pass-21 hand-curated target list missed operational-pipeline.md, allowing 3 stale refs to survive to Pass 23; F-P23-L-001 trigger. |
 | 2026-05-03T15:00:00Z | v1.9 — TD-VSDD-047 added. 25 → 26 items. TD-VSDD-047: CF key format fixes must grep all architecture docs for the same CF name and audit all key-format tables in lockstep; actions.md §"Delivery state" 4-row stale form survived Pre-Pass-21 sweep + Pass 21 fix; F-P22-H-001 trigger. |
 | 2026-05-03T14:00:00Z | v1.8 — TD-VSDD-046 added. 24 → 25 items. TD-VSDD-046: foundation architecture docs (actions.md, module-decomposition.md, api-surface.md, data-layer.md, verification-architecture.md) + sister-BC propagation need explicit sweep classes in pre-pass methodology; F-PreP21-H-001/H-002 triggers. |
 | 2026-05-03T13:00:00Z | v1.7 — TD-VSDD-044+045 added. 22 → 24 items. TD-VSDD-044: state-manager Stage 2 must update ALL SHA-cite fields in STATE.md + HANDOFF.md lockstep (pre-Pass-17 cite-repair trigger). TD-VSDD-045: STORY-INDEX VP Assignment Matrix missing W3/W4 VPs (83 VPs absent; structural gap deferred to post-convergence; F-P17-M-002 trigger). |
