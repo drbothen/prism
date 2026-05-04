@@ -10,7 +10,7 @@ successor_focus: "Wave 4 Phase 4.A Pass 24 BLOCKED→REMEDIATED — 1 CRITICAL (
 **STEP 2 — NEXT ACTION: Dispatch Adversary Pass 25 (window 1/3 attempt). Pass 24 BLOCKED→REMEDIATED: prd.md v1.9 (F-P24-CRIT-001 PRD §2 BC-2.18.004 title sync to BC H1). TD-VSDD-049 filed: comprehensive PRD §2 BC-table↔BC H1 sync check; 200 rows checked; 1/200 drift found = approaching convergence. Verify prd.md v1.9 + all prior pass fixes still hold.**
 
 **KEY REFERENCES:**
-- STATE.md v6.61: develop@ba3b10c7; factory-artifacts 15fa97e6 (canonical SHA — Pass 24 REMEDIATED)
+- STATE.md v6.61: develop@ba3b10c7; factory-artifacts 27707379 (canonical SHA — Pass 24 REMEDIATED)
 - prd.md v1.9 (NEW — F-P24-CRIT-001: PRD §2 line 389 BC-2.18.004 title sync to BC H1)
 - interface-definitions.md v2.6 (F-PreP24-H-001: 6 sites Subsystem 18 label ActionEngine→ActionDeliveryEngine)
 - query-engine.md v1.2 (NEW — F-PreP24-H-002: 16 concurrent→8 per D-209; 3.2 GB→1.6 GB memory math)
@@ -33,7 +33,7 @@ successor_focus: "Wave 4 Phase 4.A Pass 24 BLOCKED→REMEDIATED — 1 CRITICAL (
 - Wave 4 cycle-manifest: cycles/wave-4-operations/cycle-manifest.md (v1.44)
 - Product TD register: tech-debt-register.md (57 active product items)
 
-factory-artifacts canonical: 15fa97e6 (canonical SHA). develop HEAD: ba3b10c7."
+factory-artifacts canonical: 27707379 (canonical SHA). develop HEAD: ba3b10c7."
 ---
 
 # Session Handoff — WAVE 4 PHASE 4.A DECISIONS LOGGED (2026-05-02)
@@ -128,12 +128,12 @@ factory-artifacts canonical: 15fa97e6 (canonical SHA). develop HEAD: ba3b10c7."
 
 ## Current State
 
-develop HEAD `ba3b10c7` | factory-artifacts `15fa97e6` (Pass 24 BLOCKED→REMEDIATED — window 0/3; STATE v6.61)
+develop HEAD `ba3b10c7` | factory-artifacts `27707379` (Pass 24 BLOCKED→REMEDIATED — window 0/3; STATE v6.61)
 
 | Metric | Value |
 |--------|-------|
 | develop HEAD | `ba3b10c7` (W3-FIX-SEC-005 — Wave 3.4 final PR, PR #125, 2026-05-02) |
-| factory-artifacts HEAD | `15fa97e6` (Pass 24 BLOCKED→REMEDIATED — window 0/3; STATE v6.61) |
+| factory-artifacts HEAD | `27707379` (Pass 24 BLOCKED→REMEDIATED — window 0/3; STATE v6.61) |
 | PR count merged | 125 |
 | Workspace test count | 2363 (nextest-verified; +133 from CI nextest split + doctest migration) |
 | Open PRs | None |
@@ -200,7 +200,7 @@ STEP 2 — Resume formal adversary passes (Option A — VSDD discipline):
 
   **Pre-Pass-24 TD-VSDD-048 grep-completeness sweep COMPLETE (2026-05-04) — 1 CRITICAL + 2 HIGH. F-PreP24-CRIT-001 CRITICAL (prd.md INV-ACTION-004 root contract "shared 16-permit semaphore" contradicts D-209 LOCKED; wrong for 23 prior passes; v1.8). F-PreP24-H-001 SUBSTANTIVE (interface-definitions.md 6 sites Subsystem 18 label "Action Engine" → "Action Delivery Engine"; v2.6). F-PreP24-H-002 SUBSTANTIVE (query-engine.md 16 concurrent schedule tasks → 8 per D-209; 3.2 GB → 1.6 GB memory math; v1.2). ARCH-INDEX v2.23 (query-engine row + 3 missing annotations). Stage 1 SHA: 7894d7df. Next: Pass 24 (window 1/3 attempt).**
 
-  **Pass 24 dispatched 2026-05-04 — BLOCKED → REMEDIATED (1C; window stays 0/3). F-P24-CRIT-001 SUBSTANTIVE (prd.md PRD §2 line 389 BC-2.18.004 cell title "Scheduled Report Queries — try_acquire() on 16-Permit Semaphore" → "Action Delivery Semaphore — 8-Permit Independent Pool"; BC H1 canonical; v1.9; product-owner). TD-VSDD-049 filed (comprehensive PRD §2 BC-table↔BC H1 byte-equal sync check; 200 rows checked; 1/200 drift = approaching convergence). ARCH-INDEX v2.24. Stage 1 SHA: 15fa97e6. Next: Pass 25 (window 1/3 attempt).**
+  **Pass 24 dispatched 2026-05-04 — BLOCKED → REMEDIATED (1C; window stays 0/3). F-P24-CRIT-001 SUBSTANTIVE (prd.md PRD §2 line 389 BC-2.18.004 cell title "Scheduled Report Queries — try_acquire() on 16-Permit Semaphore" → "Action Delivery Semaphore — 8-Permit Independent Pool"; BC H1 canonical; v1.9; product-owner). TD-VSDD-049 filed (comprehensive PRD §2 BC-table↔BC H1 byte-equal sync check; 200 rows checked; 1/200 drift = approaching convergence). ARCH-INDEX v2.24. Stage 1 SHA: 27707379. Next: Pass 25 (window 1/3 attempt).**
 
   2b. If CLEAN: window slot fills. At 3/3 CONVERGED.
   2c. If BLOCKED at any pass: route findings tightly per defect-class; remediate; re-pass.
@@ -233,7 +233,7 @@ KEY REFERENCES:
 - prd.md v1.9 (NEW — Pass 24 F-P24-CRIT-001: PRD §2 BC-2.18.004 title sync to BC H1)
 - operational-pipeline.md v1.2 (Pass 23 F-P23-H-001: 3 stale refs fixed)
 - actions.md v1.3 (Pass 23 F-P23-H-002: Mermaid participant labels)
-- factory-artifacts canonical SHA: `15fa97e6`
+- factory-artifacts canonical SHA: `27707379`
 - develop HEAD: ba3b10c7 (Wave 3 CONVERGED 2026-05-02)
 
 ### Carry-Forward Debt (Wave 4 — REMEDIATE ALL per D-203)

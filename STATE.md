@@ -375,7 +375,7 @@ user_directive_persistent: "No pragmatic convergence. Fix all issues before buil
 | **Last Updated** | 2026-05-04 (Pass 24 BLOCKED→REMEDIATED: prd.md v1.9 CRITICAL F-P24-CRIT-001 PRD §2 BC-2.18.004 title sync to BC H1; TD-VSDD-049 filed; comprehensive 200-row sweep found 1/200 drift only; ARCH-INDEX v2.24; STATE v6.61) |
 | **Current Phase** | Phase 4.A — Wave 4 adversarial spec convergence (24 passes consumed; Pass 24 BLOCKED→REMEDIATED; window 0/3; Pass 25 next) |
 | **Current Step** | Wave 4 Phase 4.A — Pass 24 BLOCKED→REMEDIATED (1 CRITICAL: PRD §2 BC-2.18.004 title drift; prd.md v1.9; TD-VSDD-049 comprehensive PRD §2 sweep: 1/200 drift found = approaching convergence); Pass 25 (window 1/3 attempt) next |
-| **factory-artifacts HEAD** | `15fa97e6` |
+| **factory-artifacts HEAD** | `27707379` |
 
 ## Phase Progress
 
@@ -461,9 +461,9 @@ Cycle files: [burst-log](cycles/phase-2-patch/burst-log.md) | [convergence-traje
 
 _Previous checkpoint archived: [cycles/wave-4-operations/session-checkpoints.md](cycles/wave-4-operations/session-checkpoints.md)_
 
-**STATE v6.61 (canonical SHA `15fa97e6`). WAVE 4 PHASE 4.A — PASS 24 BLOCKED→REMEDIATED. WINDOW 0/3. PASS 25 NEXT.**
+**STATE v6.61 (canonical SHA `27707379`). WAVE 4 PHASE 4.A — PASS 24 BLOCKED→REMEDIATED. WINDOW 0/3. PASS 25 NEXT.**
 
-develop HEAD: `ba3b10c7` | factory-artifacts: `15fa97e6` | workspace tests: 2363 | PRs merged: 125
+develop HEAD: `ba3b10c7` | factory-artifacts: `27707379` | workspace tests: 2363 | PRs merged: 125
 
 **PASS 24 (BLOCKED→REMEDIATED):** 1 CRITICAL. F-P24-CRIT-001: prd.md v1.9 (PRD §2 line 389 BC-2.18.004 cell title "Scheduled Report Queries — try_acquire() on 16-Permit Semaphore" → "Action Delivery Semaphore — 8-Permit Independent Pool" to match BC H1). TD-VSDD-049 filed (comprehensive PRD §2 BC-table↔BC H1 byte-equal sync check; 200 rows checked; 1/200 drift found = encouraging). ARCH-INDEX v2.24. cycle-manifest v1.44.
 
