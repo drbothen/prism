@@ -378,7 +378,7 @@ user_directive_persistent: "No pragmatic convergence. Fix all issues before buil
 | **Last Updated** | 2026-05-04 (Pre-compact comprehensive state capture: D-217 wave reality correction + D-218 wave docs stale + D-219 holdout-coverage SYSTEMIC gap; STATE v6.70) |
 | **Current Phase** | Phase 4.A — APPROVED + CONVERGED (31 passes consumed; Pass 31 PERFECT CLEAN; window 3/3 CLOSED; R9 HUMAN APPROVED 2026-05-04) |
 | **Current Step** | Wave 4 Phase 4.A APPROVED — post-compact resume: STEP 1 (D-218 wave doc refresh — wave-state.yaml + epics.md v1.3 + STORY-INDEX), STEP 2 (D-216 W4 HS authoring — BLOCKER), STEP 3 (R10 S-4.01/S-4.03), STEP 4 (Wave 4 impl), STEP 5 (R11 W4-FIX-*), STEP 6 (W4 wave gate), STEP 7 (Wave 5 kickoff) |
-| **factory-artifacts HEAD** | `3abe8cdc` |
+| **factory-artifacts HEAD** | `24a9e545` |
 
 ## Phase Progress
 
@@ -529,9 +529,9 @@ Cycle files: [burst-log](cycles/phase-2-patch/burst-log.md) | [convergence-traje
 
 _Previous checkpoint archived: [cycles/wave-4-operations/session-checkpoints.md](cycles/wave-4-operations/session-checkpoints.md)_
 
-**STATE v6.70 (canonical SHA `15fa97e6`). WAVE 4 PHASE 4.A APPROVED + CONVERGED. R9 HUMAN APPROVED. Pre-compact comprehensive state capture complete: D-217 + D-218 + D-219 logged.**
+**STATE v6.70 (canonical SHA `24a9e545`). WAVE 4 PHASE 4.A APPROVED + CONVERGED. R9 HUMAN APPROVED. Pre-compact comprehensive state capture complete: D-217 + D-218 + D-219 logged.**
 
-develop HEAD: `ba3b10c7` | factory-artifacts: `15fa97e6` | workspace tests: 2363 | PRs merged: 125
+develop HEAD: `ba3b10c7` | factory-artifacts: `24a9e545` | workspace tests: 2363 | PRs merged: 125
 
 **PRE-COMPACT STATE CAPTURE:** D-217 (wave reality: 7 waves W0..W6; 129 stories on disk vs 76 in epics.md v1.2; W3 expanded 13→51 during execution; W6 mixed status). D-218 (wave docs STALE — wave-state.yaml + epics.md v1.3 + STORY-INDEX wave summary refresh required post-compact BEFORE R10; resolves TD-W4-CV-LOW-001 + TD-W4-CV-LOW-002). D-219 (holdout-coverage SYSTEMIC gap: W1 never evaluated; W2 0.65 CONDITIONAL; W3 gold-standard 0.907; W4/W5/W6 no HS yet; per-wave HS authoring should become standard Phase X.A R-step). Phase 4.B prerequisites: D-218 wave doc refresh + D-216 W4 HS authoring. cycle-manifest v1.53.
 
