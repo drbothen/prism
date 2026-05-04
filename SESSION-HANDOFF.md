@@ -10,7 +10,7 @@ successor_focus: "Wave 4 Phase 4.A Pass 29 CLEAN — 0 SUBSTANTIVE; 17 cross-cut
 **STEP 2 — NEXT ACTION: Dispatch Adversary Pass 30 (window 2/3 attempt). Pass 29 CLEAN: 0 SUBSTANTIVE findings; 17 cross-cuts RE-VERIFIED clean (all Pass 22-28 fix outcomes hold); F-P29-L-001 COSMETIC DEFERRED. Window advances 0/3 → 1/3 OPEN. 2 more clean passes needed for full convergence.**
 
 **KEY REFERENCES:**
-- STATE.md v6.66: develop@ba3b10c7; factory-artifacts 15fa97e6 (canonical SHA — Pass 29 CLEAN)
+- STATE.md v6.66: develop@ba3b10c7; factory-artifacts 37ce17cc (canonical SHA — Pass 29 CLEAN)
 - pass-29.md: cycles/wave-4-operations/adversarial-reviews/pass-29.md (CLEAN; 0 substantive; 17 cross-cuts verified)
 - cycle-manifest v1.49 (NEW — wave-4-pass29-CLEAN)
 - vp-045-schedule-semaphore-try-acquire-nonblocking.md v1.4 (F-P28-H-001 fix; current; RE-VERIFIED CLEAN)
@@ -35,7 +35,7 @@ successor_focus: "Wave 4 Phase 4.A Pass 29 CLEAN — 0 SUBSTANTIVE; 17 cross-cut
 - Wave 4 cycle-manifest: cycles/wave-4-operations/cycle-manifest.md (v1.49)
 - Product TD register: tech-debt-register.md (57 active product items)
 
-factory-artifacts canonical: 15fa97e6 (canonical SHA). develop HEAD: ba3b10c7."
+factory-artifacts canonical: 37ce17cc (canonical SHA). develop HEAD: ba3b10c7."
 ---
 
 # Session Handoff — WAVE 4 PHASE 4.A DECISIONS LOGGED (2026-05-02)
@@ -140,7 +140,7 @@ factory-artifacts canonical: 15fa97e6 (canonical SHA). develop HEAD: ba3b10c7."
 
 ## Current State
 
-develop HEAD `ba3b10c7` | factory-artifacts `15fa97e6` (Pass 29 CLEAN — window 1/3 OPEN post-reset; STATE v6.66)
+develop HEAD `ba3b10c7` | factory-artifacts `37ce17cc` (Pass 29 CLEAN — window 1/3 OPEN post-reset; STATE v6.66)
 
 | Metric | Value |
 |--------|-------|

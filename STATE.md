@@ -375,7 +375,7 @@ user_directive_persistent: "No pragmatic convergence. Fix all issues before buil
 | **Last Updated** | 2026-05-04 (Pass 29 CLEAN: 0 SUBSTANTIVE findings; 17 cross-cuts verified clean; F-P29-L-001 COSMETIC deferred; window 1/3 OPEN post-Pass-20 reset; STATE v6.66) |
 | **Current Phase** | Phase 4.A — Wave 4 adversarial spec convergence (29 passes consumed; Pass 29 CLEAN; window 1/3 OPEN; Pass 30 next) |
 | **Current Step** | Wave 4 Phase 4.A — Pass 29 CLEAN (0 substantive; 17 cross-cuts verified; window 1/3 OPEN post-reset); Pass 30 (window 2/3 attempt) next |
-| **factory-artifacts HEAD** | `15fa97e6` |
+| **factory-artifacts HEAD** | `37ce17cc` |
 
 ## Phase Progress
 
@@ -482,9 +482,9 @@ Cycle files: [burst-log](cycles/phase-2-patch/burst-log.md) | [convergence-traje
 
 _Previous checkpoint archived: [cycles/wave-4-operations/session-checkpoints.md](cycles/wave-4-operations/session-checkpoints.md)_
 
-**STATE v6.66 (canonical SHA `15fa97e6`). WAVE 4 PHASE 4.A — PASS 29 CLEAN. WINDOW 1/3 OPEN. PASS 30 NEXT.**
+**STATE v6.66 (canonical SHA `37ce17cc`). WAVE 4 PHASE 4.A — PASS 29 CLEAN. WINDOW 1/3 OPEN. PASS 30 NEXT.**
 
-develop HEAD: `ba3b10c7` | factory-artifacts: `15fa97e6` | workspace tests: 2363 | PRs merged: 125
+develop HEAD: `ba3b10c7` | factory-artifacts: `37ce17cc` | workspace tests: 2363 | PRs merged: 125
 
 **PASS 29 (CLEAN):** 0 SUBSTANTIVE findings. F-P29-L-001 COSMETIC DEFERRED (BC-2.18.004 v1.4 changelog row historical narrative inconsistency; body correct; pending intent verification). 17 cross-cuts RE-VERIFIED clean (all Pass 22-28 fix outcomes hold). Window advances 0/3 → 1/3 OPEN. cycle-manifest v1.49.
 
