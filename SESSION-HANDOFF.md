@@ -10,7 +10,7 @@ successor_focus: "Wave 4 Phase 4.A Pass 23 BLOCKED→REMEDIATED (2026-05-04) —
 **STEP 2 — NEXT ACTION: Dispatch Adversary Pass 24 (window 1/3 attempt). Verify operational-pipeline.md v1.2 + actions.md v1.3 + ARCH-INDEX v2.22 + all prior pass fixes still hold.**
 
 **KEY REFERENCES:**
-- STATE.md v6.59: develop@ba3b10c7; factory-artifacts 15fa97e6 (canonical SHA — Pass 23 REMEDIATED)
+- STATE.md v6.59: develop@ba3b10c7; factory-artifacts 08da90f8 (canonical SHA — Pass 23 REMEDIATED)
 - operational-pipeline.md v1.2 (NEW — F-P23-H-001: 3 stale refs fixed: 16-permit+Action Engine+tick; missed by Pre-Pass-21 hand-curated target list)
 - actions.md v1.3 (NEW — F-P23-H-002: Mermaid participant display labels Action Engine→ActionDeliveryEngine)
 - ARCH-INDEX v2.22 (NEW — Document Map rows updated: operational-pipeline v1.2 + actions v1.3 annotations)
@@ -29,7 +29,7 @@ successor_focus: "Wave 4 Phase 4.A Pass 23 BLOCKED→REMEDIATED (2026-05-04) —
 - Wave 4 cycle-manifest: cycles/wave-4-operations/cycle-manifest.md (v1.42)
 - Product TD register: tech-debt-register.md (57 active product items)
 
-factory-artifacts canonical: 15fa97e6 (canonical SHA). develop HEAD: ba3b10c7."
+factory-artifacts canonical: 08da90f8 (canonical SHA). develop HEAD: ba3b10c7."
 ---
 
 # Session Handoff — WAVE 4 PHASE 4.A DECISIONS LOGGED (2026-05-02)
@@ -122,12 +122,12 @@ factory-artifacts canonical: 15fa97e6 (canonical SHA). develop HEAD: ba3b10c7."
 
 ## Current State
 
-develop HEAD `ba3b10c7` | factory-artifacts `15fa97e6` (Pass 23 BLOCKED→REMEDIATED — window 0/3; STATE v6.59)
+develop HEAD `ba3b10c7` | factory-artifacts `08da90f8` (Pass 23 BLOCKED→REMEDIATED — window 0/3; STATE v6.59)
 
 | Metric | Value |
 |--------|-------|
 | develop HEAD | `ba3b10c7` (W3-FIX-SEC-005 — Wave 3.4 final PR, PR #125, 2026-05-02) |
-| factory-artifacts HEAD | `15fa97e6` (Pass 23 BLOCKED→REMEDIATED — window 0/3; STATE v6.59) |
+| factory-artifacts HEAD | `08da90f8` (Pass 23 BLOCKED→REMEDIATED — window 0/3; STATE v6.59) |
 | PR count merged | 125 |
 | Workspace test count | 2363 (nextest-verified; +133 from CI nextest split + doctest migration) |
 | Open PRs | None |
@@ -190,7 +190,7 @@ STEP 2 — Resume formal adversary passes (Option A — VSDD discipline):
 
   **Pass 22 dispatched 2026-05-03 — BLOCKED → REMEDIATED (1H+1M+1L; window stays 0/3). F-P22-H-001 SUBSTANTIVE (actions.md §"Delivery state" action_state CF key table 4-row stale → 5-row canonical ADR-016 §2.5 form; `{org_id}:` prefix + `{idempotency_key}` retry sort-key; v1.2). F-P22-M-001 SUBSTANTIVE subsumed by H-001. F-P22-L-001 COSMETIC (ARCH-INDEX line 39 actions.md annotation missing; v2.21). TD-VSDD-047 filed (CF-key-format lockstep grep discipline). Stage 1 SHA: ff401d23.**
 
-  **Pass 23 dispatched 2026-05-04 — BLOCKED → REMEDIATED (2H+1M+1L; window stays 0/3). F-P23-H-001 SUBSTANTIVE (operational-pipeline.md 3 stale refs: 16-permit + Action Engine + 1-second tick; missed by Pre-Pass-21 hand-curated sweep target list; v1.2). F-P23-H-002 SUBSTANTIVE (actions.md Mermaid participant display labels still "Action Engine" claim-vs-reality drift in v1.1 changelog; v1.3). F-P23-M-001 SUBSTANTIVE (operational-pipeline.md changelog had no W4 entries; added with v1.2 fix). F-P23-L-001 process-gap → TD-VSDD-048 filed (broad-sweep grep-completeness enforcement). ARCH-INDEX v2.22. Stage 1 SHA: 15fa97e6. Next: Pass 24 (window 1/3 attempt).**
+  **Pass 23 dispatched 2026-05-04 — BLOCKED → REMEDIATED (2H+1M+1L; window stays 0/3). F-P23-H-001 SUBSTANTIVE (operational-pipeline.md 3 stale refs: 16-permit + Action Engine + 1-second tick; missed by Pre-Pass-21 hand-curated sweep target list; v1.2). F-P23-H-002 SUBSTANTIVE (actions.md Mermaid participant display labels still "Action Engine" claim-vs-reality drift in v1.1 changelog; v1.3). F-P23-M-001 SUBSTANTIVE (operational-pipeline.md changelog had no W4 entries; added with v1.2 fix). F-P23-L-001 process-gap → TD-VSDD-048 filed (broad-sweep grep-completeness enforcement). ARCH-INDEX v2.22. Stage 1 SHA: 08da90f8. Next: Pass 24 (window 1/3 attempt).**
 
   2b. If CLEAN: window slot fills. At 3/3 CONVERGED.
   2c. If BLOCKED at any pass: route findings tightly per defect-class; remediate; re-pass.
@@ -219,7 +219,7 @@ KEY REFERENCES:
 - ARCH-INDEX v2.22 (NEW — Pass 23 F-P23-H-001/H-002: operational-pipeline.md v1.2 + actions.md v1.3 row annotations)
 - operational-pipeline.md v1.2 (NEW — Pass 23 F-P23-H-001: 3 stale refs fixed)
 - actions.md v1.3 (NEW — Pass 23 F-P23-H-002: Mermaid participant labels)
-- factory-artifacts canonical SHA: `15fa97e6`
+- factory-artifacts canonical SHA: `08da90f8`
 - develop HEAD: ba3b10c7 (Wave 3 CONVERGED 2026-05-02)
 
 ### Carry-Forward Debt (Wave 4 — REMEDIATE ALL per D-203)

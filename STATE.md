@@ -87,7 +87,7 @@ wave_4_phase_4_a_preflight:
   pass_23_remediation_complete: true
   pass_23_fixes: [operational-pipeline.md v1.1→v1.2 (F-P23-H-001 3 stale refs: 16-permit+Action Engine+tick missed by Pre-Pass-21 hand-curated sweep; F-P23-M-001 changelog W4 entry added), actions.md v1.2→v1.3 (F-P23-H-002 Mermaid participant labels Action Engine→ActionDeliveryEngine), ARCH-INDEX v2.22]
   pass_23_td_filed: TD-VSDD-048
-  pass_23_stage1_sha: 15fa97e6
+  pass_23_stage1_sha: 08da90f8
   vsdd_plugin_td_count: 27 (was 26; TD-VSDD-048 broad-sweep grep-completeness enforcement added 2026-05-04)
 gate_status_hook_compat_remediation: 2026-04-24
 wave_0a_complete: 2026-04-22
@@ -373,7 +373,7 @@ user_directive_persistent: "No pragmatic convergence. Fix all issues before buil
 | **Last Updated** | 2026-05-04 (Pass 23 BLOCKED→REMEDIATED: operational-pipeline.md v1.2 + actions.md v1.3 + ARCH-INDEX v2.22; TD-VSDD-048; STATE v6.59) |
 | **Current Phase** | Phase 4.A — Wave 4 adversarial spec convergence (23 passes consumed; Pass 23 REMEDIATED; window 0/3; Pass 24 next) |
 | **Current Step** | Wave 4 Phase 4.A — Pass 23 BLOCKED→REMEDIATED (2H+1M+1L; operational-pipeline.md v1.2 + actions.md v1.3 + ARCH-INDEX v2.22 + TD-VSDD-048); Pass 24 (window 1/3 attempt) next |
-| **factory-artifacts HEAD** | `15fa97e6` |
+| **factory-artifacts HEAD** | `08da90f8` |
 
 ## Phase Progress
 
@@ -449,9 +449,9 @@ Cycle files: [burst-log](cycles/phase-2-patch/burst-log.md) | [convergence-traje
 
 _Previous checkpoint archived: [cycles/wave-4-operations/session-checkpoints.md](cycles/wave-4-operations/session-checkpoints.md)_
 
-**STATE v6.59 (canonical SHA `15fa97e6`). WAVE 4 PHASE 4.A — PASS 23 BLOCKED→REMEDIATED. WINDOW 0/3. PASS 24 NEXT.**
+**STATE v6.59 (canonical SHA `08da90f8`). WAVE 4 PHASE 4.A — PASS 23 BLOCKED→REMEDIATED. WINDOW 0/3. PASS 24 NEXT.**
 
-develop HEAD: `ba3b10c7` | factory-artifacts: `15fa97e6` | workspace tests: 2363 | PRs merged: 125
+develop HEAD: `ba3b10c7` | factory-artifacts: `08da90f8` | workspace tests: 2363 | PRs merged: 125
 
 **PASS 23 REMEDIATION:** 2H+1M+1L. F-P23-H-001: operational-pipeline.md v1.2 (3 stale refs: 16-permit→8-permit per D-209; Action Engine→ActionDeliveryEngine; 1-second→60s per ADR-013 §2.1; missed by Pre-Pass-21 hand-curated sweep target list). F-P23-H-002: actions.md v1.3 (Mermaid participant display labels Action Engine→ActionDeliveryEngine claim-vs-reality drift in v1.1 changelog). F-P23-M-001: operational-pipeline.md W4 changelog entry added. F-P23-L-001: process-gap → TD-VSDD-048 filed (broad-sweep grep-completeness enforcement). ARCH-INDEX v2.22.
 
