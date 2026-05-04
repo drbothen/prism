@@ -142,12 +142,12 @@ factory-artifacts canonical: 15fa97e6 (canonical SHA). develop HEAD: ba3b10c7."
 
 ## Current State
 
-develop HEAD `ba3b10c7` | factory-artifacts `37ce17cc` (Pass 29 CLEAN — window 1/3 OPEN post-reset; STATE v6.66)
+develop HEAD `ba3b10c7` | factory-artifacts `1212cd91` (Pass 30 CLEAN — window 2/3 OPEN; STATE v6.67)
 
 | Metric | Value |
 |--------|-------|
 | develop HEAD | `ba3b10c7` (W3-FIX-SEC-005 — Wave 3.4 final PR, PR #125, 2026-05-02) |
-| factory-artifacts HEAD | `37ce17cc` (Pass 29 CLEAN — window 1/3 OPEN; STATE v6.66) |
+| factory-artifacts HEAD | `1212cd91` (Pass 30 CLEAN — window 2/3 OPEN; STATE v6.67) |
 | PR count merged | 125 |
 | Workspace test count | 2363 (nextest-verified; +133 from CI nextest split + doctest migration) |
 | Open PRs | None |

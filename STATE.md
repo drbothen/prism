@@ -375,7 +375,7 @@ user_directive_persistent: "No pragmatic convergence. Fix all issues before buil
 | **Last Updated** | 2026-05-04 (Pass 30 PERFECT CLEAN: 0 findings of any severity; 15 cross-cuts verified clean; window 2/3 OPEN post-Pass-20 reset; STATE v6.67) |
 | **Current Phase** | Phase 4.A — Wave 4 adversarial spec convergence (30 passes consumed; Pass 30 PERFECT CLEAN; window 2/3 OPEN; Pass 31 next) |
 | **Current Step** | Wave 4 Phase 4.A — Pass 30 PERFECT CLEAN (0 findings of any severity; 15 cross-cuts verified; window 2/3 OPEN post-reset); Pass 31 (window 3/3 — convergence closure) next |
-| **factory-artifacts HEAD** | `15fa97e6` |
+| **factory-artifacts HEAD** | `1212cd91` |
 
 ## Phase Progress
 
@@ -498,9 +498,9 @@ Cycle files: [burst-log](cycles/phase-2-patch/burst-log.md) | [convergence-traje
 
 _Previous checkpoint archived: [cycles/wave-4-operations/session-checkpoints.md](cycles/wave-4-operations/session-checkpoints.md)_
 
-**STATE v6.67 (canonical SHA `15fa97e6`). WAVE 4 PHASE 4.A — PASS 30 PERFECT CLEAN. WINDOW 2/3 OPEN. PASS 31 NEXT.**
+**STATE v6.67 (canonical SHA `1212cd91`). WAVE 4 PHASE 4.A — PASS 30 PERFECT CLEAN. WINDOW 2/3 OPEN. PASS 31 NEXT.**
 
-develop HEAD: `ba3b10c7` | factory-artifacts: `15fa97e6` | workspace tests: 2363 | PRs merged: 125
+develop HEAD: `ba3b10c7` | factory-artifacts: `1212cd91` | workspace tests: 2363 | PRs merged: 125
 
 **PASS 30 (PERFECT CLEAN):** 0 findings of any severity. F-P29-L-001 still DEFERRED (not blocking). 15 cross-cuts RE-VERIFIED clean. Window advances 1/3 → 2/3 OPEN. cycle-manifest v1.50.
 
