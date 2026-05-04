@@ -2,7 +2,7 @@
 document_type: cycle-manifest
 cycle_id: wave-4-operations
 cycle_type: feature
-version: wave-4-preflight-v1.52
+version: wave-4-preflight-v1.53
 status: in-progress
 started: pending
 completed: pending
@@ -224,6 +224,7 @@ Story inventory will be remediated post-ADR-acceptance per drift audit categorie
 
 | Version | Date | Change |
 |---------|------|--------|
+| wave-4-preflight-v1.53 | 2026-05-04T00:00:00Z | wave-4-pre-compact-state-capture | 2026-05-04 | state-manager | Pre-compact comprehensive state capture: D-217 (wave reality 7 waves W0..W6 + 129 stories on disk vs 76 in epics.md v1.2; W3 expanded 13→51 during execution; W6 mixed status: 11 DTU merged via W0-W3 gates, 9 draft) + D-218 (wave docs STALE — wave-state.yaml/epics.md/STORY-INDEX refresh required post-compact BEFORE R10; resolves TD-W4-CV-LOW-001 + TD-W4-CV-LOW-002) + D-219 (holdout-coverage SYSTEMIC gap across W1/W2/W4/W5/W6; W3 only wave with proper BC anchoring; per-wave HS authoring should become standard Phase X.A R-step; TD-VSDD-053 candidate). Phase 4.B prerequisites: STEP 1 (D-218 wave doc refresh) + STEP 2 (D-216 W4 HS authoring). STATE v6.70, HANDOFF v6.70. SHA 15fa97e6. |
 | wave-4-preflight-v1.52 | 2026-05-04T00:00:00Z | wave-4-r9-APPROVED | 2026-05-04 | state-manager | R9 HUMAN APPROVAL — Phase 4.A APPROVED + CONVERGED. D-215 (no W1-W3 audit needed; optional R11 sweep applying TD-VSDD-039..052 methodologies — low-priority) + D-216 (W4 holdout scenarios MUST be authored before Phase 4.B wave gate — gap caught by user at gate; 8 HS files have no W4 BC/story anchoring; product-owner must author HS-009+ covering W4 acceptance behaviors). 4 LOW COSMETIC R8 findings tracked: TD-W4-RETRY-OBS-001 (SR-LOW-001 RetryState first_attempted_at absent), TD-W4-INJECTION-VOCAB-001 (SR-LOW-002 _safety_flags vocab cross-ref), TD-W4-CV-LOW-001 (STORY-INDEX BC-INDEX version pin staleness), TD-W4-CV-LOW-002 (ARCH-INDEX ADR-016 registry date vs frontmatter). Post-compact resume: D-216 product-owner dispatch → R10 S-4.01/S-4.03 → R11 W4-FIX-*. STATE v6.69, HANDOFF v6.69. SHA 3abe8cdc. |
 | wave-4-preflight-v1.51 | 2026-05-04T00:00:00Z | wave-4-pass31-CONVERGED | 2026-05-04 | state-manager | WAVE 4 PHASE 4.A CONVERGED — Pass 31 PERFECT CLEAN (0/0/0/0/0); window 3/3 CLOSED; trajectory P29(0)→P30(0)→P31(0); 17 cross-cuts verified including 2 NOVEL-AXIS. STATE v6.68, HANDOFF v6.68. Ready for R8/R9/R10. |
 | wave-4-preflight-v1.50 | 2026-05-04T00:00:00Z | wave-4-pass30-CLEAN | 2026-05-04 | state-manager | PASS 30 PERFECT CLEAN: 0/0/0/0/0; window 2/3 OPEN; 15 cross-cuts verified. STATE v6.67, HANDOFF v6.67. Pass 31 closes window. |
