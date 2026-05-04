@@ -375,7 +375,7 @@ user_directive_persistent: "No pragmatic convergence. Fix all issues before buil
 | **Last Updated** | 2026-05-04 (Pass 26 BLOCKED→REMEDIATED: ADR-016 v0.13 F-P26-H-001 lines 552+568 orphan `action_dispatcher`; vp-045 v1.3 F-PreP27-H-001 lines 37/44/68 same orphan; 5 total orphan sites across 3 docs from orchestrator-prompt; TD-VSDD-051 codified; ARCH-INDEX v2.26; STATE v6.63) |
 | **Current Phase** | Phase 4.A — Wave 4 adversarial spec convergence (26 passes consumed; Pass 26 BLOCKED→REMEDIATED; window 0/3; Pass 27 next) |
 | **Current Step** | Wave 4 Phase 4.A — Pass 26 BLOCKED→REMEDIATED (1H+1H-preP27: ADR-016 v0.13 + vp-045 v1.3; orchestrator-prompt orphan PATTERN codified TD-VSDD-051); Pass 27 (window 1/3 attempt) next |
-| **factory-artifacts HEAD** | `15fa97e6` |
+| **factory-artifacts HEAD** | `9a49d6a7` |
 
 ## Phase Progress
 
@@ -461,9 +461,9 @@ Cycle files: [burst-log](cycles/phase-2-patch/burst-log.md) | [convergence-traje
 
 _Previous checkpoint archived: [cycles/wave-4-operations/session-checkpoints.md](cycles/wave-4-operations/session-checkpoints.md)_
 
-**STATE v6.63 (canonical SHA `15fa97e6`). WAVE 4 PHASE 4.A — PASS 26 BLOCKED→REMEDIATED. WINDOW 0/3. PASS 27 NEXT.**
+**STATE v6.63 (canonical SHA `9a49d6a7`). WAVE 4 PHASE 4.A — PASS 26 BLOCKED→REMEDIATED. WINDOW 0/3. PASS 27 NEXT.**
 
-develop HEAD: `ba3b10c7` | factory-artifacts: `15fa97e6` | workspace tests: 2363 | PRs merged: 125
+develop HEAD: `ba3b10c7` | factory-artifacts: `9a49d6a7` | workspace tests: 2363 | PRs merged: 125
 
 **PASS 26 (BLOCKED→REMEDIATED):** 1H+1H-preP27. F-P26-H-001: ADR-016 v0.13 (lines 552+568 orphan `action_dispatcher` → `action_delivery`; sibling-file regression of F-P25-H-001 PRD fix). F-PreP27-H-001: vp-045 spec v1.3 (lines 37/44/68 same orphan; 3 sites; caught proactively). META-INSIGHT: 5 total orphan sites across 3 docs (PRD, ADR-016, vp-045) all introduced by orchestrator-authored fix-burst prompt text. TD-VSDD-051 codified (orchestrator-prompt verification + sibling-ADR prose sweep). ARCH-INDEX v2.26. cycle-manifest v1.46. Window stays 0/3; Pass 27 next.
 
