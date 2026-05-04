@@ -375,7 +375,7 @@ user_directive_persistent: "No pragmatic convergence. Fix all issues before buil
 | **Last Updated** | 2026-05-04 (Pre-Pass-24 TD-VSDD-048 sweep COMPLETE: prd.md v1.8 CRITICAL INV-ACTION-004 D-209 contract; interface-definitions.md v2.6 HIGH 6 sites; query-engine.md v1.2 HIGH 16→8 concurrent + memory math; ARCH-INDEX v2.23; STATE v6.60) |
 | **Current Phase** | Phase 4.A — Wave 4 adversarial spec convergence (23 passes consumed; Pre-Pass-24 TD-VSDD-048 sweep COMPLETE; window 0/3; Pass 24 next) |
 | **Current Step** | Wave 4 Phase 4.A — Pre-Pass-24 TD-VSDD-048 grep-completeness sweep COMPLETE (1 CRITICAL + 2 HIGH remediated); Pass 24 (window 1/3 attempt) next |
-| **factory-artifacts HEAD** | `15fa97e6` |
+| **factory-artifacts HEAD** | `7894d7df` |
 
 ## Phase Progress
 
@@ -461,9 +461,9 @@ Cycle files: [burst-log](cycles/phase-2-patch/burst-log.md) | [convergence-traje
 
 _Previous checkpoint archived: [cycles/wave-4-operations/session-checkpoints.md](cycles/wave-4-operations/session-checkpoints.md)_
 
-**STATE v6.60 (canonical SHA `15fa97e6`). WAVE 4 PHASE 4.A — PRE-PASS-24 TD-VSDD-048 SWEEP COMPLETE. WINDOW 0/3. PASS 24 NEXT.**
+**STATE v6.60 (canonical SHA `7894d7df`). WAVE 4 PHASE 4.A — PRE-PASS-24 TD-VSDD-048 SWEEP COMPLETE. WINDOW 0/3. PASS 24 NEXT.**
 
-develop HEAD: `ba3b10c7` | factory-artifacts: `15fa97e6` | workspace tests: 2363 | PRs merged: 125
+develop HEAD: `ba3b10c7` | factory-artifacts: `7894d7df` | workspace tests: 2363 | PRs merged: 125
 
 **PRE-PASS-24 SWEEP (TD-VSDD-048):** 1 CRITICAL + 2 HIGH. F-PreP24-CRIT-001: prd.md v1.8 (INV-ACTION-004 root contract "shared 16-permit semaphore" contradicted D-209 LOCKED — PRD root corrected; would have shipped wrong). F-PreP24-H-001: interface-definitions.md v2.6 (6 sites Subsystem 18 label "Action Engine" → "Action Delivery Engine"). F-PreP24-H-002: query-engine.md v1.2 (16 concurrent schedule tasks → 8 per D-209; 3.2 GB → 1.6 GB memory math corrected). ARCH-INDEX v2.23 (query-engine row + 3 missing annotations added).
 
