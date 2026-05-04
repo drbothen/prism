@@ -1,7 +1,7 @@
 ---
 document_type: verification-property
 level: L4
-version: "1.3"
+version: "1.4"
 status: draft
 producer: architect
 timestamp: 2026-04-20T00:00:00Z
@@ -36,7 +36,7 @@ removal_reason: null
 
 > **Naming history note:** This VP's filename slug (`vp-045-schedule-semaphore-try-acquire-nonblocking`) preserves the original Wave 1 nomenclature when the property was anchored to a single shared semaphore. Per D-209 LOCKED (2026-05-02), the semaphore design split into two independent pools; this VP now anchors specifically to the `action_delivery_semaphore` (8-permit, prism-operations::action_delivery per ADR-016 §2.11). Filename slug preserved per POL-1 (append-only-numbering: filename slugs immutable).
 
-# VP-045: Schedule Semaphore — try_acquire Used (Non-Blocking), Never acquire
+# VP-045: Action Delivery Semaphore — try_acquire Used (Non-Blocking), Never acquire
 
 ## Property Statement
 
@@ -111,6 +111,7 @@ saturated executor must skip the tick, not stall indefinitely.
 
 | Version | Burst | Date | Author | Notes |
 |---------|-------|------|--------|-------|
+| 1.4 | F-P28-H-001 | 2026-05-04 | product-owner | Pass 28 SUBSTANTIVE HIGH: H1 line 39 "Schedule Semaphore" → "Action Delivery Semaphore" (matches VP-INDEX line 66 canonical Property + verification-architecture line 174 + BC-2.18.004 Source BC). Pass 26 v1.2/v1.3 body rewrite + token orphan fixes had missed H1. Filename slug `vp-045-schedule-semaphore-...` preserved per POL-1 immutability + banner note already explains slug-vs-content drift. |
 | 1.3 | F-PreP27-H-001 | 2026-05-04 | product-owner | Pre-Pass-27 sibling-spec sweep: 3 orphan tokens `action_dispatcher` → `action_delivery` (line 37 banner note + line 44 Property Statement + line 68 Proof Harness target). Same drift class as F-P25-H-001 (PRD) + F-P26-H-001 (ADR-016) — orchestrator-prompt-introduced orphans across multiple bursts. |
 | 1.2 | F-PreP22-H-004 | 2026-05-03 | product-owner | Pre-Pass-22 sweep: body content rewritten to reflect VP-045 current scope (action_delivery_semaphore 8-permit, ADR-016 §2.11 / D-209 LOCKED). Was completely outdated post-Pass-20 F-P20-H-001 cascade. Filename slug preserved per POL-1. Banner note added explaining slug-vs-content drift. |
 | 1.1 | pass-87-remediation | 2026-04-21 | architect | F87-006: Source BC label corrected "Schedule Semaphore try_acquire" → "Scheduled Report Queries — try_acquire() on 16-Permit Semaphore, Skip If Unavailable" (matches BC-2.18.004 H1). |

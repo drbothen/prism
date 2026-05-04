@@ -1,7 +1,7 @@
 ---
 document_type: architecture-index
 level: L3
-version: "2.27"
+version: "2.28"
 status: draft
 producer: architect
 timestamp: 2026-05-04T00:00:00
@@ -142,6 +142,7 @@ deployment_topology: single-service
 
 | Version | Pass | Date | Author | Change |
 |---------|------|------|--------|--------|
+| 2.28 | W4-Phase4A-Pass28-fix | 2026-05-04 | state-manager | Pass 28 BLOCKED→REMEDIATED. F-P28-H-001: vp-045 spec v1.3→v1.4 (H1 heading "Schedule Semaphore" → "Action Delivery Semaphore" per VP-INDEX line 66 canonical + BC-2.18.004 H1; Pass 26 body-rewrite sister-line gap; 7th orchestrator-prompt-introduced defect — H1-axis; SUBSTANTIVE). 12 cross-cuts verified CLEAN. Window stays 0/3; Pass 29 next. |
 | 2.27 | W4-Phase4A-Pass27-fix | 2026-05-04 | state-manager | Pass 27 BLOCKED→REMEDIATED. F-P27-H-001: ADR-016 §5.4 footer (line 533) + v0.12 changelog entry (line 579) contained wrong VP-047 rationale "action delivery dedup correctness" → canonical "template variable UUID v7 validation" per VP-INDEX line 68 + BC-2.18.009; SUBSTANTIVE; architect v0.14. Comprehensive grep across all 6 W4 ADRs confirmed sole VP-INDEX mis-anchor site. META-INSIGHT: 6th orchestrator-prompt-introduced defect this session — semantic mis-anchor in rationale text (NEW class beyond stale module names). TD-VSDD-052 codified (pre-dispatch VP scope verification). ARCH-INDEX v2.26→v2.27. ADR-016 v0.14 in registry. Window stays 0/3; Pass 28 next. |
 | 2.26 | W4-Phase4A-Pass26-fix | 2026-05-04 | state-manager | Pass 26 BLOCKED→REMEDIATED. F-P26-H-001: ADR-016 v0.12→v0.13 (lines 552+568 orphan `action_dispatcher` token → `action_delivery`; sibling-file regression of F-P25-H-001 PRD fix; SUBSTANTIVE). F-PreP27-H-001: vp-045 spec v1.2→v1.3 (lines 37/44/68 same orphan token; 3 sites; caught proactively before Pass 27; SUBSTANTIVE). META-INSIGHT: all 5 orphan sites across 3 docs (PRD, ADR-016, vp-045 spec) introduced by orchestrator-authored fix-burst prompt text; TD-VSDD-051 codified (orchestrator-prompt verification + sibling-ADR prose sweep). ARCH-INDEX version 2.25→2.26. ADR-016 v0.13 in registry. Window stays 0/3; Pass 27 next. |
 | 2.25 | W4-Phase4A-Pass25-fix | 2026-05-04 | state-manager | F-P25-H-001: prd.md v1.9→v1.10 (PRD §2 line 382 stale `action_dispatcher` token in subsystem-introduction prose → `action_delivery` per concurrency-architecture v1.1 + module-decomposition v1.13 canonicals; orphan introduced by orchestrator-authored pre-Pass-24 fix-burst prompt; SUBSTANTIVE). TD-VSDD-050 filed (PRD §2 SUBSYSTEM PROSE sync check — sibling to TD-VSDD-049 BC-table sync). ARCH-INDEX version 2.24→2.25. Window stays 0/3; Pass 26 next. |

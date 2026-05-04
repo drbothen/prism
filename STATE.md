@@ -1,7 +1,7 @@
 ---
 document_type: pipeline-state
 level: ops
-version: "6.64"
+version: "6.65"
 producer: state-manager
 timestamp: 2026-05-03T00:00:00Z
 inputs: []
@@ -61,9 +61,9 @@ wave_4_phase_4_a_preflight:
   findings_dir: ".factory/cycles/wave-4-operations/preflight-findings/"
   passes_1_7_archived: "cycles/wave-4-operations/adversarial-reviews/ — all BLOCKED+remediated; SHAs 618b453e/15d1bf73/64f4ea81/55b75700/3f393b44/bae288ad/246b9f71"
   passes_8_13_archived: "cycles/wave-4-operations/adversarial-reviews/ — all BLOCKED+remediated; SHAs 39f065c7/6576df60/40458029/4a47ddd5/1849145b/398c5273"
-  convergence_window: "0/3 (BLOCKED — window stays 0/3; Pass 27 found 1H: ADR-016 §5.4 footer + v0.12 changelog VP-047 rationale 'action delivery dedup correctness' → canonical 'template variable UUID v7 validation' per VP-INDEX; architect v0.14; grep confirmed sole site; TD-VSDD-052 codified; Pass 28 next)"
-  pass_trajectory: "38→17→8→7→7→5→5→6→6→5→5→4→7→9→2→4→3→3(CLEAN)→18:CLEAN(1/3)→19:CLEAN(2/3)→20:BLOCKED(RESET 0/3)→PreSweep→21:BLOCKED→REMEDIATED(0/3)→PreP22Sweep(COMPLETE;0/3)→22:BLOCKED→REMEDIATED(1H+1M+1L;TD-VSDD-047)→23:BLOCKED→REMEDIATED(2H+1M+1L;sweep-target-list gap)→24:BLOCKED→REMEDIATED(1CRIT;comprehensive sweep found 1/200 drift = encouraging)→25:BLOCKED→REMEDIATED(1H;orchestrator-prompt-introduced orphan token caught)→26:BLOCKED→REMEDIATED(1H+1H-preP27;orchestrator-prompt-introduced orphan PATTERN now codified TD-VSDD-051)→ 27:BLOCKED→REMEDIATED(1H; VP rationale semantic mis-anchor — 6th orchestrator-prompt drift class)"
-  passes_consumed: 27
+  convergence_window: "0/3 (BLOCKED — window stays 0/3; Pass 28 found 1H: vp-045 spec H1 heading 'Schedule Semaphore' → 'Action Delivery Semaphore'; Pass 26 body-rewrite sister-line gap; 7th orchestrator-prompt-introduced defect (H1-axis); vp-045 v1.4; ARCH-INDEX v2.28; Pass 29 next)"
+  pass_trajectory: "38→17→8→7→7→5→5→6→6→5→5→4→7→9→2→4→3→3(CLEAN)→18:CLEAN(1/3)→19:CLEAN(2/3)→20:BLOCKED(RESET 0/3)→PreSweep→21:BLOCKED→REMEDIATED(0/3)→PreP22Sweep(COMPLETE;0/3)→22:BLOCKED→REMEDIATED(1H+1M+1L;TD-VSDD-047)→23:BLOCKED→REMEDIATED(2H+1M+1L;sweep-target-list gap)→24:BLOCKED→REMEDIATED(1CRIT;comprehensive sweep found 1/200 drift = encouraging)→25:BLOCKED→REMEDIATED(1H;orchestrator-prompt-introduced orphan token caught)→26:BLOCKED→REMEDIATED(1H+1H-preP27;orchestrator-prompt-introduced orphan PATTERN now codified TD-VSDD-051)→27:BLOCKED→REMEDIATED(1H; VP rationale semantic mis-anchor — 6th orchestrator-prompt drift class)→ 28:BLOCKED→REMEDIATED(1H; VP H1 sister-line gap — 7th orchestrator-prompt drift class)"
+  passes_consumed: 28
   convergence_strategy: B+A_hybrid (D-214)
   subagent_context_discipline: MANDATORY
   proactive_sweep_status: "COMPLETE_2026-05-03 + Pass 13 surfaced 2 HIGH not caught by sweep methodology — TD-VSDD-039 filed"
@@ -76,7 +76,7 @@ wave_4_phase_4_a_preflight:
   pass_21_fixes: [data-layer.md v1.2→v1.3 (F-P21-H-001 concurrency 16→D-209 8/8+2ad-hoc; F-P21-H-002 CF count 16→17+case_dedup_idx per P5-XADR-A-M-006; F-P21-M-001 retry key canonical per ADR-016 §2.5), ARCH-INDEX v2.19]
   pass_21_stage1_sha: 4048c5ec
   pre_pass21_sweep_status: "COMPLETE_2026-05-03 — F-PreP21-H-001 (foundation arch docs: actions.md v1.1 16-permit→8-permit+1s→60s; module-decomposition v1.13; api-surface v1.6; data-layer v1.2; verification-architecture v1.28 Mermaid P13 sister-fix); F-PreP21-H-002 (BC-2.18.003/008 v1.4 ActionEngine→ActionDeliveryEngine sister-BC drift); F-PreP21-M-001 (S-5.06 v1.11 cross-wave); TD-VSDD-046 filed"
-  next_action: "Adversary Pass 28 (window 1/3 attempt)"
+  next_action: "Adversary Pass 29 (window 1/3 attempt)"
   pre_pass22_sweep_status: "COMPLETE_2026-05-03 — F-PreP22-H-001 (concurrency-architecture v1.1 8/8 split per D-209); F-PreP22-H-002 (observability v1.1 user-facing examples updated); F-PreP22-H-003 (interface-definitions v2.5 ActionEngine→ActionDeliveryEngine); F-PreP22-H-004 (vp-045 spec body v1.2 rewritten + slug-preservation banner per POL-1). ARCH-INDEX v2.20. Window stays 0/3; Pass 22 dispatch ready."
   pass_22_adversary_verdict: "BLOCKED (3 findings: 0C/1H/1M/1L/0OBS)"
   pass_22_remediation_complete: true
@@ -337,7 +337,7 @@ holdout_index_version: "1.2"
 capabilities_version: "1.14"
 l2_index_version: "1.10"
 module_decomposition_version: "1.13"
-arch_index_version: "2.27"
+arch_index_version: "2.28"
 security_architecture_version: "1.1"
 verification_coverage_matrix_version: "1.31"
 verification_architecture_version: "1.28"
@@ -372,10 +372,10 @@ user_directive_persistent: "No pragmatic convergence. Fix all issues before buil
 | **Language** | Rust |
 | **Target Workspace** | per-analyst stdio (MCP server) |
 | **Started** | 2026-04-13 |
-| **Last Updated** | 2026-05-04 (Pass 27 BLOCKED→REMEDIATED: ADR-016 v0.14 F-P27-H-001 §5.4 footer + v0.12 changelog VP-047 rationale "action delivery dedup correctness" → "template variable UUID v7 validation"; sole site confirmed by grep; TD-VSDD-052 codified; ARCH-INDEX v2.27; STATE v6.64) |
-| **Current Phase** | Phase 4.A — Wave 4 adversarial spec convergence (27 passes consumed; Pass 27 BLOCKED→REMEDIATED; window 0/3; Pass 28 next) |
-| **Current Step** | Wave 4 Phase 4.A — Pass 27 BLOCKED→REMEDIATED (1H: ADR-016 v0.14 VP-047 semantic mis-anchor; 6th orchestrator-prompt drift class; TD-VSDD-052 codified); Pass 28 (window 1/3 attempt) next |
-| **factory-artifacts HEAD** | `a0a2d42b` |
+| **Last Updated** | 2026-05-04 (Pass 28 BLOCKED→REMEDIATED: vp-045 spec v1.3→v1.4 F-P28-H-001 H1 "Schedule Semaphore" → "Action Delivery Semaphore"; Pass 26 body-rewrite sister-line gap; 7th orchestrator-prompt drift (H1-axis); ARCH-INDEX v2.28; STATE v6.65) |
+| **Current Phase** | Phase 4.A — Wave 4 adversarial spec convergence (28 passes consumed; Pass 28 BLOCKED→REMEDIATED; window 0/3; Pass 29 next) |
+| **Current Step** | Wave 4 Phase 4.A — Pass 28 BLOCKED→REMEDIATED (1H: vp-045 H1 sister-line gap; 7th orchestrator-prompt drift class); Pass 29 (window 1/3 attempt) next |
+| **factory-artifacts HEAD** | `15fa97e6` |
 
 ## Phase Progress
 
@@ -411,7 +411,7 @@ _D-001..D-046 archived: [cycles/phase-3-dtu-wave-2/decisions-archive-d001-d032.m
 | ID | Decision | Rationale | Phase | Date |
 |----|----------|-----------|-------|------|
 | D-214 | Wave 4 Phase 4.A Convergence Strategy — B+A Hybrid with Subagent Context Discipline. Component 1 (Option B): Proactive structural sweep. Component 2 (Option A): Formal adversarial passes 13+ to 3-clean window. Component 3: Subagent context discipline MANDATORY (orchestrator NEVER reads large files; state-manager LAST per burst). | Wave 4 Phase 4.A B+A hybrid convergence + mandatory subagent context discipline | 4 | 2026-05-04 |
-**Passes 8–26 REMEDIATED/CLEAN (detail archived); Pass 27 BLOCKED→REMEDIATED (1H: ADR-016 v0.14 [F-P27-H-001]; §5.4 footer + v0.12 changelog VP-047 rationale "action delivery dedup correctness" → "template variable UUID v7 validation" per VP-INDEX line 68 + BC-2.18.009; sole VP-INDEX mis-anchor confirmed by grep across all 6 W4 ADRs; META-INSIGHT: 6th orchestrator-prompt-introduced defect — semantic mis-anchor in VP rationale text [NEW class beyond stale module names]; TD-VSDD-052 codified [pre-dispatch VP scope verification: when fix-burst prompt mentions VP-NNN rationale, grep VP-INDEX `Property` field + require canonical terms before dispatch]; ARCH-INDEX v2.27); window stays 0/3; Pass 28 next. Trajectory: …→P25(1H;orchestrator-prompt orphan token)→P26(1H+1H-preP27;orphan PATTERN codified TD-VSDD-051)→P27(1H;VP rationale semantic mis-anchor — 6th class). Detail: [pass-27.md](cycles/wave-4-operations/adversarial-reviews/pass-27.md) | [burst-log.md](cycles/wave-4-operations/burst-log.md).**
+**Passes 8–27 REMEDIATED/CLEAN (detail archived); Pass 28 BLOCKED→REMEDIATED (1H: vp-045 spec v1.3→v1.4 [F-P28-H-001]; H1 heading "Schedule Semaphore" → "Action Delivery Semaphore" per VP-INDEX line 66 canonical; Pass 26 body-rewrite sister-line gap; META-INSIGHT: 7th orchestrator-prompt-introduced defect — H1-axis (fix-burst prompt targeted specific line positions 37/44/68 but missed adjacent H1 at line 39); 12 cross-cuts verified CLEAN; ARCH-INDEX v2.28); window stays 0/3; Pass 29 next. Trajectory: …→P26(1H+1H-preP27;orphan PATTERN codified TD-VSDD-051)→P27(1H;VP rationale semantic mis-anchor — 6th class)→P28(1H;VP H1 sister-line gap — 7th class). Detail: [pass-28.md](cycles/wave-4-operations/adversarial-reviews/pass-28.md) | [burst-log.md](cycles/wave-4-operations/burst-log.md).**
 
 ### Wave 4 Phase 4.A Pre-Pass-24 TD-VSDD-048 Grep-Completeness Sweep (2026-05-04) — CRITICAL PRD-level drift caught
 
@@ -457,19 +457,19 @@ _TD-VSDD-014..019, TD-W3-COMPLIANCE-001, TD-VSDD-025..029 archived to [tech-debt
 
 Cycle files: [burst-log](cycles/phase-2-patch/burst-log.md) | [convergence-trajectory](cycles/phase-2-patch/convergence-trajectory.md) | [session-checkpoints](cycles/phase-2-patch/session-checkpoints.md) | [lessons](cycles/phase-2-patch/lessons.md) | [resolved-blockers](cycles/phase-2-patch/blocking-issues-resolved.md)
 ---
-## Session Resume Checkpoint (2026-05-04-wave4-phase4a-pass27-remediated-v6.64)
+## Session Resume Checkpoint (2026-05-04-wave4-phase4a-pass28-remediated-v6.65)
 
 _Previous checkpoint archived: [cycles/wave-4-operations/session-checkpoints.md](cycles/wave-4-operations/session-checkpoints.md)_
 
-**STATE v6.64 (canonical SHA `a0a2d42b`). WAVE 4 PHASE 4.A — PASS 27 BLOCKED→REMEDIATED. WINDOW 0/3. PASS 28 NEXT.**
+**STATE v6.65 (canonical SHA `15fa97e6`). WAVE 4 PHASE 4.A — PASS 28 BLOCKED→REMEDIATED. WINDOW 0/3. PASS 29 NEXT.**
 
-develop HEAD: `ba3b10c7` | factory-artifacts: `a0a2d42b` | workspace tests: 2363 | PRs merged: 125
+develop HEAD: `ba3b10c7` | factory-artifacts: `15fa97e6` | workspace tests: 2363 | PRs merged: 125
 
-**PASS 27 (BLOCKED→REMEDIATED):** 1H. F-P27-H-001: ADR-016 v0.14 (§5.4 footer + v0.12 changelog VP-047 rationale "action delivery dedup correctness" → canonical "template variable UUID v7 validation" per VP-INDEX line 68 + BC-2.18.009; sole site confirmed by grep across all 6 W4 ADRs; SUBSTANTIVE). META-INSIGHT: 6th orchestrator-prompt-introduced defect — semantic mis-anchor in VP rationale text (NEW class beyond stale module names). TD-VSDD-052 codified (pre-dispatch VP scope verification: when fix-burst prompt mentions VP-NNN rationale, grep VP-INDEX `Property` field). ARCH-INDEX v2.27. cycle-manifest v1.47. Window stays 0/3; Pass 28 next.
+**PASS 28 (BLOCKED→REMEDIATED):** 1H. F-P28-H-001: vp-045 spec v1.3→v1.4 (H1 heading "Schedule Semaphore" → "Action Delivery Semaphore" per VP-INDEX line 66 canonical + BC-2.18.004 H1; Pass 26 body-rewrite sister-line gap; SUBSTANTIVE). META-INSIGHT: 7th orchestrator-prompt-introduced defect — H1-axis (fix-burst targets specific line positions but misses adjacent H1). 12 cross-cuts CLEAN. ARCH-INDEX v2.28. cycle-manifest v1.48. Window stays 0/3; Pass 29 next.
 
-**NEXT ACTION: Adversary Pass 28 (window 1/3 attempt). See SESSION-HANDOFF.md STEP 2.**
+**NEXT ACTION: Adversary Pass 29 (window 1/3 attempt). See SESSION-HANDOFF.md STEP 2.**
 
-**Current spec versions:** ADR-013 v0.7, ADR-015 v0.6, ADR-016 v0.14 (NEW), ADR-017 v0.7, ADR-018 v0.6, ADR-019 v0.4, prd.md v1.10, vp-045 spec v1.3, actions.md v1.3, operational-pipeline.md v1.2, concurrency-architecture.md v1.1, observability.md v1.1, interface-definitions.md v2.6, query-engine.md v1.2, data-layer.md v1.3, S-4.01 v1.12, S-4.02 v1.11, S-4.05 v1.12, S-4.08 v1.23, BC-2.12.004 v1.8, BC-2.18.001 v1.8, BC-2.18.002 v1.5, BC-2.18.004 v1.5, BC-2.18.003 v1.4, BC-2.18.008 v1.4, S-5.06 v1.11, STORY-INDEX v2.03, ARCH-INDEX v2.27 (NEW), BC-INDEX v4.32, VP-INDEX v1.26, verification-architecture v1.28, coverage-matrix v1.31.
+**Current spec versions:** ADR-013 v0.7, ADR-015 v0.6, ADR-016 v0.14, ADR-017 v0.7, ADR-018 v0.6, ADR-019 v0.4, prd.md v1.10, vp-045 spec v1.4 (NEW), actions.md v1.3, operational-pipeline.md v1.2, concurrency-architecture.md v1.1, observability.md v1.1, interface-definitions.md v2.6, query-engine.md v1.2, data-layer.md v1.3, S-4.01 v1.12, S-4.02 v1.11, S-4.05 v1.12, S-4.08 v1.23, BC-2.12.004 v1.8, BC-2.18.001 v1.8, BC-2.18.002 v1.5, BC-2.18.004 v1.5, BC-2.18.003 v1.4, BC-2.18.008 v1.4, S-5.06 v1.11, STORY-INDEX v2.03, ARCH-INDEX v2.28 (NEW), BC-INDEX v4.32, VP-INDEX v1.26, verification-architecture v1.28, coverage-matrix v1.31.
 
 **Key files:** [SESSION-HANDOFF.md](SESSION-HANDOFF.md) | [cycle-manifest.md](cycles/wave-4-operations/cycle-manifest.md)
 
