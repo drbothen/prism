@@ -377,7 +377,7 @@ user_directive_persistent: "No pragmatic convergence. Fix all issues before buil
 | **Last Updated** | 2026-05-04 (R9 HUMAN APPROVED: Phase 4.A APPROVED + CONVERGED; D-215 + D-216 logged; 4 LOW TD items tracked; STATE v6.69) |
 | **Current Phase** | Phase 4.A — APPROVED + CONVERGED (31 passes consumed; Pass 31 PERFECT CLEAN; window 3/3 CLOSED; R9 HUMAN APPROVED 2026-05-04) |
 | **Current Step** | Wave 4 Phase 4.A APPROVED — post-compact: STEP 1 (D-216 W4 holdout scenarios authoring — BLOCKER for Phase 4.B), STEP 2 (R10 S-4.01/S-4.03), STEP 3 (R11 W4-FIX-*) |
-| **factory-artifacts HEAD** | `15fa97e6` (Stage 1 placeholder) |
+| **factory-artifacts HEAD** | `3abe8cdc` |
 
 ## Phase Progress
 
@@ -525,9 +525,9 @@ Cycle files: [burst-log](cycles/phase-2-patch/burst-log.md) | [convergence-traje
 
 _Previous checkpoint archived: [cycles/wave-4-operations/session-checkpoints.md](cycles/wave-4-operations/session-checkpoints.md)_
 
-**STATE v6.69 (canonical SHA `15fa97e6` — Stage 1 placeholder; replace after Stage 2). WAVE 4 PHASE 4.A APPROVED + CONVERGED. R9 HUMAN APPROVED.**
+**STATE v6.69 (canonical SHA `3abe8cdc`). WAVE 4 PHASE 4.A APPROVED + CONVERGED. R9 HUMAN APPROVED.**
 
-develop HEAD: `ba3b10c7` | factory-artifacts: `15fa97e6` (Stage 1 placeholder) | workspace tests: 2363 | PRs merged: 125
+develop HEAD: `ba3b10c7` | factory-artifacts: `3abe8cdc` | workspace tests: 2363 | PRs merged: 125
 
 **R9 HUMAN APPROVAL:** Phase 4.A APPROVED + CONVERGED. D-215 (no W1/W2/W3 audit needed; optional R11 sweep). D-216 (W4 holdout scenarios GAP — 8 HS files have no W4 BC/story anchoring; BLOCKER for Phase 4.B wave gate). 4 LOW COSMETIC findings deferred (TD-W4-RETRY-OBS-001, TD-W4-INJECTION-VOCAB-001, TD-W4-CV-LOW-001, TD-W4-CV-LOW-002). cycle-manifest v1.52.
 

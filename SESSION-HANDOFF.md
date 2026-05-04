@@ -14,12 +14,12 @@ successor_focus: "WAVE 4 PHASE 4.A APPROVED + CONVERGED. R9 HUMAN APPROVED. D-21
 **STEP 3 (R11):** W4-FIX-* fix-wave for W3 carry-forward debt per D-203 + 4 W4 LOW TD items captured at R9 gate (TD-W4-RETRY-OBS-001, TD-W4-INJECTION-VOCAB-001, TD-W4-CV-LOW-001, TD-W4-CV-LOW-002).
 
 **KEY REFERENCES:**
-- STATE.md v6.69: develop@ba3b10c7; factory-artifacts 15fa97e6 (Stage 1 placeholder — update to canonical SHA after Stage 2)
+- STATE.md v6.69: develop@ba3b10c7; factory-artifacts 3abe8cdc (canonical SHA — R9 HUMAN APPROVED)
 - D-215: No W1/W2/W3 audit needed (optional R11 structural-drift sweep using TD-VSDD-039..052 methodologies — low-priority, NOT Phase 4.B blocker)
 - D-216: W4 holdout scenarios GAP — 8 HS files (HS-001..HS-008) have NO W4 BC/story references; BLOCKER for Phase 4.B wave gate; product-owner must author HS-009+ before S-4.01/S-4.03 dispatch
 - 4 LOW COSMETIC findings deferred: TD-W4-RETRY-OBS-001 (SR-LOW-001), TD-W4-INJECTION-VOCAB-001 (SR-LOW-002), TD-W4-CV-LOW-001 (STORY-INDEX BC-INDEX version pin staleness), TD-W4-CV-LOW-002 (ARCH-INDEX ADR-016 registry date vs frontmatter)
 - pass-31.md: cycles/wave-4-operations/adversarial-reviews/pass-31.md (PERFECT CLEAN; 0 findings; 17 cross-cuts incl. 2 NOVEL-AXIS; CONVERGED)
-- cycle-manifest v1.52 (NEW — wave-4-r9-APPROVED; 15fa97e6 placeholder)
+- cycle-manifest v1.52 (NEW — wave-4-r9-APPROVED; 3abe8cdc)
 - ARCH-INDEX v2.28 (current; RE-VERIFIED CLEAN)
 - ADR-016 v0.14 (F-P27-H-001 fix; current; RE-VERIFIED CLEAN)
 - prd.md v1.10 (current; RE-VERIFIED CLEAN)
@@ -32,7 +32,7 @@ successor_focus: "WAVE 4 PHASE 4.A APPROVED + CONVERGED. R9 HUMAN APPROVED. D-21
 - Product TD register: tech-debt-register.md (57 active product items)
 - vsdd-plugin-tech-debt.md: 31 items (TD-VSDD-052 most recent)
 
-factory-artifacts canonical: 15fa97e6 (Stage 1 placeholder — replace globally after Stage 2 push). develop HEAD: ba3b10c7."
+factory-artifacts canonical: 3abe8cdc (canonical SHA — R9 HUMAN APPROVED). develop HEAD: ba3b10c7."
 ---
 
 # Session Handoff — WAVE 4 PHASE 4.A DECISIONS LOGGED (2026-05-02)
@@ -143,12 +143,12 @@ factory-artifacts canonical: 15fa97e6 (Stage 1 placeholder — replace globally 
 
 ## Current State
 
-develop HEAD `ba3b10c7` | factory-artifacts `15fa97e6` (Stage 1 placeholder — R9 HUMAN APPROVED; STATE v6.69)
+develop HEAD `ba3b10c7` | factory-artifacts `3abe8cdc` (canonical SHA — R9 HUMAN APPROVED; STATE v6.69)
 
 | Metric | Value |
 |--------|-------|
 | develop HEAD | `ba3b10c7` (W3-FIX-SEC-005 — Wave 3.4 final PR, PR #125, 2026-05-02) |
-| factory-artifacts HEAD | `15fa97e6` (Stage 1 placeholder — R9 HUMAN APPROVED; STATE v6.69) |
+| factory-artifacts HEAD | `3abe8cdc` (canonical SHA — R9 HUMAN APPROVED; STATE v6.69) |
 | PR count merged | 125 |
 | Workspace test count | 2363 (nextest-verified; +133 from CI nextest split + doctest migration) |
 | Open PRs | None |
