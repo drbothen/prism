@@ -375,7 +375,7 @@ user_directive_persistent: "No pragmatic convergence. Fix all issues before buil
 | **Last Updated** | 2026-05-04 (Pass 25 BLOCKED→REMEDIATED: prd.md v1.10 HIGH F-P25-H-001 PRD §2 line 382 stale `action_dispatcher` → `action_delivery`; orchestrator-prompt-introduced orphan caught; TD-VSDD-050 filed; ARCH-INDEX v2.25; STATE v6.62) |
 | **Current Phase** | Phase 4.A — Wave 4 adversarial spec convergence (25 passes consumed; Pass 25 BLOCKED→REMEDIATED; window 0/3; Pass 26 next) |
 | **Current Step** | Wave 4 Phase 4.A — Pass 25 BLOCKED→REMEDIATED (1 HIGH: PRD §2 line 382 stale `action_dispatcher` token in subsystem prose; prd.md v1.10; TD-VSDD-050 filed); Pass 26 (window 1/3 attempt) next |
-| **factory-artifacts HEAD** | `15fa97e6` |
+| **factory-artifacts HEAD** | `c11febbd` |
 
 ## Phase Progress
 
@@ -461,9 +461,9 @@ Cycle files: [burst-log](cycles/phase-2-patch/burst-log.md) | [convergence-traje
 
 _Previous checkpoint archived: [cycles/wave-4-operations/session-checkpoints.md](cycles/wave-4-operations/session-checkpoints.md)_
 
-**STATE v6.62 (canonical SHA `15fa97e6`). WAVE 4 PHASE 4.A — PASS 25 BLOCKED→REMEDIATED. WINDOW 0/3. PASS 26 NEXT.**
+**STATE v6.62 (canonical SHA `c11febbd`). WAVE 4 PHASE 4.A — PASS 25 BLOCKED→REMEDIATED. WINDOW 0/3. PASS 26 NEXT.**
 
-develop HEAD: `ba3b10c7` | factory-artifacts: `15fa97e6` | workspace tests: 2363 | PRs merged: 125
+develop HEAD: `ba3b10c7` | factory-artifacts: `c11febbd` | workspace tests: 2363 | PRs merged: 125
 
 **PASS 25 (BLOCKED→REMEDIATED):** 1 HIGH. F-P25-H-001: prd.md v1.10 (PRD §2 line 382 stale `action_dispatcher` → `action_delivery` per concurrency-architecture v1.1 canonical; orchestrator-authored fix-burst prompt introduced orphan without verifying against architecture canonicals). TD-VSDD-050 filed (PRD §2 SUBSYSTEM PROSE sync check — sibling class to TD-VSDD-049 BC-table sync). ARCH-INDEX v2.25. cycle-manifest v1.45. Window stays 0/3; Pass 26 next.
 
