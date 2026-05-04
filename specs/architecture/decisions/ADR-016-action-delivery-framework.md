@@ -3,7 +3,7 @@ document_type: adr
 adr_id: "ADR-016"
 title: "Action Delivery Framework"
 status: PROPOSED
-version: "0.13"
+version: "0.14"
 date: 2026-05-03
 wave: 4
 phase: 4.A
@@ -38,7 +38,7 @@ traces_to: specs/architecture/ARCH-INDEX.md
 
 ## Status
 
-PROPOSED 2026-05-03, v0.13. Pending review and acceptance prior to story remediation and BC authoring.
+PROPOSED 2026-05-03, v0.14. Pending review and acceptance prior to story remediation and BC authoring.
 
 ---
 
@@ -530,7 +530,7 @@ proptest! {
 **Approach:** Generate arbitrary `{{var}}` expression strings. For each, verify that only UUID v7 strings and explicitly typed scalar bindings pass validation; all others are rejected with the canonical error code.
 
 **Status:** draft (VP-047 file exists; harness skeleton to be added per S-4.08 remediation).
-**Module:** `prism-operations` | **Priority:** P0 (synced to VP-INDEX SoT per POL-9; VP-047 verifies action delivery dedup correctness — required for at-least-once delivery semantic, P0) | **Anchor story:** S-4.08
+**Module:** `prism-operations` | **Priority:** P0 (synced to VP-INDEX SoT per POL-9; VP-047 verifies template variable UUID v7 validation — non-v7 IDs rejected, v7 IDs accepted, order preserved per BC-2.18.009; required for safe interpolation of `${case.alert_ids_quoted}` and similar UUID-typed template variables, P0) | **Anchor story:** S-4.08
 
 ### 5.5 VP-143 — Action Delivery Non-Starvation (PROPOSED — NEW)
 
@@ -576,8 +576,9 @@ Applied during Wave 4 Phase 4.A adversarial Pass 18 fix-burst (2026-05-03). Vers
 | Version | Change ID | Date | Author | Notes |
 |---------|-----------|------|--------|-------|
 | 0.11 | F-P18-M-001+M-002 | 2026-05-03 | architect | Pass 18 COSMETIC: Pass 17 Remediation Notes table got proper markdown header; narrative updated to reflect v0.7→v0.10 full range. |
-| 0.12 | F-P20-H-002 | 2026-05-03 | architect | Pass 20 SUBSTANTIVE HIGH: VP-045 + VP-047 priority synced from P1 (stale provisional) to P0 (VP-INDEX SoT per POL-9). VP-045 anchors action_delivery_semaphore non-blocking liveness; VP-047 anchors action delivery dedup correctness — both critical for at-least-once delivery contract. |
+| 0.12 | F-P20-H-002 | 2026-05-03 | architect | Pass 20 SUBSTANTIVE HIGH: VP-045 + VP-047 priority synced from P1 (stale provisional) to P0 (VP-INDEX SoT per POL-9). VP-045 anchors action_delivery_semaphore non-blocking liveness; VP-047 anchors template variable UUID v7 validation correctness (per VP-INDEX line 68 + BC-2.18.009) — both critical for at-least-once delivery contract. |
 | 0.13 | F-P26-H-001 | 2026-05-04 | architect | Pass 26 SUBSTANTIVE HIGH: 2 orphan tokens `prism-operations/action_dispatcher` → `prism-operations/action_delivery` (lines 552 §5.5 + 568 Pass 16 Notes). Same drift class as F-P25-H-001 PRD fix. Self-contradicted ADR-016 §1.1 line 51 own canonical declaration `action/delivery.rs`. Orchestrator-prompt-introduced orphan caught by S-7.01 sibling-files axis. |
+| 0.14 | F-P27-H-001 | 2026-05-04 | architect | Pass 27 SUBSTANTIVE HIGH: §5.4 footer + v0.12 changelog row mis-described VP-047 scope ("action delivery dedup correctness" — wrong) corrected to canonical VP-INDEX scope (template variable UUID v7 validation per BC-2.18.009). Origin: Pass 20 F-P20-H-002 fix-burst prompt orchestrator-authored rationale text — same orchestrator-prompt-introduction class as F-P25/P26/PreP27 but different token type (semantic mis-anchor in rationale, not stale module name). |
 
 ---
 

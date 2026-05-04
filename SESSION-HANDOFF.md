@@ -1,22 +1,22 @@
 ---
 document_type: session-handoff
 level: ops
-version: "6.63"
+version: "6.64"
 status: current
 timestamp: 2026-05-04T00:00:00Z
-predecessor_session: "Wave 4 Phase 4.A Pass 25 BLOCKED→REMEDIATED 2026-05-04. STATE v6.62. factory-artifacts c11febbd (prior canonical SHA)."
-successor_focus: "Wave 4 Phase 4.A Pass 26 BLOCKED→REMEDIATED — 1H+1H-preP27 (F-P26-H-001: ADR-016 v0.13 lines 552+568 orphan `action_dispatcher`; F-PreP27-H-001: vp-045 v1.3 lines 37/44/68 same orphan). TD-VSDD-051 codified. STATE v6.63. Next: Pass 27 (window 1/3 attempt).
+predecessor_session: "Wave 4 Phase 4.A Pass 26 BLOCKED→REMEDIATED 2026-05-04. STATE v6.63. factory-artifacts 9a49d6a7 (prior canonical SHA)."
+successor_focus: "Wave 4 Phase 4.A Pass 27 BLOCKED→REMEDIATED — 1H (F-P27-H-001: ADR-016 v0.14 §5.4 footer + v0.12 changelog VP-047 rationale semantic mis-anchor). TD-VSDD-052 codified. STATE v6.64. Next: Pass 28 (window 1/3 attempt).
 
-**STEP 2 — NEXT ACTION: Dispatch Adversary Pass 27 (window 1/3 attempt). Pass 26 BLOCKED→REMEDIATED: ADR-016 v0.13 (F-P26-H-001 lines 552+568 orphan `action_dispatcher` → `action_delivery`) + vp-045 v1.3 (F-PreP27-H-001 lines 37/44/68 same orphan; caught proactively). 5 total orphan sites across 3 docs all from orchestrator-prompt; TD-VSDD-051 codified. Verify ADR-016 v0.13 + vp-045 v1.3 + all prior pass fixes still hold.**
+**STEP 2 — NEXT ACTION: Dispatch Adversary Pass 28 (window 1/3 attempt). Pass 27 BLOCKED→REMEDIATED: ADR-016 v0.14 (F-P27-H-001: §5.4 footer + v0.12 changelog VP-047 rationale 'action delivery dedup correctness' → 'template variable UUID v7 validation' per VP-INDEX line 68 + BC-2.18.009; sole site confirmed by grep; SUBSTANTIVE). TD-VSDD-052 codified (pre-dispatch VP scope verification). ARCH-INDEX v2.27. Verify ADR-016 v0.14 + all prior pass fixes still hold.**
 
 **KEY REFERENCES:**
-- STATE.md v6.63: develop@ba3b10c7; factory-artifacts 9a49d6a7 (canonical SHA — Pass 26 REMEDIATED)
-- ADR-016 v0.13 (NEW — F-P26-H-001: lines 552+568 orphan `action_dispatcher` → `action_delivery`)
-- vp-045-schedule-semaphore-try-acquire-nonblocking.md v1.3 (NEW — F-PreP27-H-001: lines 37/44/68 same orphan → `action_delivery`)
-- TD-VSDD-051 filed: vsdd-plugin-tech-debt.md (30 items — orchestrator-prompt verification + sibling-ADR prose sweep)
-- ARCH-INDEX v2.26 (NEW — ADR-016 registry row v0.13; pass 26 changelog row)
+- STATE.md v6.64: develop@ba3b10c7; factory-artifacts 15fa97e6 (canonical SHA — Pass 27 REMEDIATED)
+- ADR-016 v0.14 (NEW — F-P27-H-001: §5.4 footer + v0.12 changelog VP-047 rationale corrected)
+- TD-VSDD-052 filed: vsdd-plugin-tech-debt.md (31 items — pre-dispatch VP scope verification)
+- ARCH-INDEX v2.27 (NEW — ADR-016 registry row v0.14; pass 27 changelog row)
+- vp-045-schedule-semaphore-try-acquire-nonblocking.md v1.3 (F-PreP27-H-001; current)
 - prd.md v1.10 (F-P25-H-001: PRD §2 line 382 stale `action_dispatcher` → `action_delivery`)
-- TD-VSDD-050 filed: vsdd-plugin-tech-debt.md (PRD §2 subsystem-prose sync check)
+- TD-VSDD-050/051 filed: vsdd-plugin-tech-debt.md (PRD §2 subsystem-prose + sibling-ADR sweep)
 - interface-definitions.md v2.6 (F-PreP24-H-001: 6 sites Subsystem 18 label ActionEngine→ActionDeliveryEngine)
 - query-engine.md v1.2 (F-PreP24-H-002: 16 concurrent→8 per D-209; 3.2 GB→1.6 GB memory math)
 - operational-pipeline.md v1.2 (F-P23-H-001: 3 stale refs fixed)
@@ -30,15 +30,17 @@ successor_focus: "Wave 4 Phase 4.A Pass 26 BLOCKED→REMEDIATED — 1H+1H-preP27
 - BC-2.18.008 v1.4 (current)
 - BC-INDEX v4.32 (current)
 - STORY-INDEX v2.03 (current)
-- Wave 4 cycle-manifest: cycles/wave-4-operations/cycle-manifest.md (v1.46)
+- Wave 4 cycle-manifest: cycles/wave-4-operations/cycle-manifest.md (v1.47)
 - Product TD register: tech-debt-register.md (57 active product items)
 
-factory-artifacts canonical: 9a49d6a7 (canonical SHA). develop HEAD: ba3b10c7."
+factory-artifacts canonical: 15fa97e6 (canonical SHA). develop HEAD: ba3b10c7."
 ---
 
 # Session Handoff — WAVE 4 PHASE 4.A DECISIONS LOGGED (2026-05-02)
 
 ## TL;DR
+
+**Wave 4 Phase 4.A — Pass 27 BLOCKED→REMEDIATED (2026-05-04) — STATE v6.64:** 1H. F-P27-H-001: ADR-016 v0.14 (§5.4 footer + v0.12 changelog VP-047 rationale "action delivery dedup correctness" → canonical "template variable UUID v7 validation" per VP-INDEX line 68 + BC-2.18.009; sole site confirmed by grep across all 6 W4 ADRs; SUBSTANTIVE). META-INSIGHT: 6th orchestrator-prompt-introduced defect — semantic mis-anchor in VP rationale text (NEW class beyond stale module names). TD-VSDD-052 codified (pre-dispatch VP scope verification). ARCH-INDEX v2.27. cycle-manifest v1.47. Window stays 0/3. Pass 28 (slot 1/3) next.
 
 **Wave 4 Phase 4.A — Pass 26 BLOCKED→REMEDIATED (2026-05-04) — STATE v6.63:** 1H+1H-preP27. F-P26-H-001: ADR-016 v0.13 (lines 552+568 orphan `action_dispatcher` → `action_delivery`; sibling-file regression of F-P25-H-001 PRD fix; SUBSTANTIVE). F-PreP27-H-001: vp-045 spec v1.3 (lines 37/44/68 same orphan; 3 sites; caught proactively before Pass 27; SUBSTANTIVE). META-INSIGHT: 5 total orphan sites across 3 docs (PRD, ADR-016, vp-045 spec) all introduced by orchestrator-authored fix-burst prompt text. TD-VSDD-051 codified (orchestrator-prompt verification + sibling-ADR prose sweep). ARCH-INDEX v2.26. cycle-manifest v1.46. Window stays 0/3. Pass 27 (slot 1/3) next.
 
