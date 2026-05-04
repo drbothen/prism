@@ -145,7 +145,7 @@ develop HEAD `ba3b10c7` | factory-artifacts `37ce17cc` (Pass 29 CLEAN — window
 | Metric | Value |
 |--------|-------|
 | develop HEAD | `ba3b10c7` (W3-FIX-SEC-005 — Wave 3.4 final PR, PR #125, 2026-05-02) |
-| factory-artifacts HEAD | `3855623d` (Pass 28 BLOCKED→REMEDIATED — window 0/3; STATE v6.65) |
+| factory-artifacts HEAD | `37ce17cc` (Pass 29 CLEAN — window 1/3 OPEN; STATE v6.66) |
 | PR count merged | 125 |
 | Workspace test count | 2363 (nextest-verified; +133 from CI nextest split + doctest migration) |
 | Open PRs | None |
