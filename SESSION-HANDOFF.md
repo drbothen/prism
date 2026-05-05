@@ -5,7 +5,7 @@ version: "6.73"
 status: current
 timestamp: 2026-05-04T00:00:00Z
 predecessor_session: "Wave 4 Phase 4.A R9 HUMAN APPROVED 2026-05-04. STATE v6.70. factory-artifacts 15fa97e6 (pre-compact state capture canonical SHA). TD register gap closed: 7 items filed per D-220 (TD-VSDD-053 P0 + 4 P3 R8 carry-forward + 2 P2 D-219 holdout gap)."
-successor_focus: "WAVE 4 PHASE 4.B PREREQS CLEARED (2026-05-04). D-216 W4 holdout authoring COMPLETE. D-222 logged. STATE v6.73. factory-artifacts canonical: 15fa97e6.
+successor_focus: "WAVE 4 PHASE 4.B PREREQS CLEARED (2026-05-04). D-216 W4 holdout authoring COMPLETE. D-222 logged. STATE v6.73. factory-artifacts canonical: 1f37c4cf.
 
 **STEP 1 (D-218 wave doc refresh): COMPLETE (2026-05-04)** — wave-state.yaml PHASE_4_A_CONVERGED + R9_APPROVED; epics.md v1.4 (76→129 stories; W3-FIX-* added; E-3 sub-epics final); STORY-INDEX v2.04 (BC-INDEX cite v4.32 sync; TD-W4-CV-LOW-001 closed); ARCH-INDEX v2.29 (ADR-016 date 2026-05-02; TD-W4-CV-LOW-002 closed); vsdd-plugin-tech-debt.md v2.3 (TD-W4-CV-LOW-001/002 resolved). 3 anomalies flagged in D-221: duplicate S-3.1.06 slug (POL-1 violation), ADR-014 missing from registry, Z/no-Z timestamp inconsistency.
 
@@ -22,7 +22,7 @@ successor_focus: "WAVE 4 PHASE 4.B PREREQS CLEARED (2026-05-04). D-216 W4 holdou
 **STEP 7 (Wave 5 kickoff):** Phase 5.A spec convergence for 10 W5 draft stories. Author W5 holdout scenarios (standard per-wave Phase X.A R-step per D-219).
 
 **KEY REFERENCES:**
-- STATE.md v6.73: develop@ba3b10c7; factory-artifacts 15fa97e6 (canonical SHA — D-216 W4 holdout authoring closure); +D-222 logged
+- STATE.md v6.73: develop@ba3b10c7; factory-artifacts 1f37c4cf (canonical SHA — D-216 W4 holdout authoring closure); +D-222 logged
 - D-215: No W1/W2/W3 audit needed (optional R11 structural-drift sweep using TD-VSDD-039..052 methodologies — low-priority, NOT Phase 4.B blocker)
 - D-216: CLOSED 2026-05-04 — HS-009..HS-012 authored (23 sub-scenarios); HOLDOUT-INDEX v1.3 (52→75 scenarios, 8→12 groups, 36→59 P0); 39 W4 BCs anchored; Phase 4.B prereqs ALL CLEARED
 - D-217: Wave reality — 7 waves (W0..W6); 129 stories on disk vs 76 in epics.md v1.2 (now v1.4 — refreshed); W3 expanded 13→51; W6 mixed status (11 DTU merged, 9 draft)
@@ -31,7 +31,7 @@ successor_focus: "WAVE 4 PHASE 4.B PREREQS CLEARED (2026-05-04). D-216 W4 holdou
 - D-221: D-218 closure logged — epics.md v1.4, STORY-INDEX v2.04, ARCH-INDEX v2.29; 3 anomalies flagged (S-3.1.06 slug dupe, ADR-014 missing, Z/no-Z timestamp)
 - D-222: D-216 closure logged — HS-009..HS-012 authored; HOLDOUT-INDEX v1.3; Phase 4.B prereqs ALL CLEARED; R10 unblocked
 - pass-31.md: cycles/wave-4-operations/adversarial-reviews/pass-31.md (PERFECT CLEAN; 0 findings; 17 cross-cuts incl. 2 NOVEL-AXIS; CONVERGED)
-- cycle-manifest v1.56 (D-216 W4 holdout authoring closure; SHA 15fa97e6)
+- cycle-manifest v1.56 (D-216 W4 holdout authoring closure; SHA 1f37c4cf)
 - HOLDOUT-INDEX v1.3 (52→75 scenarios; 8→12 groups; 36→59 P0; HS-009..HS-012 added)
 - ARCH-INDEX v2.29 (ADR-016 date 2026-05-02; TD-W4-CV-LOW-002 resolved)
 - STORY-INDEX v2.04 (BC-INDEX v4.32 cite sync; TD-W4-CV-LOW-001 resolved)
@@ -43,7 +43,7 @@ successor_focus: "WAVE 4 PHASE 4.B PREREQS CLEARED (2026-05-04). D-216 W4 holdou
 - Product TD register: tech-debt-register.md (57 active product items)
 - vsdd-plugin-tech-debt.md: 38 items v2.3 (TD-W4-CV-LOW-001/002 resolved 2026-05-04; D-221)
 
-factory-artifacts canonical: 15fa97e6 (D-216 W4 holdout authoring closure). develop HEAD: ba3b10c7."
+factory-artifacts canonical: 1f37c4cf (D-216 W4 holdout authoring closure). develop HEAD: ba3b10c7."
 ---
 
 # Session Handoff — WAVE 4 PHASE 4.A DECISIONS LOGGED (2026-05-02)
@@ -162,12 +162,12 @@ factory-artifacts canonical: 15fa97e6 (D-216 W4 holdout authoring closure). deve
 
 ## Current State
 
-develop HEAD `ba3b10c7` | factory-artifacts `15fa97e6` (canonical SHA — D-216 W4 holdout authoring closure; STATE v6.73)
+develop HEAD `ba3b10c7` | factory-artifacts `1f37c4cf` (canonical SHA — D-216 W4 holdout authoring closure; STATE v6.73)
 
 | Metric | Value |
 |--------|-------|
 | develop HEAD | `ba3b10c7` (W3-FIX-SEC-005 — Wave 3.4 final PR, PR #125, 2026-05-02) |
-| factory-artifacts HEAD | `15fa97e6` (canonical SHA — D-216 W4 holdout authoring closure; STATE v6.73) |
+| factory-artifacts HEAD | `1f37c4cf` (canonical SHA — D-216 W4 holdout authoring closure; STATE v6.73) |
 | PR count merged | 125 |
 | Workspace test count | 2363 (nextest-verified; +133 from CI nextest split + doctest migration) |
 | Open PRs | None |

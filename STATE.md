@@ -379,7 +379,7 @@ user_directive_persistent: "No pragmatic convergence. Fix all issues before buil
 | **Last Updated** | 2026-05-04 (D-216 W4 holdout authoring closure — HS-009..HS-012 (23 sub-scenarios); HOLDOUT-INDEX v1.3 (52→75 scenarios, 8→12 groups, 36→59 P0); 39 W4 BCs anchored; Phase 4.B prereqs ALL CLEARED; STATE v6.73) |
 | **Current Phase** | Phase 4.A — APPROVED + CONVERGED (31 passes consumed; Pass 31 PERFECT CLEAN; window 3/3 CLOSED; R9 HUMAN APPROVED 2026-05-04) |
 | **Current Step** | Wave 4 Phase 4.B PREREQS CLEARED — STEP 1 (D-218) COMPLETE; STEP 2 (D-216) COMPLETE; STEP 3 (R10 S-4.01/S-4.03 — IMMEDIATE NEXT), STEP 4 (Wave 4 impl), STEP 5 (R11 W4-FIX-*), STEP 6 (W4 wave gate), STEP 7 (Wave 5 kickoff) |
-| **factory-artifacts HEAD** | `15fa97e6` |
+| **factory-artifacts HEAD** | `1f37c4cf` |
 
 ## Phase Progress
 
@@ -533,9 +533,9 @@ Cycle files: [burst-log](cycles/phase-2-patch/burst-log.md) | [convergence-traje
 
 _Previous checkpoint archived: [cycles/wave-4-operations/session-checkpoints.md](cycles/wave-4-operations/session-checkpoints.md)_
 
-**STATE v6.73 (canonical SHA `15fa97e6`). WAVE 4 PHASE 4.B PREREQS CLEARED. D-216 W4 holdout authoring COMPLETE: HS-009..HS-012 (23 sub-scenarios); HOLDOUT-INDEX v1.3 (52→75 scenarios, 8→12 groups, 36→59 P0); 39 W4 BCs anchored. D-222 logged.**
+**STATE v6.73 (canonical SHA `1f37c4cf`). WAVE 4 PHASE 4.B PREREQS CLEARED. D-216 W4 holdout authoring COMPLETE: HS-009..HS-012 (23 sub-scenarios); HOLDOUT-INDEX v1.3 (52→75 scenarios, 8→12 groups, 36→59 P0); 39 W4 BCs anchored. D-222 logged.**
 
-develop HEAD: `ba3b10c7` | factory-artifacts: `15fa97e6` | workspace tests: 2363 | PRs merged: 125
+develop HEAD: `ba3b10c7` | factory-artifacts: `1f37c4cf` | workspace tests: 2363 | PRs merged: 125
 
 **D-216 CLOSED (2026-05-04):** HS-009 (Scheduler Operations, 6 subs), HS-010 (Detection & Alert Pipeline, 6 subs), HS-011 (Case Management, 5 subs), HS-012 (Action Delivery, 6 subs). HOLDOUT-INDEX v1.3 (52→75 total_scenarios; 8→12 total_groups; 36→59 p0_scenarios). 39 W4 BCs anchored across 4 files; BC-2.14.011 gap noted (consistent with BC-INDEX v4.32); BC-2.12.011/012 excluded (retired). Phase 4.B prereqs FULLY CLEARED — both D-218 and D-216 closed 2026-05-04.
 
