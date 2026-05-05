@@ -1,7 +1,7 @@
 ---
 document_type: verification-property
 level: L4
-version: "1.3"
+version: "1.4"
 status: draft
 producer: architect
 timestamp: 2026-04-15T12:00:00
@@ -35,7 +35,7 @@ withdrawal_reason: null
 
 ## Property Statement
 
-For all byte sequences `b`, if `b` is valid UTF-8, then `PrismQlParser::parse(b)` returns `Ok(Ast)` or `Err(Vec<ParseError>)` without panicking. The parser must gracefully handle all possible inputs including empty strings, maximum-length strings (64KB), deeply nested expressions, malformed unicode, and adversarial inputs designed to trigger stack overflow.
+For all byte sequences `b`, if `b` is valid UTF-8, then `PrismQlParser::parse(s)` where `s: &str = std::str::from_utf8(b).unwrap()` returns `Ok(Ast)` or `Err(Vec<ParseError>)` without panicking. The parser function signature is `PrismQlParser::parse(input: &str)` — it accepts a `&str`, not `&[u8]`. The fuzz harness converts raw bytes to `&str` before passing to the parser. The parser must gracefully handle all possible valid-UTF-8 inputs including empty strings, maximum-length strings (64KB), deeply nested expressions, and adversarial inputs designed to trigger stack overflow.
 
 ## Source Contract
 
@@ -86,6 +86,7 @@ fuzz_target!(|data: &[u8]| {
 
 | Version | Burst | Date | Author | Notes |
 |---------|-------|------|--------|-------|
+| 1.4 | pr-127-review-remediation | 2026-05-05 | product-owner | Clarified Property Statement: explicit that `PrismQlParser::parse` takes `&str` not `&[u8]`; spelled out the from_utf8 conversion step. Removed "malformed unicode" from inputs list (by definition, from_utf8 filters that before parse is called). Harness skeleton already correct; property statement now unambiguous. Addresses PR-127 review Task 2. |
 | 1.3 | pass-61-fix | 2026-04-20 | architect | Renumbered duplicate pre-build-sweep Changelog row for version monotonicity (MED-001 VP scope extension). |
 | 1.2 | pre-build-sweep | 2026-04-20 | architect | Template-compliance sweep: added priority frontmatter (from VP-INDEX v1.5); added verification_method alias (proof_method retained for backward compat). |
 | 1.1 | B-52 | 2026-04-19 | state-manager | Renamed `AxiqlParser` → `PrismQlParser` in Property Statement and harness code (PrismQL rename propagation gap). Closes P3P55-A-MED-001. |

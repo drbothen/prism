@@ -1,8 +1,8 @@
 ---
 document_type: verification-property
 level: L4
-version: "1.5"
-status: draft
+version: "1.6"
+status: verified
 producer: architect
 timestamp: 2026-04-19T00:00:00
 phase: 1c
@@ -15,12 +15,12 @@ priority: P0
 proof_method: kani
 verification_method: kani
 feasibility: medium
-verification_lock: false
-proof_completed_date: null
-proof_file_hash: null
+verification_lock: true
+proof_completed_date: 2026-05-05
+proof_file_hash: "caf599af2382e1092fc82b0f233a2aec211f1ed16dbc45b19263e078eb13b55b"
 lifecycle_status: active
 introduced: cycle-1
-modified: null
+modified: 2026-05-05
 deprecated: null
 deprecated_by: null
 replacement: null
@@ -59,12 +59,21 @@ The prior "e.g. 32" was an illustrative placeholder; 64 is the canonical value.
 ## Proof Harness Skeleton
 
 ```rust
-// [TODO: harness skeleton — author during Phase 5 formal-verify]
-// Method: kani
-// Target: prism_query::parser::PrismQlParser::parse
+// VERIFIED — real harnesses at crates/prism-query/src/proofs/vp015_depth_limit.rs
+// Commit: f5212641 (PR #127)
 //
-// Sketch: construct symbolic depth d up to MAX_DEPTH+2 with scaled MAX_DEPTH;
-// build parenthesized input of that depth; assert d > MAX_DEPTH => Err(NestingTooDeep).
+// Four harnesses verified:
+//   1. proof_nesting_depth_limit       — PrismQL nested parentheses hit MAX_DEPTH ceiling
+//   2. proof_expr_depth_limit          — expression recursion depth bounded
+//   3. proof_predicate_depth_limit     — predicate recursion depth bounded
+//   4. proof_sql_query_depth_limit     — SqlQuery variant depth limit (NEW in PR #127)
+//
+// SqlQuery harness result: 0 of 5664 steps failed; 397 steps unreachable.
+//
+// Notes:
+//   - proof_expr_depth_limit + proof_predicate_depth_limit require
+//     --no-unwinding-checks --default-unwind 2 (recursive parser unwind bound).
+//   - Canonical depth limit: 64 (per BC-2.11.006 postcondition, DI-019, EC-002 in S-3.01).
 ```
 
 ## Feasibility Assessment
@@ -76,16 +85,31 @@ The prior "e.g. 32" was an illustrative placeholder; 64 is the canonical value.
 | Execution time budget | <10 minutes | Parser symbolic execution is heavier |
 | Assumptions required | Iterative or depth-checked recursive parser | Implementation must check before recursing |
 
+## Verification Record
+
+| Field | Value |
+|-------|-------|
+| Proof file | `crates/prism-query/src/proofs/vp015_depth_limit.rs` |
+| Commit | `f5212641` (PR #127) |
+| Harnesses | `proof_nesting_depth_limit`, `proof_expr_depth_limit`, `proof_predicate_depth_limit`, `proof_sql_query_depth_limit` |
+| Verification date | 2026-05-05 |
+| SqlQuery result | 0 of 5664 steps failed; 397 steps unreachable |
+| Kani flags | `--no-unwinding-checks --default-unwind 2` (required for `proof_expr_depth_limit` and `proof_predicate_depth_limit`) |
+| Proof file SHA256 | `caf599af2382e1092fc82b0f233a2aec211f1ed16dbc45b19263e078eb13b55b` |
+| New harness | `proof_sql_query_depth_limit` added in PR #127 — extends depth limit coverage to the `SqlQuery` AST variant (previously only PrismQL covered) |
+
 ## Lifecycle
 
 | Event | Date | Actor |
 |-------|------|-------|
 | introduced | 2026-04-14 | architect |
+| verified | 2026-05-05 | formal-verifier |
 
 ## Changelog
 
 | Version | Burst | Date | Author | Notes |
 |---------|-------|------|--------|-------|
+| 1.6 | pr-127-formal-verify | 2026-05-05 | architect | VP-015 promoted to verified. Four Kani harnesses in `vp015_depth_limit.rs` at commit f5212641 (PR #127): `proof_nesting_depth_limit`, `proof_expr_depth_limit`, `proof_predicate_depth_limit`, and new `proof_sql_query_depth_limit`. SqlQuery harness: 0 of 5664 failed (397 unreachable). `proof_expr_depth_limit` / `proof_predicate_depth_limit` require `--no-unwinding-checks --default-unwind 2`. Cross-ref: VP-INDEX v1.28 VP-015 row promoted to verified; verification-architecture.md v1.29 Provable Properties Catalog updated. |
 | 1.5 | W3-spec-remediation | 2026-05-04 | story-writer | Depth limit corrected from "e.g. 32" to canonical 64 (per BC-2.11.006, DI-019, EC-002 in S-3.01). Three-way inconsistency (VP-015 said 32; BC-2.11.006 + story + DI-019 said 64) resolved in favour of 64 — majority of citations + grammar complexity requirement. |
 | 1.4 | pass-88-remediation | 2026-04-21 | architect | F88-012: Anchor Story normalized from slug form (S-3.01-prismql-parser.md) to pure ID (S-3.01). |
 | 1.3 | pass-61-fix | 2026-04-20 | architect | Renumbered duplicate pre-build-sweep Changelog row for version monotonicity (MED-001 VP scope extension). |

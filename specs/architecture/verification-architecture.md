@@ -2,7 +2,7 @@
 document_type: architecture-section
 level: L3
 section: "verification-architecture"
-version: "1.28"
+version: "1.29"
 status: draft
 producer: architect
 timestamp: 2026-05-03T00:00:00
@@ -140,8 +140,8 @@ Properties are organized by the domain invariant or BC postcondition they verify
 | VP-011 | Credential name sanitization: rejects path traversal | prism-core | kani | feasible | P0 | DI-014 |
 | VP-012 | Alias depth: rejects composition beyond depth 3 | prism-query | kani | feasible | P0 | DI-020 |
 | VP-013 | Alias cycles: detects and rejects cyclic references | prism-query | proptest | feasible | P0 | DI-020 |
-| VP-014 | Query security limits: rejects oversized queries | prism-query | kani | feasible | P0 | DI-019 |
-| VP-015 | Query security limits: rejects excessive nesting depth | prism-query | kani | feasible | P0 | DI-019 |
+| VP-014 | Query security limits: rejects oversized queries | prism-query | kani | verified (f5212641, 2026-05-05) | P0 | DI-019 |
+| VP-015 | Query security limits: rejects excessive nesting depth | prism-query | kani | verified (f5212641, 2026-05-05) | P0 | DI-019 |
 | VP-016 | OCSF normalization: output is valid protobuf | prism-ocsf | proptest | feasible | P0 | DI-005 |
 | VP-017 | OCSF normalization: unmapped fields preserved in raw_extensions | prism-ocsf | proptest | feasible | P0 | DI-005 |
 | VP-018 | Detection rule validation: rejects invalid rules | prism-operations | proptest | feasible | P0 | DI-024 |
@@ -300,6 +300,7 @@ Proptest strategies generate complex inputs (alias graphs, detection rules, OCSF
 
 | Version | Pass | Date | Author | Notes |
 |---------|------|------|--------|-------|
+| 1.29 | pr-127-formal-verify | 2026-05-05 | architect | VP-014 and VP-015 promoted to `verified` in Provable Properties Catalog following successful Kani proof runs at commit f5212641 (PR #127). VP-014: `proof_check_query_size_rejects_oversize`, 0/4371 failed (285 unreachable). VP-015: 4 harnesses including new `proof_sql_query_depth_limit`, 0/5664 failed (397 unreachable). Cross-ref: VP-INDEX v1.28, vp-014 v1.5, vp-015 v1.6, ARCH-INDEX v2.30. |
 | 1.28 | F-PreP21-H-001 | 2026-05-03 | architect | F-PreP21-H-001: Mermaid node P13 label corrected "Schedule semaphore try_acquire" → "Action delivery semaphore try_acquire" (VP-045) — sister-fix gap from Pass-20 F-P20-H-001 which updated VP catalog row but missed Mermaid node. |
 | 1.27 | W4-Phase4A-Pass20-fix | 2026-05-03 | state-manager | F-P20-H-001: VP-045 row description updated "Schedule semaphore" → "Action delivery semaphore: try_acquire used (non-blocking), never acquire" (Pass-6 BC-H1 BC-2.18.004 rename to "Action Delivery Semaphore" failed to propagate to VP catalog ecosystem). |
 | 1.26 | F-P13-H-002 | 2026-05-03 | state-manager | Pass 13 HIGH: VP-053 module column corrected `prism-core` → `prism-operations` (POL-9 propagation from VP-INDEX, verification-coverage-matrix, ADR-017 §3.2/§5, S-4.06 Task 11). |

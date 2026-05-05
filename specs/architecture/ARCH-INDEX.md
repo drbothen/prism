@@ -1,7 +1,7 @@
 ---
 document_type: architecture-index
 level: L3
-version: "2.29"
+version: "2.30"
 status: draft
 producer: architect
 timestamp: 2026-05-04T00:00:00
@@ -32,7 +32,7 @@ deployment_topology: single-service
 | Operational Pipeline | operational-pipeline.md | ~1,000 | implementer, test-writer | Scheduler, differential results, detection, alerts, cases — v1.2 (D-209 8/8 + 60s tick + ActionDeliveryEngine per F-P23-H-001) |
 | Concurrency Architecture | concurrency-architecture.md | ~800 | implementer, formal-verifier | Tokio runtime, arc-swap, shared state protection — v1.1 (Mermaid diagram + 6 edits; 16-permit→8/8 split per D-209) |
 | Purity Boundary Map | purity-boundary-map.md | ~800 | implementer, formal-verifier | Pure core / effectful shell classification per crate |
-| Verification Architecture | verification-architecture.md | ~1,000 | formal-verifier, architect | Provable Properties Catalog, proof strategy — v1.28 (Mermaid P13 + 145 VPs per F-PreP21-H-001 + Pass 13 F-P13-H-002) |
+| Verification Architecture | verification-architecture.md | ~1,000 | formal-verifier, architect | Provable Properties Catalog, proof strategy — v1.29 (VP-014 + VP-015 promoted to verified per PR #127 Kani proofs at f5212641) |
 | Tooling Selection | tooling-selection.md | ~400 | formal-verifier, devops-engineer | Kani, proptest, fuzz tool versions and config |
 | Detection Rule Format | detection-rule-format.md | ~1,200 | implementer, test-writer | .detect rule structure, condition modes, rule-to-SQL compilation |
 | Infusions | infusions.md | ~1,500 | implementer, test-writer | Enrichment framework — GeoIP, threat intel, asset inventory, CVSS. TOML specs + .prx plugins. |
@@ -142,6 +142,7 @@ deployment_topology: single-service
 
 | Version | Pass | Date | Author | Change |
 |---------|------|------|--------|--------|
+| 2.30 | pr-127-formal-verify | 2026-05-05 | architect | VP-014 and VP-015 promoted to verified following Kani proof runs at commit f5212641 (PR #127). Document Map verification-architecture.md row updated v1.28→v1.29. Cross-ref: VP-INDEX v1.28, vp-014 v1.5, vp-015 v1.6, verification-architecture.md v1.29. ARCH-INDEX v2.29→v2.30. |
 | 2.29 | TD-W4-CV-LOW-002-closure | 2026-05-04 | architect | TD-W4-CV-LOW-002 closure: ADR-016 date sync. ADR-016 row date corrected 2026-05-04 → 2026-05-02 to match ADR-016 frontmatter `timestamp: 2026-05-02T00:00:00Z`. Version/status/title confirmed clean (PROPOSED v0.14, "Action Delivery Framework"). ARCH-INDEX v2.28→v2.29. |
 | 2.28 | W4-Phase4A-Pass28-fix | 2026-05-04 | state-manager | Pass 28 BLOCKED→REMEDIATED. F-P28-H-001: vp-045 spec v1.3→v1.4 (H1 heading "Schedule Semaphore" → "Action Delivery Semaphore" per VP-INDEX line 66 canonical + BC-2.18.004 H1; Pass 26 body-rewrite sister-line gap; 7th orchestrator-prompt-introduced defect — H1-axis; SUBSTANTIVE). 12 cross-cuts verified CLEAN. Window stays 0/3; Pass 29 next. |
 | 2.27 | W4-Phase4A-Pass27-fix | 2026-05-04 | state-manager | Pass 27 BLOCKED→REMEDIATED. F-P27-H-001: ADR-016 §5.4 footer (line 533) + v0.12 changelog entry (line 579) contained wrong VP-047 rationale "action delivery dedup correctness" → canonical "template variable UUID v7 validation" per VP-INDEX line 68 + BC-2.18.009; SUBSTANTIVE; architect v0.14. Comprehensive grep across all 6 W4 ADRs confirmed sole VP-INDEX mis-anchor site. META-INSIGHT: 6th orchestrator-prompt-introduced defect this session — semantic mis-anchor in rationale text (NEW class beyond stale module names). TD-VSDD-052 codified (pre-dispatch VP scope verification). ARCH-INDEX v2.26→v2.27. ADR-016 v0.14 in registry. Window stays 0/3; Pass 28 next. |

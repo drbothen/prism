@@ -1,10 +1,10 @@
 ---
 document_type: verification-property-index
 level: L4
-version: "1.26"
+version: "1.28"
 status: draft
 producer: product-owner
-timestamp: 2026-05-02T00:00:00
+timestamp: 2026-05-05T00:00:00
 phase: 2-patch
 inputs: [architecture/verification-architecture.md]
 traces_to: architecture/ARCH-INDEX.md
@@ -32,8 +32,8 @@ traces_to: architecture/ARCH-INDEX.md
 | VP-011 | Credential name sanitization: rejects path traversal | prism-core | kani | P0 | draft | S-1.02 |
 | VP-012 | Alias depth: rejects composition beyond depth 3 | prism-query | kani | P0 | draft | S-3.04 |
 | VP-013 | Alias cycles: detects and rejects cyclic references | prism-query | proptest | P0 | draft | S-3.04 |
-| VP-014 | Query security limits: rejects oversized queries | prism-query | kani | P0 | draft | S-3.01 |
-| VP-015 | Query security limits: rejects excessive nesting depth | prism-query | kani | P0 | draft | S-3.01 |
+| VP-014 | Query security limits: rejects oversized queries | prism-query | kani | P0 | verified (f5212641, 2026-05-05) | S-3.01 |
+| VP-015 | Query security limits: rejects excessive nesting depth | prism-query | kani | P0 | verified (f5212641, 2026-05-05) | S-3.01 |
 | VP-016 | OCSF normalization: output is valid protobuf | prism-ocsf | proptest | P0 | draft | S-1.04 |
 | VP-017 | OCSF normalization: unmapped fields preserved | prism-ocsf | proptest | P0 | draft | S-1.05 |
 | VP-018 | Detection rule validation: rejects invalid rules | prism-operations | proptest | P0 | draft | S-4.03 |
@@ -205,6 +205,8 @@ S-1.02 frontmatter has been updated to `subsystems: [SS-03, SS-07, SS-11, SS-12,
 
 | Version | Burst | Date | Author | Change |
 |---------|-------|------|--------|--------|
+| 1.28 | pr-127-formal-verify | 2026-05-05 | architect | VP-014 and VP-015 promoted to `verified` following successful Kani proof runs at commit f5212641 (PR #127). VP-014: harness `proof_check_query_size_rejects_oversize`, 0/4371 failed (285 unreachable). VP-015: 4 harnesses including new `proof_sql_query_depth_limit`, 0/5664 failed (397 unreachable). Status column updated; lock=true; proof_completed_date=2026-05-05. Cross-ref: vp-014 v1.5, vp-015 v1.6, verification-architecture.md v1.29, ARCH-INDEX.md v2.30. |
+| 1.27 | pr-127-review-remediation | 2026-05-05 | product-owner | PR-127 Task 2: VP-021 v1.3→v1.4 — clarified Property Statement to explicitly state that `PrismQlParser::parse` takes `&str` not `&[u8]`; the from_utf8 conversion step is now spelled out inline. Removed "malformed unicode" from inputs list (from_utf8 filters that before parse receives input). Harness skeleton was already correct; property statement is now unambiguous on type signature. |
 | 1.26 | W4-Phase4A-Pass20-fix | 2026-05-03 | state-manager | F-P20-H-001: VP-045 description updated "Schedule semaphore" → "Action delivery semaphore: try_acquire used (non-blocking), never acquire" (Pass-6 BC-H1 BC-2.18.004 rename to "Action Delivery Semaphore" failed to propagate to VP catalog ecosystem). |
 | 1.25 | W4-Phase4A-Pass5-fix | 2026-05-03 | state-manager | P5-S407-A-M-005: VP-145 anchor column expanded S-4.06 → S-4.06, S-4.07 (reopen_count monotonic increment invariant is exercised by both the case-management story S-4.06 and the case-query story S-4.07 per adjudication). |
 | 1.23 | W4-Phase4A-Pass3-fix | 2026-05-02 | state-manager | P3-VPINDEX-A-M-004: VP-138 story anchor narrowed S-4.06, S-4.07 → S-4.06 only (cross-org case isolation is a S-4.06 CaseStore boundary invariant per ADR-017 §3.5/§8; S-4.07 consumes via read path, does not implement enforcement). |

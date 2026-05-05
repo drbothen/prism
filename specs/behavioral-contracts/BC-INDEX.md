@@ -1,10 +1,10 @@
 ---
 document_type: behavioral-contract-index
 level: L3
-version: "4.32"
+version: "4.33"
 status: draft
 producer: product-owner
-timestamp: 2026-05-01T00:00:00
+timestamp: 2026-05-05T00:00:00
 phase: 3.A
 total_contracts: 230
 active_contracts: 222
@@ -352,6 +352,8 @@ Phase 3-patch additions (2026-04-16): 22 new BCs added in Burst 1 to close trace
 - Subsystem 19: Infusion Enrichment Framework (AD-020, CAP-031)
 
 ### Change Log (Adversarial Review Fixes)
+
+**v4.33 (2026-05-05):** PR-127 review remediation — BC-2.11.003 v1.3→v1.4: added canonical Denied SQL Statement Prefixes section (~40 keywords across DML/DDL/TCL/DCL/procedural/utility/vendor categories per SQL:2016); updated Invariants to use E-QUERY-002 for denylist hits; updated Error Cases table; expanded Canonical Test Vectors with 9 new denylist vectors. Addresses Adv OBS-002 [process-gap]. Implementer follow-up required: extend filter_parser.rs denylist from 7 to ~40 keywords.
 
 **v4.32 (2026-05-03):** Wave 4 Phase 4.A Pre-Pass-21 Broad-Scope Sweep — F-PreP21-H-002: BC-2.18.003 v1.3→v1.4 (ActionEngine→ActionDeliveryEngine 1 site; modified→2026-05-03); BC-2.18.008 v1.3→v1.4 (ActionEngine→ActionDeliveryEngine 2 sites; modified→2026-05-03). Sister BCs in SS-18 with stale type name cleaned; D-209 + ADR-016 §1.1 propagated.
 
