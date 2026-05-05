@@ -202,6 +202,15 @@ pub fn check_nesting_depth(ast: &Expr, depth: u32) -> Result<(), PrismError> {
 /// Concretely, `depth` is incremented on `(` and decremented on `)` using
 /// `saturating_sub`. The rejection fires only when depth exceeds the limit at
 /// the moment of the `(`, not as an aggregate.
+///
+/// # Unclosed quotes (F-MEDIUM-002)
+/// An unclosed `'` or `"` at EOF is explicitly rejected with `E-QUERY-003`.
+/// An unclosed quote would otherwise keep the in-quote flag `true` for the
+/// remainder of input, silently masking all subsequent `(` characters from
+/// the depth counter and allowing an attacker to hide unbounded paren depth
+/// from this guard. Rejection at EOF is defence-in-depth: the downstream
+/// parser would also reject the unclosed quote, but the pre-parse guard
+/// must not be bypassable via unmatched-quote-at-EOF.
 pub fn check_paren_depth(raw: &str) -> Result<(), PrismError> {
     let limit = effective_nesting_depth_limit();
     let mut depth: u32 = 0;
@@ -226,6 +235,14 @@ pub fn check_paren_depth(raw: &str) -> Result<(), PrismError> {
             }
             _ => {}
         }
+    }
+    // F-MEDIUM-002: unclosed quote at EOF is invalid input — reject explicitly.
+    // An unclosed quote silently masks all subsequent parens from the depth counter,
+    // allowing an attacker to bypass this guard. Rejecting here is defence-in-depth.
+    if in_sq || in_dq {
+        return Err(PrismError::QueryExecutionFailed {
+            detail: format!("{E_QUERY_003}: unclosed string literal (quote) at end of input"),
+        });
     }
     Ok(())
 }
