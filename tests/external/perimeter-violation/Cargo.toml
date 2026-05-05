@@ -1,0 +1,26 @@
+[package]
+name = "perimeter-violation"
+version = "0.1.0"
+edition = "2021"
+publish = false
+
+# BC-2.11.006 v1.7 — Security Perimeter compile-fail test crate.
+#
+# PURPOSE: This crate deliberately attempts to use symbols that are pub(crate)
+# inside prism-query but NOT part of the public API. It MUST NOT compile.
+# The CI job `perimeter-compile-fail` runs `cargo check -p perimeter-violation`
+# and asserts non-zero exit code.
+#
+# If this crate ever compiles successfully, a sub-parser or internal builder
+# function has been accidentally made pub, which is a security regression
+# per BC-2.11.006 (Security Perimeter postcondition).
+#
+# This crate is EXCLUDED from the workspace default members (see root Cargo.toml).
+# It is NEVER built as part of `cargo build --workspace`.
+
+[dependencies]
+prism-query = { path = "../../../crates/prism-query" }
+
+# Empty workspace table: opts this crate out of the parent workspace resolver
+# so it can be compiled standalone (required for the CI compile-fail pattern).
+[workspace]

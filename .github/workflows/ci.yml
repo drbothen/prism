@@ -256,6 +256,56 @@ jobs:
           set -euo pipefail
           cd fuzz && cargo +nightly fuzz run vp021_parse_fuzz --target x86_64-unknown-linux-gnu -- -max_total_time=60 -max_len=65536
 
+  perimeter-compile-fail:
+    name: Perimeter compile-fail check (BC-2.11.006 v1.7)
+    # BC-2.11.006 v1.7 postcondition: sub-parsers (parse_filter, parse_sql,
+    # parse_pipe, build_pipe_parser) are pub(crate) and MUST NOT be reachable
+    # from external crates. This job compiles a deliberate violator and asserts
+    # that `cargo check` fails with a Rust visibility error (E0603).
+    #
+    # If the check exits 0, a sub-parser became accidentally public — block merge.
+    #
+    # Adversary pass-5 OBS-003 [process-gap] remediation.
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+      - uses: dtolnay/rust-toolchain@29eef336d9b2848a0b548edc03f92a220660cdb8 # stable
+      - name: Install protoc (required by prost-build for prism-ocsf transitive dep)
+        uses: arduino/setup-protoc@c65c819552d16ad3c9b72d9dfd5ba5237b9c906b # v3.0.0
+        with:
+          repo-token: ${{ secrets.GITHUB_TOKEN }}
+      - uses: Swatinem/rust-cache@c19371144df3bb44fab255c43d04cbc2ab54d1c4 # v2.9.1
+        with:
+          cache-on-failure: true
+          shared-key: perimeter-compile-fail
+      - name: Assert perimeter-violation fails to compile (visibility check)
+        run: |
+          set -uo pipefail
+          # Capture stderr+stdout separately from the exit code.
+          # We must NOT use `cmd | tee` because that evaluates tee's exit code,
+          # not cargo's. Instead, redirect to a log file directly.
+          cargo check \
+            --manifest-path tests/external/perimeter-violation/Cargo.toml \
+            > /tmp/perimeter-check.log 2>&1 \
+            && CARGO_RC=0 || CARGO_RC=$?
+          cat /tmp/perimeter-check.log
+          if [ "${CARGO_RC}" -eq 0 ]; then
+            echo "::error::Perimeter compile-fail check FAILED — sub-parser is publicly accessible (security regression, BC-2.11.006 v1.7)"
+            echo "::error::One of parse_filter / parse_sql / parse_pipe / build_pipe_parser became pub. Revert the visibility change."
+            exit 1
+          fi
+          # Verify the failure is specifically a Rust visibility error (E0603),
+          # not a dependency build failure or unrelated compilation error.
+          if ! grep -qE 'E0603|is private|visibility' /tmp/perimeter-check.log; then
+            echo "::error::Perimeter check failed for an unexpected reason (not a visibility error). Inspect the log above."
+            exit 1
+          fi
+          echo "Perimeter check passed: cargo check correctly failed with visibility error (E0603)."
+          grep -E 'E0603|is private' /tmp/perimeter-check.log || true
+
   verify-workflow-structure:
     name: Verify workflow structure (AC-5..AC-8 reachability)
     runs-on: ubuntu-latest
