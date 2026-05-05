@@ -219,15 +219,95 @@ pub fn check_paren_depth(raw: &str) -> Result<(), PrismError> {
     Ok(())
 }
 
+/// Minimum safe pipe stage count limit.
+///
+/// Prevents `PRISM_MAX_PIPE_STAGES=0` from disabling the guard entirely.
+pub const MIN_SAFE_PIPE_STAGES: usize = 1;
+
+/// Maximum safe pipe stage count limit.
+///
+/// Prevents `PRISM_MAX_PIPE_STAGES=<huge>` from effectively disabling the guard.
+pub const MAX_SAFE_PIPE_STAGES: usize = 256;
+
+/// Minimum safe regex pattern length limit.
+///
+/// Prevents `PRISM_MAX_REGEX_PATTERN_LEN=0` from silently bypassing the length guard.
+pub const MIN_SAFE_REGEX_PATTERN_LEN: usize = 64;
+
+/// Maximum safe regex pattern length limit.
+///
+/// Prevents `PRISM_MAX_REGEX_PATTERN_LEN=<huge>` from effectively disabling the guard.
+pub const MAX_SAFE_REGEX_PATTERN_LEN: usize = 65_536;
+
+/// Return the effective pipe stage limit, clamped to [MIN_SAFE_PIPE_STAGES, MAX_SAFE_PIPE_STAGES].
+///
+/// If the env var is out of range, a warning is emitted and the value is clamped.
+///
+/// (Adv F-LOW-002, BC-2.11.006)
+pub fn effective_pipe_stage_limit() -> usize {
+    match std::env::var("PRISM_MAX_PIPE_STAGES")
+        .ok()
+        .and_then(|v| v.parse::<usize>().ok())
+    {
+        None => PRISM_MAX_PIPE_STAGES,
+        Some(v) if v < MIN_SAFE_PIPE_STAGES => {
+            eprintln!(
+                "prism-query: PRISM_MAX_PIPE_STAGES={v} is below minimum safe value \
+                 ({MIN_SAFE_PIPE_STAGES}); clamping to {MIN_SAFE_PIPE_STAGES}"
+            );
+            MIN_SAFE_PIPE_STAGES
+        }
+        Some(v) if v > MAX_SAFE_PIPE_STAGES => {
+            eprintln!(
+                "prism-query: PRISM_MAX_PIPE_STAGES={v} is above maximum safe value \
+                 ({MAX_SAFE_PIPE_STAGES}); clamping to {MAX_SAFE_PIPE_STAGES}"
+            );
+            MAX_SAFE_PIPE_STAGES
+        }
+        Some(v) => v,
+    }
+}
+
+/// Return the effective regex pattern length limit, clamped to
+/// [MIN_SAFE_REGEX_PATTERN_LEN, MAX_SAFE_REGEX_PATTERN_LEN].
+///
+/// If the env var is out of range, a warning is emitted and the value is clamped.
+///
+/// (Adv F-LOW-002, BC-2.11.006)
+pub fn effective_regex_pattern_length_limit() -> usize {
+    match std::env::var("PRISM_MAX_REGEX_PATTERN_LEN")
+        .ok()
+        .and_then(|v| v.parse::<usize>().ok())
+    {
+        None => PRISM_MAX_REGEX_PATTERN_LEN,
+        Some(v) if v < MIN_SAFE_REGEX_PATTERN_LEN => {
+            eprintln!(
+                "prism-query: PRISM_MAX_REGEX_PATTERN_LEN={v} is below minimum safe value \
+                 ({MIN_SAFE_REGEX_PATTERN_LEN}); clamping to {MIN_SAFE_REGEX_PATTERN_LEN}"
+            );
+            MIN_SAFE_REGEX_PATTERN_LEN
+        }
+        Some(v) if v > MAX_SAFE_REGEX_PATTERN_LEN => {
+            eprintln!(
+                "prism-query: PRISM_MAX_REGEX_PATTERN_LEN={v} is above maximum safe value \
+                 ({MAX_SAFE_REGEX_PATTERN_LEN}); clamping to {MAX_SAFE_REGEX_PATTERN_LEN}"
+            );
+            MAX_SAFE_REGEX_PATTERN_LEN
+        }
+        Some(v) => v,
+    }
+}
+
 /// Check that a pipe query does not contain more than the maximum allowed
 /// number of stages. (BC-2.11.006, EC-003)
 pub fn check_pipe_stage_count(stages: &[PipeStage]) -> Result<(), PrismError> {
-    if stages.len() > PRISM_MAX_PIPE_STAGES {
+    let limit = effective_pipe_stage_limit();
+    if stages.len() > limit {
         return Err(PrismError::QueryExecutionFailed {
             detail: format!(
                 "{E_QUERY_003}: pipe stage count {} exceeds maximum allowed {}",
                 stages.len(),
-                PRISM_MAX_PIPE_STAGES
+                limit
             ),
         });
     }
@@ -258,14 +338,20 @@ pub fn check_list_length(count: usize, context: &str) -> Result<(), PrismError> 
 }
 
 /// Check that a regex pattern string does not exceed the maximum allowed length.
-/// (BC-2.11.006, CWE-1333)
+/// (BC-2.11.006, CWE-1333, Adv F-HIGH-003)
+///
+/// Uses `effective_regex_pattern_length_limit()` so that the env-var override
+/// `PRISM_MAX_REGEX_PATTERN_LEN` is respected (clamped to safe range).
+/// This function is the single source of truth for the regex length limit —
+/// `RegexLiteral::new` delegates here rather than duplicating the constant.
 pub fn check_regex_pattern_length(pattern: &str) -> Result<(), PrismError> {
-    if pattern.len() > PRISM_MAX_REGEX_PATTERN_LEN {
+    let limit = effective_regex_pattern_length_limit();
+    if pattern.len() > limit {
         return Err(PrismError::QueryExecutionFailed {
             detail: format!(
                 "{E_QUERY_003}: regex pattern length {} bytes exceeds maximum allowed {} bytes",
                 pattern.len(),
-                PRISM_MAX_REGEX_PATTERN_LEN
+                limit
             ),
         });
     }

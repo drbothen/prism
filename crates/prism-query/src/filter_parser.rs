@@ -61,20 +61,79 @@ impl PrismQlParser {
             return Err(vec![ParseError::new(0, "E-QUERY-001: empty query string")]);
         }
 
-        // Reject mutation statements immediately.
-        let upper = trimmed.to_uppercase();
-        if upper.starts_with("INSERT ")
-            || upper.starts_with("UPDATE ")
-            || upper.starts_with("DELETE ")
-            || upper.starts_with("DROP ")
-            || upper.starts_with("CREATE ")
-            || upper.starts_with("ALTER ")
-            || upper.starts_with("TRUNCATE ")
-        {
-            return Err(vec![ParseError::new(
-                0,
-                "E-QUERY-001: mutation statements (INSERT/UPDATE/DELETE) are not permitted",
-            )]);
+        // Reject denied SQL statements before any parsing (BC-2.11.003 v1.4, Invariant DI-019).
+        //
+        // The canonical denylist covers ~40 keywords across 7 categories:
+        //   DML mutations, DDL, TCL, DCL, Procedural, Diagnostic/utility, Vendor.
+        //
+        // Match semantics (BC-2.11.003 v1.4):
+        //   - Case-insensitive
+        //   - Full-token match (NOT substring — `INSERTED_AT` must NOT trigger)
+        //   - Whitespace-normalized (leading whitespace stripped via `trimmed`)
+        //
+        // The check extracts the first whitespace-separated token from `trimmed`
+        // and compares it (case-insensitively) against each denied keyword.
+        // This ensures `INSERTED_AT` (an identifier) is NOT rejected while
+        // `INSERT ` (followed by whitespace/end) IS rejected.
+        let denied_keywords: &[&str] = &[
+            // DML mutations
+            "INSERT",
+            "UPDATE",
+            "DELETE",
+            "MERGE",
+            "REPLACE",
+            "UPSERT",
+            "COPY",
+            // DDL
+            "CREATE",
+            "DROP",
+            "ALTER",
+            "RENAME",
+            "TRUNCATE",
+            "COMMENT",
+            // TCL (Transaction Control)
+            "COMMIT",
+            "ROLLBACK",
+            "SAVEPOINT",
+            "RELEASE",
+            "BEGIN",
+            "START",
+            // DCL (Data Control)
+            "GRANT",
+            "REVOKE",
+            "DENY",
+            // Procedural
+            "EXECUTE",
+            "CALL",
+            "DO",
+            "PERFORM",
+            // Diagnostic / utility
+            "EXPLAIN",
+            "ANALYZE",
+            "VACUUM",
+            "LOCK",
+            "REINDEX",
+            "SET",
+            "SHOW",
+            "USE",
+            // Vendor extensions
+            "PRAGMA",
+            "ATTACH",
+            "DETACH",
+        ];
+        // Extract the first token (split on whitespace).
+        let first_token = trimmed.split_ascii_whitespace().next().unwrap_or("");
+        let first_token_upper = first_token.to_uppercase();
+        for keyword in denied_keywords {
+            if first_token_upper == *keyword {
+                return Err(vec![ParseError::new(
+                    0,
+                    format!(
+                        "E-QUERY-002: Only SELECT queries are supported. \
+                         Prism is a read-only query engine. Denied keyword: `{keyword}`."
+                    ),
+                )]);
+            }
         }
 
         // Mode detection:
@@ -83,10 +142,13 @@ impl PrismQlParser {
         // 3. Starts with `|` → Pipe mode (no source prefix).
         // 4. Contains pipe stage keywords after `|` → Pipe mode.
         // 5. Otherwise → Filter mode.
-        if upper.starts_with("SELECT") {
+        //
+        // `first_token_upper` is the uppercase of the first whitespace-separated
+        // token; it is the same as `trimmed.to_uppercase().split_whitespace().next()`.
+        if first_token_upper == "SELECT" {
             return parse_sql_internal(input);
         }
-        if upper.starts_with("FROM") || trimmed.starts_with('|') {
+        if first_token_upper == "FROM" || trimmed.starts_with('|') {
             return parse_pipe_internal(input);
         }
 
@@ -260,9 +322,16 @@ pub fn build_predicate_parser<'a>(
             .separated_by(just('.'))
             .at_least(1)
             .collect::<Vec<&str>>()
-            .map(|segs: Vec<&str>| FieldPath {
-                segments: segs.into_iter().map(|s| s.to_string()).collect(),
-                span: Span::ZERO,
+            .map_with(|segs: Vec<&str>, e| {
+                // Capture the actual byte-offset span from Chumsky (CR F-CR-007).
+                let s = e.span();
+                FieldPath {
+                    segments: segs.into_iter().map(|seg| seg.to_string()).collect(),
+                    span: Span {
+                        start: s.start,
+                        end: s.end,
+                    },
+                }
             });
 
         // Case-insensitive keyword helper.
@@ -776,9 +845,16 @@ pub fn build_expr_parser<'a>(
             .separated_by(just('.'))
             .at_least(1)
             .collect::<Vec<&str>>()
-            .map(|segs: Vec<&str>| FieldPath {
-                segments: segs.into_iter().map(|s| s.to_string()).collect(),
-                span: Span::ZERO,
+            .map_with(|segs: Vec<&str>, e| {
+                // Capture the actual byte-offset span from Chumsky (CR F-CR-007).
+                let s = e.span();
+                FieldPath {
+                    segments: segs.into_iter().map(|seg| seg.to_string()).collect(),
+                    span: Span {
+                        start: s.start,
+                        end: s.end,
+                    },
+                }
             });
 
         let compare_op = choice((

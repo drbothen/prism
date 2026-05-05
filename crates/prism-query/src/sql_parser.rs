@@ -150,9 +150,16 @@ fn build_sql_parser<'a>() -> impl Parser<'a, &'a str, SqlQuery, extra::Err<Rich<
             .separated_by(just('.'))
             .at_least(1)
             .collect::<Vec<&str>>()
-            .map(|segs: Vec<&str>| FieldPath {
-                segments: segs.into_iter().map(|s| s.to_string()).collect(),
-                span: Span::ZERO,
+            .map_with(|segs: Vec<&str>, e| {
+                // Capture the actual byte-offset span from Chumsky (CR F-CR-007).
+                let s = e.span();
+                FieldPath {
+                    segments: segs.into_iter().map(|seg| seg.to_string()).collect(),
+                    span: Span {
+                        start: s.start,
+                        end: s.end,
+                    },
+                }
             });
 
         // Build the expression parser for SELECT projections / ORDER BY / GROUP BY / JOIN ON.

@@ -848,16 +848,24 @@ pub enum Literal {
 ///
 /// # Validation
 /// Constructed only if `value * unit_secs` does not overflow `u64`.
+///
+/// # Invariant (CR F-CR-008)
+/// `value` and `unit` are private fields — all construction goes through
+/// `DurationLiteral::new` which enforces the overflow invariant. External
+/// code cannot bypass validation by constructing struct literals directly.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub struct DurationLiteral {
-    /// Numeric magnitude.
-    pub value: u64,
-    /// Duration unit.
-    pub unit: DurationUnit,
+    /// Numeric magnitude (private — use `value()` getter).
+    value: u64,
+    /// Duration unit (private — use `unit()` getter).
+    unit: DurationUnit,
 }
 
 impl DurationLiteral {
     /// Construct a `DurationLiteral`, returning `Err` on overflow.
+    ///
+    /// This is the only public construction path. Overflow of
+    /// `value * unit.secs()` returns an error rather than panicking.
     pub fn new(value: u64, unit: DurationUnit) -> Result<Self, &'static str> {
         // Validate that seconds-conversion doesn't overflow.
         let _ = value
@@ -866,9 +874,22 @@ impl DurationLiteral {
         Ok(Self { value, unit })
     }
 
+    /// Return the numeric magnitude.
+    pub fn value(&self) -> u64 {
+        self.value
+    }
+
+    /// Return the duration unit.
+    pub fn unit(&self) -> DurationUnit {
+        self.unit.clone()
+    }
+
     /// Total duration in seconds.
+    ///
+    /// # Invariant
+    /// Cannot overflow: validated at construction time in `new`.
     pub fn to_secs(&self) -> u64 {
-        // Safety: validated in constructor.
+        // Safety: overflow-checked in constructor.
         self.value * self.unit.secs()
     }
 }
@@ -967,17 +988,17 @@ pub struct RegexLiteral {
 impl RegexLiteral {
     /// Parse and validate a regex pattern (CWE-1333).
     ///
-    /// Enforces the 1024-byte cap (BC-2.11.006) and validates the pattern
-    /// with the `regex` crate's finite-automaton engine.
+    /// Enforces the length cap via `security::check_regex_pattern_length`
+    /// (single source of truth: `security::PRISM_MAX_REGEX_PATTERN_LEN`) and
+    /// validates the pattern with the `regex` crate's finite-automaton engine.
+    ///
+    /// # Single source of truth (Adv F-HIGH-003)
+    /// The byte-length limit lives solely in `security::PRISM_MAX_REGEX_PATTERN_LEN`.
+    /// This function delegates to `security::check_regex_pattern_length` instead
+    /// of duplicating the constant.
     pub fn new(pattern: &str) -> Result<Self, String> {
-        const MAX_LEN: usize = 1_024;
-        if pattern.len() > MAX_LEN {
-            return Err(format!(
-                "E-QUERY-003: regex pattern length {} bytes exceeds maximum allowed {} bytes",
-                pattern.len(),
-                MAX_LEN
-            ));
-        }
+        // Length check via security module — single source of truth (BC-2.11.006).
+        crate::security::check_regex_pattern_length(pattern).map_err(|e| e.to_string())?;
         regex::Regex::new(pattern)
             .map_err(|e| format!("E-QUERY-001: invalid regex pattern '{pattern}': {e}"))?;
         Ok(Self {
