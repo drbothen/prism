@@ -564,7 +564,7 @@ develop HEAD: `3133710e` | factory-artifacts: `d33e2bcc` (Stage 1 D-230; Stage 2
 - STEP 4: Devops worktree cleanup for .worktrees/S-3.01/
 - STEP 5: Tier 2 dispatch — devops creates worktrees for S-3.02 + S-3.06 in parallel off new develop HEAD
 
-**Current spec versions:** ADR-013 v0.7, ADR-015 v0.6, ADR-016 v0.14, ADR-017 v0.7, ADR-018 v0.6, ADR-019 v0.4, prd.md v1.10, S-3.01 v1.8, STORY-INDEX v2.07, ARCH-INDEX v2.30, BC-INDEX v4.33, VP-INDEX v1.28, HOLDOUT-INDEX v1.3, verification-architecture v1.29
+**Current spec versions:** ADR-013 v0.7, ADR-015 v0.6, ADR-016 v0.14, ADR-017 v0.7, ADR-018 v0.6, ADR-019 v0.4, prd.md v1.10, S-3.01 v1.9, STORY-INDEX v2.08, ARCH-INDEX v2.31, BC-INDEX v4.34, VP-INDEX v1.29, HOLDOUT-INDEX v1.3, verification-architecture v1.30
 
 **Key files:** [SESSION-HANDOFF.md](SESSION-HANDOFF.md) | [cycle-manifest.md](cycles/wave-4-operations/cycle-manifest.md) | [HOLDOUT-INDEX.md](holdout-scenarios/HOLDOUT-INDEX.md)
 
