@@ -163,33 +163,71 @@ impl PrismQlParser {
     }
 }
 
+/// Pipe-stage keywords used by `is_pipe_mode`.
+///
+/// All entries are ASCII lowercase. Comparison uses `eq_ignore_ascii_case`
+/// so "WHERE", "Where", "wHERE" all match, but non-ASCII lookalikes do not.
+/// This is intentional: PrismQL is ASCII-only; full Unicode case-fold
+/// (to_lowercase) would introduce inconsistency with the rest of the codebase
+/// and risks false matches on Unicode homoglyphs. (F-LOW-001)
+const PIPE_STAGE_KEYWORDS: &[&str] = &[
+    "where", "sort", "head", "tail", "stats", "dedup", "fields", "join", "enrich", "limit",
+];
+
 /// Detect whether the input is pipe mode by looking for a `|` followed by
 /// a pipe stage keyword.
+///
+/// # Performance (F-HIGH-001)
+/// This function is a single-pass byte iterator with **zero heap allocation**.
+/// The previous implementation allocated a `Vec<char>` for the full input
+/// and, on every unquoted `|`, allocated a `String` of the remaining bytes
+/// plus called `to_lowercase()`. With ~32K pipes in a 64KB input that was
+/// ~32K heap allocations totalling ~2GB of transient memory.
+///
+/// The new implementation:
+/// - Walks `input.as_bytes()` once.
+/// - Tracks `in_sq` / `in_dq` quote state via byte equality.
+/// - On an unquoted `|` at byte offset `i`, checks the next ≤ 10 bytes
+///   via `input.get(i+1..)` and `eq_ignore_ascii_case` against the keyword
+///   list.  No `Vec`, no `String`, no `to_lowercase()` per match.
+///
+/// # Case sensitivity (F-LOW-001)
+/// Uses `eq_ignore_ascii_case` (ASCII-only). Non-ASCII Unicode variants of
+/// keywords are NOT recognised — matching the codebase convention.
 fn is_pipe_mode(input: &str) -> bool {
-    let pipe_stage_keywords = [
-        "where", "sort", "head", "tail", "stats", "dedup", "fields", "join", "enrich", "limit",
-    ];
-
-    let mut in_single_quote = false;
-    let mut in_double_quote = false;
-    let chars: Vec<char> = input.chars().collect();
+    let bytes = input.as_bytes();
+    let len = bytes.len();
+    let mut in_sq = false;
+    let mut in_dq = false;
     let mut i = 0;
-    while i < chars.len() {
-        match chars[i] {
-            '\'' if !in_double_quote => in_single_quote = !in_single_quote,
-            '"' if !in_single_quote => in_double_quote = !in_double_quote,
-            '|' if !in_single_quote && !in_double_quote => {
-                let rest: String = chars[i + 1..].iter().collect();
-                let rest_trimmed = rest.trim_start();
-                let lower_rest = rest_trimmed.to_lowercase();
-                for kw in &pipe_stage_keywords {
-                    if let Some(after) = lower_rest.strip_prefix(kw) {
-                        if after.is_empty()
-                            || after.starts_with(' ')
-                            || after.starts_with('\t')
-                            || after.starts_with('\n')
-                        {
-                            return true;
+    while i < len {
+        match bytes[i] {
+            b'\'' if !in_dq => in_sq = !in_sq,
+            b'"' if !in_sq => in_dq = !in_dq,
+            b'|' if !in_sq && !in_dq => {
+                // Skip whitespace after `|` (ASCII only — PrismQL is ASCII).
+                let mut j = i + 1;
+                while j < len && (bytes[j] == b' ' || bytes[j] == b'\t' || bytes[j] == b'\n') {
+                    j += 1;
+                }
+                // Check each keyword against the bytes starting at j.
+                // `eq_ignore_ascii_case` on str slices is safe and allocation-free.
+                if let Some(rest) = input.get(j..) {
+                    for kw in PIPE_STAGE_KEYWORDS {
+                        let kw_len = kw.len();
+                        if let Some(candidate) = rest.get(..kw_len) {
+                            if candidate.eq_ignore_ascii_case(kw) {
+                                // Must be followed by whitespace, end-of-input, or `|`.
+                                let after_kw = rest.get(kw_len..).unwrap_or("");
+                                if after_kw.is_empty()
+                                    || matches!(
+                                        after_kw.as_bytes().first(),
+                                        Some(b' ' | b'\t' | b'\n' | b'|')
+                                    )
+                                {
+                                    return true;
+                                }
+                            }
                         }
                     }
                 }
