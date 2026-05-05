@@ -5,7 +5,7 @@ version: "6.75"
 status: current
 timestamp: 2026-05-04T22:00:00Z
 predecessor_session: "Wave 4 Phase 4.A R9 HUMAN APPROVED 2026-05-04. STATE v6.70. factory-artifacts 15fa97e6 (pre-compact state capture canonical SHA). TD register gap closed: 7 items filed per D-220 (TD-VSDD-053 P0 + 4 P3 R8 carry-forward + 2 P2 D-219 holdout gap)."
-successor_focus: "D-225 S-3.01 SPEC SYNC + RED GATE STAGE 1 COMPLETE (2026-05-04). S-3.01 v1.7 (path-placement reconciled). STORY-INDEX v2.06. Rename PR #126 MERGED (3133710e). STATE v6.75. factory-artifacts canonical: 15fa97e6.
+successor_focus: "D-225 S-3.01 SPEC SYNC + RED GATE STAGE 1 COMPLETE (2026-05-04). S-3.01 v1.7 (path-placement reconciled). STORY-INDEX v2.06. Rename PR #126 MERGED (3133710e). STATE v6.75. factory-artifacts canonical: 1535b600.
 
 **CONTEXT:** R10 dispatch attempt revealed all 13 W3 core stories (S-3.01..S-3.13 — entire PrismQL query engine) are status=draft. S-4.01 depends on S-3.02; all 8 W4 stories transitively blocked. 31 W4 spec adversarial passes never caught this dep-status gap (TD-VSDD-054 filed). D-223 logged. Phase 4.B SUSPENDED pending W3 core implementation. D-224 logged: W3 spec remediation burst complete (Chumsky 0.12 + Kani 0.67.0 + moka 0.12 + datafusion 53.1 + VP-015 depth 64 + 6 BC anchor backfills + rename refs). D-225 logged: S-3.01 spec v1.6→v1.7 path-placement sync; rename PR #126 artifacts captured; Red Gate Stage 1 done.
 
@@ -28,7 +28,7 @@ successor_focus: "D-225 S-3.01 SPEC SYNC + RED GATE STAGE 1 COMPLETE (2026-05-04
 **STEP 8 (Wave 5):** W4 wave gate (HS-009..HS-012 evaluation) → Phase 5.A spec convergence for 10 W5 draft stories → W5 holdout scenario authoring.
 
 **KEY REFERENCES:**
-- STATE.md v6.75: develop@3133710e; factory-artifacts 15fa97e6 (canonical SHA — D-225 S-3.01 spec sync + Red Gate Stage 1); D-225 logged
+- STATE.md v6.75: develop@3133710e; factory-artifacts 1535b600 (canonical SHA — D-225 S-3.01 spec sync + Red Gate Stage 1); D-225 logged
 - D-225: S-3.01 spec sync 2026-05-04 — story v1.6→v1.7 path-placement reconcile; STORY-INDEX v2.06; rename PR #126 MERGED (3133710e); Red Gate Stage 1 COMPLETE
 - D-224: W3 spec remediation 2026-05-04 — 13 stories + VP-015 + STORY-INDEX v2.05 + S-3.2.08 v1.1; Chumsky 0.12 + Kani 0.67.0 + moka 0.12 + datafusion 53.1 + VP-015 depth 64 + 6 BC anchor backfills + rename refs
 - D-223: PIVOT 2026-05-04 — W3-FIRST; 13 W3 core stories (S-3.01..S-3.13, 39pts); Tier-1=S-3.01; Tier-2=S-3.02+S-3.06; Tier-3=8 stories; Tier-4=S-3.07+S-3.10; Phase 4.B SUSPENDED
@@ -36,12 +36,12 @@ successor_focus: "D-225 S-3.01 SPEC SYNC + RED GATE STAGE 1 COMPLETE (2026-05-04
 - D-222: CLOSED 2026-05-04 — HS-009..HS-012 authored; HOLDOUT-INDEX v1.3; Phase 4.B prereqs ALL CLEARED (still valid — W4 HS authoring is done; W4 impl unblocked once W3 merges)
 - D-218: CLOSED 2026-05-04 — wave-state.yaml + epics.md v1.4 + STORY-INDEX v2.04 + ARCH-INDEX v2.29 refreshed
 - pass-31.md: cycles/wave-4-operations/adversarial-reviews/pass-31.md (PERFECT CLEAN; 0 findings; CONVERGED)
-- cycle-manifest v1.59 (D-225 S-3.01 spec sync + rename PR #126 artifacts; SHA 15fa97e6)
+- cycle-manifest v1.59 (D-225 S-3.01 spec sync + rename PR #126 artifacts; SHA 1535b600)
 - Wave 4 cycle-manifest: cycles/wave-4-operations/cycle-manifest.md (v1.59)
 - vsdd-plugin-tech-debt.md: 39 items v2.4 (TD-VSDD-054 P1 pre-phase-N dep check filed 2026-05-04)
 - STORY-INDEX v2.06, ARCH-INDEX v2.29, BC-INDEX v4.32, VP-INDEX v1.26, HOLDOUT-INDEX v1.3
 
-factory-artifacts canonical: 15fa97e6 (D-225 S-3.01 spec sync + Red Gate Stage 1). develop HEAD: 3133710e."
+factory-artifacts canonical: 1535b600 (D-225 S-3.01 spec sync + Red Gate Stage 1). develop HEAD: 3133710e."
 ---
 
 # Session Handoff — WAVE 4 PHASE 4.A DECISIONS LOGGED (2026-05-02)
@@ -164,12 +164,12 @@ factory-artifacts canonical: 15fa97e6 (D-225 S-3.01 spec sync + Red Gate Stage 1
 
 ## Current State
 
-develop HEAD `3133710e` | factory-artifacts `15fa97e6` (canonical SHA — D-225 S-3.01 spec sync + Red Gate Stage 1; STATE v6.75)
+develop HEAD `3133710e` | factory-artifacts `1535b600` (canonical SHA — D-225 S-3.01 spec sync + Red Gate Stage 1; STATE v6.75)
 
 | Metric | Value |
 |--------|-------|
 | develop HEAD | `3133710e` (rename PR #126 squash-merged 2026-05-05T03:19:10Z — crowdstrike_session→org_scoped_session_id) |
-| factory-artifacts HEAD | `15fa97e6` (canonical SHA — D-225 S-3.01 spec sync + Red Gate Stage 1; STATE v6.75) |
+| factory-artifacts HEAD | `1535b600` (canonical SHA — D-225 S-3.01 spec sync + Red Gate Stage 1; STATE v6.75) |
 | PR count merged | 126 |
 | Workspace test count | 2363 (nextest-verified; +133 from CI nextest split + doctest migration) |
 | Open PRs | None (rename PR #126 merged) |

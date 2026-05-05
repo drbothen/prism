@@ -380,7 +380,7 @@ user_directive_persistent: "No pragmatic convergence. Fix all issues before buil
 | **Last Updated** | 2026-05-04 (D-225 S-3.01 spec path-placement sync v1.7; STORY-INDEX v2.06; rename PR #126 artifacts captured; Red Gate Stage 1 complete; STATE v6.75) |
 | **Current Phase** | Phase 4.A — APPROVED + CONVERGED; Phase 4.B SUSPENDED — W3-FIRST pivot (D-223); W3 spec remediation COMPLETE (D-224); S-3.01 Red Gate Stage 1 COMPLETE (D-225) |
 | **Current Step** | Red Gate Stage 2 (test-writer failing tests), then implementer TDD red-green-refactor |
-| **factory-artifacts HEAD** | `15fa97e6` |
+| **factory-artifacts HEAD** | `1535b600` |
 
 ## Phase Progress
 
@@ -537,9 +537,9 @@ Cycle files: [burst-log](cycles/phase-2-patch/burst-log.md) | [convergence-traje
 
 _Previous checkpoint archived: [cycles/wave-4-operations/session-checkpoints.md](cycles/wave-4-operations/session-checkpoints.md)_
 
-**STATE v6.75 (canonical SHA `15fa97e6`). D-225 S-3.01 spec path-placement sync. Red Gate Stage 1 COMPLETE. Rename PR #126 MERGED (3133710e). develop HEAD: 3133710e.**
+**STATE v6.75 (canonical SHA `1535b600`). D-225 S-3.01 spec path-placement sync. Red Gate Stage 1 COMPLETE. Rename PR #126 MERGED (3133710e). develop HEAD: 3133710e.**
 
-develop HEAD: `3133710e` | factory-artifacts: `15fa97e6` | workspace tests: 2363 | PRs merged: 126
+develop HEAD: `3133710e` | factory-artifacts: `1535b600` | workspace tests: 2363 | PRs merged: 126
 
 **D-225 (2026-05-04):** S-3.01 spec v1.6→v1.7 path-placement sync. Kani proofs at `crates/prism-query/src/proofs/`; fuzz target at workspace `fuzz/fuzz_targets/vp021_parse_fuzz.rs`. STORY-INDEX v2.06. Rename PR #126 MERGED at squash-SHA 3133710e. Red Gate Stage 1 complete (stub-architect; cargo check PASSED; 16 todo!() functions + 25 AST types). Next: Red Gate Stage 2 (test-writer writes failing tests), then implementer TDD.
 
