@@ -314,13 +314,22 @@ jobs:
     # canonical set of crate-private symbols that external crates MUST NOT
     # reach. The perimeter-violation test in
     # tests/external/perimeter-violation/src/main.rs must contain a matching
-    # `use prism_query::…` import for EVERY symbol in the spec, and vice versa.
-    # Any divergence means the spec and test have drifted — this job fails the
-    # PR and prints the exact diff.
+    # `use prism_query::…` import for every importable unit in the spec.
+    #
+    # Normalization rule: Rust `use` can only address free functions, modules,
+    # and types — not struct methods. Spec entries of the form
+    # `prism_query::A::B::MethodName` (where B is a PascalCase type) are
+    # normalized to the parent struct path `prism_query::A::B` for comparison,
+    # because that is the `use` statement the test file must contain.  Multiple
+    # method entries on the same struct collapse to a single required import.
+    #
+    # Any divergence (spec importable-unit missing from test, or test import not
+    # covered by any spec entry) fails the PR with an explanatory diff.
     #
     # .factory/ is on the `factory-artifacts` orphan branch (not committed to
     # feature branches). We fetch it via a second actions/checkout into
-    # .factory-spec/ so the CI runner can read the spec frontmatter.
+    # .factory-spec/ so the CI runner can read the spec frontmatter without
+    # polluting the workspace.
     runs-on: ubuntu-latest
     timeout-minutes: 2
     permissions:
@@ -337,7 +346,7 @@ jobs:
         run: |
           set -euo pipefail
           python3 - << 'PYEOF'
-          import re, sys, os
+          import re, sys
 
           SPEC_PATH = ".factory-spec/specs/behavioral-contracts/BC-2.11.006-query-security-limits.md"
           TEST_PATH = "tests/external/perimeter-violation/src/main.rs"
@@ -352,8 +361,8 @@ jobs:
               sys.exit(1)
           fm_text = fm_match.group(1)
 
-          # Parse restricted_symbols.symbols list
-          # Expected shape:
+          # Parse restricted_symbols.symbols list.
+          # Expected frontmatter shape:
           #   restricted_symbols:
           #     description: "..."
           #     symbols:
@@ -370,13 +379,48 @@ jobs:
               )
               sys.exit(1)
 
-          spec_symbols = sorted(
+          raw_spec_symbols = [
               line.strip().lstrip('- ')
               for line in symbols_match.group(1).splitlines()
               if line.strip().startswith('- ')
-          )
+          ]
 
-          # --- Extract use prism_query:: lines from perimeter-violation ---
+          # Normalize spec symbols to importable Rust `use` paths.
+          #
+          # Rule: a path segment is a struct/enum name if it starts with an
+          # uppercase letter (PascalCase).  Method names that follow a PascalCase
+          # segment cannot be addressed by `use`; they are accessed by calling
+          # the method on an imported struct instance.  Strip trailing method
+          # segments so that each spec entry maps to a `use`-addressable path.
+          #
+          # Example:
+          #   prism_query::security::ParseLimits::install_thread_local
+          #   → prism_query::security::ParseLimits        (strip snake_case tail)
+          #
+          #   prism_query::filter_parser::parse_filter
+          #   → prism_query::filter_parser::parse_filter  (no PascalCase parent; keep)
+          def normalize_to_use_path(sym):
+              parts = sym.split('::')
+              # Walk from the end; trim trailing snake_case segments that follow
+              # a PascalCase segment (those are method names, not importable items).
+              trim_to = len(parts)
+              for i in range(len(parts) - 1, 0, -1):
+                  if parts[i][0].isupper():
+                      # This segment is PascalCase — it IS importable; stop trimming.
+                      break
+                  if parts[i - 1][0].isupper():
+                      # Previous segment is PascalCase; current is a method — trim.
+                      trim_to = i
+                  else:
+                      # All-lowercase chain with no PascalCase parent above; keep.
+                      break
+              return '::'.join(parts[:trim_to])
+
+          # Build the set of `use`-importable paths required by the spec.
+          # Multiple method entries on the same struct collapse to one path.
+          spec_use_paths = sorted(set(normalize_to_use_path(s) for s in raw_spec_symbols))
+
+          # --- Extract `use prism_query::` lines from perimeter-violation ---
           with open(TEST_PATH) as f:
               test_content = f.read()
 
@@ -386,34 +430,40 @@ jobs:
               if re.match(r'^use prism_query::', line.strip())
           )
 
-          # --- Compare ---
-          spec_set = set(spec_symbols)
+          # --- Compare normalized spec paths vs test use statements ---
+          spec_set = set(spec_use_paths)
           test_set = set(test_symbols)
           only_in_spec = sorted(spec_set - test_set)
           only_in_test = sorted(test_set - spec_set)
 
+          print(f"Spec restricted_symbols  ({len(raw_spec_symbols)} entries, {len(spec_use_paths)} importable paths):")
+          for s in spec_use_paths:
+              print(f"  {s}")
+          print(f"\nTest use statements ({len(test_symbols)}):")
+          for s in test_symbols:
+              print(f"  {s}")
+          print()
+
           if not only_in_spec and not only_in_test:
-              print(f"OK: {len(spec_symbols)} restricted symbols match between spec and test.")
-              for s in spec_symbols:
-                  print(f"  {s}")
+              print(f"OK: all {len(spec_use_paths)} required imports are present in the perimeter-violation test.")
               sys.exit(0)
 
           print("FAIL: BC-2.11.006 restricted_symbols diverges from perimeter-violation imports.", file=sys.stderr)
           print("", file=sys.stderr)
           if only_in_spec:
-              print("Symbols listed in spec but MISSING from tests/external/perimeter-violation/src/main.rs:", file=sys.stderr)
+              print("Importable paths required by spec but MISSING from perimeter-violation/src/main.rs:", file=sys.stderr)
               for s in only_in_spec:
                   print(f"  {s}", file=sys.stderr)
-              print("  → Add a `use {sym};` import to perimeter-violation/src/main.rs for each.", file=sys.stderr)
+              print("  → Add a `use <path>;` import to perimeter-violation/src/main.rs for each.", file=sys.stderr)
               print("", file=sys.stderr)
           if only_in_test:
-              print("Symbols in perimeter-violation/src/main.rs but NOT listed in BC-2.11.006 restricted_symbols:", file=sys.stderr)
+              print("Imports in perimeter-violation/src/main.rs NOT covered by any BC-2.11.006 restricted_symbols entry:", file=sys.stderr)
               for s in only_in_test:
                   print(f"  {s}", file=sys.stderr)
-              print("  → Either add them to restricted_symbols.symbols: in BC-2.11.006 frontmatter,", file=sys.stderr)
-              print("    or remove the `use` line if the symbol is not actually restricted.", file=sys.stderr)
+              print("  → Either add the symbol (or a method on it) to restricted_symbols.symbols:", file=sys.stderr)
+              print("    in BC-2.11.006 frontmatter, or remove the `use` line if not restricted.", file=sys.stderr)
               print("", file=sys.stderr)
-          print(f"Spec count: {len(spec_symbols)}, Test count: {len(test_symbols)}", file=sys.stderr)
+          print(f"Spec importable paths: {len(spec_use_paths)}, Test imports: {len(test_symbols)}", file=sys.stderr)
           sys.exit(1)
           PYEOF
 
