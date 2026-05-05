@@ -45,7 +45,16 @@ impl ParseError {
     /// is intentionally NOT used here (MCP consumers need machine-readable
     /// output, not ANSI-colored output).
     pub fn to_json(&self) -> String {
-        todo!("S-3.01: implement JSON serialization of ParseError via serde_json")
+        // Use serde_json for compact, machine-readable JSON.
+        // unwrap_or_else: ParseError is always serializable (all fields are
+        // String/usize/Option<String> which serde_json handles infallibly),
+        // but we provide a fallback for safety.
+        serde_json::to_string(self).unwrap_or_else(|_| {
+            format!(
+                r#"{{"offset":{},"message":"serialization error"}}"#,
+                self.offset
+            )
+        })
     }
 
     /// Format all errors in `errors` as a human-readable ariadne report,
@@ -54,12 +63,55 @@ impl ParseError {
     /// The `source` argument is the original query string, used by ariadne
     /// to produce source-annotated snippets.
     pub fn format_report(errors: &[ParseError], source: &str) -> String {
-        todo!(
-            "S-3.01: implement ariadne Report construction from ParseError slice; \
-             source len={} errors={}",
-            source.len(),
-            errors.len()
-        )
+        use ariadne::{Config, Label, Report, ReportKind, Source};
+        use std::fmt::Write as _;
+
+        if errors.is_empty() {
+            return String::new();
+        }
+
+        let mut output = String::new();
+        for err in errors {
+            // Clamp offset to the source length so ariadne never panics on
+            // invalid span positions (defensive guard).
+            let src_len = source.len().max(1);
+            let offset = err.offset.min(src_len - 1);
+
+            let mut buf: Vec<u8> = Vec::new();
+            let span = offset..(offset + 1).min(src_len);
+
+            let report_result =
+                Report::<(&str, std::ops::Range<usize>)>::build(ReportKind::Error, "query", offset)
+                    .with_config(
+                        Config::default().with_color(false), // no ANSI codes — MCP-safe plain text
+                    )
+                    .with_message(err.message.clone())
+                    .with_label(Label::new(("query", span)).with_message(err.message.clone()))
+                    .finish()
+                    .write(("query", Source::from(source)), &mut buf);
+
+            match report_result {
+                Ok(()) => {
+                    if let Ok(s) = std::str::from_utf8(&buf) {
+                        let _ = write!(output, "{s}");
+                    }
+                }
+                Err(_) => {
+                    // Fallback: plain text representation.
+                    let _ = writeln!(
+                        output,
+                        "parse error at offset {}: {}",
+                        err.offset, err.message
+                    );
+                }
+            }
+
+            if let Some(ref label) = err.recovery_label {
+                let _ = writeln!(output, "  recovery point: {label}");
+            }
+        }
+
+        output
     }
 }
 

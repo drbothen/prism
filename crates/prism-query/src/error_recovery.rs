@@ -20,11 +20,9 @@ use crate::error::ParseError;
 /// This mapping is used by all three parsers to normalise Chumsky's internal
 /// error representation into the public `ParseError` API.
 pub fn rich_to_parse_error(err: &Rich<'_, char>) -> ParseError {
-    todo!(
-        "S-3.01: extract offset and reason from Rich<char>; construct ParseError; \
-         err_span={:?}",
-        err.span()
-    )
+    let offset = err.span().start;
+    let message = err.to_string();
+    ParseError::new(offset, message)
 }
 
 /// Return the set of characters that signal a pipe-stage boundary.

@@ -52,13 +52,17 @@ pub const E_QUERY_003: &str = "E-QUERY-003";
 /// `raw.len() > PRISM_MAX_QUERY_SIZE` (or the value of the
 /// `PRISM_MAX_QUERY_SIZE` env var if set).
 pub fn check_query_size(raw: &str) -> Result<(), PrismError> {
-    todo!(
-        "S-3.01: read PRISM_MAX_QUERY_SIZE env var (default {default}); \
-         return Err(PrismError::QueryExecutionFailed {{ detail: … }}) if \
-         raw.len() ({len}) > limit",
-        default = PRISM_MAX_QUERY_SIZE,
-        len = raw.len()
-    )
+    let limit = effective_query_size_limit();
+    if raw.len() > limit {
+        return Err(PrismError::QueryExecutionFailed {
+            detail: format!(
+                "{E_QUERY_003}: query size {} bytes exceeds maximum allowed {} bytes (64KB limit)",
+                raw.len(),
+                limit
+            ),
+        });
+    }
+    Ok(())
 }
 
 /// Recursively check that an expression AST does not exceed the maximum
@@ -76,14 +80,31 @@ pub fn check_query_size(raw: &str) -> Result<(), PrismError> {
 /// Returns `PrismError::QueryExecutionFailed` with code `E-QUERY-003` if
 /// the depth of `ast` exceeds `PRISM_MAX_NESTING_DEPTH` (or the value of
 /// the `PRISM_MAX_NESTING_DEPTH` env var if set).
-pub fn check_nesting_depth(_ast: &Expr, depth: u32) -> Result<(), PrismError> {
-    todo!(
-        "S-3.01: recursively descend into Expr variants; count depth; \
-         return Err(PrismError::QueryExecutionFailed {{ detail: … }}) \
-         if depth ({depth}) > PRISM_MAX_NESTING_DEPTH ({max})",
-        depth = depth,
-        max = PRISM_MAX_NESTING_DEPTH
-    )
+pub fn check_nesting_depth(ast: &Expr, depth: u32) -> Result<(), PrismError> {
+    let limit = effective_nesting_depth_limit();
+    if depth > limit {
+        return Err(PrismError::QueryExecutionFailed {
+            detail: format!(
+                "{E_QUERY_003}: expression nesting depth {depth} exceeds maximum allowed {limit}"
+            ),
+        });
+    }
+    // Recursively check children.
+    let next = depth + 1;
+    match ast {
+        Expr::Literal(_) | Expr::Field(_) => Ok(()),
+        Expr::Compare { lhs, rhs, .. } => {
+            check_nesting_depth(lhs, next)?;
+            check_nesting_depth(rhs, next)
+        }
+        Expr::Logical { lhs, rhs, .. } => {
+            check_nesting_depth(lhs, next)?;
+            check_nesting_depth(rhs, next)
+        }
+        Expr::Not(inner) => check_nesting_depth(inner, next),
+        Expr::In { .. } => Ok(()),
+        Expr::InSubquery { .. } => Ok(()),
+    }
 }
 
 /// Check that a pipe query does not contain more than the maximum allowed
@@ -97,12 +118,16 @@ pub fn check_nesting_depth(_ast: &Expr, depth: u32) -> Result<(), PrismError> {
 /// Returns `PrismError::QueryExecutionFailed` with code `E-QUERY-003` if
 /// `stages.len() > PRISM_MAX_PIPE_STAGES`.
 pub fn check_pipe_stage_count(stages: &[PipeStage]) -> Result<(), PrismError> {
-    todo!(
-        "S-3.01: return Err(PrismError::QueryExecutionFailed {{ detail: … }}) \
-         if stages.len() ({len}) > PRISM_MAX_PIPE_STAGES ({max})",
-        len = stages.len(),
-        max = PRISM_MAX_PIPE_STAGES
-    )
+    if stages.len() > PRISM_MAX_PIPE_STAGES {
+        return Err(PrismError::QueryExecutionFailed {
+            detail: format!(
+                "{E_QUERY_003}: pipe stage count {} exceeds maximum allowed {}",
+                stages.len(),
+                PRISM_MAX_PIPE_STAGES
+            ),
+        });
+    }
+    Ok(())
 }
 
 /// Check that a regex pattern string does not exceed the maximum allowed
@@ -116,12 +141,16 @@ pub fn check_pipe_stage_count(stages: &[PipeStage]) -> Result<(), PrismError> {
 /// Returns `PrismError::QueryExecutionFailed` with code `E-QUERY-003` if
 /// `pattern.len() > PRISM_MAX_REGEX_PATTERN_LEN`.
 pub fn check_regex_pattern_length(pattern: &str) -> Result<(), PrismError> {
-    todo!(
-        "S-3.01: return Err(PrismError::QueryExecutionFailed {{ detail: … }}) \
-         if pattern.len() ({len}) > PRISM_MAX_REGEX_PATTERN_LEN ({max})",
-        len = pattern.len(),
-        max = PRISM_MAX_REGEX_PATTERN_LEN
-    )
+    if pattern.len() > PRISM_MAX_REGEX_PATTERN_LEN {
+        return Err(PrismError::QueryExecutionFailed {
+            detail: format!(
+                "{E_QUERY_003}: regex pattern length {} bytes exceeds maximum allowed {} bytes",
+                pattern.len(),
+                PRISM_MAX_REGEX_PATTERN_LEN
+            ),
+        });
+    }
+    Ok(())
 }
 
 /// Return the effective query size limit, reading `PRISM_MAX_QUERY_SIZE`
@@ -131,12 +160,18 @@ pub fn check_regex_pattern_length(pattern: &str) -> Result<(), PrismError> {
 /// Called by `check_query_size`. Separated out to enable deterministic
 /// testing without process-level env var mutation.
 pub fn effective_query_size_limit() -> usize {
-    todo!("S-3.01: read PRISM_MAX_QUERY_SIZE env var; parse as usize; fall back to PRISM_MAX_QUERY_SIZE")
+    std::env::var("PRISM_MAX_QUERY_SIZE")
+        .ok()
+        .and_then(|v| v.parse::<usize>().ok())
+        .unwrap_or(PRISM_MAX_QUERY_SIZE)
 }
 
 /// Return the effective nesting depth limit, reading `PRISM_MAX_NESTING_DEPTH`
 /// from the environment if set, otherwise falling back to the compile-time
 /// default of 64.
 pub fn effective_nesting_depth_limit() -> u32 {
-    todo!("S-3.01: read PRISM_MAX_NESTING_DEPTH env var; parse as u32; fall back to PRISM_MAX_NESTING_DEPTH")
+    std::env::var("PRISM_MAX_NESTING_DEPTH")
+        .ok()
+        .and_then(|v| v.parse::<u32>().ok())
+        .unwrap_or(PRISM_MAX_NESTING_DEPTH)
 }
