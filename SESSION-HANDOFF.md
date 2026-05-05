@@ -5,7 +5,7 @@ version: "6.72"
 status: current
 timestamp: 2026-05-04T00:00:00Z
 predecessor_session: "Wave 4 Phase 4.A R9 HUMAN APPROVED 2026-05-04. STATE v6.70. factory-artifacts 15fa97e6 (pre-compact state capture canonical SHA). TD register gap closed: 7 items filed per D-220 (TD-VSDD-053 P0 + 4 P3 R8 carry-forward + 2 P2 D-219 holdout gap)."
-successor_focus: "WAVE 4 PHASE 4.B PREREQ 1 CLOSED (2026-05-04). D-218 wave-doc-refresh COMPLETE. D-221 logged. STATE v6.72. factory-artifacts canonical: 15fa97e6 (Stage 1 placeholder — backfilled in Stage 2).
+successor_focus: "WAVE 4 PHASE 4.B PREREQ 1 CLOSED (2026-05-04). D-218 wave-doc-refresh COMPLETE. D-221 logged. STATE v6.72. factory-artifacts canonical: 2a2c9a8f.
 
 **STEP 1 (D-218 wave doc refresh): COMPLETE (2026-05-04)** — wave-state.yaml PHASE_4_A_CONVERGED + R9_APPROVED; epics.md v1.4 (76→129 stories; W3-FIX-* added; E-3 sub-epics final); STORY-INDEX v2.04 (BC-INDEX cite v4.32 sync; TD-W4-CV-LOW-001 closed); ARCH-INDEX v2.29 (ADR-016 date 2026-05-02; TD-W4-CV-LOW-002 closed); vsdd-plugin-tech-debt.md v2.3 (TD-W4-CV-LOW-001/002 resolved). 3 anomalies flagged in D-221: duplicate S-3.1.06 slug (POL-1 violation), ADR-014 missing from registry, Z/no-Z timestamp inconsistency.
 
@@ -22,7 +22,7 @@ successor_focus: "WAVE 4 PHASE 4.B PREREQ 1 CLOSED (2026-05-04). D-218 wave-doc-
 **STEP 7 (Wave 5 kickoff):** Phase 5.A spec convergence for 10 W5 draft stories. Author W5 holdout scenarios (standard per-wave Phase X.A R-step per D-219).
 
 **KEY REFERENCES:**
-- STATE.md v6.72: develop@ba3b10c7; factory-artifacts 15fa97e6 (Stage 1 placeholder — backfilled Stage 2); +TD register v2.3 (TD-W4-CV-LOW-001/002 resolved; D-221)
+- STATE.md v6.72: develop@ba3b10c7; factory-artifacts 2a2c9a8f (canonical SHA — D-218 wave-doc-refresh closure); +TD register v2.3 (TD-W4-CV-LOW-001/002 resolved; D-221)
 - D-215: No W1/W2/W3 audit needed (optional R11 structural-drift sweep using TD-VSDD-039..052 methodologies — low-priority, NOT Phase 4.B blocker)
 - D-216: W4 holdout scenarios GAP — 8 HS files (HS-001..HS-008) have NO W4 BC/story references; BLOCKER for Phase 4.B wave gate; product-owner must author HS-009+ before S-4.01/S-4.03 dispatch — IMMEDIATE NEXT ACTION
 - D-217: Wave reality — 7 waves (W0..W6); 129 stories on disk vs 76 in epics.md v1.2 (now v1.4 — refreshed); W3 expanded 13→51; W6 mixed status (11 DTU merged, 9 draft)
@@ -30,7 +30,7 @@ successor_focus: "WAVE 4 PHASE 4.B PREREQ 1 CLOSED (2026-05-04). D-218 wave-doc-
 - D-219: Holdout-coverage SYSTEMIC gap: W1 never evaluated; W2 0.65 CONDITIONAL; W3 gold-standard 0.907; W4/W5/W6 no HS yet; per-wave HS authoring should become standard Phase X.A R-step (TD-VSDD-053 candidate)
 - D-221: D-218 closure logged — epics.md v1.4, STORY-INDEX v2.04, ARCH-INDEX v2.29; 3 anomalies flagged (S-3.1.06 slug dupe, ADR-014 missing, Z/no-Z timestamp)
 - pass-31.md: cycles/wave-4-operations/adversarial-reviews/pass-31.md (PERFECT CLEAN; 0 findings; 17 cross-cuts incl. 2 NOVEL-AXIS; CONVERGED)
-- cycle-manifest v1.55 (D-218 wave-doc-refresh closure; 15fa97e6 Stage 1 placeholder)
+- cycle-manifest v1.55 (D-218 wave-doc-refresh closure; SHA 2a2c9a8f)
 - ARCH-INDEX v2.29 (ADR-016 date 2026-05-02; TD-W4-CV-LOW-002 resolved)
 - STORY-INDEX v2.04 (BC-INDEX v4.32 cite sync; TD-W4-CV-LOW-001 resolved)
 - epics.md v1.4 (E-3 sub-epics final; W3-FIX-* added; total 76→129)
@@ -41,7 +41,7 @@ successor_focus: "WAVE 4 PHASE 4.B PREREQ 1 CLOSED (2026-05-04). D-218 wave-doc-
 - Product TD register: tech-debt-register.md (57 active product items)
 - vsdd-plugin-tech-debt.md: 38 items v2.3 (TD-W4-CV-LOW-001/002 resolved 2026-05-04; D-221)
 
-factory-artifacts canonical: 15fa97e6 (Stage 1 placeholder — backfilled in Stage 2). develop HEAD: ba3b10c7."
+factory-artifacts canonical: 2a2c9a8f (D-218 wave-doc-refresh closure). develop HEAD: ba3b10c7."
 ---
 
 # Session Handoff — WAVE 4 PHASE 4.A DECISIONS LOGGED (2026-05-02)
@@ -158,12 +158,12 @@ factory-artifacts canonical: 15fa97e6 (Stage 1 placeholder — backfilled in Sta
 
 ## Current State
 
-develop HEAD `ba3b10c7` | factory-artifacts `15fa97e6` (Stage 1 placeholder — backfilled Stage 2; D-218 wave-doc-refresh closure; STATE v6.72)
+develop HEAD `ba3b10c7` | factory-artifacts `2a2c9a8f` (canonical SHA — D-218 wave-doc-refresh closure; STATE v6.72)
 
 | Metric | Value |
 |--------|-------|
 | develop HEAD | `ba3b10c7` (W3-FIX-SEC-005 — Wave 3.4 final PR, PR #125, 2026-05-02) |
-| factory-artifacts HEAD | `15fa97e6` (Stage 1 placeholder — backfilled Stage 2; D-218 wave-doc-refresh closure; STATE v6.72) |
+| factory-artifacts HEAD | `2a2c9a8f` (canonical SHA — D-218 wave-doc-refresh closure; STATE v6.72) |
 | PR count merged | 125 |
 | Workspace test count | 2363 (nextest-verified; +133 from CI nextest split + doctest migration) |
 | Open PRs | None |

@@ -378,7 +378,7 @@ user_directive_persistent: "No pragmatic convergence. Fix all issues before buil
 | **Last Updated** | 2026-05-04 (D-218 wave-doc-refresh closure — epics.md v1.4, STORY-INDEX v2.04, ARCH-INDEX v2.29, wave-state.yaml PHASE_4_A_CONVERGED; TD-W4-CV-LOW-001/002 resolved; STATE v6.72) |
 | **Current Phase** | Phase 4.A — APPROVED + CONVERGED (31 passes consumed; Pass 31 PERFECT CLEAN; window 3/3 CLOSED; R9 HUMAN APPROVED 2026-05-04) |
 | **Current Step** | Wave 4 Phase 4.B prereq 1 CLOSED — STEP 1 (D-218) COMPLETE; STEP 2 (D-216 W4 HS authoring — BLOCKER), STEP 3 (R10 S-4.01/S-4.03), STEP 4 (Wave 4 impl), STEP 5 (R11 W4-FIX-*), STEP 6 (W4 wave gate), STEP 7 (Wave 5 kickoff) |
-| **factory-artifacts HEAD** | `cb71284d` |
+| **factory-artifacts HEAD** | `2a2c9a8f` |
 
 ## Phase Progress
 
@@ -531,9 +531,9 @@ Cycle files: [burst-log](cycles/phase-2-patch/burst-log.md) | [convergence-traje
 
 _Previous checkpoint archived: [cycles/wave-4-operations/session-checkpoints.md](cycles/wave-4-operations/session-checkpoints.md)_
 
-**STATE v6.72 (canonical SHA  — Stage 1 placeholder; backfilled in Stage 2). WAVE 4 PHASE 4.B PREREQ 1 CLOSED. D-218 wave-doc-refresh COMPLETE: epics.md v1.4 (76→129); STORY-INDEX v2.04 (BC-INDEX v4.32 cite sync; TD-W4-CV-LOW-001 closed); ARCH-INDEX v2.29 (ADR-016 date 2026-05-02; TD-W4-CV-LOW-002 closed). D-221 logged.**
+**STATE v6.72 (canonical SHA `2a2c9a8f`). WAVE 4 PHASE 4.B PREREQ 1 CLOSED. D-218 wave-doc-refresh COMPLETE: epics.md v1.4 (76→129); STORY-INDEX v2.04 (BC-INDEX v4.32 cite sync; TD-W4-CV-LOW-001 closed); ARCH-INDEX v2.29 (ADR-016 date 2026-05-02; TD-W4-CV-LOW-002 closed). D-221 logged.**
 
-develop HEAD:  | factory-artifacts:  | workspace tests: 2363 | PRs merged: 125
+develop HEAD: `ba3b10c7` | factory-artifacts: `2a2c9a8f` | workspace tests: 2363 | PRs merged: 125
 
 **D-218 CLOSED (2026-05-04):** wave-state.yaml PHASE_4_A_CONVERGED + R9_APPROVED set. epics.md v1.4 final (E-3 sub-epics + W3-FIX-* additions; total 76→129). STORY-INDEX v2.04 (BC-INDEX cite v4.32 sync; TD-W4-CV-LOW-001 resolved). ARCH-INDEX v2.29 (ADR-016 date 2026-05-02; TD-W4-CV-LOW-002 resolved). vsdd-plugin-tech-debt.md v2.3 (TD-W4-CV-LOW-001/002 marked resolved). 3 anomalies flagged in D-221: duplicate S-3.1.06 slug (POL-1 violation), ADR-014 missing from registry, timestamp Z/no-Z inconsistency.
 
