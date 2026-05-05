@@ -158,7 +158,14 @@ graph LR
     style Low fill:#90EE90
 ```
 
-Pure rename — no new code paths, no new inputs, no credential changes. Verified: no secrets or tokens in renamed symbols. Light security pass confirms no surface area change.
+Pure rename — no new code paths, no new inputs, no credential changes. Security review completed 2026-05-04:
+- No secret or token references in renamed symbols
+- No new injection surface (function signatures unchanged)
+- No new dependencies introduced
+- No OWASP Top 10 findings
+- `extract_org_id_from_session_id` (already generic name) unchanged
+- Doc comments updated to remove sensor-specific naming — no behavioral effect
+- All 4 changed files reviewed: 3 are doc/declaration changes, 1 is a function rename with identical implementation body
 
 ---
 

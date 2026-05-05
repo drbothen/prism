@@ -1,10 +1,10 @@
 ---
 document_type: story-index
 level: "L4"
-version: "v2.05"
+version: "v2.06"
 status: draft
 producer: state-manager
-timestamp: 2026-05-04T00:00:00
+timestamp: 2026-05-04T01:00:00
 phase: 3
 total_stories: 129
 total_active_bcs: 222
@@ -268,7 +268,7 @@ pursuing maximum parallelism should schedule by topological layer, not wave numb
 | S-2.06 | DataSource Trait and Auth Patterns [MERGED PR #54 0b194cb4 2026-04-25 +51t] | prism-sensors | 4 | -- | 3 | S-1.06,S-1.11 |
 | S-2.07 | Per-Sensor Auth and Pagination [MERGED PR #60 26d0954b 2026-04-26 +56t RED_RATIO=83.9%] | prism-sensors | 5 | -- | 3 | S-2.06 |
 | S-2.08 | Event Table Abstraction and Local Buffering [MERGED PR #61 0be11cd6 2026-04-26 +92t RED_RATIO=54.3% prism-query-crate-created **WAVE-2-CLOSED** spec-v1.9-W2-P2-A-005-schema-hygiene-fix] | prism-sensors, prism-query | 0 | -- | 3 | S-2.06,S-2.01,S-1.11 |
-| S-3.01 | PrismQL Parser (Filter + SQL + Pipe) [v1.6] | prism-query | 4 | VP-014,015,021 | 3 | S-1.01 |
+| S-3.01 | PrismQL Parser (Filter + SQL + Pipe) [v1.7] | prism-query | 4 | VP-014,015,021 | 3 | S-1.01 |
 | S-3.02 | Query Tool and Materialization [v1.8-spec-rem] | prism-query | 6 | VP-031 | 3 | S-3.01,S-2.06,S-1.04,S-2.01,S-2.03,S-6.08,S-6.09,S-6.10 |
 | S-3.03 | Explain and Query Diagnostics [v1.5] | prism-query | 1 | -- | 1 | S-3.02 |
 | S-3.04 | Alias System (P1) [v1.8] | prism-query | 5 | VP-012,013,037 | 2 | S-3.02,S-1.08,S-1.09 |
@@ -885,6 +885,7 @@ All 13 new DTU clones: Wave 0, 0 BCs, priority P0, depends_on: [S-6.06].
 
 | Version | Date | Summary |
 |---------|------|---------|
+| v2.06 | 2026-05-04 | spec-sync-2026-05-04 (story-writer): S-3.01 v1.6→v1.7 spec sync to actual file placement from Red Gate Stage 1. Kani proof paths corrected: crates/prism-query/proofs/ → crates/prism-query/src/proofs/ (matches workspace convention of prism-core/prism-storage/prism-spec-engine; src/proofs/mod.rs entry point added). Fuzz target path corrected: crates/prism-query/fuzz/vp021_parse_fuzz.rs → fuzz/fuzz_targets/vp021_parse_fuzz.rs (workspace-level per cargo-fuzz convention; fuzz/Cargo.toml extended with prism-query dep + [[bin]] entry). Tasks 10/11/12 and File Structure table updated to match actual placement. Token Budget table paths updated. Stub-architect's Red Gate Stage 1 used the actual locations; this spec update reconciles. Resolves task #118. |
 | v2.05 | 2026-05-04 | W3-spec-remediation burst (story-writer): (1) RED fixes: S-3.01 File Structure "Create"→"Extend" for Cargo.toml+lib.rs; chumsky "0.12" confirmed; kani-verifier "=0.67.0" exact-pinned; VP-015 depth 32→64. (2) S-3.05 lru 0.12.x conflict resolved: moka "0.12" for cross-query cache; caching context table added. (3) S-3.07 DataFusion 53.x write API flagged as TDD-gate; size remains 5pts. (4) Version pins propagated to all 13 W3 stories (datafusion "53.1", arrow "58", tracing "0.1.44", proptest "1.11", regex "1.12", serde "1", kani-verifier "=0.67.0"). MSRV Rust 1.85 noted in each story. (5) BC anchor backfill: S-3.08 → BC-2.11.001/005/010/012; S-3.09 → BC-2.11.001/BC-2.08.008; S-3.10 → BC-2.11.007/010; S-3.11 → BC-2.11.005/011; S-3.12 → BC-2.11.007/BC-2.16.001; S-3.13 → BC-2.16.007/001/BC-2.11.001. BC table + Behavioral Contract Linkage section added to each. All marked "proxy" BCs — PO authorship of dedicated BCs recommended before status=ready. (6) Cross-story AST coherence: S-3.06 AST module path canonical name `prism_query::write_ast` added; S-3.07 Previous Story Intelligence updated to consume from `prism_query::write_ast`. (7) VP-015 file v1.4→v1.5 (depth limit 32→64). (8) Story versions bumped: S-3.01 v1.5→1.6, S-3.02 v1.7→1.8, S-3.03 v1.4→1.5, S-3.04 v1.7→1.8, S-3.05 v1.8→1.9, S-3.06 v1.5→1.6, S-3.07 v1.6→1.7, S-3.08 v1.4→1.5, S-3.09 v1.4→1.5, S-3.10 v1.4→1.5, S-3.11 v1.4→1.5, S-3.12 v1.4→1.5, S-3.13 v1.6→1.7. BC Traceability Matrix updated for all newly anchored BCs. |
 | v2.04 | 2026-05-04 | TD-W4-CV-LOW-001 CLOSED (story-writer): BC-INDEX version cite corrected v4.27 → v4.32 (two occurrences: overview BCs-covered note + Wave Summary unique-count comment). Wave summary story counts confirmed correct (5/20/11/17/8/10/5 = 76 base + 53 Wave-3-band = 129 total match filesystem). Timestamp updated 2026-05-03 → 2026-05-04. |
 | v2.03 | 2026-05-03 | F-PreP21-M-001 (story-writer): S-5.06 v1.10→v1.11 (cross-wave consistency sweep — 5 sites; ADR-013 §2.1 60s default + D-209 8-permit + ActionDeliveryEngine type name). Full Story List row updated [v1.11] annotation added. |
