@@ -39,6 +39,103 @@ pub const PRISM_MAX_LIST_ITEMS: usize = 1_024;
 /// Error code string for security-limit violations.
 pub const E_QUERY_003: &str = "E-QUERY-003";
 
+/// Snapshot of all effective parse limits, captured once at the start of
+/// `PrismQlParser::parse`.
+///
+/// # Motivation (F-LOW-002, BC-2.11.006)
+/// Each `effective_*_limit()` function reads an env var independently. If another
+/// thread calls `std::env::set_var(...)` between guard invocations within a single
+/// `parse()` call, different guards would see different limit values — allowing
+/// an attacker to exploit the window to bypass a guard. Snapshotting all limits
+/// once before any guard runs eliminates this race.
+///
+/// # Usage
+/// ```rust,ignore
+/// let limits = ParseLimits::snapshot();
+/// // Pass &limits to check_query_size_with, check_paren_depth_with, etc.
+/// ```
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct ParseLimits {
+    /// Effective query size limit in bytes (`PRISM_MAX_QUERY_SIZE`).
+    pub query_size: usize,
+    /// Effective nesting depth limit (`PRISM_MAX_NESTING_DEPTH`).
+    pub nesting_depth: u32,
+    /// Effective paren depth limit (same as `nesting_depth`).
+    pub paren_depth: u32,
+    /// Effective list items limit (`PRISM_MAX_LIST_ITEMS`).
+    pub list_items: usize,
+    /// Effective pipe stages limit (`PRISM_MAX_PIPE_STAGES`).
+    pub pipe_stages: usize,
+    /// Effective regex pattern length limit (`PRISM_MAX_REGEX_PATTERN_LEN`).
+    pub regex_pattern: usize,
+}
+
+impl ParseLimits {
+    /// Snapshot all effective limits from environment variables (with clamping).
+    ///
+    /// This must be called ONCE at the start of `PrismQlParser::parse` so that
+    /// all security guards within a single parse call use consistent values.
+    pub fn snapshot() -> Self {
+        let nesting_depth = effective_nesting_depth_limit();
+        Self {
+            query_size: effective_query_size_limit(),
+            nesting_depth,
+            paren_depth: nesting_depth,
+            list_items: effective_list_items_limit(),
+            pipe_stages: effective_pipe_stage_limit(),
+            regex_pattern: effective_regex_pattern_length_limit(),
+        }
+    }
+
+    /// Check query size using the snapshotted limit (no env-var re-read).
+    pub fn check_query_size(&self, raw: &str) -> Result<(), PrismError> {
+        if raw.len() > self.query_size {
+            return Err(PrismError::QueryExecutionFailed {
+                detail: format!(
+                    "{E_QUERY_003}: query size {} bytes exceeds maximum allowed {} bytes (64KB limit)",
+                    raw.len(),
+                    self.query_size
+                ),
+            });
+        }
+        Ok(())
+    }
+
+    /// Check paren depth using the snapshotted limit (no env-var re-read).
+    pub fn check_paren_depth(&self, raw: &str) -> Result<(), PrismError> {
+        let limit = self.paren_depth;
+        let mut depth: u32 = 0;
+        let mut in_sq = false;
+        let mut in_dq = false;
+        for ch in raw.chars() {
+            match ch {
+                '\'' if !in_dq => in_sq = !in_sq,
+                '"' if !in_sq => in_dq = !in_dq,
+                '(' if !in_sq && !in_dq => {
+                    depth += 1;
+                    if depth > limit {
+                        return Err(PrismError::QueryExecutionFailed {
+                            detail: format!(
+                                "{E_QUERY_003}: expression nesting depth exceeds maximum allowed {limit}"
+                            ),
+                        });
+                    }
+                }
+                ')' if !in_sq && !in_dq => {
+                    depth = depth.saturating_sub(1);
+                }
+                _ => {}
+            }
+        }
+        if in_sq || in_dq {
+            return Err(PrismError::QueryExecutionFailed {
+                detail: format!("{E_QUERY_003}: unclosed string literal (quote) at end of input"),
+            });
+        }
+        Ok(())
+    }
+}
+
 /// Check that a raw query string does not exceed the maximum allowed size.
 ///
 /// # Security
@@ -249,6 +346,16 @@ pub fn check_paren_depth(raw: &str) -> Result<(), PrismError> {
     Ok(())
 }
 
+/// Minimum safe list items limit.
+///
+/// Prevents `PRISM_MAX_LIST_ITEMS=0` from silently disabling the list-length guard.
+pub const MIN_SAFE_LIST_ITEMS: usize = 16;
+
+/// Maximum safe list items limit.
+///
+/// Prevents `PRISM_MAX_LIST_ITEMS=<huge>` from effectively disabling the guard.
+pub const MAX_SAFE_LIST_ITEMS: usize = 16_384;
+
 /// Minimum safe pipe stage count limit.
 ///
 /// Prevents `PRISM_MAX_PIPE_STAGES=0` from disabling the guard entirely.
@@ -344,6 +451,36 @@ pub fn check_pipe_stage_count(stages: &[PipeStage]) -> Result<(), PrismError> {
     Ok(())
 }
 
+/// Return the effective list items limit, clamped to
+/// [MIN_SAFE_LIST_ITEMS, MAX_SAFE_LIST_ITEMS].
+///
+/// If the env var is out of range, a warning is emitted and the value is clamped.
+///
+/// (F-LOW-003, BC-2.11.006)
+pub fn effective_list_items_limit() -> usize {
+    match std::env::var("PRISM_MAX_LIST_ITEMS")
+        .ok()
+        .and_then(|v| v.parse::<usize>().ok())
+    {
+        None => PRISM_MAX_LIST_ITEMS,
+        Some(v) if v < MIN_SAFE_LIST_ITEMS => {
+            eprintln!(
+                "prism-query: PRISM_MAX_LIST_ITEMS={v} is below minimum safe value \
+                 ({MIN_SAFE_LIST_ITEMS}); clamping to {MIN_SAFE_LIST_ITEMS}"
+            );
+            MIN_SAFE_LIST_ITEMS
+        }
+        Some(v) if v > MAX_SAFE_LIST_ITEMS => {
+            eprintln!(
+                "prism-query: PRISM_MAX_LIST_ITEMS={v} is above maximum safe value \
+                 ({MAX_SAFE_LIST_ITEMS}); clamping to {MAX_SAFE_LIST_ITEMS}"
+            );
+            MAX_SAFE_LIST_ITEMS
+        }
+        Some(v) => v,
+    }
+}
+
 /// Check that a list (IN items, ORDER BY items, GROUP BY items, etc.) does not
 /// exceed the maximum allowed item count (B-8, BC-2.11.006).
 ///
@@ -354,13 +491,14 @@ pub fn check_pipe_stage_count(stages: &[PipeStage]) -> Result<(), PrismError> {
 ///
 /// # Errors
 /// Returns `PrismError::QueryExecutionFailed` with code `E-QUERY-003` if
-/// `count > PRISM_MAX_LIST_ITEMS`.
+/// `count > effective_list_items_limit()`.
 pub fn check_list_length(count: usize, context: &str) -> Result<(), PrismError> {
-    if count > PRISM_MAX_LIST_ITEMS {
+    let limit = effective_list_items_limit();
+    if count > limit {
         return Err(PrismError::QueryExecutionFailed {
             detail: format!(
                 "{E_QUERY_003}: {context} item count {count} exceeds maximum allowed \
-                 {PRISM_MAX_LIST_ITEMS}"
+                 {limit}"
             ),
         });
     }

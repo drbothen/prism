@@ -27,7 +27,11 @@
 //
 // `#[non_exhaustive]` enum catch-alls: the `_ => {}` arms handle future variants
 // added by downstream stories (S-3.06+). Clippy warns "unreachable" because all
-// current variants are covered — the warning is suppressed at file level.
+// current variants are explicitly covered — the warning is suppressed at file level.
+// `Predicate::RecoveryError` is a leaf sentinel with no sub-expressions; it is
+// handled by an explicit arm in `walk_predicate` (F-LOW-001). Future visitors
+// that need to count or log recovery sentinels can override `visit_predicate`
+// and check for `Predicate::RecoveryError` without relying on a catch-all.
 #![allow(unreachable_patterns)]
 
 use crate::ast::{
@@ -233,6 +237,10 @@ pub fn walk_predicate<V: Visitor + ?Sized>(v: &mut V, p: &Predicate) {
         Predicate::Not(inner) => {
             v.visit_predicate(inner);
         }
+        // F-LOW-001: RecoveryError is a leaf sentinel — no sub-expressions to descend into.
+        // Explicit arm (not catch-all) so future visitors can detect the presence of
+        // a recovery sentinel by overriding visit_predicate and checking for this variant.
+        Predicate::RecoveryError => { /* leaf sentinel; no descent */ }
         _ => {}
     }
 }

@@ -279,4 +279,100 @@ mod dynamic_tests {
             "VP-015 fallback: shallow SqlQuery must be accepted"
         );
     }
+
+    /// VP-015 SqlQuery path: deep predicate in HAVING clause must be rejected.
+    ///
+    /// `check_sql_query_nesting_depth` traverses `sq.having` via
+    /// `check_predicate_nesting_depth`. This test closes the coverage gap
+    /// identified in adversary pass-4 (F-MEDIUM-002): previously only
+    /// `where_` was exercised by dynamic tests.
+    #[test]
+    fn test_sql_query_having_depth_above_limit_returns_err() {
+        for extra in 1..=4 {
+            let pred = deep_predicate(PRISM_MAX_NESTING_DEPTH + extra);
+            let from = FromClause::new(SourceRef::from_raw("crowdstrike.detections"));
+            let select = SelectClause::new(vec![SelectItem::Star]);
+            let mut sq = SqlQuery::new(select, from);
+            sq.having = Some(pred);
+
+            let result = check_sql_query_nesting_depth(&sq, 0);
+            assert!(
+                result.is_err(),
+                "VP-015 fallback: SqlQuery HAVING depth LIMIT+{extra} must return Err"
+            );
+            let msg = format!("{:?}", result.unwrap_err());
+            assert!(
+                msg.contains("E-QUERY-003"),
+                "VP-015 fallback: SqlQuery HAVING depth error must reference E-QUERY-003, got: {msg}"
+            );
+        }
+    }
+
+    /// VP-015 SqlQuery path: deep Expr in JOIN ON condition must be rejected.
+    ///
+    /// `check_sql_query_nesting_depth` traverses `sq.joins[*].on` via
+    /// `check_expr_nesting_depth`. This test closes the coverage gap
+    /// identified in adversary pass-4 (F-MEDIUM-002).
+    #[test]
+    fn test_sql_query_join_on_depth_above_limit_returns_err() {
+        use crate::ast::{Join, JoinKind};
+
+        for extra in 1..=4 {
+            let on_expr = deep_expr(PRISM_MAX_NESTING_DEPTH + extra);
+            let from = FromClause::new(SourceRef::from_raw("crowdstrike.detections"));
+            let select = SelectClause::new(vec![SelectItem::Star]);
+            let join = Join {
+                kind: JoinKind::Inner,
+                source: SourceRef::from_raw("armis.devices"),
+                alias: None,
+                on: on_expr,
+            };
+            let mut sq = SqlQuery::new(select, from);
+            sq.joins.push(join);
+
+            let result = check_sql_query_nesting_depth(&sq, 0);
+            assert!(
+                result.is_err(),
+                "VP-015 fallback: SqlQuery JOIN ON depth LIMIT+{extra} must return Err"
+            );
+            let msg = format!("{:?}", result.unwrap_err());
+            assert!(
+                msg.contains("E-QUERY-003"),
+                "VP-015 fallback: SqlQuery JOIN ON depth error must reference E-QUERY-003, got: {msg}"
+            );
+        }
+    }
+
+    /// VP-015 SqlQuery path: deep Expr in ORDER BY clause must be rejected.
+    ///
+    /// `check_sql_query_nesting_depth` traverses `sq.order_by[*].expr` via
+    /// `check_expr_nesting_depth`. This test closes the coverage gap
+    /// identified in adversary pass-4 (F-MEDIUM-002).
+    #[test]
+    fn test_sql_query_order_by_depth_above_limit_returns_err() {
+        use crate::ast::{OrderExpr, SortDirection};
+
+        for extra in 1..=4 {
+            let ord_expr = deep_expr(PRISM_MAX_NESTING_DEPTH + extra);
+            let from = FromClause::new(SourceRef::from_raw("crowdstrike.detections"));
+            let select = SelectClause::new(vec![SelectItem::Star]);
+            let oe = OrderExpr {
+                expr: ord_expr,
+                direction: SortDirection::Asc,
+            };
+            let mut sq = SqlQuery::new(select, from);
+            sq.order_by.push(oe);
+
+            let result = check_sql_query_nesting_depth(&sq, 0);
+            assert!(
+                result.is_err(),
+                "VP-015 fallback: SqlQuery ORDER BY depth LIMIT+{extra} must return Err"
+            );
+            let msg = format!("{:?}", result.unwrap_err());
+            assert!(
+                msg.contains("E-QUERY-003"),
+                "VP-015 fallback: SqlQuery ORDER BY depth error must reference E-QUERY-003, got: {msg}"
+            );
+        }
+    }
 }

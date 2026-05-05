@@ -1,15 +1,29 @@
 # prism-query clippy configuration
 #
-# OBS-002: Enforce security perimeter for PrismQL sub-parsers.
+# SEC-C-003: Enforce security perimeter for PrismQL parsers and parser factories.
 #
-# parse_sql, parse_pipe, and parse_filter are pub(crate) — they bypass the
-# mandatory pre-parse security guards (check_query_size, check_paren_depth).
-# Only PrismQlParser::parse is the documented safe entry point.
+# `PrismQlParser::parse` is the ONLY documented safe external entry point. It
+# applies ALL security guards in order:
+#   1. check_query_size      — rejects inputs > 64KB
+#   2. check_paren_depth     — rejects inputs with > 64 lexical paren depth
+#   3. parse_sql/pipe/filter — mode-dispatched parsing
+#   4. check_*_nesting_depth — post-parse AST depth check
+#   5. check_*_list_sizes    — post-parse list length check
 #
-# These entries provide defence-in-depth: if the visibility is ever changed
-# back to `pub`, the lint fires immediately. Combined with the pub(crate)
-# restriction (F-LOW-002), this prevents accidental API surface expansion.
+# Sub-parsers (parse_sql, parse_pipe, parse_filter) are pub(crate).
+# Parser-builder factories (build_*_parser) are also pub(crate) — they bypass
+# ALL FIVE guards. The pub(crate) visibility restriction IS the defence-in-depth
+# for factories: external crates cannot call them at all (compiler-enforced).
 #
+# OBS-002 / F-LOW-002: disallowed-methods provides a second layer for the
+# sub-parsers, whose path could be referenced in documentation or test harnesses
+# that use `#[allow(clippy::disallowed_methods)]`. If any sub-parser is ever
+# changed back to `pub`, the lint fires immediately.
+#
+# NOTE: build_*_parser factories are NOT listed here because:
+# 1. They are pub(crate) — the compiler already prevents external calls.
+# 2. Listing them would trigger the lint on the intra-crate callers
+#    (sql_parser, pipe_parser) which are the intended consumers.
 # Level: warn (can be promoted to deny after a stabilisation period).
 disallowed-methods = [
     { path = "prism_query::filter_parser::parse_filter", reason = "Use PrismQlParser::parse exclusively (security perimeter — SEC-C-003, F-LOW-002). Direct callers bypass check_query_size and check_paren_depth guards." },

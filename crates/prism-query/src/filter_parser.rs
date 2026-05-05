@@ -49,11 +49,20 @@ impl PrismQlParser {
     /// Returns `Err(Vec<ParseError>)` if the input is syntactically invalid or
     /// exceeds security limits.
     pub fn parse(input: &str) -> Result<Ast, Vec<ParseError>> {
+        // F-LOW-002: Snapshot all effective limits ONCE before any guard runs.
+        // All security guards within this parse call use the same snapshotted values,
+        // preventing concurrent env-var mutations from causing limit inconsistencies.
+        let limits = security::ParseLimits::snapshot();
+
         // Security check: reject oversized queries before any parsing.
-        security::check_query_size(input).map_err(|e| vec![ParseError::new(0, e.to_string())])?;
+        limits
+            .check_query_size(input)
+            .map_err(|e| vec![ParseError::new(0, e.to_string())])?;
 
         // Security check: parenthesis nesting depth (EC-002, BC-2.11.006, VP-015).
-        security::check_paren_depth(input).map_err(|e| vec![ParseError::new(0, e.to_string())])?;
+        limits
+            .check_paren_depth(input)
+            .map_err(|e| vec![ParseError::new(0, e.to_string())])?;
 
         // Reject empty / whitespace-only queries.
         let trimmed = input.trim();
@@ -337,7 +346,7 @@ fn build_filter_parser<'a>(
 }
 
 /// Build the source reference parser (dotted-ident, rejects path traversal).
-pub fn build_source_ref_parser<'a>(
+pub(crate) fn build_source_ref_parser<'a>(
 ) -> impl Parser<'a, &'a str, SourceRef, extra::Err<Rich<'a, char>>> + Clone {
     let segment = any::<&str, extra::Err<Rich<char>>>()
         .filter(|c: &char| c.is_ascii_alphanumeric() || *c == '_')
@@ -367,7 +376,7 @@ pub fn build_source_ref_parser<'a>(
 /// This is the parser used for filter mode, pipe `where` stages, and
 /// SQL WHERE / HAVING clauses.
 #[allow(clippy::clone_on_copy)]
-pub fn build_predicate_parser<'a>(
+pub(crate) fn build_predicate_parser<'a>(
 ) -> impl Parser<'a, &'a str, Predicate, extra::Err<Rich<'a, char>>> + Clone {
     recursive(|predicate| {
         let literal = build_literal_parser();
@@ -733,7 +742,7 @@ pub fn build_predicate_parser<'a>(
 }
 
 /// Build a parser for quoted string values (single or double quoted).
-pub fn build_string_parser<'a>(
+pub(crate) fn build_string_parser<'a>(
 ) -> impl Parser<'a, &'a str, String, extra::Err<Rich<'a, char>>> + Clone {
     let single_quoted = none_of('\'')
         .repeated()
@@ -779,7 +788,7 @@ fn classify_string_literal(s: &str) -> Result<Literal, String> {
 }
 
 /// Build the literal value parser.
-pub fn build_literal_parser<'a>(
+pub(crate) fn build_literal_parser<'a>(
 ) -> impl Parser<'a, &'a str, Literal, extra::Err<Rich<'a, char>>> + Clone {
     // Single-quoted string literal (or timestamp if RFC-3339 heuristic matches).
     let single_quoted = none_of('\'')
@@ -898,9 +907,11 @@ pub fn build_literal_parser<'a>(
 /// ORDER BY, GROUP BY, JOIN ON conditions).
 ///
 /// This is distinct from `build_predicate_parser` — it produces `Expr` (value)
-/// not `Predicate` (boolean). Used by the SQL parser for non-predicate contexts.
+/// not `Predicate` (boolean). Reserved for S-3.02 (DataFusion TableProvider)
+/// which will need standalone Expr parsing for projection pushdown.
+#[allow(dead_code)] // Reserved for S-3.02 — not yet called by any story-in-scope parser.
 #[allow(clippy::clone_on_copy)]
-pub fn build_expr_parser<'a>(
+pub(crate) fn build_expr_parser<'a>(
 ) -> impl Parser<'a, &'a str, crate::ast::Expr, extra::Err<Rich<'a, char>>> + Clone {
     use crate::ast::{CompareOp as CO, Expr, LogicalOp as LO};
 
@@ -1019,8 +1030,9 @@ pub fn build_expr_parser<'a>(
 }
 
 /// Build the pipe stage parser (forwarded from pipe_parser module).
-/// Used in mode detection contexts.
-pub fn build_pipe_mode_parser<'a>(
+/// Used in mode detection contexts (reserved for future multi-mode dispatch refactors).
+#[allow(dead_code)] // Reserved for future multi-mode dispatch — not called in current parse path.
+pub(crate) fn build_pipe_mode_parser<'a>(
 ) -> impl Parser<'a, &'a str, PipeQuery, extra::Err<Rich<'a, char>>> {
     build_pipe_parser()
 }

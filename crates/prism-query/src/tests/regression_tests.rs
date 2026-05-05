@@ -31,8 +31,8 @@ use crate::{
     filter_parser::{parse_filter, PrismQlParser},
     pipe_parser::parse_pipe,
     security::{
-        effective_nesting_depth_limit, effective_query_size_limit, PRISM_MAX_NESTING_DEPTH,
-        PRISM_MAX_QUERY_SIZE,
+        effective_list_items_limit, effective_nesting_depth_limit, effective_query_size_limit,
+        PRISM_MAX_LIST_ITEMS, PRISM_MAX_NESTING_DEPTH, PRISM_MAX_QUERY_SIZE,
     },
     sql_parser::parse_sql,
     ParseError,
@@ -439,5 +439,200 @@ fn test_error_message_truncates_long_user_input() {
         "B-9: error message must be < 500 bytes after truncation, got {} bytes: {}",
         msg.len(),
         &msg[..msg.len().min(100)]
+    );
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// F-LOW-001: walk_predicate must visit RecoveryError as an explicit leaf
+// ─────────────────────────────────────────────────────────────────────────────
+
+/// F-LOW-001: `walk_predicate` must handle `Predicate::RecoveryError` via
+/// an explicit arm (not fall-through catch-all), and must invoke
+/// `visit_predicate` on it exactly once without panicking.
+///
+/// A visitor that counts `visit_predicate` calls must see exactly 1 call
+/// for a root `Predicate::RecoveryError` (the root visit call from
+/// `walk_filter_expr` / `walk_pipe_stage`, plus the dispatch through
+/// `visit_predicate` -> `walk_predicate`).
+///
+/// Traces: F-LOW-001, S-3.01
+#[test]
+fn test_walk_predicate_visits_recovery_error_as_leaf() {
+    use crate::ast::{FilterExpr, Predicate, SourceRef};
+    use crate::visit::{walk_filter_expr, Visitor};
+
+    /// Visitor that counts how many times `visit_predicate` is called.
+    struct PredicateCounter(usize);
+    impl Visitor for PredicateCounter {
+        fn visit_predicate(&mut self, p: &Predicate) {
+            self.0 += 1;
+            // Call the default walk to exercise the walk_predicate dispatch.
+            crate::visit::walk_predicate(self, p);
+        }
+    }
+
+    // Build a FilterExpr whose predicate is a RecoveryError sentinel.
+    let fe = FilterExpr {
+        source: SourceRef::from_raw("crowdstrike.detections"),
+        predicate: Predicate::RecoveryError,
+    };
+
+    let mut counter = PredicateCounter(0);
+    walk_filter_expr(&mut counter, &fe);
+
+    assert_eq!(
+        counter.0, 1,
+        "F-LOW-001: walk_predicate must visit Predicate::RecoveryError exactly once as a leaf; got {} visits",
+        counter.0
+    );
+}
+
+/// F-LOW-001: Walking a `Predicate::RecoveryError` nested inside a
+/// `Predicate::Logical` must visit it exactly once (leaf, no further descent).
+///
+/// Traces: F-LOW-001, S-3.01
+#[test]
+fn test_walk_predicate_recovery_error_inside_logical_visited_once() {
+    use crate::ast::{FieldPath, LogicalOp, Predicate, Span};
+    use crate::visit::{walk_predicate, Visitor};
+
+    struct PredicateCounter(usize);
+    impl Visitor for PredicateCounter {
+        fn visit_predicate(&mut self, p: &Predicate) {
+            self.0 += 1;
+            crate::visit::walk_predicate(self, p);
+        }
+    }
+
+    // Logical { AND: [RecoveryError, RecoveryError] }
+    let logical = Predicate::Logical {
+        op: LogicalOp::And,
+        predicates: vec![Predicate::RecoveryError, Predicate::RecoveryError],
+    };
+
+    let mut counter = PredicateCounter(0);
+    walk_predicate(&mut counter, &logical);
+
+    // The outer Logical calls visit_predicate on each child => 2 RecoveryError visits.
+    // The outer Logical itself is not counted here (walk_predicate is called directly
+    // on it, not via visit_predicate).
+    assert_eq!(
+        counter.0, 2,
+        "F-LOW-001: two RecoveryError children of Logical must each be visited once; got {}",
+        counter.0
+    );
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// F-LOW-003: PRISM_MAX_LIST_ITEMS lacks env-var override (sibling coverage gap)
+// ─────────────────────────────────────────────────────────────────────────────
+
+/// F-LOW-003: Setting PRISM_MAX_LIST_ITEMS=0 must be clamped to the safe minimum.
+///
+/// All sibling effective_*_limit() functions have min/max clamping.
+/// effective_list_items_limit() must mirror that pattern.
+///
+/// Traces: F-LOW-003, BC-2.11.006
+#[test]
+fn test_BC_2_11_006_env_list_items_zero_clamped() {
+    std::env::set_var("PRISM_MAX_LIST_ITEMS", "0");
+    let limit = effective_list_items_limit();
+    std::env::remove_var("PRISM_MAX_LIST_ITEMS");
+
+    assert!(
+        limit >= 16,
+        "F-LOW-003: PRISM_MAX_LIST_ITEMS=0 must be clamped to at least MIN_SAFE_LIST_ITEMS (16), got {limit}"
+    );
+    assert!(
+        limit <= PRISM_MAX_LIST_ITEMS,
+        "F-LOW-003: clamped list items limit must not exceed default ({PRISM_MAX_LIST_ITEMS}), got {limit}"
+    );
+}
+
+/// F-LOW-003: Setting PRISM_MAX_LIST_ITEMS to an excessive value (e.g., 99999) must
+/// be clamped to the safe maximum (MAX_SAFE_LIST_ITEMS = 16384).
+///
+/// Traces: F-LOW-003, BC-2.11.006
+#[test]
+fn test_BC_2_11_006_env_list_items_excessive_clamped() {
+    std::env::set_var("PRISM_MAX_LIST_ITEMS", "99999");
+    let limit = effective_list_items_limit();
+    std::env::remove_var("PRISM_MAX_LIST_ITEMS");
+
+    assert!(
+        limit <= 16_384,
+        "F-LOW-003: PRISM_MAX_LIST_ITEMS=99999 must be clamped to at most MAX_SAFE_LIST_ITEMS (16384), got {limit}"
+    );
+    assert!(
+        limit >= 16,
+        "F-LOW-003: clamped list items limit must be at least 16, got {limit}"
+    );
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// F-LOW-002: Limits must be snapshotted once per parse() call
+// ─────────────────────────────────────────────────────────────────────────────
+
+/// F-LOW-002: `ParseLimits::snapshot()` must capture all effective limit values
+/// and the same instance used across all security guards within one `parse()` call.
+///
+/// This test verifies that:
+/// 1. `ParseLimits::snapshot()` exists and produces a struct.
+/// 2. The snapshot captures the effective values at the moment of the call.
+/// 3. After snapshot, changing the env var does NOT change the snapshotted values.
+///
+/// Traces: F-LOW-002, BC-2.11.006
+#[test]
+fn test_parse_limits_snapshot_is_immutable_after_capture() {
+    use crate::security::ParseLimits;
+
+    // Set env vars to known values before snapshot.
+    std::env::set_var("PRISM_MAX_QUERY_SIZE", "8192");
+    std::env::set_var("PRISM_MAX_NESTING_DEPTH", "12");
+    std::env::set_var("PRISM_MAX_PIPE_STAGES", "5");
+    std::env::set_var("PRISM_MAX_REGEX_PATTERN_LEN", "128");
+    std::env::set_var("PRISM_MAX_LIST_ITEMS", "64");
+
+    let limits = ParseLimits::snapshot();
+
+    // Now change env vars after snapshot — the snapshot must not change.
+    std::env::set_var("PRISM_MAX_QUERY_SIZE", "99999999");
+    std::env::set_var("PRISM_MAX_NESTING_DEPTH", "255");
+    std::env::set_var("PRISM_MAX_PIPE_STAGES", "200");
+    std::env::set_var("PRISM_MAX_REGEX_PATTERN_LEN", "65000");
+    std::env::set_var("PRISM_MAX_LIST_ITEMS", "10000");
+
+    // Clean up.
+    std::env::remove_var("PRISM_MAX_QUERY_SIZE");
+    std::env::remove_var("PRISM_MAX_NESTING_DEPTH");
+    std::env::remove_var("PRISM_MAX_PIPE_STAGES");
+    std::env::remove_var("PRISM_MAX_REGEX_PATTERN_LEN");
+    std::env::remove_var("PRISM_MAX_LIST_ITEMS");
+
+    // Snapshotted values must reflect what was set BEFORE the snapshot.
+    assert_eq!(
+        limits.query_size, 8192,
+        "F-LOW-002: snapshot must capture query_size=8192, got {}",
+        limits.query_size
+    );
+    assert_eq!(
+        limits.nesting_depth, 12,
+        "F-LOW-002: snapshot must capture nesting_depth=12, got {}",
+        limits.nesting_depth
+    );
+    assert_eq!(
+        limits.pipe_stages, 5,
+        "F-LOW-002: snapshot must capture pipe_stages=5, got {}",
+        limits.pipe_stages
+    );
+    assert_eq!(
+        limits.regex_pattern, 128,
+        "F-LOW-002: snapshot must capture regex_pattern=128, got {}",
+        limits.regex_pattern
+    );
+    assert_eq!(
+        limits.list_items, 64,
+        "F-LOW-002: snapshot must capture list_items=64, got {}",
+        limits.list_items
     );
 }

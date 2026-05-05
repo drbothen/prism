@@ -95,7 +95,7 @@ fn check_pipe_stage_depth(
 /// Returns a parser that accepts `[FROM source | source] ('|' pipe_stage)*`
 /// or `'|' pipe_stage ('|' pipe_stage)*` (no-source prefix, EC-11-009).
 #[allow(clippy::clone_on_copy)]
-pub fn build_pipe_parser<'a>(
+pub(crate) fn build_pipe_parser<'a>(
 ) -> impl Parser<'a, &'a str, PipeQuery, extra::Err<Rich<'a, char>>> + Clone {
     let predicate = build_predicate_parser();
     let source_ref = build_source_ref_parser();
