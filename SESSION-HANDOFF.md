@@ -169,21 +169,21 @@ factory-artifacts canonical: fd1213f7 (canonical SHA — D-226 S-3.01 implementa
 
 ## Current State
 
-develop HEAD `3133710e` | factory-artifacts `28564859` (canonical SHA — D-232 pass-5 remediation + D-233 Stage 2 backfill; STATE v6.82)
+develop HEAD `3133710e` | factory-artifacts `2c72efad` (canonical SHA — D-234 pass-6 remediation + D-235 Stage 2 backfill; STATE v6.84)
 
 | Metric | Value |
 |--------|-------|
 | develop HEAD | `3133710e` (rename PR #126 squash-merged 2026-05-05T03:19:10Z — crowdstrike_session→org_scoped_session_id) |
-| factory-artifacts HEAD | `28564859` (canonical SHA — D-232 pass-5 remediation + D-233 Stage 2 SHA backfill; STATE v6.82) |
-| PR count merged | 126 (PR #127 OPEN — S-3.01 PrismQL parser; feature/S-3.01@bb1528ad) |
-| Workspace test count | 2363 + 259 on feature/S-3.01 branch |
-| Open PRs | PR #127 S-3.01 PrismQL parser — OPEN; pass-5 remediation COMPLETE; pass-6 next (1 of 3 needed for convergence window) |
+| factory-artifacts HEAD | `2c72efad` (canonical SHA — D-234 pass-6 remediation + D-235 Stage 2 SHA backfill; STATE v6.84) |
+| PR count merged | 126 (PR #127 OPEN — S-3.01 PrismQL parser; feature/S-3.01@3cc42b9b) |
+| Workspace test count | 2363 + 260 on feature/S-3.01 branch |
+| Open PRs | PR #127 S-3.01 PrismQL parser — OPEN; pass-6 remediation COMPLETE; pass-7 next (1 of 3 needed for convergence window) |
 | Active worktrees | main (`develop`) + `.factory` (`factory-artifacts`) + `.worktrees/S-3.01/` (feature/S-3.01) |
 | Tech debt items | 57 active product items (70 prior − 13 VSDD items extracted); vsdd-plugin-tech-debt.md: 41 items v2.5 (TD-VSDD-055/056 added D-226) |
 | Wave 2 gate status | CONVERGED 2026-04-27 — Pass 9 CLEAN (3-clean-passes: P6+P8+P9) |
 | Wave 3 gate status | **CONVERGED (multi-tenant sub-waves) 2026-05-02; W3 CORE SPEC REMEDIATION COMPLETE D-224; S-3.01 RED GATE STAGE 1 COMPLETE D-225** |
 | Wave 4 status | **PHASE 4.B SUSPENDED — D-223 W3-FIRST pivot (2026-05-04); S-4.01 → S-3.02 dep; 13 W3 core stories must implement first** |
-| Status | **D-232 COMPLETE. Pass-5 remediation done (1H+2M+1L+3OBS; 259 tests; bb1528ad). NEXT: Dispatch adversary pass-6 against feature/S-3.01@bb1528ad. Convergence window restarting — need 3 consecutive clean passes. W3 impl graph: Tier-1=S-3.01 (active, PR #127 OPEN) → Tier-2={S-3.02,S-3.06} → Tier-3={8 stories} → Tier-4={S-3.07,S-3.10} → RESUME PHASE 4.B** |
+| Status | **D-234 COMPLETE. Pass-6 remediation done (2H+2M+1L+2OBS; 260 tests; 3cc42b9b). NEXT: Dispatch adversary pass-7 against feature/S-3.01@3cc42b9b. Convergence window restarting — need 3 consecutive clean passes (pass-7 is 1 of 3). W3 impl graph: Tier-1=S-3.01 (active, PR #127 OPEN) → Tier-2={S-3.02,S-3.06} → Tier-3={8 stories} → Tier-4={S-3.07,S-3.10} → RESUME PHASE 4.B** |
 
 
 ---
