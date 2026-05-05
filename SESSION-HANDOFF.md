@@ -1,56 +1,50 @@
 ---
 document_type: session-handoff
 level: ops
-version: "6.73"
+version: "6.74"
 status: current
-timestamp: 2026-05-04T00:00:00Z
+timestamp: 2026-05-04T20:00:00Z
 predecessor_session: "Wave 4 Phase 4.A R9 HUMAN APPROVED 2026-05-04. STATE v6.70. factory-artifacts 15fa97e6 (pre-compact state capture canonical SHA). TD register gap closed: 7 items filed per D-220 (TD-VSDD-053 P0 + 4 P3 R8 carry-forward + 2 P2 D-219 holdout gap)."
-successor_focus: "WAVE 4 PHASE 4.B PREREQS CLEARED (2026-05-04). D-216 W4 holdout authoring COMPLETE. D-222 logged. STATE v6.73. factory-artifacts canonical: 1f37c4cf.
+successor_focus: "W3-FIRST PIVOT (D-223, 2026-05-04). User directive: implement Wave 3 fully before any W4. Phase 4.B SUSPENDED. STATE v6.74. factory-artifacts canonical: d7a6a20e.
 
-**STEP 1 (D-218 wave doc refresh): COMPLETE (2026-05-04)** — wave-state.yaml PHASE_4_A_CONVERGED + R9_APPROVED; epics.md v1.4 (76→129 stories; W3-FIX-* added; E-3 sub-epics final); STORY-INDEX v2.04 (BC-INDEX cite v4.32 sync; TD-W4-CV-LOW-001 closed); ARCH-INDEX v2.29 (ADR-016 date 2026-05-02; TD-W4-CV-LOW-002 closed); vsdd-plugin-tech-debt.md v2.3 (TD-W4-CV-LOW-001/002 resolved). 3 anomalies flagged in D-221: duplicate S-3.1.06 slug (POL-1 violation), ADR-014 missing from registry, Z/no-Z timestamp inconsistency.
+**CONTEXT:** R10 dispatch attempt revealed all 13 W3 core stories (S-3.01..S-3.13 — entire PrismQL query engine) are status=draft. S-4.01 depends on S-3.02; all 8 W4 stories transitively blocked. 31 W4 spec adversarial passes never caught this dep-status gap (TD-VSDD-054 filed). D-223 logged. Phase 4.B SUSPENDED pending W3 core implementation.
 
-**STEP 2 (D-216 holdout authoring): COMPLETE (2026-05-04)** — HS-009 (Scheduler Operations, 6 subs), HS-010 (Detection & Alert Pipeline, 6 subs), HS-011 (Case Management, 5 subs), HS-012 (Action Delivery, 6 subs). 23 new sub-scenarios total. HOLDOUT-INDEX v1.3 (52→75 total_scenarios; 8→12 total_groups; 36→59 p0_scenarios). 39 W4 BCs anchored; BC-2.14.011 gap noted (consistent with BC-INDEX v4.32); BC-2.12.011/012 excluded (retired). D-222 logged. Phase 4.B prereqs FULLY CLEARED.
+**STEP 1 (R10-A — IMMEDIATE NEXT):** Dispatch S-3.01 (PrismQL Parser) via per-story-delivery skill. Tier-1 entry story (5pts). Sole unblocked W3 core story. Unblocks S-3.02 + S-3.06 (Tier 2) and transitively all 12 remaining W3 stories + all 8 W4 stories.
 
-**STEP 3 (R10 — IMMEDIATE NEXT):** Dispatch S-4.01 + S-4.03 entry stories in parallel (per-story-delivery skill). No upstream W4 story dependencies. Both prereqs cleared.
+**STEP 2 (R10-B):** Dispatch S-3.02 (5pts) + S-3.06 (3pts) in parallel — Tier 2 (8pts combined). Both unblocked once S-3.01 merges.
 
-**STEP 4 (Wave 4 impl cycle):** Iterate through all 8 W4 stories via TDD pipeline. Parallel where topology allows (see cycle-manifest topology).
+**STEP 3 (R10-C):** Dispatch 8-story parallel cluster: S-3.03, S-3.04, S-3.05, S-3.08, S-3.09, S-3.11, S-3.12, S-3.13 — Tier 3 (19pts combined). Dependency topology: all depend on S-3.02 or S-3.06.
 
-**STEP 5 (R11):** W4-FIX-* fix-wave for W3 carry-forward debt per D-203 + 4 W4 LOW TD items captured at R9 gate (TD-W4-RETRY-OBS-001, TD-W4-INJECTION-VOCAB-001, TD-W4-CV-LOW-001, TD-W4-CV-LOW-002). Optional: apply TD-VSDD-039..053 structural-drift sweep to W1/W2/W3 stories per D-215 (low-priority, NOT Phase 4.B blocker). TD-VSDD-053 (P0 structural fix for TD-VSDD-044 6x chain-corruption) is HIGH-PRIORITY for vsdd-factory plugin maintenance — address in next plugin maintenance session before Wave 5 spec convergence begins.
+**STEP 4 (R10-D):** Dispatch S-3.07 (5pts) + S-3.10 (3pts) in parallel — Tier 4 (8pts). Final W3 core tier.
 
-**STEP 6 (W4 wave gate):** Run gate-step-f-holdout-evaluation against new W4 HS files authored in STEP 2. All wave gate criteria: 3-clean adversarial window + all sub-reviewers CLEAN + holdout mean >= 0.85 + must-pass >= 18/30.
+**STEP 5 (W3 integration gate):** Re-evaluate HS-001..HS-008 against W3 core implementations + assess whether HS-009..HS-012 (W4 holdout files) can be evaluated meaningfully with W3 missing (they likely require W3 implementations to exercise properly).
 
-**STEP 7 (Wave 5 kickoff):** Phase 5.A spec convergence for 10 W5 draft stories. Author W5 holdout scenarios (standard per-wave Phase X.A R-step per D-219).
+**STEP 6 (RESUME PHASE 4.B):** Dispatch S-4.01 + S-4.03 entry stories (D-222 prereqs all still cleared). S-3.02 now merged; transitive dep satisfied. Continue W4 impl cycle through all 8 stories.
+
+**STEP 7 (R11):** W4-FIX-* fix-wave for W3 carry-forward debt per D-203 + 4 W4 LOW TD items from R8 (TD-W4-RETRY-OBS-001, TD-W4-INJECTION-VOCAB-001, TD-W4-CV-LOW-001, TD-W4-CV-LOW-002).
+
+**STEP 8 (Wave 5):** W4 wave gate (HS-009..HS-012 evaluation) → Phase 5.A spec convergence for 10 W5 draft stories → W5 holdout scenario authoring.
 
 **KEY REFERENCES:**
-- STATE.md v6.73: develop@ba3b10c7; factory-artifacts 1f37c4cf (canonical SHA — D-216 W4 holdout authoring closure); +D-222 logged
-- D-215: No W1/W2/W3 audit needed (optional R11 structural-drift sweep using TD-VSDD-039..052 methodologies — low-priority, NOT Phase 4.B blocker)
-- D-216: CLOSED 2026-05-04 — HS-009..HS-012 authored (23 sub-scenarios); HOLDOUT-INDEX v1.3 (52→75 scenarios, 8→12 groups, 36→59 P0); 39 W4 BCs anchored; Phase 4.B prereqs ALL CLEARED
-- D-217: Wave reality — 7 waves (W0..W6); 129 stories on disk vs 76 in epics.md v1.2 (now v1.4 — refreshed); W3 expanded 13→51; W6 mixed status (11 DTU merged, 9 draft)
-- D-218: CLOSED 2026-05-04 — wave-state.yaml + epics.md v1.4 + STORY-INDEX v2.04 + ARCH-INDEX v2.29 refreshed; TD-W4-CV-LOW-001/002 resolved
-- D-219: Holdout-coverage SYSTEMIC gap: W1 never evaluated; W2 0.65 CONDITIONAL; W3 gold-standard 0.907; W4 NOW CLOSED (HS-009..HS-012); W5/W6 no HS yet; per-wave HS authoring should become standard Phase X.A R-step (TD-VSDD-053 candidate)
-- D-221: D-218 closure logged — epics.md v1.4, STORY-INDEX v2.04, ARCH-INDEX v2.29; 3 anomalies flagged (S-3.1.06 slug dupe, ADR-014 missing, Z/no-Z timestamp)
-- D-222: D-216 closure logged — HS-009..HS-012 authored; HOLDOUT-INDEX v1.3; Phase 4.B prereqs ALL CLEARED; R10 unblocked
-- pass-31.md: cycles/wave-4-operations/adversarial-reviews/pass-31.md (PERFECT CLEAN; 0 findings; 17 cross-cuts incl. 2 NOVEL-AXIS; CONVERGED)
-- cycle-manifest v1.56 (D-216 W4 holdout authoring closure; SHA 1f37c4cf)
-- HOLDOUT-INDEX v1.3 (52→75 scenarios; 8→12 groups; 36→59 P0; HS-009..HS-012 added)
-- ARCH-INDEX v2.29 (ADR-016 date 2026-05-02; TD-W4-CV-LOW-002 resolved)
-- STORY-INDEX v2.04 (BC-INDEX v4.32 cite sync; TD-W4-CV-LOW-001 resolved)
-- epics.md v1.4 (E-3 sub-epics final; W3-FIX-* added; total 76→129)
-- ADR-016 v0.14 (F-P27-H-001 fix; current; RE-VERIFIED CLEAN)
-- prd.md v1.10 (current; RE-VERIFIED CLEAN)
-- BC-INDEX v4.32 (current)
-- Wave 4 cycle-manifest: cycles/wave-4-operations/cycle-manifest.md (v1.56)
-- Product TD register: tech-debt-register.md (57 active product items)
-- vsdd-plugin-tech-debt.md: 38 items v2.3 (TD-W4-CV-LOW-001/002 resolved 2026-05-04; D-221)
+- STATE.md v6.74: develop@ba3b10c7; factory-artifacts d7a6a20e (canonical SHA — D-223 W3-FIRST pivot); D-223 logged
+- D-223: PIVOT 2026-05-04 — W3-FIRST; 13 W3 core stories (S-3.01..S-3.13, 39pts); Tier-1=S-3.01; Tier-2=S-3.02+S-3.06; Tier-3=8 stories; Tier-4=S-3.07+S-3.10; Phase 4.B SUSPENDED
+- TD-VSDD-054: P1 methodological gap — pre-phase-N dep check; 31 W4 adversarial passes never verified S-3.02 dep status
+- D-222: CLOSED 2026-05-04 — HS-009..HS-012 authored; HOLDOUT-INDEX v1.3; Phase 4.B prereqs ALL CLEARED (still valid — W4 HS authoring is done; W4 impl unblocked once W3 merges)
+- D-218: CLOSED 2026-05-04 — wave-state.yaml + epics.md v1.4 + STORY-INDEX v2.04 + ARCH-INDEX v2.29 refreshed
+- pass-31.md: cycles/wave-4-operations/adversarial-reviews/pass-31.md (PERFECT CLEAN; 0 findings; CONVERGED)
+- cycle-manifest v1.57 (D-223 W3-FIRST pivot; SHA d7a6a20e)
+- Wave 4 cycle-manifest: cycles/wave-4-operations/cycle-manifest.md (v1.57)
+- vsdd-plugin-tech-debt.md: 39 items v2.4 (TD-VSDD-054 P1 pre-phase-N dep check filed 2026-05-04)
+- STORY-INDEX v2.04, ARCH-INDEX v2.29, BC-INDEX v4.32, VP-INDEX v1.26, HOLDOUT-INDEX v1.3
 
-factory-artifacts canonical: 1f37c4cf (D-216 W4 holdout authoring closure). develop HEAD: ba3b10c7."
+factory-artifacts canonical: d7a6a20e (D-223 W3-FIRST pivot). develop HEAD: ba3b10c7."
 ---
 
 # Session Handoff — WAVE 4 PHASE 4.A DECISIONS LOGGED (2026-05-02)
 
 ## TL;DR
 
-**D-216 W4 HOLDOUT AUTHORING CLOSED (2026-05-04) — STATE v6.73:** Product-owner burst complete. HS-009 (Scheduler Operations, 6 subs), HS-010 (Detection & Alert Pipeline, 6 subs), HS-011 (Case Management, 5 subs), HS-012 (Action Delivery, 6 subs). 23 new sub-scenarios total. HOLDOUT-INDEX v1.3 (52→75 total_scenarios; 8→12 total_groups; 36→59 p0_scenarios). 39 W4 BCs anchored across 4 files. BC-2.14.011 gap noted (consistent with BC-INDEX v4.32). BC-2.12.011/012 excluded (retired-status). D-222 logged. Phase 4.B prereqs FULLY CLEARED (D-218+D-216 both closed 2026-05-04). STEP 3 (R10 S-4.01/S-4.03 dispatch) is now immediate next action. cycle-manifest v1.56.
+**D-223 W3-FIRST PIVOT (2026-05-04) — STATE v6.74:** User directive "we need to fully implement wave 3" before any W4 implementation. R10 dispatch attempt discovered all 13 W3 core stories (S-3.01..S-3.13 — entire PrismQL query engine) status=draft. S-4.01 depends on S-3.02 (draft); all 8 W4 stories transitively blocked. 31 W4 spec adversarial passes never flagged dep-status gap (TD-VSDD-054 filed). Phase 4.B SUSPENDED. W3 implementation graph: Tier-1=S-3.01 (parser, 5pts) sole entry; Tier-2=S-3.02 (5pts)+S-3.06 (3pts) parallel; Tier-3=8 stories parallel (19pts); Tier-4=S-3.07 (5pts)+S-3.10 (3pts). Total 39pts across 13 stories. R10-A immediate next: S-3.01 PrismQL parser. cycle-manifest v1.57. vsdd-plugin-tech-debt.md v2.4 (TD-VSDD-054 added).
 
 **D-218 WAVE-DOC-REFRESH CLOSED (2026-05-04) — STATE v6.72:** Three-agent burst complete. epics.md v1.4 (product-owner; 76→129 stories; E-3 sub-epics final; W3-FIX-* 15 story additions). STORY-INDEX v2.04 (story-writer; BC-INDEX cite v4.27→v4.32 sync; TD-W4-CV-LOW-001 resolved). ARCH-INDEX v2.29 (architect; ADR-016 date 2026-05-04→2026-05-02; TD-W4-CV-LOW-002 resolved). wave-state.yaml PHASE_4_A_CONVERGED + R9_APPROVED set. vsdd-plugin-tech-debt.md v2.3 (TD-W4-CV-LOW-001/002 resolved). D-221 logged. Phase 4.B prereq 1 CLOSED. STEP 2 (D-216 W4 HS authoring) is now immediate BLOCKER. cycle-manifest v1.55.
 
@@ -162,21 +156,21 @@ factory-artifacts canonical: 1f37c4cf (D-216 W4 holdout authoring closure). deve
 
 ## Current State
 
-develop HEAD `ba3b10c7` | factory-artifacts `1f37c4cf` (canonical SHA — D-216 W4 holdout authoring closure; STATE v6.73)
+develop HEAD `ba3b10c7` | factory-artifacts `d7a6a20e` (canonical SHA — D-223 W3-FIRST pivot; STATE v6.74)
 
 | Metric | Value |
 |--------|-------|
 | develop HEAD | `ba3b10c7` (W3-FIX-SEC-005 — Wave 3.4 final PR, PR #125, 2026-05-02) |
-| factory-artifacts HEAD | `1f37c4cf` (canonical SHA — D-216 W4 holdout authoring closure; STATE v6.73) |
+| factory-artifacts HEAD | `d7a6a20e` (canonical SHA — D-223 W3-FIRST pivot; STATE v6.74) |
 | PR count merged | 125 |
 | Workspace test count | 2363 (nextest-verified; +133 from CI nextest split + doctest migration) |
 | Open PRs | None |
 | Active worktrees | main (`develop`) + `.factory` (`factory-artifacts`) |
-| Tech debt items | 57 active product items (70 prior − 13 VSDD items extracted); vsdd-plugin-tech-debt.md: 38 items v2.3 (TD-W4-CV-LOW-001/002 resolved 2026-05-04; D-221) |
+| Tech debt items | 57 active product items (70 prior − 13 VSDD items extracted); vsdd-plugin-tech-debt.md: 39 items v2.4 (TD-VSDD-054 P1 filed 2026-05-04; D-223) |
 | Wave 2 gate status | CONVERGED 2026-04-27 — Pass 9 CLEAN (3-clean-passes: P6+P8+P9) |
-| Wave 3 gate status | **CONVERGED 2026-05-02 — 3-clean window pass-52+53+54; develop@ba3b10c7** |
-| Wave 4 status | **PHASE 4.B PREREQS CLEARED — D-218 COMPLETE + D-216 COMPLETE 2026-05-04; R10 S-4.01/S-4.03 IMMEDIATE NEXT** |
-| Status | **D-216 CLOSED. STEP 1 (D-218) COMPLETE. STEP 2 (D-216) COMPLETE. STEP 3 (R10 S-4.01/S-4.03) → STEP 4 (Wave 4 impl) → STEP 5 (R11) → STEP 6 (W4 gate) → STEP 7 (Wave 5 kickoff).** |
+| Wave 3 gate status | **CONVERGED (multi-tenant sub-waves) 2026-05-02; W3 CORE (S-3.01..S-3.13) status=draft — W3-FIRST pivot D-223** |
+| Wave 4 status | **PHASE 4.B SUSPENDED — D-223 W3-FIRST pivot (2026-05-04); S-4.01 → S-3.02 dep; 13 W3 core stories must implement first** |
+| Status | **D-223 W3-FIRST PIVOT. R10-A (S-3.01 PrismQL parser) IMMEDIATE NEXT. W3 impl graph: Tier-1=S-3.01 → Tier-2={S-3.02,S-3.06} → Tier-3={8 stories} → Tier-4={S-3.07,S-3.10} → RESUME PHASE 4.B** |
 
 
 ---
