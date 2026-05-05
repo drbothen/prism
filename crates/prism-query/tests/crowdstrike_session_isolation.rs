@@ -20,8 +20,8 @@
 // assertions themselves.
 
 use prism_core::OrgId;
-use prism_query::crowdstrike_session::{
-    extract_org_id_from_session_id, generate_crowdstrike_session_id, xor_org_into_session_bytes,
+use prism_query::org_scoped_session_id::{
+    extract_org_id_from_session_id, generate_org_scoped_session_id, xor_org_into_session_bytes,
 };
 use uuid::{Uuid, Version};
 
@@ -47,7 +47,7 @@ fn org_b() -> OrgId {
 }
 
 // ---------------------------------------------------------------------------
-// AC-001 — generate_crowdstrike_session_id embeds org_id (BC-3.2.003 inv 1, VP-084)
+// AC-001 — generate_org_scoped_session_id embeds org_id (BC-3.2.003 inv 1, VP-084)
 // ---------------------------------------------------------------------------
 
 /// Generating a session ID for org_a and round-tripping through
@@ -56,7 +56,7 @@ fn org_b() -> OrgId {
 /// Traces: BC-3.2.003 invariant 1, VP-084, AC-001, D-048
 #[test]
 fn test_BC_3_2_003_generate_embeds_org_a_roundtrip() {
-    let id = generate_crowdstrike_session_id(org_a());
+    let id = generate_org_scoped_session_id(org_a());
     let recovered = extract_org_id_from_session_id(&id);
     assert_eq!(
         recovered,
@@ -71,7 +71,7 @@ fn test_BC_3_2_003_generate_embeds_org_a_roundtrip() {
 /// Traces: BC-3.2.003 invariant 1, VP-084, AC-001, D-048
 #[test]
 fn test_BC_3_2_003_generate_embeds_org_b_roundtrip() {
-    let id = generate_crowdstrike_session_id(org_b());
+    let id = generate_org_scoped_session_id(org_b());
     let recovered = extract_org_id_from_session_id(&id);
     assert_eq!(
         recovered,
@@ -85,7 +85,7 @@ fn test_BC_3_2_003_generate_embeds_org_b_roundtrip() {
 /// Traces: BC-3.2.003 postcondition 2, VP-084, AC-001, D-048
 #[test]
 fn test_BC_3_2_003_generate_org_a_never_returns_org_b() {
-    let id = generate_crowdstrike_session_id(org_a());
+    let id = generate_org_scoped_session_id(org_a());
     let recovered = extract_org_id_from_session_id(&id);
     assert_ne!(
         recovered,
@@ -181,7 +181,7 @@ fn test_BC_3_2_003_xor_nil_org_is_identity() {
 /// Traces: AC-003, ADR-008 §2.1 D-048, BC-3.2.003 invariant 1
 #[test]
 fn test_BC_3_2_003_generate_produces_valid_uuid_v7() {
-    let id_str = generate_crowdstrike_session_id(org_a());
+    let id_str = generate_org_scoped_session_id(org_a());
     let parsed = Uuid::parse_str(&id_str)
         .unwrap_or_else(|e| panic!("session ID must be a valid UUID string, got {id_str:?}: {e}"));
     assert_eq!(
@@ -198,7 +198,7 @@ fn test_BC_3_2_003_generate_produces_valid_uuid_v7() {
 /// Traces: AC-003, D-048
 #[test]
 fn test_BC_3_2_003_generate_uuid_time_bits_non_zero() {
-    let id_str = generate_crowdstrike_session_id(org_a());
+    let id_str = generate_org_scoped_session_id(org_a());
     let parsed =
         Uuid::parse_str(&id_str).unwrap_or_else(|e| panic!("session ID must parse as UUID: {e}"));
     let bytes = parsed.as_bytes();
@@ -265,10 +265,10 @@ fn test_BC_3_2_003_extract_rejects_empty_string() {
 #[test]
 fn test_BC_3_2_003_cross_org_collision_impossibility_1000_each() {
     let ids_a: std::collections::HashSet<String> = (0..1000)
-        .map(|_| generate_crowdstrike_session_id(org_a()))
+        .map(|_| generate_org_scoped_session_id(org_a()))
         .collect();
     let ids_b: std::collections::HashSet<String> = (0..1000)
-        .map(|_| generate_crowdstrike_session_id(org_b()))
+        .map(|_| generate_org_scoped_session_id(org_b()))
         .collect();
 
     let intersection: std::collections::HashSet<&String> = ids_a.intersection(&ids_b).collect();
@@ -288,7 +288,7 @@ fn test_BC_3_2_003_cross_org_collision_impossibility_1000_each() {
 #[test]
 fn test_BC_3_2_003_intra_org_uniqueness_1000_sessions() {
     let ids: std::collections::HashSet<String> = (0..1000)
-        .map(|_| generate_crowdstrike_session_id(org_a()))
+        .map(|_| generate_org_scoped_session_id(org_a()))
         .collect();
     assert_eq!(
         ids.len(),
@@ -318,11 +318,11 @@ fn test_BC_3_2_003_session_registry_lookup_org_b_misses_org_a_entry() {
     let capacity = NonZeroUsize::MIN.saturating_add(127);
     let mut registry: LruCache<String, &'static str> = LruCache::new(capacity);
 
-    let session_id_a = generate_crowdstrike_session_id(org_a());
+    let session_id_a = generate_org_scoped_session_id(org_a());
     registry.put(session_id_a, "session-data-for-org-a");
 
     // Generate a fresh session ID for org_b — it must not match session_id_a
-    let session_id_b = generate_crowdstrike_session_id(org_b());
+    let session_id_b = generate_org_scoped_session_id(org_b());
     let lookup = registry.get(&session_id_b);
 
     assert!(
