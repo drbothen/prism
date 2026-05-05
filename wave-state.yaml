@@ -30,6 +30,7 @@ wave_4:
   phase_4b_prerequisites: []
   wave_4_decisions: [D-202, D-203, D-204, D-205, D-207, D-208, D-209, D-210, D-211, D-212, D-213, D-214, D-215, D-216, D-217, D-218, D-219, D-220, D-221, D-222, D-223]
   r10_pivot_decision: "2026-05-04 D-223"
+  vsdd_factory_plugin_version: "1.0.0-rc.11 (upgraded from rc.9 2026-05-05 per D-227)"
   next_phase: wave_3_core_implementation
 wave_3:
   started: 2026-04-27
@@ -46,7 +47,13 @@ wave_3:
   wave_3_core_total_pts: 39
   wave3_spec_remediation_complete: 2026-05-04
   wave3_remediation_artifacts: [S-3.01, S-3.02, S-3.03, S-3.04, S-3.05, S-3.06, S-3.07, S-3.08, S-3.09, S-3.10, S-3.11, S-3.12, S-3.13, VP-015, STORY-INDEX-v2.05, W3-spec-remediation-log, 13-uncertainty-maps]
-  next_phase: wave_3_core_s301_dispatch
+  s3_01_pr_open: 127
+  s3_01_branch_head: a0bf0f7e
+  s3_01_test_count: 187
+  s3_01_keystone_audit_complete: 2026-05-04
+  s3_01_keystone_audit_findings: "16 P0/P1 + 3 deviations — ALL RESOLVED (AST comprehensive audit via dclaude:type-design-analyzer)"
+  s3_01_status: PR_OPEN_AWAITING_CI
+  next_phase: wave_3_core_s301_merge_and_tier2
   phase_3_c_batch_2_closed: 2026-04-29T18:05:06Z
   phase_3_c_batch_2_prs: [85, 86, 87, 88, 89]
   phase_3_c_batch_2_develop_head: df59b0d0

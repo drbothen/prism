@@ -1,54 +1,59 @@
 ---
 document_type: session-handoff
 level: ops
-version: "6.75"
+version: "6.76"
 status: current
-timestamp: 2026-05-04T22:00:00Z
-predecessor_session: "Wave 4 Phase 4.A R9 HUMAN APPROVED 2026-05-04. STATE v6.70. factory-artifacts 15fa97e6 (pre-compact state capture canonical SHA). TD register gap closed: 7 items filed per D-220 (TD-VSDD-053 P0 + 4 P3 R8 carry-forward + 2 P2 D-219 holdout gap)."
-successor_focus: "D-225 S-3.01 SPEC SYNC + RED GATE STAGE 1 COMPLETE (2026-05-04). S-3.01 v1.7 (path-placement reconciled). STORY-INDEX v2.06. Rename PR #126 MERGED (3133710e). STATE v6.75. factory-artifacts canonical: 1535b600.
+timestamp: 2026-05-05T00:00:00Z
+predecessor_session: "D-225 S-3.01 spec sync + Red Gate Stage 1 complete 2026-05-04. STATE v6.75. factory-artifacts 9abb9a89 (D-225 Stage 2 canonical SHA)."
+successor_focus: "D-226 S-3.01 PrismQL PARSER KEYSTONE IMPLEMENTATION COMPLETE (2026-05-05). 187 tests passing. 10 commits on feature/S-3.01. AST comprehensive audit: 16 P0/P1 + 3 deviations ALL RESOLVED. PR #127 OPEN at a0bf0f7e. D-227: plugin upgraded rc.9→rc.11. STATE v6.76. factory-artifacts canonical: 15fa97e6 (placeholder — backfilled Stage 2).
 
-**CONTEXT:** R10 dispatch attempt revealed all 13 W3 core stories (S-3.01..S-3.13 — entire PrismQL query engine) are status=draft. S-4.01 depends on S-3.02; all 8 W4 stories transitively blocked. 31 W4 spec adversarial passes never caught this dep-status gap (TD-VSDD-054 filed). D-223 logged. Phase 4.B SUSPENDED pending W3 core implementation. D-224 logged: W3 spec remediation burst complete (Chumsky 0.12 + Kani 0.67.0 + moka 0.12 + datafusion 53.1 + VP-015 depth 64 + 6 BC anchor backfills + rename refs). D-225 logged: S-3.01 spec v1.6→v1.7 path-placement sync; rename PR #126 artifacts captured; Red Gate Stage 1 done.
+**CONTEXT:** S-3.01 is the Tier-1 keystone for the entire W3 core implementation graph (S-3.02..S-3.13 depend on it transitively, and all 8 W4 stories depend on S-3.02). The implementation cycle executed the full per-story-delivery sequence including a comprehensive dclaude:type-design-analyzer audit at user directive 'most correct, not fastest'. 16 P0/P1 AST findings + 3 deviations found and all resolved before PR creation. PR #127 is now open and CI is running.
 
-**STEP 1 (ACTIVE — Red Gate Stage 2 in progress):** S-3.01 Red Gate Stage 1 DONE (stub-architect; cargo check PASSED; 16 todo!() functions + 25 AST types declared). NEXT: test-writer writes failing tests (Red Gate Stage 2 commit), then dispatch implementer for TDD red-green-refactor.
+**STEP 1 (START HERE):** Read STATE.md v6.76 + this HANDOFF v6.76 in full. Check .worktrees/S-3.01/ exists (worktree should be persisted). Check PR #127 CI status via `gh pr view 127`.
 
-**STEP 1b (R10-A — after Red Gate Stage 2 complete):** Dispatch implementer for S-3.01 TDD implementation. Tier-1 entry story (5pts). Sole unblocked W3 core story. Unblocks S-3.02 + S-3.06 (Tier 2) and transitively all 12 remaining W3 stories + all 8 W4 stories.
+**STEP 2 (CI VERIFICATION):** Verify CI green on commit a0bf0f7e. Multi-platform test matrix should be done; cargo deny clean post-NCSA-fix (c8c47452 added NCSA to allow-list). If CI FAILS: triage which check failed and remediate. The most likely failure vectors are: (a) clippy on a new platform, (b) test failure on specific target, (c) deny.toml issue not covered by NCSA fix. Do not merge until CI is fully green.
 
-**STEP 2 (R10-B):** Dispatch S-3.02 (5pts) + S-3.06 (3pts) in parallel — Tier 2 (8pts combined). Both unblocked once S-3.01 merges.
+**STEP 3 (USER DECISION — RECOMMENDED):** Present user with decision: run full VSDD review burst BEFORE merging PR #127. Recommended reasoning: S-3.01 is the keystone for 12 W3 stories + 8 W4 stories (20 downstream stories). Reviews here catch issues before propagation. Proposed 4-way parallel burst: adversary (fresh context, full spec compliance check for BC-2.11.* anchoring + VP-014/015/021 coverage + AST design correctness) + code-reviewer (idioms, CWE-20 coverage, error handling) + security-reviewer (CWE-1333 ReDoS enforcement, IP/CIDR validation, injection prevention) + spec-compliance-checker (story AC coverage, demo evidence completeness). User may also choose to merge immediately after CI and run reviews post-merge — capture the decision.
 
-**STEP 3 (R10-C):** Dispatch 8-story parallel cluster: S-3.03, S-3.04, S-3.05, S-3.08, S-3.09, S-3.11, S-3.12, S-3.13 — Tier 3 (19pts combined). Dependency topology: all depend on S-3.02 or S-3.06.
+**STEP 4 (IF REVIEWS APPROVED):** Dispatch the 4-way parallel review burst. Route all findings via VSDD Feedback Integration Loop (finding → fix → re-dispatch same reviewer until CLEAN). Fix any issues on the feature/S-3.01 branch; push to origin; CI re-runs; repeat until all 4 reviewers CLEAN.
 
-**STEP 4 (R10-D):** Dispatch S-3.07 (5pts) + S-3.10 (3pts) in parallel — Tier 4 (8pts). Final W3 core tier.
+**STEP 5 (MERGE):** When CI green AND reviews clean (or user decides to skip reviews): `gh pr merge 127 --squash --delete-branch`. Capture squash-merge SHA (will be on develop). `git -C /Users/jmagady/Dev/prism pull` to update develop HEAD. Record new develop HEAD.
 
-**STEP 5 (W3 integration gate):** Re-evaluate HS-001..HS-008 against W3 core implementations + assess whether HS-009..HS-012 (W4 holdout files) can be evaluated meaningfully with W3 missing (they likely require W3 implementations to exercise properly).
+**STEP 6 (WORKTREE CLEANUP):** Devops: remove .worktrees/S-3.01/ worktree (`git worktree remove .worktrees/S-3.01/`). Verify `.worktrees/` is clean.
 
-**STEP 6 (RESUME PHASE 4.B):** Dispatch S-4.01 + S-4.03 entry stories (D-222 prereqs all still cleared). S-3.02 now merged; transitive dep satisfied. Continue W4 impl cycle through all 8 stories.
+**STEP 7 (STATE UPDATE — D-228):** State-manager burst: (a) update .factory/stories/S-3.01.md status draft→merged; (b) update STORY-INDEX S-3.01 row status; (c) update wave-state.yaml s3_01_* fields with merge SHA + date; (d) log D-228 (S-3.01 merged). Follow Two-Commit Protocol. workspace_test_count: 2363 + 187 = ~2550 post-merge.
 
-**STEP 7 (R11):** W4-FIX-* fix-wave for W3 carry-forward debt per D-203 + 4 W4 LOW TD items from R8 (TD-W4-RETRY-OBS-001, TD-W4-INJECTION-VOCAB-001, TD-W4-CV-LOW-001, TD-W4-CV-LOW-002).
+**STEP 8 (TIER 2 DISPATCH):** Devops creates worktrees for S-3.02 (Query Tool / Materialization, 5pts) + S-3.06 (PrismQL Write Parser Extensions, 3pts) in parallel, both off new develop HEAD (post S-3.01 merge). Per-story-delivery cycles run in parallel for both. Apply keystone-story audit discipline from TD-VSDD-055 if either is a keystone for other stories (S-3.02 is — it unblocks 8 Tier-3 stories).
 
-**STEP 8 (Wave 5):** W4 wave gate (HS-009..HS-012 evaluation) → Phase 5.A spec convergence for 10 W5 draft stories → W5 holdout scenario authoring.
+**STEP 9 (CONTINUE W3-FIRST PLAN):** Tier 3 (8-way parallel: S-3.03/04/05/08/09/11/12/13) → Tier 4 (S-3.07 + S-3.10) → W3 wave gate (HS-001..HS-012 evaluation against W3 core implementations) → Resume Phase 4.B (S-4.01 + S-4.03 entry stories).
 
 **KEY REFERENCES:**
-- STATE.md v6.75: develop@3133710e; factory-artifacts 1535b600 (canonical SHA — D-225 S-3.01 spec sync + Red Gate Stage 1); D-225 logged
-- D-225: S-3.01 spec sync 2026-05-04 — story v1.6→v1.7 path-placement reconcile; STORY-INDEX v2.06; rename PR #126 MERGED (3133710e); Red Gate Stage 1 COMPLETE
-- D-224: W3 spec remediation 2026-05-04 — 13 stories + VP-015 + STORY-INDEX v2.05 + S-3.2.08 v1.1; Chumsky 0.12 + Kani 0.67.0 + moka 0.12 + datafusion 53.1 + VP-015 depth 64 + 6 BC anchor backfills + rename refs
-- D-223: PIVOT 2026-05-04 — W3-FIRST; 13 W3 core stories (S-3.01..S-3.13, 39pts); Tier-1=S-3.01; Tier-2=S-3.02+S-3.06; Tier-3=8 stories; Tier-4=S-3.07+S-3.10; Phase 4.B SUSPENDED
+- STATE.md v6.76: develop@3133710e; factory-artifacts 15fa97e6 (placeholder, backfilled Stage 2 — D-226 implementation cycle + D-227 plugin rc.11)
+- D-226: S-3.01 implementation cycle complete 2026-05-05 — 187 tests; branch feature/S-3.01@a0bf0f7e; PR #127 OPEN; 16 P0/P1 AST findings + 3 deviations resolved; TD-VSDD-055/056 filed
+- D-227: vsdd-factory plugin upgrade rc.9→rc.11 2026-05-05; TD-VSDD-056 P3 tier-3 block messages
+- D-225: S-3.01 spec sync 2026-05-04 — story v1.6→v1.7 path-placement; STORY-INDEX v2.06; rename PR #126 MERGED (3133710e)
+- D-224: W3 spec remediation 2026-05-04 — 13 stories + VP-015 + STORY-INDEX v2.05; Chumsky 0.12 + Kani 0.67.0 + moka 0.12 + datafusion 53.1
+- D-223: PIVOT 2026-05-04 — W3-FIRST; Tier-1=S-3.01; Tier-2=S-3.02+S-3.06; Tier-3=8 stories; Tier-4=S-3.07+S-3.10; Phase 4.B SUSPENDED
+- TD-VSDD-055: P2 per-keystone-story type-design audit before merge — filed D-226; codify in per-story-delivery.md
+- TD-VSDD-056: P3 factory-dispatcher tier-3 block message clarity — filed D-227
 - TD-VSDD-054: P1 methodological gap — pre-phase-N dep check; 31 W4 adversarial passes never verified S-3.02 dep status
-- D-222: CLOSED 2026-05-04 — HS-009..HS-012 authored; HOLDOUT-INDEX v1.3; Phase 4.B prereqs ALL CLEARED (still valid — W4 HS authoring is done; W4 impl unblocked once W3 merges)
-- D-218: CLOSED 2026-05-04 — wave-state.yaml + epics.md v1.4 + STORY-INDEX v2.04 + ARCH-INDEX v2.29 refreshed
-- pass-31.md: cycles/wave-4-operations/adversarial-reviews/pass-31.md (PERFECT CLEAN; 0 findings; CONVERGED)
-- cycle-manifest v1.59 (D-225 S-3.01 spec sync + rename PR #126 artifacts; SHA 1535b600)
-- Wave 4 cycle-manifest: cycles/wave-4-operations/cycle-manifest.md (v1.59)
-- vsdd-plugin-tech-debt.md: 39 items v2.4 (TD-VSDD-054 P1 pre-phase-N dep check filed 2026-05-04)
+- PR #127: https://github.com/drbothen/prism/pull/127 — S-3.01 PrismQL parser; branch feature/S-3.01@a0bf0f7e
+- pass-31.md: cycles/wave-4-operations/adversarial-reviews/pass-31.md (Phase 4.A PERFECT CLEAN; CONVERGED)
+- cycle-manifest v1.60 (D-226 + D-227; SHA 15fa97e6 placeholder)
+- Wave 4 cycle-manifest: cycles/wave-4-operations/cycle-manifest.md (v1.60)
+- vsdd-plugin-tech-debt.md: 41 items v2.5 (TD-VSDD-055/056 added 2026-05-05)
 - STORY-INDEX v2.06, ARCH-INDEX v2.29, BC-INDEX v4.32, VP-INDEX v1.26, HOLDOUT-INDEX v1.3
 
-factory-artifacts canonical: 1535b600 (D-225 S-3.01 spec sync + Red Gate Stage 1). develop HEAD: 3133710e."
+factory-artifacts canonical: 15fa97e6 (placeholder — D-226 S-3.01 implementation cycle + D-227 plugin rc.11; backfilled Stage 2). develop HEAD: 3133710e."
 ---
 
 # Session Handoff — WAVE 4 PHASE 4.A DECISIONS LOGGED (2026-05-02)
 
 ## TL;DR
 
-**D-225 S-3.01 SPEC SYNC + RED GATE STAGE 1 COMPLETE (2026-05-04) — STATE v6.75:** S-3.01 spec v1.6→v1.7 path-placement reconcile — Kani proofs at `crates/prism-query/src/proofs/`; fuzz target at workspace `fuzz/fuzz_targets/vp021_parse_fuzz.rs`. STORY-INDEX v2.06. Rename PR #126 MERGED at squash-SHA 3133710e. Red Gate Stage 1 complete: stub-architect deployed 16 todo!() functions + 25 AST types; cargo check PASSED. sidecar-learning.md updated. cycle-manifest v1.59. Next: Red Gate Stage 2 (test-writer failing tests), then implementer TDD.
+**D-226 S-3.01 PrismQL PARSER KEYSTONE IMPLEMENTATION COMPLETE (2026-05-05) — STATE v6.76:** Full per-story-delivery cycle executed. 187 tests passing (103 new from test-writer Red Gate + 84 pre-existing). Comprehensive AST audit at user directive "most correct, not fastest": 16 P0/P1 findings + 3 deviations — ALL RESOLVED. Key AST improvements: Predicate enum (13 variants), 10 Literal types (5 newtype-validated with CWE-20+CWE-1333), typed FuncCall/AggFunc, Visitor+walk_*, Span+Spanned<T>, OrderedFloat, SourceRef, VirtualField, S-3.06 forward-compat, #[non_exhaustive]. 32 demo-evidence files. deny.toml NCSA fix. Branch feature/S-3.01@a0bf0f7e — 10 commits. PR #127 OPEN. TD-VSDD-055 filed: per-keystone type-design audit as standard practice. D-227: vsdd-factory plugin upgraded rc.9→rc.11; TD-VSDD-056 filed.
+
+**D-225 S-3.01 SPEC SYNC + RED GATE STAGE 1 COMPLETE (2026-05-04) — STATE v6.75:** S-3.01 spec v1.6→v1.7 path-placement reconcile — Kani proofs at `crates/prism-query/src/proofs/`; fuzz target at workspace `fuzz/fuzz_targets/vp021_parse_fuzz.rs`. STORY-INDEX v2.06. Rename PR #126 MERGED at squash-SHA 3133710e. Red Gate Stage 1 complete: stub-architect deployed 16 todo!() functions + 25 AST types; cargo check PASSED. sidecar-learning.md updated. cycle-manifest v1.59. factory-artifacts canonical: 9abb9a89 (D-225 Stage 2).
 
 **D-224 W3 SPEC REMEDIATION COMPLETE (2026-05-04) — STATE v6.75:** W3 spec remediation burst applied. Uncertainty-scanner found 1 RED story (S-3.01) + 2 RED stories (S-3.05 lru conflict, S-3.07 DataFusion API) + 6 stories with empty BC anchors + DataFusion 53.x API drift in 10 stories. Story-writer applied: Chumsky 0.12 pin + Kani 0.67.0 pin + VP-015 depth 64 reconcile + lru→moka 0.12 swap + datafusion 53.1 pin + 6 BC anchor backfills (proxy BCs flagged for PO authoring) + cross-story AST module path (S-3.06→S-3.07). Implementer simultaneously renamed crowdstrike_session→org_scoped_session_id (separate maintenance PR; commit 6e14fc94 in rename worktree). 13 W3 stories + VP-015 + STORY-INDEX v2.05 + S-3.2.08 v1.1 bumped. R10-A (S-3.01 PrismQL parser) unblocked from spec quality perspective. 7 TDD-time API verification gates + BC authorship gap noted in remediation-log. cycle-manifest v1.58. Rename PR #126 merged 2026-05-05T03:19:10Z.
 
@@ -164,7 +169,7 @@ factory-artifacts canonical: 1535b600 (D-225 S-3.01 spec sync + Red Gate Stage 1
 
 ## Current State
 
-develop HEAD `3133710e` | factory-artifacts `1535b600` (canonical SHA — D-225 S-3.01 spec sync + Red Gate Stage 1; STATE v6.75)
+develop HEAD `3133710e` | factory-artifacts `15fa97e6` (placeholder — D-226 S-3.01 implementation cycle complete + D-227 plugin rc.11; STATE v6.76; backfilled Stage 2)
 
 | Metric | Value |
 |--------|-------|
