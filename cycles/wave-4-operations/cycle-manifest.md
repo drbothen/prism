@@ -2,7 +2,7 @@
 document_type: cycle-manifest
 cycle_id: wave-4-operations
 cycle_type: feature
-version: wave-4-preflight-v1.55
+version: wave-4-preflight-v1.56
 status: in-progress
 started: pending
 completed: pending
@@ -224,6 +224,7 @@ Story inventory will be remediated post-ADR-acceptance per drift audit categorie
 
 | Version | Date | Change |
 |---------|------|--------|
+| wave-4-preflight-v1.56 | 2026-05-04T16:00:00Z | d216-w4-holdout-authoring-closure (D-222) | 2026-05-04 | state-manager + product-owner | D-216 W4 holdout authoring burst complete. HS-009 (Scheduler Operations, 6 subs), HS-010 (Detection & Alert Pipeline, 6 subs), HS-011 (Case Management, 5 subs), HS-012 (Action Delivery, 6 subs). 23 new sub-scenarios total. HOLDOUT-INDEX v1.3 (52→75 total_scenarios; 8→12 total_groups; 36→59 p0_scenarios). 39 W4 BCs anchored across 4 files; all verified present in BC-INDEX v4.32. BC-2.14.011 gap noted (consistent with BC-INDEX v4.32); BC-2.12.011/012 excluded (retired-status). D-222 logged. Phase 4.B prereqs FULLY CLEARED (D-218+D-216 both closed 2026-05-04) — R10 dispatch unblocked. STATE v6.73, HANDOFF v6.73. SHA 15fa97e6 (canonical). |
 | wave-4-preflight-v1.55 | 2026-05-04T14:00:00Z | d218-wave-doc-refresh-closure (D-221) | 2026-05-04 | state-manager + product-owner + story-writer + architect | D-218 wave-doc-refresh three-agent burst complete. epics.md v1.3→v1.4 (product-owner; E-3 sub-epics final + W3-FIX-* 15 story additions; total 76→129 stories). STORY-INDEX v2.03→v2.04 (story-writer; BC-INDEX cite v4.27→v4.32 sync; TD-W4-CV-LOW-001 resolved). ARCH-INDEX v2.28→v2.29 (architect; ADR-016 date 2026-05-04→2026-05-02; TD-W4-CV-LOW-002 resolved). wave-state.yaml KICKOFF→PHASE_4_A_CONVERGED + R9_APPROVED. vsdd-plugin-tech-debt.md v2.2→v2.3 (TD-W4-CV-LOW-001/002 resolved). D-221 logged. Phase 4.B prereq 1 CLOSED; D-216 W4 HS authoring is next BLOCKER. STATE v6.72, HANDOFF v6.72. SHA 2a2c9a8f (canonical). |
 | wave-4-preflight-v1.54 | 2026-05-04T12:30:00Z | td-register-gap-closed (D-220) | 2026-05-04 | state-manager | TD register gap closed per user catch: 7 TD items described in session but never filed. vsdd-plugin-tech-debt.md v2.1→v2.2 (31→38 items). TD-VSDD-053 P0 (structural fix for TD-VSDD-044 6x chain-corruption); TD-W4-RETRY-OBS-001/INJECTION-VOCAB-001/CV-LOW-001/CV-LOW-002 P3 (R8 carry-forward); TD-HOLDOUT-W1-BACKFILL-001/W2-RETROFIT-001 P2 (D-219 systemic holdout gap). D-220 logged. STATE v6.71, HANDOFF v6.71. SHA 15fa97e6. |
 | wave-4-preflight-v1.53 | 2026-05-04T00:00:00Z | wave-4-pre-compact-state-capture | 2026-05-04 | state-manager | Pre-compact comprehensive state capture: D-217 (wave reality 7 waves W0..W6 + 129 stories on disk vs 76 in epics.md v1.2; W3 expanded 13→51 during execution; W6 mixed status: 11 DTU merged via W0-W3 gates, 9 draft) + D-218 (wave docs STALE — wave-state.yaml/epics.md/STORY-INDEX refresh required post-compact BEFORE R10; resolves TD-W4-CV-LOW-001 + TD-W4-CV-LOW-002) + D-219 (holdout-coverage SYSTEMIC gap across W1/W2/W4/W5/W6; W3 only wave with proper BC anchoring; per-wave HS authoring should become standard Phase X.A R-step; TD-VSDD-053 candidate). Phase 4.B prerequisites: STEP 1 (D-218 wave doc refresh) + STEP 2 (D-216 W4 HS authoring). STATE v6.70, HANDOFF v6.70. SHA 15fa97e6. |

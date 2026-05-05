@@ -1,24 +1,24 @@
 ---
 document_type: holdout-scenario-index
 level: L3
-version: "1.2"
+version: "1.3"
 status: draft
 producer: product-owner
-timestamp: 2026-04-14T00:00:00
+timestamp: 2026-05-04T00:00:00Z
 phase: 1b
 inputs: []
 input-hash: null
 traces_to: prd.md
-total_scenarios: 52
+total_scenarios: 75
 ---
 
 # Holdout Scenario Index -- Prism
 
-**Date:** 2026-04-13
-**Phase:** 0 (Multi-Repo Synthesis -- Step 5)
-**Total Scenarios:** 52
-**Total Groups:** 8
-**Input Sources:** 9 pass-8 deep synthesis files, cross-repo-dependencies.md, unified-security-posture.md
+**Date:** 2026-05-04
+**Phase:** 0 (Multi-Repo Synthesis -- Step 5) / Phase 4.B (Wave 4 Holdout Coverage)
+**Total Scenarios:** 75
+**Total Groups:** 12
+**Input Sources:** 9 pass-8 deep synthesis files, cross-repo-dependencies.md, unified-security-posture.md; Wave 4 stories S-4.01–S-4.08, BC-INDEX v4.32, ADR-013 §2.1, D-209, ADR-016 §2.5, ADR-008
 
 ---
 
@@ -34,6 +34,10 @@ total_scenarios: 52
 | HS-006 | [HS-006-state-recovery.md](HS-006-state-recovery.md) | State Recovery | 6 | P0 | Restart resilience, cursor forward progress |
 | HS-007 | [HS-007-cross-repo-failure.md](HS-007-cross-repo-failure.md) | Cross-Repo Failure | 8 | P1 | Patterns from one repo failing in unified context |
 | HS-008 | [HS-008-contract-violation.md](HS-008-contract-violation.md) | Contract Violation | 8 | P1 | OCSF/proto/API schema mismatches |
+| HS-009 | [HS-009-scheduler-operations.md](HS-009-scheduler-operations.md) | Scheduler Operations | 6 | P0 | 60s tick regression (ADR-013 §2.1), ScheduleFireMissed, multi-tenant CF key isolation |
+| HS-010 | [HS-010-detection-alert-pipeline.md](HS-010-detection-alert-pipeline.md) | Detection & Alert Pipeline | 6 | P0 | alert_id UUID v7 idempotency, dedup correctness, three-scope rule isolation |
+| HS-011 | [HS-011-case-management.md](HS-011-case-management.md) | Case Management | 5 | P0 | 5-state machine enforcement, timeline_entry_id idempotency, MTTR accuracy |
+| HS-012 | [HS-012-action-delivery.md](HS-012-action-delivery.md) | Action Delivery | 6 | P0 | D-209 semaphore independence, VP-045 non-blocking, ADR-016 §2.5 discriminator FSM |
 
 ---
 
@@ -132,23 +136,69 @@ total_scenarios: 52
 | HS-008-07 | Armis AQL Query Syntax Rejected | poller-coaster |
 | HS-008-08 | MCP Protocol Version Mismatch | tally, mcp-claroty-xdome |
 
+### HS-009: Scheduler Operations (P0)
+
+| ID | Title | Repos Tested |
+|----|-------|-------------|
+| HS-009-01 | Schedule CRUD Lifecycle with Org-Prefixed CF Keys | prism-operations, prism-storage |
+| HS-009-02 | 60-Second Default Tick Fires Correctly per ADR-013 §2.1 | prism-operations, prism-storage |
+| HS-009-03 | ScheduleFireMissed Audit Event Emitted on Tick Overrun | prism-operations, prism-audit |
+| HS-009-04 | Schedule Pack Rotation Invalidates Pending Fires for Retired Packs | prism-operations, prism-storage |
+| HS-009-05 | Multi-Tenant Schedule Isolation | prism-operations, prism-storage |
+| HS-009-06 | Schedule Disable/Re-Enable Preserves schedule_id and Pauses Tick Fires | prism-operations, prism-storage |
+
+### HS-010: Detection & Alert Pipeline (P0)
+
+| ID | Title | Repos Tested |
+|----|-------|-------------|
+| HS-010-01 | Detection Rule Registration and Matching Against Query Result Packs | prism-operations, prism-storage |
+| HS-010-02 | Diff Pack Flow — Detect Changes Between Consecutive Query Result Packs | prism-operations, prism-storage |
+| HS-010-03 | Alert Generation with alert_id UUID v7 as Idempotency Key — Replay-Safe | prism-operations, prism-storage |
+| HS-010-04 | Detection Rule Evaluation Under Multi-Tenant Isolation | prism-operations, prism-storage |
+| HS-010-05 | Alert Deduplication via Idempotency Key (Same alert_id = No Duplicate Emission) | prism-operations, prism-storage |
+| HS-010-06 | Detection Rule Disable Retains Existing Alerts but Stops New Generation | prism-operations, prism-storage |
+
+### HS-011: Case Management (P0)
+
+| ID | Title | Repos Tested |
+|----|-------|-------------|
+| HS-011-01 | Case Lifecycle — Open, Update, and Close with State Machine Enforcement | prism-operations, prism-storage |
+| HS-011-02 | Timeline Entry Idempotency via timeline_entry_id UUID v7 | prism-operations, prism-storage |
+| HS-011-03 | Case Metrics Aggregation — Open Count, MTTR, Severity Distribution per Org | prism-operations, prism-storage |
+| HS-011-04 | Multi-Tenant Case Isolation — case_dedup_idx CF Org-Prefixed | prism-operations, prism-storage |
+| HS-011-05 | Case Linking to Alerts — One Case References Multiple alert_ids | prism-operations, prism-storage |
+
+### HS-012: Action Delivery (P0)
+
+| ID | Title | Repos Tested |
+|----|-------|-------------|
+| HS-012-01 | Action Delivery Uses Independent 8-Permit Semaphore — NOT Shared with Scheduler (D-209) | prism-operations |
+| HS-012-02 | VP-045 try_acquire Non-Blocking — Tick Aborts Within 10ms if Permit Unavailable | prism-operations |
+| HS-012-03 | SemaphoreExhausted Audit Event Emitted When Action Delivery Semaphore Saturated | prism-operations, prism-audit |
+| HS-012-04 | action_state CF Discriminator Transitions — Success and Failure Paths per ADR-016 §2.5 | prism-operations, prism-storage |
+| HS-012-05 | DELIVERY_TERMINAL State — No Further Transitions | prism-operations, prism-storage |
+| HS-012-06 | Multi-Tenant Action Delivery Isolation — Org A's Actions Invisible to Org B | prism-operations, prism-storage |
+
 ---
 
 ## Repo Coverage Matrix
 
 Shows which repos are tested by which scenario groups.
 
-| Repo | HS-001 | HS-002 | HS-003 | HS-004 | HS-005 | HS-006 | HS-007 | HS-008 | Total Groups |
-|------|--------|--------|--------|--------|--------|--------|--------|--------|-------------|
-| poller-cobra | X | X | X | X | X | X | X | X | 8/8 |
-| poller-express | X | X | X | X | X | X | X | - | 7/8 |
-| poller-bear | X | X | X | X | X | X | X | X | 8/8 |
-| poller-coaster | X | X | X | X | X | X | X | X | 8/8 |
-| tally | X | X | X | X | X | - | X | X | 7/8 |
-| ocsf-proto-gen | X | X | - | - | - | - | X | X | 4/8 |
-| axiathon | X | X | X | X | X | - | X | X | 7/8 |
-| mcp-claroty-xdome | X | X | X | - | X | - | X | X | 6/8 |
-| serveMyAPI | - | - | - | X | - | - | X | - | 2/8 |
+| Repo | HS-001 | HS-002 | HS-003 | HS-004 | HS-005 | HS-006 | HS-007 | HS-008 | HS-009 | HS-010 | HS-011 | HS-012 | Total Groups |
+|------|--------|--------|--------|--------|--------|--------|--------|--------|--------|--------|--------|--------|-------------|
+| poller-cobra | X | X | X | X | X | X | X | X | - | - | - | - | 8/12 |
+| poller-express | X | X | X | X | X | X | X | - | - | - | - | - | 7/12 |
+| poller-bear | X | X | X | X | X | X | X | X | - | - | - | - | 8/12 |
+| poller-coaster | X | X | X | X | X | X | X | X | - | - | - | - | 8/12 |
+| tally | X | X | X | X | X | - | X | X | - | - | - | - | 7/12 |
+| ocsf-proto-gen | X | X | - | - | - | - | X | X | - | - | - | - | 4/12 |
+| axiathon | X | X | X | X | X | - | X | X | - | - | - | - | 7/12 |
+| mcp-claroty-xdome | X | X | X | - | X | - | X | X | - | - | - | - | 6/12 |
+| serveMyAPI | - | - | - | X | - | - | X | - | - | - | - | - | 2/12 |
+| prism-operations | - | - | - | - | - | - | - | - | X | X | X | X | 4/12 |
+| prism-storage | - | - | - | - | - | - | - | - | X | X | X | X | 4/12 |
+| prism-audit | - | - | - | - | - | - | - | - | X | - | - | X | 2/12 |
 
 ---
 
@@ -190,21 +240,27 @@ Minimum acceptance: All P0 scenarios PASS. P1 scenarios at least PARTIAL.
 
 ```yaml
 document: holdout-index
-phase: 0
-step: 5
+phase: 0_and_4b
+step: 5_and_wave4
 status: complete
-total_scenarios: 52
-total_groups: 8
-p0_scenarios: 36
+total_scenarios: 75
+total_groups: 12
+p0_scenarios: 59
 p1_scenarios: 16
-repos_covered: 9/9
+repos_covered: 9/9_brownfield_plus_3_greenfield
 critical_bugs_verified: 14
-timestamp: 2026-04-13T00:00:00Z
+wave4_groups_added: 4
+wave4_scenarios_added: 23
+wave4_must_pass_groups: 3
+wave4_conditional_pass_groups: 1
+d216_closure: true
+timestamp: 2026-05-04T00:00:00Z
 ```
 
 ## Changelog
 
 | Version | Burst | Date | Author | Change |
 |---------|-------|------|--------|--------|
+| 1.3 | wave4-holdout-authoring | 2026-05-04 | product-owner | D-216 closure (Phase 4.B wave gate unblock, D-219 first-wave-with-proper-holdouts): authored HS-009 (6 sub-scenarios, Scheduler Operations, must_pass: true), HS-010 (6 sub-scenarios, Detection & Alert Pipeline, must_pass: true), HS-011 (5 sub-scenarios, Case Management, must_pass: false), HS-012 (6 sub-scenarios, Action Delivery, must_pass: true). total_scenarios 52 → 75 (+23). total_groups 8 → 12. p0_scenarios 36 → 59. BC anchors drawn from BC-INDEX v4.32 (BC-2.12.001–010, BC-2.13.001–013, BC-2.14.001–012, BC-2.18.001–009). Repo Coverage Matrix extended with prism-operations, prism-storage, prism-audit columns. |
 | 1.2 | pass-81-remediation | 2026-04-21 | product-owner | F81-006: Synced body "Total Scenarios" (53 → 52) and state checkpoint (total_scenarios: 53 → 52, p0_scenarios: 37 → 36). HS-001-05 was P0; body/checkpoint were stale vs frontmatter. |
 | 1.1 | pass-80-remediation | 2026-04-21 | product-owner | F80-006: HS-001-05 marked REMOVED — CAP-013 (xMP Envelope Delivery) is out of scope (REMOVED from capabilities.md). total_scenarios decremented 53 → 52. |
