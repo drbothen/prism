@@ -34,10 +34,12 @@ jobs:
         uses: taiki-e/install-action@cf525cb33f51aca27cd6fa02034117ab963ff9f1 # v2.75.22
         with:
           tool: cargo-fuzz
+      - name: Add gnu target (sanitizer requires glibc, not musl)
+        run: rustup target add x86_64-unknown-linux-gnu
       - name: Fuzz VP-021 (30 min)
         run: |
           set -euo pipefail
-          cd fuzz && cargo +nightly fuzz run vp021_parse_fuzz -- -max_total_time=1800 -max_len=65536
+          cd fuzz && cargo +nightly fuzz run vp021_parse_fuzz --target x86_64-unknown-linux-gnu -- -max_total_time=1800 -max_len=65536
       - name: Upload fuzz corpus
         if: always()
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
