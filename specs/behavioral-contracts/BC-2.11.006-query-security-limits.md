@@ -1,7 +1,7 @@
 ---
 document_type: behavioral-contract
 level: L3
-version: "1.7"
+version: "1.8"
 status: draft
 producer: product-owner
 timestamp: 2026-04-14T07:00:00
@@ -22,6 +22,22 @@ inputs: [".factory/specs/prd.md", ".factory/specs/domain-spec/capabilities.md"]
 input-hash: "412c872"
 traces_to: ["CAP-015"]
 extracted_from: ".factory/specs/prd.md"
+restricted_symbols:
+  description: "Symbols that MUST be pub(crate) or private. External crates referencing any of these MUST fail to compile. Validated by tests/external/perimeter-violation/src/main.rs."
+  symbols:
+    - prism_query::filter_parser::parse_filter
+    - prism_query::sql_parser::parse_sql
+    - prism_query::pipe_parser::parse_pipe
+    - prism_query::filter_parser::build_predicate_parser
+    - prism_query::filter_parser::build_source_ref_parser
+    - prism_query::filter_parser::build_string_parser
+    - prism_query::filter_parser::build_literal_parser
+    - prism_query::filter_parser::build_expr_parser
+    - prism_query::filter_parser::build_pipe_mode_parser
+    - prism_query::pipe_parser::build_pipe_parser
+    - prism_query::security::ParseLimits::install_thread_local
+    - prism_query::security::ParseLimits::clear_thread_local
+    - prism_query::security::ParseLimits::current_regex_limit
 ---
 
 # BC-2.11.006: Query Security Limits Enforcement
@@ -46,12 +62,15 @@ This BC defines the complete set of security limits that constitute DI-019. Seve
 - All limits are configurable via TOML config with the above values as defaults
 - **Security Perimeter (pub(crate) enforcement):** The `prism-query` crate exposes a single public security entry point: `PrismQlParser::parse(input: &str) -> Result<Ast, Vec<ParseError>>`. All sub-parsers (`parse_filter`, `parse_pipe`, `parse_sql`) and parser-builder factories (`build_predicate_parser`, `build_source_ref_parser`, `build_string_parser`, `build_literal_parser`, `build_expr_parser`, `build_pipe_mode_parser`, `build_pipe_parser`, etc.) are crate-private (`pub(crate)`). External callers MUST NOT be able to bypass the seven security guards (`query_size`, `paren_depth`, `predicate_nesting_depth`, `expr_nesting_depth`, `sql_query_nesting_depth`, `list_size`, `pipe_stage_count`) by calling sub-components directly.
 
+  > **Note:** `build_filter_parser` (filter_parser.rs:366) and `build_sql_parser` (sql_parser.rs:158) are NOT listed above because they are private (`fn`, not `pub(crate)` or `pub`). They are inaccessible by Rust visibility regardless of perimeter enforcement. If a future story promotes either to `pub(crate)`, BC-2.11.006 must be amended to add it to the `restricted_symbols` list.
+
   **Enforcement layers:**
   1. **Rust visibility (primary):** All sub-parsers and builder factories are `pub(crate)`. External crates referencing them produce a Rust visibility error during `cargo build`.
   2. **Clippy lint (defence-in-depth, intra-crate only):** The `crates/prism-query/clippy.toml` `disallowed-methods` list flags accidental intra-crate misuse during `cargo clippy`. Note: this lint is per-crate by Cargo design and does NOT propagate to downstream crates.
   3. **API surface integration test:** `crates/prism-query/tests/api_surface.rs` exercises the public API and confirms only `PrismQlParser::parse` is callable.
+  4. **CI gate (negative test):** `.github/workflows/ci.yml` job `perimeter-compile-fail` builds the `tests/external/perimeter-violation/` external test crate using `cargo check`. The crate imports forbidden symbols (sub-parsers, builder factories, thread-local API). The job ASSERTS `cargo check` fails with `error[E0603]: ... is private`; if the build succeeds, the job fails the PR with a security regression error.
 
-  **Pre-merge regression check:** `cargo build --workspace` must compile cleanly; any external crate adding a forbidden import (e.g., `prism_query::filter_parser::parse_filter`) will produce a hard visibility error and fail the build. CI also runs a paired negative-test workflow (devops dispatch in flight) that injects a forbidden import and asserts `cargo build` fails.
+  **Pre-merge regression check:** `cargo build --workspace` must compile cleanly; any external crate adding a forbidden import (e.g., `prism_query::filter_parser::parse_filter`) will produce a hard visibility error and fail the build. The CI gate `perimeter-compile-fail` (`.github/workflows/ci.yml`) builds `tests/external/perimeter-violation/` with `cargo check` and asserts the build fails — if it compiles successfully, the job fails the PR as a security regression.
 
 ## Invariants
 - DI-019: All limits defined in this BC constitute the DI-019 invariant
@@ -108,6 +127,7 @@ This BC defines the complete set of security limits that constitute DI-019. Seve
 
 | Version | Burst | Date | Author | Change |
 |---------|-------|------|--------|--------|
+| 1.8 | pass-6-remediation | 2026-05-05 | product-owner | F-MEDIUM-001 — added 4th enforcement layer (CI gate perimeter-compile-fail, now implemented). F-LOW-001 — footnote distinguishing private build_*_parser from pub(crate) ones. OBS-001 part — added structured `restricted_symbols:` frontmatter for machine-checkable perimeter validation. PR-127 adversary pass-6 remediation. |
 | 1.7 | pass-5-remediation | 2026-05-05 | product-owner | F-MEDIUM-001 — corrected clippy.toml enforcement claim (per-crate scope, not workspace-wide; cargo build does not run clippy). Layered enforcement now accurately described: Rust visibility (primary), clippy intra-crate (defence), api_surface test (CI). F-MEDIUM-002 — INV-SEC-PERIMETER-001 now cross-references DI-034 (lifted by business-analyst). L2 Invariants traceability updated: DI-019, DI-034. PR-127 adversary pass-5 remediation. |
 | 1.6 | pass-4-obs-002 | 2026-05-05 | product-owner | Add Security Perimeter postcondition (per adversary pass-4 OBS-002 process-gap). Codifies that prism-query exposes only PrismQlParser::parse; sub-parsers and builders are pub(crate) and lint-denied via clippy.toml disallowed-methods. Adds INV-SEC-PERIMETER-001 invariant and two compile-failure test vectors for api_surface.rs. Refs PR-127. |
 | 1.5 | pass-87-remediation | 2026-04-21 | architect | F87-001: VP-021 Proof Method corrected proptest → fuzz (matches VP-INDEX, VP-021 frontmatter, verification-architecture, coverage-matrix). |

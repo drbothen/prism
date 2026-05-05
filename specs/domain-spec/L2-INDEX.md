@@ -1,7 +1,7 @@
 ---
 document_type: domain-spec-index
 level: L2
-version: "1.11"
+version: "1.12"
 status: draft
 producer: business-analyst
 timestamp: 2026-04-27T00:00:00
@@ -121,6 +121,7 @@ Prism is a Rust MCP server that unifies multi-client security sensor management 
 
 | Version | Date | Change |
 |---------|------|--------|
+| 1.12 | 2026-05-05 | DI-034 layer 4 updated: 'pending devops dispatch' replaced with concrete reference to implemented `.github/workflows/ci.yml` `perimeter-compile-fail` job (adversary pass-6 F-MEDIUM-001 closure). invariants.md bumped v1.3 → v1.4. |
 | 1.11 | 2026-05-05 | Adversary pass-5 F-MEDIUM-002 remediation: Add DI-034 (prism-query security perimeter) — lifted from BC-2.11.006 INV-SEC-PERIMETER-001 per POLICY 2 lift-invariants gap. DI registry updated DI-001..DI-033 → DI-001..DI-034, count 29 → 30; total IDs 139 → 140. CAP-015 cross-reference updated to include DI-034. Document Map Invariants row updated. PR-127. |
 | 1.10 | 2026-04-27 | M-31-001 (Pass 31): CAP-040 subsystem annotation corrected — "SS-06 registry / SS-01 enforcement" → "SS-21 registry / SS-06 config parsing / SS-01 enforcement". |
 | 1.9 | 2026-04-27 | M-17-002 follow-on sweep: CAP-036 through CAP-040 descriptions and cross-references added; ID registry updated CAP-001..CAP-035 → CAP-001..CAP-040. |

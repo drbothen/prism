@@ -1,7 +1,7 @@
 ---
 document_type: behavioral-contract-index
 level: L3
-version: "4.35"
+version: "4.36"
 status: draft
 producer: product-owner
 timestamp: 2026-05-05T00:00:00
@@ -352,6 +352,8 @@ Phase 3-patch additions (2026-04-16): 22 new BCs added in Burst 1 to close trace
 - Subsystem 19: Infusion Enrichment Framework (AD-020, CAP-031)
 
 ### Change Log (Adversarial Review Fixes)
+
+**v4.36 (2026-05-05):** Adversary pass-6 remediation — BC-2.11.006 v1.7→v1.8: F-MEDIUM-001 — added 4th enforcement layer (CI gate `perimeter-compile-fail` in `.github/workflows/ci.yml`, now implemented; drops stale "devops dispatch in flight" wording). F-LOW-001 — footnote added distinguishing private `build_filter_parser`/`build_sql_parser` (fn-private, inaccessible regardless of perimeter) from the seven pub(crate) builder factories. OBS-001 part — added structured `restricted_symbols:` frontmatter block (13 entries: 3 parse_* entry points, 7 build_*_parser factories, 3 thread-local API symbols) as machine-checkable source-of-truth for perimeter validation against `tests/external/perimeter-violation/src/main.rs`. PR-127 adversary pass-6 remediation.
 
 **v4.35 (2026-05-05):** Adversary pass-5 remediation — BC-2.11.006 v1.6→v1.7: F-MEDIUM-001 corrected inaccurate clippy.toml enforcement claim (per-crate scope only; `cargo build` does not run clippy); layered enforcement now accurately describes Rust visibility (primary), clippy intra-crate defence-in-depth, and api_surface integration test. F-MEDIUM-002: INV-SEC-PERIMETER-001 now cross-references DI-034 (prism-query security perimeter domain invariant lifted by business-analyst in parallel); L2 Invariants traceability updated to DI-019, DI-034. PR-127 adversary pass-5 remediation.
 

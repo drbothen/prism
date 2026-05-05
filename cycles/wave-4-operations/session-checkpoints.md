@@ -140,4 +140,16 @@ _Archived when v6.53 checkpoint (Pass 19 ALL-ZERO CLEAN — window 2/3 OPEN) rep
 
 ---
 
+## Session Resume Checkpoint (2026-05-05-d232-pass5-remediation-complete-v6.82)
+
+_Archived when v6.83 checkpoint (D-234 pass-6 remediation complete) replaced this entry in STATE.md._
+
+**STATE v6.82. D-232 pass-5 adversary remediation complete. Stage 2 backfill: factory-artifacts SHA 28564859 cited. 259 tests on S-3.01 branch (feature/S-3.01@bb1528ad). ParseLimits fully propagated through 9 guards. MIN_SAFE_PIPE_STAGES 1→4. DI-034 added to invariants.md. BC-2.11.006 v1.7. Perimeter compile-fail CI gate added. Convergence window restarting — pass-6 is 1 of 3 needed. develop HEAD: 3133710e.**
+
+develop HEAD: `3133710e` | factory-artifacts: `28564859` (Stage 1 D-232 pass-5 remediation + Stage 2 backfill) | workspace tests: 2363 + 259 on S-3.01 branch | PRs merged: 126 | Open: #127
+
+**D-232 (2026-05-05):** Pass-5 BLOCKED verdict — 1H (ParseLimits not fully propagated through 9 guards) + 2M (F-MEDIUM-001 clippy claim in BC-2.11.006, F-MEDIUM-002 DI-034 missing from invariants.md) + 1L + 3 OBS. Remediation: implementer #5 (bb1528ad on feature/S-3.01): ParseLimits full propagation + thread-local for AST construction + 20 boundary tests + MIN_SAFE_PIPE_STAGES 1→4 — 253→259 tests; devops: perimeter compile-fail CI gate; product-owner: BC-2.11.006 v1.6→v1.7 (corrected clippy claim, DI-034 ref); business-analyst: DI-034 added to invariants.md v1.2→v1.3. Convergence window RESET (pass-3 CLEAN; pass-4 BLOCKED; pass-5 BLOCKED). Pass-6 next (1 of 3 needed for new window).
+
+---
+
 <!-- Repeat for each archived checkpoint. Maintain chronological order. -->
