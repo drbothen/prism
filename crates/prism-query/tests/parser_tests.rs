@@ -1,9 +1,11 @@
-//! S-3.01 Parser Tests — Red Gate test suite for PrismQL Parser.
+//! S-3.01 Parser Tests — test suite for PrismQL Parser.
 //!
-//! All tests in this file are written BEFORE implementation. Every test calls a
-//! stub function body of `todo!()` and therefore MUST FAIL with a panic at the
-//! Red Gate stage. Once the implementer phase is complete, all tests must turn
-//! GREEN with no changes to the test assertions themselves.
+//! Originally written under TDD discipline against `todo!()` stubs (Red Gate);
+//! all tests now exercise the live implementation (Green Gate). The test corpus
+//! covers the full S-3.01 story acceptance criteria and has been extended through
+//! PR-127 review remediation (implementer passes 1 and 2).
+//!
+//! No `todo!()` stubs remain — every test exercises the real implementation.
 //!
 //! # Coverage
 //!
@@ -20,7 +22,7 @@
 //! | Virtual fields | BC-2.11.012 | BC-2.11.012 |
 //! | Edge cases | EC-001..EC-005 | BC-2.11.006 |
 //!
-//! Story: S-3.01 | Version: 1.0 (Red Gate)
+//! Story: S-3.01 | Version: 2.0 (Green Gate — PR-127 remediation pass 2)
 
 #![allow(
     clippy::expect_used,

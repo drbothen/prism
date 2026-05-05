@@ -26,7 +26,7 @@ use crate::ast::{
     SortDirection, Span, SqlQuery, SqlStatement,
 };
 use crate::error::ParseError;
-use crate::error_recovery::rich_to_parse_error;
+use crate::error_recovery::{rich_to_parse_error, sql_paren_delimiters};
 use crate::filter_parser::{build_literal_parser, build_predicate_parser, build_source_ref_parser};
 use crate::security;
 
@@ -386,6 +386,11 @@ fn build_sql_predicate_parser<'a>(
     // SQL-specific extensions (IN subquery) are added here.
     let base = build_predicate_parser();
 
+    // sql_paren_delimiters() returns ('(', ')') — the canonical delimiter pair
+    // for SQL subquery recovery (CR F-CR-009). Used here to document the pairing
+    // between the recovery helper and the actual delimited_by call below.
+    let (open_paren, close_paren) = sql_paren_delimiters();
+
     // IN subquery: `field IN (SELECT ...)` / `field NOT IN (SELECT ...)`
     let in_subquery = field_path
         .clone()
@@ -403,7 +408,7 @@ fn build_sql_predicate_parser<'a>(
             sql_query
                 .clone()
                 .padded()
-                .delimited_by(just('(').padded(), just(')').padded()),
+                .delimited_by(just(open_paren).padded(), just(close_paren).padded()),
         )
         .map(|((fp, negated), sq)| Predicate::InSubquery {
             field: fp,
@@ -566,23 +571,26 @@ fn build_sql_expr_parser<'a>(
             );
 
         // Generic aggregate: SUM / AVG / MIN / MAX
+        //
+        // SEC-S-001: Produce enum constructors directly so the downstream match
+        // is compile-time exhaustive — no `unreachable!()` needed.
         let generic_agg = choice((
             text::keyword("SUM")
                 .or(text::keyword("sum"))
                 .padded()
-                .to("sum"),
+                .to(AggFunc::Sum as fn(FieldPath) -> AggFunc),
             text::keyword("AVG")
                 .or(text::keyword("avg"))
                 .padded()
-                .to("avg"),
+                .to(AggFunc::Avg as fn(FieldPath) -> AggFunc),
             text::keyword("MIN")
                 .or(text::keyword("min"))
                 .padded()
-                .to("min"),
+                .to(AggFunc::Min as fn(FieldPath) -> AggFunc),
             text::keyword("MAX")
                 .or(text::keyword("max"))
                 .padded()
-                .to("max"),
+                .to(AggFunc::Max as fn(FieldPath) -> AggFunc),
         ))
         .then(
             field_path
@@ -590,14 +598,8 @@ fn build_sql_expr_parser<'a>(
                 .padded()
                 .delimited_by(just('(').padded(), just(')').padded()),
         )
-        .map(|(fname, fp)| {
-            let func = match fname {
-                "sum" => AggFunc::Sum(fp.clone()),
-                "avg" => AggFunc::Avg(fp.clone()),
-                "min" => AggFunc::Min(fp.clone()),
-                "max" => AggFunc::Max(fp.clone()),
-                _ => unreachable!(),
-            };
+        .map(|(ctor, fp): (fn(FieldPath) -> AggFunc, FieldPath)| {
+            let func = ctor(fp.clone());
             Expr::FuncCall(FuncCall::Aggregate {
                 func,
                 args: vec![field_path_to_expr(fp)],

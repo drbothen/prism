@@ -767,6 +767,12 @@ pub fn build_literal_parser<'a>(
 
     // Duration literal: digits followed by unit char (s, m, h, d).
     // Must be parsed BEFORE float/int to avoid consuming `30` from `30s`.
+    //
+    // SEC-S-001: The `unit_char` is produced by a combinator that filters to
+    // exactly the four valid chars ('s', 'm', 'h', 'd'). The match below uses
+    // a `try_map` returning `Err` for the wildcard arm instead of `unreachable!()`
+    // — this ensures the parser never panics on attacker-influenced input even if
+    // the combinator contract changes in the future.
     let duration_lit = text::int(10)
         .to_slice()
         .then(
@@ -782,7 +788,12 @@ pub fn build_literal_parser<'a>(
                 'm' => DurationUnit::Minutes,
                 'h' => DurationUnit::Hours,
                 'd' => DurationUnit::Days,
-                _ => unreachable!(),
+                other => {
+                    return Err(Rich::custom(
+                        span,
+                        format!("E-QUERY-001: unexpected duration unit char '{other}' (expected s/m/h/d)"),
+                    ));
+                }
             };
             DurationLiteral::new(value, unit)
                 .map(Literal::Duration)

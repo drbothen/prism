@@ -191,6 +191,17 @@ pub fn check_nesting_depth(ast: &Expr, depth: u32) -> Result<(), PrismError> {
 ///
 /// This pre-parse lexical scan catches structural depth bombs before the
 /// Chumsky parser descends into recursion.
+///
+/// # Semantics (Adv F-MEDIUM-003)
+/// This function tracks **max-instantaneous open-paren depth**, NOT the total
+/// count of parenthesis events. A sequence of balanced pairs `()()()...`
+/// reaches a maximum depth of 1 (at any instant, at most one `(` is open)
+/// and will never trigger a rejection, regardless of how many pairs appear.
+/// Only genuinely nested structures like `(((...)))` accumulate depth.
+///
+/// Concretely, `depth` is incremented on `(` and decremented on `)` using
+/// `saturating_sub`. The rejection fires only when depth exceeds the limit at
+/// the moment of the `(`, not as an aggregate.
 pub fn check_paren_depth(raw: &str) -> Result<(), PrismError> {
     let limit = effective_nesting_depth_limit();
     let mut depth: u32 = 0;

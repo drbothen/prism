@@ -24,7 +24,7 @@ use crate::ast::{
     PipeStage, SortDirection, SortExpr, SourceRef, Span, StatFunction, StatsStage,
 };
 use crate::error::ParseError;
-use crate::error_recovery::rich_to_parse_error;
+use crate::error_recovery::{pipe_boundary_chars, rich_to_parse_error};
 use crate::filter_parser::{build_predicate_parser, build_source_ref_parser};
 use crate::security;
 
@@ -232,11 +232,22 @@ pub fn build_pipe_parser<'a>(
     );
 
     // sum(f) | avg(f) | min(f) | max(f)
+    //
+    // SEC-S-001: Produce enum values directly so the downstream match is
+    // compile-time exhaustive — no `unreachable!()` needed.
     let generic_agg = choice((
-        kw_ci("sum").padded().to("sum"),
-        kw_ci("avg").padded().to("avg"),
-        kw_ci("min").padded().to("min"),
-        kw_ci("max").padded().to("max"),
+        kw_ci("sum")
+            .padded()
+            .to(AggFunc::Sum as fn(FieldPath) -> AggFunc),
+        kw_ci("avg")
+            .padded()
+            .to(AggFunc::Avg as fn(FieldPath) -> AggFunc),
+        kw_ci("min")
+            .padded()
+            .to(AggFunc::Min as fn(FieldPath) -> AggFunc),
+        kw_ci("max")
+            .padded()
+            .to(AggFunc::Max as fn(FieldPath) -> AggFunc),
     ))
     .then(
         field_path
@@ -244,13 +255,7 @@ pub fn build_pipe_parser<'a>(
             .padded()
             .delimited_by(just('(').padded(), just(')').padded()),
     )
-    .map(|(fname, fp)| match fname {
-        "sum" => AggFunc::Sum(fp),
-        "avg" => AggFunc::Avg(fp),
-        "min" => AggFunc::Min(fp),
-        "max" => AggFunc::Max(fp),
-        _ => unreachable!(),
-    });
+    .map(|(ctor, fp): (fn(FieldPath) -> AggFunc, FieldPath)| ctor(fp));
 
     // Single agg function
     let agg_func = choice((percentile_agg, distinct_count_agg, count_agg, generic_agg));
@@ -399,6 +404,12 @@ pub fn build_pipe_parser<'a>(
         )
         .map(|(infusion, field)| PipeStage::Enrich(EnrichStage { infusion, field }));
 
+    // Wire up error recovery for malformed pipe stages (CR F-CR-009, AC-9).
+    //
+    // When a stage fails to parse, `skip_then_retry_until` skips tokens one at a
+    // time and retries at the next `|` boundary. This produces a partial AST
+    // (stages before the error) plus accumulated errors — callers can inspect
+    // both. `pipe_boundary_chars()` returns `&['|']` — the canonical boundary set.
     let pipe_stage = choice((
         where_stage,
         sort_stage,
@@ -410,6 +421,10 @@ pub fn build_pipe_parser<'a>(
         fields_stage,
         join_stage,
         enrich_stage,
+    ))
+    .recover_with(skip_then_retry_until(
+        any().ignored(),
+        one_of(pipe_boundary_chars()).ignored(),
     ));
 
     // Stages separated by `|`
