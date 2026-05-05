@@ -1,10 +1,10 @@
 ---
 document_type: story-index
 level: "L4"
-version: "v2.03"
+version: "v2.04"
 status: draft
 producer: state-manager
-timestamp: 2026-05-03T12:00:00
+timestamp: 2026-05-04T00:00:00
 phase: 3
 total_stories: 129
 total_active_bcs: 222
@@ -22,7 +22,7 @@ before its dependencies are complete.
 
 - **Total stories:** 129 (76 through Wave 2 + 37 Wave 3 Multi-Tenant stories: S-3.0.01/02 + S-3.1.01–07 + S-3.2.01–08 + S-3.3.01–06 + S-3.4.01–05 + S-3.5.01 + S-3.6.01/02 + S-3.7.00–05 + 3 E-3.5 devx merged: W3-FIX-WIN/LEFTHOOK/CI-001 + 6 Wave 3.1 fix stories: W3-FIX-SEC-001/002/003 + W3-FIX-CODE-001/002/003 + 1 Wave 3.1 impl-phase story: S-3.1.06-ImplPhase + 2 Wave 3.2 fix stories: W3-FIX-CREDS-001 + W3-FIX-CODE-004 + 2 Wave 3.3 fix stories: W3-FIX-SEC-004 + W3-FIX-CODE-005 + 2 Wave 3.4 fix stories: W3-FIX-SEC-005 + W3-FIX-CODE-006)
 - **Total waves:** 7 (Wave 0 expanded to 16 stories: devops + DTU infrastructure)
-- **BCs covered:** 230 total registered (222 active per BC-INDEX.md v4.27; 200 Wave 1-2 BCs + 22 new Wave 3 BCs: BC-3.1.001–004, BC-3.2.001–005, BC-3.3.001–004, BC-3.4.001–004, BC-3.5.001–002, BC-3.6.001–002, BC-3.7.001; at v0.2+ draft status; BC-3.3.004 is a distinct contract from BC-3.3.001 per PO rename in Phase 3.A consistency-validator pass)
+- **BCs covered:** 230 total registered (222 active per BC-INDEX.md v4.32; 200 Wave 1-2 BCs + 22 new Wave 3 BCs: BC-3.1.001–004, BC-3.2.001–005, BC-3.3.001–004, BC-3.4.001–004, BC-3.5.001–002, BC-3.6.001–002, BC-3.7.001; at v0.2+ draft status; BC-3.3.004 is a distinct contract from BC-3.3.001 per PO rename in Phase 3.A consistency-validator pass)
 - **VPs assigned:** 145 (30 Kani proofs, 86 proptests, 4 unit_tests, 6 fuzz targets, 19 integration tests)
 - **Note:** The 7 osquery-inspired stories (S-2.08, S-3.08 through S-3.13) have 0 formal BCs at this stage — they are enhancements derived from the osquery synthesis review.
 - **Phase 3 patch Burst 1 (2026-04-16):** Added 5 new stories (S-0.01, S-0.02, S-6.04, S-6.05, S-6.06) and 2 scope expansions (S-6.01 subcommand dispatch, S-2.01 action_state CF) to close gaps identified in the consistency-validator audit.
@@ -112,7 +112,7 @@ Wave 3: query engine (S-3.01–S-3.13, depend on wave-2) + log-forwarding DTUs (
 Waves 4-6 follow in order. All dependency chains are acyclic (validated by topological sort below).
 Per-wave BC counts are raw story-BC assignments (sum=243 across all waves: 0+69+30+28+45+56+15).
 Some BCs appear in multiple stories (e.g., BC-2.04.001 → S-1.08 AND S-3.07; BC-2.16.001 → S-1.11 AND S-1.13),
-so the raw sum exceeds the unique count. Unique active BCs = 222 (per BC-INDEX.md v4.27, 222 active contracts: 200 Wave 1-2 + 22 Wave 3).
+so the raw sum exceeds the unique count. Unique active BCs = 222 (per BC-INDEX.md v4.32, 222 active contracts: 200 Wave 1-2 + 22 Wave 3).
 Note: DTU stories have 0 BCs. Per user directive Option 2 (DTU-first), product stories that require DTU
 clones as test fixtures now have explicit depends_on edges to their DTU prerequisites. DTU stories are
 distributed across waves 0-3 based on their earliest product consumer's wave.
@@ -885,6 +885,7 @@ All 13 new DTU clones: Wave 0, 0 BCs, priority P0, depends_on: [S-6.06].
 
 | Version | Date | Summary |
 |---------|------|---------|
+| v2.04 | 2026-05-04 | TD-W4-CV-LOW-001 CLOSED (story-writer): BC-INDEX version cite corrected v4.27 → v4.32 (two occurrences: overview BCs-covered note + Wave Summary unique-count comment). Wave summary story counts confirmed correct (5/20/11/17/8/10/5 = 76 base + 53 Wave-3-band = 129 total match filesystem). Timestamp updated 2026-05-03 → 2026-05-04. |
 | v2.03 | 2026-05-03 | F-PreP21-M-001 (story-writer): S-5.06 v1.10→v1.11 (cross-wave consistency sweep — 5 sites; ADR-013 §2.1 60s default + D-209 8-permit + ActionDeliveryEngine type name). Full Story List row updated [v1.11] annotation added. |
 | v2.02 | 2026-05-03 | F-P20-L-001 (story-writer): S-4.08 v1.22→v1.23 (token budget version pin dropped). Full Story List row updated [v1.22 ADR-016,ADR-019] → [v1.23 ADR-016,ADR-019]. |
 | v1.22 | 2026-04-19 | Burst 30 — comprehensive scripted BC-INDEX-to-story-body title sweep (first of its kind in this cycle). Found 14 title drifts across 5 stories, fixed all. Plus pass-29 specific fixes: S-1.08 em-dash→double-hyphen, S-1.10 BC-2.09.003/.004 title sync, S-1.12 3 backtick adds. Plus [SCOPE EXPANSION — Phase 3 patch] marker strips from S-4.03, S-4.06 (pass-27 L-001 residual close). Trajectory break-out attempt: pass-30 is first candidate for convergence-counter advance in this cycle. |

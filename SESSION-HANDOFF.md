@@ -1,17 +1,17 @@
 ---
 document_type: session-handoff
 level: ops
-version: "6.71"
+version: "6.72"
 status: current
 timestamp: 2026-05-04T00:00:00Z
 predecessor_session: "Wave 4 Phase 4.A R9 HUMAN APPROVED 2026-05-04. STATE v6.70. factory-artifacts 15fa97e6 (pre-compact state capture canonical SHA). TD register gap closed: 7 items filed per D-220 (TD-VSDD-053 P0 + 4 P3 R8 carry-forward + 2 P2 D-219 holdout gap)."
-successor_focus: "WAVE 4 PHASE 4.A APPROVED + CONVERGED. R9 HUMAN APPROVED. Pre-compact comprehensive state capture complete: D-215..D-220 logged. STATE v6.71. factory-artifacts canonical: 15fa97e6. Post-compact resume sequence below.
+successor_focus: "WAVE 4 PHASE 4.B PREREQ 1 CLOSED (2026-05-04). D-218 wave-doc-refresh COMPLETE. D-221 logged. STATE v6.72. factory-artifacts canonical: 15fa97e6 (Stage 1 placeholder — backfilled in Stage 2).
 
-**STEP 1 (R10-prereq #1, D-218 wave doc refresh):** state-manager + product-owner burst — (a) wave-state.yaml: bump wave_4_phase_4_a_status KICKOFF → PHASE_4_A_CONVERGED + R9_APPROVED + 4A_convergence_factory_sha (3abe8cdc) + 4A_convergence_develop_sha (ba3b10c7); (b) epics.md: bump v1.2 → v1.3 — refresh E-3 13→51 stories; Total 76→129; changelog update; per-wave story counts; (c) STORY-INDEX Wave Summary table: recompute per-wave totals to match total_stories: 129; (d) STORY-INDEX BC-INDEX cite: v4.27 → v4.32 (resolves TD-W4-CV-LOW-001); (e) ARCH-INDEX ADR-016 row date sync (resolves TD-W4-CV-LOW-002). State-manager commits LAST.
+**STEP 1 (D-218 wave doc refresh): COMPLETE (2026-05-04)** — wave-state.yaml PHASE_4_A_CONVERGED + R9_APPROVED; epics.md v1.4 (76→129 stories; W3-FIX-* added; E-3 sub-epics final); STORY-INDEX v2.04 (BC-INDEX cite v4.32 sync; TD-W4-CV-LOW-001 closed); ARCH-INDEX v2.29 (ADR-016 date 2026-05-02; TD-W4-CV-LOW-002 closed); vsdd-plugin-tech-debt.md v2.3 (TD-W4-CV-LOW-001/002 resolved). 3 anomalies flagged in D-221: duplicate S-3.1.06 slug (POL-1 violation), ADR-014 missing from registry, Z/no-Z timestamp inconsistency.
 
-**STEP 2 (R10-prereq #2, D-216 holdout authoring — BLOCKER):** Dispatch product-owner to author W4-specific holdout scenarios. 5+ new HS files (HS-009 through HS-013+) covering: schedule execution loop liveness, action delivery at-least-once retry, case management lifecycle, alert generation, differential pack deltas, detection rule validation. Add frontmatter with wave/story/BC anchoring (BC-2.12.004, BC-2.18.001/002/004, S-4.01..S-4.08). Model: W3 HS-003 (multi-tenant) + HS-007 (cross-repo) — both have explicit BC anchoring + per-scenario story refs. Update HOLDOUT-INDEX. State-manager commits LAST.
+**STEP 2 (R10-prereq #2, D-216 holdout authoring — IMMEDIATE NEXT — BLOCKER):** Dispatch product-owner to author W4-specific holdout scenarios. 5+ new HS files (HS-009 through HS-013+) covering: schedule execution loop liveness, action delivery at-least-once retry, case management lifecycle, alert generation, differential pack deltas, detection rule validation. Add frontmatter with wave/story/BC anchoring (BC-2.12.004, BC-2.18.001/002/004, S-4.01..S-4.08). Model: W3 HS-003 (multi-tenant) + HS-007 (cross-repo) — both have explicit BC anchoring + per-scenario story refs. Update HOLDOUT-INDEX. State-manager commits LAST.
 
-**STEP 3 (R10):** Dispatch S-4.01 + S-4.03 entry stories in parallel (per-story-delivery skill). No upstream W4 story dependencies. Gated on STEP 1 + STEP 2 completion.
+**STEP 3 (R10):** Dispatch S-4.01 + S-4.03 entry stories in parallel (per-story-delivery skill). No upstream W4 story dependencies. Gated on STEP 2 completion.
 
 **STEP 4 (Wave 4 impl cycle):** Iterate through all 8 W4 stories via TDD pipeline. Parallel where topology allows (see cycle-manifest topology).
 
@@ -22,33 +22,33 @@ successor_focus: "WAVE 4 PHASE 4.A APPROVED + CONVERGED. R9 HUMAN APPROVED. Pre-
 **STEP 7 (Wave 5 kickoff):** Phase 5.A spec convergence for 10 W5 draft stories. Author W5 holdout scenarios (standard per-wave Phase X.A R-step per D-219).
 
 **KEY REFERENCES:**
-- STATE.md v6.71: develop@ba3b10c7; factory-artifacts 15fa97e6 (canonical SHA — pre-compact state capture); +TD register v2.2 (38 items; D-220)
+- STATE.md v6.72: develop@ba3b10c7; factory-artifacts 15fa97e6 (Stage 1 placeholder — backfilled Stage 2); +TD register v2.3 (TD-W4-CV-LOW-001/002 resolved; D-221)
 - D-215: No W1/W2/W3 audit needed (optional R11 structural-drift sweep using TD-VSDD-039..052 methodologies — low-priority, NOT Phase 4.B blocker)
-- D-216: W4 holdout scenarios GAP — 8 HS files (HS-001..HS-008) have NO W4 BC/story references; BLOCKER for Phase 4.B wave gate; product-owner must author HS-009+ before S-4.01/S-4.03 dispatch
-- D-217: Wave reality — 7 waves (W0..W6); 129 stories on disk vs 76 in epics.md v1.2; W3 expanded 13→51; W6 mixed status (11 DTU merged, 9 draft)
-- D-218: Wave docs STALE — wave-state.yaml + epics.md v1.3 + STORY-INDEX refresh required BEFORE R10; resolves TD-W4-CV-LOW-001 + TD-W4-CV-LOW-002
+- D-216: W4 holdout scenarios GAP — 8 HS files (HS-001..HS-008) have NO W4 BC/story references; BLOCKER for Phase 4.B wave gate; product-owner must author HS-009+ before S-4.01/S-4.03 dispatch — IMMEDIATE NEXT ACTION
+- D-217: Wave reality — 7 waves (W0..W6); 129 stories on disk vs 76 in epics.md v1.2 (now v1.4 — refreshed); W3 expanded 13→51; W6 mixed status (11 DTU merged, 9 draft)
+- D-218: CLOSED 2026-05-04 — wave-state.yaml + epics.md v1.4 + STORY-INDEX v2.04 + ARCH-INDEX v2.29 refreshed; TD-W4-CV-LOW-001/002 resolved
 - D-219: Holdout-coverage SYSTEMIC gap: W1 never evaluated; W2 0.65 CONDITIONAL; W3 gold-standard 0.907; W4/W5/W6 no HS yet; per-wave HS authoring should become standard Phase X.A R-step (TD-VSDD-053 candidate)
-- 4 LOW COSMETIC findings deferred: TD-W4-RETRY-OBS-001 (SR-LOW-001), TD-W4-INJECTION-VOCAB-001 (SR-LOW-002), TD-W4-CV-LOW-001 (STORY-INDEX BC-INDEX version pin staleness — resolved by STEP 1d), TD-W4-CV-LOW-002 (ARCH-INDEX ADR-016 registry date — resolved by STEP 1e)
+- D-221: D-218 closure logged — epics.md v1.4, STORY-INDEX v2.04, ARCH-INDEX v2.29; 3 anomalies flagged (S-3.1.06 slug dupe, ADR-014 missing, Z/no-Z timestamp)
 - pass-31.md: cycles/wave-4-operations/adversarial-reviews/pass-31.md (PERFECT CLEAN; 0 findings; 17 cross-cuts incl. 2 NOVEL-AXIS; CONVERGED)
-- cycle-manifest v1.53 (NEW — wave-4-pre-compact-state-capture; 15fa97e6)
-- ARCH-INDEX v2.28 (current; RE-VERIFIED CLEAN)
+- cycle-manifest v1.55 (D-218 wave-doc-refresh closure; 15fa97e6 Stage 1 placeholder)
+- ARCH-INDEX v2.29 (ADR-016 date 2026-05-02; TD-W4-CV-LOW-002 resolved)
+- STORY-INDEX v2.04 (BC-INDEX v4.32 cite sync; TD-W4-CV-LOW-001 resolved)
+- epics.md v1.4 (E-3 sub-epics final; W3-FIX-* added; total 76→129)
 - ADR-016 v0.14 (F-P27-H-001 fix; current; RE-VERIFIED CLEAN)
 - prd.md v1.10 (current; RE-VERIFIED CLEAN)
-- interface-definitions.md v2.6 (current; RE-VERIFIED CLEAN)
-- query-engine.md v1.2 (current; RE-VERIFIED CLEAN)
-- data-layer.md v1.3 (current; RE-VERIFIED CLEAN)
 - BC-INDEX v4.32 (current)
-- STORY-INDEX v2.03 (current)
-- Wave 4 cycle-manifest: cycles/wave-4-operations/cycle-manifest.md (v1.53)
+- Wave 4 cycle-manifest: cycles/wave-4-operations/cycle-manifest.md (v1.55)
 - Product TD register: tech-debt-register.md (57 active product items)
-- vsdd-plugin-tech-debt.md: 38 items v2.2 (TD-VSDD-053 P0 most recent; 7 items registered per D-220)
+- vsdd-plugin-tech-debt.md: 38 items v2.3 (TD-W4-CV-LOW-001/002 resolved 2026-05-04; D-221)
 
-factory-artifacts canonical: 15fa97e6 (canonical SHA — pre-compact state capture). develop HEAD: ba3b10c7."
+factory-artifacts canonical: 15fa97e6 (Stage 1 placeholder — backfilled in Stage 2). develop HEAD: ba3b10c7."
 ---
 
 # Session Handoff — WAVE 4 PHASE 4.A DECISIONS LOGGED (2026-05-02)
 
 ## TL;DR
+
+**D-218 WAVE-DOC-REFRESH CLOSED (2026-05-04) — STATE v6.72:** Three-agent burst complete. epics.md v1.4 (product-owner; 76→129 stories; E-3 sub-epics final; W3-FIX-* 15 story additions). STORY-INDEX v2.04 (story-writer; BC-INDEX cite v4.27→v4.32 sync; TD-W4-CV-LOW-001 resolved). ARCH-INDEX v2.29 (architect; ADR-016 date 2026-05-04→2026-05-02; TD-W4-CV-LOW-002 resolved). wave-state.yaml PHASE_4_A_CONVERGED + R9_APPROVED set. vsdd-plugin-tech-debt.md v2.3 (TD-W4-CV-LOW-001/002 resolved). D-221 logged. Phase 4.B prereq 1 CLOSED. STEP 2 (D-216 W4 HS authoring) is now immediate BLOCKER. cycle-manifest v1.55.
 
 **TD REGISTER GAP CLOSED (2026-05-04) — STATE v6.71:** D-220 — user caught that 7 TD items described in session were never filed. vsdd-plugin-tech-debt.md v2.1→v2.2 (31→38 items). TD-VSDD-053 (P0 structural fix for TD-VSDD-044 6x chain-corruption — self-referential HEAD SHA cites; highest priority plugin maintenance item). TD-W4-RETRY-OBS-001/INJECTION-VOCAB-001/CV-LOW-001/CV-LOW-002 (P3 R8 carry-forward). TD-HOLDOUT-W1-BACKFILL-001/W2-RETROFIT-001 (P2 D-219 systemic holdout gap). cycle-manifest v1.54.
 
@@ -158,21 +158,21 @@ factory-artifacts canonical: 15fa97e6 (canonical SHA — pre-compact state captu
 
 ## Current State
 
-develop HEAD `ba3b10c7` | factory-artifacts `cb71284d` (canonical SHA — TD register v2.2 filed; STATE v6.71)
+develop HEAD `ba3b10c7` | factory-artifacts `15fa97e6` (Stage 1 placeholder — backfilled Stage 2; D-218 wave-doc-refresh closure; STATE v6.72)
 
 | Metric | Value |
 |--------|-------|
 | develop HEAD | `ba3b10c7` (W3-FIX-SEC-005 — Wave 3.4 final PR, PR #125, 2026-05-02) |
-| factory-artifacts HEAD | `cb71284d` (canonical SHA — TD register v2.2 filed; STATE v6.71) |
+| factory-artifacts HEAD | `15fa97e6` (Stage 1 placeholder — backfilled Stage 2; D-218 wave-doc-refresh closure; STATE v6.72) |
 | PR count merged | 125 |
 | Workspace test count | 2363 (nextest-verified; +133 from CI nextest split + doctest migration) |
 | Open PRs | None |
 | Active worktrees | main (`develop`) + `.factory` (`factory-artifacts`) |
-| Tech debt items | 57 active product items (70 prior − 13 VSDD items extracted); vsdd-plugin-tech-debt.md: 38 items v2.2 (+7 per D-220; TD-VSDD-053 P0 most recent) |
+| Tech debt items | 57 active product items (70 prior − 13 VSDD items extracted); vsdd-plugin-tech-debt.md: 38 items v2.3 (TD-W4-CV-LOW-001/002 resolved 2026-05-04; D-221) |
 | Wave 2 gate status | CONVERGED 2026-04-27 — Pass 9 CLEAN (3-clean-passes: P6+P8+P9) |
 | Wave 3 gate status | **CONVERGED 2026-05-02 — 3-clean window pass-52+53+54; develop@ba3b10c7** |
-| Wave 4 status | **PHASE 4.A APPROVED + CONVERGED — R9 HUMAN APPROVED 2026-05-04; D-215..D-219 logged; pre-compact state capture complete** |
-| Status | **WAVE 4 PRE-COMPACT COMPLETE. Post-compact resume: STEP 1 (D-218 wave doc refresh) → STEP 2 (D-216 W4 HS authoring) → STEP 3 (R10 S-4.01/S-4.03) → STEP 4 (Wave 4 impl) → STEP 5 (R11) → STEP 6 (W4 gate) → STEP 7 (Wave 5 kickoff).** |
+| Wave 4 status | **PHASE 4.B PREREQ 1 CLOSED — D-218 COMPLETE 2026-05-04; D-216 W4 HS authoring is next BLOCKER** |
+| Status | **D-218 CLOSED. STEP 2 (D-216 W4 HS authoring) → STEP 3 (R10 S-4.01/S-4.03) → STEP 4 (Wave 4 impl) → STEP 5 (R11) → STEP 6 (W4 gate) → STEP 7 (Wave 5 kickoff).** |
 
 
 ---
