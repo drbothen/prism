@@ -95,7 +95,7 @@ wave_4_phase_4_a_preflight:
   pass_23_stage1_sha: 08da90f8
   pre_pass24_sweep_status: COMPLETE_TD-VSDD-048-applied
   pre_pass24_findings: "1 CRITICAL (prd.md INV-ACTION-004 D-209 contract drift; v1.8) + 2 HIGH (interface-definitions.md 6 sites; v2.6; query-engine.md 16→8 concurrent + 3.2GB→1.6GB; v1.2) — ALL REMEDIATED"
-  vsdd_plugin_td_count: 38 (was 31; +7 items registered 2026-05-04: TD-VSDD-053 P0 structural fix for TD-VSDD-044 6x chain-corruption; TD-W4-RETRY-OBS-001/INJECTION-VOCAB-001/CV-LOW-001/CV-LOW-002 P3 R8 carry-forward; TD-HOLDOUT-W1-BACKFILL-001/W2-RETROFIT-001 P2 D-219 systemic gap items)
+  vsdd_plugin_td_count: 39 (was 38; +1 item registered 2026-05-04: TD-VSDD-054 P1 pre-phase-N dep check methodology gap — D-223 pivot)
 gate_status_hook_compat_remediation: 2026-04-24
 wave_0a_complete: 2026-04-22
 wave_0b_complete: 2026-04-22
@@ -125,7 +125,7 @@ wave_1_started: 2026-04-22
 develop_head: "ba3b10c7"
 td_wv1_04_resolved: "2026-04-23 (PR #32, 4a9dffb1)"
 tech_debt_register_entries: 57  # product register (70 prior - 13 VSDD items extracted 2026-05-02)
-vsdd_plugin_tech_debt_entries: 38  # .factory/vsdd-plugin-tech-debt.md (TD-VSDD-053 P0 + 4 P3 R8 carry-forward + 2 P2 D-219 holdout gap; 31+7)
+vsdd_plugin_tech_debt_entries: 39  # .factory/vsdd-plugin-tech-debt.md (TD-VSDD-054 P1 pre-phase-N dep check added D-223; 38+1)
 wave_1_integration_gate_passes: "P3-P18 CONVERGED (3-clean envelope P16+P17+P18; detail: cycles/phase-3-dtu-wave-1/adversarial-reviews/)"
 workspace_test_count: 2363  # nextest-verified 2363/2363 passing (W3-FIX-CI-001 PR #112). +133 from CI nextest split (doctest migration + per-platform counts reconciled). Previous estimate ~2230. 0 FAIL.
 pre_wave_2_audit_complete: 2026-04-24
