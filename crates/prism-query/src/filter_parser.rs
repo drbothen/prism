@@ -53,6 +53,13 @@ impl PrismQlParser {
         // Security check: reject oversized queries before any parsing.
         security::check_query_size(input).map_err(|e| vec![ParseError::new(0, e.to_string())])?;
 
+        // Security check: parenthesis nesting depth (EC-002, BC-2.11.006, VP-015).
+        // Uses the canonical `check_paren_depth` guard which correctly skips string
+        // literals and counts maximum simultaneous open-paren depth.
+        // This check runs before the Chumsky parser to cap structural recursion depth
+        // before the parser even starts descending.
+        security::check_paren_depth(input).map_err(|e| vec![ParseError::new(0, e.to_string())])?;
+
         // Reject empty / whitespace-only queries.
         let trimmed = input.trim();
         if trimmed.is_empty() {
@@ -73,36 +80,6 @@ impl PrismQlParser {
                 0,
                 "E-QUERY-001: mutation statements (INSERT/UPDATE/DELETE) are not permitted",
             )]);
-        }
-
-        // Security check: parenthesis nesting depth (EC-002, BC-2.11.006).
-        // Count max depth of `(` nesting in the raw query string (outside string literals).
-        // This catches deep `((((...))))` bombs before parsing.
-        let max_depth = security::effective_nesting_depth_limit();
-        let mut depth: u32 = 0;
-        let mut in_sq = false;
-        let mut in_dq = false;
-        for ch in input.chars() {
-            match ch {
-                '\'' if !in_dq => in_sq = !in_sq,
-                '"' if !in_sq => in_dq = !in_dq,
-                '(' if !in_sq && !in_dq => {
-                    depth += 1;
-                    if depth > max_depth {
-                        return Err(vec![ParseError::new(
-                            0,
-                            format!(
-                                "E-QUERY-003: expression nesting depth exceeds maximum allowed {}",
-                                max_depth
-                            ),
-                        )]);
-                    }
-                }
-                ')' if !in_sq && !in_dq => {
-                    depth = depth.saturating_sub(1);
-                }
-                _ => {}
-            }
         }
 
         // Mode detection:
@@ -312,9 +289,9 @@ pub fn build_expr_parser<'a>() -> impl Parser<'a, &'a str, Expr, extra::Err<Rich
             just('=').to(CompareOp::Eq),
             text::keyword("LIKE").to(CompareOp::Like),
             text::keyword("like").to(CompareOp::Like),
-            // CIDR is treated as a LIKE operator for AST purposes.
-            text::keyword("cidr").to(CompareOp::Like),
-            text::keyword("CIDR").to(CompareOp::Like),
+            // CIDR network-range operator — semantically distinct from LIKE.
+            text::keyword("cidr").to(CompareOp::Cidr),
+            text::keyword("CIDR").to(CompareOp::Cidr),
         ))
         .padded();
 

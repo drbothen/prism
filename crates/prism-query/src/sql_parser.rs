@@ -127,13 +127,9 @@ fn build_sql_parser<'a>() -> impl Parser<'a, &'a str, SqlQuery, extra::Err<Rich<
         // `*` (Star)
         let star = just('*').padded().to(SelectItem::Star);
 
-        // `func(*)` — aggregate functions like count(*) that use * as argument.
-        // These are parsed as Expr::Field with a special name and then wrapped.
-        // We treat them as `SelectItem::Expr` with a literal placeholder.
-        // The AST doesn't have a dedicated FuncCall node, so we just treat the
-        // whole `count(*)` as a field-like expression for parsing purposes.
-        // The actual expression parser handles `count(*) as Expr::Field(["count"])`.
-        // We accept `func(*)` by making it an expr_item.
+        // `func(*)` and `func(field)` — aggregate function calls in SELECT.
+        // Handled by the expression parser which emits Expr::FuncCall { name, args }.
+        // Here they fall through to expr_item (SelectItem::Expr).
 
         // `expr [AS alias]`
         let expr_item = expr
@@ -368,18 +364,25 @@ fn build_sql_expr_parser<'a>(
             )
             .map(|(fp, values)| Expr::In { field: fp, values });
 
-        // Function call like `count(*)`, `count(field)` — parsed as a field expression.
-        // `count(*)` becomes `Expr::Field(["count"])` since the AST has no FuncCall node.
-        // The GROUP BY / HAVING checks only care that it parses.
+        // Function call syntax: `func(*)` and `func(field)`.
+        //
+        // These emit the proper `Expr::FuncCall` variant so downstream stories can
+        // distinguish "the column named 'count'" from "the count() aggregate":
+        //   - S-3.04: aliased function calls (`count(*) AS total`)
+        //   - S-3.07: aggregate evaluation (GROUP BY / HAVING)
+        //   - S-3.10: aggregate cost models
+        //   - S-3.12: push-down decisions (aggregates cannot be pushed to sensors)
+        //
+        // `count(*)` → Expr::FuncCall { name: "count", args: [Expr::Star] }
+        // `sum(field)` → Expr::FuncCall { name: "sum", args: [Expr::Field(field)] }
         let func_call_star = ident
             .padded()
             .then_ignore(just('(').padded())
             .then_ignore(just('*').padded())
             .then_ignore(just(')').padded())
-            .map(|name: String| {
-                Expr::Field(FieldPath {
-                    segments: vec![name],
-                })
+            .map(|name: String| Expr::FuncCall {
+                name,
+                args: vec![Expr::Star],
             });
 
         let func_call_field = ident
@@ -390,11 +393,9 @@ fn build_sql_expr_parser<'a>(
                     .padded()
                     .delimited_by(just('(').padded(), just(')').padded()),
             )
-            .map(|(_name, _fp): (String, FieldPath)| {
-                // Represent function call as a field reference to the function name.
-                Expr::Field(FieldPath {
-                    segments: vec![_name],
-                })
+            .map(|(name, fp): (String, FieldPath)| Expr::FuncCall {
+                name,
+                args: vec![Expr::Field(fp)],
             });
 
         // Basic comparison (field vs literal).

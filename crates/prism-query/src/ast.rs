@@ -237,6 +237,26 @@ pub enum Expr {
         field: FieldPath,
         subquery: Box<SqlQuery>,
     },
+    /// SQL aggregate / scalar function call, e.g. `count(*)`, `sum(bytes)`.
+    ///
+    /// Added in S-3.01 to preserve function-call semantics that would otherwise
+    /// be silently collapsed into `Expr::Field`. Downstream stories that need
+    /// this:
+    /// - S-3.04: aliased function calls (`count(*) AS total`)
+    /// - S-3.07: aggregate evaluation (`GROUP BY` / `HAVING`)
+    /// - S-3.10: aggregate cost models
+    /// - S-3.12: push-down decisions (aggregates cannot be pushed down to sensors)
+    FuncCall {
+        /// Function name, e.g. `"count"`, `"sum"`, `"avg"`.
+        name: String,
+        /// Argument expressions. For `count(*)` this is `[Expr::Star]`.
+        args: Vec<Expr>,
+    },
+    /// Wildcard `*` used as a function argument (e.g. the `*` in `count(*)`).
+    ///
+    /// Distinct from `SelectItem::Star` (which expands all columns in a SELECT
+    /// clause). `Expr::Star` is only valid as an argument inside a `FuncCall`.
+    Star,
 }
 
 /// Predicate is a type alias for `Expr` — used in filter mode for clarity.
@@ -283,7 +303,16 @@ pub enum CompareOp {
     Lt,
     Ge,
     Le,
+    /// Glob/pattern matching operator (`LIKE`).
     Like,
+    /// CIDR network range membership operator (`cidr`).
+    ///
+    /// Semantically distinct from `Like` — `Like` is glob/regex matching while
+    /// `Cidr` tests whether an IP address falls within a network prefix (e.g.
+    /// `dst_endpoint.ip cidr "10.0.0.0/8"`). Downstream executors (S-3.07) and
+    /// optimizers (S-3.10/S-3.12) use this variant to select the correct
+    /// implementation strategy.
+    Cidr,
 }
 
 /// Logical binary operator.

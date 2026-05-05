@@ -92,7 +92,7 @@ pub fn check_nesting_depth(ast: &Expr, depth: u32) -> Result<(), PrismError> {
     // Recursively check children.
     let next = depth + 1;
     match ast {
-        Expr::Literal(_) | Expr::Field(_) => Ok(()),
+        Expr::Literal(_) | Expr::Field(_) | Expr::Star => Ok(()),
         Expr::Compare { lhs, rhs, .. } => {
             check_nesting_depth(lhs, next)?;
             check_nesting_depth(rhs, next)
@@ -104,7 +104,65 @@ pub fn check_nesting_depth(ast: &Expr, depth: u32) -> Result<(), PrismError> {
         Expr::Not(inner) => check_nesting_depth(inner, next),
         Expr::In { .. } => Ok(()),
         Expr::InSubquery { .. } => Ok(()),
+        Expr::FuncCall { args, .. } => {
+            for arg in args {
+                check_nesting_depth(arg, next)?;
+            }
+            Ok(())
+        }
     }
+}
+
+/// Check that a query string does not contain parenthesised expressions nested
+/// more deeply than `PRISM_MAX_NESTING_DEPTH` (EC-002, BC-2.11.006).
+///
+/// # Method
+/// Scans the raw query string character by character, tracking the **maximum
+/// simultaneous paren depth** reached. String literals (both single- and
+/// double-quoted) are excluded from the count so that `cidr "10.0.0.0/8"`
+/// and `hostname = '(server)'` do not contribute false depth.
+///
+/// This is intentionally conservative: parentheses used for grouping,
+/// `IN (…)` lists, function calls, and sub-queries all count toward the
+/// depth budget. At 64 simultaneous open parens the query is structurally
+/// deep enough to risk downstream stack overflows regardless of the specific
+/// use of each paren level.
+///
+/// # Security
+/// MUST be called before the Chumsky parser runs. A deeply-nested input
+/// that passes this guard is guaranteed not to exceed `PRISM_MAX_NESTING_DEPTH`
+/// structural depth during evaluation (BC-2.11.006 postcondition 2, EC-002,
+/// VP-015).
+///
+/// # Errors
+/// Returns `PrismError::QueryExecutionFailed` with code `E-QUERY-003` if
+/// the maximum simultaneous paren depth exceeds `PRISM_MAX_NESTING_DEPTH`.
+pub fn check_paren_depth(raw: &str) -> Result<(), PrismError> {
+    let limit = effective_nesting_depth_limit();
+    let mut depth: u32 = 0;
+    let mut in_sq = false; // inside single-quoted string
+    let mut in_dq = false; // inside double-quoted string
+    for ch in raw.chars() {
+        match ch {
+            '\'' if !in_dq => in_sq = !in_sq,
+            '"' if !in_sq => in_dq = !in_dq,
+            '(' if !in_sq && !in_dq => {
+                depth += 1;
+                if depth > limit {
+                    return Err(PrismError::QueryExecutionFailed {
+                        detail: format!(
+                            "{E_QUERY_003}: expression nesting depth exceeds maximum allowed {limit}"
+                        ),
+                    });
+                }
+            }
+            ')' if !in_sq && !in_dq => {
+                depth = depth.saturating_sub(1);
+            }
+            _ => {}
+        }
+    }
+    Ok(())
 }
 
 /// Check that a pipe query does not contain more than the maximum allowed
