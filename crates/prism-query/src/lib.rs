@@ -12,10 +12,10 @@
 //! # Modules
 //! - [`types`]                — `SensorQueryDescriptor` struct (table routing context, S-2.08)
 //! - [`materialization`]      — `inject_source_type()` pure-data virtual field injection (S-2.08)
-//! - [`crowdstrike_session`]  — org-scoped CrowdStrike pagination session ID generation (S-3.2.08 / D-048)
+//! - [`org_scoped_session_id`] — org-scoped UUID v7 session ID generation for sensor pagination (S-3.2.08 / D-048)
 
-pub mod crowdstrike_session;
 pub mod materialization;
+pub mod org_scoped_session_id;
 pub mod types;
 
 #[cfg(test)]
