@@ -1,0 +1,48 @@
+# Nightly fuzz — VP-021 full 30-minute run (release validation).
+# Scheduled nightly; can also be triggered manually via workflow_dispatch.
+# Smoke (60s) counterpart lives in ci.yml job `fuzz-smoke-vp021`.
+name: Fuzz nightly (VP-021)
+
+on:
+  schedule:
+    # 02:00 UTC daily — outside peak CI hours.
+    - cron: "0 2 * * *"
+  workflow_dispatch:
+
+concurrency:
+  group: fuzz-nightly-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  fuzz-vp021-nightly:
+    name: Fuzz nightly (vp021_parse_fuzz, 30m)
+    runs-on: ubuntu-latest
+    # 30-min fuzz + 10-min setup/teardown headroom.
+    timeout-minutes: 45
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+      - uses: dtolnay/rust-toolchain@5b842231ba77f5c045dba54ac5560fed2db780e2 # nightly
+        with:
+          toolchain: nightly
+      - uses: Swatinem/rust-cache@c19371144df3bb44fab255c43d04cbc2ab54d1c4 # v2.9.1
+        with:
+          cache-on-failure: true
+          shared-key: fuzz-nightly-${{ runner.os }}
+      - name: Install cargo-fuzz
+        uses: taiki-e/install-action@cf525cb33f51aca27cd6fa02034117ab963ff9f1 # v2.75.22
+        with:
+          tool: cargo-fuzz
+      - name: Fuzz VP-021 (30 min)
+        run: |
+          set -euo pipefail
+          cd fuzz && cargo +nightly fuzz run vp021_parse_fuzz -- -max_total_time=1800 -max_len=65536
+      - name: Upload fuzz corpus
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: fuzz-corpus-vp021-${{ github.sha }}
+          path: fuzz/corpus/vp021_parse_fuzz/
+          if-no-files-found: ignore
+          retention-days: 14

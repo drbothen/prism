@@ -226,6 +226,34 @@ jobs:
             cargo semver-checks check-release --baseline-rev origin/develop $EXCLUDE_ARGS
           fi
 
+  fuzz-smoke-vp021:
+    name: Fuzz smoke (vp021_parse_fuzz)
+    # VP-021: PrismQlParser never panics on arbitrary byte input.
+    # 60s smoke run on every PR/push — catches regressions fast.
+    # Full 30-min run lives in fuzz-nightly.yml (scheduled).
+    needs: clippy
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+      - uses: dtolnay/rust-toolchain@5b842231ba77f5c045dba54ac5560fed2db780e2 # nightly
+        with:
+          toolchain: nightly
+      - uses: Swatinem/rust-cache@c19371144df3bb44fab255c43d04cbc2ab54d1c4 # v2.9.1
+        with:
+          cache-on-failure: true
+          shared-key: fuzz-smoke-${{ runner.os }}
+      - name: Install cargo-fuzz
+        uses: taiki-e/install-action@cf525cb33f51aca27cd6fa02034117ab963ff9f1 # v2.75.22
+        with:
+          tool: cargo-fuzz
+      - name: Fuzz smoke (VP-021, 60s)
+        run: |
+          set -euo pipefail
+          cd fuzz && cargo +nightly fuzz run vp021_parse_fuzz -- -max_total_time=60 -max_len=65536
+
   verify-workflow-structure:
     name: Verify workflow structure (AC-5..AC-8 reachability)
     runs-on: ubuntu-latest
