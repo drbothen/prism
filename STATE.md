@@ -1,7 +1,7 @@
 ---
 document_type: pipeline-state
 level: ops
-version: "6.70"
+version: "6.71"
 producer: state-manager
 timestamp: 2026-05-03T00:00:00Z
 inputs: []
@@ -93,7 +93,7 @@ wave_4_phase_4_a_preflight:
   pass_23_stage1_sha: 08da90f8
   pre_pass24_sweep_status: COMPLETE_TD-VSDD-048-applied
   pre_pass24_findings: "1 CRITICAL (prd.md INV-ACTION-004 D-209 contract drift; v1.8) + 2 HIGH (interface-definitions.md 6 sites; v2.6; query-engine.md 16→8 concurrent + 3.2GB→1.6GB; v1.2) — ALL REMEDIATED"
-  vsdd_plugin_td_count: 31 (was 30; TD-VSDD-052 pre-dispatch VP scope verification added 2026-05-04)
+  vsdd_plugin_td_count: 38 (was 31; +7 items registered 2026-05-04: TD-VSDD-053 P0 structural fix for TD-VSDD-044 6x chain-corruption; TD-W4-RETRY-OBS-001/INJECTION-VOCAB-001/CV-LOW-001/CV-LOW-002 P3 R8 carry-forward; TD-HOLDOUT-W1-BACKFILL-001/W2-RETROFIT-001 P2 D-219 systemic gap items)
 gate_status_hook_compat_remediation: 2026-04-24
 wave_0a_complete: 2026-04-22
 wave_0b_complete: 2026-04-22
@@ -123,7 +123,7 @@ wave_1_started: 2026-04-22
 develop_head: "ba3b10c7"
 td_wv1_04_resolved: "2026-04-23 (PR #32, 4a9dffb1)"
 tech_debt_register_entries: 57  # product register (70 prior - 13 VSDD items extracted 2026-05-02)
-vsdd_plugin_tech_debt_entries: 31  # .factory/vsdd-plugin-tech-debt.md (TD-VSDD-052 pre-dispatch VP scope verification; 30+1)
+vsdd_plugin_tech_debt_entries: 38  # .factory/vsdd-plugin-tech-debt.md (TD-VSDD-053 P0 + 4 P3 R8 carry-forward + 2 P2 D-219 holdout gap; 31+7)
 wave_1_integration_gate_passes: "P3-P18 CONVERGED (3-clean envelope P16+P17+P18; detail: cycles/phase-3-dtu-wave-1/adversarial-reviews/)"
 workspace_test_count: 2363  # nextest-verified 2363/2363 passing (W3-FIX-CI-001 PR #112). +133 from CI nextest split (doctest migration + per-platform counts reconciled). Previous estimate ~2230. 0 FAIL.
 pre_wave_2_audit_complete: 2026-04-24
@@ -419,6 +419,7 @@ _D-001..D-046 archived: [cycles/phase-3-dtu-wave-2/decisions-archive-d001-d032.m
 | D-217 | Wave reality correction (filed at gate by user). TOTAL: 7 waves (Wave 0..Wave 6), not 6 as orchestrator initially miscounted. W0 (devops + foundational DTUs): 5 stories (S-0.01, S-0.02 + S-6.06/14/15). W1: 15 product stories + 5 DTU stories merged via DTU-wave-1 = 20 in wave summary. W2: 8 product stories + 3 DTU stories merged via DTU-wave-2 = 11 in wave summary. W3: 13 original product stories EXPANDED to 51 during execution + 4 log-forwarding DTU stories = 17 in wave summary (epics.md v1.2 still shows 13; refresh required per D-218). W4: 8 stories — JUST CONVERGED + R9 APPROVED. W5: 10 stories drafted, status: draft. W6: 5 prism-bin stories drafted (S-6.01..S-6.05) + 4 ingestion DTU stories drafted (S-6.16..S-6.19); 11 DTU stories already merged via W0/W1/W2 DTU-wave gates per Option 2 DTU-first strategy (S-6.06..S-6.15, S-6.20). Total story count on disk: 129 (per STORY-INDEX frontmatter total_stories). Original epics.md v1.2 (2026-04-24) Total: 76 stories — W3 expansion (13→51) never reflected. | Wave reality correction — 7 waves (W0..W6); 129 stories on disk vs 76 in epics.md v1.2; W3 expanded 13→51 during execution; W6 has mixed status (11 DTU merged via W0-W3 gates, 9 draft) | 4 | 2026-05-04 |
 | D-218 | Wave docs are STALE — must refresh post-compact BEFORE R10 (filed at gate by user). Tasks (post-compact, R10-prereq): (1) wave-state.yaml: bump wave_4_phase_4_a_status KICKOFF → PHASE_4_A_CONVERGED + R9_APPROVED + 4A_convergence_factory_sha + 4A_convergence_develop_sha; (2) epics.md: bump v1.2 → v1.3 — refresh E-3 13→51 stories; Total 76→129; changelog update; per-wave story counts refresh; (3) STORY-INDEX Wave Summary table: recompute per-wave totals to match frontmatter total_stories: 129; reconcile with epics.md; (4) STORY-INDEX BC-INDEX cite: v4.27 → v4.32 (resolves TD-W4-CV-LOW-001); (5) ARCH-INDEX ADR-016 row date sync (resolves TD-W4-CV-LOW-002). | Wave docs STALE — wave-state.yaml + epics.md v1.3 + STORY-INDEX wave summary refresh required post-compact BEFORE R10; resolves TD-W4-CV-LOW-001 + TD-W4-CV-LOW-002 | 4 | 2026-05-04 |
 | D-219 | Holdout-coverage gap is SYSTEMIC (per-wave + retroactive) (filed at gate by user). W1: never holdout-evaluated (predates protocol) — TD-HOLDOUT-W1-BACKFILL-001. W2: 0.65 CONDITIONAL_PASS — investigate retroactively whether weak grade indicates undiscovered behavioral defects in merged W2 implementations — TD-HOLDOUT-W2-RETROFIT-001. W3: gold-standard pattern (HS-003 multi-tenant + HS-007 cross-repo with BC anchoring; 0.907 PASS). W4: D-216 BLOCKER (HS-009..013+ pending). W5: 10 draft stories — HS authoring pending. W6: 9 draft stories — HS authoring pending. Process improvement: holdout-scenario authoring becomes standard per-wave Phase X.A R-step (TD-VSDD-053 candidate — orchestrator workflow update needed). | Holdout-coverage gap SYSTEMIC across W1/W2/W4/W5/W6; W3 only wave with proper BC anchoring (0.907 PASS); per-wave HS authoring should become standard Phase X.A R-step | 4 | 2026-05-04 |
+| D-220 | TD register update (user catch — described in session but never filed). 7 TD items registered: TD-VSDD-053 (P0 structural fix for TD-VSDD-044 — 6x recurrence in single session; self-referential STATE.md/HANDOFF.md HEAD SHA cites create infinite two-commit fix chains; fix: single-commit protocol + drop 8 self-referential cite sites), TD-W4-RETRY-OBS-001 (P3 R8 SR-LOW-001: RetryState missing first_attempted_at), TD-W4-INJECTION-VOCAB-001 (P3 R8 SR-LOW-002: _safety_flags canonical flag-name set undocumented), TD-W4-CV-LOW-001 (P3 R8 CV-LOW-001: STORY-INDEX BC-INDEX cite v4.27 stale vs actual v4.32), TD-W4-CV-LOW-002 (P3 R8 CV-LOW-002: ARCH-INDEX ADR-016 registry date cosmetic discrepancy), TD-HOLDOUT-W1-BACKFILL-001 (P2 D-219: W1 never holdout-evaluated), TD-HOLDOUT-W2-RETROFIT-001 (P2 D-219: W2 0.65 CONDITIONAL — investigate latent defects). vsdd-plugin-tech-debt.md v2.1→v2.2 (31→38 items). STATE v6.71. | TD register gap closed — 7 items described in session but not filed until user caught the gap at gate | 4 | 2026-05-04 |
 **Passes 8–27 REMEDIATED/CLEAN (detail archived); Pass 28 BLOCKED→REMEDIATED (1H: vp-045 spec v1.3→v1.4 [F-P28-H-001]; H1 heading "Schedule Semaphore" → "Action Delivery Semaphore" per VP-INDEX line 66 canonical; Pass 26 body-rewrite sister-line gap; META-INSIGHT: 7th orchestrator-prompt-introduced defect — H1-axis (fix-burst prompt targeted specific line positions 37/44/68 but missed adjacent H1 at line 39); 12 cross-cuts verified CLEAN; ARCH-INDEX v2.28); window stays 0/3; Pass 29 next. Trajectory: …→P26(1H+1H-preP27;orphan PATTERN codified TD-VSDD-051)→P27(1H;VP rationale semantic mis-anchor — 6th class)→P28(1H;VP H1 sister-line gap — 7th class). Detail: [pass-28.md](cycles/wave-4-operations/adversarial-reviews/pass-28.md) | [burst-log.md](cycles/wave-4-operations/burst-log.md).**
 
 ### Wave 4 Phase 4.A CONVERGED (2026-05-04) — Adversary Pass 31 Window 3/3 CLOSED
