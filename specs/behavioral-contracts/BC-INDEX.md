@@ -1,7 +1,7 @@
 ---
 document_type: behavioral-contract-index
 level: L3
-version: "4.34"
+version: "4.35"
 status: draft
 producer: product-owner
 timestamp: 2026-05-05T00:00:00
@@ -352,6 +352,8 @@ Phase 3-patch additions (2026-04-16): 22 new BCs added in Burst 1 to close trace
 - Subsystem 19: Infusion Enrichment Framework (AD-020, CAP-031)
 
 ### Change Log (Adversarial Review Fixes)
+
+**v4.35 (2026-05-05):** Adversary pass-5 remediation — BC-2.11.006 v1.6→v1.7: F-MEDIUM-001 corrected inaccurate clippy.toml enforcement claim (per-crate scope only; `cargo build` does not run clippy); layered enforcement now accurately describes Rust visibility (primary), clippy intra-crate defence-in-depth, and api_surface integration test. F-MEDIUM-002: INV-SEC-PERIMETER-001 now cross-references DI-034 (prism-query security perimeter domain invariant lifted by business-analyst in parallel); L2 Invariants traceability updated to DI-019, DI-034. PR-127 adversary pass-5 remediation.
 
 **v4.34 (2026-05-05):** Adversary pass-4 OBS-002 remediation — BC-2.11.006 v1.5→v1.6: added Security Perimeter postcondition (pub(crate) enforcement of sub-parsers and builder factories), INV-SEC-PERIMETER-001 invariant, and two compile-failure test vectors for api_surface.rs. Codifies that prism-query exposes only PrismQlParser::parse as its public security boundary; perimeter is enforced via Rust visibility and clippy.toml disallowed-methods lint. Refs PR-127.
 

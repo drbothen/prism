@@ -1,7 +1,7 @@
 ---
 document_type: domain-spec-index
 level: L2
-version: "1.10"
+version: "1.11"
 status: draft
 producer: business-analyst
 timestamp: 2026-04-27T00:00:00
@@ -38,7 +38,7 @@ Prism is a Rust MCP server that unifies multi-client security sensor management 
 | Scheduled Detection Concept | scheduled-detection-concept.md | ~3000 | All consumers, New contributors | Explains the unified data pipeline: scheduled queries as the detection engine's data source, three detection modes (single-event, correlation, sequence), pack bundling, RocksDB persistence domains, and cross-sensor detection via OCSF |
 | Capabilities | capabilities.md | ~5800 | PRD Author, Architect | Enumerates all domain capabilities (CAP-001 through CAP-040, CAP-013 removed); CAP-001/002/011/012 are internal capabilities consumed by the query engine, not MCP-facing; CAP-017 through CAP-027 add scheduled queries, differential results, persistent storage, detection rules, alert generation, case management, query packs, resource watchdog, buffered audit logging, context decorators, and security domain UDFs; CAP-028 adds unified query surface; CAP-029 adds config-driven sensor adapters; CAP-030 adds hot configuration reload; CAP-031 adds infusion enrichment; CAP-032 adds WASM plugin runtime; CAP-033 adds action delivery engine; CAP-034 adds MCP server and transport; CAP-035 adds diagnostic log forwarding (SS-20, P0); CAP-036 adds multi-tenant DTU test harness; CAP-037 adds workspace crate layout convention; CAP-038 adds multi-tenant identity model (OrgId/OrgSlug/OrgRegistry, SS-21); CAP-039 adds multi-tenant fixture generation; CAP-040 adds adapter dispatch mode (client/shared) |
 | Entities | entities.md | ~5500 | Architect, Implementer | Defines 30 domain entities (QueryFingerprint removed; CacheEntry, QueryPlan, MaterializedTable, Alias, Schedule, DiffState, DetectionRule, Alert, Case, Pack, StorageDomain, InternalTable, SensorSpec, TableSpec, ColumnSpec, FetchStep, ConfigSnapshot added) with key attributes and invariants |
-| Invariants | invariants.md | ~3500 | Architect, Test Writer | Specifies 29 domain rules (DI-001 through DI-033; DI-009, DI-010, DI-011, DI-013 removed) that must always hold with violation behavior |
+| Invariants | invariants.md | ~3700 | Architect, Test Writer | Specifies 30 domain rules (DI-001 through DI-034; DI-009, DI-010, DI-011, DI-013 removed) that must always hold with violation behavior |
 | Events | events.md | ~1100 | Architect, Implementer | Documents 10 processing stages from tool invocation through audit emission |
 | Edge Cases | edge-cases.md | ~4200 | Test Writer, Implementer | Specifies expected behavior for 37 boundary scenarios (DEC-001 through DEC-039; DEC-012 removed) |
 | Assumptions | assumptions.md | ~1000 | Product Owner, Architect | Lists 10 assumptions (ASM-001 through ASM-010) requiring validation with impact analysis |
@@ -66,7 +66,7 @@ Prism is a Rust MCP server that unifies multi-client security sensor management 
 | CAP-012 | CAP-003, CAP-015, DI-005, DEC-003, DEC-005, ASM-002 | Cross-sensor correlation is a natural consequence of the query engine's unified OCSF table; depends on OCSF normalization; edge cases for cross-client partial failures and mixed sensor availability |
 | ~~CAP-013~~ | — | **REMOVED** — xMP backward compatibility not required |
 | CAP-014 | DI-018, DEC-018, DEC-019 | Response caching constrained by cache bounds; edge cases for stale data after writes and concurrent access |
-| CAP-015 | DI-019, DI-021, DEC-022, DEC-023, DEC-026, CAP-003, CAP-014 | Ephemeral OCSF query engine constrained by security limits and required column enforcement; edge cases for empty results, scope too broad, and timeout; depends on OCSF normalization and response cache for sensor fetch layer |
+| CAP-015 | DI-019, DI-021, DI-034, DEC-022, DEC-023, DEC-026, CAP-003, CAP-014 | Ephemeral OCSF query engine constrained by security limits, required column enforcement, and query security perimeter; edge cases for empty results, scope too broad, and timeout; depends on OCSF normalization and response cache for sensor fetch layer |
 | CAP-016 | DI-020, DEC-024, DEC-025, CAP-015, BC-2.11.008, BC-2.11.009, BC-2.11.013, BC-2.11.014, BC-2.11.015 | Query aliases constrained by composition depth and cycle detection; edge cases for undefined alias references and cross-client alias gaps; aliases feed into the query engine; MCP tools for create, list, delete, and explain alias operations |
 | CAP-017 | DI-022, DI-023, DEC-028, CAP-015, CAP-018, CAP-019, CAP-023 | Scheduled queries constrained by splay distribution and exactly-once semantics; edge case for overlapping executions; depends on query engine, differential results, persistent storage; consumed by packs |
 | CAP-018 | DI-023, DEC-029, CAP-017, CAP-019, CAP-020 | Differential results constrained by exactly-once semantics; edge case for large diffs; depends on scheduled queries and persistent storage; feeds detection rules |
@@ -98,12 +98,12 @@ Prism is a Rust MCP server that unifies multi-client security sensor management 
 | ID Format | Range | Count | Section |
 |-----------|-------|-------|---------|
 | CAP-NNN | CAP-001 to CAP-040 (CAP-013 removed) | 39 | capabilities.md |
-| DI-NNN | DI-001 to DI-033 (DI-009, DI-010, DI-011, DI-013 removed) | 29 | invariants.md |
+| DI-NNN | DI-001 to DI-034 (DI-009, DI-010, DI-011, DI-013 removed) | 30 | invariants.md |
 | DEC-NNN | DEC-001 to DEC-039 (DEC-012 removed) | 37 | edge-cases.md |
 | ASM-NNN | ASM-001 to ASM-010 | 10 | assumptions.md |
 | R-NNN | R-001 to R-012 | 12 | risks.md |
 | FM-NNN | FM-001 to FM-012 | 12 | failure-modes.md |
-| **Total** | | **139** | |
+| **Total** | | **140** | |
 
 ## Priority Distribution
 
@@ -121,6 +121,7 @@ Prism is a Rust MCP server that unifies multi-client security sensor management 
 
 | Version | Date | Change |
 |---------|------|--------|
+| 1.11 | 2026-05-05 | Adversary pass-5 F-MEDIUM-002 remediation: Add DI-034 (prism-query security perimeter) — lifted from BC-2.11.006 INV-SEC-PERIMETER-001 per POLICY 2 lift-invariants gap. DI registry updated DI-001..DI-033 → DI-001..DI-034, count 29 → 30; total IDs 139 → 140. CAP-015 cross-reference updated to include DI-034. Document Map Invariants row updated. PR-127. |
 | 1.10 | 2026-04-27 | M-31-001 (Pass 31): CAP-040 subsystem annotation corrected — "SS-06 registry / SS-01 enforcement" → "SS-21 registry / SS-06 config parsing / SS-01 enforcement". |
 | 1.9 | 2026-04-27 | M-17-002 follow-on sweep: CAP-036 through CAP-040 descriptions and cross-references added; ID registry updated CAP-001..CAP-035 → CAP-001..CAP-040. |
 | 1.8 | 2026-04-27 | M-17-002 (pass-17-remediation): CAP registry row updated CAP-001..CAP-035 → CAP-001..CAP-040, count 34 → 39; total ID count 134 → 139. Cross-References table: added rows for CAP-036, CAP-037, CAP-038, CAP-039, CAP-040. Priority Distribution: 5 new P0 CAPs added to P0 bucket (count 26 → 31, percentages updated). Document Map Capabilities row updated to name CAP-036..040. Domain Summary narrative extended to mention Wave 3 multi-tenant CAPs. |

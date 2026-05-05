@@ -1,7 +1,7 @@
 ---
 document_type: behavioral-contract
 level: L3
-version: "1.6"
+version: "1.7"
 status: draft
 producer: product-owner
 timestamp: 2026-04-14T07:00:00
@@ -44,11 +44,18 @@ This BC defines the complete set of security limits that constitute DI-019. Seve
   7. **Integer overflow prevention**: Arithmetic uses i128 intermediate representation (CWE-190).
 - Each limit violation returns a structured error with: the specific limit name, the actual value, the maximum allowed value, and an actionable suggestion
 - All limits are configurable via TOML config with the above values as defaults
-- **Security Perimeter (pub(crate) enforcement)**: The `prism-query` crate exposes exactly one public security entry point: `PrismQlParser::parse(input: &str) -> Result<Ast, Vec<ParseError>>`. All sub-parsers (`parse_filter`, `parse_pipe`, `parse_sql`) and all parser-builder factories (`build_predicate_parser`, `build_source_ref_parser`, `build_string_parser`, `build_literal_parser`, `build_expr_parser`, `build_pipe_mode_parser`, `build_pipe_parser`, etc.) are declared `pub(crate)` — external callers MUST NOT be able to invoke them directly and thereby bypass any of the seven security guards (`query_size`, `paren_depth`, `predicate_nesting_depth`, `expr_nesting_depth`, `sql_query_nesting_depth`, `list_size`, `pipe_stage_count`). The perimeter is enforced at two layers: (1) Rust visibility (`pub(crate)` on all sub-parser symbols) and (2) a `clippy.toml` `disallowed-methods` lint that causes `cargo build --workspace` to fail with a hard error if any external crate references a sub-parser or builder symbol. A pre-merge regression check must confirm that `cargo build --workspace` fails when any external crate attempts to reference a sub-parser or builder symbol.
+- **Security Perimeter (pub(crate) enforcement):** The `prism-query` crate exposes a single public security entry point: `PrismQlParser::parse(input: &str) -> Result<Ast, Vec<ParseError>>`. All sub-parsers (`parse_filter`, `parse_pipe`, `parse_sql`) and parser-builder factories (`build_predicate_parser`, `build_source_ref_parser`, `build_string_parser`, `build_literal_parser`, `build_expr_parser`, `build_pipe_mode_parser`, `build_pipe_parser`, etc.) are crate-private (`pub(crate)`). External callers MUST NOT be able to bypass the seven security guards (`query_size`, `paren_depth`, `predicate_nesting_depth`, `expr_nesting_depth`, `sql_query_nesting_depth`, `list_size`, `pipe_stage_count`) by calling sub-components directly.
+
+  **Enforcement layers:**
+  1. **Rust visibility (primary):** All sub-parsers and builder factories are `pub(crate)`. External crates referencing them produce a Rust visibility error during `cargo build`.
+  2. **Clippy lint (defence-in-depth, intra-crate only):** The `crates/prism-query/clippy.toml` `disallowed-methods` list flags accidental intra-crate misuse during `cargo clippy`. Note: this lint is per-crate by Cargo design and does NOT propagate to downstream crates.
+  3. **API surface integration test:** `crates/prism-query/tests/api_surface.rs` exercises the public API and confirms only `PrismQlParser::parse` is callable.
+
+  **Pre-merge regression check:** `cargo build --workspace` must compile cleanly; any external crate adding a forbidden import (e.g., `prism_query::filter_parser::parse_filter`) will produce a hard visibility error and fail the build. CI also runs a paired negative-test workflow (devops dispatch in flight) that injects a forbidden import and asserts `cargo build` fails.
 
 ## Invariants
 - DI-019: All limits defined in this BC constitute the DI-019 invariant
-- INV-SEC-PERIMETER-001: `prism-query` exposes only `PrismQlParser::parse` as a public security boundary. No sub-parser or parser-builder factory is accessible from outside the crate. Violation of this invariant allows callers to bypass one or more of the seven security guards, constituting a security defect.
+- **INV-SEC-PERIMETER-001 (lifts DI-034):** `prism-query` exposes only `PrismQlParser::parse` as a public security boundary. No sub-parser or parser-builder factory is accessible from outside the crate. Violation of this invariant allows callers to bypass one or more of the seven security guards, constituting a security defect. Cross-reference: `domain-spec/invariants.md#di-034-prism-query-security-perimeter`.
 
 ## Error Cases
 | Error | Condition | Behavior |
@@ -93,7 +100,7 @@ This BC defines the complete set of security limits that constitute DI-019. Seve
 | Field | Value |
 |-------|-------|
 | L2 Capability | CAP-015 |
-| L2 Invariants | DI-019 |
+| L2 Invariants | DI-019, DI-034 |
 | L2 Edge Cases | DEC-023, DEC-026 |
 | Priority | P0 |
 
@@ -101,6 +108,7 @@ This BC defines the complete set of security limits that constitute DI-019. Seve
 
 | Version | Burst | Date | Author | Change |
 |---------|-------|------|--------|--------|
+| 1.7 | pass-5-remediation | 2026-05-05 | product-owner | F-MEDIUM-001 — corrected clippy.toml enforcement claim (per-crate scope, not workspace-wide; cargo build does not run clippy). Layered enforcement now accurately described: Rust visibility (primary), clippy intra-crate (defence), api_surface test (CI). F-MEDIUM-002 — INV-SEC-PERIMETER-001 now cross-references DI-034 (lifted by business-analyst). L2 Invariants traceability updated: DI-019, DI-034. PR-127 adversary pass-5 remediation. |
 | 1.6 | pass-4-obs-002 | 2026-05-05 | product-owner | Add Security Perimeter postcondition (per adversary pass-4 OBS-002 process-gap). Codifies that prism-query exposes only PrismQlParser::parse; sub-parsers and builders are pub(crate) and lint-denied via clippy.toml disallowed-methods. Adds INV-SEC-PERIMETER-001 invariant and two compile-failure test vectors for api_surface.rs. Refs PR-127. |
 | 1.5 | pass-87-remediation | 2026-04-21 | architect | F87-001: VP-021 Proof Method corrected proptest → fuzz (matches VP-INDEX, VP-021 frontmatter, verification-architecture, coverage-matrix). |
 | 1.4 | pass-86-remediation | 2026-04-21 | architect | F86-007: added VP-021 row to Verification Properties table. |
