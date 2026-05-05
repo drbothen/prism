@@ -380,7 +380,7 @@ user_directive_persistent: "No pragmatic convergence. Fix all issues before buil
 | **Last Updated** | 2026-05-04 (D-224 W3 spec remediation — 13 W3 stories remediated; VP-015 depth 64; STORY-INDEX v2.05; S-3.2.08 v1.1; R10-A unblocked from spec perspective; STATE v6.75) |
 | **Current Phase** | Phase 4.A — APPROVED + CONVERGED; Phase 4.B SUSPENDED — W3-FIRST pivot (D-223); W3 spec remediation COMPLETE (D-224) |
 | **Current Step** | Verify rename PR merge + chain-heal, then R10-A S-3.01 worktree creation |
-| **factory-artifacts HEAD** | `15fa97e6` |
+| **factory-artifacts HEAD** | `f3565b6f` |
 
 ## Phase Progress
 
@@ -536,9 +536,9 @@ Cycle files: [burst-log](cycles/phase-2-patch/burst-log.md) | [convergence-traje
 
 _Previous checkpoint archived: [cycles/wave-4-operations/session-checkpoints.md](cycles/wave-4-operations/session-checkpoints.md)_
 
-**STATE v6.75 (canonical SHA `15fa97e6`). W3 SPEC REMEDIATION COMPLETE (D-224). Phase 4.B SUSPENDED. R10-A unblocked from spec perspective, pending: rename PR merge + chain-heal verification.**
+**STATE v6.75 (canonical SHA `f3565b6f`). W3 SPEC REMEDIATION COMPLETE (D-224). Phase 4.B SUSPENDED. R10-A unblocked from spec perspective, pending: rename PR merge + chain-heal verification.**
 
-develop HEAD: `ba3b10c7` | factory-artifacts: `15fa97e6` | workspace tests: 2363 | PRs merged: 125
+develop HEAD: `ba3b10c7` | factory-artifacts: `f3565b6f` | workspace tests: 2363 | PRs merged: 125
 
 **D-224 (2026-05-04):** W3 spec remediation complete. 13 W3 stories remediated (Chumsky 0.12 + Kani 0.67.0 + moka 0.12 + datafusion 53.1 + VP-015 depth 64 + 6 BC anchor backfills). STORY-INDEX v2.05. S-3.2.08 v1.1 (rename refs). R10-A (S-3.01) unblocked from spec quality perspective. Next: verify rename PR merge + chain-heal of factory-artifacts SHA, then dispatch devops-engineer for S-3.01 worktree creation.
 
