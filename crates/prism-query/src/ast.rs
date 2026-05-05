@@ -98,12 +98,44 @@ pub struct SqlQuery {
     pub limit: Option<u64>,
 }
 
+impl SqlQuery {
+    /// Construct a minimal `SqlQuery` — useful in tests for building subquery fixtures.
+    pub fn new(select: SelectClause, from: FromClause) -> Self {
+        Self {
+            select,
+            from,
+            joins: vec![],
+            where_: None,
+            group_by: vec![],
+            having: None,
+            order_by: vec![],
+            limit: None,
+        }
+    }
+
+    /// Attach a WHERE predicate to this query.
+    pub fn with_where(mut self, pred: Predicate) -> Self {
+        self.where_ = Some(pred);
+        self
+    }
+}
+
 /// SELECT clause — list of projection items.
 #[non_exhaustive]
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub struct SelectClause {
     pub distinct: bool,
     pub items: Vec<SelectItem>,
+}
+
+impl SelectClause {
+    /// Construct a non-distinct SELECT clause from items.
+    pub fn new(items: Vec<SelectItem>) -> Self {
+        Self {
+            distinct: false,
+            items,
+        }
+    }
 }
 
 /// A single item in a SELECT clause.
@@ -124,6 +156,16 @@ pub enum SelectItem {
 pub struct FromClause {
     pub source: SourceRef,
     pub alias: Option<String>,
+}
+
+impl FromClause {
+    /// Construct a `FromClause` with no alias.
+    pub fn new(source: SourceRef) -> Self {
+        Self {
+            source,
+            alias: None,
+        }
+    }
 }
 
 /// JOIN clause (INNER / LEFT / RIGHT / FULL OUTER / CROSS).

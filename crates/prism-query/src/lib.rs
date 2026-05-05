@@ -38,6 +38,7 @@ pub mod filter_parser;
 pub mod pipe_parser;
 pub mod security;
 pub mod sql_parser;
+pub mod visit;
 
 // ── Kani proofs (cfg-gated; compile everywhere, run only under cargo kani) ────
 pub mod proofs;

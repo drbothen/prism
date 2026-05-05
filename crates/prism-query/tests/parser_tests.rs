@@ -1919,3 +1919,967 @@ fn test_BC_2_11_006_query_size_constant_is_65536() {
         "BC-2.11.006: PRISM_MAX_QUERY_SIZE must be 65536 (64KB)"
     );
 }
+
+// =============================================================================
+// Phase D — New tests for redesigned AST types (type-design audit fixes)
+// =============================================================================
+
+// ─────────────────────────────────────────────────────────────────────────────
+// New predicate operators (prismql-grammar.md §4)
+// ─────────────────────────────────────────────────────────────────────────────
+
+/// BC-2.11.002: `HAS field` produces Predicate::Has.
+///
+/// Traces: BC-2.11.002 HAS operator, prismql-grammar.md §4
+#[test]
+fn test_BC_2_11_002_canonical_tv_has_field() {
+    let input = "crowdstrike.detections | HAS src_endpoint.ip";
+    let fe = parse_filter(input).expect("HAS field must parse");
+    match &fe.predicate {
+        Predicate::Has(fp) => {
+            assert_eq!(
+                fp.segments,
+                vec!["src_endpoint", "ip"],
+                "HAS field path must be 'src_endpoint.ip'"
+            );
+        }
+        other => panic!("expected Predicate::Has, got {:?}", other),
+    }
+}
+
+/// BC-2.11.002: `MISSING field` produces Predicate::Missing.
+///
+/// Traces: BC-2.11.002 MISSING operator, prismql-grammar.md §4
+#[test]
+fn test_BC_2_11_002_canonical_tv_missing_field() {
+    let input = "crowdstrike.detections | MISSING user.name";
+    let fe = parse_filter(input).expect("MISSING field must parse");
+    match &fe.predicate {
+        Predicate::Missing(fp) => {
+            assert_eq!(
+                fp.segments,
+                vec!["user", "name"],
+                "MISSING field path must be 'user.name'"
+            );
+        }
+        other => panic!("expected Predicate::Missing, got {:?}", other),
+    }
+}
+
+/// BC-2.11.002: `field =~ "regex"` produces Predicate::Regex.
+///
+/// Traces: BC-2.11.002 regex operator, prismql-grammar.md §4
+#[test]
+fn test_BC_2_11_002_canonical_tv_matches_regex_eq_tilde() {
+    let input = r#"crowdstrike.detections | src_endpoint.ip =~ "10\.0\..*""#;
+    let fe = parse_filter(input).expect("=~ must parse");
+    assert!(
+        matches!(&fe.predicate, Predicate::Regex { .. }),
+        "=~ must produce Predicate::Regex"
+    );
+}
+
+/// BC-2.11.002: `field MATCHES "regex"` produces Predicate::Regex.
+///
+/// Traces: BC-2.11.002 MATCHES operator, prismql-grammar.md §4
+#[test]
+fn test_BC_2_11_002_canonical_tv_matches_keyword() {
+    let input = r#"crowdstrike.detections | hostname MATCHES "web.*""#;
+    let fe = parse_filter(input).expect("MATCHES must parse");
+    assert!(
+        matches!(&fe.predicate, Predicate::Regex { .. }),
+        "MATCHES must produce Predicate::Regex"
+    );
+}
+
+/// BC-2.11.002: `field BETWEEN low AND high` produces Predicate::Between.
+///
+/// Traces: BC-2.11.002 BETWEEN operator, prismql-grammar.md §4
+#[test]
+fn test_BC_2_11_002_canonical_tv_between() {
+    let input = "crowdstrike.detections | severity_id BETWEEN 3 AND 7";
+    let fe = parse_filter(input).expect("BETWEEN must parse");
+    match &fe.predicate {
+        Predicate::Between {
+            field,
+            low,
+            high,
+            negated,
+        } => {
+            assert_eq!(
+                field.segments,
+                vec!["severity_id"],
+                "BETWEEN field must be 'severity_id'"
+            );
+            assert_eq!(*low, Literal::Integer(3), "BETWEEN low must be 3");
+            assert_eq!(*high, Literal::Integer(7), "BETWEEN high must be 7");
+            assert!(!negated, "BETWEEN must not be negated");
+        }
+        other => panic!("expected Predicate::Between, got {:?}", other),
+    }
+}
+
+/// BC-2.11.002: `field IS NULL` produces Predicate::IsNull.
+///
+/// Traces: BC-2.11.002 IS NULL operator, prismql-grammar.md §4
+#[test]
+fn test_BC_2_11_002_canonical_tv_is_null() {
+    let input = "crowdstrike.detections | user.name IS NULL";
+    let fe = parse_filter(input).expect("IS NULL must parse");
+    match &fe.predicate {
+        Predicate::IsNull { field, negated } => {
+            assert_eq!(
+                field.segments,
+                vec!["user", "name"],
+                "IS NULL field must be 'user.name'"
+            );
+            assert!(!negated, "IS NULL must not be negated");
+        }
+        other => panic!("expected Predicate::IsNull, got {:?}", other),
+    }
+}
+
+/// BC-2.11.002: `field IS NOT NULL` produces Predicate::IsNull(negated=true).
+///
+/// Traces: BC-2.11.002 IS NOT NULL operator
+#[test]
+fn test_BC_2_11_002_canonical_tv_is_not_null() {
+    let input = "crowdstrike.detections | user.name IS NOT NULL";
+    let fe = parse_filter(input).expect("IS NOT NULL must parse");
+    assert!(
+        matches!(&fe.predicate, Predicate::IsNull { negated: true, .. }),
+        "IS NOT NULL must produce Predicate::IsNull(negated=true)"
+    );
+}
+
+/// BC-2.11.002: `field NOT IN (a, b, c)` produces Predicate::In(negated=true).
+///
+/// Traces: BC-2.11.002 NOT IN operator, prismql-grammar.md §4
+#[test]
+fn test_BC_2_11_002_canonical_tv_not_in() {
+    let input = "crowdstrike.detections | severity NOT IN ('low', 'info')";
+    let fe = parse_filter(input).expect("NOT IN must parse");
+    match &fe.predicate {
+        Predicate::In {
+            field,
+            values,
+            negated,
+        } => {
+            assert_eq!(
+                field.segments,
+                vec!["severity"],
+                "NOT IN field must be 'severity'"
+            );
+            assert_eq!(values.len(), 2, "NOT IN must have 2 values");
+            assert!(negated, "NOT IN must be negated");
+        }
+        other => panic!("expected Predicate::In(negated=true), got {:?}", other),
+    }
+}
+
+/// BC-2.11.002: `field CONTAINS "x"` produces Predicate::StringOp.
+///
+/// Traces: BC-2.11.002 CONTAINS operator, prismql-grammar.md §4
+#[test]
+fn test_BC_2_11_002_canonical_tv_contains() {
+    let input = r#"crowdstrike.detections | user.name CONTAINS "admin""#;
+    let fe = parse_filter(input).expect("CONTAINS must parse");
+    match &fe.predicate {
+        Predicate::StringOp {
+            field,
+            op,
+            pattern,
+            case_insensitive,
+        } => {
+            assert_eq!(
+                field.segments,
+                vec!["user", "name"],
+                "CONTAINS field must be 'user.name'"
+            );
+            assert!(
+                matches!(op, prism_query::ast::StringOp::Contains),
+                "op must be Contains"
+            );
+            assert_eq!(pattern, "admin", "CONTAINS pattern must be 'admin'");
+            assert!(!case_insensitive, "CONTAINS must NOT be case-insensitive");
+        }
+        other => panic!("expected Predicate::StringOp, got {:?}", other),
+    }
+}
+
+/// BC-2.11.002: `field ICONTAINS "x"` produces Predicate::StringOp(case_insensitive=true).
+///
+/// Traces: BC-2.11.002 ICONTAINS operator, prismql-grammar.md §4
+#[test]
+fn test_BC_2_11_002_canonical_tv_icontains() {
+    let input = r#"crowdstrike.detections | file.path ICONTAINS ".exe""#;
+    let fe = parse_filter(input).expect("ICONTAINS must parse");
+    assert!(
+        matches!(
+            &fe.predicate,
+            Predicate::StringOp {
+                case_insensitive: true,
+                ..
+            }
+        ),
+        "ICONTAINS must produce Predicate::StringOp(case_insensitive=true)"
+    );
+}
+
+/// BC-2.11.002: `field STARTSWITH "x"` produces Predicate::StringOp::StartsWith.
+///
+/// Traces: BC-2.11.002 STARTSWITH operator
+#[test]
+fn test_BC_2_11_002_canonical_tv_startswith() {
+    let input = r#"crowdstrike.detections | hostname STARTSWITH "web""#;
+    let fe = parse_filter(input).expect("STARTSWITH must parse");
+    assert!(
+        matches!(&fe.predicate, Predicate::StringOp { .. }),
+        "STARTSWITH must produce Predicate::StringOp"
+    );
+}
+
+/// BC-2.11.002: `field ENDSWITH "x"` produces Predicate::StringOp::EndsWith.
+///
+/// Traces: BC-2.11.002 ENDSWITH operator
+#[test]
+fn test_BC_2_11_002_canonical_tv_endswith() {
+    let input = r#"crowdstrike.detections | file.path ENDSWITH ".dll""#;
+    let fe = parse_filter(input).expect("ENDSWITH must parse");
+    assert!(
+        matches!(&fe.predicate, Predicate::StringOp { .. }),
+        "ENDSWITH must produce Predicate::StringOp"
+    );
+}
+
+/// BC-2.11.002: `field = "10.0.*"` auto-promotes to Predicate::Wildcard.
+///
+/// Traces: BC-2.11.002 wildcard promotion, prismql-grammar.md §4
+#[test]
+fn test_BC_2_11_002_canonical_tv_wildcard_promotion_eq() {
+    let input = r#"crowdstrike.detections | src_endpoint.ip = "10.0.*""#;
+    let fe = parse_filter(input).expect("wildcard = must parse");
+    match &fe.predicate {
+        Predicate::Wildcard {
+            field,
+            pattern,
+            negated,
+        } => {
+            assert_eq!(field.segments, vec!["src_endpoint", "ip"]);
+            assert_eq!(pattern, "10.0.*");
+            assert!(!negated, "= wildcard must NOT be negated");
+        }
+        other => panic!("expected Predicate::Wildcard, got {:?}", other),
+    }
+}
+
+/// BC-2.11.002: `field != "10.0.*"` auto-promotes to Predicate::Wildcard(negated=true).
+///
+/// Traces: BC-2.11.002 wildcard promotion
+#[test]
+fn test_BC_2_11_002_canonical_tv_wildcard_promotion_ne() {
+    let input = r#"crowdstrike.detections | src_endpoint.ip != "192.168.*""#;
+    let fe = parse_filter(input).expect("wildcard != must parse");
+    assert!(
+        matches!(&fe.predicate, Predicate::Wildcard { negated: true, .. }),
+        "!= wildcard must produce Predicate::Wildcard(negated=true)"
+    );
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Duration literal
+// ─────────────────────────────────────────────────────────────────────────────
+
+/// BC-2.11.002: `30s` is parsed as Literal::Duration(30, Seconds).
+///
+/// Traces: BC-2.11.002 duration literal, prismql-grammar.md §3.3
+#[test]
+fn test_literal_duration_seconds_parsed() {
+    use prism_query::ast::{DurationLiteral, DurationUnit};
+    let input = "crowdstrike.detections | response_time > 30s";
+    let fe = parse_filter(input).expect("30s must parse");
+    match &fe.predicate {
+        Predicate::Compare { rhs, .. } => {
+            assert_eq!(
+                *rhs.as_ref(),
+                Expr::Literal(Literal::Duration(DurationLiteral {
+                    value: 30,
+                    unit: DurationUnit::Seconds
+                })),
+                "30s must be Duration(30, Seconds)"
+            );
+        }
+        other => panic!("expected Predicate::Compare, got {:?}", other),
+    }
+}
+
+/// BC-2.11.002: `24h` is parsed as Literal::Duration(24, Hours).
+///
+/// Traces: BC-2.11.002 duration literal
+#[test]
+fn test_literal_duration_hours_parsed() {
+    use prism_query::ast::{DurationLiteral, DurationUnit};
+    let input = "crowdstrike.detections | uptime > 24h";
+    let fe = parse_filter(input).expect("24h must parse");
+    match &fe.predicate {
+        Predicate::Compare { rhs, .. } => {
+            assert_eq!(
+                *rhs.as_ref(),
+                Expr::Literal(Literal::Duration(DurationLiteral {
+                    value: 24,
+                    unit: DurationUnit::Hours
+                })),
+                "24h must be Duration(24, Hours)"
+            );
+        }
+        other => panic!("expected Predicate::Compare, got {:?}", other),
+    }
+}
+
+/// BC-2.11.002: `7d` is parsed as Literal::Duration(7, Days).
+///
+/// Traces: BC-2.11.002 duration literal
+#[test]
+fn test_literal_duration_days_parsed() {
+    use prism_query::ast::{DurationLiteral, DurationUnit};
+    let input = "crowdstrike.detections | cert.expiry < 7d";
+    let fe = parse_filter(input).expect("7d must parse");
+    match &fe.predicate {
+        Predicate::Compare { rhs, .. } => {
+            assert_eq!(
+                *rhs.as_ref(),
+                Expr::Literal(Literal::Duration(DurationLiteral {
+                    value: 7,
+                    unit: DurationUnit::Days
+                })),
+                "7d must be Duration(7, Days)"
+            );
+        }
+        other => panic!("expected Predicate::Compare, got {:?}", other),
+    }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Literal validation at parse time (CWE-20, CWE-1333)
+// ─────────────────────────────────────────────────────────────────────────────
+
+/// BC-2.11.006: invalid CIDR string is rejected at parse time (CWE-20).
+///
+/// Traces: BC-2.11.006, prismql-grammar.md §4 (cidr_match), CWE-20
+#[test]
+fn test_literal_cidr_validated_at_parse_time_invalid_rejected() {
+    let input = "crowdstrike.detections | src_endpoint.ip IN CIDR '999.999.999.999/33'";
+    let result = parse_filter(input);
+    assert!(
+        result.is_err(),
+        "invalid CIDR string must be rejected at parse time (CWE-20)"
+    );
+}
+
+/// BC-2.11.006: valid CIDR string is accepted at parse time.
+///
+/// Traces: BC-2.11.006, prismql-grammar.md §4 (cidr_match)
+#[test]
+fn test_literal_cidr_validated_at_parse_time_valid_accepted() {
+    let input = "crowdstrike.detections | src_endpoint.ip IN CIDR '10.0.0.0/8'";
+    let result = parse_filter(input);
+    assert!(
+        result.is_ok(),
+        "valid CIDR '10.0.0.0/8' must be accepted at parse time"
+    );
+}
+
+/// BC-2.11.006: invalid regex pattern is rejected at parse time (CWE-1333).
+///
+/// Traces: BC-2.11.006, prismql-grammar.md §4 (regex_match), CWE-1333
+#[test]
+fn test_literal_regex_validated_at_parse_time_invalid_rejected() {
+    // Unclosed paren is a regex syntax error.
+    let input = r#"crowdstrike.detections | hostname =~ "(unclosed""#;
+    let result = parse_filter(input);
+    assert!(
+        result.is_err(),
+        "invalid regex pattern must be rejected at parse time (CWE-1333)"
+    );
+}
+
+/// BC-2.11.006: regex pattern exceeding 1024 bytes is rejected at parse time.
+///
+/// Traces: BC-2.11.006, prismql-grammar.md §8 (1024-byte cap), CWE-1333
+#[test]
+fn test_literal_regex_size_capped_at_1024_bytes() {
+    let long_pattern = "a".repeat(1025);
+    let input = format!(r#"crowdstrike.detections | hostname =~ "{long_pattern}""#);
+    let result = parse_filter(&input);
+    assert!(
+        result.is_err(),
+        "regex pattern > 1024 bytes must be rejected at parse time"
+    );
+}
+
+/// BC-2.11.006: regex pattern of exactly 1024 bytes is accepted at parse time.
+///
+/// Traces: BC-2.11.006, prismql-grammar.md §8
+#[test]
+fn test_literal_regex_exactly_1024_bytes_accepted() {
+    let exact_pattern = "a".repeat(1024);
+    let input = format!(r#"crowdstrike.detections | hostname =~ "{exact_pattern}""#);
+    let result = parse_filter(&input);
+    assert!(
+        result.is_ok(),
+        "regex pattern of exactly 1024 bytes must be accepted"
+    );
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// StatsStage multi-aggregate + multi-by (BC-2.11.004, prismql-grammar.md §6)
+// ─────────────────────────────────────────────────────────────────────────────
+
+/// BC-2.11.004: `stats count(*) AS total, sum(bytes) AS total_bytes BY field` — multi-agg.
+///
+/// Traces: BC-2.11.004 multi-aggregate stats, prismql-grammar.md §6
+#[test]
+fn test_BC_2_11_004_stats_multi_aggregate_with_aliases() {
+    let input = "FROM crowdstrike.detections | stats count(*) AS total, sum(bytes_in) AS total_bytes BY src_endpoint.ip";
+    let pq = parse_pipe(input).expect("multi-agg stats must parse");
+    match &pq.stages[0] {
+        PipeStage::Stats(ss) => {
+            assert_eq!(ss.aggregates.len(), 2, "stats must have 2 aggregates");
+            assert_eq!(
+                ss.aggregates[0].alias.as_deref(),
+                Some("total"),
+                "first agg alias must be 'total'"
+            );
+            assert_eq!(
+                ss.aggregates[1].alias.as_deref(),
+                Some("total_bytes"),
+                "second agg alias must be 'total_bytes'"
+            );
+            assert_eq!(ss.by_fields.len(), 1, "stats must have 1 BY field");
+        }
+        other => panic!("expected PipeStage::Stats, got {:?}", other),
+    }
+}
+
+/// BC-2.11.004: multi-by-field stats.
+///
+/// Traces: BC-2.11.004 multi-by stats, prismql-grammar.md §6
+#[test]
+fn test_BC_2_11_004_stats_multi_by_fields() {
+    let input = "FROM crowdstrike.detections | stats count(*) BY src_endpoint.ip, severity_id";
+    let pq = parse_pipe(input).expect("multi-by stats must parse");
+    match &pq.stages[0] {
+        PipeStage::Stats(ss) => {
+            assert_eq!(ss.by_fields.len(), 2, "stats must have 2 BY fields");
+        }
+        other => panic!("expected PipeStage::Stats, got {:?}", other),
+    }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// JoinStage typed (JoinKind + JoinCondition)
+// ─────────────────────────────────────────────────────────────────────────────
+
+/// BC-2.11.004: `join left t2 on a == b` produces JoinStage with Left + Pair condition.
+///
+/// Traces: BC-2.11.004 join with kind + pair condition, prismql-grammar.md §6.2
+#[test]
+fn test_BC_2_11_004_join_left_with_pair_condition() {
+    let input = "FROM crowdstrike.detections | join left armis.devices on device_ip == asset_ip";
+    let pq = parse_pipe(input).expect("left join with pair must parse");
+    match &pq.stages[0] {
+        PipeStage::Join(js) => {
+            assert_eq!(js.kind, JoinKind::Left, "join kind must be Left");
+            match &js.on {
+                JoinCondition::Pair(l, r) => {
+                    assert_eq!(
+                        l.segments,
+                        vec!["device_ip"],
+                        "left field must be 'device_ip'"
+                    );
+                    assert_eq!(
+                        r.segments,
+                        vec!["asset_ip"],
+                        "right field must be 'asset_ip'"
+                    );
+                }
+                other => panic!("expected JoinCondition::Pair, got {:?}", other),
+            }
+        }
+        other => panic!("expected PipeStage::Join, got {:?}", other),
+    }
+}
+
+/// BC-2.11.004: `join full t2 on field` produces JoinStage with FullOuter + SameField.
+///
+/// Traces: BC-2.11.004 full outer join, prismql-grammar.md §6.2
+#[test]
+fn test_BC_2_11_004_join_full_outer() {
+    let input = "FROM crowdstrike.detections | join full armis.devices on device_ip";
+    let pq = parse_pipe(input).expect("full join must parse");
+    match &pq.stages[0] {
+        PipeStage::Join(js) => {
+            assert_eq!(js.kind, JoinKind::FullOuter, "join kind must be FullOuter");
+            assert!(
+                matches!(&js.on, JoinCondition::SameField(_)),
+                "on must be SameField"
+            );
+        }
+        other => panic!("expected PipeStage::Join, got {:?}", other),
+    }
+}
+
+/// BC-2.11.004: `join inner t2 on field` produces JoinStage with Inner + SameField.
+///
+/// Traces: BC-2.11.004 inner join
+#[test]
+fn test_BC_2_11_004_join_inner_explicit() {
+    let input = "FROM crowdstrike.detections | join inner armis.devices on device_ip";
+    let pq = parse_pipe(input).expect("inner join must parse");
+    match &pq.stages[0] {
+        PipeStage::Join(js) => {
+            assert_eq!(js.kind, JoinKind::Inner, "join kind must be Inner");
+        }
+        other => panic!("expected PipeStage::Join, got {:?}", other),
+    }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// JoinKind::Cross (SQL mode)
+// ─────────────────────────────────────────────────────────────────────────────
+
+/// BC-2.11.003: CROSS JOIN produces JoinKind::Cross.
+///
+/// Traces: BC-2.11.003, prismql-grammar.md §2 (join_kind includes CROSS)
+#[test]
+fn test_BC_2_11_003_cross_join_kind_parsed() {
+    let input =
+        "SELECT * FROM crowdstrike.detections CROSS JOIN claroty.devices ON device_ip = device_ip";
+    let sq = parse_sql(input).expect("CROSS JOIN must parse");
+    assert_eq!(
+        sq.joins[0].kind,
+        JoinKind::Cross,
+        "CROSS JOIN kind must be Cross"
+    );
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// SourceRef structured classification
+// ─────────────────────────────────────────────────────────────────────────────
+
+/// SourceRef from `EVENTS` is classified as Composite(Events).
+///
+/// Traces: query-engine.md §Unified Query Surface, SourceRefKind
+#[test]
+fn test_source_ref_composite_events_classified() {
+    use prism_query::ast::{CompositeSource, SourceRefKind};
+    let sq = parse_sql("SELECT * FROM EVENTS").expect("FROM EVENTS must parse");
+    assert!(
+        matches!(
+            &sq.from.source.kind,
+            SourceRefKind::Composite(CompositeSource::Events)
+        ),
+        "EVENTS source must be classified as Composite(Events)"
+    );
+}
+
+/// SourceRef from `crowdstrike.detections` is classified as External.
+///
+/// Traces: query-engine.md §Unified Query Surface, SourceRefKind
+#[test]
+fn test_source_ref_external_classified() {
+    use prism_query::ast::SourceRefKind;
+    let sq = parse_sql("SELECT * FROM crowdstrike.detections").expect("must parse");
+    assert!(
+        matches!(&sq.from.source.kind, SourceRefKind::External { sensor, table } if sensor == "crowdstrike" && table == "detections"),
+        "crowdstrike.detections must be classified as External"
+    );
+}
+
+/// SourceRef from `prism_alerts` is classified as Internal(Alerts).
+///
+/// Traces: query-engine.md §Unified Query Surface, SourceRefKind
+#[test]
+fn test_source_ref_internal_alerts_classified() {
+    use prism_query::ast::{InternalTable, SourceRefKind};
+    let sq = parse_sql("SELECT * FROM prism_alerts").expect("must parse");
+    assert!(
+        matches!(
+            &sq.from.source.kind,
+            SourceRefKind::Internal(InternalTable::Alerts)
+        ),
+        "prism_alerts must be classified as Internal(Alerts)"
+    );
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Visitor pattern
+// ─────────────────────────────────────────────────────────────────────────────
+
+/// Visitor visits all FieldPath nodes in a filter query.
+///
+/// Traces: P1-001 (visitor pattern), visit.rs
+#[test]
+fn test_visitor_walks_all_field_paths_in_filter() {
+    use prism_query::ast::FieldPath;
+    use prism_query::visit::{self, Visitor};
+
+    struct FieldCollector {
+        fields: Vec<String>,
+    }
+
+    impl Visitor for FieldCollector {
+        fn visit_field(&mut self, f: &FieldPath) {
+            self.fields.push(f.segments.join("."));
+        }
+    }
+
+    let ast =
+        PrismQlParser::parse("crowdstrike.detections | severity_id = 3 AND hostname = 'web01'")
+            .expect("must parse");
+
+    let mut collector = FieldCollector { fields: vec![] };
+    visit::walk_ast(&mut collector, &ast);
+
+    // Should collect: "crowdstrike.detections" (source), "severity_id", "hostname"
+    assert!(
+        collector.fields.contains(&"severity_id".to_string()),
+        "visitor must visit 'severity_id' field"
+    );
+    assert!(
+        collector.fields.contains(&"hostname".to_string()),
+        "visitor must visit 'hostname' field"
+    );
+}
+
+/// Visitor walks pipe query stages including WHERE predicate fields.
+///
+/// Traces: P1-001 (visitor pattern), visit.rs
+#[test]
+fn test_visitor_walks_pipe_where_predicate() {
+    use prism_query::ast::FieldPath;
+    use prism_query::visit::{self, Visitor};
+
+    struct FieldCollector {
+        fields: Vec<String>,
+    }
+
+    impl Visitor for FieldCollector {
+        fn visit_field(&mut self, f: &FieldPath) {
+            self.fields.push(f.segments.join("."));
+        }
+    }
+
+    let ast = PrismQlParser::parse(
+        "FROM crowdstrike.detections | where severity_id >= 3 | sort time desc",
+    )
+    .expect("must parse");
+
+    let mut collector = FieldCollector { fields: vec![] };
+    visit::walk_ast(&mut collector, &ast);
+
+    assert!(
+        collector.fields.contains(&"severity_id".to_string()),
+        "visitor must visit 'severity_id' in pipe WHERE"
+    );
+    assert!(
+        collector.fields.contains(&"time".to_string()),
+        "visitor must visit 'time' in sort stage"
+    );
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// check_nesting_depth recurses into all AST paths (security gap fix)
+// ─────────────────────────────────────────────────────────────────────────────
+
+/// Security: check_predicate_nesting_depth recurses into subquery.
+///
+/// Traces: security.rs check_predicate_nesting_depth, BC-2.11.006 EC-002
+#[test]
+fn test_check_nesting_depth_recurses_into_subquery() {
+    use prism_query::ast::{FromClause, Predicate, SelectClause, SelectItem, SqlQuery};
+    use prism_query::security::check_predicate_nesting_depth;
+
+    // Build a deeply-nested Predicate::InSubquery with a subquery
+    // that itself has a deep predicate.
+    let deep_pred = build_deep_not_predicate(70);
+    let subquery = SqlQuery::new(
+        SelectClause::new(vec![SelectItem::Star]),
+        FromClause::new(SourceRef::from_raw("events")),
+    )
+    .with_where(deep_pred);
+    let pred = Predicate::InSubquery {
+        field: FieldPath::new(["device_id"]),
+        subquery: Box::new(subquery),
+        negated: false,
+    };
+
+    // The subquery contains a depth-70 predicate, which exceeds the limit of 64.
+    let result = check_predicate_nesting_depth(&pred, 0);
+    assert!(
+        result.is_err(),
+        "depth bomb in subquery must be detected by check_predicate_nesting_depth"
+    );
+}
+
+/// Security: 65-level NOT chain in pipe WHERE is rejected at parse time.
+///
+/// Traces: security.rs, BC-2.11.006 EC-002
+#[test]
+fn test_check_nesting_depth_recurses_into_pipe_where() {
+    // 65 levels of parentheses in a pipe WHERE stage: rejected by check_paren_depth.
+    let mut q = String::from("FROM crowdstrike.detections | where ");
+    for _ in 0..65 {
+        q.push('(');
+    }
+    q.push_str("severity_id = 1");
+    for _ in 0..65 {
+        q.push(')');
+    }
+    let result = PrismQlParser::parse(&q);
+    assert!(
+        result.is_err(),
+        "65-level nesting in pipe WHERE must be rejected"
+    );
+}
+
+/// Security: 65-level nesting in SQL HAVING is rejected.
+///
+/// Traces: security.rs, BC-2.11.006 EC-002
+#[test]
+fn test_check_nesting_depth_recurses_into_having() {
+    let mut q = String::from("SELECT * FROM events HAVING ");
+    for _ in 0..65 {
+        q.push('(');
+    }
+    q.push_str("severity_id = 1");
+    for _ in 0..65 {
+        q.push(')');
+    }
+    let result = PrismQlParser::parse(&q);
+    assert!(
+        result.is_err(),
+        "65-level nesting in SQL HAVING must be rejected"
+    );
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Hash stability + Serde round-trip (P1-003)
+// ─────────────────────────────────────────────────────────────────────────────
+
+/// Hash stability: H(ast) == H(ast.clone()) for filter AST.
+///
+/// Traces: P1-003 (Eq+Hash uniformity), ast.rs doc comment
+#[test]
+fn test_ast_hash_stable_across_clone() {
+    use std::collections::hash_map::DefaultHasher;
+    use std::hash::{Hash, Hasher};
+
+    fn hash_of<T: Hash>(t: &T) -> u64 {
+        let mut h = DefaultHasher::new();
+        t.hash(&mut h);
+        h.finish()
+    }
+
+    let ast =
+        PrismQlParser::parse("crowdstrike.detections | severity_id = 3 AND hostname = 'web01'")
+            .expect("must parse");
+    let ast2 = ast.clone();
+
+    assert_eq!(ast, ast2, "cloned AST must be equal to original");
+    assert_eq!(
+        hash_of(&ast),
+        hash_of(&ast2),
+        "hash of cloned AST must equal hash of original"
+    );
+}
+
+/// Serde round-trip: deserialize(serialize(ast)) == ast.
+///
+/// Traces: P1-003 (Serde), ast.rs derives
+#[test]
+fn test_ast_serde_round_trip() {
+    let ast =
+        PrismQlParser::parse("crowdstrike.detections | severity_id >= 3 AND hostname = 'web01'")
+            .expect("must parse");
+
+    let json = serde_json::to_string(&ast).expect("serialize must succeed");
+    let ast2: Ast = serde_json::from_str(&json).expect("deserialize must succeed");
+
+    assert_eq!(ast, ast2, "deserialized AST must equal original");
+}
+
+/// Serde round-trip: SQL mode AST round-trips correctly.
+///
+/// Traces: P1-003 (Serde), ast.rs derives
+#[test]
+fn test_ast_serde_round_trip_sql_mode() {
+    let ast = PrismQlParser::parse(
+        "SELECT * FROM crowdstrike.detections WHERE severity_id >= 3 LIMIT 10",
+    )
+    .expect("must parse");
+
+    let json = serde_json::to_string(&ast).expect("serialize must succeed");
+    let ast2: Ast = serde_json::from_str(&json).expect("deserialize must succeed");
+
+    assert_eq!(ast, ast2, "SQL mode AST round-trip must preserve equality");
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// AggFunc DistinctCount + Percentile (BC-2.11.004)
+// ─────────────────────────────────────────────────────────────────────────────
+
+/// BC-2.11.004: `stats distinct_count(field)` produces AggFunc::DistinctCount.
+///
+/// Traces: BC-2.11.004, prismql-grammar.md §6
+#[test]
+fn test_BC_2_11_004_stats_distinct_count() {
+    let input = "FROM crowdstrike.detections | stats distinct_count(src_endpoint.ip)";
+    let pq = parse_pipe(input).expect("distinct_count must parse");
+    match &pq.stages[0] {
+        PipeStage::Stats(ss) => {
+            assert!(
+                matches!(ss.func(), AggFunc::DistinctCount(_)),
+                "distinct_count must produce AggFunc::DistinctCount"
+            );
+        }
+        other => panic!("expected PipeStage::Stats, got {:?}", other),
+    }
+}
+
+/// BC-2.11.004: `stats percentile(field, 95)` produces AggFunc::Percentile.
+///
+/// Traces: BC-2.11.004, prismql-grammar.md §6
+#[test]
+fn test_BC_2_11_004_stats_percentile() {
+    let input = "FROM crowdstrike.detections | stats percentile(response_time, 95)";
+    let pq = parse_pipe(input).expect("percentile must parse");
+    match &pq.stages[0] {
+        PipeStage::Stats(ss) => {
+            let func = ss.func();
+            assert!(
+                matches!(func, AggFunc::Percentile { .. }),
+                "percentile must produce AggFunc::Percentile, got {:?}",
+                func
+            );
+        }
+        other => panic!("expected PipeStage::Stats, got {:?}", other),
+    }
+}
+
+/// BC-2.11.004: percentile p outside [0, 100] is rejected.
+///
+/// Traces: BC-2.11.004, prismql-grammar.md §5.1
+#[test]
+fn test_BC_2_11_004_stats_percentile_out_of_range_rejected() {
+    let input = "FROM crowdstrike.detections | stats percentile(field, 101)";
+    let result = PrismQlParser::parse(input);
+    assert!(
+        result.is_err(),
+        "percentile p=101 must be rejected (out of range [0, 100])"
+    );
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// SQL AggFunc (unified with pipe mode)
+// ─────────────────────────────────────────────────────────────────────────────
+
+/// BC-2.11.003: SQL `count(*)` produces FuncCall::Aggregate(AggFunc::Count).
+///
+/// Traces: BC-2.11.003 aggregate functions, prismql-grammar.md §5.1
+#[test]
+fn test_BC_2_11_003_sql_count_star_produces_agg_func_count() {
+    let sq = parse_sql("SELECT count(*) FROM crowdstrike.detections").expect("must parse");
+    let item = sq.select.items.first().expect("must have select item");
+    match item {
+        SelectItem::Expr {
+            expr: Expr::FuncCall(prism_query::ast::FuncCall::Aggregate { func, .. }),
+            ..
+        } => {
+            assert_eq!(
+                *func,
+                AggFunc::Count,
+                "count(*) must produce AggFunc::Count"
+            );
+        }
+        other => panic!(
+            "expected SelectItem::Expr with FuncCall::Aggregate, got {:?}",
+            other
+        ),
+    }
+}
+
+/// BC-2.11.003: SQL `DISTINCT_COUNT(field)` produces AggFunc::DistinctCount.
+///
+/// Traces: BC-2.11.003, prismql-grammar.md §5.1
+#[test]
+fn test_BC_2_11_003_sql_distinct_count_produces_agg_func() {
+    let sq = parse_sql("SELECT DISTINCT_COUNT(src_endpoint.ip) FROM crowdstrike.detections")
+        .expect("DISTINCT_COUNT must parse");
+    assert!(
+        !sq.select.items.is_empty(),
+        "SELECT must have at least one item"
+    );
+}
+
+/// BC-2.11.003: SQL `PERCENTILE(field, 95)` produces AggFunc::Percentile.
+///
+/// Traces: BC-2.11.003, prismql-grammar.md §5.1
+#[test]
+fn test_BC_2_11_003_sql_percentile_produces_agg_func() {
+    let sq = parse_sql("SELECT PERCENTILE(response_time, 95) FROM crowdstrike.detections")
+        .expect("PERCENTILE must parse");
+    assert!(
+        !sq.select.items.is_empty(),
+        "SELECT must have at least one item"
+    );
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Forward-compat: Ast::Sql wraps SqlStatement (P1-007)
+// ─────────────────────────────────────────────────────────────────────────────
+
+/// Ast::Sql wraps SqlStatement::Select — forward-compat for S-3.06.
+///
+/// Traces: P1-007 (forward compat for S-3.06), ast.rs SqlStatement
+#[test]
+fn test_ast_sql_wraps_sql_statement_select() {
+    let ast = PrismQlParser::parse("SELECT * FROM crowdstrike.detections").expect("must parse");
+    match ast {
+        Ast::Sql(SqlStatement::Select(ref sq)) => {
+            assert!(
+                !sq.select.items.is_empty(),
+                "SELECT must have at least one item"
+            );
+        }
+        other => panic!("expected Ast::Sql(SqlStatement::Select), got {:?}", other),
+    }
+}
+
+/// PipeQuery has a write field for S-3.06 forward-compat.
+///
+/// Traces: P1-007, ast.rs PipeQuery.write
+#[test]
+fn test_pipe_query_write_field_is_none_placeholder() {
+    let pq = parse_pipe("FROM crowdstrike.detections | head 10").expect("must parse");
+    assert!(
+        pq.write.is_none(),
+        "PipeQuery.write must be None (S-3.06 placeholder)"
+    );
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Helper: build deeply nested NOT predicate for security tests
+// ─────────────────────────────────────────────────────────────────────────────
+
+fn build_deep_not_predicate(depth: u32) -> Predicate {
+    if depth == 0 {
+        Predicate::Compare {
+            lhs: Box::new(Expr::Field(FieldPath::new(["x"]))),
+            op: CompareOp::Eq,
+            rhs: Box::new(Expr::Literal(Literal::Integer(1))),
+        }
+    } else {
+        Predicate::Not(Box::new(build_deep_not_predicate(depth - 1)))
+    }
+}
