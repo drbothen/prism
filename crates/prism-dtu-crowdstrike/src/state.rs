@@ -107,7 +107,7 @@ pub struct CrowdstrikeState {
     ///
     /// INTENTIONALLY NOT re-keyed to `(OrgId, String)` — the clone receives the session
     /// ID as an opaque `X-DTU-Session-Id` HTTP header value with no org context attached.
-    /// The query engine (S-3.2.08 / `prism-query::crowdstrike_session`) is the correct
+    /// The query engine (S-3.2.08 / `prism-query::org_scoped_session_id`) is the correct
     /// enforcement layer. (BC-3.2.003 precondition 4 confirms this design.)
     pub session_registry: Mutex<LruCache<String, SessionData>>,
     /// Runtime configuration (auth_mode, etc.) — updated by `configure()`.
