@@ -1,7 +1,7 @@
 ---
 document_type: story-index
 level: "L4"
-version: "v2.04"
+version: "v2.05"
 status: draft
 producer: state-manager
 timestamp: 2026-05-04T00:00:00
@@ -24,7 +24,7 @@ before its dependencies are complete.
 - **Total waves:** 7 (Wave 0 expanded to 16 stories: devops + DTU infrastructure)
 - **BCs covered:** 230 total registered (222 active per BC-INDEX.md v4.32; 200 Wave 1-2 BCs + 22 new Wave 3 BCs: BC-3.1.001–004, BC-3.2.001–005, BC-3.3.001–004, BC-3.4.001–004, BC-3.5.001–002, BC-3.6.001–002, BC-3.7.001; at v0.2+ draft status; BC-3.3.004 is a distinct contract from BC-3.3.001 per PO rename in Phase 3.A consistency-validator pass)
 - **VPs assigned:** 145 (30 Kani proofs, 86 proptests, 4 unit_tests, 6 fuzz targets, 19 integration tests)
-- **Note:** The 7 osquery-inspired stories (S-2.08, S-3.08 through S-3.13) have 0 formal BCs at this stage — they are enhancements derived from the osquery synthesis review.
+- **Note:** S-3.08 through S-3.13 are osquery-inspired enhancements. In W3-spec-remediation (2026-05-04), each was anchored to the closest active BCs (proxies): S-3.08 → BC-2.11.001/005/010/012; S-3.09 → BC-2.11.001/BC-2.08.008; S-3.10 → BC-2.11.007/010; S-3.11 → BC-2.11.005/011; S-3.12 → BC-2.11.007/BC-2.16.001; S-3.13 → BC-2.16.007/001/BC-2.11.001. No dedicated BCs authored for the novel behaviors; PO authorship recommended before status=ready.
 - **Phase 3 patch Burst 1 (2026-04-16):** Added 5 new stories (S-0.01, S-0.02, S-6.04, S-6.05, S-6.06) and 2 scope expansions (S-6.01 subcommand dispatch, S-2.01 action_state CF) to close gaps identified in the consistency-validator audit.
 - **Phase 3 patch Burst 2 (2026-04-16):** Added 4 new stories (S-5.07, S-5.08, S-5.09, S-5.10). 3 scope expansions (S-5.05 scope boundary, S-1.14 BC anchors + infusion_cache CF, S-4.03 IOC file loading). 5 retroactive BC anchor updates (S-1.15 → BC-2.17.*, S-4.08 → BC-2.18.*, S-4.07 → BC-2.14.012 gate resolved, S-4.06 → BC-2.14.013, S-1.14 → BC-2.19.*).
 - **Phase 3 patch Burst 2.75 (2026-04-16):** Surgical traceability anchor pass. 4 new BCs committed by product-owner anchored to implementing stories: BC-2.08.008/009 → S-5.08, BC-2.05.011 → S-5.10, BC-2.13.014 → S-4.03. VP-039 (Kani, watermark monotonicity) → S-5.10. All hedge/TBD language removed from the 3 anchored stories. No new stories; story count remains 62.
@@ -268,19 +268,19 @@ pursuing maximum parallelism should schedule by topological layer, not wave numb
 | S-2.06 | DataSource Trait and Auth Patterns [MERGED PR #54 0b194cb4 2026-04-25 +51t] | prism-sensors | 4 | -- | 3 | S-1.06,S-1.11 |
 | S-2.07 | Per-Sensor Auth and Pagination [MERGED PR #60 26d0954b 2026-04-26 +56t RED_RATIO=83.9%] | prism-sensors | 5 | -- | 3 | S-2.06 |
 | S-2.08 | Event Table Abstraction and Local Buffering [MERGED PR #61 0be11cd6 2026-04-26 +92t RED_RATIO=54.3% prism-query-crate-created **WAVE-2-CLOSED** spec-v1.9-W2-P2-A-005-schema-hygiene-fix] | prism-sensors, prism-query | 0 | -- | 3 | S-2.06,S-2.01,S-1.11 |
-| S-3.01 | PrismQL Parser (Filter + SQL + Pipe) | prism-query | 4 | VP-014,015,021 | 3 | S-1.01 |
-| S-3.02 | Query Tool and Materialization [spec-v1.7-inherited-AC-5b-from-S-2.08] | prism-query | 6 | VP-031 | 3 | S-3.01,S-2.06,S-1.04,S-2.01,S-2.03,S-6.08,S-6.09,S-6.10 |
-| S-3.03 | Explain and Query Diagnostics | prism-query | 1 | -- | 1 | S-3.02 |
-| S-3.04 | Alias System (P1) | prism-query | 5 | VP-012,013,037 | 2 | S-3.02,S-1.08,S-1.09 |
-| S-3.05 | Pagination and Caching | prism-query | 6 | VP-025 | 2 | S-3.02 |
-| S-3.06 | PrismQL Write Parser Extensions | prism-query | 1 | -- | 2 | S-3.01,S-1.13,S-6.07 |
-| S-3.07 | Write Execution Pipeline | prism-query | 5 | -- | 3 | S-3.06,S-3.02,S-1.08,S-1.09,S-2.04,S-6.07 |
-| S-3.08 | Hidden Columns | prism-query | 0 | -- | 1 | S-3.02 |
-| S-3.09 | Query Performance Profiling | prism-query | 0 | -- | 1 | S-3.02 |
-| S-3.10 | Cost Estimation (API Latency-Aware Planner) | prism-query | 0 | -- | 2 | S-3.09,S-3.02 |
-| S-3.11 | In-Query Dedup Caching | prism-query | 0 | -- | 1 | S-3.02 |
-| S-3.12 | Column Pruning and Field Selection Push-Down | prism-query | 0 | -- | 1 | S-3.02,S-2.06 |
-| S-3.13 | Dynamic Table Availability | prism-query | 0 | -- | 1 | S-3.02,S-1.12 |
+| S-3.01 | PrismQL Parser (Filter + SQL + Pipe) [v1.6] | prism-query | 4 | VP-014,015,021 | 3 | S-1.01 |
+| S-3.02 | Query Tool and Materialization [v1.8-spec-rem] | prism-query | 6 | VP-031 | 3 | S-3.01,S-2.06,S-1.04,S-2.01,S-2.03,S-6.08,S-6.09,S-6.10 |
+| S-3.03 | Explain and Query Diagnostics [v1.5] | prism-query | 1 | -- | 1 | S-3.02 |
+| S-3.04 | Alias System (P1) [v1.8] | prism-query | 5 | VP-012,013,037 | 2 | S-3.02,S-1.08,S-1.09 |
+| S-3.05 | Pagination and Caching [v1.9] | prism-query | 6 | VP-025 | 2 | S-3.02 |
+| S-3.06 | PrismQL Write Parser Extensions [v1.6] | prism-query | 1 | -- | 2 | S-3.01,S-1.13,S-6.07 |
+| S-3.07 | Write Execution Pipeline [v1.7] | prism-query | 5 | -- | 3 | S-3.06,S-3.02,S-1.08,S-1.09,S-2.04,S-6.07 |
+| S-3.08 | Hidden Columns [v1.5] | prism-query | 4 (proxy) | -- | 1 | S-3.02 |
+| S-3.09 | Query Performance Profiling [v1.5] | prism-query | 2 (proxy) | -- | 1 | S-3.02 |
+| S-3.10 | Cost Estimation (API Latency-Aware Planner) [v1.5] | prism-query | 2 (proxy) | -- | 2 | S-3.09,S-3.02 |
+| S-3.11 | In-Query Dedup Caching [v1.5] | prism-query | 2 (proxy) | -- | 1 | S-3.02 |
+| S-3.12 | Column Pruning and Field Selection Push-Down [v1.5] | prism-query | 2 (proxy) | -- | 1 | S-3.02,S-2.06 |
+| S-3.13 | Dynamic Table Availability [v1.7] | prism-query | 3 (proxy) | -- | 1 | S-3.02,S-1.12 |
 | S-4.01 | Schedule CRUD and Execution Loop [v1.12 ADR-013] | prism-operations | 5 | VP-026, VP-030, VP-137 | 3 | S-3.02,S-2.01 |
 | S-4.02 | Differential Results and Packs [v1.11 ADR-018] | prism-operations | 3 | VP-019, VP-141, VP-142 | 2 | S-4.01 |
 | S-4.03 | Detection Rule Loading and Compilation [v1.9 ADR-015] | prism-operations | 8 | VP-018, VP-139, VP-140 | 3 | S-3.02,S-1.08,S-2.01 |
@@ -452,7 +452,7 @@ Every active BC maps to the story that implements it.
 | BC-2.08.005 | S-5.03 |
 | BC-2.08.006 | S-5.03 |
 | BC-2.08.007 | S-5.04 |
-| BC-2.08.008 | S-5.08 |
+| BC-2.08.008 | S-5.08, S-3.09 (proxy) |
 | BC-2.08.009 | S-5.08 |
 | BC-2.09.001 | S-1.10 |
 | BC-2.09.002 | S-1.10 |
@@ -473,18 +473,18 @@ Every active BC maps to the story that implements it.
 | BC-2.10.009 | S-5.03 |
 | BC-2.10.010 | S-5.01 |
 | BC-2.10.011 | S-5.02 |
-| BC-2.11.001 | S-3.02 |
+| BC-2.11.001 | S-3.02, S-3.08 (proxy), S-3.09 (proxy), S-3.13 (proxy) |
 | BC-2.11.002 | S-3.01 |
 | BC-2.11.003 | S-3.01 |
 | BC-2.11.004 | S-3.01, S-3.06 |
-| BC-2.11.005 | S-3.02 |
+| BC-2.11.005 | S-3.02, S-3.08 (proxy), S-3.11 (proxy) |
 | BC-2.11.006 | S-3.01, S-3.02 |
-| BC-2.11.007 | S-3.02 |
+| BC-2.11.007 | S-3.02, S-3.10 (proxy), S-3.12 (proxy) |
 | BC-2.11.008 | S-3.04 |
 | BC-2.11.009 | S-3.04 |
-| BC-2.11.010 | S-3.03 |
-| BC-2.11.011 | S-3.02 |
-| BC-2.11.012 | S-3.02 |
+| BC-2.11.010 | S-3.03, S-3.08 (proxy), S-3.10 (proxy) |
+| BC-2.11.011 | S-3.02, S-3.11 (proxy) |
+| BC-2.11.012 | S-3.02, S-3.08 (proxy) |
 | BC-2.11.013 | S-3.04 |
 | BC-2.11.014 | S-3.04 |
 | BC-2.11.015 | S-3.04 |
@@ -535,13 +535,13 @@ Every active BC maps to the story that implements it.
 | BC-2.15.009 | S-2.03 |
 | BC-2.15.010 | S-2.03 |
 | BC-2.15.011 | S-2.03 |
-| BC-2.16.001 | S-1.11, S-1.13 |
+| BC-2.16.001 | S-1.11, S-1.13, S-3.12 (proxy), S-3.13 (proxy) |
 | BC-2.16.002 | S-1.11 |
 | BC-2.16.003 | S-1.11 |
 | BC-2.16.004 | S-1.11 |
 | BC-2.16.005 | S-1.12 |
 | BC-2.16.006 | S-1.12 |
-| BC-2.16.007 | S-1.12 |
+| BC-2.16.007 | S-1.12, S-3.13 (proxy) |
 | BC-2.16.008 | S-1.12 |
 | BC-2.16.009 | S-1.11, S-1.13 |
 | BC-2.16.010 | S-1.12 |
@@ -885,6 +885,7 @@ All 13 new DTU clones: Wave 0, 0 BCs, priority P0, depends_on: [S-6.06].
 
 | Version | Date | Summary |
 |---------|------|---------|
+| v2.05 | 2026-05-04 | W3-spec-remediation burst (story-writer): (1) RED fixes: S-3.01 File Structure "Create"→"Extend" for Cargo.toml+lib.rs; chumsky "0.12" confirmed; kani-verifier "=0.67.0" exact-pinned; VP-015 depth 32→64. (2) S-3.05 lru 0.12.x conflict resolved: moka "0.12" for cross-query cache; caching context table added. (3) S-3.07 DataFusion 53.x write API flagged as TDD-gate; size remains 5pts. (4) Version pins propagated to all 13 W3 stories (datafusion "53.1", arrow "58", tracing "0.1.44", proptest "1.11", regex "1.12", serde "1", kani-verifier "=0.67.0"). MSRV Rust 1.85 noted in each story. (5) BC anchor backfill: S-3.08 → BC-2.11.001/005/010/012; S-3.09 → BC-2.11.001/BC-2.08.008; S-3.10 → BC-2.11.007/010; S-3.11 → BC-2.11.005/011; S-3.12 → BC-2.11.007/BC-2.16.001; S-3.13 → BC-2.16.007/001/BC-2.11.001. BC table + Behavioral Contract Linkage section added to each. All marked "proxy" BCs — PO authorship of dedicated BCs recommended before status=ready. (6) Cross-story AST coherence: S-3.06 AST module path canonical name `prism_query::write_ast` added; S-3.07 Previous Story Intelligence updated to consume from `prism_query::write_ast`. (7) VP-015 file v1.4→v1.5 (depth limit 32→64). (8) Story versions bumped: S-3.01 v1.5→1.6, S-3.02 v1.7→1.8, S-3.03 v1.4→1.5, S-3.04 v1.7→1.8, S-3.05 v1.8→1.9, S-3.06 v1.5→1.6, S-3.07 v1.6→1.7, S-3.08 v1.4→1.5, S-3.09 v1.4→1.5, S-3.10 v1.4→1.5, S-3.11 v1.4→1.5, S-3.12 v1.4→1.5, S-3.13 v1.6→1.7. BC Traceability Matrix updated for all newly anchored BCs. |
 | v2.04 | 2026-05-04 | TD-W4-CV-LOW-001 CLOSED (story-writer): BC-INDEX version cite corrected v4.27 → v4.32 (two occurrences: overview BCs-covered note + Wave Summary unique-count comment). Wave summary story counts confirmed correct (5/20/11/17/8/10/5 = 76 base + 53 Wave-3-band = 129 total match filesystem). Timestamp updated 2026-05-03 → 2026-05-04. |
 | v2.03 | 2026-05-03 | F-PreP21-M-001 (story-writer): S-5.06 v1.10→v1.11 (cross-wave consistency sweep — 5 sites; ADR-013 §2.1 60s default + D-209 8-permit + ActionDeliveryEngine type name). Full Story List row updated [v1.11] annotation added. |
 | v2.02 | 2026-05-03 | F-P20-L-001 (story-writer): S-4.08 v1.22→v1.23 (token budget version pin dropped). Full Story List row updated [v1.22 ADR-016,ADR-019] → [v1.23 ADR-016,ADR-019]. |

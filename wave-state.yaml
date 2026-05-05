@@ -44,6 +44,8 @@ wave_3:
   wave_3_core_stories: [S-3.01, S-3.02, S-3.03, S-3.04, S-3.05, S-3.06, S-3.07, S-3.08, S-3.09, S-3.10, S-3.11, S-3.12, S-3.13]
   wave_3_core_entry: S-3.01
   wave_3_core_total_pts: 39
+  wave3_spec_remediation_complete: 2026-05-04
+  wave3_remediation_artifacts: [S-3.01, S-3.02, S-3.03, S-3.04, S-3.05, S-3.06, S-3.07, S-3.08, S-3.09, S-3.10, S-3.11, S-3.12, S-3.13, VP-015, STORY-INDEX-v2.05, W3-spec-remediation-log, 13-uncertainty-maps]
   next_phase: wave_3_core_s301_dispatch
   phase_3_c_batch_2_closed: 2026-04-29T18:05:06Z
   phase_3_c_batch_2_prs: [85, 86, 87, 88, 89]

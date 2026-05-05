@@ -1,9 +1,9 @@
 ---
 document_type: pipeline-state
 level: ops
-version: "6.74"
+version: "6.75"
 producer: state-manager
-timestamp: 2026-05-04T18:00:00Z
+timestamp: 2026-05-04T22:00:00Z
 inputs: []
 input-hash: "[live-state]"
 traces_to: ""
@@ -80,8 +80,8 @@ wave_4_phase_4_a_preflight:
   r9_human_approval: APPROVED 2026-05-04
   phase_4b_prerequisites: []
   phase_4b_prerequisites_note: "[ALL_CLEARED] — D-218 (2026-05-04) + D-216 (2026-05-04) both closed"
-  next_action: "R10-A: Implement S-3.01 (PrismQL Parser) — Wave 3 entry story; unblocks 12 W3 stories + entire W4"
-  wave_3_implementation_status: "STARTED 2026-05-04 — 13 stories (39pts); entry=S-3.01"
+  next_action: "Verify rename PR merged + chain-heal verified, then dispatch devops-engineer for S-3.01 worktree creation"
+  wave_3_implementation_status: "SPEC_REMEDIATION_COMPLETE_2026-05-04 — R10-A entry (S-3.01) ready for worktree creation pending: rename PR merge + chain-heal verification"
   pre_pass22_sweep_status: "COMPLETE_2026-05-03 — F-PreP22-H-001 (concurrency-architecture v1.1 8/8 split per D-209); F-PreP22-H-002 (observability v1.1 user-facing examples updated); F-PreP22-H-003 (interface-definitions v2.5 ActionEngine→ActionDeliveryEngine); F-PreP22-H-004 (vp-045 spec body v1.2 rewritten + slug-preservation banner per POL-1). ARCH-INDEX v2.20. Window stays 0/3; Pass 22 dispatch ready."
   pass_22_adversary_verdict: "BLOCKED (3 findings: 0C/1H/1M/1L/0OBS)"
   pass_22_remediation_complete: true
@@ -377,10 +377,10 @@ user_directive_persistent: "No pragmatic convergence. Fix all issues before buil
 | **Language** | Rust |
 | **Target Workspace** | per-analyst stdio (MCP server) |
 | **Started** | 2026-04-13 |
-| **Last Updated** | 2026-05-04 (D-223 W3-FIRST pivot — all 13 W3 core stories (S-3.01..S-3.13) status=draft discovered; W4 Phase 4.B SUSPENDED; Wave 3 implementation STARTED; R10-A entry=S-3.01 PrismQL parser; STATE v6.74) |
-| **Current Phase** | Phase 4.A — APPROVED + CONVERGED; Phase 4.B SUSPENDED — W3-FIRST pivot (D-223) |
-| **Current Step** | W3-FIRST: R10-A dispatch S-3.01 (PrismQL Parser) — Tier-1 entry; unblocks 12 W3 stories + all 8 W4 stories |
-| **factory-artifacts HEAD** | `b3ce8c9a` |
+| **Last Updated** | 2026-05-04 (D-224 W3 spec remediation — 13 W3 stories remediated; VP-015 depth 64; STORY-INDEX v2.05; S-3.2.08 v1.1; R10-A unblocked from spec perspective; STATE v6.75) |
+| **Current Phase** | Phase 4.A — APPROVED + CONVERGED; Phase 4.B SUSPENDED — W3-FIRST pivot (D-223); W3 spec remediation COMPLETE (D-224) |
+| **Current Step** | Verify rename PR merge + chain-heal, then R10-A S-3.01 worktree creation |
+| **factory-artifacts HEAD** | `15fa97e6` |
 
 ## Phase Progress
 
@@ -425,6 +425,7 @@ _D-001..D-046 archived: [cycles/phase-3-dtu-wave-2/decisions-archive-d001-d032.m
 | D-221 | D-218 wave-doc-refresh closure — epics.md v1.4 (76→129 stories incl 15 W3-FIX-* additions); STORY-INDEX v2.04 (BC-INDEX cite sync v4.27→v4.32; TD-W4-CV-LOW-001 closed); ARCH-INDEX v2.29 (ADR-016 date 2026-05-02; TD-W4-CV-LOW-002 closed). Discovered: duplicate S-3.1.06 slug (POL-1 violation; flagged for separate TD); ADR-014 missing from registry (flagged); timestamp Z/no-Z inconsistency (flagged). wave-state.yaml advanced KICKOFF → PHASE_4_A_CONVERGED + R9_APPROVED. | D-218 wave-doc-refresh closure — docs refreshed; TD-W4-CV-LOW-001/002 resolved; 3 new anomalies flagged for separate TDs | 4 | 2026-05-04 |
 | D-222 | D-216 W4 holdout authoring closure — 4 new HS group files authored (HS-009 Scheduler Operations [6 subs], HS-010 Detection & Alert Pipeline [6 subs], HS-011 Case Management [5 subs], HS-012 Action Delivery [6 subs]); 23 new sub-scenarios total. HOLDOUT-INDEX v1.3 (52→75 total_scenarios; 8→12 total_groups; 36→59 p0_scenarios). 39 W4 BCs anchored across the 4 files; all verified present in BC-INDEX v4.32. BC-2.14.011 gap noted (consistent with BC-INDEX v4.32 — no action required). BC-2.12.011/012 deliberately excluded (retired-status). Phase 4.B prereqs FULLY CLEARED (D-218+D-216 both closed 2026-05-04) — R10 dispatch unblocked. | D-216 W4 holdout authoring closure — HS-009..HS-012 authored; HOLDOUT-INDEX v1.3; Phase 4.B prereqs ALL CLEARED; R10 unblocked | 4 | 2026-05-04 |
 | D-223 | PIVOT 2026-05-04: User directive "we need to fully implement wave 3" before any W4 implementation. Discovered all 13 W3 core stories (S-3.01..S-3.13) status=draft despite 31 W4 spec adversarial passes; W4 blocked by S-4.01 → S-3.02 dependency. Wave 3 implementation graph: Tier-1=S-3.01 (parser, 5pts) — only entry; Tier-2=S-3.02 (5pts) + S-3.06 (3pts) parallel; Tier-3=8 stories parallel (S-3.03/04/05/08/09/11/12/13, 19pts); Tier-4=S-3.07 (5pts) + S-3.10 (3pts). Total=39pts across 13 stories. Phase 4.B (R10/R11) suspended pending W3 completion. R10-A new entry: S-3.01 PrismQL parser. | W3-FIRST pivot — 13 W3 core stories (39pts) must be implemented before W4 can proceed; S-4.01 → S-3.02 dependency blocks all 8 W4 stories; Phase 4.B SUSPENDED | 4 | 2026-05-04 |
+| D-224 | W3 spec remediation 2026-05-04 — uncertainty-scanner found 1 RED story (S-3.01) + 2 RED stories (S-3.05 lru conflict, S-3.07 DataFusion API) + 6 stories with empty BC anchors + DataFusion 53.x API drift in 10 stories. Story-writer applied: Chumsky 0.12 pin + Kani 0.67.0 pin + VP-015 depth 64 reconcile + lru→moka 0.12 swap + datafusion 53.1 pin + 6 BC anchor backfills (proxy BCs flagged for PO authoring) + cross-story AST module path (S-3.06→S-3.07). Implementer simultaneously renamed crowdstrike_session→org_scoped_session_id (separate maintenance PR; commit 6e14fc94 in rename worktree). 13 W3 stories + VP-015 + STORY-INDEX v2.05 + S-3.2.08 v1.1 bumped. R10-A (S-3.01 implementation) now unblocked from spec quality perspective. 7 TDD-time API verification gates flagged (DataFusion surfaces) + BC authorship gap noted. | W3 spec remediation complete — 13 stories remediated; VP-015 depth 32→64; STORY-INDEX v2.05; R10-A unblocked from spec side pending: rename PR merge + chain-heal verification | 4 | 2026-05-04 |
 **Passes 8–27 REMEDIATED/CLEAN (detail archived); Pass 28 BLOCKED→REMEDIATED (1H: vp-045 spec v1.3→v1.4 [F-P28-H-001]; H1 heading "Schedule Semaphore" → "Action Delivery Semaphore" per VP-INDEX line 66 canonical; Pass 26 body-rewrite sister-line gap; META-INSIGHT: 7th orchestrator-prompt-introduced defect — H1-axis (fix-burst prompt targeted specific line positions 37/44/68 but missed adjacent H1 at line 39); 12 cross-cuts verified CLEAN; ARCH-INDEX v2.28); window stays 0/3; Pass 29 next. Trajectory: …→P26(1H+1H-preP27;orphan PATTERN codified TD-VSDD-051)→P27(1H;VP rationale semantic mis-anchor — 6th class)→P28(1H;VP H1 sister-line gap — 7th class). Detail: [pass-28.md](cycles/wave-4-operations/adversarial-reviews/pass-28.md) | [burst-log.md](cycles/wave-4-operations/burst-log.md).**
 
 ### Wave 4 Phase 4.A CONVERGED (2026-05-04) — Adversary Pass 31 Window 3/3 CLOSED
@@ -531,15 +532,15 @@ _TD-VSDD-014..019, TD-W3-COMPLIANCE-001, TD-VSDD-025..029 archived to [tech-debt
 
 Cycle files: [burst-log](cycles/phase-2-patch/burst-log.md) | [convergence-trajectory](cycles/phase-2-patch/convergence-trajectory.md) | [session-checkpoints](cycles/phase-2-patch/session-checkpoints.md) | [lessons](cycles/phase-2-patch/lessons.md) | [resolved-blockers](cycles/phase-2-patch/blocking-issues-resolved.md)
 ---
-## Session Resume Checkpoint (2026-05-04-w3-first-pivot-d223-v6.74)
+## Session Resume Checkpoint (2026-05-04-w3-spec-remediation-d224-v6.75)
 
 _Previous checkpoint archived: [cycles/wave-4-operations/session-checkpoints.md](cycles/wave-4-operations/session-checkpoints.md)_
 
-**STATE v6.74 (canonical SHA `b3ce8c9a`). W3-FIRST PIVOT (D-223). Phase 4.B SUSPENDED. R10-A: S-3.01 PrismQL parser.**
+**STATE v6.75 (canonical SHA `15fa97e6`). W3 SPEC REMEDIATION COMPLETE (D-224). Phase 4.B SUSPENDED. R10-A unblocked from spec perspective, pending: rename PR merge + chain-heal verification.**
 
-develop HEAD: `ba3b10c7` | factory-artifacts: `b3ce8c9a` | workspace tests: 2363 | PRs merged: 125
+develop HEAD: `ba3b10c7` | factory-artifacts: `15fa97e6` | workspace tests: 2363 | PRs merged: 125
 
-**D-223 (2026-05-04):** R10 dispatch attempt found all 13 W3 core stories (S-3.01..S-3.13) status=draft. S-4.01 → S-3.02 dep blocks all 8 W4 stories. User directive: implement W3 fully first. Phase 4.B SUSPENDED. TD-VSDD-054 filed (pre-phase-N dep check methodology gap).
+**D-224 (2026-05-04):** W3 spec remediation complete. 13 W3 stories remediated (Chumsky 0.12 + Kani 0.67.0 + moka 0.12 + datafusion 53.1 + VP-015 depth 64 + 6 BC anchor backfills). STORY-INDEX v2.05. S-3.2.08 v1.1 (rename refs). R10-A (S-3.01) unblocked from spec quality perspective. Next: verify rename PR merge + chain-heal of factory-artifacts SHA, then dispatch devops-engineer for S-3.01 worktree creation.
 
 **W3 IMPLEMENTATION GRAPH:**
 - Tier-1 (entry): S-3.01 (PrismQL parser, 5pts) — only entry; dispatch IMMEDIATELY

@@ -23,7 +23,7 @@ impossibility. No new production dependencies.
 
 ```mermaid
 graph TD
-    PQ["prism-query\n(query engine)"] -->|generates org-scoped session ID| CS["generate_crowdstrike_session_id(org_id)"]
+    PQ["prism-query\n(query engine)"] -->|generates org-scoped session ID| CS["generate_org_scoped_session_id(org_id)"]
     CS -->|XOR bytes 8-15 with OrgId| UUID["UUID v7\n(org-namespaced)"]
     UUID -->|X-DTU-Session-Id header| PDTU["prism-dtu-crowdstrike\n(session_registry: bare String key)"]
     LRUC["LRU in-process registry\n(10k entries, FIFO evict 1k)"] -.->|session_id → OrgId lookup| EX["extract_org_id_from_session_id()"]
@@ -63,7 +63,7 @@ boundary (clone state is unaware of OrgId; enforcement is at the query-engine la
 **Consequences:**
 - Cross-org session ID collision is structurally impossible (XOR algebra guarantee).
 - `prism-dtu-crowdstrike` `session_registry` type unchanged — zero risk to clone code.
-- `prism-query` gains a pure-core module (`crowdstrike_session.rs`) with no new
+- `prism-query` gains a pure-core module (`org_scoped_session_id.rs`) with no new
   production dependencies (std only: `OnceLock`, `Mutex`, `HashMap`, `VecDeque`).
 
 </details>
@@ -105,7 +105,7 @@ flowchart LR
     T3["test_BC_3_2_003_generate_embeds_org_a_roundtrip\ntest_BC_3_2_003_generate_embeds_org_b_roundtrip"]
     T4["D-048 doc comment in state.rs"]
     T5["prism-dtu-crowdstrike tests unchanged"]
-    S1["crowdstrike_session.rs\ngenerate_crowdstrike_session_id()"]
+    S1["org_scoped_session_id.rs\ngenerate_org_scoped_session_id()"]
 
     BC --> D048
     D048 --> AC1 & AC2 & AC3 & AC4 & AC5
@@ -183,7 +183,7 @@ graph LR
 | Metric | Value |
 |--------|-------|
 | Files changed | 6 production files, 1 new test file |
-| Lines added (production) | ~246 (crowdstrike_session.rs) + 18 (state.rs doc comment) + 6 (lib.rs module decl) |
+| Lines added (production) | ~246 (org_scoped_session_id.rs) + 18 (state.rs doc comment) + 6 (lib.rs module decl) |
 | New test lines | 366 |
 | Uncovered paths | none (all branches exercised by 15 tests) |
 
@@ -258,7 +258,7 @@ cryptographic primitive. Security properties evaluated:
 ## Risk Assessment & Deployment
 
 ### Blast Radius
-- **Systems affected:** `prism-query` (new module `crowdstrike_session.rs`); `prism-dtu-crowdstrike/src/state.rs` (doc comment only)
+- **Systems affected:** `prism-query` (module `org_scoped_session_id.rs`); `prism-dtu-crowdstrike/src/state.rs` (doc comment only)
 - **User impact:** None on failure — CrowdStrike pagination session IDs were already probabilistically unique; this strengthens to structural uniqueness. No behavioral change visible to end users.
 - **Data impact:** None — no persistent state; session IDs are ephemeral per-query values.
 - **Risk Level:** LOW
@@ -331,10 +331,10 @@ Re-run: `cargo test -p prism-query --test crowdstrike_session_isolation test_BC_
 <summary><strong>Full VSDD Contract Chain</strong></summary>
 
 ```
-BC-3.2.003-precondition-4 -> D-048 -> generate_crowdstrike_session_id(org_id) -> crowdstrike_session.rs:generate_crowdstrike_session_id -> test_BC_3_2_003_xor_same_base_different_orgs_differ_in_bytes_8_to_15 -> PASS
+BC-3.2.003-precondition-4 -> D-048 -> generate_org_scoped_session_id(org_id) -> org_scoped_session_id.rs:generate_org_scoped_session_id -> test_BC_3_2_003_xor_same_base_different_orgs_differ_in_bytes_8_to_15 -> PASS
 BC-3.2.003-postcondition-2 -> D-048 -> session_registry lookup miss -> test_BC_3_2_003_session_registry_lookup_org_b_misses_org_a_entry -> PASS
 VP-084 -> test_BC_3_2_003_cross_org_collision_impossibility_1000_each -> 1000-session cross-org zero collisions -> PASS
-BC-3.2.003-invariant-4 -> generate_crowdstrike_session_id takes OrgId -> no codepath without OrgId -> test_BC_3_2_003_generate_org_a_never_returns_org_b -> PASS
+BC-3.2.003-invariant-4 -> generate_org_scoped_session_id takes OrgId -> no codepath without OrgId -> test_BC_3_2_003_generate_org_a_never_returns_org_b -> PASS
 ADR-008-§2.1-D-048 -> session_registry NOT re-keyed -> prism-dtu-crowdstrike/src/state.rs doc comment -> PASS
 ```
 

@@ -6,3 +6,6 @@ logs/dispatcher-*.jsonl
 # Sed backup leftovers — state-manager never commits these
 *.bak
 *.stage2bak
+
+# Cargo/test runtime artifacts — not factory artifacts
+regression-state.json

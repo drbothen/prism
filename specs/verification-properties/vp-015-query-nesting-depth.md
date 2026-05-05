@@ -1,7 +1,7 @@
 ---
 document_type: verification-property
 level: L4
-version: "1.4"
+version: "1.5"
 status: draft
 producer: architect
 timestamp: 2026-04-19T00:00:00
@@ -36,9 +36,12 @@ removal_reason: null
 ## Property Statement
 
 For every valid UTF-8 query input, if its parenthesization/grouping structure would
-produce an AST whose depth exceeds the configured ceiling (e.g. 32), the parser
+produce an AST whose depth exceeds the configured ceiling (**64**), the parser
 returns `Err(ParseError::NestingTooDeep)` without constructing the fully nested AST.
 The parser never recurses past the depth limit.
+
+**Canonical limit: 64** (per BC-2.11.006 postcondition, DI-019, EC-002 in S-3.01).
+The prior "e.g. 32" was an illustrative placeholder; 64 is the canonical value.
 
 ## Source Contract
 
@@ -83,6 +86,7 @@ The parser never recurses past the depth limit.
 
 | Version | Burst | Date | Author | Notes |
 |---------|-------|------|--------|-------|
+| 1.5 | W3-spec-remediation | 2026-05-04 | story-writer | Depth limit corrected from "e.g. 32" to canonical 64 (per BC-2.11.006, DI-019, EC-002 in S-3.01). Three-way inconsistency (VP-015 said 32; BC-2.11.006 + story + DI-019 said 64) resolved in favour of 64 — majority of citations + grammar complexity requirement. |
 | 1.4 | pass-88-remediation | 2026-04-21 | architect | F88-012: Anchor Story normalized from slug form (S-3.01-prismql-parser.md) to pure ID (S-3.01). |
 | 1.3 | pass-61-fix | 2026-04-20 | architect | Renumbered duplicate pre-build-sweep Changelog row for version monotonicity (MED-001 VP scope extension). |
 | 1.2 | pre-build-sweep | 2026-04-20 | architect | Template-compliance sweep: added priority frontmatter (from VP-INDEX v1.5); added verification_method alias (proof_method retained for backward compat). |
