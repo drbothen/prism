@@ -158,12 +158,12 @@ factory-artifacts canonical: 15fa97e6 (canonical SHA — pre-compact state captu
 
 ## Current State
 
-develop HEAD `ba3b10c7` | factory-artifacts `24a9e545` (canonical SHA — pre-compact state capture; STATE v6.70)
+develop HEAD `ba3b10c7` | factory-artifacts `cb71284d` (canonical SHA — TD register v2.2 filed; STATE v6.71)
 
 | Metric | Value |
 |--------|-------|
 | develop HEAD | `ba3b10c7` (W3-FIX-SEC-005 — Wave 3.4 final PR, PR #125, 2026-05-02) |
-| factory-artifacts HEAD | `24a9e545` (canonical SHA — pre-compact state capture; STATE v6.70) |
+| factory-artifacts HEAD | `cb71284d` (canonical SHA — TD register v2.2 filed; STATE v6.71) |
 | PR count merged | 125 |
 | Workspace test count | 2363 (nextest-verified; +133 from CI nextest split + doctest migration) |
 | Open PRs | None |
