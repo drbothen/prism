@@ -21,9 +21,9 @@
 use chumsky::prelude::*;
 
 use crate::ast::{
-    AggFunc, Ast, CompareOp, Expr, FieldPath, FromClause, FuncCall, Join, JoinKind, Literal,
-    LogicalOp, OrderExpr, Predicate, ScalarFunc, SelectClause, SelectItem, SortDirection, Span,
-    SqlQuery, SqlStatement,
+    field_path_to_expr, AggFunc, Ast, CompareOp, Expr, FieldPath, FromClause, FuncCall, Join,
+    JoinKind, Literal, LogicalOp, OrderExpr, Predicate, ScalarFunc, SelectClause, SelectItem,
+    SortDirection, Span, SqlQuery, SqlStatement,
 };
 use crate::error::ParseError;
 use crate::error_recovery::rich_to_parse_error;
@@ -99,18 +99,23 @@ const SQL_KEYWORDS: &[&str] = &[
     "percentile",
 ];
 
-/// Parse a SQL-mode query, returning the `SqlQuery` AST.
+/// Parse a SQL-mode query and return `Ast::Sql(SqlStatement::Select(SqlQuery))`.
 ///
-/// Called by tests and by `parse_sql_ast` (which wraps in `Ast::Sql`).
+/// This is the canonical entry point — symmetric with `parse_filter()` (returns
+/// `Result<FilterExpr, _>` unwrapped by `Ast::Filter`) and `parse_pipe()` (returns
+/// `Result<PipeQuery, _>` unwrapped by `Ast::Pipe`).  Callers that need the inner
+/// `SqlQuery` pattern-match: `let Ast::Sql(SqlStatement::Select(sq)) = parse_sql(…)?`.
+///
+/// `parse_sql_ast` is removed — this function supersedes it.
 ///
 /// # Errors
 /// Returns accumulated `ParseError`s on failure.
-pub fn parse_sql(input: &str) -> Result<SqlQuery, Vec<ParseError>> {
+pub fn parse_sql(input: &str) -> Result<Ast, Vec<ParseError>> {
     let parser = build_sql_parser();
     let (result, errs) = parser.parse(input).into_output_errors();
     if errs.is_empty() {
         if let Some(sq) = result {
-            return Ok(sq);
+            return Ok(Ast::Sql(SqlStatement::Select(sq)));
         }
     }
     let parse_errors: Vec<ParseError> = errs.iter().map(rich_to_parse_error).collect();
@@ -119,13 +124,6 @@ pub fn parse_sql(input: &str) -> Result<SqlQuery, Vec<ParseError>> {
     } else {
         Err(parse_errors)
     }
-}
-
-/// Parse a SQL-mode query and wrap it in `Ast::Sql(SqlStatement::Select(...))`.
-///
-/// Called by `filter_parser::parse_sql_internal` after mode detection.
-pub fn parse_sql_ast(input: &str) -> Result<Ast, Vec<ParseError>> {
-    parse_sql(input).map(|sq| Ast::Sql(SqlStatement::Select(sq)))
 }
 
 /// Build the full SQL-mode parser.
@@ -536,7 +534,7 @@ fn build_sql_expr_parser<'a>(
                     .map(|fp| {
                         Expr::FuncCall(FuncCall::Aggregate {
                             func: AggFunc::DistinctCount(fp.clone()),
-                            args: vec![Expr::Field(fp)],
+                            args: vec![field_path_to_expr(fp)],
                             distinct: false,
                         })
                     })
@@ -557,7 +555,7 @@ fn build_sql_expr_parser<'a>(
                     field_path.clone().padded().map(|fp| {
                         Expr::FuncCall(FuncCall::Aggregate {
                             func: AggFunc::CountField(fp.clone()),
-                            args: vec![Expr::Field(fp)],
+                            args: vec![field_path_to_expr(fp)],
                             distinct: false,
                         })
                     }),
@@ -605,7 +603,7 @@ fn build_sql_expr_parser<'a>(
             };
             Expr::FuncCall(FuncCall::Aggregate {
                 func,
-                args: vec![Expr::Field(fp)],
+                args: vec![field_path_to_expr(fp)],
                 distinct: false,
             })
         });
@@ -635,25 +633,27 @@ fn build_sql_expr_parser<'a>(
             .map(|(func, args)| Expr::FuncCall(FuncCall::Scalar { func, args }));
 
         // Basic comparison (field vs literal).
+        // Virtual-field promotion: _sensor/_client/etc. become Expr::VirtualField.
         let comparison = field_path
             .clone()
             .padded()
             .then(compare_op.clone())
             .then(literal.clone().padded().map(Expr::Literal))
             .map(|((fp, op), rhs)| Expr::Compare {
-                lhs: Box::new(Expr::Field(fp)),
+                lhs: Box::new(field_path_to_expr(fp)),
                 op,
                 rhs: Box::new(rhs),
             });
 
         // field = field comparisons (JOIN ON conditions).
+        // Virtual-field promotion applies to both sides.
         let field_comparison = field_path
             .clone()
             .padded()
             .then(compare_op)
-            .then(field_path.clone().padded().map(Expr::Field))
+            .then(field_path.clone().padded().map(field_path_to_expr))
             .map(|((fp, op), rhs)| Expr::Compare {
-                lhs: Box::new(Expr::Field(fp)),
+                lhs: Box::new(field_path_to_expr(fp)),
                 op,
                 rhs: Box::new(rhs),
             });
@@ -673,7 +673,7 @@ fn build_sql_expr_parser<'a>(
             field_comparison,
             comparison,
             literal.clone().padded().map(Expr::Literal),
-            field_path.clone().padded().map(Expr::Field),
+            field_path.clone().padded().map(field_path_to_expr),
         ));
 
         // NOT.

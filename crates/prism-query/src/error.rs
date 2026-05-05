@@ -39,6 +39,21 @@ impl ParseError {
         self
     }
 
+    /// Construct a `ParseError` for an invalid ISO-8601 timestamp string.
+    ///
+    /// Used by `TimestampLiteral::new` when `chrono` cannot parse the input as
+    /// RFC-3339 (a strict subset of ISO-8601). The `cause` string is appended
+    /// verbatim so that analysts can see the underlying parse failure reason.
+    pub fn invalid_timestamp(input: &str, cause: impl std::fmt::Display) -> Self {
+        ParseError::new(
+            0,
+            format!(
+                "E-QUERY-001: invalid ISO-8601 timestamp '{}': {}",
+                input, cause
+            ),
+        )
+    }
+
     /// Serialize this error to a JSON string for MCP tool responses.
     ///
     /// Returns a compact JSON representation; ariadne terminal formatting

@@ -22,10 +22,6 @@ publish = false
 [lib]
 name = "prism_query"
 
-[features]
-# S-3.01 VP-021: fuzz target support (enabled only in the fuzz/ workspace member).
-fuzz = ["dep:libfuzzer-sys"]
-
 [dependencies]
 prism-core = { path = "../prism-core" }
 prism-storage = { path = "../prism-storage" }
@@ -46,8 +42,10 @@ ipnet = { version = "2", features = ["serde"] }
 ordered-float = { version = "2", features = ["serde"] }
 # S-3.01 AST redesign — regex validation at parse time (CWE-1333); same engine as prism-core.
 regex = "1"
-# S-3.01 VP-021 — fuzz target harness (optional; enabled by `fuzz` feature).
-libfuzzer-sys = { version = "0.4", optional = true }
+# S-3.01 fix-pass — parse-time validation for TimestampLiteral (ISO-8601 / RFC-3339).
+# chrono is already used across the workspace (prism-core, prism-audit, prism-mcp, etc.);
+# using the same crate avoids duplicate transitive deps.
+chrono = { version = "0.4", default-features = false, features = ["std", "serde"] }
 
 [dev-dependencies]
 # S-3.2.08 — isolation tests: LruCache mirrors prism-dtu-crowdstrike session_registry (dev-only)

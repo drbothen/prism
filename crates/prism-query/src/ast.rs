@@ -17,6 +17,7 @@
 
 use std::net::IpAddr;
 
+use chrono::{DateTime, Utc};
 use ordered_float::OrderedFloat;
 use serde::{Deserialize, Serialize};
 
@@ -758,6 +759,37 @@ impl FieldPath {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
+// Virtual field promotion helper
+// ─────────────────────────────────────────────────────────────────────────────
+
+/// Convert a `FieldPath` into `Expr::VirtualField` for the five canonical
+/// underscore-prefixed names defined in BC-2.11.012, or `Expr::Field` otherwise.
+///
+/// Called by all three parsers (filter, SQL, pipe) whenever a field path is
+/// emitted as a value expression. This ensures that `_sensor`, `_client`,
+/// `_source_table`, `_source_type`, and `_safety_flags` are represented with
+/// their typed variant in the AST rather than as generic field strings, giving
+/// the planner and executor a first-class handle without string-scanning.
+///
+/// Any other leading-`_` name (analyst-defined metadata) is emitted as
+/// `Expr::Field`, which is intentional: BC-2.11.012 enumerates exactly five
+/// build-time-verified virtual fields and does not restrict arbitrary `_` names.
+#[inline]
+pub fn field_path_to_expr(fp: FieldPath) -> Expr {
+    if let Some(first) = fp.segments.first() {
+        match first.as_str() {
+            "_sensor" => return Expr::VirtualField(VirtualField::Sensor),
+            "_client" => return Expr::VirtualField(VirtualField::Client),
+            "_source_table" => return Expr::VirtualField(VirtualField::SourceTable),
+            "_source_type" => return Expr::VirtualField(VirtualField::SourceType),
+            "_safety_flags" => return Expr::VirtualField(VirtualField::SafetyFlags),
+            _ => {}
+        }
+    }
+    Expr::Field(fp)
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
 // Span tracking (P1-002)
 // ─────────────────────────────────────────────────────────────────────────────
 
@@ -951,17 +983,62 @@ impl std::hash::Hash for IpAddrLiteral {
     }
 }
 
-/// ISO-8601 timestamp literal.
+/// ISO-8601 / RFC-3339 timestamp literal, validated at parse time.
 ///
-/// The raw string is preserved for display; `epoch_ms` stores the parsed
-/// millisecond epoch value. If parsing fails, `epoch_ms` is `None` and
-/// downstream evaluation uses the raw string.
-#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
+/// The raw string is preserved for display; `instant` holds the parsed
+/// `DateTime<Utc>` value for efficient comparison and range checks in the
+/// query planner. Both fields are `pub` — the planner may read either.
+///
+/// # Parse policy (strict)
+/// Only RFC-3339 strings with an explicit timezone offset are accepted.
+/// The bare form `"2026-05-04T12:00:00"` (no `Z` or `+HH:MM`) is rejected
+/// to avoid silent UTC assumption bugs. Analysts must write `...T12:00:00Z`
+/// or `...T12:00:00+00:00`.
+///
+/// # Equality and hashing
+/// Two `TimestampLiteral`s are `==` iff their `instant` values are equal
+/// (i.e. they represent the same UTC point in time, regardless of
+/// raw-string formatting). The `iso8601` string is NOT compared.
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct TimestampLiteral {
-    /// Raw ISO-8601 string (e.g. `"2026-04-13T00:00:00Z"`).
+    /// Raw ISO-8601 string as written in the query (e.g. `"2026-04-13T00:00:00Z"`).
     pub iso8601: String,
-    // TODO(S-3.xx): parse via `chrono` or `time` crate and populate epoch_ms.
-    // For now: None. The query planner falls back to string comparison.
+    /// Parsed UTC instant — authoritative for comparisons and planning.
+    pub instant: DateTime<Utc>,
+}
+
+impl TimestampLiteral {
+    /// Parse and validate an ISO-8601 / RFC-3339 timestamp string.
+    ///
+    /// Accepts the strict RFC-3339 form only (timezone offset required).
+    /// Bare local-time strings (`"2026-05-04T12:00:00"`) are rejected.
+    ///
+    /// # Errors
+    /// Returns `Err(ParseError)` if the string is not valid RFC-3339.
+    pub fn new(s: &str) -> Result<Self, crate::error::ParseError> {
+        // Parse as RFC-3339 (requires explicit timezone offset — strict policy).
+        let fixed = DateTime::parse_from_rfc3339(s)
+            .map_err(|e| crate::error::ParseError::invalid_timestamp(s, e))?;
+        Ok(Self {
+            iso8601: s.to_string(),
+            instant: fixed.with_timezone(&Utc),
+        })
+    }
+}
+
+impl PartialEq for TimestampLiteral {
+    fn eq(&self, other: &Self) -> bool {
+        self.instant == other.instant
+    }
+}
+
+impl Eq for TimestampLiteral {}
+
+impl std::hash::Hash for TimestampLiteral {
+    fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
+        // Hash the UTC millisecond epoch for stable, ordering-consistent hashing.
+        self.instant.timestamp_millis().hash(state);
+    }
 }
 
 // ─────────────────────────────────────────────────────────────────────────────

@@ -325,15 +325,17 @@ fn test_AC_03_sql_mode_select_star_with_where_orderby_limit() {
     }
 }
 
-/// AC-3 companion: `parse_sql` entry point directly.
+/// AC-3 companion: `parse_sql` entry point returns `Ast::Sql(SqlStatement::Select(SqlQuery))`.
 ///
 /// Traces: BC-2.11.003 postcondition, AC-3
 #[test]
 fn test_AC_03_parse_sql_direct_returns_sql_query() {
     let input =
         "SELECT * FROM crowdstrike.detections WHERE severity_id >= 3 ORDER BY time DESC LIMIT 100";
-    let result = parse_sql(input);
-    let sq = result.expect("AC-3: parse_sql must succeed");
+    let ast = parse_sql(input).expect("AC-3: parse_sql must succeed");
+    let Ast::Sql(SqlStatement::Select(sq)) = ast else {
+        panic!("AC-3: expected Ast::Sql(SqlStatement::Select)");
+    };
     assert_eq!(
         sq.from.source.raw, "crowdstrike.detections",
         "AC-3: FROM source must match"
@@ -347,7 +349,10 @@ fn test_AC_03_parse_sql_direct_returns_sql_query() {
 #[test]
 fn test_AC_03_sql_order_by_direction_is_desc() {
     let input = "SELECT * FROM crowdstrike.detections ORDER BY time DESC LIMIT 10";
-    let sq = parse_sql(input).expect("AC-3: must parse");
+    let ast = parse_sql(input).expect("AC-3: must parse");
+    let Ast::Sql(SqlStatement::Select(sq)) = ast else {
+        panic!("AC-3: expected Ast::Sql(SqlStatement::Select)");
+    };
     let first_order = sq
         .order_by
         .first()
@@ -365,7 +370,10 @@ fn test_AC_03_sql_order_by_direction_is_desc() {
 #[test]
 fn test_BC_2_11_003_canonical_tv_select_with_group_by() {
     let input = "SELECT severity, count(*) FROM crowdstrike.detections GROUP BY severity";
-    let sq = parse_sql(input).expect("BC-2.11.003 TV: aggregate SELECT must parse");
+    let ast = parse_sql(input).expect("BC-2.11.003 TV: aggregate SELECT must parse");
+    let Ast::Sql(SqlStatement::Select(sq)) = ast else {
+        panic!("expected Ast::Sql(SqlStatement::Select)");
+    };
     assert!(
         !sq.group_by.is_empty(),
         "BC-2.11.003 TV: GROUP BY must be present"
@@ -378,7 +386,10 @@ fn test_BC_2_11_003_canonical_tv_select_with_group_by() {
 #[test]
 fn test_BC_2_11_003_select_distinct_modifier() {
     let input = "SELECT DISTINCT severity FROM crowdstrike.detections";
-    let sq = parse_sql(input).expect("DISTINCT SELECT must parse");
+    let ast = parse_sql(input).expect("DISTINCT SELECT must parse");
+    let Ast::Sql(SqlStatement::Select(sq)) = ast else {
+        panic!("expected Ast::Sql(SqlStatement::Select)");
+    };
     assert!(sq.select.distinct, "SELECT DISTINCT must set distinct=true");
 }
 
@@ -457,7 +468,10 @@ fn test_AC_04_sql_inner_join_produces_join_node() {
 #[test]
 fn test_AC_04_sql_inner_join_on_condition_is_equality() {
     let input = "SELECT a.*, b.* FROM crowdstrike.detections a JOIN claroty.alerts b ON a.device_id = b.device_id";
-    let sq = parse_sql(input).expect("AC-4: must parse");
+    let ast = parse_sql(input).expect("AC-4: must parse");
+    let Ast::Sql(SqlStatement::Select(sq)) = ast else {
+        panic!("AC-4: expected Ast::Sql(SqlStatement::Select)");
+    };
     let join = sq.joins.first().expect("AC-4: must have at least one join");
     assert!(
         matches!(
@@ -478,7 +492,10 @@ fn test_AC_04_sql_inner_join_on_condition_is_equality() {
 fn test_BC_2_11_003_left_join_kind_parsed() {
     let input =
         "SELECT * FROM crowdstrike.detections LEFT JOIN claroty.alerts ON device_id = alert_id";
-    let sq = parse_sql(input).expect("LEFT JOIN must parse");
+    let ast = parse_sql(input).expect("LEFT JOIN must parse");
+    let Ast::Sql(SqlStatement::Select(sq)) = ast else {
+        panic!("expected Ast::Sql(SqlStatement::Select)");
+    };
     assert_eq!(
         sq.joins[0].kind,
         JoinKind::Left,
@@ -493,7 +510,10 @@ fn test_BC_2_11_003_left_join_kind_parsed() {
 fn test_BC_2_11_003_right_join_kind_parsed() {
     let input =
         "SELECT * FROM crowdstrike.detections RIGHT JOIN claroty.alerts ON device_id = alert_id";
-    let sq = parse_sql(input).expect("RIGHT JOIN must parse");
+    let ast = parse_sql(input).expect("RIGHT JOIN must parse");
+    let Ast::Sql(SqlStatement::Select(sq)) = ast else {
+        panic!("expected Ast::Sql(SqlStatement::Select)");
+    };
     assert_eq!(
         sq.joins[0].kind,
         JoinKind::Right,
@@ -507,7 +527,10 @@ fn test_BC_2_11_003_right_join_kind_parsed() {
 #[test]
 fn test_BC_2_11_003_full_outer_join_kind_parsed() {
     let input = "SELECT * FROM crowdstrike.detections FULL OUTER JOIN claroty.alerts ON device_id = alert_id";
-    let sq = parse_sql(input).expect("FULL OUTER JOIN must parse");
+    let ast = parse_sql(input).expect("FULL OUTER JOIN must parse");
+    let Ast::Sql(SqlStatement::Select(sq)) = ast else {
+        panic!("expected Ast::Sql(SqlStatement::Select)");
+    };
     assert_eq!(
         sq.joins[0].kind,
         JoinKind::FullOuter,
@@ -552,7 +575,10 @@ fn test_AC_05_sql_subquery_in_where_produces_in_subquery_node() {
 #[test]
 fn test_AC_05_sql_subquery_inner_query_from_source_correct() {
     let input = "SELECT * FROM crowdstrike.detections WHERE device_id IN (SELECT device_id FROM claroty.alerts)";
-    let sq = parse_sql(input).expect("AC-5: must parse");
+    let ast = parse_sql(input).expect("AC-5: must parse");
+    let Ast::Sql(SqlStatement::Select(sq)) = ast else {
+        panic!("AC-5: expected Ast::Sql(SqlStatement::Select)");
+    };
     let where_clause = sq.where_.as_ref().expect("WHERE must exist");
     match where_clause {
         Predicate::InSubquery { subquery, .. } => {
@@ -1474,50 +1500,54 @@ fn test_BC_2_11_011_sql_join_preserves_both_source_refs() {
 // Virtual fields (BC-2.11.012) — _source_type and _safety_flags in AST
 // ─────────────────────────────────────────────────────────────────────────────
 
-/// BC-2.11.012: `_source_type` used as a field path in a filter predicate is parsed correctly.
+/// BC-2.11.012: `_source_type` used in a filter predicate emits `Expr::VirtualField(SourceType)`.
 ///
-/// Virtual fields starting with `_` must be accepted by the parser as valid field paths
-/// so that analysts can filter on them. The parser is source-agnostic; virtual field
-/// validation is handled by the executor.
+/// The parser MUST emit the typed `Expr::VirtualField` variant (not `Expr::Field`) for the
+/// five canonical underscore-prefixed names defined in BC-2.11.012. This gives the planner
+/// and executor a first-class handle without string-scanning field names.
 ///
-/// Traces: BC-2.11.012 (virtual fields), S-2.08 _source_type injection
+/// Traces: BC-2.11.012 (virtual fields — typed variant), S-2.08 _source_type injection
 #[test]
-fn test_BC_2_11_012_virtual_field_source_type_parsed_as_field_path() {
+fn test_BC_2_11_012_virtual_field_source_type_emits_virtual_field_variant() {
+    use prism_query::ast::VirtualField;
     let input = "crowdstrike.detections | _source_type = 'buffered'";
     let fe = parse_filter(input).expect("BC-2.11.012: _source_type filter must parse");
     match &fe.predicate {
         Predicate::Compare { lhs, .. } => match lhs.as_ref() {
-            Expr::Field(fp) => {
-                assert_eq!(
-                    fp.segments,
-                    vec!["_source_type"],
-                    "BC-2.11.012: field path must be '_source_type'"
-                );
+            Expr::VirtualField(VirtualField::SourceType) => {
+                // Correct: parser emitted typed VirtualField::SourceType, not Expr::Field.
             }
-            other => panic!("BC-2.11.012: expected Expr::Field, got {:?}", other),
+            other => panic!(
+                "BC-2.11.012: expected Expr::VirtualField(SourceType), got {:?}",
+                other
+            ),
         },
         other => panic!("BC-2.11.012: expected Predicate::Compare, got {:?}", other),
     }
 }
 
-/// BC-2.11.012: `_safety_flags` used as a field path in a pipe where stage is parsed correctly.
+/// BC-2.11.012: `_safety_flags` in a pipe where stage emits `Expr::VirtualField(SafetyFlags)`.
 ///
-/// Traces: BC-2.11.012 (virtual fields _safety_flags)
+/// The parser MUST emit the typed `Expr::VirtualField` variant for the five canonical
+/// underscore-prefixed names. Pipe where clauses go through the same predicate parser
+/// as filter mode, so the same promotion logic applies.
+///
+/// Traces: BC-2.11.012 (virtual fields — typed variant, _safety_flags)
 #[test]
-fn test_BC_2_11_012_virtual_field_safety_flags_parsed_in_pipe_where() {
+fn test_BC_2_11_012_virtual_field_safety_flags_emits_virtual_field_variant() {
+    use prism_query::ast::VirtualField;
     let input = "FROM crowdstrike.detections | where _safety_flags = 0";
     let pq = parse_pipe(input).expect("BC-2.11.012: _safety_flags pipe filter must parse");
     match &pq.stages[0] {
         PipeStage::Where(pred) => match pred {
             Predicate::Compare { lhs, .. } => match lhs.as_ref() {
-                Expr::Field(fp) => {
-                    assert_eq!(
-                        fp.segments,
-                        vec!["_safety_flags"],
-                        "BC-2.11.012: field path must be '_safety_flags'"
-                    );
+                Expr::VirtualField(VirtualField::SafetyFlags) => {
+                    // Correct: parser emitted typed VirtualField::SafetyFlags, not Expr::Field.
                 }
-                other => panic!("BC-2.11.012: expected Expr::Field, got {:?}", other),
+                other => panic!(
+                    "BC-2.11.012: expected Expr::VirtualField(SafetyFlags), got {:?}",
+                    other
+                ),
             },
             other => panic!("BC-2.11.012: expected Predicate::Compare, got {:?}", other),
         },
@@ -1525,21 +1555,33 @@ fn test_BC_2_11_012_virtual_field_safety_flags_parsed_in_pipe_where() {
     }
 }
 
-/// BC-2.11.012: `_source_type` appears in a SQL WHERE clause and is preserved in AST.
+/// BC-2.11.012: `_source_type` in a SQL WHERE clause emits `Expr::VirtualField(SourceType)`.
 ///
-/// Traces: BC-2.11.012 (virtual fields in SQL WHERE)
+/// Traces: BC-2.11.012 (virtual fields — typed variant, SQL WHERE)
 #[test]
-fn test_BC_2_11_012_virtual_field_source_type_in_sql_where() {
+fn test_BC_2_11_012_virtual_field_source_type_in_sql_where_emits_virtual_field_variant() {
+    use prism_query::ast::VirtualField;
     let input = "SELECT * FROM crowdstrike.detections WHERE _source_type = 'live'";
-    let sq = parse_sql(input).expect("BC-2.11.012: _source_type in SQL WHERE must parse");
+    let ast = parse_sql(input).expect("BC-2.11.012: _source_type in SQL WHERE must parse");
+    let Ast::Sql(SqlStatement::Select(sq)) = ast else {
+        panic!("BC-2.11.012: expected Ast::Sql(SqlStatement::Select)");
+    };
     let where_clause = sq
         .where_
         .expect("BC-2.11.012: WHERE clause must be present");
-    // The WHERE clause must contain a comparison with _source_type as the field.
-    assert!(
-        matches!(where_clause, Predicate::Compare { .. }),
-        "BC-2.11.012: _source_type WHERE must produce a Predicate::Compare expression"
-    );
+    // The WHERE clause must be Compare { lhs: VirtualField(SourceType), .. }
+    match where_clause {
+        Predicate::Compare { ref lhs, .. } => match lhs.as_ref() {
+            Expr::VirtualField(VirtualField::SourceType) => {
+                // Correct: parser emitted typed VirtualField::SourceType.
+            }
+            other => panic!(
+                "BC-2.11.012: expected Expr::VirtualField(SourceType) in WHERE lhs, got {:?}",
+                other
+            ),
+        },
+        other => panic!("BC-2.11.012: expected Predicate::Compare, got {:?}", other),
+    }
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -2455,7 +2497,10 @@ fn test_BC_2_11_004_join_inner_explicit() {
 fn test_BC_2_11_003_cross_join_kind_parsed() {
     let input =
         "SELECT * FROM crowdstrike.detections CROSS JOIN claroty.devices ON device_ip = device_ip";
-    let sq = parse_sql(input).expect("CROSS JOIN must parse");
+    let ast = parse_sql(input).expect("CROSS JOIN must parse");
+    let Ast::Sql(SqlStatement::Select(sq)) = ast else {
+        panic!("expected Ast::Sql(SqlStatement::Select)");
+    };
     assert_eq!(
         sq.joins[0].kind,
         JoinKind::Cross,
@@ -2473,7 +2518,10 @@ fn test_BC_2_11_003_cross_join_kind_parsed() {
 #[test]
 fn test_source_ref_composite_events_classified() {
     use prism_query::ast::{CompositeSource, SourceRefKind};
-    let sq = parse_sql("SELECT * FROM EVENTS").expect("FROM EVENTS must parse");
+    let ast = parse_sql("SELECT * FROM EVENTS").expect("FROM EVENTS must parse");
+    let Ast::Sql(SqlStatement::Select(sq)) = ast else {
+        panic!("expected Ast::Sql(SqlStatement::Select)");
+    };
     assert!(
         matches!(
             &sq.from.source.kind,
@@ -2489,7 +2537,10 @@ fn test_source_ref_composite_events_classified() {
 #[test]
 fn test_source_ref_external_classified() {
     use prism_query::ast::SourceRefKind;
-    let sq = parse_sql("SELECT * FROM crowdstrike.detections").expect("must parse");
+    let ast = parse_sql("SELECT * FROM crowdstrike.detections").expect("must parse");
+    let Ast::Sql(SqlStatement::Select(sq)) = ast else {
+        panic!("expected Ast::Sql(SqlStatement::Select)");
+    };
     assert!(
         matches!(&sq.from.source.kind, SourceRefKind::External { sensor, table } if sensor == "crowdstrike" && table == "detections"),
         "crowdstrike.detections must be classified as External"
@@ -2502,7 +2553,10 @@ fn test_source_ref_external_classified() {
 #[test]
 fn test_source_ref_internal_alerts_classified() {
     use prism_query::ast::{InternalTable, SourceRefKind};
-    let sq = parse_sql("SELECT * FROM prism_alerts").expect("must parse");
+    let ast = parse_sql("SELECT * FROM prism_alerts").expect("must parse");
+    let Ast::Sql(SqlStatement::Select(sq)) = ast else {
+        panic!("expected Ast::Sql(SqlStatement::Select)");
+    };
     assert!(
         matches!(
             &sq.from.source.kind,
@@ -2789,7 +2843,10 @@ fn test_BC_2_11_004_stats_percentile_out_of_range_rejected() {
 /// Traces: BC-2.11.003 aggregate functions, prismql-grammar.md §5.1
 #[test]
 fn test_BC_2_11_003_sql_count_star_produces_agg_func_count() {
-    let sq = parse_sql("SELECT count(*) FROM crowdstrike.detections").expect("must parse");
+    let ast = parse_sql("SELECT count(*) FROM crowdstrike.detections").expect("must parse");
+    let Ast::Sql(SqlStatement::Select(sq)) = ast else {
+        panic!("expected Ast::Sql(SqlStatement::Select)");
+    };
     let item = sq.select.items.first().expect("must have select item");
     match item {
         SelectItem::Expr {
@@ -2814,8 +2871,11 @@ fn test_BC_2_11_003_sql_count_star_produces_agg_func_count() {
 /// Traces: BC-2.11.003, prismql-grammar.md §5.1
 #[test]
 fn test_BC_2_11_003_sql_distinct_count_produces_agg_func() {
-    let sq = parse_sql("SELECT DISTINCT_COUNT(src_endpoint.ip) FROM crowdstrike.detections")
+    let ast = parse_sql("SELECT DISTINCT_COUNT(src_endpoint.ip) FROM crowdstrike.detections")
         .expect("DISTINCT_COUNT must parse");
+    let Ast::Sql(SqlStatement::Select(sq)) = ast else {
+        panic!("expected Ast::Sql(SqlStatement::Select)");
+    };
     assert!(
         !sq.select.items.is_empty(),
         "SELECT must have at least one item"
@@ -2827,8 +2887,11 @@ fn test_BC_2_11_003_sql_distinct_count_produces_agg_func() {
 /// Traces: BC-2.11.003, prismql-grammar.md §5.1
 #[test]
 fn test_BC_2_11_003_sql_percentile_produces_agg_func() {
-    let sq = parse_sql("SELECT PERCENTILE(response_time, 95) FROM crowdstrike.detections")
+    let ast = parse_sql("SELECT PERCENTILE(response_time, 95) FROM crowdstrike.detections")
         .expect("PERCENTILE must parse");
+    let Ast::Sql(SqlStatement::Select(sq)) = ast else {
+        panic!("expected Ast::Sql(SqlStatement::Select)");
+    };
     assert!(
         !sq.select.items.is_empty(),
         "SELECT must have at least one item"
@@ -2866,6 +2929,236 @@ fn test_pipe_query_write_field_is_none_placeholder() {
         pq.write.is_none(),
         "PipeQuery.write must be None (S-3.06 placeholder)"
     );
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// BC-2.11.012 — all 5 virtual field names in filter mode (Fix 1 coverage)
+// ─────────────────────────────────────────────────────────────────────────────
+
+/// BC-2.11.012: `_sensor` in a filter predicate emits `Expr::VirtualField(Sensor)`.
+///
+/// Traces: BC-2.11.012 (all 5 virtual fields)
+#[test]
+fn test_BC_2_11_012_virtual_field_sensor_emits_typed_variant() {
+    use prism_query::ast::VirtualField;
+    let fe = parse_filter("crowdstrike.detections | _sensor = 'crowdstrike'")
+        .expect("_sensor filter must parse");
+    match &fe.predicate {
+        Predicate::Compare { lhs, .. } => match lhs.as_ref() {
+            Expr::VirtualField(VirtualField::Sensor) => {}
+            other => panic!("expected VirtualField::Sensor, got {:?}", other),
+        },
+        other => panic!("expected Predicate::Compare, got {:?}", other),
+    }
+}
+
+/// BC-2.11.012: `_client` in a filter predicate emits `Expr::VirtualField(Client)`.
+///
+/// Traces: BC-2.11.012 (all 5 virtual fields)
+#[test]
+fn test_BC_2_11_012_virtual_field_client_emits_typed_variant() {
+    use prism_query::ast::VirtualField;
+    let fe = parse_filter("crowdstrike.detections | _client = 'acme'")
+        .expect("_client filter must parse");
+    match &fe.predicate {
+        Predicate::Compare { lhs, .. } => match lhs.as_ref() {
+            Expr::VirtualField(VirtualField::Client) => {}
+            other => panic!("expected VirtualField::Client, got {:?}", other),
+        },
+        other => panic!("expected Predicate::Compare, got {:?}", other),
+    }
+}
+
+/// BC-2.11.012: `_source_table` in a filter predicate emits `Expr::VirtualField(SourceTable)`.
+///
+/// Traces: BC-2.11.012 (all 5 virtual fields)
+#[test]
+fn test_BC_2_11_012_virtual_field_source_table_emits_typed_variant() {
+    use prism_query::ast::VirtualField;
+    let fe = parse_filter("crowdstrike.detections | _source_table = 'crowdstrike_detections'")
+        .expect("_source_table filter must parse");
+    match &fe.predicate {
+        Predicate::Compare { lhs, .. } => match lhs.as_ref() {
+            Expr::VirtualField(VirtualField::SourceTable) => {}
+            other => panic!("expected VirtualField::SourceTable, got {:?}", other),
+        },
+        other => panic!("expected Predicate::Compare, got {:?}", other),
+    }
+}
+
+/// BC-2.11.012: non-canonical underscore name `_unknown_field` emits `Expr::Field`, not VirtualField.
+///
+/// Only the five canonical names are promoted; other `_`-prefix analyst fields stay as `Expr::Field`.
+///
+/// Traces: BC-2.11.012 (non-canonical underscore names remain Expr::Field)
+#[test]
+fn test_BC_2_11_012_non_canonical_underscore_field_stays_field() {
+    let fe = parse_filter("crowdstrike.detections | _unknown_field = 'value'")
+        .expect("non-canonical _underscore field must parse");
+    match &fe.predicate {
+        Predicate::Compare { lhs, .. } => match lhs.as_ref() {
+            Expr::Field(fp) => {
+                assert_eq!(fp.segments[0], "_unknown_field");
+            }
+            other => panic!(
+                "expected Expr::Field for non-canonical _underscore, got {:?}",
+                other
+            ),
+        },
+        other => panic!("expected Predicate::Compare, got {:?}", other),
+    }
+}
+
+/// BC-2.11.012: all 5 virtual fields are recognised in pipe mode WHERE stage.
+///
+/// Tests `_sensor`, `_client`, `_source_table` — `_source_type` and `_safety_flags`
+/// are covered by the existing tests above.
+///
+/// Traces: BC-2.11.012 (virtual fields in pipe mode)
+#[test]
+fn test_BC_2_11_012_virtual_fields_all_five_in_pipe_mode() {
+    use prism_query::ast::VirtualField;
+    let cases: &[(&str, VirtualField)] = &[
+        (
+            "FROM x | where _sensor = 'crowdstrike'",
+            VirtualField::Sensor,
+        ),
+        ("FROM x | where _client = 'acme'", VirtualField::Client),
+        (
+            "FROM x | where _source_table = 'tbl'",
+            VirtualField::SourceTable,
+        ),
+        (
+            "FROM x | where _source_type = 'live'",
+            VirtualField::SourceType,
+        ),
+        (
+            "FROM x | where _safety_flags = 0",
+            VirtualField::SafetyFlags,
+        ),
+    ];
+    for (input, expected_variant) in cases {
+        let pq = parse_pipe(input)
+            .unwrap_or_else(|e| panic!("pipe parse failed for '{}': {:?}", input, e));
+        match &pq.stages[0] {
+            PipeStage::Where(Predicate::Compare { lhs, .. }) => match lhs.as_ref() {
+                Expr::VirtualField(v) => {
+                    assert_eq!(
+                        v, expected_variant,
+                        "wrong VirtualField variant for '{}'",
+                        input
+                    );
+                }
+                other => panic!("expected VirtualField for '{}', got {:?}", input, other),
+            },
+            other => panic!("expected Where stage for '{}', got {:?}", input, other),
+        }
+    }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Fix 3 — TimestampLiteral parse-time validation (ISO-8601 / RFC-3339)
+// ─────────────────────────────────────────────────────────────────────────────
+
+/// Fix 3: A valid RFC-3339 timestamp string in a filter comparison is parsed
+/// as `Literal::Timestamp`, not `Literal::String`.
+///
+/// Traces: Fix 3 (TimestampLiteral parse-time validation)
+#[test]
+fn test_timestamp_literal_valid_iso8601_parsed_as_timestamp() {
+    use prism_query::ast::Literal;
+    let fe = parse_filter("crowdstrike.detections | created_at = '2026-05-04T12:00:00Z'")
+        .expect("valid RFC-3339 timestamp must parse");
+    match &fe.predicate {
+        Predicate::Compare { rhs, .. } => match rhs.as_ref() {
+            Expr::Literal(Literal::Timestamp(ts)) => {
+                assert_eq!(
+                    ts.iso8601, "2026-05-04T12:00:00Z",
+                    "iso8601 field must preserve raw string"
+                );
+                // Verify the instant was parsed correctly: epoch 2026-05-04T12:00:00Z.
+                assert_eq!(
+                    ts.instant.timestamp(),
+                    1_777_896_000,
+                    "instant must be the correct UTC epoch second"
+                );
+            }
+            other => panic!("expected Literal::Timestamp, got {:?}", other),
+        },
+        other => panic!("expected Predicate::Compare, got {:?}", other),
+    }
+}
+
+/// Fix 3: A malformed timestamp (month 13) is rejected at parse time with an error.
+///
+/// Traces: Fix 3 (TimestampLiteral parse-time validation — malformed rejected)
+#[test]
+fn test_timestamp_literal_malformed_month_rejected_at_parse() {
+    let result = parse_filter("crowdstrike.detections | created_at = '2026-13-99T99:99:99Z'");
+    assert!(
+        result.is_err(),
+        "malformed timestamp '2026-13-99T99:99:99Z' must be rejected at parse time"
+    );
+    let errs = result.unwrap_err();
+    assert!(
+        errs.iter().any(|e| e.message.contains("E-QUERY-001")),
+        "error message must contain E-QUERY-001"
+    );
+}
+
+/// Fix 3: A timestamp without a timezone specifier is rejected (strict RFC-3339 policy).
+///
+/// Bare local time `"2026-05-04T12:00:00"` (no `Z` or `+HH:MM`) is rejected to
+/// avoid silent UTC-assumption bugs.
+///
+/// Traces: Fix 3 (TimestampLiteral parse-time validation — no-timezone rejected)
+#[test]
+fn test_timestamp_literal_no_timezone_rejected() {
+    let result = parse_filter("crowdstrike.detections | created_at = '2026-05-04T12:00:00'");
+    assert!(
+        result.is_err(),
+        "bare local-time timestamp '2026-05-04T12:00:00' (no timezone) must be rejected"
+    );
+}
+
+/// Fix 3: A timestamp with offset (+05:30) is accepted (RFC-3339 allows non-UTC offsets).
+///
+/// Traces: Fix 3 (TimestampLiteral parse-time validation — non-UTC offset accepted)
+#[test]
+fn test_timestamp_literal_with_offset_accepted() {
+    use prism_query::ast::Literal;
+    let fe = parse_filter("crowdstrike.detections | created_at = '2026-05-04T17:30:00+05:30'")
+        .expect("RFC-3339 with non-UTC offset must parse");
+    match &fe.predicate {
+        Predicate::Compare { rhs, .. } => match rhs.as_ref() {
+            Expr::Literal(Literal::Timestamp(_)) => {}
+            other => panic!(
+                "expected Literal::Timestamp for offset timestamp, got {:?}",
+                other
+            ),
+        },
+        other => panic!("expected Predicate::Compare, got {:?}", other),
+    }
+}
+
+/// Fix 3: A normal string literal that starts with digits but is not a timestamp
+/// (e.g. `"2026"`) is still parsed as `Literal::String`.
+///
+/// Traces: Fix 3 (TimestampLiteral — non-timestamp strings remain Literal::String)
+#[test]
+fn test_timestamp_literal_plain_string_not_promoted() {
+    use prism_query::ast::Literal;
+    let fe = parse_filter("crowdstrike.detections | hostname = 'hello'")
+        .expect("plain string must parse");
+    match &fe.predicate {
+        Predicate::Compare { rhs, .. } => match rhs.as_ref() {
+            Expr::Literal(Literal::String(s)) => {
+                assert_eq!(s, "hello");
+            }
+            other => panic!("expected Literal::String, got {:?}", other),
+        },
+        other => panic!("expected Predicate::Compare, got {:?}", other),
+    }
 }
 
 // ─────────────────────────────────────────────────────────────────────────────

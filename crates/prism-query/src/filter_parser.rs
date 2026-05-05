@@ -19,8 +19,9 @@ use ordered_float::OrderedFloat;
 use chumsky::prelude::*;
 
 use crate::ast::{
-    Ast, CidrLiteral, CompareOp, DurationLiteral, DurationUnit, FieldPath, FilterExpr, Literal,
-    LogicalOp, PipeQuery, Predicate, RegexLiteral, SourceRef, Span, StringOp,
+    field_path_to_expr, Ast, CidrLiteral, CompareOp, DurationLiteral, DurationUnit, FieldPath,
+    FilterExpr, Literal, LogicalOp, PipeQuery, Predicate, RegexLiteral, SourceRef, Span, StringOp,
+    TimestampLiteral,
 };
 use crate::error::ParseError;
 use crate::error_recovery::rich_to_parse_error;
@@ -143,9 +144,9 @@ fn parse_filter_internal(input: &str) -> Result<Ast, Vec<ParseError>> {
     parse_filter(input).map(Ast::Filter)
 }
 
-/// Parse SQL mode internally — wraps SqlQuery in Ast::Sql(SqlStatement::Select).
+/// Parse SQL mode internally — delegates to `parse_sql` which returns `Ast::Sql(...)` directly.
 fn parse_sql_internal(input: &str) -> Result<Ast, Vec<ParseError>> {
-    crate::sql_parser::parse_sql_ast(input)
+    crate::sql_parser::parse_sql(input)
 }
 
 /// Parse pipe mode internally, wrapping result as `Ast::Pipe`.
@@ -441,8 +442,9 @@ pub fn build_predicate_parser<'a>(
             .map(|(fp, lit)| {
                 // LIKE is kept as Predicate::Compare for backward compat.
                 // Wildcard promotion applies only to = and != (see field_comparison below).
+                // Virtual-field promotion: _sensor/_client/etc. become Expr::VirtualField.
                 Predicate::Compare {
-                    lhs: Box::new(crate::ast::Expr::Field(fp)),
+                    lhs: Box::new(field_path_to_expr(fp)),
                     op: CompareOp::Like,
                     rhs: Box::new(crate::ast::Expr::Literal(lit)),
                 }
@@ -483,8 +485,9 @@ pub fn build_predicate_parser<'a>(
                         }
                     }
                 }
+                // Virtual-field promotion: _sensor/_client/etc. become Expr::VirtualField.
                 Ok(Predicate::Compare {
-                    lhs: Box::new(crate::ast::Expr::Field(fp)),
+                    lhs: Box::new(field_path_to_expr(fp)),
                     op,
                     rhs: Box::new(crate::ast::Expr::Literal(lit)),
                 })
@@ -615,21 +618,49 @@ pub fn build_string_parser<'a>(
     single_quoted.or(double_quoted)
 }
 
+/// Promote a raw string to `Literal::Timestamp` if it is a valid RFC-3339 value,
+/// or return `Literal::String` otherwise.
+///
+/// Timestamps are recognised by a lightweight heuristic (starts with four ASCII
+/// digits followed by `-`) before the full parse attempt, so that ordinary string
+/// literals never incur the `chrono` overhead.
+///
+/// Returns `Err(message)` only when the string looks like a timestamp but is
+/// malformed — callers propagate this as a user-visible `ParseError`.
+fn classify_string_literal(s: &str) -> Result<Literal, String> {
+    // Heuristic: `NNNN-` prefix (ISO date or year-month) triggers timestamp parse.
+    let bytes = s.as_bytes();
+    let looks_like_timestamp = bytes.len() >= 5
+        && bytes[0].is_ascii_digit()
+        && bytes[1].is_ascii_digit()
+        && bytes[2].is_ascii_digit()
+        && bytes[3].is_ascii_digit()
+        && bytes[4] == b'-';
+
+    if looks_like_timestamp {
+        TimestampLiteral::new(s)
+            .map(Literal::Timestamp)
+            .map_err(|e| e.message)
+    } else {
+        Ok(Literal::String(s.to_string()))
+    }
+}
+
 /// Build the literal value parser.
 pub fn build_literal_parser<'a>(
 ) -> impl Parser<'a, &'a str, Literal, extra::Err<Rich<'a, char>>> + Clone {
-    // Single-quoted string literal.
+    // Single-quoted string literal (or timestamp if RFC-3339 heuristic matches).
     let single_quoted = none_of('\'')
         .repeated()
         .to_slice()
-        .map(|s: &str| Literal::String(s.to_string()))
+        .try_map(|s: &str, span| classify_string_literal(s).map_err(|e| Rich::custom(span, e)))
         .delimited_by(just('\''), just('\''));
 
-    // Double-quoted string literal.
+    // Double-quoted string literal (or timestamp if RFC-3339 heuristic matches).
     let double_quoted = none_of('"')
         .repeated()
         .to_slice()
-        .map(|s: &str| Literal::String(s.to_string()))
+        .try_map(|s: &str, span| classify_string_literal(s).map_err(|e| Rich::custom(span, e)))
         .delimited_by(just('"'), just('"'));
 
     // NULL literal.
@@ -783,7 +814,8 @@ pub fn build_expr_parser<'a>(
             .then(compare_op)
             .then(literal.clone().padded().map(Expr::Literal))
             .map(|((fp, op), rhs)| Expr::Compare {
-                lhs: Box::new(Expr::Field(fp)),
+                // Virtual-field promotion: _sensor/_client/etc. become Expr::VirtualField.
+                lhs: Box::new(crate::ast::field_path_to_expr(fp)),
                 op,
                 rhs: Box::new(rhs),
             });
