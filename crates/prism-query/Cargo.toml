@@ -2,7 +2,7 @@
 name = "prism-query"
 version = "0.1.0"
 edition = "2021"
-description = "Prism query orchestration — virtual field injection and sensor table materialization (S-2.08). DataFusion TableProvider integration added in S-3.02."
+description = "Prism query orchestration — virtual field injection and sensor table materialization (S-2.08). PrismQL parser (S-3.01) and DataFusion TableProvider integration (S-3.02)."
 license = "MIT"
 publish = false
 
@@ -12,9 +12,19 @@ publish = false
 # Any PR that introduces DataFusion or Arrow as a dep of prism-query in S-2.08
 # is an architecture violation and must be rejected.
 # See S-2.08 v1.5 §Architecture Compliance Rules.
+#
+# ARCHITECTURE COMPLIANCE (S-3.01):
+# Parser modules (filter_parser, sql_parser, pipe_parser, security) MUST NOT
+# import from prism-sensors, prism-mcp, or any I/O crate. Parsing is a pure
+# function: &str -> Result<Ast, Vec<ParseError>>. See S-3.01 §Architecture
+# Compliance Rules.
 
 [lib]
 name = "prism_query"
+
+[features]
+# S-3.01 VP-021: fuzz target support (enabled only in the fuzz/ workspace member).
+fuzz = ["dep:libfuzzer-sys"]
 
 [dependencies]
 prism-core = { path = "../prism-core" }
@@ -24,10 +34,19 @@ serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 # S-3.2.08 — UUID v7 generation for org-scoped CrowdStrike pagination session IDs (D-048).
 uuid = { version = "1", features = ["v7"] }
+# S-3.01 — PrismQL parser combinators (filter/SQL/pipe modes) with error recovery.
+chumsky = "0.12"
+# S-3.01 — human-readable parse error formatting (JSON-serializable for MCP responses).
+ariadne = "0.4"
+# S-3.01 VP-021 — fuzz target harness (optional; enabled by `fuzz` feature).
+libfuzzer-sys = { version = "0.4", optional = true }
 
 [dev-dependencies]
 # S-3.2.08 — isolation tests: LruCache mirrors prism-dtu-crowdstrike session_registry (dev-only)
 lru = "0.17"
+# S-3.01 VP-014/VP-015 — bounded model checking proofs (exact pin; out-of-band nightly
+# toolchain; does not affect workspace MSRV of Rust 1.85).
+kani-verifier = "=0.67.0"
 
 [lints.rust]
 unexpected_cfgs = { level = "warn", check-cfg = ['cfg(kani)'] }

@@ -21,6 +21,9 @@ prism-spec-engine = { path = "../crates/prism-spec-engine" }
 prism-ocsf = { path = "../crates/prism-ocsf" }
 serde_json = "1"
 
+# prism-query fuzz dependencies (S-3.01 VP-021 fuzz target).
+prism-query = { path = "../crates/prism-query" }
+
 # Prevent this target from being built as part of the workspace
 [workspace]
 
@@ -46,5 +49,12 @@ doc = false
 [[bin]]
 name = "normalize_fuzz"
 path = "fuzz_targets/normalize_fuzz.rs"
+test = false
+doc = false
+
+# S-3.01 VP-021 — PrismQlParser never panics on arbitrary byte input.
+[[bin]]
+name = "vp021_parse_fuzz"
+path = "fuzz_targets/vp021_parse_fuzz.rs"
 test = false
 doc = false
