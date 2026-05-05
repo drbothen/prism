@@ -174,7 +174,7 @@ develop HEAD `3133710e` | factory-artifacts `fd1213f7` (canonical SHA — D-226 
 | Metric | Value |
 |--------|-------|
 | develop HEAD | `3133710e` (rename PR #126 squash-merged 2026-05-05T03:19:10Z — crowdstrike_session→org_scoped_session_id) |
-| factory-artifacts HEAD | `d33e2bcc` (canonical SHA — D-230 pass-4 remediation + D-231 Stage 2 SHA backfill; STATE v6.80) |
+| factory-artifacts HEAD | `fc1de833` (canonical SHA — D-230 pass-4 remediation + D-231 Stage 2 SHA backfill + sweep fixup; STATE v6.80) |
 | PR count merged | 126 (PR #127 OPEN — S-3.01 PrismQL parser; feature/S-3.01@4b1d8fb0) |
 | Workspace test count | 2363 + 253 on feature/S-3.01 branch |
 | Open PRs | PR #127 S-3.01 PrismQL parser — OPEN; pass-4 remediation COMPLETE; pass-5 next |
