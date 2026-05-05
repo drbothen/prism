@@ -306,6 +306,117 @@ jobs:
           echo "Perimeter check passed: cargo check correctly failed with visibility error (E0603)."
           grep -E 'E0603|is private' /tmp/perimeter-check.log || true
 
+  perimeter-symbols-sync:
+    name: Perimeter symbols sync check (BC-2.11.006 OBS-001)
+    # Adversary pass-6 OBS-001 [process-gap] remediation.
+    #
+    # BC-2.11.006 v1.8 frontmatter lists `restricted_symbols.symbols:` — the
+    # canonical set of crate-private symbols that external crates MUST NOT
+    # reach. The perimeter-violation test in
+    # tests/external/perimeter-violation/src/main.rs must contain a matching
+    # `use prism_query::…` import for EVERY symbol in the spec, and vice versa.
+    # Any divergence means the spec and test have drifted — this job fails the
+    # PR and prints the exact diff.
+    #
+    # .factory/ is on the `factory-artifacts` orphan branch (not committed to
+    # feature branches). We fetch it via a second actions/checkout into
+    # .factory-spec/ so the CI runner can read the spec frontmatter.
+    runs-on: ubuntu-latest
+    timeout-minutes: 2
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout feature branch (source code)
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+      - name: Checkout factory-artifacts branch (spec frontmatter)
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          ref: factory-artifacts
+          path: .factory-spec
+      - name: Assert spec restricted_symbols match perimeter-violation imports
+        run: |
+          set -euo pipefail
+          python3 - << 'PYEOF'
+          import re, sys, os
+
+          SPEC_PATH = ".factory-spec/specs/behavioral-contracts/BC-2.11.006-query-security-limits.md"
+          TEST_PATH = "tests/external/perimeter-violation/src/main.rs"
+
+          # --- Extract spec symbols from YAML frontmatter ---
+          with open(SPEC_PATH) as f:
+              spec_content = f.read()
+
+          fm_match = re.match(r'^---\n(.*?)\n---', spec_content, re.DOTALL)
+          if not fm_match:
+              print(f"ERROR: No YAML frontmatter found in {SPEC_PATH}", file=sys.stderr)
+              sys.exit(1)
+          fm_text = fm_match.group(1)
+
+          # Parse restricted_symbols.symbols list
+          # Expected shape:
+          #   restricted_symbols:
+          #     description: "..."
+          #     symbols:
+          #       - prism_query::...
+          symbols_match = re.search(
+              r'restricted_symbols:\s*\n(?:.*\n)*?  symbols:\s*\n((?:    - .+\n?)*)',
+              fm_text
+          )
+          if not symbols_match:
+              print(
+                  f"ERROR: restricted_symbols.symbols block not found in {SPEC_PATH} frontmatter.\n"
+                  "BC-2.11.006 must be at v1.8+ with a structured restricted_symbols: block.",
+                  file=sys.stderr
+              )
+              sys.exit(1)
+
+          spec_symbols = sorted(
+              line.strip().lstrip('- ')
+              for line in symbols_match.group(1).splitlines()
+              if line.strip().startswith('- ')
+          )
+
+          # --- Extract use prism_query:: lines from perimeter-violation ---
+          with open(TEST_PATH) as f:
+              test_content = f.read()
+
+          test_symbols = sorted(
+              re.sub(r'^use (.+);$', r'\1', line.strip())
+              for line in test_content.splitlines()
+              if re.match(r'^use prism_query::', line.strip())
+          )
+
+          # --- Compare ---
+          spec_set = set(spec_symbols)
+          test_set = set(test_symbols)
+          only_in_spec = sorted(spec_set - test_set)
+          only_in_test = sorted(test_set - spec_set)
+
+          if not only_in_spec and not only_in_test:
+              print(f"OK: {len(spec_symbols)} restricted symbols match between spec and test.")
+              for s in spec_symbols:
+                  print(f"  {s}")
+              sys.exit(0)
+
+          print("FAIL: BC-2.11.006 restricted_symbols diverges from perimeter-violation imports.", file=sys.stderr)
+          print("", file=sys.stderr)
+          if only_in_spec:
+              print("Symbols listed in spec but MISSING from tests/external/perimeter-violation/src/main.rs:", file=sys.stderr)
+              for s in only_in_spec:
+                  print(f"  {s}", file=sys.stderr)
+              print("  → Add a `use {sym};` import to perimeter-violation/src/main.rs for each.", file=sys.stderr)
+              print("", file=sys.stderr)
+          if only_in_test:
+              print("Symbols in perimeter-violation/src/main.rs but NOT listed in BC-2.11.006 restricted_symbols:", file=sys.stderr)
+              for s in only_in_test:
+                  print(f"  {s}", file=sys.stderr)
+              print("  → Either add them to restricted_symbols.symbols: in BC-2.11.006 frontmatter,", file=sys.stderr)
+              print("    or remove the `use` line if the symbol is not actually restricted.", file=sys.stderr)
+              print("", file=sys.stderr)
+          print(f"Spec count: {len(spec_symbols)}, Test count: {len(test_symbols)}", file=sys.stderr)
+          sys.exit(1)
+          PYEOF
+
   verify-workflow-structure:
     name: Verify workflow structure (AC-5..AC-8 reachability)
     runs-on: ubuntu-latest
