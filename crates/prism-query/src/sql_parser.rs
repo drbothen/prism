@@ -28,75 +28,50 @@ use crate::ast::{
 use crate::error::ParseError;
 use crate::error_recovery::rich_to_parse_error;
 use crate::filter_parser::{build_literal_parser, build_predicate_parser, build_source_ref_parser};
+use crate::security;
 
-/// SQL keywords that must not be consumed as aliases.
+/// SQL keywords that must not be consumed as aliases (canonical uppercase form).
+///
+/// # Security (B-7, BC-2.11.003)
+/// Keyword detection is CASE-INSENSITIVE — `alias_ident` must call
+/// `SQL_KEYWORDS.iter().any(|kw| kw.eq_ignore_ascii_case(s))` rather than
+/// `SQL_KEYWORDS.contains(&s)`. Storing uppercase-only canonical forms and
+/// doing a case-insensitive comparison prevents bypass via titlecase variants
+/// like "Where", "Select", "sElEcT", etc.
 const SQL_KEYWORDS: &[&str] = &[
     "SELECT",
-    "select",
     "FROM",
-    "from",
     "WHERE",
-    "where",
     "JOIN",
-    "join",
     "INNER",
-    "inner",
     "LEFT",
-    "left",
     "RIGHT",
-    "right",
     "FULL",
-    "full",
     "OUTER",
-    "outer",
     "CROSS",
-    "cross",
     "ON",
-    "on",
     "AS",
-    "as",
     "AND",
-    "and",
     "OR",
-    "or",
     "NOT",
-    "not",
     "IN",
-    "in",
     "LIKE",
-    "like",
     "NULL",
-    "null",
     "TRUE",
-    "true",
     "FALSE",
-    "false",
     "GROUP",
-    "group",
     "BY",
-    "by",
     "HAVING",
-    "having",
     "ORDER",
-    "order",
     "LIMIT",
-    "limit",
     "DISTINCT",
-    "distinct",
     "COUNT",
-    "count",
     "SUM",
-    "sum",
     "AVG",
-    "avg",
     "MIN",
-    "min",
     "MAX",
-    "max",
     "DISTINCT_COUNT",
-    "distinct_count",
     "PERCENTILE",
-    "percentile",
 ];
 
 /// Parse a SQL-mode query and return `Ast::Sql(SqlStatement::Select(SqlQuery))`.
@@ -115,6 +90,13 @@ pub fn parse_sql(input: &str) -> Result<Ast, Vec<ParseError>> {
     let (result, errs) = parser.parse(input).into_output_errors();
     if errs.is_empty() {
         if let Some(sq) = result {
+            // Security: check AST nesting depth across WHERE, HAVING, JOIN ON,
+            // and ORDER BY expressions (B-2, BC-2.11.006, DI-019, EC-002).
+            security::check_sql_query_nesting_depth(&sq, 0)
+                .map_err(|e| vec![ParseError::new(0, e.to_string())])?;
+            // Security: check list item counts (B-8, BC-2.11.006).
+            security::check_sql_list_sizes(&sq)
+                .map_err(|e| vec![ParseError::new(0, e.to_string())])?;
             return Ok(Ast::Sql(SqlStatement::Select(sq)));
         }
     }
@@ -143,12 +125,16 @@ fn build_sql_parser<'a>() -> impl Parser<'a, &'a str, SqlQuery, extra::Err<Rich<
             .map(|s: &str| s.to_string());
 
         // Non-keyword identifier — for aliases that appear without AS.
+        //
+        // Keyword rejection is CASE-INSENSITIVE (B-7, BC-2.11.003): "Where",
+        // "sElEcT", "WHERE" are all rejected. The SQL_KEYWORDS list stores
+        // canonical uppercase forms; we use eq_ignore_ascii_case for matching.
         let alias_ident = ident_char
             .repeated()
             .at_least(1)
             .to_slice()
             .try_map(|s: &str, span| {
-                if SQL_KEYWORDS.contains(&s) {
+                if SQL_KEYWORDS.iter().any(|kw| kw.eq_ignore_ascii_case(s)) {
                     Err(Rich::custom(
                         span,
                         format!("'{s}' is a reserved keyword, not a valid alias"),
@@ -177,10 +163,14 @@ fn build_sql_parser<'a>() -> impl Parser<'a, &'a str, SqlQuery, extra::Err<Rich<
             build_sql_predicate_parser(sql_query.clone(), field_path.clone(), literal.clone());
 
         // Alias: `AS ident` OR bare non-keyword ident.
+        //
+        // Both AS-prefixed and bare aliases use `alias_ident` (case-insensitive
+        // keyword rejection) so that `SELECT a AS Select FROM t` is rejected
+        // in the same way as `SELECT a FROM t Select` (B-7, BC-2.11.003).
         let explicit_alias = text::keyword("AS")
             .or(text::keyword("as"))
             .padded()
-            .ignore_then(ident.padded())
+            .ignore_then(alias_ident.clone().padded())
             .map(Some);
         let bare_alias = alias_ident.padded().map(Some);
         let alias = explicit_alias.or(bare_alias).or(empty().to(None));

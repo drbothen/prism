@@ -45,6 +45,18 @@ pub fn parse_pipe(input: &str) -> Result<PipeQuery, Vec<ParseError>> {
             // Security: check pipe stage count.
             security::check_pipe_stage_count(&pq.stages)
                 .map_err(|e| vec![ParseError::new(0, e.to_string())])?;
+
+            // Security: check AST nesting depth in every pipe stage containing
+            // a predicate or expression (B-2, BC-2.11.006, DI-019, EC-002).
+            for stage in &pq.stages {
+                check_pipe_stage_depth(stage)
+                    .map_err(|e| vec![ParseError::new(0, e.to_string())])?;
+            }
+
+            // Security: check list item counts in all pipe stages (B-8, BC-2.11.006).
+            security::check_pipe_list_sizes(&pq)
+                .map_err(|e| vec![ParseError::new(0, e.to_string())])?;
+
             return Ok(pq);
         }
     }
@@ -53,6 +65,23 @@ pub fn parse_pipe(input: &str) -> Result<PipeQuery, Vec<ParseError>> {
         Err(vec![ParseError::new(0, "E-QUERY-001: pipe parse failed")])
     } else {
         Err(parse_errors)
+    }
+}
+
+/// Walk a pipe stage and check nesting depth for any embedded predicates
+/// or expressions.
+///
+/// (B-2, BC-2.11.006, DI-019)
+fn check_pipe_stage_depth(
+    stage: &crate::ast::PipeStage,
+) -> Result<(), prism_core::error::PrismError> {
+    use crate::ast::PipeStage;
+    match stage {
+        PipeStage::Where(pred) => security::check_predicate_nesting_depth(pred, 0),
+        // Sort, Dedup, Fields, Stats, Join, Enrich contain only field paths
+        // and simple agg functions — no unbounded predicate nesting.
+        // Limit / Tail contain only a u64 scalar.
+        _ => Ok(()),
     }
 }
 

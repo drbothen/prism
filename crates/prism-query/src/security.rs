@@ -13,7 +13,7 @@
 
 use prism_core::error::PrismError;
 
-use crate::ast::{Expr, PipeStage, Predicate, SqlQuery};
+use crate::ast::{Expr, FilterExpr, PipeQuery, PipeStage, Predicate, SqlQuery};
 
 /// Maximum PrismQL query string size: 64KB (BC-2.11.006, EC-001).
 pub const PRISM_MAX_QUERY_SIZE: usize = 65_536;
@@ -29,6 +29,12 @@ pub const PRISM_MAX_PIPE_STAGES: usize = 32;
 
 /// Maximum regex pattern length in `matches` predicates (BC-2.11.006).
 pub const PRISM_MAX_REGEX_PATTERN_LEN: usize = 1_024;
+
+/// Maximum number of items in IN lists, ORDER BY, GROUP BY, sort, dedup,
+/// fields, and stats aggregate lists (B-8, BC-2.11.006).
+///
+/// Prevents O(N) denial-of-service attacks via large list literals.
+pub const PRISM_MAX_LIST_ITEMS: usize = 1_024;
 
 /// Error code string for security-limit violations.
 pub const E_QUERY_003: &str = "E-QUERY-003";
@@ -228,6 +234,29 @@ pub fn check_pipe_stage_count(stages: &[PipeStage]) -> Result<(), PrismError> {
     Ok(())
 }
 
+/// Check that a list (IN items, ORDER BY items, GROUP BY items, etc.) does not
+/// exceed the maximum allowed item count (B-8, BC-2.11.006).
+///
+/// # Arguments
+/// - `count`: the number of items in the list.
+/// - `context`: a human-readable label for error messages (e.g., `"IN list"`,
+///   `"ORDER BY"`, `"GROUP BY"`, `"sort"`, `"dedup"`, `"fields"`, `"stats"`).
+///
+/// # Errors
+/// Returns `PrismError::QueryExecutionFailed` with code `E-QUERY-003` if
+/// `count > PRISM_MAX_LIST_ITEMS`.
+pub fn check_list_length(count: usize, context: &str) -> Result<(), PrismError> {
+    if count > PRISM_MAX_LIST_ITEMS {
+        return Err(PrismError::QueryExecutionFailed {
+            detail: format!(
+                "{E_QUERY_003}: {context} item count {count} exceeds maximum allowed \
+                 {PRISM_MAX_LIST_ITEMS}"
+            ),
+        });
+    }
+    Ok(())
+}
+
 /// Check that a regex pattern string does not exceed the maximum allowed length.
 /// (BC-2.11.006, CWE-1333)
 pub fn check_regex_pattern_length(pattern: &str) -> Result<(), PrismError> {
@@ -243,18 +272,165 @@ pub fn check_regex_pattern_length(pattern: &str) -> Result<(), PrismError> {
     Ok(())
 }
 
-/// Return the effective query size limit.
-pub fn effective_query_size_limit() -> usize {
-    std::env::var("PRISM_MAX_QUERY_SIZE")
-        .ok()
-        .and_then(|v| v.parse::<usize>().ok())
-        .unwrap_or(PRISM_MAX_QUERY_SIZE)
+/// Check list lengths in a `FilterExpr` (IN lists in predicates).
+///
+/// (B-8, BC-2.11.006)
+pub fn check_filter_list_sizes(fe: &FilterExpr) -> Result<(), PrismError> {
+    check_predicate_list_sizes(&fe.predicate)
 }
 
-/// Return the effective nesting depth limit.
+/// Check list lengths in a `SqlQuery` (IN lists, ORDER BY, GROUP BY).
+///
+/// (B-8, BC-2.11.006)
+pub fn check_sql_list_sizes(sq: &SqlQuery) -> Result<(), PrismError> {
+    check_list_length(sq.order_by.len(), "ORDER BY")?;
+    check_list_length(sq.group_by.len(), "GROUP BY")?;
+    if let Some(w) = &sq.where_ {
+        check_predicate_list_sizes(w)?;
+    }
+    if let Some(h) = &sq.having {
+        check_predicate_list_sizes(h)?;
+    }
+    for join in &sq.joins {
+        check_expr_list_sizes(&join.on)?;
+    }
+    Ok(())
+}
+
+/// Check list lengths in a `PipeQuery` (sort, dedup, fields, stats, IN lists).
+///
+/// (B-8, BC-2.11.006)
+pub fn check_pipe_list_sizes(pq: &PipeQuery) -> Result<(), PrismError> {
+    for stage in &pq.stages {
+        check_pipe_stage_list_sizes(stage)?;
+    }
+    Ok(())
+}
+
+/// Check list lengths in a single pipe stage.
+fn check_pipe_stage_list_sizes(stage: &PipeStage) -> Result<(), PrismError> {
+    use crate::ast::PipeStage;
+    match stage {
+        PipeStage::Where(pred) => check_predicate_list_sizes(pred),
+        PipeStage::Sort(exprs) => check_list_length(exprs.len(), "sort"),
+        PipeStage::Dedup(fields) => check_list_length(fields.len(), "dedup"),
+        PipeStage::Fields(fs) => check_list_length(fs.fields.len(), "fields"),
+        PipeStage::Stats(ss) => {
+            check_list_length(ss.aggregates.len(), "stats aggregate")?;
+            check_list_length(ss.by_fields.len(), "stats BY")
+        }
+        _ => Ok(()),
+    }
+}
+
+/// Check list lengths in a `Predicate` (IN lists).
+fn check_predicate_list_sizes(pred: &Predicate) -> Result<(), PrismError> {
+    match pred {
+        Predicate::In { values, .. } => check_list_length(values.len(), "IN list"),
+        Predicate::Logical { predicates, .. } => {
+            for p in predicates {
+                check_predicate_list_sizes(p)?;
+            }
+            Ok(())
+        }
+        Predicate::Not(inner) => check_predicate_list_sizes(inner),
+        Predicate::Compare { lhs, rhs, .. } => {
+            check_expr_list_sizes(lhs)?;
+            check_expr_list_sizes(rhs)
+        }
+        Predicate::InSubquery { subquery, .. } => check_sql_list_sizes(subquery),
+        _ => Ok(()),
+    }
+}
+
+/// Check list lengths in an `Expr` (IN lists).
+fn check_expr_list_sizes(expr: &Expr) -> Result<(), PrismError> {
+    match expr {
+        Expr::In { values, .. } => check_list_length(values.len(), "IN list"),
+        Expr::Logical { lhs, rhs, .. } => {
+            check_expr_list_sizes(lhs)?;
+            check_expr_list_sizes(rhs)
+        }
+        Expr::Not(inner) => check_expr_list_sizes(inner),
+        Expr::Compare { lhs, rhs, .. } => {
+            check_expr_list_sizes(lhs)?;
+            check_expr_list_sizes(rhs)
+        }
+        Expr::InSubquery { subquery, .. } => check_sql_list_sizes(subquery),
+        _ => Ok(()),
+    }
+}
+
+/// Minimum safe query size limit (1KB). Env-var values below this are clamped up.
+///
+/// Prevents `PRISM_MAX_QUERY_SIZE=0` from silently bypassing the size guard.
+pub const MIN_SAFE_QUERY_SIZE: usize = 1_024;
+
+/// Maximum safe query size limit (1MB). Env-var values above this are clamped down.
+///
+/// Prevents `PRISM_MAX_QUERY_SIZE=<huge>` from effectively disabling the guard.
+pub const MAX_SAFE_QUERY_SIZE: usize = 1_048_576;
+
+/// Minimum safe nesting depth limit. Env-var values below this are clamped up.
+///
+/// Prevents `PRISM_MAX_NESTING_DEPTH=0` from silently bypassing the nesting guard.
+pub const MIN_SAFE_NESTING_DEPTH: u32 = 8;
+
+/// Maximum safe nesting depth limit. Env-var values above this are clamped down.
+///
+/// Prevents `PRISM_MAX_NESTING_DEPTH=<huge>` from effectively disabling the guard.
+pub const MAX_SAFE_NESTING_DEPTH: u32 = 256;
+
+/// Return the effective query size limit, clamped to [MIN_SAFE_QUERY_SIZE, MAX_SAFE_QUERY_SIZE].
+///
+/// If the env var is out of range, a warning is emitted and the value is clamped.
+pub fn effective_query_size_limit() -> usize {
+    match std::env::var("PRISM_MAX_QUERY_SIZE")
+        .ok()
+        .and_then(|v| v.parse::<usize>().ok())
+    {
+        None => PRISM_MAX_QUERY_SIZE,
+        Some(v) if v < MIN_SAFE_QUERY_SIZE => {
+            eprintln!(
+                "prism-query: PRISM_MAX_QUERY_SIZE={v} is below minimum safe value \
+                 ({MIN_SAFE_QUERY_SIZE}); clamping to {MIN_SAFE_QUERY_SIZE}"
+            );
+            MIN_SAFE_QUERY_SIZE
+        }
+        Some(v) if v > MAX_SAFE_QUERY_SIZE => {
+            eprintln!(
+                "prism-query: PRISM_MAX_QUERY_SIZE={v} is above maximum safe value \
+                 ({MAX_SAFE_QUERY_SIZE}); clamping to {MAX_SAFE_QUERY_SIZE}"
+            );
+            MAX_SAFE_QUERY_SIZE
+        }
+        Some(v) => v,
+    }
+}
+
+/// Return the effective nesting depth limit, clamped to [MIN_SAFE_NESTING_DEPTH, MAX_SAFE_NESTING_DEPTH].
+///
+/// If the env var is out of range, a warning is emitted and the value is clamped.
 pub fn effective_nesting_depth_limit() -> u32 {
-    std::env::var("PRISM_MAX_NESTING_DEPTH")
+    match std::env::var("PRISM_MAX_NESTING_DEPTH")
         .ok()
         .and_then(|v| v.parse::<u32>().ok())
-        .unwrap_or(PRISM_MAX_NESTING_DEPTH)
+    {
+        None => PRISM_MAX_NESTING_DEPTH,
+        Some(v) if v < MIN_SAFE_NESTING_DEPTH => {
+            eprintln!(
+                "prism-query: PRISM_MAX_NESTING_DEPTH={v} is below minimum safe value \
+                 ({MIN_SAFE_NESTING_DEPTH}); clamping to {MIN_SAFE_NESTING_DEPTH}"
+            );
+            MIN_SAFE_NESTING_DEPTH
+        }
+        Some(v) if v > MAX_SAFE_NESTING_DEPTH => {
+            eprintln!(
+                "prism-query: PRISM_MAX_NESTING_DEPTH={v} is above maximum safe value \
+                 ({MAX_SAFE_NESTING_DEPTH}); clamping to {MAX_SAFE_NESTING_DEPTH}"
+            );
+            MAX_SAFE_NESTING_DEPTH
+        }
+        Some(v) => v,
+    }
 }

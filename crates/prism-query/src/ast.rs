@@ -910,7 +910,21 @@ pub struct CidrLiteral {
 
 impl CidrLiteral {
     /// Parse and validate a CIDR string (CWE-20).
+    ///
+    /// # Security (B-9, BC-2.11.006)
+    /// User input is truncated to 50 bytes in error messages to prevent
+    /// error message injection via arbitrarily long "CIDR" strings.
+    /// A valid CIDR string is at most ~43 bytes (IPv6 with /128 suffix).
     pub fn new(s: &str) -> Result<Self, String> {
+        // Pre-validate length: valid CIDRs are at most ~50 bytes.
+        // Reject early with a truncated error message.
+        const MAX_CIDR_LEN: usize = 50;
+        if s.len() > MAX_CIDR_LEN {
+            let display = crate::error::truncate_for_display(s, MAX_CIDR_LEN);
+            return Err(format!(
+                "E-QUERY-001: invalid CIDR '{display}': value too long (max {MAX_CIDR_LEN} bytes)"
+            ));
+        }
         let net: ipnet::IpNet = s
             .parse()
             .map_err(|e| format!("E-QUERY-001: invalid CIDR '{s}': {e}"))?;

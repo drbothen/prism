@@ -171,6 +171,9 @@ pub fn parse_filter(input: &str) -> Result<FilterExpr, Vec<ParseError>> {
             // Security: check nesting depth on parsed predicate.
             security::check_predicate_nesting_depth(&fe.predicate, 0)
                 .map_err(|e| vec![ParseError::new(0, e.to_string())])?;
+            // Security: check IN list sizes (B-8, BC-2.11.006).
+            security::check_filter_list_sizes(&fe)
+                .map_err(|e| vec![ParseError::new(0, e.to_string())])?;
             return Ok(fe);
         }
     }

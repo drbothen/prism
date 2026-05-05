@@ -123,10 +123,18 @@ pub fn walk_ast<V: Visitor + ?Sized>(v: &mut V, ast: &Ast) {
     }
 }
 
+// B-4: walk_sql_statement uses `match` (not `if let`) intentionally.
+// `SqlStatement` is `#[non_exhaustive]`, so the `_ => {}` catch-all arm is
+// required for forward-correctness when S-3.06 adds Dml/Ddl variants.
+// Clippy's `single_match` lint suggests `if let`, but that would silently
+// ignore future variants — the match is the safe, correct form here.
+#[allow(clippy::single_match)]
 pub fn walk_sql_statement<V: Visitor + ?Sized>(v: &mut V, s: &SqlStatement) {
-    let SqlStatement::Select(sq) = s;
-    v.visit_sql_query(sq);
-    // S-3.06 will add Dml and Ddl variants here (update this function then).
+    match s {
+        SqlStatement::Select(sq) => v.visit_sql_query(sq),
+        // S-3.06 will add Dml and Ddl variants here.
+        _ => {}
+    }
 }
 
 pub fn walk_sql_query<V: Visitor + ?Sized>(v: &mut V, q: &SqlQuery) {

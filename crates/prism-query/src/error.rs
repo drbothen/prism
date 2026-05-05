@@ -137,3 +137,33 @@ impl std::fmt::Display for ParseError {
 }
 
 impl std::error::Error for ParseError {}
+
+/// Truncate a user-supplied string for inclusion in error messages.
+///
+/// # Security (B-9, BC-2.11.006)
+/// Error messages MUST NOT echo arbitrary user input verbatim — a 10KB CIDR
+/// string would produce a 10KB+ error message. This helper truncates at
+/// `max_bytes` bytes, appending `"…"` when truncation occurs.
+///
+/// Default `max_bytes` is 200.
+///
+/// # Example
+/// ```
+/// use prism_query::error::truncate_for_display;
+/// assert_eq!(truncate_for_display("hello", 200), "hello");
+/// let long = "x".repeat(300);
+/// let truncated = truncate_for_display(&long, 200);
+/// assert!(truncated.len() <= 204); // 200 + "…" (3 bytes UTF-8)
+/// ```
+pub fn truncate_for_display(s: &str, max_bytes: usize) -> std::borrow::Cow<'_, str> {
+    if s.len() <= max_bytes {
+        std::borrow::Cow::Borrowed(s)
+    } else {
+        // Truncate at a valid UTF-8 boundary.
+        let mut end = max_bytes;
+        while end > 0 && !s.is_char_boundary(end) {
+            end -= 1;
+        }
+        std::borrow::Cow::Owned(format!("{}…", &s[..end]))
+    }
+}

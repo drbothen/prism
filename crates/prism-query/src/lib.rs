@@ -48,6 +48,21 @@ pub mod proofs;
 pub mod tests;
 
 // ── S-3.01 re-exports ─────────────────────────────────────────────────────────
+//
+// # Security perimeter (B-3, BC-2.11.006)
+//
+// `PrismQlParser::parse` is the ONLY documented security entry point. It applies:
+//   1. `check_query_size` — rejects inputs > 64KB before any parsing
+//   2. `check_paren_depth` — rejects inputs with > 64 lexical paren depth
+//   3. Mode detection — dispatches to `parse_sql`, `parse_pipe`, or `parse_filter`
+//
+// The sub-parsers (`parse_sql`, `parse_pipe`, `parse_filter`) are also exported
+// because integration tests require direct access to mode-specific return types
+// (`SqlQuery`, `PipeQuery`, `FilterExpr`). However, callers invoking them directly
+// MUST apply the pre-parse guards themselves, or accept that size/paren-depth
+// guards are not enforced.
+//
+// Production code MUST use `PrismQlParser::parse` exclusively.
 pub use ast::Ast;
 pub use error::ParseError;
 pub use filter_parser::PrismQlParser;
