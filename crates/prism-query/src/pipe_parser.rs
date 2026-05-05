@@ -55,6 +55,18 @@ pub(crate) fn parse_pipe(input: &str) -> Result<PipeQuery, Vec<ParseError>> {
 /// This is the race-free variant used by `PrismQlParser::parse`. All post-parse
 /// security guards use the caller-provided `limits` snapshot instead of re-reading
 /// env vars.
+///
+/// # Thread-local protocol (OBS-002)
+/// When called via `PrismQlParser::parse`, the thread-local `ParseLimits` snapshot
+/// is pre-installed by the caller (via `install_thread_local`) and cleared by the
+/// `ThreadLocalGuard` Drop guard. `RegexLiteral::new` therefore uses the snapshotted
+/// regex limit during AST construction.
+///
+/// When called directly from tests (bypassing `PrismQlParser::parse`), the
+/// thread-local is NOT installed; `RegexLiteral::new` falls back to the env-var path
+/// via `effective_regex_pattern_length_limit()`. Test code that depends on snapshot
+/// semantics must call `ParseLimits::install_thread_local()` and the matching
+/// `ParseLimits::clear_thread_local()` itself before/after the call.
 pub(crate) fn parse_pipe_with_limits(
     input: &str,
     limits: &security::ParseLimits,

@@ -52,8 +52,10 @@ pub const E_QUERY_003: &str = "E-QUERY-003";
 //    immediately after `ParseLimits::snapshot()`.
 // 2. `RegexLiteral::new` calls `ParseLimits::current_regex_limit()` instead of
 //    `effective_regex_pattern_length_limit()`.
-// 3. `PrismQlParser::parse` calls `ParseLimits::clear_thread_local()` before
-//    returning (in both Ok and Err paths) to avoid limit leakage across calls.
+// 3. `PrismQlParser::parse` installs a `ThreadLocalGuard` (implements Drop) that
+//    calls `ParseLimits::clear_thread_local()` when dropped. The guard runs even
+//    on panic unwind (Chumsky stack overflow, OOM, unreachable!), so the thread-local
+//    is always cleared at the end of `PrismQlParser::parse`. (F-MEDIUM-002)
 //
 // This is safe because:
 //   - PrismQL parsing is synchronous (no async inside the parse call).
@@ -70,16 +72,22 @@ impl ParseLimits {
     ///
     /// Must be called immediately after `ParseLimits::snapshot()` and before any
     /// parsing combinator runs (i.e., before the first `parser.parse(input)` call).
-    pub fn install_thread_local(&self) {
+    ///
+    /// `pub(crate)` — external callers must go through `PrismQlParser::parse`.
+    /// Exposing this as `pub` would allow external code to construct a
+    /// `ParseLimits { regex_pattern: usize::MAX, ... }` and install it, bypassing
+    /// the regex length guard. (F-HIGH-002, BC-2.11.006)
+    pub(crate) fn install_thread_local(&self) {
         THREAD_PARSE_LIMITS.with(|cell| cell.set(Some(*self)));
     }
 
     /// Clear the thread-local snapshot after a parse call completes.
     ///
-    /// Must be called before returning from `PrismQlParser::parse` in all paths
-    /// (both `Ok` and `Err`) to prevent limit leakage into subsequent parse calls
-    /// on the same thread.
-    pub fn clear_thread_local() {
+    /// Called via `ThreadLocalGuard::drop` in `PrismQlParser::parse`, which runs
+    /// even on panic unwind. (F-MEDIUM-002, F-HIGH-002)
+    ///
+    /// `pub(crate)` — external callers must go through `PrismQlParser::parse`.
+    pub(crate) fn clear_thread_local() {
         THREAD_PARSE_LIMITS.with(|cell| cell.set(None));
     }
 
@@ -88,7 +96,9 @@ impl ParseLimits {
     /// is installed (i.e., when called outside of a `PrismQlParser::parse` call).
     ///
     /// Used by `RegexLiteral::new` during AST construction.
-    pub fn current_regex_limit() -> usize {
+    ///
+    /// `pub(crate)` — external callers do not need direct access to the limit value.
+    pub(crate) fn current_regex_limit() -> usize {
         THREAD_PARSE_LIMITS
             .with(|cell| cell.get())
             .map(|l| l.regex_pattern)
@@ -114,17 +124,21 @@ impl ParseLimits {
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct ParseLimits {
     /// Effective query size limit in bytes (`PRISM_MAX_QUERY_SIZE`).
-    pub query_size: usize,
+    ///
+    /// `pub(crate)` — fields are crate-internal to prevent external construction
+    /// of a `ParseLimits` with adversarial values (e.g., `regex_pattern: usize::MAX`)
+    /// that would bypass security guards. (F-HIGH-002, BC-2.11.006)
+    pub(crate) query_size: usize,
     /// Effective nesting depth limit (`PRISM_MAX_NESTING_DEPTH`).
-    pub nesting_depth: u32,
+    pub(crate) nesting_depth: u32,
     /// Effective paren depth limit (same as `nesting_depth`).
-    pub paren_depth: u32,
+    pub(crate) paren_depth: u32,
     /// Effective list items limit (`PRISM_MAX_LIST_ITEMS`).
-    pub list_items: usize,
+    pub(crate) list_items: usize,
     /// Effective pipe stages limit (`PRISM_MAX_PIPE_STAGES`).
-    pub pipe_stages: usize,
+    pub(crate) pipe_stages: usize,
     /// Effective regex pattern length limit (`PRISM_MAX_REGEX_PATTERN_LEN`).
-    pub regex_pattern: usize,
+    pub(crate) regex_pattern: usize,
 }
 
 impl ParseLimits {
@@ -132,7 +146,10 @@ impl ParseLimits {
     ///
     /// This must be called ONCE at the start of `PrismQlParser::parse` so that
     /// all security guards within a single parse call use consistent values.
-    pub fn snapshot() -> Self {
+    ///
+    /// `pub(crate)` — external callers must go through `PrismQlParser::parse`,
+    /// which manages the snapshot lifecycle. (F-HIGH-002, BC-2.11.006)
+    pub(crate) fn snapshot() -> Self {
         let nesting_depth = effective_nesting_depth_limit();
         Self {
             query_size: effective_query_size_limit(),
