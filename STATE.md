@@ -380,7 +380,7 @@ user_directive_persistent: "No pragmatic convergence. Fix all issues before buil
 | **Last Updated** | 2026-05-04 (D-223 W3-FIRST pivot — all 13 W3 core stories (S-3.01..S-3.13) status=draft discovered; W4 Phase 4.B SUSPENDED; Wave 3 implementation STARTED; R10-A entry=S-3.01 PrismQL parser; STATE v6.74) |
 | **Current Phase** | Phase 4.A — APPROVED + CONVERGED; Phase 4.B SUSPENDED — W3-FIRST pivot (D-223) |
 | **Current Step** | W3-FIRST: R10-A dispatch S-3.01 (PrismQL Parser) — Tier-1 entry; unblocks 12 W3 stories + all 8 W4 stories |
-| **factory-artifacts HEAD** | `d7a6a20e` |
+| **factory-artifacts HEAD** | `c35da2d9` |
 
 ## Phase Progress
 
@@ -535,9 +535,9 @@ Cycle files: [burst-log](cycles/phase-2-patch/burst-log.md) | [convergence-traje
 
 _Previous checkpoint archived: [cycles/wave-4-operations/session-checkpoints.md](cycles/wave-4-operations/session-checkpoints.md)_
 
-**STATE v6.74 (canonical SHA `d7a6a20e`). W3-FIRST PIVOT (D-223). Phase 4.B SUSPENDED. R10-A: S-3.01 PrismQL parser.**
+**STATE v6.74 (canonical SHA `c35da2d9`). W3-FIRST PIVOT (D-223). Phase 4.B SUSPENDED. R10-A: S-3.01 PrismQL parser.**
 
-develop HEAD: `ba3b10c7` | factory-artifacts: `d7a6a20e` | workspace tests: 2363 | PRs merged: 125
+develop HEAD: `ba3b10c7` | factory-artifacts: `c35da2d9` | workspace tests: 2363 | PRs merged: 125
 
 **D-223 (2026-05-04):** R10 dispatch attempt found all 13 W3 core stories (S-3.01..S-3.13) status=draft. S-4.01 → S-3.02 dep blocks all 8 W4 stories. User directive: implement W3 fully first. Phase 4.B SUSPENDED. TD-VSDD-054 filed (pre-phase-N dep check methodology gap).
 
