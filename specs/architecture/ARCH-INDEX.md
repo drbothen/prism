@@ -1,7 +1,7 @@
 ---
 document_type: architecture-index
 level: L3
-version: "2.30"
+version: "2.31"
 status: draft
 producer: architect
 timestamp: 2026-05-04T00:00:00
@@ -32,7 +32,7 @@ deployment_topology: single-service
 | Operational Pipeline | operational-pipeline.md | ~1,000 | implementer, test-writer | Scheduler, differential results, detection, alerts, cases — v1.2 (D-209 8/8 + 60s tick + ActionDeliveryEngine per F-P23-H-001) |
 | Concurrency Architecture | concurrency-architecture.md | ~800 | implementer, formal-verifier | Tokio runtime, arc-swap, shared state protection — v1.1 (Mermaid diagram + 6 edits; 16-permit→8/8 split per D-209) |
 | Purity Boundary Map | purity-boundary-map.md | ~800 | implementer, formal-verifier | Pure core / effectful shell classification per crate |
-| Verification Architecture | verification-architecture.md | ~1,000 | formal-verifier, architect | Provable Properties Catalog, proof strategy — v1.29 (VP-014 + VP-015 promoted to verified per PR #127 Kani proofs at f5212641) |
+| Verification Architecture | verification-architecture.md | ~1,000 | formal-verifier, architect | Provable Properties Catalog, proof strategy — v1.30 (pass4 sister-line bump: VP-014/VP-015 property-text corrected to actual ParseError struct API) |
 | Tooling Selection | tooling-selection.md | ~400 | formal-verifier, devops-engineer | Kani, proptest, fuzz tool versions and config |
 | Detection Rule Format | detection-rule-format.md | ~1,200 | implementer, test-writer | .detect rule structure, condition modes, rule-to-SQL compilation |
 | Infusions | infusions.md | ~1,500 | implementer, test-writer | Enrichment framework — GeoIP, threat intel, asset inventory, CVSS. TOML specs + .prx plugins. |
@@ -142,6 +142,7 @@ deployment_topology: single-service
 
 | Version | Pass | Date | Author | Change |
 |---------|------|------|--------|--------|
+| 2.31 | pr-127-pass4-remediation | 2026-05-05 | architect | Adversary pass-4 (F-MEDIUM-001) property-text correction cascade: VP-014 v1.6 + VP-015 v1.7 replace non-existent `ParseError::QueryTooLarge` / `ParseError::NestingTooDeep` enum-variant references with correct `Err(Vec<ParseError>)` API (message contains `E-QUERY-003`). Document Map verification-architecture.md row updated v1.29→v1.30. VP-INDEX v1.29. ARCH-INDEX v2.30→v2.31. Note: proof_file_hash values retained — hashes confirmed unchanged at commit 8feb4cf2. Hash may need re-computation after implementer #4 push lands changes to vp015_depth_limit.rs. |
 | 2.30 | pr-127-formal-verify | 2026-05-05 | architect | VP-014 and VP-015 promoted to verified following Kani proof runs at commit f5212641 (PR #127). Document Map verification-architecture.md row updated v1.28→v1.29. Cross-ref: VP-INDEX v1.28, vp-014 v1.5, vp-015 v1.6, verification-architecture.md v1.29. ARCH-INDEX v2.29→v2.30. |
 | 2.29 | TD-W4-CV-LOW-002-closure | 2026-05-04 | architect | TD-W4-CV-LOW-002 closure: ADR-016 date sync. ADR-016 row date corrected 2026-05-04 → 2026-05-02 to match ADR-016 frontmatter `timestamp: 2026-05-02T00:00:00Z`. Version/status/title confirmed clean (PROPOSED v0.14, "Action Delivery Framework"). ARCH-INDEX v2.28→v2.29. |
 | 2.28 | W4-Phase4A-Pass28-fix | 2026-05-04 | state-manager | Pass 28 BLOCKED→REMEDIATED. F-P28-H-001: vp-045 spec v1.3→v1.4 (H1 heading "Schedule Semaphore" → "Action Delivery Semaphore" per VP-INDEX line 66 canonical + BC-2.18.004 H1; Pass 26 body-rewrite sister-line gap; 7th orchestrator-prompt-introduced defect — H1-axis; SUBSTANTIVE). 12 cross-cuts verified CLEAN. Window stays 0/3; Pass 29 next. |

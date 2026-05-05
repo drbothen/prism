@@ -1,7 +1,7 @@
 ---
 document_type: pipeline-state
 level: ops
-version: "6.78"
+version: "6.79"
 producer: state-manager
 timestamp: 2026-05-05T00:00:00Z
 inputs: []
@@ -22,7 +22,7 @@ repos:
   - axiathon
   - ocsf-proto-gen
   - mcp-claroty-xdome
-current_step: "PR #127 review remediation COMPLETE (D-228) — spec corrections committed (story/BC/VP/architecture); VP-014+VP-015 Kani-verified and locked; next: await devops fuzz-target-gnu fix, then merge PR #127 and dispatch Tier 2 (S-3.02 + S-3.06)"
+current_step: "Pass-4 adversary remediation COMPLETE (D-230) — 1H/1M/3L/OBS-002 all fixed; VP-014+VP-015 property corrections + BC-2.11.006 perimeter postcondition + 253 tests; pass-5 next"
 wave_3_carry_forward_debt: "ALL_REMEDIATE — W4-FIX-PERF-001/002, W4-FIX-CODE-001, W4-FIX-SEC-001..004 stories planned per D-203"
 wave_4_status: "PHASE_4_A_CONVERGED + R9_APPROVED but PHASE_4_B SUSPENDED — pre-implementation dep check (2026-05-04) found S-4.01 → S-3.02 (status=draft); pivoting to full Wave 3 implementation per user directive D-223"
 wave_4_phase_4_a_preflight:
@@ -81,7 +81,7 @@ wave_4_phase_4_a_preflight:
   phase_4b_prerequisites: []
   phase_4b_prerequisites_note: "[ALL_CLEARED] — D-218 (2026-05-04) + D-216 (2026-05-04) both closed"
   next_action: "Post-compact resume: (1) verify CI green on a0bf0f7e, (2) decision on full VSDD review burst (adversary + code-reviewer + security-reviewer + spec-compliance) before merge, (3) merge S-3.01 PR #127 + pull develop, (4) Tier 2 dispatch (S-3.02 + S-3.06 parallel)"
-  wave_3_implementation_status: "S-3.01_PR_OPEN_2026-05-05 — branch feature/S-3.01@a0bf0f7e (10 commits ahead); 187 tests passing; comprehensive AST audit + 16 P0/P1 fixes + 3 deviations all resolved; PR #127 awaiting CI + decision on full VSDD review burst before merge"
+  wave_3_implementation_status: "S-3.01_PR_OPEN_2026-05-05 — branch feature/S-3.01@4b1d8fb0 (12 commits ahead); 253 tests passing; pass-4 remediation COMPLETE (implementer #4 4b1d8fb0: 5 fixes + 3 new dynamic tests); PR #127 awaiting pass-5 adversary clearance"
   pre_pass22_sweep_status: "COMPLETE_2026-05-03 — F-PreP22-H-001 (concurrency-architecture v1.1 8/8 split per D-209); F-PreP22-H-002 (observability v1.1 user-facing examples updated); F-PreP22-H-003 (interface-definitions v2.5 ActionEngine→ActionDeliveryEngine); F-PreP22-H-004 (vp-045 spec body v1.2 rewritten + slug-preservation banner per POL-1). ARCH-INDEX v2.20. Window stays 0/3; Pass 22 dispatch ready."
   pass_22_adversary_verdict: "BLOCKED (3 findings: 0C/1H/1M/1L/0OBS)"
   pass_22_remediation_complete: true
@@ -331,9 +331,9 @@ subsystem_count: 20
 story_count: 113
 bc_count_corrected: 230
 cap_count: 40  # active; highest_cap_id: CAP-040 (CAP-038 Multi-Tenant Identity, CAP-039 Multi-Tenant Fixture Gen, CAP-040 Multi-Tenant Adapter Dispatch — Wave 3 Phase 3.A Step 2)
-bc_index_version: "4.33"
-vp_index_version: "1.28"
-story_index_version: "v2.07"
+bc_index_version: "4.34"
+vp_index_version: "1.29"
+story_index_version: "v2.08"
 red_gate_wave_0a_complete: 2026-04-21
 test_vectors_version: "2.7"
 prd_version: "1.10"
@@ -342,10 +342,10 @@ holdout_index_version: "1.2"
 capabilities_version: "1.14"
 l2_index_version: "1.10"
 module_decomposition_version: "1.13"
-arch_index_version: "2.30"
+arch_index_version: "2.31"
 security_architecture_version: "1.1"
 verification_coverage_matrix_version: "1.31"
-verification_architecture_version: "1.29"
+verification_architecture_version: "1.30"
 invariants_version: "1.2"
 deferred_items_count: 0
 vp_count: 145
@@ -377,9 +377,9 @@ user_directive_persistent: "No pragmatic convergence. Fix all issues before buil
 | **Language** | Rust |
 | **Target Workspace** | per-analyst stdio (MCP server) |
 | **Started** | 2026-04-13 |
-| **Last Updated** | 2026-05-05 (D-228 PR #127 review remediation — 4-way burst (adversary+code+sec+spec); 4 BLOCKERs+10 IMP+9 MINOR resolved; 187→234 tests; VP-014+VP-015 Kani-verified+locked; spec corrections committed; STATE v6.77) |
-| **Current Phase** | Phase 4.A — APPROVED + CONVERGED; Phase 4.B SUSPENDED — W3-FIRST pivot (D-223); S-3.01 IMPLEMENTATION COMPLETE — PR #127 OPEN awaiting CI + VSDD review decision |
-| **Current Step** | PR #127 review remediation COMPLETE (D-228) — await devops fuzz-target-gnu fix (SHA TBD), then merge PR #127 + Tier 2 dispatch (S-3.02 + S-3.06) |
+| **Last Updated** | 2026-05-05 (D-230 pass-4 remediation — 1H+1M+3L+OBS-002 resolved; 234→253 tests; VP-014+VP-015 property corrections + BC-2.11.006 perimeter postcondition; STATE v6.79) |
+| **Current Phase** | Phase 4.A — APPROVED + CONVERGED; Phase 4.B SUSPENDED — W3-FIRST pivot (D-223); S-3.01 PR #127 OPEN — pass-4 remediation COMPLETE; pass-5 next |
+| **Current Step** | Pass-4 adversary remediation COMPLETE (D-230) — 1H/1M/3L/OBS-002 all fixed; 253 tests; pass-5 next |
 | **factory-artifacts HEAD** | `bc2bf477` |
 
 ## Phase Progress
@@ -430,6 +430,7 @@ _D-001..D-046 archived: [cycles/phase-3-dtu-wave-2/decisions-archive-d001-d032.m
 | D-226 | S-3.01 PrismQL parser keystone implementation cycle complete 2026-05-05 — per-story-delivery sequence executed: (1) Red Gate Stage 1 (stub-architect, 2c8dc26f): 16 todo!() functions + 25 AST types + Cargo.toml extensions; cargo check passed; 0 regressions on existing 27 tests. (2) Red Gate Stage 2 (test-writer): 103 failing tests in tests/parser_tests.rs; all anchored to BC-2.11.* / VP-014/015/021; cargo test --no-run PASS; 27 pre-existing tests still pass. (3) Implementer TDD (68827d58): All 103 parser tests green; 130/130 total. (4) Clippy fix (80c25d97): `expect_used` allow added to test file (matches workspace convention). (5) Initial AST fixes (78f23d5a): Cidr/FuncCall/Star variants added per orchestrator-caught deviations. (6) dclaude:type-design-analyzer comprehensive audit: 16 findings (7 P0 + 9 P1); user directive: "most correct, not fastest". (7) AST comprehensive fix-pass (4111f8f2 + 550d20b3 + 4a6039da): All 16 findings resolved — Predicate enum redesign (13 variants: HAS/MISSING/MATCHES/BETWEEN/IS NULL/NOT IN/CONTAINS/STARTSWITH/ENDSWITH/WILDCARD/CIDR/Logical/Not), 10 Literal types incl 5 newtype-validated (Duration/Cidr/Regex/IpAddr/Timestamp) with CWE-20+CWE-1333 enforcement, AggFunc DistinctCount+Percentile+CountField, multi-aggregate StatsStage, typed JoinStage with JoinKind+JoinCondition+JoinKind::Cross, typed FuncCall (Aggregate/Scalar/Window) with ScalarFunc enum unified across SQL+pipe modes, Visitor + walk_* traversal scaffolding in visit.rs, Span + Spanned<T> tracking, uniform Eq/Hash/Serialize/Deserialize with OrderedFloat for f64, structured SourceRef enum (Composite/External/Internal/Custom), VirtualField marker, S-3.06 forward-compat (Ast::Sql(SqlStatement) + PipeQuery.write placeholder), #[non_exhaustive] across ~30 public types. (8) Demo recording (9c80476a): 32 files in docs/demo-evidence/S-3.01/ via VHS 0.10.0. (9) deny.toml NCSA fix (c8c47452): NCSA license added to allow-list for libfuzzer-sys (CI cargo deny was failing). (10) 3 remaining deviations fix (a0bf0f7e): VirtualField parser emission for 5 canonical underscore names, unified parse_sql()→Ast API (parse_sql_ast removed), TimestampLiteral RFC-3339 parse-time validation via chrono 0.4. **Final: 187 tests passing (177 + 10 new); clippy/fmt/workspace/deny all clean.** Branch: feature/S-3.01@a0bf0f7e — 10 commits ahead of develop. PR #127 OPEN at https://github.com/drbothen/prism/pull/127. CI re-running on a0bf0f7e. OPEN DECISION (post-compact): full VSDD review burst (adversary + code-reviewer + security-reviewer + spec-compliance-checker) before merging PR #127 — recommended given S-3.01 is keystone for 12 W3 + 8 W4 stories. KEY INSIGHT: "correct not fastest" discipline caught 16 P0/P1 + 3 AST deviations BEFORE downstream stories build on flawed AST — multi-week rework cost saved. TD-VSDD-055 filed: per-keystone-story type-design audit before merge should be standard practice. | S-3.01 PrismQL parser keystone implementation cycle complete; 187 tests; 16 P0/P1 AST audit + 3 deviations; PR #127 OPEN; TD-VSDD-055/056 filed | 4 | 2026-05-05 |
 | D-227 | vsdd-factory plugin upgrade rc.9→rc.11 2026-05-05 — user invoked `/vsdd-factory:activate` to reactivate. Plugin version bumped from 1.0.0-rc.9 to 1.0.0-rc.11 on darwin-arm64. hooks.json variant + dispatcher binary applied from rc.11. settings.local.json updated. rc.11 includes 38 hook scripts (vs rc.9 set) including validation gates that have been producing factory-dispatcher PreToolUse hook tier-3 blocks on certain sub-agent dispatches (e.g., github-ops with merge commands). TD-VSDD-056 filed (P3): surface clearer block messages indicating WHICH tier matched and WHY. | vsdd-factory plugin upgraded 1.0.0-rc.9→1.0.0-rc.11; TD-VSDD-056 P3 observability gap filed | 4 | 2026-05-05 |
 | D-229 | Stage 2 backfill 2026-05-05 — cite factory-artifacts self-SHA bc2bf477 in STATE.md + SESSION-HANDOFF.md. Prior D-228 burst (bc2bf477) was Stage 1 only; STATE.md + HANDOFF.md still cited parent a6bb4682, blocking wave-gate-prerequisite hook. STATE v6.77→v6.78. factory-artifacts HEAD: a6bb4682→bc2bf477. HANDOFF.md factory-artifacts HEAD table row: a6bb4682→bc2bf477. Resolves SHA currency check FAILs. | STATE v6.78 — Stage 2 backfill: factory-artifacts self-SHA bc2bf477 cited; wave-gate-prerequisite hook SHA currency restored | 4 | 2026-05-05 |
+| D-230 | Adversary pass-4 remediation 2026-05-05 — pass-4 verdict: BLOCKED (1 HIGH: F-HIGH-001 build_*_parser public visibility bypass; 1 MEDIUM: F-MEDIUM-002 VP-014/VP-015 property statement drift ParseError::QueryTooLarge/NestingTooDeep → Vec<ParseError>+E-QUERY-003 substring; 3 LOW: visit RecoveryError arm, ParseLimits snapshot test, list-items effective limit; OBS-002 process gap). Remediation: (1) Implementer #4 (4b1d8fb0 on feature/S-3.01): build_*_parser → pub(crate) + api_surface.rs added, visit RecoveryError arm, ParseLimits snapshot, list-items effective limit, 3 new VP-015 dynamic tests (having/joins/order_by) — 234→253 tests; (2) Architect: VP-014 v1.5→v1.6 (Vec<ParseError>+E-QUERY-003 substring), VP-015 v1.6→v1.7 (same correction + proof_file_hash refreshed caf599af→e87b8e83 for new dynamic tests), VP-INDEX v1.28→v1.29, verification-architecture v1.29→v1.30, ARCH-INDEX v2.30→v2.31; (3) Product-owner: BC-2.11.006 v1.5→v1.6 (Security Perimeter postcondition + INV-SEC-PERIMETER-001 + 2 test vectors), BC-INDEX v4.33→v4.34; (4) S-3.01 v1.8→v1.9 + STORY-INDEX v2.07→v2.08. feature/S-3.01 commit chain: 1bee8542→6ffd8262→f5212641→9d8db905→05984fa0→336f2eea→696dd62c→a6a2f2d4→d80514ba→e1037036→8feb4cf2→4b1d8fb0. Pass-3 was CLEAN; pass-4 BLOCKED → convergence window reset; pass-5 next. | Pass-4 remediation COMPLETE — 1H+1M+3L+OBS-002 all fixed; 253 tests; VP/BC/arch spec corrections committed | 4 | 2026-05-05 |
 | D-228 | PR #127 review remediation COMPLETE 2026-05-05 — 4-way parallel review burst (adversary + code-reviewer + security-reviewer + spec-compliance-checker) dispatched against PR #127 base SHA `a0bf0f7e`. Findings: 4 BLOCKERs (B-1..B-4), 10 IMPORTANT (B-5..B-9 + others), 9 MINOR — zero deferred per user "Fix All" directive. Remediation commits on `feature/S-3.01`: (1) `1bee8542` devops: VP-021 fuzz CI smoke test + nightly cron; (2) `6ffd8262` implementer-1: BLOCKERs B-2/B-3/B-4 + IMPORTANT B-5..B-9 — 15 regression tests added; (3) `f5212641` formal-verifier: VP-014 real Kani harness + VP-015 SqlQuery extension — Kani VERIFIED both (proof_completed_date: 2026-05-05; verification_lock: true); (4) `05984fa0` implementer-2: BC-2.11.003 v1.4 canonical SQL denylist + E-QUERY-002 error code + all 9 MINORs — 24 new tests added; (5) devops fuzz-target-gnu fix in flight (SHA TBD). Test growth: 187→234 (47 new tests). Spec bumps committed to factory-artifacts: S-3.01 v1.7→v1.8, BC-2.11.003 v1.3→v1.4, VP-021 v1.3→v1.4, VP-014 v1.4→v1.5 (verified+locked), VP-015 v1.5→v1.6 (verified+locked), VP-INDEX v1.26→v1.28, BC-INDEX v4.32→v4.33, ARCH-INDEX v2.29→v2.30, verification-architecture v1.28→v1.29, STORY-INDEX v2.06→v2.07. VP-014 + VP-015 promoted from draft to verified; git tags vp-verified-VP-014-f5212641 + vp-verified-VP-015-f5212641 created on feature/S-3.01 commit f5212641. | PR #127 4-way review burst — 4B+10I+9M all resolved; 187→234 tests; VP-014+VP-015 Kani-verified+locked; spec corrections committed to factory-artifacts | 4 | 2026-05-05 |
 **Passes 8–27 REMEDIATED/CLEAN (detail archived); Pass 28 BLOCKED→REMEDIATED (1H: vp-045 spec v1.3→v1.4 [F-P28-H-001]; H1 heading "Schedule Semaphore" → "Action Delivery Semaphore" per VP-INDEX line 66 canonical; Pass 26 body-rewrite sister-line gap; META-INSIGHT: 7th orchestrator-prompt-introduced defect — H1-axis (fix-burst prompt targeted specific line positions 37/44/68 but missed adjacent H1 at line 39); 12 cross-cuts verified CLEAN; ARCH-INDEX v2.28); window stays 0/3; Pass 29 next. Trajectory: …→P26(1H+1H-preP27;orphan PATTERN codified TD-VSDD-051)→P27(1H;VP rationale semantic mis-anchor — 6th class)→P28(1H;VP H1 sister-line gap — 7th class). Detail: [pass-28.md](cycles/wave-4-operations/adversarial-reviews/pass-28.md) | [burst-log.md](cycles/wave-4-operations/burst-log.md).**
 
@@ -537,15 +538,15 @@ _TD-VSDD-014..019, TD-W3-COMPLIANCE-001, TD-VSDD-025..029 archived to [tech-debt
 
 Cycle files: [burst-log](cycles/phase-2-patch/burst-log.md) | [convergence-trajectory](cycles/phase-2-patch/convergence-trajectory.md) | [session-checkpoints](cycles/phase-2-patch/session-checkpoints.md) | [lessons](cycles/phase-2-patch/lessons.md) | [resolved-blockers](cycles/phase-2-patch/blocking-issues-resolved.md)
 ---
-## Session Resume Checkpoint (2026-05-05-d228-pr127-review-remediation-complete-v6.77)
+## Session Resume Checkpoint (2026-05-05-d230-pass4-remediation-complete-v6.79)
 
-_Previous checkpoint archived: [cycles/wave-4-operations/session-checkpoints.md](cycles/wave-4-operations/session-checkpoints.md)_
+_Previous checkpoint (v6.77/D-228) archived: [cycles/wave-4-operations/session-checkpoints.md](cycles/wave-4-operations/session-checkpoints.md)_
 
-**STATE v6.77. D-228 PR #127 4-way review remediation complete. VP-014+VP-015 Kani-verified+locked. 234 tests on S-3.01 branch. develop HEAD: 3133710e.**
+**STATE v6.79. D-230 pass-4 adversary remediation complete. 253 tests on S-3.01 branch. VP-014+VP-015 property statements corrected. BC-2.11.006 Security Perimeter postcondition added. Pass-5 next. develop HEAD: 3133710e.**
 
-develop HEAD: `3133710e` | factory-artifacts: `bc2bf477` (canonical SHA — D-228 PR #127 review remediation; STATE v6.77) | workspace tests: 2363 + 234 on S-3.01 branch | PRs merged: 126 | Open: #127
+develop HEAD: `3133710e` | factory-artifacts: `bc2bf477` (Stage 1 pending; SHA will update at Stage 2 backfill) | workspace tests: 2363 + 253 on S-3.01 branch | PRs merged: 126 | Open: #127
 
-**D-228 (2026-05-05):** PR #127 4-way parallel review burst (adversary + code-reviewer + security-reviewer + spec-compliance-checker) against base SHA `a0bf0f7e`. Findings: 4 BLOCKERs + 10 IMPORTANT + 9 MINOR — all resolved (zero deferred). Remediation commits on feature/S-3.01: `1bee8542` (devops VP-021 fuzz CI), `6ffd8262` (impl-1: B-2/B-3/B-4 + 15 regression tests), `f5212641` (formal-verifier: VP-014 + VP-015 Kani VERIFIED), `05984fa0` (impl-2: BC-2.11.003 denylist + E-QUERY-002 + 24 new tests). Devops fuzz-target-gnu fix in flight (SHA TBD). Test growth: 187→234 (+47). VP-014+VP-015 promoted to verified+locked; git tags vp-verified-VP-014-f5212641 + vp-verified-VP-015-f5212641 created on main repo at f5212641.
+**D-230 (2026-05-05):** Pass-4 BLOCKED verdict — 1H (build_*_parser bypass) + 1M (VP property statement drift) + 3L + OBS-002. Remediation: implementer #4 (4b1d8fb0): build_*_parser→pub(crate)+api_surface.rs, 3 VP-015 dynamic tests (having/joins/order_by), visit RecoveryError arm, ParseLimits snapshot, list-items effective limit — 234→253 tests. Architect: VP-014 v1.6 + VP-015 v1.7 (Vec<ParseError>+E-QUERY-003; proof_file_hash refreshed e87b8e83) + VP-INDEX v1.29 + verification-arch v1.30 + ARCH-INDEX v2.31. Product-owner: BC-2.11.006 v1.6 (Security Perimeter postcondition + INV-SEC-PERIMETER-001) + BC-INDEX v4.34. S-3.01 v1.9 + STORY-INDEX v2.08. Convergence window RESET (pass-3 was CLEAN; pass-4 BLOCKED). Pass-5 next.
 
 **D-226 (2026-05-05) recap:** S-3.01 PrismQL parser full implementation cycle complete. 10 commits; branch feature/S-3.01 HEAD moving forward from a0bf0f7e (now +4 remediation commits). AST comprehensive audit: 16 P0/P1 + 3 deviations ALL RESOLVED. PR #127 OPEN.
 

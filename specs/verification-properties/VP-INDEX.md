@@ -1,7 +1,7 @@
 ---
 document_type: verification-property-index
 level: L4
-version: "1.28"
+version: "1.29"
 status: draft
 producer: product-owner
 timestamp: 2026-05-05T00:00:00
@@ -205,6 +205,7 @@ S-1.02 frontmatter has been updated to `subsystems: [SS-03, SS-07, SS-11, SS-12,
 
 | Version | Burst | Date | Author | Change |
 |---------|-------|------|--------|--------|
+| 1.29 | pr-127-pass4-remediation | 2026-05-05 | architect | Property-text correction for VP-014 (v1.5→v1.6) and VP-015 (v1.6→v1.7): replaces non-existent `ParseError::QueryTooLarge` and `ParseError::NestingTooDeep` enum-variant references with accurate `Err(Vec<ParseError>)` API description (message contains `E-QUERY-003`). Identified by adversary pass-4 (F-MEDIUM-001). Status, verification_lock, proof_file_hash, proof_completed_date unchanged — only property statement text corrected. Cross-ref: vp-014 v1.6, vp-015 v1.7, verification-architecture.md v1.30, ARCH-INDEX v2.31. |
 | 1.28 | pr-127-formal-verify | 2026-05-05 | architect | VP-014 and VP-015 promoted to `verified` following successful Kani proof runs at commit f5212641 (PR #127). VP-014: harness `proof_check_query_size_rejects_oversize`, 0/4371 failed (285 unreachable). VP-015: 4 harnesses including new `proof_sql_query_depth_limit`, 0/5664 failed (397 unreachable). Status column updated; lock=true; proof_completed_date=2026-05-05. Cross-ref: vp-014 v1.5, vp-015 v1.6, verification-architecture.md v1.29, ARCH-INDEX.md v2.30. |
 | 1.27 | pr-127-review-remediation | 2026-05-05 | product-owner | PR-127 Task 2: VP-021 v1.3→v1.4 — clarified Property Statement to explicitly state that `PrismQlParser::parse` takes `&str` not `&[u8]`; the from_utf8 conversion step is now spelled out inline. Removed "malformed unicode" from inputs list (from_utf8 filters that before parse receives input). Harness skeleton was already correct; property statement is now unambiguous on type signature. |
 | 1.26 | W4-Phase4A-Pass20-fix | 2026-05-03 | state-manager | F-P20-H-001: VP-045 description updated "Schedule semaphore" → "Action delivery semaphore: try_acquire used (non-blocking), never acquire" (Pass-6 BC-H1 BC-2.18.004 rename to "Action Delivery Semaphore" failed to propagate to VP catalog ecosystem). |

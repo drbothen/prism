@@ -1,7 +1,7 @@
 ---
 document_type: verification-property
 level: L4
-version: "1.5"
+version: "1.6"
 status: verified
 producer: architect
 timestamp: 2026-04-19T00:00:00
@@ -36,9 +36,10 @@ removal_reason: null
 ## Property Statement
 
 For every query input byte sequence `b`, if `b.len() > 65536` (64 KiB), then
-`PrismQlParser::parse(b)` returns `Err(ParseError::QueryTooLarge)` before performing
-any lexical or syntactic work. The byte-length check is the first gate in the parse
-pipeline.
+`PrismQlParser::parse(b)` returns `Err(Vec<ParseError>)` where the first ParseError's
+`message` field contains the substring `E-QUERY-003`. The byte-length check runs as
+the first gate in `PrismQlParser::parse` before any lexical or syntactic work via
+Chumsky.
 
 ## Source Contract
 
@@ -61,7 +62,7 @@ pipeline.
 // Harness: proof_check_query_size_rejects_oversize
 //
 // Three-layer verification strategy:
-//   1. Gate-level: check_query_size() returns Err(QueryTooLarge) for len > MAX_QUERY_BYTES.
+//   1. Gate-level: check_query_size() returns Err(Vec<ParseError>) where message contains E-QUERY-003 for len > MAX_QUERY_BYTES.
 //   2. Structural composition: PrismQlParser::parse() calls check_query_size() before any
 //      lexical or syntactic work; proven by verifying the call ordering at parse entry point.
 //   3. Dynamic boundary test: inputs at exactly MAX_QUERY_BYTES-1, MAX_QUERY_BYTES,
@@ -104,6 +105,7 @@ pipeline.
 
 | Version | Burst | Date | Author | Notes |
 |---------|-------|------|--------|-------|
+| 1.6 | pr-127-pass4-remediation | 2026-05-05 | architect | Property statement corrected to match actual `ParseError` struct API (returns `Err(Vec<ParseError>)` with `message` containing `E-QUERY-003`). Replaces incorrect `ParseError::QueryTooLarge` enum-variant reference identified by adversary pass-4 (F-MEDIUM-001). Verification lock retained — Kani proof at f5212641 covers `check_query_size` gate-level property; structural composition argument unchanged. Proof harness skeleton comment updated to match corrected return type. |
 | 1.5 | pr-127-formal-verify | 2026-05-05 | architect | VP-014 promoted to verified. Real Kani harness `proof_check_query_size_rejects_oversize` lands in commit f5212641 (PR #127). Replaces prior `assert(true)` stub. Verification successful: 0 of 4371 failed (285 unreachable). Property: gate-level (`check_query_size`) + structural composition (parser calls gate first) + dynamic boundary test. Cross-ref: VP-INDEX v1.28 VP-014 row promoted to verified; verification-architecture.md v1.29 Provable Properties Catalog updated. |
 | 1.4 | pass-88-remediation | 2026-04-21 | architect | F88-012: Anchor Story normalized from slug form (S-3.01-prismql-parser.md) to pure ID (S-3.01). |
 | 1.3 | pass-61-fix | 2026-04-20 | architect | Renumbered duplicate pre-build-sweep Changelog row for version monotonicity (MED-001 VP scope extension). |
