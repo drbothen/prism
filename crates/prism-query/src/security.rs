@@ -107,6 +107,8 @@ pub fn check_predicate_nesting_depth(pred: &Predicate, depth: u32) -> Result<(),
             Ok(())
         }
         Predicate::Not(inner) => check_predicate_nesting_depth(inner, next),
+        // Recovery sentinel — no sub-expressions to check.
+        Predicate::RecoveryError => Ok(()),
     }
 }
 

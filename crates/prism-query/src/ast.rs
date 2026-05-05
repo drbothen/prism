@@ -119,6 +119,44 @@ impl SqlQuery {
         self.where_ = Some(pred);
         self
     }
+
+    /// Construct a recovery-sentinel `SqlQuery` used by the `nested_delimiters`
+    /// error-recovery combinator in `sql_parser::build_sql_predicate_parser`.
+    ///
+    /// When the content inside `IN (...)` cannot be parsed as a valid subquery,
+    /// the recovery combinator inserts this sentinel. The caller converts it to
+    /// `Predicate::RecoveryError` via `is_recovery_sentinel()`. (F-MEDIUM-001)
+    pub(crate) fn recovery_sentinel() -> Self {
+        // Use a syntactically invalid sentinel: a SelectClause with no items
+        // and a SourceRef whose raw starts with the sentinel prefix.
+        // The canonical sentinel is detected by is_recovery_sentinel().
+        Self {
+            select: SelectClause {
+                distinct: false,
+                items: vec![],
+            },
+            from: FromClause {
+                source: SourceRef {
+                    raw: "__recovery_sentinel__".to_string(),
+                    kind: SourceRefKind::Custom,
+                },
+                alias: None,
+            },
+            joins: vec![],
+            where_: Some(Predicate::RecoveryError),
+            group_by: vec![],
+            having: None,
+            order_by: vec![],
+            limit: None,
+        }
+    }
+
+    /// Returns `true` if this `SqlQuery` is a recovery sentinel injected by the
+    /// `nested_delimiters` combinator. Callers should convert it to
+    /// `Predicate::RecoveryError`. (F-MEDIUM-001)
+    pub(crate) fn is_recovery_sentinel(&self) -> bool {
+        self.from.source.raw == "__recovery_sentinel__"
+    }
 }
 
 /// SELECT clause — list of projection items.
@@ -479,6 +517,17 @@ pub enum Predicate {
     },
     /// `NOT predicate` — logical negation.
     Not(Box<Predicate>),
+    /// Inserted by the Chumsky error-recovery machinery when a parenthesised
+    /// subexpression could not be parsed (e.g., a bogus `IN (...)` subquery).
+    ///
+    /// Semantics: always evaluates to `false` (i.e., the predicate never
+    /// matches). The planner MUST treat this as a non-matching sentinel and
+    /// MUST NOT attempt to execute it against sensor APIs. Down-stream consumers
+    /// should check for this variant and surface an appropriate user-facing error.
+    ///
+    /// This variant is only produced by error recovery — well-formed queries
+    /// never contain it. (F-MEDIUM-001, AC-9, BC-2.11.003)
+    RecoveryError,
 }
 
 // ─────────────────────────────────────────────────────────────────────────────

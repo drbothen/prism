@@ -93,6 +93,8 @@ const SQL_KEYWORDS: &[&str] = &[
 pub(crate) fn parse_sql(input: &str) -> Result<Ast, Vec<ParseError>> {
     let parser = build_sql_parser();
     let (result, errs) = parser.parse(input).into_output_errors();
+
+    // Happy path: no errors, full AST produced.
     if errs.is_empty() {
         if let Some(sq) = result {
             // Security: check AST nesting depth across WHERE, HAVING, JOIN ON,
@@ -105,6 +107,26 @@ pub(crate) fn parse_sql(input: &str) -> Result<Ast, Vec<ParseError>> {
             return Ok(Ast::Sql(SqlStatement::Select(sq)));
         }
     }
+
+    // Recovery path (F-MEDIUM-001, AC-9): Chumsky recovered from a parse error
+    // via nested_delimiters and produced a partial AST alongside errors.
+    // Return the partial AST so callers can still inspect valid sub-expressions
+    // (e.g., outer AND predicates beyond a broken IN subquery).
+    // Security checks still apply to the partial AST.
+    if let Some(sq) = result {
+        let parse_errors: Vec<ParseError> = errs.iter().map(rich_to_parse_error).collect();
+        if !parse_errors.is_empty() {
+            // Partial AST with recovery errors: validate depth and list sizes
+            // before returning. The AST may contain Predicate::RecoveryError
+            // sentinels where recovery occurred.
+            if security::check_sql_query_nesting_depth(&sq, 0).is_ok()
+                && security::check_sql_list_sizes(&sq).is_ok()
+            {
+                return Ok(Ast::Sql(SqlStatement::Select(sq)));
+            }
+        }
+    }
+
     let parse_errors: Vec<ParseError> = errs.iter().map(rich_to_parse_error).collect();
     if parse_errors.is_empty() {
         Err(vec![ParseError::new(0, "E-QUERY-001: SQL parse failed")])
@@ -397,6 +419,13 @@ fn build_sql_predicate_parser<'a>(
     let (open_paren, close_paren) = sql_paren_delimiters();
 
     // IN subquery: `field IN (SELECT ...)` / `field NOT IN (SELECT ...)`
+    //
+    // The subquery arm is extended with `nested_delimiters` recovery (F-MEDIUM-001,
+    // AC-9, BC-2.11.003): when the content inside `IN (...)` cannot be parsed as a
+    // valid SQL subquery, the recovery combinator skips the entire parenthesised
+    // region and inserts `Predicate::RecoveryError` as a sentinel. This allows the
+    // parser to continue past the broken subquery and still parse the outer AND/OR
+    // predicates, producing a partial AST.
     let in_subquery = field_path
         .clone()
         .padded()
@@ -413,12 +442,28 @@ fn build_sql_predicate_parser<'a>(
             sql_query
                 .clone()
                 .padded()
-                .delimited_by(just(open_paren).padded(), just(close_paren).padded()),
+                .delimited_by(just(open_paren).padded(), just(close_paren).padded())
+                // F-MEDIUM-001: recovery for malformed IN subquery bodies.
+                // nested_delimiters matches `(... any content ...)` and returns the
+                // fallback when the inner content fails to parse as a SqlQuery.
+                .recover_with(via_parser(nested_delimiters(
+                    open_paren,
+                    close_paren,
+                    [],
+                    |_span| SqlQuery::recovery_sentinel(),
+                ))),
         )
-        .map(|((fp, negated), sq)| Predicate::InSubquery {
-            field: fp,
-            subquery: Box::new(sq),
-            negated,
+        .map(|((fp, negated), sq)| {
+            // If recovery produced the sentinel, emit RecoveryError for this arm.
+            if sq.is_recovery_sentinel() {
+                Predicate::RecoveryError
+            } else {
+                Predicate::InSubquery {
+                    field: fp,
+                    subquery: Box::new(sq),
+                    negated,
+                }
+            }
         });
 
     // Prefer IN subquery over base (which handles IN list).
