@@ -1,0 +1,18 @@
+# prism-query clippy configuration
+#
+# OBS-002: Enforce security perimeter for PrismQL sub-parsers.
+#
+# parse_sql, parse_pipe, and parse_filter are pub(crate) — they bypass the
+# mandatory pre-parse security guards (check_query_size, check_paren_depth).
+# Only PrismQlParser::parse is the documented safe entry point.
+#
+# These entries provide defence-in-depth: if the visibility is ever changed
+# back to `pub`, the lint fires immediately. Combined with the pub(crate)
+# restriction (F-LOW-002), this prevents accidental API surface expansion.
+#
+# Level: warn (can be promoted to deny after a stabilisation period).
+disallowed-methods = [
+    { path = "prism_query::filter_parser::parse_filter", reason = "Use PrismQlParser::parse exclusively (security perimeter — SEC-C-003, F-LOW-002). Direct callers bypass check_query_size and check_paren_depth guards." },
+    { path = "prism_query::pipe_parser::parse_pipe", reason = "Use PrismQlParser::parse exclusively (security perimeter — SEC-C-003, F-LOW-002). Direct callers bypass check_query_size and check_paren_depth guards." },
+    { path = "prism_query::sql_parser::parse_sql", reason = "Use PrismQlParser::parse exclusively (security perimeter — SEC-C-003, F-LOW-002). Direct callers bypass check_query_size and check_paren_depth guards." },
+]

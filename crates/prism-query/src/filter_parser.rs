@@ -240,16 +240,33 @@ fn is_pipe_mode(input: &str) -> bool {
 }
 
 /// Parse filter mode internally, wrapping result as `Ast::Filter`.
+///
+/// # Clippy exemption (OBS-002)
+/// `disallowed_methods` fires on `parse_filter` because it bypasses the
+/// pre-parse guards. This call IS the sanctioned internal routing path inside
+/// `PrismQlParser::parse`, which has already applied the guards. The exemption
+/// is intentional and scoped to this helper.
+#[allow(clippy::disallowed_methods)]
 fn parse_filter_internal(input: &str) -> Result<Ast, Vec<ParseError>> {
     parse_filter(input).map(Ast::Filter)
 }
 
 /// Parse SQL mode internally — delegates to `parse_sql` which returns `Ast::Sql(...)` directly.
+///
+/// # Clippy exemption (OBS-002)
+/// Same rationale as `parse_filter_internal`. Guards are applied by the caller
+/// (`PrismQlParser::parse`) before dispatching here.
+#[allow(clippy::disallowed_methods)]
 fn parse_sql_internal(input: &str) -> Result<Ast, Vec<ParseError>> {
     crate::sql_parser::parse_sql(input)
 }
 
 /// Parse pipe mode internally, wrapping result as `Ast::Pipe`.
+///
+/// # Clippy exemption (OBS-002)
+/// Same rationale as `parse_filter_internal`. Guards are applied by the caller
+/// (`PrismQlParser::parse`) before dispatching here.
+#[allow(clippy::disallowed_methods)]
 fn parse_pipe_internal(input: &str) -> Result<Ast, Vec<ParseError>> {
     crate::pipe_parser::parse_pipe(input).map(Ast::Pipe)
 }

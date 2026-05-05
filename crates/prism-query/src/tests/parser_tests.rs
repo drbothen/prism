@@ -29,6 +29,12 @@
     clippy::unwrap_used,
     clippy::assertions_on_constants,
     clippy::approx_constant,
+    // F-LOW-002 / OBS-002: unit tests are the ONLY legitimate direct callers of
+    // parse_filter, parse_pipe, parse_sql — they need mode-specific return types
+    // (FilterExpr, PipeQuery, SqlQuery) and test post-parse depth checks in isolation.
+    // The disallowed-methods lint fires here intentionally; this allow is the
+    // explicit acknowledgement that these calls are sanctioned in unit tests only.
+    clippy::disallowed_methods,
     unused_imports,
     dead_code
 )]

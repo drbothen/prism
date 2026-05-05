@@ -19,6 +19,10 @@
     clippy::expect_used,
     clippy::unwrap_used,
     clippy::assertions_on_constants,
+    // F-LOW-002 / OBS-002: regression tests are sanctioned direct callers of
+    // parse_filter, parse_pipe, parse_sql — they test post-parse depth checks
+    // in isolation (bypassing PrismQlParser::parse intentionally).
+    clippy::disallowed_methods,
     unused_imports
 )]
 
