@@ -22,6 +22,15 @@
 //!
 //! Story: S-3.01 | Version: 1.0 (Red Gate)
 
+#![allow(
+    clippy::expect_used,
+    clippy::unwrap_used,
+    clippy::assertions_on_constants,
+    clippy::approx_constant,
+    unused_imports,
+    dead_code
+)]
+
 use prism_query::{
     ast::{
         AggFunc, Ast, CompareOp, EnrichStage, Expr, FieldPath, FieldsStage, FilterExpr, FromClause,
