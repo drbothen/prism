@@ -42,24 +42,42 @@ pub use security::PRISM_MAX_PIPE_STAGES;
 ///
 /// # Errors
 /// Returns accumulated `ParseError`s on failure.
+// Used by src/tests/ — dead_code fires in non-test compilation but not in tests.
+#[cfg_attr(not(test), allow(dead_code))]
 pub(crate) fn parse_pipe(input: &str) -> Result<PipeQuery, Vec<ParseError>> {
+    // When called directly (bypassing PrismQlParser::parse), use env-var limits.
+    let limits = security::ParseLimits::snapshot();
+    parse_pipe_with_limits(input, &limits)
+}
+
+/// Parse a pipe-mode query using the provided snapshotted limits (F-HIGH-001).
+///
+/// This is the race-free variant used by `PrismQlParser::parse`. All post-parse
+/// security guards use the caller-provided `limits` snapshot instead of re-reading
+/// env vars.
+pub(crate) fn parse_pipe_with_limits(
+    input: &str,
+    limits: &security::ParseLimits,
+) -> Result<PipeQuery, Vec<ParseError>> {
     let parser = build_pipe_parser();
     let (result, errs) = parser.parse(input).into_output_errors();
     if errs.is_empty() {
         if let Some(pq) = result {
-            // Security: check pipe stage count.
-            security::check_pipe_stage_count(&pq.stages)
+            // Security: check pipe stage count (race-free via snapshot).
+            limits
+                .check_pipe_stage_count_with(&pq.stages)
                 .map_err(|e| vec![ParseError::new(0, e.to_string())])?;
 
             // Security: check AST nesting depth in every pipe stage containing
-            // a predicate or expression (B-2, BC-2.11.006, DI-019, EC-002).
+            // a predicate or expression (race-free via snapshot).
             for stage in &pq.stages {
-                check_pipe_stage_depth(stage)
+                check_pipe_stage_depth_with(stage, limits)
                     .map_err(|e| vec![ParseError::new(0, e.to_string())])?;
             }
 
-            // Security: check list item counts in all pipe stages (B-8, BC-2.11.006).
-            security::check_pipe_list_sizes(&pq)
+            // Security: check list item counts in all pipe stages (race-free via snapshot).
+            limits
+                .check_pipe_list_sizes_with(&pq)
                 .map_err(|e| vec![ParseError::new(0, e.to_string())])?;
 
             return Ok(pq);
@@ -74,15 +92,16 @@ pub(crate) fn parse_pipe(input: &str) -> Result<PipeQuery, Vec<ParseError>> {
 }
 
 /// Walk a pipe stage and check nesting depth for any embedded predicates
-/// or expressions.
+/// or expressions using the snapshotted limits.
 ///
-/// (B-2, BC-2.11.006, DI-019)
-fn check_pipe_stage_depth(
+/// (B-2, BC-2.11.006, DI-019, F-HIGH-001)
+fn check_pipe_stage_depth_with(
     stage: &crate::ast::PipeStage,
+    limits: &security::ParseLimits,
 ) -> Result<(), prism_core::error::PrismError> {
     use crate::ast::PipeStage;
     match stage {
-        PipeStage::Where(pred) => security::check_predicate_nesting_depth(pred, 0),
+        PipeStage::Where(pred) => limits.check_predicate_nesting_depth_with(pred, 0),
         // Sort, Dedup, Fields, Stats, Join, Enrich contain only field paths
         // and simple agg functions — no unbounded predicate nesting.
         // Limit / Tail contain only a u64 scalar.

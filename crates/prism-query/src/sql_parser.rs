@@ -90,7 +90,23 @@ const SQL_KEYWORDS: &[&str] = &[
 ///
 /// # Errors
 /// Returns accumulated `ParseError`s on failure.
+// Used by src/tests/ — dead_code fires in non-test compilation but not in tests.
+#[cfg_attr(not(test), allow(dead_code))]
 pub(crate) fn parse_sql(input: &str) -> Result<Ast, Vec<ParseError>> {
+    // When called directly (bypassing PrismQlParser::parse), use env-var limits.
+    let limits = security::ParseLimits::snapshot();
+    parse_sql_with_limits(input, &limits)
+}
+
+/// Parse a SQL-mode query using the provided snapshotted limits (F-HIGH-001).
+///
+/// This is the race-free variant used by `PrismQlParser::parse`. All post-parse
+/// security guards use the caller-provided `limits` snapshot instead of re-reading
+/// env vars.
+pub(crate) fn parse_sql_with_limits(
+    input: &str,
+    limits: &security::ParseLimits,
+) -> Result<Ast, Vec<ParseError>> {
     let parser = build_sql_parser();
     let (result, errs) = parser.parse(input).into_output_errors();
 
@@ -98,11 +114,13 @@ pub(crate) fn parse_sql(input: &str) -> Result<Ast, Vec<ParseError>> {
     if errs.is_empty() {
         if let Some(sq) = result {
             // Security: check AST nesting depth across WHERE, HAVING, JOIN ON,
-            // and ORDER BY expressions (B-2, BC-2.11.006, DI-019, EC-002).
-            security::check_sql_query_nesting_depth(&sq, 0)
+            // and ORDER BY expressions (race-free via snapshot).
+            limits
+                .check_sql_query_nesting_depth_with(&sq, 0)
                 .map_err(|e| vec![ParseError::new(0, e.to_string())])?;
-            // Security: check list item counts (B-8, BC-2.11.006).
-            security::check_sql_list_sizes(&sq)
+            // Security: check list item counts (race-free via snapshot).
+            limits
+                .check_sql_list_sizes_with(&sq)
                 .map_err(|e| vec![ParseError::new(0, e.to_string())])?;
             return Ok(Ast::Sql(SqlStatement::Select(sq)));
         }
@@ -119,8 +137,8 @@ pub(crate) fn parse_sql(input: &str) -> Result<Ast, Vec<ParseError>> {
             // Partial AST with recovery errors: validate depth and list sizes
             // before returning. The AST may contain Predicate::RecoveryError
             // sentinels where recovery occurred.
-            if security::check_sql_query_nesting_depth(&sq, 0).is_ok()
-                && security::check_sql_list_sizes(&sq).is_ok()
+            if limits.check_sql_query_nesting_depth_with(&sq, 0).is_ok()
+                && limits.check_sql_list_sizes_with(&sq).is_ok()
             {
                 return Ok(Ast::Sql(SqlStatement::Select(sq)));
             }

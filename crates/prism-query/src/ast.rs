@@ -1046,8 +1046,18 @@ impl RegexLiteral {
     /// This function delegates to `security::check_regex_pattern_length` instead
     /// of duplicating the constant.
     pub fn new(pattern: &str) -> Result<Self, String> {
-        // Length check via security module — single source of truth (BC-2.11.006).
-        crate::security::check_regex_pattern_length(pattern).map_err(|e| e.to_string())?;
+        // Length check: use thread-local snapshotted limit when called inside
+        // `PrismQlParser::parse`, falling back to env-var read otherwise.
+        // This makes the regex length guard race-free (F-HIGH-001, BC-2.11.006).
+        let limit = crate::security::ParseLimits::current_regex_limit();
+        if pattern.len() > limit {
+            return Err(format!(
+                "{}: regex pattern length {} bytes exceeds maximum allowed {} bytes",
+                crate::security::E_QUERY_003,
+                pattern.len(),
+                limit
+            ));
+        }
         regex::Regex::new(pattern)
             .map_err(|e| format!("E-QUERY-001: invalid regex pattern '{pattern}': {e}"))?;
         Ok(Self {

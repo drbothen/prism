@@ -49,11 +49,30 @@ impl PrismQlParser {
     /// Returns `Err(Vec<ParseError>)` if the input is syntactically invalid or
     /// exceeds security limits.
     pub fn parse(input: &str) -> Result<Ast, Vec<ParseError>> {
-        // F-LOW-002: Snapshot all effective limits ONCE before any guard runs.
+        // F-LOW-002 / F-HIGH-001: Snapshot all effective limits ONCE before any guard runs.
         // All security guards within this parse call use the same snapshotted values,
         // preventing concurrent env-var mutations from causing limit inconsistencies.
         let limits = security::ParseLimits::snapshot();
 
+        // F-HIGH-001: Install the snapshot as the thread-local limit so that
+        // AST-construction-time checks (e.g. RegexLiteral::new) also see the
+        // snapshotted value rather than re-reading the env var.
+        limits.install_thread_local();
+
+        // Run the actual parse, then always clear the thread-local on exit.
+        let result = Self::parse_with_limits(input, &limits);
+        security::ParseLimits::clear_thread_local();
+        result
+    }
+
+    /// Inner parse implementation that receives the already-snapshotted limits.
+    ///
+    /// Separated from `parse` so that the thread-local cleanup in `parse` is
+    /// guaranteed to run even when this function returns early (both Ok and Err).
+    fn parse_with_limits(
+        input: &str,
+        limits: &security::ParseLimits,
+    ) -> Result<Ast, Vec<ParseError>> {
         // Security check: reject oversized queries before any parsing.
         limits
             .check_query_size(input)
@@ -155,20 +174,20 @@ impl PrismQlParser {
         // `first_token_upper` is the uppercase of the first whitespace-separated
         // token; it is the same as `trimmed.to_uppercase().split_whitespace().next()`.
         if first_token_upper == "SELECT" {
-            return parse_sql_internal(input);
+            return parse_sql_internal(input, limits);
         }
         if first_token_upper == "FROM" || trimmed.starts_with('|') {
-            return parse_pipe_internal(input);
+            return parse_pipe_internal(input, limits);
         }
 
         // Detect pipe-vs-filter: if there's a `|` and the token after it is a
         // pipe stage keyword, route to pipe mode.
         if is_pipe_mode(trimmed) {
-            return parse_pipe_internal(input);
+            return parse_pipe_internal(input, limits);
         }
 
         // Filter mode.
-        parse_filter_internal(input)
+        parse_filter_internal(input, limits)
     }
 }
 
@@ -256,8 +275,11 @@ fn is_pipe_mode(input: &str) -> bool {
 /// `PrismQlParser::parse`, which has already applied the guards. The exemption
 /// is intentional and scoped to this helper.
 #[allow(clippy::disallowed_methods)]
-fn parse_filter_internal(input: &str) -> Result<Ast, Vec<ParseError>> {
-    parse_filter(input).map(Ast::Filter)
+fn parse_filter_internal(
+    input: &str,
+    limits: &security::ParseLimits,
+) -> Result<Ast, Vec<ParseError>> {
+    parse_filter_with_limits(input, limits).map(Ast::Filter)
 }
 
 /// Parse SQL mode internally — delegates to `parse_sql` which returns `Ast::Sql(...)` directly.
@@ -266,8 +288,8 @@ fn parse_filter_internal(input: &str) -> Result<Ast, Vec<ParseError>> {
 /// Same rationale as `parse_filter_internal`. Guards are applied by the caller
 /// (`PrismQlParser::parse`) before dispatching here.
 #[allow(clippy::disallowed_methods)]
-fn parse_sql_internal(input: &str) -> Result<Ast, Vec<ParseError>> {
-    crate::sql_parser::parse_sql(input)
+fn parse_sql_internal(input: &str, limits: &security::ParseLimits) -> Result<Ast, Vec<ParseError>> {
+    crate::sql_parser::parse_sql_with_limits(input, limits)
 }
 
 /// Parse pipe mode internally, wrapping result as `Ast::Pipe`.
@@ -276,8 +298,11 @@ fn parse_sql_internal(input: &str) -> Result<Ast, Vec<ParseError>> {
 /// Same rationale as `parse_filter_internal`. Guards are applied by the caller
 /// (`PrismQlParser::parse`) before dispatching here.
 #[allow(clippy::disallowed_methods)]
-fn parse_pipe_internal(input: &str) -> Result<Ast, Vec<ParseError>> {
-    crate::pipe_parser::parse_pipe(input).map(Ast::Pipe)
+fn parse_pipe_internal(
+    input: &str,
+    limits: &security::ParseLimits,
+) -> Result<Ast, Vec<ParseError>> {
+    crate::pipe_parser::parse_pipe_with_limits(input, limits).map(Ast::Pipe)
 }
 
 // ── Security re-export for convenient use in tests ────────────────────────────
@@ -294,16 +319,34 @@ pub use security::{PRISM_MAX_NESTING_DEPTH, PRISM_MAX_QUERY_SIZE};
 ///
 /// # Errors
 /// Returns accumulated `ParseError`s on failure.
+// Used by src/tests/ — dead_code fires in non-test compilation but not in tests.
+#[cfg_attr(not(test), allow(dead_code))]
 pub(crate) fn parse_filter(input: &str) -> Result<FilterExpr, Vec<ParseError>> {
+    // When called directly (bypassing PrismQlParser::parse), use env-var limits.
+    let limits = security::ParseLimits::snapshot();
+    parse_filter_with_limits(input, &limits)
+}
+
+/// Parse a filter-mode query using the provided snapshotted limits (F-HIGH-001).
+///
+/// This is the race-free variant used by `PrismQlParser::parse`. All post-parse
+/// security guards use the caller-provided `limits` snapshot instead of re-reading
+/// env vars.
+pub(crate) fn parse_filter_with_limits(
+    input: &str,
+    limits: &security::ParseLimits,
+) -> Result<FilterExpr, Vec<ParseError>> {
     let parser = build_filter_parser();
     let (result, errs) = parser.parse(input).into_output_errors();
     if errs.is_empty() {
         if let Some(fe) = result {
-            // Security: check nesting depth on parsed predicate.
-            security::check_predicate_nesting_depth(&fe.predicate, 0)
+            // Security: check nesting depth on parsed predicate (race-free via snapshot).
+            limits
+                .check_predicate_nesting_depth_with(&fe.predicate, 0)
                 .map_err(|e| vec![ParseError::new(0, e.to_string())])?;
-            // Security: check IN list sizes (B-8, BC-2.11.006).
-            security::check_filter_list_sizes(&fe)
+            // Security: check IN list sizes (race-free via snapshot).
+            limits
+                .check_filter_list_sizes_with(&fe)
                 .map_err(|e| vec![ParseError::new(0, e.to_string())])?;
             return Ok(fe);
         }

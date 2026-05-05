@@ -31,7 +31,11 @@ use crate::{
     filter_parser::{parse_filter, PrismQlParser},
     pipe_parser::parse_pipe,
     security::{
-        effective_list_items_limit, effective_nesting_depth_limit, effective_query_size_limit,
+        effective_list_items_limit, effective_nesting_depth_limit, effective_pipe_stage_limit,
+        effective_query_size_limit, effective_regex_pattern_length_limit, MAX_SAFE_LIST_ITEMS,
+        MAX_SAFE_NESTING_DEPTH, MAX_SAFE_PIPE_STAGES, MAX_SAFE_QUERY_SIZE,
+        MAX_SAFE_REGEX_PATTERN_LEN, MIN_SAFE_LIST_ITEMS, MIN_SAFE_NESTING_DEPTH,
+        MIN_SAFE_PIPE_STAGES, MIN_SAFE_QUERY_SIZE, MIN_SAFE_REGEX_PATTERN_LEN,
         PRISM_MAX_LIST_ITEMS, PRISM_MAX_NESTING_DEPTH, PRISM_MAX_QUERY_SIZE,
     },
     sql_parser::parse_sql,
@@ -634,5 +638,623 @@ fn test_parse_limits_snapshot_is_immutable_after_capture() {
         limits.list_items, 64,
         "F-LOW-002: snapshot must capture list_items=64, got {}",
         limits.list_items
+    );
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// F-HIGH-001: ParseLimits snapshot propagates to ALL 9 guards (race-free)
+// ─────────────────────────────────────────────────────────────────────────────
+//
+// Serialise env-var mutation in these tests to prevent cross-contamination when
+// running under `cargo test` (which runs tests in parallel on the same process).
+// Each test acquires the lock, sets vars, takes the snapshot, resets vars, then
+// calls the guard — all while holding the lock.
+
+use std::sync::Mutex;
+
+// Global mutex for tests that mutate env vars.
+// All env-var-sensitive tests MUST acquire this before touching env vars.
+static ENV_MUTEX: Mutex<()> = Mutex::new(());
+
+/// F-HIGH-001: `check_predicate_nesting_depth_with` uses the snapshotted
+/// `nesting_depth` limit, not the current env-var value.
+///
+/// Protocol:
+/// 1. Set PRISM_MAX_NESTING_DEPTH=8 (MIN floor).
+/// 2. Snapshot → limits.nesting_depth = 8.
+/// 3. Change PRISM_MAX_NESTING_DEPTH=64 (default) — post-snapshot.
+/// 4. Build a predicate at depth 9 (exceeds snapshotted 8, below new 64).
+/// 5. Call check_predicate_nesting_depth_with → must reject (used snapshot value 8).
+///
+/// Traces: F-HIGH-001, BC-2.11.006
+#[test]
+fn test_parse_limits_snapshot_propagates_to_predicate_depth_guard() {
+    use crate::ast::{FieldPath, Literal, Predicate, Span};
+    use crate::security::ParseLimits;
+
+    let _guard = ENV_MUTEX.lock().unwrap();
+
+    // Snapshot with nesting_depth = 8 (MIN_SAFE floor).
+    std::env::set_var("PRISM_MAX_NESTING_DEPTH", "8");
+    let limits = ParseLimits::snapshot();
+    // Change env var after snapshot — guard must still use snapshotted 8.
+    std::env::set_var("PRISM_MAX_NESTING_DEPTH", "64");
+    std::env::remove_var("PRISM_MAX_NESTING_DEPTH");
+
+    assert_eq!(
+        limits.nesting_depth, 8,
+        "F-HIGH-001: snapshot nesting_depth must be 8 (MIN_SAFE), got {}",
+        limits.nesting_depth
+    );
+
+    // Build a 10-deep chain of Predicate::Not (depth 0..9 from root; call at depth=9).
+    // With limit=8, depth 9 > 8 must be rejected.
+    fn make_not_chain(depth: u32) -> Predicate {
+        if depth == 0 {
+            Predicate::Compare {
+                lhs: Box::new(crate::ast::Expr::Literal(Literal::Integer(1))),
+                op: crate::ast::CompareOp::Eq,
+                rhs: Box::new(crate::ast::Expr::Literal(Literal::Integer(1))),
+            }
+        } else {
+            Predicate::Not(Box::new(make_not_chain(depth - 1)))
+        }
+    }
+
+    // 9 NOTs around a leaf → root call at depth 0, reaching depth 9 at the leaf.
+    let pred = make_not_chain(9);
+    let result = limits.check_predicate_nesting_depth_with(&pred, 0);
+    assert!(
+        result.is_err(),
+        "F-HIGH-001: depth-9 predicate must be rejected by snapshotted limit 8; got Ok"
+    );
+    let err = result.unwrap_err().to_string();
+    assert!(
+        err.contains("E-QUERY-003"),
+        "F-HIGH-001: error must contain E-QUERY-003, got: {err}"
+    );
+}
+
+/// F-HIGH-001: `check_pipe_stage_count_with` uses the snapshotted
+/// `pipe_stages` limit, not the current env-var value.
+///
+/// Traces: F-HIGH-001, BC-2.11.006
+#[test]
+fn test_parse_limits_snapshot_propagates_to_pipe_stage_guard() {
+    use crate::ast::{FieldPath, PipeQuery, PipeStage, SourceRef};
+    use crate::security::ParseLimits;
+
+    let _guard = ENV_MUTEX.lock().unwrap();
+
+    // Snapshot with pipe_stages = MIN_SAFE_PIPE_STAGES (4 after OBS-001 fix).
+    std::env::set_var("PRISM_MAX_PIPE_STAGES", "4");
+    let limits = ParseLimits::snapshot();
+    // Change env var to 32 after snapshot — guard must still use 4.
+    std::env::set_var("PRISM_MAX_PIPE_STAGES", "32");
+    std::env::remove_var("PRISM_MAX_PIPE_STAGES");
+
+    assert_eq!(
+        limits.pipe_stages, 4,
+        "F-HIGH-001: snapshot pipe_stages must be 4, got {}",
+        limits.pipe_stages
+    );
+
+    // 5 stages > snapshotted limit 4 → must reject.
+    let stages: Vec<PipeStage> = (0..5)
+        .map(|_| {
+            PipeStage::Fields(crate::ast::FieldsStage {
+                fields: vec![],
+                include: true,
+            })
+        })
+        .collect();
+
+    let result = limits.check_pipe_stage_count_with(&stages);
+    assert!(
+        result.is_err(),
+        "F-HIGH-001: 5 stages must be rejected by snapshotted limit 4; got Ok"
+    );
+    let err = result.unwrap_err().to_string();
+    assert!(
+        err.contains("E-QUERY-003"),
+        "F-HIGH-001: error must contain E-QUERY-003, got: {err}"
+    );
+}
+
+/// F-HIGH-001: `check_list_length_with` uses the snapshotted `list_items`
+/// limit, not the current env-var value.
+///
+/// Traces: F-HIGH-001, BC-2.11.006
+#[test]
+fn test_parse_limits_snapshot_propagates_to_list_size_guard() {
+    use crate::security::ParseLimits;
+
+    let _guard = ENV_MUTEX.lock().unwrap();
+
+    // Snapshot with list_items = 16 (MIN_SAFE floor).
+    std::env::set_var("PRISM_MAX_LIST_ITEMS", "16");
+    let limits = ParseLimits::snapshot();
+    // Change env var to 1024 after snapshot — guard must still use 16.
+    std::env::set_var("PRISM_MAX_LIST_ITEMS", "1024");
+    std::env::remove_var("PRISM_MAX_LIST_ITEMS");
+
+    assert_eq!(
+        limits.list_items, 16,
+        "F-HIGH-001: snapshot list_items must be 16, got {}",
+        limits.list_items
+    );
+
+    // 17 items > snapshotted 16 → must reject.
+    let result = limits.check_list_length_with(17, "IN list");
+    assert!(
+        result.is_err(),
+        "F-HIGH-001: 17-item list must be rejected by snapshotted limit 16; got Ok"
+    );
+    let err = result.unwrap_err().to_string();
+    assert!(
+        err.contains("E-QUERY-003"),
+        "F-HIGH-001: error must contain E-QUERY-003, got: {err}"
+    );
+}
+
+/// F-HIGH-001: `ParseLimits::current_regex_limit()` returns the thread-local
+/// snapshotted value when `install_thread_local` has been called.
+///
+/// This verifies that `RegexLiteral::new` (which calls `current_regex_limit()`)
+/// uses the snapshot rather than re-reading the env var during parsing.
+///
+/// Traces: F-HIGH-001, BC-2.11.006
+#[test]
+fn test_parse_limits_thread_local_regex_limit_uses_snapshot() {
+    use crate::security::ParseLimits;
+
+    let _guard = ENV_MUTEX.lock().unwrap();
+
+    // Set limit to 64 (MIN_SAFE floor), snapshot, install thread-local.
+    std::env::set_var("PRISM_MAX_REGEX_PATTERN_LEN", "64");
+    let limits = ParseLimits::snapshot();
+    limits.install_thread_local();
+
+    // Change env var after install — current_regex_limit must still return 64.
+    std::env::set_var("PRISM_MAX_REGEX_PATTERN_LEN", "1024");
+    std::env::remove_var("PRISM_MAX_REGEX_PATTERN_LEN");
+
+    let current = ParseLimits::current_regex_limit();
+    ParseLimits::clear_thread_local();
+
+    assert_eq!(
+        current, 64,
+        "F-HIGH-001: current_regex_limit() must return snapshotted 64, got {current}"
+    );
+}
+
+/// F-HIGH-001: `PrismQlParser::parse` enforces the regex limit from the snapshot
+/// even if the env var is changed between the snapshot and the actual parse.
+///
+/// We test this indirectly: set PRISM_MAX_REGEX_PATTERN_LEN=64, then parse a
+/// regex pattern of exactly 65 bytes. Without snapshot propagation, if the env
+/// var is reset to 1024 before `RegexLiteral::new` runs, the pattern would be
+/// accepted. With snapshot propagation via thread_local, it must be rejected.
+///
+/// Traces: F-HIGH-001, BC-2.11.006
+#[test]
+fn test_parse_limits_snapshot_propagates_to_regex_pattern_guard() {
+    use crate::ast::RegexLiteral;
+    use crate::security::ParseLimits;
+
+    let _guard = ENV_MUTEX.lock().unwrap();
+
+    // Install a snapshot with regex_pattern = 64 (MIN_SAFE).
+    std::env::set_var("PRISM_MAX_REGEX_PATTERN_LEN", "64");
+    let limits = ParseLimits::snapshot();
+    limits.install_thread_local();
+
+    // Immediately reset env var to 1024 — without thread_local propagation,
+    // RegexLiteral::new would read 1024 and accept the 65-byte pattern.
+    std::env::set_var("PRISM_MAX_REGEX_PATTERN_LEN", "1024");
+    std::env::remove_var("PRISM_MAX_REGEX_PATTERN_LEN");
+
+    // A 65-byte pattern exceeds the snapshotted limit of 64.
+    let pattern = "a".repeat(65);
+    let result = RegexLiteral::new(&pattern);
+    ParseLimits::clear_thread_local();
+
+    assert!(
+        result.is_err(),
+        "F-HIGH-001: 65-byte regex pattern must be rejected by snapshotted limit 64; got Ok"
+    );
+    let err = result.unwrap_err();
+    assert!(
+        err.contains("E-QUERY-003"),
+        "F-HIGH-001: error must contain E-QUERY-003, got: {err}"
+    );
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// F-LOW-001: Boundary tests for all clamp pairs — MIN-1, MIN, MAX, MAX+1
+// ─────────────────────────────────────────────────────────────────────────────
+
+/// F-LOW-001: PRISM_MAX_QUERY_SIZE=1023 (MIN-1) must clamp UP to MIN_SAFE_QUERY_SIZE (1024).
+///
+/// Traces: F-LOW-001, BC-2.11.006, EC-001
+#[test]
+fn test_clamp_query_size_below_min_clamped_up() {
+    use crate::security::{effective_query_size_limit, MIN_SAFE_QUERY_SIZE};
+
+    let _guard = ENV_MUTEX.lock().unwrap();
+
+    std::env::set_var("PRISM_MAX_QUERY_SIZE", "1023");
+    let limit = effective_query_size_limit();
+    std::env::remove_var("PRISM_MAX_QUERY_SIZE");
+
+    assert_eq!(
+        limit, MIN_SAFE_QUERY_SIZE,
+        "F-LOW-001: PRISM_MAX_QUERY_SIZE=1023 (MIN-1) must clamp to {MIN_SAFE_QUERY_SIZE}, got {limit}"
+    );
+}
+
+/// F-LOW-001: PRISM_MAX_QUERY_SIZE=1024 (MIN exact) must be accepted as-is.
+///
+/// Traces: F-LOW-001, BC-2.11.006, EC-001
+#[test]
+fn test_clamp_query_size_at_min_accepted() {
+    use crate::security::{effective_query_size_limit, MIN_SAFE_QUERY_SIZE};
+
+    let _guard = ENV_MUTEX.lock().unwrap();
+
+    std::env::set_var("PRISM_MAX_QUERY_SIZE", "1024");
+    let limit = effective_query_size_limit();
+    std::env::remove_var("PRISM_MAX_QUERY_SIZE");
+
+    assert_eq!(
+        limit, 1024,
+        "F-LOW-001: PRISM_MAX_QUERY_SIZE=1024 (MIN exact) must be accepted as 1024, got {limit}"
+    );
+}
+
+/// F-LOW-001: PRISM_MAX_QUERY_SIZE=1048576 (MAX exact) must be accepted as-is.
+///
+/// Traces: F-LOW-001, BC-2.11.006, EC-001
+#[test]
+fn test_clamp_query_size_at_max_accepted() {
+    use crate::security::{effective_query_size_limit, MAX_SAFE_QUERY_SIZE};
+
+    let _guard = ENV_MUTEX.lock().unwrap();
+
+    std::env::set_var("PRISM_MAX_QUERY_SIZE", "1048576");
+    let limit = effective_query_size_limit();
+    std::env::remove_var("PRISM_MAX_QUERY_SIZE");
+
+    assert_eq!(
+        limit,
+        MAX_SAFE_QUERY_SIZE,
+        "F-LOW-001: PRISM_MAX_QUERY_SIZE=1048576 (MAX exact) must be accepted as {MAX_SAFE_QUERY_SIZE}, got {limit}"
+    );
+}
+
+/// F-LOW-001: PRISM_MAX_QUERY_SIZE=1048577 (MAX+1) must clamp DOWN to MAX_SAFE_QUERY_SIZE (1048576).
+///
+/// Traces: F-LOW-001, BC-2.11.006, EC-001
+#[test]
+fn test_clamp_query_size_above_max_clamped_down() {
+    use crate::security::{effective_query_size_limit, MAX_SAFE_QUERY_SIZE};
+
+    let _guard = ENV_MUTEX.lock().unwrap();
+
+    std::env::set_var("PRISM_MAX_QUERY_SIZE", "1048577");
+    let limit = effective_query_size_limit();
+    std::env::remove_var("PRISM_MAX_QUERY_SIZE");
+
+    assert_eq!(
+        limit, MAX_SAFE_QUERY_SIZE,
+        "F-LOW-001: PRISM_MAX_QUERY_SIZE=1048577 (MAX+1) must clamp to {MAX_SAFE_QUERY_SIZE}, got {limit}"
+    );
+}
+
+/// F-LOW-001: PRISM_MAX_NESTING_DEPTH=7 (MIN-1) must clamp UP to MIN_SAFE_NESTING_DEPTH (8).
+///
+/// Traces: F-LOW-001, BC-2.11.006, EC-002
+#[test]
+fn test_clamp_nesting_depth_below_min_clamped_up() {
+    use crate::security::{effective_nesting_depth_limit, MIN_SAFE_NESTING_DEPTH};
+
+    let _guard = ENV_MUTEX.lock().unwrap();
+
+    std::env::set_var("PRISM_MAX_NESTING_DEPTH", "7");
+    let limit = effective_nesting_depth_limit();
+    std::env::remove_var("PRISM_MAX_NESTING_DEPTH");
+
+    assert_eq!(
+        limit, MIN_SAFE_NESTING_DEPTH,
+        "F-LOW-001: PRISM_MAX_NESTING_DEPTH=7 (MIN-1) must clamp to {MIN_SAFE_NESTING_DEPTH}, got {limit}"
+    );
+}
+
+/// F-LOW-001: PRISM_MAX_NESTING_DEPTH=8 (MIN exact) must be accepted as-is.
+///
+/// Traces: F-LOW-001, BC-2.11.006, EC-002
+#[test]
+fn test_clamp_nesting_depth_at_min_accepted() {
+    use crate::security::effective_nesting_depth_limit;
+
+    let _guard = ENV_MUTEX.lock().unwrap();
+
+    std::env::set_var("PRISM_MAX_NESTING_DEPTH", "8");
+    let limit = effective_nesting_depth_limit();
+    std::env::remove_var("PRISM_MAX_NESTING_DEPTH");
+
+    assert_eq!(
+        limit, 8,
+        "F-LOW-001: PRISM_MAX_NESTING_DEPTH=8 (MIN exact) must be accepted as 8, got {limit}"
+    );
+}
+
+/// F-LOW-001: PRISM_MAX_NESTING_DEPTH=256 (MAX exact) must be accepted as-is.
+///
+/// Traces: F-LOW-001, BC-2.11.006, EC-002
+#[test]
+fn test_clamp_nesting_depth_at_max_accepted() {
+    use crate::security::{effective_nesting_depth_limit, MAX_SAFE_NESTING_DEPTH};
+
+    let _guard = ENV_MUTEX.lock().unwrap();
+
+    std::env::set_var("PRISM_MAX_NESTING_DEPTH", "256");
+    let limit = effective_nesting_depth_limit();
+    std::env::remove_var("PRISM_MAX_NESTING_DEPTH");
+
+    assert_eq!(
+        limit, MAX_SAFE_NESTING_DEPTH,
+        "F-LOW-001: PRISM_MAX_NESTING_DEPTH=256 (MAX exact) must be accepted as {MAX_SAFE_NESTING_DEPTH}, got {limit}"
+    );
+}
+
+/// F-LOW-001: PRISM_MAX_NESTING_DEPTH=257 (MAX+1) must clamp DOWN to MAX_SAFE_NESTING_DEPTH (256).
+///
+/// Traces: F-LOW-001, BC-2.11.006, EC-002
+#[test]
+fn test_clamp_nesting_depth_above_max_clamped_down() {
+    use crate::security::{effective_nesting_depth_limit, MAX_SAFE_NESTING_DEPTH};
+
+    let _guard = ENV_MUTEX.lock().unwrap();
+
+    std::env::set_var("PRISM_MAX_NESTING_DEPTH", "257");
+    let limit = effective_nesting_depth_limit();
+    std::env::remove_var("PRISM_MAX_NESTING_DEPTH");
+
+    assert_eq!(
+        limit, MAX_SAFE_NESTING_DEPTH,
+        "F-LOW-001: PRISM_MAX_NESTING_DEPTH=257 (MAX+1) must clamp to {MAX_SAFE_NESTING_DEPTH}, got {limit}"
+    );
+}
+
+/// F-LOW-001: PRISM_MAX_LIST_ITEMS=15 (MIN-1) must clamp UP to MIN_SAFE_LIST_ITEMS (16).
+///
+/// Traces: F-LOW-001, BC-2.11.006
+#[test]
+fn test_clamp_list_items_below_min_clamped_up() {
+    use crate::security::{effective_list_items_limit, MIN_SAFE_LIST_ITEMS};
+
+    let _guard = ENV_MUTEX.lock().unwrap();
+
+    std::env::set_var("PRISM_MAX_LIST_ITEMS", "15");
+    let limit = effective_list_items_limit();
+    std::env::remove_var("PRISM_MAX_LIST_ITEMS");
+
+    assert_eq!(
+        limit, MIN_SAFE_LIST_ITEMS,
+        "F-LOW-001: PRISM_MAX_LIST_ITEMS=15 (MIN-1) must clamp to {MIN_SAFE_LIST_ITEMS}, got {limit}"
+    );
+}
+
+/// F-LOW-001: PRISM_MAX_LIST_ITEMS=16 (MIN exact) must be accepted as-is.
+///
+/// Traces: F-LOW-001, BC-2.11.006
+#[test]
+fn test_clamp_list_items_at_min_accepted() {
+    use crate::security::effective_list_items_limit;
+
+    let _guard = ENV_MUTEX.lock().unwrap();
+
+    std::env::set_var("PRISM_MAX_LIST_ITEMS", "16");
+    let limit = effective_list_items_limit();
+    std::env::remove_var("PRISM_MAX_LIST_ITEMS");
+
+    assert_eq!(
+        limit, 16,
+        "F-LOW-001: PRISM_MAX_LIST_ITEMS=16 (MIN exact) must be accepted as 16, got {limit}"
+    );
+}
+
+/// F-LOW-001: PRISM_MAX_LIST_ITEMS=16384 (MAX exact) must be accepted as-is.
+///
+/// Traces: F-LOW-001, BC-2.11.006
+#[test]
+fn test_clamp_list_items_at_max_accepted() {
+    use crate::security::{effective_list_items_limit, MAX_SAFE_LIST_ITEMS};
+
+    let _guard = ENV_MUTEX.lock().unwrap();
+
+    std::env::set_var("PRISM_MAX_LIST_ITEMS", "16384");
+    let limit = effective_list_items_limit();
+    std::env::remove_var("PRISM_MAX_LIST_ITEMS");
+
+    assert_eq!(
+        limit, MAX_SAFE_LIST_ITEMS,
+        "F-LOW-001: PRISM_MAX_LIST_ITEMS=16384 (MAX exact) must be accepted as {MAX_SAFE_LIST_ITEMS}, got {limit}"
+    );
+}
+
+/// F-LOW-001: PRISM_MAX_LIST_ITEMS=16385 (MAX+1) must clamp DOWN to MAX_SAFE_LIST_ITEMS (16384).
+///
+/// Traces: F-LOW-001, BC-2.11.006
+#[test]
+fn test_clamp_list_items_above_max_clamped_down() {
+    use crate::security::{effective_list_items_limit, MAX_SAFE_LIST_ITEMS};
+
+    let _guard = ENV_MUTEX.lock().unwrap();
+
+    std::env::set_var("PRISM_MAX_LIST_ITEMS", "16385");
+    let limit = effective_list_items_limit();
+    std::env::remove_var("PRISM_MAX_LIST_ITEMS");
+
+    assert_eq!(
+        limit, MAX_SAFE_LIST_ITEMS,
+        "F-LOW-001: PRISM_MAX_LIST_ITEMS=16385 (MAX+1) must clamp to {MAX_SAFE_LIST_ITEMS}, got {limit}"
+    );
+}
+
+/// F-LOW-001 / OBS-001: PRISM_MAX_PIPE_STAGES=3 (MIN-1 after OBS-001 floor=4)
+/// must clamp UP to MIN_SAFE_PIPE_STAGES (4).
+///
+/// Traces: F-LOW-001, OBS-001, BC-2.11.006
+#[test]
+fn test_clamp_pipe_stages_below_min_clamped_up() {
+    use crate::security::{effective_pipe_stage_limit, MIN_SAFE_PIPE_STAGES};
+
+    let _guard = ENV_MUTEX.lock().unwrap();
+
+    std::env::set_var("PRISM_MAX_PIPE_STAGES", "3");
+    let limit = effective_pipe_stage_limit();
+    std::env::remove_var("PRISM_MAX_PIPE_STAGES");
+
+    assert_eq!(
+        limit, MIN_SAFE_PIPE_STAGES,
+        "F-LOW-001/OBS-001: PRISM_MAX_PIPE_STAGES=3 (MIN-1) must clamp to {MIN_SAFE_PIPE_STAGES}, got {limit}"
+    );
+}
+
+/// F-LOW-001 / OBS-001: PRISM_MAX_PIPE_STAGES=4 (MIN exact after OBS-001 floor=4)
+/// must be accepted as-is.
+///
+/// Traces: F-LOW-001, OBS-001, BC-2.11.006
+#[test]
+fn test_clamp_pipe_stages_at_min_accepted() {
+    use crate::security::effective_pipe_stage_limit;
+
+    let _guard = ENV_MUTEX.lock().unwrap();
+
+    std::env::set_var("PRISM_MAX_PIPE_STAGES", "4");
+    let limit = effective_pipe_stage_limit();
+    std::env::remove_var("PRISM_MAX_PIPE_STAGES");
+
+    assert_eq!(
+        limit, 4,
+        "F-LOW-001/OBS-001: PRISM_MAX_PIPE_STAGES=4 (MIN exact) must be accepted as 4, got {limit}"
+    );
+}
+
+/// F-LOW-001: PRISM_MAX_PIPE_STAGES=256 (MAX exact) must be accepted as-is.
+///
+/// Traces: F-LOW-001, BC-2.11.006
+#[test]
+fn test_clamp_pipe_stages_at_max_accepted() {
+    use crate::security::{effective_pipe_stage_limit, MAX_SAFE_PIPE_STAGES};
+
+    let _guard = ENV_MUTEX.lock().unwrap();
+
+    std::env::set_var("PRISM_MAX_PIPE_STAGES", "256");
+    let limit = effective_pipe_stage_limit();
+    std::env::remove_var("PRISM_MAX_PIPE_STAGES");
+
+    assert_eq!(
+        limit, MAX_SAFE_PIPE_STAGES,
+        "F-LOW-001: PRISM_MAX_PIPE_STAGES=256 (MAX exact) must be accepted as {MAX_SAFE_PIPE_STAGES}, got {limit}"
+    );
+}
+
+/// F-LOW-001: PRISM_MAX_PIPE_STAGES=257 (MAX+1) must clamp DOWN to MAX_SAFE_PIPE_STAGES (256).
+///
+/// Traces: F-LOW-001, BC-2.11.006
+#[test]
+fn test_clamp_pipe_stages_above_max_clamped_down() {
+    use crate::security::{effective_pipe_stage_limit, MAX_SAFE_PIPE_STAGES};
+
+    let _guard = ENV_MUTEX.lock().unwrap();
+
+    std::env::set_var("PRISM_MAX_PIPE_STAGES", "257");
+    let limit = effective_pipe_stage_limit();
+    std::env::remove_var("PRISM_MAX_PIPE_STAGES");
+
+    assert_eq!(
+        limit, MAX_SAFE_PIPE_STAGES,
+        "F-LOW-001: PRISM_MAX_PIPE_STAGES=257 (MAX+1) must clamp to {MAX_SAFE_PIPE_STAGES}, got {limit}"
+    );
+}
+
+/// F-LOW-001: PRISM_MAX_REGEX_PATTERN_LEN=63 (MIN-1) must clamp UP to
+/// MIN_SAFE_REGEX_PATTERN_LEN (64).
+///
+/// Traces: F-LOW-001, BC-2.11.006
+#[test]
+fn test_clamp_regex_pattern_below_min_clamped_up() {
+    use crate::security::{effective_regex_pattern_length_limit, MIN_SAFE_REGEX_PATTERN_LEN};
+
+    let _guard = ENV_MUTEX.lock().unwrap();
+
+    std::env::set_var("PRISM_MAX_REGEX_PATTERN_LEN", "63");
+    let limit = effective_regex_pattern_length_limit();
+    std::env::remove_var("PRISM_MAX_REGEX_PATTERN_LEN");
+
+    assert_eq!(
+        limit, MIN_SAFE_REGEX_PATTERN_LEN,
+        "F-LOW-001: PRISM_MAX_REGEX_PATTERN_LEN=63 (MIN-1) must clamp to {MIN_SAFE_REGEX_PATTERN_LEN}, got {limit}"
+    );
+}
+
+/// F-LOW-001: PRISM_MAX_REGEX_PATTERN_LEN=64 (MIN exact) must be accepted as-is.
+///
+/// Traces: F-LOW-001, BC-2.11.006
+#[test]
+fn test_clamp_regex_pattern_at_min_accepted() {
+    use crate::security::effective_regex_pattern_length_limit;
+
+    let _guard = ENV_MUTEX.lock().unwrap();
+
+    std::env::set_var("PRISM_MAX_REGEX_PATTERN_LEN", "64");
+    let limit = effective_regex_pattern_length_limit();
+    std::env::remove_var("PRISM_MAX_REGEX_PATTERN_LEN");
+
+    assert_eq!(
+        limit, 64,
+        "F-LOW-001: PRISM_MAX_REGEX_PATTERN_LEN=64 (MIN exact) must be accepted as 64, got {limit}"
+    );
+}
+
+/// F-LOW-001: PRISM_MAX_REGEX_PATTERN_LEN=65536 (MAX exact) must be accepted as-is.
+///
+/// Traces: F-LOW-001, BC-2.11.006
+#[test]
+fn test_clamp_regex_pattern_at_max_accepted() {
+    use crate::security::{effective_regex_pattern_length_limit, MAX_SAFE_REGEX_PATTERN_LEN};
+
+    let _guard = ENV_MUTEX.lock().unwrap();
+
+    std::env::set_var("PRISM_MAX_REGEX_PATTERN_LEN", "65536");
+    let limit = effective_regex_pattern_length_limit();
+    std::env::remove_var("PRISM_MAX_REGEX_PATTERN_LEN");
+
+    assert_eq!(
+        limit, MAX_SAFE_REGEX_PATTERN_LEN,
+        "F-LOW-001: PRISM_MAX_REGEX_PATTERN_LEN=65536 (MAX exact) must be accepted as {MAX_SAFE_REGEX_PATTERN_LEN}, got {limit}"
+    );
+}
+
+/// F-LOW-001: PRISM_MAX_REGEX_PATTERN_LEN=65537 (MAX+1) must clamp DOWN to
+/// MAX_SAFE_REGEX_PATTERN_LEN (65536).
+///
+/// Traces: F-LOW-001, BC-2.11.006
+#[test]
+fn test_clamp_regex_pattern_above_max_clamped_down() {
+    use crate::security::{effective_regex_pattern_length_limit, MAX_SAFE_REGEX_PATTERN_LEN};
+
+    let _guard = ENV_MUTEX.lock().unwrap();
+
+    std::env::set_var("PRISM_MAX_REGEX_PATTERN_LEN", "65537");
+    let limit = effective_regex_pattern_length_limit();
+    std::env::remove_var("PRISM_MAX_REGEX_PATTERN_LEN");
+
+    assert_eq!(
+        limit, MAX_SAFE_REGEX_PATTERN_LEN,
+        "F-LOW-001: PRISM_MAX_REGEX_PATTERN_LEN=65537 (MAX+1) must clamp to {MAX_SAFE_REGEX_PATTERN_LEN}, got {limit}"
     );
 }

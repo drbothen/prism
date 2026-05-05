@@ -39,6 +39,63 @@ pub const PRISM_MAX_LIST_ITEMS: usize = 1_024;
 /// Error code string for security-limit violations.
 pub const E_QUERY_003: &str = "E-QUERY-003";
 
+// ── Thread-local ParseLimits for AST-construction-time checks (F-HIGH-001) ──
+//
+// `RegexLiteral::new` is called during AST construction by the Chumsky parser.
+// There is no clean way to thread `&ParseLimits` through the Chumsky combinator
+// closures without a major refactor of the parser. Instead, we publish the
+// snapshotted `ParseLimits` via a thread_local so that any regex pattern length
+// check inside the same parse call sees the same snapshotted value.
+//
+// # Protocol
+// 1. `PrismQlParser::parse` calls `ParseLimits::install_thread_local(&limits)`
+//    immediately after `ParseLimits::snapshot()`.
+// 2. `RegexLiteral::new` calls `ParseLimits::current_regex_limit()` instead of
+//    `effective_regex_pattern_length_limit()`.
+// 3. `PrismQlParser::parse` calls `ParseLimits::clear_thread_local()` before
+//    returning (in both Ok and Err paths) to avoid limit leakage across calls.
+//
+// This is safe because:
+//   - PrismQL parsing is synchronous (no async inside the parse call).
+//   - Each thread runs at most one `PrismQlParser::parse` call at a time.
+//   - The fallback when no snapshot is installed is `effective_regex_pattern_length_limit()`,
+//     which preserves the old behaviour for any caller that bypasses `PrismQlParser::parse`.
+std::thread_local! {
+    static THREAD_PARSE_LIMITS: std::cell::Cell<Option<ParseLimits>> =
+        const { std::cell::Cell::new(None) };
+}
+
+impl ParseLimits {
+    /// Install this snapshot as the thread-local limit for the current parse call.
+    ///
+    /// Must be called immediately after `ParseLimits::snapshot()` and before any
+    /// parsing combinator runs (i.e., before the first `parser.parse(input)` call).
+    pub fn install_thread_local(&self) {
+        THREAD_PARSE_LIMITS.with(|cell| cell.set(Some(*self)));
+    }
+
+    /// Clear the thread-local snapshot after a parse call completes.
+    ///
+    /// Must be called before returning from `PrismQlParser::parse` in all paths
+    /// (both `Ok` and `Err`) to prevent limit leakage into subsequent parse calls
+    /// on the same thread.
+    pub fn clear_thread_local() {
+        THREAD_PARSE_LIMITS.with(|cell| cell.set(None));
+    }
+
+    /// Return the regex pattern length limit from the thread-local snapshot,
+    /// falling back to `effective_regex_pattern_length_limit()` if no snapshot
+    /// is installed (i.e., when called outside of a `PrismQlParser::parse` call).
+    ///
+    /// Used by `RegexLiteral::new` during AST construction.
+    pub fn current_regex_limit() -> usize {
+        THREAD_PARSE_LIMITS
+            .with(|cell| cell.get())
+            .map(|l| l.regex_pattern)
+            .unwrap_or_else(effective_regex_pattern_length_limit)
+    }
+}
+
 /// Snapshot of all effective parse limits, captured once at the start of
 /// `PrismQlParser::parse`.
 ///
@@ -133,6 +190,266 @@ impl ParseLimits {
             });
         }
         Ok(())
+    }
+
+    // ── Post-parse guards using the snapshotted limits (F-HIGH-001) ──────────
+
+    /// Check predicate nesting depth using the snapshotted `nesting_depth` limit.
+    ///
+    /// Race-free: no env-var re-read. This replaces the free function
+    /// `check_predicate_nesting_depth` for all callers within a `parse()` call.
+    pub fn check_predicate_nesting_depth_with(
+        &self,
+        pred: &Predicate,
+        depth: u32,
+    ) -> Result<(), PrismError> {
+        let limit = self.nesting_depth;
+        if depth > limit {
+            return Err(PrismError::QueryExecutionFailed {
+                detail: format!(
+                    "{E_QUERY_003}: expression nesting depth {depth} exceeds maximum allowed {limit}"
+                ),
+            });
+        }
+        let next = depth + 1;
+        match pred {
+            Predicate::Compare { lhs, rhs, .. } => {
+                self.check_expr_nesting_depth_with(lhs, next)?;
+                self.check_expr_nesting_depth_with(rhs, next)
+            }
+            Predicate::StringOp { .. } => Ok(()),
+            Predicate::Regex { .. } => Ok(()),
+            Predicate::In { .. } => Ok(()),
+            Predicate::InSubquery { subquery, .. } => {
+                self.check_sql_query_nesting_depth_with(subquery, next)
+            }
+            Predicate::Between { .. } => Ok(()),
+            Predicate::Cidr { .. } => Ok(()),
+            Predicate::Has(_) => Ok(()),
+            Predicate::Missing(_) => Ok(()),
+            Predicate::IsNull { .. } => Ok(()),
+            Predicate::Wildcard { .. } => Ok(()),
+            Predicate::Logical { predicates, .. } => {
+                for p in predicates {
+                    self.check_predicate_nesting_depth_with(p, next)?;
+                }
+                Ok(())
+            }
+            Predicate::Not(inner) => self.check_predicate_nesting_depth_with(inner, next),
+            Predicate::RecoveryError => Ok(()),
+        }
+    }
+
+    /// Check SQL query nesting depth using the snapshotted `nesting_depth` limit.
+    ///
+    /// Race-free: no env-var re-read.
+    pub fn check_sql_query_nesting_depth_with(
+        &self,
+        sq: &SqlQuery,
+        depth: u32,
+    ) -> Result<(), PrismError> {
+        let limit = self.nesting_depth;
+        if depth > limit {
+            return Err(PrismError::QueryExecutionFailed {
+                detail: format!(
+                    "{E_QUERY_003}: expression nesting depth {depth} exceeds maximum allowed {limit}"
+                ),
+            });
+        }
+        let next = depth + 1;
+        if let Some(w) = &sq.where_ {
+            self.check_predicate_nesting_depth_with(w, next)?;
+        }
+        if let Some(h) = &sq.having {
+            self.check_predicate_nesting_depth_with(h, next)?;
+        }
+        for join in &sq.joins {
+            self.check_expr_nesting_depth_with(&join.on, next)?;
+        }
+        for oe in &sq.order_by {
+            self.check_expr_nesting_depth_with(&oe.expr, next)?;
+        }
+        Ok(())
+    }
+
+    /// Check expression nesting depth using the snapshotted `nesting_depth` limit.
+    ///
+    /// Race-free: no env-var re-read.
+    pub fn check_expr_nesting_depth_with(&self, expr: &Expr, depth: u32) -> Result<(), PrismError> {
+        let limit = self.nesting_depth;
+        if depth > limit {
+            return Err(PrismError::QueryExecutionFailed {
+                detail: format!(
+                    "{E_QUERY_003}: expression nesting depth {depth} exceeds maximum allowed {limit}"
+                ),
+            });
+        }
+        let next = depth + 1;
+        match expr {
+            Expr::Literal(_) | Expr::Field(_) | Expr::VirtualField(_) | Expr::Star => Ok(()),
+            Expr::Compare { lhs, rhs, .. } => {
+                self.check_expr_nesting_depth_with(lhs, next)?;
+                self.check_expr_nesting_depth_with(rhs, next)
+            }
+            Expr::Logical { lhs, rhs, .. } => {
+                self.check_expr_nesting_depth_with(lhs, next)?;
+                self.check_expr_nesting_depth_with(rhs, next)
+            }
+            Expr::Not(inner) => self.check_expr_nesting_depth_with(inner, next),
+            Expr::In { .. } => Ok(()),
+            Expr::InSubquery { subquery, .. } => {
+                self.check_sql_query_nesting_depth_with(subquery, next)
+            }
+            Expr::FuncCall(fc) => {
+                use crate::ast::FuncCall;
+                match fc {
+                    FuncCall::Aggregate { args, .. } | FuncCall::Scalar { args, .. } => {
+                        for arg in args {
+                            self.check_expr_nesting_depth_with(arg, next)?;
+                        }
+                        Ok(())
+                    }
+                    FuncCall::Window { .. } => Ok(()),
+                }
+            }
+        }
+    }
+
+    /// Check list length using the snapshotted `list_items` limit.
+    ///
+    /// Race-free: no env-var re-read.
+    pub fn check_list_length_with(&self, count: usize, context: &str) -> Result<(), PrismError> {
+        let limit = self.list_items;
+        if count > limit {
+            return Err(PrismError::QueryExecutionFailed {
+                detail: format!(
+                    "{E_QUERY_003}: {context} item count {count} exceeds maximum allowed {limit}"
+                ),
+            });
+        }
+        Ok(())
+    }
+
+    /// Check pipe stage count using the snapshotted `pipe_stages` limit.
+    ///
+    /// Race-free: no env-var re-read.
+    pub fn check_pipe_stage_count_with(&self, stages: &[PipeStage]) -> Result<(), PrismError> {
+        let limit = self.pipe_stages;
+        if stages.len() > limit {
+            return Err(PrismError::QueryExecutionFailed {
+                detail: format!(
+                    "{E_QUERY_003}: pipe stage count {} exceeds maximum allowed {}",
+                    stages.len(),
+                    limit
+                ),
+            });
+        }
+        Ok(())
+    }
+
+    /// Check regex pattern length using the snapshotted `regex_pattern` limit.
+    ///
+    /// Race-free: no env-var re-read.
+    pub fn check_regex_pattern_length_with(&self, pattern: &str) -> Result<(), PrismError> {
+        let limit = self.regex_pattern;
+        if pattern.len() > limit {
+            return Err(PrismError::QueryExecutionFailed {
+                detail: format!(
+                    "{E_QUERY_003}: regex pattern length {} bytes exceeds maximum allowed {} bytes",
+                    pattern.len(),
+                    limit
+                ),
+            });
+        }
+        Ok(())
+    }
+
+    /// Check filter list sizes using the snapshotted `list_items` limit.
+    ///
+    /// Race-free: no env-var re-read.
+    pub fn check_filter_list_sizes_with(&self, fe: &FilterExpr) -> Result<(), PrismError> {
+        self.check_predicate_list_sizes_with(&fe.predicate)
+    }
+
+    /// Check SQL list sizes using the snapshotted `list_items` limit.
+    ///
+    /// Race-free: no env-var re-read.
+    pub fn check_sql_list_sizes_with(&self, sq: &SqlQuery) -> Result<(), PrismError> {
+        self.check_list_length_with(sq.order_by.len(), "ORDER BY")?;
+        self.check_list_length_with(sq.group_by.len(), "GROUP BY")?;
+        if let Some(w) = &sq.where_ {
+            self.check_predicate_list_sizes_with(w)?;
+        }
+        if let Some(h) = &sq.having {
+            self.check_predicate_list_sizes_with(h)?;
+        }
+        for join in &sq.joins {
+            self.check_expr_list_sizes_with(&join.on)?;
+        }
+        Ok(())
+    }
+
+    /// Check pipe list sizes using the snapshotted `list_items` limit.
+    ///
+    /// Race-free: no env-var re-read.
+    pub fn check_pipe_list_sizes_with(&self, pq: &PipeQuery) -> Result<(), PrismError> {
+        for stage in &pq.stages {
+            self.check_pipe_stage_list_sizes_with(stage)?;
+        }
+        Ok(())
+    }
+
+    // ── Private helpers ───────────────────────────────────────────────────────
+
+    fn check_pipe_stage_list_sizes_with(&self, stage: &PipeStage) -> Result<(), PrismError> {
+        use crate::ast::PipeStage;
+        match stage {
+            PipeStage::Where(pred) => self.check_predicate_list_sizes_with(pred),
+            PipeStage::Sort(exprs) => self.check_list_length_with(exprs.len(), "sort"),
+            PipeStage::Dedup(fields) => self.check_list_length_with(fields.len(), "dedup"),
+            PipeStage::Fields(fs) => self.check_list_length_with(fs.fields.len(), "fields"),
+            PipeStage::Stats(ss) => {
+                self.check_list_length_with(ss.aggregates.len(), "stats aggregate")?;
+                self.check_list_length_with(ss.by_fields.len(), "stats BY")
+            }
+            _ => Ok(()),
+        }
+    }
+
+    fn check_predicate_list_sizes_with(&self, pred: &Predicate) -> Result<(), PrismError> {
+        match pred {
+            Predicate::In { values, .. } => self.check_list_length_with(values.len(), "IN list"),
+            Predicate::Logical { predicates, .. } => {
+                for p in predicates {
+                    self.check_predicate_list_sizes_with(p)?;
+                }
+                Ok(())
+            }
+            Predicate::Not(inner) => self.check_predicate_list_sizes_with(inner),
+            Predicate::Compare { lhs, rhs, .. } => {
+                self.check_expr_list_sizes_with(lhs)?;
+                self.check_expr_list_sizes_with(rhs)
+            }
+            Predicate::InSubquery { subquery, .. } => self.check_sql_list_sizes_with(subquery),
+            _ => Ok(()),
+        }
+    }
+
+    fn check_expr_list_sizes_with(&self, expr: &Expr) -> Result<(), PrismError> {
+        match expr {
+            Expr::In { values, .. } => self.check_list_length_with(values.len(), "IN list"),
+            Expr::Logical { lhs, rhs, .. } => {
+                self.check_expr_list_sizes_with(lhs)?;
+                self.check_expr_list_sizes_with(rhs)
+            }
+            Expr::Not(inner) => self.check_expr_list_sizes_with(inner),
+            Expr::Compare { lhs, rhs, .. } => {
+                self.check_expr_list_sizes_with(lhs)?;
+                self.check_expr_list_sizes_with(rhs)
+            }
+            Expr::InSubquery { subquery, .. } => self.check_sql_list_sizes_with(subquery),
+            _ => Ok(()),
+        }
     }
 }
 
@@ -358,8 +675,13 @@ pub const MAX_SAFE_LIST_ITEMS: usize = 16_384;
 
 /// Minimum safe pipe stage count limit.
 ///
-/// Prevents `PRISM_MAX_PIPE_STAGES=0` from disabling the guard entirely.
-pub const MIN_SAFE_PIPE_STAGES: usize = 1;
+/// A floor of 1 would allow an attacker with env-var-write access to reduce
+/// the guard to a single stage, effectively disabling it for any common
+/// single-stage attack pattern. A floor of 4 provides rough parity with the
+/// other minimum floors (8 for nesting, 16 for lists, 64 for regex) and
+/// ensures the guard remains meaningful under adversarial tuning.
+/// (OBS-001, BC-2.11.006)
+pub const MIN_SAFE_PIPE_STAGES: usize = 4;
 
 /// Maximum safe pipe stage count limit.
 ///
