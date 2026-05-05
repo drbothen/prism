@@ -83,9 +83,14 @@ const SQL_KEYWORDS: &[&str] = &[
 ///
 /// `parse_sql_ast` is removed — this function supersedes it.
 ///
+/// # Security perimeter (SEC-C-003, F-LOW-002)
+/// This function is `pub(crate)` to enforce that callers outside `prism-query`
+/// use `PrismQlParser::parse` exclusively. Direct callers bypass the mandatory
+/// pre-parse security guards (`check_query_size`, `check_paren_depth`).
+///
 /// # Errors
 /// Returns accumulated `ParseError`s on failure.
-pub fn parse_sql(input: &str) -> Result<Ast, Vec<ParseError>> {
+pub(crate) fn parse_sql(input: &str) -> Result<Ast, Vec<ParseError>> {
     let parser = build_sql_parser();
     let (result, errs) = parser.parse(input).into_output_errors();
     if errs.is_empty() {

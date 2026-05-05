@@ -33,8 +33,7 @@
     dead_code
 )]
 
-use ordered_float::OrderedFloat;
-use prism_query::{
+use crate::{
     ast::{
         AggFunc, Ast, CompareOp, EnrichStage, Expr, FieldPath, FieldsStage, FilterExpr, FromClause,
         Join, JoinCondition, JoinKind, JoinStage, Literal, LogicalOp, OrderExpr, PipeQuery,
@@ -50,6 +49,7 @@ use prism_query::{
     sql_parser::parse_sql,
     ParseError,
 };
+use ordered_float::OrderedFloat;
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Helper constructors (no implementation logic — purely test fixtures)
@@ -1511,7 +1511,7 @@ fn test_BC_2_11_011_sql_join_preserves_both_source_refs() {
 /// Traces: BC-2.11.012 (virtual fields — typed variant), S-2.08 _source_type injection
 #[test]
 fn test_BC_2_11_012_virtual_field_source_type_emits_virtual_field_variant() {
-    use prism_query::ast::VirtualField;
+    use crate::ast::VirtualField;
     let input = "crowdstrike.detections | _source_type = 'buffered'";
     let fe = parse_filter(input).expect("BC-2.11.012: _source_type filter must parse");
     match &fe.predicate {
@@ -1537,7 +1537,7 @@ fn test_BC_2_11_012_virtual_field_source_type_emits_virtual_field_variant() {
 /// Traces: BC-2.11.012 (virtual fields — typed variant, _safety_flags)
 #[test]
 fn test_BC_2_11_012_virtual_field_safety_flags_emits_virtual_field_variant() {
-    use prism_query::ast::VirtualField;
+    use crate::ast::VirtualField;
     let input = "FROM crowdstrike.detections | where _safety_flags = 0";
     let pq = parse_pipe(input).expect("BC-2.11.012: _safety_flags pipe filter must parse");
     match &pq.stages[0] {
@@ -1562,7 +1562,7 @@ fn test_BC_2_11_012_virtual_field_safety_flags_emits_virtual_field_variant() {
 /// Traces: BC-2.11.012 (virtual fields — typed variant, SQL WHERE)
 #[test]
 fn test_BC_2_11_012_virtual_field_source_type_in_sql_where_emits_virtual_field_variant() {
-    use prism_query::ast::VirtualField;
+    use crate::ast::VirtualField;
     let input = "SELECT * FROM crowdstrike.detections WHERE _source_type = 'live'";
     let ast = parse_sql(input).expect("BC-2.11.012: _source_type in SQL WHERE must parse");
     let Ast::Sql(SqlStatement::Select(sq)) = ast else {
@@ -1933,7 +1933,7 @@ fn test_BC_2_11_004_canonical_tv_invalid_stats_function_error() {
 /// Traces: error_recovery.rs pipe_boundary_chars() — not a todo!(), callable now
 #[test]
 fn test_BC_2_11_002_pipe_boundary_chars_contains_pipe() {
-    use prism_query::error_recovery::pipe_boundary_chars;
+    use crate::error_recovery::pipe_boundary_chars;
     let chars = pipe_boundary_chars();
     assert!(chars.contains(&'|'), "pipe_boundary_chars must include '|'");
 }
@@ -1943,7 +1943,7 @@ fn test_BC_2_11_002_pipe_boundary_chars_contains_pipe() {
 /// Traces: error_recovery.rs sql_paren_delimiters() — not a todo!(), callable now
 #[test]
 fn test_BC_2_11_003_sql_paren_delimiters_correct() {
-    use prism_query::error_recovery::sql_paren_delimiters;
+    use crate::error_recovery::sql_paren_delimiters;
     let (open, close) = sql_paren_delimiters();
     assert_eq!(open, '(', "sql_paren_delimiters open must be '('");
     assert_eq!(close, ')', "sql_paren_delimiters close must be ')'");
@@ -2141,7 +2141,7 @@ fn test_BC_2_11_002_canonical_tv_contains() {
                 "CONTAINS field must be 'user.name'"
             );
             assert!(
-                matches!(op, prism_query::ast::StringOp::Contains),
+                matches!(op, crate::ast::StringOp::Contains),
                 "op must be Contains"
             );
             assert_eq!(pattern, "admin", "CONTAINS pattern must be 'admin'");
@@ -2239,7 +2239,7 @@ fn test_BC_2_11_002_canonical_tv_wildcard_promotion_ne() {
 /// Traces: BC-2.11.002 duration literal, prismql-grammar.md §3.3
 #[test]
 fn test_literal_duration_seconds_parsed() {
-    use prism_query::ast::{DurationLiteral, DurationUnit};
+    use crate::ast::{DurationLiteral, DurationUnit};
     let input = "crowdstrike.detections | response_time > 30s";
     let fe = parse_filter(input).expect("30s must parse");
     match &fe.predicate {
@@ -2263,7 +2263,7 @@ fn test_literal_duration_seconds_parsed() {
 /// Traces: BC-2.11.002 duration literal
 #[test]
 fn test_literal_duration_hours_parsed() {
-    use prism_query::ast::{DurationLiteral, DurationUnit};
+    use crate::ast::{DurationLiteral, DurationUnit};
     let input = "crowdstrike.detections | uptime > 24h";
     let fe = parse_filter(input).expect("24h must parse");
     match &fe.predicate {
@@ -2283,7 +2283,7 @@ fn test_literal_duration_hours_parsed() {
 /// Traces: BC-2.11.002 duration literal
 #[test]
 fn test_literal_duration_days_parsed() {
-    use prism_query::ast::{DurationLiteral, DurationUnit};
+    use crate::ast::{DurationLiteral, DurationUnit};
     let input = "crowdstrike.detections | cert.expiry < 7d";
     let fe = parse_filter(input).expect("7d must parse");
     match &fe.predicate {
@@ -2514,7 +2514,7 @@ fn test_BC_2_11_003_cross_join_kind_parsed() {
 /// Traces: query-engine.md §Unified Query Surface, SourceRefKind
 #[test]
 fn test_source_ref_composite_events_classified() {
-    use prism_query::ast::{CompositeSource, SourceRefKind};
+    use crate::ast::{CompositeSource, SourceRefKind};
     let ast = parse_sql("SELECT * FROM EVENTS").expect("FROM EVENTS must parse");
     let Ast::Sql(SqlStatement::Select(sq)) = ast else {
         panic!("expected Ast::Sql(SqlStatement::Select)");
@@ -2533,7 +2533,7 @@ fn test_source_ref_composite_events_classified() {
 /// Traces: query-engine.md §Unified Query Surface, SourceRefKind
 #[test]
 fn test_source_ref_external_classified() {
-    use prism_query::ast::SourceRefKind;
+    use crate::ast::SourceRefKind;
     let ast = parse_sql("SELECT * FROM crowdstrike.detections").expect("must parse");
     let Ast::Sql(SqlStatement::Select(sq)) = ast else {
         panic!("expected Ast::Sql(SqlStatement::Select)");
@@ -2549,7 +2549,7 @@ fn test_source_ref_external_classified() {
 /// Traces: query-engine.md §Unified Query Surface, SourceRefKind
 #[test]
 fn test_source_ref_internal_alerts_classified() {
-    use prism_query::ast::{InternalTable, SourceRefKind};
+    use crate::ast::{InternalTable, SourceRefKind};
     let ast = parse_sql("SELECT * FROM prism_alerts").expect("must parse");
     let Ast::Sql(SqlStatement::Select(sq)) = ast else {
         panic!("expected Ast::Sql(SqlStatement::Select)");
@@ -2572,8 +2572,8 @@ fn test_source_ref_internal_alerts_classified() {
 /// Traces: P1-001 (visitor pattern), visit.rs
 #[test]
 fn test_visitor_walks_all_field_paths_in_filter() {
-    use prism_query::ast::FieldPath;
-    use prism_query::visit::{self, Visitor};
+    use crate::ast::FieldPath;
+    use crate::visit::{self, Visitor};
 
     struct FieldCollector {
         fields: Vec<String>,
@@ -2608,8 +2608,8 @@ fn test_visitor_walks_all_field_paths_in_filter() {
 /// Traces: P1-001 (visitor pattern), visit.rs
 #[test]
 fn test_visitor_walks_pipe_where_predicate() {
-    use prism_query::ast::FieldPath;
-    use prism_query::visit::{self, Visitor};
+    use crate::ast::FieldPath;
+    use crate::visit::{self, Visitor};
 
     struct FieldCollector {
         fields: Vec<String>,
@@ -2648,8 +2648,8 @@ fn test_visitor_walks_pipe_where_predicate() {
 /// Traces: security.rs check_predicate_nesting_depth, BC-2.11.006 EC-002
 #[test]
 fn test_check_nesting_depth_recurses_into_subquery() {
-    use prism_query::ast::{FromClause, Predicate, SelectClause, SelectItem, SqlQuery};
-    use prism_query::security::check_predicate_nesting_depth;
+    use crate::ast::{FromClause, Predicate, SelectClause, SelectItem, SqlQuery};
+    use crate::security::check_predicate_nesting_depth;
 
     // Build a deeply-nested Predicate::InSubquery with a subquery
     // that itself has a deep predicate.
@@ -2847,7 +2847,7 @@ fn test_BC_2_11_003_sql_count_star_produces_agg_func_count() {
     let item = sq.select.items.first().expect("must have select item");
     match item {
         SelectItem::Expr {
-            expr: Expr::FuncCall(prism_query::ast::FuncCall::Aggregate { func, .. }),
+            expr: Expr::FuncCall(crate::ast::FuncCall::Aggregate { func, .. }),
             ..
         } => {
             assert_eq!(
@@ -2937,7 +2937,7 @@ fn test_pipe_query_write_field_is_none_placeholder() {
 /// Traces: BC-2.11.012 (all 5 virtual fields)
 #[test]
 fn test_BC_2_11_012_virtual_field_sensor_emits_typed_variant() {
-    use prism_query::ast::VirtualField;
+    use crate::ast::VirtualField;
     let fe = parse_filter("crowdstrike.detections | _sensor = 'crowdstrike'")
         .expect("_sensor filter must parse");
     match &fe.predicate {
@@ -2954,7 +2954,7 @@ fn test_BC_2_11_012_virtual_field_sensor_emits_typed_variant() {
 /// Traces: BC-2.11.012 (all 5 virtual fields)
 #[test]
 fn test_BC_2_11_012_virtual_field_client_emits_typed_variant() {
-    use prism_query::ast::VirtualField;
+    use crate::ast::VirtualField;
     let fe = parse_filter("crowdstrike.detections | _client = 'acme'")
         .expect("_client filter must parse");
     match &fe.predicate {
@@ -2971,7 +2971,7 @@ fn test_BC_2_11_012_virtual_field_client_emits_typed_variant() {
 /// Traces: BC-2.11.012 (all 5 virtual fields)
 #[test]
 fn test_BC_2_11_012_virtual_field_source_table_emits_typed_variant() {
-    use prism_query::ast::VirtualField;
+    use crate::ast::VirtualField;
     let fe = parse_filter("crowdstrike.detections | _source_table = 'crowdstrike_detections'")
         .expect("_source_table filter must parse");
     match &fe.predicate {
@@ -3014,7 +3014,7 @@ fn test_BC_2_11_012_non_canonical_underscore_field_stays_field() {
 /// Traces: BC-2.11.012 (virtual fields in pipe mode)
 #[test]
 fn test_BC_2_11_012_virtual_fields_all_five_in_pipe_mode() {
-    use prism_query::ast::VirtualField;
+    use crate::ast::VirtualField;
     let cases: &[(&str, VirtualField)] = &[
         (
             "FROM x | where _sensor = 'crowdstrike'",
@@ -3063,7 +3063,7 @@ fn test_BC_2_11_012_virtual_fields_all_five_in_pipe_mode() {
 /// Traces: Fix 3 (TimestampLiteral parse-time validation)
 #[test]
 fn test_timestamp_literal_valid_iso8601_parsed_as_timestamp() {
-    use prism_query::ast::Literal;
+    use crate::ast::Literal;
     let fe = parse_filter("crowdstrike.detections | created_at = '2026-05-04T12:00:00Z'")
         .expect("valid RFC-3339 timestamp must parse");
     match &fe.predicate {
@@ -3123,7 +3123,7 @@ fn test_timestamp_literal_no_timezone_rejected() {
 /// Traces: Fix 3 (TimestampLiteral parse-time validation — non-UTC offset accepted)
 #[test]
 fn test_timestamp_literal_with_offset_accepted() {
-    use prism_query::ast::Literal;
+    use crate::ast::Literal;
     let fe = parse_filter("crowdstrike.detections | created_at = '2026-05-04T17:30:00+05:30'")
         .expect("RFC-3339 with non-UTC offset must parse");
     match &fe.predicate {
@@ -3144,7 +3144,7 @@ fn test_timestamp_literal_with_offset_accepted() {
 /// Traces: Fix 3 (TimestampLiteral — non-timestamp strings remain Literal::String)
 #[test]
 fn test_timestamp_literal_plain_string_not_promoted() {
-    use prism_query::ast::Literal;
+    use crate::ast::Literal;
     let fe = parse_filter("crowdstrike.detections | hostname = 'hello'")
         .expect("plain string must parse");
     match &fe.predicate {
@@ -3412,7 +3412,7 @@ fn test_field_path_span_carries_actual_offsets() {
 /// Traces: CR F-CR-008
 #[test]
 fn test_duration_literal_getters_accessible() {
-    use prism_query::ast::{DurationLiteral, DurationUnit};
+    use crate::ast::{DurationLiteral, DurationUnit};
     let dl = DurationLiteral::new(30, DurationUnit::Minutes).expect("valid duration");
     assert_eq!(dl.value(), 30, "value() getter must return 30");
     assert_eq!(
@@ -3472,7 +3472,7 @@ fn test_sql_recovery_recovers_inside_subquery_parens() {
 /// Traces: Adv F-MEDIUM-003
 #[test]
 fn test_check_paren_depth_balanced_pairs_stay_at_depth_one() {
-    use prism_query::security::check_paren_depth;
+    use crate::security::check_paren_depth;
     // 100 balanced pairs — max depth is 1 at any instant
     let input = "()".repeat(100);
     let result = check_paren_depth(&input);
@@ -3495,8 +3495,8 @@ fn test_check_paren_depth_balanced_pairs_stay_at_depth_one() {
 /// Traces: Adv F-HIGH-003
 #[test]
 fn test_regex_pattern_length_uses_security_constant() {
-    use prism_query::ast::RegexLiteral;
-    use prism_query::security::PRISM_MAX_REGEX_PATTERN_LEN;
+    use crate::ast::RegexLiteral;
+    use crate::security::PRISM_MAX_REGEX_PATTERN_LEN;
 
     // Pattern exactly at the limit must succeed
     let at_limit = "a".repeat(PRISM_MAX_REGEX_PATTERN_LEN);
@@ -3527,7 +3527,7 @@ fn test_regex_pattern_length_uses_security_constant() {
 /// Traces: Adv F-LOW-002
 #[test]
 fn test_BC_2_11_006_env_pipe_stages_excessive_clamped() {
-    use prism_query::security::{effective_pipe_stage_limit, MAX_SAFE_PIPE_STAGES};
+    use crate::security::{effective_pipe_stage_limit, MAX_SAFE_PIPE_STAGES};
     // Set to a value above MAX_SAFE_PIPE_STAGES
     std::env::set_var("PRISM_MAX_PIPE_STAGES", "999999");
     let effective = effective_pipe_stage_limit();
@@ -3543,7 +3543,7 @@ fn test_BC_2_11_006_env_pipe_stages_excessive_clamped() {
 /// Traces: Adv F-LOW-002
 #[test]
 fn test_BC_2_11_006_env_regex_pattern_len_zero_clamped() {
-    use prism_query::security::{effective_regex_pattern_length_limit, MIN_SAFE_REGEX_PATTERN_LEN};
+    use crate::security::{effective_regex_pattern_length_limit, MIN_SAFE_REGEX_PATTERN_LEN};
     // Set to zero (below safe minimum)
     std::env::set_var("PRISM_MAX_REGEX_PATTERN_LEN", "0");
     let effective = effective_regex_pattern_length_limit();
@@ -3724,7 +3724,7 @@ fn test_BC_2_11_003_sql_subquery_recovery_returns_partial_ast() {
 /// Traces: F-MEDIUM-001, AC-9, BC-2.11.003 error recovery, nested_delimiters
 #[test]
 fn test_BC_2_11_003_sql_nested_delimiters_recovery_outer_predicate_intact() {
-    use prism_query::ast::Ast;
+    use crate::ast::Ast;
     // Genuinely bogus subquery content that can't parse as SQL.
     // After recovery, the outer `y = 1` should not be swallowed by the error.
     // We test that parse_sql does not panic, and either:
@@ -3767,7 +3767,7 @@ fn test_BC_2_11_003_sql_nested_delimiters_recovery_outer_predicate_intact() {
 /// Traces: F-MEDIUM-002, BC-2.11.006, check_paren_depth
 #[test]
 fn test_check_paren_depth_unmatched_quote_rejected() {
-    use prism_query::security::check_paren_depth;
+    use crate::security::check_paren_depth;
     // 66 open parens inside an unclosed single-quote.
     // Pre-fix: depth counter ignores them all (in_sq stays true), returns Ok.
     // Post-fix: unclosed quote at EOF returns Err.
@@ -3787,7 +3787,7 @@ fn test_check_paren_depth_unmatched_quote_rejected() {
 /// Traces: F-MEDIUM-002, BC-2.11.006, check_paren_depth
 #[test]
 fn test_check_paren_depth_unmatched_double_quote_rejected() {
-    use prism_query::security::check_paren_depth;
+    use crate::security::check_paren_depth;
     // 66 open parens inside an unclosed double-quote.
     let mut input = String::from("\"");
     for _ in 0..66 {
@@ -3808,7 +3808,7 @@ fn test_check_paren_depth_unmatched_double_quote_rejected() {
 /// Traces: F-MEDIUM-002 regression
 #[test]
 fn test_check_paren_depth_closed_quote_does_not_block_depth_counting() {
-    use prism_query::security::check_paren_depth;
+    use crate::security::check_paren_depth;
     // Valid: `'text'` followed by a single open+close paren — depth stays at 1.
     let input = "'text' AND (field = 1)";
     let result = check_paren_depth(input);

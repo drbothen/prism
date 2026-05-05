@@ -35,9 +35,14 @@ pub use security::PRISM_MAX_PIPE_STAGES;
 ///
 /// Called by `PrismQlParser::parse` after mode detection confirms pipe mode.
 ///
+/// # Security perimeter (SEC-C-003, F-LOW-002)
+/// This function is `pub(crate)` to enforce that callers outside `prism-query`
+/// use `PrismQlParser::parse` exclusively. Direct callers bypass the mandatory
+/// pre-parse security guards (`check_query_size`, `check_paren_depth`).
+///
 /// # Errors
 /// Returns accumulated `ParseError`s on failure.
-pub fn parse_pipe(input: &str) -> Result<PipeQuery, Vec<ParseError>> {
+pub(crate) fn parse_pipe(input: &str) -> Result<PipeQuery, Vec<ParseError>> {
     let parser = build_pipe_parser();
     let (result, errs) = parser.parse(input).into_output_errors();
     if errs.is_empty() {

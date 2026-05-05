@@ -22,7 +22,7 @@
     unused_imports
 )]
 
-use prism_query::{
+use crate::{
     ast::Ast,
     filter_parser::{parse_filter, PrismQlParser},
     pipe_parser::parse_pipe,
@@ -194,8 +194,8 @@ fn test_BC_2_11_006_pipe_where_subquery_depth_65_rejected() {
 /// Traces: B-4
 #[test]
 fn test_walk_sql_statement_select_variant_traversed() {
-    use prism_query::ast::{FieldPath, Literal};
-    use prism_query::visit::{walk_ast, Visitor};
+    use crate::ast::{FieldPath, Literal};
+    use crate::visit::{walk_ast, Visitor};
 
     struct FieldCounter(usize);
     impl Visitor for FieldCounter {
@@ -277,7 +277,7 @@ fn test_BC_2_11_002_string_literal_backslash_treated_literally() {
     let result = parse_filter(input);
     let fe = result.expect("B-6: filter with backslash in string literal must parse");
 
-    use prism_query::ast::{Expr, Literal, Predicate};
+    use crate::ast::{Expr, Literal, Predicate};
     match &fe.predicate {
         Predicate::Compare { rhs, .. } => match rhs.as_ref() {
             Expr::Literal(Literal::String(s)) => {
