@@ -38,6 +38,14 @@ uuid = { version = "1", features = ["v7"] }
 chumsky = "0.12"
 # S-3.01 — human-readable parse error formatting (JSON-serializable for MCP responses).
 ariadne = "0.4"
+# S-3.01 AST redesign — CIDR literal validation (CWE-20). ipnet::IpNet::from_str
+# validates at parse time, preventing malformed CIDR strings from reaching the executor.
+ipnet = { version = "2", features = ["serde"] }
+# S-3.01 AST redesign — Eq/Hash on Literal::Float(f64) via ordered bit-level comparison.
+# Two floats are "AST-equal" iff their bit representations are equal (NaN != NaN by design).
+ordered-float = { version = "2", features = ["serde"] }
+# S-3.01 AST redesign — regex validation at parse time (CWE-1333); same engine as prism-core.
+regex = "1"
 # S-3.01 VP-021 — fuzz target harness (optional; enabled by `fuzz` feature).
 libfuzzer-sys = { version = "0.4", optional = true }
 

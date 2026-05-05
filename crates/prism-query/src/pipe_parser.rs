@@ -1,38 +1,31 @@
 //! Pipe mode parser: `source | stage | stage …` (BC-2.11.004).
 //!
-//! Grammar:
+//! Grammar (prismql-grammar.md §6):
 //!   pipe_query  := ['FROM' source_ref | source_ref] ('|' pipe_stage)*
 //!               | '|' pipe_stage ('|' pipe_stage)*   -- no source prefix (EC-11-009)
 //!   pipe_stage  := where_stage | sort_stage | head_stage | tail_stage
 //!                | stats_stage | dedup_stage | fields_stage
 //!                | join_stage | enrich_stage | limit_stage
-//!   where_stage := 'where' expr
-//!   sort_stage  := 'sort' sort_expr (',' sort_expr)*
-//!   head_stage  := 'head' integer
-//!   tail_stage  := 'tail' integer
-//!   limit_stage := 'limit' integer   (alias for head)
-//!   stats_stage := 'stats' agg_func ['by' field_path]
-//!   dedup_stage := 'dedup' field_path (',' field_path)*
-//!   fields_stage:= 'fields' ['+' | '-'] field_path (',' field_path)*
-//!   join_stage  := 'join' source_ref 'on' field_path
-//!   enrich_stage:= 'enrich' ident '(' field_path ')'
-//!
-//! Mode detection: pipe mode is detected when the input starts with the
-//! keyword `FROM` (case-insensitive) or starts with `|`.
+//!   where_stage := 'where' predicate
+//!   stats_stage := 'stats' stat_fn (',' stat_fn)* ['BY' field (',' field)*]
+//!   stat_fn     := agg_func ['AS' ident]
+//!   join_stage  := 'join' [join_kind] source 'ON' field ['==' field]
 //!
 //! All stage keywords are case-insensitive.
 //!
 //! Story: S-3.01 | BC-2.11.004
 
+use ordered_float::OrderedFloat;
+
 use chumsky::prelude::*;
 
 use crate::ast::{
-    AggFunc, EnrichStage, FieldPath, FieldsStage, JoinStage, PipeQuery, PipeStage, SortDirection,
-    SortExpr, SourceRef, StatsStage,
+    AggFunc, EnrichStage, FieldPath, FieldsStage, JoinCondition, JoinKind, JoinStage, PipeQuery,
+    PipeStage, SortDirection, SortExpr, SourceRef, Span, StatFunction, StatsStage,
 };
 use crate::error::ParseError;
 use crate::error_recovery::rich_to_parse_error;
-use crate::filter_parser::{build_expr_parser, build_source_ref_parser};
+use crate::filter_parser::{build_predicate_parser, build_source_ref_parser};
 use crate::security;
 
 // ── Security re-export for convenient use in tests ────────────────────────────
@@ -40,12 +33,10 @@ pub use security::PRISM_MAX_PIPE_STAGES;
 
 /// Parse a pipe-mode query: `[FROM source | source] (| stage)*`.
 ///
-/// Called by `PrismQlParser::parse` after mode detection confirms the input
-/// starts with `FROM` or `|`.
+/// Called by `PrismQlParser::parse` after mode detection confirms pipe mode.
 ///
 /// # Errors
-/// Returns accumulated `ParseError`s on failure. `skip_then_retry_until`
-/// recovery is used to recover past unknown tokens in pipe stages.
+/// Returns accumulated `ParseError`s on failure.
 pub fn parse_pipe(input: &str) -> Result<PipeQuery, Vec<ParseError>> {
     let parser = build_pipe_parser();
     let (result, errs) = parser.parse(input).into_output_errors();
@@ -69,9 +60,10 @@ pub fn parse_pipe(input: &str) -> Result<PipeQuery, Vec<ParseError>> {
 ///
 /// Returns a parser that accepts `[FROM source | source] ('|' pipe_stage)*`
 /// or `'|' pipe_stage ('|' pipe_stage)*` (no-source prefix, EC-11-009).
+#[allow(clippy::clone_on_copy)]
 pub fn build_pipe_parser<'a>(
 ) -> impl Parser<'a, &'a str, PipeQuery, extra::Err<Rich<'a, char>>> + Clone {
-    let expr = build_expr_parser();
+    let predicate = build_predicate_parser();
     let source_ref = build_source_ref_parser();
 
     // Field path parser.
@@ -84,6 +76,7 @@ pub fn build_pipe_parser<'a>(
         .collect::<Vec<&str>>()
         .map(|segs: Vec<&str>| FieldPath {
             segments: segs.into_iter().map(|s| s.to_string()).collect(),
+            span: Span::ZERO,
         });
 
     // Identifier (for keywords, infusion names, etc.)
@@ -113,63 +106,136 @@ pub fn build_pipe_parser<'a>(
     .map(|dir| dir.unwrap_or(SortDirection::Asc));
 
     let sort_expr = field_path
+        .clone()
         .padded()
         .then(sort_direction)
         .map(|(field, direction)| SortExpr { field, direction });
 
-    // Aggregation functions: count | sum(field) | avg(field) | min(field) | max(field)
-    let agg_func = choice((
-        text::keyword("count")
-            .or(text::keyword("COUNT"))
+    // Case-insensitive keyword helper for pipe parsers.
+    let kw_ci = |k: &'static str| {
+        ident_char
+            .repeated()
+            .at_least(1)
+            .to_slice()
+            .try_map(move |s: &str, span| {
+                if s.eq_ignore_ascii_case(k) {
+                    Ok(())
+                } else {
+                    Err(Rich::custom(span, format!("expected keyword '{k}'")))
+                }
+            })
+    };
+
+    // Aggregation function parser for pipe `stats` stage.
+    // Follows prismql-grammar.md §6: stat_fn := agg_func ['AS' ident]
+    //
+    // Supported: count | count() | count(*) | sum(f) | avg(f) | min(f) | max(f)
+    //          | distinct_count(f) | percentile(f, p)
+
+    // percentile(field, p)
+    let percentile_agg = kw_ci("percentile").padded().ignore_then(
+        field_path
+            .clone()
             .padded()
-            .to(AggFunc::Count),
-        text::keyword("sum")
-            .or(text::keyword("SUM"))
-            .padded()
-            .ignore_then(
-                field_path
-                    .padded()
-                    .delimited_by(just('(').padded(), just(')').padded()),
+            .then_ignore(just(',').padded())
+            .then(
+                just('-')
+                    .or_not()
+                    .then(text::int(10))
+                    .then(just('.').then(text::digits(10)).or_not())
+                    .to_slice()
+                    .try_map(|s: &str, span| {
+                        s.parse::<f64>().map_err(|e| {
+                            Rich::custom(span, format!("invalid percentile value: {e}"))
+                        })
+                    }),
             )
-            .map(AggFunc::Sum),
-        text::keyword("avg")
-            .or(text::keyword("AVG"))
+            .try_map(|(fp, p), span| {
+                if !(0.0..=100.0).contains(&p) {
+                    return Err(Rich::custom(
+                        span,
+                        format!("E-QUERY-001: percentile p={p} out of range [0, 100]"),
+                    ));
+                }
+                Ok(AggFunc::Percentile {
+                    field: fp,
+                    p: OrderedFloat(p),
+                })
+            })
+            .delimited_by(just('(').padded(), just(')').padded()),
+    );
+
+    // distinct_count(field)
+    let distinct_count_agg = kw_ci("distinct_count").padded().ignore_then(
+        field_path
+            .clone()
             .padded()
-            .ignore_then(
-                field_path
-                    .padded()
-                    .delimited_by(just('(').padded(), just(')').padded()),
-            )
-            .map(AggFunc::Avg),
-        text::keyword("min")
-            .or(text::keyword("MIN"))
+            .map(AggFunc::DistinctCount)
+            .delimited_by(just('(').padded(), just(')').padded()),
+    );
+
+    // count(*) | count() | bare count
+    let count_agg = kw_ci("count").padded().ignore_then(
+        choice((
+            just('*')
+                .padded()
+                .delimited_by(just('(').padded(), just(')').padded())
+                .to(AggFunc::Count),
+            field_path
+                .clone()
+                .padded()
+                .map(AggFunc::CountField)
+                .delimited_by(just('(').padded(), just(')').padded()),
+            just('(')
+                .padded()
+                .then_ignore(just(')').padded())
+                .to(AggFunc::Count),
+        ))
+        .or_not()
+        .map(|o| o.unwrap_or(AggFunc::Count)),
+    );
+
+    // sum(f) | avg(f) | min(f) | max(f)
+    let generic_agg = choice((
+        kw_ci("sum").padded().to("sum"),
+        kw_ci("avg").padded().to("avg"),
+        kw_ci("min").padded().to("min"),
+        kw_ci("max").padded().to("max"),
+    ))
+    .then(
+        field_path
+            .clone()
             .padded()
-            .ignore_then(
-                field_path
-                    .padded()
-                    .delimited_by(just('(').padded(), just(')').padded()),
-            )
-            .map(AggFunc::Min),
-        text::keyword("max")
-            .or(text::keyword("MAX"))
-            .padded()
-            .ignore_then(
-                field_path
-                    .padded()
-                    .delimited_by(just('(').padded(), just(')').padded()),
-            )
-            .map(AggFunc::Max),
-    ));
+            .delimited_by(just('(').padded(), just(')').padded()),
+    )
+    .map(|(fname, fp)| match fname {
+        "sum" => AggFunc::Sum(fp),
+        "avg" => AggFunc::Avg(fp),
+        "min" => AggFunc::Min(fp),
+        "max" => AggFunc::Max(fp),
+        _ => unreachable!(),
+    });
+
+    // Single agg function
+    let agg_func = choice((percentile_agg, distinct_count_agg, count_agg, generic_agg));
+
+    // stat_fn := agg_func ['AS' ident]
+    let stat_fn = agg_func
+        .then(
+            kw_ci("AS")
+                .padded()
+                .ignore_then(ident.clone().padded())
+                .or_not(),
+        )
+        .map(|(func, alias)| StatFunction { func, alias });
 
     // Individual pipe stages.
-    let where_stage = text::keyword("where")
-        .or(text::keyword("WHERE"))
+    let where_stage = kw_ci("where")
         .padded()
-        .ignore_then(expr.clone().padded())
+        .ignore_then(predicate.clone().padded())
         .map(PipeStage::Where);
 
-    let sort_stage = text::keyword("sort")
-        .or(text::keyword("SORT"))
+    let sort_stage = kw_ci("sort")
         .padded()
         .ignore_then(
             sort_expr
@@ -180,39 +246,55 @@ pub fn build_pipe_parser<'a>(
         )
         .map(PipeStage::Sort);
 
-    let head_stage = text::keyword("head")
-        .or(text::keyword("HEAD"))
+    let head_stage = kw_ci("head")
         .padded()
         .ignore_then(uint.padded())
         .map(PipeStage::Limit);
 
-    let tail_stage = text::keyword("tail")
-        .or(text::keyword("TAIL"))
+    let tail_stage = kw_ci("tail")
         .padded()
         .ignore_then(uint.padded())
         .map(PipeStage::Tail);
 
-    let limit_stage = text::keyword("limit")
-        .or(text::keyword("LIMIT"))
+    let limit_stage = kw_ci("limit")
         .padded()
         .ignore_then(uint.padded())
         .map(PipeStage::Limit);
 
-    let stats_stage = text::keyword("stats")
-        .or(text::keyword("STATS"))
+    // stats stage: multi-aggregate + multi-by-field
+    // `stats agg [AS alias] [, agg [AS alias] …] [BY field [, field …]]`
+    let stats_stage = kw_ci("stats")
         .padded()
-        .ignore_then(agg_func.padded())
-        .then(
-            text::keyword("by")
-                .or(text::keyword("BY"))
+        .ignore_then(
+            stat_fn
+                .clone()
                 .padded()
-                .ignore_then(field_path.padded())
-                .or_not(),
+                .separated_by(just(',').padded())
+                .at_least(1)
+                .collect::<Vec<_>>(),
         )
-        .map(|(func, by)| PipeStage::Stats(StatsStage { func, by }));
+        .then(
+            kw_ci("by")
+                .padded()
+                .ignore_then(
+                    field_path
+                        .clone()
+                        .padded()
+                        .separated_by(just(',').padded())
+                        .at_least(1)
+                        .collect::<Vec<_>>(),
+                )
+                .or_not()
+                .map(|o| o.unwrap_or_default()),
+        )
+        .map(|(aggregates, by_fields)| {
+            PipeStage::Stats(StatsStage {
+                aggregates,
+                by_fields,
+            })
+        });
 
-    let dedup_stage = text::keyword("dedup")
-        .or(text::keyword("DEDUP"))
+    let dedup_stage = kw_ci("dedup")
         .padded()
         .ignore_then(
             field_path
@@ -223,8 +305,7 @@ pub fn build_pipe_parser<'a>(
         )
         .map(PipeStage::Dedup);
 
-    let fields_stage = text::keyword("fields")
-        .or(text::keyword("FIELDS"))
+    let fields_stage = kw_ci("fields")
         .padded()
         .ignore_then(
             choice((just('+').padded().to(true), just('-').padded().to(false)))
@@ -233,6 +314,7 @@ pub fn build_pipe_parser<'a>(
         )
         .then(
             field_path
+                .clone()
                 .padded()
                 .separated_by(just(',').padded())
                 .at_least(1)
@@ -240,25 +322,42 @@ pub fn build_pipe_parser<'a>(
         )
         .map(|(include, fields)| PipeStage::Fields(FieldsStage { include, fields }));
 
-    let join_stage = text::keyword("join")
-        .or(text::keyword("JOIN"))
+    // join stage: `join [kind] source ON field [== field]`
+    let pipe_join_kind = choice((
+        kw_ci("inner").padded().to(JoinKind::Inner),
+        kw_ci("left").padded().to(JoinKind::Left),
+        kw_ci("right").padded().to(JoinKind::Right),
+        kw_ci("full").padded().to(JoinKind::FullOuter),
+        kw_ci("cross").padded().to(JoinKind::Cross),
+        empty().to(JoinKind::Inner),
+    ));
+
+    let join_stage = kw_ci("join")
         .padded()
-        .ignore_then(source_ref.clone().padded())
-        .then_ignore(text::keyword("on").or(text::keyword("ON")).padded())
-        .then(field_path.padded())
-        .map(|(src, on_field)| {
-            PipeStage::Join(JoinStage {
-                source: src,
-                on: on_field,
-            })
+        .ignore_then(pipe_join_kind)
+        .then(source_ref.clone().padded())
+        .then_ignore(kw_ci("on").padded())
+        .then(field_path.clone().padded())
+        .then(
+            just("==")
+                .padded()
+                .ignore_then(field_path.clone().padded())
+                .or_not(),
+        )
+        .map(|(((kind, source), left_field), right_field)| {
+            let on = match right_field {
+                Some(rf) => JoinCondition::Pair(left_field, rf),
+                None => JoinCondition::SameField(left_field),
+            };
+            PipeStage::Join(JoinStage { kind, source, on })
         });
 
-    let enrich_stage = text::keyword("enrich")
-        .or(text::keyword("ENRICH"))
+    let enrich_stage = kw_ci("enrich")
         .padded()
         .ignore_then(ident.padded())
         .then(
             field_path
+                .clone()
                 .padded()
                 .delimited_by(just('(').padded(), just(')').padded()),
         )
@@ -290,18 +389,24 @@ pub fn build_pipe_parser<'a>(
         .padded()
         .ignore_then(source_ref.clone().padded())
         .then(stages_with_pipe.clone())
-        .map(|(source, stages)| PipeQuery { source, stages });
+        .map(|(source, stages)| PipeQuery {
+            source,
+            stages,
+            write: None,
+        });
 
     // Variant 2: `source ('|' pipe_stage)+` — bare source with pipe stages
-    // (called only when is_pipe_mode confirmed a pipe keyword after `|`)
     let bare_source_query = source_ref
         .clone()
         .padded()
         .then(stages_with_pipe.clone())
-        .map(|(source, stages)| PipeQuery { source, stages });
+        .map(|(source, stages)| PipeQuery {
+            source,
+            stages,
+            write: None,
+        });
 
     // Variant 3: `'|' pipe_stage ('|' pipe_stage)*` — no source prefix (EC-11-009)
-    // The leading `|` indicates start-of-pipeline; first stage follows immediately.
     let no_source_query = just('|')
         .padded()
         .ignore_then(
@@ -316,8 +421,9 @@ pub fn build_pipe_parser<'a>(
                 }),
         )
         .map(|stages| PipeQuery {
-            source: SourceRef { raw: String::new() },
+            source: SourceRef::from_raw(""),
             stages,
+            write: None,
         });
 
     choice((from_source_query, no_source_query, bare_source_query))

@@ -5,30 +5,23 @@
 //!
 //! # Limits (canonical values from BC-2.11.006)
 //! - `PRISM_MAX_QUERY_SIZE`: 65,536 bytes (64KB) — EC-001
-//! - `PRISM_MAX_NESTING_DEPTH`: 64 — EC-002 (VP-015; canonical limit is 64,
-//!   not 32; see S-3.01 v1.6 changelog and BC-2.11.006 DI-019 EC-002)
+//! - `PRISM_MAX_NESTING_DEPTH`: 64 — EC-002 (VP-015)
 //! - `PRISM_MAX_PIPE_STAGES`: 32 — EC-003
-//! - `PRISM_MAX_REGEX_PATTERN_LEN`: 1,024 bytes — BC-2.11.006 regex limit
+//! - `PRISM_MAX_REGEX_PATTERN_LEN`: 1,024 bytes — BC-2.11.006
 //!
 //! Story: S-3.01 | BC-2.11.006 | DI-019 | VP-014 | VP-015
 
 use prism_core::error::PrismError;
 
-use crate::ast::{Expr, PipeStage};
+use crate::ast::{Expr, PipeStage, Predicate, SqlQuery};
 
 /// Maximum PrismQL query string size: 64KB (BC-2.11.006, EC-001).
-///
-/// Overridable at runtime via the `PRISM_MAX_QUERY_SIZE` environment variable.
-/// The constant is the compile-time default.
 pub const PRISM_MAX_QUERY_SIZE: usize = 65_536;
 
 /// Maximum AST expression nesting depth: 64 (BC-2.11.006, DI-019, EC-002).
 ///
 /// VP-015 proves that `check_nesting_depth` never returns `Ok` when depth
-/// exceeds this value. The canonical limit is **64** — not 32. See S-3.01
-/// v1.6 changelog.
-///
-/// Overridable at runtime via the `PRISM_MAX_NESTING_DEPTH` environment variable.
+/// exceeds this value. The canonical limit is **64** — not 32.
 pub const PRISM_MAX_NESTING_DEPTH: u32 = 64;
 
 /// Maximum number of pipe stages in a single pipe query (BC-2.11.006, EC-003).
@@ -43,14 +36,11 @@ pub const E_QUERY_003: &str = "E-QUERY-003";
 /// Check that a raw query string does not exceed the maximum allowed size.
 ///
 /// # Security
-/// This check MUST run before any parsing attempt. An oversized query is
-/// rejected immediately; no AST is produced. (BC-2.11.006 postcondition 1,
-/// EC-001, VP-014)
+/// MUST run before any parsing attempt. (BC-2.11.006 postcondition 1, EC-001, VP-014)
 ///
 /// # Errors
 /// Returns `PrismError::QueryExecutionFailed` with code `E-QUERY-003` if
-/// `raw.len() > PRISM_MAX_QUERY_SIZE` (or the value of the
-/// `PRISM_MAX_QUERY_SIZE` env var if set).
+/// `raw.len() > PRISM_MAX_QUERY_SIZE`.
 pub fn check_query_size(raw: &str) -> Result<(), PrismError> {
     let limit = effective_query_size_limit();
     if raw.len() > limit {
@@ -65,22 +55,21 @@ pub fn check_query_size(raw: &str) -> Result<(), PrismError> {
     Ok(())
 }
 
-/// Recursively check that an expression AST does not exceed the maximum
+/// Recursively check that a `Predicate` AST does not exceed the maximum
 /// allowed nesting depth.
 ///
 /// # Security
-/// This check MUST run on the fully-parsed AST before it is returned to the
-/// caller. Deeply nested expressions can cause stack overflows during
-/// evaluation; this guard enforces the limit at parse time.
-/// (BC-2.11.006, DI-019, EC-002, VP-015)
+/// This check covers ALL recursive paths in a `Predicate` tree, including
+/// `Predicate::Logical`, `Predicate::Not`, `Predicate::InSubquery`
+/// (which embeds a `SqlQuery`). The previous `Expr`-based check had a
+/// security gap where subquery nesting was not traversed.
 ///
-/// The canonical maximum depth is `PRISM_MAX_NESTING_DEPTH` = **64**.
+/// (BC-2.11.006, DI-019, EC-002, VP-015)
 ///
 /// # Errors
 /// Returns `PrismError::QueryExecutionFailed` with code `E-QUERY-003` if
-/// the depth of `ast` exceeds `PRISM_MAX_NESTING_DEPTH` (or the value of
-/// the `PRISM_MAX_NESTING_DEPTH` env var if set).
-pub fn check_nesting_depth(ast: &Expr, depth: u32) -> Result<(), PrismError> {
+/// the depth of `pred` exceeds `PRISM_MAX_NESTING_DEPTH`.
+pub fn check_predicate_nesting_depth(pred: &Predicate, depth: u32) -> Result<(), PrismError> {
     let limit = effective_nesting_depth_limit();
     if depth > limit {
         return Err(PrismError::QueryExecutionFailed {
@@ -89,59 +78,118 @@ pub fn check_nesting_depth(ast: &Expr, depth: u32) -> Result<(), PrismError> {
             ),
         });
     }
-    // Recursively check children.
     let next = depth + 1;
-    match ast {
-        Expr::Literal(_) | Expr::Field(_) | Expr::Star => Ok(()),
-        Expr::Compare { lhs, rhs, .. } => {
-            check_nesting_depth(lhs, next)?;
-            check_nesting_depth(rhs, next)
+    match pred {
+        Predicate::Compare { lhs, rhs, .. } => {
+            check_expr_nesting_depth(lhs, next)?;
+            check_expr_nesting_depth(rhs, next)
         }
-        Expr::Logical { lhs, rhs, .. } => {
-            check_nesting_depth(lhs, next)?;
-            check_nesting_depth(rhs, next)
-        }
-        Expr::Not(inner) => check_nesting_depth(inner, next),
-        Expr::In { .. } => Ok(()),
-        Expr::InSubquery { .. } => Ok(()),
-        Expr::FuncCall { args, .. } => {
-            for arg in args {
-                check_nesting_depth(arg, next)?;
+        Predicate::StringOp { .. } => Ok(()),
+        Predicate::Regex { .. } => Ok(()),
+        Predicate::In { .. } => Ok(()),
+        Predicate::InSubquery { subquery, .. } => check_sql_query_nesting_depth(subquery, next),
+        Predicate::Between { .. } => Ok(()),
+        Predicate::Cidr { .. } => Ok(()),
+        Predicate::Has(_) => Ok(()),
+        Predicate::Missing(_) => Ok(()),
+        Predicate::IsNull { .. } => Ok(()),
+        Predicate::Wildcard { .. } => Ok(()),
+        Predicate::Logical { predicates, .. } => {
+            for p in predicates {
+                check_predicate_nesting_depth(p, next)?;
             }
             Ok(())
         }
+        Predicate::Not(inner) => check_predicate_nesting_depth(inner, next),
     }
+}
+
+/// Check nesting depth in a `SqlQuery` — recurses into WHERE, HAVING,
+/// JOIN ON conditions, and ORDER BY expressions.
+pub fn check_sql_query_nesting_depth(sq: &SqlQuery, depth: u32) -> Result<(), PrismError> {
+    let limit = effective_nesting_depth_limit();
+    if depth > limit {
+        return Err(PrismError::QueryExecutionFailed {
+            detail: format!(
+                "{E_QUERY_003}: expression nesting depth {depth} exceeds maximum allowed {limit}"
+            ),
+        });
+    }
+    let next = depth + 1;
+    if let Some(w) = &sq.where_ {
+        check_predicate_nesting_depth(w, next)?;
+    }
+    if let Some(h) = &sq.having {
+        check_predicate_nesting_depth(h, next)?;
+    }
+    for join in &sq.joins {
+        check_expr_nesting_depth(&join.on, next)?;
+    }
+    for oe in &sq.order_by {
+        check_expr_nesting_depth(&oe.expr, next)?;
+    }
+    Ok(())
+}
+
+/// Check nesting depth of an `Expr` (value expression).
+///
+/// Recurses into Compare / Logical / Not / InSubquery.
+pub fn check_expr_nesting_depth(expr: &Expr, depth: u32) -> Result<(), PrismError> {
+    let limit = effective_nesting_depth_limit();
+    if depth > limit {
+        return Err(PrismError::QueryExecutionFailed {
+            detail: format!(
+                "{E_QUERY_003}: expression nesting depth {depth} exceeds maximum allowed {limit}"
+            ),
+        });
+    }
+    let next = depth + 1;
+    match expr {
+        Expr::Literal(_) | Expr::Field(_) | Expr::VirtualField(_) | Expr::Star => Ok(()),
+        Expr::Compare { lhs, rhs, .. } => {
+            check_expr_nesting_depth(lhs, next)?;
+            check_expr_nesting_depth(rhs, next)
+        }
+        Expr::Logical { lhs, rhs, .. } => {
+            check_expr_nesting_depth(lhs, next)?;
+            check_expr_nesting_depth(rhs, next)
+        }
+        Expr::Not(inner) => check_expr_nesting_depth(inner, next),
+        Expr::In { .. } => Ok(()),
+        Expr::InSubquery { subquery, .. } => check_sql_query_nesting_depth(subquery, next),
+        Expr::FuncCall(fc) => {
+            use crate::ast::FuncCall;
+            match fc {
+                FuncCall::Aggregate { args, .. } | FuncCall::Scalar { args, .. } => {
+                    for arg in args {
+                        check_expr_nesting_depth(arg, next)?;
+                    }
+                    Ok(())
+                }
+                FuncCall::Window { .. } => Ok(()),
+            }
+        }
+    }
+}
+
+/// Backward-compatible entry point: check nesting depth of an `Expr`.
+///
+/// Called by tests that use `check_nesting_depth(&expr, depth)`.
+/// Delegates to `check_expr_nesting_depth`.
+pub fn check_nesting_depth(ast: &Expr, depth: u32) -> Result<(), PrismError> {
+    check_expr_nesting_depth(ast, depth)
 }
 
 /// Check that a query string does not contain parenthesised expressions nested
 /// more deeply than `PRISM_MAX_NESTING_DEPTH` (EC-002, BC-2.11.006).
 ///
-/// # Method
-/// Scans the raw query string character by character, tracking the **maximum
-/// simultaneous paren depth** reached. String literals (both single- and
-/// double-quoted) are excluded from the count so that `cidr "10.0.0.0/8"`
-/// and `hostname = '(server)'` do not contribute false depth.
-///
-/// This is intentionally conservative: parentheses used for grouping,
-/// `IN (…)` lists, function calls, and sub-queries all count toward the
-/// depth budget. At 64 simultaneous open parens the query is structurally
-/// deep enough to risk downstream stack overflows regardless of the specific
-/// use of each paren level.
-///
-/// # Security
-/// MUST be called before the Chumsky parser runs. A deeply-nested input
-/// that passes this guard is guaranteed not to exceed `PRISM_MAX_NESTING_DEPTH`
-/// structural depth during evaluation (BC-2.11.006 postcondition 2, EC-002,
-/// VP-015).
-///
-/// # Errors
-/// Returns `PrismError::QueryExecutionFailed` with code `E-QUERY-003` if
-/// the maximum simultaneous paren depth exceeds `PRISM_MAX_NESTING_DEPTH`.
+/// This pre-parse lexical scan catches structural depth bombs before the
+/// Chumsky parser descends into recursion.
 pub fn check_paren_depth(raw: &str) -> Result<(), PrismError> {
     let limit = effective_nesting_depth_limit();
     let mut depth: u32 = 0;
-    let mut in_sq = false; // inside single-quoted string
-    let mut in_dq = false; // inside double-quoted string
+    let mut in_sq = false;
+    let mut in_dq = false;
     for ch in raw.chars() {
         match ch {
             '\'' if !in_dq => in_sq = !in_sq,
@@ -166,15 +214,7 @@ pub fn check_paren_depth(raw: &str) -> Result<(), PrismError> {
 }
 
 /// Check that a pipe query does not contain more than the maximum allowed
-/// number of stages.
-///
-/// # Security
-/// Enforces BC-2.11.006 pipe stage count limit (EC-003). Called by
-/// `pipe_parser::parse_pipe` after the stage list is parsed.
-///
-/// # Errors
-/// Returns `PrismError::QueryExecutionFailed` with code `E-QUERY-003` if
-/// `stages.len() > PRISM_MAX_PIPE_STAGES`.
+/// number of stages. (BC-2.11.006, EC-003)
 pub fn check_pipe_stage_count(stages: &[PipeStage]) -> Result<(), PrismError> {
     if stages.len() > PRISM_MAX_PIPE_STAGES {
         return Err(PrismError::QueryExecutionFailed {
@@ -188,16 +228,8 @@ pub fn check_pipe_stage_count(stages: &[PipeStage]) -> Result<(), PrismError> {
     Ok(())
 }
 
-/// Check that a regex pattern string does not exceed the maximum allowed
-/// length.
-///
-/// # Security
-/// Enforces BC-2.11.006 regex pattern length limit. Called for every
-/// `matches` predicate found during parsing.
-///
-/// # Errors
-/// Returns `PrismError::QueryExecutionFailed` with code `E-QUERY-003` if
-/// `pattern.len() > PRISM_MAX_REGEX_PATTERN_LEN`.
+/// Check that a regex pattern string does not exceed the maximum allowed length.
+/// (BC-2.11.006, CWE-1333)
 pub fn check_regex_pattern_length(pattern: &str) -> Result<(), PrismError> {
     if pattern.len() > PRISM_MAX_REGEX_PATTERN_LEN {
         return Err(PrismError::QueryExecutionFailed {
@@ -211,12 +243,7 @@ pub fn check_regex_pattern_length(pattern: &str) -> Result<(), PrismError> {
     Ok(())
 }
 
-/// Return the effective query size limit, reading `PRISM_MAX_QUERY_SIZE`
-/// from the environment if set, otherwise falling back to the compile-time
-/// default.
-///
-/// Called by `check_query_size`. Separated out to enable deterministic
-/// testing without process-level env var mutation.
+/// Return the effective query size limit.
 pub fn effective_query_size_limit() -> usize {
     std::env::var("PRISM_MAX_QUERY_SIZE")
         .ok()
@@ -224,9 +251,7 @@ pub fn effective_query_size_limit() -> usize {
         .unwrap_or(PRISM_MAX_QUERY_SIZE)
 }
 
-/// Return the effective nesting depth limit, reading `PRISM_MAX_NESTING_DEPTH`
-/// from the environment if set, otherwise falling back to the compile-time
-/// default of 64.
+/// Return the effective nesting depth limit.
 pub fn effective_nesting_depth_limit() -> u32 {
     std::env::var("PRISM_MAX_NESTING_DEPTH")
         .ok()

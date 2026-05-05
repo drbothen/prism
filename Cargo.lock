@@ -2102,6 +2102,9 @@ name = "ipnet"
 version = "2.12.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "d98f6fed1fde3f8c21bc40a1abb88dd75e67924f9cffc3ef95607bad8017f8e2"
+dependencies = [
+ "serde",
+]
 
 [[package]]
 name = "iri-string"
@@ -3006,6 +3009,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "68f19d67e5a2795c94e73e0bb1cc1a7edeb2e28efd39e2e1c9b7a40c1108b11c"
 dependencies = [
  "num-traits",
+ "serde",
 ]
 
 [[package]]
@@ -3647,12 +3651,15 @@ version = "0.1.0"
 dependencies = [
  "ariadne",
  "chumsky",
+ "ipnet",
  "kani-verifier",
  "libfuzzer-sys",
  "lru",
+ "ordered-float",
  "prism-core",
  "prism-spec-engine",
  "prism-storage",
+ "regex",
  "serde",
  "serde_json",
  "uuid",

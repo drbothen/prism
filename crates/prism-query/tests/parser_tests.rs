@@ -31,11 +31,13 @@
     dead_code
 )]
 
+use ordered_float::OrderedFloat;
 use prism_query::{
     ast::{
         AggFunc, Ast, CompareOp, EnrichStage, Expr, FieldPath, FieldsStage, FilterExpr, FromClause,
-        Join, JoinKind, JoinStage, Literal, LogicalOp, OrderExpr, PipeQuery, PipeStage, Predicate,
-        SelectClause, SelectItem, SortDirection, SortExpr, SourceRef, SqlQuery, StatsStage,
+        Join, JoinCondition, JoinKind, JoinStage, Literal, LogicalOp, OrderExpr, PipeQuery,
+        PipeStage, Predicate, SelectClause, SelectItem, SortDirection, SortExpr, SourceRef, Span,
+        SqlQuery, SqlStatement, StatsStage,
     },
     filter_parser::{parse_filter, PrismQlParser, PRISM_MAX_NESTING_DEPTH, PRISM_MAX_QUERY_SIZE},
     pipe_parser::{parse_pipe, PRISM_MAX_PIPE_STAGES},
@@ -52,15 +54,11 @@ use prism_query::{
 // ─────────────────────────────────────────────────────────────────────────────
 
 fn source(raw: &str) -> SourceRef {
-    SourceRef {
-        raw: raw.to_string(),
-    }
+    SourceRef::from_raw(raw)
 }
 
 fn field(segments: &[&str]) -> FieldPath {
-    FieldPath {
-        segments: segments.iter().map(|s| s.to_string()).collect(),
-    }
+    FieldPath::new(segments.iter().copied())
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -85,7 +83,7 @@ fn test_AC_01_filter_basic_gte_comparison_produces_filter_expr() {
             );
             // The predicate must be a comparison with op Ge and rhs 3.
             match &fe.predicate {
-                Expr::Compare { op, rhs, .. } => {
+                Predicate::Compare { op, rhs, .. } => {
                     assert_eq!(*op, CompareOp::Ge, "AC-1: operator must be >=");
                     assert_eq!(
                         *rhs.as_ref(),
@@ -93,7 +91,7 @@ fn test_AC_01_filter_basic_gte_comparison_produces_filter_expr() {
                         "AC-1: rhs must be integer 3"
                     );
                 }
-                other => panic!("AC-1: expected Expr::Compare, got {:?}", other),
+                other => panic!("AC-1: expected Predicate::Compare, got {:?}", other),
             }
         }
         other => panic!("AC-1: expected Ast::Filter, got {:?}", other),
@@ -123,7 +121,7 @@ fn test_BC_2_11_002_canonical_tv_severity_eq_critical() {
     let result = parse_filter(input);
     let fe = result.expect("BC-2.11.002 TV: severity = 'critical' must produce FilterExpr");
     match &fe.predicate {
-        Expr::Compare { op, rhs, .. } => {
+        Predicate::Compare { op, rhs, .. } => {
             assert_eq!(*op, CompareOp::Eq, "TV: operator must be =");
             assert_eq!(
                 *rhs.as_ref(),
@@ -131,7 +129,7 @@ fn test_BC_2_11_002_canonical_tv_severity_eq_critical() {
                 "TV: rhs must be string 'critical'"
             );
         }
-        other => panic!("TV: expected Expr::Compare, got {:?}", other),
+        other => panic!("TV: expected Predicate::Compare, got {:?}", other),
     }
 }
 
@@ -149,10 +147,10 @@ fn test_AC_02_filter_and_combinator_produces_logical_and_node() {
     let result = parse_filter(input);
     let fe = result.expect("AC-2: valid AND filter query must parse without errors");
     match &fe.predicate {
-        Expr::Logical { op, .. } => {
+        Predicate::Logical { op, .. } => {
             assert_eq!(*op, LogicalOp::And, "AC-2: root logical op must be AND");
         }
-        other => panic!("AC-2: expected Expr::Logical(AND), got {:?}", other),
+        other => panic!("AC-2: expected Predicate::Logical(AND), got {:?}", other),
     }
 }
 
@@ -164,17 +162,21 @@ fn test_AC_02_filter_and_combinator_has_two_comparison_children() {
     let input = "crowdstrike.detections | severity_id >= 3 AND category = 'malware'";
     let fe = parse_filter(input).expect("AC-2: must parse");
     match &fe.predicate {
-        Expr::Logical { lhs, rhs, .. } => {
+        Predicate::Logical { predicates, .. } => {
             assert!(
-                matches!(lhs.as_ref(), Expr::Compare { .. }),
-                "AC-2: LHS child must be a comparison"
+                predicates.len() >= 2,
+                "AC-2: AND must have at least 2 children"
             );
             assert!(
-                matches!(rhs.as_ref(), Expr::Compare { .. }),
-                "AC-2: RHS child must be a comparison"
+                matches!(predicates[0], Predicate::Compare { .. }),
+                "AC-2: first child must be a comparison"
+            );
+            assert!(
+                matches!(predicates[1], Predicate::Compare { .. }),
+                "AC-2: second child must be a comparison"
             );
         }
-        other => panic!("AC-2: expected Expr::Logical, got {:?}", other),
+        other => panic!("AC-2: expected Predicate::Logical, got {:?}", other),
     }
 }
 
@@ -188,12 +190,12 @@ fn test_BC_2_11_002_filter_or_combinator_produces_logical_or_node() {
     assert!(
         matches!(
             &fe.predicate,
-            Expr::Logical {
+            Predicate::Logical {
                 op: LogicalOp::Or,
                 ..
             }
         ),
-        "predicate root must be Expr::Logical(Or)"
+        "predicate root must be Predicate::Logical(Or)"
     );
 }
 
@@ -205,8 +207,8 @@ fn test_BC_2_11_002_filter_not_combinator_produces_not_node() {
     let input = "crowdstrike.detections | NOT severity_id = 1";
     let fe = parse_filter(input).expect("NOT combinator must parse");
     assert!(
-        matches!(&fe.predicate, Expr::Not(_)),
-        "predicate root must be Expr::Not"
+        matches!(&fe.predicate, Predicate::Not(_)),
+        "predicate root must be Predicate::Not"
     );
 }
 
@@ -218,8 +220,8 @@ fn test_BC_2_11_002_filter_in_list_produces_in_node() {
     let input = "crowdstrike.detections | severity_id IN (1, 2, 3)";
     let fe = parse_filter(input).expect("IN list must parse");
     assert!(
-        matches!(&fe.predicate, Expr::In { .. }),
-        "predicate root must be Expr::In"
+        matches!(&fe.predicate, Predicate::In { .. }),
+        "predicate root must be Predicate::In"
     );
 }
 
@@ -233,7 +235,7 @@ fn test_BC_2_11_002_filter_like_operator_produces_compare_like_node() {
     assert!(
         matches!(
             &fe.predicate,
-            Expr::Compare {
+            Predicate::Compare {
                 op: CompareOp::Like,
                 ..
             }
@@ -250,13 +252,13 @@ fn test_BC_2_11_002_filter_dot_notation_field_path_parsed() {
     let input = "crowdstrike.detections | device.hostname = 'web01'";
     let fe = parse_filter(input).expect("dot-notation field path must parse");
     match &fe.predicate {
-        Expr::Compare { lhs, .. } => {
+        Predicate::Compare { lhs, .. } => {
             assert!(
                 matches!(lhs.as_ref(), Expr::Field(fp) if fp.segments.len() == 2),
                 "field path must have 2 segments: device.hostname"
             );
         }
-        other => panic!("expected Expr::Compare, got {:?}", other),
+        other => panic!("expected Predicate::Compare, got {:?}", other),
     }
 }
 
@@ -292,7 +294,7 @@ fn test_AC_03_sql_mode_select_star_with_where_orderby_limit() {
     let result = PrismQlParser::parse(input);
     let ast = result.expect("AC-3: valid SQL query must parse without errors");
     match ast {
-        Ast::Sql(ref sq) => {
+        Ast::Sql(SqlStatement::Select(ref sq)) => {
             // SELECT *
             assert!(
                 sq.select
@@ -316,7 +318,10 @@ fn test_AC_03_sql_mode_select_star_with_where_orderby_limit() {
             // LIMIT = 100
             assert_eq!(sq.limit, Some(100), "AC-3: LIMIT must be 100");
         }
-        other => panic!("AC-3: expected Ast::Sql, got {:?}", other),
+        other => panic!(
+            "AC-3: expected Ast::Sql(SqlStatement::Select), got {:?}",
+            other
+        ),
     }
 }
 
@@ -430,7 +435,7 @@ fn test_AC_04_sql_inner_join_produces_join_node() {
     let result = PrismQlParser::parse(input);
     let ast = result.expect("AC-4: SQL JOIN query must parse without errors");
     match ast {
-        Ast::Sql(ref sq) => {
+        Ast::Sql(SqlStatement::Select(ref sq)) => {
             assert!(!sq.joins.is_empty(), "AC-4: joins list must be non-empty");
             let join = &sq.joins[0];
             assert_eq!(join.kind, JoinKind::Inner, "AC-4: join kind must be Inner");
@@ -439,7 +444,10 @@ fn test_AC_04_sql_inner_join_produces_join_node() {
                 "AC-4: join source must be 'claroty.alerts'"
             );
         }
-        other => panic!("AC-4: expected Ast::Sql, got {:?}", other),
+        other => panic!(
+            "AC-4: expected Ast::Sql(SqlStatement::Select), got {:?}",
+            other
+        ),
     }
 }
 
@@ -521,17 +529,20 @@ fn test_AC_05_sql_subquery_in_where_produces_in_subquery_node() {
     let result = PrismQlParser::parse(input);
     let ast = result.expect("AC-5: SQL query with IN subquery must parse without errors");
     match ast {
-        Ast::Sql(ref sq) => {
+        Ast::Sql(SqlStatement::Select(ref sq)) => {
             let where_clause = sq
                 .where_
                 .as_ref()
                 .expect("AC-5: WHERE clause must be present");
             assert!(
-                matches!(where_clause, Expr::InSubquery { .. }),
-                "AC-5: WHERE clause must be Expr::InSubquery"
+                matches!(where_clause, Predicate::InSubquery { .. }),
+                "AC-5: WHERE clause must be Predicate::InSubquery"
             );
         }
-        other => panic!("AC-5: expected Ast::Sql, got {:?}", other),
+        other => panic!(
+            "AC-5: expected Ast::Sql(SqlStatement::Select), got {:?}",
+            other
+        ),
     }
 }
 
@@ -544,13 +555,13 @@ fn test_AC_05_sql_subquery_inner_query_from_source_correct() {
     let sq = parse_sql(input).expect("AC-5: must parse");
     let where_clause = sq.where_.as_ref().expect("WHERE must exist");
     match where_clause {
-        Expr::InSubquery { subquery, .. } => {
+        Predicate::InSubquery { subquery, .. } => {
             assert_eq!(
                 subquery.from.source.raw, "claroty.alerts",
                 "AC-5: inner subquery FROM must be 'claroty.alerts'"
             );
         }
-        other => panic!("AC-5: expected InSubquery, got {:?}", other),
+        other => panic!("AC-5: expected Predicate::InSubquery, got {:?}", other),
     }
 }
 
@@ -640,8 +651,8 @@ fn test_BC_2_11_004_pipe_stats_count_by_field_produces_stats_node() {
     let pq = parse_pipe(input).expect("stats stage must parse");
     match &pq.stages[0] {
         PipeStage::Stats(ss) => {
-            assert_eq!(ss.func, AggFunc::Count, "stats must use Count function");
-            assert!(ss.by.is_some(), "stats must have a by-field");
+            assert_eq!(ss.func(), AggFunc::Count, "stats must use Count function");
+            assert!(ss.by().is_some(), "stats must have a by-field");
         }
         other => panic!("expected PipeStage::Stats, got {:?}", other),
     }
@@ -784,11 +795,16 @@ fn test_AC_07_pipe_join_stage_source_and_on_field() {
                 js.source.raw, "claroty.alerts",
                 "AC-7: join source must be 'claroty.alerts'"
             );
-            assert_eq!(
-                js.on.segments,
-                vec!["device_id"],
-                "AC-7: join on-field must be 'device_id'"
-            );
+            match &js.on {
+                JoinCondition::SameField(fp) => {
+                    assert_eq!(
+                        fp.segments,
+                        vec!["device_id"],
+                        "AC-7: join on-field must be 'device_id'"
+                    );
+                }
+                other => panic!("AC-7: expected JoinCondition::SameField, got {:?}", other),
+            }
         }
         other => panic!("AC-7: expected PipeStage::Join, got {:?}", other),
     }
@@ -1390,13 +1406,16 @@ fn test_BC_2_11_007_sql_ast_preserves_source_ref_for_pushdown() {
     let input = "SELECT * FROM armis.devices WHERE category = 'IoT'";
     let ast = PrismQlParser::parse(input).expect("must parse");
     match ast {
-        Ast::Sql(sq) => {
+        Ast::Sql(SqlStatement::Select(sq)) => {
             assert_eq!(
                 sq.from.source.raw, "armis.devices",
                 "BC-2.11.007: FROM source in SqlQuery must be 'armis.devices'"
             );
         }
-        other => panic!("BC-2.11.007: expected Ast::Sql, got {:?}", other),
+        other => panic!(
+            "BC-2.11.007: expected Ast::Sql(SqlStatement::Select), got {:?}",
+            other
+        ),
     }
 }
 
@@ -1440,11 +1459,14 @@ fn test_BC_2_11_011_sql_join_preserves_both_source_refs() {
         "SELECT * FROM crowdstrike.detections a JOIN claroty.alerts b ON a.device_id = b.device_id";
     let ast = PrismQlParser::parse(input).expect("BC-2.11.011: JOIN query must parse");
     match ast {
-        Ast::Sql(sq) => {
+        Ast::Sql(SqlStatement::Select(sq)) => {
             assert_eq!(sq.from.source.raw, "crowdstrike.detections");
             assert_eq!(sq.joins[0].source.raw, "claroty.alerts");
         }
-        other => panic!("BC-2.11.011: expected Ast::Sql, got {:?}", other),
+        other => panic!(
+            "BC-2.11.011: expected Ast::Sql(SqlStatement::Select), got {:?}",
+            other
+        ),
     }
 }
 
@@ -1464,7 +1486,7 @@ fn test_BC_2_11_012_virtual_field_source_type_parsed_as_field_path() {
     let input = "crowdstrike.detections | _source_type = 'buffered'";
     let fe = parse_filter(input).expect("BC-2.11.012: _source_type filter must parse");
     match &fe.predicate {
-        Expr::Compare { lhs, .. } => match lhs.as_ref() {
+        Predicate::Compare { lhs, .. } => match lhs.as_ref() {
             Expr::Field(fp) => {
                 assert_eq!(
                     fp.segments,
@@ -1474,7 +1496,7 @@ fn test_BC_2_11_012_virtual_field_source_type_parsed_as_field_path() {
             }
             other => panic!("BC-2.11.012: expected Expr::Field, got {:?}", other),
         },
-        other => panic!("BC-2.11.012: expected Expr::Compare, got {:?}", other),
+        other => panic!("BC-2.11.012: expected Predicate::Compare, got {:?}", other),
     }
 }
 
@@ -1486,8 +1508,8 @@ fn test_BC_2_11_012_virtual_field_safety_flags_parsed_in_pipe_where() {
     let input = "FROM crowdstrike.detections | where _safety_flags = 0";
     let pq = parse_pipe(input).expect("BC-2.11.012: _safety_flags pipe filter must parse");
     match &pq.stages[0] {
-        PipeStage::Where(expr) => match expr {
-            Expr::Compare { lhs, .. } => match lhs.as_ref() {
+        PipeStage::Where(pred) => match pred {
+            Predicate::Compare { lhs, .. } => match lhs.as_ref() {
                 Expr::Field(fp) => {
                     assert_eq!(
                         fp.segments,
@@ -1497,7 +1519,7 @@ fn test_BC_2_11_012_virtual_field_safety_flags_parsed_in_pipe_where() {
                 }
                 other => panic!("BC-2.11.012: expected Expr::Field, got {:?}", other),
             },
-            other => panic!("BC-2.11.012: expected Expr::Compare, got {:?}", other),
+            other => panic!("BC-2.11.012: expected Predicate::Compare, got {:?}", other),
         },
         other => panic!("BC-2.11.012: expected PipeStage::Where, got {:?}", other),
     }
@@ -1515,8 +1537,8 @@ fn test_BC_2_11_012_virtual_field_source_type_in_sql_where() {
         .expect("BC-2.11.012: WHERE clause must be present");
     // The WHERE clause must contain a comparison with _source_type as the field.
     assert!(
-        matches!(where_clause, Expr::Compare { .. }),
-        "BC-2.11.012: _source_type WHERE must produce a Compare expression"
+        matches!(where_clause, Predicate::Compare { .. }),
+        "BC-2.11.012: _source_type WHERE must produce a Predicate::Compare expression"
     );
 }
 
@@ -1601,14 +1623,14 @@ fn test_BC_2_11_002_literal_integer_parsed_correctly() {
     let input = "crowdstrike.detections | severity_id = 42";
     let fe = parse_filter(input).expect("integer literal must parse");
     match &fe.predicate {
-        Expr::Compare { rhs, .. } => {
+        Predicate::Compare { rhs, .. } => {
             assert_eq!(
                 *rhs.as_ref(),
                 Expr::Literal(Literal::Integer(42)),
                 "integer literal must be Literal::Integer(42)"
             );
         }
-        other => panic!("expected Expr::Compare, got {:?}", other),
+        other => panic!("expected Predicate::Compare, got {:?}", other),
     }
 }
 
@@ -1620,14 +1642,14 @@ fn test_BC_2_11_002_literal_bool_true_parsed_correctly() {
     let input = "crowdstrike.detections | is_critical = true";
     let fe = parse_filter(input).expect("boolean literal must parse");
     match &fe.predicate {
-        Expr::Compare { rhs, .. } => {
+        Predicate::Compare { rhs, .. } => {
             assert_eq!(
                 *rhs.as_ref(),
                 Expr::Literal(Literal::Bool(true)),
                 "bool literal 'true' must be Literal::Bool(true)"
             );
         }
-        other => panic!("expected Expr::Compare, got {:?}", other),
+        other => panic!("expected Predicate::Compare, got {:?}", other),
     }
 }
 
@@ -1639,14 +1661,14 @@ fn test_BC_2_11_002_literal_null_parsed_correctly() {
     let input = "crowdstrike.detections | hostname = NULL";
     let fe = parse_filter(input).expect("NULL literal must parse");
     match &fe.predicate {
-        Expr::Compare { rhs, .. } => {
+        Predicate::Compare { rhs, .. } => {
             assert_eq!(
                 *rhs.as_ref(),
                 Expr::Literal(Literal::Null),
                 "NULL literal must be Literal::Null"
             );
         }
-        other => panic!("expected Expr::Compare, got {:?}", other),
+        other => panic!("expected Predicate::Compare, got {:?}", other),
     }
 }
 
@@ -1658,14 +1680,14 @@ fn test_BC_2_11_002_literal_float_parsed_correctly() {
     let input = "crowdstrike.detections | score = 3.14";
     let fe = parse_filter(input).expect("float literal must parse");
     match &fe.predicate {
-        Expr::Compare { rhs, .. } => {
+        Predicate::Compare { rhs, .. } => {
             assert_eq!(
                 *rhs.as_ref(),
-                Expr::Literal(Literal::Float(3.14)),
-                "float literal must be Literal::Float(3.14)"
+                Expr::Literal(Literal::Float(OrderedFloat(3.14))),
+                "float literal must be Literal::Float(OrderedFloat(3.14))"
             );
         }
-        other => panic!("expected Expr::Compare, got {:?}", other),
+        other => panic!("expected Predicate::Compare, got {:?}", other),
     }
 }
 
@@ -1683,7 +1705,7 @@ fn test_BC_2_11_002_compare_op_ne_parsed_correctly() {
     assert!(
         matches!(
             &fe.predicate,
-            Expr::Compare {
+            Predicate::Compare {
                 op: CompareOp::Ne,
                 ..
             }
@@ -1702,7 +1724,7 @@ fn test_BC_2_11_002_compare_op_lt_parsed_correctly() {
     assert!(
         matches!(
             &fe.predicate,
-            Expr::Compare {
+            Predicate::Compare {
                 op: CompareOp::Lt,
                 ..
             }
@@ -1721,7 +1743,7 @@ fn test_BC_2_11_002_compare_op_le_parsed_correctly() {
     assert!(
         matches!(
             &fe.predicate,
-            Expr::Compare {
+            Predicate::Compare {
                 op: CompareOp::Le,
                 ..
             }
@@ -1740,7 +1762,7 @@ fn test_BC_2_11_002_compare_op_gt_parsed_correctly() {
     assert!(
         matches!(
             &fe.predicate,
-            Expr::Compare {
+            Predicate::Compare {
                 op: CompareOp::Gt,
                 ..
             }
@@ -1824,7 +1846,7 @@ fn test_BC_2_11_004_stats_sum_function() {
     match &pq.stages[0] {
         PipeStage::Stats(ss) => {
             assert!(
-                matches!(&ss.func, AggFunc::Sum(_)),
+                matches!(ss.func(), AggFunc::Sum(_)),
                 "stats sum must produce AggFunc::Sum"
             );
         }
@@ -1840,7 +1862,7 @@ fn test_BC_2_11_004_stats_avg_function() {
     let input = "FROM crowdstrike.detections | stats avg(score)";
     let pq = parse_pipe(input).expect("stats avg must parse");
     assert!(
-        matches!(&pq.stages[0], PipeStage::Stats(ss) if matches!(&ss.func, AggFunc::Avg(_))),
+        matches!(&pq.stages[0], PipeStage::Stats(ss) if matches!(ss.func(), AggFunc::Avg(_))),
         "stats avg must produce AggFunc::Avg"
     );
 }
