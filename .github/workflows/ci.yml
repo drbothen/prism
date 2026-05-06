@@ -285,14 +285,18 @@ jobs:
     #
     # Adversary pass-5 OBS-003 [process-gap] remediation.
     # Adversary pass-7 F-HIGH-001/OBS-001 remediation.
-    # Pass-13 fix: timeout 3 → 7 min. Cold cargo build of prism-query +
-    # 24 transitive deps (chumsky, regex, ariadne, ipnet, ordered-float,
-    # chrono, serde, ...) reliably runs ~3m23s on standard ubuntu-latest
-    # runners, hitting the 3-min ceiling before the visibility check fires.
-    # 7-min ceiling provides margin for cold cache + slower runner pools
-    # while still failing fast on genuine hangs.
+    # Pass-13 fix #1 (a802b983): timeout 3 → 7 min. Cold cargo build of
+    # prism-query + 24 transitive deps reliably ran ~3m23s on standard
+    # ubuntu-latest runners, hitting the 3-min ceiling.
+    # Pass-13 fix #2: timeout 7 → 12 min. After 30f6fc07 added
+    # opt-level=3 for sha2/aes-gcm/argon2/blake2/etc in
+    # .cargo/config.toml, cold build time roughly DOUBLED to ~6m49s
+    # (run 25425477951) because sha2 is in the prism-query transitive
+    # dep graph. 12-min ceiling provides margin (matches fuzz-smoke
+    # ceiling — same root cause class) while still failing fast on
+    # genuine hangs.
     runs-on: ubuntu-latest
-    timeout-minutes: 7
+    timeout-minutes: 12
     permissions:
       contents: read
     steps:
