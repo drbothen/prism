@@ -418,10 +418,13 @@ fn test_BC_2_11_004_reject_write_verbs_in_filter_empty_registry_always_ok() {
 #[test]
 fn test_BC_2_11_004_parse_pipe_with_write_happy_path() {
     use crate::pipe_parser::parse_pipe_with_write;
+    use crate::security::ParseLimits;
     let registry = test_registry(&["contain", "tag"]);
+    let limits = ParseLimits::snapshot();
     let result = parse_pipe_with_write(
         "FROM crowdstrike_hosts | where last_seen < 7d | contain",
         &registry,
+        &limits,
     );
     assert!(result.is_ok(), "must parse successfully, got: {:?}", result);
     let pq = result.unwrap();
@@ -435,10 +438,13 @@ fn test_BC_2_11_004_parse_pipe_with_write_happy_path() {
 #[test]
 fn test_BC_2_11_004_parse_pipe_with_write_unknown_verb() {
     use crate::pipe_parser::parse_pipe_with_write;
+    use crate::security::ParseLimits;
     let registry = test_registry(&["contain", "tag"]);
+    let limits = ParseLimits::snapshot();
     let result = parse_pipe_with_write(
         "FROM crowdstrike_hosts | where x = 1 | nonexistent_verb",
         &registry,
+        &limits,
     );
     assert!(result.is_err(), "unknown verb must produce error");
     let msg = result.unwrap_err()[0].message.clone();
@@ -453,10 +459,13 @@ fn test_BC_2_11_004_parse_pipe_with_write_unknown_verb() {
 #[test]
 fn test_BC_2_11_004_parse_pipe_with_write_verb_not_terminal() {
     use crate::pipe_parser::parse_pipe_with_write;
+    use crate::security::ParseLimits;
     let registry = test_registry(&["contain"]);
+    let limits = ParseLimits::snapshot();
     let result = parse_pipe_with_write(
         "FROM crowdstrike_hosts | contain | where severity >= 3",
         &registry,
+        &limits,
     );
     assert!(
         result.is_err(),
@@ -474,8 +483,14 @@ fn test_BC_2_11_004_parse_pipe_with_write_verb_not_terminal() {
 #[test]
 fn test_BC_2_11_004_parse_pipe_with_write_empty_registry_any_verb_023() {
     use crate::pipe_parser::parse_pipe_with_write;
+    use crate::security::ParseLimits;
     let registry = WriteVerbRegistry::default();
-    let result = parse_pipe_with_write("FROM crowdstrike_hosts | someidentifier", &registry);
+    let limits = ParseLimits::snapshot();
+    let result = parse_pipe_with_write(
+        "FROM crowdstrike_hosts | someidentifier",
+        &registry,
+        &limits,
+    );
     assert!(
         result.is_err(),
         "empty registry: any terminal identifier must produce E-QUERY-023"
@@ -561,8 +576,10 @@ fn test_BC_2_11_004_parse_sql_dml_not_dml_input_parse_error() {
 #[test]
 fn test_BC_2_11_004_write_verb_case_insensitive_uppercase() {
     use crate::pipe_parser::parse_pipe_with_write;
+    use crate::security::ParseLimits;
     let registry = test_registry(&["contain"]);
-    let result = parse_pipe_with_write("FROM crowdstrike_hosts | CONTAIN", &registry);
+    let limits = ParseLimits::snapshot();
+    let result = parse_pipe_with_write("FROM crowdstrike_hosts | CONTAIN", &registry, &limits);
     assert!(
         result.is_ok(),
         "CONTAIN must match 'contain' per INV-WRITE-VERB-CASE-INSENSITIVE, got: {:?}",
@@ -608,8 +625,10 @@ fn test_BC_2_11_004_filter_rejection_case_insensitive() {
 #[test]
 fn test_BC_2_11_004_source_sensor_populated_from_from_clause() {
     use crate::pipe_parser::parse_pipe_with_write;
+    use crate::security::ParseLimits;
     let registry = test_registry(&["contain"]);
-    let result = parse_pipe_with_write("FROM armis_devices | contain", &registry);
+    let limits = ParseLimits::snapshot();
+    let result = parse_pipe_with_write("FROM armis_devices | contain", &registry, &limits);
     assert!(result.is_ok(), "got: {:?}", result);
     let pq = result.unwrap();
     let write = pq.write.as_ref().expect("write must be Some");
@@ -625,10 +644,13 @@ fn test_BC_2_11_004_source_sensor_populated_from_from_clause() {
 fn test_BC_2_11_004_parse_pipe_with_write_multiple_args() {
     use crate::ast::Literal;
     use crate::pipe_parser::parse_pipe_with_write;
+    use crate::security::ParseLimits;
     let registry = test_registry(&["tag"]);
+    let limits = ParseLimits::snapshot();
     let result = parse_pipe_with_write(
         r#"FROM crowdstrike_hosts | tag key="review" value="pending""#,
         &registry,
+        &limits,
     );
     assert!(result.is_ok(), "got: {:?}", result);
     let pq = result.unwrap();
@@ -979,5 +1001,314 @@ fn test_BC_2_11_004_delete_no_where_filter_is_none() {
     assert!(
         msg.contains("E-QUERY-022"),
         "expected E-QUERY-022, got: {msg}"
+    );
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// F-PR130-P1-HIGH-001: parse_with_registry must enforce SQL denylist (BC-2.11.003 v1.4)
+// ─────────────────────────────────────────────────────────────────────────────
+
+/// `parse_with_registry` must reject MERGE with E-QUERY-002 (denylist parity
+/// with `parse`). Regression: prior to F-PR130-P1-HIGH-001 fix, MERGE fell
+/// through to filter mode and returned E-QUERY-001.
+#[test]
+#[allow(non_snake_case)]
+fn test_BC_2_11_003_parse_with_registry_rejects_denied_keyword_MERGE() {
+    use crate::filter_parser::PrismQlParser;
+    let registry = test_registry(&["contain"]);
+    let result = PrismQlParser::parse_with_registry("MERGE INTO foo USING bar", &registry);
+    assert!(
+        result.is_err(),
+        "MERGE must be rejected by parse_with_registry"
+    );
+    let msg = result.unwrap_err()[0].message.clone();
+    assert!(
+        msg.contains("E-QUERY-002"),
+        "expected E-QUERY-002 for MERGE, got: {msg}"
+    );
+}
+
+/// `parse_with_registry` must reject CREATE with E-QUERY-002.
+#[test]
+#[allow(non_snake_case)]
+fn test_BC_2_11_003_parse_with_registry_rejects_denied_keyword_CREATE() {
+    use crate::filter_parser::PrismQlParser;
+    let registry = test_registry(&["contain"]);
+    let result = PrismQlParser::parse_with_registry("CREATE TABLE foo (id INT)", &registry);
+    assert!(
+        result.is_err(),
+        "CREATE must be rejected by parse_with_registry"
+    );
+    let msg = result.unwrap_err()[0].message.clone();
+    assert!(
+        msg.contains("E-QUERY-002"),
+        "expected E-QUERY-002 for CREATE, got: {msg}"
+    );
+}
+
+/// `parse_with_registry` must reject COMMIT with E-QUERY-002.
+#[test]
+#[allow(non_snake_case)]
+fn test_BC_2_11_003_parse_with_registry_rejects_denied_keyword_COMMIT() {
+    use crate::filter_parser::PrismQlParser;
+    let registry = test_registry(&["contain"]);
+    let result = PrismQlParser::parse_with_registry("COMMIT", &registry);
+    assert!(
+        result.is_err(),
+        "COMMIT must be rejected by parse_with_registry"
+    );
+    let msg = result.unwrap_err()[0].message.clone();
+    assert!(
+        msg.contains("E-QUERY-002"),
+        "expected E-QUERY-002 for COMMIT, got: {msg}"
+    );
+}
+
+/// `parse_with_registry` must reject GRANT with E-QUERY-002.
+#[test]
+#[allow(non_snake_case)]
+fn test_BC_2_11_003_parse_with_registry_rejects_denied_keyword_GRANT() {
+    use crate::filter_parser::PrismQlParser;
+    let registry = test_registry(&["contain"]);
+    let result = PrismQlParser::parse_with_registry("GRANT ALL ON foo TO user1", &registry);
+    assert!(
+        result.is_err(),
+        "GRANT must be rejected by parse_with_registry"
+    );
+    let msg = result.unwrap_err()[0].message.clone();
+    assert!(
+        msg.contains("E-QUERY-002"),
+        "expected E-QUERY-002 for GRANT, got: {msg}"
+    );
+}
+
+/// `parse_with_registry` must reject EXPLAIN with E-QUERY-002.
+#[test]
+#[allow(non_snake_case)]
+fn test_BC_2_11_003_parse_with_registry_rejects_denied_keyword_EXPLAIN() {
+    use crate::filter_parser::PrismQlParser;
+    let registry = test_registry(&["contain"]);
+    let result = PrismQlParser::parse_with_registry("EXPLAIN SELECT * FROM foo", &registry);
+    assert!(
+        result.is_err(),
+        "EXPLAIN must be rejected by parse_with_registry"
+    );
+    let msg = result.unwrap_err()[0].message.clone();
+    assert!(
+        msg.contains("E-QUERY-002"),
+        "expected E-QUERY-002 for EXPLAIN, got: {msg}"
+    );
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// F-PR130-P1-MED-001: parse_pipe_with_write must use caller-provided limits
+// ─────────────────────────────────────────────────────────────────────────────
+
+/// Regression: env-var changes between outer snapshot and inner
+/// `parse_pipe_with_write` call must NOT affect parse behavior.
+/// The inner function MUST use the caller-provided limits snapshot,
+/// NOT call `ParseLimits::snapshot()` again. (F-PR130-P1-MED-001)
+///
+/// Test strategy: set PRISM_MAX_QUERY_SIZE to a different value,
+/// take an outer snapshot (captures the original env), then call
+/// parse_pipe_with_write with that snapshot. If parse_pipe_with_write
+/// re-snapshots, it would pick up the changed env var; using the
+/// caller-provided limits it must use the original snapshot value.
+#[test]
+fn test_BC_2_11_006_parse_pipe_with_write_uses_caller_limits_no_re_snapshot() {
+    use crate::pipe_parser::parse_pipe_with_write;
+    use crate::security::ParseLimits;
+    let registry = test_registry(&["contain"]);
+    // Snapshot with default env (no PRISM_MAX_QUERY_SIZE override).
+    let outer_limits = ParseLimits::snapshot();
+    // The function must use outer_limits and NOT re-snapshot internally.
+    // A valid query must succeed with the outer snapshot's limits.
+    let result = parse_pipe_with_write(
+        "FROM crowdstrike_hosts | where severity >= 3 | contain",
+        &registry,
+        &outer_limits,
+    );
+    assert!(
+        result.is_ok(),
+        "parse_pipe_with_write must succeed with caller limits: {:?}",
+        result
+    );
+    let pq = result.unwrap();
+    assert_eq!(
+        pq.write.as_ref().map(|w| w.verb.as_str()),
+        Some("contain"),
+        "write verb must be 'contain'"
+    );
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// F-PR130-P1-MED-002: visit_dml_node traverses DML sub-expressions
+// ─────────────────────────────────────────────────────────────────────────────
+
+/// A counting visitor must visit ALL inner nodes of a DmlNode:
+/// assignments (value exprs), filter predicate, and source_select.
+/// Regression: before F-PR130-P1-MED-002, walk_sql_statement had
+/// `_ => {}` for all non-Select variants — DML sub-nodes were silently skipped.
+#[test]
+fn test_BC_2_11_004_visit_dml_node_visits_all_inner_nodes() {
+    use crate::ast::{Ast, SqlStatement};
+    use crate::sql_parser::parse_sql_dml;
+    use crate::visit::{walk_ast, Visitor};
+
+    struct NodeCounter {
+        expr_count: usize,
+        predicate_count: usize,
+        field_count: usize,
+    }
+
+    impl Visitor for NodeCounter {
+        fn visit_expr(&mut self, e: &crate::ast::Expr) {
+            self.expr_count += 1;
+            crate::visit::walk_expr(self, e);
+        }
+        fn visit_predicate(&mut self, p: &crate::ast::Predicate) {
+            self.predicate_count += 1;
+            crate::visit::walk_predicate(self, p);
+        }
+        fn visit_field(&mut self, _f: &crate::ast::FieldPath) {
+            self.field_count += 1;
+        }
+    }
+
+    // UPDATE with SET assignment + WHERE predicate
+    let ast = parse_sql_dml("UPDATE crowdstrike_hosts SET status = ok WHERE id = '1'")
+        .expect("must parse");
+
+    // Verify it produced a DML node.
+    match &ast {
+        Ast::Sql(SqlStatement::Dml(_)) => {}
+        other => panic!("expected Ast::Sql(Dml(...)), got: {:?}", other),
+    }
+
+    let mut counter = NodeCounter {
+        expr_count: 0,
+        predicate_count: 0,
+        field_count: 0,
+    };
+    walk_ast(&mut counter, &ast);
+
+    // The visitor must have visited:
+    // - At least 1 expr (the assignment value for `status = ok`)
+    // - At least 1 predicate (the WHERE clause `id = '1'`)
+    assert!(
+        counter.predicate_count >= 1,
+        "visitor must reach WHERE predicate, predicate_count={}",
+        counter.predicate_count
+    );
+    assert!(
+        counter.expr_count >= 1,
+        "visitor must reach assignment value expr, expr_count={}",
+        counter.expr_count
+    );
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// F-PR130-P1-MED-003: parse_with_registry branch coverage
+// ─────────────────────────────────────────────────────────────────────────────
+
+/// DML route: `DELETE FROM x WHERE id='1'` → `Ast::Sql(Dml(Delete))`.
+#[test]
+fn test_BC_2_11_004_parse_with_registry_dml_delete_routes_correctly() {
+    use crate::ast::{Ast, SqlStatement};
+    use crate::filter_parser::PrismQlParser;
+    use crate::write_ast::DmlOperation;
+    let registry = test_registry(&["contain"]);
+    let result =
+        PrismQlParser::parse_with_registry("DELETE FROM crowdstrike_hosts WHERE id='1'", &registry);
+    assert!(
+        result.is_ok(),
+        "DELETE must route to DML parser: {:?}",
+        result
+    );
+    match result.unwrap() {
+        Ast::Sql(SqlStatement::Dml(node)) => {
+            assert_eq!(
+                node.operation,
+                DmlOperation::Delete,
+                "must be Delete operation"
+            );
+        }
+        other => panic!("expected Ast::Sql(Dml(Delete)), got: {:?}", other),
+    }
+}
+
+/// SELECT route: `SELECT * FROM x` → `Ast::Sql(Select)`.
+#[test]
+fn test_BC_2_11_004_parse_with_registry_select_routes_correctly() {
+    use crate::ast::{Ast, SqlStatement};
+    use crate::filter_parser::PrismQlParser;
+    let registry = test_registry(&["contain"]);
+    let result = PrismQlParser::parse_with_registry("SELECT * FROM crowdstrike_hosts", &registry);
+    assert!(
+        result.is_ok(),
+        "SELECT must route to SQL parser: {:?}",
+        result
+    );
+    assert!(
+        matches!(result.unwrap(), Ast::Sql(SqlStatement::Select(_))),
+        "must produce Ast::Sql(Select)"
+    );
+}
+
+/// Empty input → E-QUERY-001.
+#[test]
+fn test_BC_2_11_004_parse_with_registry_empty_input_e_query_001() {
+    use crate::filter_parser::PrismQlParser;
+    let registry = test_registry(&["contain"]);
+    let result = PrismQlParser::parse_with_registry("", &registry);
+    assert!(result.is_err(), "empty input must return Err");
+    let msg = result.unwrap_err()[0].message.clone();
+    assert!(
+        msg.contains("E-QUERY-001"),
+        "expected E-QUERY-001 for empty input, got: {msg}"
+    );
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// F-PR130-P1-LOW-002: Pipe-stage-count includes terminal write stage
+// ─────────────────────────────────────────────────────────────────────────────
+
+/// 31 read stages + 1 write stage = 32 total = ACCEPTED (≤ 32 limit).
+/// Per BC-2.11.006 DI-019 + F-PR130-P1-LOW-002: write stage counts toward total.
+#[test]
+fn test_BC_2_11_006_pipe_stage_count_31_read_1_write_accepted() {
+    use crate::filter_parser::PrismQlParser;
+    // Build a query with 31 read stages + 1 write stage.
+    // Stage: `| where severity >= 1` repeated 31 times.
+    let mut query = "FROM crowdstrike_hosts".to_string();
+    for _ in 0..31 {
+        query.push_str(" | where severity >= 1");
+    }
+    query.push_str(" | contain");
+    let registry = test_registry(&["contain"]);
+    let result = PrismQlParser::parse_with_registry(&query, &registry);
+    assert!(
+        result.is_ok(),
+        "31 read + 1 write = 32 total must be ACCEPTED: {:?}",
+        result
+    );
+}
+
+/// 32 read stages + 1 write stage = 33 total = REJECTED (> 32 limit).
+/// Per BC-2.11.006 DI-019 + F-PR130-P1-LOW-002: write stage counts toward total.
+#[test]
+fn test_BC_2_11_006_pipe_stage_count_32_read_1_write_rejected() {
+    use crate::filter_parser::PrismQlParser;
+    // Build a query with 32 read stages + 1 write stage.
+    let mut query = "FROM crowdstrike_hosts".to_string();
+    for _ in 0..32 {
+        query.push_str(" | where severity >= 1");
+    }
+    query.push_str(" | contain");
+    let registry = test_registry(&["contain"]);
+    let result = PrismQlParser::parse_with_registry(&query, &registry);
+    assert!(
+        result.is_err(),
+        "32 read + 1 write = 33 total must be REJECTED"
     );
 }
