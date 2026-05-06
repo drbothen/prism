@@ -28,23 +28,15 @@ successor_focus: "D-226 S-3.01 PrismQL PARSER KEYSTONE IMPLEMENTATION COMPLETE (
 **STEP 9 (CONTINUE W3-FIRST PLAN):** Tier 3 (8-way parallel: S-3.03/04/05/08/09/11/12/13) → Tier 4 (S-3.07 + S-3.10) → W3 wave gate (HS-001..HS-012 evaluation against W3 core implementations) → Resume Phase 4.B (S-4.01 + S-4.03 entry stories).
 
 **KEY REFERENCES:**
-- STATE.md v6.76: develop@3133710e; factory-artifacts fd1213f7 (canonical SHA — D-226 implementation cycle + D-227 plugin rc.11)
-- D-226: S-3.01 implementation cycle complete 2026-05-05 — 187 tests; branch feature/S-3.01@a0bf0f7e; PR #127 OPEN; 16 P0/P1 AST findings + 3 deviations resolved; TD-VSDD-055/056 filed
-- D-227: vsdd-factory plugin upgrade rc.9→rc.11 2026-05-05; TD-VSDD-056 P3 tier-3 block messages
-- D-225: S-3.01 spec sync 2026-05-04 — story v1.6→v1.7 path-placement; STORY-INDEX v2.06; rename PR #126 MERGED (3133710e)
-- D-224: W3 spec remediation 2026-05-04 — 13 stories + VP-015 + STORY-INDEX v2.05; Chumsky 0.12 + Kani 0.67.0 + moka 0.12 + datafusion 53.1
-- D-223: PIVOT 2026-05-04 — W3-FIRST; Tier-1=S-3.01; Tier-2=S-3.02+S-3.06; Tier-3=8 stories; Tier-4=S-3.07+S-3.10; Phase 4.B SUSPENDED
-- TD-VSDD-055: P2 per-keystone-story type-design audit before merge — filed D-226; codify in per-story-delivery.md
-- TD-VSDD-056: P3 factory-dispatcher tier-3 block message clarity — filed D-227
-- TD-VSDD-054: P1 methodological gap — pre-phase-N dep check; 31 W4 adversarial passes never verified S-3.02 dep status
-- PR #127: https://github.com/drbothen/prism/pull/127 — S-3.01 PrismQL parser; branch feature/S-3.01@a0bf0f7e
-- pass-31.md: cycles/wave-4-operations/adversarial-reviews/pass-31.md (Phase 4.A PERFECT CLEAN; CONVERGED)
-- cycle-manifest v1.60 (D-226 + D-227; SHA fd1213f7)
-- Wave 4 cycle-manifest: cycles/wave-4-operations/cycle-manifest.md (v1.60)
-- vsdd-plugin-tech-debt.md: 41 items v2.5 (TD-VSDD-055/056 added 2026-05-05)
-- STORY-INDEX v2.06, ARCH-INDEX v2.29, BC-INDEX v4.32, VP-INDEX v1.26, HOLDOUT-INDEX v1.3
+- STATE.md v6.88: develop@3133710e; factory-artifacts e106a997 (canonical SHA — D-238 pass-8 remediation + D-239 Stage 2 backfill)
+- D-238: pass-8 remediation 2026-05-05 — BC-2.11.006 v1.10 (ParseLimits::snapshot; 17 entries); lib.rs 6 sub-parsers; perimeter-symbols-sync lib.rs↔BC CI; DI-034 v1.5; research artifact filed; fcc1838c HEAD
+- D-236: pass-7 remediation 2026-05-05 — per-symbol CI granularity; BC-2.11.006 v1.9 (13→16); ThreadLocalGuard pub(crate); 260→280 tests
+- D-226: S-3.01 implementation cycle complete 2026-05-05 — 187 tests; 16 P0/P1 AST findings + 3 deviations resolved; TD-VSDD-055/056 filed
+- PR #127: https://github.com/drbothen/prism/pull/127 — S-3.01 PrismQL parser; branch feature/S-3.01@fcc1838c; pass-8 remediation COMPLETE; pass-9 next (1 of 3)
+- research/build-optimization-2026.md: new — validated 2026 Rust build perf landscape; copy-pasteable config; risk register
+- BC-INDEX v4.38, VP-INDEX v1.29, HOLDOUT-INDEX v1.3, invariants.md v1.5, L2-INDEX v1.13, STORY-INDEX v2.08, ARCH-INDEX v2.31
 
-factory-artifacts canonical: fd1213f7 (canonical SHA — D-226 S-3.01 implementation cycle + D-227 plugin rc.11). develop HEAD: 3133710e."
+factory-artifacts canonical: e106a997 (canonical SHA — D-238 pass-8 remediation + D-239 Stage 2 backfill). develop HEAD: 3133710e."
 ---
 
 # Session Handoff — WAVE 4 PHASE 4.A DECISIONS LOGGED (2026-05-02)

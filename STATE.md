@@ -1,7 +1,7 @@
 ---
 document_type: pipeline-state
 level: ops
-version: "6.87"
+version: "6.88"
 producer: state-manager
 timestamp: 2026-05-05T00:00:00Z
 inputs: []
@@ -380,7 +380,7 @@ user_directive_persistent: "No pragmatic convergence. Fix all issues before buil
 | **Last Updated** | 2026-05-05 (D-238 pass-8 remediation — 1H+2M+4L+1OBS resolved; BC-2.11.006 v1.10 (17 restricted_symbols + ParseLimits::snapshot); lib.rs 6 sub-parsers; perimeter-symbols-sync lib.rs↔BC CI; DI-034 v1.5; research artifact filed; STATE v6.87) |
 | **Current Phase** | Phase 4.A — APPROVED + CONVERGED; Phase 4.B SUSPENDED — W3-FIRST pivot (D-223); S-3.01 PR #127 OPEN — pass-8 remediation COMPLETE; pass-9 next (1 of 3 needed) |
 | **Current Step** | Pass-8 adversary remediation COMPLETE (D-238) — 1H+2M+4L+1OBS all fixed; 280 tests; BC-2.11.006 v1.10 (17 entries); convergence window restart; pass-9 next |
-| **factory-artifacts HEAD** | `a25736ef` |
+| **factory-artifacts HEAD** | `e106a997` |
 
 ## Phase Progress
 
@@ -432,6 +432,7 @@ _D-001..D-046 archived: [cycles/phase-3-dtu-wave-2/decisions-archive-d001-d032.m
 | D-229 | Stage 2 backfill 2026-05-05 — cite factory-artifacts self-SHA bc2bf477 in STATE.md + SESSION-HANDOFF.md. Prior D-228 burst (bc2bf477) was Stage 1 only; STATE.md + HANDOFF.md still cited parent a6bb4682, blocking wave-gate-prerequisite hook. STATE v6.77→v6.78. factory-artifacts HEAD: a6bb4682→bc2bf477. HANDOFF.md factory-artifacts HEAD table row: a6bb4682→bc2bf477. Resolves SHA currency check FAILs. | STATE v6.78 — Stage 2 backfill: factory-artifacts self-SHA bc2bf477 cited; wave-gate-prerequisite hook SHA currency restored | 4 | 2026-05-05 |
 | D-231 | Stage 2 backfill 2026-05-05 — cite factory-artifacts self-SHA d33e2bcc (Stage 1) in STATE.md + SESSION-HANDOFF.md. Stage 1 burst (d33e2bcc) was the pass-4 remediation D-230 commit. STATE v6.79→v6.80. factory-artifacts HEAD: bc2bf477→d33e2bcc→91e6d65a (Stage 2 backfill)→fc1de833 (propagation sweep fixup). Canonical final SHA: fc1de833. Resolves SHA currency check FAILs. | STATE v6.80 — Stage 2 backfill chain complete; canonical factory-artifacts SHA fc1de833 | 4 | 2026-05-05 |
 | D-237 | Stage 2 backfill 2026-05-05 — cite factory-artifacts self-SHA a25736ef in STATE.md. Stage 1 burst (a25736ef) was the pass-7 remediation D-236 commit. STATE v6.85→v6.86. Resolves wave-gate-prerequisite SHA currency check. | STATE v6.86 — Stage 2 backfill: factory-artifacts self-SHA a25736ef cited | 4 | 2026-05-05 |
+| D-239 | Stage 2 backfill 2026-05-05 — cite factory-artifacts self-SHA e106a997 in STATE.md + SESSION-HANDOFF.md. Stage 1 burst (e106a997) was the pass-8 remediation D-238 commit. STATE v6.87→v6.88. Resolves wave-gate-prerequisite SHA currency check. | STATE v6.88 — Stage 2 backfill: factory-artifacts self-SHA e106a997 cited | 4 | 2026-05-05 |
 | D-238 | PR-127 Adversary Pass-8 Remediation Complete + Build Optimization Research 2026-05-05 — Pass-8 verdict: BLOCKED (1 HIGH, 2 MEDIUM, 4 LOW, 1 OBS). Remediation: DevOps `cca6f550`: perimeter-symbols-sync extended to validate lib.rs↔BC alignment (closes OBS-001 fifth-tier docstring drift gap); ParseLimits::snapshot added to perimeter-violation; v1.8→v1.10 label sweep. Implementer #8 `fcc1838c`: lib.rs perimeter docstring expanded to all 6 sub-parsers per F-MEDIUM-001 (parse_filter, parse_filter_with_limits, parse_sql, parse_sql_with_limits, parse_pipe, parse_pipe_with_limits). product-owner: BC-2.11.006 v1.9→v1.10 (ParseLimits::snapshot added per F-HIGH-001; 17 restricted_symbols entries). business-analyst: DI-034 layer 4 expanded with per-symbol granular detection clause + perimeter-symbols-sync companion; invariants.md v1.4→v1.5; L2-INDEX v1.12→v1.13. dx-engineer: applying build optimization config (parallel; on feature/S-3.01 not factory-artifacts). research-agent: produced .factory/research/build-optimization-2026.md (validated 2026 Rust build perf landscape; XProtect / debug-info / nextest scopes; copy-pasteable config; risk register). feature/S-3.01 HEAD: `fcc1838c`. Tests: 280 passing. Spec versions: BC-2.11.006 v1.10, BC-INDEX v4.38, invariants.md v1.5, L2-INDEX v1.13. Convergence status: pass-3 clean; pass-4..8 BLOCKED. Window restart with pass-9 (1 of 3 needed). User accepted: per-symbol architectural fix landed pass-7; pass-8 documentation-edge gaps fixed; continue protocol. Build optimization research-agent artifact filed for future dispatch reference. | Pass-8 remediation COMPLETE — 1H+2M+4L+1OBS all fixed; BC-2.11.006 v1.10 (17 entries + ParseLimits::snapshot); lib.rs 6 sub-parsers; DI-034 v1.5; research artifact filed; pass-9 next (window restarting) | 4 | 2026-05-05 |
 | D-236 | PR-127 Adversary Pass-7 Remediation Complete 2026-05-05 — Pass-7 verdict: BLOCKED (1 HIGH, 2 MEDIUM, 4 LOW, 1 OBS). Architectural fix: per-symbol CI granularity replaces binary signal. Remediation: DevOps `b5d3c4fc`: perimeter-compile-fail script parses cargo output and asserts each restricted_symbol fires E0603/E0624 (single-symbol regression detectable). Runtime calls for clear_thread_local + current_regex_limit. v1.7 → v1.8 labels. Implementer #7 `d3276ac0`: F-MEDIUM-001 ThreadLocalGuard pub(crate) for production-guard test; F-LOW-003 lib.rs perimeter docstring expanded to all 16 symbols. product-owner: BC-2.11.006 v1.8→v1.9 (3 *_with_limits added to restricted_symbols, 13→16 entries; 11→14 normalized paths). feature/S-3.01 HEAD: `d3276ac0`. Test count: 260→280 (with new production-guard tests). Spec versions bumped: BC-2.11.006 v1.9, BC-INDEX v4.37. Convergence status: pass-3 clean; pass-4/5/6/7 BLOCKED. Window restart with pass-8 (1 of 3 needed). User signaled: try architectural fix once; if pass-8 blocks, continue protocol. | Pass-7 remediation COMPLETE — 1H+2M+4L+1OBS all fixed; 260→280 tests; BC-2.11.006 v1.9 (13→16 restricted_symbols); per-symbol CI granularity; pass-8 next (window restarting) | 4 | 2026-05-05 |
 | D-235 | Stage 2 backfill 2026-05-05 — cite factory-artifacts self-SHA 2c72efad in STATE.md + SESSION-HANDOFF.md. Stage 1 burst (2c72efad) was the pass-6 remediation D-234 commit. STATE v6.83->v6.84. Resolves wave-gate-prerequisite SHA currency check. | STATE v6.84 — Stage 2 backfill: factory-artifacts self-SHA 2c72efad cited | 4 | 2026-05-05 |
@@ -546,13 +547,13 @@ _TD-VSDD-014..019, TD-W3-COMPLIANCE-001, TD-VSDD-025..029 archived to [tech-debt
 
 Cycle files: [burst-log](cycles/phase-2-patch/burst-log.md) | [convergence-trajectory](cycles/phase-2-patch/convergence-trajectory.md) | [session-checkpoints](cycles/phase-2-patch/session-checkpoints.md) | [lessons](cycles/phase-2-patch/lessons.md) | [resolved-blockers](cycles/phase-2-patch/blocking-issues-resolved.md)
 ---
-## Session Resume Checkpoint (2026-05-05-d238-pass8-remediation-complete-v6.87)
+## Session Resume Checkpoint (2026-05-05-d238-d239-pass8-remediation-complete-v6.88)
 
 _Previous checkpoint (v6.86/D-236/D-237/pass-7) archived: [cycles/wave-4-operations/session-checkpoints.md](cycles/wave-4-operations/session-checkpoints.md)_
 
-**STATE v6.87. D-238 pass-8 adversary remediation complete. Stage 1 committed to factory-artifacts (SHA TBD — see Stage 2 D-239 backfill). 280 tests on S-3.01 branch (feature/S-3.01@fcc1838c). BC-2.11.006 v1.10 (ParseLimits::snapshot added; 17 restricted_symbols entries). lib.rs perimeter docstring expanded to all 6 sub-parsers. Perimeter-symbols-sync CI now validates lib.rs↔BC alignment. DI-034 v1.5 (per-symbol granular detection clause). Research artifact: .factory/research/build-optimization-2026.md filed. Convergence window restarting — pass-9 is 1 of 3 needed. develop HEAD: 3133710e.**
+**STATE v6.88. D-238 pass-8 adversary remediation complete. Stage 2 backfill D-239: factory-artifacts SHA e106a997 cited. 280 tests on S-3.01 branch (feature/S-3.01@fcc1838c). BC-2.11.006 v1.10 (ParseLimits::snapshot added; 17 restricted_symbols entries). lib.rs perimeter docstring expanded to all 6 sub-parsers. Perimeter-symbols-sync CI now validates lib.rs↔BC alignment. DI-034 v1.5 (per-symbol granular detection clause). Research artifact: .factory/research/build-optimization-2026.md filed. Convergence window restarting — pass-9 is 1 of 3 needed. develop HEAD: 3133710e.**
 
-develop HEAD: `3133710e` | factory-artifacts: `[Stage 1 SHA — see D-239]` | workspace tests: 2363 + 280 on S-3.01 branch | PRs merged: 126 | Open: #127
+develop HEAD: `3133710e` | factory-artifacts: `e106a997` (Stage 1 D-238 pass-8 remediation + Stage 2 backfill D-239) | workspace tests: 2363 + 280 on S-3.01 branch | PRs merged: 126 | Open: #127
 
 **D-238 (2026-05-05):** Pass-8 BLOCKED verdict — 1H+2M+4L+1OBS. Remediation: DevOps `cca6f550`: perimeter-symbols-sync extended to validate lib.rs↔BC alignment; ParseLimits::snapshot added to perimeter-violation CI; v1.8→v1.10 label sweep. Implementer #8 `fcc1838c`: lib.rs perimeter docstring expanded to all 6 sub-parsers (F-MEDIUM-001). product-owner: BC-2.11.006 v1.9→v1.10 (ParseLimits::snapshot in restricted_symbols; 17 entries). business-analyst: DI-034 layer 4 per-symbol granular detection clause + perimeter-symbols-sync companion; invariants.md v1.5; L2-INDEX v1.13. research-agent: build-optimization-2026.md research sidecar filed.
 
@@ -565,7 +566,7 @@ develop HEAD: `3133710e` | factory-artifacts: `[Stage 1 SHA — see D-239]` | wo
 - Tier-4 (parallel): S-3.07 (5pts) + S-3.10 (3pts) — final W3 core tier; Total: 39pts / 13 stories
 
 **NEXT ACTION:**
-- STEP 1: COMPLETE — D-238 Stage 1 committed + Stage 2 D-239 backfill in progress; SHA currency hook must PASS after Stage 2
+- STEP 1: COMPLETE — D-238 Stage 1 (e106a997) + Stage 2 backfill D-239 done; SHA e106a997 cited; STATE v6.88; SHA currency hook must PASS
 - STEP 2: Dispatch adversary pass-9 against feature/S-3.01@fcc1838c (convergence window 1 of 3)
 - STEP 3: If pass-9 CLEAN → pass-10 (2 of 3), then pass-11 (3 of 3) → convergence reached → merge PR #127
 - STEP 4 (post-merge): State-manager burst — flip S-3.01 status draft→merged; update wave-state.yaml
