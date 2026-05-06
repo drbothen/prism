@@ -20,23 +20,17 @@
 //!
 //! Story: S-3.02
 
-// Red Gate stub file: proptest bodies are todo!() — imports, unused variables,
-// unreachable code, and diverging sub-expressions are expected in stub phase.
-#[allow(
-    unused_imports,
-    unused_variables,
-    unreachable_code,
-    clippy::diverging_sub_expression
-)]
 #[cfg(test)]
 mod kani_proofs {
+    use prism_core::ColumnOptions;
+    use prism_core::ColumnType;
+    use prism_spec_engine::spec_parser::ColumnSpec;
     use proptest::prelude::*;
 
     use crate::{
-        ast::Expr,
-        pushdown::{classify_predicates, ColumnPushDownOption, Predicate},
+        ast::{CompareOp, Expr, FieldPath, Literal, Span},
+        pushdown::{classify_predicates, Predicate},
     };
-    use prism_sensors::SensorSpec;
 
     // -----------------------------------------------------------------------
     // Arbitrary generators
@@ -60,17 +54,54 @@ mod kani_proofs {
         ]
     }
 
-    prop_compose! {
-        /// Generate an arbitrary `Predicate` over a REQUIRED column name.
-        fn arbitrary_required_predicate()(_column_name in required_column_names()) -> Predicate {
-            todo!("S-3.02 — arbitrary_required_predicate prop_compose")
+    /// Build a compare expression for a column name (used as predicate test fixture).
+    fn make_compare_expr(column_name: &str) -> Expr {
+        Expr::Compare {
+            lhs: Box::new(Expr::Field(FieldPath {
+                segments: vec![column_name.to_string()],
+                span: Span::default(),
+            })),
+            op: CompareOp::Eq,
+            rhs: Box::new(Expr::Literal(Literal::String("test_value".to_string()))),
+        }
+    }
+
+    /// Build a ColumnSpec declaring `column_name` as REQUIRED.
+    fn make_required_col_spec(column_name: &str) -> ColumnSpec {
+        ColumnSpec {
+            name: column_name.to_string(),
+            column_type: ColumnType::String,
+            ocsf_field: None,
+            options: vec![ColumnOptions::Required],
+        }
+    }
+
+    /// Build a ColumnSpec with no special options (DEFAULT).
+    fn make_default_col_spec(column_name: &str) -> ColumnSpec {
+        ColumnSpec {
+            name: column_name.to_string(),
+            column_type: ColumnType::String,
+            ocsf_field: None,
+            options: vec![],
         }
     }
 
     prop_compose! {
-        /// Generate a `SensorSpec` that declares `column_name` as REQUIRED.
-        fn sensor_spec_with_required()(_column_name in required_column_names()) -> (SensorSpec, String) {
-            todo!("S-3.02 — sensor_spec_with_required prop_compose")
+        /// Generate an arbitrary `Predicate` over a REQUIRED column name.
+        fn arbitrary_required_predicate()(column_name in required_column_names()) -> Predicate {
+            Predicate {
+                expr: make_compare_expr(&column_name),
+                column_name,
+            }
+        }
+    }
+
+    prop_compose! {
+        /// Generate a `(ColumnSpec slice, required_col_name)` pair where the
+        /// column is declared as REQUIRED in the spec.
+        fn sensor_spec_with_required()(column_name in required_column_names()) -> (Vec<ColumnSpec>, String) {
+            let cols = vec![make_required_col_spec(&column_name)];
+            (cols, column_name)
         }
     }
 
@@ -82,17 +113,23 @@ mod kani_proofs {
         /// VP-031: For any REQUIRED column, `classify_predicates` always places
         /// the predicate in `push_down`, never in `post_filter`.
         ///
-        /// This test is RED by design — `classify_predicates` is `todo!()`.
-        /// When implemented, this property MUST pass for all generated inputs.
-        ///
         /// # BC-2.11.007
         /// REQUIRED columns are the API's mandatory parameters — they MUST be
         /// pushed down or the API call will fail / return empty results.
         #[test]
         fn prop_required_columns_always_push_down(
-            (_spec, _required_col) in sensor_spec_with_required()
+            (columns, required_col) in sensor_spec_with_required()
         ) {
-            todo!("S-3.02 — prop_required_columns_always_push_down")
+            let expr = make_compare_expr(&required_col);
+            let plan = classify_predicates(&[expr], &columns);
+            prop_assert_eq!(
+                plan.push_down.len(), 1,
+                "VP-031: REQUIRED column '{}' must be in push_down", required_col
+            );
+            prop_assert_eq!(
+                plan.post_filter.len(), 0,
+                "VP-031: REQUIRED column '{}' must NOT be in post_filter", required_col
+            );
         }
     }
 
@@ -105,12 +142,15 @@ mod kani_proofs {
         ///
         /// These represent OPTIMIZED or DEFAULT columns that must never be in
         /// push_down. (BC-2.11.007 classification invariant)
-        fn arbitrary_post_filter_only_predicate()(_column_name in prop_oneof![
+        fn arbitrary_post_filter_only_predicate()(column_name in prop_oneof![
             Just("device.hostname".to_string()),
             Just("description".to_string()),
             Just("raw_payload".to_string()),
         ]) -> Predicate {
-            todo!("S-3.02 — arbitrary_post_filter_only_predicate prop_compose")
+            Predicate {
+                expr: make_compare_expr(&column_name),
+                column_name,
+            }
         }
     }
 
@@ -122,13 +162,19 @@ mod kani_proofs {
         ///
         /// BC-2.11.007 invariant: "A predicate that cannot be pushed down is
         /// never silently dropped — it is always applied as a post-filter."
-        ///
-        /// This test is RED by design — `classify_predicates` is `todo!()`.
         #[test]
         fn prop_no_predicate_silently_dropped(
-            _predicate in arbitrary_required_predicate()
+            predicate in arbitrary_required_predicate()
         ) {
-            todo!("S-3.02 — prop_no_predicate_silently_dropped")
+            let col_name = predicate.column_name.clone();
+            // Spec declares this column as REQUIRED.
+            let columns = vec![make_required_col_spec(&col_name)];
+            let plan = classify_predicates(&[predicate.expr], &columns);
+            let total = plan.push_down.len() + plan.post_filter.len();
+            prop_assert_eq!(
+                total, 1,
+                "VP-031 invariant: predicate must appear in exactly one list, not {} times", total
+            );
         }
     }
 
@@ -137,29 +183,46 @@ mod kani_proofs {
         ///
         /// OPTIMIZED and DEFAULT columns must NEVER be pushed down, regardless
         /// of any other predicate in the WHERE clause. (BC-2.11.007)
-        ///
-        /// This test is RED by design — `classify_predicates` is `todo!()`.
         #[test]
         fn prop_post_filter_only_predicates_never_in_push_down(
-            _predicate in arbitrary_post_filter_only_predicate()
+            predicate in arbitrary_post_filter_only_predicate()
         ) {
-            todo!("S-3.02 — prop_post_filter_only_predicates_never_in_push_down")
+            let col_name = predicate.column_name.clone();
+            // Spec declares this column as DEFAULT (no options).
+            let columns = vec![make_default_col_spec(&col_name)];
+            let plan = classify_predicates(&[predicate.expr], &columns);
+            prop_assert_eq!(
+                plan.push_down.len(), 0,
+                "VP-031 invariant: DEFAULT/OPTIMIZED column '{}' must NEVER be in push_down", col_name
+            );
+            prop_assert_eq!(
+                plan.post_filter.len(), 1,
+                "VP-031 invariant: DEFAULT/OPTIMIZED column '{}' must be in post_filter", col_name
+            );
         }
     }
 
     proptest! {
         /// VP-031 materialization invariant: classify_predicates is deterministic.
         ///
-        /// Given the same (predicate, SensorSpec) inputs, the function MUST
-        /// produce the same PushDownPlan on every call. (BC-2.11.007 "canonical
-        /// form for push-down filter translation before cache key input")
-        ///
-        /// This test is RED by design — `classify_predicates` is `todo!()`.
+        /// Given the same (predicate, ColumnSpec) inputs, the function MUST
+        /// produce the same PushDownPlan on every call. (BC-2.11.007)
         #[test]
         fn prop_classify_predicates_is_deterministic(
-            (_spec, _required_col) in sensor_spec_with_required()
+            (columns, required_col) in sensor_spec_with_required()
         ) {
-            todo!("S-3.02 — prop_classify_predicates_is_deterministic")
+            let expr1 = make_compare_expr(&required_col);
+            let expr2 = make_compare_expr(&required_col);
+            let plan1 = classify_predicates(&[expr1], &columns);
+            let plan2 = classify_predicates(&[expr2], &columns);
+            prop_assert_eq!(
+                plan1.push_down.len(), plan2.push_down.len(),
+                "Determinism: push_down lengths must match for same input"
+            );
+            prop_assert_eq!(
+                plan1.post_filter.len(), plan2.post_filter.len(),
+                "Determinism: post_filter lengths must match for same input"
+            );
         }
     }
 }
