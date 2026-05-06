@@ -106,6 +106,14 @@ pub struct DmlNode {
     /// Target table name (e.g. `"crowdstrike_contained_hosts"`).
     /// Validated at parse time: `prism_*` tables are write-protected.
     pub target_table: String,
+    /// Optional column list for `INSERT INTO table (col1, col2) SELECT …`.
+    /// `None` when no explicit column list is provided; `Some(vec![])` is not
+    /// produced by the parser (at least one column must be named when a list
+    /// is present). Empty for `UPDATE` and `DELETE`.
+    ///
+    /// Preserved so S-3.07 can enforce column-level constraints without
+    /// re-parsing the original query string. (F-PR130-CR-003)
+    pub columns: Option<Vec<String>>,
     /// SET column=value pairs for `UPDATE`. Empty for `INSERT INTO` and `DELETE`.
     pub assignments: Vec<Assignment>,
     /// WHERE clause predicate for `UPDATE` / `DELETE`.

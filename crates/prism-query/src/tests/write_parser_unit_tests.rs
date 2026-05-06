@@ -239,6 +239,7 @@ fn test_BC_2_11_004_check_unbounded_write_delete_no_where() {
     let node = DmlNode {
         operation: DmlOperation::Delete,
         target_table: "armis_device_tags".to_string(),
+        columns: None,
         assignments: vec![],
         filter: None,
         source_select: None,
@@ -265,6 +266,7 @@ fn test_BC_2_11_004_check_unbounded_write_update_no_where() {
     let node = DmlNode {
         operation: DmlOperation::Update,
         target_table: "armis_devices".to_string(),
+        columns: None,
         assignments: vec![Assignment {
             column: "status".to_string(),
             value: Expr::Literal(crate::ast::Literal::String("ok".to_string())),
@@ -299,6 +301,7 @@ fn test_BC_2_11_004_check_unbounded_write_delete_with_where_is_safe() {
     let node = DmlNode {
         operation: DmlOperation::Delete,
         target_table: "armis_device_tags".to_string(),
+        columns: None,
         assignments: vec![],
         filter: Some(filter),
         source_select: None,
@@ -323,6 +326,7 @@ fn test_BC_2_11_004_check_unbounded_write_insert_no_limit_no_where() {
     let node = DmlNode {
         operation: DmlOperation::InsertInto,
         target_table: "armis_tags".to_string(),
+        columns: None,
         assignments: vec![],
         filter: None,
         source_select: Some(source_select),
@@ -354,6 +358,7 @@ fn test_BC_2_11_004_check_unbounded_write_insert_with_limit_is_safe() {
     let node = DmlNode {
         operation: DmlOperation::InsertInto,
         target_table: "armis_tags".to_string(),
+        columns: None,
         assignments: vec![],
         filter: None,
         source_select: Some(source_select),
@@ -719,4 +724,94 @@ fn test_BC_2_11_004_PrismQlParser_parse_with_registry_filter_clean_ok() {
         matches!(result.unwrap(), Ast::Filter(_)),
         "must produce Ast::Filter"
     );
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// F-PR130-CR-003: INSERT column list preserved in DmlNode.columns
+// ─────────────────────────────────────────────────────────────────────────────
+
+/// `INSERT INTO t (col1, col2) SELECT * FROM s WHERE id = 1 LIMIT 100`
+/// must produce `DmlNode.columns = Some(["col1", "col2"])`.
+/// Regression: previously the column list was silently dropped (`_cols`).
+#[test]
+fn test_BC_2_11_004_insert_column_list_preserved_in_DmlNode_columns() {
+    use crate::ast::{Ast, SqlStatement};
+    use crate::sql_parser::parse_sql_dml;
+    use crate::write_ast::DmlOperation;
+    let result = parse_sql_dml(
+        "INSERT INTO armis_tags (device_id, tag_name) SELECT id, name FROM events WHERE id = '1' LIMIT 10",
+    );
+    assert!(
+        result.is_ok(),
+        "INSERT with col list must parse: {:?}",
+        result
+    );
+    match result.unwrap() {
+        Ast::Sql(SqlStatement::Dml(node)) => {
+            assert_eq!(node.operation, DmlOperation::InsertInto);
+            let cols = node.columns.as_ref().expect("columns must be Some");
+            assert_eq!(cols.len(), 2, "must have 2 columns, got: {:?}", cols);
+            assert!(
+                cols.contains(&"device_id".to_string()),
+                "columns must contain 'device_id'"
+            );
+            assert!(
+                cols.contains(&"tag_name".to_string()),
+                "columns must contain 'tag_name'"
+            );
+        }
+        other => panic!("expected Ast::Sql(Dml(InsertInto)), got: {:?}", other),
+    }
+}
+
+/// `INSERT INTO t SELECT * FROM s WHERE id = 1 LIMIT 100` (no column list)
+/// must produce `DmlNode.columns = None`.
+#[test]
+fn test_BC_2_11_004_insert_no_column_list_columns_is_none() {
+    use crate::ast::{Ast, SqlStatement};
+    use crate::sql_parser::parse_sql_dml;
+    use crate::write_ast::DmlOperation;
+    let result =
+        parse_sql_dml("INSERT INTO armis_tags SELECT id FROM events WHERE id = '1' LIMIT 10");
+    assert!(
+        result.is_ok(),
+        "INSERT without col list must parse: {:?}",
+        result
+    );
+    match result.unwrap() {
+        Ast::Sql(SqlStatement::Dml(node)) => {
+            assert_eq!(node.operation, DmlOperation::InsertInto);
+            assert!(
+                node.columns.is_none(),
+                "columns must be None when no column list is present"
+            );
+        }
+        other => panic!("expected Ast::Sql(Dml(InsertInto)), got: {:?}", other),
+    }
+}
+
+/// DELETE and UPDATE always have `columns = None`.
+#[test]
+fn test_BC_2_11_004_delete_update_columns_always_none() {
+    use crate::ast::{Ast, SqlStatement};
+    use crate::sql_parser::parse_sql_dml;
+    use crate::write_ast::DmlOperation;
+
+    let del = parse_sql_dml("DELETE FROM armis_tags WHERE id = '1'").unwrap();
+    match del {
+        Ast::Sql(SqlStatement::Dml(node)) => {
+            assert_eq!(node.operation, DmlOperation::Delete);
+            assert!(node.columns.is_none(), "DELETE columns must be None");
+        }
+        _ => panic!("expected Delete DmlNode"),
+    }
+
+    let upd = parse_sql_dml("UPDATE armis_tags SET status = 'ok' WHERE id = '1'").unwrap();
+    match upd {
+        Ast::Sql(SqlStatement::Dml(node)) => {
+            assert_eq!(node.operation, DmlOperation::Update);
+            assert!(node.columns.is_none(), "UPDATE columns must be None");
+        }
+        _ => panic!("expected Update DmlNode"),
+    }
 }

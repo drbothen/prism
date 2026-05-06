@@ -962,6 +962,7 @@ fn build_delete_parser<'a>() -> impl Parser<'a, &'a str, DmlNode, extra::Err<Ric
             let node = DmlNode {
                 operation: DmlOperation::Delete,
                 target_table: table,
+                columns: None,
                 assignments: vec![],
                 filter,
                 source_select: None,
@@ -1054,6 +1055,7 @@ fn build_update_parser<'a>() -> impl Parser<'a, &'a str, DmlNode, extra::Err<Ric
             let node = DmlNode {
                 operation: DmlOperation::Update,
                 target_table: table,
+                columns: None,
                 assignments,
                 filter,
                 source_select: None,
@@ -1112,7 +1114,7 @@ fn build_insert_parser<'a>() -> impl Parser<'a, &'a str, DmlNode, extra::Err<Ric
                 .or_not(),
         )
         .then(build_sql_parser())
-        .try_map(|((table, _cols), sq), span| {
+        .try_map(|((table, cols), sq), span| {
             if is_internal_prism_table(&table) {
                 return Err(Rich::custom(
                     span,
@@ -1125,6 +1127,7 @@ fn build_insert_parser<'a>() -> impl Parser<'a, &'a str, DmlNode, extra::Err<Ric
             let node = DmlNode {
                 operation: DmlOperation::InsertInto,
                 target_table: table,
+                columns: cols,
                 assignments: vec![],
                 filter: None,
                 source_select: Some(sq),
