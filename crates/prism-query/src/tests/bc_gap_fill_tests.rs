@@ -264,7 +264,9 @@ mod bc_gap_fill {
         use prism_spec_engine::spec_parser::ColumnSpec;
 
         use crate::ast::{CompareOp, Expr, FieldPath, Literal, Span};
-        use crate::pushdown::{classify_predicates, column_push_down_option, ColumnPushDownOption};
+        use crate::pushdown::{
+            classify_predicates, column_push_down_option_from_spec, ColumnPushDownOption,
+        };
 
         fn make_col(name: &str, option: ColumnOptions) -> ColumnSpec {
             ColumnSpec {
@@ -375,7 +377,7 @@ mod bc_gap_fill {
         fn test_BC_2_11_007_unknown_column_defaults_to_post_filter() {
             // Column not in spec — must fall back to Default (post-filter).
             let columns: Vec<ColumnSpec> = vec![];
-            let option = column_push_down_option("completely_unknown_column", &columns);
+            let option = column_push_down_option_from_spec("completely_unknown_column", &columns);
             assert_eq!(
                 option,
                 ColumnPushDownOption::Default,

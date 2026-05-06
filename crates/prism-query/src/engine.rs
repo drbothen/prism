@@ -24,7 +24,7 @@
 //!
 //! Story: S-3.02
 
-// Stub module: all non-trivial bodies are todo!() per BC-5.38.001.
+// Stub module: all non-trivial bodies are todo!() pending implementation (stub-phase convention).
 // Dead code warnings are expected and suppressed here for the stub phase.
 #![allow(dead_code)]
 

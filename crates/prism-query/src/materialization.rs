@@ -33,7 +33,7 @@
 //!
 //! Story: S-2.08 (inject_source_type) | S-3.02 (pipeline)
 
-// S-3.02 stub functions: dead_code suppressed for stub phase (BC-5.38.001).
+// S-3.02 stub functions: dead_code suppressed pending implementation (stub-phase convention).
 #![allow(dead_code)]
 
 use std::sync::Arc;
@@ -281,6 +281,7 @@ pub fn register_mem_table(
 
     if batches.is_empty() {
         // Empty batch list — nothing to register; skip silently.
+        tracing::debug!(table_name, "register_mem_table: skipping empty batch list");
         return Ok(());
     }
 

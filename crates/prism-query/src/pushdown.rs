@@ -16,7 +16,7 @@
 //!
 //! Story: S-3.02
 
-// S-3.02 stub functions: dead_code suppressed for stub phase (BC-5.38.001).
+// S-3.02 stub functions: dead_code suppressed pending implementation (stub-phase convention).
 #![allow(dead_code)]
 
 use prism_core::ColumnOptions;
@@ -135,22 +135,14 @@ pub fn classify_predicates(where_clause: &[Expr], columns: &[ColumnSpec]) -> Pus
 }
 
 // ---------------------------------------------------------------------------
-// column_push_down_option
+// column_push_down_option_from_spec
 // ---------------------------------------------------------------------------
 
 /// Determine the push-down option for a given column on a sensor spec.
 ///
 /// Returns `ColumnPushDownOption::Default` when the column is not declared by
 /// the sensor spec (conservative fallback). (BC-2.11.007)
-pub(crate) fn column_push_down_option(
-    column_name: &str,
-    columns: &[ColumnSpec],
-) -> ColumnPushDownOption {
-    column_push_down_option_from_spec(column_name, columns)
-}
-
-/// Internal helper: determine push-down option from a `ColumnSpec` slice.
-fn column_push_down_option_from_spec(
+pub(crate) fn column_push_down_option_from_spec(
     column_name: &str,
     columns: &[ColumnSpec],
 ) -> ColumnPushDownOption {
@@ -187,6 +179,13 @@ fn column_push_down_option_from_spec(
 ///
 /// Returns `None` when translation fails (fall back to post-filter with a
 /// WARN log). (BC-2.11.007)
+///
+/// # Future Caller (S-3.X)
+/// This function will be called by `fan_out()` during the materialization
+/// pipeline Step 3 to convert classified push-down predicates into the
+/// per-sensor `QueryParams.filters` format before dispatching to each
+/// `SensorAdapter`. The stub implementation emits a generic `column=value`
+/// string; full sensor-native translations will be added per sensor story.
 pub(crate) fn translate_push_down_filter(
     predicate: &Predicate,
     _columns: &[ColumnSpec],
