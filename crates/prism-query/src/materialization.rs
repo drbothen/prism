@@ -142,16 +142,19 @@ pub struct FanOutTarget {
 /// redundant API calls within one query.
 pub struct MaterializationContext {
     /// Shared adapter registry for sensor fan-out.
-    pub adapter_registry: Arc<AdapterRegistry>,
+    pub(crate) adapter_registry: Arc<AdapterRegistry>,
     /// OCSF normalizer for raw JSON → Arrow RecordBatch conversion.
-    pub ocsf_normalizer: Arc<OcsfNormalizer>,
+    pub(crate) ocsf_normalizer: Arc<OcsfNormalizer>,
     /// Running record count across all sources (10K cap enforcer). (BC-2.11.006)
-    pub record_count: usize,
+    /// Private to prevent callers from bypassing the cap by zeroing this field.
+    pub(crate) record_count: usize,
     /// Maximum records before aborting materialization. (BC-2.11.006)
-    pub max_records: usize,
+    /// Private to prevent callers from bypassing the cap by setting usize::MAX.
+    pub(crate) max_records: usize,
     /// Per-query in-query cache: avoids redundant API calls for self-joins.
     /// Key: canonical cache key string. Value: collected batches. (BC-2.11.005)
-    pub in_query_cache: std::collections::HashMap<String, Vec<RecordBatch>>,
+    /// Private to prevent cache poisoning; access via typed accessors.
+    pub(crate) in_query_cache: std::collections::HashMap<String, Vec<RecordBatch>>,
 }
 
 impl MaterializationContext {
@@ -168,6 +171,35 @@ impl MaterializationContext {
             max_records,
             in_query_cache: std::collections::HashMap::new(),
         }
+    }
+
+    /// Increment the running record count, enforcing the 10K cap. (BC-2.11.006 EC-003)
+    ///
+    /// Returns `Err(PrismError::QueryExecutionFailed)` with E-QUERY-003 if the
+    /// new count would exceed `max_records`. Uses saturating addition to prevent
+    /// integer overflow.
+    pub(crate) fn increment_record_count(&mut self, n: usize) -> Result<(), PrismError> {
+        let new = self.record_count.saturating_add(n);
+        if new > self.max_records {
+            return Err(PrismError::QueryExecutionFailed {
+                detail: format!(
+                    "E-QUERY-003: record cap exceeded: {} records (limit {})",
+                    new, self.max_records
+                ),
+            });
+        }
+        self.record_count = new;
+        Ok(())
+    }
+
+    /// Look up a cached batch set by cache key. (BC-2.11.005)
+    pub(crate) fn cache_lookup(&self, key: &str) -> Option<&Vec<RecordBatch>> {
+        self.in_query_cache.get(key)
+    }
+
+    /// Insert a batch set into the in-query cache. (BC-2.11.005)
+    pub(crate) fn cache_insert(&mut self, key: String, batches: Vec<RecordBatch>) {
+        self.in_query_cache.insert(key, batches);
     }
 }
 

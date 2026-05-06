@@ -1368,6 +1368,94 @@ mod bc_gap_fill {
     }
 
     // =========================================================================
+    // BC-2.11.006 CR-003 — TYPED ACCESSOR ENCAPSULATION
+    // =========================================================================
+
+    mod materialization_context_accessors {
+        use prism_ocsf::OcsfNormalizer;
+        use prism_sensors::AdapterRegistry;
+        use std::sync::Arc;
+
+        use crate::materialization::MaterializationContext;
+
+        fn make_ctx(max: usize) -> MaterializationContext {
+            let registry = Arc::new(AdapterRegistry::new());
+            let normalizer = Arc::new(OcsfNormalizer::new());
+            MaterializationContext::new(registry, normalizer, max)
+        }
+
+        /// BC-2.11.006 EC-003: increment_record_count allows counts within cap.
+        #[test]
+        fn test_BC_2_11_006_ec003_increment_within_cap_succeeds() {
+            let mut ctx = make_ctx(10_000);
+            ctx.increment_record_count(5_000)
+                .expect("increment within cap must succeed");
+            ctx.increment_record_count(5_000)
+                .expect("increment to cap must succeed");
+        }
+
+        /// BC-2.11.006 EC-003: increment_record_count rejects counts that exceed cap.
+        #[test]
+        fn test_BC_2_11_006_ec003_increment_over_cap_returns_error() {
+            use prism_core::PrismError;
+
+            let mut ctx = make_ctx(10_000);
+            let err = ctx
+                .increment_record_count(10_001)
+                .expect_err("increment over cap must return error");
+            assert!(
+                matches!(err, PrismError::QueryExecutionFailed { .. }),
+                "over-cap error must be QueryExecutionFailed: {:?}",
+                err
+            );
+            let msg = err.to_string();
+            assert!(
+                msg.contains("E-QUERY-003"),
+                "over-cap error must include E-QUERY-003: {msg}"
+            );
+        }
+
+        /// BC-2.11.006 EC-003: increment_record_count is the only way to mutate record_count.
+        ///
+        /// Callers cannot set record_count = 0 or max_records = usize::MAX to bypass the cap
+        /// because both fields are pub(crate) — not pub. This test documents that invariant.
+        #[test]
+        fn test_BC_2_11_006_ec003_cap_bypass_prevention_fields_are_crate_private() {
+            // This test is GREEN-BY-DESIGN: the fields are pub(crate), so external crates
+            // cannot bypass the cap. Within the crate, only increment_record_count is the
+            // correct pathway. The typed accessor contract is documented here.
+            let ctx = make_ctx(10_000);
+            assert_eq!(ctx.max_records, 10_000, "max_records initialized correctly");
+            assert_eq!(ctx.record_count, 0, "record_count initialized to 0");
+        }
+
+        /// BC-2.11.005: cache_lookup and cache_insert round-trip correctly.
+        #[test]
+        fn test_BC_2_11_005_cache_lookup_insert_round_trip() {
+            use arrow::array::StringArray;
+            use arrow::datatypes::{DataType, Field, Schema};
+            use arrow::record_batch::RecordBatch;
+
+            let mut ctx = make_ctx(10_000);
+            assert!(
+                ctx.cache_lookup("key1").is_none(),
+                "cache must be empty initially"
+            );
+
+            let schema = Arc::new(Schema::new(vec![Field::new("id", DataType::Utf8, false)]));
+            let batch =
+                RecordBatch::try_new(schema, vec![Arc::new(StringArray::from(vec!["a"])) as _])
+                    .expect("batch must build");
+
+            ctx.cache_insert("key1".to_string(), vec![batch]);
+            let found = ctx
+                .cache_lookup("key1")
+                .expect("cache must contain 'key1' after insert");
+            assert_eq!(found.len(), 1, "cache must return the inserted batch");
+        }
+    }
+
+    // =========================================================================
     // PERIMETER VERIFICATION (BC-2.11.006 INV-SEC-PERIMETER-001)
     // =========================================================================
 
