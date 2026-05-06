@@ -101,7 +101,7 @@ flowchart LR
 | Write-parser specific | 62 (write_parser_tests.rs + write_parser_unit_tests.rs) |
 | S-3.01 regression (preserved) | 313 |
 | `just check` exit code | 0 |
-| Perimeter compile-fail guard | 27 E-errors (exit 101) |
+| Perimeter compile-fail guard | 28 E-errors (exit 101) |
 | Mutation testing | N/A (S-3.06 scope; full run at wave gate) |
 | Coverage | Inline per-AC test assertions (see demos/) |
 
@@ -141,7 +141,7 @@ Security review completed (Step 4). OWASP Top 10 + injection + auth + input vali
 
 | Check | Result | Notes |
 |-------|--------|-------|
-| All 9 new symbols `pub(crate)` | PASS | Perimeter guard: 27 E-errors confirmed |
+| All 10 new symbols `pub(crate)` | PASS | Perimeter guard: 28 E-errors confirmed |
 | `is_internal_prism_table` at parse time | PASS | Fires before DmlNode is produced |
 | `check_unbounded_write` enforced | PASS | DELETE/UPDATE no-WHERE + INSERT no-WHERE+LIMIT |
 | `reject_write_verbs_in_filter` grammar-level | PASS | Byte-scan not post-parse; empty registry → Ok() |
@@ -173,7 +173,7 @@ Security review completed (Step 4). OWASP Top 10 + injection + auth + input vali
 | Pipeline mode | Brownfield / Wave 3 / Phase 3 |
 | Story | S-3.06 v1.7 |
 | Model | claude-sonnet-4-6 |
-| Implementation commits | 6 (cdcb4b38 Red Gate stubs, c8b708d7 RED tests, 4f978217 infra, 2a2b3024 Chumsky fix, f37332ca perimeter +9, f4a61f08 test cleanup) |
+| Implementation commits | 7 (cdcb4b38 Red Gate stubs, c8b708d7 RED tests, 4f978217 infra, 2a2b3024 Chumsky fix, f37332ca perimeter +9, f4a61f08 test cleanup, 236146a1 perimeter +1 parse_sql_dml_with_limits) |
 
 ## Notes for Reviewers
 

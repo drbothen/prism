@@ -46,9 +46,9 @@ test result: ok. 62 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out
 
 | File | Description | Status |
 |------|-------------|--------|
-| [PERIMETER-EXPANSION.md](PERIMETER-EXPANSION.md) | 9 new restricted symbols (BC-2.11.006 v1.11) | PASS |
+| [PERIMETER-EXPANSION.md](PERIMETER-EXPANSION.md) | 10 new restricted symbols (BC-2.11.006 v1.14) | PASS |
 
-Perimeter guard: 27 total compile errors (was 18 after S-3.01). Exit code 101 confirmed.
+Perimeter guard: 28 total compile errors (was 18 after S-3.01). Exit code 101 confirmed.
 
 ## Key Source Files
 
@@ -62,7 +62,7 @@ Perimeter guard: 27 total compile errors (was 18 after S-3.01). Exit code 101 co
 | `crates/prism-query/src/error.rs` | E-QUERY-010/022/023/024 constructors |
 | `crates/prism-query/tests/write_parser_tests.rs` | 62 integration tests |
 | `crates/prism-query/src/tests/write_parser_unit_tests.rs` | pub(crate) unit tests |
-| `tests/external/perimeter-violation/src/main.rs` | 27-symbol perimeter compile-fail test |
+| `tests/external/perimeter-violation/src/main.rs` | 28-symbol perimeter compile-fail test |
 
 ## Note on VHS
 
