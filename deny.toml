@@ -22,6 +22,12 @@ allow = [
   "CDLA-Permissive-2.0",
   # CC0-1.0: public domain dedication — used by `notify` (filesystem watcher).
   "CC0-1.0",
+  # bzip2-1.0.6: BSD-like permissive license (4-clause, OSI-approved equivalent).
+  # Introduced by libbz2-rs-sys v0.2.3 → bzip2 v0.6.1 → async-compression →
+  # datafusion-datasource v53.1.0 (datafusion upgrade in S-3.02 / arrow v58.2.0).
+  # Permissive: redistribution permitted with attribution, no patent retaliation.
+  # Approved for S-3.02 (CI-FIX-001).
+  "bzip2-1.0.6",
 ]
 
 [advisories]
