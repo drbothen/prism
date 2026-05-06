@@ -1,4 +1,4 @@
-//! BC-2.11.006 v1.11 — Security Perimeter compile-fail test.
+//! BC-2.11.006 v1.14 — Security Perimeter compile-fail test.
 //!
 //! This file intentionally uses symbols that are `pub(crate)` inside
 //! `prism-query` and MUST NOT be accessible to external crates.
@@ -115,7 +115,7 @@ use prism_query::filter_parser::build_pipe_mode_parser;
 // We import `ParseLimits` and attempt to call pub(crate) methods.
 use prism_query::security::ParseLimits;
 
-// ── S-3.06 write parser extensions (BC-2.11.006 v1.11, INV-SEC-PERIMETER-001) ─
+// ── S-3.06 write parser extensions (BC-2.11.006 v1.14, INV-SEC-PERIMETER-001) ─
 
 // `parse_pipe_with_write` is `pub(crate)` — forbidden from external crates.
 // Expected error: E0603 "function `parse_pipe_with_write` is private"
