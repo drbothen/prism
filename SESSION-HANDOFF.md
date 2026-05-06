@@ -28,7 +28,7 @@ successor_focus: "D-226 S-3.01 PrismQL PARSER KEYSTONE IMPLEMENTATION COMPLETE (
 **STEP 9 (CONTINUE W3-FIRST PLAN):** Tier 3 (8-way parallel: S-3.03/04/05/08/09/11/12/13) → Tier 4 (S-3.07 + S-3.10) → W3 wave gate (HS-001..HS-012 evaluation against W3 core implementations) → Resume Phase 4.B (S-4.01 + S-4.03 entry stories).
 
 **KEY REFERENCES:**
-- STATE.md v6.89: develop@3133710e; factory-artifacts STAGE1_SHA (D-240 pass-9 remediation; Stage 2 backfill pending)
+- STATE.md v6.90: develop@3133710e; factory-artifacts 334c995e (D-240 pass-9 remediation; D-241 Stage 2 backfill COMPLETE)
 - D-240: pass-9 remediation 2026-05-05 — 0 security findings (NOTABLE); research/build-optimization-2026.md v1.1; ci.yml Surface-2 leaf-resolution; dev-setup.md F-LOW-001/2/3; 2781 tests; f822938d HEAD
 - D-238: pass-8 remediation 2026-05-05 — BC-2.11.006 v1.10 (ParseLimits::snapshot; 17 entries); lib.rs 6 sub-parsers; perimeter-symbols-sync lib.rs↔BC CI; DI-034 v1.5; research artifact filed; fcc1838c HEAD
 - D-236: pass-7 remediation 2026-05-05 — per-symbol CI granularity; BC-2.11.006 v1.9 (13→16); ThreadLocalGuard pub(crate); 260→280 tests
@@ -37,7 +37,7 @@ successor_focus: "D-226 S-3.01 PrismQL PARSER KEYSTONE IMPLEMENTATION COMPLETE (
 - research/build-optimization-2026.md: new — validated 2026 Rust build perf landscape; copy-pasteable config; risk register
 - BC-INDEX v4.38, VP-INDEX v1.29, HOLDOUT-INDEX v1.3, invariants.md v1.5, L2-INDEX v1.13, STORY-INDEX v2.08, ARCH-INDEX v2.31
 
-factory-artifacts canonical: STAGE1_SHA (D-240 pass-9 remediation; Stage 2 backfill pending). develop HEAD: 3133710e."
+factory-artifacts canonical: 334c995e (D-240 pass-9 remediation; D-241 Stage 2 backfill COMPLETE). develop HEAD: 3133710e."
 ---
 
 # Session Handoff — WAVE 4 PHASE 4.A DECISIONS LOGGED (2026-05-02)
@@ -162,12 +162,12 @@ factory-artifacts canonical: STAGE1_SHA (D-240 pass-9 remediation; Stage 2 backf
 
 ## Current State
 
-develop HEAD `3133710e` | factory-artifacts `STAGE1_SHA` (D-240 pass-9 remediation; Stage 2 backfill pending)
+develop HEAD `3133710e` | factory-artifacts `334c995e` (D-240 pass-9 remediation; D-241 Stage 2 backfill COMPLETE)
 
 | Metric | Value |
 |--------|-------|
 | develop HEAD | `3133710e` (rename PR #126 squash-merged 2026-05-05T03:19:10Z — crowdstrike_session→org_scoped_session_id) |
-| factory-artifacts HEAD | `STAGE1_SHA` (D-240 pass-9 remediation; Stage 2 backfill pending) |
+| factory-artifacts HEAD | `334c995e` (D-240 pass-9 remediation; D-241 Stage 2 backfill COMPLETE) |
 | PR count merged | 126 (PR #127 OPEN — S-3.01 PrismQL parser; feature/S-3.01@f822938d) |
 | Workspace test count | 2781 (nextest-verified on feature/S-3.01@f822938d) |
 | Open PRs | PR #127 S-3.01 PrismQL parser — OPEN; pass-9 remediation COMPLETE; pass-10 next (1 of 3 needed for convergence window restart) |
@@ -176,7 +176,7 @@ develop HEAD `3133710e` | factory-artifacts `STAGE1_SHA` (D-240 pass-9 remediati
 | Wave 2 gate status | CONVERGED 2026-04-27 — Pass 9 CLEAN (3-clean-passes: P6+P8+P9) |
 | Wave 3 gate status | **CONVERGED (multi-tenant sub-waves) 2026-05-02; W3 CORE SPEC REMEDIATION COMPLETE D-224; S-3.01 RED GATE STAGE 1 COMPLETE D-225** |
 | Wave 4 status | **PHASE 4.B SUSPENDED — D-223 W3-FIRST pivot (2026-05-04); S-4.01 → S-3.02 dep; 13 W3 core stories must implement first** |
-| Status | **D-240 COMPLETE. Pass-9 remediation done (0C/0H/2M/4L/2OBS; ZERO security findings — parser security model stabilizing; 2781 tests; f822938d). Stage 2 backfill (D-241) pending. NEXT: Dispatch adversary pass-10 against feature/S-3.01@f822938d. Convergence window restarting — need 3 consecutive clean passes (pass-10 is 1 of 3). W3 impl graph: Tier-1=S-3.01 (active, PR #127 OPEN) → Tier-2={S-3.02,S-3.06} → Tier-3={8 stories} → Tier-4={S-3.07,S-3.10} → RESUME PHASE 4.B** |
+| Status | **D-240 COMPLETE. Pass-9 remediation done (0C/0H/2M/4L/2OBS; ZERO security findings — parser security model stabilizing; 2781 tests; f822938d). D-241 COMPLETE — Stage 2 backfill: factory-artifacts 334c995e cited; force-push recovery from bad e5002460. hook PASS. NEXT: Dispatch adversary pass-10 against feature/S-3.01@f822938d. Convergence window restarting — need 3 consecutive clean passes (pass-10 is 1 of 3). W3 impl graph: Tier-1=S-3.01 (active, PR #127 OPEN) → Tier-2={S-3.02,S-3.06} → Tier-3={8 stories} → Tier-4={S-3.07,S-3.10} → RESUME PHASE 4.B** |
 
 
 ---
