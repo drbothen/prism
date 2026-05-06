@@ -152,9 +152,13 @@ Security review completed (Step 4). OWASP Top 10 + injection + auth + input vali
 | `WriteVerbSource` trait abstraction | PASS | Production + test injection without real registry |
 | No hardcoded write verbs | PASS | Grammar builds from registry at runtime |
 
-**One non-blocking observation (tech-debt, not a blocker):**
-- `filter` field in `DmlNode` for DELETE/UPDATE carries a sentinel `Expr::Literal(Bool(true))` (presence indicator), not the parsed predicate value. Actual predicate is parsed but discarded after unbounded-write check. S-3.07 re-parses for execution dispatch. This is a known design limitation for S-3.06 scope. Filed as tech-debt item TD-S306-001 for S-3.07 review.
-- `reject_write_verbs_in_filter` error message uses error code `E-QUERY-010` (same code as internal-table write protection). This is a minor code-reuse inconsistency — not a security issue. Filed as TD-S306-002.
+**Three non-blocking tech-debt items (pass-4 renumbered for clarity):**
+
+| ID | Status | Description |
+|----|--------|-------------|
+| TD-S306-001 | open / deferred | `WriteVerbRegistry::sensor_verbs()` always returns empty `Vec` — `sensor_verbs` fallback uses `all_verbs()` for E-QUERY-023 suggestion list (less precise but functional). Fix requires `all_sensors()` on `WriteVerbSource` trait (S-3.07 scope). |
+| TD-S306-002 | open / deferred | `reject_write_verbs_in_filter` reuses `E-QUERY-010` (internal-table write-protected code) for a distinct condition (filter mode rejects write verbs). Minor programmatic-API inconsistency — rejection itself is correct. Fix: add `E-QUERY-025` in a future error-code cleanup. |
+| TD-S306-003 | **CLOSED** | `DmlNode.filter` sentinel concern — resolved by F-PR130-SEC-003: `filter` now carries the actual parsed predicate, not `Literal(Bool(true))`. Filed for historical traceability. |
 
 ## Risk Assessment
 

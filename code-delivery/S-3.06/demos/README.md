@@ -62,7 +62,7 @@ Perimeter guard: 28 total compile errors (was 18 after S-3.01). Exit code 101 co
 | `crates/prism-query/src/error.rs` | E-QUERY-010/022/023/024 constructors |
 | `crates/prism-query/tests/write_parser_tests.rs` | 62 integration tests |
 | `crates/prism-query/src/tests/write_parser_unit_tests.rs` | pub(crate) unit tests |
-| `tests/external/perimeter-violation/src/main.rs` | 28-symbol perimeter compile-fail test |
+| `tests/external/perimeter-violation/src/main.rs` | 27-symbol (28 E-error) perimeter compile-fail test |
 
 ## Note on VHS
 
