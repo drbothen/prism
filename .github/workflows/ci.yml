@@ -758,13 +758,34 @@ jobs:
     # those tests SIGBUS on macOS aarch64 CI — the 2MB default thread stack is
     # exhausted before the recursion bottoms out.
     #
-    # Heuristic: scan test files for patterns that build large recursive inputs
-    # (for-loop over 50+ iterations or repeat(50+)) and flag any #[test] function
-    # that has such a pattern but lacks a run_with_deep_stack call.
+    # Dual-signal heuristic (pass-10 F-LOW-001): a test is only flagged when it
+    # exhibits BOTH of the following signals simultaneously:
     #
-    # This check is intentionally non-blocking (|| true on the grep exit) — it
-    # emits a warning to the CI log rather than failing the PR.  Promote to
-    # blocking once all existing tests are confirmed wrapped.
+    #   Signal 1 — depth-structure construction:
+    #     The test iterates >= 50 times AND that iteration pushes '(' or ')'
+    #     (for-loop with push('(') / push(')') ), OR the test calls .repeat(N>=50)
+    #     on a string literal that contains '(' or ')'.
+    #     Rationale: tests that merely build long flat strings (e.g. "a".repeat(1025)
+    #     for a regex-length guard, or "z".repeat(65537) for a query-size guard) do
+    #     NOT exercise the chumsky recursive combinator and therefore pose no SIGBUS
+    #     risk from stack depth.
+    #
+    #   Signal 2 — recursive parser invocation:
+    #     The test body calls PrismQlParser::parse(, parse_filter(, or parse_sql(.
+    #     Tests that only call iterative security guards (check_paren_depth,
+    #     check_query_size, RegexLiteral::new, compute_aql_hash, etc.) never enter
+    #     the chumsky recursive descent and are safe regardless of input size.
+    #
+    # Both signals must be present for a warning to be emitted.  This eliminates
+    # the 13 false positives seen in pass-9 (input-size tests, regex-pattern-cap
+    # tests, balanced-pair tests, paren-byte scanner tests, audit-hash tests, and
+    # capability-string-length tests) while retaining detection for any future test
+    # that iteratively builds a paren-nested structure and feeds it to the parser
+    # without the 8MB-stack wrapper.
+    #
+    # This check is intentionally non-blocking (exit 0 always) — it emits a
+    # warning to the CI log rather than failing the PR.  Promote to exit(1) once
+    # all existing tests are confirmed wrapped.
     runs-on: ubuntu-latest
     timeout-minutes: 2
     permissions:
@@ -778,13 +799,31 @@ jobs:
           import re, sys
           from pathlib import Path
 
-          # Patterns that suggest a depth-N construction with N >= 50.
-          DEPTH_PATTERNS = [
-              re.compile(r'for\s+\w+\s+in\s+0\.\.[5-9]\d'),   # for _ in 0..50 or higher
-              re.compile(r'for\s+\w+\s+in\s+0\.\.\d{3,}'),    # for _ in 0..NNN (3+ digits)
-              re.compile(r'\.repeat\([5-9]\d\)'),              # .repeat(50) or higher
-              re.compile(r'\.repeat\(\d{3,}\)'),               # .repeat(NNN) (3+ digits)
-          ]
+          # ── Signal 1: depth-structure construction ────────────────────────────
+          # A for-loop of >= 50 iterations that pushes a paren character.
+          # The DOTALL flag lets the loop body span multiple lines.
+          LOOP_PAREN = re.compile(
+              r'for\s+\w+\s+in\s+0\.\.(?:[5-9]\d|\d{3,})'  # for _ in 0..<N>=50>
+              r'(?:(?!run_with_deep_stack).)*?'              # no guard in between
+              r'push\s*\(\s*[\'"][\(\)][\'"]\s*\)',          # .push('(') or .push(')')
+              re.DOTALL
+          )
+          # A .repeat(N>=50) where the repeated string literal contains '(' or ')'.
+          REPEAT_PAREN = re.compile(
+              r'"[^"]*[\(\)][^"]*"\s*\.repeat\s*\(\s*(?:[5-9]\d|\d{3,})\s*\)'
+              r'|'
+              r"'[^']*[\(\)][^']*'\s*\.repeat\s*\(\s*(?:[5-9]\d|\d{3,})\s*\)"
+          )
+
+          # ── Signal 2: recursive parser invocation ─────────────────────────────
+          # These three entry points drive chumsky recursive descent.  Iterative
+          # security helpers (check_paren_depth, check_query_size, etc.) are
+          # intentionally excluded — they never exhaust the stack.
+          PARSER_CALL = re.compile(
+              r'PrismQlParser::parse\s*\('
+              r'|parse_filter\s*\('
+              r'|parse_sql\s*\('
+          )
 
           GUARD = 'run_with_deep_stack'
 
@@ -822,15 +861,19 @@ jobs:
               except Exception:
                   continue
               for fn_name, body in extract_test_bodies(content):
-                  has_depth = any(p.search(body) for p in DEPTH_PATTERNS)
-                  has_guard = GUARD in body
-                  if has_depth and not has_guard:
+                  # Skip already-guarded tests — the wrapper is the fix.
+                  if GUARD in body:
+                      continue
+                  # Both signals must be present: depth-structure AND parser call.
+                  has_depth = LOOP_PAREN.search(body) or REPEAT_PAREN.search(body)
+                  has_parser = PARSER_CALL.search(body)
+                  if has_depth and has_parser:
                       warnings.append(f"  {path}::{fn_name}")
 
           if warnings:
               print(
-                  f"\nWARNING (OBS-002): {len(warnings)} test(s) build deep recursive inputs "
-                  f"(depth >= 50) without `{GUARD}`.\n"
+                  f"\nWARNING (OBS-002): {len(warnings)} test(s) build deep paren structures "
+                  f"AND invoke a recursive parser without `{GUARD}`.\n"
                   "These tests may SIGBUS on macOS aarch64 CI (2MB default stack).\n"
                   "Wrap the body with run_with_deep_stack from crates/prism-query/src/tests/util.rs.\n"
               )
