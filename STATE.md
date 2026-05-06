@@ -1,9 +1,9 @@
 ---
 document_type: pipeline-state
 level: ops
-version: "6.90"
+version: "6.92"
 producer: state-manager
-timestamp: 2026-05-05T00:00:00Z
+timestamp: 2026-05-06T00:00:00Z
 inputs: []
 input-hash: "[live-state]"
 traces_to: ""
@@ -22,7 +22,7 @@ repos:
   - axiathon
   - ocsf-proto-gen
   - mcp-claroty-xdome
-current_step: "Pass-9 adversary remediation COMPLETE (D-240) — 0C/0H/2M/4L/2OBS fixed; NOTABLE zero security findings; research/build-optimization-2026.md v1.1 (employer-name redacted); ci.yml Surface-2 leaf-resolution; dev-setup.md F-LOW-001/2/3; 2781 tests; pass-10 next (1 of 3 needed for convergence window restart)"
+current_step: "Pass-10 adversary remediation COMPLETE (D-242) — 0C/1H/0M/1L/1OBS; NOTABLE: adversary explicitly states 'parser security model has converged'; research/build-optimization-2026.md v1.2 (F-HIGH-001 employer-name redaction completion); dual-signal deep-recursion-stack-guard 5e7dcb81 (F-LOW-001 13 false-positives → 0); 280 tests; pass-11 next (window restart: 1 of 3 needed)"
 wave_3_carry_forward_debt: "ALL_REMEDIATE — W4-FIX-PERF-001/002, W4-FIX-CODE-001, W4-FIX-SEC-001..004 stories planned per D-203"
 wave_4_status: "PHASE_4_A_CONVERGED + R9_APPROVED but PHASE_4_B SUSPENDED — pre-implementation dep check (2026-05-04) found S-4.01 → S-3.02 (status=draft); pivoting to full Wave 3 implementation per user directive D-223"
 wave_4_phase_4_a_preflight:
@@ -81,7 +81,7 @@ wave_4_phase_4_a_preflight:
   phase_4b_prerequisites: []
   phase_4b_prerequisites_note: "[ALL_CLEARED] — D-218 (2026-05-04) + D-216 (2026-05-04) both closed"
   next_action: "Post-compact resume: (1) verify CI green on a0bf0f7e, (2) decision on full VSDD review burst (adversary + code-reviewer + security-reviewer + spec-compliance) before merge, (3) merge S-3.01 PR #127 + pull develop, (4) Tier 2 dispatch (S-3.02 + S-3.06 parallel)"
-  wave_3_implementation_status: "S-3.01_PR_OPEN_2026-05-05 — branch feature/S-3.01@f822938d (22 commits ahead); 2781 tests passing; pass-9 remediation COMPLETE (D-240: 0 security findings; research v1.1 F-MEDIUM-002; ci.yml F-MEDIUM-001 Surface-2 leaf-resolution; dev-setup.md F-LOW-001/2/3; SIGBUS deep-recursion fix 2c4b932b; 2781 tests); PR #127 awaiting pass-10 adversary clearance (convergence window restart: 1 of 3 needed)"
+  wave_3_implementation_status: "S-3.01_PR_OPEN_2026-05-06 — branch feature/S-3.01@5e7dcb81 (23 commits ahead); 280 tests passing; pass-10 remediation COMPLETE (D-242: 0C/1H/0M/1L/1OBS; NOTABLE adversary states 'parser security model has converged'; research v1.2 F-HIGH-001; dual-signal deep-recursion-stack-guard 5e7dcb81 F-LOW-001); PR #127 awaiting pass-11 adversary clearance (convergence window restart: 1 of 3 needed)"
   pre_pass22_sweep_status: "COMPLETE_2026-05-03 — F-PreP22-H-001 (concurrency-architecture v1.1 8/8 split per D-209); F-PreP22-H-002 (observability v1.1 user-facing examples updated); F-PreP22-H-003 (interface-definitions v2.5 ActionEngine→ActionDeliveryEngine); F-PreP22-H-004 (vp-045 spec body v1.2 rewritten + slug-preservation banner per POL-1). ARCH-INDEX v2.20. Window stays 0/3; Pass 22 dispatch ready."
   pass_22_adversary_verdict: "BLOCKED (3 findings: 0C/1H/1M/1L/0OBS)"
   pass_22_remediation_complete: true
@@ -377,10 +377,9 @@ user_directive_persistent: "No pragmatic convergence. Fix all issues before buil
 | **Language** | Rust |
 | **Target Workspace** | per-analyst stdio (MCP server) |
 | **Started** | 2026-04-13 |
-| **Last Updated** | 2026-05-05 (D-241 Stage 2 backfill — cite factory-artifacts self-SHA 334c995e; STATE v6.89→v6.90; force-push recovery from bad e5002460 Stage 2; hook PASS) |
-| **Current Phase** | Phase 4.A — APPROVED + CONVERGED; Phase 4.B SUSPENDED — W3-FIRST pivot (D-223); S-3.01 PR #127 OPEN — pass-9 remediation COMPLETE; pass-10 next (1 of 3 needed, window restarting) |
-| **Current Step** | Pass-9 adversary remediation COMPLETE (D-240) — 0 CRITICAL/HIGH; 2 MEDIUM + 4 LOW + 2 OBS fixed; 2781 tests; research artifact v1.1; pass-10 next |
-| **factory-artifacts HEAD** | `334c995e` |
+| **Last Updated** | 2026-05-06 (D-242 pass-10 remediation — research v1.2 F-HIGH-001 employer-name redaction completion; STATE v6.91→v6.92; hook updated per TD-VSDD-053) |
+| **Current Phase** | Phase 4.A — APPROVED + CONVERGED; Phase 4.B SUSPENDED — W3-FIRST pivot (D-223); S-3.01 PR #127 OPEN — pass-10 remediation COMPLETE (D-242); pass-11 next (1 of 3 needed, window restarting) |
+| **Current Step** | Pass-10 adversary remediation COMPLETE (D-242) — 0C/1H/0M/1L/1OBS; NOTABLE adversary states "parser security model has converged"; research v1.2 F-HIGH-001; dual-signal deep-recursion-stack-guard 5e7dcb81 F-LOW-001 (13FP→0); 280 tests; pass-11 next |
 
 ## Phase Progress
 
@@ -434,6 +433,7 @@ _D-001..D-046 archived: [cycles/phase-3-dtu-wave-2/decisions-archive-d001-d032.m
 | D-237 | Stage 2 backfill 2026-05-05 — cite factory-artifacts self-SHA a25736ef in STATE.md. Stage 1 burst (a25736ef) was the pass-7 remediation D-236 commit. STATE v6.85→v6.86. Resolves wave-gate-prerequisite SHA currency check. | STATE v6.86 — Stage 2 backfill: factory-artifacts self-SHA a25736ef cited | 4 | 2026-05-05 |
 | D-239 | Stage 2 backfill 2026-05-05 — cite factory-artifacts self-SHA e106a997 in STATE.md + SESSION-HANDOFF.md. Stage 1 burst (e106a997) was the pass-8 remediation D-238 commit. STATE v6.87→v6.88. Resolves wave-gate-prerequisite SHA currency check. | STATE v6.88 — Stage 2 backfill: factory-artifacts self-SHA e106a997 cited | 4 | 2026-05-05 |
 | D-241 | Stage 2 backfill 2026-05-05 — cite factory-artifacts self-SHA 334c995e in STATE.md + SESSION-HANDOFF.md. Resolves wave-gate-prerequisite SHA currency check after pass-9 recovery. Prior dispatch (agentId af37dbde4e09f5422) executed Stage 1 (334c995e, good) but produced corrupted Stage 2 (e5002460) that cited stale SHA e2bfba39 instead of Stage 1 SHA c14c7762. Recovery: force-pushed --force-with-lease=factory-artifacts:e5002460 (user-authorized 2026-05-05; factory-artifacts is single-author artifact-only branch, bad commits minutes old). Stage 1 334c995e restored to origin; Stage 2 now authored correctly citing 334c995e. TD-VSDD-053 documents this exact failure mode. STATE v6.89→v6.90. | STATE v6.90 — Stage 2 backfill: factory-artifacts self-SHA 334c995e cited; wave-gate-prerequisite hook SHA currency restored after force-push recovery | 4 | 2026-05-05 |
+| D-242 | PR-127 Adversary Pass-10 Remediation Complete 2026-05-06: Pass-10 verdict: BLOCKED (0 CRITICAL, 1 HIGH, 0 MEDIUM, 1 LOW, 1 OBS). NOTABLE: adversary explicitly states "The parser security model has converged." Zero security findings, zero spec/code drift. Only doc-redaction completion + heuristic refinement. Remediation: Technical-writer: research/build-optimization-2026.md v1.1→v1.2 (F-HIGH-001 employer-name redaction completion; line 79 had two residual references missed in v1.1; grep verified zero remaining). DevOps `5e7dcb81`: F-LOW-001 deep-recursion-stack-guard dual-signal regex (loop pattern + parser invocation within ±5 lines; 13 false-positives → 0; real unwrapped tests still flagged). feature/S-3.01 HEAD: `5e7dcb81`. Tests: 280 passing. Spec versions: research/build-optimization-2026.md v1.2. Convergence status: pass-10 BLOCKED but on doc-only finding. Window restart with pass-11 (1 of 3 needed). OBS-001 [process-gap]: redaction-on-promote should be automated (file as TD; add to .factory/policies.yaml as future POLICY-11 candidate). Defer non-blocking. | Pass-10 remediation COMPLETE — adversary states 'parser security model has converged'; research v1.2 (F-HIGH-001); dual-signal stack-guard (F-LOW-001 13FP→0); 280 tests; pass-11 next (window restart 1 of 3) | 4 | 2026-05-06 |
 | D-240 | PR-127 Adversary Pass-9 Remediation Complete 2026-05-05: Pass-9 verdict: BLOCKED (0 CRITICAL, 0 HIGH, 2 MEDIUM, 4 LOW, 2 OBS). NOTABLE: zero security findings — parser security model has stabilized. Findings were entirely in the new build-optimization tier (config.toml, Justfile, dev-setup.md, research artifact) plus one CI script logic gap. Remediation: Technical-writer `78bdcdeb`: dev-setup.md F-LOW-001 (proptest count), F-LOW-002 (nextest mention), F-LOW-003 (macOS 26 caveat). DevOps `f822938d`: ci.yml Surface-2 leaf-resolution for F-MEDIUM-001 (perimeter-symbols-sync now correctly handles ParseLimits::method tokens via leaf lookup; was silently ignoring them); .cargo/config.toml CI macOS note (F-LOW-004); Justfile iter recipe PROPTEST_CASES=32 warning (OBS-001); bonus deep-recursion-stack-guard CI job (OBS-002 non-blocking). Technical-writer: research/build-optimization-2026.md v1.0→v1.1 F-MEDIUM-002 employer-name redaction ("1898 & Co" → "your organization"). feature/S-3.01 HEAD: `f822938d`. Tests: 2781 passing (workspace). Spec versions: research/build-optimization-2026.md v1.1. Convergence status: pass-3 clean; pass-4..9 BLOCKED but trajectory positive — pass-9 found NO security findings, only doc + CI logic. Window restart with pass-10 (1 of 3 needed). Architectural patches solidifying. Build optimization side-effect: SIGBUS in test_BC_2_11_006_sql_and_chain_depth_65_rejected triggered by [profile.dev] debug = "line-tables-only" in .cargo/config.toml. Triage identified codegen-induced 2MB-stack overflow on 65-deep chumsky recursion. Fixed at SHA 2c4b932b by wrapping 9 deep-recursion tests in `run_with_deep_stack` 8MB-stack helper. | Pass-9 remediation COMPLETE — 0 security findings (stabilizing); 2 MEDIUM + 4 LOW + 2 OBS fixed; research artifact v1.1; 2781 tests; pass-10 next (window restarting) | 4 | 2026-05-05 |
 | D-238 | PR-127 Adversary Pass-8 Remediation Complete + Build Optimization Research 2026-05-05 — Pass-8 verdict: BLOCKED (1 HIGH, 2 MEDIUM, 4 LOW, 1 OBS). Remediation: DevOps `cca6f550`: perimeter-symbols-sync extended to validate lib.rs↔BC alignment (closes OBS-001 fifth-tier docstring drift gap); ParseLimits::snapshot added to perimeter-violation; v1.8→v1.10 label sweep. Implementer #8 `fcc1838c`: lib.rs perimeter docstring expanded to all 6 sub-parsers per F-MEDIUM-001 (parse_filter, parse_filter_with_limits, parse_sql, parse_sql_with_limits, parse_pipe, parse_pipe_with_limits). product-owner: BC-2.11.006 v1.9→v1.10 (ParseLimits::snapshot added per F-HIGH-001; 17 restricted_symbols entries). business-analyst: DI-034 layer 4 expanded with per-symbol granular detection clause + perimeter-symbols-sync companion; invariants.md v1.4→v1.5; L2-INDEX v1.12→v1.13. dx-engineer: applying build optimization config (parallel; on feature/S-3.01 not factory-artifacts). research-agent: produced .factory/research/build-optimization-2026.md (validated 2026 Rust build perf landscape; XProtect / debug-info / nextest scopes; copy-pasteable config; risk register). feature/S-3.01 HEAD: `fcc1838c`. Tests: 280 passing. Spec versions: BC-2.11.006 v1.10, BC-INDEX v4.38, invariants.md v1.5, L2-INDEX v1.13. Convergence status: pass-3 clean; pass-4..8 BLOCKED. Window restart with pass-9 (1 of 3 needed). User accepted: per-symbol architectural fix landed pass-7; pass-8 documentation-edge gaps fixed; continue protocol. Build optimization research-agent artifact filed for future dispatch reference. | Pass-8 remediation COMPLETE — 1H+2M+4L+1OBS all fixed; BC-2.11.006 v1.10 (17 entries + ParseLimits::snapshot); lib.rs 6 sub-parsers; DI-034 v1.5; research artifact filed; pass-9 next (window restarting) | 4 | 2026-05-05 |
 | D-236 | PR-127 Adversary Pass-7 Remediation Complete 2026-05-05 — Pass-7 verdict: BLOCKED (1 HIGH, 2 MEDIUM, 4 LOW, 1 OBS). Architectural fix: per-symbol CI granularity replaces binary signal. Remediation: DevOps `b5d3c4fc`: perimeter-compile-fail script parses cargo output and asserts each restricted_symbol fires E0603/E0624 (single-symbol regression detectable). Runtime calls for clear_thread_local + current_regex_limit. v1.7 → v1.8 labels. Implementer #7 `d3276ac0`: F-MEDIUM-001 ThreadLocalGuard pub(crate) for production-guard test; F-LOW-003 lib.rs perimeter docstring expanded to all 16 symbols. product-owner: BC-2.11.006 v1.8→v1.9 (3 *_with_limits added to restricted_symbols, 13→16 entries; 11→14 normalized paths). feature/S-3.01 HEAD: `d3276ac0`. Test count: 260→280 (with new production-guard tests). Spec versions bumped: BC-2.11.006 v1.9, BC-INDEX v4.37. Convergence status: pass-3 clean; pass-4/5/6/7 BLOCKED. Window restart with pass-8 (1 of 3 needed). User signaled: try architectural fix once; if pass-8 blocks, continue protocol. | Pass-7 remediation COMPLETE — 1H+2M+4L+1OBS all fixed; 260→280 tests; BC-2.11.006 v1.9 (13→16 restricted_symbols); per-symbol CI granularity; pass-8 next (window restarting) | 4 | 2026-05-05 |
@@ -549,33 +549,30 @@ _TD-VSDD-014..019, TD-W3-COMPLIANCE-001, TD-VSDD-025..029 archived to [tech-debt
 
 Cycle files: [burst-log](cycles/phase-2-patch/burst-log.md) | [convergence-trajectory](cycles/phase-2-patch/convergence-trajectory.md) | [session-checkpoints](cycles/phase-2-patch/session-checkpoints.md) | [lessons](cycles/phase-2-patch/lessons.md) | [resolved-blockers](cycles/phase-2-patch/blocking-issues-resolved.md)
 ---
-## Session Resume Checkpoint (2026-05-05-d241-stage2-backfill-v6.90)
+## Session Resume Checkpoint (2026-05-06-d242-pass10-remediation-v6.92)
 
-_Previous checkpoint (v6.88/D-238/D-239/pass-8) archived: [cycles/wave-4-operations/session-checkpoints.md](cycles/wave-4-operations/session-checkpoints.md)_
+_Previous checkpoint (v6.90/D-240/D-241/pass-9) archived: [cycles/wave-4-operations/session-checkpoints.md](cycles/wave-4-operations/session-checkpoints.md)_
 
-**STATE v6.90. D-240 pass-9 adversary remediation complete. D-241 Stage 2 backfill complete (force-push recovery from e5002460). 2781 workspace tests passing. feature/S-3.01 HEAD: f822938d. research/build-optimization-2026.md v1.1 (employer-name redacted). dev-setup.md F-LOW-001/2/3 fixed. CI Surface-2 leaf-resolution F-MEDIUM-001 fixed. NOTABLE: pass-9 had ZERO security findings — parser security model stabilizing. develop HEAD: 3133710e.**
+**STATE v6.92. D-242 pass-10 adversary remediation complete. 280 workspace tests passing. feature/S-3.01 HEAD: 5e7dcb81. research/build-optimization-2026.md v1.2 (F-HIGH-001 employer-name redaction completion, zero residual). NOTABLE: adversary explicitly states "parser security model has converged." develop HEAD: 3133710e. factory-artifacts HEAD: run `git -C .factory log -1 --format='%h %s'`.**
 
-develop HEAD: `3133710e` | factory-artifacts: `334c995e` (D-240 pass-9 remediation; Stage 2 backfill D-241 COMPLETE) | workspace tests: 2781 | PRs merged: 126 | Open: #127
+**D-242 (2026-05-06):** Pass-10 BLOCKED verdict — 0C/1H/0M/1L/1OBS. NOTABLE: adversary explicitly states "The parser security model has converged." Technical-writer: research/build-optimization-2026.md v1.1→v1.2 (F-HIGH-001 employer-name redaction completion; line 79 two residual references; grep verified zero remaining). DevOps `5e7dcb81`: dual-signal deep-recursion-stack-guard regex (loop pattern + parser invocation within ±5 lines; F-LOW-001 13 false-positives → 0; real unwrapped tests still flagged). OBS-001 deferred: redaction-on-promote automation (TD candidate; POLICY-11 future). Hook updated per TD-VSDD-053: factory-artifacts self-SHA cite removed from STATE.md/HANDOFF.md; single-commit burst protocol enforced.
 
-**D-240 (2026-05-05):** Pass-9 BLOCKED verdict — 0C/0H/2M/4L/2OBS. Zero security findings (NOTABLE: parser security model stabilized). Technical-writer `78bdcdeb`: dev-setup.md F-LOW-001/2/3. DevOps `f822938d`: ci.yml Surface-2 leaf-resolution (F-MEDIUM-001), .cargo/config.toml CI note (F-LOW-004), Justfile iter warning (OBS-001), deep-recursion-stack-guard CI (OBS-002). research/build-optimization-2026.md v1.0→v1.1 (F-MEDIUM-002 employer-name redaction).
-
-**D-238 (2026-05-05) recap:** Pass-8 BLOCKED — 1H+2M+4L+1OBS. BC-2.11.006 v1.10 (17 entries + ParseLimits::snapshot). lib.rs 6 sub-parsers. perimeter-symbols-sync lib.rs↔BC CI. DI-034 v1.5. 280 tests.
+**D-240 (2026-05-05) recap:** Pass-9 BLOCKED — 0C/0H/2M/4L/2OBS. Zero security findings. research v1.0→v1.1 F-MEDIUM-002. ci.yml Surface-2 leaf-resolution F-MEDIUM-001. dev-setup.md F-LOW-001/2/3. 2781 tests.
 
 **W3 IMPLEMENTATION GRAPH:**
-- Tier-1 (entry): S-3.01 (PrismQL parser, 5pts) — PR #127 OPEN; pass-9 remediation COMPLETE; awaiting pass-10 adversary clearance (1 of 3, window restarting)
+- Tier-1 (entry): S-3.01 (PrismQL parser, 5pts) — PR #127 OPEN; pass-10 remediation COMPLETE; awaiting pass-11 adversary clearance (1 of 3, window restarting)
 - Tier-2 (parallel): S-3.02 (5pts) + S-3.06 (3pts) — unblocked once S-3.01 merges
 - Tier-3 (parallel): S-3.03/04/05/08/09/11/12/13 (19pts combined) — unblocked by Tier-2
 - Tier-4 (parallel): S-3.07 (5pts) + S-3.10 (3pts) — final W3 core tier; Total: 39pts / 13 stories
 
 **NEXT ACTION:**
-- STEP 1: COMPLETE — Stage 1 commit 334c995e — research artifact v1.1 + STATE v6.89 + D-240 (force-pushed to fix bad e5002460 Stage 2 from prior dispatch)
-- STEP 2: COMPLETE — Stage 2 backfill D-241 — cite 334c995e in STATE.md + SESSION-HANDOFF.md; STATE v6.89→v6.90; hook PASS
-- STEP 3: Dispatch adversary pass-10 against feature/S-3.01@f822938d (convergence window 1 of 3)
-- STEP 4: If pass-10/11/12 CLEAN → convergence reached → merge PR #127
-- STEP 5 (post-merge): State-manager burst — flip S-3.01 status draft→merged; update wave-state.yaml
-- STEP 6 (post-merge): Devops worktree cleanup + Tier 2 dispatch (S-3.02 + S-3.06 parallel)
+- STEP 1: COMPLETE — single-commit burst: research v1.2 + STATE v6.92 + D-242 + hook updated per TD-VSDD-053
+- STEP 2: Dispatch adversary pass-11 against feature/S-3.01@5e7dcb81 (convergence window 1 of 3)
+- STEP 3: If pass-11/12/13 CLEAN → convergence reached → merge PR #127
+- STEP 4 (post-merge): State-manager burst — flip S-3.01 status draft→merged; update wave-state.yaml
+- STEP 5 (post-merge): Devops worktree cleanup + Tier 2 dispatch (S-3.02 + S-3.06 parallel)
 
-**Current spec versions:** ADR-013 v0.7, ADR-015 v0.6, ADR-016 v0.14, ADR-017 v0.7, ADR-018 v0.6, ADR-019 v0.4, prd.md v1.10, S-3.01 v1.9, STORY-INDEX v2.08, ARCH-INDEX v2.31, BC-INDEX v4.38, VP-INDEX v1.29, HOLDOUT-INDEX v1.3, verification-architecture v1.30, invariants.md v1.5, L2-INDEX v1.13, research/build-optimization-2026.md v1.1
+**Current spec versions:** ADR-013 v0.7, ADR-015 v0.6, ADR-016 v0.14, ADR-017 v0.7, ADR-018 v0.6, ADR-019 v0.4, prd.md v1.10, S-3.01 v1.9, STORY-INDEX v2.08, ARCH-INDEX v2.31, BC-INDEX v4.38, VP-INDEX v1.29, HOLDOUT-INDEX v1.3, verification-architecture v1.30, invariants.md v1.5, L2-INDEX v1.13, research/build-optimization-2026.md v1.2
 
 **Key files:** [SESSION-HANDOFF.md](SESSION-HANDOFF.md) | [cycle-manifest.md](cycles/wave-4-operations/cycle-manifest.md) | [HOLDOUT-INDEX.md](holdout-scenarios/HOLDOUT-INDEX.md)
 

@@ -2,7 +2,7 @@
 document_type: research-sidecar
 topic: rust-build-optimization-2026
 project: prism
-version: "1.1"
+version: "1.2"
 audience: orchestrator, devops-engineer, dx-engineer, implementer
 producer: vsdd-factory:research-agent
 timestamp: 2026-05-05T00:00:00Z
@@ -10,6 +10,7 @@ input_hash: prism-24-crate-workspace-macos-aarch64-2026-05-05
 status: complete
 changelog:
   - "v1.1: F-MEDIUM-002 employer-name redaction (PR-127 adversary pass-9)"
+  - "v1.2 (2026-05-06): F-HIGH-001 (pass-10) — completed employer-name redaction missed in v1.1 (line 79 had two residual references). Pre-commit grep verifies zero remaining matches. PR-127 adversary pass-10 closure."
 sources_consulted:
   - perplexity-sonar-deep-research-pre-existing-2026-05
   - context7:/websites/doc_rust-lang_cargo
@@ -76,7 +77,7 @@ The absence of `.cargo/config.toml` means every recommendation in this document 
 - **Mitigation:** System Settings → Privacy & Security → Developer Tools → add the terminal application (Terminal.app, iTerm2, ghostty, or whatever is running the cargo invocation). Per Apple's documented "Developer Tools" exception list. The exception causes child processes to inherit the trust grant.
 - **Applicability to prism:** **HIGH.** Prism has 24 crates with build scripts (proto-gen, build.rs in some crates), large dependency tree (rocksdb, datafusion → many transitive crates with build scripts), and is tested via `cargo nextest` which spawns one binary per test. Every nextest invocation pays the per-binary scan tax for any binary whose hash is unfamiliar to XProtect.
 - **Caveats and uncertainties (flagged):**
-  - **MDM / corporate-policy constraints:** ❓ **inconclusive.** No primary source documents whether MDM-managed Macs (likely the case for a 1898 & Co employee on a corporate laptop) can self-grant Developer Tools privileges, or whether IT must whitelist via a configuration profile. **[needs verification by user]** — check with 1898 IT before assuming this is freely available. If MDM blocks self-grant, the next-best mitigation is to ensure XProtect signature DB is current (which lets XProtect cache prior decisions) but the speedup will be smaller.
+  - **MDM / corporate-policy constraints:** ❓ **inconclusive.** No primary source documents whether MDM-managed Macs (likely the case for an enterprise/corporate employee on a corporate laptop) can self-grant Developer Tools privileges, or whether IT must whitelist via a configuration profile. **[needs verification by user]** — check with your organization's IT before assuming this is freely available. If MDM blocks self-grant, the next-best mitigation is to ensure XProtect signature DB is current (which lets XProtect cache prior decisions) but the speedup will be smaller.
   - **macOS version:** Nethercote's 2025-09 post does not name a specific macOS version. The XProtect daemon model has been stable across Sequoia 15.x → 15.2 (per [Eclectic Light Co, 2024-12-19](https://eclecticlight.co/2024/12/19/xprotect-has-changed-again-in-macos-sequoia-15-2/)). The Developer Tools exception predates Sequoia. Reasonably high confidence the mitigation works on 15.x, but **[needs validation]** with `cargo build --timings` before/after on prism specifically.
   - **Security trade-off:** This grants exemption from runtime malware scanning for binaries spawned from the terminal. Acceptable for a developer who trusts their toolchain (the canonical posture for local dev). Document this trade-off in a CONTRIBUTING note.
 - **Source citations:**

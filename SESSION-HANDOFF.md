@@ -162,21 +162,20 @@ factory-artifacts canonical: 334c995e (D-240 pass-9 remediation; D-241 Stage 2 b
 
 ## Current State
 
-develop HEAD `3133710e` | factory-artifacts `334c995e` (D-240 pass-9 remediation; D-241 Stage 2 backfill COMPLETE)
+develop HEAD `3133710e` | factory-artifacts HEAD: run `git -C .factory log -1 --format='%h %s'` (per TD-VSDD-053)
 
 | Metric | Value |
 |--------|-------|
 | develop HEAD | `3133710e` (rename PR #126 squash-merged 2026-05-05T03:19:10Z — crowdstrike_session→org_scoped_session_id) |
-| factory-artifacts HEAD | `334c995e` (D-240 pass-9 remediation; D-241 Stage 2 backfill COMPLETE) |
-| PR count merged | 126 (PR #127 OPEN — S-3.01 PrismQL parser; feature/S-3.01@f822938d) |
-| Workspace test count | 2781 (nextest-verified on feature/S-3.01@f822938d) |
-| Open PRs | PR #127 S-3.01 PrismQL parser — OPEN; pass-9 remediation COMPLETE; pass-10 next (1 of 3 needed for convergence window restart) |
+| PR count merged | 126 (PR #127 OPEN — S-3.01 PrismQL parser; feature/S-3.01@5e7dcb81) |
+| Workspace test count | 280 (nextest-verified on feature/S-3.01@5e7dcb81) |
+| Open PRs | PR #127 S-3.01 PrismQL parser — OPEN; pass-10 remediation COMPLETE (D-242); pass-11 next (1 of 3 needed for convergence window restart) |
 | Active worktrees | main (`develop`) + `.factory` (`factory-artifacts`) + `.worktrees/S-3.01/` (feature/S-3.01) |
 | Tech debt items | 57 active product items (70 prior − 13 VSDD items extracted); vsdd-plugin-tech-debt.md: 41 items v2.5 (TD-VSDD-055/056 added D-226) |
 | Wave 2 gate status | CONVERGED 2026-04-27 — Pass 9 CLEAN (3-clean-passes: P6+P8+P9) |
 | Wave 3 gate status | **CONVERGED (multi-tenant sub-waves) 2026-05-02; W3 CORE SPEC REMEDIATION COMPLETE D-224; S-3.01 RED GATE STAGE 1 COMPLETE D-225** |
 | Wave 4 status | **PHASE 4.B SUSPENDED — D-223 W3-FIRST pivot (2026-05-04); S-4.01 → S-3.02 dep; 13 W3 core stories must implement first** |
-| Status | **D-240 COMPLETE. Pass-9 remediation done (0C/0H/2M/4L/2OBS; ZERO security findings — parser security model stabilizing; 2781 tests; f822938d). D-241 COMPLETE — Stage 2 backfill: factory-artifacts 334c995e cited; force-push recovery from bad e5002460. hook PASS. NEXT: Dispatch adversary pass-10 against feature/S-3.01@f822938d. Convergence window restarting — need 3 consecutive clean passes (pass-10 is 1 of 3). W3 impl graph: Tier-1=S-3.01 (active, PR #127 OPEN) → Tier-2={S-3.02,S-3.06} → Tier-3={8 stories} → Tier-4={S-3.07,S-3.10} → RESUME PHASE 4.B** |
+| Status | **D-242 COMPLETE. Pass-10 remediation done (0C/1H/0M/1L/1OBS; NOTABLE: adversary states "parser security model has converged"; research v1.2 F-HIGH-001 employer-name redaction; dual-signal deep-recursion-stack-guard 5e7dcb81 F-LOW-001 13FP→0; 280 tests). Hook updated per TD-VSDD-053: factory-artifacts self-SHA cite removed; single-commit protocol enforced. NEXT: Dispatch adversary pass-11 against feature/S-3.01@5e7dcb81. Convergence window restarting — need 3 consecutive clean passes (pass-11 is 1 of 3). W3 impl graph: Tier-1=S-3.01 (active, PR #127 OPEN) → Tier-2={S-3.02,S-3.06} → Tier-3={8 stories} → Tier-4={S-3.07,S-3.10} → RESUME PHASE 4.B** |
 
 
 ---
