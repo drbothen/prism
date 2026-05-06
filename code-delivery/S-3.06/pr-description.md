@@ -70,7 +70,7 @@ flowchart LR
     BC004 --> AC5[AC-5: E-QUERY-023 unknown verb]
     BC004 --> AC6[AC-6: WriteArg key=value]
     BC004 --> AC4[AC-4: Filter mode rejection]
-    BC010[BC-2.11.010] --> AC3[AC-3: E-QUERY-010 prism_* guard]
+    BC004[BC-2.11.004] --> AC3[AC-3: E-QUERY-010 prism_* guard]
     BC010 --> AC7[AC-7: E-QUERY-022 unbounded]
     BC010 --> AC8[AC-8: DmlNode InsertInto]
     AC1 --> T1[test_BC_2_11_004_parse_pipe_with_write_happy_path]
