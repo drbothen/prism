@@ -4,8 +4,13 @@
 //! `SessionContext` is dropped when the enclosing `execute()` call returns,
 //! including on panic. This satisfies BC-2.11.005 AC-7.
 //!
-//! Uses `scopeguard::defer!` to register a drop callback that releases the
-//! `SessionContext` unconditionally.
+//! ## RAII via Drop
+//!
+//! `SessionScope` wraps an `Option<SessionContext>`. The `Drop` impl
+//! calls `drop(self.inner.take())`, releasing the inner DataFusion
+//! context. This pattern is panic-safe because Rust's drop semantics
+//! guarantee `Drop::drop` runs even on panic unwind, unless the
+//! runtime aborts.
 //!
 //! # Architecture Compliance (BC-2.11.005)
 //! - Non-scheduled queries: `SessionContext` MUST NOT outlive `execute()`.
@@ -31,9 +36,10 @@ use datafusion::execution::context::SessionContext;
 
 /// RAII wrapper for a DataFusion `SessionContext`.
 ///
-/// Wraps the `SessionContext` so it is explicitly dropped when `SessionScope`
-/// is dropped — even on panic. The implementation uses `scopeguard` to
-/// register a drop closure.
+/// Wraps the `SessionContext` in an `Option` so it is explicitly dropped when
+/// `SessionScope` is dropped — even on panic unwind. The `Drop` impl calls
+/// `self.inner.take()` to consume the context, making the pattern
+/// self-documenting and preventing accidental double-drop.
 ///
 /// For non-scheduled queries, `SessionScope` is created at the top of
 /// `execute()` and dropped at the end (including error paths). The query plan
@@ -92,10 +98,12 @@ impl SessionScope {
 
 impl Drop for SessionScope {
     fn drop(&mut self) {
-        // Explicitly drop the inner context. This is a no-op if `into_arc`
-        // already took the context (inner is None). The explicit drop here is
-        // documentation of intent — the compiler would drop it anyway, but
-        // `scopeguard` semantics make the RAII intent clear in code review.
+        // Explicitly drop the inner context by taking it out of the Option.
+        // This is a no-op if `into_arc` already took the context (inner is
+        // None). The explicit `take()` is documentation of intent — the
+        // compiler would drop `inner` anyway, but making the release visible
+        // here clarifies the RAII contract in code review and makes it clear
+        // that double-drop is impossible.
         drop(self.inner.take());
     }
 }
