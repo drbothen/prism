@@ -232,22 +232,26 @@ jobs:
     # 60s smoke run on every PR/push — catches regressions fast.
     # Full 30-min run lives in fuzz-nightly.yml (scheduled).
     #
-    # Pass-13 fix: timeout 5 → 12 min. The 5-min ceiling did not account for
-    # cold-cache build cost. cargo-fuzz with libfuzzer + AddressSanitizer
-    # instrumentation rebuilds prism-query + 24 transitive deps from scratch
-    # under the sanitizer profile (separate cache namespace from the main
-    # build). Observed run 25420298915 was killed at 5m34s with rustc still
-    # compiling. Budget breakdown:
-    #   cargo-fuzz install:       ~30-60s
-    #   sanitizer-instrumented build (cold): ~3-5 min
-    #   60s fuzz run:             60s
-    #   cleanup + cache save:     ~30s
-    # Total worst-case: ~7 min. 12-min ceiling provides margin while still
+    # Pass-13 fix #1 (6f38ac5f): timeout 5 → 12 min. cargo-fuzz with libfuzzer
+    # + AddressSanitizer instrumentation rebuilds prism-query + 24 transitive
+    # deps from scratch under the sanitizer profile (separate cache namespace
+    # from the main build).
+    # Pass-13 fix #2: timeout 12 → 20 min. After 30f6fc07 added opt-level=3
+    # for sha2/aes-gcm/argon2/blake2 crypto stack in .cargo/config.toml,
+    # sanitizer-instrumented build of those same transitive crates
+    # substantially exceeds the 12-min ceiling. Observed run 25427035534
+    # rerun was killed at 12m51s with `ar` (linker) still running — never
+    # reached the 60s fuzz run itself. Budget breakdown:
+    #   cargo-fuzz install:                       ~30-60s
+    #   sanitizer-instrumented build (cold):      ~10-15 min (with opt-level=3)
+    #   60s fuzz run:                             60s
+    #   cleanup + cache save:                     ~30s
+    # Total worst-case: ~17 min. 20-min ceiling provides margin while still
     # failing fast on hangs (e.g., a fuzz target that loops without
     # producing crashes).
     needs: clippy
     runs-on: ubuntu-latest
-    timeout-minutes: 12
+    timeout-minutes: 20
     permissions:
       contents: read
     steps:
