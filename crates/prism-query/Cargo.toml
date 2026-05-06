@@ -2,7 +2,7 @@
 name = "prism-query"
 version = "0.1.0"
 edition = "2021"
-description = "Prism query orchestration — virtual field injection and sensor table materialization (S-2.08). DataFusion TableProvider integration added in S-3.02."
+description = "Prism query orchestration — virtual field injection and sensor table materialization (S-2.08). PrismQL parser (S-3.01) and DataFusion TableProvider integration (S-3.02)."
 license = "MIT"
 publish = false
 
@@ -12,6 +12,12 @@ publish = false
 # Any PR that introduces DataFusion or Arrow as a dep of prism-query in S-2.08
 # is an architecture violation and must be rejected.
 # See S-2.08 v1.5 §Architecture Compliance Rules.
+#
+# ARCHITECTURE COMPLIANCE (S-3.01):
+# Parser modules (filter_parser, sql_parser, pipe_parser, security) MUST NOT
+# import from prism-sensors, prism-mcp, or any I/O crate. Parsing is a pure
+# function: &str -> Result<Ast, Vec<ParseError>>. See S-3.01 §Architecture
+# Compliance Rules.
 
 [lib]
 name = "prism_query"
@@ -24,10 +30,36 @@ serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 # S-3.2.08 — UUID v7 generation for org-scoped CrowdStrike pagination session IDs (D-048).
 uuid = { version = "1", features = ["v7"] }
+# S-3.01 — PrismQL parser combinators (filter/SQL/pipe modes) with error recovery.
+chumsky = "0.12"
+# S-3.01 — human-readable parse error formatting (JSON-serializable for MCP responses).
+ariadne = "0.4"
+# S-3.01 AST redesign — CIDR literal validation (CWE-20). ipnet::IpNet::from_str
+# validates at parse time, preventing malformed CIDR strings from reaching the executor.
+ipnet = { version = "2", features = ["serde"] }
+# S-3.01 AST redesign — Eq/Hash on Literal::Float(f64) via ordered bit-level comparison.
+# Two floats are "AST-equal" iff their bit representations are equal (NaN != NaN by design).
+ordered-float = { version = "2", features = ["serde"] }
+# S-3.01 AST redesign — regex validation at parse time (CWE-1333); same engine as prism-core.
+regex = "1"
+# S-3.01 fix-pass — parse-time validation for TimestampLiteral (ISO-8601 / RFC-3339).
+# chrono is already used across the workspace (prism-core, prism-audit, prism-mcp, etc.);
+# using the same crate avoids duplicate transitive deps.
+chrono = { version = "0.4", default-features = false, features = ["std", "serde"] }
 
 [dev-dependencies]
 # S-3.2.08 — isolation tests: LruCache mirrors prism-dtu-crowdstrike session_registry (dev-only)
 lru = "0.17"
+
+# S-3.01 VP-014/VP-015 — bounded model checking proofs (exact pin; out-of-band nightly
+# toolchain; does not affect workspace MSRV of Rust 1.85).
+# Gated to non-Windows because kani-verifier 0.67 uses std::os::unix::* (CommandExt::arg0,
+# fs::symlink) which don't exist on Windows. Kani itself is Linux/macOS-only; the proof
+# modules in src/proofs/ are #[cfg(kani)]-gated so they never compile in regular cargo
+# test. Removing this from the Windows dep graph unblocks `cargo test --workspace` on
+# x86_64-pc-windows-msvc without affecting Kani verification on supported platforms.
+[target.'cfg(not(target_os = "windows"))'.dev-dependencies]
+kani-verifier = "=0.67.0"
 
 [lints.rust]
 unexpected_cfgs = { level = "warn", check-cfg = ['cfg(kani)'] }
