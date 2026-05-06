@@ -1,4 +1,4 @@
-//! BC-2.11.006 v1.8 BC-2.11.006 Postconditions: Security Perimeter — compile-fail test.
+//! BC-2.11.006 v1.10 — Security Perimeter compile-fail test.
 //!
 //! This file intentionally uses symbols that are `pub(crate)` inside
 //! `prism-query` and MUST NOT be accessible to external crates.
@@ -32,11 +32,12 @@
 //!     - security::ParseLimits::install_thread_local — sets thread-local limits
 //!     - security::ParseLimits::clear_thread_local   — clears thread-local limits
 //!     - security::ParseLimits::current_regex_limit  — reads current regex limit
+//!     - security::ParseLimits::snapshot             — captures current env limits (F-HIGH-001)
 //!       External callers cannot construct a ParseLimits with adversarial field
 //!       values (e.g., regex_pattern: usize::MAX) to bypass the regex length guard.
 //!
 //! Reference: adversary pass-5 OBS-003 [process-gap]; adversary pass-6 F-HIGH-001/F-HIGH-002;
-//!            adversary pass-7 F-HIGH-001/F-MEDIUM-002.
+//!            adversary pass-7 F-HIGH-001/F-MEDIUM-002; adversary pass-8 F-HIGH-001/OBS-001.
 
 // ── Sub-parser entry points ──────────────────────────────────────────────────
 
@@ -124,8 +125,13 @@ fn main() {
     let limits = ParseLimits::snapshot();
     limits.install_thread_local();
 
+    // Pass-8 F-HIGH-001 closure — function-pointer reference forces visibility check
+    // even if the compiler elides the call above.  `snapshot` is pub(crate) so this
+    // must fail with E0624 "method `snapshot` is private".
+    let _ = ParseLimits::snapshot;
+
     // Pass-7 F-MEDIUM-002 — exercise each ParseLimits method individually so
     // regressions to pub are caught even when sibling methods remain pub(crate).
-    let _ = ParseLimits::clear_thread_local();
-    let _ = ParseLimits::current_regex_limit();
+    let _ = ParseLimits::clear_thread_local;
+    let _ = ParseLimits::current_regex_limit;
 }

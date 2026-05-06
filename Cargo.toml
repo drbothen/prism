@@ -1,7 +1,7 @@
 [workspace]
 resolver = "2"
 exclude = [
-    # BC-2.11.006 v1.7: compile-fail perimeter test — must NOT be in workspace members.
+    # BC-2.11.006 v1.10: compile-fail perimeter test — must NOT be in workspace members.
     # Building this crate is expected to fail (visibility violation); including it in
     # the workspace would break every `cargo build --workspace` run.
     "tests/external/perimeter-violation",

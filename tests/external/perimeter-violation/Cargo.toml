@@ -4,7 +4,7 @@ version = "0.1.0"
 edition = "2021"
 publish = false
 
-# BC-2.11.006 v1.8 — Security Perimeter compile-fail test crate.
+# BC-2.11.006 v1.10 — Security Perimeter compile-fail test crate.
 #
 # PURPOSE: This crate deliberately attempts to use symbols that are pub(crate)
 # inside prism-query but NOT part of the public API. It MUST NOT compile.

@@ -257,8 +257,8 @@ jobs:
           cd fuzz && cargo +nightly fuzz run vp021_parse_fuzz --target x86_64-unknown-linux-gnu -- -max_total_time=60 -max_len=65536
 
   perimeter-compile-fail:
-    name: Perimeter compile-fail check (BC-2.11.006 v1.8)
-    # BC-2.11.006 v1.8 postcondition: sub-parsers (parse_filter, parse_sql,
+    name: Perimeter compile-fail check (BC-2.11.006 v1.10)
+    # BC-2.11.006 v1.10 postcondition: sub-parsers (parse_filter, parse_sql,
     # parse_pipe, build_pipe_parser, and all builder factories + ParseLimits
     # methods) are pub(crate) and MUST NOT be reachable from external crates.
     # This job compiles a deliberate violator and asserts that `cargo check`
@@ -304,7 +304,7 @@ jobs:
             && CARGO_RC=0 || CARGO_RC=$?
           cat /tmp/perimeter-check.log
           if [ "${CARGO_RC}" -eq 0 ]; then
-            echo "::error::Perimeter compile-fail check FAILED — sub-parser is publicly accessible (security regression, BC-2.11.006 v1.8)"
+            echo "::error::Perimeter compile-fail check FAILED — sub-parser is publicly accessible (security regression, BC-2.11.006 v1.10)"
             echo "::error::All restricted symbols became pub. Revert the visibility changes."
             exit 1
           fi
@@ -359,17 +359,15 @@ jobs:
           # Build unique leaf names for each restricted symbol.
           # For free functions: last path segment (e.g., parse_filter).
           # For struct methods: last path segment of the full symbol (e.g., install_thread_local).
-          # For struct paths (after normalization collapse): last segment of the struct (e.g., ParseLimits).
-          # We check against BOTH the raw leaf (method name) and the struct name,
-          # because the cargo error may report either E0603 on the struct or E0624 on the method.
+          # We check against the raw leaf (method name) only.
+          # Note: we do NOT add the struct name (ParseLimits) because ParseLimits is `pub`
+          # — `use prism_query::security::ParseLimits` succeeds and never produces E0603.
+          # Only pub(crate) method calls produce E0624, using the leaf (method) name. (F-LOW-003)
           expected_leaf_names = set()
           for sym in raw_spec_symbols:
               parts = sym.split('::')
               # Add the leaf symbol name (method or function)
               expected_leaf_names.add(parts[-1])
-              # If the parent segment is PascalCase (struct method), also add the struct name
-              if len(parts) >= 2 and parts[-2][0].isupper():
-                  expected_leaf_names.add(parts[-2])
 
           print(f"BC-2.11.006 restricted_symbols ({len(raw_spec_symbols)} entries):")
           for s in raw_spec_symbols:
@@ -385,7 +383,6 @@ jobs:
           # Match patterns like:
           #   error[E0603]: function `parse_filter` is private
           #   error[E0624]: method `install_thread_local` is private
-          #   error[E0603]: struct `ParseLimits` is private
           # Parse line-by-line to avoid multiline regex hazards from cargo's
           # multi-line note sections that contain backtick-quoted symbol names.
           found_names = set()
@@ -405,16 +402,14 @@ jobs:
           for sym in raw_spec_symbols:
               parts = sym.split('::')
               leaf = parts[-1]
-              # For struct methods: the error may appear as the struct (E0603 on import)
-              # or as the method (E0624 on call). Accept either.
-              is_method = len(parts) >= 2 and parts[-2][0].isupper()
-              struct_name = parts[-2] if is_method else None
 
               if leaf in found_names:
                   print(f"  PASS  {sym}  (leaf: {leaf})")
-              elif struct_name and struct_name in found_names:
-                  print(f"  PASS  {sym}  (via struct: {struct_name})")
               else:
+                  # Note: the via-struct fallback (checking struct_name in E0603 errors) was
+                  # removed (F-LOW-003): ParseLimits is `pub`, so `use prism_query::security::ParseLimits`
+                  # succeeds — E0603 never fires on the struct.  Only pub(crate) method calls
+                  # produce E0624 (leaf name), so the leaf check is sufficient.
                   failures.append(sym)
                   print(f"  FAIL  {sym}  (leaf '{leaf}' not in E0603/E0624 errors)")
 
@@ -445,12 +440,19 @@ jobs:
   perimeter-symbols-sync:
     name: Perimeter symbols sync check (BC-2.11.006 OBS-001)
     # Adversary pass-6 OBS-001 [process-gap] remediation.
+    # Adversary pass-8 OBS-001 extension: also validates lib.rs perimeter docstring.
     #
-    # BC-2.11.006 v1.8 frontmatter lists `restricted_symbols.symbols:` — the
+    # BC-2.11.006 v1.10 frontmatter lists `restricted_symbols.symbols:` — the
     # canonical set of crate-private symbols that external crates MUST NOT
-    # reach. The perimeter-violation test in
-    # tests/external/perimeter-violation/src/main.rs must contain a matching
-    # `use prism_query::…` import for every importable unit in the spec.
+    # reach. This job validates TWO surfaces against that canonical set:
+    #
+    # 1. tests/external/perimeter-violation/src/main.rs — must contain a
+    #    matching `use prism_query::…` import for every importable unit in the spec.
+    #
+    # 2. crates/prism-query/src/lib.rs — its security-perimeter doc-comment block
+    #    enumerates symbols by name. Those backtick-quoted symbols must match the
+    #    BC frontmatter restricted_symbols (after normalization).  lib.rs claims
+    #    "Authoritative source: BC-2.11.006 frontmatter"; this check enforces it.
     #
     # Normalization rule: Rust `use` can only address free functions, modules,
     # and types — not struct methods. Spec entries of the form
@@ -478,14 +480,15 @@ jobs:
         with:
           ref: factory-artifacts
           path: .factory-spec
-      - name: Assert spec restricted_symbols match perimeter-violation imports
+      - name: Assert spec restricted_symbols match perimeter-violation imports and lib.rs docstring
         run: |
           set -euo pipefail
           python3 - << 'PYEOF'
           import re, sys
 
-          SPEC_PATH = ".factory-spec/specs/behavioral-contracts/BC-2.11.006-query-security-limits.md"
-          TEST_PATH = "tests/external/perimeter-violation/src/main.rs"
+          SPEC_PATH   = ".factory-spec/specs/behavioral-contracts/BC-2.11.006-query-security-limits.md"
+          TEST_PATH   = "tests/external/perimeter-violation/src/main.rs"
+          LIB_RS_PATH = "crates/prism-query/src/lib.rs"
 
           # --- Extract spec symbols from YAML frontmatter ---
           with open(SPEC_PATH) as f:
@@ -510,7 +513,7 @@ jobs:
           if not symbols_match:
               print(
                   f"ERROR: restricted_symbols.symbols block not found in {SPEC_PATH} frontmatter.\n"
-                  "BC-2.11.006 must be at v1.8+ with a structured restricted_symbols: block.",
+                  "BC-2.11.006 must be at v1.10+ with a structured restricted_symbols: block.",
                   file=sys.stderr
               )
               sys.exit(1)
@@ -556,7 +559,15 @@ jobs:
           # Multiple method entries on the same struct collapse to one path.
           spec_use_paths = sorted(set(normalize_to_use_path(s) for s in raw_spec_symbols))
 
-          # --- Extract `use prism_query::` lines from perimeter-violation ---
+          # Build the normalized set of unique parent paths from raw spec symbols.
+          # This is used for comparing against lib.rs docstring symbols.
+          spec_normalized_set = set(normalize_to_use_path(s) for s in raw_spec_symbols)
+
+          print(f"Spec restricted_symbols  ({len(raw_spec_symbols)} entries, {len(spec_use_paths)} importable paths):")
+          for s in spec_use_paths:
+              print(f"  {s}")
+
+          # ── Surface 1: perimeter-violation/src/main.rs use statements ──────────
           with open(TEST_PATH) as f:
               test_content = f.read()
 
@@ -566,41 +577,163 @@ jobs:
               if re.match(r'^use prism_query::', line.strip())
           )
 
-          # --- Compare normalized spec paths vs test use statements ---
-          spec_set = set(spec_use_paths)
-          test_set = set(test_symbols)
-          only_in_spec = sorted(spec_set - test_set)
-          only_in_test = sorted(test_set - spec_set)
-
-          print(f"Spec restricted_symbols  ({len(raw_spec_symbols)} entries, {len(spec_use_paths)} importable paths):")
-          for s in spec_use_paths:
-              print(f"  {s}")
           print(f"\nTest use statements ({len(test_symbols)}):")
           for s in test_symbols:
               print(f"  {s}")
           print()
 
-          if not only_in_spec and not only_in_test:
-              print(f"OK: all {len(spec_use_paths)} required imports are present in the perimeter-violation test.")
-              sys.exit(0)
+          spec_set = set(spec_use_paths)
+          test_set = set(test_symbols)
+          only_in_spec_test = sorted(spec_set - test_set)
+          only_in_test = sorted(test_set - spec_set)
 
-          print("FAIL: BC-2.11.006 restricted_symbols diverges from perimeter-violation imports.", file=sys.stderr)
-          print("", file=sys.stderr)
-          if only_in_spec:
-              print("Importable paths required by spec but MISSING from perimeter-violation/src/main.rs:", file=sys.stderr)
-              for s in only_in_spec:
-                  print(f"  {s}", file=sys.stderr)
-              print("  → Add a `use <path>;` import to perimeter-violation/src/main.rs for each.", file=sys.stderr)
-              print("", file=sys.stderr)
-          if only_in_test:
-              print("Imports in perimeter-violation/src/main.rs NOT covered by any BC-2.11.006 restricted_symbols entry:", file=sys.stderr)
-              for s in only_in_test:
-                  print(f"  {s}", file=sys.stderr)
-              print("  → Either add the symbol (or a method on it) to restricted_symbols.symbols:", file=sys.stderr)
-              print("    in BC-2.11.006 frontmatter, or remove the `use` line if not restricted.", file=sys.stderr)
-              print("", file=sys.stderr)
-          print(f"Spec importable paths: {len(spec_use_paths)}, Test imports: {len(test_symbols)}", file=sys.stderr)
-          sys.exit(1)
+          surface1_ok = not only_in_spec_test and not only_in_test
+          if surface1_ok:
+              print(f"Surface 1 OK: all {len(spec_use_paths)} required imports are present in perimeter-violation/src/main.rs.")
+          else:
+              print("Surface 1 FAIL: BC-2.11.006 restricted_symbols diverges from perimeter-violation imports.", file=sys.stderr)
+              if only_in_spec_test:
+                  print("\nImportable paths required by spec but MISSING from perimeter-violation/src/main.rs:", file=sys.stderr)
+                  for s in only_in_spec_test:
+                      print(f"  {s}", file=sys.stderr)
+                  print("  → Add a `use <path>;` import to perimeter-violation/src/main.rs for each.", file=sys.stderr)
+              if only_in_test:
+                  print("\nImports in perimeter-violation/src/main.rs NOT covered by any BC-2.11.006 restricted_symbols entry:", file=sys.stderr)
+                  for s in only_in_test:
+                      print(f"  {s}", file=sys.stderr)
+                  print("  → Either add the symbol (or a method on it) to restricted_symbols.symbols", file=sys.stderr)
+                  print("    in BC-2.11.006 frontmatter, or remove the `use` line if not restricted.", file=sys.stderr)
+
+          # ── Surface 2: crates/prism-query/src/lib.rs perimeter docstring ───────
+          #
+          # lib.rs contains a security-perimeter doc-comment block (the S-3.01 re-exports
+          # section). It enumerates symbol names in backticks within that block.
+          # lib.rs claims "Authoritative source: BC-2.11.006 frontmatter restricted_symbols";
+          # this check enforces that claim.
+          #
+          # Extraction strategy:
+          # 1. Find the security-perimeter comment block: starts at the line containing
+          #    "Security perimeter" (case-insensitive) or "restricted_symbols" and ends
+          #    at the first non-comment line (i.e., a line not starting with "//").
+          # 2. Within that block, extract all backtick-quoted tokens.
+          # 3. Keep only tokens that look like Rust paths or symbol names (contain "::"
+          #    or are snake_case/PascalCase identifiers that appear in BC symbols).
+          # 4. Normalize each extracted token: if it contains "::", treat as a full path;
+          #    if it does not contain "::", look it up by leaf name in the BC symbols set.
+          # 5. Diff against spec_normalized_set.
+
+          with open(LIB_RS_PATH) as f:
+              lib_lines = f.readlines()
+
+          # Locate the security-perimeter comment block.
+          # The block starts at the line containing the "Security perimeter" marker
+          # (we search for the pub use re-exports section with the perimeter comment).
+          in_perimeter_block = False
+          perimeter_lines = []
+          for line in lib_lines:
+              stripped = line.rstrip()
+              # Block start: the `// ── S-3.01 re-exports` comment that precedes
+              # the security perimeter documentation.
+              if not in_perimeter_block:
+                  # Detect the start of the security perimeter comment block.
+                  # We look for the line "// # Security perimeter" or
+                  # "// Authoritative source: BC-2.11.006" or similar markers.
+                  # More robustly: start at the first comment line after `// ── S-3.01 re-exports`.
+                  if re.search(r'Security perimeter|restricted_symbols|pub\(crate\) and MUST NOT', stripped, re.IGNORECASE):
+                      in_perimeter_block = True
+                      perimeter_lines.append(stripped)
+              else:
+                  # Continue collecting comment lines.
+                  if stripped.startswith('//'):
+                      perimeter_lines.append(stripped)
+                  else:
+                      # First non-comment line ends the block.
+                      break
+
+          if not perimeter_lines:
+              print(
+                  f"ERROR: Could not locate the security-perimeter comment block in {LIB_RS_PATH}.\n"
+                  "Expected a comment block containing 'Security perimeter' or 'restricted_symbols'.",
+                  file=sys.stderr
+              )
+              sys.exit(1)
+
+          print(f"\nlib.rs perimeter docstring block ({len(perimeter_lines)} comment lines found).")
+
+          # Extract all backtick-quoted tokens from the perimeter block.
+          backtick_tokens = []
+          for line in perimeter_lines:
+              backtick_tokens.extend(re.findall(r'`([^`]+)`', line))
+
+          # Build a lookup: leaf name -> normalized BC path, for resolving short names.
+          # e.g. "parse_filter" -> "prism_query::filter_parser::parse_filter"
+          bc_leaf_to_normalized = {}
+          for sym in raw_spec_symbols:
+              normalized = normalize_to_use_path(sym)
+              # leaf of the raw symbol (may be a method name or function name)
+              leaf = sym.split('::')[-1]
+              bc_leaf_to_normalized[leaf] = normalized
+              # also map the leaf of the normalized path (struct name for method entries)
+              norm_leaf = normalized.split('::')[-1]
+              bc_leaf_to_normalized[norm_leaf] = normalized
+
+          # Filter backtick tokens to only those that reference known BC symbols.
+          # A token is relevant if:
+          # (a) it contains '::' and its normalized form is in spec_normalized_set, OR
+          # (b) it does not contain '::' and its name appears as a leaf in bc_leaf_to_normalized.
+          lib_normalized = set()
+          unrecognized_tokens = []
+          for tok in backtick_tokens:
+              tok = tok.strip()
+              if not tok:
+                  continue
+              if '::' in tok:
+                  # Full or partial path — normalize and check
+                  normalized = normalize_to_use_path(tok)
+                  if normalized in spec_normalized_set:
+                      lib_normalized.add(normalized)
+                  # else: not a restricted symbol reference, ignore
+              else:
+                  # Short name — look up by leaf
+                  if tok in bc_leaf_to_normalized:
+                      lib_normalized.add(bc_leaf_to_normalized[tok])
+                  # else: not a restricted symbol reference (could be a type, keyword, etc.)
+
+          print(f"lib.rs backtick tokens mapped to BC symbols ({len(lib_normalized)} unique paths):")
+          for s in sorted(lib_normalized):
+              print(f"  {s}")
+
+          only_in_spec_lib = sorted(spec_normalized_set - lib_normalized)
+          only_in_lib = sorted(lib_normalized - spec_normalized_set)
+
+          surface2_ok = not only_in_spec_lib and not only_in_lib
+          if surface2_ok:
+              print(f"Surface 2 OK: lib.rs perimeter docstring matches all {len(spec_normalized_set)} BC-2.11.006 normalized symbol paths.")
+          else:
+              print("\nSurface 2 FAIL: lib.rs perimeter docstring diverges from BC-2.11.006 restricted_symbols.", file=sys.stderr)
+              if only_in_spec_lib:
+                  print("\nSymbols in BC restricted_symbols but MISSING from lib.rs perimeter docstring:", file=sys.stderr)
+                  for s in only_in_spec_lib:
+                      print(f"  {s}", file=sys.stderr)
+                  print("  → lib.rs perimeter docstring missing: add the symbol name(s) in backticks.", file=sys.stderr)
+              if only_in_lib:
+                  print("\nSymbols in lib.rs perimeter docstring NOT in BC-2.11.006 restricted_symbols:", file=sys.stderr)
+                  for s in only_in_lib:
+                      print(f"  {s}", file=sys.stderr)
+                  print("  → lib.rs lists symbols not in BC: remove from docstring or add to BC restricted_symbols.", file=sys.stderr)
+
+          # ── Final verdict ────────────────────────────────────────────────────────
+          if surface1_ok and surface2_ok:
+              print(f"\nAll perimeter-symbols-sync checks passed ({len(spec_use_paths)} importable paths, 2 surfaces).")
+              sys.exit(0)
+          else:
+              surfaces_failed = []
+              if not surface1_ok:
+                  surfaces_failed.append("Surface 1 (perimeter-violation/src/main.rs)")
+              if not surface2_ok:
+                  surfaces_failed.append("Surface 2 (crates/prism-query/src/lib.rs docstring)")
+              print(f"\nFAIL: perimeter-symbols-sync failed on: {', '.join(surfaces_failed)}", file=sys.stderr)
+              sys.exit(1)
           PYEOF
 
   verify-workflow-structure:
