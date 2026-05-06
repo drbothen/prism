@@ -322,7 +322,14 @@ jobs:
           # Capture stderr+stdout separately from the exit code.
           # We must NOT use `cmd | tee` because that evaluates tee's exit code,
           # not cargo's. Instead, redirect to a log file directly.
+          # --color=never is REQUIRED: without it, modern cargo (1.85+) emits
+          # ANSI color codes even when stdout is redirected, and the Python
+          # parser's `re.match(r'error\[...')` fails to match lines that
+          # actually look like `[1m[91merror[E0603][0m...` (run 25426278331
+          # latent bug exposed by pass-13 — first run to actually complete
+          # cargo within the new 12-min ceiling).
           cargo check \
+            --color=never \
             --manifest-path tests/external/perimeter-violation/Cargo.toml \
             > /tmp/perimeter-check.log 2>&1 \
             && CARGO_RC=0 || CARGO_RC=$?
