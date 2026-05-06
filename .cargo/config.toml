@@ -1,0 +1,59 @@
+# Prism cargo config — local dev profile tuning for macOS aarch64.
+# Created 2026-05-05 per .factory/research/build-optimization-2026.md.
+#
+# This file is intentionally minimal: every line documented and tied to
+# a measured speedup. Do not add settings without a corresponding
+# entry in the build-optimization research sidecar.
+
+# -----------------------------------------------------------------------------
+# Dev profile: faster incremental compiles by trimming debug info.
+# -----------------------------------------------------------------------------
+# Rationale (research §3.1.2):
+#   - debug = "line-tables-only" preserves panic backtraces + lldb call-stack
+#     line numbers; loses inline source-line debugging. Acceptable for the
+#     common Prism dev workflow (debug entry from a panic, not in-function
+#     stepping).
+#   - debug = false on dependencies is the standard cargo-recommended
+#     pattern for workspaces that don't routinely step into dependency code.
+#     Loses ability to step into rocksdb / datafusion source. Acceptable;
+#     re-enable on a per-debug-session basis via the [profile.debugging]
+#     profile below (cargo build --profile debugging).
+#
+# Source: doc.rust-lang.org/cargo/guide/build-performance.html
+[profile.dev]
+debug = "line-tables-only"
+
+[profile.dev.package."*"]
+debug = false
+
+# -----------------------------------------------------------------------------
+# Debugging profile: full debug info, opt-in via --profile debugging.
+# -----------------------------------------------------------------------------
+# When you actually need to step through a test with lldb, run:
+#   cargo nextest run -p <crate> <test_name> --profile debugging
+# (or build a binary with --profile debugging and attach lldb manually).
+[profile.debugging]
+inherits = "dev"
+debug = true
+
+# -----------------------------------------------------------------------------
+# split-debuginfo on macOS:
+#   The cargo default is "unpacked" on macOS for profiles with debug info
+#   (cargo PR #9298, merged 2021). We do NOT explicitly set it because the
+#   default is correct and explicit setting risks silent breakage if the
+#   default ever changes.
+# -----------------------------------------------------------------------------
+
+# -----------------------------------------------------------------------------
+# Linker overrides: NONE.
+#   Apple's ld_prime (Xcode 15+ default) is the recommended linker for
+#   aarch64-apple-darwin in 2026. lld and zld are not measurably faster
+#   without project-specific benchmarking (research §3.2.1). Re-evaluate
+#   only if `cargo build --timings` shows linking >15% of total time.
+# -----------------------------------------------------------------------------
+
+# Optional: increase build-time parallelism for the dev profile if the
+# default codegen-units=256 is somehow being clamped by an environment
+# variable elsewhere. Uncomment only after measurement.
+# [profile.dev]
+# codegen-units = 256  # default for dev; explicit for clarity
