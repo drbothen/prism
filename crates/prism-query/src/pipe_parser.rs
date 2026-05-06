@@ -545,6 +545,7 @@ pub(crate) fn build_pipe_parser<'a>(
 pub(crate) fn parse_pipe_with_write(
     input: &str,
     registry: &WriteVerbRegistry,
+    limits: &crate::security::ParseLimits,
 ) -> Result<PipeQuery, Vec<ParseError>> {
     use crate::error::ParseError;
 
@@ -676,6 +677,10 @@ pub(crate) fn parse_pipe_with_write(
             (&input[..pos], input[pos + 1..].trim())
         } else {
             // No pipe at all — the entire input is the write verb.
+            // F-PR130-P1-LOW-003: Reachable only via direct `parse_pipe_with_write`
+            // calls (test-only). `PrismQlParser::parse_with_registry` does not route
+            // bare-identifier inputs to pipe mode (filter mode handles them), so this
+            // branch is unreachable from the public API.
             ("", input.trim())
         };
 
@@ -708,12 +713,29 @@ pub(crate) fn parse_pipe_with_write(
             }
         } else {
             // Parse the base pipeline (without write stage).
-            let limits = security::ParseLimits::snapshot();
-            parse_pipe_with_limits(base_input, &limits)?
+            // Use caller-provided limits (F-PR130-P1-MED-001 / BC-2.11.006 F-HIGH-001):
+            // all guards within a single parse call MUST use the same snapshot.
+            parse_pipe_with_limits(base_input, limits)?
         };
 
         let source_sensor = extract_sensor_prefix(&base_query.source.raw);
         write_node.source_sensor = source_sensor;
+
+        // F-PR130-P1-LOW-002: The terminal write stage counts toward the
+        // pipe-stage-count limit (BC-2.11.006 §DI-019). `parse_pipe_with_limits`
+        // already checked that read stages <= limit, but it did not know about
+        // the write stage. Enforce total count = read_stages + 1 <= limit here.
+        let total_stages = base_query.stages.len() + 1;
+        let limit = limits.pipe_stages;
+        if total_stages > limit {
+            return Err(vec![ParseError::new(
+                0,
+                format!(
+                    "E-QUERY-003: pipe stage count {total_stages} (including terminal write stage) \
+                     exceeds maximum allowed {limit}"
+                ),
+            )]);
+        }
 
         Ok(PipeQuery {
             source: base_query.source,
@@ -722,8 +744,8 @@ pub(crate) fn parse_pipe_with_write(
         })
     } else {
         // No write stage — parse as standard pipe query.
-        let limits = security::ParseLimits::snapshot();
-        parse_pipe_with_limits(input, &limits)
+        // Use caller-provided limits (F-PR130-P1-MED-001 / BC-2.11.006 F-HIGH-001).
+        parse_pipe_with_limits(input, limits)
     }
 }
 
