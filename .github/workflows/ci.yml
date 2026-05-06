@@ -226,6 +226,713 @@ jobs:
             cargo semver-checks check-release --baseline-rev origin/develop $EXCLUDE_ARGS
           fi
 
+  fuzz-smoke-vp021:
+    name: Fuzz smoke (vp021_parse_fuzz)
+    # VP-021: PrismQlParser never panics on arbitrary byte input.
+    # 60s smoke run on every PR/push — catches regressions fast.
+    # Full 30-min run lives in fuzz-nightly.yml (scheduled).
+    #
+    # Pass-13 fix #1 (6f38ac5f): timeout 5 → 12 min. cargo-fuzz with libfuzzer
+    # + AddressSanitizer instrumentation rebuilds prism-query + 24 transitive
+    # deps from scratch under the sanitizer profile (separate cache namespace
+    # from the main build).
+    # Pass-13 fix #2: timeout 12 → 20 min. After 30f6fc07 added opt-level=3
+    # for sha2/aes-gcm/argon2/blake2 crypto stack in .cargo/config.toml,
+    # sanitizer-instrumented build of those same transitive crates
+    # substantially exceeds the 12-min ceiling. Observed run 25427035534
+    # rerun was killed at 12m51s with `ar` (linker) still running — never
+    # reached the 60s fuzz run itself. Budget breakdown:
+    #   cargo-fuzz install:                       ~30-60s
+    #   sanitizer-instrumented build (cold):      ~10-15 min (with opt-level=3)
+    #   60s fuzz run:                             60s
+    #   cleanup + cache save:                     ~30s
+    # Total worst-case: ~17 min. 20-min ceiling provides margin while still
+    # failing fast on hangs (e.g., a fuzz target that loops without
+    # producing crashes).
+    needs: clippy
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+      - uses: dtolnay/rust-toolchain@5b842231ba77f5c045dba54ac5560fed2db780e2 # nightly
+        with:
+          toolchain: nightly
+      - uses: Swatinem/rust-cache@c19371144df3bb44fab255c43d04cbc2ab54d1c4 # v2.9.1
+        with:
+          cache-on-failure: true
+          shared-key: fuzz-smoke-${{ runner.os }}
+      - name: Install protoc (required by prost-build for prism-ocsf transitive dep)
+        # Pass-14 follow-up: latent CI bug exposed when 20-min ceiling let the
+        # cold sanitizer build proceed far enough to invoke prism-ocsf's build.rs.
+        # CI run 25444145941 fuzz-smoke failed at 14m49s with:
+        #   error: failed to run custom build command for `prism-ocsf v0.1.0`
+        #   build.rs: prost-build failed to compile OCSF .proto files: NotFound
+        # The perimeter-compile-fail job already installs protoc via this same
+        # action; this step mirrors it to unblock fuzz-smoke's transitive build.
+        uses: arduino/setup-protoc@c65c819552d16ad3c9b72d9dfd5ba5237b9c906b # v3.0.0
+        with:
+          repo-token: ${{ secrets.GITHUB_TOKEN }}
+      - name: Install cargo-fuzz
+        uses: taiki-e/install-action@cf525cb33f51aca27cd6fa02034117ab963ff9f1 # v2.75.22
+        with:
+          tool: cargo-fuzz
+      - name: Add gnu target (sanitizer requires glibc, not musl)
+        run: rustup target add x86_64-unknown-linux-gnu
+      - name: Fuzz smoke (VP-021, 60s)
+        run: |
+          set -euo pipefail
+          cd fuzz && cargo +nightly fuzz run vp021_parse_fuzz --target x86_64-unknown-linux-gnu -- -max_total_time=60 -max_len=65536
+
+  perimeter-compile-fail:
+    name: Perimeter compile-fail check (BC-2.11.006 v1.10)
+    # BC-2.11.006 v1.10 postcondition: sub-parsers (parse_filter, parse_sql,
+    # parse_pipe, build_pipe_parser, and all builder factories + ParseLimits
+    # methods) are pub(crate) and MUST NOT be reachable from external crates.
+    # This job compiles a deliberate violator and asserts that `cargo check`
+    # fails with a Rust visibility error (E0603/E0624) for EACH named symbol.
+    #
+    # Pass-7 F-HIGH-001: binary signal replaced with per-symbol assertion.
+    # A single-symbol regression (one symbol promoted to pub while siblings
+    # remain pub(crate)) is now detectable — siblings still produce E0603 but
+    # the regressed symbol's absence from the error list triggers a failure.
+    #
+    # Adversary pass-5 OBS-003 [process-gap] remediation.
+    # Adversary pass-7 F-HIGH-001/OBS-001 remediation.
+    # Pass-13 fix #1 (a802b983): timeout 3 → 7 min. Cold cargo build of
+    # prism-query + 24 transitive deps reliably ran ~3m23s on standard
+    # ubuntu-latest runners, hitting the 3-min ceiling.
+    # Pass-13 fix #2: timeout 7 → 12 min. After 30f6fc07 added
+    # opt-level=3 for sha2/aes-gcm/argon2/blake2/etc in
+    # .cargo/config.toml, cold build time roughly DOUBLED to ~6m49s
+    # (run 25425477951) because sha2 is in the prism-query transitive
+    # dep graph. 12-min ceiling provides margin (matches fuzz-smoke
+    # ceiling — same root cause class) while still failing fast on
+    # genuine hangs.
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout feature branch (source code)
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+      - name: Checkout factory-artifacts branch (spec frontmatter)
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          ref: factory-artifacts
+          path: .factory-spec
+      - uses: dtolnay/rust-toolchain@29eef336d9b2848a0b548edc03f92a220660cdb8 # stable
+      - name: Install protoc (required by prost-build for prism-ocsf transitive dep)
+        uses: arduino/setup-protoc@c65c819552d16ad3c9b72d9dfd5ba5237b9c906b # v3.0.0
+        with:
+          repo-token: ${{ secrets.GITHUB_TOKEN }}
+      - uses: Swatinem/rust-cache@c19371144df3bb44fab255c43d04cbc2ab54d1c4 # v2.9.1
+        with:
+          cache-on-failure: true
+          shared-key: perimeter-compile-fail
+      - name: Assert perimeter-violation fails to compile with per-symbol E0603 checks
+        run: |
+          set -uo pipefail
+          # Capture stderr+stdout separately from the exit code.
+          # We must NOT use `cmd | tee` because that evaluates tee's exit code,
+          # not cargo's. Instead, redirect to a log file directly.
+          # --color=never is REQUIRED: without it, modern cargo (1.85+) emits
+          # ANSI color codes even when stdout is redirected, and the Python
+          # parser's `re.match(r'error\[...')` fails to match lines that
+          # actually look like `[1m[91merror[E0603][0m...` (run 25426278331
+          # latent bug exposed by pass-13 — first run to actually complete
+          # cargo within the new 12-min ceiling).
+          cargo check \
+            --color=never \
+            --manifest-path tests/external/perimeter-violation/Cargo.toml \
+            > /tmp/perimeter-check.log 2>&1 \
+            && CARGO_RC=0 || CARGO_RC=$?
+          cat /tmp/perimeter-check.log
+          if [ "${CARGO_RC}" -eq 0 ]; then
+            echo "::error::Perimeter compile-fail check FAILED — sub-parser is publicly accessible (security regression, BC-2.11.006 v1.10)"
+            echo "::error::All restricted symbols became pub. Revert the visibility changes."
+            exit 1
+          fi
+          # Per-symbol assertion: parse cargo output and verify each restricted_symbol
+          # from BC-2.11.006 frontmatter appears in the E0603/E0624 error list.
+          # A single-symbol regression (one symbol promoted to pub while siblings
+          # remain private) will still produce a non-zero cargo exit but will be
+          # MISSING from the error list — this script catches that case.
+          python3 - << 'PYEOF'
+          import re, sys
+
+          SPEC_PATH = ".factory-spec/specs/behavioral-contracts/BC-2.11.006-query-security-limits.md"
+          LOG_PATH  = "/tmp/perimeter-check.log"
+
+          # --- Normalize spec symbols (same logic as perimeter-symbols-sync) ---
+          def normalize_to_use_path(sym):
+              parts = sym.split('::')
+              trim_to = len(parts)
+              for i in range(len(parts) - 1, 0, -1):
+                  if parts[i][0].isupper():
+                      break
+                  if parts[i - 1][0].isupper():
+                      trim_to = i
+                  else:
+                      break
+              return '::'.join(parts[:trim_to])
+
+          # --- Load restricted symbols from BC frontmatter ---
+          with open(SPEC_PATH) as f:
+              spec_content = f.read()
+
+          fm_match = re.match(r'^---\n(.*?)\n---', spec_content, re.DOTALL)
+          if not fm_match:
+              print(f"ERROR: No YAML frontmatter found in {SPEC_PATH}", file=sys.stderr)
+              sys.exit(1)
+          fm_text = fm_match.group(1)
+
+          symbols_match = re.search(
+              r'restricted_symbols:\s*\n(?:.*\n)*?  symbols:\s*\n((?:    - .+\n?)*)',
+              fm_text
+          )
+          if not symbols_match:
+              print("ERROR: restricted_symbols.symbols block not found in BC-2.11.006 frontmatter.", file=sys.stderr)
+              sys.exit(1)
+
+          raw_spec_symbols = [
+              line.strip().lstrip('- ')
+              for line in symbols_match.group(1).splitlines()
+              if line.strip().startswith('- ')
+          ]
+
+          # Build unique leaf names for each restricted symbol.
+          # For free functions: last path segment (e.g., parse_filter).
+          # For struct methods: last path segment of the full symbol (e.g., install_thread_local).
+          # We check against the raw leaf (method name) only.
+          # Note: we do NOT add the struct name (ParseLimits) because ParseLimits is `pub`
+          # — `use prism_query::security::ParseLimits` succeeds and never produces E0603.
+          # Only pub(crate) method calls produce E0624, using the leaf (method) name. (F-LOW-003)
+          expected_leaf_names = set()
+          for sym in raw_spec_symbols:
+              parts = sym.split('::')
+              # Add the leaf symbol name (method or function)
+              expected_leaf_names.add(parts[-1])
+
+          print(f"BC-2.11.006 restricted_symbols ({len(raw_spec_symbols)} entries):")
+          for s in raw_spec_symbols:
+              print(f"  {s}")
+          print(f"\nExpected error leaf names ({len(expected_leaf_names)}):")
+          for n in sorted(expected_leaf_names):
+              print(f"  {n}")
+
+          # --- Parse cargo output for E0603/E0624 errors ---
+          with open(LOG_PATH) as f:
+              log_content = f.read()
+
+          # Match patterns like:
+          #   error[E0603]: function `parse_filter` is private
+          #   error[E0624]: method `install_thread_local` is private
+          # Parse line-by-line to avoid multiline regex hazards from cargo's
+          # multi-line note sections that contain backtick-quoted symbol names.
+          found_names = set()
+          for line in log_content.splitlines():
+              m = re.match(r'error\[(?:E0603|E0624)\]:[^`]*`([^`]+)`.*(?:private|restricted)', line)
+              if m:
+                  found_names.add(m.group(1))
+
+          print(f"\nE0603/E0624 error symbols found in cargo output ({len(found_names)}):")
+          for n in sorted(found_names):
+              print(f"  {n}")
+
+          # --- Per-symbol assertion ---
+          # For each raw restricted symbol, check that its leaf name (or struct name
+          # for method entries) appears in the error output.
+          failures = []
+          for sym in raw_spec_symbols:
+              parts = sym.split('::')
+              leaf = parts[-1]
+
+              if leaf in found_names:
+                  print(f"  PASS  {sym}  (leaf: {leaf})")
+              else:
+                  # Note: the via-struct fallback (checking struct_name in E0603 errors) was
+                  # removed (F-LOW-003): ParseLimits is `pub`, so `use prism_query::security::ParseLimits`
+                  # succeeds — E0603 never fires on the struct.  Only pub(crate) method calls
+                  # produce E0624 (leaf name), so the leaf check is sufficient.
+                  failures.append(sym)
+                  print(f"  FAIL  {sym}  (leaf '{leaf}' not in E0603/E0624 errors)")
+
+          print()
+          if failures:
+              for sym in failures:
+                  leaf = sym.split('::')[-1]
+                  print(
+                      f"::error::Symbol {sym} (leaf: {leaf}) did not produce an E0603/E0624 error "
+                      f"— it may have regressed to pub. Promotion to pub or removal from "
+                      f"BC restricted_symbols required.",
+                      file=sys.stderr
+                  )
+              print(
+                  f"\nPerimeter check FAILED: {len(failures)} of {len(raw_spec_symbols)} restricted symbols "
+                  f"did not appear in cargo error output.",
+                  file=sys.stderr
+              )
+              sys.exit(1)
+
+          print(
+              f"Perimeter check passed: all {len(raw_spec_symbols)} restricted symbols "
+              f"produced E0603/E0624 errors (cargo check correctly failed)."
+          )
+          sys.exit(0)
+          PYEOF
+
+  perimeter-symbols-sync:
+    name: Perimeter symbols sync check (BC-2.11.006 OBS-001)
+    # Adversary pass-6 OBS-001 [process-gap] remediation.
+    # Adversary pass-8 OBS-001 extension: also validates lib.rs perimeter docstring.
+    #
+    # BC-2.11.006 v1.10 frontmatter lists `restricted_symbols.symbols:` — the
+    # canonical set of crate-private symbols that external crates MUST NOT
+    # reach. This job validates TWO surfaces against that canonical set:
+    #
+    # 1. tests/external/perimeter-violation/src/main.rs — must contain a
+    #    matching `use prism_query::…` import for every importable unit in the spec.
+    #
+    # 2. crates/prism-query/src/lib.rs — its security-perimeter doc-comment block
+    #    enumerates symbols by name. Those backtick-quoted symbols must match the
+    #    BC frontmatter restricted_symbols (after normalization).  lib.rs claims
+    #    "Authoritative source: BC-2.11.006 frontmatter"; this check enforces it.
+    #
+    # Normalization rule: Rust `use` can only address free functions, modules,
+    # and types — not struct methods. Spec entries of the form
+    # `prism_query::A::B::MethodName` (where B is a PascalCase type) are
+    # normalized to the parent struct path `prism_query::A::B` for comparison,
+    # because that is the `use` statement the test file must contain.  Multiple
+    # method entries on the same struct collapse to a single required import.
+    #
+    # Any divergence (spec importable-unit missing from test, or test import not
+    # covered by any spec entry) fails the PR with an explanatory diff.
+    #
+    # .factory/ is on the `factory-artifacts` orphan branch (not committed to
+    # feature branches). We fetch it via a second actions/checkout into
+    # .factory-spec/ so the CI runner can read the spec frontmatter without
+    # polluting the workspace.
+    runs-on: ubuntu-latest
+    timeout-minutes: 2
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout feature branch (source code)
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+      - name: Checkout factory-artifacts branch (spec frontmatter)
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          ref: factory-artifacts
+          path: .factory-spec
+      - name: Assert spec restricted_symbols match perimeter-violation imports and lib.rs docstring
+        run: |
+          set -euo pipefail
+          python3 - << 'PYEOF'
+          import re, sys
+
+          SPEC_PATH   = ".factory-spec/specs/behavioral-contracts/BC-2.11.006-query-security-limits.md"
+          TEST_PATH   = "tests/external/perimeter-violation/src/main.rs"
+          LIB_RS_PATH = "crates/prism-query/src/lib.rs"
+
+          # --- Extract spec symbols from YAML frontmatter ---
+          with open(SPEC_PATH) as f:
+              spec_content = f.read()
+
+          fm_match = re.match(r'^---\n(.*?)\n---', spec_content, re.DOTALL)
+          if not fm_match:
+              print(f"ERROR: No YAML frontmatter found in {SPEC_PATH}", file=sys.stderr)
+              sys.exit(1)
+          fm_text = fm_match.group(1)
+
+          # Parse restricted_symbols.symbols list.
+          # Expected frontmatter shape:
+          #   restricted_symbols:
+          #     description: "..."
+          #     symbols:
+          #       - prism_query::...
+          symbols_match = re.search(
+              r'restricted_symbols:\s*\n(?:.*\n)*?  symbols:\s*\n((?:    - .+\n?)*)',
+              fm_text
+          )
+          if not symbols_match:
+              print(
+                  f"ERROR: restricted_symbols.symbols block not found in {SPEC_PATH} frontmatter.\n"
+                  "BC-2.11.006 must be at v1.10+ with a structured restricted_symbols: block.",
+                  file=sys.stderr
+              )
+              sys.exit(1)
+
+          raw_spec_symbols = [
+              line.strip().lstrip('- ')
+              for line in symbols_match.group(1).splitlines()
+              if line.strip().startswith('- ')
+          ]
+
+          # Normalize spec symbols to importable Rust `use` paths.
+          #
+          # Rule: a path segment is a struct/enum name if it starts with an
+          # uppercase letter (PascalCase).  Method names that follow a PascalCase
+          # segment cannot be addressed by `use`; they are accessed by calling
+          # the method on an imported struct instance.  Strip trailing method
+          # segments so that each spec entry maps to a `use`-addressable path.
+          #
+          # Example:
+          #   prism_query::security::ParseLimits::install_thread_local
+          #   → prism_query::security::ParseLimits        (strip snake_case tail)
+          #
+          #   prism_query::filter_parser::parse_filter
+          #   → prism_query::filter_parser::parse_filter  (no PascalCase parent; keep)
+          def normalize_to_use_path(sym):
+              parts = sym.split('::')
+              # Walk from the end; trim trailing snake_case segments that follow
+              # a PascalCase segment (those are method names, not importable items).
+              trim_to = len(parts)
+              for i in range(len(parts) - 1, 0, -1):
+                  if parts[i][0].isupper():
+                      # This segment is PascalCase — it IS importable; stop trimming.
+                      break
+                  if parts[i - 1][0].isupper():
+                      # Previous segment is PascalCase; current is a method — trim.
+                      trim_to = i
+                  else:
+                      # All-lowercase chain with no PascalCase parent above; keep.
+                      break
+              return '::'.join(parts[:trim_to])
+
+          # Build the set of `use`-importable paths required by the spec.
+          # Multiple method entries on the same struct collapse to one path.
+          spec_use_paths = sorted(set(normalize_to_use_path(s) for s in raw_spec_symbols))
+
+          # Build the normalized set of unique parent paths from raw spec symbols.
+          # This is used for comparing against lib.rs docstring symbols.
+          spec_normalized_set = set(normalize_to_use_path(s) for s in raw_spec_symbols)
+
+          print(f"Spec restricted_symbols  ({len(raw_spec_symbols)} entries, {len(spec_use_paths)} importable paths):")
+          for s in spec_use_paths:
+              print(f"  {s}")
+
+          # ── Surface 1: perimeter-violation/src/main.rs use statements ──────────
+          with open(TEST_PATH) as f:
+              test_content = f.read()
+
+          test_symbols = sorted(
+              re.sub(r'^use (.+);$', r'\1', line.strip())
+              for line in test_content.splitlines()
+              if re.match(r'^use prism_query::', line.strip())
+          )
+
+          print(f"\nTest use statements ({len(test_symbols)}):")
+          for s in test_symbols:
+              print(f"  {s}")
+          print()
+
+          spec_set = set(spec_use_paths)
+          test_set = set(test_symbols)
+          only_in_spec_test = sorted(spec_set - test_set)
+          only_in_test = sorted(test_set - spec_set)
+
+          surface1_ok = not only_in_spec_test and not only_in_test
+          if surface1_ok:
+              print(f"Surface 1 OK: all {len(spec_use_paths)} required imports are present in perimeter-violation/src/main.rs.")
+          else:
+              print("Surface 1 FAIL: BC-2.11.006 restricted_symbols diverges from perimeter-violation imports.", file=sys.stderr)
+              if only_in_spec_test:
+                  print("\nImportable paths required by spec but MISSING from perimeter-violation/src/main.rs:", file=sys.stderr)
+                  for s in only_in_spec_test:
+                      print(f"  {s}", file=sys.stderr)
+                  print("  → Add a `use <path>;` import to perimeter-violation/src/main.rs for each.", file=sys.stderr)
+              if only_in_test:
+                  print("\nImports in perimeter-violation/src/main.rs NOT covered by any BC-2.11.006 restricted_symbols entry:", file=sys.stderr)
+                  for s in only_in_test:
+                      print(f"  {s}", file=sys.stderr)
+                  print("  → Either add the symbol (or a method on it) to restricted_symbols.symbols", file=sys.stderr)
+                  print("    in BC-2.11.006 frontmatter, or remove the `use` line if not restricted.", file=sys.stderr)
+
+          # ── Surface 2: crates/prism-query/src/lib.rs perimeter docstring ───────
+          #
+          # lib.rs contains a security-perimeter doc-comment block (the S-3.01 re-exports
+          # section). It enumerates symbol names in backticks within that block.
+          # lib.rs claims "Authoritative source: BC-2.11.006 frontmatter restricted_symbols";
+          # this check enforces that claim.
+          #
+          # Extraction strategy:
+          # 1. Find the security-perimeter comment block: starts at the line containing
+          #    "Security perimeter" (case-insensitive) or "restricted_symbols" and ends
+          #    at the first non-comment line (i.e., a line not starting with "//").
+          # 2. Within that block, extract all backtick-quoted tokens.
+          # 3. Keep only tokens that look like Rust paths or symbol names (contain "::"
+          #    or are snake_case/PascalCase identifiers that appear in BC symbols).
+          # 4. Normalize each extracted token: if it contains "::", treat as a full path;
+          #    if it does not contain "::", look it up by leaf name in the BC symbols set.
+          # 5. Diff against spec_normalized_set.
+
+          with open(LIB_RS_PATH) as f:
+              lib_lines = f.readlines()
+
+          # Locate the security-perimeter comment block.
+          # The block starts at the line containing the "Security perimeter" marker
+          # (we search for the pub use re-exports section with the perimeter comment).
+          in_perimeter_block = False
+          perimeter_lines = []
+          for line in lib_lines:
+              stripped = line.rstrip()
+              # Block start: the `// ── S-3.01 re-exports` comment that precedes
+              # the security perimeter documentation.
+              if not in_perimeter_block:
+                  # Detect the start of the security perimeter comment block.
+                  # We look for the line "// # Security perimeter" or
+                  # "// Authoritative source: BC-2.11.006" or similar markers.
+                  # More robustly: start at the first comment line after `// ── S-3.01 re-exports`.
+                  if re.search(r'Security perimeter|restricted_symbols|pub\(crate\) and MUST NOT', stripped, re.IGNORECASE):
+                      in_perimeter_block = True
+                      perimeter_lines.append(stripped)
+              else:
+                  # Continue collecting comment lines.
+                  if stripped.startswith('//'):
+                      perimeter_lines.append(stripped)
+                  else:
+                      # First non-comment line ends the block.
+                      break
+
+          if not perimeter_lines:
+              print(
+                  f"ERROR: Could not locate the security-perimeter comment block in {LIB_RS_PATH}.\n"
+                  "Expected a comment block containing 'Security perimeter' or 'restricted_symbols'.",
+                  file=sys.stderr
+              )
+              sys.exit(1)
+
+          print(f"\nlib.rs perimeter docstring block ({len(perimeter_lines)} comment lines found).")
+
+          # Extract all backtick-quoted tokens from the perimeter block.
+          backtick_tokens = []
+          for line in perimeter_lines:
+              backtick_tokens.extend(re.findall(r'`([^`]+)`', line))
+
+          # Build a lookup: leaf name -> normalized BC path, for resolving short names.
+          # e.g. "parse_filter" -> "prism_query::filter_parser::parse_filter"
+          bc_leaf_to_normalized = {}
+          for sym in raw_spec_symbols:
+              normalized = normalize_to_use_path(sym)
+              # leaf of the raw symbol (may be a method name or function name)
+              leaf = sym.split('::')[-1]
+              bc_leaf_to_normalized[leaf] = normalized
+              # also map the leaf of the normalized path (struct name for method entries)
+              norm_leaf = normalized.split('::')[-1]
+              bc_leaf_to_normalized[norm_leaf] = normalized
+
+          # Filter backtick tokens to only those that reference known BC symbols.
+          # A token is relevant if:
+          # (a) it contains '::' and its normalized form is in spec_normalized_set, OR
+          # (b) it contains '::' but doesn't normalize to a known path — try leaf-resolution:
+          #     e.g. `ParseLimits::install_thread_local` → first segment "ParseLimits" is a
+          #     known leaf → resolves to prism_query::security::ParseLimits. This handles
+          #     method-name backtick tokens (e.g. in a "ParseLimits API:" comment section)
+          #     that use struct::method notation rather than the bare struct name. Without this
+          #     branch, all four ParseLimits method tokens on lib.rs lines 74-75 would be
+          #     silently ignored, making the method coverage unenforced.
+          # (c) it does not contain '::' and its name appears as a leaf in bc_leaf_to_normalized.
+          lib_normalized = set()
+          unrecognized_tokens = []
+          for tok in backtick_tokens:
+              tok = tok.strip()
+              if not tok:
+                  continue
+              if '::' in tok:
+                  # Full or partial path — normalize and check against spec set.
+                  normalized = normalize_to_use_path(tok)
+                  if normalized in spec_normalized_set:
+                      lib_normalized.add(normalized)
+                  else:
+                      # Leaf-resolution: tok like "ParseLimits::method" → extract first
+                      # segment and look it up as a leaf in bc_leaf_to_normalized.
+                      # This resolves method-name backtick tokens that use struct::method
+                      # notation instead of the bare struct name.
+                      first_segment = tok.split('::')[0]
+                      if first_segment in bc_leaf_to_normalized:
+                          lib_normalized.add(bc_leaf_to_normalized[first_segment])
+                      # else: not a restricted symbol reference, ignore
+              else:
+                  # Short name — look up by leaf
+                  if tok in bc_leaf_to_normalized:
+                      lib_normalized.add(bc_leaf_to_normalized[tok])
+                  # else: not a restricted symbol reference (could be a type, keyword, etc.)
+
+          print(f"lib.rs backtick tokens mapped to BC symbols ({len(lib_normalized)} unique paths):")
+          for s in sorted(lib_normalized):
+              print(f"  {s}")
+
+          only_in_spec_lib = sorted(spec_normalized_set - lib_normalized)
+          only_in_lib = sorted(lib_normalized - spec_normalized_set)
+
+          surface2_ok = not only_in_spec_lib and not only_in_lib
+          if surface2_ok:
+              print(f"Surface 2 OK: lib.rs perimeter docstring matches all {len(spec_normalized_set)} BC-2.11.006 normalized symbol paths.")
+          else:
+              print("\nSurface 2 FAIL: lib.rs perimeter docstring diverges from BC-2.11.006 restricted_symbols.", file=sys.stderr)
+              if only_in_spec_lib:
+                  print("\nSymbols in BC restricted_symbols but MISSING from lib.rs perimeter docstring:", file=sys.stderr)
+                  for s in only_in_spec_lib:
+                      print(f"  {s}", file=sys.stderr)
+                  print("  → lib.rs perimeter docstring missing: add the symbol name(s) in backticks.", file=sys.stderr)
+              if only_in_lib:
+                  print("\nSymbols in lib.rs perimeter docstring NOT in BC-2.11.006 restricted_symbols:", file=sys.stderr)
+                  for s in only_in_lib:
+                      print(f"  {s}", file=sys.stderr)
+                  print("  → lib.rs lists symbols not in BC: remove from docstring or add to BC restricted_symbols.", file=sys.stderr)
+
+          # ── Final verdict ────────────────────────────────────────────────────────
+          if surface1_ok and surface2_ok:
+              print(f"\nAll perimeter-symbols-sync checks passed ({len(spec_use_paths)} importable paths, 2 surfaces).")
+              sys.exit(0)
+          else:
+              surfaces_failed = []
+              if not surface1_ok:
+                  surfaces_failed.append("Surface 1 (perimeter-violation/src/main.rs)")
+              if not surface2_ok:
+                  surfaces_failed.append("Surface 2 (crates/prism-query/src/lib.rs docstring)")
+              print(f"\nFAIL: perimeter-symbols-sync failed on: {', '.join(surfaces_failed)}", file=sys.stderr)
+              sys.exit(1)
+          PYEOF
+
+  deep-recursion-stack-guard:
+    name: Deep-recursion test stack-guard lint (OBS-002)
+    # OBS-002: Warns (non-blocking) when a test constructs a depth-N parse tree
+    # (N >= 50) without using run_with_deep_stack.  Without the 8MB stack wrapper
+    # those tests SIGBUS on macOS aarch64 CI — the 2MB default thread stack is
+    # exhausted before the recursion bottoms out.
+    #
+    # Dual-signal heuristic (pass-10 F-LOW-001): a test is only flagged when it
+    # exhibits BOTH of the following signals simultaneously:
+    #
+    #   Signal 1 — depth-structure construction:
+    #     The test iterates >= 50 times AND that iteration pushes '(' or ')'
+    #     (for-loop with push('(') / push(')') ), OR the test calls .repeat(N>=50)
+    #     on a string literal that contains '(' or ')'.
+    #     Rationale: tests that merely build long flat strings (e.g. "a".repeat(1025)
+    #     for a regex-length guard, or "z".repeat(65537) for a query-size guard) do
+    #     NOT exercise the chumsky recursive combinator and therefore pose no SIGBUS
+    #     risk from stack depth.
+    #
+    #   Signal 2 — recursive parser invocation:
+    #     The test body calls PrismQlParser::parse(, parse_filter(, or parse_sql(.
+    #     Tests that only call iterative security guards (check_paren_depth,
+    #     check_query_size, RegexLiteral::new, compute_aql_hash, etc.) never enter
+    #     the chumsky recursive descent and are safe regardless of input size.
+    #
+    # Both signals must be present for a warning to be emitted.  This eliminates
+    # the 13 false positives seen in pass-9 (input-size tests, regex-pattern-cap
+    # tests, balanced-pair tests, paren-byte scanner tests, audit-hash tests, and
+    # capability-string-length tests) while retaining detection for any future test
+    # that iteratively builds a paren-nested structure and feeds it to the parser
+    # without the 8MB-stack wrapper.
+    #
+    # This check is intentionally non-blocking (exit 0 always) — it emits a
+    # warning to the CI log rather than failing the PR.  Promote to exit(1) once
+    # all existing tests are confirmed wrapped.
+    runs-on: ubuntu-latest
+    timeout-minutes: 2
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+      - name: Scan for deep-recursion tests missing run_with_deep_stack
+        run: |
+          set -euo pipefail
+          python3 - << 'PYEOF'
+          import re, sys
+          from pathlib import Path
+
+          # ── Signal 1: depth-structure construction ────────────────────────────
+          # A for-loop of >= 50 iterations that pushes a paren character.
+          # The DOTALL flag lets the loop body span multiple lines.
+          LOOP_PAREN = re.compile(
+              r'for\s+\w+\s+in\s+0\.\.(?:[5-9]\d|\d{3,})'  # for _ in 0..<N>=50>
+              r'(?:(?!run_with_deep_stack).)*?'              # no guard in between
+              r'push\s*\(\s*[\'"][\(\)][\'"]\s*\)',          # .push('(') or .push(')')
+              re.DOTALL
+          )
+          # A .repeat(N>=50) where the repeated string literal contains '(' or ')'.
+          REPEAT_PAREN = re.compile(
+              r'"[^"]*[\(\)][^"]*"\s*\.repeat\s*\(\s*(?:[5-9]\d|\d{3,})\s*\)'
+              r'|'
+              r"'[^']*[\(\)][^']*'\s*\.repeat\s*\(\s*(?:[5-9]\d|\d{3,})\s*\)"
+          )
+
+          # ── Signal 2: recursive parser invocation ─────────────────────────────
+          # These three entry points drive chumsky recursive descent.  Iterative
+          # security helpers (check_paren_depth, check_query_size, etc.) are
+          # intentionally excluded — they never exhaust the stack.
+          PARSER_CALL = re.compile(
+              r'PrismQlParser::parse\s*\('
+              r'|parse_filter\s*\('
+              r'|parse_sql\s*\('
+          )
+
+          GUARD = 'run_with_deep_stack'
+
+          # Test sources: src/tests/ directories and any *_test.rs files.
+          test_paths = list(Path('crates').rglob('src/tests/*.rs'))
+          test_paths += list(Path('crates').rglob('*_test.rs'))
+          test_paths += list(Path('tests').rglob('*.rs'))
+
+          # Simple function-body extractor: split file into #[test] fn blocks.
+          def extract_test_bodies(text):
+              """
+              Yield (fn_name, body_text) for each #[test] function in text.
+              Body is the text from the opening brace to the matching close brace.
+              """
+              fn_pat = re.compile(r'#\[(?:tokio::)?test\].*?fn\s+(\w+)\s*\([^)]*\)\s*\{', re.DOTALL)
+              for m in fn_pat.finditer(text):
+                  fn_name = m.group(1)
+                  start = m.end() - 1  # position of opening brace
+                  depth = 0
+                  body_end = start
+                  for i, ch in enumerate(text[start:], start):
+                      if ch == '{':
+                          depth += 1
+                      elif ch == '}':
+                          depth -= 1
+                          if depth == 0:
+                              body_end = i
+                              break
+                  yield fn_name, text[start:body_end + 1]
+
+          warnings = []
+          for path in sorted(set(test_paths)):
+              try:
+                  content = path.read_text()
+              except Exception:
+                  continue
+              for fn_name, body in extract_test_bodies(content):
+                  # Skip already-guarded tests — the wrapper is the fix.
+                  if GUARD in body:
+                      continue
+                  # Both signals must be present: depth-structure AND parser call.
+                  has_depth = LOOP_PAREN.search(body) or REPEAT_PAREN.search(body)
+                  has_parser = PARSER_CALL.search(body)
+                  if has_depth and has_parser:
+                      warnings.append(f"  {path}::{fn_name}")
+
+          if warnings:
+              print(
+                  f"\nWARNING (OBS-002): {len(warnings)} test(s) build deep paren structures "
+                  f"AND invoke a recursive parser without `{GUARD}`.\n"
+                  "These tests may SIGBUS on macOS aarch64 CI (2MB default stack).\n"
+                  "Wrap the body with run_with_deep_stack from crates/prism-query/src/tests/util.rs.\n"
+              )
+              for w in warnings:
+                  print(w)
+              # Non-blocking: exit 0 so the PR is not blocked.
+              # TODO: promote to exit(1) once all existing tests are confirmed wrapped.
+              sys.exit(0)
+          else:
+              print("OBS-002 OK: no deep-recursion tests found missing run_with_deep_stack.")
+              sys.exit(0)
+          PYEOF
+
   verify-workflow-structure:
     name: Verify workflow structure (AC-5..AC-8 reachability)
     runs-on: ubuntu-latest

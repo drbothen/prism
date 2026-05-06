@@ -24,6 +24,30 @@ check:
     PROPTEST_CASES=100 cargo test --workspace --all-features --doc
     @scripts/check-crate-layout.sh
 
+# iter <crate>: TDD inner loop. PROPTEST_CASES=32 (8x less than default 256) for speed.
+# WARNING: property-test failures during `iter` may not reproduce at full strength.
+# Always run `just check` before pushing to verify with default cases.
+#
+# TDD iteration mode — single crate, fast feedback (target: <60s).
+# Usage: just iter prism-query
+#        just iter prism-query test_parser
+# This is the recommended inner loop. Do NOT use `just check` during TDD —
+# reserve it for pre-push verification.
+iter crate test_filter='':
+    PROPTEST_CASES=32 cargo nextest run -p {{crate}} {{test_filter}}
+
+# Fast workspace check — lint only, no tests. Use to confirm the workspace
+# still type-checks during a refactor sweep before running tests.
+check-fast:
+    cargo clippy --all-features -- -D warnings
+
+# Generate a build-timings report for diagnostics. Outputs HTML at
+# target/cargo-timings/cargo-timing.html. See research sidecar §7 for
+# how to interpret the output.
+timings:
+    cargo build --workspace --all-features --timings
+    @echo "Timings report: target/cargo-timings/cargo-timing.html"
+
 # CI-only: identical to CI behavior (full-strength)
 # Steps run in spec order: fmt → clippy → nextest → doctests → deny → audit → semver-checks → check-layout
 check-ci:

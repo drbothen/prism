@@ -2,8 +2,23 @@
 fail-fast = false
 # slow-timeout: flag tests that run over 60 s in CI output (no hard kill).
 # terminate-after is intentionally omitted — the prism-credentials proptest suite
-# (proptest_BC_3_2_002_vp_01_cross_org_isolation) creates a TempDir + tokio Runtime
-# per iteration and takes ~8 min at 1000 cases. Adding a hard kill would break CI.
+# (proptest_BC_3_2_002_vp_01_cross_org_isolation) takes ~75 s at 1000 cases.
+#
+# Updated 2026-05-06 (PR #127): The original ~8-min runtime was caused by two issues:
+#   1. Per-iteration TempDir::new() + Runtime::new() overhead (eliminated by
+#      LazyLock<TempDir> + LazyLock<Runtime> shared across iterations).
+#   2. Argon2id running at opt-level = 0 in debug builds (~1.3 s/iteration even
+#      with test params m=256, t=1, p=1). Fixed by adding opt-level = 3 for the
+#      argon2/aes-gcm crypto stack in .cargo/config.toml [profile.dev.package.*].
+#      This compiles only the listed dependency crates at full optimization while
+#      leaving application code at opt-level = 0 for fast incremental recompilation.
+#
+# Measured results (PR #127):
+#   Before: ~342 s at 256 cases | ~8 min at 1000 cases (estimated)
+#   After:  ~19 s at 256 cases  | ~75 s at 1000 cases
+#   Speedup: ~18x at 256 cases, ~6-7x at 1000 cases
+#
+# Adding a hard kill (terminate-after) would break CI if the host is slow.
 # Track slow tests via the `final-status-level = "slow"` output; tune individually.
 slow-timeout = { period = "60s" }
 final-status-level = "slow"

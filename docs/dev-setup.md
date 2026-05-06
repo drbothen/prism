@@ -19,16 +19,16 @@ The pre-push gate (`just check`) runs in ~5-8 min on a typical workstation. It e
 
 - `cargo fmt --check`
 - `cargo clippy --all-features -- -D warnings`
-- `cargo test --workspace --all-features` (with `PROPTEST_CASES=100`)
+- `PROPTEST_CASES=100 cargo nextest run --workspace --all-features --no-fail-fast` (+ separate `cargo test --workspace --all-features --doc` for doctests)
 - `scripts/check-crate-layout.sh`
 
 The `PROPTEST_CASES=100` setting overrides any value in your shell environment for the
-duration of the `cargo test` invocation only. CI uses the default (1000 cases) for full
+duration of the nextest invocation only. CI uses a matrix-controlled value for full
 coverage.
 
 CI runs the full-strength `just check-ci` which includes:
 
-- All of the above with default 1000 proptest cases
+- All of the above with the proptest default (256 cases) plus the additional steps below. Note: CI's `linux-gnu` matrix leg injects `PROPTEST_CASES=1000` for stronger property coverage; local `just check-ci` uses the proptest default.
 - `cargo audit` (RustSec supply-chain advisories)
 - `cargo deny check` (license + advisory + duplicate detection)
 - `cargo semver-checks` (API compatibility against `origin/develop`)
@@ -102,6 +102,54 @@ To override locally for a single run:
 ```bash
 PROPTEST_CASES=500 just check
 ```
+
+---
+
+## Build Performance
+
+A `.cargo/config.toml` is committed at the workspace root with debuginfo tuning for macOS aarch64.
+It implements the validated recommendations from `.factory/research/build-optimization-2026.md`.
+
+### What is configured
+
+- `[profile.dev] debug = "line-tables-only"` — preserves panic backtraces and lldb call-stack
+  line numbers; loses inline in-function stepping in dependencies (acceptable for the usual
+  workflow of debugging from a panic). Estimated 5–15% incremental compile speedup.
+- `[profile.dev.package."*"] debug = false` — no debug info for dependency crates. Loses ability
+  to step into rocksdb/datafusion/chumsky in lldb; re-enable per session via `--profile debugging`.
+- `[profile.debugging]` — full debug info, opt-in: `cargo build --profile debugging`.
+
+### When to use which recipe
+
+| Recipe | When to use | Scope |
+|---|---|---|
+| `just iter <crate>` | TDD inner loop — single-crate fast feedback | 1 crate, PROPTEST_CASES=32 |
+| `just check-fast` | Quick lint pass during multi-file refactor | Whole workspace, clippy only |
+| `just check` | Pre-push verification — run once before PR open/update | Whole workspace, full gate |
+| `just check-ci` | Simulate CI locally (includes audit, deny, semver-checks) | Whole workspace, full CI gate |
+| `just timings` | Diagnostic — capture `cargo build --timings` HTML report | Whole workspace |
+
+`just iter` targets <60s for a single-crate incremental run. **Do not use `just check` during
+the TDD inner loop** — it runs the full 24-crate workspace and is reserved for pre-push.
+
+### XProtect exemption (manual opt-in)
+
+> **macOS version caveat:** This optimization works on macOS 15.x (Sequoia) and earlier. macOS 26.x (Tahoe, 2025+) removed the Developer Tools exemption mechanism — Apple's `xprotectd` no longer respects parent-process exemptions. If your machine is on macOS 26+, this section is informational only; the optimization is unavailable. See `.factory/research/build-optimization-2026.md` §3.1.1 for the underlying research and Objective-See's reverse-engineering details.
+
+If your IT policy allows, exempting your terminal from macOS XProtect runtime scanning delivers
+the largest single speedup — the Nethercote case study measured a 63% reduction in Rust build
+times (9m42s → 3m33s) for a workspace with many build scripts.
+
+To apply: System Settings → Privacy & Security → Developer Tools → add your terminal app
+(Terminal.app, iTerm2, Ghostty, etc.).
+
+**MDM caveat:** on managed (corporate) Macs, this setting may be locked by a configuration
+profile. Check with IT before assuming it is freely available. If the "+" button is greyed out
+or the setting reverts, escalate to IT — the developer-cycle business case is strong.
+
+This is a manual opt-in. It is not in any config file and requires no code change.
+
+See `.factory/research/build-optimization-2026.md` §3.1.1 for the full analysis.
 
 ---
 

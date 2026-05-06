@@ -1,0 +1,108 @@
+# Prism cargo config — local dev profile tuning for macOS aarch64.
+# Created 2026-05-05 per .factory/research/build-optimization-2026.md.
+#
+# This file is intentionally minimal: every line documented and tied to
+# a measured speedup. Do not add settings without a corresponding
+# entry in the build-optimization research sidecar.
+#
+# Note: [profile.dev] settings here apply to BOTH local dev AND CI runs that
+# use the dev profile (e.g., `cargo nextest run` without --release). The CI
+# macOS aarch64 leg in particular uses the same 2MB-default test thread stack
+# as local development, so deep-recursion tests must use
+# `crates/prism-query/src/tests/util.rs::run_with_deep_stack` to avoid SIGBUS
+# at the boundary. Reference: SIGBUS triage on PR #127, 2026-05-05.
+
+# -----------------------------------------------------------------------------
+# Dev profile: faster incremental compiles by trimming debug info.
+# -----------------------------------------------------------------------------
+# Rationale (research §3.1.2):
+#   - debug = "line-tables-only" preserves panic backtraces + lldb call-stack
+#     line numbers; loses inline source-line debugging. Acceptable for the
+#     common Prism dev workflow (debug entry from a panic, not in-function
+#     stepping).
+#   - debug = false on dependencies is the standard cargo-recommended
+#     pattern for workspaces that don't routinely step into dependency code.
+#     Loses ability to step into rocksdb / datafusion source. Acceptable;
+#     re-enable on a per-debug-session basis via the [profile.debugging]
+#     profile below (cargo build --profile debugging).
+#
+# Source: doc.rust-lang.org/cargo/guide/build-performance.html
+[profile.dev]
+debug = "line-tables-only"
+
+[profile.dev.package."*"]
+debug = false
+
+# -----------------------------------------------------------------------------
+# Crypto/compression hot-path: compile dependencies at opt-level 3 in dev.
+# -----------------------------------------------------------------------------
+# Rationale (research §3.1.2):
+#   The prism-credentials proptest suite runs Argon2id and AES-256-GCM per
+#   proptest iteration. At opt-level = 0 (Rust dev default), Argon2id takes
+#   ~1.3 s/iteration even with test params (m=256, t=1, p=1), making 1000
+#   cases take ~22 minutes. At opt-level = 3, these pure-compute crates are
+#   20–50× faster. The optimized binary is still a debug build — only the
+#   listed dependencies are optimized; application code retains opt-level 0
+#   for fast incremental recompilation.
+#
+# Measured speedup: 1.3 s/case → ~0.03–0.05 s/case (PR #127, 2026-05-06).
+# Crates selected: only the Argon2/AES-GCM crypto stack + their transitive
+# dependencies. Do not add crates here without a measured speedup justification.
+[profile.dev.package.argon2]
+opt-level = 3
+
+[profile.dev.package.aes-gcm]
+opt-level = 3
+
+[profile.dev.package.aes]
+opt-level = 3
+
+[profile.dev.package.cipher]
+opt-level = 3
+
+[profile.dev.package.ghash]
+opt-level = 3
+
+[profile.dev.package.polyval]
+opt-level = 3
+
+[profile.dev.package.password-hash]
+opt-level = 3
+
+[profile.dev.package.blake2]
+opt-level = 3
+
+[profile.dev.package.sha2]
+opt-level = 3
+
+# -----------------------------------------------------------------------------
+# Debugging profile: full debug info, opt-in via --profile debugging.
+# -----------------------------------------------------------------------------
+# When you actually need to step through a test with lldb, run:
+#   cargo nextest run -p <crate> <test_name> --profile debugging
+# (or build a binary with --profile debugging and attach lldb manually).
+[profile.debugging]
+inherits = "dev"
+debug = true
+
+# -----------------------------------------------------------------------------
+# split-debuginfo on macOS:
+#   The cargo default is "unpacked" on macOS for profiles with debug info
+#   (cargo PR #9298, merged 2021). We do NOT explicitly set it because the
+#   default is correct and explicit setting risks silent breakage if the
+#   default ever changes.
+# -----------------------------------------------------------------------------
+
+# -----------------------------------------------------------------------------
+# Linker overrides: NONE.
+#   Apple's ld_prime (Xcode 15+ default) is the recommended linker for
+#   aarch64-apple-darwin in 2026. lld and zld are not measurably faster
+#   without project-specific benchmarking (research §3.2.1). Re-evaluate
+#   only if `cargo build --timings` shows linking >15% of total time.
+# -----------------------------------------------------------------------------
+
+# Optional: increase build-time parallelism for the dev profile if the
+# default codegen-units=256 is somehow being clamped by an environment
+# variable elsewhere. Uncomment only after measurement.
+# [profile.dev]
+# codegen-units = 256  # default for dev; explicit for clarity

@@ -13,6 +13,9 @@ allow = [
   "BSD-2-Clause",
   "BSD-3-Clause",
   "ISC",
+  # NCSA (University of Illinois/NCSA Open Source License): OSI-approved, FSF-Free.
+  # Used by libfuzzer-sys 0.4.12 (VP-021 fuzz target) as "(MIT OR Apache-2.0) AND NCSA".
+  "NCSA",
   "Unicode-3.0",
   "Unicode-DFS-2016",
   "Zlib",
