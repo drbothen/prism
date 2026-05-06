@@ -41,6 +41,22 @@ just setup          # install all dev toolchain extensions
 
 **Deep recursion tests** (depth ≥ 50) MUST wrap with `crates/prism-query/src/tests/util.rs::run_with_deep_stack` to avoid SIGBUS on macOS aarch64's 2MB default test thread stack. See SIGBUS triage in `.factory/STATE.md` D-242 / pass-9.
 
+## Formal Verification (Kani)
+
+Verification properties VP-014 (size limit) and VP-015 (depth limit) have Kani proofs in `crates/prism-query/src/proofs/`. Run them locally with:
+
+```bash
+just kani-local            # all crate proofs
+cargo kani -p prism-query  # prism-query proofs only
+```
+
+**Platform support:** Kani is **Linux/macOS only** (upstream Kani uses CBMC as its backend; Windows is not supported by the Kani project). The `kani-verifier` dev-dependency is gated to non-Windows in `crates/prism-query/Cargo.toml`. Windows contributors should rely on concrete unit tests + CI's Linux/macOS proof job — proof validity is platform-agnostic (Rust code is the same on all platforms; one proof = truth for all).
+
+VP coverage layers:
+- **Kani proof** (formal, exhaustive within bounds) — Linux/macOS only
+- **Concrete unit tests** (specific points, deterministic) — all platforms
+- **Fuzz target `vp021_parse_fuzz`** (random exploration) — Linux CI smoke + nightly long-run
+
 ## Git Workflow
 
 - **Default branch:** `main` (release branch, infrequent commits)
