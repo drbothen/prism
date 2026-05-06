@@ -171,7 +171,7 @@ develop HEAD `3133710e` | factory-artifacts HEAD: run `git -C .factory log -1 --
 | Workspace test count | 280 (nextest-verified on feature/S-3.01@5e7dcb81) |
 | Open PRs | PR #127 S-3.01 PrismQL parser — OPEN; pass-10 remediation COMPLETE (D-242); pass-11 next (1 of 3 needed for convergence window restart) |
 | Active worktrees | main (`develop`) + `.factory` (`factory-artifacts`) + `.worktrees/S-3.01/` (feature/S-3.01) |
-| Tech debt items | 57 active product items (70 prior − 13 VSDD items extracted); vsdd-plugin-tech-debt.md: 41 items v2.5 (TD-VSDD-055/056 added D-226) |
+| Tech debt items | 57 active product items (70 prior − 13 VSDD items extracted); vsdd-plugin-tech-debt.md: 43 items (TD-VSDD-057 pass-13 F-PG-001 + TD-VSDD-058 pass-14 fuzz-vp021-nightly advisory) |
 | Wave 2 gate status | CONVERGED 2026-04-27 — Pass 9 CLEAN (3-clean-passes: P6+P8+P9) |
 | Wave 3 gate status | **CONVERGED (multi-tenant sub-waves) 2026-05-02; W3 CORE SPEC REMEDIATION COMPLETE D-224; S-3.01 RED GATE STAGE 1 COMPLETE D-225** |
 | Wave 4 status | **PHASE 4.B SUSPENDED — D-223 W3-FIRST pivot (2026-05-04); S-4.01 → S-3.02 dep; 13 W3 core stories must implement first** |
