@@ -275,7 +275,7 @@ pursuing maximum parallelism should schedule by topological layer, not wave numb
 | S-3.03 | Explain and Query Diagnostics [v1.5] | prism-query | 1 | -- | 1 | S-3.02 |
 | S-3.04 | Alias System (P1) [v1.8] | prism-query | 5 | VP-012,013,037 | 2 | S-3.02,S-1.08,S-1.09 |
 | S-3.05 | Pagination and Caching [v1.9] | prism-query | 6 | VP-025 | 2 | S-3.02 |
-| S-3.06 | PrismQL Write Parser Extensions [v1.7-spec-rem] | prism-query | 1 | -- | 2 | S-3.01,S-1.13,S-6.07 |
+| S-3.06 | PrismQL Write Parser Extensions [v1.7-spec-rem] [MERGED PR #130 2a7b83f5 2026-05-06 +406t 7-adv-passes 18-findings-closed] | prism-query | 1 | -- | 2 | S-3.01,S-1.13,S-6.07 |
 | S-3.07 | Write Execution Pipeline [v1.7] | prism-query | 5 | -- | 3 | S-3.06,S-3.02,S-1.08,S-1.09,S-2.04,S-6.07 |
 | S-3.08 | Hidden Columns [v1.5] | prism-query | 4 (proxy) | -- | 1 | S-3.02 |
 | S-3.09 | Query Performance Profiling [v1.5] | prism-query | 2 (proxy) | -- | 1 | S-3.02 |
@@ -887,6 +887,7 @@ All 13 new DTU clones: Wave 0, 0 BCs, priority P0, depends_on: [S-6.06].
 
 | Version | Date | Summary |
 |---------|------|---------|
+| v2.12 | 2026-05-06 | S-3.06 merged (pr-manager): PR #130 squash-merged to develop at 2a7b83f5. BC-2.11.004 v1.4 + BC-2.11.006 v1.15 perimeter +10 symbols. 7 adversary passes (4 BLOCKED + 3 CLEAN), 18/18 findings closed, 406 prism-query tests. Full Story List row S-3.06 annotated [MERGED PR #130 2a7b83f5 2026-05-06 +406t 7-adv-passes 18-findings-closed]. 4 TDs deferred (TD-VSDD-059, TD-VSDD-062, TD-S306-001, TD-S306-002). STORY-INDEX v2.11 → v2.12. |
 | v2.11 | 2026-05-06 | S-3.02 v1.9→v1.10 error-code reconciliation (story-writer): BC-2.11.006 v1.12 PO correction applied — AC-3 E-QUERY-008→E-QUERY-004 (memory budget); EC-001 E-QUERY-008→E-QUERY-004; EC-002 E-QUERY-004→E-QUERY-005 (timeout); EC-003 E-QUERY-005→E-QUERY-003 (materialization records limit); Task 3 body corrected at all three mapping sites; Library table description updated to E-QUERY-003/004/005. Full Story List row S-3.02 [v1.9-spec-rem]→[v1.10-spec-rem]. Status remains ready. STORY-INDEX v2.10 → v2.11. |
 | v2.10 | 2026-05-06 | Pre-tier-2 drift review (story-writer): S-3.02 v1.8→v1.9; S-3.06 v1.6→v1.7. Security Perimeter compliance rules added per INV-SEC-PERIMETER-001. Status draft→ready for both. Full Story List rows updated. STORY-INDEX v2.09 → v2.10. |
 | v2.09 | 2026-05-06 | S-3.01 merged (pr-manager): PR #127 squash-merged to develop at 2d7040b1. 15 adversary passes, 3-clean convergence window (pass-13/14/15). Full Story List row updated with MERGED annotation. S-3.02 and S-3.06 now unblocked. |
