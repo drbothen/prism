@@ -161,6 +161,73 @@ fn test_BC_2_11_004_is_internal_prism_table_empty_string_false() {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
+// F-PR130-SEC-001: Case-insensitive internal table guard (CWE-178)
+// ─────────────────────────────────────────────────────────────────────────────
+
+/// `is_internal_prism_table("PRISM_audit")` → `true` (all uppercase).
+/// Regression: CWE-178 bypass — attacker submits uppercase to skip protection.
+#[test]
+fn test_BC_2_11_004_internal_table_case_insensitive_PRISM_uppercase() {
+    use crate::sql_parser::is_internal_prism_table;
+    assert!(
+        is_internal_prism_table("PRISM_audit"),
+        "PRISM_audit must be protected (uppercase bypass regression)"
+    );
+    assert!(
+        is_internal_prism_table("PRISM_cases"),
+        "PRISM_cases must be protected (uppercase bypass regression)"
+    );
+}
+
+/// `is_internal_prism_table("Prism_audit")` → `true` (mixed case).
+/// Regression: CWE-178 bypass — attacker submits mixed case to skip protection.
+#[test]
+fn test_BC_2_11_004_internal_table_case_insensitive_mixed_case() {
+    use crate::sql_parser::is_internal_prism_table;
+    assert!(
+        is_internal_prism_table("Prism_audit"),
+        "Prism_audit must be protected"
+    );
+    assert!(
+        is_internal_prism_table("PrIsM_rules"),
+        "PrIsM_rules must be protected"
+    );
+    assert!(
+        is_internal_prism_table("pRiSm_schedules"),
+        "pRiSm_schedules must be protected"
+    );
+}
+
+/// E2E: `DELETE FROM PRISM_audit WHERE id = '1'` must reject with E-QUERY-010
+/// (not bypass the write-protection guard due to case mismatch).
+/// Regression test for F-PR130-SEC-001 (CWE-178).
+#[test]
+fn test_BC_2_11_004_internal_table_case_insensitive_integration_DELETE_PRISM() {
+    use crate::sql_parser::parse_sql_dml;
+    let result = parse_sql_dml("DELETE FROM PRISM_audit WHERE id = '1'");
+    assert!(result.is_err(), "DELETE FROM PRISM_audit must be rejected");
+    let msg = result.unwrap_err()[0].message.clone();
+    assert!(
+        msg.contains("E-QUERY-010"),
+        "expected E-QUERY-010 (write-protected), got: {msg}"
+    );
+}
+
+/// E2E: `UPDATE Prism_cases SET x = 1 WHERE id = '1'` must reject with E-QUERY-010.
+/// Regression test for F-PR130-SEC-001 (CWE-178).
+#[test]
+fn test_BC_2_11_004_internal_table_case_insensitive_integration_UPDATE_mixed() {
+    use crate::sql_parser::parse_sql_dml;
+    let result = parse_sql_dml("UPDATE Prism_cases SET x = 1 WHERE id = '1'");
+    assert!(result.is_err(), "UPDATE Prism_cases must be rejected");
+    let msg = result.unwrap_err()[0].message.clone();
+    assert!(
+        msg.contains("E-QUERY-010"),
+        "expected E-QUERY-010 (write-protected), got: {msg}"
+    );
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
 // check_unbounded_write — sql_parser pub(crate) helper
 // ─────────────────────────────────────────────────────────────────────────────
 

@@ -1147,7 +1147,7 @@ fn build_insert_parser<'a>() -> impl Parser<'a, &'a str, DmlNode, extra::Err<Ric
 ///
 /// # Implements BC-2.11.004 — Write Parser Extension
 pub(crate) fn is_internal_prism_table(table_name: &str) -> bool {
-    table_name.starts_with("prism_")
+    table_name.to_ascii_lowercase().starts_with("prism_")
 }
 
 #[cfg_attr(not(test), allow(dead_code))]
