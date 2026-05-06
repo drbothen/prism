@@ -404,19 +404,18 @@ fn parse_pipe_internal(
     crate::pipe_parser::parse_pipe_with_limits(input, limits).map(Ast::Pipe)
 }
 
-/// Parse DML mode internally — delegates to `parse_sql_dml` (S-3.06).
+/// Parse DML mode internally — delegates to `parse_sql_dml_with_limits` (S-3.06).
 ///
 /// Routes INSERT/UPDATE/DELETE statements to the DML parser added in S-3.06.
-/// Guards (size, paren depth) have already been applied by the caller.
+/// Pre-parse guards (size, paren depth) have already been applied by the caller;
+/// this function forwards the snapshotted `limits` so post-parse depth and
+/// list-size guards run on any embedded `SqlQuery` (F-PR130-CR-004, SEC-002).
 ///
 /// # Clippy exemption (OBS-002)
 /// Same rationale as `parse_filter_internal`.
 #[allow(clippy::disallowed_methods)]
-fn parse_dml_internal(
-    input: &str,
-    _limits: &security::ParseLimits,
-) -> Result<Ast, Vec<ParseError>> {
-    crate::sql_parser::parse_sql_dml(input)
+fn parse_dml_internal(input: &str, limits: &security::ParseLimits) -> Result<Ast, Vec<ParseError>> {
+    crate::sql_parser::parse_sql_dml_with_limits(input, limits)
 }
 
 // ── Security re-export for convenient use in tests ────────────────────────────

@@ -849,6 +849,55 @@ pub(crate) fn parse_sql_dml(input: &str) -> Result<Ast, Vec<ParseError>> {
     }
 }
 
+/// Parse a DML statement with explicit `ParseLimits` — applying post-parse depth
+/// and list-size guards to any embedded `SqlQuery` (e.g. `INSERT INTO … SELECT …`).
+///
+/// Called from `parse_dml_internal` (filter_parser), which has already applied the
+/// pre-parse `check_query_size` and `check_paren_depth` guards.
+///
+/// The depth and list-size checks mirror those applied to SQL SELECT queries in
+/// `parse_sql_with_limits` (BC-2.11.006, F-PR130-CR-004, F-PR130-SEC-002).
+///
+/// # Security perimeter (BC-2.11.006 INV-SEC-PERIMETER-001)
+/// `pub(crate)` — never `pub`.
+#[cfg_attr(not(test), allow(dead_code))]
+pub(crate) fn parse_sql_dml_with_limits(
+    input: &str,
+    limits: &crate::security::ParseLimits,
+) -> Result<Ast, Vec<ParseError>> {
+    let first_token = input
+        .trim()
+        .split_ascii_whitespace()
+        .next()
+        .unwrap_or("")
+        .to_ascii_uppercase();
+    let node_result: Result<DmlNode, Vec<ParseError>> = match first_token.as_str() {
+        "DELETE" => run_dml_parser(build_delete_parser(), input, "DELETE"),
+        "UPDATE" => run_dml_parser(build_update_parser(), input, "UPDATE"),
+        "INSERT" => run_dml_parser(build_insert_parser(), input, "INSERT"),
+        _ => Err(vec![ParseError::new(
+            0,
+            format!("E-QUERY-001: unrecognized DML keyword '{first_token}'"),
+        )]),
+    };
+    match node_result {
+        Ok(node) => {
+            // Post-parse security: check depth and list sizes on the embedded
+            // SELECT sub-query for INSERT INTO … SELECT … (F-PR130-CR-004 / SEC-002).
+            if let Some(ref sq) = node.source_select {
+                limits
+                    .check_sql_query_nesting_depth_with(sq, 0)
+                    .map_err(|e| vec![ParseError::new(0, e.to_string())])?;
+                limits
+                    .check_sql_list_sizes_with(sq)
+                    .map_err(|e| vec![ParseError::new(0, e.to_string())])?;
+            }
+            Ok(Ast::Sql(SqlStatement::Dml(node)))
+        }
+        Err(errs) => Err(errs),
+    }
+}
+
 /// Run a DML sub-parser on `input` and convert the result to `Result<DmlNode, Vec<ParseError>>`.
 ///
 /// This helper exists to avoid a complex `Box<dyn Fn>` type in `parse_sql_dml`
