@@ -1,7 +1,7 @@
 ---
 document_type: story-index
 level: "L4"
-version: "v2.10"
+version: "v2.11"
 status: draft
 producer: pr-manager
 timestamp: 2026-05-06T16:11:08
@@ -86,6 +86,7 @@ before its dependencies are complete.
 - **W3.4-G hygiene burst (2026-05-02):** W3.4 fix wave CLOSED (2 PRs merged). (1) MERGED annotations + test counts added: W3-FIX-SEC-004 [MERGED PR #122 4e053105 2026-05-02 +18t], W3-FIX-CODE-005 [MERGED PR #123 e4be29ae 2026-05-02 +14t], W3-FIX-SEC-005 [MERGED PR #125 ba3b10c7 2026-05-02 +21t], W3-FIX-CODE-006 [MERGED PR #124 981e17d4 2026-05-02 +6t] — in both E-3.5 epic table and Full Story List. (2) WGCV3-P3-007 CLOSED: W3-FIX-CODE-002 epic-view BC column corrected from `BC-3.3.001,BC-3.3.004,BC-3.2.005` to `BC-3.3.001,BC-3.3.004,BC-3.5.001,BC-3.5.002,BC-3.1.002` to match story frontmatter SoT. (3) BC Traceability Matrix: BC-3.1.002 += W3-FIX-CODE-002; BC-3.2.005 -= W3-FIX-CODE-002 (error from D-186 anchor_bcs mismatch); BC-3.5.001 += W3-FIX-CODE-002; BC-3.5.002 += W3-FIX-CODE-002. STORY-INDEX v1.79 → v1.80. D-192.
 - **Wave 4 Pass 14 BLOCKED → REMEDIATED (2026-05-03):** S-4.01 v1.10→v1.12 (F-P14-H-001 audit-event terminology ScheduleFireSkipped→ScheduleFireMissed{miss_reason:SemaphoreExhausted} per ADR-013 §2.4 + F-P14-M-001 enum tuple cascade 4 sites). S-4.02 v1.9→v1.11 (F-P14-M-001 cascade 1 site + F-P14-M-003 pack_id org_id clarification). S-4.05 v1.11→v1.12 (F-P14-L-001 detection_state→action_state EC-007; adversary attribution corrected from S-4.07). S-4.08 v1.20→v1.21 (F-P14-M-004 OCSF→CEF canonical mapping per ADR-019 §3). STORY-INDEX v1.95 → v1.96.
 - **Pre-tier-2 drift review (2026-05-06):** S-3.02 v1.8→v1.9 (input-hash refresh; content reviewed against BC-2.11.006 v1.10 + sibling BCs v1.3; semantic edit: Security Perimeter compliance rule added per INV-SEC-PERIMETER-001; status draft→ready). S-3.06 v1.6→v1.7 (input-hash refresh; content reviewed against BC-2.11.004 v1.3; semantic edits: Previous Story Intelligence updated to note S-3.01 MERGED PR #127, Security Perimeter compliance rule added; status draft→ready). Full Story List row tags updated: S-3.02 [v1.8-spec-rem]→[v1.9-spec-rem]; S-3.06 [v1.6]→[v1.7-spec-rem]. STORY-INDEX v2.09 → v2.10.
+- **S-3.02 error-code reconciliation (2026-05-06):** S-3.02 v1.9→v1.10 — BC-2.11.006 v1.12 PO correction applied. AC-3 E-QUERY-008→E-QUERY-004 (memory budget exceeded); EC-001 E-QUERY-008→E-QUERY-004; EC-002 E-QUERY-004→E-QUERY-005 (timeout); EC-003 E-QUERY-005→E-QUERY-003 (materialization records limit); Task 3 body corrected at all three sites; Library table updated to E-QUERY-003/004/005. Status remains ready. Full Story List row [v1.9-spec-rem]→[v1.10-spec-rem]. STORY-INDEX v2.10 → v2.11.
 
 Every story contains: narrative, behavioral contracts table, numbered tasks, acceptance
 criteria (Given/When/Then), verification properties, and notes. No story exceeds 5
@@ -270,7 +271,7 @@ pursuing maximum parallelism should schedule by topological layer, not wave numb
 | S-2.07 | Per-Sensor Auth and Pagination [MERGED PR #60 26d0954b 2026-04-26 +56t RED_RATIO=83.9%] | prism-sensors | 5 | -- | 3 | S-2.06 |
 | S-2.08 | Event Table Abstraction and Local Buffering [MERGED PR #61 0be11cd6 2026-04-26 +92t RED_RATIO=54.3% prism-query-crate-created **WAVE-2-CLOSED** spec-v1.9-W2-P2-A-005-schema-hygiene-fix] | prism-sensors, prism-query | 0 | -- | 3 | S-2.06,S-2.01,S-1.11 |
 | S-3.01 | PrismQL Parser (Filter + SQL + Pipe) [MERGED PR #127 2d7040b1 2026-05-06 +280t 15-adv-passes Chumsky-0.12] | prism-query | 4 | VP-014,015,021 | 3 | S-1.01 |
-| S-3.02 | Query Tool and Materialization [v1.9-spec-rem] | prism-query | 6 | VP-031 | 3 | S-3.01,S-2.06,S-1.04,S-2.01,S-2.03,S-6.08,S-6.09,S-6.10 |
+| S-3.02 | Query Tool and Materialization [v1.10-spec-rem] | prism-query | 6 | VP-031 | 3 | S-3.01,S-2.06,S-1.04,S-2.01,S-2.03,S-6.08,S-6.09,S-6.10 |
 | S-3.03 | Explain and Query Diagnostics [v1.5] | prism-query | 1 | -- | 1 | S-3.02 |
 | S-3.04 | Alias System (P1) [v1.8] | prism-query | 5 | VP-012,013,037 | 2 | S-3.02,S-1.08,S-1.09 |
 | S-3.05 | Pagination and Caching [v1.9] | prism-query | 6 | VP-025 | 2 | S-3.02 |
@@ -886,6 +887,8 @@ All 13 new DTU clones: Wave 0, 0 BCs, priority P0, depends_on: [S-6.06].
 
 | Version | Date | Summary |
 |---------|------|---------|
+| v2.11 | 2026-05-06 | S-3.02 v1.9→v1.10 error-code reconciliation (story-writer): BC-2.11.006 v1.12 PO correction applied — AC-3 E-QUERY-008→E-QUERY-004 (memory budget); EC-001 E-QUERY-008→E-QUERY-004; EC-002 E-QUERY-004→E-QUERY-005 (timeout); EC-003 E-QUERY-005→E-QUERY-003 (materialization records limit); Task 3 body corrected at all three mapping sites; Library table description updated to E-QUERY-003/004/005. Full Story List row S-3.02 [v1.9-spec-rem]→[v1.10-spec-rem]. Status remains ready. STORY-INDEX v2.10 → v2.11. |
+| v2.10 | 2026-05-06 | Pre-tier-2 drift review (story-writer): S-3.02 v1.8→v1.9; S-3.06 v1.6→v1.7. Security Perimeter compliance rules added per INV-SEC-PERIMETER-001. Status draft→ready for both. Full Story List rows updated. STORY-INDEX v2.09 → v2.10. |
 | v2.09 | 2026-05-06 | S-3.01 merged (pr-manager): PR #127 squash-merged to develop at 2d7040b1. 15 adversary passes, 3-clean convergence window (pass-13/14/15). Full Story List row updated with MERGED annotation. S-3.02 and S-3.06 now unblocked. |
 | v2.08 | 2026-05-05 | PR-127-pass2-remediation (story-writer): S-3.01 v1.8→v1.9 — test location follow-up: sub-parsers made `pub(crate)` per F-LOW-002 / OBS-002 security perimeter enforcement (adv pass-2); integration tests at `crates/prism-query/tests/` migrated to unit tests at `crates/prism-query/src/tests/` to retain white-box access. Token Budget + File Structure tables updated. Full Story List S-3.01 row [v1.8]→[v1.9]. |
 | v2.07 | 2026-05-05 | PR-127-drift-fix (story-writer): S-3.01 v1.7→v1.8 doc-drift fixes — F-LOW-001 Token Budget and File Structure tables corrected from src/tests/parser_tests.rs to crates/prism-query/tests/parser_tests.rs (idiomatic cargo integration-test location); F-MEDIUM-002 Task #12 fuzz_target aligned with VP-021 UTF-8-bounded property and PrismQlParser::parse(&str) signature. |
