@@ -1367,6 +1367,51 @@ mod bc_gap_fill {
                 "collect_record_batch_stream must drain all rows"
             );
         }
+
+        /// CWE-209 SEC-003: register_mem_table error messages do not leak DataFusion internals.
+        ///
+        /// When table registration fails, the client-facing error detail must contain
+        /// "<redacted; see server logs>" rather than raw DataFusion schema or table info.
+        #[test]
+        fn test_SEC_003_register_mem_table_error_is_redacted() {
+            use arrow::array::StringArray;
+            use arrow::datatypes::{DataType, Field, Schema};
+            use arrow::record_batch::RecordBatch;
+            use std::sync::Arc;
+
+            let ctx = build_session_context(10 * 1024 * 1024).expect("context must build");
+
+            // Register a table successfully first.
+            let schema = Arc::new(Schema::new(vec![Field::new("id", DataType::Utf8, false)]));
+            let batch = RecordBatch::try_new(
+                schema.clone(),
+                vec![Arc::new(StringArray::from(vec!["a"])) as _],
+            )
+            .expect("batch must build");
+            register_mem_table(&ctx, "dup_table", vec![batch])
+                .expect("first register must succeed");
+
+            // Register the same table name again — DataFusion returns an error.
+            let batch2 =
+                RecordBatch::try_new(schema, vec![Arc::new(StringArray::from(vec!["b"])) as _])
+                    .expect("batch2 must build");
+            let err = register_mem_table(&ctx, "dup_table", vec![batch2])
+                .expect_err("duplicate registration must fail");
+
+            let detail = match &err {
+                prism_core::PrismError::QueryExecutionFailed { detail } => detail.clone(),
+                other => panic!("expected QueryExecutionFailed, got {:?}", other),
+            };
+
+            assert!(
+                detail.contains("<redacted; see server logs>"),
+                "error detail must be redacted, not expose DataFusion internals: {detail}"
+            );
+            assert!(
+                !detail.contains("TableAlreadyExists"),
+                "error detail must not forward raw DataFusion error type: {detail}"
+            );
+        }
     }
 
     // =========================================================================

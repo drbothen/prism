@@ -285,14 +285,31 @@ pub fn register_mem_table(
     }
 
     let schema = batches[0].schema();
-    let mem_table =
-        MemTable::try_new(schema, vec![batches]).map_err(|e| PrismError::QueryExecutionFailed {
-            detail: format!("failed to create MemTable for '{table_name}': {e}"),
-        })?;
+    let mem_table = MemTable::try_new(schema, vec![batches]).map_err(|e| {
+        tracing::error!(
+            table_name,
+            error = %e,
+            "failed to create MemTable (detail redacted from client response)"
+        );
+        PrismError::QueryExecutionFailed {
+            detail: format!(
+                "failed to create MemTable for '{table_name}': <redacted; see server logs>"
+            ),
+        }
+    })?;
 
     ctx.register_table(table_name, std::sync::Arc::new(mem_table))
-        .map_err(|e| PrismError::QueryExecutionFailed {
-            detail: format!("failed to register table '{table_name}': {e}"),
+        .map_err(|e| {
+            tracing::error!(
+                table_name,
+                error = %e,
+                "failed to register table (detail redacted from client response)"
+            );
+            PrismError::QueryExecutionFailed {
+                detail: format!(
+                    "failed to register table '{table_name}': <redacted; see server logs>"
+                ),
+            }
         })?;
 
     Ok(())
@@ -307,12 +324,25 @@ pub fn register_mem_table(
 /// Drains the stream until exhausted. Returns all collected batches.
 /// The `SessionScope` is still live during collection; it is dropped after
 /// this function returns (or on error). (BC-2.11.005)
+///
+/// # CWE-209 (Information Disclosure)
+/// DataFusion error messages can contain table names, column names, and schema
+/// details. The raw error is logged at `tracing::error!` for server-side
+/// investigation, but the client-facing `PrismError::QueryExecutionFailed`
+/// detail is redacted to `<redacted; see server logs>` to prevent internal
+/// schema exposure via MCP responses.
 pub async fn collect_record_batch_stream(
     stream: datafusion::physical_plan::SendableRecordBatchStream,
 ) -> Result<Vec<RecordBatch>, PrismError> {
     datafusion::physical_plan::common::collect(stream)
         .await
-        .map_err(|e| PrismError::QueryExecutionFailed {
-            detail: format!("stream collection error: {e}"),
+        .map_err(|e| {
+            tracing::error!(
+                error = %e,
+                "stream collection error (detail redacted from client response)"
+            );
+            PrismError::QueryExecutionFailed {
+                detail: "stream collection error: <redacted; see server logs>".to_string(),
+            }
         })
 }
