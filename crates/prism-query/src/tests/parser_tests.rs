@@ -39,6 +39,7 @@
     dead_code
 )]
 
+use crate::tests::util::run_with_deep_stack;
 use crate::{
     ast::{
         AggFunc, Ast, CompareOp, EnrichStage, Expr, FieldPath, FieldsStage, FilterExpr, FromClause,
@@ -1003,21 +1004,25 @@ fn test_VP_015_effective_nesting_depth_limit_returns_64() {
 /// Traces: BC-2.11.006 canonical test vector row 3
 #[test]
 fn test_BC_2_11_006_canonical_tv_65_levels_nesting_error() {
-    // Build a query with 65 parenthesized AND levels.
-    // Each pair of parens adds one depth level; 65 pairs exceeds the 64-limit.
-    let mut q = String::from("crowdstrike.detections | ");
-    for _ in 0..65 {
-        q.push('(');
-    }
-    q.push_str("severity_id = 1");
-    for _ in 0..65 {
-        q.push(')');
-    }
-    let result = PrismQlParser::parse(&q);
-    assert!(
-        result.is_err(),
-        "BC-2.11.006 TV: 65 levels of nesting must return E-QUERY-003"
-    );
+    // Wrapped in 8MB-stack thread: 65-deep chumsky recursion can SIGBUS on macOS
+    // aarch64 with `[profile.dev] debug = "line-tables-only"`. See tests/util.rs.
+    run_with_deep_stack(|| {
+        // Build a query with 65 parenthesized AND levels.
+        // Each pair of parens adds one depth level; 65 pairs exceeds the 64-limit.
+        let mut q = String::from("crowdstrike.detections | ");
+        for _ in 0..65 {
+            q.push('(');
+        }
+        q.push_str("severity_id = 1");
+        for _ in 0..65 {
+            q.push(')');
+        }
+        let result = PrismQlParser::parse(&q);
+        assert!(
+            result.is_err(),
+            "BC-2.11.006 TV: 65 levels of nesting must return E-QUERY-003"
+        );
+    });
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -1618,25 +1623,30 @@ fn test_EC_005_unicode_in_string_literal_does_not_panic() {
 /// Traces: EC-005 (depth bomb), VP-021, VP-015
 #[test]
 fn test_EC_005_deeply_nested_parens_at_depth_64_does_not_panic() {
-    // Exactly 64 levels: should be accepted (boundary value).
-    let mut q = String::from("crowdstrike.detections | ");
-    for _ in 0..64 {
-        q.push('(');
-    }
-    q.push_str("severity_id = 1");
-    for _ in 0..64 {
-        q.push(')');
-    }
-    // Must not panic. Should be Ok at exactly depth 64.
-    let _result = PrismQlParser::parse(&q);
-    // We do not assert Ok/Err here (boundary semantics may differ) — we only
-    // assert that no panic occurred. A subsequent assertion anchors the test.
-    let _ = _result.is_ok() || _result.is_err(); // forces evaluation without panic check bypass
-                                                 // Anchor: one of the two must be true (trivially true — but forces evaluation).
-    assert!(
-        true,
-        "EC-005: deeply nested parens at depth 64 must not panic"
-    );
+    // Wrapped in 8MB-stack thread: depth-64 chumsky recursion is at the edge of
+    // the 2MB stack ceiling with `[profile.dev] debug = "line-tables-only"`.
+    // See tests/util.rs for rationale.
+    run_with_deep_stack(|| {
+        // Exactly 64 levels: should be accepted (boundary value).
+        let mut q = String::from("crowdstrike.detections | ");
+        for _ in 0..64 {
+            q.push('(');
+        }
+        q.push_str("severity_id = 1");
+        for _ in 0..64 {
+            q.push(')');
+        }
+        // Must not panic. Should be Ok at exactly depth 64.
+        let _result = PrismQlParser::parse(&q);
+        // We do not assert Ok/Err here (boundary semantics may differ) — we only
+        // assert that no panic occurred. A subsequent assertion anchors the test.
+        let _ = _result.is_ok() || _result.is_err(); // forces evaluation without panic check bypass
+                                                     // Anchor: one of the two must be true (trivially true — but forces evaluation).
+        assert!(
+            true,
+            "EC-005: deeply nested parens at depth 64 must not panic"
+        );
+    });
 }
 
 /// EC-005: very long input below the 64KB limit does not panic.
@@ -2684,20 +2694,24 @@ fn test_check_nesting_depth_recurses_into_subquery() {
 /// Traces: security.rs, BC-2.11.006 EC-002
 #[test]
 fn test_check_nesting_depth_recurses_into_pipe_where() {
-    // 65 levels of parentheses in a pipe WHERE stage: rejected by check_paren_depth.
-    let mut q = String::from("FROM crowdstrike.detections | where ");
-    for _ in 0..65 {
-        q.push('(');
-    }
-    q.push_str("severity_id = 1");
-    for _ in 0..65 {
-        q.push(')');
-    }
-    let result = PrismQlParser::parse(&q);
-    assert!(
-        result.is_err(),
-        "65-level nesting in pipe WHERE must be rejected"
-    );
+    // Wrapped in 8MB-stack thread: 65-deep chumsky recursion can SIGBUS on macOS
+    // aarch64 with `[profile.dev] debug = "line-tables-only"`. See tests/util.rs.
+    run_with_deep_stack(|| {
+        // 65 levels of parentheses in a pipe WHERE stage: rejected by check_paren_depth.
+        let mut q = String::from("FROM crowdstrike.detections | where ");
+        for _ in 0..65 {
+            q.push('(');
+        }
+        q.push_str("severity_id = 1");
+        for _ in 0..65 {
+            q.push(')');
+        }
+        let result = PrismQlParser::parse(&q);
+        assert!(
+            result.is_err(),
+            "65-level nesting in pipe WHERE must be rejected"
+        );
+    });
 }
 
 /// Security: 65-level nesting in SQL HAVING is rejected.
@@ -2705,19 +2719,23 @@ fn test_check_nesting_depth_recurses_into_pipe_where() {
 /// Traces: security.rs, BC-2.11.006 EC-002
 #[test]
 fn test_check_nesting_depth_recurses_into_having() {
-    let mut q = String::from("SELECT * FROM events HAVING ");
-    for _ in 0..65 {
-        q.push('(');
-    }
-    q.push_str("severity_id = 1");
-    for _ in 0..65 {
-        q.push(')');
-    }
-    let result = PrismQlParser::parse(&q);
-    assert!(
-        result.is_err(),
-        "65-level nesting in SQL HAVING must be rejected"
-    );
+    // Wrapped in 8MB-stack thread: 65-deep chumsky recursion can SIGBUS on macOS
+    // aarch64 with `[profile.dev] debug = "line-tables-only"`. See tests/util.rs.
+    run_with_deep_stack(|| {
+        let mut q = String::from("SELECT * FROM events HAVING ");
+        for _ in 0..65 {
+            q.push('(');
+        }
+        q.push_str("severity_id = 1");
+        for _ in 0..65 {
+            q.push(')');
+        }
+        let result = PrismQlParser::parse(&q);
+        assert!(
+            result.is_err(),
+            "65-level nesting in SQL HAVING must be rejected"
+        );
+    });
 }
 
 // ─────────────────────────────────────────────────────────────────────────────

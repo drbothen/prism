@@ -26,6 +26,7 @@
     unused_imports
 )]
 
+use crate::tests::util::run_with_deep_stack;
 use crate::{
     ast::Ast,
     filter_parser::{parse_filter, PrismQlParser},
@@ -59,28 +60,33 @@ use crate::{
 /// Traces: B-2, BC-2.11.006, DI-019, EC-002
 #[test]
 fn test_BC_2_11_006_sql_and_chain_depth_65_rejected() {
-    // Build a right-nested paren AND expression that exceeds depth 64.
-    // Each parenthesised sub-expression adds 1 to the nesting depth.
-    // 65 levels of nesting exceed PRISM_MAX_NESTING_DEPTH (64).
-    let mut inner = "a65 = 65".to_string();
-    for i in (1..65).rev() {
-        inner = format!("(a{i} = {i} AND {inner})");
-    }
-    let input = format!("SELECT * FROM src WHERE {inner}");
+    // Wrapped in 8MB-stack thread: 65-deep chumsky recursion can SIGBUS on macOS
+    // aarch64 with `[profile.dev] debug = "line-tables-only"` (commit 931f3c6f).
+    // See triage report and tests/util.rs for full rationale.
+    run_with_deep_stack(|| {
+        // Build a right-nested paren AND expression that exceeds depth 64.
+        // Each parenthesised sub-expression adds 1 to the nesting depth.
+        // 65 levels of nesting exceed PRISM_MAX_NESTING_DEPTH (64).
+        let mut inner = "a65 = 65".to_string();
+        for i in (1..65).rev() {
+            inner = format!("(a{i} = {i} AND {inner})");
+        }
+        let input = format!("SELECT * FROM src WHERE {inner}");
 
-    // Call parse_sql directly to bypass the pre-parse paren_depth check.
-    // The post-parse check_sql_query_nesting_depth must still catch this.
-    let result = parse_sql(&input);
-    assert!(
-        result.is_err(),
-        "B-2: SQL WHERE with 65-deep nested ANDs must be rejected by post-parse depth check; got Ok"
-    );
-    let errs = result.unwrap_err();
-    let msg = errs[0].message.clone();
-    assert!(
-        msg.contains("E-QUERY-003"),
-        "B-2: error must contain E-QUERY-003, got: {msg}"
-    );
+        // Call parse_sql directly to bypass the pre-parse paren_depth check.
+        // The post-parse check_sql_query_nesting_depth must still catch this.
+        let result = parse_sql(&input);
+        assert!(
+            result.is_err(),
+            "B-2: SQL WHERE with 65-deep nested ANDs must be rejected by post-parse depth check; got Ok"
+        );
+        let errs = result.unwrap_err();
+        let msg = errs[0].message.clone();
+        assert!(
+            msg.contains("E-QUERY-003"),
+            "B-2: error must contain E-QUERY-003, got: {msg}"
+        );
+    });
 }
 
 /// B-2: SQL WHERE with mixed AND/OR forcing 65-deep nesting must be rejected.
@@ -88,26 +94,30 @@ fn test_BC_2_11_006_sql_and_chain_depth_65_rejected() {
 /// Traces: B-2, BC-2.11.006, DI-019
 #[test]
 fn test_BC_2_11_006_sql_or_mix_depth_65_rejected() {
-    // Alternate AND/OR to force deep nesting: a1=1 OR (a2=2 AND (a3=3 OR ...))
-    // Use paren groups to ensure real depth (paren check fires at 65 parens).
-    // We'll use deeply right-nested parens that exceed the limit.
-    // Each paren pair adds 1 to the paren counter. With 65 pairs we exceed 64.
-    let mut query = "SELECT * FROM src WHERE ".to_string();
-    // Build 65 opening parens, each containing a comparison
-    for i in 0..65 {
-        query.push_str(&format!("(a{i} = {i} OR "));
-    }
-    query.push_str("z = 0");
-    for _ in 0..65 {
-        query.push(')');
-    }
+    // Wrapped in 8MB-stack thread: 65-deep chumsky recursion can SIGBUS on macOS
+    // aarch64 with `[profile.dev] debug = "line-tables-only"`. See tests/util.rs.
+    run_with_deep_stack(|| {
+        // Alternate AND/OR to force deep nesting: a1=1 OR (a2=2 AND (a3=3 OR ...))
+        // Use paren groups to ensure real depth (paren check fires at 65 parens).
+        // We'll use deeply right-nested parens that exceed the limit.
+        // Each paren pair adds 1 to the paren counter. With 65 pairs we exceed 64.
+        let mut query = "SELECT * FROM src WHERE ".to_string();
+        // Build 65 opening parens, each containing a comparison
+        for i in 0..65 {
+            query.push_str(&format!("(a{i} = {i} OR "));
+        }
+        query.push_str("z = 0");
+        for _ in 0..65 {
+            query.push(')');
+        }
 
-    // This should fail either at paren_depth check or at nesting depth check
-    let result = PrismQlParser::parse(&query);
-    assert!(
-        result.is_err(),
-        "B-2: deeply nested SQL OR/AND must be rejected; got Ok"
-    );
+        // This should fail either at paren_depth check or at nesting depth check
+        let result = PrismQlParser::parse(&query);
+        assert!(
+            result.is_err(),
+            "B-2: deeply nested SQL OR/AND must be rejected; got Ok"
+        );
+    });
 }
 
 /// B-2: SQL with deep IN (SELECT ... WHERE ... IN (SELECT ...)) subquery chain
@@ -121,32 +131,36 @@ fn test_BC_2_11_006_sql_or_mix_depth_65_rejected() {
 /// Traces: B-2, BC-2.11.006, DI-019
 #[test]
 fn test_BC_2_11_006_sql_subquery_depth_65_rejected() {
-    // Build a nested IN subquery chain that exceeds the nesting depth limit.
-    // check_sql_query_nesting_depth recursively checks InSubquery, so each
-    // nested SELECT adds 1 to the depth counter. With 65 levels, it exceeds
-    // PRISM_MAX_NESTING_DEPTH (64).
-    //
-    // Note: we call parse_sql directly to bypass the pre-parse paren_depth
-    // check (which counts lexical paren chars, not AST subquery depth).
-    let mut inner = "SELECT * FROM s WHERE x = 1".to_string();
-    for i in 0..65 {
-        inner = format!("SELECT * FROM s{i} WHERE f IN ({inner})");
-    }
-    // The outermost query: SELECT * FROM src WHERE field IN (...)
-    let query = format!("SELECT * FROM src WHERE field IN ({inner})");
+    // Wrapped in 8MB-stack thread: 65-deep chumsky recursion can SIGBUS on macOS
+    // aarch64 with `[profile.dev] debug = "line-tables-only"`. See tests/util.rs.
+    run_with_deep_stack(|| {
+        // Build a nested IN subquery chain that exceeds the nesting depth limit.
+        // check_sql_query_nesting_depth recursively checks InSubquery, so each
+        // nested SELECT adds 1 to the depth counter. With 65 levels, it exceeds
+        // PRISM_MAX_NESTING_DEPTH (64).
+        //
+        // Note: we call parse_sql directly to bypass the pre-parse paren_depth
+        // check (which counts lexical paren chars, not AST subquery depth).
+        let mut inner = "SELECT * FROM s WHERE x = 1".to_string();
+        for i in 0..65 {
+            inner = format!("SELECT * FROM s{i} WHERE f IN ({inner})");
+        }
+        // The outermost query: SELECT * FROM src WHERE field IN (...)
+        let query = format!("SELECT * FROM src WHERE field IN ({inner})");
 
-    // Call parse_sql directly to test the post-parse depth check.
-    let result = parse_sql(&query);
-    assert!(
-        result.is_err(),
-        "B-2: deeply nested IN-subquery chain (65 levels) must be rejected by post-parse depth check; got Ok"
-    );
-    let errs = result.unwrap_err();
-    let msg = errs[0].message.clone();
-    assert!(
-        msg.contains("E-QUERY-003"),
-        "B-2: error must contain E-QUERY-003, got: {msg}"
-    );
+        // Call parse_sql directly to test the post-parse depth check.
+        let result = parse_sql(&query);
+        assert!(
+            result.is_err(),
+            "B-2: deeply nested IN-subquery chain (65 levels) must be rejected by post-parse depth check; got Ok"
+        );
+        let errs = result.unwrap_err();
+        let msg = errs[0].message.clone();
+        assert!(
+            msg.contains("E-QUERY-003"),
+            "B-2: error must contain E-QUERY-003, got: {msg}"
+        );
+    });
 }
 
 /// B-2: Pipe `where` with 65 chained NOT predicates must be rejected.
@@ -154,21 +168,25 @@ fn test_BC_2_11_006_sql_subquery_depth_65_rejected() {
 /// Traces: B-2, BC-2.11.006, DI-019
 #[test]
 fn test_BC_2_11_006_pipe_where_not_chain_depth_65_rejected() {
-    // Build: src | where NOT NOT NOT ... (65 NOTs) x = 1
-    let nots = "NOT ".repeat(65);
-    let input = format!("src | where {nots}x = 1");
+    // Wrapped in 8MB-stack thread: 65-deep chumsky recursion can SIGBUS on macOS
+    // aarch64 with `[profile.dev] debug = "line-tables-only"`. See tests/util.rs.
+    run_with_deep_stack(|| {
+        // Build: src | where NOT NOT NOT ... (65 NOTs) x = 1
+        let nots = "NOT ".repeat(65);
+        let input = format!("src | where {nots}x = 1");
 
-    let result = PrismQlParser::parse(&input);
-    assert!(
-        result.is_err(),
-        "B-2: pipe where with 65 chained NOTs must be rejected; got Ok"
-    );
-    let errs = result.unwrap_err();
-    let msg = errs[0].message.clone();
-    assert!(
-        msg.contains("E-QUERY-003"),
-        "B-2: error must contain E-QUERY-003, got: {msg}"
-    );
+        let result = PrismQlParser::parse(&input);
+        assert!(
+            result.is_err(),
+            "B-2: pipe where with 65 chained NOTs must be rejected; got Ok"
+        );
+        let errs = result.unwrap_err();
+        let msg = errs[0].message.clone();
+        assert!(
+            msg.contains("E-QUERY-003"),
+            "B-2: error must contain E-QUERY-003, got: {msg}"
+        );
+    });
 }
 
 /// B-2: Pipe `where` with deeply nested parens exceeding depth 64 must be rejected.
@@ -176,18 +194,22 @@ fn test_BC_2_11_006_pipe_where_not_chain_depth_65_rejected() {
 /// Traces: B-2, BC-2.11.006, DI-019
 #[test]
 fn test_BC_2_11_006_pipe_where_subquery_depth_65_rejected() {
-    // Use 65 layers of parenthesized predicates: (((... x = 1 ...)))
-    let mut inner = "x = 1".to_string();
-    for _ in 0..65 {
-        inner = format!("({inner})");
-    }
-    let input = format!("src | where {inner}");
+    // Wrapped in 8MB-stack thread: 65-deep chumsky recursion can SIGBUS on macOS
+    // aarch64 with `[profile.dev] debug = "line-tables-only"`. See tests/util.rs.
+    run_with_deep_stack(|| {
+        // Use 65 layers of parenthesized predicates: (((... x = 1 ...)))
+        let mut inner = "x = 1".to_string();
+        for _ in 0..65 {
+            inner = format!("({inner})");
+        }
+        let input = format!("src | where {inner}");
 
-    let result = PrismQlParser::parse(&input);
-    assert!(
-        result.is_err(),
-        "B-2: pipe where with 65 paren depth must be rejected; got Ok"
-    );
+        let result = PrismQlParser::parse(&input);
+        assert!(
+            result.is_err(),
+            "B-2: pipe where with 65 paren depth must be rejected; got Ok"
+        );
+    });
 }
 
 // ─────────────────────────────────────────────────────────────────────────────

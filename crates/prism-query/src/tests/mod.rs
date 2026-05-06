@@ -12,3 +12,4 @@
 pub mod materialization_tests;
 pub mod parser_tests;
 pub mod regression_tests;
+pub(crate) mod util;
