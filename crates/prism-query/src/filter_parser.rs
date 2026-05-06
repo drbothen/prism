@@ -146,9 +146,18 @@ impl PrismQlParser {
             return parse_sql_internal(input, &limits);
         }
 
+        // F-PR130-P1-HIGH-001: Apply the same SQL denylist enforced by parse_with_limits.
+        // This is mandatory: parse_with_registry is a co-equal public entry point
+        // (see lib.rs §"External consumers MUST use PrismQlParser::parse or
+        // PrismQlParser::parse_with_registry"). Both must reject denied SQL keywords
+        // with E-QUERY-002. Without this check, inputs like "MERGE INTO foo" would
+        // fall through to filter mode, producing E-QUERY-001 instead of E-QUERY-002.
+        // (BC-2.11.003 v1.4, Invariant DI-019)
+        check_denied_keywords(&first_token_upper)?;
+
         // Pipe mode: route through parse_pipe_with_write.
         if first_token_upper == "FROM" || trimmed.starts_with('|') || is_pipe_mode(trimmed) {
-            let pq = crate::pipe_parser::parse_pipe_with_write(input, registry)?;
+            let pq = crate::pipe_parser::parse_pipe_with_write(input, registry, &limits)?;
             return Ok(Ast::Pipe(pq));
         }
 
@@ -194,74 +203,8 @@ impl PrismQlParser {
         }
 
         // Reject denied SQL statements before any parsing (BC-2.11.003 v1.4, Invariant DI-019).
-        //
-        // The canonical denylist covers ~40 keywords across 7 categories:
-        //   DML mutations (except INSERT/UPDATE/DELETE which are now routed above),
-        //   DDL, TCL, DCL, Procedural, Diagnostic/utility, Vendor.
-        //
-        // Match semantics (BC-2.11.003 v1.4):
-        //   - Case-insensitive
-        //   - Full-token match (NOT substring — `INSERTED_AT` must NOT trigger)
-        //   - Whitespace-normalized (leading whitespace stripped via `trimmed`)
-        //
-        // The check extracts the first whitespace-separated token from `trimmed`
-        // and compares it (case-insensitively) against each denied keyword.
-        // This ensures `INSERTED_AT` (an identifier) is NOT rejected while
-        // `INSERT ` (followed by whitespace/end) IS rejected.
-        let denied_keywords: &[&str] = &[
-            // DML mutations (INSERT/UPDATE/DELETE routed to DML parser above)
-            "MERGE",
-            "REPLACE",
-            "UPSERT",
-            "COPY",
-            // DDL
-            "CREATE",
-            "DROP",
-            "ALTER",
-            "RENAME",
-            "TRUNCATE",
-            "COMMENT",
-            // TCL (Transaction Control)
-            "COMMIT",
-            "ROLLBACK",
-            "SAVEPOINT",
-            "RELEASE",
-            "BEGIN",
-            "START",
-            // DCL (Data Control)
-            "GRANT",
-            "REVOKE",
-            "DENY",
-            // Procedural
-            "EXECUTE",
-            "CALL",
-            "DO",
-            "PERFORM",
-            // Diagnostic / utility
-            "EXPLAIN",
-            "ANALYZE",
-            "VACUUM",
-            "LOCK",
-            "REINDEX",
-            "SET",
-            "SHOW",
-            "USE",
-            // Vendor extensions
-            "PRAGMA",
-            "ATTACH",
-            "DETACH",
-        ];
-        for keyword in denied_keywords {
-            if first_token_upper == *keyword {
-                return Err(vec![ParseError::new(
-                    0,
-                    format!(
-                        "E-QUERY-002: Only SELECT queries are supported. \
-                         Prism is a read-only query engine. Denied keyword: `{keyword}`."
-                    ),
-                )]);
-            }
-        }
+        // Shared helper — same list enforced by `parse_with_registry` (F-PR130-P1-HIGH-001).
+        check_denied_keywords(&first_token_upper)?;
 
         // Mode detection:
         // 1. Starts with SELECT (case-insensitive) → SQL mode.
@@ -288,6 +231,81 @@ impl PrismQlParser {
         // Filter mode.
         parse_filter_internal(input, limits)
     }
+}
+
+/// Check the first token of a query against the SQL denylist (BC-2.11.003 v1.4, DI-019).
+///
+/// Used by both `parse_with_limits` (internal path) and `parse_with_registry`
+/// (public write-aware entry point) so both public APIs enforce identical denylist
+/// semantics. (F-PR130-P1-HIGH-001)
+///
+/// # Match semantics
+/// - Case-insensitive (caller provides the uppercased first token).
+/// - Full-token match (NOT substring). `INSERTED_AT` is NOT rejected;
+///   `INSERT` (a full token) IS rejected via the DML routing that happens first.
+///
+/// The denylist covers ~33 keywords across 7 categories:
+///   DML mutations (MERGE/REPLACE/UPSERT/COPY — INSERT/UPDATE/DELETE are routed
+///   to the DML parser before this check fires),
+///   DDL, TCL, DCL, Procedural, Diagnostic/utility, Vendor.
+///
+/// Returns `Err(vec![E-QUERY-002])` for any denied keyword, `Ok(())` otherwise.
+fn check_denied_keywords(first_token_upper: &str) -> Result<(), Vec<ParseError>> {
+    const DENIED_KEYWORDS: &[&str] = &[
+        // DML mutations (INSERT/UPDATE/DELETE routed to DML parser before this call)
+        "MERGE",
+        "REPLACE",
+        "UPSERT",
+        "COPY",
+        // DDL
+        "CREATE",
+        "DROP",
+        "ALTER",
+        "RENAME",
+        "TRUNCATE",
+        "COMMENT",
+        // TCL (Transaction Control)
+        "COMMIT",
+        "ROLLBACK",
+        "SAVEPOINT",
+        "RELEASE",
+        "BEGIN",
+        "START",
+        // DCL (Data Control)
+        "GRANT",
+        "REVOKE",
+        "DENY",
+        // Procedural
+        "EXECUTE",
+        "CALL",
+        "DO",
+        "PERFORM",
+        // Diagnostic / utility
+        "EXPLAIN",
+        "ANALYZE",
+        "VACUUM",
+        "LOCK",
+        "REINDEX",
+        "SET",
+        "SHOW",
+        "USE",
+        // Vendor extensions
+        "PRAGMA",
+        "ATTACH",
+        "DETACH",
+    ];
+    for keyword in DENIED_KEYWORDS {
+        if first_token_upper == *keyword {
+            return Err(vec![ParseError::new(
+                0,
+                format!(
+                    "E-QUERY-002: Only SELECT queries are supported. \
+                     Prism is a read-only query engine. Denied keyword: `{keyword}`."
+                ),
+            )]);
+        }
+    }
+    Ok(())
 }
 
 /// Pipe-stage keywords used by `is_pipe_mode`.
