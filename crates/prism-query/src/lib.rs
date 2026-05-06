@@ -93,19 +93,24 @@ pub mod tests;
 //
 // Sub-parsers:
 //   `parse_filter`, `parse_filter_with_limits`
-//   `parse_sql`, `parse_sql_with_limits`
-//   `parse_pipe`, `parse_pipe_with_limits`
+//   `parse_sql`, `parse_sql_with_limits`, `parse_sql_dml`
+//   `parse_pipe`, `parse_pipe_with_limits`, `parse_pipe_with_write`
 //
 // Parser-builder factories:
 //   `build_predicate_parser`, `build_source_ref_parser`,
 //   `build_string_parser`, `build_literal_parser`,
 //   `build_expr_parser`, `build_pipe_mode_parser`,
-//   `build_pipe_parser`
+//   `build_pipe_parser`, `build_write_stage_parser`,
+//   `build_write_arg_parser`, `build_dml_parser`
 //
 // ParseLimits API:
 //   `ParseLimits::install_thread_local`, `ParseLimits::clear_thread_local`,
 //   `ParseLimits::current_regex_limit`, `ParseLimits::snapshot`,
 //   `ParseLimits` struct fields
+//
+// S-3.06 write-parser guards (DI-034 layer 4):
+//   `extract_sensor_prefix`, `is_internal_prism_table`,
+//   `check_unbounded_write`, `reject_write_verbs_in_filter`
 //
 // Drop guard:
 //   `ThreadLocalGuard` (filter_parser) — `pub(crate)` for unit-test
