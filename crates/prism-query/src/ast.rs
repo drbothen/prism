@@ -14,6 +14,7 @@
 //! used in the demo harness and MCP tool responses.
 //!
 //! Story: S-3.01 | BC-2.11.002 / BC-2.11.003 / BC-2.11.004
+//! S-3.06 | BC-2.11.004 (write parser extensions)
 
 use std::net::IpAddr;
 
@@ -69,16 +70,29 @@ pub struct FilterExpr {
 // SQL mode AST
 // ─────────────────────────────────────────────────────────────────────────────
 
-/// SQL statement wrapper — forward-compat shim for S-3.06.
+/// SQL statement wrapper — extended in S-3.06 with DML variants.
 ///
-/// S-3.06 will add `Dml(DmlNode)` and `Ddl(DdlNode)` variants without
-/// breaking the `Ast::Sql(SqlStatement)` shape.
+/// S-3.06 adds `Dml(DmlNode)` for `INSERT INTO`, `UPDATE`, `DELETE`.
+///
+/// # Implements BC-2.11.004 — Write Parser Extension (S-3.06)
+///
+/// # Size note
+/// `Select(SqlQuery)` (~536 bytes) is larger than `Dml(DmlNode)`.
+/// The lint is suppressed because introducing indirection (boxing) on `Select`
+/// would break ergonomic match patterns throughout the codebase.
 #[non_exhaustive]
+#[allow(clippy::large_enum_variant)]
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum SqlStatement {
     /// A `SELECT` query.
     Select(SqlQuery),
-    // S-3.06: Dml(DmlNode), Ddl(DdlNode)
+    /// A DML statement: `INSERT INTO`, `UPDATE`, or `DELETE FROM`.
+    ///
+    /// Added by S-3.06. Parse-time validation:
+    /// - `prism_*` target tables return `E-QUERY-010`
+    /// - `UPDATE`/`DELETE` without WHERE return `E-QUERY-022`
+    /// - `INSERT INTO … SELECT` without LIMIT or WHERE returns `E-QUERY-022`
+    Dml(crate::write_ast::DmlNode),
 }
 
 /// SQL mode AST (BC-2.11.003).
@@ -244,15 +258,19 @@ pub struct OrderExpr {
 
 /// Pipe mode AST (BC-2.11.004): `source | stage | stage …`.
 ///
-/// `write` is a forward-compat placeholder for S-3.06 (output write node).
+/// `write` carries the optional terminal write node added in S-3.06.
+/// `None` for read-only pipelines (the common case in S-3.01 queries).
+///
+/// # Implements BC-2.11.004 — Write Parser Extension (S-3.06)
 #[non_exhaustive]
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub struct PipeQuery {
     pub source: SourceRef,
     pub stages: Vec<PipeStage>,
-    /// S-3.06 placeholder: write target. Always `None` in S-3.01.
-    // TODO(S-3.06): replace `Option<()>` with `Option<WriteNode>`.
-    pub write: Option<()>,
+    /// Optional terminal write node (S-3.06).
+    /// `None` for read-only pipelines; `Some(WriteNode)` when the pipeline
+    /// ends with a registered write verb (e.g. `| contain`).
+    pub write: Option<crate::write_ast::WriteNode>,
 }
 
 /// A single stage in a pipe query (BC-2.11.004).

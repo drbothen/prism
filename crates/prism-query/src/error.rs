@@ -6,6 +6,7 @@
 //! output.
 //!
 //! Story: S-3.01
+//! S-3.06 | BC-2.11.004 — write-specific error codes (E-QUERY-010, E-QUERY-022, E-QUERY-023, E-QUERY-024)
 
 use serde::{Deserialize, Serialize};
 
@@ -127,6 +128,112 @@ impl ParseError {
         }
 
         output
+    }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// S-3.06 write-specific error code constructors (BC-2.11.004)
+// ─────────────────────────────────────────────────────────────────────────────
+
+/// Error code string for internal-table write-protection violation.
+///
+/// Emitted at parse time when SQL DML targets a `prism_*` table.
+/// Also emitted at execution time (same code, different layer) — S-3.06 covers
+/// the parse-time emission; execution-time emission is S-3.07's scope.
+///
+/// # Implements BC-2.11.004 — Write Parser Extension
+pub const E_QUERY_010: &str = "E-QUERY-010";
+
+/// Error code string for an unbounded write (no WHERE / LIMIT guard).
+///
+/// Emitted at parse time when `DELETE FROM` or `UPDATE` lacks a WHERE clause,
+/// or when `INSERT INTO … SELECT` lacks a LIMIT or WHERE on the source SELECT.
+///
+/// # Implements BC-2.11.004 — Write Parser Extension
+pub const E_QUERY_022: &str = "E-QUERY-022";
+
+/// Error code string for an unknown write verb in terminal pipe position.
+///
+/// Emitted when an identifier in terminal pipe position is neither a known
+/// pipe stage keyword nor a registered write verb. The error message includes
+/// a suggestion list from `WriteVerbRegistry::verbs_for_sensor`.
+///
+/// # Implements BC-2.11.004 — Write Parser Extension
+pub const E_QUERY_023: &str = "E-QUERY-023";
+
+/// Error code string for a write stage appearing in non-terminal pipe position.
+///
+/// Emitted when a write verb appears mid-pipeline (followed by another `|` stage).
+/// Write stages must be the final stage in a pipeline.
+///
+/// # Implements BC-2.11.004 — Write Parser Extension
+pub const E_QUERY_024: &str = "E-QUERY-024";
+
+impl ParseError {
+    /// Construct an `E-QUERY-010` error for an internal-table write attempt.
+    ///
+    /// Message: "Internal Prism table 'prism_TABLE' is write-protected; use
+    /// the dedicated MCP tool for this operation"
+    ///
+    /// # Implements BC-2.11.004 — Write Parser Extension
+    pub fn internal_table_write_protected(offset: usize, table_name: &str) -> Self {
+        ParseError::new(
+            offset,
+            format!(
+                "{E_QUERY_010}: Internal Prism table '{table_name}' is write-protected; \
+                 use the dedicated MCP tool for this operation"
+            ),
+        )
+    }
+
+    /// Construct an `E-QUERY-022` error for an unbounded write.
+    ///
+    /// Message includes a suggestion to add a WHERE clause or LIMIT.
+    ///
+    /// # Implements BC-2.11.004 — Write Parser Extension
+    pub fn unbounded_write(offset: usize, operation: &str) -> Self {
+        ParseError::new(
+            offset,
+            format!(
+                "{E_QUERY_022}: unbounded {operation} rejected — add a WHERE clause \
+                 (or LIMIT for INSERT...SELECT) to scope the operation, \
+                 or use explicit opt-in if provided by the sensor spec"
+            ),
+        )
+    }
+
+    /// Construct an `E-QUERY-023` error for an unknown verb in terminal pipe position.
+    ///
+    /// `available_verbs` is the suggestion list from `WriteVerbRegistry::verbs_for_sensor`
+    /// for the source sensor.
+    ///
+    /// # Implements BC-2.11.004 — Write Parser Extension
+    pub fn unknown_write_verb(offset: usize, verb: &str, available_verbs: &[&str]) -> Self {
+        let suggestion = if available_verbs.is_empty() {
+            "no write verbs are registered for this sensor".to_string()
+        } else {
+            format!("available verbs: {}", available_verbs.join(", "))
+        };
+        ParseError::new(
+            offset,
+            format!("{E_QUERY_023}: unknown write verb '{verb}' — {suggestion}"),
+        )
+    }
+
+    /// Construct an `E-QUERY-024` error for a write stage in non-terminal position.
+    ///
+    /// `verb` is the write verb that appeared mid-pipeline; `position` is the
+    /// zero-indexed pipe stage position where it was detected.
+    ///
+    /// # Implements BC-2.11.004 — Write Parser Extension
+    pub fn write_stage_not_terminal(offset: usize, verb: &str, position: usize) -> Self {
+        ParseError::new(
+            offset,
+            format!(
+                "{E_QUERY_024}: write stage must be in terminal pipe position — \
+                 '{verb}' at position {position} is followed by additional stages"
+            ),
+        )
     }
 }
 

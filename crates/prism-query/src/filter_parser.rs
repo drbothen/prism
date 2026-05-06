@@ -27,6 +27,7 @@ use crate::error::ParseError;
 use crate::error_recovery::rich_to_parse_error;
 use crate::pipe_parser::build_pipe_parser;
 use crate::security;
+use crate::write_verb_registry::WriteVerbRegistry;
 
 /// RAII guard that clears the thread-local `ParseLimits` snapshot when dropped.
 ///
@@ -91,6 +92,80 @@ impl PrismQlParser {
         // _guard drops here (or on panic unwind), clearing the thread-local.
     }
 
+    /// Parse a PrismQL query string with write-mode awareness.
+    ///
+    /// Applies the same pre-parse security guards as `parse`, then routes
+    /// pipe-mode queries through `parse_pipe_with_write` so that a terminal
+    /// write verb produces a `PipeQuery { write: Some(WriteNode) }` instead of
+    /// a plain read-only `PipeQuery { write: None }`.
+    ///
+    /// Filter-mode queries with a write verb after `|` are rejected with
+    /// `E-QUERY-010` via `reject_write_verbs_in_filter`.
+    ///
+    /// DML mode (INSERT/UPDATE/DELETE) and SQL SELECT mode are unaffected by
+    /// the registry — write verbs do not apply there.
+    ///
+    /// # Design note
+    /// `parse_with_registry` is a stateless pure function (no `&mut self`,
+    /// no persistent state) consistent with the purity boundary defined in
+    /// BC-2.11.004 and the `PrismQlParser` design.  The registry is passed per
+    /// call, not stored in the parser.
+    ///
+    /// # Implements BC-2.11.004 — Write Parser Extension (F-PR130-CR-001)
+    pub fn parse_with_registry(
+        input: &str,
+        registry: &WriteVerbRegistry,
+    ) -> Result<Ast, Vec<ParseError>> {
+        let limits = security::ParseLimits::snapshot();
+        limits.install_thread_local();
+        let _guard = ThreadLocalGuard;
+
+        // Pre-parse security guards (identical to `parse`).
+        limits
+            .check_query_size(input)
+            .map_err(|e| vec![ParseError::new(0, e.to_string())])?;
+        limits
+            .check_paren_depth(input)
+            .map_err(|e| vec![ParseError::new(0, e.to_string())])?;
+
+        let trimmed = input.trim();
+        if trimmed.is_empty() {
+            return Err(vec![ParseError::new(0, "E-QUERY-001: empty query string")]);
+        }
+
+        let first_token = trimmed.split_ascii_whitespace().next().unwrap_or("");
+        let first_token_upper = first_token.to_uppercase();
+
+        // DML mode: delegate as-is (write verbs not applicable here).
+        if matches!(first_token_upper.as_str(), "INSERT" | "UPDATE" | "DELETE") {
+            return parse_dml_internal(input, &limits);
+        }
+
+        // SQL SELECT mode: delegate as-is.
+        if first_token_upper == "SELECT" {
+            return parse_sql_internal(input, &limits);
+        }
+
+        // F-PR130-P1-HIGH-001: Apply the same SQL denylist enforced by parse_with_limits.
+        // This is mandatory: parse_with_registry is a co-equal public entry point
+        // (see lib.rs §"External consumers MUST use PrismQlParser::parse or
+        // PrismQlParser::parse_with_registry"). Both must reject denied SQL keywords
+        // with E-QUERY-002. Without this check, inputs like "MERGE INTO foo" would
+        // fall through to filter mode, producing E-QUERY-001 instead of E-QUERY-002.
+        // (BC-2.11.003 v1.4, Invariant DI-019)
+        check_denied_keywords(&first_token_upper)?;
+
+        // Pipe mode: route through parse_pipe_with_write.
+        if first_token_upper == "FROM" || trimmed.starts_with('|') || is_pipe_mode(trimmed) {
+            let pq = crate::pipe_parser::parse_pipe_with_write(input, registry, &limits)?;
+            return Ok(Ast::Pipe(pq));
+        }
+
+        // Filter mode: reject write verbs, then parse normally.
+        reject_write_verbs_in_filter(input, registry)?;
+        parse_filter_internal(input, &limits)
+    }
+
     /// Inner parse implementation that receives the already-snapshotted limits.
     ///
     /// Separated from `parse` so that the thread-local cleanup in `parse` is
@@ -115,80 +190,21 @@ impl PrismQlParser {
             return Err(vec![ParseError::new(0, "E-QUERY-001: empty query string")]);
         }
 
-        // Reject denied SQL statements before any parsing (BC-2.11.003 v1.4, Invariant DI-019).
-        //
-        // The canonical denylist covers ~40 keywords across 7 categories:
-        //   DML mutations, DDL, TCL, DCL, Procedural, Diagnostic/utility, Vendor.
-        //
-        // Match semantics (BC-2.11.003 v1.4):
-        //   - Case-insensitive
-        //   - Full-token match (NOT substring — `INSERTED_AT` must NOT trigger)
-        //   - Whitespace-normalized (leading whitespace stripped via `trimmed`)
-        //
-        // The check extracts the first whitespace-separated token from `trimmed`
-        // and compares it (case-insensitively) against each denied keyword.
-        // This ensures `INSERTED_AT` (an identifier) is NOT rejected while
-        // `INSERT ` (followed by whitespace/end) IS rejected.
-        let denied_keywords: &[&str] = &[
-            // DML mutations
-            "INSERT",
-            "UPDATE",
-            "DELETE",
-            "MERGE",
-            "REPLACE",
-            "UPSERT",
-            "COPY",
-            // DDL
-            "CREATE",
-            "DROP",
-            "ALTER",
-            "RENAME",
-            "TRUNCATE",
-            "COMMENT",
-            // TCL (Transaction Control)
-            "COMMIT",
-            "ROLLBACK",
-            "SAVEPOINT",
-            "RELEASE",
-            "BEGIN",
-            "START",
-            // DCL (Data Control)
-            "GRANT",
-            "REVOKE",
-            "DENY",
-            // Procedural
-            "EXECUTE",
-            "CALL",
-            "DO",
-            "PERFORM",
-            // Diagnostic / utility
-            "EXPLAIN",
-            "ANALYZE",
-            "VACUUM",
-            "LOCK",
-            "REINDEX",
-            "SET",
-            "SHOW",
-            "USE",
-            // Vendor extensions
-            "PRAGMA",
-            "ATTACH",
-            "DETACH",
-        ];
-        // Extract the first token (split on whitespace).
+        // Extract the first token once, used for mode detection and denylist.
         let first_token = trimmed.split_ascii_whitespace().next().unwrap_or("");
         let first_token_upper = first_token.to_uppercase();
-        for keyword in denied_keywords {
-            if first_token_upper == *keyword {
-                return Err(vec![ParseError::new(
-                    0,
-                    format!(
-                        "E-QUERY-002: Only SELECT queries are supported. \
-                         Prism is a read-only query engine. Denied keyword: `{keyword}`."
-                    ),
-                )]);
-            }
+
+        // S-3.06: Route DML statements (INSERT/UPDATE/DELETE) to the DML parser
+        // BEFORE the general denylist check. These were previously denied outright
+        // (BC-2.11.003 v1.4 "read-only engine") but S-3.06 extends the engine with
+        // write support. The DML parser enforces its own guards (E-QUERY-010, E-QUERY-022).
+        if matches!(first_token_upper.as_str(), "INSERT" | "UPDATE" | "DELETE") {
+            return parse_dml_internal(input, limits);
         }
+
+        // Reject denied SQL statements before any parsing (BC-2.11.003 v1.4, Invariant DI-019).
+        // Shared helper — same list enforced by `parse_with_registry` (F-PR130-P1-HIGH-001).
+        check_denied_keywords(&first_token_upper)?;
 
         // Mode detection:
         // 1. Starts with SELECT (case-insensitive) → SQL mode.
@@ -215,6 +231,81 @@ impl PrismQlParser {
         // Filter mode.
         parse_filter_internal(input, limits)
     }
+}
+
+/// Check the first token of a query against the SQL denylist (BC-2.11.003 v1.4, DI-019).
+///
+/// Used by both `parse_with_limits` (internal path) and `parse_with_registry`
+/// (public write-aware entry point) so both public APIs enforce identical denylist
+/// semantics. (F-PR130-P1-HIGH-001)
+///
+/// # Match semantics
+/// - Case-insensitive (caller provides the uppercased first token).
+/// - Full-token match (NOT substring). `INSERTED_AT` is NOT rejected;
+///   `INSERT` (a full token) IS rejected via the DML routing that happens first.
+///
+/// The denylist covers ~33 keywords across 7 categories:
+///   DML mutations (MERGE/REPLACE/UPSERT/COPY — INSERT/UPDATE/DELETE are routed
+///   to the DML parser before this check fires),
+///   DDL, TCL, DCL, Procedural, Diagnostic/utility, Vendor.
+///
+/// Returns `Err(vec![E-QUERY-002])` for any denied keyword, `Ok(())` otherwise.
+fn check_denied_keywords(first_token_upper: &str) -> Result<(), Vec<ParseError>> {
+    const DENIED_KEYWORDS: &[&str] = &[
+        // DML mutations (INSERT/UPDATE/DELETE routed to DML parser before this call)
+        "MERGE",
+        "REPLACE",
+        "UPSERT",
+        "COPY",
+        // DDL
+        "CREATE",
+        "DROP",
+        "ALTER",
+        "RENAME",
+        "TRUNCATE",
+        "COMMENT",
+        // TCL (Transaction Control)
+        "COMMIT",
+        "ROLLBACK",
+        "SAVEPOINT",
+        "RELEASE",
+        "BEGIN",
+        "START",
+        // DCL (Data Control)
+        "GRANT",
+        "REVOKE",
+        "DENY",
+        // Procedural
+        "EXECUTE",
+        "CALL",
+        "DO",
+        "PERFORM",
+        // Diagnostic / utility
+        "EXPLAIN",
+        "ANALYZE",
+        "VACUUM",
+        "LOCK",
+        "REINDEX",
+        "SET",
+        "SHOW",
+        "USE",
+        // Vendor extensions
+        "PRAGMA",
+        "ATTACH",
+        "DETACH",
+    ];
+    for keyword in DENIED_KEYWORDS {
+        if first_token_upper == *keyword {
+            return Err(vec![ParseError::new(
+                0,
+                format!(
+                    "E-QUERY-002: Only SELECT queries are supported. \
+                     Prism is a read-only query engine. Denied keyword: `{keyword}`."
+                ),
+            )]);
+        }
+    }
+    Ok(())
 }
 
 /// Pipe-stage keywords used by `is_pipe_mode`.
@@ -329,6 +420,20 @@ fn parse_pipe_internal(
     limits: &security::ParseLimits,
 ) -> Result<Ast, Vec<ParseError>> {
     crate::pipe_parser::parse_pipe_with_limits(input, limits).map(Ast::Pipe)
+}
+
+/// Parse DML mode internally — delegates to `parse_sql_dml_with_limits` (S-3.06).
+///
+/// Routes INSERT/UPDATE/DELETE statements to the DML parser added in S-3.06.
+/// Pre-parse guards (size, paren depth) have already been applied by the caller;
+/// this function forwards the snapshotted `limits` so post-parse depth and
+/// list-size guards run on any embedded `SqlQuery` (F-PR130-CR-004, SEC-002).
+///
+/// # Clippy exemption (OBS-002)
+/// Same rationale as `parse_filter_internal`.
+#[allow(clippy::disallowed_methods)]
+fn parse_dml_internal(input: &str, limits: &security::ParseLimits) -> Result<Ast, Vec<ParseError>> {
+    crate::sql_parser::parse_sql_dml_with_limits(input, limits)
 }
 
 // ── Security re-export for convenient use in tests ────────────────────────────
@@ -1116,4 +1221,80 @@ pub(crate) fn build_expr_parser<'a>(
 pub(crate) fn build_pipe_mode_parser<'a>(
 ) -> impl Parser<'a, &'a str, PipeQuery, extra::Err<Rich<'a, char>>> {
     build_pipe_parser()
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// S-3.06 filter-mode write rejection (BC-2.11.004)
+// ─────────────────────────────────────────────────────────────────────────────
+
+/// Validate that a filter-mode query does not contain write verb tokens.
+///
+/// Filter mode is permanently read-only. This check is a grammar-level hard
+/// rejection (BC-2.11.004, EC-11-064), not a semantic check — it fires
+/// regardless of whether the verb would resolve to a valid write endpoint.
+///
+/// Implementation: scans for unquoted `|` followed by a registered write verb.
+/// A write verb appearing as a field name in a predicate (e.g. `contain = 1`)
+/// is NOT rejected — only `| verb` sequences are rejected.
+///
+/// When the registry is empty, always returns `Ok(())` per
+/// BC-2.11.004 §INV-FILTER-EMPTY-REGISTRY.
+///
+/// Returns `Err(Vec<ParseError>)` if any write verb token is detected in the
+/// filter input; `Ok(())` if the input is clean.
+///
+/// # Security perimeter (BC-2.11.006 INV-SEC-PERIMETER-001)
+/// `pub(crate)` — never `pub`.
+///
+/// # Implements BC-2.11.004 — Write Parser Extension
+pub(crate) fn reject_write_verbs_in_filter(
+    input: &str,
+    registry: &WriteVerbRegistry,
+) -> Result<(), Vec<ParseError>> {
+    // BC-2.11.004 §INV-FILTER-EMPTY-REGISTRY: empty registry → always Ok(()).
+    if registry.is_empty() {
+        return Ok(());
+    }
+
+    // Scan for `| verb` sequences outside string literals.
+    // A write verb is only rejected when preceded by `|` (pipe operator).
+    let bytes = input.as_bytes();
+    let len = bytes.len();
+    let mut in_sq = false;
+    let mut in_dq = false;
+    let mut i = 0;
+    while i < len {
+        match bytes[i] {
+            b'\'' if !in_dq => in_sq = !in_sq,
+            b'"' if !in_sq => in_dq = !in_dq,
+            b'|' if !in_sq && !in_dq => {
+                // Skip whitespace after `|`
+                let mut j = i + 1;
+                while j < len && (bytes[j] == b' ' || bytes[j] == b'\t' || bytes[j] == b'\n') {
+                    j += 1;
+                }
+                // Extract the next identifier token.
+                let mut k = j;
+                while k < len && (bytes[k].is_ascii_alphanumeric() || bytes[k] == b'_') {
+                    k += 1;
+                }
+                if k > j {
+                    let token = &input[j..k];
+                    if registry.is_write_verb(token) {
+                        return Err(vec![ParseError::new(
+                            j,
+                            format!(
+                                "E-QUERY-010: Write verbs are not permitted in filter mode; \
+                                 filter mode is permanently read-only. \
+                                 Write verb '{token}' was found after '|'"
+                            ),
+                        )]);
+                    }
+                }
+            }
+            _ => {}
+        }
+        i += 1;
+    }
+    Ok(())
 }

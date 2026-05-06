@@ -25,10 +25,14 @@ use crate::ast::{
     JoinKind, Literal, LogicalOp, OrderExpr, Predicate, ScalarFunc, SelectClause, SelectItem,
     SortDirection, Span, SqlQuery, SqlStatement,
 };
+use crate::write_ast::{DmlNode, DmlOperation};
+// S-3.06: Assignment is used by build_dml_parser (UPDATE SET col=val production)
 use crate::error::ParseError;
 use crate::error_recovery::{rich_to_parse_error, sql_paren_delimiters};
 use crate::filter_parser::{build_literal_parser, build_predicate_parser, build_source_ref_parser};
 use crate::security;
+#[allow(unused_imports)]
+use crate::write_ast::Assignment;
 
 /// SQL keywords that must not be consumed as aliases (canonical uppercase form).
 ///
@@ -796,4 +800,453 @@ fn build_sql_expr_parser<'a>(
             },
         )
     })
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// S-3.06 DML parser extensions (BC-2.11.004)
+// ─────────────────────────────────────────────────────────────────────────────
+
+/// Parse a SQL-mode DML statement, returning `Ast::Sql(SqlStatement::Dml(DmlNode))`.
+///
+/// Accepts:
+/// - `INSERT INTO table_name (col_list) SELECT …`
+/// - `UPDATE table_name SET col = val [, col = val]* WHERE expr`
+/// - `DELETE FROM table_name WHERE expr`
+///
+/// Parse-time validation (BC-2.11.004):
+/// - `prism_*` target tables → `E-QUERY-010` ("Internal Prism table is write-protected")
+/// - `UPDATE`/`DELETE` without WHERE → `E-QUERY-022` (unbounded write)
+/// - `INSERT INTO … SELECT` without LIMIT or WHERE → `E-QUERY-022`
+///
+/// # Security perimeter (BC-2.11.006 INV-SEC-PERIMETER-001)
+/// This function is `pub(crate)` — never `pub`.
+///
+/// # Implements BC-2.11.004 — Write Parser Extension
+#[cfg_attr(not(test), allow(dead_code))]
+pub(crate) fn parse_sql_dml(input: &str) -> Result<Ast, Vec<ParseError>> {
+    // Dispatch to the correct sub-parser based on the first token.
+    // This avoids Chumsky choice() error priority issues when try_map
+    // fires after consuming the entire input but choice() still picks
+    // the first alternative's error (BC-2.11.004, S-3.06 fix).
+    let first_token = input
+        .trim()
+        .split_ascii_whitespace()
+        .next()
+        .unwrap_or("")
+        .to_ascii_uppercase();
+    let node_result: Result<DmlNode, Vec<ParseError>> = match first_token.as_str() {
+        "DELETE" => run_dml_parser(build_delete_parser(), input, "DELETE"),
+        "UPDATE" => run_dml_parser(build_update_parser(), input, "UPDATE"),
+        "INSERT" => run_dml_parser(build_insert_parser(), input, "INSERT"),
+        _ => Err(vec![ParseError::new(
+            0,
+            format!("E-QUERY-001: unrecognized DML keyword '{first_token}'"),
+        )]),
+    };
+    match node_result {
+        Ok(node) => Ok(Ast::Sql(SqlStatement::Dml(node))),
+        Err(errs) => Err(errs),
+    }
+}
+
+/// Parse a DML statement with explicit `ParseLimits` — applying post-parse depth
+/// and list-size guards to any embedded `SqlQuery` (e.g. `INSERT INTO … SELECT …`).
+///
+/// Called from `parse_dml_internal` (filter_parser), which has already applied the
+/// pre-parse `check_query_size` and `check_paren_depth` guards.
+///
+/// The depth and list-size checks mirror those applied to SQL SELECT queries in
+/// `parse_sql_with_limits` (BC-2.11.006, F-PR130-CR-004, F-PR130-SEC-002).
+///
+/// # Security perimeter (BC-2.11.006 INV-SEC-PERIMETER-001)
+/// `pub(crate)` — never `pub`.
+#[cfg_attr(not(test), allow(dead_code))]
+pub(crate) fn parse_sql_dml_with_limits(
+    input: &str,
+    limits: &crate::security::ParseLimits,
+) -> Result<Ast, Vec<ParseError>> {
+    let first_token = input
+        .trim()
+        .split_ascii_whitespace()
+        .next()
+        .unwrap_or("")
+        .to_ascii_uppercase();
+    let node_result: Result<DmlNode, Vec<ParseError>> = match first_token.as_str() {
+        "DELETE" => run_dml_parser(build_delete_parser(), input, "DELETE"),
+        "UPDATE" => run_dml_parser(build_update_parser(), input, "UPDATE"),
+        "INSERT" => run_dml_parser(build_insert_parser(), input, "INSERT"),
+        _ => Err(vec![ParseError::new(
+            0,
+            format!("E-QUERY-001: unrecognized DML keyword '{first_token}'"),
+        )]),
+    };
+    match node_result {
+        Ok(node) => {
+            // Post-parse security: check depth and list sizes on the embedded
+            // SELECT sub-query for INSERT INTO … SELECT … (F-PR130-CR-004 / SEC-002).
+            if let Some(ref sq) = node.source_select {
+                limits
+                    .check_sql_query_nesting_depth_with(sq, 0)
+                    .map_err(|e| vec![ParseError::new(0, e.to_string())])?;
+                limits
+                    .check_sql_list_sizes_with(sq)
+                    .map_err(|e| vec![ParseError::new(0, e.to_string())])?;
+            }
+            Ok(Ast::Sql(SqlStatement::Dml(node)))
+        }
+        Err(errs) => Err(errs),
+    }
+}
+
+/// Run a DML sub-parser on `input` and convert the result to `Result<DmlNode, Vec<ParseError>>`.
+///
+/// This helper exists to avoid a complex `Box<dyn Fn>` type in `parse_sql_dml`
+/// (clippy::type_complexity). Each DML operation has a dedicated builder called here.
+fn run_dml_parser<'a, P>(
+    parser: P,
+    input: &'a str,
+    op: &'static str,
+) -> Result<DmlNode, Vec<ParseError>>
+where
+    P: Parser<'a, &'a str, DmlNode, extra::Err<Rich<'a, char>>>,
+{
+    let (result, errs) = parser.parse(input).into_output_errors();
+    if errs.is_empty() {
+        if let Some(node) = result {
+            return Ok(node);
+        }
+    }
+    let parse_errors: Vec<ParseError> = errs.iter().map(rich_to_parse_error).collect();
+    Err(if parse_errors.is_empty() {
+        vec![ParseError::new(
+            0,
+            format!("E-QUERY-001: {op} parse failed"),
+        )]
+    } else {
+        parse_errors
+    })
+}
+
+/// Build the Chumsky DML parser (composite — tries DELETE, UPDATE, INSERT in order).
+///
+/// NOTE: In practice, `parse_sql_dml` dispatches directly to the per-operation
+/// builders (`build_delete_parser`, `build_update_parser`, `build_insert_parser`)
+/// based on the first token, avoiding Chumsky `choice()` error-priority issues
+/// where `try_map` errors after full-input consumption lose to the first
+/// alternative's position-0 failure.
+///
+/// This function is kept for compatibility with external test callers that
+/// may call `build_dml_parser()` directly; internally `parse_sql_dml` does
+/// not use it.
+///
+/// # Security perimeter (BC-2.11.006 INV-SEC-PERIMETER-001)
+/// `pub(crate)` — never `pub`.
+///
+/// # Implements BC-2.11.004 — Write Parser Extension
+#[cfg_attr(not(test), allow(dead_code))]
+pub(crate) fn build_dml_parser<'a>() -> impl Parser<'a, &'a str, DmlNode, extra::Err<Rich<'a, char>>>
+{
+    // Keep choice for the public build_dml_parser API; parse_sql_dml dispatches
+    // per-token to avoid choice() error-priority pathology.
+    choice((
+        build_delete_parser(),
+        build_update_parser(),
+        build_insert_parser(),
+    ))
+}
+
+/// Build a Chumsky parser for `DELETE FROM table [WHERE pred]`.
+///
+/// Security checks (prism_* table guard, unbounded-write guard) run inside
+/// `.try_map()`. Called directly by `parse_sql_dml` to avoid `choice()` error
+/// priority issues (BC-2.11.004 S-3.06 fix).
+///
+/// # Security perimeter (BC-2.11.006 INV-SEC-PERIMETER-001)
+/// `pub(crate)` — never `pub`.
+#[cfg_attr(not(test), allow(dead_code))]
+#[allow(clippy::type_complexity)]
+fn build_delete_parser<'a>() -> impl Parser<'a, &'a str, DmlNode, extra::Err<Rich<'a, char>>> {
+    let predicate = build_predicate_parser();
+    let ident_char = any::<&str, extra::Err<Rich<char>>>()
+        .filter(|c: &char| c.is_ascii_alphanumeric() || *c == '_');
+    let ident = ident_char
+        .repeated()
+        .at_least(1)
+        .to_slice()
+        .map(|s: &str| s.to_string());
+    let kw_ci = move |k: &'static str| {
+        ident_char
+            .repeated()
+            .at_least(1)
+            .to_slice()
+            .try_map(move |s: &str, span| {
+                if s.eq_ignore_ascii_case(k) {
+                    Ok(())
+                } else {
+                    Err(Rich::custom(span, format!("expected keyword '{k}'")))
+                }
+            })
+    };
+    // Parse WHERE clause and preserve the actual predicate.
+    // Previously discarded with `|_|` (F-PR130-SEC-003 fix).
+    let where_clause = kw_ci("WHERE")
+        .padded()
+        .ignore_then(predicate.padded())
+        .or_not();
+
+    kw_ci("DELETE")
+        .padded()
+        .ignore_then(kw_ci("FROM").padded())
+        .ignore_then(ident.padded())
+        .then(where_clause)
+        .try_map(|(table, filter), span| {
+            if is_internal_prism_table(&table) {
+                return Err(Rich::custom(
+                    span,
+                    format!(
+                        "E-QUERY-010: Internal Prism table '{table}' is write-protected; \
+                         use the dedicated MCP tool for this operation"
+                    ),
+                ));
+            }
+            let node = DmlNode {
+                operation: DmlOperation::Delete,
+                target_table: table,
+                columns: None,
+                assignments: vec![],
+                filter,
+                source_select: None,
+            };
+            if let Some(e) = check_unbounded_write(&node, 0) {
+                return Err(Rich::custom(span, e.message));
+            }
+            Ok(node)
+        })
+}
+
+/// Build a Chumsky parser for `UPDATE table SET col=val [, col=val]* [WHERE pred]`.
+///
+/// Security checks (prism_* table guard, unbounded-write guard) run inside
+/// `.try_map()`. Called directly by `parse_sql_dml` to avoid `choice()` error
+/// priority issues.
+///
+/// # Security perimeter (BC-2.11.006 INV-SEC-PERIMETER-001)
+/// `pub(crate)` — never `pub`.
+#[cfg_attr(not(test), allow(dead_code))]
+#[allow(clippy::type_complexity, clippy::clone_on_copy)]
+fn build_update_parser<'a>() -> impl Parser<'a, &'a str, DmlNode, extra::Err<Rich<'a, char>>> {
+    let literal = build_literal_parser();
+    let predicate = build_predicate_parser();
+    let ident_char = any::<&str, extra::Err<Rich<char>>>()
+        .filter(|c: &char| c.is_ascii_alphanumeric() || *c == '_');
+    let ident = ident_char
+        .repeated()
+        .at_least(1)
+        .to_slice()
+        .map(|s: &str| s.to_string());
+    let kw_ci = move |k: &'static str| {
+        ident_char
+            .repeated()
+            .at_least(1)
+            .to_slice()
+            .try_map(move |s: &str, span| {
+                if s.eq_ignore_ascii_case(k) {
+                    Ok(())
+                } else {
+                    Err(Rich::custom(span, format!("expected keyword '{k}'")))
+                }
+            })
+    };
+    // Parse WHERE clause and preserve the actual predicate.
+    // Previously discarded with `|_|` (F-PR130-SEC-003 fix).
+    let where_clause = kw_ci("WHERE")
+        .padded()
+        .ignore_then(predicate.padded())
+        .or_not();
+
+    let assign_value = choice((
+        literal.map(crate::ast::Expr::Literal),
+        ident.clone().padded().map(|s| {
+            use crate::ast::{FieldPath, Span};
+            crate::ast::Expr::Field(FieldPath {
+                segments: vec![s],
+                span: Span::ZERO,
+            })
+        }),
+    ));
+    let assignment = ident
+        .clone()
+        .padded()
+        .then_ignore(just('=').padded())
+        .then(assign_value.padded())
+        .map(|(column, value)| crate::write_ast::Assignment { column, value });
+
+    kw_ci("UPDATE")
+        .padded()
+        .ignore_then(ident.padded())
+        .then_ignore(kw_ci("SET").padded())
+        .then(
+            assignment
+                .padded()
+                .separated_by(just(',').padded())
+                .at_least(1)
+                .collect::<Vec<_>>(),
+        )
+        .then(where_clause)
+        .try_map(|((table, assignments), filter), span| {
+            if is_internal_prism_table(&table) {
+                return Err(Rich::custom(
+                    span,
+                    format!(
+                        "E-QUERY-010: Internal Prism table '{table}' is write-protected; \
+                         use the dedicated MCP tool for this operation"
+                    ),
+                ));
+            }
+            let node = DmlNode {
+                operation: DmlOperation::Update,
+                target_table: table,
+                columns: None,
+                assignments,
+                filter,
+                source_select: None,
+            };
+            if let Some(e) = check_unbounded_write(&node, 0) {
+                return Err(Rich::custom(span, e.message));
+            }
+            Ok(node)
+        })
+}
+
+/// Build a Chumsky parser for `INSERT INTO table [(col_list)] SELECT ...`.
+///
+/// Security checks (prism_* table guard, unbounded-write guard) run inside
+/// `.try_map()`. Called directly by `parse_sql_dml` to avoid `choice()` error
+/// priority issues.
+///
+/// # Security perimeter (BC-2.11.006 INV-SEC-PERIMETER-001)
+/// `pub(crate)` — never `pub`.
+#[cfg_attr(not(test), allow(dead_code))]
+#[allow(clippy::type_complexity, clippy::clone_on_copy)]
+fn build_insert_parser<'a>() -> impl Parser<'a, &'a str, DmlNode, extra::Err<Rich<'a, char>>> {
+    let ident_char = any::<&str, extra::Err<Rich<char>>>()
+        .filter(|c: &char| c.is_ascii_alphanumeric() || *c == '_');
+    let ident = ident_char
+        .repeated()
+        .at_least(1)
+        .to_slice()
+        .map(|s: &str| s.to_string());
+    let kw_ci = move |k: &'static str| {
+        ident_char
+            .repeated()
+            .at_least(1)
+            .to_slice()
+            .try_map(move |s: &str, span| {
+                if s.eq_ignore_ascii_case(k) {
+                    Ok(())
+                } else {
+                    Err(Rich::custom(span, format!("expected keyword '{k}'")))
+                }
+            })
+    };
+
+    kw_ci("INSERT")
+        .padded()
+        .ignore_then(kw_ci("INTO").padded())
+        .ignore_then(ident.clone().padded())
+        .then(
+            ident
+                .clone()
+                .padded()
+                .separated_by(just(',').padded())
+                .at_least(1)
+                .collect::<Vec<_>>()
+                .delimited_by(just('(').padded(), just(')').padded())
+                .or_not(),
+        )
+        .then(build_sql_parser())
+        .try_map(|((table, cols), sq), span| {
+            if is_internal_prism_table(&table) {
+                return Err(Rich::custom(
+                    span,
+                    format!(
+                        "E-QUERY-010: Internal Prism table '{table}' is write-protected; \
+                         use the dedicated MCP tool for this operation"
+                    ),
+                ));
+            }
+            let node = DmlNode {
+                operation: DmlOperation::InsertInto,
+                target_table: table,
+                columns: cols,
+                assignments: vec![],
+                filter: None,
+                source_select: Some(sq),
+            };
+            if let Some(e) = check_unbounded_write(&node, 0) {
+                return Err(Rich::custom(span, e.message));
+            }
+            Ok(node)
+        })
+}
+
+#[cfg_attr(not(test), allow(dead_code))]
+/// Check whether a target table name begins with the `prism_` prefix.
+///
+/// Returns `true` if the table is an internal Prism table (write-protected).
+/// Used by `build_dml_parser` to emit `E-QUERY-010` at parse time.
+///
+/// # Security perimeter (BC-2.11.006 INV-SEC-PERIMETER-001)
+/// `pub(crate)` — never `pub`.
+///
+/// # Implements BC-2.11.004 — Write Parser Extension
+pub(crate) fn is_internal_prism_table(table_name: &str) -> bool {
+    table_name.to_ascii_lowercase().starts_with("prism_")
+}
+
+#[cfg_attr(not(test), allow(dead_code))]
+/// Check whether a `DmlNode` would perform an unbounded write.
+///
+/// A write is unbounded when:
+/// - `UPDATE` or `DELETE FROM` has no WHERE clause.
+/// - `INSERT INTO … SELECT` has no LIMIT and no WHERE on the source SELECT.
+///
+/// Returns `Some(ParseError::unbounded_write(...))` if unbounded; `None` if safe.
+///
+/// Used inside `build_dml_parser` combinators to emit `E-QUERY-022`.
+///
+/// # Security perimeter (BC-2.11.006 INV-SEC-PERIMETER-001)
+/// `pub(crate)` — never `pub`.
+///
+/// # Implements BC-2.11.004 — Write Parser Extension
+pub(crate) fn check_unbounded_write(node: &DmlNode, offset: usize) -> Option<ParseError> {
+    use crate::write_ast::DmlOperation;
+    match node.operation {
+        DmlOperation::Delete | DmlOperation::Update => {
+            if node.filter.is_none() {
+                let op = match node.operation {
+                    DmlOperation::Delete => "DELETE",
+                    DmlOperation::Update => "UPDATE",
+                    _ => "DML",
+                };
+                Some(ParseError::unbounded_write(offset, op))
+            } else {
+                None
+            }
+        }
+        DmlOperation::InsertInto => {
+            // INSERT INTO ... SELECT is unbounded if source SELECT has no WHERE and no LIMIT.
+            if let Some(ref sq) = node.source_select {
+                if sq.where_.is_none() && sq.limit.is_none() {
+                    Some(ParseError::unbounded_write(offset, "INSERT INTO...SELECT"))
+                } else {
+                    None
+                }
+            } else {
+                // INSERT without a SELECT sub-query: no unbounded check needed
+                // (would be a malformed INSERT caught earlier).
+                None
+            }
+        }
+    }
 }
