@@ -1,7 +1,7 @@
 ---
 document_type: behavioral-contract-index
 level: L3
-version: "4.37"
+version: "4.38"
 status: draft
 producer: product-owner
 timestamp: 2026-05-05T00:00:00
@@ -352,6 +352,8 @@ Phase 3-patch additions (2026-04-16): 22 new BCs added in Burst 1 to close trace
 - Subsystem 19: Infusion Enrichment Framework (AD-020, CAP-031)
 
 ### Change Log (Adversarial Review Fixes)
+
+**v4.38 (2026-05-05):** Adversary pass-8 remediation — BC-2.11.006 v1.9→v1.10: F-HIGH-001 — added `ParseLimits::snapshot` to `restricted_symbols` frontmatter (16→17 entries; 14 unique parent paths unchanged — snapshot collapses to `ParseLimits` like the other methods). Symbol was already `pub(crate)` and enumerated in lib.rs perimeter docstring; missing from BC frontmatter caused docstring↔spec drift. Body note expanded to explain snapshot's constructor role and defence-in-depth rationale. PR-127 adversary pass-8 remediation.
 
 **v4.37 (2026-05-05):** Adversary pass-7 remediation — BC-2.11.006 v1.8→v1.9: F-LOW-004 — added 3 `*_with_limits` functions to `restricted_symbols` frontmatter (`parse_filter_with_limits`, `parse_sql_with_limits`, `parse_pipe_with_limits`; 13→16 entries, 11→14 unique parent paths after normalize_to_use_path). Body note added explaining de-facto-private rationale (`ParseLimits` fields are `pub(crate)`) and future-proofing intent. PR-127 adversary pass-7 remediation.
 

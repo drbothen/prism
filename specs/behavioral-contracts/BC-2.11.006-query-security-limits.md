@@ -1,7 +1,7 @@
 ---
 document_type: behavioral-contract
 level: L3
-version: "1.9"
+version: "1.10"
 status: draft
 producer: product-owner
 timestamp: 2026-04-14T07:00:00
@@ -41,6 +41,7 @@ restricted_symbols:
     - prism_query::security::ParseLimits::install_thread_local
     - prism_query::security::ParseLimits::clear_thread_local
     - prism_query::security::ParseLimits::current_regex_limit
+    - prism_query::security::ParseLimits::snapshot
 ---
 
 # BC-2.11.006: Query Security Limits Enforcement
@@ -67,7 +68,9 @@ This BC defines the complete set of security limits that constitute DI-019. Seve
 
   > **Note:** `build_filter_parser` (filter_parser.rs:366) and `build_sql_parser` (sql_parser.rs:158) are NOT listed above because they are private (`fn`, not `pub(crate)` or `pub`). They are inaccessible by Rust visibility regardless of perimeter enforcement. If a future story promotes either to `pub(crate)`, BC-2.11.006 must be amended to add it to the `restricted_symbols` list.
 
-  > **Note (`*_with_limits` variants):** The `*_with_limits` variants (`parse_filter_with_limits`, `parse_sql_with_limits`, `parse_pipe_with_limits`) are listed in `restricted_symbols` because they accept a pre-snapshotted `ParseLimits` and apply guards using it. They are de-facto private because `ParseLimits` cannot be externally constructed (its fields are `pub(crate)`), but they are enumerated here for completeness and to ensure visibility regression detection if `ParseLimits` ever becomes externally constructible.
+  > **Note (`*_with_limits` variants and `ParseLimits::snapshot`):** The `*_with_limits` variants (`parse_filter_with_limits`, `parse_sql_with_limits`, `parse_pipe_with_limits`) are listed in `restricted_symbols` because they accept a pre-snapshotted `ParseLimits` and apply guards using it. They are de-facto private because `ParseLimits` cannot be externally constructed (its fields are `pub(crate)`), but they are enumerated here for completeness and to ensure visibility regression detection if `ParseLimits` ever becomes externally constructible.
+  >
+  > The `ParseLimits::snapshot` constructor is `pub(crate)` because it's the only sanctioned way to materialize a `ParseLimits` instance. External callers cannot construct `ParseLimits` (its fields are `pub(crate)`); they cannot call `snapshot()` either. Both protections are required because if `ParseLimits` ever became externally constructible (e.g., via `Default::default()` or a public field), `snapshot` would be a usability bypass into the `*_with_limits` paths. Listed in `restricted_symbols` for defence-in-depth and future-proofing.
 
   **Enforcement layers:**
   1. **Rust visibility (primary):** All sub-parsers and builder factories are `pub(crate)`. External crates referencing them produce a Rust visibility error during `cargo build`.
@@ -132,6 +135,7 @@ This BC defines the complete set of security limits that constitute DI-019. Seve
 
 | Version | Burst | Date | Author | Change |
 |---------|-------|------|--------|--------|
+| 1.10 | pass-8-remediation | 2026-05-05 | product-owner | F-HIGH-001 — added `ParseLimits::snapshot` to restricted_symbols (was already pub(crate) and listed in lib.rs perimeter docstring; missing from BC frontmatter caused docstring↔spec drift). Body note expanded to explain snapshot's role. PR-127 adversary pass-8 remediation. |
 | 1.9 | pass-7-remediation | 2026-05-05 | product-owner | F-LOW-004 — added 3 *_with_limits functions to restricted_symbols frontmatter (parse_filter_with_limits, parse_sql_with_limits, parse_pipe_with_limits). Body note explains de-facto-private rationale and future-proofing intent. PR-127 adversary pass-7 remediation. |
 | 1.8 | pass-6-remediation | 2026-05-05 | product-owner | F-MEDIUM-001 — added 4th enforcement layer (CI gate perimeter-compile-fail, now implemented). F-LOW-001 — footnote distinguishing private build_*_parser from pub(crate) ones. OBS-001 part — added structured `restricted_symbols:` frontmatter for machine-checkable perimeter validation. PR-127 adversary pass-6 remediation. |
 | 1.7 | pass-5-remediation | 2026-05-05 | product-owner | F-MEDIUM-001 — corrected clippy.toml enforcement claim (per-crate scope, not workspace-wide; cargo build does not run clippy). Layered enforcement now accurately described: Rust visibility (primary), clippy intra-crate (defence), api_surface test (CI). F-MEDIUM-002 — INV-SEC-PERIMETER-001 now cross-references DI-034 (lifted by business-analyst). L2 Invariants traceability updated: DI-019, DI-034. PR-127 adversary pass-5 remediation. |
