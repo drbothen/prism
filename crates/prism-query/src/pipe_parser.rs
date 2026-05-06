@@ -27,6 +27,8 @@ use crate::error::ParseError;
 use crate::error_recovery::{pipe_boundary_chars, rich_to_parse_error};
 use crate::filter_parser::{build_predicate_parser, build_source_ref_parser};
 use crate::security;
+use crate::write_ast::{WriteArg, WriteNode};
+use crate::write_verb_registry::WriteVerbRegistry;
 
 // ── Security re-export for convenient use in tests ────────────────────────────
 pub use security::PRISM_MAX_PIPE_STAGES;
@@ -514,4 +516,107 @@ pub(crate) fn build_pipe_parser<'a>(
         });
 
     choice((from_source_query, no_source_query, bare_source_query))
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// S-3.06 write-stage extensions (BC-2.11.004)
+// ─────────────────────────────────────────────────────────────────────────────
+
+/// Parse a pipe-mode query extended with an optional terminal write stage.
+///
+/// Grammar extension (BC-2.11.004, S-3.06):
+/// ```text
+/// pipe_pipeline = source_stage ("|" pipe_stage)* ("|" write_stage)?
+/// write_stage   = write_verb (write_arg)*
+/// write_verb    = <any verb registered in WriteVerbRegistry>
+/// write_arg     = identifier "=" literal
+/// ```
+///
+/// Rules enforced at parse time:
+/// - Write stage MUST be the final stage (EC-11-060): returns `E-QUERY-024`.
+/// - Unknown terminal identifier: returns `E-QUERY-023` with suggestion list.
+/// - Filter mode is a separate parser; write verbs are hard-rejected there.
+///
+/// # Security perimeter (BC-2.11.006 INV-SEC-PERIMETER-001)
+/// This function is `pub(crate)` — callers outside `prism-query` must use
+/// `PrismQlParser::parse` exclusively.
+///
+/// # Implements BC-2.11.004 — Write Parser Extension
+#[cfg_attr(not(test), allow(dead_code))]
+pub(crate) fn parse_pipe_with_write(
+    _input: &str,
+    _registry: &WriteVerbRegistry,
+) -> Result<PipeQuery, Vec<ParseError>> {
+    todo!("S-3.06 — parse_pipe_with_write")
+}
+
+/// Build a Chumsky write-stage parser for a single pipe write stage.
+///
+/// Returns a parser for:
+/// `write_stage = write_verb (write_arg)*`
+///
+/// Uses `choice()` over a collected iterator of verb parsers (dynamic verb
+/// set from `WriteVerbRegistry::all_verbs()`). The verb set is a runtime
+/// value, not a compile-time literal — this is intentional (Story dev notes).
+///
+/// # Security perimeter (BC-2.11.006 INV-SEC-PERIMETER-001)
+/// `pub(crate)` — never `pub`.
+///
+/// # Implements BC-2.11.004 — Write Parser Extension
+#[cfg_attr(not(test), allow(dead_code))]
+pub(crate) fn build_write_stage_parser<'a>(
+    _registry: &'a WriteVerbRegistry,
+) -> impl Parser<'a, &'a str, WriteNode, extra::Err<Rich<'a, char>>> + Clone + 'a {
+    todo!("S-3.06 — build_write_stage_parser");
+    // Unreachable after todo!() — satisfies return-type requirement at compile time.
+    #[allow(unreachable_code)]
+    {
+        // Placeholder that type-checks: returns a parser that never matches.
+        // The real implementation will use choice() over registry.all_verbs().
+        any().filter(|_| false).map(|_: char| WriteNode {
+            verb: String::new(),
+            args: vec![],
+            source_sensor: None,
+        })
+    }
+}
+
+/// Build a Chumsky write-argument parser: `identifier "=" literal`.
+///
+/// # Security perimeter (BC-2.11.006 INV-SEC-PERIMETER-001)
+/// `pub(crate)` — never `pub`.
+///
+/// # Implements BC-2.11.004 — Write Parser Extension
+#[cfg_attr(not(test), allow(dead_code))]
+pub(crate) fn build_write_arg_parser<'a>(
+) -> impl Parser<'a, &'a str, WriteArg, extra::Err<Rich<'a, char>>> + Clone {
+    todo!("S-3.06 — build_write_arg_parser");
+    // Unreachable after todo!() — satisfies return-type requirement at compile time.
+    #[allow(unreachable_code)]
+    {
+        use crate::ast::Literal;
+        // Placeholder: parser that never matches.
+        any().filter(|_| false).map(|_: char| WriteArg {
+            key: String::new(),
+            value: Literal::Null,
+        })
+    }
+}
+
+#[cfg_attr(not(test), allow(dead_code))]
+/// Extract the sensor prefix from a `SourceRef.raw` string.
+///
+/// Splits on `_` or `.` and returns the first segment, e.g.:
+/// - `"crowdstrike_hosts"` → `Some("crowdstrike")`
+/// - `"crowdstrike.hosts"` → `Some("crowdstrike")`
+/// - `""` or `"hosts"` (no separator) → `None`
+///
+/// Used to populate `WriteNode.source_sensor` at parse time.
+///
+/// # Security perimeter (BC-2.11.006 INV-SEC-PERIMETER-001)
+/// `pub(crate)` — never `pub`.
+///
+/// # Implements BC-2.11.004 — Write Parser Extension
+pub(crate) fn extract_sensor_prefix(_source_raw: &str) -> Option<String> {
+    todo!("S-3.06 — extract_sensor_prefix")
 }

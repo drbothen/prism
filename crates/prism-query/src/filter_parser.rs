@@ -27,6 +27,7 @@ use crate::error::ParseError;
 use crate::error_recovery::rich_to_parse_error;
 use crate::pipe_parser::build_pipe_parser;
 use crate::security;
+use crate::write_verb_registry::WriteVerbRegistry;
 
 /// RAII guard that clears the thread-local `ParseLimits` snapshot when dropped.
 ///
@@ -1116,4 +1117,32 @@ pub(crate) fn build_expr_parser<'a>(
 pub(crate) fn build_pipe_mode_parser<'a>(
 ) -> impl Parser<'a, &'a str, PipeQuery, extra::Err<Rich<'a, char>>> {
     build_pipe_parser()
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// S-3.06 filter-mode write rejection (BC-2.11.004)
+// ─────────────────────────────────────────────────────────────────────────────
+
+/// Validate that a filter-mode query does not contain write verb tokens.
+///
+/// Filter mode is permanently read-only. This check is a grammar-level hard
+/// rejection (BC-2.11.004, EC-11-064), not a semantic check — it fires
+/// regardless of whether the verb would resolve to a valid write endpoint.
+///
+/// Returns `Err(Vec<ParseError>)` if any write verb token is detected in the
+/// filter input; `Ok(())` if the input is clean.
+///
+/// Called by `parse_filter_with_limits` after mode detection confirms filter
+/// mode and before the predicate parser runs.
+///
+/// # Security perimeter (BC-2.11.006 INV-SEC-PERIMETER-001)
+/// `pub(crate)` — never `pub`.
+///
+/// # Implements BC-2.11.004 — Write Parser Extension
+#[cfg_attr(not(test), allow(dead_code))]
+pub(crate) fn reject_write_verbs_in_filter(
+    _input: &str,
+    _registry: &WriteVerbRegistry,
+) -> Result<(), Vec<ParseError>> {
+    todo!("S-3.06 — reject_write_verbs_in_filter")
 }

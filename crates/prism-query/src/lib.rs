@@ -3,6 +3,8 @@
 //! Created in S-2.08 with the pure-data `_source_type` virtual field injection
 //! function. S-3.01 adds the PrismQL parser (filter/SQL/pipe modes via Chumsky 0.12).
 //! S-3.02 extends this crate with the DataFusion `TableProvider` integration.
+//! S-3.06 extends the parser with write-mode productions (pipe terminal write stages,
+//! SQL DML statements, filter-mode write rejection).
 //!
 //! # Architecture Compliance (S-2.08)
 //! This crate MUST NOT depend on DataFusion, Arrow, `arrow-schema`, or `arrow2`.
@@ -13,11 +15,18 @@
 //! Parser modules MUST NOT import from `prism-sensors`, `prism-mcp`, or any I/O
 //! crate. Parsing is a pure function: `&str -> Result<Ast, Vec<ParseError>>`.
 //!
+//! # Architecture Compliance (S-3.06)
+//! Write parser extensions are pure: `WriteVerbRegistry` is initialized once before
+//! parse calls and is immutable during parsing — no `WriteEndpointRegistry` I/O
+//! during a parse call (BC-2.11.004 purity rule).
+//!
 //! # Modules
 //! - [`types`]                — `SensorQueryDescriptor` struct (table routing context, S-2.08)
 //! - [`materialization`]      — `inject_source_type()` pure-data virtual field injection (S-2.08)
 //! - [`org_scoped_session_id`] — org-scoped UUID v7 session ID generation for sensor pagination (S-3.2.08 / D-048)
 //! - [`ast`]                  — PrismQL AST types: `FilterExpr`, `SqlQuery`, `PipeQuery`, `Expr`, etc. (S-3.01)
+//! - [`write_ast`]            — Write mode AST types: `WriteNode`, `DmlNode`, `WriteArg`, `Assignment` (S-3.06)
+//! - [`write_verb_registry`]  — `WriteVerbRegistry` wrapping `WriteEndpointRegistry` or test `HashSet` (S-3.06)
 //! - [`error`]                — `ParseError` type and ariadne-based error formatting (S-3.01)
 //! - [`filter_parser`]        — filter mode parser: `source | predicate` (S-3.01 / BC-2.11.002)
 //! - [`sql_parser`]           — SQL mode parser: `SELECT … FROM … JOIN … WHERE …` (S-3.01 / BC-2.11.003)
@@ -39,6 +48,10 @@ pub mod pipe_parser;
 pub mod security;
 pub mod sql_parser;
 pub mod visit;
+
+// ── S-3.06 modules ────────────────────────────────────────────────────────────
+pub mod write_ast;
+pub mod write_verb_registry;
 
 // ── Kani proofs (cfg-gated; compile everywhere, run only under cargo kani) ────
 pub mod proofs;

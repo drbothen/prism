@@ -25,10 +25,14 @@ use crate::ast::{
     JoinKind, Literal, LogicalOp, OrderExpr, Predicate, ScalarFunc, SelectClause, SelectItem,
     SortDirection, Span, SqlQuery, SqlStatement,
 };
+use crate::write_ast::{DmlNode, DmlOperation};
+// S-3.06: Assignment is used by build_dml_parser (UPDATE SET col=val production)
 use crate::error::ParseError;
 use crate::error_recovery::{rich_to_parse_error, sql_paren_delimiters};
 use crate::filter_parser::{build_literal_parser, build_predicate_parser, build_source_ref_parser};
 use crate::security;
+#[allow(unused_imports)]
+use crate::write_ast::Assignment;
 
 /// SQL keywords that must not be consumed as aliases (canonical uppercase form).
 ///
@@ -796,4 +800,94 @@ fn build_sql_expr_parser<'a>(
             },
         )
     })
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// S-3.06 DML parser extensions (BC-2.11.004)
+// ─────────────────────────────────────────────────────────────────────────────
+
+/// Parse a SQL-mode DML statement, returning `Ast::Sql(SqlStatement::Dml(DmlNode))`.
+///
+/// Accepts:
+/// - `INSERT INTO table_name (col_list) SELECT …`
+/// - `UPDATE table_name SET col = val [, col = val]* WHERE expr`
+/// - `DELETE FROM table_name WHERE expr`
+///
+/// Parse-time validation (BC-2.11.004):
+/// - `prism_*` target tables → `E-QUERY-010` ("Internal Prism table is write-protected")
+/// - `UPDATE`/`DELETE` without WHERE → `E-QUERY-022` (unbounded write)
+/// - `INSERT INTO … SELECT` without LIMIT or WHERE → `E-QUERY-022`
+///
+/// # Security perimeter (BC-2.11.006 INV-SEC-PERIMETER-001)
+/// This function is `pub(crate)` — never `pub`.
+///
+/// # Implements BC-2.11.004 — Write Parser Extension
+#[cfg_attr(not(test), allow(dead_code))]
+pub(crate) fn parse_sql_dml(_input: &str) -> Result<Ast, Vec<ParseError>> {
+    todo!("S-3.06 — parse_sql_dml")
+}
+
+/// Build the Chumsky DML parser.
+///
+/// Returns a parser for `INSERT INTO`, `UPDATE`, and `DELETE FROM` statements.
+/// The parser leverages DataFusion's DML token recognition where possible
+/// (Story dev notes) rather than re-implementing SQL tokenization.
+///
+/// Security checks (prism_* table guard, unbounded-write guard) are applied
+/// inside the `.map()` / `.try_map()` combinators of this parser, not as
+/// post-parse passes — they fire at grammar time.
+///
+/// # Security perimeter (BC-2.11.006 INV-SEC-PERIMETER-001)
+/// `pub(crate)` — never `pub`.
+///
+/// # Implements BC-2.11.004 — Write Parser Extension
+#[cfg_attr(not(test), allow(dead_code))]
+pub(crate) fn build_dml_parser<'a>(
+) -> impl Parser<'a, &'a str, DmlNode, extra::Err<Rich<'a, char>>> + Clone {
+    todo!("S-3.06 — build_dml_parser");
+    // Unreachable after todo!() — satisfies return-type requirement at compile time.
+    #[allow(unreachable_code)]
+    {
+        // Placeholder that type-checks: a parser that never matches.
+        any().filter(|_| false).map(|_: char| DmlNode {
+            operation: DmlOperation::Delete,
+            target_table: String::new(),
+            assignments: vec![],
+            filter: None,
+            source_select: None,
+        })
+    }
+}
+
+#[cfg_attr(not(test), allow(dead_code))]
+/// Check whether a target table name begins with the `prism_` prefix.
+///
+/// Returns `true` if the table is an internal Prism table (write-protected).
+/// Used by `build_dml_parser` to emit `E-QUERY-010` at parse time.
+///
+/// # Security perimeter (BC-2.11.006 INV-SEC-PERIMETER-001)
+/// `pub(crate)` — never `pub`.
+///
+/// # Implements BC-2.11.004 — Write Parser Extension
+pub(crate) fn is_internal_prism_table(_table_name: &str) -> bool {
+    todo!("S-3.06 — is_internal_prism_table")
+}
+
+#[cfg_attr(not(test), allow(dead_code))]
+/// Check whether a `DmlNode` would perform an unbounded write.
+///
+/// A write is unbounded when:
+/// - `UPDATE` or `DELETE FROM` has no WHERE clause.
+/// - `INSERT INTO … SELECT` has no LIMIT and no WHERE on the source SELECT.
+///
+/// Returns `Some(ParseError::unbounded_write(...))` if unbounded; `None` if safe.
+///
+/// Used inside `build_dml_parser` combinators to emit `E-QUERY-022`.
+///
+/// # Security perimeter (BC-2.11.006 INV-SEC-PERIMETER-001)
+/// `pub(crate)` — never `pub`.
+///
+/// # Implements BC-2.11.004 — Write Parser Extension
+pub(crate) fn check_unbounded_write(_node: &DmlNode, _offset: usize) -> Option<ParseError> {
+    todo!("S-3.06 — check_unbounded_write")
 }
