@@ -1208,6 +1208,81 @@ fn test_BC_2_11_004_visit_dml_node_visits_all_inner_nodes() {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
+// F-PR130-P4-MED-001: walk_pipe_query visits PipeQuery.write WriteNode
+// ─────────────────────────────────────────────────────────────────────────────
+
+/// Regression: before F-PR130-P4-MED-001, `walk_pipe_query` did not call
+/// `visit_write_node` — `PipeQuery.write` args were silently skipped.
+///
+/// A counting visitor must reach:
+/// - The pipe source field (1 field)
+/// - Each read-stage predicate field (1 field from `where id = '1'`)
+/// - The write-stage arg value literals (1 literal from `tag key="review"`)
+///
+/// Partial-fix regression of P1-MED-002: both DmlNode (SQL path) and
+/// WriteNode (pipe path) must be fully traversed by the visitor.
+#[test]
+fn test_BC_2_11_004_walk_pipe_query_visits_write_node_args() {
+    use crate::ast::{Ast, Literal};
+    use crate::filter_parser::PrismQlParser;
+    use crate::visit::{walk_ast, Visitor};
+
+    struct LiteralCollector {
+        literals: Vec<Literal>,
+    }
+
+    impl Visitor for LiteralCollector {
+        fn visit_literal(&mut self, l: &Literal) {
+            self.literals.push(l.clone());
+        }
+    }
+
+    // Parse: FROM crowdstrike_hosts | where severity = 'high' | tag key="review"
+    // This produces:
+    //   PipeQuery {
+    //     source: crowdstrike_hosts,
+    //     stages: [Where(Compare { field: severity, value: "high" })],
+    //     write: Some(WriteNode { verb: "tag", args: [WriteArg { key: "key", value: String("review") }] })
+    //   }
+    let registry = test_registry(&["tag"]);
+    let ast = PrismQlParser::parse_with_registry(
+        r#"FROM crowdstrike_hosts | where severity = 'high' | tag key="review""#,
+        &registry,
+    )
+    .expect("must parse: pipe query with write stage and args");
+
+    assert!(
+        matches!(ast, Ast::Pipe(_)),
+        "must produce Ast::Pipe, got: {:?}",
+        ast
+    );
+
+    let mut collector = LiteralCollector { literals: vec![] };
+    walk_ast(&mut collector, &ast);
+
+    // The visitor MUST have reached the write arg literal "review".
+    // Before the fix, collector.literals was empty because walk_pipe_query
+    // did not call visit_write_node.
+    assert!(
+        !collector.literals.is_empty(),
+        "F-PR130-P4-MED-001 regression: walk_pipe_query did not visit write-node arg literals; \
+         collector.literals is empty. walk_pipe_query must call visit_write_node."
+    );
+
+    // Verify the specific literal value from the write arg.
+    let has_review = collector
+        .literals
+        .iter()
+        .any(|l| matches!(l, Literal::String(s) if s == "review"));
+    assert!(
+        has_review,
+        "F-PR130-P4-MED-001: expected Literal::String('review') from write-arg to be visited; \
+         literals found: {:?}",
+        collector.literals
+    );
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
 // F-PR130-P1-MED-003: parse_with_registry branch coverage
 // ─────────────────────────────────────────────────────────────────────────────
 

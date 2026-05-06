@@ -39,7 +39,7 @@ use crate::ast::{
     OrderExpr, PipeQuery, PipeStage, Predicate, SelectClause, SelectItem, SortExpr, SqlQuery,
     SqlStatement, StatsStage, VirtualField,
 };
-use crate::write_ast::DmlNode;
+use crate::write_ast::{DmlNode, WriteNode};
 
 /// AST visitor trait.
 ///
@@ -59,6 +59,13 @@ pub trait Visitor {
     /// Visit a DML AST node (INSERT/UPDATE/DELETE). (F-PR130-P1-MED-002, S-3.06)
     fn visit_dml_node(&mut self, node: &DmlNode) {
         walk_dml_node(self, node);
+    }
+    /// Visit a pipe-mode write node (verb + args). (F-PR130-P4-MED-001, S-3.06)
+    ///
+    /// Default walks `WriteArg.value` literals for all args. Override to stop
+    /// early (e.g. security scanners that only need the verb string).
+    fn visit_write_node(&mut self, node: &WriteNode) {
+        walk_write_node(self, node);
     }
     fn visit_sql_query(&mut self, q: &SqlQuery) {
         walk_sql_query(self, q);
@@ -194,6 +201,25 @@ pub fn walk_pipe_query<V: Visitor + ?Sized>(v: &mut V, q: &PipeQuery) {
     v.visit_field(&q.source.as_field_path());
     for stage in &q.stages {
         v.visit_pipe_stage(stage);
+    }
+    // F-PR130-P4-MED-001: visit the terminal write node when present.
+    // Sibling case to P1-MED-002 (DmlNode in SqlStatement): PipeQuery.write
+    // contains WriteArg.value Literals that must be reachable by visitors.
+    if let Some(write) = &q.write {
+        v.visit_write_node(write);
+    }
+}
+
+/// Walk a `WriteNode`, visiting the `value` literal of every `WriteArg`.
+/// (F-PR130-P4-MED-001, S-3.06)
+///
+/// Visitors that inspect write-stage arguments (security scanners, field
+/// collectors, fuzz harnesses) will now reach all `Literal` values inside
+/// a pipe-mode write stage automatically. Override `visit_write_node` to
+/// stop traversal early (e.g. to capture only the verb string).
+pub fn walk_write_node<V: Visitor + ?Sized>(visitor: &mut V, node: &WriteNode) {
+    for arg in &node.args {
+        visitor.visit_literal(&arg.value);
     }
 }
 
