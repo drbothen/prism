@@ -18,7 +18,9 @@
 
 // Note: Tests are cfg(test) module members (pub(crate) access to internals).
 
-#[allow(clippy::unwrap_used)]
+// Red Gate stub module: imports are referenced by todo!() bodies that never
+// execute. Unused-import warnings are expected and suppressed here.
+#[allow(clippy::unwrap_used, unused_imports)]
 #[cfg(test)]
 mod tests {
     use std::sync::Arc;

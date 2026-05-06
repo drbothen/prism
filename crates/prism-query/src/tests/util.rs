@@ -35,6 +35,10 @@
 ///     });
 /// }
 /// ```
+// `expect` is intentional here: in a test helper, panic on failure is the
+// correct behavior. `clippy::expect-used` is suppressed per project convention
+// for test utility code (the test infra must fail loudly on setup errors).
+#[allow(clippy::expect_used)]
 pub(crate) fn run_with_deep_stack<F>(f: F)
 where
     F: FnOnce() + Send + 'static,
