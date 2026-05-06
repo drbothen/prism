@@ -60,7 +60,9 @@ pub mod tests;
 // Authoritative source: BC-2.11.006 frontmatter `restricted_symbols`.
 //
 // Sub-parsers:
-//   `parse_filter`, `parse_sql`, `parse_pipe`
+//   `parse_filter`, `parse_filter_with_limits`
+//   `parse_sql`, `parse_sql_with_limits`
+//   `parse_pipe`, `parse_pipe_with_limits`
 //
 // Parser-builder factories:
 //   `build_predicate_parser`, `build_source_ref_parser`,
