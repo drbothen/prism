@@ -987,17 +987,18 @@ fn build_delete_parser<'a>() -> impl Parser<'a, &'a str, DmlNode, extra::Err<Ric
                 }
             })
     };
-    let where_present = kw_ci("WHERE")
+    // Parse WHERE clause and preserve the actual predicate.
+    // Previously discarded with `|_|` (F-PR130-SEC-003 fix).
+    let where_clause = kw_ci("WHERE")
         .padded()
         .ignore_then(predicate.padded())
-        .or_not()
-        .map(|p| p.map(|_| crate::ast::Expr::Literal(crate::ast::Literal::Bool(true))));
+        .or_not();
 
     kw_ci("DELETE")
         .padded()
         .ignore_then(kw_ci("FROM").padded())
         .ignore_then(ident.padded())
-        .then(where_present)
+        .then(where_clause)
         .try_map(|(table, filter), span| {
             if is_internal_prism_table(&table) {
                 return Err(Rich::custom(
@@ -1056,11 +1057,12 @@ fn build_update_parser<'a>() -> impl Parser<'a, &'a str, DmlNode, extra::Err<Ric
                 }
             })
     };
-    let where_present = kw_ci("WHERE")
+    // Parse WHERE clause and preserve the actual predicate.
+    // Previously discarded with `|_|` (F-PR130-SEC-003 fix).
+    let where_clause = kw_ci("WHERE")
         .padded()
         .ignore_then(predicate.padded())
-        .or_not()
-        .map(|p| p.map(|_| crate::ast::Expr::Literal(crate::ast::Literal::Bool(true))));
+        .or_not();
 
     let assign_value = choice((
         literal.map(crate::ast::Expr::Literal),
@@ -1090,7 +1092,7 @@ fn build_update_parser<'a>() -> impl Parser<'a, &'a str, DmlNode, extra::Err<Ric
                 .at_least(1)
                 .collect::<Vec<_>>(),
         )
-        .then(where_present)
+        .then(where_clause)
         .try_map(|((table, assignments), filter), span| {
             if is_internal_prism_table(&table) {
                 return Err(Rich::custom(

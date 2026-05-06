@@ -15,7 +15,7 @@
 
 use serde::{Deserialize, Serialize};
 
-use crate::ast::{Expr, Literal, SqlQuery};
+use crate::ast::{Expr, Literal, Predicate, SqlQuery};
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Pipe mode write AST
@@ -119,7 +119,11 @@ pub struct DmlNode {
     /// WHERE clause predicate for `UPDATE` / `DELETE`.
     /// `None` for `INSERT INTO`; required (enforced at parse time) for
     /// `UPDATE` and `DELETE`.
-    pub filter: Option<Expr>,
+    ///
+    /// Carries the ACTUAL parsed predicate — not a sentinel. S-3.07 can
+    /// evaluate this directly to enforce bounded-write semantics at execution
+    /// time (F-PR130-SEC-003).
+    pub filter: Option<Predicate>,
     /// Source SELECT query for `INSERT INTO … SELECT …`.
     /// `None` for `UPDATE` and `DELETE`.
     pub source_select: Option<SqlQuery>,

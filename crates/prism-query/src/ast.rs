@@ -75,7 +75,13 @@ pub struct FilterExpr {
 /// S-3.06 adds `Dml(DmlNode)` for `INSERT INTO`, `UPDATE`, `DELETE`.
 ///
 /// # Implements BC-2.11.004 — Write Parser Extension (S-3.06)
+///
+/// # Size note
+/// `Select(SqlQuery)` (~536 bytes) is larger than `Dml(DmlNode)`.
+/// The lint is suppressed because introducing indirection (boxing) on `Select`
+/// would break ergonomic match patterns throughout the codebase.
 #[non_exhaustive]
+#[allow(clippy::large_enum_variant)]
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum SqlStatement {
     /// A `SELECT` query.

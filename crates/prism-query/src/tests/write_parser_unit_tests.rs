@@ -290,10 +290,11 @@ fn test_BC_2_11_004_check_unbounded_write_update_no_where() {
 /// DELETE WITH filter → None (safe; no error).
 #[test]
 fn test_BC_2_11_004_check_unbounded_write_delete_with_where_is_safe() {
-    use crate::ast::{CompareOp, Expr, FieldPath, Literal};
+    use crate::ast::{CompareOp, Expr, FieldPath, Literal, Predicate};
     use crate::sql_parser::check_unbounded_write;
     use crate::write_ast::{DmlNode, DmlOperation};
-    let filter = Expr::Compare {
+    // filter is now Option<Predicate> (F-PR130-SEC-003 fix).
+    let filter = Predicate::Compare {
         lhs: Box::new(Expr::Field(FieldPath::new(["device_id"]))),
         op: CompareOp::Eq,
         rhs: Box::new(Expr::Literal(Literal::String("abc".to_string()))),
@@ -888,5 +889,95 @@ fn test_BC_2_11_004_PrismQlParser_parse_dml_limits_forwarded_safe_query_accepted
     assert!(
         matches!(result.unwrap(), Ast::Sql(_)),
         "must produce Ast::Sql"
+    );
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// F-PR130-SEC-003: DmlNode.filter preserves actual WHERE predicate
+// ─────────────────────────────────────────────────────────────────────────────
+
+/// `DELETE FROM t WHERE id = '1'` must produce `filter = Some(Predicate::Compare {...})`
+/// with the actual parsed predicate — NOT `Expr::Literal(Bool(true))` sentinel.
+/// Regression test for F-PR130-SEC-003.
+#[test]
+fn test_BC_2_11_004_delete_filter_preserves_actual_predicate() {
+    use crate::ast::{Ast, CompareOp, Expr, FieldPath, Literal, Predicate, SqlStatement};
+    use crate::sql_parser::parse_sql_dml;
+    use crate::write_ast::DmlOperation;
+
+    let result = parse_sql_dml("DELETE FROM armis_device_tags WHERE device_id = '123'");
+    assert!(result.is_ok(), "must parse: {:?}", result);
+    match result.unwrap() {
+        Ast::Sql(SqlStatement::Dml(node)) => {
+            assert_eq!(node.operation, DmlOperation::Delete);
+            let filter = node.filter.as_ref().expect("filter must be Some");
+            // Must NOT be the Bool(true) sentinel — must be an actual predicate.
+            // The parsed predicate for `device_id = '123'` is Predicate::Compare.
+            match filter {
+                Predicate::Compare { lhs, op, rhs } => {
+                    assert!(
+                        matches!(op, CompareOp::Eq),
+                        "expected Eq compare op, got: {:?}",
+                        op
+                    );
+                    // lhs is the field reference, rhs is the string literal.
+                    assert!(
+                        matches!(lhs.as_ref(), Expr::Field(_)),
+                        "lhs must be Expr::Field, got: {:?}",
+                        lhs
+                    );
+                    assert!(
+                        matches!(rhs.as_ref(), Expr::Literal(Literal::String(s)) if s == "123"),
+                        "rhs must be Literal::String('123'), got: {:?}",
+                        rhs
+                    );
+                }
+                other => panic!("expected Predicate::Compare, got: {:?}", other),
+            }
+        }
+        other => panic!("expected Dml(Delete), got: {:?}", other),
+    }
+}
+
+/// `UPDATE t SET x = 1 WHERE id = '1'` must produce `filter = Some(Predicate::Compare {...})`.
+/// Regression test for F-PR130-SEC-003.
+#[test]
+fn test_BC_2_11_004_update_filter_preserves_actual_predicate() {
+    use crate::ast::{Ast, Predicate, SqlStatement};
+    use crate::sql_parser::parse_sql_dml;
+    use crate::write_ast::DmlOperation;
+
+    let result = parse_sql_dml("UPDATE armis_tags SET status = ok WHERE id = '1'");
+    assert!(result.is_ok(), "must parse: {:?}", result);
+    match result.unwrap() {
+        Ast::Sql(SqlStatement::Dml(node)) => {
+            assert_eq!(node.operation, DmlOperation::Update);
+            let filter = node.filter.as_ref().expect("filter must be Some");
+            assert!(
+                matches!(filter, Predicate::Compare { .. }),
+                "filter must be Predicate::Compare (not a sentinel), got: {:?}",
+                filter
+            );
+        }
+        other => panic!("expected Dml(Update), got: {:?}", other),
+    }
+}
+
+/// DELETE without WHERE must produce `filter = None` (no sentinel).
+#[test]
+fn test_BC_2_11_004_delete_no_where_filter_is_none() {
+    use crate::sql_parser::parse_sql_dml;
+
+    // DELETE without WHERE is rejected by E-QUERY-022 (unbounded write),
+    // so parse fails — filter is never set to a sentinel value.
+    let result = parse_sql_dml("DELETE FROM armis_device_tags");
+    assert!(
+        result.is_err(),
+        "DELETE without WHERE must fail with E-QUERY-022"
+    );
+    let msg = result.unwrap_err()[0].message.clone();
+    assert!(
+        msg.contains("E-QUERY-022"),
+        "expected E-QUERY-022, got: {msg}"
     );
 }
