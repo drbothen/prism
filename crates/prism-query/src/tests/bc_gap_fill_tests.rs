@@ -845,6 +845,49 @@ mod bc_gap_fill {
             );
         }
 
+        /// BC-2.11.006 CR-004: map_datafusion_memory_error parses used_mb from error message.
+        ///
+        /// When DataFusion reports "Failed to allocate NNN bytes for ...", used_mb should
+        /// reflect NNN / (1024*1024) rather than the limit.
+        #[test]
+        fn test_BC_2_11_006_cr004_used_mb_parsed_from_error_message() {
+            use datafusion::error::DataFusionError;
+            use prism_core::PrismError;
+
+            // DataFusion format: "Resources exhausted: Failed to allocate NNN bytes for ..."
+            let err = DataFusionError::ResourcesExhausted(
+                "Failed to allocate 209715201 bytes for sort".to_string(),
+            );
+            let mapped = map_datafusion_memory_error(err);
+            match mapped {
+                PrismError::QueryMemoryBudgetExceeded { used_mb, limit_mb } => {
+                    // 209715201 bytes / (1024*1024) = 200 MiB (integer division)
+                    assert_eq!(used_mb, 200, "parsed used_mb must reflect allocation size");
+                    assert_eq!(limit_mb, 200, "limit_mb must be the configured pool size");
+                }
+                other => panic!("expected QueryMemoryBudgetExceeded, got {:?}", other),
+            }
+        }
+
+        /// BC-2.11.006 CR-004: used_mb falls back to limit_mb when parse fails.
+        #[test]
+        fn test_BC_2_11_006_cr004_used_mb_fallback_when_message_has_no_byte_count() {
+            use datafusion::error::DataFusionError;
+            use prism_core::PrismError;
+
+            let err = DataFusionError::ResourcesExhausted("pool exhausted".to_string());
+            let mapped = map_datafusion_memory_error(err);
+            match mapped {
+                PrismError::QueryMemoryBudgetExceeded { used_mb, limit_mb } => {
+                    assert_eq!(
+                        used_mb, limit_mb,
+                        "used_mb must fall back to limit_mb when byte count cannot be parsed"
+                    );
+                }
+                other => panic!("expected QueryMemoryBudgetExceeded, got {:?}", other),
+            }
+        }
+
         /// BC-2.11.006 EC-004: Panic inside materialization → SessionScope drops.
         ///
         /// Verifies that `SessionScope` correctly drops the inner context.

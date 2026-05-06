@@ -76,16 +76,50 @@ pub fn build_session_context(pool_bytes: usize) -> Result<SessionContext, PrismE
 ///
 /// # BC-2.11.006
 /// Pool trips return E-QUERY-004 (memory budget exceeded).
+///
+/// # `used_mb` accuracy
+/// DataFusion formats `ResourcesExhausted` as:
+/// `"Resources exhausted: Failed to allocate NNN bytes for REASON"`
+/// This function attempts to parse `NNN` from the message and converts it to
+/// MiB. If parsing fails (message format changes or lacks a byte count), the
+/// function falls back to `limit_mb` as an upper-bound approximation. The
+/// `used_mb` field is therefore a best-effort estimate; exact at limit boundary
+/// when the parse fails.
 pub fn map_datafusion_memory_error(err: datafusion::error::DataFusionError) -> PrismError {
     use datafusion::error::DataFusionError;
     match &err {
-        DataFusionError::ResourcesExhausted(_) => PrismError::QueryMemoryBudgetExceeded {
-            limit_mb: (QUERY_MEMORY_POOL_BYTES / (1024 * 1024)) as u64,
-            // We don't know exact bytes used here; report limit as used to indicate overflow
-            used_mb: (QUERY_MEMORY_POOL_BYTES / (1024 * 1024)) as u64,
-        },
+        DataFusionError::ResourcesExhausted(msg) => {
+            let limit_mb = (QUERY_MEMORY_POOL_BYTES / (1024 * 1024)) as u64;
+            let used_mb = parse_bytes_from_error_msg(msg)
+                .map(|bytes| bytes / (1024 * 1024))
+                .unwrap_or(limit_mb);
+            PrismError::QueryMemoryBudgetExceeded { limit_mb, used_mb }
+        }
         _ => PrismError::QueryExecutionFailed {
             detail: err.to_string(),
         },
     }
+}
+
+/// Parse the first decimal integer followed by the word "bytes" from a
+/// DataFusion error message.
+///
+/// DataFusion formats allocation failures as:
+/// `"Resources exhausted: Failed to allocate NNN bytes for ..."`
+///
+/// Returns `None` if the expected pattern is not present.
+fn parse_bytes_from_error_msg(msg: &str) -> Option<u64> {
+    // Find "bytes" and walk backwards over digits to extract the preceding number.
+    let bytes_pos = msg.find(" bytes")?;
+    let before = &msg[..bytes_pos];
+    let digits: String = before
+        .chars()
+        .rev()
+        .take_while(|c| c.is_ascii_digit())
+        .collect();
+    if digits.is_empty() {
+        return None;
+    }
+    let reversed: String = digits.chars().rev().collect();
+    reversed.parse::<u64>().ok()
 }
