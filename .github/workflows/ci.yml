@@ -271,8 +271,14 @@ jobs:
     #
     # Adversary pass-5 OBS-003 [process-gap] remediation.
     # Adversary pass-7 F-HIGH-001/OBS-001 remediation.
+    # Pass-13 fix: timeout 3 → 7 min. Cold cargo build of prism-query +
+    # 24 transitive deps (chumsky, regex, ariadne, ipnet, ordered-float,
+    # chrono, serde, ...) reliably runs ~3m23s on standard ubuntu-latest
+    # runners, hitting the 3-min ceiling before the visibility check fires.
+    # 7-min ceiling provides margin for cold cache + slower runner pools
+    # while still failing fast on genuine hangs.
     runs-on: ubuntu-latest
-    timeout-minutes: 3
+    timeout-minutes: 7
     permissions:
       contents: read
     steps:
