@@ -2,11 +2,14 @@
 document_type: research-sidecar
 topic: rust-build-optimization-2026
 project: prism
+version: "1.1"
 audience: orchestrator, devops-engineer, dx-engineer, implementer
 producer: vsdd-factory:research-agent
 timestamp: 2026-05-05T00:00:00Z
 input_hash: prism-24-crate-workspace-macos-aarch64-2026-05-05
 status: complete
+changelog:
+  - "v1.1: F-MEDIUM-002 employer-name redaction (PR-127 adversary pass-9)"
 sources_consulted:
   - perplexity-sonar-deep-research-pre-existing-2026-05
   - context7:/websites/doc_rust-lang_cargo
@@ -379,7 +382,7 @@ Each question below is something the user should resolve with a `just timings` r
 
 1. **What fraction of the 5-minute cycle is rustc-frontend vs codegen vs linking vs test execution?** The diagnostic plan in §7 answers this. Expected (no source, training data): rustc-bound ~70–80%, link 10–15%, test execution 10–15% — but this is a guess.
 2. **Does the user's terminal currently appear in the Developer Tools list?** If yes, §3.1.1 is already in effect and explains why prism is "only" at 5 min rather than worse. If no, applying it will deliver the headline win.
-3. **MDM policy:** can the 1898 & Co MDM profile permit Developer Tools self-grant? Confirm with IT before relying on §3.1.1. (If MDM blocks, escalate as a request — 9-minute → 3-minute developer cycles is a strong business case.)
+3. **MDM policy:** can your organization's MDM profile permit Developer Tools self-grant? Confirm with IT before relying on §3.1.1. (If MDM blocks, escalate as a request — 9-minute → 3-minute developer cycles is a strong business case.)
 4. **Worktree count and concurrency:** how many worktrees does the user maintain in parallel and do they ever build simultaneously? If rare or never, the lack of shared `target/` is no concern. If frequent (e.g., 5 worktrees × concurrent CI-like runs), revisit hardlink schemes per Howard John's pattern.
 5. **Which subset of crates does TDD iterate on most?** If 80% of edits are in `prism-query` + `prism-mcp`, the inner loop discipline (§6.3) compounds; if edits are spread evenly across all 24 crates, less benefit.
 6. **Does `.cargo/config.toml` interact with per-crate `Cargo.toml` profile blocks?** Verify no in-crate `[profile.dev]` exists before adding the workspace `.cargo/config.toml`. (A `Grep` in the worktrees shows none currently.)
