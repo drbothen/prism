@@ -1,4 +1,4 @@
-//! BC-2.11.006 v1.7 §47 — Security Perimeter compile-fail test.
+//! BC-2.11.006 v1.8 BC-2.11.006 Postconditions: Security Perimeter — compile-fail test.
 //!
 //! This file intentionally uses symbols that are `pub(crate)` inside
 //! `prism-query` and MUST NOT be accessible to external crates.
@@ -9,12 +9,15 @@
 //! `perimeter-compile-fail` treats that as a security regression and
 //! blocks the merge (a sub-parser became accidentally public).
 //!
-//! Forbidden symbols (all `pub(crate)` in prism-query, BC-2.11.006 v1.7 §47):
+//! Forbidden symbols (all `pub(crate)` in prism-query, BC-2.11.006 Postconditions: Security Perimeter):
 //!
 //!   Sub-parser entry points:
-//!     - filter_parser::parse_filter    — filter mode sub-parser entry point
-//!     - sql_parser::parse_sql          — SQL mode sub-parser entry point
-//!     - pipe_parser::parse_pipe        — pipe mode sub-parser entry point
+//!     - filter_parser::parse_filter              — filter mode sub-parser entry point
+//!     - filter_parser::parse_filter_with_limits  — filter mode sub-parser (with limits ctx)
+//!     - sql_parser::parse_sql                    — SQL mode sub-parser entry point
+//!     - sql_parser::parse_sql_with_limits        — SQL mode sub-parser (with limits ctx)
+//!     - pipe_parser::parse_pipe                  — pipe mode sub-parser entry point
+//!     - pipe_parser::parse_pipe_with_limits      — pipe mode sub-parser (with limits ctx)
 //!
 //!   Builder factories (seven):
 //!     - filter_parser::build_predicate_parser  — predicate Chumsky builder
@@ -26,11 +29,14 @@
 //!     - pipe_parser::build_pipe_parser         — pipe Chumsky builder
 //!
 //!   Thread-local ParseLimits API (F-HIGH-002):
-//!     - security::ParseLimits — struct fields + install_thread_local are pub(crate).
+//!     - security::ParseLimits::install_thread_local — sets thread-local limits
+//!     - security::ParseLimits::clear_thread_local   — clears thread-local limits
+//!     - security::ParseLimits::current_regex_limit  — reads current regex limit
 //!       External callers cannot construct a ParseLimits with adversarial field
 //!       values (e.g., regex_pattern: usize::MAX) to bypass the regex length guard.
 //!
-//! Reference: adversary pass-5 OBS-003 [process-gap]; adversary pass-6 F-HIGH-001/F-HIGH-002.
+//! Reference: adversary pass-5 OBS-003 [process-gap]; adversary pass-6 F-HIGH-001/F-HIGH-002;
+//!            adversary pass-7 F-HIGH-001/F-MEDIUM-002.
 
 // ── Sub-parser entry points ──────────────────────────────────────────────────
 
@@ -38,13 +44,25 @@
 // Expected error: E0603 "function `parse_filter` is private"
 use prism_query::filter_parser::parse_filter;
 
+// `parse_filter_with_limits` is `pub(crate)` — forbidden from external crates.
+// Expected error: E0603 "function `parse_filter_with_limits` is private"
+use prism_query::filter_parser::parse_filter_with_limits;
+
 // `parse_sql` is `pub(crate)` — forbidden from external crates.
 // Expected error: E0603 "function `parse_sql` is private"
 use prism_query::sql_parser::parse_sql;
 
+// `parse_sql_with_limits` is `pub(crate)` — forbidden from external crates.
+// Expected error: E0603 "function `parse_sql_with_limits` is private"
+use prism_query::sql_parser::parse_sql_with_limits;
+
 // `parse_pipe` is `pub(crate)` — forbidden from external crates.
 // Expected error: E0603 "function `parse_pipe` is private"
 use prism_query::pipe_parser::parse_pipe;
+
+// `parse_pipe_with_limits` is `pub(crate)` — forbidden from external crates.
+// Expected error: E0603 "function `parse_pipe_with_limits` is private"
+use prism_query::pipe_parser::parse_pipe_with_limits;
 
 // ── Builder factories ────────────────────────────────────────────────────────
 
@@ -78,12 +96,9 @@ use prism_query::filter_parser::build_pipe_mode_parser;
 
 // ── Thread-local ParseLimits API (F-HIGH-002) ────────────────────────────────
 
-// `security::ParseLimits` — struct and its methods are `pub(crate)`.
+// `security::ParseLimits` — key methods are `pub(crate)`.
 // External callers CANNOT construct ParseLimits with adversarial values.
-// Expected error: E0603 on install_thread_local (private method)
-//
-// We import `ParseLimits` (the struct is pub, but fields + key methods are pub(crate))
-// and attempt to call install_thread_local — which is pub(crate).
+// We import `ParseLimits` and attempt to call pub(crate) methods.
 use prism_query::security::ParseLimits;
 
 fn main() {
@@ -91,8 +106,11 @@ fn main() {
     // to prevent the compiler from eliding the use statements via dead-code
     // elimination before the visibility check fires.
     let _ = parse_filter("host = \"example.com\"");
+    let _ = parse_filter_with_limits;
     let _ = parse_sql("SELECT * FROM crowdstrike");
+    let _ = parse_sql_with_limits;
     let _ = parse_pipe("crowdstrike | filter host = \"x\"");
+    let _ = parse_pipe_with_limits;
     let _ = build_pipe_parser();
     let _ = build_predicate_parser();
     let _ = build_source_ref_parser();
@@ -105,4 +123,9 @@ fn main() {
     // Expected error: E0624 "method `install_thread_local` is private"
     let limits = ParseLimits::snapshot();
     limits.install_thread_local();
+
+    // Pass-7 F-MEDIUM-002 — exercise each ParseLimits method individually so
+    // regressions to pub are caught even when sibling methods remain pub(crate).
+    let _ = ParseLimits::clear_thread_local();
+    let _ = ParseLimits::current_regex_limit();
 }

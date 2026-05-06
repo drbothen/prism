@@ -257,21 +257,32 @@ jobs:
           cd fuzz && cargo +nightly fuzz run vp021_parse_fuzz --target x86_64-unknown-linux-gnu -- -max_total_time=60 -max_len=65536
 
   perimeter-compile-fail:
-    name: Perimeter compile-fail check (BC-2.11.006 v1.7)
-    # BC-2.11.006 v1.7 postcondition: sub-parsers (parse_filter, parse_sql,
-    # parse_pipe, build_pipe_parser) are pub(crate) and MUST NOT be reachable
-    # from external crates. This job compiles a deliberate violator and asserts
-    # that `cargo check` fails with a Rust visibility error (E0603).
+    name: Perimeter compile-fail check (BC-2.11.006 v1.8)
+    # BC-2.11.006 v1.8 postcondition: sub-parsers (parse_filter, parse_sql,
+    # parse_pipe, build_pipe_parser, and all builder factories + ParseLimits
+    # methods) are pub(crate) and MUST NOT be reachable from external crates.
+    # This job compiles a deliberate violator and asserts that `cargo check`
+    # fails with a Rust visibility error (E0603/E0624) for EACH named symbol.
     #
-    # If the check exits 0, a sub-parser became accidentally public — block merge.
+    # Pass-7 F-HIGH-001: binary signal replaced with per-symbol assertion.
+    # A single-symbol regression (one symbol promoted to pub while siblings
+    # remain pub(crate)) is now detectable — siblings still produce E0603 but
+    # the regressed symbol's absence from the error list triggers a failure.
     #
     # Adversary pass-5 OBS-003 [process-gap] remediation.
+    # Adversary pass-7 F-HIGH-001/OBS-001 remediation.
     runs-on: ubuntu-latest
     timeout-minutes: 3
     permissions:
       contents: read
     steps:
-      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+      - name: Checkout feature branch (source code)
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+      - name: Checkout factory-artifacts branch (spec frontmatter)
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          ref: factory-artifacts
+          path: .factory-spec
       - uses: dtolnay/rust-toolchain@29eef336d9b2848a0b548edc03f92a220660cdb8 # stable
       - name: Install protoc (required by prost-build for prism-ocsf transitive dep)
         uses: arduino/setup-protoc@c65c819552d16ad3c9b72d9dfd5ba5237b9c906b # v3.0.0
@@ -281,7 +292,7 @@ jobs:
         with:
           cache-on-failure: true
           shared-key: perimeter-compile-fail
-      - name: Assert perimeter-violation fails to compile (visibility check)
+      - name: Assert perimeter-violation fails to compile with per-symbol E0603 checks
         run: |
           set -uo pipefail
           # Capture stderr+stdout separately from the exit code.
@@ -293,18 +304,143 @@ jobs:
             && CARGO_RC=0 || CARGO_RC=$?
           cat /tmp/perimeter-check.log
           if [ "${CARGO_RC}" -eq 0 ]; then
-            echo "::error::Perimeter compile-fail check FAILED — sub-parser is publicly accessible (security regression, BC-2.11.006 v1.7)"
-            echo "::error::One of parse_filter / parse_sql / parse_pipe / build_pipe_parser became pub. Revert the visibility change."
+            echo "::error::Perimeter compile-fail check FAILED — sub-parser is publicly accessible (security regression, BC-2.11.006 v1.8)"
+            echo "::error::All restricted symbols became pub. Revert the visibility changes."
             exit 1
           fi
-          # Verify the failure is specifically a Rust visibility error (E0603),
-          # not a dependency build failure or unrelated compilation error.
-          if ! grep -qE 'E0603|is private|visibility' /tmp/perimeter-check.log; then
-            echo "::error::Perimeter check failed for an unexpected reason (not a visibility error). Inspect the log above."
-            exit 1
-          fi
-          echo "Perimeter check passed: cargo check correctly failed with visibility error (E0603)."
-          grep -E 'E0603|is private' /tmp/perimeter-check.log || true
+          # Per-symbol assertion: parse cargo output and verify each restricted_symbol
+          # from BC-2.11.006 frontmatter appears in the E0603/E0624 error list.
+          # A single-symbol regression (one symbol promoted to pub while siblings
+          # remain private) will still produce a non-zero cargo exit but will be
+          # MISSING from the error list — this script catches that case.
+          python3 - << 'PYEOF'
+          import re, sys
+
+          SPEC_PATH = ".factory-spec/specs/behavioral-contracts/BC-2.11.006-query-security-limits.md"
+          LOG_PATH  = "/tmp/perimeter-check.log"
+
+          # --- Normalize spec symbols (same logic as perimeter-symbols-sync) ---
+          def normalize_to_use_path(sym):
+              parts = sym.split('::')
+              trim_to = len(parts)
+              for i in range(len(parts) - 1, 0, -1):
+                  if parts[i][0].isupper():
+                      break
+                  if parts[i - 1][0].isupper():
+                      trim_to = i
+                  else:
+                      break
+              return '::'.join(parts[:trim_to])
+
+          # --- Load restricted symbols from BC frontmatter ---
+          with open(SPEC_PATH) as f:
+              spec_content = f.read()
+
+          fm_match = re.match(r'^---\n(.*?)\n---', spec_content, re.DOTALL)
+          if not fm_match:
+              print(f"ERROR: No YAML frontmatter found in {SPEC_PATH}", file=sys.stderr)
+              sys.exit(1)
+          fm_text = fm_match.group(1)
+
+          symbols_match = re.search(
+              r'restricted_symbols:\s*\n(?:.*\n)*?  symbols:\s*\n((?:    - .+\n?)*)',
+              fm_text
+          )
+          if not symbols_match:
+              print("ERROR: restricted_symbols.symbols block not found in BC-2.11.006 frontmatter.", file=sys.stderr)
+              sys.exit(1)
+
+          raw_spec_symbols = [
+              line.strip().lstrip('- ')
+              for line in symbols_match.group(1).splitlines()
+              if line.strip().startswith('- ')
+          ]
+
+          # Build unique leaf names for each restricted symbol.
+          # For free functions: last path segment (e.g., parse_filter).
+          # For struct methods: last path segment of the full symbol (e.g., install_thread_local).
+          # For struct paths (after normalization collapse): last segment of the struct (e.g., ParseLimits).
+          # We check against BOTH the raw leaf (method name) and the struct name,
+          # because the cargo error may report either E0603 on the struct or E0624 on the method.
+          expected_leaf_names = set()
+          for sym in raw_spec_symbols:
+              parts = sym.split('::')
+              # Add the leaf symbol name (method or function)
+              expected_leaf_names.add(parts[-1])
+              # If the parent segment is PascalCase (struct method), also add the struct name
+              if len(parts) >= 2 and parts[-2][0].isupper():
+                  expected_leaf_names.add(parts[-2])
+
+          print(f"BC-2.11.006 restricted_symbols ({len(raw_spec_symbols)} entries):")
+          for s in raw_spec_symbols:
+              print(f"  {s}")
+          print(f"\nExpected error leaf names ({len(expected_leaf_names)}):")
+          for n in sorted(expected_leaf_names):
+              print(f"  {n}")
+
+          # --- Parse cargo output for E0603/E0624 errors ---
+          with open(LOG_PATH) as f:
+              log_content = f.read()
+
+          # Match patterns like:
+          #   error[E0603]: function `parse_filter` is private
+          #   error[E0624]: method `install_thread_local` is private
+          #   error[E0603]: struct `ParseLimits` is private
+          # Parse line-by-line to avoid multiline regex hazards from cargo's
+          # multi-line note sections that contain backtick-quoted symbol names.
+          found_names = set()
+          for line in log_content.splitlines():
+              m = re.match(r'error\[(?:E0603|E0624)\]:[^`]*`([^`]+)`.*(?:private|restricted)', line)
+              if m:
+                  found_names.add(m.group(1))
+
+          print(f"\nE0603/E0624 error symbols found in cargo output ({len(found_names)}):")
+          for n in sorted(found_names):
+              print(f"  {n}")
+
+          # --- Per-symbol assertion ---
+          # For each raw restricted symbol, check that its leaf name (or struct name
+          # for method entries) appears in the error output.
+          failures = []
+          for sym in raw_spec_symbols:
+              parts = sym.split('::')
+              leaf = parts[-1]
+              # For struct methods: the error may appear as the struct (E0603 on import)
+              # or as the method (E0624 on call). Accept either.
+              is_method = len(parts) >= 2 and parts[-2][0].isupper()
+              struct_name = parts[-2] if is_method else None
+
+              if leaf in found_names:
+                  print(f"  PASS  {sym}  (leaf: {leaf})")
+              elif struct_name and struct_name in found_names:
+                  print(f"  PASS  {sym}  (via struct: {struct_name})")
+              else:
+                  failures.append(sym)
+                  print(f"  FAIL  {sym}  (leaf '{leaf}' not in E0603/E0624 errors)")
+
+          print()
+          if failures:
+              for sym in failures:
+                  leaf = sym.split('::')[-1]
+                  print(
+                      f"::error::Symbol {sym} (leaf: {leaf}) did not produce an E0603/E0624 error "
+                      f"— it may have regressed to pub. Promotion to pub or removal from "
+                      f"BC restricted_symbols required.",
+                      file=sys.stderr
+                  )
+              print(
+                  f"\nPerimeter check FAILED: {len(failures)} of {len(raw_spec_symbols)} restricted symbols "
+                  f"did not appear in cargo error output.",
+                  file=sys.stderr
+              )
+              sys.exit(1)
+
+          print(
+              f"Perimeter check passed: all {len(raw_spec_symbols)} restricted symbols "
+              f"produced E0603/E0624 errors (cargo check correctly failed)."
+          )
+          sys.exit(0)
+          PYEOF
 
   perimeter-symbols-sync:
     name: Perimeter symbols sync check (BC-2.11.006 OBS-001)
