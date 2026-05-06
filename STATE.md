@@ -380,7 +380,7 @@ user_directive_persistent: "No pragmatic convergence. Fix all issues before buil
 | **Last Updated** | 2026-05-05 (D-238 pass-8 remediation — 1H+2M+4L+1OBS resolved; BC-2.11.006 v1.10 (17 restricted_symbols + ParseLimits::snapshot); lib.rs 6 sub-parsers; perimeter-symbols-sync lib.rs↔BC CI; DI-034 v1.5; research artifact filed; STATE v6.87) |
 | **Current Phase** | Phase 4.A — APPROVED + CONVERGED; Phase 4.B SUSPENDED — W3-FIRST pivot (D-223); S-3.01 PR #127 OPEN — pass-8 remediation COMPLETE; pass-9 next (1 of 3 needed) |
 | **Current Step** | Pass-8 adversary remediation COMPLETE (D-238) — 1H+2M+4L+1OBS all fixed; 280 tests; BC-2.11.006 v1.10 (17 entries); convergence window restart; pass-9 next |
-| **factory-artifacts HEAD** | `73a7c48e` |
+| **factory-artifacts HEAD** | `39808f1d` |
 
 ## Phase Progress
 
@@ -553,7 +553,7 @@ _Previous checkpoint (v6.86/D-236/D-237/pass-7) archived: [cycles/wave-4-operati
 
 **STATE v6.88. D-238 pass-8 adversary remediation complete. Stage 2 backfill D-239: factory-artifacts SHA e106a997 cited. 280 tests on S-3.01 branch (feature/S-3.01@fcc1838c). BC-2.11.006 v1.10 (ParseLimits::snapshot added; 17 restricted_symbols entries). lib.rs perimeter docstring expanded to all 6 sub-parsers. Perimeter-symbols-sync CI now validates lib.rs↔BC alignment. DI-034 v1.5 (per-symbol granular detection clause). Research artifact: .factory/research/build-optimization-2026.md filed. Convergence window restarting — pass-9 is 1 of 3 needed. develop HEAD: 3133710e.**
 
-develop HEAD: `3133710e` | factory-artifacts: `73a7c48e` (D-238 pass-8 remediation + D-239 Stage 2 backfill; canonical) | workspace tests: 2363 + 280 on S-3.01 branch | PRs merged: 126 | Open: #127
+develop HEAD: `3133710e` | factory-artifacts: `39808f1d` (D-238 pass-8 remediation + D-239 Stage 2 backfill; canonical) | workspace tests: 2363 + 280 on S-3.01 branch | PRs merged: 126 | Open: #127
 
 **D-238 (2026-05-05):** Pass-8 BLOCKED verdict — 1H+2M+4L+1OBS. Remediation: DevOps `cca6f550`: perimeter-symbols-sync extended to validate lib.rs↔BC alignment; ParseLimits::snapshot added to perimeter-violation CI; v1.8→v1.10 label sweep. Implementer #8 `fcc1838c`: lib.rs perimeter docstring expanded to all 6 sub-parsers (F-MEDIUM-001). product-owner: BC-2.11.006 v1.9→v1.10 (ParseLimits::snapshot in restricted_symbols; 17 entries). business-analyst: DI-034 layer 4 per-symbol granular detection clause + perimeter-symbols-sync companion; invariants.md v1.5; L2-INDEX v1.13. research-agent: build-optimization-2026.md research sidecar filed.
 
@@ -566,7 +566,7 @@ develop HEAD: `3133710e` | factory-artifacts: `73a7c48e` (D-238 pass-8 remediati
 - Tier-4 (parallel): S-3.07 (5pts) + S-3.10 (3pts) — final W3 core tier; Total: 39pts / 13 stories
 
 **NEXT ACTION:**
-- STEP 1: COMPLETE — D-238 Stage 1 (e106a997) + Stage 2 D-239 done; canonical factory-artifacts SHA 73a7c48e cited; STATE v6.88; SHA currency hook PASS
+- STEP 1: COMPLETE — D-238 Stage 1 (e106a997) + Stage 2 D-239 done; canonical factory-artifacts SHA 39808f1d cited; STATE v6.88; SHA currency hook PASS
 - STEP 2: Dispatch adversary pass-9 against feature/S-3.01@fcc1838c (convergence window 1 of 3)
 - STEP 3: If pass-9 CLEAN → pass-10 (2 of 3), then pass-11 (3 of 3) → convergence reached → merge PR #127
 - STEP 4 (post-merge): State-manager burst — flip S-3.01 status draft→merged; update wave-state.yaml
