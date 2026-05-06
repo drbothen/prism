@@ -41,7 +41,41 @@ use prism_credentials::{
 };
 use proptest::prelude::*;
 use secrecy::{ExposeSecret, SecretString};
+use std::sync::{
+    atomic::{AtomicU64, Ordering},
+    LazyLock,
+};
 use tempfile::TempDir;
+
+// ---------------------------------------------------------------------------
+// Shared fixtures for proptest (created once per test process)
+// ---------------------------------------------------------------------------
+
+/// Single TempDir shared across all proptest iterations.
+/// Each iteration gets its own isolated subdirectory via `case_workdir()`.
+static SHARED_TMP_ROOT: LazyLock<TempDir> =
+    LazyLock::new(|| TempDir::new().expect("create shared proptest tempdir root"));
+
+/// Single multi-thread tokio Runtime shared across all proptest iterations.
+/// `block_on` is reentrant — multiple sequential calls work correctly.
+static SHARED_RT: LazyLock<tokio::runtime::Runtime> = LazyLock::new(|| {
+    tokio::runtime::Builder::new_multi_thread()
+        .enable_all()
+        .build()
+        .expect("create shared proptest tokio runtime")
+});
+
+/// Monotonic counter used to generate unique subdirectory names.
+static CASE_COUNTER: AtomicU64 = AtomicU64::new(0);
+
+/// Returns a fresh, unique subdirectory under `SHARED_TMP_ROOT` for one
+/// proptest iteration.  Each call creates the directory before returning.
+fn case_workdir() -> std::path::PathBuf {
+    let case_id = CASE_COUNTER.fetch_add(1, Ordering::Relaxed);
+    let dir = SHARED_TMP_ROOT.path().join(format!("case-{case_id:08}"));
+    std::fs::create_dir(&dir).expect("create per-iteration case workdir");
+    dir
+}
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -869,9 +903,10 @@ fn test_BC_3_2_002_invariant_physical_isolation_by_namespace_prefix() {
 // Uses `proptest` to generate 1000+ random (org_a, org_b) pairs.
 //
 // NOTE: Because proptest is synchronous and `get_by_org`/`set_by_org` are
-// async, we build the tokio runtime inside the proptest body and run the
-// async ops synchronously via `block_on`. This is the standard pattern for
-// property-testing async code without an async proptest harness.
+// async, we drive the async ops via SHARED_RT.block_on (the runtime is a
+// LazyLock — created once per process, reused across all iterations). Each
+// iteration gets its own isolated filesystem subdirectory via case_workdir()
+// so cross-iteration state leakage is impossible.
 //
 // MUST FAIL: backend stubs panic.
 proptest! {
@@ -902,11 +937,16 @@ proptest! {
         let cred = creds[cred_idx % creds.len()];
         let name = cred_name(cred);
 
-        let dir = TempDir::new().unwrap();
-        let backend = make_backend(&dir);
+        // Use a unique subdirectory per iteration — isolates filesystem state.
+        // The shared TempDir root and Runtime are reused across iterations for
+        // performance (LazyLock — created once per test process).
+        let workdir = case_workdir();
+        let backend = EncryptedFileBackend::new(
+            workdir,
+            SecretString::new("test-passphrase-S-3.1.04".to_owned()),
+        );
 
-        let rt = tokio::runtime::Runtime::new().unwrap();
-        rt.block_on(async {
+        SHARED_RT.block_on(async {
             // Store under org_a.
             backend
                 .set_by_org(

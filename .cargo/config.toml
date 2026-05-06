@@ -34,6 +34,48 @@ debug = "line-tables-only"
 debug = false
 
 # -----------------------------------------------------------------------------
+# Crypto/compression hot-path: compile dependencies at opt-level 3 in dev.
+# -----------------------------------------------------------------------------
+# Rationale (research §3.1.2):
+#   The prism-credentials proptest suite runs Argon2id and AES-256-GCM per
+#   proptest iteration. At opt-level = 0 (Rust dev default), Argon2id takes
+#   ~1.3 s/iteration even with test params (m=256, t=1, p=1), making 1000
+#   cases take ~22 minutes. At opt-level = 3, these pure-compute crates are
+#   20–50× faster. The optimized binary is still a debug build — only the
+#   listed dependencies are optimized; application code retains opt-level 0
+#   for fast incremental recompilation.
+#
+# Measured speedup: 1.3 s/case → ~0.03–0.05 s/case (PR #127, 2026-05-06).
+# Crates selected: only the Argon2/AES-GCM crypto stack + their transitive
+# dependencies. Do not add crates here without a measured speedup justification.
+[profile.dev.package.argon2]
+opt-level = 3
+
+[profile.dev.package.aes-gcm]
+opt-level = 3
+
+[profile.dev.package.aes]
+opt-level = 3
+
+[profile.dev.package.cipher]
+opt-level = 3
+
+[profile.dev.package.ghash]
+opt-level = 3
+
+[profile.dev.package.polyval]
+opt-level = 3
+
+[profile.dev.package.password-hash]
+opt-level = 3
+
+[profile.dev.package.blake2]
+opt-level = 3
+
+[profile.dev.package.sha2]
+opt-level = 3
+
+# -----------------------------------------------------------------------------
 # Debugging profile: full debug info, opt-in via --profile debugging.
 # -----------------------------------------------------------------------------
 # When you actually need to step through a test with lldb, run:
