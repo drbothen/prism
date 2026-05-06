@@ -1,4 +1,4 @@
-//! BC-2.11.006 v1.10 — Security Perimeter compile-fail test.
+//! BC-2.11.006 v1.11 — Security Perimeter compile-fail test.
 //!
 //! This file intentionally uses symbols that are `pub(crate)` inside
 //! `prism-query` and MUST NOT be accessible to external crates.
@@ -36,8 +36,20 @@
 //!       External callers cannot construct a ParseLimits with adversarial field
 //!       values (e.g., regex_pattern: usize::MAX) to bypass the regex length guard.
 //!
+//!   S-3.06 write parser extensions (9 new restricted symbols, BC-2.11.006 v1.11):
+//!     - pipe_parser::parse_pipe_with_write    — pipe write-stage entry point
+//!     - pipe_parser::build_write_stage_parser — write-stage Chumsky builder
+//!     - pipe_parser::build_write_arg_parser   — write-arg Chumsky builder
+//!     - pipe_parser::extract_sensor_prefix    — sensor prefix extractor
+//!     - sql_parser::parse_sql_dml             — DML statement entry point
+//!     - sql_parser::build_dml_parser          — DML Chumsky builder (composite)
+//!     - sql_parser::is_internal_prism_table   — prism_* table guard
+//!     - sql_parser::check_unbounded_write     — unbounded write guard
+//!     - filter_parser::reject_write_verbs_in_filter — filter-mode write rejection
+//!
 //! Reference: adversary pass-5 OBS-003 [process-gap]; adversary pass-6 F-HIGH-001/F-HIGH-002;
-//!            adversary pass-7 F-HIGH-001/F-MEDIUM-002; adversary pass-8 F-HIGH-001/OBS-001.
+//!            adversary pass-7 F-HIGH-001/F-MEDIUM-002; adversary pass-8 F-HIGH-001/OBS-001;
+//!            S-3.06 BC-2.11.006 v1.11 INV-SEC-PERIMETER-001.
 
 // ── Sub-parser entry points ──────────────────────────────────────────────────
 
@@ -102,6 +114,44 @@ use prism_query::filter_parser::build_pipe_mode_parser;
 // We import `ParseLimits` and attempt to call pub(crate) methods.
 use prism_query::security::ParseLimits;
 
+// ── S-3.06 write parser extensions (BC-2.11.006 v1.11, INV-SEC-PERIMETER-001) ─
+
+// `parse_pipe_with_write` is `pub(crate)` — forbidden from external crates.
+// Expected error: E0603 "function `parse_pipe_with_write` is private"
+use prism_query::pipe_parser::parse_pipe_with_write;
+
+// `build_write_stage_parser` is `pub(crate)` — forbidden from external crates.
+// Expected error: E0603 "function `build_write_stage_parser` is private"
+use prism_query::pipe_parser::build_write_stage_parser;
+
+// `build_write_arg_parser` is `pub(crate)` — forbidden from external crates.
+// Expected error: E0603 "function `build_write_arg_parser` is private"
+use prism_query::pipe_parser::build_write_arg_parser;
+
+// `extract_sensor_prefix` is `pub(crate)` — forbidden from external crates.
+// Expected error: E0603 "function `extract_sensor_prefix` is private"
+use prism_query::pipe_parser::extract_sensor_prefix;
+
+// `parse_sql_dml` is `pub(crate)` — forbidden from external crates.
+// Expected error: E0603 "function `parse_sql_dml` is private"
+use prism_query::sql_parser::parse_sql_dml;
+
+// `build_dml_parser` is `pub(crate)` — forbidden from external crates.
+// Expected error: E0603 "function `build_dml_parser` is private"
+use prism_query::sql_parser::build_dml_parser;
+
+// `is_internal_prism_table` is `pub(crate)` — forbidden from external crates.
+// Expected error: E0603 "function `is_internal_prism_table` is private"
+use prism_query::sql_parser::is_internal_prism_table;
+
+// `check_unbounded_write` is `pub(crate)` — forbidden from external crates.
+// Expected error: E0603 "function `check_unbounded_write` is private"
+use prism_query::sql_parser::check_unbounded_write;
+
+// `reject_write_verbs_in_filter` is `pub(crate)` — forbidden from external crates.
+// Expected error: E0603 "function `reject_write_verbs_in_filter` is private"
+use prism_query::filter_parser::reject_write_verbs_in_filter;
+
 fn main() {
     // These calls are unreachable due to compile failure, but are written
     // to prevent the compiler from eliding the use statements via dead-code
@@ -134,4 +184,17 @@ fn main() {
     // regressions to pub are caught even when sibling methods remain pub(crate).
     let _ = ParseLimits::clear_thread_local;
     let _ = ParseLimits::current_regex_limit;
+
+    // S-3.06 write parser extensions — force visibility check.
+    // These lines are unreachable due to compile failure above, but reference
+    // the new symbols to ensure the compiler emits visibility errors for each.
+    let _ = parse_pipe_with_write;
+    let _ = build_write_stage_parser;
+    let _ = build_write_arg_parser;
+    let _ = extract_sensor_prefix;
+    let _ = parse_sql_dml;
+    let _ = build_dml_parser;
+    let _ = is_internal_prism_table;
+    let _ = check_unbounded_write;
+    let _ = reject_write_verbs_in_filter;
 }
