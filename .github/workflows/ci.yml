@@ -231,9 +231,23 @@ jobs:
     # VP-021: PrismQlParser never panics on arbitrary byte input.
     # 60s smoke run on every PR/push — catches regressions fast.
     # Full 30-min run lives in fuzz-nightly.yml (scheduled).
+    #
+    # Pass-13 fix: timeout 5 → 12 min. The 5-min ceiling did not account for
+    # cold-cache build cost. cargo-fuzz with libfuzzer + AddressSanitizer
+    # instrumentation rebuilds prism-query + 24 transitive deps from scratch
+    # under the sanitizer profile (separate cache namespace from the main
+    # build). Observed run 25420298915 was killed at 5m34s with rustc still
+    # compiling. Budget breakdown:
+    #   cargo-fuzz install:       ~30-60s
+    #   sanitizer-instrumented build (cold): ~3-5 min
+    #   60s fuzz run:             60s
+    #   cleanup + cache save:     ~30s
+    # Total worst-case: ~7 min. 12-min ceiling provides margin while still
+    # failing fast on hangs (e.g., a fuzz target that loops without
+    # producing crashes).
     needs: clippy
     runs-on: ubuntu-latest
-    timeout-minutes: 5
+    timeout-minutes: 12
     permissions:
       contents: read
     steps:
