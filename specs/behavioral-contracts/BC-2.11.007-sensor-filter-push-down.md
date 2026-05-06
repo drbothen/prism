@@ -1,7 +1,7 @@
 ---
 document_type: behavioral-contract
 level: L3
-version: "1.3"
+version: "1.4"
 status: draft
 producer: product-owner
 timestamp: 2026-04-14T07:00:00
@@ -31,7 +31,7 @@ extracted_from: ".factory/specs/prd.md"
 Push-down translates WHERE predicates from the PrismQL AST into sensor-native API filter syntax (CrowdStrike FQL, Cyberint JSON body, Claroty POST arrays, Armis AQL) to minimize data transferred from sensor APIs. Each adapter column declares a push-down capability option (REQUIRED/INDEX/ADDITIONAL/OPTIMIZED/DEFAULT); only REQUIRED, INDEX, and ADDITIONAL columns are pushed down. Predicates on OPTIMIZED/DEFAULT columns are post-filtered by DataFusion after materialization. Column pruning (passing `columns_used` to adapters that support field selection) further reduces payload. Push-down is an optimization only — query correctness is identical whether push-down occurs or not. REQUIRED columns enforce DI-021: queries that omit a REQUIRED column are rejected before any API calls.
 
 ## Preconditions
-- An PrismQL query has been parsed into an AST with WHERE predicates
+- A PrismQL query has been parsed into an AST with WHERE predicates
 - The QueryPlan is being constructed with resolved sensor targets
 
 ## Postconditions
@@ -74,11 +74,66 @@ The query planner tracks which columns are referenced in the query (SELECT list 
 - Adapters that do not support field selection ignore the set and return full records
 - Column pruning is an optimization only; it does not affect query correctness
 
+## REQUIRED Column Runtime Mechanism
+
+REQUIRED columns enforce DI-021: queries against a sensor must constrain at least one REQUIRED column in the WHERE clause, or be rejected with `E-QUERY-009` before any API calls.
+
+### Source of Truth
+
+The canonical `ColumnOptions::Required` type is defined in `crates/prism-core/src/column.rs` (exported as `prism_core::ColumnOptions`). This enum variant (`ColumnOptions::Required`) is the single source of truth for REQUIRED classification — not a hardcoded column-name list.
+
+Column options (including REQUIRED) are declared per-column in sensor spec TOML files using `options = ["REQUIRED"]` on `[[tables.columns]]` entries. The `prism-spec-engine` `SpecParser` parses these into `ColumnSpec.options: Vec<ColumnOptions>` (type `prism_spec_engine::spec_parser::ColumnSpec`).
+
+### Runtime Lookup Interface
+
+The query planner determines REQUIRED columns for a sensor at plan time by inspecting the loaded `ColumnSpec` entries from the active `ConfigSnapshot`:
+
+```
+ConfigSnapshot.sensor_specs[sensor_id]   // SensorSpec
+  -> .tables[*]                           // SensorTableDescriptor (prism-spec-engine types.rs)
+  -> .columns[*]                          // ColumnDef
+```
+
+For spec-parser-level detail (where options live):
+```
+SpecLoader::parse(toml) -> SensorSpec
+  -> .tables[*]           // TableSpec (prism_spec_engine::spec_parser::TableSpec)
+  -> .columns[*]          // ColumnSpec (prism_spec_engine::spec_parser::ColumnSpec)
+  -> .options             // Vec<ColumnOptions> — contains ColumnOptions::Required if declared
+```
+
+The query planner collects REQUIRED column names by filtering:
+```
+columns.iter()
+    .filter(|c| c.options.contains(&ColumnOptions::Required))
+    .map(|c| &c.name)
+```
+
+No hardcoded REQUIRED column name list exists in the query engine. The set of REQUIRED columns is fully spec-driven.
+
+### Canonical REQUIRED Column Names per Sensor (spec-driven, not hardcoded)
+
+REQUIRED column names are declared in `.sensor.toml` files, not hardcoded in query-engine code. The following are representative examples from existing sensor specs and test fixtures — implementers must read the actual loaded `ColumnSpec` at runtime:
+
+| Sensor | Example REQUIRED Columns | Notes |
+|--------|--------------------------|-------|
+| CrowdStrike | `detection_id`, `device_id` | Declared in `[[tables.columns]]` with `options = ["REQUIRED"]`; vary per table |
+| Cyberint | `customer_id` | Required for all Cyberint API calls; prevents cross-tenant data leakage |
+| Claroty xDome | `site_id` | Required to scope to a specific customer's Claroty instance |
+| Armis | `organizationId` | Armis API requires org scoping on every request |
+
+> **Important:** these are illustrative. The actual REQUIRED columns for any given sensor+table combination are determined exclusively by the `options = ["REQUIRED"]` declarations in that sensor's TOML spec file, read at load time by `SpecParser`. The test-writer should use spec fixtures that match production sensor specs, not assume a hardcoded name list.
+
+### Relationship to BC-2.11.011
+
+BC-2.11.011 (cross-client scoping) depends on REQUIRED column enforcement defined here. REQUIRED columns that encode client-scoping (e.g., `customer_id`, `organizationId`) are the push-down mechanism by which the query planner ensures no cross-client data leakage. The REQUIRED rejection (E-QUERY-009) fires before any API call, preventing unbounded scans that would return multi-client data. This is the primary DI-021 enforcement point and directly underpins the cross-client scoping invariant in BC-2.11.011.
+
 ## Invariants
 - Push-down is an optimization only; the query result must be identical whether or not push-down occurs
 - A predicate that cannot be pushed down is never silently dropped -- it is always applied as a post-filter
 - Time range push-down is always attempted (all initial sensors support time-based filtering; spec-driven sensors declare push-down support per column via `options: Index`)
 - Push-down filter translation produces a canonical form (sorted parameter keys, normalized timestamp ISO8601 format, lowercase string values where applicable) before the result is used as cache key input. This ensures that semantically equivalent push-down filters produce identical cache keys regardless of the original predicate ordering in the PrismQL query.
+- **INV-REQUIRED-SPECDRIVEN:** The set of REQUIRED columns for any sensor+table is determined exclusively by `ColumnOptions::Required` entries in the loaded `ColumnSpec`, not by any hardcoded name list in the query engine.
 
 ## Error Cases
 | Error | Condition | Behavior |
@@ -122,6 +177,7 @@ The query planner tracks which columns are referenced in the query (SELECT list 
 
 | Version | Burst | Date | Author | Change |
 |---------|-------|------|--------|--------|
+| 1.4 | pre-impl-amendments | 2026-05-06 | product-owner | AMENDMENT 3 — added REQUIRED Column Runtime Mechanism section: SoT is ColumnOptions::Required in prism-core/column.rs; lookup interface via ColumnSpec.options in spec-parser; no hardcoded column names; illustrative per-sensor examples; INV-REQUIRED-SPECDRIVEN invariant; relationship to BC-2.11.011 cross-client scoping. Resolves S-3.02 implementer blocker on REQUIRED column lookup. |
 | 1.3 | pass-73-fix | 2026-04-20 | state-manager | Deterministic changelog reorder: sorted all rows to descending version order (pass-73 bash script). |
 | 1.2 | pass-69-housekeeping | 2026-04-20 | product-owner | Normalized changelog schema to canonical 5-col schema. |
 | 1.1 | pre-build-sweep | 2026-04-20 | product-owner | Template-compliance sweep: added extracted_from/inputs/input-hash/traces_to frontmatter; added ## Description synthesized from body; added ## Canonical Test Vectors scaffolding; added ## Verification Properties cross-ref; added ## Changelog. |

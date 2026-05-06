@@ -1,7 +1,7 @@
 ---
 document_type: behavioral-contract
 level: L3
-version: "1.10"
+version: "1.12"
 status: draft
 producer: product-owner
 timestamp: 2026-04-14T07:00:00
@@ -42,6 +42,16 @@ restricted_symbols:
     - prism_query::security::ParseLimits::clear_thread_local
     - prism_query::security::ParseLimits::current_regex_limit
     - prism_query::security::ParseLimits::snapshot
+    # DI-034 layer 4: S-3.06 write-parser pub(crate) internals (v1.11)
+    - prism_query::pipe_parser::parse_pipe_with_write
+    - prism_query::pipe_parser::build_write_stage_parser
+    - prism_query::pipe_parser::build_write_arg_parser
+    - prism_query::pipe_parser::extract_sensor_prefix
+    - prism_query::sql_parser::parse_sql_dml
+    - prism_query::sql_parser::build_dml_parser
+    - prism_query::sql_parser::is_internal_prism_table
+    - prism_query::sql_parser::check_unbounded_write
+    - prism_query::filter_parser::reject_write_verbs_in_filter
 ---
 
 # BC-2.11.006: Query Security Limits Enforcement
@@ -85,14 +95,28 @@ This BC defines the complete set of security limits that constitute DI-019. Seve
 - **INV-SEC-PERIMETER-001 (lifts DI-034):** `prism-query` exposes only `PrismQlParser::parse` as a public security boundary. No sub-parser or parser-builder factory is accessible from outside the crate. Violation of this invariant allows callers to bypass one or more of the seven security guards, constituting a security defect. Cross-reference: `domain-spec/invariants.md#di-034-prism-query-security-perimeter`.
 
 ## Error Cases
+
+> **Canonical E-QUERY-NNN mapping (SoT: `crates/prism-core/src/error.rs` `PrismError` enum):**
+>
+> | Error Code | PrismError Variant | Condition |
+> |------------|-------------------|-----------|
+> | `E-QUERY-003` | `QueryExecutionFailed` | Parse-time structural limits (length, depth, pipe stages, regex) |
+> | `E-QUERY-004` | `QueryMemoryBudgetExceeded` | DataFusion GreedyMemoryPool exceeds 200MB per-query budget |
+> | `E-QUERY-005` | `QueryTimeout` | 30s wall-clock timeout |
+> | `E-QUERY-008` | `QueryDenylisted` | Query auto-denylisted after N consecutive watchdog terminations |
+>
+> Note: prior to v1.12, this table incorrectly swapped E-QUERY-004 (memory) and E-QUERY-005 (timeout).
+> The `PrismError` enum in `error.rs` is the single source of truth for code emission order.
+
 | Error | Condition | Behavior |
 |-------|-----------|----------|
 | `E-QUERY-003` | Query length exceeds 64KB | `"Query is {N} bytes (max 65536). Simplify the query or use aliases to reduce length."` |
 | `E-QUERY-003` | Nesting depth exceeds 64 | `"Query nesting depth is {N} (max 64). Reduce nested parentheses or boolean expressions."` |
 | `E-QUERY-003` | Pipe stages exceed 32 | `"Query has {N} pipe stages (max 32). Combine operations or simplify the pipeline."` |
-| `E-QUERY-005` | Materialized records exceed 10K (streaming counter) | `"Fetched {N} records (max 10000). Narrow by: time range, client, sensor, or severity."` |
-| `E-QUERY-004` | 30s timeout exceeded | `"Query timed out after 30s. Narrow scope to reduce execution time."` |
 | `E-QUERY-003` | Regex pattern exceeds 1024 bytes | `"Regex pattern is {N} bytes (max 1024). Simplify the pattern."` |
+| `E-QUERY-004` | DataFusion GreedyMemoryPool exceeds 200MB per-query limit | `PrismError::QueryMemoryBudgetExceeded { limit_mb: 200, used_mb }` — no partial results emitted; SessionContext dropped via RAII |
+| `E-QUERY-005` | 30s wall-clock timeout exceeded | `PrismError::QueryTimeout { elapsed_ms }` — `"query timed out after {elapsed_ms}ms"` — transient, retryable |
+| `E-QUERY-008` | Query auto-denylisted after N consecutive watchdog terminations | `PrismError::QueryDenylisted { failure_count, reason, expiry_ts }` — includes expiry timestamp and `force_execute` override hint |
 
 ## Edge Cases
 | ID | Description | Expected Behavior |
@@ -135,6 +159,8 @@ This BC defines the complete set of security limits that constitute DI-019. Seve
 
 | Version | Burst | Date | Author | Change |
 |---------|-------|------|--------|--------|
+| 1.12 | pre-impl-amendments | 2026-05-06 | product-owner | AMENDMENT 2 — error-code reconciliation: corrected E-QUERY-004/005 swap vs PrismError enum SoT. E-QUERY-004=QueryMemoryBudgetExceeded (200MB), E-QUERY-005=QueryTimeout (30s), E-QUERY-008=QueryDenylisted. Added canonical mapping table with SoT reference. Story S-3.02 AC-3/EC-002/EC-003 flag for follow-up (conflicting references remain in story body). |
+| 1.11 | pre-impl-amendments | 2026-05-06 | product-owner | AMENDMENT 1 — DI-034 layer-4: +9 restricted_symbols for S-3.06 write-parser pub(crate) internals (parse_pipe_with_write, build_write_stage_parser, build_write_arg_parser, extract_sensor_prefix in pipe_parser.rs; parse_sql_dml, build_dml_parser, is_internal_prism_table, check_unbounded_write in sql_parser.rs; reject_write_verbs_in_filter in filter_parser.rs). Verified symbols present as pub(crate) stubs in S-3.06 worktree commit cdcb4b38. |
 | 1.10 | pass-8-remediation | 2026-05-05 | product-owner | F-HIGH-001 — added `ParseLimits::snapshot` to restricted_symbols (was already pub(crate) and listed in lib.rs perimeter docstring; missing from BC frontmatter caused docstring↔spec drift). Body note expanded to explain snapshot's role. PR-127 adversary pass-8 remediation. |
 | 1.9 | pass-7-remediation | 2026-05-05 | product-owner | F-LOW-004 — added 3 *_with_limits functions to restricted_symbols frontmatter (parse_filter_with_limits, parse_sql_with_limits, parse_pipe_with_limits). Body note explains de-facto-private rationale and future-proofing intent. PR-127 adversary pass-7 remediation. |
 | 1.8 | pass-6-remediation | 2026-05-05 | product-owner | F-MEDIUM-001 — added 4th enforcement layer (CI gate perimeter-compile-fail, now implemented). F-LOW-001 — footnote distinguishing private build_*_parser from pub(crate) ones. OBS-001 part — added structured `restricted_symbols:` frontmatter for machine-checkable perimeter validation. PR-127 adversary pass-6 remediation. |
