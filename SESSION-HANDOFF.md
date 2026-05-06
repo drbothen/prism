@@ -169,15 +169,15 @@ factory-artifacts canonical: fd1213f7 (canonical SHA — D-226 S-3.01 implementa
 
 ## Current State
 
-develop HEAD `3133710e` | factory-artifacts `2c72efad` (canonical SHA — D-234 pass-6 remediation + D-235 Stage 2 backfill; STATE v6.84)
+develop HEAD `3133710e` | factory-artifacts `a25736ef` (canonical SHA — D-236 pass-7 remediation + D-237 Stage 2 backfill; STATE v6.86)
 
 | Metric | Value |
 |--------|-------|
 | develop HEAD | `3133710e` (rename PR #126 squash-merged 2026-05-05T03:19:10Z — crowdstrike_session→org_scoped_session_id) |
-| factory-artifacts HEAD | `2c72efad` (canonical SHA — D-234 pass-6 remediation + D-235 Stage 2 SHA backfill; STATE v6.84) |
-| PR count merged | 126 (PR #127 OPEN — S-3.01 PrismQL parser; feature/S-3.01@3cc42b9b) |
-| Workspace test count | 2363 + 260 on feature/S-3.01 branch |
-| Open PRs | PR #127 S-3.01 PrismQL parser — OPEN; pass-6 remediation COMPLETE; pass-7 next (1 of 3 needed for convergence window) |
+| factory-artifacts HEAD | `a25736ef` (canonical SHA — D-236 pass-7 remediation + D-237 Stage 2 SHA backfill; STATE v6.86) |
+| PR count merged | 126 (PR #127 OPEN — S-3.01 PrismQL parser; feature/S-3.01@d3276ac0) |
+| Workspace test count | 2363 + 280 on feature/S-3.01 branch |
+| Open PRs | PR #127 S-3.01 PrismQL parser — OPEN; pass-7 remediation COMPLETE; pass-8 next (1 of 3 needed for convergence window) |
 | Active worktrees | main (`develop`) + `.factory` (`factory-artifacts`) + `.worktrees/S-3.01/` (feature/S-3.01) |
 | Tech debt items | 57 active product items (70 prior − 13 VSDD items extracted); vsdd-plugin-tech-debt.md: 41 items v2.5 (TD-VSDD-055/056 added D-226) |
 | Wave 2 gate status | CONVERGED 2026-04-27 — Pass 9 CLEAN (3-clean-passes: P6+P8+P9) |

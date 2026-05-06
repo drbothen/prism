@@ -1,7 +1,7 @@
 ---
 document_type: pipeline-state
 level: ops
-version: "6.85"
+version: "6.86"
 producer: state-manager
 timestamp: 2026-05-05T00:00:00Z
 inputs: []
@@ -380,7 +380,7 @@ user_directive_persistent: "No pragmatic convergence. Fix all issues before buil
 | **Last Updated** | 2026-05-05 (D-236 pass-7 remediation — 1H+2M+4L+1OBS resolved; 260→280 tests; BC-2.11.006 v1.9 (13→16 restricted_symbols); per-symbol CI granularity; ThreadLocalGuard pub(crate); STATE v6.85) |
 | **Current Phase** | Phase 4.A — APPROVED + CONVERGED; Phase 4.B SUSPENDED — W3-FIRST pivot (D-223); S-3.01 PR #127 OPEN — pass-7 remediation COMPLETE; pass-8 next (1 of 3 needed) |
 | **Current Step** | Pass-7 adversary remediation COMPLETE (D-236) — 1H+2M+4L+1OBS all fixed; 280 tests; convergence window restart; pass-8 next |
-| **factory-artifacts HEAD** | `2c72efad` |
+| **factory-artifacts HEAD** | `a25736ef` |
 
 ## Phase Progress
 
@@ -431,6 +431,7 @@ _D-001..D-046 archived: [cycles/phase-3-dtu-wave-2/decisions-archive-d001-d032.m
 | D-227 | vsdd-factory plugin upgrade rc.9→rc.11 2026-05-05 — user invoked `/vsdd-factory:activate` to reactivate. Plugin version bumped from 1.0.0-rc.9 to 1.0.0-rc.11 on darwin-arm64. hooks.json variant + dispatcher binary applied from rc.11. settings.local.json updated. rc.11 includes 38 hook scripts (vs rc.9 set) including validation gates that have been producing factory-dispatcher PreToolUse hook tier-3 blocks on certain sub-agent dispatches (e.g., github-ops with merge commands). TD-VSDD-056 filed (P3): surface clearer block messages indicating WHICH tier matched and WHY. | vsdd-factory plugin upgraded 1.0.0-rc.9→1.0.0-rc.11; TD-VSDD-056 P3 observability gap filed | 4 | 2026-05-05 |
 | D-229 | Stage 2 backfill 2026-05-05 — cite factory-artifacts self-SHA bc2bf477 in STATE.md + SESSION-HANDOFF.md. Prior D-228 burst (bc2bf477) was Stage 1 only; STATE.md + HANDOFF.md still cited parent a6bb4682, blocking wave-gate-prerequisite hook. STATE v6.77→v6.78. factory-artifacts HEAD: a6bb4682→bc2bf477. HANDOFF.md factory-artifacts HEAD table row: a6bb4682→bc2bf477. Resolves SHA currency check FAILs. | STATE v6.78 — Stage 2 backfill: factory-artifacts self-SHA bc2bf477 cited; wave-gate-prerequisite hook SHA currency restored | 4 | 2026-05-05 |
 | D-231 | Stage 2 backfill 2026-05-05 — cite factory-artifacts self-SHA d33e2bcc (Stage 1) in STATE.md + SESSION-HANDOFF.md. Stage 1 burst (d33e2bcc) was the pass-4 remediation D-230 commit. STATE v6.79→v6.80. factory-artifacts HEAD: bc2bf477→d33e2bcc→91e6d65a (Stage 2 backfill)→fc1de833 (propagation sweep fixup). Canonical final SHA: fc1de833. Resolves SHA currency check FAILs. | STATE v6.80 — Stage 2 backfill chain complete; canonical factory-artifacts SHA fc1de833 | 4 | 2026-05-05 |
+| D-237 | Stage 2 backfill 2026-05-05 — cite factory-artifacts self-SHA a25736ef in STATE.md. Stage 1 burst (a25736ef) was the pass-7 remediation D-236 commit. STATE v6.85→v6.86. Resolves wave-gate-prerequisite SHA currency check. | STATE v6.86 — Stage 2 backfill: factory-artifacts self-SHA a25736ef cited | 4 | 2026-05-05 |
 | D-236 | PR-127 Adversary Pass-7 Remediation Complete 2026-05-05 — Pass-7 verdict: BLOCKED (1 HIGH, 2 MEDIUM, 4 LOW, 1 OBS). Architectural fix: per-symbol CI granularity replaces binary signal. Remediation: DevOps `b5d3c4fc`: perimeter-compile-fail script parses cargo output and asserts each restricted_symbol fires E0603/E0624 (single-symbol regression detectable). Runtime calls for clear_thread_local + current_regex_limit. v1.7 → v1.8 labels. Implementer #7 `d3276ac0`: F-MEDIUM-001 ThreadLocalGuard pub(crate) for production-guard test; F-LOW-003 lib.rs perimeter docstring expanded to all 16 symbols. product-owner: BC-2.11.006 v1.8→v1.9 (3 *_with_limits added to restricted_symbols, 13→16 entries; 11→14 normalized paths). feature/S-3.01 HEAD: `d3276ac0`. Test count: 260→280 (with new production-guard tests). Spec versions bumped: BC-2.11.006 v1.9, BC-INDEX v4.37. Convergence status: pass-3 clean; pass-4/5/6/7 BLOCKED. Window restart with pass-8 (1 of 3 needed). User signaled: try architectural fix once; if pass-8 blocks, continue protocol. | Pass-7 remediation COMPLETE — 1H+2M+4L+1OBS all fixed; 260→280 tests; BC-2.11.006 v1.9 (13→16 restricted_symbols); per-symbol CI granularity; pass-8 next (window restarting) | 4 | 2026-05-05 |
 | D-235 | Stage 2 backfill 2026-05-05 — cite factory-artifacts self-SHA 2c72efad in STATE.md + SESSION-HANDOFF.md. Stage 1 burst (2c72efad) was the pass-6 remediation D-234 commit. STATE v6.83->v6.84. Resolves wave-gate-prerequisite SHA currency check. | STATE v6.84 — Stage 2 backfill: factory-artifacts self-SHA 2c72efad cited | 4 | 2026-05-05 |
 | D-234 | PR-127 Adversary Pass-6 Remediation Complete 2026-05-05 — Pass-6 verdict: BLOCKED (2 HIGH, 2 MEDIUM, 1 LOW, 2 OBS). Remediation: DevOps `d7a53fd0`+`f6dfef85`: perimeter-symbols-sync CI job + struct-method normalization fix. Implementer #6 `3cc42b9b`: F-HIGH-001 perimeter test now imports 11 restricted symbols (was 4); F-HIGH-002 install_thread_local+ParseLimits fields demoted to pub(crate); F-MEDIUM-002 Drop guard for thread-local panic-safe cleanup; OBS-002 docs. product-owner: BC-2.11.006 v1.7→v1.8 (4th enforcement layer, restricted_symbols frontmatter 13 entries, private-builder footnote). business-analyst: DI-034 layer 4 updated (no longer "pending"); invariants.md v1.3→v1.4. feature/S-3.01 HEAD: `3cc42b9b`. Test count: 259→260 (new test_thread_local_cleared_on_panic). Spec versions bumped: BC-2.11.006 v1.8, BC-INDEX v4.36, invariants.md v1.4, L2-INDEX v1.12. Convergence status: pass-3 CLEAN; pass-4/5/6 BLOCKED. Convergence window restarting with pass-7 (1 of 3 needed). | Pass-6 remediation COMPLETE — 2H+2M+1L+2OBS all fixed; 260 tests; BC-2.11.006 v1.8 (4 layers); pass-7 next (window restarting) | 4 | 2026-05-05 |
@@ -544,13 +545,13 @@ _TD-VSDD-014..019, TD-W3-COMPLIANCE-001, TD-VSDD-025..029 archived to [tech-debt
 
 Cycle files: [burst-log](cycles/phase-2-patch/burst-log.md) | [convergence-trajectory](cycles/phase-2-patch/convergence-trajectory.md) | [session-checkpoints](cycles/phase-2-patch/session-checkpoints.md) | [lessons](cycles/phase-2-patch/lessons.md) | [resolved-blockers](cycles/phase-2-patch/blocking-issues-resolved.md)
 ---
-## Session Resume Checkpoint (2026-05-05-d236-pass7-remediation-complete-v6.85)
+## Session Resume Checkpoint (2026-05-05-d236-d237-pass7-remediation-complete-v6.86)
 
 _Previous checkpoint (v6.84/D-234/D-235) archived: [cycles/wave-4-operations/session-checkpoints.md](cycles/wave-4-operations/session-checkpoints.md)_
 
-**STATE v6.85. D-236 pass-7 adversary remediation complete. Stage 1 committed to factory-artifacts; Stage 2 backfill in progress. 280 tests on S-3.01 branch (feature/S-3.01@d3276ac0). BC-2.11.006 v1.9 (restricted_symbols 13→16 entries: 3 *_with_limits added). Per-symbol perimeter-compile-fail CI granularity (b5d3c4fc). ThreadLocalGuard promoted pub(crate) for production-guard test. lib.rs perimeter docstring expanded to all 16 symbols. Convergence window restarting — pass-8 is 1 of 3 needed. develop HEAD: 3133710e.**
+**STATE v6.86. D-236 pass-7 adversary remediation complete. Stage 2 backfill: factory-artifacts SHA a25736ef cited (D-237). 280 tests on S-3.01 branch (feature/S-3.01@d3276ac0). BC-2.11.006 v1.9 (restricted_symbols 13→16 entries: 3 *_with_limits added). Per-symbol perimeter-compile-fail CI granularity (b5d3c4fc). ThreadLocalGuard promoted pub(crate) for production-guard test. lib.rs perimeter docstring expanded to all 16 symbols. Convergence window restarting — pass-8 is 1 of 3 needed. develop HEAD: 3133710e.**
 
-develop HEAD: `3133710e` | factory-artifacts: `[STAGE1_SHA_PENDING]` (Stage 1 D-236 pass-7 remediation) | workspace tests: 2363 + 280 on S-3.01 branch | PRs merged: 126 | Open: #127
+develop HEAD: `3133710e` | factory-artifacts: `a25736ef` (Stage 1 D-236 pass-7 remediation + Stage 2 backfill D-237) | workspace tests: 2363 + 280 on S-3.01 branch | PRs merged: 126 | Open: #127
 
 **D-236 (2026-05-05):** Pass-7 BLOCKED verdict — 1H+2M+4L+1OBS. Architectural fix: per-symbol CI granularity replaces binary signal. Remediation: DevOps (b5d3c4fc): perimeter-compile-fail script parses cargo output, asserts each restricted_symbol fires E0603/E0624; runtime calls for clear_thread_local + current_regex_limit; v1.7→v1.8 labels. Implementer #7 (d3276ac0): ThreadLocalGuard pub(crate) for production-guard test (F-MEDIUM-001); lib.rs perimeter docstring expanded to all 16 symbols (F-LOW-003). product-owner: BC-2.11.006 v1.8→v1.9 (3 *_with_limits added; 13→16 entries; 11→14 normalized paths). 260→280 tests.
 
@@ -563,7 +564,7 @@ develop HEAD: `3133710e` | factory-artifacts: `[STAGE1_SHA_PENDING]` (Stage 1 D-
 - Tier-4 (parallel): S-3.07 (5pts) + S-3.10 (3pts) — final W3 core tier; Total: 39pts / 13 stories
 
 **NEXT ACTION:**
-- STEP 1: IN PROGRESS — Stage 1 commit D-236; then Stage 2 backfill SHA citation
+- STEP 1: COMPLETE — Stage 1 D-236 (a25736ef) + Stage 2 backfill D-237 done; SHA a25736ef cited; STATE v6.86; SHA currency hook must PASS
 - STEP 2: Dispatch adversary pass-8 against feature/S-3.01@d3276ac0 (convergence window 1 of 3)
 - STEP 3: If pass-8 CLEAN → pass-9 (2 of 3), then pass-10 (3 of 3) → convergence reached → merge PR #127
 - STEP 4 (post-merge): State-manager burst — flip S-3.01 status draft→merged; update wave-state.yaml
