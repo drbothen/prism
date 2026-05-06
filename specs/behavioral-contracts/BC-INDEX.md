@@ -1,7 +1,7 @@
 ---
 document_type: behavioral-contract-index
 level: L3
-version: "4.36"
+version: "4.37"
 status: draft
 producer: product-owner
 timestamp: 2026-05-05T00:00:00
@@ -352,6 +352,8 @@ Phase 3-patch additions (2026-04-16): 22 new BCs added in Burst 1 to close trace
 - Subsystem 19: Infusion Enrichment Framework (AD-020, CAP-031)
 
 ### Change Log (Adversarial Review Fixes)
+
+**v4.37 (2026-05-05):** Adversary pass-7 remediation — BC-2.11.006 v1.8→v1.9: F-LOW-004 — added 3 `*_with_limits` functions to `restricted_symbols` frontmatter (`parse_filter_with_limits`, `parse_sql_with_limits`, `parse_pipe_with_limits`; 13→16 entries, 11→14 unique parent paths after normalize_to_use_path). Body note added explaining de-facto-private rationale (`ParseLimits` fields are `pub(crate)`) and future-proofing intent. PR-127 adversary pass-7 remediation.
 
 **v4.36 (2026-05-05):** Adversary pass-6 remediation — BC-2.11.006 v1.7→v1.8: F-MEDIUM-001 — added 4th enforcement layer (CI gate `perimeter-compile-fail` in `.github/workflows/ci.yml`, now implemented; drops stale "devops dispatch in flight" wording). F-LOW-001 — footnote added distinguishing private `build_filter_parser`/`build_sql_parser` (fn-private, inaccessible regardless of perimeter) from the seven pub(crate) builder factories. OBS-001 part — added structured `restricted_symbols:` frontmatter block (13 entries: 3 parse_* entry points, 7 build_*_parser factories, 3 thread-local API symbols) as machine-checkable source-of-truth for perimeter validation against `tests/external/perimeter-violation/src/main.rs`. PR-127 adversary pass-6 remediation.
 

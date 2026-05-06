@@ -1,7 +1,7 @@
 ---
 document_type: behavioral-contract
 level: L3
-version: "1.8"
+version: "1.9"
 status: draft
 producer: product-owner
 timestamp: 2026-04-14T07:00:00
@@ -26,8 +26,11 @@ restricted_symbols:
   description: "Symbols that MUST be pub(crate) or private. External crates referencing any of these MUST fail to compile. Validated by tests/external/perimeter-violation/src/main.rs."
   symbols:
     - prism_query::filter_parser::parse_filter
+    - prism_query::filter_parser::parse_filter_with_limits
     - prism_query::sql_parser::parse_sql
+    - prism_query::sql_parser::parse_sql_with_limits
     - prism_query::pipe_parser::parse_pipe
+    - prism_query::pipe_parser::parse_pipe_with_limits
     - prism_query::filter_parser::build_predicate_parser
     - prism_query::filter_parser::build_source_ref_parser
     - prism_query::filter_parser::build_string_parser
@@ -63,6 +66,8 @@ This BC defines the complete set of security limits that constitute DI-019. Seve
 - **Security Perimeter (pub(crate) enforcement):** The `prism-query` crate exposes a single public security entry point: `PrismQlParser::parse(input: &str) -> Result<Ast, Vec<ParseError>>`. All sub-parsers (`parse_filter`, `parse_pipe`, `parse_sql`) and parser-builder factories (`build_predicate_parser`, `build_source_ref_parser`, `build_string_parser`, `build_literal_parser`, `build_expr_parser`, `build_pipe_mode_parser`, `build_pipe_parser`, etc.) are crate-private (`pub(crate)`). External callers MUST NOT be able to bypass the seven security guards (`query_size`, `paren_depth`, `predicate_nesting_depth`, `expr_nesting_depth`, `sql_query_nesting_depth`, `list_size`, `pipe_stage_count`) by calling sub-components directly.
 
   > **Note:** `build_filter_parser` (filter_parser.rs:366) and `build_sql_parser` (sql_parser.rs:158) are NOT listed above because they are private (`fn`, not `pub(crate)` or `pub`). They are inaccessible by Rust visibility regardless of perimeter enforcement. If a future story promotes either to `pub(crate)`, BC-2.11.006 must be amended to add it to the `restricted_symbols` list.
+
+  > **Note (`*_with_limits` variants):** The `*_with_limits` variants (`parse_filter_with_limits`, `parse_sql_with_limits`, `parse_pipe_with_limits`) are listed in `restricted_symbols` because they accept a pre-snapshotted `ParseLimits` and apply guards using it. They are de-facto private because `ParseLimits` cannot be externally constructed (its fields are `pub(crate)`), but they are enumerated here for completeness and to ensure visibility regression detection if `ParseLimits` ever becomes externally constructible.
 
   **Enforcement layers:**
   1. **Rust visibility (primary):** All sub-parsers and builder factories are `pub(crate)`. External crates referencing them produce a Rust visibility error during `cargo build`.
@@ -127,6 +132,7 @@ This BC defines the complete set of security limits that constitute DI-019. Seve
 
 | Version | Burst | Date | Author | Change |
 |---------|-------|------|--------|--------|
+| 1.9 | pass-7-remediation | 2026-05-05 | product-owner | F-LOW-004 — added 3 *_with_limits functions to restricted_symbols frontmatter (parse_filter_with_limits, parse_sql_with_limits, parse_pipe_with_limits). Body note explains de-facto-private rationale and future-proofing intent. PR-127 adversary pass-7 remediation. |
 | 1.8 | pass-6-remediation | 2026-05-05 | product-owner | F-MEDIUM-001 — added 4th enforcement layer (CI gate perimeter-compile-fail, now implemented). F-LOW-001 — footnote distinguishing private build_*_parser from pub(crate) ones. OBS-001 part — added structured `restricted_symbols:` frontmatter for machine-checkable perimeter validation. PR-127 adversary pass-6 remediation. |
 | 1.7 | pass-5-remediation | 2026-05-05 | product-owner | F-MEDIUM-001 — corrected clippy.toml enforcement claim (per-crate scope, not workspace-wide; cargo build does not run clippy). Layered enforcement now accurately described: Rust visibility (primary), clippy intra-crate (defence), api_surface test (CI). F-MEDIUM-002 — INV-SEC-PERIMETER-001 now cross-references DI-034 (lifted by business-analyst). L2 Invariants traceability updated: DI-019, DI-034. PR-127 adversary pass-5 remediation. |
 | 1.6 | pass-4-obs-002 | 2026-05-05 | product-owner | Add Security Perimeter postcondition (per adversary pass-4 OBS-002 process-gap). Codifies that prism-query exposes only PrismQlParser::parse; sub-parsers and builders are pub(crate) and lint-denied via clippy.toml disallowed-methods. Adds INV-SEC-PERIMETER-001 invariant and two compile-failure test vectors for api_surface.rs. Refs PR-127. |
