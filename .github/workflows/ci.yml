@@ -263,6 +263,17 @@ jobs:
         with:
           cache-on-failure: true
           shared-key: fuzz-smoke-${{ runner.os }}
+      - name: Install protoc (required by prost-build for prism-ocsf transitive dep)
+        # Pass-14 follow-up: latent CI bug exposed when 20-min ceiling let the
+        # cold sanitizer build proceed far enough to invoke prism-ocsf's build.rs.
+        # CI run 25444145941 fuzz-smoke failed at 14m49s with:
+        #   error: failed to run custom build command for `prism-ocsf v0.1.0`
+        #   build.rs: prost-build failed to compile OCSF .proto files: NotFound
+        # The perimeter-compile-fail job already installs protoc via this same
+        # action; this step mirrors it to unblock fuzz-smoke's transitive build.
+        uses: arduino/setup-protoc@c65c819552d16ad3c9b72d9dfd5ba5237b9c906b # v3.0.0
+        with:
+          repo-token: ${{ secrets.GITHUB_TOKEN }}
       - name: Install cargo-fuzz
         uses: taiki-e/install-action@cf525cb33f51aca27cd6fa02034117ab963ff9f1 # v2.75.22
         with:
