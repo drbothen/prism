@@ -100,15 +100,20 @@ pub fn inject_source_type(rows: &mut Vec<serde_json::Value>, descriptor: &Sensor
 // ============================================================================
 
 // ---------------------------------------------------------------------------
-// SourceRef
+// FanOutTarget
 // ---------------------------------------------------------------------------
 
-/// A fully-resolved source reference for fan-out.
+/// A fully-resolved fan-out target for a single (sensor, client) pair.
 ///
 /// Produced by `resolve_source_refs` (Step 2 of the pipeline). Carries all
-/// information needed to construct a `FanOutTarget`. (BC-2.11.005)
+/// information needed to drive a sensor adapter call and subsequent
+/// normalization. (BC-2.11.005)
+///
+/// Note: this type is distinct from `ast::SourceRef`, which is the parse-time
+/// query source reference (`{ raw: String, kind: SourceRefKind }`). This type
+/// represents the post-resolution fan-out target after client-scope expansion.
 #[derive(Debug, Clone)]
-pub struct SourceRef {
+pub struct FanOutTarget {
     /// The sensor type (e.g., `SensorType::CrowdStrike`).
     pub sensor_type: prism_core::types::SensorType,
     /// The client ID owning this sensor instance. (BC-2.11.011)
@@ -174,7 +179,7 @@ impl MaterializationContext {
 ///
 /// # Steps (BC-2.11.005)
 /// 1. Parse PrismQL string via `PrismQlParser::parse` — public API only
-/// 2. Resolve source refs to `SourceRef` tuples
+/// 2. Resolve source refs to `FanOutTarget` tuples
 /// 3. Fan out to sensor adapters via `fan_out()` — all sources in parallel
 /// 4. Normalize each response via `OcsfNormalizer` → `Vec<RecordBatch>`
 /// 5. Inject virtual field columns (`_sensor`, `_client`, `_source_table`)
@@ -183,8 +188,8 @@ impl MaterializationContext {
 /// 8. Collect `SendableRecordBatchStream` → `Vec<RecordBatch>`
 ///
 /// # Record Cap (BC-2.11.006, EC-003)
-/// Streaming counter across all sources. If `mat_ctx.record_count` exceeds
-/// `mat_ctx.max_records` during Step 3, abort with
+/// Streaming counter across all sources. If the record counter exceeds
+/// the maximum during Step 3, abort with
 /// `PrismError::QueryExecutionFailed` containing E-QUERY-005 message.
 ///
 /// # Cold-Start Fallback (AC-9, inherited from S-2.08)
@@ -208,11 +213,11 @@ pub async fn run_materialization_pipeline(
 // resolve_source_refs
 // ---------------------------------------------------------------------------
 
-/// Step 2: Resolve PrismQL source references to `SourceRef` tuples.
+/// Step 2: Resolve PrismQL source references to `FanOutTarget` tuples.
 ///
 /// Each source reference in the AST (e.g., `crowdstrike.detections`) is
 /// resolved against the sensor specs and the provided client scope to produce
-/// one `SourceRef` per `(source, client)` combination. (BC-2.11.005)
+/// one `FanOutTarget` per `(source, client)` combination. (BC-2.11.005)
 ///
 /// # BC-2.11.011
 /// If a client in `clients` does not have a sensor for the source, the
@@ -222,7 +227,7 @@ pub(crate) async fn resolve_source_refs(
     _source_names: &[String],
     _clients: &[OrgSlug],
     _adapter_registry: &AdapterRegistry,
-) -> Result<Vec<SourceRef>, PrismError> {
+) -> Result<Vec<FanOutTarget>, PrismError> {
     todo!("S-3.02 — resolve_source_refs")
 }
 
