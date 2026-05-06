@@ -17,8 +17,15 @@ jobs:
   fuzz-vp021-nightly:
     name: Fuzz nightly (vp021_parse_fuzz, 30m)
     runs-on: ubuntu-latest
-    # 30-min fuzz + 10-min setup/teardown headroom.
-    timeout-minutes: 45
+    # 30-min fuzz + setup/teardown headroom.
+    # TD-VSDD-058 fix (2026-05-06): bumped 45 → 60 min after PR #127 pass-14
+    # lens-7 sibling-layer check identified that opt-level=3 dev-profile
+    # crypto opt (sha2/aes-gcm/argon2/blake2 in .cargo/config.toml) extends
+    # cold sanitizer-instrumented build to ~10-15 min. With 30-min fuzz +
+    # cleanup, the prior 45-min ceiling left only ~minutes of margin —
+    # nightly runs would intermittently fail in build phase. 60-min ceiling
+    # provides ~14 min headroom.
+    timeout-minutes: 60
     permissions:
       contents: read
     steps:
@@ -30,6 +37,15 @@ jobs:
         with:
           cache-on-failure: true
           shared-key: fuzz-nightly-${{ runner.os }}
+      - name: Install protoc (required by prost-build for prism-ocsf transitive dep)
+        # TD-VSDD-058 fix (2026-05-06): same latent prost-build dep issue that
+        # bit fuzz-smoke (PR #127 230aa700). prism-ocsf is in the fuzz target's
+        # transitive build graph; build.rs invokes prost-build which requires
+        # the protoc binary. Mirrors all 6 sibling jobs that already use this
+        # SHA-pinned action.
+        uses: arduino/setup-protoc@c65c819552d16ad3c9b72d9dfd5ba5237b9c906b # v3.0.0
+        with:
+          repo-token: ${{ secrets.GITHUB_TOKEN }}
       - name: Install cargo-fuzz
         uses: taiki-e/install-action@cf525cb33f51aca27cd6fa02034117ab963ff9f1 # v2.75.22
         with:
