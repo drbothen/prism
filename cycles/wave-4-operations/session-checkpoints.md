@@ -152,4 +152,16 @@ develop HEAD: `3133710e` | factory-artifacts: `28564859` (Stage 1 D-232 pass-5 r
 
 ---
 
+## Session Resume Checkpoint (2026-05-06-d242-pass10-remediation-v6.92) — ARCHIVED
+
+_Archived when v6.93 checkpoint (D-243 pass-13 convergence) replaced this entry in STATE.md._
+
+**STATE v6.92. D-242 pass-10 adversary remediation complete. 280 workspace tests passing. feature/S-3.01 HEAD: 5e7dcb81. research/build-optimization-2026.md v1.2 (F-HIGH-001 employer-name redaction completion, zero residual). NOTABLE: adversary explicitly states "parser security model has converged." develop HEAD: 3133710e.**
+
+develop HEAD: `3133710e` | factory-artifacts: run `git -C .factory log -1 --format='%h %s'` | workspace tests: 2363 + 280 on S-3.01 branch | PRs merged: 126 | Open: #127
+
+**D-242 (2026-05-06):** Pass-10 BLOCKED verdict — 0C/1H/0M/1L/1OBS. NOTABLE: adversary explicitly states "The parser security model has converged." Technical-writer: research/build-optimization-2026.md v1.1→v1.2 (F-HIGH-001 employer-name redaction completion; line 79 two residual references; grep verified zero remaining). DevOps `5e7dcb81`: dual-signal deep-recursion-stack-guard regex (loop pattern + parser invocation within ±5 lines; F-LOW-001 13 false-positives → 0; real unwrapped tests still flagged). OBS-001 deferred: redaction-on-promote automation (TD candidate; POLICY-11 future). Hook updated per TD-VSDD-053: factory-artifacts self-SHA cite removed from STATE.md/HANDOFF.md; single-commit burst protocol enforced. Convergence window restart: pass-11 is 1 of 3 needed.
+
+---
+
 <!-- Repeat for each archived checkpoint. Maintain chronological order. -->
