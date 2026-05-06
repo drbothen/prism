@@ -890,6 +890,7 @@ fn test_parse_limits_snapshot_propagates_to_regex_pattern_guard() {
 /// Traces: F-MEDIUM-002, BC-2.11.006
 #[test]
 fn test_thread_local_cleared_on_panic() {
+    use crate::filter_parser::ThreadLocalGuard;
     use crate::security::{ParseLimits, PRISM_MAX_REGEX_PATTERN_LEN};
 
     let _guard = ENV_MUTEX.lock().unwrap();
@@ -897,39 +898,31 @@ fn test_thread_local_cleared_on_panic() {
     // Ensure no thread-local is installed before we start.
     ParseLimits::clear_thread_local();
 
-    // Part 1: Verify the Drop guard clears on panic unwind.
+    // Part 1: Verify the PRODUCTION Drop guard clears on panic unwind.
     //
-    // Install a snapshot with a custom regex_pattern value (99), then panic
-    // inside a catch_unwind block. The Drop guard inside `parse` would normally
-    // clear the thread-local; we simulate it here directly to confirm the guard
-    // mechanism works independently of the parse codepath.
-    {
-        struct ThreadLocalGuard;
-        impl Drop for ThreadLocalGuard {
-            fn drop(&mut self) {
-                ParseLimits::clear_thread_local();
-            }
-        }
+    // This test imports `crate::filter_parser::ThreadLocalGuard` — the same type
+    // used inside `PrismQlParser::parse` — rather than defining a local copy.
+    // If someone deletes or breaks the production guard, this test will fail.
+    // (F-MEDIUM-001: local copy would be a false-negative.)
+    //
+    // Install a sentinel value (99 — below MIN_SAFE, but we set it directly
+    // to test the guard, not the clamp logic).
+    let mut sentinel = ParseLimits::snapshot();
+    sentinel.regex_pattern = 99;
+    ParseLimits::install_thread_local(&sentinel);
 
-        // Install a sentinel value (99 — below MIN_SAFE, but we set it directly
-        // to test the guard, not the clamp logic).
-        let mut sentinel = ParseLimits::snapshot();
-        sentinel.regex_pattern = 99;
-        ParseLimits::install_thread_local(&sentinel);
+    // Confirm it's installed.
+    assert_eq!(
+        ParseLimits::current_regex_limit(),
+        99,
+        "F-MEDIUM-002: sentinel must be installed before panic"
+    );
 
-        // Confirm it's installed.
-        assert_eq!(
-            ParseLimits::current_regex_limit(),
-            99,
-            "F-MEDIUM-002: sentinel must be installed before panic"
-        );
-
-        // catch_unwind — guard drops on unwind, clearing the thread-local.
-        let _ = std::panic::catch_unwind(|| {
-            let _drop_guard = ThreadLocalGuard;
-            panic!("forced panic to test Drop guard");
-        });
-    }
+    // catch_unwind — production ThreadLocalGuard drops on unwind, clearing the thread-local.
+    let _ = std::panic::catch_unwind(|| {
+        let _drop_guard = ThreadLocalGuard;
+        panic!("forced panic to test production Drop guard");
+    });
 
     // Thread-local must be None after the panic unwind (guard ran on drop).
     // current_regex_limit() falls back to env-var path when no snapshot installed.
@@ -952,6 +945,51 @@ fn test_thread_local_cleared_on_panic() {
         after_parse, PRISM_MAX_REGEX_PATTERN_LEN,
         "F-MEDIUM-002: thread-local must be None after PrismQlParser::parse returns; \
          got {after_parse}"
+    );
+}
+
+/// F-MEDIUM-001: Production `ThreadLocalGuard` Drop clears the thread-local on normal drop.
+///
+/// This test constructs the production `ThreadLocalGuard` from `filter_parser`
+/// (not a local copy), installs a snapshot, then drops the guard and verifies
+/// the thread-local is cleared. If the production guard is deleted or its Drop
+/// impl is broken, this test fails — a local-copy test would not catch that.
+///
+/// Traces: F-MEDIUM-001, F-MEDIUM-002, BC-2.11.006
+#[test]
+fn test_production_thread_local_guard_clears_on_drop() {
+    use crate::filter_parser::ThreadLocalGuard;
+    use crate::security::{ParseLimits, PRISM_MAX_REGEX_PATTERN_LEN};
+
+    let _env_guard = ENV_MUTEX.lock().unwrap();
+
+    // Clear any residue from prior tests.
+    ParseLimits::clear_thread_local();
+
+    // Step 1: Install a sentinel snapshot (regex_pattern = 42).
+    let mut sentinel = ParseLimits::snapshot();
+    sentinel.regex_pattern = 42;
+    ParseLimits::install_thread_local(&sentinel);
+
+    // Verify the thread-local reports the sentinel value (not the env-var fallback).
+    assert_eq!(
+        ParseLimits::current_regex_limit(),
+        42,
+        "F-MEDIUM-001: sentinel must be visible before guard drop"
+    );
+
+    // Step 2: Construct and explicitly drop the production ThreadLocalGuard.
+    {
+        let _guard = ThreadLocalGuard;
+        // _guard drops here — Drop calls ParseLimits::clear_thread_local().
+    }
+
+    // Step 3: Thread-local must now be None; current_regex_limit falls back to env-var default.
+    let after_drop = ParseLimits::current_regex_limit();
+    assert_eq!(
+        after_drop, PRISM_MAX_REGEX_PATTERN_LEN,
+        "F-MEDIUM-001: production ThreadLocalGuard::drop must clear thread-local; \
+         got {after_drop}, expected default {PRISM_MAX_REGEX_PATTERN_LEN}"
     );
 }
 

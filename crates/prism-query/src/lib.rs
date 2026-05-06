@@ -51,16 +51,36 @@ pub mod tests;
 //
 // # Security perimeter (B-3, BC-2.11.006, SEC-C-003, F-LOW-002)
 //
-// `PrismQlParser::parse` is the ONLY public security entry point. It applies:
+// `PrismQlParser::parse` is the SOLE public security entry point. It applies:
 //   1. `check_query_size` — rejects inputs > 64KB before any parsing
 //   2. `check_paren_depth` — rejects inputs with > 64 lexical paren depth
 //   3. Mode detection — dispatches to `parse_sql`, `parse_pipe`, or `parse_filter`
 //
-// The sub-parsers (`parse_sql`, `parse_pipe`, `parse_filter`) are `pub(crate)`:
-// they are not part of the public API. Tests that need direct sub-parser access
-// (e.g., to obtain FilterExpr/PipeQuery/SqlQuery directly, or to bypass pre-parse
-// guards to test post-parse depth checks in isolation) must live in src/tests/
-// (unit tests) where pub(crate) items are visible.
+// The following symbols are `pub(crate)` and MUST NOT be exposed externally.
+// Authoritative source: BC-2.11.006 frontmatter `restricted_symbols`.
+//
+// Sub-parsers:
+//   `parse_filter`, `parse_sql`, `parse_pipe`
+//
+// Parser-builder factories:
+//   `build_predicate_parser`, `build_source_ref_parser`,
+//   `build_string_parser`, `build_literal_parser`,
+//   `build_expr_parser`, `build_pipe_mode_parser`,
+//   `build_pipe_parser`
+//
+// ParseLimits API:
+//   `ParseLimits::install_thread_local`, `ParseLimits::clear_thread_local`,
+//   `ParseLimits::current_regex_limit`, `ParseLimits::snapshot`,
+//   `ParseLimits` struct fields
+//
+// Drop guard:
+//   `ThreadLocalGuard` (filter_parser) — `pub(crate)` for unit-test
+//   verification of Drop semantics; not part of the stable API.
+//
+// Tests that need direct sub-parser access (e.g., to obtain
+// FilterExpr/PipeQuery/SqlQuery directly, or to bypass pre-parse guards to
+// test post-parse depth checks in isolation) must live in src/tests/ (unit
+// tests) where pub(crate) items are visible.
 //
 // External consumers MUST use `PrismQlParser::parse` exclusively.
 pub use ast::Ast;

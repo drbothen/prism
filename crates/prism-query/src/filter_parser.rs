@@ -28,6 +28,26 @@ use crate::error_recovery::rich_to_parse_error;
 use crate::pipe_parser::build_pipe_parser;
 use crate::security;
 
+/// RAII guard that clears the thread-local `ParseLimits` snapshot when dropped.
+///
+/// `PrismQlParser::parse` installs this guard immediately after calling
+/// `ParseLimits::install_thread_local` so that the thread-local is cleared
+/// even if `parse_with_limits` panics (Chumsky stack overflow, OOM,
+/// `unreachable!`).  Without the guard the thread-local would survive the
+/// panic unwind and leak limit values into subsequent parse calls on the same
+/// thread.  (F-MEDIUM-002, BC-2.11.006)
+///
+/// `pub(crate)` so that unit tests can import the production type and verify
+/// its Drop semantics directly, without defining a local copy that wouldn't
+/// catch regressions in the real guard.  (F-MEDIUM-001)
+pub(crate) struct ThreadLocalGuard;
+
+impl Drop for ThreadLocalGuard {
+    fn drop(&mut self) {
+        security::ParseLimits::clear_thread_local();
+    }
+}
+
 /// Entry point for the PrismQL parser.
 ///
 /// Detects the query mode (filter / SQL / pipe) and dispatches to the
@@ -63,12 +83,8 @@ impl PrismQlParser {
         // if `parse_with_limits` panics (Chumsky stack overflow, OOM, unreachable!).
         // Without the guard the thread-local would survive the panic unwind and leak
         // limit values into subsequent parse calls on the same thread.
-        struct ThreadLocalGuard;
-        impl Drop for ThreadLocalGuard {
-            fn drop(&mut self) {
-                security::ParseLimits::clear_thread_local();
-            }
-        }
+        // The guard type is `pub(crate)` (ThreadLocalGuard at module level) so that
+        // unit tests can exercise the production type directly.  (F-MEDIUM-001)
         let _guard = ThreadLocalGuard;
 
         Self::parse_with_limits(input, &limits)
