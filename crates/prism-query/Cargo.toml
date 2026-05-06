@@ -7,11 +7,8 @@ license = "MIT"
 publish = false
 
 # ARCHITECTURE COMPLIANCE (S-2.08):
-# This crate MUST NOT depend on datafusion, arrow, arrow-schema, or arrow2.
-# Those dependencies are S-3.02's responsibility.
-# Any PR that introduces DataFusion or Arrow as a dep of prism-query in S-2.08
-# is an architecture violation and must be rejected.
-# See S-2.08 v1.5 §Architecture Compliance Rules.
+# This crate MUST NOT depend on datafusion, arrow, arrow-schema, or arrow2
+# for S-2.08 purposes. Those dependencies are added in S-3.02.
 #
 # ARCHITECTURE COMPLIANCE (S-3.01):
 # Parser modules (filter_parser, sql_parser, pipe_parser, security) MUST NOT
@@ -26,6 +23,9 @@ name = "prism_query"
 prism-core = { path = "../prism-core" }
 prism-storage = { path = "../prism-storage" }
 prism-spec-engine = { path = "../prism-spec-engine" }
+prism-sensors = { path = "../prism-sensors" }
+prism-ocsf = { path = "../prism-ocsf" }
+prism-credentials = { path = "../prism-credentials" }
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 # S-3.2.08 — UUID v7 generation for org-scoped CrowdStrike pagination session IDs (D-048).
@@ -46,12 +46,26 @@ regex = "1"
 # chrono is already used across the workspace (prism-core, prism-audit, prism-mcp, etc.);
 # using the same crate avoids duplicate transitive deps.
 chrono = { version = "0.4", default-features = false, features = ["std", "serde"] }
+# S-3.02 — DataFusion in-process SQL engine, MemTable, SessionContext (BC-2.11.005).
+datafusion = "53.1"
+# S-3.02 — Arrow RecordBatch, Schema, array builders for virtual fields (BC-2.11.012).
+# datafusion 53.1 uses arrow 58 (transitive); pinned here for explicit awareness.
+arrow = { version = "58", features = ["prettyprint"] }
+# S-3.02 — Async runtime: spawn for fan-out tasks, timeout for 30s execution limit.
+tokio = { version = "1", features = ["rt-multi-thread", "macros", "time", "sync"] }
+# S-3.02 — Structured spans: per-query, per-source, per-client (BC-2.11.005).
+tracing = "0.1"
+# S-3.02 — RAII drop for SessionContext panic safety (BC-2.11.005, AC-7).
+scopeguard = "1"
+# S-3.02 — Async trait methods for DataFusion TableProvider (scan, etc.).
+async-trait = "0.1"
 
 [dev-dependencies]
 # S-3.2.08 — isolation tests: LruCache mirrors prism-dtu-crowdstrike session_registry (dev-only)
 lru = "0.17"
+# S-3.02 VP-031 — proptest property tests: REQUIRED columns always push-down (BC-2.11.007).
 # S-3.06 — property-based tests for write-mode AST round-trips (VP-021 corpus extension)
-proptest = "1"
+proptest = "1.11"
 
 # S-3.01 VP-014/VP-015 — bounded model checking proofs (exact pin; out-of-band nightly
 # toolchain; does not affect workspace MSRV of Rust 1.85).

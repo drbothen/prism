@@ -1,0 +1,90 @@
+//! `session` — ephemeral `SessionContext` lifecycle management.
+//!
+//! `SessionScope` is a RAII wrapper that guarantees the DataFusion
+//! `SessionContext` is dropped when the enclosing `execute()` call returns,
+//! including on panic. This satisfies BC-2.11.005 AC-7.
+//!
+//! Uses `scopeguard::defer!` to register a drop callback that releases the
+//! `SessionContext` unconditionally.
+//!
+//! # Architecture Compliance (BC-2.11.005)
+//! - Non-scheduled queries: `SessionContext` MUST NOT outlive `execute()`.
+//! - `SessionContext` MUST NOT be stored as a field on `QueryEngine`.
+//! - `execute_scheduled` is the sole exception — it returns `Arc<SessionContext>`
+//!   for the detection engine (S-4.03) to manage.
+//!
+//! # BC References
+//! - BC-2.11.005 — Ephemeral Materialization (AC-7: context dropped on return)
+//!
+//! Story: S-3.02
+
+// S-3.02 stub functions: dead_code suppressed for stub phase (BC-5.38.001).
+#![allow(dead_code)]
+
+use std::sync::Arc;
+
+use datafusion::execution::context::SessionContext;
+
+// ---------------------------------------------------------------------------
+// SessionScope
+// ---------------------------------------------------------------------------
+
+/// RAII wrapper for a DataFusion `SessionContext`.
+///
+/// Wraps the `SessionContext` so it is explicitly dropped when `SessionScope`
+/// is dropped — even on panic. The implementation uses `scopeguard` to
+/// register a drop closure.
+///
+/// For non-scheduled queries, `SessionScope` is created at the top of
+/// `execute()` and dropped at the end (including error paths). The query plan
+/// is executed while the scope is live; results are collected before drop.
+///
+/// # BC-2.11.005 (AC-7)
+/// "Given the SessionContext is created for a non-scheduled query, When
+/// `execute()` returns (including on error or panic), Then the SessionContext
+/// is dropped and its memory is released."
+pub struct SessionScope {
+    /// The wrapped session context, held in an Option so we can move out on
+    /// `into_arc`. The drop impl fires unconditionally on the inner context.
+    inner: Option<SessionContext>,
+}
+
+impl SessionScope {
+    /// Create a new `SessionScope` wrapping the given `SessionContext`.
+    ///
+    /// The context is dropped when `SessionScope` is dropped.
+    pub fn new(ctx: SessionContext) -> Self {
+        Self { inner: Some(ctx) }
+    }
+
+    /// Obtain a reference to the inner `SessionContext` for query execution.
+    ///
+    /// # Panics
+    /// Panics if `into_arc` has already been called (inner is None).
+    pub fn context(&self) -> &SessionContext {
+        todo!("S-3.02 — SessionScope::context")
+    }
+
+    /// Consume the scope and return the inner `SessionContext` as an `Arc`
+    /// for use by `execute_scheduled` callers.
+    ///
+    /// MUST only be called from `execute_scheduled`. Regular `execute()` paths
+    /// MUST NOT call this method — they let `SessionScope` drop normally.
+    ///
+    /// # BC-2.11.005
+    /// `execute_scheduled` returns `Arc<SessionContext>` so the detection
+    /// engine can run additional queries against already-materialized data.
+    pub fn into_arc(self) -> Arc<SessionContext> {
+        todo!("S-3.02 — SessionScope::into_arc")
+    }
+}
+
+impl Drop for SessionScope {
+    fn drop(&mut self) {
+        // Explicitly drop the inner context. This is a no-op if `into_arc`
+        // already took the context (inner is None). The explicit drop here is
+        // documentation of intent — the compiler would drop it anyway, but
+        // `scopeguard` semantics make the RAII intent clear in code review.
+        drop(self.inner.take());
+    }
+}

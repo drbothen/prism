@@ -1,12 +1,16 @@
-//! Kani formal verification proof harnesses for prism-query.
+//! Formal verification proof harnesses for prism-query.
 //!
-//! All proofs are gated with `#[cfg(kani)]` and have zero effect on
+//! All Kani proofs are gated with `#[cfg(kani)]` and have zero effect on
 //! test or release builds.
 //!
-//! | Proof module       | VP ID  | Property                                        |
-//! |--------------------|--------|-------------------------------------------------|
-//! | `vp014_size_limit` | VP-014 | Queries > MAX_QUERY_SIZE always return Err      |
-//! | `vp015_depth_limit`| VP-015 | Nesting depth > 64 always returns Err           |
+//! Proptest proofs (VP-031) run under `#[cfg(test)]` and are RED by design
+//! until S-3.02 implementation is complete (todo!() bodies).
+//!
+//! | Proof module        | VP ID  | Method   | Property                                        |
+//! |---------------------|--------|----------|-------------------------------------------------|
+//! | `vp014_size_limit`  | VP-014 | Kani     | Queries > MAX_QUERY_SIZE always return Err      |
+//! | `vp015_depth_limit` | VP-015 | Kani     | Nesting depth > 64 always returns Err           |
+//! | `vp031_pushdown`    | VP-031 | Proptest | REQUIRED columns always produce PushDown        |
 //!
 //! ## Canonical Kani invocation flags (Section D harmonization)
 //!
@@ -23,7 +27,7 @@
 //!     --exact --no-unwinding-checks --default-unwind 2
 //! ```
 //!
-//! Story: S-3.01
+//! Story: S-3.01 (VP-014, VP-015) | S-3.02 (VP-031)
 
 // The `#[cfg(test)]` fallback tests in vp014_size_limit and vp015_depth_limit
 // use `result.unwrap_err()` in assertion contexts where a panic on Ok would
@@ -32,3 +36,7 @@
 pub mod vp014_size_limit;
 #[allow(clippy::unwrap_used)]
 pub mod vp015_depth_limit;
+
+// VP-031: REQUIRED columns always produce PushDown (BC-2.11.007, S-3.02).
+// RED by design — todo!() bodies fire until implementation is complete.
+pub mod vp031_pushdown;

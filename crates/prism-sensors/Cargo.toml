@@ -24,7 +24,7 @@ secrecy = "0.8"
 chrono = { version = "0.4", features = ["serde"] }
 uuid = { version = "1", features = ["serde", "v4"] }
 tokio-stream = "0.1"
-arrow = { version = "53", features = ["ipc"] }
+arrow = { version = "58", features = ["ipc"] }
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 thiserror = "1"
