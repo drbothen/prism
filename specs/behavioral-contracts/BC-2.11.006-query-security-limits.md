@@ -1,7 +1,7 @@
 ---
 document_type: behavioral-contract
 level: L3
-version: "1.14"
+version: "1.15"
 status: draft
 producer: product-owner
 timestamp: 2026-04-14T07:00:00
@@ -60,7 +60,7 @@ restricted_symbols:
 
 This BC defines the complete set of security limits that constitute DI-019. Seven limits are enforced at different stages of the query lifecycle: query length (64KB, pre-parse), nesting depth (64, parse-time recursive counter), pipe stages (32, post-parse), materialized records (10K, streaming counter during fan-out), execution timeout (30s, tokio::time::timeout wrapping the full lifecycle), regex pattern length (1024 bytes, parse-time), and integer overflow prevention (i128 intermediates). All limits are configurable via TOML with the listed values as defaults. Every limit violation returns a structured error with the specific limit name, actual value, maximum, and actionable suggestion.
 
-**DI-034 layer 4 — S-3.06 write-parser pub(crate) internals (v1.11):** Nine additional symbols were added to `restricted_symbols` in v1.11 to cover the write-parser internals introduced by story S-3.06: `parse_pipe_with_write`, `build_write_stage_parser`, `build_write_arg_parser`, and `extract_sensor_prefix` in `pipe_parser.rs`; `parse_sql_dml`, `build_dml_parser`, `is_internal_prism_table`, and `check_unbounded_write` in `sql_parser.rs`; and `reject_write_verbs_in_filter` in `filter_parser.rs`. These symbols are confirmed `pub(crate)` stubs as of S-3.06 worktree commit cdcb4b38. (Note: in v1.13, the inline YAML comment that formerly annotated this group within the `symbols:` list was moved here because the CI perimeter-symbols-sync Python regex stops matching at the first non-`    - ` line — see TD-VSDD-059.)
+**DI-034 layer 4 — S-3.06 write-parser pub(crate) internals (v1.11/v1.14):** Nine additional symbols were added to `restricted_symbols` in v1.11 to cover the write-parser internals introduced by story S-3.06: `parse_pipe_with_write`, `build_write_stage_parser`, `build_write_arg_parser`, and `extract_sensor_prefix` in `pipe_parser.rs`; `parse_sql_dml`, `build_dml_parser`, `is_internal_prism_table`, and `check_unbounded_write` in `sql_parser.rs`; and `reject_write_verbs_in_filter` in `filter_parser.rs`. These symbols are confirmed `pub(crate)` stubs as of S-3.06 worktree commit cdcb4b38. (Note: in v1.13, the inline YAML comment that formerly annotated this group within the `symbols:` list was moved here because the CI perimeter-symbols-sync Python regex stops matching at the first non-`    - ` line — see TD-VSDD-059.) v1.14 added a tenth symbol, `parse_sql_dml_with_limits` (`sql_parser.rs`), introduced by fix bundle commit `236146a1` to forward `ParseLimits` through the DML path; this brings the S-3.06 layer-4 group to 10 symbols and the total perimeter list to 27 entries (28 expected E-errors in the perimeter-violation crate, since the 27 symbols plus one `ParseLimits` struct produce 28 distinct E0603/E0624 violations).
 
 ## Preconditions
 - An PrismQL query string has been received via the `query` MCP tool
@@ -161,6 +161,7 @@ This BC defines the complete set of security limits that constitute DI-019. Seve
 
 | Version | Burst | Date | Author | Change |
 |---------|-------|------|--------|--------|
+| 1.15 | S-3.06-pr130-pass3 | 2026-05-06 | product-owner | Adversary PR-130 pass-3 P3-MED-001 remediation: appended v1.14 amendment note in body Description paragraph to document the tenth symbol (`parse_sql_dml_with_limits`) and updated version anchor from `(v1.11)` to `(v1.11/v1.14)`. No content change to `restricted_symbols` list. Closes BC body↔frontmatter drift. |
 | 1.14 | S-3.06-pr130-pass1 | 2026-05-06 | product-owner | Adversary PR-130 pass-1 F-PR130-P1-HIGH-002 remediation: registered `parse_sql_dml_with_limits` (introduced by fix bundle commit 236146a1) in restricted_symbols list. Closes silent perimeter coverage hole. New expected E-error count in perimeter-violation: 28 (was 27). |
 | 1.13 | S-3.06-pr130-fix | 2026-05-06 | product-owner | fix CI perimeter-symbols-sync regex pathology — removed YAML inline comment `# DI-034 layer 4: S-3.06 write-parser pub(crate) internals (v1.11)` from within the `symbols:` list block (CI Python regex `(?:    - .+\n?)*` stops at first non-`    - ` line, causing 9 new S-3.06 entries to be silently dropped; sync check then reported "9 symbols extra in test crate, not in spec" and failed PR #130). Annotation moved to body text (Description section, paragraph: "DI-034 layer 4 — S-3.06 write-parser pub(crate) internals"). No semantic change to the symbol list — same 26 entries enumerated. See TD-VSDD-059 for recommended CI regex fix. |
 | 1.12 | pre-impl-amendments | 2026-05-06 | product-owner | AMENDMENT 2 — error-code reconciliation: corrected E-QUERY-004/005 swap vs PrismError enum SoT. E-QUERY-004=QueryMemoryBudgetExceeded (200MB), E-QUERY-005=QueryTimeout (30s), E-QUERY-008=QueryDenylisted. Added canonical mapping table with SoT reference. Story S-3.02 AC-3/EC-002/EC-003 flag for follow-up (conflicting references remain in story body). |
