@@ -176,8 +176,14 @@ impl ParseError {
     /// the dedicated MCP tool for this operation"
     ///
     /// # Implements BC-2.11.004 — Write Parser Extension
-    pub fn internal_table_write_protected(_offset: usize, _table_name: &str) -> Self {
-        todo!("S-3.06 — ParseError::internal_table_write_protected")
+    pub fn internal_table_write_protected(offset: usize, table_name: &str) -> Self {
+        ParseError::new(
+            offset,
+            format!(
+                "{E_QUERY_010}: Internal Prism table '{table_name}' is write-protected; \
+                 use the dedicated MCP tool for this operation"
+            ),
+        )
     }
 
     /// Construct an `E-QUERY-022` error for an unbounded write.
@@ -185,8 +191,15 @@ impl ParseError {
     /// Message includes a suggestion to add a WHERE clause or LIMIT.
     ///
     /// # Implements BC-2.11.004 — Write Parser Extension
-    pub fn unbounded_write(_offset: usize, _operation: &str) -> Self {
-        todo!("S-3.06 — ParseError::unbounded_write")
+    pub fn unbounded_write(offset: usize, operation: &str) -> Self {
+        ParseError::new(
+            offset,
+            format!(
+                "{E_QUERY_022}: unbounded {operation} rejected — add a WHERE clause \
+                 (or LIMIT for INSERT...SELECT) to scope the operation, \
+                 or use explicit opt-in if provided by the sensor spec"
+            ),
+        )
     }
 
     /// Construct an `E-QUERY-023` error for an unknown verb in terminal pipe position.
@@ -195,8 +208,16 @@ impl ParseError {
     /// for the source sensor.
     ///
     /// # Implements BC-2.11.004 — Write Parser Extension
-    pub fn unknown_write_verb(_offset: usize, _verb: &str, _available_verbs: &[&str]) -> Self {
-        todo!("S-3.06 — ParseError::unknown_write_verb")
+    pub fn unknown_write_verb(offset: usize, verb: &str, available_verbs: &[&str]) -> Self {
+        let suggestion = if available_verbs.is_empty() {
+            "no write verbs are registered for this sensor".to_string()
+        } else {
+            format!("available verbs: {}", available_verbs.join(", "))
+        };
+        ParseError::new(
+            offset,
+            format!("{E_QUERY_023}: unknown write verb '{verb}' — {suggestion}"),
+        )
     }
 
     /// Construct an `E-QUERY-024` error for a write stage in non-terminal position.
@@ -205,8 +226,14 @@ impl ParseError {
     /// zero-indexed pipe stage position where it was detected.
     ///
     /// # Implements BC-2.11.004 — Write Parser Extension
-    pub fn write_stage_not_terminal(_offset: usize, _verb: &str, _position: usize) -> Self {
-        todo!("S-3.06 — ParseError::write_stage_not_terminal")
+    pub fn write_stage_not_terminal(offset: usize, verb: &str, position: usize) -> Self {
+        ParseError::new(
+            offset,
+            format!(
+                "{E_QUERY_024}: write stage must be in terminal pipe position — \
+                 '{verb}' at position {position} is followed by additional stages"
+            ),
+        )
     }
 }
 

@@ -116,10 +116,23 @@ impl PrismQlParser {
             return Err(vec![ParseError::new(0, "E-QUERY-001: empty query string")]);
         }
 
+        // Extract the first token once, used for mode detection and denylist.
+        let first_token = trimmed.split_ascii_whitespace().next().unwrap_or("");
+        let first_token_upper = first_token.to_uppercase();
+
+        // S-3.06: Route DML statements (INSERT/UPDATE/DELETE) to the DML parser
+        // BEFORE the general denylist check. These were previously denied outright
+        // (BC-2.11.003 v1.4 "read-only engine") but S-3.06 extends the engine with
+        // write support. The DML parser enforces its own guards (E-QUERY-010, E-QUERY-022).
+        if matches!(first_token_upper.as_str(), "INSERT" | "UPDATE" | "DELETE") {
+            return parse_dml_internal(input, limits);
+        }
+
         // Reject denied SQL statements before any parsing (BC-2.11.003 v1.4, Invariant DI-019).
         //
         // The canonical denylist covers ~40 keywords across 7 categories:
-        //   DML mutations, DDL, TCL, DCL, Procedural, Diagnostic/utility, Vendor.
+        //   DML mutations (except INSERT/UPDATE/DELETE which are now routed above),
+        //   DDL, TCL, DCL, Procedural, Diagnostic/utility, Vendor.
         //
         // Match semantics (BC-2.11.003 v1.4):
         //   - Case-insensitive
@@ -131,10 +144,7 @@ impl PrismQlParser {
         // This ensures `INSERTED_AT` (an identifier) is NOT rejected while
         // `INSERT ` (followed by whitespace/end) IS rejected.
         let denied_keywords: &[&str] = &[
-            // DML mutations
-            "INSERT",
-            "UPDATE",
-            "DELETE",
+            // DML mutations (INSERT/UPDATE/DELETE routed to DML parser above)
             "MERGE",
             "REPLACE",
             "UPSERT",
@@ -176,9 +186,6 @@ impl PrismQlParser {
             "ATTACH",
             "DETACH",
         ];
-        // Extract the first token (split on whitespace).
-        let first_token = trimmed.split_ascii_whitespace().next().unwrap_or("");
-        let first_token_upper = first_token.to_uppercase();
         for keyword in denied_keywords {
             if first_token_upper == *keyword {
                 return Err(vec![ParseError::new(
@@ -330,6 +337,21 @@ fn parse_pipe_internal(
     limits: &security::ParseLimits,
 ) -> Result<Ast, Vec<ParseError>> {
     crate::pipe_parser::parse_pipe_with_limits(input, limits).map(Ast::Pipe)
+}
+
+/// Parse DML mode internally — delegates to `parse_sql_dml` (S-3.06).
+///
+/// Routes INSERT/UPDATE/DELETE statements to the DML parser added in S-3.06.
+/// Guards (size, paren depth) have already been applied by the caller.
+///
+/// # Clippy exemption (OBS-002)
+/// Same rationale as `parse_filter_internal`.
+#[allow(clippy::disallowed_methods)]
+fn parse_dml_internal(
+    input: &str,
+    _limits: &security::ParseLimits,
+) -> Result<Ast, Vec<ParseError>> {
+    crate::sql_parser::parse_sql_dml(input)
 }
 
 // ── Security re-export for convenient use in tests ────────────────────────────
@@ -1129,11 +1151,15 @@ pub(crate) fn build_pipe_mode_parser<'a>(
 /// rejection (BC-2.11.004, EC-11-064), not a semantic check — it fires
 /// regardless of whether the verb would resolve to a valid write endpoint.
 ///
+/// Implementation: scans for unquoted `|` followed by a registered write verb.
+/// A write verb appearing as a field name in a predicate (e.g. `contain = 1`)
+/// is NOT rejected — only `| verb` sequences are rejected.
+///
+/// When the registry is empty, always returns `Ok(())` per
+/// BC-2.11.004 §INV-FILTER-EMPTY-REGISTRY.
+///
 /// Returns `Err(Vec<ParseError>)` if any write verb token is detected in the
 /// filter input; `Ok(())` if the input is clean.
-///
-/// Called by `parse_filter_with_limits` after mode detection confirms filter
-/// mode and before the predicate parser runs.
 ///
 /// # Security perimeter (BC-2.11.006 INV-SEC-PERIMETER-001)
 /// `pub(crate)` — never `pub`.
@@ -1141,8 +1167,53 @@ pub(crate) fn build_pipe_mode_parser<'a>(
 /// # Implements BC-2.11.004 — Write Parser Extension
 #[cfg_attr(not(test), allow(dead_code))]
 pub(crate) fn reject_write_verbs_in_filter(
-    _input: &str,
-    _registry: &WriteVerbRegistry,
+    input: &str,
+    registry: &WriteVerbRegistry,
 ) -> Result<(), Vec<ParseError>> {
-    todo!("S-3.06 — reject_write_verbs_in_filter")
+    // BC-2.11.004 §INV-FILTER-EMPTY-REGISTRY: empty registry → always Ok(()).
+    if registry.is_empty() {
+        return Ok(());
+    }
+
+    // Scan for `| verb` sequences outside string literals.
+    // A write verb is only rejected when preceded by `|` (pipe operator).
+    let bytes = input.as_bytes();
+    let len = bytes.len();
+    let mut in_sq = false;
+    let mut in_dq = false;
+    let mut i = 0;
+    while i < len {
+        match bytes[i] {
+            b'\'' if !in_dq => in_sq = !in_sq,
+            b'"' if !in_sq => in_dq = !in_dq,
+            b'|' if !in_sq && !in_dq => {
+                // Skip whitespace after `|`
+                let mut j = i + 1;
+                while j < len && (bytes[j] == b' ' || bytes[j] == b'\t' || bytes[j] == b'\n') {
+                    j += 1;
+                }
+                // Extract the next identifier token.
+                let mut k = j;
+                while k < len && (bytes[k].is_ascii_alphanumeric() || bytes[k] == b'_') {
+                    k += 1;
+                }
+                if k > j {
+                    let token = &input[j..k];
+                    if registry.is_write_verb(token) {
+                        return Err(vec![ParseError::new(
+                            j,
+                            format!(
+                                "E-QUERY-010: Write verbs are not permitted in filter mode; \
+                                 filter mode is permanently read-only. \
+                                 Write verb '{token}' was found after '|'"
+                            ),
+                        )]);
+                    }
+                }
+            }
+            _ => {}
+        }
+        i += 1;
+    }
+    Ok(())
 }

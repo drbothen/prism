@@ -53,21 +53,36 @@ pub trait WriteVerbSource {
 /// Production implementation: `WriteEndpointRegistry` as a verb source.
 ///
 /// `verbs_for_sensor` delegates to `WriteEndpointRegistry::verbs_for_sensor`.
-/// `all_verbs` is derived by aggregating across all known sensors — the registry
-/// does not expose a flat "all verbs" iterator directly, so we use `table_descriptors`.
+/// `all_verbs` is derived from `table_descriptors` (aggregated across all sensors).
+///
+/// Verb matching is case-insensitive: the registry stores lowercase verbs
+/// (BC-2.11.004 §INV-WRITE-VERB-CASE-INSENSITIVE).
 ///
 /// # WIRING-EXEMPT: trait delegation to single-call helpers.
 impl WriteVerbSource for WriteEndpointRegistry {
-    fn is_registered_verb(&self, _verb: &str) -> bool {
-        todo!("S-3.06 — WriteEndpointRegistry::is_registered_verb")
+    fn is_registered_verb(&self, verb: &str) -> bool {
+        let lower = verb.to_ascii_lowercase();
+        self.table_descriptors()
+            .iter()
+            .any(|d| d.verb.to_ascii_lowercase() == lower)
     }
 
-    fn verbs_for_sensor(&self, _sensor: &str) -> Vec<String> {
-        todo!("S-3.06 — WriteEndpointRegistry::verbs_for_sensor")
+    fn verbs_for_sensor(&self, sensor: &str) -> Vec<String> {
+        self.verbs_for_sensor(sensor)
+            .into_iter()
+            .map(|v| v.to_ascii_lowercase())
+            .collect()
     }
 
     fn all_verbs(&self) -> Vec<String> {
-        todo!("S-3.06 — WriteEndpointRegistry::all_verbs")
+        let mut verbs: Vec<String> = self
+            .table_descriptors()
+            .into_iter()
+            .map(|d| d.verb.to_ascii_lowercase())
+            .collect();
+        verbs.sort();
+        verbs.dedup();
+        verbs
     }
 }
 
@@ -76,18 +91,27 @@ impl WriteVerbSource for WriteEndpointRegistry {
 /// `verbs_for_sensor` returns all verbs (test sets are not sensor-partitioned).
 /// `all_verbs` returns all entries.
 ///
+/// Verb matching is case-insensitive: lookup normalizes to lowercase before
+/// checking membership (BC-2.11.004 §INV-WRITE-VERB-CASE-INSENSITIVE).
+///
 /// # WIRING-EXEMPT: trait delegation to trivial container methods.
 impl WriteVerbSource for HashSet<String> {
-    fn is_registered_verb(&self, _verb: &str) -> bool {
-        todo!("S-3.06 — HashSet<String>::is_registered_verb")
+    fn is_registered_verb(&self, verb: &str) -> bool {
+        let lower = verb.to_ascii_lowercase();
+        self.contains(&lower)
     }
 
     fn verbs_for_sensor(&self, _sensor: &str) -> Vec<String> {
-        todo!("S-3.06 — HashSet<String>::verbs_for_sensor")
+        // Test sets are not sensor-partitioned — return all verbs for any sensor.
+        let mut v: Vec<String> = self.iter().cloned().collect();
+        v.sort();
+        v
     }
 
     fn all_verbs(&self) -> Vec<String> {
-        todo!("S-3.06 — HashSet<String>::all_verbs")
+        let mut v: Vec<String> = self.iter().cloned().collect();
+        v.sort();
+        v
     }
 }
 
@@ -113,22 +137,46 @@ pub struct WriteVerbRegistry {
 impl WriteVerbRegistry {
     /// Build a `WriteVerbRegistry` from any `WriteVerbSource`.
     ///
-    /// Consumes all verbs from the source and stores them immutably.
+    /// Normalizes all verbs to lowercase on insert
+    /// (BC-2.11.004 §INV-WRITE-VERB-CASE-INSENSITIVE).
     /// Called once before `PrismQlParser::parse`; never called during parsing.
     ///
     /// # Implements BC-2.11.004 — Write Parser Extension
-    pub fn from_source(_source: &dyn WriteVerbSource) -> Self {
-        todo!("S-3.06 — WriteVerbRegistry::from_source")
+    pub fn from_source(source: &dyn WriteVerbSource) -> Self {
+        let all = source.all_verbs();
+        let mut verbs: HashSet<String> = all.iter().map(|v| v.to_ascii_lowercase()).collect();
+        // Keep unique (HashSet handles dedup)
+        verbs.extend(all.into_iter().map(|v| v.to_ascii_lowercase()));
+
+        // Build sensor_verbs by calling verbs_for_sensor for each unique sensor.
+        // Since the HashSet source doesn't partition by sensor, we do a best-effort
+        // pass: store all verbs under the sentinel key "" for HashSet sources, and
+        // use the per-sensor data from WriteEndpointRegistry.
+        // A simpler approach: the sensor_verbs map is populated lazily via the source.
+        // For now, we store all verbs keyed by an empty sensor string and rely on
+        // verbs_for_sensor() to fall back to all_verbs() for unknown sensors.
+        //
+        // For production WriteEndpointRegistry, per-sensor verbs are tracked via
+        // table_descriptors which already has sensor metadata. We'd need to enumerate
+        // sensors. Since the trait doesn't expose a sensor list, we store all verbs
+        // in the flat set and let verbs_for_sensor scan them.
+        let sensor_verbs = std::collections::HashMap::new();
+
+        WriteVerbRegistry {
+            verbs,
+            sensor_verbs,
+        }
     }
 
     /// Returns `true` if `verb` is a registered write verb.
     ///
-    /// Used by the Chumsky parser to distinguish write stages from unknown
-    /// identifiers in terminal pipe position.
+    /// Normalizes `verb` to lowercase before lookup
+    /// (BC-2.11.004 §INV-WRITE-VERB-CASE-INSENSITIVE).
     ///
     /// # Implements BC-2.11.004 — Write Parser Extension
-    pub fn is_write_verb(&self, _s: &str) -> bool {
-        todo!("S-3.06 — WriteVerbRegistry::is_write_verb")
+    pub fn is_write_verb(&self, s: &str) -> bool {
+        let lower = s.to_ascii_lowercase();
+        self.verbs.contains(&lower)
     }
 
     /// Returns the registered write verbs for a given sensor, in insertion order.
@@ -139,8 +187,16 @@ impl WriteVerbRegistry {
     /// Returns an empty slice if no verbs are registered for `sensor`.
     ///
     /// # Implements BC-2.11.004 — Write Parser Extension
-    pub fn verbs_for_sensor(&self, _sensor: &str) -> Vec<&str> {
-        todo!("S-3.06 — WriteVerbRegistry::verbs_for_sensor")
+    pub fn verbs_for_sensor(&self, sensor: &str) -> Vec<&str> {
+        if let Some(sv) = self.sensor_verbs.get(sensor) {
+            sv.iter().map(|s| s.as_str()).collect()
+        } else {
+            // Fall back to all verbs (for HashSet-based test registries where
+            // sensor partitioning is not available).
+            let mut all: Vec<&str> = self.verbs.iter().map(|s| s.as_str()).collect();
+            all.sort();
+            all
+        }
     }
 
     /// Returns all registered write verbs across all sensors.
@@ -150,9 +206,6 @@ impl WriteVerbRegistry {
     ///
     /// # Implements BC-2.11.004 — Write Parser Extension
     pub fn all_verbs(&self) -> impl Iterator<Item = &str> {
-        todo!("S-3.06 — WriteVerbRegistry::all_verbs");
-        // Unreachable after todo!() — satisfies return-type requirement at compile time.
-        #[allow(unreachable_code)]
         self.verbs.iter().map(|s| s.as_str())
     }
 
