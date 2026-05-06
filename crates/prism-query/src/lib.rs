@@ -92,6 +92,13 @@ pub mod tests;
 //   `ThreadLocalGuard` (filter_parser) — `pub(crate)` for unit-test
 //   verification of Drop semantics; not part of the stable API.
 //
+// Write-parser internals (S-3.06, BC-2.11.004 + BC-2.11.006 v1.11 DI-034 layer 4):
+//   `parse_pipe_with_write`, `build_write_stage_parser`,
+//   `build_write_arg_parser`, `extract_sensor_prefix` (pipe_parser)
+//   `parse_sql_dml`, `build_dml_parser`,
+//   `is_internal_prism_table`, `check_unbounded_write` (sql_parser)
+//   `reject_write_verbs_in_filter` (filter_parser)
+//
 // Tests that need direct sub-parser access (e.g., to obtain
 // FilterExpr/PipeQuery/SqlQuery directly, or to bypass pre-parse guards to
 // test post-parse depth checks in isolation) must live in src/tests/ (unit
