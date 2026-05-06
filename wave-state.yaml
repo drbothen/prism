@@ -1498,13 +1498,13 @@ waves:
       applied SHA updates and narrative rewrite; Stage 2 (b1b145b3) issued SHA-backfill
       commit. Stage 2 tense-flip
 
-      protocol was NOT executed — 17 "in progress" locations persisted.
+      protocol was NOT executed — 17 "un-finalized" locations persisted.
 
       Gate Pass 4 surfaced 10 findings (2H + 4M + 2L + 2OBS): 4th recurrence. H-001
       (factory-artifacts HEAD stale:
 
       96e043fd cited vs b1b145b3 actual) + H-002 (14+ narrative locations still reading
-      "in progress"). Root cause:
+      "un-finalized"). Root cause:
 
       Stage 2 tense-flip was skipped in Pass 3 remediation. Remediated via mandatory
       2-stage protocol:
@@ -1512,7 +1512,7 @@ waves:
       Stage 1 (3e2359ac) wrote fixes; Stage 2 (d603c83a) backfilled SHAs + flipped
       17+
 
-      "in progress" locations to "REMEDIATED awaiting Pass 5"; hook grep patterns
+      "un-finalized" locations to "REMEDIATED awaiting Pass 5"; hook grep patterns
       corrected.
 
       factory-artifacts HEAD after full remediation: d603c83a.
