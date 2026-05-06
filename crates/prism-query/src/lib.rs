@@ -64,10 +64,13 @@ pub mod tests;
 //
 // # Security perimeter (B-3, BC-2.11.006, SEC-C-003, F-LOW-002)
 //
-// `PrismQlParser::parse` is the SOLE public security entry point. It applies:
+// `PrismQlParser::parse` and `PrismQlParser::parse_with_registry` are the public
+// security entry points. Both apply:
 //   1. `check_query_size` — rejects inputs > 64KB before any parsing
 //   2. `check_paren_depth` — rejects inputs with > 64 lexical paren depth
 //   3. Mode detection — dispatches to `parse_sql`, `parse_pipe`, or `parse_filter`
+// `parse_with_registry` additionally routes pipe mode through `parse_pipe_with_write`
+// and filter mode through `reject_write_verbs_in_filter` (BC-2.11.004, F-PR130-CR-001).
 //
 // The following symbols are `pub(crate)` and MUST NOT be exposed externally.
 // Authoritative source: BC-2.11.006 frontmatter `restricted_symbols`.
@@ -104,7 +107,8 @@ pub mod tests;
 // test post-parse depth checks in isolation) must live in src/tests/ (unit
 // tests) where pub(crate) items are visible.
 //
-// External consumers MUST use `PrismQlParser::parse` exclusively.
+// External consumers MUST use `PrismQlParser::parse` or `PrismQlParser::parse_with_registry`.
 pub use ast::Ast;
 pub use error::ParseError;
 pub use filter_parser::PrismQlParser;
+pub use write_verb_registry::WriteVerbRegistry;

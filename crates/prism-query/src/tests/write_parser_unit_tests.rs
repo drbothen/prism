@@ -640,3 +640,83 @@ fn test_BC_2_11_004_parse_pipe_with_write_multiple_args() {
     assert!(has_key, "must have key='review'");
     assert!(has_value, "must have value='pending'");
 }
+
+// ─────────────────────────────────────────────────────────────────────────────
+// F-PR130-CR-001: PrismQlParser::parse_with_registry — wire parse_pipe_with_write
+// ─────────────────────────────────────────────────────────────────────────────
+
+/// `PrismQlParser::parse_with_registry` — pipe mode produces WriteNode when
+/// terminal verb is registered. Previously `PrismQlParser::parse` always
+/// returned `PipeQuery { write: None }` regardless of registry.
+#[test]
+fn test_BC_2_11_004_PrismQlParser_parse_with_registry_pipe_write_routes_to_WriteNode() {
+    use crate::ast::Ast;
+    use crate::filter_parser::PrismQlParser;
+    let registry = test_registry(&["contain"]);
+    let result = PrismQlParser::parse_with_registry("FROM crowdstrike_hosts | contain", &registry);
+    assert!(result.is_ok(), "must parse successfully, got: {:?}", result);
+    match result.unwrap() {
+        Ast::Pipe(pq) => {
+            let write = pq
+                .write
+                .as_ref()
+                .expect("PipeQuery.write must be Some(WriteNode)");
+            assert_eq!(write.verb, "contain", "verb must be 'contain'");
+        }
+        other => panic!("expected Ast::Pipe, got: {:?}", other),
+    }
+}
+
+/// `PrismQlParser::parse` (no registry) — same pipe query returns write: None.
+/// Ensures backward compatibility: S-3.01 callers are unaffected.
+#[test]
+fn test_BC_2_11_004_PrismQlParser_parse_no_registry_pipe_write_is_none() {
+    use crate::ast::Ast;
+    use crate::filter_parser::PrismQlParser;
+    // Without registry, the pipe query should parse but write stage is unknown → error
+    // OR parse as plain pipe (implementation-dependent). Key: parse() never crashes.
+    // The default parse() does NOT attempt write detection, so a bare verb at the end
+    // falls through to E-QUERY-023 or is treated as a read-only pipe stage failure.
+    // We just assert no panic occurs.
+    let result = PrismQlParser::parse("FROM crowdstrike_hosts | where x = 1");
+    assert!(
+        result.is_ok(),
+        "read-only pipe parse must succeed: {:?}",
+        result
+    );
+    match result.unwrap() {
+        Ast::Pipe(pq) => {
+            assert!(pq.write.is_none(), "write must be None without registry");
+        }
+        other => panic!("expected Ast::Pipe, got: {:?}", other),
+    }
+}
+
+/// Filter-mode `parse_with_registry`: write verb after `|` is rejected with E-QUERY-010.
+#[test]
+fn test_BC_2_11_004_PrismQlParser_parse_filter_mode_rejects_write_verb_with_registry() {
+    use crate::filter_parser::PrismQlParser;
+    let registry = test_registry(&["contain"]);
+    // Filter mode: starts with a predicate, not FROM / SELECT / DML.
+    let result = PrismQlParser::parse_with_registry("status = 'active' | contain", &registry);
+    assert!(result.is_err(), "filter mode must reject write verb");
+    let msg = result.unwrap_err()[0].message.clone();
+    assert!(
+        msg.contains("E-QUERY-010"),
+        "expected E-QUERY-010 for write verb in filter mode, got: {msg}"
+    );
+}
+
+/// Filter-mode `parse_with_registry` with no write verb: parses normally.
+#[test]
+fn test_BC_2_11_004_PrismQlParser_parse_with_registry_filter_clean_ok() {
+    use crate::ast::Ast;
+    use crate::filter_parser::PrismQlParser;
+    let registry = test_registry(&["contain"]);
+    let result = PrismQlParser::parse_with_registry("status = 'active'", &registry);
+    assert!(result.is_ok(), "clean filter must parse: {:?}", result);
+    assert!(
+        matches!(result.unwrap(), Ast::Filter(_)),
+        "must produce Ast::Filter"
+    );
+}

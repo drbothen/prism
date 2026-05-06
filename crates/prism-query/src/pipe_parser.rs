@@ -542,7 +542,6 @@ pub(crate) fn build_pipe_parser<'a>(
 /// `PrismQlParser::parse` exclusively.
 ///
 /// # Implements BC-2.11.004 — Write Parser Extension
-#[cfg_attr(not(test), allow(dead_code))]
 pub(crate) fn parse_pipe_with_write(
     input: &str,
     registry: &WriteVerbRegistry,

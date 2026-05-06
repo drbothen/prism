@@ -92,6 +92,71 @@ impl PrismQlParser {
         // _guard drops here (or on panic unwind), clearing the thread-local.
     }
 
+    /// Parse a PrismQL query string with write-mode awareness.
+    ///
+    /// Applies the same pre-parse security guards as `parse`, then routes
+    /// pipe-mode queries through `parse_pipe_with_write` so that a terminal
+    /// write verb produces a `PipeQuery { write: Some(WriteNode) }` instead of
+    /// a plain read-only `PipeQuery { write: None }`.
+    ///
+    /// Filter-mode queries with a write verb after `|` are rejected with
+    /// `E-QUERY-010` via `reject_write_verbs_in_filter`.
+    ///
+    /// DML mode (INSERT/UPDATE/DELETE) and SQL SELECT mode are unaffected by
+    /// the registry — write verbs do not apply there.
+    ///
+    /// # Design note
+    /// `parse_with_registry` is a stateless pure function (no `&mut self`,
+    /// no persistent state) consistent with the purity boundary defined in
+    /// BC-2.11.004 and the `PrismQlParser` design.  The registry is passed per
+    /// call, not stored in the parser.
+    ///
+    /// # Implements BC-2.11.004 — Write Parser Extension (F-PR130-CR-001)
+    pub fn parse_with_registry(
+        input: &str,
+        registry: &WriteVerbRegistry,
+    ) -> Result<Ast, Vec<ParseError>> {
+        let limits = security::ParseLimits::snapshot();
+        limits.install_thread_local();
+        let _guard = ThreadLocalGuard;
+
+        // Pre-parse security guards (identical to `parse`).
+        limits
+            .check_query_size(input)
+            .map_err(|e| vec![ParseError::new(0, e.to_string())])?;
+        limits
+            .check_paren_depth(input)
+            .map_err(|e| vec![ParseError::new(0, e.to_string())])?;
+
+        let trimmed = input.trim();
+        if trimmed.is_empty() {
+            return Err(vec![ParseError::new(0, "E-QUERY-001: empty query string")]);
+        }
+
+        let first_token = trimmed.split_ascii_whitespace().next().unwrap_or("");
+        let first_token_upper = first_token.to_uppercase();
+
+        // DML mode: delegate as-is (write verbs not applicable here).
+        if matches!(first_token_upper.as_str(), "INSERT" | "UPDATE" | "DELETE") {
+            return parse_dml_internal(input, &limits);
+        }
+
+        // SQL SELECT mode: delegate as-is.
+        if first_token_upper == "SELECT" {
+            return parse_sql_internal(input, &limits);
+        }
+
+        // Pipe mode: route through parse_pipe_with_write.
+        if first_token_upper == "FROM" || trimmed.starts_with('|') || is_pipe_mode(trimmed) {
+            let pq = crate::pipe_parser::parse_pipe_with_write(input, registry)?;
+            return Ok(Ast::Pipe(pq));
+        }
+
+        // Filter mode: reject write verbs, then parse normally.
+        reject_write_verbs_in_filter(input, registry)?;
+        parse_filter_internal(input, &limits)
+    }
+
     /// Inner parse implementation that receives the already-snapshotted limits.
     ///
     /// Separated from `parse` so that the thread-local cleanup in `parse` is
@@ -1165,7 +1230,6 @@ pub(crate) fn build_pipe_mode_parser<'a>(
 /// `pub(crate)` — never `pub`.
 ///
 /// # Implements BC-2.11.004 — Write Parser Extension
-#[cfg_attr(not(test), allow(dead_code))]
 pub(crate) fn reject_write_verbs_in_filter(
     input: &str,
     registry: &WriteVerbRegistry,
