@@ -680,7 +680,14 @@ jobs:
           # Filter backtick tokens to only those that reference known BC symbols.
           # A token is relevant if:
           # (a) it contains '::' and its normalized form is in spec_normalized_set, OR
-          # (b) it does not contain '::' and its name appears as a leaf in bc_leaf_to_normalized.
+          # (b) it contains '::' but doesn't normalize to a known path — try leaf-resolution:
+          #     e.g. `ParseLimits::install_thread_local` → first segment "ParseLimits" is a
+          #     known leaf → resolves to prism_query::security::ParseLimits. This handles
+          #     method-name backtick tokens (e.g. in a "ParseLimits API:" comment section)
+          #     that use struct::method notation rather than the bare struct name. Without this
+          #     branch, all four ParseLimits method tokens on lib.rs lines 74-75 would be
+          #     silently ignored, making the method coverage unenforced.
+          # (c) it does not contain '::' and its name appears as a leaf in bc_leaf_to_normalized.
           lib_normalized = set()
           unrecognized_tokens = []
           for tok in backtick_tokens:
@@ -688,11 +695,19 @@ jobs:
               if not tok:
                   continue
               if '::' in tok:
-                  # Full or partial path — normalize and check
+                  # Full or partial path — normalize and check against spec set.
                   normalized = normalize_to_use_path(tok)
                   if normalized in spec_normalized_set:
                       lib_normalized.add(normalized)
-                  # else: not a restricted symbol reference, ignore
+                  else:
+                      # Leaf-resolution: tok like "ParseLimits::method" → extract first
+                      # segment and look it up as a leaf in bc_leaf_to_normalized.
+                      # This resolves method-name backtick tokens that use struct::method
+                      # notation instead of the bare struct name.
+                      first_segment = tok.split('::')[0]
+                      if first_segment in bc_leaf_to_normalized:
+                          lib_normalized.add(bc_leaf_to_normalized[first_segment])
+                      # else: not a restricted symbol reference, ignore
               else:
                   # Short name — look up by leaf
                   if tok in bc_leaf_to_normalized:
@@ -734,6 +749,99 @@ jobs:
                   surfaces_failed.append("Surface 2 (crates/prism-query/src/lib.rs docstring)")
               print(f"\nFAIL: perimeter-symbols-sync failed on: {', '.join(surfaces_failed)}", file=sys.stderr)
               sys.exit(1)
+          PYEOF
+
+  deep-recursion-stack-guard:
+    name: Deep-recursion test stack-guard lint (OBS-002)
+    # OBS-002: Warns (non-blocking) when a test constructs a depth-N parse tree
+    # (N >= 50) without using run_with_deep_stack.  Without the 8MB stack wrapper
+    # those tests SIGBUS on macOS aarch64 CI — the 2MB default thread stack is
+    # exhausted before the recursion bottoms out.
+    #
+    # Heuristic: scan test files for patterns that build large recursive inputs
+    # (for-loop over 50+ iterations or repeat(50+)) and flag any #[test] function
+    # that has such a pattern but lacks a run_with_deep_stack call.
+    #
+    # This check is intentionally non-blocking (|| true on the grep exit) — it
+    # emits a warning to the CI log rather than failing the PR.  Promote to
+    # blocking once all existing tests are confirmed wrapped.
+    runs-on: ubuntu-latest
+    timeout-minutes: 2
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+      - name: Scan for deep-recursion tests missing run_with_deep_stack
+        run: |
+          set -euo pipefail
+          python3 - << 'PYEOF'
+          import re, sys
+          from pathlib import Path
+
+          # Patterns that suggest a depth-N construction with N >= 50.
+          DEPTH_PATTERNS = [
+              re.compile(r'for\s+\w+\s+in\s+0\.\.[5-9]\d'),   # for _ in 0..50 or higher
+              re.compile(r'for\s+\w+\s+in\s+0\.\.\d{3,}'),    # for _ in 0..NNN (3+ digits)
+              re.compile(r'\.repeat\([5-9]\d\)'),              # .repeat(50) or higher
+              re.compile(r'\.repeat\(\d{3,}\)'),               # .repeat(NNN) (3+ digits)
+          ]
+
+          GUARD = 'run_with_deep_stack'
+
+          # Test sources: src/tests/ directories and any *_test.rs files.
+          test_paths = list(Path('crates').rglob('src/tests/*.rs'))
+          test_paths += list(Path('crates').rglob('*_test.rs'))
+          test_paths += list(Path('tests').rglob('*.rs'))
+
+          # Simple function-body extractor: split file into #[test] fn blocks.
+          def extract_test_bodies(text):
+              """
+              Yield (fn_name, body_text) for each #[test] function in text.
+              Body is the text from the opening brace to the matching close brace.
+              """
+              fn_pat = re.compile(r'#\[(?:tokio::)?test\].*?fn\s+(\w+)\s*\([^)]*\)\s*\{', re.DOTALL)
+              for m in fn_pat.finditer(text):
+                  fn_name = m.group(1)
+                  start = m.end() - 1  # position of opening brace
+                  depth = 0
+                  body_end = start
+                  for i, ch in enumerate(text[start:], start):
+                      if ch == '{':
+                          depth += 1
+                      elif ch == '}':
+                          depth -= 1
+                          if depth == 0:
+                              body_end = i
+                              break
+                  yield fn_name, text[start:body_end + 1]
+
+          warnings = []
+          for path in sorted(set(test_paths)):
+              try:
+                  content = path.read_text()
+              except Exception:
+                  continue
+              for fn_name, body in extract_test_bodies(content):
+                  has_depth = any(p.search(body) for p in DEPTH_PATTERNS)
+                  has_guard = GUARD in body
+                  if has_depth and not has_guard:
+                      warnings.append(f"  {path}::{fn_name}")
+
+          if warnings:
+              print(
+                  f"\nWARNING (OBS-002): {len(warnings)} test(s) build deep recursive inputs "
+                  f"(depth >= 50) without `{GUARD}`.\n"
+                  "These tests may SIGBUS on macOS aarch64 CI (2MB default stack).\n"
+                  "Wrap the body with run_with_deep_stack from crates/prism-query/src/tests/util.rs.\n"
+              )
+              for w in warnings:
+                  print(w)
+              # Non-blocking: exit 0 so the PR is not blocked.
+              # TODO: promote to exit(1) once all existing tests are confirmed wrapped.
+              sys.exit(0)
+          else:
+              print("OBS-002 OK: no deep-recursion tests found missing run_with_deep_stack.")
+              sys.exit(0)
           PYEOF
 
   verify-workflow-structure:

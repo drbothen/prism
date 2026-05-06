@@ -4,6 +4,13 @@
 # This file is intentionally minimal: every line documented and tied to
 # a measured speedup. Do not add settings without a corresponding
 # entry in the build-optimization research sidecar.
+#
+# Note: [profile.dev] settings here apply to BOTH local dev AND CI runs that
+# use the dev profile (e.g., `cargo nextest run` without --release). The CI
+# macOS aarch64 leg in particular uses the same 2MB-default test thread stack
+# as local development, so deep-recursion tests must use
+# `crates/prism-query/src/tests/util.rs::run_with_deep_stack` to avoid SIGBUS
+# at the boundary. Reference: SIGBUS triage on PR #127, 2026-05-05.
 
 # -----------------------------------------------------------------------------
 # Dev profile: faster incremental compiles by trimming debug info.

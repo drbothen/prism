@@ -24,6 +24,10 @@ check:
     PROPTEST_CASES=100 cargo test --workspace --all-features --doc
     @scripts/check-crate-layout.sh
 
+# iter <crate>: TDD inner loop. PROPTEST_CASES=32 (8x less than default 256) for speed.
+# WARNING: property-test failures during `iter` may not reproduce at full strength.
+# Always run `just check` before pushing to verify with default cases.
+#
 # TDD iteration mode — single crate, fast feedback (target: <60s).
 # Usage: just iter prism-query
 #        just iter prism-query test_parser
