@@ -39,6 +39,7 @@ use crate::ast::{
     OrderExpr, PipeQuery, PipeStage, Predicate, SelectClause, SelectItem, SortExpr, SqlQuery,
     SqlStatement, StatsStage, VirtualField,
 };
+use crate::write_ast::{DmlNode, WriteNode};
 
 /// AST visitor trait.
 ///
@@ -54,6 +55,17 @@ pub trait Visitor {
     }
     fn visit_sql_statement(&mut self, s: &SqlStatement) {
         walk_sql_statement(self, s);
+    }
+    /// Visit a DML AST node (INSERT/UPDATE/DELETE). (F-PR130-P1-MED-002, S-3.06)
+    fn visit_dml_node(&mut self, node: &DmlNode) {
+        walk_dml_node(self, node);
+    }
+    /// Visit a pipe-mode write node (verb + args). (F-PR130-P4-MED-001, S-3.06)
+    ///
+    /// Default walks `WriteArg.value` literals for all args. Override to stop
+    /// early (e.g. security scanners that only need the verb string).
+    fn visit_write_node(&mut self, node: &WriteNode) {
+        walk_write_node(self, node);
     }
     fn visit_sql_query(&mut self, q: &SqlQuery) {
         walk_sql_query(self, q);
@@ -129,15 +141,34 @@ pub fn walk_ast<V: Visitor + ?Sized>(v: &mut V, ast: &Ast) {
 
 // B-4: walk_sql_statement uses `match` (not `if let`) intentionally.
 // `SqlStatement` is `#[non_exhaustive]`, so the `_ => {}` catch-all arm is
-// required for forward-correctness when S-3.06 adds Dml/Ddl variants.
+// required for forward-correctness when future stories add Ddl variants.
 // Clippy's `single_match` lint suggests `if let`, but that would silently
 // ignore future variants — the match is the safe, correct form here.
-#[allow(clippy::single_match)]
 pub fn walk_sql_statement<V: Visitor + ?Sized>(v: &mut V, s: &SqlStatement) {
     match s {
         SqlStatement::Select(sq) => v.visit_sql_query(sq),
-        // S-3.06 will add Dml and Ddl variants here.
+        // S-3.06: DML variant now routed to visit_dml_node (F-PR130-P1-MED-002).
+        SqlStatement::Dml(dml) => v.visit_dml_node(dml),
+        // Future DDL and other variants handled by catch-all.
         _ => {}
+    }
+}
+
+/// Walk a `DmlNode`, visiting assignments, WHERE predicate, and source SELECT
+/// in order. (F-PR130-P1-MED-002, S-3.06)
+///
+/// Visitors that need to count or transform sub-expressions within DML AST
+/// nodes (fuzzers, AST analyzers, security tooling) will now reach all inner
+/// nodes automatically. Override `visit_dml_node` to stop traversal early.
+pub fn walk_dml_node<V: Visitor + ?Sized>(visitor: &mut V, node: &DmlNode) {
+    for assignment in &node.assignments {
+        visitor.visit_expr(&assignment.value);
+    }
+    if let Some(predicate) = &node.filter {
+        visitor.visit_predicate(predicate);
+    }
+    if let Some(source_select) = &node.source_select {
+        visitor.visit_sql_query(source_select);
     }
 }
 
@@ -170,6 +201,25 @@ pub fn walk_pipe_query<V: Visitor + ?Sized>(v: &mut V, q: &PipeQuery) {
     v.visit_field(&q.source.as_field_path());
     for stage in &q.stages {
         v.visit_pipe_stage(stage);
+    }
+    // F-PR130-P4-MED-001: visit the terminal write node when present.
+    // Sibling case to P1-MED-002 (DmlNode in SqlStatement): PipeQuery.write
+    // contains WriteArg.value Literals that must be reachable by visitors.
+    if let Some(write) = &q.write {
+        v.visit_write_node(write);
+    }
+}
+
+/// Walk a `WriteNode`, visiting the `value` literal of every `WriteArg`.
+/// (F-PR130-P4-MED-001, S-3.06)
+///
+/// Visitors that inspect write-stage arguments (security scanners, field
+/// collectors, fuzz harnesses) will now reach all `Literal` values inside
+/// a pipe-mode write stage automatically. Override `visit_write_node` to
+/// stop traversal early (e.g. to capture only the verb string).
+pub fn walk_write_node<V: Visitor + ?Sized>(visitor: &mut V, node: &WriteNode) {
+    for arg in &node.args {
+        visitor.visit_literal(&arg.value);
     }
 }
 

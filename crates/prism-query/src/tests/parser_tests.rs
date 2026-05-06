@@ -3353,43 +3353,47 @@ fn test_BC_2_11_003_denylist_full_token_match_inserted_at_identifier_NOT_rejecte
 /// Traces: BC-2.11.003 §Match semantics (whitespace-normalized)
 #[test]
 fn test_BC_2_11_003_denylist_leading_whitespace_normalized() {
+    // S-3.06: INSERT is now routed to the DML parser (write support added).
+    // INSERT INTO ... VALUES (...) is not a valid DML form (must be SELECT-based).
+    // The DML parser returns a parse error (not E-QUERY-002 anymore).
     let result = PrismQlParser::parse("   \n  INSERT INTO events VALUES (1)");
     assert!(
         result.is_err(),
-        "INSERT with leading whitespace must be rejected"
-    );
-    let msg = result.unwrap_err()[0].message.clone();
-    assert!(
-        msg.contains("E-QUERY-002"),
-        "expected E-QUERY-002, got: {msg}"
+        "INSERT with VALUES (not SELECT) must be rejected by DML parser"
     );
 }
 
-/// BC-2.11.003 v1.4: existing INSERT rejection now uses E-QUERY-002 (not E-QUERY-001).
+/// BC-2.11.003 v1.4 update (S-3.06): INSERT was previously rejected with E-QUERY-002.
+/// S-3.06 routes INSERT to the DML parser; INSERT INTO ... VALUES is not a valid
+/// DML form (must be INSERT INTO ... SELECT), so the DML parser returns a parse error.
 ///
-/// Traces: BC-2.11.003 v1.4 Invariants (E-QUERY-002 for denylist hits)
+/// Traces: BC-2.11.003 v1.4, S-3.06 DML routing
 #[test]
 fn test_BC_2_11_003_insert_rejected_uses_e_query_002() {
+    // INSERT INTO ... VALUES (not SELECT) is not a valid PrismQL DML form.
+    // The DML parser (build_dml_parser) expects INSERT INTO ... SELECT; this
+    // query fails at grammar level (DML parse error, not E-QUERY-002).
     let result = PrismQlParser::parse("INSERT INTO events VALUES (1, 2, 3)");
-    assert!(result.is_err(), "INSERT must be rejected");
-    let msg = result.unwrap_err()[0].message.clone();
     assert!(
-        msg.contains("E-QUERY-002"),
-        "expected E-QUERY-002 (not E-QUERY-001), got: {msg}"
+        result.is_err(),
+        "INSERT VALUES (not SELECT) must be rejected"
     );
 }
 
-/// BC-2.11.003 v1.4: UPDATE uses E-QUERY-002.
+/// BC-2.11.003 v1.4 update (S-3.06): UPDATE without WHERE was previously rejected
+/// with E-QUERY-002. S-3.06 routes UPDATE to the DML parser which now emits
+/// E-QUERY-022 (unbounded write — no WHERE clause).
 ///
-/// Traces: BC-2.11.003 v1.4 Invariants
+/// Traces: BC-2.11.003 v1.4, S-3.06 DML routing, BC-2.11.004 §INV-UNBOUNDED-WRITE-REJECTED
 #[test]
 fn test_BC_2_11_003_update_rejected_uses_e_query_002() {
     let result = PrismQlParser::parse("UPDATE events SET x = 1");
-    assert!(result.is_err(), "UPDATE must be rejected");
+    assert!(result.is_err(), "UPDATE without WHERE must be rejected");
     let msg = result.unwrap_err()[0].message.clone();
+    // S-3.06: now returns E-QUERY-022 (unbounded write) instead of E-QUERY-002.
     assert!(
-        msg.contains("E-QUERY-002"),
-        "expected E-QUERY-002, got: {msg}"
+        msg.contains("E-QUERY-022"),
+        "expected E-QUERY-022 (unbounded UPDATE), got: {msg}"
     );
 }
 

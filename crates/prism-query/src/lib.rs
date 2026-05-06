@@ -3,6 +3,8 @@
 //! Created in S-2.08 with the pure-data `_source_type` virtual field injection
 //! function. S-3.01 adds the PrismQL parser (filter/SQL/pipe modes via Chumsky 0.12).
 //! S-3.02 extends this crate with the DataFusion `TableProvider` integration.
+//! S-3.06 extends the parser with write-mode productions (pipe terminal write stages,
+//! SQL DML statements, filter-mode write rejection).
 //!
 //! # Architecture Compliance (S-2.08)
 //! This crate MUST NOT depend on DataFusion, Arrow, `arrow-schema`, or `arrow2`.
@@ -13,11 +15,18 @@
 //! Parser modules MUST NOT import from `prism-sensors`, `prism-mcp`, or any I/O
 //! crate. Parsing is a pure function: `&str -> Result<Ast, Vec<ParseError>>`.
 //!
+//! # Architecture Compliance (S-3.06)
+//! Write parser extensions are pure: `WriteVerbRegistry` is initialized once before
+//! parse calls and is immutable during parsing — no `WriteEndpointRegistry` I/O
+//! during a parse call (BC-2.11.004 purity rule).
+//!
 //! # Modules
 //! - [`types`]                — `SensorQueryDescriptor` struct (table routing context, S-2.08)
 //! - [`materialization`]      — `inject_source_type()` pure-data virtual field injection (S-2.08)
 //! - [`org_scoped_session_id`] — org-scoped UUID v7 session ID generation for sensor pagination (S-3.2.08 / D-048)
 //! - [`ast`]                  — PrismQL AST types: `FilterExpr`, `SqlQuery`, `PipeQuery`, `Expr`, etc. (S-3.01)
+//! - [`write_ast`]            — Write mode AST types: `WriteNode`, `DmlNode`, `WriteArg`, `Assignment` (S-3.06)
+//! - [`write_verb_registry`]  — `WriteVerbRegistry` wrapping `WriteEndpointRegistry` or test `HashSet` (S-3.06)
 //! - [`error`]                — `ParseError` type and ariadne-based error formatting (S-3.01)
 //! - [`filter_parser`]        — filter mode parser: `source | predicate` (S-3.01 / BC-2.11.002)
 //! - [`sql_parser`]           — SQL mode parser: `SELECT … FROM … JOIN … WHERE …` (S-3.01 / BC-2.11.003)
@@ -40,6 +49,10 @@ pub mod security;
 pub mod sql_parser;
 pub mod visit;
 
+// ── S-3.06 modules ────────────────────────────────────────────────────────────
+pub mod write_ast;
+pub mod write_verb_registry;
+
 // ── Kani proofs (cfg-gated; compile everywhere, run only under cargo kani) ────
 pub mod proofs;
 
@@ -51,10 +64,13 @@ pub mod tests;
 //
 // # Security perimeter (B-3, BC-2.11.006, SEC-C-003, F-LOW-002)
 //
-// `PrismQlParser::parse` is the SOLE public security entry point. It applies:
+// `PrismQlParser::parse` and `PrismQlParser::parse_with_registry` are the public
+// security entry points. Both apply:
 //   1. `check_query_size` — rejects inputs > 64KB before any parsing
 //   2. `check_paren_depth` — rejects inputs with > 64 lexical paren depth
 //   3. Mode detection — dispatches to `parse_sql`, `parse_pipe`, or `parse_filter`
+// `parse_with_registry` additionally routes pipe mode through `parse_pipe_with_write`
+// and filter mode through `reject_write_verbs_in_filter` (BC-2.11.004, F-PR130-CR-001).
 //
 // The following symbols are `pub(crate)` and MUST NOT be exposed externally.
 // Authoritative source: BC-2.11.006 frontmatter `restricted_symbols`.
@@ -79,12 +95,20 @@ pub mod tests;
 //   `ThreadLocalGuard` (filter_parser) — `pub(crate)` for unit-test
 //   verification of Drop semantics; not part of the stable API.
 //
+// Write-parser internals (S-3.06, BC-2.11.004 + BC-2.11.006 v1.14 DI-034 layer 4):
+//   `parse_pipe_with_write`, `build_write_stage_parser`,
+//   `build_write_arg_parser`, `extract_sensor_prefix` (pipe_parser)
+//   `parse_sql_dml`, `parse_sql_dml_with_limits`, `build_dml_parser`,
+//   `is_internal_prism_table`, `check_unbounded_write` (sql_parser)
+//   `reject_write_verbs_in_filter` (filter_parser)
+//
 // Tests that need direct sub-parser access (e.g., to obtain
 // FilterExpr/PipeQuery/SqlQuery directly, or to bypass pre-parse guards to
 // test post-parse depth checks in isolation) must live in src/tests/ (unit
 // tests) where pub(crate) items are visible.
 //
-// External consumers MUST use `PrismQlParser::parse` exclusively.
+// External consumers MUST use `PrismQlParser::parse` or `PrismQlParser::parse_with_registry`.
 pub use ast::Ast;
 pub use error::ParseError;
 pub use filter_parser::PrismQlParser;
+pub use write_verb_registry::WriteVerbRegistry;
