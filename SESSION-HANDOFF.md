@@ -28,7 +28,7 @@ successor_focus: "D-226 S-3.01 PrismQL PARSER KEYSTONE IMPLEMENTATION COMPLETE (
 **STEP 9 (CONTINUE W3-FIRST PLAN):** Tier 3 (8-way parallel: S-3.03/04/05/08/09/11/12/13) → Tier 4 (S-3.07 + S-3.10) → W3 wave gate (HS-001..HS-012 evaluation against W3 core implementations) → Resume Phase 4.B (S-4.01 + S-4.03 entry stories).
 
 **KEY REFERENCES:**
-- STATE.md v6.88: develop@3133710e; factory-artifacts e3bdda60 (canonical SHA — D-238 pass-8 remediation + D-239 Stage 2 backfill)
+- STATE.md v6.88: develop@3133710e; factory-artifacts c6cccfa6 (canonical SHA — D-238 pass-8 remediation + D-239 Stage 2 backfill)
 - D-238: pass-8 remediation 2026-05-05 — BC-2.11.006 v1.10 (ParseLimits::snapshot; 17 entries); lib.rs 6 sub-parsers; perimeter-symbols-sync lib.rs↔BC CI; DI-034 v1.5; research artifact filed; fcc1838c HEAD
 - D-236: pass-7 remediation 2026-05-05 — per-symbol CI granularity; BC-2.11.006 v1.9 (13→16); ThreadLocalGuard pub(crate); 260→280 tests
 - D-226: S-3.01 implementation cycle complete 2026-05-05 — 187 tests; 16 P0/P1 AST findings + 3 deviations resolved; TD-VSDD-055/056 filed
@@ -36,7 +36,7 @@ successor_focus: "D-226 S-3.01 PrismQL PARSER KEYSTONE IMPLEMENTATION COMPLETE (
 - research/build-optimization-2026.md: new — validated 2026 Rust build perf landscape; copy-pasteable config; risk register
 - BC-INDEX v4.38, VP-INDEX v1.29, HOLDOUT-INDEX v1.3, invariants.md v1.5, L2-INDEX v1.13, STORY-INDEX v2.08, ARCH-INDEX v2.31
 
-factory-artifacts canonical: e3bdda60 (canonical SHA — D-238 pass-8 remediation + D-239 Stage 2 backfill). develop HEAD: 3133710e."
+factory-artifacts canonical: c6cccfa6 (canonical SHA — D-238 pass-8 remediation + D-239 Stage 2 backfill). develop HEAD: 3133710e."
 ---
 
 # Session Handoff — WAVE 4 PHASE 4.A DECISIONS LOGGED (2026-05-02)
@@ -161,12 +161,12 @@ factory-artifacts canonical: e3bdda60 (canonical SHA — D-238 pass-8 remediatio
 
 ## Current State
 
-develop HEAD `3133710e` | factory-artifacts `e3bdda60` (canonical SHA — D-238 pass-8 remediation + D-239 Stage 2 backfill; STATE v6.88)
+develop HEAD `3133710e` | factory-artifacts `c6cccfa6` (canonical SHA — D-238 pass-8 remediation + D-239 Stage 2 backfill; STATE v6.88)
 
 | Metric | Value |
 |--------|-------|
 | develop HEAD | `3133710e` (rename PR #126 squash-merged 2026-05-05T03:19:10Z — crowdstrike_session→org_scoped_session_id) |
-| factory-artifacts HEAD | `e3bdda60` (canonical SHA — D-238 pass-8 remediation + D-239 Stage 2 backfill; STATE v6.88) |
+| factory-artifacts HEAD | `c6cccfa6` (canonical SHA — D-238 pass-8 remediation + D-239 Stage 2 backfill; STATE v6.88) |
 | PR count merged | 126 (PR #127 OPEN — S-3.01 PrismQL parser; feature/S-3.01@fcc1838c) |
 | Workspace test count | 2363 + 280 on feature/S-3.01 branch |
 | Open PRs | PR #127 S-3.01 PrismQL parser — OPEN; pass-8 remediation COMPLETE; pass-9 next (1 of 3 needed for convergence window) |
