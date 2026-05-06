@@ -50,8 +50,15 @@ chrono = { version = "0.4", default-features = false, features = ["std", "serde"
 [dev-dependencies]
 # S-3.2.08 — isolation tests: LruCache mirrors prism-dtu-crowdstrike session_registry (dev-only)
 lru = "0.17"
+
 # S-3.01 VP-014/VP-015 — bounded model checking proofs (exact pin; out-of-band nightly
 # toolchain; does not affect workspace MSRV of Rust 1.85).
+# Gated to non-Windows because kani-verifier 0.67 uses std::os::unix::* (CommandExt::arg0,
+# fs::symlink) which don't exist on Windows. Kani itself is Linux/macOS-only; the proof
+# modules in src/proofs/ are #[cfg(kani)]-gated so they never compile in regular cargo
+# test. Removing this from the Windows dep graph unblocks `cargo test --workspace` on
+# x86_64-pc-windows-msvc without affecting Kani verification on supported platforms.
+[target.'cfg(not(target_os = "windows"))'.dev-dependencies]
 kani-verifier = "=0.67.0"
 
 [lints.rust]
