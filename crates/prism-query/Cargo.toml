@@ -50,6 +50,8 @@ chrono = { version = "0.4", default-features = false, features = ["std", "serde"
 [dev-dependencies]
 # S-3.2.08 — isolation tests: LruCache mirrors prism-dtu-crowdstrike session_registry (dev-only)
 lru = "0.17"
+# S-3.06 — property-based tests for write-mode AST round-trips (VP-021 corpus extension)
+proptest = "1"
 
 # S-3.01 VP-014/VP-015 — bounded model checking proofs (exact pin; out-of-band nightly
 # toolchain; does not affect workspace MSRV of Rust 1.85).
