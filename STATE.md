@@ -1,7 +1,7 @@
 ---
 document_type: pipeline-state
 level: ops
-version: "6.96"
+version: "6.97"
 producer: state-manager
 timestamp: 2026-05-06T00:00:00Z
 inputs: []
@@ -22,7 +22,7 @@ repos:
   - axiathon
   - ocsf-proto-gen
   - mcp-claroty-xdome
-current_step: "Tier-2 dispatch prep — S-3.02 (Query Materialization, deps all merged) + S-3.06 (PrismQL Write Parser, deps all merged) ready to dispatch in parallel via per-story-delivery; both stories at status=draft, await drift-check + status bump"
+current_step: "Tier-2 implementer in-flight — S-3.02 v1.10 (72 RED post-amendment, error-codes reconciled) + S-3.06 v1.7 (91 RED, BC-2.11.004 v1.4 + 9 perimeter restricted_symbols guard) running in parallel via per-story-delivery; next: per-AC demo-recorder + push + pr-manager 9-step PR lifecycle"
 wave_3_carry_forward_debt: "ALL_REMEDIATE — W4-FIX-PERF-001/002, W4-FIX-CODE-001, W4-FIX-SEC-001..004 stories planned per D-203"
 wave_4_status: "PHASE_4_A_CONVERGED + R9_APPROVED but PHASE_4_B SUSPENDED — pre-implementation dep check (2026-05-04) found S-4.01 → S-3.02 (status=draft); pivoting to full Wave 3 implementation per user directive D-223"
 wave_4_phase_4_a_preflight:
@@ -80,8 +80,8 @@ wave_4_phase_4_a_preflight:
   r9_human_approval: APPROVED 2026-05-04
   phase_4b_prerequisites: []
   phase_4b_prerequisites_note: "[ALL_CLEARED] — D-218 (2026-05-04) + D-216 (2026-05-04) both closed"
-  next_action: "Tier-2 dispatch — S-3.02 (Query Materialization) + S-3.06 (PrismQL Write Parser) in parallel via per-story-delivery; both stories at status=draft, deps all merged (S-3.01 merged 2d7040b1, all Wave-2/DTU deps merged); run drift-check + status bump before dispatch"
-  wave_3_implementation_status: "S-3.01_MERGED_2026-05-06 (PR #127, squash 2d7040b1) + TD-VSDD-058_RESOLVED_2026-05-06 (PR #128, squash 3e858f9f); develop HEAD 3e858f9f; 15-pass convergence trajectory (passes 1-12 BLOCKED→remediated; pass-13 CLEAN; pass-14 PERFECT CLEAN; pass-15 PERFECT CLEAN; 3/3 FINAL window closed); F-PG-001 codified as TD-VSDD-057 OPEN-DEFERRED-CROSS-REPO; Tier-2 (S-3.02 + S-3.06) dispatch prep next"
+  next_action: "Tier-2 implementer in-flight — S-3.02 v1.10 + S-3.06 v1.7 in parallel worktrees; next: per-AC demo-recorder + push + pr-manager 9-step PR lifecycle for each story"
+  wave_3_implementation_status: "S-3.01_MERGED_2026-05-06 (PR #127, squash 2d7040b1) + TD-VSDD-058_RESOLVED_2026-05-06 (PR #128, squash 3e858f9f); develop HEAD 3e858f9f; 15-pass convergence trajectory (passes 1-12 BLOCKED→remediated; pass-13 CLEAN; pass-14 PERFECT CLEAN; pass-15 PERFECT CLEAN; 3/3 FINAL window closed); F-PG-001 codified as TD-VSDD-057 OPEN-DEFERRED-CROSS-REPO; Tier-2 IN-FLIGHT — S-3.02 v1.10 + S-3.06 v1.7 implementers running in parallel worktrees (.worktrees/S-3.02/ + .worktrees/S-3.06/); BC amendments 2.11.004 v1.4 + 2.11.006 v1.11/v1.12 + 2.11.007 v1.4 committed (eef6e89f → 0a853123 → 0ca6709a); 4 process-gap candidates flagged"
   pre_pass22_sweep_status: "COMPLETE_2026-05-03 — F-PreP22-H-001 (concurrency-architecture v1.1 8/8 split per D-209); F-PreP22-H-002 (observability v1.1 user-facing examples updated); F-PreP22-H-003 (interface-definitions v2.5 ActionEngine→ActionDeliveryEngine); F-PreP22-H-004 (vp-045 spec body v1.2 rewritten + slug-preservation banner per POL-1). ARCH-INDEX v2.20. Window stays 0/3; Pass 22 dispatch ready."
   pass_22_adversary_verdict: "BLOCKED (3 findings: 0C/1H/1M/1L/0OBS)"
   pass_22_remediation_complete: true
@@ -377,9 +377,9 @@ user_directive_persistent: "No pragmatic convergence. Fix all issues before buil
 | **Language** | Rust |
 | **Target Workspace** | per-analyst stdio (MCP server) |
 | **Started** | 2026-04-13 |
-| **Last Updated** | 2026-05-06 (D-246 — PR #127 S-3.01 MERGED 2d7040b1 + PR #128 TD-VSDD-058 MERGED 3e858f9f; develop HEAD 3e858f9f; 15-pass convergence closed; TD-VSDD-057 OPEN-DEFERRED-CROSS-REPO; STATE v6.95→v6.96) |
-| **Current Phase** | Wave 3 Tier-2 dispatch prep — S-3.01 MERGED; S-3.02 + S-3.06 ready to dispatch in parallel |
-| **Current Step** | Tier-2 dispatch prep — S-3.02 (Query Materialization, deps all merged) + S-3.06 (PrismQL Write Parser, deps all merged) ready to dispatch in parallel via per-story-delivery; both stories at status=draft, await drift-check + status bump |
+| **Last Updated** | 2026-05-06 (D-247 — Tier-2 in-flight: S-3.02 v1.10 + S-3.06 v1.7 implementers dispatched; BC amendments 2.11.004 v1.4 + 2.11.006 v1.11/v1.12 + 2.11.007 v1.4; 4 process-gap candidates flagged; STATE v6.96→v6.97) |
+| **Current Phase** | Wave 3 Tier-2 in-flight — S-3.02 + S-3.06 implementers running in parallel worktrees |
+| **Current Step** | Tier-2 implementer in-flight — S-3.02 v1.10 (72 RED post-amendment, error-codes reconciled) + S-3.06 v1.7 (91 RED, BC-2.11.004 v1.4 + 9 perimeter restricted_symbols guard) running in parallel via per-story-delivery; next: per-AC demo-recorder + push + pr-manager 9-step PR lifecycle |
 
 ## Phase Progress
 
@@ -435,6 +435,7 @@ _D-001..D-046 archived: [cycles/phase-3-dtu-wave-2/decisions-archive-d001-d032.m
 | D-241 | Stage 2 backfill 2026-05-05 — cite factory-artifacts self-SHA 334c995e in STATE.md + SESSION-HANDOFF.md. Resolves wave-gate-prerequisite SHA currency check after pass-9 recovery. Prior dispatch (agentId af37dbde4e09f5422) executed Stage 1 (334c995e, good) but produced corrupted Stage 2 (e5002460) that cited stale SHA e2bfba39 instead of Stage 1 SHA c14c7762. Recovery: force-pushed --force-with-lease=factory-artifacts:e5002460 (user-authorized 2026-05-05; factory-artifacts is single-author artifact-only branch, bad commits minutes old). Stage 1 334c995e restored to origin; Stage 2 now authored correctly citing 334c995e. TD-VSDD-053 documents this exact failure mode. STATE v6.89→v6.90. | STATE v6.90 — Stage 2 backfill: factory-artifacts self-SHA 334c995e cited; wave-gate-prerequisite hook SHA currency restored after force-push recovery | 4 | 2026-05-05 |
 | D-245 | PR-127 Adversary Pass-15 PERFECT CLEAN — DEFINITIVE CONVERGENCE 2026-05-06: Pass-15 verdict: CLEAN (0C/0H/0M/0L/0I/0OBS — perfect clean); window 3/3 CLOSED FINAL (pass-13 CLEAN + pass-14 PERFECT CLEAN + pass-15 PERFECT CLEAN). PR #127 (S-3.01 PrismQL Parser) is DEFINITIVELY CONVERGED. Adversary explicitly stated 'This is the terminal commit of the post-pass-13 hardening arc.' 15 adversary passes total consumed. Single commit 230aa700 since pass-14: install protoc step in fuzz-smoke job after CI run 25444145941 fuzz-smoke failed at 14m49s with prism-ocsf prost-build NotFound — third latent CI bug masked by upstream timeout exhaustion. Action SHA pinned consistently with 5 sibling jobs (arduino/setup-protoc@c65c819 # v3.0.0). Path B local validation (315,830 runs, 0 crashes) holds. F-PG-001/TD-VSDD-057 + TD-VSDD-058 remain in pending-codification queue (non-blocking). feature/S-3.01 HEAD: 230aa700. Spec versions unchanged. Next: re-dispatch pr-manager for steps 7-9 of per-story-delivery merge protocol. | Pass-15 PERFECT CLEAN; DEFINITIVE convergence for PR #127; ready for pr-manager merge dispatch | 4 | 2026-05-06 |
 | D-246 | Post-merge state update 2026-05-06 — Two PRs merged to develop on 2026-05-06: (1) PR #127 (S-3.01 PrismQL Parser): squash SHA 2d7040b1; 15 adversary passes total (passes 1–12 BLOCKED→remediated, pass-13 CLEAN, pass-14 PERFECT CLEAN, pass-15 PERFECT CLEAN; 3/3 FINAL window closed). Carry-over: F-PG-001 codified as TD-VSDD-057 OPEN-DEFERRED-CROSS-REPO (separate vsdd-factory plugin session); TD-VSDD-057 targets vsdd-factory adversary-prompt security-CI-job positive-coverage-assertion rule. (2) PR #128 (TD-VSDD-058 fuzz-nightly fix): squash SHA 3e858f9f; single PERFECT CLEAN pass; adds protoc install step + bumps fuzz-nightly timeout 45→60 min; TD-VSDD-058 CLOSED. develop HEAD: 3e858f9f. pr_count_merged: 126→128. Wave 3 Tier-2 dispatch prep: S-3.02 (Query Tool and Materialization, 5pts) + S-3.06 (PrismQL Write Parser Extensions, 3pts) both at status=draft with all deps merged; ready for parallel per-story-delivery dispatch after drift-check + status bump. STATE v6.95→v6.96. | PR #127 S-3.01 MERGED 2d7040b1 + PR #128 TD-VSDD-058 MERGED 3e858f9f; 15-pass convergence closed; TD-VSDD-057 OPEN-DEFERRED-CROSS-REPO; Tier-2 (S-3.02+S-3.06) ready | 4 | 2026-05-06 |
+| D-247 | Tier-2 in-flight 2026-05-06 — S-3.02 (Query Materialization, 5pts) + S-3.06 (PrismQL Write Parser Extensions, 3pts) dispatched in parallel via per-story-delivery. Worktrees created: `.worktrees/S-3.02/` (branch feature/S-3.02) + `.worktrees/S-3.06/` (branch feature/S-3.06). Per-story-delivery state at dispatch: **S-3.02**: stub-architect cc509bdc → test-writer e833a851 → BC amendments → story-writer v1.10 (factory-artifacts SHA 0ca6709a) → implementer IN-FLIGHT. 72 RED tests post-amendment. **S-3.06**: stub-architect cdcb4b38 → test-writer c8b708d7 → BC amendments → implementer IN-FLIGHT. 91 RED tests. Story version unchanged at v1.7 (BC-2.11.004 v1.4 amendments handled by implementer per natural TDD reconciliation). **BC amendments committed (eef6e89f → 0a853123 → 0ca6709a):** BC-2.11.004 v1.3→v1.4 (case-insensitive verb matching; E-QUERY-022 unbounded write row; INV-FILTER-EMPTY-REGISTRY), BC-2.11.006 v1.10→v1.11 (+9 restricted_symbols for S-3.06 perimeter guard) then v1.11→v1.12 (E-QUERY-004/005 swap corrected to match PrismError SoT — pre-impl BC error was INVERTED; S-3.02 story refs corrected in v1.10 story bump), BC-2.11.007 v1.3→v1.4 (REQUIRED column SoT documented = `prism_core::ColumnOptions::Required`; spec-driven not hardcoded). **Notable pre-impl findings:** (1) BC-2.11.006 E-QUERY-004/005 were SWAPPED in BC v1.10 relative to PrismError SoT — test-writer surface catch, corrected in v1.12. (2) BC-2.11.007 REQUIRED column SoT was undocumented — story-writer v1.10 + BC v1.4 now specify `prism_core::ColumnOptions::Required` as authoritative. (3) BC-2.11.004 v1.3 missing case-insensitive verb matching and INV-FILTER-EMPTY-REGISTRY invariant — PO caught at test-write phase. (4) Workspace ripple: `prism-sensors` arrow 53→58 in S-3.02 stub-architect commit (resolves chrono conflict from datafusion 53.1 migration). **4 process-gap candidates flagged for codification review at tier-2 close:** (a) E-QUERY-004/005 swap in BC vs SoT — process: BC error-code review against PrismError enum at BC-write time; (b) REQUIRED column SoT undocumented — process: SoT citations required for all "implementation-defined" terms in BCs; (c) case-sensitivity gaps not caught until test-write — process: verb-matching ambiguity checklist at BC authoring; (d) INV-FILTER-EMPTY-REGISTRY missing from initial BC — process: per-BC invariant cross-reference sweep. STATE v6.96→v6.97. | Tier-2 in-flight (S-3.02 v1.10 + S-3.06 v1.7 implementers dispatched); BC amendments (2.11.004 v1.4, 2.11.006 v1.11/v1.12, 2.11.007 v1.4); 4 process-gap candidates flagged | 4 | 2026-05-06 |
 | D-244 | PR-127 Adversary Pass-14 PERFECT CLEAN — FINAL CONVERGENCE 2026-05-06: Pass-14 verdict: CLEAN (0C/0H/0M/0L/0I/0OBS — perfect clean); window 3/3 CLOSED FINAL (pass-12 CLEAN + pass-13 CLEAN + pass-14 CLEAN). PR #127 (S-3.01 PrismQL Parser) is FINAL-CONVERGED per VSDD 3-clean window discipline. 14 adversary passes total consumed. Single commit 2bff2ccd since pass-13: bumped fuzz-smoke timeout 12→20 min after discovery that fuzz-smoke had been silently timing out for 12+ commits since fcc1838c era due to 30f6fc07 opt-level=3 crypto stack ballooning sanitizer-instrumented build time past the 12-min ceiling (run 25427035534 killed at 12m51s in linker phase). Path B local validation: `cargo +nightly fuzz run vp021_parse_fuzz` completed 315,830 runs in 61s with zero crashes — VP-021 holds. F-PG-001 [process-gap] carries forward unchanged (TD-VSDD-057 still pending codification). New advisory: fuzz-vp021-nightly (45-min ceiling) has tight margin under opt-level=3 — non-blocking awareness for future maintenance (TD-VSDD-058 filed). feature/S-3.01 HEAD: 2bff2ccd. CI status (runs 25444145941 + 25444141670 in flight): expected green with new 20-min fuzz ceiling. Spec versions unchanged. Next: re-dispatch pr-manager for steps 7-9 of per-story-delivery merge protocol. | Pass-14 PERFECT CLEAN; FINAL convergence for PR #127; ready for pr-manager merge dispatch | 4 | 2026-05-06 |
 | D-243 | PR-127 Adversary Pass-13 CLEAN — CONVERGENCE_REACHED 2026-05-06: Pass-13 verdict: CLEAN (0C/0H/0M/0L/0I/1OBS); window 3/3 CLOSED (pass-11 CLEAN + pass-12 CLEAN + pass-13 CLEAN). PR #127 (S-3.01 PrismQL Parser) is CONVERGED per VSDD 3-clean window discipline. 13 adversary passes total consumed. F-PG-001 [process-gap]: Perimeter compile-fail Python regex was untested for 12+ passes due to upstream cargo timeouts (3→7→12 min progression) and ANSI color emission. Fix landed in 9557b647 (--color=never). Non-blocking; fix already in artifact. TD-VSDD-057 filed: positive-coverage-assertion rule for security-critical CI jobs. feature/S-3.01 HEAD: 9557b647. CI status (run 25427037875): perimeter compile-fail PASS 6m35s; all 5 platform tests PASS or in progress; fuzz cancelled by concurrency (validation pending on run 25427035534). Spec versions unchanged. Next: human approval gate for PR #127 merge. | Pass-13 CLEAN; CONVERGENCE_REACHED for PR #127; F-PG-001 process-gap recorded; ready for human approval gate | 4 | 2026-05-06 |
 | D-242 | PR-127 Adversary Pass-10 Remediation Complete 2026-05-06: Pass-10 verdict: BLOCKED (0 CRITICAL, 1 HIGH, 0 MEDIUM, 1 LOW, 1 OBS). NOTABLE: adversary explicitly states "The parser security model has converged." Zero security findings, zero spec/code drift. Only doc-redaction completion + heuristic refinement. Remediation: Technical-writer: research/build-optimization-2026.md v1.1→v1.2 (F-HIGH-001 employer-name redaction completion; line 79 had two residual references missed in v1.1; grep verified zero remaining). DevOps `5e7dcb81`: F-LOW-001 deep-recursion-stack-guard dual-signal regex (loop pattern + parser invocation within ±5 lines; 13 false-positives → 0; real unwrapped tests still flagged). feature/S-3.01 HEAD: `5e7dcb81`. Tests: 280 passing. Spec versions: research/build-optimization-2026.md v1.2. Convergence status: pass-10 BLOCKED but on doc-only finding. Window restart with pass-11 (1 of 3 needed). OBS-001 [process-gap]: redaction-on-promote should be automated (file as TD; add to .factory/policies.yaml as future POLICY-11 candidate). Defer non-blocking. | Pass-10 remediation COMPLETE — adversary states 'parser security model has converged'; research v1.2 (F-HIGH-001); dual-signal stack-guard (F-LOW-001 13FP→0); 280 tests; pass-11 next (window restart 1 of 3) | 4 | 2026-05-06 |
@@ -553,29 +554,42 @@ _TD-VSDD-014..019, TD-W3-COMPLIANCE-001, TD-VSDD-025..029 archived to [tech-debt
 
 Cycle files: [burst-log](cycles/phase-2-patch/burst-log.md) | [convergence-trajectory](cycles/phase-2-patch/convergence-trajectory.md) | [session-checkpoints](cycles/phase-2-patch/session-checkpoints.md) | [lessons](cycles/phase-2-patch/lessons.md) | [resolved-blockers](cycles/phase-2-patch/blocking-issues-resolved.md)
 ---
-## Session Resume Checkpoint (2026-05-06-d246-post-merge-tier2-prep-v6.96)
+## Session Resume Checkpoint (2026-05-06-d247-tier2-in-flight-v6.97)
 
-_Previous checkpoint (v6.95/D-245/pass-15-definitive-convergence) archived: [cycles/wave-4-operations/session-checkpoints.md](cycles/wave-4-operations/session-checkpoints.md)_
+_Previous checkpoint (v6.96/D-246/post-merge-tier2-prep) archived: [cycles/wave-4-operations/session-checkpoints.md](cycles/wave-4-operations/session-checkpoints.md)_
 
-**STATE v6.96. D-246 — PR #127 (S-3.01) MERGED 2d7040b1 + PR #128 (TD-VSDD-058 fuzz-nightly) MERGED 3e858f9f. develop HEAD: 3e858f9f. factory-artifacts HEAD: run `git -C .factory log -1 --format='%h %s'`.**
+**STATE v6.97. D-247 — Tier-2 in-flight: S-3.02 v1.10 + S-3.06 v1.7 implementers dispatched to parallel worktrees. develop HEAD: 3e858f9f (unchanged). factory-artifacts HEAD: run `git -C .factory log -1 --format='%h %s'`.**
 
-**D-246 (2026-05-06):** Two PRs merged to develop. PR #127 squash 2d7040b1 (S-3.01 PrismQL Parser): 15-pass convergence trajectory — passes 1–12 BLOCKED→remediated; pass-13 CLEAN (F-PG-001 codified); pass-14 PERFECT CLEAN (fuzz-smoke timeout 12→20 min); pass-15 PERFECT CLEAN (protoc install fuzz-smoke job); 3/3 FINAL window closed. PR #128 squash 3e858f9f (TD-VSDD-058 fuzz-nightly fix): single PERFECT CLEAN pass; protoc install + timeout 45→60 min; TD-VSDD-058 CLOSED. TD-VSDD-057 OPEN-DEFERRED-CROSS-REPO (targets vsdd-factory plugin repo — separate session). F-PG-001 codified in TD-VSDD-057.
+**D-247 (2026-05-06):** Tier-2 dispatched under D-223 (Wave 3 push). Worktrees `.worktrees/S-3.02/` (feature/S-3.02) + `.worktrees/S-3.06/` (feature/S-3.06) created. Both implementers in-flight.
 
-**D-245 (2026-05-06) recap:** Pass-15 PERFECT CLEAN — 0C/0H/0M/0L/0I/0OBS. Window 3/3 CLOSED FINAL. Adversary stated "terminal commit of post-pass-13 hardening arc." PR #127 DEFINITIVELY CONVERGED.
+**S-3.02 per-story-delivery state:** stub-architect cc509bdc → test-writer e833a851 → BC amendments (BC-2.11.006 v1.11→v1.12; BC-2.11.007 v1.3→v1.4) → story-writer v1.10 (factory-artifacts 0ca6709a) → **implementer IN-FLIGHT** (72 RED tests; error-code refs reconciled to PrismError SoT).
+
+**S-3.06 per-story-delivery state:** stub-architect cdcb4b38 → test-writer c8b708d7 → BC amendments (BC-2.11.004 v1.3→v1.4; BC-2.11.006 v1.10→v1.11) → **implementer IN-FLIGHT** (91 RED tests; BC-2.11.004 v1.4 reconciliation handled by implementer via natural TDD).
+
+**BC amendments (eef6e89f → 0a853123 → 0ca6709a):**
+- BC-2.11.004 v1.3→v1.4: case-insensitive verb matching; E-QUERY-022 unbounded write row; INV-FILTER-EMPTY-REGISTRY
+- BC-2.11.006 v1.10→v1.11: +9 restricted_symbols for S-3.06 perimeter guard (S-3.06 pre-impl amendment)
+- BC-2.11.006 v1.11→v1.12: E-QUERY-004/005 swap corrected to match PrismError SoT; S-3.02 story refs corrected (S-3.02 pre-impl amendment)
+- BC-2.11.007 v1.3→v1.4: REQUIRED column SoT = `prism_core::ColumnOptions::Required`; spec-driven, not hardcoded
+
+**4 process-gap candidates (for codification at tier-2 close):**
+1. E-QUERY-004/005 INVERTED in BC vs PrismError SoT — add: error-code cross-check vs SoT enum at BC-write time
+2. REQUIRED column SoT undocumented in BC — add: SoT citations required for all "implementation-defined" terms
+3. Case-sensitivity ambiguity not caught until test-write — add: verb-matching ambiguity checklist at BC authoring
+4. INV-FILTER-EMPTY-REGISTRY missing from initial BC — add: per-BC invariant cross-reference sweep at authoring
 
 **W3 IMPLEMENTATION GRAPH:**
-- Tier-1 (entry): S-3.01 (PrismQL parser, 5pts) — **MERGED PR #127 2d7040b1 2026-05-06** — 15 adversary passes
-- Tier-2 (parallel, READY): S-3.02 (5pts) + S-3.06 (3pts) — deps all merged; status=draft; drift-check + dispatch next
-- Tier-3 (parallel): S-3.03/04/05/08/09/11/12/13 (19pts combined) — unblocked by Tier-2
-- Tier-4 (parallel): S-3.07 (5pts) + S-3.10 (3pts) — final W3 core tier; Total: 39pts / 13 stories
+- Tier-1: S-3.01 (5pts) — MERGED PR #127 2d7040b1 (15 adversary passes)
+- Tier-2 (IN-FLIGHT): S-3.02 v1.10 (5pts, 72 RED) + S-3.06 v1.7 (3pts, 91 RED)
+- Tier-3 (blocked on Tier-2): S-3.03/04/05/08/09/11/12/13 (19pts)
+- Tier-4: S-3.07 (5pts) + S-3.10 (3pts) — Total: 39pts / 13 stories
 
 **NEXT ACTION:**
-- STEP 1: COMPLETE — D-246 logged; STATE v6.96; PR #127+#128 merged; factory-artifacts committed
-- STEP 2: Drift-check S-3.02 + S-3.06 specs against develop HEAD (S-3.01 AST now real, not stubs)
-- STEP 3: Bump S-3.02 + S-3.06 status draft→in-progress; dispatch per-story-delivery in parallel worktrees
-- STEP 4 (deferred): TD-VSDD-057 codification in vsdd-factory plugin repo (separate session, OPEN-DEFERRED-CROSS-REPO)
+- Per-AC demo-recorder → push → pr-manager 9-step PR lifecycle for S-3.02 and S-3.06 (parallel)
+- TD-VSDD-057 codification in vsdd-factory plugin repo (separate session, OPEN-DEFERRED-CROSS-REPO)
+- After Tier-2 closes: codify 4 process-gap candidates above
 
-**Current spec versions (unchanged from pass-15):** ADR-013 v0.7, ADR-015 v0.6, ADR-016 v0.14, ADR-017 v0.7, ADR-018 v0.6, ADR-019 v0.4, prd.md v1.10, S-3.01 v1.9, STORY-INDEX v2.08, ARCH-INDEX v2.31, BC-INDEX v4.38, VP-INDEX v1.29, HOLDOUT-INDEX v1.3, verification-architecture v1.30, invariants.md v1.5, L2-INDEX v1.13, research/build-optimization-2026.md v1.2
+**Current spec versions:** BC-2.11.004 v1.4, BC-2.11.006 v1.12, BC-2.11.007 v1.4, S-3.02 v1.10, S-3.06 v1.7, BC-INDEX v4.38, STORY-INDEX v2.08, ARCH-INDEX v2.31, VP-INDEX v1.29, prd.md v1.10
 
 **Key files:** [SESSION-HANDOFF.md](SESSION-HANDOFF.md) | [cycle-manifest.md](cycles/wave-4-operations/cycle-manifest.md) | [HOLDOUT-INDEX.md](holdout-scenarios/HOLDOUT-INDEX.md)
 
