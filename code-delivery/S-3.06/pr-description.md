@@ -3,7 +3,7 @@
 - Extends the PrismQL Chumsky 0.12 parser with write-mode syntax: terminal pipe-mode write stages, SQL-mode DML (`INSERT INTO`, `UPDATE`, `DELETE`), and grammar-level write rejection in filter mode.
 - Fixes a Chumsky `choice()` error-priority pathology in `build_dml_parser` via first-token dispatch (per-op builders + `run_dml_parser` helper) — the root cause of all 7 originally-RED DML tests.
 - Promotes `PipeQuery.write` from `Option<()>` to `Option<WriteNode>` and adds `SqlStatement::Dml(DmlNode)` variant — both backward-compatible with all S-3.01 read-mode tests (375/375 GREEN).
-- Expands BC-2.11.006 security perimeter by 9 new `pub(crate)` restricted symbols (total 27 expected E-errors, up from 18 after S-3.01) — all verified by the `perimeter-compile-fail` CI gate.
+- Expands BC-2.11.006 security perimeter by **10 new** `pub(crate)` restricted symbols (total **28 expected E-errors**, up from 18 after S-3.01) — all verified by the `perimeter-compile-fail` CI gate.
 - Zero new dependencies added; uses existing chumsky, prism-spec-engine, prism-core workspace members.
 
 ## Story Link
@@ -17,7 +17,7 @@
 | BC | Version | Title |
 |----|---------|-------|
 | BC-2.11.004 | v1.4 | PrismQL Pipe Mode Parsing (case-insensitive verbs + E-QUERY-022 + INV-FILTER-EMPTY-REGISTRY) |
-| BC-2.11.006 | v1.11 | PrismQL Security Perimeter — +9 new restricted symbols for S-3.06 write-parser internals |
+| BC-2.11.006 | **v1.14** | PrismQL Security Perimeter — +10 new restricted symbols for S-3.06 write-parser internals (incl. parse_sql_dml_with_limits per pass-1 HIGH-002 remediation) |
 
 ## Architecture Changes
 
@@ -70,9 +70,9 @@ flowchart LR
     BC004 --> AC5[AC-5: E-QUERY-023 unknown verb]
     BC004 --> AC6[AC-6: WriteArg key=value]
     BC004 --> AC4[AC-4: Filter mode rejection]
-    BC004[BC-2.11.004] --> AC3[AC-3: E-QUERY-010 prism_* guard]
-    BC010 --> AC7[AC-7: E-QUERY-022 unbounded]
-    BC010 --> AC8[AC-8: DmlNode InsertInto]
+    BC004 --> AC3[AC-3: E-QUERY-010 prism_* guard]
+    BC004 --> AC7[AC-7: E-QUERY-022 unbounded]
+    BC004 --> AC8[AC-8: DmlNode InsertInto]
     AC1 --> T1[test_BC_2_11_004_parse_pipe_with_write_happy_path]
     AC2 --> T2[test_ac2_write_not_terminal / test_BC_2_11_004_write_non_terminal_error]
     AC3 --> T3[test_ac3_internal_table_protected / test_BC_2_11_004_sql_internal_table_rejected]
@@ -203,10 +203,10 @@ Security review completed (Step 4). OWASP Top 10 + injection + auth + input vali
 
 - [ ] `just check` passes (fmt + clippy + nextest + doctests + crate-layout)
 - [ ] `just iter prism-query` — all 375 tests GREEN
-- [ ] Perimeter compile-fail: `cargo check -p perimeter-violation` exits 101 with 27 E-errors
+- [ ] Perimeter compile-fail: `cargo check -p perimeter-violation` exits 101 with 28 E-errors
 - [ ] Review AC-1 through AC-8 demo evidence in `.factory/code-delivery/S-3.06/demos/`
-- [ ] Review PERIMETER-EXPANSION.md for all 9 new symbols
-- [ ] Verify no new `pub` symbols beyond the 9 declared in BC-2.11.006 v1.11
+- [ ] Review PERIMETER-EXPANSION.md for all 10 new symbols
+- [ ] Verify no new `pub` symbols beyond the **10 declared in BC-2.11.006 v1.14**
 - [ ] Verify `reject_write_verbs_in_filter` is grammar-level (search `filter_parser.rs`)
 - [ ] Verify `is_internal_prism_table` fires at parse time (search `sql_parser.rs`)
 - [ ] Verify `check_unbounded_write` enforced for DELETE/UPDATE without WHERE
