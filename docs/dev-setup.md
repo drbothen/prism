@@ -19,16 +19,16 @@ The pre-push gate (`just check`) runs in ~5-8 min on a typical workstation. It e
 
 - `cargo fmt --check`
 - `cargo clippy --all-features -- -D warnings`
-- `cargo test --workspace --all-features` (with `PROPTEST_CASES=100`)
+- `PROPTEST_CASES=100 cargo nextest run --workspace --all-features --no-fail-fast` (+ separate `cargo test --workspace --all-features --doc` for doctests)
 - `scripts/check-crate-layout.sh`
 
 The `PROPTEST_CASES=100` setting overrides any value in your shell environment for the
-duration of the `cargo test` invocation only. CI uses the default (1000 cases) for full
+duration of the nextest invocation only. CI uses a matrix-controlled value for full
 coverage.
 
 CI runs the full-strength `just check-ci` which includes:
 
-- All of the above with default 1000 proptest cases
+- All of the above with the proptest default (256 cases) plus the additional steps below. Note: CI's `linux-gnu` matrix leg injects `PROPTEST_CASES=1000` for stronger property coverage; local `just check-ci` uses the proptest default.
 - `cargo audit` (RustSec supply-chain advisories)
 - `cargo deny check` (license + advisory + duplicate detection)
 - `cargo semver-checks` (API compatibility against `origin/develop`)
@@ -133,6 +133,8 @@ It implements the validated recommendations from `.factory/research/build-optimi
 the TDD inner loop** — it runs the full 24-crate workspace and is reserved for pre-push.
 
 ### XProtect exemption (manual opt-in)
+
+> **macOS version caveat:** This optimization works on macOS 15.x (Sequoia) and earlier. macOS 26.x (Tahoe, 2025+) removed the Developer Tools exemption mechanism — Apple's `xprotectd` no longer respects parent-process exemptions. If your machine is on macOS 26+, this section is informational only; the optimization is unavailable. See `.factory/research/build-optimization-2026.md` §3.1.1 for the underlying research and Objective-See's reverse-engineering details.
 
 If your IT policy allows, exempting your terminal from macOS XProtect runtime scanning delivers
 the largest single speedup — the Nethercote case study measured a 63% reduction in Rust build
