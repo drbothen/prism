@@ -62,7 +62,12 @@ impl SessionScope {
     /// # Panics
     /// Panics if `into_arc` has already been called (inner is None).
     pub fn context(&self) -> &SessionContext {
-        todo!("S-3.02 — SessionScope::context")
+        match self.inner.as_ref() {
+            Some(ctx) => ctx,
+            None => panic!(
+                "E-INT-001: SessionScope::context called after into_arc — context already moved out"
+            ),
+        }
     }
 
     /// Consume the scope and return the inner `SessionContext` as an `Arc`
@@ -74,8 +79,14 @@ impl SessionScope {
     /// # BC-2.11.005
     /// `execute_scheduled` returns `Arc<SessionContext>` so the detection
     /// engine can run additional queries against already-materialized data.
-    pub fn into_arc(self) -> Arc<SessionContext> {
-        todo!("S-3.02 — SessionScope::into_arc")
+    pub fn into_arc(mut self) -> Arc<SessionContext> {
+        let ctx = match self.inner.take() {
+            Some(c) => c,
+            None => {
+                panic!("E-INT-001: SessionScope::into_arc called after context already moved out")
+            }
+        };
+        Arc::new(ctx)
     }
 }
 

@@ -23,6 +23,8 @@
 #![allow(dead_code)]
 
 use datafusion::execution::context::SessionContext;
+use datafusion::execution::memory_pool::GreedyMemoryPool;
+use datafusion::execution::runtime_env::RuntimeEnvBuilder;
 use prism_core::PrismError;
 
 /// Default per-query memory pool size: 200 MB. (BC-2.11.006)
@@ -48,8 +50,19 @@ pub const QUERY_TIMEOUT_SECS: u64 = 30;
 /// `GreedyMemoryPool` grants allocations until the limit is reached. When the
 /// limit is exceeded, DataFusion returns a `ResourcesExhausted` error. The
 /// caller maps this via `map_datafusion_memory_error`. (BC-2.11.006)
-pub fn build_session_context(_pool_bytes: usize) -> Result<SessionContext, PrismError> {
-    todo!("S-3.02 — build_session_context")
+pub fn build_session_context(pool_bytes: usize) -> Result<SessionContext, PrismError> {
+    let pool = std::sync::Arc::new(GreedyMemoryPool::new(pool_bytes));
+    let runtime_env = RuntimeEnvBuilder::new()
+        .with_memory_pool(pool)
+        .build()
+        .map_err(|e| PrismError::QueryExecutionFailed {
+            detail: format!("failed to build DataFusion runtime env: {e}"),
+        })?;
+    let session_config = datafusion::execution::context::SessionConfig::new();
+    Ok(SessionContext::new_with_config_rt(
+        session_config,
+        std::sync::Arc::new(runtime_env),
+    ))
 }
 
 // ---------------------------------------------------------------------------
@@ -63,6 +76,16 @@ pub fn build_session_context(_pool_bytes: usize) -> Result<SessionContext, Prism
 ///
 /// # BC-2.11.006
 /// Pool trips return E-QUERY-004 (memory budget exceeded).
-pub fn map_datafusion_memory_error(_err: datafusion::error::DataFusionError) -> PrismError {
-    todo!("S-3.02 — map_datafusion_memory_error")
+pub fn map_datafusion_memory_error(err: datafusion::error::DataFusionError) -> PrismError {
+    use datafusion::error::DataFusionError;
+    match &err {
+        DataFusionError::ResourcesExhausted(_) => PrismError::QueryMemoryBudgetExceeded {
+            limit_mb: (QUERY_MEMORY_POOL_BYTES / (1024 * 1024)) as u64,
+            // We don't know exact bytes used here; report limit as used to indicate overflow
+            used_mb: (QUERY_MEMORY_POOL_BYTES / (1024 * 1024)) as u64,
+        },
+        _ => PrismError::QueryExecutionFailed {
+            detail: err.to_string(),
+        },
+    }
 }

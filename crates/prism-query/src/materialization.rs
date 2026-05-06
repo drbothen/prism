@@ -235,12 +235,30 @@ pub(crate) async fn resolve_source_refs(
 /// The table name is the source ref string (e.g., `"crowdstrike.detections"`).
 /// DataFusion table names containing dots must be quoted with backticks in
 /// SQL. (BC-2.11.005 dev note)
-pub(crate) fn register_mem_table(
-    _ctx: &SessionContext,
-    _table_name: &str,
-    _batches: Vec<RecordBatch>,
+pub fn register_mem_table(
+    ctx: &SessionContext,
+    table_name: &str,
+    batches: Vec<RecordBatch>,
 ) -> Result<(), PrismError> {
-    todo!("S-3.02 — register_mem_table")
+    use datafusion::datasource::MemTable;
+
+    if batches.is_empty() {
+        // Empty batch list — nothing to register; skip silently.
+        return Ok(());
+    }
+
+    let schema = batches[0].schema();
+    let mem_table =
+        MemTable::try_new(schema, vec![batches]).map_err(|e| PrismError::QueryExecutionFailed {
+            detail: format!("failed to create MemTable for '{table_name}': {e}"),
+        })?;
+
+    ctx.register_table(table_name, std::sync::Arc::new(mem_table))
+        .map_err(|e| PrismError::QueryExecutionFailed {
+            detail: format!("failed to register table '{table_name}': {e}"),
+        })?;
+
+    Ok(())
 }
 
 // ---------------------------------------------------------------------------
@@ -252,8 +270,12 @@ pub(crate) fn register_mem_table(
 /// Drains the stream until exhausted. Returns all collected batches.
 /// The `SessionScope` is still live during collection; it is dropped after
 /// this function returns (or on error). (BC-2.11.005)
-pub(crate) async fn collect_record_batch_stream(
-    _stream: datafusion::physical_plan::SendableRecordBatchStream,
+pub async fn collect_record_batch_stream(
+    stream: datafusion::physical_plan::SendableRecordBatchStream,
 ) -> Result<Vec<RecordBatch>, PrismError> {
-    todo!("S-3.02 — collect_record_batch_stream")
+    datafusion::physical_plan::common::collect(stream)
+        .await
+        .map_err(|e| PrismError::QueryExecutionFailed {
+            detail: format!("stream collection error: {e}"),
+        })
 }

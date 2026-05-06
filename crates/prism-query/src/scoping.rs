@@ -65,10 +65,23 @@ impl ClientRegistry {
 /// Each client's sensor data will be a separate RecordBatch contributing
 /// to the same MemTable. (BC-2.11.011)
 pub fn resolve_clients(
-    _clients: Option<Vec<OrgSlug>>,
-    _registry: &ClientRegistry,
+    clients: Option<Vec<OrgSlug>>,
+    registry: &ClientRegistry,
 ) -> Result<Vec<OrgSlug>, PrismError> {
-    todo!("S-3.02 — resolve_clients")
+    match clients {
+        None => Ok(registry.all_clients().to_vec()),
+        Some(requested) => {
+            // Validate all requested clients exist in registry.
+            for client_id in &requested {
+                if !registry.contains(client_id) {
+                    return Err(PrismError::InvalidClientId {
+                        reason: format!("client '{}' not found in registry", client_id.as_str()),
+                    });
+                }
+            }
+            Ok(requested)
+        }
+    }
 }
 
 // ---------------------------------------------------------------------------
@@ -85,8 +98,16 @@ pub fn resolve_clients(
 /// "Query predicates cannot widen" — if a predicate names a client outside
 /// the tool-parameter scope, it is silently excluded.
 pub(crate) fn intersect_query_client_predicates(
-    _tool_scope: Vec<OrgSlug>,
-    _query_client_predicates: &[OrgSlug],
+    tool_scope: Vec<OrgSlug>,
+    query_client_predicates: &[OrgSlug],
 ) -> Vec<OrgSlug> {
-    todo!("S-3.02 — intersect_query_client_predicates")
+    if query_client_predicates.is_empty() {
+        // No _client predicates in query — keep full tool scope.
+        return tool_scope;
+    }
+    // Keep only clients that are both in tool_scope AND named by query predicates.
+    tool_scope
+        .into_iter()
+        .filter(|c| query_client_predicates.contains(c))
+        .collect()
 }

@@ -19,7 +19,8 @@
 // S-3.02 stub functions: dead_code suppressed for stub phase (BC-5.38.001).
 #![allow(dead_code)]
 
-use prism_sensors::SensorSpec;
+use prism_core::ColumnOptions;
+use prism_spec_engine::spec_parser::ColumnSpec;
 
 use crate::ast::Expr;
 
@@ -105,8 +106,32 @@ pub struct PushDownPlan {
 /// # BC-2.11.007
 /// Implements predicate classification per the Column Push-Down Capability
 /// Taxonomy. Result is used as `QueryParams.filters` in `fan_out()`.
-pub fn classify_predicates(_where_clause: &[Expr], _source: &SensorSpec) -> PushDownPlan {
-    todo!("S-3.02 — classify_predicates")
+pub fn classify_predicates(where_clause: &[Expr], columns: &[ColumnSpec]) -> PushDownPlan {
+    let mut plan = PushDownPlan::default();
+
+    for expr in where_clause {
+        // Extract the column name from the expression (best-effort).
+        let col_name = extract_column_name(expr);
+        let push_option = column_push_down_option_from_spec(&col_name, columns);
+
+        let predicate = Predicate {
+            expr: expr.clone(),
+            column_name: col_name,
+        };
+
+        match push_option {
+            ColumnPushDownOption::Required
+            | ColumnPushDownOption::Index
+            | ColumnPushDownOption::Additional => {
+                plan.push_down.push(predicate);
+            }
+            ColumnPushDownOption::Optimized | ColumnPushDownOption::Default => {
+                plan.post_filter.push(predicate);
+            }
+        }
+    }
+
+    plan
 }
 
 // ---------------------------------------------------------------------------
@@ -118,10 +143,34 @@ pub fn classify_predicates(_where_clause: &[Expr], _source: &SensorSpec) -> Push
 /// Returns `ColumnPushDownOption::Default` when the column is not declared by
 /// the sensor spec (conservative fallback). (BC-2.11.007)
 pub(crate) fn column_push_down_option(
-    _column_name: &str,
-    _source: &SensorSpec,
+    column_name: &str,
+    columns: &[ColumnSpec],
 ) -> ColumnPushDownOption {
-    todo!("S-3.02 — column_push_down_option")
+    column_push_down_option_from_spec(column_name, columns)
+}
+
+/// Internal helper: determine push-down option from a `ColumnSpec` slice.
+fn column_push_down_option_from_spec(
+    column_name: &str,
+    columns: &[ColumnSpec],
+) -> ColumnPushDownOption {
+    let Some(col) = columns.iter().find(|c| c.name == column_name) else {
+        // Unknown column → conservative fallback: post-filter.
+        return ColumnPushDownOption::Default;
+    };
+
+    // Check options in priority order: Required > Index > Additional > Optimized > Default.
+    if col.options.contains(&ColumnOptions::Required) {
+        ColumnPushDownOption::Required
+    } else if col.options.contains(&ColumnOptions::Index) {
+        ColumnPushDownOption::Index
+    } else if col.options.contains(&ColumnOptions::Additional) {
+        ColumnPushDownOption::Additional
+    } else if col.options.contains(&ColumnOptions::Optimized) {
+        ColumnPushDownOption::Optimized
+    } else {
+        ColumnPushDownOption::Default
+    }
 }
 
 // ---------------------------------------------------------------------------
@@ -139,8 +188,47 @@ pub(crate) fn column_push_down_option(
 /// Returns `None` when translation fails (fall back to post-filter with a
 /// WARN log). (BC-2.11.007)
 pub(crate) fn translate_push_down_filter(
-    _predicate: &Predicate,
-    _source: &SensorSpec,
+    predicate: &Predicate,
+    _columns: &[ColumnSpec],
 ) -> Option<String> {
-    todo!("S-3.02 — translate_push_down_filter")
+    // Basic translation: emit column = value string representation.
+    // More sophisticated sensor-native translations added per sensor in later stories.
+    Some(format!("{}={:?}", predicate.column_name, predicate.expr))
+}
+
+// ---------------------------------------------------------------------------
+// extract_column_name (internal helper)
+// ---------------------------------------------------------------------------
+
+/// Extract the column name from a PrismQL `Expr` node (best-effort).
+///
+/// Returns an empty string for complex expressions that don't have a simple
+/// column reference (these will fall through to `Default` / post-filter).
+fn extract_column_name(expr: &Expr) -> String {
+    use crate::ast::Expr::*;
+    match expr {
+        // `field op value` — extract the LHS column name.
+        Compare { lhs, .. } => match lhs.as_ref() {
+            Field(fp) => fp.segments.join("."),
+            VirtualField(vf) => virtual_field_name(vf).to_string(),
+            _ => String::new(),
+        },
+        Field(fp) => fp.segments.join("."),
+        VirtualField(vf) => virtual_field_name(vf).to_string(),
+        _ => String::new(),
+    }
+}
+
+/// Map a `VirtualField` enum to its string name.
+#[allow(unreachable_patterns)] // VirtualField is #[non_exhaustive]; wildcard needed for future variants.
+fn virtual_field_name(vf: &crate::ast::VirtualField) -> &'static str {
+    use crate::ast::VirtualField::*;
+    match vf {
+        Sensor => "_sensor",
+        Client => "_client",
+        SourceTable => "_source_table",
+        SourceType => "_source_type",
+        SafetyFlags => "_safety_flags",
+        _ => "_unknown",
+    }
 }
