@@ -548,6 +548,8 @@ impl QueryCache {
 
         // Drop the partition lock before invalidating moka entries to avoid
         // holding the mutex across potentially-blocking moka operations.
+        // Same canonical pattern as put_with_ttl and invalidate_by_client; see
+        // put_with_ttl for the canonical doc.
         drop(counts);
 
         // Invalidate moka entries (idempotent — safe to call even if already evicted).
@@ -855,10 +857,11 @@ mod tests {
     }
 
     /// C-2 regression: `put` LRU eviction releases the partition lock before calling
-    /// moka invalidate. Verifies that total_bytes accounting is consistent after
-    /// eviction and that the operation does not deadlock under sequential inserts.
+    /// moka invalidate. Verifies that total_bytes accounting remains consistent
+    /// (entry_count ≤ max, total_bytes does not underflow) after repeated evictions.
+    /// SEC-NEW-001 regression guard.
     #[test]
-    fn test_c2_put_lru_eviction_does_not_hold_lock_across_moka() {
+    fn test_c2_put_lru_eviction_accounting_consistent_after_repeated_eviction() {
         let config = CacheConfig {
             max_entries_per_sensor: 3,
             max_bytes: DEFAULT_MAX_CACHE_BYTES,
@@ -897,6 +900,65 @@ mod tests {
         assert!(
             bytes < 1024 * 1024,
             "C-2: total_bytes must not overflow after LRU eviction (got {bytes})"
+        );
+    }
+
+    /// C-2 concurrency: two threads racing on `put` must not deadlock when LRU
+    /// eviction is triggered. Uses `std::thread::scope` to ensure the test
+    /// terminates (Rust's scoped threads join implicitly on scope exit). Each
+    /// thread does 50 inserts beyond the 3-entry partition cap, forcing eviction
+    /// on every insert. If the lock-vs-moka split is wrong the threads will
+    /// deadlock and the scope will hang indefinitely (test will time out in CI).
+    #[test]
+    fn test_c2_put_concurrent_lru_does_not_deadlock() {
+        use std::sync::Arc;
+
+        let config = CacheConfig {
+            max_entries_per_sensor: 3,
+            max_bytes: DEFAULT_MAX_CACHE_BYTES,
+        };
+        let cache = Arc::new(QueryCache::new(config));
+
+        let make_key = |thread: u8, n: u8| crate::cache_key::CacheKey {
+            client_id: format!("t{thread}"),
+            sensor_id: "crowdstrike".to_string(),
+            source_id: "cs_devices".to_string(),
+            push_down_hash: format!("{:0<64}", n),
+        };
+
+        std::thread::scope(|s| {
+            let c1 = Arc::clone(&cache);
+            let c2 = Arc::clone(&cache);
+
+            let h1 = s.spawn(move || {
+                for i in 0u8..50 {
+                    c1.put(make_key(1, i), vec![serde_json::json!({"t": 1, "i": i})])
+                        .expect("thread-1 put must not fail");
+                }
+            });
+
+            let h2 = s.spawn(move || {
+                for i in 0u8..50 {
+                    c2.put(make_key(2, i), vec![serde_json::json!({"t": 2, "i": i})])
+                        .expect("thread-2 put must not fail");
+                }
+            });
+
+            // scope join is implicit, but surface panics explicitly
+            h1.join().expect("thread-1 must not panic");
+            h2.join().expect("thread-2 must not panic");
+        });
+
+        // Accounting invariants hold after concurrent evictions.
+        assert!(
+            cache.entry_count() <= 6, // 2 clients × 3 max per partition
+            "C-2 concurrent: entry_count must respect partition bounds (got {})",
+            cache.entry_count()
+        );
+        assert!(
+            cache.total_bytes() < 1024 * 1024,
+            "C-2 concurrent: total_bytes must not underflow after concurrent evictions (got {})",
+            cache.total_bytes()
         );
     }
 
