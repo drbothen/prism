@@ -19,7 +19,7 @@ successor_focus: "D-262 Tier-3 dispatch: S-3.03/04/05/07 all unblocked (S-3.02 +
 - STATE.md v7.11: develop@6fefc774 (PR #127 squash 2d7040b1 + PR #128 squash 3e858f9f + PR #130 squash 2a7b83f5 + PR #129 squash 6fefc774, 2026-05-06/07); factory-artifacts HEAD: run git -C .factory log -1 (TD-VSDD-053)
 - D-260: PR #129 S-3.02 MERGED 6fefc774 2026-05-07; tier-2 COMPLETE; 2993 tests; STORY-INDEX v2.14
 - D-246: PR #127 S-3.01 MERGED 2d7040b1 + PR #128 TD-VSDD-058 MERGED 3e858f9f 2026-05-06
-- BC-INDEX v4.38, VP-INDEX v1.29, HOLDOUT-INDEX v1.3, invariants.md v1.5, L2-INDEX v1.13, STORY-INDEX v2.16, ARCH-INDEX v2.31
+- BC-INDEX v4.38, VP-INDEX v1.29, HOLDOUT-INDEX v1.3, invariants.md v1.5, L2-INDEX v1.13, STORY-INDEX v2.17, ARCH-INDEX v2.31
 
 develop HEAD: 6fefc774 (four PRs merged 2026-05-06/07: #127 S-3.01 2d7040b1, #128 TD-VSDD-058 3e858f9f, #130 S-3.06 2a7b83f5, #129 S-3.02 6fefc774; factory-artifacts HEAD: run git -C .factory log -1 per TD-VSDD-053)."
 ---

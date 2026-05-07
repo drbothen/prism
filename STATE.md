@@ -333,7 +333,7 @@ bc_count_corrected: 230
 cap_count: 40  # active; highest_cap_id: CAP-040 (CAP-038 Multi-Tenant Identity, CAP-039 Multi-Tenant Fixture Gen, CAP-040 Multi-Tenant Adapter Dispatch — Wave 3 Phase 3.A Step 2)
 bc_index_version: "4.38"
 vp_index_version: "1.29"
-story_index_version: "v2.16"
+story_index_version: "v2.17"
 red_gate_wave_0a_complete: 2026-04-21
 test_vectors_version: "2.7"
 prd_version: "1.10"
@@ -593,7 +593,7 @@ _Previous checkpoint (v7.10/D-260/pr129-merged-tier2-complete) archived: [cycles
 
 **Active worktrees:** none (S-3.02 worktree removed post-merge; no story worktrees active)
 
-**Current spec versions:** BC-2.11.004 v1.4, BC-2.11.005 v1.4, BC-2.11.006 v1.12, BC-2.11.007 v1.4, S-3.02 v1.12, S-3.06 v1.7, BC-INDEX v4.38, STORY-INDEX v2.16, ARCH-INDEX v2.31, VP-INDEX v1.29, prd.md v1.10
+**Current spec versions:** BC-2.11.004 v1.4, BC-2.11.005 v1.4, BC-2.11.006 v1.12, BC-2.11.007 v1.4, S-3.02 v1.12, S-3.06 v1.7, BC-INDEX v4.38, STORY-INDEX v2.17, ARCH-INDEX v2.31, VP-INDEX v1.29, prd.md v1.10
 
 **Key files:** [SESSION-HANDOFF.md](SESSION-HANDOFF.md) | [cycle-manifest.md](cycles/wave-4-operations/cycle-manifest.md) | [HOLDOUT-INDEX.md](holdout-scenarios/HOLDOUT-INDEX.md)
 
