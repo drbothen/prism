@@ -454,14 +454,8 @@ fn test_ac13_update_requires_confirmation() {
         description: None,
         token_id: None,
     };
-    let result1 = create_alias_with_clients_gated_inner(
-        input1,
-        &mut store,
-        &ocsf,
-        &[],
-        None,
-        Some(&token_store),
-    );
+    let result1 =
+        create_alias_with_clients_gated_inner(input1, &mut store, &ocsf, &[], None, &token_store);
     let val1 = result1.expect("first create must succeed (alias does not exist yet)");
     assert!(
         val1.get("alias").is_some(),
@@ -481,14 +475,8 @@ fn test_ac13_update_requires_confirmation() {
         description: None,
         token_id: None,
     };
-    let result2 = create_alias_with_clients_gated_inner(
-        input2,
-        &mut store,
-        &ocsf,
-        &[],
-        None,
-        Some(&token_store),
-    );
+    let result2 =
+        create_alias_with_clients_gated_inner(input2, &mut store, &ocsf, &[], None, &token_store);
     let val2 =
         result2.expect("second create must succeed (alias exists; token generation required)");
     assert_eq!(
@@ -512,14 +500,8 @@ fn test_ac13_update_requires_confirmation() {
         description: None,
         token_id: Some(token_id),
     };
-    let result3 = create_alias_with_clients_gated_inner(
-        input3,
-        &mut store,
-        &ocsf,
-        &[],
-        None,
-        Some(&token_store),
-    );
+    let result3 =
+        create_alias_with_clients_gated_inner(input3, &mut store, &ocsf, &[], None, &token_store);
     let val3 = result3.expect("third create with valid token_id must succeed");
     assert!(
         val3.get("alias").is_some(),
@@ -1071,13 +1053,14 @@ fn test_BC_2_11_008_create_alias_rejects_depth_exceeded_via_tool() {
         description: None,
         token_id: None,
     };
-    // depth_3_alias is not in store — alias is created but @depth_3_alias will
-    // fail at expand time with E-ALIAS-001. Creation itself must not fail.
+    // @depth_3_alias is not valid PrismQL syntax — the alias template parse step
+    // (step 6 in create_alias) rejects it with E-QUERY-001. Depth limit enforcement
+    // is at expand-time, but the `@`-token itself is not a valid PrismQL atom.
     let result = create_alias(input, &mut store, &ocsf);
-    // Either Ok (alias created) or Err (e.g., file write issue) — must not panic.
-    match result {
-        Ok(_) | Err(_) => {}
-    }
+    assert!(
+        result.is_err(),
+        "alias query '@depth_3_alias AND extra' must be rejected at parse-validation step (E-QUERY-001)"
+    );
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -1911,11 +1894,16 @@ fn test_BC_2_11_008_long_alias_body_within_64kb_limit_accepted() {
         description: None,
         token_id: None,
     };
-    // Must not panic; Ok or Err are both valid (parser limits may apply).
+    // The query is within the 64KB byte limit but may exceed the parser's complexity
+    // limit for deeply-nested OR chains. The only acceptable outcomes are:
+    // - Ok: alias created (parser accepted the query)
+    // - Err(QueryParseFailed): parser rejected the complex expression (E-QUERY-001)
+    // Neither outcome should panic or produce any other error variant.
     let result = create_alias(input, &mut store, &ocsf);
-    // We verify no panic occurred; the result may be Ok or Err depending on parser limits.
-    match result {
-        Ok(_) | Err(_) => {}
+    match &result {
+        Ok(_) => {}                                                // parser accepted — valid
+        Err(prism_core::PrismError::QueryParseFailed { .. }) => {} // parser complexity limit — valid
+        Err(e) => panic!("unexpected error variant for long alias body: {:?}", e),
     }
 }
 
@@ -1957,24 +1945,17 @@ fn test_BC_2_11_008_create_alias_response_includes_expanded_form() {
         description: Some("High severity filter".to_string()),
         token_id: None,
     };
-    // create_alias writes to /tmp/test_aliases.toml. May fail on I/O.
-    // What matters: it must not panic, and if Ok, response contains "alias" and "expanded" keys.
-    let result = create_alias(input, &mut store, &ocsf);
-    match result {
-        Ok(val) => {
-            assert!(
-                val.get("alias").is_some(),
-                "response must include alias definition"
-            );
-            assert!(
-                val.get("expanded").is_some(),
-                "response must include expanded form"
-            );
-        }
-        Err(_) => {
-            // I/O failure or parse failure — acceptable in test environment.
-        }
-    }
+    // create_alias writes to a process-unique /tmp path. I/O failure is not acceptable.
+    let val = create_alias(input, &mut store, &ocsf)
+        .expect("test setup: create_alias must succeed on a process-unique /tmp path");
+    assert!(
+        val.get("alias").is_some(),
+        "response must include alias definition"
+    );
+    assert!(
+        val.get("expanded").is_some(),
+        "response must include expanded form"
+    );
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -1995,10 +1976,9 @@ fn test_BC_2_11_009_query_context_records_original_and_expanded() {
 
     // Populate the store with a known alias.
     let entry = simple_entry("high_sev", global_scope(), "severity_id >= 3");
-    // If the write fails (e.g., /tmp not writable in CI), skip the rest gracefully.
-    if store.create_or_update(entry, None).is_err() {
-        return;
-    }
+    store
+        .create_or_update(entry, None)
+        .expect("test setup: create_or_update must succeed on a process-unique /tmp path");
 
     let scope = global_scope();
     let args = HashMap::new();

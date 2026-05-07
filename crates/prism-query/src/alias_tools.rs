@@ -171,6 +171,12 @@ impl AliasEntryView {
 /// `create_alias_with_clients` with an explicit `valid_client_ids` list to
 /// permit per-client alias creation (CR-007).
 ///
+/// **NOTE:** This convenience variant constructs a per-call ephemeral
+/// `ConfirmationTokenStore`, which means the two-step token round-trip
+/// (generate → consume) **CANNOT span calls to this function**. For
+/// two-step flow tests use [`create_alias_with_clients_gated_inner`]
+/// with a long-lived `&ConfirmationTokenStore`.
+///
 /// **Visibility:** `pub(crate)` — MCP layer MUST use `create_alias_with_clients_gated`
 /// to enforce the `alias.write` capability gate (SEC-011).
 ///
@@ -262,17 +268,15 @@ pub fn create_alias_with_clients_gated(
         ocsf_reserved,
         valid_client_ids,
         capability_gate,
-        Some(token_store),
+        token_store,
     )
 }
 
-/// Internal implementation receiving an optional `ConfirmationTokenStore` (F-CRIT-001).
+/// Internal implementation of the gated `create_alias` path (F-CRIT-001).
 ///
-/// The public entry point `create_alias_with_clients_gated` now accepts `token_store`
-/// directly and passes it as `Some(token_store)`. This crate-private `_inner` variant
-/// retains `Option<&ConfirmationTokenStore>` to allow the `create_alias_with_clients`
-/// helper (pub(crate), test-only) to pass a temporary anonymous store without the
-/// caller needing to materialise one.
+/// `pub(crate)` — used by helper variants (`create_alias_with_clients_gated` and
+/// tests that need direct access to a long-lived token store for the two-step
+/// token round-trip). Always requires a `&ConfirmationTokenStore`.
 pub(crate) fn create_alias_with_clients_gated_inner(
     input: CreateAliasInput,
     store: &mut AliasStore,
@@ -282,7 +286,7 @@ pub(crate) fn create_alias_with_clients_gated_inner(
         &prism_security::feature_flag::FeatureFlagEvaluator,
         prism_security::feature_flag::CompileTimeGate,
     )>,
-    token_store: Option<&prism_security::ConfirmationTokenStore>,
+    token_store: &prism_security::ConfirmationTokenStore,
 ) -> Result<serde_json::Value, PrismError> {
     // Step 1: parse scope.
     let scope = AliasScope::parse(&input.scope)?;
@@ -393,22 +397,19 @@ pub(crate) fn create_alias_with_clients_gated_inner(
     //   Pass the consumed token to create_or_update so the update is authorised.
     // - If token_id is None: call create_or_update with token=None; if the alias
     //   already exists it returns ConfirmationRequired; we then generate a real token.
-    let consumed_token: Option<prism_security::ConfirmationToken> =
-        if let Some(ref token_id_str) = input.token_id {
-            // Second call — consume the token before the write.
-            let ts = token_store.ok_or_else(|| PrismError::McpParameterInvalid {
-                tool: "create_alias".to_string(),
-                detail: "token_id provided but no token_store available".to_string(),
-            })?;
-            let action_params = serde_json::json!({
-                "name": input.name,
-                "scope": input.scope,
-            });
-            let token = ts.consume(token_id_str, scope.token_client_id(), &action_params)?;
-            Some(token)
-        } else {
-            None
-        };
+    let consumed_token: Option<prism_security::ConfirmationToken> = if let Some(ref token_id_str) =
+        input.token_id
+    {
+        // Second call — consume the token before the write.
+        let action_params = serde_json::json!({
+            "name": input.name,
+            "scope": input.scope,
+        });
+        let token = token_store.consume(token_id_str, scope.token_client_id(), &action_params)?;
+        Some(token)
+    } else {
+        None
+    };
 
     let result = store.create_or_update(entry.clone(), consumed_token)?;
 
@@ -451,17 +452,13 @@ pub(crate) fn create_alias_with_clients_gated_inner(
                 "name": input.name,
                 "scope": input.scope,
             });
-            let token_id_value: serde_json::Value = if let Some(ts) = token_store {
-                let token = ts.generate(
-                    &token_client_id,
-                    "create_alias",
-                    action_params,
-                    &format!("update alias '{}'", input.name),
-                )?;
-                serde_json::json!(token.token_id)
-            } else {
-                serde_json::Value::Null
-            };
+            let token = token_store.generate(
+                &token_client_id,
+                "create_alias",
+                action_params,
+                &format!("update alias '{}'", input.name),
+            )?;
+            let token_id_value = serde_json::json!(token.token_id);
 
             // DI-004 audit span (CR-023): emit for confirmation-required path.
             tracing::info!(
@@ -470,17 +467,15 @@ pub(crate) fn create_alias_with_clients_gated_inner(
                 alias_scope = %input.scope,
                 outcome = "confirmation_required",
             );
-            let mut response = serde_json::json!({
+            let response = serde_json::json!({
                 "confirmation_required": true,
                 "message": format!(
                     "alias '{}' already exists; provide a confirmation token to update it",
                     input.name
                 ),
                 "token_client_id": token_client_id,
+                "token_id": token_id_value,
             });
-            if !token_id_value.is_null() {
-                response["token_id"] = token_id_value;
-            }
             Ok(response)
         }
     }
