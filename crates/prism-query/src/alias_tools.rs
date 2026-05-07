@@ -317,15 +317,34 @@ pub(crate) fn create_alias_with_clients_gated_inner(
     };
 
     // Step 6: validate PrismQL template syntax (BC-2.11.008 E-QUERY-001).
-    // Replace {{param}} placeholders with dummy literal "1" for parse validation.
+    // Replace {{param}} placeholders with the parameter's actual default value so the
+    // parse-validation reflects the minimum baseline behaviour (F-HIGH-007).
+    // If no default exists for a placeholder, fall back to the literal "1" as a
+    // conservative substitute that allows the parse to proceed.
     let query_for_parse = {
         use std::sync::OnceLock;
         static PLACEHOLDER_RE: OnceLock<regex::Regex> = OnceLock::new();
         #[allow(clippy::expect_used)]
         let re = PLACEHOLDER_RE.get_or_init(|| {
-            regex::Regex::new(r"\{\{[a-zA-Z_][a-zA-Z0-9_]*\}\}").expect("placeholder pattern")
+            regex::Regex::new(r"\{\{([a-zA-Z_][a-zA-Z0-9_]*)\}\}").expect("placeholder pattern")
         });
-        re.replace_all(&input.query, "1").to_string()
+        // Build a map of param_name → default_value from the validated parameter map.
+        let default_map: std::collections::HashMap<&str, &str> = parameters
+            .as_ref()
+            .map(|params| {
+                params
+                    .iter()
+                    .map(|(k, v)| (k.as_str(), v.value.as_str()))
+                    .collect()
+            })
+            .unwrap_or_default();
+
+        re.replace_all(&input.query, |caps: &regex::Captures<'_>| {
+            let param_name = &caps[1];
+            // Use the actual default value; fall back to "1" if the param has no default.
+            (*default_map.get(param_name).unwrap_or(&"1")).to_string()
+        })
+        .to_string()
     };
 
     // Use the public PrismQlParser entry point for template validation (BC-2.11.006).

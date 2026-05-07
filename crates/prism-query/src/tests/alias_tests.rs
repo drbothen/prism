@@ -100,7 +100,8 @@ fn test_ac1_basic_alias_expansion() {
 /// AC-1 (happy path): When `high_sev` is in the store, `@high_sev` expands correctly.
 #[test]
 fn test_ac1_expansion_with_stored_alias() {
-    let mut store = AliasStore::empty("/tmp/test_aliases.toml");
+    let _test_path_1 = format!("/tmp/test_alias_mut_1_{}.toml", std::process::id());
+    let mut store = AliasStore::empty(&_test_path_1);
     let entry = simple_entry("high_sev", global_scope(), "severity_id >= 3");
     // Stores the alias; may succeed or fail depending on file I/O.
     let _ = store.create_or_update(entry, None);
@@ -349,7 +350,8 @@ fn test_ec11_033_empty_store_list_not_error() {
 #[test]
 fn test_ac9_delete_requires_confirmation() {
     // RED: delete_alias is todo!()
-    let mut store = AliasStore::empty("/tmp/test_aliases.toml");
+    let _test_path_2 = format!("/tmp/test_alias_mut_2_{}.toml", std::process::id());
+    let mut store = AliasStore::empty(&_test_path_2);
     let token_store = prism_security::ConfirmationTokenStore::new();
     let input = DeleteAliasInput {
         name: "high_sev".to_string(),
@@ -369,7 +371,8 @@ fn test_ac9_delete_requires_confirmation() {
 #[test]
 fn test_ac10_delete_blocked_by_dependents() {
     // RED: AliasStore::delete is todo!()
-    let mut store = AliasStore::empty("/tmp/test_aliases.toml");
+    let _test_path_3 = format!("/tmp/test_alias_mut_3_{}.toml", std::process::id());
+    let mut store = AliasStore::empty(&_test_path_3);
     let token_store = prism_security::ConfirmationTokenStore::new();
     let input = DeleteAliasInput {
         name: "high_sev".to_string(),
@@ -742,7 +745,8 @@ fn test_vp037_concrete_invalid_param_is_err_not_panic() {
 /// EC-11-021: Per-client alias with same name as global — valid (not a conflict).
 #[test]
 fn test_ec11_021_per_client_same_name_as_global_ok() {
-    let mut store = AliasStore::empty("/tmp/test_aliases.toml");
+    let _test_path_4 = format!("/tmp/test_alias_mut_4_{}.toml", std::process::id());
+    let mut store = AliasStore::empty(&_test_path_4);
     let entry = simple_entry("high_sev", client_scope("acme"), "severity_id > 4");
     let result = store.create_or_update(entry, None);
     assert!(
@@ -787,7 +791,8 @@ fn test_ec11_040_file_write_failure_propagates() {
 #[test]
 fn test_BC_2_11_008_rejects_name_with_dash_via_tool() {
     // RED: create_alias is todo!()
-    let mut store = AliasStore::empty("/tmp/test_aliases.toml");
+    let _test_path_5 = format!("/tmp/test_alias_mut_5_{}.toml", std::process::id());
+    let mut store = AliasStore::empty(&_test_path_5);
     let ocsf = empty_ocsf();
     let input = CreateAliasInput {
         name: "bad-name".to_string(),
@@ -805,7 +810,8 @@ fn test_BC_2_11_008_rejects_name_with_dash_via_tool() {
 #[test]
 fn test_BC_2_11_008_rejects_name_leading_digit_via_tool() {
     // RED: create_alias is todo!()
-    let mut store = AliasStore::empty("/tmp/test_aliases.toml");
+    let _test_path_6 = format!("/tmp/test_alias_mut_6_{}.toml", std::process::id());
+    let mut store = AliasStore::empty(&_test_path_6);
     let ocsf = empty_ocsf();
     let input = CreateAliasInput {
         name: "3bad".to_string(),
@@ -823,7 +829,8 @@ fn test_BC_2_11_008_rejects_name_leading_digit_via_tool() {
 #[test]
 fn test_BC_2_11_008_rejects_empty_name_via_tool() {
     // RED: create_alias is todo!()
-    let mut store = AliasStore::empty("/tmp/test_aliases.toml");
+    let _test_path_7 = format!("/tmp/test_alias_mut_7_{}.toml", std::process::id());
+    let mut store = AliasStore::empty(&_test_path_7);
     let ocsf = empty_ocsf();
     let input = CreateAliasInput {
         name: "".to_string(),
@@ -874,7 +881,8 @@ fn test_BC_2_11_008_rejects_null_byte_in_name() {
 /// BC-2.11.008 precondition: scope references non-existent client rejects E-CFG-001.
 #[test]
 fn test_BC_2_11_008_rejects_unknown_client_scope() {
-    let mut store = AliasStore::empty("/tmp/test_aliases.toml");
+    let _test_path_8 = format!("/tmp/test_alias_mut_8_{}.toml", std::process::id());
+    let mut store = AliasStore::empty(&_test_path_8);
     let ocsf = empty_ocsf();
     let input = CreateAliasInput {
         name: "my_alias".to_string(),
@@ -939,7 +947,8 @@ fn test_BC_2_11_008_in_memory_unchanged_when_file_write_fails() {
 #[test]
 fn test_BC_2_11_008_rejects_invalid_prismql_template() {
     // RED: create_alias is todo!()
-    let mut store = AliasStore::empty("/tmp/test_aliases.toml");
+    let _test_path_9 = format!("/tmp/test_alias_mut_9_{}.toml", std::process::id());
+    let mut store = AliasStore::empty(&_test_path_9);
     let ocsf = empty_ocsf();
     let input = CreateAliasInput {
         name: "bad_query_alias".to_string(),
@@ -963,7 +972,8 @@ fn test_BC_2_11_008_rejects_invalid_prismql_template() {
 #[test]
 fn test_BC_2_11_008_rejects_compound_param_default_at_creation() {
     // RED: create_alias is todo!()
-    let mut store = AliasStore::empty("/tmp/test_aliases.toml");
+    let _test_path_10 = format!("/tmp/test_alias_mut_10_{}.toml", std::process::id());
+    let mut store = AliasStore::empty(&_test_path_10);
     let ocsf = empty_ocsf();
     let mut params = HashMap::new();
     params.insert("severity".to_string(), "high OR critical".to_string());
@@ -989,7 +999,8 @@ fn test_BC_2_11_008_rejects_compound_param_default_at_creation() {
 #[test]
 fn test_BC_2_11_008_rejects_ocsf_field_via_create_alias_tool() {
     // RED: create_alias is todo!()
-    let mut store = AliasStore::empty("/tmp/test_aliases.toml");
+    let _test_path_11 = format!("/tmp/test_alias_mut_11_{}.toml", std::process::id());
+    let mut store = AliasStore::empty(&_test_path_11);
     let ocsf = ocsf_with(&["severity", "activity_name", "src_endpoint"]);
     let input = CreateAliasInput {
         name: "activity_name".to_string(),
@@ -1007,7 +1018,8 @@ fn test_BC_2_11_008_rejects_ocsf_field_via_create_alias_tool() {
 #[test]
 fn test_BC_2_11_008_rejects_keyword_select_via_create_alias_tool() {
     // RED: create_alias is todo!()
-    let mut store = AliasStore::empty("/tmp/test_aliases.toml");
+    let _test_path_12 = format!("/tmp/test_alias_mut_12_{}.toml", std::process::id());
+    let mut store = AliasStore::empty(&_test_path_12);
     let ocsf = empty_ocsf();
     let input = CreateAliasInput {
         name: "SELECT".to_string(),
@@ -1031,7 +1043,8 @@ fn test_BC_2_11_008_rejects_keyword_select_via_create_alias_tool() {
 #[test]
 fn test_BC_2_11_008_create_alias_rejects_self_cycle_via_tool() {
     // RED: create_alias is todo!()
-    let mut store = AliasStore::empty("/tmp/test_aliases.toml");
+    let _test_path_13 = format!("/tmp/test_alias_mut_13_{}.toml", std::process::id());
+    let mut store = AliasStore::empty(&_test_path_13);
     let ocsf = empty_ocsf();
     let input = CreateAliasInput {
         name: "cyclic_alias".to_string(),
@@ -1052,7 +1065,8 @@ fn test_BC_2_11_008_create_alias_rejects_self_cycle_via_tool() {
 /// successfully; depth violations surface when the alias is expanded.
 #[test]
 fn test_BC_2_11_008_create_alias_rejects_depth_exceeded_via_tool() {
-    let mut store = AliasStore::empty("/tmp/test_aliases.toml");
+    let _test_path_14 = format!("/tmp/test_alias_mut_14_{}.toml", std::process::id());
+    let mut store = AliasStore::empty(&_test_path_14);
     let ocsf = empty_ocsf();
     let input = CreateAliasInput {
         name: "top_alias".to_string(),
@@ -1497,7 +1511,8 @@ fn test_BC_2_11_013_ec11_034_no_client_aliases_returns_empty() {
 #[test]
 fn test_BC_2_11_014_rejects_delete_nonexistent_alias() {
     // RED: delete_alias is todo!()
-    let mut store = AliasStore::empty("/tmp/test_aliases.toml");
+    let _test_path_15 = format!("/tmp/test_alias_mut_15_{}.toml", std::process::id());
+    let mut store = AliasStore::empty(&_test_path_15);
     let token_store = prism_security::ConfirmationTokenStore::new();
     let input = DeleteAliasInput {
         name: "nonexistent_alias_xyz".to_string(),
@@ -1513,7 +1528,8 @@ fn test_BC_2_11_014_rejects_delete_nonexistent_alias() {
 #[test]
 fn test_BC_2_11_014_rejects_delete_nonexistent_client_scope() {
     // RED: delete_alias is todo!()
-    let mut store = AliasStore::empty("/tmp/test_aliases.toml");
+    let _test_path_16 = format!("/tmp/test_alias_mut_16_{}.toml", std::process::id());
+    let mut store = AliasStore::empty(&_test_path_16);
     let token_store = prism_security::ConfirmationTokenStore::new();
     let input = DeleteAliasInput {
         name: "some_alias".to_string(),
@@ -1532,7 +1548,8 @@ fn test_BC_2_11_014_rejects_delete_nonexistent_client_scope() {
 /// When alias does not exist, returns E-ALIAS-001.
 #[test]
 fn test_BC_2_11_014_force_cascade_returns_confirmation_token() {
-    let mut store = AliasStore::empty("/tmp/test_aliases.toml");
+    let _test_path_17 = format!("/tmp/test_alias_mut_17_{}.toml", std::process::id());
+    let mut store = AliasStore::empty(&_test_path_17);
     let token_store = prism_security::ConfirmationTokenStore::new();
     let input = DeleteAliasInput {
         name: "alias_with_deps".to_string(),
@@ -1889,7 +1906,8 @@ fn test_BC_2_11_009_expanded_query_at_64kb_minus_1_not_rejected() {
 /// BC-2.11.008: very long alias body must not panic and must either succeed or return error.
 #[test]
 fn test_BC_2_11_008_long_alias_body_within_64kb_limit_accepted() {
-    let mut store = AliasStore::empty("/tmp/test_aliases.toml");
+    let _test_path_18 = format!("/tmp/test_alias_mut_18_{}.toml", std::process::id());
+    let mut store = AliasStore::empty(&_test_path_18);
     let ocsf = empty_ocsf();
     let long_query = format!("severity_id >= 3 AND {}", "active = TRUE OR ".repeat(200));
     let input = CreateAliasInput {
@@ -1935,7 +1953,8 @@ fn test_BC_2_11_009_inner_to_outer_resolution_order() {
 /// returns definition + expanded field in response JSON.
 #[test]
 fn test_BC_2_11_008_create_alias_response_includes_expanded_form() {
-    let mut store = AliasStore::empty("/tmp/test_aliases.toml");
+    let _test_path_19 = format!("/tmp/test_alias_mut_19_{}.toml", std::process::id());
+    let mut store = AliasStore::empty(&_test_path_19);
     let ocsf = empty_ocsf();
     let input = CreateAliasInput {
         name: "high_sev".to_string(),
