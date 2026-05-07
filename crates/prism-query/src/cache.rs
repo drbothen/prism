@@ -357,7 +357,7 @@ impl QueryCache {
     /// (CR-003: duplicate check removed from this method).
     ///
     /// Returns `Err(PrismError::Internal)` if the mutex is poisoned (E-CACHE-001).
-    pub fn put_with_ttl(
+    pub(crate) fn put_with_ttl(
         &self,
         key: CacheKey,
         rows: Vec<serde_json::Value>,
@@ -590,6 +590,11 @@ impl QueryCache {
                     |current| Some(current.saturating_sub(stored_size)),
                 );
             }
+            // CR-006: remove the partition entry if now empty to prevent unbounded
+            // growth of the partition_counts map (TTL-expiry and force_refresh paths).
+            if partition_keys.is_empty() {
+                counts.remove(&pk);
+            }
         }
         Ok(())
     }
@@ -601,6 +606,14 @@ impl QueryCache {
     #[cfg(test)]
     pub fn insert_raw_for_test(&self, key: CacheKey, entry: CacheEntry) {
         self.inner.insert(key, entry);
+    }
+
+    /// Returns the number of partition keys currently tracked in `partition_counts`.
+    /// A value of 0 means the map is fully clean — no stale empty-Vec entries remain.
+    /// For use in regression tests only (CR-006).
+    #[cfg(test)]
+    pub fn partition_count_map_len(&self) -> usize {
+        self.partition_counts.lock().map(|g| g.len()).unwrap_or(0)
     }
 }
 

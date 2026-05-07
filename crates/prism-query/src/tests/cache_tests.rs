@@ -1082,3 +1082,52 @@ fn test_BC_2_07_006_di018_entry_count_never_exceeds_bound_under_many_insertions(
         );
     }
 }
+
+/// CR-006 regression: `remove_entry` must clean up the `partition_counts` map entry
+/// when the last key in a partition is removed.  Previously only `invalidate_by_prefix`
+/// cleaned up empty partitions; TTL-expiry (`get()`) left behind empty `Vec` tombstones.
+///
+/// Uses 1ms TTL + a 20ms sleep to ensure `is_expired()` returns true while moka's
+/// own 300s global TTL has NOT fired yet, so `inner.get()` still returns the entry
+/// and the `remove_entry` code path is exercised.
+#[test]
+fn test_cr006_remove_entry_cleans_up_empty_partition() {
+    let cache = QueryCache::with_defaults();
+
+    // Insert a single entry with a near-zero TTL.
+    let key = CacheKey {
+        client_id: "acme".to_string(),
+        sensor_id: "crowdstrike".to_string(),
+        source_id: "crowdstrike_detections".to_string(),
+        push_down_hash: format!("{:0<64}", 0),
+    };
+    cache
+        .put_with_ttl(
+            key.clone(),
+            vec![json!({"id": 0})],
+            std::time::Duration::from_millis(1),
+        )
+        .expect("put_with_ttl");
+
+    // Partition map must have exactly 1 entry.
+    assert_eq!(
+        cache.partition_count_map_len(),
+        1,
+        "CR-006: expected 1 partition entry after insert"
+    );
+
+    // Wait past the 1ms TTL (moka's own TTL is 300s so the entry is still present
+    // in moka storage — `inner.get()` will return it, triggering the is_expired
+    // branch and calling `remove_entry`).
+    std::thread::sleep(std::time::Duration::from_millis(20));
+
+    let result = cache.get(&key).expect("get must not error");
+    assert!(result.is_none(), "CR-006: expired entry must be a miss");
+
+    // After the TTL-expiry path calls remove_entry, the partition map must be empty.
+    assert_eq!(
+        cache.partition_count_map_len(),
+        0,
+        "CR-006: partition_counts map must be empty after last entry in partition is TTL-expired"
+    );
+}
