@@ -16,6 +16,8 @@
 //!
 //! Story: S-3.02
 
+#![allow(clippy::unwrap_used, clippy::expect_used)]
+
 #[cfg(test)]
 mod tests {
     use std::sync::Arc;
@@ -41,10 +43,6 @@ mod tests {
         OrgSlug::new(s)
     }
 
-    // make_batch is a test helper that builds a trivial single-column batch.
-    // The schema and column are constructed from statically-known inputs;
-    // the expect() calls here cannot fail in practice.
-    #[allow(clippy::expect_used)]
     fn make_batch(col_name: &str, values: &[&str]) -> RecordBatch {
         let schema = Arc::new(Schema::new(vec![Field::new(
             col_name,
@@ -63,25 +61,28 @@ mod tests {
     /// Assert every result row has `_sensor = "crowdstrike"`, `_client = "acme"`,
     /// `_source_table = "crowdstrike.detections"`. (BC-2.11.001, BC-2.11.012)
     #[tokio::test]
-    async fn test_ac1_virtual_fields_present_in_every_row() -> Result<(), Box<dyn std::error::Error>>
-    {
+    async fn test_ac1_virtual_fields_present_in_every_row() {
         // Build a batch with one data column.
         let batch = make_batch("severity", &["high", "medium", "low"]);
         let sensor = SensorType::CrowdStrike;
         let client = make_slug("acme");
 
         // Inject virtual fields.
-        let result = inject_virtual_fields(batch, &sensor, &client, "crowdstrike.detections")?;
+        let result =
+            inject_virtual_fields(batch, &sensor, &client, "crowdstrike.detections").unwrap();
 
         assert_eq!(result.num_rows(), 3);
 
         // Verify _sensor column.
-        let sensor_idx = result.schema().index_of(VIRTUAL_FIELD_SENSOR)?;
+        let sensor_idx = result
+            .schema()
+            .index_of(VIRTUAL_FIELD_SENSOR)
+            .expect("_sensor field present");
         let sensor_col = result
             .column(sensor_idx)
             .as_any()
             .downcast_ref::<StringArray>()
-            .ok_or("_sensor column was not StringArray")?;
+            .unwrap();
         for i in 0..3 {
             assert_eq!(
                 sensor_col.value(i),
@@ -91,12 +92,15 @@ mod tests {
         }
 
         // Verify _client column.
-        let client_idx = result.schema().index_of(VIRTUAL_FIELD_CLIENT)?;
+        let client_idx = result
+            .schema()
+            .index_of(VIRTUAL_FIELD_CLIENT)
+            .expect("_client field present");
         let client_col = result
             .column(client_idx)
             .as_any()
             .downcast_ref::<StringArray>()
-            .ok_or("_client column was not StringArray")?;
+            .unwrap();
         for i in 0..3 {
             assert_eq!(
                 client_col.value(i),
@@ -104,8 +108,6 @@ mod tests {
                 "AC-1: row {i} _client must be acme"
             );
         }
-
-        Ok(())
     }
 
     // -----------------------------------------------------------------------
@@ -115,14 +117,14 @@ mod tests {
     /// AC-2: Verify multiple sources can be registered as separate MemTables
     /// in the same SessionContext and queried. (BC-2.11.005)
     #[tokio::test]
-    async fn test_ac2_parallel_fanout_multiple_sources() -> Result<(), Box<dyn std::error::Error>> {
-        let ctx = build_session_context(50 * 1024 * 1024)?;
+    async fn test_ac2_parallel_fanout_multiple_sources() {
+        let ctx = build_session_context(50 * 1024 * 1024).unwrap();
 
         let batch1 = make_batch("alert_id", &["a1", "a2"]);
         let batch2 = make_batch("device_id", &["d1", "d2", "d3"]);
 
-        register_mem_table(&ctx, "crowdstrike_detections", vec![batch1])?;
-        register_mem_table(&ctx, "claroty_alerts", vec![batch2])?;
+        register_mem_table(&ctx, "crowdstrike_detections", vec![batch1]).unwrap();
+        register_mem_table(&ctx, "claroty_alerts", vec![batch2]).unwrap();
 
         // Both tables are accessible.
         assert!(
@@ -133,8 +135,6 @@ mod tests {
             ctx.table_exist("claroty_alerts").unwrap_or(false),
             "AC-2: claroty source must be registered"
         );
-
-        Ok(())
     }
 
     // -----------------------------------------------------------------------
@@ -144,7 +144,7 @@ mod tests {
     /// AC-3: Verify map_datafusion_memory_error returns E-QUERY-004 on
     /// ResourcesExhausted. (BC-2.11.006, EC-001)
     #[tokio::test]
-    async fn test_ac3_memory_pool_limit_returns_error() -> Result<(), Box<dyn std::error::Error>> {
+    async fn test_ac3_memory_pool_limit_returns_error() {
         use datafusion::error::DataFusionError;
         use prism_core::PrismError;
 
@@ -165,8 +165,6 @@ mod tests {
             msg.contains("E-QUERY-004"),
             "AC-3: error code must be E-QUERY-004: {msg}"
         );
-
-        Ok(())
     }
 
     // -----------------------------------------------------------------------
@@ -176,7 +174,7 @@ mod tests {
     /// AC-4: Verify REQUIRED column predicate is in push_down, not post_filter.
     /// (BC-2.11.007)
     #[tokio::test]
-    async fn test_ac4_required_column_push_down() -> Result<(), Box<dyn std::error::Error>> {
+    async fn test_ac4_required_column_push_down() {
         use prism_core::{ColumnOptions, ColumnType};
         use prism_spec_engine::spec_parser::ColumnSpec;
 
@@ -207,8 +205,6 @@ mod tests {
         );
         assert_eq!(plan.push_down[0].column_name, "severity_id");
         assert_eq!(plan.post_filter.len(), 0);
-
-        Ok(())
     }
 
     // -----------------------------------------------------------------------
@@ -217,14 +213,14 @@ mod tests {
 
     /// AC-5: Verify clients: None returns all configured clients. (BC-2.11.011)
     #[tokio::test]
-    async fn test_ac5_none_clients_fans_out_to_all() -> Result<(), Box<dyn std::error::Error>> {
+    async fn test_ac5_none_clients_fans_out_to_all() {
         let registry = ClientRegistry::new(vec![
             make_slug("acme"),
             make_slug("contoso"),
             make_slug("globex"),
         ]);
 
-        let clients = resolve_clients(None, &registry)?;
+        let clients = resolve_clients(None, &registry).unwrap();
         assert_eq!(
             clients.len(),
             3,
@@ -233,8 +229,6 @@ mod tests {
         assert!(clients.iter().any(|c| c.as_str() == "acme"));
         assert!(clients.iter().any(|c| c.as_str() == "contoso"));
         assert!(clients.iter().any(|c| c.as_str() == "globex"));
-
-        Ok(())
     }
 
     // -----------------------------------------------------------------------
@@ -243,8 +237,7 @@ mod tests {
 
     /// AC-6: Verify virtual fields correctly tag rows with their client. (BC-2.11.011)
     #[tokio::test]
-    async fn test_ac6_cross_client_data_merged_with_client_field(
-    ) -> Result<(), Box<dyn std::error::Error>> {
+    async fn test_ac6_cross_client_data_merged_with_client_field() {
         let batch_acme = make_batch("alert_id", &["a1"]);
         let batch_contoso = make_batch("alert_id", &["c1"]);
 
@@ -253,36 +246,41 @@ mod tests {
         let sensor = SensorType::CrowdStrike;
 
         let result_acme =
-            inject_virtual_fields(batch_acme, &sensor, &acme, "crowdstrike.detections")?;
+            inject_virtual_fields(batch_acme, &sensor, &acme, "crowdstrike.detections").unwrap();
         let result_contoso =
-            inject_virtual_fields(batch_contoso, &sensor, &contoso, "crowdstrike.detections")?;
+            inject_virtual_fields(batch_contoso, &sensor, &contoso, "crowdstrike.detections")
+                .unwrap();
 
         // Each batch is tagged with the correct client.
-        let acme_client_idx = result_acme.schema().index_of(VIRTUAL_FIELD_CLIENT)?;
+        let acme_client_idx = result_acme
+            .schema()
+            .index_of(VIRTUAL_FIELD_CLIENT)
+            .expect("_client field present");
         let acme_col = result_acme
             .column(acme_client_idx)
             .as_any()
             .downcast_ref::<StringArray>()
-            .ok_or("acme _client column was not StringArray")?;
+            .unwrap();
         assert_eq!(
             acme_col.value(0),
             "acme",
             "AC-6: acme batch must have _client=acme"
         );
 
-        let contoso_client_idx = result_contoso.schema().index_of(VIRTUAL_FIELD_CLIENT)?;
+        let contoso_client_idx = result_contoso
+            .schema()
+            .index_of(VIRTUAL_FIELD_CLIENT)
+            .expect("_client field present");
         let contoso_col = result_contoso
             .column(contoso_client_idx)
             .as_any()
             .downcast_ref::<StringArray>()
-            .ok_or("contoso _client column was not StringArray")?;
+            .unwrap();
         assert_eq!(
             contoso_col.value(0),
             "contoso",
             "AC-6: contoso batch must have _client=contoso"
         );
-
-        Ok(())
     }
 
     // -----------------------------------------------------------------------
@@ -292,8 +290,7 @@ mod tests {
     /// AC-7: Verify SessionScope drops SessionContext after execute().
     /// (BC-2.11.005)
     #[tokio::test]
-    async fn test_ac7_session_context_dropped_after_execute(
-    ) -> Result<(), Box<dyn std::error::Error>> {
+    async fn test_ac7_session_context_dropped_after_execute() {
         use datafusion::execution::context::SessionContext;
 
         let ctx = SessionContext::new();
@@ -306,8 +303,6 @@ mod tests {
         drop(scope);
         // If we reach here without panic, AC-7 is satisfied.
         // In production, execute() creates SessionScope at top, uses it, then drops it.
-
-        Ok(())
     }
 
     // -----------------------------------------------------------------------
@@ -319,8 +314,7 @@ mod tests {
     /// Here we test the structural types that represent routing decisions.
     /// (S-2.08 inherited, BC-2.11.005)
     #[tokio::test]
-    async fn test_ac9a_cold_start_fallback_route_decision() -> Result<(), Box<dyn std::error::Error>>
-    {
+    async fn test_ac9a_cold_start_fallback_route_decision() {
         use prism_core::TableType;
 
         use crate::types::SensorQueryDescriptor;
@@ -349,8 +343,6 @@ mod tests {
             buffer_scan_descriptor.rows_from_buffer,
             "AC-9a: rows_from_buffer = true means buffer scan route"
         );
-
-        Ok(())
     }
 
     /// AC-9b: Verify cold-start descriptor tag: `inject_source_type` injects "live"
@@ -358,8 +350,7 @@ mod tests {
     /// Full execution path (SensorAdapter call, EventBufferStore write, INFO log) deferred to
     /// TD-S302-005 — pipeline body is todo!().
     #[tokio::test]
-    async fn test_ac9b_cold_start_descriptor_tags_rows_as_live(
-    ) -> Result<(), Box<dyn std::error::Error>> {
+    async fn test_ac9b_cold_start_descriptor_tags_rows_as_live() {
         use prism_core::TableType;
         use serde_json::json;
 
@@ -381,14 +372,11 @@ mod tests {
             json!("live"),
             "AC-9b: Cold-start fallback rows must have _source_type=live"
         );
-
-        Ok(())
     }
 
     /// AC-9 companion: Subsequent buffer scan query returns buffered rows.
     #[tokio::test]
-    async fn test_ac9_subsequent_query_returns_buffer_scan(
-    ) -> Result<(), Box<dyn std::error::Error>> {
+    async fn test_ac9_subsequent_query_returns_buffer_scan() {
         use prism_core::TableType;
         use serde_json::json;
 
@@ -410,8 +398,6 @@ mod tests {
             json!("buffered"),
             "AC-9: Subsequent query from buffer must have _source_type=buffered"
         );
-
-        Ok(())
     }
 
     // -----------------------------------------------------------------------
@@ -424,7 +410,7 @@ mod tests {
     /// verifies the error structure and that the constant MAX_MATERIALIZED_RECORDS is
     /// the enforced limit.
     #[tokio::test]
-    async fn test_ec003_materialization_record_cap_10k() -> Result<(), Box<dyn std::error::Error>> {
+    async fn test_ec003_materialization_record_cap_10k() {
         use crate::memory::MAX_MATERIALIZED_RECORDS;
         use prism_core::PrismError;
 
@@ -451,8 +437,6 @@ mod tests {
             msg.contains(&(MAX_MATERIALIZED_RECORDS + 1).to_string()),
             "EC-003: error must include record count"
         );
-
-        Ok(())
     }
 
     // -----------------------------------------------------------------------
@@ -464,7 +448,7 @@ mod tests {
     /// The timeout enforcement wraps execute() in tokio::time::timeout.
     /// This test verifies the error variant and its E-QUERY-005 code.
     #[tokio::test]
-    async fn test_ec002_query_timeout_30s() -> Result<(), Box<dyn std::error::Error>> {
+    async fn test_ec002_query_timeout_30s() {
         use crate::memory::QUERY_TIMEOUT_SECS;
         use prism_core::PrismError;
 
@@ -488,8 +472,6 @@ mod tests {
             matches!(timeout_err, PrismError::QueryTimeout { .. }),
             "EC-002: must be QueryTimeout variant"
         );
-
-        Ok(())
     }
 
     // -----------------------------------------------------------------------
@@ -498,8 +480,7 @@ mod tests {
 
     /// EC-005: Verify engine overwrites sensor-emitted `_sensor` column. (BC-2.11.012)
     #[tokio::test]
-    async fn test_ec005_virtual_field_spoofing_overwritten(
-    ) -> Result<(), Box<dyn std::error::Error>> {
+    async fn test_ec005_virtual_field_spoofing_overwritten() {
         use crate::virtual_fields::VIRTUAL_FIELD_SENSOR;
 
         // Batch with a spoofed _sensor column.
@@ -513,28 +494,31 @@ mod tests {
                 Arc::new(StringArray::from(vec!["spoofed_value", "spoofed_value"])) as _,
                 Arc::new(StringArray::from(vec!["high", "medium"])) as _,
             ],
-        )?;
+        )
+        .unwrap();
 
         let sensor = SensorType::Armis;
         let client = make_slug("acme");
 
-        let result = inject_virtual_fields(spoofed_batch, &sensor, &client, "armis.devices")?;
+        let result =
+            inject_virtual_fields(spoofed_batch, &sensor, &client, "armis.devices").unwrap();
 
         // _sensor must now be "armis", not "spoofed_value".
-        let idx = result.schema().index_of(VIRTUAL_FIELD_SENSOR)?;
+        let idx = result
+            .schema()
+            .index_of(VIRTUAL_FIELD_SENSOR)
+            .expect("_sensor field present");
         let col = result
             .column(idx)
             .as_any()
             .downcast_ref::<StringArray>()
-            .ok_or("_sensor column was not StringArray")?;
+            .unwrap();
         assert_eq!(
             col.value(0),
             "armis",
             "EC-005: spoofed _sensor must be overwritten"
         );
         assert_eq!(col.value(1), "armis");
-
-        Ok(())
     }
 
     // -----------------------------------------------------------------------
@@ -544,8 +528,7 @@ mod tests {
     /// Verify `execute_scheduled` pattern: into_arc() returns a shareable context.
     /// (BC-2.11.005)
     #[tokio::test]
-    async fn test_execute_scheduled_returns_arc_session_context(
-    ) -> Result<(), Box<dyn std::error::Error>> {
+    async fn test_execute_scheduled_returns_arc_session_context() {
         use datafusion::execution::context::SessionContext;
 
         let ctx = SessionContext::new();
@@ -564,7 +547,5 @@ mod tests {
             Arc::ptr_eq(&arc_ctx, &arc_ctx2),
             "execute_scheduled: Arc clones must share the same SessionContext"
         );
-
-        Ok(())
     }
 }

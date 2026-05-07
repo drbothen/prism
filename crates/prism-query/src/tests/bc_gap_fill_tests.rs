@@ -76,6 +76,8 @@
 //!
 //! Story: S-3.02
 
+#![allow(clippy::unwrap_used, clippy::expect_used)]
+
 #[cfg(test)]
 mod bc_gap_fill {
 
@@ -931,7 +933,7 @@ mod bc_gap_fill {
             drop(scope);
             // If we reach here without panic, RAII drop semantics are correct.
             drop(drop_count_clone); // suppress unused warning
-            assert_eq!(*drop_count.lock().map_err(|e| e.to_string())?, 0); // no panic occurred
+            assert_eq!(*drop_count.lock().unwrap(), 0); // no panic occurred
             Ok(())
         }
 
