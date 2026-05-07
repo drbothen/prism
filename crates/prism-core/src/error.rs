@@ -463,6 +463,50 @@ pub enum PrismError {
     )]
     WriteTargetingInternalTable { table: String },
 
+    /// E-QUERY-028: Write endpoint not registered — the (sensor, verb) pair is not
+    /// in the WriteEndpointRegistry (MED-5 / HIGH-2 — S-3.07 pass-1).
+    ///
+    /// Returned when a write plan references a (sensor, verb) pair that has not been
+    /// loaded from any sensor spec. This prevents silent default-spec fallback that
+    /// would execute writes against unregistered endpoints.
+    ///
+    /// TODO: MED-5 — wire this into WriteExecutor::execute after capability check.
+    #[error(
+        "E-QUERY-028: write endpoint not registered: sensor '{sensor}' has no verb '{verb}'; \
+         check the sensor spec for available write endpoints"
+    )]
+    WriteEndpointNotRegistered { sensor: String, verb: String },
+
+    /// E-QUERY-029: Unregistered write target table — the sql_table name is not
+    /// recognized by the WriteEndpointRegistry (HIGH-2 — S-3.07 pass-1).
+    ///
+    /// Returned when a SQL DML plan's target table is not registered as a write
+    /// endpoint. Prevents sensor extraction from naive string splitting.
+    ///
+    /// TODO: HIGH-2 — wire sensor_for_table lookup in WritePlan::from_dml_node.
+    #[error(
+        "E-QUERY-029: unregistered write target: table '{table}' is not registered \
+         as a write endpoint; check the sensor spec for available write tables"
+    )]
+    UnregisteredWriteTarget { table: String },
+
+    /// E-QUERY-025: Write partial failure — some records succeeded and some failed.
+    ///
+    /// Returned by WriteCapableTableProvider when failed_count > 0 && succeeded_count > 0.
+    /// Carries the full WriteResult for partial-success diagnostics.
+    ///
+    /// Story: S-3.07 | MED-7
+    #[error(
+        "E-QUERY-025: partial write failure for sensor '{sensor}' endpoint '{endpoint}': \
+         {failed} of {total} records failed"
+    )]
+    WritePartialFailure {
+        sensor: String,
+        endpoint: String,
+        failed: u32,
+        total: u32,
+    },
+
     /// E-QUERY-011: Query targets `prism_audit` but caller lacks the `audit.read`
     /// capability (BC-2.15.011, AC-9).
     ///

@@ -191,12 +191,16 @@ impl DryRunGate {
             .map(|(k, v)| (k.clone(), serde_json::Value::String(v.clone())))
             .collect::<serde_json::Map<_, _>>()
             .into();
+        // HIGH-8: exclude `would_affect_count` from the hashed params.
+        // The count can drift between dry_run and execute calls when the data source
+        // changes (records created/deleted between the two calls). Binding the hash to
+        // the count would cause E-FLAG-005 (content hash mismatch) on valid confirmations.
+        // The token is still bound to the specific action via verb/sensor/target/params.
         let action_params = serde_json::json!({
             "verb": plan.verb,
             "sensor": plan.sensor,
             "target_table": plan.target_table,
             "write_endpoint": write_endpoint,
-            "would_affect_count": would_affect_count,
             "client_id": context.client_id,
             "params": params_json,
         });
@@ -239,7 +243,9 @@ impl DryRunGate {
         context: &QueryContext,
         plan: &WritePlan,
         write_endpoint: &str,
-        would_affect_count: u32,
+        // HIGH-8: would_affect_count excluded from hash to prevent drift-induced
+        // E-FLAG-005 mismatch. Parameter retained for call-site API stability.
+        _would_affect_count: u32,
     ) -> Result<(), PrismError> {
         // No token ID provided in context → E-FLAG-008
         let token_id =
@@ -252,6 +258,7 @@ impl DryRunGate {
 
         // Reconstruct the same action_params used during token generation
         // (must match generate_token_preview's params for hash verification).
+        // HIGH-8: `would_affect_count` is excluded (matches generate_token_preview).
         // Includes plan.params so hash is bound to the specific action (BC-2.04.012).
         let params_json: serde_json::Value = plan
             .params
@@ -264,7 +271,6 @@ impl DryRunGate {
             "sensor": plan.sensor,
             "target_table": plan.target_table,
             "write_endpoint": write_endpoint,
-            "would_affect_count": would_affect_count,
             "client_id": context.client_id,
             "params": params_json,
         });

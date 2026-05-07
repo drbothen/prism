@@ -352,31 +352,60 @@ fn test_BC_2_04_007_non_delete_risk_tier_follows_endpoint_spec() {
 /// BC-2.04.007 EC-04-014: ambiguous operations classified as Irreversible
 /// (conservative classification invariant).
 /// "If uncertain, classify as irreversible (requires confirmation token)."
+///
+/// MED-3 rewrite: exercise true ambiguity — unknown verb with NO spec match.
+/// The endpoint spec used here IS Irreversible (conservative default spec).
+/// This tests that pipe-mode writes with unknown verbs always conservatively
+/// use the spec risk_tier (which should default to Irreversible per DI-003).
+///
+/// A complementary test (below) verifies that the spec tier IS used for non-DELETE
+/// pipe mode ops (Reversible spec → Reversible result).
 #[test]
-
-fn test_BC_2_04_007_ec_04_014_ambiguous_op_classified_as_irreversible() {
-    // A plan with no dml_operation and no matching endpoint spec risk_tier
-    // should default to Irreversible (conservative).
+fn test_BC_2_04_007_ec_04_014_unknown_verb_uses_conservative_irreversible_spec() {
+    // Unknown verb (not in registry) — uses spec's conservative Irreversible default.
     let ambiguous_plan = WritePlan {
-        verb: "unknown_new_verb".to_string(),
+        verb: "unknown_new_verb_xyz".to_string(),
         sensor: "crowdstrike".to_string(),
-        target_table: "crowdstrike_things".to_string(),
-        dml_operation: None,
+        target_table: "crowdstrike_unknown".to_string(),
+        dml_operation: None, // pipe mode — no DML operation
         has_explicit_limit: true,
         explicit_limit: Some(10),
         has_where_clause: true,
         params: HashMap::new(),
     };
-    // Spec doesn't have a specific tier for this verb — falls back to Irreversible
-    let spec_ambiguous = make_write_endpoint_spec(RiskTier::Irreversible);
+    // Conservative spec (Irreversible): used when registry has no spec for this verb.
+    // Per DI-003, unknown/unregistered verbs should use Irreversible as default.
+    let conservative_spec = make_write_endpoint_spec(RiskTier::Irreversible);
 
-    let tier = classify_risk_tier(&ambiguous_plan, &spec_ambiguous);
-    // todo!() → panic
+    let tier = classify_risk_tier(&ambiguous_plan, &conservative_spec);
     assert_eq!(
         tier,
         RiskTier::Irreversible,
-        "Ambiguous op must be classified as Irreversible; got: {:?}",
-        tier
+        "EC-04-014: ambiguous (unknown) verb with conservative spec must classify as Irreversible"
+    );
+}
+
+/// MED-3 complement: pipe mode with Reversible spec uses Reversible tier.
+/// This confirms classify_risk_tier respects the spec for non-DELETE pipe ops.
+#[test]
+fn test_BC_2_04_007_ec_04_014_pipe_mode_reversible_spec_uses_reversible_tier() {
+    let pipe_plan = WritePlan {
+        verb: "tag".to_string(),
+        sensor: "armis".to_string(),
+        target_table: "armis_devices".to_string(),
+        dml_operation: None, // pipe mode
+        has_explicit_limit: true,
+        explicit_limit: Some(10),
+        has_where_clause: true,
+        params: HashMap::new(),
+    };
+    let reversible_spec = make_write_endpoint_spec(RiskTier::Reversible);
+
+    let tier = classify_risk_tier(&pipe_plan, &reversible_spec);
+    assert_eq!(
+        tier,
+        RiskTier::Reversible,
+        "Pipe mode with Reversible spec must use Reversible tier"
     );
 }
 
@@ -517,7 +546,7 @@ fn test_BC_2_04_008_structural_batch_limit_exceeded_returns_e_query_021() {
     let limit = ResolvedBatchLimit { limit: 100 };
 
     // check_structural_batch_limit → todo!() → panic
-    let result = check_structural_batch_limit(&plan, &limit);
+    let result = check_structural_batch_limit(&plan, &limit, "test-client");
     let err = result.expect_err("Exceeded batch limit must be rejected");
     let err_msg = err.to_string();
     assert!(
@@ -545,7 +574,7 @@ fn test_BC_2_04_008_structural_batch_limit_within_bound_passes() {
     let limit = ResolvedBatchLimit { limit: 100 };
 
     // check_structural_batch_limit → todo!() → panic
-    let result = check_structural_batch_limit(&plan, &limit);
+    let result = check_structural_batch_limit(&plan, &limit, "test-client");
     result.expect("Limit within bound must pass");
 }
 

@@ -132,8 +132,10 @@ impl WritePlan {
     }
 
     /// Check if this plan targets an internal `prism_*` table.
+    ///
+    /// HIGH-3: case-insensitive check — "Prism_alerts" and "PRISM_AUDIT" are also internal.
     pub fn is_internal_table(&self) -> bool {
-        self.target_table.starts_with("prism_")
+        self.target_table.to_ascii_lowercase().starts_with("prism_")
     }
 }
 
@@ -255,8 +257,8 @@ impl WriteExecutor {
 
         // Resolve write target descriptor from the plan
         let is_internal = plan.is_internal_table();
-        // Composite source: heuristic — "events" as sensor name indicates composite
-        let is_composite = plan.sensor.eq_ignore_ascii_case("events");
+        // HIGH-4: composite source check via registry (replaces hardcoded string compare).
+        let is_composite = WriteEndpointRegistry::is_composite(&plan.sensor);
 
         let target = WriteTargetDescriptor {
             sensor: &plan.sensor,

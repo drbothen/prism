@@ -160,8 +160,8 @@ pub fn phase2_safety_check(
     // Gate 5: Unbounded write check — E-QUERY-022
     check_unbounded_write(plan)?;
 
-    // Gate 6: Batch limit structural check — E-QUERY-021
-    check_structural_batch_limit(plan, &resolved_limit)?;
+    // Gate 6: Batch limit structural check — E-QUERY-021 (MED-1: client_id threaded)
+    check_structural_batch_limit(plan, &resolved_limit, client_id)?;
 
     // Gate 7: Risk tier classification — DELETE always Irreversible per AD-022
     let risk_tier = classify_risk_tier(plan, endpoint_spec);
@@ -228,9 +228,13 @@ pub fn check_unbounded_write(plan: &WritePlan) -> Result<(), PrismError> {
 /// is in `write_pipeline.rs` after Phase 3 materialization.
 ///
 /// Pure — no I/O.
+///
+/// MED-1: `client_id` is now threaded through to populate the error field
+/// (previously was `String::new()` — empty string in structural errors).
 pub fn check_structural_batch_limit(
     plan: &WritePlan,
     batch_limit: &ResolvedBatchLimit,
+    client_id: &str,
 ) -> Result<(), PrismError> {
     if let Some(explicit_limit) = plan.explicit_limit {
         if explicit_limit > batch_limit.limit as u64 {
@@ -238,9 +242,15 @@ pub fn check_structural_batch_limit(
                 requested: explicit_limit as usize,
                 limit: batch_limit.limit as usize,
                 endpoint: plan.target_table.clone(),
-                client_id: String::new(), // structural check — no client context yet
+                client_id: client_id.to_string(), // MED-1: populated from context
             });
         }
+    }
+    // MED-4: defense-in-depth — if no explicit LIMIT and no WHERE clause,
+    // also reject (unbounded pre-check, does not change current behavior since
+    // check_unbounded_write fires first in phase2_safety_check ordering).
+    if plan.explicit_limit.is_none() && !plan.has_where_clause {
+        return Err(PrismError::WriteUnbounded);
     }
     Ok(())
 }

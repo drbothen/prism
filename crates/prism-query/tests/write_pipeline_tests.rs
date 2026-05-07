@@ -903,3 +903,147 @@ async fn test_crit2_insert_into_returns_not_implemented_not_panic() {
         }
     }
 }
+
+// ---------------------------------------------------------------------------
+// HIGH-3: Case-insensitive is_internal_table
+// ---------------------------------------------------------------------------
+
+/// HIGH-3: `is_internal_table` must be case-insensitive.
+/// "Prism_alerts" and "PRISM_AUDIT" are internal tables (defense-in-depth).
+#[test]
+fn test_high3_is_internal_table_case_insensitive() {
+    let plan_lower = WritePlan {
+        verb: "contain".to_string(),
+        sensor: "crowdstrike".to_string(),
+        target_table: "prism_alerts".to_string(),
+        dml_operation: None,
+        has_explicit_limit: true,
+        explicit_limit: Some(10),
+        has_where_clause: true,
+        params: HashMap::new(),
+    };
+    let plan_mixed = WritePlan {
+        verb: "contain".to_string(),
+        sensor: "crowdstrike".to_string(),
+        target_table: "Prism_alerts".to_string(), // Mixed case
+        dml_operation: None,
+        has_explicit_limit: true,
+        explicit_limit: Some(10),
+        has_where_clause: true,
+        params: HashMap::new(),
+    };
+    let plan_upper = WritePlan {
+        verb: "contain".to_string(),
+        sensor: "crowdstrike".to_string(),
+        target_table: "PRISM_AUDIT".to_string(), // Upper case
+        dml_operation: None,
+        has_explicit_limit: true,
+        explicit_limit: Some(10),
+        has_where_clause: true,
+        params: HashMap::new(),
+    };
+    let plan_not_internal = WritePlan {
+        verb: "contain".to_string(),
+        sensor: "crowdstrike".to_string(),
+        target_table: "crowdstrike_hosts".to_string(), // Not internal
+        dml_operation: None,
+        has_explicit_limit: true,
+        explicit_limit: Some(10),
+        has_where_clause: true,
+        params: HashMap::new(),
+    };
+
+    assert!(
+        plan_lower.is_internal_table(),
+        "HIGH-3: 'prism_alerts' must be detected as internal"
+    );
+    assert!(
+        plan_mixed.is_internal_table(),
+        "HIGH-3: 'Prism_alerts' (mixed case) must be detected as internal"
+    );
+    assert!(
+        plan_upper.is_internal_table(),
+        "HIGH-3: 'PRISM_AUDIT' (upper case) must be detected as internal"
+    );
+    assert!(
+        !plan_not_internal.is_internal_table(),
+        "HIGH-3: 'crowdstrike_hosts' must NOT be detected as internal"
+    );
+}
+
+// ---------------------------------------------------------------------------
+// HIGH-4: Composite source detection via WriteEndpointRegistry::is_composite
+// ---------------------------------------------------------------------------
+
+/// HIGH-4: WriteEndpointRegistry::is_composite("events") must return true.
+/// WriteEndpointRegistry::is_composite("crowdstrike") must return false.
+#[test]
+fn test_high4_is_composite_via_registry() {
+    use prism_spec_engine::write_endpoint::WriteEndpointRegistry;
+
+    assert!(
+        WriteEndpointRegistry::is_composite("events"),
+        "HIGH-4: 'events' must be composite source"
+    );
+    assert!(
+        WriteEndpointRegistry::is_composite("EVENTS"),
+        "HIGH-4: 'EVENTS' (uppercase) must also be composite source"
+    );
+    assert!(
+        !WriteEndpointRegistry::is_composite("crowdstrike"),
+        "HIGH-4: 'crowdstrike' must NOT be composite source"
+    );
+    assert!(
+        !WriteEndpointRegistry::is_composite("armis"),
+        "HIGH-4: 'armis' must NOT be composite source"
+    );
+}
+
+// ---------------------------------------------------------------------------
+// HIGH-8: Dry-run hash stability — would_affect_count excluded from hash
+// ---------------------------------------------------------------------------
+
+/// HIGH-8: The confirmation token hash must NOT include `would_affect_count`.
+/// A dry-run with N records should produce a token that's still valid when
+/// executed with a slightly different record count.
+///
+/// Tests by verifying that two sequential executes (dry-run then execute)
+/// work even though the record count between them might differ.
+/// In the current test setup with Phase 3 stub (always 0 records), both
+/// dry-run and execute see 0 records, so this is a structural test.
+#[tokio::test]
+async fn test_high8_token_hash_excludes_would_affect_count() {
+    let executor = make_executor(false);
+    // Irreversible plan requires token
+    let plan = make_contain_plan(true);
+
+    // Step 1: dry_run to get token (with 0 records in Phase 3 stub)
+    let dry_ctx = make_query_context(true, None);
+    let preview = executor
+        .execute(plan.clone(), dry_ctx)
+        .await
+        .expect("dry_run must succeed");
+
+    let token_id = match preview {
+        WriteOutcome::Preview(p) => {
+            p.confirmation_token
+                .expect("Irreversible must generate token")
+                .token_id
+        }
+        WriteOutcome::Result(_) => panic!("Expected Preview"),
+    };
+
+    // Step 2: execute with token — must succeed (hash excludes count)
+    let execute_ctx = make_query_context(false, Some(token_id));
+    let result = executor
+        .execute(plan, execute_ctx)
+        .await
+        .expect("HIGH-8: execute with token must succeed when count excluded from hash");
+
+    match result {
+        WriteOutcome::Result(r) => {
+            assert!(!r.dry_run, "WriteResult.dry_run must be false");
+        }
+        WriteOutcome::Preview(_) => panic!("Expected Result for dry_run=false"),
+    }
+}

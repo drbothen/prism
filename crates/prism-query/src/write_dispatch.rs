@@ -166,15 +166,9 @@ impl WriteDispatcher {
     pub async fn dispatch(&self, inputs: DispatchInputs<'_>) -> Result<WriteResult, PrismError> {
         let started_at = Utc::now();
 
-        // Phase 5a: Write audit INTENT (fail-closed — BC-2.05.009)
-        // MUST complete before any sensor API contact.
-        // CRIT-4: pass capability_check so audit entry includes resolution trace.
-        let intent_id = self
-            .audit_writer
-            .write_intent(inputs.plan, inputs.context, inputs.capability_check)
-            .await?;
-
-        // Phase 5b: Acquire write semaphore permit.
+        // HIGH-6: Acquire write semaphore permit BEFORE audit intent write.
+        // This prevents orphaned audit intent records when the semaphore is exhausted.
+        // Phase 5b (semaphore) → Phase 5a (audit) → Phase 5c (sensor) order.
         // WRITE_SEMAPHORE_CAPACITY = 4, separate from read semaphore (10 from S-3.02).
         // The semaphore is only closed when the Arc is dropped — which cannot happen
         // while this future is executing (we hold a reference).
@@ -185,6 +179,14 @@ impl WriteDispatcher {
             .map_err(|_| PrismError::Internal {
                 detail: "write semaphore closed unexpectedly".to_string(),
             })?;
+
+        // Phase 5a: Write audit INTENT (fail-closed — BC-2.05.009)
+        // MUST complete before any sensor API contact (semaphore held above).
+        // CRIT-4: pass capability_check so audit entry includes resolution trace.
+        let intent_id = self
+            .audit_writer
+            .write_intent(inputs.plan, inputs.context, inputs.capability_check)
+            .await?;
 
         // Phase 5c: Fan-out — dispatch to sensor adapters (CRIT-1 wired).
         let (per_record_results, sensor_errors) = self
