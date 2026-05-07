@@ -40,6 +40,10 @@
 //! - [`memory`]               — GreedyMemoryPool + error mapping (S-3.02 / BC-2.11.006)
 //! - [`session`]              — `SessionScope` RAII wrapper (S-3.02 / BC-2.11.005)
 //! - [`internal_tables`]      — `RocksDbTableProvider` DataFusion integration (S-3.02 / BC-2.15.011)
+//! - [`cursor`]               — ephemeral internal pagination cursor for sensor fetch loops (S-3.05 / BC-2.07.001/002)
+//! - [`cache_key`]            — SHA-256 cache key derivation, 4-tuple `(client_id, sensor_id, source_id, push_down_hash)` (S-3.05 / BC-2.07.005)
+//! - [`cache`]                — sensor-fetch response cache with TTL and LRU eviction (S-3.05 / BC-2.07.003/006)
+//! - [`invalidation`]         — synchronous cache invalidation on write operations (S-3.05 / BC-2.07.004)
 
 // ── S-2.08 modules ────────────────────────────────────────────────────────────
 pub mod materialization;
@@ -68,6 +72,12 @@ pub mod virtual_fields;
 // ── S-3.06 modules ────────────────────────────────────────────────────────────
 pub mod write_ast;
 pub mod write_verb_registry;
+
+// ── S-3.05 modules ────────────────────────────────────────────────────────────
+pub mod cache;
+pub mod cache_key;
+pub mod cursor;
+pub mod invalidation;
 
 // ── Kani proofs (cfg-gated; compile everywhere, run only under cargo kani) ────
 pub mod proofs;

@@ -3662,14 +3662,20 @@ fn test_sql_agg_func_match_exhaustive_no_panic() {
 // F-HIGH-001: is_pipe_mode O(N²) DOS — timing test
 // ─────────────────────────────────────────────────────────────────────────────
 
-/// F-HIGH-001: is_pipe_mode on a 64KB input of bare `|` chars must complete in ≤10ms.
+/// Regression test for F-HIGH-001 (pipe-mode DoS detection).
+/// Threshold = 50ms: 5× headroom over peak observed CI hardware-variance (24ms on slow
+/// x86_64-apple-darwin runner, PR #132 run 25500024203), while still detecting ≥100×
+/// quadratic regression (a real blowup on 64KB input would take ≥1s).
+/// Original budget was 10ms; loosened after CI flake on PR #132 where the same test
+/// passed on parallel run 25500026658 (same commit), indicating hardware variance not
+/// regression. Apple Silicon local measurement: ~1-2ms; 50ms remains a meaningful bound.
 ///
 /// Pre-fix, the function allocates O(N²) transient memory (~2GB for 32K pipes).
 /// Post-fix, it must be a single-pass byte walk with no per-`|` heap allocation.
 ///
 /// Traces: F-HIGH-001 (O(N²) DOS), SEC-C-003
 #[test]
-fn test_is_pipe_mode_on_pipe_dos_input_under_10ms() {
+fn test_is_pipe_mode_on_pipe_dos_input_under_50ms() {
     use std::time::Instant;
     // 64KB of bare `|` chars — worst-case for the old O(N²) implementation.
     // Roughly 65536 pipes, each previously allocating a String of the remaining
@@ -3681,8 +3687,8 @@ fn test_is_pipe_mode_on_pipe_dos_input_under_10ms() {
     let _ = PrismQlParser::parse(&input);
     let elapsed = start.elapsed();
     assert!(
-        elapsed.as_millis() <= 10,
-        "F-HIGH-001: is_pipe_mode on 64KB of `|` chars must complete in ≤10ms, took {}ms",
+        elapsed.as_millis() <= 50,
+        "F-HIGH-001: is_pipe_mode on 64KB of `|` chars must complete in ≤50ms (CI hardware-variance budget; quadratic blowup would manifest as ≥1s), took {}ms",
         elapsed.as_millis()
     );
 }

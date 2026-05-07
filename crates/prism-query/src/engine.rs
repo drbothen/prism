@@ -28,13 +28,17 @@
 // Dead code warnings are expected and suppressed here for the stub phase.
 #![allow(dead_code)]
 
-use std::sync::Arc;
+use std::sync::{Arc, Mutex};
 
 use prism_core::{OrgSlug, PrismError};
 use prism_credentials::CredentialStore;
 use prism_ocsf::OcsfNormalizer;
 use prism_sensors::AdapterRegistry;
+use tokio::task::JoinHandle;
+use tokio_util::sync::CancellationToken;
 
+use crate::cache::{CacheConfig, QueryCache};
+use crate::cursor::{spawn_cursor_cleanup_task, QueryCursorRegistry};
 use crate::scoping::ClientRegistry;
 
 // ---------------------------------------------------------------------------
@@ -145,6 +149,12 @@ pub struct QueryResultContext {
 /// - BC-2.11.001 — entry-point contract
 /// - BC-2.11.005 — pipeline contract
 /// - BC-2.11.006 — security limits
+///
+/// # CR-003 / BC-2.07.002: Cursor and cache wiring
+/// `QueryEngine` owns the `cursor_registry` and `cache` as shared resources.
+/// The cursor cleanup task is started in `new()` and cancelled via
+/// `cleanup_shutdown` when `QueryEngine` is dropped. Without this wiring,
+/// cursor cleanup is dead code and the cache is unreachable.
 pub struct QueryEngine {
     /// Registry of sensor adapters indexed by `(OrgId, SensorType)`.
     pub(crate) adapter_registry: Arc<AdapterRegistry>,
@@ -156,10 +166,22 @@ pub struct QueryEngine {
     pub(crate) client_registry: Arc<ClientRegistry>,
     /// Engine-level configuration (limits, pool sizes, concurrency).
     pub(crate) config: QueryEngineConfig,
+    /// Shared cursor registry — tracks all active pagination cursors (BC-2.07.001/002).
+    pub(crate) cursor_registry: Arc<Mutex<QueryCursorRegistry>>,
+    /// Shared sensor-fetch response cache (BC-2.07.003/006).
+    pub(crate) cache: Arc<QueryCache>,
+    /// Cancellation token used to signal the cursor cleanup task to stop.
+    cleanup_shutdown: CancellationToken,
+    /// Handle to the background cursor cleanup task (BC-2.07.002 §Background Cleanup).
+    /// Held to ensure the task is aborted on Drop — not a dead field.
+    cleanup_handle: Option<JoinHandle<()>>,
 }
 
 impl QueryEngine {
     /// Construct a `QueryEngine` with the provided dependencies.
+    ///
+    /// Starts the cursor cleanup background task (BC-2.07.002 §Background Cleanup).
+    /// The task is cancelled when this `QueryEngine` is dropped.
     ///
     /// # BC-2.11.001
     /// The engine accepts at minimum a query string at call time. This
@@ -171,15 +193,65 @@ impl QueryEngine {
         client_registry: Arc<ClientRegistry>,
         config: QueryEngineConfig,
     ) -> Self {
+        Self::new_with_cache_config(
+            adapter_registry,
+            credential_store,
+            ocsf_normalizer,
+            client_registry,
+            config,
+            CacheConfig::default(),
+        )
+    }
+
+    /// Construct a `QueryEngine` with explicit cache configuration.
+    ///
+    /// Used by tests and operators that need non-default cache bounds.
+    pub fn new_with_cache_config(
+        adapter_registry: Arc<AdapterRegistry>,
+        credential_store: Arc<dyn CredentialStore>,
+        ocsf_normalizer: Arc<OcsfNormalizer>,
+        client_registry: Arc<ClientRegistry>,
+        config: QueryEngineConfig,
+        cache_config: CacheConfig,
+    ) -> Self {
+        let cursor_registry = Arc::new(Mutex::new(QueryCursorRegistry::new()));
+        let cache = Arc::new(QueryCache::new(cache_config));
+        let shutdown = CancellationToken::new();
+
+        // Start cursor cleanup background task (BC-2.07.002 §Background Cleanup).
+        // Task exits when `shutdown` is cancelled (via Drop).
+        let handle = spawn_cursor_cleanup_task(Arc::clone(&cursor_registry), shutdown.clone());
+
         Self {
             adapter_registry,
             credential_store,
             ocsf_normalizer,
             client_registry,
             config,
+            cursor_registry,
+            cache,
+            cleanup_shutdown: shutdown,
+            cleanup_handle: Some(handle),
         }
     }
+}
 
+impl Drop for QueryEngine {
+    /// Cancel and abort the cursor cleanup background task on drop (CR-003 / OBS-008).
+    ///
+    /// `cancel()` signals the task to exit gracefully via the CancellationToken.
+    /// `abort()` is called additionally to ensure the task is terminated even if
+    /// it is blocked in the interval tick (e.g., the tokio runtime is shutting down
+    /// before the cancellation is observed).
+    fn drop(&mut self) {
+        self.cleanup_shutdown.cancel();
+        if let Some(h) = self.cleanup_handle.take() {
+            h.abort();
+        }
+    }
+}
+
+impl QueryEngine {
     /// Execute a PrismQL query string and return normalized results.
     ///
     /// Wraps the entire lifecycle in a 30-second `tokio::time::timeout`.
