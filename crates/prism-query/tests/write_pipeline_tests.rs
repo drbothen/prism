@@ -378,6 +378,12 @@ async fn test_ac6_sql_mode_runs_same_safety_pipeline_as_pipe_mode() {
 ///
 /// Uses an executor where the acme client has general sensor allow but Deny
 /// specifically for sensor.armis.device_write (child deny overrides parent allow).
+///
+/// Gated to `armis-write` feature: without the compile-time gate, Phase 2 short-circuits
+/// to DeniedCompileTime before reaching the runtime hierarchical evaluation. This test
+/// exercises the runtime path (DeniedRuntime from hierarchical child-deny), which is
+/// only reachable when the armis-write feature is present.
+#[cfg(feature = "armis-write")]
 #[tokio::test]
 async fn test_ac7_feature_flag_deny_returns_e_flag_001() {
     use prism_core::{CapabilityEffect, CapabilityPath, ClientCapabilities};
@@ -418,12 +424,21 @@ async fn test_ac7_feature_flag_deny_returns_e_flag_001() {
     };
     let context = make_query_context(true, None);
     // Phase 2 capability check: sensor.armis.device_write is Deny → E-FLAG-001
+    // With armis-write compiled: compile gate is Present → runtime hierarchical evaluation
+    // fires, child Deny for sensor.armis.device_write overrides parent Allow → DeniedRuntime.
     let result = executor.execute(plan, context).await;
     let err = result.expect_err("Denied capability must return error");
     let err_msg = err.to_string();
+    // MED-002 tightened: assert runtime DeniedRuntime path is exercised (not DeniedCompileTime).
+    // DeniedRuntime reason: "Not enabled in client config: capability '...' is not in the
+    // runtime configuration for client 'acme'"
     assert!(
-        err_msg.contains("CAPABILITY_DENIED") || err_msg.contains("E-FLAG-001"),
-        "Feature flag deny must produce E-FLAG-001; got: {err_msg}"
+        err_msg.contains("CAPABILITY_DENIED") && err_msg.contains("sensor.armis.device_write"),
+        "AC-7 must exercise runtime hierarchical resolution path (DeniedRuntime); got: {err_msg}"
+    );
+    assert!(
+        err_msg.contains("Not enabled in client config"),
+        "AC-7 must produce DeniedRuntime (not DeniedCompileTime); got: {err_msg}"
     );
 }
 
@@ -765,6 +780,12 @@ async fn test_high1_ac6_sql_dry_run_returns_preview_with_correct_risk_tier() {
 /// BC-2.04.005 Hidden Tools Pattern postcondition.
 /// The executor has "acme" with sensor Allow but "restricted_client" is not configured.
 /// Phase 2 Gate 2 (runtime TOML capability check) returns E-FLAG-001 for restricted_client.
+///
+/// Gated to `crowdstrike-write` feature: without the compile-time gate, Phase 2
+/// short-circuits to DeniedCompileTime before reaching the per-client runtime check.
+/// This test exercises the per-client DeniedRuntime path, which is only reachable
+/// when the crowdstrike-write feature is present.
+#[cfg(feature = "crowdstrike-write")]
 #[tokio::test]
 async fn test_ac9_per_client_write_denial_returns_e_flag_001_not_unknown_tool() {
     let executor = make_executor(false);
@@ -778,13 +799,20 @@ async fn test_ac9_per_client_write_denial_returns_e_flag_001_not_unknown_tool() 
         analyst_id: None,
     };
     // Phase 2 capability check returns E-FLAG-001 (CapabilityDenied), NOT E-MCP-001 (tool not found)
+    // With crowdstrike-write compiled: runtime check fires → DeniedRuntime for unknown client.
     let result = executor.execute(plan, context).await;
     let err = result.expect_err("Restricted client must be denied");
     let err_msg = err.to_string();
+    // MED-002 tightened: assert runtime per-client DeniedRuntime path is exercised.
+    // DeniedRuntime for unknown client: error display includes client_id in "denied for client '...'" field.
     assert!(
-        err_msg.contains("CAPABILITY_DENIED") || err_msg.contains("E-FLAG-001"),
-        "Per-client denial must produce E-FLAG-001 (CAPABILITY_DENIED), not 'unknown tool'; \
+        err_msg.contains("CAPABILITY_DENIED") && err_msg.contains("restricted_client"),
+        "Per-client denial must produce CAPABILITY_DENIED for 'restricted_client', not 'unknown tool'; \
          got: {err_msg}"
+    );
+    assert!(
+        err_msg.contains("Not enabled in client config"),
+        "AC-9 must produce DeniedRuntime (not DeniedCompileTime) for unknown client; got: {err_msg}"
     );
 }
 

@@ -484,8 +484,13 @@ async fn test_BC_2_04_008_token_action_hash_mismatch_returns_e_flag_005() {
 ///
 /// BC-2.04.001 / BC-2.04.005: flag state at Phase 2 evaluation time is
 /// authoritative.
+///
+/// Gated to `crowdstrike-write` feature: without the compile-time gate, Phase 2
+/// short-circuits to DeniedCompileTime before reaching the per-client runtime check.
+/// This test exercises the runtime capability evaluation path for "restricted-client",
+/// which is only reachable when the crowdstrike-write feature is present.
+#[cfg(feature = "crowdstrike-write")]
 #[tokio::test]
-
 async fn test_BC_2_04_001_flag_disabled_between_calls_second_call_returns_e_flag_001() {
     use prism_security::feature_flag::FeatureFlagEvaluator;
     use std::sync::Arc;
@@ -541,14 +546,19 @@ async fn test_BC_2_04_001_flag_disabled_between_calls_second_call_returns_e_flag
         analyst_id: None,
     };
 
-    // execute → todo!() → panic
-    // Post-implementation: must return E-FLAG-001 (CapabilityDenied) for restricted client
+    // Post-implementation: must return E-FLAG-001 (CapabilityDenied) for restricted client.
+    // With crowdstrike-write compiled: compile gate is Present → runtime evaluation fires.
+    // MED-002 tightened: assert DeniedRuntime path is exercised (not DeniedCompileTime).
     let result = executor.execute(plan, ctx).await;
     let err = result.expect_err("denied client must be rejected");
     let err_msg = err.to_string();
     assert!(
-        err_msg.contains("CAPABILITY_DENIED") || err_msg.contains("E-FLAG-001"),
-        "Denied capability must produce E-FLAG-001 or CAPABILITY_DENIED; got: {err_msg}"
+        err_msg.contains("CAPABILITY_DENIED") && err_msg.contains("restricted-client"),
+        "Denied capability must produce CAPABILITY_DENIED for 'restricted-client'; got: {err_msg}"
+    );
+    assert!(
+        err_msg.contains("Not enabled in client config"),
+        "Flag-disabled test must produce DeniedRuntime (not DeniedCompileTime); got: {err_msg}"
     );
 }
 
