@@ -1140,6 +1140,54 @@ fn test_audit_log_caps_query_string_at_256_chars() {
     );
 }
 
+/// SEC-P3-001 (unicode): A 1,000-emoji `@alias:` payload (1000 chars, ~4000 bytes)
+/// must produce an `AuditEvent.query` field no longer than 256 *characters*,
+/// demonstrating the cap is char-correct rather than byte-correct.
+///
+/// The underlying `chars().take(256).collect::<String>()` is Rust stdlib — it
+/// always splits on char boundaries — so this test validates the char-vs-byte
+/// distinction end-to-end.
+#[test]
+fn test_audit_log_caps_query_string_unicode() {
+    // 1,000 emoji = 1,000 Unicode scalar values, each 4 bytes UTF-8 (~4,000 bytes total).
+    let alias_name: String = "\u{1F600}".repeat(1_000);
+    let query = format!("@alias:{alias_name}");
+
+    let (sink, events) = make_audit_sink();
+    let opts = ExplainOptions {
+        audit_sink: Some(sink),
+        ..default_opts()
+    };
+
+    // This must return Err(E-ALIAS-001) — alias "😀😀..." is not registered.
+    let result = explain(&query, opts);
+    assert!(result.is_err(), "expected E-ALIAS-001 error; got Ok");
+
+    let events = events.lock().expect("mutex not poisoned");
+    assert_eq!(
+        events.len(),
+        1,
+        "exactly one audit event must be emitted; got: {events:?}"
+    );
+    let query_field = &events[0].query;
+    let char_count = query_field.chars().count();
+    assert!(
+        char_count <= 256,
+        "audit query field must be capped at 256 chars (got {char_count} chars)"
+    );
+    // Worst-case byte bound: 256 chars × 4 bytes/char for 4-byte UTF-8 codepoints.
+    assert!(
+        query_field.len() <= 1024,
+        "audit query field byte length must be bounded by 4 × 256 = 1024 (got {})",
+        query_field.len()
+    );
+    assert!(
+        events[0].outcome_summary.contains("E-ALIAS-001"),
+        "outcome_summary must contain E-ALIAS-001; got: {}",
+        events[0].outcome_summary
+    );
+}
+
 // ===========================================================================
 
 #[cfg(test)]
