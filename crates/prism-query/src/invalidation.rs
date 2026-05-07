@@ -122,7 +122,7 @@ impl CacheInvalidator {
     /// has no entries in `WRITE_TOOL_INVALIDATION_MAP`, this is a no-op.
     ///
     /// Returns `Ok(n)` where `n` is the total number of entries evicted across all
-    /// affected source_ids (I-2: BC-2.07.004 §Postconditions audit count — the
+    /// affected source_ids (I-2: BC-2.07.004 §Postconditions (audit count) — the
     /// caller can include this count in the `AuditEntry` for the write operation).
     ///
     /// Errors only if the cache data structure is in an unrecoverable state
