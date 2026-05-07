@@ -1,7 +1,7 @@
 ---
 document_type: behavioral-contract
 level: L3
-version: "1.16"
+version: "1.17"
 status: draft
 producer: product-owner
 timestamp: 2026-04-14T07:00:00
@@ -51,6 +51,11 @@ restricted_symbols:
     - prism_query::sql_parser::check_unbounded_write
     - prism_query::sql_parser::parse_sql_dml_with_limits
     - prism_query::filter_parser::reject_write_verbs_in_filter
+    - prism_query::alias_tools::create_alias
+    - prism_query::alias_tools::create_alias_with_clients
+    - prism_query::alias_tools::create_alias_with_clients_gated_inner
+    - prism_query::alias_tools::delete_alias
+    - prism_query::alias_store::AliasStore::create_or_update
 ---
 
 # BC-2.11.006: Query Security Limits Enforcement
@@ -60,6 +65,8 @@ restricted_symbols:
 This BC defines the complete set of security limits that constitute DI-019. Seven limits are enforced at different stages of the query lifecycle: query length (64KB, pre-parse), nesting depth (64, parse-time recursive counter), pipe stages (32, post-parse), materialized records (10K, streaming counter during fan-out), execution timeout (30s, tokio::time::timeout wrapping the full lifecycle), regex pattern length (1024 bytes, parse-time), and integer overflow prevention (i128 intermediates). All limits are configurable via TOML with the listed values as defaults. Every limit violation returns a structured error with the specific limit name, actual value, maximum, and actionable suggestion.
 
 **DI-034 layer 4 — S-3.06 write-parser pub(crate) internals (v1.11/v1.14):** Nine additional symbols were added to `restricted_symbols` in v1.11 to cover the write-parser internals introduced by story S-3.06: `parse_pipe_with_write`, `build_write_stage_parser`, `build_write_arg_parser`, and `extract_sensor_prefix` in `pipe_parser.rs`; `parse_sql_dml`, `build_dml_parser`, `is_internal_prism_table`, and `check_unbounded_write` in `sql_parser.rs`; and `reject_write_verbs_in_filter` in `filter_parser.rs`. These symbols are confirmed `pub(crate)` stubs as of S-3.06 worktree commit cdcb4b38. (Note: in v1.13, the inline YAML comment that formerly annotated this group within the `symbols:` list was moved here because the CI perimeter-symbols-sync Python regex stops matching at the first non-`    - ` line — see TD-VSDD-059.) v1.14 added a tenth symbol, `parse_sql_dml_with_limits` (`sql_parser.rs`), introduced by fix bundle commit `236146a1` to forward `ParseLimits` through the DML path; this brought the S-3.06 layer-4 group to 10 symbols and the total perimeter list to 27 entries. v1.16 removed `build_dml_parser` from `restricted_symbols` — the function was dead code (unused since S-3.06 introduced direct dispatch in `parse_sql_dml`) and was deleted in `maintenance/clippy-unwrap-cleanup` (commit `159e922b`). This reduces the S-3.06 layer-4 group to 9 symbols (after v1.16 removed `build_dml_parser` as dead code), and the total perimeter list to 26 entries (27 expected E-errors in the perimeter-violation crate, since the 26 symbols plus one `ParseLimits` struct produce 27 distinct E0603/E0624 violations).
+
+**DI-034 layer 5 — S-3.04 alias system pub(crate) internals (v1.17):** Five additional symbols were added to `restricted_symbols` in v1.17 to cover the alias-system internals introduced by story S-3.04. (F-LOCAL-P2-CRIT-001 + F-LOCAL-P2-HIGH-005 closure.) `alias_tools::create_alias` and `alias_tools::create_alias_with_clients` are the ungated pub(crate) variants that bypass the `alias.write` SEC-011 capability gate (MCP layer MUST use `create_alias_with_clients_gated`). `alias_tools::delete_alias` is the pub(crate) ungated delete variant (MCP layer MUST use `delete_alias_gated`). `alias_tools::create_alias_with_clients_gated_inner` is the pub(crate) internal split that accepts `Option<&ConfirmationTokenStore>` for test injection (added to prevent external callers from bypassing the two-step confirmation flow). `alias_store::AliasStore::create_or_update` is the pub(crate) direct-mutation method that bypasses keyword/OCSF collision checks, cycle detection, and parser validation (CR-018). These five symbols bring the total perimeter list to 31 entries. The `perimeter-violation` crate (tests/external/) is updated to reference all five symbols; expected E-errors increase from 27 to 32 (the 5 new E0603/E0624 violations from the S-3.04 layer). The `alias-write` Cargo feature is a runtime-advisory gate, not a compile-time exclusion — see `alias_capability.rs` module docstring for rationale (F-LOCAL-P2-HIGH-004).
 
 ## Preconditions
 - An PrismQL query string has been received via the `query` MCP tool
@@ -160,6 +167,7 @@ This BC defines the complete set of security limits that constitute DI-019. Seve
 
 | Version | Burst | Date | Author | Change |
 |---------|-------|------|--------|--------|
+| 1.17 | S-3.04-local-adversary-pass2 | 2026-05-07 | product-owner | F-LOCAL-P2-CRIT-001 + F-LOCAL-P2-HIGH-005 closure: added 5 S-3.04 alias-system symbols to `restricted_symbols` — `alias_tools::create_alias`, `alias_tools::create_alias_with_clients`, `alias_tools::create_alias_with_clients_gated_inner`, `alias_tools::delete_alias`, `alias_store::AliasStore::create_or_update`. Layer-5 (S-3.04): 0→5 symbols. Total perimeter list: 26→31 entries. Expected E-errors in perimeter-violation crate: 27→32. Documented `alias-write` Cargo feature as runtime-advisory gate (F-LOCAL-P2-HIGH-004, option b). Updated Description prose with DI-034 layer-5 paragraph. |
 | 1.16 | maintenance-clippy-unwrap-pass2 | 2026-05-07 | product-owner | C-1 adversary pass-2 closure: removed `prism_query::sql_parser::build_dml_parser` from `restricted_symbols`. The function was dead code (unused since S-3.06 introduced direct dispatch in `parse_sql_dml`); removed in `maintenance/clippy-unwrap-cleanup` (commit `159e922b`). Layer-4 group: 10→9 symbols. Total perimeter list: 27→26 entries. Expected E-errors in perimeter-violation crate: 28→27. Updated Description prose to record v1.16 change. |
 | 1.15 | S-3.06-pr130-pass3 | 2026-05-06 | product-owner | Adversary PR-130 pass-3 P3-MED-001 remediation: appended v1.14 amendment note in body Description paragraph to document the tenth symbol (`parse_sql_dml_with_limits`) and updated version anchor from `(v1.11)` to `(v1.11/v1.14)`. No content change to `restricted_symbols` list. Closes BC body↔frontmatter drift. |
 | 1.14 | S-3.06-pr130-pass1 | 2026-05-06 | product-owner | Adversary PR-130 pass-1 F-PR130-P1-HIGH-002 remediation: registered `parse_sql_dml_with_limits` (introduced by fix bundle commit 236146a1) in restricted_symbols list. Closes silent perimeter coverage hole. New expected E-error count in perimeter-violation: 28 (was 27). |
