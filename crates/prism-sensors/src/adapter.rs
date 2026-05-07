@@ -190,6 +190,22 @@ pub enum SensorError {
         /// The `OrgId` carried by the incoming `SensorSpec`.
         query_org_id: OrgId,
     },
+
+    /// E-SENSOR-070: Write operation not implemented for this adapter.
+    ///
+    /// Returned by the default `SensorAdapter::write()` implementation when
+    /// the adapter has not overridden the write method (S-3.07 CRIT-1).
+    ///
+    /// Gated by `{sensor}-write` Cargo feature (BC-2.04.001): if the feature
+    /// is absent, the compile-time gate fires first (E-FLAG-002). This error
+    /// is only reachable when the feature is present but no write override exists.
+    ///
+    /// # Note
+    /// This error is **non-transient** — the adapter does not implement writes.
+    /// A follow-up story (W3-FIX-S307-write-wiring) will implement per-sensor HTTP dispatch.
+    // TODO: W3-FIX-S307-001 — implement per-sensor write() HTTP dispatch for all 4 adapters.
+    #[error("E-SENSOR-070: write not implemented for sensor {sensor}")]
+    WriteNotImplemented { sensor: String },
 }
 
 impl SensorError {
@@ -215,6 +231,9 @@ impl SensorError {
             // OrgIdMismatch is a permanent dispatch configuration error —
             // retrying with a mismatched OrgId will always fail (AC-004).
             SensorError::OrgIdMismatch { .. } => false,
+            // WriteNotImplemented is a permanent configuration error —
+            // the adapter has no write override. Not retryable (CRIT-1).
+            SensorError::WriteNotImplemented { .. } => false,
         }
     }
 
@@ -313,7 +332,12 @@ pub trait SensorAdapter: Send + Sync + 'static {
         _params: &std::collections::HashMap<String, String>,
         _client_id: &prism_core::OrgSlug,
     ) -> Result<Vec<crate::write_result::RecordWriteResult>, SensorError> {
-        todo!("S-3.07 — SensorAdapter::write: HTTP step dispatch for write endpoints")
+        // CRIT-1 fix: structured error instead of todo!() panic.
+        // Per-sensor HTTP step dispatch (W3-FIX-S307-001) will override this default.
+        // TODO: W3-FIX-S307-001 — override write() in each concrete adapter.
+        Err(SensorError::WriteNotImplemented {
+            sensor: std::any::type_name::<Self>().to_string(),
+        })
     }
 }
 

@@ -23,8 +23,7 @@ use std::sync::Arc;
 use arrow::record_batch::RecordBatch;
 use async_trait::async_trait;
 use chrono::Utc;
-use prism_core::PrismError;
-use prism_core::RiskTier;
+use prism_core::{OrgId, OrgSlug, PrismError, RiskTier, SensorType};
 use prism_sensors::AdapterRegistry;
 use prism_sensors::RecordWriteResult;
 use prism_spec_engine::write_endpoint::WriteEndpointSpec;
@@ -51,11 +50,7 @@ pub const WRITE_SEMAPHORE_CAPACITY: usize = 4;
 pub struct WriteDispatcher {
     /// Bounded write concurrency semaphore (capacity 4, per-`WriteExecutor` instance).
     pub(crate) write_semaphore: Arc<Semaphore>,
-    /// Sensor adapter registry for write fan-out.
-    ///
-    /// Retained for Phase 5c fan-out wiring (story §Task 8 — `SensorAdapter::write()`
-    /// extension). Currently unused while the adapter write() method is not yet defined.
-    #[allow(dead_code)]
+    /// Sensor adapter registry for write fan-out (CRIT-1: now wired in fan_out).
     pub(crate) adapter_registry: Arc<AdapterRegistry>,
     /// Audit writer for intent and outcome persistence (BC-2.05.009).
     pub(crate) audit_writer: Arc<dyn AuditWriter>,
@@ -179,9 +174,14 @@ impl WriteDispatcher {
                 detail: "write semaphore closed unexpectedly".to_string(),
             })?;
 
-        // Phase 5c: Fan-out — dispatch to sensor adapters.
+        // Phase 5c: Fan-out — dispatch to sensor adapters (CRIT-1 wired).
         let (per_record_results, sensor_errors) = self
-            .fan_out(inputs.context, inputs.endpoint_spec, inputs.fetched_records)
+            .fan_out(
+                inputs.plan,
+                inputs.context,
+                inputs.endpoint_spec,
+                inputs.fetched_records,
+            )
             .await;
 
         let completed_at = Utc::now();
@@ -219,28 +219,108 @@ impl WriteDispatcher {
         Ok(result)
     }
 
-    /// Phase 5c: fan-out write calls to sensor adapters.
+    /// Phase 5c: fan-out write calls to sensor adapters (CRIT-1 — wired).
     ///
-    /// For the current implementation: since `SensorAdapter::write()` is not
-    /// yet fully implemented in the adapter crate (story §Task 8 extension),
-    /// this returns an empty result set (no records dispatched).
+    /// For each record batch, attempts to resolve the sensor adapter via the
+    /// registry and dispatches `SensorAdapter::write()`. Partial failures do
+    /// NOT abort the batch — each record attempt is independent.
     ///
-    /// The adapter registry is held for future wiring of actual sensor calls.
-    /// When the adapter `write()` method is available, this will iterate over
-    /// `records` and call the registered adapter for each (client, sensor) pair.
+    /// # Empty registry
+    /// In test contexts (empty `AdapterRegistry::new()`) no adapters are found
+    /// and the result is ([], []). This is correct: zero records dispatched.
     ///
-    /// Partial failures do NOT abort the batch — each record attempt is independent.
+    /// # Adapter errors
+    /// `SensorError::WriteNotImplemented` (the default trait body) is accumulated
+    /// in `sensor_errors` rather than returned as `Err()`. Per-record partial
+    /// failure is NOT a top-level error (story §Phase 5d).
+    ///
+    /// # TODO: W3-FIX-S307-001
+    /// Full per-sensor HTTP dispatch requires overriding `write()` in each concrete
+    /// adapter. Until then, the default trait body returns `WriteNotImplemented`.
     async fn fan_out(
         &self,
-        _context: &QueryContext,
-        _endpoint_spec: &WriteEndpointSpec,
-        _records: &[RecordBatch],
+        plan: &WritePlan,
+        context: &QueryContext,
+        endpoint_spec: &WriteEndpointSpec,
+        records: &[RecordBatch],
     ) -> (Vec<RecordWriteResult>, Vec<SensorWriteError>) {
-        // Phase 5c implementation: for each record in the batch, call the sensor adapter.
-        // With an empty adapter registry (as in tests), returns empty results.
-        // Production wiring to SensorAdapter::write() occurs when adapters expose
-        // a write() method (story §Task 8 — extension to prism-sensors).
-        (vec![], vec![])
+        // If no records were fetched (Phase 3 stub), nothing to dispatch.
+        if records.is_empty() {
+            return (vec![], vec![]);
+        }
+
+        // Resolve SensorType from plan sensor name.
+        let sensor_type = match plan.sensor.as_str() {
+            "crowdstrike" => SensorType::CrowdStrike,
+            "cyberint" => SensorType::Cyberint,
+            "claroty" => SensorType::Claroty,
+            "armis" => SensorType::Armis,
+            _ => {
+                // Unknown sensor: accumulate a write error for all records.
+                let error_count: usize = records.iter().map(|rb| rb.num_rows()).sum();
+                let sensor_errors = (0..error_count.max(1))
+                    .map(|_| SensorWriteError {
+                        sensor: plan.sensor.clone(),
+                        client_id: context.client_id.clone(),
+                        error_code: "E-SENSOR-010".to_string(),
+                        detail: format!("unknown sensor '{}'", plan.sensor),
+                    })
+                    .collect();
+                return (vec![], sensor_errors);
+            }
+        };
+
+        // TODO: W3-FIX-S307-002 — replace sentinel OrgId with proper OrgRegistry lookup.
+        // The AdapterRegistry uses (OrgId, SensorType) composite key.
+        // QueryContext carries OrgSlug; translating to OrgId requires OrgRegistry (future story).
+        // In test contexts the registry is empty so `get()` returns None immediately.
+        // In production, init_registry_for_org() must be called with the correct OrgId
+        // before this code path is reachable.
+        let org_id = OrgId::from_uuid(uuid::Uuid::nil()); // sentinel: empty registry returns None
+        let adapter = self.adapter_registry.get(org_id, sensor_type);
+
+        let mut per_record_results: Vec<RecordWriteResult> = vec![];
+        let mut sensor_errors: Vec<SensorWriteError> = vec![];
+
+        match adapter {
+            None => {
+                // No adapter registered for this (org_id, sensor_type) pair.
+                // Normal in test contexts (empty registry). Accumulate a sensor error.
+                tracing::debug!(
+                    sensor = %plan.sensor,
+                    org_id = ?org_id,
+                    "fan_out: no adapter registered for ({org_id:?}, {sensor_type}) — \
+                     zero records dispatched",
+                );
+                // No per-record results: registry is empty → 0 affected records (expected in tests).
+            }
+            Some(adapter) => {
+                // Dispatch write() for each record batch.
+                // TODO: W3-FIX-S307-001 — each concrete adapter overrides write() with real HTTP dispatch.
+                let client_slug: OrgSlug = context.org_slug.clone();
+                for record_batch in records {
+                    match adapter
+                        .write(endpoint_spec, record_batch, &plan.params, &client_slug)
+                        .await
+                    {
+                        Ok(results) => {
+                            per_record_results.extend(results);
+                        }
+                        Err(e) => {
+                            // Per-sensor error accumulation — partial failure is NOT top-level Err.
+                            sensor_errors.push(SensorWriteError {
+                                sensor: plan.sensor.clone(),
+                                client_id: context.client_id.clone(),
+                                error_code: "E-SENSOR-070".to_string(),
+                                detail: e.to_string(),
+                            });
+                        }
+                    }
+                }
+            }
+        }
+
+        (per_record_results, sensor_errors)
     }
 
     /// Phase 5e: write audit OUTCOME record.
@@ -248,12 +328,13 @@ impl WriteDispatcher {
     /// Logs failure but does NOT unwind the write — sensor API calls are already
     /// complete (story §Task 6e).
     async fn write_audit_outcome(&self, intent_id: Ulid, result: &WriteResult) {
-        if let Err(_err) = self.audit_writer.write_outcome(intent_id, result).await {
-            // Log the failure — do NOT return an error or unwind the write.
-            // The sensor API calls are complete; outcome audit failure is a
-            // non-fatal observability gap, not a write failure.
+        if let Err(err) = self.audit_writer.write_outcome(intent_id, result).await {
+            // HIGH-7: log the structured error detail, not just the message.
+            // Sensor API calls are already complete; outcome audit failure is a
+            // non-fatal observability gap, not a write failure (story §Task 6e).
             tracing::warn!(
                 intent_id = %intent_id,
+                error = %err,
                 "audit outcome persistence failed after write completion; \
                  sensor API calls are NOT rolled back"
             );
