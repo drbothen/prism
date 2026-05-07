@@ -73,6 +73,13 @@ pub mod virtual_fields;
 pub mod write_ast;
 pub mod write_verb_registry;
 
+// ── S-3.04 modules — alias system ─────────────────────────────────────────────
+pub mod alias_capability;
+pub mod alias_resolver;
+pub mod alias_store;
+pub mod alias_tools;
+pub mod alias_types;
+
 // ── S-3.05 modules ────────────────────────────────────────────────────────────
 pub mod cache;
 pub mod cache_key;
@@ -127,6 +134,13 @@ pub mod tests;
 //   `parse_sql_dml`, `parse_sql_dml_with_limits`,
 //   `is_internal_prism_table`, `check_unbounded_write` (sql_parser)
 //   `reject_write_verbs_in_filter` (filter_parser)
+//
+// Alias-system internals (S-3.04, BC-2.11.008 + BC-2.11.006 v1.17 DI-034 layer 5):
+//   `create_alias` (alias_tools)                          — ungated create; MCP MUST use *_gated (SEC-011)
+//   `create_alias_with_clients` (alias_tools)             — ungated create+clients; MCP MUST use *_gated
+//   `create_alias_with_clients_gated_inner` (alias_tools) — internal token-store split (F-LOCAL-P2-HIGH-005)
+//   `delete_alias` (alias_tools)                          — ungated delete; MCP MUST use *_gated (SEC-011)
+//   `AliasStore` (alias_store) — `create_or_update` method pub(crate): direct store mutation; bypasses guards (CR-018)
 //
 // Tests that need direct sub-parser access (e.g., to obtain
 // FilterExpr/PipeQuery/SqlQuery directly, or to bypass pre-parse guards to

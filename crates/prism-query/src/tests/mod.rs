@@ -10,6 +10,7 @@
 //! `tests/` compile against the public API only, which no longer includes the
 //! mode-specific sub-parsers.
 
+pub mod alias_tests;
 pub mod bc_gap_fill_tests;
 pub mod cache_tests;
 pub mod integration_tests;

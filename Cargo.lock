@@ -4708,6 +4708,7 @@ dependencies = [
  "prism-core",
  "prism-credentials",
  "prism-ocsf",
+ "prism-security",
  "prism-sensors",
  "prism-spec-engine",
  "prism-storage",

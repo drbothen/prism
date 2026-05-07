@@ -47,9 +47,17 @@
 //!     - sql_parser::check_unbounded_write     — unbounded write guard
 //!     - filter_parser::reject_write_verbs_in_filter — filter-mode write rejection
 //!
+//!   S-3.04 alias tools and store (pub(crate) — forbidden from external crates):
+//!     - alias_tools::create_alias                          — ungated create_alias (SEC-011)
+//!     - alias_tools::create_alias_with_clients             — create_alias with client list (SEC-011)
+//!     - alias_tools::delete_alias                          — ungated delete_alias (SEC-011)
+//!     - alias_tools::create_alias_with_clients_gated_inner — internal token-store split (F-LOCAL-P2-HIGH-005)
+//!     - alias_store::AliasStore::create_or_update          — direct store mutation bypass (CR-018)
+//!
 //! Reference: adversary pass-5 OBS-003 [process-gap]; adversary pass-6 F-HIGH-001/F-HIGH-002;
 //!            adversary pass-7 F-HIGH-001/F-MEDIUM-002; adversary pass-8 F-HIGH-001/OBS-001;
-//!            S-3.06 BC-2.11.006 v1.16 INV-SEC-PERIMETER-001.
+//!            S-3.06 BC-2.11.006 v1.16 INV-SEC-PERIMETER-001;
+//!            S-3.04 local adversary pass-1 F-HIGH-003.
 
 // ── Sub-parser entry points ──────────────────────────────────────────────────
 
@@ -153,6 +161,33 @@ use prism_query::sql_parser::check_unbounded_write;
 // Expected error: E0603 "function `reject_write_verbs_in_filter` is private"
 use prism_query::filter_parser::reject_write_verbs_in_filter;
 
+// ── S-3.04 alias system security perimeter (F-HIGH-003) ─────────────────────
+
+// `alias_tools::create_alias` is `pub(crate)` — forbidden from external crates.
+// MCP layer must use `create_alias_with_clients_gated` to enforce alias.write (SEC-011).
+// Expected error: E0603 "function `create_alias` is private"
+use prism_query::alias_tools::create_alias;
+
+// `alias_tools::create_alias_with_clients` is `pub(crate)` — forbidden from external crates.
+// External callers must use `create_alias_with_clients_gated` (SEC-011).
+// Expected error: E0603 "function `create_alias_with_clients` is private"
+use prism_query::alias_tools::create_alias_with_clients;
+
+// `alias_tools::delete_alias` is `pub(crate)` — forbidden from external crates.
+// External callers must use `delete_alias_gated` (SEC-011).
+// Expected error: E0603 "function `delete_alias` is private"
+use prism_query::alias_tools::delete_alias;
+
+// `alias_tools::create_alias_with_clients_gated_inner` is `pub(crate)` — forbidden from external crates.
+// Internal split to allow test token-store injection; external crates MUST NOT call it directly.
+// Expected error: E0603 "function `create_alias_with_clients_gated_inner` is private"
+use prism_query::alias_tools::create_alias_with_clients_gated_inner;
+
+// `alias_store::AliasStore::create_or_update` is `pub(crate)` — forbidden from external crates.
+// Direct store mutation bypasses keyword/OCSF collision checks (CR-018).
+// Expected error: E0624 "method `create_or_update` is private"
+use prism_query::alias_store::AliasStore;
+
 fn main() {
     // These calls are unreachable due to compile failure, but are written
     // to prevent the compiler from eliding the use statements via dead-code
@@ -198,4 +233,16 @@ fn main() {
     let _ = is_internal_prism_table;
     let _ = check_unbounded_write;
     let _ = reject_write_verbs_in_filter;
+
+    // S-3.04 alias system security perimeter (F-HIGH-003) — force visibility checks.
+    // These lines are unreachable due to compile failures above, but reference the
+    // alias symbols to ensure visibility errors are emitted for each if they become pub.
+    let _ = create_alias;
+    let _ = create_alias_with_clients;
+    let _ = delete_alias;
+    let _ = create_alias_with_clients_gated_inner;
+    // create_or_update is a pub(crate) method on AliasStore.
+    // Expected error: E0624 "method `create_or_update` is private"
+    // The method-reference form forces the visibility check even when unreachable.
+    let _ = AliasStore::create_or_update;
 }

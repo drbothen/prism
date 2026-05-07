@@ -46,3 +46,12 @@ pub mod vp031_pushdown;
 // intentional (kani::assume filters invalid inputs). CR-013.
 #[allow(clippy::unwrap_used)]
 pub mod vp025_cache_key;
+
+// S-3.04 alias system proofs (VP-012, VP-013, VP-037).
+// Kani harnesses compile only under `#[cfg(kani)]`.
+pub mod vp012_depth_limit;
+pub mod vp013_cycle_detection;
+
+// VP-037: Alias expansion never panics on arbitrary alias graphs.
+// Proptest coverage layer (fuzz target lives in fuzz/fuzz_targets/).
+pub mod vp037_alias_no_panic;

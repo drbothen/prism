@@ -58,3 +58,10 @@ name = "vp021_parse_fuzz"
 path = "fuzz_targets/vp021_parse_fuzz.rs"
 test = false
 doc = false
+
+# S-3.04 VP-037 — AliasResolver::expand() never panics on arbitrary alias graphs.
+[[bin]]
+name = "vp037_alias_fuzz"
+path = "fuzz_targets/vp037_alias_fuzz.rs"
+test = false
+doc = false
