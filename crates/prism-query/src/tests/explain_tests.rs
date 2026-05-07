@@ -1332,6 +1332,49 @@ fn test_predicate_as_string_cidr_operator_renders_correctly() {
 }
 
 // ===========================================================================
+// C-LOCAL-001 Regression: pipe-mode JOIN target sensor must appear in
+// sensors_to_query
+// ===========================================================================
+
+/// C-LOCAL-001 Regression: `crowdstrike.devices | join armis.devices on hostname`
+/// must list BOTH CrowdStrike AND Armis in `sensors_to_query`.
+///
+/// Before the C-LOCAL-001 fix, `extract_sources_from_ast` for `Ast::Pipe` only
+/// pushed `pq.source` (the pipe root) but never iterated the stages for
+/// `PipeStage::Join`. This caused the JOIN target sensor to be silently dropped
+/// from the plan, producing a misleading cost estimate and wrong scope display.
+#[test]
+fn test_BC_2_11_010_pipe_join_collects_both_source_and_target_sensors() {
+    let result = explain(
+        "crowdstrike.devices | join armis.devices on hostname",
+        default_opts(),
+    )
+    .expect("explain must succeed for valid pipe-join query");
+
+    let sensors: Vec<_> = result
+        .execution_plan
+        .sensors_to_query
+        .iter()
+        .map(|s| s.sensor_type)
+        .collect();
+
+    assert!(
+        sensors.contains(&SensorType::CrowdStrike),
+        "sensors_to_query must contain CrowdStrike (pipe root source); got: {sensors:?}"
+    );
+    assert!(
+        sensors.contains(&SensorType::Armis),
+        "sensors_to_query must contain Armis (pipe JOIN target) — C-LOCAL-001 regression; \
+         got: {sensors:?}"
+    );
+    assert_eq!(
+        sensors.len(),
+        2,
+        "exactly 2 sensors expected (CrowdStrike + Armis); got: {sensors:?}"
+    );
+}
+
+// ===========================================================================
 
 #[cfg(test)]
 mod proptest_invariants {

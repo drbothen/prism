@@ -438,6 +438,14 @@ fn extract_sources_from_ast(ast: &Ast) -> Vec<SourceRef> {
         }
         Ast::Pipe(pq) => {
             push(&pq.source);
+            // C-LOCAL-001: also collect JOIN stage sources so that
+            // `crowdstrike.devices | join armis.devices on hostname`
+            // correctly reports both sensors in `sensors_to_query`.
+            for stage in &pq.stages {
+                if let crate::ast::PipeStage::Join(js) = stage {
+                    push(&js.source);
+                }
+            }
         }
         _ => {}
     }
