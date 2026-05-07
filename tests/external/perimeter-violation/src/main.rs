@@ -43,7 +43,6 @@
 //!     - pipe_parser::extract_sensor_prefix    — sensor prefix extractor
 //!     - sql_parser::parse_sql_dml             — DML statement entry point
 //!     - sql_parser::parse_sql_dml_with_limits — DML entry point with caller-provided limits
-//!     - sql_parser::build_dml_parser          — DML Chumsky builder (composite)
 //!     - sql_parser::is_internal_prism_table   — prism_* table guard
 //!     - sql_parser::check_unbounded_write     — unbounded write guard
 //!     - filter_parser::reject_write_verbs_in_filter — filter-mode write rejection
@@ -142,10 +141,6 @@ use prism_query::sql_parser::parse_sql_dml;
 // Added in BC-2.11.006 v1.14 (F-PR130-P1-HIGH-002).
 use prism_query::sql_parser::parse_sql_dml_with_limits;
 
-// `build_dml_parser` is `pub(crate)` — forbidden from external crates.
-// Expected error: E0603 "function `build_dml_parser` is private"
-use prism_query::sql_parser::build_dml_parser;
-
 // `is_internal_prism_table` is `pub(crate)` — forbidden from external crates.
 // Expected error: E0603 "function `is_internal_prism_table` is private"
 use prism_query::sql_parser::is_internal_prism_table;
@@ -200,7 +195,6 @@ fn main() {
     let _ = extract_sensor_prefix;
     let _ = parse_sql_dml;
     let _ = parse_sql_dml_with_limits;
-    let _ = build_dml_parser;
     let _ = is_internal_prism_table;
     let _ = check_unbounded_write;
     let _ = reject_write_verbs_in_filter;

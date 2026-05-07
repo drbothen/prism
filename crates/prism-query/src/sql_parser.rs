@@ -26,7 +26,7 @@ use crate::ast::{
     SortDirection, Span, SqlQuery, SqlStatement,
 };
 use crate::write_ast::{DmlNode, DmlOperation};
-// S-3.06: Assignment is used by build_dml_parser (UPDATE SET col=val production)
+// S-3.06: Assignment is used by build_update_parser (UPDATE SET col=val production)
 use crate::error::ParseError;
 use crate::error_recovery::{rich_to_parse_error, sql_paren_delimiters};
 use crate::filter_parser::{build_literal_parser, build_predicate_parser, build_source_ref_parser};
@@ -927,34 +927,6 @@ where
     })
 }
 
-/// Build the Chumsky DML parser (composite — tries DELETE, UPDATE, INSERT in order).
-///
-/// NOTE: In practice, `parse_sql_dml` dispatches directly to the per-operation
-/// builders (`build_delete_parser`, `build_update_parser`, `build_insert_parser`)
-/// based on the first token, avoiding Chumsky `choice()` error-priority issues
-/// where `try_map` errors after full-input consumption lose to the first
-/// alternative's position-0 failure.
-///
-/// This function is kept for compatibility with external test callers that
-/// may call `build_dml_parser()` directly; internally `parse_sql_dml` does
-/// not use it.
-///
-/// # Security perimeter (BC-2.11.006 INV-SEC-PERIMETER-001)
-/// `pub(crate)` — never `pub`.
-///
-/// # Implements BC-2.11.004 — Write Parser Extension
-#[allow(dead_code)]
-pub(crate) fn build_dml_parser<'a>() -> impl Parser<'a, &'a str, DmlNode, extra::Err<Rich<'a, char>>>
-{
-    // Keep choice for the public build_dml_parser API; parse_sql_dml dispatches
-    // per-token to avoid choice() error-priority pathology.
-    choice((
-        build_delete_parser(),
-        build_update_parser(),
-        build_insert_parser(),
-    ))
-}
-
 /// Build a Chumsky parser for `DELETE FROM table [WHERE pred]`.
 ///
 /// Security checks (prism_* table guard, unbounded-write guard) run inside
@@ -1194,7 +1166,7 @@ fn build_insert_parser<'a>() -> impl Parser<'a, &'a str, DmlNode, extra::Err<Ric
 /// Check whether a target table name begins with the `prism_` prefix.
 ///
 /// Returns `true` if the table is an internal Prism table (write-protected).
-/// Used by `build_dml_parser` to emit `E-QUERY-010` at parse time.
+/// Used by the DML sub-parsers to emit `E-QUERY-010` at parse time.
 ///
 /// # Security perimeter (BC-2.11.006 INV-SEC-PERIMETER-001)
 /// `pub(crate)` — never `pub`.
@@ -1213,7 +1185,7 @@ pub(crate) fn is_internal_prism_table(table_name: &str) -> bool {
 ///
 /// Returns `Some(ParseError::unbounded_write(...))` if unbounded; `None` if safe.
 ///
-/// Used inside `build_dml_parser` combinators to emit `E-QUERY-022`.
+/// Used inside the DML sub-parsers to emit `E-QUERY-022`.
 ///
 /// # Security perimeter (BC-2.11.006 INV-SEC-PERIMETER-001)
 /// `pub(crate)` — never `pub`.
