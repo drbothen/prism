@@ -3,9 +3,11 @@
 //! Covers: BC-2.07.001 (ephemeral cursor structure), BC-2.07.002 (lifecycle —
 //! forward progress, timeout, cleanup).
 //!
-//! All tests below are RED by design: the implementations in `cursor.rs` use
-//! `todo!()` bodies (BC-5.38.001 stub-phase obligation). Each test documents
-//! which AC it covers.
+//! All tests below were RED-by-design during initial TDD stub phase
+//! (BC-5.38.001). The `cursor.rs` implementations are now GREEN and these
+//! tests verify the implemented behavior. The historical RED-gate annotations
+//! below have been retained as test-design documentation but the impl status
+//! is GREEN as of S-3.05 v1.11 (commit reference: feature/S-3.05).
 
 // Allow dead_code while the stubs compile but don't do anything.
 #![allow(dead_code, unused_imports, clippy::expect_used, clippy::unwrap_used)]
@@ -21,8 +23,6 @@ use crate::cursor::{CursorToken, QueryCursorRegistry, CURSOR_EXPIRY_SECS};
 
 /// AC-1 / BC-2.07.001: Given 1,000 rows and page_size=100, the first call
 /// returns 100 rows and a non-null cursor token; 900 rows are held in memory.
-///
-/// RED by design — `QueryCursorRegistry::create` is `todo!()`.
 #[test]
 fn test_ac1_first_page_returns_100_rows_and_token() {
     let mut registry = QueryCursorRegistry::new();
@@ -50,8 +50,6 @@ fn test_ac1_first_page_returns_100_rows_and_token() {
 
 /// EC-07-003 / BC-2.07.001: When result fits in exactly one page, return all
 /// rows and no token.
-///
-/// RED by design — `QueryCursorRegistry::create` is `todo!()`.
 #[test]
 fn test_ec07003_single_page_result_no_token() {
     let mut registry = QueryCursorRegistry::new();
@@ -84,8 +82,6 @@ fn test_ec07003_single_page_result_no_token() {
 
 /// AC-2 / BC-2.07.001: `next_page` returns the next page and a new token
 /// (or None on the last page).
-///
-/// RED by design — `QueryCursorRegistry::create` and `next_page` are `todo!()`.
 #[test]
 fn test_ac2_next_page_returns_subsequent_rows() {
     let mut registry = QueryCursorRegistry::new();
@@ -119,8 +115,6 @@ fn test_ac2_next_page_returns_subsequent_rows() {
 }
 
 /// BC-2.07.002: The last `next_page` call returns rows and `None` token.
-///
-/// RED by design — `QueryCursorRegistry::next_page` is `todo!()`.
 #[test]
 fn test_last_page_returns_none_token() {
     let mut registry = QueryCursorRegistry::new();
@@ -164,7 +158,7 @@ fn test_last_page_returns_none_token() {
 /// Deferred to S-3.06 integration pass.
 #[test]
 #[ignore = "TD-S305-001: requires clock injection to simulate 61s expiry in a sync test"]
-fn test_ac3_expired_cursor_returns_e_query_006() {
+fn test_ac3_expired_cursor_returns_e_query_012() {
     // This test verifies the error semantic at the unit level. Because we cannot
     // fast-forward real time in a sync test without a clock injection, this test
     // body uses clock injection to artificially age the cursor past 60 seconds.
@@ -194,9 +188,7 @@ fn test_ac3_expired_cursor_returns_e_query_006() {
 // ---------------------------------------------------------------------------
 
 /// AC-4 / BC-2.07.002: Creating a 201st cursor when 200 are active must
-/// return E-QUERY-002.
-///
-/// RED by design — `QueryCursorRegistry::create` is `todo!()`.
+/// return PrismError::CursorCapExceeded (E-STORE-020).
 #[test]
 fn test_ac4_201st_cursor_returns_cap_exceeded() {
     let mut registry = QueryCursorRegistry::new();
@@ -230,8 +222,6 @@ fn test_ac4_201st_cursor_returns_cap_exceeded() {
 // ---------------------------------------------------------------------------
 
 /// BC-2.07.002: `evict_expired` removes entries older than 60 seconds.
-///
-/// RED by design — `QueryCursorRegistry::evict_expired` and `create` are `todo!()`.
 #[test]
 fn test_evict_expired_removes_old_entries() {
     let mut registry = QueryCursorRegistry::new();
@@ -301,8 +291,6 @@ fn test_BC_2_07_001_cursor_token_has_no_disk_persistence_fields() {
 
 /// BC-2.07.001 §Error Cases: token deserialization failure produces a structured
 /// error, not a panic. Passing a garbage token to next_page must return Err.
-///
-/// RED by design — `QueryCursorRegistry::next_page` is `todo!()`.
 #[test]
 fn test_BC_2_07_001_invalid_token_produces_structured_error_not_panic() {
     let mut registry = QueryCursorRegistry::new();
@@ -318,8 +306,6 @@ fn test_BC_2_07_001_invalid_token_produces_structured_error_not_panic() {
 
 /// EC-07-001 / BC-2.07.001: Token that exists in registry but is malformed
 /// internally must produce a structured error (not a panic).
-///
-/// RED by design — `QueryCursorRegistry::next_page` is `todo!()`.
 #[test]
 fn test_BC_2_07_001_ec07001_unknown_cursor_returns_structured_error() {
     let mut registry = QueryCursorRegistry::new();
@@ -336,8 +322,6 @@ fn test_BC_2_07_001_ec07001_unknown_cursor_returns_structured_error() {
 
 /// BC-2.07.001: Cursor token is internal — verify that the first page result
 /// does NOT include the token value in the returned row data.
-///
-/// RED by design — `QueryCursorRegistry::create` is `todo!()`.
 #[test]
 fn test_BC_2_07_001_token_not_embedded_in_row_data() {
     let mut registry = QueryCursorRegistry::new();
@@ -366,8 +350,6 @@ fn test_BC_2_07_001_token_not_embedded_in_row_data() {
 
 /// BC-2.07.002 §Postconditions: Forward-only progress — calling next_page
 /// twice must return non-overlapping row ranges.
-///
-/// RED by design — `QueryCursorRegistry::create` and `next_page` are `todo!()`.
 #[test]
 fn test_BC_2_07_002_forward_only_pages_are_non_overlapping() {
     let mut registry = QueryCursorRegistry::new();
@@ -398,9 +380,6 @@ fn test_BC_2_07_002_forward_only_pages_are_non_overlapping() {
 /// BC-2.07.002 §Postconditions: Deduplication of duplicate records across
 /// pages (EC-07-020) — when sensor API returns duplicate record IDs, Prism
 /// deduplicates at the adapter level.
-///
-/// RED by design — deduplication logic is `todo!()` in the adapter.
-/// This test documents the required behavior for the implementer.
 #[test]
 fn test_BC_2_07_002_ec07020_duplicate_records_across_pages_are_deduplicated() {
     // The registry itself holds pre-deduplicated rows from the adapter layer.
@@ -440,8 +419,6 @@ fn test_BC_2_07_002_ec07020_duplicate_records_across_pages_are_deduplicated() {
 /// operations may be in progress at any time. Exactly 200 must succeed.
 ///
 /// Verifies the boundary: the 200th cursor must succeed, the 201st must fail.
-///
-/// RED by design — `QueryCursorRegistry::create` is `todo!()`.
 #[test]
 fn test_BC_2_07_002_exactly_200th_cursor_succeeds_201st_fails() {
     let mut registry = QueryCursorRegistry::new();
@@ -540,8 +517,6 @@ fn test_BC_2_07_002_ec07022_server_side_cursor_expiry_partial_results() {
 /// BC-2.07.002 §Forward-Only Progress: The cursor offset only advances, never
 /// decrements. After calling next_page, the returned page must start AFTER
 /// all previous rows.
-///
-/// RED by design — `QueryCursorRegistry::next_page` is `todo!()`.
 #[test]
 fn test_BC_2_07_002_forward_only_offset_monotonically_increases() {
     let mut registry = QueryCursorRegistry::new();
