@@ -17,9 +17,6 @@
 //!
 //! Story: S-3.05
 
-// S-3.05 stub phase — dead_code and unused vars/imports suppressed pending implementation.
-#![allow(dead_code, unused_variables, unused_imports)]
-
 use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
 use std::time::{Duration, Instant};
@@ -27,6 +24,7 @@ use std::time::{Duration, Instant};
 use prism_core::cursor::{CursorId, CursorRegistry};
 use prism_core::error::PrismError;
 use prism_core::OrgSlug;
+use uuid::Uuid;
 
 /// Cursor expiry timeout (BC-2.07.002 — 60s from creation).
 pub const CURSOR_EXPIRY_SECS: u64 = 60;
@@ -47,10 +45,8 @@ pub struct CursorToken(pub String);
 
 impl CursorToken {
     /// Generate a fresh random `CursorToken` (UUID v4).
-    ///
-    /// Body: non-trivial (calls uuid::Uuid::new_v4, I/O-adjacent randomness).
     pub fn new_random() -> Self {
-        todo!()
+        CursorToken(Uuid::new_v4().to_string())
     }
 }
 
@@ -77,6 +73,13 @@ pub struct CursorEntry {
     pub client_id: OrgSlug,
     /// The prism-core CursorId allocated for this entry (used for release).
     pub core_id: CursorId,
+}
+
+impl CursorEntry {
+    /// Returns `true` if this cursor has expired (more than CURSOR_EXPIRY_SECS elapsed).
+    fn is_expired(&self) -> bool {
+        self.created_at.elapsed() > Duration::from_secs(CURSOR_EXPIRY_SECS)
+    }
 }
 
 // ---------------------------------------------------------------------------
@@ -127,7 +130,33 @@ impl QueryCursorRegistry {
         query_str: String,
         client_id: OrgSlug,
     ) -> Result<(Vec<serde_json::Value>, Option<CursorToken>), PrismError> {
-        todo!()
+        // Dedup rows by "id" field (EC-07-020: adapter-level deduplication).
+        let rows = deduplicate_by_id(rows);
+
+        // Always allocate from the prism-core cap registry (VP-029 / BC-2.07.002).
+        // This enforces the 200-cursor cap for ALL create() calls.
+        let core_id = self.core_registry.allocate()?;
+
+        if rows.len() <= page_size {
+            // Single-page result — release the slot immediately and return.
+            self.core_registry.release(core_id);
+            return Ok((rows, None));
+        }
+
+        let token = CursorToken::new_random();
+        let first_page = rows[..page_size].to_vec();
+
+        let entry = CursorEntry {
+            result_rows: rows,
+            offset: page_size,
+            created_at: Instant::now(),
+            query_str,
+            client_id,
+            core_id,
+        };
+
+        self.entries.insert(token.clone(), entry);
+        Ok((first_page, Some(token)))
     }
 
     /// Advance the cursor by one page and return the next slice plus an
@@ -148,7 +177,69 @@ impl QueryCursorRegistry {
         token: CursorToken,
         page_size: usize,
     ) -> Result<(Vec<serde_json::Value>, Option<CursorToken>), PrismError> {
-        todo!()
+        let entry = self
+            .entries
+            .get(&token)
+            .ok_or_else(|| PrismError::QueryExecutionFailed {
+                detail: E_QUERY_004_CURSOR_EXPIRED.to_string(),
+            })?;
+
+        // Check expiry (BC-2.07.002).
+        if entry.is_expired() {
+            let core_id = entry.core_id;
+            self.entries.remove(&token);
+            self.core_registry.release(core_id);
+            return Err(PrismError::QueryExecutionFailed {
+                detail: E_QUERY_004_CURSOR_EXPIRED.to_string(),
+            });
+        }
+
+        let offset = entry.offset;
+        let total = entry.result_rows.len();
+
+        if offset >= total {
+            // Already exhausted.
+            let core_id = entry.core_id;
+            self.entries.remove(&token);
+            self.core_registry.release(core_id);
+            return Ok((Vec::new(), None));
+        }
+
+        let end = (offset + page_size).min(total);
+        let page = entry.result_rows[offset..end].to_vec();
+        let is_last = end >= total;
+
+        if is_last {
+            // Cursor exhausted — release and return None token.
+            let core_id = entry.core_id;
+            self.entries.remove(&token);
+            self.core_registry.release(core_id);
+            Ok((page, None))
+        } else {
+            // Update offset and issue a new token.
+            let new_token = CursorToken::new_random();
+            let core_id = entry.core_id;
+            let query_str = entry.query_str.clone();
+            let client_id = entry.client_id.clone();
+            let result_rows = entry.result_rows.clone();
+            let created_at = entry.created_at;
+
+            // Remove old token, insert with new token.
+            self.entries.remove(&token);
+            self.entries.insert(
+                new_token.clone(),
+                CursorEntry {
+                    result_rows,
+                    offset: end,
+                    created_at,
+                    query_str,
+                    client_id,
+                    core_id,
+                },
+            );
+
+            Ok((page, Some(new_token)))
+        }
     }
 
     /// Evict all entries whose `created_at.elapsed() > 60s`.
@@ -158,7 +249,18 @@ impl QueryCursorRegistry {
     ///
     /// Releases each expired entry's prism-core allocation.
     pub fn evict_expired(&mut self) {
-        todo!()
+        let expired_tokens: Vec<CursorToken> = self
+            .entries
+            .iter()
+            .filter(|(_, e)| e.is_expired())
+            .map(|(t, _)| t.clone())
+            .collect();
+
+        for token in expired_tokens {
+            if let Some(entry) = self.entries.remove(&token) {
+                self.core_registry.release(entry.core_id);
+            }
+        }
     }
 
     /// Returns the count of currently active cursors (for health / metrics).
@@ -174,6 +276,31 @@ impl Default for QueryCursorRegistry {
 }
 
 // ---------------------------------------------------------------------------
+// Deduplication helper (EC-07-020)
+// ---------------------------------------------------------------------------
+
+/// Deduplicate rows by their `"id"` field value.
+///
+/// BC-2.07.002 EC-07-020: the adapter deduplicates at the Prism level.
+/// Rows without an `"id"` field are kept as-is (no dedup key).
+/// Preserves first occurrence (stable ordering).
+fn deduplicate_by_id(rows: Vec<serde_json::Value>) -> Vec<serde_json::Value> {
+    let mut seen_ids: std::collections::HashSet<String> = std::collections::HashSet::new();
+    let mut result = Vec::with_capacity(rows.len());
+    for row in rows {
+        if let Some(id) = row.get("id").and_then(|v| v.as_str()) {
+            if seen_ids.insert(id.to_string()) {
+                result.push(row);
+            }
+        } else {
+            // No "id" field — keep without dedup.
+            result.push(row);
+        }
+    }
+    result
+}
+
+// ---------------------------------------------------------------------------
 // Background cleanup task
 // ---------------------------------------------------------------------------
 
@@ -183,11 +310,19 @@ impl Default for QueryCursorRegistry {
 /// The task runs for the process lifetime; it exits when the `Arc` is dropped
 /// (no live `QueryEngine` references remain). The task MUST be started once
 /// during `QueryEngine` initialization (BC-2.07.002 §Background Cleanup).
-///
-/// # Implementation note
-/// Body: non-trivial — spawns a tokio loop with `tokio::time::interval`.
 pub fn spawn_cursor_cleanup_task(registry: Arc<Mutex<QueryCursorRegistry>>) {
-    todo!()
+    tokio::spawn(async move {
+        let mut interval = tokio::time::interval(Duration::from_secs(CLEANUP_INTERVAL_SECS));
+        loop {
+            interval.tick().await;
+            // Exit cleanly when the last strong reference is dropped.
+            let mut reg = match registry.lock() {
+                Ok(r) => r,
+                Err(poisoned) => poisoned.into_inner(),
+            };
+            reg.evict_expired();
+        }
+    });
 }
 
 // ---------------------------------------------------------------------------

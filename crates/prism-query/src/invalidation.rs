@@ -18,9 +18,6 @@
 //!
 //! Story: S-3.05
 
-// S-3.05 stub phase — dead_code and unused vars/imports suppressed pending implementation.
-#![allow(dead_code, unused_variables, unused_imports)]
-
 use std::sync::Arc;
 
 use prism_core::error::PrismError;
@@ -126,15 +123,33 @@ impl CacheInvalidator {
     ///
     /// Errors only if the cache data structure is in an unrecoverable state
     /// (E-CACHE-001 per BC-2.07.004 §Error Cases).
-    ///
-    /// Body: non-trivial — iterates WRITE_TOOL_INVALIDATION_MAP + calls
-    /// `QueryCache::invalidate_by_prefix` for each matching source_id.
     pub fn invalidate_for_sensor(
         &self,
         client_id: &OrgSlug,
         sensor_type: SensorType,
     ) -> Result<(), PrismError> {
-        todo!()
+        let sensor_name = sensor_type.to_string();
+        let client_str = client_id.as_str();
+
+        // Collect all unique source_ids for this sensor type from the map.
+        let mut sources_to_invalidate: Vec<&'static str> = Vec::new();
+        for entry in WRITE_TOOL_INVALIDATION_MAP {
+            if entry.sensor_type == sensor_type {
+                for &source_id in entry.source_ids {
+                    if !sources_to_invalidate.contains(&source_id) {
+                        sources_to_invalidate.push(source_id);
+                    }
+                }
+            }
+        }
+
+        // Prefix-scan invalidation for each source_id.
+        for source_id in sources_to_invalidate {
+            self.cache
+                .invalidate_by_prefix(client_str, &sensor_name, source_id);
+        }
+
+        Ok(())
     }
 
     /// Invalidate all cache entries for a specific write tool operation.
@@ -142,24 +157,41 @@ impl CacheInvalidator {
     /// `tool_name` is looked up in `WRITE_TOOL_INVALIDATION_MAP`; each matching
     /// `source_id` is evicted for `client_id`. If `tool_name` is not in the map,
     /// a `PrismError::Internal` is returned (missing mapping = bug).
-    ///
-    /// Body: non-trivial — map lookup + prefix-scan per source_id.
     pub fn invalidate_for_write_tool(
         &self,
         client_id: &OrgSlug,
         tool_name: &str,
     ) -> Result<(), PrismError> {
-        todo!()
+        let mapping = WRITE_TOOL_INVALIDATION_MAP
+            .iter()
+            .find(|e| e.tool_name == tool_name);
+
+        let entry = mapping.ok_or_else(|| PrismError::Internal {
+            detail: format!(
+                "E-INT-001: write tool '{}' has no invalidation mapping — this is a bug; \
+                 add it to WRITE_TOOL_INVALIDATION_MAP",
+                tool_name
+            ),
+        })?;
+
+        let client_str = client_id.as_str();
+        let sensor_name = entry.sensor_type.to_string();
+
+        for &source_id in entry.source_ids {
+            self.cache
+                .invalidate_by_prefix(client_str, &sensor_name, source_id);
+        }
+
+        Ok(())
     }
 
     /// Invalidate all cache entries for the given `client_id` across all sensors
     /// and sources.
     ///
     /// Called from client management write operations (BC-2.07.004).
-    ///
-    /// Body: non-trivial — calls `QueryCache::invalidate_by_client`.
     pub fn invalidate_for_client(&self, client_id: &OrgSlug) -> Result<(), PrismError> {
-        todo!()
+        self.cache.invalidate_by_client(client_id.as_str());
+        Ok(())
     }
 }
 
@@ -202,7 +234,7 @@ mod tests {
         let entry = WRITE_TOOL_INVALIDATION_MAP
             .iter()
             .find(|e| e.tool_name == "crowdstrike_contain_host")
-            .expect("crowdstrike_contain_host must be in the invalidation map");
+            .unwrap_or_else(|| panic!("crowdstrike_contain_host must be in the invalidation map"));
 
         assert!(
             entry.source_ids.contains(&"crowdstrike_hosts"),
@@ -216,8 +248,6 @@ mod tests {
 
     /// AC-6 / BC-2.07.004: Invalidating a CrowdStrike sensor evicts matching
     /// cache entries before the write response is returned.
-    ///
-    /// RED by design — `CacheInvalidator::invalidate_for_sensor` is `todo!()`.
     #[test]
     fn test_ac6_sensor_invalidation_evicts_cache_entries() {
         use prism_core::tenant::OrgSlug;
@@ -236,7 +266,7 @@ mod tests {
         let client_id = OrgSlug::new("acme");
         invalidator
             .invalidate_for_sensor(&client_id, SensorType::CrowdStrike)
-            .expect("invalidation must not fail");
+            .unwrap_or_else(|e| panic!("invalidation must not fail: {e}"));
 
         assert!(
             cache.get(&key).is_none(),
@@ -245,8 +275,6 @@ mod tests {
     }
 
     /// EC-07-010 / BC-2.07.004: Invalidation with no matching entries is a no-op.
-    ///
-    /// RED by design — `CacheInvalidator::invalidate_for_sensor` is `todo!()`.
     #[test]
     fn test_ec07010_invalidation_no_matching_entries_is_noop() {
         use prism_core::tenant::OrgSlug;

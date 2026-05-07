@@ -32,12 +32,11 @@
 //!
 //! Story: S-3.05
 
-// S-3.05 stub phase — dead_code and unused vars/imports suppressed pending implementation.
-#![allow(dead_code, unused_variables, unused_imports)]
-
+use std::collections::HashMap;
+use std::sync::Mutex;
 use std::time::{Duration, Instant};
 
-use prism_core::error::PrismError;
+use moka::sync::Cache as MokaCache;
 
 use crate::cache_key::CacheKey;
 
@@ -89,9 +88,19 @@ impl SourceDataType {
 
     /// Classify a `source_id` string into a `SourceDataType`.
     ///
-    /// Body: non-trivial — string matching across all sensor source_id variants.
+    /// Classification rules (BC-2.07.003):
+    /// - Sources containing `"alert"` or `"detection"` → `AlertsDetections`
+    /// - Sources containing `"health"` or `"status"` → `HealthStatus`
+    /// - Everything else (devices, hosts, assets, etc.) → `DevicesAssets`
     pub fn from_source_id(source_id: &str) -> Self {
-        todo!()
+        let s = source_id.to_lowercase();
+        if s.contains("health") || s.contains("status") {
+            Self::HealthStatus
+        } else if s.contains("alert") || s.contains("detection") {
+            Self::AlertsDetections
+        } else {
+            Self::DevicesAssets
+        }
     }
 }
 
@@ -119,9 +128,9 @@ pub struct CacheEntry {
 impl CacheEntry {
     /// Returns `true` if this entry's TTL has elapsed (BC-2.07.003).
     ///
-    /// Body: non-trivial — involves `Instant::elapsed()` + comparison.
+    /// TTL is measured from `created_at` (absolute), not from last access.
     pub fn is_expired(&self) -> bool {
-        todo!()
+        self.created_at.elapsed() > self.ttl
     }
 }
 
@@ -150,6 +159,17 @@ impl Default for CacheConfig {
 }
 
 // ---------------------------------------------------------------------------
+// Partition key for per-(client_id, sensor_id) tracking
+// ---------------------------------------------------------------------------
+
+/// Partition key for per-`(client_id, sensor_id)` entry counting.
+type PartitionKey = (String, String);
+
+fn partition_key(key: &CacheKey) -> PartitionKey {
+    (key.client_id.clone(), key.sensor_id.clone())
+}
+
+// ---------------------------------------------------------------------------
 // QueryCache
 // ---------------------------------------------------------------------------
 
@@ -163,25 +183,32 @@ impl Default for CacheConfig {
 /// TTL-based entry expiry (story §Caching Context Summary — moka 0.12).
 pub struct QueryCache {
     config: CacheConfig,
-    // Placeholder field — the real impl will hold moka::sync::Cache<CacheKey, CacheEntry>
-    // and per-partition entry-count tracking. Declared as a unit type to allow
-    // cargo check to pass on the stub.
-    _inner: (),
+    /// moka LRU cache: provides O(1) get/put with background TTL eviction.
+    /// Large capacity; per-partition bounds enforced by `partition_counts`.
+    inner: MokaCache<CacheKey, CacheEntry>,
+    /// Per-`(client_id, sensor_id)` entry counts for DI-018 bound enforcement.
+    /// Each element tracks how many entries exist in that partition.
+    partition_counts: Mutex<HashMap<PartitionKey, Vec<CacheKey>>>,
 }
 
 impl QueryCache {
     /// Construct a new `QueryCache` with the given configuration.
-    ///
-    /// Body: non-trivial — initializes moka cache with capacity and TTL settings.
     pub fn new(config: CacheConfig) -> Self {
-        todo!()
+        // moka capacity: large global pool; per-partition bounds via partition_counts.
+        // We use a large moka capacity so it never evicts by itself —
+        // per-partition eviction is handled manually in `put`.
+        let moka_cap: u64 = 100_000;
+        let inner = MokaCache::builder().max_capacity(moka_cap).build();
+        QueryCache {
+            config,
+            inner,
+            partition_counts: Mutex::new(HashMap::new()),
+        }
     }
 
     /// Construct a `QueryCache` with default configuration.
-    ///
-    /// Body: non-trivial — delegates to `new(CacheConfig::default())`.
     pub fn with_defaults() -> Self {
-        todo!()
+        Self::new(CacheConfig::default())
     }
 
     /// Look up a cache entry by key.
@@ -191,10 +218,32 @@ impl QueryCache {
     /// exceeded its TTL. Expired entries are removed on miss (BC-2.07.003).
     ///
     /// On a cache hit, increments `hit_count` on the entry (BC-2.07.003).
-    ///
-    /// Body: non-trivial — moka lookup + TTL check + hit_count increment.
     pub fn get(&self, key: &CacheKey) -> Option<Vec<serde_json::Value>> {
-        todo!()
+        let entry = self.inner.get(key)?;
+        if entry.is_expired() {
+            // Remove expired entry — treat as cache miss.
+            self.remove_entry(key);
+            return None;
+        }
+        // Increment hit_count: replace the entry with updated count.
+        let mut updated = entry.clone();
+        updated.hit_count += 1;
+        self.inner.insert(key.clone(), updated.clone());
+
+        // Update LRU position: move this key to the end of the partition Vec
+        // (most-recently-used position) so eviction targets the front (LRU).
+        let pk = partition_key(key);
+        let mut counts = self
+            .partition_counts
+            .lock()
+            .unwrap_or_else(|e| e.into_inner());
+        if let Some(partition_keys) = counts.get_mut(&pk) {
+            // Move key to end (most-recently-used).
+            partition_keys.retain(|k| k != key);
+            partition_keys.push(key.clone());
+        }
+
+        Some(updated.rows)
     }
 
     /// Insert a new cache entry.
@@ -206,17 +255,60 @@ impl QueryCache {
     ///
     /// If `SourceDataType::from_source_id(key.source_id)` is `HealthStatus`,
     /// the put is a no-op (health endpoints are not cached — BC-2.07.003).
-    ///
-    /// Body: non-trivial — partition count tracking, LRU loop, moka insert.
     pub fn put(&self, key: CacheKey, rows: Vec<serde_json::Value>) {
-        todo!()
+        let data_type = SourceDataType::from_source_id(&key.source_id);
+        let ttl = match data_type.ttl() {
+            Some(t) => t,
+            None => return, // HealthStatus — not cached
+        };
+        self.put_with_ttl(key, rows, ttl);
     }
 
     /// Insert with explicit TTL override (for testing or admin bypass).
-    ///
-    /// Body: non-trivial — same as `put` but with a caller-specified TTL.
     pub fn put_with_ttl(&self, key: CacheKey, rows: Vec<serde_json::Value>, ttl: Duration) {
-        todo!()
+        // HealthStatus check: if the source is a health/status type, skip.
+        let data_type = SourceDataType::from_source_id(&key.source_id);
+        if data_type == SourceDataType::HealthStatus {
+            return;
+        }
+
+        // max_entries_per_sensor == 0 → caching disabled.
+        if self.config.max_entries_per_sensor == 0 {
+            return;
+        }
+
+        let pk = partition_key(&key);
+
+        // Enforce per-partition bound synchronously before insert (DI-018).
+        let mut counts = self
+            .partition_counts
+            .lock()
+            .unwrap_or_else(|e| e.into_inner());
+        let partition_keys = counts.entry(pk.clone()).or_default();
+
+        // Evict LRU entries until there is space for the new entry.
+        // LRU = oldest by position; moka handles get-based recency internally.
+        // For partition-level eviction we track insertion order in the Vec.
+        while partition_keys.len() >= self.config.max_entries_per_sensor {
+            // Remove the first entry in the Vec (oldest = LRU for FIFO tiebreaker).
+            let evict_key = partition_keys.remove(0);
+            self.inner.invalidate(&evict_key);
+        }
+
+        // Track the new key for this partition.
+        // If the key already exists in the partition list (update/refresh), remove it first.
+        partition_keys.retain(|k| k != &key);
+        partition_keys.push(key.clone());
+
+        drop(counts); // release lock before insert
+
+        let entry = CacheEntry {
+            rows,
+            created_at: Instant::now(),
+            ttl,
+            hit_count: 0,
+        };
+        self.inner.insert(key, entry);
     }
 
     /// Bypass the cache and replace an existing entry with fresh data.
@@ -224,36 +316,81 @@ impl QueryCache {
     /// Implements `force_refresh: true` semantics (BC-2.07.003 §Postconditions).
     /// The `push_down_hash` of `key` matches the non-forced version; the entry
     /// is overwritten.
-    ///
-    /// Body: non-trivial — removes existing entry then inserts fresh entry.
     pub fn force_refresh(&self, key: CacheKey, rows: Vec<serde_json::Value>) {
-        todo!()
+        // Remove existing entry if present, then insert fresh.
+        self.remove_entry(&key);
+        self.put(key, rows);
     }
 
     /// Remove all entries whose key matches a `(client_id, sensor_id, source_id)`
     /// prefix (for invalidation by source).
     ///
     /// This is the low-level primitive used by [`crate::invalidation::CacheInvalidator`].
-    ///
-    /// Body: non-trivial — full scan over all cache entries.
     pub fn invalidate_by_prefix(&self, client_id: &str, sensor_id: &str, source_id: &str) {
-        todo!()
+        let mut counts = self
+            .partition_counts
+            .lock()
+            .unwrap_or_else(|e| e.into_inner());
+        let pk = (client_id.to_string(), sensor_id.to_string());
+
+        // Find and remove all keys matching the (client_id, sensor_id, source_id) prefix.
+        if let Some(partition_keys) = counts.get_mut(&pk) {
+            let to_evict: Vec<CacheKey> = partition_keys
+                .iter()
+                .filter(|k| k.source_id == source_id)
+                .cloned()
+                .collect();
+
+            for k in &to_evict {
+                self.inner.invalidate(k);
+                partition_keys.retain(|pk| pk != k);
+            }
+        }
     }
 
     /// Remove all entries whose `client_id` matches `client_id`.
     ///
     /// Used for client management write operations (BC-2.07.004).
-    ///
-    /// Body: non-trivial — full scan over all cache entries.
     pub fn invalidate_by_client(&self, client_id: &str) {
-        todo!()
+        let mut counts = self
+            .partition_counts
+            .lock()
+            .unwrap_or_else(|e| e.into_inner());
+
+        // Find all partitions for this client.
+        let client_partitions: Vec<PartitionKey> = counts
+            .keys()
+            .filter(|(cid, _)| cid == client_id)
+            .cloned()
+            .collect();
+
+        for pk in client_partitions {
+            if let Some(partition_keys) = counts.remove(&pk) {
+                for k in partition_keys {
+                    self.inner.invalidate(&k);
+                }
+            }
+        }
     }
 
     /// Returns the total number of entries currently in the cache (for metrics).
-    ///
-    /// Body: non-trivial — delegates to moka's entry_count().
     pub fn entry_count(&self) -> u64 {
-        todo!()
+        // moka's entry_count may lag by a tick; sync first.
+        self.inner.run_pending_tasks();
+        self.inner.entry_count()
+    }
+
+    // Internal: remove a single entry from both moka and partition tracker.
+    fn remove_entry(&self, key: &CacheKey) {
+        self.inner.invalidate(key);
+        let mut counts = self
+            .partition_counts
+            .lock()
+            .unwrap_or_else(|e| e.into_inner());
+        let pk = partition_key(key);
+        if let Some(partition_keys) = counts.get_mut(&pk) {
+            partition_keys.retain(|k| k != key);
+        }
     }
 }
 
@@ -296,8 +433,6 @@ mod tests {
     }
 
     /// AC-5 / BC-2.07.003: Cache hit on identical query within TTL window.
-    ///
-    /// RED by design — `QueryCache::put` and `QueryCache::get` are `todo!()`.
     #[test]
     fn test_ac5_cache_hit_within_ttl_returns_cached_rows() {
         let cache = QueryCache::with_defaults();
@@ -318,8 +453,6 @@ mod tests {
     }
 
     /// BC-2.07.003: Cache miss on unseen key returns None.
-    ///
-    /// RED by design — `QueryCache::get` is `todo!()`.
     #[test]
     fn test_cache_miss_on_unseen_key_returns_none() {
         let cache = QueryCache::with_defaults();
@@ -336,8 +469,6 @@ mod tests {
     }
 
     /// AC-8 / BC-2.07.006: At capacity, inserting a new entry evicts LRU.
-    ///
-    /// RED by design — `QueryCache::put` and `QueryCache::entry_count` are `todo!()`.
     #[test]
     fn test_ac8_lru_eviction_at_capacity() {
         let config = CacheConfig {
@@ -358,7 +489,6 @@ mod tests {
         cache.put(make_key(3), vec![serde_json::json!({"id": 3})]);
 
         // Entry count must not exceed configured bound for this partition.
-        // (entry_count is global; a more precise check would be per-partition)
         assert!(
             cache.entry_count() <= 2,
             "AC-8: partition must not exceed max_entries_per_sensor after eviction"
@@ -366,8 +496,6 @@ mod tests {
     }
 
     /// BC-2.07.003: `force_refresh` overwrites an existing cache entry.
-    ///
-    /// RED by design — `QueryCache::force_refresh` and `QueryCache::get` are `todo!()`.
     #[test]
     fn test_force_refresh_overwrites_existing_entry() {
         let cache = QueryCache::with_defaults();
