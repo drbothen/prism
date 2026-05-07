@@ -40,3 +40,7 @@ pub mod vp015_depth_limit;
 // VP-031: REQUIRED columns always produce PushDown (BC-2.11.007, S-3.02).
 // RED by design — todo!() bodies fire until implementation is complete.
 pub mod vp031_pushdown;
+
+// VP-025: Cache key derivation is deterministic (BC-2.07.005, S-3.05).
+// RED by design — todo!() bodies in derive_push_down_hash fire until S-3.05 is implemented.
+pub mod vp025_cache_key;
