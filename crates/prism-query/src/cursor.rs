@@ -67,7 +67,9 @@ impl CursorToken {
 /// Using `#[derive(Debug)]` would leak `query_str` into logs and traces.
 pub struct CursorEntry {
     /// Complete result rows for this fetch, stored until fully consumed or expired.
-    pub result_rows: Vec<serde_json::Value>,
+    /// Wrapped in Arc so that token rotation in `next_page()` is O(1) (pointer
+    /// increment) rather than O(N) (full Vec clone) — CR-008.
+    pub result_rows: Arc<Vec<serde_json::Value>>,
     /// Current page offset (monotonically increasing — BC-2.07.002 forward-only).
     pub offset: usize,
     /// Timestamp at which this entry was created, for expiry checking.
@@ -174,6 +176,7 @@ impl QueryCursorRegistry {
 
         let token = CursorToken::new_random();
         let first_page = rows[..page_size].to_vec();
+        let rows = Arc::new(rows);
 
         let entry = CursorEntry {
             result_rows: rows,
@@ -250,7 +253,7 @@ impl QueryCursorRegistry {
             let core_id = entry.core_id;
             let query_str = entry.query_str.clone();
             let client_id = entry.client_id.clone();
-            let result_rows = entry.result_rows.clone();
+            let result_rows = Arc::clone(&entry.result_rows); // CR-008: O(1) pointer increment
             let created_at = entry.created_at;
 
             // Remove old token, insert with new token.
