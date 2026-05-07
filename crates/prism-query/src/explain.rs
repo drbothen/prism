@@ -308,7 +308,11 @@ impl Visitor for FieldCollector {
         // query field. walk_join() calls visit_field(&j.source.as_field_path())
         // which would leak the JOIN target table name into field_resolution.
         // Only visit the join ON expression for field collection.
-        // (Mirrors visit_join_stage / SEC-P3-002.)
+        //
+        // SEC-P7-001: Join is #[non_exhaustive]. Current fields: kind, source, alias, on.
+        // If a future field with FieldPath or Predicate references is added, this
+        // override MUST be updated to walk it — otherwise field_resolution will
+        // silently miss those fields. (Mirrors visit_join_stage / SEC-P3-002.)
         self.visit_expr(&j.on);
     }
 
