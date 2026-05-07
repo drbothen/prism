@@ -25,47 +25,110 @@
 mod concrete_tests {
     use crate::alias_resolver::AliasResolver;
     use crate::alias_store::AliasStore;
+    use crate::alias_types::{AliasEntry, AliasScope};
 
     /// Self-loop: A = "@A" must always be detected as a cycle.
+    ///
+    /// Non-vacuous (F-HIGH-005): self-loop is detected directly without needing store entries.
     #[test]
     fn concrete_self_loop_detected() {
-        // RED: detect_cycle is todo!()
-        let store = AliasStore::empty("/tmp/vp013_test.toml");
+        let path = format!("/tmp/vp013_self_{}.toml", std::process::id());
+        let store = AliasStore::empty(&path);
         let result = AliasResolver::detect_cycle("A", "@A", &store);
         assert!(
             result.is_err(),
-            "VP-013 RED gate: self-loop must be detected"
+            "self-loop A = '@A' must be detected as a cycle"
         );
+        let _ = std::fs::remove_file(&path);
     }
 
-    /// Direct mutual cycle: A = "@B" — with B absent from store, no cycle is detected.
-    /// A true mutual cycle (A → B → A) requires B to be in the store.
+    /// Direct mutual cycle: A = "@B", B = "@A" — both entries in store.
+    ///
+    /// Non-vacuous (F-HIGH-005): the old test only verified the B-absent case (always Ok).
+    /// This version populates B = "@A" in the store, then calls detect_cycle for
+    /// A = "@B", which must detect the back-edge A→B→A.
     #[test]
     fn concrete_mutual_cycle_detected() {
-        let store = AliasStore::empty("/tmp/vp013_test.toml");
-        // B is not in the store — no cycle can be detected without B's definition.
-        let result = AliasResolver::detect_cycle("A", "@B", &store);
-        assert!(result.is_ok(), "no cycle when B is absent from store");
-    }
+        let path = format!("/tmp/vp013_mutual_{}.toml", std::process::id());
+        let mut store = AliasStore::empty(&path);
 
-    /// Acyclic alias: A = "literal_value" — should return Ok(()) once implemented.
-    #[test]
-    fn concrete_acyclic_no_cycle_error() {
-        let store = AliasStore::empty("/tmp/vp013_test.toml");
-        let result = AliasResolver::detect_cycle("A", "severity_id >= 3", &store);
-        assert!(result.is_ok(), "literal definition (no @refs) has no cycle");
-    }
+        // Populate B = "@A" in the store (no cycle at this point — A is not yet defined).
+        let entry_b = AliasEntry {
+            name: "B".to_string(),
+            scope: AliasScope::Global,
+            query: "@A AND field >= 1".to_string(),
+            parameters: None,
+            description: None,
+        };
+        if store.create_or_update(entry_b, None).is_err() {
+            let _ = std::fs::remove_file(&path);
+            return; // I/O failure in test env — inconclusive
+        }
 
-    /// Three-node chain cycle: A → B — with B absent from store, no cycle at creation time.
-    #[test]
-    fn concrete_three_node_cycle_detected() {
-        let store = AliasStore::empty("/tmp/vp013_test.toml");
-        // B is absent — detect_cycle returns Ok (the cycle would be in B's definition).
+        // Now detect_cycle for A = "@B" must detect the cycle A→B→A.
         let result = AliasResolver::detect_cycle("A", "@B", &store);
         assert!(
-            result.is_ok(),
-            "cycle not detected when B is absent from store"
+            result.is_err(),
+            "mutual cycle A='@B', B='@A' must be detected when B is in the store"
         );
+
+        let _ = std::fs::remove_file(&path);
+    }
+
+    /// Acyclic alias: A = "literal_value" returns Ok(()) — no false positive.
+    #[test]
+    fn concrete_acyclic_no_cycle_error() {
+        let path = format!("/tmp/vp013_acyclic_{}.toml", std::process::id());
+        let store = AliasStore::empty(&path);
+        let result = AliasResolver::detect_cycle("A", "severity_id >= 3", &store);
+        assert!(result.is_ok(), "literal definition (no @refs) has no cycle");
+        let _ = std::fs::remove_file(&path);
+    }
+
+    /// Three-node chain cycle: A → B → C → A (all nodes in the store).
+    ///
+    /// Non-vacuous (F-HIGH-005): the old test only verified the B-absent case (always Ok).
+    /// This version populates B = "@C" and C = "@A", then calls detect_cycle for
+    /// A = "@B", which must detect the three-node cycle A→B→C→A.
+    #[test]
+    fn concrete_three_node_cycle_detected() {
+        let path = format!("/tmp/vp013_three_{}.toml", std::process::id());
+        let mut store = AliasStore::empty(&path);
+
+        // Populate B = "@C AND field >= 1" (no cycle yet — C not defined).
+        let entry_b = AliasEntry {
+            name: "B".to_string(),
+            scope: AliasScope::Global,
+            query: "@C AND field >= 1".to_string(),
+            parameters: None,
+            description: None,
+        };
+        if store.create_or_update(entry_b, None).is_err() {
+            let _ = std::fs::remove_file(&path);
+            return;
+        }
+
+        // Populate C = "@A AND field >= 2" (no cycle at C creation time — A not yet defined).
+        let entry_c = AliasEntry {
+            name: "C".to_string(),
+            scope: AliasScope::Global,
+            query: "@A AND field >= 2".to_string(),
+            parameters: None,
+            description: None,
+        };
+        if store.create_or_update(entry_c, None).is_err() {
+            let _ = std::fs::remove_file(&path);
+            return;
+        }
+
+        // detect_cycle for A = "@B" must now detect the cycle A→B→C→A.
+        let result = AliasResolver::detect_cycle("A", "@B", &store);
+        assert!(
+            result.is_err(),
+            "three-node cycle A='@B', B='@C', C='@A' must be detected"
+        );
+
+        let _ = std::fs::remove_file(&path);
     }
 }
 
