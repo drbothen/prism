@@ -1,7 +1,7 @@
 ---
 document_type: behavioral-contract
 level: L3
-version: "4.7"
+version: "4.8"
 status: draft
 producer: product-owner
 timestamp: 2026-04-14T05:00:00
@@ -70,7 +70,7 @@ The query engine's pagination lifecycle enforces forward-only progress within a 
 | `PrismError::CursorExpired` (E-QUERY-012) | Cursor TTL elapsed (>60s since creation) when `next_page()` called | Returns E-QUERY-012; cursor entry removed from registry. Distinct from E-QUERY-004 (30s query execution timeout). LLM agent should re-execute with same parameters to obtain a fresh cursor. |
 | `PrismError::CursorPageSizeInvalid` (E-QUERY-013) | `page_size` = 0 supplied to cursor creation | Returns E-QUERY-013; rejected as malformed input before cursor is created. |
 | `PrismError::CursorTokenUnknown` (E-QUERY-014) | Cursor token UUID not found in registry | Returns E-QUERY-014; UUID is garbage, already-released after exhaustion, or from a different prism instance. Distinct from E-QUERY-012 (which is for tokens that DID exist but expired). |
-| `Err(PrismError::CursorCapExceeded)` (E-STORE-020) | Active cursor count exceeds 200 (cross-client) at create time | Cursor allocation rejected; client must wait for existing cursors to expire or be released. See §Cursor Lifecycle (MCP-exposed surface) — Cap and §Concurrent Fetch Limits (MCP-exposed surface). |
+| `Err(PrismError::CursorCapExceeded)` (E-STORE-020) | Active cursor count exceeds 200 (cross-client) at create time | Cursor allocation rejected; client must wait for existing cursors to expire or be released. See §Cursor Lifecycle (MCP-exposed surface) — Cap and §Concurrent Fetch Limits. |
 
 ## Cursor Lifecycle (MCP-exposed surface)
 
@@ -119,6 +119,7 @@ See `.factory/specs/prd-supplements/test-vectors.md` for canonical test vector t
 
 | Version | Burst | Date | Author | Change |
 |---------|-------|------|--------|--------|
+| 4.8 | S-3.04-fix-pass-30 | 2026-05-07 | implementer | Fixed broken anchor in E-STORE-020 Error Cases row: `§Concurrent Fetch Limits (MCP-exposed surface)` → `§Concurrent Fetch Limits` (drop parenthetical suffix; actual heading at line 51 has no suffix). Resolves F-PASS11-HIGH-001. |
 | 4.7 | S-3.04-fix-pass-29 | 2026-05-07 | implementer | Added `Err(PrismError::CursorCapExceeded)` (E-STORE-020) row to Error Cases table; this code was cited in §Cursor Lifecycle (MCP-exposed surface) — Cap but absent from Error Cases (F-PASS10-MED-001). Resolves BC internal inconsistency. |
 | 4.6 | S-3.04-fix-pass-28 | 2026-05-07 | implementer | Added `## Cursor Lifecycle (MCP-exposed surface)` section covering TTL (60s), cap (200 cross-client), creation/advancement/expiry/cross-client-allocation semantics; updated Note anchor from broken §Cursor Lifecycle to `## Cursor Lifecycle (MCP-exposed surface)`; resolves F-PASS9-HIGH-001 broken anchor + unbacked claims. |
 | 4.5 | S-3.04-fix-pass-27 | 2026-05-07 | implementer | Note reconciliation: clarify v4.4 Note that S-3.05 reintroduces thin MCP-cursor surface layered on internal pagination; resolves F-PASS8-CRIT-002 internal contradiction. |
