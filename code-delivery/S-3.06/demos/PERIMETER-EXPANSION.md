@@ -2,6 +2,8 @@
 
 **Story:** S-3.06 v1.7 | **BC:** BC-2.11.006 v1.14 | **INV:** INV-SEC-PERIMETER-001
 
+> **Post-S-3.06 update (BC-2.11.006 v1.16, 2026-05-07):** Symbol counts updated to **26 total / 27 expected E-errors / 9 layer-4 symbols** after `maintenance/clippy-unwrap-cleanup` removed dead-code `build_dml_parser`. Body counts below reflect the v1.14 snapshot at S-3.06 merge time.
+
 ## Summary
 
 S-3.06 adds 10 new `pub(crate)` write-parser symbols to the security perimeter guard.

@@ -44,6 +44,8 @@ test result: ok. 62 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out
 
 ## Security Perimeter
 
+> **Post-S-3.06 update (BC-2.11.006 v1.16, 2026-05-07):** Symbol counts updated to **26 total / 27 expected E-errors / 9 layer-4 symbols** after `maintenance/clippy-unwrap-cleanup` removed dead-code `build_dml_parser`. Body counts below reflect the v1.14 snapshot at S-3.06 merge time.
+
 | File | Description | Status |
 |------|-------------|--------|
 | [PERIMETER-EXPANSION.md](PERIMETER-EXPANSION.md) | 10 new restricted symbols (BC-2.11.006 v1.14) | PASS |
