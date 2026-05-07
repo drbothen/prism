@@ -61,6 +61,20 @@ impl From<CompileFeatureGate> for CompileTimeGate {
     }
 }
 
+/// F-PASS2-HIGH-001: bridge from prism-security's `CompileTimeGate` back to
+/// prism-query's `CompileFeatureGate`, allowing `write_pipeline.rs` to call the
+/// canonical prism-security gate functions (`crowdstrike_write_gate()` etc.) as
+/// the single source of truth for the cfg gate, while `phase2_safety_check` keeps
+/// its `CompileFeatureGate` parameter type for test compatibility.
+impl From<CompileTimeGate> for CompileFeatureGate {
+    fn from(g: CompileTimeGate) -> CompileFeatureGate {
+        match g {
+            CompileTimeGate::Present => CompileFeatureGate::Present,
+            CompileTimeGate::Absent => CompileFeatureGate::Absent,
+        }
+    }
+}
+
 // ---------------------------------------------------------------------------
 // Safety check output
 // ---------------------------------------------------------------------------

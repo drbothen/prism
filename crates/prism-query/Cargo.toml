@@ -102,14 +102,19 @@ alias-write = []
 # S-3.07 — BC-2.04.001 compile-time write feature gates (deny-by-default per DI-003).
 # Each sensor's write code is gated behind a separate Cargo feature.
 # Default features intentionally excludes all *-write features.
-crowdstrike-write = []
-cyberint-write = []
-claroty-write = []
-armis-write = []
+#
+# F-PASS2-HIGH-001: chain to prism-security AND prism-sensors so that enabling
+# a *-write feature in prism-query lights up the full cross-crate gate topology.
+# prism-security gates the capability check (CompileTimeGate::Present) and
+# prism-sensors gates the adapter write() implementation.
+crowdstrike-write = ["prism-security/crowdstrike-write", "prism-sensors/crowdstrike-write"]
+cyberint-write = ["prism-security/cyberint-write", "prism-sensors/cyberint-write"]
+claroty-write = ["prism-security/claroty-write", "prism-sensors/claroty-write"]
+armis-write = ["prism-security/armis-write", "prism-sensors/armis-write"]
 all-write = ["crowdstrike-write", "cyberint-write", "claroty-write", "armis-write"]
 
 [lints.rust]
-unexpected_cfgs = { level = "warn", check-cfg = ['cfg(kani)', 'cfg(feature, values("crowdstrike-write", "cyberint-write", "claroty-write", "armis-write", "all-write"))'] }
+unexpected_cfgs = { level = "warn", check-cfg = ['cfg(kani)', 'cfg(feature, values("alias-write", "crowdstrike-write", "cyberint-write", "claroty-write", "armis-write", "all-write"))'] }
 non_snake_case = "allow"
 
 [lints.clippy]

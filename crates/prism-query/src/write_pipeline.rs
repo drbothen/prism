@@ -22,7 +22,10 @@ use std::sync::Arc;
 
 use prism_core::{OrgSlug, PrismError, RiskTier};
 use prism_security::confirmation_token::ConfirmationTokenStore;
-use prism_security::feature_flag::FeatureFlagEvaluator;
+use prism_security::feature_flag::{
+    armis_write_gate, claroty_write_gate, crowdstrike_write_gate, cyberint_write_gate,
+    FeatureFlagEvaluator,
+};
 use prism_sensors::AdapterRegistry;
 use prism_spec_engine::write_endpoint::WriteEndpointRegistry;
 
@@ -293,37 +296,16 @@ impl WriteExecutor {
         );
 
         // BC-2.04.001: compile-time feature gate derived from sensor name.
-        // In default builds, no *-write features are present (deny-by-default per DI-003).
-        // Enabling a feature (e.g. --features crowdstrike-write) changes the gate to Present.
-        let compile_gate = match plan.sensor.as_str() {
-            "crowdstrike" => {
-                if cfg!(feature = "crowdstrike-write") {
-                    CompileFeatureGate::Present
-                } else {
-                    CompileFeatureGate::Absent
-                }
-            }
-            "cyberint" => {
-                if cfg!(feature = "cyberint-write") {
-                    CompileFeatureGate::Present
-                } else {
-                    CompileFeatureGate::Absent
-                }
-            }
-            "claroty" => {
-                if cfg!(feature = "claroty-write") {
-                    CompileFeatureGate::Present
-                } else {
-                    CompileFeatureGate::Absent
-                }
-            }
-            "armis" => {
-                if cfg!(feature = "armis-write") {
-                    CompileFeatureGate::Present
-                } else {
-                    CompileFeatureGate::Absent
-                }
-            }
+        // F-PASS2-HIGH-001: call prism-security gate functions as the single source
+        // of truth for the cfg gate topology. Each function uses #[cfg(feature = "...")]
+        // internally; enabling a *-write feature in prism-query (which chains to
+        // prism-security/prism-sensors via Cargo feature propagation) lights up the
+        // gate here automatically without duplication.
+        let compile_gate: CompileFeatureGate = match plan.sensor.as_str() {
+            "crowdstrike" => crowdstrike_write_gate().into(),
+            "cyberint" => cyberint_write_gate().into(),
+            "claroty" => claroty_write_gate().into(),
+            "armis" => armis_write_gate().into(),
             // Unknown sensor: no write feature → Absent
             _ => CompileFeatureGate::Absent,
         };
