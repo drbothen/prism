@@ -324,6 +324,14 @@ impl Visitor for FieldCollector {
 
     fn visit_sql_query(&mut self, q: &crate::ast::SqlQuery) {
         // Skip q.from.source — it is a SourceRef, not a query field.
+        //
+        // SEC-P9-001: SqlQuery is #[non_exhaustive]. Current fields: select, from,
+        // joins (walked via visit_join), where_, group_by, having, order_by, limit.
+        // If a future field with FieldPath or Predicate references is added (e.g.,
+        // a WITH/CTE clause per ast.rs:100 rationale), this override MUST be updated
+        // to walk it — otherwise field_resolution will silently miss those fields.
+        // (Mirrors visit_filter_expr / SEC-P8-001, visit_join / SEC-P7-001,
+        // visit_pipe_query / SEC-P8-002, visit_join_stage / SEC-P3-002.)
         self.visit_select_clause(&q.select);
         for join in &q.joins {
             // Delegate to visit_join so the source-ref skip logic is centralised
