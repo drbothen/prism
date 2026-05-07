@@ -95,9 +95,15 @@ pub fn map_datafusion_memory_error(err: datafusion::error::DataFusionError) -> P
                 .unwrap_or(limit_mb);
             PrismError::QueryMemoryBudgetExceeded { limit_mb, used_mb }
         }
-        _ => PrismError::QueryExecutionFailed {
-            detail: err.to_string(),
-        },
+        _ => {
+            tracing::error!(
+                error = %err,
+                "DataFusion error (detail redacted from client response)"
+            );
+            PrismError::QueryExecutionFailed {
+                detail: "query execution error: <redacted; see server logs>".to_string(),
+            }
+        }
     }
 }
 

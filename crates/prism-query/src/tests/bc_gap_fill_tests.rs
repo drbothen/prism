@@ -1278,6 +1278,41 @@ mod bc_gap_fill {
                 mapped
             );
         }
+
+        /// CWE-209 F-PR129-PR-HIGH-001 (sibling of SEC-003): map_datafusion_memory_error
+        /// fallback branch MUST NOT forward raw DataFusion error text to the client.
+        ///
+        /// The fallback arm (`_ => ...`) must return the redacted sentinel string so that
+        /// internal DataFusion details (plan text, schema info, etc.) cannot leak via MCP.
+        #[test]
+        fn test_SEC_003_map_datafusion_memory_error_fallback_returns_redacted_detail() {
+            use datafusion::error::DataFusionError;
+            use prism_core::PrismError;
+
+            // Use a DataFusion error variant that is NOT ResourcesExhausted so the
+            // fallback branch is exercised.
+            let err = DataFusionError::Plan(
+                "internal plan detail that must not reach the client".to_string(),
+            );
+            let mapped = map_datafusion_memory_error(err);
+
+            match &mapped {
+                PrismError::QueryExecutionFailed { detail } => {
+                    assert!(
+                        detail.contains("<redacted; see server logs>"),
+                        "fallback branch must return redacted detail, not raw DataFusion text: {detail}"
+                    );
+                    assert!(
+                        !detail.contains("internal plan detail"),
+                        "raw DataFusion error text must not appear in client-facing detail: {detail}"
+                    );
+                }
+                other => panic!(
+                    "expected QueryExecutionFailed from fallback, got {:?}",
+                    other
+                ),
+            }
+        }
     }
 
     // =========================================================================
