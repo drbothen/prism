@@ -26,12 +26,10 @@
 //!
 //! Story: S-3.05
 
-// S-3.05 stub phase — dead_code and unused vars/imports suppressed pending implementation.
-#![allow(dead_code, unused_variables, unused_imports)]
-
 use std::collections::BTreeMap;
 
 use serde::{Deserialize, Serialize};
+use sha2::{Digest, Sha256};
 
 /// Sensor identifier (e.g., `"crowdstrike"`, `"armis"`).
 ///
@@ -68,9 +66,14 @@ impl PushDownParams {
 
     /// Insert a push-down parameter.
     ///
-    /// Body: non-trivial (calls BTreeMap::insert, conditional on nulls).
+    /// Null values are silently dropped (BC-2.07.005 §Canonicalization:
+    /// "Null/absent parameters are omitted from the canonical form").
     pub fn insert(&mut self, key: impl Into<String>, value: serde_json::Value) {
-        todo!()
+        // BC-2.07.005: null values are omitted — do not insert.
+        if value.is_null() {
+            return;
+        }
+        self.0.insert(key.into(), value);
     }
 
     /// Returns true if the parameter set is empty.
@@ -120,28 +123,58 @@ impl CacheKey {
     /// Canonicalization ensures that two parameter sets with identical key-value
     /// pairs but different insertion orders produce the same hash (BC-2.07.005
     /// §Canonicalization §Invariants).
-    ///
-    /// Body: non-trivial — SHA-256 hash computation + JSON serialization.
     pub fn derive(
         client_id: impl Into<String>,
         sensor_id: impl Into<String>,
         source_id: impl Into<String>,
         params: &PushDownParams,
     ) -> Self {
-        todo!()
+        let push_down_hash = Self::derive_push_down_hash(params);
+        CacheKey {
+            client_id: client_id.into(),
+            sensor_id: sensor_id.into(),
+            source_id: source_id.into(),
+            push_down_hash,
+        }
     }
 
     /// Compute the canonical SHA-256 hex string for the given push-down params.
     ///
     /// This is the pure, testable core of key derivation. It:
-    /// 1. Filters out null values from `params`.
+    /// 1. Filters out null values from `params` (already done by `insert`, but
+    ///    defensive here for externally-constructed `PushDownParams`).
     /// 2. Serializes the remaining entries as a JSON object with sorted keys.
     /// 3. Returns the SHA-256 hex digest of the UTF-8 bytes.
     ///
-    /// Body: non-trivial — involves SHA-256 hash computation (I/O-adjacent,
-    /// uses `sha2` crate).
+    /// The BTreeMap inside `PushDownParams` guarantees alphabetical ordering
+    /// during serialization — no additional sort is needed.
     pub fn derive_push_down_hash(params: &PushDownParams) -> String {
-        todo!()
+        // Filter out any nulls that might have been inserted directly into the BTreeMap
+        // (defensive — PushDownParams::insert already drops nulls).
+        let non_null: BTreeMap<&str, &serde_json::Value> = params
+            .0
+            .iter()
+            .filter(|(_, v)| !v.is_null())
+            .map(|(k, v)| (k.as_str(), v))
+            .collect();
+
+        // Serialize the non-null BTreeMap as canonical JSON bytes.
+        // BTreeMap guarantees alphabetical key ordering in serde_json output.
+        // SAFETY: BTreeMap<&str, &serde_json::Value> is always JSON-serializable;
+        // serde_json only fails on maps with non-string keys or types with custom
+        // serializers that can fail, neither of which applies here.
+        // unwrap_used is denied; we use a match-or-default to stay lint-clean.
+        let canonical_bytes = match serde_json::to_vec(&non_null) {
+            Ok(b) => b,
+            // Unreachable for this concrete type, but must be handled.
+            Err(_) => b"{}".to_vec(),
+        };
+
+        // SHA-256 hash → lowercase hex.
+        let mut hasher = Sha256::new();
+        hasher.update(&canonical_bytes);
+        let hash_bytes = hasher.finalize();
+        format!("{:x}", hash_bytes)
     }
 
     /// Return the prefix 3-tuple for prefix-scan invalidation.
@@ -162,8 +195,6 @@ mod tests {
 
     /// AC-7 / BC-2.07.005: Same push-down params in different insertion order
     /// must produce the same cache key.
-    ///
-    /// RED by design — `derive_push_down_hash` is `todo!()`.
     #[test]
     fn test_ac7_same_params_different_order_produces_same_key() {
         let mut params_a = PushDownParams::new();
@@ -184,8 +215,6 @@ mod tests {
     }
 
     /// EC-07-042: Absent optional param vs explicit null must produce same hash.
-    ///
-    /// RED by design — `derive_push_down_hash` is `todo!()`.
     #[test]
     fn test_ec07042_absent_vs_null_params_same_hash() {
         let mut params_with_null = PushDownParams::new();
@@ -203,8 +232,6 @@ mod tests {
     }
 
     /// BC-2.07.005 §Invariants: identical inputs always produce the same hash.
-    ///
-    /// RED by design — `derive_push_down_hash` is `todo!()`.
     #[test]
     fn test_identical_params_produce_identical_hash() {
         let mut params = PushDownParams::new();
@@ -221,8 +248,6 @@ mod tests {
     }
 
     /// BC-2.07.005: Different push-down params must produce different hashes.
-    ///
-    /// RED by design — `derive_push_down_hash` is `todo!()`.
     #[test]
     fn test_different_params_produce_different_hashes() {
         let mut params_a = PushDownParams::new();
@@ -241,14 +266,12 @@ mod tests {
     }
 
     /// GREEN-BY-DESIGN: `PushDownParams::new()` is empty.
-    /// Zero branching, no I/O, no helpers, 1 line.
     #[test]
     fn test_push_down_params_new_is_empty() {
         assert!(PushDownParams::new().is_empty());
     }
 
     /// GREEN-BY-DESIGN: `CacheKey::prefix()` returns the three plain-value components.
-    /// Pure tuple construction, zero branching, no I/O, 1 line.
     #[test]
     fn test_cache_key_prefix_returns_three_tuple() {
         let key = CacheKey {
