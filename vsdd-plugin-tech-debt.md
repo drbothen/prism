@@ -1,10 +1,10 @@
 ---
 document_type: vsdd-plugin-tech-debt-register
 level: ops
-version: "2026-05-07T21:00:00Z"
+version: "2026-05-07T22:00:00Z"
 status: current
 producer: state-manager
-timestamp: 2026-05-07T21:00:00Z
+timestamp: 2026-05-07T22:00:00Z
 project: prism (carved out from main tech-debt-register)
 scope: vsdd-factory plugin / methodology / pipeline mechanics
 deferred_to: vsdd-factory plugin maintenance cycle (separate-repo / cross-session)
@@ -383,6 +383,7 @@ Both gaps contributed to HIGH-001 and HIGH-003 findings surviving until Wave 2 g
 
 | Date | Change |
 |------|--------|
+| 2026-05-07T22:00:00Z | v3.24 — D-282 wave-3-A tail-end merge bookkeeping; no new TDs (61 items total, no count change); develop pin c867c344→7c413692; STORY-INDEX annotated for S-3.04 + S-3.03 MERGED rows; STATE v7.30→v7.31; SESSION-HANDOFF v7.30→v7.31; cycle-manifest v1.83→v1.84. 61 items total (no new TDs filed this burst; merge bookkeeping only). |
 | 2026-05-07T21:00:00Z | v3.23 — D-281 post-convergence burst: S-3.04 + S-3.03 LOCAL cascades CONVERGED-BY-BEST-EFFORT (3/3 each) under path-c; TD-081 cascade-pause CLOSED → CONVERGED; TD-074 class-(b) FP22 v3.6/v3.7 audit-trail preservation exception codified; develop SHA pin c867c344 (PR #132 S-3.05 squash-merge); STATE v7.29→v7.30. 61 items total (no new TDs filed; closure + convention codification only). (D-281 post-convergence burst.) |
 | 2026-05-07T20:00:00Z | v3.22 — F-PASS17-MED-001/002/LOW-001 closure (S-3.03 pass-17) + O-PASS17-1 / OBS-1 #4 closure (S-3.04 pass-15 sub-axis 6 active) — v3.21 row repositioned to top of descending block; count statement added per class-(e) convention; format normalized to em-dash; SESSION-HANDOFF TL;DR D-279 entry added per TD-075 canonical scope. 61 items total (no new TDs filed; content edits + structural reorder only). (S-3.03 pass-17 + S-3.04 pass-15 combined fix-pass-18.) |
 | 2026-05-07T19:30:00Z | v3.21 — F-PASS16-MED-001/002/003 closure — TD-075 header arithmetic 12→15 corrected; TD-081 lint-hook TD range unified to TD-VSDD-069..080; TD-081 BC-bump count corrected to 5 (v4.3→v4.8). Class-(e) arithmetic recurrences in TD body prose. 61 items total (no new TDs filed this burst; content edits only). (S-3.03 cascade fix-pass-17.) |

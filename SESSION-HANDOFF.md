@@ -1,11 +1,11 @@
 ---
 document_type: session-handoff
 level: ops
-version: "7.30"
+version: "7.31"
 status: current
-timestamp: 2026-05-07T21:00:00Z
-predecessor_session: "D-281 post-convergence burst: S-3.04 + S-3.03 LOCAL cascades CONVERGED-BY-BEST-EFFORT 3/3; TD-081 CLOSED; PR #132 (S-3.05) merged at c867c344 2026-05-07T16:46:01Z. STATE v7.29→v7.30. develop HEAD: c867c344. factory-artifacts HEAD: run git -C .factory log -1."
-successor_focus: "D-282 Forward focus: S-3.04 PR creation; S-3.03 PR creation; S-3.07 LOCAL cascade dispatch; Wave 3-A worktree rebases onto develop c867c344. Path-c still active (full sub-axis 6 enforcement gated on path-a lint hook). develop HEAD: c867c344. factory_artifacts_tech_debt_entries=61 (no new TDs filed D-281; closure + codification only).
+timestamp: 2026-05-07T22:00:00Z
+predecessor_session: "D-282 combined wave-3-A tail-end burst: PR #133 (S-3.04 alias system) squash 57745ce8 + PR #134 (S-3.03 explain diagnostics) squash 7c413692 merged; develop HEAD 7c413692. STATE v7.30→v7.31. factory-artifacts HEAD: run git -C .factory log -1."
+successor_focus: "D-283 Forward focus: S-3.07 worktree rebase onto develop 7c413692 + LOCAL adversary pass-2 + PR creation. Wave 3-A 3 of 4 shipped (S-3.05 #132 + S-3.04 #133 + S-3.03 #134); S-3.07 lone pending. Path-c still active (full sub-axis 6 enforcement gated on path-a lint hook). develop HEAD: 7c413692. factory_artifacts_tech_debt_entries=61 (no new TDs filed D-282; merge bookkeeping only).
 
 **STEP 1 (START HERE):** Read STATE.md v7.30 + this HANDOFF v7.30 in full. Confirm develop HEAD `c867c344` (PR #132 S-3.05 squash-merged 2026-05-07T16:46:01Z). S-3.04 + S-3.03 LOCAL cascades CONVERGED-BY-BEST-EFFORT 3/3 — both ready for PR creation. S-3.07 LOCAL cascade pending dispatch.
 
@@ -27,6 +27,8 @@ develop HEAD: c867c344 (six PRs merged 2026-05-06/07: #127 S-3.01 2d7040b1, #128
 # Session Handoff — WAVE 4 PHASE 4.A DECISIONS LOGGED (2026-05-02)
 
 ## TL;DR
+
+**D-282 COMBINED WAVE-3-A TAIL-END BURST (2026-05-07T22:00:00Z) — STATE v7.31:** PR #133 (S-3.04 alias system) squash 57745ce8 2026-05-07T18:53:14Z + PR #134 (S-3.03 explain diagnostics) squash 7c413692 2026-05-07T21:27:50Z; develop pin c867c344→7c413692; STORY-INDEX bumped v2.21→v2.22 (S-3.04 + S-3.03 rows annotated MERGED). Wave 3-A status: 3 of 4 shipped; S-3.07 pending rebase + LOCAL adv pass-2 + PR. STATE v7.30→v7.31; vsdd-plugin-tech-debt v3.23→v3.24; cycle-manifest v1.83→v1.84.
 
 **D-281 POST-CONVERGENCE BURST — CASCADES CONVERGED + S-3.05 MERGED (2026-05-07) — STATE v7.30:** Wave-3-A LOCAL adversary spec-cascades for S-3.04 + S-3.03 reached 3/3 CONVERGED-BY-BEST-EFFORT under path-c interim scope reduction (TD-VSDD-075 D-278 adjudication validated). PR #132 (S-3.05 Pagination + Caching) squash-merged at c867c344 on 2026-05-07T16:46:01Z. TD-VSDD-081 cascade-pause CLOSED → CONVERGED; TD-VSDD-074 class-(b) FP22 v3.6/v3.7 audit-trail preservation exception codified. POL-11 chain: vsdd-plugin-tech-debt v3.22→v3.23; STATE.md v7.29→v7.30; SESSION-HANDOFF v7.29→v7.30; cycle-manifest v1.82→v1.83. Path-c remains active (full sub-axis 6 enforcement gated on path-a lint hook); opportunistic catch-up applied to OoS sites (STATE.md narrative cells + SESSION-HANDOFF STEP 1/KEY REFERENCES) since this burst was already touching the files. factory_artifacts_tech_debt_entries=61 (no new TDs; closure + codification only). Forward focus: S-3.04 PR creation; S-3.07 LOCAL cascade dispatch; Wave 3-A worktree rebases.
 

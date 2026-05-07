@@ -1,7 +1,7 @@
 ---
 document_type: story-index
 level: "L4"
-version: "v2.21"
+version: "v2.22"
 status: draft
 producer: pr-manager
 timestamp: 2026-05-07T03:05:00
@@ -97,6 +97,7 @@ before its dependencies are complete.
 - **S-3.05 error code taxonomy sync (2026-05-07):** S-3.05 v1.10→v1.11 — AC-3 E-QUERY-004→E-QUERY-012 (PrismError::CursorExpired; distinct from 30s query timeout E-QUERY-004); AC-4 E-QUERY-002→E-STORE-020/PrismError::CursorCapExceeded (canonical cap error); new AC-4a for PrismError::CursorTokenUnknown (E-QUERY-014 — garbage/released/cross-instance tokens, distinct from CursorExpired/CursorCapExceeded); EC-07-001/002 updated; Task 2 updated. Codes from fix-pass-16 (commit d36ecf22) renumber (F-PASS9-CRIT-001/002/003). S-3.05 row tag [v1.10-pass-9-doc-cleanup]→[v1.11-S-3.05-fix-pass-16-sub-burst]. BC-INDEX v4.41→v4.42. D-272. STORY-INDEX v2.18→v2.19.
 - **S-3.05 anchor fixes (2026-05-07):** S-3.05 v1.11→v1.12 — AC-3 anchor §Cursor TTL Expiry (non-existent heading) → §Cursor Lifecycle (MCP-exposed surface) — Expiry (real heading in BC-2.07.002 v4.7); AC-4a anchor §CursorTokenUnknown (non-existent heading) → §Cursor Lifecycle (MCP-exposed surface) — Advancement (real heading in BC-2.07.002 v4.7). S-3.05 row tag [v1.11-S-3.05-fix-pass-16-sub-burst]→[v1.12-S-3.04-fix-pass-29-anchor-fixes]. BC-INDEX v4.44→v4.45 (BC-2.07.002 v4.6→v4.7 E-STORE-020 Error Cases row). D-275. STORY-INDEX v2.19→v2.20.
 - **S-3.04 pass-11 changelog reorder (2026-05-07):** F-PASS11-HIGH-002 closure — tabular changelog rows v2.20/v2.19/v2.18 were non-monotonic (descending); reordered to v2.18→v2.19→v2.20 (ascending). Prose changelog entries for the same three bursts reordered to ascending (v2.17→v2.18 first, v2.18→v2.19 second, v2.19→v2.20 third). D-276. STORY-INDEX v2.20→v2.21.
+- **D-282 wave-3-A tail-end merge bookkeeping (2026-05-07):** S-3.04 Full Story List row annotated [MERGED 2026-05-07 PR #133 squash 57745ce8] (feat(S-3.04): alias system — BC-2.11.008/009/013/014/015 + alias-write feature flag; squash-merged 2026-05-07T18:53:14Z). S-3.03 Full Story List row annotated [MERGED 2026-05-07 PR #134 squash 7c413692] (feat(S-3.03): explain query diagnostics — BC-2.11.010; squash-merged 2026-05-07T21:27:50Z). develop HEAD pinned c867c344→7c413692. Wave 3-A: 3 of 4 stories shipped. D-282. STORY-INDEX v2.21→v2.22.
 
 Every story contains: narrative, behavioral contracts table, numbered tasks, acceptance
 criteria (Given/When/Then), verification properties, and notes. No story exceeds 5
@@ -282,8 +283,8 @@ pursuing maximum parallelism should schedule by topological layer, not wave numb
 | S-2.08 | Event Table Abstraction and Local Buffering [MERGED PR #61 0be11cd6 2026-04-26 +92t RED_RATIO=54.3% prism-query-crate-created **WAVE-2-CLOSED** spec-v1.9-W2-P2-A-005-schema-hygiene-fix] | prism-sensors, prism-query | 0 | -- | 3 | S-2.06,S-2.01,S-1.11 |
 | S-3.01 | PrismQL Parser (Filter + SQL + Pipe) [MERGED PR #127 2d7040b1 2026-05-06 +280t 15-adv-passes Chumsky-0.12] | prism-query | 4 | VP-014,015,021 | 3 | S-1.01 |
 | S-3.02 | Query Tool and Materialization [v1.12-spec-rem] [MERGED PR #129 6fefc774 2026-05-06 +491t 4-adv-passes-post-rebase 19-findings-closed] | prism-query | 6 | VP-031 | 3 | S-3.01,S-2.06,S-1.04,S-2.01,S-2.03,S-6.08,S-6.09,S-6.10 |
-| S-3.03 | Explain and Query Diagnostics [v1.9-adv-local-pass4] | prism-query | 1 | -- | 1 | S-3.02 |
-| S-3.04 | Alias System (P1) [v1.10-S-3.04-pass-3-closure] | prism-query | 5 | VP-012,013,037 | 2 | S-3.02,S-1.08,S-1.09 |
+| S-3.03 | Explain and Query Diagnostics [v1.9-adv-local-pass4] [MERGED 2026-05-07 PR #134 squash 7c413692] | prism-query | 1 | -- | 1 | S-3.02 |
+| S-3.04 | Alias System (P1) [v1.10-S-3.04-pass-3-closure] [MERGED 2026-05-07 PR #133 squash 57745ce8] | prism-query | 5 | VP-012,013,037 | 2 | S-3.02,S-1.08,S-1.09 |
 | S-3.05 | Pagination and Caching [v1.12-S-3.04-fix-pass-29-anchor-fixes] | prism-query | 6 | VP-025 | 2 | S-3.02 |
 | S-3.06 | PrismQL Write Parser Extensions [v1.7-spec-rem] [MERGED PR #130 2a7b83f5 2026-05-06 +406t 7-adv-passes 18-findings-closed] | prism-query | 1 | -- | 2 | S-3.01,S-1.13,S-6.07 |
 | S-3.07 | Write Execution Pipeline [v1.7] | prism-query | 5 | -- | 3 | S-3.06,S-3.02,S-1.08,S-1.09,S-2.04,S-6.07 |
@@ -975,3 +976,4 @@ All 13 new DTU clones: Wave 0, 0 BCs, priority P0, depends_on: [S-6.06].
 | v2.19 | 2026-05-07 | S-3.05 error code taxonomy sync (implementer): S-3.05 v1.10→v1.11 (AC-3 E-QUERY-004→E-QUERY-012; AC-4 E-QUERY-002→E-STORE-020; new AC-4a E-QUERY-014 unknown-token; EC-07-001/002 updated; Task 2 updated). S-3.05 row tag [v1.10-pass-9-doc-cleanup]→[v1.11-S-3.05-fix-pass-16-sub-burst]. BC-INDEX v4.41→v4.42. error-taxonomy.md v1.13→v1.14 (+E-QUERY-012/013/014). BC-2.07.002 v4.3→v4.4. TD-S305-001 filed. D-272. STORY-INDEX v2.18→v2.19. |
 | v2.20 | 2026-05-07 | S-3.05 anchor fixes (implementer): S-3.05 v1.11→v1.12 — AC-3 anchor §Cursor TTL Expiry→§Cursor Lifecycle (MCP-exposed surface) — Expiry; AC-4a anchor §CursorTokenUnknown→§Cursor Lifecycle (MCP-exposed surface) — Advancement (both anchors are now real headings in BC-2.07.002 v4.7). S-3.05 row tag [v1.11-S-3.05-fix-pass-16-sub-burst]→[v1.12-S-3.04-fix-pass-29-anchor-fixes]. BC-INDEX v4.44→v4.45 (+BC-2.07.002 v4.7 E-STORE-020 Error Cases row). D-275. STORY-INDEX v2.19→v2.20. |
 | v2.21 | 2026-05-07 | S-3.04 pass-11 changelog reorder (implementer): F-PASS11-HIGH-002 closure — tabular rows v2.20/v2.19/v2.18 were non-monotonic (arrived in descending order); reordered ascending (v2.18→v2.19→v2.20). Prose changelog entries for same three bursts also reordered ascending per POL-11. D-276. STORY-INDEX v2.20→v2.21. |
+| v2.22 | 2026-05-07 | D-282 wave-3-A tail-end merge bookkeeping (state-manager): S-3.04 row annotated [MERGED 2026-05-07 PR #133 squash 57745ce8]; S-3.03 row annotated [MERGED 2026-05-07 PR #134 squash 7c413692]; develop HEAD pinned c867c344→7c413692. Wave 3-A 3 of 4 stories shipped. STORY-INDEX v2.21→v2.22. |
