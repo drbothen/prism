@@ -187,14 +187,41 @@ pub fn create_alias(
 /// When `valid_client_ids` is non-empty, client-scoped aliases are validated against
 /// the list. Pass `&[]` to skip client ID validation (for use in tests/tool contexts
 /// where the client list is not available).
+///
+/// `capability_gate` is an optional `(FeatureFlagEvaluator, CompileTimeGate)` pair.
+/// When `Some(...)`, the `alias.write` capability is checked before any mutation
+/// (SEC-005 / BC-2.11.008 precondition). When `None`, the capability check is skipped
+/// (backward-compatible for test harnesses that don't supply a capability context).
 pub fn create_alias_with_clients(
     input: CreateAliasInput,
     store: &mut AliasStore,
     ocsf_reserved: &std::collections::HashSet<String>,
     valid_client_ids: &[String],
 ) -> Result<serde_json::Value, PrismError> {
+    create_alias_with_clients_gated(input, store, ocsf_reserved, valid_client_ids, None)
+}
+
+/// Full-capability-gated variant of `create_alias_with_clients` (SEC-005).
+///
+/// Callers that have a `FeatureFlagEvaluator` should call this directly so that the
+/// `alias.write` capability gate is enforced before any mutation.
+pub fn create_alias_with_clients_gated(
+    input: CreateAliasInput,
+    store: &mut AliasStore,
+    ocsf_reserved: &std::collections::HashSet<String>,
+    valid_client_ids: &[String],
+    capability_gate: Option<(
+        &prism_security::feature_flag::FeatureFlagEvaluator,
+        prism_security::feature_flag::CompileTimeGate,
+    )>,
+) -> Result<serde_json::Value, PrismError> {
     // Step 1: parse scope.
     let scope = AliasScope::parse(&input.scope)?;
+
+    // SEC-005 / BC-2.11.008 precondition: check alias.write capability gate when provided.
+    if let Some((evaluator, compile_gate)) = capability_gate {
+        crate::alias_capability::check_alias_write(&scope, evaluator, compile_gate)?;
+    }
 
     // Validate client ID when scope is Client(_). ALWAYS enforced — an empty
     // valid_client_ids list means no client is valid, so any client-scoped op
@@ -403,8 +430,30 @@ pub fn delete_alias(
     token_store: &prism_security::ConfirmationTokenStore,
     valid_client_ids: &[String],
 ) -> Result<serde_json::Value, PrismError> {
+    delete_alias_gated(input, store, token_store, valid_client_ids, None)
+}
+
+/// Full-capability-gated variant of `delete_alias` (SEC-005).
+///
+/// Callers that have a `FeatureFlagEvaluator` should call this directly so that the
+/// `alias.write` capability gate is enforced before any mutation.
+pub fn delete_alias_gated(
+    input: DeleteAliasInput,
+    store: &mut AliasStore,
+    token_store: &prism_security::ConfirmationTokenStore,
+    valid_client_ids: &[String],
+    capability_gate: Option<(
+        &prism_security::feature_flag::FeatureFlagEvaluator,
+        prism_security::feature_flag::CompileTimeGate,
+    )>,
+) -> Result<serde_json::Value, PrismError> {
     // Step 1: parse scope.
     let scope = AliasScope::parse(&input.scope)?;
+
+    // SEC-005 / BC-2.11.008 precondition: check alias.write capability gate when provided.
+    if let Some((evaluator, compile_gate)) = capability_gate {
+        crate::alias_capability::check_alias_write(&scope, evaluator, compile_gate)?;
+    }
 
     // Step 2: validate client ID.
     if let AliasScope::Client(ref client_id) = scope {
