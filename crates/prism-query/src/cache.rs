@@ -596,8 +596,9 @@ impl QueryCache {
             .collect();
 
         // Collect all entries to evict while holding the lock, then drop the lock
-        // before calling moka — mirrors invalidate_by_prefix pattern to avoid
-        // holding the mutex across potentially-blocking moka operations.
+        // before calling moka — mirrors invalidate_by_prefix and put_with_ttl pattern;
+        // see put_with_ttl for canonical doc — collects entries while holding the
+        // partition lock, drops the lock, then invalidates moka entries outside the lock.
         let mut evicted_entries: Vec<(CacheKey, usize)> = Vec::new();
         for pk in client_partitions {
             if let Some(partition_keys) = counts.remove(&pk) {
