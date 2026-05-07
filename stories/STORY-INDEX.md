@@ -1,7 +1,7 @@
 ---
 document_type: story-index
 level: "L4"
-version: "v2.14"
+version: "v2.15"
 status: draft
 producer: pr-manager
 timestamp: 2026-05-07T03:05:00
@@ -276,8 +276,8 @@ pursuing maximum parallelism should schedule by topological layer, not wave numb
 | S-3.01 | PrismQL Parser (Filter + SQL + Pipe) [MERGED PR #127 2d7040b1 2026-05-06 +280t 15-adv-passes Chumsky-0.12] | prism-query | 4 | VP-014,015,021 | 3 | S-1.01 |
 | S-3.02 | Query Tool and Materialization [v1.12-spec-rem] [MERGED PR #129 6fefc774 2026-05-06 +491t 4-adv-passes-post-rebase 19-findings-closed] | prism-query | 6 | VP-031 | 3 | S-3.01,S-2.06,S-1.04,S-2.01,S-2.03,S-6.08,S-6.09,S-6.10 |
 | S-3.03 | Explain and Query Diagnostics [v1.9-adv-local-pass4] | prism-query | 1 | -- | 1 | S-3.02 |
-| S-3.04 | Alias System (P1) [v1.8] | prism-query | 5 | VP-012,013,037 | 2 | S-3.02,S-1.08,S-1.09 |
-| S-3.05 | Pagination and Caching [v1.9] | prism-query | 6 | VP-025 | 2 | S-3.02 |
+| S-3.04 | Alias System (P1) [v1.9-adv-local-pass1] | prism-query | 5 | VP-012,013,037 | 2 | S-3.02,S-1.08,S-1.09 |
+| S-3.05 | Pagination and Caching [v1.10-cr-008-perf] | prism-query | 6 | VP-025 | 2 | S-3.02 |
 | S-3.06 | PrismQL Write Parser Extensions [v1.7-spec-rem] [MERGED PR #130 2a7b83f5 2026-05-06 +406t 7-adv-passes 18-findings-closed] | prism-query | 1 | -- | 2 | S-3.01,S-1.13,S-6.07 |
 | S-3.07 | Write Execution Pipeline [v1.7] | prism-query | 5 | -- | 3 | S-3.06,S-3.02,S-1.08,S-1.09,S-2.04,S-6.07 |
 | S-3.08 | Hidden Columns [v1.5] | prism-query | 4 (proxy) | -- | 1 | S-3.02 |
@@ -959,3 +959,5 @@ All 13 new DTU clones: Wave 0, 0 BCs, priority P0, depends_on: [S-6.06].
 | v1.86 | 2026-05-03 | Wave 4 Phase 4.A Pass 4 remediation — S-4.06 v1.12→v1.13 (UUID v7 + dedup_window Duration alignment per ADR-015 §5). |
 | v1.85 | 2026-05-02 | Wave 4 Phase 4.A Pass 3 remediation — 4 story VP frontmatter sweeps: S-4.01 v1.9→v1.10 (+VP-137); S-4.02 v1.6→v1.7 (+VP-141, VP-142); S-4.03 v1.8→v1.9 (+VP-139, VP-140); S-4.04 v1.7→v1.8 (+VP-140). Closes P3-XSTORY-A-H-002 (5 VP frontmatter omissions). |
 | v1.84 | 2026-05-02 | Wave 4 Phase 4.A Pass 2 remediation — 5 story version bumps: S-4.03 v1.7→v1.8 (duplicate YAML key, BC anchor, comment); S-4.05 v1.7→v1.8 (§5/Annex VP-028 dedup); S-4.06 v1.11→v1.12 (VP-138 frontmatter); S-4.07 v1.7→v1.8 (mttd_approx formula); S-4.08 v1.12→v1.13 (subsystem SS-12 removed, SS-20 added). S-4.01/4.02/4.04 unchanged. |
+| v2.14 | 2026-05-07 | S-3.03 adversary-local pass-4 row sync (implementer): Full Story List row S-3.03 [v1.8-adv-local-pass3]→[v1.9-adv-local-pass4] closing F-PASS5-MED-1 from S-3.03 adversary local pass-5. STORY-INDEX v2.13→v2.14. |
+| v2.15 | 2026-05-07 | Full Story List row syncs — S-3.03 row tag confirmed at [v1.9-adv-local-pass4] (reflects 4 adversary-local passes; closes F-PASS5-MED-1 from S-3.03 adversary local pass-5). Sibling row tags synced: S-3.04 [v1.8]→[v1.9-adv-local-pass1] (closes OBS-PASS6-2 partial); S-3.05 [v1.9]→[v1.10-cr-008-perf] (closes OBS-PASS6-2 partial). STORY-INDEX v2.14→v2.15. |

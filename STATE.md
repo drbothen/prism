@@ -593,7 +593,7 @@ _Previous checkpoint (v7.10/D-260/pr129-merged-tier2-complete) archived: [cycles
 
 **Active worktrees:** none (S-3.02 worktree removed post-merge; no story worktrees active)
 
-**Current spec versions:** BC-2.11.004 v1.4, BC-2.11.005 v1.4, BC-2.11.006 v1.12, BC-2.11.007 v1.4, S-3.02 v1.12, S-3.06 v1.7, BC-INDEX v4.38, STORY-INDEX v2.14, ARCH-INDEX v2.31, VP-INDEX v1.29, prd.md v1.10
+**Current spec versions:** BC-2.11.004 v1.4, BC-2.11.005 v1.4, BC-2.11.006 v1.12, BC-2.11.007 v1.4, S-3.02 v1.12, S-3.06 v1.7, BC-INDEX v4.38, STORY-INDEX v2.15, ARCH-INDEX v2.31, VP-INDEX v1.29, prd.md v1.10
 
 **Key files:** [SESSION-HANDOFF.md](SESSION-HANDOFF.md) | [cycle-manifest.md](cycles/wave-4-operations/cycle-manifest.md) | [HOLDOUT-INDEX.md](holdout-scenarios/HOLDOUT-INDEX.md)
 
