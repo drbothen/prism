@@ -26,6 +26,26 @@ use crate::alias_types::AliasScope;
 /// Capability path for alias write operations (matches the TOML key).
 pub const ALIAS_WRITE_CAPABILITY: &str = "alias.write";
 
+/// Return the compile-time gate value for alias write operations.
+///
+/// Returns `CompileTimeGate::Present` when the `alias-write` Cargo feature is
+/// enabled, and `CompileTimeGate::Absent` otherwise. Callers in the MCP dispatch
+/// layer use this to avoid embedding `#[cfg(feature = "alias-write")]` throughout
+/// the codebase (F-HIGH-002).
+pub fn alias_write_compile_gate() -> CompileTimeGate {
+    // The alias-write feature controls whether alias mutation tools are compiled in.
+    // When the feature is absent, CompileTimeGate::Absent causes CapabilityDenied
+    // to be returned without touching the runtime flag (BC-2.04.004 two-tier model).
+    #[cfg(feature = "alias-write")]
+    {
+        CompileTimeGate::Present
+    }
+    #[cfg(not(feature = "alias-write"))]
+    {
+        CompileTimeGate::Absent
+    }
+}
+
 /// Check the `alias.write` capability for the given scope.
 ///
 /// # Arguments

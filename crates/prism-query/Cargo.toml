@@ -88,6 +88,14 @@ proptest = "1.11"
 [target.'cfg(not(target_os = "windows"))'.dev-dependencies]
 kani-verifier = "=0.67.0"
 
+# S-3.04 feature flags
+[features]
+# alias-write: enable the alias mutation tools (create_alias, delete_alias).
+# Both a compile-time gate (this feature) and a runtime capability flag
+# (alias.write = allow in the client's TOML) must be present for writes to succeed
+# (BC-2.04.004 two-tier capability model, F-HIGH-002).
+alias-write = []
+
 [lints.rust]
 unexpected_cfgs = { level = "warn", check-cfg = ['cfg(kani)'] }
 non_snake_case = "allow"
