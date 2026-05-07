@@ -373,6 +373,10 @@ pub fn spawn_cursor_cleanup_task(
 ) -> tokio::task::JoinHandle<()> {
     tokio::spawn(async move {
         let mut interval = tokio::time::interval(Duration::from_secs(CLEANUP_INTERVAL_SECS));
+        // CR-017: Tokio's default `MissedTickBehavior::Burst` would also fire the
+        // first tick immediately at t=0. Setting `Skip` ensures the first cleanup
+        // runs after the full interval, not at spawn time.
+        interval.set_missed_tick_behavior(tokio::time::MissedTickBehavior::Skip);
         loop {
             tokio::select! {
                 _ = shutdown.cancelled() => {
