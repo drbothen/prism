@@ -1,11 +1,11 @@
 ---
 document_type: session-handoff
 level: ops
-version: "7.13"
+version: "7.14"
 status: current
 timestamp: 2026-05-07T06:00:00Z
-predecessor_session: "D-264 Pass-11 ordering + bookkeeping closures (fix-pass-21) 2026-05-07. STATE v7.13. develop HEAD: 6fefc774. factory-artifacts HEAD: run git -C .factory log -1."
-successor_focus: "D-265 Tier-3 dispatch: S-3.03/04/05/07 all unblocked (S-3.02 + S-3.06 both merged). Recommended: S-3.03 (1pt fastest win) + S-3.04/S-3.05 parallel (5+6pts). develop HEAD: 6fefc774. Tier-2 COMPLETE (S-3.02 ✓ PR #129 6fefc774 + S-3.06 ✓ PR #130 2a7b83f5). Active worktrees: none (S-3.02 worktree removed post-merge). Deferred TDs: TD-VSDD-061/063/064 + TD-S302-001..006 + TD-VSDD-057 (OPEN-DEFERRED-CROSS-REPO).
+predecessor_session: "D-265 S-3.04 pass-4 closure — POL-11 propagation backfill (fix-pass-11) 2026-05-07. STATE v7.14. develop HEAD: 6fefc774. factory-artifacts HEAD: run git -C .factory log -1."
+successor_focus: "D-266 Tier-3 dispatch: S-3.03/04/05/07 all unblocked (S-3.02 + S-3.06 both merged). Recommended: S-3.03 (1pt fastest win) + S-3.04/S-3.05 parallel (5+6pts). develop HEAD: 6fefc774. Tier-2 COMPLETE (S-3.02 ✓ PR #129 6fefc774 + S-3.06 ✓ PR #130 2a7b83f5). Active worktrees: none (S-3.02 worktree removed post-merge). Deferred TDs: TD-VSDD-061/063/064 + TD-S302-001..006 + TD-VSDD-057 (OPEN-DEFERRED-CROSS-REPO).
 
 **STEP 1 (START HERE):** Read STATE.md v7.13 + this HANDOFF v7.13 in full. Confirm develop HEAD `6fefc774` (PR #129 S-3.02 squash-merged 2026-05-07). Tier-2 COMPLETE — no active worktrees.
 
@@ -19,7 +19,7 @@ successor_focus: "D-265 Tier-3 dispatch: S-3.03/04/05/07 all unblocked (S-3.02 +
 - STATE.md v7.13: develop@6fefc774 (PR #127 squash 2d7040b1 + PR #128 squash 3e858f9f + PR #130 squash 2a7b83f5 + PR #129 squash 6fefc774, 2026-05-06/07); factory-artifacts HEAD: run git -C .factory log -1 (TD-VSDD-053)
 - D-260: PR #129 S-3.02 MERGED 6fefc774 2026-05-07; tier-2 COMPLETE; 2993 tests; STORY-INDEX v2.14
 - D-246: PR #127 S-3.01 MERGED 2d7040b1 + PR #128 TD-VSDD-058 MERGED 3e858f9f 2026-05-06
-- BC-INDEX v4.38, VP-INDEX v1.29, HOLDOUT-INDEX v1.3, invariants.md v1.5, L2-INDEX v1.13, STORY-INDEX v2.17, ARCH-INDEX v2.31
+- BC-INDEX v4.38, VP-INDEX v1.29, HOLDOUT-INDEX v1.3, invariants.md v1.5, L2-INDEX v1.13, STORY-INDEX v2.18, ARCH-INDEX v2.31
 
 develop HEAD: 6fefc774 (four PRs merged 2026-05-06/07: #127 S-3.01 2d7040b1, #128 TD-VSDD-058 3e858f9f, #130 S-3.06 2a7b83f5, #129 S-3.02 6fefc774; factory-artifacts HEAD: run git -C .factory log -1 per TD-VSDD-053)."
 ---
@@ -27,6 +27,8 @@ develop HEAD: 6fefc774 (four PRs merged 2026-05-06/07: #127 S-3.01 2d7040b1, #12
 # Session Handoff — WAVE 4 PHASE 4.A DECISIONS LOGGED (2026-05-02)
 
 ## TL;DR
+
+**D-265 S-3.04 PASS-4 CLOSURE — POL-11 PROPAGATION BACKFILL (2026-05-07) — STATE v7.14:** Fix-pass-11: STORY-INDEX v2.18 propagated to 3 live pins (STATE.md story_index_version line 336, STATE.md narrative Current-spec-versions, SESSION-HANDOFF.md KEY REFERENCES); test_BC_2_11_008_create_alias_rejects_depth_exceeded_via_tool renamed to test_BC_2_11_008_create_alias_rejects_at_token_in_template + docstring corrected (F-PASS4-MED-002); cycle-manifest v1.66→v1.67; STATE v7.13→v7.14. SESSION-HANDOFF forward-pin shifted D-265→D-266.
 
 **D-264 PASS-11 ORDERING + BOOKKEEPING CLOSURES (2026-05-07) — STATE v7.13:** Fix-pass-21: moved cycle-manifest v1.59 row to correct descending position (between v1.60 and v1.58); added vsdd-plugin-tech-debt v3.6 errata (v3.4 "53 items" count error — actual 50 by grep); appended TD-VSDD-069 deferral cite to D-263; generalized POL-11 verification step 1 to remove brittle line-71 anchor; cycle-manifest v1.65→v1.66; policies.yaml v1.3→v1.4; STATE v7.12→v7.13. SESSION-HANDOFF forward-pin shifted D-264→D-265.
 
