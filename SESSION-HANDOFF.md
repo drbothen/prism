@@ -1,13 +1,13 @@
 ---
 document_type: session-handoff
 level: ops
-version: "7.11"
+version: "7.12"
 status: current
-timestamp: 2026-05-07T03:20:00Z
-predecessor_session: "D-261 Final state sync post-PR-#129 merge 2026-05-07. STATE v7.11. develop HEAD: 6fefc774 (PR #129 S-3.02 squash-merged 2026-05-07). factory-artifacts HEAD: run git -C .factory log -1."
-successor_focus: "D-262 Tier-3 dispatch: S-3.03/04/05/07 all unblocked (S-3.02 + S-3.06 both merged). Recommended: S-3.03 (1pt fastest win) + S-3.04/S-3.05 parallel (5+6pts). develop HEAD: 6fefc774. Tier-2 COMPLETE (S-3.02 ✓ PR #129 6fefc774 + S-3.06 ✓ PR #130 2a7b83f5). Active worktrees: none (S-3.02 worktree removed post-merge). Deferred TDs: TD-VSDD-061/063/064 + TD-S302-001..006 + TD-VSDD-057 (OPEN-DEFERRED-CROSS-REPO).
+timestamp: 2026-05-07T04:00:00Z
+predecessor_session: "D-263 Pass-10 process-gap closures 2026-05-07. STATE v7.12. develop HEAD: 6fefc774. factory-artifacts HEAD: run git -C .factory log -1."
+successor_focus: "D-264 Tier-3 dispatch: S-3.03/04/05/07 all unblocked (S-3.02 + S-3.06 both merged). Recommended: S-3.03 (1pt fastest win) + S-3.04/S-3.05 parallel (5+6pts). develop HEAD: 6fefc774. Tier-2 COMPLETE (S-3.02 ✓ PR #129 6fefc774 + S-3.06 ✓ PR #130 2a7b83f5). Active worktrees: none (S-3.02 worktree removed post-merge). Deferred TDs: TD-VSDD-061/063/064 + TD-S302-001..006 + TD-VSDD-057 (OPEN-DEFERRED-CROSS-REPO).
 
-**STEP 1 (START HERE):** Read STATE.md v7.11 + this HANDOFF v7.11 in full. Confirm develop HEAD `6fefc774` (PR #129 S-3.02 squash-merged 2026-05-07). Tier-2 COMPLETE — no active worktrees.
+**STEP 1 (START HERE):** Read STATE.md v7.12 + this HANDOFF v7.12 in full. Confirm develop HEAD `6fefc774` (PR #129 S-3.02 squash-merged 2026-05-07). Tier-2 COMPLETE — no active worktrees.
 
 **STEP 2 (TIER-3 DISPATCH):** Dispatch Tier-3 stories (S-3.03/04/05/07 unblocked by S-3.02 + S-3.06 both merged). Priority: S-3.03 (Explain/Query Diagnostics, 1pt, fastest win) first; then S-3.04 (Alias System P1, 5pts) + S-3.05 (Pagination/Caching, 6pts) in parallel. S-3.07 (Write Execution Pipeline, 5pts) also unblocked (deps: S-3.02 + S-3.06 both merged). Devops: create worktrees from develop HEAD `6fefc774` before dispatching per-story-delivery cycles.
 
@@ -16,7 +16,7 @@ successor_focus: "D-262 Tier-3 dispatch: S-3.03/04/05/07 all unblocked (S-3.02 +
 **STEP 4 (CONTINUE W3-FIRST PLAN):** Tier 3 (8-way: S-3.03/04/05/08/09/11/12/13) → Tier 4 (S-3.07 + S-3.10) → W3 wave gate → Resume Phase 4.B (S-4.01 + S-4.03).
 
 **KEY REFERENCES:**
-- STATE.md v7.11: develop@6fefc774 (PR #127 squash 2d7040b1 + PR #128 squash 3e858f9f + PR #130 squash 2a7b83f5 + PR #129 squash 6fefc774, 2026-05-06/07); factory-artifacts HEAD: run git -C .factory log -1 (TD-VSDD-053)
+- STATE.md v7.12: develop@6fefc774 (PR #127 squash 2d7040b1 + PR #128 squash 3e858f9f + PR #130 squash 2a7b83f5 + PR #129 squash 6fefc774, 2026-05-06/07); factory-artifacts HEAD: run git -C .factory log -1 (TD-VSDD-053)
 - D-260: PR #129 S-3.02 MERGED 6fefc774 2026-05-07; tier-2 COMPLETE; 2993 tests; STORY-INDEX v2.14
 - D-246: PR #127 S-3.01 MERGED 2d7040b1 + PR #128 TD-VSDD-058 MERGED 3e858f9f 2026-05-06
 - BC-INDEX v4.38, VP-INDEX v1.29, HOLDOUT-INDEX v1.3, invariants.md v1.5, L2-INDEX v1.13, STORY-INDEX v2.17, ARCH-INDEX v2.31
@@ -27,6 +27,10 @@ develop HEAD: 6fefc774 (four PRs merged 2026-05-06/07: #127 S-3.01 2d7040b1, #12
 # Session Handoff — WAVE 4 PHASE 4.A DECISIONS LOGGED (2026-05-02)
 
 ## TL;DR
+
+**D-263 PASS-10 PROCESS-GAP CLOSURES (2026-05-07) — STATE v7.12:** Fix-pass-20 (this commit): D-262+D-263 added to STATE.md decisions log; cycle-manifest changelog backfilled 5 rows (D-247 Tier-2 dispatch, D-250 PR-130 pass-2, D-260 PR-129 merge, D-261 final state sync, D-262 STORY-INDEX backfill-bump); POL-11 index_bump_required_for_index_mutations codified in policies.yaml v1.2→v1.3; TD-VSDD-070 recommended-fix updated to closed-by-POL-11; SESSION-HANDOFF forward-pin shifted D-262→D-264. STATE v7.11→v7.12.
+
+**D-262 STORY-INDEX v2.16→v2.17 BACKFILL-BUMP (2026-05-07) — STATE v7.11:** Fix-pass-19 commit 9970a340 — S-3.03 LOCAL adversary pass-9 F-PASS9-CRIT-001: fix-pass-18 added prose v2.16 entry without bumping frontmatter (violated M-34-001 precedent). Corrected: STORY-INDEX v2.16→v2.17; prose lines reordered ascending; TD-VSDD-070 (backfill-bump policy gap) filed. M-34-001 precedent restored.
 
 **D-261 FINAL STATE SYNC POST-PR-#129 MERGE (2026-05-07) — STATE v7.11:** SESSION-HANDOFF.md refreshed to cite develop HEAD `6fefc774` (PR #129 S-3.02 squash-merged 2026-05-07). Residual factory-artifacts committed: sidecar-learning.md session-end timestamps (2026-05-07T03:09:16Z + T03:16:31Z) + cycles/wave-4-operations/security-reviews/ directory (pr-129-post-rebase.md + pr-130.md audit-trail reports). Tier-2 FULLY CLOSED. Active worktrees: none. Tier-3 (S-3.03/04/05/07) ready for dispatch. develop HEAD: `6fefc774`.
 

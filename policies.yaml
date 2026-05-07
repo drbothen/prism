@@ -23,8 +23,13 @@
 #                                   # here so the adversary knows HOW to verify them.
 
 metadata:
-  version: "1.2"
+  version: "1.3"
   changelog:
+    - version: "1.3"
+      date: 2026-05-07
+      burst: fix-pass-20-pass10-process-gap-closures
+      finding: F-PASS10-MED-003
+      change: "Add POL-11 index_bump_required_for_index_mutations — closes TD-VSDD-070 (backfill-bump policy gap codification)"
     - version: "1.2"
       date: 2026-04-21
       burst: phase-3-wave-0a
@@ -178,3 +183,29 @@ policies:
       - "Verify evidence-report.md lives at docs/demo-evidence/<STORY-ID>/evidence-report.md"
       - "Cross-check: story ID in frontmatter matches subfolder name"
       - "During wave integration gate, list docs/demo-evidence/ and confirm every subdir matches a known story ID"
+
+  - id: 11
+    name: index_bump_required_for_index_mutations
+    description: |
+      Any burst that mutates an index file (frontmatter version, prose changelog,
+      tabular changelog, or row-tag content) MUST bump the index version, regardless
+      of whether the change is content-creating or audit-trail-restoring. Backfill
+      bursts that "fill missing prose entries" are still mutations and DO bump.
+    adopted: fix-pass-20-pass10-process-gap-closures-2026-05-07
+    severity: HIGH
+    enforced_by: [adversary-prompt, consistency-validator, state-manager]
+    scope:
+      - story-index
+      - bc-index
+      - vp-index
+      - arch-index
+    lint_hook: null
+    verification_steps:
+      - "Read M-34-001 precedent (STORY-INDEX line 71): prose-only backfill bumped v1.64→v1.65."
+      - "Verify any commit touching an INDEX file body bumps the frontmatter version field by >= 1 minor revision."
+      - "Verify the new version has a corresponding prose entry AND tabular row."
+      - "Verify all live pins (frontmatter, narrative, SESSION-HANDOFF) propagate the new version atomically."
+    citations:
+      - "TD-VSDD-070 (backfill-bump policy gap) — closed by this policy"
+      - "M-34-001 (2026-04-28) original precedent"
+      - "F-PASS9-CRIT-001 / fix-pass-19 (2026-05-07) precedent restoration"
