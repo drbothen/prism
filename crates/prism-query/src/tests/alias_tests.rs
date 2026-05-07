@@ -1035,13 +1035,15 @@ fn test_BC_2_11_008_create_alias_rejects_self_cycle_via_tool() {
     assert!(result.is_err(), "todo!() fires — test is RED");
 }
 
-/// BC-2.11.008 error E-ALIAS-003: create_alias rejected because depth would exceed 3.
+/// Verifies that the create_alias step-6 parser-validation rejects `@`-token
+/// templates (E-QUERY-001) — `@depth_3_alias` is not valid PrismQL syntax.
 ///
-/// Canonical test vector: create_alias(name="a", query="@b") where "b" is depth-3.
-/// Note: depth is checked at expand() time, not create time. The alias is created
-/// successfully; depth violations surface when the alias is expanded.
+/// NOTE: This test does NOT exercise depth-limit enforcement (E-ALIAS-003),
+/// which the spec defers to expand-time (alias.rs:expand step 5). The test
+/// name was previously `..._rejects_depth_exceeded_via_tool` which falsely
+/// claimed depth-limit coverage at create-time.
 #[test]
-fn test_BC_2_11_008_create_alias_rejects_depth_exceeded_via_tool() {
+fn test_BC_2_11_008_create_alias_rejects_at_token_in_template() {
     let _test_path_14 = format!("/tmp/test_alias_mut_14_{}.toml", std::process::id());
     let mut store = AliasStore::empty(&_test_path_14);
     let ocsf = empty_ocsf();
