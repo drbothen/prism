@@ -406,6 +406,11 @@ impl QueryCache {
         // decrement total_bytes outside the lock. See `invalidate_by_client` /
         // `invalidate_by_prefix` for the same pattern. This avoids holding the
         // partition mutex across potentially-blocking moka operations.
+        //
+        // C10-001 fix: the net byte-change budget check factors in evicted_bytes so
+        // that LRU eviction can free budget for the incoming entry. On rejection,
+        // evicted entries are restored to partition_keys so the partition remains
+        // consistent (no orphan moka entries, no inflated total_bytes).
         let mut evicted: Vec<(CacheKey, usize)> = Vec::new();
         // CRITICAL-P8-001: capture the byte size of any pre-existing entry for this
         // key so we can subtract it from total_bytes after the lock is released.
@@ -419,6 +424,10 @@ impl QueryCache {
         // be silently dropped. Soft over-commitment under concurrent load is still
         // bounded by N × MAX_ENTRY_BYTES (SEC-NEW-002, pre-existing heuristic; not
         // a security boundary).
+        //
+        // O10-002: Eviction freed bytes are correctly subtracted from total_bytes
+        // BEFORE the budget check via net_change semantics; orphan eviction-without-
+        // invalidate is no longer possible (C10-001 closed).
         let dropped_size: usize = {
             let mut counts = self.lock_partition_counts()?;
             let partition_keys = counts.entry(pk.clone()).or_default();
@@ -429,6 +438,9 @@ impl QueryCache {
                 // CR-015: use the stored byte size, not the fixed AVG_ROW_SIZE_BYTES.
                 evicted.push(partition_keys.remove(0));
             }
+
+            // Sum of bytes freed by LRU eviction above (C10-001).
+            let evicted_bytes: usize = evicted.iter().map(|(_, sz)| *sz).sum();
 
             // Track the new key for this partition.
             // CR-014: if this key already exists (force_refresh / repeated-put path),
@@ -442,20 +454,34 @@ impl QueryCache {
                 .map(|(_, sz)| *sz)
                 .unwrap_or(0);
 
-            // Total byte budget enforcement (BC-2.07.006, CR-006, I9-002).
-            // Compute net byte change after accounting for the existing entry being
-            // replaced. Same-key replacement always passes (net ≤ 0 when new ≤ old).
+            // Total byte budget enforcement (BC-2.07.006, CR-006, I9-002, C10-001).
+            // Compute net byte change accounting for: the existing entry being replaced
+            // AND the bytes freed by LRU eviction above. This ensures that when LRU
+            // eviction frees sufficient budget for the incoming entry, the put succeeds
+            // rather than being incorrectly rejected. Same-key replacement always passes
+            // (net ≤ 0 when new ≤ old).
+            //
+            // If net_change > 0 and budget is exceeded even AFTER eviction, we must
+            // restore the evicted entries to partition_keys before returning so the
+            // partition remains consistent (no orphan moka entries, no inflated
+            // total_bytes) — C10-001 closure.
+            //
             // Note: This budget check uses Relaxed atomics. Under concurrent insert
             // load, multiple threads can pass the check before any increments, causing
             // transient soft over-commitment by up to N × MAX_ENTRY_BYTES. Acceptable
             // for this resource-management heuristic (SEC-NEW-002, pre-existing).
             let current_bytes = self.total_bytes.load(Ordering::Relaxed);
-            let net_change = entry_size as i64 - existing_size as i64;
+            let net_change = entry_size as i64 - existing_size as i64 - evicted_bytes as i64;
             if net_change > 0
                 && current_bytes.saturating_add(net_change as usize) > self.config.max_bytes
             {
-                // Byte budget exceeded with a net increase — reject to avoid unbounded
-                // memory growth (CR-006 intent). Same-key replacements always proceed.
+                // Byte budget exceeded even after accounting for LRU eviction.
+                // Restore evicted entries to partition_keys so partition stays consistent
+                // (C10-001: without this, evicted entries become orphan moka entries and
+                // total_bytes inflates permanently).
+                for evicted_entry in evicted.into_iter().rev() {
+                    partition_keys.insert(0, evicted_entry);
+                }
                 return Ok(());
             }
 
@@ -1296,6 +1322,155 @@ mod tests {
         assert_eq!(
             evicted, 3,
             "I-2: invalidate_by_client must return 3 — the number of entries evicted for tenant-x"
+        );
+    }
+
+    /// C10-001 regression: when LRU eviction frees sufficient budget for the
+    /// incoming entry, the put must SUCCEED (not be silently rejected). Evicted
+    /// entries must be removed from BOTH partition_keys AND moka (no orphans).
+    /// total_bytes must reflect the post-eviction, post-insert state exactly.
+    ///
+    /// Before the fix, the budget check used `net_change = entry_size - existing_size`,
+    /// ignoring evicted_bytes. When the cache was full:
+    ///   (a) partition evicted k1 from partition_keys
+    ///   (b) budget check saw current_bytes still at max → rejected k3
+    ///   (c) k1 was orphaned in moka, total_bytes stayed inflated permanently.
+    #[test]
+    fn test_c10_001_budget_rejection_after_eviction_no_orphan_no_inflation() {
+        let config = CacheConfig {
+            max_entries_per_sensor: 2,
+            max_bytes: 2 * AVG_ROW_SIZE_BYTES, // exactly 2 entries fit
+        };
+        let cache = QueryCache::new(config);
+
+        let make_key = |src: &str| crate::cache_key::CacheKey {
+            client_id: "acme".to_string(),
+            sensor_id: "crowdstrike".to_string(),
+            source_id: src.to_string(),
+            push_down_hash: src.repeat(64)[..64].to_string(),
+        };
+
+        let one_row = || vec![serde_json::json!({"id": "row"})]; // 1 × AVG_ROW_SIZE_BYTES
+
+        let k1 = make_key("cs_devices_src1");
+        let k2 = make_key("cs_devices_src2");
+        let k3 = make_key("cs_devices_src3");
+
+        // Fill cache to capacity: 2 entries × AVG_ROW_SIZE_BYTES = max_bytes.
+        cache.put(k1.clone(), one_row()).expect("put k1");
+        cache.put(k2.clone(), one_row()).expect("put k2");
+
+        assert_eq!(
+            cache.total_bytes(),
+            2 * AVG_ROW_SIZE_BYTES,
+            "pre-condition: cache at capacity"
+        );
+
+        // Put k3 — LRU eviction removes k1 (512 bytes freed), net_change = 512 - 0 - 512 = 0.
+        // Post C10-001 fix: 0 > 0 is false → put succeeds.
+        cache
+            .put(k3.clone(), one_row())
+            .expect("C10-001: k3 put must succeed after k1 eviction");
+
+        // moka sync.
+        cache.inner.run_pending_tasks();
+
+        // k1 must be evicted from moka (not an orphan).
+        assert!(
+            cache.get(&k1).expect("get k1 must not error").is_none(),
+            "C10-001: k1 must be evicted from moka (not orphaned) after LRU eviction"
+        );
+        // k2 must still be present.
+        assert!(
+            cache.get(&k2).expect("get k2 must not error").is_some(),
+            "k2 must still be present"
+        );
+        // k3 must be present.
+        assert!(
+            cache.get(&k3).expect("get k3 must not error").is_some(),
+            "C10-001: k3 must be present after successful put-with-eviction"
+        );
+        // total_bytes = 2 × AVG (k2 + k3), not inflated by orphan.
+        assert_eq!(
+            cache.total_bytes(),
+            2 * AVG_ROW_SIZE_BYTES,
+            "C10-001: total_bytes must reflect actual 2-entry cache (k2 + k3), not inflated by orphan k1"
+        );
+    }
+
+    /// C10-001b regression: when the incoming entry is larger than the bytes freed
+    /// by LRU eviction, the put must be REJECTED and the evicted entries must be
+    /// restored to partition_keys (no orphan moka entries, no inflated total_bytes).
+    ///
+    /// Scenario: max_bytes = 2 × AVG, cache holds k1 + k2. Inserting k3 with
+    /// 3 rows (3 × AVG) triggers eviction of k1 (frees AVG), but
+    /// net_change = 3*AVG - 0 - AVG = 2*AVG > 0 and current_bytes + 2*AVG > max_bytes.
+    /// k3 must be rejected, k1 must be restored, state must be unchanged.
+    #[test]
+    fn test_c10_001b_oversized_entry_rejected_no_orphan_after_restore() {
+        let config = CacheConfig {
+            max_entries_per_sensor: 2,
+            max_bytes: 2 * AVG_ROW_SIZE_BYTES, // exactly 2 single-row entries fit
+        };
+        let cache = QueryCache::new(config);
+
+        let make_key = |src: &str| crate::cache_key::CacheKey {
+            client_id: "acme".to_string(),
+            sensor_id: "crowdstrike".to_string(),
+            source_id: src.to_string(),
+            push_down_hash: src.repeat(64)[..64].to_string(),
+        };
+
+        let one_row = || vec![serde_json::json!({"id": "row"})]; // 1 × AVG_ROW_SIZE_BYTES
+
+        let k1 = make_key("cs_devices_src1");
+        let k2 = make_key("cs_devices_src2");
+        let k3 = make_key("cs_devices_src3");
+
+        // Fill cache to capacity.
+        cache.put(k1.clone(), one_row()).expect("put k1");
+        cache.put(k2.clone(), one_row()).expect("put k2");
+
+        assert_eq!(
+            cache.total_bytes(),
+            2 * AVG_ROW_SIZE_BYTES,
+            "pre-condition: cache at capacity"
+        );
+
+        // Try to insert k3 with 3 rows — oversized even after evicting k1.
+        // net_change = 3*AVG - 0 - 1*AVG = 2*AVG; current_bytes (2*AVG) + 2*AVG > max_bytes (2*AVG).
+        let three_rows = vec![
+            serde_json::json!({"id": "r1"}),
+            serde_json::json!({"id": "r2"}),
+            serde_json::json!({"id": "r3"}),
+        ];
+        cache
+            .put(k3.clone(), three_rows)
+            .expect("put k3 must not error (silent drop)");
+
+        // moka sync.
+        cache.inner.run_pending_tasks();
+
+        // k3 must be absent (rejected).
+        assert!(
+            cache.get(&k3).expect("get k3 must not error").is_none(),
+            "C10-001b: k3 must be rejected (oversized after eviction)"
+        );
+        // k1 must be RESTORED (not orphaned in moka with missing partition entry).
+        assert!(
+            cache.get(&k1).expect("get k1 must not error").is_some(),
+            "C10-001b: k1 must be restored to partition after rejection (eviction undone)"
+        );
+        // k2 must be present.
+        assert!(
+            cache.get(&k2).expect("get k2 must not error").is_some(),
+            "k2 must still be present"
+        );
+        // total_bytes must be unchanged (2 entries still).
+        assert_eq!(
+            cache.total_bytes(),
+            2 * AVG_ROW_SIZE_BYTES,
+            "C10-001b: total_bytes must be unchanged after oversized-entry rejection"
         );
     }
 }

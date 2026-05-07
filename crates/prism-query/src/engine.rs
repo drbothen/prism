@@ -173,7 +173,8 @@ pub struct QueryEngine {
     /// Cancellation token used to signal the cursor cleanup task to stop.
     cleanup_shutdown: CancellationToken,
     /// Handle to the background cursor cleanup task (BC-2.07.002 §Background Cleanup).
-    _cleanup_handle: Option<JoinHandle<()>>,
+    /// Held to ensure the task is aborted on Drop — not a dead field.
+    cleanup_handle: Option<JoinHandle<()>>,
 }
 
 impl QueryEngine {
@@ -230,7 +231,7 @@ impl QueryEngine {
             cursor_registry,
             cache,
             cleanup_shutdown: shutdown,
-            _cleanup_handle: Some(handle),
+            cleanup_handle: Some(handle),
         }
     }
 }
@@ -244,7 +245,7 @@ impl Drop for QueryEngine {
     /// before the cancellation is observed).
     fn drop(&mut self) {
         self.cleanup_shutdown.cancel();
-        if let Some(h) = self._cleanup_handle.take() {
+        if let Some(h) = self.cleanup_handle.take() {
             h.abort();
         }
     }
