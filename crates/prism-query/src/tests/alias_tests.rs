@@ -1157,6 +1157,63 @@ fn test_BC_2_11_009_validate_atomic_literal_duration_accepted() {
     assert!(result.is_ok(), "duration '4h' is a valid atomic literal");
 }
 
+/// BC-2.11.009 invariant: all four valid duration units (s/m/h/d) are accepted.
+///
+/// Regression for CR-P6-001: DURATION_PATTERN was `[smhdwMy]` but only `s`, `m`,
+/// `h`, and `d` match the `DurationUnit` AST enum.
+#[test]
+fn test_BC_2_11_009_validate_atomic_literal_all_valid_duration_units_accepted() {
+    for (value, label) in &[
+        ("30s", "seconds"),
+        ("5m", "minutes"),
+        ("2h", "hours"),
+        ("1d", "days"),
+    ] {
+        let result = AliasResolver::validate_atomic_literal(value, "window", "my_alias");
+        assert!(
+            result.is_ok(),
+            "duration '{value}' ({label}) is a valid atomic literal"
+        );
+    }
+}
+
+/// BC-2.11.009 injection guard: week unit 'w' is NOT a recognized duration unit.
+///
+/// Regression for CR-P6-001: "4w" would pass old pattern but fail PrismQL parser.
+/// Validation must reject it at param substitution time with E-ALIAS-004.
+#[test]
+fn test_BC_2_11_009_validate_atomic_literal_rejects_weeks_unit() {
+    let result = AliasResolver::validate_atomic_literal("4w", "window", "my_alias");
+    assert!(
+        result.is_err(),
+        "duration '4w' (weeks) is NOT a recognized unit per BC-2.11.009; must be rejected with E-ALIAS-004"
+    );
+}
+
+/// BC-2.11.009 injection guard: month unit 'M' is NOT a recognized duration unit.
+///
+/// Regression for CR-P6-001: "2M" would pass old pattern but fail PrismQL parser.
+#[test]
+fn test_BC_2_11_009_validate_atomic_literal_rejects_months_unit() {
+    let result = AliasResolver::validate_atomic_literal("2M", "window", "my_alias");
+    assert!(
+        result.is_err(),
+        "duration '2M' (months) is NOT a recognized unit per BC-2.11.009; must be rejected with E-ALIAS-004"
+    );
+}
+
+/// BC-2.11.009 injection guard: year unit 'y' is NOT a recognized duration unit.
+///
+/// Regression for CR-P6-001: "1y" would pass old pattern but fail PrismQL parser.
+#[test]
+fn test_BC_2_11_009_validate_atomic_literal_rejects_years_unit() {
+    let result = AliasResolver::validate_atomic_literal("1y", "window", "my_alias");
+    assert!(
+        result.is_err(),
+        "duration '1y' (years) is NOT a recognized unit per BC-2.11.009; must be rejected with E-ALIAS-004"
+    );
+}
+
 /// BC-2.11.009 invariant: Identifier (e.g. field name) is a valid atomic literal.
 #[test]
 fn test_BC_2_11_009_validate_atomic_literal_identifier_accepted() {

@@ -46,7 +46,13 @@ pub const ALIAS_DETECTION_PATTERN: &str = r"@([a-zA-Z_][a-zA-Z0-9_]{0,63})";
 const INJECTION_CHAR_PATTERN: &str = r"[@;|()=!<>\\]|--|/\*|\*/|(?i)\bAND\b|\bOR\b|\bNOT\b";
 
 /// Duration literal pattern: digits followed by a time unit.
-const DURATION_PATTERN: &str = r"^\d+[smhdwMy]$";
+///
+/// Only `s` (seconds), `m` (minutes), `h` (hours), and `d` (days) are
+/// recognized — matching the four variants of `DurationUnit` in the AST
+/// and the BC-2.11.009 specification. Units `w`, `M`, and `y` are NOT
+/// accepted here; values like "4w" would pass param validation but fail at
+/// the PrismQL parser (CR-P6-001).
+const DURATION_PATTERN: &str = r"^\d+[smhd]$";
 
 /// Integer literal pattern (optional leading minus).
 const INTEGER_PATTERN: &str = r"^-?\d+$";
