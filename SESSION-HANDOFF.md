@@ -1,13 +1,13 @@
 ---
 document_type: session-handoff
 level: ops
-version: "7.16"
+version: "7.17"
 status: current
-timestamp: 2026-05-07T08:00:00Z
-predecessor_session: "D-267 S-3.04 pass-5 closures (fix-pass-12) 2026-05-07. STATE v7.15→v7.16. develop HEAD: 6fefc774. factory-artifacts HEAD: run git -C .factory log -1."
-successor_focus: "D-268 Tier-3 dispatch: S-3.03/04/05/07 all unblocked (S-3.02 + S-3.06 both merged). Recommended: S-3.03 (1pt fastest win) + S-3.04/S-3.05 parallel (5+6pts). develop HEAD: 6fefc774. Tier-2 COMPLETE (S-3.02 ✓ PR #129 6fefc774 + S-3.06 ✓ PR #130 2a7b83f5). Active worktrees: none (S-3.02 worktree removed post-merge). Deferred TDs: TD-VSDD-061/063/064/075 + TD-S302-001..006 + TD-VSDD-057 (OPEN-DEFERRED-CROSS-REPO).
+timestamp: 2026-05-07T09:00:00Z
+predecessor_session: "D-268 Pass-13 closures (fix-pass-23) 2026-05-07. STATE v7.16→v7.17. develop HEAD: 6fefc774. factory-artifacts HEAD: run git -C .factory log -1."
+successor_focus: "D-269 Tier-3 dispatch: S-3.03/04/05/07 all unblocked (S-3.02 + S-3.06 both merged). Recommended: S-3.03 (1pt fastest win) + S-3.04/S-3.05 parallel (5+6pts). develop HEAD: 6fefc774. Tier-2 COMPLETE (S-3.02 ✓ PR #129 6fefc774 + S-3.06 ✓ PR #130 2a7b83f5). Active worktrees: none (S-3.02 worktree removed post-merge). Deferred TDs: TD-VSDD-061/063/064/075 + TD-S302-001..006 + TD-VSDD-057 (OPEN-DEFERRED-CROSS-REPO).
 
-**STEP 1 (START HERE):** Read STATE.md v7.16 + this HANDOFF v7.16 in full. Confirm develop HEAD `6fefc774` (PR #129 S-3.02 squash-merged 2026-05-07). Tier-2 COMPLETE — no active worktrees.
+**STEP 1 (START HERE):** Read STATE.md v7.17 + this HANDOFF v7.17 in full. Confirm develop HEAD `6fefc774` (PR #129 S-3.02 squash-merged 2026-05-07). Tier-2 COMPLETE — no active worktrees.
 
 **STEP 2 (TIER-3 DISPATCH):** Dispatch Tier-3 stories (S-3.03/04/05/07 unblocked by S-3.02 + S-3.06 both merged). Priority: S-3.03 (Explain/Query Diagnostics, 1pt, fastest win) first; then S-3.04 (Alias System P1, 5pts) + S-3.05 (Pagination/Caching, 6pts) in parallel. S-3.07 (Write Execution Pipeline, 5pts) also unblocked (deps: S-3.02 + S-3.06 both merged). Devops: create worktrees from develop HEAD `6fefc774` before dispatching per-story-delivery cycles.
 
@@ -16,7 +16,7 @@ successor_focus: "D-268 Tier-3 dispatch: S-3.03/04/05/07 all unblocked (S-3.02 +
 **STEP 4 (CONTINUE W3-FIRST PLAN):** Tier 3 (8-way: S-3.03/04/05/08/09/11/12/13) → Tier 4 (S-3.07 + S-3.10) → W3 wave gate → Resume Phase 4.B (S-4.01 + S-4.03).
 
 **KEY REFERENCES:**
-- STATE.md v7.16: develop@6fefc774 (PR #127 squash 2d7040b1 + PR #128 squash 3e858f9f + PR #130 squash 2a7b83f5 + PR #129 squash 6fefc774, 2026-05-06/07); factory-artifacts HEAD: run git -C .factory log -1 (TD-VSDD-053)
+- STATE.md v7.17: develop@6fefc774 (PR #127 squash 2d7040b1 + PR #128 squash 3e858f9f + PR #130 squash 2a7b83f5 + PR #129 squash 6fefc774, 2026-05-06/07); factory-artifacts HEAD: run git -C .factory log -1 (TD-VSDD-053)
 - D-260: PR #129 S-3.02 MERGED 6fefc774 2026-05-07; tier-2 COMPLETE; 2993 tests; STORY-INDEX v2.14
 - D-246: PR #127 S-3.01 MERGED 2d7040b1 + PR #128 TD-VSDD-058 MERGED 3e858f9f 2026-05-06
 - BC-INDEX v4.41, VP-INDEX v1.29, HOLDOUT-INDEX v1.3, invariants.md v1.5, L2-INDEX v1.13, STORY-INDEX v2.18, ARCH-INDEX v2.31
@@ -27,6 +27,8 @@ develop HEAD: 6fefc774 (four PRs merged 2026-05-06/07: #127 S-3.01 2d7040b1, #12
 # Session Handoff — WAVE 4 PHASE 4.A DECISIONS LOGGED (2026-05-02)
 
 ## TL;DR
+
+**D-268 PASS-13 CLOSURES — FIX-PASS-23 (2026-05-07) — STATE v7.17:** Four findings from S-3.03 LOCAL adversary pass-13 closed + S-3.05 IMP-1 filed. F-PASS13-MED-001: cycle-manifest v1.67 timestamp was 08:00Z (future-stamp relative to v1.68's 07:00Z); corrected to 06:30Z (midpoint between v1.66 06:00Z and v1.68 07:00Z) — monotonic sequence now v1.66 (06:00) → v1.67 (06:30) → v1.68 (07:00) → v1.69 (08:00) → v1.70 (09:00). F-PASS13-MED-002: v3.8 row was missing count delta; updated to include "51 → 53 items (+2: TD-VSDD-073 + TD-VSDD-074 filed this burst)". F-PASS13-LOW-001: STATE.md vsdd_plugin_tech_debt_entries was stale at 49; bumped to 55 with live-pin annotation (was 49 at TD-064 2026-05-06; now 55 with TD-071 through TD-076 added). F-PASS13-LOW-002: TD-074 scope extended from version-ID-only to 4 sister uniqueness classes: (a) vX.Y label uniqueness, (b) timestamp uniqueness in changelog tables, (c) D-NNN uniqueness in STATE.md, (d) TD-NNN uniqueness in vsdd-plugin-tech-debt. S-3.05 IMP-1 → TD-VSDD-076 filed (concurrent test total_bytes assertion strength P3; cache.rs:959-963 assertion `< 1MB` permits silent regressions; tighten to `== entry_count * AVG_ROW_SIZE_BYTES`). vsdd-plugin-tech-debt v3.9→v3.10; cycle-manifest v1.69→v1.70; SESSION-HANDOFF forward-pin D-268→D-269; STATE v7.16→v7.17.
 
 **D-267 S-3.04 PASS-5 CLOSURE — POL-11 SIBLING SWEEP + LINT-HOOK TD (2026-05-07) — STATE v7.16:** Two HIGH + three MED findings from S-3.04 LOCAL adversary pass-5 closed. F-PASS5-CRIT-001: BC-INDEX sibling-axis gap — STATE.md bc_index_version "4.38" corrected to "4.41" (disk), holdout_index_version "1.2" corrected to "1.3" (disk), STATE.md narrative BC-INDEX v4.38→v4.41, SESSION-HANDOFF.md KEY REFERENCES BC-INDEX v4.38→v4.41. F-PASS5-CRIT-002: STATE.md narrative BC-2.11.006 v1.12→v1.17 (disk v1.17). F-PASS5-MED-001: SESSION-HANDOFF.md body v7.15→v7.16 (STEP 1 + KEY REFERENCES narrative). F-PASS5-MED-002: D-265/D-264 ordering verified already closed by FP22 — NO ACTION. F-PASS5-MED-003: predecessor_session attribution chain optional enrichment applied (v7.14→v7.15 transition). TD-VSDD-075 filed (POL-11 live-pin currency lint hook P3 — 4 violations in 24 hours empirically validate automation gap). SESSION-HANDOFF forward-pin shifted D-267→D-268. vsdd-plugin-tech-debt v3.8→v3.9. cycle-manifest v1.68→v1.69. STATE v7.15→v7.16.
 
