@@ -29,7 +29,8 @@ prism-credentials = { path = "../prism-credentials" }
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 # S-2.08 — UUID v7 generation for org-scoped CrowdStrike pagination session IDs (D-048).
-uuid = { version = "1", features = ["v7"] }
+# S-3.05 — v4 added for CursorToken::new_random() (BC-2.07.001).
+uuid = { version = "1", features = ["v7", "v4"] }
 # S-3.01 — PrismQL parser combinators (filter/SQL/pipe modes) with error recovery.
 chumsky = "0.12"
 # S-3.01 — human-readable parse error formatting (JSON-serializable for MCP responses).
@@ -57,6 +58,14 @@ tokio = { version = "1", features = ["rt-multi-thread", "macros", "time", "sync"
 tracing = "0.1"
 # S-3.02 — Async trait methods for DataFusion TableProvider (scan, etc.).
 async-trait = "0.1"
+# S-3.05 — TTL-based LRU response cache with async-safe eviction (BC-2.07.003/006).
+moka = { version = "0.12", features = ["sync"] }
+# S-3.05 — SHA-256 cache key derivation (BC-2.07.005 / VP-025).
+sha2 = "0.10"
+# S-3.05 fix-pass CR-002 — CancellationToken for cursor cleanup task shutdown signal.
+# tokio-util is already a transitive dep via datafusion 53.1; this is a direct pin
+# to make the dependency explicit. CancellationToken has no feature gate in 0.7.x.
+tokio-util = { version = "0.7", default-features = false }
 
 [dev-dependencies]
 # S-2.08 — isolation tests: LruCache mirrors prism-dtu-crowdstrike session_registry (dev-only)

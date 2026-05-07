@@ -249,13 +249,16 @@ fn write_leb128_i32(out: &mut Vec<u8>, mut value: i32) {
 ///
 /// When dropped, signals the ticker thread to stop.
 pub struct EpochTickerHandle {
-    _stop: Arc<std::sync::atomic::AtomicBool>,
-    _thread: Option<std::thread::JoinHandle<()>>,
+    stop: Arc<std::sync::atomic::AtomicBool>,
+    // Held for RAII: dropping JoinHandle does not join, but keeping it alive
+    // ensures the handle is not prematurely freed.
+    #[allow(dead_code)]
+    thread: Option<std::thread::JoinHandle<()>>,
 }
 
 impl Drop for EpochTickerHandle {
     fn drop(&mut self) {
-        self._stop.store(true, std::sync::atomic::Ordering::Relaxed);
+        self.stop.store(true, std::sync::atomic::Ordering::Relaxed);
         // We don't join — background thread will stop at next sleep.
     }
 }
@@ -292,8 +295,8 @@ pub fn start_epoch_ticker(engine: wasmtime::Engine) -> EpochTickerHandle {
         .expect("epoch ticker thread spawn failed");
 
     EpochTickerHandle {
-        _stop: stop,
-        _thread: Some(thread),
+        stop,
+        thread: Some(thread),
     }
 }
 

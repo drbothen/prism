@@ -40,3 +40,9 @@ pub mod vp015_depth_limit;
 // VP-031: REQUIRED columns always produce PushDown (BC-2.11.007, S-3.02).
 // RED by design — todo!() bodies fire until implementation is complete.
 pub mod vp031_pushdown;
+
+// VP-025: Cache key derivation is deterministic (BC-2.07.005, S-3.05).
+// Kani harnesses use `unwrap()` on symbolic UTF-8 validation results, which is
+// intentional (kani::assume filters invalid inputs). CR-013.
+#[allow(clippy::unwrap_used)]
+pub mod vp025_cache_key;

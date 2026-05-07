@@ -11,8 +11,10 @@
 //! mode-specific sub-parsers.
 
 pub mod bc_gap_fill_tests;
+pub mod cache_tests;
 pub mod integration_tests;
 pub mod materialization_tests;
+pub mod pagination_tests;
 pub mod parser_tests;
 pub mod regression_tests;
 pub(crate) mod util;
