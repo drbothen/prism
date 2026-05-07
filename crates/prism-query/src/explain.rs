@@ -303,12 +303,22 @@ impl Visitor for FieldCollector {
         self.visit_predicate(&fe.predicate);
     }
 
+    fn visit_join(&mut self, j: &crate::ast::Join) {
+        // Skip j.source — it is a SourceRef (e.g. "crowdstrike.events"), not a
+        // query field. walk_join() calls visit_field(&j.source.as_field_path())
+        // which would leak the JOIN target table name into field_resolution.
+        // Only visit the join ON expression for field collection.
+        // (Mirrors visit_join_stage / SEC-P3-002.)
+        self.visit_expr(&j.on);
+    }
+
     fn visit_sql_query(&mut self, q: &crate::ast::SqlQuery) {
         // Skip q.from.source — it is a SourceRef, not a query field.
         self.visit_select_clause(&q.select);
         for join in &q.joins {
-            // Skip join.source — it is a SourceRef.
-            self.visit_expr(&join.on);
+            // Delegate to visit_join so the source-ref skip logic is centralised
+            // and any future callers of visit_join also get the correct behaviour.
+            self.visit_join(join);
         }
         if let Some(pred) = &q.where_ {
             self.visit_predicate(pred);
