@@ -1,11 +1,11 @@
 ---
 document_type: session-handoff
 level: ops
-version: "7.27"
+version: "7.28"
 status: current
-timestamp: 2026-05-07T19:00:00Z
-predecessor_session: "D-278 S-3.04 pass-13 closures (fix-pass-32 FINAL) 2026-05-07. STATE v7.26→v7.27. develop HEAD: 6fefc774. factory-artifacts HEAD: run git -C .factory log -1."
-successor_focus: "D-279 Tier-3 dispatch: S-3.03/04/05/07 all unblocked (S-3.02 + S-3.06 both merged). Recommended: S-3.03 (1pt fastest win) + S-3.04/S-3.05 parallel (5+6pts). develop HEAD: 6fefc774. Tier-2 COMPLETE (S-3.02 ✓ PR #129 6fefc774 + S-3.06 ✓ PR #130 2a7b83f5). Active worktrees: none (S-3.02 worktree removed post-merge). Deferred TDs: TD-VSDD-061/063/064/075 + TD-S302-001..006 + TD-VSDD-057 (OPEN-DEFERRED-CROSS-REPO). S-3.04 LOCAL cascade FORMALLY PAUSED at pass-13 per D-278 — resumption gated on TD-075 lint hook implementation.
+timestamp: 2026-05-07T19:30:00Z
+predecessor_session: "D-279 S-3.03 pass-16 FP17 closure (TD-075/081 arithmetic corrections) 2026-05-07. STATE v7.27→v7.28. develop HEAD: 6fefc774. factory-artifacts HEAD: run git -C .factory log -1."
+successor_focus: "D-280 Tier-3 dispatch: S-3.03/04/05/07 all unblocked (S-3.02 + S-3.06 both merged). Recommended: S-3.03 (1pt fastest win) + S-3.04/S-3.05 parallel (5+6pts). develop HEAD: 6fefc774. Tier-2 COMPLETE (S-3.02 ✓ PR #129 6fefc774 + S-3.06 ✓ PR #130 2a7b83f5). Active worktrees: none (S-3.02 worktree removed post-merge). Deferred TDs: TD-VSDD-061/063/064/075 + TD-S302-001..006 + TD-VSDD-057 (OPEN-DEFERRED-CROSS-REPO). S-3.04 LOCAL cascade FORMALLY PAUSED at pass-13 per D-278 — resumption gated on TD-075 lint hook implementation.
 
 **STEP 1 (START HERE):** Read STATE.md v7.27 + this HANDOFF v7.27 in full. Confirm develop HEAD `6fefc774` (PR #129 S-3.02 squash-merged 2026-05-07). Tier-2 COMPLETE — no active worktrees. NOTE: S-3.04 LOCAL adversary cascade FORMALLY PAUSED at pass-13 per D-278 — do not dispatch pass-14 without TD-075 lint hook implementation or explicit best-effort acceptance.
 
