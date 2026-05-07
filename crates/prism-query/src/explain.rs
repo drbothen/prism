@@ -300,6 +300,12 @@ impl Visitor for FieldCollector {
 
     fn visit_filter_expr(&mut self, fe: &crate::ast::FilterExpr) {
         // Skip fe.source — it is a SourceRef, not a query field.
+        //
+        // SEC-P8-001: FilterExpr is #[non_exhaustive]. Current fields: source, predicate.
+        // If a future field with FieldPath or Predicate references is added, this
+        // override MUST be updated to walk it — otherwise field_resolution will
+        // silently miss those fields. (Mirrors visit_join / SEC-P7-001 and
+        // visit_join_stage / SEC-P3-002.)
         self.visit_predicate(&fe.predicate);
     }
 
@@ -340,6 +346,13 @@ impl Visitor for FieldCollector {
 
     fn visit_pipe_query(&mut self, q: &crate::ast::PipeQuery) {
         // Skip q.source — it is a SourceRef, not a query field.
+        //
+        // SEC-P8-002: PipeQuery is #[non_exhaustive]. Current fields: source (skipped),
+        // stages (walked), write (walked). All non-source fields are visited completely.
+        // If a future field with FieldPath or Predicate references is added, this
+        // override MUST be updated to walk it — otherwise field_resolution will
+        // silently miss those fields. (Mirrors visit_join / SEC-P7-001 and
+        // visit_join_stage / SEC-P3-002.)
         for stage in &q.stages {
             self.visit_pipe_stage(stage);
         }
