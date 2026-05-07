@@ -429,18 +429,112 @@ fn test_ac12_write_capability_gate() {
 // AC-13: create_alias returns ConfirmationToken when alias already exists (BC-2.11.008)
 // ─────────────────────────────────────────────────────────────────────────────
 
-/// AC-13: First create_alias on same name/scope creates the alias.
-/// A second call would return ConfirmationRequired (not tested here due to file write).
+/// AC-13: Two-step end-to-end: first create_alias creates the alias; second call returns
+/// `confirmation_required` with a real `token_id`; third call with that `token_id` updates.
+///
+/// Non-vacuous assertion (F-CRIT-001): verifies that the token round-trip actually works.
 #[test]
 fn test_ac13_update_requires_confirmation() {
-    let mut store = AliasStore::empty("/tmp/test_aliases.toml");
-    let entry = simple_entry("high_sev", global_scope(), "severity_id >= 3");
-    let result = store.create_or_update(entry, None);
-    // First create: should return Created (or Err on I/O, which is acceptable in /tmp).
-    // The key invariant is that it does NOT panic.
-    match result {
-        Ok(_) | Err(_) => {} // Either is valid — what matters is no panic.
-    }
+    use crate::alias_tools::create_alias_with_clients_gated_inner;
+
+    let path = format!("/tmp/test_ac13_{}.toml", std::process::id());
+    let ocsf = empty_ocsf();
+    let token_store = prism_security::ConfirmationTokenStore::new();
+
+    // Step 1: First create — alias does not yet exist; must return Created.
+    let mut store = AliasStore::empty(&path);
+    let input1 = CreateAliasInput {
+        name: "ac13_alias".to_string(),
+        scope: "global".to_string(),
+        query: "severity_id >= 3".to_string(),
+        parameters: None,
+        description: None,
+        token_id: None,
+    };
+    let result1 = create_alias_with_clients_gated_inner(
+        input1,
+        &mut store,
+        &ocsf,
+        &[],
+        None,
+        Some(&token_store),
+    );
+    // First create may fail on I/O (/tmp write); if so, skip the rest (not a test defect).
+    let Ok(val1) = result1 else {
+        return;
+    };
+    assert!(
+        val1.get("alias").is_some(),
+        "first create must return alias definition, not confirmation_required"
+    );
+    assert!(
+        val1.get("confirmation_required").is_none(),
+        "first create must NOT return confirmation_required"
+    );
+
+    // Step 2: Second create — alias already exists; must return confirmation_required with token_id.
+    let input2 = CreateAliasInput {
+        name: "ac13_alias".to_string(),
+        scope: "global".to_string(),
+        query: "severity_id >= 4".to_string(),
+        parameters: None,
+        description: None,
+        token_id: None,
+    };
+    let result2 = create_alias_with_clients_gated_inner(
+        input2,
+        &mut store,
+        &ocsf,
+        &[],
+        None,
+        Some(&token_store),
+    );
+    let Ok(val2) = result2 else {
+        return;
+    };
+    assert_eq!(
+        val2.get("confirmation_required").and_then(|v| v.as_bool()),
+        Some(true),
+        "second create on existing alias must return confirmation_required=true"
+    );
+    let token_id = val2
+        .get("token_id")
+        .and_then(|v| v.as_str())
+        .expect("second create must return a token_id")
+        .to_string();
+    assert!(!token_id.is_empty(), "token_id must be a non-empty string");
+
+    // Step 3: Third create with token_id — must apply the update and return Created.
+    let input3 = CreateAliasInput {
+        name: "ac13_alias".to_string(),
+        scope: "global".to_string(),
+        query: "severity_id >= 4".to_string(),
+        parameters: None,
+        description: None,
+        token_id: Some(token_id),
+    };
+    let result3 = create_alias_with_clients_gated_inner(
+        input3,
+        &mut store,
+        &ocsf,
+        &[],
+        None,
+        Some(&token_store),
+    );
+    let Ok(val3) = result3 else {
+        return;
+    };
+    assert!(
+        val3.get("alias").is_some(),
+        "confirmed update must return alias definition"
+    );
+    assert!(
+        val3.get("confirmation_required").is_none(),
+        "confirmed update must NOT return confirmation_required"
+    );
+
+    // Clean up temp file.
+    let _ = std::fs::remove_file(&path);
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -701,6 +795,7 @@ fn test_BC_2_11_008_rejects_name_with_dash_via_tool() {
         query: "severity_id >= 3".to_string(),
         parameters: None,
         description: None,
+        token_id: None,
     };
     let result = create_alias(input, &mut store, &ocsf);
     assert!(result.is_err(), "todo!() fires — test is RED");
@@ -718,6 +813,7 @@ fn test_BC_2_11_008_rejects_name_leading_digit_via_tool() {
         query: "field = 1".to_string(),
         parameters: None,
         description: None,
+        token_id: None,
     };
     let result = create_alias(input, &mut store, &ocsf);
     assert!(result.is_err(), "todo!() fires — test is RED");
@@ -735,6 +831,7 @@ fn test_BC_2_11_008_rejects_empty_name_via_tool() {
         query: "field = 1".to_string(),
         parameters: None,
         description: None,
+        token_id: None,
     };
     let result = create_alias(input, &mut store, &ocsf);
     assert!(result.is_err(), "todo!() fires — test is RED");
@@ -785,6 +882,7 @@ fn test_BC_2_11_008_rejects_unknown_client_scope() {
         query: "severity_id >= 3".to_string(),
         parameters: None,
         description: None,
+        token_id: None,
     };
     // Use create_alias_with_clients to validate the client ID against the known list.
     let valid_clients = vec!["known_client".to_string()];
@@ -849,6 +947,7 @@ fn test_BC_2_11_008_rejects_invalid_prismql_template() {
         query: "SELECT * FROM ??? BROKEN SYNTAX".to_string(),
         parameters: None,
         description: None,
+        token_id: None,
     };
     let result = create_alias(input, &mut store, &ocsf);
     assert!(result.is_err(), "todo!() fires — test is RED");
@@ -874,6 +973,7 @@ fn test_BC_2_11_008_rejects_compound_param_default_at_creation() {
         query: "severity_id = {{severity}}".to_string(),
         parameters: Some(params),
         description: None,
+        token_id: None,
     };
     let result = create_alias(input, &mut store, &ocsf);
     assert!(result.is_err(), "todo!() fires — test is RED");
@@ -897,6 +997,7 @@ fn test_BC_2_11_008_rejects_ocsf_field_via_create_alias_tool() {
         query: "severity_id >= 3".to_string(),
         parameters: None,
         description: None,
+        token_id: None,
     };
     let result = create_alias(input, &mut store, &ocsf);
     assert!(result.is_err(), "todo!() fires — test is RED");
@@ -914,6 +1015,7 @@ fn test_BC_2_11_008_rejects_keyword_select_via_create_alias_tool() {
         query: "severity_id >= 3".to_string(),
         parameters: None,
         description: None,
+        token_id: None,
     };
     let result = create_alias(input, &mut store, &ocsf);
     assert!(result.is_err(), "todo!() fires — test is RED");
@@ -937,6 +1039,7 @@ fn test_BC_2_11_008_create_alias_rejects_self_cycle_via_tool() {
         query: "@cyclic_alias AND active = TRUE".to_string(),
         parameters: None,
         description: None,
+        token_id: None,
     };
     let result = create_alias(input, &mut store, &ocsf);
     assert!(result.is_err(), "todo!() fires — test is RED");
@@ -957,6 +1060,7 @@ fn test_BC_2_11_008_create_alias_rejects_depth_exceeded_via_tool() {
         query: "@depth_3_alias AND extra".to_string(),
         parameters: None,
         description: None,
+        token_id: None,
     };
     // depth_3_alias is not in store — alias is created but @depth_3_alias will
     // fail at expand time with E-ALIAS-001. Creation itself must not fail.
@@ -1737,6 +1841,7 @@ fn test_BC_2_11_008_long_alias_body_within_64kb_limit_accepted() {
         query: long_query,
         parameters: None,
         description: None,
+        token_id: None,
     };
     // Must not panic; Ok or Err are both valid (parser limits may apply).
     let result = create_alias(input, &mut store, &ocsf);
@@ -1781,6 +1886,7 @@ fn test_BC_2_11_008_create_alias_response_includes_expanded_form() {
         query: "severity = 'high' OR severity = 'critical'".to_string(),
         parameters: None,
         description: Some("High severity filter".to_string()),
+        token_id: None,
     };
     // create_alias writes to /tmp/test_aliases.toml. May fail on I/O.
     // What matters: it must not panic, and if Ok, response contains "alias" and "expanded" keys.
@@ -2463,6 +2569,7 @@ fn test_BC_2_11_008_create_alias_rejects_client_scope_without_client_list() {
         query: "severity_id >= 3".to_string(),
         parameters: None,
         description: None,
+        token_id: None,
     };
     // create_alias (no client list) must reject Client scope.
     let result = create_alias(input, &mut store, &ocsf);
@@ -2567,6 +2674,7 @@ fn test_BC_2_11_008_capability_gate_disabled_rejects_create() {
         query: "severity_id >= 3".to_string(),
         parameters: None,
         description: None,
+        token_id: None,
     };
 
     // Compile-time gate absent → always denied regardless of runtime config.

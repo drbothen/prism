@@ -44,6 +44,12 @@ pub struct CreateAliasInput {
     pub parameters: Option<HashMap<String, String>>,
     /// Optional human-readable description.
     pub description: Option<String>,
+    /// Confirmation token from a prior call (when completing a two-step update).
+    ///
+    /// On the first call (`token_id: None`): if alias already exists, returns
+    /// `confirmation_required: true` with a `token_id`. On the second call
+    /// (`token_id: Some(...)`): consumes the token and performs the update.
+    pub token_id: Option<String>,
 }
 
 /// Successful response from `create_alias` when a new alias is created.
@@ -216,6 +222,16 @@ pub(crate) fn create_alias_with_clients(
 ///
 /// Callers that have a `FeatureFlagEvaluator` should call this directly so that the
 /// `alias.write` capability gate is enforced before any mutation.
+///
+/// # Two-step update flow (F-CRIT-001 / AC-13)
+///
+/// **First call** (`token_id: None`): if alias already exists, calls
+/// `token_store.generate()` and returns `confirmation_required: true` with `token_id`.
+///
+/// **Second call** (`token_id: Some(id)`): consumes the token via
+/// `token_store.consume()`. If consume fails (expired, hash mismatch, unknown)
+/// returns the token-specific error. On success calls `create_or_update` with the
+/// consumed token, which allows the update to proceed.
 pub fn create_alias_with_clients_gated(
     input: CreateAliasInput,
     store: &mut AliasStore,
@@ -225,6 +241,31 @@ pub fn create_alias_with_clients_gated(
         &prism_security::feature_flag::FeatureFlagEvaluator,
         prism_security::feature_flag::CompileTimeGate,
     )>,
+) -> Result<serde_json::Value, PrismError> {
+    create_alias_with_clients_gated_inner(
+        input,
+        store,
+        ocsf_reserved,
+        valid_client_ids,
+        capability_gate,
+        None,
+    )
+}
+
+/// Internal implementation receiving an optional `ConfirmationTokenStore` (F-CRIT-001).
+///
+/// Split from the public signature to avoid a breaking API change while allowing tests
+/// to inject a real token store for end-to-end AC-13 verification.
+pub(crate) fn create_alias_with_clients_gated_inner(
+    input: CreateAliasInput,
+    store: &mut AliasStore,
+    ocsf_reserved: &std::collections::HashSet<String>,
+    valid_client_ids: &[String],
+    capability_gate: Option<(
+        &prism_security::feature_flag::FeatureFlagEvaluator,
+        prism_security::feature_flag::CompileTimeGate,
+    )>,
+    token_store: Option<&prism_security::ConfirmationTokenStore>,
 ) -> Result<serde_json::Value, PrismError> {
     // Step 1: parse scope.
     let scope = AliasScope::parse(&input.scope)?;
@@ -310,7 +351,30 @@ pub fn create_alias_with_clients_gated(
 
     // Step 5: cycle detection (via create_or_update, which calls detect_cycle).
     // Step 7: create or update in store.
-    let result = store.create_or_update(entry.clone(), None)?;
+    //
+    // Two-step token flow (F-CRIT-001 / AC-13):
+    // - If token_id is Some(_): consume the token BEFORE calling create_or_update.
+    //   Pass the consumed token to create_or_update so the update is authorised.
+    // - If token_id is None: call create_or_update with token=None; if the alias
+    //   already exists it returns ConfirmationRequired; we then generate a real token.
+    let consumed_token: Option<prism_security::ConfirmationToken> =
+        if let Some(ref token_id_str) = input.token_id {
+            // Second call — consume the token before the write.
+            let ts = token_store.ok_or_else(|| PrismError::McpParameterInvalid {
+                tool: "create_alias".to_string(),
+                detail: "token_id provided but no token_store available".to_string(),
+            })?;
+            let action_params = serde_json::json!({
+                "name": input.name,
+                "scope": input.scope,
+            });
+            let token = ts.consume(token_id_str, scope.token_client_id(), &action_params)?;
+            Some(token)
+        } else {
+            None
+        };
+
+    let result = store.create_or_update(entry.clone(), consumed_token)?;
 
     match result {
         CreateResult::Created(created_entry) => {
@@ -343,6 +407,26 @@ pub fn create_alias_with_clients_gated(
             token_client_id,
             token_json: _,
         } => {
+            // Alias already exists — generate a real ConfirmationToken (F-CRIT-001).
+            // If a token store was provided, generate a token bound to (name, scope).
+            // Otherwise return a response without a token_id (backward-compat for call
+            // sites that don't supply a token store).
+            let action_params = serde_json::json!({
+                "name": input.name,
+                "scope": input.scope,
+            });
+            let token_id_value: serde_json::Value = if let Some(ts) = token_store {
+                let token = ts.generate(
+                    &token_client_id,
+                    "create_alias",
+                    action_params,
+                    &format!("update alias '{}'", input.name),
+                )?;
+                serde_json::json!(token.token_id)
+            } else {
+                serde_json::Value::Null
+            };
+
             // DI-004 audit span (CR-023): emit for confirmation-required path.
             tracing::info!(
                 operation = "alias.create",
@@ -350,7 +434,7 @@ pub fn create_alias_with_clients_gated(
                 alias_scope = %input.scope,
                 outcome = "confirmation_required",
             );
-            let response = serde_json::json!({
+            let mut response = serde_json::json!({
                 "confirmation_required": true,
                 "message": format!(
                     "alias '{}' already exists; provide a confirmation token to update it",
@@ -358,6 +442,9 @@ pub fn create_alias_with_clients_gated(
                 ),
                 "token_client_id": token_client_id,
             });
+            if !token_id_value.is_null() {
+                response["token_id"] = token_id_value;
+            }
             Ok(response)
         }
     }
