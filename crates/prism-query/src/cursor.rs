@@ -25,6 +25,7 @@ use prism_core::cursor::{CursorId, CursorRegistry};
 use prism_core::error::PrismError;
 use prism_core::OrgSlug;
 use tokio_util::sync::CancellationToken;
+use tracing::{debug, error};
 use uuid::Uuid;
 
 /// Cursor expiry timeout (BC-2.07.002 — 60s from creation).
@@ -61,6 +62,11 @@ impl CursorToken {
 /// Entry lives only in process memory — never serialized to disk (BC-2.07.001
 /// "Tokens are never persisted to disk").
 ///
+/// # I-3 / SEC-006: Field visibility
+/// All fields are `pub(crate)` — external crates cannot construct a `CursorEntry`
+/// directly, which would bypass the cap registry enforced by `QueryCursorRegistry`.
+/// Only `QueryCursorRegistry` (same crate) constructs entries during `create()`.
+///
 /// # SEC-002: Manual Debug implementation
 /// `query_str` is redacted in the Debug output because it may contain
 /// sensitive filter values (e.g., IP addresses, host names, user identifiers).
@@ -69,18 +75,18 @@ pub struct CursorEntry {
     /// Complete result rows for this fetch, stored until fully consumed or expired.
     /// Wrapped in Arc so that token rotation in `next_page()` is O(1) (pointer
     /// increment) rather than O(N) (full Vec clone) — CR-008.
-    pub result_rows: Arc<Vec<serde_json::Value>>,
+    pub(crate) result_rows: Arc<Vec<serde_json::Value>>,
     /// Current page offset (monotonically increasing — BC-2.07.002 forward-only).
-    pub offset: usize,
+    pub(crate) offset: usize,
     /// Timestamp at which this entry was created, for expiry checking.
-    pub created_at: Instant,
+    pub(crate) created_at: Instant,
     /// The originating PrismQL query string (for diagnostics).
     /// Redacted in Debug output (SEC-002).
-    pub query_str: String,
+    pub(crate) query_str: String,
     /// The client (tenant) that owns this cursor.
-    pub client_id: OrgSlug,
+    pub(crate) client_id: OrgSlug,
     /// The prism-core CursorId allocated for this entry (used for release).
-    pub core_id: CursorId,
+    pub(crate) core_id: CursorId,
 }
 
 impl std::fmt::Debug for CursorEntry {
@@ -176,7 +182,17 @@ impl QueryCursorRegistry {
 
         let token = CursorToken::new_random();
         let first_page = rows[..page_size].to_vec();
+        let total_rows = rows.len();
         let rows = Arc::new(rows);
+
+        // I-1: log cursor creation with diagnostic fields (no query string — SEC-002).
+        debug!(
+            sensor_id = %client_id,
+            total_rows,
+            page_size,
+            active_cursors = self.core_registry.active_count(),
+            "cursor created"
+        );
 
         let entry = CursorEntry {
             result_rows: rows,
@@ -219,6 +235,11 @@ impl QueryCursorRegistry {
         // Check expiry (BC-2.07.002).
         if entry.is_expired() {
             let core_id = entry.core_id;
+            // I-1: log cursor expiry lifecycle event.
+            debug!(
+                active_cursors = self.core_registry.active_count(),
+                "cursor expired on next_page"
+            );
             self.entries.remove(&token);
             self.core_registry.release(core_id);
             return Err(PrismError::QueryExecutionFailed {
@@ -288,10 +309,20 @@ impl QueryCursorRegistry {
             .map(|(t, _)| t.clone())
             .collect();
 
+        let count = expired_tokens.len();
         for token in expired_tokens {
             if let Some(entry) = self.entries.remove(&token) {
                 self.core_registry.release(entry.core_id);
             }
+        }
+
+        // I-1: log background eviction counts (diagnostic, no PII).
+        if count > 0 {
+            debug!(
+                evicted = count,
+                remaining = self.core_registry.active_count(),
+                "cursor background eviction complete"
+            );
         }
     }
 
@@ -391,6 +422,8 @@ pub fn spawn_cursor_cleanup_task(
                         Ok(r) => r,
                         Err(_poisoned) => {
                             // Mutex poisoned — exit cleanly rather than propagating.
+                            // I-1 / O-5: log the poison event so operators can detect it.
+                            error!("cursor registry mutex poisoned; background cleanup task exiting");
                             break;
                         }
                     };

@@ -121,13 +121,17 @@ impl CacheInvalidator {
     /// Performs one prefix-scan per affected `source_id`. If the `sensor_type`
     /// has no entries in `WRITE_TOOL_INVALIDATION_MAP`, this is a no-op.
     ///
+    /// Returns `Ok(n)` where `n` is the total number of entries evicted across all
+    /// affected source_ids (I-2: BC-2.07.004 line 44 audit postcondition — the
+    /// caller can include this count in the `AuditEntry` for the write operation).
+    ///
     /// Errors only if the cache data structure is in an unrecoverable state
     /// (E-CACHE-001 per BC-2.07.004 §Error Cases).
     pub fn invalidate_for_sensor(
         &self,
         client_id: &OrgSlug,
         sensor_type: SensorType,
-    ) -> Result<(), PrismError> {
+    ) -> Result<usize, PrismError> {
         let sensor_name = sensor_type.to_string();
         let client_str = client_id.as_str();
 
@@ -143,13 +147,16 @@ impl CacheInvalidator {
             }
         }
 
-        // Prefix-scan invalidation for each source_id.
+        // Prefix-scan invalidation for each source_id; sum evicted counts.
+        let mut total_evicted: usize = 0;
         for source_id in sources_to_invalidate {
-            self.cache
+            let n = self
+                .cache
                 .invalidate_by_prefix(client_str, &sensor_name, source_id)?;
+            total_evicted = total_evicted.saturating_add(n);
         }
 
-        Ok(())
+        Ok(total_evicted)
     }
 
     /// Invalidate all cache entries for a specific write tool operation.
@@ -157,11 +164,14 @@ impl CacheInvalidator {
     /// `tool_name` is looked up in `WRITE_TOOL_INVALIDATION_MAP`; each matching
     /// `source_id` is evicted for `client_id`. If `tool_name` is not in the map,
     /// a `PrismError::Internal` is returned (missing mapping = bug).
+    ///
+    /// Returns `Ok(n)` where `n` is the total number of entries evicted (I-2:
+    /// BC-2.07.004 audit postcondition).
     pub fn invalidate_for_write_tool(
         &self,
         client_id: &OrgSlug,
         tool_name: &str,
-    ) -> Result<(), PrismError> {
+    ) -> Result<usize, PrismError> {
         let mapping = WRITE_TOOL_INVALIDATION_MAP
             .iter()
             .find(|e| e.tool_name == tool_name);
@@ -177,21 +187,27 @@ impl CacheInvalidator {
         let client_str = client_id.as_str();
         let sensor_name = entry.sensor_type.to_string();
 
+        let mut total_evicted: usize = 0;
         for &source_id in entry.source_ids {
-            self.cache
+            let n = self
+                .cache
                 .invalidate_by_prefix(client_str, &sensor_name, source_id)?;
+            total_evicted = total_evicted.saturating_add(n);
         }
 
-        Ok(())
+        Ok(total_evicted)
     }
 
     /// Invalidate all cache entries for the given `client_id` across all sensors
     /// and sources.
     ///
     /// Called from client management write operations (BC-2.07.004).
-    pub fn invalidate_for_client(&self, client_id: &OrgSlug) -> Result<(), PrismError> {
-        self.cache.invalidate_by_client(client_id.as_str())?;
-        Ok(())
+    ///
+    /// Returns `Ok(n)` where `n` is the total number of entries evicted (I-2:
+    /// BC-2.07.004 audit postcondition).
+    pub fn invalidate_for_client(&self, client_id: &OrgSlug) -> Result<usize, PrismError> {
+        let n = self.cache.invalidate_by_client(client_id.as_str())?;
+        Ok(n)
     }
 }
 

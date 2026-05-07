@@ -172,12 +172,24 @@ impl CacheKey {
         // SAFETY: BTreeMap<&str, &serde_json::Value> is always JSON-serializable;
         // serde_json only fails on maps with non-string keys or types with custom
         // serializers that can fail, neither of which applies here.
-        // unwrap_used is denied; we use a match-or-default to stay lint-clean.
-        let canonical_bytes = match serde_json::to_vec(&non_null) {
-            Ok(b) => b,
-            // Unreachable for this concrete type, but must be handled.
-            Err(_) => b"{}".to_vec(),
-        };
+        //
+        // I-4: The prior fallback `b"{}"` was a silent collision vector — any
+        // serde failure would hash to the same value as empty params, causing
+        // incorrect cache hits. We use `unreachable!()` with a clear message since
+        // this path is formally impossible for this concrete type. If it somehow
+        // fires in a future refactor it becomes a loud panic rather than a silent bug.
+        let canonical_bytes = serde_json::to_vec(&non_null).unwrap_or_else(|e| {
+            // SAFETY: BTreeMap<&str, &serde_json::Value> cannot fail serialization.
+            // If this panics, the type invariant has been violated by a refactor.
+            debug_assert!(
+                false,
+                "serde_json::to_vec on BTreeMap<&str,&Value> cannot fail: {e}"
+            );
+            unreachable!(
+                "I-4: serde_json::to_vec on BTreeMap<&str,&serde_json::Value> should never fail; \
+                 got: {e}"
+            )
+        });
 
         // SHA-256 hash → lowercase hex.
         let mut hasher = Sha256::new();

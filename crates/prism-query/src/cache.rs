@@ -49,6 +49,7 @@ use moka::sync::Cache as MokaCache;
 
 use crate::cache_key::CacheKey;
 use prism_core::error::PrismError;
+use tracing::debug;
 
 // ---------------------------------------------------------------------------
 // TTL constants (BC-2.07.003)
@@ -304,15 +305,37 @@ impl QueryCache {
     pub fn get(&self, key: &CacheKey) -> Result<Option<Vec<serde_json::Value>>, PrismError> {
         let entry = match self.inner.get(key) {
             Some(e) => e,
-            None => return Ok(None),
+            None => {
+                // I-1: log cache miss with diagnostic fields (no query string / PII).
+                debug!(
+                    sensor_id = %key.sensor_id,
+                    source_id = %key.source_id,
+                    client_id = %key.client_id,
+                    "cache miss"
+                );
+                return Ok(None);
+            }
         };
         if entry.is_expired() {
             // Remove expired entry — treat as cache miss.
+            debug!(
+                sensor_id = %key.sensor_id,
+                source_id = %key.source_id,
+                client_id = %key.client_id,
+                "cache miss (expired)"
+            );
             self.remove_entry(key)?;
             return Ok(None);
         }
         // Increment aggregate hit counter (CR-005: no per-entry clone needed).
         self.total_hits.fetch_add(1, Ordering::Relaxed);
+        // I-1: log cache hit with diagnostic fields (no query string / PII).
+        debug!(
+            sensor_id = %key.sensor_id,
+            source_id = %key.source_id,
+            client_id = %key.client_id,
+            "cache hit"
+        );
 
         // Update LRU position: move this key to the end of the partition Vec
         // (most-recently-used position) so eviction targets the front (LRU).
@@ -402,6 +425,14 @@ impl QueryCache {
             // Remove the first entry in the Vec (oldest = LRU for FIFO tiebreaker).
             // CR-015: use the stored byte size, not the fixed AVG_ROW_SIZE_BYTES.
             let (evict_key, evicted_size) = partition_keys.remove(0);
+            // I-1: log LRU eviction event with diagnostic fields.
+            debug!(
+                sensor_id = %evict_key.sensor_id,
+                source_id = %evict_key.source_id,
+                client_id = %evict_key.client_id,
+                evicted_bytes = evicted_size,
+                "cache LRU eviction"
+            );
             self.inner.invalidate(&evict_key);
             // CR-014/CR-015: decrement by the evicted entry's actual stored size.
             // SEC-NEW-001: use saturating fetch_update to prevent usize underflow
@@ -423,6 +454,16 @@ impl QueryCache {
 
         // Update total byte count.
         self.total_bytes.fetch_add(entry_size, Ordering::Relaxed);
+
+        // I-1: log insert with diagnostic fields (entry size, TTL — no query string / PII).
+        debug!(
+            sensor_id = %key.sensor_id,
+            source_id = %key.source_id,
+            client_id = %key.client_id,
+            entry_bytes = entry_size,
+            ttl_secs = ttl.as_secs(),
+            "cache insert"
+        );
 
         let entry = CacheEntry {
             rows,
@@ -455,13 +496,17 @@ impl QueryCache {
     ///
     /// This is the low-level primitive used by [`crate::invalidation::CacheInvalidator`].
     ///
+    /// Returns `Ok(n)` where `n` is the number of entries evicted (I-2: audit
+    /// postcondition — BC-2.07.004 line 44 requires the evicted count to be
+    /// available for audit logging in the write operation's `AuditEntry`).
+    ///
     /// Returns `Err(PrismError::Internal)` if the mutex is poisoned (E-CACHE-001).
     pub fn invalidate_by_prefix(
         &self,
         client_id: &str,
         sensor_id: &str,
         source_id: &str,
-    ) -> Result<(), PrismError> {
+    ) -> Result<usize, PrismError> {
         let mut counts = self.lock_partition_counts()?;
         let pk = (client_id.to_string(), sensor_id.to_string());
 
@@ -488,6 +533,8 @@ impl QueryCache {
             }
         }
 
+        let evicted_count = evicted_keys.len();
+
         // Drop the partition lock before invalidating moka entries to avoid
         // holding the mutex across potentially-blocking moka operations.
         drop(counts);
@@ -507,15 +554,19 @@ impl QueryCache {
                     });
         }
 
-        Ok(())
+        Ok(evicted_count)
     }
 
     /// Remove all entries whose `client_id` matches `client_id`.
     ///
     /// Used for client management write operations (BC-2.07.004).
     ///
+    /// Returns `Ok(n)` where `n` is the number of entries evicted (I-2: audit
+    /// postcondition — BC-2.07.004 line 44 requires the evicted count to be
+    /// available for audit logging in the write operation's `AuditEntry`).
+    ///
     /// Returns `Err(PrismError::Internal)` if the mutex is poisoned (E-CACHE-001).
-    pub fn invalidate_by_client(&self, client_id: &str) -> Result<(), PrismError> {
+    pub fn invalidate_by_client(&self, client_id: &str) -> Result<usize, PrismError> {
         let mut counts = self.lock_partition_counts()?;
 
         // Find all partitions for this client.
@@ -525,10 +576,12 @@ impl QueryCache {
             .cloned()
             .collect();
 
+        let mut evicted_count: usize = 0;
         for pk in client_partitions {
             if let Some(partition_keys) = counts.remove(&pk) {
                 for (k, stored_size) in partition_keys {
                     self.inner.invalidate(&k);
+                    evicted_count = evicted_count.saturating_add(1);
                     // CR-014: decrement total_bytes by the stored size of each evicted entry.
                     // SEC-NEW-001: saturating to prevent usize underflow on unexpected double-evict.
                     let _ = self.total_bytes.fetch_update(
@@ -539,7 +592,7 @@ impl QueryCache {
                 }
             }
         }
-        Ok(())
+        Ok(evicted_count)
     }
 
     /// Returns the current entry count after draining moka's write-op buffer.
@@ -976,10 +1029,15 @@ mod tests {
             expected_per_entry * n
         );
 
-        // Invalidate the entire prefix.
-        cache
+        // Invalidate the entire prefix — returns evicted count (I-2: BC-2.07.004 audit).
+        let evicted = cache
             .invalidate_by_prefix("acme", "crowdstrike", "crowdstrike_detections")
             .expect("invalidate_by_prefix must not error");
+
+        assert_eq!(
+            evicted, n,
+            "I-2/BC-2.07.004: invalidate_by_prefix must return the number of entries evicted"
+        );
 
         let bytes_after_invalidate = cache.total_bytes();
         assert_eq!(
@@ -987,6 +1045,52 @@ mod tests {
             "CR-014/CR-019: total_bytes must be exactly 0 after full prefix invalidation; \
              got {bytes_after_invalidate} — every byte added by the {n} entries must be \
              decremented by invalidate_by_prefix"
+        );
+    }
+
+    /// I-2 / BC-2.07.004: `invalidate_by_client` returns the number of entries evicted.
+    #[test]
+    fn test_i2_invalidate_by_client_returns_evicted_count() {
+        let config = CacheConfig {
+            max_entries_per_sensor: 100,
+            max_bytes: DEFAULT_MAX_CACHE_BYTES,
+        };
+        let cache = QueryCache::new(config);
+
+        // Insert 3 entries under the same client across two sensors.
+        for (sensor, source, hash_char) in &[
+            ("crowdstrike", "crowdstrike_detections", 'a'),
+            ("crowdstrike", "crowdstrike_hosts", 'b'),
+            ("armis", "armis_devices", 'c'),
+        ] {
+            let key = crate::cache_key::CacheKey {
+                client_id: "tenant-x".to_string(),
+                sensor_id: sensor.to_string(),
+                source_id: source.to_string(),
+                push_down_hash: hash_char.to_string().repeat(64),
+            };
+            cache
+                .put(key, vec![serde_json::json!({"id": "row-1"})])
+                .expect("put must succeed");
+        }
+        // Insert 1 entry under a different client — must NOT be evicted.
+        let other_key = crate::cache_key::CacheKey {
+            client_id: "other-tenant".to_string(),
+            sensor_id: "armis".to_string(),
+            source_id: "armis_devices".to_string(),
+            push_down_hash: "d".repeat(64),
+        };
+        cache
+            .put(other_key, vec![serde_json::json!({"id": "other"})])
+            .expect("put other must succeed");
+
+        let evicted = cache
+            .invalidate_by_client("tenant-x")
+            .expect("invalidate_by_client must not error");
+
+        assert_eq!(
+            evicted, 3,
+            "I-2: invalidate_by_client must return 3 — the number of entries evicted for tenant-x"
         );
     }
 }
