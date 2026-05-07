@@ -41,7 +41,7 @@
 //! Story: S-3.05
 
 use std::collections::HashMap;
-use std::sync::atomic::{AtomicUsize, Ordering};
+use std::sync::atomic::{AtomicU64, AtomicUsize, Ordering};
 use std::sync::{Mutex, MutexGuard};
 use std::time::{Duration, Instant};
 
@@ -140,7 +140,11 @@ impl SourceDataType {
 /// A single cached sensor-fetch response.
 ///
 /// Stores the raw sensor API response rows (pre-OCSF normalization) along with
-/// metadata for TTL enforcement and metrics (BC-2.07.003 §Postconditions).
+/// metadata for TTL enforcement (BC-2.07.003 §Postconditions).
+///
+/// Hit metrics are tracked at the cache level via `QueryCache::total_hits()`
+/// rather than per-entry to avoid cloning the full `rows` vec on every hit
+/// (CR-005). Aggregate counts are sufficient for `check_sensor_health` visibility.
 #[derive(Debug, Clone)]
 pub struct CacheEntry {
     /// Raw sensor API response rows stored as JSON (pre-OCSF normalization).
@@ -149,9 +153,6 @@ pub struct CacheEntry {
     pub created_at: Instant,
     /// TTL duration for this entry (data-type dependent).
     pub ttl: Duration,
-    /// Cache hit counter — incremented on each cache hit for metrics
-    /// visibility via `check_sensor_health` (BC-2.07.003).
-    pub hit_count: u64,
 }
 
 impl CacheEntry {
@@ -236,6 +237,11 @@ pub struct QueryCache {
     partition_counts: Mutex<HashMap<PartitionKey, PartitionVec>>,
     /// Total estimated byte usage across all cache entries (BC-2.07.006, CR-006).
     total_bytes: AtomicUsize,
+    /// Aggregate cache hit counter — incremented on every successful get()
+    /// (BC-2.07.003, CR-005). Using an aggregate counter avoids cloning the
+    /// full `rows` Vec on every hot-path hit; per-entry counts are not required
+    /// by the BC.
+    total_hits: AtomicU64,
 }
 
 impl QueryCache {
@@ -257,6 +263,7 @@ impl QueryCache {
             inner,
             partition_counts: Mutex::new(HashMap::new()),
             total_bytes: AtomicUsize::new(0),
+            total_hits: AtomicU64::new(0),
         }
     }
 
@@ -289,7 +296,9 @@ impl QueryCache {
     /// Returns `Ok(None)` (cache miss) if the key is absent or the entry has
     /// exceeded its TTL. Expired entries are removed on miss (BC-2.07.003).
     ///
-    /// On a cache hit, increments `hit_count` on the entry (BC-2.07.003).
+    /// On a cache hit, increments the aggregate `total_hits` counter (BC-2.07.003,
+    /// CR-005). Per-entry hit counts are not tracked to avoid cloning the full
+    /// `rows` Vec on every hot-path access.
     ///
     /// Returns `Err(PrismError::Internal)` if the mutex is poisoned (E-CACHE-001).
     pub fn get(&self, key: &CacheKey) -> Result<Option<Vec<serde_json::Value>>, PrismError> {
@@ -302,10 +311,8 @@ impl QueryCache {
             self.remove_entry(key)?;
             return Ok(None);
         }
-        // Increment hit_count: replace the entry with updated count.
-        let mut updated = entry.clone();
-        updated.hit_count += 1;
-        self.inner.insert(key.clone(), updated.clone());
+        // Increment aggregate hit counter (CR-005: no per-entry clone needed).
+        self.total_hits.fetch_add(1, Ordering::Relaxed);
 
         // Update LRU position: move this key to the end of the partition Vec
         // (most-recently-used position) so eviction targets the front (LRU).
@@ -314,12 +321,12 @@ impl QueryCache {
         if let Some(partition_keys) = counts.get_mut(&pk) {
             // Move key to end (most-recently-used), preserving stored byte size.
             if let Some(pos) = partition_keys.iter().position(|(k, _)| k == key) {
-                let entry = partition_keys.remove(pos);
-                partition_keys.push(entry);
+                let item = partition_keys.remove(pos);
+                partition_keys.push(item);
             }
         }
 
-        Ok(Some(updated.rows))
+        Ok(Some(entry.rows.clone()))
     }
 
     /// Insert a new cache entry.
@@ -344,6 +351,11 @@ impl QueryCache {
 
     /// Insert with explicit TTL override (for testing or admin bypass).
     ///
+    /// Callers are responsible for not passing HealthStatus source keys — the
+    /// TTL contract is undefined for uncacheable types. The public `put()` method
+    /// enforces this by checking `SourceDataType` before calling `put_with_ttl`
+    /// (CR-003: duplicate check removed from this method).
+    ///
     /// Returns `Err(PrismError::Internal)` if the mutex is poisoned (E-CACHE-001).
     pub fn put_with_ttl(
         &self,
@@ -351,12 +363,6 @@ impl QueryCache {
         rows: Vec<serde_json::Value>,
         ttl: Duration,
     ) -> Result<(), PrismError> {
-        // HealthStatus check: if the source is a health/status type, skip.
-        let data_type = SourceDataType::from_source_id(&key.source_id);
-        if data_type == SourceDataType::HealthStatus {
-            return Ok(());
-        }
-
         // max_entries_per_sensor == 0 → caching disabled.
         if self.config.max_entries_per_sensor == 0 {
             return Ok(());
@@ -422,7 +428,6 @@ impl QueryCache {
             rows,
             created_at: Instant::now(),
             ttl,
-            hit_count: 0,
         };
         self.inner.insert(key, entry);
         Ok(())
@@ -460,26 +465,48 @@ impl QueryCache {
         let mut counts = self.lock_partition_counts()?;
         let pk = (client_id.to_string(), sensor_id.to_string());
 
-        // Find and remove all keys matching the (client_id, sensor_id, source_id) prefix.
-        if let Some(partition_keys) = counts.get_mut(&pk) {
-            let to_evict: Vec<(CacheKey, usize)> = partition_keys
-                .iter()
-                .filter(|(k, _)| k.source_id == source_id)
-                .cloned()
-                .collect();
+        // Single-pass eviction: collect matching entries and strip them from the
+        // partition vec in one retain() call — O(n) instead of O(n×m) (CR-001).
+        let mut evicted_keys: Vec<CacheKey> = Vec::new();
+        let mut to_decrement: usize = 0;
 
-            for (k, stored_size) in &to_evict {
-                self.inner.invalidate(k);
-                // CR-014: decrement total_bytes by the stored size of each evicted entry.
-                // SEC-NEW-001: saturating to prevent usize underflow on unexpected double-evict.
-                let _ = self.total_bytes.fetch_update(
-                    Ordering::Relaxed,
-                    Ordering::Relaxed,
-                    |current| Some(current.saturating_sub(*stored_size)),
-                );
-                partition_keys.retain(|(entry_key, _)| entry_key != k);
+        if let Some(partition_keys) = counts.get_mut(&pk) {
+            partition_keys.retain(|(k, size)| {
+                if k.source_id == source_id {
+                    evicted_keys.push(k.clone());
+                    to_decrement = to_decrement.saturating_add(*size);
+                    false // remove from partition
+                } else {
+                    true // keep
+                }
+            });
+
+            // CR-004: remove empty partition vec so the HashMap doesn't accumulate
+            // stale entries for fully-evicted (client_id, sensor_id) pairs.
+            if partition_keys.is_empty() {
+                counts.remove(&pk);
             }
         }
+
+        // Drop the partition lock before invalidating moka entries to avoid
+        // holding the mutex across potentially-blocking moka operations.
+        drop(counts);
+
+        // Invalidate moka entries (idempotent — safe to call even if already evicted).
+        for k in &evicted_keys {
+            self.inner.invalidate(k);
+        }
+
+        // Decrement total_bytes once for the entire evicted batch.
+        // SEC-NEW-001: saturating to prevent usize underflow on unexpected double-evict.
+        if to_decrement > 0 {
+            let _ =
+                self.total_bytes
+                    .fetch_update(Ordering::Relaxed, Ordering::Relaxed, |current| {
+                        Some(current.saturating_sub(to_decrement))
+                    });
+        }
+
         Ok(())
     }
 
@@ -515,7 +542,15 @@ impl QueryCache {
         Ok(())
     }
 
-    /// Returns the total number of entries currently in the cache (for metrics).
+    /// Returns the current entry count after draining moka's write-op buffer.
+    ///
+    /// **Note:** This method calls `run_pending_tasks()` to ensure an accurate
+    /// snapshot, which can block under high write contention. Do NOT call this
+    /// in hot paths. For approximate metrics, use the approximate entry count
+    /// from moka directly, or add a separate `AtomicU64` counter (CR-002).
+    ///
+    /// Currently only called in test code — if external callers are added,
+    /// consider gating the `run_pending_tasks()` call behind `#[cfg(test)]`.
     pub fn entry_count(&self) -> u64 {
         // moka's entry_count may lag by a tick; sync first.
         self.inner.run_pending_tasks();
@@ -525,6 +560,15 @@ impl QueryCache {
     /// Returns the estimated total bytes currently tracked in the cache (for metrics).
     pub fn total_bytes(&self) -> usize {
         self.total_bytes.load(Ordering::Relaxed)
+    }
+
+    /// Returns the aggregate number of cache hits since the cache was created.
+    ///
+    /// Incremented on every successful `get()` call that returns `Some(rows)`.
+    /// Provides `check_sensor_health` visibility per BC-2.07.003 without the
+    /// hot-path cost of cloning per-entry `rows` vecs (CR-005).
+    pub fn total_hits(&self) -> u64 {
+        self.total_hits.load(Ordering::Relaxed)
     }
 
     // Internal: remove a single entry from both moka and partition tracker.
@@ -754,7 +798,6 @@ mod tests {
             rows: vec![serde_json::json!({"id": "det-1"})],
             created_at: std::time::Instant::now(),
             ttl: std::time::Duration::from_secs(300),
-            hit_count: 0,
         };
         cache.insert_raw_for_test(key.clone(), entry);
 

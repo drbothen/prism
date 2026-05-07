@@ -332,7 +332,7 @@ fn test_BC_2_07_003_ttl_measured_from_created_at_not_from_last_access() {
         rows: vec![json!({"id": "det-1"})],
         created_at: std::time::Instant::now(),
         ttl: std::time::Duration::from_secs(60),
-        hit_count: 5, // many accesses — must NOT affect expiry
+        // hit_count removed (CR-005): per-entry counts replaced by QueryCache::total_hits()
     };
     // is_expired() checks elapsed from created_at; 5 accesses must not extend TTL.
     let _expired = entry.is_expired();
@@ -341,27 +341,36 @@ fn test_BC_2_07_003_ttl_measured_from_created_at_not_from_last_access() {
     todo!("BC-2.07.003 TTL invariant: not yet implemented");
 }
 
-/// BC-2.07.003: `hit_count` is incremented on every cache hit.
+/// BC-2.07.003: aggregate hit count is incremented on every cache hit.
 ///
-/// TD-S305-007: requires a cache metrics inspection API (e.g., get_entry_with_meta())
-/// to verify hit_count == 2. The test body has todo!(); deferred to a metrics
-/// API story.
+/// CR-005: per-entry `hit_count` replaced by `QueryCache::total_hits()` (aggregate
+/// AtomicU64) to avoid cloning the full `rows` Vec on every hot-path hit.
 #[test]
-#[ignore = "TD-S305-007: needs cache metrics API to inspect hit_count; deferred"]
-fn test_BC_2_07_003_hit_count_incremented_on_cache_hit() {
+fn test_BC_2_07_003_total_hits_incremented_on_cache_hit() {
     let cache = QueryCache::with_defaults();
     let key = make_key("acme", "crowdstrike", "crowdstrike_detections");
     let rows = vec![json!({"id": "det-1"})];
 
     cache.put(key.clone(), rows).expect("put");
-    // First hit.
-    let _ = cache.get(&key);
-    // Second hit.
-    let _ = cache.get(&key);
 
-    // Implementer: verify hit_count == 2 via a cache metrics API.
-    // For stub phase we verify the contract compiles and panics.
-    todo!("BC-2.07.003 hit_count not yet implemented")
+    // No hits yet.
+    assert_eq!(cache.total_hits(), 0, "total_hits must be 0 before any get");
+
+    // First hit.
+    let _ = cache.get(&key).expect("get 1");
+    assert_eq!(
+        cache.total_hits(),
+        1,
+        "total_hits must be 1 after first hit"
+    );
+
+    // Second hit.
+    let _ = cache.get(&key).expect("get 2");
+    assert_eq!(
+        cache.total_hits(),
+        2,
+        "total_hits must be 2 after second hit"
+    );
 }
 
 /// BC-2.07.003: Health/status source is NOT cached — `put` on a health source
@@ -797,6 +806,73 @@ fn test_BC_2_07_005_prefix_scan_invalidation_covers_all_hash_variants() {
     assert!(
         cache.get(&key_b).expect("get b").is_none(),
         "BC-2.07.005: prefix scan must evict key_b (different hash, same prefix)"
+    );
+}
+
+/// CR-001 regression: `invalidate_by_prefix` with a 50-entry partition all
+/// matching the same source_id must complete with correct results and must NOT
+/// accumulate O(n×m) retain calls (quadratic behaviour was present before the
+/// single-pass fix).
+///
+/// Correctness assertion: after invalidation all 50 entries are gone and
+/// `total_bytes` is exactly 0.
+#[test]
+fn test_cr001_invalidate_by_prefix_single_pass_correctness_50_entries() {
+    let config = CacheConfig {
+        max_entries_per_sensor: 100, // room for 50 entries
+        max_bytes: DEFAULT_MAX_CACHE_BYTES,
+    };
+    let cache = QueryCache::new(config);
+
+    let n = 50usize;
+    let rows_per_entry = 2usize;
+    let rows = (0..rows_per_entry)
+        .map(|i| json!({"id": i}))
+        .collect::<Vec<_>>();
+
+    // Insert 50 entries all under the same (client, sensor, source) prefix.
+    // Use right-align (leading zeros) format to guarantee unique 64-char hashes
+    // with no collisions across i=0..50.
+    for i in 0..n {
+        let key = CacheKey {
+            client_id: "acme".to_string(),
+            sensor_id: "crowdstrike".to_string(),
+            source_id: "crowdstrike_detections".to_string(),
+            push_down_hash: format!("{i:0>64}"),
+        };
+        cache.put(key, rows.clone()).expect("put must not error");
+    }
+
+    // All 50 entries should be present.
+    assert!(
+        cache.total_bytes() > 0,
+        "CR-001: total_bytes must be >0 after filling 50 entries"
+    );
+
+    // Invalidate the prefix — single-pass must handle all 50 entries.
+    cache
+        .invalidate_by_prefix("acme", "crowdstrike", "crowdstrike_detections")
+        .expect("invalidate_by_prefix must not error");
+
+    // Correctness: all entries must be gone.
+    for i in 0..n {
+        let key = CacheKey {
+            client_id: "acme".to_string(),
+            sensor_id: "crowdstrike".to_string(),
+            source_id: "crowdstrike_detections".to_string(),
+            push_down_hash: format!("{i:0>64}"),
+        };
+        assert!(
+            cache.get(&key).expect("get must not fail").is_none(),
+            "CR-001: entry {i} must be gone after invalidate_by_prefix"
+        );
+    }
+
+    // Byte counter must be back to zero.
+    assert_eq!(
+        cache.total_bytes(),
+        0,
+        "CR-001: total_bytes must be exactly 0 after full prefix invalidation of 50 entries"
     );
 }
 
