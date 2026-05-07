@@ -272,7 +272,7 @@ pub(crate) async fn resolve_source_refs(
 /// The table name is the source ref string (e.g., `"crowdstrike.detections"`).
 /// DataFusion table names containing dots must be quoted with backticks in
 /// SQL. (BC-2.11.005 dev note)
-pub fn register_mem_table(
+pub(crate) fn register_mem_table(
     ctx: &SessionContext,
     table_name: &str,
     batches: Vec<RecordBatch>,
@@ -332,7 +332,7 @@ pub fn register_mem_table(
 /// investigation, but the client-facing `PrismError::QueryExecutionFailed`
 /// detail is redacted to `<redacted; see server logs>` to prevent internal
 /// schema exposure via MCP responses.
-pub async fn collect_record_batch_stream(
+pub(crate) async fn collect_record_batch_stream(
     stream: datafusion::physical_plan::SendableRecordBatchStream,
 ) -> Result<Vec<RecordBatch>, PrismError> {
     datafusion::physical_plan::common::collect(stream)
