@@ -413,6 +413,21 @@ pub enum PrismError {
     #[error("E-QUERY-005: query timed out after {elapsed_ms}ms")]
     QueryTimeout { elapsed_ms: u64 },
 
+    /// E-QUERY-010: Virtual field resolution failed.
+    #[error("E-QUERY-010: virtual field resolution failed for {field}: {detail}")]
+    QueryVirtualFieldFailed { field: String, detail: String },
+
+    /// E-QUERY-011: Query targets `prism_audit` but caller lacks the `audit.read`
+    /// capability (BC-2.15.011, AC-9).
+    ///
+    /// Display message intentionally contains "audit.read capability" so callers
+    /// can detect this specific denial by substring match.
+    #[error(
+        "E-QUERY-011: Audit table requires audit.read capability. \
+         Grant via prism.toml [clients.{{id}}.capabilities]."
+    )]
+    AuditTableAccessDenied,
+
     /// E-QUERY-012: Pagination cursor expired — caller must re-execute the query.
     ///
     /// Returned by `QueryCursorRegistry::next_page()` when the cursor's TTL
@@ -442,21 +457,6 @@ pub enum PrismError {
         "E-QUERY-014: pagination cursor token not found; the token was never issued or is from a previous process instance"
     )]
     CursorTokenUnknown,
-
-    /// E-QUERY-010: Virtual field resolution failed.
-    #[error("E-QUERY-010: virtual field resolution failed for {field}: {detail}")]
-    QueryVirtualFieldFailed { field: String, detail: String },
-
-    /// E-QUERY-011: Query targets `prism_audit` but caller lacks the `audit.read`
-    /// capability (BC-2.15.011, AC-9).
-    ///
-    /// Display message intentionally contains "audit.read capability" so callers
-    /// can detect this specific denial by substring match.
-    #[error(
-        "E-QUERY-011: Audit table requires audit.read capability. \
-         Grant via prism.toml [clients.{{id}}.capabilities]."
-    )]
-    AuditTableAccessDenied,
 
     // -------------------------------------------------------------------------
     // E-SCHED — Scheduler errors

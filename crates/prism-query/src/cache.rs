@@ -392,8 +392,8 @@ impl QueryCache {
     ///
     /// Self-heals on the next put-to-same-key (existing_size capture detects the
     /// inconsistency and the new put correctly accounts for it). Identical race
-    /// characteristic to `remove_entry`'s documented race; see lines 720-739 for the
-    /// canonical rationale.
+    /// characteristic to `remove_entry`'s documented race; see `remove_entry` lines
+    /// 744-753 for the canonical residual-race rationale.
     pub(crate) fn put_with_ttl(
         &self,
         key: CacheKey,
@@ -565,6 +565,20 @@ impl QueryCache {
     /// is overwritten.
     ///
     /// Returns `Err(PrismError::Internal)` if the mutex is poisoned (E-CACHE-001).
+    ///
+    /// ## Compound-race window (acknowledged, self-healing)
+    ///
+    /// Calling `force_refresh` composes `remove_entry` and `put`, both of which have
+    /// documented residual lock-then-moka races (see their respective doc-comments).
+    /// Under concurrent load, a 3-way interleaving is possible:
+    ///   1. T1.remove_entry captures dropped_size, drops lock
+    ///   2. T2.put_with_ttl(k, ...) completes (lock, push, drop, fetch_add, insert)
+    ///   3. T1.remove_entry post-lock invalidate wipes T2's entry from moka
+    ///   4. T1.put re-acquires lock, observes orphan, pushes new tracking, inserts to moka
+    ///
+    /// Worst-case bound: 1 × MAX_ENTRY_BYTES (5MB) orphan partition entry from T2's put.
+    /// Self-heals on next put-to-same-key. See `remove_entry` and `put_with_ttl` for
+    /// canonical race rationales.
     pub fn force_refresh(
         &self,
         key: CacheKey,
@@ -585,6 +599,17 @@ impl QueryCache {
     /// available for audit logging in the write operation's `AuditEntry`).
     ///
     /// Returns `Err(PrismError::Internal)` if the mutex is poisoned (E-CACHE-001).
+    ///
+    /// ## Eviction-path residual race (acknowledged, self-healing)
+    ///
+    /// Between the partition lock release and the post-lock `inner.invalidate(k)` for
+    /// each evicted entry, a concurrent `put_with_ttl(k, ...)` can complete and insert
+    /// a fresh entry into moka. Our subsequent `inner.invalidate(k)` will then wipe the
+    /// freshly-inserted entry, leaving the partition tracking entry orphaned. Worst-case
+    /// orphan size: MAX_ENTRY_BYTES (5MB) per evicted key.
+    ///
+    /// Self-heals on next put-to-same-key. See `remove_entry` (lines 744-753) for the
+    /// canonical race rationale.
     pub fn invalidate_by_prefix(
         &self,
         client_id: &str,
@@ -658,6 +683,17 @@ impl QueryCache {
     /// available for audit logging in the write operation's `AuditEntry`).
     ///
     /// Returns `Err(PrismError::Internal)` if the mutex is poisoned (E-CACHE-001).
+    ///
+    /// ## Eviction-path residual race (acknowledged, self-healing)
+    ///
+    /// Between the partition lock release and the post-lock `inner.invalidate(k)` for
+    /// each evicted entry, a concurrent `put_with_ttl(k, ...)` can complete and insert
+    /// a fresh entry into moka. Our subsequent `inner.invalidate(k)` will then wipe the
+    /// freshly-inserted entry, leaving the partition tracking entry orphaned. Worst-case
+    /// orphan size: MAX_ENTRY_BYTES (5MB) per evicted key.
+    ///
+    /// Self-heals on next put-to-same-key. See `remove_entry` (lines 744-753) for the
+    /// canonical race rationale.
     pub fn invalidate_by_client(&self, client_id: &str) -> Result<usize, PrismError> {
         let mut counts = self.lock_partition_counts()?;
 
