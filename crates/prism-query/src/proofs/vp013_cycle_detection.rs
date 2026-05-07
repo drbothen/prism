@@ -119,7 +119,8 @@ mod proptest_harnesses {
         /// RED — fires todo!() on each invocation until detect_cycle is implemented.
         #[test]
         fn prop_vp013_self_loop_always_detected(name in node_name()) {
-            let store = AliasStore::empty("/tmp/vp013_prop.toml");
+            let path = format!("/tmp/vp013_prop_self_{name}.toml");
+            let store = AliasStore::empty(&path);
             let self_ref_definition = format!("@{name}");
             let result = AliasResolver::detect_cycle(&name, &self_ref_definition, &store);
             // Once implemented: must be Err(AliasCycleDetected). Currently RED.
@@ -132,7 +133,8 @@ mod proptest_harnesses {
         /// RED — fires todo!() on each invocation until detect_cycle is implemented.
         #[test]
         fn prop_vp013_literal_definition_no_cycle(name in node_name()) {
-            let store = AliasStore::empty("/tmp/vp013_prop.toml");
+            let path = format!("/tmp/vp013_prop_literal_{name}.toml");
+            let store = AliasStore::empty(&path);
             // A literal definition with no @references cannot form a cycle.
             let result = AliasResolver::detect_cycle(&name, "severity_id >= 1", &store);
             // Literal definition — no @references, so no cycle possible.
@@ -153,7 +155,8 @@ mod proptest_harnesses {
         /// result must be Ok (no cycle reachable). Both paths must terminate without panic.
         #[test]
         fn prop_vp013_always_terminates(name in node_name(), ref_name in node_name()) {
-            let store = AliasStore::empty("/tmp/vp013_prop.toml");
+            let path = format!("/tmp/vp013_prop_term_{name}_{ref_name}.toml");
+            let store = AliasStore::empty(&path);
             let is_self_loop = name == ref_name;
             let definition = if is_self_loop {
                 format!("@{ref_name}") // self-loop
@@ -181,7 +184,8 @@ mod proptest_harnesses {
             ref_b in node_name(),
             ref_c in node_name(),
         ) {
-            let store = AliasStore::empty("/tmp/vp013_prop.toml");
+            let path = format!("/tmp/vp013_prop_multi_{name}_{ref_b}_{ref_c}.toml");
+            let store = AliasStore::empty(&path);
             let definition = format!("@{ref_b} AND @{ref_c} OR severity_id >= 1");
             let result = AliasResolver::detect_cycle(&name, &definition, &store);
             // If neither ref_b nor ref_c equals name, the empty store contains no back-edges.
@@ -201,7 +205,8 @@ mod proptest_harnesses {
             // Reference a different node (guaranteed by using F-J range)
             other in "[F-J]",
         ) {
-            let store = AliasStore::empty("/tmp/vp013_prop.toml");
+            let path = format!("/tmp/vp013_prop_non_self_{name}_{other}.toml");
+            let store = AliasStore::empty(&path);
             // name is in A-E, other is in F-J: they cannot be equal — no self-loop.
             let definition = format!("@{other} AND active = TRUE");
             let result = AliasResolver::detect_cycle(&name, &definition, &store);
@@ -263,7 +268,8 @@ mod proptest_harnesses {
         /// Store does not need to be populated since there are no @references to traverse.
         #[test]
         fn prop_vp013_empty_definition_no_false_positive(name in node_name()) {
-            let store = AliasStore::empty("/tmp/vp013_prop.toml");
+            let path = format!("/tmp/vp013_prop_empty_{name}.toml");
+            let store = AliasStore::empty(&path);
             // A definition with no @-references cannot possibly form a cycle.
             let definition = "severity_id >= 1 AND active = TRUE";
             let result = AliasResolver::detect_cycle(&name, definition, &store);
