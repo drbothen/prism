@@ -73,5 +73,4 @@ Option C: Refactor the test to not rely on environment variables at all
 
 - Maintenance branch: `maintenance/clippy-unwrap-cleanup`
 - Adversary finding: I-3 (deferred — pre-existing, out of scope for maintenance branch)
-- Test location: `crates/prism-query/src/tests/` (exact file TBD — search for
-  `test_parse_limits_snapshot_is_immutable_after_capture`)
+- Test location: `crates/prism-query/src/tests/regression_tests.rs:612`
