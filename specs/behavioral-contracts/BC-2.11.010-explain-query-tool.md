@@ -11,7 +11,7 @@ subsystem: "SS-11"
 capability: "CAP-015"
 lifecycle_status: active
 introduced: cycle-1
-modified: null
+modified: 2026-05-07
 deprecated: null
 deprecated_by: null
 replacement: null

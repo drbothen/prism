@@ -275,7 +275,7 @@ pursuing maximum parallelism should schedule by topological layer, not wave numb
 | S-2.08 | Event Table Abstraction and Local Buffering [MERGED PR #61 0be11cd6 2026-04-26 +92t RED_RATIO=54.3% prism-query-crate-created **WAVE-2-CLOSED** spec-v1.9-W2-P2-A-005-schema-hygiene-fix] | prism-sensors, prism-query | 0 | -- | 3 | S-2.06,S-2.01,S-1.11 |
 | S-3.01 | PrismQL Parser (Filter + SQL + Pipe) [MERGED PR #127 2d7040b1 2026-05-06 +280t 15-adv-passes Chumsky-0.12] | prism-query | 4 | VP-014,015,021 | 3 | S-1.01 |
 | S-3.02 | Query Tool and Materialization [v1.12-spec-rem] [MERGED PR #129 6fefc774 2026-05-06 +491t 4-adv-passes-post-rebase 19-findings-closed] | prism-query | 6 | VP-031 | 3 | S-3.01,S-2.06,S-1.04,S-2.01,S-2.03,S-6.08,S-6.09,S-6.10 |
-| S-3.03 | Explain and Query Diagnostics [v1.5] | prism-query | 1 | -- | 1 | S-3.02 |
+| S-3.03 | Explain and Query Diagnostics [v1.7] | prism-query | 1 | -- | 1 | S-3.02 |
 | S-3.04 | Alias System (P1) [v1.8] | prism-query | 5 | VP-012,013,037 | 2 | S-3.02,S-1.08,S-1.09 |
 | S-3.05 | Pagination and Caching [v1.9] | prism-query | 6 | VP-025 | 2 | S-3.02 |
 | S-3.06 | PrismQL Write Parser Extensions [v1.7-spec-rem] [MERGED PR #130 2a7b83f5 2026-05-06 +406t 7-adv-passes 18-findings-closed] | prism-query | 1 | -- | 2 | S-3.01,S-1.13,S-6.07 |
