@@ -582,25 +582,32 @@ impl QueryCache {
             .cloned()
             .collect();
 
-        let mut evicted_count: usize = 0;
+        // Collect all entries to evict while holding the lock, then drop the lock
+        // before calling moka — mirrors invalidate_by_prefix pattern to avoid
+        // holding the mutex across potentially-blocking moka operations.
+        let mut evicted_entries: Vec<(CacheKey, usize)> = Vec::new();
         for pk in client_partitions {
             if let Some(partition_keys) = counts.remove(&pk) {
-                for (k, stored_size) in partition_keys {
-                    self.inner.invalidate(&k);
-                    evicted_count = evicted_count.saturating_add(1);
-                    // CR-014: decrement total_bytes by the stored size of each evicted entry.
-                    // SEC-NEW-001: saturating to prevent usize underflow on unexpected double-evict.
-                    let _ = self.total_bytes.fetch_update(
-                        Ordering::Relaxed,
-                        Ordering::Relaxed,
-                        |current| Some(current.saturating_sub(stored_size)),
-                    );
-                }
+                evicted_entries.extend(partition_keys);
             }
         }
 
-        // Drop the partition lock before emitting the trace event.
+        let evicted_count = evicted_entries.len();
+
+        // Drop the partition lock before invalidating moka entries.
         drop(counts);
+
+        // Invalidate moka entries and decrement total_bytes outside the lock.
+        for (k, stored_size) in &evicted_entries {
+            self.inner.invalidate(k);
+            // CR-014: decrement total_bytes by the stored size of each evicted entry.
+            // SEC-NEW-001: saturating to prevent usize underflow on unexpected double-evict.
+            let _ =
+                self.total_bytes
+                    .fetch_update(Ordering::Relaxed, Ordering::Relaxed, |current| {
+                        Some(current.saturating_sub(*stored_size))
+                    });
+        }
 
         // O-2: emit diagnostic after lock release so operators can trace "where did my cache go".
         debug!(client_id, evicted_count, "cache client invalidation");

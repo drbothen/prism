@@ -192,7 +192,7 @@ impl QueryCursorRegistry {
             client_id = %client_id,
             total_rows,
             page_size,
-            active_cursors = self.core_registry.active_count(),
+            remaining = self.core_registry.active_count(),
             "cursor created"
         );
 

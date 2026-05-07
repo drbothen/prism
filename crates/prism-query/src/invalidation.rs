@@ -338,10 +338,10 @@ mod tests {
         // crowdstrike_acknowledge_alert maps to [alerts, detections], so
         // SensorType::CrowdStrike aggregates: hosts + alerts + detections.
         // We inserted into hosts (1) and detections (1) only — both evicted.
-        assert!(
-            evicted >= 2,
+        assert_eq!(
+            evicted, 2,
             "I-2: invalidate_for_sensor must return sum across source_ids; \
-             expected >= 2, got {evicted}"
+             expected exactly 2 (hosts=1 + detections=1, alerts=0), got {evicted}"
         );
 
         // Both entries must be gone.
