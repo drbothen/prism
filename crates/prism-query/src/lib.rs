@@ -69,6 +69,9 @@ pub mod scoping;
 pub mod session;
 pub mod virtual_fields;
 
+// ── S-3.03 modules ────────────────────────────────────────────────────────────
+pub mod explain;
+
 // ── S-3.06 modules ────────────────────────────────────────────────────────────
 pub mod write_ast;
 pub mod write_verb_registry;

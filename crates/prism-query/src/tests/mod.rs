@@ -13,6 +13,7 @@
 pub mod alias_tests;
 pub mod bc_gap_fill_tests;
 pub mod cache_tests;
+pub mod explain_tests;
 pub mod integration_tests;
 pub mod materialization_tests;
 pub mod pagination_tests;
