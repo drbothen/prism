@@ -187,12 +187,16 @@ pub(crate) fn column_push_down_option_from_spec(
 /// `SensorAdapter`. The stub implementation emits a generic `column=value`
 /// string; full sensor-native translations will be added per sensor story.
 pub(crate) fn translate_push_down_filter(
-    predicate: &Predicate,
+    _predicate: &Predicate,
     _columns: &[ColumnSpec],
 ) -> Option<String> {
-    // Basic translation: emit column = value string representation.
-    // More sophisticated sensor-native translations added per sensor in later stories.
-    Some(format!("{}={:?}", predicate.column_name, predicate.expr))
+    // S-3.X — sensor-specific filter translation. Each sensor adapter will
+    // implement its own translator (e.g., CrowdStrike FQL, Cyberint queries,
+    // Claroty xDome POST body arrays, Armis AQL) because predicate-to-API-filter
+    // mapping is sensor-specific. The current stub is a placeholder; a
+    // Debug-formatted Expr would leak AST internals to external sensor APIs
+    // (CWE-209). Replace with sensor-specific dispatch in the relevant S-3.X story.
+    todo!("S-3.X — sensor-specific filter translation")
 }
 
 // ---------------------------------------------------------------------------
