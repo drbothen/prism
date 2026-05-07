@@ -197,6 +197,11 @@ impl Default for CacheConfig {
 /// Partition key for per-`(client_id, sensor_id)` entry counting.
 type PartitionKey = (String, String);
 
+/// Per-partition entry list: each element is `(key, estimated_byte_size)`.
+/// The byte size is stored so removal paths can decrement `total_bytes` by the
+/// actual per-entry size rather than a fixed constant (CR-014/CR-015).
+type PartitionVec = Vec<(CacheKey, usize)>;
+
 fn partition_key(key: &CacheKey) -> PartitionKey {
     (key.client_id.clone(), key.sensor_id.clone())
 }
@@ -222,10 +227,13 @@ pub struct QueryCache {
     config: CacheConfig,
     /// moka LRU cache: provides O(1) get/put with background TTL eviction.
     /// Large capacity; per-partition bounds enforced by `partition_counts`.
-    pub(crate) inner: MokaCache<CacheKey, CacheEntry>,
-    /// Per-`(client_id, sensor_id)` entry counts for DI-018 bound enforcement.
-    /// Each element tracks how many entries exist in that partition.
-    pub(crate) partition_counts: Mutex<HashMap<PartitionKey, Vec<CacheKey>>>,
+    inner: MokaCache<CacheKey, CacheEntry>,
+    /// Per-`(client_id, sensor_id)` entry tracking for DI-018 bound enforcement.
+    /// Each element is `(key, estimated_byte_size)` — the byte size is stored
+    /// alongside the key so removal paths can decrement `total_bytes` accurately
+    /// (CR-014/CR-015: previously only `CacheKey` was stored, so eviction
+    /// decremented by the fixed `AVG_ROW_SIZE_BYTES` regardless of actual size).
+    partition_counts: Mutex<HashMap<PartitionKey, PartitionVec>>,
     /// Total estimated byte usage across all cache entries (BC-2.07.006, CR-006).
     total_bytes: AtomicUsize,
 }
@@ -265,7 +273,7 @@ impl QueryCache {
     /// We propagate as `PrismError::Internal` so the caller can terminate cleanly.
     fn lock_partition_counts(
         &self,
-    ) -> Result<MutexGuard<'_, HashMap<PartitionKey, Vec<CacheKey>>>, PrismError> {
+    ) -> Result<MutexGuard<'_, HashMap<PartitionKey, PartitionVec>>, PrismError> {
         self.partition_counts
             .lock()
             .map_err(|_| PrismError::Internal {
@@ -304,9 +312,11 @@ impl QueryCache {
         let pk = partition_key(key);
         let mut counts = self.lock_partition_counts()?;
         if let Some(partition_keys) = counts.get_mut(&pk) {
-            // Move key to end (most-recently-used).
-            partition_keys.retain(|k| k != key);
-            partition_keys.push(key.clone());
+            // Move key to end (most-recently-used), preserving stored byte size.
+            if let Some(pos) = partition_keys.iter().position(|(k, _)| k == key) {
+                let entry = partition_keys.remove(pos);
+                partition_keys.push(entry);
+            }
         }
 
         Ok(Some(updated.rows))
@@ -375,19 +385,18 @@ impl QueryCache {
         // Evict LRU entries until there is space for the new entry.
         while partition_keys.len() >= self.config.max_entries_per_sensor {
             // Remove the first entry in the Vec (oldest = LRU for FIFO tiebreaker).
-            let evict_key = partition_keys.remove(0);
+            // CR-015: use the stored byte size, not the fixed AVG_ROW_SIZE_BYTES.
+            let (evict_key, evicted_size) = partition_keys.remove(0);
             self.inner.invalidate(&evict_key);
-            // Decrement total_bytes estimate for the evicted entry.
-            let current = self.total_bytes.load(Ordering::Relaxed);
-            self.total_bytes.store(
-                current.saturating_sub(AVG_ROW_SIZE_BYTES),
-                Ordering::Relaxed,
-            );
+            // CR-014/CR-015: decrement by the evicted entry's actual stored size.
+            self.total_bytes.fetch_sub(evicted_size, Ordering::Relaxed);
         }
 
         // Track the new key for this partition.
-        partition_keys.retain(|k| k != &key);
-        partition_keys.push(key.clone());
+        // CR-014: if this key already exists (force_refresh path), remove the old
+        // tuple first so the byte size is updated to the new entry's size.
+        partition_keys.retain(|(k, _)| k != &key);
+        partition_keys.push((key.clone(), entry_size));
 
         drop(counts); // release lock before insert
 
@@ -438,15 +447,17 @@ impl QueryCache {
 
         // Find and remove all keys matching the (client_id, sensor_id, source_id) prefix.
         if let Some(partition_keys) = counts.get_mut(&pk) {
-            let to_evict: Vec<CacheKey> = partition_keys
+            let to_evict: Vec<(CacheKey, usize)> = partition_keys
                 .iter()
-                .filter(|k| k.source_id == source_id)
+                .filter(|(k, _)| k.source_id == source_id)
                 .cloned()
                 .collect();
 
-            for k in &to_evict {
+            for (k, stored_size) in &to_evict {
                 self.inner.invalidate(k);
-                partition_keys.retain(|entry_key| entry_key != k);
+                // CR-014: decrement total_bytes by the stored size of each evicted entry.
+                self.total_bytes.fetch_sub(*stored_size, Ordering::Relaxed);
+                partition_keys.retain(|(entry_key, _)| entry_key != k);
             }
         }
         Ok(())
@@ -469,8 +480,10 @@ impl QueryCache {
 
         for pk in client_partitions {
             if let Some(partition_keys) = counts.remove(&pk) {
-                for k in partition_keys {
+                for (k, stored_size) in partition_keys {
                     self.inner.invalidate(&k);
+                    // CR-014: decrement total_bytes by the stored size of each evicted entry.
+                    self.total_bytes.fetch_sub(stored_size, Ordering::Relaxed);
                 }
             }
         }
@@ -497,9 +510,23 @@ impl QueryCache {
         let mut counts = self.lock_partition_counts()?;
         let pk = partition_key(key);
         if let Some(partition_keys) = counts.get_mut(&pk) {
-            partition_keys.retain(|k| k != key);
+            // CR-014: look up the stored byte size before removing the tuple so
+            // we can decrement total_bytes accurately.
+            if let Some(pos) = partition_keys.iter().position(|(k, _)| k == key) {
+                let (_, stored_size) = partition_keys.remove(pos);
+                self.total_bytes.fetch_sub(stored_size, Ordering::Relaxed);
+            }
         }
         Ok(())
+    }
+
+    /// Insert directly into the moka cache without byte accounting or partition
+    /// tracking. For use in regression tests that need to prime the cache with
+    /// a specific entry bypassing `put_with_ttl` invariants (e.g., to test
+    /// SEC-001 mutex-poison behaviour). (CR-016)
+    #[cfg(test)]
+    pub fn insert_raw_for_test(&self, key: CacheKey, entry: CacheEntry) {
+        self.inner.insert(key, entry);
     }
 }
 
@@ -692,17 +719,20 @@ mod tests {
             push_down_hash: "e".repeat(64),
         };
         // Insert directly into moka without going through put() (which would also lock).
+        // CR-016: use insert_raw_for_test instead of accessing the private inner field.
         let entry = CacheEntry {
             rows: vec![serde_json::json!({"id": "det-1"})],
             created_at: std::time::Instant::now(),
             ttl: std::time::Duration::from_secs(300),
             hit_count: 0,
         };
-        cache.inner.insert(key.clone(), entry);
+        cache.insert_raw_for_test(key.clone(), entry);
 
         let cache_clone = Arc::clone(&cache);
 
         // Spawn a thread that panics while holding the lock.
+        // CR-016: use lock_partition_counts() (private method accessible within
+        // the same module) rather than accessing partition_counts directly.
         let handle = std::thread::spawn(move || {
             let _guard = cache_clone
                 .partition_counts
@@ -772,6 +802,102 @@ mod tests {
         assert!(
             cache.total_bytes() <= max_bytes_budget + AVG_ROW_SIZE_BYTES * 3,
             "total_bytes must not substantially exceed max_bytes budget"
+        );
+    }
+
+    /// CR-014: force-refresh the same key 10 times; total_bytes must reflect
+    /// approximately one entry's worth of bytes, not 10×.
+    ///
+    /// Before the fix, `remove_entry` (called by `force_refresh`) did not
+    /// decrement `total_bytes`, causing monotonic growth on repeated refreshes
+    /// until the byte budget was exhausted and inserts were silently rejected.
+    #[test]
+    fn test_cr014_force_refresh_does_not_inflate_total_bytes() {
+        let config = CacheConfig {
+            max_entries_per_sensor: 50,
+            max_bytes: DEFAULT_MAX_CACHE_BYTES,
+        };
+        let cache = QueryCache::new(config);
+        let key = crate::cache_key::CacheKey {
+            client_id: "acme".to_string(),
+            sensor_id: "crowdstrike".to_string(),
+            source_id: "crowdstrike_detections".to_string(),
+            push_down_hash: "f".repeat(64),
+        };
+        let rows = vec![
+            serde_json::json!({"id": "det-1"}),
+            serde_json::json!({"id": "det-2"}),
+        ];
+        let one_entry_bytes = rows.len() * AVG_ROW_SIZE_BYTES;
+
+        // Force-refresh the same key 10 times.
+        for i in 0..10u32 {
+            let mut r = rows.clone();
+            r[0]["seq"] = serde_json::json!(i);
+            cache
+                .force_refresh(key.clone(), r)
+                .expect("force_refresh must not error");
+        }
+
+        // total_bytes must reflect approximately one entry (not 10×).
+        let total = cache.total_bytes();
+        assert!(
+            total <= one_entry_bytes * 2,
+            "CR-014: after 10 force-refreshes, total_bytes should be ~{one_entry_bytes} \
+             (one entry); got {total} (expected at most {})",
+            one_entry_bytes * 2
+        );
+    }
+
+    /// CR-014: after filling the cache for a given prefix and then invalidating
+    /// by prefix, total_bytes must drop back to approximately zero.
+    ///
+    /// Before the fix, `invalidate_by_prefix` called `inner.invalidate()` but
+    /// never decremented `total_bytes`, causing the byte counter to stay
+    /// elevated even after entries were evicted.
+    #[test]
+    fn test_cr014_invalidate_decrements_total_bytes() {
+        let config = CacheConfig {
+            max_entries_per_sensor: 100,
+            max_bytes: DEFAULT_MAX_CACHE_BYTES,
+        };
+        let cache = QueryCache::new(config);
+
+        let n = 10usize;
+        let rows_per_entry = 3usize;
+        let rows = (0..rows_per_entry)
+            .map(|i| serde_json::json!({"id": i}))
+            .collect::<Vec<_>>();
+
+        // Insert n entries under the same (client, sensor, source) prefix.
+        for i in 0..n {
+            let key = crate::cache_key::CacheKey {
+                client_id: "acme".to_string(),
+                sensor_id: "crowdstrike".to_string(),
+                source_id: "crowdstrike_detections".to_string(),
+                push_down_hash: format!("{i:0<64}"),
+            };
+            cache.put(key, rows.clone()).expect("put must not error");
+        }
+
+        let bytes_after_fill = cache.total_bytes();
+        let expected_per_entry = rows_per_entry * AVG_ROW_SIZE_BYTES;
+        assert!(
+            bytes_after_fill >= expected_per_entry * n,
+            "should have ~{} bytes after filling; got {bytes_after_fill}",
+            expected_per_entry * n
+        );
+
+        // Invalidate the entire prefix.
+        cache
+            .invalidate_by_prefix("acme", "crowdstrike", "crowdstrike_detections")
+            .expect("invalidate_by_prefix must not error");
+
+        let bytes_after_invalidate = cache.total_bytes();
+        assert!(
+            bytes_after_invalidate <= expected_per_entry,
+            "CR-014: total_bytes after full prefix invalidation should be ~0; \
+             got {bytes_after_invalidate} (expected at most {expected_per_entry})"
         );
     }
 }
