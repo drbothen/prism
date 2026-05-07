@@ -62,6 +62,10 @@ async-trait = "0.1"
 moka = { version = "0.12", features = ["sync"] }
 # S-3.05 — SHA-256 cache key derivation (BC-2.07.005 / VP-025).
 sha2 = "0.10"
+# S-3.05 fix-pass CR-002 — CancellationToken for cursor cleanup task shutdown signal.
+# tokio-util is already a transitive dep via datafusion 53.1; this is a direct pin
+# to make the dependency explicit. CancellationToken has no feature gate in 0.7.x.
+tokio-util = { version = "0.7", default-features = false }
 
 [dev-dependencies]
 # S-2.08 — isolation tests: LruCache mirrors prism-dtu-crowdstrike session_registry (dev-only)

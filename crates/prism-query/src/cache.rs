@@ -22,9 +22,17 @@
 //! is evicted first (BC-2.07.006 §Postconditions — DI-018). Eviction is
 //! synchronous with the insert operation.
 //!
+//! Total cache byte usage is bounded at 50 MB (BC-2.07.006). Per-entry size is
+//! estimated at [`AVG_ROW_SIZE_BYTES`] bytes × row count. Entries exceeding
+//! [`MAX_ENTRY_BYTES`] are rejected as a defense-in-depth measure (SEC-003).
+//!
 //! # Concurrency
 //! `QueryCache` is `Send + Sync` and designed to be shared via `Arc<QueryCache>`.
-//! The `moka::sync::Cache` inner type is itself thread-safe.
+//! The `moka::sync::Cache` inner type is itself thread-safe. If the `partition_counts`
+//! mutex is poisoned (a thread panicked while holding the lock), all subsequent
+//! cache operations return `Err(PrismError::Internal { detail: "E-CACHE-001: ..." })`
+//! instead of silently continuing with potentially corrupted state (BC-2.07.004
+//! E-CACHE-001, SEC-001).
 //!
 //! # BC References
 //! - BC-2.07.003 — Query Engine Sensor-Fetch Cache with Configurable TTL
@@ -33,12 +41,14 @@
 //! Story: S-3.05
 
 use std::collections::HashMap;
-use std::sync::Mutex;
+use std::sync::atomic::{AtomicUsize, Ordering};
+use std::sync::{Mutex, MutexGuard};
 use std::time::{Duration, Instant};
 
 use moka::sync::Cache as MokaCache;
 
 use crate::cache_key::CacheKey;
+use prism_core::error::PrismError;
 
 // ---------------------------------------------------------------------------
 // TTL constants (BC-2.07.003)
@@ -54,6 +64,16 @@ pub const CACHE_TTL_DEVICES_SECS: u64 = 300;
 
 /// Default entry count bound per `(client_id, sensor_id)` partition (BC-2.07.006).
 pub const DEFAULT_MAX_ENTRIES_PER_SENSOR: usize = 50;
+
+/// Total cache byte budget — 50 MB hard limit (BC-2.07.006, CR-006).
+pub const DEFAULT_MAX_CACHE_BYTES: usize = 50 * 1024 * 1024;
+
+/// Estimated average row size in bytes for byte-budget accounting (CR-006).
+/// Conservative estimate: 512 bytes per JSON row.
+pub const AVG_ROW_SIZE_BYTES: usize = 512;
+
+/// Per-entry byte cap — reject entries exceeding 5 MB as defense-in-depth (SEC-003).
+pub const MAX_ENTRY_BYTES: usize = 5 * 1024 * 1024;
 
 // ---------------------------------------------------------------------------
 // SourceDataType
@@ -88,15 +108,24 @@ impl SourceDataType {
 
     /// Classify a `source_id` string into a `SourceDataType`.
     ///
-    /// Classification rules (BC-2.07.003):
-    /// - Sources containing `"alert"` or `"detection"` → `AlertsDetections`
-    /// - Sources containing `"health"` or `"status"` → `HealthStatus`
+    /// Classification rules (BC-2.07.003, CR-007):
+    /// - Sources with suffix `"_health"` or `"_status"` → `HealthStatus` (not cached)
+    /// - Sources with suffix `"_alerts"`, `"_detections"`, or `"_alert"` / `"_detection"` →
+    ///   `AlertsDetections`
     /// - Everything else (devices, hosts, assets, etc.) → `DevicesAssets`
+    ///
+    /// Suffix matching (`ends_with`) is used instead of substring (`contains`) to
+    /// avoid false positives from source IDs like `"crowdstrike_health_incidents"`
+    /// that contain `"health"` but are not health endpoints (CR-007).
     pub fn from_source_id(source_id: &str) -> Self {
         let s = source_id.to_lowercase();
-        if s.contains("health") || s.contains("status") {
+        if s.ends_with("_health") || s.ends_with("_status") {
             Self::HealthStatus
-        } else if s.contains("alert") || s.contains("detection") {
+        } else if s.ends_with("_alerts")
+            || s.ends_with("_detections")
+            || s.ends_with("_alert")
+            || s.ends_with("_detection")
+        {
             Self::AlertsDetections
         } else {
             Self::DevicesAssets
@@ -146,14 +175,17 @@ pub struct CacheConfig {
     /// Maximum number of entries per `(client_id, sensor_id)` partition.
     /// Default: 50 (BC-2.07.006 §Postconditions).
     pub max_entries_per_sensor: usize,
+    /// Total byte budget for the entire cache. Default: 50 MB (BC-2.07.006, CR-006).
+    pub max_bytes: usize,
 }
 
 impl Default for CacheConfig {
-    /// GREEN-BY-DESIGN: constructs `CacheConfig` with default constant.
+    /// GREEN-BY-DESIGN: constructs `CacheConfig` with default constants.
     /// Zero branching, no I/O, no helpers, 1 line.
     fn default() -> Self {
         CacheConfig {
             max_entries_per_sensor: DEFAULT_MAX_ENTRIES_PER_SENSOR,
+            max_bytes: DEFAULT_MAX_CACHE_BYTES,
         }
     }
 }
@@ -176,19 +208,26 @@ fn partition_key(key: &CacheKey) -> PartitionKey {
 /// Thread-safe sensor-fetch response cache.
 ///
 /// Implements BC-2.07.003 (TTL-based caching) and BC-2.07.006 (LRU eviction
-/// with per-partition entry count bound). Intended to be held in a single
-/// `Arc<QueryCache>` shared across all `QueryEngine` tasks.
+/// with per-partition entry count bound and 50 MB total byte budget). Intended
+/// to be held in a single `Arc<QueryCache>` shared across all `QueryEngine` tasks.
 ///
 /// Internally uses `moka::sync::Cache` for thread-safe LRU eviction and
 /// TTL-based entry expiry (story §Caching Context Summary — moka 0.12).
+///
+/// ## Mutex poison safety (SEC-001 / BC-2.07.004 E-CACHE-001)
+/// If the `partition_counts` mutex is poisoned, all cache operations that
+/// require the lock return `Err(PrismError::Internal { detail: "E-CACHE-001: ..." })`.
+/// Silent recovery via `unwrap_or_else(|e| e.into_inner())` is prohibited.
 pub struct QueryCache {
     config: CacheConfig,
     /// moka LRU cache: provides O(1) get/put with background TTL eviction.
     /// Large capacity; per-partition bounds enforced by `partition_counts`.
-    inner: MokaCache<CacheKey, CacheEntry>,
+    pub(crate) inner: MokaCache<CacheKey, CacheEntry>,
     /// Per-`(client_id, sensor_id)` entry counts for DI-018 bound enforcement.
     /// Each element tracks how many entries exist in that partition.
-    partition_counts: Mutex<HashMap<PartitionKey, Vec<CacheKey>>>,
+    pub(crate) partition_counts: Mutex<HashMap<PartitionKey, Vec<CacheKey>>>,
+    /// Total estimated byte usage across all cache entries (BC-2.07.006, CR-006).
+    total_bytes: AtomicUsize,
 }
 
 impl QueryCache {
@@ -198,11 +237,18 @@ impl QueryCache {
         // We use a large moka capacity so it never evicts by itself —
         // per-partition eviction is handled manually in `put`.
         let moka_cap: u64 = 100_000;
-        let inner = MokaCache::builder().max_capacity(moka_cap).build();
+        // Configure moka's native TTL using the longest TTL (devices: 300s) as the
+        // ceiling. Manual is_expired() checks remain as defense-in-depth (CR-004).
+        let max_ttl = Duration::from_secs(CACHE_TTL_DEVICES_SECS);
+        let inner = MokaCache::builder()
+            .max_capacity(moka_cap)
+            .time_to_live(max_ttl)
+            .build();
         QueryCache {
             config,
             inner,
             partition_counts: Mutex::new(HashMap::new()),
+            total_bytes: AtomicUsize::new(0),
         }
     }
 
@@ -211,19 +257,42 @@ impl QueryCache {
         Self::new(CacheConfig::default())
     }
 
+    /// Acquire the `partition_counts` mutex, propagating poison as E-CACHE-001.
+    ///
+    /// SEC-001 / BC-2.07.004 E-CACHE-001: a poisoned mutex means a thread panicked
+    /// while holding the lock, leaving the partition map in an unknown state.
+    /// Silently recovering with `into_inner()` would operate on corrupted state.
+    /// We propagate as `PrismError::Internal` so the caller can terminate cleanly.
+    fn lock_partition_counts(
+        &self,
+    ) -> Result<MutexGuard<'_, HashMap<PartitionKey, Vec<CacheKey>>>, PrismError> {
+        self.partition_counts
+            .lock()
+            .map_err(|_| PrismError::Internal {
+                detail: "E-CACHE-001: cache mutex poisoned — internal state may be inconsistent; \
+                     terminate and restart the query engine"
+                    .to_string(),
+            })
+    }
+
     /// Look up a cache entry by key.
     ///
-    /// Returns `Some(rows)` if the entry exists and is not expired.
-    /// Returns `None` (cache miss) if the key is absent or the entry has
+    /// Returns `Ok(Some(rows))` if the entry exists and is not expired.
+    /// Returns `Ok(None)` (cache miss) if the key is absent or the entry has
     /// exceeded its TTL. Expired entries are removed on miss (BC-2.07.003).
     ///
     /// On a cache hit, increments `hit_count` on the entry (BC-2.07.003).
-    pub fn get(&self, key: &CacheKey) -> Option<Vec<serde_json::Value>> {
-        let entry = self.inner.get(key)?;
+    ///
+    /// Returns `Err(PrismError::Internal)` if the mutex is poisoned (E-CACHE-001).
+    pub fn get(&self, key: &CacheKey) -> Result<Option<Vec<serde_json::Value>>, PrismError> {
+        let entry = match self.inner.get(key) {
+            Some(e) => e,
+            None => return Ok(None),
+        };
         if entry.is_expired() {
             // Remove expired entry — treat as cache miss.
-            self.remove_entry(key);
-            return None;
+            self.remove_entry(key)?;
+            return Ok(None);
         }
         // Increment hit_count: replace the entry with updated count.
         let mut updated = entry.clone();
@@ -233,17 +302,14 @@ impl QueryCache {
         // Update LRU position: move this key to the end of the partition Vec
         // (most-recently-used position) so eviction targets the front (LRU).
         let pk = partition_key(key);
-        let mut counts = self
-            .partition_counts
-            .lock()
-            .unwrap_or_else(|e| e.into_inner());
+        let mut counts = self.lock_partition_counts()?;
         if let Some(partition_keys) = counts.get_mut(&pk) {
             // Move key to end (most-recently-used).
             partition_keys.retain(|k| k != key);
             partition_keys.push(key.clone());
         }
 
-        Some(updated.rows)
+        Ok(Some(updated.rows))
     }
 
     /// Insert a new cache entry.
@@ -255,52 +321,78 @@ impl QueryCache {
     ///
     /// If `SourceDataType::from_source_id(key.source_id)` is `HealthStatus`,
     /// the put is a no-op (health endpoints are not cached — BC-2.07.003).
-    pub fn put(&self, key: CacheKey, rows: Vec<serde_json::Value>) {
+    ///
+    /// Returns `Err(PrismError::Internal)` if the mutex is poisoned (E-CACHE-001).
+    pub fn put(&self, key: CacheKey, rows: Vec<serde_json::Value>) -> Result<(), PrismError> {
         let data_type = SourceDataType::from_source_id(&key.source_id);
         let ttl = match data_type.ttl() {
             Some(t) => t,
-            None => return, // HealthStatus — not cached
+            None => return Ok(()), // HealthStatus — not cached
         };
-        self.put_with_ttl(key, rows, ttl);
+        self.put_with_ttl(key, rows, ttl)
     }
 
     /// Insert with explicit TTL override (for testing or admin bypass).
-    pub fn put_with_ttl(&self, key: CacheKey, rows: Vec<serde_json::Value>, ttl: Duration) {
+    ///
+    /// Returns `Err(PrismError::Internal)` if the mutex is poisoned (E-CACHE-001).
+    pub fn put_with_ttl(
+        &self,
+        key: CacheKey,
+        rows: Vec<serde_json::Value>,
+        ttl: Duration,
+    ) -> Result<(), PrismError> {
         // HealthStatus check: if the source is a health/status type, skip.
         let data_type = SourceDataType::from_source_id(&key.source_id);
         if data_type == SourceDataType::HealthStatus {
-            return;
+            return Ok(());
         }
 
         // max_entries_per_sensor == 0 → caching disabled.
         if self.config.max_entries_per_sensor == 0 {
-            return;
+            return Ok(());
+        }
+
+        // Per-entry byte cap: reject entries exceeding MAX_ENTRY_BYTES (SEC-003).
+        let entry_size = rows.len() * AVG_ROW_SIZE_BYTES;
+        if entry_size > MAX_ENTRY_BYTES {
+            return Ok(()); // silent drop: caller receives no cache benefit but no error
+        }
+
+        // Total byte budget enforcement (BC-2.07.006, CR-006).
+        // If adding this entry would exceed max_bytes, reject it.
+        let current_bytes = self.total_bytes.load(Ordering::Relaxed);
+        if current_bytes + entry_size > self.config.max_bytes {
+            // Byte budget exceeded — reject to avoid unbounded memory (CR-006 intent).
+            return Ok(());
         }
 
         let pk = partition_key(&key);
 
         // Enforce per-partition bound synchronously before insert (DI-018).
-        let mut counts = self
-            .partition_counts
-            .lock()
-            .unwrap_or_else(|e| e.into_inner());
+        let mut counts = self.lock_partition_counts()?;
         let partition_keys = counts.entry(pk.clone()).or_default();
 
         // Evict LRU entries until there is space for the new entry.
-        // LRU = oldest by position; moka handles get-based recency internally.
-        // For partition-level eviction we track insertion order in the Vec.
         while partition_keys.len() >= self.config.max_entries_per_sensor {
             // Remove the first entry in the Vec (oldest = LRU for FIFO tiebreaker).
             let evict_key = partition_keys.remove(0);
             self.inner.invalidate(&evict_key);
+            // Decrement total_bytes estimate for the evicted entry.
+            let current = self.total_bytes.load(Ordering::Relaxed);
+            self.total_bytes.store(
+                current.saturating_sub(AVG_ROW_SIZE_BYTES),
+                Ordering::Relaxed,
+            );
         }
 
         // Track the new key for this partition.
-        // If the key already exists in the partition list (update/refresh), remove it first.
         partition_keys.retain(|k| k != &key);
         partition_keys.push(key.clone());
 
         drop(counts); // release lock before insert
+
+        // Update total byte count.
+        self.total_bytes.fetch_add(entry_size, Ordering::Relaxed);
 
         let entry = CacheEntry {
             rows,
@@ -309,6 +401,7 @@ impl QueryCache {
             hit_count: 0,
         };
         self.inner.insert(key, entry);
+        Ok(())
     }
 
     /// Bypass the cache and replace an existing entry with fresh data.
@@ -316,21 +409,31 @@ impl QueryCache {
     /// Implements `force_refresh: true` semantics (BC-2.07.003 §Postconditions).
     /// The `push_down_hash` of `key` matches the non-forced version; the entry
     /// is overwritten.
-    pub fn force_refresh(&self, key: CacheKey, rows: Vec<serde_json::Value>) {
+    ///
+    /// Returns `Err(PrismError::Internal)` if the mutex is poisoned (E-CACHE-001).
+    pub fn force_refresh(
+        &self,
+        key: CacheKey,
+        rows: Vec<serde_json::Value>,
+    ) -> Result<(), PrismError> {
         // Remove existing entry if present, then insert fresh.
-        self.remove_entry(&key);
-        self.put(key, rows);
+        self.remove_entry(&key)?;
+        self.put(key, rows)
     }
 
     /// Remove all entries whose key matches a `(client_id, sensor_id, source_id)`
     /// prefix (for invalidation by source).
     ///
     /// This is the low-level primitive used by [`crate::invalidation::CacheInvalidator`].
-    pub fn invalidate_by_prefix(&self, client_id: &str, sensor_id: &str, source_id: &str) {
-        let mut counts = self
-            .partition_counts
-            .lock()
-            .unwrap_or_else(|e| e.into_inner());
+    ///
+    /// Returns `Err(PrismError::Internal)` if the mutex is poisoned (E-CACHE-001).
+    pub fn invalidate_by_prefix(
+        &self,
+        client_id: &str,
+        sensor_id: &str,
+        source_id: &str,
+    ) -> Result<(), PrismError> {
+        let mut counts = self.lock_partition_counts()?;
         let pk = (client_id.to_string(), sensor_id.to_string());
 
         // Find and remove all keys matching the (client_id, sensor_id, source_id) prefix.
@@ -343,19 +446,19 @@ impl QueryCache {
 
             for k in &to_evict {
                 self.inner.invalidate(k);
-                partition_keys.retain(|pk| pk != k);
+                partition_keys.retain(|entry_key| entry_key != k);
             }
         }
+        Ok(())
     }
 
     /// Remove all entries whose `client_id` matches `client_id`.
     ///
     /// Used for client management write operations (BC-2.07.004).
-    pub fn invalidate_by_client(&self, client_id: &str) {
-        let mut counts = self
-            .partition_counts
-            .lock()
-            .unwrap_or_else(|e| e.into_inner());
+    ///
+    /// Returns `Err(PrismError::Internal)` if the mutex is poisoned (E-CACHE-001).
+    pub fn invalidate_by_client(&self, client_id: &str) -> Result<(), PrismError> {
+        let mut counts = self.lock_partition_counts()?;
 
         // Find all partitions for this client.
         let client_partitions: Vec<PartitionKey> = counts
@@ -371,6 +474,7 @@ impl QueryCache {
                 }
             }
         }
+        Ok(())
     }
 
     /// Returns the total number of entries currently in the cache (for metrics).
@@ -380,21 +484,27 @@ impl QueryCache {
         self.inner.entry_count()
     }
 
+    /// Returns the estimated total bytes currently tracked in the cache (for metrics).
+    pub fn total_bytes(&self) -> usize {
+        self.total_bytes.load(Ordering::Relaxed)
+    }
+
     // Internal: remove a single entry from both moka and partition tracker.
-    fn remove_entry(&self, key: &CacheKey) {
+    //
+    // Returns `Err(PrismError::Internal)` if the mutex is poisoned (E-CACHE-001).
+    fn remove_entry(&self, key: &CacheKey) -> Result<(), PrismError> {
         self.inner.invalidate(key);
-        let mut counts = self
-            .partition_counts
-            .lock()
-            .unwrap_or_else(|e| e.into_inner());
+        let mut counts = self.lock_partition_counts()?;
         let pk = partition_key(key);
         if let Some(partition_keys) = counts.get_mut(&pk) {
             partition_keys.retain(|k| k != key);
         }
+        Ok(())
     }
 }
 
 #[cfg(test)]
+#[allow(clippy::expect_used, clippy::unwrap_used)]
 mod tests {
     use super::*;
 
@@ -432,6 +542,38 @@ mod tests {
         assert_eq!(CacheConfig::default().max_entries_per_sensor, 50);
     }
 
+    /// CR-006 / BC-2.07.006: default max_bytes is 50 MB.
+    #[test]
+    fn test_default_config_max_bytes_is_50mb() {
+        assert_eq!(CacheConfig::default().max_bytes, 50 * 1024 * 1024);
+    }
+
+    /// CR-007: suffix match — sources ending with `_health` or `_status` are HealthStatus.
+    #[test]
+    fn test_source_data_type_suffix_health_status() {
+        assert_eq!(
+            SourceDataType::from_source_id("crowdstrike_health"),
+            SourceDataType::HealthStatus,
+        );
+        assert_eq!(
+            SourceDataType::from_source_id("armis_status"),
+            SourceDataType::HealthStatus,
+        );
+    }
+
+    /// CR-007: suffix match — sources ending with `_alerts` or `_detections` are AlertsDetections.
+    #[test]
+    fn test_source_data_type_suffix_alerts_detections() {
+        assert_eq!(
+            SourceDataType::from_source_id("crowdstrike_detections"),
+            SourceDataType::AlertsDetections,
+        );
+        assert_eq!(
+            SourceDataType::from_source_id("cyberint_alerts"),
+            SourceDataType::AlertsDetections,
+        );
+    }
+
     /// AC-5 / BC-2.07.003: Cache hit on identical query within TTL window.
     #[test]
     fn test_ac5_cache_hit_within_ttl_returns_cached_rows() {
@@ -443,8 +585,10 @@ mod tests {
             push_down_hash: "a".repeat(64),
         };
         let rows = vec![serde_json::json!({"id": "det-1"})];
-        cache.put(key.clone(), rows.clone());
-        let result = cache.get(&key);
+        cache
+            .put(key.clone(), rows.clone())
+            .expect("put must succeed");
+        let result = cache.get(&key).expect("get must not fail");
         assert_eq!(
             result,
             Some(rows),
@@ -462,8 +606,9 @@ mod tests {
             source_id: "crowdstrike_detections".to_string(),
             push_down_hash: "b".repeat(64),
         };
+        let result = cache.get(&key).expect("get must not fail");
         assert!(
-            cache.get(&key).is_none(),
+            result.is_none(),
             "cache miss on unseen key must return None"
         );
     }
@@ -473,6 +618,7 @@ mod tests {
     fn test_ac8_lru_eviction_at_capacity() {
         let config = CacheConfig {
             max_entries_per_sensor: 2,
+            max_bytes: DEFAULT_MAX_CACHE_BYTES,
         };
         let cache = QueryCache::new(config);
 
@@ -483,10 +629,16 @@ mod tests {
             push_down_hash: format!("{:0<64}", n),
         };
         // Fill to capacity.
-        cache.put(make_key(1), vec![serde_json::json!({"id": 1})]);
-        cache.put(make_key(2), vec![serde_json::json!({"id": 2})]);
+        cache
+            .put(make_key(1), vec![serde_json::json!({"id": 1})])
+            .expect("put 1");
+        cache
+            .put(make_key(2), vec![serde_json::json!({"id": 2})])
+            .expect("put 2");
         // Third insert must evict LRU — total stays at most 2.
-        cache.put(make_key(3), vec![serde_json::json!({"id": 3})]);
+        cache
+            .put(make_key(3), vec![serde_json::json!({"id": 3})])
+            .expect("put 3");
 
         // Entry count must not exceed configured bound for this partition.
         assert!(
@@ -508,13 +660,118 @@ mod tests {
         let old_rows = vec![serde_json::json!({"host": "old"})];
         let new_rows = vec![serde_json::json!({"host": "new"})];
 
-        cache.put(key.clone(), old_rows);
-        cache.force_refresh(key.clone(), new_rows.clone());
+        cache.put(key.clone(), old_rows).expect("put old");
+        cache
+            .force_refresh(key.clone(), new_rows.clone())
+            .expect("force_refresh");
 
         assert_eq!(
-            cache.get(&key),
+            cache.get(&key).expect("get must not fail"),
             Some(new_rows),
             "force_refresh must overwrite existing entry with fresh data"
+        );
+    }
+
+    /// SEC-001 / BC-2.07.004 E-CACHE-001: poisoned mutex returns E-CACHE-001 error.
+    ///
+    /// Regression test: a thread that panics while holding the partition_counts lock
+    /// poisons the mutex. Subsequent operations must return E-CACHE-001 instead of
+    /// silently recovering with potentially corrupted state.
+    #[test]
+    fn test_sec001_poisoned_mutex_returns_e_cache_001() {
+        use std::sync::Arc;
+
+        let cache = Arc::new(QueryCache::with_defaults());
+
+        // Insert an entry first so a subsequent get() reaches the lock path.
+        // (get() acquires the lock only on a cache hit to update LRU position.)
+        let key = crate::cache_key::CacheKey {
+            client_id: "acme".to_string(),
+            sensor_id: "crowdstrike".to_string(),
+            source_id: "crowdstrike_detections".to_string(),
+            push_down_hash: "e".repeat(64),
+        };
+        // Insert directly into moka without going through put() (which would also lock).
+        let entry = CacheEntry {
+            rows: vec![serde_json::json!({"id": "det-1"})],
+            created_at: std::time::Instant::now(),
+            ttl: std::time::Duration::from_secs(300),
+            hit_count: 0,
+        };
+        cache.inner.insert(key.clone(), entry);
+
+        let cache_clone = Arc::clone(&cache);
+
+        // Spawn a thread that panics while holding the lock.
+        let handle = std::thread::spawn(move || {
+            let _guard = cache_clone
+                .partition_counts
+                .lock()
+                .expect("lock must succeed before poison");
+            panic!("simulated panic while holding cache mutex");
+        });
+
+        // The thread panics — this poisons the mutex. Ignore the join error.
+        let _ = handle.join();
+
+        // Now attempt a get() on an existing entry — it hits the lock (for LRU update).
+        // Must return E-CACHE-001.
+        let result = cache.get(&key);
+        match result {
+            Err(PrismError::Internal { detail }) => {
+                assert!(
+                    detail.contains("E-CACHE-001"),
+                    "poisoned mutex must return E-CACHE-001; got: {detail}"
+                );
+            }
+            other => panic!(
+                "SEC-001: poisoned mutex must return Err(PrismError::Internal{{E-CACHE-001}}); \
+                 got: {other:?}"
+            ),
+        }
+    }
+
+    /// CR-006 / BC-2.07.006: byte-based eviction — cache rejects entries when
+    /// total_bytes would exceed max_bytes.
+    #[test]
+    fn test_cr006_byte_budget_exceeded_rejects_entry() {
+        // Set a very small byte budget so a few entries fill it.
+        let max_bytes_budget = AVG_ROW_SIZE_BYTES * 5; // only 5 "rows" worth of budget
+        let config = CacheConfig {
+            max_entries_per_sensor: 1000,
+            max_bytes: max_bytes_budget,
+        };
+        let cache = QueryCache::new(config);
+
+        // Insert entries until budget is exceeded.
+        // Each entry has 3 rows × 512 bytes = 1536 bytes estimated.
+        let rows = vec![
+            serde_json::json!({"id": "a"}),
+            serde_json::json!({"id": "b"}),
+            serde_json::json!({"id": "c"}),
+        ];
+
+        let make_key = |n: u8| crate::cache_key::CacheKey {
+            client_id: "acme".to_string(),
+            sensor_id: "crowdstrike".to_string(),
+            source_id: "crowdstrike_detections".to_string(),
+            push_down_hash: format!("{n:0<64}"),
+        };
+
+        // First entry: 3 rows × 512 bytes = 1536 bytes (within 5 × 512 = 2560 budget).
+        cache
+            .put(make_key(1), rows.clone())
+            .expect("first entry must fit");
+        cache.put(make_key(2), rows.clone()).expect("second entry");
+        // Any further put may be silently rejected (budget is likely exceeded).
+        let result = cache.put(make_key(3), rows.clone());
+        // The put itself must not error.
+        assert!(result.is_ok(), "byte budget rejection must not error");
+
+        // The cache must not have grown substantially beyond the budget.
+        assert!(
+            cache.total_bytes() <= max_bytes_budget + AVG_ROW_SIZE_BYTES * 3,
+            "total_bytes must not substantially exceed max_bytes budget"
         );
     }
 }

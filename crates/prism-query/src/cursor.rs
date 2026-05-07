@@ -24,6 +24,7 @@ use std::time::{Duration, Instant};
 use prism_core::cursor::{CursorId, CursorRegistry};
 use prism_core::error::PrismError;
 use prism_core::OrgSlug;
+use tokio_util::sync::CancellationToken;
 use uuid::Uuid;
 
 /// Cursor expiry timeout (BC-2.07.002 — 60s from creation).
@@ -59,7 +60,11 @@ impl CursorToken {
 /// Holds the complete un-paged result set and the current read offset.
 /// Entry lives only in process memory — never serialized to disk (BC-2.07.001
 /// "Tokens are never persisted to disk").
-#[derive(Debug)]
+///
+/// # SEC-002: Manual Debug implementation
+/// `query_str` is redacted in the Debug output because it may contain
+/// sensitive filter values (e.g., IP addresses, host names, user identifiers).
+/// Using `#[derive(Debug)]` would leak `query_str` into logs and traces.
 pub struct CursorEntry {
     /// Complete result rows for this fetch, stored until fully consumed or expired.
     pub result_rows: Vec<serde_json::Value>,
@@ -68,11 +73,25 @@ pub struct CursorEntry {
     /// Timestamp at which this entry was created, for expiry checking.
     pub created_at: Instant,
     /// The originating PrismQL query string (for diagnostics).
+    /// Redacted in Debug output (SEC-002).
     pub query_str: String,
     /// The client (tenant) that owns this cursor.
     pub client_id: OrgSlug,
     /// The prism-core CursorId allocated for this entry (used for release).
     pub core_id: CursorId,
+}
+
+impl std::fmt::Debug for CursorEntry {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("CursorEntry")
+            .field("result_rows_count", &self.result_rows.len())
+            .field("offset", &self.offset)
+            .field("created_at", &self.created_at)
+            .field("query_str", &"<redacted>") // SEC-002: query string may contain sensitive data
+            .field("client_id", &self.client_id)
+            .field("core_id", &self.core_id)
+            .finish()
+    }
 }
 
 impl CursorEntry {
@@ -130,18 +149,28 @@ impl QueryCursorRegistry {
         query_str: String,
         client_id: OrgSlug,
     ) -> Result<(Vec<serde_json::Value>, Option<CursorToken>), PrismError> {
+        // CR-011: guard against page_size=0 which would cause an infinite loop.
+        if page_size == 0 {
+            return Err(PrismError::QueryExecutionFailed {
+                detail: "E-QUERY-005: page_size must be greater than 0".to_string(),
+            });
+        }
+
         // Dedup rows by "id" field (EC-07-020: adapter-level deduplication).
         let rows = deduplicate_by_id(rows);
 
-        // Always allocate from the prism-core cap registry (VP-029 / BC-2.07.002).
-        // This enforces the 200-cursor cap for ALL create() calls.
-        let core_id = self.core_registry.allocate()?;
-
+        // SEC-004: Check single-page BEFORE allocating from the cap registry.
+        // Allocating and immediately releasing for single-page results wastes a slot
+        // and inflates the cursor cap counter transiently.
         if rows.len() <= page_size {
-            // Single-page result — release the slot immediately and return.
-            self.core_registry.release(core_id);
+            // Single-page result — return without allocating.
             return Ok((rows, None));
         }
+
+        // Only allocate from the prism-core cap registry when a cursor will actually
+        // be created (multi-page result). This enforces the 200-cursor cap for
+        // cursors that persist (BC-2.07.002, VP-029, SEC-004).
+        let core_id = self.core_registry.allocate()?;
 
         let token = CursorToken::new_random();
         let first_page = rows[..page_size].to_vec();
@@ -284,13 +313,26 @@ impl Default for QueryCursorRegistry {
 /// BC-2.07.002 EC-07-020: the adapter deduplicates at the Prism level.
 /// Rows without an `"id"` field are kept as-is (no dedup key).
 /// Preserves first occurrence (stable ordering).
+///
+/// # SEC-005: Polymorphic ID handling (Claroty and similar sensors)
+/// Some sensors (e.g., Claroty) return numeric or boolean `"id"` values.
+/// Using `v.as_str()` would silently ignore numeric IDs, allowing duplicates
+/// through. We use `v.to_string()` for all non-null `"id"` values to ensure
+/// deduplication works regardless of JSON type.
 fn deduplicate_by_id(rows: Vec<serde_json::Value>) -> Vec<serde_json::Value> {
     let mut seen_ids: std::collections::HashSet<String> = std::collections::HashSet::new();
     let mut result = Vec::with_capacity(rows.len());
     for row in rows {
-        if let Some(id) = row.get("id").and_then(|v| v.as_str()) {
-            if seen_ids.insert(id.to_string()) {
+        if let Some(id_val) = row.get("id") {
+            if id_val.is_null() {
+                // Null "id" — keep without dedup (no meaningful key).
                 result.push(row);
+            } else {
+                // SEC-005: use to_string() to handle numeric, boolean, and string IDs.
+                let id_str = id_val.to_string();
+                if seen_ids.insert(id_str) {
+                    result.push(row);
+                }
             }
         } else {
             // No "id" field — keep without dedup.
@@ -307,22 +349,49 @@ fn deduplicate_by_id(rows: Vec<serde_json::Value>) -> Vec<serde_json::Value> {
 /// Spawn a background tokio task that wakes every [`CLEANUP_INTERVAL_SECS`]
 /// seconds and evicts expired cursors from `registry`.
 ///
-/// The task runs for the process lifetime; it exits when the `Arc` is dropped
-/// (no live `QueryEngine` references remain). The task MUST be started once
-/// during `QueryEngine` initialization (BC-2.07.002 §Background Cleanup).
-pub fn spawn_cursor_cleanup_task(registry: Arc<Mutex<QueryCursorRegistry>>) {
+/// # Shutdown semantics (CR-002 / CR-008)
+/// The task exits when `shutdown` is cancelled (i.e., `shutdown.cancel()` is
+/// called). This is typically done from `Drop` of the owning `QueryEngine`.
+///
+/// Without a cancellation token the task would hold an `Arc` clone of
+/// `registry`, preventing deallocation even after all external references are
+/// dropped. The previous doc comment claiming "exits when Arc is dropped" was
+/// incorrect — the task itself held a strong reference.
+///
+/// If the `registry` mutex is poisoned (a thread panicked while holding it),
+/// the task exits cleanly rather than propagating the poison.
+///
+/// The task MUST be started once during `QueryEngine` initialization
+/// (BC-2.07.002 §Background Cleanup).
+///
+/// # Returns
+/// A `JoinHandle` that resolves when the task exits. The caller should store
+/// this handle and await it on shutdown for clean teardown.
+pub fn spawn_cursor_cleanup_task(
+    registry: Arc<Mutex<QueryCursorRegistry>>,
+    shutdown: CancellationToken,
+) -> tokio::task::JoinHandle<()> {
     tokio::spawn(async move {
         let mut interval = tokio::time::interval(Duration::from_secs(CLEANUP_INTERVAL_SECS));
         loop {
-            interval.tick().await;
-            // Exit cleanly when the last strong reference is dropped.
-            let mut reg = match registry.lock() {
-                Ok(r) => r,
-                Err(poisoned) => poisoned.into_inner(),
-            };
-            reg.evict_expired();
+            tokio::select! {
+                _ = shutdown.cancelled() => {
+                    // Clean shutdown — stop the cleanup loop.
+                    break;
+                }
+                _ = interval.tick() => {
+                    let mut reg = match registry.lock() {
+                        Ok(r) => r,
+                        Err(_poisoned) => {
+                            // Mutex poisoned — exit cleanly rather than propagating.
+                            break;
+                        }
+                    };
+                    reg.evict_expired();
+                }
+            }
         }
-    });
+    })
 }
 
 // ---------------------------------------------------------------------------

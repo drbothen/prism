@@ -146,7 +146,7 @@ impl CacheInvalidator {
         // Prefix-scan invalidation for each source_id.
         for source_id in sources_to_invalidate {
             self.cache
-                .invalidate_by_prefix(client_str, &sensor_name, source_id);
+                .invalidate_by_prefix(client_str, &sensor_name, source_id)?;
         }
 
         Ok(())
@@ -179,7 +179,7 @@ impl CacheInvalidator {
 
         for &source_id in entry.source_ids {
             self.cache
-                .invalidate_by_prefix(client_str, &sensor_name, source_id);
+                .invalidate_by_prefix(client_str, &sensor_name, source_id)?;
         }
 
         Ok(())
@@ -190,12 +190,13 @@ impl CacheInvalidator {
     ///
     /// Called from client management write operations (BC-2.07.004).
     pub fn invalidate_for_client(&self, client_id: &OrgSlug) -> Result<(), PrismError> {
-        self.cache.invalidate_by_client(client_id.as_str());
+        self.cache.invalidate_by_client(client_id.as_str())?;
         Ok(())
     }
 }
 
 #[cfg(test)]
+#[allow(clippy::expect_used, clippy::unwrap_used)]
 mod tests {
     use super::*;
 
@@ -234,7 +235,7 @@ mod tests {
         let entry = WRITE_TOOL_INVALIDATION_MAP
             .iter()
             .find(|e| e.tool_name == "crowdstrike_contain_host")
-            .unwrap_or_else(|| panic!("crowdstrike_contain_host must be in the invalidation map"));
+            .expect("crowdstrike_contain_host must be in the invalidation map");
 
         assert!(
             entry.source_ids.contains(&"crowdstrike_hosts"),
@@ -260,16 +261,16 @@ mod tests {
             push_down_hash: "d".repeat(64),
         };
         let rows = vec![serde_json::json!({"id": "det-1"})];
-        cache.put(key.clone(), rows);
+        cache.put(key.clone(), rows).expect("put must succeed");
 
         let invalidator = CacheInvalidator::new(Arc::clone(&cache));
         let client_id = OrgSlug::new("acme");
         invalidator
             .invalidate_for_sensor(&client_id, SensorType::CrowdStrike)
-            .unwrap_or_else(|e| panic!("invalidation must not fail: {e}"));
+            .expect("invalidation must not fail");
 
         assert!(
-            cache.get(&key).is_none(),
+            cache.get(&key).expect("get must not fail").is_none(),
             "AC-6: invalidation must evict cache entries for the affected sensor"
         );
     }

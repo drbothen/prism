@@ -8,7 +8,7 @@
 //! which AC it covers.
 
 // Allow dead_code while the stubs compile but don't do anything.
-#![allow(dead_code, unused_imports)]
+#![allow(dead_code, unused_imports, clippy::expect_used, clippy::unwrap_used)]
 
 use prism_core::tenant::OrgSlug;
 use serde_json::json;
@@ -214,7 +214,9 @@ fn test_ac4_201st_cursor_returns_cap_exceeded() {
     }
 
     // The 201st cursor must be rejected.
-    let extra_rows = vec![json!({"row": "overflow"})];
+    // Use 2 rows with page_size=1 to ensure a multi-page result (which actually
+    // allocates a cursor slot). Single-page results bypass the cap (SEC-004).
+    let extra_rows = vec![json!({"row": "overflow-p1"}), json!({"row": "overflow-p2"})];
     let client = OrgSlug::new("overflow-client");
     let result = registry.create(extra_rows, 1, "overflow".to_string(), client);
 
@@ -459,8 +461,13 @@ fn test_BC_2_07_002_exactly_200th_cursor_succeeds_201st_fails() {
     }
 
     // The 201st cursor must fail.
+    // Use 2 rows with page_size=1 to ensure a multi-page result (which actually
+    // allocates a cursor slot). Single-page results bypass the cap (SEC-004).
     let result = registry.create(
-        vec![json!({"row": "cap-breach"})],
+        vec![
+            json!({"row": "cap-breach-p1"}),
+            json!({"row": "cap-breach-p2"}),
+        ],
         1,
         "overflow".to_string(),
         OrgSlug::new("overflow-client"),

@@ -8,7 +8,9 @@
 //! immediately against the stubs.
 
 // Allow dead_code while the stubs compile.
-#![allow(dead_code, unused_imports)]
+// expect_used and unwrap_used are intentional in test code — panics on failure
+// are the desired behavior for test assertions (CR-009 pattern).
+#![allow(dead_code, unused_imports, clippy::expect_used, clippy::unwrap_used)]
 
 use std::sync::Arc;
 
@@ -17,7 +19,8 @@ use prism_core::types::SensorType;
 use serde_json::json;
 
 use crate::cache::{
-    CacheConfig, CacheEntry, QueryCache, SourceDataType, DEFAULT_MAX_ENTRIES_PER_SENSOR,
+    CacheConfig, CacheEntry, QueryCache, SourceDataType, DEFAULT_MAX_CACHE_BYTES,
+    DEFAULT_MAX_ENTRIES_PER_SENSOR,
 };
 use crate::cache_key::{CacheKey, PushDownParams};
 use crate::invalidation::{CacheInvalidator, WRITE_TOOL_INVALIDATION_MAP};
@@ -41,18 +44,18 @@ fn make_key(client: &str, sensor: &str, source: &str) -> CacheKey {
 
 /// AC-5 / BC-2.07.003: A second identical query within the TTL window must
 /// return cached rows without hitting the sensor API.
-///
-/// RED by design — `QueryCache::put` and `QueryCache::get` are `todo!()`.
 #[test]
 fn test_ac5_cache_hit_within_ttl_skips_sensor_api() {
     let cache = QueryCache::with_defaults();
     let key = make_key("acme", "crowdstrike", "crowdstrike_detections");
     let rows = vec![json!({"id": "det-1"}), json!({"id": "det-2"})];
 
-    cache.put(key.clone(), rows.clone());
+    cache
+        .put(key.clone(), rows.clone())
+        .expect("put must succeed");
 
     // Second access — must return cached value.
-    let result = cache.get(&key);
+    let result = cache.get(&key).expect("get must not fail");
     assert_eq!(
         result,
         Some(rows),
@@ -61,21 +64,17 @@ fn test_ac5_cache_hit_within_ttl_skips_sensor_api() {
 }
 
 /// BC-2.07.003: Cache miss on a key not yet inserted returns None.
-///
-/// RED by design — `QueryCache::get` is `todo!()`.
 #[test]
 fn test_cache_miss_on_uninserted_key() {
     let cache = QueryCache::with_defaults();
     let key = make_key("acme", "armis", "armis_alerts");
     assert!(
-        cache.get(&key).is_none(),
+        cache.get(&key).expect("get must not fail").is_none(),
         "cache miss on uninserted key must return None"
     );
 }
 
 /// BC-2.07.003: `force_refresh: true` replaces an existing entry with fresh data.
-///
-/// RED by design — `QueryCache::force_refresh` and `QueryCache::get` are `todo!()`.
 #[test]
 fn test_force_refresh_replaces_stale_entry() {
     let cache = QueryCache::with_defaults();
@@ -83,11 +82,13 @@ fn test_force_refresh_replaces_stale_entry() {
     let stale = vec![json!({"host": "old"})];
     let fresh = vec![json!({"host": "new"})];
 
-    cache.put(key.clone(), stale);
-    cache.force_refresh(key.clone(), fresh.clone());
+    cache.put(key.clone(), stale).expect("put stale");
+    cache
+        .force_refresh(key.clone(), fresh.clone())
+        .expect("force_refresh");
 
     assert_eq!(
-        cache.get(&key),
+        cache.get(&key).expect("get must not fail"),
         Some(fresh),
         "force_refresh must overwrite the existing entry"
     );
@@ -116,17 +117,15 @@ fn test_ac6_configure_credential_source_does_not_invalidate_cache() {
 
 /// AC-6 / BC-2.07.004: After a write operation succeeds, cache entries for the
 /// affected sensor are evicted synchronously.
-///
-/// RED by design — `CacheInvalidator::invalidate_for_sensor` is `todo!()`.
 #[test]
 fn test_ac6_cache_entry_evicted_synchronously_after_write() {
     let cache = Arc::new(QueryCache::with_defaults());
     let key = make_key("acme", "crowdstrike", "crowdstrike_detections");
     let rows = vec![json!({"id": "det-1"})];
 
-    cache.put(key.clone(), rows);
+    cache.put(key.clone(), rows).expect("put must succeed");
     assert!(
-        cache.get(&key).is_some(),
+        cache.get(&key).expect("get 1").is_some(),
         "entry must exist before invalidation"
     );
 
@@ -137,7 +136,7 @@ fn test_ac6_cache_entry_evicted_synchronously_after_write() {
         .expect("invalidation must succeed");
 
     assert!(
-        cache.get(&key).is_none(),
+        cache.get(&key).expect("get 2").is_none(),
         "AC-6: cache entry must be evicted synchronously before write response returns"
     );
 }
@@ -148,8 +147,6 @@ fn test_ac6_cache_entry_evicted_synchronously_after_write() {
 
 /// AC-7 / BC-2.07.005: Same params in different insertion order produce
 /// the same CacheKey `push_down_hash`.
-///
-/// RED by design — `CacheKey::derive_push_down_hash` is `todo!()`.
 #[test]
 fn test_ac7_push_down_hash_order_independent() {
     let mut params_ab = PushDownParams::new();
@@ -171,8 +168,6 @@ fn test_ac7_push_down_hash_order_independent() {
 
 /// EC-07-004 / BC-2.07.005: Same query string, different client ordering →
 /// same CacheKey (if the clients are the same set).
-///
-/// RED by design — `CacheKey::derive` is `todo!()`.
 #[test]
 fn test_ec07004_different_client_ordering_same_key() {
     let params = PushDownParams::new();
@@ -193,12 +188,11 @@ fn test_ec07004_different_client_ordering_same_key() {
 
 /// AC-8 / BC-2.07.006: At partition capacity (50 entries), inserting a new
 /// entry evicts the LRU entry first.
-///
-/// RED by design — `QueryCache::put`, `QueryCache::entry_count` are `todo!()`.
 #[test]
 fn test_ac8_lru_eviction_keeps_entry_count_within_bound() {
     let config = CacheConfig {
         max_entries_per_sensor: 3,
+        max_bytes: DEFAULT_MAX_CACHE_BYTES,
     };
     let cache = QueryCache::new(config);
 
@@ -210,7 +204,7 @@ fn test_ac8_lru_eviction_keeps_entry_count_within_bound() {
             source_id: "armis_devices".to_string(),
             push_down_hash: format!("{:0<64}", i),
         };
-        cache.put(key, vec![json!({"device": i})]);
+        cache.put(key, vec![json!({"device": i})]).expect("put");
     }
 
     // Insert a 4th entry — must evict LRU.
@@ -220,7 +214,9 @@ fn test_ac8_lru_eviction_keeps_entry_count_within_bound() {
         source_id: "armis_devices".to_string(),
         push_down_hash: format!("{:0<64}", 99u8),
     };
-    cache.put(overflow_key, vec![json!({"device": 99})]);
+    cache
+        .put(overflow_key, vec![json!({"device": 99})])
+        .expect("put overflow");
 
     // Total global entry count must not exceed 3.
     assert!(
@@ -231,21 +227,22 @@ fn test_ac8_lru_eviction_keeps_entry_count_within_bound() {
 
 /// EC-07-052 / BC-2.07.006: `max_entries_per_sensor = 0` effectively disables
 /// caching — every put is a no-op.
-///
-/// RED by design — `QueryCache::put` and `QueryCache::entry_count` are `todo!()`.
 #[test]
 fn test_ec07052_max_entries_zero_disables_cache() {
     let config = CacheConfig {
         max_entries_per_sensor: 0,
+        max_bytes: DEFAULT_MAX_CACHE_BYTES,
     };
     let cache = QueryCache::new(config);
     let key = make_key("acme", "armis", "armis_alerts");
 
-    cache.put(key.clone(), vec![json!({"alert": 1})]);
+    cache
+        .put(key.clone(), vec![json!({"alert": 1})])
+        .expect("put");
 
     // With max_entries = 0, no entries should be stored.
     assert!(
-        cache.get(&key).is_none(),
+        cache.get(&key).expect("get").is_none(),
         "EC-07-052: max_entries_per_sensor=0 must disable caching"
     );
 }
@@ -256,8 +253,6 @@ fn test_ec07052_max_entries_zero_disables_cache() {
 
 /// EC-07-030 / BC-2.07.003: Two concurrent identical queries both miss cache
 /// — both return correct results, no coalescing in v1.
-///
-/// RED by design — `QueryCache::put` and `QueryCache::get` are `todo!()`.
 #[test]
 fn test_ec07030_concurrent_miss_both_return_results() {
     use std::sync::Arc;
@@ -270,7 +265,7 @@ fn test_ec07030_concurrent_miss_both_return_results() {
     let key1 = key.clone();
     let t1 = thread::spawn(move || {
         let rows = vec![json!({"id": "det-from-t1"})];
-        cache1.put(key1, rows.clone());
+        cache1.put(key1, rows.clone()).expect("t1 put");
         rows
     });
 
@@ -278,7 +273,7 @@ fn test_ec07030_concurrent_miss_both_return_results() {
     let key2 = key.clone();
     let t2 = thread::spawn(move || {
         let rows = vec![json!({"id": "det-from-t2"})];
-        cache2.put(key2, rows.clone());
+        cache2.put(key2, rows.clone()).expect("t2 put");
         rows
     });
 
@@ -358,7 +353,7 @@ fn test_BC_2_07_003_hit_count_incremented_on_cache_hit() {
     let key = make_key("acme", "crowdstrike", "crowdstrike_detections");
     let rows = vec![json!({"id": "det-1"})];
 
-    cache.put(key.clone(), rows);
+    cache.put(key.clone(), rows).expect("put");
     // First hit.
     let _ = cache.get(&key);
     // Second hit.
@@ -371,8 +366,6 @@ fn test_BC_2_07_003_hit_count_incremented_on_cache_hit() {
 
 /// BC-2.07.003: Health/status source is NOT cached — `put` on a health source
 /// must be a no-op (entry count stays zero).
-///
-/// RED by design — `QueryCache::put`, `SourceDataType::from_source_id` are `todo!()`.
 #[test]
 fn test_BC_2_07_003_health_status_source_not_cached() {
     let cache = QueryCache::with_defaults();
@@ -383,19 +376,19 @@ fn test_BC_2_07_003_health_status_source_not_cached() {
         source_id: "crowdstrike_health".to_string(),
         push_down_hash: "e".repeat(64),
     };
-    cache.put(key.clone(), vec![json!({"status": "ok"})]);
+    cache
+        .put(key.clone(), vec![json!({"status": "ok"})])
+        .expect("put health");
 
     // Health sources must not be cached — get must return None.
     assert!(
-        cache.get(&key).is_none(),
+        cache.get(&key).expect("get").is_none(),
         "BC-2.07.003: health/status source must never be cached (put is no-op)"
     );
 }
 
 /// EC-07-031 / BC-2.07.003: TTL expiry race — entry that expires between cache
 /// check and return is acceptable (stale-by-milliseconds). Next request must miss.
-///
-/// RED by design — `QueryCache::get`, `QueryCache::put_with_ttl` are `todo!()`.
 #[test]
 fn test_BC_2_07_003_ec07031_ttl_expiry_race_next_request_misses() {
     // Simulates: insert with 1ms TTL, wait until expired, then assert miss.
@@ -405,17 +398,18 @@ fn test_BC_2_07_003_ec07031_ttl_expiry_race_next_request_misses() {
     let key = make_key("acme", "crowdstrike", "crowdstrike_detections");
 
     // Insert with a nearly-zero TTL (1ms).
-    cache.put_with_ttl(
-        key.clone(),
-        vec![json!({"id": "stale"})],
-        std::time::Duration::from_millis(1),
-    );
+    cache
+        .put_with_ttl(
+            key.clone(),
+            vec![json!({"id": "stale"})],
+            std::time::Duration::from_millis(1),
+        )
+        .expect("put_with_ttl");
 
     // After expiry time passes (spin; implementer uses time injection in real test).
-    // For the stub, this panics — confirming Red Gate.
     std::thread::sleep(std::time::Duration::from_millis(5));
 
-    let result = cache.get(&key);
+    let result = cache.get(&key).expect("get must not fail");
     assert!(
         result.is_none(),
         "EC-07-031: expired entry must be treated as a cache miss on next request"
@@ -424,8 +418,6 @@ fn test_BC_2_07_003_ec07031_ttl_expiry_race_next_request_misses() {
 
 /// EC-07-032 / BC-2.07.003: `force_refresh: true` with no existing cache entry
 /// must query sensor API and store the result normally.
-///
-/// RED by design — `QueryCache::force_refresh` and `QueryCache::get` are `todo!()`.
 #[test]
 fn test_BC_2_07_003_ec07032_force_refresh_with_no_existing_entry() {
     let cache = QueryCache::with_defaults();
@@ -433,10 +425,12 @@ fn test_BC_2_07_003_ec07032_force_refresh_with_no_existing_entry() {
     let fresh = vec![json!({"id": "fresh-1"})];
 
     // No prior entry — force_refresh must still store the result.
-    cache.force_refresh(key.clone(), fresh.clone());
+    cache
+        .force_refresh(key.clone(), fresh.clone())
+        .expect("force_refresh");
 
     assert_eq!(
-        cache.get(&key),
+        cache.get(&key).expect("get"),
         Some(fresh),
         "EC-07-032: force_refresh with no existing entry must store the fresh result"
     );
@@ -444,8 +438,6 @@ fn test_BC_2_07_003_ec07032_force_refresh_with_no_existing_entry() {
 
 /// BC-2.07.003: Two PrismQL queries with different syntax but identical
 /// push-down parameters share the same cache entry (EC-07-040 / BC-2.07.005).
-///
-/// RED by design — `CacheKey::derive` and `QueryCache::get` are `todo!()`.
 #[test]
 fn test_BC_2_07_003_ec07040_different_pql_same_push_down_shares_cache_entry() {
     let cache = QueryCache::with_defaults();
@@ -457,11 +449,11 @@ fn test_BC_2_07_003_ec07040_different_pql_same_push_down_shares_cache_entry() {
     let key_b = CacheKey::derive("acme", "crowdstrike", "crowdstrike_detections", &params);
 
     let rows = vec![json!({"id": "det-1"})];
-    cache.put(key_a.clone(), rows.clone());
+    cache.put(key_a.clone(), rows.clone()).expect("put");
 
     // key_b has identical push_down_hash — must be a cache hit.
     assert_eq!(
-        cache.get(&key_b),
+        cache.get(&key_b).expect("get"),
         Some(rows),
         "EC-07-040: two PrismQL queries with same push-down params must share a cache entry"
     );
@@ -469,8 +461,6 @@ fn test_BC_2_07_003_ec07040_different_pql_same_push_down_shares_cache_entry() {
 
 /// BC-2.07.003 cross-client: cache hit for one client must not pollute another
 /// client's partition.
-///
-/// RED by design — `QueryCache::put` and `QueryCache::get` are `todo!()`.
 #[test]
 fn test_BC_2_07_003_cross_client_partitions_are_independent() {
     let cache = QueryCache::with_defaults();
@@ -478,11 +468,11 @@ fn test_BC_2_07_003_cross_client_partitions_are_independent() {
     let key_beta = make_key("beta", "crowdstrike", "crowdstrike_detections");
     let rows = vec![json!({"id": "det-1"})];
 
-    cache.put(key_acme.clone(), rows.clone());
+    cache.put(key_acme.clone(), rows.clone()).expect("put acme");
 
     // beta's partition is independent — must not see acme's entry.
     assert!(
-        cache.get(&key_beta).is_none(),
+        cache.get(&key_beta).expect("get beta").is_none(),
         "BC-2.07.003: cache partitions are per-client; acme's entry must not pollute beta"
     );
 }
@@ -493,8 +483,6 @@ fn test_BC_2_07_003_cross_client_partitions_are_independent() {
 
 /// BC-2.07.004: `invalidate_for_write_tool` must evict entries for the specific
 /// write tool's source_ids (e.g., crowdstrike_acknowledge_alert → alerts + detections).
-///
-/// RED by design — `CacheInvalidator::invalidate_for_write_tool` is `todo!()`.
 #[test]
 fn test_BC_2_07_004_invalidate_for_write_tool_crowdstrike_acknowledge_alert() {
     let cache = Arc::new(QueryCache::with_defaults());
@@ -504,27 +492,32 @@ fn test_BC_2_07_004_invalidate_for_write_tool_crowdstrike_acknowledge_alert() {
     // Populate both sources that crowdstrike_acknowledge_alert must invalidate.
     let key_alerts = make_key("acme", "crowdstrike", "crowdstrike_alerts");
     let key_detections = make_key("acme", "crowdstrike", "crowdstrike_detections");
-    cache.put(key_alerts.clone(), vec![json!({"alert": 1})]);
-    cache.put(key_detections.clone(), vec![json!({"det": 1})]);
+    cache
+        .put(key_alerts.clone(), vec![json!({"alert": 1})])
+        .expect("put alerts");
+    cache
+        .put(key_detections.clone(), vec![json!({"det": 1})])
+        .expect("put detections");
 
     invalidator
         .invalidate_for_write_tool(&client, "crowdstrike_acknowledge_alert")
         .expect("invalidate_for_write_tool must not fail");
 
     assert!(
-        cache.get(&key_alerts).is_none(),
+        cache.get(&key_alerts).expect("get alerts").is_none(),
         "BC-2.07.004: crowdstrike_acknowledge_alert must invalidate crowdstrike_alerts"
     );
     assert!(
-        cache.get(&key_detections).is_none(),
+        cache
+            .get(&key_detections)
+            .expect("get detections")
+            .is_none(),
         "BC-2.07.004: crowdstrike_acknowledge_alert must invalidate crowdstrike_detections"
     );
 }
 
 /// BC-2.07.004: `invalidate_for_write_tool` for `armis_update_alert_status`
 /// must invalidate armis_alerts.
-///
-/// RED by design — `CacheInvalidator::invalidate_for_write_tool` is `todo!()`.
 #[test]
 fn test_BC_2_07_004_invalidate_for_write_tool_armis_update_alert_status() {
     let cache = Arc::new(QueryCache::with_defaults());
@@ -532,22 +525,22 @@ fn test_BC_2_07_004_invalidate_for_write_tool_armis_update_alert_status() {
     let client = OrgSlug::new("acme");
 
     let key = make_key("acme", "armis", "armis_alerts");
-    cache.put(key.clone(), vec![json!({"alert": "armis-1"})]);
+    cache
+        .put(key.clone(), vec![json!({"alert": "armis-1"})])
+        .expect("put");
 
     invalidator
         .invalidate_for_write_tool(&client, "armis_update_alert_status")
         .expect("invalidate_for_write_tool must not fail");
 
     assert!(
-        cache.get(&key).is_none(),
+        cache.get(&key).expect("get").is_none(),
         "BC-2.07.004: armis_update_alert_status must invalidate armis_alerts"
     );
 }
 
 /// BC-2.07.004: `invalidate_for_write_tool` for `claroty_device_action`
 /// must invalidate claroty_devices.
-///
-/// RED by design — `CacheInvalidator::invalidate_for_write_tool` is `todo!()`.
 #[test]
 fn test_BC_2_07_004_invalidate_for_write_tool_claroty_device_action() {
     let cache = Arc::new(QueryCache::with_defaults());
@@ -555,22 +548,22 @@ fn test_BC_2_07_004_invalidate_for_write_tool_claroty_device_action() {
     let client = OrgSlug::new("acme");
 
     let key = make_key("acme", "claroty", "claroty_devices");
-    cache.put(key.clone(), vec![json!({"device": "c-1"})]);
+    cache
+        .put(key.clone(), vec![json!({"device": "c-1"})])
+        .expect("put");
 
     invalidator
         .invalidate_for_write_tool(&client, "claroty_device_action")
         .expect("invalidate_for_write_tool must not fail");
 
     assert!(
-        cache.get(&key).is_none(),
+        cache.get(&key).expect("get").is_none(),
         "BC-2.07.004: claroty_device_action must invalidate claroty_devices"
     );
 }
 
 /// BC-2.07.004: Unknown write tool name must return PrismError::Internal
 /// (missing mapping = bug, per BC-2.07.004 description).
-///
-/// RED by design — `CacheInvalidator::invalidate_for_write_tool` is `todo!()`.
 #[test]
 fn test_BC_2_07_004_unknown_write_tool_returns_internal_error() {
     let cache = Arc::new(QueryCache::with_defaults());
@@ -588,8 +581,6 @@ fn test_BC_2_07_004_unknown_write_tool_returns_internal_error() {
 /// successful write must NOT see pre-write cached data for the affected tuple.
 ///
 /// This is the core write-then-read consistency invariant.
-///
-/// RED by design — `CacheInvalidator::invalidate_for_write_tool` and `QueryCache::get` are `todo!()`.
 #[test]
 fn test_BC_2_07_004_dec018_write_then_read_sees_fresh_data_not_cached() {
     let cache = Arc::new(QueryCache::with_defaults());
@@ -598,11 +589,16 @@ fn test_BC_2_07_004_dec018_write_then_read_sees_fresh_data_not_cached() {
 
     // Populate cache with pre-write stale data.
     let key = make_key("acme", "crowdstrike", "crowdstrike_hosts");
-    cache.put(
-        key.clone(),
-        vec![json!({"host": "pre-write", "contained": false})],
+    cache
+        .put(
+            key.clone(),
+            vec![json!({"host": "pre-write", "contained": false})],
+        )
+        .expect("put pre-write");
+    assert!(
+        cache.get(&key).expect("get pre-write").is_some(),
+        "pre-write entry must exist"
     );
-    assert!(cache.get(&key).is_some(), "pre-write entry must exist");
 
     // Execute write (contain host).
     invalidator
@@ -611,7 +607,7 @@ fn test_BC_2_07_004_dec018_write_then_read_sees_fresh_data_not_cached() {
 
     // Post-write read must not see stale cached data.
     assert!(
-        cache.get(&key).is_none(),
+        cache.get(&key).expect("get post-write").is_none(),
         "DEC-018: post-write read must not return pre-write cached data for the affected tuple"
     );
 }
@@ -619,15 +615,15 @@ fn test_BC_2_07_004_dec018_write_then_read_sees_fresh_data_not_cached() {
 /// EC-07-011 / BC-2.07.004: Concurrent read and write for the same tuple must
 /// produce no partial state. The read either sees cached data or a fresh miss
 /// — never a torn entry.
-///
-/// RED by design — concurrency correctness requires the implementation's lock.
 #[test]
 fn test_BC_2_07_004_ec07011_concurrent_read_write_no_partial_state() {
     use std::thread;
 
     let cache = Arc::new(QueryCache::with_defaults());
     let key = make_key("acme", "crowdstrike", "crowdstrike_detections");
-    cache.put(key.clone(), vec![json!({"id": "pre-write"})]);
+    cache
+        .put(key.clone(), vec![json!({"id": "pre-write"})])
+        .expect("put");
 
     let cache_reader = Arc::clone(&cache);
     let key_reader = key.clone();
@@ -640,7 +636,7 @@ fn test_BC_2_07_004_ec07011_concurrent_read_write_no_partial_state() {
     });
 
     let writer = thread::spawn(move || {
-        cache_writer.invalidate_by_prefix("acme", "crowdstrike", "crowdstrike_detections");
+        let _ = cache_writer.invalidate_by_prefix("acme", "crowdstrike", "crowdstrike_detections");
     });
 
     reader.join().expect("reader thread must not panic");
@@ -652,8 +648,6 @@ fn test_BC_2_07_004_ec07011_concurrent_read_write_no_partial_state() {
 }
 
 /// BC-2.07.004: `invalidate_for_client` removes ALL entries for the given client.
-///
-/// RED by design — `CacheInvalidator::invalidate_for_client` is `todo!()`.
 #[test]
 fn test_BC_2_07_004_invalidate_for_client_removes_all_entries() {
     let cache = Arc::new(QueryCache::with_defaults());
@@ -665,9 +659,15 @@ fn test_BC_2_07_004_invalidate_for_client_removes_all_entries() {
     let key2 = make_key("acme", "armis", "armis_devices");
     let key3 = make_key("beta", "crowdstrike", "crowdstrike_detections"); // different client
 
-    cache.put(key1.clone(), vec![json!({"id": 1})]);
-    cache.put(key2.clone(), vec![json!({"id": 2})]);
-    cache.put(key3.clone(), vec![json!({"id": 3})]);
+    cache
+        .put(key1.clone(), vec![json!({"id": 1})])
+        .expect("put 1");
+    cache
+        .put(key2.clone(), vec![json!({"id": 2})])
+        .expect("put 2");
+    cache
+        .put(key3.clone(), vec![json!({"id": 3})])
+        .expect("put 3");
 
     invalidator
         .invalidate_for_client(&client)
@@ -675,16 +675,16 @@ fn test_BC_2_07_004_invalidate_for_client_removes_all_entries() {
 
     // All acme entries evicted.
     assert!(
-        cache.get(&key1).is_none(),
+        cache.get(&key1).expect("get key1").is_none(),
         "acme/crowdstrike entry must be evicted"
     );
     assert!(
-        cache.get(&key2).is_none(),
+        cache.get(&key2).expect("get key2").is_none(),
         "acme/armis entry must be evicted"
     );
     // Beta's entry must be unaffected.
     assert!(
-        cache.get(&key3).is_some(),
+        cache.get(&key3).expect("get key3").is_some(),
         "BC-2.07.004: invalidate_for_client must not evict other clients' entries"
     );
 }
@@ -712,8 +712,6 @@ fn test_BC_2_07_004_invalidation_map_covers_all_4_sensors() {
 /// EC-07-041 / BC-2.07.005: `force_refresh` flag is excluded from push_down_hash.
 /// The hash with force_refresh=true must equal hash with force_refresh=false
 /// (force_refresh is not a push-down parameter — it's a bypass flag).
-///
-/// RED by design — `CacheKey::derive` is `todo!()`.
 #[test]
 fn test_BC_2_07_005_ec07041_force_refresh_excluded_from_push_down_hash() {
     // Both calls use the same push-down parameters; force_refresh is not a param.
@@ -735,8 +733,6 @@ fn test_BC_2_07_005_ec07041_force_refresh_excluded_from_push_down_hash() {
 
 /// BC-2.07.005: `limit` from the query tool is excluded from push_down_hash.
 /// The cache stores the full sensor API response; `limit` is applied after retrieval.
-///
-/// RED by design — `CacheKey::derive_push_down_hash` is `todo!()`.
 #[test]
 fn test_BC_2_07_005_limit_excluded_from_push_down_hash() {
     // limit is a query-tool parameter, not a push-down filter.
@@ -765,8 +761,6 @@ fn test_BC_2_07_005_limit_excluded_from_push_down_hash() {
 /// push_down_hash variants for a (client, sensor, source) prefix.
 /// Inserting two entries with the same prefix but different hashes — both
 /// must be invalidated by a prefix-scan call.
-///
-/// RED by design — `QueryCache::invalidate_by_prefix` is `todo!()`.
 #[test]
 fn test_BC_2_07_005_prefix_scan_invalidation_covers_all_hash_variants() {
     let cache = QueryCache::with_defaults();
@@ -784,26 +778,30 @@ fn test_BC_2_07_005_prefix_scan_invalidation_covers_all_hash_variants() {
         source_id: "crowdstrike_detections".to_string(),
         push_down_hash: "b".repeat(64),
     };
-    cache.put(key_a.clone(), vec![json!({"id": "det-a"})]);
-    cache.put(key_b.clone(), vec![json!({"id": "det-b"})]);
+    cache
+        .put(key_a.clone(), vec![json!({"id": "det-a"})])
+        .expect("put a");
+    cache
+        .put(key_b.clone(), vec![json!({"id": "det-b"})])
+        .expect("put b");
 
     // Prefix-scan invalidation must remove BOTH entries.
-    cache.invalidate_by_prefix("acme", "crowdstrike", "crowdstrike_detections");
+    cache
+        .invalidate_by_prefix("acme", "crowdstrike", "crowdstrike_detections")
+        .expect("invalidate_by_prefix");
 
     assert!(
-        cache.get(&key_a).is_none(),
+        cache.get(&key_a).expect("get a").is_none(),
         "BC-2.07.005: prefix scan must evict key_a"
     );
     assert!(
-        cache.get(&key_b).is_none(),
+        cache.get(&key_b).expect("get b").is_none(),
         "BC-2.07.005: prefix scan must evict key_b (different hash, same prefix)"
     );
 }
 
 /// BC-2.07.005: case-sensitive string comparison — same key, different case =
 /// different hashes.
-///
-/// RED by design — `CacheKey::derive_push_down_hash` is `todo!()`.
 #[test]
 fn test_BC_2_07_005_string_values_case_sensitive() {
     let mut params_upper = PushDownParams::new();
@@ -827,12 +825,11 @@ fn test_BC_2_07_005_string_values_case_sensitive() {
 
 /// EC-07-051 / BC-2.07.006: When all entries have the same access time, eviction
 /// falls back to insertion order (FIFO tiebreaker).
-///
-/// RED by design — `QueryCache::put`, `QueryCache::get` are `todo!()`.
 #[test]
 fn test_BC_2_07_006_ec07051_same_access_time_fifo_tiebreaker() {
     let config = CacheConfig {
         max_entries_per_sensor: 2,
+        max_bytes: DEFAULT_MAX_CACHE_BYTES,
     };
     let cache = QueryCache::new(config);
 
@@ -855,18 +852,24 @@ fn test_BC_2_07_006_ec07051_same_access_time_fifo_tiebreaker() {
         source_id: "crowdstrike_detections".to_string(),
         push_down_hash: "3".repeat(64),
     };
-    cache.put(key_first.clone(), vec![json!({"id": 1})]);
-    cache.put(key_second.clone(), vec![json!({"id": 2})]);
+    cache
+        .put(key_first.clone(), vec![json!({"id": 1})])
+        .expect("put 1");
+    cache
+        .put(key_second.clone(), vec![json!({"id": 2})])
+        .expect("put 2");
     // Third insert: must evict oldest by insertion order (FIFO tiebreaker).
-    cache.put(key_third.clone(), vec![json!({"id": 3})]);
+    cache
+        .put(key_third.clone(), vec![json!({"id": 3})])
+        .expect("put 3");
 
     // The first-inserted entry should have been evicted (FIFO when access times equal).
     assert!(
-        cache.get(&key_first).is_none(),
+        cache.get(&key_first).expect("get first").is_none(),
         "EC-07-051: FIFO tiebreaker must evict the first-inserted entry when access times are equal"
     );
     assert!(
-        cache.get(&key_third).is_some(),
+        cache.get(&key_third).expect("get third").is_some(),
         "EC-07-051: the newly inserted entry must be present after eviction"
     );
 }
@@ -874,12 +877,11 @@ fn test_BC_2_07_006_ec07051_same_access_time_fifo_tiebreaker() {
 /// EC-07-053 / BC-2.07.006: Cross-client query — each client's partition is
 /// independent. A cross-client query that populates caches for clients A and B
 /// does not mix their partitions.
-///
-/// RED by design — `QueryCache::put` and `QueryCache::get` are `todo!()`.
 #[test]
 fn test_BC_2_07_006_ec07053_cross_client_partitions_independent() {
     let config = CacheConfig {
         max_entries_per_sensor: 2,
+        max_bytes: DEFAULT_MAX_CACHE_BYTES,
     };
     let cache = QueryCache::new(config);
 
@@ -887,8 +889,12 @@ fn test_BC_2_07_006_ec07053_cross_client_partitions_independent() {
     let key_client_a = make_key("client-a", "armis", "armis_devices");
     let key_client_b = make_key("client-b", "armis", "armis_devices");
 
-    cache.put(key_client_a.clone(), vec![json!({"device": "a-1"})]);
-    cache.put(key_client_b.clone(), vec![json!({"device": "b-1"})]);
+    cache
+        .put(key_client_a.clone(), vec![json!({"device": "a-1"})])
+        .expect("put a");
+    cache
+        .put(key_client_b.clone(), vec![json!({"device": "b-1"})])
+        .expect("put b");
 
     // Each partition is bounded independently — filling A to capacity must not
     // evict B's entries.
@@ -904,24 +910,27 @@ fn test_BC_2_07_006_ec07053_cross_client_partitions_independent() {
         source_id: "armis_devices".to_string(),
         push_down_hash: "g".repeat(64),
     };
-    cache.put(overflow_a, vec![json!({"device": "a-2"})]);
-    cache.put(overflow_a2, vec![json!({"device": "a-3"})]);
+    cache
+        .put(overflow_a, vec![json!({"device": "a-2"})])
+        .expect("put overflow_a");
+    cache
+        .put(overflow_a2, vec![json!({"device": "a-3"})])
+        .expect("put overflow_a2");
 
     // client-b's entry must still be present (its partition was not overflowed).
     assert!(
-        cache.get(&key_client_b).is_some(),
+        cache.get(&key_client_b).expect("get b").is_some(),
         "EC-07-053: eviction in client-a's partition must not evict client-b's entries"
     );
 }
 
 /// BC-2.07.006: LRU ordering — a recently accessed entry must not be the eviction
 /// target when a new entry is inserted.
-///
-/// RED by design — `QueryCache::put` and `QueryCache::get` are `todo!()`.
 #[test]
 fn test_BC_2_07_006_recently_accessed_entry_not_evicted() {
     let config = CacheConfig {
         max_entries_per_sensor: 2,
+        max_bytes: DEFAULT_MAX_CACHE_BYTES,
     };
     let cache = QueryCache::new(config);
 
@@ -937,8 +946,12 @@ fn test_BC_2_07_006_recently_accessed_entry_not_evicted() {
         source_id: "armis_alerts".to_string(),
         push_down_hash: "r".repeat(64),
     };
-    cache.put(key_old.clone(), vec![json!({"id": "old"})]);
-    cache.put(key_recent.clone(), vec![json!({"id": "recent"})]);
+    cache
+        .put(key_old.clone(), vec![json!({"id": "old"})])
+        .expect("put old");
+    cache
+        .put(key_recent.clone(), vec![json!({"id": "recent"})])
+        .expect("put recent");
 
     // Access key_old to make it "recently used" — it should survive eviction.
     let _ = cache.get(&key_old);
@@ -950,29 +963,30 @@ fn test_BC_2_07_006_recently_accessed_entry_not_evicted() {
         source_id: "armis_alerts".to_string(),
         push_down_hash: "n".repeat(64),
     };
-    cache.put(key_new.clone(), vec![json!({"id": "new"})]);
+    cache
+        .put(key_new.clone(), vec![json!({"id": "new"})])
+        .expect("put new");
 
     // key_old was recently accessed — must still be present.
     assert!(
-        cache.get(&key_old).is_some(),
+        cache.get(&key_old).expect("get old").is_some(),
         "BC-2.07.006: recently accessed entry must not be chosen for LRU eviction"
     );
     // key_new must be present.
     assert!(
-        cache.get(&key_new).is_some(),
+        cache.get(&key_new).expect("get new").is_some(),
         "BC-2.07.006: newly inserted entry must be present after eviction"
     );
 }
 
 /// BC-2.07.006 §Invariants: DI-018 — entry count never exceeds the configured
 /// bound for any (client_id, sensor_id) partition, verified under many insertions.
-///
-/// RED by design — `QueryCache::put` and `QueryCache::entry_count` are `todo!()`.
 #[test]
 fn test_BC_2_07_006_di018_entry_count_never_exceeds_bound_under_many_insertions() {
     let bound = 5usize;
     let config = CacheConfig {
         max_entries_per_sensor: bound,
+        max_bytes: DEFAULT_MAX_CACHE_BYTES,
     };
     let cache = QueryCache::new(config);
 
@@ -984,7 +998,7 @@ fn test_BC_2_07_006_di018_entry_count_never_exceeds_bound_under_many_insertions(
             source_id: "crowdstrike_detections".to_string(),
             push_down_hash: format!("{:0<64}", i),
         };
-        cache.put(key, vec![json!({"row": i})]);
+        cache.put(key, vec![json!({"row": i})]).expect("put");
         assert!(
             cache.entry_count() <= bound as u64,
             "DI-018: entry count must never exceed bound after insertion {i}; got {}",

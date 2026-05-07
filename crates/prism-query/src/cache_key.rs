@@ -123,6 +123,15 @@ impl CacheKey {
     /// Canonicalization ensures that two parameter sets with identical key-value
     /// pairs but different insertion orders produce the same hash (BC-2.07.005
     /// §Canonicalization §Invariants).
+    ///
+    /// # Spec note: BC-2.07.005 v4.3 supersedes story Task 5
+    ///
+    /// The story (S-3.05 Task 5) describes a `clients: &[TenantId]` list parameter
+    /// hashed into the key. BC-2.07.005 v4.3 (authoritative) revised the design to
+    /// the 4-tuple `(client_id, sensor_id, source_id, push_down_hash)` where the
+    /// first three are first-class plain-value fields (not hashed). This natively
+    /// handles multi-client scenarios via the partitioned key tuple. The story's
+    /// language is from a prior revision (CR-001).
     pub fn derive(
         client_id: impl Into<String>,
         sensor_id: impl Into<String>,
@@ -186,6 +195,37 @@ impl CacheKey {
     /// Zero branching, no I/O, no helpers, 1 line.
     pub fn prefix(&self) -> (&str, &str, &str) {
         (&self.client_id, &self.sensor_id, &self.source_id)
+    }
+
+    /// Access the `push_down_hash` field (read-only accessor).
+    ///
+    /// Prefer this accessor in production code over direct field access to
+    /// maintain encapsulation. The field remains `pub` for test backward
+    /// compatibility. See SEC-007.
+    pub fn push_down_hash(&self) -> &str {
+        &self.push_down_hash
+    }
+
+    /// Validate that a `push_down_hash` string satisfies the 64-hex-char invariant.
+    ///
+    /// Returns `Err` if `hash` is not exactly 64 lowercase hex characters
+    /// (BC-2.07.005: "64-character lowercase hex string").
+    ///
+    /// Used by callers that construct `CacheKey` with an externally-provided hash
+    /// (e.g., from deserialization) rather than via `CacheKey::derive`. SEC-007.
+    pub fn validate_push_down_hash(hash: &str) -> Result<(), String> {
+        if hash.len() != 64 {
+            return Err(format!(
+                "SEC-007: push_down_hash must be exactly 64 chars; got {}",
+                hash.len()
+            ));
+        }
+        if !hash.chars().all(|c| matches!(c, '0'..='9' | 'a'..='f')) {
+            return Err(
+                "SEC-007: push_down_hash must contain only lowercase hex chars".to_string(),
+            );
+        }
+        Ok(())
     }
 }
 
@@ -283,6 +323,29 @@ mod tests {
         assert_eq!(
             key.prefix(),
             ("acme", "crowdstrike", "crowdstrike_detections")
+        );
+    }
+
+    /// CR-001 / BC-2.07.005 v4.3: Two calls with different `client_id` produce
+    /// different `CacheKey` values (client isolation — per EC-07-004 spirit).
+    ///
+    /// Verifies that `client_id` is a first-class key component (not hashed away)
+    /// and that the 4-tuple `(client_id, sensor_id, source_id, push_down_hash)`
+    /// provides per-client isolation without needing a `clients: &[TenantId]` list.
+    #[test]
+    fn test_cr001_different_client_id_produces_different_cache_key() {
+        let params = PushDownParams::new();
+        let key_acme = CacheKey::derive("acme", "crowdstrike", "crowdstrike_detections", &params);
+        let key_beta = CacheKey::derive("beta", "crowdstrike", "crowdstrike_detections", &params);
+
+        // push_down_hash is the same (same params), but full key differs by client_id.
+        assert_eq!(
+            key_acme.push_down_hash, key_beta.push_down_hash,
+            "CR-001: push_down_hash must be the same for same params regardless of client_id"
+        );
+        assert_ne!(
+            key_acme, key_beta,
+            "CR-001: full CacheKey must differ when client_id differs (client isolation)"
         );
     }
 }
