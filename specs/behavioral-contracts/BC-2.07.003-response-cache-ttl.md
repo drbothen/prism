@@ -1,13 +1,13 @@
 ---
 document_type: behavioral-contract
 level: L3
-version: "4.3"
+version: "4.4"
 status: draft
 producer: product-owner
-timestamp: 2026-04-14T05:00:00
+timestamp: 2026-05-07T00:00:00
 phase: 1a
 inputs: [".factory/specs/prd.md", ".factory/specs/domain-spec/capabilities.md"]
-input-hash: "412c872"
+input-hash: "37bca76"
 traces_to: ["CAP-014"]
 extracted_from: ".factory/specs/prd.md"
 origin: greenfield
@@ -50,7 +50,7 @@ The query engine maintains a single in-memory sensor-fetch cache keyed by `(clie
   - Devices / hosts / assets: 300 seconds (default) -- lower-churn inventory data
   - Health / status endpoints: not cached (always live)
 - When `force_refresh: true` is set on the `query` tool, the cache is bypassed and any existing entry for the tuple is replaced with the fresh response
-- Cache hits increment the `hit_count` on the CacheEntry for metrics visibility via `check_sensor_health`
+- Cache hits increment the aggregate `total_hits` counter on `QueryCache` for performance metrics. Per-entry hit counts were considered but rejected in S-3.05 implementation due to clone-on-hit cost (cloning `Vec<serde_json::Value>` on every hit); aggregate visibility is sufficient for `check_sensor_health` health metrics.
 
 ## Invariants
 - DI-018: Cache bounds (LRU eviction when entry count exceeds configurable per-client-per-sensor bound)
@@ -82,7 +82,7 @@ The query engine maintains a single in-memory sensor-fetch cache keyed by `(clie
 
 | Input | Expected Output | Category |
 |-------|----------------|----------|
-| Query with same push-down params as previous query (within TTL) | Cache hit; sensor API not called; `hit_count` incremented | happy-path |
+| Query with same push-down params as previous query (within TTL) | Cache hit; sensor API not called; `total_hits` aggregate counter incremented | happy-path |
 | Query with `force_refresh: true` on cached entry | Cache bypassed; sensor API called; entry replaced with fresh response | happy-path |
 | Alert query after TTL of 60s expires | Cache miss; fresh fetch from sensor API; new entry stored | edge-case |
 | Two concurrent identical queries, both miss cache | Both return correct results; no coalescing; at most 2 API calls | edge-case |
@@ -108,6 +108,7 @@ See `.factory/specs/prd-supplements/test-vectors.md` for canonical test vector t
 
 | Version | Burst | Date | Author | Change |
 |---------|-------|------|--------|--------|
+| 4.4 | S-3.05-CR-001 | 2026-05-07 | implementer | CR-001 closure: replaced per-entry `hit_count` on `CacheEntry` with aggregate `total_hits: AtomicU64` on `QueryCache`. Design rationale: per-entry counter required cloning `Vec<serde_json::Value>` on every cache hit; aggregate counter avoids the clone cost while retaining sufficient visibility for `check_sensor_health` metrics (CR-005 design accepted in S-3.05 pass-2). |
 | 4.3 | pass-73-fix | 2026-04-20 | state-manager | Deterministic changelog reorder: sorted all rows to descending version order (pass-73 bash script). |
 | 4.2 | pass-69-housekeeping | 2026-04-20 | product-owner | Normalized changelog schema to canonical 5-col schema. |
 | 4.1 | pre-build-sweep | 2026-04-20 | product-owner | Template-compliance sweep: added extracted_from/inputs/input-hash/traces_to frontmatter; added ## Description synthesized from body; added ## Canonical Test Vectors scaffolding; added ## Verification Properties cross-ref; added ## Changelog. |
