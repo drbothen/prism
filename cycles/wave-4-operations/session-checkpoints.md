@@ -178,4 +178,14 @@ develop HEAD: `2a7b83f5` | factory-artifacts: run `git -C .factory log -1 --form
 
 ---
 
+---
+
+## Session Resume Checkpoint (2026-05-06-d258-pr129-pass3-clean-v7.08)
+
+**Archived from STATE.md at D-259 transition (STATE v7.08→v7.09).**
+
+STATE v7.08. D-258 — PR #129 adversary pass-3 post-rebase CLEAN; convergence 2/3 (SECOND CLEAN ADVANCE). develop HEAD: 2a7b83f5.
+
+**S-3.02 state at archive:** PR #129 OPEN; pass-3 CLEAN (2/3); 0 ranked findings; 2 OBS deferrable; severity decay 4→1→0; 19/19 cumulative findings closed. Next: dispatch adversary pass-4 (untilled axes: mutation-test resilience, doctest coverage, fuzz footprint VP-031, cross-platform proof gating, CI perimeter-compile-fail exercise).
+
 <!-- Repeat for each archived checkpoint. Maintain chronological order. -->
