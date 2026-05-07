@@ -1176,6 +1176,12 @@ pub enum CompareOp {
     /// Retained on `Expr::Compare` for backward compatibility with the SQL
     /// parser; new code should use `Predicate::Cidr` instead.
     Cidr,
+    /// Negated CIDR — `NOT field CIDR '...'`.
+    ///
+    /// Produced by `predicates_from_ast` when `Predicate::Cidr { negated: true }`.
+    /// Renders as `"NOT <field> CIDR '<mask>'"` in `predicate_as_string`.
+    /// I-LOCAL-NEW-1: distinct from `Cidr` so negation is preserved end-to-end.
+    NotCidr,
 }
 
 /// Logical binary operator for `Predicate::Logical` and `Expr::Logical`.
