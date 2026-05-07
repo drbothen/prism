@@ -787,3 +787,119 @@ async fn test_ac9_per_client_write_denial_returns_e_flag_001_not_unknown_tool() 
          got: {err_msg}"
     );
 }
+
+// ---------------------------------------------------------------------------
+// CRIT-2: WriteCapableTableProvider DataFusion integration (AC-6)
+// ---------------------------------------------------------------------------
+
+/// CRIT-2 / AC-6: WriteCapableTableProvider::new must not panic (todo!() removed).
+///
+/// Constructs the provider with a WriteTableDescriptor and WriteEndpointSpec.
+/// Before CRIT-2 fix: todo!() panics immediately.
+/// After CRIT-2 fix: returns a provider with a valid Arrow schema.
+#[test]
+fn test_crit2_write_capable_table_provider_new_does_not_panic() {
+    use prism_core::RiskTier;
+    use prism_query::write_table_registration::WriteCapableTableProvider;
+    use prism_spec_engine::write_endpoint::{BatchMode, WriteEndpointSpec, WriteTableDescriptor};
+
+    let descriptor = WriteTableDescriptor {
+        sql_table: "crowdstrike_contained_hosts".to_string(),
+        write_only: true,
+        sensor: "crowdstrike".to_string(),
+        verb: "contain".to_string(),
+        risk_tier: RiskTier::Irreversible,
+    };
+
+    let endpoint_spec = WriteEndpointSpec {
+        pipe_verb: "contain".to_string(),
+        sql_table: "crowdstrike_contained_hosts".to_string(),
+        capability_path: "sensor.crowdstrike.contain".to_string(),
+        risk_tier: RiskTier::Irreversible,
+        batch_limit: 100,
+        batch_mode: BatchMode::Serial,
+        steps: vec![],
+        record_id_field: "device_id".to_string(),
+    };
+
+    let executor = Arc::new(make_executor(false));
+
+    // Before fix: todo!() → panic. After fix: returns a valid provider.
+    let provider = WriteCapableTableProvider::new(descriptor, endpoint_spec, executor);
+
+    // Verify the schema is non-empty
+    use datafusion::datasource::TableProvider;
+    let schema = provider.schema();
+    assert!(
+        schema.fields().len() > 0,
+        "CRIT-2: WriteCapableTableProvider schema must have at least one field"
+    );
+}
+
+/// CRIT-2 / AC-6: WriteCapableTableProvider::insert_into must return structured
+/// error (NotImplemented or plan) instead of panicking with todo!().
+///
+/// This test verifies the method is callable without panic.
+/// Full SQL DML routing to WriteExecutor is deferred to W3-FIX-S307-003.
+#[tokio::test]
+async fn test_crit2_insert_into_returns_not_implemented_not_panic() {
+    use datafusion::datasource::TableProvider;
+    use datafusion::logical_expr::dml::InsertOp;
+    use prism_core::RiskTier;
+    use prism_query::write_table_registration::WriteCapableTableProvider;
+    use prism_spec_engine::write_endpoint::{BatchMode, WriteEndpointSpec, WriteTableDescriptor};
+
+    let descriptor = WriteTableDescriptor {
+        sql_table: "crowdstrike_contained_hosts".to_string(),
+        write_only: true,
+        sensor: "crowdstrike".to_string(),
+        verb: "contain".to_string(),
+        risk_tier: RiskTier::Irreversible,
+    };
+    let endpoint_spec = WriteEndpointSpec {
+        pipe_verb: "contain".to_string(),
+        sql_table: "crowdstrike_contained_hosts".to_string(),
+        capability_path: "sensor.crowdstrike.contain".to_string(),
+        risk_tier: RiskTier::Irreversible,
+        batch_limit: 100,
+        batch_mode: BatchMode::Serial,
+        steps: vec![],
+        record_id_field: "device_id".to_string(),
+    };
+
+    let executor = Arc::new(make_executor(false));
+    let provider = WriteCapableTableProvider::new(descriptor, endpoint_spec, executor);
+
+    // Build a minimal mock Session for insert_into
+    let ctx = datafusion::prelude::SessionContext::new();
+    let session = ctx.state();
+
+    // Create a trivial EmptyExec plan as input
+    let input_schema = provider.schema();
+    let input_plan: Arc<dyn datafusion::physical_plan::ExecutionPlan> = Arc::new(
+        datafusion::physical_plan::empty::EmptyExec::new(input_schema),
+    );
+
+    // insert_into must NOT panic — before fix: todo!() panics.
+    // After fix: returns DataFusionError::NotImplemented or Ok(plan).
+    let result = provider
+        .insert_into(&session, input_plan, InsertOp::Append)
+        .await;
+
+    // Accept either Ok(...) or Err(NotImplemented) — both are valid CRIT-2 outcomes.
+    // Reject any panic (which would fail the test) or other error types.
+    match result {
+        Ok(_) => {
+            // Full implementation: returns an execution plan
+        }
+        Err(e) => {
+            let err_str = e.to_string();
+            assert!(
+                err_str.contains("not implemented")
+                    || err_str.contains("NotImplemented")
+                    || err_str.contains("S-3.07"),
+                "CRIT-2: insert_into must return NotImplemented, not an unexpected error; got: {err_str}"
+            );
+        }
+    }
+}

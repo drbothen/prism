@@ -101,6 +101,8 @@ pub mod safety_check;
 pub mod write_dispatch;
 pub mod write_pipeline;
 pub mod write_result;
+// MED-2: was pub(crate) pending CRIT-2 implementation; now pub since
+// WriteCapableTableProvider::new is implemented and externally testable.
 pub mod write_table_registration;
 
 // ── Kani proofs (cfg-gated; compile everywhere, run only under cargo kani) ────

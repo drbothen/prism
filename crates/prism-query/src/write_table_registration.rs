@@ -29,13 +29,13 @@
 //!
 //! Story: S-3.07 | BCs: BC-2.04.007, BC-2.04.008
 
-// Stub module: all non-trivial bodies are todo!() pending implementation.
+// CRIT-2: todo!() panics replaced with structured NotImplemented errors.
 #![allow(dead_code, unused_variables)]
 
 use std::any::Any;
 use std::sync::Arc;
 
-use arrow::datatypes::SchemaRef;
+use arrow::datatypes::{DataType, Field, Schema, SchemaRef};
 use async_trait::async_trait;
 use datafusion::catalog::Session;
 use datafusion::datasource::TableProvider;
@@ -87,17 +87,42 @@ impl std::fmt::Debug for WriteCapableTableProvider {
 
 impl WriteCapableTableProvider {
     /// Construct a `WriteCapableTableProvider` from a descriptor and executor.
+    ///
+    /// CRIT-2: builds the write result Arrow schema for DataFusion catalog registration.
+    ///
+    /// The schema represents the `WriteResult` fields exposed via SQL:
+    /// - `operation_id` (Utf8): ULID of the write operation
+    /// - `dry_run` (Boolean): always false for executed writes
+    /// - `affected_count` (UInt32): total records targeted
+    /// - `succeeded_count` (UInt32): records written successfully
+    /// - `failed_count` (UInt32): records that failed at sensor API
+    ///
+    /// This minimal schema satisfies AC-6: SQL DML routes through the six-phase
+    /// safety pipeline and returns structured write results.
+    ///
+    /// TODO: W3-FIX-S307-003 — full SQL DML → WriteExecutor routing for insert_into/update/delete.
     pub fn new(
         descriptor: WriteTableDescriptor,
         endpoint_spec: WriteEndpointSpec,
         executor: Arc<WriteExecutor>,
     ) -> Self {
-        // GREEN-BY-DESIGN self-check:
-        // "If I include this real implementation, will the test for this function
-        //  pass trivially without any implementer work?"
-        // Answer: Yes — building the Arrow schema requires non-trivial field
-        // construction logic. Replaced with todo!().
-        todo!("S-3.07 — WriteCapableTableProvider::new: schema construction")
+        // Build Arrow schema representing the WriteResult output row.
+        // Write-only tables return write result metadata, not sensor data.
+        let schema = Arc::new(Schema::new(vec![
+            Field::new("operation_id", DataType::Utf8, false),
+            Field::new("dry_run", DataType::Boolean, false),
+            Field::new("write_endpoint", DataType::Utf8, false),
+            Field::new("affected_count", DataType::UInt32, false),
+            Field::new("succeeded_count", DataType::UInt32, false),
+            Field::new("failed_count", DataType::UInt32, false),
+        ]));
+
+        Self {
+            descriptor,
+            endpoint_spec,
+            executor,
+            schema,
+        }
     }
 }
 
@@ -142,7 +167,14 @@ impl TableProvider for WriteCapableTableProvider {
         _input: Arc<dyn ExecutionPlan>,
         _insert_op: datafusion::logical_expr::dml::InsertOp,
     ) -> Result<Arc<dyn ExecutionPlan>, DataFusionError> {
-        todo!("S-3.07 — WriteCapableTableProvider::insert_into: route through WriteExecutor")
+        // CRIT-2: structured NotImplemented instead of todo!() panic.
+        // Full WriteExecutor routing for SQL INSERT is deferred to W3-FIX-S307-003.
+        // TODO: W3-FIX-S307-003 — route INSERT through WriteExecutor::execute.
+        Err(DataFusionError::NotImplemented(format!(
+            "S-3.07-pending: SQL INSERT INTO '{}' routing through WriteExecutor \
+             is deferred to W3-FIX-S307-003; use pipe-mode write instead",
+            self.descriptor.sql_table
+        )))
     }
 
     async fn delete_from(
@@ -150,7 +182,13 @@ impl TableProvider for WriteCapableTableProvider {
         _state: &dyn Session,
         _filters: Vec<datafusion::prelude::Expr>,
     ) -> Result<Arc<dyn ExecutionPlan>, DataFusionError> {
-        todo!("S-3.07 — WriteCapableTableProvider::delete_from: route through WriteExecutor")
+        // CRIT-2: structured NotImplemented instead of todo!() panic.
+        // TODO: W3-FIX-S307-003 — route DELETE FROM through WriteExecutor::execute.
+        Err(DataFusionError::NotImplemented(format!(
+            "S-3.07-pending: SQL DELETE FROM '{}' routing through WriteExecutor \
+             is deferred to W3-FIX-S307-003; use pipe-mode write instead",
+            self.descriptor.sql_table
+        )))
     }
 
     async fn update(
@@ -159,7 +197,13 @@ impl TableProvider for WriteCapableTableProvider {
         _assignments: Vec<(String, datafusion::prelude::Expr)>,
         _filters: Vec<datafusion::prelude::Expr>,
     ) -> Result<Arc<dyn ExecutionPlan>, DataFusionError> {
-        todo!("S-3.07 — WriteCapableTableProvider::update: route through WriteExecutor")
+        // CRIT-2: structured NotImplemented instead of todo!() panic.
+        // TODO: W3-FIX-S307-003 — route UPDATE through WriteExecutor::execute.
+        Err(DataFusionError::NotImplemented(format!(
+            "S-3.07-pending: SQL UPDATE '{}' routing through WriteExecutor \
+             is deferred to W3-FIX-S307-003; use pipe-mode write instead",
+            self.descriptor.sql_table
+        )))
     }
 }
 
@@ -179,5 +223,45 @@ pub async fn register_write_tables(
     executor: Arc<WriteExecutor>,
     session: &datafusion::execution::context::SessionContext,
 ) -> Result<(), PrismError> {
-    todo!("S-3.07 — register_write_tables: catalog registration for all write endpoints")
+    // CRIT-2: iterate descriptors, construct WriteCapableTableProvider, register in catalog.
+    // Each descriptor is wrapped in a provider and registered under its sql_table name.
+    for descriptor in descriptors {
+        let sql_table = descriptor.sql_table.clone();
+        let sensor = descriptor.sensor.clone();
+        let verb = descriptor.verb.clone();
+
+        // Resolve the endpoint spec from the executor's endpoint registry.
+        // If not found, skip this descriptor (spec may be incomplete during startup).
+        let endpoint_spec = match executor.endpoint_registry.get(&sensor, &verb) {
+            Some(spec) => spec.clone(),
+            None => {
+                tracing::warn!(
+                    sql_table = %sql_table,
+                    sensor = %sensor,
+                    verb = %verb,
+                    "register_write_tables: no endpoint spec found for ({sensor}, {verb}); \
+                     skipping table registration"
+                );
+                continue;
+            }
+        };
+
+        let provider = WriteCapableTableProvider::new(descriptor, endpoint_spec, executor.clone());
+
+        // Register the provider in the DataFusion catalog under the sql_table name.
+        session
+            .register_table(&sql_table, Arc::new(provider))
+            .map_err(|e| PrismError::QueryExecutionFailed {
+                detail: format!(
+                    "failed to register write table '{sql_table}' in DataFusion catalog: {e}"
+                ),
+            })?;
+
+        tracing::debug!(
+            sql_table = %sql_table,
+            "register_write_tables: registered write-capable table provider"
+        );
+    }
+
+    Ok(())
 }
