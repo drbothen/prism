@@ -95,7 +95,6 @@ pub fn check_alias_write(
 ///
 /// This is a helper that formats the structured error expected by MCP callers
 /// (BC-2.04.015 / E-FLAG-001).
-#[allow(dead_code)]
 pub(crate) fn denied_error(result: CapabilityCheckResult, scope: &AliasScope) -> PrismError {
     let client_id = scope.token_client_id().to_string();
     match result {

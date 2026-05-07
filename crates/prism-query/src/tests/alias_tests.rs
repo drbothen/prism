@@ -419,8 +419,10 @@ fn test_ac12_write_capability_gate() {
     // With no clients configured, check_alias_write must deny (no client allows it).
     // Pass empty valid_client_ids — no clients → denied.
     let result = check_alias_write(&scope, &evaluator, CompileTimeGate::Present, &[]);
-    // Either Ok or Err is acceptable — the key property is no panic.
-    let _ = result;
+    assert!(
+        result.is_err(),
+        "no clients configured must deny alias.write for Global scope per BC-2.11.008"
+    );
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
