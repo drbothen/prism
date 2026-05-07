@@ -1,11 +1,11 @@
 ---
 document_type: session-handoff
 level: ops
-version: "7.25"
+version: "7.26"
 status: current
-timestamp: 2026-05-07T17:00:00Z
-predecessor_session: "D-276 S-3.04 pass-11 closures (fix-pass-30) 2026-05-07. STATE v7.24→v7.25. develop HEAD: 6fefc774. factory-artifacts HEAD: run git -C .factory log -1."
-successor_focus: "D-277 Tier-3 dispatch: S-3.03/04/05/07 all unblocked (S-3.02 + S-3.06 both merged). Recommended: S-3.03 (1pt fastest win) + S-3.04/S-3.05 parallel (5+6pts). develop HEAD: 6fefc774. Tier-2 COMPLETE (S-3.02 ✓ PR #129 6fefc774 + S-3.06 ✓ PR #130 2a7b83f5). Active worktrees: none (S-3.02 worktree removed post-merge). Deferred TDs: TD-VSDD-061/063/064/075 + TD-S302-001..006 + TD-VSDD-057 (OPEN-DEFERRED-CROSS-REPO).
+timestamp: 2026-05-07T18:00:00Z
+predecessor_session: "D-277 S-3.04 pass-12 closures (fix-pass-31) 2026-05-07. STATE v7.25→v7.26. develop HEAD: 6fefc774. factory-artifacts HEAD: run git -C .factory log -1."
+successor_focus: "D-278 Tier-3 dispatch: S-3.03/04/05/07 all unblocked (S-3.02 + S-3.06 both merged). Recommended: S-3.03 (1pt fastest win) + S-3.04/S-3.05 parallel (5+6pts). develop HEAD: 6fefc774. Tier-2 COMPLETE (S-3.02 ✓ PR #129 6fefc774 + S-3.06 ✓ PR #130 2a7b83f5). Active worktrees: none (S-3.02 worktree removed post-merge). Deferred TDs: TD-VSDD-061/063/064/075 + TD-S302-001..006 + TD-VSDD-057 (OPEN-DEFERRED-CROSS-REPO).
 
 **STEP 1 (START HERE):** Read STATE.md v7.25 + this HANDOFF v7.25 in full. Confirm develop HEAD `6fefc774` (PR #129 S-3.02 squash-merged 2026-05-07). Tier-2 COMPLETE — no active worktrees.
 
@@ -27,6 +27,13 @@ develop HEAD: 6fefc774 (four PRs merged 2026-05-06/07: #127 S-3.01 2d7040b1, #12
 # Session Handoff — WAVE 4 PHASE 4.A DECISIONS LOGGED (2026-05-02)
 
 ## TL;DR
+
+**D-276 S-3.04 PASS-11 CLOSURES — FIX-PASS-30 (2026-05-07) — STATE v7.25:**
+- BC-2.07.002 v4.7→v4.8 (§Concurrent Fetch Limits anchor corrected — drop suffix)
+- STORY-INDEX v2.20→v2.21 (tabular + prose v2.18-v2.20 reorder ascending)
+- vsdd-plugin-tech-debt timestamp 15:00Z→17:00Z (POL-11 sub-axis 4 recurrence #11; explicit scope inclusion now codified)
+- TD-S305-001.md cross-refs synced (BC v4.4→v4.8, S-3.05 v1.11→v1.12)
+- TD-075 violation count 10→11 with prose math 4+7=11 reconciled
 
 **D-275 S-3.04 PASS-10 CLOSURES — FIX-PASS-29 (2026-05-07) — STATE v7.24:** Pass-10 caught 1 HIGH (D-274 before D-273 in ascending block — TD-074 class (f) recurrence #3) + 3 MED (E-STORE-020 missing from BC-2.07.002 Error Cases + error-taxonomy; S-3.05 sibling broken anchors §Cursor TTL Expiry + §CursorTokenUnknown; cycle-manifest frontmatter stale v1.75 vs body v1.76) + 1 LOW (TD-080 parser convention ambiguity). D-NNN swap: D-273 now precedes D-274 in ascending block. E-STORE-020 added: BC-2.07.002 v4.6→v4.7 Error Cases row + error-taxonomy v1.16→v1.17 row. S-3.05 v1.11→v1.12: AC-3 anchor §Cursor TTL Expiry→§Cursor Lifecycle (MCP-exposed surface) — Expiry; AC-4a anchor §CursorTokenUnknown→§Cursor Lifecycle (MCP-exposed surface) — Advancement. Cycle-manifest frontmatter v1.75→v1.77 (v1.76 body row already existed; v1.77 row added this burst). TD-080 updated with parser convention disambiguation (em-dash split, heading match, active-vs-historical cite distinction, BROKEN-ANCHOR format). TD-075 violation count 9→10. BC-INDEX v4.44→v4.45. STORY-INDEX v2.19→v2.20. vsdd-plugin-tech-debt v3.16→v3.17. SESSION-HANDOFF forward-pin D-275→D-276; STATE v7.23→v7.24.
 
