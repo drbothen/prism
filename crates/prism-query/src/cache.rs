@@ -424,7 +424,10 @@ impl QueryCache {
         // `invalidate_by_prefix` for the same pattern. This avoids holding the
         // partition mutex across potentially-blocking moka operations.
         let mut evicted: Vec<(CacheKey, usize)> = Vec::new();
-        {
+        // CRITICAL-P8-001: capture the byte size of any pre-existing entry for this
+        // key so we can subtract it from total_bytes after the lock is released.
+        // The block returns dropped_size directly to avoid an unused-assignment lint.
+        let dropped_size: usize = {
             let mut counts = self.lock_partition_counts()?;
             let partition_keys = counts.entry(pk.clone()).or_default();
 
@@ -436,11 +439,31 @@ impl QueryCache {
             }
 
             // Track the new key for this partition.
-            // CR-014: if this key already exists (force_refresh path), remove the old
-            // tuple first so the byte size is updated to the new entry's size.
+            // CR-014: if this key already exists (force_refresh / repeated-put path),
+            // capture its stored byte size BEFORE retain so we can subtract it from
+            // total_bytes after the lock is released.
+            // CRITICAL-P8-001: the previous code retained without capturing the old size,
+            // causing monotonic total_bytes growth on repeated puts to the same key.
+            let existing_size = partition_keys
+                .iter()
+                .find(|(k, _)| k == &key)
+                .map(|(_, sz)| *sz)
+                .unwrap_or(0);
             partition_keys.retain(|(k, _)| k != &key);
             partition_keys.push((key.clone(), entry_size));
-        } // partition lock released here, before any moka operations
+            existing_size
+        }; // partition lock released here, before any moka operations
+
+        // Subtract the byte size of any previously tracked entry for this key.
+        // Must happen BEFORE fetch_add so total_bytes stays accurate.
+        // SEC-NEW-001: saturating_sub prevents usize underflow on unexpected double-remove.
+        if dropped_size > 0 {
+            let _ = self
+                .total_bytes
+                .fetch_update(Ordering::Relaxed, Ordering::Relaxed, |b| {
+                    Some(b.saturating_sub(dropped_size))
+                });
+        }
 
         // Invalidate evicted moka entries and decrement total_bytes outside the lock.
         for (evict_key, evicted_size) in &evicted {
@@ -662,35 +685,49 @@ impl QueryCache {
     //
     // Returns `Err(PrismError::Internal)` if the mutex is poisoned (E-CACHE-001).
     //
-    // Lock ordering note (O-3): `remove_entry` calls moka.invalidate BEFORE
-    // acquiring the partition mutex — the inverse of the collect-then-drop pattern
-    // used in `put`, `invalidate_by_prefix`, and `invalidate_by_client`. This
-    // asymmetry is benign for single-entry removal: the moka invalidate is
-    // idempotent and the partition cleanup is purely in-memory accounting. For
-    // bulk eviction paths where moka operations could block, prefer the
-    // collect-then-drop pattern; for single-entry removal the overhead of a
-    // pre-collection Vec is unnecessary.
+    // Lock ordering note (IMPORTANT-P8-002): partition lock is acquired FIRST,
+    // then moka.invalidate is called after the lock is released. This matches the
+    // canonical lock-then-moka pattern used in `put_with_ttl`, `invalidate_by_prefix`,
+    // and `invalidate_by_client`. The previous moka-then-lock order allowed a race
+    // where a concurrent put could re-insert into moka after T1's invalidate but
+    // before T1 updates the partition tracking, leaving an orphan entry that bypasses
+    // LRU and byte caps.
     fn remove_entry(&self, key: &CacheKey) -> Result<(), PrismError> {
-        self.inner.invalidate(key);
-        let mut counts = self.lock_partition_counts()?;
         let pk = partition_key(key);
-        if let Some(partition_keys) = counts.get_mut(&pk) {
-            // CR-014: look up the stored byte size before removing the tuple so
-            // we can decrement total_bytes accurately.
-            // SEC-NEW-001: saturating to prevent usize underflow on unexpected double-remove.
-            if let Some(pos) = partition_keys.iter().position(|(k, _)| k == key) {
-                let (_, stored_size) = partition_keys.remove(pos);
-                let _ = self.total_bytes.fetch_update(
-                    Ordering::Relaxed,
-                    Ordering::Relaxed,
-                    |current| Some(current.saturating_sub(stored_size)),
-                );
+        // Phase 1: Update partition accounting under the lock, capture stored size.
+        let dropped_size = {
+            let mut counts = self.lock_partition_counts()?;
+            let mut stored_size = 0usize;
+            if let Some(partition_keys) = counts.get_mut(&pk) {
+                // CR-014: look up the stored byte size before removing the tuple so
+                // we can decrement total_bytes accurately.
+                if let Some(pos) = partition_keys.iter().position(|(k, _)| k == key) {
+                    let (_, sz) = partition_keys.remove(pos);
+                    stored_size = sz;
+                }
+                // CR-006: remove the partition entry if now empty to prevent unbounded
+                // growth of the partition_counts map (TTL-expiry and force_refresh paths).
+                if partition_keys.is_empty() {
+                    counts.remove(&pk);
+                }
             }
-            // CR-006: remove the partition entry if now empty to prevent unbounded
-            // growth of the partition_counts map (TTL-expiry and force_refresh paths).
-            if partition_keys.is_empty() {
-                counts.remove(&pk);
-            }
+            stored_size
+        }; // partition lock released here
+
+        // Phase 2: Invalidate moka AFTER releasing the partition lock.
+        // Any concurrent put that inserts between our partition update and this
+        // invalidate will be correctly reflected in the partition tracker on the
+        // next put, because put acquires the lock after our release.
+        self.inner.invalidate(key);
+
+        // Phase 3: Decrement total_bytes outside the lock.
+        // SEC-NEW-001: saturating_sub prevents usize underflow on unexpected double-remove.
+        if dropped_size > 0 {
+            let _ =
+                self.total_bytes
+                    .fetch_update(Ordering::Relaxed, Ordering::Relaxed, |current| {
+                        Some(current.saturating_sub(dropped_size))
+                    });
         }
         Ok(())
     }

@@ -1131,3 +1131,177 @@ fn test_cr006_remove_entry_cleans_up_empty_partition() {
         "CR-006: partition_counts map must be empty after last entry in partition is TTL-expired"
     );
 }
+
+// ---------------------------------------------------------------------------
+// CRITICAL-P8-001: repeated put to same key must not inflate total_bytes
+// ---------------------------------------------------------------------------
+
+/// CRITICAL-P8-001 regression: putting the same key repeatedly must NOT cause
+/// total_bytes to grow monotonically. Each re-put replaces the prior entry's
+/// accounting so total_bytes reflects only the most-recent entry's size.
+///
+/// Before the fix, `retain` silently dropped the old `(k, old_size)` tuple
+/// without decrementing total_bytes, causing unbounded growth on the re-put path.
+#[test]
+fn test_p8_001_repeated_put_same_key_does_not_inflate_total_bytes() {
+    use crate::cache::{QueryCache, AVG_ROW_SIZE_BYTES};
+
+    let cache = QueryCache::with_defaults();
+    let key = make_key("acme", "crowdstrike", "crowdstrike_detections");
+
+    // First put: 1 row → total_bytes should equal 1 * AVG_ROW_SIZE_BYTES.
+    cache
+        .put(key.clone(), vec![json!({"id": "r1"})])
+        .expect("first put");
+    let after_first = cache.total_bytes();
+    assert_eq!(
+        after_first, AVG_ROW_SIZE_BYTES,
+        "P8-001: after first put, total_bytes must equal 1 × AVG_ROW_SIZE_BYTES"
+    );
+
+    // Second put: 2 rows to same key. total_bytes must be 2 × AVG, not 1+2=3×.
+    cache
+        .put(key.clone(), vec![json!({"id": "r1"}), json!({"id": "r2"})])
+        .expect("second put");
+    let after_second = cache.total_bytes();
+    assert_eq!(
+        after_second,
+        2 * AVG_ROW_SIZE_BYTES,
+        "P8-001: after second put to same key, total_bytes must be 2×AVG (not 3×AVG)"
+    );
+
+    // Loop 100 more puts with varying row counts — total_bytes must track the last put only.
+    for i in 1..=100usize {
+        let row_count = (i % 5) + 1; // 1..5 rows cycling
+        let rows: Vec<serde_json::Value> = (0..row_count).map(|j| json!({"id": j})).collect();
+        cache.put(key.clone(), rows).expect("loop put");
+        let expected = row_count * AVG_ROW_SIZE_BYTES;
+        let actual = cache.total_bytes();
+        assert_eq!(
+            actual, expected,
+            "P8-001: after loop put #{i} ({row_count} rows), total_bytes must be {expected}, got {actual}"
+        );
+    }
+
+    // entry_count must be 1 — same key, just replaced.
+    assert_eq!(
+        cache.entry_count(),
+        1,
+        "P8-001: entry_count must remain 1 across repeated puts to the same key"
+    );
+}
+
+// ---------------------------------------------------------------------------
+// IMPORTANT-P8-002: remove_entry concurrent put must not leave orphan entry
+// ---------------------------------------------------------------------------
+
+/// IMPORTANT-P8-002 regression: after remove_entry, total_bytes and entry_count
+/// must be consistent regardless of concurrent puts to the same key.
+///
+/// This test exercises the single-threaded correctness of the lock-then-moka
+/// pattern: remove_entry updates partition tracking (under lock) before calling
+/// moka.invalidate. We verify the accounting is correct after a remove following
+/// a put.
+#[test]
+fn test_p8_002_remove_entry_after_put_accounting_consistent() {
+    use crate::cache::{QueryCache, AVG_ROW_SIZE_BYTES};
+
+    let cache = QueryCache::with_defaults();
+    let key = make_key("acme", "crowdstrike", "crowdstrike_hosts");
+
+    // Put one entry.
+    cache
+        .put(key.clone(), vec![json!({"id": "h1"})])
+        .expect("put");
+    assert_eq!(
+        cache.total_bytes(),
+        AVG_ROW_SIZE_BYTES,
+        "P8-002: total_bytes must be 1×AVG after initial put"
+    );
+
+    // Simulate the TTL-expiry path exercising remove_entry via get.
+    // We use put_with_ttl with a 1ms TTL, wait past it, then get.
+    let ttl = std::time::Duration::from_millis(1);
+    cache
+        .put_with_ttl(key.clone(), vec![json!({"id": "h2"})], ttl)
+        .expect("put_with_ttl");
+
+    // After the second put to the same key (replacing h1), total should be 1×AVG.
+    assert_eq!(
+        cache.total_bytes(),
+        AVG_ROW_SIZE_BYTES,
+        "P8-002: total_bytes must be 1×AVG after re-put with 1ms TTL (replaces first entry)"
+    );
+
+    std::thread::sleep(std::time::Duration::from_millis(20));
+
+    // get() triggers remove_entry on expired entry.
+    let result = cache.get(&key).expect("get must not error");
+    assert!(result.is_none(), "P8-002: expired entry must be a miss");
+
+    // After remove_entry, total_bytes and entry_count must be zero.
+    assert_eq!(
+        cache.total_bytes(),
+        0,
+        "P8-002: total_bytes must be 0 after remove_entry on expired entry"
+    );
+    assert_eq!(
+        cache.entry_count(),
+        0,
+        "P8-002: entry_count must be 0 after remove_entry on expired entry"
+    );
+}
+
+// ---------------------------------------------------------------------------
+// OBS-007 strengthened: EC-07-030 concurrent miss — final state consistent
+// ---------------------------------------------------------------------------
+
+/// EC-07-030 / BC-2.07.003 (strengthened per OBS-007): Two concurrent identical
+/// queries both miss cache — both return correct results, AND final cache state
+/// is consistent (one of T1/T2's value, total_bytes accurate, entry_count == 1).
+#[test]
+fn test_p8_007_ec07030_concurrent_miss_final_state_consistent() {
+    use crate::cache::AVG_ROW_SIZE_BYTES;
+    use std::sync::Arc;
+    use std::thread;
+
+    let cache = Arc::new(QueryCache::with_defaults());
+    let key = make_key("acme", "crowdstrike", "crowdstrike_detections");
+
+    let cache1 = Arc::clone(&cache);
+    let key1 = key.clone();
+    let t1 = thread::spawn(move || {
+        let rows = vec![json!({"id": "det-from-t1"})];
+        cache1.put(key1, rows.clone()).expect("t1 put");
+        rows
+    });
+
+    let cache2 = Arc::clone(&cache);
+    let key2 = key.clone();
+    let t2 = thread::spawn(move || {
+        let rows = vec![json!({"id": "det-from-t2"})];
+        cache2.put(key2, rows.clone()).expect("t2 put");
+        rows
+    });
+
+    let r1 = t1.join().expect("t1 must not panic");
+    let r2 = t2.join().expect("t2 must not panic");
+
+    // Both threads produced valid results.
+    assert!(!r1.is_empty(), "t1 result must be non-empty");
+    assert!(!r2.is_empty(), "t2 result must be non-empty");
+
+    // OBS-007 strengthening: final cache state must be internally consistent.
+    // After both puts complete, exactly one entry exists in the partition tracker.
+    assert_eq!(
+        cache.entry_count(),
+        1,
+        "OBS-007: after concurrent puts to same key, entry_count must be exactly 1"
+    );
+    // total_bytes must reflect exactly one 1-row entry (both T1 and T2 put 1 row).
+    assert_eq!(
+        cache.total_bytes(),
+        AVG_ROW_SIZE_BYTES,
+        "OBS-007: after concurrent puts to same key, total_bytes must equal 1×AVG_ROW_SIZE_BYTES"
+    );
+}

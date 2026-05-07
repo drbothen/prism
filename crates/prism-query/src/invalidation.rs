@@ -242,6 +242,23 @@ mod tests {
         );
     }
 
+    /// BC-2.07.004 / OBS-006: `delete_credential` must NOT be in the invalidation map.
+    ///
+    /// `delete_credential` operates on the credential store, not sensor data, so it
+    /// must not trigger cache invalidation (mirrors configure_credential_source semantics).
+    ///
+    /// GREEN-BY-DESIGN: pure slice scan, no branching beyond iter, no I/O, 1 line.
+    #[test]
+    fn test_delete_credential_not_in_invalidation_map() {
+        let found = WRITE_TOOL_INVALIDATION_MAP
+            .iter()
+            .any(|e| e.tool_name == "delete_credential");
+        assert!(
+            !found,
+            "BC-2.07.004: delete_credential must not invalidate sensor cache (credential store operation only)"
+        );
+    }
+
     /// BC-2.07.004: `crowdstrike_contain_host` invalidates crowdstrike_hosts and
     /// crowdstrike_detections.
     ///

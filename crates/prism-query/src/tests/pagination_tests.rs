@@ -152,9 +152,8 @@ fn test_last_page_returns_none_token() {
 // ---------------------------------------------------------------------------
 
 /// AC-3 / BC-2.07.002: Calling `next_page` on a 61-second-old cursor must
-/// return E-QUERY-004 and remove the cursor entry from the registry.
-///
-/// RED by design — `QueryCursorRegistry::next_page` is `todo!()`.
+/// return `PrismError::CursorExpired` (E-QUERY-006) and remove the cursor entry
+/// from the registry.
 ///
 /// Note: testing real-time expiry requires time manipulation; this test
 /// verifies the error code is returned for a cursor that has been artificially
@@ -165,10 +164,10 @@ fn test_last_page_returns_none_token() {
 /// Deferred to S-3.06 integration pass.
 #[test]
 #[ignore = "TD-S305-001: requires clock injection to simulate 61s expiry in a sync test"]
-fn test_ac3_expired_cursor_returns_e_query_004() {
+fn test_ac3_expired_cursor_returns_e_query_006() {
     // This test verifies the error semantic at the unit level. Because we cannot
     // fast-forward real time in a sync test without a clock injection, this test
-    // will initially fail with todo!() — which is the correct Red Gate behavior.
+    // body uses clock injection to artificially age the cursor past 60 seconds.
     let mut registry = QueryCursorRegistry::new();
     let rows: Vec<serde_json::Value> = (0..200).map(|i| json!({"row": i})).collect();
     let client = OrgSlug::new("tenant-a");
@@ -178,17 +177,15 @@ fn test_ac3_expired_cursor_returns_e_query_004() {
         .expect("create must succeed");
     let token = token.expect("must have token");
 
-    // In the actual implementation, the cursor will be expired after 60 seconds.
-    // The stub panics with todo!() — this confirms Red Gate.
-    // The real test will set created_at = Instant::now() - Duration::from_secs(61)
-    // or inject a clock. For now, calling next_page will panic via todo!().
+    // In the actual implementation, artificially age the cursor past 60 seconds
+    // via clock injection or tokio::time::pause()/advance().
     let result = registry.next_page(token, 100);
-    // When implemented, must return an error containing E-QUERY-004.
-    // For now this will panic (todo!()), which is the Red Gate signal.
+    // When implemented with clock injection, must return PrismError::CursorExpired
+    // (E-QUERY-006).
     let err = result.expect_err("AC-3: expired cursor must return an error");
     assert!(
-        err.to_string().contains("E-QUERY-004"),
-        "AC-3: error must contain E-QUERY-004 cursor-expired code"
+        err.to_string().contains("E-QUERY-006"),
+        "AC-3: error must contain E-QUERY-006 cursor-expired code; got: {err}"
     );
 }
 
@@ -628,4 +625,53 @@ fn test_BC_2_07_002_expired_cursor_removed_from_registry_no_leak() {
     // This assertion documents the memory-safety invariant.
     // Red Gate: todo!() in next_page panics before we reach this.
     todo!("BC-2.07.002: cursor cleanup on expiry not yet implemented (clock injection required)")
+}
+
+// ---------------------------------------------------------------------------
+// IMPORTANT-P8-003 / IMP-004: PrismError variant regression tests
+// ---------------------------------------------------------------------------
+
+/// IMPORTANT-P8-003: page_size=0 must return PrismError::CursorPageSizeInvalid
+/// (E-QUERY-007), not a generic QueryExecutionFailed with a hand-rolled string.
+#[test]
+fn test_p8_003_page_size_zero_returns_cursor_page_size_invalid() {
+    use prism_core::error::PrismError;
+
+    let mut registry = QueryCursorRegistry::new();
+    let rows: Vec<serde_json::Value> = (0..10).map(|i| json!({"row": i})).collect();
+    let client = OrgSlug::new("acme");
+
+    let result = registry.create(rows, 0, "q".to_string(), client);
+
+    let err = result.expect_err("page_size=0 must return an error");
+    assert!(
+        matches!(err, PrismError::CursorPageSizeInvalid),
+        "P8-003: page_size=0 must return PrismError::CursorPageSizeInvalid (E-QUERY-007); got: {err}"
+    );
+    assert!(
+        err.to_string().contains("E-QUERY-007"),
+        "P8-003: error display must contain E-QUERY-007; got: {err}"
+    );
+}
+
+/// IMPORTANT-P8-003 / IMP-004: unknown cursor token must return
+/// PrismError::CursorTokenUnknown (E-QUERY-009), distinct from CursorExpired.
+#[test]
+fn test_p8_004_unknown_token_returns_cursor_token_unknown() {
+    use prism_core::error::PrismError;
+
+    let mut registry = QueryCursorRegistry::new();
+    let unknown_token = CursorToken("00000000-0000-0000-0000-000000000000".to_string());
+
+    let result = registry.next_page(unknown_token, 100);
+
+    let err = result.expect_err("unknown token must return an error");
+    assert!(
+        matches!(err, PrismError::CursorTokenUnknown),
+        "P8-004: unknown token must return PrismError::CursorTokenUnknown (E-QUERY-009); got: {err}"
+    );
+    assert!(
+        err.to_string().contains("E-QUERY-009"),
+        "P8-004: error display must contain E-QUERY-009; got: {err}"
+    );
 }

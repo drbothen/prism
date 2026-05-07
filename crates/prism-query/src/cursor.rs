@@ -159,9 +159,7 @@ impl QueryCursorRegistry {
     ) -> Result<(Vec<serde_json::Value>, Option<CursorToken>), PrismError> {
         // CR-011: guard against page_size=0 which would cause an infinite loop.
         if page_size == 0 {
-            return Err(PrismError::QueryExecutionFailed {
-                detail: "E-QUERY-005: page_size must be greater than 0".to_string(),
-            });
+            return Err(PrismError::CursorPageSizeInvalid);
         }
 
         // Dedup rows by "id" field (EC-07-020: adapter-level deduplication).
@@ -227,12 +225,11 @@ impl QueryCursorRegistry {
         token: CursorToken,
         page_size: usize,
     ) -> Result<(Vec<serde_json::Value>, Option<CursorToken>), PrismError> {
+        // Token not found — never issued or from a previous process instance.
         let entry = self
             .entries
             .get(&token)
-            .ok_or_else(|| PrismError::QueryExecutionFailed {
-                detail: E_QUERY_004_CURSOR_EXPIRED.to_string(),
-            })?;
+            .ok_or(PrismError::CursorTokenUnknown)?;
 
         // Check expiry (BC-2.07.002).
         if entry.is_expired() {
@@ -245,21 +242,19 @@ impl QueryCursorRegistry {
                 remaining = self.core_registry.active_count(),
                 "cursor expired on next_page"
             );
-            return Err(PrismError::QueryExecutionFailed {
-                detail: E_QUERY_004_CURSOR_EXPIRED.to_string(),
-            });
+            return Err(PrismError::CursorExpired);
         }
 
         let offset = entry.offset;
         let total = entry.result_rows.len();
 
-        if offset >= total {
-            // Already exhausted.
-            let core_id = entry.core_id;
-            self.entries.remove(&token);
-            self.core_registry.release(core_id);
-            return Ok((Vec::new(), None));
-        }
+        // BC-2.07.002 invariant: stored cursor must have unread rows.
+        // offset >= total would mean an exhausted cursor was kept in the map,
+        // which is a bug — exhausted cursors are removed in the is_last branch below.
+        debug_assert!(
+            offset < total,
+            "BC-2.07.002 invariant: stored cursor must have unread rows (offset={offset}, total={total})"
+        );
 
         let end = (offset + page_size).min(total);
         let page = entry.result_rows[offset..end].to_vec();
@@ -438,23 +433,14 @@ pub fn spawn_cursor_cleanup_task(
 }
 
 // ---------------------------------------------------------------------------
-// Error code constants (BC-2.07.002)
+// Error code reference (BC-2.07.002)
 // ---------------------------------------------------------------------------
-
-/// E-QUERY-004: cursor expired — returned by `next_page()` when the cursor has
-/// lived longer than [`CURSOR_EXPIRY_SECS`].
-///
-/// Note: `PrismError::QueryExecutionFailed` carries this code in its `detail`
-/// field; there is no dedicated enum variant.
-pub const E_QUERY_004_CURSOR_EXPIRED: &str =
-    "E-QUERY-004: pagination cursor expired (>60s); re-execute the query";
-
-/// E-QUERY-002: cursor cap exceeded — forwarded from `PrismError::CursorCapExceeded`
-/// (prism-core, S-1.02 / VP-029).
-///
-/// Note: The prism-core variant string is "E-STORE-020: cursor cap exceeded"; this
-/// constant documents the story-level semantic alias used in AC-4.
-pub const E_QUERY_002_CURSOR_CAP: &str = "E-QUERY-002: query planning failed: cursor cap exceeded";
+// Cursor errors now use dedicated PrismError variants (IMP-003 / pass-8):
+//   - PrismError::CursorExpired        (E-QUERY-006) — TTL elapsed on valid token
+//   - PrismError::CursorPageSizeInvalid (E-QUERY-007) — page_size == 0
+//   - PrismError::CursorTokenUnknown   (E-QUERY-009) — token never issued
+//   - PrismError::CursorCapExceeded    (E-STORE-020)  — 200-cursor cap hit
+// ---------------------------------------------------------------------------
 
 #[cfg(test)]
 mod tests {

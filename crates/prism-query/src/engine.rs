@@ -236,9 +236,17 @@ impl QueryEngine {
 }
 
 impl Drop for QueryEngine {
-    /// Cancel the cursor cleanup background task on drop (CR-003).
+    /// Cancel and abort the cursor cleanup background task on drop (CR-003 / OBS-008).
+    ///
+    /// `cancel()` signals the task to exit gracefully via the CancellationToken.
+    /// `abort()` is called additionally to ensure the task is terminated even if
+    /// it is blocked in the interval tick (e.g., the tokio runtime is shutting down
+    /// before the cancellation is observed).
     fn drop(&mut self) {
         self.cleanup_shutdown.cancel();
+        if let Some(h) = self._cleanup_handle.take() {
+            h.abort();
+        }
     }
 }
 
