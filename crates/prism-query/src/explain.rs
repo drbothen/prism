@@ -333,6 +333,25 @@ impl Visitor for FieldCollector {
             self.visit_write_node(write);
         }
     }
+
+    fn visit_join_stage(&mut self, js: &crate::ast::JoinStage) {
+        // CR-016: Skip js.source — it is a SourceRef (e.g. "armis.devices"),
+        // not a query field. walk_join_stage() calls visit_field(&js.source.as_field_path())
+        // which would leak the JOIN target table name into field_resolution.
+        // Only visit the join condition fields.
+        use crate::ast::JoinCondition;
+        // `JoinCondition` is `#[non_exhaustive]`; `_ => {}` is required for
+        // forward compatibility with future variants.
+        #[allow(unreachable_patterns)]
+        match &js.on {
+            JoinCondition::SameField(f) => self.visit_field(f),
+            JoinCondition::Pair(l, r) => {
+                self.visit_field(l);
+                self.visit_field(r);
+            }
+            _ => {}
+        }
+    }
 }
 
 /// Map a `VirtualField` to its string identifier.
@@ -877,7 +896,23 @@ pub fn explain(query_str: &str, options: ExplainOptions) -> Result<ExplainResult
 /// Returns `(expanded_query_string, alias_map_used)` where `alias_map_used`
 /// contains only the aliases that were actually applied (may be empty).
 ///
-/// Error cases:
+/// # Expansion semantics (SEC-P2-003)
+///
+/// Alias expansion is **single-pass**: the registry is iterated once, sorted
+/// by alias name length descending (longest-match-first) so that a longer
+/// alias always wins over a shorter prefix alias (e.g. `"sev_critical"` beats
+/// `"sev"` when both match). After the first matching alias is applied, no
+/// further substitution is attempted on the result. This means aliases that
+/// happen to begin with another alias's expansion text are **not** recursively
+/// re-expanded.
+///
+/// This is intentional: aliases are currently system-defined (not
+/// user-writable), so recursive re-expansion would add complexity with no
+/// practical benefit. If alias storage ever becomes user-controlled, recursive
+/// expansion would be a potential injection vector and must be revisited at
+/// that time.
+///
+/// # Error cases
 /// - E-ALIAS-001: query references an alias name that is not in the registry
 ///   AND the caller has explicitly flagged it as an alias reference via the
 ///   `@alias:` prefix convention.
@@ -896,9 +931,12 @@ fn expand_query_with_aliases(
                 return Ok((expansion.clone(), used));
             }
             None => {
-                // SEC-002: cap alias name echo to prevent unbounded string in error message.
+                // SEC-002 / CR-017: cap alias name echo to prevent unbounded string in
+                // error message. Use char-boundary-safe truncation (take first 64 chars)
+                // so a multi-byte UTF-8 codepoint straddling byte 64 cannot cause a panic.
                 let alias_display = if alias_name.len() > 64 {
-                    format!("{}...", &alias_name[..64])
+                    let truncated: String = alias_name.chars().take(64).collect();
+                    format!("{truncated}...")
                 } else {
                     alias_name.to_string()
                 };

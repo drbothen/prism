@@ -977,6 +977,130 @@ fn test_alias_expansion_deterministic_longest_match_wins() {
 }
 
 // ===========================================================================
+// CR-017 Regression: alias name echo must not panic on multi-byte UTF-8 boundary
+// ===========================================================================
+
+/// CR-017 Regression: `@alias:` followed by a Unicode-heavy alias name whose byte
+/// length exceeds 64 but whose 64th byte falls inside a multi-byte codepoint must
+/// return a structured E-ALIAS-001 error, not panic.
+///
+/// Probe: `@alias:` + 63 ASCII 'a' chars + one '€' (3 bytes) = 66 bytes total.
+/// The byte-slice `&name[..64]` would land mid-codepoint of '€' and panic.
+/// The char-safe `chars().take(64).collect()` returns 64 chars safely.
+#[test]
+fn test_alias_echo_truncates_safely_on_unicode_boundary() {
+    // 63 ASCII chars + '€' (3 UTF-8 bytes) → total 66 bytes, 64 chars.
+    // Byte 64 falls at the start of the 3-byte '€' sequence; a byte-slice
+    // &name[..64] would panic. The char-safe path takes 64 chars cleanly.
+    let long_name = format!("{}{}", "a".repeat(63), "€");
+    assert_eq!(
+        long_name.len(),
+        66,
+        "probe: 63 ASCII + 3-byte euro = 66 bytes"
+    );
+    assert_eq!(long_name.chars().count(), 64, "probe: 64 chars");
+
+    let query = format!("@alias:{long_name}");
+    let result = explain(&query, default_opts());
+
+    // Must return Err, not panic, and the error must contain E-ALIAS-001.
+    assert!(
+        result.is_err(),
+        "explain() must return Err for undefined alias; got: {result:?}"
+    );
+    let err_msg = format!("{:?}", result.unwrap_err());
+    assert!(
+        err_msg.contains("E-ALIAS-001"),
+        "error must be E-ALIAS-001 for undefined alias; got: {err_msg}"
+    );
+}
+
+// ===========================================================================
+// CR-016 Regression: field_resolution must exclude pipe JOIN stage source refs
+// ===========================================================================
+
+/// CR-016 Regression: in a pipe query with a JOIN stage, the JOIN target table
+/// name (e.g. "armis.devices") must NOT appear in `field_resolution`. Only the
+/// actual join condition fields and filter fields must appear.
+///
+/// Before CR-016 fix, `walk_join_stage` called `visit_field(&js.source.as_field_path())`
+/// which caused the JOIN target table name to leak into `field_resolution`.
+#[test]
+fn test_field_resolution_excludes_pipe_join_stage_source() {
+    let result = explain(
+        "crowdstrike.devices | join armis.devices on hostname | where severity = 'high'",
+        default_opts(),
+    );
+    assert!(
+        result.is_ok(),
+        "explain() must return Ok for valid pipe-join query; got: {result:?}"
+    );
+    let r = result.expect("already checked is_ok");
+
+    // The JOIN target table ref must NOT appear as a field.
+    assert!(
+        !r.field_resolution.contains_key("armis.devices"),
+        "field_resolution must NOT contain 'armis.devices' (JOIN source ref, not a field); \
+         got keys: {:?}",
+        r.field_resolution.keys().collect::<Vec<_>>()
+    );
+    assert!(
+        !r.field_resolution.contains_key("armis"),
+        "field_resolution must NOT contain 'armis' (partial JOIN source ref); \
+         got keys: {:?}",
+        r.field_resolution.keys().collect::<Vec<_>>()
+    );
+
+    // The join condition field must be present.
+    assert!(
+        r.field_resolution.contains_key("hostname"),
+        "field_resolution must contain 'hostname' (join condition field); \
+         got keys: {:?}",
+        r.field_resolution.keys().collect::<Vec<_>>()
+    );
+
+    // The WHERE filter field must be present.
+    assert!(
+        r.field_resolution.contains_key("severity"),
+        "field_resolution must contain 'severity' (WHERE filter field); \
+         got keys: {:?}",
+        r.field_resolution.keys().collect::<Vec<_>>()
+    );
+}
+
+// ===========================================================================
+// CR-003 Regression: NOT predicate must fall through to post-filter
+// ===========================================================================
+
+/// CR-003 Regression: a NOT predicate must NOT be pushed down to API filters.
+/// explain() must accept the query and leave api_filters_pushed empty for the
+/// sensor that appears in the query source.
+#[test]
+fn test_cr003_not_predicate_falls_to_post_filter() {
+    let result = explain(
+        "crowdstrike.detections | NOT severity = 'low'",
+        default_opts(),
+    );
+    assert!(
+        result.is_ok(),
+        "explain() must handle NOT predicate; got: {result:?}"
+    );
+    let r = result.expect("is_ok");
+    if let Some(src) = r
+        .execution_plan
+        .sensors_to_query
+        .iter()
+        .find(|s| s.sensor_type == SensorType::CrowdStrike)
+    {
+        assert!(
+            src.api_filters_pushed.is_empty(),
+            "NOT predicate must NOT be pushed down; api_filters_pushed: {:?}",
+            src.api_filters_pushed
+        );
+    }
+}
+
+// ===========================================================================
 
 #[cfg(test)]
 mod proptest_invariants {
