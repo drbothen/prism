@@ -3371,7 +3371,7 @@ fn test_BC_2_11_003_denylist_leading_whitespace_normalized() {
 #[test]
 fn test_BC_2_11_003_insert_rejected_uses_e_query_002() {
     // INSERT INTO ... VALUES (not SELECT) is not a valid PrismQL DML form.
-    // The DML parser (build_dml_parser) expects INSERT INTO ... SELECT; this
+    // The DML parser expects INSERT INTO ... SELECT; this
     // query fails at grammar level (DML parse error, not E-QUERY-002).
     let result = PrismQlParser::parse("INSERT INTO events VALUES (1, 2, 3)");
     assert!(
