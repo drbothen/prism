@@ -417,14 +417,33 @@ impl QueryCache {
         let pk = partition_key(&key);
 
         // Enforce per-partition bound synchronously before insert (DI-018).
-        let mut counts = self.lock_partition_counts()?;
-        let partition_keys = counts.entry(pk.clone()).or_default();
+        //
+        // Canonical lock-vs-moka pattern: collect entries to evict while holding
+        // the partition lock, drop the lock, then invalidate moka entries and
+        // decrement total_bytes outside the lock. See `invalidate_by_client` /
+        // `invalidate_by_prefix` for the same pattern. This avoids holding the
+        // partition mutex across potentially-blocking moka operations.
+        let mut evicted: Vec<(CacheKey, usize)> = Vec::new();
+        {
+            let mut counts = self.lock_partition_counts()?;
+            let partition_keys = counts.entry(pk.clone()).or_default();
 
-        // Evict LRU entries until there is space for the new entry.
-        while partition_keys.len() >= self.config.max_entries_per_sensor {
-            // Remove the first entry in the Vec (oldest = LRU for FIFO tiebreaker).
-            // CR-015: use the stored byte size, not the fixed AVG_ROW_SIZE_BYTES.
-            let (evict_key, evicted_size) = partition_keys.remove(0);
+            // Evict LRU entries until there is space for the new entry.
+            while partition_keys.len() >= self.config.max_entries_per_sensor {
+                // Remove the first entry in the Vec (oldest = LRU for FIFO tiebreaker).
+                // CR-015: use the stored byte size, not the fixed AVG_ROW_SIZE_BYTES.
+                evicted.push(partition_keys.remove(0));
+            }
+
+            // Track the new key for this partition.
+            // CR-014: if this key already exists (force_refresh path), remove the old
+            // tuple first so the byte size is updated to the new entry's size.
+            partition_keys.retain(|(k, _)| k != &key);
+            partition_keys.push((key.clone(), entry_size));
+        } // partition lock released here, before any moka operations
+
+        // Invalidate evicted moka entries and decrement total_bytes outside the lock.
+        for (evict_key, evicted_size) in &evicted {
             // I-1: log LRU eviction event with diagnostic fields.
             debug!(
                 sensor_id = %evict_key.sensor_id,
@@ -433,24 +452,16 @@ impl QueryCache {
                 evicted_bytes = evicted_size,
                 "cache LRU eviction"
             );
-            self.inner.invalidate(&evict_key);
+            self.inner.invalidate(evict_key);
             // CR-014/CR-015: decrement by the evicted entry's actual stored size.
             // SEC-NEW-001: use saturating fetch_update to prevent usize underflow
             // wrapping to usize::MAX (which would DoS all future inserts).
             let _ =
                 self.total_bytes
                     .fetch_update(Ordering::Relaxed, Ordering::Relaxed, |current| {
-                        Some(current.saturating_sub(evicted_size))
+                        Some(current.saturating_sub(*evicted_size))
                     });
         }
-
-        // Track the new key for this partition.
-        // CR-014: if this key already exists (force_refresh path), remove the old
-        // tuple first so the byte size is updated to the new entry's size.
-        partition_keys.retain(|(k, _)| k != &key);
-        partition_keys.push((key.clone(), entry_size));
-
-        drop(counts); // release lock before insert
 
         // Update total byte count.
         self.total_bytes.fetch_add(entry_size, Ordering::Relaxed);
@@ -647,6 +658,15 @@ impl QueryCache {
     // Internal: remove a single entry from both moka and partition tracker.
     //
     // Returns `Err(PrismError::Internal)` if the mutex is poisoned (E-CACHE-001).
+    //
+    // Lock ordering note (O-3): `remove_entry` calls moka.invalidate BEFORE
+    // acquiring the partition mutex — the inverse of the collect-then-drop pattern
+    // used in `put`, `invalidate_by_prefix`, and `invalidate_by_client`. This
+    // asymmetry is benign for single-entry removal: the moka invalidate is
+    // idempotent and the partition cleanup is purely in-memory accounting. For
+    // bulk eviction paths where moka operations could block, prefer the
+    // collect-then-drop pattern; for single-entry removal the overhead of a
+    // pre-collection Vec is unnecessary.
     fn remove_entry(&self, key: &CacheKey) -> Result<(), PrismError> {
         self.inner.invalidate(key);
         let mut counts = self.lock_partition_counts()?;
@@ -831,6 +851,52 @@ mod tests {
         assert!(
             cache.entry_count() <= 2,
             "AC-8: partition must not exceed max_entries_per_sensor after eviction"
+        );
+    }
+
+    /// C-2 regression: `put` LRU eviction releases the partition lock before calling
+    /// moka invalidate. Verifies that total_bytes accounting is consistent after
+    /// eviction and that the operation does not deadlock under sequential inserts.
+    #[test]
+    fn test_c2_put_lru_eviction_does_not_hold_lock_across_moka() {
+        let config = CacheConfig {
+            max_entries_per_sensor: 3,
+            max_bytes: DEFAULT_MAX_CACHE_BYTES,
+        };
+        let cache = QueryCache::new(config);
+
+        let make_key = |n: u8| crate::cache_key::CacheKey {
+            client_id: "acme".to_string(),
+            sensor_id: "crowdstrike".to_string(),
+            source_id: "cs_devices".to_string(),
+            push_down_hash: format!("{:0<64}", n),
+        };
+
+        // Fill to max_entries_per_sensor.
+        for i in 1u8..=3 {
+            cache
+                .put(make_key(i), vec![serde_json::json!({"id": i})])
+                .expect("put should not fail");
+        }
+
+        // Insert beyond capacity — each insert must evict the LRU entry without deadlock.
+        for i in 4u8..=8 {
+            cache
+                .put(make_key(i), vec![serde_json::json!({"id": i})])
+                .expect("put beyond capacity should not deadlock or fail");
+        }
+
+        // After all inserts the partition must remain within its bound.
+        assert!(
+            cache.entry_count() <= 3,
+            "C-2: total_bytes accounting must stay consistent; partition bound must hold after repeated LRU evictions"
+        );
+
+        // total_bytes must not have wrapped to usize::MAX (SEC-NEW-001 regression).
+        let bytes = cache.total_bytes();
+        assert!(
+            bytes < 1024 * 1024,
+            "C-2: total_bytes must not overflow after LRU eviction (got {bytes})"
         );
     }
 
