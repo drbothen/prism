@@ -380,6 +380,20 @@ impl QueryCache {
     /// (CR-003: duplicate check removed from this method).
     ///
     /// Returns `Err(PrismError::Internal)` if the mutex is poisoned (E-CACHE-001).
+    ///
+    /// ## Eviction-path residual race (acknowledged, self-healing)
+    ///
+    /// Between the partition lock release and the post-lock `inner.invalidate(evict_key)`
+    /// for each evicted entry, a concurrent `put_with_ttl(evict_key, ...)` can succeed
+    /// (acquiring the partition lock, pushing to partition_keys, dropping the lock, and
+    /// inserting into moka). Our subsequent `inner.invalidate(evict_key)` will then wipe
+    /// the freshly-inserted entry from moka, leaving the partition_keys tracking entry
+    /// orphaned (tracked but not in moka). Worst-case orphan size: MAX_ENTRY_BYTES (5MB).
+    ///
+    /// Self-heals on the next put-to-same-key (existing_size capture detects the
+    /// inconsistency and the new put correctly accounts for it). Identical race
+    /// characteristic to `remove_entry`'s documented race; see lines 720-739 for the
+    /// canonical rationale.
     pub(crate) fn put_with_ttl(
         &self,
         key: CacheKey,
