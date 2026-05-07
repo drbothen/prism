@@ -413,29 +413,33 @@ pub enum PrismError {
     #[error("E-QUERY-005: query timed out after {elapsed_ms}ms")]
     QueryTimeout { elapsed_ms: u64 },
 
-    /// E-QUERY-006: Pagination cursor expired — caller must re-execute the query.
+    /// E-QUERY-012: Pagination cursor expired — caller must re-execute the query.
     ///
     /// Returned by `QueryCursorRegistry::next_page()` when the cursor's TTL
-    /// (60 seconds) has elapsed since creation (BC-2.07.002 §Fetch Timeout).
+    /// (60 seconds) has elapsed since creation (BC-2.07.002 §Cursor TTL Expiry).
+    ///
+    /// Distinct from E-QUERY-004 (query memory budget exceeded) and E-QUERY-005
+    /// (query execution timeout) — this error specifically signals that a previously
+    /// valid cursor has aged out of the registry.
     #[error(
-        "E-QUERY-006: pagination cursor expired (>60s); re-execute the query to obtain a fresh cursor"
+        "E-QUERY-012: pagination cursor expired (>60s); re-execute the query to obtain a fresh cursor"
     )]
     CursorExpired,
 
-    /// E-QUERY-007: Pagination page_size must be greater than 0.
+    /// E-QUERY-013: Pagination page_size must be greater than 0.
     ///
     /// Returned by `QueryCursorRegistry::create()` when `page_size == 0`,
     /// which would cause an infinite pagination loop (BC-2.07.001 preconditions).
-    #[error("E-QUERY-007: page_size must be greater than 0")]
+    #[error("E-QUERY-013: page_size must be greater than 0")]
     CursorPageSizeInvalid,
 
-    /// E-QUERY-009: Pagination cursor token not found in registry.
+    /// E-QUERY-014: Pagination cursor token not found in registry.
     ///
     /// Returned by `QueryCursorRegistry::next_page()` when the token was never
     /// registered (distinct from `CursorExpired` which is a valid token that
     /// has since timed out). (BC-2.07.002 §Error Cases)
     #[error(
-        "E-QUERY-009: pagination cursor token not found; the token was never issued or is from a previous process instance"
+        "E-QUERY-014: pagination cursor token not found; the token was never issued or is from a previous process instance"
     )]
     CursorTokenUnknown,
 

@@ -211,8 +211,9 @@ impl QueryCursorRegistry {
     /// optional new token.
     ///
     /// On expiry (`created_at.elapsed() > 60s`), removes the entry, releases
-    /// the prism-core allocation, and returns `Err(PrismError::QueryExecutionFailed)`
-    /// with an E-QUERY-004 message (BC-2.07.002 §Fetch Timeout semantics).
+    /// the prism-core allocation, and returns `Err(PrismError::CursorExpired)`
+    /// with E-QUERY-012 (BC-2.07.002 §Cursor TTL Expiry semantics — distinct from
+    /// E-QUERY-004 query timeout).
     ///
     /// Returns `None` token when the last page is returned (cursor exhausted).
     /// On exhaustion, the prism-core allocation is released.
@@ -436,9 +437,9 @@ pub fn spawn_cursor_cleanup_task(
 // Error code reference (BC-2.07.002)
 // ---------------------------------------------------------------------------
 // Cursor errors now use dedicated PrismError variants (IMP-003 / pass-8):
-//   - PrismError::CursorExpired        (E-QUERY-006) — TTL elapsed on valid token
-//   - PrismError::CursorPageSizeInvalid (E-QUERY-007) — page_size == 0
-//   - PrismError::CursorTokenUnknown   (E-QUERY-009) — token never issued
+//   - PrismError::CursorExpired        (E-QUERY-012) — TTL elapsed on valid token
+//   - PrismError::CursorPageSizeInvalid (E-QUERY-013) — page_size == 0
+//   - PrismError::CursorTokenUnknown   (E-QUERY-014) — token never issued
 //   - PrismError::CursorCapExceeded    (E-STORE-020)  — 200-cursor cap hit
 // ---------------------------------------------------------------------------
 

@@ -1253,6 +1253,77 @@ fn test_p8_002_remove_entry_after_put_accounting_consistent() {
 }
 
 // ---------------------------------------------------------------------------
+// I9-002: Re-put at full byte budget must succeed (same-key replacement)
+// ---------------------------------------------------------------------------
+
+/// I9-002 / BC-2.07.006: When the cache is filled to `max_bytes` capacity and
+/// an existing key is re-put with a smaller (or same-size) value, the replacement
+/// must succeed — total byte budget must not silently drop the update.
+///
+/// Previously the budget check fired before `existing_size` was captured, so
+/// same-key replacements at full budget were incorrectly rejected.
+#[test]
+fn test_p9_002_re_put_at_full_budget_succeeds() {
+    use crate::cache::{CacheConfig, QueryCache, AVG_ROW_SIZE_BYTES};
+
+    // Configure a cache with a 2-entry budget (tight but not per-entry-capped).
+    // Two 1-row entries at AVG_ROW_SIZE_BYTES each fill exactly max_bytes.
+    let max_bytes = 2 * AVG_ROW_SIZE_BYTES;
+    let config = CacheConfig {
+        max_entries_per_sensor: 10,
+        max_bytes,
+    };
+    let cache = QueryCache::new(config);
+
+    let key_a = make_key("acme", "crowdstrike", "detections_a");
+    let key_b = make_key("acme", "crowdstrike", "detections_b");
+
+    // Fill cache to capacity with two distinct keys.
+    cache
+        .put(key_a.clone(), vec![json!({"version": 1})])
+        .expect("first put must succeed");
+    cache
+        .put(key_b.clone(), vec![json!({"version": 1})])
+        .expect("second put must succeed");
+
+    // Verify cache is at capacity.
+    assert_eq!(
+        cache.total_bytes(),
+        max_bytes,
+        "P9-002: cache must be at max_bytes after two 1-row puts"
+    );
+
+    // Re-put key_a with updated data. This is a same-key replacement — the net
+    // byte change is 0 (1 row in, 1 row out). Must succeed even though
+    // current_bytes == max_bytes.
+    cache
+        .put(key_a.clone(), vec![json!({"version": 2})])
+        .expect("P9-002: re-put of existing key at full budget must succeed");
+
+    // Verify the new value is stored (not the old one silently dropped).
+    let result = cache
+        .get(&key_a)
+        .expect("P9-002: get must not error after re-put");
+    assert!(
+        result.is_some(),
+        "P9-002: re-put key must be retrievable after replacement at full budget"
+    );
+    let retrieved = result.unwrap();
+    assert_eq!(
+        retrieved[0]["version"].as_u64(),
+        Some(2),
+        "P9-002: re-put must store the NEW value (version=2), not be silently dropped"
+    );
+
+    // total_bytes must still be max_bytes (1 row replaced 1 row, net zero).
+    assert_eq!(
+        cache.total_bytes(),
+        max_bytes,
+        "P9-002: total_bytes must remain max_bytes after same-size replacement"
+    );
+}
+
+// ---------------------------------------------------------------------------
 // OBS-007 strengthened: EC-07-030 concurrent miss — final state consistent
 // ---------------------------------------------------------------------------
 

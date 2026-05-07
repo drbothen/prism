@@ -397,23 +397,6 @@ impl QueryCache {
             return Ok(()); // silent drop: caller receives no cache benefit but no error
         }
 
-        // Total byte budget enforcement (BC-2.07.006, CR-006).
-        // If adding this entry would exceed max_bytes, reject it.
-        //
-        // Note: This budget check uses Relaxed atomics + a separate fetch_add after
-        // the partition lock. Under concurrent insert load, multiple threads can
-        // pass the check window before any of them increments, causing transient
-        // soft over-commitment of the 50MB budget by up to N × MAX_ENTRY_BYTES.
-        // This is acceptable for a non-security-boundary cache: the budget is a
-        // resource-management heuristic, not a hard memory bound. Tracked as
-        // SEC-NEW-002 (pre-existing); future hardening could move fetch_add inside
-        // the partition lock or use compare_exchange.
-        let current_bytes = self.total_bytes.load(Ordering::Relaxed);
-        if current_bytes + entry_size > self.config.max_bytes {
-            // Byte budget exceeded — reject to avoid unbounded memory (CR-006 intent).
-            return Ok(());
-        }
-
         let pk = partition_key(&key);
 
         // Enforce per-partition bound synchronously before insert (DI-018).
@@ -427,6 +410,15 @@ impl QueryCache {
         // CRITICAL-P8-001: capture the byte size of any pre-existing entry for this
         // key so we can subtract it from total_bytes after the lock is released.
         // The block returns dropped_size directly to avoid an unused-assignment lint.
+        //
+        // I9-002: The total byte budget check is performed INSIDE the partition lock
+        // so that `existing_size` is known before deciding whether to reject. A
+        // same-key replacement has a net byte change of (entry_size - existing_size)
+        // which may be ≤ 0 even when current_bytes == max_bytes. The pre-lock
+        // early-reject removed here caused same-key replacements at full budget to
+        // be silently dropped. Soft over-commitment under concurrent load is still
+        // bounded by N × MAX_ENTRY_BYTES (SEC-NEW-002, pre-existing heuristic; not
+        // a security boundary).
         let dropped_size: usize = {
             let mut counts = self.lock_partition_counts()?;
             let partition_keys = counts.entry(pk.clone()).or_default();
@@ -449,6 +441,24 @@ impl QueryCache {
                 .find(|(k, _)| k == &key)
                 .map(|(_, sz)| *sz)
                 .unwrap_or(0);
+
+            // Total byte budget enforcement (BC-2.07.006, CR-006, I9-002).
+            // Compute net byte change after accounting for the existing entry being
+            // replaced. Same-key replacement always passes (net ≤ 0 when new ≤ old).
+            // Note: This budget check uses Relaxed atomics. Under concurrent insert
+            // load, multiple threads can pass the check before any increments, causing
+            // transient soft over-commitment by up to N × MAX_ENTRY_BYTES. Acceptable
+            // for this resource-management heuristic (SEC-NEW-002, pre-existing).
+            let current_bytes = self.total_bytes.load(Ordering::Relaxed);
+            let net_change = entry_size as i64 - existing_size as i64;
+            if net_change > 0
+                && current_bytes.saturating_add(net_change as usize) > self.config.max_bytes
+            {
+                // Byte budget exceeded with a net increase — reject to avoid unbounded
+                // memory growth (CR-006 intent). Same-key replacements always proceed.
+                return Ok(());
+            }
+
             partition_keys.retain(|(k, _)| k != &key);
             partition_keys.push((key.clone(), entry_size));
             existing_size
@@ -685,13 +695,22 @@ impl QueryCache {
     //
     // Returns `Err(PrismError::Internal)` if the mutex is poisoned (E-CACHE-001).
     //
-    // Lock ordering note (IMPORTANT-P8-002): partition lock is acquired FIRST,
-    // then moka.invalidate is called after the lock is released. This matches the
-    // canonical lock-then-moka pattern used in `put_with_ttl`, `invalidate_by_prefix`,
-    // and `invalidate_by_client`. The previous moka-then-lock order allowed a race
-    // where a concurrent put could re-insert into moka after T1's invalidate but
-    // before T1 updates the partition tracking, leaving an orphan entry that bypasses
-    // LRU and byte caps.
+    // ## Lock-vs-moka ordering rationale
+    //
+    // The `remove_entry` path uses **lock-then-moka** ordering (Phase 1: acquire
+    // partition lock, capture dropped_size; Phase 2: drop lock, call moka.invalidate;
+    // Phase 3: fetch_update saturating_sub).
+    //
+    // ### Residual race (acknowledged, self-healing)
+    // Under concurrent `remove_entry(k)` + `put_with_ttl(k, ...)`, an interleaving
+    // exists where:
+    //   T1.remove (lock, capture, drop) → T2.put (lock, push, drop, fetch_add, insert)
+    //   → T1.invalidate (wipes T2's entry from moka) → T1.fetch_update (decrement)
+    // results in: moka empty for k; partition tracks orphan (k, new_size); total_bytes
+    // overstated by new_size. Worst-case orphan size: MAX_ENTRY_BYTES (5MB).
+    //
+    // Self-heals on next put-to-same-key (dropped_size capture corrects accounting).
+    // Documented per pass-9 I9-003.
     fn remove_entry(&self, key: &CacheKey) -> Result<(), PrismError> {
         let pk = partition_key(key);
         // Phase 1: Update partition accounting under the lock, capture stored size.

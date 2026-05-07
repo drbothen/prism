@@ -152,7 +152,7 @@ fn test_last_page_returns_none_token() {
 // ---------------------------------------------------------------------------
 
 /// AC-3 / BC-2.07.002: Calling `next_page` on a 61-second-old cursor must
-/// return `PrismError::CursorExpired` (E-QUERY-006) and remove the cursor entry
+/// return `PrismError::CursorExpired` (E-QUERY-012) and remove the cursor entry
 /// from the registry.
 ///
 /// Note: testing real-time expiry requires time manipulation; this test
@@ -181,11 +181,11 @@ fn test_ac3_expired_cursor_returns_e_query_006() {
     // via clock injection or tokio::time::pause()/advance().
     let result = registry.next_page(token, 100);
     // When implemented with clock injection, must return PrismError::CursorExpired
-    // (E-QUERY-006).
+    // (E-QUERY-012).
     let err = result.expect_err("AC-3: expired cursor must return an error");
     assert!(
-        err.to_string().contains("E-QUERY-006"),
-        "AC-3: error must contain E-QUERY-006 cursor-expired code; got: {err}"
+        err.to_string().contains("E-QUERY-012"),
+        "AC-3: error must contain E-QUERY-012 cursor-expired code; got: {err}"
     );
 }
 
@@ -632,7 +632,7 @@ fn test_BC_2_07_002_expired_cursor_removed_from_registry_no_leak() {
 // ---------------------------------------------------------------------------
 
 /// IMPORTANT-P8-003: page_size=0 must return PrismError::CursorPageSizeInvalid
-/// (E-QUERY-007), not a generic QueryExecutionFailed with a hand-rolled string.
+/// (E-QUERY-013), not a generic QueryExecutionFailed with a hand-rolled string.
 #[test]
 fn test_p8_003_page_size_zero_returns_cursor_page_size_invalid() {
     use prism_core::error::PrismError;
@@ -646,16 +646,16 @@ fn test_p8_003_page_size_zero_returns_cursor_page_size_invalid() {
     let err = result.expect_err("page_size=0 must return an error");
     assert!(
         matches!(err, PrismError::CursorPageSizeInvalid),
-        "P8-003: page_size=0 must return PrismError::CursorPageSizeInvalid (E-QUERY-007); got: {err}"
+        "P8-003: page_size=0 must return PrismError::CursorPageSizeInvalid (E-QUERY-013); got: {err}"
     );
     assert!(
-        err.to_string().contains("E-QUERY-007"),
-        "P8-003: error display must contain E-QUERY-007; got: {err}"
+        err.to_string().contains("E-QUERY-013"),
+        "P8-003: error display must contain E-QUERY-013; got: {err}"
     );
 }
 
 /// IMPORTANT-P8-003 / IMP-004: unknown cursor token must return
-/// PrismError::CursorTokenUnknown (E-QUERY-009), distinct from CursorExpired.
+/// PrismError::CursorTokenUnknown (E-QUERY-014), distinct from CursorExpired.
 #[test]
 fn test_p8_004_unknown_token_returns_cursor_token_unknown() {
     use prism_core::error::PrismError;
@@ -668,10 +668,10 @@ fn test_p8_004_unknown_token_returns_cursor_token_unknown() {
     let err = result.expect_err("unknown token must return an error");
     assert!(
         matches!(err, PrismError::CursorTokenUnknown),
-        "P8-004: unknown token must return PrismError::CursorTokenUnknown (E-QUERY-009); got: {err}"
+        "P8-004: unknown token must return PrismError::CursorTokenUnknown (E-QUERY-014); got: {err}"
     );
     assert!(
-        err.to_string().contains("E-QUERY-009"),
-        "P8-004: error display must contain E-QUERY-009; got: {err}"
+        err.to_string().contains("E-QUERY-014"),
+        "P8-004: error display must contain E-QUERY-014; got: {err}"
     );
 }
