@@ -1405,6 +1405,121 @@ fn test_BC_2_11_010_pipe_join_collects_both_source_and_target_sensors() {
 }
 
 // ===========================================================================
+// I-LOCAL-NEW-1 Regression: negated CIDR predicate must render with NOT prefix
+// ===========================================================================
+
+/// I-LOCAL-NEW-1 Regression: `NOT src_ip CIDR '10.0.0.0/8'` must render with
+/// a "NOT" prefix in `post_filter_predicates`, not identically to the non-negated
+/// form.
+///
+/// Before the fix, `Predicate::Cidr { negated: true, .. }` discarded the
+/// `negated` flag — both negated and non-negated CIDR rendered as
+/// `"src_ip CIDR '10.0.0.0/8'"`.
+///
+/// After the fix: `CompareOp::NotCidr` is used for negated CIDR predicates
+/// and `predicate_as_string` prepends "NOT " to produce
+/// `"NOT src_ip CIDR '10.0.0.0/8'"`.
+#[test]
+fn test_negated_cidr_predicate_renders_with_not_prefix() {
+    let result = explain(
+        "crowdstrike.detections | NOT src_ip CIDR '10.0.0.0/8'",
+        default_opts(),
+    )
+    .expect("explain must succeed for negated CIDR query");
+
+    let src = result
+        .execution_plan
+        .sensors_to_query
+        .iter()
+        .find(|s| s.sensor_type == SensorType::CrowdStrike)
+        .expect("CrowdStrike source must be present");
+
+    // The negated CIDR must go to post_filter (conservative — no push-down spec wired).
+    assert!(
+        !src.post_filter_predicates.is_empty(),
+        "Negated CIDR predicate must produce a post_filter entry; got empty list"
+    );
+
+    // I-LOCAL-NEW-1: the rendered string must contain "NOT" — negation must not be dropped.
+    assert!(
+        src.post_filter_predicates.iter().any(|p| p.contains("NOT")),
+        "Negated CIDR post_filter entry must contain 'NOT' prefix; got: {:?}",
+        src.post_filter_predicates
+    );
+
+    // The column name and mask must also appear.
+    assert!(
+        src.post_filter_predicates
+            .iter()
+            .any(|p| p.contains("src_ip")),
+        "Negated CIDR post_filter entry must contain column 'src_ip'; got: {:?}",
+        src.post_filter_predicates
+    );
+    assert!(
+        src.post_filter_predicates
+            .iter()
+            .any(|p| p.contains("10.0.0.0/8")),
+        "Negated CIDR post_filter entry must contain mask '10.0.0.0/8'; got: {:?}",
+        src.post_filter_predicates
+    );
+}
+
+/// I-LOCAL-NEW-1 Contrast: non-negated CIDR must NOT render with a NOT prefix.
+/// This complements the above regression to ensure the Cidr/NotCidr split is
+/// correct in both directions.
+#[test]
+fn test_non_negated_cidr_predicate_does_not_render_with_not_prefix() {
+    let result = explain(
+        "crowdstrike.detections | src_ip CIDR '192.168.0.0/16'",
+        default_opts(),
+    )
+    .expect("explain must succeed for non-negated CIDR query");
+
+    let src = result
+        .execution_plan
+        .sensors_to_query
+        .iter()
+        .find(|s| s.sensor_type == SensorType::CrowdStrike)
+        .expect("CrowdStrike source must be present");
+
+    // Non-negated CIDR must NOT contain "NOT".
+    for p in &src.post_filter_predicates {
+        assert!(
+            !p.starts_with("NOT "),
+            "Non-negated CIDR must NOT render with 'NOT ' prefix; got: {p:?}"
+        );
+    }
+}
+
+// ===========================================================================
+// I-LOCAL-NEW-2 Regression: OR predicate must emit a warning
+// ===========================================================================
+
+/// I-LOCAL-NEW-2 Regression: `explain()` on a query with an OR predicate must
+/// emit at least one warning that mentions "OR predicate detected".
+///
+/// Before this test was added, the OR-warning path (I-LOCAL-004) had no direct
+/// regression test; the path could be accidentally removed without failing
+/// any test.
+#[test]
+fn test_or_predicate_emits_warning() {
+    let result = explain(
+        "crowdstrike.detections | severity = 'high' OR severity = 'critical'",
+        default_opts(),
+    )
+    .expect("explain succeeds");
+    assert!(
+        result
+            .estimated_cost
+            .warnings
+            .iter()
+            .any(|w| w.contains("OR predicate detected")),
+        "OR predicate must trigger warning; got: {:?}",
+        result.estimated_cost.warnings
+    );
+}
+
+// ===========================================================================
 
 #[cfg(test)]
 mod proptest_invariants {

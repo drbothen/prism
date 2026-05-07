@@ -642,7 +642,22 @@ fn predicates_from_ast(ast: &Ast) -> Vec<crate::ast::Expr> {
             // sensor-native NOT translation (FQL does not support arbitrary NOT).
             // Conservatively return empty — NOT predicates fall to post_filter.
             // TODO(S-3.X): implement sensor-native NOT translation for push-down eligibility.
-            Predicate::Not(_inner) => vec![],
+            //
+            // I-LOCAL-NEW-1 exception: when NOT wraps a CIDR predicate specifically,
+            // emit a NotCidr Compare so predicate_as_string can render it with the
+            // "NOT " prefix.  This preserves the semantic distinction between
+            // "src_ip CIDR '10.0.0.0/8'" and "NOT src_ip CIDR '10.0.0.0/8'" in the
+            // explain output, avoiding silent identity of negated and non-negated forms.
+            // Push-down is still disallowed (NotCidr is never pushed to api_filters_pushed
+            // because the ColumnSpec lookup conservatively routes it to post_filter).
+            Predicate::Not(inner) => match inner.as_ref() {
+                Predicate::Cidr { field, cidr, .. } => vec![Expr::Compare {
+                    lhs: Box::new(Expr::Field(field.clone())),
+                    op: crate::ast::CompareOp::NotCidr,
+                    rhs: Box::new(Expr::Literal(crate::ast::Literal::Cidr(cidr.clone()))),
+                }],
+                _ => vec![],
+            },
             Predicate::StringOp { field, .. } => vec![Expr::Field(field.clone())],
             Predicate::Regex { field, .. } => vec![Expr::Field(field.clone())],
             Predicate::In { field, .. } => {
@@ -652,11 +667,27 @@ fn predicates_from_ast(ast: &Ast) -> Vec<crate::ast::Expr> {
             // I-LOCAL-003: emit Compare so predicate_as_string can render the CIDR mask.
             // Using CompareOp::Cidr as the operator and Literal::Cidr as the rhs preserves
             // the network address for display (e.g. "src_ip CIDR '10.0.0.0/8'").
-            Predicate::Cidr { field, cidr, .. } => vec![Expr::Compare {
-                lhs: Box::new(Expr::Field(field.clone())),
-                op: crate::ast::CompareOp::Cidr,
-                rhs: Box::new(Expr::Literal(crate::ast::Literal::Cidr(cidr.clone()))),
-            }],
+            //
+            // I-LOCAL-NEW-1: honor the `negated` flag — a negated CIDR predicate
+            // (`NOT src_ip CIDR '10.0.0.0/8'`) must render with a NOT prefix rather
+            // than silently rendering identically to the non-negated form.
+            // CompareOp::NotCidr is used so predicate_as_string can distinguish the two.
+            Predicate::Cidr {
+                field,
+                cidr,
+                negated,
+            } => {
+                let op = if *negated {
+                    crate::ast::CompareOp::NotCidr
+                } else {
+                    crate::ast::CompareOp::Cidr
+                };
+                vec![Expr::Compare {
+                    lhs: Box::new(Expr::Field(field.clone())),
+                    op,
+                    rhs: Box::new(Expr::Literal(crate::ast::Literal::Cidr(cidr.clone()))),
+                }]
+            }
             Predicate::Has(fp) => vec![Expr::Field(fp.clone())],
             Predicate::Missing(fp) => vec![Expr::Field(fp.clone())],
             Predicate::IsNull { field, .. } => vec![Expr::Field(field.clone())],
@@ -1134,6 +1165,8 @@ fn predicate_as_string(expr: &crate::ast::Expr, column_name: &str) -> String {
 
     match expr {
         Expr::Compare { lhs: _, op, rhs } => {
+            // I-LOCAL-NEW-1: NotCidr is a negated CIDR predicate — render with NOT prefix.
+            let is_not_cidr = matches!(op, CompareOp::NotCidr);
             let op_str = match op {
                 CompareOp::Eq => "=",
                 CompareOp::Ne => "!=",
@@ -1143,6 +1176,9 @@ fn predicate_as_string(expr: &crate::ast::Expr, column_name: &str) -> String {
                 CompareOp::Ge => ">=",
                 CompareOp::Like => "LIKE",
                 CompareOp::Cidr => "CIDR",
+                // I-LOCAL-NEW-1: negated CIDR renders the same operator token; the NOT
+                // prefix is prepended to the whole expression below.
+                CompareOp::NotCidr => "CIDR",
                 // #[non_exhaustive] catch-all for future operator variants.
                 #[allow(unreachable_patterns)]
                 _ => "?",
@@ -1160,7 +1196,12 @@ fn predicate_as_string(expr: &crate::ast::Expr, column_name: &str) -> String {
                 },
                 _ => "<expr>".to_string(),
             };
-            format!("{column_name} {op_str} {rhs_str}")
+            let base = format!("{column_name} {op_str} {rhs_str}");
+            if is_not_cidr {
+                format!("NOT {base}")
+            } else {
+                base
+            }
         }
         _ => column_name.to_string(),
     }
