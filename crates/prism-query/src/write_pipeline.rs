@@ -99,20 +99,30 @@ impl WritePlan {
 
     /// Construct a `WritePlan` from a SQL-mode `DmlNode`.
     ///
-    /// Pure constructor — no I/O.
-    pub fn from_dml_node(node: &DmlNode) -> Self {
+    /// F-PASS2-MED-004: Uses `WriteEndpointRegistry::sensor_for_table` for authoritative
+    /// sensor resolution instead of a split-on-underscore heuristic. The heuristic was
+    /// incorrect for multi-underscore table names (e.g., "crowdstrike_detection_audit"
+    /// only yielded "crowdstrike" by luck; "events" would yield "events" with no sensor).
+    ///
+    /// Returns `Err(PrismError::UnregisteredWriteTarget)` if the table is not registered.
+    pub fn from_dml_node(
+        node: &DmlNode,
+        registry: &WriteEndpointRegistry,
+    ) -> Result<Self, PrismError> {
         let verb = match node.operation {
             DmlOperation::InsertInto => "insert".to_string(),
             DmlOperation::Update => "update".to_string(),
             DmlOperation::Delete => "delete".to_string(),
         };
 
-        // Extract sensor prefix from table name (e.g., "crowdstrike" from "crowdstrike_detections")
-        let sensor = node
-            .target_table
-            .split('_')
-            .next()
-            .unwrap_or("unknown")
+        // F-PASS2-MED-004: authoritative sensor resolution via registry lookup.
+        // Replaces split('_').next() heuristic which failed for tables without underscores
+        // or whose prefix did not match the sensor name.
+        let sensor = registry
+            .sensor_for_table(&node.target_table)
+            .ok_or_else(|| PrismError::UnregisteredWriteTarget {
+                table: node.target_table.clone(),
+            })?
             .to_string();
 
         let has_where_clause = node.filter.is_some();
@@ -122,7 +132,7 @@ impl WritePlan {
             .map(|a| (a.column.clone(), format!("{:?}", a.value)))
             .collect();
 
-        Self {
+        Ok(Self {
             verb,
             sensor,
             target_table: node.target_table.clone(),
@@ -131,7 +141,7 @@ impl WritePlan {
             explicit_limit: None,
             has_where_clause,
             params,
-        }
+        })
     }
 
     /// Check if this plan targets an internal `prism_*` table.
@@ -389,5 +399,102 @@ impl WriteExecutor {
         // Phase 6: Return
         // ----------------------------------------------------------------
         Ok(WriteOutcome::Result(write_result))
+    }
+}
+
+// ---------------------------------------------------------------------------
+// F-PASS2-MED-004: unit tests for WritePlan::from_dml_node registry lookup
+// ---------------------------------------------------------------------------
+
+#[cfg(test)]
+mod write_plan_from_dml_node_tests {
+    use super::*;
+    use crate::write_ast::{DmlNode, DmlOperation};
+    use prism_spec_engine::write_endpoint::{BatchMode, WriteEndpointRegistry, WriteEndpointSpec};
+
+    fn make_registry_with(sensor: &str, table: &str) -> WriteEndpointRegistry {
+        let mut r = WriteEndpointRegistry::new();
+        r.register(
+            sensor,
+            vec![WriteEndpointSpec {
+                pipe_verb: "contain".to_string(),
+                sql_table: table.to_string(),
+                capability_path: format!("sensor.{}.contain", sensor),
+                risk_tier: prism_core::RiskTier::Irreversible,
+                batch_limit: 100,
+                batch_mode: BatchMode::Serial,
+                steps: vec![],
+                record_id_field: "id".to_string(),
+            }],
+        )
+        .expect("test registry register must succeed");
+        r
+    }
+
+    fn make_dml_node(table: &str) -> DmlNode {
+        DmlNode {
+            operation: DmlOperation::InsertInto,
+            target_table: table.to_string(),
+            columns: None,
+            assignments: vec![],
+            filter: None,
+            source_select: None,
+        }
+    }
+
+    /// MED-004: simple table (e.g., "crowdstrike_contained_hosts") → sensor = "crowdstrike".
+    #[test]
+    fn test_from_dml_node_simple_table() {
+        let registry = make_registry_with("crowdstrike", "crowdstrike_contained_hosts");
+        let node = make_dml_node("crowdstrike_contained_hosts");
+        let plan = WritePlan::from_dml_node(&node, &registry)
+            .expect("simple table must resolve to sensor");
+        assert_eq!(plan.sensor, "crowdstrike");
+        assert_eq!(plan.target_table, "crowdstrike_contained_hosts");
+        assert_eq!(plan.verb, "insert");
+    }
+
+    /// MED-004: multi-underscore table (e.g., "crowdstrike_detection_audit") → sensor = "crowdstrike".
+    /// This was the split('_').next() heuristic bug: heuristic returned "crowdstrike" by
+    /// luck for this case, but the registry is authoritative.
+    #[test]
+    fn test_from_dml_node_multi_underscore() {
+        let registry = make_registry_with("crowdstrike", "crowdstrike_detection_audit");
+        let node = make_dml_node("crowdstrike_detection_audit");
+        let plan = WritePlan::from_dml_node(&node, &registry)
+            .expect("multi-underscore table must resolve via registry");
+        assert_eq!(
+            plan.sensor, "crowdstrike",
+            "registry must be authoritative source"
+        );
+    }
+
+    /// MED-004: no-underscore table (e.g., "events") — split heuristic would have
+    /// returned "events" as sensor; registry correctly returns Err.
+    #[test]
+    fn test_from_dml_node_missing_underscore() {
+        let registry = WriteEndpointRegistry::new(); // empty — no "events" table
+        let node = make_dml_node("events");
+        let result = WritePlan::from_dml_node(&node, &registry);
+        let err = result.expect_err("unregistered 'events' table must return Err");
+        let err_msg = err.to_string();
+        assert!(
+            err_msg.contains("events"),
+            "UnregisteredWriteTarget must mention the table name; got: {err_msg}"
+        );
+    }
+
+    /// MED-004: unknown table (not in registry) → Err(UnregisteredWriteTarget).
+    #[test]
+    fn test_from_dml_node_unknown_table() {
+        let registry = make_registry_with("crowdstrike", "crowdstrike_contained_hosts");
+        let node = make_dml_node("nonexistent_table");
+        let result = WritePlan::from_dml_node(&node, &registry);
+        let err = result.expect_err("unregistered table must return Err");
+        let err_msg = err.to_string();
+        assert!(
+            err_msg.contains("nonexistent_table"),
+            "UnregisteredWriteTarget must mention the unknown table; got: {err_msg}"
+        );
     }
 }
