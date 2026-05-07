@@ -1,11 +1,11 @@
 ---
 document_type: session-handoff
 level: ops
-version: "7.28"
+version: "7.29"
 status: current
-timestamp: 2026-05-07T19:30:00Z
-predecessor_session: "D-279 S-3.03 pass-16 FP17 closure (TD-075/081 arithmetic corrections) 2026-05-07. STATE v7.27→v7.28. develop HEAD: 6fefc774. factory-artifacts HEAD: run git -C .factory log -1."
-successor_focus: "D-280 Tier-3 dispatch: S-3.03/04/05/07 all unblocked (S-3.02 + S-3.06 both merged). Recommended: S-3.03 (1pt fastest win) + S-3.04/S-3.05 parallel (5+6pts). develop HEAD: 6fefc774. Tier-2 COMPLETE (S-3.02 ✓ PR #129 6fefc774 + S-3.06 ✓ PR #130 2a7b83f5). Active worktrees: none (S-3.02 worktree removed post-merge). Deferred TDs: TD-VSDD-061/063/064/075 + TD-S302-001..006 + TD-VSDD-057 (OPEN-DEFERRED-CROSS-REPO). S-3.04 LOCAL cascade FORMALLY PAUSED at pass-13 per D-278 — resumption gated on TD-075 lint hook implementation.
+timestamp: 2026-05-07T20:00:00Z
+predecessor_session: "D-280 S-3.03 pass-17 + S-3.04 pass-15 combined FP18 closure (class-(e)/(f) v3.21 row + sub-axis 6 active TL;DR D-279 entry) 2026-05-07. STATE v7.28→v7.29. develop HEAD: 6fefc774. factory-artifacts HEAD: run git -C .factory log -1."
+successor_focus: "D-281 Tier-3 dispatch: S-3.03/04/05/07 all unblocked (S-3.02 + S-3.06 both merged). Recommended: S-3.03 (1pt fastest win) + S-3.04/S-3.05 parallel (5+6pts). develop HEAD: 6fefc774. Tier-2 COMPLETE (S-3.02 ✓ PR #129 6fefc774 + S-3.06 ✓ PR #130 2a7b83f5). Active worktrees: none (S-3.02 worktree removed post-merge). Deferred TDs: TD-VSDD-061/063/064/075 + TD-S302-001..006 + TD-VSDD-057 (OPEN-DEFERRED-CROSS-REPO). S-3.04 LOCAL cascade FORMALLY PAUSED at pass-13 per D-278 — resumption gated on TD-075 lint hook implementation.
 
 **STEP 1 (START HERE):** Read STATE.md v7.27 + this HANDOFF v7.27 in full. Confirm develop HEAD `6fefc774` (PR #129 S-3.02 squash-merged 2026-05-07). Tier-2 COMPLETE — no active worktrees. NOTE: S-3.04 LOCAL adversary cascade FORMALLY PAUSED at pass-13 per D-278 — do not dispatch pass-14 without TD-075 lint hook implementation or explicit best-effort acceptance.
 
@@ -27,6 +27,10 @@ develop HEAD: 6fefc774 (four PRs merged 2026-05-06/07: #127 S-3.01 2d7040b1, #12
 # Session Handoff — WAVE 4 PHASE 4.A DECISIONS LOGGED (2026-05-02)
 
 ## TL;DR
+
+**D-280 S-3.03 PASS-17 + S-3.04 PASS-15 COMBINED FP18 CLOSURES (2026-05-07) — STATE v7.29:** Closed S-3.03 LOCAL adversary pass-17 BLOCKED findings and S-3.04 pass-15 sub-axis 6 observation via surgical edits: F-PASS17-MED-001 (vsdd-plugin-tech-debt v3.21 row repositioned from tail to top of v3.x descending block — class-(f) ordering); F-PASS17-MED-002 (v3.21 row count statement "61 items total (no new TDs filed this burst; content edits only)" added — class-(e) arithmetic); F-PASS17-LOW-001 (v3.21 row reformatted to em-dash convention); O-PASS17-1 / OBS-1 #4 (SESSION-HANDOFF TL;DR D-279 entry added — sub-axis 6 ACTIVE per TD-075 canonical scope). POL-11 chain bumps: vsdd-plugin-tech-debt v3.21→v3.22; STATE.md v7.28→v7.29; SESSION-HANDOFF v7.28→v7.29; cycle-manifest v1.81→v1.82; D-280 inserted in monotonic ascending block. factory_artifacts_tech_debt_entries=61 (no new TDs; content edits + structural reorder only). Path-c canonical scope per TD-075: TL;DR sub-axis IN-scope, STATE.md narrative cells + SESSION-HANDOFF STEP 1 body + KEY REFERENCES OUT-of-scope. Both cascades (S-3.03 + S-3.04) streak still at 0/3 awaiting pass-18/pass-16 verification.
+
+**D-279 S-3.03 PASS-16 CLOSURES — FIX-PASS-17 (2026-05-07) — STATE v7.28:** Closed S-3.03 LOCAL adversary pass-16 BLOCKED findings via surgical text edits in vsdd-plugin-tech-debt.md TD body prose: F-PASS16-MED-001 (TD-075 header "12 violations" → "15 violations"); F-PASS16-MED-002 (TD-081 lint-hook TD range unified to "TD-VSDD-069..080"); F-PASS16-MED-003 (TD-081 BC-bump count "4 → 5", range "v4.0→v4.8" → "v4.3→v4.8"). All class-(e) arithmetic recurrences in TD-defining prose body. POL-11 chain bumps: vsdd-plugin-tech-debt v3.20→v3.21; STATE.md v7.27→v7.28; SESSION-HANDOFF v7.27→v7.28; cycle-manifest v1.80→v1.81; D-279 inserted in monotonic ascending block. Path-c interim scope narrowing remains ACTIVE (TD-075 canonical: TL;DR sub-axis IN-scope, STATE.md narrative cells + SESSION-HANDOFF STEP 1/KEY REFERENCES OUT-of-scope). Predecessor cascade pause D-278 still active for S-3.04; S-3.03 cascade BLOCKED pending pass-17/18 verification.
 
 **D-278 S-3.04 PASS-13 CLOSURES — FIX-PASS-32 FINAL + CASCADE PAUSE (2026-05-07) — STATE v7.27:**
 - F-PASS13-HIGH-001: STATE.md frontmatter bc_index_version 4.45→4.46, story_index_version v2.20→v2.21 (index pins stale post-FP31)
