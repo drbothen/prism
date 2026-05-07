@@ -73,6 +73,13 @@ pub mod virtual_fields;
 pub mod write_ast;
 pub mod write_verb_registry;
 
+// ── S-3.04 modules — alias system ─────────────────────────────────────────────
+pub mod alias_capability;
+pub mod alias_resolver;
+pub mod alias_store;
+pub mod alias_tools;
+pub mod alias_types;
+
 // ── S-3.05 modules ────────────────────────────────────────────────────────────
 pub mod cache;
 pub mod cache_key;

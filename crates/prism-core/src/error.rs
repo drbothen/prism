@@ -608,6 +608,107 @@ pub enum PrismError {
     AuditPersistenceFailed,
 
     // -------------------------------------------------------------------------
+    // E-ALIAS — Query alias system errors (S-3.04, CAP-016, BC-2.11.008..015)
+    // -------------------------------------------------------------------------
+    /// E-ALIAS-001: Alias does not exist at the specified scope.
+    ///
+    /// Returned by `AliasResolver::expand()` when a `@name` token is found in a
+    /// query but no alias named `name` exists in the current scope or globally.
+    /// Also returned by `delete_alias` and `explain_alias` when the target alias
+    /// is absent (BC-2.11.014, BC-2.11.015).
+    #[error(
+        "E-ALIAS-001: alias '{name}' not found in scope '{scope}'; \
+         available aliases: {available}"
+    )]
+    AliasNotFound {
+        /// The alias name that was referenced.
+        name: String,
+        /// Scope that was searched (e.g., "global" or "client:acme").
+        scope: String,
+        /// Comma-separated list of aliases available in the current scope.
+        available: String,
+    },
+
+    /// E-ALIAS-002: Alias creation would introduce a cycle.
+    ///
+    /// Cycle detection runs at creation time (DI-020 invariant). The `cycle_chain`
+    /// contains the ordered list of alias names that form the cycle, e.g.
+    /// `["A", "B", "A"]` for the mutual cycle A → B → A.
+    #[error("E-ALIAS-002: alias '{name}' would create a cycle: {cycle_chain}")]
+    AliasCycleDetected {
+        /// The alias being created.
+        name: String,
+        /// Human-readable cycle chain, e.g. "A -> B -> A".
+        cycle_chain: String,
+    },
+
+    /// E-ALIAS-003: Alias composition depth exceeds the hard limit of 3.
+    ///
+    /// Returned when alias expansion would require traversing more than 3 nested
+    /// alias definitions (VP-012). The `chain` lists the alias names traversed
+    /// so far at the point of rejection.
+    #[error("E-ALIAS-003: alias composition depth exceeded (max 3); chain: {chain}")]
+    AliasDepthExceeded {
+        /// Alias expansion chain at the point of depth-limit rejection.
+        chain: String,
+    },
+
+    /// E-ALIAS-004: Parameter value fails type validation.
+    ///
+    /// Returned when a caller-supplied parameter value or a stored default value
+    /// is not a PrismQL atomic literal (StringLiteral, IntegerLiteral,
+    /// FloatLiteral, BooleanLiteral, DurationLiteral, or Identifier).
+    /// Compound expressions are rejected to prevent query injection (BC-2.11.009).
+    #[error(
+        "E-ALIAS-004: parameter '{param}' for alias '{alias}' has an invalid value '{value}': \
+         {reason}"
+    )]
+    AliasParameterInvalid {
+        /// The parameter name.
+        param: String,
+        /// The alias the parameter belongs to.
+        alias: String,
+        /// The rejected value.
+        value: String,
+        /// Reason for rejection (e.g. "compound expression rejected; use a single literal token").
+        reason: String,
+    },
+
+    /// E-ALIAS-005: Alias has dependent aliases and `force` is not `true`.
+    ///
+    /// Returned by `delete_alias` when the target alias is referenced by other
+    /// aliases. Deletion is blocked; the caller must either delete dependents
+    /// individually or pass `force: true` for cascade deletion (BC-2.11.014).
+    #[error(
+        "E-ALIAS-005: alias '{name}' has {count} dependent alias(es) and cannot be deleted \
+         without force: true; dependents: {dependents}"
+    )]
+    AliasDependentsExist {
+        /// The alias targeted for deletion.
+        name: String,
+        /// Number of dependents.
+        count: usize,
+        /// Comma-separated list of dependent alias names.
+        dependents: String,
+    },
+
+    /// E-ALIAS-006: Alias name conflicts with a PrismQL keyword or OCSF field name.
+    ///
+    /// Alias names must not shadow PrismQL reserved words (`SELECT`, `WHERE`, etc.)
+    /// or known OCSF field names loaded at startup (BC-2.11.008 invariants).
+    #[error(
+        "E-ALIAS-006: alias name '{name}' conflicts with a reserved {conflict_kind}: '{conflict}'"
+    )]
+    AliasNameConflict {
+        /// The proposed alias name.
+        name: String,
+        /// Whether the conflict is a "PrismQL keyword" or "OCSF field name".
+        conflict_kind: String,
+        /// The specific keyword or field name that conflicts.
+        conflict: String,
+    },
+
+    // -------------------------------------------------------------------------
     // Catch-all for unexpected internal errors
     // -------------------------------------------------------------------------
     /// E-INT-001: Internal invariant violated — indicates a bug.
