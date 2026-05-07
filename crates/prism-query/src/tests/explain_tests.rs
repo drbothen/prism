@@ -1256,6 +1256,82 @@ fn test_audit_log_caps_query_string_unicode() {
 }
 
 // ===========================================================================
+// CR-029 Regression: LIKE / CIDR predicate arms render to non-empty strings
+// ===========================================================================
+
+/// CR-029 Regression: a LIKE predicate must flow through `predicate_as_string`
+/// and render the `LIKE` operator token in the post_filter string.
+///
+/// `hostname LIKE 'web*'` parses as `Predicate::Compare { op: CompareOp::Like, rhs:
+/// Literal("web*") }`, which `predicate_to_exprs` maps to `Expr::Compare { op: Like,
+/// ... }`.  `predicate_as_string` then renders `"hostname LIKE 'web*'"` — the "LIKE"
+/// arm (line 1063) is exercised.
+#[test]
+fn test_predicate_as_string_like_operator_renders_correctly() {
+    let result = explain(
+        "crowdstrike.detections | hostname LIKE 'web*'",
+        default_opts(),
+    )
+    .expect("explain must succeed");
+    let src = result
+        .execution_plan
+        .sensors_to_query
+        .iter()
+        .find(|s| s.sensor_type == SensorType::CrowdStrike)
+        .expect("CrowdStrike source must be present");
+    assert!(
+        src.post_filter_predicates
+            .iter()
+            .any(|p| p.contains("LIKE")),
+        "LIKE predicate must render with 'LIKE' token; got: {:?}",
+        src.post_filter_predicates
+    );
+}
+
+/// CR-029 Regression: a CIDR predicate must flow through `predicate_as_string`
+/// and produce a non-empty post_filter entry containing the column name.
+///
+/// `src_ip CIDR '10.0.0.0/8'` parses as `Predicate::Cidr { field, cidr }`.
+/// `predicate_to_exprs` maps this to `Expr::Field(field)` (conservative
+/// fallback — no CIDR-aware push-down in the current scope); `predicate_as_string`
+/// returns the column name `"src_ip"`.  The test asserts the entry is non-empty
+/// and contains the column name, confirming the code path does not panic and
+/// the predicate is not silently dropped.
+///
+/// Note: the `CompareOp::Cidr` arm of `predicate_as_string` is reached only
+/// when `Expr::Compare { op: Cidr, ... }` is passed directly; that path is not
+/// exercised through the standard `Predicate::Cidr` explain flow and is covered
+/// separately by dead-code analysis.  This test covers the actual end-to-end
+/// CIDR rendering path.
+#[test]
+fn test_predicate_as_string_cidr_operator_renders_correctly() {
+    let result = explain(
+        "crowdstrike.detections | src_ip CIDR '10.0.0.0/8'",
+        default_opts(),
+    )
+    .expect("explain must succeed");
+    let src = result
+        .execution_plan
+        .sensors_to_query
+        .iter()
+        .find(|s| s.sensor_type == SensorType::CrowdStrike)
+        .expect("CrowdStrike source must be present");
+    // CIDR predicates go to post_filter (conservative path — no push-down spec
+    // wired).  The rendered string must be non-empty and contain the column name.
+    assert!(
+        !src.post_filter_predicates.is_empty(),
+        "CIDR predicate must produce a post_filter entry; got empty list"
+    );
+    assert!(
+        src.post_filter_predicates
+            .iter()
+            .any(|p| p.contains("src_ip")),
+        "CIDR predicate post_filter entry must contain column name 'src_ip'; got: {:?}",
+        src.post_filter_predicates
+    );
+}
+
+// ===========================================================================
 
 #[cfg(test)]
 mod proptest_invariants {
