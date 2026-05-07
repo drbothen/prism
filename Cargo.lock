@@ -4680,7 +4680,6 @@ dependencies = [
  "prism-storage",
  "proptest",
  "regex",
- "scopeguard",
  "serde",
  "serde_json",
  "tokio",

@@ -12,7 +12,7 @@
 //! - AC-5: `clients: None` fans out to all configured clients (BC-2.11.011)
 //! - AC-6: Cross-client data merged with `_client` field distinguishing rows (BC-2.11.011)
 //! - AC-7: SessionContext dropped after `execute()` returns (BC-2.11.005)
-//! - AC-9: Cold-start fallback triggers live fetch + EventBufferStore write (S-2.08 inherited)
+//! - AC-9: Cold-start tag injection (full execution path tests deferred to TD-S302-005 — pipeline body is todo!())
 //!
 //! Story: S-3.02
 
@@ -335,10 +335,12 @@ mod tests {
         );
     }
 
-    /// AC-9b: Verify cold-start fallback: `inject_source_type` injects "live"
+    /// AC-9b: Verify cold-start descriptor tag: `inject_source_type` injects "live"
     /// for EventStream rows with rows_from_buffer=false. (S-2.08 AC-5b inherited)
+    /// Full execution path (SensorAdapter call, EventBufferStore write, INFO log) deferred to
+    /// TD-S302-005 — pipeline body is todo!().
     #[tokio::test]
-    async fn test_ac9b_cold_start_triggers_live_fetch_and_writes_to_buffer() {
+    async fn test_ac9b_cold_start_descriptor_tags_rows_as_live() {
         use prism_core::TableType;
         use serde_json::json;
 

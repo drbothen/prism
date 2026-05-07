@@ -59,7 +59,7 @@ tracing = "0.1"
 async-trait = "0.1"
 
 [dev-dependencies]
-# S-3.2.08 — isolation tests: LruCache mirrors prism-dtu-crowdstrike session_registry (dev-only)
+# S-2.08 — isolation tests: LruCache mirrors prism-dtu-crowdstrike session_registry (dev-only)
 lru = "0.17"
 # S-3.02 VP-031 — proptest property tests: REQUIRED columns always push-down (BC-2.11.007).
 # S-3.06 — property-based tests for write-mode AST round-trips (VP-021 corpus extension)
