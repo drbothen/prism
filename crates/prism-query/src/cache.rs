@@ -370,6 +370,15 @@ impl QueryCache {
 
         // Total byte budget enforcement (BC-2.07.006, CR-006).
         // If adding this entry would exceed max_bytes, reject it.
+        //
+        // Note: This budget check uses Relaxed atomics + a separate fetch_add after
+        // the partition lock. Under concurrent insert load, multiple threads can
+        // pass the check window before any of them increments, causing transient
+        // soft over-commitment of the 50MB budget by up to N × MAX_ENTRY_BYTES.
+        // This is acceptable for a non-security-boundary cache: the budget is a
+        // resource-management heuristic, not a hard memory bound. Tracked as
+        // SEC-NEW-002 (pre-existing); future hardening could move fetch_add inside
+        // the partition lock or use compare_exchange.
         let current_bytes = self.total_bytes.load(Ordering::Relaxed);
         if current_bytes + entry_size > self.config.max_bytes {
             // Byte budget exceeded — reject to avoid unbounded memory (CR-006 intent).
@@ -389,7 +398,13 @@ impl QueryCache {
             let (evict_key, evicted_size) = partition_keys.remove(0);
             self.inner.invalidate(&evict_key);
             // CR-014/CR-015: decrement by the evicted entry's actual stored size.
-            self.total_bytes.fetch_sub(evicted_size, Ordering::Relaxed);
+            // SEC-NEW-001: use saturating fetch_update to prevent usize underflow
+            // wrapping to usize::MAX (which would DoS all future inserts).
+            let _ =
+                self.total_bytes
+                    .fetch_update(Ordering::Relaxed, Ordering::Relaxed, |current| {
+                        Some(current.saturating_sub(evicted_size))
+                    });
         }
 
         // Track the new key for this partition.
@@ -456,7 +471,12 @@ impl QueryCache {
             for (k, stored_size) in &to_evict {
                 self.inner.invalidate(k);
                 // CR-014: decrement total_bytes by the stored size of each evicted entry.
-                self.total_bytes.fetch_sub(*stored_size, Ordering::Relaxed);
+                // SEC-NEW-001: saturating to prevent usize underflow on unexpected double-evict.
+                let _ = self.total_bytes.fetch_update(
+                    Ordering::Relaxed,
+                    Ordering::Relaxed,
+                    |current| Some(current.saturating_sub(*stored_size)),
+                );
                 partition_keys.retain(|(entry_key, _)| entry_key != k);
             }
         }
@@ -483,7 +503,12 @@ impl QueryCache {
                 for (k, stored_size) in partition_keys {
                     self.inner.invalidate(&k);
                     // CR-014: decrement total_bytes by the stored size of each evicted entry.
-                    self.total_bytes.fetch_sub(stored_size, Ordering::Relaxed);
+                    // SEC-NEW-001: saturating to prevent usize underflow on unexpected double-evict.
+                    let _ = self.total_bytes.fetch_update(
+                        Ordering::Relaxed,
+                        Ordering::Relaxed,
+                        |current| Some(current.saturating_sub(stored_size)),
+                    );
                 }
             }
         }
@@ -512,9 +537,14 @@ impl QueryCache {
         if let Some(partition_keys) = counts.get_mut(&pk) {
             // CR-014: look up the stored byte size before removing the tuple so
             // we can decrement total_bytes accurately.
+            // SEC-NEW-001: saturating to prevent usize underflow on unexpected double-remove.
             if let Some(pos) = partition_keys.iter().position(|(k, _)| k == key) {
                 let (_, stored_size) = partition_keys.remove(pos);
-                self.total_bytes.fetch_sub(stored_size, Ordering::Relaxed);
+                let _ = self.total_bytes.fetch_update(
+                    Ordering::Relaxed,
+                    Ordering::Relaxed,
+                    |current| Some(current.saturating_sub(stored_size)),
+                );
             }
         }
         Ok(())
@@ -731,8 +761,10 @@ mod tests {
         let cache_clone = Arc::clone(&cache);
 
         // Spawn a thread that panics while holding the lock.
-        // CR-016: use lock_partition_counts() (private method accessible within
-        // the same module) rather than accessing partition_counts directly.
+        // Poison the mutex directly via raw field access (same-module access to
+        // private field). We intentionally bypass lock_partition_counts() to acquire
+        // the lock without E-CACHE-001 propagation — the point of the test is to
+        // poison the mutex, not to guard against it.
         let handle = std::thread::spawn(move || {
             let _guard = cache_clone
                 .partition_counts
@@ -894,10 +926,11 @@ mod tests {
             .expect("invalidate_by_prefix must not error");
 
         let bytes_after_invalidate = cache.total_bytes();
-        assert!(
-            bytes_after_invalidate <= expected_per_entry,
-            "CR-014: total_bytes after full prefix invalidation should be ~0; \
-             got {bytes_after_invalidate} (expected at most {expected_per_entry})"
+        assert_eq!(
+            bytes_after_invalidate, 0,
+            "CR-014/CR-019: total_bytes must be exactly 0 after full prefix invalidation; \
+             got {bytes_after_invalidate} — every byte added by the {n} entries must be \
+             decremented by invalidate_by_prefix"
         );
     }
 }
