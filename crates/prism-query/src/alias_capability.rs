@@ -39,11 +39,21 @@ pub const ALIAS_WRITE_CAPABILITY: &str = "alias.write";
 /// - `Ok(())` if the capability is allowed.
 /// - `Err(PrismError::CapabilityDenied)` if either tier denies the operation.
 pub fn check_alias_write(
-    _scope: &AliasScope,
-    _evaluator: &FeatureFlagEvaluator,
-    _compile_gate: CompileTimeGate,
+    scope: &AliasScope,
+    evaluator: &FeatureFlagEvaluator,
+    compile_gate: CompileTimeGate,
 ) -> Result<(), PrismError> {
-    todo!()
+    let client_id = match scope {
+        AliasScope::Global => "__global__",
+        AliasScope::Client(id) => id.0.as_str(),
+    };
+
+    let result = evaluator.check_permission(compile_gate, client_id, ALIAS_WRITE_CAPABILITY);
+
+    match result {
+        CapabilityCheckResult::Allowed => Ok(()),
+        other => Err(denied_error(other, scope)),
+    }
 }
 
 /// Check whether `alias.write` is enabled for at least one client in the set.
@@ -54,11 +64,29 @@ pub fn check_alias_write(
 /// `Err(PrismError::CapabilityDenied)` with the most specific denial reason.
 #[allow(dead_code)]
 pub(crate) fn check_alias_write_any_client(
-    _evaluator: &FeatureFlagEvaluator,
-    _compile_gate: CompileTimeGate,
-    _client_capabilities: &[(String, ClientCapabilities)],
+    evaluator: &FeatureFlagEvaluator,
+    compile_gate: CompileTimeGate,
+    client_capabilities: &[(String, ClientCapabilities)],
 ) -> Result<(), PrismError> {
-    todo!()
+    let mut last_err: Option<PrismError> = None;
+
+    for (client_id, _caps) in client_capabilities {
+        let result = evaluator.check_permission(compile_gate, client_id, ALIAS_WRITE_CAPABILITY);
+        match result {
+            CapabilityCheckResult::Allowed => return Ok(()),
+            other => {
+                last_err = Some(denied_error(other, &AliasScope::Global));
+            }
+        }
+    }
+
+    Err(last_err.unwrap_or_else(|| PrismError::CapabilityDenied {
+        capability: ALIAS_WRITE_CAPABILITY.to_string(),
+        client_id: "__global__".to_string(),
+        reason: "no clients configured".to_string(),
+        suggestion: "configure at least one client with alias.write = allow".to_string(),
+        resolution_trace: vec![],
+    }))
 }
 
 /// Build a `CapabilityDenied` error for alias write operations.
@@ -66,6 +94,40 @@ pub(crate) fn check_alias_write_any_client(
 /// This is a helper that formats the structured error expected by MCP callers
 /// (BC-2.04.015 / E-FLAG-001).
 #[allow(dead_code)]
-pub(crate) fn denied_error(_result: CapabilityCheckResult, _scope: &AliasScope) -> PrismError {
-    todo!()
+pub(crate) fn denied_error(result: CapabilityCheckResult, scope: &AliasScope) -> PrismError {
+    let client_id = scope.token_client_id().to_string();
+    match result {
+        CapabilityCheckResult::DeniedCompileTime {
+            capability,
+            resolution_trace,
+            ..
+        } => PrismError::CapabilityDenied {
+            capability,
+            client_id,
+            reason: "compile-time feature gate not present".to_string(),
+            suggestion: "rebuild with the alias-write feature enabled".to_string(),
+            resolution_trace,
+        },
+        CapabilityCheckResult::DeniedRuntime {
+            capability,
+            resolution_trace,
+            ..
+        } => PrismError::CapabilityDenied {
+            capability,
+            client_id,
+            reason: "runtime capability denied".to_string(),
+            suggestion: "set alias.write = allow in the client's capability TOML".to_string(),
+            resolution_trace,
+        },
+        CapabilityCheckResult::Allowed => {
+            // This should never be called with Allowed — defensive guard.
+            PrismError::CapabilityDenied {
+                capability: ALIAS_WRITE_CAPABILITY.to_string(),
+                client_id,
+                reason: "unexpected: denied_error called with Allowed result".to_string(),
+                suggestion: String::new(),
+                resolution_trace: vec![],
+            }
+        }
+    }
 }

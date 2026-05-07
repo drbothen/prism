@@ -45,6 +45,8 @@ ipnet = { version = "2", features = ["serde"] }
 ordered-float = { version = "2", features = ["serde"] }
 # S-3.01 AST redesign — regex validation at parse time (CWE-1333); same engine as prism-core.
 regex = "1"
+# S-3.04 — alias system: atomic TOML persistence for aliases.toml (BC-2.11.008 file-first).
+toml = "0.8"
 # S-3.01 fix-pass — parse-time validation for TimestampLiteral (ISO-8601 / RFC-3339).
 # chrono is already used across the workspace (prism-core, prism-audit, prism-mcp, etc.);
 # using the same crate avoids duplicate transitive deps.

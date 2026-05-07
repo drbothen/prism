@@ -40,8 +40,22 @@ impl AliasScope {
     /// - `"client:<client_id>"` — produces `AliasScope::Client(ClientId::new(client_id))`
     ///
     /// Any other format returns `Err(PrismError::McpParameterInvalid)`.
-    pub fn parse(_s: &str) -> Result<Self, prism_core::error::PrismError> {
-        todo!()
+    pub fn parse(s: &str) -> Result<Self, prism_core::error::PrismError> {
+        if s == "global" {
+            return Ok(AliasScope::Global);
+        }
+        if let Some(client_id_str) = s.strip_prefix("client:") {
+            use prism_core::tenant::OrgSlug;
+            let slug = OrgSlug::new(client_id_str);
+            return Ok(AliasScope::Client(ClientId(slug)));
+        }
+        Err(prism_core::error::PrismError::McpParameterInvalid {
+            tool: "alias".to_string(),
+            detail: format!(
+                "invalid scope format '{}'; expected 'global' or 'client:<client_id>'",
+                s
+            ),
+        })
     }
 
     /// Return the `client_id` sentinel used in `ConfirmationToken` generation.
@@ -50,7 +64,10 @@ impl AliasScope {
     /// - `Global` → `"__global__"`
     /// - `Client(id)` → `id.as_str()`
     pub fn token_client_id(&self) -> &str {
-        todo!()
+        match self {
+            AliasScope::Global => "__global__",
+            AliasScope::Client(id) => id.0.as_str(),
+        }
     }
 
     /// Return a human-readable display string for error messages.
@@ -58,13 +75,16 @@ impl AliasScope {
     /// - `Global` → `"global"`
     /// - `Client(id)` → `"client:<id>"`
     pub fn display_string(&self) -> String {
-        todo!()
+        match self {
+            AliasScope::Global => "global".to_string(),
+            AliasScope::Client(id) => format!("client:{}", id.0.as_str()),
+        }
     }
 }
 
 impl std::fmt::Display for AliasScope {
-    fn fmt(&self, _f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        todo!()
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_str(&self.display_string())
     }
 }
 
