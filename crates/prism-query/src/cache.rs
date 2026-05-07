@@ -392,8 +392,9 @@ impl QueryCache {
     ///
     /// Self-heals on the next put-to-same-key (existing_size capture detects the
     /// inconsistency and the new put correctly accounts for it). Identical race
-    /// characteristic to `remove_entry`'s documented race; see `remove_entry` lines
-    /// 744-753 for the canonical residual-race rationale.
+    /// characteristic to `remove_entry`'s documented race; see `remove_entry`'s
+    /// `### Residual race (acknowledged, self-healing)` block (in-source comment)
+    /// for the canonical residual-race rationale.
     pub(crate) fn put_with_ttl(
         &self,
         key: CacheKey,
@@ -608,8 +609,8 @@ impl QueryCache {
     /// freshly-inserted entry, leaving the partition tracking entry orphaned. Worst-case
     /// orphan size: MAX_ENTRY_BYTES (5MB) per evicted key.
     ///
-    /// Self-heals on next put-to-same-key. See `remove_entry` (lines 744-753) for the
-    /// canonical race rationale.
+    /// Self-heals on next put-to-same-key. See `remove_entry`'s
+    /// `### Residual race (acknowledged, self-healing)` block for the canonical race rationale.
     pub fn invalidate_by_prefix(
         &self,
         client_id: &str,
@@ -692,8 +693,8 @@ impl QueryCache {
     /// freshly-inserted entry, leaving the partition tracking entry orphaned. Worst-case
     /// orphan size: MAX_ENTRY_BYTES (5MB) per evicted key.
     ///
-    /// Self-heals on next put-to-same-key. See `remove_entry` (lines 744-753) for the
-    /// canonical race rationale.
+    /// Self-heals on next put-to-same-key. See `remove_entry`'s
+    /// `### Residual race (acknowledged, self-healing)` block for the canonical race rationale.
     pub fn invalidate_by_client(&self, client_id: &str) -> Result<usize, PrismError> {
         let mut counts = self.lock_partition_counts()?;
 
