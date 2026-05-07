@@ -201,6 +201,14 @@ pub struct ExecutionPlan {
     /// Per-source post-fetch operations (filter, group-by, sort, limit, etc.).
     /// (BC-2.11.010)
     pub post_fetch_operations: Vec<String>,
+
+    /// All client IDs that would be in scope for this query.
+    ///
+    /// When `ExplainOptions::clients` is `None`, this lists all configured
+    /// clients from the registry (AC-5, BC-2.11.010 / BC-2.11.011). No
+    /// fan-out or sensor API calls occur — the list is resolved from the
+    /// `ClientRegistry` only.
+    pub clients_to_query: Vec<OrgSlug>,
 }
 
 // ---------------------------------------------------------------------------
@@ -820,12 +828,15 @@ pub fn explain(query_str: &str, options: ExplainOptions) -> Result<ExplainResult
         .collect();
 
     // ── Step 7: Resolve client scope (no fan-out) ─────────────────────────────
+    // AC-5: resolve_clients returns the list of all configured client IDs when
+    // options.clients is None (no fan-out; pure registry lookup). The resolved
+    // list is recorded in ExecutionPlan.clients_to_query for caller visibility.
     let empty_registry = ClientRegistry::default();
     let client_registry = options
         .client_registry
         .as_deref()
         .unwrap_or(&empty_registry);
-    let _resolved_clients =
+    let resolved_clients =
         resolve_clients(options.clients.clone(), client_registry).inspect_err(|_e| {
             emit_audit("E-MCP-004");
         })?;
@@ -939,6 +950,7 @@ pub fn explain(query_str: &str, options: ExplainOptions) -> Result<ExplainResult
         execution_plan: ExecutionPlan {
             sensors_to_query,
             post_fetch_operations,
+            clients_to_query: resolved_clients,
         },
         estimated_cost: CostEstimate {
             per_sensor_latency_ms,

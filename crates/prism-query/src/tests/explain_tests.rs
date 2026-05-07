@@ -177,9 +177,12 @@ fn test_ac4_invalid_query_returns_parse_error_not_panic() {
 // ---------------------------------------------------------------------------
 
 /// AC-5 (BC-2.11.010 / BC-2.11.011): Given a query with `clients: None`,
-/// When explained, Then `ExplainResult` lists all configured client IDs
-/// in the cost estimate / resolution context without any sensor fan-out
-/// occurring.
+/// When explained, Then `ExplainResult.execution_plan.clients_to_query` lists
+/// all configured client IDs without any sensor fan-out occurring.
+///
+/// C-LOCAL-002 fix: previously the test only asserted `is_ok()` (vacuous).
+/// Now asserts that `clients_to_query` contains all 3 configured clients, which
+/// is the real AC-5 postcondition.
 #[test]
 fn test_ac5_clients_none_lists_all_clients_without_fanout() {
     let registry = make_client_registry(&["acme", "globex", "initech"]);
@@ -193,8 +196,33 @@ fn test_ac5_clients_none_lists_all_clients_without_fanout() {
         result.is_ok(),
         "explain() with clients: None must return Ok; got: {result:?}"
     );
-    // The result is Ok — client scope resolved without sensor fan-out.
-    // (No AdapterRegistry is wired, so no fan-out is possible.)
+    let r = result.expect("already checked is_ok");
+
+    // AC-5 postcondition: all 3 configured clients must appear in clients_to_query.
+    // No fan-out: no AdapterRegistry is wired, so this is a pure registry lookup.
+    let client_ids: Vec<&str> = r
+        .execution_plan
+        .clients_to_query
+        .iter()
+        .map(|c| c.as_str())
+        .collect();
+    assert_eq!(
+        client_ids.len(),
+        3,
+        "clients_to_query must list all 3 configured clients; got: {client_ids:?}"
+    );
+    assert!(
+        client_ids.contains(&"acme"),
+        "clients_to_query must include 'acme'; got: {client_ids:?}"
+    );
+    assert!(
+        client_ids.contains(&"globex"),
+        "clients_to_query must include 'globex'; got: {client_ids:?}"
+    );
+    assert!(
+        client_ids.contains(&"initech"),
+        "clients_to_query must include 'initech'; got: {client_ids:?}"
+    );
 }
 
 // ---------------------------------------------------------------------------
