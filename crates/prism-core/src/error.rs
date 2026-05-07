@@ -463,32 +463,49 @@ pub enum PrismError {
     )]
     WriteTargetingInternalTable { table: String },
 
-    /// E-QUERY-028: Write endpoint not registered — the (sensor, verb) pair is not
-    /// in the WriteEndpointRegistry (MED-5 / HIGH-2 — S-3.07 pass-1).
+    /// E-QUERY-023: Write verb is not available for the named source.
     ///
-    /// Returned when a write plan references a (sensor, verb) pair that has not been
-    /// loaded from any sensor spec. This prevents silent default-spec fallback that
-    /// would execute writes against unregistered endpoints.
+    /// Emitted when a write attempt targets a sensor's spec table but the registered
+    /// write endpoint catalog does not contain a verb for that (sensor, table) tuple.
+    /// This is a structural / configuration error: typically means the sensor's spec
+    /// declared no write capability for that table.
     ///
-    /// TODO: MED-5 — wire this into WriteExecutor::execute after capability check.
-    #[error(
-        "E-QUERY-028: write endpoint not registered: sensor '{sensor}' has no verb '{verb}'; \
-         check the sensor spec for available write endpoints"
-    )]
-    WriteEndpointNotRegistered { sensor: String, verb: String },
+    /// Reference: write-operations.md:625-640 architecture catalog (E-QUERY-023).
+    ///
+    /// Note: field is named `sensor_source` (not `source`) to avoid conflict with
+    /// thiserror's reserved `source` field name for error chaining.
+    #[error("E-QUERY-023: Write verb '{verb}' is not available for source '{sensor_source}'")]
+    WriteVerbNotAvailable { verb: String, sensor_source: String },
 
-    /// E-QUERY-029: Unregistered write target table — the sql_table name is not
-    /// recognized by the WriteEndpointRegistry (HIGH-2 — S-3.07 pass-1).
+    // E-QUERY-024 (non-terminal write) and E-QUERY-026 (internal table alias)
+    // declared in architecture catalog (write-operations.md:625-640) but not yet
+    // implemented in code. Tracked: TD-S307-001 (file via state-manager in next burst).
+    // These error paths are not reachable via current S-3.07 surface; implementation
+    // deferred until S-3.06's pipe-mode-write surface is exercised end-to-end (later
+    // stories likely S-3.10 or S-3.11).
+
+    // E-QUERY-028: RESERVED for write fan-out rate limit / 429 retry path.
+    //   Per architecture catalog write-operations.md:639. Will be implemented when
+    //   per-sensor HTTP write() dispatch lands (W3-FIX-S307-001). The variant body
+    //   will likely be { sensor: String, retry_after: Duration } per the OCSF
+    //   429 mapping convention.
+    /// E-QUERY-029: Write endpoint declared in spec but not found in AdapterRegistry —
+    /// the sql_table name is not recognized by the WriteEndpointRegistry for this client.
     ///
-    /// Returned when a SQL DML plan's target table is not registered as a write
-    /// endpoint. Prevents sensor extraction from naive string splitting.
+    /// Returned when a SQL DML plan's target table is not registered as a write endpoint
+    /// for the given client. Prevents sensor extraction from naive string splitting and
+    /// ensures client-scoped adapter initialization is verified before writes proceed.
     ///
-    /// TODO: HIGH-2 — wire sensor_for_table lookup in WritePlan::from_dml_node.
+    /// Reference: write-operations.md:625-640 architecture catalog (E-QUERY-029).
     #[error(
-        "E-QUERY-029: unregistered write target: table '{table}' is not registered \
-         as a write endpoint; check the sensor spec for available write tables"
+        "E-QUERY-029: Write endpoint declared in spec but not found in AdapterRegistry. \
+         Sensor '{sensor}' (table '{table}') may not be configured for client '{client_id}'"
     )]
-    UnregisteredWriteTarget { table: String },
+    WriteAdapterNotConfiguredForClient {
+        sensor: String,
+        table: String,
+        client_id: String,
+    },
 
     /// E-QUERY-025: Write partial failure — some records succeeded and some failed.
     ///
