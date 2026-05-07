@@ -1,48 +1,36 @@
 ---
 document_type: session-handoff
 level: ops
-version: "6.99"
+version: "7.11"
 status: current
-timestamp: 2026-05-06T00:00:00Z
-predecessor_session: "D-254 S-3.06 COMPLETE 2026-05-06. STATE v7.04. develop HEAD: 2a7b83f5 (PR #130 S-3.06 squash-merged 2026-05-06). factory-artifacts HEAD: run git -C .factory log -1."
-successor_focus: "D-255 STATE v7.05 develop SHA citation refresh post-PR-#130 merge. develop HEAD: 2a7b83f5. S-3.06 COMPLETE (PR #130 squash 2a7b83f5). S-3.02 next: rebase feature/S-3.02 onto develop HEAD 2a7b83f5, run 3 CLEAN adversarial convergence passes, then squash-merge. BC amendments: BC-2.11.004 v1.4, BC-2.11.006 v1.13 (final), BC-2.11.007 v1.4.
+timestamp: 2026-05-07T03:20:00Z
+predecessor_session: "D-261 Final state sync post-PR-#129 merge 2026-05-07. STATE v7.11. develop HEAD: 6fefc774 (PR #129 S-3.02 squash-merged 2026-05-07). factory-artifacts HEAD: run git -C .factory log -1."
+successor_focus: "D-262 Tier-3 dispatch: S-3.03/04/05/07 all unblocked (S-3.02 + S-3.06 both merged). Recommended: S-3.03 (1pt fastest win) + S-3.04/S-3.05 parallel (5+6pts). develop HEAD: 6fefc774. Tier-2 COMPLETE (S-3.02 ✓ PR #129 6fefc774 + S-3.06 ✓ PR #130 2a7b83f5). Active worktrees: none (S-3.02 worktree removed post-merge). Deferred TDs: TD-VSDD-061/063/064 + TD-S302-001..006 + TD-VSDD-057 (OPEN-DEFERRED-CROSS-REPO).
 
-**CONTEXT:** S-3.01 is the Tier-1 keystone for the entire W3 core implementation graph (S-3.02..S-3.13 depend on it transitively, and all 8 W4 stories depend on S-3.02). The implementation cycle executed the full per-story-delivery sequence including a comprehensive dclaude:type-design-analyzer audit at user directive 'most correct, not fastest'. 16 P0/P1 AST findings + 3 deviations found and all resolved before PR creation. PR #127 is now open and CI is running.
+**STEP 1 (START HERE):** Read STATE.md v7.11 + this HANDOFF v7.11 in full. Confirm develop HEAD `6fefc774` (PR #129 S-3.02 squash-merged 2026-05-07). Tier-2 COMPLETE — no active worktrees.
 
-**STEP 1 (START HERE):** Read STATE.md v6.76 + this HANDOFF v6.76 in full. Check .worktrees/S-3.01/ exists (worktree should be persisted). Check PR #127 CI status via `gh pr view 127`.
+**STEP 2 (TIER-3 DISPATCH):** Dispatch Tier-3 stories (S-3.03/04/05/07 unblocked by S-3.02 + S-3.06 both merged). Priority: S-3.03 (Explain/Query Diagnostics, 1pt, fastest win) first; then S-3.04 (Alias System P1, 5pts) + S-3.05 (Pagination/Caching, 6pts) in parallel. S-3.07 (Write Execution Pipeline, 5pts) also unblocked (deps: S-3.02 + S-3.06 both merged). Devops: create worktrees from develop HEAD `6fefc774` before dispatching per-story-delivery cycles.
 
-**STEP 2 (CI VERIFICATION):** Verify CI green on commit a0bf0f7e. Multi-platform test matrix should be done; cargo deny clean post-NCSA-fix (c8c47452 added NCSA to allow-list). If CI FAILS: triage which check failed and remediate. The most likely failure vectors are: (a) clippy on a new platform, (b) test failure on specific target, (c) deny.toml issue not covered by NCSA fix. Do not merge until CI is fully green.
+**STEP 3 (TD FOLLOW-UP):** TD-VSDD-064 — add proofs_path_canonicalization to policies.yaml + fix S-3.04/S-3.05 path drift (P2, can be done in-cycle during Tier-3). TD-VSDD-057 OPEN-DEFERRED-CROSS-REPO (separate vsdd-factory plugin session, not Tier-3 blocking).
 
-**STEP 3 (USER DECISION — RECOMMENDED):** Present user with decision: run full VSDD review burst BEFORE merging PR #127. Recommended reasoning: S-3.01 is the keystone for 12 W3 stories + 8 W4 stories (20 downstream stories). Reviews here catch issues before propagation. Proposed 4-way parallel burst: adversary (fresh context, full spec compliance check for BC-2.11.* anchoring + VP-014/015/021 coverage + AST design correctness) + code-reviewer (idioms, CWE-20 coverage, error handling) + security-reviewer (CWE-1333 ReDoS enforcement, IP/CIDR validation, injection prevention) + spec-compliance-checker (story AC coverage, demo evidence completeness). User may also choose to merge immediately after CI and run reviews post-merge — capture the decision.
-
-**STEP 4 (IF REVIEWS APPROVED):** Dispatch the 4-way parallel review burst. Route all findings via VSDD Feedback Integration Loop (finding → fix → re-dispatch same reviewer until CLEAN). Fix any issues on the feature/S-3.01 branch; push to origin; CI re-runs; repeat until all 4 reviewers CLEAN.
-
-**STEP 5 (MERGE):** When CI green AND reviews clean (or user decides to skip reviews): `gh pr merge 127 --squash --delete-branch`. Capture squash-merge SHA (will be on develop). `git -C /Users/jmagady/Dev/prism pull` to update develop HEAD. Record new develop HEAD.
-
-**STEP 6 (WORKTREE CLEANUP):** Devops: remove .worktrees/S-3.01/ worktree (`git worktree remove .worktrees/S-3.01/`). Verify `.worktrees/` is clean.
-
-**STEP 7 (STATE UPDATE — D-228):** State-manager burst: (a) update .factory/stories/S-3.01.md status draft→merged; (b) update STORY-INDEX S-3.01 row status; (c) update wave-state.yaml s3_01_* fields with merge SHA + date; (d) log D-228 (S-3.01 merged). Follow Two-Commit Protocol. workspace_test_count: 2363 + 187 = ~2550 post-merge.
-
-**STEP 8 (TIER 2 DISPATCH):** Devops creates worktrees for S-3.02 (Query Tool / Materialization, 5pts) + S-3.06 (PrismQL Write Parser Extensions, 3pts) in parallel, both off new develop HEAD (post S-3.01 merge). Per-story-delivery cycles run in parallel for both. Apply keystone-story audit discipline from TD-VSDD-055 if either is a keystone for other stories (S-3.02 is — it unblocks 8 Tier-3 stories).
-
-**STEP 9 (CONTINUE W3-FIRST PLAN):** Tier 3 (8-way parallel: S-3.03/04/05/08/09/11/12/13) → Tier 4 (S-3.07 + S-3.10) → W3 wave gate (HS-001..HS-012 evaluation against W3 core implementations) → Resume Phase 4.B (S-4.01 + S-4.03 entry stories).
+**STEP 4 (CONTINUE W3-FIRST PLAN):** Tier 3 (8-way: S-3.03/04/05/08/09/11/12/13) → Tier 4 (S-3.07 + S-3.10) → W3 wave gate → Resume Phase 4.B (S-4.01 + S-4.03).
 
 **KEY REFERENCES:**
-- STATE.md v7.05: develop@2a7b83f5 (PR #127 squash 2d7040b1 + PR #128 squash 3e858f9f + PR #130 squash 2a7b83f5, 2026-05-06); factory-artifacts HEAD: run git -C .factory log -1 (TD-VSDD-053)
-- D-240: pass-9 remediation 2026-05-05 — 0 security findings (NOTABLE); research/build-optimization-2026.md v1.1; ci.yml Surface-2 leaf-resolution; dev-setup.md F-LOW-001/2/3; 2781 tests; f822938d HEAD
-- D-238: pass-8 remediation 2026-05-05 — BC-2.11.006 v1.10 (ParseLimits::snapshot; 17 entries); lib.rs 6 sub-parsers; perimeter-symbols-sync lib.rs↔BC CI; DI-034 v1.5; research artifact filed; fcc1838c HEAD
-- D-236: pass-7 remediation 2026-05-05 — per-symbol CI granularity; BC-2.11.006 v1.9 (13→16); ThreadLocalGuard pub(crate); 260→280 tests
-- D-226: S-3.01 implementation cycle complete 2026-05-05 — 187 tests; 16 P0/P1 AST findings + 3 deviations resolved; TD-VSDD-055/056 filed
-- PR #127: https://github.com/drbothen/prism/pull/127 — S-3.01 PrismQL parser; branch feature/S-3.01@fcc1838c; pass-8 remediation COMPLETE; pass-9 next (1 of 3)
-- research/build-optimization-2026.md: new — validated 2026 Rust build perf landscape; copy-pasteable config; risk register
-- BC-INDEX v4.38, VP-INDEX v1.29, HOLDOUT-INDEX v1.3, invariants.md v1.5, L2-INDEX v1.13, STORY-INDEX v2.08, ARCH-INDEX v2.31
+- STATE.md v7.11: develop@6fefc774 (PR #127 squash 2d7040b1 + PR #128 squash 3e858f9f + PR #130 squash 2a7b83f5 + PR #129 squash 6fefc774, 2026-05-06/07); factory-artifacts HEAD: run git -C .factory log -1 (TD-VSDD-053)
+- D-260: PR #129 S-3.02 MERGED 6fefc774 2026-05-07; tier-2 COMPLETE; 2993 tests; STORY-INDEX v2.14
+- D-246: PR #127 S-3.01 MERGED 2d7040b1 + PR #128 TD-VSDD-058 MERGED 3e858f9f 2026-05-06
+- BC-INDEX v4.38, VP-INDEX v1.29, HOLDOUT-INDEX v1.3, invariants.md v1.5, L2-INDEX v1.13, STORY-INDEX v2.14, ARCH-INDEX v2.31
 
-develop HEAD: 2a7b83f5 (three PRs merged 2026-05-06: #127 S-3.01, #128 TD-VSDD-058, #130 S-3.06; factory-artifacts HEAD: run git -C .factory log -1 per TD-VSDD-053)."
+develop HEAD: 6fefc774 (four PRs merged 2026-05-06/07: #127 S-3.01 2d7040b1, #128 TD-VSDD-058 3e858f9f, #130 S-3.06 2a7b83f5, #129 S-3.02 6fefc774; factory-artifacts HEAD: run git -C .factory log -1 per TD-VSDD-053)."
 ---
 
 # Session Handoff — WAVE 4 PHASE 4.A DECISIONS LOGGED (2026-05-02)
 
 ## TL;DR
+
+**D-261 FINAL STATE SYNC POST-PR-#129 MERGE (2026-05-07) — STATE v7.11:** SESSION-HANDOFF.md refreshed to cite develop HEAD `6fefc774` (PR #129 S-3.02 squash-merged 2026-05-07). Residual factory-artifacts committed: sidecar-learning.md session-end timestamps (2026-05-07T03:09:16Z + T03:16:31Z) + cycles/wave-4-operations/security-reviews/ directory (pr-129-post-rebase.md + pr-130.md audit-trail reports). Tier-2 FULLY CLOSED. Active worktrees: none. Tier-3 (S-3.03/04/05/07) ready for dispatch. develop HEAD: `6fefc774`.
+
+**D-260 PR #129 (S-3.02) MERGED (2026-05-07) — STATE v7.10:** squash SHA 6fefc774; develop HEAD 2a7b83f5→6fefc774; pr_count 128→129; workspace_test_count 2363→2993. 4 post-rebase adversarial passes (1 BLOCKED + 3 CLEAN; severity decay 4→1→0→0; 19/19 findings closed). Tier-2 STATUS: S-3.02 ✓ + S-3.06 ✓ BOTH COMPLETE. Unblocked: S-3.03/04/05/07/08/09/10/11/12/13 + S-4.01/S-4.03/S-5.01. STORY-INDEX v2.13→v2.14. Deferred TDs: TD-VSDD-061/063/064 + TD-S302-001..006.
 
 **D-226 S-3.01 PrismQL PARSER KEYSTONE IMPLEMENTATION COMPLETE (2026-05-05) — STATE v6.76:** Full per-story-delivery cycle executed. 187 tests passing (103 new from test-writer Red Gate + 84 pre-existing). Comprehensive AST audit at user directive "most correct, not fastest": 16 P0/P1 findings + 3 deviations — ALL RESOLVED. Key AST improvements: Predicate enum (13 variants), 10 Literal types (5 newtype-validated with CWE-20+CWE-1333), typed FuncCall/AggFunc, Visitor+walk_*, Span+Spanned<T>, OrderedFloat, SourceRef, VirtualField, S-3.06 forward-compat, #[non_exhaustive]. 32 demo-evidence files. deny.toml NCSA fix. Branch feature/S-3.01@a0bf0f7e — 10 commits. PR #127 OPEN. TD-VSDD-055 filed: per-keystone type-design audit as standard practice. D-227: vsdd-factory plugin upgraded rc.9→rc.11; TD-VSDD-056 filed.
 
@@ -162,20 +150,20 @@ develop HEAD: 2a7b83f5 (three PRs merged 2026-05-06: #127 S-3.01, #128 TD-VSDD-0
 
 ## Current State
 
-develop HEAD `2a7b83f5` | factory-artifacts HEAD: run `git -C .factory log -1 --format='%h %s'` (per TD-VSDD-053)
+develop HEAD `6fefc774` | factory-artifacts HEAD: run `git -C .factory log -1 --format='%h %s'` (per TD-VSDD-053)
 
 | Metric | Value |
 |--------|-------|
-| develop HEAD | `2a7b83f5` (PR #130 S-3.06 PrismQL write parser squash-merged 2026-05-06) |
-| PR count merged | 130 (PR #130 S-3.06 squash-merged 2026-05-06; PR #129 S-3.02 Query Materialization OPEN) |
-| Workspace test count | 2908 (PR #130 merged; 406 prism-query tests; S-3.02 test count pending merge) |
-| Open PRs | PR #129 S-3.02 Query Materialization — OPEN (rebase onto develop HEAD 2a7b83f5 needed; adversary convergence next) |
-| Active worktrees | main (`develop`) + `.factory` (`factory-artifacts`) + `.worktrees/S-3.02/` (feature/S-3.02) |
-| Tech debt items | 57 active product items (70 prior − 13 VSDD items extracted); vsdd-plugin-tech-debt.md: 43 items (TD-VSDD-057 OPEN-DEFERRED-CROSS-REPO + TD-VSDD-058 RESOLVED PR #128 3e858f9f) |
+| develop HEAD | `6fefc774` (PR #129 S-3.02 Query Materialization squash-merged 2026-05-07) |
+| PR count merged | 131 (PR #127 S-3.01 squash 2d7040b1 + PR #128 TD-VSDD-058 squash 3e858f9f + PR #130 S-3.06 squash 2a7b83f5 + PR #129 S-3.02 squash 6fefc774; all merged 2026-05-06/07) |
+| Workspace test count | 2993 (PR #129 merged; 491 prism-query tests) |
+| Open PRs | none |
+| Active worktrees | main (`develop`) + `.factory` (`factory-artifacts`) — no story worktrees active |
+| Tech debt items | 57 active product items; vsdd-plugin-tech-debt.md: 43 items + TD-VSDD-061/063/064 (from S-3.02 cycle); TD-S302-001..006; TD-VSDD-057 OPEN-DEFERRED-CROSS-REPO |
 | Wave 2 gate status | CONVERGED 2026-04-27 — Pass 9 CLEAN (3-clean-passes: P6+P8+P9) |
-| Wave 3 gate status | **CONVERGED (multi-tenant sub-waves) 2026-05-02; W3 CORE SPEC REMEDIATION COMPLETE D-224; S-3.01 MERGED PR #127 squash 2d7040b1 2026-05-06; TD-VSDD-058 MERGED PR #128 squash 3e858f9f 2026-05-06** |
-| Wave 4 status | **PHASE 4.B SUSPENDED — D-223 W3-FIRST pivot (2026-05-04); S-4.01 → S-3.02 dep; 13 W3 core stories must implement first** |
-| Status | **Tier-2 IN-FLIGHT. PR #127 (S-3.01) MERGED 2d7040b1 + PR #128 (TD-VSDD-058) MERGED 3e858f9f + PR #130 (S-3.06) MERGED 2a7b83f5. develop HEAD: 2a7b83f5. S-3.06 COMPLETE. S-3.02 next: rebase feature/S-3.02 onto develop HEAD 2a7b83f5, run 3 CLEAN adversarial convergence passes, then squash-merge.** |
+| Wave 3 gate status | **CONVERGED (multi-tenant sub-waves) 2026-05-02; Tier-1: S-3.01 MERGED 2d7040b1; Tier-2: S-3.06 MERGED 2a7b83f5 + S-3.02 MERGED 6fefc774; TIER-2 COMPLETE 2026-05-07** |
+| Wave 4 status | **PHASE 4.B SUSPENDED — D-223 W3-FIRST pivot; S-4.01 → S-3.02 dep NOW CLEARED (6fefc774); Phase 4.B pre-implementation unblocked** |
+| Status | **Tier-2 COMPLETE. PR #127 (S-3.01) MERGED 2d7040b1 + PR #128 (TD-VSDD-058) MERGED 3e858f9f + PR #130 (S-3.06) MERGED 2a7b83f5 + PR #129 (S-3.02) MERGED 6fefc774. develop HEAD: 6fefc774. Tier-3 next: S-3.03/04/05/07 unblocked.** |
 
 
 ---

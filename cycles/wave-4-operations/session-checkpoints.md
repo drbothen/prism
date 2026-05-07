@@ -189,3 +189,13 @@ STATE v7.08. D-258 — PR #129 adversary pass-3 post-rebase CLEAN; convergence 2
 **S-3.02 state at archive:** PR #129 OPEN; pass-3 CLEAN (2/3); 0 ranked findings; 2 OBS deferrable; severity decay 4→1→0; 19/19 cumulative findings closed. Next: dispatch adversary pass-4 (untilled axes: mutation-test resilience, doctest coverage, fuzz footprint VP-031, cross-platform proof gating, CI perimeter-compile-fail exercise).
 
 <!-- Repeat for each archived checkpoint. Maintain chronological order. -->
+
+---
+
+## Session Resume Checkpoint (2026-05-07-d260-pr129-merged-tier2-complete-v7.10)
+
+**Archived from STATE.md at D-261 transition (STATE v7.10→v7.11).**
+
+STATE v7.10. D-260 — PR #129 (S-3.02) MERGED; tier-2 COMPLETE (S-3.02 + S-3.06). develop HEAD: 6fefc774.
+
+**Tier-2 completion summary at archive:** PR #129 squash SHA 6fefc774; pr_count 129; workspace_test_count 2993; 4 post-rebase passes (1 BLOCKED + 3 CLEAN); severity decay 4→1→0→0; 19/19 findings closed; 2 OBS deferrable; TDs: TD-VSDD-061/063/064 + TD-S302-001..006; BCs: BC-2.11.001/005/006/007/011/012. All Tier-3 stories (S-3.03/04/05/07/08/09/10/11/12/13) + S-4.01/S-4.03/S-5.01 now unblocked.
