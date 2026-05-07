@@ -23,7 +23,8 @@ defers the translation layer because:
    since each adapter owns the sensor vocabulary.
 
 The `predicate_as_string` helper in `crates/prism-query/src/explain.rs` has a
-`// TODO (CR-002): translate to sensor-native syntax` marker for this work.
+`// CR-002: translate to sensor-native syntax (TD-S303-PUSH-DOWN-TRANSLATION-001)`
+marker for this work.
 
 ## Current Behavior
 
@@ -58,7 +59,7 @@ Deferred because sensor adapter vocabulary is outside S-3.03 scope.
 
 ## References
 
-- BC-2.11.010 Invariants (DI-PUSH-001 deferral note, v1.5)
+- BC-2.11.010 Invariants (INV-PUSH-001 deferral note, v1.6)
 - `crates/prism-query/src/explain.rs` — `predicate_as_string()`, `ExplainSource`
 - BC-2.11.007: Sensor Filter Push-Down (sensor adapter push-down contract)
 - TD-S303-PREDICATE-NEGATION-001: related — negated predicate rendering gaps

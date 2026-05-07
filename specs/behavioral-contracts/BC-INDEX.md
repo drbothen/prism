@@ -1,7 +1,7 @@
 ---
 document_type: behavioral-contract-index
 level: L3
-version: "4.39"
+version: "4.41"
 status: draft
 producer: product-owner
 timestamp: 2026-05-07T00:00:00
@@ -352,6 +352,8 @@ Phase 3-patch additions (2026-04-16): 22 new BCs added in Burst 1 to close trace
 - Subsystem 19: Infusion Enrichment Framework (AD-020, CAP-031)
 
 ### Change Log (Adversarial Review Fixes)
+
+**v4.41 (2026-05-07):** S-3.03 adversary local pass-4 remediation — BC-2.11.010 v1.5→v1.6: (C-2) Canonical test vector corrected — "push-down shown as FQL" replaced with "push-down shown as PrismQL-native predicate strings (sensor-native translation deferred — see INV-PUSH-001 / TD-S303-PUSH-DOWN-TRANSLATION-001)". (I-2) DI-PUSH-001 renamed to INV-PUSH-001 (BC-local prefix) across all occurrences to avoid orphan-DI detector false positives. (I-3) v1.5 changelog note added acknowledging incomplete softening propagation.
 
 **v4.40 (2026-05-07):** S-3.03 adversary local pass-3 remediation — BC-2.11.010 v1.4→v1.5: (I-LOCAL-PASS3-2) restructured `execution_plan` postcondition tree — `api_filters_pushed` moved from sibling-of-`sensors_to_query` to nested inside each `ExplainSource` entry, matching actual struct layout; added `source_ref`, `sensor_type`, `post_filter_predicates`, `estimated_row_count` sub-fields. (I-LOCAL-PASS3-3) softened "sensor-native syntax" claim in Description and postcondition to "predicate strings (sensor-native translation deferred via TD-S303-PUSH-DOWN-TRANSLATION-001)"; added DI-PUSH-001 invariant explicitly documenting the deferral. TD-S303-PUSH-DOWN-TRANSLATION-001 filed.
 

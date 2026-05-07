@@ -1,7 +1,7 @@
 ---
 document_type: behavioral-contract
 level: L3
-version: "1.5"
+version: "1.6"
 status: draft
 producer: product-owner
 timestamp: 2026-04-14T07:00:00
@@ -69,7 +69,7 @@ The `explain_query` tool parses and plans a PrismQL query without executing it �
 - No sensor API calls are made; no data is fetched or materialized
 - DI-004: An audit entry IS emitted for `explain_query` invocations. Although it is a read-only tool, it is an MCP tool invocation and must be audited for SOC 2 compliance. The audit entry records the query, scoping parameters, and the explain result summary.
 - DataFusion logical plan elision (I-LOCAL-001): the S-3.03 implementation uses an AST-derived `post_fetch_operations` list rather than invoking DataFusion `SessionContext::create_logical_plan()` against schema-only MemTables. This satisfies the BC postcondition (showing post-materialization operations without executing the query). Full DataFusion plan visibility is deferred to TD-S303-DATAFUSION-PLAN-001 (a later story) if it becomes user-required.
-- Sensor-native filter translation deferral (DI-PUSH-001): `api_filters_pushed` currently emits PrismQL-native generic predicate strings (e.g. `"severity = 'critical'"`) rather than sensor-native syntax (FQL, KQL, etc.). Sensor-native translation is deferred to a later story via TD-S303-PUSH-DOWN-TRANSLATION-001. The BC postcondition is met — push-down filter visibility is present; sensor-native rendering is a future enhancement.
+- Sensor-native filter translation deferral (INV-PUSH-001): `api_filters_pushed` currently emits PrismQL-native generic predicate strings (e.g. `"severity = 'critical'"`) rather than sensor-native syntax (FQL, KQL, etc.). Sensor-native translation is deferred to a later story via TD-S303-PUSH-DOWN-TRANSLATION-001. The BC postcondition is met — push-down filter visibility is present; sensor-native rendering is a future enhancement.
 
 ## Error Cases
 | Error | Condition | Behavior |
@@ -90,7 +90,7 @@ The `explain_query` tool parses and plans a PrismQL query without executing it �
 
 | Input | Expected Output | Category |
 |-------|----------------|----------|
-| `explain_query(query="severity = 'critical'", sensors=["crowdstrike"])` | `parsed_mode: "filter"`, push-down shown as FQL | happy-path |
+| `explain_query(query="severity = 'critical'", sensors=["crowdstrike"])` | `parsed_mode: "filter"`, push-down shown as PrismQL-native predicate strings (sensor-native translation deferred — see INV-PUSH-001 / TD-S303-PUSH-DOWN-TRANSLATION-001) | happy-path |
 | `explain_query(query="SELECT count(*) FROM events GROUP BY _sensor")` | `parsed_mode: "sql"`, aggregation plan shown | happy-path |
 | `explain_query(query="<syntactically invalid>")` | Same parse error as `query` tool | error |
 | `explain_query(query="...")` where estimated record count > 10K | Succeeds; `estimated_cost` includes 10K warning | edge-case |
@@ -113,7 +113,8 @@ The `explain_query` tool parses and plans a PrismQL query without executing it �
 
 | Version | Burst | Date | Author | Change |
 |---------|-------|------|--------|--------|
-| 1.5 | S-3.03-adversary-local-pass3 | 2026-05-07 | implementer | I-LOCAL-PASS3-2: Restructured `execution_plan` postcondition tree — `api_filters_pushed` moved from sibling of `sensors_to_query` to nested inside each `ExplainSource` entry (correct struct layout); added `source_ref`, `sensor_type`, `post_filter_predicates`, `estimated_row_count` sub-fields. I-LOCAL-PASS3-3: Softened "sensor-native syntax" claim in Description and postcondition to "predicate strings (sensor-native translation deferred to S-3.X via TD-S303-PUSH-DOWN-TRANSLATION-001)"; added DI-PUSH-001 invariant documenting the deferral explicitly. Filed TD-S303-PUSH-DOWN-TRANSLATION-001. |
+| 1.6 | S-3.03-adversary-local-pass4 | 2026-05-07 | implementer | C-2: Canonical test vector corrected — "push-down shown as FQL" replaced with "push-down shown as PrismQL-native predicate strings (sensor-native translation deferred — see INV-PUSH-001 / TD-S303-PUSH-DOWN-TRANSLATION-001)". I-2: DI-PUSH-001 renamed to INV-PUSH-001 (BC-local prefix) across all occurrences to avoid orphan-DI detector false positives. I-3: v1.5 note added — softening propagation was incomplete at v1.5; v1.6 closes the canonical test vector site. |
+| 1.5 | S-3.03-adversary-local-pass3 | 2026-05-07 | implementer | I-LOCAL-PASS3-2: Restructured `execution_plan` postcondition tree — `api_filters_pushed` moved from sibling of `sensors_to_query` to nested inside each `ExplainSource` entry (correct struct layout); added `source_ref`, `sensor_type`, `post_filter_predicates`, `estimated_row_count` sub-fields. I-LOCAL-PASS3-3: Softened "sensor-native syntax" claim in Description and postcondition to "predicate strings (sensor-native translation deferred to S-3.X via TD-S303-PUSH-DOWN-TRANSLATION-001)"; added INV-PUSH-001 invariant documenting the deferral explicitly. Filed TD-S303-PUSH-DOWN-TRANSLATION-001. NOTE: softening propagation was incomplete at v1.5 — the Canonical Test Vectors section still referenced "push-down shown as FQL"; v1.6 closes that remaining site. |
 | 1.4 | S-3.03-adversary-local-pass1 | 2026-05-07 | implementer | Added `clients_to_query: Vec<OrgSlug>` postcondition to ExecutionPlan (C-LOCAL-002 / AC-5). Added Preconditions with I-LOCAL-002 sensor-scope filter note. Added DataFusion plan elision invariant (I-LOCAL-001 / TD-S303-DATAFUSION-PLAN-001). |
 | 1.3 | pass-73-fix | 2026-04-20 | state-manager | Deterministic changelog reorder: sorted all rows to descending version order (pass-73 bash script). |
 | 1.2 | pass-69-housekeeping | 2026-04-20 | product-owner | Normalized changelog schema to canonical 5-col schema. |
