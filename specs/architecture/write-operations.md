@@ -2,7 +2,7 @@
 document_type: architecture-section
 level: L3
 section: "write-operations"
-version: "1.1"
+version: "1.2"
 status: draft
 producer: architect
 timestamp: 2026-04-27T00:00:00
@@ -624,7 +624,7 @@ The `SessionContext` is created at the start of the write query (same as reads) 
 
 ## Write Operation Error Codes
 
-The following error codes are defined in the `E-QUERY-020` through `E-QUERY-029` range for write-specific failures. These extend the existing `QUERY` error taxonomy (error-taxonomy.md).
+The following error codes are defined in the `E-QUERY-020` through `E-QUERY-030` range for write-specific failures. These extend the existing `QUERY` error taxonomy (error-taxonomy.md).
 
 | Code | Severity | Retryable | Message Format | Description |
 |------|----------|-----------|---------------|-------------|
@@ -638,6 +638,7 @@ The following error codes are defined in the `E-QUERY-020` through `E-QUERY-029`
 | `E-QUERY-027` | broken | No | "Confirmation token required for irreversible write to '{endpoint}'. Invoke with dry_run: true first to obtain a token." | Irreversible write called with `dry_run: false` but no confirmation token presented. Agent must call with `dry_run: true` first to get the token. |
 | `E-QUERY-028` | degraded | Yes | "Write fan-out rate limit: sensor '{sensor}' write API is throttled ({retry_after}s). Retry after cooldown." | Sensor API returned 429 on a write call. The write was partially executed (records before the rate limit hit may have succeeded). Retryable after cooldown. |
 | `E-QUERY-029` | broken | No | "Write endpoint '{endpoint}' declared in spec but not found in AdapterRegistry. Sensor may not be configured for client '{client_id}'." | The sensor spec declares a write endpoint but the sensor adapter for this client has not been initialized (credentials missing, sensor disabled). Structural error — fix sensor configuration. |
+| `E-QUERY-030` | broken | No | "E-QUERY-030: Write target table '{table}' is not declared in the WriteEndpointRegistry. Either the table name is misspelled, or no write endpoint is configured for it in the loaded sensor specs." | DML parse succeeded but the parsed target table name is absent from the WriteEndpointRegistry — a spec/registry mismatch at the DML parse→registry lookup boundary. Pre-flight to any client or adapter resolution; client identity is irrelevant at this stage. Distinguished from: E-QUERY-023 (verb not available — table IS known but verb isn't); E-QUERY-027 (internal table direct write — table IS in registry as internal); E-QUERY-029 (adapter declared in spec but not initialized for a specific client — client identity IS available, table IS in registry). Operator must correct the table name or add the missing write endpoint to the sensor spec. |
 
 ---
 
@@ -701,3 +702,4 @@ Formal verification scope: VP-NNN (to be defined) will cover `parse_write_query`
 | Version | Date | Author | Change |
 |---------|------|--------|--------|
 | 1.1 | 2026-04-27 | product-owner | Pass 15 sweep: Rationale prose updated TenantId → OrgSlug scoping (ADR-006); WriteDispatcher::execute signature updated &TenantId → &OrgSlug with migration comment; added `## [Section Content]` template compliance marker. |
+| 1.2 | 2026-05-07 | architect | S-3.07 LOCAL pass-3 fix-pass-2-correction (D-285): Added E-QUERY-030 (WriteTargetTableUnknown) to catalog; updated range prose to E-QUERY-020..030. Per F-PASS3-MED-001 follow-on — correctness-over-speed adjudication from orchestrator + user. E-QUERY-030 covers the from_dml_node failure mode (target table absent from WriteEndpointRegistry), distinct from E-QUERY-029 (adapter not initialized for client). POL-1 append-only preserved; no existing codes renumbered. |

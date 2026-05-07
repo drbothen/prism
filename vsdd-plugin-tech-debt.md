@@ -1,10 +1,10 @@
 ---
 document_type: vsdd-plugin-tech-debt-register
 level: ops
-version: "2026-05-07T23:00:00Z"
+version: "2026-05-07T23:30:00Z"
 status: current
 producer: state-manager
-timestamp: 2026-05-07T23:00:00Z
+timestamp: 2026-05-07T23:30:00Z
 project: prism (carved out from main tech-debt-register)
 scope: vsdd-factory plugin / methodology / pipeline mechanics
 deferred_to: vsdd-factory plugin maintenance cycle (separate-repo / cross-session)
@@ -383,6 +383,7 @@ Both gaps contributed to HIGH-001 and HIGH-003 findings surviving until Wave 2 g
 
 | Date | Change |
 |------|--------|
+| 2026-05-07T23:30:00Z | v3.27 — D-285 fix-pass-2-correction — write-operations.md catalog v1.1→v1.2 (E-QUERY-030 WriteTargetTableUnknown added); error.rs WriteTargetTableUnknown variant added; '<unknown>' fallback removed from from_dml_node; E-QUERY-029 WriteAdapterNotConfiguredForClient RESERVED (zero callers, ready for W3-FIX-S307-002); impl tip 2e36286e; 61 items total (no new TDs; correction-of-prior-decision burst). STATE v7.33→v7.34; SESSION-HANDOFF v7.33→v7.34; cycle-manifest v1.86→v1.87. |
 | 2026-05-07T23:00:00Z | v3.26 — D-284 S-3.07 LOCAL adversary pass-3 BLOCKED verdict; streak RESET 0/3 due to F-PASS3-MED-001 (E-QUERY-028/029 catalog/impl semantic skew); pass-2 closures verified clean (8→2 decay, 4 KUDOs); fix-pass-2 dispatch next; 61 items total (no new TDs this burst). STATE v7.32→v7.33; SESSION-HANDOFF v7.32→v7.33; cycle-manifest v1.85→v1.86. |
 | 2026-05-07T22:30:00Z | v3.25 — D-283 S-3.07 LOCAL adversary pass-2 BLOCKED verdict; streak RESET 0/3 due to HIGH-001/002; fix-pass-1 dispatch next; 61 items total (no new TDs). STATE v7.31→v7.32; SESSION-HANDOFF v7.31→v7.32; cycle-manifest v1.84→v1.85. |
 | 2026-05-07T22:00:00Z | v3.24 — D-282 wave-3-A tail-end merge bookkeeping; no new TDs (61 items total, no count change); develop pin c867c344→7c413692; STORY-INDEX annotated for S-3.04 + S-3.03 MERGED rows; STATE v7.30→v7.31; SESSION-HANDOFF v7.30→v7.31; cycle-manifest v1.83→v1.84. 61 items total (no new TDs filed this burst; merge bookkeeping only). |
