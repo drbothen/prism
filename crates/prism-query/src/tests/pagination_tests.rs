@@ -650,3 +650,59 @@ fn test_p8_004_unknown_token_returns_cursor_token_unknown() {
         "P8-004: error display must contain E-QUERY-014; got: {err}"
     );
 }
+
+// ---------------------------------------------------------------------------
+// MED-001: Exhausted cursor — next_page after cursor expended returns E-QUERY-014
+// ---------------------------------------------------------------------------
+
+/// MED-001 / BC-2.07.002 §Cursor Lifecycle Advancement: Calling `next_page` with a
+/// token that was valid but whose cursor has been fully exhausted must return
+/// `PrismError::CursorTokenUnknown` (E-QUERY-014).
+///
+/// Setup: create a multi-page cursor (150 rows, page_size=100), exhaust it via
+/// successive next_page calls until None token is returned, then call next_page
+/// one more time with the last valid token before exhaustion.
+#[test]
+fn test_med_001_exhausted_cursor_next_page_returns_token_unknown() {
+    use prism_core::error::PrismError;
+
+    let mut registry = QueryCursorRegistry::new();
+    // 150 rows with page_size=100: page 1 returns 100 rows + token,
+    // page 2 returns 50 rows + None (cursor exhausted, entry removed).
+    let rows: Vec<serde_json::Value> = (0..150).map(|i| json!({"row": i})).collect();
+    let client = OrgSlug::new("acme");
+
+    let (_, token) = registry
+        .create(rows, 100, "q".to_string(), client)
+        .expect("create must succeed for 150-row result");
+    let token = token.expect("must have token for multi-page result");
+
+    // Advance to final page — this exhausts the cursor and removes it from the registry.
+    let (last_page, no_token) = registry
+        .next_page(token.clone(), 100)
+        .expect("final page fetch must succeed");
+    assert_eq!(
+        last_page.len(),
+        50,
+        "MED-001: final page must contain the remaining 50 rows"
+    );
+    assert!(
+        no_token.is_none(),
+        "MED-001: no continuation token after last page (cursor exhausted)"
+    );
+
+    // The cursor is now fully consumed. Calling next_page with the last-used token
+    // must return CursorTokenUnknown (E-QUERY-014) — the entry no longer exists.
+    let result = registry.next_page(token, 100);
+    let err = result.expect_err(
+        "MED-001: next_page after cursor exhaustion must return an error (E-QUERY-014)",
+    );
+    assert!(
+        matches!(err, PrismError::CursorTokenUnknown),
+        "MED-001: exhausted cursor must return PrismError::CursorTokenUnknown (E-QUERY-014); got: {err}"
+    );
+    assert!(
+        err.to_string().contains("E-QUERY-014"),
+        "MED-001: error display must contain E-QUERY-014; got: {err}"
+    );
+}

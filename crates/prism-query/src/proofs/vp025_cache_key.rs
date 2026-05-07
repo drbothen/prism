@@ -170,8 +170,6 @@ mod dynamic_tests {
     use serde_json::json;
 
     /// VP-025 concrete determinism: `derive(params) == derive(params)`.
-    ///
-    /// RED by design — `CacheKey::derive_push_down_hash` is `todo!()`.
     #[test]
     fn test_vp025_derive_is_deterministic_concrete() {
         let mut params = PushDownParams::new();
@@ -188,8 +186,6 @@ mod dynamic_tests {
     }
 
     /// VP-025 concrete order independence: insert order must not affect hash.
-    ///
-    /// RED by design — `CacheKey::derive_push_down_hash` is `todo!()`.
     #[test]
     fn test_vp025_order_independence_concrete() {
         let mut params_a = PushDownParams::new();
@@ -210,8 +206,6 @@ mod dynamic_tests {
     }
 
     /// VP-025 concrete null equivalence: null == absent.
-    ///
-    /// RED by design — `CacheKey::derive_push_down_hash` is `todo!()`.
     #[test]
     fn test_vp025_null_equivalent_to_absent() {
         let mut params_null = PushDownParams::new();
@@ -229,8 +223,6 @@ mod dynamic_tests {
     }
 
     /// VP-025: push_down_hash is 64 hex characters (SHA-256 output).
-    ///
-    /// RED by design — `CacheKey::derive_push_down_hash` is `todo!()`.
     #[test]
     fn test_vp025_hash_is_64_hex_chars() {
         let params = PushDownParams::new();
@@ -254,8 +246,6 @@ mod dynamic_tests {
     // of concrete parameter shapes, standing in for full proptest until the dep lands.
 
     /// VP-025: empty param set is deterministic (same as absent params).
-    ///
-    /// RED by design — `CacheKey::derive_push_down_hash` is `todo!()`.
     #[test]
     fn test_vp025_empty_params_deterministic() {
         let params = PushDownParams::new();
@@ -268,8 +258,6 @@ mod dynamic_tests {
     }
 
     /// VP-025: single key-value pair is deterministic.
-    ///
-    /// RED by design — `CacheKey::derive_push_down_hash` is `todo!()`.
     #[test]
     fn test_vp025_single_param_deterministic() {
         let mut params = PushDownParams::new();
@@ -280,8 +268,6 @@ mod dynamic_tests {
     }
 
     /// VP-025: numeric JSON values are deterministic.
-    ///
-    /// RED by design — `CacheKey::derive_push_down_hash` is `todo!()`.
     #[test]
     fn test_vp025_numeric_value_deterministic() {
         let mut params = PushDownParams::new();
@@ -296,8 +282,6 @@ mod dynamic_tests {
     }
 
     /// VP-025: boolean JSON values are deterministic.
-    ///
-    /// RED by design — `CacheKey::derive_push_down_hash` is `todo!()`.
     #[test]
     fn test_vp025_boolean_value_deterministic() {
         let mut params = PushDownParams::new();
@@ -312,8 +296,6 @@ mod dynamic_tests {
     }
 
     /// VP-025: array JSON values are deterministic.
-    ///
-    /// RED by design — `CacheKey::derive_push_down_hash` is `todo!()`.
     #[test]
     fn test_vp025_array_value_deterministic() {
         let mut params = PushDownParams::new();
@@ -327,8 +309,6 @@ mod dynamic_tests {
     }
 
     /// VP-025: three-key permutation set — all 6 orderings produce the same hash.
-    ///
-    /// RED by design — `PushDownParams::insert` and `derive_push_down_hash` are `todo!()`.
     #[test]
     fn test_vp025_three_key_all_permutations_same_hash() {
         // Generate all 6 permutations of keys a, b, c.
@@ -368,8 +348,6 @@ mod dynamic_tests {
     }
 
     /// VP-025: two distinct non-null values always produce different hashes.
-    ///
-    /// RED by design — `CacheKey::derive_push_down_hash` is `todo!()`.
     #[test]
     fn test_vp025_distinct_values_produce_different_hashes() {
         let cases = [
@@ -396,8 +374,6 @@ mod dynamic_tests {
     }
 
     /// VP-025: CacheKey::derive produces full deterministic 4-tuple.
-    ///
-    /// RED by design — `CacheKey::derive` is `todo!()`.
     #[test]
     fn test_vp025_derive_full_key_deterministic() {
         let mut params = PushDownParams::new();
@@ -422,8 +398,6 @@ mod dynamic_tests {
 
     /// VP-025: different client_id with same params produces a different full CacheKey
     /// (client isolation — keys are not hash-only).
-    ///
-    /// RED by design — `CacheKey::derive` is `todo!()`.
     #[test]
     fn test_vp025_different_client_id_produces_different_full_key() {
         let params = PushDownParams::new();
@@ -442,8 +416,6 @@ mod dynamic_tests {
     }
 
     /// VP-025: multiple all-null params — same as empty param set.
-    ///
-    /// RED by design — `PushDownParams::insert` (null filtering) is `todo!()`.
     #[test]
     fn test_vp025_multiple_null_params_same_as_empty() {
         let mut params_all_null = PushDownParams::new();

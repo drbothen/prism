@@ -388,7 +388,10 @@ impl QueryCache {
     /// (acquiring the partition lock, pushing to partition_keys, dropping the lock, and
     /// inserting into moka). Our subsequent `inner.invalidate(evict_key)` will then wipe
     /// the freshly-inserted entry from moka, leaving the partition_keys tracking entry
-    /// orphaned (tracked but not in moka). Worst-case orphan size: MAX_ENTRY_BYTES (5MB).
+    /// orphaned (tracked but not in moka). Worst-case orphan size per evicted key:
+    /// MAX_ENTRY_BYTES (5MB). With concurrent racing puts on K evicted keys, total
+    /// worst-case orphan inflation is K × MAX_ENTRY_BYTES (bounded by
+    /// max_entries_per_sensor × MAX_ENTRY_BYTES = 50 × 5MB = 250MB).
     ///
     /// Self-heals on the next put-to-same-key (existing_size capture detects the
     /// inconsistency and the new put correctly accounts for it). Identical race
@@ -607,7 +610,9 @@ impl QueryCache {
     /// each evicted entry, a concurrent `put_with_ttl(k, ...)` can complete and insert
     /// a fresh entry into moka. Our subsequent `inner.invalidate(k)` will then wipe the
     /// freshly-inserted entry, leaving the partition tracking entry orphaned. Worst-case
-    /// orphan size: MAX_ENTRY_BYTES (5MB) per evicted key.
+    /// orphan size per evicted key: MAX_ENTRY_BYTES (5MB). With concurrent racing puts on K
+    /// evicted keys, total worst-case orphan inflation is K × MAX_ENTRY_BYTES (bounded by
+    /// max_entries_per_sensor × MAX_ENTRY_BYTES = 50 × 5MB = 250MB).
     ///
     /// Self-heals on next put-to-same-key. See `remove_entry`'s
     /// `### Residual race (acknowledged, self-healing)` block for the canonical race rationale.
@@ -691,7 +696,9 @@ impl QueryCache {
     /// each evicted entry, a concurrent `put_with_ttl(k, ...)` can complete and insert
     /// a fresh entry into moka. Our subsequent `inner.invalidate(k)` will then wipe the
     /// freshly-inserted entry, leaving the partition tracking entry orphaned. Worst-case
-    /// orphan size: MAX_ENTRY_BYTES (5MB) per evicted key.
+    /// orphan size per evicted key: MAX_ENTRY_BYTES (5MB). With concurrent racing puts on K
+    /// evicted keys, total worst-case orphan inflation is K × MAX_ENTRY_BYTES (bounded by
+    /// max_entries_per_sensor × MAX_ENTRY_BYTES = 50 × 5MB = 250MB).
     ///
     /// Self-heals on next put-to-same-key. See `remove_entry`'s
     /// `### Residual race (acknowledged, self-healing)` block for the canonical race rationale.
