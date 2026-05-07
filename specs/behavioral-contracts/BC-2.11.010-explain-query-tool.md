@@ -1,7 +1,7 @@
 ---
 document_type: behavioral-contract
 level: L3
-version: "1.3"
+version: "1.4"
 status: draft
 producer: product-owner
 timestamp: 2026-04-14T07:00:00
@@ -30,13 +30,6 @@ extracted_from: ".factory/specs/prd.md"
 
 The `explain_query` tool parses and plans a PrismQL query without executing it â€” no sensor API calls are made, no data is materialized. It returns the detected mode, alias expansions, field resolution, per-sensor push-down filters in sensor-native syntax, post-materialization operations, and a cost estimate (per-sensor latency history, API call count, rate limit headroom). Syntactic security limits are enforced in explain mode; the materialization limit produces a warning (not an error) since no actual fetch occurs. An audit entry is emitted for every invocation per DI-004.
 
-## Preconditions
-- The `explain_query` MCP tool is invoked with:
-  - `query`: PrismQL query string (required)
-  - `clients`: optional client scoping (same as `query` tool)
-  - `sensors`: optional sensor scoping (same as `query` tool)
-  - `sources`: optional data source scoping (same as `query` tool)
-
 ## Postconditions
 - The query is parsed and planned but NOT executed (no sensor API calls, no materialization)
 - Response includes:
@@ -49,6 +42,7 @@ The `explain_query` tool parses and plans a PrismQL query without executing it â
     - `sensors_to_query`: list of sensors that would be queried
     - `api_filters_pushed`: per-sensor translated push-down filters in sensor-native syntax
     - `post_fetch_operations`: list of operations to be applied post-materialization (filter, group by, sort, limit, etc.)
+    - `clients_to_query`: list of all client IDs in scope for this query (populated from the `ClientRegistry` via `resolve_clients()`; empty when no registry is wired; no fan-out occurs â€” AC-5)
   - `estimated_cost`: structured cost estimate including:
     - Per-sensor estimated latency (based on historical API call timings, rolling average)
     - Estimated API call count per sensor (based on expected pagination depth)
@@ -58,10 +52,19 @@ The `explain_query` tool parses and plans a PrismQL query without executing it â
 - Parse errors, alias resolution errors, and field resolution errors are returned as structured errors (same format as the `query` tool)
 - Security limit validation runs (the query must pass all limits even in explain mode)
 
+## Preconditions
+- The `explain_query` MCP tool is invoked with:
+  - `query`: PrismQL query string (required)
+  - `clients`: optional client scoping (same as `query` tool)
+  - `sensors`: optional sensor scoping (same as `query` tool)
+  - `sources`: optional data source scoping (same as `query` tool)
+- Implementation note (I-LOCAL-002): the `sensors` scope filter applies only to external sensor sources (SourceRefKind::External). Non-external sources (internal, composite) are sensor-agnostic and are dropped when a sensor scope filter is active, because they cannot be validated against any specific sensor type. This behavior is intentional.
+
 ## Invariants
 - DI-019: Syntactic security limits (query length, nesting depth, pipe stages) apply in explain mode and cause errors if exceeded. The materialization limit (10K records) is an estimation-only warning in explain mode, not a failure, since no actual materialization occurs.
 - No sensor API calls are made; no data is fetched or materialized
 - DI-004: An audit entry IS emitted for `explain_query` invocations. Although it is a read-only tool, it is an MCP tool invocation and must be audited for SOC 2 compliance. The audit entry records the query, scoping parameters, and the explain result summary.
+- DataFusion logical plan elision (I-LOCAL-001): the S-3.03 implementation uses an AST-derived `post_fetch_operations` list rather than invoking DataFusion `SessionContext::create_logical_plan()` against schema-only MemTables. This satisfies the BC postcondition (showing post-materialization operations without executing the query). Full DataFusion plan visibility is deferred to TD-S303-DATAFUSION-PLAN-001 (a later story) if it becomes user-required.
 
 ## Error Cases
 | Error | Condition | Behavior |
@@ -105,6 +108,7 @@ The `explain_query` tool parses and plans a PrismQL query without executing it â
 
 | Version | Burst | Date | Author | Change |
 |---------|-------|------|--------|--------|
+| 1.4 | S-3.03-adversary-local-pass1 | 2026-05-07 | implementer | Added `clients_to_query: Vec<OrgSlug>` postcondition to ExecutionPlan (C-LOCAL-002 / AC-5). Added Preconditions with I-LOCAL-002 sensor-scope filter note. Added DataFusion plan elision invariant (I-LOCAL-001 / TD-S303-DATAFUSION-PLAN-001). |
 | 1.3 | pass-73-fix | 2026-04-20 | state-manager | Deterministic changelog reorder: sorted all rows to descending version order (pass-73 bash script). |
 | 1.2 | pass-69-housekeeping | 2026-04-20 | product-owner | Normalized changelog schema to canonical 5-col schema. |
 | 1.1 | pre-build-sweep | 2026-04-20 | product-owner | Template-compliance sweep: added extracted_from/inputs/input-hash/traces_to frontmatter; added ## Description synthesized from body; added ## Canonical Test Vectors scaffolding; added ## Verification Properties cross-ref; added ## Changelog. |
