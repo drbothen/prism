@@ -198,24 +198,20 @@ fn test_ac5_clients_none_lists_all_clients_without_fanout() {
 }
 
 // ---------------------------------------------------------------------------
-// EC-11-050: No sensor sources resolved → E-QUERY-001
+// EC-11-050: Unknown sensor source → sensors_to_query empty
 // ---------------------------------------------------------------------------
 
-/// EC-11-050 (S-3.03): Query with no sensor sources resolved → `E-QUERY-001`
-/// returned; `ExplainResult` not produced.
-///
-/// NOTE: With the current implementation, queries that parse successfully but
-/// have no sensor sources (e.g. bare filter queries without a sensor source
-/// prefix) still return Ok with an empty sensors_to_query list. The BC edge
-/// case says "no sensor sources resolved" → error. This test verifies the
-/// sensors_to_query reflects the absence of external sensor sources.
+/// EC-11-050 (S-3.03): A query referencing an unknown sensor source (not one
+/// of the registered sensor types) produces an empty `sensors_to_query` list.
+/// `explain()` returns `Ok` — the parse succeeds, but no sensor plan is
+/// generated because the source type is unrecognised.
 ///
 /// BC clarification: EC-11-050 fires when source *resolution* fails (sensor
 /// not registered/accessible), not when the AST has no sensor sources. With
 /// no spec registry wired, we verify sensors_to_query is empty for a query
 /// with no sensor source prefix.
 #[test]
-fn test_ec11_050_no_sources_resolved_returns_error() {
+fn test_ec11_050_unknown_sensor_source_produces_empty_sensors_to_query() {
     // A query referencing a non-existent sensor table (unknown.nonexistent).
     // The parser accepts "unknown.nonexistent | field = 'value'" as a valid
     // filter query, but the sensor type is not CrowdStrike/Claroty/Armis/Cyberint.
