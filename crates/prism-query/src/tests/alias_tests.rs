@@ -1819,26 +1819,39 @@ fn test_BC_2_11_009_rejects_at_injection_in_quoted() {
 // CR-002 / SEC-004: per-client cycle detection
 // ─────────────────────────────────────────────────────────────────────────────
 
-/// CR-002: per-client mutual cycle (acme A→B, acme B→A) is detected at creation.
+/// CR-002 / CR-P2-003: per-client mutual cycle (acme A→B, acme B→A) is detected at creation.
+///
+/// This test exercises BOTH the low-level `detect_cycle_scoped` path AND the production
+/// path via `store.create_or_update()` to ensure SEC-010 wiring is correct.
 #[test]
 fn test_BC_2_11_009_per_client_cycle_detected() {
     let mut store = AliasStore::empty("/tmp/test_per_client_cycle.toml");
 
-    // Add A (acme) = "@b_acme" manually via create_or_update.
+    // Add A (acme) = "@b_acme" via create_or_update (production path).
     let entry_a = simple_entry("a_acme", client_scope("acme"), "@b_acme AND x = 1");
     let _ = store.create_or_update(entry_a, None);
 
     // Now try to add B (acme) = "@a_acme" — this should detect the mutual cycle.
-    let result = AliasResolver::detect_cycle_scoped(
+    // 1) Low-level path (detect_cycle_scoped directly).
+    let direct_result = AliasResolver::detect_cycle_scoped(
         "b_acme",
         "@a_acme AND y = 2",
         &store,
         &client_scope("acme"),
     );
-    // The cycle a_acme -> b_acme -> a_acme must be detected.
     assert!(
-        result.is_err(),
-        "per-client mutual cycle acme A->B->A must be detected"
+        direct_result.is_err(),
+        "per-client mutual cycle acme A->B->A must be detected via detect_cycle_scoped"
+    );
+
+    // 2) Production path (create_or_update) — SEC-010: must also return Err.
+    // Before this fix, create_or_update called detect_cycle() (Global scope hardcoded),
+    // which would miss the per-client cycle.
+    let entry_b = simple_entry("b_acme", client_scope("acme"), "@a_acme AND y = 2");
+    let production_result = store.create_or_update(entry_b, None);
+    assert!(
+        production_result.is_err(),
+        "per-client mutual cycle acme B->A must be rejected by create_or_update (SEC-010 wire)"
     );
 }
 
@@ -1864,9 +1877,11 @@ fn test_BC_2_11_014_dependents_no_prefix_false_positive() {
     let entry3 = simple_entry("uses_high", global_scope(), "@high AND active = TRUE");
     let _ = store.create_or_update(entry3, None);
 
+    // dependents() returns (name, scope) tuples — extract names for the assertion.
     let deps = store.dependents("high_sev", &global_scope());
+    let dep_names: Vec<&str> = deps.iter().map(|(n, _)| n.as_str()).collect();
     assert!(
-        !deps.contains(&"uses_high".to_string()),
+        !dep_names.contains(&"uses_high"),
         "uses_high references @high not @high_sev — must not be a dependent of high_sev"
     );
 }

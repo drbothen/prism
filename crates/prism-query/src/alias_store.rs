@@ -71,19 +71,19 @@ impl AliasStore {
         };
 
         // Validate: no cycles in loaded entries.
+        // SEC-010 / CR-P2-001: use detect_cycle_scoped so per-client cycles are caught.
         for entry in &store.entries {
-            AliasResolver::detect_cycle(&entry.name, &entry.query, &store)?;
+            AliasResolver::detect_cycle_scoped(&entry.name, &entry.query, &store, &entry.scope)?;
         }
 
         // Validate: depth limit — probe each entry's expansion chain.
         // CR-013: load() must reject stores where any alias would violate MAX_ALIAS_DEPTH.
         // Expand the body of each entry and surface E-ALIAS-003 (depth exceeded).
         // Non-depth errors (E-ALIAS-001 for dangling refs) are silenced at load time.
+        // CR-P2-002: use entry.scope (not Global) so per-client depth paths are probed correctly.
         let args = std::collections::HashMap::new();
         for entry in &store.entries {
-            if let Err(e) =
-                AliasResolver::expand(&entry.query, &store, &AliasScope::Global, &args, 0)
-            {
+            if let Err(e) = AliasResolver::expand(&entry.query, &store, &entry.scope, &args, 0) {
                 if matches!(e, prism_core::error::PrismError::AliasDepthExceeded { .. }) {
                     return Err(e);
                 }
@@ -143,8 +143,9 @@ impl AliasStore {
             });
         }
 
-        // Cycle detection: temporarily add this entry to check for cycles.
-        AliasResolver::detect_cycle(&entry.name, &entry.query, self)?;
+        // Cycle detection: use scope-aware variant so per-client cycles are caught.
+        // SEC-010 / CR-P2-001: detect_cycle() hardcodes Global scope; use detect_cycle_scoped.
+        AliasResolver::detect_cycle_scoped(&entry.name, &entry.query, self, &entry.scope)?;
 
         // Clone entry for return value.
         let entry_clone = entry.clone();
@@ -251,30 +252,38 @@ impl AliasStore {
             });
         }
 
-        // Step 2: resolve dependents.
-        let deps = self.dependents(name, scope);
+        // Step 2: resolve dependents (scope-aware tuples — SEC-009).
+        let dep_tuples = self.dependents(name, scope);
+        // Flat name list for error messages and DeleteResult (backward-compat public API).
+        let dep_names: Vec<String> = dep_tuples.iter().map(|(n, _)| n.clone()).collect();
 
         // Step 3: blocked if dependents and force=false.
-        if !deps.is_empty() && !force {
+        if !dep_names.is_empty() && !force {
             return Err(PrismError::AliasDependentsExist {
                 name: name.to_string(),
-                count: deps.len(),
-                dependents: deps.join(", "),
+                count: dep_names.len(),
+                dependents: dep_names.join(", "),
             });
         }
 
-        // Step 4: collect names to delete (primary + cascade if force).
-        let cascade_deleted = if force { deps.clone() } else { Vec::new() };
+        // Step 4: collect (name, scope) tuples to cascade-delete.
+        let cascade_deleted_names = if force { dep_names } else { Vec::new() };
+        let cascade_deleted_tuples: Vec<(String, AliasScope)> =
+            if force { dep_tuples } else { Vec::new() };
 
         // Step 5: file-first write.
+        // Match on (name, scope) tuples to prevent cross-scope cascade (SEC-009).
         let new_entries: Vec<AliasEntry> = self
             .entries
             .iter()
             .filter(|e| {
                 // Remove the primary alias.
                 let is_primary = e.name == name && &e.scope == scope;
-                // Remove cascade targets (by name, any scope).
-                let is_cascade = force && cascade_deleted.contains(&e.name);
+                // Remove cascade targets matched by (name, scope) — not name alone.
+                let is_cascade = force
+                    && cascade_deleted_tuples
+                        .iter()
+                        .any(|(cn, cs)| cn == &e.name && cs == &e.scope);
                 !is_primary && !is_cascade
             })
             .cloned()
@@ -288,25 +297,46 @@ impl AliasStore {
         Ok(DeleteResult::Deleted {
             name: name.to_string(),
             scope: scope.clone(),
-            cascade_deleted,
+            cascade_deleted: cascade_deleted_names,
         })
     }
 
     /// Scan all alias definitions for references to `@name` in the given scope.
     ///
-    /// Returns the names of all aliases (in any scope) whose `query` field
-    /// contains a token-level `@name` reference. Uses `AliasResolver::detect_alias_tokens`
-    /// to avoid substring false positives (e.g., alias `high` must NOT show as dependent
-    /// of `high_sev`). O(n) over all entries; acceptable at expected cardinality
-    /// (< 1,000 per deployment). (CR-003 fix)
-    pub fn dependents(&self, name: &str, _scope: &AliasScope) -> Vec<String> {
+    /// Returns `(name, scope)` tuples for all aliases whose `query` field contains a
+    /// token-level `@name` reference, filtered by scope semantics (SEC-009):
+    ///
+    /// - **Global alias deleted:** all referencing aliases in any scope are returned
+    ///   (Global aliases are reachable from any client, so any alias that references
+    ///   `@name` would lose its resolution target upon Global deletion).
+    /// - **Client alias deleted:** only aliases in the same client scope are returned
+    ///   (a Client alias is invisible to other clients and to Global scope).
+    ///
+    /// Uses `AliasResolver::detect_alias_tokens` to avoid substring false positives
+    /// (e.g., alias `high` must NOT show as dependent of `high_sev`).
+    /// O(n) over all entries; acceptable at expected cardinality (< 1,000 per deployment).
+    /// (CR-003 fix, SEC-009 scope-aware cascade)
+    pub fn dependents(&self, name: &str, scope: &AliasScope) -> Vec<(String, AliasScope)> {
         self.entries
             .iter()
             .filter(|e| {
-                e.name != name
-                    && AliasResolver::detect_alias_tokens(&e.query).contains(&name.to_string())
+                // Exclude the alias being deleted itself.
+                if e.name == name && &e.scope == scope {
+                    return false;
+                }
+                // Must reference @name at the token level.
+                if !AliasResolver::detect_alias_tokens(&e.query).contains(&name.to_string()) {
+                    return false;
+                }
+                // Scope filter (SEC-009):
+                // - Global deletion: cascade to all scopes (Global aliases are universally reachable).
+                // - Client deletion: cascade only within the same client scope.
+                match scope {
+                    AliasScope::Global => true,
+                    AliasScope::Client(_) => &e.scope == scope,
+                }
             })
-            .map(|e| e.name.clone())
+            .map(|e| (e.name.clone(), e.scope.clone()))
             .collect()
     }
 

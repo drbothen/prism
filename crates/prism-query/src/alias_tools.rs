@@ -165,8 +165,14 @@ impl AliasEntryView {
 /// `create_alias_with_clients` with an explicit `valid_client_ids` list to
 /// permit per-client alias creation (CR-007).
 ///
+/// **Visibility:** `pub(crate)` — MCP layer MUST use `create_alias_with_clients_gated`
+/// to enforce the `alias.write` capability gate (SEC-011).
+///
 /// Returns `Err` on any validation or I/O failure.
-pub fn create_alias(
+// SEC-011: pub(crate) enforces MCP layer uses *_gated variants. Allow dead_code because
+// this function is exercised exclusively from #[cfg(test)] alias_tests.
+#[allow(dead_code)]
+pub(crate) fn create_alias(
     input: CreateAliasInput,
     store: &mut AliasStore,
     ocsf_reserved: &std::collections::HashSet<String>,
@@ -192,7 +198,12 @@ pub fn create_alias(
 /// When `Some(...)`, the `alias.write` capability is checked before any mutation
 /// (SEC-005 / BC-2.11.008 precondition). When `None`, the capability check is skipped
 /// (backward-compatible for test harnesses that don't supply a capability context).
-pub fn create_alias_with_clients(
+///
+/// **Visibility:** `pub(crate)` — MCP layer MUST use `create_alias_with_clients_gated`
+/// to enforce the `alias.write` capability gate (SEC-011).
+// SEC-011: Allow dead_code because this function is exercised exclusively from #[cfg(test)].
+#[allow(dead_code)]
+pub(crate) fn create_alias_with_clients(
     input: CreateAliasInput,
     store: &mut AliasStore,
     ocsf_reserved: &std::collections::HashSet<String>,
@@ -424,7 +435,12 @@ pub fn list_aliases(
 /// `token_store.consume(token_id, client_id, action_params)`. If the consume
 /// fails (unknown token, expired, hash mismatch), returns `E-FLAG-008` or
 /// the relevant error. On success, proceeds with the delete.
-pub fn delete_alias(
+///
+/// **Visibility:** `pub(crate)` — MCP layer MUST use `delete_alias_gated`
+/// to enforce the `alias.write` capability gate (SEC-011).
+// SEC-011: Allow dead_code because this function is exercised exclusively from #[cfg(test)].
+#[allow(dead_code)]
+pub(crate) fn delete_alias(
     input: DeleteAliasInput,
     store: &mut AliasStore,
     token_store: &prism_security::ConfirmationTokenStore,
@@ -491,7 +507,9 @@ pub fn delete_alias_gated(
 
     // Step 4: no token — generate a real ConfirmationToken and return it.
     if input.token_id.is_none() {
-        let deps = store.dependents(&input.name, &scope);
+        // dependents() now returns (name, scope) tuples; extract names for display (SEC-009).
+        let dep_tuples = store.dependents(&input.name, &scope);
+        let dep_names: Vec<String> = dep_tuples.iter().map(|(n, _)| n.clone()).collect();
 
         // Generate a real token bound to (name, scope, force) (CR-008).
         let action_params = serde_json::json!({
@@ -515,13 +533,13 @@ pub fn delete_alias_gated(
             "token_client_id": scope.token_client_id(),
             "token_id": token.token_id,
         });
-        if !deps.is_empty() {
-            response["dependent_aliases"] = serde_json::json!(deps);
+        if !dep_names.is_empty() {
+            response["dependent_aliases"] = serde_json::json!(dep_names);
             if !input.force {
                 response["warning"] = serde_json::json!(format!(
                     "alias '{}' has {} dependent(s); pass force=true to cascade-delete",
                     input.name,
-                    deps.len()
+                    dep_names.len()
                 ));
             }
         }
@@ -554,13 +572,14 @@ pub fn delete_alias_gated(
     });
     let consumed_token = token_store.consume(token_id, scope.token_client_id(), &action_params)?;
 
-    // Check dependents and delete.
-    let deps = store.dependents(&input.name, &scope);
-    if !deps.is_empty() && !input.force {
+    // Check dependents and delete (SEC-009: dependents() returns scope-aware tuples).
+    let dep_tuples = store.dependents(&input.name, &scope);
+    let dep_names: Vec<String> = dep_tuples.iter().map(|(n, _)| n.clone()).collect();
+    if !dep_names.is_empty() && !input.force {
         return Err(PrismError::AliasDependentsExist {
             name: input.name.clone(),
-            count: deps.len(),
-            dependents: deps.join(", "),
+            count: dep_names.len(),
+            dependents: dep_names.join(", "),
         });
     }
 
