@@ -3,13 +3,16 @@
 //! Implements BC-2.11.010: parse and plan a PrismQL query without issuing any
 //! sensor API calls. Returns a structured `ExplainResult` containing the
 //! detected query mode, alias expansions, field resolution, per-sensor push-down
-//! filters in sensor-native syntax, post-fetch operations, and a cost estimate.
+//! filters as PrismQL-native predicate strings (sensor-native translation deferred
+//! to S-3.X via TD-S303-PUSH-DOWN-TRANSLATION-001), AST-derived post-fetch
+//! operations, and a cost estimate.
 //!
 //! # Architecture Compliance (BC-2.11.010)
 //! - MUST NOT call `fan_out()` or any sensor adapter `fetch()` method.
 //! - Reuses `classify_predicates()` from `pushdown.rs` — do NOT duplicate logic.
 //! - Reuses `resolve_clients()` from `scoping.rs`.
-//! - DataFusion logical plan obtained against schema-only MemTables.
+//! - DataFusion logical plan is elided; `post_fetch_operations` are AST-derived
+//!   (TD-S303-DATAFUSION-PLAN-001). Do NOT invoke `SessionContext::create_logical_plan()`.
 //! - An audit event MUST be emitted for every invocation (DI-004).
 //! - Syntactic security limits apply; materialization limit produces a warning,
 //!   not an error (DI-019).
@@ -226,11 +229,12 @@ pub struct ExplainSource {
     /// The sensor type this source belongs to.
     pub sensor_type: SensorType,
 
-    /// Push-down predicates translated to sensor-native syntax
-    /// (e.g., FQL for CrowdStrike). (BC-2.11.010 `api_filters_pushed`)
+    /// Push-down predicates as PrismQL-native predicate strings (e.g. `"severity = 'critical'"`).
+    /// Sensor-native translation (FQL, KQL, etc.) is deferred to S-3.X via
+    /// TD-S303-PUSH-DOWN-TRANSLATION-001. (BC-2.11.010 `api_filters_pushed` / INV-PUSH-001)
     pub api_filters_pushed: Vec<String>,
 
-    /// Predicates applied post-materialization by DataFusion. (BC-2.11.010)
+    /// Predicates applied post-materialization (not pushed to sensor API). (BC-2.11.010)
     pub post_filter_predicates: Vec<String>,
 
     /// Estimated row count from sensor count hint, if available.
@@ -505,7 +509,8 @@ fn extract_sources_from_ast(ast: &Ast) -> Vec<SourceRef> {
 
 /// Derive the list of post-fetch operations (GROUP BY, SORT BY, LIMIT, etc.)
 /// from the AST. These are operations that cannot be pushed to sensor APIs and
-/// must be applied by DataFusion after materialization. (BC-2.11.010)
+/// must be applied post-materialization. Derived from AST only — DataFusion
+/// plan generation is elided per TD-S303-DATAFUSION-PLAN-001. (BC-2.11.010)
 fn post_fetch_operations_from_ast(ast: &Ast) -> Vec<String> {
     let mut ops: Vec<String> = Vec::new();
 
@@ -1159,7 +1164,9 @@ fn expand_query_with_aliases(
 /// Format a predicate expression as a human-readable string.
 ///
 /// Used to populate `api_filters_pushed` and `post_filter_predicates`.
-/// The output is informational; sensor-specific translation happens in S-3.X.
+/// The output is PrismQL-native (informational). Sensor-specific translation
+/// (FQL, KQL, etc.) is deferred to S-3.X — see TD-S303-PUSH-DOWN-TRANSLATION-001.
+// CR-002: translate to sensor-native syntax (TD-S303-PUSH-DOWN-TRANSLATION-001)
 fn predicate_as_string(expr: &crate::ast::Expr, column_name: &str) -> String {
     use crate::ast::{CompareOp, Expr, Literal};
 
