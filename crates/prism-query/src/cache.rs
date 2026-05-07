@@ -554,6 +554,12 @@ impl QueryCache {
                     });
         }
 
+        // O-2: emit diagnostic after lock release so operators can trace "where did my cache go".
+        debug!(
+            client_id,
+            sensor_id, source_id, evicted_count, "cache prefix invalidation"
+        );
+
         Ok(evicted_count)
     }
 
@@ -592,6 +598,13 @@ impl QueryCache {
                 }
             }
         }
+
+        // Drop the partition lock before emitting the trace event.
+        drop(counts);
+
+        // O-2: emit diagnostic after lock release so operators can trace "where did my cache go".
+        debug!(client_id, evicted_count, "cache client invalidation");
+
         Ok(evicted_count)
     }
 

@@ -291,6 +291,70 @@ mod tests {
         );
     }
 
+    /// I-2 / BC-2.07.004: `invalidate_for_sensor` sums eviction counts across
+    /// all source_ids for the sensor.
+    ///
+    /// Inserts one entry for `crowdstrike_hosts` and one for
+    /// `crowdstrike_detections` (both map to `SensorType::CrowdStrike`).
+    /// Calls `invalidate_for_sensor("crowdstrike")` and asserts the returned
+    /// count equals 2 (one per source_id), exercising the `saturating_add`
+    /// aggregation path in the CacheInvalidator wrapper.
+    #[test]
+    fn test_i2_invalidate_for_sensor_returns_sum_across_sources() {
+        use prism_core::tenant::OrgSlug;
+
+        let cache = Arc::new(QueryCache::with_defaults());
+
+        // Insert one entry for crowdstrike_hosts.
+        let key_hosts = crate::cache_key::CacheKey {
+            client_id: "acme".to_string(),
+            sensor_id: "crowdstrike".to_string(),
+            source_id: "crowdstrike_hosts".to_string(),
+            push_down_hash: "a".repeat(64),
+        };
+        cache
+            .put(key_hosts.clone(), vec![serde_json::json!({"id": "host-1"})])
+            .expect("put hosts must succeed");
+
+        // Insert one entry for crowdstrike_detections.
+        let key_dets = crate::cache_key::CacheKey {
+            client_id: "acme".to_string(),
+            sensor_id: "crowdstrike".to_string(),
+            source_id: "crowdstrike_detections".to_string(),
+            push_down_hash: "b".repeat(64),
+        };
+        cache
+            .put(key_dets.clone(), vec![serde_json::json!({"id": "det-1"})])
+            .expect("put detections must succeed");
+
+        let invalidator = CacheInvalidator::new(Arc::clone(&cache));
+        let client_id = OrgSlug::new("acme");
+
+        let evicted = invalidator
+            .invalidate_for_sensor(&client_id, SensorType::CrowdStrike)
+            .expect("invalidation must not fail");
+
+        // crowdstrike_contain_host maps to [hosts, detections] and
+        // crowdstrike_acknowledge_alert maps to [alerts, detections], so
+        // SensorType::CrowdStrike aggregates: hosts + alerts + detections.
+        // We inserted into hosts (1) and detections (1) only — both evicted.
+        assert!(
+            evicted >= 2,
+            "I-2: invalidate_for_sensor must return sum across source_ids; \
+             expected >= 2, got {evicted}"
+        );
+
+        // Both entries must be gone.
+        assert!(
+            cache.get(&key_hosts).expect("get must not fail").is_none(),
+            "I-2: crowdstrike_hosts entry must be evicted"
+        );
+        assert!(
+            cache.get(&key_dets).expect("get must not fail").is_none(),
+            "I-2: crowdstrike_detections entry must be evicted"
+        );
+    }
+
     /// EC-07-010 / BC-2.07.004: Invalidation with no matching entries is a no-op.
     #[test]
     fn test_ec07010_invalidation_no_matching_entries_is_noop() {

@@ -186,8 +186,10 @@ impl QueryCursorRegistry {
         let rows = Arc::new(rows);
 
         // I-1: log cursor creation with diagnostic fields (no query string — SEC-002).
+        // client_id is the org-slug scope for this cursor; there is no sensor_id at
+        // cursor-creation time (pre-fetch), so we emit client_id only.
         debug!(
-            sensor_id = %client_id,
+            client_id = %client_id,
             total_rows,
             page_size,
             active_cursors = self.core_registry.active_count(),
@@ -235,13 +237,14 @@ impl QueryCursorRegistry {
         // Check expiry (BC-2.07.002).
         if entry.is_expired() {
             let core_id = entry.core_id;
-            // I-1: log cursor expiry lifecycle event.
-            debug!(
-                active_cursors = self.core_registry.active_count(),
-                "cursor expired on next_page"
-            );
             self.entries.remove(&token);
             self.core_registry.release(core_id);
+            // I-1: log cursor expiry lifecycle event after release so `remaining`
+            // reflects the post-removal count (matches evict_expired pattern).
+            debug!(
+                remaining = self.core_registry.active_count(),
+                "cursor expired on next_page"
+            );
             return Err(PrismError::QueryExecutionFailed {
                 detail: E_QUERY_004_CURSOR_EXPIRED.to_string(),
             });
