@@ -2,7 +2,7 @@
 document_type: cycle-manifest
 cycle_id: wave-4-operations
 cycle_type: feature
-version: wave-4-preflight-v1.75
+version: wave-4-preflight-v1.77
 status: in-progress
 started: pending
 completed: pending
@@ -224,6 +224,7 @@ Story inventory will be remediated post-ADR-acceptance per drift audit categorie
 
 | Version | Date | Change |
 |---------|------|--------|
+| wave-4-preflight-v1.77 | 2026-05-07T16:00:00Z | s304-pass10-fix-pass-29-closures | 2026-05-07 | implementer | D-275: S-3.04 pass-10 closures (fix-pass-29). F-PASS10-HIGH-001: D-274/D-273 swap in STATE.md ascending block — TD-074 class (f) recurrence #3. F-PASS10-MED-001: E-STORE-020 added to BC-2.07.002 v4.7 Error Cases + error-taxonomy v1.17. F-PASS10-MED-002: S-3.05 v1.11→v1.12 AC-3/AC-4a anchor fixes. F-PASS10-MED-003: cycle-manifest frontmatter v1.75→v1.77 (body already at v1.76). F-PASS10-LOW-001: TD-080 parser convention disambiguation added. TD-075 violation count 9→10. BC-INDEX v4.44→v4.45. STORY-INDEX v2.19→v2.20. vsdd-plugin-tech-debt v3.16→v3.17. SESSION-HANDOFF D-275→D-276 forward-pin; STATE v7.23→v7.24. |
 | wave-4-preflight-v1.76 | 2026-05-07T15:00:00Z | s304-pass9-fix-pass-28-closures | 2026-05-07 | implementer | D-274: S-3.04 pass-9 closures (fix-pass-28). F-PASS9-HIGH-001: BC-2.07.002 v4.5→v4.6 — added §Cursor Lifecycle (MCP-exposed surface) section + fixed Note anchor. F-PASS9-MED-001: count description corrected 56→58 (57 pre-TD-078, +1 TD-078 → 58) in v3.15 row + sibling rows (cycle-manifest v1.75 + SESSION-HANDOFF D-273 TL;DR). F-PASS9-MED-002: error-taxonomy v1.15→v1.16 — E-QUERY-012/013/014 anchors reformatted to §Cursor Lifecycle (MCP-exposed surface) subsections. TD-S305-001 stale reference updated to BC-2.07.002 v4.6. TD-VSDD-079 + TD-VSDD-080 filed. BC-INDEX v4.43→v4.44. vsdd-plugin-tech-debt v3.15→v3.16; SESSION-HANDOFF D-274→D-275 forward-pin; STATE v7.22→v7.23. |
 | wave-4-preflight-v1.75 | 2026-05-07T14:00:00Z | s304-pass8-fix-pass-27-closures | 2026-05-07 | implementer | D-273: S-3.04 pass-8 closures (fix-pass-27). F-PASS8-CRIT-001: factory_artifacts_tech_debt_entries 56→58 (57 pre-TD-078, +1 TD-078 filed this burst → 58). F-PASS8-CRIT-002: BC-2.07.002 v4.4→v4.5 (Note rewrite acknowledging MCP-cursor surface). F-PASS8-CRIT-003: E-QUERY-013 anchor corrected BC-2.07.001→BC-2.07.002 §CursorPageSizeInvalid; error-taxonomy v1.14→v1.15. F-PASS8-HIGH-001: LEGACY HISTORICAL sentinel added to STATE.md decisions log; TD-074 class (f) scope updated. F-PASS8-HIGH-002 + F-PASS8-MED-002: TD-VSDD-078 filed (sub-burst attribution convention). BC-INDEX v4.42→v4.43. vsdd-plugin-tech-debt v3.14→v3.15; SESSION-HANDOFF D-273→D-274 forward-pin; STATE v7.21→v7.22. |
 | wave-4-preflight-v1.74 | 2026-05-07T13:00:00Z | s305-fix-pass-16-sub-burst-error-taxonomy-sync-d271-gap-closure | 2026-05-07 | implementer | D-272: S-3.05 fix-pass-16 sub-burst (error code taxonomy spec sync + D-271 gap closure). E-QUERY-012/013/014 rows added to error-taxonomy.md (CursorExpired/CursorPageSizeInvalid/CursorTokenUnknown). BC-2.07.002 v4.3→v4.4. S-3.05 v1.10→v1.11 (AC-3/AC-4 corrected, unknown-token AC note). BC-INDEX v4.41→v4.42. STORY-INDEX v2.18→v2.19. TD-S305-001 filed (AC-3 clock-injection coverage gap OBS-009). Prior D-272→D-271 renumbered (POL-1 gap closure). vsdd-plugin-tech-debt v3.13→v3.14; STATE v7.20→v7.21; SESSION-HANDOFF D-272→D-273 forward-pin. |

@@ -1,13 +1,13 @@
 ---
 document_type: session-handoff
 level: ops
-version: "7.23"
+version: "7.24"
 status: current
-timestamp: 2026-05-07T15:00:00Z
-predecessor_session: "D-274 S-3.04 pass-9 closures (fix-pass-28) 2026-05-07. STATE v7.22→v7.23. develop HEAD: 6fefc774. factory-artifacts HEAD: run git -C .factory log -1."
-successor_focus: "D-275 Tier-3 dispatch: S-3.03/04/05/07 all unblocked (S-3.02 + S-3.06 both merged). Recommended: S-3.03 (1pt fastest win) + S-3.04/S-3.05 parallel (5+6pts). develop HEAD: 6fefc774. Tier-2 COMPLETE (S-3.02 ✓ PR #129 6fefc774 + S-3.06 ✓ PR #130 2a7b83f5). Active worktrees: none (S-3.02 worktree removed post-merge). Deferred TDs: TD-VSDD-061/063/064/075 + TD-S302-001..006 + TD-VSDD-057 (OPEN-DEFERRED-CROSS-REPO).
+timestamp: 2026-05-07T16:00:00Z
+predecessor_session: "D-275 S-3.04 pass-10 closures (fix-pass-29) 2026-05-07. STATE v7.23→v7.24. develop HEAD: 6fefc774. factory-artifacts HEAD: run git -C .factory log -1."
+successor_focus: "D-276 Tier-3 dispatch: S-3.03/04/05/07 all unblocked (S-3.02 + S-3.06 both merged). Recommended: S-3.03 (1pt fastest win) + S-3.04/S-3.05 parallel (5+6pts). develop HEAD: 6fefc774. Tier-2 COMPLETE (S-3.02 ✓ PR #129 6fefc774 + S-3.06 ✓ PR #130 2a7b83f5). Active worktrees: none (S-3.02 worktree removed post-merge). Deferred TDs: TD-VSDD-061/063/064/075 + TD-S302-001..006 + TD-VSDD-057 (OPEN-DEFERRED-CROSS-REPO).
 
-**STEP 1 (START HERE):** Read STATE.md v7.23 + this HANDOFF v7.23 in full. Confirm develop HEAD `6fefc774` (PR #129 S-3.02 squash-merged 2026-05-07). Tier-2 COMPLETE — no active worktrees.
+**STEP 1 (START HERE):** Read STATE.md v7.24 + this HANDOFF v7.24 in full. Confirm develop HEAD `6fefc774` (PR #129 S-3.02 squash-merged 2026-05-07). Tier-2 COMPLETE — no active worktrees.
 
 **STEP 2 (TIER-3 DISPATCH):** Dispatch Tier-3 stories (S-3.03/04/05/07 unblocked by S-3.02 + S-3.06 both merged). Priority: S-3.03 (Explain/Query Diagnostics, 1pt, fastest win) first; then S-3.04 (Alias System P1, 5pts) + S-3.05 (Pagination/Caching, 6pts) in parallel. S-3.07 (Write Execution Pipeline, 5pts) also unblocked (deps: S-3.02 + S-3.06 both merged). Devops: create worktrees from develop HEAD `6fefc774` before dispatching per-story-delivery cycles.
 
@@ -16,10 +16,10 @@ successor_focus: "D-275 Tier-3 dispatch: S-3.03/04/05/07 all unblocked (S-3.02 +
 **STEP 4 (CONTINUE W3-FIRST PLAN):** Tier 3 (8-way: S-3.03/04/05/08/09/11/12/13) → Tier 4 (S-3.07 + S-3.10) → W3 wave gate → Resume Phase 4.B (S-4.01 + S-4.03).
 
 **KEY REFERENCES:**
-- STATE.md v7.23: develop@6fefc774 (PR #127 squash 2d7040b1 + PR #128 squash 3e858f9f + PR #130 squash 2a7b83f5 + PR #129 squash 6fefc774, 2026-05-06/07); factory-artifacts HEAD: run git -C .factory log -1 (TD-VSDD-053)
+- STATE.md v7.24: develop@6fefc774 (PR #127 squash 2d7040b1 + PR #128 squash 3e858f9f + PR #130 squash 2a7b83f5 + PR #129 squash 6fefc774, 2026-05-06/07); factory-artifacts HEAD: run git -C .factory log -1 (TD-VSDD-053)
 - D-260: PR #129 S-3.02 MERGED 6fefc774 2026-05-07; tier-2 COMPLETE; 2993 tests; STORY-INDEX v2.14
 - D-246: PR #127 S-3.01 MERGED 2d7040b1 + PR #128 TD-VSDD-058 MERGED 3e858f9f 2026-05-06
-- BC-INDEX v4.44, VP-INDEX v1.29, HOLDOUT-INDEX v1.3, invariants.md v1.5, L2-INDEX v1.13, STORY-INDEX v2.19, ARCH-INDEX v2.31
+- BC-INDEX v4.45, VP-INDEX v1.29, HOLDOUT-INDEX v1.3, invariants.md v1.5, L2-INDEX v1.13, STORY-INDEX v2.20, ARCH-INDEX v2.31
 
 develop HEAD: 6fefc774 (four PRs merged 2026-05-06/07: #127 S-3.01 2d7040b1, #128 TD-VSDD-058 3e858f9f, #130 S-3.06 2a7b83f5, #129 S-3.02 6fefc774; factory-artifacts HEAD: run git -C .factory log -1 per TD-VSDD-053)."
 ---
@@ -27,6 +27,8 @@ develop HEAD: 6fefc774 (four PRs merged 2026-05-06/07: #127 S-3.01 2d7040b1, #12
 # Session Handoff — WAVE 4 PHASE 4.A DECISIONS LOGGED (2026-05-02)
 
 ## TL;DR
+
+**D-275 S-3.04 PASS-10 CLOSURES — FIX-PASS-29 (2026-05-07) — STATE v7.24:** Pass-10 caught 1 HIGH (D-274 before D-273 in ascending block — TD-074 class (f) recurrence #3) + 3 MED (E-STORE-020 missing from BC-2.07.002 Error Cases + error-taxonomy; S-3.05 sibling broken anchors §Cursor TTL Expiry + §CursorTokenUnknown; cycle-manifest frontmatter stale v1.75 vs body v1.76) + 1 LOW (TD-080 parser convention ambiguity). D-NNN swap: D-273 now precedes D-274 in ascending block. E-STORE-020 added: BC-2.07.002 v4.6→v4.7 Error Cases row + error-taxonomy v1.16→v1.17 row. S-3.05 v1.11→v1.12: AC-3 anchor §Cursor TTL Expiry→§Cursor Lifecycle (MCP-exposed surface) — Expiry; AC-4a anchor §CursorTokenUnknown→§Cursor Lifecycle (MCP-exposed surface) — Advancement. Cycle-manifest frontmatter v1.75→v1.77 (v1.76 body row already existed; v1.77 row added this burst). TD-080 updated with parser convention disambiguation (em-dash split, heading match, active-vs-historical cite distinction, BROKEN-ANCHOR format). TD-075 violation count 9→10. BC-INDEX v4.44→v4.45. STORY-INDEX v2.19→v2.20. vsdd-plugin-tech-debt v3.16→v3.17. SESSION-HANDOFF forward-pin D-275→D-276; STATE v7.23→v7.24.
 
 **D-274 S-3.04 PASS-9 CLOSURES — FIX-PASS-28 (2026-05-07) — STATE v7.23:** Pass-9 caught 1 HIGH (BC-2.07.002 v4.5 broken §Cursor Lifecycle anchor + unbacked claims) + 2 MED (count description drift 56→57 should be 56→58; cursor error anchors broken in error-taxonomy). F-PASS9-HIGH-001: BC-2.07.002 v4.5→v4.6 — added `## Cursor Lifecycle (MCP-exposed surface)` section covering TTL (60s), cap (200 cross-client), creation/advancement/expiry/cross-client-allocation; fixed Note anchor from broken §Cursor Lifecycle to real section heading. F-PASS9-MED-001: count description corrected 56→58 (57 pre-TD-078, +1 TD-078 → 58) in v3.15 row + sibling rows (cycle-manifest v1.75 + D-273 TL;DR). F-PASS9-MED-002: error-taxonomy v1.15→v1.16 — E-QUERY-012/013/014 anchors reformatted to §Cursor Lifecycle (MCP-exposed surface) — Expiry/Creation/Advancement. TD-S305-001 stale BC-2.07.002 v4.4 reference updated to v4.6. TD-VSDD-079 filed (BC line-number citation lint P3). TD-VSDD-080 filed (broken section anchor lint class P3). BC-INDEX v4.43→v4.44. vsdd-plugin-tech-debt v3.15→v3.16; cycle-manifest v1.75→v1.76; SESSION-HANDOFF forward-pin D-274→D-275; STATE v7.22→v7.23.
 

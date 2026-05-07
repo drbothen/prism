@@ -2,7 +2,7 @@
 document_type: prd-supplement
 level: L3
 section: "error-taxonomy"
-version: "1.16"
+version: "1.17"
 status: draft
 producer: product-owner
 timestamp: 2026-04-27T00:00:00
@@ -311,6 +311,7 @@ These codes cover runtime errors referencing client configuration (e.g., unknown
 | E-STORE-008 | degraded | transient | "I/O error during RocksDB read for domain '{domain}': {os_error}" | Yes | Read operation failed; may be transient I/O contention or permanent disk issue |
 | E-STORE-009 | broken | system | "Dirty bit write failed for operation '{op}': query aborted to preserve crash recovery safety" | Yes | Dirty bit write to RocksDB failed (disk full, I/O error). Query is aborted (fail-closed) to preserve the denylist crash recovery mechanism. Without a dirty bit, a crashing query cannot be denylisted. Retry after resolving disk/storage issue. |
 | E-STORE-010 | degraded | transient | "Recovery action failed on startup for dirty bit '{key}'" | No | Warning logged; dirty bit NOT cleared; recovery retried on next startup |
+| E-STORE-020 | broken | resource | "E-STORE-020: cursor cap exceeded (200 active cursors); wait for existing cursors to expire or be released" | No | Active cursor count at the cross-client cap (200). New cursor allocation rejected. Cursor expiry is automatic at 60s TTL; alternatively, complete or abandon existing cursor sessions. See BC-2.07.002 §Cursor Lifecycle (MCP-exposed surface) — Cap. |
 
 ## ~~CONFIRM~~ (REMOVED — consolidated into FLAG namespace)
 
@@ -465,6 +466,7 @@ Additional state errors beyond E-STATE-001 and E-STATE-002 (defined in the STATE
 
 | Version | Burst | Date | Author | Change |
 |---------|-------|------|--------|--------|
+| 1.17 | S-3.04-fix-pass-29 | 2026-05-07 | implementer | Added E-STORE-020 (CursorCapExceeded — active cursor count at cross-client cap of 200; new cursor allocation rejected; cursor expiry automatic at 60s TTL; see BC-2.07.002 §Cursor Lifecycle (MCP-exposed surface) — Cap). Code was implemented in crates/prism-core/src/error.rs but absent from taxonomy (F-PASS10-MED-001). |
 | 1.16 | S-3.04-fix-pass-28 | 2026-05-07 | implementer | Anchor reformat: E-QUERY-012 anchor updated from nonexistent §Cursor TTL Expiry → §Cursor Lifecycle (MCP-exposed surface) — Expiry; E-QUERY-013 anchor updated from §CursorPageSizeInvalid → §Cursor Lifecycle (MCP-exposed surface) — Creation; E-QUERY-014 anchor added → §Cursor Lifecycle (MCP-exposed surface) — Advancement. All three now cite the real section added to BC-2.07.002 v4.6. Resolves F-PASS9-MED-002. |
 | 1.15 | S-3.04-fix-pass-27 | 2026-05-07 | implementer | Anchor correction: E-QUERY-013 mis-anchored to nonexistent BC-2.07.001 §AC-2 (BCs don't have ACs); corrected to BC-2.07.002 §CursorPageSizeInvalid (canonical location). Resolves F-PASS8-CRIT-003. |
 | 1.14 | S-3.05-fix-pass-16-sub-burst | 2026-05-07 | implementer | Added E-QUERY-012 (CursorExpired — pagination cursor TTL >60s elapsed; re-execute query; distinct from E-QUERY-004 query timeout). Added E-QUERY-013 (CursorPageSizeInvalid — page_size=0 rejected as malformed input). Added E-QUERY-014 (CursorTokenUnknown — UUID not in registry: garbage UUID, already-released after exhaustion, or cross-instance; distinct from E-QUERY-012 which is for tokens that DID exist). Codes correspond to PrismError variants renumbered by S-3.05 fix-pass-16 (commit d36ecf22) from incorrect 006/007/009 → spec-correct 012/013/014 (F-PASS9-CRIT-001/002/003). D-272. [Note: §section cites in rows were stale placeholders; corrected to §Cursor Lifecycle (MCP-exposed surface) in v1.16.] |
