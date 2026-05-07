@@ -1085,19 +1085,59 @@ fn test_cr003_not_predicate_falls_to_post_filter() {
         result.is_ok(),
         "explain() must handle NOT predicate; got: {result:?}"
     );
-    let r = result.expect("is_ok");
-    if let Some(src) = r
+    let r = result.expect("explain() must succeed for NOT predicate query");
+    let src = r
         .execution_plan
         .sensors_to_query
         .iter()
         .find(|s| s.sensor_type == SensorType::CrowdStrike)
-    {
-        assert!(
-            src.api_filters_pushed.is_empty(),
-            "NOT predicate must NOT be pushed down; api_filters_pushed: {:?}",
-            src.api_filters_pushed
-        );
-    }
+        .expect("crowdstrike.detections must produce a CrowdStrike sensor entry");
+    assert!(
+        src.api_filters_pushed.is_empty(),
+        "NOT predicate must NOT be pushed down; api_filters_pushed: {:?}",
+        src.api_filters_pushed
+    );
+}
+
+// ===========================================================================
+// SEC-P3-001 Regression: audit log must cap query field at 256 chars
+// ===========================================================================
+
+/// SEC-P3-001: A 65,000-char `@alias:` payload that hits the E-ALIAS-001 path
+/// (alias not found) must produce an `AuditEvent.query` field no longer than
+/// 256 chars — the same bound applied to the E-QUERY-003 size-guard path.
+#[test]
+fn test_audit_log_caps_query_string_at_256_chars() {
+    let alias_name = "x".repeat(65_000);
+    let query = format!("@alias:{alias_name}");
+
+    let (sink, events) = make_audit_sink();
+    let opts = ExplainOptions {
+        audit_sink: Some(sink),
+        ..default_opts()
+    };
+
+    // This must return Err(E-ALIAS-001) — alias "xxx..." is not registered.
+    let result = explain(&query, opts);
+    assert!(result.is_err(), "expected E-ALIAS-001 error; got Ok");
+
+    let events = events.lock().expect("mutex not poisoned");
+    assert_eq!(
+        events.len(),
+        1,
+        "exactly one audit event must be emitted; got: {events:?}"
+    );
+    let query_field = &events[0].query;
+    assert!(
+        query_field.chars().count() <= 256,
+        "audit query field must be capped at 256 chars; actual length: {}",
+        query_field.chars().count()
+    );
+    assert!(
+        events[0].outcome_summary.contains("E-ALIAS-001"),
+        "outcome_summary must contain E-ALIAS-001; got: {}",
+        events[0].outcome_summary
+    );
 }
 
 // ===========================================================================

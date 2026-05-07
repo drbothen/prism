@@ -339,6 +339,12 @@ impl Visitor for FieldCollector {
         // not a query field. walk_join_stage() calls visit_field(&js.source.as_field_path())
         // which would leak the JOIN target table name into field_resolution.
         // Only visit the join condition fields.
+        //
+        // SEC-P3-002: JoinStage is #[non_exhaustive]. Current fields: kind, source, on.
+        // If a future field with FieldPath references is added (e.g., a join filter
+        // predicate), this override MUST be updated to walk it. The catch-all `_ => {}`
+        // in the JoinCondition match below handles future variants of that enum, but
+        // does NOT address new top-level JoinStage fields.
         use crate::ast::JoinCondition;
         // `JoinCondition` is `#[non_exhaustive]`; `_ => {}` is required for
         // forward compatibility with future variants.
@@ -605,6 +611,16 @@ fn query_mode_str(ast: &Ast) -> &'static str {
 // QueryEngine::explain (BC-2.11.010)
 // ---------------------------------------------------------------------------
 
+/// Cap the `query` field inserted into every `AuditEvent` to 256 chars.
+///
+/// SEC-P3-001: Both the size-guard path (E-QUERY-003) and the main `emit_audit`
+/// closure must bound the logged query string so that a 65,535-byte alias
+/// payload does not appear verbatim in audit logs.  256 chars is sufficient
+/// for triage context while preventing unbounded log growth.
+fn audit_query_field(s: &str) -> String {
+    s.chars().take(256).collect()
+}
+
 /// Analyze a PrismQL query string and return an `ExplainResult` without
 /// executing any sensor API calls.
 ///
@@ -633,7 +649,7 @@ pub fn explain(query_str: &str, options: ExplainOptions) -> Result<ExplainResult
         // Emit audit for the raw oversized input before returning.
         if let Some(sink) = &options.audit_sink {
             sink(AuditEvent {
-                query: query_str.chars().take(256).collect::<String>(),
+                query: audit_query_field(query_str),
                 clients: options.clients.clone(),
                 sensors: options.sensors.clone(),
                 sources: options.sources.clone(),
@@ -650,10 +666,13 @@ pub fn explain(query_str: &str, options: ExplainOptions) -> Result<ExplainResult
     }
 
     // ── DI-004: helper to emit audit event (success AND error paths) ──────────
+    // SEC-P3-001: cap query field in ALL audit emissions to 256 chars so that
+    // the E-ALIAS-001 path (and any future error path) cannot leak unbounded
+    // input. Matches the cap applied in the size-guard path above.
     let emit_audit = |outcome: &str| {
         if let Some(sink) = &options.audit_sink {
             sink(AuditEvent {
-                query: query_str.to_string(),
+                query: audit_query_field(query_str),
                 clients: options.clients.clone(),
                 sensors: options.sensors.clone(),
                 sources: options.sources.clone(),
@@ -932,9 +951,10 @@ fn expand_query_with_aliases(
             }
             None => {
                 // SEC-002 / CR-017: cap alias name echo to prevent unbounded string in
-                // error message. Use char-boundary-safe truncation (take first 64 chars)
-                // so a multi-byte UTF-8 codepoint straddling byte 64 cannot cause a panic.
-                let alias_display = if alias_name.len() > 64 {
+                // error message. CR-019: guard on char count (not byte len) so that
+                // multi-byte UTF-8 aliases ≤ 64 chars are not falsely truncated with
+                // a misleading "…".
+                let alias_display = if alias_name.chars().count() > 64 {
                     let truncated: String = alias_name.chars().take(64).collect();
                     format!("{truncated}...")
                 } else {
