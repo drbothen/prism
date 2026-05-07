@@ -39,8 +39,18 @@ futures = "0.3"
 prism-storage = { path = "../prism-storage", version = "0.1.0", features = ["test-utils"] }
 proptest = "1"
 
+# S-3.07 — BC-2.04.001 compile-time write feature gates (deny-by-default per DI-003).
+# Each sensor's write code is gated behind a separate Cargo feature.
+# Default features intentionally excludes all *-write features.
+[features]
+crowdstrike-write = []
+cyberint-write = []
+claroty-write = []
+armis-write = []
+all-write = ["crowdstrike-write", "cyberint-write", "claroty-write", "armis-write"]
+
 [lints.rust]
-unexpected_cfgs = { level = "warn", check-cfg = ['cfg(kani)'] }
+unexpected_cfgs = { level = "warn", check-cfg = ['cfg(kani)', 'cfg(feature, values("crowdstrike-write", "cyberint-write", "claroty-write", "armis-write", "all-write"))'] }
 non_snake_case = "allow"
 
 [lints.clippy]

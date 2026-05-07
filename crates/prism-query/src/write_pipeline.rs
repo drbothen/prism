@@ -290,9 +290,41 @@ impl WriteExecutor {
             SYSTEM_BATCH_CEILING,
         );
 
-        // In production, compile gate is determined by #[cfg(feature = "...")] gating.
-        // For runtime tests/integration: use Present (all features compiled in test builds).
-        let compile_gate = CompileFeatureGate::Present;
+        // BC-2.04.001: compile-time feature gate derived from sensor name.
+        // In default builds, no *-write features are present (deny-by-default per DI-003).
+        // Enabling a feature (e.g. --features crowdstrike-write) changes the gate to Present.
+        let compile_gate = match plan.sensor.as_str() {
+            "crowdstrike" => {
+                if cfg!(feature = "crowdstrike-write") {
+                    CompileFeatureGate::Present
+                } else {
+                    CompileFeatureGate::Absent
+                }
+            }
+            "cyberint" => {
+                if cfg!(feature = "cyberint-write") {
+                    CompileFeatureGate::Present
+                } else {
+                    CompileFeatureGate::Absent
+                }
+            }
+            "claroty" => {
+                if cfg!(feature = "claroty-write") {
+                    CompileFeatureGate::Present
+                } else {
+                    CompileFeatureGate::Absent
+                }
+            }
+            "armis" => {
+                if cfg!(feature = "armis-write") {
+                    CompileFeatureGate::Present
+                } else {
+                    CompileFeatureGate::Absent
+                }
+            }
+            // Unknown sensor: no write feature → Absent
+            _ => CompileFeatureGate::Absent,
+        };
 
         // Run Phase 2 — will Err on any gate failure
         let safety_passed = phase2_safety_check(
