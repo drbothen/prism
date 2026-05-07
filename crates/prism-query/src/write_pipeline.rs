@@ -104,8 +104,11 @@ impl WritePlan {
     /// incorrect for multi-underscore table names (e.g., "crowdstrike_detection_audit"
     /// only yielded "crowdstrike" by luck; "events" would yield "events" with no sensor).
     ///
-    /// Returns `Err(PrismError::WriteAdapterNotConfiguredForClient)` if the table is not
-    /// registered in the endpoint registry.
+    /// Returns `Err(PrismError::WriteTargetTableUnknown)` if the table is not registered
+    /// in the endpoint registry. This is a structural / configuration error at the DML
+    /// parse → registry lookup boundary, before any client identity resolution.
+    /// Distinct from `WriteAdapterNotConfiguredForClient` (E-QUERY-029), which fires when
+    /// the table IS in the registry but the per-client adapter has not been initialized.
     pub fn from_dml_node(
         node: &DmlNode,
         registry: &WriteEndpointRegistry,
@@ -120,16 +123,14 @@ impl WritePlan {
         // Replaces split('_').next() heuristic which failed for tables without underscores
         // or whose prefix did not match the sensor name.
         //
-        // client_id is not yet available at this construction site (WritePlan is built
-        // before QueryContext is resolved). Using "<unknown>" fallback per F-PASS3-MED-001
-        // adjudication. TODO(W3-FIX-S307-002): thread real client_id once OrgRegistry
-        // lookup is wired through from_dml_node's call chain.
+        // fix-pass-2-correction (D-285): emit E-QUERY-030 WriteTargetTableUnknown when
+        // the table is absent from the registry. No client_id is involved at this stage —
+        // WritePlan construction is a pre-client-resolution step. E-QUERY-029 is RESERVED
+        // for the W3-FIX-S307-002 OrgRegistry lookup path where client identity IS known.
         let sensor = registry
             .sensor_for_table(&node.target_table)
-            .ok_or_else(|| PrismError::WriteAdapterNotConfiguredForClient {
-                sensor: "<unknown>".to_string(),
+            .ok_or_else(|| PrismError::WriteTargetTableUnknown {
                 table: node.target_table.clone(),
-                client_id: "<unknown>".to_string(),
             })?
             .to_string();
 
@@ -478,39 +479,61 @@ mod write_plan_from_dml_node_tests {
     }
 
     /// MED-004: no-underscore table (e.g., "events") — split heuristic would have
-    /// returned "events" as sensor; registry correctly returns Err.
+    /// returned "events" as sensor; registry correctly returns Err(WriteTargetTableUnknown).
+    ///
+    /// fix-pass-2-correction (D-285): error code is now E-QUERY-030, not E-QUERY-029.
+    /// The "table unknown to registry" failure mode has no client involved — E-QUERY-029
+    /// is RESERVED for the W3-FIX-S307-002 per-client adapter init path.
     #[test]
     fn test_from_dml_node_missing_underscore() {
         let registry = WriteEndpointRegistry::new(); // empty — no "events" table
         let node = make_dml_node("events");
         let result = WritePlan::from_dml_node(&node, &registry);
         let err = result.expect_err("unregistered 'events' table must return Err");
+        assert!(
+            matches!(err, prism_core::PrismError::WriteTargetTableUnknown { ref table } if table == "events"),
+            "error must be WriteTargetTableUnknown{{table: \"events\"}}; got: {err:?}"
+        );
         let err_msg = err.to_string();
         assert!(
             err_msg.contains("events"),
-            "WriteAdapterNotConfiguredForClient must mention the table name; got: {err_msg}"
+            "E-QUERY-030 must mention the table name; got: {err_msg}"
         );
         assert!(
-            err_msg.contains("E-QUERY-029"),
-            "error must carry E-QUERY-029 code; got: {err_msg}"
+            err_msg.contains("E-QUERY-030"),
+            "error must carry E-QUERY-030 code; got: {err_msg}"
+        );
+        assert!(
+            err_msg.contains("is not declared in the WriteEndpointRegistry"),
+            "error must mention WriteEndpointRegistry; got: {err_msg}"
         );
     }
 
-    /// MED-004: unknown table (not in registry) → Err(WriteAdapterNotConfiguredForClient).
+    /// MED-004: unknown table (not in registry) → Err(WriteTargetTableUnknown).
+    ///
+    /// fix-pass-2-correction (D-285): error code is now E-QUERY-030, not E-QUERY-029.
     #[test]
     fn test_from_dml_node_unknown_table() {
         let registry = make_registry_with("crowdstrike", "crowdstrike_contained_hosts");
         let node = make_dml_node("nonexistent_table");
         let result = WritePlan::from_dml_node(&node, &registry);
         let err = result.expect_err("unregistered table must return Err");
+        assert!(
+            matches!(err, prism_core::PrismError::WriteTargetTableUnknown { ref table } if table == "nonexistent_table"),
+            "error must be WriteTargetTableUnknown{{table: \"nonexistent_table\"}}; got: {err:?}"
+        );
         let err_msg = err.to_string();
         assert!(
             err_msg.contains("nonexistent_table"),
-            "WriteAdapterNotConfiguredForClient must mention the unknown table; got: {err_msg}"
+            "E-QUERY-030 must mention the unknown table; got: {err_msg}"
         );
         assert!(
-            err_msg.contains("E-QUERY-029"),
-            "error must carry E-QUERY-029 code; got: {err_msg}"
+            err_msg.contains("E-QUERY-030"),
+            "error must carry E-QUERY-030 code; got: {err_msg}"
+        );
+        assert!(
+            err_msg.contains("is not declared in the WriteEndpointRegistry"),
+            "error must mention WriteEndpointRegistry; got: {err_msg}"
         );
     }
 }

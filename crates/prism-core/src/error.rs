@@ -489,14 +489,24 @@ pub enum PrismError {
     //   per-sensor HTTP write() dispatch lands (W3-FIX-S307-001). The variant body
     //   will likely be { sensor: String, retry_after: Duration } per the OCSF
     //   429 mapping convention.
+
+    // E-QUERY-029 RESERVED for per-client adapter init failure path.
+    //   No callers in S-3.07 — the from_dml_node site that previously emitted this
+    //   variant (with `<unknown>` client_id fallback) was switched to E-QUERY-030
+    //   per fix-pass-2-correction (D-285) once the architecturally-correct
+    //   distinction was recognized: from_dml_node failure is "table unknown to
+    //   registry" (no client involved yet), not "adapter not init for client".
+    //   Will gain callers when W3-FIX-S307-002 lands the OrgRegistry lookup.
     /// E-QUERY-029: Write endpoint declared in spec but not found in AdapterRegistry —
     /// the sql_table name is not recognized by the WriteEndpointRegistry for this client.
     ///
-    /// Returned when a SQL DML plan's target table is not registered as a write endpoint
-    /// for the given client. Prevents sensor extraction from naive string splitting and
-    /// ensures client-scoped adapter initialization is verified before writes proceed.
+    /// Returned when a SQL DML plan's target table IS known to the registry but the
+    /// per-client adapter has not been initialized for this specific client. Distinguished
+    /// from E-QUERY-030 (`WriteTargetTableUnknown`), which fires when the table itself is
+    /// absent from the registry (no client involved yet).
     ///
     /// Reference: write-operations.md:625-640 architecture catalog (E-QUERY-029).
+    /// RESERVED until W3-FIX-S307-002 lands the OrgRegistry lookup.
     #[error(
         "E-QUERY-029: Write endpoint declared in spec but not found in AdapterRegistry. \
          Sensor '{sensor}' (table '{table}') may not be configured for client '{client_id}'"
@@ -506,6 +516,25 @@ pub enum PrismError {
         table: String,
         client_id: String,
     },
+
+    /// E-QUERY-030: Write target table not declared in the WriteEndpointRegistry.
+    ///
+    /// Emitted when a parsed DML query references a target table that does not
+    /// appear in the loaded WriteEndpointRegistry. This is a structural /
+    /// configuration error at the DML parse → registry lookup boundary, BEFORE
+    /// any client identity resolution. Distinguished from:
+    ///   - E-QUERY-023 (`WriteVerbNotAvailable`): table IS known, verb is not
+    ///   - E-QUERY-027 (`WriteTargetingInternalTable`): table IS in registry as `prism_*`
+    ///   - E-QUERY-029 (`WriteAdapterNotConfiguredForClient`): table IS in registry,
+    ///     adapter is per-client and not initialized for this specific client
+    ///
+    /// Reference: write-operations.md catalog (E-QUERY-030).
+    #[error(
+        "E-QUERY-030: Write target table '{table}' is not declared in the WriteEndpointRegistry. \
+         Either the table name is misspelled, or no write endpoint is configured for it in the \
+         loaded sensor specs."
+    )]
+    WriteTargetTableUnknown { table: String },
 
     /// E-QUERY-025: Write partial failure — some records succeeded and some failed.
     ///
