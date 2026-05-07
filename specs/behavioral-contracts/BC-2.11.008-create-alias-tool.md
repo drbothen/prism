@@ -1,10 +1,11 @@
 ---
 document_type: behavioral-contract
 level: L3
-version: "1.3"
+version: "1.4"
 status: draft
 producer: product-owner
 timestamp: 2026-04-14T07:00:00
+last_revised: 2026-05-07T00:00:00
 phase: 1a
 origin: greenfield
 subsystem: "SS-11"
@@ -19,7 +20,7 @@ retired: null
 removed: null
 removal_reason: null
 inputs: [".factory/specs/prd.md", ".factory/specs/domain-spec/capabilities.md"]
-input-hash: "412c872"
+input-hash: "a3f1c94"
 traces_to: ["CAP-016"]
 extracted_from: ".factory/specs/prd.md"
 ---
@@ -60,7 +61,7 @@ The `create_alias` tool creates or updates a named PrismQL shorthand at either g
 ## Error Cases
 | Error | Condition | Behavior |
 |-------|-----------|----------|
-| `E-MCP-004` | Alias name contains invalid characters (not matching `[a-zA-Z_][a-zA-Z0-9_]*`) | Structured error with the name and allowed pattern |
+| `E-MCP-002` | Alias name contains invalid characters (not matching `[a-zA-Z_][a-zA-Z0-9_]*`) | Structured error with the name and allowed pattern. Note: `E-MCP-004` is reserved for `confirm_action` client_id mismatch (BC-2.04.010); parameter validation failures use `E-MCP-002`. |
 | `E-QUERY-001` | Alias query template is not valid PrismQL | Parse error with position and suggestion |
 | `E-CFG-001` | Client ID in scope does not exist | Structured error listing valid client IDs |
 | `E-ALIAS-004` | Parameter value fails type validation (not a simple literal) | Structured error listing the invalid parameter and expected format |
@@ -105,6 +106,7 @@ The `create_alias` tool creates or updates a named PrismQL shorthand at either g
 
 | Version | Burst | Date | Author | Change |
 |---------|-------|------|--------|--------|
+| 1.4 | S-3.04-F-003-closure | 2026-05-07 | product-owner | F-003: Error Cases table corrected — invalid alias name characters returns `E-MCP-002` (McpParameterInvalid), not `E-MCP-004`. `E-MCP-004` is reserved for `confirm_action` client_id mismatch per BC-2.04.010. Implementation in `alias_tools.rs::validate_alias_name` correctly returns `McpParameterInvalid` (E-MCP-002). Recomputed input-hash. |
 | 1.3 | pass-73-fix | 2026-04-20 | state-manager | Deterministic changelog reorder: sorted all rows to descending version order (pass-73 bash script). |
 | 1.2 | pass-69-housekeeping | 2026-04-20 | product-owner | Normalized changelog schema to canonical 5-col schema. |
 | 1.1 | pre-build-sweep | 2026-04-20 | product-owner | Template-compliance sweep: added extracted_from/inputs/input-hash/traces_to frontmatter; added ## Description synthesized from body; added ## Canonical Test Vectors scaffolding; added ## Verification Properties cross-ref; added ## Changelog. |
