@@ -1,9 +1,9 @@
 ---
 document_type: pipeline-state
 level: ops
-version: "7.09"
-producer: state-manager
-timestamp: 2026-05-06T00:00:00Z
+version: "7.10"
+producer: pr-manager
+timestamp: 2026-05-07T03:07:00Z
 inputs: []
 input-hash: "[live-state]"
 traces_to: ""
@@ -22,7 +22,7 @@ repos:
   - axiathon
   - ocsf-proto-gen
   - mcp-claroty-xdome
-current_step: "PR #129 (S-3.02) CONVERGED 3/3 — pr-manager merge-only handoff next; tier-2 (S-3.02 + S-3.06) COMPLETE after #129 merges"
+current_step: "Tier-2 COMPLETE — S-3.02 PR #129 MERGED (6fefc774) + S-3.06 PR #130 MERGED (2a7b83f5) 2026-05-06/07; Wave 3 core implementation next: S-3.03/04/05/07 unblocked (depend on S-3.02); S-3.07 also unblocked (depends on S-3.06); Wave 4 Phase 4.B can now unblock (S-4.01 dep S-3.02 now merged)"
 wave_3_carry_forward_debt: "ALL_REMEDIATE — W4-FIX-PERF-001/002, W4-FIX-CODE-001, W4-FIX-SEC-001..004 stories planned per D-203"
 wave_4_status: "PHASE_4_A_CONVERGED + R9_APPROVED but PHASE_4_B SUSPENDED — pre-implementation dep check (2026-05-04) found S-4.01 → S-3.02 (status=draft); pivoting to full Wave 3 implementation per user directive D-223"
 wave_4_phase_4_a_preflight:
@@ -81,7 +81,7 @@ wave_4_phase_4_a_preflight:
   phase_4b_prerequisites: []
   phase_4b_prerequisites_note: "[ALL_CLEARED] — D-218 (2026-05-04) + D-216 (2026-05-04) both closed"
   next_action: "Tier-2 implementer in-flight — S-3.02 v1.10 + S-3.06 v1.7 in parallel worktrees; next: per-AC demo-recorder + push + pr-manager 9-step PR lifecycle for each story"
-  wave_3_implementation_status: "S-3.01_MERGED_2026-05-06 (PR #127, squash 2d7040b1) + TD-VSDD-058_RESOLVED_2026-05-06 (PR #128, squash 3e858f9f) + S-3.06_MERGED_2026-05-06 (PR #130, squash 2a7b83f5); S-3.02_CONVERGED_2026-05-06 (PR #129, 4-pass trajectory: pass-1 BLOCKED→remediated; pass-2 CLEAN 1/3; pass-3 CLEAN 2/3; pass-4 CLEAN 3/3 CONVERGED; severity decay 4→1→0→0; 19/19 findings closed; 2 OBS deferrable; TD-VSDD-064 proofs_path_canonicalization filed); develop HEAD 2a7b83f5; Tier-2 COMPLETE pending PR #129 merge handoff to pr-manager"
+  wave_3_implementation_status: "S-3.01_MERGED_2026-05-06 (PR #127, squash 2d7040b1) + TD-VSDD-058_RESOLVED_2026-05-06 (PR #128, squash 3e858f9f) + S-3.06_MERGED_2026-05-06 (PR #130, squash 2a7b83f5) + S-3.02_MERGED_2026-05-07 (PR #129, squash 6fefc774; 4-pass trajectory: pass-1 BLOCKED→remediated; pass-2 CLEAN 1/3; pass-3 CLEAN 2/3; pass-4 CLEAN 3/3 CONVERGED; severity decay 4→1→0→0; 19/19 findings closed; 2 OBS deferrable; TD-VSDD-064 filed; 491 prism-query tests); develop HEAD 6fefc774; Tier-2 COMPLETE (S-3.02 + S-3.06 both merged); Wave 3 core next: S-3.03/04/05/07 unblocked"
   pre_pass22_sweep_status: "COMPLETE_2026-05-03 — F-PreP22-H-001 (concurrency-architecture v1.1 8/8 split per D-209); F-PreP22-H-002 (observability v1.1 user-facing examples updated); F-PreP22-H-003 (interface-definitions v2.5 ActionEngine→ActionDeliveryEngine); F-PreP22-H-004 (vp-045 spec body v1.2 rewritten + slug-preservation banner per POL-1). ARCH-INDEX v2.20. Window stays 0/3; Pass 22 dispatch ready."
   pass_22_adversary_verdict: "BLOCKED (3 findings: 0C/1H/1M/1L/0OBS)"
   pass_22_remediation_complete: true
@@ -122,19 +122,19 @@ wave_2_integration_gate_passes: "9 passes (P1:16 findings→P2:5→P3:0C→P4:0C
 wave_2_story_metrics_archived: "cycles/phase-3-dtu-wave-2/burst-log.md (S-2.01..S-2.08, S-6.11..S-6.13, hotfix cascade PRs #44-#50)"
 vsdd_plugin_prevention_layers_queued: "4 (TD-VSDD-001..004)"
 wave_1_started: 2026-04-22
-develop_head: "2a7b83f5"
+develop_head: "6fefc774"
 td_wv1_04_resolved: "2026-04-23 (PR #32, 4a9dffb1)"
 tech_debt_register_entries: 57  # product register (70 prior - 13 VSDD items extracted 2026-05-02)
 vsdd_plugin_tech_debt_entries: 49  # .factory/vsdd-plugin-tech-debt.md (TD-VSDD-057 P2 OPEN-DEFERRED-CROSS-REPO; TD-VSDD-058 RESOLVED PR #128 3e858f9f; TD-VSDD-064 P2 proofs_path_canonicalization; 49 total — 1 RESOLVED)
 wave_1_integration_gate_passes: "P3-P18 CONVERGED (3-clean envelope P16+P17+P18; detail: cycles/phase-3-dtu-wave-1/adversarial-reviews/)"
-workspace_test_count: 2363  # nextest-verified 2363/2363 passing (W3-FIX-CI-001 PR #112). +133 from CI nextest split (doctest migration + per-platform counts reconciled). Previous estimate ~2230. 0 FAIL.
+workspace_test_count: 2993  # CI-verified 2993 passing (S-3.02 PR #129 merge, 5 platforms). +491 prism-query tests from S-3.02 materialization implementation. Previous: 2363 (W3-FIX-CI-001 PR #112). 0 FAIL.
 pre_wave_2_audit_complete: 2026-04-24
 pre_wave_2_audit_findings_remediated: 5
 pre_wave_2_audit_findings_deferred: 0  # OBS-001 RESOLVED 2026-04-25 (PR #51, 8eafb7b7)
 pre_wave_2_audit_remediation_sha: ebf7c63c
 pre_wave_2_audit_residual_fix_remediation_sha: 3f2c7003
 adr_count: 11
-pr_count_merged: 128
+pr_count_merged: 129
 wave_3_integration_gate_step_b: { date: 2026-05-02, verdict: CLEAN, h: 0, m: 0, l: 0, obs: 1, pg: 0, pass: 54, window: "3/3 CONVERGED", report: "cycles/wave-3-multi-tenant/adversarial-reviews/pass-54.md" }
 wave_3_integration_gate_step_c: { date: 2026-05-02, verdict: CONVERGENCE_REACHED, h: 0, m: 0, l: 0, report: "cycles/wave-3-multi-tenant/gate-step-c-code-review-pass7.md" }
 wave_3_integration_gate_step_d: { date: 2026-05-02, verdict: APPROVED, h: 0, m: 0, l: 4, report: "cycles/wave-3-multi-tenant/gate-step-d-security-review-pass7.md" }
@@ -377,7 +377,7 @@ user_directive_persistent: "No pragmatic convergence. Fix all issues before buil
 | **Language** | Rust |
 | **Target Workspace** | per-analyst stdio (MCP server) |
 | **Started** | 2026-04-13 |
-| **Last Updated** | 2026-05-06 (D-259 — PR #129 pass-4 CLEAN CONVERGED 3/3; severity decay 4→1→0→0; 19/19 findings closed; TD-VSDD-064 filed; STATE v7.08→v7.09) |
+| **Last Updated** | 2026-05-07 (D-260 — PR #129 S-3.02 MERGED squash 6fefc774; tier-2 COMPLETE (S-3.02 + S-3.06); develop HEAD 6fefc774; pr_count_merged 128→129; workspace_test_count 2363→2993; S-3.03/04/05/07/08/09/10/11/12/13 + S-4.01 + S-4.03 + S-5.01 unblocked; Wave 4 Phase 4.B S-4.01 dep now cleared; deferred TDs TD-VSDD-061/063/064 + TD-S302-001..006 carried; STATE v7.09→v7.10) |
 | **Current Phase** | Wave 3 Tier-2 — S-3.06 COMPLETE; S-3.02 (PR #129) CONVERGED 3/3; pr-manager merge handoff next |
 | **Current Step** | PR #129 (S-3.02) CONVERGED 3/3 — pr-manager merge-only handoff next; tier-2 (S-3.02 + S-3.06) COMPLETE after #129 merges |
 
@@ -437,6 +437,7 @@ _D-001..D-046 archived: [cycles/phase-3-dtu-wave-2/decisions-archive-d001-d032.m
 | D-246 | Post-merge state update 2026-05-06 — Two PRs merged to develop on 2026-05-06: (1) PR #127 (S-3.01 PrismQL Parser): squash SHA 2d7040b1; 15 adversary passes total (passes 1–12 BLOCKED→remediated, pass-13 CLEAN, pass-14 PERFECT CLEAN, pass-15 PERFECT CLEAN; 3/3 FINAL window closed). Carry-over: F-PG-001 codified as TD-VSDD-057 OPEN-DEFERRED-CROSS-REPO (separate vsdd-factory plugin session); TD-VSDD-057 targets vsdd-factory adversary-prompt security-CI-job positive-coverage-assertion rule. (2) PR #128 (TD-VSDD-058 fuzz-nightly fix): squash SHA 3e858f9f; single PERFECT CLEAN pass; adds protoc install step + bumps fuzz-nightly timeout 45→60 min; TD-VSDD-058 CLOSED. develop HEAD: 3e858f9f. pr_count_merged: 126→128. Wave 3 Tier-2 dispatch prep: S-3.02 (Query Tool and Materialization, 5pts) + S-3.06 (PrismQL Write Parser Extensions, 3pts) both at status=draft with all deps merged; ready for parallel per-story-delivery dispatch after drift-check + status bump. STATE v6.95→v6.96. | PR #127 S-3.01 MERGED 2d7040b1 + PR #128 TD-VSDD-058 MERGED 3e858f9f; 15-pass convergence closed; TD-VSDD-057 OPEN-DEFERRED-CROSS-REPO; Tier-2 (S-3.02+S-3.06) ready | 4 | 2026-05-06 |
 | D-247 | Tier-2 in-flight 2026-05-06 — S-3.02 (Query Materialization, 5pts) + S-3.06 (PrismQL Write Parser Extensions, 3pts) dispatched in parallel via per-story-delivery. Worktrees created: `.worktrees/S-3.02/` (branch feature/S-3.02) + `.worktrees/S-3.06/` (branch feature/S-3.06). Per-story-delivery state at dispatch: **S-3.02**: stub-architect cc509bdc → test-writer e833a851 → BC amendments → story-writer v1.10 (factory-artifacts SHA 0ca6709a) → implementer IN-FLIGHT. 72 RED tests post-amendment. **S-3.06**: stub-architect cdcb4b38 → test-writer c8b708d7 → BC amendments → implementer IN-FLIGHT. 91 RED tests. Story version unchanged at v1.7 (BC-2.11.004 v1.4 amendments handled by implementer per natural TDD reconciliation). **BC amendments committed (eef6e89f → 0a853123 → 0ca6709a):** BC-2.11.004 v1.3→v1.4 (case-insensitive verb matching; E-QUERY-022 unbounded write row; INV-FILTER-EMPTY-REGISTRY), BC-2.11.006 v1.10→v1.11 (+9 restricted_symbols for S-3.06 perimeter guard) then v1.11→v1.12 (E-QUERY-004/005 swap corrected to match PrismError SoT — pre-impl BC error was INVERTED; S-3.02 story refs corrected in v1.10 story bump), BC-2.11.007 v1.3→v1.4 (REQUIRED column SoT documented = `prism_core::ColumnOptions::Required`; spec-driven not hardcoded). **Notable pre-impl findings:** (1) BC-2.11.006 E-QUERY-004/005 were SWAPPED in BC v1.10 relative to PrismError SoT — test-writer surface catch, corrected in v1.12. (2) BC-2.11.007 REQUIRED column SoT was undocumented — story-writer v1.10 + BC v1.4 now specify `prism_core::ColumnOptions::Required` as authoritative. (3) BC-2.11.004 v1.3 missing case-insensitive verb matching and INV-FILTER-EMPTY-REGISTRY invariant — PO caught at test-write phase. (4) Workspace ripple: `prism-sensors` arrow 53→58 in S-3.02 stub-architect commit (resolves chrono conflict from datafusion 53.1 migration). **4 process-gap candidates flagged for codification review at tier-2 close:** (a) E-QUERY-004/005 swap in BC vs SoT — process: BC error-code review against PrismError enum at BC-write time; (b) REQUIRED column SoT undocumented — process: SoT citations required for all "implementation-defined" terms in BCs; (c) case-sensitivity gaps not caught until test-write — process: verb-matching ambiguity checklist at BC authoring; (d) INV-FILTER-EMPTY-REGISTRY missing from initial BC — process: per-BC invariant cross-reference sweep. STATE v6.96→v6.97. | Tier-2 in-flight (S-3.02 v1.10 + S-3.06 v1.7 implementers dispatched); BC amendments (2.11.004 v1.4, 2.11.006 v1.11/v1.12, 2.11.007 v1.4); 4 process-gap candidates flagged | 4 | 2026-05-06 |
 | D-250 | PR-130 (S-3.06) Adversary Pass-2 BLOCKED 2026-05-06: verdict BLOCKED (1 HIGH + 2 MED + 6 OBS; 1 process-gap). branch SHA 84c65574. HIGH-001: F-PR130-P1-LOW-001 partially closed — commit 36f18fae fixed only line 73 (AC-3); lines 74-75 (AC-7/AC-8) still cite BC010 phantom node in Mermaid graph (POL-04 + POL-08). MED-001: pr-description.md lines 6/20/209 still cite BC v1.11 / 9 symbols / 27 E-errors (actual: v1.14 / 10 symbols / 28 E-errors). MED-002: BC-2.11.006 v1.14 changelog burst tag S-3.02-pr130-pass1 should be S-3.06-pr130-pass1. 7/8 pass-1 findings closed; 1 partial-closure re-elevated to HIGH. Severity decay positive (15→9 findings). Convergence window: 0/3 (window does NOT advance). 3 required fixes before pass-3: (1) pr-description.md lines 74-75 BC010→BC004; (2) pr-description.md lines 6/20/209 v1.11→v1.14 + 9→10 + 27→28; (3) BC-2.11.006 changelog tag S-3.02→S-3.06. Report: cycles/wave-4-operations/adversarial-reviews/pr-130-pass-2.md. STATE v6.99→v7.00. | PR-130 pass-2 BLOCKED; 1 HIGH (partial-fix recurrence) + 2 MED (doc drift); convergence 0/3; 3 required fixes before pass-3 | 4 | 2026-05-06 |
+| D-260 | PR #129 (S-3.02) MERGED 2026-05-07 — squash SHA 6fefc774; develop HEAD 2a7b83f5→6fefc774; pr_count_merged 128→129; workspace_test_count 2363→2993. 4 post-rebase adversarial passes (1 BLOCKED + 3 CLEAN; severity decay 4→1→0→0; 19/19 findings closed). 2 OBS carried: OBS-A (BC-2.11.005:47 cosmetic virtual field naming, deferrable) + OBS-B (S-3.04/S-3.05 sibling proof-path drift → TD-VSDD-064). Deferred TDs: TD-VSDD-061/063/064 + TD-S302-001..006. BCs implemented: BC-2.11.001/005/006/007/011/012. Worktree cleanup: worktree removed, local branch feature/S-3.02 deleted, remote branch auto-deleted by GitHub on merge. Tier-2 STATUS: S-3.02 ✅ + S-3.06 ✅ BOTH COMPLETE. Unblocked by merge: S-3.03/04/05/07/08/09/10/11/12/13 (depend on S-3.02); S-3.07 also cleared S-3.06 dep; S-4.01/S-4.03/S-5.01 cross-wave deps now cleared; Wave 4 Phase 4.B pre-implementation S-4.01→S-3.02 dep resolved. STORY-INDEX v2.13→v2.14 (S-3.02 row annotated MERGED). Session Resume Checkpoint updated to v7.10/D-260. STATE v7.09→v7.10. | PR #129 S-3.02 MERGED 6fefc774; tier-2 COMPLETE; develop HEAD 6fefc774; pr_count 129; test_count 2993; all S-3.0x/S-4.01/S-5.01 deps cleared; STORY-INDEX v2.14 | 4 | 2026-05-07 |
 | D-259 | PR #129 (S-3.02) Adversary Pass-4 Post-Rebase CLEAN — CONVERGENCE MILESTONE 3/3 ACHIEVED 2026-05-06: verdict CLEAN (0 CRIT / 0 HIGH / 0 MED / 0 LOW; 2 OBS carry-forward). branch SHA 8727201b. Three consecutive CLEAN passes (2, 3, 4) — CONVERGED. Severity decay: pass-1 (4 ranked: 3 MED + 1 LOW) → pass-2 (1 LOW) → pass-3 (0) → pass-4 (0). Cumulative 19/19 ranked findings closed; 2 OBS deferrable: OBS-A (BC-2.11.005:47 cosmetic virtual field naming — not SoT; BC-2.11.012 v1.4 is SoT; impl matches) + OBS-B (S-3.04/S-3.05 sibling proof-path drift — out-of-scope; promoted to TD-VSDD-064 codification). KUDO: MaterializationContext field privacy enforcement (pub(crate) fields prevent cap-bypass; test at bc_gap_fill_tests.rs:1547-1555 documents invariant). 7-lens verification ALL PASS. Different-angle axes covered: mutation-test resilience, doctest coverage, fuzz footprint VP-031, cross-platform proof gating, CI perimeter-compile-fail exercise. Process-gap: proofs_path_canonicalization recurrence ≥ 3 met → TD-VSDD-064 filed (P2; recommend policies.yaml policy + adversary checklist + S-3.04/S-3.05 spec fix). PR #129 READY FOR MERGE — pr-manager merge-only handoff (steps 8-9 of per-story-delivery); tier-2 (S-3.02 + S-3.06) COMPLETE after #129 merges. Report: cycles/wave-4-operations/adversarial-reviews/pr-129-pass-4.md. STATE v7.08→v7.09. | PR #129 pass-4 CLEAN; CONVERGED 3/3 MILESTONE; 0 ranked findings; severity decay 4→1→0→0; 19/19 findings closed; 2 OBS deferrable; TD-VSDD-064 filed; ready for pr-manager merge | 4 | 2026-05-06 |
 | D-258 | PR #129 (S-3.02) Adversary Pass-3 Post-Rebase CLEAN — SECOND CONVERGENCE ADVANCE 2026-05-06: verdict CLEAN (0 CRIT / 0 HIGH / 0 MED / 0 LOW / 2 OBS). branch SHA 8727201b. Pass-2 LOW-A closure VERIFIED: S-3.02 v1.12 lines 190+362 now cite `crates/prism-query/src/proofs/vp031_pushdown.rs` (workspace convention upheld). Cumulative 19/19 findings closed (8 pre-rebase + 6 post-rebase + 4 pass-1 + 1 pass-2); 3 deferrals (TD-VSDD-061, TD-VSDD-063, TD-S302-005) confirmed. New findings: 2 OBS deferrable — OBS-A (BC-2.11.005:47 cites old virtual field names — cosmetic spec staleness, not SoT; deferrable to BC-2.11.005 v1.5 bump) + OBS-B (sibling stories S-3.04/S-3.05 carry legacy proof-path drift — out-of-scope; recommend codifying `proofs_path_canonicalization` policy at tier-2 close). 7-lens ALL PASS. KUDO: `intersect_query_client_predicates` cross-client scoping intersection audit confirmed correct. Different-angle axes covered: concurrency/RAII/drop, boundary-case exactness (10K/200MB/30s), CWE-209 redaction parity (7 sites), public API surface vs perimeter, test soundness, CI dep graph (arrow 58/datafusion 53.1/kani-verifier Windows gate), inter-spec staleness sweep. Severity decay: pass-1 ranked 4 → pass-2 ranked 1 → pass-3 ranked 0 (100% decay; all severity tiers cleared). Convergence window: 1/3 → 2/3 (SECOND CLEAN ADVANCE). Required: 1 more consecutive CLEAN pass to declare PR #129 converged. Untilled axes reserved for pass-4: mutation-test resilience, doctest coverage, fuzz footprint VP-031, cross-platform proof gating, CI perimeter-compile-fail exercise. Report: cycles/wave-4-operations/adversarial-reviews/pr-129-pass-3.md. STATE v7.07→v7.08. | PR #129 pass-3 CLEAN; 0 ranked findings; severity decay 4→1→0 (100%); 2 OBS deferrable; convergence 2/3 (SECOND CLEAN ADVANCE); pass-4 next | 4 | 2026-05-06 |
 | D-257 | PR #129 (S-3.02) Adversary Pass-2 Post-Rebase CLEAN — FIRST CONVERGENCE ADVANCE 2026-05-06: verdict CLEAN (0 CRIT / 0 HIGH / 0 MED / 1 LOW pre-existing / 1 OBS). branch SHA 8727201b. Pass-1 closure verified 4/4: MED-A (BC-2.11.005 E-QUERY-005; PO 74909d84 v1.4) CLOSED; MED-B (S-3.02 scopeguard refs; story-writer c0ba6361 v1.11) CLOSED; MED-C (Cargo.toml line 62 typo; implementer 8727201b) CLOSED; LOW-A (AC-9 test rename + TD-S302-005; 8727201b + 8a7123d5) CLOSED; OBS-A (cross-BC propagation gap; TD-VSDD-063 codified) DEFERRED. New finding: F-PR129-P2-LOW-A (VP-031 proof path drift in S-3.02 v1.11 lines 190+362: story says `crates/prism-query/proofs/vp031_pushdown.rs` but actual is `crates/prism-query/src/proofs/vp031_pushdown.rs`; pre-existing, not a regression; LOW informational). Severity decay: pass-1 ranked 4 (3 MED + 1 LOW) → pass-2 ranked 1 (LOW); 75% reduction; MED-tier eliminated entirely. 7-lens ALL PASS (L7 LOW drift only). Convergence window: 0/3 → 1/3 OPEN (FIRST CLEAN ADVANCE). Required: 2 more consecutive CLEAN passes. LOW-A being fixed inline by story-writer dispatch in parallel before pass-3. Report: cycles/wave-4-operations/adversarial-reviews/pr-129-pass-2.md. STATE v7.06→v7.07. | PR #129 pass-2 CLEAN; 0 CRIT/HIGH/MED; 1 LOW pre-existing path drift (story-writer fix dispatched); severity decay 4→1 (75%); convergence 1/3 OPEN (FIRST CLEAN ADVANCE) | 4 | 2026-05-06 |
@@ -566,34 +567,28 @@ _TD-VSDD-014..019, TD-W3-COMPLIANCE-001, TD-VSDD-025..029 archived to [tech-debt
 
 Cycle files: [burst-log](cycles/phase-2-patch/burst-log.md) | [convergence-trajectory](cycles/phase-2-patch/convergence-trajectory.md) | [session-checkpoints](cycles/phase-2-patch/session-checkpoints.md) | [lessons](cycles/phase-2-patch/lessons.md) | [resolved-blockers](cycles/phase-2-patch/blocking-issues-resolved.md)
 ---
-## Session Resume Checkpoint (2026-05-06-d259-pr129-pass4-converged-v7.09)
+## Session Resume Checkpoint (2026-05-07-d260-pr129-merged-tier2-complete-v7.10)
 
-_Previous checkpoint (v7.08/D-258/pr129-pass3-clean) archived: [cycles/wave-4-operations/session-checkpoints.md](cycles/wave-4-operations/session-checkpoints.md)_
+_Previous checkpoint (v7.09/D-259/pr129-pass4-converged) archived: [cycles/wave-4-operations/session-checkpoints.md](cycles/wave-4-operations/session-checkpoints.md)_
 
-**STATE v7.09. D-259 — PR #129 adversary pass-4 post-rebase CLEAN; CONVERGED 3/3. develop HEAD: 2a7b83f5. factory-artifacts HEAD: run `git -C .factory log -1 --format='%h %s'`.**
+**STATE v7.10. D-260 — PR #129 (S-3.02) MERGED; tier-2 COMPLETE (S-3.02 + S-3.06). develop HEAD: 6fefc774. factory-artifacts HEAD: run `git -C .factory log -1 --format='%h %s'`.**
 
-**S-3.06 (PrismQL Write Parser Extensions) COMPLETE:** PR #130 squash-merged 2026-05-06T23:54:33Z. Squash SHA: 2a7b83f5. 7 adversarial passes (4 BLOCKED + 3 CLEAN); 18/18 ranked findings closed; 4 deferred TDs: TD-VSDD-059, TD-VSDD-062, TD-S306-001, TD-S306-002.
+**Tier-2 COMPLETE:**
+- S-3.06 (PrismQL Write Parser Extensions): PR #130 squash-merged 2026-05-06T23:54:33Z. SHA: 2a7b83f5. 7 adversarial passes; 18/18 findings closed. TDs: TD-VSDD-059/062/TD-S306-001/002.
+- S-3.02 (Query Tool and Materialization): PR #129 squash-merged 2026-05-07T03:04:39Z. SHA: 6fefc774. 4 post-rebase adversarial passes (1 BLOCKED + 3 CLEAN); severity decay 4→1→0→0; 19/19 findings closed. TDs: TD-VSDD-061/063/064 + TD-S302-001..006. BCs: BC-2.11.001/005/006/007/011/012. 491 prism-query tests.
 
-**S-3.02 CONVERGED:** stub-architect cc509bdc → test-writer e833a851 → BC amendments → story-writer v1.12 → implementer 8727201b → PR #129 OPEN (rebased onto 2a7b83f5) — **pass-2 CLEAN (1/3) → pass-3 CLEAN (2/3) → pass-4 CLEAN (3/3 CONVERGED). NEXT ACTION: pr-manager merge-only handoff (steps 8-9 of per-story-delivery).**
-
-**PR #129 Pass-4 Convergence Summary (D-259):**
-- Verdict: CLEAN — 0 CRIT / 0 HIGH / 0 MED / 0 LOW / 2 OBS carry-forward / 1 KUDO
-- Severity decay: pass-1 (4) → pass-2 (1) → pass-3 (0) → pass-4 (0); two terminal zero-ranked passes confirm convergence
-- 19/19 cumulative ranked findings closed; 2 OBS deferrable (OBS-A: BC-2.11.005:47 cosmetic; OBS-B: sibling story proof-path drift out-of-scope)
-- TD-VSDD-064 filed: proofs_path_canonicalization (P2; recurrence ≥ 3: S-3.02 fixed, S-3.04, S-3.05 drift)
-- KUDO: MaterializationContext pub(crate) field privacy; cap-bypass prevented; test at bc_gap_fill_tests.rs:1547-1555
-
-**BC amendments committed (eef6e89f → 0a853123 → 0ca6709a → 74909d84):**
-- BC-2.11.004 v1.3→v1.4: case-insensitive verb matching; E-QUERY-022; INV-FILTER-EMPTY-REGISTRY
-- BC-2.11.005 v1.3→v1.4: E-QUERY-005→E-QUERY-003 for record cap (pass-1 fix)
-- BC-2.11.006 v1.10→v1.12: +9 restricted_symbols; E-QUERY-004/005 swap corrected
-- BC-2.11.007 v1.3→v1.4: REQUIRED column SoT citation
-
-**W3 IMPLEMENTATION GRAPH:**
+**W3 IMPLEMENTATION GRAPH (post-tier-2):**
 - Tier-1: S-3.01 (5pts) — MERGED PR #127 2d7040b1 (15 adversary passes)
-- Tier-2: S-3.06 v1.7 (3pts) — MERGED PR #130 2a7b83f5; S-3.02 v1.12 (5pts) — PR #129 CONVERGED, pr-manager merge next
-- Tier-3 (blocked on Tier-2): S-3.03/04/05/08/09/11/12/13 (19pts)
-- Tier-4: S-3.07 (5pts) + S-3.10 (3pts) — Total: 39pts / 13 stories
+- Tier-2: S-3.06 (3pts) — MERGED PR #130 2a7b83f5; S-3.02 (5pts) — MERGED PR #129 6fefc774
+- Tier-3 NOW UNBLOCKED: S-3.03/04/05/08/09/11/12/13 (depend on S-3.02); S-3.07 (depends on S-3.02 + S-3.06, both now merged)
+- Wave 4 dep: S-4.01/S-4.03/S-5.01 dep on S-3.02 CLEARED — Phase 4.B pre-implementation now unblocked
+
+**NEXT ACTIONS (recommended priority):**
+1. S-3.03 (Explain and Query Diagnostics, 1pt) — depends only on S-3.02; fastest win
+2. S-3.04 (Alias System P1, 5pts) + S-3.05 (Pagination and Caching, 6pts) — parallel dispatch
+3. S-3.07 (Write Execution Pipeline, 5pts) — depends on S-3.02 + S-3.06 (both merged)
+
+**Deferred TDs carried forward:** TD-VSDD-061/063/064 + TD-S302-001..006 + TD-VSDD-057 (OPEN-DEFERRED-CROSS-REPO)
 
 **NEXT ACTION:**
 1. PR #129 (S-3.02) — pr-manager merge-only handoff (steps 8-9 of per-story-delivery; branch HEAD 8727201b; all CI must be green)
