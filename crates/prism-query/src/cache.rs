@@ -596,8 +596,8 @@ impl QueryCache {
     /// This is the low-level primitive used by [`crate::invalidation::CacheInvalidator`].
     ///
     /// Returns `Ok(n)` where `n` is the number of entries evicted (I-2: audit
-    /// postcondition — BC-2.07.004 line 44 requires the evicted count to be
-    /// available for audit logging in the write operation's `AuditEntry`).
+    /// postcondition — BC-2.07.004 §Postconditions (audit count) requires the evicted
+    /// count to be available for audit logging in the write operation's `AuditEntry`).
     ///
     /// Returns `Err(PrismError::Internal)` if the mutex is poisoned (E-CACHE-001).
     ///
@@ -680,8 +680,8 @@ impl QueryCache {
     /// Used for client management write operations (BC-2.07.004).
     ///
     /// Returns `Ok(n)` where `n` is the number of entries evicted (I-2: audit
-    /// postcondition — BC-2.07.004 line 44 requires the evicted count to be
-    /// available for audit logging in the write operation's `AuditEntry`).
+    /// postcondition — BC-2.07.004 §Postconditions (audit count) requires the evicted
+    /// count to be available for audit logging in the write operation's `AuditEntry`).
     ///
     /// Returns `Err(PrismError::Internal)` if the mutex is poisoned (E-CACHE-001).
     ///
