@@ -47,6 +47,9 @@ mod proptest_harnesses {
     use crate::alias_store::AliasStore;
     use crate::alias_types::AliasScope;
 
+    // NOTE: catch_unwind is intentionally ABSENT (F-CRIT-003). proptest converts panics
+    // to test failures by default. Using catch_unwind would mask VP-037 violations rather
+    // than surface them. All calls below must return Ok or Err — never panic.
     proptest! {
         #![proptest_config(ProptestConfig::with_cases(256))]
 
@@ -57,8 +60,6 @@ mod proptest_harnesses {
         /// - String literals: "quoted", 'single'
         /// - Identifier characters: a-z A-Z _ 0-9
         /// - Injection attempts: ; DROP TABLE, OR 1=1, etc.
-        ///
-        /// RED — todo!() in expand fires; panic is caught by AssertUnwindSafe.
         #[test]
         fn prop_vp037_expand_arbitrary_printable_ascii(
             query in "[\\x20-\\x7E]{0,512}"
@@ -66,21 +67,14 @@ mod proptest_harnesses {
             let store = AliasStore::empty("/tmp/vp037_proof.toml");
             let scope = AliasScope::Global;
             let args = HashMap::new();
-            // Must not abort, SIGBUS, or produce an unrecoverable panic.
-            let _result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
-                AliasResolver::expand(&query, &store, &scope, &args, 0)
-            }));
-            // todo!() panic is expected and caught. Once implemented: result must be Ok(_).
+            // Must return Ok or Err — must not abort, SIGBUS, or panic.
+            let _ = AliasResolver::expand(&query, &store, &scope, &args, 0);
         }
 
         /// VP-037 property: `expand()` never panics when the query contains @-references
         /// with arbitrary valid identifier names.
         ///
-        /// These are the exact inputs the alias detection regex will match. The store
-        /// is empty so all references produce E-ALIAS-001 after implementation; they
-        /// must never panic.
-        ///
-        /// RED — todo!() fires.
+        /// Empty store means all references produce E-ALIAS-001 — never panic.
         #[test]
         fn prop_vp037_expand_with_alias_references_no_panic(
             ref_name in "[a-zA-Z_][a-zA-Z0-9_]{0,63}",
@@ -90,17 +84,13 @@ mod proptest_harnesses {
             let store = AliasStore::empty("/tmp/vp037_proof.toml");
             let scope = AliasScope::Global;
             let args = HashMap::new();
-            let _result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
-                AliasResolver::expand(&query, &store, &scope, &args, 0)
-            }));
+            let _ = AliasResolver::expand(&query, &store, &scope, &args, 0);
         }
 
         /// VP-037 property: `expand()` called with depth at or beyond MAX_ALIAS_DEPTH
         /// never panics — always returns Err(AliasDepthExceeded).
         ///
         /// This exercises the depth-limit pre-check path for arbitrary query inputs.
-        ///
-        /// RED — todo!() fires.
         #[test]
         fn prop_vp037_expand_at_or_beyond_max_depth_no_panic(
             query in "[\\x20-\\x7E]{0,128}",
@@ -111,28 +101,26 @@ mod proptest_harnesses {
             let store = AliasStore::empty("/tmp/vp037_proof.toml");
             let scope = AliasScope::Global;
             let args = HashMap::new();
-            let _result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
-                AliasResolver::expand(&query, &store, &scope, &args, depth)
-            }));
-            // At depth >= MAX_ALIAS_DEPTH, must return Err (never panic) once implemented.
+            // At depth >= MAX_ALIAS_DEPTH, must return Err(AliasDepthExceeded) — never panic.
+            let result = AliasResolver::expand(&query, &store, &scope, &args, depth);
+            prop_assert!(
+                result.is_err(),
+                "expand at depth >= MAX_ALIAS_DEPTH must return Err(AliasDepthExceeded)"
+            );
         }
 
         /// VP-037 property: `validate_atomic_literal()` never panics on arbitrary inputs.
         ///
         /// The injection guard must handle ALL inputs without panicking — including
         /// compound expressions, SQL injections, empty strings, and binary-looking data.
-        ///
-        /// RED — todo!() fires.
         #[test]
         fn prop_vp037_validate_atomic_literal_arbitrary_input(
             value in "[\\x20-\\x7E]{0,256}",
             param in "[a-zA-Z_][a-zA-Z0-9_]{0,31}",
             alias in "[a-zA-Z_][a-zA-Z0-9_]{0,31}"
         ) {
-            let _result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
-                AliasResolver::validate_atomic_literal(&value, &param, &alias)
-            }));
-            // todo!() panic is expected. Once implemented: must return Ok or Err, not panic.
+            // Must return Ok or Err — must not panic.
+            let _ = AliasResolver::validate_atomic_literal(&value, &param, &alias);
         }
 
         /// VP-037 property: `detect_alias_tokens()` never panics on arbitrary query bodies.
@@ -140,16 +128,12 @@ mod proptest_harnesses {
         /// The regex engine used for @-token detection must handle all string inputs
         /// including those with control characters, non-standard whitespace, and
         /// embedded null bytes (as lossy-decoded strings).
-        ///
-        /// RED — todo!() fires.
         #[test]
         fn prop_vp037_detect_alias_tokens_arbitrary_input(
             query in "[\\x00-\\x7F]{0,512}"
         ) {
-            let _result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
-                AliasResolver::detect_alias_tokens(&query)
-            }));
-            // todo!() panic caught. Once implemented: Vec<String> returned, no panic.
+            // Must return Vec<String> — must not panic.
+            let _ = AliasResolver::detect_alias_tokens(&query);
         }
 
         /// VP-037 property: `substitute_params()` never panics on arbitrary template
@@ -157,8 +141,6 @@ mod proptest_harnesses {
         ///
         /// Template placeholders may be malformed ({{}} without name, nested braces, etc.)
         /// — the substitution function must handle all without panicking.
-        ///
-        /// RED — todo!() fires.
         #[test]
         fn prop_vp037_substitute_params_arbitrary_template(
             template in "[\\x20-\\x7E]{0,256}",
@@ -182,10 +164,8 @@ mod proptest_harnesses {
             let mut args = StdHashMap::new();
             args.insert("p".to_string(), value);
 
-            let _result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
-                AliasResolver::substitute_params(&template, &entry, &args)
-            }));
-            // todo!() panic caught. Once implemented: must return Ok or Err, not panic.
+            // Must return Ok or Err — must not panic.
+            let _ = AliasResolver::substitute_params(&template, &entry, &args);
         }
     }
 }

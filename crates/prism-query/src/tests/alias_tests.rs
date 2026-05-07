@@ -1735,10 +1735,16 @@ mod vp037_proptest {
     // The VP statement covers "every byte sequence interpreted as a query" — tested
     // here via arbitrary strings including unicode, injection attempts, and very long
     // strings. Must return Ok or Err, never stack overflow or panic.
+    //
+    // NOTE: catch_unwind is intentionally ABSENT here (F-CRIT-003). proptest converts
+    // panics to test failures by default, so wrapping in catch_unwind would mask VP-037
+    // violations rather than surface them. The property is: these calls must not panic.
     proptest! {
         #![proptest_config(ProptestConfig::with_cases(256))]
 
-        /// VP-037 property: expand on arbitrary query string always terminates.
+        /// VP-037 property: expand on arbitrary query string always terminates without panic.
+        ///
+        /// Must return Ok(expanded) or Err(structured_error) — never panic.
         #[test]
         fn prop_vp037_expand_never_panics_on_arbitrary_query(
             query in "[\\x20-\\x7E]{0,512}"
@@ -1746,16 +1752,14 @@ mod vp037_proptest {
             let store = AliasStore::empty("/tmp/vp037_prop.toml");
             let scope = AliasScope::Global;
             let args = HashMap::new();
-            // catch_unwind: todo!() panics are caught; once implemented must not panic.
-            let _result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
-                AliasResolver::expand(&query, &store, &scope, &args, 0)
-            }));
-            // Test verifies: no unrecoverable abort or SIGBUS. todo!() panic is caught.
+            // Direct call — proptest will catch panics and report them as failures.
+            let _ = AliasResolver::expand(&query, &store, &scope, &args, 0);
         }
 
         /// VP-037: expand with @-prefixed arbitrary alias names never panics.
         ///
         /// Exercises the detection + lookup path on valid identifier-shaped names.
+        /// Empty store means all @-references resolve to E-ALIAS-001 — never panic.
         #[test]
         fn prop_vp037_expand_arbitrary_alias_references_no_panic(
             name in "[a-zA-Z_][a-zA-Z0-9_]{0,63}"
@@ -1764,9 +1768,7 @@ mod vp037_proptest {
             let store = AliasStore::empty("/tmp/vp037_prop.toml");
             let scope = AliasScope::Global;
             let args = HashMap::new();
-            let _result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
-                AliasResolver::expand(&query, &store, &scope, &args, 0)
-            }));
+            let _ = AliasResolver::expand(&query, &store, &scope, &args, 0);
         }
 
         /// VP-037: validate_atomic_literal never panics on arbitrary printable ASCII.
@@ -1776,10 +1778,7 @@ mod vp037_proptest {
         fn prop_vp037_validate_atomic_literal_never_panics(
             value in "[\\x20-\\x7E]{0,256}"
         ) {
-            let _result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
-                AliasResolver::validate_atomic_literal(&value, "param", "alias")
-            }));
-            // todo!() panic caught. Once implemented: must not panic.
+            let _ = AliasResolver::validate_atomic_literal(&value, "param", "alias");
         }
 
         /// VP-037: detect_alias_tokens never panics on arbitrary query bodies.
@@ -1790,9 +1789,7 @@ mod vp037_proptest {
         fn prop_vp037_detect_alias_tokens_never_panics(
             query in "[\\x00-\\x7F]{0,512}"
         ) {
-            let _result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
-                AliasResolver::detect_alias_tokens(&query)
-            }));
+            let _ = AliasResolver::detect_alias_tokens(&query);
         }
     }
 }

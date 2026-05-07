@@ -28,26 +28,101 @@ use std::collections::HashMap;
 use libfuzzer_sys::fuzz_target;
 use prism_query::alias_resolver::AliasResolver;
 use prism_query::alias_store::AliasStore;
+use prism_query::alias_tools::{create_alias_with_clients_gated, CreateAliasInput};
 use prism_query::alias_types::AliasScope;
 
 /// Decode a fuzz input byte sequence into an (alias_graph, query) pair.
 ///
-/// Format (best-effort, tolerates malformed input gracefully):
-/// - First byte: number of alias entries N (0–9, clamped).
-/// - For each entry: next byte = name_len (clamped to 1–16), then name bytes
-///   (normalized to `a-zA-Z_`), next byte = def_len (clamped to 0–64), then
-///   definition bytes (UTF-8 lossy).
-/// - Remaining bytes: interpreted as the query string (UTF-8 lossy).
+/// # Wire format
 ///
-/// This decoder is intentionally lenient — it must never panic on any input.
+/// ```text
+/// byte 0         : entry_count — number of alias entries, clamped to 0..=5
+/// for each entry:
+///   byte N+0     : name_len (1..=16, clamped; 0 → 1)
+///   bytes N+1..  : name bytes (name_len bytes); each byte normalized to [a-zA-Z_]
+///                  by mapping b % 53 into the printable identifier space
+///   byte M+0     : body_len (0..=64, clamped)
+///   bytes M+1..  : body bytes (body_len bytes, UTF-8 lossy); may include `@` references
+/// remaining bytes: query string (UTF-8 lossy)
+/// ```
+///
+/// All entries are created at `AliasScope::Global`. The decoder is intentionally
+/// lenient — truncated or malformed inputs produce partial or empty output without
+/// panicking.
 fn decode_fuzz_input(data: &[u8]) -> (AliasStore, String, AliasScope) {
-    // NOTE: This function body is intentionally minimal — the store building
-    // and query extraction are pure data operations that must not panic.
-    // Full implementation will be provided by the implementer of the alias system.
-    // For now, return an empty store and the raw input as the query.
-    let query = String::from_utf8_lossy(data).to_string();
-    let store = AliasStore::empty("/tmp/fuzz_aliases.toml");
     let scope = AliasScope::Global;
+    let mut store = AliasStore::empty("/tmp/vp037_fuzz.toml");
+
+    if data.is_empty() {
+        return (store, String::new(), scope);
+    }
+
+    let mut cursor = 0usize;
+
+    // Byte 0: entry count, clamped to 0..=5.
+    let entry_count = (data[cursor] as usize) % 6;
+    cursor += 1;
+
+    for _ in 0..entry_count {
+        if cursor >= data.len() {
+            break;
+        }
+
+        // Name length: 1..=16 (clamped; 0 maps to 1).
+        let raw_name_len = data[cursor] as usize;
+        cursor += 1;
+        let name_len = (raw_name_len % 16) + 1;
+
+        // Name bytes: normalize each byte into [a-zA-Z_] space.
+        // 26 lowercase + 26 uppercase + 1 underscore = 53 printable identifier chars.
+        // First character must be alpha or underscore (guaranteed by ID_CHARS mapping).
+        const ID_CHARS: &[u8] = b"abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ_";
+        let available = data.len().saturating_sub(cursor);
+        let actual_name_len = name_len.min(available);
+        let name_bytes: Vec<u8> = data[cursor..cursor + actual_name_len]
+            .iter()
+            .map(|&b| ID_CHARS[(b as usize) % ID_CHARS.len()])
+            .collect();
+        cursor += actual_name_len;
+        let name = String::from_utf8(name_bytes).unwrap_or_else(|_| "fuzz_alias".to_string());
+
+        if cursor >= data.len() {
+            break;
+        }
+
+        // Body length: 0..=64.
+        let raw_body_len = data[cursor] as usize;
+        cursor += 1;
+        let body_len = raw_body_len % 65;
+
+        let available = data.len().saturating_sub(cursor);
+        let actual_body_len = body_len.min(available);
+        let body = String::from_utf8_lossy(&data[cursor..cursor + actual_body_len]).to_string();
+        cursor += actual_body_len;
+
+        // Attempt to add the entry to the store via the public create_alias API.
+        // Failures (cycles, depth exceeded, parse failures, I/O) are silently
+        // discarded — the fuzz harness cares about `expand()` panics,
+        // not create-time validation.
+        let input = CreateAliasInput {
+            name,
+            scope: "global".to_string(),
+            query: body,
+            parameters: None,
+            description: None,
+            token_id: None,
+        };
+        let ocsf = std::collections::HashSet::new();
+        let _ = create_alias_with_clients_gated(input, &mut store, &ocsf, &[], None);
+    }
+
+    // Remaining bytes form the query string.
+    let query = if cursor < data.len() {
+        String::from_utf8_lossy(&data[cursor..]).to_string()
+    } else {
+        String::new()
+    };
+
     (store, query, scope)
 }
 
