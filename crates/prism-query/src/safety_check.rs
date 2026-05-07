@@ -18,13 +18,11 @@
 //!
 //! Story: S-3.07 | BCs: BC-2.04.001, BC-2.04.007, BC-2.05.009
 
-// Stub module: all non-trivial bodies are todo!() pending implementation.
-#![allow(dead_code, unused_variables)]
-
 use prism_core::{PrismError, RiskTier};
 use prism_security::feature_flag::{CapabilityCheckResult, CompileTimeGate, FeatureFlagEvaluator};
 use prism_spec_engine::write_endpoint::WriteEndpointSpec;
 
+use crate::write_ast::DmlOperation;
 use crate::write_pipeline::WritePlan;
 
 // ---------------------------------------------------------------------------
@@ -109,8 +107,8 @@ pub struct WriteTargetDescriptor<'a> {
 ///
 /// # Gates
 /// 1. Composite source check → `E-QUERY-020`
-/// 2. Internal table check → `E-QUERY-010`
-/// 3. Compile-time feature gate → `E-FLAG-002`
+/// 2. Internal table check → `E-QUERY-027`
+/// 3. Compile-time feature gate → `E-FLAG-002` (via CapabilityDenied)
 /// 4. Runtime TOML capability gate → `E-FLAG-001` (CapabilityDenied)
 /// 5. Unbounded write check → `E-QUERY-022`
 /// 6. Batch limit structural check → `E-QUERY-021`
@@ -133,7 +131,46 @@ pub fn phase2_safety_check(
     endpoint_spec: &WriteEndpointSpec,
     resolved_limit: ResolvedBatchLimit,
 ) -> Result<SafetyCheckPassed, PrismError> {
-    todo!("S-3.07 — phase2_safety_check: Gates 1-7 + risk tier resolution")
+    // Gate 1: Composite source check — E-QUERY-020
+    if target.is_composite_source {
+        return Err(PrismError::WriteTargetCompositeSource {
+            source_name: target.sensor.to_string(),
+        });
+    }
+
+    // Gate 2: Internal prism_* table check — E-QUERY-027
+    if target.is_internal_table {
+        return Err(PrismError::WriteTargetingInternalTable {
+            table: plan.target_table.clone(),
+        });
+    }
+
+    // Gate 3: Compile-time feature flag gate (BC-2.04.001)
+    let capability_check =
+        evaluator.check_permission(compile_gate.into(), client_id, target.capability_path);
+
+    // Convert denied check to PrismError
+    if let Some(err) = evaluator.to_error(&capability_check) {
+        return Err(err);
+    }
+
+    // Gate 4 (same check_permission call above handles both compile and runtime)
+    // check_permission evaluates both tiers in one call.
+
+    // Gate 5: Unbounded write check — E-QUERY-022
+    check_unbounded_write(plan)?;
+
+    // Gate 6: Batch limit structural check — E-QUERY-021
+    check_structural_batch_limit(plan, &resolved_limit)?;
+
+    // Gate 7: Risk tier classification — DELETE always Irreversible per AD-022
+    let risk_tier = classify_risk_tier(plan, endpoint_spec);
+
+    Ok(SafetyCheckPassed {
+        risk_tier,
+        batch_limit: resolved_limit,
+        capability_check,
+    })
 }
 
 /// Resolve the effective batch limit for a write operation.
@@ -146,7 +183,12 @@ pub fn resolve_batch_limit(
     client_override: Option<u32>,
     system_ceiling: u32,
 ) -> ResolvedBatchLimit {
-    todo!("S-3.07 — resolve_batch_limit")
+    let mut limit = endpoint_batch_limit;
+    if let Some(override_val) = client_override {
+        limit = limit.min(override_val);
+    }
+    limit = limit.min(system_ceiling);
+    ResolvedBatchLimit { limit }
 }
 
 /// Classify the risk tier for a write operation.
@@ -158,7 +200,12 @@ pub fn resolve_batch_limit(
 ///
 /// Pure — no I/O.
 pub fn classify_risk_tier(plan: &WritePlan, endpoint_spec: &WriteEndpointSpec) -> RiskTier {
-    todo!("S-3.07 — classify_risk_tier: DELETE always Irreversible per AD-022")
+    // DELETE FROM is always Irreversible — regardless of spec declaration (AD-022)
+    if let Some(DmlOperation::Delete) = &plan.dml_operation {
+        return RiskTier::Irreversible;
+    }
+    // All other operations: use the spec-declared risk tier
+    endpoint_spec.risk_tier.clone()
 }
 
 /// Check whether the write plan has a bounding constraint (WHERE or LIMIT).
@@ -167,7 +214,10 @@ pub fn classify_risk_tier(plan: &WritePlan, endpoint_spec: &WriteEndpointSpec) -
 ///
 /// Pure — no I/O.
 pub fn check_unbounded_write(plan: &WritePlan) -> Result<(), PrismError> {
-    todo!("S-3.07 — check_unbounded_write: E-QUERY-022 guard")
+    if !plan.has_where_clause && !plan.has_explicit_limit {
+        return Err(PrismError::WriteUnbounded);
+    }
+    Ok(())
 }
 
 /// Check whether the write plan's explicit LIMIT (if any) exceeds `batch_limit`.
@@ -182,5 +232,15 @@ pub fn check_structural_batch_limit(
     plan: &WritePlan,
     batch_limit: &ResolvedBatchLimit,
 ) -> Result<(), PrismError> {
-    todo!("S-3.07 — check_structural_batch_limit: pre-fetch E-QUERY-021 guard")
+    if let Some(explicit_limit) = plan.explicit_limit {
+        if explicit_limit > batch_limit.limit as u64 {
+            return Err(PrismError::WriteBatchLimitExceeded {
+                requested: explicit_limit as usize,
+                limit: batch_limit.limit as usize,
+                endpoint: plan.target_table.clone(),
+                client_id: String::new(), // structural check — no client context yet
+            });
+        }
+    }
+    Ok(())
 }

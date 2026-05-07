@@ -417,6 +417,52 @@ pub enum PrismError {
     #[error("E-QUERY-010: virtual field resolution failed for {field}: {detail}")]
     QueryVirtualFieldFailed { field: String, detail: String },
 
+    /// E-QUERY-020: Write targets a composite source (e.g. EVENTS) — not a single
+    /// external sensor source. Composite sources are read-only (BC-2.04.005 §Task 3a).
+    #[error(
+        "E-QUERY-020: write target '{source_name}' is a composite source (e.g. EVENTS); \
+         writes must target a single external sensor source"
+    )]
+    WriteTargetCompositeSource { source_name: String },
+
+    /// E-QUERY-021: Write batch limit exceeded — too many records would be affected.
+    ///
+    /// Returned when either:
+    /// - The structural LIMIT in the write plan exceeds the resolved batch limit
+    ///   (Phase 2 structural check, BC-2.04.008 §Task 3d).
+    /// - The post-fetch record count exceeds the resolved batch limit (Phase 3→4
+    ///   boundary check, story §Task 10).
+    #[error(
+        "E-QUERY-021: batch limit exceeded: query would affect {requested} records; \
+         limit for '{endpoint}' on client '{client_id}' is {limit}"
+    )]
+    WriteBatchLimitExceeded {
+        requested: usize,
+        limit: usize,
+        endpoint: String,
+        client_id: String,
+    },
+
+    /// E-QUERY-022: Unbounded write — no WHERE clause and no LIMIT on the source
+    /// fetch (BC-2.04.008 §Task 3c, story §AC-8, EC-04-007).
+    ///
+    /// Returned before any fetch or sensor API contact.
+    #[error(
+        "E-QUERY-022: unbounded write rejected — query has no WHERE clause and no LIMIT; \
+         add a filter or LIMIT to bound the write operation"
+    )]
+    WriteUnbounded,
+
+    /// E-QUERY-027: Write targets an internal `prism_*` table — internal tables
+    /// are write-protected (story §Task 3a, AC-4, EC-04-006 defense-in-depth).
+    ///
+    /// Also caught at parse time by S-3.06; this is the runtime defense-in-depth check.
+    #[error(
+        "E-QUERY-027: write target '{table}' is an internal prism_* table; \
+         internal tables are write-protected"
+    )]
+    WriteTargetingInternalTable { table: String },
+
     /// E-QUERY-011: Query targets `prism_audit` but caller lacks the `audit.read`
     /// capability (BC-2.15.011, AC-9).
     ///
