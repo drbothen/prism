@@ -1004,6 +1004,7 @@ fn expand_query_with_aliases(
         {
             expanded = expanded.replacen(alias_name.as_str(), expansion.as_str(), 1);
             used.insert(alias_name.clone(), expansion.clone());
+            break; // first-match wins per SEC-P2-003 single-pass invariant
         }
     }
 

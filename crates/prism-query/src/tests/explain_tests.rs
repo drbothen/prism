@@ -977,6 +977,77 @@ fn test_alias_expansion_deterministic_longest_match_wins() {
 }
 
 // ===========================================================================
+// CR-P6-001 Regression: single-pass break — first match wins, no double-apply
+// ===========================================================================
+
+/// CR-P6-001 Regression: `expand_query_with_aliases` must apply at most one
+/// alias substitution per call (single-pass invariant, SEC-P2-003).
+///
+/// Two scenarios are tested:
+/// 1. Shared-prefix aliases "a" and "ab": query "ab > 0" must match "ab"
+///    (longest-first sort wins) and NOT also match "a".
+/// 2. A second independent `explain()` call with the same alias registry does
+///    not double-apply any alias — each call is independently single-pass.
+#[test]
+fn test_alias_single_pass_break_first_match_wins() {
+    // Register "a" → "X > 0" (shorter) and "ab" → "Y > 0" (longer, wins first).
+    // Sorted longest-first: "ab" is tried before "a".
+    let mut alias_registry = HashMap::new();
+    alias_registry.insert("a".to_string(), "X > 0".to_string());
+    alias_registry.insert("ab".to_string(), "Y > 0".to_string());
+    let opts = ExplainOptions {
+        alias_registry: alias_registry.clone(),
+        ..Default::default()
+    };
+
+    // "ab" exactly matches "ab" alias (longest wins) → expanded to "Y > 0".
+    // "a" must NOT also apply — the break after first-match prevents it.
+    let result = explain("ab", opts);
+    assert!(
+        result.is_ok(),
+        "explain() must return Ok after expanding alias 'ab'; got: {result:?}"
+    );
+    let r = result.expect("already checked is_ok");
+    assert!(
+        r.alias_expansion.contains_key("ab"),
+        "alias_expansion must contain 'ab' (longest-match winner); got: {:?}",
+        r.alias_expansion
+    );
+    assert!(
+        !r.alias_expansion.contains_key("a"),
+        "alias_expansion must NOT contain 'a' after single-pass break; got: {:?}",
+        r.alias_expansion
+    );
+
+    // Second independent call: a query that matches "a" (shorter alias) must
+    // expand to "X > 0" — not "Y > 0". Verifies no cross-call state leakage.
+    let opts2 = ExplainOptions {
+        alias_registry,
+        ..Default::default()
+    };
+    let result2 = explain("a", opts2);
+    assert!(
+        result2.is_ok(),
+        "explain() must return Ok for second independent alias call; got: {result2:?}"
+    );
+    let r2 = result2.expect("already checked is_ok");
+    assert!(
+        r2.alias_expansion.contains_key("a"),
+        "second call: alias_expansion must contain 'a'; got: {:?}",
+        r2.alias_expansion
+    );
+    assert_eq!(
+        r2.alias_expansion["a"], "X > 0",
+        "second call: 'a' must expand to 'X > 0', not the 'ab' expansion"
+    );
+    assert!(
+        !r2.alias_expansion.contains_key("ab"),
+        "second call: alias_expansion must NOT contain 'ab'; got: {:?}",
+        r2.alias_expansion
+    );
+}
+
+// ===========================================================================
 // CR-017 Regression: alias name echo must not panic on multi-byte UTF-8 boundary
 // ===========================================================================
 
