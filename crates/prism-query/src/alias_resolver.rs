@@ -423,12 +423,18 @@ impl AliasResolver {
         let is_single_quoted = value.starts_with('\'') && value.ends_with('\'') && value.len() >= 2;
         if is_double_quoted || is_single_quoted {
             let interior = &value[1..value.len() - 1];
-            if interior.contains('\n') || interior.contains('\r') || interior.contains('\0') {
+            // CR-P2-005: reject tab (\t) in addition to newline, carriage-return, and null.
+            if interior.contains('\n')
+                || interior.contains('\r')
+                || interior.contains('\0')
+                || interior.contains('\t')
+            {
                 return Err(PrismError::AliasParameterInvalid {
                     param: param.to_string(),
                     alias: alias.to_string(),
                     value: value.to_string(),
-                    reason: "string literal must not contain newline or null bytes".to_string(),
+                    reason: "string literal must not contain newline, tab, or null bytes"
+                        .to_string(),
                 });
             }
             return Ok(());

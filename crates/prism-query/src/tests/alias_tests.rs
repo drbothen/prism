@@ -1887,6 +1887,81 @@ fn test_BC_2_11_014_dependents_no_prefix_false_positive() {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
+// SEC-009: cascade delete respects scope boundaries
+// ─────────────────────────────────────────────────────────────────────────────
+
+/// SEC-009: deleting a Global alias cascades to ALL referencing scopes (by intent).
+/// Deleting a Client alias cascades ONLY within the same client scope.
+///
+/// Regression test: before the fix, cascade filter matched by name only, causing
+/// Client aliases in OTHER clients to be incorrectly deleted.
+#[test]
+fn test_BC_2_11_014_cascade_delete_respects_scope() {
+    // Setup:
+    // - global/base = "x = 1"
+    // - acme/filter_x -> @base  (references global/base)
+    // - beta/filter_x -> @base  (references global/base)
+    let mut store = AliasStore::empty("/tmp/test_cascade_scope.toml");
+    let _ = store.create_or_update(simple_entry("base", global_scope(), "x = 1"), None);
+    let _ = store.create_or_update(
+        simple_entry("filter_x", client_scope("acme"), "@base AND y = 2"),
+        None,
+    );
+    let _ = store.create_or_update(
+        simple_entry("filter_x", client_scope("beta"), "@base AND y = 2"),
+        None,
+    );
+
+    // Verify dependents of global/base includes BOTH client aliases.
+    let deps = store.dependents("base", &global_scope());
+    let dep_names: Vec<&str> = deps.iter().map(|(n, _)| n.as_str()).collect();
+    assert!(
+        dep_names.contains(&"filter_x"),
+        "both filter_x aliases are dependents of global/base"
+    );
+    assert_eq!(
+        deps.len(),
+        2,
+        "both acme/filter_x and beta/filter_x reference @base"
+    );
+
+    // Case 2: deleting a Client alias (acme/filter_x) must NOT cascade to beta/filter_x.
+    // Reset store.
+    let mut store2 = AliasStore::empty("/tmp/test_cascade_scope2.toml");
+    // acme/client_a -> @client_b; only within acme scope.
+    let _ = store2.create_or_update(
+        simple_entry("client_b", client_scope("acme"), "z = 3"),
+        None,
+    );
+    let _ = store2.create_or_update(
+        simple_entry("client_a", client_scope("acme"), "@client_b AND w = 4"),
+        None,
+    );
+    // beta has an alias with the same name "client_a" referencing its own "client_b".
+    let _ = store2.create_or_update(
+        simple_entry("client_b", client_scope("beta"), "z = 3"),
+        None,
+    );
+    let _ = store2.create_or_update(
+        simple_entry("client_a", client_scope("beta"), "@client_b AND w = 4"),
+        None,
+    );
+
+    // Dependents of acme/client_b: only acme/client_a (not beta/client_a).
+    let deps2 = store2.dependents("client_b", &client_scope("acme"));
+    assert_eq!(
+        deps2.len(),
+        1,
+        "only acme/client_a references acme/client_b"
+    );
+    assert_eq!(
+        deps2[0],
+        ("client_a".to_string(), client_scope("acme")),
+        "dependent must be (client_a, acme) — not beta/client_a"
+    );
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
 // CR-004: list() sort order
 // ─────────────────────────────────────────────────────────────────────────────
 
@@ -2118,6 +2193,35 @@ fn test_BC_2_11_009_quoted_string_with_newline_rejected() {
     );
 }
 
+/// CR-P2-005: string literal with embedded tab (\t) rejected.
+///
+/// Tabs are whitespace control characters; accepting them in parameter values
+/// would allow parameter injection via whitespace manipulation. Rejected alongside
+/// newline, carriage-return, and null bytes.
+#[test]
+fn test_BC_2_11_009_quoted_string_with_tab_rejected() {
+    // Double-quoted string with tab.
+    let value_with_tab = "\"\t\"";
+    let result = AliasResolver::validate_atomic_literal(value_with_tab, "param", "alias");
+    assert!(
+        result.is_err(),
+        "double-quoted string with embedded tab must be rejected (CR-P2-005)"
+    );
+
+    // Single-quoted string with tab.
+    let single_quoted_with_tab = "'\t'";
+    let result = AliasResolver::validate_atomic_literal(single_quoted_with_tab, "param", "alias");
+    assert!(
+        result.is_err(),
+        "single-quoted string with embedded tab must be rejected (CR-P2-005)"
+    );
+
+    // Verify clean string still accepted.
+    let clean = "\"clean_value\"";
+    let result = AliasResolver::validate_atomic_literal(clean, "param", "alias");
+    assert!(result.is_ok(), "clean quoted string must still be accepted");
+}
+
 // ─────────────────────────────────────────────────────────────────────────────
 // CR-007: create_alias rejects Client scopes
 // ─────────────────────────────────────────────────────────────────────────────
@@ -2146,15 +2250,14 @@ fn test_BC_2_11_008_create_alias_rejects_client_scope_without_client_list() {
 // CR-015: AliasScope TOML roundtrip
 // ─────────────────────────────────────────────────────────────────────────────
 
-/// CR-015: AliasScope roundtrip via AliasEntry TOML (embedded in a table context).
+/// CR-015 / CR-P2-004: AliasScope JSON roundtrip via AliasEntry.
 ///
-/// Tests that AliasScope survives TOML roundtrip when embedded in an AliasEntry —
-/// the actual persistence format. Direct serialization of AliasScope as a
-/// standalone TOML root is unsupported (TOML requires a table root for enums).
-/// If the embedded roundtrip shows semantic drift, file TD-S304-SERDE-001.
+/// Tests that AliasScope survives JSON roundtrip when embedded in an AliasEntry.
+/// Renamed from test_alias_scope_toml_roundtrip_via_entry (CR-P2-004 — the original
+/// test actually exercised JSON serde, not TOML).
 #[test]
-fn test_alias_scope_toml_roundtrip_via_entry() {
-    // Roundtrip Global scope via AliasEntry.
+fn test_alias_scope_json_roundtrip_via_entry() {
+    // Roundtrip Global scope via AliasEntry (JSON).
     let entry_global = simple_entry("my_alias", global_scope(), "severity_id >= 3");
     let json_str =
         serde_json::to_string(&entry_global).expect("AliasEntry with Global scope must serialize");
@@ -2165,7 +2268,7 @@ fn test_alias_scope_toml_roundtrip_via_entry() {
         "Global scope JSON roundtrip must be lossless"
     );
 
-    // Roundtrip Client scope via AliasEntry.
+    // Roundtrip Client scope via AliasEntry (JSON).
     let entry_client = simple_entry("client_alias", client_scope("acme"), "severity_id >= 3");
     let json_str =
         serde_json::to_string(&entry_client).expect("AliasEntry with Client scope must serialize");
@@ -2174,6 +2277,48 @@ fn test_alias_scope_toml_roundtrip_via_entry() {
     assert_eq!(
         entry_client.scope, roundtripped.scope,
         "Client scope JSON roundtrip must be lossless"
+    );
+}
+
+/// CR-P2-004: AliasScope actual TOML roundtrip via AliasEntry embedded in aliases table.
+///
+/// Exercises the real `aliases.toml` persistence format: the AliasEntry is serialized
+/// via `toml::to_string_pretty` inside a wrapper struct (as `write_entries_to_file` does)
+/// and deserialized back. This is distinct from the JSON serde above.
+#[test]
+fn test_alias_scope_toml_roundtrip() {
+    use serde::{Deserialize, Serialize};
+
+    /// Mirror of the private `AliasesFile` struct used in `alias_store.rs`.
+    #[derive(Debug, Serialize, Deserialize)]
+    struct AliasesFile {
+        aliases: Vec<crate::alias_types::AliasEntry>,
+    }
+
+    // Roundtrip Global scope.
+    let entry_global = simple_entry("toml_alias", global_scope(), "severity_id >= 3");
+    let file = AliasesFile {
+        aliases: vec![entry_global.clone()],
+    };
+    let toml_str = toml::to_string_pretty(&file).expect("AliasesFile must serialize to TOML");
+    let roundtripped: AliasesFile =
+        toml::from_str(&toml_str).expect("AliasesFile must deserialize from TOML");
+    assert_eq!(
+        roundtripped.aliases[0].scope, entry_global.scope,
+        "Global scope TOML roundtrip must be lossless"
+    );
+
+    // Roundtrip Client scope.
+    let entry_client = simple_entry("toml_client_alias", client_scope("acme"), "x = 1");
+    let file = AliasesFile {
+        aliases: vec![entry_client.clone()],
+    };
+    let toml_str = toml::to_string_pretty(&file).expect("AliasesFile must serialize to TOML");
+    let roundtripped: AliasesFile =
+        toml::from_str(&toml_str).expect("AliasesFile must deserialize from TOML");
+    assert_eq!(
+        roundtripped.aliases[0].scope, entry_client.scope,
+        "Client scope TOML roundtrip must be lossless"
     );
 }
 

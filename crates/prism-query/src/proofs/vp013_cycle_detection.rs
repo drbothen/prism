@@ -147,27 +147,34 @@ mod proptest_harnesses {
         /// — only that the function returns within bounded time.
         ///
         /// RED — fires todo!() on each invocation.
+        /// VP-013 property: detect_cycle always terminates (no infinite loop or stack overflow).
+        ///
+        /// For self-loops the result must be Err; for non-self-loops with empty store the
+        /// result must be Ok (no cycle reachable). Both paths must terminate without panic.
         #[test]
         fn prop_vp013_always_terminates(name in node_name(), ref_name in node_name()) {
             let store = AliasStore::empty("/tmp/vp013_prop.toml");
-            let definition = if name == ref_name {
+            let is_self_loop = name == ref_name;
+            let definition = if is_self_loop {
                 format!("@{ref_name}") // self-loop
             } else {
                 format!("@{ref_name} AND severity_id >= 1")
             };
-            // Must return (not hang/overflow); result content not asserted here.
-            let _result = AliasResolver::detect_cycle(&name, &definition, &store);
-            // todo!() fires immediately — test is RED.
+            let result = AliasResolver::detect_cycle(&name, &definition, &store);
+            // Self-loop must be Err; cross-node reference with empty store must be Ok.
+            if is_self_loop {
+                prop_assert!(result.is_err(), "self-loop must be detected as a cycle");
+            } else {
+                prop_assert!(result.is_ok(), "non-self-loop with empty store must return Ok (no reachable cycle)");
+            }
         }
 
         /// VP-013 property: detect_cycle on a multi-reference definition (A = "@B AND @C")
-        /// always terminates and is correct about cycles.
+        /// always terminates and returns Ok when neither B nor C is A (empty store).
         ///
-        /// When A references both B and C, and neither B nor C references A, no cycle
-        /// should be reported. When one of B or C equals A (self-included), a cycle
-        /// must be detected.
-        ///
-        /// RED — fires todo!() on each invocation.
+        /// When A references both B and C, and the store is empty, no back-edge to A
+        /// can be found, so no cycle is detected. Self-references (when ref_b or ref_c
+        /// equals name) must be detected.
         #[test]
         fn prop_vp013_multi_reference_definition_terminates(
             name in node_name(),
@@ -176,17 +183,18 @@ mod proptest_harnesses {
         ) {
             let store = AliasStore::empty("/tmp/vp013_prop.toml");
             let definition = format!("@{ref_b} AND @{ref_c} OR severity_id >= 1");
-            let _result = AliasResolver::detect_cycle(&name, &definition, &store);
-            // todo!() fires immediately — test is RED.
+            let result = AliasResolver::detect_cycle(&name, &definition, &store);
+            // If neither ref_b nor ref_c equals name, the empty store contains no back-edges.
+            let has_self_ref = ref_b == name || ref_c == name;
+            if has_self_ref {
+                prop_assert!(result.is_err(), "multi-ref definition with self-reference must detect cycle");
+            } else {
+                prop_assert!(result.is_ok(), "multi-ref definition with no self-reference must return Ok (empty store)");
+            }
         }
 
-        /// VP-013 property: for any graph topology where the new alias directly
-        /// references another node that is NOT the new alias itself, the detection
-        /// call terminates (may return Ok or Err depending on store contents).
-        ///
-        /// Specifically exercises the "no-back-edge" case at creation time.
-        ///
-        /// RED — fires todo!() on each invocation.
+        /// VP-013 property: non-self-reference with guaranteed distinct names (A-E, F-J ranges)
+        /// and empty store returns Ok — no cycle reachable.
         #[test]
         fn prop_vp013_non_self_reference_terminates(
             name in "[A-E]",
@@ -194,46 +202,67 @@ mod proptest_harnesses {
             other in "[F-J]",
         ) {
             let store = AliasStore::empty("/tmp/vp013_prop.toml");
-            // name is in A-E, other is in F-J: they cannot be equal
+            // name is in A-E, other is in F-J: they cannot be equal — no self-loop.
             let definition = format!("@{other} AND active = TRUE");
-            let _result = AliasResolver::detect_cycle(&name, &definition, &store);
-            // todo!() fires immediately — test is RED.
+            let result = AliasResolver::detect_cycle(&name, &definition, &store);
+            // No self-reference + empty store = no cycle reachable.
+            prop_assert!(result.is_ok(), "non-self-reference with empty store must return Ok: name={name}, other={other}");
         }
 
-        /// VP-013 property: a three-node potential cycle (A -> B -> C -> A topology)
-        /// is detected when the final back-edge is being added.
+        /// VP-013 property: a three-node cycle (n1 -> n2 -> n3 -> n1 topology) is detected
+        /// when the back-edge (n1 referencing n2) is being added.
         ///
-        /// This exercises the transitive cycle detection path (not just direct self-loops).
-        /// We simulate by calling detect_cycle("A", "@B ...") with B and C referencing
-        /// each other and A in the store.
-        ///
-        /// RED — fires todo!() on each invocation.
+        /// SEC-012 fix: the store is now populated with n2 -> @n3 and n3 -> @n1 entries
+        /// so that detect_cycle can traverse the full graph and detect the cycle.
+        /// Previously the store was empty so no cycle could ever be found.
         #[test]
         fn prop_vp013_transitive_cycle_via_3node_graph(
-            // Node names from different ranges to control topology
+            // Node names from different ranges to control topology (guaranteed distinct).
             n1 in "[A-C]",
             n2 in "[D-F]",
             n3 in "[G-I]",
         ) {
-            let store = AliasStore::empty("/tmp/vp013_prop.toml");
-            // In a full implementation the store would contain n2 -> @n3 and n3 -> @n1.
-            // Here we test that detect_cycle on n1 referencing n2 terminates.
+            use crate::alias_types::{AliasEntry, AliasScope};
+            let mut store = AliasStore::empty("/tmp/vp013_prop.toml");
+
+            // Populate n2 -> @n3 (no cycle yet; n3 not in store).
+            let entry_n2 = AliasEntry {
+                name: n2.clone(),
+                scope: AliasScope::Global,
+                query: format!("@{n3} AND field >= 1"),
+                parameters: None,
+                description: None,
+            };
+            let _ = store.create_or_update(entry_n2, None);
+
+            // Populate n3 -> @n1 (n1 not yet in store so no cycle detected at create time).
+            let entry_n3 = AliasEntry {
+                name: n3.clone(),
+                scope: AliasScope::Global,
+                query: format!("@{n1} AND field >= 2"),
+                parameters: None,
+                description: None,
+            };
+            let _ = store.create_or_update(entry_n3, None);
+
+            // Now detect_cycle for n1 -> @n2 must detect the cycle n1->n2->n3->n1.
             let definition = format!("@{n2} AND field >= 1");
-            let _result = AliasResolver::detect_cycle(&n1, &definition, &store);
-            // todo!() fires immediately — test is RED.
+            let result = AliasResolver::detect_cycle(&n1, &definition, &store);
+            // With a populated store, the three-node cycle must be detected.
+            prop_assert!(result.is_err(), "three-node cycle n1->n2->n3->n1 must be detected: n1={n1}, n2={n2}, n3={n3}");
         }
 
         /// VP-013 property: detect_cycle on an empty definition (no @references)
         /// always returns Ok(()) — no false positive cycle detection possible.
         ///
-        /// RED — fires todo!() on each invocation.
+        /// Store does not need to be populated since there are no @references to traverse.
         #[test]
         fn prop_vp013_empty_definition_no_false_positive(name in node_name()) {
             let store = AliasStore::empty("/tmp/vp013_prop.toml");
             // A definition with no @-references cannot possibly form a cycle.
             let definition = "severity_id >= 1 AND active = TRUE";
-            let _result = AliasResolver::detect_cycle(&name, definition, &store);
-            // todo!() fires immediately — test is RED.
+            let result = AliasResolver::detect_cycle(&name, definition, &store);
+            prop_assert!(result.is_ok(), "literal definition with no @refs must not detect a cycle");
         }
     }
 }
