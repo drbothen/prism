@@ -2,18 +2,18 @@
 //!
 //! Created in S-2.08 with the pure-data `_source_type` virtual field injection
 //! function. S-3.01 adds the PrismQL parser (filter/SQL/pipe modes via Chumsky 0.12).
-//! S-3.02 extends this crate with the DataFusion `TableProvider` integration.
+//! S-3.02 extends this crate with the DataFusion `TableProvider` integration,
+//! `QueryEngine`, and the full ephemeral materialization pipeline.
 //! S-3.06 extends the parser with write-mode productions (pipe terminal write stages,
 //! SQL DML statements, filter-mode write rejection).
-//!
-//! # Architecture Compliance (S-2.08)
-//! This crate MUST NOT depend on DataFusion, Arrow, `arrow-schema`, or `arrow2`.
-//! Those dependencies are added by S-3.02. See `Cargo.toml` for the enforcement
-//! comment.
 //!
 //! # Architecture Compliance (S-3.01)
 //! Parser modules MUST NOT import from `prism-sensors`, `prism-mcp`, or any I/O
 //! crate. Parsing is a pure function: `&str -> Result<Ast, Vec<ParseError>>`.
+//!
+//! # Architecture Compliance (S-3.02 / BC-2.11.006 / INV-SEC-PERIMETER-001)
+//! Materialization code consumes the parser ONLY via `PrismQlParser::parse`.
+//! Restricted sub-parser symbols MUST NOT appear in any S-3.02 module.
 //!
 //! # Architecture Compliance (S-3.06)
 //! Write parser extensions are pure: `WriteVerbRegistry` is initialized once before
@@ -22,7 +22,7 @@
 //!
 //! # Modules
 //! - [`types`]                — `SensorQueryDescriptor` struct (table routing context, S-2.08)
-//! - [`materialization`]      — `inject_source_type()` pure-data virtual field injection (S-2.08)
+//! - [`materialization`]      — ephemeral materialization pipeline + `inject_source_type()` (S-2.08/S-3.02)
 //! - [`org_scoped_session_id`] — org-scoped UUID v7 session ID generation for sensor pagination (S-3.2.08 / D-048)
 //! - [`ast`]                  — PrismQL AST types: `FilterExpr`, `SqlQuery`, `PipeQuery`, `Expr`, etc. (S-3.01)
 //! - [`write_ast`]            — Write mode AST types: `WriteNode`, `DmlNode`, `WriteArg`, `Assignment` (S-3.06)
@@ -33,6 +33,13 @@
 //! - [`pipe_parser`]          — pipe mode parser: `source | stage | stage` (S-3.01 / BC-2.11.004)
 //! - [`security`]             — query size, nesting depth, and stage count guards (S-3.01 / BC-2.11.006)
 //! - [`error_recovery`]       — Chumsky recovery strategies shared across parsers (S-3.01)
+//! - [`engine`]               — `QueryEngine` struct, `execute()`, `execute_scheduled()` (S-3.02 / BC-2.11.001)
+//! - [`pushdown`]             — predicate push-down classification (S-3.02 / BC-2.11.007)
+//! - [`scoping`]              — cross-client scope resolution (S-3.02 / BC-2.11.011)
+//! - [`virtual_fields`]       — `_sensor`, `_client`, `_source_table` injection (S-3.02 / BC-2.11.012)
+//! - [`memory`]               — GreedyMemoryPool + error mapping (S-3.02 / BC-2.11.006)
+//! - [`session`]              — `SessionScope` RAII wrapper (S-3.02 / BC-2.11.005)
+//! - [`internal_tables`]      — `RocksDbTableProvider` DataFusion integration (S-3.02 / BC-2.15.011)
 
 // ── S-2.08 modules ────────────────────────────────────────────────────────────
 pub mod materialization;
@@ -48,6 +55,15 @@ pub mod pipe_parser;
 pub mod security;
 pub mod sql_parser;
 pub mod visit;
+
+// ── S-3.02 modules ────────────────────────────────────────────────────────────
+pub mod engine;
+pub mod internal_tables;
+pub mod memory;
+pub mod pushdown;
+pub mod scoping;
+pub mod session;
+pub mod virtual_fields;
 
 // ── S-3.06 modules ────────────────────────────────────────────────────────────
 pub mod write_ast;

@@ -246,12 +246,24 @@ jobs:
     #   sanitizer-instrumented build (cold):      ~10-15 min (with opt-level=3)
     #   60s fuzz run:                             60s
     #   cleanup + cache save:                     ~30s
-    # Total worst-case: ~17 min. 20-min ceiling provides margin while still
+    # Total worst-case: ~17 min. 20-min ceiling provided margin while still
     # failing fast on hangs (e.g., a fuzz target that loops without
     # producing crashes).
+    #
+    # Pass-S-3.02 fix (PR #129): timeout 20 → 35 min. S-3.02 added 9 new
+    # transitive dependencies (datafusion 53.1, arrow 58, tokio, tracing,
+    # async-trait, proptest, prism-sensors, prism-ocsf, prism-credentials)
+    # to prism-query. Under libfuzzer + AddressSanitizer instrumentation,
+    # the build of these new deps + their transitive closure exceeds the
+    # 20-min ceiling. Observed runs 25471243470/25471244604 both terminated
+    # at ~20m by GitHub Actions cleanup with cargo-fuzz/cc1plus orphan
+    # processes still in build phase — never reached the 60s fuzz run.
+    # 35-min budget provides headroom for future dep growth (S-3.07 +
+    # DTU integrations) while still failing fast on genuine hangs.
+    # Total worst-case (updated): ~28-30 min. 35-min ceiling provides margin.
     needs: clippy
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 35
     permissions:
       contents: read
     steps:
