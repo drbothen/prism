@@ -1,7 +1,7 @@
 ---
 document_type: behavioral-contract
 level: L3
-version: "4.5"
+version: "4.6"
 status: draft
 producer: product-owner
 timestamp: 2026-04-14T05:00:00
@@ -26,7 +26,7 @@ removal_reason: null
 
 # BC-2.07.002: Internal Pagination Token Lifecycle — Forward Progress, Timeout, and Cleanup
 
-**Note (v4.5 reconciliation):** v4.0-v4.3 described pagination as entirely internal (sensor fetch layer). S-3.05 v1.11 reintroduces a thin MCP-exposed cursor surface (`CursorRegistry::create()` / `next_page(token)`) layered on top of the internal sensor-fetch pagination machinery. The internal cursor cap, cross-client allocation, and token expiry semantics described below now also govern the MCP-exposed surface. The Error Cases table (E-QUERY-012/013/014) covers the MCP-agent-facing failure modes; the §Cursor Lifecycle section describes the full lifecycle for both internal and MCP-exposed paths.
+**Note (v4.6 reconciliation):** v4.0-v4.3 described pagination as entirely internal (sensor fetch layer). S-3.05 v1.11 reintroduces a thin MCP-exposed cursor surface (`CursorRegistry::create()` / `next_page(token)`) layered on top of the internal sensor-fetch pagination machinery. The internal cursor cap, cross-client allocation, and token expiry semantics described below now also govern the MCP-exposed surface. The Error Cases table (E-QUERY-012/013/014) covers the MCP-agent-facing failure modes; the `## Cursor Lifecycle (MCP-exposed surface)` section describes the full lifecycle for both internal and MCP-exposed paths.
 
 ## Description
 
@@ -71,6 +71,16 @@ The query engine's pagination lifecycle enforces forward-only progress within a 
 | `PrismError::CursorPageSizeInvalid` (E-QUERY-013) | `page_size` = 0 supplied to cursor creation | Returns E-QUERY-013; rejected as malformed input before cursor is created. |
 | `PrismError::CursorTokenUnknown` (E-QUERY-014) | Cursor token UUID not found in registry | Returns E-QUERY-014; UUID is garbage, already-released after exhaustion, or from a different prism instance. Distinct from E-QUERY-012 (which is for tokens that DID exist but expired). |
 
+## Cursor Lifecycle (MCP-exposed surface)
+
+The S-3.05 v1.11 cursor surface (`CursorRegistry::create()` / `CursorRegistry::next_page(token)`) reuses the internal pagination machinery described above. The full lifecycle:
+
+- **Creation**: `CursorRegistry::create(client_id, sensor_id, source_id, params)` allocates a new cursor, generating a UUID-v4 token. Returns `Err(PrismError::CursorPageSizeInvalid)` (E-QUERY-013) if `page_size == 0`.
+- **Advancement**: `next_page(token)` advances the cursor's offset and returns the next page of rows. Returns `Err(PrismError::CursorTokenUnknown)` (E-QUERY-014) if the token never existed in the registry (garbage UUID, already-released after exhaustion, or from a different prism instance). Returns `Err(PrismError::CursorExpired)` (E-QUERY-012) if `created_at.elapsed() > 60s` (TTL exceeded).
+- **Cap**: Active cursor count is capped at 200 cross-client (per Concurrent Fetch Limits postcondition above). Allocation beyond cap returns `Err(PrismError::CursorCapExceeded)` (E-STORE-020).
+- **Expiry**: Cursors expire 60 seconds after creation; the background eviction task (`evict_expired`) cleans up expired entries on each cleanup tick.
+- **Cross-client allocation**: All cursors share a single global allocation pool; one client's heavy cursor usage can impact other clients (per Cross-Client Fetch Ordering postcondition above).
+
 ## Edge Cases
 | ID | Description | Expected Behavior |
 |----|-------------|-------------------|
@@ -108,6 +118,7 @@ See `.factory/specs/prd-supplements/test-vectors.md` for canonical test vector t
 
 | Version | Burst | Date | Author | Change |
 |---------|-------|------|--------|--------|
+| 4.6 | S-3.04-fix-pass-28 | 2026-05-07 | implementer | Added `## Cursor Lifecycle (MCP-exposed surface)` section covering TTL (60s), cap (200 cross-client), creation/advancement/expiry/cross-client-allocation semantics; updated Note anchor from broken §Cursor Lifecycle to `## Cursor Lifecycle (MCP-exposed surface)`; resolves F-PASS9-HIGH-001 broken anchor + unbacked claims. |
 | 4.5 | S-3.04-fix-pass-27 | 2026-05-07 | implementer | Note reconciliation: clarify v4.4 Note that S-3.05 reintroduces thin MCP-cursor surface layered on internal pagination; resolves F-PASS8-CRIT-002 internal contradiction. |
 | 4.4 | S-3.05-fix-pass-16-sub-burst | 2026-05-07 | implementer | Error code taxonomy update (D-272): added PrismError::CursorExpired (E-QUERY-012), PrismError::CursorPageSizeInvalid (E-QUERY-013), PrismError::CursorTokenUnknown (E-QUERY-014) to Error Cases table. Codes correspond to fix-pass-16 (commit d36ecf22) renumber from incorrect 006/007/009 → spec-correct 012/013/014. E-QUERY-014 unknown-token case is newly distinguished from E-QUERY-012 expired-token case (pass-8 IMP-004 found unknown tokens previously returned E-QUERY-004 misleadingly). Cite F-PASS9-CRIT-001/002/003. |
 | 4.3 | pass-73-fix | 2026-04-20 | state-manager | Deterministic changelog reorder: sorted all rows to descending version order (pass-73 bash script). |

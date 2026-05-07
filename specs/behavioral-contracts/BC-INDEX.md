@@ -1,7 +1,7 @@
 ---
 document_type: behavioral-contract-index
 level: L3
-version: "4.43"
+version: "4.44"
 status: draft
 producer: product-owner
 timestamp: 2026-05-07T00:00:00
@@ -632,6 +632,11 @@ and is recommended for a future capabilities.md update. (Note: superseded by v4.
 - BC-2.16.009 (spec file validation) P0: gates loading rejection path
 - BC-2.16.005 (hot reload on SIGHUP) P1: post-v1.0 hot-reload convenience
 - BC-2.16.007 (hot reload on file-watcher event) P1: post-v1.0 hot-reload convenience
+
+### Version 4.44 (2026-05-07, S-3.04-fix-pass-28 — BC-2.07.002 v4.6 §Cursor Lifecycle section added)
+
+**BC body update:**
+- BC-2.07.002 v4.5→v4.6: Added `## Cursor Lifecycle (MCP-exposed surface)` section covering TTL (60s), cap (200 cross-client), creation/advancement/expiry/cross-client-allocation semantics. Fixed Note anchor from broken §Cursor Lifecycle to `## Cursor Lifecycle (MCP-exposed surface)`. Resolves F-PASS9-HIGH-001.
 
 ### Version 4.43 (2026-05-07, S-3.04-fix-pass-27 — BC-2.07.002 v4.5 Note reconciliation)
 
