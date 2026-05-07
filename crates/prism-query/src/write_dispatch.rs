@@ -284,14 +284,33 @@ impl WriteDispatcher {
             _ => {
                 // Unknown sensor: accumulate a write error for all records.
                 let error_count: usize = records.iter().map(|rb| rb.num_rows()).sum();
-                let sensor_errors = (0..error_count.max(1))
-                    .map(|_| SensorWriteError {
+                // F-PASS2-MED-005: fix phantom error when record batches are present but
+                // all have zero rows. The previous `error_count.max(1)` fabricated a
+                // per-record error that referenced no actual records. Emit a single
+                // context-level error for the empty-batch case instead.
+                let sensor_errors: Vec<SensorWriteError> = if error_count == 0 {
+                    // Record batches were present (passed the `records.is_empty()` guard above)
+                    // but contained zero rows. Emit one context-level error rather than
+                    // fabricating phantom per-record errors.
+                    vec![SensorWriteError {
                         sensor: plan.sensor.clone(),
                         client_id: context.client_id.clone(),
                         error_code: "E-SENSOR-010".to_string(),
-                        detail: format!("unknown sensor '{}'", plan.sensor),
-                    })
-                    .collect();
+                        detail: format!(
+                            "unknown sensor '{}' with empty record batch — no writes attempted",
+                            plan.sensor
+                        ),
+                    }]
+                } else {
+                    (0..error_count)
+                        .map(|_| SensorWriteError {
+                            sensor: plan.sensor.clone(),
+                            client_id: context.client_id.clone(),
+                            error_code: "E-SENSOR-010".to_string(),
+                            detail: format!("unknown sensor '{}'", plan.sensor),
+                        })
+                        .collect()
+                };
                 return (vec![], sensor_errors);
             }
         };
@@ -365,5 +384,156 @@ impl WriteDispatcher {
                  sensor API calls are NOT rolled back"
             );
         }
+    }
+}
+
+// ---------------------------------------------------------------------------
+// F-PASS2-MED-005: unit tests for fan_out empty-batch unknown-sensor edge
+// ---------------------------------------------------------------------------
+
+#[cfg(test)]
+mod fan_out_empty_batch_tests {
+    use super::*;
+    use crate::write_pipeline::{QueryContext, WritePlan};
+    use prism_core::OrgSlug;
+    use prism_spec_engine::write_endpoint::{BatchMode, WriteEndpointSpec};
+    use std::collections::HashMap;
+
+    struct NoOpAudit;
+
+    #[async_trait]
+    impl AuditWriter for NoOpAudit {
+        async fn write_intent(
+            &self,
+            _plan: &WritePlan,
+            _ctx: &QueryContext,
+            _capability_check: &CapabilityCheckResult,
+        ) -> Result<Ulid, PrismError> {
+            Ok(Ulid::new())
+        }
+
+        async fn write_outcome(&self, _id: Ulid, _r: &WriteResult) -> Result<(), PrismError> {
+            Ok(())
+        }
+    }
+
+    fn make_dispatcher() -> WriteDispatcher {
+        WriteDispatcher::new(
+            Arc::new(NoOpAudit),
+            Arc::new(prism_sensors::AdapterRegistry::new()),
+        )
+    }
+
+    fn make_unknown_sensor_plan() -> WritePlan {
+        WritePlan {
+            verb: "write".to_string(),
+            sensor: "unknown_sensor".to_string(),
+            target_table: "unknown_sensor_things".to_string(),
+            dml_operation: None,
+            has_explicit_limit: true,
+            explicit_limit: Some(1),
+            has_where_clause: true,
+            params: HashMap::new(),
+        }
+    }
+
+    fn make_context() -> QueryContext {
+        QueryContext {
+            client_id: "acme".to_string(),
+            org_slug: OrgSlug::new_unchecked("acme"),
+            dry_run: false,
+            confirmation_token_id: None,
+            analyst_id: None,
+        }
+    }
+
+    fn make_endpoint_spec() -> WriteEndpointSpec {
+        WriteEndpointSpec {
+            pipe_verb: "write".to_string(),
+            sql_table: "unknown_sensor_things".to_string(),
+            capability_path: "sensor.unknown_sensor.write".to_string(),
+            risk_tier: prism_core::RiskTier::Irreversible,
+            batch_limit: 100,
+            batch_mode: BatchMode::Serial,
+            steps: vec![],
+            record_id_field: "id".to_string(),
+        }
+    }
+
+    /// MED-005: unknown sensor + empty record batch (RecordBatch with 0 rows) →
+    /// exactly 1 context-level error emitted, not a phantom per-record error.
+    ///
+    /// Before fix: `error_count.max(1)` fabricated 1 error for empty batches.
+    /// After fix: `error_count == 0` branch emits 1 context-level error.
+    #[tokio::test]
+    async fn test_med005_unknown_sensor_empty_batch_emits_one_error() {
+        let dispatcher = make_dispatcher();
+        let plan = make_unknown_sensor_plan();
+        let context = make_context();
+        let endpoint_spec = make_endpoint_spec();
+
+        // Build a RecordBatch with 0 rows (non-empty slice, but zero rows per batch).
+        let schema = Arc::new(arrow::datatypes::Schema::new(vec![
+            arrow::datatypes::Field::new("id", arrow::datatypes::DataType::Utf8, false),
+        ]));
+        let empty_batch = RecordBatch::new_empty(schema);
+
+        let (per_record, sensor_errors) = dispatcher
+            .fan_out(&plan, &context, &endpoint_spec, &[empty_batch])
+            .await;
+
+        assert!(
+            per_record.is_empty(),
+            "MED-005: no per-record results for unknown sensor"
+        );
+        assert_eq!(
+            sensor_errors.len(),
+            1,
+            "MED-005: empty-batch unknown sensor must emit exactly 1 context-level error, \
+             not a phantom per-record error; got {} errors",
+            sensor_errors.len()
+        );
+        assert!(
+            sensor_errors[0]
+                .detail
+                .contains("empty record batch — no writes attempted"),
+            "MED-005: context-level error must describe empty batch situation; \
+             got: {}",
+            sensor_errors[0].detail
+        );
+    }
+
+    /// MED-005: unknown sensor + non-empty record batch (N rows) →
+    /// exactly N errors emitted (one per row).
+    #[tokio::test]
+    async fn test_med005_unknown_sensor_nonempty_batch_emits_per_row_errors() {
+        let dispatcher = make_dispatcher();
+        let plan = make_unknown_sensor_plan();
+        let context = make_context();
+        let endpoint_spec = make_endpoint_spec();
+
+        // Build a RecordBatch with 3 rows.
+        let schema = Arc::new(arrow::datatypes::Schema::new(vec![
+            arrow::datatypes::Field::new("id", arrow::datatypes::DataType::Utf8, false),
+        ]));
+        let array = arrow::array::StringArray::from(vec!["r1", "r2", "r3"]);
+        let batch = RecordBatch::try_new(schema, vec![Arc::new(array)])
+            .expect("must construct 3-row batch");
+
+        let (per_record, sensor_errors) = dispatcher
+            .fan_out(&plan, &context, &endpoint_spec, &[batch])
+            .await;
+
+        assert!(
+            per_record.is_empty(),
+            "MED-005: no per-record results for unknown sensor"
+        );
+        assert_eq!(
+            sensor_errors.len(),
+            3,
+            "MED-005: 3-row batch must emit 3 per-row errors for unknown sensor; \
+             got {} errors",
+            sensor_errors.len()
+        );
     }
 }
