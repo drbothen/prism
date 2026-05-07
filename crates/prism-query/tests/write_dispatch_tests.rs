@@ -206,8 +206,22 @@ async fn test_BC_2_05_009_audit_intent_fail_closed_returns_e_audit_001() {
         capability_check: &prism_security::feature_flag::CapabilityCheckResult::Allowed,
     };
 
-    // dispatch → todo!() → panic
-    let _result = dispatcher.dispatch(inputs).await;
+    // With failing intent: dispatch must return E-AUDIT-001 (fail-closed)
+    let result = dispatcher.dispatch(inputs).await;
+    let err = result.expect_err("Failed intent must abort dispatch with E-AUDIT-001");
+    let err_msg = err.to_string();
+    assert!(
+        err_msg.contains("E-AUDIT-001") || err_msg.contains("Audit emission failed"),
+        "BC-2.05.009: failed intent must produce E-AUDIT-001; got: {err_msg}"
+    );
+    // write_intent was called (before aborting)
+    assert_eq!(
+        audit
+            .intent_call_count
+            .load(std::sync::atomic::Ordering::SeqCst),
+        1,
+        "write_intent must be called exactly once even on failure"
+    );
 }
 
 /// BC-2.05.009 postcondition: when audit intent succeeds, `write_intent` is
@@ -249,8 +263,33 @@ async fn test_BC_2_05_009_audit_intent_called_before_sensor_outcome_after() {
         capability_check: &prism_security::feature_flag::CapabilityCheckResult::Allowed,
     };
 
-    // dispatch → todo!() → panic
-    let _result = dispatcher.dispatch(inputs).await;
+    // MED-6: non-vacuous assertions on audit call counts
+    let result = dispatcher
+        .dispatch(inputs)
+        .await
+        .expect("dispatch must succeed with tracking audit writer");
+
+    // write_intent must be called exactly once (before fan-out)
+    assert_eq!(
+        audit
+            .intent_call_count
+            .load(std::sync::atomic::Ordering::SeqCst),
+        1,
+        "BC-2.05.009: write_intent must be called exactly once"
+    );
+    // write_outcome must be called exactly once (after fan-out)
+    assert_eq!(
+        audit
+            .outcome_call_count
+            .load(std::sync::atomic::Ordering::SeqCst),
+        1,
+        "BC-2.05.009: write_outcome must be called exactly once after fan-out"
+    );
+    // Result must be Ok (partial failure is not Err)
+    assert!(
+        !result.dry_run,
+        "WriteResult.dry_run must always be false on execute path"
+    );
 }
 
 // ---------------------------------------------------------------------------
@@ -298,9 +337,33 @@ async fn test_BC_2_05_009_audit_outcome_failure_does_not_unwind_write() {
         capability_check: &prism_security::feature_flag::CapabilityCheckResult::Allowed,
     };
 
-    // dispatch → todo!() → panic
-    // Post-implementation: this should return Ok(WriteResult) even when outcome fails
-    let _result = dispatcher.dispatch(inputs).await;
+    // MED-6: non-vacuous assertion — outcome failure must NOT cause Err return.
+    // write_outcome failure is logged (HIGH-7) but WriteResult is still returned.
+    let result = dispatcher
+        .dispatch(inputs)
+        .await
+        .expect("BC-2.05.009: WriteResult must be returned even when outcome write fails");
+
+    assert!(
+        !result.dry_run,
+        "WriteResult.dry_run must be false even when outcome write fails"
+    );
+    // write_intent called once (outcome failure doesn't affect intent count)
+    assert_eq!(
+        audit
+            .intent_call_count
+            .load(std::sync::atomic::Ordering::SeqCst),
+        1,
+        "write_intent must be called exactly once"
+    );
+    // write_outcome was attempted but failed (count is 1)
+    assert_eq!(
+        audit
+            .outcome_call_count
+            .load(std::sync::atomic::Ordering::SeqCst),
+        1,
+        "write_outcome must be attempted exactly once (even though it fails)"
+    );
 }
 
 // ---------------------------------------------------------------------------
