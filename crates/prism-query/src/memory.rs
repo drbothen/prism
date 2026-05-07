@@ -55,8 +55,15 @@ pub fn build_session_context(pool_bytes: usize) -> Result<SessionContext, PrismE
     let runtime_env = RuntimeEnvBuilder::new()
         .with_memory_pool(pool)
         .build()
-        .map_err(|e| PrismError::QueryExecutionFailed {
-            detail: format!("failed to build DataFusion runtime env: {e}"),
+        .map_err(|e| {
+            tracing::error!(
+                error = %e,
+                "failed to build DataFusion runtime env (detail redacted from client response)"
+            );
+            PrismError::QueryExecutionFailed {
+                detail: "failed to initialize query runtime: <redacted; see server logs>"
+                    .to_string(),
+            }
         })?;
     let session_config = datafusion::execution::context::SessionConfig::new();
     Ok(SessionContext::new_with_config_rt(
