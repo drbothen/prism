@@ -574,6 +574,16 @@ proptest::proptest! {
     /// field consistency invariant holds across all inputs.
     ///
     /// Uses proptest with PROPTEST_CASES=256 for full coverage.
+    ///
+    /// AC-COVERAGE-DEFERRED: This test currently exercises only the type contract
+    /// (proves WritePreview { dry_run: true, ... } can be constructed and the field
+    /// is readable). Until W3-FIX-S307-001 wires Phase 3 materialization, the
+    /// proptest cannot drive through WriteExecutor::execute() with non-empty record
+    /// batches. Tighten this test by replacing the direct struct literal with a call
+    /// to executor.execute(plan, dry_run=true) and asserting the returned
+    /// WritePreview.dry_run flag — once Phase 3 returns real data.
+    // TODO(W3-FIX-S307-001): tighten this test once Phase 3 materialization is wired —
+    // currently exercises type contract only.
     #[test]
     fn test_BC_2_04_008_invariant_dry_run_field_always_correct(
         has_filter in proptest::bool::ANY,

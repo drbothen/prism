@@ -509,6 +509,15 @@ async fn test_crit4_permit_path_audit_intent_called_with_allowed() {
 /// Note: For S-3.07 scope, the deny-path audit is emitted from write_pipeline.rs
 /// (WriteExecutor) not from WriteDispatcher (which is only reached on permit path).
 /// This test verifies the CapabilityCheckResult type flows through DispatchInputs.
+///
+/// AC-COVERAGE-DEFERRED: Currently a compile-time existence check on the three
+/// CapabilityCheckResult variants. Until W3-FIX-S307-001 unblocks Phase 3 record
+/// materialization, calling dispatcher.dispatch() requires extensive mocking that
+/// duplicates W3-FIX-S307 follow-up scope. Tighten by extending each variant
+/// arm to call dispatcher.dispatch() and assert the audit emission carries the
+/// variant correctly — once dispatch() is fully wired.
+// TODO(W3-FIX-S307-001): tighten this test once Phase 3 materialization is wired —
+// currently exercises type contract only.
 #[test]
 fn test_crit4_capability_check_result_type_flows_through_dispatch_inputs() {
     use prism_security::feature_flag::CapabilityCheckResult;
@@ -557,6 +566,14 @@ fn test_crit4_capability_check_result_type_flows_through_dispatch_inputs() {
 ///
 /// This is a structural property test (no stub call needed — tests the shape
 /// of the audit data that the implementer must populate).
+///
+/// AC-COVERAGE-DEFERRED: Currently a type-contract check (verifies SensorWriteError
+/// vec can be empty). Until W3-FIX-S307-001 provides a richer mock audit writer
+/// that captures AuditEntry capability_checks fields, this test cannot validate
+/// the actual emission. Tighten by integrating with audit-writer mock + asserting
+/// AuditEntry.capability_checks.is_empty() for read operations.
+// TODO(W3-FIX-S307-001): tighten this test once Phase 3 materialization is wired —
+// currently exercises type contract only.
 #[test]
 fn test_BC_2_05_009_ec_05_016_read_op_audit_has_empty_capability_checks() {
     // This test documents the contract: when an audit entry is constructed

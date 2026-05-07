@@ -730,6 +730,17 @@ async fn test_high1_ac3_batch_limit_exceeded_returns_e_query_021_via_executor() 
             || err_msg.contains("limit exceeded"),
         "AC-3: batch limit exceeded must produce E-QUERY-021; got: {err_msg}"
     );
+    // AC-COVERAGE-DEFERRED (MED-003): AC-3 has TWO E-QUERY-021 paths:
+    // (1) structural pre-fetch via safety_check::check_structural_batch_limit (tested above),
+    // (2) post-fetch via WriteExecutor's fetched_records.iter().sum() check at
+    //     write_pipeline.rs:354-362. The test above exercises only the pre-fetch structural
+    //     path. Until W3-FIX-S307-001 wires Phase 3 materialization to return non-zero records,
+    //     the post-fetch path cannot be reached through the integration test. Either:
+    //       - Add a unit test that calls post_fetch_batch_limit_check directly (refactor
+    //         the inline check into a pure function), OR
+    //       - Wait for W3-FIX-S307-001 mock to enable end-to-end.
+    // TODO(W3-FIX-S307-001): add post-fetch batch limit test once Phase 3 materialization
+    // returns non-zero records.
 }
 
 // ---------------------------------------------------------------------------
@@ -1039,6 +1050,13 @@ fn test_high4_is_composite_via_registry() {
 /// work even though the record count between them might differ.
 /// In the current test setup with Phase 3 stub (always 0 records), both
 /// dry-run and execute see 0 records, so this is a structural test.
+///
+/// AC-COVERAGE-DEFERRED: Phase 3 stub returns 0 records, so dry_run and execute
+/// both see would_affect_count=0; the hash differential cannot be tested while
+/// the stub is in place. Tighten this test once W3-FIX-S307-001 mock allows Phase 3
+/// to return varying record counts between dry-run and execute calls.
+// TODO(W3-FIX-S307-001): tighten this test once Phase 3 materialization is wired —
+// currently exercises type contract only.
 #[tokio::test]
 async fn test_high8_token_hash_excludes_would_affect_count() {
     let executor = make_executor(false);
