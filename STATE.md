@@ -1,7 +1,7 @@
 ---
 document_type: pipeline-state
 level: ops
-version: "7.05"
+version: "7.06"
 producer: state-manager
 timestamp: 2026-05-06T00:00:00Z
 inputs: []
@@ -377,7 +377,7 @@ user_directive_persistent: "No pragmatic convergence. Fix all issues before buil
 | **Language** | Rust |
 | **Target Workspace** | per-analyst stdio (MCP server) |
 | **Started** | 2026-04-13 |
-| **Last Updated** | 2026-05-06 (D-255 — develop SHA citation refresh post-PR-#130 merge (3e858f9f→2a7b83f5); STATE v7.04→v7.05) |
+| **Last Updated** | 2026-05-06 (D-256 — PR #129 pass-1 post-rebase BLOCKED persisted; 3 MED + 1 LOW + 2 OBS; fix bundle closed all; STATE v7.05→v7.06) |
 | **Current Phase** | Wave 3 Tier-2 — S-3.06 COMPLETE; S-3.02 next (PR #129 rebase + convergence) |
 | **Current Step** | S-3.02 (PR #129) — rebase onto develop HEAD 2a7b83f5, run 3 CLEAN adversarial convergence passes on rebased state, then squash-merge |
 
@@ -437,6 +437,7 @@ _D-001..D-046 archived: [cycles/phase-3-dtu-wave-2/decisions-archive-d001-d032.m
 | D-246 | Post-merge state update 2026-05-06 — Two PRs merged to develop on 2026-05-06: (1) PR #127 (S-3.01 PrismQL Parser): squash SHA 2d7040b1; 15 adversary passes total (passes 1–12 BLOCKED→remediated, pass-13 CLEAN, pass-14 PERFECT CLEAN, pass-15 PERFECT CLEAN; 3/3 FINAL window closed). Carry-over: F-PG-001 codified as TD-VSDD-057 OPEN-DEFERRED-CROSS-REPO (separate vsdd-factory plugin session); TD-VSDD-057 targets vsdd-factory adversary-prompt security-CI-job positive-coverage-assertion rule. (2) PR #128 (TD-VSDD-058 fuzz-nightly fix): squash SHA 3e858f9f; single PERFECT CLEAN pass; adds protoc install step + bumps fuzz-nightly timeout 45→60 min; TD-VSDD-058 CLOSED. develop HEAD: 3e858f9f. pr_count_merged: 126→128. Wave 3 Tier-2 dispatch prep: S-3.02 (Query Tool and Materialization, 5pts) + S-3.06 (PrismQL Write Parser Extensions, 3pts) both at status=draft with all deps merged; ready for parallel per-story-delivery dispatch after drift-check + status bump. STATE v6.95→v6.96. | PR #127 S-3.01 MERGED 2d7040b1 + PR #128 TD-VSDD-058 MERGED 3e858f9f; 15-pass convergence closed; TD-VSDD-057 OPEN-DEFERRED-CROSS-REPO; Tier-2 (S-3.02+S-3.06) ready | 4 | 2026-05-06 |
 | D-247 | Tier-2 in-flight 2026-05-06 — S-3.02 (Query Materialization, 5pts) + S-3.06 (PrismQL Write Parser Extensions, 3pts) dispatched in parallel via per-story-delivery. Worktrees created: `.worktrees/S-3.02/` (branch feature/S-3.02) + `.worktrees/S-3.06/` (branch feature/S-3.06). Per-story-delivery state at dispatch: **S-3.02**: stub-architect cc509bdc → test-writer e833a851 → BC amendments → story-writer v1.10 (factory-artifacts SHA 0ca6709a) → implementer IN-FLIGHT. 72 RED tests post-amendment. **S-3.06**: stub-architect cdcb4b38 → test-writer c8b708d7 → BC amendments → implementer IN-FLIGHT. 91 RED tests. Story version unchanged at v1.7 (BC-2.11.004 v1.4 amendments handled by implementer per natural TDD reconciliation). **BC amendments committed (eef6e89f → 0a853123 → 0ca6709a):** BC-2.11.004 v1.3→v1.4 (case-insensitive verb matching; E-QUERY-022 unbounded write row; INV-FILTER-EMPTY-REGISTRY), BC-2.11.006 v1.10→v1.11 (+9 restricted_symbols for S-3.06 perimeter guard) then v1.11→v1.12 (E-QUERY-004/005 swap corrected to match PrismError SoT — pre-impl BC error was INVERTED; S-3.02 story refs corrected in v1.10 story bump), BC-2.11.007 v1.3→v1.4 (REQUIRED column SoT documented = `prism_core::ColumnOptions::Required`; spec-driven not hardcoded). **Notable pre-impl findings:** (1) BC-2.11.006 E-QUERY-004/005 were SWAPPED in BC v1.10 relative to PrismError SoT — test-writer surface catch, corrected in v1.12. (2) BC-2.11.007 REQUIRED column SoT was undocumented — story-writer v1.10 + BC v1.4 now specify `prism_core::ColumnOptions::Required` as authoritative. (3) BC-2.11.004 v1.3 missing case-insensitive verb matching and INV-FILTER-EMPTY-REGISTRY invariant — PO caught at test-write phase. (4) Workspace ripple: `prism-sensors` arrow 53→58 in S-3.02 stub-architect commit (resolves chrono conflict from datafusion 53.1 migration). **4 process-gap candidates flagged for codification review at tier-2 close:** (a) E-QUERY-004/005 swap in BC vs SoT — process: BC error-code review against PrismError enum at BC-write time; (b) REQUIRED column SoT undocumented — process: SoT citations required for all "implementation-defined" terms in BCs; (c) case-sensitivity gaps not caught until test-write — process: verb-matching ambiguity checklist at BC authoring; (d) INV-FILTER-EMPTY-REGISTRY missing from initial BC — process: per-BC invariant cross-reference sweep. STATE v6.96→v6.97. | Tier-2 in-flight (S-3.02 v1.10 + S-3.06 v1.7 implementers dispatched); BC amendments (2.11.004 v1.4, 2.11.006 v1.11/v1.12, 2.11.007 v1.4); 4 process-gap candidates flagged | 4 | 2026-05-06 |
 | D-250 | PR-130 (S-3.06) Adversary Pass-2 BLOCKED 2026-05-06: verdict BLOCKED (1 HIGH + 2 MED + 6 OBS; 1 process-gap). branch SHA 84c65574. HIGH-001: F-PR130-P1-LOW-001 partially closed — commit 36f18fae fixed only line 73 (AC-3); lines 74-75 (AC-7/AC-8) still cite BC010 phantom node in Mermaid graph (POL-04 + POL-08). MED-001: pr-description.md lines 6/20/209 still cite BC v1.11 / 9 symbols / 27 E-errors (actual: v1.14 / 10 symbols / 28 E-errors). MED-002: BC-2.11.006 v1.14 changelog burst tag S-3.02-pr130-pass1 should be S-3.06-pr130-pass1. 7/8 pass-1 findings closed; 1 partial-closure re-elevated to HIGH. Severity decay positive (15→9 findings). Convergence window: 0/3 (window does NOT advance). 3 required fixes before pass-3: (1) pr-description.md lines 74-75 BC010→BC004; (2) pr-description.md lines 6/20/209 v1.11→v1.14 + 9→10 + 27→28; (3) BC-2.11.006 changelog tag S-3.02→S-3.06. Report: cycles/wave-4-operations/adversarial-reviews/pr-130-pass-2.md. STATE v6.99→v7.00. | PR-130 pass-2 BLOCKED; 1 HIGH (partial-fix recurrence) + 2 MED (doc drift); convergence 0/3; 3 required fixes before pass-3 | 4 | 2026-05-06 |
+| D-256 | PR #129 (S-3.02) Adversary Pass-1 Post-Rebase BLOCKED 2026-05-06: verdict BLOCKED (0 CRIT / 0 HIGH / 3 MED / 1 LOW / 2 OBS). branch SHA a4316370; diff_base 2a7b83f5. Severity decay strong vs first cycle (pre-rebase): 1 CRIT + 3 HIGH + 4 MED → 0 CRIT + 0 HIGH + 3 MED. Remaining findings are spec/doc drift, NOT code defects. Findings: MED-A (BC-2.11.005 v1.3 stale E-QUERY-005 for record cap — cross-BC drift with BC-2.11.006 v1.12 SoT), MED-B (S-3.02 v1.10 has 3 stale scopeguard refs from F-PR129-CR-002 drop), MED-C (Cargo.toml line 62 sibling typo missed by SUG-018 partial fix), LOW-A (AC-9 test name overstates verification — todo!() pipeline). OBS-A [process-gap]: cross-BC error-code propagation gap (third recurrence). OBS-B: VP-031 fixture column names cosmetic drift. 3 KUDOs. Pre-rebase fix bundle 8/8 CLOSED; post-rebase fix bundle 5/6 CLEAN (1 PARTIAL → MED-C). All 3 MED + 1 LOW + 1 OBS remediated by parallel fix bundle: PO commit 74909d84 (BC-2.11.005 v1.4 E-QUERY-005→E-QUERY-003) + story-writer commit c0ba6361 (S-3.02 v1.11 scopeguard→plain-Drop) + implementer commit 8727201b (Cargo.toml line 62 + AC-9 test rename) + factory-artifacts 8a7123d5 (TD-S302-005 + TD-VSDD-063 filed). Convergence window: 0/3; pass-2 next. Report: cycles/wave-4-operations/adversarial-reviews/pr-129-pass-1.md. STATE v7.05→v7.06. | PR #129 pass-1 post-rebase BLOCKED; 0 CRIT/0 HIGH/3 MED/1 LOW/2 OBS; severity decay strong (first cycle 1C+3H+4M→0C+0H+3M); all findings remediated by parallel fix bundle; convergence 0/3; pass-2 next | 4 | 2026-05-06 |
 | D-255 | Develop SHA citation refresh post-PR-#130 merge 2026-05-06: develop HEAD updated 3e858f9f→2a7b83f5 in STATE.md frontmatter (develop_head, wave_3_implementation_status) and SESSION-HANDOFF.md (current-state table, predecessor_session, successor_focus, status cell). Historical D-N audit-trail entries referencing 3e858f9f as the SHA at the time of those events PRESERVED. verify-sha-currency.sh hook unblocked for adversary dispatch. STATE v7.04→v7.05. | develop SHA 3e858f9f→2a7b83f5 cited in STATE.md + SESSION-HANDOFF.md; hook unblocked | 4 | 2026-05-06 |
 | D-254 | S-3.06 PR #130 SQUASH-MERGED to develop 2026-05-06: squash commit 2a7b83f5adfd6006bd107492944516b952cc0625 ("feat(S-3.06): PrismQL write parser extensions — BC-2.11.004 v1.4 + perimeter +10 symbols (#130)"). Merge lifecycle steps 7-9 complete: (7) All 34 CI jobs PASS across runs 25466521799 + 25466523244; PR state=MERGED; convergence reports pr-130-pass-5/6/7.md confirmed. (8) Squash merge executed by Joshua Magady at 2026-05-06T23:54:33Z; merge pre-authorized under D-223 tier-2 autonomy. (9) Post-merge cleanup: remote branch feature/S-3.06 deleted; local worktree .worktrees/S-3.06 removed; local branch feature/S-3.06 deleted; develop fast-forwarded to 2a7b83f5; STORY-INDEX v2.11→v2.12 (merge tag appended). Convergence summary: 7 adversarial passes (4 BLOCKED + 3 CLEAN); 18/18 findings closed; severity decay 15→9→7→4→0→0→0; 4 deferred TDs (TD-VSDD-059, TD-VSDD-062, TD-S306-001, TD-S306-002). Tier-2 status: S-3.06 COMPLETE; S-3.02 next (PR #129 rebase + 3 CLEAN convergence). | S-3.06 COMPLETE — PR #130 squash-merged 2a7b83f5; all cleanup done; S-3.02 next | 4 | 2026-05-06 |
 | D-253 | PR-130 (S-3.06) Adversary Pass-7 CLEAN — CONVERGENCE MILESTONE 3/3 ACHIEVED 2026-05-06: verdict CLEAN (0C/0H/0M/0L; 1 OBS carry-forward). branch SHA 5770aa8e. Three consecutive CLEAN passes achieved (passes 5, 6, 7) — CONVERGED. Severity decay: 15→9→7→4→0→0→0 (three terminal zeros). 7-lens verification ALL PASS; 8 disjoint axes reviewed in pass-7 (concurrency/thread-safety THREAD_PARSE_LIMITS, boundary/overflow pipe-stage limit at N=32, cross-feature interaction parse_with_registry↔thread-local↔denylist↔pipe-routing, error-message safety, CI workflow correctness, TD freshness, documentation accuracy, extract_sensor_prefix boundary cases). Cumulative 18/18 ranked findings from passes 1-4 CLOSED (spot-checks: HIGH-001 denylist propagation, MED-001 race fix, LOW-002 stage count, P2-HIGH-001 Mermaid, P4-MED-001 visit_write_node). Deferred TDs: TD-VSDD-059, TD-VSDD-062 (plugin tech-debt); TD-S306-001 sensor_verbs; TD-S306-002 E-QUERY-010 reuse. Carry-forward OBS-001: pr-description/PERIMETER-EXPANSION/README cite v1.14 vs v1.15 (body-only amendment; substantive claims accurate; defer to doc-sync sweep). PR #130 READY FOR MERGE — pr-manager merge-only handoff (no further review/fix dispatches needed). Report: cycles/wave-4-operations/adversarial-reviews/pr-130-pass-7.md. STATE v7.02→v7.03. | PR-130 pass-7 CLEAN; CONVERGED 3/3 MILESTONE; 18/18 findings closed; 4 deferred TDs; 1 OBS carry-forward; ready for pr-manager merge | 4 | 2026-05-06 |
@@ -562,21 +563,32 @@ _TD-VSDD-014..019, TD-W3-COMPLIANCE-001, TD-VSDD-025..029 archived to [tech-debt
 
 Cycle files: [burst-log](cycles/phase-2-patch/burst-log.md) | [convergence-trajectory](cycles/phase-2-patch/convergence-trajectory.md) | [session-checkpoints](cycles/phase-2-patch/session-checkpoints.md) | [lessons](cycles/phase-2-patch/lessons.md) | [resolved-blockers](cycles/phase-2-patch/blocking-issues-resolved.md)
 ---
-## Session Resume Checkpoint (2026-05-06-d255-develop-sha-refresh-v7.05)
+## Session Resume Checkpoint (2026-05-06-d256-pr129-pass1-blocked-v7.06)
 
-_Previous checkpoint (v7.04/D-254/pr130-merged-s306-complete) archived: [cycles/wave-4-operations/session-checkpoints.md](cycles/wave-4-operations/session-checkpoints.md)_
+_Previous checkpoint (v7.05/D-255/develop-sha-refresh) archived: [cycles/wave-4-operations/session-checkpoints.md](cycles/wave-4-operations/session-checkpoints.md)_
 
-**STATE v7.05. D-255 — develop SHA citation refreshed post-PR-#130 merge (3e858f9f→2a7b83f5). develop HEAD: 2a7b83f5. factory-artifacts HEAD: run `git -C .factory log -1 --format='%h %s'`.**
+**STATE v7.06. D-256 — PR #129 adversary pass-1 post-rebase BLOCKED (3 MED + 1 LOW + 2 OBS). develop HEAD: 2a7b83f5. factory-artifacts HEAD: run `git -C .factory log -1 --format='%h %s'`.**
 
-**S-3.06 (PrismQL Write Parser Extensions) COMPLETE:** PR #130 squash-merged 2026-05-06T23:54:33Z. Squash SHA: 2a7b83f5adfd6006bd107492944516b952cc0625. 7 adversarial passes (4 BLOCKED + 3 CLEAN); 18/18 ranked findings closed; severity decay 15→9→7→4→0→0→0; 4 deferred TDs: TD-VSDD-059, TD-VSDD-062 (plugin), TD-S306-001 (sensor_verbs), TD-S306-002 (E-QUERY-010 reuse). All CI jobs green (34 jobs). 406 prism-query tests / 2908 workspace tests. Cleanup: remote branch deleted; worktree removed; STORY-INDEX v2.12 merge-tagged.
+**S-3.06 (PrismQL Write Parser Extensions) COMPLETE:** PR #130 squash-merged 2026-05-06T23:54:33Z. Squash SHA: 2a7b83f5adfd6006bd107492944516b952cc0625. 7 adversarial passes (4 BLOCKED + 3 CLEAN); 18/18 ranked findings closed; severity decay 15→9→7→4→0→0→0; 4 deferred TDs: TD-VSDD-059, TD-VSDD-062 (plugin), TD-S306-001 (sensor_verbs), TD-S306-002 (E-QUERY-010 reuse). All CI jobs green (34 jobs). 406 prism-query tests / 2908 workspace tests.
 
-**S-3.02 per-story-delivery state:** stub-architect cc509bdc → test-writer e833a851 → BC amendments (BC-2.11.006 v1.11→v1.12; BC-2.11.007 v1.3→v1.4) → story-writer v1.10 (factory-artifacts 0ca6709a) → implementer → PR #129 OPEN — **NEXT ACTION: rebase feature/S-3.02 onto develop HEAD 2a7b83f5, then run 3 CLEAN adversarial convergence passes on rebased state, then squash-merge.**
+**S-3.02 per-story-delivery state:** stub-architect cc509bdc → test-writer e833a851 → BC amendments (BC-2.11.006 v1.11→v1.12; BC-2.11.007 v1.3→v1.4) → story-writer v1.10 (factory-artifacts 0ca6709a) → implementer → PR #129 OPEN (rebased onto 2a7b83f5) — **pass-1 post-rebase BLOCKED; fix bundle applied (74909d84 + c0ba6361 + 8727201b + 8a7123d5); NEXT ACTION: dispatch adversary pass-2 on PR #129.**
+
+**PR #129 Pass-1 Post-Rebase Summary (D-256):**
+- Verdict: BLOCKED — 0 CRIT / 0 HIGH / 3 MED / 1 LOW / 2 OBS / 3 KUDO
+- Severity decay vs first cycle: 1 CRIT + 3 HIGH + 4 MED → 0 CRIT + 0 HIGH + 3 MED (strong decay)
+- MED-A: BC-2.11.005 v1.3 stale E-QUERY-005 → CLOSED (PO 74909d84; BC v1.4)
+- MED-B: S-3.02 v1.10 scopeguard refs → CLOSED (story-writer c0ba6361; S-3.02 v1.11)
+- MED-C: Cargo.toml line 62 typo → CLOSED (implementer 8727201b)
+- LOW-A: AC-9 test rename + TD → CLOSED (implementer 8727201b + factory-artifacts 8a7123d5; TD-S302-005 + TD-VSDD-063)
+- OBS-A [process-gap]: cross-BC propagation gap codified as TD-VSDD-063 (factory-artifacts 8a7123d5)
+- Convergence window: 0/3
 
 **BC amendments (eef6e89f → 0a853123 → 0ca6709a):**
 - BC-2.11.004 v1.3→v1.4: case-insensitive verb matching; E-QUERY-022 unbounded write row; INV-FILTER-EMPTY-REGISTRY
 - BC-2.11.006 v1.10→v1.11: +9 restricted_symbols for S-3.06 perimeter guard
 - BC-2.11.006 v1.11→v1.12: E-QUERY-004/005 swap corrected to match PrismError SoT
 - BC-2.11.007 v1.3→v1.4: REQUIRED column SoT = `prism_core::ColumnOptions::Required`
+- BC-2.11.005 v1.3→v1.4: E-QUERY-005→E-QUERY-003 for record cap (pass-1 fix; 74909d84)
 
 **4 process-gap candidates (for codification at tier-2 close):**
 1. E-QUERY-004/005 INVERTED in BC vs PrismError SoT — add: error-code cross-check vs SoT enum at BC-write time
@@ -586,17 +598,16 @@ _Previous checkpoint (v7.04/D-254/pr130-merged-s306-complete) archived: [cycles/
 
 **W3 IMPLEMENTATION GRAPH:**
 - Tier-1: S-3.01 (5pts) — MERGED PR #127 2d7040b1 (15 adversary passes)
-- Tier-2: S-3.06 v1.7 (3pts) — PR #130 CONVERGED → pr-manager merge-only next; S-3.02 v1.10 (5pts) — PR #129 OPEN, rebase + 3 CLEAN needed
+- Tier-2: S-3.06 v1.7 (3pts) — MERGED PR #130 2a7b83f5; S-3.02 v1.11 (5pts) — PR #129 OPEN, pass-2 next (convergence 0/3)
 - Tier-3 (blocked on Tier-2): S-3.03/04/05/08/09/11/12/13 (19pts)
 - Tier-4: S-3.07 (5pts) + S-3.10 (3pts) — Total: 39pts / 13 stories
 
 **NEXT ACTION:**
-1. pr-manager merge-only dispatch for PR #130 (S-3.06) — CONVERGED, no further review needed
-2. PR #129 (S-3.02) — rebase onto develop post-PR-#130-merge + 3 CLEAN adversary convergence passes
-3. TD-VSDD-057 codification in vsdd-factory plugin repo (separate session, OPEN-DEFERRED-CROSS-REPO)
-4. After Tier-2 closes: codify 4 process-gap candidates above; then Tier-3 dispatch
+1. PR #129 (S-3.02) — dispatch adversary pass-2 on rebased + fix-bundle-applied branch (branch HEAD 8727201b)
+2. TD-VSDD-057 codification in vsdd-factory plugin repo (separate session, OPEN-DEFERRED-CROSS-REPO)
+3. After Tier-2 closes (3 CLEAN passes): codify 4 process-gap candidates above; then Tier-3 dispatch
 
-**Current spec versions:** BC-2.11.004 v1.4, BC-2.11.006 v1.12, BC-2.11.007 v1.4, S-3.02 v1.10, S-3.06 v1.7, BC-INDEX v4.38, STORY-INDEX v2.08, ARCH-INDEX v2.31, VP-INDEX v1.29, prd.md v1.10
+**Current spec versions:** BC-2.11.004 v1.4, BC-2.11.005 v1.4, BC-2.11.006 v1.12, BC-2.11.007 v1.4, S-3.02 v1.11, S-3.06 v1.7, BC-INDEX v4.38, STORY-INDEX v2.08, ARCH-INDEX v2.31, VP-INDEX v1.29, prd.md v1.10
 
 **Key files:** [SESSION-HANDOFF.md](SESSION-HANDOFF.md) | [cycle-manifest.md](cycles/wave-4-operations/cycle-manifest.md) | [HOLDOUT-INDEX.md](holdout-scenarios/HOLDOUT-INDEX.md)
 

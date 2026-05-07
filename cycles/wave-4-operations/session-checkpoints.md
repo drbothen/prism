@@ -164,4 +164,18 @@ develop HEAD: `3133710e` | factory-artifacts: run `git -C .factory log -1 --form
 
 ---
 
+---
+
+## Session Resume Checkpoint (2026-05-06-d255-develop-sha-refresh-v7.05) — ARCHIVED
+
+_Archived when v7.06 checkpoint (D-256 PR #129 pass-1 post-rebase BLOCKED) replaced this entry in STATE.md._
+
+**STATE v7.05. D-255 — develop SHA citation refreshed post-PR-#130 merge (3e858f9f→2a7b83f5). develop HEAD: 2a7b83f5. S-3.06 COMPLETE; S-3.02 next (PR #129 rebase + 3 CLEAN convergence passes).**
+
+develop HEAD: `2a7b83f5` | factory-artifacts: run `git -C .factory log -1 --format='%h %s'` | workspace tests: 2908 (2363 base + 406 prism-query S-3.06) | PRs merged: 130 | Open: #129
+
+**D-255 (2026-05-06):** develop SHA citation refresh: 3e858f9f→2a7b83f5 in STATE.md frontmatter (develop_head, wave_3_implementation_status) and SESSION-HANDOFF.md. S-3.06 PR #130 squash-merged 2a7b83f5 (D-254). S-3.02 PR #129 OPEN — next: rebase onto 2a7b83f5, then 3 CLEAN adversary passes.
+
+---
+
 <!-- Repeat for each archived checkpoint. Maintain chronological order. -->
