@@ -104,7 +104,8 @@ impl WritePlan {
     /// incorrect for multi-underscore table names (e.g., "crowdstrike_detection_audit"
     /// only yielded "crowdstrike" by luck; "events" would yield "events" with no sensor).
     ///
-    /// Returns `Err(PrismError::UnregisteredWriteTarget)` if the table is not registered.
+    /// Returns `Err(PrismError::WriteAdapterNotConfiguredForClient)` if the table is not
+    /// registered in the endpoint registry.
     pub fn from_dml_node(
         node: &DmlNode,
         registry: &WriteEndpointRegistry,
@@ -118,10 +119,17 @@ impl WritePlan {
         // F-PASS2-MED-004: authoritative sensor resolution via registry lookup.
         // Replaces split('_').next() heuristic which failed for tables without underscores
         // or whose prefix did not match the sensor name.
+        //
+        // client_id is not yet available at this construction site (WritePlan is built
+        // before QueryContext is resolved). Using "<unknown>" fallback per F-PASS3-MED-001
+        // adjudication. TODO(W3-FIX-S307-002): thread real client_id once OrgRegistry
+        // lookup is wired through from_dml_node's call chain.
         let sensor = registry
             .sensor_for_table(&node.target_table)
-            .ok_or_else(|| PrismError::UnregisteredWriteTarget {
+            .ok_or_else(|| PrismError::WriteAdapterNotConfiguredForClient {
+                sensor: "<unknown>".to_string(),
                 table: node.target_table.clone(),
+                client_id: "<unknown>".to_string(),
             })?
             .to_string();
 
@@ -480,11 +488,15 @@ mod write_plan_from_dml_node_tests {
         let err_msg = err.to_string();
         assert!(
             err_msg.contains("events"),
-            "UnregisteredWriteTarget must mention the table name; got: {err_msg}"
+            "WriteAdapterNotConfiguredForClient must mention the table name; got: {err_msg}"
+        );
+        assert!(
+            err_msg.contains("E-QUERY-029"),
+            "error must carry E-QUERY-029 code; got: {err_msg}"
         );
     }
 
-    /// MED-004: unknown table (not in registry) → Err(UnregisteredWriteTarget).
+    /// MED-004: unknown table (not in registry) → Err(WriteAdapterNotConfiguredForClient).
     #[test]
     fn test_from_dml_node_unknown_table() {
         let registry = make_registry_with("crowdstrike", "crowdstrike_contained_hosts");
@@ -494,7 +506,11 @@ mod write_plan_from_dml_node_tests {
         let err_msg = err.to_string();
         assert!(
             err_msg.contains("nonexistent_table"),
-            "UnregisteredWriteTarget must mention the unknown table; got: {err_msg}"
+            "WriteAdapterNotConfiguredForClient must mention the unknown table; got: {err_msg}"
+        );
+        assert!(
+            err_msg.contains("E-QUERY-029"),
+            "error must carry E-QUERY-029 code; got: {err_msg}"
         );
     }
 }
