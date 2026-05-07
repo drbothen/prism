@@ -1,11 +1,11 @@
 ---
 document_type: session-handoff
 level: ops
-version: "7.17"
+version: "7.18"
 status: current
-timestamp: 2026-05-07T09:00:00Z
-predecessor_session: "D-268 Pass-13 closures (fix-pass-23) 2026-05-07. STATE v7.16→v7.17. develop HEAD: 6fefc774. factory-artifacts HEAD: run git -C .factory log -1."
-successor_focus: "D-269 Tier-3 dispatch: S-3.03/04/05/07 all unblocked (S-3.02 + S-3.06 both merged). Recommended: S-3.03 (1pt fastest win) + S-3.04/S-3.05 parallel (5+6pts). develop HEAD: 6fefc774. Tier-2 COMPLETE (S-3.02 ✓ PR #129 6fefc774 + S-3.06 ✓ PR #130 2a7b83f5). Active worktrees: none (S-3.02 worktree removed post-merge). Deferred TDs: TD-VSDD-061/063/064/075 + TD-S302-001..006 + TD-VSDD-057 (OPEN-DEFERRED-CROSS-REPO).
+timestamp: 2026-05-07T10:00:00Z
+predecessor_session: "D-269 S-3.04 pass-6 narrative + TD-075 scope expansion (fix-pass-13) 2026-05-07. STATE v7.17→v7.18. develop HEAD: 6fefc774. factory-artifacts HEAD: run git -C .factory log -1."
+successor_focus: "D-270 Tier-3 dispatch: S-3.03/04/05/07 all unblocked (S-3.02 + S-3.06 both merged). Recommended: S-3.03 (1pt fastest win) + S-3.04/S-3.05 parallel (5+6pts). develop HEAD: 6fefc774. Tier-2 COMPLETE (S-3.02 ✓ PR #129 6fefc774 + S-3.06 ✓ PR #130 2a7b83f5). Active worktrees: none (S-3.02 worktree removed post-merge). Deferred TDs: TD-VSDD-061/063/064/075 + TD-S302-001..006 + TD-VSDD-057 (OPEN-DEFERRED-CROSS-REPO).
 
 **STEP 1 (START HERE):** Read STATE.md v7.17 + this HANDOFF v7.17 in full. Confirm develop HEAD `6fefc774` (PR #129 S-3.02 squash-merged 2026-05-07). Tier-2 COMPLETE — no active worktrees.
 
