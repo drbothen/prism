@@ -40,8 +40,10 @@ pub const ALIAS_DETECTION_PATTERN: &str = r"@([a-zA-Z_][a-zA-Z0-9_]{0,63})";
 
 /// Regex for compound expression characters that must NOT appear in param values.
 ///
-/// Matches: `|`, `(`, `)`, `=`, `!`, `>`, `<`, whitespace-AND/OR/NOT keywords.
-const INJECTION_CHAR_PATTERN: &str = r"[|()=!<>]|(?i)\bAND\b|\bOR\b|\bNOT\b";
+/// Matches: `|`, `(`, `)`, `=`, `!`, `>`, `<`, `@`, `;`, `\`, SQL-comment sequences
+/// `--` and `/* */`, and whitespace-bounded AND/OR/NOT keywords.
+/// (CR-001 / SEC-001: extended injection guard)
+const INJECTION_CHAR_PATTERN: &str = r"[@;|()=!<>\\]|--|/\*|\*/|(?i)\bAND\b|\bOR\b|\bNOT\b";
 
 /// Duration literal pattern: digits followed by a time unit.
 const DURATION_PATTERN: &str = r"^\d+[smhdwMy]$";
@@ -173,9 +175,19 @@ impl AliasResolver {
             let expanded_body = Self::expand(&substituted, store, scope, args, depth + 1)?;
 
             // Replace all `@alias_name` occurrences in result with expanded body.
-            // Use the detection regex to find exact matches (avoids replacing substrings).
-            let pattern = format!("@{alias_name}");
-            result = result.replace(&pattern, &expanded_body);
+            // Use the detection regex with a named-capture closure to avoid replacing
+            // prefix-aliases (e.g., expanding @foo must NOT touch @foobar). CR-009.
+            let re = alias_detection_regex();
+            result = re
+                .replace_all(&result, |caps: &regex::Captures| {
+                    let captured_name = caps.get(1).map(|m| m.as_str()).unwrap_or("");
+                    if captured_name == alias_name.as_str() {
+                        expanded_body.clone()
+                    } else {
+                        caps[0].to_string()
+                    }
+                })
+                .into_owned();
         }
 
         // Step 5: size check on expanded output.
@@ -200,25 +212,47 @@ impl AliasResolver {
     ///
     /// MUST be called at alias creation time so the store never contains a
     /// cycle (BC-2.11.009 invariant DI-020).
+    ///
+    /// `scope` is used to resolve aliases using the same per-client-overrides-global
+    /// precedence as `resolve_scope` (CR-002 fix: per-client cycles are detected).
     pub fn detect_cycle(
         name: &str,
         definition: &str,
         store: &AliasStore,
+    ) -> Result<(), PrismError> {
+        // Default to global scope for backwards-compat callers that don't supply a scope.
+        Self::detect_cycle_scoped(name, definition, store, &AliasScope::Global)
+    }
+
+    /// Scope-aware variant of `detect_cycle`.
+    ///
+    /// Uses `scope` to look up aliases — per-client first, then global — mirroring
+    /// `resolve_scope` precedence so that per-client cycles are reliably detected
+    /// (CR-002 / SEC-004).
+    pub fn detect_cycle_scoped(
+        name: &str,
+        definition: &str,
+        store: &AliasStore,
+        scope: &AliasScope,
     ) -> Result<(), PrismError> {
         let tokens = Self::detect_alias_tokens(definition);
         let mut visited: HashSet<String> = HashSet::new();
         visited.insert(name.to_string());
 
         let mut chain = vec![name.to_string()];
-        Self::dfs_cycle(name, &tokens, store, &mut visited, &mut chain)?;
+        Self::dfs_cycle(name, &tokens, store, scope, &mut visited, &mut chain)?;
         Ok(())
     }
 
     /// DFS helper for cycle detection.
+    ///
+    /// Resolves alias bodies using the same per-client-overrides-global precedence
+    /// as `resolve_scope` to ensure per-client cycles are detectable (CR-002).
     fn dfs_cycle(
         origin: &str,
         tokens: &[String],
         store: &AliasStore,
+        scope: &AliasScope,
         visited: &mut HashSet<String>,
         chain: &mut Vec<String>,
     ) -> Result<(), PrismError> {
@@ -244,15 +278,32 @@ impl AliasResolver {
                 });
             }
 
-            // Check if this referenced alias exists in the store.
-            // Try global scope first (simplified — store holds all entries).
-            let global_entry = store.get(token, &AliasScope::Global).ok().flatten();
+            // Resolve the token using the same scope-precedence as resolve_scope
+            // (per-client overrides global) — CR-002 fix.
+            let resolved_entry: Option<String> = {
+                let client_entry = if let AliasScope::Client(_) = scope {
+                    store
+                        .get(token, scope)
+                        .ok()
+                        .flatten()
+                        .map(|e| e.query.clone())
+                } else {
+                    None
+                };
+                client_entry.or_else(|| {
+                    store
+                        .get(token, &AliasScope::Global)
+                        .ok()
+                        .flatten()
+                        .map(|e| e.query.clone())
+                })
+            };
 
-            if let Some(entry) = global_entry {
+            if let Some(query) = resolved_entry {
                 visited.insert(token.clone());
                 chain.push(token.clone());
-                let child_tokens = Self::detect_alias_tokens(&entry.query);
-                Self::dfs_cycle(origin, &child_tokens, store, visited, chain)?;
+                let child_tokens = Self::detect_alias_tokens(&query);
+                Self::dfs_cycle(origin, &child_tokens, store, scope, visited, chain)?;
                 chain.pop();
                 visited.remove(token);
             }
@@ -307,9 +358,19 @@ impl AliasResolver {
             return Ok(entry);
         }
 
-        // Neither found.
-        let all_entries = store.list(None);
-        let available = all_entries
+        // Neither found. Include only scope-visible aliases in the error to
+        // avoid cross-client alias disclosure (SEC-003).
+        // For Client scope: show client aliases + global aliases (both legitimately visible).
+        // For Global scope: show only global aliases.
+        let visible_entries: Vec<&crate::alias_types::AliasEntry> = match scope {
+            AliasScope::Client(_) => {
+                let mut v = store.list(Some(scope));
+                v.extend(store.list(Some(&AliasScope::Global)));
+                v
+            }
+            AliasScope::Global => store.list(Some(&AliasScope::Global)),
+        };
+        let available = visible_entries
             .iter()
             .map(|e| e.name.as_str())
             .collect::<Vec<_>>()
@@ -357,9 +418,19 @@ impl AliasResolver {
         }
 
         // Accept single-quoted or double-quoted string literals.
-        if (value.starts_with('"') && value.ends_with('"') && value.len() >= 2)
-            || (value.starts_with('\'') && value.ends_with('\'') && value.len() >= 2)
-        {
+        // CR-010: also validate interior for disallowed control characters.
+        let is_double_quoted = value.starts_with('"') && value.ends_with('"') && value.len() >= 2;
+        let is_single_quoted = value.starts_with('\'') && value.ends_with('\'') && value.len() >= 2;
+        if is_double_quoted || is_single_quoted {
+            let interior = &value[1..value.len() - 1];
+            if interior.contains('\n') || interior.contains('\r') || interior.contains('\0') {
+                return Err(PrismError::AliasParameterInvalid {
+                    param: param.to_string(),
+                    alias: alias.to_string(),
+                    value: value.to_string(),
+                    reason: "string literal must not contain newline or null bytes".to_string(),
+                });
+            }
             return Ok(());
         }
 

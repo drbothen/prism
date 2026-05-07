@@ -75,6 +75,22 @@ impl AliasStore {
             AliasResolver::detect_cycle(&entry.name, &entry.query, &store)?;
         }
 
+        // Validate: depth limit — probe each entry's expansion chain.
+        // CR-013: load() must reject stores where any alias would violate MAX_ALIAS_DEPTH.
+        // Expand the body of each entry and surface E-ALIAS-003 (depth exceeded).
+        // Non-depth errors (E-ALIAS-001 for dangling refs) are silenced at load time.
+        let args = std::collections::HashMap::new();
+        for entry in &store.entries {
+            if let Err(e) =
+                AliasResolver::expand(&entry.query, &store, &AliasScope::Global, &args, 0)
+            {
+                if matches!(e, prism_core::error::PrismError::AliasDepthExceeded { .. }) {
+                    return Err(e);
+                }
+                // All other errors (missing aliases, etc.) are not load-time failures.
+            }
+        }
+
         Ok(store)
     }
 
@@ -104,7 +120,11 @@ impl AliasStore {
     /// Returns `Err(E-ALIAS-002)` on cycle, `Err(E-ALIAS-003)` on depth exceeded,
     /// `Err(E-ALIAS-006)` on keyword/OCSF collision, `Err(E-IO-001)` on write
     /// failure.
-    pub fn create_or_update(
+    ///
+    /// **Visibility:** `pub(crate)` — external callers MUST go through `alias_tools::create_alias`
+    /// or `alias_tools::create_alias_with_clients` to ensure keyword/OCSF collision checks
+    /// are applied. Direct access bypasses those validation gates (CR-018).
+    pub(crate) fn create_or_update(
         &mut self,
         entry: AliasEntry,
         token: Option<prism_security::ConfirmationToken>,
@@ -158,17 +178,27 @@ impl AliasStore {
 
     /// List aliases, optionally filtered by scope.
     ///
-    /// - `None` → return all aliases (global + all per-client), sorted
-    ///   alphabetically by name within each scope group (BC-2.11.013).
-    /// - `Some(Global)` → return only global aliases.
+    /// - `None` → return all aliases (global + all per-client), sorted with
+    ///   Global entries first (alphabetically by name), then per-client groups
+    ///   sorted by client_id then name (BC-2.11.013 / CR-004).
+    /// - `Some(Global)` → return only global aliases, sorted by name.
     /// - `Some(Client(id))` → return only aliases for that client; does NOT
-    ///   include global aliases.
+    ///   include global aliases; sorted by name.
     pub fn list(&self, scope_filter: Option<&AliasScope>) -> Vec<&AliasEntry> {
         let mut result: Vec<&AliasEntry> = match scope_filter {
             None => self.entries.iter().collect(),
             Some(filter) => self.entries.iter().filter(|e| &e.scope == filter).collect(),
         };
-        result.sort_by(|a, b| a.name.cmp(&b.name));
+        // Sort key: (scope_discriminant, client_id_or_empty, name).
+        // Global = 0, Client = 1 — Global entries appear first (CR-004).
+        result.sort_by(|a, b| {
+            let a_disc = scope_discriminant(&a.scope);
+            let b_disc = scope_discriminant(&b.scope);
+            a_disc
+                .cmp(&b_disc)
+                .then_with(|| scope_client_id(&a.scope).cmp(scope_client_id(&b.scope)))
+                .then_with(|| a.name.cmp(&b.name))
+        });
         result
     }
 
@@ -200,8 +230,16 @@ impl AliasStore {
             .any(|e| e.name == name && &e.scope == scope);
 
         if !exists {
-            let all_entries = self.list(None);
-            let available = all_entries
+            // Restrict error disclosure to scope-visible aliases only (SEC-003).
+            let visible_entries: Vec<&AliasEntry> = match scope {
+                AliasScope::Client(_) => {
+                    let mut v = self.list(Some(scope));
+                    v.extend(self.list(Some(&AliasScope::Global)));
+                    v
+                }
+                AliasScope::Global => self.list(Some(&AliasScope::Global)),
+            };
+            let available = visible_entries
                 .iter()
                 .map(|e| e.name.as_str())
                 .collect::<Vec<_>>()
@@ -257,13 +295,17 @@ impl AliasStore {
     /// Scan all alias definitions for references to `@name` in the given scope.
     ///
     /// Returns the names of all aliases (in any scope) whose `query` field
-    /// contains a `@name` reference. O(n) over all entries; acceptable at
-    /// expected cardinality (< 1,000 per deployment).
+    /// contains a token-level `@name` reference. Uses `AliasResolver::detect_alias_tokens`
+    /// to avoid substring false positives (e.g., alias `high` must NOT show as dependent
+    /// of `high_sev`). O(n) over all entries; acceptable at expected cardinality
+    /// (< 1,000 per deployment). (CR-003 fix)
     pub fn dependents(&self, name: &str, _scope: &AliasScope) -> Vec<String> {
-        let pattern = format!("@{name}");
         self.entries
             .iter()
-            .filter(|e| e.name != name && e.query.contains(&pattern))
+            .filter(|e| {
+                e.name != name
+                    && AliasResolver::detect_alias_tokens(&e.query).contains(&name.to_string())
+            })
             .map(|e| e.name.clone())
             .collect()
     }
@@ -307,10 +349,35 @@ impl AliasStore {
             .sync_all()
             .map_err(|e| PrismError::Io(format!("fsync failed: {e}")))?;
 
-        // Atomic rename.
-        std::fs::rename(&tmp_path, &self.path)
-            .map_err(|e| PrismError::Io(format!("rename failed: {e}")))?;
+        // Atomic rename. On failure, attempt to clean up the temp file (CR-005).
+        if let Err(rename_err) = std::fs::rename(&tmp_path, &self.path) {
+            // Best-effort cleanup — swallow the cleanup error, surface the rename error.
+            let _ = std::fs::remove_file(&tmp_path);
+            return Err(PrismError::Io(format!("rename failed: {rename_err}")));
+        }
 
         Ok(())
+    }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Sort helpers for list()
+// ─────────────────────────────────────────────────────────────────────────────
+
+/// Return a sort discriminant for the scope: Global=0, Client=1.
+///
+/// Ensures global aliases sort before per-client aliases (CR-004).
+fn scope_discriminant(scope: &AliasScope) -> u8 {
+    match scope {
+        AliasScope::Global => 0,
+        AliasScope::Client(_) => 1,
+    }
+}
+
+/// Return the client_id string for sort purposes, or empty string for Global.
+fn scope_client_id(scope: &AliasScope) -> &str {
+    match scope {
+        AliasScope::Global => "",
+        AliasScope::Client(id) => id.0.as_str(),
     }
 }

@@ -21,6 +21,7 @@ use std::collections::HashMap;
 use serde::{Deserialize, Serialize};
 
 use prism_core::error::PrismError;
+use tracing;
 
 use crate::alias_resolver::AliasResolver;
 use crate::alias_store::AliasStore;
@@ -159,12 +160,25 @@ impl AliasEntryView {
 /// 8. If `CreateResult::ConfirmationRequired`: return token response.
 ///    If `CreateResult::Created`: return success with expanded form.
 ///
+/// **Client-scope restriction:** This variant does not receive a valid client
+/// list, so `Client(_)` scopes are rejected with `E-CFG-001`. Pass
+/// `create_alias_with_clients` with an explicit `valid_client_ids` list to
+/// permit per-client alias creation (CR-007).
+///
 /// Returns `Err` on any validation or I/O failure.
 pub fn create_alias(
     input: CreateAliasInput,
     store: &mut AliasStore,
     ocsf_reserved: &std::collections::HashSet<String>,
 ) -> Result<serde_json::Value, PrismError> {
+    // Reject Client-scoped creates when no valid client list is available (CR-007).
+    let scope_check = AliasScope::parse(&input.scope)?;
+    if let AliasScope::Client(ref client_id) = scope_check {
+        let id_str = client_id.0.as_str();
+        return Err(PrismError::ConfigNotFound {
+            path: format!("client:{id_str}"),
+        });
+    }
     create_alias_with_clients(input, store, ocsf_reserved, &[])
 }
 
@@ -182,15 +196,15 @@ pub fn create_alias_with_clients(
     // Step 1: parse scope.
     let scope = AliasScope::parse(&input.scope)?;
 
-    // Validate client ID when applicable.
+    // Validate client ID when scope is Client(_). ALWAYS enforced — an empty
+    // valid_client_ids list means no client is valid, so any client-scoped op
+    // is rejected with E-CFG-001. (CR-007 fix)
     if let AliasScope::Client(ref client_id) = scope {
-        if !valid_client_ids.is_empty() {
-            let id_str = client_id.0.as_str();
-            if !valid_client_ids.iter().any(|v| v == id_str) {
-                return Err(PrismError::ConfigNotFound {
-                    path: format!("client:{id_str}"),
-                });
-            }
+        let id_str = client_id.0.as_str();
+        if !valid_client_ids.iter().any(|v| v == id_str) {
+            return Err(PrismError::ConfigNotFound {
+                path: format!("client:{id_str}"),
+            });
         }
     }
 
@@ -262,6 +276,15 @@ pub fn create_alias_with_clients(
             let expanded = AliasResolver::expand(&created_entry.query, store, &scope, &args, 0)
                 .unwrap_or_else(|_| created_entry.query.clone());
 
+            // DI-004 audit span (CR-023): emit structured log for alias create.
+            // TODO TD-S304-AUDIT-001: replace with prism_audit::emit_audit when available.
+            tracing::info!(
+                operation = "alias.create",
+                alias_name = %created_entry.name,
+                alias_scope = %created_entry.scope,
+                outcome = "created",
+            );
+
             let response = CreateAliasSuccess {
                 alias: AliasEntryView::from_entry(&created_entry),
                 expanded,
@@ -277,6 +300,13 @@ pub fn create_alias_with_clients(
             token_client_id,
             token_json: _,
         } => {
+            // DI-004 audit span (CR-023): emit for confirmation-required path.
+            tracing::info!(
+                operation = "alias.create",
+                alias_name = %input.name,
+                alias_scope = %input.scope,
+                outcome = "confirmation_required",
+            );
             let response = serde_json::json!({
                 "confirmation_required": true,
                 "message": format!(
@@ -328,6 +358,15 @@ pub fn list_aliases(
         .map(|e| AliasEntryView::from_entry(e))
         .collect();
 
+    // DI-004 audit span (CR-023): emit for list operation.
+    // TODO TD-S304-AUDIT-001: replace with prism_audit::emit_audit when available.
+    tracing::info!(
+        operation = "alias.list",
+        scope = ?input.scope,
+        result_count = views.len(),
+        outcome = "ok",
+    );
+
     serde_json::to_value(views).map_err(|e| PrismError::McpParameterInvalid {
         tool: "list_aliases".to_string(),
         detail: format!("response serialization failed: {e}"),
@@ -346,10 +385,22 @@ pub fn list_aliases(
 /// 5. If token provided: resolve dependents, call `AliasStore::delete`.
 ///
 /// Returns confirmation token JSON on first call, success JSON after confirmation.
+///
+/// # Two-step flow (CR-008 — full token lifecycle implemented)
+///
+/// **First call** (`token_id: None`): the alias exists check passes, the
+/// function generates a `ConfirmationToken` via `token_store.generate()` bound
+/// to `(name, scope, force)`, and returns `confirmation_required: true` with the
+/// `token_id` in the response.
+///
+/// **Second call** (`token_id: Some(id)`): the function consumes the token via
+/// `token_store.consume(token_id, client_id, action_params)`. If the consume
+/// fails (unknown token, expired, hash mismatch), returns `E-FLAG-008` or
+/// the relevant error. On success, proceeds with the delete.
 pub fn delete_alias(
     input: DeleteAliasInput,
     store: &mut AliasStore,
-    _token_store: &prism_security::ConfirmationTokenStore,
+    token_store: &prism_security::ConfirmationTokenStore,
     valid_client_ids: &[String],
 ) -> Result<serde_json::Value, PrismError> {
     // Step 1: parse scope.
@@ -368,8 +419,16 @@ pub fn delete_alias(
     // Step 3: check alias exists.
     let exists = store.get(&input.name, &scope)?.is_some();
     if !exists {
-        let all_entries = store.list(None);
-        let available = all_entries
+        // Restrict error disclosure to scope-visible aliases only (SEC-003).
+        let visible_entries: Vec<&AliasEntry> = match &scope {
+            AliasScope::Client(_) => {
+                let mut v = store.list(Some(&scope));
+                v.extend(store.list(Some(&AliasScope::Global)));
+                v
+            }
+            AliasScope::Global => store.list(Some(&AliasScope::Global)),
+        };
+        let available = visible_entries
             .iter()
             .map(|e| e.name.as_str())
             .collect::<Vec<_>>()
@@ -381,9 +440,23 @@ pub fn delete_alias(
         });
     }
 
-    // Step 4: no token — issue confirmation required response.
+    // Step 4: no token — generate a real ConfirmationToken and return it.
     if input.token_id.is_none() {
         let deps = store.dependents(&input.name, &scope);
+
+        // Generate a real token bound to (name, scope, force) (CR-008).
+        let action_params = serde_json::json!({
+            "name": input.name,
+            "scope": input.scope,
+            "force": input.force
+        });
+        let token = token_store.generate(
+            scope.token_client_id(),
+            "delete_alias",
+            action_params,
+            &format!("delete alias '{}'", input.name),
+        )?;
+
         let mut response = serde_json::json!({
             "confirmation_required": true,
             "message": format!(
@@ -391,6 +464,7 @@ pub fn delete_alias(
                 input.name
             ),
             "token_client_id": scope.token_client_id(),
+            "token_id": token.token_id,
         });
         if !deps.is_empty() {
             response["dependent_aliases"] = serde_json::json!(deps);
@@ -402,12 +476,36 @@ pub fn delete_alias(
                 ));
             }
         }
+        // DI-004 audit span (CR-023): emit for delete confirmation-required.
+        // TODO TD-S304-AUDIT-001: replace with prism_audit::emit_audit when available.
+        tracing::info!(
+            operation = "alias.delete",
+            alias_name = %input.name,
+            alias_scope = %input.scope,
+            force = input.force,
+            outcome = "confirmation_required",
+        );
         return Ok(response);
     }
 
-    // Step 5: token provided — check dependents and delete.
-    // NOTE: In a full implementation we would validate the token via token_store.consume().
-    // For this story scope, we accept any non-None token_id as confirmation.
+    // Step 5: token provided — validate via token_store.consume() (CR-008).
+    // Safety: we checked is_none() above; if None we returned Ok early.
+    let Some(ref token_id_str) = input.token_id else {
+        // Structurally unreachable — is_none() check above returns Ok(response).
+        return Err(PrismError::McpParameterInvalid {
+            tool: "delete_alias".to_string(),
+            detail: "internal: token_id unexpectedly None after is_none check".to_string(),
+        });
+    };
+    let token_id = token_id_str.as_str();
+    let action_params = serde_json::json!({
+        "name": input.name,
+        "scope": input.scope,
+        "force": input.force
+    });
+    let consumed_token = token_store.consume(token_id, scope.token_client_id(), &action_params)?;
+
+    // Check dependents and delete.
     let deps = store.dependents(&input.name, &scope);
     if !deps.is_empty() && !input.force {
         return Err(PrismError::AliasDependentsExist {
@@ -417,11 +515,7 @@ pub fn delete_alias(
         });
     }
 
-    // Build a synthetic token for the store.delete() call.
-    // Full token validation is deferred to the TD-S304-001 tech debt item.
-    let synthetic_token = build_synthetic_token(&input, &scope);
-
-    let result = store.delete(&input.name, &scope, input.force, synthetic_token)?;
+    let result = store.delete(&input.name, &scope, input.force, consumed_token)?;
 
     match result {
         crate::alias_types::DeleteResult::Deleted {
@@ -429,6 +523,15 @@ pub fn delete_alias(
             cascade_deleted,
             ..
         } => {
+            // DI-004 audit span (CR-023): emit for successful delete.
+            tracing::info!(
+                operation = "alias.delete",
+                alias_name = %name,
+                alias_scope = %input.scope,
+                force = input.force,
+                cascade_deleted = ?cascade_deleted,
+                outcome = "deleted",
+            );
             let response = DeleteAliasSuccess {
                 deleted: name,
                 cascade_deleted,
@@ -473,11 +576,39 @@ pub fn explain_alias(
     let args = HashMap::new();
     let expanded = AliasResolver::expand(&entry.query, store, &resolved_scope, &args, 0)?;
 
-    // Build a composition chain by detecting what aliases were in the body.
-    let body_aliases = AliasResolver::detect_alias_tokens(&entry.query);
+    // CR-014: validate the expanded query via the PrismQL parser.
+    // If the expansion is not valid PrismQL, return E-QUERY-001.
+    if crate::filter_parser::PrismQlParser::parse(&expanded).is_err() {
+        return Err(PrismError::QueryParseFailed {
+            offset: 0,
+            detail: format!(
+                "alias '{}' expanded form is not valid PrismQL: {}",
+                input.name, expanded
+            ),
+        });
+    }
+
+    // Build composition chain by walking the expansion tree recursively (DFS).
+    // CR-006: one-level body_aliases detection was non-recursive and missed depth>1 chains.
     let mut composition_chain = vec![entry.name.clone()];
-    composition_chain.extend(body_aliases);
+    build_composition_chain(
+        &entry.query,
+        store,
+        &resolved_scope,
+        0,
+        &mut composition_chain,
+    );
     let composition_depth = composition_chain.len();
+
+    // DI-004 audit span (CR-023): emit for explain operation.
+    // TODO TD-S304-AUDIT-001: replace with prism_audit::emit_audit when available.
+    tracing::info!(
+        operation = "alias.explain",
+        alias_name = %input.name,
+        alias_scope = %resolved_scope,
+        composition_depth = composition_depth,
+        outcome = "ok",
+    );
 
     Ok(ExplainAliasResponse {
         name: entry.name.clone(),
@@ -607,28 +738,54 @@ pub fn validate_alias_name(name: &str) -> Result<(), PrismError> {
 // Internal helpers
 // ─────────────────────────────────────────────────────────────────────────────
 
-/// Build a synthetic ConfirmationToken for the delete path.
+/// Recursively walk the alias expansion tree (DFS) to build a composition chain.
 ///
-/// The full token validation (store.consume() path) is deferred to
-/// TD-S304-001 (ConfirmationTokenStore integration). For this story scope,
-/// we accept any non-None token_id as the user's explicit acknowledgment.
-fn build_synthetic_token(
-    input: &DeleteAliasInput,
+/// Starting from the `query` template, detect all `@alias_name` references,
+/// add each to `chain`, then recurse into the body of each discovered alias.
+/// Stops at `MAX_ALIAS_DEPTH` to prevent stack overflow. (CR-006 fix)
+fn build_composition_chain(
+    query: &str,
+    store: &AliasStore,
     scope: &AliasScope,
-) -> prism_security::ConfirmationToken {
-    use serde_json::json;
-    prism_security::ConfirmationToken {
-        token_id: input
-            .token_id
-            .clone()
-            .unwrap_or_else(|| "synthetic".to_string()),
-        client_id: scope.token_client_id().to_string(),
-        tool_name: "delete_alias".to_string(),
-        action_params: json!({"name": input.name, "scope": input.scope, "force": input.force}),
-        action_summary: format!("delete alias '{}'", input.name),
-        action_hash: String::new(),
-        created_at: std::time::SystemTime::now(),
-        expires_at: std::time::SystemTime::now() + std::time::Duration::from_secs(300),
-        consumed: false,
+    depth: u32,
+    chain: &mut Vec<String>,
+) {
+    use crate::alias_resolver::MAX_ALIAS_DEPTH;
+    if depth >= MAX_ALIAS_DEPTH {
+        return;
+    }
+
+    let tokens = AliasResolver::detect_alias_tokens(query);
+    for token_name in &tokens {
+        if chain.contains(token_name) {
+            // Already recorded — avoid infinite loop on cycles (cycle detection
+            // should prevent cycles in store, but guard defensively).
+            continue;
+        }
+        chain.push(token_name.clone());
+
+        // Resolve the alias body with the same scope-precedence as resolve_scope.
+        let entry_query: Option<String> = {
+            let client_entry = if let AliasScope::Client(_) = scope {
+                store
+                    .get(token_name, scope)
+                    .ok()
+                    .flatten()
+                    .map(|e| e.query.clone())
+            } else {
+                None
+            };
+            client_entry.or_else(|| {
+                store
+                    .get(token_name, &AliasScope::Global)
+                    .ok()
+                    .flatten()
+                    .map(|e| e.query.clone())
+            })
+        };
+
+        if let Some(body) = entry_query {
+            build_composition_chain(&body, store, scope, depth + 1, chain);
+        }
     }
 }
