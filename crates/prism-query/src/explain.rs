@@ -756,8 +756,9 @@ pub fn explain(query_str: &str, options: ExplainOptions) -> Result<ExplainResult
             if let Some(st) = sensor_type_from_source_ref(s) {
                 sensor_scope.contains(&st)
             } else {
-                // Non-external sources are not sensor-specific; keep them if
-                // sensor scope doesn't restrict them.
+                // Non-external sources (internal/composite tables) are sensor-agnostic;
+                // drop them when a sensor scope filter is active — they cannot be validated
+                // against any specific sensor type.
                 false
             }
         });
@@ -841,16 +842,19 @@ pub fn explain(query_str: &str, options: ExplainOptions) -> Result<ExplainResult
         );
     }
 
-    // Regular fields resolve as "alias" (if expanded via alias) or "direct".
+    // Regular fields resolve as "direct".
+    //
+    // TODO(S-3.X / TD-S303-ALIAS-PROVENANCE-001): When an alias is expanded,
+    // track which AST fields originated from the expansion text. Currently
+    // all non-virtual fields are labeled "direct" regardless of alias provenance.
+    // Implementing alias-provenance tracking requires the parser to retain
+    // origin metadata or a post-expansion lightweight field-extraction step.
     for field_name in &field_collector.fields {
-        // Check if this field name was the result of alias expansion.
-        let is_alias_expanded = alias_expansion.contains_key(field_name.as_str());
-        let resolution_method = if is_alias_expanded { "alias" } else { "direct" };
         field_resolution.insert(
             field_name.clone(),
             FieldResolution {
                 ocsf_path: ocsf_path_for_field(field_name),
-                resolution_method: resolution_method.to_string(),
+                resolution_method: "direct".to_string(),
             },
         );
     }
@@ -1056,6 +1060,10 @@ fn predicate_as_string(expr: &crate::ast::Expr, column_name: &str) -> String {
                 CompareOp::Le => "<=",
                 CompareOp::Gt => ">",
                 CompareOp::Ge => ">=",
+                CompareOp::Like => "LIKE",
+                CompareOp::Cidr => "CIDR",
+                // #[non_exhaustive] catch-all for future operator variants.
+                #[allow(unreachable_patterns)]
                 _ => "?",
             };
             let rhs_str = match rhs.as_ref() {
