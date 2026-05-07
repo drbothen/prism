@@ -191,7 +191,8 @@ pub(crate) fn create_alias(
             path: format!("client:{id_str}"),
         });
     }
-    create_alias_with_clients(input, store, ocsf_reserved, &[])
+    let token_store = prism_security::ConfirmationTokenStore::new();
+    create_alias_with_clients(input, store, ocsf_reserved, &[], &token_store)
 }
 
 /// Handle the `create_alias` MCP tool invocation (BC-2.11.008) with client ID validation.
@@ -214,8 +215,16 @@ pub(crate) fn create_alias_with_clients(
     store: &mut AliasStore,
     ocsf_reserved: &std::collections::HashSet<String>,
     valid_client_ids: &[String],
+    token_store: &prism_security::ConfirmationTokenStore,
 ) -> Result<serde_json::Value, PrismError> {
-    create_alias_with_clients_gated(input, store, ocsf_reserved, valid_client_ids, None)
+    create_alias_with_clients_gated(
+        input,
+        store,
+        ocsf_reserved,
+        valid_client_ids,
+        None,
+        token_store,
+    )
 }
 
 /// Full-capability-gated variant of `create_alias_with_clients` (SEC-005).
@@ -232,6 +241,10 @@ pub(crate) fn create_alias_with_clients(
 /// `token_store.consume()`. If consume fails (expired, hash mismatch, unknown)
 /// returns the token-specific error. On success calls `create_or_update` with the
 /// consumed token, which allows the update to proceed.
+///
+/// The `token_store` parameter is required — pass a `&ConfirmationTokenStore` (mirrors
+/// `delete_alias_gated`). Callers constructing a temporary store for the lifetime of an
+/// MCP invocation may use `ConfirmationTokenStore::new()`.
 pub fn create_alias_with_clients_gated(
     input: CreateAliasInput,
     store: &mut AliasStore,
@@ -241,6 +254,7 @@ pub fn create_alias_with_clients_gated(
         &prism_security::feature_flag::FeatureFlagEvaluator,
         prism_security::feature_flag::CompileTimeGate,
     )>,
+    token_store: &prism_security::ConfirmationTokenStore,
 ) -> Result<serde_json::Value, PrismError> {
     create_alias_with_clients_gated_inner(
         input,
@@ -248,14 +262,17 @@ pub fn create_alias_with_clients_gated(
         ocsf_reserved,
         valid_client_ids,
         capability_gate,
-        None,
+        Some(token_store),
     )
 }
 
 /// Internal implementation receiving an optional `ConfirmationTokenStore` (F-CRIT-001).
 ///
-/// Split from the public signature to avoid a breaking API change while allowing tests
-/// to inject a real token store for end-to-end AC-13 verification.
+/// The public entry point `create_alias_with_clients_gated` now accepts `token_store`
+/// directly and passes it as `Some(token_store)`. This crate-private `_inner` variant
+/// retains `Option<&ConfirmationTokenStore>` to allow the `create_alias_with_clients`
+/// helper (pub(crate), test-only) to pass a temporary anonymous store without the
+/// caller needing to materialise one.
 pub(crate) fn create_alias_with_clients_gated_inner(
     input: CreateAliasInput,
     store: &mut AliasStore,

@@ -15,8 +15,22 @@
 //! Both tiers (compile-time Cargo feature + runtime TOML flag) must
 //! independently return Allow (BC-2.04.004).
 //!
+//! ## `alias-write` Cargo feature — advisory, not compile-exclusion (F-LOCAL-P2-HIGH-004)
+//!
+//! The `alias-write` Cargo feature is a **runtime-advisory** gate, not a
+//! compile-time exclusion. When the feature is absent, `alias_write_compile_gate()`
+//! returns `CompileTimeGate::Absent`, which causes `check_alias_write` to return
+//! `CapabilityDenied` without touching the runtime evaluator. The public entry
+//! points (`create_alias_with_clients_gated`, `delete_alias_gated`) remain
+//! compiled and accessible in all feature configurations; they are not gated with
+//! `#[cfg(feature = "alias-write")]`. This is intentional: the security guarantee
+//! is provided by the `CompileTimeGate::Absent` path returning `CapabilityDenied`
+//! before any mutation, not by conditional compilation. Callers MUST pass the gate
+//! value from `alias_write_compile_gate()` rather than hardcoding
+//! `CompileTimeGate::Present`.
+//!
 //! Story: S-3.04 — prism-query: Alias System (P1)
-//! BCs:   BC-2.11.008
+//! BCs:   BC-2.11.008, BC-2.11.006 v1.17
 
 use prism_core::error::PrismError;
 use prism_security::feature_flag::{CapabilityCheckResult, CompileTimeGate, FeatureFlagEvaluator};

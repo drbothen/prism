@@ -135,6 +135,13 @@ pub mod tests;
 //   `is_internal_prism_table`, `check_unbounded_write` (sql_parser)
 //   `reject_write_verbs_in_filter` (filter_parser)
 //
+// Alias-system internals (S-3.04, BC-2.11.008 + BC-2.11.006 v1.17 DI-034 layer 5):
+//   `alias_tools::create_alias`                          — ungated create; MCP MUST use *_gated (SEC-011)
+//   `alias_tools::create_alias_with_clients`             — ungated create+clients; MCP MUST use *_gated
+//   `alias_tools::create_alias_with_clients_gated_inner` — internal token-store split (F-LOCAL-P2-HIGH-005)
+//   `alias_tools::delete_alias`                          — ungated delete; MCP MUST use *_gated (SEC-011)
+//   `alias_store::AliasStore::create_or_update`          — direct store mutation; bypasses guards (CR-018)
+//
 // Tests that need direct sub-parser access (e.g., to obtain
 // FilterExpr/PipeQuery/SqlQuery directly, or to bypass pre-parse guards to
 // test post-parse depth checks in isolation) must live in src/tests/ (unit

@@ -48,10 +48,11 @@
 //!     - filter_parser::reject_write_verbs_in_filter — filter-mode write rejection
 //!
 //!   S-3.04 alias tools and store (pub(crate) — forbidden from external crates):
-//!     - alias_tools::create_alias          — ungated create_alias (SEC-011)
-//!     - alias_tools::create_alias_with_clients — create_alias with client list (SEC-011)
-//!     - alias_tools::delete_alias          — ungated delete_alias (SEC-011)
-//!     - alias_store::AliasStore::create_or_update — direct store mutation bypass (CR-018)
+//!     - alias_tools::create_alias                          — ungated create_alias (SEC-011)
+//!     - alias_tools::create_alias_with_clients             — create_alias with client list (SEC-011)
+//!     - alias_tools::delete_alias                          — ungated delete_alias (SEC-011)
+//!     - alias_tools::create_alias_with_clients_gated_inner — internal token-store split (F-LOCAL-P2-HIGH-005)
+//!     - alias_store::AliasStore::create_or_update          — direct store mutation bypass (CR-018)
 //!
 //! Reference: adversary pass-5 OBS-003 [process-gap]; adversary pass-6 F-HIGH-001/F-HIGH-002;
 //!            adversary pass-7 F-HIGH-001/F-MEDIUM-002; adversary pass-8 F-HIGH-001/OBS-001;
@@ -177,6 +178,11 @@ use prism_query::alias_tools::create_alias_with_clients;
 // Expected error: E0603 "function `delete_alias` is private"
 use prism_query::alias_tools::delete_alias;
 
+// `alias_tools::create_alias_with_clients_gated_inner` is `pub(crate)` — forbidden from external crates.
+// Internal split to allow test token-store injection; external crates MUST NOT call it directly.
+// Expected error: E0603 "function `create_alias_with_clients_gated_inner` is private"
+use prism_query::alias_tools::create_alias_with_clients_gated_inner;
+
 // `alias_store::AliasStore::create_or_update` is `pub(crate)` — forbidden from external crates.
 // Direct store mutation bypasses keyword/OCSF collision checks (CR-018).
 // Expected error: E0624 "method `create_or_update` is private"
@@ -234,7 +240,9 @@ fn main() {
     let _ = create_alias;
     let _ = create_alias_with_clients;
     let _ = delete_alias;
-    // create_or_update is a pub(crate) method on AliasStore — referenced via type.
-    let store = AliasStore::empty("/tmp/perimeter_test.toml");
-    let _ = store; // force use; create_or_update call would emit E0624 if method existed at pub
+    let _ = create_alias_with_clients_gated_inner;
+    // create_or_update is a pub(crate) method on AliasStore.
+    // Expected error: E0624 "method `create_or_update` is private"
+    // The method-reference form forces the visibility check even when unreachable.
+    let _ = AliasStore::create_or_update;
 }

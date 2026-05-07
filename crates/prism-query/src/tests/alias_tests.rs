@@ -462,10 +462,7 @@ fn test_ac13_update_requires_confirmation() {
         None,
         Some(&token_store),
     );
-    // First create may fail on I/O (/tmp write); if so, skip the rest (not a test defect).
-    let Ok(val1) = result1 else {
-        return;
-    };
+    let val1 = result1.expect("first create must succeed (alias does not exist yet)");
     assert!(
         val1.get("alias").is_some(),
         "first create must return alias definition, not confirmation_required"
@@ -492,9 +489,8 @@ fn test_ac13_update_requires_confirmation() {
         None,
         Some(&token_store),
     );
-    let Ok(val2) = result2 else {
-        return;
-    };
+    let val2 =
+        result2.expect("second create must succeed (alias exists; token generation required)");
     assert_eq!(
         val2.get("confirmation_required").and_then(|v| v.as_bool()),
         Some(true),
@@ -524,9 +520,7 @@ fn test_ac13_update_requires_confirmation() {
         None,
         Some(&token_store),
     );
-    let Ok(val3) = result3 else {
-        return;
-    };
+    let val3 = result3.expect("third create with valid token_id must succeed");
     assert!(
         val3.get("alias").is_some(),
         "confirmed update must return alias definition"
@@ -894,7 +888,8 @@ fn test_BC_2_11_008_rejects_unknown_client_scope() {
     };
     // Use create_alias_with_clients to validate the client ID against the known list.
     let valid_clients = vec!["known_client".to_string()];
-    let result = create_alias_with_clients(input, &mut store, &ocsf, &valid_clients);
+    let token_store = prism_security::ConfirmationTokenStore::new();
+    let result = create_alias_with_clients(input, &mut store, &ocsf, &valid_clients, &token_store);
     assert!(
         result.is_err(),
         "nonexistent client scope must reject E-CFG-001"
@@ -1603,11 +1598,9 @@ fn test_BC_2_11_014_ec11_041_delete_file_write_failure_leaves_alias_intact() {
     let path = format!("/tmp/test_ec11_041_{}.toml", std::process::id());
     let mut store = AliasStore::empty(&path);
     let entry = simple_entry("to_delete", global_scope(), "severity_id >= 3");
-    // If the initial create fails (I/O), the test is inconclusive — skip.
-    if store.create_or_update(entry, None).is_err() {
-        let _ = std::fs::remove_file(&path);
-        return;
-    }
+    store
+        .create_or_update(entry, None)
+        .expect("test setup: create_or_update must succeed on a process-unique /tmp path");
     // Verify the alias is in the store.
     assert!(
         store.get("to_delete", &global_scope()).unwrap().is_some(),
@@ -2097,7 +2090,8 @@ fn test_BC_2_11_009_rejects_at_injection_in_quoted() {
 /// path via `store.create_or_update()` to ensure SEC-010 wiring is correct.
 #[test]
 fn test_BC_2_11_009_per_client_cycle_detected() {
-    let mut store = AliasStore::empty("/tmp/test_per_client_cycle.toml");
+    let path = format!("/tmp/test_per_client_cycle_{}.toml", std::process::id());
+    let mut store = AliasStore::empty(&path);
 
     // Add A (acme) = "@b_acme" via create_or_update (production path).
     let entry_a = simple_entry("a_acme", client_scope("acme"), "@b_acme AND x = 1");
@@ -2127,6 +2121,7 @@ fn test_BC_2_11_009_per_client_cycle_detected() {
         production_result.is_err(),
         "per-client mutual cycle acme B->A must be rejected by create_or_update (SEC-010 wire)"
     );
+    let _ = std::fs::remove_file(&path);
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -2136,7 +2131,8 @@ fn test_BC_2_11_009_per_client_cycle_detected() {
 /// CR-003: alias `high` must NOT appear as dependent of `high_sev` (prefix-alias false positive).
 #[test]
 fn test_BC_2_11_014_dependents_no_prefix_false_positive() {
-    let mut store = AliasStore::empty("/tmp/test_deps_fp.toml");
+    let path = format!("/tmp/test_deps_fp_{}.toml", std::process::id());
+    let mut store = AliasStore::empty(&path);
 
     // Add "high" alias with query referencing @high_sev.
     // The substring "@high" appears in "@high_sev" but should NOT be detected as a reference to "high_sev".
@@ -2158,6 +2154,7 @@ fn test_BC_2_11_014_dependents_no_prefix_false_positive() {
         !dep_names.contains(&"uses_high"),
         "uses_high references @high not @high_sev — must not be a dependent of high_sev"
     );
+    let _ = std::fs::remove_file(&path);
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -2175,7 +2172,8 @@ fn test_BC_2_11_014_cascade_delete_respects_scope() {
     // - global/base = "x = 1"
     // - acme/filter_x -> @base  (references global/base)
     // - beta/filter_x -> @base  (references global/base)
-    let mut store = AliasStore::empty("/tmp/test_cascade_scope.toml");
+    let path1 = format!("/tmp/test_cascade_scope_{}.toml", std::process::id());
+    let mut store = AliasStore::empty(&path1);
     store
         .create_or_update(simple_entry("base", global_scope(), "x = 1"), None)
         .expect("test setup: create_or_update must succeed");
@@ -2207,7 +2205,8 @@ fn test_BC_2_11_014_cascade_delete_respects_scope() {
 
     // Case 2: deleting a Client alias (acme/filter_x) must NOT cascade to beta/filter_x.
     // Reset store.
-    let mut store2 = AliasStore::empty("/tmp/test_cascade_scope2.toml");
+    let path2 = format!("/tmp/test_cascade_scope2_{}.toml", std::process::id());
+    let mut store2 = AliasStore::empty(&path2);
     // acme/client_a -> @client_b; only within acme scope.
     store2
         .create_or_update(
@@ -2247,6 +2246,8 @@ fn test_BC_2_11_014_cascade_delete_respects_scope() {
         ("client_a".to_string(), client_scope("acme")),
         "dependent must be (client_a, acme) — not beta/client_a"
     );
+    let _ = std::fs::remove_file(&path1);
+    let _ = std::fs::remove_file(&path2);
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -2265,7 +2266,8 @@ fn test_BC_2_11_014_cascade_delete_respects_scope() {
 #[test]
 fn test_BC_2_11_014_cascade_delete_post_state() {
     // ── Case 1: Global alias deletion cascades to ALL referencing scopes ──────
-    let mut store = AliasStore::empty("/tmp/test_cascade_post_state.toml");
+    let path1 = format!("/tmp/test_cascade_post_state_{}.toml", std::process::id());
+    let mut store = AliasStore::empty(&path1);
     store
         .create_or_update(simple_entry("base", global_scope(), "x = 1"), None)
         .expect("test setup: create_or_update must succeed");
@@ -2324,7 +2326,8 @@ fn test_BC_2_11_014_cascade_delete_post_state() {
     );
 
     // ── Case 2: Client alias deletion cascades ONLY within same client scope ──
-    let mut store2 = AliasStore::empty("/tmp/test_cascade_post_state2.toml");
+    let path2 = format!("/tmp/test_cascade_post_state2_{}.toml", std::process::id());
+    let mut store2 = AliasStore::empty(&path2);
     store2
         .create_or_update(
             simple_entry("client_b", client_scope("acme"), "z = 3"),
@@ -2399,6 +2402,8 @@ fn test_BC_2_11_014_cascade_delete_post_state() {
             .is_some(),
         "beta/client_a must still exist — cascade must NOT cross client boundaries"
     );
+    let _ = std::fs::remove_file(&path1);
+    let _ = std::fs::remove_file(&path2);
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -2408,7 +2413,8 @@ fn test_BC_2_11_014_cascade_delete_post_state() {
 /// CR-004: 3-alias mixed scope produces correctly grouped output (Global first, then Client).
 #[test]
 fn test_BC_2_11_013_list_mixed_scope_sorted_correctly() {
-    let mut store = AliasStore::empty("/tmp/test_list_sort.toml");
+    let path = format!("/tmp/test_list_sort_{}.toml", std::process::id());
+    let mut store = AliasStore::empty(&path);
 
     // Insert out-of-order to validate sort independence from insertion order.
     let _ = store.create_or_update(simple_entry("z_global", global_scope(), "z = 1"), None);
@@ -2435,6 +2441,7 @@ fn test_BC_2_11_013_list_mixed_scope_sorted_correctly() {
         entries[2].name, "a_client",
         "last entry must be a_client (client scope)"
     );
+    let _ = std::fs::remove_file(&path);
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -2444,7 +2451,8 @@ fn test_BC_2_11_013_list_mixed_scope_sorted_correctly() {
 /// CR-006: depth-3 chain a → b → c → literal produces chain ["a", "b", "c"].
 #[test]
 fn test_BC_2_11_015_depth3_chain_composition_chain_correct() {
-    let mut store = AliasStore::empty("/tmp/test_chain.toml");
+    let path = format!("/tmp/test_chain_{}.toml", std::process::id());
+    let mut store = AliasStore::empty(&path);
 
     // c = literal (depth 0 body)
     let _ = store.create_or_update(simple_entry("c", global_scope(), "severity_id >= 1"), None);
@@ -2457,28 +2465,22 @@ fn test_BC_2_11_015_depth3_chain_composition_chain_correct() {
         name: "a".to_string(),
         scope: Some("global".to_string()),
     };
-    let result = explain_alias(input, &store, None);
-    // Explain may fail due to I/O (file write in /tmp). If Ok, verify chain.
-    match result {
-        Ok(resp) => {
-            // Chain must include a, b, c in that order.
-            assert!(
-                resp.composition_chain.contains(&"b".to_string()),
-                "composition chain must include b"
-            );
-            assert!(
-                resp.composition_chain.contains(&"c".to_string()),
-                "composition chain must include c"
-            );
-            assert_eq!(
-                resp.composition_chain[0], "a",
-                "first chain element is the root alias"
-            );
-        }
-        Err(_) => {
-            // I/O or parse failure — acceptable in test environment.
-        }
-    }
+    let resp =
+        explain_alias(input, &store, None).expect("explain_alias must succeed for a valid chain");
+    // Chain must include a, b, c in that order.
+    assert!(
+        resp.composition_chain.contains(&"b".to_string()),
+        "composition chain must include b"
+    );
+    assert!(
+        resp.composition_chain.contains(&"c".to_string()),
+        "composition chain must include c"
+    );
+    assert_eq!(
+        resp.composition_chain[0], "a",
+        "first chain element is the root alias"
+    );
+    let _ = std::fs::remove_file(&path);
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -2491,12 +2493,15 @@ fn test_BC_2_11_015_depth3_chain_composition_chain_correct() {
 /// token_store.generate() must be rejected.
 #[test]
 fn test_BC_2_11_014_delete_with_bogus_token_returns_error() {
-    let mut store = AliasStore::empty("/tmp/test_delete_token.toml");
+    let path = format!("/tmp/test_delete_token_{}.toml", std::process::id());
+    let mut store = AliasStore::empty(&path);
     let token_store = prism_security::ConfirmationTokenStore::new();
 
     // First create an alias so delete has something to work with.
     let entry = simple_entry("to_delete", global_scope(), "severity_id >= 3");
-    let _ = store.create_or_update(entry, None);
+    store
+        .create_or_update(entry, None)
+        .expect("test setup: create_or_update must succeed on a process-unique /tmp path");
 
     // Attempt to delete with a bogus (not generated) token_id.
     let input = DeleteAliasInput {
@@ -2510,17 +2515,21 @@ fn test_BC_2_11_014_delete_with_bogus_token_returns_error() {
         result.is_err(),
         "bogus token_id must be rejected by token_store.consume()"
     );
+    let _ = std::fs::remove_file(&path);
 }
 
 /// CR-008: legitimate two-step flow — generate token then delete succeeds.
 #[test]
 fn test_BC_2_11_014_delete_two_step_flow_succeeds() {
-    let mut store = AliasStore::empty("/tmp/test_delete_twostep.toml");
+    let path = format!("/tmp/test_delete_twostep_{}.toml", std::process::id());
+    let mut store = AliasStore::empty(&path);
     let token_store = prism_security::ConfirmationTokenStore::new();
 
     // Create alias for deletion.
     let entry = simple_entry("twostep_alias", global_scope(), "severity_id >= 3");
-    let _ = store.create_or_update(entry, None);
+    store
+        .create_or_update(entry, None)
+        .expect("test setup: create_or_update must succeed on a process-unique /tmp path");
 
     // Step 1: call without token_id — should return confirmation_required + token_id.
     let input_step1 = DeleteAliasInput {
@@ -2529,47 +2538,40 @@ fn test_BC_2_11_014_delete_two_step_flow_succeeds() {
         force: false,
         token_id: None,
     };
-    let result_step1 = delete_alias(input_step1, &mut store, &token_store, &[]);
-    match result_step1 {
-        Ok(resp) => {
-            // Must include token_id in response (CR-008).
-            assert!(
-                resp.get("token_id").is_some(),
-                "first-call response must include token_id"
-            );
-            assert!(
-                resp["confirmation_required"].as_bool().unwrap_or(false),
-                "first-call response must have confirmation_required=true"
-            );
+    let resp = delete_alias(input_step1, &mut store, &token_store, &[])
+        .expect("first delete call (no token) must succeed and return confirmation_required");
 
-            let token_id = resp["token_id"].as_str().unwrap().to_string();
+    // Must include token_id in response (CR-008).
+    assert!(
+        resp.get("token_id").is_some(),
+        "first-call response must include token_id"
+    );
+    assert!(
+        resp["confirmation_required"].as_bool().unwrap_or(false),
+        "first-call response must have confirmation_required=true"
+    );
 
-            // Step 2: call with the real token_id — should succeed.
-            let input_step2 = DeleteAliasInput {
-                name: "twostep_alias".to_string(),
-                scope: "global".to_string(),
-                force: false,
-                token_id: Some(token_id),
-            };
-            let result_step2 = delete_alias(input_step2, &mut store, &token_store, &[]);
-            // Store write to /tmp — may fail on I/O. Either outcome is valid.
-            match result_step2 {
-                Ok(del) => {
-                    assert_eq!(
-                        del["deleted"].as_str().unwrap_or(""),
-                        "twostep_alias",
-                        "deleted field must match alias name"
-                    );
-                }
-                Err(_) => {
-                    // I/O failure — acceptable in test environment.
-                }
-            }
-        }
-        Err(_) => {
-            // I/O failure on create or first-call — acceptable.
-        }
-    }
+    let token_id = resp["token_id"]
+        .as_str()
+        .expect("token_id must be a string")
+        .to_string();
+
+    // Step 2: call with the real token_id — should succeed.
+    let input_step2 = DeleteAliasInput {
+        name: "twostep_alias".to_string(),
+        scope: "global".to_string(),
+        force: false,
+        token_id: Some(token_id),
+    };
+    let del = delete_alias(input_step2, &mut store, &token_store, &[])
+        .expect("second delete call with valid token must succeed");
+    assert_eq!(
+        del["deleted"].as_str().unwrap_or(""),
+        "twostep_alias",
+        "deleted field must match alias name"
+    );
+
+    let _ = std::fs::remove_file(&path);
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -2580,7 +2582,8 @@ fn test_BC_2_11_014_delete_two_step_flow_succeeds() {
 /// leaving `@foobar` intact (prefix-alias non-corruption).
 #[test]
 fn test_BC_2_11_009_expand_prefix_alias_not_corrupted() {
-    let mut store = AliasStore::empty("/tmp/test_prefix_alias.toml");
+    let path = format!("/tmp/test_prefix_alias_{}.toml", std::process::id());
+    let mut store = AliasStore::empty(&path);
 
     // foo = simple literal expansion
     let entry_foo = simple_entry("foo", global_scope(), "severity_id >= 1");
@@ -2594,28 +2597,23 @@ fn test_BC_2_11_009_expand_prefix_alias_not_corrupted() {
     let args = HashMap::new();
     // Expand only @foo — @foobar should survive as a reference to be expanded separately.
     // In a full expansion, both @foo and @foobar are each expanded exactly once.
-    let result = AliasResolver::expand("@foo AND @foobar", &store, &scope, &args, 0);
-    match result {
-        Ok(expanded) => {
-            // After full expansion, neither @foo nor @foobar should remain unexpanded.
-            assert!(
-                !expanded.contains("@foo"),
-                "expanded form must not contain unexpanded @foo"
-            );
-            // Both expansions must appear in the result.
-            assert!(
-                expanded.contains("severity_id >= 1"),
-                "foo expansion (severity_id >= 1) must appear"
-            );
-            assert!(
-                expanded.contains("severity_id >= 5"),
-                "foobar expansion (severity_id >= 5) must appear"
-            );
-        }
-        Err(_) => {
-            // I/O failure — acceptable in test environment.
-        }
-    }
+    let expanded = AliasResolver::expand("@foo AND @foobar", &store, &scope, &args, 0)
+        .expect("expand must succeed for known aliases");
+    // After full expansion, neither @foo nor @foobar should remain unexpanded.
+    assert!(
+        !expanded.contains("@foo"),
+        "expanded form must not contain unexpanded @foo"
+    );
+    // Both expansions must appear in the result.
+    assert!(
+        expanded.contains("severity_id >= 1"),
+        "foo expansion (severity_id >= 1) must appear"
+    );
+    assert!(
+        expanded.contains("severity_id >= 5"),
+        "foobar expansion (severity_id >= 5) must appear"
+    );
+    let _ = std::fs::remove_file(&path);
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -2669,7 +2667,8 @@ fn test_BC_2_11_009_quoted_string_with_tab_rejected() {
 /// CR-007: create_alias (no client list) rejects Client-scoped creation.
 #[test]
 fn test_BC_2_11_008_create_alias_rejects_client_scope_without_client_list() {
-    let mut store = AliasStore::empty("/tmp/test_create_client.toml");
+    let path = format!("/tmp/test_create_client_{}.toml", std::process::id());
+    let mut store = AliasStore::empty(&path);
     let ocsf = empty_ocsf();
     let input = CreateAliasInput {
         name: "my_alias".to_string(),
@@ -2685,6 +2684,8 @@ fn test_BC_2_11_008_create_alias_rejects_client_scope_without_client_list() {
         result.is_err(),
         "create_alias must reject Client scope without valid_client_ids list"
     );
+    // No file written since error occurred before any store mutation.
+    let _ = std::fs::remove_file(&path);
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -2774,7 +2775,8 @@ fn test_BC_2_11_008_capability_gate_disabled_rejects_create() {
     use prism_security::feature_flag::{CompileTimeGate, FeatureFlagEvaluator};
     use std::collections::BTreeMap;
 
-    let mut store = AliasStore::empty("/tmp/test_cap_gate.toml");
+    let path = format!("/tmp/test_cap_gate_{}.toml", std::process::id());
+    let mut store = AliasStore::empty(&path);
     let ocsf = empty_ocsf();
     let input = CreateAliasInput {
         name: "cap_alias".to_string(),
@@ -2787,17 +2789,21 @@ fn test_BC_2_11_008_capability_gate_disabled_rejects_create() {
 
     // Compile-time gate absent → always denied regardless of runtime config.
     let evaluator = FeatureFlagEvaluator::new(BTreeMap::new());
+    let token_store = prism_security::ConfirmationTokenStore::new();
     let result = create_alias_with_clients_gated(
         input,
         &mut store,
         &ocsf,
         &[],
         Some((&evaluator, CompileTimeGate::Absent)),
+        &token_store,
     );
     assert!(
         result.is_err(),
         "CompileTimeGate::Absent must deny create_alias_with_clients_gated"
     );
+    // No file written since error occurred before any store mutation.
+    let _ = std::fs::remove_file(&path);
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
