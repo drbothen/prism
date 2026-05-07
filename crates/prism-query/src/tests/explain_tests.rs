@@ -1316,21 +1316,16 @@ fn test_predicate_as_string_like_operator_renders_correctly() {
     );
 }
 
-/// CR-029 Regression: a CIDR predicate must flow through `predicate_as_string`
-/// and produce a non-empty post_filter entry containing the column name.
+/// CR-029 / I-LOCAL-003 Regression: a CIDR predicate must flow through
+/// `predicate_as_string` and produce a post_filter entry that contains BOTH
+/// the column name AND the CIDR mask (e.g. `"src_ip CIDR '10.0.0.0/8'"`).
 ///
-/// `src_ip CIDR '10.0.0.0/8'` parses as `Predicate::Cidr { field, cidr }`.
-/// `predicate_to_exprs` maps this to `Expr::Field(field)` (conservative
-/// fallback — no CIDR-aware push-down in the current scope); `predicate_as_string`
-/// returns the column name `"src_ip"`.  The test asserts the entry is non-empty
-/// and contains the column name, confirming the code path does not panic and
-/// the predicate is not silently dropped.
+/// Before I-LOCAL-003 fix: `predicate_to_exprs` mapped `Predicate::Cidr` to
+/// `Expr::Field(field)` only — the CIDR mask was silently dropped. The rendered
+/// string was just `"src_ip"`, losing the `'10.0.0.0/8'` portion.
 ///
-/// Note: the `CompareOp::Cidr` arm of `predicate_as_string` is reached only
-/// when `Expr::Compare { op: Cidr, ... }` is passed directly; that path is not
-/// exercised through the standard `Predicate::Cidr` explain flow and is covered
-/// separately by dead-code analysis.  This test covers the actual end-to-end
-/// CIDR rendering path.
+/// After fix: `predicate_to_exprs` emits `Expr::Compare { op: CompareOp::Cidr,
+/// rhs: Literal::Cidr(cidr) }` so `predicate_as_string` can render the mask.
 #[test]
 fn test_predicate_as_string_cidr_operator_renders_correctly() {
     let result = explain(
@@ -1344,8 +1339,7 @@ fn test_predicate_as_string_cidr_operator_renders_correctly() {
         .iter()
         .find(|s| s.sensor_type == SensorType::CrowdStrike)
         .expect("CrowdStrike source must be present");
-    // CIDR predicates go to post_filter (conservative path — no push-down spec
-    // wired).  The rendered string must be non-empty and contain the column name.
+    // CIDR predicates go to post_filter (conservative — no push-down spec wired).
     assert!(
         !src.post_filter_predicates.is_empty(),
         "CIDR predicate must produce a post_filter entry; got empty list"
@@ -1355,6 +1349,14 @@ fn test_predicate_as_string_cidr_operator_renders_correctly() {
             .iter()
             .any(|p| p.contains("src_ip")),
         "CIDR predicate post_filter entry must contain column name 'src_ip'; got: {:?}",
+        src.post_filter_predicates
+    );
+    // I-LOCAL-003: the CIDR mask must also appear in the rendered string.
+    assert!(
+        src.post_filter_predicates
+            .iter()
+            .any(|p| p.contains("10.0.0.0/8")),
+        "CIDR predicate post_filter entry must contain mask '10.0.0.0/8'; got: {:?}",
         src.post_filter_predicates
     );
 }

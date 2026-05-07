@@ -417,6 +417,44 @@ fn virtual_field_name(vf: &VirtualField) -> &'static str {
 }
 
 // ---------------------------------------------------------------------------
+// has_or_predicate — detect OR nodes in a predicate tree
+// ---------------------------------------------------------------------------
+
+/// Return `true` if the AST contains any WHERE clause with a `Predicate::Logical { op: Or, .. }`.
+///
+/// Used to emit a warning in the cost estimate (I-LOCAL-004): OR predicates are
+/// flattened during push-down classification, which may mislead callers about
+/// the actual push-down semantics. The warning prompts awareness; S-3.X refines
+/// OR-mode handling with sensor-native OR translation.
+fn has_or_predicate(ast: &Ast) -> bool {
+    use crate::ast::{LogicalOp, Predicate, SqlStatement};
+
+    fn pred_has_or(pred: &Predicate) -> bool {
+        match pred {
+            Predicate::Logical {
+                op: LogicalOp::Or, ..
+            } => true,
+            Predicate::Logical { predicates, .. } => predicates.iter().any(pred_has_or),
+            Predicate::Not(inner) => pred_has_or(inner),
+            _ => false,
+        }
+    }
+
+    match ast {
+        Ast::Filter(fe) => pred_has_or(&fe.predicate),
+        Ast::Sql(SqlStatement::Select(sq)) => sq.where_.as_ref().is_some_and(pred_has_or),
+        Ast::Pipe(pq) => pq.stages.iter().any(|stage| {
+            if let crate::ast::PipeStage::Where(pred) = stage {
+                pred_has_or(pred)
+            } else {
+                false
+            }
+        }),
+        _ => false,
+    }
+}
+
+// ---------------------------------------------------------------------------
 // extract_sources_from_ast — collect SourceRef entries directly from AST
 // ---------------------------------------------------------------------------
 
@@ -611,7 +649,14 @@ fn predicates_from_ast(ast: &Ast) -> Vec<crate::ast::Expr> {
                 vec![Expr::Field(field.clone())]
             }
             Predicate::Between { field, .. } => vec![Expr::Field(field.clone())],
-            Predicate::Cidr { field, .. } => vec![Expr::Field(field.clone())],
+            // I-LOCAL-003: emit Compare so predicate_as_string can render the CIDR mask.
+            // Using CompareOp::Cidr as the operator and Literal::Cidr as the rhs preserves
+            // the network address for display (e.g. "src_ip CIDR '10.0.0.0/8'").
+            Predicate::Cidr { field, cidr, .. } => vec![Expr::Compare {
+                lhs: Box::new(Expr::Field(field.clone())),
+                op: crate::ast::CompareOp::Cidr,
+                rhs: Box::new(Expr::Literal(crate::ast::Literal::Cidr(cidr.clone()))),
+            }],
             Predicate::Has(fp) => vec![Expr::Field(fp.clone())],
             Predicate::Missing(fp) => vec![Expr::Field(fp.clone())],
             Predicate::IsNull { field, .. } => vec![Expr::Field(field.clone())],
@@ -767,14 +812,15 @@ pub fn explain(query_str: &str, options: ExplainOptions) -> Result<ExplainResult
     let mut raw_sources = extract_sources_from_ast(&ast);
 
     // Apply sensor scope filter from options.
+    // I-LOCAL-002 (BC-2.11.010 v1.4 Preconditions): the sensors filter applies only to
+    // external sensor sources (SourceRefKind::External). Non-external sources (internal,
+    // composite) are sensor-agnostic and are dropped when a sensor scope filter is active —
+    // they cannot be validated against any specific sensor type. This is intentional.
     if let Some(sensor_scope) = &options.sensors {
         raw_sources.retain(|s| {
             if let Some(st) = sensor_type_from_source_ref(s) {
                 sensor_scope.contains(&st)
             } else {
-                // Non-external sources (internal/composite tables) are sensor-agnostic;
-                // drop them when a sensor scope filter is active — they cannot be validated
-                // against any specific sensor type.
                 false
             }
         });
@@ -880,6 +926,21 @@ pub fn explain(query_str: &str, options: ExplainOptions) -> Result<ExplainResult
 
     // ── Step 10: Build CostEstimate ───────────────────────────────────────────
     let mut warnings: Vec<String> = Vec::new();
+
+    // I-LOCAL-004: warn when WHERE clause contains OR predicates.
+    // Flattening OR branches into separate api_filters_pushed entries is misleading
+    // because OR semantics require ALL branches to match OR (not AND). The current
+    // push-down classifier treats each flattened clause independently and conservatively
+    // assigns them to post_filter; however, the caller sees a warning to prompt
+    // awareness. S-3.X will implement OR-mode handling with sensor-native OR translation.
+    if has_or_predicate(&ast) {
+        warnings.push(
+            "OR predicate detected — push-down semantics may differ from execution; \
+             conservatively reporting all OR clauses as post-filter. \
+             S-3.X will refine OR-mode handling."
+                .to_string(),
+        );
+    }
 
     // Per-sensor cost heuristics (static estimates; S-3.X wires real telemetry).
     let mut per_sensor_latency_ms: HashMap<String, u64> = HashMap::new();
@@ -1092,6 +1153,9 @@ fn predicate_as_string(expr: &crate::ast::Expr, column_name: &str) -> String {
                     Literal::Integer(n) => n.to_string(),
                     Literal::Float(f) => f.to_string(),
                     Literal::Bool(b) => b.to_string(),
+                    // I-LOCAL-003: render CIDR mask so predicate is not silently truncated.
+                    Literal::Cidr(c) => format!("'{}'", c.cidr),
+                    #[allow(unreachable_patterns)]
                     _ => "<literal>".to_string(),
                 },
                 _ => "<expr>".to_string(),
