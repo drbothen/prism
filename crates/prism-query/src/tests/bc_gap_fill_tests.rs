@@ -489,37 +489,42 @@ mod bc_gap_fill {
 
         /// BC-2.11.011: `clients: None` returns all configured clients.
         #[test]
-        fn test_BC_2_11_011_resolve_clients_none_returns_all() {
+        fn test_BC_2_11_011_resolve_clients_none_returns_all(
+        ) -> Result<(), Box<dyn std::error::Error>> {
             let registry = make_registry(&["acme", "contoso", "globex"]);
-            let result = resolve_clients(None, &registry).expect("resolve_clients should succeed");
+            let result = resolve_clients(None, &registry)?;
             assert_eq!(
                 result.len(),
                 3,
                 "clients: None must return all 3 configured clients"
             );
+            Ok(())
         }
 
         /// BC-2.11.011: `clients: Some(["acme"])` returns only `["acme"]`.
         #[test]
-        fn test_BC_2_11_011_resolve_clients_some_valid_list() {
+        fn test_BC_2_11_011_resolve_clients_some_valid_list(
+        ) -> Result<(), Box<dyn std::error::Error>> {
             let registry = make_registry(&["acme", "contoso"]);
-            let result = resolve_clients(Some(vec![make_slug("acme")]), &registry)
-                .expect("valid single client should succeed");
+            let result = resolve_clients(Some(vec![make_slug("acme")]), &registry)?;
             assert_eq!(result.len(), 1);
             assert_eq!(result[0].as_str(), "acme");
+            Ok(())
         }
 
         /// BC-2.11.011 / BC-2.11.001 E-MCP-004: invalid client ID returns error.
         #[test]
-        fn test_BC_2_11_011_resolve_clients_invalid_id_returns_error() {
+        fn test_BC_2_11_011_resolve_clients_invalid_id_returns_error(
+        ) -> Result<(), Box<dyn std::error::Error>> {
             let registry = make_registry(&["acme"]);
             let result = resolve_clients(Some(vec![make_slug("unknown-client")]), &registry);
             assert!(result.is_err(), "Unknown client must return error");
-            let err_msg = result.unwrap_err().to_string();
+            let err_msg = result.err().ok_or("expected error but got Ok")?.to_string();
             assert!(
                 err_msg.contains("E-AUTH-003") || err_msg.contains("invalid client ID"),
                 "Error must be E-AUTH-003 (InvalidClientId): {err_msg}"
             );
+            Ok(())
         }
 
         /// BC-2.11.011: intersect_query_client_predicates narrows scope correctly.
@@ -558,19 +563,23 @@ mod bc_gap_fill {
 
         /// BC-2.11.011: Single-client registry resolves correctly.
         #[test]
-        fn test_BC_2_11_011_single_client_registry_resolve() {
+        fn test_BC_2_11_011_single_client_registry_resolve(
+        ) -> Result<(), Box<dyn std::error::Error>> {
             let registry = make_registry(&["singleclient"]);
-            let result = resolve_clients(None, &registry).expect("single client should succeed");
+            let result = resolve_clients(None, &registry)?;
             assert_eq!(result.len(), 1);
             assert_eq!(result[0].as_str(), "singleclient");
+            Ok(())
         }
 
         /// BC-2.11.011: Empty registry + clients=None returns empty Vec.
         #[test]
-        fn test_BC_2_11_011_empty_registry_none_returns_empty() {
+        fn test_BC_2_11_011_empty_registry_none_returns_empty(
+        ) -> Result<(), Box<dyn std::error::Error>> {
             let registry = make_registry(&[]);
-            let result = resolve_clients(None, &registry).expect("empty registry should succeed");
+            let result = resolve_clients(None, &registry)?;
             assert!(result.is_empty(), "Empty registry must return empty Vec");
+            Ok(())
         }
     }
 
@@ -596,6 +605,9 @@ mod bc_gap_fill {
             OrgSlug::new(s)
         }
 
+        // make_batch_with_columns is a test helper that builds batches from statically
+        // known column names; the expect() cannot fail in practice.
+        #[allow(clippy::expect_used)]
         fn make_batch_with_columns(col_names: &[&str], num_rows: usize) -> RecordBatch {
             let fields: Vec<Field> = col_names
                 .iter()
@@ -611,12 +623,12 @@ mod bc_gap_fill {
 
         /// BC-2.11.012: inject_virtual_fields adds all three columns to the batch.
         #[test]
-        fn test_BC_2_11_012_inject_virtual_fields_adds_all_three_columns() {
+        fn test_BC_2_11_012_inject_virtual_fields_adds_all_three_columns(
+        ) -> Result<(), Box<dyn std::error::Error>> {
             let batch = make_batch_with_columns(&["severity", "description"], 3);
             let sensor = SensorType::CrowdStrike;
             let client = make_client("acme");
-            let result = inject_virtual_fields(batch, &sensor, &client, "crowdstrike.detections")
-                .expect("inject_virtual_fields must succeed");
+            let result = inject_virtual_fields(batch, &sensor, &client, "crowdstrike.detections")?;
 
             let schema = result.schema();
             assert!(
@@ -631,19 +643,20 @@ mod bc_gap_fill {
                 schema.field_with_name(VIRTUAL_FIELD_SOURCE_TABLE).is_ok(),
                 "_source_table must be present"
             );
+            Ok(())
         }
 
         /// BC-2.11.012 EC-005: Engine overwrites sensor-emitted `_sensor` column.
         #[test]
-        fn test_BC_2_11_012_inject_virtual_fields_overwrites_sensor_spoofed_column() {
+        fn test_BC_2_11_012_inject_virtual_fields_overwrites_sensor_spoofed_column(
+        ) -> Result<(), Box<dyn std::error::Error>> {
             // Batch already has _sensor with a fake value.
             let batch = make_batch_with_columns(&[VIRTUAL_FIELD_SENSOR, "description"], 2);
 
             // Inject with canonical value "crowdstrike".
             let sensor = SensorType::CrowdStrike;
             let client = make_client("acme");
-            let result = inject_virtual_fields(batch, &sensor, &client, "crowdstrike.detections")
-                .expect("inject must succeed");
+            let result = inject_virtual_fields(batch, &sensor, &client, "crowdstrike.detections")?;
 
             let schema = result.schema();
             // Must have exactly one _sensor column.
@@ -659,33 +672,33 @@ mod bc_gap_fill {
             );
 
             // The value must be the canonical "crowdstrike", not the spoofed value.
-            let col_idx = schema.index_of(VIRTUAL_FIELD_SENSOR).unwrap();
+            let col_idx = schema.index_of(VIRTUAL_FIELD_SENSOR)?;
             let col = result
                 .column(col_idx)
                 .as_any()
                 .downcast_ref::<StringArray>()
-                .expect("_sensor must be StringArray");
+                .ok_or("_sensor must be StringArray")?;
             assert_eq!(
                 col.value(0),
                 "crowdstrike",
                 "Spoofed _sensor must be overwritten with canonical value"
             );
+            Ok(())
         }
 
         /// BC-2.11.012: Calling inject_virtual_fields twice is idempotent.
         #[test]
-        fn test_BC_2_11_012_inject_virtual_fields_idempotent_second_call() {
+        fn test_BC_2_11_012_inject_virtual_fields_idempotent_second_call(
+        ) -> Result<(), Box<dyn std::error::Error>> {
             let batch = make_batch_with_columns(&["severity"], 2);
             let sensor = SensorType::Armis;
             let client = make_client("acme");
 
             // First injection.
-            let batch1 = inject_virtual_fields(batch, &sensor, &client, "armis.devices")
-                .expect("first inject must succeed");
+            let batch1 = inject_virtual_fields(batch, &sensor, &client, "armis.devices")?;
 
             // Second injection on already-injected batch.
-            let batch2 = inject_virtual_fields(batch1, &sensor, &client, "armis.devices")
-                .expect("second inject must succeed");
+            let batch2 = inject_virtual_fields(batch1, &sensor, &client, "armis.devices")?;
 
             let schema = batch2.schema();
             // Must have exactly one of each virtual field.
@@ -710,11 +723,13 @@ mod bc_gap_fill {
                 table_count, 1,
                 "Idempotent: exactly one _source_table column"
             );
+            Ok(())
         }
 
         /// BC-2.11.012: remove_spoofed_virtual_columns strips all three reserved names.
         #[test]
-        fn test_BC_2_11_012_remove_spoofed_columns_strips_all_reserved_names() {
+        fn test_BC_2_11_012_remove_spoofed_columns_strips_all_reserved_names(
+        ) -> Result<(), Box<dyn std::error::Error>> {
             let batch = make_batch_with_columns(
                 &[
                     VIRTUAL_FIELD_SENSOR,
@@ -724,8 +739,7 @@ mod bc_gap_fill {
                 ],
                 2,
             );
-            let result = remove_spoofed_virtual_columns(batch)
-                .expect("remove_spoofed_virtual_columns must succeed");
+            let result = remove_spoofed_virtual_columns(batch)?;
 
             let schema = result.schema();
             assert!(
@@ -745,6 +759,7 @@ mod bc_gap_fill {
                 schema.field_with_name("severity").is_ok(),
                 "Other columns must be preserved"
             );
+            Ok(())
         }
 
         /// BC-2.11.012: sensor_type_to_string(CrowdStrike) returns "crowdstrike".
@@ -795,8 +810,8 @@ mod bc_gap_fill {
 
     mod security_limits {
         use crate::memory::{
-            build_session_context, map_datafusion_memory_error, MAX_MATERIALIZED_RECORDS,
-            QUERY_MEMORY_POOL_BYTES, QUERY_TIMEOUT_SECS,
+            map_datafusion_memory_error, MAX_MATERIALIZED_RECORDS, QUERY_MEMORY_POOL_BYTES,
+            QUERY_TIMEOUT_SECS,
         };
 
         /// BC-2.11.006: Memory pool constant is exactly 200 MB.
@@ -895,7 +910,8 @@ mod bc_gap_fill {
         /// Verifies that `SessionScope` correctly drops the inner context.
         /// Uses `std::panic::catch_unwind` to verify the drop fires on panic.
         #[test]
-        fn test_BC_2_11_006_ec004_panic_path_session_scope_drops_context() {
+        fn test_BC_2_11_006_ec004_panic_path_session_scope_drops_context(
+        ) -> Result<(), Box<dyn std::error::Error>> {
             use crate::session::SessionScope;
             use datafusion::execution::context::SessionContext;
             use std::sync::{Arc, Mutex};
@@ -915,7 +931,8 @@ mod bc_gap_fill {
             drop(scope);
             // If we reach here without panic, RAII drop semantics are correct.
             drop(drop_count_clone); // suppress unused warning
-            assert_eq!(*drop_count.lock().unwrap(), 0); // no panic occurred
+            assert_eq!(*drop_count.lock().map_err(|e| e.to_string())?, 0); // no panic occurred
+            Ok(())
         }
 
         /// BC-2.11.006 EC-002: Timeout returns QueryTimeout, NOT QueryExecutionFailed.
@@ -1229,22 +1246,25 @@ mod bc_gap_fill {
 
         /// BC-2.11.006: build_session_context creates a per-query SessionContext.
         #[test]
-        fn test_BC_2_11_006_build_session_context_creates_fresh_context() {
-            let ctx = build_session_context(200 * 1024 * 1024)
-                .expect("build_session_context must succeed");
+        fn test_BC_2_11_006_build_session_context_creates_fresh_context(
+        ) -> Result<(), Box<dyn std::error::Error>> {
+            let ctx = build_session_context(200 * 1024 * 1024)?;
             // Context is non-null and usable.
             let _state = ctx.state();
+            Ok(())
         }
 
         /// BC-2.11.006: Two separate build_session_context calls produce
         /// independent pool limits (not shared).
         #[test]
-        fn test_BC_2_11_006_two_contexts_have_independent_pools() {
-            let ctx1 = build_session_context(100 * 1024 * 1024).expect("first context must build");
-            let ctx2 = build_session_context(50 * 1024 * 1024).expect("second context must build");
+        fn test_BC_2_11_006_two_contexts_have_independent_pools(
+        ) -> Result<(), Box<dyn std::error::Error>> {
+            let ctx1 = build_session_context(100 * 1024 * 1024)?;
+            let ctx2 = build_session_context(50 * 1024 * 1024)?;
             // Both are independently usable.
             let _s1 = ctx1.state();
             let _s2 = ctx2.state();
+            Ok(())
         }
 
         /// BC-2.11.006: map_datafusion_memory_error maps ResourcesExhausted
@@ -1342,67 +1362,64 @@ mod bc_gap_fill {
 
         /// BC-2.11.005 Step 6: register_mem_table registers batches in DataFusion.
         #[test]
-        fn test_BC_2_11_005_register_mem_table_creates_accessible_table() {
+        fn test_BC_2_11_005_register_mem_table_creates_accessible_table(
+        ) -> Result<(), Box<dyn std::error::Error>> {
             use arrow::array::StringArray;
             use arrow::datatypes::{DataType, Field, Schema};
             use arrow::record_batch::RecordBatch;
             use std::sync::Arc;
 
-            let ctx = build_session_context(10 * 1024 * 1024).expect("context must build");
+            let ctx = build_session_context(10 * 1024 * 1024)?;
 
             let schema = Arc::new(Schema::new(vec![Field::new("id", DataType::Utf8, false)]));
             let batch = RecordBatch::try_new(
                 schema,
                 vec![Arc::new(StringArray::from(vec!["a", "b"])) as _],
-            )
-            .expect("batch must build");
+            )?;
 
-            register_mem_table(&ctx, "test_source", vec![batch])
-                .expect("register_mem_table must succeed");
+            register_mem_table(&ctx, "test_source", vec![batch])?;
 
             // Table is now queryable.
             assert!(
                 ctx.table_exist("test_source").unwrap_or(false),
                 "Registered table must be accessible"
             );
+            Ok(())
         }
 
         /// BC-2.11.005 Step 8: collect_record_batch_stream drains the stream fully.
         #[tokio::test]
-        async fn test_BC_2_11_005_collect_record_batch_stream_drains_fully() {
+        async fn test_BC_2_11_005_collect_record_batch_stream_drains_fully(
+        ) -> Result<(), Box<dyn std::error::Error>> {
             use crate::materialization::{collect_record_batch_stream, register_mem_table};
             use arrow::array::StringArray;
             use arrow::datatypes::{DataType, Field, Schema};
             use arrow::record_batch::RecordBatch;
             use std::sync::Arc;
 
-            let ctx = build_session_context(10 * 1024 * 1024).expect("context must build");
+            let ctx = build_session_context(10 * 1024 * 1024)?;
 
             let schema = Arc::new(Schema::new(vec![Field::new("val", DataType::Utf8, false)]));
             let batch = RecordBatch::try_new(
                 schema,
                 vec![Arc::new(StringArray::from(vec!["x", "y", "z"])) as _],
-            )
-            .expect("batch");
-            register_mem_table(&ctx, "drain_test", vec![batch]).expect("register");
+            )?;
+            register_mem_table(&ctx, "drain_test", vec![batch])?;
 
             let stream = ctx
                 .sql("SELECT * FROM drain_test")
-                .await
-                .expect("sql must succeed")
+                .await?
                 .execute_stream()
-                .await
-                .expect("stream must execute");
+                .await?;
 
-            let collected = collect_record_batch_stream(stream)
-                .await
-                .expect("collect must succeed");
+            let collected = collect_record_batch_stream(stream).await?;
 
             let total_rows: usize = collected.iter().map(|b| b.num_rows()).sum();
             assert_eq!(
                 total_rows, 3,
                 "collect_record_batch_stream must drain all rows"
             );
+            Ok(())
         }
 
         /// CWE-209 SEC-003: register_mem_table error messages do not leak DataFusion internals.
@@ -1410,30 +1427,29 @@ mod bc_gap_fill {
         /// When table registration fails, the client-facing error detail must contain
         /// "<redacted; see server logs>" rather than raw DataFusion schema or table info.
         #[test]
-        fn test_SEC_003_register_mem_table_error_is_redacted() {
+        fn test_SEC_003_register_mem_table_error_is_redacted(
+        ) -> Result<(), Box<dyn std::error::Error>> {
             use arrow::array::StringArray;
             use arrow::datatypes::{DataType, Field, Schema};
             use arrow::record_batch::RecordBatch;
             use std::sync::Arc;
 
-            let ctx = build_session_context(10 * 1024 * 1024).expect("context must build");
+            let ctx = build_session_context(10 * 1024 * 1024)?;
 
             // Register a table successfully first.
             let schema = Arc::new(Schema::new(vec![Field::new("id", DataType::Utf8, false)]));
             let batch = RecordBatch::try_new(
                 schema.clone(),
                 vec![Arc::new(StringArray::from(vec!["a"])) as _],
-            )
-            .expect("batch must build");
-            register_mem_table(&ctx, "dup_table", vec![batch])
-                .expect("first register must succeed");
+            )?;
+            register_mem_table(&ctx, "dup_table", vec![batch])?;
 
             // Register the same table name again — DataFusion returns an error.
             let batch2 =
-                RecordBatch::try_new(schema, vec![Arc::new(StringArray::from(vec!["b"])) as _])
-                    .expect("batch2 must build");
+                RecordBatch::try_new(schema, vec![Arc::new(StringArray::from(vec!["b"])) as _])?;
             let err = register_mem_table(&ctx, "dup_table", vec![batch2])
-                .expect_err("duplicate registration must fail");
+                .err()
+                .ok_or("expected duplicate registration to fail")?;
 
             let detail = match &err {
                 prism_core::PrismError::QueryExecutionFailed { detail } => detail.clone(),
@@ -1448,6 +1464,7 @@ mod bc_gap_fill {
                 !detail.contains("TableAlreadyExists"),
                 "error detail must not forward raw DataFusion error type: {detail}"
             );
+            Ok(())
         }
     }
 
@@ -1511,23 +1528,25 @@ mod bc_gap_fill {
 
         /// BC-2.11.006 EC-003: increment_record_count allows counts within cap.
         #[test]
-        fn test_BC_2_11_006_ec003_increment_within_cap_succeeds() {
+        fn test_BC_2_11_006_ec003_increment_within_cap_succeeds(
+        ) -> Result<(), Box<dyn std::error::Error>> {
             let mut ctx = make_ctx(10_000);
-            ctx.increment_record_count(5_000)
-                .expect("increment within cap must succeed");
-            ctx.increment_record_count(5_000)
-                .expect("increment to cap must succeed");
+            ctx.increment_record_count(5_000)?;
+            ctx.increment_record_count(5_000)?;
+            Ok(())
         }
 
         /// BC-2.11.006 EC-003: increment_record_count rejects counts that exceed cap.
         #[test]
-        fn test_BC_2_11_006_ec003_increment_over_cap_returns_error() {
+        fn test_BC_2_11_006_ec003_increment_over_cap_returns_error(
+        ) -> Result<(), Box<dyn std::error::Error>> {
             use prism_core::PrismError;
 
             let mut ctx = make_ctx(10_000);
             let err = ctx
                 .increment_record_count(10_001)
-                .expect_err("increment over cap must return error");
+                .err()
+                .ok_or("expected increment over cap to return error")?;
             assert!(
                 matches!(err, PrismError::QueryExecutionFailed { .. }),
                 "over-cap error must be QueryExecutionFailed: {:?}",
@@ -1538,6 +1557,7 @@ mod bc_gap_fill {
                 msg.contains("E-QUERY-003"),
                 "over-cap error must include E-QUERY-003: {msg}"
             );
+            Ok(())
         }
 
         /// BC-2.11.006 EC-003: increment_record_count is the only way to mutate record_count.
@@ -1556,7 +1576,8 @@ mod bc_gap_fill {
 
         /// BC-2.11.005: cache_lookup and cache_insert round-trip correctly.
         #[test]
-        fn test_BC_2_11_005_cache_lookup_insert_round_trip() {
+        fn test_BC_2_11_005_cache_lookup_insert_round_trip(
+        ) -> Result<(), Box<dyn std::error::Error>> {
             use arrow::array::StringArray;
             use arrow::datatypes::{DataType, Field, Schema};
             use arrow::record_batch::RecordBatch;
@@ -1569,14 +1590,14 @@ mod bc_gap_fill {
 
             let schema = Arc::new(Schema::new(vec![Field::new("id", DataType::Utf8, false)]));
             let batch =
-                RecordBatch::try_new(schema, vec![Arc::new(StringArray::from(vec!["a"])) as _])
-                    .expect("batch must build");
+                RecordBatch::try_new(schema, vec![Arc::new(StringArray::from(vec!["a"])) as _])?;
 
             ctx.cache_insert("key1".to_string(), vec![batch]);
             let found = ctx
                 .cache_lookup("key1")
-                .expect("cache must contain 'key1' after insert");
+                .ok_or("cache must contain 'key1' after insert")?;
             assert_eq!(found.len(), 1, "cache must return the inserted batch");
+            Ok(())
         }
     }
 

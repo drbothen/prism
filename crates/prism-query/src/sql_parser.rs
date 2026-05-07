@@ -943,7 +943,7 @@ where
 /// `pub(crate)` — never `pub`.
 ///
 /// # Implements BC-2.11.004 — Write Parser Extension
-#[cfg_attr(not(test), allow(dead_code))]
+#[allow(dead_code)]
 pub(crate) fn build_dml_parser<'a>() -> impl Parser<'a, &'a str, DmlNode, extra::Err<Rich<'a, char>>>
 {
     // Keep choice for the public build_dml_parser API; parse_sql_dml dispatches
