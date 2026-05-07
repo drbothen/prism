@@ -24,6 +24,7 @@ use arrow::record_batch::RecordBatch;
 use async_trait::async_trait;
 use chrono::Utc;
 use prism_core::{OrgId, OrgSlug, PrismError, RiskTier, SensorType};
+use prism_security::feature_flag::CapabilityCheckResult;
 use prism_sensors::AdapterRegistry;
 use prism_sensors::RecordWriteResult;
 use prism_spec_engine::write_endpoint::WriteEndpointSpec;
@@ -82,6 +83,12 @@ pub trait AuditWriter: Send + Sync + 'static {
     /// Called in Phase 5a, before any sensor API contact.
     /// Returns the assigned `audit_intent_id` on success.
     ///
+    /// # CRIT-4: capability_check (BC-2.05.009)
+    /// The `capability_check` result from Phase 2 is recorded in the audit entry
+    /// as `capability_checks[0]` with fields: `capability_path`, `compile_time_enabled`,
+    /// `runtime_enabled`, `result`. This enables audit trail reconstruction of the
+    /// full two-tier capability decision (BC-2.05.009 postcondition).
+    ///
     /// # Fail-Closed (BC-2.05.009)
     /// If this returns `Err(PrismError::AuditPersistenceFailed)`, the dispatcher
     /// MUST abort with `E-AUDIT-001` and MUST NOT contact any sensor API.
@@ -89,6 +96,7 @@ pub trait AuditWriter: Send + Sync + 'static {
         &self,
         plan: &WritePlan,
         context: &QueryContext,
+        capability_check: &CapabilityCheckResult,
     ) -> Result<Ulid, PrismError>;
 
     /// Write the write OUTCOME record to the audit buffer.
@@ -121,6 +129,9 @@ pub struct DispatchInputs<'a> {
     pub fetched_records: &'a [RecordBatch],
     /// Resolved write endpoint identifier string.
     pub write_endpoint: &'a str,
+    /// CRIT-4 (BC-2.05.009): capability check result from Phase 2.
+    /// Recorded in the audit INTENT entry as `capability_checks[0]`.
+    pub capability_check: &'a CapabilityCheckResult,
 }
 
 // ---------------------------------------------------------------------------
@@ -157,9 +168,10 @@ impl WriteDispatcher {
 
         // Phase 5a: Write audit INTENT (fail-closed — BC-2.05.009)
         // MUST complete before any sensor API contact.
+        // CRIT-4: pass capability_check so audit entry includes resolution trace.
         let intent_id = self
             .audit_writer
-            .write_intent(inputs.plan, inputs.context)
+            .write_intent(inputs.plan, inputs.context, inputs.capability_check)
             .await?;
 
         // Phase 5b: Acquire write semaphore permit.

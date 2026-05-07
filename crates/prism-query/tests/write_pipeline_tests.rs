@@ -132,6 +132,7 @@ mod test_helpers {
             &self,
             _plan: &WritePlan,
             _context: &QueryContext,
+            _capability_check: &prism_security::feature_flag::CapabilityCheckResult,
         ) -> Result<Ulid, PrismError> {
             if self.fail_intent.load(Ordering::SeqCst) {
                 Err(PrismError::AuditPersistenceFailed)

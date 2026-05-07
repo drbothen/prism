@@ -92,6 +92,7 @@ mod helpers {
             &self,
             _plan: &WritePlan,
             _ctx: &QueryContext,
+            _capability_check: &prism_security::feature_flag::CapabilityCheckResult,
         ) -> Result<Ulid, PrismError> {
             Ok(Ulid::new())
         }
@@ -510,6 +511,7 @@ async fn test_BC_2_04_001_flag_disabled_between_calls_second_call_returns_e_flag
             &self,
             _plan: &prism_query::write_pipeline::WritePlan,
             _ctx: &prism_query::write_pipeline::QueryContext,
+            _capability_check: &prism_security::feature_flag::CapabilityCheckResult,
         ) -> Result<ulid::Ulid, PrismError> {
             Ok(ulid::Ulid::new())
         }

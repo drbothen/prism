@@ -385,6 +385,8 @@ impl WriteExecutor {
         // ----------------------------------------------------------------
         // Phase 5: Write dispatch (execute path)
         // ----------------------------------------------------------------
+        // CRIT-4: forward capability_check from Phase 2 for audit intent emission
+        // (BC-2.05.009 — capability_checks recorded in audit entry).
         let write_result = self
             .dispatcher
             .dispatch(DispatchInputs {
@@ -395,6 +397,7 @@ impl WriteExecutor {
                 endpoint_spec,
                 fetched_records: &fetched_records,
                 write_endpoint: &write_endpoint,
+                capability_check: &safety_passed.capability_check,
             })
             .await?;
 

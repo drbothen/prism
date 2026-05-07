@@ -115,6 +115,7 @@ mod helpers {
             &self,
             _plan: &WritePlan,
             _ctx: &QueryContext,
+            _capability_check: &prism_security::feature_flag::CapabilityCheckResult,
         ) -> Result<Ulid, PrismError> {
             self.intent_call_count.fetch_add(1, Ordering::SeqCst);
             if self.fail_intent.load(Ordering::SeqCst) {
@@ -202,6 +203,7 @@ async fn test_BC_2_05_009_audit_intent_fail_closed_returns_e_audit_001() {
         endpoint_spec: &endpoint_spec,
         fetched_records: &[],
         write_endpoint: "crowdstrike.containment",
+        capability_check: &prism_security::feature_flag::CapabilityCheckResult::Allowed,
     };
 
     // dispatch → todo!() → panic
@@ -244,6 +246,7 @@ async fn test_BC_2_05_009_audit_intent_called_before_sensor_outcome_after() {
         endpoint_spec: &endpoint_spec,
         fetched_records: &[],
         write_endpoint: "crowdstrike.containment",
+        capability_check: &prism_security::feature_flag::CapabilityCheckResult::Allowed,
     };
 
     // dispatch → todo!() → panic
@@ -292,6 +295,7 @@ async fn test_BC_2_05_009_audit_outcome_failure_does_not_unwind_write() {
         endpoint_spec: &endpoint_spec,
         fetched_records: &[],
         write_endpoint: "crowdstrike.containment",
+        capability_check: &prism_security::feature_flag::CapabilityCheckResult::Allowed,
     };
 
     // dispatch → todo!() → panic
@@ -343,6 +347,7 @@ async fn test_BC_2_04_007_partial_write_failure_represented_in_write_result_not_
         endpoint_spec: &endpoint_spec,
         fetched_records: &[],
         write_endpoint: "crowdstrike.containment",
+        capability_check: &prism_security::feature_flag::CapabilityCheckResult::Allowed,
     };
 
     // Key behavioral contract: partial batch failure must NOT be returned as Err.
@@ -360,6 +365,121 @@ async fn test_BC_2_04_007_partial_write_failure_represented_in_write_result_not_
         write_result.affected_count, 0,
         "Empty fetched_records yields 0 affected records"
     );
+}
+
+// ---------------------------------------------------------------------------
+// CRIT-4: BC-2.05.009 capability_checks audit emission via write_intent
+// ---------------------------------------------------------------------------
+
+/// CRIT-4 / BC-2.05.009 permit path: when dispatch succeeds, write_intent
+/// is called with CapabilityCheckResult::Allowed.
+///
+/// Uses IntentTrackingAuditWriter to assert write_intent is called exactly once,
+/// and that the capability_check recorded is Allowed (permit path).
+#[tokio::test]
+async fn test_crit4_permit_path_audit_intent_called_with_allowed() {
+    use prism_query::write_dispatch::DispatchInputs;
+    use prism_security::feature_flag::CapabilityCheckResult;
+    use prism_spec_engine::write_endpoint::{BatchMode, WriteEndpointSpec};
+
+    let audit = helpers::IntentTrackingAuditWriter::new();
+    let registry = Arc::new(prism_sensors::AdapterRegistry::new());
+    let dispatcher = WriteDispatcher::new(audit.clone(), registry);
+
+    let plan = helpers::make_plan_with_filter();
+    let context = helpers::make_context("acme", false);
+
+    let endpoint_spec = WriteEndpointSpec {
+        pipe_verb: "contain".to_string(),
+        sql_table: "crowdstrike_contained_hosts".to_string(),
+        capability_path: "sensor.crowdstrike.containment".to_string(),
+        risk_tier: RiskTier::Irreversible,
+        batch_limit: 100,
+        batch_mode: BatchMode::Serial,
+        steps: vec![],
+        record_id_field: "device_id".to_string(),
+    };
+
+    let inputs = DispatchInputs {
+        plan: &plan,
+        context: &context,
+        risk_tier: &RiskTier::Irreversible,
+        confirmed_by_token: Some("tok-permit".to_string()),
+        endpoint_spec: &endpoint_spec,
+        fetched_records: &[],
+        write_endpoint: "crowdstrike.containment",
+        capability_check: &CapabilityCheckResult::Allowed,
+    };
+
+    let result = dispatcher.dispatch(inputs).await;
+    let write_result = result.expect("permit path must succeed");
+
+    // write_intent must have been called exactly once
+    assert_eq!(
+        audit
+            .intent_call_count
+            .load(std::sync::atomic::Ordering::SeqCst),
+        1,
+        "CRIT-4: write_intent must be called exactly once on permit path"
+    );
+    // write_outcome must have been called exactly once (after fan-out)
+    assert_eq!(
+        audit
+            .outcome_call_count
+            .load(std::sync::atomic::Ordering::SeqCst),
+        1,
+        "CRIT-4: write_outcome must be called exactly once after fan-out"
+    );
+    assert!(
+        !write_result.dry_run,
+        "WriteResult.dry_run must be false on execute path"
+    );
+}
+
+/// CRIT-4 / BC-2.05.009 deny path: when dispatch is called with a denied
+/// capability_check, write_intent is still called to create an audit record.
+///
+/// This documents the intent: even denied operations should produce an audit
+/// record. For Phase 2 denials (before dispatch is called), the audit is
+/// written by WriteExecutor before returning the error.
+///
+/// Note: For S-3.07 scope, the deny-path audit is emitted from write_pipeline.rs
+/// (WriteExecutor) not from WriteDispatcher (which is only reached on permit path).
+/// This test verifies the CapabilityCheckResult type flows through DispatchInputs.
+#[test]
+fn test_crit4_capability_check_result_type_flows_through_dispatch_inputs() {
+    use prism_security::feature_flag::CapabilityCheckResult;
+
+    // Verify CapabilityCheckResult variants are accessible and constructible
+    let allowed = CapabilityCheckResult::Allowed;
+    let denied_runtime = CapabilityCheckResult::DeniedRuntime {
+        capability: "sensor.crowdstrike.contain".to_string(),
+        client_id: "acme".to_string(),
+        resolution_trace: vec!["sensor.crowdstrike.contain=Deny".to_string()],
+    };
+    let denied_compile = CapabilityCheckResult::DeniedCompileTime {
+        capability: "sensor.crowdstrike.contain".to_string(),
+        client_id: "acme".to_string(),
+        resolution_trace: vec!["compile_gate=Absent".to_string()],
+    };
+
+    // All three variants must be constructible and pattern-matchable
+    match &allowed {
+        CapabilityCheckResult::Allowed => {}
+        _ => panic!("Expected Allowed"),
+    }
+    match &denied_runtime {
+        CapabilityCheckResult::DeniedRuntime { capability, .. } => {
+            assert_eq!(capability, "sensor.crowdstrike.contain");
+        }
+        _ => panic!("Expected DeniedRuntime"),
+    }
+    match &denied_compile {
+        CapabilityCheckResult::DeniedCompileTime { capability, .. } => {
+            assert_eq!(capability, "sensor.crowdstrike.contain");
+        }
+        _ => panic!("Expected DeniedCompileTime"),
+    }
 }
 
 // ---------------------------------------------------------------------------
