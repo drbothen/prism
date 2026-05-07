@@ -1,7 +1,7 @@
 ---
 document_type: behavioral-contract
 level: L3
-version: "1.4"
+version: "1.5"
 status: draft
 producer: product-owner
 timestamp: 2026-04-14T07:00:00
@@ -28,7 +28,7 @@ extracted_from: ".factory/specs/prd.md"
 
 ## Description
 
-The `explain_query` tool parses and plans a PrismQL query without executing it â€” no sensor API calls are made, no data is materialized. It returns the detected mode, alias expansions, field resolution, per-sensor push-down filters in sensor-native syntax, post-materialization operations, and a cost estimate (per-sensor latency history, API call count, rate limit headroom). Syntactic security limits are enforced in explain mode; the materialization limit produces a warning (not an error) since no actual fetch occurs. An audit entry is emitted for every invocation per DI-004.
+The `explain_query` tool parses and plans a PrismQL query without executing it â€” no sensor API calls are made, no data is materialized. It returns the detected mode, alias expansions, field resolution, per-sensor push-down filters (predicate strings; sensor-native translation deferred to S-3.X via TD-S303-PUSH-DOWN-TRANSLATION-001), post-materialization operations, and a cost estimate (per-sensor latency history, API call count, rate limit headroom). Syntactic security limits are enforced in explain mode; the materialization limit produces a warning (not an error) since no actual fetch occurs. An audit entry is emitted for every invocation per DI-004.
 
 ## Postconditions
 - The query is parsed and planned but NOT executed (no sensor API calls, no materialization)
@@ -39,9 +39,13 @@ The `explain_query` tool parses and plans a PrismQL query without executing it â
   - `expanded_query`: the query after all alias expansion
   - `field_resolution`: map of field names used in the query to their OCSF paths and resolution method (direct, alias, virtual)
   - `execution_plan`:
-    - `sensors_to_query`: list of sensors that would be queried
-    - `api_filters_pushed`: per-sensor translated push-down filters in sensor-native syntax
-    - `post_fetch_operations`: list of operations to be applied post-materialization (filter, group by, sort, limit, etc.)
+    - `sensors_to_query`: list of sensors that would be queried; each entry (`ExplainSource`) contains:
+      - `source_ref`: the data source reference string
+      - `sensor_type`: the sensor type identifier
+      - `api_filters_pushed`: predicate strings that would be pushed to the sensor API (sensor-native translation deferred to S-3.X via TD-S303-PUSH-DOWN-TRANSLATION-001; currently emits PrismQL-native generic predicate strings)
+      - `post_filter_predicates`: predicates applied post-materialization for this source
+      - `estimated_row_count`: optional row-count hint (populated from `count_hint()` if the adapter provides one)
+    - `post_fetch_operations`: list of operations to be applied post-materialization across all sources (filter, group by, sort, limit, etc.)
     - `clients_to_query`: list of all client IDs in scope for this query (populated from the `ClientRegistry` via `resolve_clients()`; empty when no registry is wired; no fan-out occurs â€” AC-5)
   - `estimated_cost`: structured cost estimate including:
     - Per-sensor estimated latency (based on historical API call timings, rolling average)
@@ -65,6 +69,7 @@ The `explain_query` tool parses and plans a PrismQL query without executing it â
 - No sensor API calls are made; no data is fetched or materialized
 - DI-004: An audit entry IS emitted for `explain_query` invocations. Although it is a read-only tool, it is an MCP tool invocation and must be audited for SOC 2 compliance. The audit entry records the query, scoping parameters, and the explain result summary.
 - DataFusion logical plan elision (I-LOCAL-001): the S-3.03 implementation uses an AST-derived `post_fetch_operations` list rather than invoking DataFusion `SessionContext::create_logical_plan()` against schema-only MemTables. This satisfies the BC postcondition (showing post-materialization operations without executing the query). Full DataFusion plan visibility is deferred to TD-S303-DATAFUSION-PLAN-001 (a later story) if it becomes user-required.
+- Sensor-native filter translation deferral (DI-PUSH-001): `api_filters_pushed` currently emits PrismQL-native generic predicate strings (e.g. `"severity = 'critical'"`) rather than sensor-native syntax (FQL, KQL, etc.). Sensor-native translation is deferred to a later story via TD-S303-PUSH-DOWN-TRANSLATION-001. The BC postcondition is met â€” push-down filter visibility is present; sensor-native rendering is a future enhancement.
 
 ## Error Cases
 | Error | Condition | Behavior |
@@ -108,6 +113,7 @@ The `explain_query` tool parses and plans a PrismQL query without executing it â
 
 | Version | Burst | Date | Author | Change |
 |---------|-------|------|--------|--------|
+| 1.5 | S-3.03-adversary-local-pass3 | 2026-05-07 | implementer | I-LOCAL-PASS3-2: Restructured `execution_plan` postcondition tree â€” `api_filters_pushed` moved from sibling of `sensors_to_query` to nested inside each `ExplainSource` entry (correct struct layout); added `source_ref`, `sensor_type`, `post_filter_predicates`, `estimated_row_count` sub-fields. I-LOCAL-PASS3-3: Softened "sensor-native syntax" claim in Description and postcondition to "predicate strings (sensor-native translation deferred to S-3.X via TD-S303-PUSH-DOWN-TRANSLATION-001)"; added DI-PUSH-001 invariant documenting the deferral explicitly. Filed TD-S303-PUSH-DOWN-TRANSLATION-001. |
 | 1.4 | S-3.03-adversary-local-pass1 | 2026-05-07 | implementer | Added `clients_to_query: Vec<OrgSlug>` postcondition to ExecutionPlan (C-LOCAL-002 / AC-5). Added Preconditions with I-LOCAL-002 sensor-scope filter note. Added DataFusion plan elision invariant (I-LOCAL-001 / TD-S303-DATAFUSION-PLAN-001). |
 | 1.3 | pass-73-fix | 2026-04-20 | state-manager | Deterministic changelog reorder: sorted all rows to descending version order (pass-73 bash script). |
 | 1.2 | pass-69-housekeeping | 2026-04-20 | product-owner | Normalized changelog schema to canonical 5-col schema. |
