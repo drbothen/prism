@@ -71,6 +71,7 @@ pub use registry::AdapterRegistry;
 pub use retry::{retry_with_backoff, RetryConfig, DEFAULT_TRANSIENT_CODES};
 pub use secrecy::SecretString;
 pub use timestamp::parse_timestamp;
+pub use types::RequestParams;
 
 // S-2.08 re-exports
 pub use event_buffer::{EventBufferStore, NormalizedRecord};

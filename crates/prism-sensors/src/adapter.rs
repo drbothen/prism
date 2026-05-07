@@ -21,7 +21,7 @@ use serde::{Deserialize, Serialize};
 use thiserror::Error;
 
 use crate::auth::SensorAuth;
-use crate::types::FilterMap;
+use crate::types::{FilterMap, RequestParams};
 
 // ---------------------------------------------------------------------------
 // SensorSpec
@@ -329,7 +329,7 @@ pub trait SensorAdapter: Send + Sync + 'static {
         &self,
         _endpoint: &prism_spec_engine::write_endpoint::WriteEndpointSpec,
         _records: &RecordBatch,
-        _params: &std::collections::HashMap<String, String>,
+        _params: &RequestParams,
         _client_id: &prism_core::OrgSlug,
     ) -> Result<Vec<crate::write_result::RecordWriteResult>, SensorError> {
         // CRIT-1 fix: structured error instead of todo!() panic.
