@@ -166,7 +166,7 @@ impl CacheInvalidator {
     /// a `PrismError::Internal` is returned (missing mapping = bug).
     ///
     /// Returns `Ok(n)` where `n` is the total number of entries evicted (I-2:
-    /// BC-2.07.004 audit postcondition).
+    /// BC-2.07.004 §Postconditions (audit count)).
     pub fn invalidate_for_write_tool(
         &self,
         client_id: &OrgSlug,
@@ -204,7 +204,7 @@ impl CacheInvalidator {
     /// Called from client management write operations (BC-2.07.004).
     ///
     /// Returns `Ok(n)` where `n` is the total number of entries evicted (I-2:
-    /// BC-2.07.004 audit postcondition).
+    /// BC-2.07.004 §Postconditions (audit count)).
     pub fn invalidate_for_client(&self, client_id: &OrgSlug) -> Result<usize, PrismError> {
         let n = self.cache.invalidate_by_client(client_id.as_str())?;
         Ok(n)
