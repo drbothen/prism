@@ -1,7 +1,7 @@
 ---
 document_type: behavioral-contract-index
 level: L3
-version: "4.41"
+version: "4.42"
 status: draft
 producer: product-owner
 timestamp: 2026-05-07T00:00:00
@@ -632,3 +632,8 @@ and is recommended for a future capabilities.md update. (Note: superseded by v4.
 - BC-2.16.009 (spec file validation) P0: gates loading rejection path
 - BC-2.16.005 (hot reload on SIGHUP) P1: post-v1.0 hot-reload convenience
 - BC-2.16.007 (hot reload on file-watcher event) P1: post-v1.0 hot-reload convenience
+
+### Version 4.42 (2026-05-07, S-3.05-fix-pass-16-sub-burst — BC-2.07.002 error code taxonomy update)
+
+**BC body update:**
+- BC-2.07.002 v4.3→v4.4: Error Cases table updated with cursor lifecycle error codes per S-3.05 fix-pass-16 renumber (D-272). Added PrismError::CursorExpired (E-QUERY-012), PrismError::CursorPageSizeInvalid (E-QUERY-013), PrismError::CursorTokenUnknown (E-QUERY-014). E-QUERY-014 unknown-token case newly distinguished from E-QUERY-012 expired-token case (pass-8 IMP-004 finding: unknown tokens previously returned E-QUERY-004 misleadingly). Cites F-PASS9-CRIT-001/002/003.

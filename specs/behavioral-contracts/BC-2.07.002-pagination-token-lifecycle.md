@@ -1,7 +1,7 @@
 ---
 document_type: behavioral-contract
 level: L3
-version: "4.3"
+version: "4.4"
 status: draft
 producer: product-owner
 timestamp: 2026-04-14T05:00:00
@@ -67,6 +67,9 @@ The query engine's pagination lifecycle enforces forward-only progress within a 
 |-------|-----------|----------|
 | Timeout | Query timeout (30s) reached during page fetch | Partial results from pages already fetched are materialized; `sensor_errors` includes truncation notice |
 | `PrismError::Sensor` | Sensor API returns error mid-pagination | Partial results from successful pages are materialized; error reported in `sensor_errors` |
+| `PrismError::CursorExpired` (E-QUERY-012) | Cursor TTL elapsed (>60s since creation) when `next_page()` called | Returns E-QUERY-012; cursor entry removed from registry. Distinct from E-QUERY-004 (30s query execution timeout). LLM agent should re-execute with same parameters to obtain a fresh cursor. |
+| `PrismError::CursorPageSizeInvalid` (E-QUERY-013) | `page_size` = 0 supplied to cursor creation | Returns E-QUERY-013; rejected as malformed input before cursor is created. |
+| `PrismError::CursorTokenUnknown` (E-QUERY-014) | Cursor token UUID not found in registry | Returns E-QUERY-014; UUID is garbage, already-released after exhaustion, or from a different prism instance. Distinct from E-QUERY-012 (which is for tokens that DID exist but expired). |
 
 ## Edge Cases
 | ID | Description | Expected Behavior |
@@ -105,6 +108,7 @@ See `.factory/specs/prd-supplements/test-vectors.md` for canonical test vector t
 
 | Version | Burst | Date | Author | Change |
 |---------|-------|------|--------|--------|
+| 4.4 | S-3.05-fix-pass-16-sub-burst | 2026-05-07 | implementer | Error code taxonomy update (D-272): added PrismError::CursorExpired (E-QUERY-012), PrismError::CursorPageSizeInvalid (E-QUERY-013), PrismError::CursorTokenUnknown (E-QUERY-014) to Error Cases table. Codes correspond to fix-pass-16 (commit d36ecf22) renumber from incorrect 006/007/009 → spec-correct 012/013/014. E-QUERY-014 unknown-token case is newly distinguished from E-QUERY-012 expired-token case (pass-8 IMP-004 found unknown tokens previously returned E-QUERY-004 misleadingly). Cite F-PASS9-CRIT-001/002/003. |
 | 4.3 | pass-73-fix | 2026-04-20 | state-manager | Deterministic changelog reorder: sorted all rows to descending version order (pass-73 bash script). |
 | 4.2 | pass-69-housekeeping | 2026-04-20 | product-owner | Normalized changelog schema to canonical 5-col schema. |
 | 4.1 | pre-build-sweep | 2026-04-20 | product-owner | Template-compliance sweep: added extracted_from/inputs/input-hash/traces_to frontmatter; added ## Description synthesized from body; added ## Canonical Test Vectors scaffolding; added ## Verification Properties cross-ref; added ## Changelog. |

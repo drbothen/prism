@@ -2,7 +2,7 @@
 document_type: prd-supplement
 level: L3
 section: "error-taxonomy"
-version: "1.13"
+version: "1.14"
 status: draft
 producer: product-owner
 timestamp: 2026-04-27T00:00:00
@@ -177,6 +177,9 @@ These codes cover runtime errors referencing client configuration (e.g., unknown
 | E-QUERY-008 | broken | validation | "Query has been denylisted after {N} consecutive failures ({reason}). Denylist expires at {expiry}." | No | Query matches a denylisted hash due to previous resource violations. Modify the query to change its hash, or clear the denylist via watchdog_status. Use `force_execute: true` to override. |
 | E-QUERY-009 | broken | validation | "Required column constraint violation for {sensor}: columns [{required_columns}] must be constrained in WHERE clause" | No | Query does not constrain a REQUIRED column for a target sensor. The sensor API requires certain parameters (e.g., a time range or entity ID) to prevent full-scan of unbounded remote APIs. Add the listed columns to the WHERE clause. See DI-021. |
 | E-QUERY-010 | broken | validation | "Internal tables are read-only via PrismQL. Use the dedicated MCP tool: {tool_name}" | No | SQL write statement (INSERT/UPDATE/DELETE) targets an internal Prism table; mutations go through dedicated MCP tools |
+| E-QUERY-012 | broken | validation | "E-QUERY-012: pagination cursor expired (>60s); re-execute the query" | No | Cursor TTL elapsed (BC-2.07.002 §Cursor TTL Expiry). Distinct from E-QUERY-004 (query timeout). LLM agent should re-execute the query with same parameters; the new query produces a fresh cursor. |
+| E-QUERY-013 | broken | validation | "E-QUERY-013: page_size must be greater than 0" | No | Pagination request specified page_size=0; reject as malformed input (BC-2.07.001 §AC-2 page_size validation). |
+| E-QUERY-014 | broken | validation | "E-QUERY-014: unknown cursor token" | No | Cursor token UUID does not exist in the registry — either garbage UUID, token already-released after exhaustion, or token from a different prism instance. Distinct from E-QUERY-012 (which is for tokens that DID exist but expired). |
 | E-QUERY-015 | broken | validation | "SESSIONS source has no sensor mapping in this release" | No | The SESSIONS source is reserved for future use. Use specific sensor sources or FROM EVENTS for event-based queries. |
 | E-QUERY-020 | broken | validation | "Write operations are not supported on source '{source}'. Only external sensor tables support writes." | No | Write targeting composite source or internal table |
 | E-QUERY-021 | broken | validation | "Write batch limit exceeded: query would affect {actual} records (endpoint limit: {limit}). Add `\| head {limit}` to limit scope." | No | Source query materialized more records than write endpoint batch limit |
@@ -462,6 +465,7 @@ Additional state errors beyond E-STATE-001 and E-STATE-002 (defined in the STATE
 
 | Version | Burst | Date | Author | Change |
 |---------|-------|------|--------|--------|
+| 1.14 | S-3.05-fix-pass-16-sub-burst | 2026-05-07 | implementer | Added E-QUERY-012 (CursorExpired — pagination cursor TTL >60s elapsed; re-execute query; BC-2.07.002 §Cursor TTL Expiry; distinct from E-QUERY-004 query timeout). Added E-QUERY-013 (CursorPageSizeInvalid — page_size=0 rejected as malformed input; BC-2.07.001 §AC-2 page_size validation). Added E-QUERY-014 (CursorTokenUnknown — UUID not in registry: garbage UUID, already-released after exhaustion, or cross-instance; distinct from E-QUERY-012 which is for tokens that DID exist). Codes correspond to PrismError variants renumbered by S-3.05 fix-pass-16 (commit d36ecf22) from incorrect 006/007/009 → spec-correct 012/013/014 (F-PASS9-CRIT-001/002/003). D-272. |
 | 1.13 | W3.3-hygiene | 2026-05-02 | state-manager | Added E-CFG-018 (SpecPathTraversal, HIGH, CWE-22): introduced by W3-FIX-SEC-003 PR #114; `validate_spec_path` canonicalize + boundary check in prism-customer-config. Added E-CFG-019 (InvalidOrgSlugPattern, MEDIUM, CWE-20): introduced by W3-FIX-CODE-002 PR #120; OrgSlug regex `^[a-zA-Z0-9_-]{1,64}$` in prism-customer-config. Closes BLOCKING consistency findings E-CFG-018/019 absence (pass-50 gate-step-e). |
 | 1.12 | S-3.1.06-ImplPhase | 2026-05-01 | implementer | Added E-SENSOR-060 (OrgIdMismatch): non-transient dispatch guard fired when `SensorSpec.org_id` ≠ adapter's registered `OrgId`, before any network I/O. Traces to BC-3.2.001 precondition 4 / EC-003 / EC-004 (S-3.1.06-ImplPhase AC-004). |
 | 1.11 | pass-30-remediation | 2026-04-27 | product-owner | M-30-001: E-CFG-001 description updated — removed `schema_version` from the required-field enumeration. E-CFG-001 now covers only `org_id`, `org_slug`, `display_name`. `schema_version` is handled exclusively by E-CFG-030 (field absent) and E-CFG-031 (unsupported value) per BC-3.3.003. |

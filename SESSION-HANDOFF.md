@@ -1,13 +1,13 @@
 ---
 document_type: session-handoff
 level: ops
-version: "7.20"
+version: "7.21"
 status: current
-timestamp: 2026-05-07T12:00:00Z
-predecessor_session: "D-272 Combined S-3.03 P15 + S-3.04 P7 closures (fix-pass-26) 2026-05-07. STATE v7.19→v7.20. develop HEAD: 6fefc774. factory-artifacts HEAD: run git -C .factory log -1."
+timestamp: 2026-05-07T13:00:00Z
+predecessor_session: "D-272 S-3.05 fix-pass-16 sub-burst (error code taxonomy spec sync + D-271 gap closure) 2026-05-07. STATE v7.20→v7.21. develop HEAD: 6fefc774. factory-artifacts HEAD: run git -C .factory log -1."
 successor_focus: "D-273 Tier-3 dispatch: S-3.03/04/05/07 all unblocked (S-3.02 + S-3.06 both merged). Recommended: S-3.03 (1pt fastest win) + S-3.04/S-3.05 parallel (5+6pts). develop HEAD: 6fefc774. Tier-2 COMPLETE (S-3.02 ✓ PR #129 6fefc774 + S-3.06 ✓ PR #130 2a7b83f5). Active worktrees: none (S-3.02 worktree removed post-merge). Deferred TDs: TD-VSDD-061/063/064/075 + TD-S302-001..006 + TD-VSDD-057 (OPEN-DEFERRED-CROSS-REPO).
 
-**STEP 1 (START HERE):** Read STATE.md v7.20 + this HANDOFF v7.20 in full. Confirm develop HEAD `6fefc774` (PR #129 S-3.02 squash-merged 2026-05-07). Tier-2 COMPLETE — no active worktrees.
+**STEP 1 (START HERE):** Read STATE.md v7.21 + this HANDOFF v7.21 in full. Confirm develop HEAD `6fefc774` (PR #129 S-3.02 squash-merged 2026-05-07). Tier-2 COMPLETE — no active worktrees.
 
 **STEP 2 (TIER-3 DISPATCH):** Dispatch Tier-3 stories (S-3.03/04/05/07 unblocked by S-3.02 + S-3.06 both merged). Priority: S-3.03 (Explain/Query Diagnostics, 1pt, fastest win) first; then S-3.04 (Alias System P1, 5pts) + S-3.05 (Pagination/Caching, 6pts) in parallel. S-3.07 (Write Execution Pipeline, 5pts) also unblocked (deps: S-3.02 + S-3.06 both merged). Devops: create worktrees from develop HEAD `6fefc774` before dispatching per-story-delivery cycles.
 
@@ -16,10 +16,10 @@ successor_focus: "D-273 Tier-3 dispatch: S-3.03/04/05/07 all unblocked (S-3.02 +
 **STEP 4 (CONTINUE W3-FIRST PLAN):** Tier 3 (8-way: S-3.03/04/05/08/09/11/12/13) → Tier 4 (S-3.07 + S-3.10) → W3 wave gate → Resume Phase 4.B (S-4.01 + S-4.03).
 
 **KEY REFERENCES:**
-- STATE.md v7.20: develop@6fefc774 (PR #127 squash 2d7040b1 + PR #128 squash 3e858f9f + PR #130 squash 2a7b83f5 + PR #129 squash 6fefc774, 2026-05-06/07); factory-artifacts HEAD: run git -C .factory log -1 (TD-VSDD-053)
+- STATE.md v7.21: develop@6fefc774 (PR #127 squash 2d7040b1 + PR #128 squash 3e858f9f + PR #130 squash 2a7b83f5 + PR #129 squash 6fefc774, 2026-05-06/07); factory-artifacts HEAD: run git -C .factory log -1 (TD-VSDD-053)
 - D-260: PR #129 S-3.02 MERGED 6fefc774 2026-05-07; tier-2 COMPLETE; 2993 tests; STORY-INDEX v2.14
 - D-246: PR #127 S-3.01 MERGED 2d7040b1 + PR #128 TD-VSDD-058 MERGED 3e858f9f 2026-05-06
-- BC-INDEX v4.41, VP-INDEX v1.29, HOLDOUT-INDEX v1.3, invariants.md v1.5, L2-INDEX v1.13, STORY-INDEX v2.18, ARCH-INDEX v2.31
+- BC-INDEX v4.42, VP-INDEX v1.29, HOLDOUT-INDEX v1.3, invariants.md v1.5, L2-INDEX v1.13, STORY-INDEX v2.19, ARCH-INDEX v2.31
 
 develop HEAD: 6fefc774 (four PRs merged 2026-05-06/07: #127 S-3.01 2d7040b1, #128 TD-VSDD-058 3e858f9f, #130 S-3.06 2a7b83f5, #129 S-3.02 6fefc774; factory-artifacts HEAD: run git -C .factory log -1 per TD-VSDD-053)."
 ---
@@ -28,7 +28,9 @@ develop HEAD: 6fefc774 (four PRs merged 2026-05-06/07: #127 S-3.01 2d7040b1, #12
 
 ## TL;DR
 
-**D-272 COMBINED S-3.03 P15 + S-3.04 P7 CLOSURES — FIX-PASS-26 (2026-05-07) — STATE v7.20:** SESSION-HANDOFF body propagated to v7.20 (STEP 1 + KEY REFERENCES). STATE.md Current Phase/Step refreshed to post-merge Tier-3 ready (was describing pre-merge tier-2 state). TD-074 prose body refactored: "all 4 uniqueness classes" → "all 6 sister classes (4 uniqueness + 2 invariants)"; (a)-(d) labeled as uniqueness classes; (e)-(f) labeled as arithmetic/ordering invariants; closing sentence "All 6 checks run in a single hook invocation" moved to after (f). STATE.md `vsdd_plugin_tech_debt_entries` renamed to `factory_artifacts_tech_debt_entries` with disambiguation annotation (all TD-* families = 56; VSDD-only via `grep -c "^| TD-VSDD-"` = 50). v3.11 changelog row count semantic note added. TD-075 violation count 7→9 (violation #8: F-PASS15-MED-001 — SESSION-HANDOFF body STEP 1 + KEY REFERENCES stale post-FP25; violation #9: F-PASS15-MED-002 — STATE.md Current Phase/Step describing pre-merge state; sub-axis 6 narrative pin currency recurs at multiple sites). TD-VSDD-077 filed (TD-074 hook scope generalization to multi-INDEX files, P3). vsdd-plugin-tech-debt v3.12→v3.13; cycle-manifest v1.72→v1.73; SESSION-HANDOFF forward-pin D-272→D-273; STATE v7.19→v7.20.
+**D-272 S-3.05 FIX-PASS-16 SUB-BURST — ERROR CODE TAXONOMY SPEC SYNC + D-271 GAP CLOSURE (2026-05-07) — STATE v7.21:** error-taxonomy.md E-QUERY-012/013/014 rows added (CursorExpired, CursorPageSizeInvalid, CursorTokenUnknown per fix-pass-16 renumber). BC-2.07.002 v4.3→v4.4 (error code refs corrected; unknown-token case E-QUERY-014 distinguished from expired E-QUERY-012). S-3.05 v1.10→v1.11 (AC-3 E-QUERY-004→E-QUERY-012; AC-4 E-QUERY-002→E-STORE-020/CursorCapExceeded; new unknown-token AC note for E-QUERY-014). BC-INDEX v4.41→v4.42. STORY-INDEX v2.18→v2.19. TD-S305-001 filed (AC-3 cursor 60s expiry test coverage gap — OBS-009 formalized). Prior D-272→D-271 renumbered across STATE.md/HANDOFF/cycle-manifest/vsdd-tech-debt (POL-1 gap closed). vsdd-plugin-tech-debt v3.13→v3.14; cycle-manifest v1.73→v1.74; SESSION-HANDOFF forward-pin D-272→D-273; STATE v7.20→v7.21.
+
+**D-271 COMBINED S-3.03 P15 + S-3.04 P7 CLOSURES — FIX-PASS-26 (2026-05-07) — STATE v7.20:** SESSION-HANDOFF body propagated to v7.20 (STEP 1 + KEY REFERENCES). STATE.md Current Phase/Step refreshed to post-merge Tier-3 ready (was describing pre-merge tier-2 state). TD-074 prose body refactored: "all 4 uniqueness classes" → "all 6 sister classes (4 uniqueness + 2 invariants)"; (a)-(d) labeled as uniqueness classes; (e)-(f) labeled as arithmetic/ordering invariants; closing sentence "All 6 checks run in a single hook invocation" moved to after (f). STATE.md `vsdd_plugin_tech_debt_entries` renamed to `factory_artifacts_tech_debt_entries` with disambiguation annotation (all TD-* families = 56; VSDD-only via `grep -c "^| TD-VSDD-"` = 50). v3.11 changelog row count semantic note added. TD-075 violation count 7→9 (violation #8: F-PASS15-MED-001 — SESSION-HANDOFF body STEP 1 + KEY REFERENCES stale post-FP25; violation #9: F-PASS15-MED-002 — STATE.md Current Phase/Step describing pre-merge state; sub-axis 6 narrative pin currency recurs at multiple sites). TD-VSDD-077 filed (TD-074 hook scope generalization to multi-INDEX files, P3). vsdd-plugin-tech-debt v3.12→v3.13; cycle-manifest v1.72→v1.73; SESSION-HANDOFF forward-pin D-271→D-272; STATE v7.19→v7.20.
 
 **D-270 S-3.03 PASS-14 CLOSURE — FIX-PASS-25 (2026-05-07) — STATE v7.19:** F-PASS14-MED-001 closed: v3.9 row count corrected from "52 total items" to "53 → 54 items (+1: TD-VSDD-075 filed this burst)" — arithmetic consistency restored (v3.8 ended at 53, +1 TD-075 → 54, v3.10 assumed 54 baseline). TD-074 scope extended from 4 to 6 sister classes: Class (e) count-delta arithmetic consistency (F-PASS14-MED-001 first occurrence); Class (f) D-NNN ordering monotonicity within ascending block (F-PASS12-MED-003 FP22 + F-PASS14-CRIT-001 FP13 — two recurrences within 24 hours). vsdd-plugin-tech-debt v3.11→v3.12; cycle-manifest v1.71→v1.72; SESSION-HANDOFF forward-pin D-270→D-271; STATE v7.18→v7.19.
 
