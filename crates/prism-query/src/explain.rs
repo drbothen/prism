@@ -750,16 +750,18 @@ pub fn explain(query_str: &str, options: ExplainOptions) -> Result<ExplainResult
     // No ColumnSpec is available without a sensor schema registry; we use an
     // empty spec list, which means all predicates fall to post-filter (conservative).
     // When sensor schema specs are wired (S-3.X), pass the real ColumnSpec list here.
+    //
+    // `classify_predicates` result is invariant across sources at this stage (no
+    // per-sensor ColumnSpec available), so hoist outside the filter_map to avoid
+    // redundant recomputation on each iteration.
+    // TODO(S-3.X): per-sensor ColumnSpec — replace the empty `&[]` and move back
+    // inside the loop once the sensor schema registry is wired.
+    let plan = classify_predicates(&where_exprs, &[]);
     let sensors_to_query: Vec<ExplainSource> = raw_sources
         .iter()
         .filter_map(|s| {
             let sensor_type = sensor_type_from_source_ref(s)?;
-            // Classify predicates against this source using the push-down module.
-            // With no ColumnSpec, all predicates → post_filter (conservative fallback).
-            // TODO(CR-002, S-3.X): hoist per-sensor ColumnSpec here so REQUIRED columns
-            // route to api_filters_pushed instead of post_filter. Requires sensor schema
-            // registry integration from the spec engine story.
-            let plan = classify_predicates(&where_exprs, &[]);
+            // `plan` is shared across all sources at this stage (no per-sensor ColumnSpec).
 
             let api_filters: Vec<String> = plan
                 .push_down
