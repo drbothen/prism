@@ -1,13 +1,13 @@
 ---
 document_type: session-handoff
 level: ops
-version: "7.21"
+version: "7.22"
 status: current
-timestamp: 2026-05-07T13:00:00Z
-predecessor_session: "D-272 S-3.05 fix-pass-16 sub-burst (error code taxonomy spec sync + D-271 gap closure) 2026-05-07. STATE v7.20→v7.21. develop HEAD: 6fefc774. factory-artifacts HEAD: run git -C .factory log -1."
-successor_focus: "D-273 Tier-3 dispatch: S-3.03/04/05/07 all unblocked (S-3.02 + S-3.06 both merged). Recommended: S-3.03 (1pt fastest win) + S-3.04/S-3.05 parallel (5+6pts). develop HEAD: 6fefc774. Tier-2 COMPLETE (S-3.02 ✓ PR #129 6fefc774 + S-3.06 ✓ PR #130 2a7b83f5). Active worktrees: none (S-3.02 worktree removed post-merge). Deferred TDs: TD-VSDD-061/063/064/075 + TD-S302-001..006 + TD-VSDD-057 (OPEN-DEFERRED-CROSS-REPO).
+timestamp: 2026-05-07T14:00:00Z
+predecessor_session: "D-273 S-3.04 pass-8 closures (fix-pass-27) 2026-05-07. STATE v7.21→v7.22. develop HEAD: 6fefc774. factory-artifacts HEAD: run git -C .factory log -1."
+successor_focus: "D-274 Tier-3 dispatch: S-3.03/04/05/07 all unblocked (S-3.02 + S-3.06 both merged). Recommended: S-3.03 (1pt fastest win) + S-3.04/S-3.05 parallel (5+6pts). develop HEAD: 6fefc774. Tier-2 COMPLETE (S-3.02 ✓ PR #129 6fefc774 + S-3.06 ✓ PR #130 2a7b83f5). Active worktrees: none (S-3.02 worktree removed post-merge). Deferred TDs: TD-VSDD-061/063/064/075 + TD-S302-001..006 + TD-VSDD-057 (OPEN-DEFERRED-CROSS-REPO).
 
-**STEP 1 (START HERE):** Read STATE.md v7.21 + this HANDOFF v7.21 in full. Confirm develop HEAD `6fefc774` (PR #129 S-3.02 squash-merged 2026-05-07). Tier-2 COMPLETE — no active worktrees.
+**STEP 1 (START HERE):** Read STATE.md v7.22 + this HANDOFF v7.22 in full. Confirm develop HEAD `6fefc774` (PR #129 S-3.02 squash-merged 2026-05-07). Tier-2 COMPLETE — no active worktrees.
 
 **STEP 2 (TIER-3 DISPATCH):** Dispatch Tier-3 stories (S-3.03/04/05/07 unblocked by S-3.02 + S-3.06 both merged). Priority: S-3.03 (Explain/Query Diagnostics, 1pt, fastest win) first; then S-3.04 (Alias System P1, 5pts) + S-3.05 (Pagination/Caching, 6pts) in parallel. S-3.07 (Write Execution Pipeline, 5pts) also unblocked (deps: S-3.02 + S-3.06 both merged). Devops: create worktrees from develop HEAD `6fefc774` before dispatching per-story-delivery cycles.
 
@@ -16,10 +16,10 @@ successor_focus: "D-273 Tier-3 dispatch: S-3.03/04/05/07 all unblocked (S-3.02 +
 **STEP 4 (CONTINUE W3-FIRST PLAN):** Tier 3 (8-way: S-3.03/04/05/08/09/11/12/13) → Tier 4 (S-3.07 + S-3.10) → W3 wave gate → Resume Phase 4.B (S-4.01 + S-4.03).
 
 **KEY REFERENCES:**
-- STATE.md v7.21: develop@6fefc774 (PR #127 squash 2d7040b1 + PR #128 squash 3e858f9f + PR #130 squash 2a7b83f5 + PR #129 squash 6fefc774, 2026-05-06/07); factory-artifacts HEAD: run git -C .factory log -1 (TD-VSDD-053)
+- STATE.md v7.22: develop@6fefc774 (PR #127 squash 2d7040b1 + PR #128 squash 3e858f9f + PR #130 squash 2a7b83f5 + PR #129 squash 6fefc774, 2026-05-06/07); factory-artifacts HEAD: run git -C .factory log -1 (TD-VSDD-053)
 - D-260: PR #129 S-3.02 MERGED 6fefc774 2026-05-07; tier-2 COMPLETE; 2993 tests; STORY-INDEX v2.14
 - D-246: PR #127 S-3.01 MERGED 2d7040b1 + PR #128 TD-VSDD-058 MERGED 3e858f9f 2026-05-06
-- BC-INDEX v4.42, VP-INDEX v1.29, HOLDOUT-INDEX v1.3, invariants.md v1.5, L2-INDEX v1.13, STORY-INDEX v2.19, ARCH-INDEX v2.31
+- BC-INDEX v4.43, VP-INDEX v1.29, HOLDOUT-INDEX v1.3, invariants.md v1.5, L2-INDEX v1.13, STORY-INDEX v2.19, ARCH-INDEX v2.31
 
 develop HEAD: 6fefc774 (four PRs merged 2026-05-06/07: #127 S-3.01 2d7040b1, #128 TD-VSDD-058 3e858f9f, #130 S-3.06 2a7b83f5, #129 S-3.02 6fefc774; factory-artifacts HEAD: run git -C .factory log -1 per TD-VSDD-053)."
 ---
@@ -27,6 +27,8 @@ develop HEAD: 6fefc774 (four PRs merged 2026-05-06/07: #127 S-3.01 2d7040b1, #12
 # Session Handoff — WAVE 4 PHASE 4.A DECISIONS LOGGED (2026-05-02)
 
 ## TL;DR
+
+**D-273 S-3.04 PASS-8 CLOSURES — FIX-PASS-27 (2026-05-07) — STATE v7.22:** 10 ranked findings (3 CRIT + 2 HIGH + 2 MED) from S-3.04 LOCAL adversary pass-8 closed. F-PASS8-CRIT-001: factory_artifacts_tech_debt_entries 56→57. F-PASS8-CRIT-002: BC-2.07.002 v4.4 Note rewritten → v4.5 reconciliation Note acknowledging MCP-cursor surface layered on internal pagination (CursorRegistry::create()/next_page(token)). F-PASS8-CRIT-003: E-QUERY-013 anchor corrected from nonexistent BC-2.07.001 §AC-2 → BC-2.07.002 §CursorPageSizeInvalid (both row 181 and v1.14 changelog row; error-taxonomy v1.14→v1.15). F-PASS8-HIGH-001: LEGACY HISTORICAL sentinel added between D-272 and D-259 in STATE.md decisions log; TD-074 class (f) scope updated to enumerate ascending block above sentinel. F-PASS8-HIGH-002 + F-PASS8-MED-002: TD-VSDD-078 filed (sub-burst attribution convention — implementer attribution acceptable when sub-burst triggered by impl correction requiring spec catch-up). BC-INDEX v4.42→v4.43. vsdd-plugin-tech-debt v3.14→v3.15; cycle-manifest v1.74→v1.75; SESSION-HANDOFF forward-pin D-273→D-274; STATE v7.21→v7.22.
 
 **D-272 S-3.05 FIX-PASS-16 SUB-BURST — ERROR CODE TAXONOMY SPEC SYNC + D-271 GAP CLOSURE (2026-05-07) — STATE v7.21:** error-taxonomy.md E-QUERY-012/013/014 rows added (CursorExpired, CursorPageSizeInvalid, CursorTokenUnknown per fix-pass-16 renumber). BC-2.07.002 v4.3→v4.4 (error code refs corrected; unknown-token case E-QUERY-014 distinguished from expired E-QUERY-012). S-3.05 v1.10→v1.11 (AC-3 E-QUERY-004→E-QUERY-012; AC-4 E-QUERY-002→E-STORE-020/CursorCapExceeded; new unknown-token AC note for E-QUERY-014). BC-INDEX v4.41→v4.42. STORY-INDEX v2.18→v2.19. TD-S305-001 filed (AC-3 cursor 60s expiry test coverage gap — OBS-009 formalized). Prior D-272→D-271 renumbered across STATE.md/HANDOFF/cycle-manifest/vsdd-tech-debt (POL-1 gap closed). vsdd-plugin-tech-debt v3.13→v3.14; cycle-manifest v1.73→v1.74; SESSION-HANDOFF forward-pin D-272→D-273; STATE v7.20→v7.21.
 

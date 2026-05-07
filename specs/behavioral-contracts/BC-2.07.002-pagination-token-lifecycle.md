@@ -1,7 +1,7 @@
 ---
 document_type: behavioral-contract
 level: L3
-version: "4.4"
+version: "4.5"
 status: draft
 producer: product-owner
 timestamp: 2026-04-14T05:00:00
@@ -26,7 +26,7 @@ removal_reason: null
 
 # BC-2.07.002: Internal Pagination Token Lifecycle — Forward Progress, Timeout, and Cleanup
 
-**Note:** This file replaces BC-2.07.002 v3.0. Pagination is now entirely internal to the query engine's sensor fetch layer. No pagination tokens or cursors are exposed to the MCP agent. The active cursor cap, cross-client cursor allocation, and token expiry semantics are reframed as internal resource management.
+**Note (v4.5 reconciliation):** v4.0-v4.3 described pagination as entirely internal (sensor fetch layer). S-3.05 v1.11 reintroduces a thin MCP-exposed cursor surface (`CursorRegistry::create()` / `next_page(token)`) layered on top of the internal sensor-fetch pagination machinery. The internal cursor cap, cross-client allocation, and token expiry semantics described below now also govern the MCP-exposed surface. The Error Cases table (E-QUERY-012/013/014) covers the MCP-agent-facing failure modes; the §Cursor Lifecycle section describes the full lifecycle for both internal and MCP-exposed paths.
 
 ## Description
 
@@ -108,6 +108,7 @@ See `.factory/specs/prd-supplements/test-vectors.md` for canonical test vector t
 
 | Version | Burst | Date | Author | Change |
 |---------|-------|------|--------|--------|
+| 4.5 | S-3.04-fix-pass-27 | 2026-05-07 | implementer | Note reconciliation: clarify v4.4 Note that S-3.05 reintroduces thin MCP-cursor surface layered on internal pagination; resolves F-PASS8-CRIT-002 internal contradiction. |
 | 4.4 | S-3.05-fix-pass-16-sub-burst | 2026-05-07 | implementer | Error code taxonomy update (D-272): added PrismError::CursorExpired (E-QUERY-012), PrismError::CursorPageSizeInvalid (E-QUERY-013), PrismError::CursorTokenUnknown (E-QUERY-014) to Error Cases table. Codes correspond to fix-pass-16 (commit d36ecf22) renumber from incorrect 006/007/009 → spec-correct 012/013/014. E-QUERY-014 unknown-token case is newly distinguished from E-QUERY-012 expired-token case (pass-8 IMP-004 found unknown tokens previously returned E-QUERY-004 misleadingly). Cite F-PASS9-CRIT-001/002/003. |
 | 4.3 | pass-73-fix | 2026-04-20 | state-manager | Deterministic changelog reorder: sorted all rows to descending version order (pass-73 bash script). |
 | 4.2 | pass-69-housekeeping | 2026-04-20 | product-owner | Normalized changelog schema to canonical 5-col schema. |

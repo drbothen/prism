@@ -2,7 +2,7 @@
 document_type: cycle-manifest
 cycle_id: wave-4-operations
 cycle_type: feature
-version: wave-4-preflight-v1.74
+version: wave-4-preflight-v1.75
 status: in-progress
 started: pending
 completed: pending
@@ -224,6 +224,7 @@ Story inventory will be remediated post-ADR-acceptance per drift audit categorie
 
 | Version | Date | Change |
 |---------|------|--------|
+| wave-4-preflight-v1.75 | 2026-05-07T14:00:00Z | s304-pass8-fix-pass-27-closures | 2026-05-07 | implementer | D-273: S-3.04 pass-8 closures (fix-pass-27). F-PASS8-CRIT-001: factory_artifacts_tech_debt_entries 56→57. F-PASS8-CRIT-002: BC-2.07.002 v4.4→v4.5 (Note rewrite acknowledging MCP-cursor surface). F-PASS8-CRIT-003: E-QUERY-013 anchor corrected BC-2.07.001→BC-2.07.002 §CursorPageSizeInvalid; error-taxonomy v1.14→v1.15. F-PASS8-HIGH-001: LEGACY HISTORICAL sentinel added to STATE.md decisions log; TD-074 class (f) scope updated. F-PASS8-HIGH-002 + F-PASS8-MED-002: TD-VSDD-078 filed (sub-burst attribution convention). BC-INDEX v4.42→v4.43. vsdd-plugin-tech-debt v3.14→v3.15; SESSION-HANDOFF D-273→D-274 forward-pin; STATE v7.21→v7.22. |
 | wave-4-preflight-v1.74 | 2026-05-07T13:00:00Z | s305-fix-pass-16-sub-burst-error-taxonomy-sync-d271-gap-closure | 2026-05-07 | implementer | D-272: S-3.05 fix-pass-16 sub-burst (error code taxonomy spec sync + D-271 gap closure). E-QUERY-012/013/014 rows added to error-taxonomy.md (CursorExpired/CursorPageSizeInvalid/CursorTokenUnknown). BC-2.07.002 v4.3→v4.4. S-3.05 v1.10→v1.11 (AC-3/AC-4 corrected, unknown-token AC note). BC-INDEX v4.41→v4.42. STORY-INDEX v2.18→v2.19. TD-S305-001 filed (AC-3 clock-injection coverage gap OBS-009). Prior D-272→D-271 renumbered (POL-1 gap closure). vsdd-plugin-tech-debt v3.13→v3.14; STATE v7.20→v7.21; SESSION-HANDOFF D-272→D-273 forward-pin. |
 | wave-4-preflight-v1.73 | 2026-05-07T12:00:00Z | combined-p15-p7-fix-pass-26-closures | 2026-05-07 | implementer | D-271: Combined S-3.03 pass-15 + S-3.04 pass-7 closures (fix-pass-26). F-PASS15-MED-001 closed: SESSION-HANDOFF body STEP 1 + KEY REFERENCES propagated to v7.20. F-PASS15-MED-002 closed: STATE.md Current Phase/Step refreshed to Tier-3 ready. F-PASS15-MED-003 + F-PASS7-MED-002 closed: TD-074 prose refactored — "all 4 uniqueness classes" → "all 6 sister classes (4 uniqueness + 2 invariants)"; (a)-(d) labeled uniqueness; (e)-(f) labeled arithmetic/ordering invariants; closing sentence moved after (f). F-PASS7-CRIT-001/002 closed: STATE.md `vsdd_plugin_tech_debt_entries` renamed `factory_artifacts_tech_debt_entries` (all TD-* = 56, VSDD-only = 50). TD-VSDD-075 violation count 7→9. TD-VSDD-077 filed. vsdd-plugin-tech-debt v3.12→v3.13; STATE v7.19→v7.20; SESSION-HANDOFF D-271→D-272 forward-pin. |
 | wave-4-preflight-v1.72 | 2026-05-07T11:00:00Z | s303-pass14-closure-v39-count-td074-expansion | 2026-05-07 | implementer | D-270: S-3.03 pass-14 closure (fix-pass-25). F-PASS14-MED-001 closed: v3.9 row count corrected from "52 total items" to "53 → 54 items (+1: TD-VSDD-075 filed this burst)". TD-074 scope extended from 4 to 6 classes: Class (e) count-delta arithmetic consistency (F-PASS14-MED-001 first occurrence); Class (f) D-NNN ordering monotonicity (F-PASS12-MED-003 + F-PASS14-CRIT-001 two recurrences). vsdd-plugin-tech-debt v3.11→v3.12; STATE v7.18→v7.19; SESSION-HANDOFF D-270→D-271 forward-pin. |

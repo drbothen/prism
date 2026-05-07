@@ -1,7 +1,7 @@
 ---
 document_type: behavioral-contract-index
 level: L3
-version: "4.42"
+version: "4.43"
 status: draft
 producer: product-owner
 timestamp: 2026-05-07T00:00:00
@@ -632,6 +632,11 @@ and is recommended for a future capabilities.md update. (Note: superseded by v4.
 - BC-2.16.009 (spec file validation) P0: gates loading rejection path
 - BC-2.16.005 (hot reload on SIGHUP) P1: post-v1.0 hot-reload convenience
 - BC-2.16.007 (hot reload on file-watcher event) P1: post-v1.0 hot-reload convenience
+
+### Version 4.43 (2026-05-07, S-3.04-fix-pass-27 — BC-2.07.002 v4.5 Note reconciliation)
+
+**BC body update:**
+- BC-2.07.002 v4.4→v4.5: Note rewritten to acknowledge S-3.05 MCP-cursor surface layered on internal pagination machinery. Resolves F-PASS8-CRIT-002 internal contradiction in prior v4.4 Note which stated pagination was "entirely internal" while v4.4 Error Cases already exposed MCP-facing cursor errors.
 
 ### Version 4.42 (2026-05-07, S-3.05-fix-pass-16-sub-burst — BC-2.07.002 error code taxonomy update)
 
