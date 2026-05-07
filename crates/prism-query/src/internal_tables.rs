@@ -118,7 +118,7 @@ impl RocksDbTableProvider {
 #[async_trait]
 impl datafusion::datasource::TableProvider for RocksDbTableProvider {
     fn as_any(&self) -> &dyn Any {
-        todo!("S-3.02 — RocksDbTableProvider::as_any")
+        self
     }
 
     fn schema(&self) -> SchemaRef {
