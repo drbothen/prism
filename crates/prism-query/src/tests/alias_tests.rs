@@ -22,6 +22,15 @@ use crate::alias_types::{AliasEntry, AliasScope, ParamDefault};
 // Helper builders
 // ─────────────────────────────────────────────────────────────────────────────
 
+/// Return a platform-appropriate temp file path for test isolation.
+/// Uses std::env::temp_dir() instead of hardcoded /tmp/ for Windows compatibility.
+fn temp_path(name: &str) -> String {
+    std::env::temp_dir()
+        .join(name)
+        .to_string_lossy()
+        .into_owned()
+}
+
 fn global_scope() -> AliasScope {
     AliasScope::Global
 }
@@ -84,7 +93,7 @@ fn parameterized_entry(
 #[test]
 fn test_ac1_basic_alias_expansion() {
     // RED: AliasResolver::expand is todo!()
-    let store = AliasStore::empty("/tmp/test_aliases.toml");
+    let store = AliasStore::empty(temp_path("test_aliases.toml"));
     let scope = global_scope();
     let args = HashMap::new();
 
@@ -100,7 +109,7 @@ fn test_ac1_basic_alias_expansion() {
 /// AC-1 (happy path): When `high_sev` is in the store, `@high_sev` expands correctly.
 #[test]
 fn test_ac1_expansion_with_stored_alias() {
-    let _test_path_1 = format!("/tmp/test_alias_mut_1_{}.toml", std::process::id());
+    let _test_path_1 = temp_path(&format!("test_alias_mut_1_{}.toml", std::process::id()));
     let mut store = AliasStore::empty(&_test_path_1);
     let entry = simple_entry("high_sev", global_scope(), "severity_id >= 3");
     // Stores the alias; may succeed or fail depending on file I/O.
@@ -117,7 +126,7 @@ fn test_ac1_expansion_with_stored_alias() {
 #[test]
 fn test_ac2_depth3_composition() {
     // RED: AliasResolver::expand is todo!()
-    let store = AliasStore::empty("/tmp/test_aliases.toml");
+    let store = AliasStore::empty(temp_path("test_aliases.toml"));
     let scope = global_scope();
     let args = HashMap::new();
 
@@ -134,7 +143,7 @@ fn test_ac2_depth3_composition() {
 /// A full mutual cycle A→B→A requires B to be in the store.
 #[test]
 fn test_ac3_cycle_detection_at_creation() {
-    let store = AliasStore::empty("/tmp/test_aliases.toml");
+    let store = AliasStore::empty(temp_path("test_aliases.toml"));
     // B is not in the store, so no cycle can be proven. detect_cycle returns Ok.
     let result = AliasResolver::detect_cycle("A", "@B AND foo", &store);
     assert!(
@@ -147,7 +156,7 @@ fn test_ac3_cycle_detection_at_creation() {
 #[test]
 fn test_ac3_self_reference_cycle() {
     // RED: AliasResolver::detect_cycle is todo!()
-    let store = AliasStore::empty("/tmp/test_aliases.toml");
+    let store = AliasStore::empty(temp_path("test_aliases.toml"));
     let result = AliasResolver::detect_cycle("A", "@A AND other", &store);
     assert!(result.is_err(), "todo!() fires — test is RED");
 }
@@ -160,7 +169,7 @@ fn test_ac3_self_reference_cycle() {
 #[test]
 fn test_ac4_depth_exceeded_returns_error() {
     // RED: AliasResolver::expand is todo!()
-    let store = AliasStore::empty("/tmp/test_aliases.toml");
+    let store = AliasStore::empty(temp_path("test_aliases.toml"));
     let scope = global_scope();
     let args = HashMap::new();
 
@@ -174,7 +183,7 @@ fn test_ac4_depth_exceeded_returns_error() {
 fn test_ac4_depth_at_limit_rejected() {
     use crate::alias_resolver::MAX_ALIAS_DEPTH;
     // RED: todo!() fires
-    let store = AliasStore::empty("/tmp/test_aliases.toml");
+    let store = AliasStore::empty(temp_path("test_aliases.toml"));
     let scope = global_scope();
     let args = HashMap::new();
     let result = AliasResolver::expand("@any", &store, &scope, &args, MAX_ALIAS_DEPTH);
@@ -243,7 +252,7 @@ fn test_ac5_valid_name_accepted() {
 #[test]
 fn test_ac6_per_client_overrides_global() {
     // RED: AliasStore and AliasResolver are todo!()
-    let store = AliasStore::empty("/tmp/test_aliases.toml");
+    let store = AliasStore::empty(temp_path("test_aliases.toml"));
     let client = client_scope("acme");
     let args = HashMap::new();
 
@@ -255,7 +264,7 @@ fn test_ac6_per_client_overrides_global() {
 #[test]
 fn test_ac6_global_scope_uses_global_alias() {
     // RED: AliasResolver::expand is todo!()
-    let store = AliasStore::empty("/tmp/test_aliases.toml");
+    let store = AliasStore::empty(temp_path("test_aliases.toml"));
     let scope = global_scope();
     let args = HashMap::new();
 
@@ -309,7 +318,7 @@ fn test_ac7_parens_in_param_rejected() {
 /// AC-8: list_aliases with scope=null returns all aliases sorted alphabetically.
 #[test]
 fn test_ac8_list_aliases_all() {
-    let store = AliasStore::empty("/tmp/test_aliases.toml");
+    let store = AliasStore::empty(temp_path("test_aliases.toml"));
     let input = ListAliasesInput { scope: None };
     let result = list_aliases(input, &store, &[]);
     assert!(result.is_ok(), "list_aliases with no scope must succeed");
@@ -319,7 +328,7 @@ fn test_ac8_list_aliases_all() {
 /// AC-8: list_aliases with scope="global" returns only global aliases.
 #[test]
 fn test_ac8_list_aliases_global_only() {
-    let store = AliasStore::empty("/tmp/test_aliases.toml");
+    let store = AliasStore::empty(temp_path("test_aliases.toml"));
     let input = ListAliasesInput {
         scope: Some("global".to_string()),
     };
@@ -334,7 +343,7 @@ fn test_ac8_list_aliases_global_only() {
 /// EC-11-033: No aliases defined → list returns empty array (not an error).
 #[test]
 fn test_ec11_033_empty_store_list_not_error() {
-    let store = AliasStore::empty("/tmp/test_aliases.toml");
+    let store = AliasStore::empty(temp_path("test_aliases.toml"));
     let input = ListAliasesInput { scope: None };
     let result = list_aliases(input, &store, &[]);
     assert!(result.is_ok(), "empty store list must return Ok([])");
@@ -350,7 +359,7 @@ fn test_ec11_033_empty_store_list_not_error() {
 #[test]
 fn test_ac9_delete_requires_confirmation() {
     // RED: delete_alias is todo!()
-    let _test_path_2 = format!("/tmp/test_alias_mut_2_{}.toml", std::process::id());
+    let _test_path_2 = temp_path(&format!("test_alias_mut_2_{}.toml", std::process::id()));
     let mut store = AliasStore::empty(&_test_path_2);
     let token_store = prism_security::ConfirmationTokenStore::new();
     let input = DeleteAliasInput {
@@ -371,7 +380,7 @@ fn test_ac9_delete_requires_confirmation() {
 #[test]
 fn test_ac10_delete_blocked_by_dependents() {
     // RED: AliasStore::delete is todo!()
-    let _test_path_3 = format!("/tmp/test_alias_mut_3_{}.toml", std::process::id());
+    let _test_path_3 = temp_path(&format!("test_alias_mut_3_{}.toml", std::process::id()));
     let mut store = AliasStore::empty(&_test_path_3);
     let token_store = prism_security::ConfirmationTokenStore::new();
     let input = DeleteAliasInput {
@@ -392,7 +401,7 @@ fn test_ac10_delete_blocked_by_dependents() {
 #[test]
 fn test_ac11_explain_alias_response() {
     // RED: explain_alias is todo!()
-    let store = AliasStore::empty("/tmp/test_aliases.toml");
+    let store = AliasStore::empty(temp_path("test_aliases.toml"));
     let input = ExplainAliasInput {
         name: "composite".to_string(),
         scope: None,
@@ -440,7 +449,7 @@ fn test_ac12_write_capability_gate() {
 fn test_ac13_update_requires_confirmation() {
     use crate::alias_tools::create_alias_with_clients_gated_inner;
 
-    let path = format!("/tmp/test_ac13_{}.toml", std::process::id());
+    let path = temp_path(&format!("test_ac13_{}.toml", std::process::id()));
     let ocsf = empty_ocsf();
     let token_store = prism_security::ConfirmationTokenStore::new();
 
@@ -581,7 +590,7 @@ fn test_alias_scope_parse_invalid() {
 /// dependents() on empty store returns empty vec.
 #[test]
 fn test_dependents_empty_store() {
-    let store = AliasStore::empty("/tmp/test_aliases.toml");
+    let store = AliasStore::empty(temp_path("test_aliases.toml"));
     let deps = store.dependents("high_sev", &global_scope());
     assert!(deps.is_empty(), "empty store has no dependents");
 }
@@ -594,7 +603,7 @@ fn test_dependents_empty_store() {
 #[test]
 fn test_vp012_concrete_depth_3_ok_depth_4_err() {
     // RED: AliasResolver::expand is todo!()
-    let store = AliasStore::empty("/tmp/test_aliases.toml");
+    let store = AliasStore::empty(temp_path("test_aliases.toml"));
     let scope = global_scope();
     let args = HashMap::new();
 
@@ -608,7 +617,7 @@ fn test_vp012_concrete_depth_3_ok_depth_4_err() {
 #[test]
 fn test_vp012_concrete_depth_2_not_depth_limit_error() {
     // RED: todo!()
-    let store = AliasStore::empty("/tmp/test_aliases.toml");
+    let store = AliasStore::empty(temp_path("test_aliases.toml"));
     let scope = global_scope();
     let args = HashMap::new();
 
@@ -626,7 +635,7 @@ fn test_vp012_concrete_depth_2_not_depth_limit_error() {
 #[test]
 fn test_vp013_concrete_self_loop() {
     // RED: detect_cycle is todo!()
-    let store = AliasStore::empty("/tmp/test_aliases.toml");
+    let store = AliasStore::empty(temp_path("test_aliases.toml"));
     let result = AliasResolver::detect_cycle("A", "@A", &store);
     assert!(result.is_err(), "todo!() fires — test is RED");
 }
@@ -636,7 +645,7 @@ fn test_vp013_concrete_self_loop() {
 /// Only a direct self-reference is a guaranteed cycle at creation time.
 #[test]
 fn test_vp013_concrete_mutual_cycle() {
-    let store = AliasStore::empty("/tmp/test_aliases.toml");
+    let store = AliasStore::empty(temp_path("test_aliases.toml"));
     // B is not in the store — @B is an unknown alias, not a back-edge, so no cycle detected.
     let result = AliasResolver::detect_cycle("A", "@B AND x", &store);
     assert!(result.is_ok(), "A -> @B with B absent is not a cycle");
@@ -645,7 +654,7 @@ fn test_vp013_concrete_mutual_cycle() {
 /// VP-013 concrete: acyclic alias (A → B, no back-edge) must NOT produce a cycle error.
 #[test]
 fn test_vp013_concrete_acyclic_no_error() {
-    let store = AliasStore::empty("/tmp/test_aliases.toml");
+    let store = AliasStore::empty(temp_path("test_aliases.toml"));
     let result = AliasResolver::detect_cycle("A", "@B", &store);
     // B is not in the store — no cycle.
     assert!(
@@ -663,7 +672,7 @@ fn test_vp013_concrete_acyclic_no_error() {
 fn test_vp037_concrete_non_utf8_does_not_panic() {
     // We cannot pass &[u8] directly, but we can pass a lossy-converted string.
     let lossy = String::from_utf8_lossy(&[0xFF, 0xFE, 0x41, 0x00]).to_string();
-    let store = AliasStore::empty("/tmp/test_aliases.toml");
+    let store = AliasStore::empty(temp_path("test_aliases.toml"));
     let scope = global_scope();
     let args = HashMap::new();
 
@@ -675,7 +684,7 @@ fn test_vp037_concrete_non_utf8_does_not_panic() {
 #[test]
 fn test_vp037_concrete_deep_nesting_no_stack_overflow() {
     // RED: AliasResolver::expand is todo!()
-    let store = AliasStore::empty("/tmp/test_aliases.toml");
+    let store = AliasStore::empty(temp_path("test_aliases.toml"));
     let scope = global_scope();
     let args = HashMap::new();
 
@@ -688,7 +697,7 @@ fn test_vp037_concrete_deep_nesting_no_stack_overflow() {
 #[test]
 fn test_vp037_concrete_empty_store_missing_alias() {
     // RED: todo!()
-    let store = AliasStore::empty("/tmp/test_aliases.toml");
+    let store = AliasStore::empty(temp_path("test_aliases.toml"));
     let scope = global_scope();
     let args = HashMap::new();
     let result = AliasResolver::expand("@undefined_alias", &store, &scope, &args, 0);
@@ -699,7 +708,7 @@ fn test_vp037_concrete_empty_store_missing_alias() {
 #[test]
 fn test_vp037_concrete_empty_args_uses_defaults() {
     // RED: AliasResolver::expand + substitute_params are todo!()
-    let store = AliasStore::empty("/tmp/test_aliases.toml");
+    let store = AliasStore::empty(temp_path("test_aliases.toml"));
     let scope = global_scope();
     let args = HashMap::new(); // empty args
     let result = AliasResolver::expand("@recent_alerts", &store, &scope, &args, 0);
@@ -721,7 +730,7 @@ fn test_vp037_concrete_invalid_param_is_err_not_panic() {
 /// EC-11-021: Per-client alias with same name as global — valid (not a conflict).
 #[test]
 fn test_ec11_021_per_client_same_name_as_global_ok() {
-    let _test_path_4 = format!("/tmp/test_alias_mut_4_{}.toml", std::process::id());
+    let _test_path_4 = temp_path(&format!("test_alias_mut_4_{}.toml", std::process::id()));
     let mut store = AliasStore::empty(&_test_path_4);
     let entry = simple_entry("high_sev", client_scope("acme"), "severity_id > 4");
     let result = store.create_or_update(entry, None);
@@ -735,7 +744,7 @@ fn test_ec11_021_per_client_same_name_as_global_ok() {
 #[test]
 fn test_ec11_024_zero_args_uses_defaults() {
     // RED: expand / substitute_params are todo!()
-    let store = AliasStore::empty("/tmp/test_aliases.toml");
+    let store = AliasStore::empty(temp_path("test_aliases.toml"));
     let scope = global_scope();
     let args = HashMap::new();
     let result = AliasResolver::expand("@recent_alerts", &store, &scope, &args, 0);
@@ -767,7 +776,7 @@ fn test_ec11_040_file_write_failure_propagates() {
 #[test]
 fn test_BC_2_11_008_rejects_name_with_dash_via_tool() {
     // RED: create_alias is todo!()
-    let _test_path_5 = format!("/tmp/test_alias_mut_5_{}.toml", std::process::id());
+    let _test_path_5 = temp_path(&format!("test_alias_mut_5_{}.toml", std::process::id()));
     let mut store = AliasStore::empty(&_test_path_5);
     let ocsf = empty_ocsf();
     let input = CreateAliasInput {
@@ -786,7 +795,7 @@ fn test_BC_2_11_008_rejects_name_with_dash_via_tool() {
 #[test]
 fn test_BC_2_11_008_rejects_name_leading_digit_via_tool() {
     // RED: create_alias is todo!()
-    let _test_path_6 = format!("/tmp/test_alias_mut_6_{}.toml", std::process::id());
+    let _test_path_6 = temp_path(&format!("test_alias_mut_6_{}.toml", std::process::id()));
     let mut store = AliasStore::empty(&_test_path_6);
     let ocsf = empty_ocsf();
     let input = CreateAliasInput {
@@ -805,7 +814,7 @@ fn test_BC_2_11_008_rejects_name_leading_digit_via_tool() {
 #[test]
 fn test_BC_2_11_008_rejects_empty_name_via_tool() {
     // RED: create_alias is todo!()
-    let _test_path_7 = format!("/tmp/test_alias_mut_7_{}.toml", std::process::id());
+    let _test_path_7 = temp_path(&format!("test_alias_mut_7_{}.toml", std::process::id()));
     let mut store = AliasStore::empty(&_test_path_7);
     let ocsf = empty_ocsf();
     let input = CreateAliasInput {
@@ -857,7 +866,7 @@ fn test_BC_2_11_008_rejects_null_byte_in_name() {
 /// BC-2.11.008 precondition: scope references non-existent client rejects E-CFG-001.
 #[test]
 fn test_BC_2_11_008_rejects_unknown_client_scope() {
-    let _test_path_8 = format!("/tmp/test_alias_mut_8_{}.toml", std::process::id());
+    let _test_path_8 = temp_path(&format!("test_alias_mut_8_{}.toml", std::process::id()));
     let mut store = AliasStore::empty(&_test_path_8);
     let ocsf = empty_ocsf();
     let input = CreateAliasInput {
@@ -924,7 +933,7 @@ fn test_BC_2_11_008_in_memory_unchanged_when_file_write_fails() {
 #[test]
 fn test_BC_2_11_008_rejects_invalid_prismql_template() {
     // RED: create_alias is todo!()
-    let _test_path_9 = format!("/tmp/test_alias_mut_9_{}.toml", std::process::id());
+    let _test_path_9 = temp_path(&format!("test_alias_mut_9_{}.toml", std::process::id()));
     let mut store = AliasStore::empty(&_test_path_9);
     let ocsf = empty_ocsf();
     let input = CreateAliasInput {
@@ -949,7 +958,7 @@ fn test_BC_2_11_008_rejects_invalid_prismql_template() {
 #[test]
 fn test_BC_2_11_008_rejects_compound_param_default_at_creation() {
     // RED: create_alias is todo!()
-    let _test_path_10 = format!("/tmp/test_alias_mut_10_{}.toml", std::process::id());
+    let _test_path_10 = temp_path(&format!("test_alias_mut_10_{}.toml", std::process::id()));
     let mut store = AliasStore::empty(&_test_path_10);
     let ocsf = empty_ocsf();
     let mut params = HashMap::new();
@@ -976,7 +985,7 @@ fn test_BC_2_11_008_rejects_compound_param_default_at_creation() {
 #[test]
 fn test_BC_2_11_008_rejects_ocsf_field_via_create_alias_tool() {
     // RED: create_alias is todo!()
-    let _test_path_11 = format!("/tmp/test_alias_mut_11_{}.toml", std::process::id());
+    let _test_path_11 = temp_path(&format!("test_alias_mut_11_{}.toml", std::process::id()));
     let mut store = AliasStore::empty(&_test_path_11);
     let ocsf = ocsf_with(&["severity", "activity_name", "src_endpoint"]);
     let input = CreateAliasInput {
@@ -995,7 +1004,7 @@ fn test_BC_2_11_008_rejects_ocsf_field_via_create_alias_tool() {
 #[test]
 fn test_BC_2_11_008_rejects_keyword_select_via_create_alias_tool() {
     // RED: create_alias is todo!()
-    let _test_path_12 = format!("/tmp/test_alias_mut_12_{}.toml", std::process::id());
+    let _test_path_12 = temp_path(&format!("test_alias_mut_12_{}.toml", std::process::id()));
     let mut store = AliasStore::empty(&_test_path_12);
     let ocsf = empty_ocsf();
     let input = CreateAliasInput {
@@ -1020,7 +1029,7 @@ fn test_BC_2_11_008_rejects_keyword_select_via_create_alias_tool() {
 #[test]
 fn test_BC_2_11_008_create_alias_rejects_self_cycle_via_tool() {
     // RED: create_alias is todo!()
-    let _test_path_13 = format!("/tmp/test_alias_mut_13_{}.toml", std::process::id());
+    let _test_path_13 = temp_path(&format!("test_alias_mut_13_{}.toml", std::process::id()));
     let mut store = AliasStore::empty(&_test_path_13);
     let ocsf = empty_ocsf();
     let input = CreateAliasInput {
@@ -1044,7 +1053,7 @@ fn test_BC_2_11_008_create_alias_rejects_self_cycle_via_tool() {
 /// claimed depth-limit coverage at create-time.
 #[test]
 fn test_BC_2_11_008_create_alias_rejects_at_token_in_template() {
-    let _test_path_14 = format!("/tmp/test_alias_mut_14_{}.toml", std::process::id());
+    let _test_path_14 = temp_path(&format!("test_alias_mut_14_{}.toml", std::process::id()));
     let mut store = AliasStore::empty(&_test_path_14);
     let ocsf = empty_ocsf();
     let input = CreateAliasInput {
@@ -1124,7 +1133,7 @@ fn test_BC_2_11_009_detect_alias_tokens_empty_when_no_aliases() {
 #[test]
 fn test_BC_2_11_009_resolve_scope_returns_alias001_when_absent() {
     // RED: resolve_scope is todo!()
-    let store = AliasStore::empty("/tmp/test_aliases.toml");
+    let store = AliasStore::empty(temp_path("test_aliases.toml"));
     let scope = client_scope("acme");
     let result = AliasResolver::resolve_scope("nonexistent_alias", &store, &scope);
     assert!(result.is_err(), "todo!() fires — test is RED");
@@ -1372,7 +1381,7 @@ fn test_BC_2_11_009_validate_atomic_literal_not_keyword_rejected() {
 fn test_BC_2_11_009_expanded_query_exceeds_64kb_rejected() {
     // RED: AliasResolver::expand is todo!()
     use crate::alias_resolver::MAX_EXPANDED_QUERY_BYTES;
-    let store = AliasStore::empty("/tmp/test_aliases.toml");
+    let store = AliasStore::empty(temp_path("test_aliases.toml"));
     let scope = global_scope();
     let args = HashMap::new();
     let huge_query = "x".repeat(MAX_EXPANDED_QUERY_BYTES + 1);
@@ -1389,7 +1398,7 @@ fn test_BC_2_11_009_expanded_query_exceeds_64kb_rejected() {
 #[test]
 fn test_BC_2_11_009_cross_client_alias_missing_for_some_clients() {
     // RED: AliasResolver::expand is todo!()
-    let store = AliasStore::empty("/tmp/test_aliases.toml");
+    let store = AliasStore::empty(temp_path("test_aliases.toml"));
     let scope = global_scope();
     let args = HashMap::new();
     let result = AliasResolver::expand("@client_only_alias", &store, &scope, &args, 0);
@@ -1419,7 +1428,7 @@ fn test_BC_2_11_009_ec11_023_dotted_field_not_alias_candidate() {
 /// that client's aliases — does NOT include global aliases.
 #[test]
 fn test_BC_2_11_013_client_scope_excludes_global_aliases() {
-    let store = AliasStore::empty("/tmp/test_aliases.toml");
+    let store = AliasStore::empty(temp_path("test_aliases.toml"));
     let input = ListAliasesInput {
         scope: Some("client:acme".to_string()),
     };
@@ -1440,7 +1449,7 @@ fn test_BC_2_11_013_client_scope_excludes_global_aliases() {
 /// list_aliases returns aliases sorted A-to-Z by name within each scope group.
 #[test]
 fn test_BC_2_11_013_results_sorted_alphabetically_by_name() {
-    let store = AliasStore::empty("/tmp/test_aliases.toml");
+    let store = AliasStore::empty(temp_path("test_aliases.toml"));
     let input = ListAliasesInput { scope: None };
     let result = list_aliases(input, &store, &[]);
     assert!(result.is_ok(), "list_aliases on empty store must succeed");
@@ -1453,7 +1462,7 @@ fn test_BC_2_11_013_results_sorted_alphabetically_by_name() {
 /// Canonical test vector: list_aliases(scope="client:nonexistent") rejects E-CFG-001.
 #[test]
 fn test_BC_2_11_013_rejects_nonexistent_client_scope() {
-    let store = AliasStore::empty("/tmp/test_aliases.toml");
+    let store = AliasStore::empty(temp_path("test_aliases.toml"));
     let input = ListAliasesInput {
         scope: Some("client:nonexistent_xyz".to_string()),
     };
@@ -1468,7 +1477,7 @@ fn test_BC_2_11_013_rejects_nonexistent_client_scope() {
 /// returns empty array (not an error).
 #[test]
 fn test_BC_2_11_013_ec11_034_no_client_aliases_returns_empty() {
-    let store = AliasStore::empty("/tmp/test_aliases.toml");
+    let store = AliasStore::empty(temp_path("test_aliases.toml"));
     let input = ListAliasesInput {
         scope: Some("client:acme".to_string()),
     };
@@ -1491,7 +1500,7 @@ fn test_BC_2_11_013_ec11_034_no_client_aliases_returns_empty() {
 #[test]
 fn test_BC_2_11_014_rejects_delete_nonexistent_alias() {
     // RED: delete_alias is todo!()
-    let _test_path_15 = format!("/tmp/test_alias_mut_15_{}.toml", std::process::id());
+    let _test_path_15 = temp_path(&format!("test_alias_mut_15_{}.toml", std::process::id()));
     let mut store = AliasStore::empty(&_test_path_15);
     let token_store = prism_security::ConfirmationTokenStore::new();
     let input = DeleteAliasInput {
@@ -1508,7 +1517,7 @@ fn test_BC_2_11_014_rejects_delete_nonexistent_alias() {
 #[test]
 fn test_BC_2_11_014_rejects_delete_nonexistent_client_scope() {
     // RED: delete_alias is todo!()
-    let _test_path_16 = format!("/tmp/test_alias_mut_16_{}.toml", std::process::id());
+    let _test_path_16 = temp_path(&format!("test_alias_mut_16_{}.toml", std::process::id()));
     let mut store = AliasStore::empty(&_test_path_16);
     let token_store = prism_security::ConfirmationTokenStore::new();
     let input = DeleteAliasInput {
@@ -1528,7 +1537,7 @@ fn test_BC_2_11_014_rejects_delete_nonexistent_client_scope() {
 /// When alias does not exist, returns E-ALIAS-001.
 #[test]
 fn test_BC_2_11_014_force_cascade_returns_confirmation_token() {
-    let _test_path_17 = format!("/tmp/test_alias_mut_17_{}.toml", std::process::id());
+    let _test_path_17 = temp_path(&format!("test_alias_mut_17_{}.toml", std::process::id()));
     let mut store = AliasStore::empty(&_test_path_17);
     let token_store = prism_security::ConfirmationTokenStore::new();
     let input = DeleteAliasInput {
@@ -1558,7 +1567,7 @@ fn test_BC_2_11_014_global_delete_token_uses_global_sentinel() {
 /// removes only the global — per-client overrides remain intact.
 #[test]
 fn test_BC_2_11_014_ec11_035_delete_global_leaves_client_overrides() {
-    let store = AliasStore::empty("/tmp/test_aliases.toml");
+    let store = AliasStore::empty(temp_path("test_aliases.toml"));
     let global_get = store.get("high_sev", &global_scope());
     assert!(
         global_get.is_ok(),
@@ -1580,7 +1589,7 @@ fn test_BC_2_11_014_ec11_035_delete_global_leaves_client_overrides() {
 #[test]
 fn test_BC_2_11_014_ec11_041_delete_file_write_failure_leaves_alias_intact() {
     // Use a valid writable path first to populate the in-memory state.
-    let path = format!("/tmp/test_ec11_041_{}.toml", std::process::id());
+    let path = temp_path(&format!("test_ec11_041_{}.toml", std::process::id()));
     let mut store = AliasStore::empty(&path);
     let entry = simple_entry("to_delete", global_scope(), "severity_id >= 3");
     store
@@ -1636,7 +1645,7 @@ fn test_BC_2_11_014_ec11_041_delete_file_write_failure_leaves_alias_intact() {
 #[test]
 fn test_BC_2_11_015_explain_nonexistent_alias_returns_alias001() {
     // RED: explain_alias is todo!()
-    let store = AliasStore::empty("/tmp/test_aliases.toml");
+    let store = AliasStore::empty(temp_path("test_aliases.toml"));
     let input = ExplainAliasInput {
         name: "nonexistent_alias_xyz".to_string(),
         scope: None,
@@ -1651,7 +1660,7 @@ fn test_BC_2_11_015_explain_nonexistent_alias_returns_alias001() {
 #[test]
 fn test_BC_2_11_015_simple_alias_composition_depth_is_1() {
     // RED: explain_alias is todo!()
-    let store = AliasStore::empty("/tmp/test_aliases.toml");
+    let store = AliasStore::empty(temp_path("test_aliases.toml"));
     let input = ExplainAliasInput {
         name: "high_sev".to_string(),
         scope: Some("global".to_string()),
@@ -1666,7 +1675,7 @@ fn test_BC_2_11_015_simple_alias_composition_depth_is_1() {
 #[test]
 fn test_BC_2_11_015_depth2_alias_composition_chain_length_2() {
     // RED: explain_alias is todo!()
-    let store = AliasStore::empty("/tmp/test_aliases.toml");
+    let store = AliasStore::empty(temp_path("test_aliases.toml"));
     let input = ExplainAliasInput {
         name: "composed_alias".to_string(),
         scope: None,
@@ -1679,7 +1688,7 @@ fn test_BC_2_11_015_depth2_alias_composition_chain_length_2() {
 #[test]
 fn test_BC_2_11_015_ec11_037_parameterized_alias_shows_template_and_defaults() {
     // RED: explain_alias is todo!()
-    let store = AliasStore::empty("/tmp/test_aliases.toml");
+    let store = AliasStore::empty(temp_path("test_aliases.toml"));
     let input = ExplainAliasInput {
         name: "recent_alerts".to_string(),
         scope: None,
@@ -1694,7 +1703,7 @@ fn test_BC_2_11_015_ec11_037_parameterized_alias_shows_template_and_defaults() {
 #[test]
 fn test_BC_2_11_015_ec11_038_explicit_scope_bypasses_precedence() {
     // RED: explain_alias is todo!()
-    let store = AliasStore::empty("/tmp/test_aliases.toml");
+    let store = AliasStore::empty(temp_path("test_aliases.toml"));
     let input = ExplainAliasInput {
         name: "high_sev".to_string(),
         scope: Some("global".to_string()),
@@ -1707,7 +1716,7 @@ fn test_BC_2_11_015_ec11_038_explicit_scope_bypasses_precedence() {
 #[test]
 fn test_BC_2_11_015_ec11_038_null_scope_with_client_context_uses_client_alias() {
     // RED: explain_alias is todo!()
-    let store = AliasStore::empty("/tmp/test_aliases.toml");
+    let store = AliasStore::empty(temp_path("test_aliases.toml"));
     use prism_core::tenant::OrgSlug;
     use prism_core::types::ClientId;
     let client_id = ClientId(OrgSlug::new("acme"));
@@ -1729,7 +1738,7 @@ fn test_BC_2_11_015_ec11_038_null_scope_with_client_context_uses_client_alias() 
 #[test]
 fn test_BC_2_11_015_explains_cycle_as_structured_error() {
     // explain_alias on a non-existent alias must return E-ALIAS-001 (not a panic).
-    let store = AliasStore::empty("/tmp/test_aliases.toml");
+    let store = AliasStore::empty(temp_path("test_aliases.toml"));
     let input = ExplainAliasInput {
         name: "possibly_cyclic".to_string(),
         scope: None,
@@ -1755,7 +1764,7 @@ fn test_BC_2_11_015_explains_cycle_as_structured_error() {
 /// AliasStore::get on empty store returns Ok(None).
 #[test]
 fn test_BC_2_11_008_alias_store_get_empty_store() {
-    let store = AliasStore::empty("/tmp/test_aliases.toml");
+    let store = AliasStore::empty(temp_path("test_aliases.toml"));
     let result = store.get("any_name", &global_scope());
     assert!(result.is_ok(), "get on empty store must return Ok(None)");
     assert!(
@@ -1767,7 +1776,7 @@ fn test_BC_2_11_008_alias_store_get_empty_store() {
 /// AliasStore::list on empty store returns empty vec.
 #[test]
 fn test_BC_2_11_013_alias_store_list_empty_store() {
-    let store = AliasStore::empty("/tmp/test_aliases.toml");
+    let store = AliasStore::empty(temp_path("test_aliases.toml"));
     let entries = store.list(None);
     assert!(entries.is_empty(), "list on empty store returns empty vec");
 }
@@ -1785,6 +1794,8 @@ mod vp037_proptest {
     use crate::alias_resolver::AliasResolver;
     use crate::alias_store::AliasStore;
     use crate::alias_types::AliasScope;
+
+    use super::temp_path;
 
     // VP-037 proptest: expand() never panics on arbitrary &str query bodies.
     // The VP statement covers "every byte sequence interpreted as a query" — tested
@@ -1804,7 +1815,7 @@ mod vp037_proptest {
         fn prop_vp037_expand_never_panics_on_arbitrary_query(
             query in "[\\x20-\\x7E]{0,512}"
         ) {
-            let store = AliasStore::empty("/tmp/vp037_prop.toml");
+            let store = AliasStore::empty(temp_path("vp037_prop.toml"));
             let scope = AliasScope::Global;
             let args = HashMap::new();
             // Direct call — proptest will catch panics and report them as failures.
@@ -1820,7 +1831,7 @@ mod vp037_proptest {
             name in "[a-zA-Z_][a-zA-Z0-9_]{0,63}"
         ) {
             let query = format!("@{name} AND severity_id >= 3");
-            let store = AliasStore::empty("/tmp/vp037_prop.toml");
+            let store = AliasStore::empty(temp_path("vp037_prop.toml"));
             let scope = AliasScope::Global;
             let args = HashMap::new();
             let _ = AliasResolver::expand(&query, &store, &scope, &args, 0);
@@ -1869,7 +1880,7 @@ fn test_BC_2_11_008_name_at_64_chars_accepted() {
 #[test]
 fn test_BC_2_11_009_expanded_query_at_64kb_minus_1_not_rejected() {
     use crate::alias_resolver::MAX_EXPANDED_QUERY_BYTES;
-    let store = AliasStore::empty("/tmp/test_aliases.toml");
+    let store = AliasStore::empty(temp_path("test_aliases.toml"));
     let scope = global_scope();
     let args = HashMap::new();
     let large_but_ok = "x".repeat(MAX_EXPANDED_QUERY_BYTES - 1);
@@ -1884,7 +1895,7 @@ fn test_BC_2_11_009_expanded_query_at_64kb_minus_1_not_rejected() {
 /// BC-2.11.008: very long alias body must not panic and must either succeed or return error.
 #[test]
 fn test_BC_2_11_008_long_alias_body_within_64kb_limit_accepted() {
-    let _test_path_18 = format!("/tmp/test_alias_mut_18_{}.toml", std::process::id());
+    let _test_path_18 = temp_path(&format!("test_alias_mut_18_{}.toml", std::process::id()));
     let mut store = AliasStore::empty(&_test_path_18);
     let ocsf = empty_ocsf();
     let long_query = format!("severity_id >= 3 AND {}", "active = TRUE OR ".repeat(200));
@@ -1918,7 +1929,7 @@ fn test_BC_2_11_008_long_alias_body_within_64kb_limit_accepted() {
 #[test]
 fn test_BC_2_11_009_inner_to_outer_resolution_order() {
     // RED: AliasResolver::expand is todo!()
-    let store = AliasStore::empty("/tmp/test_aliases.toml");
+    let store = AliasStore::empty(temp_path("test_aliases.toml"));
     let scope = global_scope();
     let args = HashMap::new();
     let result = AliasResolver::expand("@outer_alias", &store, &scope, &args, 0);
@@ -1936,7 +1947,7 @@ fn test_BC_2_11_009_inner_to_outer_resolution_order() {
 /// returns definition + expanded field in response JSON.
 #[test]
 fn test_BC_2_11_008_create_alias_response_includes_expanded_form() {
-    let _test_path_19 = format!("/tmp/test_alias_mut_19_{}.toml", std::process::id());
+    let _test_path_19 = temp_path(&format!("test_alias_mut_19_{}.toml", std::process::id()));
     let mut store = AliasStore::empty(&_test_path_19);
     let ocsf = empty_ocsf();
     let input = CreateAliasInput {
@@ -1973,7 +1984,7 @@ fn test_BC_2_11_008_create_alias_response_includes_expanded_form() {
 /// differs from the input template and equals the stored body.
 #[test]
 fn test_BC_2_11_009_query_context_records_original_and_expanded() {
-    let path = format!("/tmp/test_bc2_11_009_ctx_{}.toml", std::process::id());
+    let path = temp_path(&format!("test_bc2_11_009_ctx_{}.toml", std::process::id()));
     let mut store = AliasStore::empty(&path);
 
     // Populate the store with a known alias.
@@ -2072,7 +2083,10 @@ fn test_BC_2_11_009_rejects_at_injection_in_quoted() {
 /// path via `store.create_or_update()` to ensure SEC-010 wiring is correct.
 #[test]
 fn test_BC_2_11_009_per_client_cycle_detected() {
-    let path = format!("/tmp/test_per_client_cycle_{}.toml", std::process::id());
+    let path = temp_path(&format!(
+        "test_per_client_cycle_{}.toml",
+        std::process::id()
+    ));
     let mut store = AliasStore::empty(&path);
 
     // Add A (acme) = "@b_acme" via create_or_update (production path).
@@ -2113,7 +2127,7 @@ fn test_BC_2_11_009_per_client_cycle_detected() {
 /// CR-003: alias `high` must NOT appear as dependent of `high_sev` (prefix-alias false positive).
 #[test]
 fn test_BC_2_11_014_dependents_no_prefix_false_positive() {
-    let path = format!("/tmp/test_deps_fp_{}.toml", std::process::id());
+    let path = temp_path(&format!("test_deps_fp_{}.toml", std::process::id()));
     let mut store = AliasStore::empty(&path);
 
     // Add "high" alias with query referencing @high_sev.
@@ -2154,7 +2168,7 @@ fn test_BC_2_11_014_cascade_delete_respects_scope() {
     // - global/base = "x = 1"
     // - acme/filter_x -> @base  (references global/base)
     // - beta/filter_x -> @base  (references global/base)
-    let path1 = format!("/tmp/test_cascade_scope_{}.toml", std::process::id());
+    let path1 = temp_path(&format!("test_cascade_scope_{}.toml", std::process::id()));
     let mut store = AliasStore::empty(&path1);
     store
         .create_or_update(simple_entry("base", global_scope(), "x = 1"), None)
@@ -2187,7 +2201,7 @@ fn test_BC_2_11_014_cascade_delete_respects_scope() {
 
     // Case 2: deleting a Client alias (acme/filter_x) must NOT cascade to beta/filter_x.
     // Reset store.
-    let path2 = format!("/tmp/test_cascade_scope2_{}.toml", std::process::id());
+    let path2 = temp_path(&format!("test_cascade_scope2_{}.toml", std::process::id()));
     let mut store2 = AliasStore::empty(&path2);
     // acme/client_a -> @client_b; only within acme scope.
     store2
@@ -2248,7 +2262,10 @@ fn test_BC_2_11_014_cascade_delete_respects_scope() {
 #[test]
 fn test_BC_2_11_014_cascade_delete_post_state() {
     // ── Case 1: Global alias deletion cascades to ALL referencing scopes ──────
-    let path1 = format!("/tmp/test_cascade_post_state_{}.toml", std::process::id());
+    let path1 = temp_path(&format!(
+        "test_cascade_post_state_{}.toml",
+        std::process::id()
+    ));
     let mut store = AliasStore::empty(&path1);
     store
         .create_or_update(simple_entry("base", global_scope(), "x = 1"), None)
@@ -2308,7 +2325,10 @@ fn test_BC_2_11_014_cascade_delete_post_state() {
     );
 
     // ── Case 2: Client alias deletion cascades ONLY within same client scope ──
-    let path2 = format!("/tmp/test_cascade_post_state2_{}.toml", std::process::id());
+    let path2 = temp_path(&format!(
+        "test_cascade_post_state2_{}.toml",
+        std::process::id()
+    ));
     let mut store2 = AliasStore::empty(&path2);
     store2
         .create_or_update(
@@ -2395,7 +2415,7 @@ fn test_BC_2_11_014_cascade_delete_post_state() {
 /// CR-004: 3-alias mixed scope produces correctly grouped output (Global first, then Client).
 #[test]
 fn test_BC_2_11_013_list_mixed_scope_sorted_correctly() {
-    let path = format!("/tmp/test_list_sort_{}.toml", std::process::id());
+    let path = temp_path(&format!("test_list_sort_{}.toml", std::process::id()));
     let mut store = AliasStore::empty(&path);
 
     // Insert out-of-order to validate sort independence from insertion order.
@@ -2433,7 +2453,7 @@ fn test_BC_2_11_013_list_mixed_scope_sorted_correctly() {
 /// CR-006: depth-3 chain a → b → c → literal produces chain ["a", "b", "c"].
 #[test]
 fn test_BC_2_11_015_depth3_chain_composition_chain_correct() {
-    let path = format!("/tmp/test_chain_{}.toml", std::process::id());
+    let path = temp_path(&format!("test_chain_{}.toml", std::process::id()));
     let mut store = AliasStore::empty(&path);
 
     // c = literal (depth 0 body)
@@ -2475,7 +2495,7 @@ fn test_BC_2_11_015_depth3_chain_composition_chain_correct() {
 /// token_store.generate() must be rejected.
 #[test]
 fn test_BC_2_11_014_delete_with_bogus_token_returns_error() {
-    let path = format!("/tmp/test_delete_token_{}.toml", std::process::id());
+    let path = temp_path(&format!("test_delete_token_{}.toml", std::process::id()));
     let mut store = AliasStore::empty(&path);
     let token_store = prism_security::ConfirmationTokenStore::new();
 
@@ -2503,7 +2523,7 @@ fn test_BC_2_11_014_delete_with_bogus_token_returns_error() {
 /// CR-008: legitimate two-step flow — generate token then delete succeeds.
 #[test]
 fn test_BC_2_11_014_delete_two_step_flow_succeeds() {
-    let path = format!("/tmp/test_delete_twostep_{}.toml", std::process::id());
+    let path = temp_path(&format!("test_delete_twostep_{}.toml", std::process::id()));
     let mut store = AliasStore::empty(&path);
     let token_store = prism_security::ConfirmationTokenStore::new();
 
@@ -2564,7 +2584,7 @@ fn test_BC_2_11_014_delete_two_step_flow_succeeds() {
 /// leaving `@foobar` intact (prefix-alias non-corruption).
 #[test]
 fn test_BC_2_11_009_expand_prefix_alias_not_corrupted() {
-    let path = format!("/tmp/test_prefix_alias_{}.toml", std::process::id());
+    let path = temp_path(&format!("test_prefix_alias_{}.toml", std::process::id()));
     let mut store = AliasStore::empty(&path);
 
     // foo = simple literal expansion
@@ -2649,7 +2669,7 @@ fn test_BC_2_11_009_quoted_string_with_tab_rejected() {
 /// CR-007: create_alias (no client list) rejects Client-scoped creation.
 #[test]
 fn test_BC_2_11_008_create_alias_rejects_client_scope_without_client_list() {
-    let path = format!("/tmp/test_create_client_{}.toml", std::process::id());
+    let path = temp_path(&format!("test_create_client_{}.toml", std::process::id()));
     let mut store = AliasStore::empty(&path);
     let ocsf = empty_ocsf();
     let input = CreateAliasInput {
@@ -2757,7 +2777,7 @@ fn test_BC_2_11_008_capability_gate_disabled_rejects_create() {
     use prism_security::feature_flag::{CompileTimeGate, FeatureFlagEvaluator};
     use std::collections::BTreeMap;
 
-    let path = format!("/tmp/test_cap_gate_{}.toml", std::process::id());
+    let path = temp_path(&format!("test_cap_gate_{}.toml", std::process::id()));
     let mut store = AliasStore::empty(&path);
     let ocsf = empty_ocsf();
     let input = CreateAliasInput {

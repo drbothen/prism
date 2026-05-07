@@ -32,7 +32,11 @@ mod concrete_tests {
     /// Non-vacuous (F-HIGH-005): self-loop is detected directly without needing store entries.
     #[test]
     fn concrete_self_loop_detected() {
-        let path = format!("/tmp/vp013_self_{}.toml", std::process::id());
+        let path = format!(
+            "{}/vp013_self_{}.toml",
+            std::env::temp_dir().display(),
+            std::process::id()
+        );
         let store = AliasStore::empty(&path);
         let result = AliasResolver::detect_cycle("A", "@A", &store);
         assert!(
@@ -49,7 +53,11 @@ mod concrete_tests {
     /// A = "@B", which must detect the back-edge A→B→A.
     #[test]
     fn concrete_mutual_cycle_detected() {
-        let path = format!("/tmp/vp013_mutual_{}.toml", std::process::id());
+        let path = format!(
+            "{}/vp013_mutual_{}.toml",
+            std::env::temp_dir().display(),
+            std::process::id()
+        );
         let mut store = AliasStore::empty(&path);
 
         // Populate B = "@A" in the store (no cycle at this point — A is not yet defined).
@@ -78,7 +86,11 @@ mod concrete_tests {
     /// Acyclic alias: A = "literal_value" returns Ok(()) — no false positive.
     #[test]
     fn concrete_acyclic_no_cycle_error() {
-        let path = format!("/tmp/vp013_acyclic_{}.toml", std::process::id());
+        let path = format!(
+            "{}/vp013_acyclic_{}.toml",
+            std::env::temp_dir().display(),
+            std::process::id()
+        );
         let store = AliasStore::empty(&path);
         let result = AliasResolver::detect_cycle("A", "severity_id >= 3", &store);
         assert!(result.is_ok(), "literal definition (no @refs) has no cycle");
@@ -92,7 +104,11 @@ mod concrete_tests {
     /// A = "@B", which must detect the three-node cycle A→B→C→A.
     #[test]
     fn concrete_three_node_cycle_detected() {
-        let path = format!("/tmp/vp013_three_{}.toml", std::process::id());
+        let path = format!(
+            "{}/vp013_three_{}.toml",
+            std::env::temp_dir().display(),
+            std::process::id()
+        );
         let mut store = AliasStore::empty(&path);
 
         // Populate B = "@C AND field >= 1" (no cycle yet — C not defined).
@@ -182,7 +198,7 @@ mod proptest_harnesses {
         /// RED — fires todo!() on each invocation until detect_cycle is implemented.
         #[test]
         fn prop_vp013_self_loop_always_detected(name in node_name()) {
-            let path = format!("/tmp/vp013_prop_self_{name}.toml");
+            let path = std::env::temp_dir().join(format!("vp013_prop_self_{name}.toml")).to_string_lossy().into_owned();
             let store = AliasStore::empty(&path);
             let self_ref_definition = format!("@{name}");
             let result = AliasResolver::detect_cycle(&name, &self_ref_definition, &store);
@@ -196,7 +212,7 @@ mod proptest_harnesses {
         /// RED — fires todo!() on each invocation until detect_cycle is implemented.
         #[test]
         fn prop_vp013_literal_definition_no_cycle(name in node_name()) {
-            let path = format!("/tmp/vp013_prop_literal_{name}.toml");
+            let path = std::env::temp_dir().join(format!("vp013_prop_literal_{name}.toml")).to_string_lossy().into_owned();
             let store = AliasStore::empty(&path);
             // A literal definition with no @references cannot form a cycle.
             let result = AliasResolver::detect_cycle(&name, "severity_id >= 1", &store);
@@ -218,7 +234,7 @@ mod proptest_harnesses {
         /// result must be Ok (no cycle reachable). Both paths must terminate without panic.
         #[test]
         fn prop_vp013_always_terminates(name in node_name(), ref_name in node_name()) {
-            let path = format!("/tmp/vp013_prop_term_{name}_{ref_name}.toml");
+            let path = std::env::temp_dir().join(format!("vp013_prop_term_{name}_{ref_name}.toml")).to_string_lossy().into_owned();
             let store = AliasStore::empty(&path);
             let is_self_loop = name == ref_name;
             let definition = if is_self_loop {
@@ -247,7 +263,7 @@ mod proptest_harnesses {
             ref_b in node_name(),
             ref_c in node_name(),
         ) {
-            let path = format!("/tmp/vp013_prop_multi_{name}_{ref_b}_{ref_c}.toml");
+            let path = std::env::temp_dir().join(format!("vp013_prop_multi_{name}_{ref_b}_{ref_c}.toml")).to_string_lossy().into_owned();
             let store = AliasStore::empty(&path);
             let definition = format!("@{ref_b} AND @{ref_c} OR severity_id >= 1");
             let result = AliasResolver::detect_cycle(&name, &definition, &store);
@@ -268,7 +284,7 @@ mod proptest_harnesses {
             // Reference a different node (guaranteed by using F-J range)
             other in "[F-J]",
         ) {
-            let path = format!("/tmp/vp013_prop_non_self_{name}_{other}.toml");
+            let path = std::env::temp_dir().join(format!("vp013_prop_non_self_{name}_{other}.toml")).to_string_lossy().into_owned();
             let store = AliasStore::empty(&path);
             // name is in A-E, other is in F-J: they cannot be equal — no self-loop.
             let definition = format!("@{other} AND active = TRUE");
@@ -293,7 +309,7 @@ mod proptest_harnesses {
             use crate::alias_types::{AliasEntry, AliasScope};
             // Unique per-case path avoids file-write contention under concurrent nextest
             // execution (CR-P3-001).
-            let path = format!("/tmp/vp013_prop_{n1}{n2}{n3}.toml");
+            let path = std::env::temp_dir().join(format!("vp013_prop_{n1}{n2}{n3}.toml")).to_string_lossy().into_owned();
             let mut store = AliasStore::empty(&path);
 
             // Populate n2 -> @n3 (no cycle yet; n3 not in store).
@@ -331,7 +347,7 @@ mod proptest_harnesses {
         /// Store does not need to be populated since there are no @references to traverse.
         #[test]
         fn prop_vp013_empty_definition_no_false_positive(name in node_name()) {
-            let path = format!("/tmp/vp013_prop_empty_{name}.toml");
+            let path = std::env::temp_dir().join(format!("vp013_prop_empty_{name}.toml")).to_string_lossy().into_owned();
             let store = AliasStore::empty(&path);
             // A definition with no @-references cannot possibly form a cycle.
             let definition = "severity_id >= 1 AND active = TRUE";

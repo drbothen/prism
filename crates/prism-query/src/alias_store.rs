@@ -360,8 +360,18 @@ impl AliasStore {
         })?;
 
         // Write to temp file.
+        // Include a short hash of the store path to prevent temp-name collisions when
+        // multiple tests create stores with different destination paths in the same parent
+        // directory (e.g. concurrent nextest runs on macOS aarch64 — CR-P3-004).
+        let path_discriminant = {
+            use std::hash::{Hash, Hasher};
+            let mut h = std::collections::hash_map::DefaultHasher::new();
+            self.path.hash(&mut h);
+            h.finish()
+        };
         let tmp_path = parent.join(format!(
-            "aliases.toml.tmp.{}",
+            "aliases.toml.tmp.{:016x}.{}",
+            path_discriminant,
             std::time::SystemTime::now()
                 .duration_since(std::time::UNIX_EPOCH)
                 .map(|d| d.as_nanos())
