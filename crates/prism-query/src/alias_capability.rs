@@ -18,7 +18,6 @@
 //! Story: S-3.04 — prism-query: Alias System (P1)
 //! BCs:   BC-2.11.008
 
-use prism_core::capability::ClientCapabilities;
 use prism_core::error::PrismError;
 use prism_security::feature_flag::{CapabilityCheckResult, CompileTimeGate, FeatureFlagEvaluator};
 
@@ -30,10 +29,21 @@ pub const ALIAS_WRITE_CAPABILITY: &str = "alias.write";
 /// Check the `alias.write` capability for the given scope.
 ///
 /// # Arguments
-/// - `scope`        — the alias scope being targeted.
-/// - `evaluator`    — the configured `FeatureFlagEvaluator` for the current client set.
-/// - `compile_gate` — compile-time feature gate status (caller passes
+/// - `scope`            — the alias scope being targeted.
+/// - `evaluator`        — the configured `FeatureFlagEvaluator` for the current client set.
+/// - `compile_gate`     — compile-time feature gate status (caller passes
 ///   `CompileTimeGate::Present` / `Absent` based on `#[cfg(feature)]`).
+/// - `valid_client_ids` — the list of all known client IDs in the current tenant set.
+///   Required to implement the BC-2.11.008 `Global` scope rule: "allow if AT LEAST ONE
+///   configured client has `alias.write = Allow`." Pass `&[]` when no client list is
+///   available (e.g., in tests that only exercise the per-client branch).
+///
+/// ## Scope semantics (BC-2.11.008)
+///
+/// - **`Client(id)`** — check `alias.write` against that specific client's capability.
+/// - **`Global`** — iterate all `valid_client_ids`; allow if ANY returns Allow; deny only
+///   if ALL return Deny/Indeterminate (hidden-tools pattern). The `"__global__"` sentinel
+///   is NOT used for permission checks (CR-P6-002).
 ///
 /// # Returns
 /// - `Ok(())` if the capability is allowed.
@@ -42,51 +52,43 @@ pub fn check_alias_write(
     scope: &AliasScope,
     evaluator: &FeatureFlagEvaluator,
     compile_gate: CompileTimeGate,
+    valid_client_ids: &[String],
 ) -> Result<(), PrismError> {
-    let client_id = match scope {
-        AliasScope::Global => "__global__",
-        AliasScope::Client(id) => id.0.as_str(),
-    };
-
-    let result = evaluator.check_permission(compile_gate, client_id, ALIAS_WRITE_CAPABILITY);
-
-    match result {
-        CapabilityCheckResult::Allowed => Ok(()),
-        other => Err(denied_error(other, scope)),
-    }
-}
-
-/// Check whether `alias.write` is enabled for at least one client in the set.
-///
-/// Used for `Global` scope authorization (visible-to-any-client semantics).
-///
-/// Returns `Ok(())` if any client allows `alias.write`, otherwise returns
-/// `Err(PrismError::CapabilityDenied)` with the most specific denial reason.
-#[allow(dead_code)]
-pub(crate) fn check_alias_write_any_client(
-    evaluator: &FeatureFlagEvaluator,
-    compile_gate: CompileTimeGate,
-    client_capabilities: &[(String, ClientCapabilities)],
-) -> Result<(), PrismError> {
-    let mut last_err: Option<PrismError> = None;
-
-    for (client_id, _caps) in client_capabilities {
-        let result = evaluator.check_permission(compile_gate, client_id, ALIAS_WRITE_CAPABILITY);
-        match result {
-            CapabilityCheckResult::Allowed => return Ok(()),
-            other => {
-                last_err = Some(denied_error(other, &AliasScope::Global));
+    match scope {
+        AliasScope::Client(id) => {
+            // Per-client scope: check that specific client only.
+            let result =
+                evaluator.check_permission(compile_gate, id.0.as_str(), ALIAS_WRITE_CAPABILITY);
+            match result {
+                CapabilityCheckResult::Allowed => Ok(()),
+                other => Err(denied_error(other, scope)),
             }
         }
-    }
+        AliasScope::Global => {
+            // Global scope: allow if AT LEAST ONE configured client has alias.write = Allow.
+            // Deny only when ALL clients deny or no clients are configured (BC-2.11.008).
+            let mut last_err: Option<PrismError> = None;
 
-    Err(last_err.unwrap_or_else(|| PrismError::CapabilityDenied {
-        capability: ALIAS_WRITE_CAPABILITY.to_string(),
-        client_id: "__global__".to_string(),
-        reason: "no clients configured".to_string(),
-        suggestion: "configure at least one client with alias.write = allow".to_string(),
-        resolution_trace: vec![],
-    }))
+            for client_id in valid_client_ids {
+                let result =
+                    evaluator.check_permission(compile_gate, client_id, ALIAS_WRITE_CAPABILITY);
+                match result {
+                    CapabilityCheckResult::Allowed => return Ok(()),
+                    other => {
+                        last_err = Some(denied_error(other, scope));
+                    }
+                }
+            }
+
+            Err(last_err.unwrap_or_else(|| PrismError::CapabilityDenied {
+                capability: ALIAS_WRITE_CAPABILITY.to_string(),
+                client_id: scope.token_client_id().to_string(),
+                reason: "no clients configured".to_string(),
+                suggestion: "configure at least one client with alias.write = allow".to_string(),
+                resolution_trace: vec![],
+            }))
+        }
+    }
 }
 
 /// Build a `CapabilityDenied` error for alias write operations.

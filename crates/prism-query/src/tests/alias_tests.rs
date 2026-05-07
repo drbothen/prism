@@ -417,9 +417,8 @@ fn test_ac12_write_capability_gate() {
     let scope = AliasScope::Global;
 
     // With no clients configured, check_alias_write must deny (no client allows it).
-    let result = check_alias_write(&scope, &evaluator, CompileTimeGate::Present);
-    // CompileTimeGate::Present but no client has capability → denied.
-    // The evaluator checks client "__global__" which doesn't exist → DeniedRuntime.
+    // Pass empty valid_client_ids — no clients → denied.
+    let result = check_alias_write(&scope, &evaluator, CompileTimeGate::Present, &[]);
     // Either Ok or Err is acceptable — the key property is no panic.
     let _ = result;
 }
@@ -2580,5 +2579,113 @@ fn test_BC_2_11_008_capability_gate_disabled_rejects_create() {
     assert!(
         result.is_err(),
         "CompileTimeGate::Absent must deny create_alias_with_clients_gated"
+    );
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// CR-P6-002: global-scope alias.write checks any-client per BC-2.11.008
+// ─────────────────────────────────────────────────────────────────────────────
+
+/// BC-2.11.008: global-scope alias.write allowed when AT LEAST ONE client allows it.
+///
+/// Regression for CR-P6-002: the old implementation used a `"__global__"` sentinel
+/// client_id which was never in the evaluator, so Global-scope writes were always
+/// denied by the runtime tier even when a real client had `alias.write = Allow`.
+///
+/// Canonical test vector: 3 clients (client_a=Allow, client_b=Deny, client_c=Deny)
+/// → Global scope op succeeds because client_a allows.
+#[test]
+fn test_BC_2_11_008_global_scope_alias_write_allowed_when_any_client_allows() {
+    use crate::alias_capability::check_alias_write;
+    use crate::alias_types::AliasScope;
+    use prism_core::capability::{CapabilityEffect, CapabilityPath, ClientCapabilities};
+    use prism_security::feature_flag::{CompileTimeGate, FeatureFlagEvaluator};
+    use std::collections::BTreeMap;
+
+    #[allow(clippy::expect_used)]
+    let alias_write_path =
+        CapabilityPath::new("alias.write").expect("alias.write is a valid capability path");
+
+    // client_a: alias.write = Allow
+    let mut caps_a = ClientCapabilities::new();
+    caps_a.grant(alias_write_path.clone(), CapabilityEffect::Allow);
+
+    // client_b: alias.write = Deny
+    let mut caps_b = ClientCapabilities::new();
+    caps_b.grant(alias_write_path.clone(), CapabilityEffect::Deny);
+
+    // client_c: no alias.write entry → deny-by-default
+    let caps_c = ClientCapabilities::new();
+
+    let mut client_map = BTreeMap::new();
+    client_map.insert("client_a".to_string(), caps_a);
+    client_map.insert("client_b".to_string(), caps_b);
+    client_map.insert("client_c".to_string(), caps_c);
+
+    let evaluator = FeatureFlagEvaluator::new(client_map);
+    let valid_client_ids = vec![
+        "client_a".to_string(),
+        "client_b".to_string(),
+        "client_c".to_string(),
+    ];
+
+    let result = check_alias_write(
+        &AliasScope::Global,
+        &evaluator,
+        CompileTimeGate::Present,
+        &valid_client_ids,
+    );
+    assert!(
+        result.is_ok(),
+        "global-scope alias.write must be allowed when at least one client (client_a) has Allow"
+    );
+}
+
+/// BC-2.11.008: global-scope alias.write denied when ALL configured clients deny it.
+///
+/// Regression for CR-P6-002: 3 clients all deny → global scope op must return E-FLAG-001.
+#[test]
+fn test_BC_2_11_008_global_scope_alias_write_denied_when_all_clients_deny() {
+    use crate::alias_capability::check_alias_write;
+    use crate::alias_types::AliasScope;
+    use prism_core::capability::{CapabilityEffect, CapabilityPath, ClientCapabilities};
+    use prism_security::feature_flag::{CompileTimeGate, FeatureFlagEvaluator};
+    use std::collections::BTreeMap;
+
+    #[allow(clippy::expect_used)]
+    let alias_write_path =
+        CapabilityPath::new("alias.write").expect("alias.write is a valid capability path");
+
+    // All three clients explicitly deny alias.write.
+    let mut caps_a = ClientCapabilities::new();
+    caps_a.grant(alias_write_path.clone(), CapabilityEffect::Deny);
+
+    let mut caps_b = ClientCapabilities::new();
+    caps_b.grant(alias_write_path.clone(), CapabilityEffect::Deny);
+
+    let mut caps_c = ClientCapabilities::new();
+    caps_c.grant(alias_write_path.clone(), CapabilityEffect::Deny);
+
+    let mut client_map = BTreeMap::new();
+    client_map.insert("client_a".to_string(), caps_a);
+    client_map.insert("client_b".to_string(), caps_b);
+    client_map.insert("client_c".to_string(), caps_c);
+
+    let evaluator = FeatureFlagEvaluator::new(client_map);
+    let valid_client_ids = vec![
+        "client_a".to_string(),
+        "client_b".to_string(),
+        "client_c".to_string(),
+    ];
+
+    let result = check_alias_write(
+        &AliasScope::Global,
+        &evaluator,
+        CompileTimeGate::Present,
+        &valid_client_ids,
+    );
+    assert!(
+        result.is_err(),
+        "global-scope alias.write must be denied when all 3 clients deny; got Ok"
     );
 }

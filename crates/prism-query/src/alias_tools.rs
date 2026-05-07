@@ -231,7 +231,12 @@ pub fn create_alias_with_clients_gated(
 
     // SEC-005 / BC-2.11.008 precondition: check alias.write capability gate when provided.
     if let Some((evaluator, compile_gate)) = capability_gate {
-        crate::alias_capability::check_alias_write(&scope, evaluator, compile_gate)?;
+        crate::alias_capability::check_alias_write(
+            &scope,
+            evaluator,
+            compile_gate,
+            valid_client_ids,
+        )?;
     }
 
     // Validate client ID when scope is Client(_). ALWAYS enforced — an empty
@@ -468,7 +473,12 @@ pub fn delete_alias_gated(
 
     // SEC-005 / BC-2.11.008 precondition: check alias.write capability gate when provided.
     if let Some((evaluator, compile_gate)) = capability_gate {
-        crate::alias_capability::check_alias_write(&scope, evaluator, compile_gate)?;
+        crate::alias_capability::check_alias_write(
+            &scope,
+            evaluator,
+            compile_gate,
+            valid_client_ids,
+        )?;
     }
 
     // Step 2: validate client ID.
