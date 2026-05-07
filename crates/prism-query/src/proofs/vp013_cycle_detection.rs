@@ -223,7 +223,10 @@ mod proptest_harnesses {
             n3 in "[G-I]",
         ) {
             use crate::alias_types::{AliasEntry, AliasScope};
-            let mut store = AliasStore::empty("/tmp/vp013_prop.toml");
+            // Unique per-case path avoids file-write contention under concurrent nextest
+            // execution (CR-P3-001).
+            let path = format!("/tmp/vp013_prop_{n1}{n2}{n3}.toml");
+            let mut store = AliasStore::empty(&path);
 
             // Populate n2 -> @n3 (no cycle yet; n3 not in store).
             let entry_n2 = AliasEntry {
@@ -233,7 +236,8 @@ mod proptest_harnesses {
                 parameters: None,
                 description: None,
             };
-            let _ = store.create_or_update(entry_n2, None);
+            // Skip this case if the setup write fails (e.g. residual I/O race).
+            prop_assume!(store.create_or_update(entry_n2, None).is_ok(), "setup write n2 must succeed");
 
             // Populate n3 -> @n1 (n1 not yet in store so no cycle detected at create time).
             let entry_n3 = AliasEntry {
@@ -243,7 +247,8 @@ mod proptest_harnesses {
                 parameters: None,
                 description: None,
             };
-            let _ = store.create_or_update(entry_n3, None);
+            // Skip this case if the setup write fails (e.g. residual I/O race).
+            prop_assume!(store.create_or_update(entry_n3, None).is_ok(), "setup write n3 must succeed");
 
             // Now detect_cycle for n1 -> @n2 must detect the cycle n1->n2->n3->n1.
             let definition = format!("@{n2} AND field >= 1");

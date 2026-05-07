@@ -1829,7 +1829,9 @@ fn test_BC_2_11_009_per_client_cycle_detected() {
 
     // Add A (acme) = "@b_acme" via create_or_update (production path).
     let entry_a = simple_entry("a_acme", client_scope("acme"), "@b_acme AND x = 1");
-    let _ = store.create_or_update(entry_a, None);
+    store
+        .create_or_update(entry_a, None)
+        .expect("test setup: create_or_update must succeed");
 
     // Now try to add B (acme) = "@a_acme" — this should detect the mutual cycle.
     // 1) Low-level path (detect_cycle_scoped directly).
@@ -1902,15 +1904,21 @@ fn test_BC_2_11_014_cascade_delete_respects_scope() {
     // - acme/filter_x -> @base  (references global/base)
     // - beta/filter_x -> @base  (references global/base)
     let mut store = AliasStore::empty("/tmp/test_cascade_scope.toml");
-    let _ = store.create_or_update(simple_entry("base", global_scope(), "x = 1"), None);
-    let _ = store.create_or_update(
-        simple_entry("filter_x", client_scope("acme"), "@base AND y = 2"),
-        None,
-    );
-    let _ = store.create_or_update(
-        simple_entry("filter_x", client_scope("beta"), "@base AND y = 2"),
-        None,
-    );
+    store
+        .create_or_update(simple_entry("base", global_scope(), "x = 1"), None)
+        .expect("test setup: create_or_update must succeed");
+    store
+        .create_or_update(
+            simple_entry("filter_x", client_scope("acme"), "@base AND y = 2"),
+            None,
+        )
+        .expect("test setup: create_or_update must succeed");
+    store
+        .create_or_update(
+            simple_entry("filter_x", client_scope("beta"), "@base AND y = 2"),
+            None,
+        )
+        .expect("test setup: create_or_update must succeed");
 
     // Verify dependents of global/base includes BOTH client aliases.
     let deps = store.dependents("base", &global_scope());
@@ -1929,23 +1937,31 @@ fn test_BC_2_11_014_cascade_delete_respects_scope() {
     // Reset store.
     let mut store2 = AliasStore::empty("/tmp/test_cascade_scope2.toml");
     // acme/client_a -> @client_b; only within acme scope.
-    let _ = store2.create_or_update(
-        simple_entry("client_b", client_scope("acme"), "z = 3"),
-        None,
-    );
-    let _ = store2.create_or_update(
-        simple_entry("client_a", client_scope("acme"), "@client_b AND w = 4"),
-        None,
-    );
+    store2
+        .create_or_update(
+            simple_entry("client_b", client_scope("acme"), "z = 3"),
+            None,
+        )
+        .expect("test setup: create_or_update must succeed");
+    store2
+        .create_or_update(
+            simple_entry("client_a", client_scope("acme"), "@client_b AND w = 4"),
+            None,
+        )
+        .expect("test setup: create_or_update must succeed");
     // beta has an alias with the same name "client_a" referencing its own "client_b".
-    let _ = store2.create_or_update(
-        simple_entry("client_b", client_scope("beta"), "z = 3"),
-        None,
-    );
-    let _ = store2.create_or_update(
-        simple_entry("client_a", client_scope("beta"), "@client_b AND w = 4"),
-        None,
-    );
+    store2
+        .create_or_update(
+            simple_entry("client_b", client_scope("beta"), "z = 3"),
+            None,
+        )
+        .expect("test setup: create_or_update must succeed");
+    store2
+        .create_or_update(
+            simple_entry("client_a", client_scope("beta"), "@client_b AND w = 4"),
+            None,
+        )
+        .expect("test setup: create_or_update must succeed");
 
     // Dependents of acme/client_b: only acme/client_a (not beta/client_a).
     let deps2 = store2.dependents("client_b", &client_scope("acme"));
@@ -1958,6 +1974,158 @@ fn test_BC_2_11_014_cascade_delete_respects_scope() {
         deps2[0],
         ("client_a".to_string(), client_scope("acme")),
         "dependent must be (client_a, acme) — not beta/client_a"
+    );
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// CR-P3-003: cascade delete actually removes dependents (not just verifies dependents())
+// ─────────────────────────────────────────────────────────────────────────────
+
+/// CR-P3-003: call store.delete() with force=true and verify post-cascade state.
+///
+/// The predecessor test `test_BC_2_11_014_cascade_delete_respects_scope` only
+/// verified that `dependents()` returns the correct tuples; it did NOT call
+/// `delete()` and verify that the cascade entries are actually removed from the
+/// store.  This test closes that gap.
+///
+/// Case 1 (Global cascade): deleting global/base removes acme/filter_x AND beta/filter_x.
+/// Case 2 (Client cascade): deleting acme/client_b removes acme/client_a but NOT beta/client_a.
+#[test]
+fn test_BC_2_11_014_cascade_delete_post_state() {
+    // ── Case 1: Global alias deletion cascades to ALL referencing scopes ──────
+    let mut store = AliasStore::empty("/tmp/test_cascade_post_state.toml");
+    store
+        .create_or_update(simple_entry("base", global_scope(), "x = 1"), None)
+        .expect("test setup: create_or_update must succeed");
+    store
+        .create_or_update(
+            simple_entry("filter_x", client_scope("acme"), "@base AND y = 2"),
+            None,
+        )
+        .expect("test setup: create_or_update must succeed");
+    store
+        .create_or_update(
+            simple_entry("filter_x", client_scope("beta"), "@base AND y = 2"),
+            None,
+        )
+        .expect("test setup: create_or_update must succeed");
+
+    // Generate a real ConfirmationToken so store.delete() can accept it.
+    let token_store = prism_security::ConfirmationTokenStore::new();
+    let token = token_store
+        .generate(
+            "__global__",
+            "delete_alias",
+            serde_json::json!({"name": "base", "scope": "global", "force": true}),
+            "cascade-delete global/base",
+        )
+        .expect("token generation must succeed");
+
+    // Delete global/base with force=true; expect cascade to remove both filter_x entries.
+    let result = store.delete("base", &global_scope(), true, token);
+    assert!(
+        result.is_ok(),
+        "force=true cascade delete must succeed: {:?}",
+        result.err()
+    );
+
+    // Post-cascade: global/base must be gone.
+    assert!(
+        store.get("base", &global_scope()).unwrap().is_none(),
+        "global/base must be absent after deletion"
+    );
+    // Post-cascade: acme/filter_x must be gone (cascaded).
+    assert!(
+        store
+            .get("filter_x", &client_scope("acme"))
+            .unwrap()
+            .is_none(),
+        "acme/filter_x must be absent after Global cascade delete"
+    );
+    // Post-cascade: beta/filter_x must be gone (cascaded).
+    assert!(
+        store
+            .get("filter_x", &client_scope("beta"))
+            .unwrap()
+            .is_none(),
+        "beta/filter_x must be absent after Global cascade delete"
+    );
+
+    // ── Case 2: Client alias deletion cascades ONLY within same client scope ──
+    let mut store2 = AliasStore::empty("/tmp/test_cascade_post_state2.toml");
+    store2
+        .create_or_update(
+            simple_entry("client_b", client_scope("acme"), "z = 3"),
+            None,
+        )
+        .expect("test setup: create_or_update must succeed");
+    store2
+        .create_or_update(
+            simple_entry("client_a", client_scope("acme"), "@client_b AND w = 4"),
+            None,
+        )
+        .expect("test setup: create_or_update must succeed");
+    store2
+        .create_or_update(
+            simple_entry("client_b", client_scope("beta"), "z = 3"),
+            None,
+        )
+        .expect("test setup: create_or_update must succeed");
+    store2
+        .create_or_update(
+            simple_entry("client_a", client_scope("beta"), "@client_b AND w = 4"),
+            None,
+        )
+        .expect("test setup: create_or_update must succeed");
+
+    let token2 = token_store
+        .generate(
+            "acme",
+            "delete_alias",
+            serde_json::json!({"name": "client_b", "scope": "client:acme", "force": true}),
+            "cascade-delete acme/client_b",
+        )
+        .expect("token generation must succeed");
+
+    // Delete acme/client_b with force=true.
+    let result2 = store2.delete("client_b", &client_scope("acme"), true, token2);
+    assert!(
+        result2.is_ok(),
+        "force=true client cascade delete must succeed: {:?}",
+        result2.err()
+    );
+
+    // Post-cascade: acme/client_b must be gone.
+    assert!(
+        store2
+            .get("client_b", &client_scope("acme"))
+            .unwrap()
+            .is_none(),
+        "acme/client_b must be absent after deletion"
+    );
+    // Post-cascade: acme/client_a must be gone (cascaded within acme).
+    assert!(
+        store2
+            .get("client_a", &client_scope("acme"))
+            .unwrap()
+            .is_none(),
+        "acme/client_a must be absent after acme/client_b cascade delete"
+    );
+    // Post-cascade: beta/client_b must still exist (different scope).
+    assert!(
+        store2
+            .get("client_b", &client_scope("beta"))
+            .unwrap()
+            .is_some(),
+        "beta/client_b must still exist — cascade is scope-bounded"
+    );
+    // Post-cascade: beta/client_a must still exist (different scope).
+    assert!(
+        store2
+            .get("client_a", &client_scope("beta"))
+            .unwrap()
+            .is_some(),
+        "beta/client_a must still exist — cascade must NOT cross client boundaries"
     );
 }
 
