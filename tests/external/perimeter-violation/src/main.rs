@@ -138,7 +138,7 @@ use prism_query::sql_parser::parse_sql_dml;
 
 // `parse_sql_dml_with_limits` is `pub(crate)` — forbidden from external crates.
 // Expected error: E0603 "function `parse_sql_dml_with_limits` is private"
-// Added in BC-2.11.006 v1.16 (F-PR130-P1-HIGH-002).
+// Added in BC-2.11.006 v1.14 (F-PR130-P1-HIGH-002).
 use prism_query::sql_parser::parse_sql_dml_with_limits;
 
 // `is_internal_prism_table` is `pub(crate)` — forbidden from external crates.
