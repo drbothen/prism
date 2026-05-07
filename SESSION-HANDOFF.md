@@ -1,11 +1,11 @@
 ---
 document_type: session-handoff
 level: ops
-version: "7.31"
+version: "7.32"
 status: current
-timestamp: 2026-05-07T22:00:00Z
-predecessor_session: "D-282 combined wave-3-A tail-end burst: PR #133 (S-3.04 alias system) squash 57745ce8 + PR #134 (S-3.03 explain diagnostics) squash 7c413692 merged; develop HEAD 7c413692. STATE v7.30→v7.31. factory-artifacts HEAD: run git -C .factory log -1."
-successor_focus: "D-283 Forward focus: S-3.07 worktree rebase onto develop 7c413692 + LOCAL adversary pass-2 + PR creation. Wave 3-A 3 of 4 shipped (S-3.05 #132 + S-3.04 #133 + S-3.03 #134); S-3.07 lone pending. Path-c still active (full sub-axis 6 enforcement gated on path-a lint hook). develop HEAD: 7c413692. factory_artifacts_tech_debt_entries=61 (no new TDs filed D-282; merge bookkeeping only).
+timestamp: 2026-05-07T22:30:00Z
+predecessor_session: "D-283 S-3.07 LOCAL adversary pass-2 BLOCKED (0C/2H/4M/0L/2O); streak RESET 0/3; HIGH-001 cross-crate feature drift (POL-4); HIGH-002 Phase 5a/5b ordering reversal vs story spec (POL-4); target SHA 504cb852. STATE v7.31→v7.32. factory-artifacts HEAD: run git -C .factory log -1."
+successor_focus: "D-284 Forward focus: S-3.07 fix-pass-1 — address HIGH-001 (feature chaining in Cargo.toml) + HIGH-002 (restore story 5a/5b order OR file spec amendment); tighten MED-002/004/005; add explicit deferral TODOs for MED-001/MED-003 referencing W3-FIX-S307-001/003; re-dispatch pass-3 fresh-context. Path-c still active. develop HEAD: 7c413692. factory_artifacts_tech_debt_entries=61 (no new TDs filed D-283; pass-2 verdict only).
 
 **STEP 1 (START HERE):** Read STATE.md v7.30 + this HANDOFF v7.30 in full. Confirm develop HEAD `c867c344` (PR #132 S-3.05 squash-merged 2026-05-07T16:46:01Z). S-3.04 + S-3.03 LOCAL cascades CONVERGED-BY-BEST-EFFORT 3/3 — both ready for PR creation. S-3.07 LOCAL cascade pending dispatch.
 
@@ -27,6 +27,8 @@ develop HEAD: c867c344 (six PRs merged 2026-05-06/07: #127 S-3.01 2d7040b1, #128
 # Session Handoff — WAVE 4 PHASE 4.A DECISIONS LOGGED (2026-05-02)
 
 ## TL;DR
+
+**D-283 (2026-05-07T22:30:00Z) — S-3.07 LOCAL adversary pass-2 verdict: BLOCKED (0C/2H/4M/0L/2O). Streak RESET 0/3 due to HIGH-001 cross-crate `*-write` feature drift (POL-4) + HIGH-002 Phase 5a/5b ordering reversal vs story spec (POL-4). Target SHA 504cb852 (post-rebase). Fix-pass-1 dispatch next. STATE v7.31→v7.32; vsdd-plugin-tech-debt v3.24→v3.25; cycle-manifest v1.84→v1.85.**
 
 **D-282 COMBINED WAVE-3-A TAIL-END BURST (2026-05-07T22:00:00Z) — STATE v7.31:** PR #133 (S-3.04 alias system) squash 57745ce8 2026-05-07T18:53:14Z + PR #134 (S-3.03 explain diagnostics) squash 7c413692 2026-05-07T21:27:50Z; develop pin c867c344→7c413692; STORY-INDEX bumped v2.21→v2.22 (S-3.04 + S-3.03 rows annotated MERGED). Wave 3-A status: 3 of 4 shipped; S-3.07 pending rebase + LOCAL adv pass-2 + PR. STATE v7.30→v7.31; vsdd-plugin-tech-debt v3.23→v3.24; cycle-manifest v1.83→v1.84.
 
