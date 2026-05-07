@@ -25,7 +25,7 @@ use std::collections::HashMap;
 use std::sync::Arc;
 
 use prism_core::{OrgSlug, PrismError, SensorType};
-use serde::{Deserialize, Serialize};
+use serde::Serialize;
 
 use crate::ast::{Ast, SourceRef, SourceRefKind, SqlStatement, VirtualField};
 use crate::filter_parser::PrismQlParser;
@@ -59,6 +59,15 @@ pub struct AuditEvent {
     pub outcome_summary: String,
 }
 
+// CR-009: Compile-time assertion that AuditEvent is Send + Sync.
+// AuditEvent crosses thread boundaries when the audit_sink Arc is shared.
+// Uses a trait-bound fn-pointer cast (zero-cost, works on stable Rust).
+fn _assert_audit_event_send_sync()
+where
+    AuditEvent: Send + Sync,
+{
+}
+
 // ---------------------------------------------------------------------------
 // ExplainOptions
 // ---------------------------------------------------------------------------
@@ -79,6 +88,9 @@ pub struct ExplainOptions {
     /// Used to expand alias references in the query and populate `alias_expansion`
     /// in the result. Until S-3.04 (alias registry story) merges, callers must
     /// provide this at call time. (BC-2.11.010 postcondition `alias_expansion`)
+    ///
+    /// Callers should pass only aliases relevant to context; the config layer
+    /// enforces a maximum alias count per DI-028. (SEC-003)
     pub alias_registry: HashMap<String, String>,
     /// Client registry for resolving `clients: None` to all configured clients.
     ///
@@ -88,6 +100,13 @@ pub struct ExplainOptions {
     ///
     /// In production, `prism-mcp` provides the real audit emitter. Tests provide
     /// a capturing closure.
+    ///
+    /// Note: `Clone` on `ExplainOptions` shares the same sink `Arc`
+    /// (reference-counted). Both the original and clone call the same sink
+    /// closure. (CR-013)
+    ///
+    // TODO(CR-007): replace with `AuditEmitter` trait from `prism-audit` when
+    // wired (S-X.XX). The current `Arc<dyn Fn>` is a lightweight stand-in.
     pub audit_sink: Option<Arc<dyn Fn(AuditEvent) + Send + Sync>>,
 }
 
@@ -112,7 +131,18 @@ impl std::fmt::Debug for ExplainOptions {
 /// Implements BC-2.11.010 postconditions. All fields are JSON-serializable
 /// using standard types — no custom serializer required (Story §Architecture
 /// Compliance Rules).
-#[derive(Debug, Clone, Serialize, Deserialize)]
+///
+/// # Field Name Notes (CR-004)
+/// Field names here follow BC-2.11.010 postconditions. The S-3.03 story spec
+/// used slightly different names in some places (e.g., `push_down_predicates` →
+/// `api_filters_pushed`, `sources` → `sensors_to_query`). The BC postconditions
+/// are authoritative; these field names are stable API.
+// SEC-004: Deserialize removed from output types — ExplainResult is write-only
+// (produced by the engine, serialized to JSON for the caller). No deserialization
+// path is needed in production; gating Deserialize behind #[cfg(test)] would be
+// premature optimization since no test currently round-trips this type.
+#[derive(Debug, Clone, Serialize)]
+#[non_exhaustive]
 pub struct ExplainResult {
     /// The detected query mode: `"filter"`, `"sql"`, or `"pipe"`. (BC-2.11.010)
     pub parsed_mode: String,
@@ -146,7 +176,9 @@ pub struct ExplainResult {
 /// How a single field name in the query was resolved to an OCSF path.
 ///
 /// Part of `ExplainResult.field_resolution`. (BC-2.11.010)
-#[derive(Debug, Clone, Serialize, Deserialize)]
+// SEC-004: Deserialize removed — output-only type.
+#[derive(Debug, Clone, Serialize)]
+#[non_exhaustive]
 pub struct FieldResolution {
     /// OCSF path the field maps to (e.g., `"finding.severity_id"`).
     pub ocsf_path: String,
@@ -159,7 +191,9 @@ pub struct FieldResolution {
 // ---------------------------------------------------------------------------
 
 /// The execution plan produced without running the query. (BC-2.11.010)
-#[derive(Debug, Clone, Serialize, Deserialize)]
+// SEC-004: Deserialize removed — output-only type.
+#[derive(Debug, Clone, Serialize)]
+#[non_exhaustive]
 pub struct ExecutionPlan {
     /// List of sensors that would be queried. (BC-2.11.010)
     pub sensors_to_query: Vec<ExplainSource>,
@@ -174,7 +208,9 @@ pub struct ExecutionPlan {
 // ---------------------------------------------------------------------------
 
 /// Per-sensor push-down information for the explain result. (BC-2.11.010)
-#[derive(Debug, Clone, Serialize, Deserialize)]
+// SEC-004: Deserialize removed — output-only type.
+#[derive(Debug, Clone, Serialize)]
+#[non_exhaustive]
 pub struct ExplainSource {
     /// Source reference string, e.g. `"crowdstrike.detections"`.
     pub source_ref: String,
@@ -199,7 +235,9 @@ pub struct ExplainSource {
 // ---------------------------------------------------------------------------
 
 /// Structured cost estimate for the query. (BC-2.11.010 `estimated_cost`)
-#[derive(Debug, Clone, Serialize, Deserialize)]
+// SEC-004: Deserialize removed — output-only type.
+#[derive(Debug, Clone, Serialize)]
+#[non_exhaustive]
 pub struct CostEstimate {
     /// Per-sensor estimated latency based on rolling historical averages.
     /// Map from sensor identifier to estimated latency in milliseconds.
@@ -253,6 +291,46 @@ impl Visitor for FieldCollector {
         let name = virtual_field_name(vf).to_string();
         if !self.virtual_fields.contains(&name) {
             self.virtual_fields.push(name);
+        }
+    }
+
+    // Override source-containing walk functions to skip the source SourceRef
+    // `as_field_path()` call that would otherwise collect table names
+    // (e.g. "crowdstrike.detections") into field_resolution. (CR-001)
+
+    fn visit_filter_expr(&mut self, fe: &crate::ast::FilterExpr) {
+        // Skip fe.source — it is a SourceRef, not a query field.
+        self.visit_predicate(&fe.predicate);
+    }
+
+    fn visit_sql_query(&mut self, q: &crate::ast::SqlQuery) {
+        // Skip q.from.source — it is a SourceRef, not a query field.
+        self.visit_select_clause(&q.select);
+        for join in &q.joins {
+            // Skip join.source — it is a SourceRef.
+            self.visit_expr(&join.on);
+        }
+        if let Some(pred) = &q.where_ {
+            self.visit_predicate(pred);
+        }
+        for expr in &q.group_by {
+            self.visit_expr(expr);
+        }
+        if let Some(pred) = &q.having {
+            self.visit_predicate(pred);
+        }
+        for oe in &q.order_by {
+            self.visit_order_expr(oe);
+        }
+    }
+
+    fn visit_pipe_query(&mut self, q: &crate::ast::PipeQuery) {
+        // Skip q.source — it is a SourceRef, not a query field.
+        for stage in &q.stages {
+            self.visit_pipe_stage(stage);
+        }
+        if let Some(write) = &q.write {
+            self.visit_write_node(write);
         }
     }
 }
@@ -332,6 +410,9 @@ fn post_fetch_operations_from_ast(ast: &Ast) -> Vec<String> {
                     ops.push(format!("LIMIT {limit}"));
                 }
                 if sq.where_.is_some() {
+                    // TODO(CR-010, S-3.X): only emit when at least one predicate is
+                    // post_filter (not pushed down). Requires threading the push-down
+                    // plan into post_fetch_operations_from_ast.
                     ops.push("WHERE filter (post-materialization)".to_string());
                 }
             }
@@ -382,6 +463,9 @@ fn post_fetch_operations_from_ast(ast: &Ast) -> Vec<String> {
             // (assuming no push-down capable columns; if push-down applies,
             // that predicate goes to api_filters_pushed per-source).
             let _ = fe; // predicate classification is per-source via classify_predicates
+                        // TODO(CR-010, S-3.X): only emit post-fetch ops when the push-down plan
+                        // confirms at least one predicate is post_filter (not api_filters_pushed).
+                        // Requires threading the classify_predicates plan result into this function.
         }
     }
 
@@ -440,7 +524,11 @@ fn predicates_from_ast(ast: &Ast) -> Vec<crate::ast::Expr> {
                 }
                 out
             }
-            Predicate::Not(inner) => predicate_to_exprs(inner),
+            // CR-003: NOT semantics cannot be safely push-down classified without
+            // sensor-native NOT translation (FQL does not support arbitrary NOT).
+            // Conservatively return empty — NOT predicates fall to post_filter.
+            // TODO(S-3.X): implement sensor-native NOT translation for push-down eligibility.
+            Predicate::Not(_inner) => vec![],
             Predicate::StringOp { field, .. } => vec![Expr::Field(field.clone())],
             Predicate::Regex { field, .. } => vec![Expr::Field(field.clone())],
             Predicate::In { field, .. } => {
@@ -518,6 +606,30 @@ fn query_mode_str(ast: &Ast) -> &'static str {
 /// This function MUST NOT call `fan_out()`, any sensor adapter `fetch()`, or
 /// any I/O path that reaches a sensor API endpoint. (BC-2.11.010 Postconditions)
 pub fn explain(query_str: &str, options: ExplainOptions) -> Result<ExplainResult, PrismError> {
+    // ── SEC-001: Pre-expansion size guard (defence-in-depth, E-QUERY-003) ─────
+    // Checked before audit closure construction so the guard is the very first
+    // operation. The parser also checks but library callers should not rely on
+    // caller discipline.
+    if query_str.len() > PRISM_MAX_QUERY_SIZE {
+        // Emit audit for the raw oversized input before returning.
+        if let Some(sink) = &options.audit_sink {
+            sink(AuditEvent {
+                query: query_str.chars().take(256).collect::<String>(),
+                clients: options.clients.clone(),
+                sensors: options.sensors.clone(),
+                sources: options.sources.clone(),
+                outcome_summary: "E-QUERY-003".to_string(),
+            });
+        }
+        return Err(PrismError::QueryExecutionFailed {
+            detail: format!(
+                "E-QUERY-003: query size {} bytes exceeds maximum {} bytes",
+                query_str.len(),
+                PRISM_MAX_QUERY_SIZE
+            ),
+        });
+    }
+
     // ── DI-004: helper to emit audit event (success AND error paths) ──────────
     let emit_audit = |outcome: &str| {
         if let Some(sink) = &options.audit_sink {
@@ -596,6 +708,9 @@ pub fn explain(query_str: &str, options: ExplainOptions) -> Result<ExplainResult
             let sensor_type = sensor_type_from_source_ref(s)?;
             // Classify predicates against this source using the push-down module.
             // With no ColumnSpec, all predicates → post_filter (conservative fallback).
+            // TODO(CR-002, S-3.X): hoist per-sensor ColumnSpec here so REQUIRED columns
+            // route to api_filters_pushed instead of post_filter. Requires sensor schema
+            // registry integration from the spec engine story.
             let plan = classify_predicates(&where_exprs, &[]);
 
             let api_filters: Vec<String> = plan
@@ -781,10 +896,15 @@ fn expand_query_with_aliases(
                 return Ok((expansion.clone(), used));
             }
             None => {
+                // SEC-002: cap alias name echo to prevent unbounded string in error message.
+                let alias_display = if alias_name.len() > 64 {
+                    format!("{}...", &alias_name[..64])
+                } else {
+                    alias_name.to_string()
+                };
                 return Err(PrismError::QueryExecutionFailed {
                     detail: format!(
-                        "E-ALIAS-001: alias '{}' is not defined in the alias registry",
-                        alias_name
+                        "E-ALIAS-001: alias '{alias_display}' is not defined in the alias registry"
                     ),
                 });
             }
@@ -794,11 +914,18 @@ fn expand_query_with_aliases(
     // Standard query: perform token-level alias substitution.
     // For each alias in the registry, if the query begins with the alias
     // name (as a complete token), substitute it.
+    //
+    // CR-005: Sort by alias name length descending so longer (more specific)
+    // aliases win over shorter ones when prefixes overlap (e.g. "ab" beats "a"
+    // for input "ab <rest>"). This eliminates HashMap iteration non-determinism.
     let trimmed = query_str.trim();
     let mut used: HashMap<String, String> = HashMap::new();
     let mut expanded = trimmed.to_string();
 
-    for (alias_name, expansion) in alias_registry {
+    let mut pairs: Vec<(&String, &String)> = alias_registry.iter().collect();
+    pairs.sort_by_key(|(k, _)| std::cmp::Reverse(k.len()));
+
+    for (alias_name, expansion) in pairs {
         // Match alias at word boundaries.
         if expanded == alias_name.as_str()
             || expanded.starts_with(&format!("{alias_name} "))
@@ -868,8 +995,8 @@ fn ocsf_path_for_field(field_name: &str) -> String {
         "status" | "status_id" => "finding.status_id".to_string(),
         "alert_id" | "detection_id" => "finding.uid".to_string(),
         "timestamp" | "created_time" => "metadata.original_time".to_string(),
-        "src_ip" | "source_ip" => "network_endpoint.ip".to_string(),
-        "dst_ip" | "dest_ip" => "network_endpoint.ip".to_string(),
+        "src_ip" | "source_ip" => "src_endpoint.ip".to_string(),
+        "dst_ip" | "dest_ip" | "destination_ip" => "dst_endpoint.ip".to_string(),
         "type" | "type_id" => "finding.type_id".to_string(),
         "message" | "description" => "finding.message".to_string(),
         "count" => "finding.count".to_string(),

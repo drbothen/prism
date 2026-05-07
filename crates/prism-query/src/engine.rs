@@ -276,6 +276,23 @@ impl QueryEngine {
         todo!("S-3.02 — QueryEngine::execute")
     }
 
+    /// Analyze a PrismQL query string and return an `ExplainResult` without
+    /// executing any sensor API calls.
+    ///
+    /// Thin wrapper over `explain::explain()` that satisfies the COMP-003 interface
+    /// specified in `module-decomposition.md` line 185. (CR-006, BC-2.11.010)
+    ///
+    /// # No sensor API calls
+    /// Delegates to `explain::explain()` which is a pure plan-analysis function.
+    /// No `fan_out()`, no sensor adapter `fetch()`.
+    pub fn explain(
+        &self,
+        query_str: &str,
+        options: crate::explain::ExplainOptions,
+    ) -> Result<crate::explain::ExplainResult, PrismError> {
+        crate::explain::explain(query_str, options)
+    }
+
     /// Execute a PrismQL query string and return results alongside the
     /// materialized `SessionContext` for detection-engine reuse.
     ///

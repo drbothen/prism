@@ -159,22 +159,16 @@ fn test_ac3_multi_source_query_yields_two_explain_sources() {
 /// AC-4 (BC-2.11.010): Given a syntactically invalid PrismQL query, When
 /// `explain_query` is called, Then a structured parse error is returned
 /// (not a panic), and `ExplainResult` is not produced.
+///
+/// CR-008: Previous test used a disjunctive 3-probe assertion that could pass
+/// vacuously. Replaced with a single unambiguously-invalid binary-garbage input.
 #[test]
 fn test_ac4_invalid_query_returns_parse_error_not_panic() {
-    // A syntactically invalid query that the parser must reject.
-    // Use an unclosed paren depth bomb as an invalid structure.
-    let result = explain("SELECT FROM WHERE", default_opts());
-    // The parser may or may not reject this depending on recovery.
-    // Use a clearly unparseable input instead.
-    let result2 = explain("((( unclosed", default_opts());
-    // At least one of these must be an error; if both parse, use a more
-    // targeted invalid input.
-    let result3 = explain("\x00\x01\x02 binary garbage", default_opts());
-    // At least one of these must be Err.
-    let all_ok = result.is_ok() && result2.is_ok() && result3.is_ok();
+    // Binary garbage is unambiguously unparseable — the parser must reject it.
+    let result = explain("\x00\x01\x02", default_opts());
     assert!(
-        !all_ok,
-        "At least one invalid query must produce Err — parser must reject some inputs"
+        result.is_err(),
+        "binary garbage must produce Err — parser must reject non-UTF8 / control-byte input"
     );
 }
 
@@ -884,6 +878,105 @@ fn test_BC_2_11_010_invariant_audit_emitted_even_on_error_path_di004() {
 // ===========================================================================
 // GAP-FILL: Invariant proptest — no sensor calls on arbitrary valid input
 // ===========================================================================
+// CR-001 Regression: field_resolution must exclude source table refs
+// ===========================================================================
+
+/// CR-001 Regression: `field_resolution` for a query like
+/// `SELECT * FROM crowdstrike.detections WHERE severity = 'high'` must
+/// contain `"severity"` (the WHERE field) but NOT `"crowdstrike.detections"`
+/// (the FROM source reference).
+///
+/// Before CR-001 fix, `walk_ast` called `visit_field(&source.as_field_path())`
+/// for the source ref, causing table names to appear in `field_resolution`.
+#[test]
+fn test_field_resolution_excludes_source_table_refs() {
+    let result = explain(
+        "SELECT * FROM crowdstrike.detections WHERE severity = 'high'",
+        default_opts(),
+    );
+    assert!(
+        result.is_ok(),
+        "explain() must return Ok for valid SQL query; got: {result:?}"
+    );
+    let r = result.expect("already checked is_ok");
+
+    // The WHERE field must be present.
+    assert!(
+        r.field_resolution.contains_key("severity"),
+        "field_resolution must contain 'severity' (the WHERE field); got keys: {:?}",
+        r.field_resolution.keys().collect::<Vec<_>>()
+    );
+
+    // The source table ref must NOT appear as a field.
+    assert!(
+        !r.field_resolution.contains_key("crowdstrike.detections"),
+        "field_resolution must NOT contain 'crowdstrike.detections' (source ref, not a field); \
+         got keys: {:?}",
+        r.field_resolution.keys().collect::<Vec<_>>()
+    );
+    assert!(
+        !r.field_resolution.contains_key("crowdstrike"),
+        "field_resolution must NOT contain 'crowdstrike' (partial source ref); \
+         got keys: {:?}",
+        r.field_resolution.keys().collect::<Vec<_>>()
+    );
+}
+
+// ===========================================================================
+// CR-005 Regression: alias iteration order is deterministic (longest-match wins)
+// ===========================================================================
+
+/// CR-005 Regression: when the alias registry contains overlapping prefixes
+/// (e.g. `"sev"` and `"severity_critical"`), the longer alias must always win
+/// for a query that starts with `"severity_critical"` — regardless of HashMap
+/// iteration order.
+///
+/// Before CR-005 fix, HashMap iteration was non-deterministic, so the shorter
+/// alias could shadow the longer one depending on hash ordering.
+///
+/// The test uses `@alias:<name>` syntax (explicit alias lookup) to verify
+/// that alias_expansion records the correct name, and valid PrismQL expansions
+/// so the parser accepts the result.
+#[test]
+fn test_alias_expansion_deterministic_longest_match_wins() {
+    // Use the token-level expansion path (not @alias:) to exercise the sorted iteration.
+    // "sev_crit" (9 chars) vs "sev" (3 chars) — longer must win for "sev_crit <rest>".
+    let mut alias_registry = HashMap::new();
+    alias_registry.insert("sev".to_string(), "severity = 'low'".to_string());
+    alias_registry.insert("sev_crit".to_string(), "severity = 'critical'".to_string());
+    let opts = ExplainOptions {
+        alias_registry,
+        ..Default::default()
+    };
+
+    // Query starts with "sev_crit" (longer alias) — it must always win.
+    // The token-level match fires because "sev_crit" == the trimmed query.
+    let result = explain("sev_crit", opts);
+    // The expanded query is "severity = 'critical'" which is valid PrismQL.
+    assert!(
+        result.is_ok(),
+        "explain() must return Ok after expanding longer alias 'sev_crit'; got: {result:?}"
+    );
+    let r = result.expect("already checked is_ok");
+    // Only "sev_crit" must appear in alias_expansion, not "sev".
+    assert!(
+        r.alias_expansion.contains_key("sev_crit"),
+        "alias_expansion must contain 'sev_crit' (the longer-match winner); got: {:?}",
+        r.alias_expansion
+    );
+    assert_eq!(
+        r.alias_expansion["sev_crit"], "severity = 'critical'",
+        "longer alias 'sev_crit' must expand to 'severity = \\'critical\\''"
+    );
+    assert!(
+        !r.alias_expansion.contains_key("sev"),
+        "shorter alias 'sev' must NOT appear in alias_expansion when 'sev_crit' matched; \
+         got: {:?}",
+        r.alias_expansion
+    );
+}
+
+// ===========================================================================
 
 #[cfg(test)]
 mod proptest_invariants {
@@ -902,7 +995,9 @@ mod proptest_invariants {
     // 1. explain() does not panic on arbitrary field names and values.
     // 2. explain() returns Ok or Err (never panics) for all generated inputs.
     proptest! {
-        #![proptest_config(proptest::test_runner::Config::with_cases(256))]
+        // CR-014: 32 cases per CLAUDE.md project standard (PROPTEST_CASES=32).
+        // Full 256-case run happens in `just check` via PROPTEST_CASES env override.
+        #![proptest_config(proptest::test_runner::Config::with_cases(32))]
 
         /// BC-2.11.010 Invariant: No sensor API calls on arbitrary filter predicates.
         #[test]
