@@ -111,10 +111,10 @@ pub mod tests;
 //   `ThreadLocalGuard` (filter_parser) — `pub(crate)` for unit-test
 //   verification of Drop semantics; not part of the stable API.
 //
-// Write-parser internals (S-3.06, BC-2.11.004 + BC-2.11.006 v1.14 DI-034 layer 4):
+// Write-parser internals (S-3.06, BC-2.11.004 + BC-2.11.006 v1.16 DI-034 layer 4):
 //   `parse_pipe_with_write`, `build_write_stage_parser`,
 //   `build_write_arg_parser`, `extract_sensor_prefix` (pipe_parser)
-//   `parse_sql_dml`, `parse_sql_dml_with_limits`, `build_dml_parser`,
+//   `parse_sql_dml`, `parse_sql_dml_with_limits`,
 //   `is_internal_prism_table`, `check_unbounded_write` (sql_parser)
 //   `reject_write_verbs_in_filter` (filter_parser)
 //

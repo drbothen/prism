@@ -1,4 +1,4 @@
-//! BC-2.11.006 v1.14 — Security Perimeter compile-fail test.
+//! BC-2.11.006 v1.16 — Security Perimeter compile-fail test.
 //!
 //! This file intentionally uses symbols that are `pub(crate)` inside
 //! `prism-query` and MUST NOT be accessible to external crates.
@@ -36,21 +36,20 @@
 //!       External callers cannot construct a ParseLimits with adversarial field
 //!       values (e.g., regex_pattern: usize::MAX) to bypass the regex length guard.
 //!
-//!   S-3.06 write parser extensions (10 new restricted symbols, BC-2.11.006 v1.14):
+//!   S-3.06 write parser extensions (9 new restricted symbols, BC-2.11.006 v1.16):
 //!     - pipe_parser::parse_pipe_with_write    — pipe write-stage entry point
 //!     - pipe_parser::build_write_stage_parser — write-stage Chumsky builder
 //!     - pipe_parser::build_write_arg_parser   — write-arg Chumsky builder
 //!     - pipe_parser::extract_sensor_prefix    — sensor prefix extractor
 //!     - sql_parser::parse_sql_dml             — DML statement entry point
 //!     - sql_parser::parse_sql_dml_with_limits — DML entry point with caller-provided limits
-//!     - sql_parser::build_dml_parser          — DML Chumsky builder (composite)
 //!     - sql_parser::is_internal_prism_table   — prism_* table guard
 //!     - sql_parser::check_unbounded_write     — unbounded write guard
 //!     - filter_parser::reject_write_verbs_in_filter — filter-mode write rejection
 //!
 //! Reference: adversary pass-5 OBS-003 [process-gap]; adversary pass-6 F-HIGH-001/F-HIGH-002;
 //!            adversary pass-7 F-HIGH-001/F-MEDIUM-002; adversary pass-8 F-HIGH-001/OBS-001;
-//!            S-3.06 BC-2.11.006 v1.14 INV-SEC-PERIMETER-001.
+//!            S-3.06 BC-2.11.006 v1.16 INV-SEC-PERIMETER-001.
 
 // ── Sub-parser entry points ──────────────────────────────────────────────────
 
@@ -115,7 +114,7 @@ use prism_query::filter_parser::build_pipe_mode_parser;
 // We import `ParseLimits` and attempt to call pub(crate) methods.
 use prism_query::security::ParseLimits;
 
-// ── S-3.06 write parser extensions (BC-2.11.006 v1.14, INV-SEC-PERIMETER-001) ─
+// ── S-3.06 write parser extensions (BC-2.11.006 v1.16, INV-SEC-PERIMETER-001) ─
 
 // `parse_pipe_with_write` is `pub(crate)` — forbidden from external crates.
 // Expected error: E0603 "function `parse_pipe_with_write` is private"
@@ -141,10 +140,6 @@ use prism_query::sql_parser::parse_sql_dml;
 // Expected error: E0603 "function `parse_sql_dml_with_limits` is private"
 // Added in BC-2.11.006 v1.14 (F-PR130-P1-HIGH-002).
 use prism_query::sql_parser::parse_sql_dml_with_limits;
-
-// `build_dml_parser` is `pub(crate)` — forbidden from external crates.
-// Expected error: E0603 "function `build_dml_parser` is private"
-use prism_query::sql_parser::build_dml_parser;
 
 // `is_internal_prism_table` is `pub(crate)` — forbidden from external crates.
 // Expected error: E0603 "function `is_internal_prism_table` is private"
@@ -200,7 +195,6 @@ fn main() {
     let _ = extract_sensor_prefix;
     let _ = parse_sql_dml;
     let _ = parse_sql_dml_with_limits;
-    let _ = build_dml_parser;
     let _ = is_internal_prism_table;
     let _ = check_unbounded_write;
     let _ = reject_write_verbs_in_filter;

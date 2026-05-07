@@ -16,6 +16,8 @@
 //!
 //! Story: S-3.02
 
+#![allow(clippy::unwrap_used, clippy::expect_used)]
+
 #[cfg(test)]
 mod tests {
     use std::sync::Arc;
@@ -26,7 +28,7 @@ mod tests {
     use prism_core::{types::SensorType, OrgSlug};
 
     use crate::{
-        materialization::{collect_record_batch_stream, register_mem_table},
+        materialization::register_mem_table,
         memory::build_session_context,
         scoping::{resolve_clients, ClientRegistry},
         session::SessionScope,
@@ -66,13 +68,16 @@ mod tests {
         let client = make_slug("acme");
 
         // Inject virtual fields.
-        let result = inject_virtual_fields(batch, &sensor, &client, "crowdstrike.detections")
-            .expect("inject must succeed");
+        let result =
+            inject_virtual_fields(batch, &sensor, &client, "crowdstrike.detections").unwrap();
 
         assert_eq!(result.num_rows(), 3);
 
         // Verify _sensor column.
-        let sensor_idx = result.schema().index_of(VIRTUAL_FIELD_SENSOR).unwrap();
+        let sensor_idx = result
+            .schema()
+            .index_of(VIRTUAL_FIELD_SENSOR)
+            .expect("_sensor field present");
         let sensor_col = result
             .column(sensor_idx)
             .as_any()
@@ -87,7 +92,10 @@ mod tests {
         }
 
         // Verify _client column.
-        let client_idx = result.schema().index_of(VIRTUAL_FIELD_CLIENT).unwrap();
+        let client_idx = result
+            .schema()
+            .index_of(VIRTUAL_FIELD_CLIENT)
+            .expect("_client field present");
         let client_col = result
             .column(client_idx)
             .as_any()
@@ -110,13 +118,13 @@ mod tests {
     /// in the same SessionContext and queried. (BC-2.11.005)
     #[tokio::test]
     async fn test_ac2_parallel_fanout_multiple_sources() {
-        let ctx = build_session_context(50 * 1024 * 1024).expect("context");
+        let ctx = build_session_context(50 * 1024 * 1024).unwrap();
 
         let batch1 = make_batch("alert_id", &["a1", "a2"]);
         let batch2 = make_batch("device_id", &["d1", "d2", "d3"]);
 
-        register_mem_table(&ctx, "crowdstrike_detections", vec![batch1]).expect("register source1");
-        register_mem_table(&ctx, "claroty_alerts", vec![batch2]).expect("register source2");
+        register_mem_table(&ctx, "crowdstrike_detections", vec![batch1]).unwrap();
+        register_mem_table(&ctx, "claroty_alerts", vec![batch2]).unwrap();
 
         // Both tables are accessible.
         assert!(
@@ -212,7 +220,7 @@ mod tests {
             make_slug("globex"),
         ]);
 
-        let clients = resolve_clients(None, &registry).expect("resolve must succeed");
+        let clients = resolve_clients(None, &registry).unwrap();
         assert_eq!(
             clients.len(),
             3,
@@ -238,14 +246,16 @@ mod tests {
         let sensor = SensorType::CrowdStrike;
 
         let result_acme =
-            inject_virtual_fields(batch_acme, &sensor, &acme, "crowdstrike.detections")
-                .expect("inject acme");
+            inject_virtual_fields(batch_acme, &sensor, &acme, "crowdstrike.detections").unwrap();
         let result_contoso =
             inject_virtual_fields(batch_contoso, &sensor, &contoso, "crowdstrike.detections")
-                .expect("inject contoso");
+                .unwrap();
 
         // Each batch is tagged with the correct client.
-        let acme_client_idx = result_acme.schema().index_of(VIRTUAL_FIELD_CLIENT).unwrap();
+        let acme_client_idx = result_acme
+            .schema()
+            .index_of(VIRTUAL_FIELD_CLIENT)
+            .expect("_client field present");
         let acme_col = result_acme
             .column(acme_client_idx)
             .as_any()
@@ -260,7 +270,7 @@ mod tests {
         let contoso_client_idx = result_contoso
             .schema()
             .index_of(VIRTUAL_FIELD_CLIENT)
-            .unwrap();
+            .expect("_client field present");
         let contoso_col = result_contoso
             .column(contoso_client_idx)
             .as_any()
@@ -494,7 +504,10 @@ mod tests {
             inject_virtual_fields(spoofed_batch, &sensor, &client, "armis.devices").unwrap();
 
         // _sensor must now be "armis", not "spoofed_value".
-        let idx = result.schema().index_of(VIRTUAL_FIELD_SENSOR).unwrap();
+        let idx = result
+            .schema()
+            .index_of(VIRTUAL_FIELD_SENSOR)
+            .expect("_sensor field present");
         let col = result
             .column(idx)
             .as_any()
