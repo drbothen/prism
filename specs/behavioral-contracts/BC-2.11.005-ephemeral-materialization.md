@@ -1,7 +1,7 @@
 ---
 document_type: behavioral-contract
 level: L3
-version: "1.3"
+version: "1.4"
 status: draft
 producer: product-owner
 timestamp: 2026-04-14T07:00:00
@@ -19,7 +19,7 @@ retired: null
 removed: null
 removal_reason: null
 inputs: [".factory/specs/prd.md", ".factory/specs/domain-spec/capabilities.md"]
-input-hash: "412c872"
+input-hash: "37bca76"
 traces_to: ["CAP-015"]
 extracted_from: ".factory/specs/prd.md"
 ---
@@ -66,7 +66,7 @@ Within a single query execution, the query engine maintains a per-query cache of
 ## Error Cases
 | Error | Condition | Behavior |
 |-------|-----------|----------|
-| `E-QUERY-005` | Fan-out fetched record count exceeds 10K during streaming | Fetch aborted; error includes per-sensor fetched counts and narrowing suggestions |
+| `E-QUERY-003` | Fan-out fetched record count exceeds 10K during streaming | Fetch aborted; error includes per-sensor fetched counts and narrowing suggestions (materialization records limit per BC-2.11.006 §EC-003) |
 | `E-SENSOR-001` | One or more sensor API calls fail | Partial materialization: successful sensors contribute data; failed sensors listed in `sensor_errors` |
 | `E-AUTH-005` | Credentials unavailable for a sensor | Sensor excluded from fan-out; listed in `sensor_errors` |
 
@@ -84,7 +84,7 @@ Within a single query execution, the query engine maintains a per-query cache of
 | Input | Expected Output | Category |
 |-------|----------------|----------|
 | QueryPlan with 2 sensors, both return 500 records each | 1000 records materialized; MemTable registered | happy-path |
-| QueryPlan where total fan-out reaches 10001 records | `Err(E-QUERY-005)` with per-sensor counts | error |
+| QueryPlan where total fan-out reaches 10001 records | `Err(E-QUERY-003)` with per-sensor counts | error |
 | QueryPlan where one of 3 sensors returns HTTP 503 | Partial results from 2 sensors; failed sensor in `sensor_errors` | edge-case |
 | QueryPlan with all sensors returning empty | Empty MemTable; query returns empty result set | edge-case |
 
@@ -107,6 +107,7 @@ Within a single query execution, the query engine maintains a per-query cache of
 
 | Version | Burst | Date | Author | Change |
 |---------|-------|------|--------|--------|
+| 1.4 | PR-129-pass-1 | 2026-05-06 | product-owner | Adversary F-PR129-PR-MED-A remediation: error-code reconciliation per BC-2.11.006 v1.12 canonical SoT mapping. E-QUERY-005 (timeout) → E-QUERY-003 (records limit) for the 10K record cap rows. Implementation already emits E-QUERY-003 at materialization.rs:186; this BC update closes spec↔code drift. |
 | 1.3 | pass-73-fix | 2026-04-20 | state-manager | Deterministic changelog reorder: sorted all rows to descending version order (pass-73 bash script). |
 | 1.2 | pass-69-housekeeping | 2026-04-20 | product-owner | Normalized changelog schema to canonical 5-col schema. |
 | 1.1 | pre-build-sweep | 2026-04-20 | product-owner | Template-compliance sweep: added extracted_from/inputs/input-hash/traces_to frontmatter; added ## Description synthesized from body; added ## Canonical Test Vectors scaffolding; added ## Verification Properties cross-ref; added ## Changelog. |
