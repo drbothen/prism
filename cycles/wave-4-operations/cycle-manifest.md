@@ -2,7 +2,7 @@
 document_type: cycle-manifest
 cycle_id: wave-4-operations
 cycle_type: feature
-version: wave-4-preflight-v1.85
+version: wave-4-preflight-v1.86
 status: in-progress
 started: pending
 completed: pending
@@ -224,6 +224,7 @@ Story inventory will be remediated post-ADR-acceptance per drift audit categorie
 
 | Version | Date | Change |
 |---------|------|--------|
+| wave-4-preflight-v1.86 | 2026-05-07T23:00:00Z | d284-s307-local-pass3-blocked-verdict | 2026-05-07 | state-manager | D-284 S-3.07 LOCAL adversary pass-3 BLOCKED verdict: 0C/0H/1M/0L/1O (4 KUDOs); streak RESET 0/3 due to F-PASS3-MED-001 (E-QUERY-028/029 catalog/impl semantic skew — POL-4 mis-anchoring + POL-1 code reuse); pass-2 closures verified clean (8→2 decay, 4 KUDOs); adjudication code-follows-catalog; fix-pass-2 dispatch next. STATE v7.32→v7.33; vsdd-plugin-tech-debt v3.25→v3.26; SESSION-HANDOFF v7.32→v7.33. 61 items total (no new TDs this burst). |
 | wave-4-preflight-v1.85 | 2026-05-07T22:30:00Z | d283-s307-local-pass2-blocked-verdict | 2026-05-07 | state-manager | D-283 S-3.07 LOCAL adversary pass-2 BLOCKED verdict: 0C/2H/4M/0L/2O (4 KUDOs); streak RESET 0/3 due to HIGH-001 (cross-crate `*-write` feature drift — POL-4) + HIGH-002 (Phase 5a/5b ordering reversal vs story Task 6 — POL-4); target SHA 504cb852 (post-rebase, 9 commits on 7c413692 base); fix-pass-1 dispatch next. STATE v7.31→v7.32; vsdd-plugin-tech-debt v3.24→v3.25; SESSION-HANDOFF v7.31→v7.32. 61 items total (no new TDs; pass-2 verdict only). |
 | wave-4-preflight-v1.84 | 2026-05-07T22:00:00Z | d282-wave3a-tail-merge-bookkeeping | 2026-05-07 | state-manager | D-282 combined wave-3-A tail-end burst: PR #133 (S-3.04 alias system) squash 57745ce8 merged 2026-05-07T18:53:14Z; PR #134 (S-3.03 explain query diagnostics) squash 7c413692 merged 2026-05-07T21:27:50Z; develop pin c867c344→7c413692; STORY-INDEX v2.21→v2.22 (S-3.04 + S-3.03 rows annotated MERGED); STATE v7.30→v7.31; vsdd-plugin-tech-debt v3.23→v3.24; SESSION-HANDOFF v7.30→v7.31. Wave 3-A: 3 of 4 shipped; S-3.07 pending rebase + pass-2 + PR. 61 items total (no new TDs; bookkeeping only). |
 | wave-4-preflight-v1.83 | 2026-05-07T21:00:00Z | post-convergence | 2026-05-07 | orchestrator+state-manager | D-281 post-convergence burst: S-3.04 + S-3.03 LOCAL cascades CONVERGED 3/3 (path-c validated); PR #132 (S-3.05) merged at c867c344; TD-081 cascade-pause CLOSED; TD-074 class-(b) FP22 exception codified; STATE v7.29→v7.30; vsdd-plugin-tech-debt v3.22→v3.23; SESSION-HANDOFF v7.29→v7.30. 61 items total (no new TDs). |
