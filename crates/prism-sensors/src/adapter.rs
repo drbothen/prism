@@ -284,6 +284,37 @@ pub trait SensorAdapter: Send + Sync + 'static {
     /// Returns a human-readable sensor name for use in tracing spans and error
     /// messages (e.g., `"crowdstrike"`, `"armis"`).
     fn sensor_name(&self) -> &'static str;
+
+    /// Write a batch of records to the sensor API for a write endpoint.
+    ///
+    /// Dispatches HTTP write steps from `WriteEndpointSpec.steps`, interpolating
+    /// `body_template` and `path_template` using `record_id_field` column values
+    /// from `records` and `params`. Parses responses per `response_path` JSONPath;
+    /// classifies per `success_status` list.
+    ///
+    /// Each adapter implementation MUST use the same authenticated HTTP client
+    /// as `fetch()` — no second HTTP client or credential bypass (Architecture
+    /// Compliance Rule 4).
+    ///
+    /// # Logging
+    /// - Each HTTP step: `TRACE` level with sensor/client_id/endpoint_id fields.
+    /// - Batch outcome: `INFO` level with affected/succeeded/failed counts.
+    ///
+    /// # Returns
+    /// `Ok(Vec<RecordWriteResult>)` — one entry per record in `records`.
+    /// Per-record failures are represented in `RecordWriteResult.status = Failed`,
+    /// not as an `Err` return (partial batch failure is normal — story §Phase 5d).
+    ///
+    /// Story: S-3.07 | BC-2.04.007
+    async fn write(
+        &self,
+        _endpoint: &prism_spec_engine::write_endpoint::WriteEndpointSpec,
+        _records: &RecordBatch,
+        _params: &std::collections::HashMap<String, String>,
+        _client_id: &prism_core::OrgSlug,
+    ) -> Result<Vec<crate::write_result::RecordWriteResult>, SensorError> {
+        todo!("S-3.07 — SensorAdapter::write: HTTP step dispatch for write endpoints")
+    }
 }
 
 // ---------------------------------------------------------------------------

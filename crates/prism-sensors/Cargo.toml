@@ -11,6 +11,8 @@ name = "prism_sensors"
 
 [dependencies]
 prism-core = { path = "../prism-core" }
+# S-3.07 — write() method needs WriteEndpointSpec for HTTP step dispatch.
+prism-spec-engine = { path = "../prism-spec-engine" }
 prism-credentials = { path = "../prism-credentials" }
 prism-storage = { path = "../prism-storage" }
 
