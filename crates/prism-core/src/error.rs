@@ -545,6 +545,7 @@ pub enum PrismError {
     /// any client identity resolution. Distinguished from:
     ///   - E-QUERY-023 (`WriteVerbNotAvailable`): table IS known, verb is not
     ///   - E-QUERY-026 (`WriteTargetingInternalTable`): table IS in registry as `prism_*`
+    ///   - E-QUERY-027 (RESERVED): confirmation token required for irreversible write
     ///   - E-QUERY-029 (`WriteAdapterNotConfiguredForClient`): table IS in registry,
     ///     adapter is per-client and not initialized for this specific client
     ///

@@ -298,13 +298,14 @@ async fn test_ac3_batch_limit_exceeded_returns_e_query_021() {
 }
 
 // ---------------------------------------------------------------------------
-// AC-4: Write targeting internal table → E-QUERY-010
+// AC-4: Write targeting internal table → E-QUERY-026 (defense-in-depth; story spec AC-4 references E-QUERY-010, satisfied via catalog "alias for E-QUERY-010" per write-operations.md:637)
 // ---------------------------------------------------------------------------
 
-/// AC-4: Write targeting an internal `prism_*` table → `E-QUERY-010` before
-/// any API contact. Defense-in-depth check (also caught at parse time in S-3.06).
+/// AC-4: Write targeting an internal `prism_*` table → `E-QUERY-026` before any API contact.
+/// Defense-in-depth check (also caught at parse time in S-3.06). Catalog write-operations.md:637
+/// declares E-QUERY-026 as the alias-for-E-QUERY-010 surfaced specifically in write context.
 #[tokio::test]
-async fn test_ac4_internal_table_write_rejected_e_query_010() {
+async fn test_ac4_internal_table_write_rejected_e_query_026() {
     let executor = make_executor(false);
     let plan = make_internal_table_plan(); // target_table = "prism_alerts"
     let context = make_query_context(true, None);
