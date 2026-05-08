@@ -347,12 +347,14 @@ impl WriteExecutor {
         // need actual records; they test gate behavior.
         // ----------------------------------------------------------------
         let fetched_records: Vec<arrow::record_batch::RecordBatch> = vec![];
-        let would_affect_count = fetched_records.iter().map(|rb| rb.num_rows() as u32).sum();
+        // Single iteration over fetched_records — reused for both the affect count
+        // and the post-fetch batch limit check (CR-001: avoid duplicate iteration).
+        let total_rows: u32 = fetched_records.iter().map(|rb| rb.num_rows() as u32).sum();
+        let would_affect_count = total_rows;
 
         // ----------------------------------------------------------------
         // Phase 3→4 boundary: post-fetch batch limit check
         // ----------------------------------------------------------------
-        let total_rows: u32 = fetched_records.iter().map(|rb| rb.num_rows() as u32).sum();
         if total_rows > safety_passed.batch_limit.limit {
             return Err(PrismError::WriteBatchLimitExceeded {
                 requested: total_rows as usize,
