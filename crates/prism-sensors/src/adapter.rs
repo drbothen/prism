@@ -378,3 +378,152 @@ impl fmt::Display for SensorSpec {
         )
     }
 }
+
+// ---------------------------------------------------------------------------
+// Tests
+// ---------------------------------------------------------------------------
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use prism_core::types::SensorType;
+
+    /// F-PASS7-OBS-001: Codify the SensorError → E-SENSOR-NNN mapping intended by
+    /// adapter.rs::SensorError::error_code(). The exhaustive `match self` arm
+    /// (no wildcard) in error_code() provides compile-time safety against future
+    /// variant additions, but this test serves as documentation of the canonical
+    /// mapping AND catches regressions where a variant's mapping is silently changed.
+    ///
+    /// Reference: F-PASS6-MED-002 closure (write_dispatch.rs:361 callsite).
+    /// All 13 SensorError variants are covered — trivially constructible variants
+    /// are asserted inline; OrgIdMismatch uses OrgId::new() for both fields since
+    /// the test only exercises the error_code() dispatch, not the mismatch logic.
+    /// AllTargetsFailed uses an empty errors vec (count=0) which is sufficient to
+    /// exercise the dispatch arm without constructing a full FanOutError.
+    #[test]
+    fn test_sensor_error_code_canonical_mapping() {
+        // E-SENSOR-001: HttpError
+        assert_eq!(
+            SensorError::HttpError {
+                sensor: "crowdstrike".to_string(),
+                status: 500,
+                body: "internal server error".to_string(),
+            }
+            .error_code(),
+            "E-SENSOR-001"
+        );
+
+        // E-SENSOR-002: Timeout
+        assert_eq!(
+            SensorError::Timeout {
+                sensor: "armis".to_string(),
+                elapsed_ms: 30_000,
+            }
+            .error_code(),
+            "E-SENSOR-002"
+        );
+
+        // E-SENSOR-003: ResponseParse
+        assert_eq!(
+            SensorError::ResponseParse {
+                sensor: "claroty".to_string(),
+                detail: "unexpected field".to_string(),
+            }
+            .error_code(),
+            "E-SENSOR-003"
+        );
+
+        // E-SENSOR-010: AdapterNotFound
+        assert_eq!(
+            SensorError::AdapterNotFound {
+                sensor_type: SensorType::CrowdStrike,
+            }
+            .error_code(),
+            "E-SENSOR-010"
+        );
+
+        // E-SENSOR-020: RateLimited
+        assert_eq!(
+            SensorError::RateLimited {
+                sensor: "cyberint".to_string(),
+                retry_after_ms: 5_000,
+            }
+            .error_code(),
+            "E-SENSOR-020"
+        );
+
+        // E-SENSOR-030: AllTargetsFailed (empty errors vec — exercises dispatch arm only)
+        assert_eq!(
+            SensorError::AllTargetsFailed {
+                count: 0,
+                errors: vec![],
+            }
+            .error_code(),
+            "E-SENSOR-030"
+        );
+
+        // E-SENSOR-031: ConnectionPoolExhausted
+        assert_eq!(
+            SensorError::ConnectionPoolExhausted.error_code(),
+            "E-SENSOR-031"
+        );
+
+        // E-SENSOR-032: RetryBudgetExhausted
+        assert_eq!(
+            SensorError::RetryBudgetExhausted {
+                sensor: "crowdstrike".to_string(),
+                attempts: 3,
+            }
+            .error_code(),
+            "E-SENSOR-032"
+        );
+
+        // E-SENSOR-040: UnparseableTimestamp
+        assert_eq!(
+            SensorError::UnparseableTimestamp {
+                raw: "not-a-date".to_string(),
+            }
+            .error_code(),
+            "E-SENSOR-040"
+        );
+
+        // E-SENSOR-050: ConfigValidation
+        assert_eq!(
+            SensorError::ConfigValidation {
+                sensor: "armis".to_string(),
+                detail: "invalid AQL operator".to_string(),
+            }
+            .error_code(),
+            "E-SENSOR-050"
+        );
+
+        // E-SENSOR-060: OrgIdMismatch — uses OrgId::new() for both fields since
+        // the test exercises dispatch only, not mismatch logic.
+        assert_eq!(
+            SensorError::OrgIdMismatch {
+                adapter_org_id: OrgId::new(),
+                query_org_id: OrgId::new(),
+            }
+            .error_code(),
+            "E-SENSOR-060"
+        );
+
+        // E-SENSOR-070: WriteNotImplemented
+        assert_eq!(
+            SensorError::WriteNotImplemented {
+                sensor: "claroty".to_string(),
+            }
+            .error_code(),
+            "E-SENSOR-070"
+        );
+
+        // E-SENSOR-099: Internal
+        assert_eq!(
+            SensorError::Internal {
+                detail: "unexpected state".to_string(),
+            }
+            .error_code(),
+            "E-SENSOR-099"
+        );
+    }
+}
