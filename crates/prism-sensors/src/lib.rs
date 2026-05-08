@@ -44,6 +44,8 @@ pub mod retry;
 pub mod table_dispatch;
 pub mod timestamp;
 pub mod types;
+// S-3.07 — per-record write result types for SensorAdapter::write()
+pub mod write_result;
 
 // ── Test modules (cfg-gated) ───────────────────────────────────────────────
 #[cfg(test)]
@@ -69,6 +71,7 @@ pub use registry::AdapterRegistry;
 pub use retry::{retry_with_backoff, RetryConfig, DEFAULT_TRANSIENT_CODES};
 pub use secrecy::SecretString;
 pub use timestamp::parse_timestamp;
+pub use types::RequestParams;
 
 // S-2.08 re-exports
 pub use event_buffer::{EventBufferStore, NormalizedRecord};
@@ -77,6 +80,9 @@ pub use table_dispatch::{route_table_query, TableType, TableTypeRouteDecision};
 
 // S-3.1.06 re-exports: OrgId is the canonical org key for all sensor dispatch
 pub use prism_core::OrgId;
+
+// S-3.07 re-exports: per-record write result types
+pub use write_result::{RecordWriteResult, WriteStatus};
 
 // ---------------------------------------------------------------------------
 // init_registry — startup adapter registration

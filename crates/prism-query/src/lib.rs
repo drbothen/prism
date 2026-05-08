@@ -44,6 +44,12 @@
 //! - [`cache_key`]            — SHA-256 cache key derivation, 4-tuple `(client_id, sensor_id, source_id, push_down_hash)` (S-3.05 / BC-2.07.005)
 //! - [`cache`]                — sensor-fetch response cache with TTL and LRU eviction (S-3.05 / BC-2.07.003/006)
 //! - [`invalidation`]         — synchronous cache invalidation on write operations (S-3.05 / BC-2.07.004)
+//! - [`write_pipeline`]       — `WriteExecutor`, `WritePlan`, `WriteOutcome`, `QueryContext` (S-3.07)
+//! - [`write_result`]         — `WriteResult`, `WritePreview`, `ConfirmationTokenPreview` (S-3.07)
+//! - [`safety_check`]         — Phase 2 pure safety pre-check: feature gates, risk tier (S-3.07)
+//! - [`dry_run`]              — Phase 4 dry-run gate, confirmation token gating (S-3.07)
+//! - [`write_dispatch`]       — Phase 5 audit intent, semaphore, fan-out, outcome (S-3.07)
+//! - [`write_table_registration`] — DataFusion write-capable TableProvider registration (S-3.07)
 
 // ── S-2.08 modules ────────────────────────────────────────────────────────────
 pub mod materialization;
@@ -88,6 +94,16 @@ pub mod cache;
 pub mod cache_key;
 pub mod cursor;
 pub mod invalidation;
+
+// ── S-3.07 modules ────────────────────────────────────────────────────────────
+pub mod dry_run;
+pub mod safety_check;
+pub mod write_dispatch;
+pub mod write_pipeline;
+pub mod write_result;
+// MED-2: was pub(crate) pending CRIT-2 implementation; now pub since
+// WriteCapableTableProvider::new is implemented and externally testable.
+pub mod write_table_registration;
 
 // ── Kani proofs (cfg-gated; compile everywhere, run only under cargo kani) ────
 pub mod proofs;
@@ -155,3 +171,7 @@ pub use ast::Ast;
 pub use error::ParseError;
 pub use filter_parser::PrismQlParser;
 pub use write_verb_registry::WriteVerbRegistry;
+
+// ── S-3.07 re-exports ─────────────────────────────────────────────────────────
+pub use write_pipeline::{QueryContext, WriteExecutor, WriteOutcome, WritePlan};
+pub use write_result::{ConfirmationTokenPreview, SensorWriteError, WritePreview, WriteResult};

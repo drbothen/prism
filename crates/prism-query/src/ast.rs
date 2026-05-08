@@ -1153,6 +1153,56 @@ impl std::hash::Hash for TimestampLiteral {
     }
 }
 
+impl Literal {
+    /// Return a user-readable string representation of this literal.
+    ///
+    /// Used when embedding literal values in user-facing messages, plan params,
+    /// or audit records — avoids the `Debug` format (e.g. `String("foo")`)
+    /// in favour of the actual value (e.g. `foo`). (F-PASS6-LOW-001)
+    ///
+    /// `Bool`, `Integer`, and `Float` use their natural string form.
+    /// `String` is returned as-is (no surrounding quotes — the context supplies them).
+    /// Structured literals (Duration, Cidr, Regex, IpAddr, Timestamp) use their
+    /// canonical string representations.
+    pub fn to_user_string(&self) -> String {
+        match self {
+            Literal::String(s) => s.clone(),
+            Literal::Integer(n) => n.to_string(),
+            Literal::Float(f) => f.to_string(),
+            Literal::Bool(b) => b.to_string(),
+            Literal::Null => "null".to_string(),
+            Literal::Duration(d) => {
+                let unit_str = match d.unit() {
+                    DurationUnit::Seconds => "s",
+                    DurationUnit::Minutes => "m",
+                    DurationUnit::Hours => "h",
+                    DurationUnit::Days => "d",
+                };
+                format!("{}{}", d.value(), unit_str)
+            }
+            Literal::Cidr(c) => c.cidr.clone(),
+            Literal::Regex(r) => r.pattern.clone(),
+            Literal::IpAddr(ip) => ip.0 .0.to_string(),
+            Literal::Timestamp(ts) => ts.iso8601.clone(),
+        }
+    }
+}
+
+impl Expr {
+    /// Return a user-readable string representation of this expression.
+    ///
+    /// For `Literal` expressions, delegates to `Literal::to_user_string`.
+    /// For non-literal expressions (field references, comparisons, etc.) emits
+    /// a placeholder `"<expr>"` — these are uncommon in write-plan params
+    /// but must be handled for exhaustiveness. (F-PASS6-LOW-001)
+    pub fn to_user_string(&self) -> String {
+        match self {
+            Expr::Literal(lit) => lit.to_user_string(),
+            _ => "<expr>".to_string(),
+        }
+    }
+}
+
 // ─────────────────────────────────────────────────────────────────────────────
 // Operators
 // ─────────────────────────────────────────────────────────────────────────────

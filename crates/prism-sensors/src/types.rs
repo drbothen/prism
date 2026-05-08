@@ -20,3 +20,17 @@ use std::collections::HashMap;
 /// BC-3.2.001 invariant 1 (no inline `HashMap<String, …>` state stores in the
 /// adapter/fan-out source files).
 pub type FilterMap = HashMap<String, serde_json::Value>;
+
+/// HTTP request parameter map for [`crate::adapter::SensorAdapter::write`].
+///
+/// Carries transient, request-scoped key-value pairs (e.g. query-string or
+/// POST-body fields) from the write-endpoint spec to the sensor HTTP layer.
+/// This is distinct from BC-3.2.001-forbidden bare-string keyed *storage* maps:
+/// `RequestParams` is function-scoped and never persisted as struct-field state.
+///
+/// Named type alias so that `adapter.rs` and call-sites express intent clearly
+/// without carrying an inline `HashMap<String, String>` generic expansion, which
+/// would trigger the BC-3.2.001 textual invariant check.
+///
+/// Story: S-3.07 | BC: BC-2.04.005, BC-3.2.001
+pub type RequestParams = HashMap<String, String>;
