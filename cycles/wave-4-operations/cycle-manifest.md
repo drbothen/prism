@@ -2,7 +2,7 @@
 document_type: cycle-manifest
 cycle_id: wave-4-operations
 cycle_type: feature
-version: wave-4-preflight-v1.88
+version: wave-4-preflight-v1.89
 status: in-progress
 started: pending
 completed: pending
@@ -224,6 +224,7 @@ Story inventory will be remediated post-ADR-acceptance per drift audit categorie
 
 | Version | Date | Change |
 |---------|------|--------|
+| wave-4-preflight-v1.89 | 2026-05-08T00:30:00Z | d287-s307-local-pass5-blocked-structural-escalation | 2026-05-08 | state-manager | D-287 S-3.07 LOCAL adversary pass-5 BLOCKED verdict: 0C/0H/1M/0L/3O (4 KUDOs); streak RESET 0/3 due to F-PASS5-MED-001 (fix-pass-3 partial propagation — test fn name + section header + doc comment still embed E-QUERY-010 while body assertion correctly checks E-QUERY-026); F-PASS5-OBS-003 [process-gap] structural escalation: 4th consecutive pass E-QUERY coherence defects; 7 of 11 E-QUERY-020..030 codes format-text divergent; TD-S307-002 (test-name↔assertion-code coherence test P1) + TD-S307-003 (catalog↔impl Display format coherence test P1) filed; fix-pass-4 next (F-PASS5-MED-001 + F-PASS5-OBS-002 bundle). STATE v7.35→v7.36; vsdd-plugin-tech-debt v3.28→v3.29; SESSION-HANDOFF v7.35→v7.36. 61→63 items (+2: TD-S307-002/003 filed this burst). |
 | wave-4-preflight-v1.88 | 2026-05-08T00:00:00Z | d286-s307-local-pass4-blocked-verdict | 2026-05-07 | state-manager | D-286 S-3.07 LOCAL adversary pass-4 BLOCKED verdict: 0C/0H/1M/0L/2O (4 KUDOs); streak RESET 0/3 due to F-PASS4-MED-001 (sister-class catalog↔impl skew on E-QUERY-027 — WriteTargetingInternalTable uses E-QUERY-027 but catalog reserves E-QUERY-027 for 'Confirmation token required'; architecturally-correct code is E-QUERY-026); pass-3+correction verified clean; adjudication code-follows-catalog; fix-pass-3 dispatch next. STATE v7.34→v7.35; vsdd-plugin-tech-debt v3.27→v3.28; SESSION-HANDOFF v7.34→v7.35. 61 items total (no new TDs; pass-4 verdict only). |
 | wave-4-preflight-v1.87 | 2026-05-07T23:30:00Z | d285-fix-pass2-correction-e-query-030 | 2026-05-07 | state-manager | D-285 fix-pass-2-correction: architectural correctness adjudication per user correctness-over-speed reminder. write-operations.md catalog v1.1→v1.2 adds E-QUERY-030 WriteTargetTableUnknown { table: String }; error.rs adds variant with distinguishing doc; from_dml_node switched to E-QUERY-030 (zero '<unknown>' literals in production paths); E-QUERY-029 WriteAdapterNotConfiguredForClient RESERVED (zero callers, ready for W3-FIX-S307-002 OrgRegistry path). Impl tip 2e36286e. LESSON: pre-authorizing fallbacks for plumbing avoidance is anti-pattern when issue is semantic mismatch. STATE v7.33→v7.34; vsdd-plugin-tech-debt v3.26→v3.27; SESSION-HANDOFF v7.33→v7.34. 61 items total (no new TDs; correction-of-prior-decision burst). |
 | wave-4-preflight-v1.86 | 2026-05-07T23:00:00Z | d284-s307-local-pass3-blocked-verdict | 2026-05-07 | state-manager | D-284 S-3.07 LOCAL adversary pass-3 BLOCKED verdict: 0C/0H/1M/0L/1O (4 KUDOs); streak RESET 0/3 due to F-PASS3-MED-001 (E-QUERY-028/029 catalog/impl semantic skew — POL-4 mis-anchoring + POL-1 code reuse); pass-2 closures verified clean (8→2 decay, 4 KUDOs); adjudication code-follows-catalog; fix-pass-2 dispatch next. STATE v7.32→v7.33; vsdd-plugin-tech-debt v3.25→v3.26; SESSION-HANDOFF v7.32→v7.33. 61 items total (no new TDs this burst). |
