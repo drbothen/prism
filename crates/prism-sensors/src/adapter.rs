@@ -245,6 +245,30 @@ impl SensorError {
             _ => None,
         }
     }
+
+    /// Returns the canonical E-SENSOR-NNN error code for this variant.
+    ///
+    /// Used by callers that need to include the error code in structured error
+    /// records without hardcoding the code string at every call site (F-PASS6-MED-002).
+    ///
+    /// Codes match the `#[error("E-SENSOR-NNN: …")]` attribute on each variant.
+    pub fn error_code(&self) -> &'static str {
+        match self {
+            SensorError::HttpError { .. } => "E-SENSOR-001",
+            SensorError::Timeout { .. } => "E-SENSOR-002",
+            SensorError::ResponseParse { .. } => "E-SENSOR-003",
+            SensorError::RateLimited { .. } => "E-SENSOR-020",
+            SensorError::AdapterNotFound { .. } => "E-SENSOR-010",
+            SensorError::AllTargetsFailed { .. } => "E-SENSOR-030",
+            SensorError::ConnectionPoolExhausted => "E-SENSOR-031",
+            SensorError::RetryBudgetExhausted { .. } => "E-SENSOR-032",
+            SensorError::UnparseableTimestamp { .. } => "E-SENSOR-040",
+            SensorError::ConfigValidation { .. } => "E-SENSOR-050",
+            SensorError::OrgIdMismatch { .. } => "E-SENSOR-060",
+            SensorError::WriteNotImplemented { .. } => "E-SENSOR-070",
+            SensorError::Internal { .. } => "E-SENSOR-099",
+        }
+    }
 }
 
 /// Returns `true` for HTTP status codes treated as transient by the retry policy.

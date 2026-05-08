@@ -353,10 +353,12 @@ impl WriteDispatcher {
                         }
                         Err(e) => {
                             // Per-sensor error accumulation — partial failure is NOT top-level Err.
+                            // Use SensorError::error_code() so the code is derived from the actual
+                            // error variant rather than hardcoded (F-PASS6-MED-002).
                             sensor_errors.push(SensorWriteError {
                                 sensor: plan.sensor.clone(),
                                 client_id: context.client_id.clone(),
-                                error_code: "E-SENSOR-070".to_string(),
+                                error_code: e.error_code().to_string(),
                                 detail: e.to_string(),
                             });
                         }
