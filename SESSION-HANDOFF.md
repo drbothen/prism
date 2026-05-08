@@ -1,7 +1,7 @@
 ---
 document_type: session-handoff
 level: ops
-version: "7.47"
+version: "7.48"
 status: current
 timestamp: 2026-05-08T09:00:00Z
 predecessor_session: "D-295 S-3.07 PR #135 SQUASH-MERGED 2ae7185b 2026-05-08T04:23:03Z — FINAL CLOSURE; Wave 3-A 4/4 SHIPPED; 38 findings closed; develop pin 7c413692→2ae7185b; post-merge cleanup confirmed. STATE v7.43→v7.44. factory-artifacts HEAD: run git -C .factory log -1."
@@ -27,6 +27,8 @@ develop HEAD: c867c344 (six PRs merged 2026-05-06/07: #127 S-3.01 2d7040b1, #128
 # Session Handoff — WAVE 4 PHASE 4.A DECISIONS LOGGED (2026-05-02)
 
 ## TL;DR
+
+**D-299 (2026-05-08) — Plugin system FULL audit DEVASTATING — 14 P0/P1 deferrals, 3 stub-merged Wave-1 stories (S-1.12/1.14/1.15), no production binary loads sensor TOMLs, infusion 100% unimplemented, hot-reload watcher unimplemented, action-plugin dispatch stubbed. Audit report at cycles/wave-4-operations/plugin-system-audit-2026-05-08.md. 13 new TDs (TD-PLUGIN-P0-001..008 + P1-001..005). Filed in vsdd-plugin-tech-debt v3.41. S-3.09 stays FROZEN at HEAD 43c41389 until plugin completion epic ships. Strategic direction needed.**
 
 **D-298 (2026-05-08) — S-3.09 FROZEN at HEAD 43c41389 pending BUG-S309-PLUGIN P0 plugin-migration. Path α per user: fix the bug first. 4 built-in adapters (CrowdStrike/Armis/Claroty/Cyberint) bypass spec-engine despite "pure TOML" doc claim. TOML specs are write-side only — read-side endpoints undeclared. 41 *Adapter::new() call sites. Story-writer dispatch is the next step. S-3.09 fix-burst 2 stopped mid-work; 4 engine-semantics bugs (AC-2/4/7/8) + CRIT-5 envelope + HIGH-2/5 deferred until plugin-migration lands and S-3.09 rebases. Adversary pass-2 report at cycles/wave-4-operations/adversarial-reviews/s-3.09-local-pass-2.md.**
 
