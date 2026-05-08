@@ -260,11 +260,19 @@ pub fn check_structural_batch_limit(
             });
         }
     }
-    // MED-4: defense-in-depth — if no explicit LIMIT and no WHERE clause,
-    // also reject (unbounded pre-check, does not change current behavior since
-    // check_unbounded_write fires first in phase2_safety_check ordering).
-    if plan.explicit_limit.is_none() && !plan.has_where_clause {
-        return Err(PrismError::WriteUnbounded);
-    }
+    // Phase 2 Gate ordering invariant: check_unbounded_write MUST have fired
+    // earlier in phase2_safety_check before this function is called.
+    // If we reach here with no LIMIT and no WHERE clause, that is a phase-ordering
+    // bug — not a normal runtime condition.  The previous arm (WriteUnbounded return)
+    // would have produced a semantically wrong error from a function documented to
+    // produce WriteBatchLimitExceeded, making it a maintenance hazard.
+    // debug_assert! catches the invariant violation in debug builds without
+    // polluting production paths with dead code (CR-002).
+    debug_assert!(
+        plan.explicit_limit.is_some() || plan.has_where_clause,
+        "phase ordering invariant violation: check_structural_batch_limit called \
+         without LIMIT or WHERE — check_unbounded_write (phase2_safety_check Gate 1) \
+         should have fired earlier"
+    );
     Ok(())
 }
