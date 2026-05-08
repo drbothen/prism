@@ -611,6 +611,11 @@ proptest! {
         let org_a = OrgId::new();
         let org_b = OrgId::new();
         prop_assume!(org_a != org_b);
+        // Reject cases where org_a and org_b legitimately use the same tag value;
+        // the isolation assertion can't distinguish "org_b gained org_a's tag" from
+        // "org_b set its own tag that happens to equal org_a's". The invariant
+        // VP-3.2.001-02 only holds when tags differ.
+        prop_assume!(tag_a != tag_b);
 
         let mut state: std::collections::HashMap<(OrgId, String), std::collections::HashSet<String>> =
             std::collections::HashMap::new();
