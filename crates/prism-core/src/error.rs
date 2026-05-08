@@ -453,13 +453,25 @@ pub enum PrismError {
     )]
     WriteUnbounded,
 
-    /// E-QUERY-027: Write targets an internal `prism_*` table — internal tables
-    /// are write-protected (story §Task 3a, AC-4, EC-04-006 defense-in-depth).
+    /// E-QUERY-026: Write to internal table is not permitted via PrismQL.
     ///
-    /// Also caught at parse time by S-3.06; this is the runtime defense-in-depth check.
+    /// Emitted when a write attempt targets an internal `prism_*` table (e.g., `prism_audit`,
+    /// `prism_alerts`) reserved for prism-internal accounting. Internal tables are
+    /// write-protected at the PrismQL surface; operators needing to mutate internal state
+    /// must use the dedicated MCP tool for the specific operation.
+    ///
+    /// Also caught at parse time by S-3.06; this is the runtime defense-in-depth check
+    /// (story §Task 3a, AC-4, EC-04-006).
+    ///
+    /// Reference: write-operations.md catalog (E-QUERY-026).
+    /// Distinguished from:
+    ///   - E-QUERY-027 (RESERVED): confirmation token required for irreversible write
+    ///   - E-QUERY-029 (RESERVED): adapter declared in spec but not init for client
+    ///   - E-QUERY-030: write target table not in WriteEndpointRegistry (different code path —
+    ///     internal tables ARE in the registry but flagged as internal)
     #[error(
-        "E-QUERY-027: write target '{table}' is an internal prism_* table; \
-         internal tables are write-protected"
+        "E-QUERY-026: Write to internal table '{table}' is not permitted via PrismQL. \
+         Use the dedicated MCP tool for this operation."
     )]
     WriteTargetingInternalTable { table: String },
 
@@ -477,12 +489,20 @@ pub enum PrismError {
     #[error("E-QUERY-023: Write verb '{verb}' is not available for source '{sensor_source}'")]
     WriteVerbNotAvailable { verb: String, sensor_source: String },
 
-    // E-QUERY-024 (non-terminal write) and E-QUERY-026 (internal table alias)
-    // declared in architecture catalog (write-operations.md:625-640) but not yet
-    // implemented in code. Tracked: TD-S307-001 (file via state-manager in next burst).
-    // These error paths are not reachable via current S-3.07 surface; implementation
-    // deferred until S-3.06's pipe-mode-write surface is exercised end-to-end (later
-    // stories likely S-3.10 or S-3.11).
+    // RESERVED error codes not yet implemented:
+    //
+    // E-QUERY-024 (non-terminal write): declared in architecture catalog
+    //   (write-operations.md:625-640) but not yet implemented in code.
+    //   Tracked: TD-S307-001 (file via state-manager in next burst).
+    //   These error paths are not reachable via current S-3.07 surface; implementation
+    //   deferred until S-3.06's pipe-mode-write surface is exercised end-to-end (later
+    //   stories likely S-3.10 or S-3.11).
+    //
+    // E-QUERY-027 (confirmation token required for irreversible write): RESERVED for
+    //   the write-confirmation flow path on irreversible writes. Will gain callers in
+    //   W3-FIX-S307-001 OR a dedicated story for write-confirmation flow. Distinguished
+    //   from E-QUERY-026 (`WriteTargetingInternalTable`) which rejects writes to
+    //   prism_* tables regardless of confirmation state.
 
     // E-QUERY-028: RESERVED for write fan-out rate limit / 429 retry path.
     //   Per architecture catalog write-operations.md:639. Will be implemented when
@@ -524,7 +544,7 @@ pub enum PrismError {
     /// configuration error at the DML parse → registry lookup boundary, BEFORE
     /// any client identity resolution. Distinguished from:
     ///   - E-QUERY-023 (`WriteVerbNotAvailable`): table IS known, verb is not
-    ///   - E-QUERY-027 (`WriteTargetingInternalTable`): table IS in registry as `prism_*`
+    ///   - E-QUERY-026 (`WriteTargetingInternalTable`): table IS in registry as `prism_*`
     ///   - E-QUERY-029 (`WriteAdapterNotConfiguredForClient`): table IS in registry,
     ///     adapter is per-client and not initialized for this specific client
     ///

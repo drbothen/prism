@@ -121,7 +121,7 @@ pub struct WriteTargetDescriptor<'a> {
 ///
 /// # Gates
 /// 1. Composite source check → `E-QUERY-020`
-/// 2. Internal table check → `E-QUERY-027`
+/// 2. Internal table check → `E-QUERY-026`
 /// 3. Compile-time feature gate → `E-FLAG-002` (via CapabilityDenied)
 /// 4. Runtime TOML capability gate → `E-FLAG-001` (CapabilityDenied)
 /// 5. Unbounded write check → `E-QUERY-022`
@@ -152,7 +152,7 @@ pub fn phase2_safety_check(
         });
     }
 
-    // Gate 2: Internal prism_* table check — E-QUERY-027
+    // Gate 2: Internal prism_* table check — E-QUERY-026
     if target.is_internal_table {
         return Err(PrismError::WriteTargetingInternalTable {
             table: plan.target_table.clone(),

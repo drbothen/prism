@@ -308,15 +308,16 @@ async fn test_ac4_internal_table_write_rejected_e_query_010() {
     let executor = make_executor(false);
     let plan = make_internal_table_plan(); // target_table = "prism_alerts"
     let context = make_query_context(true, None);
-    // Phase 2 must reject internal table writes with E-QUERY-027 (internal tables)
+    // Phase 2 must reject internal table writes with E-QUERY-026 (internal tables) —
+    // formerly E-QUERY-027 before fix-pass-3 catalog alignment per F-PASS4-MED-001
     let result = executor.execute(plan, context).await;
     let err = result.expect_err("Internal table write must be rejected");
     let err_msg = err.to_string();
     assert!(
-        err_msg.contains("E-QUERY-027")
+        err_msg.contains("E-QUERY-026")
             || err_msg.contains("internal")
             || err_msg.contains("prism_"),
-        "Internal table write must produce E-QUERY-027 or 'internal'; got: {err_msg}"
+        "Internal table write must produce E-QUERY-026 or 'internal'; got: {err_msg}"
     );
 }
 
