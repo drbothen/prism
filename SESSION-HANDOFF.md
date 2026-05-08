@@ -1,11 +1,11 @@
 ---
 document_type: session-handoff
 level: ops
-version: "7.34"
+version: "7.35"
 status: current
-timestamp: 2026-05-07T23:30:00Z
-predecessor_session: "D-285 fix-pass-2-correction: write-operations.md catalog v1.1→v1.2 adds E-QUERY-030 WriteTargetTableUnknown; error.rs adds variant; '<unknown>' fallback removed; E-QUERY-029 RESERVED; impl tip 2e36286e. STATE v7.33→v7.34. factory-artifacts HEAD: run git -C .factory log -1."
-successor_focus: "D-286 Forward focus: S-3.07 re-dispatch pass-4 fresh-context against impl tip 2e36286e (fix-pass-2-correction complete). E-QUERY-030 WriteTargetTableUnknown in catalog + error.rs; E-QUERY-029 RESERVED; no '<unknown>' literals in production paths. develop HEAD: 7c413692. factory_artifacts_tech_debt_entries=61 (no new TDs this burst).
+timestamp: 2026-05-08T00:00:00Z
+predecessor_session: "D-286 S-3.07 LOCAL pass-4 BLOCKED (0C/0H/1M/0L/2O); streak RESET 0/3; F-PASS4-MED-001 sister-class catalog↔impl skew on E-QUERY-027; pass-3+correction verified clean (4 KUDOs); fix-pass-3 next. STATE v7.34→v7.35. factory-artifacts HEAD: run git -C .factory log -1."
+successor_focus: "D-287 Forward focus: S-3.07 fix-pass-3 — close F-PASS4-MED-001 via Option (a) code-follows-catalog: rename E-QUERY-027→E-QUERY-026 in WriteTargetingInternalTable Display; update RESERVED comment block (E-QUERY-026 OUT, E-QUERY-027 IN); update write_pipeline_tests.rs:311+316 assertion → E-QUERY-026. Then dispatch pass-5 fresh-context. develop HEAD: 7c413692. factory_artifacts_tech_debt_entries=61 (no new TDs this burst).
 
 **STEP 1 (START HERE):** Read STATE.md v7.30 + this HANDOFF v7.30 in full. Confirm develop HEAD `c867c344` (PR #132 S-3.05 squash-merged 2026-05-07T16:46:01Z). S-3.04 + S-3.03 LOCAL cascades CONVERGED-BY-BEST-EFFORT 3/3 — both ready for PR creation. S-3.07 LOCAL cascade pending dispatch.
 
@@ -27,6 +27,8 @@ develop HEAD: c867c344 (six PRs merged 2026-05-06/07: #127 S-3.01 2d7040b1, #128
 # Session Handoff — WAVE 4 PHASE 4.A DECISIONS LOGGED (2026-05-02)
 
 ## TL;DR
+
+**D-286 (2026-05-08T00:00:00Z) — S-3.07 LOCAL adversary pass-4 BLOCKED (0C/0H/1M/0L/2O); streak RESET 0/3 due to F-PASS4-MED-001 — sister-class instance of pass-3's F-PASS3-MED-001 catalog↔impl skew, this time on E-QUERY-027: error.rs `WriteTargetingInternalTable` (`safety_check.rs:155` callsite) claims E-QUERY-027 with 'internal prism_* table write-protected' semantics, but write-operations.md v1.2 line 638 reserves E-QUERY-027 for 'Confirmation token required for irreversible write'; the architecturally-correct code is E-QUERY-026 (catalog line 637 — 'Write to internal table not permitted via PrismQL'), currently RESERVED in error.rs comment block. Pass-3 + correction closures verified clean (4 KUDOs awarded including KUDO-4 'orchestrator self-correction'). 2 OBS forward-looking RESERVED divergences (E-QUERY-029 catalog `{endpoint}` vs impl `{sensor}/{table}`; E-QUERY-023 PrismError Display drops 'available verbs' suggestion list — both NOT blockers). Adjudication: Option (a) code-follows-catalog. Fix-pass-3 next. Process-gap candidate flagged: no automated catalog↔impl coherence check (3rd recurrence). STATE v7.34→v7.35; vsdd-plugin-tech-debt v3.27→v3.28; cycle-manifest v1.87→v1.88; SESSION-HANDOFF v7.34→v7.35. factory_artifacts_tech_debt_entries=61 (no new TDs; pass-4 verdict only). Forward-pin D-287.**
 
 **D-285 (2026-05-07T23:30:00Z) — fix-pass-2-correction: architectural correctness adjudication per user correctness-over-speed reminder. Pass-3 fix (commits 378fc8f3 + 5d82fc22) used `client_id = '<unknown>'` literal fallback at WritePlan::from_dml_node — semantically wrong (that boundary has no client identity). Orchestrator self-corrected: from_dml_node's failure mode deserves its own E-QUERY code. write-operations.md v1.1→v1.2 adds E-QUERY-030 `WriteTargetTableUnknown { table: String }`; error.rs adds variant; from_dml_node switched to E-QUERY-030 (zero `<unknown>` literals); E-QUERY-029 `WriteAdapterNotConfiguredForClient` RESERVED (zero callers, ready for W3-FIX-S307-002). Impl tip: `2e36286e`. LESSON: pre-authorizing fallbacks for 'invasive plumbing' avoidance is anti-pattern when issue is semantic mismatch. STATE v7.33→v7.34; vsdd-plugin-tech-debt v3.26→v3.27; cycle-manifest v1.86→v1.87.**
 
