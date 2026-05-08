@@ -2,7 +2,7 @@
 document_type: cycle-manifest
 cycle_id: wave-4-operations
 cycle_type: feature
-version: wave-4-preflight-v1.96
+version: wave-4-preflight-v1.97
 status: in-progress
 started: pending
 completed: pending
@@ -224,6 +224,7 @@ Story inventory will be remediated post-ADR-acceptance per drift audit categorie
 
 | Version | Date | Change |
 |---------|------|--------|
+| wave-4-preflight-v1.97 | 2026-05-08T06:30:00Z | d295-s307-pr135-squash-merged-wave3a-complete | 2026-05-08 | state-manager | D-295 S-3.07 PR #135 SQUASH-MERGED 2ae7185b 2026-05-08T04:23:03Z — FINAL CLOSURE; Wave 3-A 4 of 4 SHIPPED (S-3.05 #132 c867c344 + S-3.04 #133 57745ce8 + S-3.03 #134 7c413692 + S-3.07 #135 2ae7185b); develop pin 7c413692→2ae7185b; cascade closed 38 findings (27 LOCAL + 6 PR-LEVEL + 5 code-review nits); 6 consecutive CLEAN passes; post-merge cleanup confirmed; STORY-INDEX v2.24→v2.25. STATE v7.43→v7.44; SESSION-HANDOFF v7.43→v7.44; vsdd-plugin-tech-debt v3.36→v3.37. factory_artifacts_tech_debt_entries=64 (no new TDs filed; closure only). |
 | wave-4-preflight-v1.96 | 2026-05-08T06:00:00Z | d294-pr135-pr-level-full-convergence-3of3-auto-merge-queued | 2026-05-08 | state-manager | D-294 S-3.07 PR #135 PR-LEVEL CASCADE FULL CONVERGENCE 3/3 — pass-4 CLEAN (0 findings, 5 KUDOs); combined 6 consecutive CLEAN passes (3 LOCAL + 3 PR-LEVEL); CI 30/34 PASS 0 FAIL 4 pending; auto-merge queued via `gh pr merge 135 --auto --squash --delete-branch`. Deferred (DO NOT BLOCK): W3-FIX-S307-001/002/003, TD-VSDD-082, TD-S307-002/003/004/005. Next: post-merge cleanup. STATE v7.42→v7.43; SESSION-HANDOFF v7.42→v7.43; vsdd-plugin-tech-debt v3.35→v3.36. factory_artifacts_tech_debt_entries=64 (no new TDs filed; convergence declaration only). |
 | wave-4-preflight-v1.95 | 2026-05-08T05:45:00Z | d293-pr135-pass3-clean-streak-2of3 | 2026-05-08 | state-manager | D-293 PR #135 PR-LEVEL adversary pass-3 CLEAN (0 findings, 5 KUDOs); streak 2/3; all 5 fix-pass-8 code-reviewer closures verified (CR-001..005); sister-class hunt clean; anti-padding self-check applied; pass-4 dispatch next for 3/3 convergence. STATE v7.41→v7.42; SESSION-HANDOFF v7.41→v7.42; vsdd-plugin-tech-debt v3.34→v3.35. factory_artifacts_tech_debt_entries=64 (no new TDs; review verdict only). |
 | wave-4-preflight-v1.94 | 2026-05-08T05:00:00Z | d292-pr135-review-cycle-pass2-clean-streak-1of3 | 2026-05-08 | state-manager | D-292 PR #135 review cycle progress — PR-LEVEL adversary pass-1 BLOCKED-soft (4 MED + 2 LOW + 3 OBS; all PR-description hygiene); closed by gh pr edit at factory-artifacts 788cdf28 (6 fixes applied). PR-LEVEL adversary pass-2 CLEAN — streak 1/3; 4 KUDOs for fix-pass-2 closure quality. Code-reviewer APPROVED-WITH-NITS (5 findings: CR-001/004 LOW; CR-002/003/005 MED; none blocking). PR-reviewer APPROVE — merge command `gh pr merge 135 --squash --delete-branch`; CI 13 SUCCESS / 0 FAIL. Next: fix-pass-8 for CR-001..005; PR-LEVEL pass-3 targets streak 2/3. STATE v7.40→v7.41; SESSION-HANDOFF v7.40→v7.41; vsdd-plugin-tech-debt v3.33→v3.34. factory_artifacts_tech_debt_entries=64 (no new TDs filed). |
