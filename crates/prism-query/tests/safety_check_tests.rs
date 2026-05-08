@@ -7,7 +7,7 @@
 //! - BC-2.04.001: compile-time gate present + runtime allow → SafetyCheckPassed
 //! - BC-2.04.001: read operations always available (invariant DI-003)
 //! - BC-2.04.005: composite source (EVENTS) → E-QUERY-020 (behavioral assertion)
-//! - BC-2.04.005: internal prism_* table → E-QUERY-010
+//! - BC-2.04.005: internal prism_* table → E-QUERY-026 (defense-in-depth runtime check; story spec AC-4 references E-QUERY-010, satisfied via catalog 'alias for E-QUERY-010' per write-operations.md:637)
 //! - BC-2.04.007: DELETE FROM always classified as Irreversible (AD-022 invariant)
 //! - BC-2.04.007: classify_risk_tier matches WriteEndpointSpec.risk_tier for non-DELETE
 //! - BC-2.04.007: ambiguous operations classified as Irreversible (EC-04-014)
@@ -257,19 +257,21 @@ fn test_BC_2_04_005_composite_source_returns_structured_error_before_fetch() {
 }
 
 // ---------------------------------------------------------------------------
-// BC-2.04.005: internal prism_* table → E-QUERY-010
+// BC-2.04.005: internal prism_* table → E-QUERY-026 (alias for E-QUERY-010)
+// (defense-in-depth runtime check; story spec AC-4 references E-QUERY-010,
+// satisfied via catalog 'alias for E-QUERY-010' per write-operations.md:637)
 // ---------------------------------------------------------------------------
 
 /// BC-2.04.005 / story §AC-4: write targeting an internal `prism_*` table
-/// must return E-QUERY-010 before any API contact (defense-in-depth, also
+/// must return E-QUERY-026 before any API contact (defense-in-depth, also
 /// caught at parse time by S-3.06).
 ///
-/// The existing E-QUERY-010 is `QueryVirtualFieldFailed` — a new variant
-/// specifically for internal-table write rejection must be added (BLOCKER).
-/// Test asserts on error message containing "prism_" or "internal".
+/// E-QUERY-026 (`WriteTargetingInternalTable`) was added in fix-pass-3 as the
+/// specific variant for internal-table write rejection; it is catalogued as an
+/// alias for E-QUERY-010 in write-operations.md:637.
 #[test]
 
-fn test_BC_2_04_005_internal_table_write_returns_e_query_010_before_api_contact() {
+fn test_BC_2_04_005_internal_table_write_returns_e_query_026_before_api_contact() {
     let plan = WritePlan {
         verb: "contain".to_string(),
         sensor: "crowdstrike".to_string(),
@@ -298,10 +300,13 @@ fn test_BC_2_04_005_internal_table_write_returns_e_query_010_before_api_contact(
     let err = result.expect_err("Internal table write must be rejected");
     let err_msg = err.to_string();
     assert!(
-        err_msg.contains("E-QUERY-010")
-            || err_msg.contains("internal")
-            || err_msg.contains("prism_"),
-        "Internal table write must produce E-QUERY-010 or 'internal'; got: {err_msg}"
+        err_msg.contains("E-QUERY-026"),
+        "Expected E-QUERY-026 (post fix-pass-3 catalog alignment); got: {err_msg}"
+    );
+    // Secondary: confirm the message body identifies the table type.
+    assert!(
+        err_msg.contains("internal") || err_msg.contains("prism_"),
+        "Expected internal-table-rejection message body; got: {err_msg}"
     );
 }
 
