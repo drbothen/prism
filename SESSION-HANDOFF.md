@@ -1,9 +1,9 @@
 ---
 document_type: session-handoff
 level: ops
-version: "7.46"
+version: "7.47"
 status: current
-timestamp: 2026-05-08T06:30:00Z
+timestamp: 2026-05-08T09:00:00Z
 predecessor_session: "D-295 S-3.07 PR #135 SQUASH-MERGED 2ae7185b 2026-05-08T04:23:03Z — FINAL CLOSURE; Wave 3-A 4/4 SHIPPED; 38 findings closed; develop pin 7c413692→2ae7185b; post-merge cleanup confirmed. STATE v7.43→v7.44. factory-artifacts HEAD: run git -C .factory log -1."
 successor_focus: "D-296 Forward focus: Wave 3-B dispatch (5 osquery-inspired stories S-3.08/09/11/12/13) OR Wave 3-C (S-3.10 cost estimation 3pts) OR Wave 4 unblock (Phase 4.B S-4.01/S-4.03 — all deps now merged). develop HEAD: 2ae7185b (post-S-3.07-merge). factory_artifacts_tech_debt_entries=64 (no new TDs; closure only).
 
@@ -27,6 +27,8 @@ develop HEAD: c867c344 (six PRs merged 2026-05-06/07: #127 S-3.01 2d7040b1, #128
 # Session Handoff — WAVE 4 PHASE 4.A DECISIONS LOGGED (2026-05-02)
 
 ## TL;DR
+
+**D-298 (2026-05-08) — S-3.09 FROZEN at HEAD 43c41389 pending BUG-S309-PLUGIN P0 plugin-migration. Path α per user: fix the bug first. 4 built-in adapters (CrowdStrike/Armis/Claroty/Cyberint) bypass spec-engine despite "pure TOML" doc claim. TOML specs are write-side only — read-side endpoints undeclared. 41 *Adapter::new() call sites. Story-writer dispatch is the next step. S-3.09 fix-burst 2 stopped mid-work; 4 engine-semantics bugs (AC-2/4/7/8) + CRIT-5 envelope + HIGH-2/5 deferred until plugin-migration lands and S-3.09 rebases. Adversary pass-2 report at cycles/wave-4-operations/adversarial-reviews/s-3.09-local-pass-2.md.**
 
 **D-297 (2026-05-08) — S-3.09 LOCAL pass-2 DIRTY (5 CRIT). URL audit caught CrowdStrike/Armis/Cyberint URL bugs (real-API-mismatch via .references/poller-{cobra,coaster,express}). BC-2.11.011/012 mis-anchored. Path γ — drive-by fixes in S-3.09 PR. 4-burst fix sequence underway. Worktree HEAD 4ba369de. Adversary report persisted at cycles/wave-4-operations/adversarial-reviews/s-3.09-local-pass-2.md.**
 
