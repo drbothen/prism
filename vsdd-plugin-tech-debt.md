@@ -1,10 +1,10 @@
 ---
 document_type: vsdd-plugin-tech-debt-register
 level: ops
-version: "2026-05-08T03:30:00Z"
+version: "2026-05-08T04:00:00Z"
 status: current
 producer: state-manager
-timestamp: 2026-05-08T03:30:00Z
+timestamp: 2026-05-08T04:00:00Z
 project: prism (carved out from main tech-debt-register)
 scope: vsdd-factory plugin / methodology / pipeline mechanics
 deferred_to: vsdd-factory plugin maintenance cycle (separate-repo / cross-session)
@@ -386,6 +386,7 @@ Both gaps contributed to HIGH-001 and HIGH-003 findings surviving until Wave 2 g
 
 | Date | Change |
 |------|--------|
+| 2026-05-08T04:00:00Z | v3.33 — D-291 S-3.07 LOCAL CASCADE FULL CONVERGENCE 3/3 — pass-9 CLEAN; cascade closed (9 adv + 8 fix passes; severity decay 8→2→3→4→3→3→0→0; 27 findings closed); 25-commit chain @5fa008c3 production-ready; PR creation next; 64 items total (no new TDs). STATE v7.39→v7.40; SESSION-HANDOFF v7.39→v7.40; cycle-manifest v1.92→v1.93; STORY-INDEX v2.22→v2.23. |
 | 2026-05-08T03:30:00Z | v3.32 — D-290 S-3.07 LOCAL pass-8 CLEAN (0 findings, 5 KUDOs); streak 2/3 — FIRST FULLY-CLEAN PASS; pass-9 dispatch next for 3/3 convergence; 64 items total (no new TDs). STATE v7.38→v7.39; SESSION-HANDOFF v7.38→v7.39; cycle-manifest v1.91→v1.92. |
 | 2026-05-08T02:30:00Z | v3.31 — D-289 S-3.07 LOCAL pass-7 CLEAN (0C/0H/0M/1L/2O); STREAK 1/3 FIRST MED-FREE; TD-S307-004 (audit-observability-expr-field P2 deferral) filed; fix-pass-6 LOW-001+OBS-001 polish next; pass-8 → 2/3; 63→64 items (+1: TD-S307-004). STATE v7.37→v7.38; SESSION-HANDOFF v7.37→v7.38; cycle-manifest v1.90→v1.91. |
 | 2026-05-08T01:30:00Z | v3.30 — D-288 S-3.07 LOCAL pass-6 BLOCKED verdict; F-PASS6-MED-001 sister-class safety_check_tests + F-PASS6-MED-002 fan_out hardcoded E-SENSOR-070 + F-PASS6-LOW-001 Debug-format leak; fix-pass-5 dispatch next; 63 items total (no new TDs). STATE v7.36→v7.37; SESSION-HANDOFF v7.36→v7.37; cycle-manifest v1.89→v1.90. |
