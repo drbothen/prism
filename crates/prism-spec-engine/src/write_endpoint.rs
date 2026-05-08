@@ -238,6 +238,33 @@ impl WriteEndpointRegistry {
     pub fn is_empty(&self) -> bool {
         self.entries.is_empty()
     }
+
+    /// HIGH-4 (BC-2.04.005): returns `true` if `sensor_name` is a composite source.
+    ///
+    /// Composite sources (e.g., "events") are read-only federated views that span
+    /// multiple physical sensors — they cannot be written to.
+    ///
+    /// The set of composite sources is currently fixed: `{"events"}`.
+    /// Future composite sources should be registered here as the platform grows.
+    pub fn is_composite(sensor_name: &str) -> bool {
+        // Fixed composite source set (HIGH-4: registry-backed instead of hardcoded string compare)
+        const COMPOSITE_SOURCES: &[&str] = &["events"];
+        let lower = sensor_name.to_ascii_lowercase();
+        COMPOSITE_SOURCES.iter().any(|&s| s == lower)
+    }
+
+    /// HIGH-2: returns the sensor name registered for a given sql_table name.
+    ///
+    /// Used by `WritePlan::from_dml_node` to resolve the sensor without relying
+    /// on the naive `split('_').next()` heuristic (which fails for multi-part names).
+    ///
+    /// Returns `None` if the table is not registered as a write endpoint.
+    pub fn sensor_for_table(&self, sql_table: &str) -> Option<&str> {
+        self.entries
+            .iter()
+            .find(|e| e.spec.sql_table == sql_table)
+            .map(|e| e.sensor.as_str())
+    }
 }
 
 impl Default for WriteEndpointRegistry {

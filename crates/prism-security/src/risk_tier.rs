@@ -33,6 +33,10 @@ use serde::{Deserialize, Serialize};
 /// | `Read` | None — executes immediately | `list_alerts`, `get_device_info` |
 /// | `Reversible` | Dry-run default (`dry_run: true`) | `acknowledge_alert`, `add_tag` |
 /// | `Irreversible` | Confirmation token required | `contain_host`, `quarantine_file` |
+// PRE-EXISTING-TD: two RiskTier enums coexist — this one (prism-security::RiskTier,
+// Read | Reversible | Irreversible) and prism-core::RiskTier (Reversible | Irreversible).
+// This crate's variant adds the Read tier for MCP gating. Consolidation deferred per
+// pass-1 adversarial observation. See TD-VSDD-082 (to be filed in factory-artifacts post-merge).
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum RiskTier {
     /// Read-only operation. No gate. Executes immediately.

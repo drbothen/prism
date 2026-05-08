@@ -21,7 +21,7 @@ use serde::{Deserialize, Serialize};
 use thiserror::Error;
 
 use crate::auth::SensorAuth;
-use crate::types::FilterMap;
+use crate::types::{FilterMap, RequestParams};
 
 // ---------------------------------------------------------------------------
 // SensorSpec
@@ -190,6 +190,22 @@ pub enum SensorError {
         /// The `OrgId` carried by the incoming `SensorSpec`.
         query_org_id: OrgId,
     },
+
+    /// E-SENSOR-070: Write operation not implemented for this adapter.
+    ///
+    /// Returned by the default `SensorAdapter::write()` implementation when
+    /// the adapter has not overridden the write method (S-3.07 CRIT-1).
+    ///
+    /// Gated by `{sensor}-write` Cargo feature (BC-2.04.001): if the feature
+    /// is absent, the compile-time gate fires first (E-FLAG-002). This error
+    /// is only reachable when the feature is present but no write override exists.
+    ///
+    /// # Note
+    /// This error is **non-transient** — the adapter does not implement writes.
+    /// A follow-up story (W3-FIX-S307-write-wiring) will implement per-sensor HTTP dispatch.
+    // TODO: W3-FIX-S307-001 — implement per-sensor write() HTTP dispatch for all 4 adapters.
+    #[error("E-SENSOR-070: write not implemented for sensor {sensor}")]
+    WriteNotImplemented { sensor: String },
 }
 
 impl SensorError {
@@ -215,6 +231,9 @@ impl SensorError {
             // OrgIdMismatch is a permanent dispatch configuration error —
             // retrying with a mismatched OrgId will always fail (AC-004).
             SensorError::OrgIdMismatch { .. } => false,
+            // WriteNotImplemented is a permanent configuration error —
+            // the adapter has no write override. Not retryable (CRIT-1).
+            SensorError::WriteNotImplemented { .. } => false,
         }
     }
 
@@ -224,6 +243,30 @@ impl SensorError {
             SensorError::HttpError { status, .. } => Some(*status),
             SensorError::RateLimited { .. } => Some(429),
             _ => None,
+        }
+    }
+
+    /// Returns the canonical E-SENSOR-NNN error code for this variant.
+    ///
+    /// Used by callers that need to include the error code in structured error
+    /// records without hardcoding the code string at every call site (F-PASS6-MED-002).
+    ///
+    /// Codes match the `#[error("E-SENSOR-NNN: …")]` attribute on each variant.
+    pub fn error_code(&self) -> &'static str {
+        match self {
+            SensorError::HttpError { .. } => "E-SENSOR-001",
+            SensorError::Timeout { .. } => "E-SENSOR-002",
+            SensorError::ResponseParse { .. } => "E-SENSOR-003",
+            SensorError::RateLimited { .. } => "E-SENSOR-020",
+            SensorError::AdapterNotFound { .. } => "E-SENSOR-010",
+            SensorError::AllTargetsFailed { .. } => "E-SENSOR-030",
+            SensorError::ConnectionPoolExhausted => "E-SENSOR-031",
+            SensorError::RetryBudgetExhausted { .. } => "E-SENSOR-032",
+            SensorError::UnparseableTimestamp { .. } => "E-SENSOR-040",
+            SensorError::ConfigValidation { .. } => "E-SENSOR-050",
+            SensorError::OrgIdMismatch { .. } => "E-SENSOR-060",
+            SensorError::WriteNotImplemented { .. } => "E-SENSOR-070",
+            SensorError::Internal { .. } => "E-SENSOR-099",
         }
     }
 }
@@ -284,6 +327,45 @@ pub trait SensorAdapter: Send + Sync + 'static {
     /// Returns a human-readable sensor name for use in tracing spans and error
     /// messages (e.g., `"crowdstrike"`, `"armis"`).
     fn sensor_name(&self) -> &'static str;
+
+    /// Write a batch of records to the sensor API for a write endpoint.
+    ///
+    /// Dispatches HTTP write steps from `WriteEndpointSpec.steps`, interpolating
+    /// `body_template` and `path_template` using `record_id_field` column values
+    /// from `records` and `params`. Parses responses per `response_path` JSONPath;
+    /// classifies per `success_status` list.
+    ///
+    /// Each adapter implementation MUST use the same authenticated HTTP client
+    /// as `fetch()` — no second HTTP client or credential bypass (Architecture
+    /// Compliance Rule 4).
+    ///
+    /// # Logging
+    /// - Each HTTP step: `TRACE` level with sensor/client_id/endpoint_id fields.
+    /// - Batch outcome: `INFO` level with affected/succeeded/failed counts.
+    ///
+    /// # Returns
+    /// `Ok(Vec<RecordWriteResult>)` — one entry per record in `records`.
+    /// Per-record failures are represented in `RecordWriteResult.status = Failed`,
+    /// not as an `Err` return (partial batch failure is normal — story §Phase 5d).
+    ///
+    /// Story: S-3.07 | BC-2.04.007
+    async fn write(
+        &self,
+        _endpoint: &prism_spec_engine::write_endpoint::WriteEndpointSpec,
+        _records: &RecordBatch,
+        _params: &RequestParams,
+        _client_id: &prism_core::OrgSlug,
+    ) -> Result<Vec<crate::write_result::RecordWriteResult>, SensorError> {
+        // CRIT-1 fix: structured error instead of todo!() panic.
+        // Per-sensor HTTP step dispatch (W3-FIX-S307-001) will override this default.
+        // TODO: W3-FIX-S307-001 — override write() in each concrete adapter.
+        // CR-003: use sensor_name() — the canonical public identifier — instead of
+        // type_name::<Self>(), which leaks internal Rust module paths into
+        // MCP-boundary error messages (e.g. "prism_sensors::adapter::DefaultAdapter").
+        Err(SensorError::WriteNotImplemented {
+            sensor: self.sensor_name().to_string(),
+        })
+    }
 }
 
 // ---------------------------------------------------------------------------
@@ -297,5 +379,154 @@ impl fmt::Display for SensorSpec {
             "SensorSpec(org_id={}, table={})",
             self.org_id, self.source_table
         )
+    }
+}
+
+// ---------------------------------------------------------------------------
+// Tests
+// ---------------------------------------------------------------------------
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use prism_core::types::SensorType;
+
+    /// F-PASS7-OBS-001: Codify the SensorError → E-SENSOR-NNN mapping intended by
+    /// adapter.rs::SensorError::error_code(). The exhaustive `match self` arm
+    /// (no wildcard) in error_code() provides compile-time safety against future
+    /// variant additions, but this test serves as documentation of the canonical
+    /// mapping AND catches regressions where a variant's mapping is silently changed.
+    ///
+    /// Reference: F-PASS6-MED-002 closure (write_dispatch.rs:361 callsite).
+    /// All 13 SensorError variants are covered — trivially constructible variants
+    /// are asserted inline; OrgIdMismatch uses OrgId::new() for both fields since
+    /// the test only exercises the error_code() dispatch, not the mismatch logic.
+    /// AllTargetsFailed uses an empty errors vec (count=0) which is sufficient to
+    /// exercise the dispatch arm without constructing a full FanOutError.
+    #[test]
+    fn test_sensor_error_code_canonical_mapping() {
+        // E-SENSOR-001: HttpError
+        assert_eq!(
+            SensorError::HttpError {
+                sensor: "crowdstrike".to_string(),
+                status: 500,
+                body: "internal server error".to_string(),
+            }
+            .error_code(),
+            "E-SENSOR-001"
+        );
+
+        // E-SENSOR-002: Timeout
+        assert_eq!(
+            SensorError::Timeout {
+                sensor: "armis".to_string(),
+                elapsed_ms: 30_000,
+            }
+            .error_code(),
+            "E-SENSOR-002"
+        );
+
+        // E-SENSOR-003: ResponseParse
+        assert_eq!(
+            SensorError::ResponseParse {
+                sensor: "claroty".to_string(),
+                detail: "unexpected field".to_string(),
+            }
+            .error_code(),
+            "E-SENSOR-003"
+        );
+
+        // E-SENSOR-010: AdapterNotFound
+        assert_eq!(
+            SensorError::AdapterNotFound {
+                sensor_type: SensorType::CrowdStrike,
+            }
+            .error_code(),
+            "E-SENSOR-010"
+        );
+
+        // E-SENSOR-020: RateLimited
+        assert_eq!(
+            SensorError::RateLimited {
+                sensor: "cyberint".to_string(),
+                retry_after_ms: 5_000,
+            }
+            .error_code(),
+            "E-SENSOR-020"
+        );
+
+        // E-SENSOR-030: AllTargetsFailed (empty errors vec — exercises dispatch arm only)
+        assert_eq!(
+            SensorError::AllTargetsFailed {
+                count: 0,
+                errors: vec![],
+            }
+            .error_code(),
+            "E-SENSOR-030"
+        );
+
+        // E-SENSOR-031: ConnectionPoolExhausted
+        assert_eq!(
+            SensorError::ConnectionPoolExhausted.error_code(),
+            "E-SENSOR-031"
+        );
+
+        // E-SENSOR-032: RetryBudgetExhausted
+        assert_eq!(
+            SensorError::RetryBudgetExhausted {
+                sensor: "crowdstrike".to_string(),
+                attempts: 3,
+            }
+            .error_code(),
+            "E-SENSOR-032"
+        );
+
+        // E-SENSOR-040: UnparseableTimestamp
+        assert_eq!(
+            SensorError::UnparseableTimestamp {
+                raw: "not-a-date".to_string(),
+            }
+            .error_code(),
+            "E-SENSOR-040"
+        );
+
+        // E-SENSOR-050: ConfigValidation
+        assert_eq!(
+            SensorError::ConfigValidation {
+                sensor: "armis".to_string(),
+                detail: "invalid AQL operator".to_string(),
+            }
+            .error_code(),
+            "E-SENSOR-050"
+        );
+
+        // E-SENSOR-060: OrgIdMismatch — uses OrgId::new() for both fields since
+        // the test exercises dispatch only, not mismatch logic.
+        assert_eq!(
+            SensorError::OrgIdMismatch {
+                adapter_org_id: OrgId::new(),
+                query_org_id: OrgId::new(),
+            }
+            .error_code(),
+            "E-SENSOR-060"
+        );
+
+        // E-SENSOR-070: WriteNotImplemented
+        assert_eq!(
+            SensorError::WriteNotImplemented {
+                sensor: "claroty".to_string(),
+            }
+            .error_code(),
+            "E-SENSOR-070"
+        );
+
+        // E-SENSOR-099: Internal
+        assert_eq!(
+            SensorError::Internal {
+                detail: "unexpected state".to_string(),
+            }
+            .error_code(),
+            "E-SENSOR-099"
+        );
     }
 }

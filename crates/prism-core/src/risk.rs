@@ -11,6 +11,10 @@ use serde::{Deserialize, Serialize};
 /// Determines confirmation requirements and audit logging depth.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "lowercase")]
+// PRE-EXISTING-TD: two RiskTier enums coexist — this one (prism-core::RiskTier,
+// Reversible | Irreversible) and prism-security::risk_tier::RiskTier (Read | Reversible | Irreversible).
+// The security crate's variant adds the Read tier for gating. Consolidation deferred per
+// pass-1 adversarial observation. See TD-VSDD-082 (to be filed in factory-artifacts post-merge).
 pub enum RiskTier {
     /// Operation can be reversed without data loss (e.g., untag, uncontain).
     Reversible,

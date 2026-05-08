@@ -417,6 +417,163 @@ pub enum PrismError {
     #[error("E-QUERY-010: virtual field resolution failed for {field}: {detail}")]
     QueryVirtualFieldFailed { field: String, detail: String },
 
+    /// E-QUERY-020: Write targets a composite source (e.g. EVENTS) — not a single
+    /// external sensor source. Composite sources are read-only (BC-2.04.005 §Task 3a).
+    #[error(
+        "E-QUERY-020: write target '{source_name}' is a composite source (e.g. EVENTS); \
+         writes must target a single external sensor source"
+    )]
+    WriteTargetCompositeSource { source_name: String },
+
+    /// E-QUERY-021: Write batch limit exceeded — too many records would be affected.
+    ///
+    /// Returned when either:
+    /// - The structural LIMIT in the write plan exceeds the resolved batch limit
+    ///   (Phase 2 structural check, BC-2.04.008 §Task 3d).
+    /// - The post-fetch record count exceeds the resolved batch limit (Phase 3→4
+    ///   boundary check, story §Task 10).
+    #[error(
+        "E-QUERY-021: batch limit exceeded: query would affect {requested} records; \
+         limit for '{endpoint}' on client '{client_id}' is {limit}"
+    )]
+    WriteBatchLimitExceeded {
+        requested: usize,
+        limit: usize,
+        endpoint: String,
+        client_id: String,
+    },
+
+    /// E-QUERY-022: Unbounded write — no WHERE clause and no LIMIT on the source
+    /// fetch (BC-2.04.008 §Task 3c, story §AC-8, EC-04-007).
+    ///
+    /// Returned before any fetch or sensor API contact.
+    #[error(
+        "E-QUERY-022: unbounded write rejected — query has no WHERE clause and no LIMIT; \
+         add a filter or LIMIT to bound the write operation"
+    )]
+    WriteUnbounded,
+
+    /// E-QUERY-026: Write to internal table is not permitted via PrismQL.
+    ///
+    /// Emitted when a write attempt targets an internal `prism_*` table (e.g., `prism_audit`,
+    /// `prism_alerts`) reserved for prism-internal accounting. Internal tables are
+    /// write-protected at the PrismQL surface; operators needing to mutate internal state
+    /// must use the dedicated MCP tool for the specific operation.
+    ///
+    /// Also caught at parse time by S-3.06; this is the runtime defense-in-depth check
+    /// (story §Task 3a, AC-4, EC-04-006).
+    ///
+    /// Reference: write-operations.md catalog (E-QUERY-026).
+    /// Distinguished from:
+    ///   - E-QUERY-027 (RESERVED): confirmation token required for irreversible write
+    ///   - E-QUERY-029 (RESERVED): adapter declared in spec but not init for client
+    ///   - E-QUERY-030: write target table not in WriteEndpointRegistry (different code path —
+    ///     internal tables ARE in the registry but flagged as internal)
+    #[error(
+        "E-QUERY-026: Write to internal table '{table}' is not permitted via PrismQL. \
+         Use the dedicated MCP tool for this operation."
+    )]
+    WriteTargetingInternalTable { table: String },
+
+    /// E-QUERY-023: Write verb is not available for the named source.
+    ///
+    /// Emitted when a write attempt targets a sensor's spec table but the registered
+    /// write endpoint catalog does not contain a verb for that (sensor, table) tuple.
+    /// This is a structural / configuration error: typically means the sensor's spec
+    /// declared no write capability for that table.
+    ///
+    /// Reference: write-operations.md:625-640 architecture catalog (E-QUERY-023).
+    ///
+    /// Note: field is named `sensor_source` (not `source`) to avoid conflict with
+    /// thiserror's reserved `source` field name for error chaining.
+    #[error("E-QUERY-023: Write verb '{verb}' is not available for source '{sensor_source}'")]
+    WriteVerbNotAvailable { verb: String, sensor_source: String },
+
+    // RESERVED error codes not yet implemented:
+    //
+    // E-QUERY-024 (non-terminal write): declared in architecture catalog
+    //   (write-operations.md:625-640) but not yet implemented in code.
+    //   Tracked: TD-S307-001 (file via state-manager in next burst).
+    //   These error paths are not reachable via current S-3.07 surface; implementation
+    //   deferred until S-3.06's pipe-mode-write surface is exercised end-to-end (later
+    //   stories likely S-3.10 or S-3.11).
+    //
+    // E-QUERY-027 (confirmation token required for irreversible write): RESERVED for
+    //   the write-confirmation flow path on irreversible writes. Will gain callers in
+    //   W3-FIX-S307-001 OR a dedicated story for write-confirmation flow. Distinguished
+    //   from E-QUERY-026 (`WriteTargetingInternalTable`) which rejects writes to
+    //   prism_* tables regardless of confirmation state.
+
+    // E-QUERY-028: RESERVED for write fan-out rate limit / 429 retry path.
+    //   Per architecture catalog write-operations.md:639. Will be implemented when
+    //   per-sensor HTTP write() dispatch lands (W3-FIX-S307-001). The variant body
+    //   will likely be { sensor: String, retry_after: Duration } per the OCSF
+    //   429 mapping convention.
+
+    // E-QUERY-029 RESERVED for per-client adapter init failure path.
+    //   No callers in S-3.07 — the from_dml_node site that previously emitted this
+    //   variant (with `<unknown>` client_id fallback) was switched to E-QUERY-030
+    //   per fix-pass-2-correction (D-285) once the architecturally-correct
+    //   distinction was recognized: from_dml_node failure is "table unknown to
+    //   registry" (no client involved yet), not "adapter not init for client".
+    //   Will gain callers when W3-FIX-S307-002 lands the OrgRegistry lookup.
+    /// E-QUERY-029: Write endpoint declared in spec but not found in AdapterRegistry —
+    /// the sql_table name is not recognized by the WriteEndpointRegistry for this client.
+    ///
+    /// Returned when a SQL DML plan's target table IS known to the registry but the
+    /// per-client adapter has not been initialized for this specific client. Distinguished
+    /// from E-QUERY-030 (`WriteTargetTableUnknown`), which fires when the table itself is
+    /// absent from the registry (no client involved yet).
+    ///
+    /// Reference: write-operations.md:625-640 architecture catalog (E-QUERY-029).
+    /// RESERVED until W3-FIX-S307-002 lands the OrgRegistry lookup.
+    #[error(
+        "E-QUERY-029: Write endpoint declared in spec but not found in AdapterRegistry. \
+         Sensor '{sensor}' (table '{table}') may not be configured for client '{client_id}'"
+    )]
+    WriteAdapterNotConfiguredForClient {
+        sensor: String,
+        table: String,
+        client_id: String,
+    },
+
+    /// E-QUERY-030: Write target table not declared in the WriteEndpointRegistry.
+    ///
+    /// Emitted when a parsed DML query references a target table that does not
+    /// appear in the loaded WriteEndpointRegistry. This is a structural /
+    /// configuration error at the DML parse → registry lookup boundary, BEFORE
+    /// any client identity resolution. Distinguished from:
+    ///   - E-QUERY-023 (`WriteVerbNotAvailable`): table IS known, verb is not
+    ///   - E-QUERY-026 (`WriteTargetingInternalTable`): table IS in registry as `prism_*`
+    ///   - E-QUERY-027 (RESERVED): confirmation token required for irreversible write
+    ///   - E-QUERY-029 (`WriteAdapterNotConfiguredForClient`): table IS in registry,
+    ///     adapter is per-client and not initialized for this specific client
+    ///
+    /// Reference: write-operations.md catalog (E-QUERY-030).
+    #[error(
+        "E-QUERY-030: Write target table '{table}' is not declared in the WriteEndpointRegistry. \
+         Either the table name is misspelled, or no write endpoint is configured for it in the \
+         loaded sensor specs."
+    )]
+    WriteTargetTableUnknown { table: String },
+
+    /// E-QUERY-025: Write partial failure — some records succeeded and some failed.
+    ///
+    /// Returned by WriteCapableTableProvider when failed_count > 0 && succeeded_count > 0.
+    /// Carries the full WriteResult for partial-success diagnostics.
+    ///
+    /// Story: S-3.07 | MED-7
+    #[error(
+        "E-QUERY-025: partial write failure for sensor '{sensor}' endpoint '{endpoint}': \
+         {failed} of {total} records failed"
+    )]
+    WritePartialFailure {
+        sensor: String,
+        endpoint: String,
+        failed: u32,
+        total: u32,
+    },
+
     /// E-QUERY-011: Query targets `prism_audit` but caller lacks the `audit.read`
     /// capability (BC-2.15.011, AC-9).
     ///
