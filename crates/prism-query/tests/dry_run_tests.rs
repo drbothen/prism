@@ -181,8 +181,12 @@ mod helpers {
 ///
 /// Canonical test vector: "Default invocation | omitted (defaults to true) |
 /// Preview returned; no state change"
+// CI fix for PR #135: gate to crowdstrike-write feature so the test only runs
+// where the runtime per-client capability path is reachable. In no-default-features
+// builds the compile-time gate fires CapabilityDenied first, which is correct
+// behavior but doesn't exercise the assertion these tests are validating.
+#[cfg(feature = "crowdstrike-write")]
 #[tokio::test]
-
 async fn test_BC_2_04_008_dry_run_true_returns_preview_no_sensor_call() {
     let executor = helpers::make_executor();
     let plan = helpers::make_irreversible_plan();
@@ -204,8 +208,12 @@ async fn test_BC_2_04_008_dry_run_true_returns_preview_no_sensor_call() {
 /// WriteResult.dry_run is always false.
 ///
 /// This is an invariant: the flag in the response always matches the execution mode.
+// CI fix for PR #135: gate to crowdstrike-write feature so the test only runs
+// where the runtime per-client capability path is reachable. In no-default-features
+// builds the compile-time gate fires CapabilityDenied first, which is correct
+// behavior but doesn't exercise the assertion these tests are validating.
+#[cfg(feature = "crowdstrike-write")]
 #[tokio::test]
-
 async fn test_BC_2_04_008_response_dry_run_field_matches_execution_mode() {
     let executor = helpers::make_executor();
 
@@ -235,8 +243,12 @@ async fn test_BC_2_04_008_response_dry_run_field_matches_execution_mode() {
 ///
 /// Canonical test vector: "Explicit execute | false | Actual write executes"
 /// Story §Task 5b: "For Reversible tier: proceed directly to Phase 5."
+// CI fix for PR #135: gate to crowdstrike-write feature so the test only runs
+// where the runtime per-client capability path is reachable. In no-default-features
+// builds the compile-time gate fires CapabilityDenied first, which is correct
+// behavior but doesn't exercise the assertion these tests are validating.
+#[cfg(feature = "crowdstrike-write")]
 #[tokio::test]
-
 async fn test_BC_2_04_008_reversible_tier_dry_run_false_no_token_required() {
     let executor = helpers::make_executor();
     let plan = helpers::make_reversible_plan();
@@ -283,8 +295,12 @@ async fn test_BC_2_04_008_ec_04_017_dry_run_false_first_call_allowed_for_reversi
 ///
 /// Story §Task 5b: "For Irreversible tier: require a valid ConfirmationToken."
 /// Story §EC-04-003: "Irreversible write attempted without a confirmation token → E-FLAG-008"
+// CI fix for PR #135: gate to crowdstrike-write feature so the test only runs
+// where the runtime per-client capability path is reachable. In no-default-features
+// builds the compile-time gate fires CapabilityDenied first, which is correct
+// behavior but doesn't exercise the assertion these tests are validating.
+#[cfg(feature = "crowdstrike-write")]
 #[tokio::test]
-
 async fn test_BC_2_04_007_irreversible_dry_run_false_no_token_returns_e_flag_008() {
     let executor = helpers::make_executor();
     let plan = helpers::make_irreversible_plan();
@@ -313,8 +329,12 @@ async fn test_BC_2_04_007_irreversible_dry_run_false_no_token_returns_e_flag_008
 /// This exercises the single-use invariant: `consume()` is non-idempotent.
 /// BC-2.04.008 / story §Previous Story Intelligence S-1.09:
 /// "`consume()` is single-use — a consumed token cannot be replayed."
+// CI fix for PR #135: gate to crowdstrike-write feature so the test only runs
+// where the runtime per-client capability path is reachable. In no-default-features
+// builds the compile-time gate fires CapabilityDenied first, which is correct
+// behavior but doesn't exercise the assertion these tests are validating.
+#[cfg(feature = "crowdstrike-write")]
 #[tokio::test]
-
 async fn test_BC_2_04_008_token_replay_attack_returns_e_flag_004() {
     let executor = helpers::make_executor();
     let plan = helpers::make_irreversible_plan();
@@ -370,8 +390,12 @@ async fn test_BC_2_04_008_token_replay_attack_returns_e_flag_004() {
 ///
 /// BC-2.04.008 precondition: token TTL is 300 seconds (S-1.09 §TOKEN_TTL).
 /// An expired token must be rejected with E-FLAG-003.
+// CI fix for PR #135: gate to crowdstrike-write feature so the test only runs
+// where the runtime per-client capability path is reachable. In no-default-features
+// builds the compile-time gate fires CapabilityDenied first, which is correct
+// behavior but doesn't exercise the assertion these tests are validating.
+#[cfg(feature = "crowdstrike-write")]
 #[tokio::test]
-
 async fn test_BC_2_04_008_expired_token_returns_e_flag_003() {
     let executor = helpers::make_executor();
     let plan = helpers::make_irreversible_plan();
@@ -404,8 +428,12 @@ async fn test_BC_2_04_008_expired_token_returns_e_flag_003() {
 ///
 /// This prevents a token generated for "contain host-A" from being used to
 /// "contain host-B".
+// CI fix for PR #135: gate to crowdstrike-write feature so the test only runs
+// where the runtime per-client capability path is reachable. In no-default-features
+// builds the compile-time gate fires CapabilityDenied first, which is correct
+// behavior but doesn't exercise the assertion these tests are validating.
+#[cfg(feature = "crowdstrike-write")]
 #[tokio::test]
-
 async fn test_BC_2_04_008_token_action_hash_mismatch_returns_e_flag_005() {
     let executor = helpers::make_executor();
 
