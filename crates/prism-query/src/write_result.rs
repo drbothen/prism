@@ -138,8 +138,6 @@ pub struct WritePreview {
     ///
     /// Serialized as JSON arrays (Arrow `RecordBatch` is not serializable directly).
     pub sample_records: Vec<serde_json::Value>,
-    /// Reversibility classification (mirrors `risk_tier`).
-    pub reversibility: RiskTier,
     /// Confirmation token preview — present only when `risk_tier = Irreversible`.
     ///
     /// `None` for `Reversible` tier operations.
@@ -149,4 +147,15 @@ pub struct WritePreview {
     /// Derived from structured query plan fields (counts, endpoint, client ID)
     /// — never from analyst free-text input (Dev Notes / prompt injection defense).
     pub confirmation_prompt: String,
+}
+
+impl WritePreview {
+    /// Returns the reversibility classification, derived from `risk_tier`.
+    ///
+    /// CR-004: `reversibility` was a duplicate field always set to the same value
+    /// as `risk_tier`.  Removed the field; this accessor preserves the public API
+    /// for callers that need the concept without storing redundant data.
+    pub fn reversibility(&self) -> &RiskTier {
+        &self.risk_tier
+    }
 }

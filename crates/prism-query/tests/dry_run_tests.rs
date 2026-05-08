@@ -634,7 +634,7 @@ proptest::proptest! {
             risk_tier: if has_filter { RiskTier::Irreversible } else { RiskTier::Reversible },
             would_affect_count: if has_limit { limit_val as u32 } else { 0 },
             sample_records: vec![],
-            reversibility: RiskTier::Irreversible,
+            // CR-004: reversibility field removed; use WritePreview::reversibility() accessor.
             confirmation_token: None,
             confirmation_prompt: "Would contain 1 host on crowdstrike for client acme".to_string(),
         };

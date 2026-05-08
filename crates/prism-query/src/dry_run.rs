@@ -165,7 +165,6 @@ impl DryRunGate {
             risk_tier: risk_tier.clone(),
             would_affect_count,
             sample_records,
-            reversibility: risk_tier.clone(),
             confirmation_token,
             confirmation_prompt,
         })
