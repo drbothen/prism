@@ -1,7 +1,7 @@
 ---
 document_type: session-handoff
 level: ops
-version: "7.48"
+version: "7.49"
 status: current
 timestamp: 2026-05-08T09:00:00Z
 predecessor_session: "D-295 S-3.07 PR #135 SQUASH-MERGED 2ae7185b 2026-05-08T04:23:03Z — FINAL CLOSURE; Wave 3-A 4/4 SHIPPED; 38 findings closed; develop pin 7c413692→2ae7185b; post-merge cleanup confirmed. STATE v7.43→v7.44. factory-artifacts HEAD: run git -C .factory log -1."
@@ -27,6 +27,8 @@ develop HEAD: c867c344 (six PRs merged 2026-05-06/07: #127 S-3.01 2d7040b1, #128
 # Session Handoff — WAVE 4 PHASE 4.A DECISIONS LOGGED (2026-05-02)
 
 ## TL;DR
+
+**D-300 (2026-05-08) — User policy directives — (1) stop-deferring without confirmation (orchestrator no longer auto-routes adversary findings / TDs / deferrals), (2) workspace audit option A approved (8 dimensions, post-compact dispatch), (3) VSDD proposal drafted at .factory/proposals/vsdd-stub-merge-policy-2026-05-08.md (status:partial-merge enum, hard rule against status:merged with stub residue, graduation contracts, adversary policy update, audit-stub-debt skill). Plugin-system audit at .factory/cycles/wave-4-operations/plugin-system-audit-2026-05-08.md verdict: "schema for plugins built; plugins not built". 14 P0/P1 deferrals surfaced. BUG-S309-PLUGIN paused pending workspace audit. S-3.09 frozen at HEAD 43c41389.**
 
 **D-299 (2026-05-08) — Plugin system FULL audit DEVASTATING — 14 P0/P1 deferrals, 3 stub-merged Wave-1 stories (S-1.12/1.14/1.15), no production binary loads sensor TOMLs, infusion 100% unimplemented, hot-reload watcher unimplemented, action-plugin dispatch stubbed. Audit report at cycles/wave-4-operations/plugin-system-audit-2026-05-08.md. 13 new TDs (TD-PLUGIN-P0-001..008 + P1-001..005). Filed in vsdd-plugin-tech-debt v3.41. S-3.09 stays FROZEN at HEAD 43c41389 until plugin completion epic ships. Strategic direction needed.**
 
