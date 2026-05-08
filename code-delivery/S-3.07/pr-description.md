@@ -284,6 +284,7 @@ after W3-FIX-S307-001 lands.
 | LOCAL pass-8 | 0 | 0 | 0 | 0 | 0 | 0 | CLEAN — streak 2/3 |
 | LOCAL pass-9 | 0 | 0 | 0 | 0 | 0 | 0 | CLEAN — streak 3/3 **CONVERGED** |
 | CI fix-pass-7 | n/a | 2 | 0 | 0 | Fixed (test cfg-gating + Windows proptest assume) |
+| PR-LEVEL pass-3 | n/a | 0 | 0 | 0 | CLEAN — streak 2/3; all 5 CR closures verified clean |
 
 **External convergence signal**: LOCAL adversary cascade ran on macOS aarch64 with `--features all-write`. CI matrix (no-default-features build + x86_64-pc-windows-msvc) surfaced 4 test failures NOT detectable in the LOCAL envelope. Closed by fix-pass-7 (commits f90839af + 65411ea4). Process-gap codified for next-cycle: future LOCAL convergence criterion should include no-default-features + Windows cross-build smoke (TD-S307-005 candidate, deferred).
 
@@ -493,11 +494,11 @@ models-used:
   adversary: claude-sonnet-4-6 (local passes)
   evaluator: N/A
   review: pending (pr-reviewer dispatch)
-generated-at: "2026-05-08T03:30:00Z"
+generated-at: "2026-05-08T05:30:00Z"
 story-branch: feature/S-3.07
-branch-tip: 65411ea4
+branch-tip: e22fb0ea
 diff-base: 7c413692 (origin/develop)
-commit-count: 27
+commit-count: 32
 ```
 
 </details>
@@ -509,6 +510,12 @@ commit-count: 27
 - 2026-05-08T03:00Z: CI fix-pass-7 commits added post LOCAL pass-9 convergence (5fa008c3 → 65411ea4)
   - `f90839af`: cfg-gate 17 write_pipeline_tests + dry_run_tests to `crowdstrike-write` feature (fixes Test no-default-features failures discovered in CI)
   - `65411ea4`: `prop_assume!(tag_a != tag_b)` filter on `test_BC_3_2_001_proptest_write_org_a_does_not_modify_org_b` (fixes pre-existing Windows proptest flake; included per wave-3-A drive-by precedent — see MED-004 disclosure below)
+- 2026-05-08T05:00Z: PR-LEVEL fix-pass-8 commits added post code-review APPROVED-WITH-NITS (65411ea4 → e22fb0ea)
+  - CR-001: single-pass iteration for would_affect_count/total_rows in WriteExecutor::execute (write_pipeline.rs:350-353)
+  - CR-002: replace dead WriteUnbounded guard with debug_assert! precondition (safety_check.rs:271-276)
+  - CR-003: use self.sensor_name() instead of type_name::<Self>() in default WriteNotImplemented (adapter.rs:362-367)
+  - CR-004: derive WritePreview.reversibility from risk_tier; eliminate field duplication (write_result.rs:152-161)
+  - CR-005: narrow clippy allow scope in write_table_registration; per-item attributes (write_table_registration.rs:66,70)
 
 ---
 
@@ -525,3 +532,5 @@ commit-count: 27
 - [x] Write features disabled by default (compile-time gate confirmed via Cargo.toml feature topology + LOCAL pass-9 verification)
 - [x] LOCAL adversary 3-CLEAN convergence achieved (passes 7/8/9 all clean at 5fa008c3)
 - [ ] Squash merge only (`gh pr merge --squash --delete-branch`)
+
+
