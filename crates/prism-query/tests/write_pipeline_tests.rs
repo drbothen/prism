@@ -314,11 +314,15 @@ async fn test_ac4_internal_table_write_rejected_e_query_026() {
     let result = executor.execute(plan, context).await;
     let err = result.expect_err("Internal table write must be rejected");
     let err_msg = err.to_string();
+    // Primary: explicit E-QUERY-026 prefix check (post fix-pass-3 catalog alignment)
     assert!(
-        err_msg.contains("E-QUERY-026")
-            || err_msg.contains("internal")
-            || err_msg.contains("prism_"),
-        "Internal table write must produce E-QUERY-026 or 'internal'; got: {err_msg}"
+        err_msg.contains("E-QUERY-026"),
+        "Expected E-QUERY-026 (post fix-pass-3 catalog alignment); got: {err_msg}"
+    );
+    // Secondary: confirm message body identifies internal-table rejection
+    assert!(
+        err_msg.contains("internal") || err_msg.contains("prism_"),
+        "Expected internal-table-rejection message body; got: {err_msg}"
     );
 }
 
