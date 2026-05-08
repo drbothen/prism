@@ -359,8 +359,11 @@ pub trait SensorAdapter: Send + Sync + 'static {
         // CRIT-1 fix: structured error instead of todo!() panic.
         // Per-sensor HTTP step dispatch (W3-FIX-S307-001) will override this default.
         // TODO: W3-FIX-S307-001 — override write() in each concrete adapter.
+        // CR-003: use sensor_name() — the canonical public identifier — instead of
+        // type_name::<Self>(), which leaks internal Rust module paths into
+        // MCP-boundary error messages (e.g. "prism_sensors::adapter::DefaultAdapter").
         Err(SensorError::WriteNotImplemented {
-            sensor: std::any::type_name::<Self>().to_string(),
+            sensor: self.sensor_name().to_string(),
         })
     }
 }
