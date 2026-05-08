@@ -1,7 +1,7 @@
 ---
 document_type: story-index
 level: "L4"
-version: "v2.25"
+version: "v2.26"
 status: draft
 producer: state-manager
 timestamp: 2026-05-08T06:30:00
@@ -292,7 +292,7 @@ pursuing maximum parallelism should schedule by topological layer, not wave numb
 | S-3.06 | PrismQL Write Parser Extensions [v1.7-spec-rem] [MERGED PR #130 2a7b83f5 2026-05-06 +406t 7-adv-passes 18-findings-closed] | prism-query | 1 | -- | 2 | S-3.01,S-1.13,S-6.07 |
 | S-3.07 | Write Execution Pipeline [v1.7] **[MERGED 2026-05-08T04:23:03Z PR #135 squash 2ae7185b]** | prism-query | 5 | -- | 3 | S-3.06,S-3.02,S-1.08,S-1.09,S-2.04,S-6.07 |
 | S-3.08 | Hidden Columns [v1.5] | prism-query | 4 (proxy) | -- | 1 | S-3.02 |
-| S-3.09 | Query Performance Profiling [v1.5] | prism-query | 2 (proxy) | -- | 1 | S-3.02 |
+| S-3.09 | Query Performance Profiling [v1.6] | prism-query | 13 (proxy) | -- | 6 | S-3.02 |
 | S-3.10 | Cost Estimation (API Latency-Aware Planner) [v1.5] | prism-query | 2 (proxy) | -- | 2 | S-3.09,S-3.02 |
 | S-3.11 | In-Query Dedup Caching [v1.5] | prism-query | 2 (proxy) | -- | 1 | S-3.02 |
 | S-3.12 | Column Pruning and Field Selection Push-Down [v1.5] | prism-query | 2 (proxy) | -- | 1 | S-3.02,S-2.06 |
@@ -980,6 +980,7 @@ All 13 new DTU clones: Wave 0, 0 BCs, priority P0, depends_on: [S-6.06].
 | v2.20 | 2026-05-07 | S-3.05 anchor fixes (implementer): S-3.05 v1.11→v1.12 — AC-3 anchor §Cursor TTL Expiry→§Cursor Lifecycle (MCP-exposed surface) — Expiry; AC-4a anchor §CursorTokenUnknown→§Cursor Lifecycle (MCP-exposed surface) — Advancement (both anchors are now real headings in BC-2.07.002 v4.7). S-3.05 row tag [v1.11-S-3.05-fix-pass-16-sub-burst]→[v1.12-S-3.04-fix-pass-29-anchor-fixes]. BC-INDEX v4.44→v4.45 (+BC-2.07.002 v4.7 E-STORE-020 Error Cases row). D-275. STORY-INDEX v2.19→v2.20. |
 | v2.21 | 2026-05-07 | S-3.04 pass-11 changelog reorder (implementer): F-PASS11-HIGH-002 closure — tabular rows v2.20/v2.19/v2.18 were non-monotonic (arrived in descending order); reordered ascending (v2.18→v2.19→v2.20). Prose changelog entries for same three bursts also reordered ascending per POL-11. D-276. STORY-INDEX v2.20→v2.21. |
 | v2.25 | 2026-05-08 | D-295 S-3.07 PR #135 SQUASH-MERGED FINAL CLOSURE (state-manager): S-3.07 Full Story List row annotation replaced with [MERGED 2026-05-08T04:23:03Z PR #135 squash 2ae7185b] (consistent with S-3.05/S-3.04/S-3.03 MERGED convention); Wave 3-A 4/4 SHIPPED; develop pin 7c413692→2ae7185b; cascade closed 38 total findings (27 LOCAL + 6 PR-LEVEL + 5 code-review nits). STORY-INDEX v2.24→v2.25. |
+| v2.26 | 2026-05-08 | D-296 S-3.09 re-scope per Path A decision (state-manager): S-3.09 Full Story List row version [v1.5]→[v1.6]; points 2→13; days 1→6. BC columns append BC-2.11.005, BC-2.11.006, BC-2.11.007, BC-2.11.011, BC-2.11.012 (transferred from stub-merged S-3.02 deferred scope). Status remains draft pending Phase A implementation cascade. Adversary report: cycles/wave-4-operations/adversarial-reviews/s-3.09-local-pass-1.md. STORY-INDEX v2.25→v2.26. |
 | v2.24 | 2026-05-08 | D-294 S-3.07 PR #135 PR-LEVEL CASCADE FULL CONVERGENCE 3/3 (state-manager): S-3.07 Full Story List row annotation updated to add "PR-LEVEL CONVERGED 2026-05-08 (4-pass cascade); auto-merge queued (PR #135)". STORY-INDEX v2.23→v2.24. |
 | v2.23 | 2026-05-08 | D-291 S-3.07 LOCAL CASCADE FULL CONVERGENCE 3/3 (state-manager): S-3.07 Full Story List row annotated [LOCAL CONVERGED 2026-05-08 (9-pass cascade, 3/3 streak); PR creation next]; cascade closed (9 adv + 8 fix passes; severity decay 8→2→3→4→3→3→0→0; 27 findings closed); 25-commit chain @5fa008c3 production-ready. STORY-INDEX v2.22→v2.23. |
 | v2.22 | 2026-05-07 | D-282 wave-3-A tail-end merge bookkeeping (state-manager): S-3.04 row annotated [MERGED 2026-05-07 PR #133 squash 57745ce8]; S-3.03 row annotated [MERGED 2026-05-07 PR #134 squash 7c413692]; develop HEAD pinned c867c344→7c413692. Wave 3-A 3 of 4 stories shipped. STORY-INDEX v2.21→v2.22. |

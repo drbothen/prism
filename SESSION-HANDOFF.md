@@ -1,7 +1,7 @@
 ---
 document_type: session-handoff
 level: ops
-version: "7.44"
+version: "7.45"
 status: current
 timestamp: 2026-05-08T06:30:00Z
 predecessor_session: "D-295 S-3.07 PR #135 SQUASH-MERGED 2ae7185b 2026-05-08T04:23:03Z — FINAL CLOSURE; Wave 3-A 4/4 SHIPPED; 38 findings closed; develop pin 7c413692→2ae7185b; post-merge cleanup confirmed. STATE v7.43→v7.44. factory-artifacts HEAD: run git -C .factory log -1."
@@ -27,6 +27,8 @@ develop HEAD: c867c344 (six PRs merged 2026-05-06/07: #127 S-3.01 2d7040b1, #128
 # Session Handoff — WAVE 4 PHASE 4.A DECISIONS LOGGED (2026-05-02)
 
 ## TL;DR
+
+**D-296 (2026-05-08) — S-3.09 LOCAL pass-1 DIRTY → Path A re-scope (mega-story). Spec v1.5→v1.6 commit 4ab33e75. Points 2→13. BCs +005/006/007/011/012 transferred from stub-merged S-3.02. Phase A (materialization pipeline) + Phase B (instrumentation overlay). Adversary report persisted at cycles/wave-4-operations/adversarial-reviews/s-3.09-local-pass-1.md. Implementer dispatch pending.**
 
 **D-295 (2026-05-08T06:30:00Z) — S-3.07 PR #135 SQUASH-MERGED 2ae7185b 2026-05-08T04:23:03Z — Wave 3-A 4 of 4 SHIPPED. Cascade closed: 9 LOCAL + 4 PR-LEVEL + 8 fix-passes; 38 findings closed; 6 consecutive CLEAN passes. develop pin 7c413692→2ae7185b. Worktree + local branch cleaned up. NEXT: Wave 3-B (5 osquery-inspired stories) or Wave 3-C (S-3.10 cost) or Wave 4 unblock.**
 
