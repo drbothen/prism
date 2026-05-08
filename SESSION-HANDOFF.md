@@ -1,11 +1,11 @@
 ---
 document_type: session-handoff
 level: ops
-version: "7.38"
+version: "7.39"
 status: current
-timestamp: 2026-05-08T02:30:00Z
-predecessor_session: "D-289 S-3.07 LOCAL pass-7 CLEAN (0C/0H/0M/1L/2O); STREAK 1/3 — FIRST MED-FREE PASS; all pass-6 findings closed (5 KUDOs); TD-S307-004 P2 filed; fix-pass-6 polish + pass-8 next. STATE v7.37→v7.38. factory-artifacts HEAD: run git -C .factory log -1."
-successor_focus: "D-290 Forward focus: S-3.07 fix-pass-6 surgical polish — (1) F-PASS7-LOW-001: write_pipeline_tests.rs:317-322 replace weak triple-fallback with two-step pattern matching safety_check_tests.rs:302-310 (~30 min); (2) F-PASS7-OBS-001: add test_sensor_error_code_canonical_mapping covering all 13 variants in adapter.rs (~10 min). TD-S307-004 already filed for F-PASS7-OBS-002 deferral. Then dispatch pass-8 fresh-context (expect 0-finding CLEAN → streak 2/3). Pass-9 → 3/3 FULL CONVERGENCE → PR creation. develop HEAD: 7c413692. factory_artifacts_tech_debt_entries=64 (TD-S307-004 filed this burst).
+timestamp: 2026-05-08T03:30:00Z
+predecessor_session: "D-290 S-3.07 LOCAL pass-8 CLEAN (0C/0H/0M/0L/0O); STREAK 2/3 — FIRST FULLY-CLEAN PASS IN CASCADE; all pass-7 closures verified; 5 KUDOs; anti-padding self-check applied; pass-9 next for 3/3 convergence. STATE v7.38→v7.39. factory-artifacts HEAD: run git -C .factory log -1."
+successor_focus: "D-291 Forward focus: dispatch S-3.07 LOCAL adversary pass-9 fresh-context — expect CLEAN → streak 3/3 FULL CONVERGENCE → PR creation. develop HEAD: 7c413692. factory_artifacts_tech_debt_entries=64 (no new TDs; CLEAN verdict only).
 
 **STEP 1 (START HERE):** Read STATE.md v7.30 + this HANDOFF v7.30 in full. Confirm develop HEAD `c867c344` (PR #132 S-3.05 squash-merged 2026-05-07T16:46:01Z). S-3.04 + S-3.03 LOCAL cascades CONVERGED-BY-BEST-EFFORT 3/3 — both ready for PR creation. S-3.07 LOCAL cascade pending dispatch.
 
@@ -27,6 +27,8 @@ develop HEAD: c867c344 (six PRs merged 2026-05-06/07: #127 S-3.01 2d7040b1, #128
 # Session Handoff — WAVE 4 PHASE 4.A DECISIONS LOGGED (2026-05-02)
 
 ## TL;DR
+
+**D-290 (2026-05-08T03:30:00Z) — S-3.07 LOCAL adversary pass-8 CLEAN (0C/0H/0M/0L/0O); STREAK 2/3 — FIRST FULLY-CLEAN PASS IN THE CASCADE. All pass-7 closures verified: F-PASS7-LOW-001 (write_pipeline_tests.rs:317-326 two-step assertion mirrored from safety_check_tests.rs:302-310; ungated in default-features per Gate 2/Gate 3 ordering); F-PASS7-OBS-001 (SensorError::error_code() unit test covers all 13 variants substantively, no skips); F-PASS7-OBS-002 (TD-S307-004 P2 deferral honored — not re-flagged). 5 KUDOs: Phase 5 ordering documentation; semaphore lifecycle correctness; compile-time exhaustiveness defense-in-depth; phase2_safety_check Gate 2/Gate 3 ordering; bounded fan-out error allocation. Anti-padding self-check applied (3 candidate findings tested, all failed evidence checks). Severity decay: pass-5: 4 (1M/3O) → pass-6: 3 (2M/1L) → pass-7: 3 (0M/1L/2O) → pass-8: 0. Pass-9 dispatch next for final 3/3 convergence → PR creation. POL-11 chain: vsdd-plugin-tech-debt v3.31→v3.32, STATE v7.38→v7.39, SESSION-HANDOFF v7.38→v7.39, cycle-manifest v1.91→v1.92. factory_artifacts_tech_debt_entries=64 (no new TDs filed; CLEAN verdict only). Forward-pin D-291.**
 
 **D-289 (2026-05-08T02:30:00Z) — S-3.07 LOCAL adversary pass-7 CLEAN (0C/0H/0M/1L/2O); STREAK 1/3 — FIRST MED-FREE PASS IN THE CASCADE. All pass-6 findings closed cleanly: F-PASS6-MED-001 (safety_check_tests.rs two-step assertion tightening — KUDO-1), F-PASS6-MED-002 (SensorError::error_code() helper exhaustive-match 13 variants, no wildcard — compile-time safety, KUDO-2), F-PASS6-LOW-001 (Literal::to_user_string() + Expr::to_user_string() 10+1 variant coverage — KUDO-3). Residual: F-PASS7-LOW-001 (write_pipeline_tests.rs:317-322 weak triple-fallback — sibling to safety_check_tests.rs tightened pattern; pending intent verification), F-PASS7-OBS-001 (SensorError::error_code() unit test gap; mitigated by exhaustive match compile-time enforcement), F-PASS7-OBS-002 (Expr::to_user_string() `_=>"<expr>"` fallback elides Expr::Field in audit params — latent behind W3-FIX-S307-001 stub; filed as TD-S307-004 P2). Adjudication: fix-pass-6 surgical polish LOW-001+OBS-001 (~40 min); TD-S307-004 P2 deferral for OBS-002. Pass-8 likely 0-finding CLEAN (streak 2/3); pass-9 likely CLEAN (3/3 FULL CONVERGENCE → PR). Severity decay: pass-2: 8 → pass-3: 2 → pass-4: 3 → pass-5: 4 → pass-6: 3 → pass-7: 3 (FIRST MED-FREE). POL-11 chain: vsdd-plugin-tech-debt v3.30→v3.31, STATE v7.37→v7.38, SESSION-HANDOFF v7.37→v7.38, cycle-manifest v1.90→v1.91. factory_artifacts_tech_debt_entries=63→64 (TD-S307-004 filed). Forward-pin D-290.**
 
