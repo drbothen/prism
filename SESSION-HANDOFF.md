@@ -1,7 +1,7 @@
 ---
 document_type: session-handoff
 level: ops
-version: "7.50"
+version: "7.51"
 status: current
 timestamp: 2026-05-08T09:00:00Z
 predecessor_session: "D-295 S-3.07 PR #135 SQUASH-MERGED 2ae7185b 2026-05-08T04:23:03Z — FINAL CLOSURE; Wave 3-A 4/4 SHIPPED; 38 findings closed; develop pin 7c413692→2ae7185b; post-merge cleanup confirmed. STATE v7.43→v7.44. factory-artifacts HEAD: run git -C .factory log -1."
@@ -27,6 +27,8 @@ develop HEAD: c867c344 (six PRs merged 2026-05-06/07: #127 S-3.01 2d7040b1, #128
 # Session Handoff — WAVE 4 PHASE 4.A DECISIONS LOGGED (2026-05-02)
 
 ## TL;DR
+
+**D-302 (2026-05-08) — Bundle A+D factory-artifacts portion committed. ADR-020 (story status taxonomy reform — `status:partial-merge` enum, graduation contract, STORY-INDEX as derivative), ADR-021 (BC/VP promotion lifecycle), policies.yaml v1.6 (POL-12..16 added: stub-residue-blocks-merge, story-index-consistency, bc-promotion-on-merge, runtime-wiring-required, no-inverted-polarity), hook-specs-bundle-a.md (5 hook design specs for Bundle A.2 implementation). Bundle D: ARCH-INDEX v2.32 (ADR-014 added, deployment_topology annotated) + module-decomposition.md (35-tool aspirational note + BC count 200→222). 10 crates/*+README code-side files left on disk uncommitted — maintenance PR pending. 7 open questions logged for human triage: (1) S-1.10 status classification after stub-residue audit; (2) S-3.06 `merged` confirmation; (3-4) ADR frontmatter backfill (`wiring_deferred_to:` + `runtime_deliverables:`); (5) README content choice review; (6-7) prism-core + prism-dtu-cyberint test verification. Bundle A.2 (hook implementation + story status reconciliation) pending dispatch. STATE v7.51→v7.52. SESSION-HANDOFF v7.50→v7.51.**
 
 **D-301 (2026-05-08) — Workspace 8-dimensional audit COMPLETE. 818-line report at `.factory/cycles/wave-4-operations/workspace-audit-2026-05-08.md`. 53 findings (P0=18, P1=23, P2=12). Plugin-audit pattern recurs across query engine (S-3.02), write engine (S-3.07), MCP runtime (SS-10). Five cleanup bundles: A (status taxonomy), B (runtime gap — no binary loads anything), C (sensor TOML wire-up), D (doc sweep), E (VP graduation). Stories for reconciliation post-enum-landing: S-1.11, S-1.12, S-1.14, S-1.15, S-3.02, S-3.07. D-300 stop-deferring policy in effect — NO TDs filed, NO stories opened, NO bundle dispatched. Awaiting user triage of bundle sequence. STATE v7.50→v7.51. SESSION-HANDOFF v7.49→v7.50.**
 

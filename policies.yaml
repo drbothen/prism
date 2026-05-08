@@ -23,8 +23,13 @@
 #                                   # here so the adversary knows HOW to verify them.
 
 metadata:
-  version: "1.5"
+  version: "1.6"
   changelog:
+    - version: "1.6"
+      date: 2026-05-08
+      burst: bundle-A-cleanup-2026-05-08
+      findings: [F-AUD-D2-01, F-AUD-D2-11, F-AUD-D3-01, F-AUD-D5-01, F-AUD-D7-01, F-AUD-D8-09]
+      change: "Add POL-12 through POL-16 — story status taxonomy reform and BC/VP promotion enforcement. Closes schema and policy layer gaps identified in the 2026-05-08 workspace 8-dimensional audit. Companion ADRs: ADR-020 (story-status-taxonomy-reform) + ADR-021 (bc-vp-promotion-lifecycle)."
     - version: "1.5"
       date: 2026-05-07
       burst: fix-pass-21-pass11-ordering-bookkeeping
@@ -219,3 +224,85 @@ policies:
       - "TD-VSDD-070 (backfill-bump policy gap) — closed by this policy"
       - "M-34-001 (2026-04-28) original precedent"
       - "F-PASS9-CRIT-001 / fix-pass-19 (2026-05-07) precedent restoration"
+
+  - id: 12
+    name: production_stub_residue_blocks_merge
+    description: "Stories with `status: merged` MUST NOT have any `todo!()`, `unimplemented!()`, or panic-with-stub-literal in production paths reachable from any pub fn. Stub residue requires `status: partial-merge` plus per-site TD annotation."
+    adopted: bundle-A-cleanup-2026-05-08
+    severity: HIGH
+    enforced_by: [adversary-prompt, pre-merge-hook, code-reviewer]
+    scope: [story, source-code]
+    lint_hook: hooks/check-stub-residue.sh
+    references_adr: ADR-020
+    verification_steps:
+      - "Run `rg --type rust 'todo!\\(|unimplemented!\\(' crates/*/src/ --glob '!**/tests/**' --glob '!**/proofs/**'` — any match in a story's delivery files while that story has `status: merged` is a violation."
+      - "Run `rg --type rust 'panic!\\([^)]*\"[^\"]*(?:TODO|todo|not yet|stub|unimplemented)' crates/*/src/ --glob '!**/tests/**'` to catch panic!-with-stub-literal variants."
+      - "For each hit, verify it does NOT live inside a `#[cfg(test)]` block or `mod tests {` scope — those are permitted. Only hits in non-test production code are violations."
+      - "Cross-check hit against the owning story's frontmatter `status:` field. If `status: merged` → block. If `status: partial-merge` → verify each stub site has a TD annotation comment (e.g., `// TODO(TD-XXX):`); missing annotation is also a violation."
+      - "Check for `// Stub module:` or `// STUB` doc-comment lines in the same files — these may indicate the function is a stub even if the body does not contain the exact pattern (record as advisory finding)."
+      - "Confirm the escape valve: if a site exists in an allowlist at `.factory/stub-residue-allowlist.yaml` with a TD reference and human approval note, the finding is suppressed for that specific site only."
+
+  - id: 13
+    name: story_frontmatter_index_consistency
+    description: "STORY-INDEX status column MUST agree with each story file's frontmatter `status:` field. STORY-INDEX is derivative — story files are source of truth."
+    adopted: bundle-A-cleanup-2026-05-08
+    severity: HIGH
+    enforced_by: [adversary-prompt, pre-burst-hook, state-manager]
+    scope: [story, story-index]
+    lint_hook: hooks/check-story-index-consistency.sh
+    references_adr: ADR-020
+    verification_steps:
+      - "For each `.factory/stories/*.md` (excluding STORY-INDEX.md itself), extract the `status:` value from the YAML frontmatter block (between the `---` delimiters)."
+      - "Parse STORY-INDEX.md to locate the row for each story by story ID. The status annotation appears as the second column of the Full Story List table or as `[MERGED ...]` / `[PARTIAL-MERGE ...]` / `[READY ...]` inline text, OR as a bare status token."
+      - "Compare each story's frontmatter `status:` against its STORY-INDEX representation. Exact-string match is required (e.g., `partial-merge` in frontmatter must correspond to a PARTIAL-MERGE annotation in STORY-INDEX, not MERGED)."
+      - "Report every mismatch as a violation with the story ID, frontmatter value, and STORY-INDEX value. If STORY-INDEX has no row for a story file → also a violation (unregistered story)."
+      - "Verify that no story carries an unrecognized `status:` value. Valid set: {draft, ready, in-progress, partial-merge, merged, retired}. Any other value (including `delivered`) is a violation per ADR-020."
+
+  - id: 14
+    name: bc_vp_promotion_on_anchor_merge
+    description: "When a story flips to `status: merged` (not `partial-merge`), the BCs in its `behavioral_contracts:` array MUST auto-promote `draft → active`. State-manager performs this bump atomically with the status flip."
+    adopted: bundle-A-cleanup-2026-05-08
+    severity: HIGH
+    enforced_by: [state-manager, post-merge-audit]
+    scope: [bc, vp, story]
+    lint_hook: hooks/check-bc-promotion.sh
+    references_adr: ADR-021
+    verification_steps:
+      - "Enumerate all stories with `status: merged` in their frontmatter. For each, extract the `behavioral_contracts:` frontmatter array."
+      - "For each BC ID in those arrays, read the corresponding BC file's frontmatter `status:` field. If it is `draft`, this is a missed-promotion violation (the story merged but the BC was never bumped to `active`)."
+      - "Verify that stories with `status: partial-merge` do NOT have their BCs promoted to `active`. If any BC in a `partial-merge` story's `behavioral_contracts:` array is `active`, verify that ANOTHER fully-merged story also owns that BC (dual-ownership is legitimate)."
+      - "Check BC-INDEX for every BC listed as `active` — confirm at least one anchor story with `status: merged` (not `partial-merge`) cites it in `behavioral_contracts:`."
+      - "Spot-check the promotion timestamps: if a BC flipped to `active` on date X, there should be a story with `status: merged` (flip date <= X) citing that BC in `behavioral_contracts:`."
+
+  - id: 15
+    name: runtime_wiring_required_for_accepted_adrs
+    description: "Every ADR with `status: accepted` and crate-level deliverables MUST be reachable from at least one production binary (`bin/` target). Architectural decisions cannot be considered implemented if no binary instantiates the code."
+    adopted: bundle-A-cleanup-2026-05-08
+    severity: MEDIUM
+    enforced_by: [scheduled-audit, wave-gate-hook]
+    scope: [adr, architecture, runtime]
+    lint_hook: skills/audit-runtime-wiring/
+    references_adr: ADR-021
+    verification_steps:
+      - "Read ARCH-INDEX.md ADR Registry. Extract all ADRs with `status: ACCEPTED`. For each, determine whether it declares a crate-level deliverable (i.e., introduces or materially changes a crate's public API or binary entry point)."
+      - "Run `cargo metadata --format-version 1 --no-deps | jq '.packages[].targets[] | select(.kind[] == \"bin\") | .src_path'` to enumerate all `[[bin]]` entry points in the workspace."
+      - "For each accepted ADR with a deliverable (e.g., ADR-005 → rmcp/MCP server, ADR-016 → ActionDeliveryEngine, ADR-019 → WASM plugin runtime): search each binary entry point's reachability for at least one call to the ADR's primary type/function. Use `rg '<EntryType>::new\\|<EntryFn>\\b' src/main.rs` (or the equivalent path)."
+      - "Flag any accepted ADR whose primary deliverable type cannot be found in any binary's call graph. Record as ADR-ID / deliverable-type / reason (e.g., `AD-005 / MCP Server / prism-mcp crate is a 10-line stub`)."
+      - "False-positive escape: if the ADR has an explicit `wiring_deferred_to:` field in its frontmatter referencing a future story, suppress the finding but log it as a tracked deferral."
+
+  - id: 16
+    name: no_inverted_polarity_tests_outside_red_gate
+    description: "Tests that assert production code panics with stub-indicating messages (e.g., `#[should_panic(expected = \"not yet implemented\")]`) are forbidden in stories with `status: merged` or `status: partial-merge`. Such tests are only permitted transiently during the Red Gate stub-architect phase, and must be retired by the implementer before status flip."
+    adopted: bundle-A-cleanup-2026-05-08
+    severity: HIGH
+    enforced_by: [adversary-prompt, pre-merge-hook, test-writer-rule]
+    scope: [story, source-code, test]
+    lint_hook: hooks/check-inverted-polarity.sh
+    references_adr: ADR-020
+    verification_steps:
+      - "Run `rg --type rust '#\\[should_panic\\([^)]*expected\\s*=\\s*\"[^\"]*(?:not yet implemented|not implemented|TODO|stub|unimplemented)' tests/ crates/*/src/ crates/*/tests/'` to find all inverted-polarity test decorators in the workspace."
+      - "For each hit, identify the owning story by matching the crate to story `crate:` fields or the `behavioral_contracts:` that include the BC under test. Check that story's frontmatter `status:` field."
+      - "If the owning story has `status: merged` or `status: partial-merge` → violation. The test codifies a stub as the production contract; it would break the day the stub is implemented."
+      - "If the owning story has `status: in-progress` or `status: ready` → permitted as a transient Red Gate test (stub-architect phase). Record but do not block."
+      - "Verify there is no story with `status: merged` where a `#[should_panic(expected = ...)]` test has a stub-indicating message AND the production function signature matches the BC's SUT. This is the specific failure case from F-AUD-D3-01."
+      - "False-positive escape: tests that `#[should_panic]` on an INTENTIONAL panic (e.g., type-system invariant violation, not stub residue) may carry a suppress annotation `// POL-16-OK: intentional-panic` on the line above the attribute. Verify the justification is plausible."

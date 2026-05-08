@@ -1,14 +1,14 @@
 ---
 document_type: architecture-index
 level: L3
-version: "2.31"
+version: "2.32"
 status: draft
 producer: architect
 timestamp: 2026-05-04T00:00:00
 phase: 1b
 inputs: [domain-spec/L2-INDEX.md, prd.md, prd-supplements/interface-definitions.md, prd-supplements/nfr-catalog.md, prd-supplements/error-taxonomy.md]
 traces_to: prd.md
-deployment_topology: single-service
+deployment_topology: single-service  # planned — no service binary exists yet (prism-bin is a future-wave crate)
 ---
 
 # Architecture Index: Prism
@@ -79,11 +79,14 @@ deployment_topology: single-service
 | ADR-011 | DTU Harness Isolation Modes — Logical (In-Process) and Network (Per-Port) | ACCEPTED | 2026-04-27 | decisions/ADR-011-harness-isolation-modes.md |
 | ADR-012 | Workspace src/ Convention Normalization — Canonical Crate Layout | ACCEPTED | 2026-04-27 | decisions/ADR-012-src-convention.md |
 | ADR-013 | Schedule Execution Semantics | PROPOSED v0.7 | 2026-05-03 | decisions/ADR-013-schedule-execution-semantics.md |
+| ADR-014 | Local Pre-Push vs CI Gate Asymmetry | ACCEPTED | 2026-04-30 | decisions/ADR-014-local-pre-push-ci-gate-asymmetry.md |
 | ADR-015 | Detection Rule Language | PROPOSED v0.6 | 2026-05-03 | decisions/ADR-015-detection-rule-language.md |
 | ADR-016 | Action Delivery Framework | PROPOSED v0.14 | 2026-05-02 | decisions/ADR-016-action-delivery-framework.md |
 | ADR-017 | Case Lifecycle Invariants | PROPOSED v0.7 | 2026-05-03 | decisions/ADR-017-case-lifecycle-invariants.md |
 | ADR-018 | Differential Result Pack Format | PROPOSED v0.6 | 2026-05-03 | decisions/ADR-018-differential-result-pack-format.md |
 | ADR-019 | SIEM Output Formats | PROPOSED v0.4 | 2026-05-03 | decisions/ADR-019-siem-output-formats.md |
+| ADR-020 | Story Status Taxonomy Reform — Closed Enum, Partial-Merge Semantics, and Graduation Contract | ACCEPTED | 2026-05-08 | decisions/ADR-020-story-status-taxonomy-reform.md |
+| ADR-021 | BC/VP Promotion Lifecycle — Draft → Active → Verified Transitions, Audit Cadence, and BC-INDEX Count Authority | ACCEPTED | 2026-05-08 | decisions/ADR-021-bc-vp-promotion-lifecycle.md |
 
 ## Architecture Decisions
 
@@ -142,6 +145,7 @@ deployment_topology: single-service
 
 | Version | Pass | Date | Author | Change |
 |---------|------|------|--------|--------|
+| 2.32 | bundle-A-cleanup-2026-05-08 | 2026-05-08 | architect | Bundle A status-taxonomy reform: ADR-020 (story status taxonomy — closed enum, partial-merge semantics, graduation contract) and ADR-021 (BC/VP promotion lifecycle — draft→active→verified, audit cadence, BC-INDEX count authority) added to ADR Registry. Companion policies POL-12..16 added to policies.yaml v1.6. Hook specifications document added (hook-specs-bundle-a.md). No code changes; no story-file changes; schema + policy layer only. |
 | 2.31 | pr-127-pass4-remediation | 2026-05-05 | architect | Adversary pass-4 (F-MEDIUM-001) property-text correction cascade: VP-014 v1.6 + VP-015 v1.7 replace non-existent `ParseError::QueryTooLarge` / `ParseError::NestingTooDeep` enum-variant references with correct `Err(Vec<ParseError>)` API (message contains `E-QUERY-003`). Document Map verification-architecture.md row updated v1.29→v1.30. VP-INDEX v1.29. ARCH-INDEX v2.30→v2.31. Note: proof_file_hash values retained — hashes confirmed unchanged at commit 8feb4cf2. Hash may need re-computation after implementer #4 push lands changes to vp015_depth_limit.rs. |
 | 2.30 | pr-127-formal-verify | 2026-05-05 | architect | VP-014 and VP-015 promoted to verified following Kani proof runs at commit f5212641 (PR #127). Document Map verification-architecture.md row updated v1.28→v1.29. Cross-ref: VP-INDEX v1.28, vp-014 v1.5, vp-015 v1.6, verification-architecture.md v1.29. ARCH-INDEX v2.29→v2.30. |
 | 2.29 | TD-W4-CV-LOW-002-closure | 2026-05-04 | architect | TD-W4-CV-LOW-002 closure: ADR-016 date sync. ADR-016 row date corrected 2026-05-04 → 2026-05-02 to match ADR-016 frontmatter `timestamp: 2026-05-02T00:00:00Z`. Version/status/title confirmed clean (PROPOSED v0.14, "Action Delivery Framework"). ARCH-INDEX v2.28→v2.29. |
