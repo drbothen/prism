@@ -30,7 +30,6 @@
 //! Story: S-3.07 | BCs: BC-2.04.007, BC-2.04.008
 
 // CRIT-2: todo!() panics replaced with structured NotImplemented errors.
-#![allow(dead_code, unused_variables)]
 
 use std::any::Any;
 use std::sync::Arc;
@@ -63,8 +62,12 @@ pub struct WriteCapableTableProvider {
     /// The write table descriptor from prism-spec-engine.
     pub(crate) descriptor: WriteTableDescriptor,
     /// The endpoint spec for this write table (resolved at registration time).
+    // TODO: W3-FIX-S307-003 — used when INSERT/UPDATE/DELETE route through WriteExecutor.
+    #[allow(dead_code)]
     pub(crate) endpoint_spec: WriteEndpointSpec,
     /// The write executor (shared across all table providers for this engine).
+    // TODO: W3-FIX-S307-003 — used when INSERT/UPDATE/DELETE route through WriteExecutor.
+    #[allow(dead_code)]
     pub(crate) executor: Arc<WriteExecutor>,
     /// Arrow schema for the write result row.
     ///
@@ -145,10 +148,10 @@ impl TableProvider for WriteCapableTableProvider {
 
     async fn scan(
         &self,
-        state: &dyn Session,
-        projection: Option<&Vec<usize>>,
-        filters: &[Expr],
-        limit: Option<usize>,
+        _state: &dyn Session,
+        _projection: Option<&Vec<usize>>,
+        _filters: &[Expr],
+        _limit: Option<usize>,
     ) -> Result<Arc<dyn ExecutionPlan>, DataFusionError> {
         // Write-only tables cannot be scanned (read from).
         // Return a DataFusion error rather than todo!() to avoid a panic
