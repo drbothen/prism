@@ -1,58 +1,27 @@
-//! Red Gate tests for S-3.1.01 — OrgId UUID v7 newtype.
+//! Tests for S-3.1.01 — OrgId UUID v7 newtype.
 //!
 //! Traces to: BC-3.1.001 (OrgRegistry Bijective Slug/UUID Resolution)
 //! Verification properties covered: VP-063, VP-064, VP-065
 //!
-//! # Reconciliation decision: `from_uuid` vs `from_uuid_v7`
+//! `OrgId::from_uuid_v7` is implemented and panics on non-v7 input (see
+//! `crates/prism-core/src/ids.rs:83`). `OrgId` also implements `Display`,
+//! producing the hyphenated lowercase UUID string (see `ids.rs:94`).
 //!
-//! AC-1 explicitly requires a method named `OrgId::from_uuid_v7(u)` that panics when
-//! given a non-v7 UUID. The current stub (cd91a3ae) exposes only `from_uuid()` via the
-//! `uuid_v7_newtype!` macro, which does NOT enforce the version and does NOT panic.
+//! # Test inventory
 //!
-//! Ruling (spec-authoritative per TDD discipline):
-//!   - The tests for the PANIC CONTRACT (AC-1 / EC-001) are written against `from_uuid()`
-//!     using `#[should_panic]`. Since `from_uuid()` does not panic, these tests FAIL at
-//!     runtime. This correctly captures the Red Gate state: the enforcement is absent.
-//!   - The implementer must add `from_uuid_v7()` (which panics on non-v7 input) and/or
-//!     add version enforcement to `from_uuid()`. Either satisfies AC-1.
-//!   - Once implemented, these tests must be updated to call `from_uuid_v7()` directly
-//!     (or the implementer updates them as part of the Green Gate).
-//!
-//! # Reconciliation decision: `OrgId::Display`
-//!
-//! AC-4 requires `OrgId` to implement `std::fmt::Display`, producing the hyphenated
-//! lowercase UUID string (e.g. `"018e3f71-5c6d-7a8b-9c0d-1e2f3a4b5c6d"`).
-//! The current stub has no `Display` impl. Calling `format!("{}", org_id)` would not
-//! compile.
-//!
-//! Ruling: The Display tests use `format!("{:?}", org_id)` (Debug) as a compile-safe
-//! proxy. The assertion deliberately compares the Debug output against the plain UUID
-//! string. This FAILS because `#[derive(Debug)]` on a newtype produces
-//! `OrgId(018e3f71-...)`, not the bare UUID. Once the implementer adds
-//! `impl std::fmt::Display for OrgId`, the test must be updated to use `format!("{}", ...)`.
-//!
-//! # Test inventory (all must FAIL at Red Gate, all must compile)
-//!
-//! | Test function                                      | AC  | Fails because                              |
-//! |----------------------------------------------------|-----|--------------------------------------------|
-//! | test_bc_3_1_001_ac_1_new_generates_v7_uuid         | AC-1| PASSES — see NOTE below                    |
-//! | test_bc_3_1_001_ac_1_from_uuid_panics_on_v4        | AC-1| should_panic but from_uuid() does not panic|
-//! | test_bc_3_1_001_ac_2_re_export_compiles            | AC-2| PASSES — see NOTE below                    |
-//! | test_bc_3_1_001_ac_3_hashmap_key_compiles          | AC-3| PASSES — see NOTE below                    |
-//! | test_bc_3_1_001_ac_3_derives_equality              | AC-3| PASSES — see NOTE below                    |
-//! | test_bc_3_1_001_ac_3_derives_clone_copy            | AC-3| PASSES — see NOTE below                    |
-//! | test_bc_3_1_001_ac_3_serde_round_trip_json         | AC-3| PASSES — see NOTE below                    |
-//! | test_bc_3_1_001_ac_4_display_hyphenated_lowercase  | AC-4| Debug != plain UUID string                 |
-//! | test_bc_3_1_001_ec_001_from_uuid_v4_panics         | EC-001| should_panic but from_uuid() does not panic|
-//! | test_bc_3_1_001_ec_002_two_new_both_valid_v7       | EC-002| PASSES — see NOTE below                    |
-//! | test_bc_3_1_001_ec_003_hashmap_key_stores_values   | EC-003| PASSES — see NOTE below                    |
-//!
-//! NOTE: Several tests cover ACs/ECs whose stub implementation is already correct.
-//! These tests PASS at Red Gate. This is acceptable — the Red Gate protocol requires
-//! that tests for UNIMPLEMENTED behaviors fail. Tests for behaviors already present
-//! in the stub (new(), re-export, derives) are GREEN-BY-DESIGN at Red Gate.
-//! The two tests that are RED at gate (ac_1_from_uuid_panics_on_v4 and
-//! ec_001_from_uuid_v4_panics) provide the "at least one failing test" requirement.
+//! | Test function                                      | AC  | Status  |
+//! |----------------------------------------------------|-----|---------|
+//! | test_bc_3_1_001_ac_1_new_generates_v7_uuid         | AC-1| passes  |
+//! | test_bc_3_1_001_ac_1_from_uuid_panics_on_v4        | AC-1| passes  |
+//! | test_bc_3_1_001_ac_2_re_export_compiles            | AC-2| passes  |
+//! | test_bc_3_1_001_ac_3_hashmap_key_compiles          | AC-3| passes  |
+//! | test_bc_3_1_001_ac_3_derives_equality              | AC-3| passes  |
+//! | test_bc_3_1_001_ac_3_derives_clone_copy            | AC-3| passes  |
+//! | test_bc_3_1_001_ac_3_serde_round_trip_json         | AC-3| passes  |
+//! | test_bc_3_1_001_ac_4_display_hyphenated_lowercase  | AC-4| passes  |
+//! | test_bc_3_1_001_ec_001_from_uuid_v4_panics         | EC-001| passes |
+//! | test_bc_3_1_001_ec_002_two_new_both_valid_v7       | EC-002| passes |
+//! | test_bc_3_1_001_ec_003_hashmap_key_stores_values   | EC-003| passes |
 
 use prism_core::OrgId;
 use std::collections::HashMap;
@@ -80,13 +49,12 @@ fn test_bc_3_1_001_ac_1_new_generates_v7_uuid() {
     );
 }
 
-/// AC-1 (RED at Red Gate): `from_uuid(v4_uuid)` must panic — v4 is prohibited.
+/// AC-1: `from_uuid_v7(v4_uuid)` must panic — v4 is prohibited.
 ///
-/// BC-3.1.001 precondition 3 requires that constructing an OrgId from a non-v7 Uuid
-/// panics. The current `from_uuid()` implementation does NOT enforce the version and
-/// does NOT panic. This `#[should_panic]` test FAILS because the expected panic never
-/// occurs. The implementer must add version enforcement (either via `from_uuid_v7()` or
-/// by updating `from_uuid()`).
+/// BC-3.1.001 precondition 3 requires that constructing an OrgId from a non-v7 UUID
+/// panics. `OrgId::from_uuid_v7` enforces this: it panics with "not a UUID v7" when
+/// given a v4 UUID. The test calls `from_uuid_v7` directly (not the unchecked
+/// `from_uuid`) and relies on that enforcement.
 #[test]
 #[should_panic(expected = "not a UUID v7")]
 fn test_bc_3_1_001_ac_1_from_uuid_panics_on_v4() {
@@ -191,18 +159,10 @@ fn test_bc_3_1_001_ac_3_serde_round_trip_json() {
 // BC-3.1.001 invariant 3 / story spec: `OrgId::from_uuid_v7(known_uuid).to_string()`
 // must equal the hyphenated lowercase UUID string.
 
-/// AC-4 (RED at Red Gate): `OrgId` Display must produce hyphenated lowercase UUID.
+/// AC-4: `OrgId` Display must produce hyphenated lowercase UUID.
 ///
-/// The current stub has no `impl std::fmt::Display for OrgId`. This test uses the
-/// `Debug` format as a compile-safe proxy. `#[derive(Debug)]` on a newtype struct
-/// produces "OrgId(UUID_VALUE)", not the bare UUID string. The assertion therefore
-/// FAILS at runtime (RED GATE).
-///
-/// Implementer action: add `impl std::fmt::Display for OrgId { fn fmt(...) { ... } }`.
-/// After that, update this test to use `format!("{}", org_id)` instead of `"{:?}"`.
-///
-/// The known UUID bytes below encode a valid v7 UUID:
-///   018e3f71-5c6d-7aXX-XXXX-XXXXXXXXXXXX  (version nibble = 7, variant = 0b10)
+/// `OrgId` implements `std::fmt::Display` (see `ids.rs:94`), producing the bare
+/// hyphenated lowercase UUID string.
 #[test]
 fn test_bc_3_1_001_ac_4_display_hyphenated_lowercase() {
     // Build a known v7 UUID from fixed bytes for deterministic output.
@@ -229,14 +189,10 @@ fn test_bc_3_1_001_ac_4_display_hyphenated_lowercase() {
 // Story spec EC-001: "OrgId::from_uuid_v7(uuid_v4) called with a v4 UUID →
 // Panics with a clear message identifying the version mismatch."
 
-/// EC-001 (RED at Red Gate): constructing OrgId from a v4 UUID must panic.
+/// EC-001: constructing `OrgId` from a v4 UUID via `from_uuid_v7` must panic.
 ///
-/// This is the canonical EC-001 test vector. The current `from_uuid()` does NOT
-/// enforce the UUID version and does NOT panic. This `#[should_panic]` test FAILS
-/// because the expected panic never occurs. (RED GATE)
-///
-/// The implementer must add version enforcement. Once implemented, the panic message
-/// must contain "not a UUID v7" (or equivalent clear version-mismatch description).
+/// `OrgId::from_uuid_v7` enforces the UUID version and panics with "not a UUID v7"
+/// when given a non-v7 UUID (see `ids.rs:83`).
 #[test]
 #[should_panic(expected = "not a UUID v7")]
 fn test_bc_3_1_001_ec_001_from_uuid_v4_panics() {

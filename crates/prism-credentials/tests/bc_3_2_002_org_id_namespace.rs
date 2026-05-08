@@ -1,10 +1,8 @@
-//! Red Gate tests for BC-3.2.002: Per-Org Credential Isolation via OrgId-Keyed Namespace
+//! Tests for BC-3.2.002: Per-Org Credential Isolation via OrgId-Keyed Namespace
 //!
-//! All tests in this file MUST FAIL before implementation begins (Red Gate).
-//!
-//! The stub bodies in `namespace.rs` (`namespace_key_by_org_id`) and both
-//! backends (`KeyringBackend`, `EncryptedFileBackend`) all call `todo!()`,
-//! which panics at runtime. Every test here exercises those stubs.
+//! These tests verify the implemented behavior of `namespace_key_by_org_id` and
+//! both credential backends (`KeyringBackend`, `EncryptedFileBackend`).
+//! All tests in this file are expected to pass.
 //!
 //! ## BC-3.2.002 coverage
 //!
@@ -102,7 +100,7 @@ fn cred_name(s: &str) -> CredentialName {
 /// `"{org_id_uuid}/{sensor}/{name}"` where `org_id_uuid` is the hyphenated
 /// lowercase UUID v7 string from `OrgId::to_string()`.
 ///
-/// MUST FAIL: `namespace_key_by_org_id` is a `todo!()` stub.
+/// Verifies `namespace_key_by_org_id` behavior.
 #[test]
 fn test_BC_3_2_002_namespace_key_format_uses_org_id_uuid() {
     let org_id = OrgId::new();
@@ -119,7 +117,7 @@ fn test_BC_3_2_002_namespace_key_format_uses_org_id_uuid() {
 /// BC-3.2.002 precondition 1 (boundary): two distinct OrgIds produce
 /// distinct namespace keys for identical sensor + credential_name.
 ///
-/// MUST FAIL: `namespace_key_by_org_id` is a `todo!()` stub.
+/// Verifies `namespace_key_by_org_id` behavior.
 #[test]
 fn test_BC_3_2_002_distinct_org_ids_produce_distinct_keys() {
     let org_a = OrgId::new();
@@ -141,7 +139,7 @@ fn test_BC_3_2_002_distinct_org_ids_produce_distinct_keys() {
 /// This is a static property of the format; we verify that the UUID string
 /// appears in the key and that no non-UUID prefix is present.
 ///
-/// MUST FAIL: `namespace_key_by_org_id` is a `todo!()` stub.
+/// Verifies `namespace_key_by_org_id` behavior.
 #[test]
 fn test_BC_3_2_002_invariant_namespace_key_always_from_org_id() {
     let org_id = OrgId::new();
@@ -159,7 +157,7 @@ fn test_BC_3_2_002_invariant_namespace_key_always_from_org_id() {
 /// does not fall back to a slug-like short string.
 /// A UUID v7 string is always 36 characters (8-4-4-4-12).
 ///
-/// MUST FAIL: `namespace_key_by_org_id` is a `todo!()` stub.
+/// Verifies `namespace_key_by_org_id` behavior.
 #[test]
 fn test_BC_3_2_002_invariant_no_slug_keyed_fallback_in_namespace_key() {
     let org_id = OrgId::new();
@@ -187,7 +185,7 @@ fn test_BC_3_2_002_invariant_no_slug_keyed_fallback_in_namespace_key() {
 /// TV-3.2.002-01: Register cred (org_id_A, "claroty", "api_key");
 /// get(org_id_A, "claroty", "api_key") → Ok(Some(credential_A)).
 ///
-/// MUST FAIL: `set_by_org` and `get_by_org` are `todo!()` stubs.
+/// Verifies `set_by_org` and `get_by_org` behavior.
 #[tokio::test]
 async fn test_BC_3_2_002_tv_01_same_org_round_trip() {
     let dir = TempDir::new().unwrap();
@@ -224,7 +222,7 @@ async fn test_BC_3_2_002_tv_01_same_org_round_trip() {
 
 /// BC-3.2.002 postcondition 1: get_by_org for stored org returns Ok.
 ///
-/// MUST FAIL: backend stubs panic.
+/// Verifies backend behavior.
 #[tokio::test]
 async fn test_BC_3_2_002_get_by_org_returns_credential_for_correct_org() {
     let dir = TempDir::new().unwrap();
@@ -255,7 +253,7 @@ async fn test_BC_3_2_002_get_by_org_returns_credential_for_correct_org() {
 /// TV-3.2.002-02: Register cred (org_id_A, "claroty", "api_key");
 /// get(org_id_B, "claroty", "api_key") → Ok(None).
 ///
-/// MUST FAIL: backend stubs panic.
+/// Verifies backend behavior.
 #[tokio::test]
 async fn test_BC_3_2_002_tv_02_cross_org_isolation() {
     let dir = TempDir::new().unwrap();
@@ -290,7 +288,7 @@ async fn test_BC_3_2_002_tv_02_cross_org_isolation() {
 
 /// BC-3.2.002 postcondition 2 (primary test): cross-org get returns not_found.
 ///
-/// MUST FAIL: backend stubs panic.
+/// Verifies backend behavior.
 #[tokio::test]
 async fn test_BC_3_2_002_cross_org_get_returns_not_found() {
     let dir = TempDir::new().unwrap();
@@ -328,7 +326,7 @@ async fn test_BC_3_2_002_cross_org_get_returns_not_found() {
 /// under `org_id_A` remains accessible after we compute a new slug string.
 /// The credential store never sees the slug — it only operates on `OrgId`.
 ///
-/// MUST FAIL: backend stubs panic.
+/// Verifies backend behavior.
 #[tokio::test]
 async fn test_BC_3_2_002_tv_04_rename_stability() {
     let dir = TempDir::new().unwrap();
@@ -362,7 +360,7 @@ async fn test_BC_3_2_002_tv_04_rename_stability() {
 
 /// BC-3.2.002 postcondition 3 (alias test): rename_stable_lookup.
 ///
-/// MUST FAIL: backend stubs panic.
+/// Verifies backend behavior.
 #[tokio::test]
 async fn test_BC_3_2_002_rename_stable_lookup() {
     let dir = TempDir::new().unwrap();
@@ -401,7 +399,7 @@ async fn test_BC_3_2_002_rename_stable_lookup() {
 /// carries only `backend` and `reason` — no value field — so credential values
 /// cannot leak through errors.
 ///
-/// MUST FAIL: backend stubs panic before reaching the error path.
+/// Verifies error path behavior in the backend.
 #[tokio::test]
 async fn test_BC_3_2_002_credential_value_not_in_error_message() {
     let dir = TempDir::new().unwrap();
@@ -454,7 +452,7 @@ async fn test_BC_3_2_002_credential_value_not_in_error_message() {
 
 /// EC-001: lookup(org_id_A, "claroty") where orgA has credentials → Ok(credential_for_A).
 ///
-/// MUST FAIL: backend stubs panic.
+/// Verifies backend behavior.
 #[tokio::test]
 async fn test_BC_3_2_002_ec_001_org_with_credentials() {
     let dir = TempDir::new().unwrap();
@@ -485,7 +483,7 @@ async fn test_BC_3_2_002_ec_001_org_with_credentials() {
 
 /// EC-002: lookup(org_id_B, "claroty") where orgB has no credentials → Err(NotFound) / Ok(None).
 ///
-/// MUST FAIL: backend stubs panic.
+/// Verifies backend behavior.
 #[tokio::test]
 async fn test_BC_3_2_002_ec_002_org_without_credentials() {
     let dir = TempDir::new().unwrap();
@@ -508,7 +506,7 @@ async fn test_BC_3_2_002_ec_002_org_without_credentials() {
 /// TV-3.2.002-03 / EC-003: Register cred (org_id_A, "claroty"); get(org_id_A, "armis")
 /// → Err(NotFound) for armis; claroty creds unaffected.
 ///
-/// MUST FAIL: backend stubs panic.
+/// Verifies backend behavior.
 #[tokio::test]
 async fn test_BC_3_2_002_tv_03_per_sensor_isolation() {
     let dir = TempDir::new().unwrap();
@@ -544,7 +542,7 @@ async fn test_BC_3_2_002_tv_03_per_sensor_isolation() {
 
 /// EC-003 alias — org has claroty but not armis.
 ///
-/// MUST FAIL: backend stubs panic.
+/// Verifies backend behavior.
 #[tokio::test]
 async fn test_BC_3_2_002_ec_003_per_sensor_not_found() {
     let dir = TempDir::new().unwrap();
@@ -572,7 +570,7 @@ async fn test_BC_3_2_002_ec_003_per_sensor_not_found() {
 
 /// EC-004: Org renames from slug-A to slug-A2; lookup(org_id_A, "claroty") → Ok(credential).
 ///
-/// MUST FAIL: backend stubs panic.
+/// Verifies backend behavior.
 #[tokio::test]
 async fn test_BC_3_2_002_ec_004_rename_slug_org_id_stable() {
     let dir = TempDir::new().unwrap();
@@ -608,7 +606,7 @@ async fn test_BC_3_2_002_ec_004_rename_slug_org_id_stable() {
 /// EC-005: Two orgs with the same slug at different times have different OrgIds.
 /// Credentials stored under old org_id are not reachable via new org_id.
 ///
-/// MUST FAIL: backend stubs panic.
+/// Verifies backend behavior.
 #[tokio::test]
 async fn test_BC_3_2_002_ec_005_sequential_slug_reuse_no_collision() {
     let dir = TempDir::new().unwrap();
@@ -659,7 +657,7 @@ async fn test_BC_3_2_002_ec_005_sequential_slug_reuse_no_collision() {
 /// BC-3.2.002 invariant 3: `list_by_org` returns only credentials for the
 /// specified org — never those of another org.
 ///
-/// MUST FAIL: backend stubs panic.
+/// Verifies backend behavior.
 #[tokio::test]
 async fn test_BC_3_2_002_list_by_org_scoped_to_org() {
     let dir = TempDir::new().unwrap();
@@ -721,7 +719,7 @@ async fn test_BC_3_2_002_list_by_org_scoped_to_org() {
 /// BC-3.2.002 invariant 3: `delete_by_org(org_a, ...)` must not affect
 /// org_b's credential for the same sensor and name.
 ///
-/// MUST FAIL: backend stubs panic.
+/// Verifies backend behavior.
 #[tokio::test]
 async fn test_BC_3_2_002_delete_by_org_removes_only_target() {
     let dir = TempDir::new().unwrap();
@@ -783,7 +781,7 @@ async fn test_BC_3_2_002_delete_by_org_removes_only_target() {
 
 /// BC-3.2.002 — delete_by_org returns false when credential does not exist (idempotent).
 ///
-/// MUST FAIL: backend stubs panic.
+/// Verifies backend behavior.
 #[tokio::test]
 async fn test_BC_3_2_002_delete_by_org_idempotent_returns_false() {
     let dir = TempDir::new().unwrap();
@@ -808,7 +806,7 @@ async fn test_BC_3_2_002_delete_by_org_idempotent_returns_false() {
 /// BC-3.2.002 invariant 4: `exists_by_org` is keyed by `(OrgId, sensor, name)`.
 /// exists_by_org(org_a) returns true; exists_by_org(org_b) returns false.
 ///
-/// MUST FAIL: backend stubs panic.
+/// Verifies backend behavior.
 #[tokio::test]
 async fn test_BC_3_2_002_exists_by_org_after_set() {
     let dir = TempDir::new().unwrap();
@@ -845,7 +843,7 @@ async fn test_BC_3_2_002_exists_by_org_after_set() {
 
 /// BC-3.2.002 invariant 4: `exists_by_org` returns false before any set.
 ///
-/// MUST FAIL: backend stubs panic.
+/// Verifies backend behavior.
 #[tokio::test]
 async fn test_BC_3_2_002_invariant_exists_by_org_keyed_by_org_id() {
     let dir = TempDir::new().unwrap();
@@ -874,7 +872,7 @@ async fn test_BC_3_2_002_invariant_exists_by_org_keyed_by_org_id() {
 /// We verify by checking that two credentials stored for different orgs
 /// produce namespace keys with different first path segments.
 ///
-/// MUST FAIL: `namespace_key_by_org_id` is a `todo!()` stub.
+/// Verifies `namespace_key_by_org_id` behavior.
 #[test]
 fn test_BC_3_2_002_invariant_physical_isolation_by_namespace_prefix() {
     let org_a = OrgId::new();
@@ -908,7 +906,6 @@ fn test_BC_3_2_002_invariant_physical_isolation_by_namespace_prefix() {
 // iteration gets its own isolated filesystem subdirectory via case_workdir()
 // so cross-iteration state leakage is impossible.
 //
-// MUST FAIL: backend stubs panic.
 proptest! {
     #![proptest_config(ProptestConfig::with_cases(1_000))]
 
