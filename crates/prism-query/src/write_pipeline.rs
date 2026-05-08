@@ -82,7 +82,7 @@ impl WritePlan {
         let params: HashMap<String, String> = node
             .args
             .iter()
-            .map(|arg| (arg.key.clone(), format!("{:?}", arg.value)))
+            .map(|arg| (arg.key.clone(), arg.value.to_user_string()))
             .collect();
 
         Self {
@@ -138,7 +138,7 @@ impl WritePlan {
         let params: HashMap<String, String> = node
             .assignments
             .iter()
-            .map(|a| (a.column.clone(), format!("{:?}", a.value)))
+            .map(|a| (a.column.clone(), a.value.to_user_string()))
             .collect();
 
         Ok(Self {
