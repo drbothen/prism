@@ -1,10 +1,10 @@
 ---
 document_type: vsdd-plugin-tech-debt-register
 level: ops
-version: "2026-05-08T00:30:00Z"
+version: "2026-05-08T01:30:00Z"
 status: current
 producer: state-manager
-timestamp: 2026-05-08T00:30:00Z
+timestamp: 2026-05-08T01:30:00Z
 project: prism (carved out from main tech-debt-register)
 scope: vsdd-factory plugin / methodology / pipeline mechanics
 deferred_to: vsdd-factory plugin maintenance cycle (separate-repo / cross-session)
@@ -385,6 +385,7 @@ Both gaps contributed to HIGH-001 and HIGH-003 findings surviving until Wave 2 g
 
 | Date | Change |
 |------|--------|
+| 2026-05-08T01:30:00Z | v3.30 — D-288 S-3.07 LOCAL pass-6 BLOCKED verdict; F-PASS6-MED-001 sister-class safety_check_tests + F-PASS6-MED-002 fan_out hardcoded E-SENSOR-070 + F-PASS6-LOW-001 Debug-format leak; fix-pass-5 dispatch next; 63 items total (no new TDs). STATE v7.36→v7.37; SESSION-HANDOFF v7.36→v7.37; cycle-manifest v1.89→v1.90. |
 | 2026-05-08T00:30:00Z | v3.29 — D-287 S-3.07 LOCAL pass-5 BLOCKED + structural escalation; TD-S307-002 (test-name↔code coherence test, P1) + TD-S307-003 (catalog↔impl Display format coherence test, P1) filed; fix-pass-4 closes F-PASS5-MED-001 + F-PASS5-OBS-002; F-PASS5-OBS-003 cluster deferred to TD-S307-003 closure; 61→63 items. STATE v7.35→v7.36; SESSION-HANDOFF v7.35→v7.36; cycle-manifest v1.88→v1.89. |
 | 2026-05-08T00:00:00Z | v3.28 — D-286 S-3.07 LOCAL adversary pass-4 BLOCKED verdict; streak RESET 0/3 due to F-PASS4-MED-001 sister-class catalog↔impl skew on E-QUERY-027; pass-3+correction verified clean (4 KUDOs); fix-pass-3 dispatch next; 61 items total (no new TDs). STATE v7.34→v7.35; SESSION-HANDOFF v7.34→v7.35; cycle-manifest v1.87→v1.88. |
 | 2026-05-07T23:30:00Z | v3.27 — D-285 fix-pass-2-correction — write-operations.md catalog v1.1→v1.2 (E-QUERY-030 WriteTargetTableUnknown added); error.rs WriteTargetTableUnknown variant added; '<unknown>' fallback removed from from_dml_node; E-QUERY-029 WriteAdapterNotConfiguredForClient RESERVED (zero callers, ready for W3-FIX-S307-002); impl tip 2e36286e; 61 items total (no new TDs; correction-of-prior-decision burst). STATE v7.33→v7.34; SESSION-HANDOFF v7.33→v7.34; cycle-manifest v1.86→v1.87. |
