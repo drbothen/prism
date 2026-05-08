@@ -3,6 +3,10 @@ artifact_type: proposal
 target_repo: vsdd-factory
 target_repo_url: TBD (Joshua's vsdd-factory plugin repo)
 date: 2026-05-08
+revision: 2
+revision_history:
+  - r1 (2026-05-08): initial — Plan 1 (3-layer model) + Plan 2 (YAML+ripgrep substrate)
+  - r2 (2026-05-08): added Plan 3 (WASM extension substrate, day-1 commitment); updated build sequencing; added Q6-Q10
 status: draft-for-export
 self_contained: true
 prior_context_required: false
@@ -14,7 +18,7 @@ prism_audit_reference: ../cycles/wave-4-operations/workspace-audit-2026-05-08.md
 
 **For:** Claude Code session in the `vsdd-factory` plugin repo, with **no prior context** about the Prism project, the Wave 3 cascade, or the audits that motivated this proposal. This document is the entire input.
 
-**You are receiving:** two plans. Plan 1 is the three-layer prevention model expressed in language-anchored (Rust) form, ready to land as a vsdd-factory v-next feature. Plan 2 is a refactor of Plan 1 into a language-agnostic substrate so a single plugin can serve Rust, Python, TypeScript, Go, Java, etc., without per-language forks.
+**You are receiving:** three plans. Plan 1 is the three-layer prevention model expressed in language-anchored (Rust) form, ready to land as a vsdd-factory v-next feature. Plan 2 is a YAML+ripgrep substrate that makes Plan 1's syntactic checks language-agnostic at low cost. Plan 3 is the WASM extension substrate the plugin is committed to from day 1 — tree-sitter grammars and custom checks both ship as WASM modules, providing one extensibility model for everything compiled.
 
 ---
 
@@ -27,9 +31,10 @@ The convergence ceremony (3-CLEAN adversarial passes) **did not catch this**. Th
 This is a **defense-in-depth failure**. It needs three layers, not one.
 
 - **Plan 1** delivers the three layers concretely for a Rust project, ~1 week of plugin work.
-- **Plan 2** describes how to make Plan 1's hooks/rules/audits language-agnostic so the same plugin protects Python/TS/Go/Java projects without per-language plugins.
+- **Plan 2** describes how to make Plan 1's syntactic hooks/rules/audits language-agnostic via a YAML+ripgrep substrate that handles ~90% of the value at low cost.
+- **Plan 3** describes the WASM extension substrate the plugin is built on from day 1 — tree-sitter grammars and custom checks both shipped as WASM modules, one extensibility model for everything compiled. WASM is committed-to from day 1 of the plugin, not migrated-to later.
 
-Recommended build order: **Plan 1 first** (proves the layered model on one language); **Plan 2 as a refactor cycle** (after the layered model is validated, generalize the substrate).
+Recommended build order: **Plan 1 first** (proves the layered model on one language); **Plan 2 as a parallel cycle** (cheap multi-language coverage for syntactic checks); **Plan 3 in parallel with Plan 2 once Plan 1 ratifies the model** (WASM substrate + tree-sitter for the deeper structural checks). No native-then-migrate dance.
 
 ---
 
@@ -349,42 +354,11 @@ The hook detects the project's language(s) by walking marker files (multi-langua
 
 **Adding a new language:** PR a YAML row, optionally with a small test fixture in `vsdd-factory/test-fixtures/<lang>/`. Zero plugin code change.
 
-### Tier 2: Tree-sitter substrate (semantic checks)
+### Tier 2: WASM tree-sitter substrate (semantic checks)
 
-Ripgrep patterns catch syntactic stubs (90% of cases). They miss:
+Ripgrep patterns catch syntactic stubs (~90% of cases). The remaining ~10% are *structural* — silent-shallow tests, doc/code coherence drift, BC-postcondition-vs-implementation drift — and need an AST.
 
-- **Silent-shallow tests** — a test that imports production but never calls into it (calls a mock instead).
-- **Doc/code coherence** — function declared `Returns: Vec<Foo>` but body is `vec![]` placeholder.
-- **Specification ↔ implementation coherence** — BC says "produces side effect X" but code only logs.
-
-These need an AST. **Tree-sitter is the right substrate**:
-
-- One installation, ~200+ language grammars maintained upstream.
-- Stable AST query language (S-expression matchers).
-- Already heavily integrated into editors / GitHub semantic search.
-- Queries are reusable across the same conceptual check.
-
-**Example tree-sitter check (silent-shallow test):**
-
-```scheme
-; Find test functions that don't call the production crate's modules.
-; Pseudo-query — actual queries vary per grammar.
-
-(function_item
-  name: (identifier) @test_name
-  body: (block
-    (call_expression
-      function: (path) @callee))
-  (#match? @test_name "^test_")
-  (#not-match? @callee "<production_crate_name>::"))
-```
-
-**The Tier 2 plugin design:**
-- Ship per-language tree-sitter queries in `vsdd-factory/queries/<lang>/`.
-- A single Rust binary (`tree-sitter-vsdd-check`) loads the appropriate grammar at runtime, runs the queries, emits findings.
-- Adding a new language = add grammar dependency + write per-check queries.
-
-**Cost vs benefit:** Tier 2 is heavier — query authoring per language, grammar version-pinning, slower CI runs. But it catches the semantic class that ripgrep cannot. Recommend Tier 2 as a **cycle-after** project once Tier 1 is validated.
+The full Tier 2 architecture is **Plan 3** below. In short: tree-sitter is the right substrate, shipped as **WASM grammars from day 1** alongside custom-check WASM extensions. The plugin commits to WASM as the universal compiled-extension mechanism — same loader, same trust model, same distribution path serves grammars and user-authored checks. See Plan 3 for the full architecture.
 
 ### Per-language surface that legitimately remains
 
@@ -408,6 +382,288 @@ Some checks are inherently per-language because they depend on the language's bu
 6. **Document onboarding for new languages.** A `CONTRIBUTING.md` section: "How to add language X — 4 steps, no code changes."
 
 **Effort:** 3-5 days for Rust+Python+TS coverage; 1-2 days per additional language thereafter.
+
+---
+
+## Plan 3 — WASM Extension Substrate (Day-1 Commitment)
+
+Plan 1 ships the three-layer prevention model in language-anchored form. Plan 2 Tier 1 ships the YAML+ripgrep substrate for the syntactic class of checks across languages. **Plan 3 is the plugin's compiled-extension architecture** — the substrate for everything that needs more than data-driven regex: tree-sitter grammars, semantic checks, project-specific custom checks, future cross-cutting analyses.
+
+WASM is the substrate **from day 1**. No native-then-migrate. No two-mechanism split where grammars live as Cargo deps and custom checks ship as Lua scripts and language shims live as bash. One ABI, one loader, one trust model, one distribution path.
+
+### Why WASM-first, not WASM-eventually
+
+| Property | WASM-first | Native-then-migrate |
+|---|---|---|
+| **Adding a language at runtime** | Drop a `.wasm` file | Rebuild plugin binary |
+| **Trust model** | Sandboxed by default | Process-level trust |
+| **Cross-platform** | One artifact, all OS/arch | Build matrix per platform |
+| **Auditability** | Hashable, signable artifact | Per-platform binary signing |
+| **Extension authorship** | Same toolchain for all extension types | Different paths for grammars vs scripts vs shims |
+| **Operational cost of migration** | None — committed up front | Refactor cost when languages 3+ arrive |
+
+The native-then-migrate path looks cheaper in week 1 and gets more expensive every week thereafter. Native grammars become Cargo deps that the plugin binary owns; migrating to WASM later means rewriting the loader, retesting all language paths, and repinning grammar versions. Pay the cost upfront, once.
+
+The strongest argument: **WASM is also how custom checks ship.** A user-authored check (project-specific pattern, organization-wide policy) is a WASM module. If grammars are native and checks are WASM, the plugin has two extension mechanisms forever. If both are WASM, the plugin has one extension mechanism — for grammars, for built-in checks, for user-authored checks, for future analysis types not yet imagined.
+
+### The two extension classes
+
+**Class 1: Grammar extensions** (consumed by the tree-sitter runtime)
+- One `.wasm` per language.
+- Sourced from upstream tree-sitter grammar releases or built locally via `tree-sitter build --wasm`.
+- Loaded via tree-sitter's `WasmStore` (stable in the `tree-sitter` Rust crate since v0.22, 2024; production adopters include Zed editor and several language servers).
+- Per-language query files (`.scm`) live alongside as plain text — they're queries, not code, no need for WASM.
+
+**Class 2: Check extensions** (consumed by the plugin's check dispatcher)
+- WASM modules implementing the `vsdd-check` ABI.
+- Built-in checks ship in `extensions/checks/builtin/` as part of the plugin distribution.
+- User-authored checks live in `<project>/.factory/extensions/checks/` and are loaded at scan time.
+- Authored in any language that compiles to WASM — Rust → wasm32 is the primary path; AssemblyScript and TinyGo work for non-Rust authors.
+
+### Plugin core architecture
+
+```
+vsdd-factory/
+├── crates/
+│   └── vsdd-check/                  # the binary
+│       └── src/
+│           ├── runtime.rs           # wasmtime + tree-sitter WasmStore wiring
+│           ├── manifest.rs          # extension manifest schema
+│           ├── dispatcher.rs        # check dispatch loop
+│           └── findings.rs          # finding emit + serialization
+├── extensions/
+│   ├── grammars/                    # tree-sitter WASM grammars
+│   │   ├── rust.wasm
+│   │   ├── python.wasm
+│   │   └── typescript.wasm
+│   ├── checks/
+│   │   └── builtin/                 # ships with the plugin
+│   │       ├── silent-shallow.wasm
+│   │       ├── doc-code-coherence.wasm
+│   │       └── stub-residue-deep.wasm
+│   └── manifests/
+│       ├── rust.toml
+│       ├── python.toml
+│       └── ...
+├── queries/                         # tree-sitter S-expression queries
+│   ├── rust/
+│   │   ├── silent-shallow.scm
+│   │   ├── doc-code-coherence.scm
+│   │   └── stub-residue-deep.scm
+│   ├── python/
+│   │   └── ...
+│   └── typescript/
+│       └── ...
+└── test-fixtures/
+    ├── rust/{passing,failing}/
+    ├── python/{passing,failing}/
+    └── typescript/{passing,failing}/
+```
+
+The plugin core is a thin Rust binary (~1500-2500 LoC) that:
+1. Discovers grammars in `extensions/grammars/`.
+2. Discovers built-in checks in `extensions/checks/builtin/`.
+3. Discovers project-local custom checks in `<project>/.factory/extensions/checks/`.
+4. Detects file language (extension + marker file).
+5. For each file, dispatches matching checks against the parsed AST.
+6. Emits findings to stdout/JSON/SARIF.
+
+### Extension manifest format
+
+Each extension declares its metadata, ABI version, and capabilities:
+
+```toml
+# extensions/manifests/silent-shallow.toml
+name = "silent-shallow"
+version = "1.0.0"
+abi_version = 1                    # plugin core supports range [1, N]
+type = "check"                     # "check" | "grammar" | "shim"
+artifact = "extensions/checks/builtin/silent-shallow.wasm"
+
+applies_to_languages = ["rust", "python", "typescript"]
+requires_grammar = true            # this check needs an AST
+
+[capabilities]
+read_target_file = true            # default
+read_arbitrary_files = false       # sandboxed by default
+network = false                    # no
+```
+
+For grammars:
+
+```toml
+# extensions/manifests/rust-grammar.toml
+name = "rust"
+version = "0.21.2"                 # mirrors upstream tree-sitter-rust
+abi_version = 1
+type = "grammar"
+artifact = "extensions/grammars/rust.wasm"
+upstream_source = "https://github.com/tree-sitter/tree-sitter-rust"
+upstream_commit = "<sha>"
+
+file_extensions = [".rs"]
+marker_files = ["Cargo.toml", "rust-toolchain.toml"]
+```
+
+### The `vsdd-check` ABI (sketch)
+
+A check is a WASM module exporting two functions (raw exports for v1; WIT migration documented as v2):
+
+```
+;; metadata: returns JSON describing what this check looks for
+(func $check_metadata (result i32 i32))   ; pointer + length to JSON string
+
+;; check: runs against a parsed file
+(func $check
+    (param i32 i32)                       ; ptr+len to source bytes
+    (param i32)                           ; tree-sitter tree handle
+    (param i32 i32)                       ; ptr+len to file path
+    (result i32 i32))                     ; ptr+len to findings JSON array
+```
+
+Findings are serialized JSON:
+```json
+[
+  {
+    "severity": "P0",
+    "rule": "silent-shallow",
+    "file": "crates/foo/tests/integration.rs",
+    "line": 142,
+    "column": 5,
+    "message": "Test asserts on mock return value but never invokes production module 'foo::engine'",
+    "evidence": "let result = mock_engine.execute(); assert_eq!(result, 42)"
+  }
+]
+```
+
+**Future-proofing:** WIT (WebAssembly Interface Types) and the Component Model would be more ergonomic than raw exports, but the tooling is still maturing as of 2026. Recommend starting with raw exports, then migrating to WIT once the Component Model stabilizes — the migration is mechanical (interface generators handle the marshaling).
+
+### Capability model
+
+Extensions are sandboxed by default. The plugin core grants capabilities per-extension based on the manifest:
+
+| Capability | Default | Used for |
+|---|---|---|
+| `read_target_file` | granted | The file being scanned |
+| `read_arbitrary_files` | denied | Cross-file analysis (must be explicit) |
+| `read_factory_artifacts` | denied | BC/VP index lookup |
+| `network` | denied | Currently no use case; keep denied |
+| `wall_clock_time` | granted | Logging, timing |
+
+This matters because user-authored extensions are untrusted code. A check that reads `~/.aws/credentials` and exfiltrates findings is a real attack vector. Capability-by-default-deny is the right starting posture.
+
+### Build and CI flow
+
+**Grammar build:**
+```bash
+# In a per-grammar build script
+cd third-party/tree-sitter-rust
+tree-sitter build --wasm
+cp tree-sitter-rust.wasm $PLUGIN_ROOT/extensions/grammars/rust.wasm
+```
+
+The tree-sitter CLI compiles the grammar's C source to WASM via emscripten or docker. Plugin CI runs this for each grammar on each release.
+
+**Check build (Rust → wasm32):**
+```bash
+# In a check crate
+cargo build --target wasm32-unknown-unknown --release
+cp target/wasm32-unknown-unknown/release/silent_shallow.wasm \
+   $PLUGIN_ROOT/extensions/checks/builtin/silent-shallow.wasm
+```
+
+**Plugin CI:**
+1. Build all built-in WASM artifacts.
+2. Validate manifest schema against JSON Schema.
+3. Run plugin against `test-fixtures/<lang>/{passing,failing}/` — passing dirs must produce zero findings; failing dirs must produce expected findings.
+4. ABI compatibility check: each extension's `abi_version` must be within plugin core's supported range.
+5. Hash-pin all artifacts in an `extensions.lock.toml` for reproducibility.
+
+### Distribution and versioning
+
+The plugin core declares a supported ABI range:
+
+```toml
+# vsdd-factory's plugin metadata
+abi_versions_supported = { min = 1, max = 1 }
+```
+
+Each extension declares its required ABI (`abi_version = 1`). When ABI version 2 lands, plugin core supports `{min=1, max=2}` for at least one minor release cycle, giving extension authors time to migrate. After that, plugin core's `min` bumps to 2.
+
+User-authored extensions are versioned independently. A project pins its extensions in `<project>/.factory/extensions.lock.toml`:
+
+```toml
+[grammars.rust]
+version = "0.21.2"
+sha256 = "..."
+
+[checks.org_specific_db_layer]
+version = "1.0.3"
+sha256 = "..."
+source = "https://github.com/<org>/vsdd-checks/releases/download/v1.0.3/db-layer.wasm"
+```
+
+### Honest costs of WASM-first
+
+1. **WASM tree-sitter parsing is ~2-5x slower than native.** For PR-time hooks running on changed files only (10-100 files), this is millisecond-scale either way. For workspace audits (thousands of files), it adds tens of seconds. Acceptable.
+2. **wasmtime adds ~10MB to the plugin binary.** Modern dependency, not painful but real. `wasmer` is an alternative if size is critical.
+3. **WASM toolchain learning curve for check authors.** Rust → wasm32 is straightforward (`cargo build --target wasm32-unknown-unknown`). AssemblyScript is approachable for non-Rust authors. TinyGo works for Go authors. Less polished than native compilation, but production-grade.
+4. **Debugging WASM is rougher than native.** Stack traces work; gdb-style debugging is limited. Extension authors are expected to test extensively in fixtures before shipping.
+5. **Tree-sitter Rust WasmStore is newer than the native path.** Stable since `tree-sitter` v0.22 (2024). Production adopters include Zed editor and several language servers. Pin a conservative `tree-sitter` version and watch for ecosystem stabilization.
+6. **Grammar provenance discipline.** WASM grammars must be compiled from trusted sources. Plugin CI builds grammars from upstream commits pinned in manifests, not from prebuilt binaries scraped off random sites.
+
+### What WASM does NOT replace
+
+Plan 2 Tier 1 (YAML + ripgrep) stays as-is. WASM is for compiled, structural, non-trivial extensions. Cheap data-driven checks remain YAML — there's no value in WASM-ifying a regex pattern set. The plugin runs both substrates: ripgrep for fast syntactic checks, WASM for structural checks. They emit findings in the same format and merge in the dispatcher.
+
+### Phase 3.A–D sequencing (the WASM substrate build)
+
+**Phase 3.A — substrate (1 plugin week):**
+- `vsdd-check` core binary skeleton: wasmtime + tree-sitter WasmStore.
+- Extension manifest schema + JSON Schema.
+- Capability model implementation (default-deny).
+- One grammar end-to-end: Rust WASM grammar built from upstream + loaded + parsed.
+- One check end-to-end: `silent-shallow` for Rust as a built-in WASM check.
+- CLI: `vsdd-check --check silent-shallow <file>`.
+- Test fixtures for Rust passing and failing cases.
+
+**Phase 3.B — multi-language proof (~0.5 plugin week):**
+- Add Python WASM grammar.
+- Author `queries/python/silent-shallow.scm`.
+- Add Python fixtures.
+- Verify language detection picks the right grammar.
+- Verify the same check WASM module dispatches against multiple grammars (the check accesses the AST via tree-sitter's API regardless of which grammar parsed it).
+
+**Phase 3.C — custom-check ABI + reference (~1 plugin week):**
+- Finalize the `vsdd-check` ABI (raw exports for v1).
+- Reference custom check: a project-specific pattern, e.g., "no `unwrap()` in production code outside test modules" — built as a separate Rust crate compiled to wasm32.
+- Document the ABI in `vsdd-factory/docs/check-authoring.md`.
+- Plugin CI: validate the reference check against fixtures.
+
+**Phase 3.D — authoring docs + secondary toolchain (~0.5 plugin week):**
+- AssemblyScript example custom check.
+- "Adding a language" doc: end-to-end recipe (find grammar → build WASM → write queries → add manifest → ship fixtures).
+- "Authoring a custom check" doc: ABI walkthrough, fixture pattern, capability declaration.
+
+**Total Phase 3 effort: ~3 plugin weeks.**
+
+### What ships at the end of Phase 3
+
+- A plugin with the full prevention layer (Plan 1) + cheap multi-language syntactic coverage (Plan 2 Tier 1) + structural multi-language coverage via WASM (Plan 3).
+- Extensible: new languages added by dropping a WASM grammar + query files.
+- Extensible: new checks added by writing a WASM module + manifest.
+- Sandboxed: untrusted user-authored checks can ship safely.
+- Reproducible: lockfile-pinned grammars and checks.
+
+### What this enables that nothing else does
+
+Once the WASM substrate is in place, the plugin becomes a host for organizational policy enforcement that goes well beyond stub-merge defense:
+
+- An organization can ship internal checks ("no direct DB queries outside the repo layer", "all log statements include a request ID") as WASM modules without forking the plugin.
+- Project-specific lints ("our domain model forbids using floating-point for currency") can ship as repo-local extensions.
+- Cross-cutting policies ("every public API must have a docstring referencing a BC") become one custom check per organization.
+
+These are out of scope for the prevention proposal — but they're the natural growth path the WASM substrate enables. **The plugin stops being a stub-merge defense tool and becomes a programmable policy engine.** That's the deeper reason WASM-first matters from day 1.
 
 ---
 
@@ -443,16 +699,23 @@ Reason: now that the layered model is validated, refactor the Rust-flavored hook
 
 **Validation:** apply the plugin to a Python project and a TypeScript project; both should pass the hook on green code and fail on injected stubs.
 
-### Phase 3 (future cycle): Plan 2 Tier 2, tree-sitter semantic layer
+### Phase 3 (parallel with Phase 2 once Phase 1 lands): Plan 3, WASM extension substrate
 
-Reason: catch silent-shallow tests and doc/code coherence drift. Heavy lift; defer until Tier 1 is in production for a quarter and the residual finding rate is measurable.
+Reason: deeper checks where regex cannot reach (silent-shallow tests, doc/code coherence, BC-postcondition-vs-implementation drift), AND establish the plugin's compiled-extension architecture. WASM is the substrate from day 1 — no native-then-migrate dance, no two-mechanism split between grammars and custom checks. See Plan 3 above for the full architecture.
 
 **Deliverables:**
-- `tree-sitter-vsdd-check` Rust binary
-- Per-language query files
+- `vsdd-check` Rust binary embedding wasmtime + tree-sitter WasmStore
+- WASM tree-sitter grammars: Rust (Phase 3.A) + Python (Phase 3.B)
+- `vsdd-check` ABI specification + JSON Schema for extension manifests
+- Capability-based sandbox model (default-deny)
+- Reference custom check (Rust → wasm32) demonstrating the authoring path
+- Per-language query files (`queries/<lang>/<check>.scm`)
 - New skills: `audit-silent-shallow-tests`, `audit-doc-code-coherence`
+- Authoring documentation (Rust → wasm32 primary, AssemblyScript secondary)
 
-**Effort:** ~2-3 plugin weeks.
+**Effort:** ~3 plugin weeks (3.A 1wk + 3.B 0.5wk + 3.C 1wk + 3.D 0.5wk).
+
+Phase 3 can begin **in parallel with Phase 2** once Phase 1 has validated the layered prevention model. Phase 2 (YAML+ripgrep) and Phase 3 (WASM tree-sitter) emit findings into the same format and dispatcher — they're complementary substrates, not competing ones.
 
 ---
 
@@ -483,7 +746,7 @@ Full audit report: see `companion_proposal: vsdd-stub-merge-policy-2026-05-08.md
 ## Appendix C: Companion proposals
 
 - `vsdd-stub-merge-policy-2026-05-08.md` — the schema fix: `partial-merge` status enum, graduation contract, adversary policy, `audit-stub-debt` skill. **Read this first.**
-- `vsdd-prevention-layers-2026-05-08.md` — this document: the three-layer enforcement infrastructure, language-anchored (Plan 1) and language-agnostic (Plan 2).
+- `vsdd-prevention-layers-2026-05-08.md` — this document: the three-layer enforcement infrastructure, language-anchored (Plan 1), syntactic-multi-language via YAML+ripgrep (Plan 2), and structural-multi-language via WASM extension substrate (Plan 3).
 
 The two proposals are complementary, not redundant. The schema fix without the enforcement infrastructure produces unenforced enums; the enforcement infrastructure without the schema fix has nowhere to write the `partial-merge` state.
 
@@ -496,5 +759,10 @@ The two proposals are complementary, not redundant. The schema fix without the e
 3. **How does the plugin handle multi-language monorepos?** Sketch above: detect each language by marker, apply each language's rules to its subtree. But path-disambiguation across overlapping subtrees needs a precedence rule.
 4. **Does Tier 2 tree-sitter justify the maintenance burden?** Tree-sitter grammars need version-pinning per language; some languages (Rust, in particular) have grammar drift on edition bumps. Open question whether the semantic-check value justifies the maintenance.
 5. **Should `partial-merge` be opt-in per project?** Some projects may not want the new enum value. Suggest the plugin ships it default-on but configurable.
+6. **Capability-based security for WASM extensions — what file/network access do extensions get?** Sketched in Plan 3 as default-deny (only `read_target_file` granted by default). Open: should `read_factory_artifacts` (BC/VP index lookup) be a common opt-in capability or remain rare? Cross-file analysis checks need it.
+7. **WIT (WebAssembly Interface Types) for the check ABI vs raw exports?** WIT future-proofs and adds ergonomics but the Component Model tooling is still maturing. Plan 3 starts with raw exports (v1 ABI) and documents WIT migration as v2. Open: when does the Component Model stabilize enough to make WIT the default?
+8. **Where do WASM grammars come from?** Three options: (a) mirror upstream tree-sitter grammar releases as binary artifacts; (b) build locally in plugin CI from grammar source repos at pinned commits; (c) both (mirror as a fallback, prefer locally-built). Local builds give provenance; mirrors give speed. Open recommendation: option (b) with hash-pinning.
+9. **Tree-sitter Rust WasmStore version policy.** Stable since v0.22 (2024); production adopters include Zed editor. Pin a conservative version (e.g. v0.22.6) and bump intentionally, or follow latest? Open: define a tree-sitter version-pin policy.
+10. **What capabilities should built-in checks ship with vs user-authored checks?** A built-in `silent-shallow` check arguably needs `read_arbitrary_files` to walk the project's module graph; a user-authored check probably should not get that capability by default. Open: define a "trusted built-in" tier vs a "user-authored sandbox" tier in the manifest schema.
 
 End of proposal.
