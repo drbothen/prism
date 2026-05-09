@@ -65,7 +65,9 @@ pub async fn install_sigterm_handler(shutdown_tx: broadcast::Sender<()>) {
                 // In the full implementation (post S-3.02-FOLLOWUP-RUNTIME), this flushes
                 // the RocksDB audit_buffer CF. For the chassis, the tracing subscriber
                 // handles buffering and the OS flushes stdout/stderr on exit.
-                tracing::info!("Audit buffer flushed — exiting cleanly");
+                tracing::info!(
+                    "Audit buffer flush deferred to S-3.02-FOLLOWUP-RUNTIME (chassis only) — exiting cleanly"
+                );
 
                 // AC-6: exit 0 on clean SIGTERM shutdown.
                 std::process::exit(0);
@@ -74,7 +76,9 @@ pub async fn install_sigterm_handler(shutdown_tx: broadcast::Sender<()>) {
                 // Handle Ctrl-C the same as SIGTERM for graceful shutdown.
                 tracing::info!("Received SIGTERM — shutting down");
                 let _ = shutdown_tx.send(());
-                tracing::info!("Audit buffer flushed — exiting cleanly");
+                tracing::info!(
+                    "Audit buffer flush deferred to S-3.02-FOLLOWUP-RUNTIME (chassis only) — exiting cleanly"
+                );
                 std::process::exit(0);
             }
         }
