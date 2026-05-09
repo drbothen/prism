@@ -4307,6 +4307,29 @@ dependencies = [
 ]
 
 [[package]]
+name = "prism-bin"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "arc-swap",
+ "clap",
+ "prism-audit",
+ "prism-core",
+ "prism-credentials",
+ "prism-mcp",
+ "prism-query",
+ "prism-spec-engine",
+ "prism-storage",
+ "serde",
+ "tempfile",
+ "thiserror 1.0.69",
+ "tokio",
+ "toml 0.8.23",
+ "tracing",
+ "tracing-subscriber",
+]
+
+[[package]]
 name = "prism-core"
 version = "0.1.0"
 dependencies = [
