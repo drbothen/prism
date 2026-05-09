@@ -220,60 +220,36 @@ fn test_BC_2_05_012_boot_error_audit_init_failed_exit_code_is_4() {
 
 /// Story: S-WAVE5-PREP-01
 /// BC: BC-2.05.012 §boot.audit.initialized Sentinel Event Schema
-/// TV-05-012-006: Sentinel JSON must contain all required fields.
+/// TV-05-012-005 + TV-05-012-006: Sentinel persisted to RocksDB with all required fields.
 ///
-/// This test exercises the sentinel construction path. After the implementer
-/// wires step 6, the sentinel will be a real AuditEntry written to RocksDB.
-/// Here we test that a boot.audit.initialized sentinel with the required fields
-/// can be constructed as valid JSON.
+/// F-PASS2-OBS-1 (S-WAVE5-PREP-01 fix-pass-2): This test now performs a full
+/// sentinel readback from the RocksDB `audit_buffer` CF after `validate-config`
+/// exits 0. It:
+/// 1. Spawns `validate-config` (boot steps 1-6).
+/// 2. Opens the RocksDB database at `state_dir`.
+/// 3. Scans the `audit_buffer` CF for entries with prefix "audit:".
+/// 4. Deserializes the entry via bincode to `prism_storage::audit_buffer::AuditEntry`.
+/// 5. Parses the payload as the BC-specified schema (event_type, timestamp RFC 3339,
+///    prism_version, config_dir, org_count, boot_step=6).
+/// 6. Asserts all required fields are present and have correct values.
 ///
-/// The required fields per BC-2.05.012 are:
+/// Required sentinel schema fields per BC-2.05.012 §Postconditions:
 /// - event_type: "boot.audit.initialized"
-/// - timestamp: RFC 3339
-/// - prism_version: semver from Cargo.toml
-/// - config_dir: redacted path or hash
-/// - org_count: integer
-/// - boot_step: 6
-///
-/// RED GATE: Fails today because boot.rs step 6 is `todo!()` — there is no
-/// sentinel construction function exposed yet. This test will pass when the
-/// implementer adds a `build_boot_sentinel()` function or similar.
+/// - timestamp: RFC 3339 (F-PASS2-HIGH-2)
+/// - prism_version: semver from CARGO_PKG_VERSION
+/// - config_dir: redacted hash (never the raw path)
+/// - org_count: "1" (one org in the test fixture)
+/// - boot_step: "6"
 #[test]
 fn test_BC_2_05_012_sentinel_schema_has_required_fields() {
-    // This test exercises the sentinel schema by constructing the expected JSON
-    // directly. When the implementer provides a `build_boot_sentinel` function
-    // or exposes the sentinel as a type, this test must be updated to call it.
-    //
-    // For now, assert that the const PRISM_VERSION is available and non-empty,
-    // which is a necessary precondition for the sentinel schema.
+    use prism_core::StorageDomain;
+    use prism_storage::audit_buffer::AuditEntry as StorageAuditEntry;
+    use prism_storage::backend::RocksStorageBackend;
+    use prism_storage::rocksdb_backend::RocksDbBackend;
 
-    // The prism_version field must come from CARGO_PKG_VERSION.
-    let version = env!("CARGO_PKG_VERSION");
-    assert!(
-        !version.is_empty(),
-        "CARGO_PKG_VERSION must be non-empty for boot.audit.initialized sentinel"
-    );
-
-    // The sentinel event_type string is the key behavioral contract.
-    let event_type = "boot.audit.initialized";
-    assert_eq!(
-        event_type, "boot.audit.initialized",
-        "Sentinel event_type must be exactly 'boot.audit.initialized' (BC-2.05.012)"
-    );
-
-    // Assert that boot_step for this sentinel is 6 per ADR-022 §B.
-    let boot_step: u32 = 6;
-    assert_eq!(
-        boot_step, 6,
-        "boot.audit.initialized sentinel must have boot_step=6"
-    );
-
-    // Boot step 6 (audit init) is now implemented (S-WAVE5-PREP-01).
-    // The sentinel is written to RocksDB audit_buffer CF synchronously.
-    // Verify that validate-config exits 0 — this confirms the sentinel was
-    // persisted durably (BC-2.05.012 TV-05-012-006).
     // MED-5: isolated per-test dirs to avoid parallel RocksDB LOCK collisions.
-    let (config_dir, _state_tmp, _spec_tmp) = make_valid_config_dir();
+    let (config_dir, state_tmp, _spec_tmp) = make_valid_config_dir();
+
     let output = Command::new(prism_bin())
         .args(["validate-config"])
         .env("PRISM_CONFIG_DIR", config_dir.path())
@@ -288,5 +264,102 @@ fn test_BC_2_05_012_sentinel_schema_has_required_fields() {
          BC-2.05.012 TV-05-012-006: sentinel emitted, audit subsystem initialized; \
          stderr: {}",
         String::from_utf8_lossy(&output.stderr)
+    );
+
+    // F-PASS2-OBS-1: open RocksDB from the test, scan audit_buffer CF, verify sentinel.
+    // The subprocess wrote to state_dir/prism.db — open the same DB for readback.
+    let backend = RocksDbBackend::open(state_tmp.path().to_path_buf())
+        .expect("must be able to open RocksDB at state_dir after validate-config exits 0");
+
+    // Scan the audit_buffer CF for sentinel entries.
+    let entries = backend
+        .scan(StorageDomain::AuditBuffer, b"audit:")
+        .expect("scan of audit_buffer CF must succeed");
+
+    assert!(
+        !entries.is_empty(),
+        "audit_buffer CF must contain at least one entry after boot step 6; \
+         BC-2.05.012 TV-05-012-005 (sentinel persisted)"
+    );
+
+    // Find the boot.audit.initialized sentinel entry.
+    let mut found_sentinel: Option<StorageAuditEntry> = None;
+    for (_key, value) in &entries {
+        let decoded: Result<(StorageAuditEntry, _), _> =
+            bincode::serde::decode_from_slice(value, bincode::config::standard());
+        if let Ok((entry, _)) = decoded {
+            if entry
+                .payload
+                .get("event_type")
+                .map(|v| v == "boot.audit.initialized")
+                .unwrap_or(false)
+            {
+                found_sentinel = Some(entry);
+                break;
+            }
+        }
+    }
+
+    let sentinel = found_sentinel.expect(
+        "boot.audit.initialized sentinel must be present in audit_buffer CF; \
+         BC-2.05.012 TV-05-012-006 (sentinel schema)",
+    );
+
+    // BC-2.05.012 §Postconditions: verify all required sentinel schema fields.
+    let payload = &sentinel.payload;
+
+    // event_type: must be exactly "boot.audit.initialized"
+    assert_eq!(
+        payload.get("event_type").map(String::as_str),
+        Some("boot.audit.initialized"),
+        "Sentinel must have event_type='boot.audit.initialized'; BC-2.05.012"
+    );
+
+    // timestamp: must be present and RFC 3339 (parseable by chrono)
+    // F-PASS2-HIGH-2: timestamp was missing in fix-pass-1; now enforced.
+    let timestamp_str = payload
+        .get("timestamp")
+        .expect("Sentinel must have 'timestamp' field; F-PASS2-HIGH-2 / BC-2.05.012");
+    chrono::DateTime::parse_from_rfc3339(timestamp_str)
+        .expect("Sentinel timestamp must be a valid RFC 3339 string; F-PASS2-HIGH-2 / BC-2.05.012");
+
+    // prism_version: must be non-empty semver string
+    let prism_version = payload
+        .get("prism_version")
+        .expect("Sentinel must have 'prism_version' field; BC-2.05.012");
+    assert!(
+        !prism_version.is_empty(),
+        "Sentinel prism_version must be non-empty; BC-2.05.012"
+    );
+
+    // config_dir: must be present (as a hash — BC-2.05.012 invariant: path MUST be redacted)
+    let config_dir_field = payload
+        .get("config_dir")
+        .expect("Sentinel must have 'config_dir' field; BC-2.05.012");
+    assert!(
+        !config_dir_field.is_empty(),
+        "Sentinel config_dir must be non-empty; BC-2.05.012"
+    );
+    // Verify config_dir is redacted (not the raw path): must not contain path separators
+    // that would indicate the raw filesystem path was stored.
+    assert!(
+        !config_dir_field.contains('/') && !config_dir_field.contains('\\'),
+        "Sentinel config_dir must be a hash (not the raw path); \
+         BC-2.05.012 §Invariants: 'config_dir MUST be redacted (only a hash or basename)'; \
+         got: {config_dir_field}"
+    );
+
+    // org_count: must be "1" (one org in the test fixture)
+    assert_eq!(
+        payload.get("org_count").map(String::as_str),
+        Some("1"),
+        "Sentinel org_count must be '1' (one org in test fixture); BC-2.05.012"
+    );
+
+    // boot_step: must be "6" per ADR-022 §B step numbering
+    assert_eq!(
+        payload.get("boot_step").map(String::as_str),
+        Some("6"),
+        "Sentinel boot_step must be '6' (ADR-022 §B step 6); BC-2.05.012"
     );
 }

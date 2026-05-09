@@ -104,7 +104,11 @@ path = "tests/exit_code_contract.rs"
 tempfile = "3"
 libc = "0.2"
 serde_json = "1"
+chrono = { version = "0.4", features = ["serde"] }
 prism-spec-engine = { path = "../prism-spec-engine", version = "0.4.0" }
+prism-storage = { path = "../prism-storage", version = "0.1.0" }
+prism-core = { path = "../prism-core", version = "0.1.0" }
+bincode = "2"
 
 [lints.clippy]
 # Inherited from workspace: workspace lint inheritance is not yet available
