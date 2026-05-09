@@ -7,7 +7,7 @@ producer: state-manager
 timestamp: 2026-05-02T01:00:00Z
 cycle: "wave-4-operations"
 inputs: [STATE.md]
-input-hash: "[live-state]"
+input-hash: "5af921c"
 traces_to: STATE.md
 ---
 
@@ -207,3 +207,11 @@ STATE v7.10. D-260 — PR #129 (S-3.02) MERGED; tier-2 COMPLETE (S-3.02 + S-3.06
 **Archived from STATE.md at D-305 transition (STATE v7.54→v7.55).**
 
 STATE v7.54. D-304 — Bundle A.2.2 + A.2.3 landed. 8 stories status-reconciled: S-1.10 → merged; S-3.06 → merged; S-1.11/12/14/15 + S-3.02 + S-3.07 → partial-merge. STORY-INDEX v2.27→v2.28. 9 BCs promoted draft→active per POL-14 (BC-2.09.001..008 + BC-2.11.004). BC-INDEX v4.46→v4.47. 14 ADRs backfilled with `runtime_deliverables` + `wiring_deferred_to` frontmatter (Q1/Q2/Q3/Q4 all closed). ARCH-INDEX v2.32→v2.33. NEW FINDING: inline AD-NNN runtime-wiring entries in ARCH-INDEX/module-decomposition — A.2.1 audit-runtime-wiring skill must scan both ADR files and inline AD-NNN entries. A.2.1 (5 hook implementations) queued for next dispatch. S-3.09 remains FROZEN at HEAD 43c41389 (.worktrees/S-3.09). factory-artifacts HEAD: run `git -C .factory log -1 --format='%h %s'`.
+
+---
+
+## Session Resume Checkpoint (2026-05-09-v7.60-d310-s-wave5-prep-01-local-pass-2-blocked-hard) — ARCHIVED
+
+**Archived from STATE.md at D-311 transition (STATE v7.60→v7.61).**
+
+STATE v7.60. D-310 — S-WAVE5-PREP-01 LOCAL pass-2 BLOCKED-hard (1C/3H/3M/1L + 3OBS + 3K + 2PG). Streak 0/3 reset. Closure verification: 9/13 CLOSED, 4 INCOMPLETE/REGRESSED. CRITICAL: F-PASS2-CRIT-1 — implementer bypassed `prism_audit::AuditEmitter` entirely; used `prism_storage::audit_buffer` directly (BC-2.05.012 postcondition still unmet). HIGH: F-PASS2-HIGH-1 sentinel write not fsync'd (SOC 2 compliance defect); F-PASS2-HIGH-2 sentinel payload missing RFC3339 timestamp; F-PASS2-HIGH-3 vacuous cred ref loop (SensorSpec has no `credential_refs` field — requires prism-core extension). Fix-pass-2 scope: (1) add `prism-audit` dep + construct `AuditEmitter::new(storage.clone())` [cross-crate]; (2) fsync sentinel write; (3) RFC3339 timestamp in sentinel; (4) extend `prism_core::SensorSpec` with `credential_refs` field + fixture with N>0 refs [cross-crate]; (5) `required-features = ["prism_test_injection"]` in [[test]] sections + CLAUDE.md doc; (6) validate-config help text fix; (7) UUID v7 error message canonical format; (8) AC-4 stderr assertion or AC-4 amendment; (9) `AUDIT_BUFFER_CF_NAME` constant; (10) PG-2 policies.yaml codification. Cross-crate authorization granted by user (prism-audit, prism-core, prism-storage). Report: `cycles/wave-4-operations/adversarial-reviews/s-wave5-prep-01-local-pass-2.md`. D-309 — S-WAVE5-PREP-01 LOCAL pass-1 BLOCKED-hard (1C/3H/5M/3L + 3OBS + 2K + 1PG). develop HEAD: 7bf067a3. factory-artifacts HEAD: run `git -C .factory log -1 --format='%h %s'`.
