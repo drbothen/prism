@@ -240,38 +240,45 @@ pub async fn boot_to_step_6(config_dir: &Path) -> Result<BootContext, BootError>
     // Used by the SIGTERM test (AC-6) to hold the process at step-6 state
     // so a signal can be delivered. The process blocks here until a signal
     // (SIGTERM) arrives.
-    // -------------------------------------------------------------------------
-    // -------------------------------------------------------------------------
-    // Test gate: PRISM_TEST_STOP_AFTER_STEP=6
     //
-    // CRIT-1: gated behind `#[cfg(feature = "test-injection")]`.
     // MED-2 (S-WAVE5-PREP-01 fix-pass-1): wires through signals::install_sigterm_handler
     // instead of duplicating the select! arm. This ensures BC-2.10.010 coverage
     // is exercised through the production code path.
     // -------------------------------------------------------------------------
     #[cfg(feature = "test-injection")]
     if std::env::var("PRISM_TEST_STOP_AFTER_STEP").as_deref() == Ok("6") {
-        // Write a readiness sentinel file so the test knows the gate has been reached
-        // and the SIGTERM handler is about to be installed. The test polls for this
-        // file before sending SIGTERM — avoids a fixed sleep that may be too short
-        // when RocksDB initialization takes variable time under load.
+        // OBS-2 (S-WAVE5-PREP-01 fix-pass-5): register the SIGTERM handler FIRST
+        // (sync), THEN write the sentinel, THEN await the signal.  This eliminates
+        // the race window where SIGTERM arrives between sentinel write and handler
+        // registration — any SIGTERM delivered after create_sigterm_future returns
+        // will be queued by the kernel and delivered on the first poll.
         //
         // PRISM_TEST_READY_FILE: path provided by the test for the sentinel.
         // Falls back to a PID-based path if not set.
+        let (shutdown_tx, _rx) = tokio::sync::broadcast::channel(1);
+
+        // Step 1: register handler synchronously (returns a future, does not await).
+        // MED-2: delegate to signals::create_sigterm_future so the SIGTERM
+        // test exercises the production BC-2.10.010 code path, not a duplicate.
+        #[cfg(unix)]
+        let handler_fut = crate::signals::create_sigterm_future(shutdown_tx);
+        #[cfg(not(unix))]
+        let handler_fut = crate::signals::install_sigterm_handler(shutdown_tx);
+
+        // Step 2: NOW write the sentinel — handler is registered.
         let ready_file = std::env::var("PRISM_TEST_READY_FILE")
             .unwrap_or_else(|_| format!("/tmp/prism-ready-{}.sentinel", std::process::id()));
         let _ = std::fs::write(&ready_file, "ready");
         tracing::info!(
             ready_file = %ready_file,
             "PRISM_TEST_STOP_AFTER_STEP=6: boot reached step 6 — \
-             waiting for SIGTERM via install_sigterm_handler (MED-2)"
+             waiting for SIGTERM via create_sigterm_future (MED-2, OBS-2)"
         );
-        // MED-2: delegate to signals::install_sigterm_handler so the SIGTERM
-        // test exercises the production BC-2.10.010 code path, not a duplicate.
-        let (shutdown_tx, _rx) = tokio::sync::broadcast::channel(1);
-        crate::signals::install_sigterm_handler(shutdown_tx).await;
-        // install_sigterm_handler calls process::exit(0) on SIGTERM — this line
-        // is unreachable if a signal is received, but handles the no-signal path.
+
+        // Step 3: await the signal.
+        // create_sigterm_future / install_sigterm_handler calls process::exit(0)
+        // on SIGTERM — this line is unreachable if a signal is received.
+        handler_fut.await;
         std::process::exit(0);
     }
 
