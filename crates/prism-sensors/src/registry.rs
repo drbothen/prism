@@ -35,8 +35,8 @@ use crate::adapter::SensorAdapter;
 pub struct AdapterRegistry {
     /// Internal store keyed by `(OrgId, SensorType)` composite.
     ///
-    /// Stub body: todo!() until `init_registry_for_org` wires org_id through
-    /// all adapter constructors (S-3.1.06-ImplPhase AC-002).
+    /// Populated via `register()`. The composite key guarantees that a lookup
+    /// for org A cannot return an adapter registered for org B.
     adapters: HashMap<(OrgId, SensorType), Arc<dyn SensorAdapter>>,
 }
 

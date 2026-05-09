@@ -339,8 +339,6 @@ where
 /// `StorageBackend::remove()` with `StorageDomain::AuditBuffer`.
 /// DO NOT add any `remove()` call for `AuditBuffer` in this crate.
 fn emit<B: RocksStorageBackend>(backend: &B, entry: &AuditEntry) -> Result<(), PrismError> {
-    // todo!("AC-1 / BC-2.05.001: serialize AuditEntry and call append_audit_entry")
-    //
     // Translate the compliance AuditEntry (this crate) to the storage-layer
     // AuditEntry (prism-storage::audit_buffer::AuditEntry) and persist via
     // append_audit_entry(). The two types are distinct: this crate's type has
@@ -371,7 +369,6 @@ fn build_pre_invocation_entry(
     req: &AuditedRequest,
     redacted_params: serde_json::Value,
 ) -> AuditEntry {
-    // todo!("AC-2 / BC-2.05.001: build pre-invocation entry for write fail-closed contract")
     AuditEntry::new(
         trace_id,
         timestamp,

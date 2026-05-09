@@ -20,15 +20,11 @@
 //! HTTP-layer tests also verify that OrgId is correctly threaded from the
 //! request context through all route handlers (extract_org_id stub).
 //!
-//! # Red Gate Notes
+//! # Test Status
 //!
-//! - AC-001 through AC-005 (unit-level direct state tests): these test state
-//!   methods that are already implemented.  They are expected to PASS once the
-//!   unit-level isolation invariants are confirmed; their presence in this suite
-//!   documents BC coverage even when they pass at stub time.
-//! - AC-006 (reset_for): MUST FAIL — `reset_for` is `todo!()` pending implementation.
-//! - AC-007 proptest variants that call `reset_for`: MUST FAIL for same reason.
-//! - HTTP-layer isolation tests: MUST FAIL — `extract_org_id` is `todo!()`.
+//! All acceptance criteria (AC-001 through AC-007) and HTTP-layer isolation
+//! tests are implemented and expected to pass. `reset_for` and `extract_org_id`
+//! are both fully implemented (see `state.rs:257` and `routes/alerts.rs:66`).
 
 #[cfg(feature = "dtu")]
 mod multi_tenant {
@@ -346,7 +342,6 @@ mod multi_tenant {
     // ═══════════════════════════════════════════════════════════════════════════
     // AC-006 — reset_for clears both stores for one org (BC-3.2.001 EC-004)
     //
-    // RED GATE: reset_for is todo!() — these tests MUST FAIL until implemented.
     // ═══════════════════════════════════════════════════════════════════════════
 
     /// BC-3.2.001 edge case EC-004: reset_for(org_A) removes all (org_A, *) alert entries;
@@ -371,7 +366,7 @@ mod multi_tenant {
             );
         }
 
-        // Reset only org_A — this calls reset_for which is todo!().
+        // Reset only org_A.
         state.reset_for(org_a);
 
         // Post-condition: org_A entries are gone; org_B entries survive.
@@ -414,7 +409,7 @@ mod multi_tenant {
             "AC-006 pre-cond: org_B token must be valid before reset_for"
         );
 
-        // Reset only org_A — this calls reset_for which is todo!().
+        // Reset only org_A.
         state.reset_for(org_a);
 
         assert!(
@@ -437,7 +432,6 @@ mod multi_tenant {
         state.register_session(org_a, "session-a".to_owned());
         state.register_session(org_b, "session-b".to_owned());
 
-        // This calls reset_for which is todo!().
         state.reset_for(org_a);
 
         // alert_store: org_A gone, org_B intact.
@@ -468,7 +462,6 @@ mod multi_tenant {
     // AC-007 — OrgId-flipping proptest (BC-3.2.001 VP-3.2.001-03 / VP-3.2.003-01)
     //
     // Covers VP-077 through VP-086.
-    // RED GATE: tests involving reset_for MUST FAIL.
     // ═══════════════════════════════════════════════════════════════════════════
 
     use proptest::prelude::*;
@@ -594,8 +587,6 @@ mod multi_tenant {
     /// - Write entries for both orgs.
     /// - Call reset_for(org_A).
     /// - org_A entries must be absent; org_B entries must be intact.
-    ///
-    /// RED GATE: reset_for is todo!() — this test MUST FAIL.
     proptest! {
         #[test]
         fn test_BC_3_2_001_invariant_reset_for_selectivity(
@@ -632,10 +623,8 @@ mod multi_tenant {
             state.register_session(org_a, token.clone());
             state.register_session(org_b, token.clone());
 
-            // Calls todo!() — RED GATE failure expected here.
             state.reset_for(org_a);
 
-            // These assertions are correct but will never execute until reset_for is implemented.
             {
                 let store = state.alert_store.lock().expect("lock");
                 prop_assert!(
@@ -661,26 +650,21 @@ mod multi_tenant {
     // ═══════════════════════════════════════════════════════════════════════════
     // HTTP-layer multi-tenant isolation tests
     //
-    // These exercise the full route stack. They fail because extract_org_id is
-    // todo!() — the server panics and drops the connection, so reqwest returns
-    // a connection error.
+    // These exercise the full route stack via reqwest against a running clone
+    // instance. `extract_org_id` is implemented and threads the correct OrgId
+    // from the X-Prism-Org-Id header through all route handlers.
     //
-    // RED GATE: ALL HTTP-layer multi-tenant tests MUST FAIL.
     // ═══════════════════════════════════════════════════════════════════════════
 
     /// HTTP AC-002: Session token registered for org_A must not authenticate requests
     /// in org_B's context.
     ///
-    /// This test exercises the full route stack where extract_org_id must thread the
-    /// correct OrgId from the X-Prism-Org-Id header through to is_valid_session.
-    ///
-    /// RED GATE: extract_org_id is todo!() — the server panics on POST /login, causing
-    /// a connection error. This test MUST FAIL until extract_org_id is implemented.
+    /// This test exercises the full route stack where `extract_org_id` threads the
+    /// correct OrgId from the X-Prism-Org-Id header through to `is_valid_session`.
     #[tokio::test]
     async fn test_BC_3_2_003_http_session_token_registered_for_org_a_rejected_by_org_b() {
         let (_clone, base_url, _admin_token, client) = start_clone().await;
 
-        // Login as org_A — this will fail because extract_org_id panics in the server.
         let org_a_id = Uuid::parse_str("00000000-0000-7000-8000-000000000001")
             .expect("valid uuid")
             .to_string();
@@ -735,8 +719,6 @@ mod multi_tenant {
     }
 
     /// HTTP AC-006: Per-org reset via HTTP — org_A's token invalidated; org_B's intact.
-    ///
-    /// RED GATE: extract_org_id is todo!() — MUST FAIL until implemented.
     #[tokio::test]
     async fn test_BC_3_2_001_http_reset_for_invalidates_org_a_preserves_org_b() {
         let (_clone, base_url, admin_token, client) = start_clone().await;

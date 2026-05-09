@@ -23,9 +23,10 @@
 //! exhaustively for bounded concrete inputs.
 //!
 //! ## Harness skeleton
-//! The full Kani harness is stubbed with `todo!()` bodies per the Red Gate
-//! protocol (BC-5.38.001). The implementer must replace `todo!()` with the
-//! real implementation before the Kani proof can run.
+//! The Kani harnesses call the real `CacheKey::derive` and
+//! `CacheKey::derive_push_down_hash` implementations in `cache_key.rs`
+//! (BC-2.07.005). Dynamic concrete tests for the same properties run under
+//! `cargo test` — see the `dynamic_tests` module below.
 //!
 //! ## Invocation
 //! ```text
@@ -61,8 +62,6 @@ pub mod kani_proofs {
     /// For bounded symbolic inputs (one string key, one string value), asserts
     /// `hash(params) == hash(params)` (idempotency / determinism).
     ///
-    /// Body: non-trivial — the real implementation must replace `todo!()` in
-    /// `CacheKey::derive_push_down_hash` before this harness can run.
     #[kani::proof]
     fn proof_cache_key_deterministic() {
         // Symbolic parameter set: one key-value pair with bounded strings.
@@ -95,9 +94,6 @@ pub mod kani_proofs {
     /// Method: kani. Symbolic two-key parameter set; asserts that inserting
     /// keys in different orders yields the same canonical JSON bytes.
     ///
-    /// Body: non-trivial — depends on `PushDownParams::insert` canonicalizing
-    /// via `BTreeMap` sort. Replacing `todo!()` in `insert` and
-    /// `derive_push_down_hash` is required for this harness to complete.
     #[kani::proof]
     fn proof_cache_key_order_independent() {
         // Two symbolic keys and values — bounded to 3 bytes each.
@@ -142,7 +138,6 @@ pub mod kani_proofs {
     ///
     /// Method: kani. Asserts `hash({}) == hash({key: null})`.
     ///
-    /// Body: non-trivial — depends on `PushDownParams::insert` filtering nulls.
     #[kani::proof]
     fn proof_null_param_same_as_absent() {
         let mut params_with_null = PushDownParams::new();
