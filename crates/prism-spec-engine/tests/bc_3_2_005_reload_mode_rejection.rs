@@ -68,6 +68,7 @@ fn make_config_sensor_spec_with_mode(sensor_id: &str, mode: DtuMode) -> SensorSp
         file_hash: format!("hash_{sensor_id}"),
         source_path: format!("/specs/{sensor_id}.sensor.toml"),
         mode,
+        credential_refs: Vec::new(),
     }
 }
 
