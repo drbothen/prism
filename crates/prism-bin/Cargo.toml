@@ -48,10 +48,63 @@ thiserror = "1"
 uuid = { version = "1", features = ["v7"] }
 chrono = { version = "0.4", features = ["serde"] }
 
+# ---------------------------------------------------------------------------
+# Integration test targets — explicit declarations required for required-features
+# F-PASS2-MED-1 (S-WAVE5-PREP-01): Tests that depend on PRISM_TEST_* env-var
+# injection MUST declare required-features = ["test-injection"] so that
+# `just iter prism-bin` (without --all-features) skips them cleanly rather
+# than running them against a binary that lacks the injection code paths.
+# The `just iter prism-bin --all-features` invocation enables the feature
+# and builds both the binary AND the test binaries with injection code.
+# POL-18: Cargo features named *_test_injection MUST be listed as
+# required-features in all [[test]] sections that depend on them.
+# ---------------------------------------------------------------------------
+
+# --- Injection-dependent tests (require test-injection feature) ---
+
+[[test]]
+name = "bc_2_05_012_audit_init"
+path = "tests/bc_2_05_012_audit_init.rs"
+required-features = ["test-injection"]
+
+[[test]]
+name = "bc_2_03_013_credential_init"
+path = "tests/bc_2_03_013_credential_init.rs"
+required-features = ["test-injection"]
+
+[[test]]
+name = "bc_2_22_001_boot_orchestration"
+path = "tests/bc_2_22_001_boot_orchestration.rs"
+required-features = ["test-injection"]
+
+[[test]]
+name = "signal_handlers"
+path = "tests/signal_handlers.rs"
+required-features = ["test-injection"]
+
+# --- Injection-free tests (no required-features) ---
+
+[[test]]
+name = "bc_2_06_011_config_load"
+path = "tests/bc_2_06_011_config_load.rs"
+
+[[test]]
+name = "bc_2_21_001_org_registry_init"
+path = "tests/bc_2_21_001_org_registry_init.rs"
+
+[[test]]
+name = "cli_subcommands"
+path = "tests/cli_subcommands.rs"
+
+[[test]]
+name = "exit_code_contract"
+path = "tests/exit_code_contract.rs"
+
 [dev-dependencies]
 tempfile = "3"
 libc = "0.2"
 serde_json = "1"
+prism-spec-engine = { path = "../prism-spec-engine", version = "0.4.0" }
 
 [lints.clippy]
 # Inherited from workspace: workspace lint inheritance is not yet available
