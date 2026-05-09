@@ -1,7 +1,7 @@
 ---
 document_type: session-handoff
 level: ops
-version: "7.51"
+version: "7.52"
 status: current
 timestamp: 2026-05-08T09:00:00Z
 predecessor_session: "D-295 S-3.07 PR #135 SQUASH-MERGED 2ae7185b 2026-05-08T04:23:03Z — FINAL CLOSURE; Wave 3-A 4/4 SHIPPED; 38 findings closed; develop pin 7c413692→2ae7185b; post-merge cleanup confirmed. STATE v7.43→v7.44. factory-artifacts HEAD: run git -C .factory log -1."
@@ -27,6 +27,8 @@ develop HEAD: c867c344 (six PRs merged 2026-05-06/07: #127 S-3.01 2d7040b1, #128
 # Session Handoff — WAVE 4 PHASE 4.A DECISIONS LOGGED (2026-05-02)
 
 ## TL;DR
+
+**D-303 (2026-05-08) — Bundle D fully closed via PR #136 squash-merged at develop `7bf067a3`. Maintenance PR `docs: sweep stale stub doc-comments + README backfill (Bundle D, D-302)` — 10 files: 9 crate doc-comment fixes (F-AUD-D1-13/15/16, D3-02/03/05, D5-08/09, D7-03) + README backfill (F-AUD-D8-02). 17/17 CI checks pass; pr-reviewer: 0 findings, APPROVE. Q5 (README content choice), Q6 (prism-core test verify), Q7 (prism-dtu-cyberint test verify) from D-302 auto-resolved by clean CI + reviewer pass. Q1 (S-1.10 status classification), Q2 (S-3.06 `merged` confirmation), Q3 (`wiring_deferred_to:` ADR backfill), Q4 (`runtime_deliverables:` ADR backfill) remain open — Bundle A.2 scope. Cleanup-epic remaining: Bundle A.2 (NEXT), Bundle B (runtime gap), Bundle C (sensor TOML wire-up), Bundle E (VP graduation). STATE v7.52→v7.53. SESSION-HANDOFF v7.51→v7.52.**
 
 **D-302 (2026-05-08) — Bundle A+D factory-artifacts portion committed. ADR-020 (story status taxonomy reform — `status:partial-merge` enum, graduation contract, STORY-INDEX as derivative), ADR-021 (BC/VP promotion lifecycle), policies.yaml v1.6 (POL-12..16 added: stub-residue-blocks-merge, story-index-consistency, bc-promotion-on-merge, runtime-wiring-required, no-inverted-polarity), hook-specs-bundle-a.md (5 hook design specs for Bundle A.2 implementation). Bundle D: ARCH-INDEX v2.32 (ADR-014 added, deployment_topology annotated) + module-decomposition.md (35-tool aspirational note + BC count 200→222). 10 crates/*+README code-side files left on disk uncommitted — maintenance PR pending. 7 open questions logged for human triage: (1) S-1.10 status classification after stub-residue audit; (2) S-3.06 `merged` confirmation; (3-4) ADR frontmatter backfill (`wiring_deferred_to:` + `runtime_deliverables:`); (5) README content choice review; (6-7) prism-core + prism-dtu-cyberint test verification. Bundle A.2 (hook implementation + story status reconciliation) pending dispatch. STATE v7.51→v7.52. SESSION-HANDOFF v7.50→v7.51.**
 
