@@ -45,6 +45,15 @@ async fn main() {
 ///
 /// Returns the canonical exit code for the subcommand outcome.
 async fn dispatch(args: CliArgs) -> i32 {
+    // Short-circuit: version subcommand never needs config resolution or tracing.
+    // Defense-in-depth: `prism version` must exit 0 even when HOME/APPDATA is unset.
+    // This check runs BEFORE step1_init_tracing and BEFORE resolve_config_dir.
+    if let PrismCommand::Version = &args.command {
+        // AC-2: print "prism X.Y.Z" to stdout; exit 0.
+        println!("prism {}", env!("CARGO_PKG_VERSION"));
+        return EXIT_SUCCESS;
+    }
+
     // Initialize tracing (step 1) first before any other processing.
     boot::step1_init_tracing(&args.log_format);
 
@@ -72,6 +81,8 @@ async fn dispatch(args: CliArgs) -> i32 {
 
     match args.command {
         PrismCommand::Version => {
+            // Unreachable: handled by the short-circuit at the top of dispatch().
+            // Kept for exhaustive match completeness (compiler requires all arms).
             // AC-2: print "prism X.Y.Z" to stdout; exit 0.
             println!("prism {}", env!("CARGO_PKG_VERSION"));
             EXIT_SUCCESS
