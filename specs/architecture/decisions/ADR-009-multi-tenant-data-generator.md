@@ -6,7 +6,7 @@ status: ACCEPTED
 date: 2026-05-01
 wave: 3
 phase: 3.A
-version: "0.14"
+version: "0.15"
 authors: [architect]
 related_decisions: [D-043, D-045, D-054, D-055, D-056, D-059]
 related_adrs: [ADR-006, ADR-010, ADR-011, ADR-012]
@@ -25,6 +25,12 @@ inputs:
   - .references/poller-bear/docs/specs.json
   - .references/poller-express/docs/specs/
   - .factory/STATE.md (D-043, D-045)
+runtime_deliverables:
+  - prism-dtu-common::Archetype  # named enum of realistic deployment scenarios (generator/archetype.rs)
+  - prism-dtu-common::FixtureSet  # output type carrying sensor-tagged generated rows (generator/fixture.rs)
+  - prism-dtu-common::GenOpts  # options struct for deterministic generation (generator/opts.rs)
+  - prism-dtu-common::seeded_rng  # pure fn(seed, OrgId) -> ChaCha20Rng — org-namespaced determinism (generator/rng.rs)
+wiring_deferred_to: null  # All deliverables confirmed implemented in prism-dtu-common; Wave 3 closure PRs #73-#112 merged
 ---
 
 # ADR-009: Multi-Tenant Data Generator — Hybrid Archetype Catalog + Deterministic Generator

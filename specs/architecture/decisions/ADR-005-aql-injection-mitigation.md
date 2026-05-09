@@ -4,7 +4,7 @@ adr_id: ADR-005
 title: "AQL Injection Mitigation — Armis Adapter Query Trust Model"
 status: accepted
 date: 2026-04-26
-version: "0.2"
+version: "0.3"
 subsystems_affected: [SS-01]
 supersedes: null
 superseded_by: null
@@ -17,6 +17,11 @@ inputs:
   - .factory/specs/behavioral-contracts/BC-2.01.008-armis-bearer-aql.md
   - .factory/specs/architecture/security-architecture.md (threat model)
 traces_to: specs/architecture/ARCH-INDEX.md
+runtime_deliverables:
+  - prism-sensors::auth::armis::validate_aql  # pure AQL allowlist validator function (ADR-005 primary control)
+  - prism-sensors::auth::armis::AqlValidationError  # structured rejection error type
+  - prism-sensors::adapter::SensorError::ConfigValidation  # new error variant for pre-wire rejection
+wiring_deferred_to: null  # All three deliverables confirmed implemented in crates/prism-sensors (W2-FIX-I merged)
 ---
 
 # ADR-005: AQL Injection Mitigation — Armis Adapter Query Trust Model

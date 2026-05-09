@@ -6,7 +6,7 @@ status: ACCEPTED
 date: 2026-05-01
 wave: 3
 phase: 3.A
-version: "0.14"
+version: "0.15"
 authors: [architect]
 related_decisions: [D-044, D-045, D-058]
 related_adrs: [ADR-006, ADR-007, ADR-008, ADR-009, ADR-012]
@@ -23,6 +23,11 @@ inputs:
   - crates/prism-dtu-claroty/src/state.rs
   - crates/prism-dtu-claroty/src/lib.rs
   - .factory/STATE.md (D-044, D-045)
+runtime_deliverables:
+  - prism-dtu-harness::IsolationMode  # enum Logical/Network
+  - prism-dtu-harness::Harness  # orchestrator struct with endpoints + clones HashMaps
+  - prism-dtu-harness::CustomerEndpoints  # type alias HashMap<(OrgId, DtuType), SocketAddr>
+wiring_deferred_to: null  # prism-dtu-harness crate confirmed present and implemented; Wave 3 closure PRs #73-#112 merged
 ---
 
 # ADR-011: DTU Harness Isolation Modes — Logical (In-Process) and Network (Per-Port)

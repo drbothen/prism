@@ -4,7 +4,7 @@ title: "DTU Rate-Limit Pattern — Per-Clone Semantics vs FailureLayer"
 document_type: architecture-section
 level: ADR
 section: decisions/ADR-001-dtu-rate-limit-pattern
-version: "1.0"
+version: "1.1"
 status: accepted
 producer: state-manager
 timestamp: 2026-04-22T00:00:00
@@ -12,6 +12,8 @@ phase: phase-3-dtu-wave-0
 inputs: [specs/architecture/dtu-assessment.md, cycles/phase-3-dtu-wave-0/wave-gates/wave-0-retrospective.md]
 traces_to: ARCH-INDEX.md
 flagged_by: adversary F-WV0-003 (wave 0 retrospective gate)
+runtime_deliverables: []  # Process/convention decision — no new production code units introduced
+wiring_deferred_to: null  # No runtime wiring required for a convention decision
 ---
 
 # ADR-001: DTU Rate-Limit Pattern

@@ -1,7 +1,7 @@
 ---
 document_type: story-index
 level: "L4"
-version: "v2.27"
+version: "v2.28"
 status: draft
 producer: state-manager
 timestamp: 2026-05-08T06:30:00
@@ -98,6 +98,7 @@ before its dependencies are complete.
 - **S-3.05 anchor fixes (2026-05-07):** S-3.05 v1.11→v1.12 — AC-3 anchor §Cursor TTL Expiry (non-existent heading) → §Cursor Lifecycle (MCP-exposed surface) — Expiry (real heading in BC-2.07.002 v4.7); AC-4a anchor §CursorTokenUnknown (non-existent heading) → §Cursor Lifecycle (MCP-exposed surface) — Advancement (real heading in BC-2.07.002 v4.7). S-3.05 row tag [v1.11-S-3.05-fix-pass-16-sub-burst]→[v1.12-S-3.04-fix-pass-29-anchor-fixes]. BC-INDEX v4.44→v4.45 (BC-2.07.002 v4.6→v4.7 E-STORE-020 Error Cases row). D-275. STORY-INDEX v2.19→v2.20.
 - **S-3.04 pass-11 changelog reorder (2026-05-07):** F-PASS11-HIGH-002 closure — tabular changelog rows v2.20/v2.19/v2.18 were non-monotonic (descending); reordered to v2.18→v2.19→v2.20 (ascending). Prose changelog entries for the same three bursts reordered to ascending (v2.17→v2.18 first, v2.18→v2.19 second, v2.19→v2.20 third). D-276. STORY-INDEX v2.20→v2.21.
 - **D-298 S-3.09 FROZEN pending BUG-S309-PLUGIN (2026-05-08):** S-3.09 Full Story List row annotated [FROZEN 2026-05-08 pending BUG-S309-PLUGIN]. Worktree .worktrees/S-3.09 at HEAD 43c41389 (11/15 GREEN; fix-burst 1 URL fixes landed; fix-burst 2 engine-semantics stopped mid-work). Plugin-migration P0 blocks S-3.09 resumption: 4 built-in adapters bypass spec-engine; 41 call sites; TOML specs write-side only. STORY-INDEX v2.26→v2.27.
+- **Bundle A.2.2 story status reconciliation (2026-05-08):** ADR-020 closed-enum alignment for 8 stories. (1) S-1.10: status `delivered`→`merged` (F-AUD-D2-11 enum drift; Q1 zero stub residue confirmed); Full Story List annotation `[merged]` added. (2) S-1.11: status `merged`→`partial-merge` (TD-PLUGIN-P0-001 PipelineExecutor stub); annotation `[partial-merge]` added. (3) S-1.12: status `merged`→`partial-merge` (F-AUD-D1-07 HotReloadWatcher unimplemented; F-AUD-D3-01 inverted-polarity test); annotation `[partial-merge]` added. (4) S-1.14: status `merged`→`partial-merge` (F-AUD-D1-08/09/10/11 infusion 100% unimplemented); annotation `[partial-merge]` added. (5) S-1.15: status `merged`→`partial-merge` (TD-PLUGIN-P0-008 action-plugin dispatch stubbed); annotation `[partial-merge]` added. (6) S-3.02: status `ready`→`partial-merge` (F-AUD-D1-01/02/03 engine.rs/materialization.rs/internal_tables.rs todo!()); row tag `[v1.12-spec-rem]`→`[v1.13-spec-rem]`, annotation `[partial-merge]` added. (7) S-3.06: status `ready`→`merged` (Q2 parser files confirmed clean; STORY-INDEX already had MERGED PR #130 annotation); row tag `[v1.7-spec-rem]`→`[v1.8-spec-rem]`, annotation `[merged]` added. (8) S-3.07: status `draft`→`partial-merge` (F-AUD-D1-04/05/06 write pipeline stubs; STORY-INDEX already had MERGED PR #135 annotation); row tag `[v1.7]`→`[v1.8]`, annotation `[partial-merge]` added. All 8 story files: version bumped +0.1. STORY-INDEX v2.27→v2.28.
 
 - **D-295 S-3.07 PR #135 SQUASH-MERGED FINAL CLOSURE (2026-05-08):** S-3.07 Full Story List row annotation replaced with [MERGED 2026-05-08T04:23:03Z PR #135 squash 2ae7185b] (consistent with S-3.05/S-3.04/S-3.03 MERGED convention). Squash SHA 2ae7185b; develop pin 7c413692→2ae7185b. Wave 3-A 4/4 SHIPPED. Cascade closed 38 total findings (27 LOCAL + 6 PR-LEVEL + 5 code-review nits). Post-merge cleanup confirmed (worktree removed, branch deleted, develop fast-forwarded). STORY-INDEX v2.24→v2.25.
 - **D-294 S-3.07 PR #135 PR-LEVEL CASCADE FULL CONVERGENCE 3/3 (2026-05-08):** S-3.07 Full Story List row annotation updated to add "PR-LEVEL CONVERGED 2026-05-08 (4-pass cascade); auto-merge queued (PR #135)" appended to existing LOCAL CONVERGED annotation. PR-LEVEL adversary cascade: pass-1 BLOCKED-soft (4M+2L+3O PR-description hygiene) → pass-2 CLEAN (1/3) → pass-3 CLEAN (2/3) → pass-4 CLEAN (3/3 — FULL PR-LEVEL CONVERGENCE). Combined with LOCAL 3-CLEAN streak: 6 consecutive CLEAN adversarial passes total. 32-commit chain @e22fb0ea production-ready. CI 30/34 PASS, 0 FAIL, 4 pending. Auto-merge queued via `gh pr merge 135 --auto --squash --delete-branch`. STORY-INDEX v2.23→v2.24.
@@ -272,12 +273,12 @@ pursuing maximum parallelism should schedule by topological layer, not wave numb
 | S-1.07 | Credential CRUD, Resolution, and Security | prism-credentials | 5 | -- | 2 | S-1.06 |
 | S-1.08 | Feature Flags (P0 Core) | prism-security | 8 | VP-020 | 3 | S-1.01,S-1.03 |
 | S-1.09 | Confirmation Tokens (P1) | prism-security | 6 | VP-007,008,009,010 | 2 | S-1.08 |
-| S-1.10 | Prompt Injection Defense | prism-security | 8 | VP-024,038 | 2 | S-1.01 |
-| S-1.11 | Spec Loading and Pipeline Execution | prism-spec-engine | 5 | VP-023,VP-059 | 3 | S-1.01 |
-| S-1.12 | Hot Reload and Runtime Management | prism-spec-engine | 5 | VP-032 | 2 | S-1.11 |
+| S-1.10 | Prompt Injection Defense [merged] | prism-security | 8 | VP-024,038 | 2 | S-1.01 |
+| S-1.11 | Spec Loading and Pipeline Execution [partial-merge] | prism-spec-engine | 5 | VP-023,VP-059 | 3 | S-1.01 |
+| S-1.12 | Hot Reload and Runtime Management [partial-merge] | prism-spec-engine | 5 | VP-032 | 2 | S-1.11 |
 | S-1.13 | Sensor Spec Write Endpoints | prism-spec-engine | 2 | -- | 2 | S-1.11 |
-| S-1.14 | Infusion Spec Loading and UDF Registration | prism-spec-engine | 5 | VP-048,VP-049 | 3 | S-1.11,S-6.14,S-6.15 |
-| S-1.15 | WASM Plugin Runtime | prism-spec-engine | 6 | VP-040,VP-041,VP-042,VP-043 | 3 | S-1.11 |
+| S-1.14 | Infusion Spec Loading and UDF Registration [partial-merge] | prism-spec-engine | 5 | VP-048,VP-049 | 3 | S-1.11,S-6.14,S-6.15 |
+| S-1.15 | WASM Plugin Runtime [partial-merge] | prism-spec-engine | 6 | VP-040,VP-041,VP-042,VP-043 | 3 | S-1.11 |
 | S-2.01 | RocksDB Initialization and Domain Operations [MERGED PR #43 0d24ab79 2026-04-24 +24t] | prism-storage | 3 | -- | 3 | S-1.01 |
 | S-2.02 | Audit Buffer and Watchdog [MERGED PR #52 9de6b3d8 2026-04-25 +25t] | prism-storage | 5 | VP-058 | 2 | S-2.01 |
 | S-2.03 | Decorators and Internal Tables [MERGED PR #53 f13b5c76 2026-04-25 +19t] | prism-storage | 3 | -- | 2 | S-2.01,S-1.02 |
@@ -287,12 +288,12 @@ pursuing maximum parallelism should schedule by topological layer, not wave numb
 | S-2.07 | Per-Sensor Auth and Pagination [MERGED PR #60 26d0954b 2026-04-26 +56t RED_RATIO=83.9%] | prism-sensors | 5 | -- | 3 | S-2.06 |
 | S-2.08 | Event Table Abstraction and Local Buffering [MERGED PR #61 0be11cd6 2026-04-26 +92t RED_RATIO=54.3% prism-query-crate-created **WAVE-2-CLOSED** spec-v1.9-W2-P2-A-005-schema-hygiene-fix] | prism-sensors, prism-query | 0 | -- | 3 | S-2.06,S-2.01,S-1.11 |
 | S-3.01 | PrismQL Parser (Filter + SQL + Pipe) [MERGED PR #127 2d7040b1 2026-05-06 +280t 15-adv-passes Chumsky-0.12] | prism-query | 4 | VP-014,015,021 | 3 | S-1.01 |
-| S-3.02 | Query Tool and Materialization [v1.12-spec-rem] [MERGED PR #129 6fefc774 2026-05-06 +491t 4-adv-passes-post-rebase 19-findings-closed] | prism-query | 6 | VP-031 | 3 | S-3.01,S-2.06,S-1.04,S-2.01,S-2.03,S-6.08,S-6.09,S-6.10 |
+| S-3.02 | Query Tool and Materialization [v1.13-spec-rem] [MERGED PR #129 6fefc774 2026-05-06 +491t 4-adv-passes-post-rebase 19-findings-closed] [partial-merge] | prism-query | 6 | VP-031 | 3 | S-3.01,S-2.06,S-1.04,S-2.01,S-2.03,S-6.08,S-6.09,S-6.10 |
 | S-3.03 | Explain and Query Diagnostics [v1.9-adv-local-pass4] [MERGED 2026-05-07 PR #134 squash 7c413692] | prism-query | 1 | -- | 1 | S-3.02 |
 | S-3.04 | Alias System (P1) [v1.10-S-3.04-pass-3-closure] [MERGED 2026-05-07 PR #133 squash 57745ce8] | prism-query | 5 | VP-012,013,037 | 2 | S-3.02,S-1.08,S-1.09 |
 | S-3.05 | Pagination and Caching [v1.12-S-3.04-fix-pass-29-anchor-fixes] | prism-query | 6 | VP-025 | 2 | S-3.02 |
-| S-3.06 | PrismQL Write Parser Extensions [v1.7-spec-rem] [MERGED PR #130 2a7b83f5 2026-05-06 +406t 7-adv-passes 18-findings-closed] | prism-query | 1 | -- | 2 | S-3.01,S-1.13,S-6.07 |
-| S-3.07 | Write Execution Pipeline [v1.7] **[MERGED 2026-05-08T04:23:03Z PR #135 squash 2ae7185b]** | prism-query | 5 | -- | 3 | S-3.06,S-3.02,S-1.08,S-1.09,S-2.04,S-6.07 |
+| S-3.06 | PrismQL Write Parser Extensions [v1.8-spec-rem] [MERGED PR #130 2a7b83f5 2026-05-06 +406t 7-adv-passes 18-findings-closed] [merged] | prism-query | 1 | -- | 2 | S-3.01,S-1.13,S-6.07 |
+| S-3.07 | Write Execution Pipeline [v1.8] **[MERGED 2026-05-08T04:23:03Z PR #135 squash 2ae7185b]** [partial-merge] | prism-query | 5 | -- | 3 | S-3.06,S-3.02,S-1.08,S-1.09,S-2.04,S-6.07 |
 | S-3.08 | Hidden Columns [v1.5] | prism-query | 4 (proxy) | -- | 1 | S-3.02 |
 | S-3.09 | Query Performance Profiling [v1.6] **[FROZEN 2026-05-08 pending BUG-S309-PLUGIN]** | prism-query | 13 (proxy) | -- | 6 | S-3.02 |
 | S-3.10 | Cost Estimation (API Latency-Aware Planner) [v1.5] | prism-query | 2 (proxy) | -- | 2 | S-3.09,S-3.02 |
@@ -983,6 +984,7 @@ All 13 new DTU clones: Wave 0, 0 BCs, priority P0, depends_on: [S-6.06].
 | v2.21 | 2026-05-07 | S-3.04 pass-11 changelog reorder (implementer): F-PASS11-HIGH-002 closure — tabular rows v2.20/v2.19/v2.18 were non-monotonic (arrived in descending order); reordered ascending (v2.18→v2.19→v2.20). Prose changelog entries for same three bursts also reordered ascending per POL-11. D-276. STORY-INDEX v2.20→v2.21. |
 | v2.25 | 2026-05-08 | D-295 S-3.07 PR #135 SQUASH-MERGED FINAL CLOSURE (state-manager): S-3.07 Full Story List row annotation replaced with [MERGED 2026-05-08T04:23:03Z PR #135 squash 2ae7185b] (consistent with S-3.05/S-3.04/S-3.03 MERGED convention); Wave 3-A 4/4 SHIPPED; develop pin 7c413692→2ae7185b; cascade closed 38 total findings (27 LOCAL + 6 PR-LEVEL + 5 code-review nits). STORY-INDEX v2.24→v2.25. |
 | v2.27 | 2026-05-08 | D-298 S-3.09 FROZEN pending BUG-S309-PLUGIN (state-manager): S-3.09 Full Story List row annotated [FROZEN 2026-05-08 pending BUG-S309-PLUGIN]. Worktree at HEAD 43c41389 (11/15 GREEN; fix-burst 1 landed; fix-burst 2 stopped mid-work). Plugin-migration P0 blocks resumption. STORY-INDEX v2.26→v2.27. |
+| v2.28 | 2026-05-08 | Bundle A.2.2 story status reconciliation (story-writer): ADR-020 closed-enum alignment for 8 stories. S-1.10 `delivered`→`merged` v1.4→v1.5; S-1.11 `merged`→`partial-merge` v1.5→v1.6; S-1.12 `merged`→`partial-merge` v1.5→v1.6; S-1.14 `merged`→`partial-merge` v1.10→v1.11; S-1.15 `merged`→`partial-merge` v1.12→v1.13; S-3.02 `ready`→`partial-merge` v1.12→v1.13; S-3.06 `ready`→`merged` v1.7→v1.8; S-3.07 `draft`→`partial-merge` v1.7→v1.8. Full Story List: [merged]/[partial-merge] annotations added to all 8 rows. STORY-INDEX v2.27→v2.28. |
 | v2.26 | 2026-05-08 | D-296 S-3.09 re-scope per Path A decision (state-manager): S-3.09 Full Story List row version [v1.5]→[v1.6]; points 2→13; days 1→6. BC columns append BC-2.11.005, BC-2.11.006, BC-2.11.007, BC-2.11.011, BC-2.11.012 (transferred from stub-merged S-3.02 deferred scope). Status remains draft pending Phase A implementation cascade. Adversary report: cycles/wave-4-operations/adversarial-reviews/s-3.09-local-pass-1.md. STORY-INDEX v2.25→v2.26. |
 | v2.24 | 2026-05-08 | D-294 S-3.07 PR #135 PR-LEVEL CASCADE FULL CONVERGENCE 3/3 (state-manager): S-3.07 Full Story List row annotation updated to add "PR-LEVEL CONVERGED 2026-05-08 (4-pass cascade); auto-merge queued (PR #135)". STORY-INDEX v2.23→v2.24. |
 | v2.23 | 2026-05-08 | D-291 S-3.07 LOCAL CASCADE FULL CONVERGENCE 3/3 (state-manager): S-3.07 Full Story List row annotated [LOCAL CONVERGED 2026-05-08 (9-pass cascade, 3/3 streak); PR creation next]; cascade closed (9 adv + 8 fix passes; severity decay 8→2→3→4→3→3→0→0; 27 findings closed); 25-commit chain @5fa008c3 production-ready. STORY-INDEX v2.22→v2.23. |

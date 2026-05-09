@@ -4,7 +4,7 @@ adr_id: "ADR-020"
 title: "Story Status Taxonomy Reform — Closed Enum, Partial-Merge Semantics, and Graduation Contract"
 status: ACCEPTED
 date: "2026-05-08"
-version: "1.0"
+version: "1.1"
 producer: architect
 subsystems_affected: []
 supersedes: null
@@ -18,6 +18,8 @@ inputs:
 anchor_stories: []
 references_phase3_siblings: []
 locked_decisions: []
+runtime_deliverables: []  # Methodology/process decision — defines story status enum and graduation contract; no production code units
+wiring_deferred_to: null  # No runtime wiring required; enforcement via consistency-validator and pre-burst hooks (POL-13, POL-16)
 ---
 
 # ADR-020: Story Status Taxonomy Reform — Closed Enum, Partial-Merge Semantics, and Graduation Contract

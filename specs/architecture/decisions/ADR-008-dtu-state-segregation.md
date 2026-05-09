@@ -6,7 +6,7 @@ status: ACCEPTED
 date: 2026-05-01
 wave: 3
 phase: 3.A
-version: "0.13"
+version: "0.14"
 authors: [architect]
 related_decisions: [D-041, D-042, D-045, D-048, D-049]
 related_adrs: [ADR-006, ADR-007, ADR-009, ADR-010, ADR-011]
@@ -29,6 +29,13 @@ inputs:
   - crates/prism-dtu-nvd/src/state.rs
   - crates/prism-dtu-threatintel/src/state.rs
   - .factory/STATE.md (D-041, D-042, D-045)
+runtime_deliverables:
+  - prism-dtu-claroty::ClarotyState::tag_store  # re-keyed HashMap<(OrgId, String), HashSet<String>>
+  - prism-dtu-armis::ArmisState::tag_store  # re-keyed HashMap<(OrgId, String), HashSet<String>>
+  - prism-dtu-crowdstrike::CrowdstrikeState::containment_store  # re-keyed HashMap<(OrgId, String), ContainmentStatus>
+  - prism-dtu-crowdstrike::CrowdstrikeState::detection_status_store  # re-keyed HashMap<(OrgId, String), String>
+  - prism-dtu-cyberint::CyberintState::alert_store  # re-keyed HashMap<(OrgId, String), AlertStatus>
+wiring_deferred_to: null  # All deliverables confirmed implemented; Wave 3 closure PRs #73-#112 merged
 ---
 
 # ADR-008: DTU State Segregation — `HashMap<(OrgId, String), V>` Keying Pattern, Per-Tenant Lock Granularity, and Reset Semantics

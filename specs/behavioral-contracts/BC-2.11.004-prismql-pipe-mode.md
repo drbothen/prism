@@ -1,8 +1,8 @@
 ---
 document_type: behavioral-contract
 level: L3
-version: "1.4"
-status: draft
+version: "1.5"
+status: active
 producer: product-owner
 timestamp: 2026-04-14T07:00:00
 phase: 1a
@@ -135,6 +135,7 @@ When `WriteVerbRegistry` is empty (no sensor write endpoints registered), `rejec
 
 | Version | Burst | Date | Author | Change |
 |---------|-------|------|--------|--------|
+| 1.5 | bundle-a.2.2 | 2026-05-08 | state-manager | POL-14 promotion: draft → active. S-3.06 flipped to merged (D-304 / Bundle A.2). |
 | 1.4 | pre-impl-amendments | 2026-05-06 | product-owner | AMENDMENT 4 — three S-3.06 implementer gaps: (a) write verb case-insensitive matching specified (normalize to lowercase on insert+lookup, consistent with SQL conventions); (b) E-QUERY-022 added to Error Cases table (unbounded DML write rejected at parse time); (c) INV-FILTER-EMPTY-REGISTRY specified (empty WriteVerbRegistry → reject_write_verbs_in_filter always Ok(())). Also added E-QUERY-010/023/024 rows to Error Cases for completeness. Three new invariants added to §Invariants. |
 | 1.3 | pass-73-fix | 2026-04-20 | state-manager | Deterministic changelog reorder: sorted all rows to descending version order (pass-73 bash script). |
 | 1.2 | pass-69-housekeeping | 2026-04-20 | product-owner | Normalized changelog schema to canonical 5-col schema. |

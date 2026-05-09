@@ -1,7 +1,7 @@
 ---
 document_type: session-handoff
 level: ops
-version: "7.52"
+version: "7.53"
 status: current
 timestamp: 2026-05-08T09:00:00Z
 predecessor_session: "D-295 S-3.07 PR #135 SQUASH-MERGED 2ae7185b 2026-05-08T04:23:03Z — FINAL CLOSURE; Wave 3-A 4/4 SHIPPED; 38 findings closed; develop pin 7c413692→2ae7185b; post-merge cleanup confirmed. STATE v7.43→v7.44. factory-artifacts HEAD: run git -C .factory log -1."
@@ -27,6 +27,8 @@ develop HEAD: c867c344 (six PRs merged 2026-05-06/07: #127 S-3.01 2d7040b1, #128
 # Session Handoff — WAVE 4 PHASE 4.A DECISIONS LOGGED (2026-05-02)
 
 ## TL;DR
+
+**D-304 (2026-05-08) — Bundle A.2.2 + A.2.3 landed. 8 stories status-reconciled per ADR-020 worklist: S-1.10 delivered→merged (Q1 closed); S-3.06 ready→merged (Q2 closed); S-1.11/12/14/15 + S-3.02 + S-3.07 → partial-merge. STORY-INDEX v2.27→v2.28. POL-14: 9 BCs promoted draft→active (BC-2.09.001..008 from S-1.10; BC-2.11.004 from S-3.06). BC-INDEX v4.46→v4.47. 14 ADRs backfilled with `runtime_deliverables` + `wiring_deferred_to` frontmatter — all `wiring_deferred_to: null`, formal ADR file series fully wired (Q3/Q4 closed). ARCH-INDEX v2.32→v2.33. NEW FINDING: MCP/Infusions/Write Pipeline runtime-gap items live as INLINE AD-NNN entries in ARCH-INDEX/module-decomposition — A.2.1 audit-runtime-wiring skill must scan BOTH ADR files AND inline AD-NNN entries. A.2.1 (5 hook implementations) queued for next dispatch. STATE v7.53→v7.54. SESSION-HANDOFF v7.52→v7.53.**
 
 **D-303 (2026-05-08) — Bundle D fully closed via PR #136 squash-merged at develop `7bf067a3`. Maintenance PR `docs: sweep stale stub doc-comments + README backfill (Bundle D, D-302)` — 10 files: 9 crate doc-comment fixes (F-AUD-D1-13/15/16, D3-02/03/05, D5-08/09, D7-03) + README backfill (F-AUD-D8-02). 17/17 CI checks pass; pr-reviewer: 0 findings, APPROVE. Q5 (README content choice), Q6 (prism-core test verify), Q7 (prism-dtu-cyberint test verify) from D-302 auto-resolved by clean CI + reviewer pass. Q1 (S-1.10 status classification), Q2 (S-3.06 `merged` confirmation), Q3 (`wiring_deferred_to:` ADR backfill), Q4 (`runtime_deliverables:` ADR backfill) remain open — Bundle A.2 scope. Cleanup-epic remaining: Bundle A.2 (NEXT), Bundle B (runtime gap), Bundle C (sensor TOML wire-up), Bundle E (VP graduation). STATE v7.52→v7.53. SESSION-HANDOFF v7.51→v7.52.**
 

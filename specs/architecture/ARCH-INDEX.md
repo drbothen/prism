@@ -1,7 +1,7 @@
 ---
 document_type: architecture-index
 level: L3
-version: "2.32"
+version: "2.33"
 status: draft
 producer: architect
 timestamp: 2026-05-04T00:00:00
@@ -66,27 +66,27 @@ deployment_topology: single-service  # planned — no service binary exists yet 
 
 | ID | Title | Status | Date | File |
 |----|-------|--------|------|------|
-| ADR-001 | DTU Rate Limit Pattern | ACCEPTED | 2026-04-22 | decisions/ADR-001-dtu-rate-limit-pattern.md |
-| ADR-002 | L2 DTU Clone Template | ACCEPTED | 2026-04-22 | decisions/ADR-002-l2-dtu-clone-template.md |
-| ADR-003 | DTU Reset Lookup and Fidelity Auth | ACCEPTED | 2026-04-22 | decisions/ADR-003-dtu-reset-lookup-and-fidelity-auth.md |
+| ADR-001 | DTU Rate Limit Pattern | ACCEPTED v1.1 | 2026-04-22 | decisions/ADR-001-dtu-rate-limit-pattern.md |
+| ADR-002 | L2 DTU Clone Template | ACCEPTED v1.1 | 2026-04-22 | decisions/ADR-002-l2-dtu-clone-template.md |
+| ADR-003 | DTU Reset Lookup and Fidelity Auth | ACCEPTED v1.4 | 2026-04-22 | decisions/ADR-003-dtu-reset-lookup-and-fidelity-auth.md |
 | ADR-004 | Kani Arbitrary Policy — Which Types Carry kani::Arbitrary | PROPOSED | 2026-04-26 | decisions/ADR-004-kani-arbitrary-policy.md |
-| ADR-005 | AQL Injection Mitigation — Armis Adapter Query Trust Model | ACCEPTED | 2026-04-26 | decisions/ADR-005-aql-injection-mitigation.md |
-| ADR-006 | Multi-Tenant DTU Topology — OrgId/OrgSlug Identity, OrgRegistry, Configurable Shared/Client Mode | ACCEPTED | 2026-04-27 | decisions/ADR-006-multi-tenant-dtu-topology.md |
-| ADR-007 | Configurable Shared/Client DTU Mode — Per-Type Default Registry, Config Schema, and Isolation Semantics | ACCEPTED | 2026-04-27 | decisions/ADR-007-configurable-dtu-mode.md |
-| ADR-008 | DTU State Segregation — HashMap<(OrgId, String), V> Keying Pattern, Per-Tenant Lock Granularity, and Reset Semantics | ACCEPTED | 2026-04-27 | decisions/ADR-008-dtu-state-segregation.md |
-| ADR-009 | Multi-Tenant Data Generator — Hybrid Archetype Catalog + Deterministic Generator | ACCEPTED | 2026-04-27 | decisions/ADR-009-multi-tenant-data-generator.md |
-| ADR-010 | Customer Config Schema — customers/{org_slug}.toml Structure, Validation Rules, Loading Lifecycle, and Schema Versioning | ACCEPTED | 2026-04-27 | decisions/ADR-010-customer-config-schema.md |
-| ADR-011 | DTU Harness Isolation Modes — Logical (In-Process) and Network (Per-Port) | ACCEPTED | 2026-04-27 | decisions/ADR-011-harness-isolation-modes.md |
-| ADR-012 | Workspace src/ Convention Normalization — Canonical Crate Layout | ACCEPTED | 2026-04-27 | decisions/ADR-012-src-convention.md |
+| ADR-005 | AQL Injection Mitigation — Armis Adapter Query Trust Model | ACCEPTED v0.3 | 2026-04-26 | decisions/ADR-005-aql-injection-mitigation.md |
+| ADR-006 | Multi-Tenant DTU Topology — OrgId/OrgSlug Identity, OrgRegistry, Configurable Shared/Client Mode | ACCEPTED v0.15 | 2026-04-27 | decisions/ADR-006-multi-tenant-dtu-topology.md |
+| ADR-007 | Configurable Shared/Client DTU Mode — Per-Type Default Registry, Config Schema, and Isolation Semantics | ACCEPTED v0.15 | 2026-04-27 | decisions/ADR-007-configurable-dtu-mode.md |
+| ADR-008 | DTU State Segregation — HashMap<(OrgId, String), V> Keying Pattern, Per-Tenant Lock Granularity, and Reset Semantics | ACCEPTED v0.14 | 2026-04-27 | decisions/ADR-008-dtu-state-segregation.md |
+| ADR-009 | Multi-Tenant Data Generator — Hybrid Archetype Catalog + Deterministic Generator | ACCEPTED v0.15 | 2026-04-27 | decisions/ADR-009-multi-tenant-data-generator.md |
+| ADR-010 | Customer Config Schema — customers/{org_slug}.toml Structure, Validation Rules, Loading Lifecycle, and Schema Versioning | ACCEPTED v0.17 | 2026-04-27 | decisions/ADR-010-customer-config-schema.md |
+| ADR-011 | DTU Harness Isolation Modes — Logical (In-Process) and Network (Per-Port) | ACCEPTED v0.15 | 2026-04-27 | decisions/ADR-011-harness-isolation-modes.md |
+| ADR-012 | Workspace src/ Convention Normalization — Canonical Crate Layout | ACCEPTED v0.18 | 2026-04-27 | decisions/ADR-012-src-convention.md |
 | ADR-013 | Schedule Execution Semantics | PROPOSED v0.7 | 2026-05-03 | decisions/ADR-013-schedule-execution-semantics.md |
-| ADR-014 | Local Pre-Push vs CI Gate Asymmetry | ACCEPTED | 2026-04-30 | decisions/ADR-014-local-pre-push-ci-gate-asymmetry.md |
+| ADR-014 | Local Pre-Push vs CI Gate Asymmetry | ACCEPTED v1.1 | 2026-04-30 | decisions/ADR-014-local-pre-push-ci-gate-asymmetry.md |
 | ADR-015 | Detection Rule Language | PROPOSED v0.6 | 2026-05-03 | decisions/ADR-015-detection-rule-language.md |
 | ADR-016 | Action Delivery Framework | PROPOSED v0.14 | 2026-05-02 | decisions/ADR-016-action-delivery-framework.md |
 | ADR-017 | Case Lifecycle Invariants | PROPOSED v0.7 | 2026-05-03 | decisions/ADR-017-case-lifecycle-invariants.md |
 | ADR-018 | Differential Result Pack Format | PROPOSED v0.6 | 2026-05-03 | decisions/ADR-018-differential-result-pack-format.md |
 | ADR-019 | SIEM Output Formats | PROPOSED v0.4 | 2026-05-03 | decisions/ADR-019-siem-output-formats.md |
-| ADR-020 | Story Status Taxonomy Reform — Closed Enum, Partial-Merge Semantics, and Graduation Contract | ACCEPTED | 2026-05-08 | decisions/ADR-020-story-status-taxonomy-reform.md |
-| ADR-021 | BC/VP Promotion Lifecycle — Draft → Active → Verified Transitions, Audit Cadence, and BC-INDEX Count Authority | ACCEPTED | 2026-05-08 | decisions/ADR-021-bc-vp-promotion-lifecycle.md |
+| ADR-020 | Story Status Taxonomy Reform — Closed Enum, Partial-Merge Semantics, and Graduation Contract | ACCEPTED v1.1 | 2026-05-08 | decisions/ADR-020-story-status-taxonomy-reform.md |
+| ADR-021 | BC/VP Promotion Lifecycle — Draft → Active → Verified Transitions, Audit Cadence, and BC-INDEX Count Authority | ACCEPTED v1.1 | 2026-05-08 | decisions/ADR-021-bc-vp-promotion-lifecycle.md |
 
 ## Architecture Decisions
 
@@ -145,6 +145,7 @@ deployment_topology: single-service  # planned — no service binary exists yet 
 
 | Version | Pass | Date | Author | Change |
 |---------|------|------|--------|--------|
+| 2.33 | bundle-A-2-3-adr-frontmatter-backfill-2026-05-08 | 2026-05-08 | architect | Bundle A.2.3 ADR frontmatter backfill: added `runtime_deliverables` and `wiring_deferred_to` fields to all 14 accepted ADRs (ADR-001 through ADR-012, ADR-014, ADR-020, ADR-021) enabling POL-15 (runtime_wiring_required_for_accepted_adrs) enforcement by audit-runtime-wiring skill. Version bumped +0.1 on each ADR. ADRs with code deliverables fully wired: ADR-003 (FidelityCheck/admin_token), ADR-005 (validate_aql), ADR-006 (OrgId/OrgRegistry), ADR-007 (DtuMode/DTU_DEFAULT_MODE), ADR-008 (state re-keying), ADR-009 (data generator), ADR-010 (customer config), ADR-011 (Harness), ADR-012 (layout script), ADR-014 (just check/check-ci). Pure methodology ADRs: ADR-001, ADR-002, ADR-020, ADR-021 (runtime_deliverables: []). |
 | 2.32 | bundle-A-cleanup-2026-05-08 | 2026-05-08 | architect | Bundle A status-taxonomy reform: ADR-020 (story status taxonomy — closed enum, partial-merge semantics, graduation contract) and ADR-021 (BC/VP promotion lifecycle — draft→active→verified, audit cadence, BC-INDEX count authority) added to ADR Registry. Companion policies POL-12..16 added to policies.yaml v1.6. Hook specifications document added (hook-specs-bundle-a.md). No code changes; no story-file changes; schema + policy layer only. |
 | 2.31 | pr-127-pass4-remediation | 2026-05-05 | architect | Adversary pass-4 (F-MEDIUM-001) property-text correction cascade: VP-014 v1.6 + VP-015 v1.7 replace non-existent `ParseError::QueryTooLarge` / `ParseError::NestingTooDeep` enum-variant references with correct `Err(Vec<ParseError>)` API (message contains `E-QUERY-003`). Document Map verification-architecture.md row updated v1.29→v1.30. VP-INDEX v1.29. ARCH-INDEX v2.30→v2.31. Note: proof_file_hash values retained — hashes confirmed unchanged at commit 8feb4cf2. Hash may need re-computation after implementer #4 push lands changes to vp015_depth_limit.rs. |
 | 2.30 | pr-127-formal-verify | 2026-05-05 | architect | VP-014 and VP-015 promoted to verified following Kani proof runs at commit f5212641 (PR #127). Document Map verification-architecture.md row updated v1.28→v1.29. Cross-ref: VP-INDEX v1.28, vp-014 v1.5, vp-015 v1.6, verification-architecture.md v1.29. ARCH-INDEX v2.29→v2.30. |

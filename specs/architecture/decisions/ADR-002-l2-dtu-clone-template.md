@@ -4,7 +4,7 @@ title: "Canonical L2 DTU Clone Template"
 document_type: architecture-section
 level: ADR
 section: decisions/ADR-002-l2-dtu-clone-template
-version: "1.0"
+version: "1.1"
 status: accepted
 producer: architect
 timestamp: 2026-04-22T00:00:00
@@ -18,6 +18,8 @@ inputs:
   - crates/prism-dtu-common/ (origin/develop)
 traces_to: ARCH-INDEX.md
 closes_debt: TD-WV0-05
+runtime_deliverables: []  # Structural template/convention — defines layout and compliance rules for per-clone PRs, not a new crate or module
+wiring_deferred_to: null  # No standalone runtime wiring; compliance is enforced per-story in each DTU clone story's ACs
 ---
 
 # ADR-002: Canonical L2 DTU Clone Template

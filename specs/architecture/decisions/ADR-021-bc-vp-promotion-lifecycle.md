@@ -4,7 +4,7 @@ adr_id: "ADR-021"
 title: "BC/VP Promotion Lifecycle — Draft → Active → Verified Transitions, Audit Cadence, and BC-INDEX Count Authority"
 status: ACCEPTED
 date: "2026-05-08"
-version: "1.0"
+version: "1.1"
 producer: architect
 subsystems_affected: []
 supersedes: null
@@ -19,6 +19,8 @@ inputs:
 anchor_stories: []
 references_phase3_siblings: [ADR-020]
 locked_decisions: []
+runtime_deliverables: []  # Methodology/process decision — defines BC/VP status lifecycle and BC-INDEX count authority; no production code units
+wiring_deferred_to: null  # No runtime wiring required; transitions enforced by audit cadence protocol and consistency-validator
 ---
 
 # ADR-021: BC/VP Promotion Lifecycle — Draft → Active → Verified Transitions, Audit Cadence, and BC-INDEX Count Authority

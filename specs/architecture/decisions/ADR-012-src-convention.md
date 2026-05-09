@@ -6,7 +6,7 @@ status: ACCEPTED
 date: 2026-05-01
 wave: 3
 phase: 3.A
-version: "0.17"
+version: "0.18"
 authors: [architect]
 related_decisions: [D-046, D-060]
 related_adrs: [ADR-009, ADR-011]
@@ -22,6 +22,11 @@ inputs:
   - Justfile
   - crates/ (all 22 workspace crates — layout audit)
   - .factory/STATE.md (D-046)
+runtime_deliverables:
+  - scripts/check-crate-layout.sh  # layout lint script invoked by just check and lefthook pre-commit
+  - docs/CRATE-LAYOUT.md  # canonical crate layout documentation
+runtime_deliverables_note: "Tooling and documentation only — no production Rust code introduced"
+wiring_deferred_to: null  # Layout enforcement script confirmed present and wired to just check + lefthook; Wave 3 closure merged
 ---
 
 # ADR-012: Workspace `src/` Convention Normalization — Canonical Crate Layout

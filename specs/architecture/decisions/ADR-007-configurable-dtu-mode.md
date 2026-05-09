@@ -6,7 +6,7 @@ status: ACCEPTED
 date: 2026-05-01
 wave: 3
 phase: 3.A
-version: "0.14"
+version: "0.15"
 authors: [architect]
 related_decisions: [D-042, D-045, D-049, D-051]
 related_adrs: [ADR-006, ADR-008, ADR-009, ADR-010]
@@ -26,6 +26,11 @@ inputs:
   - crates/prism-dtu-pagerduty/src/state.rs
   - crates/prism-dtu-jira/src/state.rs
   - .factory/STATE.md (D-042, D-045)
+runtime_deliverables:
+  - prism-core::DtuMode  # enum Shared/Client (dtu.rs)
+  - prism-core::DtuRegistryEntry  # struct with type_name, default_mode, test_only fields
+  - prism-core::DTU_DEFAULT_MODE  # compile-time static slice — canonical per-type mode registry
+wiring_deferred_to: null  # All deliverables confirmed implemented in prism-core::dtu; Wave 3 closure PRs #73-#112 merged
 ---
 
 # ADR-007: Configurable Shared/Client DTU Mode — Per-Type Default Registry, Config Schema, and Isolation Semantics

@@ -6,7 +6,7 @@ status: ACCEPTED
 date: 2026-05-01
 wave: 3
 phase: 3.A
-version: "0.14"
+version: "0.15"
 authors: [architect]
 related_decisions: [D-041, D-042, D-044, D-045, D-047, D-050]
 related_adrs: [ADR-007, ADR-008, ADR-009, ADR-010, ADR-011, ADR-012]
@@ -24,6 +24,12 @@ inputs:
   - crates/prism-sensors/src/event_buffer.rs
   - crates/prism-spec-engine/src/pipeline.rs
   - .factory/STATE.md (D-041, D-042, D-044, D-045)
+runtime_deliverables:
+  - prism-core::OrgId  # UUID v7 newtype for canonical org identity (ids.rs)
+  - prism-core::OrgSlug  # kebab-case string newtype for analyst-facing identity (renamed from TenantId)
+  - prism-core::OrgRegistry  # bijective BiMap with resolve/slug_for/register (org_registry.rs)
+  - prism-credentials::namespace_key  # updated to accept &OrgId instead of &TenantId
+wiring_deferred_to: null  # All deliverables confirmed implemented; Wave 3 closure PRs #73-#112 merged
 ---
 
 # ADR-006: Multi-Tenant DTU Topology — OrgId/OrgSlug Identity, OrgRegistry, Configurable Shared/Client Mode

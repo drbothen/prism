@@ -6,7 +6,7 @@ status: ACCEPTED
 date: 2026-05-01
 wave: 3
 phase: 3.A
-version: "0.16"
+version: "0.17"
 authors: [architect]
 related_decisions: [D-041, D-042, D-046, D-052, D-053]
 related_adrs: [ADR-006, ADR-007, ADR-008, ADR-009, ADR-011]
@@ -21,6 +21,11 @@ inputs:
   - .factory/specs/architecture/decisions/ADR-007-configurable-dtu-mode.md
   - .factory/specs/architecture/decisions/ADR-008-dtu-state-segregation.md
   - .factory/STATE.md (D-041, D-042, D-046)
+runtime_deliverables:
+  - prism-customer-config::CustomerConfig  # serde-deserialized struct for customers/{org_slug}.toml (schema.rs)
+  - prism-customer-config::load_and_validate  # fn that loads all configs from customers/ dir, validates, returns Vec<CustomerConfig>
+  - prism-customer-config::boot_org_registry  # fn that populates OrgRegistry from loaded CustomerConfig set
+wiring_deferred_to: null  # All deliverables confirmed implemented in prism-customer-config crate; Wave 3 closure PRs #73-#112 merged
 ---
 
 # ADR-010: Customer Config Schema — `customers/{org_slug}.toml` Structure, Validation Rules, Loading Lifecycle, and Schema Versioning

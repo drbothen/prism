@@ -6,7 +6,7 @@ status: ACCEPTED
 date: 2026-04-30
 wave: 3
 phase: 3.E
-version: "1.0"
+version: "1.1"
 authors: [spec-steward]
 related_decisions: [D-172, D-174]
 related_adrs: [ADR-012]
@@ -22,6 +22,12 @@ inputs:
   - docs/dev-setup.md
   - .factory/stories/S-0.02-developer-toolchain.md
   - .factory/STATE.md (D-172, D-174)
+runtime_deliverables:
+  - Justfile::check  # fast local pre-push gate (fmt + clippy + nextest + crate-layout, ~5-8 min)
+  - Justfile::check-ci  # full-strength CI gate (adds audit + deny + semver-checks)
+  - lefthook.yml::pre-push  # hook wiring just check to every git push
+runtime_deliverables_note: "Tooling/configuration only — no production Rust code introduced"
+wiring_deferred_to: null  # All three deliverables confirmed present in Justfile and lefthook.yml (ratified PR #106 commit 7418f269)
 ---
 
 # ADR-014: Local Pre-Push vs CI Gate Asymmetry

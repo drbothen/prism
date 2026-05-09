@@ -4,7 +4,7 @@ title: "DTU Reset-Lookup Semantics and Fidelity Probe Auth"
 document_type: architecture-section
 level: ADR
 section: decisions/ADR-003-dtu-reset-lookup-and-fidelity-auth
-version: "1.3"
+version: "1.4"
 status: Accepted
 producer: architect
 timestamp: 2026-04-22T00:00:00Z
@@ -32,6 +32,11 @@ amendments:
   - "#3: FidelityCheck headers field (TD-WV1-01) — 2026-04-24"
   - "#4: Fidelity test filename convention (TD-WV1-02) — 2026-04-24"
   - "#5: /dtu/configure admin token authentication (TD-WV0-07) — 2026-04-24 (wave-1-5/pr-f, 5a2d1c8c)"
+runtime_deliverables:
+  - prism-dtu-common::FidelityCheck  # headers field added (Amendment #3, TD-WV1-01)
+  - prism-dtu-common::FidelityValidator  # header injection loop in run() (Amendment #3)
+  - prism-dtu-common::BehavioralClone::admin_token  # new required trait method (Amendment #5, TD-WV0-07)
+wiring_deferred_to: null  # All three deliverables confirmed implemented in prism-dtu-common (Wave 1.5 + TD-WV0-07 closure)
 ---
 
 # ADR-003: DTU Reset-Lookup Semantics and Fidelity Probe Auth
