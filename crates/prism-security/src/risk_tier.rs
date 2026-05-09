@@ -1,7 +1,4 @@
-// S-1.09: RiskTier — Three-Tier Risk Classification — STUB (Red Gate)
-//
-// All function bodies are `unimplemented!()`. The implementer must fill them
-// in to make the test suite green.
+// S-1.09: RiskTier — Three-Tier Risk Classification
 //
 // Story:  S-1.09 — prism-security: Confirmation Tokens (P1)
 // BC:     BC-2.04.007 — Three-Tier Risk Classification for Operations
