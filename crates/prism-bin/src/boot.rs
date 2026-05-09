@@ -519,7 +519,8 @@ pub async fn step4_load_sensor_specs(
 ///
 /// Abstracts keyring access so that unit tests can inject a test double
 /// (Approach B from BC-2.03.013 §Test Strategy). The production implementation
-/// uses the keyring crate; tests inject a [`MockCredentialRefProbe`].
+/// uses the keyring crate; tests inject mock implementations such as
+/// `AlwaysOkProbe` and `MissingOneProbe` in the integration test suite.
 ///
 /// Contract (BC-2.03.013 §Critical Invariant):
 /// - Implementations MUST NOT store or return credential values.
