@@ -1,13 +1,13 @@
 ---
 document_type: session-handoff
 level: ops
-version: "7.61"
+version: "7.62"
 status: current
 timestamp: 2026-05-09T08:00:00Z
-predecessor_session: "D-312 S-WAVE5-PREP-01 fix-pass-3 complete. All pass-3 findings closed (2 tracks). BC-2.05.012 v1.1 amendment + code track 345f443b (3456 pass / 0 fail). Adversary pass-4 dispatched. STATE v7.61→v7.62."
+predecessor_session: "D-313 SHA-currency follow-up: develop pin 7bf067a3→3898bd58 (CLAUDE.md TDD inner-loop discipline maintenance commit). STATE v7.62→v7.63. SESSION-HANDOFF v7.61→v7.62. Adversary pass-4 unblocked."
 successor_focus: "Adversary pass-4 in flight; if CLEAN → streak 1/3 (need 3 consecutive). If BLOCKED → fix-pass-4 dispatch.
 
-**STEP 1 (START HERE):** Read STATE.md v7.30 + this HANDOFF v7.30 in full. Confirm develop HEAD `c867c344` (PR #132 S-3.05 squash-merged 2026-05-07T16:46:01Z). S-3.04 + S-3.03 LOCAL cascades CONVERGED-BY-BEST-EFFORT 3/3 — both ready for PR creation. S-3.07 LOCAL cascade pending dispatch.
+**STEP 1 (START HERE):** Read STATE.md v7.63 + this HANDOFF v7.62 in full. Confirm develop HEAD `3898bd58` (CLAUDE.md TDD inner-loop discipline maintenance commit by technical-writer 2026-05-09). S-WAVE5-PREP-01 adversary pass-4 in flight (dispatched D-312). If CLEAN → streak 1/3; if BLOCKED → fix-pass-4 dispatch.
 
 **STEP 2 (TIER-3 DISPATCH):** Dispatch Tier-3 stories (S-3.03/04/05/07 unblocked by S-3.02 + S-3.06 both merged). Priority: S-3.03 (Explain/Query Diagnostics, 1pt, fastest win) first; then S-3.04 (Alias System P1, 5pts) + S-3.05 (Pagination/Caching, 6pts) in parallel. S-3.07 (Write Execution Pipeline, 5pts) also unblocked (deps: S-3.02 + S-3.06 both merged). Devops: create worktrees from develop HEAD `6fefc774` before dispatching per-story-delivery cycles.
 
@@ -27,6 +27,8 @@ develop HEAD: c867c344 (six PRs merged 2026-05-06/07: #127 S-3.01 2d7040b1, #128
 # Session Handoff — WAVE 4 PHASE 4.A DECISIONS LOGGED (2026-05-02)
 
 ## TL;DR
+
+**D-313 (2026-05-09) — SHA-currency follow-up: develop pin 7bf067a3→3898bd58 (CLAUDE.md TDD inner-loop discipline maintenance commit by technical-writer). [process-gap] same as D-308: state-manager dispatches missed develop-SHA pin update when develop advanced. Required to unblock adversary pass-4 dispatch. STATE v7.62→v7.63. SESSION-HANDOFF v7.61→v7.62.**
 
 **D-312 (2026-05-09) — S-WAVE5-PREP-01 fix-pass-3 complete. All pass-3 findings closed across two parallel tracks. (a) Code track at worktree HEAD 345f443b: F-PASS3-HIGH-1 closed (cred-ref behavioral coverage via CredentialRefProbe trait injection — AlwaysOkProbe/MissingOneProbe mocks; +2 tests in prism-bin); F-PASS3-LOW-1 closed (stale fix-pass-2 comment deleted at boot.rs:786-788); F-PASS3-OBS-1 closed (+4 unit tests in prism-audit for BootAuditEmitter::new/emit/into_backend/failure); F-PASS3-OBS-2 closed (+3 unit tests in prism-storage for append_audit_entry_sync flush_wal/cf-check/error-propagation). just check: 3456 pass / 17 skipped / 0 fail. (b) Spec track: PO amended BC-2.05.012 v1.0→v1.1 per research-agent's proposed text — Description lines 31-32 clarify BootAuditEmitter is the boot-time specialization distinct from request-time AuditEmitterLayer; Postcondition bullets 1+4 reflect the two-phase emitter design; OQ-2 marked resolved. Closes F-PASS3-MED-1 BC drift. BC-INDEX v4.48→v4.49. Adversary pass-4 dispatched in parallel for closure verification + fresh-eyes scan. STATE v7.61→v7.62. SESSION-HANDOFF v7.60→v7.61.**
 
