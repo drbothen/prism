@@ -782,10 +782,6 @@ pub async fn step10_start_hot_reload() -> Result<(), BootError> {
 /// which are NOT todo!() — they are implemented in signals.rs.
 /// What is deferred here is the SIGHUP reload path which requires steps 7–10
 /// to be complete (HotReloadWatcher) and the full channel wiring for shutdown.
-///
-/// F-PASS2-OBS-3 (S-WAVE5-PREP-01 fix-pass-2): corrected story reference below.
-/// The story `S-5.01-FOLLOWUP-MCP-BOOT` does not exist in STORY-INDEX v2.30.
-/// Corrected to reference the actual downstream stories that resolve this step.
 pub async fn step11_install_signal_handlers(
     _shutdown_tx: tokio::sync::broadcast::Sender<()>,
     _reload_tx: tokio::sync::mpsc::Sender<()>,
