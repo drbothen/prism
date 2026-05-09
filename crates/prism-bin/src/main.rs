@@ -51,19 +51,23 @@ async fn dispatch(args: CliArgs) -> i32 {
     // Resolve config directory from CLI arg or PRISM_CONFIG_DIR env var.
     // The --config-dir / PRISM_CONFIG_DIR resolution is already done by clap
     // (the field is annotated with env = "PRISM_CONFIG_DIR"), so args.config_dir
-    // holds the resolved value. For the default (~/.prism/), we compute it here.
+    // holds the resolved value. For the OS-canonical default, use dirs::config_dir()
+    // which returns the platform-appropriate config directory:
+    //   - Linux:   ~/.config/prism/
+    //   - macOS:   ~/Library/Application Support/prism/
+    //   - Windows: %APPDATA%\prism\  (e.g., C:\Users\<user>\AppData\Roaming\prism\)
     let config_dir = match args.config_dir {
         Some(d) => d,
-        None => {
-            // Default: ~/.prism/ (resolved from HOME env var)
-            match std::env::var("HOME").ok().map(std::path::PathBuf::from) {
-                Some(home) => home.join(".prism"),
-                None => {
-                    eprintln!("Could not determine home directory for default config path");
-                    process::exit(EXIT_CONFIG_INVALID);
-                }
+        None => match dirs::config_dir().map(|d| d.join("prism")) {
+            Some(dir) => dir,
+            None => {
+                eprintln!(
+                    "Could not determine config directory for default path. \
+                         Set PRISM_CONFIG_DIR explicitly."
+                );
+                process::exit(EXIT_CONFIG_INVALID);
             }
-        }
+        },
     };
 
     match args.command {
