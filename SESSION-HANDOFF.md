@@ -1,11 +1,11 @@
 ---
 document_type: session-handoff
 level: ops
-version: "7.57"
+version: "7.58"
 status: current
-timestamp: 2026-05-08T22:00:00Z
+timestamp: 2026-05-08T23:30:00Z
 predecessor_session: "D-295 S-3.07 PR #135 SQUASH-MERGED 2ae7185b 2026-05-08T04:23:03Z — FINAL CLOSURE; Wave 3-A 4/4 SHIPPED; 38 findings closed; develop pin 7c413692→2ae7185b; post-merge cleanup confirmed. STATE v7.43→v7.44. factory-artifacts HEAD: run git -C .factory log -1."
-successor_focus: "D-307 Phase B-2 per-story-delivery: S-WAVE5-PREP-01 is now status=ready. Phase B-2 begins with devops-engineer creating worktree from develop HEAD 7bf067a3; then test-writer creates compilable stubs and failing tests; then implementer cycles. W3-FIX-S307-001 can dispatch in parallel (no boot-sequence BC dependency). Open questions: OQ-1 CredentialStore non-leak test approach, OQ-2 AuditEntry sentinel schema, OQ-3 boot-sequence VP feasibility. STORY-INDEX v2.30 (136 stories). develop HEAD: 7bf067a3.
+successor_focus: "D-309 Phase B-2 fix-pass: address adversary findings (CRIT-1 + HIGH-1/2/3 + 5 MED + 3 LOW + 3 OBS) — orchestrator strategic decision pending on whether to fully implement BC-2.05.012/BC-2.03.013 in chassis (matches story spec) or re-anchor BCs to follow-up stories (amends story spec). STORY-INDEX v2.30 (136 stories). develop HEAD: 7bf067a3.
 
 **STEP 1 (START HERE):** Read STATE.md v7.30 + this HANDOFF v7.30 in full. Confirm develop HEAD `c867c344` (PR #132 S-3.05 squash-merged 2026-05-07T16:46:01Z). S-3.04 + S-3.03 LOCAL cascades CONVERGED-BY-BEST-EFFORT 3/3 — both ready for PR creation. S-3.07 LOCAL cascade pending dispatch.
 
@@ -27,6 +27,8 @@ develop HEAD: c867c344 (six PRs merged 2026-05-06/07: #127 S-3.01 2d7040b1, #128
 # Session Handoff — WAVE 4 PHASE 4.A DECISIONS LOGGED (2026-05-02)
 
 ## TL;DR
+
+**D-309 (2026-05-08) — S-WAVE5-PREP-01 LOCAL adversarial pass-1 BLOCKED-hard. Branch `feature/S-WAVE5-PREP-01-prism-bin-chassis` @ `c8900f56`. 12 findings: 1C/3H/5M/3L + 3OBS + 2K + 1 process-gap. Streak 0/3. CRIT-1: test-injection env vars (`PRISM_TEST_INJECT_PANIC`, `PRISM_TEST_INJECT_FAIL_STEP`, `PRISM_TEST_STOP_AFTER_STEP`) read unconditionally in production binary — BC-2.22.001 §Test Strategy violated; deployed binary can be crashed via env. HIGH-1: BC-2.05.012 postconditions unmet — step 6 is tracing-only (no RocksDB CF open, no durable sentinel write). HIGH-2: BC-2.03.013 postconditions unmet — no credential-ref iteration; test passes vacuously via empty fixture. HIGH-3: EncryptedFile backend unconditionally returns CredentialPermissionDenied for any valid config. 5 MED: dead todo!() pub fn (AC-11/POL-12 hit), SIGTERM test exercises inline-duplicate not signals.rs, spec_dir auto-create side effect, AC-4 field-name unverified, shared /tmp fixture races. 3 LOW: AC-5 test missing, duplicate-org message format mismatch, UUID v7 version not validated. 1 process-gap: POL-12 vs AC-11 conflict for pub fn with todo!(). Fix-pass dispatch pending orchestrator strategic decision: (a) fully implement BC-2.05.012/BC-2.03.013 in chassis, or (b) re-anchor BCs to follow-up stories. Report: cycles/wave-4-operations/adversarial-reviews/s-wave5-prep-01-local-pass-1.md. STATE v7.58→v7.59. SESSION-HANDOFF v7.57→v7.58.**
 
 **D-308 (2026-05-08) — SHA-currency hygiene burst. [process-gap] verify-sha-currency.sh hook flagged STATE.md develop_head as stale (2ae7185b from D-295 PR #135) instead of actual 7bf067a3 (D-303 PR #136 Bundle D). D-303/D-304/D-307 dispatches missed the develop-SHA pin update. Corrections: develop_head 2ae7185b→7bf067a3; Current spec versions footer updated; D-292 voice converted to past-tense. Adversary dispatch unblocked. STATE v7.57→v7.58. SESSION-HANDOFF v7.56→v7.57.**
 
