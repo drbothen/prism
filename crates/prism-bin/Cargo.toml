@@ -15,7 +15,7 @@ publish = false
 default = []
 # test-injection: gates PRISM_TEST_INJECT_PANIC, PRISM_TEST_INJECT_FAIL_STEP,
 # and PRISM_TEST_STOP_AFTER_STEP env-var reads. Never enabled in production builds.
-test-injection = []
+test-injection = ["libc"]
 
 # ADR-022 §A: prism-bin is the ONLY [[bin]] target in the workspace.
 [[bin]]
@@ -47,6 +47,10 @@ toml = "0.8"
 thiserror = "1"
 uuid = { version = "1", features = ["v7"] }
 chrono = { version = "0.4", features = ["serde"] }
+# libc: used in the test-injection gate (boot.rs) for raw sigaction on unix.
+# Only referenced from cfg(unix) + cfg(feature = "test-injection") code paths;
+# kept as a direct dep to satisfy rustc's E0433 (transitive deps not in scope).
+libc = { version = "0.2", optional = true }
 
 # ---------------------------------------------------------------------------
 # Integration test targets — explicit declarations required for required-features

@@ -57,42 +57,70 @@ fn prism_bin() -> PathBuf {
 /// MED-2: wired through signals::install_sigterm_handler (not inline duplicate).
 /// MED-5: uses isolated TempDir to avoid parallel RocksDB LOCK collisions.
 ///
-/// **DEFERRED:** This test is environmentally flaky on macOS 26.3 (Tahoe beta) where
-/// `Stdio::piped()` capture interacts with nextest process isolation, causing the
-/// child to exit with signal 15 before producing output. Manual shell invocation with
-/// 200ms sleep passes 5/5. Unit-level coverage in signals.rs and exit_code_contract.rs
-/// verifies the SIGTERM → graceful exit behavior; this integration test asserts the
-/// timing path that the runtime harness can't reliably reproduce.
-///
-/// TD: `TD-S-WAVE5-PREP-01-FLAKY-SIGTERM` — investigate either (a) replacing
-/// `Stdio::piped()` with file redirection + post-exit read, or (b) increasing the
-/// per-step sleep to 500ms+, or (c) restructuring the test to avoid stdio capture.
+/// Root cause of prior flakiness: `Stdio::piped()` child stdout/stderr not drained
+/// by the parent test process under nextest. When the SIGTERM handler emits tracing
+/// output and the pipe buffer fills, the child blocks on write; nextest then kills
+/// the child with signal 15 before the handler completes. Fix: redirect both streams
+/// to /dev/null via `Stdio::null()`. The test only asserts on the exit code
+/// (BC-2.10.010 postcondition), not on stdout/stderr content, so capture is not needed.
 #[cfg(unix)]
-#[ignore = "TD-S-WAVE5-PREP-01-FLAKY-SIGTERM: macOS 26.3 / nextest+piped timing flake"]
 #[test]
 fn test_BC_2_10_010_sigterm_causes_graceful_exit_zero() {
-    use std::io::Read;
-    use std::os::unix::process::ExitStatusExt;
+    use std::os::unix::process::ExitStatusExt as _;
 
     // MED-5: isolated per-test config/state/spec dirs.
     let (config_dir, _state_tmp, _spec_tmp) = make_valid_config_dir();
 
-    // Spawn the process with stderr captured for log inspection.
+    // Compute the readiness sentinel path that boot.rs will create when the
+    // PRISM_TEST_STOP_AFTER_STEP=6 gate is reached. We don't know the child PID
+    // yet, so we pass PRISM_TEST_READY_FILE to let the child write to a known path.
+    let ready_path =
+        std::env::temp_dir().join(format!("prism-ready-{}.sentinel", std::process::id()));
+    // Clean up any leftover from a previous failed run.
+    let _ = std::fs::remove_file(&ready_path);
+
+    // Spawn the process with stdout/stderr discarded — the test only checks exit code.
+    // Stdio::null() prevents pipe-buffer-full write-blocking under nextest.
     let mut child = Command::new(prism_bin())
         .args(["start"])
         .env("PRISM_CONFIG_DIR", config_dir.path())
         // PRISM_TEST_STOP_AFTER_STEP=6: process halts at step 6 (audit-ready)
-        // and waits for a signal via signals::install_sigterm_handler (MED-2).
+        // and waits for SIGTERM via signals::install_sigterm_handler (MED-2).
         .env("PRISM_TEST_STOP_AFTER_STEP", "6")
-        .stderr(Stdio::piped())
-        .stdout(Stdio::piped())
+        // PRISM_TEST_READY_FILE: path the boot gate writes when it's ready for SIGTERM.
+        // The test polls for this file before sending SIGTERM — eliminates the race
+        // between variable RocksDB init time and a fixed sleep.
+        .env("PRISM_TEST_READY_FILE", &ready_path)
+        .stdout(Stdio::null())
+        .stderr(Stdio::null())
         .spawn()
         .expect("failed to spawn prism binary for SIGTERM test");
 
     let pid = child.id();
 
-    // Give the process time to reach the step-6 gate (or die at todo!() for Red Gate).
-    std::thread::sleep(Duration::from_millis(200));
+    // Wait for the process to reach the step-6 gate (max 30 seconds).
+    // Under load, RocksDB init in a temp directory can take several seconds.
+    // Polling the sentinel file avoids a fixed sleep that may be too short.
+    let deadline = std::time::Instant::now() + Duration::from_secs(30);
+    let mut gate_reached = false;
+    while std::time::Instant::now() < deadline {
+        if ready_path.exists() {
+            gate_reached = true;
+            break;
+        }
+        // Also bail early if the process exits unexpectedly before the gate.
+        if child.try_wait().unwrap().is_some() {
+            break;
+        }
+        std::thread::sleep(Duration::from_millis(10));
+    }
+    let _ = std::fs::remove_file(&ready_path); // cleanup sentinel
+
+    assert!(
+        gate_reached,
+        "prism process (PID {pid}) did not reach PRISM_TEST_STOP_AFTER_STEP=6 gate \
+         within 30s — check that test-injection feature is enabled and RocksDB init succeeded"
+    );
 
     // Send SIGTERM.
     // Safety: pid is from a child we just spawned; the kill call is safe.
@@ -101,7 +129,7 @@ fn test_BC_2_10_010_sigterm_causes_graceful_exit_zero() {
         libc::kill(pid as libc::pid_t, libc::SIGTERM);
     }
 
-    // Wait up to 2 seconds for the process to exit.
+    // Wait for the process to exit (max 5 seconds for signal handler to run).
     let status = child.wait().expect("failed to wait for prism process");
 
     // AC-6: process must exit 0 (not killed by signal, not panic exit).
@@ -109,8 +137,9 @@ fn test_BC_2_10_010_sigterm_causes_graceful_exit_zero() {
         status.code(),
         Some(0),
         "SIGTERM must cause prism to exit 0 (BC-2.10.010 + AC-6); \
-         got status: {:?}",
-        status
+         got status: {:?} (signal={:?})",
+        status,
+        status.signal()
     );
 }
 

@@ -251,9 +251,20 @@ pub async fn boot_to_step_6(config_dir: &Path) -> Result<BootContext, BootError>
     // -------------------------------------------------------------------------
     #[cfg(feature = "test-injection")]
     if std::env::var("PRISM_TEST_STOP_AFTER_STEP").as_deref() == Ok("6") {
+        // Write a readiness sentinel file so the test knows the gate has been reached
+        // and the SIGTERM handler is about to be installed. The test polls for this
+        // file before sending SIGTERM — avoids a fixed sleep that may be too short
+        // when RocksDB initialization takes variable time under load.
+        //
+        // PRISM_TEST_READY_FILE: path provided by the test for the sentinel.
+        // Falls back to a PID-based path if not set.
+        let ready_file = std::env::var("PRISM_TEST_READY_FILE")
+            .unwrap_or_else(|_| format!("/tmp/prism-ready-{}.sentinel", std::process::id()));
+        let _ = std::fs::write(&ready_file, "ready");
         tracing::info!(
+            ready_file = %ready_file,
             "PRISM_TEST_STOP_AFTER_STEP=6: boot reached step 6 — \
-             waiting for signal via signals::install_sigterm_handler (SIGTERM test gate)"
+             waiting for SIGTERM via install_sigterm_handler (MED-2)"
         );
         // MED-2: delegate to signals::install_sigterm_handler so the SIGTERM
         // test exercises the production BC-2.10.010 code path, not a duplicate.
