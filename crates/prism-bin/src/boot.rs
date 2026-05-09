@@ -511,6 +511,70 @@ pub async fn step4_load_sensor_specs(
     Ok(manager)
 }
 
+// ---------------------------------------------------------------------------
+// CredentialRefProbe — injectable probe for step5 (BC-2.03.013 §Test Strategy)
+// ---------------------------------------------------------------------------
+
+/// Probe interface for validating credential refs during step 5.
+///
+/// Abstracts keyring access so that unit tests can inject a test double
+/// (Approach B from BC-2.03.013 §Test Strategy). The production implementation
+/// uses the keyring crate; tests inject a [`MockCredentialRefProbe`].
+///
+/// Contract (BC-2.03.013 §Critical Invariant):
+/// - Implementations MUST NOT store or return credential values.
+/// - `probe()` performs an existence check only — it checks if the ref is
+///   registered in the backend and returns Ok(()) or an appropriate `BootError`.
+pub trait CredentialRefProbe: Send + Sync {
+    /// Check whether `ref_name` for `sensor_id` is registered in the backend.
+    ///
+    /// Returns:
+    /// - `Ok(())` — ref exists (credential is registered)
+    /// - `Err(BootError::CredentialRefInvalid)` — ref not found (exit 2)
+    /// - `Err(BootError::CredentialPermissionDenied)` — backend unavailable (exit 5)
+    fn probe(&self, sensor_id: &str, ref_name: &str) -> Result<(), BootError>;
+}
+
+/// Production credential ref probe — uses the `keyring` crate.
+///
+/// Constructs a namespaced `keyring::Entry("prism", "{sensor_id}/{ref_name}")` and
+/// calls `get_password()` to check existence. The value is immediately discarded
+/// (AD-017 AI-opaque model: credential values MUST NOT be retained).
+pub struct KeyringCredentialProbe;
+
+impl CredentialRefProbe for KeyringCredentialProbe {
+    fn probe(&self, sensor_id: &str, ref_name: &str) -> Result<(), BootError> {
+        let account = format!("{sensor_id}/{ref_name}");
+        let entry = keyring::Entry::new("prism", &account).map_err(|e| {
+            BootError::CredentialPermissionDenied(format!(
+                "Credential backend unavailable: failed to construct keyring entry \
+                 for sensor '{sensor_id}' ref '{ref_name}': {e} (BC-2.03.013)"
+            ))
+        })?;
+
+        match entry.get_password() {
+            Ok(_secret) => {
+                // Secret value discarded immediately — AD-017 AI-opaque model.
+                tracing::trace!(
+                    sensor_id = %sensor_id,
+                    ref_name = %ref_name,
+                    "Credential ref validated (exists in backend)"
+                );
+                Ok(())
+            }
+            Err(keyring::Error::NoEntry) => Err(BootError::CredentialRefInvalid(format!(
+                "Unresolvable credential ref: '{ref_name}' for sensor '{sensor_id}' not found in \
+                 keyring backend (BC-2.03.013 TV-03-013-003). \
+                 Register the credential with: prism credential set {sensor_id} {ref_name}"
+            ))),
+            Err(e) => Err(BootError::CredentialPermissionDenied(format!(
+                "Credential store access denied: keyring backend returned error \
+                 for sensor '{sensor_id}' ref '{ref_name}': {e} (BC-2.03.013)"
+            ))),
+        }
+    }
+}
+
 /// Step 5 [BLOCKING]: Initialize credential store and validate sensor spec credential refs.
 ///
 /// ADR-022 §B step 5; BC-2.03.013.
@@ -520,9 +584,32 @@ pub async fn step4_load_sensor_specs(
 ///
 /// Per AD-017: NO credential values are loaded into memory — reference-based model.
 /// Permission-denied → exit(5). Config-invalid ref → exit(2).
+///
+/// Uses the [`KeyringCredentialProbe`] production probe. For testing with a
+/// custom probe, call [`step5_init_credential_store_with_probe`] directly.
 pub async fn step5_init_credential_store(
     config: &PrismConfig,
     config_manager: &Arc<arc_swap::ArcSwap<prism_spec_engine::config_manager::ConfigManager>>,
+) -> Result<Arc<dyn prism_credentials::CredentialStore>, BootError> {
+    step5_init_credential_store_with_probe(config, config_manager, &KeyringCredentialProbe).await
+}
+
+/// Step 5 implementation with injectable credential probe.
+///
+/// Identical to [`step5_init_credential_store`] but accepts a custom
+/// `probe: &dyn CredentialRefProbe` so unit tests can inject a mock
+/// (BC-2.03.013 §Test Strategy Approach B). The production boot path
+/// calls `step5_init_credential_store` which passes `&KeyringCredentialProbe`.
+///
+/// # Behavioral coverage (F-PASS3-HIGH-1 closure)
+///
+/// This function is the correct test entry point for unit tests that need
+/// to exercise the credential_refs iteration loop with N>0 refs and a
+/// controllable probe outcome.
+pub async fn step5_init_credential_store_with_probe(
+    config: &PrismConfig,
+    config_manager: &Arc<arc_swap::ArcSwap<prism_spec_engine::config_manager::ConfigManager>>,
+    probe: &dyn CredentialRefProbe,
 ) -> Result<Arc<dyn prism_credentials::CredentialStore>, BootError> {
     use prism_credentials::{CredentialIndex, KeyringBackend};
 
@@ -565,13 +652,8 @@ pub async fn step5_init_credential_store(
     // `[[credential_refs]]` section is optional; existing specs with no section produce
     // an empty Vec (serde default), satisfying EC-03-013-001 (zero refs = boot continues).
     //
-    // Validation is reference-only (AD-017 AI-opaque model):
-    // - For each credential ref: construct a keyring Entry handle and call get_password().
-    //   - Ok(Some(_)) → ref EXISTS → validated.
-    //   - Ok(None)    → ref MISSING → BootError::CredentialRefInvalid (exit 2).
-    //   - Err(_)      → backend denied access → BootError::CredentialPermissionDenied (exit 5).
-    // - Credential VALUES are discarded immediately after the existence check — they are
-    //   NEVER stored in process memory per AD-017.
+    // Validation is reference-only (AD-017 AI-opaque model). Delegated to `probe`
+    // so that unit tests can inject a controllable test double.
     //
     // UUID v7 ordering note (F-PASS2-MED-3): validation order is deterministic (HashMap
     // iteration order not guaranteed), but all refs are checked before boot continues.
@@ -584,48 +666,8 @@ pub async fn step5_init_credential_store(
 
     for (sensor_id, sensor_spec) in &snapshot.sensor_specs {
         for cred_ref in &sensor_spec.credential_refs {
-            // Construct the namespaced keyring key: "prism/{sensor_id}/{ref_name}"
-            let account = format!("{sensor_id}/{}", cred_ref.name);
-            let entry = keyring::Entry::new("prism", &account).map_err(|e| {
-                BootError::CredentialPermissionDenied(format!(
-                    "Credential backend unavailable: failed to construct keyring entry \
-                     for sensor '{sensor_id}' ref '{}': {e} (BC-2.03.013)",
-                    cred_ref.name
-                ))
-            })?;
-
-            // Reference-only probe: check if the entry EXISTS without loading the value.
-            // Ok(Some(_)): ref exists — discard the value immediately (AD-017).
-            // Ok(None):    ref missing → config-invalid (exit 2).
-            // Err(_):      backend denied → permission-denied (exit 5).
-            match entry.get_password() {
-                Ok(_secret) => {
-                    // Secret value discarded immediately — AD-017 AI-opaque model.
-                    // Drop ensures the value is zeroed if secrecy crate is in use;
-                    // keyring-rs returns String, so drop is standard heap deallocation.
-                    refs_validated += 1;
-                    tracing::trace!(
-                        sensor_id = %sensor_id,
-                        ref_name = %cred_ref.name,
-                        "Credential ref validated (exists in backend)"
-                    );
-                }
-                Err(keyring::Error::NoEntry) => {
-                    return Err(BootError::CredentialRefInvalid(format!(
-                        "Unresolvable credential ref: '{}' for sensor '{}' not found in \
-                         keyring backend (BC-2.03.013 TV-03-013-003). \
-                         Register the credential with: prism credential set {sensor_id} {}",
-                        cred_ref.name, sensor_id, cred_ref.name
-                    )));
-                }
-                Err(e) => {
-                    return Err(BootError::CredentialPermissionDenied(format!(
-                        "Credential store access denied: keyring backend returned error \
-                         for sensor '{sensor_id}' ref '{}': {e} (BC-2.03.013)",
-                        cred_ref.name
-                    )));
-                }
-            }
+            probe.probe(sensor_id, &cred_ref.name)?;
+            refs_validated += 1;
         }
     }
 
