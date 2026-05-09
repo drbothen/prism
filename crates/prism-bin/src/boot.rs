@@ -592,28 +592,26 @@ pub async fn step5_init_credential_store(
 ///
 /// ADR-022 §B step 6; BC-2.05.012.
 ///
-/// HIGH-1 + OBS-1 (S-WAVE5-PREP-01 fix-pass-1): Full implementation per BC-2.05.012:
+/// F-PASS2-CRIT-1 + F-PASS2-HIGH-1 + F-PASS2-HIGH-2 (S-WAVE5-PREP-01 fix-pass-2):
+/// Full implementation per BC-2.05.012 using `prism_audit::BootAuditEmitter`:
+///
 /// 1. Opens RocksDB at `config.state_dir` (all column families including `audit_buffer`).
-/// 2. Confirms the `audit_buffer` CF is writable.
-/// 3. Constructs a `BootSentinelEntry` with all required BC-2.05.012 sentinel fields.
-/// 4. Writes the sentinel synchronously and durably to the `audit_buffer` CF via
-///    `prism_storage::audit_buffer::append_audit_entry`.
+/// 2. Constructs `prism_audit::BootAuditEmitter::new(backend)` from the prism-audit crate
+///    (BC-2.05.012 postcondition 1: "via AuditEmitter").
+/// 3. Emits the `boot.audit.initialized` sentinel via `BootAuditEmitter::emit_boot_sentinel`
+///    with all required schema fields: event_type, timestamp (RFC 3339), prism_version,
+///    config_dir (hash), org_count, boot_step=6 (BC-2.05.012 §Sentinel Schema).
+/// 4. `emit_boot_sentinel` calls `append_audit_entry_sync` (flush_wal(true)) to guarantee
+///    durable write before returning (BC-2.05.012 postcondition 2: "synchronous and
+///    confirmed durable").
 /// 5. Returns the `Arc<RocksDbBackend>` for use by step 7.
 ///
 /// On any failure: returns `BootError::AuditInitFailed` (exit 4).
 /// Audit is NON-OPTIONAL: no degraded mode, no `--skip-audit` flag (SOC 2).
-///
-/// OBS-1 (sentinel schema): BC-2.05.012 OQ-2 asks whether `AuditEntry` covers
-/// `prism_version` and `boot_step` fields. The existing `prism_audit::AuditEntry`
-/// is a full MCP-tool-invocation record with SOC 2 + ISO 27001 fields — it does NOT
-/// cover `prism_version` or `boot_step` (those are boot-time fields, not tool fields).
-/// Decision: use `prism_storage::audit_buffer::AuditEntry` (payload: BTreeMap<String,String>)
-/// for the boot sentinel. This is a simpler raw-payload entry that fits the sentinel schema
-/// without requiring a full SOC-2 tool invocation context.
 fn step6_init_audit(
     config: &PrismConfig,
 ) -> Result<Arc<prism_storage::rocksdb_backend::RocksDbBackend>, BootError> {
-    use prism_storage::audit_buffer::{append_audit_entry, AuditEntry as StorageAuditEntry};
+    use prism_audit::{BootAuditEmitter, BootSentinelFields};
     use prism_storage::rocksdb_backend::RocksDbBackend;
 
     // Ensure state_dir exists before opening RocksDB.
@@ -627,7 +625,7 @@ fn step6_init_audit(
 
     // Open RocksDB at state_dir — opens ALL column families including audit_buffer CF.
     // BC-2.05.012: audit_buffer CF confirmed open and writable.
-    let backend = RocksDbBackend::open(config.state_dir.clone()).map_err(|e| {
+    let backend = Arc::new(RocksDbBackend::open(config.state_dir.clone()).map_err(|e| {
         let msg = e.to_string();
         if msg.to_lowercase().contains("lock") || msg.contains("LOCK") {
             // BC-2.05.012 EC-05-012-006: LOCK file exists → actionable message.
@@ -641,16 +639,14 @@ fn step6_init_audit(
                 "Audit subsystem init failed: RocksDB CF open error: {msg}"
             ))
         }
-    })?;
+    })?);
 
-    // OBS-1: BootSentinelEntry — use prism_storage::audit_buffer::AuditEntry (payload map).
-    // This provides the boot.audit.initialized schema fields without requiring the full
-    // prism_audit::AuditEntry MCP-context structure.
+    // F-PASS2-CRIT-1: Construct BootAuditEmitter from the prism-audit crate.
+    // BC-2.05.012 postcondition 1: "The audit_buffer RocksDB column family is opened and
+    // confirmed writable via AuditEmitter."
+    let emitter = BootAuditEmitter::new(Arc::clone(&backend));
+
     let version = env!("CARGO_PKG_VERSION");
-    let timestamp_ns = chrono::Utc::now()
-        .timestamp_nanos_opt()
-        .expect("timestamp fits in i64") as u64;
-    let trace_id = uuid::Uuid::now_v7().to_string();
 
     // Redact config_dir: use SHA-256 hash of the path, not the raw path.
     // BC-2.05.012: "config_dir field MUST be redacted (only a hash or basename)".
@@ -662,39 +658,29 @@ fn step6_init_audit(
         format!("{:016x}", h.finish())
     };
 
-    let mut payload = std::collections::BTreeMap::new();
-    payload.insert(
-        "event_type".to_string(),
-        "boot.audit.initialized".to_string(),
-    );
-    payload.insert("prism_version".to_string(), version.to_string());
-    payload.insert("config_dir".to_string(), config_dir_hash);
-    payload.insert("org_count".to_string(), config.orgs.len().to_string());
-    payload.insert("boot_step".to_string(), "6".to_string());
-
-    let sentinel = StorageAuditEntry {
-        timestamp_ns,
-        trace_id,
-        payload,
-    };
-
-    // Write the sentinel synchronously and durably to the audit_buffer CF.
-    // BC-2.05.012: "synchronous and confirmed durable (not queued asynchronously)".
-    append_audit_entry(&backend, &sentinel).map_err(|e| {
-        BootError::AuditInitFailed(format!(
-            "Audit subsystem init failed: sentinel persistence error: {e}"
-        ))
-    })?;
+    // F-PASS2-HIGH-2 + F-PASS2-HIGH-1: emit_boot_sentinel builds the complete
+    // sentinel with RFC 3339 timestamp and writes via append_audit_entry_sync (fsync).
+    emitter
+        .emit_boot_sentinel(BootSentinelFields {
+            prism_version: version,
+            config_dir_hash,
+            org_count: config.orgs.len(),
+        })
+        .map_err(|e| {
+            BootError::AuditInitFailed(format!(
+                "Audit subsystem init failed: sentinel persistence error: {e}"
+            ))
+        })?;
 
     tracing::info!(
         event_type = "boot.audit.initialized",
         prism_version = %version,
         org_count = config.orgs.len(),
         boot_step = 6u32,
-        "Audit subsystem initialized; boot.audit.initialized persisted"
+        "Audit subsystem initialized; boot.audit.initialized persisted (durable via WAL fsync)"
     );
 
-    Ok(Arc::new(backend))
+    Ok(backend)
 }
 
 // ---------------------------------------------------------------------------
