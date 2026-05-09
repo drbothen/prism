@@ -23,6 +23,29 @@ fn prism_bin() -> PathBuf {
     PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../target/debug/prism")
 }
 
+/// F-PASS2-MED-2 (S-WAVE5-PREP-01 fix-pass-2): Create an isolated temp config dir per test.
+/// Returns (config_dir, state_dir, spec_dir) TempDirs — keep all alive for test duration.
+/// Mirrors the helper in bc_2_05_012_audit_init.rs and other test files.
+fn make_valid_config_dir() -> (tempfile::TempDir, tempfile::TempDir, tempfile::TempDir) {
+    let config_tmp = tempfile::TempDir::new().unwrap();
+    let state_tmp = tempfile::TempDir::new().unwrap();
+    let spec_tmp = tempfile::TempDir::new().unwrap();
+
+    let toml_content = format!(
+        r#"spec_dir = {:?}
+state_dir = {:?}
+
+[[orgs]]
+org_id = "0196f000-0000-7000-8000-000000000001"
+org_slug = "acme"
+"#,
+        spec_tmp.path().display(),
+        state_tmp.path().display(),
+    );
+    std::fs::write(config_tmp.path().join("prism.toml"), &toml_content).unwrap();
+    (config_tmp, state_tmp, spec_tmp)
+}
+
 // ---------------------------------------------------------------------------
 // AC-2: prism version exits 0 + prints version string
 // ---------------------------------------------------------------------------
@@ -176,11 +199,14 @@ fn test_cli_help_documents_exit_codes() {
 /// at the dispatch level before even reaching step 1.
 #[test]
 fn test_cli_start_subcommand_reaches_boot_sequence() {
-    let config_dir = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("fixtures/config/valid");
+    // F-PASS2-MED-2 (fix-pass-2): migrated from static fixtures/config/valid fixture
+    // to isolated TempDir. The static fixture uses /tmp/prism-test-specs which has
+    // hardcoded paths and would conflict across parallel nextest runs that open RocksDB.
+    let (config_dir, _state_tmp, _spec_tmp) = make_valid_config_dir();
 
     let output = Command::new(prism_bin())
         .args(["start"])
-        .env("PRISM_CONFIG_DIR", &config_dir)
+        .env("PRISM_CONFIG_DIR", config_dir.path())
         .output()
         .expect("failed to spawn prism binary");
 
