@@ -80,9 +80,14 @@ pub enum PrismCommand {
         query_str: String,
     },
 
-    /// Parse config and sensor TOMLs; report validity; exit 0 or 2.
+    /// Validate configuration file. Exits 2 if any required directory is missing.
     ///
-    /// Exit codes: 0 valid, 2 config-invalid.
+    /// Runs boot steps 1-6 (config load, org registry, sensor specs, credential
+    /// store, audit init). Exits 0 on success; exits 2 on config error; exits 4
+    /// on internal error; exits 5 on permission denied.
+    ///
+    /// F-PASS2-MED-2: removed false "creates missing directories" claim (MED-3
+    /// closure replaced create_dir_all with ConfigInvalid error for missing spec_dir).
     ValidateConfig,
 
     /// Print semantic version and build metadata; exit 0.
