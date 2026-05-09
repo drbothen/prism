@@ -1,0 +1,21 @@
+# Test sensor spec with credential_refs — used by BC-2.03.013 F-PASS2-HIGH-3 test.
+#
+# Declares 2 credential refs so that step5_init_credential_store has non-empty
+# ref iteration to exercise. This fixture is used in unit tests that exercise
+# the iteration loop without running the subprocess boot path.
+#
+# The [[credential_refs]] section is parsed by parse_and_validate_spec_toml()
+# in prism-spec-engine::add_sensor_spec (F-PASS2-HIGH-3 implementation).
+
+[sensor]
+sensor_id = "test-sensor"
+name = "Test Sensor (credential ref fixture)"
+version = "0.1.0"
+auth_type = "api_key"
+base_url = "https://test-sensor.example.com"
+
+[[credential_refs]]
+name = "api_key"
+
+[[credential_refs]]
+name = "client_secret"

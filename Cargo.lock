@@ -4314,6 +4314,7 @@ dependencies = [
  "arc-swap",
  "chrono",
  "clap",
+ "keyring",
  "libc",
  "prism-audit",
  "prism-core",

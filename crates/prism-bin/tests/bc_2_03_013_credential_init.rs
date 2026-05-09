@@ -198,6 +198,105 @@ fn test_BC_2_03_013_boot_error_type_carries_no_secret_value() {
     );
 }
 
+// ---------------------------------------------------------------------------
+// BC-2.03.013 — F-PASS2-HIGH-3: credential_refs field population in SensorSpec
+// ---------------------------------------------------------------------------
+
+/// Story: S-WAVE5-PREP-01 F-PASS2-HIGH-3
+/// BC: BC-2.03.013 §Postconditions (Happy path bullet 2)
+/// "All credential references declared in sensor specs are validated as resolvable."
+///
+/// Unit test verifying that:
+/// 1. `prism-spec-engine::add_sensor_spec::parse_and_validate_spec_toml` parses
+///    `[[credential_refs]]` sections from TOML into `SensorSpec.credential_refs`.
+/// 2. The parsed CredentialRef list is non-empty for specs that declare refs.
+/// 3. The step5 iteration loop body is exercisable (N>0 refs from a real fixture).
+///
+/// This test does NOT exercise keyring probing (that requires a live keyring).
+/// It exercises the data model: sensor spec TOML → credential_refs field.
+#[test]
+fn test_BC_2_03_013_sensor_spec_credential_refs_parsed_from_toml() {
+    use prism_spec_engine::add_sensor_spec::parse_and_validate_spec_toml;
+
+    let fixture_toml = include_str!("../fixtures/sensors/test-sensor-with-cred-refs.sensor.toml");
+
+    let result =
+        parse_and_validate_spec_toml(fixture_toml, "test-sensor-with-cred-refs.sensor.toml");
+    assert!(
+        result.is_ok(),
+        "Fixture sensor TOML must parse without errors; got: {:?}",
+        result.err()
+    );
+
+    let spec = result.unwrap();
+    assert_eq!(
+        spec.credential_refs.len(),
+        2,
+        "Fixture declares 2 [[credential_refs]] sections; \
+         got {} refs: {:?}",
+        spec.credential_refs.len(),
+        spec.credential_refs
+            .iter()
+            .map(|r| &r.name)
+            .collect::<Vec<_>>()
+    );
+
+    // Verify the exact ref names match the fixture.
+    let ref_names: Vec<&str> = spec
+        .credential_refs
+        .iter()
+        .map(|r| r.name.as_str())
+        .collect();
+    assert!(
+        ref_names.contains(&"api_key"),
+        "First credential ref must be 'api_key'; got: {ref_names:?}"
+    );
+    assert!(
+        ref_names.contains(&"client_secret"),
+        "Second credential ref must be 'client_secret'; got: {ref_names:?}"
+    );
+
+    // Verify sensor_id is correct (ensures parse was on the right fixture).
+    assert_eq!(
+        spec.sensor_id, "test-sensor",
+        "Fixture sensor_id must be 'test-sensor'"
+    );
+}
+
+/// Story: S-WAVE5-PREP-01 F-PASS2-HIGH-3
+/// BC: BC-2.03.013 EC-03-013-001: No refs → 0 validated → boot continues
+///
+/// Unit test verifying that a sensor spec with no `[[credential_refs]]` sections
+/// produces an empty `credential_refs` Vec (not an error).
+/// This exercises EC-03-013-001: zero refs validated is not an error.
+#[test]
+fn test_BC_2_03_013_sensor_spec_no_cred_refs_is_empty_not_error() {
+    use prism_spec_engine::add_sensor_spec::parse_and_validate_spec_toml;
+
+    let toml_no_refs = r#"
+[sensor]
+sensor_id = "minimal-sensor"
+name = "Minimal Sensor (no cred refs)"
+version = "0.1.0"
+auth_type = "api_key"
+base_url = "https://minimal.example.com"
+"#;
+
+    let result = parse_and_validate_spec_toml(toml_no_refs, "minimal.sensor.toml");
+    assert!(
+        result.is_ok(),
+        "Sensor spec with no [[credential_refs]] must parse OK (EC-03-013-001)"
+    );
+
+    let spec = result.unwrap();
+    assert!(
+        spec.credential_refs.is_empty(),
+        "SensorSpec with no [[credential_refs]] sections must have empty Vec; \
+         got: {:?}",
+        spec.credential_refs
+    );
+}
+
 /// Story: S-WAVE5-PREP-01
 /// BC: BC-2.03.013 §Critical Invariant — CredentialRefInvalid exits 2 (not 5)
 ///

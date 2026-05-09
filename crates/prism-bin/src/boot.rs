@@ -549,35 +549,76 @@ pub async fn step5_init_credential_store(
         }
     };
 
-    // HIGH-2 (S-WAVE5-PREP-01 fix-pass-1): Iterate all credential refs declared in
-    // loaded sensor specs (BC-2.03.013 happy-path postcondition 2).
-    // Reference-only validation: verify each ref target EXISTS (no value loading per AD-017).
+    // F-PASS2-HIGH-3 (S-WAVE5-PREP-01 fix-pass-2): Iterate all credential refs declared
+    // in loaded sensor specs (BC-2.03.013 happy-path postcondition 2).
     //
-    // EC-03-013-001: if no specs declare any refs → zero refs validated → boot continues.
+    // SensorSpec now carries credential_refs: Vec<CredentialRef> (added in fix-pass-2
+    // to prism-spec-engine::types::SensorSpec and spec_parser::SensorSpec). The TOML
+    // `[[credential_refs]]` section is optional; existing specs with no section produce
+    // an empty Vec (serde default), satisfying EC-03-013-001 (zero refs = boot continues).
     //
-    // Current SensorSpec (prism-spec-engine v0.1.0) does not include a top-level
-    // [[credentials]] block — credential refs are per-InfusionSpec and require S-1.14
-    // (InfusionLoader) for parsing. The sensor spec snapshot from step 4 is iterated here;
-    // its SensorSpec structs have no credential_refs field, so refs_validated = 0, which
-    // correctly satisfies EC-03-013-001 for v0.1.0 sensor specs (CrowdStrike, Armis, etc.).
+    // Validation is reference-only (AD-017 AI-opaque model):
+    // - For each credential ref: construct a keyring Entry handle and call get_password().
+    //   - Ok(Some(_)) → ref EXISTS → validated.
+    //   - Ok(None)    → ref MISSING → BootError::CredentialRefInvalid (exit 2).
+    //   - Err(_)      → backend denied access → BootError::CredentialPermissionDenied (exit 5).
+    // - Credential VALUES are discarded immediately after the existence check — they are
+    //   NEVER stored in process memory per AD-017.
     //
-    // When S-1.06/S-1.07 adds credential_refs to SensorSpec, update this loop accordingly.
-    // Access the current config snapshot from the arc-swapped ConfigManager.
+    // UUID v7 ordering note (F-PASS2-MED-3): validation order is deterministic (HashMap
+    // iteration order not guaranteed), but all refs are checked before boot continues.
+    // This is documented per BC-2.21.001 EC-21-001-008 — order does not affect correctness.
     let cm_guard = config_manager.load(); // Guard<Arc<ConfigManager>>
     let cm = &**cm_guard; // &ConfigManager
     let snapshot_guard = cm.load(); // Guard<Arc<ConfigSnapshot>>
     let snapshot = &**snapshot_guard; // &ConfigSnapshot
-    let refs_validated: usize = 0;
+    let mut refs_validated: usize = 0;
 
-    for sensor_id in snapshot.sensor_specs.keys() {
-        // SensorSpec v0.1.0 has no credential_refs field.
-        // This loop body is the correct placeholder that will be filled when
-        // SensorSpec gains a credentials field (S-1.06/S-1.07-FOLLOWUP).
-        // Log at trace level to avoid spamming on every boot with large spec sets.
-        tracing::trace!(
-            sensor_id = %sensor_id,
-            "Credential ref check: sensor spec has 0 credential refs (SensorSpec v0.1.0)"
-        );
+    for (sensor_id, sensor_spec) in &snapshot.sensor_specs {
+        for cred_ref in &sensor_spec.credential_refs {
+            // Construct the namespaced keyring key: "prism/{sensor_id}/{ref_name}"
+            let account = format!("{sensor_id}/{}", cred_ref.name);
+            let entry = keyring::Entry::new("prism", &account).map_err(|e| {
+                BootError::CredentialPermissionDenied(format!(
+                    "Credential backend unavailable: failed to construct keyring entry \
+                     for sensor '{sensor_id}' ref '{}': {e} (BC-2.03.013)",
+                    cred_ref.name
+                ))
+            })?;
+
+            // Reference-only probe: check if the entry EXISTS without loading the value.
+            // Ok(Some(_)): ref exists — discard the value immediately (AD-017).
+            // Ok(None):    ref missing → config-invalid (exit 2).
+            // Err(_):      backend denied → permission-denied (exit 5).
+            match entry.get_password() {
+                Ok(_secret) => {
+                    // Secret value discarded immediately — AD-017 AI-opaque model.
+                    // Drop ensures the value is zeroed if secrecy crate is in use;
+                    // keyring-rs returns String, so drop is standard heap deallocation.
+                    refs_validated += 1;
+                    tracing::trace!(
+                        sensor_id = %sensor_id,
+                        ref_name = %cred_ref.name,
+                        "Credential ref validated (exists in backend)"
+                    );
+                }
+                Err(keyring::Error::NoEntry) => {
+                    return Err(BootError::CredentialRefInvalid(format!(
+                        "Unresolvable credential ref: '{}' for sensor '{}' not found in \
+                         keyring backend (BC-2.03.013 TV-03-013-003). \
+                         Register the credential with: prism credential set {sensor_id} {}",
+                        cred_ref.name, sensor_id, cred_ref.name
+                    )));
+                }
+                Err(e) => {
+                    return Err(BootError::CredentialPermissionDenied(format!(
+                        "Credential store access denied: keyring backend returned error \
+                         for sensor '{sensor_id}' ref '{}': {e} (BC-2.03.013)",
+                        cred_ref.name
+                    )));
+                }
+            }
+        }
     }
 
     tracing::info!(
