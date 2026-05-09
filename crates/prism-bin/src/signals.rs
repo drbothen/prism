@@ -90,10 +90,73 @@ pub async fn install_sigterm_handler(shutdown_tx: broadcast::Sender<()>) {
         if let Ok(()) = tokio::signal::ctrl_c().await {
             tracing::info!("Received SIGTERM — shutting down");
             let _ = shutdown_tx.send(());
-            tracing::info!("Audit buffer flushed — exiting cleanly");
+            tracing::info!(
+                    "Audit buffer flush deferred to S-3.02-FOLLOWUP-RUNTIME (chassis only) — exiting cleanly"
+                );
             std::process::exit(0);
         } else {
             tracing::error!("Ctrl-C signal handler failed; continuing without SIGTERM handler");
+        }
+    }
+}
+
+/// Register the SIGTERM signal stream synchronously and return a future that,
+/// when awaited, waits for the signal and performs graceful shutdown.
+///
+/// This split registration allows callers to guarantee the OS-level signal
+/// handler is installed **before** writing a readiness sentinel — eliminating
+/// the race window where SIGTERM arrives between sentinel write and handler
+/// registration.
+///
+/// # Usage (test gate pattern)
+/// ```ignore
+/// let handler_fut = signals::create_sigterm_future(shutdown_tx);
+/// // Signal handler is now registered (sync part complete).
+/// std::fs::write(&sentinel_path, b"ready")?;  // safe to signal readiness
+/// handler_fut.await;                           // blocks until SIGTERM
+/// ```
+///
+/// On non-Unix platforms this function falls through to `install_sigterm_handler`.
+#[cfg(unix)]
+pub fn create_sigterm_future(
+    shutdown_tx: broadcast::Sender<()>,
+) -> impl std::future::Future<Output = ()> {
+    use tokio::signal::unix::{signal, SignalKind};
+
+    // Register the OS-level SIGTERM handler here, synchronously, before
+    // returning the future.  Any SIGTERM delivered after this point will be
+    // queued by the kernel and delivered when the future is first polled.
+    let sigterm_result = signal(SignalKind::terminate());
+
+    async move {
+        let mut sigterm = match sigterm_result {
+            Ok(s) => s,
+            Err(e) => {
+                tracing::error!(
+                    "Failed to register SIGTERM handler: {e}; continuing without handler"
+                );
+                return;
+            }
+        };
+
+        tokio::select! {
+            _ = sigterm.recv() => {
+                // BC-2.10.010: emit the required log line FIRST.
+                tracing::info!("Received SIGTERM — shutting down");
+                let _ = shutdown_tx.send(());
+                tracing::info!(
+                    "Audit buffer flush deferred to S-3.02-FOLLOWUP-RUNTIME (chassis only) — exiting cleanly"
+                );
+                std::process::exit(0);
+            }
+            _ = tokio::signal::ctrl_c() => {
+                tracing::info!("Received SIGTERM — shutting down");
+                let _ = shutdown_tx.send(());
+                tracing::info!(
+                    "Audit buffer flush deferred to S-3.02-FOLLOWUP-RUNTIME (chassis only) — exiting cleanly"
+                );
+                std::process::exit(0);
+            }
         }
     }
 }
