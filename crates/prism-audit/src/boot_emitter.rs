@@ -88,7 +88,12 @@ impl BootAuditEmitter {
     pub fn emit_boot_sentinel(&self, fields: BootSentinelFields<'_>) -> Result<(), PrismError> {
         // Read clock once so timestamp_ns and timestamp_rfc3339 are consistent.
         let now = Utc::now();
-        let timestamp_ns = now.timestamp_nanos_opt().expect("timestamp fits in i64") as u64;
+        // OBS-1 (S-WAVE5-PREP-01 fix-pass-5): harmonize with dominant crate pattern.
+        // `.unwrap_or(0)` matches flag_events, credential_events, token_events, and
+        // audit_emitter.  The boot sentinel also captures `timestamp_rfc3339` from the
+        // same `now` capture, so even a 0 `timestamp_ns` (only possible for years
+        // outside 1677–2262) does not lose the human-readable timestamp.
+        let timestamp_ns = now.timestamp_nanos_opt().unwrap_or(0) as u64;
 
         // F-PASS2-HIGH-2: RFC 3339 timestamp field (BC-2.05.012 §Sentinel Schema).
         let timestamp_rfc3339 = now.to_rfc3339();
