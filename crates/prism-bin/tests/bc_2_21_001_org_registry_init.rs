@@ -23,6 +23,28 @@
 use std::path::PathBuf;
 use std::process::Command;
 
+/// MED-5 (S-WAVE5-PREP-01 fix-pass-1): Create an isolated temp config dir per test.
+/// Returns (config_dir, state_dir, spec_dir) TempDirs — keep all alive for test duration.
+fn make_valid_config_dir() -> (tempfile::TempDir, tempfile::TempDir, tempfile::TempDir) {
+    let config_tmp = tempfile::TempDir::new().unwrap();
+    let state_tmp = tempfile::TempDir::new().unwrap();
+    let spec_tmp = tempfile::TempDir::new().unwrap();
+
+    let toml_content = format!(
+        r#"spec_dir = {:?}
+state_dir = {:?}
+
+[[orgs]]
+org_id = "0196f000-0000-7000-8000-000000000001"
+org_slug = "acme"
+"#,
+        spec_tmp.path().display(),
+        state_tmp.path().display(),
+    );
+    std::fs::write(config_tmp.path().join("prism.toml"), &toml_content).unwrap();
+    (config_tmp, state_tmp, spec_tmp)
+}
+
 fn prism_bin() -> PathBuf {
     if let Ok(path) = std::env::var("CARGO_BIN_EXE_prism") {
         return PathBuf::from(path);
@@ -44,13 +66,14 @@ fn fixture_dir(name: &str) -> PathBuf {
 /// BC: BC-2.21.001 Postcondition (Happy path — single org)
 /// TV-21-001-001: Config with one valid org → OrgRegistry constructed; boot continues.
 ///
-/// RED GATE: Fails today because `dispatch()` in main.rs is `todo!()`.
+/// MED-5: Uses isolated TempDir per test (not shared /tmp/prism-test-state).
 #[test]
 fn test_BC_2_21_001_single_org_exits_zero() {
-    let config_dir = fixture_dir("valid");
+    // MED-5: isolated per-test dirs to avoid parallel RocksDB LOCK collisions.
+    let (config_dir, _state_tmp, _spec_tmp) = make_valid_config_dir();
     let output = Command::new(prism_bin())
         .args(["validate-config"])
-        .env("PRISM_CONFIG_DIR", &config_dir)
+        .env("PRISM_CONFIG_DIR", config_dir.path())
         .output()
         .expect("failed to spawn prism binary");
 

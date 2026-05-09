@@ -27,17 +27,33 @@
 use std::path::PathBuf;
 use std::process::Command;
 
+/// MED-5 (S-WAVE5-PREP-01 fix-pass-1): Create an isolated temp config dir per test.
+/// Returns (config_dir, state_dir, spec_dir) TempDirs — keep all alive for test duration.
+fn make_valid_config_dir() -> (tempfile::TempDir, tempfile::TempDir, tempfile::TempDir) {
+    let config_tmp = tempfile::TempDir::new().unwrap();
+    let state_tmp = tempfile::TempDir::new().unwrap();
+    let spec_tmp = tempfile::TempDir::new().unwrap();
+
+    let toml_content = format!(
+        r#"spec_dir = {:?}
+state_dir = {:?}
+
+[[orgs]]
+org_id = "0196f000-0000-7000-8000-000000000001"
+org_slug = "acme"
+"#,
+        spec_tmp.path().display(),
+        state_tmp.path().display(),
+    );
+    std::fs::write(config_tmp.path().join("prism.toml"), &toml_content).unwrap();
+    (config_tmp, state_tmp, spec_tmp)
+}
+
 fn prism_bin() -> PathBuf {
     if let Ok(path) = std::env::var("CARGO_BIN_EXE_prism") {
         return PathBuf::from(path);
     }
     PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../target/debug/prism")
-}
-
-fn fixture_dir(name: &str) -> PathBuf {
-    PathBuf::from(env!("CARGO_MANIFEST_DIR"))
-        .join("fixtures/config")
-        .join(name)
 }
 
 // ---------------------------------------------------------------------------
@@ -51,13 +67,25 @@ fn fixture_dir(name: &str) -> PathBuf {
 /// Uses PRISM_TEST_INJECT_FAIL_STEP to trigger an audit init failure without
 /// requiring a real unwriteable filesystem (cross-platform safe).
 ///
-/// RED GATE: Fails today because `dispatch()` is `todo!()`.
+/// OBS-3 (S-WAVE5-PREP-01 fix-pass-1): BC-2.05.012 TV-05-012-002 specifies
+/// `chmod 444` as the canonical unwriteable-state_dir test. This test uses
+/// synthetic injection (`PRISM_TEST_INJECT_FAIL_STEP=6_audit_failure`) instead
+/// because chmod permissions are unreliable on Windows and inside certain CI
+/// sandbox environments. The injection path exercises the same
+/// `BootError::AuditInitFailed` → exit 4 code path as a real unwriteable dir
+/// would, satisfying the BC's behavioral contract. The chmod 444 scenario is
+/// documented as a future OS-level integration test (not required for S-WAVE5-PREP-01).
+///
+/// MED-5: Uses isolated TempDir per test.
 #[test]
 fn test_BC_2_05_012_audit_init_failure_exits_four() {
-    let config_dir = fixture_dir("valid");
+    // MED-5: isolated dirs. state_dir must exist for step4 (MED-3), but
+    // the injection fires before RocksDB opens so state_dir isolation isn't
+    // strictly needed for the injection path; it's required for spec_dir (step4).
+    let (config_dir, _state_tmp, _spec_tmp) = make_valid_config_dir();
     let output = Command::new(prism_bin())
         .args(["validate-config"])
-        .env("PRISM_CONFIG_DIR", &config_dir)
+        .env("PRISM_CONFIG_DIR", config_dir.path())
         // Inject an audit init failure at step 6.
         .env("PRISM_TEST_INJECT_FAIL_STEP", "6_audit_failure")
         .output()
@@ -79,15 +107,13 @@ fn test_BC_2_05_012_audit_init_failure_exits_four() {
 
 /// Story: S-WAVE5-PREP-01 AC-8
 /// BC: BC-2.05.012 Invariant: exit code on any audit failure is exactly 4
-/// (never 1, 2, 3, or 5).
-///
-/// RED GATE: Fails today because `dispatch()` is `todo!()`.
+/// (never 1, 2, 3, or 5). MED-5: uses isolated TempDir.
 #[test]
 fn test_BC_2_05_012_invariant_audit_failure_exits_exactly_4_not_2_or_5() {
-    let config_dir = fixture_dir("valid");
+    let (config_dir, _state_tmp, _spec_tmp) = make_valid_config_dir();
     let output = Command::new(prism_bin())
         .args(["validate-config"])
-        .env("PRISM_CONFIG_DIR", &config_dir)
+        .env("PRISM_CONFIG_DIR", config_dir.path())
         .env("PRISM_TEST_INJECT_FAIL_STEP", "6_audit_failure")
         .output()
         .expect("failed to spawn prism binary");
@@ -118,14 +144,13 @@ fn test_BC_2_05_012_invariant_audit_failure_exits_exactly_4_not_2_or_5() {
 /// Story: S-WAVE5-PREP-01
 /// BC: BC-2.05.012 EC-05-012-006: RocksDB LOCK file exists → exit 4 + actionable message
 /// TV-05-012-003: Pre-existing LOCK → exit 4 + "Another Prism process may be running"
-///
-/// RED GATE: Fails today because `dispatch()` is `todo!()`.
+/// MED-5: uses isolated TempDir.
 #[test]
 fn test_BC_2_05_012_rocksdb_lock_held_exits_four_with_lock_message() {
-    let config_dir = fixture_dir("valid");
+    let (config_dir, _state_tmp, _spec_tmp) = make_valid_config_dir();
     let output = Command::new(prism_bin())
         .args(["validate-config"])
-        .env("PRISM_CONFIG_DIR", &config_dir)
+        .env("PRISM_CONFIG_DIR", config_dir.path())
         // Inject a LOCK-held failure — the boot.rs cfg(test) path simulates this.
         .env("PRISM_TEST_INJECT_FAIL_STEP", "6_rocksdb_lock")
         .output()
@@ -244,13 +269,14 @@ fn test_BC_2_05_012_sentinel_schema_has_required_fields() {
     );
 
     // Boot step 6 (audit init) is now implemented (S-WAVE5-PREP-01).
-    // The sentinel is emitted via tracing::info! with all required fields.
+    // The sentinel is written to RocksDB audit_buffer CF synchronously.
     // Verify that validate-config exits 0 — this confirms the sentinel was
-    // emitted without error (BC-2.05.012 TV-05-012-006).
-    let config_dir = fixture_dir("valid");
+    // persisted durably (BC-2.05.012 TV-05-012-006).
+    // MED-5: isolated per-test dirs to avoid parallel RocksDB LOCK collisions.
+    let (config_dir, _state_tmp, _spec_tmp) = make_valid_config_dir();
     let output = Command::new(prism_bin())
         .args(["validate-config"])
-        .env("PRISM_CONFIG_DIR", &config_dir)
+        .env("PRISM_CONFIG_DIR", config_dir.path())
         .output()
         .expect("failed to spawn prism binary");
 

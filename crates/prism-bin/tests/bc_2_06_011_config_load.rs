@@ -23,6 +23,35 @@
 use std::path::{Path, PathBuf};
 use std::process::Command;
 
+/// MED-5 (S-WAVE5-PREP-01 fix-pass-1): Create an isolated temp config dir per test.
+///
+/// Returns (config_dir TempDir, state_dir TempDir, spec_dir TempDir) so callers
+/// hold all three alive for the duration of the test.  The spec_dir is created on
+/// disk so step4 does not fail-fast on missing directory.
+///
+/// Use this instead of `fixture_dir("valid")` for any test that reaches step 6
+/// (RocksDB open) to avoid parallel-test LOCK collisions on `/tmp/prism-test-state`.
+fn make_valid_config_dir() -> (tempfile::TempDir, tempfile::TempDir, tempfile::TempDir) {
+    let config_tmp = tempfile::TempDir::new().unwrap();
+    let state_tmp = tempfile::TempDir::new().unwrap();
+    let spec_tmp = tempfile::TempDir::new().unwrap();
+
+    let toml_content = format!(
+        r#"spec_dir = {:?}
+state_dir = {:?}
+
+[[orgs]]
+org_id = "0196f000-0000-7000-8000-000000000001"
+org_slug = "acme"
+"#,
+        spec_tmp.path().display(),
+        state_tmp.path().display(),
+    );
+    std::fs::write(config_tmp.path().join("prism.toml"), &toml_content).unwrap();
+
+    (config_tmp, state_tmp, spec_tmp)
+}
+
 /// Return the path to the compiled `prism` binary.
 ///
 /// `cargo nextest` sets CARGO_BIN_EXE_prism for us. Fall back to a best-effort
@@ -55,13 +84,15 @@ fn fixture_dir(name: &str) -> PathBuf {
 /// Tests that `prism validate-config` exits 0 when prism.toml is well-formed
 /// and all required fields are present.
 ///
-/// RED GATE: Fails today because `dispatch()` in main.rs is `todo!()`.
+/// MED-5: Uses isolated TempDir per test (not shared /tmp/prism-test-state) to
+/// avoid parallel RocksDB LOCK collisions when step 6 opens the audit DB.
 #[test]
 fn test_BC_2_06_011_valid_config_exits_zero() {
-    let config_dir = fixture_dir("valid");
+    // MED-5: isolated per-test config/state/spec dirs to avoid parallel LOCK races.
+    let (config_dir, _state_tmp, _spec_tmp) = make_valid_config_dir();
     let output = Command::new(prism_bin())
         .args(["validate-config"])
-        .env("PRISM_CONFIG_DIR", &config_dir)
+        .env("PRISM_CONFIG_DIR", config_dir.path())
         .output()
         .expect("failed to spawn prism binary");
 
@@ -245,8 +276,6 @@ fn test_BC_2_06_011_invariant_no_fallback_when_config_dir_env_set() {
 ///
 /// Verifies that even a config directory that exists but has an invalid file
 /// maps to exit code 2 (not 1 = panic, 4 = internal, 5 = permission).
-///
-/// RED GATE: Fails today because `dispatch()` is `todo!()`.
 #[test]
 fn test_BC_2_06_011_invariant_exit_code_is_exactly_2_not_other() {
     let config_dir = fixture_dir("invalid-toml");
@@ -272,5 +301,78 @@ fn test_BC_2_06_011_invariant_exit_code_is_exactly_2_not_other() {
     assert_eq!(
         code, 2,
         "Config error must produce exit 2 exactly; BC-2.06.011 invariant"
+    );
+}
+
+// ---------------------------------------------------------------------------
+// AC-5 — first structured log line is "Prism vX.Y.Z"
+// ---------------------------------------------------------------------------
+
+/// Story: S-WAVE5-PREP-01
+/// AC-5: first structured log line emitted is `{"level":"INFO","message":"Prism vX.Y.Z",...}`
+/// ADR-022 §B step 1: tracing init MUST emit version as first log line.
+///
+/// LOW-1 (S-WAVE5-PREP-01 fix-pass-1): Add missing AC-5 integration test.
+/// This test runs `prism start` with PRISM_LOG_FORMAT=json, captures stderr,
+/// parses the first JSON log line, and asserts message starts with "Prism v".
+#[test]
+#[allow(non_snake_case)]
+fn test_AC_5_first_log_line_is_prism_version() {
+    use std::io::BufRead;
+
+    // MED-5: isolated dirs for RocksDB.
+    let (config_dir, _state_tmp, _spec_tmp) = make_valid_config_dir();
+    let output = Command::new(prism_bin())
+        .args(["validate-config"])
+        .env("PRISM_CONFIG_DIR", config_dir.path())
+        .env("PRISM_LOG_FORMAT", "json")
+        .env("RUST_LOG", "info")
+        .output()
+        .expect("failed to spawn prism binary for AC-5 test");
+
+    // AC-5: first log line on stderr must be the version JSON line.
+    // The binary writes tracing JSON to stderr when PRISM_LOG_FORMAT=json.
+    let stderr_bytes = &output.stderr;
+    let stderr = String::from_utf8_lossy(stderr_bytes);
+
+    // Debug: if stderr is empty, check stdout too (some configs write to stdout).
+    let combined = format!("{}{}", String::from_utf8_lossy(&output.stdout), stderr);
+
+    // Skip any leading blank lines.
+    let first_line = combined
+        .lines()
+        .find(|l| !l.trim().is_empty())
+        .unwrap_or("");
+
+    // The first line must be valid JSON.
+    let parsed: serde_json::Value = match serde_json::from_str(first_line) {
+        Ok(v) => v,
+        Err(e) => panic!(
+            "AC-5: first stderr line must be valid JSON log entry; \
+             got: {first_line:?}; parse error: {e}"
+        ),
+    };
+
+    // AC-5: the `fields.message` or `message` key must start with "Prism v".
+    // tracing-subscriber json format: {"timestamp":"...","level":"INFO","fields":{"message":"Prism v0.1.0"},...}
+    let message = parsed
+        .get("fields")
+        .and_then(|f| f.get("message"))
+        .or_else(|| parsed.get("message"))
+        .and_then(|m| m.as_str())
+        .unwrap_or("");
+
+    assert!(
+        message.starts_with("Prism v"),
+        "AC-5: first log line message must start with 'Prism v'; \
+         ADR-022 §B step 1: tracing init emits version as first log line; \
+         got message: {message:?}; full JSON: {first_line}"
+    );
+
+    // Verify the log level is INFO.
+    let level = parsed.get("level").and_then(|l| l.as_str()).unwrap_or("");
+    assert_eq!(
+        level, "INFO",
+        "AC-5: version log line must be at INFO level; got: {level:?}"
     );
 }

@@ -18,17 +18,33 @@ use std::path::PathBuf;
 use std::process::{Command, Stdio};
 use std::time::Duration;
 
+/// MED-5 (S-WAVE5-PREP-01 fix-pass-1): Create an isolated temp config dir per test.
+/// Returns (config_dir, state_dir, spec_dir) TempDirs — keep all alive for test duration.
+fn make_valid_config_dir() -> (tempfile::TempDir, tempfile::TempDir, tempfile::TempDir) {
+    let config_tmp = tempfile::TempDir::new().unwrap();
+    let state_tmp = tempfile::TempDir::new().unwrap();
+    let spec_tmp = tempfile::TempDir::new().unwrap();
+
+    let toml_content = format!(
+        r#"spec_dir = {:?}
+state_dir = {:?}
+
+[[orgs]]
+org_id = "0196f000-0000-7000-8000-000000000001"
+org_slug = "acme"
+"#,
+        spec_tmp.path().display(),
+        state_tmp.path().display(),
+    );
+    std::fs::write(config_tmp.path().join("prism.toml"), &toml_content).unwrap();
+    (config_tmp, state_tmp, spec_tmp)
+}
+
 fn prism_bin() -> PathBuf {
     if let Ok(path) = std::env::var("CARGO_BIN_EXE_prism") {
         return PathBuf::from(path);
     }
     PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../target/debug/prism")
-}
-
-fn fixture_dir(name: &str) -> PathBuf {
-    PathBuf::from(env!("CARGO_MANIFEST_DIR"))
-        .join("fixtures/config")
-        .join(name)
 }
 
 // ---------------------------------------------------------------------------
@@ -38,32 +54,23 @@ fn fixture_dir(name: &str) -> PathBuf {
 /// Story: S-WAVE5-PREP-01 AC-6
 /// BC: BC-2.10.010 postcondition — SIGTERM received → exit 0 + SIGTERM log entry
 /// ADR-022 §B step 11: SIGTERM handler must emit "Received SIGTERM — shutting down"
-///
-/// This test:
-/// 1. Spawns `prism start` with a valid config
-/// 2. Waits briefly for boot (stops at step 7 todo!() today, but after implementation
-///    it should reach steady state)
-/// 3. Sends SIGTERM to the process
-/// 4. Asserts exit 0 and "Received SIGTERM" in log output
-///
-/// RED GATE: Fails today because `dispatch()` is `todo!()` — the process panics
-/// before step 11 (signal handler install) is reached. After implementation, this
-/// test must pass: SIGTERM → clean exit 0.
+/// MED-2: wired through signals::install_sigterm_handler (not inline duplicate).
+/// MED-5: uses isolated TempDir to avoid parallel RocksDB LOCK collisions.
 #[cfg(unix)]
 #[test]
 fn test_BC_2_10_010_sigterm_causes_graceful_exit_zero() {
     use std::io::Read;
     use std::os::unix::process::ExitStatusExt;
 
-    let config_dir = fixture_dir("valid");
+    // MED-5: isolated per-test config/state/spec dirs.
+    let (config_dir, _state_tmp, _spec_tmp) = make_valid_config_dir();
 
     // Spawn the process with stderr captured for log inspection.
     let mut child = Command::new(prism_bin())
         .args(["start"])
-        .env("PRISM_CONFIG_DIR", &config_dir)
-        // Use PRISM_TEST_READY_GATE so the process halts at step 6 (audit-ready)
-        // and waits for a signal, bypassing the todo!() stubs at steps 7-8.
-        // The implementer must add this gate under #[cfg(test)] in boot.rs.
+        .env("PRISM_CONFIG_DIR", config_dir.path())
+        // PRISM_TEST_STOP_AFTER_STEP=6: process halts at step 6 (audit-ready)
+        // and waits for a signal via signals::install_sigterm_handler (MED-2).
         .env("PRISM_TEST_STOP_AFTER_STEP", "6")
         .stderr(Stdio::piped())
         .stdout(Stdio::piped())
@@ -116,10 +123,13 @@ fn test_BC_2_10_010_sigterm_causes_graceful_exit_zero() {
 /// installed in main.rs (pre-dispatch), the exit code changes to 1.
 #[test]
 fn test_AC_12_panic_hook_produces_exit_code_1() {
-    let config_dir = fixture_dir("valid");
+    // Panic injection fires before step 2 (config load), so spec_dir doesn't matter.
+    // However, we need a valid config_dir (with prism.toml) for the binary to start.
+    // MED-5: use isolated dirs for safety.
+    let (config_dir, _state_tmp, _spec_tmp) = make_valid_config_dir();
     let output = Command::new(prism_bin())
         .args(["start"])
-        .env("PRISM_CONFIG_DIR", &config_dir)
+        .env("PRISM_CONFIG_DIR", config_dir.path())
         .env("PRISM_TEST_INJECT_PANIC", "true")
         .output()
         .expect("failed to spawn prism binary for panic hook test");
@@ -152,12 +162,12 @@ fn test_AC_12_panic_hook_produces_exit_code_1() {
 /// Remove this test when test_AC_12_panic_hook_produces_exit_code_1 passes.
 #[test]
 fn test_AC_12_red_gate_dispatch_todo_panics_without_hook() {
-    // Current state: dispatch() is todo!() → panics → Rust exits 101 (no hook yet).
     // After implementation: panic hook installed in main.rs → exits 1.
-    let config_dir = fixture_dir("valid");
+    // MED-5: use isolated dirs (prism start now reaches step 6, needs RocksDB).
+    let (config_dir, _state_tmp, _spec_tmp) = make_valid_config_dir();
     let output = Command::new(prism_bin())
         .args(["start"])
-        .env("PRISM_CONFIG_DIR", &config_dir)
+        .env("PRISM_CONFIG_DIR", config_dir.path())
         .output()
         .expect("failed to spawn prism binary");
 

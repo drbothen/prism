@@ -41,6 +41,28 @@
 use std::path::PathBuf;
 use std::process::Command;
 
+/// MED-5 (S-WAVE5-PREP-01 fix-pass-1): Create an isolated temp config dir per test.
+/// Returns (config_dir, state_dir, spec_dir) TempDirs — keep all alive for test duration.
+fn make_valid_config_dir() -> (tempfile::TempDir, tempfile::TempDir, tempfile::TempDir) {
+    let config_tmp = tempfile::TempDir::new().unwrap();
+    let state_tmp = tempfile::TempDir::new().unwrap();
+    let spec_tmp = tempfile::TempDir::new().unwrap();
+
+    let toml_content = format!(
+        r#"spec_dir = {:?}
+state_dir = {:?}
+
+[[orgs]]
+org_id = "0196f000-0000-7000-8000-000000000001"
+org_slug = "acme"
+"#,
+        spec_tmp.path().display(),
+        state_tmp.path().display(),
+    );
+    std::fs::write(config_tmp.path().join("prism.toml"), &toml_content).unwrap();
+    (config_tmp, state_tmp, spec_tmp)
+}
+
 fn prism_bin() -> PathBuf {
     if let Ok(path) = std::env::var("CARGO_BIN_EXE_prism") {
         return PathBuf::from(path);
@@ -106,14 +128,13 @@ fn test_BC_2_22_001_exit_code_org_registry_error() {
 /// Story: S-WAVE5-PREP-01 AC-7
 /// BC: BC-2.22.001 Exit-code map — CredentialStore permission-denied → exit 5
 /// TV-22-001-004: Keyring locked → exit 5; steps 6–9 never begin.
-///
-/// RED GATE: Fails today because `dispatch()` is `todo!()`.
+/// MED-5: Uses isolated TempDir.
 #[test]
 fn test_BC_2_22_001_exit_code_cred_permission_denied() {
-    let config_dir = fixture_dir("valid");
+    let (config_dir, _state_tmp, _spec_tmp) = make_valid_config_dir();
     let output = Command::new(prism_bin())
         .args(["validate-config"])
-        .env("PRISM_CONFIG_DIR", &config_dir)
+        .env("PRISM_CONFIG_DIR", config_dir.path())
         .env("PRISM_TEST_INJECT_FAIL_STEP", "5_permission")
         .output()
         .expect("failed to spawn prism binary");
@@ -130,14 +151,13 @@ fn test_BC_2_22_001_exit_code_cred_permission_denied() {
 /// Story: S-WAVE5-PREP-01
 /// BC: BC-2.22.001 Exit-code map — CredentialStore config-invalid ref → exit 2
 /// TV-22-001-005: Missing credential ref → exit 2.
-///
-/// RED GATE: Fails today because `dispatch()` is `todo!()`.
+/// MED-5: Uses isolated TempDir.
 #[test]
 fn test_BC_2_22_001_exit_code_cred_invalid_ref() {
-    let config_dir = fixture_dir("valid");
+    let (config_dir, _state_tmp, _spec_tmp) = make_valid_config_dir();
     let output = Command::new(prism_bin())
         .args(["validate-config"])
-        .env("PRISM_CONFIG_DIR", &config_dir)
+        .env("PRISM_CONFIG_DIR", config_dir.path())
         .env("PRISM_TEST_INJECT_FAIL_STEP", "5_missing_ref")
         .output()
         .expect("failed to spawn prism binary");
@@ -154,14 +174,13 @@ fn test_BC_2_22_001_exit_code_cred_invalid_ref() {
 /// Story: S-WAVE5-PREP-01 AC-8
 /// BC: BC-2.22.001 Exit-code map — AuditEmitter fails → exit 4
 /// TV-22-001-006: Audit CF open fails → exit 4; steps 7–9 never begin.
-///
-/// RED GATE: Fails today because `dispatch()` is `todo!()`.
+/// MED-5: Uses isolated TempDir.
 #[test]
 fn test_BC_2_22_001_exit_code_audit_failure() {
-    let config_dir = fixture_dir("valid");
+    let (config_dir, _state_tmp, _spec_tmp) = make_valid_config_dir();
     let output = Command::new(prism_bin())
         .args(["validate-config"])
-        .env("PRISM_CONFIG_DIR", &config_dir)
+        .env("PRISM_CONFIG_DIR", config_dir.path())
         .env("PRISM_TEST_INJECT_FAIL_STEP", "6_audit_failure")
         .output()
         .expect("failed to spawn prism binary");
@@ -239,13 +258,14 @@ fn test_BC_2_22_001_no_mcp_output_before_step8_completes() {
     // Assert:
     // 1. The process exits non-zero (steps 7-8 are stubs)
     // 2. Stdout does NOT begin with MCP JSON-RPC handshake bytes
-    let config_dir = fixture_dir("valid");
+    // MED-5: isolated per-test dirs to avoid parallel RocksDB LOCK collisions.
+    let (config_dir, _state_tmp, _spec_tmp) = make_valid_config_dir();
 
     // Use a timeout via std::process: give the process 5 seconds max.
     // Steps 7/8 are todo!() so it will exit quickly.
     let output = Command::new(prism_bin())
         .args(["start"])
-        .env("PRISM_CONFIG_DIR", &config_dir)
+        .env("PRISM_CONFIG_DIR", config_dir.path())
         // Ensure steps 1-6 complete (valid config, no injected failures).
         // Steps 7-8 will panic on todo!().
         .output()
