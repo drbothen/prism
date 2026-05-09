@@ -30,6 +30,7 @@ prism-core = { path = "../prism-core", version = "0.1.0" }
 tower = { version = "0.4", features = ["util"] }
 serial_test = "3"
 bincode = { version = "2", features = ["serde"] }
+tempfile = "3"
 
 # W3-FIX-CODE-002: SEC-007 org_slug cross-check stubs (Red Gate phase 1)
 [[test]]
