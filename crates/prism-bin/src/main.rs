@@ -20,9 +20,9 @@ use std::process;
 
 use clap::Parser;
 
-use prism_bin::cli::CliArgs;
-#[allow(unused_imports)] // Red Gate scaffold: exit codes used by dispatch() once implemented
-use prism_bin::exit_codes::{EXIT_CONFIG_INVALID, EXIT_GENERIC_ERROR, EXIT_INTERNAL_ERROR};
+use prism_bin::boot::{self, PrismConfig};
+use prism_bin::cli::{CliArgs, LogFormat, PrismCommand};
+use prism_bin::exit_codes::{EXIT_CONFIG_INVALID, EXIT_INTERNAL_ERROR, EXIT_SUCCESS};
 
 /// Multi-thread tokio runtime per AD-013.
 #[tokio::main(flavor = "multi_thread")]
@@ -44,8 +44,90 @@ async fn main() {
 /// Dispatch to the appropriate subcommand handler.
 ///
 /// Returns the canonical exit code for the subcommand outcome.
-async fn dispatch(_args: CliArgs) -> i32 {
-    todo!("S-WAVE5-PREP-01: dispatch subcommand; initialize tracing (step 1) first; call boot sequence for start/validate-config; return canonical exit code per ADR-022 §A")
+async fn dispatch(args: CliArgs) -> i32 {
+    // Initialize tracing (step 1) first before any other processing.
+    boot::step1_init_tracing(&args.log_format);
+
+    // Resolve config directory from CLI arg or PRISM_CONFIG_DIR env var.
+    // The --config-dir / PRISM_CONFIG_DIR resolution is already done by clap
+    // (the field is annotated with env = "PRISM_CONFIG_DIR"), so args.config_dir
+    // holds the resolved value. For the default (~/.prism/), we compute it here.
+    let config_dir = match args.config_dir {
+        Some(d) => d,
+        None => {
+            // Default: ~/.prism/ (resolved from HOME env var)
+            match std::env::var("HOME").ok().map(std::path::PathBuf::from) {
+                Some(home) => home.join(".prism"),
+                None => {
+                    eprintln!("Could not determine home directory for default config path");
+                    process::exit(EXIT_CONFIG_INVALID);
+                }
+            }
+        }
+    };
+
+    match args.command {
+        PrismCommand::Version => {
+            // AC-2: print "prism X.Y.Z" to stdout; exit 0.
+            println!("prism {}", env!("CARGO_PKG_VERSION"));
+            EXIT_SUCCESS
+        }
+
+        PrismCommand::ValidateConfig => {
+            // Run boot steps 1-6; if they all complete, config is valid → exit 0.
+            // Tracing already initialized in step 1 above.
+            match boot::boot_to_step_6(&config_dir).await {
+                Ok(_ctx) => {
+                    tracing::info!("Config validation passed — all boot steps 1-6 completed");
+                    EXIT_SUCCESS
+                }
+                Err(e) => {
+                    let code = e.exit_code();
+                    eprintln!("prism validate-config failed: {e}");
+                    code
+                }
+            }
+        }
+
+        PrismCommand::Start => {
+            // Run boot steps 1-6 (blocking); then attempt steps 7-11.
+            // Steps 7-11 are todo!() stubs — the process will panic (caught by hook → exit 1)
+            // until sibling stories fill them in.
+            match boot::boot_to_step_6(&config_dir).await {
+                Ok(_ctx) => {
+                    // Step 6 complete: emit partial-merge warning per story dev notes.
+                    tracing::warn!(
+                        "Steps 7-11 are not yet implemented — exiting \
+                         (prism-bin chassis only; S-3.02-FOLLOWUP-RUNTIME, \
+                         S-5.01-FOLLOWUP-MCP-BOOT, S-1.12-FOLLOWUP resolve these)"
+                    );
+                    // Attempt step 7 — will panic on todo!() (caught by hook → exit 1).
+                    // This is the intentional partial-merge state: steps 1-6 work, 7+ panic.
+                    boot::step7_init_storage().await.unwrap_or_else(|e| {
+                        eprintln!("Step 7 failed: {e}");
+                        process::exit(EXIT_INTERNAL_ERROR);
+                    });
+                    EXIT_SUCCESS
+                }
+                Err(e) => {
+                    let code = e.exit_code();
+                    eprintln!("prism start failed: {e}");
+                    code
+                }
+            }
+        }
+
+        PrismCommand::Query { query_str: _ } => {
+            // QueryEngine::execute is todo!() until S-3.02-FOLLOWUP-RUNTIME.
+            // AC-11: must not return exit 2 (that's for unknown subcommand).
+            // Return exit 4 (internal-error) because QueryEngine is not yet initialized.
+            eprintln!(
+                "prism query: QueryEngine not yet implemented \
+                 (deferred to S-3.02-FOLLOWUP-RUNTIME); exit 4"
+            );
+            EXIT_INTERNAL_ERROR
+        }
+    }
 }
 
 /// Install the custom panic hook (ADR-022 §A; AC-12).
@@ -56,5 +138,37 @@ async fn dispatch(_args: CliArgs) -> i32 {
 ///
 /// MUST be called before `tracing_subscriber::init()` to avoid a race.
 fn install_panic_hook() {
-    todo!("S-WAVE5-PREP-01: install std::panic::set_hook that emits tracing::error! then calls process::exit(1); fall back to eprintln! if tracing not yet initialized; AC-12")
+    std::panic::set_hook(Box::new(|info| {
+        // Attempt structured log first.
+        // If tracing is not initialized, this is a no-op (the subscriber is not set yet).
+        // We use try/catch pattern via the tracing macros which silently drop if no subscriber.
+        let location = info
+            .location()
+            .map(|l| format!("{}:{}:{}", l.file(), l.line(), l.column()))
+            .unwrap_or_else(|| "unknown location".to_string());
+
+        let payload = if let Some(s) = info.payload().downcast_ref::<&str>() {
+            s.to_string()
+        } else if let Some(s) = info.payload().downcast_ref::<String>() {
+            s.clone()
+        } else {
+            "non-string panic payload".to_string()
+        };
+
+        // Emit via tracing (no-op if subscriber not yet initialized).
+        tracing::error!(
+            panic.payload = %payload,
+            panic.location = %location,
+            "Prism process panicked — exiting with code 1 (AC-12; ADR-022 §A panic hook)"
+        );
+
+        // Always emit to stderr as fallback (in case tracing not initialized).
+        eprintln!(
+            "PANIC at {location}: {payload}\n\
+             Prism process panicked — exiting with code 1 (AC-12)"
+        );
+
+        // AC-12: exit code 1 (not 101 which is Rust's default).
+        process::exit(1);
+    }));
 }

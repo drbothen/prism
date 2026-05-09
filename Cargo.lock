@@ -4312,6 +4312,7 @@ version = "0.1.0"
 dependencies = [
  "anyhow",
  "arc-swap",
+ "chrono",
  "clap",
  "libc",
  "prism-audit",
@@ -4328,6 +4329,7 @@ dependencies = [
  "toml 0.8.23",
  "tracing",
  "tracing-subscriber",
+ "uuid",
 ]
 
 [[package]]

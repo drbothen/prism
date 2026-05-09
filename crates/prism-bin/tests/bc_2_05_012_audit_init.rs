@@ -243,10 +243,10 @@ fn test_BC_2_05_012_sentinel_schema_has_required_fields() {
         "boot.audit.initialized sentinel must have boot_step=6"
     );
 
-    // This test MUST fail when the implementer provides real sentinel construction
-    // by calling the actual function and asserting all fields. Until then, the
-    // todo!() in step 6 ensures the subprocess test fails at the Red Gate.
-    // Mark explicitly: the integration path (subprocess) still fails.
+    // Boot step 6 (audit init) is now implemented (S-WAVE5-PREP-01).
+    // The sentinel is emitted via tracing::info! with all required fields.
+    // Verify that validate-config exits 0 — this confirms the sentinel was
+    // emitted without error (BC-2.05.012 TV-05-012-006).
     let config_dir = fixture_dir("valid");
     let output = Command::new(prism_bin())
         .args(["validate-config"])
@@ -254,12 +254,13 @@ fn test_BC_2_05_012_sentinel_schema_has_required_fields() {
         .output()
         .expect("failed to spawn prism binary");
 
-    // The subprocess must fail (todo!() panic) — Red Gate.
-    // After implementation, this line changes to assert exit 0.
-    assert_ne!(
+    // Real-polarity assertion (POL-17): boot step 6 is implemented → exit 0.
+    assert_eq!(
         output.status.code(),
         Some(0),
-        "RED GATE: boot step 6 is todo!() — validate-config must not exit 0 yet; \
-         BC-2.05.012 TV-05-012-006 sentinel schema requires step 6 implementation"
+        "validate-config must exit 0 after boot step 6 implementation; \
+         BC-2.05.012 TV-05-012-006: sentinel emitted, audit subsystem initialized; \
+         stderr: {}",
+        String::from_utf8_lossy(&output.stderr)
     );
 }
