@@ -1,11 +1,11 @@
 ---
 document_type: session-handoff
 level: ops
-version: "7.64"
+version: "7.65"
 status: current
 timestamp: 2026-05-09T00:00:00Z
 predecessor_session: "D-315 Multi-track closure burst: BC-2.05.012 v1.2 + develop pin 1058b24d + fix-pass-4 closure at be6228f0 (sentinel-file handshake). STATE v7.64→v7.65. SESSION-HANDOFF v7.63→v7.64."
-successor_focus: "S-WAVE5-PREP-01 LOCAL adversary pass-5 (target streak 2/3). Worktree HEAD be6228f0. Then pass-6 for streak 3/3 → merge-ready. Pass-5 verifies: F-PASS4 closures (LOW-1/2 + OBS-1/2), flaky-test sentinel-file fix, BC-2.05.012 v1.2 amendment, no new defects from sentinel-file harness. After 3-CLEAN convergence: rebase onto develop (which advanced via PR #137), then full PR cycle for chassis story.
+successor_focus: "S-WAVE5-PREP-01 fix-pass-5 dispatch in flight: implementer closes F-PASS5-LOW-1 (duplicate comment), F-PASS5-LOW-2 (non-Unix SIGTERM sibling), F-PASS5-OBS-1 (timestamp expect/unwrap_or harmonize), F-PASS5-OBS-2 (signal-handler-register-before-sentinel-write order). Defer F-PASS5-OBS-3 (refactor). Then adversary pass-6 → target streak 3/3 → CONVERGENCE → merge-ready.
 
 **STEP 1 (START HERE):** Read STATE.md v7.65 + this HANDOFF v7.64 in full. Confirm develop HEAD `1058b24d` (PR #137 CLAUDE.md TDD inner-loop discipline squash-merged 2026-05-09T18:12:29Z). S-WAVE5-PREP-01 fix-pass-4 CLOSED at HEAD `be6228f0`. All 4 LOWs/OBS actionable items resolved. Flaky SIGTERM test fixed via sentinel-file readiness handshake. Streak now targets pass-5 → 2/3. [process-rule active]: NO #[ignore] deferrals as first-line response to test failures.
 
@@ -27,6 +27,8 @@ develop HEAD: 1058b24d (PR #137 CLAUDE.md TDD inner-loop discipline squash-merge
 # Session Handoff — WAVE 4 PHASE 4.A DECISIONS LOGGED (2026-05-02)
 
 ## TL;DR
+
+**D-316 (2026-05-09) — S-WAVE5-PREP-01 LOCAL adversary pass-5 verdict CLEAN. Streak advances 1/3 → 2/3. Severity trend: pass-1 1C/3H/5M/3L/3OBS → pass-2 1C/3H/3M/1L/3OBS → pass-3 0C/1H/1M/1L/2OBS → pass-4 0C/0H/0M/2L/3OBS+5K → pass-5 0C/0H/0M/2L/3OBS+5K. Pass-4 closures: 4 of 5 CLOSED (LOW-1 doclink, LOW-2 BC-2.05.012 v1.2 amendment, OBS-1 single Utc::now(), OBS-3 deferred-as-TD), 1 PARTIAL (F-PASS4-OBS-2 sibling-not-updated — Unix paths fixed but non-Unix path at signals.rs:93 still says "Audit buffer flushed"; surfaced as F-PASS5-LOW-2 per Partial-Fix Regression Discipline). Flaky-test fix audited: sentinel-file readiness handshake correctly implemented; PRISM_TEST_READY_FILE gated #[cfg(feature = "test-injection")]; libc dep gated to test-injection; zero #[ignore] in prism-bin. NEW pass-5 findings: F-PASS5-LOW-1 (duplicate "Test gate: PRISM_TEST_STOP_AFTER_STEP=6" comment block at boot.rs:236-251), F-PASS5-LOW-2 (signals.rs:93 non-Unix branch still misleading), F-PASS5-OBS-1 (boot_emitter expects vs other audit emitters' unwrap_or(0)), F-PASS5-OBS-2 (sentinel write precedes signal handler registration — microsecond race window dominated by polling interval), F-PASS5-OBS-3 (Ctrl-C and SIGTERM handlers identical in signals.rs:55-84 — duplication). 5 KUDOs: sentinel handshake; parent-PID path; libc gating; BC v1.2 amendment; single Utc::now(). Per user directive ("fix everything that surfaces"): fix-pass-5 dispatch for F-PASS5-LOW-1, F-PASS5-LOW-2, F-PASS5-OBS-1, F-PASS5-OBS-2 (defer F-PASS5-OBS-3 — refactor risk > value). Then pass-6 → target streak 3/3 → merge-ready. STATE v7.65→v7.66; SESSION-HANDOFF v7.64→v7.65.**
 
 **D-315 (2026-05-09) — Multi-track closure burst. (a) PR #137 (CLAUDE.md TDD inner-loop discipline) squash-merged at develop `1058b24d`; full 9-step protocol completed; APPROVE in 1 review cycle; 4 non-blocking findings tracked as follow-up maintenance PR. (b) BC-2.05.012 v1.1→v1.2 — F-PASS4-LOW-2 closure: §Failure paths + Error Cases updated to describe RocksDbBackend::open failure (BootAuditEmitter::new is infallible). (c) S-WAVE5-PREP-01 fix-pass-4 CLOSED at HEAD `be6228f0`: F-PASS4-LOW-1 (doclink) + F-PASS4-OBS-1 (single Utc::now()) + F-PASS4-OBS-2 (honest SIGTERM log) closed; flaky SIGTERM test ACTUALLY FIXED via sentinel-file readiness handshake (root cause: RocksDB init race vs hardcoded sleep, NOT stdio piping). 5/5 runs pass ~1s; just check 3456/17 skipped/0 fail. [process-rule]: NO #[ignore] deferrals as first-line response. STATE v7.64→v7.65; SESSION-HANDOFF v7.63→v7.64; BC-INDEX v4.49→v4.50; develop_head 3898bd58→1058b24d.**
 

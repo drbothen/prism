@@ -223,3 +223,11 @@ STATE v7.60. D-310 — S-WAVE5-PREP-01 LOCAL pass-2 BLOCKED-hard (1C/3H/3M/1L + 
 **Archived from STATE.md at D-314 transition (STATE v7.62→v7.64).**
 
 STATE v7.62. D-312 — S-WAVE5-PREP-01 fix-pass-3 COMPLETE across two parallel tracks. (a) Code track at worktree HEAD 345f443b: F-PASS3-HIGH-1 closed (cred-ref behavioral coverage via CredentialRefProbe trait injection; AlwaysOkProbe/MissingOneProbe mocks; +2 tests in prism-bin); F-PASS3-LOW-1 closed (stale comment deleted boot.rs:786-788); F-PASS3-OBS-1 closed (+4 unit tests in prism-audit for BootAuditEmitter); F-PASS3-OBS-2 closed (+3 unit tests in prism-storage for append_audit_entry_sync). just check: 3456 pass / 17 skipped / 0 fail. (b) Spec track: BC-2.05.012 v1.0→v1.1 — Description + Postcondition bullets 1+4 + OQ-2 resolved per research-agent recommendation; F-PASS3-MED-1 CLOSED. BC-INDEX v4.48→v4.49. Adversary pass-4 dispatched in parallel for closure verification + fresh-eyes scan. Streak 0/3 (resets if pass-4 CLEAN to 1/3; need 3/3 for convergence). develop HEAD: 3898bd58. factory-artifacts HEAD: run `git -C .factory log -1 --format='%h %s'`.
+
+---
+
+## Session Resume Checkpoint (2026-05-09-v7.65-d315-fix-pass-4-closure-and-claude-md-merged) — ARCHIVED
+
+**Archived from STATE.md at D-316 transition (STATE v7.65→v7.66).**
+
+STATE v7.65. D-315 — Multi-track closure burst. (a) PR #137 (CLAUDE.md TDD inner-loop discipline) squash-merged at develop `1058b24d`. (b) BC-2.05.012 v1.1→v1.2 — F-PASS4-LOW-2 closure: §Failure paths + Error Cases updated to describe RocksDbBackend::open failure (BootAuditEmitter::new is infallible). (c) S-WAVE5-PREP-01 fix-pass-4 CLOSED at HEAD `be6228f0`: F-PASS4-LOW-1 (doclink) + F-PASS4-OBS-1 (single Utc::now()) + F-PASS4-OBS-2 (honest SIGTERM log) closed surgically; flaky SIGTERM test fixed via sentinel-file readiness handshake (root cause: RocksDB init race vs hardcoded sleep, NOT stdio piping). 5/5 runs pass in ~1s; just check 3456 passed/17 skipped/0 failed. [process-rule]: NO #[ignore] deferrals as first-line response. NEXT: S-WAVE5-PREP-01 LOCAL adversary pass-5 (target streak 2/3). Worktree HEAD be6228f0. develop HEAD: 1058b24d. factory-artifacts HEAD: run `git -C .factory log -1 --format='%h %s'`.
