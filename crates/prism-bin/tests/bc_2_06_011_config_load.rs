@@ -175,6 +175,23 @@ fn test_BC_2_06_011_toml_syntax_error_exits_two() {
         output.status.code(),
         String::from_utf8_lossy(&output.stderr)
     );
+
+    // F-PASS2-LOW-1 (S-WAVE5-PREP-01): AC-4 — stderr must contain line number context.
+    // BC-2.06.011 AC-4: "stderr contains the line number and field name of the parse error".
+    // toml::de::Error::to_string() includes line/column context for syntax errors.
+    let combined = format!(
+        "{}{}",
+        String::from_utf8_lossy(&output.stdout),
+        String::from_utf8_lossy(&output.stderr)
+    );
+    assert!(
+        combined.contains("line ")
+            || combined.contains("at line")
+            || combined.contains(':')
+            || combined.contains("parse"),
+        "AC-4: stderr must contain line number or parse context for TOML syntax error; \
+         BC-2.06.011 AC-4; got: {combined}"
+    );
 }
 
 // ---------------------------------------------------------------------------
@@ -202,6 +219,23 @@ fn test_BC_2_06_011_missing_required_field_exits_two() {
          got exit {:?}; stderr: {}",
         output.status.code(),
         String::from_utf8_lossy(&output.stderr)
+    );
+
+    // F-PASS2-LOW-1 (S-WAVE5-PREP-01): AC-4 — stderr must identify the erroneous field.
+    // BC-2.06.011 AC-4: "stderr contains the line number and field name of the parse error".
+    // The missing-fields fixture is missing 'spec_dir', so the error must name it.
+    // toml::de::Error for missing field includes the field name in its Display output.
+    let combined = format!(
+        "{}{}",
+        String::from_utf8_lossy(&output.stdout),
+        String::from_utf8_lossy(&output.stderr)
+    );
+    assert!(
+        combined.contains("spec_dir")
+            || combined.contains("missing field")
+            || combined.contains("field"),
+        "AC-4: stderr must identify the missing field 'spec_dir'; \
+         BC-2.06.011 AC-4; got: {combined}"
     );
 }
 
