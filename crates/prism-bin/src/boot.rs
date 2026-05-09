@@ -288,6 +288,154 @@ pub async fn step11_install_signal_handlers(
 }
 
 // ---------------------------------------------------------------------------
+// Inline unit tests — BootError mapping and step-function stubs
+// ---------------------------------------------------------------------------
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::path::PathBuf;
+
+    /// Story: S-WAVE5-PREP-01
+    /// BC: BC-2.22.001 — BootError::exit_code() maps all variants correctly
+    ///
+    /// Unit test of the already-implemented exit_code() method.
+    /// Documents the full mapping table in test form.
+    #[test]
+    #[allow(non_snake_case)]
+    fn test_BC_2_22_001_boot_error_exit_code_complete_mapping() {
+        // Config-invalid class → 2
+        assert_eq!(BootError::ConfigInvalid("x".into()).exit_code(), 2);
+        assert_eq!(BootError::OrgRegistryFailed("x".into()).exit_code(), 2);
+        assert_eq!(BootError::CredentialRefInvalid("x".into()).exit_code(), 2);
+        // Permission-denied → 5
+        assert_eq!(
+            BootError::CredentialPermissionDenied("x".into()).exit_code(),
+            5
+        );
+        // Internal-error → 4
+        assert_eq!(BootError::AuditInitFailed("x".into()).exit_code(), 4);
+        assert_eq!(BootError::InternalError("x".into()).exit_code(), 4);
+        // Sensor-fail → 3
+        assert_eq!(BootError::SensorFail("x".into()).exit_code(), 3);
+    }
+
+    /// Story: S-WAVE5-PREP-01  AC-7
+    /// BC: BC-2.03.013 — permission-denied maps to exit 5, not 2 or 4
+    ///
+    /// This is the most critical mapping distinction: CredentialPermissionDenied
+    /// must be 5, but CredentialRefInvalid must be 2.
+    #[test]
+    #[allow(non_snake_case)]
+    fn test_BC_2_03_013_credential_exit_code_distinction() {
+        let permission = BootError::CredentialPermissionDenied("locked".into());
+        let ref_invalid = BootError::CredentialRefInvalid("missing".into());
+
+        assert_eq!(
+            permission.exit_code(),
+            5,
+            "permission-denied must be exit 5"
+        );
+        assert_eq!(ref_invalid.exit_code(), 2, "ref-invalid must be exit 2");
+        assert_ne!(
+            permission.exit_code(),
+            ref_invalid.exit_code(),
+            "permission-denied and ref-invalid must map to DIFFERENT exit codes"
+        );
+    }
+
+    /// Story: S-WAVE5-PREP-01
+    /// BC: BC-2.22.001 §Sequencing Invariant — run_boot_sequence is a todo!()
+    /// at Red Gate; calling it panics.
+    ///
+    /// RED GATE: This test verifies that run_boot_sequence is not yet implemented.
+    /// It will fail once the implementer fills the stub.
+    // Note: We cannot directly test async todo!() in a sync test without spawning
+    // a tokio runtime. The subprocess tests in bc_2_22_001_boot_orchestration.rs
+    // cover the sequencing contract end-to-end.
+
+    /// Story: S-WAVE5-PREP-01
+    /// BC: BC-2.06.011 — PrismConfig struct has required fields
+    ///
+    /// Verifies that the PrismConfig placeholder has the fields that boot steps
+    /// 2–6 require (spec_dir, state_dir, orgs). These fields being present is
+    /// a prerequisite for the TOML deserialization in step 2.
+    #[test]
+    #[allow(non_snake_case)]
+    fn test_BC_2_06_011_prism_config_has_required_fields() {
+        // Construct a minimal PrismConfig to verify the struct fields compile.
+        let config = PrismConfig {
+            spec_dir: PathBuf::from("/tmp/specs"),
+            state_dir: PathBuf::from("/tmp/state"),
+            orgs: vec![OrgEntry {
+                org_id: "0196f000-0000-7000-8000-000000000001".to_string(),
+                org_slug: "acme".to_string(),
+            }],
+            credential_backend: CredentialBackendConfig::Keyring,
+        };
+        assert_eq!(config.spec_dir, PathBuf::from("/tmp/specs"));
+        assert_eq!(config.state_dir, PathBuf::from("/tmp/state"));
+        assert_eq!(config.orgs.len(), 1);
+        assert_eq!(config.orgs[0].org_slug, "acme");
+    }
+
+    /// Story: S-WAVE5-PREP-01
+    /// BC: BC-2.21.001 EC-21-001-001 — minimum org list: 1 entry is valid
+    ///
+    /// Verifies that OrgEntry with a valid UUID and kebab-case slug compiles.
+    /// The actual validation is in step3_init_org_registry (todo!()).
+    #[test]
+    #[allow(non_snake_case)]
+    fn test_BC_2_21_001_org_entry_with_valid_uuid_and_kebab_slug() {
+        let entry = OrgEntry {
+            org_id: "0196f000-0000-7000-8000-000000000001".to_string(),
+            org_slug: "acme-corp".to_string(),
+        };
+        // Kebab-case: lowercase alphanumeric + hyphens.
+        let slug = &entry.org_slug;
+        assert!(
+            slug.chars()
+                .all(|c| c.is_lowercase() || c.is_ascii_digit() || c == '-'),
+            "org_slug must be kebab-case (BC-2.21.001); got: {slug}"
+        );
+        assert!(
+            !slug.starts_with('-'),
+            "org_slug must not start with hyphen"
+        );
+        assert!(!slug.ends_with('-'), "org_slug must not end with hyphen");
+        assert!(!slug.is_empty(), "org_slug must not be empty");
+    }
+
+    /// Story: S-WAVE5-PREP-01
+    /// BC: BC-2.21.001 EC-21-001-004 — org_slug with uppercase fails kebab validation
+    ///
+    /// Demonstrates the malformed-slug detection that step3_init_org_registry
+    /// must implement. This test exercises the OrgEntry type (not the validator,
+    /// which is todo!() in step 3).
+    #[test]
+    #[allow(non_snake_case)]
+    fn test_BC_2_21_001_malformed_slug_fails_kebab_check() {
+        let entry = OrgEntry {
+            org_id: "0196f000-0000-7000-8000-000000000001".to_string(),
+            org_slug: "ACME".to_string(), // uppercase — invalid
+        };
+        let slug = &entry.org_slug;
+        // The slug FAILS kebab-case validation (step3 must reject this).
+        let is_kebab = slug
+            .chars()
+            .all(|c| c.is_lowercase() || c.is_ascii_digit() || c == '-')
+            && !slug.starts_with('-')
+            && !slug.ends_with('-')
+            && !slug.is_empty();
+        assert!(
+            !is_kebab,
+            "ACME slug must fail kebab-case validation (BC-2.21.001 EC-21-001-004); \
+             step3_init_org_registry must return OrgRegistryFailed for this slug"
+        );
+    }
+}
+
+// ---------------------------------------------------------------------------
 // PrismConfig placeholder
 // ---------------------------------------------------------------------------
 

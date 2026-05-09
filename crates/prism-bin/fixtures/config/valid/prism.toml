@@ -1,0 +1,9 @@
+# Valid prism.toml fixture — used by BC-2.06.011, BC-2.21.001 integration tests.
+# TV-06-011-001, TV-21-001-001
+
+spec_dir = "/tmp/prism-test-specs"
+state_dir = "/tmp/prism-test-state"
+
+[[orgs]]
+org_id = "0196f000-0000-7000-8000-000000000001"
+org_slug = "acme"

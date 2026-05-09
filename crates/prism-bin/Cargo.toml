@@ -36,6 +36,7 @@ thiserror = "1"
 
 [dev-dependencies]
 tempfile = "3"
+libc = "0.2"
 
 [lints.clippy]
 # Inherited from workspace: workspace lint inheritance is not yet available

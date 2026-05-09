@@ -4313,6 +4313,7 @@ dependencies = [
  "anyhow",
  "arc-swap",
  "clap",
+ "libc",
  "prism-audit",
  "prism-core",
  "prism-credentials",
