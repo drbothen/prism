@@ -1,7 +1,7 @@
 ---
 document_type: architecture-index
 level: L3
-version: "2.33"
+version: "2.34"
 status: draft
 producer: architect
 timestamp: 2026-05-04T00:00:00
@@ -87,6 +87,7 @@ deployment_topology: single-service  # planned — no service binary exists yet 
 | ADR-019 | SIEM Output Formats | PROPOSED v0.4 | 2026-05-03 | decisions/ADR-019-siem-output-formats.md |
 | ADR-020 | Story Status Taxonomy Reform — Closed Enum, Partial-Merge Semantics, and Graduation Contract | ACCEPTED v1.1 | 2026-05-08 | decisions/ADR-020-story-status-taxonomy-reform.md |
 | ADR-021 | BC/VP Promotion Lifecycle — Draft → Active → Verified Transitions, Audit Cadence, and BC-INDEX Count Authority | ACCEPTED v1.1 | 2026-05-08 | decisions/ADR-021-bc-vp-promotion-lifecycle.md |
+| ADR-022 | Production Runtime Wiring — prism-bin Chassis, Boot Sequence, Wiring Contracts, Infusion Fate, Hot-Reload Watcher, MCP Topology | ACCEPTED v1.0 | 2026-05-08 | decisions/ADR-022-production-runtime-wiring.md |
 
 ## Architecture Decisions
 
@@ -96,7 +97,7 @@ deployment_topology: single-service  # planned — no service binary exists yet 
 | AD-002 | DataFusion as SQL execution engine | Provides Arrow-native SQL with UDF extensibility; ephemeral SessionContext per query aligns with data-in-flight model |
 | AD-003 | Chumsky 0.12 for PrismQL parsing | Zero-copy parser combinators with error recovery; axiathon reference proves pattern viability |
 | AD-004 | RocksDB with 17 column families | Domain-isolated persistence for operational state; osquery-proven pattern; single-process LOCK fits stdio model. CFs: default, schedules, diff_results, detection_rules, detection_state, alerts, cases, audit_buffer, dirty_bits, watchdog, aliases, decorators, action_state, infusion_cache, plugin_state, event_buffer, case_dedup_idx. |
-| AD-005 | rmcp 1.4 as MCP SDK | Official Anthropic SDK; #[tool_router] macro for 35+ tool registration; native tokio async |
+| AD-005 | rmcp 1.4 as MCP SDK | Official Anthropic SDK; #[tool_router] macro for 35+ tool registration; native tokio async | [NOT IMPLEMENTED — prism-mcp is a 10-line stub (verified 2026-05-08); no rmcp dep in Cargo.toml; covered by ADR-022 §F; tracked by S-5.01-FOLLOWUP-MCP-BOOT] |
 | AD-006 | Config-driven sensor adapters via TOML spec files | 80% of sensors need zero Rust code; eat-our-own-dog-food principle for built-in sensors |
 | AD-007 | arc-swap for hot config reload | Lock-free reads on query hot path; atomic snapshot swap; in-flight queries unaffected |
 | AD-008 | Pure core / effectful shell separation | Maximizes formal verification surface; domain logic testable without I/O mocking |
@@ -113,7 +114,7 @@ deployment_topology: single-service  # planned — no service binary exists yet 
 | AD-019 | WASM plugins for custom sensor adapters and infusions | Polyglot (Rust/Go/Python/JS/C#), sandboxed, hot-reloadable via `.prx` files. `wasmtime` runtime with WIT interface. Augments TOML specs, doesn't replace them. |
 | AD-020 | Infusions — composable enrichment framework | GeoIP, threat intel, asset inventory, CVSS as TOML specs + `.prx` plugins. Register as DataFusion UDFs and `enrich` pipe stages. Same two-tier pattern as sensors. |
 | AD-021 | Actions — config-driven alert delivery and reporting | Slack, PagerDuty, Jira, email, syslog, custom webhooks as TOML specs + `.prx` plugins. Three triggers: alert, schedule, manual. At-least-once delivery with retry. |
-| AD-022 | PrismQL Write Operations | Pipe mode terminal action verbs + SQL DML (INSERT/UPDATE/DELETE) targeting sensor write endpoints. All writes route through feature flags, risk-tier gates, dry-run/confirmation system, and intent-log audit. Filter mode remains read-only. Internal tables write-protected via PrismQL. |
+| AD-022 | PrismQL Write Operations | Pipe mode terminal action verbs + SQL DML (INSERT/UPDATE/DELETE) targeting sensor write endpoints. All writes route through feature flags, risk-tier gates, dry-run/confirmation system, and intent-log audit. Filter mode remains read-only. Internal tables write-protected via PrismQL. | [PARTIAL — safety gates landed via S-3.07 PR #135 (commit 2ae7185b); Phase 3 fetch hardcoded empty (write_pipeline.rs:349); no concrete adapter write overrides (adapter.rs:365); SQL DML verbs NotImplemented (write_table_registration.rs:176/190/205); covered by ADR-022 §C + S-3.02-FOLLOWUP-RUNTIME / W3-FIX-S307-001/002/003] |
 
 ## Subsystem Registry
 
@@ -128,7 +129,7 @@ deployment_topology: single-service  # planned — no service binary exists yet 
 | SS-07 | Adapter Pagination & Response Cache | query-engine.md | prism-query | Phase 1 |
 | SS-08 | Sensor Health | api-surface.md § Sensor Health, operational-pipeline.md | prism-mcp, prism-sensors | Phase 1 |
 | SS-09 | Prompt Injection Defense | security-architecture.md | prism-security | Phase 1 |
-| SS-10 | MCP Interface | api-surface.md | prism-mcp | Phase 1 |
+| SS-10 | MCP Interface | api-surface.md | prism-mcp, prism-bin *(planned — S-WAVE5-PREP-01)* | Phase 1 | [NOT IMPLEMENTED — crate is 10-line stub; PrismServer struct absent; no tool router; no rmcp dep; covered by ADR-022 §F + S-5.01-FOLLOWUP-MCP-BOOT] |
 | SS-11 | Query Execution | query-engine.md | prism-query | Phase 1 |
 | SS-12 | Scheduler | operational-pipeline.md | prism-operations | Phase 1 |
 | SS-13 | Detection Engine | operational-pipeline.md, detection-rule-format.md | prism-operations | Phase 1 |
@@ -145,6 +146,7 @@ deployment_topology: single-service  # planned — no service binary exists yet 
 
 | Version | Pass | Date | Author | Change |
 |---------|------|------|--------|--------|
+| 2.34 | bundle-B-0-adr-022-production-runtime-wiring-2026-05-08 | 2026-05-08 | architect | Bundle B Phase B-0: ADR-022 (Production Runtime Wiring) registered. AD-005 row annotated [NOT IMPLEMENTED — prism-mcp 10-line stub; S-5.01-FOLLOWUP-MCP-BOOT]. AD-022 row annotated [PARTIAL — S-3.07 gates landed; Phase 3 fetch/adapter write/SQL DML gaps; W3-FIX-S307-001/002/003]. SS-10 row annotated [NOT IMPLEMENTED — no rmcp server; S-5.01-FOLLOWUP-MCP-BOOT]. prism-bin crate noted as SS-10 dependency (planned). POL-15 runtime_wiring_required_for_accepted_adrs satisfied for: AD-005, AD-018, AD-022. Six story seeds seeded in ADR-022 §G. ARCH-INDEX v2.33→v2.34. |
 | 2.33 | bundle-A-2-3-adr-frontmatter-backfill-2026-05-08 | 2026-05-08 | architect | Bundle A.2.3 ADR frontmatter backfill: added `runtime_deliverables` and `wiring_deferred_to` fields to all 14 accepted ADRs (ADR-001 through ADR-012, ADR-014, ADR-020, ADR-021) enabling POL-15 (runtime_wiring_required_for_accepted_adrs) enforcement by audit-runtime-wiring skill. Version bumped +0.1 on each ADR. ADRs with code deliverables fully wired: ADR-003 (FidelityCheck/admin_token), ADR-005 (validate_aql), ADR-006 (OrgId/OrgRegistry), ADR-007 (DtuMode/DTU_DEFAULT_MODE), ADR-008 (state re-keying), ADR-009 (data generator), ADR-010 (customer config), ADR-011 (Harness), ADR-012 (layout script), ADR-014 (just check/check-ci). Pure methodology ADRs: ADR-001, ADR-002, ADR-020, ADR-021 (runtime_deliverables: []). |
 | 2.32 | bundle-A-cleanup-2026-05-08 | 2026-05-08 | architect | Bundle A status-taxonomy reform: ADR-020 (story status taxonomy — closed enum, partial-merge semantics, graduation contract) and ADR-021 (BC/VP promotion lifecycle — draft→active→verified, audit cadence, BC-INDEX count authority) added to ADR Registry. Companion policies POL-12..16 added to policies.yaml v1.6. Hook specifications document added (hook-specs-bundle-a.md). No code changes; no story-file changes; schema + policy layer only. |
 | 2.31 | pr-127-pass4-remediation | 2026-05-05 | architect | Adversary pass-4 (F-MEDIUM-001) property-text correction cascade: VP-014 v1.6 + VP-015 v1.7 replace non-existent `ParseError::QueryTooLarge` / `ParseError::NestingTooDeep` enum-variant references with correct `Err(Vec<ParseError>)` API (message contains `E-QUERY-003`). Document Map verification-architecture.md row updated v1.29→v1.30. VP-INDEX v1.29. ARCH-INDEX v2.30→v2.31. Note: proof_file_hash values retained — hashes confirmed unchanged at commit 8feb4cf2. Hash may need re-computation after implementer #4 push lands changes to vp015_depth_limit.rs. |

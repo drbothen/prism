@@ -1,11 +1,11 @@
 ---
 document_type: session-handoff
 level: ops
-version: "7.54"
+version: "7.55"
 status: current
-timestamp: 2026-05-08T09:00:00Z
+timestamp: 2026-05-08T22:00:00Z
 predecessor_session: "D-295 S-3.07 PR #135 SQUASH-MERGED 2ae7185b 2026-05-08T04:23:03Z — FINAL CLOSURE; Wave 3-A 4/4 SHIPPED; 38 findings closed; develop pin 7c413692→2ae7185b; post-merge cleanup confirmed. STATE v7.43→v7.44. factory-artifacts HEAD: run git -C .factory log -1."
-successor_focus: "D-296 Forward focus: Wave 3-B dispatch (5 osquery-inspired stories S-3.08/09/11/12/13) OR Wave 3-C (S-3.10 cost estimation 3pts) OR Wave 4 unblock (Phase 4.B S-4.01/S-4.03 — all deps now merged). develop HEAD: 2ae7185b (post-S-3.07-merge). factory_artifacts_tech_debt_entries=64 (no new TDs; closure only).
+successor_focus: "D-306 Phase B-1b: architect must decide BC namespace (SS-10 extension vs new SS-22 Process Lifecycle) for 4 boot-sequence BCs (BC-2.BOOT.001..004 placeholders in S-WAVE5-PREP-01). After architect decision, PO authors those 4 BCs. Only after BC authorship can S-WAVE5-PREP-01 transition draft→ready and Phase B-2 per-story-delivery begin. Parallel: W3-FIX-S307-001 has no boot-sequence BC dependency — can dispatch to story-delivery immediately. STORY-INDEX v2.29 (136 stories). develop HEAD: 2ae7185b.
 
 **STEP 1 (START HERE):** Read STATE.md v7.30 + this HANDOFF v7.30 in full. Confirm develop HEAD `c867c344` (PR #132 S-3.05 squash-merged 2026-05-07T16:46:01Z). S-3.04 + S-3.03 LOCAL cascades CONVERGED-BY-BEST-EFFORT 3/3 — both ready for PR creation. S-3.07 LOCAL cascade pending dispatch.
 
@@ -27,6 +27,8 @@ develop HEAD: c867c344 (six PRs merged 2026-05-06/07: #127 S-3.01 2d7040b1, #128
 # Session Handoff — WAVE 4 PHASE 4.A DECISIONS LOGGED (2026-05-02)
 
 ## TL;DR
+
+**D-306 (2026-05-08) — Bundle B Phase B-0+B-1 complete. ADR-022 (Production Runtime Wiring, 713 lines, ACCEPTED v1.0) covers prism-bin chassis + 11-step boot sequence + wiring contracts + infusion REDO verdict + notify-v7 hot-reload + rmcp 1.4 MCP topology. ARCH-INDEX v2.34; module-decomposition v1.14 (prism-bin COMP-001 LOW→CRITICAL). 7 E-CLEANUP-02 stories (2,919 lines, 42 pts, all draft): S-WAVE5-PREP-01 (5pt), S-3.02-FOLLOWUP-RUNTIME (8pt, graduates S-3.02), W3-FIX-S307-001 (5pt), W3-FIX-S307-002 (5pt), S-1.12-FOLLOWUP (3pt, graduates S-1.12), S-1.14-REDO (8pt, graduates S-1.14), S-5.01-FOLLOWUP-MCP-BOOT (8pt). STORY-INDEX v2.29 (total_stories 129→136). NEXT: Phase B-1b — architect BC namespace decision (SS-10 extension vs new SS-22 Process Lifecycle) + PO authors 4 boot-sequence BCs before S-WAVE5-PREP-01 can go ready. W3-FIX-S307-001 can dispatch immediately (no boot-BC dependency). STATE v7.55→v7.56. SESSION-HANDOFF v7.54→v7.55.**
 
 **D-305 (2026-05-08) — vsdd-prevention-layers r3 composed (1094 lines, 4-substrate model: CC hooks 1A + lefthook 1B + agent-prompt invariants 1C + scheduled skills 1D) and committed to factory-artifacts alongside 749-line r3-research-findings.md. r3 is grounded against actual vsdd-factory 1.0.0-rc.11 plugin state (factory-dispatcher binary, 17 native-WASM hooks, 33 bash hooks via legacy-bash-adapter.wasm, 36 agents + 121 skills + 9 workflows). Key corrections from r2: state-manager BC-promotion replaced by SubagentStop hook (modeled on existing update-wave-state-on-merge.wasm); POL renumbered to POL-13..17 (POL-12 was already claimed by vsdd-factory baseline); vendor-on-init pattern documented for ${CLAUDE_PLUGIN_ROOT} in git-commit shell; Component Model promoted to primary (cargo-component + wit-bindgen + wasm32-wasip2 production-ready); Appendix D vsdd-factory orientation table added. r3 ready for vsdd-factory engineer to drop into a fresh Claude session. 6 open architectural questions logged for plugin-side triage: (1) vendor-on-init mechanism, (2) Component Model adoption cost, (3) tree-sitter WASI SDK availability, (4) policy shipping mechanism (Option A vs B), (5) stub-architect.md reconciliation, (6) should_panic allowlist validation. Prism-side: no spec or code changes — proposals directory only. STATE v7.54→v7.55. SESSION-HANDOFF v7.53→v7.54.**
 

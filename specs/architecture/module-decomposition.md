@@ -2,7 +2,7 @@
 document_type: architecture-section
 level: L3
 section: "module-decomposition"
-version: "1.13"
+version: "1.14"
 status: draft
 producer: architect
 timestamp: 2026-05-03T00:00:00
@@ -159,13 +159,13 @@ quadrantChart
 components:
   - id: COMP-001
     name: "prism-bin"
-    status: "planned for future waves"  # not yet in Cargo.toml; not counted in AD-001's 11 non-DTU production/build-helper crates
-    layer: "infrastructure"
+    status: "specified — S-WAVE5-PREP-01 (not yet in Cargo.toml)"  # ADR-022 §A is the authoritative spec; boot sequence in ADR-022 §B; wiring contracts in ADR-022 §C
+    layer: "binary"
     purity: "effectful-shell"
-    criticality: "LOW"
-    dependencies: [COMP-002, COMP-010, COMP-012]
-    interfaces_provided: ["main() entry point", "CLI argument parsing", "signal handling"]
-    interfaces_consumed: ["PrismServer from prism-mcp", "Storage from prism-storage", "Config from prism-core"]
+    criticality: "CRITICAL"  # no binary = no runtime; reclassified from LOW in ADR-022 B-0
+    dependencies: [COMP-002, COMP-003, COMP-004, COMP-005, COMP-008, COMP-009, COMP-010, COMP-011, COMP-012]
+    interfaces_provided: ["main() entry point", "CLI (clap): start/query/validate-config/version subcommands", "boot sequence orchestration (ADR-022 §B steps 1–11)", "signal handlers: SIGTERM (graceful shutdown) + SIGHUP (manual reload)", "exit-code contract: 0/1/2/3/4/5"]
+    interfaces_consumed: ["PrismServer::serve_stdio from prism-mcp", "QueryEngine::new from prism-query", "WriteExecutor::new from prism-query", "parse_spec_directory + ConfigManager::new from prism-spec-engine", "HotReloadWatcher::start from prism-spec-engine", "AuditEmitter from prism-audit", "RocksDbBackend::open from prism-storage", "CredentialStore from prism-credentials"]
 
   - id: COMP-002
     name: "prism-mcp"
@@ -510,7 +510,7 @@ components:
 |-------|-----------|----------|-------------|
 | prism-core | (shared) | — | OrgId, OrgSlug, PrismError, ConfigSnapshot, entity types, decorator types |
 | ocsf-proto-gen | (build-helper) | — | OCSF protobuf .rs generation |
-| prism-mcp | SS-10, SS-06, SS-08, SS-20 | 35 *(planned — AD-005; crate is currently a stub with `safety_envelope` and `tool_registry` modules only; 35-tool target not yet realized)* | PrismServer, tool dispatch, resource/prompt handlers, config tool surface, health probe tools |
+| prism-mcp | SS-10, SS-06, SS-08, SS-20 | 35 *(planned — AD-005; crate is currently a 10-line stub with `safety_envelope` and `tool_registry` modules only; PrismServer struct absent; no rmcp dep; full implementation per ADR-022 §F tracked by S-5.01-FOLLOWUP-MCP-BOOT)* | PrismServer, tool dispatch, resource/prompt handlers, config tool surface, health probe tools |
 | prism-query | SS-11, SS-07 (partial) | 21 | QueryEngine, PrismQlParser, AliasResolver, UdfRegistry |
 | prism-sensors | SS-01, SS-08 (partial) | 9 | SensorAdapter, SensorAuth, AdapterRegistry, health probe impl |
 | prism-spec-engine | SS-16, SS-17, SS-19 | 21 | SpecParser, PipelineExecutor, ConfigManager, PluginRuntime, InfusionRegistry |
@@ -520,7 +520,7 @@ components:
 | prism-credentials | SS-03 | 12 | CredentialStore, KeyringBackend, FileBackend |
 | prism-storage | SS-15 (partial) | 11 | StorageBackend, RocksDbBackend, InMemoryBackend |
 | prism-audit | SS-05 | 11 | AuditEmitter, BufferedForwarder |
-| prism-bin *(planned for future waves)* | — | — | main(), CLI, signal handling, startup orchestration |
+| prism-bin *(S-WAVE5-PREP-01 — not yet in Cargo.toml; covered by ADR-022 §A)* | — (boot BCs TBD) | — | main(), CLI (clap), boot sequence orchestrator, signal handlers (SIGTERM/SIGHUP), exit-code contract |
 | **DTU crates (dev-dependencies only — 11 in workspace; log-forwarding clones planned for future waves)** | | | |
 | prism-dtu-common | (test infra) | — | BehavioralClone trait, LatencyLayer, FailureLayer, fixture_loader, SyslogReceiver, WebhookReceiver |
 | **Sensor DTU clones** | | | |
@@ -549,6 +549,7 @@ components:
 
 | Version | Pass | Date | Author | Change |
 |---------|------|------|--------|--------|
+| 1.14 | bundle-B-0-adr-022-2026-05-08 | 2026-05-08 | architect | Bundle B Phase B-0: COMP-001 (prism-bin) upgraded from "planned LOW criticality" to "specified CRITICAL" per ADR-022 §A — full dependency list, CLI interface (clap: start/query/validate-config/version), boot sequence wiring, signal handlers, exit-code contract. COMP-001 status updated to "specified — S-WAVE5-PREP-01". Crate Responsibilities table row updated to reflect ADR-022 §A spec. prism-mcp row annotated [NOT IMPLEMENTED — 10-line stub; S-5.01-FOLLOWUP-MCP-BOOT]. |
 | 1.13 | F-PreP21-H-001 | 2026-05-03 | architect | F-PreP21-H-001: renamed ActionEngine → ActionDeliveryEngine in COMP-007 interfaces_provided (line 223), COMP-007 notes (line 225), and Crate Responsibilities table (line 518) per ADR-016 §1.1. |
 | 1.12 | pass-22-remediation | 2026-04-27 | product-owner | m-22-002: BC counts footnote updated — BC-INDEX v4.23 → v4.25 (active_contracts = 222 including Wave 3 additions). |
 | 1.11 | pass-21-remediation | 2026-04-27 | product-owner | M-21-001: COMP-013 entry added for ocsf-proto-gen (build-helper); Crate Responsibilities row added; footnote corrected "11 production crates" → "10 production crates with active BCs (ocsf-proto-gen build-helper has no BCs)". |
