@@ -86,12 +86,12 @@ impl BootAuditEmitter {
     /// Returns `PrismError::AuditPersistenceFailed` if the write fails.
     /// Returns `PrismError::StorageWriteFailed` (with WAL detail) if the fsync fails.
     pub fn emit_boot_sentinel(&self, fields: BootSentinelFields<'_>) -> Result<(), PrismError> {
-        let timestamp_ns = Utc::now()
-            .timestamp_nanos_opt()
-            .expect("timestamp fits in i64") as u64;
+        // Read clock once so timestamp_ns and timestamp_rfc3339 are consistent.
+        let now = Utc::now();
+        let timestamp_ns = now.timestamp_nanos_opt().expect("timestamp fits in i64") as u64;
 
         // F-PASS2-HIGH-2: RFC 3339 timestamp field (BC-2.05.012 §Sentinel Schema).
-        let timestamp_rfc3339 = Utc::now().to_rfc3339();
+        let timestamp_rfc3339 = now.to_rfc3339();
 
         let trace_id = Uuid::now_v7().to_string();
 
