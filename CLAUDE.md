@@ -39,6 +39,23 @@ just setup          # install all dev toolchain extensions
 
 **DO NOT** use `cargo test --workspace` directly during iteration — `just iter <crate>` is 5-10× faster.
 
+### TDD Inner Loop Discipline
+
+When iterating through a TDD fix-burst (closing multiple findings in sequence), use the cheapest verification that proves what you need. Match the tool to the question:
+
+| Question | Command | Time (warm) |
+|---|---|---|
+| Did my single fix make its target test pass? | `cargo nextest run -p <crate> -E 'test(<test_name>)'` | < 1s after build |
+| Did my fix break anything in this crate? | `just iter <crate>` | 10-30s |
+| See ALL failing tests at once (don't stop at first) | `cargo nextest run -p <crate> --no-fail-fast` | 30-60s |
+| Final pre-push gate (workspace canonical) | `just check` | 1min warm / 5-8min cold |
+
+**Common anti-pattern:** running `just check` (full workspace) between every TDD fix in a multi-finding burst. For a 10-fix burst this burns 10-50 minutes that adds nothing the per-crate run wouldn't already have caught. Reserve `just check` for ONCE at end of fix-burst before declaring done.
+
+**Auto-iteration:** `cargo watch -x 'nextest run -p <crate> --no-fail-fast'` re-runs on save — useful for tight feedback when iterating on a single module.
+
+**In-process vs subprocess tests:** Integration tests under `crates/<crate>/tests/` that spawn `prism start` as a subprocess each cost 200-800ms (subprocess overhead + RocksDB open). Unit tests inside `src/*.rs` `#[cfg(test)] mod tests` blocks run in-process at ~5ms. For tight inner-loop iteration on logic, prefer unit tests; reserve subprocess integration tests for behavior that genuinely needs the full binary.
+
 **Deep recursion tests** (depth ≥ 50) MUST wrap with `crates/prism-query/src/tests/util.rs::run_with_deep_stack` to avoid SIGBUS on macOS aarch64's 2MB default test thread stack. See SIGBUS triage in `.factory/STATE.md` D-242 / pass-9.
 
 ## Formal Verification (Kani)
