@@ -199,3 +199,11 @@ STATE v7.08. D-258 — PR #129 adversary pass-3 post-rebase CLEAN; convergence 2
 STATE v7.10. D-260 — PR #129 (S-3.02) MERGED; tier-2 COMPLETE (S-3.02 + S-3.06). develop HEAD: 6fefc774.
 
 **Tier-2 completion summary at archive:** PR #129 squash SHA 6fefc774; pr_count 129; workspace_test_count 2993; 4 post-rebase passes (1 BLOCKED + 3 CLEAN); severity decay 4→1→0→0; 19/19 findings closed; 2 OBS deferrable; TDs: TD-VSDD-061/063/064 + TD-S302-001..006; BCs: BC-2.11.001/005/006/007/011/012. All Tier-3 stories (S-3.03/04/05/07/08/09/10/11/12/13) + S-4.01/S-4.03/S-5.01 now unblocked.
+
+---
+
+## Session Resume Checkpoint (2026-05-08-v7.54-d304-bundle-a.2.2-a.2.3-landed) — ARCHIVED
+
+**Archived from STATE.md at D-305 transition (STATE v7.54→v7.55).**
+
+STATE v7.54. D-304 — Bundle A.2.2 + A.2.3 landed. 8 stories status-reconciled: S-1.10 → merged; S-3.06 → merged; S-1.11/12/14/15 + S-3.02 + S-3.07 → partial-merge. STORY-INDEX v2.27→v2.28. 9 BCs promoted draft→active per POL-14 (BC-2.09.001..008 + BC-2.11.004). BC-INDEX v4.46→v4.47. 14 ADRs backfilled with `runtime_deliverables` + `wiring_deferred_to` frontmatter (Q1/Q2/Q3/Q4 all closed). ARCH-INDEX v2.32→v2.33. NEW FINDING: inline AD-NNN runtime-wiring entries in ARCH-INDEX/module-decomposition — A.2.1 audit-runtime-wiring skill must scan both ADR files and inline AD-NNN entries. A.2.1 (5 hook implementations) queued for next dispatch. S-3.09 remains FROZEN at HEAD 43c41389 (.worktrees/S-3.09). factory-artifacts HEAD: run `git -C .factory log -1 --format='%h %s'`.
