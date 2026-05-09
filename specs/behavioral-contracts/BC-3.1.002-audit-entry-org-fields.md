@@ -7,7 +7,7 @@ producer: product-owner
 timestamp: 2026-04-27T00:00:00
 phase: 3.A
 inputs: [.factory/specs/architecture/decisions/ADR-006-multi-tenant-dtu-topology.md]
-input-hash: "bdb5903"
+input-hash: "342cc03"
 traces_to: .factory/specs/architecture/decisions/ADR-006-multi-tenant-dtu-topology.md
 origin: greenfield
 extracted_from: null

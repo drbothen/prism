@@ -2,7 +2,7 @@
 document_type: architecture-section
 level: L3
 section: "module-decomposition"
-version: "1.14"
+version: "1.16"
 status: draft
 producer: architect
 timestamp: 2026-05-03T00:00:00
@@ -165,6 +165,7 @@ components:
     criticality: "CRITICAL"  # no binary = no runtime; reclassified from LOW in ADR-022 B-0
     dependencies: [COMP-002, COMP-003, COMP-004, COMP-005, COMP-008, COMP-009, COMP-010, COMP-011, COMP-012]
     interfaces_provided: ["main() entry point", "CLI (clap): start/query/validate-config/version subcommands", "boot sequence orchestration (ADR-022 §B steps 1–11)", "signal handlers: SIGTERM (graceful shutdown) + SIGHUP (manual reload)", "exit-code contract: 0/1/2/3/4/5"]
+    subsystems: ["SS-22"]  # SS-22 (Process Lifecycle) — orchestration BC BC-2.22.001 only; per-subsystem init BCs (BC-2.06.011, BC-2.21.001, BC-2.03.013, BC-2.05.012) live in their respective subsystems per Option (d) decomposition
     interfaces_consumed: ["PrismServer::serve_stdio from prism-mcp", "QueryEngine::new from prism-query", "WriteExecutor::new from prism-query", "parse_spec_directory + ConfigManager::new from prism-spec-engine", "HotReloadWatcher::start from prism-spec-engine", "AuditEmitter from prism-audit", "RocksDbBackend::open from prism-storage", "CredentialStore from prism-credentials"]
 
   - id: COMP-002
@@ -508,19 +509,19 @@ components:
 
 | Crate | Subsystems | BC Count | Key Exports |
 |-------|-----------|----------|-------------|
-| prism-core | (shared) | — | OrgId, OrgSlug, PrismError, ConfigSnapshot, entity types, decorator types |
+| prism-core | SS-21 | 1 *(BC-2.21.001 OrgRegistry init — first BC under SS-21, anchored 2026-05-08 per Option (d) decomposition)* | OrgId, OrgSlug, PrismError, ConfigSnapshot, entity types, decorator types |
 | ocsf-proto-gen | (build-helper) | — | OCSF protobuf .rs generation |
-| prism-mcp | SS-10, SS-06, SS-08, SS-20 | 35 *(planned — AD-005; crate is currently a 10-line stub with `safety_envelope` and `tool_registry` modules only; PrismServer struct absent; no rmcp dep; full implementation per ADR-022 §F tracked by S-5.01-FOLLOWUP-MCP-BOOT)* | PrismServer, tool dispatch, resource/prompt handlers, config tool surface, health probe tools |
+| prism-mcp | SS-10, SS-06, SS-08, SS-20 | 36 *(+1: BC-2.06.011 config-manager init (SS-06) per Option (d) decomposition; planned — AD-005; crate is currently a 10-line stub with `safety_envelope` and `tool_registry` modules only; PrismServer struct absent; no rmcp dep; full implementation per ADR-022 §F tracked by S-5.01-FOLLOWUP-MCP-BOOT)* | PrismServer, tool dispatch, resource/prompt handlers, config tool surface, health probe tools |
 | prism-query | SS-11, SS-07 (partial) | 21 | QueryEngine, PrismQlParser, AliasResolver, UdfRegistry |
 | prism-sensors | SS-01, SS-08 (partial) | 9 | SensorAdapter, SensorAuth, AdapterRegistry, health probe impl |
 | prism-spec-engine | SS-16, SS-17, SS-19 | 21 | SpecParser, PipelineExecutor, ConfigManager, PluginRuntime, InfusionRegistry |
 | prism-ocsf | SS-02 | 12 | OcsfNormalizer, DynamicMessage, FieldResolver |
 | prism-operations *(planned for future waves)* | SS-12, SS-13, SS-14, SS-18 | 45 | Scheduler, DiffEngine, DetectionEngine, AlertStore, CaseManager, ActionDeliveryEngine |
 | prism-security | SS-04, SS-09 | 23 | FeatureFlagEvaluator, TokenStore, InjectionScanner |
-| prism-credentials | SS-03 | 12 | CredentialStore, KeyringBackend, FileBackend |
+| prism-credentials | SS-03 | 13 *(+1: BC-2.03.013 credential-store init per Option (d) decomposition)* | CredentialStore, KeyringBackend, FileBackend |
 | prism-storage | SS-15 (partial) | 11 | StorageBackend, RocksDbBackend, InMemoryBackend |
-| prism-audit | SS-05 | 11 | AuditEmitter, BufferedForwarder |
-| prism-bin *(S-WAVE5-PREP-01 — not yet in Cargo.toml; covered by ADR-022 §A)* | — (boot BCs TBD) | — | main(), CLI (clap), boot sequence orchestrator, signal handlers (SIGTERM/SIGHUP), exit-code contract |
+| prism-audit | SS-05 | 12 *(+1: BC-2.05.012 audit-emitter init per Option (d) decomposition)* | AuditEmitter, BufferedForwarder |
+| prism-bin *(S-WAVE5-PREP-01 — not yet in Cargo.toml; covered by ADR-022 §A)* | SS-22 | 1 *(BC-2.22.001 boot orchestration; per-subsystem init BCs distributed to SS-06/SS-21/SS-03/SS-05)* | main(), CLI (clap), boot sequence orchestrator, signal handlers (SIGTERM/SIGHUP), exit-code contract |
 | **DTU crates (dev-dependencies only — 11 in workspace; log-forwarding clones planned for future waves)** | | | |
 | prism-dtu-common | (test infra) | — | BehavioralClone trait, LatencyLayer, FailureLayer, fixture_loader, SyslogReceiver, WebhookReceiver |
 | **Sensor DTU clones** | | | |
@@ -543,12 +544,14 @@ components:
 | prism-dtu-elasticsearch | (test — log-fwd, planned) | — | ElasticsearchBulkServer, L2 (stateful); NDJSON bulk, partial failure responses |
 | prism-dtu-otlp | (test — log-fwd, planned) | — | OtlpHttpServer, L2 (stateful); OTLP/HTTP protobuf, 400/429/503 simulation |
 
-> **Note (BC counts):** prism-operations row assumes PO CRIT-001 fix applied (SS-12=10 active BCs). Raw sum: SS-12=10 + SS-13=14 + SS-14=12 + SS-18=9 = 45. prism-spec-engine sum: SS-16=10 + SS-17=6 + SS-19=5 = 21. prism-mcp sum: SS-10=11 + SS-06=10 + SS-08=9 + SS-20=5 = 35. prism-security sum: SS-04=15 + SS-09=8 = 23. SS-20 (Observability / Log Forwarding) now has 5 BCs (BC-2.20.001..005) anchored to CAP-035, introduced via pass-80 F80-002 remediation. Phase 1-2 production-crate sum (10 crates with active BCs; ocsf-proto-gen build-helper has no BCs): 35+21+9+21+12+45+23+12+11+11 = 200. Wave 3 additions bring the total to **222 active BCs** — see BC-INDEX (authoritative count: `active_contracts: 222`).
+> **Note (BC counts):** prism-operations row assumes PO CRIT-001 fix applied (SS-12=10 active BCs). Raw sum: SS-12=10 + SS-13=14 + SS-14=12 + SS-18=9 = 45. prism-spec-engine sum: SS-16=10 + SS-17=6 + SS-19=5 = 21. prism-mcp sum: SS-10=11 + SS-06=11 + SS-08=9 + SS-20=5 = 36 *(SS-06 count +1: BC-2.06.011 config-manager init, draft per ADR-021)*. prism-security sum: SS-04=15 + SS-09=8 = 23. prism-credentials: SS-03=13 *(+1: BC-2.03.013 draft)*. prism-audit: SS-05=12 *(+1: BC-2.05.012 draft)*. prism-core: SS-21=1 *(BC-2.21.001 draft — first BC under SS-21)*. prism-bin: SS-22=1 *(BC-2.22.001 draft)*. SS-20 (Observability / Log Forwarding) now has 5 BCs (BC-2.20.001..005) anchored to CAP-035, introduced via pass-80 F80-002 remediation. Phase 1-2 production-crate sum (10 crates with active BCs; ocsf-proto-gen build-helper has no BCs): 35+21+9+21+12+45+23+12+11+11 = 200. Wave 3 additions bring the total to **222 active BCs** — see BC-INDEX (authoritative count: `active_contracts: 222`). The 5 new init BCs (BC-2.06.011, BC-2.21.001, BC-2.03.013, BC-2.05.012, BC-2.22.001) are draft status per ADR-021 and are NOT included in the 222 active count.
 
 ## Changelog
 
 | Version | Pass | Date | Author | Change |
 |---------|------|------|--------|--------|
+| 1.16 | bundle-B-1b-option-d-decomposition-2026-05-08 | 2026-05-08 | architect | Bundle B Phase B-1b Option (d) correction: SS-22 scope narrowed to boot orchestration only (BC-2.22.001); per-subsystem init BCs distributed to natural subsystems — BC-2.06.011 (config init) → SS-06/prism-mcp, BC-2.21.001 (org init) → SS-21/prism-core (first BC under SS-21), BC-2.03.013 (cred init) → SS-03/prism-credentials, BC-2.05.012 (audit init) → SS-05/prism-audit. COMP-001 subsystems comment updated. Crate Responsibilities: prism-bin 4→1, prism-mcp 35→36, prism-credentials 12→13, prism-audit 11→12, prism-core —→1 (SS-21 first BC). BC counts footnote updated; 222 active BC total unchanged (all 5 new BCs are draft per ADR-021). |
+| 1.15 | bundle-B-1b-ss22-process-lifecycle-2026-05-08 | 2026-05-08 | architect | Bundle B Phase B-1b: SS-22 (Process Lifecycle) decided as namespace for boot-sequence BCs. COMP-001 (prism-bin) subsystems field added — SS-22. Crate Responsibilities table prism-bin row updated: subsystem column SS-22, BC count 4 pending PO authorship (BC-2.22.001..004). |
 | 1.14 | bundle-B-0-adr-022-2026-05-08 | 2026-05-08 | architect | Bundle B Phase B-0: COMP-001 (prism-bin) upgraded from "planned LOW criticality" to "specified CRITICAL" per ADR-022 §A — full dependency list, CLI interface (clap: start/query/validate-config/version), boot sequence wiring, signal handlers, exit-code contract. COMP-001 status updated to "specified — S-WAVE5-PREP-01". Crate Responsibilities table row updated to reflect ADR-022 §A spec. prism-mcp row annotated [NOT IMPLEMENTED — 10-line stub; S-5.01-FOLLOWUP-MCP-BOOT]. |
 | 1.13 | F-PreP21-H-001 | 2026-05-03 | architect | F-PreP21-H-001: renamed ActionEngine → ActionDeliveryEngine in COMP-007 interfaces_provided (line 223), COMP-007 notes (line 225), and Crate Responsibilities table (line 518) per ADR-016 §1.1. |
 | 1.12 | pass-22-remediation | 2026-04-27 | product-owner | m-22-002: BC counts footnote updated — BC-INDEX v4.23 → v4.25 (active_contracts = 222 including Wave 3 additions). |

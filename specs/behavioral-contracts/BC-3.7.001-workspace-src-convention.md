@@ -10,7 +10,7 @@ timestamp: 2026-04-27T00:00:00
 phase: 3.A
 wave: 3
 inputs: [.factory/specs/architecture/decisions/ADR-012-src-convention.md]
-input-hash: "2e0ed7e"
+input-hash: "fd7389a"
 traces_to: ".factory/specs/architecture/decisions/ADR-012-src-convention.md"
 origin: greenfield
 extracted_from: null

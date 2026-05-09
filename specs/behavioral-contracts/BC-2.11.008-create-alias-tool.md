@@ -20,7 +20,7 @@ retired: null
 removed: null
 removal_reason: null
 inputs: [".factory/specs/prd.md", ".factory/specs/domain-spec/capabilities.md"]
-input-hash: "a3f1c94"
+input-hash: "c36ec87"
 traces_to: ["CAP-016"]
 extracted_from: ".factory/specs/prd.md"
 ---

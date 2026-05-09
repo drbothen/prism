@@ -1,7 +1,7 @@
 ---
 document_type: architecture-index
 level: L3
-version: "2.34"
+version: "2.36"
 status: draft
 producer: architect
 timestamp: 2026-05-04T00:00:00
@@ -140,12 +140,15 @@ deployment_topology: single-service  # planned — no service binary exists yet 
 | SS-18 | Action Delivery Engine | actions.md (AD-021) | prism-operations, prism-siem-formats | Phase 3 |
 | SS-19 | Infusion Enrichment Framework | infusions.md (AD-020) | prism-spec-engine | Phase 3 |
 | SS-20 | Observability / Log Forwarding | observability.md | prism-mcp | Phase 3 |
-| SS-21 | Identity & Core Types | system-overview.md, module-decomposition.md | prism-core | Phase 3 |
+| SS-21 | Identity & Core Types | system-overview.md, module-decomposition.md | prism-core | Phase 3 | First BC anchored 2026-05-08: BC-2.21.001 (OrgRegistry init) per Option (d) decomposition — SS-21 transitions from 0-BC placeholder to active subsystem |
+| SS-22 | Process Lifecycle | module-decomposition.md | prism-bin *(S-WAVE5-PREP-01 — NOT IMPLEMENTED)* | Phase 5 | Scope: boot orchestration contract only (sequencing of ADR-022 §B 11-step boot, startup failure exit-code map, traffic gate signal handlers); per-subsystem init contracts (config/org/cred/audit init) live in their respective subsystems (SS-06/SS-21/SS-03/SS-05) per Option (d) decomposition |
 
 ## Changelog
 
 | Version | Pass | Date | Author | Change |
 |---------|------|------|--------|--------|
+| 2.36 | bundle-B-1b-option-d-decomposition-2026-05-08 | 2026-05-08 | architect | Bundle B Phase B-1b Option (d) correction: SS-22 scope narrowed to boot orchestration contract only (BC-2.22.001); per-subsystem init BCs distributed to natural subsystems. SS-21 row annotated — first BC (BC-2.21.001 OrgRegistry init) now anchored as of 2026-05-08; SS-21 is no longer a 0-BC placeholder. Subsystem Registry SS-21 and SS-22 rows updated with scope annotations. Mirrors module-decomposition.md v1.16 amendment. |
+| 2.35 | bundle-B-1b-ss22-process-lifecycle-2026-05-08 | 2026-05-08 | architect | Bundle B Phase B-1b: SS-22 (Process Lifecycle) added to Subsystem Registry. Scope: ordered 11-step boot sequence orchestrated by prism-bin (ADR-022 §B), startup failure exit-code contract, signal handler lifecycle. Boot-sequence BCs assigned namespace BC-2.22.001..004 (pending PO authorship). BC-2.BOOT.001..004 placeholders in S-WAVE5-PREP-01 resolve to BC-2.22.001..004. |
 | 2.34 | bundle-B-0-adr-022-production-runtime-wiring-2026-05-08 | 2026-05-08 | architect | Bundle B Phase B-0: ADR-022 (Production Runtime Wiring) registered. AD-005 row annotated [NOT IMPLEMENTED — prism-mcp 10-line stub; S-5.01-FOLLOWUP-MCP-BOOT]. AD-022 row annotated [PARTIAL — S-3.07 gates landed; Phase 3 fetch/adapter write/SQL DML gaps; W3-FIX-S307-001/002/003]. SS-10 row annotated [NOT IMPLEMENTED — no rmcp server; S-5.01-FOLLOWUP-MCP-BOOT]. prism-bin crate noted as SS-10 dependency (planned). POL-15 runtime_wiring_required_for_accepted_adrs satisfied for: AD-005, AD-018, AD-022. Six story seeds seeded in ADR-022 §G. ARCH-INDEX v2.33→v2.34. |
 | 2.33 | bundle-A-2-3-adr-frontmatter-backfill-2026-05-08 | 2026-05-08 | architect | Bundle A.2.3 ADR frontmatter backfill: added `runtime_deliverables` and `wiring_deferred_to` fields to all 14 accepted ADRs (ADR-001 through ADR-012, ADR-014, ADR-020, ADR-021) enabling POL-15 (runtime_wiring_required_for_accepted_adrs) enforcement by audit-runtime-wiring skill. Version bumped +0.1 on each ADR. ADRs with code deliverables fully wired: ADR-003 (FidelityCheck/admin_token), ADR-005 (validate_aql), ADR-006 (OrgId/OrgRegistry), ADR-007 (DtuMode/DTU_DEFAULT_MODE), ADR-008 (state re-keying), ADR-009 (data generator), ADR-010 (customer config), ADR-011 (Harness), ADR-012 (layout script), ADR-014 (just check/check-ci). Pure methodology ADRs: ADR-001, ADR-002, ADR-020, ADR-021 (runtime_deliverables: []). |
 | 2.32 | bundle-A-cleanup-2026-05-08 | 2026-05-08 | architect | Bundle A status-taxonomy reform: ADR-020 (story status taxonomy — closed enum, partial-merge semantics, graduation contract) and ADR-021 (BC/VP promotion lifecycle — draft→active→verified, audit cadence, BC-INDEX count authority) added to ADR Registry. Companion policies POL-12..16 added to policies.yaml v1.6. Hook specifications document added (hook-specs-bundle-a.md). No code changes; no story-file changes; schema + policy layer only. |

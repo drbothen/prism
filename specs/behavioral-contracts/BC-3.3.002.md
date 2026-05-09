@@ -9,7 +9,7 @@ phase: 3.A
 inputs:
   - ".factory/specs/architecture/decisions/ADR-010-customer-config-schema.md"
   - ".factory/specs/domain-spec/capabilities.md"
-input-hash: "900c3d4"
+input-hash: "280b5e7"
 traces_to: ".factory/specs/architecture/decisions/ADR-010-customer-config-schema.md"
 origin: greenfield
 extracted_from: null

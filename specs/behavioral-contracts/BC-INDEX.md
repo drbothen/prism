@@ -1,12 +1,12 @@
 ---
 document_type: behavioral-contract-index
 level: L3
-version: "4.47"
+version: "4.48"
 status: draft
-producer: product-owner
-timestamp: 2026-05-07T00:00:00
+producer: state-manager
+timestamp: 2026-05-08T00:00:00
 phase: 3.A
-total_contracts: 230
+total_contracts: 235
 active_contracts: 222
 removed_contracts: 6
 retired_contracts: 2
@@ -14,10 +14,10 @@ retired_contracts: 2
 
 # Behavioral Contract Index
 
-Flat index of all 230 behavioral contracts for Prism (230 total files, 222 active, 6 removed, 2 retired), organized by BC ID. Note: 5 prior index-only reserved entries (BC-2.07.007/008/009/010, BC-2.14.011) were dropped — they never had corresponding files.
+Flat index of all 235 behavioral contracts for Prism (235 total files, 222 active, 6 removed, 2 retired), organized by BC ID. Note: 5 prior index-only reserved entries (BC-2.07.007/008/009/010, BC-2.14.011) were dropped — they never had corresponding files.
 
 **Note on `total_contracts`:** This count represents unique BC identifiers ever filed
-(active + removed + retired = 230). Five prior index-only reserved entries
+(active + removed + retired = 235). Five prior index-only reserved entries
 (BC-2.07.007/008/009/010, BC-2.14.011) were dropped in v4.8 because they never had
 corresponding files — they are NOT counted in `total_contracts` and remain only in the
 historical references section below.
@@ -65,6 +65,7 @@ Phase 3-patch additions (2026-04-16): 22 new BCs added in Burst 1 to close trace
 | BC-2.03.010 | Credential Access Audit Logging | 03 - Credential Management | CAP-004 | P0 | draft |
 | BC-2.03.011 | Keyring Startup Probe for Permission Pre-Authorization | 03 - Credential Management | CAP-004 | P0 | draft |
 | BC-2.03.012 | Credential Backend Selection and Fallback | 03 - Credential Management | CAP-004 | P0 | draft |
+| BC-2.03.013 | CredentialStore Initialization — Reference Validation Only, No-Leak Invariant | 03 - Credential Management | CAP-004 | P0 | draft |
 | BC-2.04.001 | Compile-Time Cargo Features Gate Write Code Families | 04 - Feature Flags | CAP-005 | P0 | draft |
 | BC-2.04.002 | Runtime Per-Client TOML Feature Flag Configuration | 04 - Feature Flags | CAP-005 | P0 | draft |
 | BC-2.04.003 | Hierarchical Capability Resolution (BTreeMap, Most-Specific-Path Wins, Deny Support) | 04 - Feature Flags | CAP-005 | P0 | draft |
@@ -91,6 +92,7 @@ Phase 3-patch additions (2026-04-16): 22 new BCs added in Burst 1 to close trace
 | BC-2.05.009 | Feature Flag Evaluations for Write Operations Are Audit-Logged | 05 - Audit Trail | CAP-007 | P0 | draft |
 | BC-2.05.010 | Confirmation Token Lifecycle Events Are Audit-Logged | 05 - Audit Trail | CAP-007 | P0 | draft |
 | BC-2.05.011 | Audit Forwarding — At-Least-Once Delivery to External Destinations (VP-039 monotonic watermark) | 05 - Audit Trail | CAP-007 | P0 | draft |
+| BC-2.05.012 | AuditEmitter Initialization — audit_buffer CF Open + boot.audit.initialized Sentinel | 05 - Audit Trail | CAP-007 | P0 | draft |
 | BC-2.06.001 | TOML Configuration Loads and Deserializes at Startup | 06 - Client Configuration | CAP-009 | P0 | draft |
 | BC-2.06.002 | Per-Client Sensor Mapping from TOML Configuration | 06 - Client Configuration | CAP-009 | P0 | draft |
 | BC-2.06.003 | Credential References in Config Resolve to Credential Store Entries | 06 - Client Configuration | CAP-009 | P0 | draft |
@@ -101,6 +103,7 @@ Phase 3-patch additions (2026-04-16): 22 new BCs added in Burst 1 to close trace
 | BC-2.06.008 | Default Values Apply and Environment Variables Override TOML | 06 - Client Configuration | CAP-009 | P0 | draft |
 | BC-2.06.009 | Config Reload Triggers notifications/tools/list_changed | 06 - Client Configuration | CAP-009 | P0 | draft |
 | BC-2.06.010 | Client ID Validation Enforces Allowed Character Set | 06 - Client Configuration | CAP-009 | P0 | draft |
+| BC-2.06.011 | ConfigManager Initialization Validation — Config Loaded and Validated Before Serving | 06 - Client Configuration | CAP-009 | P0 | draft |
 | BC-2.07.001 | Internal Ephemeral Pagination Token Structure | 07 - Adapter Pagination & Response Cache | CAP-011 | P0 | draft |
 | BC-2.07.002 | Internal Pagination Token Lifecycle — Forward Progress, Timeout, and Cleanup | 07 - Adapter Pagination & Response Cache | CAP-011 | P0 | draft |
 | BC-2.07.003 | Query Engine Sensor-Fetch Cache with Configurable TTL | 07 - Adapter Pagination & Response Cache | CAP-014 | P1 | draft |
@@ -234,6 +237,8 @@ Phase 3-patch additions (2026-04-16): 22 new BCs added in Burst 1 to close trace
 | BC-2.20.003 | Log Forwarder Queue Cap — Drop-Oldest on Overflow with Metric Emission | 20 - Observability / Log Forwarding | CAP-035 | P0 | draft |
 | BC-2.20.004 | Log Forwarder Credential Resolution — AD-017 Opaque Reference Model at Forward Time | 20 - Observability / Log Forwarding | CAP-035 | P0 | draft |
 | BC-2.20.005 | Log Forwarder Destination Isolation — Single Failed Destination Must Not Block Others | 20 - Observability / Log Forwarding | CAP-035 | P0 | draft |
+| BC-2.21.001 | OrgRegistry Initialization — Empty-Org-List Exit 2, Bijective Resolution Ready | 21 - Identity & Core Types | CAP-038 | P0 | draft |
+| BC-2.22.001 | Boot Orchestration — Sequencing, Exit-Code Map, Pre-Traffic Gate | 22 - Binary Entrypoint | CAP-034 | P0 | draft |
 
 ## Wave 3 — Phase 3.A Behavioral Contracts (2026-04-27)
 
@@ -329,6 +334,8 @@ Phase 3-patch additions (2026-04-16): 22 new BCs added in Burst 1 to close trace
 | Wave 3 BC Family: 3.7 - Workspace Conventions | 1 | 0 | 1 | 0 | 0 |
 | **Total** | **222** | **192** | **30** | **6** | **2** |
 
+**Note (v4.48):** 5 additional BCs registered in Bundle B Phase B-1b (BC-2.03.013, BC-2.05.012, BC-2.06.011, BC-2.21.001, BC-2.22.001) are `lifecycle: draft` and not yet counted in the active total above. They will be promoted to active when S-WAVE5-PREP-01 merges per ADR-021/POL-14. total_contracts=235 (222 active + 6 removed + 2 retired + 5 lifecycle:draft).
+
 ### Phase 3-Patch Additions (2026-04-16)
 
 **26 new BCs added (22 Burst 1 + 4 Burst 2.5):**
@@ -352,6 +359,8 @@ Phase 3-patch additions (2026-04-16): 22 new BCs added in Burst 1 to close trace
 - Subsystem 19: Infusion Enrichment Framework (AD-020, CAP-031)
 
 ### Change Log (Adversarial Review Fixes)
+
+**v4.48 (2026-05-08):** D-307 Bundle B Phase B-1b Option (d) — 5 new BCs registered (lifecycle: draft, all anchored to S-WAVE5-PREP-01): BC-2.03.013 (CredentialStore init, SS-03, CAP-004), BC-2.05.012 (AuditEmitter init, SS-05, CAP-007), BC-2.06.011 (ConfigManager init, SS-06, CAP-009), BC-2.21.001 (OrgRegistry init — first BC under SS-21, CAP-038), BC-2.22.001 (Boot orchestration — first BC under SS-22, CAP-034). total_contracts 230→235; active_contracts unchanged at 222 (5 new BCs are draft; promote to active per ADR-021/POL-14 when S-WAVE5-PREP-01 merges). Count-propagation sweep: updated flat index header line, frontmatter total_contracts.
 
 **v4.47 (2026-05-08):** Bundle A.2.2 — POL-14 BC promotion: 9 BCs promoted draft → active. Anchor stories: S-1.10 (BC-2.09.001..008) + S-3.06 (BC-2.11.004). Per ADR-021 + D-304. Status column updated for all 9 rows in flat index. BC file frontmatter status + version bumped for each.
 

@@ -10,7 +10,7 @@ inputs:
   - ".factory/specs/architecture/decisions/ADR-007-configurable-dtu-mode.md"
   - ".factory/specs/architecture/decisions/ADR-010-customer-config-schema.md"
   - ".factory/specs/domain-spec/capabilities.md"
-input-hash: "57dbfb7"
+input-hash: "2099a1c"
 traces_to: ".factory/specs/architecture/decisions/ADR-010-customer-config-schema.md"
 origin: greenfield
 extracted_from: null

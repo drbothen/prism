@@ -10,9 +10,9 @@ blocks: [S-3.02-FOLLOWUP-RUNTIME, S-1.12-FOLLOWUP, S-5.01-FOLLOWUP-MCP-BOOT, S-1
 estimated_days: 3
 points: 5
 risk: HIGH
-status: draft
+status: ready
 document_type: story
-version: "1.0"
+version: "1.2"
 level: "L4"
 producer: story-writer
 timestamp: "2026-05-08T00:00:00Z"
@@ -21,21 +21,39 @@ traces_to: []
 cycle: "v1.0.0-greenfield"
 epic_id: "E-CLEANUP-02"
 phase: 3
-behavioral_contracts: [BC-2.10.001, BC-2.10.006, BC-2.10.010]
+behavioral_contracts:
+  - BC-2.10.001  # rmcp ServerHandler Implementation
+  - BC-2.10.006  # Stdio Transport
+  - BC-2.10.010  # Graceful Shutdown on SIGTERM/SIGINT
+  - BC-2.06.011  # ConfigManager initialization validation (SS-06)
+  - BC-2.21.001  # OrgRegistry init bijective-resolution contract (SS-21)
+  - BC-2.03.013  # CredentialStore init reference-validation-only + no-leak invariant (SS-03)
+  - BC-2.05.012  # AuditEmitter init audit_buffer-CF-open + boot.audit.initialized emitted (SS-05)
+  - BC-2.22.001  # Boot orchestration: sequencing + exit-code map + traffic gate (SS-22)
 verification_properties: []
 assumption_validations: []
 risk_mitigations: []
-anchor_bcs: [BC-2.10.001, BC-2.10.006, BC-2.10.010]
+anchor_bcs:
+  - BC-2.10.001
+  - BC-2.10.006
+  - BC-2.10.010
+  - BC-2.06.011
+  - BC-2.21.001
+  - BC-2.03.013
+  - BC-2.05.012
+  - BC-2.22.001
 anchor_capabilities: [CAP-034]
-anchor_subsystem: ["SS-10", "SS-06", "SS-11", "SS-16"]
-# BC status: pending PO authorship for boot-sequence BCs.
-# New BCs needed: BC-2.BOOT.001 (config-load), BC-2.BOOT.002 (org-init),
-# BC-2.BOOT.003 (credential-init), BC-2.BOOT.004 (audit-init) — see Open Questions.
+anchor_subsystem: ["SS-10", "SS-06", "SS-11", "SS-16", "SS-03", "SS-05", "SS-21", "SS-22"]
 inputs:
   - ".factory/specs/architecture/decisions/ADR-022-production-runtime-wiring.md"
   - ".factory/specs/architecture/module-decomposition.md"
   - ".factory/specs/architecture/ARCH-INDEX.md"
   - ".factory/specs/behavioral-contracts/BC-INDEX.md"
+  - ".factory/specs/behavioral-contracts/BC-2.06.011-config-load-on-startup.md"
+  - ".factory/specs/behavioral-contracts/BC-2.21.001-org-registry-init.md"
+  - ".factory/specs/behavioral-contracts/BC-2.03.013-credential-store-init.md"
+  - ".factory/specs/behavioral-contracts/BC-2.05.012-audit-subsystem-init.md"
+  - ".factory/specs/behavioral-contracts/BC-2.22.001-boot-orchestration.md"
 ---
 
 # S-WAVE5-PREP-01 — prism-bin: Binary Chassis, CLI, and Boot Sequence
@@ -64,22 +82,16 @@ Per ADR-022 §A this is the **only** `[[bin]]` target in the workspace. No `todo
 
 ## Behavioral Contracts
 
-| BC ID | Title |
-|-------|-------|
-| BC-2.10.001 | rmcp ServerHandler Implementation |
-| BC-2.10.006 | Stdio Transport |
-| BC-2.10.010 | Graceful Shutdown on SIGTERM/SIGINT |
-
-**Note — boot-sequence BCs:** The following new BCs are proposed and must be authored
-by the product-owner before this story transitions to `ready`. They are referenced in
-ACs below as `[NEW-BC-NEEDED]`:
-
-| Proposed BC | Scope |
-|-------------|-------|
-| [NEW-BC-NEEDED] BC-2.BOOT.001 | Config load at startup — prism.toml + schema validation; exit 2 on failure |
-| [NEW-BC-NEEDED] BC-2.BOOT.002 | OrgRegistry init — org_id + org_slug pairs from config; exit 2 on failure |
-| [NEW-BC-NEEDED] BC-2.BOOT.003 | Credential store init + ref resolution (reference-based, no inline values); exit 5 |
-| [NEW-BC-NEEDED] BC-2.BOOT.004 | Audit subsystem init — RocksDB audit_buffer CF; SOC 2 required; exit 4 |
+| BC ID | Title | Subsystem | Role in This Story |
+|-------|-------|-----------|-------------------|
+| BC-2.10.001 | rmcp ServerHandler Implementation | SS-10 | Binary entry point contract |
+| BC-2.10.006 | Stdio Transport | SS-10 | Stdio transport scaffold (step 9 stub) |
+| BC-2.10.010 | Graceful Shutdown on SIGTERM/SIGINT | SS-10 | SIGTERM handler + clean-exit contract |
+| BC-2.06.011 | ConfigManager initialization contract | SS-06 | Precondition for boot step 2 (prism.toml load + schema validation; exit 2 on failure) |
+| BC-2.21.001 | OrgRegistry init bijective-resolution contract | SS-21 | Precondition for boot step 3 (org_id + org_slug pairs from config; exit 2 on failure) |
+| BC-2.03.013 | CredentialStore init reference-validation-only contract | SS-03 | Precondition for boot step 5; carries no-leak invariant (reference-based only, no inline values; PermissionDenied → exit 5) |
+| BC-2.05.012 | AuditEmitter init audit_buffer-CF-open + boot.audit.initialized emitted | SS-05 | Precondition for boot steps 6+; SOC 2 required; failure → exit 4 |
+| BC-2.22.001 | Boot orchestration contract | SS-22 | Chains all 4 init BCs; defines ordered 11-step sequencing, exit-code map, and traffic gate (MCP blocked until step 8 completes) |
 
 ---
 
@@ -94,9 +106,9 @@ ACs below as `[NEW-BC-NEEDED]`:
 | `crates/prism-bin/src/signals.rs` (SIGTERM/SIGHUP tokio handlers) | ~1,200 |
 | `crates/prism-bin/Cargo.toml` (new crate; dep list) | ~600 |
 | `Cargo.toml` workspace member addition | ~200 |
-| BC files (3 existing BCs cited) | ~1,500 |
+| BC files (8 BCs: 3 existing + 5 boot BCs) | ~4,000 |
 | Integration tests (boot-to-step-6 smoke) | ~2,500 |
-| Total | ~14,800 |
+| Total | ~17,300 |
 
 Within the 30% context window budget (~40k tokens for a 128k-context agent).
 
@@ -284,16 +296,16 @@ version from `Cargo.toml`) to stdout and exits 0.
 **AC-3:** Given `prism validate-config --config-dir <valid-fixtures>`, When the config
 directory contains valid `prism.toml` and sensor spec TOMLs, Then exit code is 0 and
 stdout contains a redacted summary of loaded sensors.
-(traces to BC-2.BOOT.001 [NEW-BC-NEEDED] — config load and validate)
+(traces to BC-2.06.011 postcondition — ConfigManager initialization succeeds on valid config)
 
 **AC-4:** Given `prism validate-config --config-dir <dir-with-invalid-toml>`, When
 `prism.toml` has a TOML syntax error, Then exit code is 2 and stderr contains the
 line number and field name of the parse error.
-(traces to BC-2.BOOT.001 [NEW-BC-NEEDED] — config-invalid exit path)
+(traces to BC-2.06.011 postcondition — ConfigManager init failure maps to exit 2; traces to BC-2.22.001 exit-code map — config-invalid = exit 2)
 
 **AC-5:** Given `prism start` with a valid config, When boot step 1 (tracing init)
 completes, Then the first structured log line emitted is `{"level":"INFO","message":"Prism vX.Y.Z",...}`.
-(traces to BC-2.BOOT.004 [NEW-BC-NEEDED] — tracing must precede all other steps)
+(traces to BC-2.22.001 invariant — boot orchestration requires tracing init as step 1 before all other steps in the ordered sequence)
 
 **AC-6:** Given `prism start` and a SIGTERM is delivered to the process, When the
 SIGTERM handler fires, Then the process emits a `tracing::info!("Received SIGTERM — shutting down")` log entry and exits 0.
@@ -301,18 +313,29 @@ SIGTERM handler fires, Then the process emits a `tracing::info!("Received SIGTER
 
 **AC-7:** Given `prism start` where the credential store returns PermissionDenied during
 step 5, Then the process exits with code 5 (not 1 or 4).
-(traces to BC-2.BOOT.003 [NEW-BC-NEEDED] — permission-denied exit path)
+(traces to BC-2.03.013 postcondition — CredentialStore PermissionDenied maps to exit 5; traces to BC-2.22.001 exit-code map — permission-denied = exit 5)
 
 **AC-8:** Given `prism start` where the audit subsystem fails to open RocksDB in step 6,
 Then the process exits with code 4.
-(traces to BC-2.BOOT.004 [NEW-BC-NEEDED] — audit-init exit path)
+(traces to BC-2.05.012 postcondition — AuditEmitter init failure maps to exit 4; traces to BC-2.22.001 exit-code map — internal-error = exit 4)
 
-**AC-9:** Given any boot sequence step (1–6) completes, When any subsequent step fails,
+**AC-9:** Given `prism start` where the config declares zero org entries in the
+OrgRegistry section, Then the process exits with code 2 and stderr contains "Config
+must declare at least one org".
+(traces to BC-2.21.001 postcondition — OrgRegistry init fails on empty org list; traces to BC-2.22.001 exit-code map — config-invalid = exit 2)
+
+**AC-10:** Given `prism start` has completed boot steps 1–7 (RocksDB open) but has
+not yet completed step 8 (QueryEngine ready), When an MCP tool call arrives on the
+stdio transport, Then the binary does not service the request until step 8 completes
+(traffic gate enforced by BC-2.22.001).
+(traces to BC-2.22.001 invariant — MCP traffic gate must block until step 8 completes)
+
+**AC-11:** Given any boot sequence step (1–6) completes, When any subsequent step fails,
 Then no data corruption occurs (step failures are clean exits, not panics), and no step
 leaves permanent state corruption. No `todo!()`, `unimplemented!()`, or
 `panic!("stub")` may remain in the steps 1–6 production code paths before merge.
 
-**AC-10:** Given a panic occurs anywhere in the process (injected for test), When the
+**AC-12:** Given a panic occurs anywhere in the process (injected for test), When the
 custom panic hook fires, Then a `tracing::error!` log is emitted before the process
 exits with code 1.
 (traces to BC-2.10.010 — all exits are clean and observable)
@@ -356,7 +379,7 @@ depend on prism-bin.
 | Boot steps 1–8 MUST be ordered and blocking — no parallelism across steps | ADR-022 §B | Code review; integration test verifies step ordering via log timestamps |
 | Steps 1–6 MUST have zero `todo!()`/`unimplemented!()` before merge | POL-12 (production_stub_residue_blocks_merge) | CI `just check` + grep stub sweep in PR gate |
 | Steps 7–11 stubs MUST include the resolving story ID in their message | ADR-022 §G annotation requirement | Code review |
-| Panic hook MUST use `tracing::error!` before exit — no raw `eprintln!` as sole output | ADR-022 §A (logging spec) | AC-10 integration test |
+| Panic hook MUST use `tracing::error!` before exit — no raw `eprintln!` as sole output | ADR-022 §A (logging spec) | AC-12 integration test |
 | Exit codes 0–5 are the canonical contract — no other exit codes may be added without ADR | ADR-022 §A | Code review; CLI `--help` documents all 6 codes |
 | `PRISM_CONFIG_DIR` env var MUST override the default config directory | ADR-022 §B step 2 | AC-3/AC-4 integration tests use this env var |
 
@@ -461,3 +484,5 @@ N/A — this is a new story with no predecessor `partial-merge` story to graduat
 | Version | Burst | Date | Author | Changes |
 |---------|-------|------|--------|---------|
 | 1.0 | Bundle-B-Phase-B-1 | 2026-05-08 | story-writer | Initial story creation from ADR-022 §G seed (Story 1). |
+| 1.1 | Bundle-B-Phase-B-1b | 2026-05-08 | story-writer | BC back-fill: replaced 4 `[NEW-BC-NEEDED]` placeholders with authored BC IDs (BC-2.06.011, BC-2.21.001, BC-2.03.013, BC-2.05.012, BC-2.22.001). Updated frontmatter `behavioral_contracts`, `anchor_bcs`, `anchor_subsystem`, and `inputs`. Propagated BC traces to AC-3–AC-8 per `bc_array_changes_propagate_to_body_and_acs` policy. Added AC-9 (BC-2.21.001 OrgRegistry), AC-10 (BC-2.22.001 traffic gate); renumbered original AC-10 to AC-12. Token budget updated to 8 BCs (~17,300 tokens). |
+| 1.2 | Bundle-B-Phase-B-1b | 2026-05-08 | state-manager | status draft → ready per orchestrator authorization; Spec-First Gate S-7.01 satisfied (BC anchors back-filled, every AC traces to a BC, POL-12 compliance preserved at AC-11). |
