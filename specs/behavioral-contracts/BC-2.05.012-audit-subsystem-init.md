@@ -1,7 +1,7 @@
 ---
 document_type: behavioral-contract
 level: L3
-version: "1.0"
+version: "1.1"
 status: draft
 producer: product-owner
 timestamp: 2026-05-08T00:00:00Z
@@ -16,7 +16,8 @@ crates: [prism-bin, prism-audit]
 inputs:
   - .factory/specs/architecture/decisions/ADR-022-production-runtime-wiring.md
   - .factory/specs/architecture/module-decomposition.md
-input-hash: "[md5]"
+  - .factory/cycles/wave-4-operations/research/audit-emitter-architecture-2026-05-09.md
+input-hash: "2f0a646"
 traces_to: ["CAP-007"]
 ---
 
@@ -29,8 +30,7 @@ This BC is the Audit Trail subsystem's (SS-05) startup-time contract. It specifi
 boot step 6 (per ADR-022 §B). The orchestration of this and the other 3 subsystem init contracts
 in §B order is specified separately in BC-2.22.001.
 
-`prism-bin` constructs the `AuditEmitter` handle (from `prism-audit`) and opens the `audit_buffer`
-RocksDB column family (per AD-004). The audit subsystem MUST be operational before any step that
+`prism-bin` constructs an audit emission handle from the `prism-audit` crate suitable for boot-time sentinel emission, and opens the `audit_buffer` RocksDB column family (per AD-004). The `prism-audit` crate provides this handle as `BootAuditEmitter` — a specialization distinct from the Tower-middleware `AuditEmitterLayer` used for MCP request audit (BC-2.05.001). Boot-time emission requires synchronous fsync semantics (postcondition 2 below) that the request-time middleware does not provide; BC-2.05.001's `AuditEmitterLayer` is the request-time analogue and is constructed at boot step 9 over the same `Arc<RocksDbBackend>` that `BootAuditEmitter::into_backend()` returns from this step. The audit subsystem MUST be operational before any step that
 could log audit events — steps 7+ in ADR-022 §B all produce audit-loggable events and must not
 begin until this step completes. Upon successful init, the audit subsystem emits the sentinel event
 `"boot.audit.initialized"` which is durably persisted to the `audit_buffer` CF before step 7
@@ -55,13 +55,12 @@ path for this step at or after story S-WAVE5-PREP-01 merges (POL-12 enforcement)
 ## Postconditions
 
 **Happy path:**
-- `AuditEmitter` handle is constructed from the `prism-audit` crate
+- A boot-time audit emission handle (`prism_audit::BootAuditEmitter`) is constructed from the `prism-audit` crate; it holds `Arc<RocksDbBackend>` so that subsequent boot steps can reuse the already-opened RocksDB instance via `BootAuditEmitter::into_backend()`.
 - The `audit_buffer` RocksDB column family is opened and confirmed writable
 - The sentinel audit event `"boot.audit.initialized"` is constructed and written to the
   `audit_buffer` CF BEFORE step 7 begins — this write is synchronous and confirmed durable
   (not queued asynchronously)
-- The `AuditEmitter` handle (wrapped in `Arc`) is available to all subsequent boot steps
-  and the MCP tool dispatch middleware
+- The opened `Arc<RocksDbBackend>` is available to all subsequent boot steps; the MCP tool dispatch middleware constructed at step 9 wraps this same backend in `prism_audit::AuditEmitterLayer` (BC-2.05.001). The boot-time `BootAuditEmitter` and the request-time `AuditEmitterLayer` are intentionally distinct types serving different lifecycle stages of the same audit subsystem.
 - Boot continues to step 7 (storage + internal-tables provider init) per ADR-022 §B ordering
 - Log line: `tracing::info!("Audit subsystem initialized; boot.audit.initialized persisted")`
 
@@ -232,12 +231,7 @@ this boot step; see Verification Properties)
 
 ## Open Questions
 
-**OQ-2 (boot.audit.initialized sentinel schema confirmation):** The sentinel JSON schema
-defined in this BC specifies a minimum required field set. The implementer of S-WAVE5-PREP-01
-should confirm whether `prism-audit`'s `AuditEntry` type already covers these fields or
-whether a dedicated `BootSentinelEntry` struct is needed. If `AuditEntry` does not include
-`prism_version` and `boot_step`, a thin extension struct or additional fields must be added
-before the TV-05-012-006 schema compliance test can pass.
+**OQ-2 (resolved by S-WAVE5-PREP-01 fix-pass-2):** The boot sentinel uses a dedicated `BootAuditEmitter` and a `BootSentinelFields` payload struct rather than reusing the request-time `AuditEntry`. Rationale: the boot sentinel has a different field set (`prism_version`, `boot_step`, `config_dir_hash`, `org_count`) and different sync semantics (fsync via `append_audit_entry_sync`) from request-time audit entries. The two share the underlying `audit_buffer` CF and the storage-layer `AuditEntry` envelope but are constructed by different APIs in the same crate, consistent with the existing pattern of specialized emitters (`emit_credential_event`, `emit_flag_eval`, `emit_token_*`).
 
 ## Changelog
 
@@ -245,3 +239,4 @@ before the TV-05-012-006 schema compliance test can pass.
 |---------|-------|------|--------|--------|
 | 1.0 | bundle-B-phase-B-1b-ss22-bcs-2026-05-08 | 2026-05-08 | product-owner | Initial authorship — Bundle B Phase B-1b SS-22 boot-sequence BCs |
 | 1.0 | redirect-option-d-2026-05-08 | 2026-05-08 | product-owner | Relocated from BC-2.22.004 (SS-22) to BC-2.05.012 (SS-05 Audit Trail) per Option (d) decomposition. Capability anchor updated CAP-034 → CAP-007. EC/TV IDs renumbered to EC-05-012-NNN / TV-05-012-NNN. OQ-2 preserved (sentinel schema confirmation). |
+| 1.1 | adversary-f-pass3-med-1-amendment-2026-05-09 | 2026-05-09 | product-owner | Amendment per research-agent recommendation + adversary F-PASS3-MED-1 closure — clarify BootAuditEmitter is the boot-time specialization distinct from request-time AuditEmitterLayer; resolve OQ-2. Research artifact: audit-emitter-architecture-2026-05-09.md. |

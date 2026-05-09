@@ -1,10 +1,10 @@
 ---
 document_type: behavioral-contract-index
 level: L3
-version: "4.48"
+version: "4.49"
 status: draft
 producer: state-manager
-timestamp: 2026-05-08T00:00:00
+timestamp: 2026-05-09T00:00:00
 phase: 3.A
 total_contracts: 235
 active_contracts: 222
@@ -359,6 +359,8 @@ Phase 3-patch additions (2026-04-16): 22 new BCs added in Burst 1 to close trace
 - Subsystem 19: Infusion Enrichment Framework (AD-020, CAP-031)
 
 ### Change Log (Adversarial Review Fixes)
+
+**v4.49 (2026-05-09):** D-312 S-WAVE5-PREP-01 fix-pass-3 spec track — BC-2.05.012 v1.0→v1.1 amendment per research-agent recommendation + adversary F-PASS3-MED-1 closure. Description lines 31-32 clarify BootAuditEmitter is the boot-time specialization distinct from request-time AuditEmitterLayer; Postcondition bullets 1+4 reflect the two-phase emitter design; OQ-2 marked resolved. Research artifact: audit-emitter-architecture-2026-05-09.md. No count changes (total_contracts=235 unchanged).
 
 **v4.48 (2026-05-08):** D-307 Bundle B Phase B-1b Option (d) — 5 new BCs registered (lifecycle: draft, all anchored to S-WAVE5-PREP-01): BC-2.03.013 (CredentialStore init, SS-03, CAP-004), BC-2.05.012 (AuditEmitter init, SS-05, CAP-007), BC-2.06.011 (ConfigManager init, SS-06, CAP-009), BC-2.21.001 (OrgRegistry init — first BC under SS-21, CAP-038), BC-2.22.001 (Boot orchestration — first BC under SS-22, CAP-034). total_contracts 230→235; active_contracts unchanged at 222 (5 new BCs are draft; promote to active per ADR-021/POL-14 when S-WAVE5-PREP-01 merges). Count-propagation sweep: updated flat index header line, frontmatter total_contracts.
 

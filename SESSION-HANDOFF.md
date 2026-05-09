@@ -1,11 +1,11 @@
 ---
 document_type: session-handoff
 level: ops
-version: "7.60"
+version: "7.61"
 status: current
-timestamp: 2026-05-09T00:00:00Z
-predecessor_session: "D-310 S-WAVE5-PREP-01 LOCAL pass-2 BLOCKED-hard persisted. 11 findings: 1C/3H/3M/1L + 3OBS + 3K + 2PG. Streak 0/3. STATE v7.59→v7.60."
-successor_focus: "S-WAVE5-PREP-01 fix-pass-3 (parallel): (a) product-owner amends BC-2.05.012 per research-agent's proposed text — Description line 31-32, Postconditions line 58 + 64-65, OQ-2 resolution; (b) implementer closes F-PASS3-HIGH-1 (cred-ref integration test with N>0 fixture in spec_tmp) + F-PASS3-LOW-1 (delete stale fix-pass-2 comment at boot.rs:786-788) + F-PASS3-OBS-1/2 (BootAuditEmitter + append_audit_entry_sync owning-crate unit tests). Then adversary pass-4.
+timestamp: 2026-05-09T08:00:00Z
+predecessor_session: "D-312 S-WAVE5-PREP-01 fix-pass-3 complete. All pass-3 findings closed (2 tracks). BC-2.05.012 v1.1 amendment + code track 345f443b (3456 pass / 0 fail). Adversary pass-4 dispatched. STATE v7.61→v7.62."
+successor_focus: "Adversary pass-4 in flight; if CLEAN → streak 1/3 (need 3 consecutive). If BLOCKED → fix-pass-4 dispatch.
 
 **STEP 1 (START HERE):** Read STATE.md v7.30 + this HANDOFF v7.30 in full. Confirm develop HEAD `c867c344` (PR #132 S-3.05 squash-merged 2026-05-07T16:46:01Z). S-3.04 + S-3.03 LOCAL cascades CONVERGED-BY-BEST-EFFORT 3/3 — both ready for PR creation. S-3.07 LOCAL cascade pending dispatch.
 
@@ -19,7 +19,7 @@ successor_focus: "S-WAVE5-PREP-01 fix-pass-3 (parallel): (a) product-owner amend
 - STATE.md v7.30: develop@c867c344 (PR #127 squash 2d7040b1 + PR #128 squash 3e858f9f + PR #130 squash 2a7b83f5 + PR #129 squash 6fefc774 + PR #131 squash e7da9852 + PR #132 squash c867c344, 2026-05-06/07); factory-artifacts HEAD: run git -C .factory log -1 (TD-VSDD-053)
 - D-260: PR #129 S-3.02 MERGED 6fefc774 2026-05-07; tier-2 COMPLETE; 2993 tests; STORY-INDEX v2.14
 - D-246: PR #127 S-3.01 MERGED 2d7040b1 + PR #128 TD-VSDD-058 MERGED 3e858f9f 2026-05-06
-- BC-INDEX v4.48, VP-INDEX v1.29, HOLDOUT-INDEX v1.3, invariants.md v1.5, L2-INDEX v1.13, STORY-INDEX v2.30, ARCH-INDEX v2.36, module-decomposition v1.16
+- BC-INDEX v4.49, VP-INDEX v1.29, HOLDOUT-INDEX v1.3, invariants.md v1.5, L2-INDEX v1.13, STORY-INDEX v2.30, ARCH-INDEX v2.36, module-decomposition v1.16
 
 develop HEAD: c867c344 (six PRs merged 2026-05-06/07: #127 S-3.01 2d7040b1, #128 TD-VSDD-058 3e858f9f, #130 S-3.06 2a7b83f5, #129 S-3.02 6fefc774, #131 e7da9852, #132 S-3.05 c867c344; factory-artifacts HEAD: run git -C .factory log -1 per TD-VSDD-053)."
 ---
@@ -27,6 +27,8 @@ develop HEAD: c867c344 (six PRs merged 2026-05-06/07: #127 S-3.01 2d7040b1, #128
 # Session Handoff — WAVE 4 PHASE 4.A DECISIONS LOGGED (2026-05-02)
 
 ## TL;DR
+
+**D-312 (2026-05-09) — S-WAVE5-PREP-01 fix-pass-3 complete. All pass-3 findings closed across two parallel tracks. (a) Code track at worktree HEAD 345f443b: F-PASS3-HIGH-1 closed (cred-ref behavioral coverage via CredentialRefProbe trait injection — AlwaysOkProbe/MissingOneProbe mocks; +2 tests in prism-bin); F-PASS3-LOW-1 closed (stale fix-pass-2 comment deleted at boot.rs:786-788); F-PASS3-OBS-1 closed (+4 unit tests in prism-audit for BootAuditEmitter::new/emit/into_backend/failure); F-PASS3-OBS-2 closed (+3 unit tests in prism-storage for append_audit_entry_sync flush_wal/cf-check/error-propagation). just check: 3456 pass / 17 skipped / 0 fail. (b) Spec track: PO amended BC-2.05.012 v1.0→v1.1 per research-agent's proposed text — Description lines 31-32 clarify BootAuditEmitter is the boot-time specialization distinct from request-time AuditEmitterLayer; Postcondition bullets 1+4 reflect the two-phase emitter design; OQ-2 marked resolved. Closes F-PASS3-MED-1 BC drift. BC-INDEX v4.48→v4.49. Adversary pass-4 dispatched in parallel for closure verification + fresh-eyes scan. STATE v7.61→v7.62. SESSION-HANDOFF v7.60→v7.61.**
 
 **D-311 (2026-05-09) — S-WAVE5-PREP-01 LOCAL adversary pass-3 verdict BLOCKED-soft. Branch `feature/S-WAVE5-PREP-01-prism-bin-chassis` @ `5469b3b4`. 5 findings: 0C/1H/1M/1L + 2OBS + 4K. Streak 0/3 reset. Severity trend decisively decreasing (pass-1 1C/3H → pass-2 1C/3H → pass-3 0C/1H). 11 of 13 pass-2 findings CLOSED; 1 OPEN-partial (F-PASS2-HIGH-3: data model fixed in prism-spec-engine but integration test still uses empty credential_refs fixture → elevated to F-PASS3-HIGH-1); 1 OPEN-LOW (F-PASS2-OBS-3: fix-pass-2 comment falsely claimed S-5.01-FOLLOWUP-MCP-BOOT story doesn't exist — it does at STORY-INDEX line 387). NEW: F-PASS3-HIGH-1 (cred-ref behavioral coverage gap — boot.rs:712-728 iteration loop never exercised; need integration test with N>0 credential_refs in spec_tmp fixture); F-PASS3-MED-1 (BC-2.05.012 postcondition 4 drift — BootAuditEmitter dropped at end of boot() scope, not propagated forward); F-PASS3-LOW-1 (stale fix-pass-2 comment at boot.rs:786-788 — delete 3-line block); F-PASS3-OBS-1/2 (BootAuditEmitter + append_audit_entry_sync lack owning-crate unit tests). 4 KUDOs. Concurrently: research-agent investigated AuditEmitter-refactor-vs-BootAuditEmitter question; recommendation KEEP BootAuditEmitter + amend BC-2.05.012. Research-agent's recommendation closes F-PASS3-MED-1 via BC amendment. Two independent analyses converged on same architectural answer. Fix-pass-3 parallel dispatch: (a) product-owner amends BC-2.05.012; (b) implementer adds cred-ref integration test + deletes stale comment. Reports: `cycles/wave-4-operations/adversarial-reviews/s-wave5-prep-01-local-pass-3.md` + `cycles/wave-4-operations/research/audit-emitter-architecture-2026-05-09.md`. STATE v7.60→v7.61. SESSION-HANDOFF v7.59→v7.60.**
 
