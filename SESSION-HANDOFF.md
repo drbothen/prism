@@ -1,13 +1,13 @@
 ---
 document_type: session-handoff
 level: ops
-version: "7.63"
+version: "7.64"
 status: current
-timestamp: 2026-05-09T08:00:00Z
-predecessor_session: "D-314 S-WAVE5-PREP-01 LOCAL adversary pass-4 CLEAN (first clean pass; streak 1/3; 0C/0H/0M/2L/3OBS+5KUDOs). STATE v7.63→v7.64. SESSION-HANDOFF v7.62→v7.63."
-successor_focus: "S-WAVE5-PREP-01 fix-pass-4 (parallel): PO BC cleanup (F-PASS4-LOW-2 phantom failure path) + implementer LOW-1 doclink + OBS-1 timestamp skew + OBS-2 SIGTERM log message. Then adversary pass-5 (target streak 2/3). OBS-3 deferred to TD.
+timestamp: 2026-05-09T00:00:00Z
+predecessor_session: "D-315 Multi-track closure burst: BC-2.05.012 v1.2 + develop pin 1058b24d + fix-pass-4 closure at be6228f0 (sentinel-file handshake). STATE v7.64→v7.65. SESSION-HANDOFF v7.63→v7.64."
+successor_focus: "S-WAVE5-PREP-01 LOCAL adversary pass-5 (target streak 2/3). Worktree HEAD be6228f0. Then pass-6 for streak 3/3 → merge-ready. Pass-5 verifies: F-PASS4 closures (LOW-1/2 + OBS-1/2), flaky-test sentinel-file fix, BC-2.05.012 v1.2 amendment, no new defects from sentinel-file harness. After 3-CLEAN convergence: rebase onto develop (which advanced via PR #137), then full PR cycle for chassis story.
 
-**STEP 1 (START HERE):** Read STATE.md v7.64 + this HANDOFF v7.63 in full. Confirm develop HEAD `3898bd58` (CLAUDE.md TDD inner-loop discipline maintenance commit by technical-writer 2026-05-09). S-WAVE5-PREP-01 adversary pass-4 CLEAN (D-314; streak 1/3). Fix-pass-4 dispatch next: PO amends BC-2.05.012 §Failure Modes (F-PASS4-LOW-2); implementer fixes boot.rs:522 doclink (F-PASS4-LOW-1) + single Utc::now() (F-PASS4-OBS-1) + SIGTERM deferral note (F-PASS4-OBS-2 optional); OBS-3 → TD. Then adversary pass-5.
+**STEP 1 (START HERE):** Read STATE.md v7.65 + this HANDOFF v7.64 in full. Confirm develop HEAD `1058b24d` (PR #137 CLAUDE.md TDD inner-loop discipline squash-merged 2026-05-09T18:12:29Z). S-WAVE5-PREP-01 fix-pass-4 CLOSED at HEAD `be6228f0`. All 4 LOWs/OBS actionable items resolved. Flaky SIGTERM test fixed via sentinel-file readiness handshake. Streak now targets pass-5 → 2/3. [process-rule active]: NO #[ignore] deferrals as first-line response to test failures.
 
 **STEP 2 (TIER-3 DISPATCH):** Dispatch Tier-3 stories (S-3.03/04/05/07 unblocked by S-3.02 + S-3.06 both merged). Priority: S-3.03 (Explain/Query Diagnostics, 1pt, fastest win) first; then S-3.04 (Alias System P1, 5pts) + S-3.05 (Pagination/Caching, 6pts) in parallel. S-3.07 (Write Execution Pipeline, 5pts) also unblocked (deps: S-3.02 + S-3.06 both merged). Devops: create worktrees from develop HEAD `6fefc774` before dispatching per-story-delivery cycles.
 
@@ -19,14 +19,16 @@ successor_focus: "S-WAVE5-PREP-01 fix-pass-4 (parallel): PO BC cleanup (F-PASS4-
 - STATE.md v7.30: develop@c867c344 (PR #127 squash 2d7040b1 + PR #128 squash 3e858f9f + PR #130 squash 2a7b83f5 + PR #129 squash 6fefc774 + PR #131 squash e7da9852 + PR #132 squash c867c344, 2026-05-06/07); factory-artifacts HEAD: run git -C .factory log -1 (TD-VSDD-053)
 - D-260: PR #129 S-3.02 MERGED 6fefc774 2026-05-07; tier-2 COMPLETE; 2993 tests; STORY-INDEX v2.14
 - D-246: PR #127 S-3.01 MERGED 2d7040b1 + PR #128 TD-VSDD-058 MERGED 3e858f9f 2026-05-06
-- BC-INDEX v4.49, VP-INDEX v1.29, HOLDOUT-INDEX v1.3, invariants.md v1.5, L2-INDEX v1.13, STORY-INDEX v2.30, ARCH-INDEX v2.36, module-decomposition v1.16
+- BC-INDEX v4.50, VP-INDEX v1.29, HOLDOUT-INDEX v1.3, invariants.md v1.5, L2-INDEX v1.13, STORY-INDEX v2.30, ARCH-INDEX v2.36, module-decomposition v1.16
 
-develop HEAD: c867c344 (six PRs merged 2026-05-06/07: #127 S-3.01 2d7040b1, #128 TD-VSDD-058 3e858f9f, #130 S-3.06 2a7b83f5, #129 S-3.02 6fefc774, #131 e7da9852, #132 S-3.05 c867c344; factory-artifacts HEAD: run git -C .factory log -1 per TD-VSDD-053)."
+develop HEAD: 1058b24d (PR #137 CLAUDE.md TDD inner-loop discipline squash-merged 2026-05-09T18:12:29Z; factory-artifacts HEAD: run git -C .factory log -1 per TD-VSDD-053)."
 ---
 
 # Session Handoff — WAVE 4 PHASE 4.A DECISIONS LOGGED (2026-05-02)
 
 ## TL;DR
+
+**D-315 (2026-05-09) — Multi-track closure burst. (a) PR #137 (CLAUDE.md TDD inner-loop discipline) squash-merged at develop `1058b24d`; full 9-step protocol completed; APPROVE in 1 review cycle; 4 non-blocking findings tracked as follow-up maintenance PR. (b) BC-2.05.012 v1.1→v1.2 — F-PASS4-LOW-2 closure: §Failure paths + Error Cases updated to describe RocksDbBackend::open failure (BootAuditEmitter::new is infallible). (c) S-WAVE5-PREP-01 fix-pass-4 CLOSED at HEAD `be6228f0`: F-PASS4-LOW-1 (doclink) + F-PASS4-OBS-1 (single Utc::now()) + F-PASS4-OBS-2 (honest SIGTERM log) closed; flaky SIGTERM test ACTUALLY FIXED via sentinel-file readiness handshake (root cause: RocksDB init race vs hardcoded sleep, NOT stdio piping). 5/5 runs pass ~1s; just check 3456/17 skipped/0 fail. [process-rule]: NO #[ignore] deferrals as first-line response. STATE v7.64→v7.65; SESSION-HANDOFF v7.63→v7.64; BC-INDEX v4.49→v4.50; develop_head 3898bd58→1058b24d.**
 
 **D-314 (2026-05-09) — S-WAVE5-PREP-01 LOCAL adversary pass-4 verdict CLEAN. First clean pass in cascade. Severity trend decisively decreasing: pass-1 1C/3H/5M/3L/3OBS → pass-2 1C/3H/3M/1L/3OBS → pass-3 0C/1H/1M/1L/2OBS → pass-4 0C/0H/0M/2L/3OBS+5KUDOs. All 5 pass-3 findings verified CLOSED. NEW non-blocking: F-PASS4-LOW-1 (broken intra-doc link MockCredentialRefProbe at boot.rs:522), F-PASS4-LOW-2 (BC-2.05.012 §Failure Modes phantom AuditEmitter::new() failure path), F-PASS4-OBS-1 (sentinel timestamp skew — two Utc::now() calls), F-PASS4-OBS-2 (SIGTERM "Audit buffer flushed" misleading — pre-existing, BC-2.10.010 deferred), F-PASS4-OBS-3 (closure tests feature-gated, silently skipped under just iter — TD candidate). 5 KUDOs. Convergence streak 0/3 → 1/3. fix-pass-4 recommended (PO: LOW-2; implementer: LOW-1 + OBS-1 + optional OBS-2; OBS-3 → TD). STATE v7.63→v7.64. SESSION-HANDOFF v7.62→v7.63.**
 

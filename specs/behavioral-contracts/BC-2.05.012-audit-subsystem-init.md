@@ -1,7 +1,7 @@
 ---
 document_type: behavioral-contract
 level: L3
-version: "1.1"
+version: "1.2"
 status: draft
 producer: product-owner
 timestamp: 2026-05-08T00:00:00Z
@@ -77,9 +77,13 @@ path for this step at or after story S-WAVE5-PREP-01 merges (POL-12 enforcement)
 - The process exits with code **4**
 - Step 7 never begins
 
-**Failure path — AuditEmitter construction failure:**
-- The `AuditEmitter::new()` constructor returns an error (internal initialization failure)
-- The process emits a `tracing::error!` describing the failure
+**Failure path — RocksDB backend construction failure:**
+- `boot.rs::step6_init_audit` opens the RocksDB instance via `RocksDbBackend::open(state_dir)`
+  before constructing `BootAuditEmitter`. If this open fails (LOCK conflict from another process,
+  corrupted SST files, missing column families), step 6 returns `BootError::AuditInitFailed` and
+  the process exits with code **4**. `BootAuditEmitter::new(backend)` itself is infallible — it
+  only wraps the `Arc<RocksDbBackend>` returned by step 6's storage open.
+- The process emits a `tracing::error!("Audit subsystem init failed: {err}")` log
 - The process exits with code **4**
 - Step 7 never begins
 
@@ -127,7 +131,7 @@ avoid leaking filesystem layout in audit logs that may be forwarded externally.
 |------------|-----------|----------|
 | Exit 4 | RocksDB cannot open `audit_buffer` CF | "Audit subsystem init failed: RocksDB CF open error: {detail}"; exit 4 |
 | Exit 4 | RocksDB WAL directory not writable | "Audit subsystem init failed: WAL unwriteable: {path}"; exit 4 |
-| Exit 4 | `AuditEmitter::new()` returns Err | "Audit subsystem init failed: {err}"; exit 4 |
+| Exit 4 | RocksDB backend cannot open at `state_dir` | `boot.rs::step6_init_audit` fails before `BootAuditEmitter::new` is called; `BootAuditEmitter::new` itself is infallible — it only wraps the `Arc<RocksDbBackend>` returned by the storage open |
 | Exit 4 | `boot.audit.initialized` sentinel write fails | "Audit subsystem init failed: sentinel persistence error"; exit 4 |
 | Exit 4 | Disk full during CF open | "Audit subsystem init failed: no space left on device"; exit 4 |
 
@@ -240,3 +244,4 @@ this boot step; see Verification Properties)
 | 1.0 | bundle-B-phase-B-1b-ss22-bcs-2026-05-08 | 2026-05-08 | product-owner | Initial authorship — Bundle B Phase B-1b SS-22 boot-sequence BCs |
 | 1.0 | redirect-option-d-2026-05-08 | 2026-05-08 | product-owner | Relocated from BC-2.22.004 (SS-22) to BC-2.05.012 (SS-05 Audit Trail) per Option (d) decomposition. Capability anchor updated CAP-034 → CAP-007. EC/TV IDs renumbered to EC-05-012-NNN / TV-05-012-NNN. OQ-2 preserved (sentinel schema confirmation). |
 | 1.1 | adversary-f-pass3-med-1-amendment-2026-05-09 | 2026-05-09 | product-owner | Amendment per research-agent recommendation + adversary F-PASS3-MED-1 closure — clarify BootAuditEmitter is the boot-time specialization distinct from request-time AuditEmitterLayer; resolve OQ-2. Research artifact: audit-emitter-architecture-2026-05-09.md. |
+| 1.2 | f-pass4-low-2-cleanup-2026-05-09 | 2026-05-09 | product-owner | F-PASS4-LOW-2 closure — clarify §Failure paths and Error Cases that BootAuditEmitter::new is infallible; the fallible step is RocksDbBackend::open(state_dir). Removed phantom "AuditEmitter construction failure" failure path; replaced with accurate "RocksDB backend construction failure" path. |

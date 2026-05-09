@@ -1,7 +1,7 @@
 ---
 document_type: behavioral-contract-index
 level: L3
-version: "4.49"
+version: "4.50"
 status: draft
 producer: state-manager
 timestamp: 2026-05-09T00:00:00
@@ -359,6 +359,8 @@ Phase 3-patch additions (2026-04-16): 22 new BCs added in Burst 1 to close trace
 - Subsystem 19: Infusion Enrichment Framework (AD-020, CAP-031)
 
 ### Change Log (Adversarial Review Fixes)
+
+**v4.50 (2026-05-09):** D-315 S-WAVE5-PREP-01 fix-pass-4 spec track — BC-2.05.012 v1.1→v1.2 amendment, F-PASS4-LOW-2 closure: §Failure paths and Error Cases table updated to describe RocksDbBackend::open failure (the actually-fallible step) instead of phantom AuditEmitter::new failure (BootAuditEmitter::new is infallible). 4 edits, 247 lines. No count changes (total_contracts=235 unchanged).
 
 **v4.49 (2026-05-09):** D-312 S-WAVE5-PREP-01 fix-pass-3 spec track — BC-2.05.012 v1.0→v1.1 amendment per research-agent recommendation + adversary F-PASS3-MED-1 closure. Description lines 31-32 clarify BootAuditEmitter is the boot-time specialization distinct from request-time AuditEmitterLayer; Postcondition bullets 1+4 reflect the two-phase emitter design; OQ-2 marked resolved. Research artifact: audit-emitter-architecture-2026-05-09.md. No count changes (total_contracts=235 unchanged).
 
