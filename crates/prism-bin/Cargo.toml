@@ -6,6 +6,17 @@ description = "Prism binary — CLI entry point, boot sequence, signal handlers 
 license = "MIT"
 publish = false
 
+# CRIT-1 (S-WAVE5-PREP-01 fix-pass-1): Feature flag that gates ALL PRISM_TEST_*
+# env-var reads. This feature MUST NOT be enabled in default features — it only
+# activates in integration test builds that need subprocess injection.
+# The release binary has zero test-injection code paths with this gate.
+# Enable via: cargo test --features test-injection (or in [dev-dependencies] test config).
+[features]
+default = []
+# test-injection: gates PRISM_TEST_INJECT_PANIC, PRISM_TEST_INJECT_FAIL_STEP,
+# and PRISM_TEST_STOP_AFTER_STEP env-var reads. Never enabled in production builds.
+test-injection = []
+
 # ADR-022 §A: prism-bin is the ONLY [[bin]] target in the workspace.
 [[bin]]
 name = "prism"
@@ -39,6 +50,7 @@ chrono = { version = "0.4", features = ["serde"] }
 [dev-dependencies]
 tempfile = "3"
 libc = "0.2"
+serde_json = "1"
 
 [lints.clippy]
 # Inherited from workspace: workspace lint inheritance is not yet available
