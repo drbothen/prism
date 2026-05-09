@@ -422,12 +422,20 @@ pub async fn step3_init_org_registry(
             ))
         })?;
 
-        // LOW-3 (S-WAVE5-PREP-01 fix-pass-1): strict UUID v7 validation.
+        // F-PASS2-MED-3 + LOW-3 (S-WAVE5-PREP-01): strict UUID v7 validation.
         // BC-2.21.001 EC-21-001-008: non-v7 UUID → exit 2 with "must be a UUID v7".
+        //
+        // Validation order (F-PASS2-MED-3 documentation):
+        // 1. UUID parse (valid hex format with dashes) — Err → exit 2 "must be a valid UUID"
+        // 2. UUID version check (Version::SortRand = v7) — mismatch → exit 2 "must be a UUID v7"
+        // 3. Slug kebab-case check — invalid → exit 2 "must be kebab-case"
+        // 4. Bijectivity check — duplicate → exit 2 "Duplicate org_id/org_slug"
+        // All checks occur in this order per the BC-2.21.001 postconditions spec.
         if org_uuid.get_version() != Some(uuid::Version::SortRand) {
             return Err(BootError::OrgRegistryFailed(format!(
-                "Invalid org_id '{}': must be a UUID v7 (time-ordered, version 7); \
-                 got version {:?} (BC-2.21.001 EC-21-001-008)",
+                "org_id '{}' must be a UUID v7 (time-ordered, version 7); \
+                 got version {:?} — generate with uuid::Uuid::now_v7() \
+                 (BC-2.21.001 EC-21-001-008)",
                 entry.org_id,
                 org_uuid.get_version()
             )));

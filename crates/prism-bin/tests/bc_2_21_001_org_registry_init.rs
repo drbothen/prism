@@ -248,6 +248,46 @@ fn test_BC_2_21_001_malformed_slug_uppercase_exits_two() {
 // BC-2.21.001 — bijectivity invariant: exit code is exactly 2 on all failures
 // ---------------------------------------------------------------------------
 
+// ---------------------------------------------------------------------------
+// BC-2.21.001 — non-v7 UUID exits 2 with "must be a UUID v7" (EC-21-001-008)
+// ---------------------------------------------------------------------------
+
+/// Story: S-WAVE5-PREP-01 F-PASS2-MED-3
+/// BC: BC-2.21.001 EC-21-001-008 — org_id with non-v7 UUID → exit 2 + "must be a UUID v7"
+///
+/// Uses a UUID v4 (550e8400-...) which passes format validation but fails version check.
+/// BC-2.21.001 EC-21-001-008 specifies exact error message: "must be a UUID v7".
+#[test]
+fn test_BC_2_21_001_non_v7_uuid_exits_two_with_must_be_uuid_v7_message() {
+    let config_dir = fixture_dir("non-v7-uuid");
+    let output = Command::new(prism_bin())
+        .args(["validate-config"])
+        .env("PRISM_CONFIG_DIR", &config_dir)
+        .output()
+        .expect("failed to spawn prism binary");
+
+    assert_eq!(
+        output.status.code(),
+        Some(2),
+        "Non-v7 org_id UUID must exit 2 (BC-2.21.001 EC-21-001-008); \
+         got exit {:?}; stderr: {}",
+        output.status.code(),
+        String::from_utf8_lossy(&output.stderr)
+    );
+
+    let combined = format!(
+        "{}{}",
+        String::from_utf8_lossy(&output.stdout),
+        String::from_utf8_lossy(&output.stderr)
+    );
+    // BC-2.21.001 EC-21-001-008: error must contain "must be a UUID v7"
+    assert!(
+        combined.contains("must be a UUID v7"),
+        "Error output must contain 'must be a UUID v7' per BC-2.21.001 EC-21-001-008; \
+         got: {combined}"
+    );
+}
+
 /// Story: S-WAVE5-PREP-01
 /// BC: BC-2.21.001 Invariant: exit code on any OrgRegistry failure is exactly 2
 /// (never 1, 4, or 5).
