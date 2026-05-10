@@ -31,7 +31,10 @@ use clap::{Parser, Subcommand};
 #[command(name = "prism", about = "Prism MCP server for MSSP sensor management")]
 #[command(version)]
 pub struct CliArgs {
-    /// Override the config directory (default: ~/.prism/).
+    /// Override the config directory.
+    /// Default: OS-canonical config dir joined with "prism"
+    ///   (~/.config/prism/ on Linux, ~/Library/Application Support/prism/ on macOS,
+    ///    %APPDATA%\prism\ on Windows).
     /// Env var: PRISM_CONFIG_DIR.
     #[arg(long, global = true, env = "PRISM_CONFIG_DIR")]
     pub config_dir: Option<PathBuf>,
