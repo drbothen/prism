@@ -1,9 +1,9 @@
 ---
 document_type: pipeline-state
 level: ops
-version: "7.85"
+version: "7.86"
 producer: state-manager
-timestamp: 2026-05-10T17:00:00Z
+timestamp: 2026-05-10T18:30:00Z
 inputs: []
 input-hash: "[live-state]"
 traces_to: ""
@@ -176,7 +176,7 @@ workspace_test_count: 3489  # 891 prism-query + workspace total (per implementer
 | **Language** | Rust |
 | **Target Workspace** | per-analyst stdio (MCP server) |
 | **Started** | 2026-04-13 |
-| **Last Updated** | 2026-05-10 (D-334 — ADR-023 pass-1 adversary review + user-decided fix-burst plan; STATE v7.84→v7.85) |
+| **Last Updated** | 2026-05-10 (D-335 — ADR-023 pass-2 NOT_CLEAN 16 findings; 2 process-gap TDs; STATE v7.85→v7.86) |
 | **Current Phase** | Wave 3 Tier-3 COMPLETE — **Wave 3-A 4 of 4 SHIPPED**: S-3.05 (#132 c867c344), S-3.04 (#133 57745ce8), S-3.03 (#134 7c413692), **S-3.07 (#135 2ae7185b MERGED 2026-05-08T04:23:03Z)**; post-merge cleanup confirmed; NEXT: Wave 3-B/C or Wave 4 unblock |
 | **Current Step** | D-299 — Plugin system FULL audit COMPLETE. 14 P0/P1 deferrals discovered (8 P0 + 6 P1). Stub-merged Wave-1 items: S-1.12/1.14/1.15 (3 stubs). No production binary loads sensors/*.toml. 13 new TDs filed (TD-PLUGIN-P0-001..008 + P1-001..005). S-3.09 FROZEN. Strategic direction needed: (a) full plugin completion epic, (b) min-viable plugin wiring, or (c) other path. |
 
@@ -213,6 +213,7 @@ _D-001..D-046 archived: [cycles/phase-3-dtu-wave-2/decisions-archive-d001-d032.m
 
 | ID | Decision | Rationale | Phase | Date |
 |----|----------|-----------|-------|------|
+| D-335 | ADR-023 pass-2 NOT_CLEAN — 16 findings (2C/4H/5M/3L/2O), 2 residuals + 14 new. Pass-2 fresh-context review of ADR-023 v1.1 surfaces 2 pass-1 residuals (F-MED-001/F-MED-004 closed by adopting pass-1's factually-wrong proposed-fix language verbatim) + 14 new defects. Top 3: spec_parser.rs has zero CustomAdapter references (claim wrong in 2 ADR sections); sandbox URL-allowlist claim contradicts implementation (allowed_urls: None TODO); ADR-022 v1.2 amendment scheduled for both end-of-Wave-1 AND Wave-2/G simultaneously. Streak resets to 0/3. 2 new process-gap TDs: TD-ADR-AMEND-001 augmented with bidirectional consistency requirement, TD-FIX-BURST-VERIFY-001 P2 — architect must verify adversary proposed-fix factual claims against source-of-truth before verbatim adoption. Fix-burst-2 dispatch ADR-023 v1.2 closing 16 findings; then pass-3 (target CLEAN). | review(ADR-023-pass-2) | 4 | 2026-05-10 |
 | D-334 | ADR-023 pass-1 adversary review + user-decided fix-burst plan. Adversary pass-1 surfaced 26 findings (4C/9H/7M/4L/5O); 5 process-gap-tagged. User decisions: (1) confirm Rule 5 — retire CustomAdapter; .prx WASM sole escape hatch; (2) defer plugin signing to v1.0+1 — ship unsigned + boot warning + audit log + TD-PLUGIN-SIGNING-001 P0; (3) reorder Wave 1 — replacement before deletion (D→E→A→B→C), parity-test gate at every PR boundary; (4) add Wave 0/F — S-PLUGIN-PREREQ-F BC+DI amendments BEFORE code (3-5 SP), depends-on: blocks PREREQ-A through E. Fix-burst plan: architect ADR-023 v1.1 amendment → product-owner Wave 0/F BC+DI sweep → architect production-runtime-wiring decision v1.2 amendment → adversary pass-2. 5 process-gap OBS tracked as TDs (TD-ADR-AMEND-001, TD-AUDIT-ADR-001, TD-USER-DECISION-001, TD-SIGNING-PREREQ-001, TD-ADR-OPEN-Q-001) — not blocking. STORY-INDEX v2.33→v2.34 (PLUGIN-PREREQ-F added; total 149→150). | review(ADR-023-pass-1): 26 findings; 4 user decisions; fix-burst plan set; Wave 0/F added; 5 process-gap TDs registered | 4 | 2026-05-10 |
 | D-333 | PLUGIN-AUDIT-001 → Bundle B Phase B-2 BLOCKED. User surfaced plugin-only architecture violation. codebase-analyzer audit (21 findings: 8C/5H/3M/3L/2O) catalogued built-in sensor violations: closed SensorType enum keystone, 4 hardcoded sensor-named Rust auth modules, sealed SensorAuth trait, 5 prism-query dispatch sites by sensor name, 4 in-tree OCSF mapper modules, dead CustomAdapterRegistry. User decisions: (1) Hybrid OCSF — TOML column ocsf_field 80% + in-repo .prx WASM transformers 20%; (2) Un-seal SensorAuth entirely; (3) Reverse-engineer TOMLs from Rust adapters with DTU-parity tests; (4) CrowdStrike OAuth2 refresh-on-401 as in-repo .prx WASM plugin; (5) Retire CustomAdapter Rust trait — .prx WASM sole escape hatch. Migration: 13 stories ~100-140 SP, 3 waves (Wave 0: 5 prereq stories; Wave 1: 5 deletion+replacement; Wave 2: 3 cleanup). All Bundle B Phase B-2 stories BLOCKED until plugin migration completes: W3-FIX-S307-001/002, S-1.12-FOLLOWUP, S-1.14-REDO, S-5.01-FOLLOWUP-MCP-BOOT. Worktree feature/W3-FIX-S307-001@fcab8717 retained but inactive. Audit at .factory/cycles/wave-4-operations/audits/plugin-only-violations-2026-05-10.md. | PLUGIN-AUDIT-001: user mandate plugin-only architecture — 21 violations catalogued; 5 user decisions recorded; 13-story migration sequence planned; Phase B-2 BLOCKED pending Wave 0+1 | 4 | 2026-05-10 |
 | D-332 | Bundle B Phase B-2 step 8 (S-3.02-FOLLOWUP-RUNTIME) MERGED + closed; Phase B-2 has 4 remaining stories: S-5.01-FOLLOWUP-MCP-BOOT (step 9, 8pt), S-1.12-FOLLOWUP notify-watcher (step 10, 3pt), S-1.14-REDO infusion engine, W3-FIX-S307-001/002 sensor adapter writes; user-directed PRE-COMPACT CHECKPOINT before continuing Bundle B; Bundle B Exit Mandate (task #85) gates after all 5 stories merge | PRE-COMPACT CHECKPOINT — preserve Bundle B Phase B-2 continuation state across context compaction | 4 | 2026-05-10 |

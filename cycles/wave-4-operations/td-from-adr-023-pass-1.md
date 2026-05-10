@@ -174,3 +174,38 @@ section; these questions either appear inline in prose (hard to track) or are lo
   moves from PROPOSED to COMMITTED status, unless explicitly marked as "resolve during implementation."
 - The consistency-validator skill should check that no ADR has open questions in COMMITTED status
   without corresponding TD tickets for each unresolved question.
+
+---
+
+## TD-ADR-AMEND-001 — Augmentation (from ADR-023 pass-2, F-OBS-NEW-001)
+
+_Added 2026-05-10 per D-335. Extends the original TD-ADR-AMEND-001 with a bidirectional consistency requirement._
+
+The original TD-ADR-AMEND-001 specifies a one-directional check: for any ADR with non-empty `retires_bcs`, the referenced BCs must have `lifecycle_status: deprecated`. The missing complementary check is the reverse direction: if a BC's `deprecated_by:` or `scheduled-amendment-in:` field references an ADR, that ADR must exist and be in PROPOSED or COMMITTED status.
+
+**Required augmentation to TD-ADR-AMEND-001:**
+- Add to the state-manager validator: "For any BC with `deprecated_by: ADR-NNN` or `scheduled_amendment_in: ADR-NNN`, verify that ADR-NNN exists and is in PROPOSED or COMMITTED status. If the ADR is in DRAFT or does not exist, flag as a consistency violation."
+- This bidirectional check prevents BCs from claiming scheduled deprecation by ADRs that were never completed.
+
+---
+
+## TD-FIX-BURST-VERIFY-001 — Fix-burst architect must verify adversary proposed-fix factual claims against source-of-truth before verbatim adoption
+
+| Field | Value |
+|-------|-------|
+| **ID** | TD-FIX-BURST-VERIFY-001 |
+| **Priority** | P2 |
+| **Target** | v1.1 (methodology, must land before next fix-burst cycle) |
+| **Category** | methodology |
+| **Source** | F-OBS-NEW-002 from ADR-023 pass-2 |
+| **Decision** | D-335 |
+
+**Description:** Two pass-1 findings (F-MED-001, F-MED-004, re-opened in pass-2 as F-CRIT-NEW-001-PASS2-RESIDUAL and F-MED-NEW-001-PASS2-RESIDUAL) had factually incorrect proposed-fix text. The ADR-023 v1.1 amendment closed them by adopting that text verbatim. This is a structural risk in the pass-N→fix-burst→pass-N+1 cycle: the adversary writes from an information-asymmetric context (read-only profile, no code execution). Proposed-fix language is directionally correct but may be factually imprecise. When the fix-burst architect adopts proposed-fix language verbatim without verifying the underlying factual claim against source-of-truth, adversary errors propagate directly into the specification body.
+
+Root cause of ADR-023 pass-2 residuals: architect did not read `crates/prism-spec-engine/src/spec_parser.rs` before authoring or accepting fix language about that file. The file has zero CustomAdapter references; the proposed fix said "replace prism-spec-engine with prism-core" but also described an invocation path that does not exist. Verification would have taken 30 seconds.
+
+**Codification required:** "Before adopting any adversary proposed-fix language verbatim into a spec body, the architect MUST verify the underlying factual claim against current source-of-truth (BC, code, audit). If verification fails, the fix-burst MUST author remediation language from scratch and document the divergence. PR review checklist must include explicit line item: 'I verified each adopted proposed-fix claim against source-of-truth.'"
+
+**Implementation note:** Add to fix-burst SKILL.md architect agent prompt template and to the PR review checklist template. This is a standing methodology requirement applicable to all ADR fix-bursts, not ADR-023-specific.
+
+**Target release:** v1.1 (methodology; must be codified before any subsequent ADR fix-burst dispatches).
