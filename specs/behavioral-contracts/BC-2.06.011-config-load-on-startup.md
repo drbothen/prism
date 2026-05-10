@@ -1,7 +1,7 @@
 ---
 document_type: behavioral-contract
 level: L3
-version: "1.1"
+version: "1.2"
 status: draft
 producer: product-owner
 timestamp: 2026-05-08T00:00:00Z
@@ -29,8 +29,10 @@ how `prism-bin` loads, deserializes, and validates `prism.toml` at the beginning
 boot step 2 (per ADR-022 §B). The orchestration of this and the other 3 subsystem init contracts
 in §B order is specified separately in BC-2.22.001.
 
-`prism-bin` reads `prism.toml` from the config directory (`$PRISM_CONFIG_DIR` or default
-`~/.prism/`), deserializes it via serde/toml, and validates it against the config-schema.md
+`prism-bin` reads `prism.toml` from the config directory (`$PRISM_CONFIG_DIR` or the
+platform-default resolved by `dirs::config_dir().join("prism")` — `~/.config/prism/` on
+Linux/XDG, `~/Library/Application Support/prism/` on macOS, `%APPDATA%\prism\` on Windows),
+deserializes it via serde/toml, and validates it against the config-schema.md
 contract. This step is BLOCKING: no subsequent boot step begins until config load and schema
 validation complete successfully. On any failure (file not found, TOML syntax error, schema
 violation, type mismatch), the process exits with code 2 before step 3 (OrgRegistry init) begins.
@@ -43,7 +45,8 @@ path for this step at or after story S-WAVE5-PREP-01 merges (POL-12 enforcement)
 - The Prism binary has been invoked with the `start` subcommand (ADR-022 §A)
 - Boot step 1 (tracing init) has completed successfully — the tracing subscriber is active
 - The filesystem is readable by the process user
-- `$PRISM_CONFIG_DIR` is set, or the default config directory (`~/.prism/`) is accessible
+- `$PRISM_CONFIG_DIR` is set, or the platform-default config directory (resolved via
+  `dirs::config_dir().join("prism")`) is accessible
 
 ## Postconditions
 
@@ -104,7 +107,7 @@ path for this step at or after story S-WAVE5-PREP-01 merges (POL-12 enforcement)
 
 | ID | Scenario | Config Input | Expected Exit Code | Expected Log Output |
 |----|----------|-------------|-------------------|---------------------|
-| TV-06-011-001 | Valid config file at default path | Valid `~/.prism/prism.toml` | Boot continues (no exit) | `tracing::info!("Config loaded: {n} orgs, spec_dir={path}")` |
+| TV-06-011-001 | Valid config file at platform-default path | Valid `prism.toml` at `dirs::config_dir().join("prism")` | Boot continues (no exit) | `tracing::info!("Config loaded: {n} orgs, spec_dir={path}")` |
 | TV-06-011-002 | Valid config via `$PRISM_CONFIG_DIR` override | Valid file at env var path | Boot continues (no exit) | Info log with env path |
 | TV-06-011-003 | Config dir missing | `$PRISM_CONFIG_DIR=/nonexistent` | 2 | "Config directory not found: /nonexistent" |
 | TV-06-011-004 | TOML syntax error | `prism.toml` with `org_id = {broken` | 2 | Line number + parse context |
@@ -176,3 +179,4 @@ None (see Verification Properties)
 | 1.0 | bundle-B-phase-B-1b-ss22-bcs-2026-05-08 | 2026-05-08 | product-owner | Initial authorship — Bundle B Phase B-1b SS-22 boot-sequence BCs |
 | 1.0 | redirect-option-d-2026-05-08 | 2026-05-08 | product-owner | Relocated from BC-2.22.001 (SS-22) to BC-2.06.011 (SS-06 Client Configuration) per Option (d) decomposition. Capability anchor updated CAP-034 → CAP-009. EC/TV IDs renumbered to EC-06-011-NNN / TV-06-011-NNN. |
 | 1.1 | D-319-post-merge-state-burst | 2026-05-10 | state-manager | lifecycle draft → active per ADR-021 POL-14 (S-WAVE5-PREP-01 merged at develop@53b87961 PR #138 2026-05-10T00:55:49Z). |
+| 1.2 | PR-139-pr-level-pass-2-fix-pass | 2026-05-09 | product-owner | Replace obsolete `~/.prism/` default-path references with platform-aware resolution (dirs::config_dir().join("prism")) — closes F-P2-MED-1 from PR #139 PR-LEVEL adversary pass-2 sibling-doc-staleness. Lines 33, 46, 107 updated: Description, Preconditions, and TV-06-011-001 test vector. |

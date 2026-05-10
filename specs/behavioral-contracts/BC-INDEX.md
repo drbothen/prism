@@ -1,7 +1,7 @@
 ---
 document_type: behavioral-contract-index
 level: L3
-version: "4.51"
+version: "4.52"
 status: draft
 producer: state-manager
 timestamp: 2026-05-09T00:00:00
@@ -359,6 +359,8 @@ Phase 3-patch additions (2026-04-16): 22 new BCs added in Burst 1 to close trace
 - Subsystem 19: Infusion Enrichment Framework (AD-020, CAP-031)
 
 ### Change Log (Adversarial Review Fixes)
+
+**v4.52 (2026-05-09):** PR-139-pr-level-pass-2-fix-pass — BC-2.06.011 v1.1→v1.2: replaced obsolete `~/.prism/` default-path references with platform-aware `dirs::config_dir().join("prism")` resolution (F-P2-MED-1 closure). Three sites updated: Description, Preconditions, and TV-06-011-001 test vector. No count changes (total_contracts=235 unchanged).
 
 **v4.51 (2026-05-10):** D-319 S-WAVE5-PREP-01 chassis SHIPPED — 5 BCs promoted draft→active per ADR-021 POL-14: BC-2.06.011 v1.0→v1.1 (ConfigManager init, SS-06), BC-2.21.001 v1.0→v1.1 (OrgRegistry init — first BC under SS-21), BC-2.03.013 v1.0→v1.1 (CredentialStore init), BC-2.05.012 v1.2→v1.3 (BootAuditEmitter audit init), BC-2.22.001 v1.0→v1.1 (boot orchestration — first BC under SS-22). active_contracts 222→227. No changes to total_contracts (235 unchanged).
 
