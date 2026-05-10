@@ -1,25 +1,25 @@
-  [2m2026-05-09T19:43:52.093326Z[0m [32m INFO[0m [1;32mprism_bin::boot[0m[32m: [32mPrism v0.1.0[0m
-    [2;3mat[0m crates/prism-bin/src/boot.rs:324
+  [2m2026-05-10T02:43:03.544405Z[0m [32m INFO[0m [1;32mprism_bin::boot[0m[32m: [32mPrism v0.1.0[0m
+    [2;3mat[0m crates/prism-bin/src/boot.rs:324
 
-  [2m2026-05-09T19:43:52.096693Z[0m [32m INFO[0m [1;32mprism_bin::boot[0m[32m: [32mConfig loaded successfully, [1;32mconfig_dir[0m[32m: crates/prism-bin/fixtures/config/valid[0m
-    [2;3mat[0m crates/prism-bin/src/boot.rs:387
+  [2m2026-05-10T02:43:03.545833Z[0m [32m INFO[0m [1;32mprism_bin::boot[0m[32m: [32mConfig loaded successfully, [1;32mconfig_dir[0m[32m: crates/prism-bin/fixtures/config/valid[0m
+    [2;3mat[0m crates/prism-bin/src/boot.rs:387
 
-  [2m2026-05-09T19:43:52.100620Z[0m [32m INFO[0m [1;32mprism_bin::boot[0m[32m: [32mOrgRegistry initialized, [1;32morg_count[0m[32m: 1[0m
-    [2;3mat[0m crates/prism-bin/src/boot.rs:483
+  [2m2026-05-10T02:43:03.547014Z[0m [32m INFO[0m [1;32mprism_bin::boot[0m[32m: [32mOrgRegistry initialized, [1;32morg_count[0m[32m: 1[0m
+    [2;3mat[0m crates/prism-bin/src/boot.rs:483
 
-  [2m2026-05-09T19:43:52.102540Z[0m [32m INFO[0m [1;32mprism_bin::boot[0m[32m: [32mSensor TOML specs loaded, [1;32mspec_dir[0m[32m: /tmp/prism-test-specs[0m
-    [2;3mat[0m crates/prism-bin/src/boot.rs:524
+  [2m2026-05-10T02:43:03.547689Z[0m [32m INFO[0m [1;32mprism_bin::boot[0m[32m: [32mSensor TOML specs loaded, [1;32mspec_dir[0m[32m: /tmp/prism-test-specs[0m
+    [2;3mat[0m crates/prism-bin/src/boot.rs:524
 
-  [2m2026-05-09T19:43:52.102741Z[0m [32m INFO[0m [1;32mprism_bin::boot[0m[32m: [32mCredential store: keyring backend constructed[0m
-    [2;3mat[0m crates/prism-bin/src/boot.rs:647
+  [2m2026-05-10T02:43:03.547730Z[0m [32m INFO[0m [1;32mprism_bin::boot[0m[32m: [32mCredential store: keyring backend constructed[0m
+    [2;3mat[0m crates/prism-bin/src/boot.rs:647
 
-  [2m2026-05-09T19:43:52.102752Z[0m [32m INFO[0m [1;32mprism_bin::boot[0m[32m: [32mCredential store initialized: 0 refs validated (BC-2.03.013), [1;32mrefs_validated[0m[32m: 0[0m
-    [2;3mat[0m crates/prism-bin/src/boot.rs:693
+  [2m2026-05-10T02:43:03.547769Z[0m [32m INFO[0m [1;32mprism_bin::boot[0m[32m: [32mCredential store initialized: 0 refs validated (BC-2.03.013), [1;32mrefs_validated[0m[32m: 0[0m
+    [2;3mat[0m crates/prism-bin/src/boot.rs:693
 
-  [2m2026-05-09T19:43:52.139315Z[0m [32m INFO[0m [1;32mprism_bin::boot[0m[32m: [32mAudit subsystem initialized; boot.audit.initialized persisted (durable via WAL fsync), [1;32mevent_type[0m[32m: "boot.audit.initialized", [1;32mprism_version[0m[32m: 0.1.0, [1;32morg_count[0m[32m: 1, [1;32mboot_step[0m[32m: 6[0m
-    [2;3mat[0m crates/prism-bin/src/boot.rs:785
+  [2m2026-05-10T02:43:03.582824Z[0m [32m INFO[0m [1;32mprism_bin::boot[0m[32m: [32mAudit subsystem initialized; boot.audit.initialized persisted (durable via WAL fsync), [1;32mevent_type[0m[32m: "boot.audit.initialized", [1;32mprism_version[0m[32m: 0.1.0, [1;32morg_count[0m[32m: 1, [1;32mboot_step[0m[32m: 6[0m
+    [2;3mat[0m crates/prism-bin/src/boot.rs:785
 
-  [2m2026-05-09T19:43:52.142106Z[0m [32m INFO[0m [1;32mprism[0m[32m: [32mConfig validation passed — all boot steps 1-6 completed[0m
-    [2;3mat[0m crates/prism-bin/src/main.rs:81
+  [2m2026-05-10T02:43:03.585933Z[0m [32m INFO[0m [1;32mprism[0m[32m: [32mConfig validation passed — all boot steps 1-6 completed[0m
+    [2;3mat[0m crates/prism-bin/src/main.rs:96
 
 exit=0
