@@ -4,7 +4,7 @@ adr_id: "ADR-023"
 title: "Plugin-Only Sensor Architecture — TOML Specs, Declarative TOML Baseline, No Compiled-In Sensor Rust"
 status: COMMITTED
 date: "2026-05-10"
-version: "v1.10"
+version: "v1.11"
 producer: architect
 subsystems_affected: [SS-01, SS-02, SS-16, SS-17, SS-21, SS-22]
 supersedes: null
@@ -77,7 +77,7 @@ input-hash: "2f64319"
 
 ## Status
 
-COMMITTED 2026-05-10, v1.10. Status is `COMMITTED` rather than `ACCEPTED` because six
+COMMITTED 2026-05-10, v1.11. Status is `COMMITTED` rather than `ACCEPTED` because six
 infrastructure prerequisites (Constraints C1–C5 plus Wave 0/F BC+DI amendments) must land
 before the hardcoded sensor adapters can be deleted. Once all prerequisite stories ship and
 pass their gates, this ADR transitions to `ACCEPTED`. Implementation is tracked by
@@ -289,7 +289,7 @@ in Rule 2 eliminates its purpose). The `CustomAdapterRegistry` dead code in
 `crates/prism-spec-engine/src/custom_adapter.rs` is deleted. The boot sequence in
 `crates/prism-bin/src/boot.rs` implements steps 7-11 as `todo!()` stubs (post-S-WAVE5-PREP-01,
 commit `53b87961`) awaiting live wiring in PREREQ-D. PREREQ-D delivers `PluginRuntime`
-infrastructure and wires boot.rs step 7 (live plugin load); PREREQ-E wires step 8 cleanup if
+infrastructure and wires boot.rs plugin-load step (per ADR-022 canonical numbering, PREREQ-D specifies exact placement; typically between storage init and query-engine init) (live plugin load); PREREQ-E wires step 8 cleanup if
 needed. The `.prx` WASM plugin model becomes the SOLE escape hatch for non-declarative sensor
 behavior. No Rust-trait-based escape hatch survives.
 
@@ -557,9 +557,9 @@ present).
 Depends on: PLUGIN-PREREQ-F.
 
 **C4 — PluginRuntime infrastructure (PLUGIN-PREREQ-D):** The `PluginRuntime` type in
-`crates/prism-spec-engine/src/plugin/mod.rs` is completed and wired into boot.rs step 7 via a
-`PluginRuntime::load_all_plugins` call (F-MED-NEW-005: PREREQ-D owns step 7; PREREQ-E owns
-only step-8 dead-code deletion). Boot step 7 in `crates/prism-bin/src/boot.rs` will load `.prx`
+`crates/prism-spec-engine/src/plugin/mod.rs` is completed and wired into the boot sequence at a new plugin-load step via a
+`PluginRuntime::load_all_plugins` call (F-MED-NEW-005: PREREQ-D owns the plugin-load step per ADR-022 canonical numbering, PREREQ-D specifies exact placement; PREREQ-E owns
+only step-8 dead-code deletion). The plugin-load step in `crates/prism-bin/src/boot.rs` will load `.prx`
 WASM plugins from the plugin directory via `PluginRuntime`. Plugin signing is deferred to
 v1.0+N when first non-trivial third-party WASM plugin is genuinely needed per TD-PLUGIN-SIGNING-001.
 
@@ -615,17 +615,19 @@ Depends on: PLUGIN-PREREQ-F.
 marker will be removed from `SensorAuth` in `crates/prism-sensors/src/auth/mod.rs`. The
 `CustomAuth` duplicate will be deleted from `crates/prism-spec-engine/src/custom_adapter.rs`.
 The `CustomAdapter` Rust trait is removed from the same file. The `CustomAdapterRegistry` dead
-code is deleted. Boot step 8 wiring: PREREQ-D delivers `PluginRuntime` infrastructure (engine,
-linker, loader, host-function ABI). PREREQ-E wires the runtime into `boot.rs` step 7 (currently
-`todo!()` stub post-S-WAVE5-PREP-01) and step 8 cleanup if needed. No dead code removal is
+code is deleted. Boot wiring: PREREQ-D delivers `PluginRuntime` infrastructure (engine,
+linker, loader, host-function ABI) AND wires it into the boot sequence at a new plugin-load step
+(positioned between the canonical storage and query-engine steps per ADR-022 numbering; PREREQ-D
+specifies exact placement). PREREQ-E performs dead-code cleanup only (no live wiring —
+F-MED-NEW-005 ownership: PREREQ-E owns cleanup only, not wiring). No dead code removal is
 required from the current boot.rs since S-WAVE5-PREP-01 already removed pre-existing dead
-`custom_adapter_registry` references; PREREQ-E only adds live wiring. The actual `CustomAdapter`
+`custom_adapter_registry` references. The actual `CustomAdapter`
 call sites that must be retired before `custom_adapter.rs` is deleted are the re-export in
 `lib.rs`, the example in `examples/demo_spec_loading.rs`, and the BC test in
 `tests/bc_2_16_004_test.rs` — all three are in scope for this story
 (F-CRIT-NEW-001-PASS2-RESIDUAL: spec_parser.rs has zero such references).
 
-Depends on: PLUGIN-PREREQ-F, PLUGIN-PREREQ-D (for live PluginRuntime wiring at step 7).
+Depends on: PLUGIN-PREREQ-F, PLUGIN-PREREQ-D (for live PluginRuntime wiring at the plugin-load step per ADR-022 canonical numbering, PREREQ-D specifies exact placement).
 
 ---
 
@@ -854,7 +856,7 @@ production system.
 
 ### Status as of 2026-05-10
 
-COMMITTED v1.10, pending implementation of Wave 0/F (PLUGIN-PREREQ-F) and Constraints C1–C5
+COMMITTED v1.11, pending implementation of Wave 0/F (PLUGIN-PREREQ-F) and Constraints C1–C5
 (PLUGIN-MIGRATION-001 Wave 0 — 6 stories total: PREREQ-F, A, B, C, D, E). The five hardcoded
 sensor auth modules, the four OCSF mapper modules, the `SensorType` enum, and the `CustomAdapter`
 trait all remain in the codebase until their corresponding Wave 0/1 stories ship and pass
@@ -913,7 +915,7 @@ PLUGIN-MIGRATION-001: 13 stories, 3 waves, approximately 95–146 SP (v1.4: Wave
 - PLUGIN-PREREQ-C: TOML grammar extensions — new grammar only: `[fetch_step.retry]` with
   `retry_action`, `virtual_field_aliases`, `cache_ttl_secs`, `[fetch_step.batch]` (3–5 SP;
   revised from 5–8 SP per F-HIGH-006 close); depends on PREREQ-F.
-- PLUGIN-PREREQ-D: Deliver `PluginRuntime` infrastructure AND wire it into boot.rs step 7
+- PLUGIN-PREREQ-D: Deliver `PluginRuntime` infrastructure AND wire it into boot.rs plugin-load step (per ADR-022 canonical numbering, PREREQ-D specifies exact placement; typically between storage init and query-engine init)
   (live plugin load replaces dead instantiation); build `.prx` load pipeline; unsigned-plugin
   boot warning + audit log; host function import validation; PR template creation; allowlist
   manifest field + TODO(S-4.08) closure (8–13 SP); depends on PREREQ-F. Step 7 wiring is
@@ -1050,6 +1052,7 @@ without bypass.
 
 | Version | Date | Description |
 |---------|------|-------------|
+| v1.11 | 2026-05-10 | Closes F-PASS14-HIGH-001 (S-7.01 sibling-site: C5 step 7 ownership contradiction at L618-620 — PREREQ-D owns step-7 wiring per F-MED-NEW-005; C5 now reads consistently with C4 + Rule 5 + Migration Plan). Closes F-PASS14-OBS-002 [process-gap] (boot.rs step numbering ambiguity: ADR-022 canonical step 7 = storage init; ADR-023 PREREQ-D introduces new plugin-load step between storage and query-engine, exact placement specified by PREREQ-D). Body version sweep v1.10→v1.11 per TD-VERSION-STAMP-SWEEP-001. F-PASS14-OBS-001 (Amendment Status cosmetic wording) deferred as cosmetic. |
 | v1.10 | 2026-05-10 | Closes F-PASS13-HIGH-001 (sibling-site propagation gap: pass-10 amendment introduced v1.0+1 vs v1.0+N internal contradiction at L743 + L848 + L851). All sites now consistently cite v1.0+N when first non-trivial third-party WASM plugin is genuinely needed. Status block + Amendment Status swept v1.9→v1.10 per TD-VERSION-STAMP-SWEEP-001. |
 | v1.9 | 2026-05-10 | Closes F-PASS11-HIGH-001 (propagate F-PASS10-HIGH-001 scoping to 3 missed sibling sites: Decision opening, Rule 4 body, Consequences/Positive — all now say "sensor-specific in-repo .prx" or qualify "third-party") + F-PASS11-LOW-001 (delete duplicate boot.rs sentence). Status block + Amendment Status swept v1.8→v1.9 per TD-VERSION-STAMP-SWEEP-001. Edit-only per TD-FACTORY-HOOK-BYPASS-001. |
 | v1.8 | 2026-05-10 | Closes 4 pass-10 findings (1 HIGH + 3 MED). F-PASS10-HIGH-001: 5 wording sites clarified — "v1.0 ships zero in-repo plugins" → "v1.0 ships zero third-party plugins; first-party OCSF complex-transform plugins per Rule 1 ARE loaded" (L275, L732, L809-810, L841, L986). F-PASS10-MED-001/002: stale CrowdStrike OAuth refresh plugin examples at L589-590, L609 replaced with generic plugin examples (Rule 4 rescope completeness). F-PASS10-MED-003: Context L121-123 + Constraint C5 L616-617 updated to reflect actual boot.rs state post-S-WAVE5-PREP-01 commit 53b87961 (todo!() stubs, not dead custom_adapter_registry). Status block + Amendment Status updated v1.7→v1.8 per TD-VERSION-STAMP-SWEEP-001. Edit-only discipline. |

@@ -1,9 +1,9 @@
 ---
 document_type: pipeline-state
 level: ops
-version: "7.97"
+version: "7.98"
 producer: state-manager
-timestamp: 2026-05-10T22:00:00Z
+timestamp: 2026-05-10T23:00:00Z
 inputs: []
 input-hash: "[live-state]"
 traces_to: ""
@@ -176,7 +176,7 @@ workspace_test_count: 3489  # 891 prism-query + workspace total (per implementer
 | **Language** | Rust |
 | **Target Workspace** | per-analyst stdio (MCP server) |
 | **Started** | 2026-04-13 |
-| **Last Updated** | 2026-05-10 (D-347 — ADR-023 v1.10 fix-burst-10 closes F-PASS13-HIGH-001; STATE v7.96→v7.97) |
+| **Last Updated** | 2026-05-10 (D-349 — ADR-023 v1.11 fix-burst-11 closes F-PASS14-HIGH-001+OBS-002; STATE v7.97→v7.98) |
 | **Current Phase** | Wave 3 Tier-3 COMPLETE — **Wave 3-A 4 of 4 SHIPPED**: S-3.05 (#132 c867c344), S-3.04 (#133 57745ce8), S-3.03 (#134 7c413692), **S-3.07 (#135 2ae7185b MERGED 2026-05-08T04:23:03Z)**; post-merge cleanup confirmed; NEXT: Wave 3-B/C or Wave 4 unblock |
 | **Current Step** | D-299 — Plugin system FULL audit COMPLETE. 14 P0/P1 deferrals discovered (8 P0 + 6 P1). Stub-merged Wave-1 items: S-1.12/1.14/1.15 (3 stubs). No production binary loads sensors/*.toml. 13 new TDs filed (TD-PLUGIN-P0-001..008 + P1-001..005). S-3.09 FROZEN. Strategic direction needed: (a) full plugin completion epic, (b) min-viable plugin wiring, or (c) other path. |
 
@@ -213,6 +213,8 @@ _D-001..D-046 archived: [cycles/phase-3-dtu-wave-2/decisions-archive-d001-d032.m
 
 | ID | Decision | Rationale | Phase | Date |
 |----|----------|-----------|-------|------|
+| D-349 | 2026-05-10 | ADR-023 v1.11 fix-burst-11 — close F-PASS14-HIGH-001 + F-PASS14-OBS-002 | Closes C5 step 7 ownership contradiction (PREREQ-D owns step-7 wiring per F-MED-NEW-005; C5 now consistent with C4 + Rule 5 + Migration Plan) + boot.rs step numbering process-gap (ADR-022 canonical step 7 = storage init; ADR-023 PREREQ-D introduces NEW plugin-load step between storage and query-engine; exact placement specified by PREREQ-D). Body version sweep v1.10→v1.11. Edit-only discipline. | docs(ADR-023)-v1.11 |
+| D-348 | 2026-05-10 | ADR-023 pass-14 NOT_CLEAN — 1 HIGH + 2 OBS, streak 0/3 | Pass-14 fresh-context surfaces F-PASS14-HIGH-001 (C5 paragraph L618-620 PREREQ-D vs PREREQ-E step-7 ownership contradicts C4 + Rule 5 + Migration Plan — same S-7.01 sibling-site pattern continuing recurrence) + F-PASS14-OBS-001 (Amendment Status cosmetic wording) + F-PASS14-OBS-002 [process-gap] (boot.rs step 7 = storage init per ADR-022 canonical numbering; ADR-023 PREREQ-D step semantics need clarification). Trajectory 26→16→12→14→3→3→1→0→0→4→2→0→1→1. Streak unchanged 0/3. Fix-burst-11 dispatched same burst. | review(ADR-023-pass-14) |
 | D-347 | 2026-05-10 | ADR-023 v1.10 fix-burst-10 — close F-PASS13-HIGH-001 sibling-site v1.0+1 vs v1.0+N propagation | Replaces "v1.0+1" with "v1.0+N when first non-trivial third-party WASM plugin is genuinely needed" at L743 (VP-PLUGIN-007 lifecycle note) + L848 + L851 (Consequences/Negative). Body version sweep v1.9→v1.10 at L80+L857. Now all 8 TD-PLUGIN-SIGNING-001 target references consistently say v1.0+N. Edit-only discipline per TD-FACTORY-HOOK-BYPASS-001 P1. | docs(ADR-023)-v1.10 |
 | D-346 | 2026-05-10 | ADR-023 pass-13 NOT_CLEAN — 1 HIGH (sibling-site v1.0+1 vs v1.0+N), streak RESET 1/3 → 0/3 | Pass-13 fresh-context idempotency review of v1.9 surfaces F-PASS13-HIGH-001 — TD-PLUGIN-SIGNING-001 target inconsistency. v1.0+N canonical at 5 sites (L564, L683, L687, L741, L991) vs stale v1.0+1 at 3 sites (L743, L848, L851). Pass-10's VP-PLUGIN-007 lifecycle note introduced internal contradiction (L741 says v1.0+N, L743 immediately says v1.0+1). Streak reset; fix-burst-10 dispatches in same burst to close. | review(ADR-023-pass-13) |
 | D-345 | 2026-05-10 | ADR-023 pass-12 CLEAN — FIRST CLEAN POST-RESET, streak 0/3 → 1/3 | Pass-12 fresh-context review of v1.9 surfaces ZERO findings across 21 source-of-truth verifications. F-PASS11-HIGH-001 sibling-site propagation closed at all 3 sites (Decision opening, Rule 4 body, Consequences). F-PASS11-LOW-001 Context duplicate deleted. Body version sweep complete L80+L856 → v1.9. Corpus-wide grep confirms no 4th/5th sibling sites exist. Trajectory 26→16→12→14→3→3→1→0→0→4→2→0. Streak 1/3 — pass-13 target 2/3, pass-14 target 3/3 (3-CLEAN convergence). | review(ADR-023-pass-12-CLEAN) |
