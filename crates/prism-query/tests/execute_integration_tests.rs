@@ -580,15 +580,20 @@ async fn test_AC_4_filter_pushdown_passed_to_adapter() {
 // AC-5: register_internal_tables then query prism_audit
 // ---------------------------------------------------------------------------
 
-/// AC-5 (BC-2.15.011): After `register_internal_tables(ctx, storage)`, the query
+/// AC-5 (BC-2.15.011): After registering internal tables with AuditRead capability, the query
 /// `SELECT * FROM prism_audit LIMIT 20` must succeed without error.
 ///
 /// We pre-populate `StorageDomain::AuditBuffer` with one row so the scan is
 /// non-trivially exercised.
 ///
-/// Red-Gate: panics at `todo!("S-3.02 — register_internal_tables")`.
+/// F-LP2-CRIT-1: uses `register_internal_tables_with_capabilities` with `Capability::AuditRead`
+/// so the scan-time capability gate (Layer 2) allows access. Without AuditRead, the scan
+/// would return E-QUERY-011 (tested separately in `test_LP2_CRIT_1_scan_time_gate_rejects_*`).
 #[tokio::test]
 async fn test_AC_5_register_internal_tables_then_query_prism_audit() {
+    use prism_query::engine::Capability;
+    use prism_query::internal_tables::register_internal_tables_with_capabilities;
+
     let storage = helpers::make_storage();
 
     // Seed one audit entry so the CF is non-empty.
@@ -601,12 +606,15 @@ async fn test_AC_5_register_internal_tables_then_query_prism_audit() {
 
     let ctx = helpers::make_ctx();
 
-    // Panics at todo!("S-3.02 — register_internal_tables").
-    // Post-implementation: must register prism_audit as a DataFusion table.
-    register_internal_tables(&ctx, Arc::clone(&storage) as Arc<dyn RocksStorageBackend>)
-        .expect("AC-5: register_internal_tables must succeed");
+    // Register with AuditRead so scan-time gate (Layer 2) allows access.
+    register_internal_tables_with_capabilities(
+        &ctx,
+        Arc::clone(&storage) as Arc<dyn RocksStorageBackend>,
+        &[Capability::AuditRead],
+    )
+    .expect("AC-5: register_internal_tables_with_capabilities must succeed");
 
-    // Post-implementation: SQL planning must succeed.
+    // SQL planning must succeed.
     let df = ctx
         .sql("SELECT * FROM prism_audit LIMIT 20")
         .await
@@ -1347,5 +1355,634 @@ fn test_AC_8_no_todo_or_unimplemented_remains() {
     assert!(
         !internal_tables_src.contains("unimplemented!("),
         "AC-8: internal_tables.rs still contains unimplemented!() — fill before merging (POL-12)"
+    );
+}
+
+// ---------------------------------------------------------------------------
+// F-LP2-CRIT-1: Capability gate subquery bypass (defense-in-depth)
+// ---------------------------------------------------------------------------
+
+/// F-LP2-CRIT-1 (BC-2.15.011): A subquery referencing `prism_audit` in the
+/// WHERE clause (IN subquery) MUST be caught by the pre-execution capability gate.
+///
+/// Layer 1 test: the recursive AST walker must extract `prism_audit` from
+/// `WHERE field IN (SELECT ... FROM prism_audit)` and reject it without AuditRead.
+#[tokio::test]
+async fn test_LP2_CRIT_1_subquery_in_where_blocked_without_audit_read() {
+    use prism_query::engine::{QueryEngine, QueryEngineConfig, QueryOptions};
+
+    let org_slug = helpers::org("acme");
+    let storage = helpers::make_storage();
+
+    // Register a StubAdapter for crowdstrike_detections so the outer query can resolve.
+    let mut registry = AdapterRegistry::new();
+    use prism_core::OrgId;
+    registry.register(
+        OrgId::new(),
+        Arc::new(helpers::StubAdapter {
+            sensor_type: prism_core::types::SensorType::CrowdStrike,
+            row_count: 2,
+            client_slug: "acme".to_string(),
+        }),
+    );
+
+    let adapter_registry = Arc::new(registry);
+    let credential_store: Arc<dyn prism_credentials::CredentialStore> =
+        Arc::new(helpers::NullCredentialStore);
+    let ocsf_normalizer = Arc::new(prism_ocsf::OcsfNormalizer::new());
+    let client_registry = Arc::new(prism_query::scoping::ClientRegistry::new(vec![
+        org_slug.clone()
+    ]));
+    let config = QueryEngineConfig::default();
+    let org_registry = Arc::new(prism_core::OrgRegistry::new());
+    let engine = QueryEngine::new_full(
+        adapter_registry,
+        credential_store,
+        ocsf_normalizer,
+        client_registry,
+        config,
+        Arc::new(helpers::StubCredentialResolver),
+        org_registry,
+        storage as Arc<dyn prism_storage::backend::RocksStorageBackend>,
+    );
+
+    // No AuditRead capability — subquery references prism_audit.
+    let options = QueryOptions {
+        clients: Some(vec![org_slug]),
+        capabilities: vec![], // AuditRead NOT granted
+        ..QueryOptions::default()
+    };
+
+    // The pre-execution gate (Layer 1) must catch prism_audit in the subquery.
+    let result = engine
+        .execute(
+            "SELECT alert_id FROM crowdstrike_detections \
+             WHERE alert_id IN (SELECT trace_id FROM prism_audit)",
+            options,
+        )
+        .await;
+
+    let err = result.expect_err(
+        "LP2-CRIT-1: subquery referencing prism_audit without AuditRead must be rejected \
+         (pre-execution gate must walk subqueries in WHERE clause)",
+    );
+    assert!(
+        matches!(err, prism_core::PrismError::AuditTableAccessDenied),
+        "LP2-CRIT-1: error must be PrismError::AuditTableAccessDenied; got: {err:?}"
+    );
+}
+
+/// F-LP2-CRIT-1: WITH AuditRead capability, the subquery referencing prism_audit
+/// in WHERE must be allowed through.
+#[tokio::test]
+async fn test_LP2_CRIT_1_with_audit_read_capability_subquery_allowed() {
+    use prism_query::engine::{Capability, QueryEngine, QueryEngineConfig, QueryOptions};
+
+    let org_slug = helpers::org("acme");
+    let storage = helpers::make_storage();
+
+    let mut registry = AdapterRegistry::new();
+    use prism_core::OrgId;
+    registry.register(
+        OrgId::new(),
+        Arc::new(helpers::StubAdapter {
+            sensor_type: prism_core::types::SensorType::CrowdStrike,
+            row_count: 2,
+            client_slug: "acme".to_string(),
+        }),
+    );
+
+    let adapter_registry = Arc::new(registry);
+    let credential_store: Arc<dyn prism_credentials::CredentialStore> =
+        Arc::new(helpers::NullCredentialStore);
+    let ocsf_normalizer = Arc::new(prism_ocsf::OcsfNormalizer::new());
+    let client_registry = Arc::new(prism_query::scoping::ClientRegistry::new(vec![
+        org_slug.clone()
+    ]));
+    let config = QueryEngineConfig::default();
+    let org_registry = Arc::new(prism_core::OrgRegistry::new());
+    let engine = QueryEngine::new_full(
+        adapter_registry,
+        credential_store,
+        ocsf_normalizer,
+        client_registry,
+        config,
+        Arc::new(helpers::StubCredentialResolver),
+        org_registry,
+        storage as Arc<dyn prism_storage::backend::RocksStorageBackend>,
+    );
+
+    // AuditRead granted — should NOT be rejected at the capability gate.
+    let options = QueryOptions {
+        clients: Some(vec![org_slug]),
+        capabilities: vec![Capability::AuditRead],
+        ..QueryOptions::default()
+    };
+
+    // With AuditRead, the capability gate passes. DataFusion may still fail (ok),
+    // but the error must NOT be AuditTableAccessDenied.
+    let result = engine
+        .execute(
+            "SELECT alert_id FROM crowdstrike_detections \
+             WHERE alert_id IN (SELECT trace_id FROM prism_audit)",
+            options,
+        )
+        .await;
+
+    // The capability gate must not reject. Any DataFusion planning error is acceptable.
+    match result {
+        Ok(_) => {} // great
+        Err(prism_core::PrismError::AuditTableAccessDenied) => {
+            panic!("LP2-CRIT-1: WITH AuditRead capability, must NOT return AuditTableAccessDenied");
+        }
+        Err(_other) => {} // DataFusion planning/execution errors are ok
+    }
+}
+
+/// F-LP2-CRIT-1: HAVING clause subquery referencing prism_audit is blocked without AuditRead.
+#[tokio::test]
+async fn test_LP2_CRIT_1_having_subquery_blocked_without_audit_read() {
+    use prism_query::engine::{QueryEngine, QueryEngineConfig, QueryOptions};
+
+    let org_slug = helpers::org("acme");
+    let storage = helpers::make_storage();
+
+    let mut registry = AdapterRegistry::new();
+    use prism_core::OrgId;
+    registry.register(
+        OrgId::new(),
+        Arc::new(helpers::StubAdapter {
+            sensor_type: prism_core::types::SensorType::CrowdStrike,
+            row_count: 2,
+            client_slug: "acme".to_string(),
+        }),
+    );
+
+    let adapter_registry = Arc::new(registry);
+    let credential_store: Arc<dyn prism_credentials::CredentialStore> =
+        Arc::new(helpers::NullCredentialStore);
+    let ocsf_normalizer = Arc::new(prism_ocsf::OcsfNormalizer::new());
+    let client_registry = Arc::new(prism_query::scoping::ClientRegistry::new(vec![
+        org_slug.clone()
+    ]));
+    let config = QueryEngineConfig::default();
+    let org_registry = Arc::new(prism_core::OrgRegistry::new());
+    let engine = QueryEngine::new_full(
+        adapter_registry,
+        credential_store,
+        ocsf_normalizer,
+        client_registry,
+        config,
+        Arc::new(helpers::StubCredentialResolver),
+        org_registry,
+        storage as Arc<dyn prism_storage::backend::RocksStorageBackend>,
+    );
+
+    let options = QueryOptions {
+        clients: Some(vec![org_slug]),
+        capabilities: vec![], // no AuditRead
+        ..QueryOptions::default()
+    };
+
+    // The HAVING clause contains a subquery referencing prism_audit.
+    // The pre-execution gate must walk HAVING predicates recursively.
+    let result = engine
+        .execute(
+            "SELECT alert_id FROM crowdstrike_detections \
+             GROUP BY alert_id \
+             HAVING alert_id IN (SELECT trace_id FROM prism_audit)",
+            options,
+        )
+        .await;
+
+    let err = result.expect_err(
+        "LP2-CRIT-1: HAVING subquery referencing prism_audit without AuditRead must be rejected",
+    );
+    assert!(
+        matches!(err, prism_core::PrismError::AuditTableAccessDenied),
+        "LP2-CRIT-1: HAVING subquery error must be AuditTableAccessDenied; got: {err:?}"
+    );
+}
+
+/// F-LP2-CRIT-1 Layer 2: scan-time gate on RocksDbTableProvider.
+///
+/// Verifies that even if the pre-execution gate (Layer 1) is bypassed,
+/// `RocksDbTableProvider::scan()` itself rejects access to audit table
+/// when the provider was constructed with no AuditRead capability.
+#[tokio::test]
+async fn test_LP2_CRIT_1_scan_time_gate_rejects_without_audit_read() {
+    use datafusion::datasource::TableProvider;
+    use prism_query::engine::Capability;
+    use prism_query::internal_tables::{InternalTableDescriptor, RocksDbTableProvider};
+    use prism_storage::memory_backend::InMemoryBackend;
+
+    let storage = Arc::new(InMemoryBackend::new());
+
+    // Build a descriptor that requires audit.read.
+    let audit_schema = Arc::new(arrow::datatypes::Schema::new(vec![
+        arrow::datatypes::Field::new("trace_id", arrow::datatypes::DataType::Utf8, true),
+        arrow::datatypes::Field::new("timestamp", arrow::datatypes::DataType::Utf8, true),
+        arrow::datatypes::Field::new("event_type", arrow::datatypes::DataType::Utf8, true),
+        arrow::datatypes::Field::new("org_id", arrow::datatypes::DataType::Utf8, true),
+        arrow::datatypes::Field::new("payload", arrow::datatypes::DataType::Utf8, true),
+    ]));
+
+    let descriptor = InternalTableDescriptor {
+        table_name: "prism_audit".to_string(),
+        domain: "audit_buffer".to_string(),
+        schema: Arc::clone(&audit_schema),
+        requires_audit_read: true,
+    };
+
+    // Construct provider WITHOUT AuditRead in capability set.
+    let provider = RocksDbTableProvider::new_with_capabilities(
+        descriptor,
+        storage as Arc<dyn prism_storage::backend::RocksStorageBackend>,
+        vec![], // no AuditRead
+    );
+
+    // Attempt scan — must return DataFusionError containing E-QUERY-011.
+    let state = datafusion::execution::context::SessionContext::new().state();
+    let result = provider.scan(&state, None, &[], None).await;
+
+    assert!(
+        result.is_err(),
+        "LP2-CRIT-1 Layer 2: scan() without AuditRead must return Err"
+    );
+    let err_str = result.unwrap_err().to_string();
+    assert!(
+        err_str.contains("E-QUERY-011") || err_str.contains("audit.read"),
+        "LP2-CRIT-1 Layer 2: scan() error must reference E-QUERY-011 or audit.read; got: {err_str}"
+    );
+}
+
+/// F-LP2-CRIT-1 Layer 3: descriptor-driven policy — a non-prism_audit descriptor
+/// with `requires_audit_read = true` is also gated.
+#[tokio::test]
+async fn test_LP2_CRIT_1_descriptor_driven_non_audit_table_also_gated() {
+    use datafusion::datasource::TableProvider;
+    use prism_query::engine::Capability;
+    use prism_query::internal_tables::{InternalTableDescriptor, RocksDbTableProvider};
+    use prism_storage::memory_backend::InMemoryBackend;
+
+    let storage = Arc::new(InMemoryBackend::new());
+
+    // A hypothetical future table with requires_audit_read = true.
+    let schema = Arc::new(arrow::datatypes::Schema::new(vec![
+        arrow::datatypes::Field::new("id", arrow::datatypes::DataType::Utf8, true),
+    ]));
+
+    let descriptor = InternalTableDescriptor {
+        table_name: "prism_secrets".to_string(), // not prism_audit
+        domain: "default".to_string(),
+        schema,
+        requires_audit_read: true, // but flagged as requiring audit.read
+    };
+
+    let provider = RocksDbTableProvider::new_with_capabilities(
+        descriptor,
+        storage as Arc<dyn prism_storage::backend::RocksStorageBackend>,
+        vec![], // no AuditRead
+    );
+
+    let state = datafusion::execution::context::SessionContext::new().state();
+    let result = provider.scan(&state, None, &[], None).await;
+
+    assert!(
+        result.is_err(),
+        "LP2-CRIT-1 Layer 3: scan() on non-audit table with requires_audit_read=true \
+         and no AuditRead capability must return Err"
+    );
+    let err_str = result.unwrap_err().to_string();
+    assert!(
+        err_str.contains("E-QUERY-011") || err_str.contains("audit.read"),
+        "LP2-CRIT-1 Layer 3: error must reference E-QUERY-011 or audit.read; got: {err_str}"
+    );
+}
+
+/// F-LP2-CRIT-1 Layer 3: WITH AuditRead, scan() on a requires_audit_read table succeeds.
+#[tokio::test]
+async fn test_LP2_CRIT_1_scan_time_gate_allows_with_audit_read() {
+    use datafusion::datasource::TableProvider;
+    use prism_query::engine::Capability;
+    use prism_query::internal_tables::{InternalTableDescriptor, RocksDbTableProvider};
+    use prism_storage::memory_backend::InMemoryBackend;
+
+    let storage = Arc::new(InMemoryBackend::new());
+
+    let audit_schema = Arc::new(arrow::datatypes::Schema::new(vec![
+        arrow::datatypes::Field::new("trace_id", arrow::datatypes::DataType::Utf8, true),
+        arrow::datatypes::Field::new("timestamp", arrow::datatypes::DataType::Utf8, true),
+        arrow::datatypes::Field::new("event_type", arrow::datatypes::DataType::Utf8, true),
+        arrow::datatypes::Field::new("org_id", arrow::datatypes::DataType::Utf8, true),
+        arrow::datatypes::Field::new("payload", arrow::datatypes::DataType::Utf8, true),
+    ]));
+
+    let descriptor = InternalTableDescriptor {
+        table_name: "prism_audit".to_string(),
+        domain: "audit_buffer".to_string(),
+        schema: Arc::clone(&audit_schema),
+        requires_audit_read: true,
+    };
+
+    // Construct provider WITH AuditRead.
+    let provider = RocksDbTableProvider::new_with_capabilities(
+        descriptor,
+        storage as Arc<dyn prism_storage::backend::RocksStorageBackend>,
+        vec![Capability::AuditRead],
+    );
+
+    let state = datafusion::execution::context::SessionContext::new().state();
+    let result = provider.scan(&state, None, &[], None).await;
+
+    assert!(
+        result.is_ok(),
+        "LP2-CRIT-1 Layer 3: scan() with AuditRead on requires_audit_read table must succeed; \
+         got: {:?}",
+        result.err()
+    );
+}
+
+// ---------------------------------------------------------------------------
+// F-LP2-HIGH-1: AC-2 vacuous-pass fix — assert actual non-empty materialization
+// ---------------------------------------------------------------------------
+
+/// F-LP2-HIGH-1: AC-2 enhanced — verifies the pipeline materializes actual rows
+/// and registers at least one MemTable. Replaces the previous vacuous
+/// `!catalog_names().is_empty()` check that always passed.
+#[tokio::test]
+async fn test_AC_2_materialization_pipeline_non_vacuous_assertion() {
+    use prism_query::engine::QueryOptions;
+
+    let mut mat_ctx = helpers::make_mat_ctx_with_stub(10_000, 3);
+    let session_ctx = helpers::make_ctx();
+    let options = QueryOptions {
+        clients: Some(vec![helpers::org("acme")]),
+        sensors: None,
+        limit: Some(10),
+        force_refresh: false,
+        ..QueryOptions::default()
+    };
+
+    let output = run_materialization_pipeline(
+        "SELECT * FROM crowdstrike_detections LIMIT 10",
+        &options,
+        &mut mat_ctx,
+        &session_ctx,
+    )
+    .await
+    .expect("AC-2 enhanced: run_materialization_pipeline must succeed with valid source ref");
+
+    // Non-vacuous assertion: at least one batch with actual rows must be present.
+    assert!(
+        !output.batches.is_empty(),
+        "AC-2 enhanced: pipeline must materialize at least one batch; \
+         if this fails, StubAdapter registration or fan_out is broken"
+    );
+    let total_rows: usize = output.batches.iter().map(|b| b.num_rows()).sum();
+    assert_eq!(
+        total_rows, 3,
+        "AC-2 enhanced: StubAdapter returns 3 rows; pipeline must materialize all 3"
+    );
+
+    // Verify MemTable registration: session_ctx must have crowdstrike_detections registered.
+    assert!(
+        session_ctx
+            .table_exist("crowdstrike_detections")
+            .expect("AC-2 enhanced: table_exist() must not fail"),
+        "AC-2 enhanced: crowdstrike_detections MemTable must be registered after pipeline runs"
+    );
+}
+
+// ---------------------------------------------------------------------------
+// F-LP2-MED-2: cache key includes where_filters (no leakage between filter variants)
+// ---------------------------------------------------------------------------
+
+/// F-LP2-MED-2 (BC-2.11.005): The in-query cache key must include the WHERE filters.
+///
+/// Same (client, sensor, source_table) but different SQL WHERE clauses must produce
+/// two separate adapter calls (no cache leakage between differently-filtered queries).
+///
+/// Uses two separate `MaterializationContext` instances to isolate the per-query caches
+/// and demonstrate that two identical queries DO hit the cache (same key) while two
+/// queries with different WHERE clauses do NOT (different keys).
+#[tokio::test]
+async fn test_LP2_MED_2_cache_key_includes_filters() {
+    use prism_core::OrgId;
+    use prism_query::engine::QueryOptions;
+    use prism_sensors::adapter::{QueryParams, SensorAdapter, SensorError, SensorSpec};
+    use prism_sensors::auth::SensorAuth;
+
+    struct CountingAdapter {
+        call_count: Arc<std::sync::atomic::AtomicUsize>,
+    }
+
+    #[async_trait]
+    impl SensorAdapter for CountingAdapter {
+        fn sensor_type(&self) -> prism_core::types::SensorType {
+            prism_core::types::SensorType::CrowdStrike
+        }
+
+        fn sensor_name(&self) -> &'static str {
+            "crowdstrike"
+        }
+
+        async fn fetch(
+            &self,
+            _spec: &SensorSpec,
+            _params: &QueryParams,
+            _auth: &dyn SensorAuth,
+        ) -> Result<Vec<RecordBatch>, SensorError> {
+            self.call_count
+                .fetch_add(1, std::sync::atomic::Ordering::SeqCst);
+            let schema = Arc::new(arrow::datatypes::Schema::new(vec![
+                arrow::datatypes::Field::new(
+                    "detection_id",
+                    arrow::datatypes::DataType::Utf8,
+                    false,
+                ),
+            ]));
+            let arr = Arc::new(arrow::array::StringArray::from(vec!["row1"])) as _;
+            let batch = RecordBatch::try_new(schema, vec![arr]).unwrap();
+            Ok(vec![batch])
+        }
+    }
+
+    let call_count = Arc::new(std::sync::atomic::AtomicUsize::new(0));
+    let org_id = OrgId::new();
+
+    // Helper to build a mat_ctx sharing the same adapter.
+    let make_mat_ctx = {
+        let call_count = Arc::clone(&call_count);
+        let org_id = org_id;
+        move || {
+            let adapter = Arc::new(CountingAdapter {
+                call_count: Arc::clone(&call_count),
+            });
+            let mut registry = AdapterRegistry::new();
+            registry.register(org_id, adapter);
+            let ocsf_normalizer = Arc::new(prism_ocsf::OcsfNormalizer::new());
+            prism_query::materialization::MaterializationContext::new_with_resolver(
+                Arc::new(registry),
+                ocsf_normalizer,
+                10_000,
+                Arc::new(helpers::StubCredentialResolver),
+                None,
+            )
+        }
+    };
+
+    let options = QueryOptions {
+        clients: Some(vec![helpers::org("acme")]),
+        ..QueryOptions::default()
+    };
+
+    // Scenario A: SAME query twice in one mat_ctx — second call should hit cache (1 adapter call).
+    let mut mat_ctx_a = make_mat_ctx();
+    let ctx1 = helpers::make_ctx();
+    let ctx2 = helpers::make_ctx();
+    let _ = run_materialization_pipeline(
+        "SELECT detection_id FROM crowdstrike_detections WHERE detection_id = 'x'",
+        &options,
+        &mut mat_ctx_a,
+        &ctx1,
+    )
+    .await;
+    let _ = run_materialization_pipeline(
+        "SELECT detection_id FROM crowdstrike_detections WHERE detection_id = 'x'",
+        &options,
+        &mut mat_ctx_a,
+        &ctx2,
+    )
+    .await;
+    let calls_scenario_a = call_count.load(std::sync::atomic::Ordering::SeqCst);
+
+    // Reset counter for scenario B.
+    call_count.store(0, std::sync::atomic::Ordering::SeqCst);
+
+    // Scenario B: DIFFERENT WHERE filters in one mat_ctx — must NOT share cache (2 adapter calls).
+    let mut mat_ctx_b = make_mat_ctx();
+    let ctx3 = helpers::make_ctx();
+    let ctx4 = helpers::make_ctx();
+    let _ = run_materialization_pipeline(
+        "SELECT detection_id FROM crowdstrike_detections WHERE detection_id = 'x'",
+        &options,
+        &mut mat_ctx_b,
+        &ctx3,
+    )
+    .await;
+    let _ = run_materialization_pipeline(
+        "SELECT detection_id FROM crowdstrike_detections WHERE detection_id = 'y'",
+        &options,
+        &mut mat_ctx_b,
+        &ctx4,
+    )
+    .await;
+    let calls_scenario_b = call_count.load(std::sync::atomic::Ordering::SeqCst);
+
+    // Scenario A: same query twice → 1 adapter call (second hits cache).
+    assert_eq!(
+        calls_scenario_a, 1,
+        "LP2-MED-2 scenario A: identical queries must cache-hit on second call; \
+         expected 1 adapter call, got {calls_scenario_a}"
+    );
+
+    // Scenario B: different WHERE filters → 2 adapter calls (no cache sharing).
+    assert_eq!(
+        calls_scenario_b, 2,
+        "LP2-MED-2 scenario B: queries with different WHERE filters must NOT share cache; \
+         expected 2 adapter calls (different keys), got {calls_scenario_b}"
+    );
+}
+
+// ---------------------------------------------------------------------------
+// F-LP2-LOW-1: limit exceeds max returns correct error variant
+// ---------------------------------------------------------------------------
+
+/// F-LP2-LOW-1 (BC-2.11.001): When limit > 1000, the engine must return
+/// `PrismError::QueryLimitExceeded`, not `QueryExecutionFailed` stuffed with
+/// an E-QUERY-001 string.
+#[tokio::test]
+async fn test_LP2_LOW_1_limit_exceeded_returns_query_limit_exceeded_variant() {
+    use prism_query::engine::QueryOptions;
+
+    let org_slug = helpers::org("acme");
+    let engine = helpers::make_engine(AdapterRegistry::new(), vec![org_slug.clone()]);
+
+    let options = QueryOptions {
+        clients: Some(vec![org_slug]),
+        limit: Some(1001), // exceeds 1000
+        ..QueryOptions::default()
+    };
+
+    let result = engine
+        .execute("SELECT * FROM crowdstrike_detections", options)
+        .await;
+
+    let err = result.expect_err("LP2-LOW-1: limit=1001 must return Err");
+
+    assert!(
+        matches!(
+            err,
+            prism_core::PrismError::QueryLimitExceeded { requested: 1001, max: 1000 }
+        ),
+        "LP2-LOW-1: error must be PrismError::QueryLimitExceeded {{ requested: 1001, max: 1000 }}; \
+         got: {err:?}"
+    );
+
+    // Display must contain E-QUERY-001.
+    let display = err.to_string();
+    assert!(
+        display.contains("E-QUERY-001"),
+        "LP2-LOW-1: display must contain 'E-QUERY-001'; got: {display}"
+    );
+}
+
+// ---------------------------------------------------------------------------
+// F-LP2-LOW-3: HIGH-7 boundary test with actual pipeline success for limit=1000
+// ---------------------------------------------------------------------------
+
+/// F-LP2-LOW-3: limit=1000 (boundary) must produce actual pipeline success with
+/// a StubAdapter returning rows — verifies the full path, not just the guard.
+#[tokio::test]
+async fn test_HIGH_7_limit_exactly_1000_pipeline_success_with_stub() {
+    use prism_core::OrgId;
+    use prism_query::engine::QueryOptions;
+
+    let org_slug = helpers::org("acme");
+    let org_id = OrgId::new();
+
+    let mut registry = AdapterRegistry::new();
+    registry.register(
+        org_id,
+        Arc::new(helpers::StubAdapter {
+            sensor_type: prism_core::types::SensorType::CrowdStrike,
+            row_count: 5,
+            client_slug: "acme".to_string(),
+        }),
+    );
+
+    let engine = helpers::make_engine(registry, vec![org_slug.clone()]);
+
+    let options = QueryOptions {
+        clients: Some(vec![org_slug]),
+        limit: Some(1000),
+        ..QueryOptions::default()
+    };
+
+    let result = engine
+        .execute("SELECT * FROM crowdstrike_detections LIMIT 1000", options)
+        .await;
+
+    assert!(
+        result.is_ok(),
+        "LP2-LOW-3: execute with limit=1000 and StubAdapter must succeed; got: {:?}",
+        result.err()
+    );
+
+    let qr = result.unwrap();
+    assert!(
+        qr.returned_results > 0,
+        "LP2-LOW-3: pipeline with StubAdapter must produce rows (not vacuous); returned_results=0"
     );
 }

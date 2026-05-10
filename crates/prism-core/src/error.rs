@@ -574,6 +574,19 @@ pub enum PrismError {
         total: u32,
     },
 
+    /// E-QUERY-006: Requested limit exceeds the maximum allowed value (BC-2.11.001).
+    ///
+    /// Returned when `QueryOptions.limit > 1000`. Semantically distinct from
+    /// `QueryExecutionFailed` (E-QUERY-003) — this is a pre-execution parameter
+    /// validation error, not a runtime execution error.
+    #[error("E-QUERY-001: limit {requested} exceeds maximum of {max} (BC-2.11.001)")]
+    QueryLimitExceeded {
+        /// The limit value supplied by the caller.
+        requested: usize,
+        /// The configured maximum (1000 per BC-2.11.001).
+        max: usize,
+    },
+
     /// E-QUERY-011: Query targets `prism_audit` but caller lacks the `audit.read`
     /// capability (BC-2.15.011, AC-9).
     ///

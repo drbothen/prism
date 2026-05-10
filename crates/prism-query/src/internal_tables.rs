@@ -11,9 +11,21 @@
 //! - `prism_diff_results` — diff detection results
 //! - `prism_audit`       — audit log (requires `audit.read` capability)
 //!
-//! # Capability Gate
+//! # Capability Gate — Two-Layer Defense-in-Depth (F-LP2-CRIT-1, BC-2.15.011)
 //! Accessing `prism_audit` requires the `audit.read` capability. If denied,
-//! `E-QUERY-011` (`PrismError::AuditTableAccessDenied`) is returned. (BC-2.15.011)
+//! `E-QUERY-011` (`PrismError::AuditTableAccessDenied`) is returned.
+//!
+//! **Layer 1 (pre-execution):** `engine.rs::check_internal_table_capabilities` recursively
+//! walks the entire AST (including WHERE/HAVING subqueries like `IN (SELECT ... FROM prism_audit)`)
+//! before any scan, returning `AuditTableAccessDenied` immediately.
+//!
+//! **Layer 2 (scan-time):** `RocksDbTableProvider::scan()` checks caller capabilities
+//! stored at registration time. Even if Layer 1 is bypassed, `scan()` returns
+//! `DataFusionError::Plan` with E-QUERY-011.
+//!
+//! **Layer 3 (descriptor-driven):** Both layers consult `InternalTableDescriptor.requires_audit_read`
+//! (via `INTERNAL_TABLE_SPECS`), making the policy data-driven. Future tables flagged with
+//! `requires_audit_read = true` are automatically gated without code changes.
 //!
 //! # Scan Truncation
 //! Scans are truncated at `PRISM_MAX_INTERNAL_TABLE_SCAN` entries. The
@@ -42,6 +54,9 @@ use datafusion::{
 };
 use prism_core::{PrismError, StorageDomain};
 use prism_storage::RocksStorageBackend;
+
+// Imported for scan-time capability gate (F-LP2-CRIT-1 Layer 2).
+use crate::engine::Capability;
 
 /// Maximum entries returned by an internal table scan before truncation.
 ///
@@ -113,14 +128,23 @@ impl InternalTableDescriptor {
 /// to Arrow RecordBatches using the descriptor's schema, and truncates at
 /// `PRISM_MAX_INTERNAL_TABLE_SCAN` entries.
 ///
-/// # Capability Gate (BC-2.15.011)
-/// For `requires_audit_read = true`, `scan()` checks the `audit.read`
-/// capability before proceeding. Denied access returns `E-QUERY-011`.
+/// # Capability Gate — Two-Layer Enforcement (BC-2.15.011, F-LP2-CRIT-1)
+/// Layer 1 (pre-execution): `engine.rs::check_internal_table_capabilities` walks the
+/// full AST recursively (including WHERE/HAVING subqueries) before any scan begins.
+/// Layer 2 (scan-time, this type): `scan()` checks `capabilities` against
+/// `descriptor.requires_audit_read`. This is defense-in-depth — if Layer 1 is
+/// bypassed (e.g., via direct DataFusion API usage), Layer 2 still denies access.
+/// Both layers consult `descriptor.requires_audit_read` (Layer 3: descriptor-driven).
 pub struct RocksDbTableProvider {
     /// Descriptor defining schema, domain, and capability requirements.
     pub(crate) descriptor: InternalTableDescriptor,
     /// RocksDB-backed storage backend.
     pub(crate) backend: Arc<dyn RocksStorageBackend>,
+    /// Caller capabilities for scan-time gate (Layer 2, F-LP2-CRIT-1).
+    ///
+    /// Set at registration time via `new_with_capabilities`. Empty slice means
+    /// no capabilities granted (deny for `requires_audit_read = true` tables).
+    pub(crate) capabilities: Vec<Capability>,
 }
 
 impl std::fmt::Debug for RocksDbTableProvider {
@@ -132,11 +156,36 @@ impl std::fmt::Debug for RocksDbTableProvider {
 }
 
 impl RocksDbTableProvider {
-    /// Construct a `RocksDbTableProvider` for the given descriptor and backend.
+    /// Construct a `RocksDbTableProvider` with no caller capabilities.
+    ///
+    /// The scan-time capability gate (Layer 2) will deny access to tables with
+    /// `requires_audit_read = true`. Use `new_with_capabilities` to grant access.
     pub fn new(descriptor: InternalTableDescriptor, backend: Arc<dyn RocksStorageBackend>) -> Self {
         Self {
             descriptor,
             backend,
+            capabilities: Vec::new(),
+        }
+    }
+
+    /// Construct a `RocksDbTableProvider` with the caller's capabilities.
+    ///
+    /// The `capabilities` slice is stored and checked in `scan()` against
+    /// `descriptor.requires_audit_read` (Layer 2 defense-in-depth for F-LP2-CRIT-1).
+    ///
+    /// # F-LP2-CRIT-1 Layer 2
+    /// Passes the caller's `QueryOptions.capabilities` through to `scan()` so that
+    /// even if the pre-execution gate (Layer 1) is bypassed, the scan itself denies
+    /// access to `requires_audit_read = true` tables for callers without `AuditRead`.
+    pub fn new_with_capabilities(
+        descriptor: InternalTableDescriptor,
+        backend: Arc<dyn RocksStorageBackend>,
+        capabilities: Vec<Capability>,
+    ) -> Self {
+        Self {
+            descriptor,
+            backend,
+            capabilities,
         }
     }
 }
@@ -168,6 +217,11 @@ impl datafusion::datasource::TableProvider for RocksDbTableProvider {
     /// virtual fields (`_sensor`, `_client`, `_source_table`), and returns as
     /// `MemoryExec` plan. (F-LP1-HIGH-4, BC-2.11.012)
     ///
+    /// # Scan-Time Capability Gate (F-LP2-CRIT-1 Layer 2)
+    /// If `descriptor.requires_audit_read = true` and the caller's `capabilities`
+    /// do not include `Capability::AuditRead`, returns `DataFusionError::Plan`
+    /// with E-QUERY-011. This is defense-in-depth: catches bypasses of Layer 1.
+    ///
     /// Scans are read-only — no `insert_into` is implemented (AD-022 write-safety).
     async fn scan(
         &self,
@@ -176,6 +230,19 @@ impl datafusion::datasource::TableProvider for RocksDbTableProvider {
         _filters: &[Expr],
         limit: Option<usize>,
     ) -> datafusion::error::Result<Arc<dyn ExecutionPlan>> {
+        // F-LP2-CRIT-1 Layer 2: scan-time capability gate (defense-in-depth).
+        // Checks descriptor.requires_audit_read against stored capabilities.
+        // Layer 3: descriptor-driven — any table with requires_audit_read = true is gated.
+        if self.descriptor.requires_audit_read
+            && !self.capabilities.contains(&Capability::AuditRead)
+        {
+            return Err(datafusion::error::DataFusionError::Plan(
+                "E-QUERY-011: Audit table requires audit.read capability. \
+                 Grant via prism.toml [clients.{id}.capabilities]."
+                    .to_string(),
+            ));
+        }
+
         // Parse the StorageDomain from the descriptor's domain string.
         // We use an empty prefix scan to get all records in the domain.
         let domain_str = &self.descriptor.domain;
@@ -561,44 +628,75 @@ pub(crate) fn diff_results_schema() -> SchemaRef {
 // register_internal_tables
 // ---------------------------------------------------------------------------
 
-/// Register all internal tables into the given `SessionContext`.
+/// Static table descriptor table for all internal Prism tables.
 ///
-/// Called during `run_materialization_pipeline` before SQL plan execution.
-/// Registers: `prism_audit`, `prism_alerts`, `prism_cases`, `prism_schedules`,
-/// `prism_diff_results`. (BC-2.15.011)
+/// Each entry: `(table_name, domain, requires_audit_read)`.
+/// Used by both `register_internal_tables_with_capabilities` and
+/// `table_requires_audit_read` for descriptor-driven policy. (F-LP2-CRIT-1 Layer 3)
+const INTERNAL_TABLE_SPECS: &[(&str, &str, bool)] = &[
+    ("prism_audit", "audit_buffer", true),
+    ("prism_alerts", "alerts", false),
+    ("prism_cases", "cases", false),
+    ("prism_schedules", "schedules", false),
+    ("prism_diff_results", "diff_results", false),
+];
+
+/// Check whether a named internal table requires the `audit.read` capability.
 ///
-/// # Capability Gate
-/// `prism_audit` registration is deferred — the capability check occurs at
-/// `scan()` time, not registration time. This allows the table to appear in
-/// schema introspection regardless of capability.
+/// Consults `INTERNAL_TABLE_SPECS` (descriptor-driven policy, F-LP2-CRIT-1 Layer 3).
+/// Returns `true` for `prism_audit` and any future table flagged as `requires_audit_read`.
+/// Returns `false` for unknown table names (conservative: unknown tables are not gated here).
+pub fn table_requires_audit_read(table_name: &str) -> bool {
+    INTERNAL_TABLE_SPECS
+        .iter()
+        .find(|(name, _, _)| *name == table_name)
+        .map(|(_, _, requires)| *requires)
+        .unwrap_or(false)
+}
+
+/// Register all internal tables into the given `SessionContext`, forwarding
+/// caller capabilities to each `RocksDbTableProvider` for scan-time enforcement.
+///
+/// # Two-Layer Enforcement (F-LP2-CRIT-1)
+/// - Layer 1: pre-execution gate in `engine.rs::check_internal_table_capabilities`
+///   (recursive AST walk before any scan).
+/// - Layer 2 (this function): passes `capabilities` to `RocksDbTableProvider::new_with_capabilities`
+///   so `scan()` enforces the gate even if Layer 1 is bypassed.
+///
+/// # BC-2.15.011
+/// `prism_audit` requires `audit.read` capability. All tables with `requires_audit_read = true`
+/// in `INTERNAL_TABLE_SPECS` are automatically gated.
 ///
 /// # Idempotency (EC-003)
 /// If called twice, the second call overwrites the first. No error is returned.
-pub fn register_internal_tables(
+pub fn register_internal_tables_with_capabilities(
     ctx: &datafusion::execution::context::SessionContext,
     backend: Arc<dyn RocksStorageBackend>,
+    capabilities: &[crate::engine::Capability],
 ) -> Result<(), PrismError> {
-    let tables: &[(&str, &str, SchemaRef, bool)] = &[
-        ("prism_audit", "audit_buffer", audit_schema(), true),
-        ("prism_alerts", "alerts", alerts_schema(), false),
-        ("prism_cases", "cases", cases_schema(), false),
-        ("prism_schedules", "schedules", schedules_schema(), false),
-        (
-            "prism_diff_results",
-            "diff_results",
-            diff_results_schema(),
-            false,
-        ),
+    let schemas: &[SchemaRef] = &[
+        audit_schema(),
+        alerts_schema(),
+        cases_schema(),
+        schedules_schema(),
+        diff_results_schema(),
     ];
 
-    for (table_name, domain, schema, requires_audit_read) in tables {
+    for ((table_name, domain, requires_audit_read), schema) in
+        INTERNAL_TABLE_SPECS.iter().zip(schemas.iter())
+    {
         let descriptor = InternalTableDescriptor {
             table_name: table_name.to_string(),
             domain: domain.to_string(),
             schema: Arc::clone(schema),
             requires_audit_read: *requires_audit_read,
         };
-        let provider = Arc::new(RocksDbTableProvider::new(descriptor, Arc::clone(&backend)));
+        // F-LP2-CRIT-1 Layer 2: pass capabilities to provider for scan-time enforcement.
+        let provider = Arc::new(RocksDbTableProvider::new_with_capabilities(
+            descriptor,
+            Arc::clone(&backend),
+            capabilities.to_vec(),
+        ));
         ctx.register_table(*table_name, provider).map_err(|e| {
             PrismError::QueryExecutionFailed {
                 detail: format!("failed to register internal table '{table_name}': {e}"),
@@ -607,4 +705,22 @@ pub fn register_internal_tables(
     }
 
     Ok(())
+}
+
+/// Register all internal tables into the given `SessionContext` with no capabilities.
+///
+/// Legacy API — preserved for callers that do not need capability-aware registration.
+/// Equivalent to `register_internal_tables_with_capabilities(ctx, backend, &[])`.
+///
+/// # Capability Gate
+/// Tables with `requires_audit_read = true` will deny scan access (Layer 2 gate).
+/// Use `register_internal_tables_with_capabilities` to grant AuditRead access.
+///
+/// # Idempotency (EC-003)
+/// If called twice, the second call overwrites the first. No error is returned.
+pub fn register_internal_tables(
+    ctx: &datafusion::execution::context::SessionContext,
+    backend: Arc<dyn RocksStorageBackend>,
+) -> Result<(), PrismError> {
+    register_internal_tables_with_capabilities(ctx, backend, &[])
 }

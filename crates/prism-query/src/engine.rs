@@ -360,13 +360,14 @@ impl QueryEngine {
     ) -> Result<QueryResult, PrismError> {
         let start = std::time::Instant::now();
 
-        // F-LP1-HIGH-7: enforce max-1000 limit (BC-2.11.001).
+        // F-LP1-HIGH-7 / F-LP2-LOW-1: enforce max-1000 limit (BC-2.11.001).
+        // Uses dedicated QueryLimitExceeded variant (not QueryExecutionFailed) so callers
+        // can match the correct error code without parsing a string. (F-LP2-LOW-1)
         if let Some(limit) = options.limit {
             if limit > 1000 {
-                return Err(PrismError::QueryExecutionFailed {
-                    detail: format!(
-                        "E-QUERY-001: limit {limit} exceeds maximum of 1000 (BC-2.11.001)"
-                    ),
+                return Err(PrismError::QueryLimitExceeded {
+                    requested: limit,
+                    max: 1000,
                 });
             }
         }
@@ -411,12 +412,18 @@ impl QueryEngine {
         // any storage scan, not inside the DataFusion `scan()` trait method (approach b).
         check_internal_table_capabilities(query_str, &options.capabilities)?;
 
-        // F-LP1-CRIT-1: register internal tables into the session context before
-        // materialization so `prism_*` table references resolve in DataFusion.
+        // F-LP1-CRIT-1 / F-LP2-CRIT-1 Layer 2: register internal tables into the session context
+        // before materialization so `prism_*` table references resolve in DataFusion.
+        // Passes caller capabilities so each RocksDbTableProvider enforces the scan-time gate
+        // (Layer 2 defense-in-depth: even if pre-execution gate is bypassed, scan() rejects).
         // Safety: when storage is None, internal tables are not available — DataFusion
         // will return "table not found" for `prism_*` queries (acceptable for query-only mode).
         if let Some(ref storage) = self.storage {
-            crate::internal_tables::register_internal_tables(&session_ctx, Arc::clone(storage))?;
+            crate::internal_tables::register_internal_tables_with_capabilities(
+                &session_ctx,
+                Arc::clone(storage),
+                &options.capabilities,
+            )?;
         }
 
         // Step 3: Set up MaterializationContext with engine dependencies.
@@ -524,8 +531,13 @@ impl QueryEngine {
         let session_ctx = Arc::new(datafusion::execution::context::SessionContext::new());
 
         // F-LP1-CRIT-1: register internal tables for scheduled queries too.
+        // Scheduled queries run with no caller capabilities (system context).
         if let Some(ref storage) = self.storage {
-            crate::internal_tables::register_internal_tables(&session_ctx, Arc::clone(storage))?;
+            crate::internal_tables::register_internal_tables_with_capabilities(
+                &session_ctx,
+                Arc::clone(storage),
+                &[],
+            )?;
         }
 
         // Set up MaterializationContext.
@@ -578,21 +590,21 @@ impl QueryEngine {
 // check_internal_table_capabilities — pre-execution capability gate (F-LP1-HIGH-3)
 // ---------------------------------------------------------------------------
 
-/// Pre-execution capability gate for internal tables.
+/// Pre-execution capability gate for internal tables (Layer 1 of defense-in-depth).
 ///
-/// Parses the query string to extract source table names and checks whether any
-/// referenced `prism_*` table requires a capability the caller has not been
-/// granted. Returns `Err(PrismError::AuditTableAccessDenied)` (E-QUERY-011) if
-/// `prism_audit` is referenced without `Capability::AuditRead`.
+/// Parses the query string and **recursively** walks all AST positions — including
+/// WHERE subqueries (`IN (SELECT ... FROM prism_audit)`), HAVING subqueries, SELECT
+/// projection subqueries, JOINs, and CTEs — to extract every referenced `prism_*`
+/// table name. (F-LP2-CRIT-1 Layer 1)
 ///
-/// # Design (approach b from fix spec)
-/// The check runs in `execute_inner` BEFORE any storage scan or DataFusion
-/// planning, so unauthorized access is denied as early as possible. This is
-/// cleaner than threading capability state into `RocksDbTableProvider::scan()`.
+/// For each extracted table, consults `INTERNAL_TABLE_DESCRIPTORS` to check
+/// `requires_audit_read`. If `true` and `Capability::AuditRead` is absent, rejects
+/// with `PrismError::AuditTableAccessDenied` (E-QUERY-011). This makes the policy
+/// data-driven: future tables with `requires_audit_read = true` are automatically gated.
+/// (F-LP2-MED-3 / F-LP2-CRIT-1 Layer 3)
 ///
 /// # Parse failures
-/// If the query fails to parse, the capability gate returns `Ok(())` and lets
-/// the pipeline handle the parse error (which it will, immediately after).
+/// If the query fails to parse, returns `Ok(())` — the pipeline handles parse errors.
 ///
 /// # BC-2.15.011
 /// `prism_audit` requires `audit.read` capability → `Capability::AuditRead`.
@@ -606,13 +618,14 @@ fn check_internal_table_capabilities(
         Err(_) => return Ok(()), // parse errors handled downstream
     };
 
-    // Extract source table names from the AST.
-    let source_names = crate::materialization::extract_source_names_for_capability_check(&ast);
+    // Extract ALL source table names recursively (Layer 1: subquery walk).
+    let source_names = crate::materialization::extract_source_names_recursive(&ast);
 
-    // Check: prism_audit requires AuditRead (BC-2.15.011).
+    // Layer 3: descriptor-driven policy check via INTERNAL_TABLE_DESCRIPTORS.
     let has_audit_read = capabilities.contains(&Capability::AuditRead);
     for name in &source_names {
-        if name == "prism_audit" && !has_audit_read {
+        // Look up the descriptor for this table; if it requires audit.read and caller lacks it, deny.
+        if crate::internal_tables::table_requires_audit_read(name) && !has_audit_read {
             return Err(PrismError::AuditTableAccessDenied);
         }
     }

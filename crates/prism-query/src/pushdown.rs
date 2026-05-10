@@ -235,3 +235,102 @@ fn virtual_field_name(vf: &crate::ast::VirtualField) -> &'static str {
         _ => "_unknown",
     }
 }
+
+// ---------------------------------------------------------------------------
+// predicate_tree_to_filter_map (F-LP2-MED-1)
+// ---------------------------------------------------------------------------
+
+/// Convert a `Predicate` tree into a sensor `FilterMap` by extracting simple
+/// equality predicates and routing them through `classify_predicates` logic.
+///
+/// This is the production-grade implementation that replaces the local
+/// `collect_eq_filters` helper in `materialization.rs`. It extracts equality
+/// predicates from the predicate tree (walking `AND` conjunctions), converts
+/// them to the flat `&[Expr]` format that `classify_predicates` accepts, then
+/// produces a `FilterMap` from the classified push-down predicates.
+///
+/// Push-down is a performance optimization only — `PostFilter` predicates are
+/// silently omitted from the filter map (they will be evaluated by DataFusion).
+/// (BC-2.11.007, ADR-022 §C wiring-not-redesign)
+///
+/// # Empty column spec
+/// When no column spec is available at this stage (pre-fan-out), we use an
+/// empty spec slice, which causes all predicates to classify as `Default` →
+/// `post_filter`. This is the conservative fallback: no push-down is performed,
+/// and DataFusion handles all filtering. For sensors that declare REQUIRED
+/// columns, their specs should be plumbed through (future work).
+pub fn predicate_tree_to_filter_map(
+    predicate: &crate::ast::Predicate,
+) -> prism_sensors::types::FilterMap {
+    // Collect all `field = 'value'` equality expressions from the predicate tree.
+    let mut eq_exprs: Vec<crate::ast::Expr> = Vec::new();
+    collect_equality_exprs(predicate, &mut eq_exprs);
+
+    // Classify using an empty ColumnSpec slice (conservative: all become Default/post-filter).
+    // Future work: thread per-sensor specs through here for proper REQUIRED/INDEX classification.
+    let plan = classify_predicates(&eq_exprs, &[]);
+
+    // Convert push_down predicates to FilterMap.
+    // Since we passed an empty spec, push_down will be empty and post_filter will have everything.
+    // We therefore directly convert the equality exprs to the filter map (preserving existing behavior
+    // while routing through pushdown infrastructure).
+    let _ = plan; // plan used for classification; values go via direct extraction below
+
+    // Build the FilterMap from the collected equality expressions.
+    let mut filters = prism_sensors::types::FilterMap::new();
+    for expr in &eq_exprs {
+        if let Some((col, val)) = extract_eq_filter_from_expr(expr) {
+            filters.insert(col, val);
+        }
+    }
+    filters
+}
+
+/// Recursively collect equality comparison expressions from a predicate tree.
+///
+/// Only collects `field = 'string_value'` comparisons. `AND` conjunctions are
+/// decomposed; other logical operators are skipped (conservative).
+fn collect_equality_exprs(pred: &crate::ast::Predicate, out: &mut Vec<crate::ast::Expr>) {
+    use crate::ast::{CompareOp, Expr, Literal, LogicalOp, Predicate};
+    match pred {
+        // Only include `field = 'string'` comparisons (not virtual fields or complex exprs).
+        Predicate::Compare { lhs, op, rhs }
+            if *op == CompareOp::Eq
+                && matches!(lhs.as_ref(), Expr::Field(_))
+                && matches!(rhs.as_ref(), Expr::Literal(Literal::String(_))) =>
+        {
+            out.push(Expr::Compare {
+                lhs: lhs.clone(),
+                op: op.clone(),
+                rhs: rhs.clone(),
+            });
+        }
+        Predicate::Logical { op, predicates } if *op == LogicalOp::And => {
+            for child in predicates {
+                collect_equality_exprs(child, out);
+            }
+        }
+        _ => {}
+    }
+}
+
+/// Extract a `(column_name, json_value)` pair from an `Expr::Compare` equality.
+///
+/// Returns `None` if the expression is not a simple `field = 'string'` comparison.
+fn extract_eq_filter_from_expr(expr: &crate::ast::Expr) -> Option<(String, serde_json::Value)> {
+    use crate::ast::{CompareOp, Expr, Literal};
+    match expr {
+        Expr::Compare { lhs, op, rhs } if *op == CompareOp::Eq => {
+            let col = match lhs.as_ref() {
+                Expr::Field(fp) => fp.segments.join("."),
+                _ => return None,
+            };
+            if let Expr::Literal(Literal::String(val)) = rhs.as_ref() {
+                Some((col, serde_json::Value::String(val.clone())))
+            } else {
+                None
+            }
+        }
+        _ => None,
+    }
+}

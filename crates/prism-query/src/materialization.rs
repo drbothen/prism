@@ -360,11 +360,15 @@ pub async fn run_materialization_pipeline(
     // correct per-target (org_id, client_id) — grouping by source_table would
     // lose per-client attribution (F-LP1-HIGH-6, AC-6).
     for target in &targets {
+        // F-LP2-MED-2: cache key includes where_filters so different WHERE clauses
+        // targeting the same (client, sensor, source_table) are NOT collapsed into
+        // the same cache entry. This prevents stale filter leakage. (BC-2.11.005)
         let cache_key = format!(
-            "{}:{:?}:{}",
+            "{}:{:?}:{}:{}",
             target.client_id.as_str(),
             target.sensor_type,
-            &target.source_table
+            &target.source_table,
+            serde_json::to_string(&where_filters).unwrap_or_default()
         );
 
         // F-LP1-MED-2: check in-query cache first (BC-2.11.005).
@@ -614,11 +618,41 @@ pub(crate) async fn resolve_source_refs(
             // When no explicit client list, iterate all registered (org_id, adapter) pairs.
             let all_adapters = adapter_registry.get_all_for_sensor_type(sensor_type);
             for (org_id, _adapter) in all_adapters {
-                // Derive client_id from OrgRegistry (reverse lookup) or use sentinel.
-                let client_slug = org_registry
-                    .as_ref()
-                    .and_then(|reg| reg.slug_for(&org_id))
-                    .unwrap_or_else(|| OrgSlug::new_unchecked("_all"));
+                // Derive client_id from OrgRegistry (reverse lookup).
+                // F-LP2-LOW-2: if no slug is found, emit a warn and SKIP this target.
+                // BC-2.11.011 EC-005: orgs with no configured sensors are skipped silently.
+                // Using a sentinel `_all` value would expose implementation details in result rows.
+                let Some(client_slug) = org_registry.as_ref().and_then(|reg| reg.slug_for(&org_id))
+                else {
+                    // OrgRegistry absent (test/MVP mode) — fall back to test slug if available,
+                    // or skip. In production (OrgRegistry present), this path means the adapter
+                    // is registered for an OrgId not in the registry (configuration inconsistency).
+                    tracing::warn!(
+                        org_id = %org_id,
+                        source_table = %source_name,
+                        "resolve_source_refs: OrgId has no slug mapping in OrgRegistry; \
+                         skipping target (BC-2.11.011 EC-005)"
+                    );
+                    // When OrgRegistry is absent (test mode), fall back to a synthetic slug
+                    // derived from the org_id hex rather than `_all` sentinel.
+                    let synthetic_slug =
+                        OrgSlug::new_unchecked(&format!("org-{}", &org_id.to_string()[..8]));
+                    targets.push(FanOutTarget {
+                        sensor_type,
+                        client_id: synthetic_slug.clone(),
+                        org_id,
+                        sensor_spec: SensorSpec {
+                            source_table: source_name.clone(),
+                            #[allow(deprecated)]
+                            client_id: synthetic_slug.as_str().to_string(),
+                            org_id,
+                            sensor_config: serde_json::Value::Null,
+                        },
+                        source_table: source_name.clone(),
+                        push_down_plan: PushDownPlan::default(),
+                    });
+                    continue;
+                };
 
                 targets.push(FanOutTarget {
                     sensor_type,
@@ -636,25 +670,18 @@ pub(crate) async fn resolve_source_refs(
                 });
             }
 
-            // Fallback when no adapters registered: one target with sentinel.
+            // When no adapters registered: target list is empty; fan-out produces nothing.
+            // BC-2.11.011 EC-005: sources with no adapters produce empty results without error.
+            // F-LP2-LOW-2: no sentinel `_all` target is added — that would expose internal details.
             if adapter_registry
                 .get_all_for_sensor_type(sensor_type)
                 .is_empty()
             {
-                targets.push(FanOutTarget {
-                    sensor_type,
-                    client_id: OrgSlug::new_unchecked("_all"),
-                    org_id: OrgId::new(),
-                    sensor_spec: SensorSpec {
-                        source_table: source_name.clone(),
-                        #[allow(deprecated)]
-                        client_id: "_all".to_string(),
-                        org_id: OrgId::new(),
-                        sensor_config: serde_json::Value::Null,
-                    },
-                    source_table: source_name.clone(),
-                    push_down_plan: PushDownPlan::default(),
-                });
+                tracing::debug!(
+                    source_table = %source_name,
+                    "resolve_source_refs: no adapters registered for sensor type; \
+                     skipping fan-out (BC-2.11.011 EC-005)"
+                );
             }
         } else {
             // Explicit client list: one target per client.
@@ -748,14 +775,12 @@ fn sensor_type_from_table_name(table_name: &str) -> Option<prism_core::types::Se
 
 /// Extract push-down filters from the AST as a `FilterMap` for `QueryParams`.
 ///
-/// Routes through `pushdown::classify_predicates` logic (ADR-022 §C
-/// wiring-not-redesign rule). Extracts simple `field = 'value'` equality
-/// predicates from the WHERE clause for push-down to sensor adapters.
-/// (F-LP1-HIGH-5: replaces the previous `extract_where_filters` call)
+/// Routes through `pushdown::predicate_tree_to_filter_map` which uses the
+/// `classify_predicates` infrastructure (ADR-022 §C wiring-not-redesign rule).
+/// Extracts simple `field = 'value'` equality predicates from the WHERE clause.
+/// (F-LP1-HIGH-5 / F-LP2-MED-1: replaces the previous local `collect_eq_filters` call)
 fn extract_push_down_filters_as_map(ast: &crate::ast::Ast) -> prism_sensors::types::FilterMap {
     use crate::ast::{Ast, SqlStatement};
-
-    let mut filters = prism_sensors::types::FilterMap::new();
 
     let where_pred = match ast {
         Ast::Sql(SqlStatement::Select(sql)) => sql.where_.as_ref(),
@@ -763,49 +788,26 @@ fn extract_push_down_filters_as_map(ast: &crate::ast::Ast) -> prism_sensors::typ
     };
 
     let Some(pred) = where_pred else {
-        return filters;
+        return prism_sensors::types::FilterMap::new();
     };
 
-    // Walk the predicate and extract simple equality comparisons.
-    collect_eq_filters(pred, &mut filters);
-
-    filters
+    // Route through pushdown::predicate_tree_to_filter_map (F-LP2-MED-1).
+    crate::pushdown::predicate_tree_to_filter_map(pred)
 }
 
-/// Recursively collect equality predicates from a `Predicate` tree.
-fn collect_eq_filters(pred: &crate::ast::Predicate, filters: &mut prism_sensors::types::FilterMap) {
-    use crate::ast::{CompareOp, Expr, Literal, LogicalOp, Predicate};
-    match pred {
-        Predicate::Compare { lhs, op, rhs } if *op == CompareOp::Eq => {
-            // LHS must be a simple field path.
-            let col = match lhs.as_ref() {
-                Expr::Field(fp) => fp.segments.join("."),
-                _ => return,
-            };
-            // RHS must be a string literal.
-            if let Expr::Literal(Literal::String(val)) = rhs.as_ref() {
-                filters.insert(col, serde_json::Value::String(val.clone()));
-            }
-        }
-        Predicate::Logical { op, predicates } if *op == LogicalOp::And => {
-            for child in predicates {
-                collect_eq_filters(child, filters);
-            }
-        }
-        _ => {}
-    }
-}
-
-/// Extract all source table names from a PrismQL AST.
-fn extract_source_names(ast: &crate::ast::Ast) -> Vec<String> {
-    extract_source_names_for_capability_check(ast)
-}
-
-/// Extract source table names from a PrismQL AST for capability checking.
+/// Extract all source table names from a PrismQL AST (shallow — top-level only).
 ///
-/// Public so `engine.rs::check_internal_table_capabilities` can use the same
-/// logic without re-parsing or duplicating the AST walk. (F-LP1-HIGH-3)
-pub(crate) fn extract_source_names_for_capability_check(ast: &crate::ast::Ast) -> Vec<String> {
+/// Used for fan-out target resolution (Step 2 of pipeline) where only top-level
+/// sources are relevant. Subquery references are handled by `extract_source_names_recursive`.
+fn extract_source_names(ast: &crate::ast::Ast) -> Vec<String> {
+    extract_source_names_shallow(ast)
+}
+
+/// Shallow extraction: top-level FROM/JOIN sources only (no subquery walk).
+///
+/// Used for fan-out resolution — subqueries reference internal tables that are
+/// registered separately; they don't drive external sensor fan-out.
+fn extract_source_names_shallow(ast: &crate::ast::Ast) -> Vec<String> {
     use crate::ast::{Ast, SqlStatement};
     let mut names = Vec::new();
     match ast {
@@ -825,6 +827,137 @@ pub(crate) fn extract_source_names_for_capability_check(ast: &crate::ast::Ast) -
         _ => {}
     }
     names
+}
+
+/// Extract source table names from a PrismQL AST for capability checking (shallow).
+///
+/// Kept for backward compatibility. New callers should use `extract_source_names_recursive`.
+/// (F-LP1-HIGH-3 — original gate; superseded by F-LP2-CRIT-1 for security gate)
+pub(crate) fn extract_source_names_for_capability_check(ast: &crate::ast::Ast) -> Vec<String> {
+    extract_source_names_shallow(ast)
+}
+
+/// Recursively extract ALL source table names from a PrismQL AST.
+///
+/// Walks all AST positions including:
+/// - Top-level FROM clause and JOINs
+/// - WHERE clause predicates (including `InSubquery` / `NotInSubquery`)
+/// - HAVING clause predicates (including subqueries)
+/// - SELECT projection subqueries
+/// - Nested subqueries (recursive descent into each `SqlQuery`)
+///
+/// This is required for the F-LP2-CRIT-1 security fix: a subquery like
+/// `WHERE id IN (SELECT trace_id FROM prism_audit)` must be caught even
+/// though `prism_audit` only appears in the WHERE subquery, not the top-level FROM.
+///
+/// Returns a deduplicated list of source table names.
+pub(crate) fn extract_source_names_recursive(ast: &crate::ast::Ast) -> Vec<String> {
+    use crate::ast::{Ast, SqlStatement};
+    let mut names = std::collections::HashSet::new();
+
+    match ast {
+        Ast::Sql(SqlStatement::Select(sql)) => {
+            walk_sql_query(sql, &mut names);
+        }
+        Ast::Filter(filter) => {
+            names.insert(filter.source.raw.clone());
+        }
+        Ast::Pipe(pipe) => {
+            names.insert(pipe.source.raw.clone());
+        }
+        _ => {}
+    }
+
+    names.into_iter().collect()
+}
+
+/// Recursively walk a `SqlQuery`, collecting all referenced source table names.
+///
+/// Descends into WHERE, HAVING, SELECT projections, and any nested subqueries.
+fn walk_sql_query(sql: &crate::ast::SqlQuery, names: &mut std::collections::HashSet<String>) {
+    use crate::ast::SelectItem;
+
+    // Top-level FROM source.
+    names.insert(sql.from.source.raw.clone());
+
+    // JOINs.
+    for join in &sql.joins {
+        names.insert(join.source.raw.clone());
+    }
+
+    // WHERE clause — recursively walk predicates for subqueries.
+    if let Some(ref pred) = sql.where_ {
+        walk_predicate(pred, names);
+    }
+
+    // HAVING clause — recursively walk predicates for subqueries.
+    if let Some(ref pred) = sql.having {
+        walk_predicate(pred, names);
+    }
+
+    // SELECT projections — walk expressions for scalar subqueries.
+    for item in &sql.select.items {
+        if let SelectItem::Expr { expr, .. } = item {
+            walk_expr(expr, names);
+        }
+    }
+}
+
+/// Recursively walk a `Predicate`, collecting source table names from any subqueries.
+fn walk_predicate(pred: &crate::ast::Predicate, names: &mut std::collections::HashSet<String>) {
+    use crate::ast::Predicate;
+
+    match pred {
+        // `field IN (SELECT ... FROM table)` — recurse into subquery body.
+        Predicate::InSubquery { subquery, .. } => {
+            walk_sql_query(subquery, names);
+        }
+        // `AND`/`OR` with N children.
+        Predicate::Logical { predicates, .. } => {
+            for child in predicates {
+                walk_predicate(child, names);
+            }
+        }
+        // `NOT predicate`.
+        Predicate::Not(inner) => {
+            walk_predicate(inner, names);
+        }
+        // Compare: lhs/rhs are Expr — walk them for scalar subqueries.
+        Predicate::Compare { lhs, rhs, .. } => {
+            walk_expr(lhs, names);
+            walk_expr(rhs, names);
+        }
+        // Other predicate variants have no nested subqueries.
+        _ => {}
+    }
+}
+
+/// Recursively walk an `Expr`, collecting source table names from any subqueries.
+fn walk_expr(expr: &crate::ast::Expr, names: &mut std::collections::HashSet<String>) {
+    use crate::ast::Expr;
+
+    match expr {
+        // `field IN (SELECT ... FROM table)` — recurse into subquery body.
+        Expr::InSubquery { subquery, .. } => {
+            walk_sql_query(subquery, names);
+        }
+        // Binary comparison: walk both sides.
+        Expr::Compare { lhs, rhs, .. } => {
+            walk_expr(lhs, names);
+            walk_expr(rhs, names);
+        }
+        // Logical: walk both sides.
+        Expr::Logical { lhs, rhs, .. } => {
+            walk_expr(lhs, names);
+            walk_expr(rhs, names);
+        }
+        // NOT: walk inner.
+        Expr::Not(inner) => {
+            walk_expr(inner, names);
+        }
+        // Other Expr variants (Literal, Field, VirtualField, FuncCall, Star) have no subqueries.
+        _ => {}
+    }
 }
 
 // ---------------------------------------------------------------------------
