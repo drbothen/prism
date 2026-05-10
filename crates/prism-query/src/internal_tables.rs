@@ -60,18 +60,42 @@ pub const PRISM_MAX_INTERNAL_TABLE_SCAN: usize = 10_000;
 /// # Fields
 /// - `table_name`: e.g. `"prism_alerts"`
 /// - `domain`: RocksDB column family name
-/// - `schema`: Arrow schema for materialized RecordBatches
+/// - `schema`: Arrow schema for materialized RecordBatches (domain fields only)
 /// - `requires_audit_read`: true for `prism_audit` table (BC-2.15.011)
+///
+/// # Virtual Fields (F-LP1-HIGH-4, BC-2.11.012)
+/// The `full_schema()` method returns the complete schema including virtual fields
+/// `_sensor`, `_client`, `_source_table`. `RocksDbTableProvider::schema()` exposes
+/// this to DataFusion so query planning includes the virtual fields.
 #[derive(Debug, Clone)]
 pub struct InternalTableDescriptor {
     /// Fully-qualified table name as registered with DataFusion.
     pub table_name: String,
     /// RocksDB domain (column family prefix). Used by `RocksStorageBackend::scan`.
     pub domain: String,
-    /// Arrow schema for the materialized RecordBatches.
+    /// Arrow schema for the domain fields (without virtual fields).
     pub schema: SchemaRef,
     /// True if accessing this table requires the `audit.read` capability.
     pub requires_audit_read: bool,
+}
+
+impl InternalTableDescriptor {
+    /// Return the full output schema: domain fields + virtual fields.
+    ///
+    /// DataFusion query planning uses this schema so that `SELECT *` includes
+    /// `_sensor`, `_client`, and `_source_table`. (F-LP1-HIGH-4, BC-2.11.012)
+    pub fn full_schema(&self) -> SchemaRef {
+        let mut fields: Vec<Field> = self
+            .schema
+            .fields()
+            .iter()
+            .map(|f| f.as_ref().clone())
+            .collect();
+        fields.push(Field::new("_sensor", DataType::Utf8, false));
+        fields.push(Field::new("_client", DataType::Utf8, false));
+        fields.push(Field::new("_source_table", DataType::Utf8, false));
+        Arc::new(Schema::new(fields))
+    }
 }
 
 // ---------------------------------------------------------------------------
@@ -123,11 +147,13 @@ impl datafusion::datasource::TableProvider for RocksDbTableProvider {
         self
     }
 
-    /// Return the Arrow schema for this internal table.
+    /// Return the full Arrow schema for this internal table.
     ///
-    /// Schema is fixed at compile time per story §Tasks step 5.
+    /// Includes both domain fields and virtual fields (`_sensor`, `_client`,
+    /// `_source_table`) so DataFusion query planning includes the virtual fields
+    /// in `SELECT *` expansions. (F-LP1-HIGH-4, BC-2.11.012)
     fn schema(&self) -> SchemaRef {
-        Arc::clone(&self.descriptor.schema)
+        self.descriptor.full_schema()
     }
 
     /// Return `TableType::Base` — internal tables are base tables (read from RocksDB).
@@ -138,8 +164,9 @@ impl datafusion::datasource::TableProvider for RocksDbTableProvider {
     /// Scan the RocksDB column family for this domain.
     ///
     /// Reads all key-value pairs from the domain (using empty prefix to scan all),
-    /// converts values to single-column string rows (raw bytes as UTF-8 best-effort),
-    /// returns as `MemoryExec` plan.
+    /// converts values to typed Arrow rows using the descriptor's schema, injects
+    /// virtual fields (`_sensor`, `_client`, `_source_table`), and returns as
+    /// `MemoryExec` plan. (F-LP1-HIGH-4, BC-2.11.012)
     ///
     /// Scans are read-only — no `insert_into` is implemented (AD-022 write-safety).
     async fn scan(
@@ -169,7 +196,10 @@ impl datafusion::datasource::TableProvider for RocksDbTableProvider {
             .map(|l| l.min(PRISM_MAX_INTERNAL_TABLE_SCAN))
             .unwrap_or(PRISM_MAX_INTERNAL_TABLE_SCAN);
 
-        let schema = self.schema();
+        // Use domain-only schema for KV deserialization.
+        // Virtual fields are added by inject_internal_virtual_fields below.
+        // self.schema() returns the full schema (domain + virtual); we want domain-only here.
+        let schema = Arc::clone(&self.descriptor.schema);
         let num_fields = schema.fields().len();
 
         // Build batches in chunks of 1000 rows.
@@ -180,16 +210,24 @@ impl datafusion::datasource::TableProvider for RocksDbTableProvider {
 
         for chunk in pairs_truncated.chunks(chunk_size) {
             let batch = build_batch_from_kv(schema.clone(), num_fields, chunk)?;
+            // F-LP1-HIGH-4: inject virtual fields into each batch.
+            // BC-2.11.012: internal tables use _sensor = "prism", _client = "<system>",
+            // _source_table = <table_name> (the bare domain table name).
+            let batch = inject_internal_virtual_fields(batch, &self.descriptor.table_name)?;
             batches.push(batch);
         }
 
-        // If no rows, produce a single empty batch to keep DataFusion happy.
+        // If no rows, produce a single empty batch (with virtual fields) to keep DataFusion happy.
         if batches.is_empty() {
             let empty = RecordBatch::new_empty(schema.clone());
+            let empty = inject_internal_virtual_fields(empty, &self.descriptor.table_name)?;
             batches.push(empty);
         }
 
-        let plan = MemorySourceConfig::try_new_exec(&[batches], schema, projection.cloned())?;
+        // The schema has been extended with virtual fields — use the augmented schema.
+        let augmented_schema = batches[0].schema();
+        let plan =
+            MemorySourceConfig::try_new_exec(&[batches], augmented_schema, projection.cloned())?;
 
         Ok(plan)
     }
@@ -203,6 +241,90 @@ impl datafusion::datasource::TableProvider for RocksDbTableProvider {
     ) -> datafusion::error::Result<Vec<TableProviderFilterPushDown>> {
         Ok(vec![TableProviderFilterPushDown::Inexact; filters.len()])
     }
+}
+
+// ---------------------------------------------------------------------------
+// inject_internal_virtual_fields — add _sensor/_client/_source_table to internal-table batches
+// ---------------------------------------------------------------------------
+
+/// Inject virtual provenance fields into an internal-table RecordBatch.
+///
+/// Internal tables (backed by RocksDB) receive:
+/// - `_sensor = "prism"` — distinguishes internal from external sensor data (BC-2.11.012).
+/// - `_client = "<system>"` — internal tables are not per-org; they are system-wide.
+/// - `_source_table = <table_name>` — the fully-qualified `prism_*` table name.
+///
+/// If the batch already contains any of these column names (schema drift or spoofing),
+/// the existing column is overwritten with the canonical value.
+///
+/// # F-LP1-HIGH-4
+/// This matches the virtual-field injection done for external sensor MemTables by
+/// `crate::virtual_fields::inject_virtual_fields`. Internal tables must receive the
+/// same treatment so they appear uniform to the query layer (BC-2.11.012 postcondition).
+fn inject_internal_virtual_fields(
+    batch: RecordBatch,
+    table_name: &str,
+) -> datafusion::error::Result<RecordBatch> {
+    let num_rows = batch.num_rows();
+
+    // Remove any pre-existing virtual columns to prevent schema drift / spoofing.
+    let reserved: &[&str] = &["_sensor", "_client", "_source_table"];
+    let keep_indices: Vec<usize> = batch
+        .schema()
+        .fields()
+        .iter()
+        .enumerate()
+        .filter(|(_, f)| !reserved.contains(&f.name().as_str()))
+        .map(|(i, _)| i)
+        .collect();
+
+    let base_batch = if keep_indices.len() == batch.num_columns() {
+        batch
+    } else {
+        let new_columns: Vec<_> = keep_indices
+            .iter()
+            .map(|&i| batch.column(i).clone())
+            .collect();
+        let new_fields: Vec<arrow::datatypes::Field> = keep_indices
+            .iter()
+            .map(|&i| batch.schema().field(i).clone())
+            .collect();
+        let new_schema = std::sync::Arc::new(arrow::datatypes::Schema::new(new_fields));
+        RecordBatch::try_new(new_schema, new_columns)
+            .map_err(|e| datafusion::error::DataFusionError::ArrowError(Box::new(e), None))?
+    };
+
+    // Build virtual field arrays.
+    let sensor_array: std::sync::Arc<dyn arrow::array::Array> =
+        std::sync::Arc::new(StringArray::from(vec!["prism"; num_rows]));
+    let client_array: std::sync::Arc<dyn arrow::array::Array> =
+        std::sync::Arc::new(StringArray::from(vec!["<system>"; num_rows]));
+    let table_array: std::sync::Arc<dyn arrow::array::Array> =
+        std::sync::Arc::new(StringArray::from(vec![table_name; num_rows]));
+
+    // Extend schema with virtual fields.
+    let existing_schema = base_batch.schema();
+    let mut new_fields: Vec<Field> = existing_schema
+        .fields()
+        .iter()
+        .map(|f| f.as_ref().clone())
+        .collect();
+    new_fields.push(Field::new("_sensor", DataType::Utf8, false));
+    new_fields.push(Field::new("_client", DataType::Utf8, false));
+    new_fields.push(Field::new("_source_table", DataType::Utf8, false));
+    let new_schema = std::sync::Arc::new(Schema::new(new_fields));
+
+    // Build new column list.
+    let mut new_columns: Vec<std::sync::Arc<dyn arrow::array::Array>> = (0..base_batch
+        .num_columns())
+        .map(|i| base_batch.column(i).clone())
+        .collect();
+    new_columns.push(sensor_array);
+    new_columns.push(client_array);
+    new_columns.push(table_array);
+
+    RecordBatch::try_new(new_schema, new_columns)
+        .map_err(|e| datafusion::error::DataFusionError::ArrowError(Box::new(e), None))
 }
 
 // ---------------------------------------------------------------------------

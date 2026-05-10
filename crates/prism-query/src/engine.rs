@@ -13,7 +13,7 @@
 //! # BC References
 //! - BC-2.11.001 — `query` MCP Tool: scoping + PrismQL query string
 //! - BC-2.11.005 — Ephemeral materialization pipeline
-//! - BC-2.11.006 — Security limits (30s timeout, 10K records, 200MB pool)
+//! - BC-2.11.006 — Security limits (30s timeout, 10K records, 200MB GreedyMemoryPool)
 //! - BC-2.11.011 — Cross-client query scoping
 //!
 //! # Architecture Compliance
@@ -33,13 +33,30 @@ use std::sync::{Arc, Mutex};
 use prism_core::{OrgSlug, PrismError};
 use prism_credentials::CredentialStore;
 use prism_ocsf::OcsfNormalizer;
-use prism_sensors::AdapterRegistry;
+use prism_sensors::{AdapterRegistry, CredentialResolver};
+use prism_storage::RocksStorageBackend;
 use tokio::task::JoinHandle;
 use tokio_util::sync::CancellationToken;
 
 use crate::cache::{CacheConfig, QueryCache};
 use crate::cursor::{spawn_cursor_cleanup_task, QueryCursorRegistry};
 use crate::scoping::ClientRegistry;
+
+// ---------------------------------------------------------------------------
+// Capability
+// ---------------------------------------------------------------------------
+
+/// Query-time capabilities granted to the caller.
+///
+/// Used for capability-gated table access (e.g., `prism_audit` requires
+/// `AuditRead`). Capabilities are passed via `QueryOptions` and checked
+/// before scan begins (F-LP1-HIGH-3 / BC-2.15.011).
+#[derive(Debug, Clone, PartialEq, Eq)]
+#[non_exhaustive]
+pub enum Capability {
+    /// Grants access to `prism_audit` table. (BC-2.15.011)
+    AuditRead,
+}
 
 // ---------------------------------------------------------------------------
 // QueryEngineConfig
@@ -91,6 +108,9 @@ pub struct QueryOptions {
     pub limit: Option<usize>,
     /// Bypass response cache. (BC-2.11.001)
     pub force_refresh: bool,
+    /// Caller capabilities for capability-gated tables (e.g., `prism_audit`).
+    /// (BC-2.15.011, F-LP1-HIGH-3)
+    pub capabilities: Vec<Capability>,
 }
 
 // ---------------------------------------------------------------------------
@@ -175,6 +195,16 @@ pub struct QueryEngine {
     /// Handle to the background cursor cleanup task (BC-2.07.002 §Background Cleanup).
     /// Held to ensure the task is aborted on Drop — not a dead field.
     cleanup_handle: Option<JoinHandle<()>>,
+    /// Credential resolver for per-(org, sensor) auth dispatch in fan_out().
+    /// (F-LP1-CRIT-2: replaces placeholder CrowdStrikeAuth construction)
+    pub(crate) credential_resolver: Arc<dyn CredentialResolver>,
+    /// OrgSlug → OrgId mapping for per-org adapter selection. (F-LP1-CRIT-3)
+    /// When `None`, falls back to `get_all_for_sensor_type` (test/MVP mode).
+    pub(crate) org_registry: Option<Arc<prism_core::OrgRegistry>>,
+    /// RocksDB storage backend for internal table registration.
+    /// (F-LP1-CRIT-1: `register_internal_tables` invoked from `execute_inner`)
+    /// When `None`, internal tables are not registered (e.g. query-only mode).
+    pub(crate) storage: Option<Arc<dyn RocksStorageBackend>>,
 }
 
 impl QueryEngine {
@@ -222,6 +252,10 @@ impl QueryEngine {
         // Task exits when `shutdown` is cancelled (via Drop).
         let handle = spawn_cursor_cleanup_task(Arc::clone(&cursor_registry), shutdown.clone());
 
+        // Default credential resolver: always returns CredentialNotFound.
+        // Tests that need real auth override via `new_full`.
+        let credential_resolver: Arc<dyn CredentialResolver> = Arc::new(NullCredentialResolver);
+
         Self {
             adapter_registry,
             credential_store,
@@ -232,6 +266,56 @@ impl QueryEngine {
             cache,
             cleanup_shutdown: shutdown,
             cleanup_handle: Some(handle),
+            credential_resolver,
+            org_registry: None,
+            storage: None,
+        }
+    }
+
+    /// Override the `CredentialResolver` on an existing engine.
+    ///
+    /// Primarily used in tests to inject a `StubCredentialResolver` so
+    /// `fan_out()` can reach `StubAdapter::fetch` without credential failures.
+    /// (F-LP1-CRIT-2)
+    pub fn with_credential_resolver(mut self, resolver: Arc<dyn CredentialResolver>) -> Self {
+        self.credential_resolver = resolver;
+        self
+    }
+
+    /// Construct a `QueryEngine` with full production dependencies.
+    ///
+    /// Includes `CredentialResolver`, `OrgRegistry`, and `RocksStorageBackend`
+    /// for end-to-end fan_out dispatch and internal table access.
+    /// (F-LP1-CRIT-1/2/3)
+    #[allow(clippy::too_many_arguments)]
+    pub fn new_full(
+        adapter_registry: Arc<AdapterRegistry>,
+        credential_store: Arc<dyn CredentialStore>,
+        ocsf_normalizer: Arc<OcsfNormalizer>,
+        client_registry: Arc<ClientRegistry>,
+        config: QueryEngineConfig,
+        credential_resolver: Arc<dyn CredentialResolver>,
+        org_registry: Arc<prism_core::OrgRegistry>,
+        storage: Arc<dyn RocksStorageBackend>,
+    ) -> Self {
+        let cursor_registry = Arc::new(Mutex::new(QueryCursorRegistry::new()));
+        let cache = Arc::new(QueryCache::new(CacheConfig::default()));
+        let shutdown = CancellationToken::new();
+        let handle = spawn_cursor_cleanup_task(Arc::clone(&cursor_registry), shutdown.clone());
+
+        Self {
+            adapter_registry,
+            credential_store,
+            ocsf_normalizer,
+            client_registry,
+            config,
+            cursor_registry,
+            cache,
+            cleanup_shutdown: shutdown,
+            cleanup_handle: Some(handle),
+            credential_resolver,
+            org_registry: Some(org_registry),
+            storage: Some(storage),
         }
     }
 }
@@ -268,12 +352,24 @@ impl QueryEngine {
     ///
     /// # BC-2.11.006
     /// Enforces 30s timeout, 10K record cap, 200MB GreedyMemoryPool.
+    /// Rejects `limit > 1000` with `E-QUERY-003`. (F-LP1-HIGH-7)
     pub async fn execute(
         &self,
         query_str: &str,
         options: QueryOptions,
     ) -> Result<QueryResult, PrismError> {
         let start = std::time::Instant::now();
+
+        // F-LP1-HIGH-7: enforce max-1000 limit (BC-2.11.001).
+        if let Some(limit) = options.limit {
+            if limit > 1000 {
+                return Err(PrismError::QueryExecutionFailed {
+                    detail: format!(
+                        "E-QUERY-001: limit {limit} exceeds maximum of 1000 (BC-2.11.001)"
+                    ),
+                });
+            }
+        }
 
         // BC-2.11.006: wrap the entire execution in a 30-second timeout.
         let timeout_secs = self.config.timeout_secs;
@@ -308,21 +404,40 @@ impl QueryEngine {
         // Step 2: Create ephemeral SessionContext for this query (BC-2.11.005, AD-002).
         let session_ctx = datafusion::execution::context::SessionContext::new();
 
+        // F-LP1-HIGH-3: Capability gate — check BEFORE registering internal tables.
+        // Parse-time depth/size checks happen inside PrismQlParser::parse (security.rs).
+        // Pre-execution capability gate: if the query references `prism_audit` but the
+        // caller lacks `Capability::AuditRead`, reject with E-QUERY-011. This runs before
+        // any storage scan, not inside the DataFusion `scan()` trait method (approach b).
+        check_internal_table_capabilities(query_str, &options.capabilities)?;
+
+        // F-LP1-CRIT-1: register internal tables into the session context before
+        // materialization so `prism_*` table references resolve in DataFusion.
+        // Safety: when storage is None, internal tables are not available — DataFusion
+        // will return "table not found" for `prism_*` queries (acceptable for query-only mode).
+        if let Some(ref storage) = self.storage {
+            crate::internal_tables::register_internal_tables(&session_ctx, Arc::clone(storage))?;
+        }
+
         // Step 3: Set up MaterializationContext with engine dependencies.
-        let mut mat_ctx = crate::materialization::MaterializationContext::new(
+        let mut mat_ctx = crate::materialization::MaterializationContext::new_with_resolver(
             Arc::clone(&self.adapter_registry),
             Arc::clone(&self.ocsf_normalizer),
             self.config.max_materialized_records,
+            Arc::clone(&self.credential_resolver),
+            self.org_registry.clone(),
         );
 
         // Step 4: Resolve effective options (merge client scope into options).
         let effective_options = QueryOptions {
             clients: Some(clients.clone()),
+            capabilities: options.capabilities.clone(),
             ..options.clone()
         };
 
         // Step 5: Run the materialization pipeline → DataFusion execution → batches.
-        let batches = crate::materialization::run_materialization_pipeline(
+        // F-LP1-CRIT-5: pipeline now returns MaterializationOutput with both batches and sensor_errors.
+        let output = crate::materialization::run_materialization_pipeline(
             query_str,
             &effective_options,
             &mut mat_ctx,
@@ -332,15 +447,15 @@ impl QueryEngine {
 
         // Step 6: Apply tool-level limit truncation.
         let limit = options.limit.unwrap_or(usize::MAX);
-        let total_rows: usize = batches.iter().map(|b| b.num_rows()).sum();
+        let total_rows: usize = output.batches.iter().map(|b| b.num_rows()).sum();
         let is_truncated = total_rows > limit;
         let returned_results = total_rows.min(limit);
 
         // Truncate to limit (if needed).
         let final_batches = if is_truncated {
-            truncate_batches_to_limit(batches, limit)
+            truncate_batches_to_limit(output.batches, limit)
         } else {
-            batches
+            output.batches
         };
 
         // Step 7: Build QueryResult.
@@ -358,7 +473,7 @@ impl QueryEngine {
             is_truncated,
             returned_results,
             context,
-            sensor_errors: Vec::new(),
+            sensor_errors: output.sensor_errors,
         })
     }
 
@@ -408,11 +523,18 @@ impl QueryEngine {
         // Create ephemeral SessionContext (kept alive by the returned Arc).
         let session_ctx = Arc::new(datafusion::execution::context::SessionContext::new());
 
+        // F-LP1-CRIT-1: register internal tables for scheduled queries too.
+        if let Some(ref storage) = self.storage {
+            crate::internal_tables::register_internal_tables(&session_ctx, Arc::clone(storage))?;
+        }
+
         // Set up MaterializationContext.
-        let mut mat_ctx = crate::materialization::MaterializationContext::new(
+        let mut mat_ctx = crate::materialization::MaterializationContext::new_with_resolver(
             Arc::clone(&self.adapter_registry),
             Arc::clone(&self.ocsf_normalizer),
             self.config.max_materialized_records,
+            Arc::clone(&self.credential_resolver),
+            self.org_registry.clone(),
         );
 
         let effective_options = QueryOptions {
@@ -421,7 +543,7 @@ impl QueryEngine {
         };
 
         // Run the materialization pipeline against the session context.
-        let batches = crate::materialization::run_materialization_pipeline(
+        let output = crate::materialization::run_materialization_pipeline(
             query_str,
             &effective_options,
             &mut mat_ctx,
@@ -429,7 +551,7 @@ impl QueryEngine {
         )
         .await?;
 
-        let total_rows: usize = batches.iter().map(|b| b.num_rows()).sum();
+        let total_rows: usize = output.batches.iter().map(|b| b.num_rows()).sum();
 
         let context = QueryResultContext {
             original_query: query_str.to_string(),
@@ -440,15 +562,86 @@ impl QueryEngine {
         };
 
         let qr = QueryResult {
-            batches,
+            batches: output.batches,
             total_available: total_rows,
             is_truncated: false,
             returned_results: total_rows,
             context,
-            sensor_errors: Vec::new(),
+            sensor_errors: output.sensor_errors,
         };
 
         Ok((qr, session_ctx))
+    }
+}
+
+// ---------------------------------------------------------------------------
+// check_internal_table_capabilities — pre-execution capability gate (F-LP1-HIGH-3)
+// ---------------------------------------------------------------------------
+
+/// Pre-execution capability gate for internal tables.
+///
+/// Parses the query string to extract source table names and checks whether any
+/// referenced `prism_*` table requires a capability the caller has not been
+/// granted. Returns `Err(PrismError::AuditTableAccessDenied)` (E-QUERY-011) if
+/// `prism_audit` is referenced without `Capability::AuditRead`.
+///
+/// # Design (approach b from fix spec)
+/// The check runs in `execute_inner` BEFORE any storage scan or DataFusion
+/// planning, so unauthorized access is denied as early as possible. This is
+/// cleaner than threading capability state into `RocksDbTableProvider::scan()`.
+///
+/// # Parse failures
+/// If the query fails to parse, the capability gate returns `Ok(())` and lets
+/// the pipeline handle the parse error (which it will, immediately after).
+///
+/// # BC-2.15.011
+/// `prism_audit` requires `audit.read` capability → `Capability::AuditRead`.
+fn check_internal_table_capabilities(
+    query_str: &str,
+    capabilities: &[Capability],
+) -> Result<(), PrismError> {
+    // Best-effort parse — if parsing fails, let the pipeline surface the error.
+    let ast = match crate::filter_parser::PrismQlParser::parse(query_str) {
+        Ok(ast) => ast,
+        Err(_) => return Ok(()), // parse errors handled downstream
+    };
+
+    // Extract source table names from the AST.
+    let source_names = crate::materialization::extract_source_names_for_capability_check(&ast);
+
+    // Check: prism_audit requires AuditRead (BC-2.15.011).
+    let has_audit_read = capabilities.contains(&Capability::AuditRead);
+    for name in &source_names {
+        if name == "prism_audit" && !has_audit_read {
+            return Err(PrismError::AuditTableAccessDenied);
+        }
+    }
+
+    Ok(())
+}
+
+// ---------------------------------------------------------------------------
+// NullCredentialResolver — no-op for test/legacy constructors
+// ---------------------------------------------------------------------------
+
+/// No-op credential resolver used by `new()` / `new_with_cache_config`.
+///
+/// Production code should use `new_full` with a real resolver.
+/// Test code that needs specific auth behavior should implement `CredentialResolver`.
+struct NullCredentialResolver;
+
+impl CredentialResolver for NullCredentialResolver {
+    fn resolve(
+        &self,
+        _client_id: &str,
+        sensor_type: prism_core::types::SensorType,
+    ) -> Result<Box<dyn prism_sensors::SensorAuth>, prism_sensors::SensorError> {
+        Err(prism_sensors::SensorError::Internal {
+            detail: format!(
+                "NullCredentialResolver: no credential configured for sensor {sensor_type:?}; \
+                 use QueryEngine::new_full with a real CredentialResolver in production"
+            ),
+        })
     }
 }
 

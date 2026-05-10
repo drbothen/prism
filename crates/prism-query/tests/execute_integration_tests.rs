@@ -48,8 +48,9 @@ mod helpers {
     use prism_credentials::CredentialStore;
     use prism_ocsf::OcsfNormalizer;
     use prism_query::engine::{QueryEngine, QueryEngineConfig};
+    use prism_query::materialization::MaterializationContext;
     use prism_query::scoping::ClientRegistry;
-    use prism_sensors::AdapterRegistry;
+    use prism_sensors::{AdapterRegistry, CredentialResolver};
     use prism_storage::backend::RocksStorageBackend;
     use prism_storage::memory_backend::InMemoryBackend;
     use secrecy::SecretString;
@@ -110,19 +111,49 @@ mod helpers {
     }
 
     // -----------------------------------------------------------------------
+    // StubCredentialResolver — succeeds for any (client, sensor) pair
+    // -----------------------------------------------------------------------
+
+    /// Test-only `CredentialResolver` that returns a dummy `CrowdStrikeAuth`
+    /// for any request.
+    ///
+    /// Production adapters (CrowdStrikeAdapter, etc.) would reject this auth.
+    /// `StubAdapter::fetch` ignores `_auth` entirely, so this is safe for tests.
+    /// (F-LP1-CRIT-2: prevents NullCredentialResolver from short-circuiting fan_out)
+    pub struct StubCredentialResolver;
+
+    impl CredentialResolver for StubCredentialResolver {
+        fn resolve(
+            &self,
+            _client_id: &str,
+            _sensor_type: prism_core::types::SensorType,
+        ) -> Result<Box<dyn prism_sensors::auth::SensorAuth>, SensorError> {
+            Ok(Box::new(prism_sensors::CrowdStrikeAuth {
+                client_id: "test-stub".to_string(),
+                client_secret: prism_sensors::SecretString::new("test-secret".to_string()),
+                cloud_region: "us-1".to_string(),
+            }))
+        }
+    }
+
+    // -----------------------------------------------------------------------
     // Engine factory
     // -----------------------------------------------------------------------
 
     /// Build a `QueryEngine` with the given adapter registry and client list.
     ///
-    /// Uses `NullCredentialStore` — adapters registered by callers must not
-    /// require real credentials (DTU harness adapters are fine).
+    /// Uses `NullCredentialStore` and `StubCredentialResolver`.
+    /// The `StubCredentialResolver` returns dummy auth so `fan_out()` can call
+    /// `StubAdapter::fetch` (which ignores auth). (F-LP1-CRIT-2)
     pub fn make_engine(registry: AdapterRegistry, clients: Vec<OrgSlug>) -> QueryEngine {
         let adapter_registry = Arc::new(registry);
         let credential_store: Arc<dyn CredentialStore> = Arc::new(NullCredentialStore);
         let ocsf_normalizer = Arc::new(OcsfNormalizer::new());
         let client_registry = Arc::new(ClientRegistry::new(clients));
         let config = QueryEngineConfig::default();
+        // Use `with_credential_resolver` to inject StubCredentialResolver so
+        // fan_out() can reach StubAdapter::fetch without failing on credential
+        // resolution. (F-LP1-CRIT-2)
         QueryEngine::new(
             adapter_registry,
             credential_store,
@@ -130,6 +161,7 @@ mod helpers {
             client_registry,
             config,
         )
+        .with_credential_resolver(Arc::new(StubCredentialResolver))
     }
 
     // -----------------------------------------------------------------------
@@ -231,10 +263,15 @@ mod helpers {
     }
 
     /// Build a `MaterializationContext` with a `StubAdapter` that returns `row_count` rows.
+    ///
+    /// Uses `StubCredentialResolver` so `fan_out()` can reach `StubAdapter::fetch`
+    /// without credential failures. The `OrgId` is saved so the adapter can be
+    /// found via `get_all_for_sensor_type`. (F-LP1-CRIT-2)
     pub fn make_mat_ctx_with_stub(max_records: usize, row_count: usize) -> MaterializationContext {
+        let org_id = OrgId::new();
         let mut registry = AdapterRegistry::new();
         registry.register(
-            OrgId::new(),
+            org_id,
             Arc::new(StubAdapter {
                 sensor_type: SensorType::CrowdStrike,
                 row_count,
@@ -242,13 +279,14 @@ mod helpers {
             }),
         );
         let normalizer = Arc::new(OcsfNormalizer::new());
-        MaterializationContext::new(Arc::new(registry), normalizer, max_records)
+        MaterializationContext::new_with_resolver(
+            Arc::new(registry),
+            normalizer,
+            max_records,
+            Arc::new(StubCredentialResolver),
+            None,
+        )
     }
-
-    // -----------------------------------------------------------------------
-    // Re-exports for use in tests
-    // -----------------------------------------------------------------------
-    pub use prism_query::materialization::MaterializationContext;
 }
 
 // ---------------------------------------------------------------------------
@@ -259,27 +297,57 @@ mod helpers {
 /// `QueryResult` where `returned_results <= 5` and batches contain a `_sensor`
 /// column equal to `"crowdstrike"`.
 ///
+/// F-LP1-CRIT-4 fix: registers a StubAdapter so the test actually exercises
+/// virtual-field injection and is not vacuous (empty registry → empty batches).
+/// Per S-7.01 sub-clause (b): AC tests with fixture-dependent assertions MUST
+/// register a fixture producing rows.
+///
 /// Red-Gate: panics at `todo!("S-3.02 — QueryEngine::execute")` in engine.rs:276.
 #[tokio::test]
 async fn test_AC_1_query_engine_execute_with_dtu_returns_results() {
+    use prism_core::{types::SensorType, OrgId};
     use prism_query::engine::QueryOptions;
 
     let org_slug = helpers::org("acme");
-    let engine = helpers::make_engine(AdapterRegistry::new(), vec![org_slug.clone()]);
+    let org_id = OrgId::new();
+
+    // F-LP1-CRIT-4: register StubAdapter so fan-out produces real rows.
+    let mut registry = AdapterRegistry::new();
+    registry.register(
+        org_id,
+        Arc::new(helpers::StubAdapter {
+            sensor_type: SensorType::CrowdStrike,
+            row_count: 3,
+            client_slug: "acme".to_string(),
+        }),
+    );
+
+    let engine = helpers::make_engine(registry, vec![org_slug.clone()]);
 
     let options = QueryOptions {
         clients: Some(vec![org_slug]),
         sensors: None,
         limit: Some(5),
         force_refresh: false,
+        ..QueryOptions::default()
     };
 
-    // Panics at todo!() in engine.rs:276.
     // Post-implementation: must return Ok(QueryResult).
     let result = engine
         .execute("SELECT * FROM crowdstrike_detections LIMIT 5", options)
         .await
         .expect("AC-1: execute must succeed with registered adapter");
+
+    // F-LP1-CRIT-4: precondition — must have rows for assertions to be meaningful.
+    assert!(
+        !result.batches.is_empty(),
+        "AC-1: test fixture must produce at least one batch; \
+         if this fails, the StubAdapter registration is broken"
+    );
+    assert!(
+        result.returned_results > 0,
+        "AC-1: test fixture must produce rows; returned_results = 0 means assertion loop is vacuous"
+    );
 
     assert!(
         result.returned_results <= 5,
@@ -335,6 +403,7 @@ async fn test_AC_2_materialization_pipeline_produces_session_context() {
         sensors: None,
         limit: Some(10),
         force_refresh: false,
+        ..QueryOptions::default()
     };
 
     // Post-implementation: returns Ok(batches); session_ctx has registered MemTable.
@@ -380,6 +449,7 @@ async fn test_AC_3_size_limit_returns_e_query_003() {
         sensors: None,
         limit: None,
         force_refresh: false,
+        ..QueryOptions::default()
     };
 
     // Post-implementation: must return Err with E-QUERY-003.
@@ -471,6 +541,7 @@ async fn test_AC_4_filter_pushdown_passed_to_adapter() {
         sensors: None,
         limit: None,
         force_refresh: false,
+        ..QueryOptions::default()
     };
 
     // Panics at todo!(). Post-implementation: spy must capture `hostname = "target"`.
@@ -598,6 +669,7 @@ async fn test_AC_6_cross_client_query_all_scope_fans_out() {
         sensors: None,
         limit: Some(100),
         force_refresh: false,
+        ..QueryOptions::default()
     };
 
     // Panics at todo!(). Post-implementation: batches must cover both orgs.
@@ -636,26 +708,57 @@ async fn test_AC_6_cross_client_query_all_scope_fans_out() {
 /// `_client`, and `_source_table` as non-null, non-empty Utf8 columns on
 /// every row.
 ///
+/// F-LP1-CRIT-4 fix: registers a StubAdapter so the assertion loop actually
+/// exercises rows. An empty registry produces zero batches → vacuous pass.
+/// Per S-7.01 sub-clause (b): assertion loops with fixture-dependent data
+/// MUST register a fixture producing rows.
+///
 /// Red-Gate: panics at `todo!("S-3.02 — QueryEngine::execute")`.
 #[tokio::test]
 async fn test_AC_7_virtual_fields_present_in_all_results() {
+    use prism_core::{types::SensorType, OrgId};
     use prism_query::engine::QueryOptions;
 
     let org_slug = helpers::org("acme");
-    let engine = helpers::make_engine(AdapterRegistry::new(), vec![org_slug.clone()]);
+    let org_id = OrgId::new();
+
+    // F-LP1-CRIT-4: register StubAdapter so fan-out produces real rows.
+    let mut registry = AdapterRegistry::new();
+    registry.register(
+        org_id,
+        Arc::new(helpers::StubAdapter {
+            sensor_type: SensorType::CrowdStrike,
+            row_count: 3,
+            client_slug: "acme".to_string(),
+        }),
+    );
+
+    let engine = helpers::make_engine(registry, vec![org_slug.clone()]);
 
     let options = QueryOptions {
         clients: Some(vec![org_slug]),
         sensors: None,
         limit: Some(10),
         force_refresh: false,
+        ..QueryOptions::default()
     };
 
-    // Panics at todo!(). Post-implementation: every row carries all three virtual fields.
+    // Post-implementation: every row carries all three virtual fields.
     let result = engine
         .execute("SELECT * FROM crowdstrike_detections LIMIT 10", options)
         .await
         .expect("AC-7: execute must succeed");
+
+    // F-LP1-CRIT-4: precondition — must have rows for assertions to be meaningful.
+    assert!(
+        !result.batches.is_empty(),
+        "AC-7: test fixture must produce at least one batch; \
+         if this fails, the StubAdapter registration is broken"
+    );
+    assert!(
+        result.returned_results > 0,
+        "AC-7: test fixture must produce rows; returned_results = 0 means assertion loop is vacuous"
+    );
 
     const VIRTUAL_FIELDS: &[&str] = &["_sensor", "_client", "_source_table"];
 
@@ -695,6 +798,412 @@ async fn test_AC_7_virtual_fields_present_in_all_results() {
             }
         }
     }
+}
+
+// ---------------------------------------------------------------------------
+// AC-8: no todo!() or unimplemented!() remains in the stub files
+// ---------------------------------------------------------------------------
+
+// ---------------------------------------------------------------------------
+// F-LP1-HIGH-7: limit > 1000 returns E-QUERY-001
+// ---------------------------------------------------------------------------
+
+/// F-LP1-HIGH-7 (BC-2.11.001): `execute` MUST return an error when `limit > 1000`.
+///
+/// BC-2.11.001: "Max results returned (tool-level truncation). Default 25, max 1000."
+/// The engine rejects limit=1001 before any sensor contact. Error message must
+/// contain "E-QUERY-001".
+#[tokio::test]
+async fn test_HIGH_7_limit_exceeds_1000_returns_error() {
+    use prism_query::engine::QueryOptions;
+
+    let org_slug = helpers::org("acme");
+    let engine = helpers::make_engine(AdapterRegistry::new(), vec![org_slug.clone()]);
+
+    let options = QueryOptions {
+        clients: Some(vec![org_slug]),
+        sensors: None,
+        limit: Some(1001), // one above the maximum
+        force_refresh: false,
+        ..QueryOptions::default()
+    };
+
+    let result = engine
+        .execute("SELECT * FROM crowdstrike_detections", options)
+        .await;
+
+    let err = result.expect_err(
+        "HIGH-7: execute with limit=1001 must return Err (BC-2.11.001 max-1000 enforcement)",
+    );
+    let detail = err.to_string();
+    assert!(
+        detail.contains("E-QUERY-001"),
+        "HIGH-7: error must contain 'E-QUERY-001' (limit exceeds 1000); got: {detail}"
+    );
+}
+
+/// F-LP1-HIGH-7 complement: limit=1000 (boundary) MUST succeed.
+#[tokio::test]
+async fn test_HIGH_7_limit_exactly_1000_is_allowed() {
+    use prism_query::engine::QueryOptions;
+
+    let org_slug = helpers::org("acme");
+    let engine = helpers::make_engine(AdapterRegistry::new(), vec![org_slug.clone()]);
+
+    let options = QueryOptions {
+        clients: Some(vec![org_slug]),
+        sensors: None,
+        limit: Some(1000), // exactly at the maximum
+        force_refresh: false,
+        ..QueryOptions::default()
+    };
+
+    // Must NOT reject limit=1000 — only >1000 is rejected.
+    let result = engine
+        .execute("SELECT * FROM crowdstrike_detections LIMIT 1000", options)
+        .await;
+
+    assert!(
+        result.is_ok(),
+        "HIGH-7: execute with limit=1000 (maximum) must succeed; got: {:?}",
+        result.err()
+    );
+}
+
+// ---------------------------------------------------------------------------
+// F-LP1-HIGH-3: capability gate — prism_audit access denied without AuditRead
+// ---------------------------------------------------------------------------
+
+/// F-LP1-HIGH-3 (BC-2.15.011): Querying `prism_audit` without the `AuditRead`
+/// capability MUST return `PrismError::AuditTableAccessDenied` (E-QUERY-011).
+///
+/// The gate runs in `execute_inner` before scan, by inspecting source table refs
+/// in the AST and rejecting if `requires_audit_read` is true and the caller
+/// lacks `Capability::AuditRead` in `QueryOptions.capabilities`.
+#[tokio::test]
+async fn test_HIGH_3_audit_read_capability_gate_deny() {
+    use prism_query::engine::{Capability, QueryEngine, QueryEngineConfig, QueryOptions};
+    use prism_storage::memory_backend::InMemoryBackend;
+
+    let org_slug = helpers::org("acme");
+    let storage = helpers::make_storage();
+
+    // Build a full engine with storage so internal tables are registered.
+    let adapter_registry = Arc::new(AdapterRegistry::new());
+    let credential_store: Arc<dyn prism_credentials::CredentialStore> =
+        Arc::new(helpers::NullCredentialStore);
+    let ocsf_normalizer = Arc::new(OcsfNormalizer::new());
+    let client_registry = Arc::new(prism_query::scoping::ClientRegistry::new(vec![
+        org_slug.clone()
+    ]));
+    let config = QueryEngineConfig::default();
+    let org_registry = Arc::new(prism_core::OrgRegistry::new());
+    let engine = QueryEngine::new_full(
+        adapter_registry,
+        credential_store,
+        ocsf_normalizer,
+        client_registry,
+        config,
+        Arc::new(helpers::StubCredentialResolver),
+        org_registry,
+        storage as Arc<dyn prism_storage::backend::RocksStorageBackend>,
+    );
+
+    // No capabilities — AuditRead NOT granted.
+    let options = QueryOptions {
+        clients: Some(vec![org_slug]),
+        capabilities: vec![], // no AuditRead
+        ..QueryOptions::default()
+    };
+
+    let result = engine
+        .execute("SELECT * FROM prism_audit LIMIT 10", options)
+        .await;
+
+    let err = result.expect_err(
+        "HIGH-3: querying prism_audit without AuditRead capability must return Err (E-QUERY-011)",
+    );
+    assert!(
+        matches!(err, prism_core::PrismError::AuditTableAccessDenied),
+        "HIGH-3: error must be PrismError::AuditTableAccessDenied; got: {err:?}"
+    );
+}
+
+/// F-LP1-HIGH-3 allow path: AuditRead capability grants access to prism_audit.
+#[tokio::test]
+async fn test_HIGH_3_audit_read_capability_gate_allow() {
+    use prism_query::engine::{Capability, QueryEngine, QueryEngineConfig, QueryOptions};
+
+    let org_slug = helpers::org("acme");
+    let storage = helpers::make_storage();
+
+    let adapter_registry = Arc::new(AdapterRegistry::new());
+    let credential_store: Arc<dyn prism_credentials::CredentialStore> =
+        Arc::new(helpers::NullCredentialStore);
+    let ocsf_normalizer = Arc::new(OcsfNormalizer::new());
+    let client_registry = Arc::new(prism_query::scoping::ClientRegistry::new(vec![
+        org_slug.clone()
+    ]));
+    let config = QueryEngineConfig::default();
+    let org_registry = Arc::new(prism_core::OrgRegistry::new());
+    let engine = QueryEngine::new_full(
+        adapter_registry,
+        credential_store,
+        ocsf_normalizer,
+        client_registry,
+        config,
+        Arc::new(helpers::StubCredentialResolver),
+        org_registry,
+        storage as Arc<dyn prism_storage::backend::RocksStorageBackend>,
+    );
+
+    // AuditRead capability granted — must succeed.
+    let options = QueryOptions {
+        clients: Some(vec![org_slug]),
+        capabilities: vec![Capability::AuditRead],
+        ..QueryOptions::default()
+    };
+
+    let result = engine
+        .execute("SELECT * FROM prism_audit LIMIT 10", options)
+        .await;
+
+    assert!(
+        result.is_ok(),
+        "HIGH-3: querying prism_audit WITH AuditRead capability must succeed; got: {:?}",
+        result.err()
+    );
+}
+
+// ---------------------------------------------------------------------------
+// F-LP1-HIGH-4: internal tables receive virtual field injection
+// ---------------------------------------------------------------------------
+
+/// F-LP1-HIGH-4 (BC-2.11.012): Scanning `prism_audit` (or any internal table)
+/// via `RocksDbTableProvider::scan` MUST produce batches with `_sensor = "prism"`,
+/// `_client = "<system>"`, and `_source_table = "prism_audit"` columns.
+#[tokio::test]
+async fn test_HIGH_4_internal_table_virtual_fields_present() {
+    use prism_query::engine::{Capability, QueryEngine, QueryEngineConfig, QueryOptions};
+
+    let org_slug = helpers::org("acme");
+    let storage = helpers::make_storage();
+
+    // Seed one audit entry so the scan is non-trivially exercised.
+    helpers::seed_entry(
+        &storage,
+        StorageDomain::AuditBuffer,
+        b"audit:00000000000000000001:trace-001",
+        b"test-audit-payload",
+    );
+
+    let adapter_registry = Arc::new(AdapterRegistry::new());
+    let credential_store: Arc<dyn prism_credentials::CredentialStore> =
+        Arc::new(helpers::NullCredentialStore);
+    let ocsf_normalizer = Arc::new(OcsfNormalizer::new());
+    let client_registry = Arc::new(prism_query::scoping::ClientRegistry::new(vec![
+        org_slug.clone()
+    ]));
+    let config = QueryEngineConfig::default();
+    let org_registry = Arc::new(prism_core::OrgRegistry::new());
+    let engine = QueryEngine::new_full(
+        adapter_registry,
+        credential_store,
+        ocsf_normalizer,
+        client_registry,
+        config,
+        Arc::new(helpers::StubCredentialResolver),
+        org_registry,
+        storage as Arc<dyn prism_storage::backend::RocksStorageBackend>,
+    );
+
+    let options = QueryOptions {
+        clients: Some(vec![org_slug]),
+        capabilities: vec![Capability::AuditRead],
+        ..QueryOptions::default()
+    };
+
+    let result = engine
+        .execute("SELECT * FROM prism_audit LIMIT 5", options)
+        .await
+        .expect("HIGH-4: prism_audit query with AuditRead must succeed");
+
+    // The scan returns rows (we seeded one) — verify virtual fields.
+    assert!(
+        !result.batches.is_empty(),
+        "HIGH-4: prism_audit must return at least one batch after seeding"
+    );
+
+    const VIRTUAL_FIELDS: &[&str] = &["_sensor", "_client", "_source_table"];
+
+    for (batch_idx, batch) in result.batches.iter().enumerate() {
+        for vf in VIRTUAL_FIELDS {
+            let col_idx = batch.schema().index_of(vf).unwrap_or_else(|_| {
+                panic!(
+                    "HIGH-4: virtual field '{vf}' must be present in prism_audit batch {batch_idx}; \
+                     schema: {:?}",
+                    batch.schema()
+                )
+            });
+
+            let arr = batch
+                .column(col_idx)
+                .as_any()
+                .downcast_ref::<StringArray>()
+                .unwrap_or_else(|| {
+                    panic!("HIGH-4: '{vf}' must be StringArray in batch {batch_idx}")
+                });
+
+            for row_idx in 0..arr.len() {
+                assert!(
+                    !arr.is_null(row_idx),
+                    "HIGH-4: '{vf}' must be non-null at row {row_idx} batch {batch_idx}"
+                );
+                assert!(
+                    !arr.value(row_idx).is_empty(),
+                    "HIGH-4: '{vf}' must be non-empty at row {row_idx} batch {batch_idx}"
+                );
+            }
+        }
+    }
+
+    // _sensor must be "prism" for internal tables (BC-2.11.012).
+    for (batch_idx, batch) in result.batches.iter().enumerate() {
+        if let Ok(idx) = batch.schema().index_of("_sensor") {
+            if let Some(arr) = batch.column(idx).as_any().downcast_ref::<StringArray>() {
+                for row_idx in 0..arr.len() {
+                    assert_eq!(
+                        arr.value(row_idx),
+                        "prism",
+                        "HIGH-4: _sensor must be 'prism' for internal tables at row {row_idx} batch {batch_idx}"
+                    );
+                }
+            }
+        }
+    }
+}
+
+// ---------------------------------------------------------------------------
+// F-LP1-MED-3: AC-3-bis — 10K boundary cross-source accumulation
+// ---------------------------------------------------------------------------
+
+/// F-LP1-MED-3 (BC-2.11.006): Two stub adapters each returning 6K rows (12K total)
+/// MUST trigger E-QUERY-003 at the pipeline level, verifying the cap is checked
+/// BEFORE DataFusion execution and across multiple sources.
+///
+/// This complements `test_AC_3_size_limit_returns_e_query_003` which only
+/// tests a 1-row cap with a single-source stub.
+#[tokio::test]
+async fn test_AC_3_bis_size_limit_at_10k_boundary() {
+    use prism_core::{types::SensorType, OrgId};
+    use prism_query::engine::QueryOptions;
+
+    // Register two StubAdapters each returning 6000 rows.
+    // Total = 12000 > 10000 → must exceed the default cap.
+    let mut registry = AdapterRegistry::new();
+    registry.register(
+        OrgId::new(),
+        Arc::new(helpers::StubAdapter {
+            sensor_type: SensorType::CrowdStrike,
+            row_count: 6_000,
+            client_slug: "acme".to_string(),
+        }),
+    );
+    registry.register(
+        OrgId::new(),
+        Arc::new(helpers::StubAdapter {
+            sensor_type: SensorType::CrowdStrike,
+            row_count: 6_000,
+            client_slug: "beta".to_string(),
+        }),
+    );
+
+    let engine = helpers::make_engine(registry, vec![helpers::org("acme"), helpers::org("beta")]);
+
+    // No explicit limit — uses the engine's 10K materialization cap.
+    let options = QueryOptions {
+        clients: None, // ALL scope — both adapters fire
+        sensors: None,
+        limit: None,
+        force_refresh: false,
+        ..QueryOptions::default()
+    };
+
+    let result = engine
+        .execute("SELECT * FROM crowdstrike_detections", options)
+        .await;
+
+    let err = result.expect_err(
+        "AC-3-bis: 12K total rows (6K×2 adapters) must exceed the 10K cap → E-QUERY-003",
+    );
+    let detail = err.to_string();
+    assert!(
+        detail.contains("E-QUERY-003"),
+        "AC-3-bis: error must contain 'E-QUERY-003' (record cap exceeded); got: {detail}"
+    );
+}
+
+// ---------------------------------------------------------------------------
+// F-LP1-CRIT-1: prism_audit queryable through QueryEngine::execute (not just standalone)
+// ---------------------------------------------------------------------------
+
+/// F-LP1-CRIT-1 (BC-2.15.011): `register_internal_tables` is invoked from
+/// `execute_inner`, so `prism_audit` is accessible through the full
+/// `QueryEngine::execute` path — not just via standalone registration.
+///
+/// This tests the actual end-to-end wiring, not just `register_internal_tables`
+/// in isolation (which AC-5 already covers).
+#[tokio::test]
+async fn test_CRIT_1_internal_table_queryable_through_execute() {
+    use prism_query::engine::{Capability, QueryEngine, QueryEngineConfig, QueryOptions};
+
+    let org_slug = helpers::org("acme");
+    let storage = helpers::make_storage();
+
+    // Seed one audit entry.
+    helpers::seed_entry(
+        &storage,
+        StorageDomain::AuditBuffer,
+        b"audit:00000000000000000001:trace-001",
+        b"test-payload",
+    );
+
+    let adapter_registry = Arc::new(AdapterRegistry::new());
+    let credential_store: Arc<dyn prism_credentials::CredentialStore> =
+        Arc::new(helpers::NullCredentialStore);
+    let ocsf_normalizer = Arc::new(OcsfNormalizer::new());
+    let client_registry = Arc::new(prism_query::scoping::ClientRegistry::new(vec![
+        org_slug.clone()
+    ]));
+    let config = QueryEngineConfig::default();
+    let org_registry = Arc::new(prism_core::OrgRegistry::new());
+    let engine = QueryEngine::new_full(
+        adapter_registry,
+        credential_store,
+        ocsf_normalizer,
+        client_registry,
+        config,
+        Arc::new(helpers::StubCredentialResolver),
+        org_registry,
+        storage as Arc<dyn prism_storage::backend::RocksStorageBackend>,
+    );
+
+    let options = QueryOptions {
+        clients: Some(vec![org_slug]),
+        capabilities: vec![Capability::AuditRead],
+        ..QueryOptions::default()
+    };
+
+    // Must succeed — internal table registered by execute_inner, not just AC-5 path.
+    let result = engine
+        .execute("SELECT * FROM prism_audit LIMIT 5", options)
+        .await
+        .expect(
+            "CRIT-1: prism_audit must be queryable via QueryEngine::execute when storage is set",
+        );
+
+    // The result should be Ok; content doesn't matter (empty scan is fine).
+    drop(result); // success is all we need
 }
 
 // ---------------------------------------------------------------------------

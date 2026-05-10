@@ -173,6 +173,7 @@ mod proptest_harnesses {
     /// Simplified to avoid `dyn Strategy` associated-type issues at stub time.
     /// A graph of self-loops is trivially cyclic and exercises the
     /// termination + cycle-detection property.
+    #[allow(dead_code)]
     fn alias_graph() -> impl Strategy<Value = Vec<(String, String)>> {
         (1usize..=10).prop_map(|n| {
             (0..n)

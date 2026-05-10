@@ -81,6 +81,10 @@ lru = "0.17"
 # S-3.02 VP-031 — proptest property tests: REQUIRED columns always push-down (BC-2.11.007).
 # S-3.06 — property-based tests for write-mode AST round-trips (VP-021 corpus extension)
 proptest = "1.11"
+# S-3.02-FOLLOWUP-RUNTIME: execute_integration_tests needs InMemoryBackend (RocksStorageBackend impl)
+# and SecretString (for NullCredentialStore in test helpers).
+prism-storage = { path = "../prism-storage", features = ["test-utils"] }
+secrecy = { version = "0.8", features = ["serde"] }
 
 # S-3.01 VP-014/VP-015 — bounded model checking proofs (exact pin; out-of-band nightly
 # toolchain; does not affect workspace MSRV of Rust 1.85).

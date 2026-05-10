@@ -4773,6 +4773,7 @@ dependencies = [
  "prism-storage",
  "proptest",
  "regex",
+ "secrecy",
  "serde",
  "serde_json",
  "sha2",

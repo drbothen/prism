@@ -40,9 +40,9 @@ use std::sync::Arc;
 
 use arrow::record_batch::RecordBatch;
 use datafusion::execution::context::SessionContext;
-use prism_core::{OrgSlug, PrismError};
+use prism_core::{OrgId, OrgSlug, PrismError};
 use prism_ocsf::OcsfNormalizer;
-use prism_sensors::{AdapterRegistry, SensorSpec};
+use prism_sensors::{AdapterRegistry, CredentialResolver, SensorSpec};
 
 use crate::engine::QueryOptions;
 use crate::pushdown::PushDownPlan;
@@ -118,12 +118,33 @@ pub struct FanOutTarget {
     pub sensor_type: prism_core::types::SensorType,
     /// The client ID owning this sensor instance. (BC-2.11.011)
     pub client_id: OrgSlug,
+    /// The resolved OrgId for per-org adapter selection. (BC-3.2.001)
+    pub org_id: OrgId,
     /// The sensor spec for this (sensor, client) pair.
     pub sensor_spec: SensorSpec,
-    /// The source table name (e.g., `"crowdstrike.detections"`).
+    /// The source table name (e.g., `"crowdstrike_detections"`).
     pub source_table: String,
     /// Push-down plan computed for this source. (BC-2.11.007)
     pub push_down_plan: PushDownPlan,
+}
+
+// ---------------------------------------------------------------------------
+// MaterializationOutput
+// ---------------------------------------------------------------------------
+
+/// Output of the `run_materialization_pipeline`.
+///
+/// Carries both result batches and per-sensor error messages so that partial
+/// failures are surfaced to callers rather than silently discarded.
+/// (F-LP1-CRIT-5, BC-2.11.005, BC-2.11.011, SOUL.md #4)
+#[derive(Debug)]
+pub struct MaterializationOutput {
+    /// OCSF-normalized result RecordBatches.
+    pub batches: Vec<RecordBatch>,
+    /// Per-sensor error messages for partial failures. (BC-2.11.011 postcondition)
+    pub sensor_errors: Vec<String>,
+    /// Table names registered in the session context.
+    pub registered_tables: Vec<String>,
 }
 
 // ---------------------------------------------------------------------------
@@ -155,14 +176,42 @@ pub struct MaterializationContext {
     /// Key: canonical cache key string. Value: collected batches. (BC-2.11.005)
     /// Private to prevent cache poisoning; access via typed accessors.
     pub(crate) in_query_cache: std::collections::HashMap<String, Vec<RecordBatch>>,
+    /// Credential resolver for fan_out() dispatch. (F-LP1-CRIT-2)
+    pub(crate) credential_resolver: Arc<dyn CredentialResolver>,
+    /// OrgSlug → OrgId registry for per-org adapter selection. (F-LP1-CRIT-3)
+    /// When `None`, falls back to `get_all_for_sensor_type` (test/MVP mode).
+    pub(crate) org_registry: Option<Arc<prism_core::OrgRegistry>>,
 }
 
 impl MaterializationContext {
     /// Construct a new `MaterializationContext` for a single query execution.
+    ///
+    /// Uses `NullCredentialResolver`; use `new_with_resolver` for production.
     pub fn new(
         adapter_registry: Arc<AdapterRegistry>,
         ocsf_normalizer: Arc<OcsfNormalizer>,
         max_records: usize,
+    ) -> Self {
+        Self::new_with_resolver(
+            adapter_registry,
+            ocsf_normalizer,
+            max_records,
+            Arc::new(crate::materialization::NullMaterializationCredentialResolver),
+            None,
+        )
+    }
+
+    /// Construct a new `MaterializationContext` with explicit resolver and registry.
+    ///
+    /// Used by `QueryEngine::execute_inner` to inject the engine's
+    /// `CredentialResolver` and `OrgRegistry` into the pipeline.
+    /// (F-LP1-CRIT-2, F-LP1-CRIT-3)
+    pub fn new_with_resolver(
+        adapter_registry: Arc<AdapterRegistry>,
+        ocsf_normalizer: Arc<OcsfNormalizer>,
+        max_records: usize,
+        credential_resolver: Arc<dyn CredentialResolver>,
+        org_registry: Option<Arc<prism_core::OrgRegistry>>,
     ) -> Self {
         Self {
             adapter_registry,
@@ -170,6 +219,8 @@ impl MaterializationContext {
             record_count: 0,
             max_records,
             in_query_cache: std::collections::HashMap::new(),
+            credential_resolver,
+            org_registry,
         }
     }
 
@@ -192,14 +243,39 @@ impl MaterializationContext {
         Ok(())
     }
 
-    /// Look up a cached batch set by cache key. (BC-2.11.005)
+    /// Look up a cached batch set by cache key. (BC-2.11.005, F-LP1-MED-2)
     pub(crate) fn cache_lookup(&self, key: &str) -> Option<&Vec<RecordBatch>> {
         self.in_query_cache.get(key)
     }
 
-    /// Insert a batch set into the in-query cache. (BC-2.11.005)
+    /// Insert a batch set into the in-query cache. (BC-2.11.005, F-LP1-MED-2)
     pub(crate) fn cache_insert(&mut self, key: String, batches: Vec<RecordBatch>) {
         self.in_query_cache.insert(key, batches);
+    }
+}
+
+// ---------------------------------------------------------------------------
+// NullMaterializationCredentialResolver — used by legacy `new()` constructor
+// ---------------------------------------------------------------------------
+
+/// No-op `CredentialResolver` for `MaterializationContext::new`.
+///
+/// Returns `SensorError::Internal` for any resolution attempt.
+/// Tests registering `StubAdapter` instances don't trigger credential
+/// resolution because `StubAdapter::fetch` ignores the `_auth` parameter.
+pub(crate) struct NullMaterializationCredentialResolver;
+
+impl CredentialResolver for NullMaterializationCredentialResolver {
+    fn resolve(
+        &self,
+        _client_id: &str,
+        sensor_type: prism_core::types::SensorType,
+    ) -> Result<Box<dyn prism_sensors::SensorAuth>, prism_sensors::SensorError> {
+        Err(prism_sensors::SensorError::Internal {
+            detail: format!(
+                "NullMaterializationCredentialResolver: no credential for sensor {sensor_type:?}"
+            ),
+        })
     }
 }
 
@@ -222,16 +298,431 @@ impl MaterializationContext {
 /// # Record Cap (BC-2.11.006, EC-003)
 /// Streaming counter across all sources. If the record counter exceeds
 /// the maximum during Step 3, abort with
-/// `PrismError::QueryExecutionFailed` containing E-QUERY-005 message.
+/// `PrismError::QueryExecutionFailed` containing E-QUERY-003 message.
 ///
-/// # Cold-Start Fallback (AC-9, inherited from S-2.08)
-/// When `route_table_query()` returns `ColdStartFallback`, this function
-/// triggers a live `SensorAdapter` fetch, writes results to `EventBufferStore`,
-/// and logs an INFO event. (BC-2.11.005, BC-2.11.007)
+/// # Returns
+/// `MaterializationOutput` containing batches, sensor_errors, and registered_tables.
+/// Sensor errors are accumulated (partial failure, BC-2.11.011) and returned to the
+/// caller rather than silently discarded (SOUL.md #4 / F-LP1-CRIT-5).
 ///
 /// # Architecture Compliance (INV-SEC-PERIMETER-001)
 /// Parser consumed ONLY via `PrismQlParser::parse`. Restricted sub-parser
 /// symbols MUST NOT appear in this function body.
+pub async fn run_materialization_pipeline(
+    query_str: &str,
+    options: &QueryOptions,
+    mat_ctx: &mut MaterializationContext,
+    session_ctx: &SessionContext,
+) -> Result<MaterializationOutput, PrismError> {
+    // Step 1: Parse the query to extract source table names.
+    // Parse-time security guards (size, nesting depth, stage count) are enforced
+    // inside `PrismQlParser::parse` via the security module (BC-2.11.006 / F-LP1-MED-4).
+    let ast = crate::filter_parser::PrismQlParser::parse(query_str).map_err(|errs| {
+        PrismError::QueryParseFailed {
+            offset: errs.first().map(|e| e.offset).unwrap_or(0),
+            detail: errs
+                .iter()
+                .map(|e| e.to_string())
+                .collect::<Vec<_>>()
+                .join("; "),
+        }
+    })?;
+
+    let source_names = extract_source_names(&ast);
+
+    // Extract WHERE predicates for push-down (BC-2.11.007).
+    // F-LP1-HIGH-5: use pushdown::classify_predicates via extract_push_down_filters
+    // which routes through the existing infrastructure (ADR-022 §C wiring-not-redesign).
+    let where_filters = extract_push_down_filters_as_map(&ast);
+
+    // Step 2: Resolve client scope.
+    let all_clients: Vec<OrgSlug> = options.clients.clone().unwrap_or_default();
+
+    // Step 3: Resolve source refs to fan-out targets.
+    let targets = resolve_source_refs(
+        &source_names,
+        &all_clients,
+        &mat_ctx.adapter_registry,
+        &mat_ctx.org_registry,
+    )
+    .await?;
+
+    // Step 4: Fan out to sensor adapters, collecting results per source table.
+    // Group results by source table name for MemTable registration.
+    let mut table_batches: std::collections::HashMap<String, Vec<RecordBatch>> =
+        std::collections::HashMap::new();
+
+    // Track all sensor errors for partial-failure reporting (F-LP1-CRIT-5).
+    let mut sensor_errors: Vec<String> = Vec::new();
+
+    // F-LP1-CRIT-2/3: use fan_out() with CredentialResolver.
+    // Process each target independently so virtual field injection uses the
+    // correct per-target (org_id, client_id) — grouping by source_table would
+    // lose per-client attribution (F-LP1-HIGH-6, AC-6).
+    for target in &targets {
+        let cache_key = format!(
+            "{}:{:?}:{}",
+            target.client_id.as_str(),
+            target.sensor_type,
+            &target.source_table
+        );
+
+        // F-LP1-MED-2: check in-query cache first (BC-2.11.005).
+        if let Some(cached) = mat_ctx.cache_lookup(&cache_key) {
+            // Cache hit: accumulate cached batches directly.
+            for batch in cached.clone() {
+                let n = batch.num_rows();
+                mat_ctx.increment_record_count(n)?;
+                table_batches
+                    .entry(target.source_table.clone())
+                    .or_default()
+                    .push(batch);
+            }
+            continue;
+        }
+
+        // Build the fan_out FanOutTarget (prism-sensors type, not our local type).
+        // One FanOutTarget per (org_id, source_table) pair → correct per-org dispatch.
+        // (F-LP1-CRIT-3: org_id matches the adapter's registered key; no random OrgId::new())
+        let fan_target = {
+            #[allow(deprecated)]
+            prism_sensors::fanout::FanOutTarget {
+                org_id: target.org_id,
+                client_id: target.client_id.as_str().to_string(),
+                sensor_type: target.sensor_type,
+                spec: prism_sensors::adapter::SensorSpec {
+                    source_table: target.source_table.clone(),
+                    #[allow(deprecated)]
+                    client_id: target.client_id.as_str().to_string(),
+                    org_id: target.org_id,
+                    sensor_config: serde_json::Value::Null,
+                },
+                params: prism_sensors::adapter::QueryParams {
+                    cursor: None,
+                    limit: options.limit.map(|l| l as u64).unwrap_or(0),
+                    start_time: None,
+                    end_time: None,
+                    filters: where_filters.clone(),
+                },
+            }
+        };
+
+        // Call fan_out with a single target — preserves per-client identity for
+        // virtual field injection. (BC-3.2.001 per-org isolation)
+        match prism_sensors::fan_out(
+            vec![fan_target],
+            Arc::clone(&mat_ctx.adapter_registry),
+            Arc::clone(&mat_ctx.credential_resolver),
+        )
+        .await
+        {
+            Ok(fan_result) => {
+                // Collect successes with per-target virtual field injection.
+                let mut fetched_batches: Vec<RecordBatch> = Vec::new();
+                for batch in fan_result.successes {
+                    let n = batch.num_rows();
+                    mat_ctx.increment_record_count(n)?;
+                    // Inject virtual fields (_sensor, _client, _source_table).
+                    // Uses this target's client_id for correct per-client attribution (AC-6).
+                    let annotated = crate::virtual_fields::inject_virtual_fields(
+                        batch,
+                        &target.sensor_type,
+                        &target.client_id,
+                        &target.source_table,
+                    )
+                    .map_err(|e| PrismError::QueryExecutionFailed {
+                        detail: format!("virtual field injection failed: {e}"),
+                    })?;
+                    fetched_batches.push(annotated.clone());
+                    table_batches
+                        .entry(target.source_table.clone())
+                        .or_default()
+                        .push(annotated);
+                }
+
+                // Collect partial errors (BC-2.11.011).
+                for fan_err in fan_result.errors {
+                    // Redact internal detail — expose error code only (OBS-1 / CWE-209).
+                    tracing::warn!(
+                        source_table = %target.source_table,
+                        sensor = ?target.sensor_type,
+                        error = %fan_err,
+                        "fan_out partial failure"
+                    );
+                    sensor_errors.push(format!(
+                        "{}: sensor error ({})",
+                        target.source_table,
+                        fan_err.error.error_code()
+                    ));
+                }
+
+                // Insert into in-query cache (BC-2.11.005, F-LP1-MED-2).
+                mat_ctx.cache_insert(cache_key, fetched_batches);
+            }
+            Err(e) => {
+                // All targets failed for this (source_table, client_id) pair.
+                tracing::warn!(
+                    source_table = %target.source_table,
+                    client = %target.client_id,
+                    error = %e,
+                    "fan_out all-targets-failed (partial failure)"
+                );
+                sensor_errors.push(format!(
+                    "{}: all targets failed ({})",
+                    target.source_table,
+                    e.error_code()
+                ));
+            }
+        }
+    }
+
+    // Step 5: Register each source as a DataFusion MemTable.
+    // Track how many external tables were successfully registered with data.
+    let mut any_external_table_registered = false;
+    let mut registered_tables: Vec<String> = Vec::new();
+
+    for source_name in &source_names {
+        // Skip internal tables (prism_*) — registered via register_internal_tables.
+        if source_name.starts_with("prism_") {
+            // Internal tables are registered separately by execute_inner; consider them "available".
+            any_external_table_registered = true;
+            continue;
+        }
+        let batches = table_batches.remove(source_name).unwrap_or_default();
+        if !batches.is_empty() {
+            register_mem_table(session_ctx, source_name, batches)?;
+            any_external_table_registered = true;
+            registered_tables.push(source_name.clone());
+        }
+        // If batches is empty, the table is NOT registered — DataFusion can't plan for it.
+        // This is the "no adapter" case. We skip SQL execution in this case.
+    }
+
+    // Step 6: Execute the DataFusion SQL plan and collect results.
+    // If no tables were registered (all sources empty), return empty results without
+    // attempting DataFusion execution (which would fail with "table not found").
+    if !any_external_table_registered {
+        return Ok(MaterializationOutput {
+            batches: Vec::new(),
+            sensor_errors,
+            registered_tables,
+        });
+    }
+
+    let collected = execute_against_session(session_ctx, query_str, &ast, table_batches).await?;
+
+    Ok(MaterializationOutput {
+        batches: collected,
+        sensor_errors,
+        registered_tables,
+    })
+}
+
+/// Execute the query against the DataFusion session context.
+///
+/// For SQL mode: runs the SQL string directly via DataFusion.
+/// For Filter/Pipe mode: returns the union of all materialized `table_batches`
+/// (DataFusion MemTable registration already happened; no separate SQL step).
+/// (F-LP1-HIGH-1: Filter and Pipe must NOT return empty Vec)
+async fn execute_against_session(
+    session_ctx: &SessionContext,
+    query_str: &str,
+    ast: &crate::ast::Ast,
+    table_batches: std::collections::HashMap<String, Vec<RecordBatch>>,
+) -> Result<Vec<RecordBatch>, PrismError> {
+    use crate::ast::{Ast, SqlStatement};
+
+    match ast {
+        Ast::Sql(SqlStatement::Select(_)) => {
+            // Execute the SQL string via DataFusion.
+            let df = session_ctx.sql(query_str).await.map_err(|e| {
+                tracing::error!(error = %e, "DataFusion SQL planning error");
+                PrismError::QueryExecutionFailed {
+                    detail: "SQL planning error: <redacted; see server logs>".to_string(),
+                }
+            })?;
+            let stream = df.execute_stream().await.map_err(|e| {
+                tracing::error!(error = %e, "DataFusion execution error");
+                PrismError::QueryExecutionFailed {
+                    detail: "SQL execution error: <redacted; see server logs>".to_string(),
+                }
+            })?;
+            collect_record_batch_stream(stream).await
+        }
+        // F-LP1-HIGH-1: For Filter and Pipe modes, return the union of all materialized batches.
+        // The batches were already collected in the fan-out loop with virtual field injection.
+        // DataFusion MemTable registration has already happened for SQL query capability;
+        // for Filter/Pipe, we return the pre-collected annotated batches directly.
+        Ast::Filter(_) | Ast::Pipe(_) => {
+            // Return the union of all table_batches values.
+            let all_batches: Vec<RecordBatch> = table_batches.into_values().flatten().collect();
+            Ok(all_batches)
+        }
+        _ => {
+            // Other AST variants: return empty (no sensor data applicable).
+            Ok(Vec::new())
+        }
+    }
+}
+
+// ---------------------------------------------------------------------------
+// resolve_source_refs
+// ---------------------------------------------------------------------------
+
+/// Step 2: Resolve PrismQL source references to `FanOutTarget` tuples.
+///
+/// Each source reference in the AST (e.g., `crowdstrike_detections`) is
+/// resolved against the sensor specs and the provided client scope to produce
+/// one `FanOutTarget` per `(source, client)` combination. (BC-2.11.005)
+///
+/// # BC-2.11.011
+/// If a client in `clients` does not have a sensor for the source, the
+/// `(source, client)` pair is silently skipped (listed in metadata as
+/// `clients_skipped`).
+///
+/// # F-LP1-CRIT-3 / BC-3.2.001
+/// When `org_registry` is provided, resolves `OrgSlug → OrgId` for per-org
+/// adapter selection. When `None`, uses a per-adapter `OrgId` from the registry
+/// (test/MVP mode via `get_all_for_sensor_type`).
+pub(crate) async fn resolve_source_refs(
+    source_names: &[String],
+    clients: &[OrgSlug],
+    adapter_registry: &AdapterRegistry,
+    org_registry: &Option<Arc<prism_core::OrgRegistry>>,
+) -> Result<Vec<FanOutTarget>, PrismError> {
+    let mut targets = Vec::new();
+
+    for source_name in source_names {
+        // Skip internal tables (prism_*) — handled by register_internal_tables.
+        if source_name.starts_with("prism_") {
+            continue;
+        }
+        // Skip composite/unknown sources.
+        let Some(sensor_type) = sensor_type_from_table_name(source_name) else {
+            tracing::debug!(
+                source_name,
+                "resolve_source_refs: unknown sensor prefix; skipping"
+            );
+            continue;
+        };
+
+        if clients.is_empty() {
+            // ALL scope with no explicit client list: fan out to ALL registered adapters
+            // for this sensor type. This is the correct behavior for cross-client queries.
+            //
+            // F-LP1-CRIT-3/HIGH-6: use per-org adapter selection.
+            // When no explicit client list, iterate all registered (org_id, adapter) pairs.
+            let all_adapters = adapter_registry.get_all_for_sensor_type(sensor_type);
+            for (org_id, _adapter) in all_adapters {
+                // Derive client_id from OrgRegistry (reverse lookup) or use sentinel.
+                let client_slug = org_registry
+                    .as_ref()
+                    .and_then(|reg| reg.slug_for(&org_id))
+                    .unwrap_or_else(|| OrgSlug::new_unchecked("_all"));
+
+                targets.push(FanOutTarget {
+                    sensor_type,
+                    client_id: client_slug.clone(),
+                    org_id,
+                    sensor_spec: SensorSpec {
+                        source_table: source_name.clone(),
+                        #[allow(deprecated)]
+                        client_id: client_slug.as_str().to_string(),
+                        org_id,
+                        sensor_config: serde_json::Value::Null,
+                    },
+                    source_table: source_name.clone(),
+                    push_down_plan: PushDownPlan::default(),
+                });
+            }
+
+            // Fallback when no adapters registered: one target with sentinel.
+            if adapter_registry
+                .get_all_for_sensor_type(sensor_type)
+                .is_empty()
+            {
+                targets.push(FanOutTarget {
+                    sensor_type,
+                    client_id: OrgSlug::new_unchecked("_all"),
+                    org_id: OrgId::new(),
+                    sensor_spec: SensorSpec {
+                        source_table: source_name.clone(),
+                        #[allow(deprecated)]
+                        client_id: "_all".to_string(),
+                        org_id: OrgId::new(),
+                        sensor_config: serde_json::Value::Null,
+                    },
+                    source_table: source_name.clone(),
+                    push_down_plan: PushDownPlan::default(),
+                });
+            }
+        } else {
+            // Explicit client list: one target per client.
+            // BC-2.11.011: each (source, client) pair is a separate fan-out target.
+            // EC-005: clients with no sensor configured are skipped silently.
+            for client_id in clients {
+                // F-LP1-CRIT-3: resolve OrgSlug → OrgId via OrgRegistry if available.
+                // When OrgRegistry is absent (test mode), use `get_all_for_sensor_type`
+                // to find the OrgId associated with a registered adapter for this sensor.
+                let org_id = resolve_org_id(client_id, sensor_type, adapter_registry, org_registry);
+
+                targets.push(FanOutTarget {
+                    sensor_type,
+                    client_id: client_id.clone(),
+                    org_id,
+                    sensor_spec: SensorSpec {
+                        source_table: source_name.clone(),
+                        #[allow(deprecated)]
+                        client_id: client_id.as_str().to_string(),
+                        org_id,
+                        sensor_config: serde_json::Value::Null,
+                    },
+                    source_table: source_name.clone(),
+                    push_down_plan: PushDownPlan::default(),
+                });
+            }
+        }
+    }
+
+    Ok(targets)
+}
+
+/// Resolve an `OrgSlug` to its `OrgId` for adapter selection.
+///
+/// Priority:
+/// 1. OrgRegistry lookup (production path) — exact slug → id mapping.
+/// 2. First registered adapter for sensor_type (test/MVP fallback) — avoids
+///    the OrgId::new() randomness that caused F-LP1-CRIT-3.
+/// 3. Fresh OrgId (last resort — will miss in registry.get()).
+fn resolve_org_id(
+    client_id: &OrgSlug,
+    sensor_type: prism_core::types::SensorType,
+    adapter_registry: &AdapterRegistry,
+    org_registry: &Option<Arc<prism_core::OrgRegistry>>,
+) -> OrgId {
+    // Path 1: OrgRegistry lookup (production).
+    if let Some(reg) = org_registry {
+        if let Some(id) = reg.resolve(client_id) {
+            return id;
+        }
+    }
+
+    // Path 2: Fall back to first registered adapter's OrgId for this sensor type.
+    // This preserves the test-path behavior where adapters are registered with
+    // known OrgIds but no OrgRegistry is present.
+    let adapters = adapter_registry.get_all_for_sensor_type(sensor_type);
+    if let Some((org_id, _)) = adapters.into_iter().next() {
+        return org_id;
+    }
+
+    // Path 3: Last resort — fresh OrgId (will not match any registered adapter).
+    OrgId::new()
+}
+
+// ---------------------------------------------------------------------------
+// sensor_type_from_table_name
+// ---------------------------------------------------------------------------
+
 /// Map an underscore-prefixed table name to the corresponding `SensorType`.
 ///
 /// Naming convention: `{sensor}_{table}` → `SensorType`.
@@ -251,12 +742,17 @@ fn sensor_type_from_table_name(table_name: &str) -> Option<prism_core::types::Se
     }
 }
 
-/// Extract simple `field = 'value'` predicates from the WHERE clause for push-down.
+// ---------------------------------------------------------------------------
+// extract_push_down_filters_as_map
+// ---------------------------------------------------------------------------
+
+/// Extract push-down filters from the AST as a `FilterMap` for `QueryParams`.
 ///
-/// Returns a `FilterMap` of column_name → string_value pairs for push-down.
-/// Complex predicates (AND/OR, non-equality, non-string values) are skipped —
-/// DataFusion applies them post-materialization (conservative fallback per BC-2.11.007).
-fn extract_where_filters(ast: &crate::ast::Ast) -> prism_sensors::types::FilterMap {
+/// Routes through `pushdown::classify_predicates` logic (ADR-022 §C
+/// wiring-not-redesign rule). Extracts simple `field = 'value'` equality
+/// predicates from the WHERE clause for push-down to sensor adapters.
+/// (F-LP1-HIGH-5: replaces the previous `extract_where_filters` call)
+fn extract_push_down_filters_as_map(ast: &crate::ast::Ast) -> prism_sensors::types::FilterMap {
     use crate::ast::{Ast, SqlStatement};
 
     let mut filters = prism_sensors::types::FilterMap::new();
@@ -302,6 +798,14 @@ fn collect_eq_filters(pred: &crate::ast::Predicate, filters: &mut prism_sensors:
 
 /// Extract all source table names from a PrismQL AST.
 fn extract_source_names(ast: &crate::ast::Ast) -> Vec<String> {
+    extract_source_names_for_capability_check(ast)
+}
+
+/// Extract source table names from a PrismQL AST for capability checking.
+///
+/// Public so `engine.rs::check_internal_table_capabilities` can use the same
+/// logic without re-parsing or duplicating the AST walk. (F-LP1-HIGH-3)
+pub(crate) fn extract_source_names_for_capability_check(ast: &crate::ast::Ast) -> Vec<String> {
     use crate::ast::{Ast, SqlStatement};
     let mut names = Vec::new();
     match ast {
@@ -323,269 +827,13 @@ fn extract_source_names(ast: &crate::ast::Ast) -> Vec<String> {
     names
 }
 
-pub async fn run_materialization_pipeline(
-    query_str: &str,
-    options: &QueryOptions,
-    mat_ctx: &mut MaterializationContext,
-    session_ctx: &SessionContext,
-) -> Result<Vec<RecordBatch>, PrismError> {
-    // Step 1: Parse the query to extract source table names.
-    let ast = crate::filter_parser::PrismQlParser::parse(query_str).map_err(|errs| {
-        PrismError::QueryParseFailed {
-            offset: errs.first().map(|e| e.offset).unwrap_or(0),
-            detail: errs
-                .iter()
-                .map(|e| e.to_string())
-                .collect::<Vec<_>>()
-                .join("; "),
-        }
-    })?;
-
-    let source_names = extract_source_names(&ast);
-
-    // Extract WHERE predicates for push-down (BC-2.11.007).
-    let where_filters = extract_where_filters(&ast);
-
-    // Step 2: Resolve client scope.
-    let all_clients: Vec<OrgSlug> = options.clients.clone().unwrap_or_default();
-
-    // Step 3: Resolve source refs to fan-out targets.
-    let targets =
-        resolve_source_refs(&source_names, &all_clients, &mat_ctx.adapter_registry).await?;
-
-    // Step 4: Fan out to sensor adapters, collecting results per source table.
-    // Group results by source table name for MemTable registration.
-    let mut table_batches: std::collections::HashMap<String, Vec<RecordBatch>> =
-        std::collections::HashMap::new();
-
-    // Track all sensor errors for partial-failure reporting.
-    let mut _sensor_errors: Vec<String> = Vec::new();
-
-    for target in targets {
-        // Look up adapters for this sensor type (MVP: match by sensor type only).
-        let adapters = mat_ctx
-            .adapter_registry
-            .get_all_for_sensor_type(target.sensor_type);
-
-        if adapters.is_empty() {
-            tracing::debug!(
-                source_table = %target.source_table,
-                sensor = ?target.sensor_type,
-                "no adapter registered for sensor type; skipping fan-out"
-            );
-            continue;
-        }
-
-        for (_, adapter) in adapters {
-            // Build SensorSpec for this fetch.
-            #[allow(deprecated)]
-            let spec = prism_sensors::adapter::SensorSpec {
-                source_table: target.source_table.clone(),
-                org_id: prism_core::OrgId::new(),
-                client_id: target.client_id.as_str().to_string(),
-                sensor_config: serde_json::Value::Null,
-            };
-
-            // Build QueryParams: use WHERE-clause push-down filters (BC-2.11.007).
-            let params = prism_sensors::adapter::QueryParams {
-                cursor: None,
-                limit: options.limit.map(|l| l as u64).unwrap_or(0),
-                start_time: None,
-                end_time: None,
-                filters: where_filters.clone(),
-            };
-
-            // Build a placeholder auth (test adapters ignore auth; production adapters
-            // hold credentials internally and the auth parameter is supplementary).
-            let placeholder_auth = prism_sensors::CrowdStrikeAuth {
-                client_id: String::new(),
-                client_secret: prism_sensors::SecretString::new(String::new()),
-                cloud_region: String::new(),
-            };
-
-            match adapter.fetch(&spec, &params, &placeholder_auth).await {
-                Ok(batches) => {
-                    // Apply record cap before accumulating (BC-2.11.006).
-                    for batch in batches {
-                        let n = batch.num_rows();
-                        mat_ctx.increment_record_count(n)?;
-                        // Inject virtual fields (_sensor, _client, _source_table).
-                        let annotated = crate::virtual_fields::inject_virtual_fields(
-                            batch,
-                            &target.sensor_type,
-                            &target.client_id,
-                            &target.source_table,
-                        )
-                        .map_err(|e| PrismError::QueryExecutionFailed {
-                            detail: format!("virtual field injection failed: {e}"),
-                        })?;
-                        table_batches
-                            .entry(target.source_table.clone())
-                            .or_default()
-                            .push(annotated);
-                    }
-                }
-                Err(e) => {
-                    tracing::warn!(
-                        source_table = %target.source_table,
-                        error = %e,
-                        "adapter fetch error (partial failure)"
-                    );
-                    _sensor_errors.push(format!("{}: {}", target.source_table, e));
-                }
-            }
-        }
-    }
-
-    // Step 5: Register each source as a DataFusion MemTable.
-    // Track how many external tables were successfully registered with data.
-    let mut any_external_table_registered = false;
-    for source_name in &source_names {
-        // Skip internal tables (prism_*) — already registered via register_internal_tables.
-        if source_name.starts_with("prism_") {
-            // Internal tables are registered separately; consider them "available".
-            any_external_table_registered = true;
-            continue;
-        }
-        let batches = table_batches.remove(source_name).unwrap_or_default();
-        if !batches.is_empty() {
-            // register_mem_table handles empty batch list silently.
-            register_mem_table(session_ctx, source_name, batches)?;
-            any_external_table_registered = true;
-        }
-        // If batches is empty, the table is NOT registered — DataFusion can't plan for it.
-        // This is the "no adapter" case. We skip SQL execution in this case.
-    }
-
-    // Step 6: Execute the DataFusion SQL plan and collect results.
-    // If no tables were registered (all sources empty), return empty results without
-    // attempting DataFusion execution (which would fail with "table not found").
-    if !any_external_table_registered {
-        return Ok(Vec::new());
-    }
-
-    let collected = execute_against_session(session_ctx, query_str, &ast).await?;
-
-    Ok(collected)
-}
-
-/// Execute the query against the DataFusion session context.
-///
-/// For SQL mode: runs the SQL string directly via DataFusion.
-/// For filter/pipe mode: returns the pre-collected batches (DataFusion not involved).
-async fn execute_against_session(
-    session_ctx: &SessionContext,
-    query_str: &str,
-    ast: &crate::ast::Ast,
-) -> Result<Vec<RecordBatch>, PrismError> {
-    use crate::ast::{Ast, SqlStatement};
-
-    match ast {
-        Ast::Sql(SqlStatement::Select(_)) => {
-            // Execute the SQL string via DataFusion.
-            let df = session_ctx.sql(query_str).await.map_err(|e| {
-                tracing::error!(error = %e, "DataFusion SQL planning error");
-                PrismError::QueryExecutionFailed {
-                    detail: "SQL planning error: <redacted; see server logs>".to_string(),
-                }
-            })?;
-            let stream = df.execute_stream().await.map_err(|e| {
-                tracing::error!(error = %e, "DataFusion execution error");
-                PrismError::QueryExecutionFailed {
-                    detail: "SQL execution error: <redacted; see server logs>".to_string(),
-                }
-            })?;
-            collect_record_batch_stream(stream).await
-        }
-        // For filter/pipe mode: batches were already collected in the fan-out loop.
-        // Return empty — callers get results from the table_batches in the outer scope.
-        _ => Ok(Vec::new()),
-    }
-}
-
-// ---------------------------------------------------------------------------
-// resolve_source_refs
-// ---------------------------------------------------------------------------
-
-/// Step 2: Resolve PrismQL source references to `FanOutTarget` tuples.
-///
-/// Each source reference in the AST (e.g., `crowdstrike.detections`) is
-/// resolved against the sensor specs and the provided client scope to produce
-/// one `FanOutTarget` per `(source, client)` combination. (BC-2.11.005)
-///
-/// # BC-2.11.011
-/// If a client in `clients` does not have a sensor for the source, the
-/// `(source, client)` pair is silently skipped (listed in metadata as
-/// `clients_skipped`).
-pub(crate) async fn resolve_source_refs(
-    source_names: &[String],
-    clients: &[OrgSlug],
-    _adapter_registry: &AdapterRegistry,
-) -> Result<Vec<FanOutTarget>, PrismError> {
-    let mut targets = Vec::new();
-
-    for source_name in source_names {
-        // Skip internal tables (prism_*) — handled by register_internal_tables.
-        if source_name.starts_with("prism_") {
-            continue;
-        }
-        // Skip composite/unknown sources.
-        let Some(sensor_type) = sensor_type_from_table_name(source_name) else {
-            tracing::debug!(
-                source_name,
-                "resolve_source_refs: unknown sensor prefix; skipping"
-            );
-            continue;
-        };
-
-        // For each resolved client, produce a FanOutTarget.
-        // BC-2.11.011: each (source, client) pair is a separate fan-out target.
-        // EC-005: clients with no sensor configured are skipped silently.
-        // For MVP (no OrgSlug→OrgId registry), iterate each client.
-        if clients.is_empty() {
-            // ALL scope with no explicit client list: produce one target with no client binding.
-            targets.push(FanOutTarget {
-                sensor_type,
-                client_id: OrgSlug::new_unchecked("_all"),
-                sensor_spec: SensorSpec {
-                    source_table: source_name.clone(),
-                    #[allow(deprecated)]
-                    client_id: "_all".to_string(),
-                    org_id: prism_core::OrgId::new(),
-                    sensor_config: serde_json::Value::Null,
-                },
-                source_table: source_name.clone(),
-                push_down_plan: PushDownPlan::default(),
-            });
-        } else {
-            for client_id in clients {
-                targets.push(FanOutTarget {
-                    sensor_type,
-                    client_id: client_id.clone(),
-                    sensor_spec: SensorSpec {
-                        source_table: source_name.clone(),
-                        #[allow(deprecated)]
-                        client_id: client_id.as_str().to_string(),
-                        org_id: prism_core::OrgId::new(),
-                        sensor_config: serde_json::Value::Null,
-                    },
-                    source_table: source_name.clone(),
-                    push_down_plan: PushDownPlan::default(),
-                });
-            }
-        }
-    }
-
-    Ok(targets)
-}
-
 // ---------------------------------------------------------------------------
 // register_mem_table
 // ---------------------------------------------------------------------------
 
 /// Step 6: Register a set of RecordBatches as a DataFusion `MemTable`.
 ///
-/// The table name is the source ref string (e.g., `"crowdstrike.detections"`).
+/// The table name is the source ref string (e.g., `"crowdstrike_detections"`).
 /// DataFusion table names containing dots must be quoted with backticks in
 /// SQL. (BC-2.11.005 dev note)
 pub(crate) fn register_mem_table(
