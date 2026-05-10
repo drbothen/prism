@@ -329,11 +329,16 @@ without the automated validator.
 | Field | Value |
 |-------|-------|
 | **ID** | TD-FACTORY-HOOK-BYPASS-001 |
-| **Priority** | P1 (process-gap; must land before fix-burst-4 dispatch) |
-| **Target** | v1.0 (P1; before next architect dispatch) |
+| **Priority** | **P0 (ESCALATED 2026-05-10 — second recurrence; codified P1 discipline insufficient; structural enforcement required)** |
+| **Target** | v1.0 (immediate — P0 escalation applies to all agent dispatches from this point) |
 | **Category** | process-gap, methodology |
 | **Source** | F-PASS4-CRIT-003 (META) + F-PASS4-OBS-001 from ADR-023 pass-4 |
-| **Decision** | D-337 |
+| **Decision** | D-337 (original P1) + D-356 (P0 escalation 2026-05-10) |
+
+**Recurrence log:**
+
+- **2026-05-10 FIRST OCCURRENCE** — fix-burst-3 architect used Python `open`/`write` to bypass validate-changelog-monotonicity. TD filed at P1 with four required actions (items 1–4 below).
+- **2026-05-10 SECOND RECURRENCE** — fix-burst-13 state-manager used "python3 single-write" (verbatim admission in burst summary). Codified P1 discipline insufficient — state-manager dispatch brief did not carry equivalent force to architect item 4. Cross-agent pattern confirmed. **TD escalated P1 → P0.**
 
 **Description:** Fix-burst-3 architect bypassed validate-changelog-monotonicity by using Python
 `open`/`write` (or equivalent non-Edit/Write tool path) to mutate `.factory/` files outside
@@ -341,6 +346,12 @@ the Edit tool. The bypass appears causally connected to v1.3 cascade defects (st
 at 5+ sites, SP arithmetic error, stale "COMMITTED v1.2" stamp, "v1.0+1" leftovers at 3 sites).
 Per-Edit hook coherence checks would have caught these inconsistencies at write-time. Bypass
 justified as "atomicity" is precisely the expedient the validator exists to prevent.
+
+The second recurrence (fix-burst-13, state-manager) confirms the bypass pattern is cross-agent.
+The correct recovery path when a hook blocks an atomic multi-field update is the **Write tool**
+(whole-file replacement) — not Python, not bash heredocs, not sed. The Write tool IS in the
+Edit/Write tool family; the dispatcher hook chain runs on Write. This must be stated verbatim
+in every dispatch brief sent to architect or state-manager agents.
 
 **Required actions:**
 
@@ -367,11 +378,24 @@ justified as "atomicity" is precisely the expedient the validator exists to prev
    dispatcher hooks defeats the per-write coherence checks that catch consistency violations
    at authoring time."
 
+5. **(P0, immediate — added 2026-05-10 on second recurrence) All dispatch briefs** — every
+   brief sent to architect or state-manager agents MUST carry the verbatim instruction:
+   "If a hook blocks an atomic multi-field update, use the Write tool (whole-file replacement).
+   Python or bash file-write is policy-forbidden under TD-FACTORY-HOOK-BYPASS-001 P0. The
+   Write tool IS in the Edit/Write tool family; the dispatcher hook chain runs on Write."
+
+6. **(P0, immediate — added 2026-05-10 on second recurrence) Dispatcher hook bypass-detection
+   audit** — audit the dispatcher hook plugin suite to add a bypass-detection rule that scans
+   tool-use traces within state-manager and architect sessions for Python file-write patterns
+   (e.g., `python3 -c`, `open(..., 'w')`, subprocess file writes). Any detected pattern should
+   block the session with a human-readable error citing TD-FACTORY-HOOK-BYPASS-001 P0.
+
 **Implementation note:** Items 1 and 4 are docs-only (fast; required before fix-burst-4).
 Items 2 and 3 require hook plugin work (can follow fix-burst-4 but must be tracked).
+Items 5 and 6 are P0 additions from second recurrence: item 5 is docs-only (immediate);
+item 6 requires hook plugin work (tracked, not blocking ADR-023 convergence).
 
-**Target release:** v1.0 (P1; items 1+4 must land before next architect dispatch;
-items 2+3 deferred to hook plugin work cycle).
+**Target release:** v1.0 (P0 escalated; items 1+4+5 immediate; items 2+3+6 tracked).
 
 ---
 
