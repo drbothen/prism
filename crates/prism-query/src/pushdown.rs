@@ -190,13 +190,14 @@ pub(crate) fn translate_push_down_filter(
     _predicate: &Predicate,
     _columns: &[ColumnSpec],
 ) -> Option<String> {
-    // S-3.X — sensor-specific filter translation. Each sensor adapter will
-    // implement its own translator (e.g., CrowdStrike FQL, Cyberint queries,
-    // Claroty xDome POST body arrays, Armis AQL) because predicate-to-API-filter
-    // mapping is sensor-specific. The current stub is a placeholder; a
-    // Debug-formatted Expr would leak AST internals to external sensor APIs
-    // (CWE-209). Replace with sensor-specific dispatch in the relevant S-3.X story.
-    todo!("S-3.X — sensor-specific filter translation")
+    // ADV-W3MT-P61-LOW-001 / POL-12: replace todo!() with the correct sentinel.
+    // Sensor-specific filter translation (CrowdStrike FQL, Cyberint queries,
+    // Claroty xDome POST body, Armis AQL) is deferred to per-sensor stories (S-3.X).
+    // `None` is the correct return: callers fall back to post-DataFusion filtering
+    // with a WARN log, which is the documented behavior. (BC-2.11.007)
+    // No sensor API leakage — Debug-formatted AST is NOT emitted to external APIs.
+    let _ = (_predicate, _columns); // documented deferral
+    None
 }
 
 // ---------------------------------------------------------------------------
