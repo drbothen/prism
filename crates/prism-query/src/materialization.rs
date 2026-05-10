@@ -826,6 +826,14 @@ fn extract_source_names_shallow(ast: &crate::ast::Ast) -> Vec<String> {
         }
         Ast::Pipe(pipe) => {
             names.push(pipe.source.raw.clone());
+            // F-LP5-LOW-1 / C-LOCAL-001 sibling fix: also collect JOIN stage
+            // sources so that pipe-mode `<source> | join <internal_table> on ...`
+            // is caught by the Layer 1 capability gate. Mirrors explain.rs:489-499.
+            for stage in &pipe.stages {
+                if let crate::ast::PipeStage::Join(js) = stage {
+                    names.push(js.source.raw.clone());
+                }
+            }
         }
         // Non-exhaustive: ignore other variants
         _ => {}
@@ -873,6 +881,14 @@ pub(crate) fn extract_source_names_recursive(ast: &crate::ast::Ast) -> Vec<Strin
         }
         Ast::Pipe(pipe) => {
             names.insert(pipe.source.raw.clone());
+            // F-LP5-LOW-1 / C-LOCAL-001 sibling fix: also collect JOIN stage
+            // sources so that pipe-mode `<source> | join <internal_table> on ...`
+            // is caught by the Layer 1 capability gate. Mirrors explain.rs:489-499.
+            for stage in &pipe.stages {
+                if let crate::ast::PipeStage::Join(js) = stage {
+                    names.insert(js.source.raw.clone());
+                }
+            }
         }
         _ => {}
     }
@@ -1257,6 +1273,77 @@ mod walker_coverage_tests {
             names.iter().any(|n| n == "prism_audit"),
             "F-LP3-CRIT-1: extract_source_names_recursive must discover `prism_audit` \
              hidden in ORDER BY InSubquery expression; got names: {names:?}"
+        );
+    }
+
+    /// F-LP5-LOW-1: pipe-mode JOIN sources must be walked by Layer 1.
+    ///
+    /// Represents queries like:
+    ///   `armis_devices | join prism_audit on host == id`
+    ///
+    /// Prior to the fix, `extract_source_names_recursive` and
+    /// `extract_source_names_shallow` only collected `pipe.source.raw`
+    /// (`armis_devices`) and silently skipped `PipeStage::Join` sources
+    /// (`prism_audit`). This means the Layer 1 capability gate never saw
+    /// `prism_audit`, leaving a latent bypass for S-3.06+ pipe-mode JOINs.
+    ///
+    /// Mirror test for the C-LOCAL-001 fix already applied to explain.rs:489-499.
+    #[test]
+    fn test_LP5_LOW_1_pipe_join_internal_table_discovered_by_layer1() {
+        use super::extract_source_names_shallow;
+        use crate::ast::{JoinCondition, JoinKind, JoinStage, PipeQuery, PipeStage};
+
+        // Build: armis_devices | join prism_audit on host == id
+        let join_stage = JoinStage {
+            kind: JoinKind::Inner,
+            source: SourceRef {
+                raw: "prism_audit".to_string(),
+                kind: SourceRefKind::Internal(crate::ast::InternalTable::Audit),
+            },
+            on: JoinCondition::Pair(
+                FieldPath {
+                    segments: vec!["host".to_string()],
+                    span: Span::ZERO,
+                },
+                FieldPath {
+                    segments: vec!["id".to_string()],
+                    span: Span::ZERO,
+                },
+            ),
+        };
+        let pipe_ast = Ast::Pipe(PipeQuery {
+            source: SourceRef {
+                raw: "armis_devices".to_string(),
+                kind: SourceRefKind::Custom,
+            },
+            stages: vec![PipeStage::Join(join_stage)],
+            write: None,
+        });
+
+        // extract_source_names_recursive must discover both sources.
+        let recursive_names = extract_source_names_recursive(&pipe_ast);
+        assert!(
+            recursive_names.iter().any(|n| n == "armis_devices"),
+            "F-LP5-LOW-1: extract_source_names_recursive must include `armis_devices` \
+             (pipe primary source); got names: {recursive_names:?}"
+        );
+        assert!(
+            recursive_names.iter().any(|n| n == "prism_audit"),
+            "F-LP5-LOW-1: extract_source_names_recursive must discover `prism_audit` \
+             from PipeStage::Join source; got names: {recursive_names:?}"
+        );
+
+        // extract_source_names_shallow must also discover both sources.
+        let shallow_names = extract_source_names_shallow(&pipe_ast);
+        assert!(
+            shallow_names.iter().any(|n| n == "armis_devices"),
+            "F-LP5-LOW-1: extract_source_names_shallow must include `armis_devices` \
+             (pipe primary source); got names: {shallow_names:?}"
+        );
+        assert!(
+            shallow_names.iter().any(|n| n == "prism_audit"),
+            "F-LP5-LOW-1: extract_source_names_shallow must discover `prism_audit` \
+             from PipeStage::Join source; got names: {shallow_names:?}"
         );
     }
 
