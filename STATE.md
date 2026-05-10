@@ -1,9 +1,9 @@
 ---
 document_type: pipeline-state
 level: ops
-version: "7.86"
+version: "7.87"
 producer: state-manager
-timestamp: 2026-05-10T18:30:00Z
+timestamp: 2026-05-10T20:00:00Z
 inputs: []
 input-hash: "[live-state]"
 traces_to: ""
@@ -176,7 +176,7 @@ workspace_test_count: 3489  # 891 prism-query + workspace total (per implementer
 | **Language** | Rust |
 | **Target Workspace** | per-analyst stdio (MCP server) |
 | **Started** | 2026-04-13 |
-| **Last Updated** | 2026-05-10 (D-335 — ADR-023 pass-2 NOT_CLEAN 16 findings; 2 process-gap TDs; STATE v7.85→v7.86) |
+| **Last Updated** | 2026-05-10 (D-336 — ADR-023 pass-3 NOT_CLEAN 12 findings; streak reset 0/3; 2 process-gap TDs; STATE v7.86→v7.87) |
 | **Current Phase** | Wave 3 Tier-3 COMPLETE — **Wave 3-A 4 of 4 SHIPPED**: S-3.05 (#132 c867c344), S-3.04 (#133 57745ce8), S-3.03 (#134 7c413692), **S-3.07 (#135 2ae7185b MERGED 2026-05-08T04:23:03Z)**; post-merge cleanup confirmed; NEXT: Wave 3-B/C or Wave 4 unblock |
 | **Current Step** | D-299 — Plugin system FULL audit COMPLETE. 14 P0/P1 deferrals discovered (8 P0 + 6 P1). Stub-merged Wave-1 items: S-1.12/1.14/1.15 (3 stubs). No production binary loads sensors/*.toml. 13 new TDs filed (TD-PLUGIN-P0-001..008 + P1-001..005). S-3.09 FROZEN. Strategic direction needed: (a) full plugin completion epic, (b) min-viable plugin wiring, or (c) other path. |
 
@@ -213,6 +213,7 @@ _D-001..D-046 archived: [cycles/phase-3-dtu-wave-2/decisions-archive-d001-d032.m
 
 | ID | Decision | Rationale | Phase | Date |
 |----|----------|-----------|-------|------|
+| D-336 | ADR-023 pass-3 NOT_CLEAN — 12 findings, streak reset 0/3 | Pass-3 fresh-context review of ADR-023 v1.2 closes 14/14 pass-2 spec defects substantively (with mis-attribution caveat); surfaces 10 new defects + 2 process-gap. Top 3: ad-hoc frontmatter field amends_bcs_pending_full_amendment_in_wave_2_g (project-novel, no validator); VP-PLUGIN-006 referenced but undefined (VP-INDEX has zero VP-PLUGIN entries); POL-11 miscited as ci_positive_coverage_assertion (actual is index_bump_required_for_index_mutations) — TD-FIX-BURST-VERIFY-001 didn't prevent verbatim adoption. User decisions: continue full 3-CLEAN cycle; close process-gap TDs before Wave 0. Trajectory 26→16→12 (novelty 0.833). Fix-burst-3 dispatch ADR-023 v1.3 closing 10 new defects with stricter grep-verification of all POL/VP/BC citations. review(ADR-023-pass-3) | 4 | 2026-05-10 |
 | D-335 | ADR-023 pass-2 NOT_CLEAN — 16 findings (2C/4H/5M/3L/2O), 2 residuals + 14 new. Pass-2 fresh-context review of ADR-023 v1.1 surfaces 2 pass-1 residuals (F-MED-001/F-MED-004 closed by adopting pass-1's factually-wrong proposed-fix language verbatim) + 14 new defects. Top 3: spec_parser.rs has zero CustomAdapter references (claim wrong in 2 ADR sections); sandbox URL-allowlist claim contradicts implementation (allowed_urls: None TODO); ADR-022 v1.2 amendment scheduled for both end-of-Wave-1 AND Wave-2/G simultaneously. Streak resets to 0/3. 2 new process-gap TDs: TD-ADR-AMEND-001 augmented with bidirectional consistency requirement, TD-FIX-BURST-VERIFY-001 P2 — architect must verify adversary proposed-fix factual claims against source-of-truth before verbatim adoption. Fix-burst-2 dispatch ADR-023 v1.2 closing 16 findings; then pass-3 (target CLEAN). | review(ADR-023-pass-2) | 4 | 2026-05-10 |
 | D-334 | ADR-023 pass-1 adversary review + user-decided fix-burst plan. Adversary pass-1 surfaced 26 findings (4C/9H/7M/4L/5O); 5 process-gap-tagged. User decisions: (1) confirm Rule 5 — retire CustomAdapter; .prx WASM sole escape hatch; (2) defer plugin signing to v1.0+1 — ship unsigned + boot warning + audit log + TD-PLUGIN-SIGNING-001 P0; (3) reorder Wave 1 — replacement before deletion (D→E→A→B→C), parity-test gate at every PR boundary; (4) add Wave 0/F — S-PLUGIN-PREREQ-F BC+DI amendments BEFORE code (3-5 SP), depends-on: blocks PREREQ-A through E. Fix-burst plan: architect ADR-023 v1.1 amendment → product-owner Wave 0/F BC+DI sweep → architect production-runtime-wiring decision v1.2 amendment → adversary pass-2. 5 process-gap OBS tracked as TDs (TD-ADR-AMEND-001, TD-AUDIT-ADR-001, TD-USER-DECISION-001, TD-SIGNING-PREREQ-001, TD-ADR-OPEN-Q-001) — not blocking. STORY-INDEX v2.33→v2.34 (PLUGIN-PREREQ-F added; total 149→150). | review(ADR-023-pass-1): 26 findings; 4 user decisions; fix-burst plan set; Wave 0/F added; 5 process-gap TDs registered | 4 | 2026-05-10 |
 | D-333 | PLUGIN-AUDIT-001 → Bundle B Phase B-2 BLOCKED. User surfaced plugin-only architecture violation. codebase-analyzer audit (21 findings: 8C/5H/3M/3L/2O) catalogued built-in sensor violations: closed SensorType enum keystone, 4 hardcoded sensor-named Rust auth modules, sealed SensorAuth trait, 5 prism-query dispatch sites by sensor name, 4 in-tree OCSF mapper modules, dead CustomAdapterRegistry. User decisions: (1) Hybrid OCSF — TOML column ocsf_field 80% + in-repo .prx WASM transformers 20%; (2) Un-seal SensorAuth entirely; (3) Reverse-engineer TOMLs from Rust adapters with DTU-parity tests; (4) CrowdStrike OAuth2 refresh-on-401 as in-repo .prx WASM plugin; (5) Retire CustomAdapter Rust trait — .prx WASM sole escape hatch. Migration: 13 stories ~100-140 SP, 3 waves (Wave 0: 5 prereq stories; Wave 1: 5 deletion+replacement; Wave 2: 3 cleanup). All Bundle B Phase B-2 stories BLOCKED until plugin migration completes: W3-FIX-S307-001/002, S-1.12-FOLLOWUP, S-1.14-REDO, S-5.01-FOLLOWUP-MCP-BOOT. Worktree feature/W3-FIX-S307-001@fcab8717 retained but inactive. Audit at .factory/cycles/wave-4-operations/audits/plugin-only-violations-2026-05-10.md. | PLUGIN-AUDIT-001: user mandate plugin-only architecture — 21 violations catalogued; 5 user decisions recorded; 13-story migration sequence planned; Phase B-2 BLOCKED pending Wave 0+1 | 4 | 2026-05-10 |
@@ -442,27 +443,21 @@ _TD-VSDD-014..019, TD-W3-COMPLIANCE-001, TD-VSDD-025..029 archived to [tech-debt
 
 Cycle files: [burst-log](cycles/phase-2-patch/burst-log.md) | [convergence-trajectory](cycles/phase-2-patch/convergence-trajectory.md) | [session-checkpoints](cycles/phase-2-patch/session-checkpoints.md) | [lessons](cycles/phase-2-patch/lessons.md) | [resolved-blockers](cycles/phase-2-patch/blocking-issues-resolved.md)
 ---
-## Session Resume Checkpoint (2026-05-10-v7.82-d331-s302-followup-merged)
+## Session Resume Checkpoint (2026-05-10-v7.87-d336-adr023-pass3)
 
-_Previous checkpoint (v7.81/D-330 LOCAL cascade CONVERGED 3/3) archived: [cycles/wave-4-operations/session-checkpoints.md](cycles/wave-4-operations/session-checkpoints.md)_
+_Previous checkpoint (v7.82/D-331 S-3.02-FOLLOWUP-RUNTIME merged) archived: [cycles/wave-4-operations/session-checkpoints.md](cycles/wave-4-operations/session-checkpoints.md)_
 
-**STATE v7.82. D-331 — S-3.02-FOLLOWUP-RUNTIME PR #141 SQUASH-MERGED → develop c6dd6602. S-3.02 graduated partial-merge→merged (ADR-020). 7 BCs draft→active (BC-2.11.001/005/006/007/011/012 + BC-2.15.011; POL-14). 893 tests passing. PR-LEVEL adversarial cascade 5 passes (3-CLEAN streak P60/P61/P62); security review CLEAN; pr-reviewer APPROVE; CI green. 9-step PR lifecycle complete. Demo evidence: docs/demo-evidence/S-3.02-FOLLOWUP-RUNTIME/ (11 files, 8 ACs). Worktree .worktrees/S-3.02-FOLLOWUP-RUNTIME/ removed. OBS backlog (non-blocking): OBS-LP7-1..5, OBS-LP8-1..3, OBS-LP9-1..2, ADV-W3MT-P60-MED-001/002, ADV-W3MT-P60-LOW-001/002.** develop@c6dd6602. factory-artifacts HEAD: run `git -C .factory log -1` (TD-VSDD-053). BC-2.06.011 v1.2, BC-INDEX v4.53, ADR-022 v1.1, ARCH-INDEX v2.37. vsdd-factory rc.16 active. Standing Orchestrator Rules active (Rules 1, 2, 3). Bundle B Exit Mandate active (task #85). Tasks #80-#84 DISPOSITIONS RECORDED — do NOT re-triage. Worktrees: main (clean) + .factory + .worktrees/S-3.09 (FROZEN per D-298).
+**STATE v7.87. D-336 — ADR-023 pass-3 NOT_CLEAN. 12 findings (1C/4H/4M/1L/2OBS). 14/14 pass-2 spec defects substantively closed (2 partial-close caveats). 10 new defects. Streak 0/3 RESET.** develop@c6dd6602. factory-artifacts HEAD: run `git -C .factory log -1` (TD-VSDD-053). vsdd-factory rc.16 active. Standing Orchestrator Rules active (Rules 1, 2, 3). Bundle B Exit Mandate active (task #85). Tasks #80-#84 DISPOSITIONS RECORDED — do NOT re-triage. Worktrees: main (clean) + .factory + .worktrees/S-3.09 (FROZEN per D-298).
 
-**CONVERGENCE NEXT ACTION:** Dispatch demo-recorder for AC-by-AC demo evidence at docs/demo-evidence/S-3.02-FOLLOWUP-RUNTIME/ (POL-10 compliance), then pr-manager for the 9-step PR cycle (rebase onto develop f1f284ab → push → open PR → PR-LEVEL adversarial cascade → reviewer triage → fix-bursts as needed → final adversarial pass → merge → cleanup). Track 5 carryover OBS items (OBS-LP7-1..5, OBS-LP8-1..3, OBS-LP9-1..2) for post-merge maintenance burst — none blocking the merge.
+**CONVERGENCE NEXT ACTION:** Dispatch architect for ADR-023 v1.3 fix-burst-3. Architect MUST grep-verify every POL/VP/BC/SS citation against source-of-truth (extending TD-FIX-BURST-VERIFY-001 discipline beyond proposed-fix language to ALL inline citations). Top priority: F-PASS3-CRIT-001 (rename amends_bcs_pending_full_amendment_in_wave_2_g to generic list form); F-PASS3-HIGH-001 (author VP-PLUGIN-006 or replace with existing VP); F-PASS3-HIGH-002 (correct POL-11 name); F-PASS3-HIGH-004 (add DI-012 back-reference). Then adversary pass-4 (target CLEAN, streak 1/3). User mandate: full 3-CLEAN, no shortcuts; close process-gap TDs (TD-ADR-AMEND-002 + TD-FIX-BURST-VERIFY-002) before Wave 0/F dispatch.
 
-**Open findings:** NONE ranked. 3 OBS non-blocking (OBS-LP8-1/2/3 scope-deferred). F-LP5-OBS-1 Visit-trait centralization carry-forward, accepted-deferred maintenance.
+**Open findings (pass-3):** F-PASS3-CRIT-001 (schema), F-PASS3-HIGH-001 (VP-PLUGIN-006), F-PASS3-HIGH-002 (POL-11 miscitation), F-PASS3-HIGH-003 (changelog mis-attribution), F-PASS3-HIGH-004 (DI-012 back-reference), F-PASS3-MED-001..004 (4 MED), F-PASS3-LOW-001 (5 missing sensor BCs). 2 OBS process-gap: TD-ADR-AMEND-002 + TD-FIX-BURST-VERIFY-002.
 
-**S-3.09 FREEZE STATE:** Worktree .worktrees/S-3.09 HEAD 43c41389; BUG-S309-PLUGIN P0 blocks resumption (41 *Adapter::new() bypass-spec-engine; TOML read-side missing; ~5-10d effort). See D-298/D-299.
-
-**BUG-S309-PLUGIN P0:** crates/prism-sensors/src/lib.rs:181-193 directly constructs adapters bypassing spec-engine. TOML specs have ONLY [write_endpoints.*]. NEXT after S-3.02-FOLLOWUP-RUNTIME merges: story-writer dispatch for BUG-S309-PLUGIN spec.
-
-**S-3.09 RESUMPTION:** Rebases onto develop post plugin-migration. Fix-burst 2 (AC-2/4/7/8 + CRIT-5 + HIGH-2/5) → fix-burst 3 → fix-burst 4 → adversary pass-3 cascade.
-
-**D-299 PLUGIN AUDIT:** 14 P0/P1 deferrals; 3 stub-merged stories (S-1.12/1.14/1.15); no MCP binary loads TOMLs. Report: cycles/wave-4-operations/plugin-system-audit-2026-05-08.md.
+**S-3.09 FREEZE STATE:** Worktree .worktrees/S-3.09 HEAD 43c41389; BUG-S309-PLUGIN P0 blocks resumption. See D-298/D-299.
 
 **Deferred TDs (carry-forward):** W3-FIX-S307-001/002/003 + TD-VSDD-082 + TD-S307-002/003/004 + TD-VSDD-057 (OPEN-DEFERRED-CROSS-REPO) + TD-S309-O1/O2/O3/O4
 
-**Current spec versions:** BC-2.11.004 v1.5, BC-2.09.001..008 v1.4/1.5, BC-2.05.012 v1.3, BC-2.06.011 v1.2, BC-INDEX v4.53, STORY-INDEX v2.34 (150 stories), ARCH-INDEX v2.37, ADR-022 v1.1, VP-INDEX v1.29, prd.md v1.10, error-taxonomy v1.17, develop@c6dd6602; STATE v7.85 SESSION-HANDOFF v7.85 (D-334 ADR-023 pass-1 + user-decided fix-burst plan; Wave 0/F PREREQ-F added; 5 process-gap TDs registered)
+**Current spec versions:** BC-INDEX v4.53, STORY-INDEX v2.34 (150 stories), ARCH-INDEX v2.37, ADR-022 v1.1, ADR-023 v1.2 (fix-burst-3 pending), VP-INDEX v1.29, prd.md v1.10, develop@c6dd6602; STATE v7.87 SESSION-HANDOFF v7.87 (D-336 ADR-023 pass-3 NOT_CLEAN; TD-ADR-AMEND-002 + TD-FIX-BURST-VERIFY-002 registered)
 
 **Key files:** [SESSION-HANDOFF.md](SESSION-HANDOFF.md) | [cycle-manifest.md](cycles/wave-4-operations/cycle-manifest.md) | [HOLDOUT-INDEX.md](holdout-scenarios/HOLDOUT-INDEX.md)
 

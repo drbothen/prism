@@ -209,3 +209,98 @@ Root cause of ADR-023 pass-2 residuals: architect did not read `crates/prism-spe
 **Implementation note:** Add to fix-burst SKILL.md architect agent prompt template and to the PR review checklist template. This is a standing methodology requirement applicable to all ADR fix-bursts, not ADR-023-specific.
 
 **Target release:** v1.1 (methodology; must be codified before any subsequent ADR fix-burst dispatches).
+
+---
+
+## TD-ADR-AMEND-002 — Generic `amends_bcs_pending` schema for ADR template
+
+| Field | Value |
+|-------|-------|
+| **ID** | TD-ADR-AMEND-002 |
+| **Priority** | P2 |
+| **Target** | v1.1 (methodology) |
+| **Category** | methodology |
+| **Source** | F-PASS3-OBS-001 + F-PASS3-CRIT-001 from ADR-023 pass-3 |
+| **Decision** | D-336 |
+
+**Description:** ADR-023 v1.2 introduced the frontmatter field
+`amends_bcs_pending_full_amendment_in_wave_2_g:` as a fix for F-MED-NEW-003 (pass-2). This
+field name is wave-specific, non-generic, and not present in any ADR template schema. No
+state-manager hook validates it. Any future ADR author who copies this pattern to defer a BC
+amendment to a different wave will create an entirely different ad-hoc field name, proliferating
+wave-specific frontmatter with no shared schema or validation.
+
+The correct design is a generic list field:
+
+```yaml
+amends_bcs_pending:
+  - bc_id: BC-X.Y.Z
+    target_wave_for_full_amendment: Wave-N-Story
+    target_wave_for_prefix_note: Wave-M-Story
+```
+
+**Required changes:**
+- Add `amends_bcs_pending:` list field to ADR template frontmatter with the above schema.
+- State-manager validator should check that each BC in `amends_bcs_pending` eventually gets
+  a `scheduled_amendment_in: ADR-NNN` annotation on the BC itself (bidirectional traceability,
+  complementary to TD-ADR-AMEND-001).
+- Migrate ADR-023's `amends_bcs_pending_full_amendment_in_wave_2_g:` to the generic form
+  during fix-burst-3.
+
+**Root cause:** The wave-specific field was adopted verbatim from the pass-2 adversary's
+proposed-fix language without verifying that the field name would be reusable. This is a
+recurrence of the verbatim-adoption pattern (TD-FIX-BURST-VERIFY-001) whose scope was
+limited to body prose claims rather than frontmatter schema choices.
+
+**Deferred per user mandate (2026-05-10):** Actual ADR template implementation deferred until
+ADR-023 reaches 3-CLEAN. The migration of ADR-023's frontmatter field is part of fix-burst-3
+(not deferred).
+
+---
+
+## TD-FIX-BURST-VERIFY-002 — Citation-integrity validator extending TD-FIX-BURST-VERIFY-001 to ALL inline references
+
+| Field | Value |
+|-------|-------|
+| **ID** | TD-FIX-BURST-VERIFY-002 |
+| **Priority** | P1 |
+| **Target** | v1.1 (methodology, must codify before next fix-burst dispatch) |
+| **Category** | methodology |
+| **Source** | F-PASS3-HIGH-002 (POL-11 miscitation) + F-PASS3-OBS-002 (citation-integrity) from ADR-023 pass-3 |
+| **Decision** | D-336 |
+
+**Description:** TD-FIX-BURST-VERIFY-001 (D-335) codified: "Before adopting any adversary
+proposed-fix language verbatim into a spec body, the architect MUST verify the underlying
+factual claim against current source-of-truth." ADR-023 pass-3 reveals that this discipline
+was applied to body prose proposed-fix claims but NOT to all inline citations in the amended
+sections. Specifically:
+
+- F-PASS3-HIGH-001: VP-PLUGIN-006 cited in §E but absent from VP-INDEX — cited from memory
+- F-PASS3-HIGH-002: POL-11 described as `ci_positive_coverage_assertion` but actual
+  policies.yaml POL-11 is `index_bump_required_for_index_mutations` — cited from memory
+- F-PASS3-MED-004: SS-21/SS-22 cited in §C subsystems table; existence in ARCH-INDEX unverified
+
+**Escalated from P2 to P1** because pass-3 demonstrates the lesson did not transfer from
+proposed-fix language to ALL inline citations. The pattern will recur in every fix-burst until
+a structural check is in place.
+
+**Required implementation:** A state-manager pre-write validator at PreToolUse on Write/Edit
+that rejects any ADR or spec document containing:
+
+1. **Policy citation mismatch:** `POL-N` where the cited policy name doesn't match the
+   `policies.yaml` POL-N entry name.
+2. **Undefined VP reference:** `VP-XXX` where VP-XXX doesn't exist in VP-INDEX.md.
+3. **Missing BC file:** `BC-X.Y.Z` where the BC file doesn't exist under
+   `.factory/specs/behavioral-contracts/`.
+4. **Undefined subsystem reference:** `SS-NN` where SS-NN doesn't exist in ARCH-INDEX.md.
+5. **Inline finding mis-attribution:** `(F-XXX corrected)` or `(closes F-XXX)` where the
+   finding ID and title don't match the corresponding adversarial review file.
+
+**Implementation note:** This is an extension of TD-FIX-BURST-VERIFY-001's architect
+discipline to a pre-write automated check. Both must be codified before the next fix-burst
+dispatch. The architect-side discipline (TD-FIX-BURST-VERIFY-001) remains required for factual
+claims about code behavior; this TD adds the automated citation check for reference integrity.
+
+**Deferred per user mandate (2026-05-10):** Actual validator implementation deferred until
+ADR-023 reaches 3-CLEAN. The discipline must be codified (documented in fix-burst dispatch
+prompt + architect checklist) before fix-burst-3 even without the automated validator.
