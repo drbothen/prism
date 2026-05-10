@@ -1,7 +1,7 @@
 ---
 document_type: pipeline-state
 level: ops
-version: "7.80"
+version: "7.81"
 producer: state-manager
 timestamp: 2026-05-10T10:00:00Z
 inputs: []
@@ -23,7 +23,7 @@ repos:
   - ocsf-proto-gen
   - mcp-claroty-xdome
 current_step: "D-301: Workspace 8-dimensional audit complete (53 findings: P0=18, P1=23, P2=12). 5 cleanup bundles recommended (A–E). Awaiting user triage of bundle sequence. NO TDs filed; NO stories opened."
-wave_3_carry_forward_debt: "ALL_REMEDIATE — W4-FIX-PERF-001/002, W4-FIX-CODE-001, W4-FIX-SEC-001..004 stories planned per D-203"
+wave_3_carry_forward_debt: "ALL_REMEDIATE — W4-FIX-PERF-001/002, W4-FIX-CODE-001, W4-FIX-SEC-001 through W4-FIX-SEC-004 planned per D-203"
 wave_4_status: "PHASE_4_A_CONVERGED + R9_APPROVED but PHASE_4_B SUSPENDED — pre-implementation dep check (2026-05-04) found S-4.01 → S-3.02 (status=draft); pivoting to full Wave 3 implementation per user directive D-223"
 wave_4_phase_4_a_preflight:
   preflight_status: DECISIONS_LOGGED_ARCHITECT_QUEUED
@@ -103,7 +103,7 @@ dtu_clones_built: in_progress
 dtu_strategy: "Option 2 — DTU-first"
 dtu_strategy_decided: 2026-04-20
 dtu_readiness_audit_complete: 2026-04-21
-dtu_readiness_verdict: "READY — all 14 stories scope-complete as of 2026-04-21 audit; S-6.20 added post-audit and certified via wave-1 gate passes 4-9"
+dtu_readiness_verdict: "READY — scope-complete (14 DTU items) as of 2026-04-21 audit; S-6.20 added post-audit and certified via wave-1 gate passes 4-9"
 dtu_critical_path: "S-6.06 dtu-common (4 days, 7 points, blocks 14 others)"
 dtu_total_points: 72
 dtu_estimated_hours: 470
@@ -128,7 +128,8 @@ bc_count_corrected: 235
 cap_count: 40  # active; highest_cap_id: CAP-040 (CAP-038 Multi-Tenant Identity, CAP-039 Multi-Tenant Fixture Gen, CAP-040 Multi-Tenant Adapter Dispatch — Wave 3 Phase 3.A Step 2)
 bc_index_version: "4.53"
 vp_index_version: "1.29"
-story_index_version: "v2.31"
+story_index_version: "v2.32"
+total_stories: 136
 red_gate_wave_0a_complete: 2026-04-21
 test_vectors_version: "2.7"
 prd_version: "1.10"
@@ -175,9 +176,9 @@ workspace_test_count: 3489  # 891 prism-query + workspace total (per implementer
 | **Language** | Rust |
 | **Target Workspace** | per-analyst stdio (MCP server) |
 | **Started** | 2026-04-13 |
-| **Last Updated** | 2026-05-10 (D-329 — S-3.02-FOLLOWUP-RUNTIME pass-8 LOCAL idempotency CLEAN (streak 2/3); STATE v7.79→v7.80) |
+| **Last Updated** | 2026-05-10 (D-330 — S-3.02-FOLLOWUP-RUNTIME LOCAL adversarial cascade CONVERGED (streak 3/3); STATE v7.80→v7.81) |
 | **Current Phase** | Wave 3 Tier-3 COMPLETE — **Wave 3-A 4 of 4 SHIPPED**: S-3.05 (#132 c867c344), S-3.04 (#133 57745ce8), S-3.03 (#134 7c413692), **S-3.07 (#135 2ae7185b MERGED 2026-05-08T04:23:03Z)**; post-merge cleanup confirmed; NEXT: Wave 3-B/C or Wave 4 unblock |
-| **Current Step** | D-299 — Plugin system FULL audit COMPLETE. 14 P0/P1 deferrals discovered (8 P0 + 6 P1). 3 stub-merged Wave-1 stories (S-1.12/1.14/1.15). No production binary loads sensors/*.toml. 13 new TDs filed (TD-PLUGIN-P0-001..008 + P1-001..005). S-3.09 FROZEN. Strategic direction needed: (a) full plugin completion epic, (b) min-viable plugin wiring, or (c) other path. |
+| **Current Step** | D-299 — Plugin system FULL audit COMPLETE. 14 P0/P1 deferrals discovered (8 P0 + 6 P1). Stub-merged Wave-1 items: S-1.12/1.14/1.15 (3 stubs). No production binary loads sensors/*.toml. 13 new TDs filed (TD-PLUGIN-P0-001..008 + P1-001..005). S-3.09 FROZEN. Strategic direction needed: (a) full plugin completion epic, (b) min-viable plugin wiring, or (c) other path. |
 
 ## Phase Progress
 
@@ -193,9 +194,9 @@ workspace_test_count: 3489  # 891 prism-query + workspace total (per implementer
 | 3: DTU Wave 0 | COMPLETE | 2026-04-21 | 2026-04-22 | retrospective-rollup PASSED | PRs #1-8 merged; develop HEAD 6afa2f8 |
 | 3: DTU Wave 1 | RE-CONVERGED 2026-04-23 Pass 18 | 2026-04-22 | 2026-04-23 | Wave 1 gate RE-CONVERGED; 18 passes; 3/3 re-convergence | PRs #9-29 + #28 + #30 + #31 + #32; 959 tests; develop HEAD 4a9dffb1; trajectory 11→11→…→0(C)→0(C)→1L(CONV)→REOPENED→…→2L(RE-CONV) |
 | 3: DTU Wave 1.5 | GATE CONVERGED 2026-04-24 | 2026-04-23 | 2026-04-24 | 3-clean-pass minimum ACHIEVED (P7+P8+P9); 9 passes | 10 PRs (#33–#42); 24 TDs resolved; 959→999 tests; develop HEAD e45159b9; trajectory 11→12→10→10→11→7→3→6→5→CONVERGED |
-| 3: DTU Wave 2 | GATE CONVERGED 2026-04-27 | 2026-04-24 | 2026-04-27 | Wave 2 integration gate CONVERGED — Pass 9 CLEAN (3-clean-passes envelope P6+P8+P9 satisfied); 1505 tests; develop HEAD 37c620f7 | 11 stories PRs #43/#51/#52/#53/#54/#55/#56/#57/#58/#59/#60/#61; 6 gate fix-PRs (#67/#68/#69/#70/#71/#72); 9 adversarial passes (4 OPEN: P1/P2/P5/P7; 5 CLEAN: P3/P4/P6/P8/P9); trajectory: 16→5→0→0→3→0→2→1→0→CONVERGED |
+| 3: DTU Wave 2 | GATE CONVERGED 2026-04-27 | 2026-04-24 | 2026-04-27 | Wave 2 integration gate CONVERGED — Pass 9 CLEAN (3-clean-passes envelope P6+P8+P9 satisfied); 1505 tests; develop HEAD 37c620f7 | PRs #43/#51/#52/#53/#54/#55/#56/#57/#58/#59/#60/#61 (11 items); 6 gate fix-PRs (#67/#68/#69/#70/#71/#72); 9 adversarial passes (4 OPEN: P1/P2/P5/P7; 5 CLEAN: P3/P4/P6/P8/P9); trajectory: 16→5→0→0→3→0→2→1→0→CONVERGED |
 | 3: Wave 3 Phase 3.A | APPROVED ✓ 2026-04-28 | 2026-04-27 | 2026-04-28 | 47 adversary passes; 3-CLEAN window P45+P46+P47; Step 4 drift PASS; Step 5 human APPROVED | P45-46-47 CLEAN(3/3 CONVERGED)→APPROVED |
-| 3: Wave 3 Phase 3.B+C+gate | **WAVE 3 COMPLETE** ✓ 2026-04-28..2026-05-02 | 2026-04-28 | 2026-05-02 | 37/37 stories PRs #73-#111; integration gate CONVERGED pass-54 (3-clean: p52+p53+p54); develop@ba3b10c7; 2363 tests | Detail: cycles/wave-3-multi-tenant/burst-log.md |
+| 3: Wave 3 Phase 3.B+C+gate | **WAVE 3 COMPLETE** ✓ 2026-04-28..2026-05-02 | 2026-04-28 | 2026-05-02 | All 37 PRs #73-#111 merged; integration gate CONVERGED pass-54 (3-clean: p52+p53+p54); develop@ba3b10c7; 2363 tests | Detail: cycles/wave-3-multi-tenant/burst-log.md |
 | 4–7 | not-started | — | — | — | — |
 
 ## Current Phase Steps — Wave 4 Phase 4.A (Spec-Drift Remediation + New ADR Authoring)
@@ -206,12 +207,13 @@ workspace_test_count: 3489  # 891 prism-query + workspace total (per implementer
 | **Phase 4.A: Pre-flight summary** | state-manager | **COMPLETE** | D-206 logged; 116 total findings; REMEDIATION_REQUIRED; see preflight-findings/preflight-summary.md |
 | **Phase 4.A: Architect open-questions resolution** | human + orchestrator | **COMPLETE** | 7 questions answered; D-207..D-213 logged 2026-05-02 |
 | **Phase 4.A: All 6 ADR phases complete (ADR-013/015/016/017/018/019)** | architect | **COMPLETE** | 3 phased parallel rounds; 8 VPs added (VP-137..144); stage1 SHAs 6d6fbfb6/20b067e7/e4315c91 |
-| **Phase 4.A: Story remediation + iter-2 pre-flight** | story-writer + spec-reviewer | **COMPLETE** | 8 stories remediated; CONDITIONAL_PASS (26/28); 4 MEDIUM deferred Phase 4.B; STATE v6.25→v6.26 |
+| **Phase 4.A: Story remediation + iter-2 pre-flight** | story-writer + spec-reviewer | **COMPLETE** | Remediated 8 items; CONDITIONAL_PASS (26/28); 4 MEDIUM deferred Phase 4.B; STATE v6.25→v6.26 |
 ## Decisions Log
 _D-001..D-046 archived: [cycles/phase-3-dtu-wave-2/decisions-archive-d001-d032.md](cycles/phase-3-dtu-wave-2/decisions-archive-d001-d032.md). D-047..D-174 archived: [cycles/wave-3-multi-tenant/decisions-archive-d047-d114.md](cycles/wave-3-multi-tenant/decisions-archive-d047-d114.md). D-175..D-188 archived: [cycles/wave-3-multi-tenant/burst-log.md](cycles/wave-3-multi-tenant/burst-log.md) (v6.12 compaction). D-200..D-213 archived: [cycles/wave-4-operations/burst-log.md](cycles/wave-4-operations/burst-log.md) (v6.43 compaction)._
 
 | ID | Decision | Rationale | Phase | Date |
 |----|----------|-----------|-------|------|
+| D-330 | S-3.02-FOLLOWUP-RUNTIME LOCAL adversarial cascade CONVERGED — pass-9 final idempotency at HEAD 20829c80 holds CLEAN; streak 3/3; cascade lineage F-LP3-CRIT-1 → F-LP4-MED-1 → F-LP5-LOW-1 → F-LP6-LOW-1 fully closed; Layer 1 walker exhaustive across SELECT/DML/Pipe/Filter; pass-9 NEW audit angles all CLEAN (concurrency, resource bounds, error paths, cancellation, observability, test isolation, API stability, task-list); 2 OBS scope-bounded non-blocking (OBS-LP9-1 boot.rs cross-story; OBS-LP9-2 Task 8 doc overcommit); next: demo-recorder + pr-manager 9-step PR cycle | STATE v7.80→v7.81; cascade closed; demo-recorder + pr-manager 9-step PR cycle next | 4 | 2026-05-10 |
 | D-329 | S-3.02-FOLLOWUP-RUNTIME cascade — pass-8 LOCAL idempotency check at HEAD 20829c80 (unchanged from pass-7) holds CLEAN; streak 1/3 → 2/3; AC breadth re-audit confirms all 8 ACs satisfied; 3 OBS scope-bounded non-blocking (OBS-LP8-1 stale test doc-comments; OBS-LP8-2 story↔STORY-INDEX BC-count drift housekeeping; OBS-LP8-3 execute_scheduled design-choice note); pass-9 next (target 3/3 CONVERGED) | STATE v7.79→v7.80; pass-9 idempotency next | 4 | 2026-05-10 |
 | D-328 | S-3.02-FOLLOWUP-RUNTIME cascade — fix-pass-6 (20829c80) closes F-LP6-LOW-1 (DML source_select/filter walking mirrored into both materialization.rs::extract_source_names_recursive AND explain.rs::extract_sources_from_ast); pass-7 verifies closure end-to-end + finds ZERO novel CRIT/HIGH/MED/LOW (5 OBS scope-deferred); verdict CLEAN; streak 1/3 (first CLEAN pass in cascade); cascade F-LP3-CRIT-1→F-LP4-MED-1→F-LP5-LOW-1→F-LP6-LOW-1 closed; Layer 1 walker exhaustive across all four query modes; pass-8 next (idempotency target streak 2/3) | STATE v7.78→v7.79; pass-8 idempotency next | 4 | 2026-05-10 |
 | D-327 | S-3.02-FOLLOWUP-RUNTIME cascade — fix-pass-5 (dcc11f68) closes F-LP5-LOW-1 via C-LOCAL-001 sibling mirror into both materialization walkers (`extract_source_names_shallow` lines 827-837 and `extract_source_names_recursive` lines 882-892); pass-6 verifies closure + final AST exhaustiveness audit surfaces F-LP6-LOW-1 (DML `source_select`/filter not walked by `extract_source_names_recursive` or `extract_sources_from_ast` sibling — latent gap pending S-3.07 Phase 3 wiring); verdict BLOCKED-soft; streak 0/3 (orchestrator reset on Standing Rule 3 #3 sub-clause (b) per user mandate); fix-pass-6 next | STATE v7.77→v7.78; fix-pass-6 dispatched next | 4 | 2026-05-10 |
@@ -435,13 +437,13 @@ _TD-VSDD-014..019, TD-W3-COMPLIANCE-001, TD-VSDD-025..029 archived to [tech-debt
 
 Cycle files: [burst-log](cycles/phase-2-patch/burst-log.md) | [convergence-trajectory](cycles/phase-2-patch/convergence-trajectory.md) | [session-checkpoints](cycles/phase-2-patch/session-checkpoints.md) | [lessons](cycles/phase-2-patch/lessons.md) | [resolved-blockers](cycles/phase-2-patch/blocking-issues-resolved.md)
 ---
-## Session Resume Checkpoint (2026-05-10-v7.80-d329-post-pass-8)
+## Session Resume Checkpoint (2026-05-10-v7.81-d330-convergence)
 
-_Previous checkpoint (v7.79/D-328 post-pass-7) archived: [cycles/wave-4-operations/session-checkpoints.md](cycles/wave-4-operations/session-checkpoints.md)_
+_Previous checkpoint (v7.80/D-329 post-pass-8) archived: [cycles/wave-4-operations/session-checkpoints.md](cycles/wave-4-operations/session-checkpoints.md)_
 
-**STATE v7.80. D-329 — S-3.02-FOLLOWUP-RUNTIME pass-8 LOCAL idempotency check at unchanged HEAD 20829c80 holds CLEAN; streak 2/3. AC breadth re-audit confirms all 8 ACs satisfied. 3 OBS scope-bounded non-blocking (OBS-LP8-1 stale test doc-comments; OBS-LP8-2 story↔STORY-INDEX BC-count drift housekeeping; OBS-LP8-3 execute_scheduled design-choice note). Cascade F-LP3-CRIT-1→F-LP4-MED-1→F-LP5-LOW-1→F-LP6-LOW-1 closed; Layer 1 walker exhaustive across all four query modes.** develop@f1f284ab. factory-artifacts HEAD: run `git -C .factory log -1` (TD-VSDD-053). BC-2.06.011 v1.2, BC-INDEX v4.53, ADR-022 v1.1, ARCH-INDEX v2.37. vsdd-factory rc.16 active. Standing Orchestrator Rules active (Rules 1, 2, 3). Bundle B Exit Mandate active (task #85). Tasks #80-#84 DISPOSITIONS RECORDED — do NOT re-triage. Worktrees: main (clean) + .factory + .worktrees/S-3.09 (FROZEN per D-298) + .worktrees/S-3.02-FOLLOWUP-RUNTIME (HEAD 20829c80; pass-8 CLEAN 2/3; pass-9 next).
+**STATE v7.81. D-330 — S-3.02-FOLLOWUP-RUNTIME LOCAL adversarial cascade CONVERGED; streak 3/3 at HEAD 20829c80. Pass-9 NEW audit angles all CLEAN (concurrency, resource bounds, error paths, cancellation, observability, test isolation, API stability, task-list). Cascade lineage F-LP3-CRIT-1→F-LP4-MED-1→F-LP5-LOW-1→F-LP6-LOW-1 fully closed; Layer 1 walker exhaustive across SELECT/DML/Pipe/Filter. Defense-in-depth Layers 1/2/3 all INTACT. 2 OBS scope-bounded non-blocking (OBS-LP9-1 boot.rs cross-story; OBS-LP9-2 Task 8 doc overcommit). STORY-INDEX BC-count corrected for S-3.02-FOLLOWUP-RUNTIME (0→7 BCs, closes OBS-LP8-2).** develop@f1f284ab. factory-artifacts HEAD: run `git -C .factory log -1` (TD-VSDD-053). BC-2.06.011 v1.2, BC-INDEX v4.53, ADR-022 v1.1, ARCH-INDEX v2.37. vsdd-factory rc.16 active. Standing Orchestrator Rules active (Rules 1, 2, 3). Bundle B Exit Mandate active (task #85). Tasks #80-#84 DISPOSITIONS RECORDED — do NOT re-triage. Worktrees: main (clean) + .factory + .worktrees/S-3.09 (FROZEN per D-298) + .worktrees/S-3.02-FOLLOWUP-RUNTIME (HEAD 20829c80; CASCADE CONVERGED 3/3).
 
-**POST-PASS-8 NEXT ACTION:** Dispatch LOCAL adversary pass-9 for S-3.02-FOLLOWUP-RUNTIME at worktree HEAD `20829c80` (final idempotency check at convergence target). Expected verdict CLEAN → streak 3/3 → CONVERGED → wave-gate eligible. After 3-CLEAN, dispatch demo-recorder + pr-manager for the 9-step PR cycle. Track OBS-LP8-2 story↔STORY-INDEX BC-count sync as state-manager housekeeping at status-flip time.
+**CONVERGENCE NEXT ACTION:** Dispatch demo-recorder for AC-by-AC demo evidence at docs/demo-evidence/S-3.02-FOLLOWUP-RUNTIME/ (POL-10 compliance), then pr-manager for the 9-step PR cycle (rebase onto develop f1f284ab → push → open PR → PR-LEVEL adversarial cascade → reviewer triage → fix-bursts as needed → final adversarial pass → merge → cleanup). Track 5 carryover OBS items (OBS-LP7-1..5, OBS-LP8-1..3, OBS-LP9-1..2) for post-merge maintenance burst — none blocking the merge.
 
 **Open findings:** NONE ranked. 3 OBS non-blocking (OBS-LP8-1/2/3 scope-deferred). F-LP5-OBS-1 Visit-trait centralization carry-forward, accepted-deferred maintenance.
 
@@ -455,7 +457,7 @@ _Previous checkpoint (v7.79/D-328 post-pass-7) archived: [cycles/wave-4-operatio
 
 **Deferred TDs (carry-forward):** W3-FIX-S307-001/002/003 + TD-VSDD-082 + TD-S307-002/003/004 + TD-VSDD-057 (OPEN-DEFERRED-CROSS-REPO) + TD-S309-O1/O2/O3/O4
 
-**Current spec versions:** BC-2.11.004 v1.5, BC-2.09.001..008 v1.4/1.5, BC-2.05.012 v1.3, BC-2.06.011 v1.2, BC-INDEX v4.53, STORY-INDEX v2.31, ARCH-INDEX v2.37, ADR-022 v1.1, VP-INDEX v1.29, prd.md v1.10, error-taxonomy v1.17, develop@f1f284ab; STATE v7.80 SESSION-HANDOFF v7.80 (D-329 pass-8 CLEAN 2/3; pass-9 next)
+**Current spec versions:** BC-2.11.004 v1.5, BC-2.09.001..008 v1.4/1.5, BC-2.05.012 v1.3, BC-2.06.011 v1.2, BC-INDEX v4.53, STORY-INDEX v2.32, ARCH-INDEX v2.37, ADR-022 v1.1, VP-INDEX v1.29, prd.md v1.10, error-taxonomy v1.17, develop@f1f284ab; STATE v7.81 SESSION-HANDOFF v7.81 (D-330 CASCADE CONVERGED 3/3; demo-recorder + pr-manager next)
 
 **Key files:** [SESSION-HANDOFF.md](SESSION-HANDOFF.md) | [cycle-manifest.md](cycles/wave-4-operations/cycle-manifest.md) | [HOLDOUT-INDEX.md](holdout-scenarios/HOLDOUT-INDEX.md)
 
