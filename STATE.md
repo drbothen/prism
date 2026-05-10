@@ -1,7 +1,7 @@
 ---
 document_type: pipeline-state
 level: ops
-version: "7.84"
+version: "7.85"
 producer: state-manager
 timestamp: 2026-05-10T17:00:00Z
 inputs: []
@@ -128,8 +128,8 @@ bc_count_corrected: 235
 cap_count: 40  # active; highest_cap_id: CAP-040 (CAP-038 Multi-Tenant Identity, CAP-039 Multi-Tenant Fixture Gen, CAP-040 Multi-Tenant Adapter Dispatch — Wave 3 Phase 3.A Step 2)
 bc_index_version: "4.53"
 vp_index_version: "1.29"
-story_index_version: "v2.33"
-total_stories: 149
+story_index_version: "v2.34"
+total_stories: 150
 red_gate_wave_0a_complete: 2026-04-21
 test_vectors_version: "2.7"
 prd_version: "1.10"
@@ -176,7 +176,7 @@ workspace_test_count: 3489  # 891 prism-query + workspace total (per implementer
 | **Language** | Rust |
 | **Target Workspace** | per-analyst stdio (MCP server) |
 | **Started** | 2026-04-13 |
-| **Last Updated** | 2026-05-10 (D-333 — PLUGIN-AUDIT-001 architectural pivot; Bundle B Phase B-2 BLOCKED; STATE v7.83→v7.84) |
+| **Last Updated** | 2026-05-10 (D-334 — ADR-023 pass-1 adversary review + user-decided fix-burst plan; STATE v7.84→v7.85) |
 | **Current Phase** | Wave 3 Tier-3 COMPLETE — **Wave 3-A 4 of 4 SHIPPED**: S-3.05 (#132 c867c344), S-3.04 (#133 57745ce8), S-3.03 (#134 7c413692), **S-3.07 (#135 2ae7185b MERGED 2026-05-08T04:23:03Z)**; post-merge cleanup confirmed; NEXT: Wave 3-B/C or Wave 4 unblock |
 | **Current Step** | D-299 — Plugin system FULL audit COMPLETE. 14 P0/P1 deferrals discovered (8 P0 + 6 P1). Stub-merged Wave-1 items: S-1.12/1.14/1.15 (3 stubs). No production binary loads sensors/*.toml. 13 new TDs filed (TD-PLUGIN-P0-001..008 + P1-001..005). S-3.09 FROZEN. Strategic direction needed: (a) full plugin completion epic, (b) min-viable plugin wiring, or (c) other path. |
 
@@ -213,6 +213,7 @@ _D-001..D-046 archived: [cycles/phase-3-dtu-wave-2/decisions-archive-d001-d032.m
 
 | ID | Decision | Rationale | Phase | Date |
 |----|----------|-----------|-------|------|
+| D-334 | ADR-023 pass-1 adversary review + user-decided fix-burst plan. Adversary pass-1 surfaced 26 findings (4C/9H/7M/4L/5O); 5 process-gap-tagged. User decisions: (1) confirm Rule 5 — retire CustomAdapter; .prx WASM sole escape hatch; (2) defer plugin signing to v1.0+1 — ship unsigned + boot warning + audit log + TD-PLUGIN-SIGNING-001 P0; (3) reorder Wave 1 — replacement before deletion (D→E→A→B→C), parity-test gate at every PR boundary; (4) add Wave 0/F — S-PLUGIN-PREREQ-F BC+DI amendments BEFORE code (3-5 SP), depends-on: blocks PREREQ-A through E. Fix-burst plan: architect ADR-023 v1.1 amendment → product-owner Wave 0/F BC+DI sweep → architect production-runtime-wiring decision v1.2 amendment → adversary pass-2. 5 process-gap OBS tracked as TDs (TD-ADR-AMEND-001, TD-AUDIT-ADR-001, TD-USER-DECISION-001, TD-SIGNING-PREREQ-001, TD-ADR-OPEN-Q-001) — not blocking. STORY-INDEX v2.33→v2.34 (PLUGIN-PREREQ-F added; total 149→150). | review(ADR-023-pass-1): 26 findings; 4 user decisions; fix-burst plan set; Wave 0/F added; 5 process-gap TDs registered | 4 | 2026-05-10 |
 | D-333 | PLUGIN-AUDIT-001 → Bundle B Phase B-2 BLOCKED. User surfaced plugin-only architecture violation. codebase-analyzer audit (21 findings: 8C/5H/3M/3L/2O) catalogued built-in sensor violations: closed SensorType enum keystone, 4 hardcoded sensor-named Rust auth modules, sealed SensorAuth trait, 5 prism-query dispatch sites by sensor name, 4 in-tree OCSF mapper modules, dead CustomAdapterRegistry. User decisions: (1) Hybrid OCSF — TOML column ocsf_field 80% + in-repo .prx WASM transformers 20%; (2) Un-seal SensorAuth entirely; (3) Reverse-engineer TOMLs from Rust adapters with DTU-parity tests; (4) CrowdStrike OAuth2 refresh-on-401 as in-repo .prx WASM plugin; (5) Retire CustomAdapter Rust trait — .prx WASM sole escape hatch. Migration: 13 stories ~100-140 SP, 3 waves (Wave 0: 5 prereq stories; Wave 1: 5 deletion+replacement; Wave 2: 3 cleanup). All Bundle B Phase B-2 stories BLOCKED until plugin migration completes: W3-FIX-S307-001/002, S-1.12-FOLLOWUP, S-1.14-REDO, S-5.01-FOLLOWUP-MCP-BOOT. Worktree feature/W3-FIX-S307-001@fcab8717 retained but inactive. Audit at .factory/cycles/wave-4-operations/audits/plugin-only-violations-2026-05-10.md. | PLUGIN-AUDIT-001: user mandate plugin-only architecture — 21 violations catalogued; 5 user decisions recorded; 13-story migration sequence planned; Phase B-2 BLOCKED pending Wave 0+1 | 4 | 2026-05-10 |
 | D-332 | Bundle B Phase B-2 step 8 (S-3.02-FOLLOWUP-RUNTIME) MERGED + closed; Phase B-2 has 4 remaining stories: S-5.01-FOLLOWUP-MCP-BOOT (step 9, 8pt), S-1.12-FOLLOWUP notify-watcher (step 10, 3pt), S-1.14-REDO infusion engine, W3-FIX-S307-001/002 sensor adapter writes; user-directed PRE-COMPACT CHECKPOINT before continuing Bundle B; Bundle B Exit Mandate (task #85) gates after all 5 stories merge | PRE-COMPACT CHECKPOINT — preserve Bundle B Phase B-2 continuation state across context compaction | 4 | 2026-05-10 |
 | D-331 | **S-3.02-FOLLOWUP-RUNTIME PR #141 SQUASH-MERGED — FINAL CLOSURE**. Squash commit SHA `c6dd6602` at 2026-05-10. develop pin updated f1f284ab→c6dd6602. 9-step PR lifecycle complete: structured PR description with 8-AC demo evidence + Mermaid diagrams; security review CLEAN (0 findings); PR-LEVEL adversarial cascade 5 passes (ADV-W3MT-P58 BLOCKED-hard 13 findings → P59 BLOCKED 6 findings → fix-burst-1 [4874025b] → fix-burst-2 [f829ff6e] + additional commit [96128197] → P60 CLEAN 1/3 → P61 CLEAN 2/3 → P62 CLEAN 3/3; 3-CLEAN convergence declared); pr-reviewer APPROVE; CI green (893 tests); all dependency PRs verified merged (PR #129 S-3.02 merged 6fefc774); squash-merge executed; worktree `.worktrees/S-3.02-FOLLOWUP-RUNTIME/` removed + branch deleted. **S-3.02 graduation per ADR-020**: S-3.02-FOLLOWUP-RUNTIME is the graduation story — with its merge, S-3.02 status advances partial-merge→merged. **BC promotion per POL-14** (story merged, 893 tests confirm coverage): BC-2.11.001/005/006/007/011/012 + BC-2.15.011 promoted draft→active. Implementation scope: GreedyMemoryPool session context wiring (BC-2.11.006 200MB cap), Layer 1 capability gate in execute_scheduled (BC-2.11.011), 30-second timeout in execute_scheduled (BC-2.11.006), sensors_queried fan-out tracking, 7-table internal schema sync with prism-storage authoritative INTERNAL_TABLES, _meta_scan_truncated metadata column (BC-2.15.011), prism_aliases AliasStore bypass, E-QUERY-007 error code collision fix. Deferred OBS backlog (non-blocking): OBS-LP7-1..5, OBS-LP8-1..3, OBS-LP9-1..2, ADV-W3MT-P60-MED-001/002, ADV-W3MT-P60-LOW-001/002 logged as maintenance backlog items. Demo evidence: docs/demo-evidence/S-3.02-FOLLOWUP-RUNTIME/ (11 files, 8 ACs). STATE v7.81→v7.82. | **S-3.02-FOLLOWUP-RUNTIME PR #141 MERGED c6dd6602** — 9-step lifecycle COMPLETE; S-3.02 graduated partial-merge→merged; 7 BCs draft→active; 893 tests; STATE v7.82 | 4 | 2026-05-10 |
@@ -460,7 +461,7 @@ _Previous checkpoint (v7.81/D-330 LOCAL cascade CONVERGED 3/3) archived: [cycles
 
 **Deferred TDs (carry-forward):** W3-FIX-S307-001/002/003 + TD-VSDD-082 + TD-S307-002/003/004 + TD-VSDD-057 (OPEN-DEFERRED-CROSS-REPO) + TD-S309-O1/O2/O3/O4
 
-**Current spec versions:** BC-2.11.004 v1.5, BC-2.09.001..008 v1.4/1.5, BC-2.05.012 v1.3, BC-2.06.011 v1.2, BC-INDEX v4.53, STORY-INDEX v2.33 (149 stories), ARCH-INDEX v2.37, ADR-022 v1.1, VP-INDEX v1.29, prd.md v1.10, error-taxonomy v1.17, develop@c6dd6602; STATE v7.84 SESSION-HANDOFF v7.84 (D-333 PLUGIN-AUDIT-001 architectural pivot; Bundle B Phase B-2 BLOCKED; 13-story plugin migration planned)
+**Current spec versions:** BC-2.11.004 v1.5, BC-2.09.001..008 v1.4/1.5, BC-2.05.012 v1.3, BC-2.06.011 v1.2, BC-INDEX v4.53, STORY-INDEX v2.34 (150 stories), ARCH-INDEX v2.37, ADR-022 v1.1, VP-INDEX v1.29, prd.md v1.10, error-taxonomy v1.17, develop@c6dd6602; STATE v7.85 SESSION-HANDOFF v7.85 (D-334 ADR-023 pass-1 + user-decided fix-burst plan; Wave 0/F PREREQ-F added; 5 process-gap TDs registered)
 
 **Key files:** [SESSION-HANDOFF.md](SESSION-HANDOFF.md) | [cycle-manifest.md](cycles/wave-4-operations/cycle-manifest.md) | [HOLDOUT-INDEX.md](holdout-scenarios/HOLDOUT-INDEX.md)
 
