@@ -4,7 +4,7 @@ adr_id: "ADR-022"
 title: "Production Runtime Wiring — prism-bin Chassis, Boot Sequence, Wiring Contracts, Infusion Fate, Hot-Reload Watcher, MCP Topology"
 status: ACCEPTED
 date: "2026-05-08"
-version: "1.0"
+version: "1.1"
 producer: architect
 subsystems_affected: [SS-06, SS-10, SS-11, SS-16, SS-17, SS-19]
 supersedes: null
@@ -152,7 +152,11 @@ Step 1   [BLOCKING] Tracing init
          Failure: log to stderr, exit 4
 
 Step 2   [BLOCKING] Config load
-         Action: read prism.toml + aliases.toml from config dir (default: ~/.prism/ or PRISM_CONFIG_DIR)
+         Action: read prism.toml + aliases.toml from config dir
+           ($PRISM_CONFIG_DIR if set, else `dirs::config_dir().join("prism")`:
+           ~/.config/prism/ on Linux ($XDG_CONFIG_HOME-aware),
+           ~/Library/Application Support/prism/ on macOS,
+           %APPDATA%\prism\ on Windows)
          Action: validate schema (config-schema.md contract)
          Failure: exit 2 (config-invalid)
 
@@ -711,3 +715,12 @@ fine (e.g., parallel sensor TOML validation) but step ordering is preserved.
 Rejected for MVP. stdio is the correct transport for Claude Code per-analyst deployment.
 TCP transport can be added in a future story for multi-client or remote-server deployments,
 but it introduces TLS, authentication, and connection management complexity out of scope.
+
+---
+
+## Changelog
+
+| Version | Date | Author | Change |
+|---------|------|--------|--------|
+| 1.0 | 2026-05-08 | architect | Initial authorship — Bundle B Phase B-0 architecture output |
+| 1.1 | 2026-05-09 | product-owner | §B step 2: replace stale `~/.prism/` literal with platform-aware default to match BC-2.06.011 v1.2 phrasing. Closes F-P6-MED-1 from PR #139 PR-LEVEL adversary pass-6. |
