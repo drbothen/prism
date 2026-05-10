@@ -1,9 +1,9 @@
 ---
 document_type: pipeline-state
 level: ops
-version: "7.76"
+version: "7.77"
 producer: state-manager
-timestamp: 2026-05-10T09:15:00Z
+timestamp: 2026-05-10T10:00:00Z
 inputs: []
 input-hash: "[live-state]"
 traces_to: ""
@@ -161,7 +161,7 @@ phase_2_patch_convergence_rationale: "User override post pass-99. Semantic polic
 user_directive_persistent: "No pragmatic convergence. Fix all issues before build."
 develop_head: "f1f284ab"
 vsdd_factory_version: "1.0.0-rc.16 (upgraded from rc.11 2026-05-10T07:38:25Z)"
-workspace_test_count: 3482  # 884 prism-query + workspace total (per implementer fix-pass-2 report)
+workspace_test_count: 3485  # 887 prism-query + workspace total (per implementer fix-pass-4 report)
 ---
 # VSDD Pipeline State — Prism
 
@@ -175,7 +175,7 @@ workspace_test_count: 3482  # 884 prism-query + workspace total (per implementer
 | **Language** | Rust |
 | **Target Workspace** | per-analyst stdio (MCP server) |
 | **Started** | 2026-04-13 |
-| **Last Updated** | 2026-05-10 (D-325 — S-3.02-FOLLOWUP-RUNTIME fix-pass-3 closure + pass-4 report backfilled; STATE v7.75→v7.76) |
+| **Last Updated** | 2026-05-10 (D-326 — S-3.02-FOLLOWUP-RUNTIME fix-pass-4 closure + pass-5 report backfilled; STATE v7.76→v7.77) |
 | **Current Phase** | Wave 3 Tier-3 COMPLETE — **Wave 3-A 4 of 4 SHIPPED**: S-3.05 (#132 c867c344), S-3.04 (#133 57745ce8), S-3.03 (#134 7c413692), **S-3.07 (#135 2ae7185b MERGED 2026-05-08T04:23:03Z)**; post-merge cleanup confirmed; NEXT: Wave 3-B/C or Wave 4 unblock |
 | **Current Step** | D-299 — Plugin system FULL audit COMPLETE. 14 P0/P1 deferrals discovered (8 P0 + 6 P1). 3 stub-merged Wave-1 stories (S-1.12/1.14/1.15). No production binary loads sensors/*.toml. 13 new TDs filed (TD-PLUGIN-P0-001..008 + P1-001..005). S-3.09 FROZEN. Strategic direction needed: (a) full plugin completion epic, (b) min-viable plugin wiring, or (c) other path. |
 
@@ -212,6 +212,7 @@ _D-001..D-046 archived: [cycles/phase-3-dtu-wave-2/decisions-archive-d001-d032.m
 
 | ID | Decision | Rationale | Phase | Date |
 |----|----------|-----------|-------|------|
+| D-326 | S-3.02-FOLLOWUP-RUNTIME cascade — fix-pass-4 (d7e32ab1) closes pass-4 MED-1 + OBS-1 + OBS-2; pass-5 verifies all closures + finds 1 novel LOW (F-LP5-LOW-1: PipeStage::Join sibling C-LOCAL-001 fix not propagated to materialization walkers) + 1 OBS process-gap; verdict BLOCKED-soft; streak 0/3 (orchestrator reset on Standing Rule 3 #3 sub-clause (b) sibling discipline per user mandate); fix-pass-5 next | STATE v7.76→v7.77; fix-pass-5 dispatched next | 4 | 2026-05-10 |
 | D-325 | S-3.02-FOLLOWUP-RUNTIME cascade — fix-pass-3 (b749e6d7) closes pass-3 CRIT-1 + MED-1 + LOW-1 + OBS-1/2; pass-4 verifies all 5 closures + finds 1 novel MED (F-LP4-MED-1: walk_expr FuncCall args sibling pattern) + 3 OBS; verdict BLOCKED-soft; streak 0/3 (orchestrator reset on Standing Rule 3 #3 same-pattern recurrence per user mandate); fix-pass-4 next | STATE v7.75→v7.76; fix-pass-4 dispatched next | 4 | 2026-05-10 |
 | D-214 | Wave 4 Phase 4.A Convergence Strategy — B+A Hybrid with Subagent Context Discipline. Component 1 (Option B): Proactive structural sweep. Component 2 (Option A): Formal adversarial passes 13+ to 3-clean window. Component 3: Subagent context discipline MANDATORY (orchestrator NEVER reads large files; state-manager LAST per burst). | Wave 4 Phase 4.A B+A hybrid convergence + mandatory subagent context discipline | 4 | 2026-05-04 |
 | D-215 | R9 gate user question: "Do we need to audit other completed waves (W1/W2/W3)?" — NO formal audit needed. W1/W2/W3 stories grep-clean of W4-class drift (zero live-text 16-permit/1-second-tick/Action Engine references). W4 cleanup focused on W4-specific surfaces (W4 ADRs + W4-greenfield SS-18 + PRD §2 SS-18 paragraph). W3 already passed strict 3-clean integration gate (P51/P52/P53; holdout 0.907). W3 carry-forward debt already captured as W4-FIX-* per D-203. OPTIONAL: structural-drift sweep applying TD-VSDD-039..052 methodologies across W1/W2/W3 stories during R11 (W4-FIX-*) — low-priority, NOT Phase 4.B blocker. | No W1/W2/W3 audit needed at R9 gate | 4 | 2026-05-04 |
@@ -431,22 +432,20 @@ _TD-VSDD-014..019, TD-W3-COMPLIANCE-001, TD-VSDD-025..029 archived to [tech-debt
 
 Cycle files: [burst-log](cycles/phase-2-patch/burst-log.md) | [convergence-trajectory](cycles/phase-2-patch/convergence-trajectory.md) | [session-checkpoints](cycles/phase-2-patch/session-checkpoints.md) | [lessons](cycles/phase-2-patch/lessons.md) | [resolved-blockers](cycles/phase-2-patch/blocking-issues-resolved.md)
 ---
-## Session Resume Checkpoint (2026-05-10-v7.76-d325-post-pass-4)
+## Session Resume Checkpoint (2026-05-10-v7.77-d326-post-pass-5)
 
-_Previous checkpoint (v7.75/D-324 pre-compact-checkpoint) archived: [cycles/wave-4-operations/session-checkpoints.md](cycles/wave-4-operations/session-checkpoints.md)_
+_Previous checkpoint (v7.76/D-325 post-pass-4) archived: [cycles/wave-4-operations/session-checkpoints.md](cycles/wave-4-operations/session-checkpoints.md)_
 
-**STATE v7.76. D-325 — S-3.02-FOLLOWUP-RUNTIME fix-pass-3 (b749e6d7) CLOSED all 5 pass-3 findings; pass-4 LOCAL verified all closures (8 KUDOs) + found 1 novel MED (F-LP4-MED-1: walk_expr FuncCall args, same Standing Rule 3 #3 sibling pattern) + 3 OBS; verdict BLOCKED-soft streak 0/3; fix-pass-4 next.** develop@f1f284ab. factory-artifacts HEAD: run `git -C .factory log -1` (TD-VSDD-053). BC-2.06.011 v1.2, BC-INDEX v4.53, ADR-022 v1.1, ARCH-INDEX v2.37. vsdd-factory rc.16 active. Standing Orchestrator Rules active (Rules 1, 2, 3). Bundle B Exit Mandate active (task #85). Tasks #80-#84 DISPOSITIONS RECORDED — do NOT re-triage. Worktrees: main (clean) + .factory + .worktrees/S-3.09 (FROZEN per D-298) + .worktrees/S-3.02-FOLLOWUP-RUNTIME (HEAD b749e6d7; pass-4 BLOCKED-soft 0/3; fix-pass-4 pending).
+**STATE v7.77. D-326 — S-3.02-FOLLOWUP-RUNTIME fix-pass-4 (d7e32ab1) CLOSED all 3 active pass-4 findings (F-LP4-MED-1 + F-LP4-OBS-1 + F-LP4-OBS-2; F-LP4-OBS-3 process-gap deferred); pass-5 LOCAL verified all closures (6 KUDOs) + found 1 novel LOW (F-LP5-LOW-1: PipeStage::Join sibling C-LOCAL-001 fix not propagated to materialization walkers — currently unexploitable latent gap) + 1 OBS process-gap; verdict BLOCKED-soft streak 0/3 (orchestrator reset on Standing Rule 3 #3 sub-clause (b) per user mandate); fix-pass-5 next.** develop@f1f284ab. factory-artifacts HEAD: run `git -C .factory log -1` (TD-VSDD-053). BC-2.06.011 v1.2, BC-INDEX v4.53, ADR-022 v1.1, ARCH-INDEX v2.37. vsdd-factory rc.16 active. Standing Orchestrator Rules active (Rules 1, 2, 3). Bundle B Exit Mandate active (task #85). Tasks #80-#84 DISPOSITIONS RECORDED — do NOT re-triage. Worktrees: main (clean) + .factory + .worktrees/S-3.09 (FROZEN per D-298) + .worktrees/S-3.02-FOLLOWUP-RUNTIME (HEAD d7e32ab1; pass-5 BLOCKED-soft 0/3; fix-pass-5 pending).
 
-**POST-COMPACT NEXT ACTION:** Dispatch implementer fix-pass-4 for S-3.02-FOLLOWUP-RUNTIME at worktree HEAD `b749e6d7` to close: F-LP4-MED-1 (extend `walk_expr` to walk `FuncCall::Aggregate.args` + `FuncCall::Scalar.args` via path (a) + add RED→GREEN test analogous to `test_LP3_CRIT_1_*`), F-LP4-OBS-1 (`engine.rs:594-598` remove "CTEs" or note as forward-coverage), F-LP4-OBS-2 (`materialization.rs:333-335` inline comment update). Defer F-LP4-OBS-3 (proptest) as separate maintenance follow-up.
+**POST-PASS-5 NEXT ACTION:** Dispatch implementer fix-pass-5 for S-3.02-FOLLOWUP-RUNTIME at worktree HEAD `d7e32ab1` to close F-LP5-LOW-1 (mirror C-LOCAL-001 fix into both `extract_source_names_recursive` (materialization.rs:874-876) and `extract_source_names_shallow` (materialization.rs:827-829) — add `for stage in &pipe.stages { if let PipeStage::Join(js) = stage { names.<op>(js.source.raw.clone()); } }` to each, with C-LOCAL-001 anchor comment mirrored from explain.rs:489-499; add 1 mirror test exercising Ast::Pipe with PipeStage::Join referencing prism_audit). Defer F-LP5-OBS-1 (Visit-trait centralization process-gap) as separate maintenance follow-up.
 
-**Open findings (fix-pass-4 target):**
+**Open findings (fix-pass-5 target):**
 
 | ID | Severity | Fix Required |
 |----|----------|-------------|
-| F-LP4-MED-1 | MED | Extend `walk_expr` to walk `FuncCall::{Aggregate,Scalar}.args` recursively; update wildcard comment; add 4th RED→GREEN test |
-| F-LP4-OBS-1 | OBS | `engine.rs:594-598` — remove "CTEs" or annotate as forward-coverage |
-| F-LP4-OBS-2 | OBS | `materialization.rs:333-335` inline comment — replace stale `classify_predicates` narration with honest description |
-| F-LP4-OBS-3 | OBS (process-gap) | Defer to maintenance: recommend proptest for walker exhaustiveness |
+| F-LP5-LOW-1 | LOW | Mirror C-LOCAL-001 fix into `extract_source_names_recursive` (mat.rs:874-876) and `extract_source_names_shallow` (mat.rs:827-829); add C-LOCAL-001 anchor comment; add 1 mirror test (Ast::Pipe + PipeStage::Join + prism_audit) |
+| F-LP5-OBS-1 | OBS (process-gap) | Defer to maintenance: Visit-trait centralization or cross-reference invariant doc |
 
 **S-3.09 FREEZE STATE:**
 - Worktree: .worktrees/S-3.09 on branch feature/S-3.09 (off develop@2ae7185b)
