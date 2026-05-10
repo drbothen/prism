@@ -1,44 +1,45 @@
 ---
 document_type: session-handoff
 level: ops
-version: "7.81"
+version: "7.82"
 status: current
 timestamp: 2026-05-10T12:00:00Z
 predecessor_session: "D-321 follow-up pre-compact burst: Standing Orchestrator Rules codified (adversary report backfill + orchestrator-drives-cascade). Deferred items #80-#84 dispositions RECORDED. PRE-COMPACT CHECKPOINT written. STATE v7.71→v7.72. SESSION-HANDOFF v7.71→v7.72. | D-322 (2026-05-10): Standing Rule 3 (Production-Grade Closure Discipline) adopted; Bundle B Exit Mandate documented; S-3.02-FOLLOWUP-RUNTIME LOCAL adv pass-1 BLOCKED-hard with 5 CRIT + 7 HIGH + 5 MED + 4 LOW + 3 OBS, fix-pass-1 dispatched. | D-323 (2026-05-10): pass-3 BLOCKED-soft 0/3, 2 Standing Rule 3 violations (F-LP3-CRIT-1 Layer 1 partial AST walk, F-LP3-MED-1 cosmetic close); plugin upgraded rc.11→rc.16; PAUSE for human-driven Claude restart | D-324 (2026-05-10): PR #140 hook-diagnostics MERGED → develop@f1f284ab; pre-compact state-burst recorded; ready for context compaction | D-325 (2026-05-10): fix-pass-3 (b749e6d7) closed all 5 pass-3 findings; pass-4 BLOCKED-soft 0/3 (F-LP4-MED-1 walk_expr FuncCall args + 3 OBS); fix-pass-4 next | D-326 (2026-05-10): fix-pass-4 (d7e32ab1) closed pass-4 MED-1 + OBS-1 + OBS-2; pass-5 BLOCKED-soft 0/3 (F-LP5-LOW-1 PipeStage::Join sibling C-LOCAL-001 fix not propagated to materialization walkers + 1 OBS process-gap); fix-pass-5 next | D-327 (2026-05-10): fix-pass-5 (dcc11f68) closed F-LP5-LOW-1 via C-LOCAL-001 sibling mirror into both materialization walkers; pass-6 verified closure + ran explicit final AST exhaustiveness audit — surfaced F-LP6-LOW-1 (DML source_select/filter not walked by recursive walker or explain sibling; latent gap pending S-3.07 Phase 3 wiring); verdict BLOCKED-soft 0/3 (orchestrator reset on Standing Rule 3 #3 sub-clause (b)); fix-pass-6 next | D-328 (2026-05-10): fix-pass-6 (20829c80) closed F-LP6-LOW-1 (DML source_select/filter walking mirrored into both extract_source_names_recursive AND extract_sources_from_ast; 3 new tests; just check PASS 3489 workspace); pass-7 CLEAN 0 novel CRIT/HIGH/MED/LOW (5 OBS scope-deferred); streak 1/3 (FIRST CLEAN PASS IN CASCADE); cascade F-LP3-CRIT-1→F-LP4-MED-1→F-LP5-LOW-1→F-LP6-LOW-1 closed; Layer 1 walker exhaustive across all four query modes; pass-8 idempotency next | D-329 (2026-05-10): pass-8 LOCAL idempotency check at unchanged HEAD 20829c80 holds CLEAN; streak 1/3 → 2/3; AC breadth re-audit confirms all 8 ACs satisfied; 3 OBS non-blocking (OBS-LP8-1 stale test doc-comments; OBS-LP8-2 story↔STORY-INDEX BC-count drift housekeeping; OBS-LP8-3 execute_scheduled design-choice note); pass-9 final idempotency next | D-330 (2026-05-10): pass-9 LOCAL final idempotency at HEAD 20829c80 holds CLEAN; streak 2/3 → 3/3 → CONVERGED; cascade lineage F-LP3-CRIT-1→F-LP4-MED-1→F-LP5-LOW-1→F-LP6-LOW-1 fully closed; pass-9 NEW audit angles all CLEAN (concurrency, resource bounds, error paths, cancellation, observability, test isolation, API stability, task-list); 2 OBS scope-bounded (OBS-LP9-1 boot.rs cross-story; OBS-LP9-2 Task 8 doc overcommit); STORY-INDEX BC-count corrected (0→7, closes OBS-LP8-2); demo-recorder + pr-manager 9-step PR cycle next"
-successor_focus: "S-3.02-FOLLOWUP-RUNTIME has reached 3-CLEAN LOCAL adversarial convergence at HEAD `20829c80`. Next: dispatch demo-recorder for AC-by-AC demo evidence at docs/demo-evidence/S-3.02-FOLLOWUP-RUNTIME/ (POL-10 compliance), then pr-manager for the 9-step PR cycle (rebase onto develop f1f284ab → push → open PR → PR-LEVEL adversarial cascade → reviewer triage → fix-bursts as needed → final adversarial pass → merge → cleanup). Track 5 carryover OBS items (OBS-LP7-1..5, OBS-LP8-1..3, OBS-LP9-1..2) for post-merge maintenance burst — none blocking the merge."
+successor_focus: "S-3.02-FOLLOWUP-RUNTIME PR #141 MERGED to develop@c6dd6602 (2026-05-10). S-3.02 graduated partial-merge→merged (ADR-020). 7 BCs promoted draft→active (POL-14). 893 tests. 9-step PR lifecycle COMPLETE. OBS maintenance backlog (non-blocking): OBS-LP7-1..5, OBS-LP8-1..3, OBS-LP9-1..2, ADV-W3MT-P60-MED-001/002, ADV-W3MT-P60-LOW-001/002. NEXT: Wave 3-B dispatch (5 osquery-inspired stories) OR Wave 3-C (S-3.10 cost estimation) OR Wave 4 unblock (Phase 4.B). Bundle B Exit Mandate (task #85) — run full codebase audit across all Bundle B stories before declaring Bundle B complete."
 
 **STEP 1 (START HERE):** Read STATE.md v7.77 + this HANDOFF v7.77 in full. S-WAVE5-PREP-01 chassis SHIPPED (D-319, PR #138, develop@53b87961). cli.rs doc-fix maintenance PR #139 ALSO SHIPPED (D-321, develop@c98a38b0). PR #140 CLAUDE.md hook-diagnostics MERGED (D-324, develop@f1f284ab). All outstanding LOW findings from D-319 are now CLOSED. No open maintenance PRs. TD-PR-MANAGER-CONVERGENCE-DISCIPLINE step-1 DONE; CODIFICATION step still pending vsdd-factory plugin scope. PR #139 deferred-items dossier + 6 TDs registered. Tasks #80-#84 DISPOSITIONS RECORDED (see '## Deferred-Items Dispositions' section below — do NOT re-triage). Standing Orchestrator Rules adopted (see '## Standing Orchestrator Process Rules' section). State durable; PRE-COMPACT CHECKPOINT recorded — safe to compact. [process-rule active]: NO #[ignore] deferrals as first-line response to test failures.
 
-**STEP 2 (PHASE B-2 DISPATCH):** Dispatch Phase B-2 follow-up stories. Priority: (1) S-3.02-FOLLOWUP-RUNTIME (steps 7-8 QueryEngine + WriteExecutor, 8pt — biggest follow-up, unlocks audit RocksDB CF integration); (2) S-5.01-FOLLOWUP-MCP-BOOT (step 9, 8pt) + S-1.12-FOLLOWUP (step 10, 3pt) in parallel. Devops: create worktrees from develop HEAD `f1f284ab` before dispatching per-story-delivery cycles.
+**STEP 2 (PHASE B-2 DISPATCH):** S-3.02-FOLLOWUP-RUNTIME MERGED (PR #141, develop HEAD `c6dd6602`). Remaining Phase B-2 stories: (1) S-5.01-FOLLOWUP-MCP-BOOT (step 9, 8pt); (2) S-1.12-FOLLOWUP (step 10, 3pt); (3) W3-FIX-S307-001/002 (sensor adapter writes). Devops: create worktrees from develop HEAD `c6dd6602` before dispatching per-story-delivery cycles.
 
 **STEP 3 (TD FOLLOW-UP):** TD-VSDD-064 — add proofs_path_canonicalization to policies.yaml + fix S-3.04/S-3.05 path drift (P2, can be done in-cycle during Tier-3). TD-VSDD-057 OPEN-DEFERRED-CROSS-REPO (separate vsdd-factory plugin session, not Tier-3 blocking).
 
 **STEP 4 (CONTINUE W3-FIRST PLAN):** Tier 3 (8-way: S-3.03/04/05/08/09/11/12/13) → Tier 4 (S-3.07 + S-3.10) → W3 wave gate → Resume Phase 4.B (S-4.01 + S-4.03).
 
 **KEY REFERENCES:**
-- STATE.md v7.78: develop@f1f284ab (PR #140 CLAUDE.md hook-diagnostics merged 2026-05-10); factory-artifacts HEAD: run git -C .factory log -1 (TD-VSDD-053)
+- STATE.md v7.82: develop@c6dd6602 (PR #141 S-3.02-FOLLOWUP-RUNTIME merged 2026-05-10); factory-artifacts HEAD: run git -C .factory log -1 (TD-VSDD-053)
+- D-331: PR #141 S-3.02-FOLLOWUP-RUNTIME MERGED c6dd6602; S-3.02 graduated partial-merge→merged; 7 BCs draft→active; 893 tests; 9-step lifecycle COMPLETE
 - D-321: PR #139 cli.rs doc-fix SHIPPED c98a38b0; 9 PR-LEVEL passes + 3-CLEAN convergence; BC-2.06.011 v1.2, BC-INDEX v4.53, ADR-022 v1.1, ARCH-INDEX v2.37; factory-artifacts HEAD 820a110b
 - D-319: PR #138 S-WAVE5-PREP-01 chassis SHIPPED 53b87961 2026-05-10; 5 BCs draft→active
 - D-260: PR #129 S-3.02 MERGED 6fefc774 2026-05-07; tier-2 COMPLETE; 2993 tests; STORY-INDEX v2.14
 - BC-INDEX v4.53, VP-INDEX v1.29, HOLDOUT-INDEX v1.3, invariants.md v1.5, L2-INDEX v1.13, STORY-INDEX v2.32, ARCH-INDEX v2.37, module-decomposition v1.16
 
-develop HEAD: f1f284ab (PR #140 CLAUDE.md hook-diagnostics merged 2026-05-10; factory-artifacts HEAD: run git -C .factory log -1 per TD-VSDD-053). PRE-COMPACT CHECKPOINT active — state durable; safe to compact."
+develop HEAD: c6dd6602 (PR #141 S-3.02-FOLLOWUP-RUNTIME merged 2026-05-10; factory-artifacts HEAD: run git -C .factory log -1 per TD-VSDD-053). S-3.02-FOLLOWUP-RUNTIME merged. S-3.02 graduated. 7 BCs active. NEXT: Wave 3-B/C or Wave 4 unblock."
 ---
 
 # Session Handoff — WAVE 4 PHASE 4.A DECISIONS LOGGED (2026-05-02)
 
 ## TL;DR
 
-**D-321 (2026-05-09) — cli.rs doc-fix SHIPPED. State fully durable.**
+**D-331 (2026-05-10) — S-3.02-FOLLOWUP-RUNTIME MERGED. State fully durable.**
 
 Current state pointers:
-- PR #139 squash-merged at develop@`c98a38b0` 2026-05-09. No outstanding maintenance PRs. No outstanding LOW findings.
-- TD-PR-MANAGER-CONVERGENCE-DISCIPLINE: step-1 COMPLETE (deferred fix landed via proper 9-step protocol). CODIFICATION step (pr-manager prompt/hook update) pending in vsdd-factory plugin scope — task #80 remains OPEN.
-- Worktree `.worktrees/S-WAVE5-PREP-01/` safe to remove (upstream branch deleted; maint PR #139 MERGED — no dependency remains).
+- PR #141 squash-merged at develop@`c6dd6602` 2026-05-10. S-3.02 graduated partial-merge→merged. 7 BCs promoted draft→active.
+- Worktree `.worktrees/S-3.02-FOLLOWUP-RUNTIME/` REMOVED. Local branch deleted.
 - Worktree `.worktrees/S-3.09/` remains FROZEN at HEAD `43c41389` per D-298 (BUG-S309-PLUGIN P0 dependency).
-- factory-artifacts HEAD: run `git -C .factory log -1` (TD-VSDD-053). develop HEAD: `f1f284ab` (PR #140 CLAUDE.md hook-diagnostics merged 2026-05-10).
-- 5 BCs active per ADR-021 POL-14 (D-319): BC-2.06.011 v1.2, BC-2.21.001, BC-2.03.013, BC-2.05.012 v1.3, BC-2.22.001.
-- Phase B-2 next dispatches: S-3.02-FOLLOWUP-RUNTIME (steps 7-8 — biggest), S-5.01-FOLLOWUP-MCP-BOOT (step 9), S-1.12-FOLLOWUP (step 10), W3-FIX-S307-001/002 (sensor adapter writes), S-1.14-REDO (infusion engine).
+- factory-artifacts HEAD: run `git -C .factory log -1` (TD-VSDD-053). develop HEAD: `c6dd6602` (PR #141 S-3.02-FOLLOWUP-RUNTIME merged 2026-05-10).
+- 7 BCs active per POL-14 (D-331): BC-2.11.001, BC-2.11.005, BC-2.11.006, BC-2.11.007, BC-2.11.011, BC-2.11.012, BC-2.15.011.
+- Phase B-2 next dispatches: S-5.01-FOLLOWUP-MCP-BOOT (step 9), S-1.12-FOLLOWUP (step 10), W3-FIX-S307-001/002 (sensor adapter writes), S-1.14-REDO (infusion engine).
+- OBS maintenance backlog (non-blocking): OBS-LP7-1..5, OBS-LP8-1..3, OBS-LP9-1..2, ADV-W3MT-P60-MED-001/002, ADV-W3MT-P60-LOW-001/002.
 
 **D-321 (2026-05-09) — PR #139 cli.rs doc-fix SHIPPED + persistence burst. develop@c98a38b0. Cascade summary: 9 PR-LEVEL adversary passes + 4 fix-passes + 3-CLEAN convergence streak (passes 7/8/9) + pr-reviewer APPROVE + 34/34 CI green; 14 findings closed (5 from pass-2, 3 from pass-3, 3 from pass-4, 1 MED + 1 LOW from pass-6). Factory-artifacts: BC-2.06.011 v1.2, BC-INDEX v4.53, ADR-022 v1.1, ARCH-INDEX v2.37. Deferred follow-up: tasks #80-#84. Post-merge persistence burst: dossier at cycles/wave-4-operations/pr-139-deferred-items.md (all 9 pass narratives + 4 deferred items + remediation options); 6 TDs registered (TD-VSDD-ADVERSARY-PERSISTENCE P1, TD-PR-MANAGER-AGENT-TOOL-ACCESS P1, TD-VSDD-DEMO-REGEN-CLI-SURFACE P2, TD-VSDD-BC-LIFECYCLE-FIELD-CANONICAL P2, TD-PRISM-INSTALLER-UX-VS-BINARY-DEFAULT-DRIFT P2, TD-PRISM-BC-REFERENCE-H1-MATCH-LINT P3). Note: adversary agents were read-only-tooled and could not persist pass reports; durability gap addressed by this burst. CODIFICATION step (task #80) still pending vsdd-factory plugin scope. STATE v7.70→v7.71. SESSION-HANDOFF v7.70→v7.71.**
 
