@@ -4,13 +4,22 @@ adr_id: "ADR-023"
 title: "Plugin-Only Sensor Architecture — TOML Specs + .prx WASM Plugins, No Compiled-In Sensor Rust"
 status: COMMITTED
 date: "2026-05-10"
-version: "v1.1"
+version: "v1.2"
 producer: architect
 subsystems_affected: [SS-01, SS-02, SS-16, SS-17, SS-21, SS-22]
 supersedes: null
 superseded_by: null
 amends: ADR-022
 amends_bcs: ["BC-2.16.004", "BC-2.01.013"]
+amends_bcs_pending_full_amendment_in_wave_2_g:
+  - BC-2.01.005-crowdstrike-oauth2-two-step-fetch
+  - BC-2.01.006-cyberint-cookie-auth
+  - BC-2.01.007-claroty-bearer-polymorphic-ids
+  - BC-2.01.008-armis-bearer-aql
+  - BC-2.02.003-crowdstrike-field-mapping
+  - BC-2.02.004-cyberint-field-mapping
+  - BC-2.02.005-claroty-field-mapping
+  - BC-2.02.006-armis-field-mapping
 retires_bcs: ["BC-2.16.004"]
 amends_dis: ["DI-012"]
 inputs:
@@ -34,6 +43,9 @@ inputs:
   - crates/prism-query/src/invalidation.rs
   - crates/prism-query/src/materialization.rs
   - crates/prism-bin/src/boot.rs
+  - .factory/specs/behavioral-contracts/BC-2.16.004-rust-escape-hatch.md
+  - .factory/specs/behavioral-contracts/BC-2.01.013-datasource-trait-adapter-pattern.md
+  - .factory/specs/domain-spec/invariants.md
 input-hash: "[live-state]"
 ---
 
@@ -41,17 +53,19 @@ input-hash: "[live-state]"
 
 ## Status
 
-COMMITTED 2026-05-10, v1.1. Status is `COMMITTED` rather than `ACCEPTED` because six
+COMMITTED 2026-05-10, v1.2. Status is `COMMITTED` rather than `ACCEPTED` because six
 infrastructure prerequisites (Constraints C1–C5 plus Wave 0/F BC+DI amendments) must land
 before the hardcoded sensor adapters can be deleted. Once all prerequisite stories ship and
 pass their gates, this ADR transitions to `ACCEPTED`. Implementation is tracked by
-PLUGIN-MIGRATION-001 (14 stories, Waves 0/1/2, approximately 103–145 SP).
+PLUGIN-MIGRATION-001 (14 stories, Waves 0/1/2, approximately 94–146 SP (F-MED-NEW-004 corrected; Wave 0: 45–67, Wave 1: 37–60, Wave 2: 12–19)).
 
 This ADR amends ADR-022 Section G, Story 3 — the reference to "the four built-in sensor
-adapters" in that section is retired concurrent with Wave 1 of PLUGIN-MIGRATION-001. All other
-sections of ADR-022 remain in force. ADR-022 is not superseded. ADR-022 will be amended to
-v1.2 (adding `superseded_by_partial: ADR-023` annotation to §G Story 3) in the same wave-gate
-burst as ADR-023's COMMITTED→ACCEPTED flip at end of Wave 1 (see F-HIGH-009 close).
+adapters" in that section is retired concurrent with Wave 1/A of PLUGIN-MIGRATION-001. All
+other sections of ADR-022 remain in force. ADR-022 is not superseded. ADR-022 will be amended
+to v1.2 (adding `superseded_by_partial: ADR-023` annotation to §G Story 3) as a sub-deliverable
+of the Wave 1/A cutover commit — the same commit that deletes the Rust adapter files and
+transitions ADR-023 from COMMITTED to ACCEPTED (F-HIGH-NEW-003: consistent timing across all
+three locations).
 
 ---
 
@@ -112,14 +126,22 @@ annotations and dispatch to WASM plugins for the complex-transform remainder.
 
 **Closed grammar for `ocsf_field` column values (TOML-mappable, the 80% case):**
 
-The following patterns are expressible in TOML `ocsf_field` and do NOT require a WASM plugin:
+The following patterns are expressible in TOML `ocsf_field` and do NOT require a WASM plugin
+(F-HIGH-NEW-002: grammar re-authored from mapper source to include all observed patterns):
 
-- Single source field with optional type cast: `device_id` mapped to `device.uid` with implicit
-  string-to-string coercion.
-- Nullable mapping: `optional_field` mapped to `attribute.parent.child` with implicit
-  `Option<T>` to `Optional[T]` coercion.
-- Type-cast preserved: source `i64` mapped to OCSF `string` requires explicit `cast = "string"`
-  field alongside `ocsf_field`.
+- Single source field, string-to-string: source field mapped to OCSF path with implicit
+  string-to-string coercion (e.g., `detection_id` → `finding_info.uid`).
+- Nullable mapping: source `Option<T>` mapped to OCSF `Optional[T]` path with implicit
+  null-propagation.
+- Integer-to-string cast: source integer (e.g., Armis device `id` as `i64`) mapped to OCSF
+  string field via `cast = "string"` alongside `ocsf_field`. Observed in Armis mapper where
+  `id` and `alertId` are extracted as integer-or-string with `n.to_string()` fallback.
+- Identity / no-op: source column already has the canonical OCSF field name; `ocsf_field`
+  annotation declares the target but requires no transformation (pass-through).
+- RFC3339 string timestamp: source field is an RFC3339 string (e.g., Armis `last_seen`,
+  `created_at`); TOML annotation `ocsf_field = "time"` with `format = "rfc3339"` maps to
+  OCSF epoch-millis. Observed in Armis `parse_armis_timestamp_str` which tries `parse_from_rfc3339`
+  then `%Y-%m-%dT%H:%M:%S` naive fallback.
 
 **WASM-required patterns (the 20% case):**
 
@@ -127,16 +149,28 @@ The following patterns cannot be expressed in TOML `ocsf_field` and MUST use a `
 transformer plugin:
 
 - Multi-field combination (concatenation, struct construction, value derivation from two or more
-  source fields).
-- Custom timestamp parsing (any non-ISO-8601 input format).
-- Nested struct flattening (denormalization of a nested source object into multiple OCSF fields).
-- Enum value coercion (sensor-specific enum value mapped to OCSF `activity_id` integer).
-- Conditional mapping (output value depends on another field's runtime value).
+  source fields — e.g., CrowdStrike `ioc_type` + `ioc_value` → `evidences[0].data.type` +
+  `evidences[0].data.value`).
+- Non-RFC3339 / integer unix timestamp: source field is a unix epoch integer (e.g., Armis
+  `last_seen` when present as `i64`); requires runtime branch on field type. The fallback chain
+  (try string → try integer → use current time) observed in Armis mapper cannot be expressed
+  declaratively.
+- Array/list mapping: source array elements mapped to OCSF array paths (e.g., CrowdStrike
+  `behaviors[*].tactic` → `attacks[*].tactic.name`). Requires iteration and struct construction.
+- Enum value coercion: sensor-specific string enum mapped to OCSF integer id (e.g., CrowdStrike
+  `severity` string → `severity_id` integer via `crowdstrike_severity_to_id` match table).
+- Nested struct flattening: denormalization of a nested source object into multiple OCSF fields
+  (e.g., CrowdStrike `device.hostname` → `device.name`, `device.device_id` → `device.uid`).
+- Conditional mapping: output value depends on another field's runtime value (e.g., Armis
+  source ID is `alertId` for record_type="alert", `id` for all others).
+- Timestamp fallback chain: try multiple source fields in order with type-branch logic; fall
+  back to current time with warning on exhaustion (Armis pattern). Requires imperative logic.
 - Unit conversion (bytes to KB, milliseconds to seconds, etc.).
 
-A VP-PLUGIN-006 fixture catalog will test at least 6 representative cases — at least 3 that must
-resolve via TOML `ocsf_field` annotation and at least 3 that must resolve via WASM transformer.
-This is authored in Wave 1/C scope.
+Total: 13 patterns — 5 TOML-mappable, 8 WASM-required. A VP-PLUGIN-006 fixture catalog will
+test at least 6 representative cases — at least 3 that must resolve via TOML `ocsf_field`
+annotation and at least 3 that must resolve via WASM transformer. This is authored in Wave 1/C
+scope.
 
 **Rule 2 — SensorAuth Trait Un-Sealing**
 
@@ -217,9 +251,16 @@ period is required for external implementors. If a published version with `Custo
 ever discovered, this rule is amended to add a one-cycle deprecation window with a
 `#[deprecated]` annotation.
 
-Wave 0/E scope note: `spec_parser.rs` contains `CustomAdapterRegistry` call sites that must be
-migrated to `PluginRegistry` before `custom_adapter.rs` is deleted. This migration is in scope
-for PLUGIN-PREREQ-E.
+Wave 0/E scope note (F-CRIT-NEW-001-PASS2-RESIDUAL corrected): `spec_parser.rs` contains
+zero `CustomAdapter` or `CustomAdapterRegistry` references (verified by grep). The live call
+sites that must be retired before `custom_adapter.rs` is deleted are:
+`crates/prism-spec-engine/src/lib.rs` (re-exports `CustomAdapter` and `CustomAdapterRegistry`
+via `pub use custom_adapter::*` — the public API surface that must be removed),
+`crates/prism-spec-engine/examples/demo_spec_loading.rs` (imports and exercises the registry
+against a mock adapter — becomes dead after retirement), and
+`crates/prism-spec-engine/tests/bc_2_16_004_test.rs` (BC test exercising `CustomAdapterRegistry`
+— superseded when BC-2.16.004 is retired and replaced by WASM plugin tests). Migration of all
+three sites is in scope for PLUGIN-PREREQ-E.
 
 ---
 
@@ -254,12 +295,31 @@ time validation). The threat model is preserved: the specific cross-sensor auth-
 patterns that the sealed trait prevented are now prevented by the three runtime rejection rules
 documented under Rule 2. Full amendment executes in PLUGIN-PREREQ-F.
 
-**Sweep — sensor-named behavioral contracts:**
+**Sweep — sensor-named behavioral contracts (F-HIGH-NEW-004 enumerated):**
 
-Any behavioral contract whose body or scope references the sealed `SensorAuth` trait, the
-`CustomAdapter` trait, or sensor-specific Rust type names will receive a prefix note in
-PLUGIN-PREREQ-F indicating that a full amendment is pending and pointing to ADR-023. Full
-per-BC amendment language is authored in Wave 2/G.
+The following 8 sensor-named BCs will receive a prefix note in PLUGIN-PREREQ-F indicating that
+a full amendment is pending and pointing to ADR-023. Full per-BC body amendment is authored in
+Wave 2/G:
+
+- BC-2.01.005-crowdstrike-oauth2-two-step-fetch
+- BC-2.01.006-cyberint-cookie-auth
+- BC-2.01.007-claroty-bearer-polymorphic-ids
+- BC-2.01.008-armis-bearer-aql
+- BC-2.02.003-crowdstrike-field-mapping
+- BC-2.02.004-cyberint-field-mapping
+- BC-2.02.005-claroty-field-mapping
+- BC-2.02.006-armis-field-mapping
+
+Each prefix note (added in PLUGIN-PREREQ-F scope) states: "This BC is being amended for
+plugin-only architecture per ADR-023. The sensor auth and field-mapping behavior described here
+will be replaced by TOML spec configuration and, where required, `.prx` WASM plugins. Full BC
+amendment language is authored in PLUGIN-MIGRATION-001-G (Wave 2/G)."
+
+BC-2.16.004 contradiction note: BC-2.16.004 lines 36–42 currently state "All four initial
+sensors (CrowdStrike, Cyberint, Claroty, Armis) ship as pure TOML specs" — this directly
+contradicts ADR-023 Rule 4, which specifies that CrowdStrike ships as TOML plus a `.prx` WASM
+plugin for its OAuth2 refresh-on-401 flow. This contradiction window is bounded by PLUGIN-PREREQ-F
+lead-time; PREREQ-F's retirement of BC-2.16.004 resolves it.
 
 ---
 
@@ -322,11 +382,17 @@ Enforcement is via three mechanisms:
    (FORBIDDEN-SYMBOLS-001) gets one `tests/import_forbidden_<type>.rs` file.
 2. A CI grep gate scanning for the disallowed string patterns on every PR to `develop`.
 3. A code-review checklist in `.github/PULL_REQUEST_TEMPLATE.md` (created in Wave 0/D as part
-   of the PluginRuntime wiring deliverables). The template path is
-   `/Users/jmagady/Dev/prism/.github/PULL_REQUEST_TEMPLATE.md`. Checklist items (minimum):
+   of the PluginRuntime wiring deliverables — F-LOW-NEW-001: repo-relative path, not absolute).
+   Checklist items (minimum):
    - "Does this PR introduce any `pub mod <sensor_name>;` or `pub use <SensorAdapter>` patterns? If yes, this PR is not mergeable."
    - "Does this PR construct concrete sensor types (`CrowdStrikeAuth::new`, `ArmisAuth::new`, etc.) outside test code or .prx WASM plugins? If yes, this PR is not mergeable."
    - "Does this PR add new `match SensorType::Variant` patterns? If yes, this PR is not mergeable — use spec-catalog lookup against `SensorId`."
+
+Active enforcement status (F-LOW-NEW-002): Until PREREQ-D lands and creates
+`.github/PULL_REQUEST_TEMPLATE.md`, enforcement mechanism 3 (PR-template checklist) is
+INACTIVE. The CI grep gate (mechanism 2) and compile-fail perimeter test crate (mechanism 1,
+scoped to PREREQ-D delivery) are the active enforcement layers during the migration window.
+Once PREREQ-D merges, all three mechanisms are active.
 
 ---
 
@@ -364,7 +430,7 @@ For Decision Rules 1–5 to be enforceable, the following infrastructure must ex
 deletion of the hardcoded adapters. Wave 0/F lands first; Constraints C1–C5 (PLUGIN-PREREQ-A
 through E) all depend on PLUGIN-PREREQ-F having landed.
 
-**Wave 0/F — BC + DI Catalog Amendments (PLUGIN-PREREQ-F, NEW, 3–5 SP, LANDS FIRST):**
+**Wave 0/F — BC + DI Catalog Amendments (PLUGIN-PREREQ-F, NEW, 5–8 SP, LANDS FIRST — F-HIGH-NEW-004: SP updated to reflect 8 additional sensor-named BC prefix-note edits):**
 
 Before any code changes begin, the behavioral contract and domain invariant catalog must be
 consistent with this ADR. PLUGIN-PREREQ-F tasks:
@@ -392,10 +458,13 @@ crates are converted to spec-catalog lookup stubs. This is the keystone change �
 protocol (TD-VSDD-053). The whole rename is one commit; if review is too large, use a draft PR
 with reviewable annotations rather than commit-splitting.
 
-Pre-implementation note: `SensorType` uses `strum` derives in `prism-core`. Any strum-generated
-match code is not visible to a line-level grep. Add a pre-implementation task to enumerate all
-pattern-match sites using `SensorType` including proc-macro generated code via `cargo expand`
-before estimating final SP.
+Pre-implementation note (F-MED-NEW-001-PASS2-RESIDUAL corrected): `SensorType` is a plain Rust
+enum in `crates/prism-core/src/types.rs` with derives `Clone, Copy, Debug, PartialEq, Eq, Hash,
+Serialize, Deserialize` and a hand-written `Display` impl. There are NO strum derives and NO
+proc-macro-generated match arms (grep confirms zero strum references in prism-core). All
+pattern-match sites are enumerable via `rg 'match\s+\w+|SensorType::\w+'` across the workspace.
+The PLUGIN-AUDIT-001 CRIT-2 through CRIT-7 findings cite 7 downstream match sites in 4 crates
+— these are plain `match` arms and are fully visible to line-level grep and static analysis.
 
 Depends on: PLUGIN-PREREQ-F.
 
@@ -431,9 +500,13 @@ New grammar work (the actual PREREQ-C scope):
 
 All extensions are additive — existing TOML files remain valid. Depends on: PLUGIN-PREREQ-F.
 
-**C4 — PluginRuntime wired into boot, .prx pipeline functional (PLUGIN-PREREQ-D):** Boot step
-7 in `crates/prism-bin/src/boot.rs` will load `.prx` WASM plugins from the plugin directory
-via `PluginRuntime`. Plugin signing is deferred to v1.0+1 per TD-PLUGIN-SIGNING-001.
+**C4 — PluginRuntime wired into boot, .prx pipeline functional (PLUGIN-PREREQ-D):** PREREQ-D
+delivers both the `PluginRuntime` infrastructure (engine, linker, loader, epoch-interruption
+config) AND wires it into boot.rs step 7, replacing the dead instantiation with a live
+`PluginRuntime::load_all_plugins` call (F-MED-NEW-005: PREREQ-D owns step 7; PREREQ-E owns
+only step-8 dead-code deletion). Boot step 7 in `crates/prism-bin/src/boot.rs` will load `.prx`
+WASM plugins from the plugin directory via `PluginRuntime`. Plugin signing is deferred to
+v1.0+1 per TD-PLUGIN-SIGNING-001.
 
 v1.0 plugin load behavior:
 - Boot-time stderr and `tracing::warn!` message on every startup: "WARNING: Plugin signing not
@@ -446,9 +519,21 @@ v1.0 plugin load behavior:
 
 Sandbox model: wasmtime-based, WASI subset. Plugins have NO direct WASI network sockets and NO
 filesystem access. Outbound HTTP is permitted only via the host-provided `host_http_request`
-host function, which enforces a per-plugin URL allowlist declared in the plugin manifest and
-validated at plugin-load time. The CrowdStrike OAuth refresh plugin's allowlist must include
-the CrowdStrike token endpoint (cloud-region-aware). Direct WASI network syscalls are
+host function.
+
+Current state (as-built, F-CRIT-NEW-002): `make_host_state()` in
+`crates/prism-spec-engine/src/plugin/mod.rs` constructs `HostState { allowed_urls: None, ... }`
+with an explicit `TODO(S-4.08)` comment. The `host_http_request` implementation in
+`crates/prism-spec-engine/src/plugin/host_functions.rs` short-circuits when `allowed_urls` is
+`None`, permitting ALL URLs. There is NO plugin-load-time allowlist validation in the current
+codebase.
+
+Target state (delivered by PREREQ-D): The `.prx` plugin manifest format is extended with an
+`allowed_urls: [String]` field. `PluginRuntime::load_plugin` parses the manifest and constructs
+`HostState { allowed_urls: Some(parsed_hostnames) }`. The `TODO(S-4.08)` in `mod.rs` is closed
+by PREREQ-D. At that point, `host_http_request` enforces host-only comparison (not substring
+matching) against the allowlist. The CrowdStrike OAuth refresh plugin manifest must declare the
+CrowdStrike token endpoint hostname (cloud-region-aware). Direct WASI network syscalls remain
 prohibited; all network I/O must flow through the declared host function interface.
 
 The `.prx` plugin manifest format declares name, version, format_version, and hook points
@@ -470,12 +555,14 @@ Depends on: PLUGIN-PREREQ-F.
 marker will be removed from `SensorAuth` in `crates/prism-sensors/src/auth/mod.rs`. The
 `CustomAuth` duplicate will be deleted from `crates/prism-spec-engine/src/custom_adapter.rs`.
 The `CustomAdapter` Rust trait is removed from the same file. The `CustomAdapterRegistry` dead
-code is deleted. Boot steps 7–8 cleanup: the dead `custom_adapter_registry` and `plugin_runtime`
-instantiations in `crates/prism-bin/src/boot.rs` are replaced with the live `PluginRuntime`
-wiring from C4. Migration of `spec_parser.rs` `CustomAdapterRegistry` call sites to
-`PluginRegistry` happens in this story before deleting `custom_adapter.rs`.
+code is deleted. Boot step 8 cleanup: the dead `custom_adapter_registry` instantiation in
+`crates/prism-bin/src/boot.rs` is removed (step 7 live wiring is delivered by PREREQ-D; PREREQ-E
+only deletes the now-dead step-8 code). The actual `CustomAdapter` call sites that must be
+retired before `custom_adapter.rs` is deleted are the re-export in `lib.rs`, the example in
+`examples/demo_spec_loading.rs`, and the BC test in `tests/bc_2_16_004_test.rs` — all three are
+in scope for this story (F-CRIT-NEW-001-PASS2-RESIDUAL: spec_parser.rs has zero such references).
 
-Depends on: PLUGIN-PREREQ-F, PLUGIN-PREREQ-D (for live PluginRuntime wiring).
+Depends on: PLUGIN-PREREQ-F, PLUGIN-PREREQ-D (for live PluginRuntime wiring at step 7).
 
 ---
 
@@ -488,6 +575,14 @@ names in FORBIDDEN-SYMBOLS-001 (`CrowdStrikeAdapter`, `CrowdStrikeAuth`, `ArmisA
 Enforced by a compile-fail perimeter test crate at `tests/external/no-hardcoded-sensors/` plus
 a CI grep gate. Each forbidden symbol gets one `tests/import_forbidden_<type>.rs` file
 asserting compile failure. Both must pass on every PR targeting `develop`.
+
+Additional enforcement (F-HIGH-NEW-005): A CI step asserts that the count of
+`tests/import_forbidden_*.rs` files equals the count of entries in the FORBIDDEN-SYMBOLS-001
+catalog (9 entries as of v1.2). Count mismatch fails CI with the message: "FORBIDDEN-SYMBOLS-001
+catalog has N entries but tests/external/no-hardcoded-sensors/ contains M compile-fail test
+files — add or remove files to restore 1:1 correspondence." A positive-coverage log line is
+emitted on success: "Perimeter check passed: N forbidden symbols verified by N compile-fail
+tests" (per POL-11 ci_positive_coverage_assertion).
 
 **VP-PLUGIN-002 — Unknown sensor registers without code change:** A `prism start --spec-dir
 <fixture>` invocation with a previously-unknown sensor TOML (for example,
@@ -529,13 +624,37 @@ and `plugin_hash: <sha256>` is recorded for every `.prx` file loaded, (c) `PRISM
 causes zero plugins to load and no warning fires. For v1.0+1: property will be amended to
 assert that unsigned plugins fail to load with a structured error.
 
+Test implementation details (F-MED-NEW-002): Test location:
+`crates/prism-bin/tests/plugin_load_warning.rs`. Fixture: a minimal valid `.prx` at
+`tests/fixtures/minimal.prx` (either committed as a pre-built artifact or generated via
+`just plugin-build minimal`). Mechanism: `tracing-test::traced_test` macro to capture WARN-level
+log output in the test thread; `tempfile::TempDir` for the audit-log sink directory. Assertion:
+the audit JSONL file in the temp directory contains exactly one entry with
+`event_type: "plugin_load_unsigned"` and a `plugin_hash` field whose value matches the
+SHA-256 hex digest of the `minimal.prx` file bytes.
+
 **VP-PLUGIN-005 — OAuth2 refresh-on-401 via .prx plugin:** The TOML grammar's
 `retry_action = "refresh_auth"` hook correctly invokes the in-repo CrowdStrike `.prx` plugin
 on an HTTP 401 response. The plugin acquires a new token via the `host_http_request`
-allowlist-mediated host function and retries the request. Verified by an integration test
-against the DTU clone with 401-injection mode enabled. The test asserts (a) initial 401 is
-received, (b) `host_http_request` fires to the CrowdStrike token endpoint, (c) retry succeeds
-with new token, (d) final result set is non-empty.
+allowlist-mediated host function and retries the request.
+
+Test implementation details (F-MED-NEW-003): 401-injection uses a `wiremock::MockServer` with
+a sequential responder (first request to the data endpoint returns HTTP 401, second returns
+HTTP 200 with fixture data). No DTU clone enhancement is required — wiremock (version 0.6,
+already in `crates/prism-sensors/Cargo.toml`) provides the mock server. The test asserts:
+(a) the first data request receives 401, (b) `host_http_request` subsequently fires to the
+CrowdStrike token endpoint (captured by a second wiremock mock on the token endpoint path),
+(c) the retry data request succeeds with 200, (d) the final result set is non-empty.
+
+**VP-PLUGIN-007 — Plugin manifest allowlist not-None after PREREQ-D (F-CRIT-NEW-002):**
+After PREREQ-D lands, no `.prx` plugin loaded by `PluginRuntime` may have `allowed_urls = None`
+in its `HostState`. Boot integration test (PREREQ-D scope): attempt to load a plugin whose
+manifest omits the `allowed_urls` field — `PluginRuntime::load_plugin` must reject it with a
+structured error (not silently default to allow-all). Acceptance criteria: (a) manifest without
+`allowed_urls` field → load fails with error citing missing field, (b) manifest with
+`allowed_urls: []` (empty list) → load succeeds but all HTTP requests are blocked (403 from
+`host_http_request`), (c) manifest with `allowed_urls: ["api.crowdstrike.com"]` → requests to
+that host succeed; requests to any other host are blocked.
 
 ---
 
@@ -594,7 +713,7 @@ production system.
 
 ### Negative / Trade-offs
 
-- High implementation cost: approximately 103–145 story points across 14 stories in 3 waves
+- High implementation cost: approximately 94–146 story points across 14 stories in 3 waves (F-MED-NEW-004 corrected)
   (including new Wave 0/F).
 - Increased runtime complexity: WASM toolchain, `.prx` build pipeline, `wasm32-wasi` build
   targets, and sandbox enforcement add operational surface area.
@@ -605,11 +724,16 @@ production system.
   item in Wave 0 and blocks all Wave 1 deletions — until it ships, the TOML spec model produces
   no data.
 - WASM cold-start latency: CrowdStrike auth refresh pays `instantiate(&mut store)` overhead
-  per call. Mitigation: instance pooling at the PluginRuntime level (infrastructure already
-  supports pooling; must be enabled in PREREQ-D). Performance budgets per the existing
-  200MB-per-query memory budget behavioral contract and sub-200ms tool latency targets.
-  A `bench_plugin_invocation` benchmark in `crates/prism-spec-engine/benches/` will measure
-  plugin call overhead; a perf-regression VP will be added if budget thresholds are exceeded.
+  per call. Mitigation (as-built): `PluginRuntime::load_plugin` precompiles each plugin's WASM
+  binary into a `wasmtime::component::InstancePre<HostState>` (stored in `LoadedPlugin`). Per
+  call, the cost is `InstancePre::instantiate(&mut store)` — approximately 1ms — rather than
+  a full recompile. True live-instance pooling (a pool of ready `(Store, Instance)` pairs) does
+  NOT exist in the current `PluginRuntime` struct (`engine`, `linker`, `registry`, `http_client`,
+  `_epoch_ticker` — no pool field). If the `bench_plugin_invocation` benchmark in
+  `crates/prism-spec-engine/benches/` shows per-call latency exceeding the sub-200ms tool
+  latency target, PREREQ-D MAY add an instance pool as new work. That decision is deferred to
+  benchmark results, not pre-committed (F-HIGH-NEW-001 corrected). Performance budgets per the
+  existing 200MB-per-query memory budget behavioral contract and sub-200ms tool latency targets.
 - Plugin call observability: `tracing` span propagation from Rust into WASM and back is
   non-trivial. Mitigation: host-side spans wrap each plugin call; plugin-internal logs surface
   via host log capture (existing infrastructure in `host_functions.rs`).
@@ -637,7 +761,7 @@ production system.
 
 ### Status as of 2026-05-10
 
-COMMITTED v1.1, pending implementation of Wave 0/F (PLUGIN-PREREQ-F) and Constraints C1–C5
+COMMITTED v1.2, pending implementation of Wave 0/F (PLUGIN-PREREQ-F) and Constraints C1–C5
 (PLUGIN-MIGRATION-001 Wave 0). The five hardcoded sensor auth modules, the four OCSF mapper
 modules, the `SensorType` enum, and the `CustomAdapter` trait all remain in the codebase until
 their corresponding Wave 0/1 stories ship and pass DTU-parity gates.
@@ -675,13 +799,15 @@ in `crates/prism-spec-engine/src/custom_adapter.rs` already attempted — and it
 
 ## Migration Plan
 
-PLUGIN-MIGRATION-001: 14 stories, 3 waves, approximately 103–145 SP, HIGH risk.
+PLUGIN-MIGRATION-001: 14 stories, 3 waves, approximately 94–146 SP (F-MED-NEW-004 corrected; Wave 0: 45–67, Wave 1: 37–60, Wave 2: 12–19), HIGH risk.
 
-**Wave 0 — Prerequisites (6 stories, approximately 43–65 SP, no deletions):**
+**Wave 0 — Prerequisites (6 stories, approximately 45–67 SP, no deletions — F-MED-NEW-004 corrected):**
 
 - PLUGIN-PREREQ-F: BC + DI catalog amendments — deprecate rust-escape-hatch BC, amend
-  datasource-trait-adapter BC, amend sealed-auth-trait DI, sweep sensor-named BCs, author
-  TS-PLUGIN-PARITY-001 (3–5 SP) — LANDS FIRST; all other stories depend on this.
+  datasource-trait-adapter BC, amend sealed-auth-trait DI, add prefix notes to 8 sensor-named
+  BCs (BC-2.01.005 through BC-2.01.008, BC-2.02.003 through BC-2.02.006), author
+  TS-PLUGIN-PARITY-001 (5–8 SP, F-HIGH-NEW-004 updated) — LANDS FIRST; all other stories depend
+  on this.
 - PLUGIN-PREREQ-A: `SensorType` to `SensorId(Arc<str>)` keystone migration (13–18 SP); depends
   on PREREQ-F.
 - PLUGIN-PREREQ-B: Real `PipelineExecutor` — HTTP, JSONPath, pagination, retry, WASM hook
@@ -689,14 +815,18 @@ PLUGIN-MIGRATION-001: 14 stories, 3 waves, approximately 103–145 SP, HIGH risk
 - PLUGIN-PREREQ-C: TOML grammar extensions — new grammar only: `[fetch_step.retry]` with
   `retry_action`, `virtual_field_aliases`, `cache_ttl_secs`, `[fetch_step.batch]` (3–5 SP;
   revised from 5–8 SP per F-HIGH-006 close); depends on PREREQ-F.
-- PLUGIN-PREREQ-D: Wire `PluginRuntime` into boot step 7; build `.prx` load pipeline;
-  unsigned-plugin boot warning + audit log; host function import validation; PR template
-  creation (8–13 SP); depends on PREREQ-F.
-- PLUGIN-PREREQ-E: Un-seal `SensorAuth`; migrate `spec_parser.rs` CustomAdapterRegistry call
-  sites; deprecate and remove `CustomAdapter` Rust trait (3–5 SP); depends on PREREQ-F and
-  PREREQ-D.
+- PLUGIN-PREREQ-D: Deliver `PluginRuntime` infrastructure AND wire it into boot.rs step 7
+  (live plugin load replaces dead instantiation); build `.prx` load pipeline; unsigned-plugin
+  boot warning + audit log; host function import validation; PR template creation; allowlist
+  manifest field + TODO(S-4.08) closure (8–13 SP); depends on PREREQ-F. Step 7 wiring is
+  in PREREQ-D scope (F-MED-NEW-005).
+- PLUGIN-PREREQ-E: Un-seal `SensorAuth`; retire `CustomAdapter` Rust trait, its re-export in
+  `lib.rs`, `examples/demo_spec_loading.rs`, and `tests/bc_2_16_004_test.rs`; delete
+  `custom_adapter.rs`; remove dead step-8 `custom_adapter_registry` code from boot.rs
+  (F-MED-NEW-005: PREREQ-E owns step-8 cleanup only, not step-7 wiring) (3–5 SP); depends on
+  PREREQ-F and PREREQ-D.
 
-**Wave 1 — Primary deletion and replacement (5 stories, approximately 40–60 SP, ordered:
+**Wave 1 — Primary deletion and replacement (5 stories, approximately 37–60 SP, ordered:
 REPLACEMENT BEFORE DELETION):**
 
 - PLUGIN-MIGRATION-001-D (FIRST): Author 4 production TOMLs via reverse-engineering; DTU-parity
@@ -727,15 +857,16 @@ the Rust path. Wave 1/A may not merge until VP-PLUGIN-003 (parity) passes for al
 AND VP-PLUGIN-005 (CrowdStrike refresh) passes AND VP-PLUGIN-001 (compile-fail perimeter)
 passes.
 
-**Wave 2 — Cleanup (3 stories, approximately 15–25 SP):**
+**Wave 2 — Cleanup (3 stories, approximately 12–19 SP — F-MED-NEW-004 corrected):**
 
 - PLUGIN-MIGRATION-001-F: Rewrite approximately 10 sensor-named test files to TOML fixture
   loading; compile-fail perimeter test at `tests/external/no-hardcoded-sensors/` (5–8 SP).
 - PLUGIN-MIGRATION-001-G: Doc sweep — module-decomposition, production-runtime-wiring decision
-  record (including ADR-022 v1.2 amendment adding `superseded_by_partial: ADR-023` annotation
-  to §G Story 3 and inline note directing readers to ADR-023 and PLUGIN-PREREQ-F), BC catalog
-  sensor-name grep, sensor-adapters.md (5–8 SP). ADR-022 v1.2 amendment lands in the same
-  wave-gate burst as ADR-023's COMMITTED→ACCEPTED flip.
+  record (inline note directing readers to ADR-023 and PLUGIN-PREREQ-F), BC catalog sensor-name
+  grep, full body amendment of the 8 sensor-named BCs (BC-2.01.005 through BC-2.01.008 and
+  BC-2.02.003 through BC-2.02.006), sensor-adapters.md (5–8 SP). Note: ADR-022 v1.2 amendment
+  (adding `superseded_by_partial: ADR-023` annotation to §G Story 3) lands in Wave 1/A, NOT
+  Wave 2/G. Wave 2/G scope is the BC body sweep only (F-HIGH-NEW-003 corrected).
 - PLUGIN-MIGRATION-001-H: Story supersession — mark S-2.06, S-2.07, W3-FIX-S307-001,
   S-3.1.06-ImplPhase superseded in STORY-INDEX (2–3 SP).
 
@@ -774,8 +905,10 @@ identified in adversary pass-1 finding F-HIGH-007.
   Migration Approach" section.
 - **Amended document:** `ADR-022-production-runtime-wiring.md` Section G, Story 3 — the
   reference to "the four built-in sensor adapters" is retired by this ADR concurrent with
-  PLUGIN-MIGRATION-001 Wave 1. ADR-022 v1.2 amendment (adding `superseded_by_partial` and
-  inline note) lands in Wave 2/G.
+  PLUGIN-MIGRATION-001 Wave 1/A. ADR-022 v1.2 amendment (adding `superseded_by_partial: ADR-023`
+  annotation and inline note) lands as a sub-deliverable of the Wave 1/A cutover commit, not
+  Wave 2/G. Wave 2/G delivers the full BC body amendment for the 8 sensor-named BCs
+  (F-HIGH-NEW-003 corrected).
 - **Code as-built (violations):** Closed `SensorType` enum in `crates/prism-core/src/types.rs`;
   sealed `SensorAuth` trait in `crates/prism-sensors/src/auth/mod.rs`; stub `PipelineExecutor`
   in `crates/prism-spec-engine/src/pipeline.rs`; four concrete adapter re-exports in
@@ -790,5 +923,6 @@ identified in adversary pass-1 finding F-HIGH-007.
 
 | Version | Date | Description |
 |---------|------|-------------|
+| v1.2 | 2026-05-10 | Closes 16 spec defects from adversary pass-2 (2 CRIT + 4 HIGH + 5 MED + 3 LOW) per TD-FIX-BURST-VERIFY-001 source-of-truth verification discipline. F-CRIT-NEW-001-PASS2-RESIDUAL closed: corrected CustomAdapter call-site enumeration — spec_parser.rs contains zero CustomAdapter references (grep confirmed); actual call sites are lib.rs re-export, examples/demo_spec_loading.rs, tests/bc_2_16_004_test.rs; both body locations updated. F-CRIT-NEW-002 closed: rewrote C4 sandbox section with explicit current-state vs target-state delineation — make_host_state() returns HostState with allowed_urls=None and TODO(S-4.08); host_functions.rs short-circuits None as ALL-permitted; no plugin-load-time allowlist validation today; target state (PREREQ-D) specified; VP-PLUGIN-007 added. F-HIGH-NEW-001 closed: corrected instance-pool claim — LoadedPlugin.pre_instance is InstancePre<HostState> (precompiled component, not a live-instance pool); no pool field exists in PluginRuntime; InstancePre-based reuse semantics described accurately. F-HIGH-NEW-002 closed: re-authored OCSF closed grammar — added 5 missing patterns from mapper source (array/list mapping, identity/no-op, RFC3339 string parsing with fallback chain, integer unix timestamp, integer-to-string cast); total is now 13 patterns (TOML: 5, WASM: 8). F-HIGH-NEW-003 closed: resolved ADR-022 v1.2 amendment timing contradiction — all three locations now consistently say ADR-022 v1.2 lands as sub-deliverable of Wave 1/A cutover commit; Wave 2/G retains only BC body sweep. F-HIGH-NEW-004 closed: enumerated 8 sensor-named BCs in Wave 0/F sweep; added amends_bcs_pending_full_amendment_in_wave_2_g frontmatter; updated PREREQ-F SP from 3-5 to 5-8; noted BC-2.16.004 contradiction window. F-HIGH-NEW-005 closed: added CI sync-check and positive-coverage log assertion to VP-PLUGIN-001. F-MED-NEW-001-PASS2-RESIDUAL closed: corrected SensorType strum claim — prism-core types.rs uses plain derives (Clone, Copy, Debug, PartialEq, Eq, Hash, Serialize, Deserialize) with hand-written Display impl; no strum derives (grep confirmed zero strum references in prism-core). F-MED-NEW-002 closed: added test fixture details to VP-PLUGIN-004. F-MED-NEW-003 closed: scoped 401-injection via wiremock::MockServer (wiremock 0.6 already in prism-sensors); no DTU clone enhancement required. F-MED-NEW-004 closed: corrected SP arithmetic — actual sum is 94-146 SP (Wave 0: 45-67, Wave 1: 37-60, Wave 2: 12-19, inclusive of PREREQ-F update to 5-8 from F-HIGH-NEW-004); all six cited locations updated. F-MED-NEW-005 closed: resolved PREREQ-D vs PREREQ-E boot.rs ownership — PREREQ-D delivers PluginRuntime infra AND wires step 7; PREREQ-E only deletes dead custom_adapter_registry and step-8 code. F-LOW-NEW-001 closed: replaced absolute filesystem path with repo-relative .github/PULL_REQUEST_TEMPLATE.md. F-LOW-NEW-002 closed: added PR-template-inactive acknowledgment to enforcement section. F-LOW-NEW-003 closed: added 3 entries to inputs frontmatter. 2 OBS process-gap findings tracked as TDs. |
 | v1.1 | 2026-05-10 | Closes 24 spec defects from adversary pass-1 (4 CRIT + 9 HIGH + 7 MED + 4 LOW). F-CRIT-001 closed: added amends_bcs/retires_bcs frontmatter + Retired/Amended Contracts section. F-CRIT-002 closed: added amends_dis frontmatter + DI-012 runtime rejection rules. F-CRIT-003 closed: replaced ungroundable glob with explicit crate list from cargo metadata; dropped prism-operations; added forward-compatibility rule. F-CRIT-004 closed: moved PR template to Wave 0/D; specified path + three checklist items. F-HIGH-001 closed: added closed grammar for ocsf_field (TOML-mappable vs WASM-required); added VP-PLUGIN-006 fixture catalog. F-HIGH-002 closed: deferred signing to v1.0+1 per TD-PLUGIN-SIGNING-001; updated Rule 4, C4, VP-PLUGIN-004, Negative Consequences with boot warning + audit log + escape valve. F-HIGH-003 closed: reconciled VP-PLUGIN-001 with actual codebase types; added 9-symbol FORBIDDEN-SYMBOLS-001 catalog. F-HIGH-004 closed: replaced byte-level parity with schema+row-count+canonical-value parity with canonicalization rules; referenced TS-PLUGIN-PARITY-001. F-HIGH-005 closed: rewrote C4 sandbox model to align with host_http_request allowlist; updated VP-PLUGIN-005. F-HIGH-006 closed: re-authored C3 with NEW vs already-present split; revised PREREQ-C estimate to 3-5 SP. F-HIGH-007 closed: reordered Wave 1 D→E→B→C→A with per-PR-boundary functionality invariant per user decision. F-HIGH-008 closed: expanded Negative Consequences with 6 omitted risk categories (cold-start, observability, rollback, version-skew, debugging, panic-isolation). F-HIGH-009 closed: added ADR-022 v1.2 amendment to Wave 2/G scope. F-MED-001 closed: removed orchestrator-derived caveat from Rule 5; added user-confirmation note. F-MED-002 closed: added same-burst removal justification; added pre-condition for retirement. F-MED-003 closed: cross-referenced VP-PLUGIN-003 for parity threshold. F-MED-004 closed: strengthened VP-PLUGIN-002 with 5-point acceptance criteria. F-MED-005 closed: added hot-reload semantics to C4. F-MED-006 closed: cross-referenced Rule 2 for auth composition rejection rules. F-MED-007 closed: added Wave 0/F (PLUGIN-PREREQ-F, 3-5 SP) per user decision; updated PREREQ-A through E depends_on. F-LOW-001 closed: added atomic-commit protocol note to PREREQ-A. F-LOW-002 closed: added performance budget and benchmark recipe to Negative Consequences. F-LOW-003 closed: added SS-22 to subsystems_affected. F-LOW-004 closed: added plugin source crate workspace integration rules to Permitted Patterns + C4. 5 OBS process-gap findings tracked as TDs, not closed here. |
 | v1.0 | 2026-05-10 | Initial COMMITTED version — plugin-only sensor architecture mandate. |
