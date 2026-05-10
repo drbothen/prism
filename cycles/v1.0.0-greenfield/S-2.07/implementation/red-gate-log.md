@@ -13,7 +13,7 @@ inputs:
   - .factory/specs/behavioral-contracts/BC-2.01.006-cyberint-cookie-auth.md
   - .factory/specs/behavioral-contracts/BC-2.01.007-claroty-bearer-polymorphic-ids.md
   - .factory/specs/behavioral-contracts/BC-2.01.008-armis-bearer-aql.md
-input-hash: "21efb02"
+input-hash: "4c38a60"
 traces_to: "S-2.07"
 stub_architect_agent: "a4193c76"
 stub_compile_verified: true

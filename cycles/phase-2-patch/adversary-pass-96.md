@@ -12,7 +12,7 @@ inputs:
   - .factory/specs/behavioral-contracts/BC-2.17.005-plugin-hot-reload-atomic-swap.md
   - .factory/specs/behavioral-contracts/BC-2.19.004-infusion-hot-reload-atomicity.md
   - .factory/policies.yaml
-input-hash: "e7a5030"
+input-hash: "5bfbf6d"
 traces_to: ""
 pass: 96
 counter_before: 0

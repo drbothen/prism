@@ -18,7 +18,7 @@ inputs:
   - .factory/stories/S-4.06-case-management.md
   - .factory/stories/S-5.09-external-log-forwarding.md
   - .factory/stories/S-5.10-audit-trail-forwarding.md
-input-hash: "248b3b0"
+input-hash: "76729b7"
 traces_to: prd.md
 pass: 25
 previous_review: adversarial-reviews/pass-24.md

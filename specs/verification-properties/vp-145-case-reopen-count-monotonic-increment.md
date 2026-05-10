@@ -9,7 +9,7 @@ phase: 4-W4-Phase4A-Pass1-fix
 inputs:
   - .factory/specs/architecture/decisions/ADR-017-case-lifecycle-invariants.md
   - .factory/STATE.md
-input-hash: "746d597"
+input-hash: "ac49635"
 traces_to: .factory/specs/architecture/decisions/ADR-017-case-lifecycle-invariants.md
 source_bc: null
 source_adr: ADR-017

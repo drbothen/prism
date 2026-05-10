@@ -10,9 +10,9 @@ blocks: [S-3.02-FOLLOWUP-RUNTIME, S-1.12-FOLLOWUP, S-5.01-FOLLOWUP-MCP-BOOT, S-1
 estimated_days: 3
 points: 5
 risk: HIGH
-status: ready
+status: merged
 document_type: story
-version: "1.2"
+version: "1.3"
 level: "L4"
 producer: story-writer
 timestamp: "2026-05-08T00:00:00Z"
@@ -486,3 +486,4 @@ N/A — this is a new story with no predecessor `partial-merge` story to graduat
 | 1.0 | Bundle-B-Phase-B-1 | 2026-05-08 | story-writer | Initial story creation from ADR-022 §G seed (Story 1). |
 | 1.1 | Bundle-B-Phase-B-1b | 2026-05-08 | story-writer | BC back-fill: replaced 4 `[NEW-BC-NEEDED]` placeholders with authored BC IDs (BC-2.06.011, BC-2.21.001, BC-2.03.013, BC-2.05.012, BC-2.22.001). Updated frontmatter `behavioral_contracts`, `anchor_bcs`, `anchor_subsystem`, and `inputs`. Propagated BC traces to AC-3–AC-8 per `bc_array_changes_propagate_to_body_and_acs` policy. Added AC-9 (BC-2.21.001 OrgRegistry), AC-10 (BC-2.22.001 traffic gate); renumbered original AC-10 to AC-12. Token budget updated to 8 BCs (~17,300 tokens). |
 | 1.2 | Bundle-B-Phase-B-1b | 2026-05-08 | state-manager | status draft → ready per orchestrator authorization; Spec-First Gate S-7.01 satisfied (BC anchors back-filled, every AC traces to a BC, POL-12 compliance preserved at AC-11). |
+| 1.3 | D-319-post-merge-state-burst | 2026-05-10 | state-manager | Merged at develop@53b87961 per ADR-020 graduation contract; status ready → merged. 5 BCs graduate draft→active per ADR-021 POL-14: BC-2.06.011, BC-2.21.001, BC-2.03.013, BC-2.05.012, BC-2.22.001. PR #138 squash-merged 2026-05-10T00:55:49Z. |

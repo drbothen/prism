@@ -14,7 +14,7 @@ inputs:
   - .factory/specs/behavioral-contracts/BC-2.11.003-prismql-sql-mode.md
   - .factory/specs/behavioral-contracts/BC-2.11.004-prismql-pipe-mode.md
   - .factory/specs/behavioral-contracts/BC-2.11.006-query-security-limits.md
-input-hash: "[live-adv-review]"
+input-hash: "f82a242"
 traces_to: PR-130
 ---
 

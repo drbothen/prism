@@ -20,7 +20,7 @@ inputs:
   - .factory/code-delivery/W3-FIX-SEC-003/security-findings.md
   - .factory/code-delivery/W3-FIX-CODE-003/security-findings.md
   - .factory/code-delivery/S-3.1.06-ImplPhase/security-findings.md
-input-hash: "40f2127"
+input-hash: "0de0c61"
 traces_to: "wave-3-integration-gate"
 total_findings: 7
 critical: 0

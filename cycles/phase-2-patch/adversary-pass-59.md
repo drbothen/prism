@@ -15,7 +15,7 @@ inputs:
   - ".factory/specs/epics.md"
   - ".factory/specs/architecture/verification-coverage-matrix.md"
   - ".factory/cycles/phase-2-patch/consistency-validation-step5.md"
-input-hash: "9bd71ef"
+input-hash: "a5a60ee"
 traces_to: ".factory/STATE.md"
 verdict: FINDINGS-OPEN
 finding_count: 11

@@ -23,7 +23,7 @@ inputs:
   - stories/S-4.08-action-delivery.md
   - stories/STORY-INDEX.md
   - specs/architecture/ARCH-INDEX.md
-input-hash: "[live-state]"
+input-hash: "959a244"
 traces_to: cycles/wave-4-operations/cycle-manifest.md
 pass: 19
 previous_review: cycles/wave-4-operations/adversarial-reviews/pass-18.md

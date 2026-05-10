@@ -9,7 +9,7 @@ phase: 4-W4-Phase2-ADR
 inputs:
   - .factory/specs/architecture/decisions/ADR-018-differential-result-pack-format.md
   - .factory/STATE.md
-input-hash: "6d6fbfb"
+input-hash: "88f5531"
 traces_to: .factory/specs/architecture/decisions/ADR-018-differential-result-pack-format.md
 source_bc: null
 source_adr: ADR-018

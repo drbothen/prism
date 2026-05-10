@@ -21,7 +21,7 @@ inputs:
   - crates/prism-customer-config/tests/sec_p3_001_inline_table_redaction.rs
   - crates/prism-customer-config/tests/sec_p3_002_pipe_anchor.rs
   - crates/prism-audit/tests/sec007_org_slug_cross_check.rs
-input-hash: "94c2d92"
+input-hash: "45aeaea"
 traces_to: prd.md
 pass: 4
 previous_evaluation: gate-step-f-holdout-evaluation-pass3.md

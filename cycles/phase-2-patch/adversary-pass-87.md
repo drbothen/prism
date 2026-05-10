@@ -29,7 +29,7 @@ inputs:
   - .factory/stories/S-5.03-resources-prompts.md
   - .factory/stories/S-5.10-audit-trail-forwarding.md
   - .factory/policies.yaml
-input-hash: "9bd71ef"
+input-hash: "a5a60ee"
 traces_to: ""
 pass: 87
 counter_before: 0

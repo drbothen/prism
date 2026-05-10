@@ -1,11 +1,11 @@
 ---
 document_type: session-handoff
 level: ops
-version: "7.67"
+version: "7.68"
 status: current
 timestamp: 2026-05-09T00:00:00Z
-predecessor_session: "D-318 S-WAVE5-PREP-01 LOCAL CONVERGENCE ACHIEVED. Adversary pass-6 CLEAN, streak 3/3 CONVERGED. STATE v7.67→v7.68. SESSION-HANDOFF v7.66→v7.67."
-successor_focus: "S-WAVE5-PREP-01 CONVERGED. Next phase: (1) devops rebase worktree b143e3fc onto develop@1058b24d (pick up CLAUDE.md TDD inner-loop section); (2) just check post-rebase verification (3456/0/17 expected); (3) demo-recorder dispatch for per-AC demos; (4) pr-manager 9-step PR cycle (PR creation → CI → reviewers → adversarial 3-CLEAN → security → merge). Story status will graduate draft→ready→partial-merge during PR cycle, then partial-merge→merged on PR merge per ADR-020 graduation contract. 5 BCs (BC-2.06.011, BC-2.21.001, BC-2.03.013, BC-2.05.012, BC-2.22.001) graduate draft→active per ADR-021 POL-14 on chassis merge.
+predecessor_session: "D-319 S-WAVE5-PREP-01 prism-bin chassis SHIPPED. PR #138 squash-merged at develop@53b87961 2026-05-10T00:55:49Z. 5 BCs graduate draft→active. STATE v7.68→v7.69. SESSION-HANDOFF v7.67→v7.68."
+successor_focus: "Phase B-2 unblocked for next chassis dependent. Sequence: (1) maintenance PR for cli.rs doc fix from 630e1c3a; (2) dispatch S-3.02-FOLLOWUP-RUNTIME (steps 7-8 QueryEngine + WriteExecutor — biggest follow-up, unlocks audit RocksDB CF integration); (3) S-5.01-FOLLOWUP-MCP-BOOT and S-1.12-FOLLOWUP can run in parallel (3, 4); (4) W3-FIX-S307-001/002 (sensor adapter writes); (5) S-1.14-REDO (infusion engine REDO). All Bundle B follow-ups now have a working chassis to plug into.
 
 **STEP 1 (START HERE):** Read STATE.md v7.67 + this HANDOFF v7.66 in full. S-WAVE5-PREP-01 fix-pass-5 CLOSED at worktree HEAD `b143e3fc`. All 4 in-scope findings CLOSED (LOW-1 duplicate comment, LOW-2 non-Unix SIGTERM sibling, OBS-1 timestamp harmonize, OBS-2 handler/sentinel race). OBS-3 deferred. Adversary pass-6 in flight — check for result. Streak is 2/3 pending pass-6 verdict. develop HEAD: 1058b24d. [process-rule active]: NO #[ignore] deferrals as first-line response to test failures.
 
@@ -19,14 +19,16 @@ successor_focus: "S-WAVE5-PREP-01 CONVERGED. Next phase: (1) devops rebase workt
 - STATE.md v7.30: develop@c867c344 (PR #127 squash 2d7040b1 + PR #128 squash 3e858f9f + PR #130 squash 2a7b83f5 + PR #129 squash 6fefc774 + PR #131 squash e7da9852 + PR #132 squash c867c344, 2026-05-06/07); factory-artifacts HEAD: run git -C .factory log -1 (TD-VSDD-053)
 - D-260: PR #129 S-3.02 MERGED 6fefc774 2026-05-07; tier-2 COMPLETE; 2993 tests; STORY-INDEX v2.14
 - D-246: PR #127 S-3.01 MERGED 2d7040b1 + PR #128 TD-VSDD-058 MERGED 3e858f9f 2026-05-06
-- BC-INDEX v4.50, VP-INDEX v1.29, HOLDOUT-INDEX v1.3, invariants.md v1.5, L2-INDEX v1.13, STORY-INDEX v2.30, ARCH-INDEX v2.36, module-decomposition v1.16
+- BC-INDEX v4.51, VP-INDEX v1.29, HOLDOUT-INDEX v1.3, invariants.md v1.5, L2-INDEX v1.13, STORY-INDEX v2.31, ARCH-INDEX v2.36, module-decomposition v1.16
 
-develop HEAD: 1058b24d (PR #137 CLAUDE.md TDD inner-loop discipline squash-merged 2026-05-09T18:12:29Z; factory-artifacts HEAD: run git -C .factory log -1 per TD-VSDD-053)."
+develop HEAD: 53b87961 (PR #138 S-WAVE5-PREP-01 prism-bin chassis squash-merged 2026-05-10T00:55:49Z; factory-artifacts HEAD: run git -C .factory log -1 per TD-VSDD-053)."
 ---
 
 # Session Handoff — WAVE 4 PHASE 4.A DECISIONS LOGGED (2026-05-02)
 
 ## TL;DR
+
+**D-319 (2026-05-10) — S-WAVE5-PREP-01 prism-bin chassis SHIPPED. PR #138 squash-merged at develop@53b87961 on 2026-05-10T00:55:49Z. Cascade summary: LOCAL adversarial 6 passes (3-CLEAN convergence at HEAD `b143e3fc`); PR-LEVEL adversarial 2/3 streak (pr-manager merged at 2/3 — process anomaly tracked TD-PR-MANAGER-CONVERGENCE-DISCIPLINE); Final CI: 34/34 PASS at bccde4aa. Cross-crate work landed: prism-bin (new crate, 11 ACs demoed); prism-audit (BootAuditEmitter + BootSentinelFields); prism-storage (append_audit_entry_sync via flush_wal); prism-spec-engine (CredentialRef + SensorSpec.credential_refs, version bumped 0.4.0→0.5.0). 5 boot-sequence BCs graduate draft→active per ADR-021 POL-14: BC-2.06.011 (ConfigManager init), BC-2.21.001 (OrgRegistry init — first BC under SS-21), BC-2.03.013 (CredentialStore init with no-leak invariant), BC-2.05.012 v1.2 (BootAuditEmitter audit init with fsync'd sentinel), BC-2.22.001 (boot orchestration). Story status flips ready→merged per ADR-020 graduation contract. SS-22 (Process Lifecycle) gains its first active BC. Outstanding LOW finding: cli.rs doc comment — fix prepared as local commit `630e1c3a` but NOT pushed before merge; tracked as maintenance PR follow-up. STATE v7.68→v7.69. SESSION-HANDOFF v7.67→v7.68. Bundle B Phase B-2 first ship.**
 
 **D-318 (2026-05-09) — S-WAVE5-PREP-01 LOCAL CONVERGENCE ACHIEVED. Adversary pass-6 verdict CLEAN. Streak 3/3 — convergence threshold met. Six passes total, five fix-bursts. Severity trend monotonic-decreasing: pass-1 1C/3H/5M/3L/3OBS BLOCKED-hard → pass-2 1C/3H/3M/1L/3OBS BLOCKED-hard → pass-3 0C/1H/1M/1L/2OBS BLOCKED-soft → pass-4 0C/0H/0M/2L/3OBS CLEAN(1/3) → pass-5 0C/0H/0M/2L/3OBS CLEAN(2/3) → pass-6 0C/0H/0M/0L/0OBS CLEAN(3/3 CONVERGED). Cumulative findings closed across cascade: 5 CRIT + 11 HIGH + 9 MED + 11 LOW + 13 OBS = 49 findings + 18 KUDOs. Standing rule discipline preserved throughout: zero #[ignore] deferrals (overruled #[ignore] commit 8aba1250 reverted to actual fix be6228f0); zero todo!() in steps 1-6 production paths; POL-12 satisfied honestly. Cross-crate work landed: prism-audit::BootAuditEmitter + BootSentinelFields (new types, BC-2.05.012 v1.2 amendment); prism-storage::append_audit_entry_sync (fsync via flush_wal(true)); prism-spec-engine::SensorSpec.credential_refs (data model extension + parse path). BC promotion-ready: 4 boot BCs (BC-2.06.011, BC-2.21.001, BC-2.03.013, BC-2.05.012, BC-2.22.001) eligible for draft→active per ADR-021 POL-14 upon S-WAVE5-PREP-01 merge. Worktree HEAD `b143e3fc` ready for rebase onto develop@1058b24d → demo-recorder → pr-manager 9-step PR cycle. STATE v7.67→v7.68. SESSION-HANDOFF v7.66→v7.67.**
 

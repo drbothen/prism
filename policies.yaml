@@ -23,8 +23,13 @@
 #                                   # here so the adversary knows HOW to verify them.
 
 metadata:
-  version: "1.6"
+  version: "1.7"
   changelog:
+    - version: "1.7"
+      date: 2026-05-09
+      burst: S-WAVE5-PREP-01-fix-pass-2
+      findings: [F-PASS2-MED-1, PG-2]
+      change: "Add POL-17 (no_inverted_polarity_tests was POL-16) and POL-18 (test_injection_feature_pairing). Closes PG-2 from S-WAVE5-PREP-01 pass-2 adversarial review. Codifies the required-features pairing rule for Cargo features named *_test_injection."
     - version: "1.6"
       date: 2026-05-08
       burst: bundle-A-cleanup-2026-05-08
@@ -306,3 +311,28 @@ policies:
       - "If the owning story has `status: in-progress` or `status: ready` → permitted as a transient Red Gate test (stub-architect phase). Record but do not block."
       - "Verify there is no story with `status: merged` where a `#[should_panic(expected = ...)]` test has a stub-indicating message AND the production function signature matches the BC's SUT. This is the specific failure case from F-AUD-D3-01."
       - "False-positive escape: tests that `#[should_panic]` on an INTENTIONAL panic (e.g., type-system invariant violation, not stub residue) may carry a suppress annotation `// POL-16-OK: intentional-panic` on the line above the attribute. Verify the justification is plausible."
+
+  - id: 18
+    name: test_injection_feature_pairing
+    description: |
+      Cargo features named `*_test_injection` (e.g., `test-injection`, `prism_test_injection`)
+      MUST: (1) be listed as `required-features` in all `[[test]]` sections in `Cargo.toml` that
+      depend on the feature's env-var injection behavior; (2) NEVER appear in `default = [...]`
+      features; (3) be guarded by `#[cfg(feature = "test-injection")]` (not cfg(test)) in all
+      production code paths that read PRISM_TEST_* env vars. This ensures that release binaries
+      have zero test-injection code paths and that `just iter <crate>` (without --all-features)
+      skips injection-dependent tests cleanly rather than running them against a non-injection binary.
+    adopted: S-WAVE5-PREP-01-fix-pass-2-2026-05-09
+    severity: HIGH
+    enforced_by: [adversary-prompt, pre-merge-hook, code-reviewer]
+    scope: [source-code, test, cargo-toml]
+    lint_hook: null
+    citations:
+      - "F-PASS2-MED-1 (S-WAVE5-PREP-01 pass-2 adversarial review)"
+      - "PG-2 (S-WAVE5-PREP-01 pass-2 process gap)"
+    verification_steps:
+      - "For each crate with a `*_test_injection` Cargo feature, run `grep -n 'test.injection\\|test_injection' Cargo.toml` — verify it does NOT appear in the `default` feature list."
+      - "For each `[[test]]` section in `Cargo.toml` that invokes a binary with PRISM_TEST_* env vars (subprocess injection tests): verify `required-features = [\"test-injection\"]` (or equivalent) is present on that `[[test]]` block."
+      - "Run `rg --type rust 'PRISM_TEST_' crates/*/src/ --glob '!**/tests/**'` to find env-var reads in production source. Each hit must be inside a `#[cfg(feature = \"test-injection\")]` block, NOT inside `#[cfg(test)]` alone."
+      - "Run `just iter <crate>` (without `--all-features`) and verify injection-dependent tests are SKIPPED (not FAILED). If any injection test runs without the feature and fails → policy violation."
+      - "Run `just iter <crate> --all-features` and verify injection-dependent tests are INCLUDED and PASS. If they are incorrectly excluded → policy violation."

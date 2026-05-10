@@ -29,7 +29,7 @@ inputs:
   - .factory/specs/behavioral-contracts/BC-2.22.001-boot-orchestration.md
   - .factory/policies.yaml
   - .factory/cycles/wave-4-operations/adversarial-reviews/s-wave5-prep-01-local-pass-1.md
-input-hash: "afbee5b"
+input-hash: "fb409a7"
 ---
 
 # Adversarial Review — Pass 2 (LOCAL convergence cascade)

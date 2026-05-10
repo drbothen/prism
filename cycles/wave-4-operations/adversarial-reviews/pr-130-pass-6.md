@@ -16,7 +16,7 @@ inputs:
   - .factory/specs/behavioral-contracts/BC-2.11.006-query-security-limits.md
   - .factory/code-delivery/S-3.06/pr-description.md
   - .factory/policies.yaml
-input-hash: "[live-adv-review pass-6]"
+input-hash: "f82a242"
 traces_to: PR-130
 ---
 

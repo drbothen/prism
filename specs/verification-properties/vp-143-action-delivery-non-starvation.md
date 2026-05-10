@@ -9,7 +9,7 @@ phase: 4-W4-Phase3-ADR
 inputs:
   - .factory/specs/architecture/decisions/ADR-016-action-delivery-framework.md
   - .factory/STATE.md
-input-hash: "94ed0ef"
+input-hash: "7dd885d"
 traces_to: .factory/specs/architecture/decisions/ADR-016-action-delivery-framework.md
 source_bc: null
 source_adr: ADR-016

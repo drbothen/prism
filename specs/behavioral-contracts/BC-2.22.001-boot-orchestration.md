@@ -1,7 +1,7 @@
 ---
 document_type: behavioral-contract
 level: L3
-version: "1.0"
+version: "1.1"
 status: accepted
 producer: product-owner
 timestamp: 2026-05-08T00:00:00Z
@@ -9,7 +9,7 @@ phase: 3
 origin: greenfield
 subsystem: "SS-22"
 capability: "CAP-034"
-lifecycle: draft
+lifecycle: active
 anchored_stories: [S-WAVE5-PREP-01]
 verifying_vps: []
 crates: [prism-bin]
@@ -262,3 +262,4 @@ VP-NNN (Boot Sequencing Invariant) — proposed above; assigned by architect at 
 | Version | Burst | Date | Author | Change |
 |---------|-------|------|--------|--------|
 | 1.0 | redirect-option-d-2026-05-08 | 2026-05-08 | product-owner | Initial authorship — Option (d) decomposition: 4 subsystem init contracts relocated to native SS; this BC holds only the cross-cutting orchestration (sequencing, exit-code map, traffic gate). |
+| 1.1 | D-319-post-merge-state-burst | 2026-05-10 | state-manager | lifecycle draft → active per ADR-021 POL-14 (S-WAVE5-PREP-01 merged at develop@53b87961 PR #138 2026-05-10T00:55:49Z). First active BC under SS-22 (Process Lifecycle). |

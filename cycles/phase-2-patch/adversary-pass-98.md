@@ -9,7 +9,7 @@ inputs:
   - .factory/cycles/phase-2-patch/INDEX.md
   - .factory/cycles/phase-2-patch/convergence-trajectory.md
   - .factory/policies.yaml
-input-hash: "9bd71ef"
+input-hash: "a5a60ee"
 traces_to: ""
 pass: 98
 counter_before: 0

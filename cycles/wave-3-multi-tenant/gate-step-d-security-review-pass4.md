@@ -28,7 +28,7 @@ inputs:
   - crates/prism-dtu-crowdstrike/src/routes/mod.rs
   - crates/prism-dtu-crowdstrike/src/routes/detections.rs
   - crates/prism-dtu-slack/src/routes/dtu.rs
-input-hash: "cbea339"
+input-hash: "11bc6a0"
 traces_to: "wave-3-integration-gate"
 total_findings: 3
 critical: 0

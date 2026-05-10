@@ -29,7 +29,7 @@ inputs:
   - .factory/specs/behavioral-contracts/BC-2.22.001-boot-orchestration.md
   - .factory/policies.yaml
   - .factory/cycles/wave-4-operations/adversarial-reviews/s-wave5-prep-01-local-pass-2.md
-input-hash: "1324b83e712a36a1183a63095e0ffb61"
+input-hash: "fb409a7"
 ---
 
 # Adversarial Review — S-WAVE5-PREP-01 LOCAL Pass 3

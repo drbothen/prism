@@ -16,7 +16,7 @@ inputs:
   - ".factory/specs/architecture/verification-coverage-matrix.md"
   - ".factory/cycles/phase-2-patch/adversarial-reviews/pass-62.md"
   - ".factory/cycles/phase-2-patch/remediation-pass63-track-b.md"
-input-hash: "9bd71ef"
+input-hash: "a5a60ee"
 traces_to: ".factory/STATE.md"
 verdict: FINDINGS-OPEN
 finding_count: 3

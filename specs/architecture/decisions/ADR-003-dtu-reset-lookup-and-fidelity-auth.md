@@ -23,7 +23,7 @@ inputs:
   - crates/prism-dtu-crowdstrike/src/routes/hosts.rs (S-6.07 worktree)
   - crates/prism-dtu-common/src/fidelity.rs (wave-1-gate develop)
   - crates/prism-dtu-{crowdstrike,claroty,cyberint,armis,threatintel,nvd}/tests/ (wave-1-gate develop)
-input-hash: "0c00e49"
+input-hash: "3d86b0c"
 traces_to: ARCH-INDEX.md
 resolves: [S-6.07-conflict-ac8-ec003, S-6.07-conflict-ac7-fidelity]
 closes_debt: []

@@ -1,7 +1,7 @@
 ---
 document_type: behavioral-contract
 level: L3
-version: "1.2"
+version: "1.3"
 status: draft
 producer: product-owner
 timestamp: 2026-05-08T00:00:00Z
@@ -9,7 +9,7 @@ phase: 3
 origin: greenfield
 subsystem: "SS-05"
 capability: "CAP-007"
-lifecycle: draft
+lifecycle: active
 anchored_stories: [S-WAVE5-PREP-01]
 verifying_vps: []
 crates: [prism-bin, prism-audit]
@@ -245,3 +245,4 @@ this boot step; see Verification Properties)
 | 1.0 | redirect-option-d-2026-05-08 | 2026-05-08 | product-owner | Relocated from BC-2.22.004 (SS-22) to BC-2.05.012 (SS-05 Audit Trail) per Option (d) decomposition. Capability anchor updated CAP-034 → CAP-007. EC/TV IDs renumbered to EC-05-012-NNN / TV-05-012-NNN. OQ-2 preserved (sentinel schema confirmation). |
 | 1.1 | adversary-f-pass3-med-1-amendment-2026-05-09 | 2026-05-09 | product-owner | Amendment per research-agent recommendation + adversary F-PASS3-MED-1 closure — clarify BootAuditEmitter is the boot-time specialization distinct from request-time AuditEmitterLayer; resolve OQ-2. Research artifact: audit-emitter-architecture-2026-05-09.md. |
 | 1.2 | f-pass4-low-2-cleanup-2026-05-09 | 2026-05-09 | product-owner | F-PASS4-LOW-2 closure — clarify §Failure paths and Error Cases that BootAuditEmitter::new is infallible; the fallible step is RocksDbBackend::open(state_dir). Removed phantom "AuditEmitter construction failure" failure path; replaced with accurate "RocksDB backend construction failure" path. |
+| 1.3 | D-319-post-merge-state-burst | 2026-05-10 | state-manager | lifecycle draft → active per ADR-021 POL-14 (S-WAVE5-PREP-01 merged at develop@53b87961 PR #138 2026-05-10T00:55:49Z). |

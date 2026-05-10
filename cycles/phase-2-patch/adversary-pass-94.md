@@ -15,7 +15,7 @@ inputs:
   - .factory/specs/architecture/observability.md
   - .factory/specs/prd.md
   - .factory/policies.yaml
-input-hash: "9bd71ef"
+input-hash: "a5a60ee"
 traces_to: ""
 pass: 94
 counter_before: 0

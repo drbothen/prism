@@ -15,7 +15,7 @@ inputs:
   - .factory/cycles/phase-3-dtu-wave-1-5/adversarial-reviews/wave-1-5-integration-gate/pass-1.md
   - .factory/cycles/phase-3-dtu-wave-1-5/adversarial-reviews/wave-1-5-integration-gate/pass-2.md
   - .factory/cycles/phase-3-dtu-wave-1-5/adversarial-reviews/wave-1-5-integration-gate/pass-3.md
-input-hash: "9bd71ef"
+input-hash: "a5a60ee"
 traces_to: .factory/specs/prd.md
 pass: 4
 previous_review: pass-3.md

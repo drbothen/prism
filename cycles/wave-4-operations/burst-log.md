@@ -7,7 +7,7 @@ producer: state-manager
 timestamp: 2026-05-03T00:00:00Z
 cycle: "wave-4-operations"
 inputs: [STATE.md]
-input-hash: "[live-state]"
+input-hash: "a5a60ee"
 traces_to: STATE.md
 ---
 

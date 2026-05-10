@@ -1,7 +1,7 @@
 ---
 document_type: behavioral-contract
 level: L3
-version: "1.0"
+version: "1.1"
 status: draft
 producer: product-owner
 timestamp: 2026-05-08T00:00:00Z
@@ -9,7 +9,7 @@ phase: 3
 origin: greenfield
 subsystem: "SS-06"
 capability: "CAP-009"
-lifecycle: draft
+lifecycle: active
 anchored_stories: [S-WAVE5-PREP-01]
 verifying_vps: []
 crates: [prism-bin, prism-spec-engine]
@@ -175,3 +175,4 @@ None (see Verification Properties)
 |---------|-------|------|--------|--------|
 | 1.0 | bundle-B-phase-B-1b-ss22-bcs-2026-05-08 | 2026-05-08 | product-owner | Initial authorship — Bundle B Phase B-1b SS-22 boot-sequence BCs |
 | 1.0 | redirect-option-d-2026-05-08 | 2026-05-08 | product-owner | Relocated from BC-2.22.001 (SS-22) to BC-2.06.011 (SS-06 Client Configuration) per Option (d) decomposition. Capability anchor updated CAP-034 → CAP-009. EC/TV IDs renumbered to EC-06-011-NNN / TV-06-011-NNN. |
+| 1.1 | D-319-post-merge-state-burst | 2026-05-10 | state-manager | lifecycle draft → active per ADR-021 POL-14 (S-WAVE5-PREP-01 merged at develop@53b87961 PR #138 2026-05-10T00:55:49Z). |

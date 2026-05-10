@@ -14,7 +14,7 @@ inputs:
   - .factory/specs/verification-properties/VP-INDEX.md
   - .factory/stories/STORY-INDEX.md
   - .factory/specs/prd.md
-input-hash: "9bd71ef"
+input-hash: "a5a60ee"
 traces_to: ""
 pass: 99
 counter_before: 0

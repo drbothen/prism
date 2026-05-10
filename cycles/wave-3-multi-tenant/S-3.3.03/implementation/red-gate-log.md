@@ -11,7 +11,7 @@ inputs:
   - .factory/specs/behavioral-contracts/BC-3.6.001-per-org-failure-injection.md
   - .factory/specs/behavioral-contracts/BC-3.6.002-harness-crash-detection.md
   - .factory/stories/S-3.3.03-harness-logical-isolation.md
-input-hash: "[live-state]"
+input-hash: "b909751"
 traces_to: ""
 stub_architect_agent: "[wave-3-phase-c-stub-0c786b45]"
 stub_compile_verified: true

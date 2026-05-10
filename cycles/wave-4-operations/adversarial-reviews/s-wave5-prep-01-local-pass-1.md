@@ -26,7 +26,7 @@ inputs:
   - .factory/specs/behavioral-contracts/BC-2.05.012-audit-subsystem-init.md
   - .factory/specs/behavioral-contracts/BC-2.22.001-boot-orchestration.md
   - .factory/policies.yaml
-input-hash: "afbee5b"
+input-hash: "fb409a7"
 ---
 
 # Adversarial Review — Pass 1 (LOCAL convergence cascade)

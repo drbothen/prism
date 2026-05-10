@@ -16,7 +16,7 @@ inputs:
   - .factory/cycles/wave-3-multi-tenant/gate-step-f-holdout-evaluation-pass7.md
   - .factory/holdout-scenarios/HS-003-multi-tenant.md
   - .factory/cycles/wave-3-multi-tenant/cycle-manifest.md
-input-hash: "ba3b10c"
+input-hash: "a5a60ee"
 traces_to: prd.md
 pass: 54
 previous_review: pass-53.md

@@ -15,7 +15,7 @@ inputs:
   - .factory/specs/verification-properties/vp-052-update-case-disposition-before-status-ordering.md
   - .factory/specs/verification-properties/vp-054-ttr-uses-first-resolution-timestamp.md
   - .factory/policies.yaml
-input-hash: "2f17b72"
+input-hash: "82853e6"
 traces_to: ""
 pass: 90
 counter_before: 0

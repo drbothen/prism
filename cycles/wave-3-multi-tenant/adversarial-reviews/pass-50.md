@@ -7,7 +7,7 @@ producer: adversary
 timestamp: 2026-05-02T00:00:00Z
 phase: 3
 inputs: [".factory/specs/prd.md", ".factory/specs/behavioral-contracts/**", ".factory/stories/**", ".factory/cycles/wave-3-multi-tenant/gate-step-c-code-review-pass3.md", ".factory/cycles/wave-3-multi-tenant/gate-step-d-security-review-pass3.md", ".factory/cycles/wave-3-multi-tenant/gate-step-e-consistency-validation-pass3.md"]
-input-hash: "a7f0d37"
+input-hash: "a6a44ca"
 traces_to: prd.md
 pass: 50
 previous_review: pass-49.md

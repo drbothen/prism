@@ -19,7 +19,7 @@ inputs:
   - .factory/specs/behavioral-contracts/BC-2.11.007-sensor-filter-push-down.md
   - .factory/specs/behavioral-contracts/BC-2.11.011-cross-client-query-scoping.md
   - .factory/policies.yaml
-input-hash: "[live-adv-review pass-1 post-rebase]"
+input-hash: "7e2ef76"
 traces_to: PR-129
 ---
 

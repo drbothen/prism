@@ -29,7 +29,7 @@ inputs:
   - crates/prism-dtu-armis/src/routes/devices.rs
   - crates/prism-dtu-armis/src/state.rs
   - crates/prism-core/src/org_registry.rs
-input-hash: "33d906d"
+input-hash: "888c3ce"
 traces_to: "wave-3-integration-gate"
 total_findings: 5
 critical: 0

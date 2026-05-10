@@ -16,7 +16,7 @@ inputs:
   - .factory/specs/behavioral-contracts/BC-2.11.006-query-security-limits.md
   - .factory/stories/S-3.06-prismql-write-parser.md
   - .factory/code-delivery/S-3.06/pr-description.md
-input-hash: "[live-adv-review pass-7 CONVERGED]"
+input-hash: "7c56513"
 traces_to: PR-130
 ---
 

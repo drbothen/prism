@@ -12,7 +12,7 @@ inputs:
   - .factory/cycles/phase-2-patch/convergence-trajectory.md
   - .factory/STATE.md
   - .factory/policies.yaml
-input-hash: "248b3b0"
+input-hash: "76729b7"
 traces_to: ""
 pass: 97
 counter_before: 0

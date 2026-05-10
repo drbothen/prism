@@ -14,7 +14,7 @@ inputs:
   - .factory/cycles/wave-3-multi-tenant/gate-step-d-security-review-pass4.md
   - .factory/cycles/wave-3-multi-tenant/gate-step-e-consistency-validation-pass4.md
   - .factory/cycles/wave-3-multi-tenant/gate-step-f-holdout-evaluation-pass4.md
-input-hash: "66c1215"
+input-hash: "76729b7"
 traces_to: prd.md
 pass: 51
 previous_review: pass-50.md

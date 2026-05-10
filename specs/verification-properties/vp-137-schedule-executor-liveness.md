@@ -9,7 +9,7 @@ phase: 4-W4-Phase1-ADR
 inputs:
   - .factory/specs/architecture/decisions/ADR-013-schedule-execution-semantics.md
   - .factory/STATE.md
-input-hash: "d498d85"
+input-hash: "959a244"
 traces_to: .factory/specs/architecture/decisions/ADR-013-schedule-execution-semantics.md
 source_bc: null
 source_adr: ADR-013

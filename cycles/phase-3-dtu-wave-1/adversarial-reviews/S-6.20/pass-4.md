@@ -20,7 +20,7 @@ inputs:
   - crates/prism-dtu-threatintel/src/lib.rs
   - crates/prism-dtu-threatintel/src/clone.rs
   - crates/prism-dtu-nvd/src/clone.rs
-input-hash: "3076eb3"
+input-hash: "7c56513"
 traces_to: S-6.20-unified-demo-harness.md
 pass: 4
 previous_review: ../adversary-S-6.20-spec-review-pass3.md

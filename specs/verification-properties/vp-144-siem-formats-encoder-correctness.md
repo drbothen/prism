@@ -9,7 +9,7 @@ phase: 4-W4-Phase3-ADR
 inputs:
   - .factory/specs/architecture/decisions/ADR-019-siem-output-formats.md
   - .factory/STATE.md
-input-hash: "d95ba31"
+input-hash: "fa97ff1"
 traces_to: .factory/specs/architecture/decisions/ADR-019-siem-output-formats.md
 source_bc: null
 source_adr: ADR-019

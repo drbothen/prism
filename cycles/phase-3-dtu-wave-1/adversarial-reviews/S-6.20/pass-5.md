@@ -33,7 +33,7 @@ inputs:
   - crates/prism-dtu-crowdstrike/tests/edge_cases.rs
   - crates/prism-dtu-crowdstrike/tests/ac_6_determinism.rs
   - .factory/cycles/phase-3-dtu-wave-1/adversarial-reviews/S-6.20/pass-4.md
-input-hash: "411ecde"
+input-hash: "621e8fe"
 traces_to: S-6.20-dtu-demo-server.md
 pass: 5
 previous_review: .factory/cycles/phase-3-dtu-wave-1/adversarial-reviews/S-6.20/pass-4.md

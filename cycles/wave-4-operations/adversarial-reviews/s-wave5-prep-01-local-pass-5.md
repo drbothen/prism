@@ -31,7 +31,7 @@ inputs:
   - .factory/policies.yaml
   - .factory/cycles/wave-4-operations/adversarial-reviews/s-wave5-prep-01-local-pass-4.md
   - .factory/cycles/wave-4-operations/research/audit-emitter-architecture-2026-05-09.md
-input-hash: "afbee5b"
+input-hash: "fb409a7"
 ---
 
 # Adversarial Review — S-WAVE5-PREP-01 LOCAL Pass 5

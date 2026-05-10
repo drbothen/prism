@@ -15,7 +15,7 @@ document_type: story
 version: "1.0"
 producer: story-writer
 timestamp: "2026-04-30T17:00:00Z"
-input-hash: "[live-state]"
+input-hash: "b909751"
 inputs:
   - .factory/specs/behavioral-contracts/BC-3.5.001-harness-logical-isolation.md
   - crates/prism-dtu-harness/tests/logical_isolation_test.rs

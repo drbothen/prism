@@ -16,7 +16,7 @@ inputs:
   - crates/prism-audit/src/vector_compat.rs
   - crates/prism-audit/src/flag_events.rs
   - crates/prism-audit/src/token_events.rs
-input-hash: "4240388"
+input-hash: "0d242c8"
 traces_to: "S-2.05"
 stub_architect_agent: "stub-architect"
 stub_compile_verified: true

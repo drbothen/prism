@@ -9,7 +9,7 @@ inputs:
   - .factory/specs/behavioral-contracts/BC-2.05.012-audit-subsystem-init.md
   - .factory/specs/behavioral-contracts/BC-2.05.001-audit-entry-per-tool-invocation.md
   - .factory/specs/architecture/decisions/ADR-022-production-runtime-wiring.md
-input-hash: "d93c4a32bc902f1a1d6b7bba99c14752"
+input-hash: "4bee8c2"
 ---
 
 # Architectural Research: AuditEmitter Refactor vs BootAuditEmitter Retention

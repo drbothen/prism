@@ -25,7 +25,7 @@ inputs:
   - .factory/specs/behavioral-contracts/BC-2.13.001-detection-rule-loading.md
   - .factory/specs/behavioral-contracts/BC-2.14.002-case-state-transitions.md
   - .factory/policies.yaml
-input-hash: "9bd71ef"
+input-hash: "a5a60ee"
 traces_to: ""
 pass: 86
 counter_before: 0
