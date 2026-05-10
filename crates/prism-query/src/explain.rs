@@ -470,37 +470,93 @@ fn has_or_predicate(ast: &Ast) -> bool {
 fn extract_sources_from_ast(ast: &Ast) -> Vec<SourceRef> {
     let mut sources: Vec<SourceRef> = Vec::new();
 
-    let mut push = |s: &SourceRef| {
+    // Dedup-push helper — avoids duplicate entries by raw string.
+    fn push_dedup(sources: &mut Vec<SourceRef>, s: &SourceRef) {
         if !sources.iter().any(|x| x.raw == s.raw) {
             sources.push(s.clone());
         }
-    };
+    }
 
     match ast {
         Ast::Filter(fe) => {
-            push(&fe.source);
+            push_dedup(&mut sources, &fe.source);
         }
         Ast::Sql(SqlStatement::Select(sq)) => {
-            push(&sq.from.source);
+            push_dedup(&mut sources, &sq.from.source);
             for join in &sq.joins {
-                push(&join.source);
+                push_dedup(&mut sources, &join.source);
+            }
+        }
+        Ast::Sql(SqlStatement::Dml(dml)) => {
+            // F-LP6-LOW-1: DML carries source_select (INSERT … SELECT …) and filter
+            // (UPDATE/DELETE WHERE) — both can reference internal tables via subqueries.
+            // EXPLAIN output's "sensors_to_query" must reflect DML source_select sources
+            // so operators see the full query plan for DML queries.
+            // Layer 1 sibling-pattern lineage: F-LP3-CRIT-1 → F-LP4-MED-1 → F-LP5-LOW-1 → F-LP6-LOW-1.
+            if let Some(ref source_select) = dml.source_select {
+                push_dedup(&mut sources, &source_select.from.source);
+                for join in &source_select.joins {
+                    push_dedup(&mut sources, &join.source);
+                }
+            }
+            if let Some(ref filter) = dml.filter {
+                // Walk predicate for InSubquery sources (e.g. DELETE WHERE x IN (SELECT … FROM prism_audit)).
+                collect_predicate_sources_into(filter, &mut sources);
             }
         }
         Ast::Pipe(pq) => {
-            push(&pq.source);
+            push_dedup(&mut sources, &pq.source);
             // C-LOCAL-001: also collect JOIN stage sources so that
             // `crowdstrike.devices | join armis.devices on hostname`
             // correctly reports both sensors in `sensors_to_query`.
             for stage in &pq.stages {
                 if let crate::ast::PipeStage::Join(js) = stage {
-                    push(&js.source);
+                    push_dedup(&mut sources, &js.source);
                 }
             }
         }
+        // SqlStatement and Ast are #[non_exhaustive]; wildcard required for future variants.
+        #[allow(unreachable_patterns)]
         _ => {}
     }
 
     sources
+}
+
+/// Walk a `Predicate` tree and collect `SourceRef`s from any `InSubquery` predicates.
+///
+/// Used by `extract_sources_from_ast` for the DML filter arm (F-LP6-LOW-1): a DML
+/// WHERE clause may contain `field IN (SELECT … FROM <source>)` which references
+/// an internal table. This function recursively extracts those source refs so that
+/// EXPLAIN correctly reports all sensors_to_query for DML statements.
+fn collect_predicate_sources_into(predicate: &crate::ast::Predicate, sources: &mut Vec<SourceRef>) {
+    use crate::ast::Predicate;
+
+    fn push_dedup(sources: &mut Vec<SourceRef>, s: &SourceRef) {
+        if !sources.iter().any(|x| x.raw == s.raw) {
+            sources.push(s.clone());
+        }
+    }
+
+    match predicate {
+        Predicate::InSubquery { subquery, .. } => {
+            push_dedup(sources, &subquery.from.source);
+            for join in &subquery.joins {
+                push_dedup(sources, &join.source);
+            }
+        }
+        Predicate::Logical { predicates, .. } => {
+            for p in predicates {
+                collect_predicate_sources_into(p, sources);
+            }
+        }
+        Predicate::Not(inner) => {
+            collect_predicate_sources_into(inner, sources);
+        }
+        // Other predicate variants (Compare, Between, Cidr, Has, Missing, IsNull,
+        // Wildcard, RecoveryError) do not carry nested SqlQuery references.
+        _ => {}
+    }
 }
 
 // ---------------------------------------------------------------------------
@@ -1249,5 +1305,92 @@ fn ocsf_path_for_virtual_field(name: &str) -> String {
         "_source_type" => "metadata.source_type".to_string(),
         "_safety_flags" => "metadata.safety_flags".to_string(),
         _ => format!("metadata.{name}"),
+    }
+}
+
+// ---------------------------------------------------------------------------
+// Tests — extract_sources_from_ast walker coverage
+// ---------------------------------------------------------------------------
+
+#[cfg(test)]
+mod walker_coverage_tests {
+    //! Layer 1 AST walker coverage tests for `extract_sources_from_ast`.
+    //!
+    //! These tests build AST structures directly (no parser) and assert that
+    //! `extract_sources_from_ast` discovers every source table name, including
+    //! those carried by DML nodes (F-LP6-LOW-1).
+
+    use super::extract_sources_from_ast;
+    use crate::ast::{
+        Ast, Expr, FieldPath, FromClause, SelectClause, SelectItem, SourceRef, SourceRefKind, Span,
+        SqlQuery, SqlStatement,
+    };
+
+    // Helper: build a minimal SourceRef with raw table name.
+    fn source_ref(name: &str) -> SourceRef {
+        SourceRef {
+            raw: name.to_string(),
+            kind: SourceRefKind::Custom,
+        }
+    }
+
+    // Helper: build a minimal FromClause.
+    fn from_clause(name: &str) -> FromClause {
+        FromClause {
+            source: source_ref(name),
+            alias: None,
+        }
+    }
+
+    /// F-LP6-LOW-1: DML source_select sources must appear in explain sensors_to_query.
+    ///
+    /// Represents: `INSERT INTO crowdstrike_contained_hosts SELECT host_id FROM prism_audit`
+    ///
+    /// EXPLAIN output's "sensors_to_query" must reflect DML source_select sources so
+    /// that operators see the full query plan for DML queries.
+    /// Lineage: F-LP3-CRIT-1 → F-LP4-MED-1 → F-LP5-LOW-1 → F-LP6-LOW-1.
+    #[test]
+    #[allow(non_snake_case)]
+    fn test_LP6_LOW_1_dml_source_select_appears_in_explain_sensors() {
+        use crate::write_ast::{DmlNode, DmlOperation};
+
+        // Build: INSERT INTO crowdstrike_contained_hosts SELECT host_id FROM prism_audit
+        let source_select = SqlQuery {
+            select: SelectClause {
+                distinct: false,
+                items: vec![SelectItem::Expr {
+                    expr: Expr::Field(FieldPath {
+                        segments: vec!["host_id".to_string()],
+                        span: Span::ZERO,
+                    }),
+                    alias: None,
+                }],
+            },
+            from: from_clause("prism_audit"),
+            joins: vec![],
+            where_: None,
+            group_by: vec![],
+            having: None,
+            order_by: vec![],
+            limit: None,
+        };
+
+        let dml = DmlNode {
+            operation: DmlOperation::InsertInto,
+            target_table: "crowdstrike_contained_hosts".to_string(),
+            columns: None,
+            assignments: vec![],
+            filter: None,
+            source_select: Some(source_select),
+        };
+
+        let ast = Ast::Sql(SqlStatement::Dml(dml));
+        let sources = extract_sources_from_ast(&ast);
+
+        assert!(
+            sources.iter().any(|s| s.raw == "prism_audit"),
+            "F-LP6-LOW-1: extract_sources_from_ast must discover `prism_audit` \
+             in DML source_select (INSERT INTO ... SELECT FROM prism_audit); got sources: {sources:?}"
+        );
     }
 }

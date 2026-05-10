@@ -53,6 +53,10 @@ toml = "0.8"
 chrono = { version = "0.4", default-features = false, features = ["std", "serde"] }
 # S-3.02 — DataFusion in-process SQL engine, MemTable, SessionContext (BC-2.11.005).
 datafusion = "53.1"
+# F-LP1-HIGH-2: bincode 2.x for RocksDB KV deserialization (matching prism-storage AD-012).
+# prism-storage uses bincode::serde::decode_from_slice; prism-query must match to correctly
+# read AuditEntry values from the audit_buffer CF. (BC-2.15.011, AD-012)
+bincode = { version = "2", features = ["serde"] }
 # S-3.02 — Arrow RecordBatch, Schema, array builders for virtual fields (BC-2.11.012).
 # datafusion 53.1 uses arrow 58 (transitive); pinned here for explicit awareness.
 arrow = { version = "58", features = ["prettyprint"] }
@@ -81,6 +85,10 @@ lru = "0.17"
 # S-3.02 VP-031 — proptest property tests: REQUIRED columns always push-down (BC-2.11.007).
 # S-3.06 — property-based tests for write-mode AST round-trips (VP-021 corpus extension)
 proptest = "1.11"
+# S-3.02-FOLLOWUP-RUNTIME: execute_integration_tests needs InMemoryBackend (RocksStorageBackend impl)
+# and SecretString (for NullCredentialStore in test helpers).
+prism-storage = { path = "../prism-storage", features = ["test-utils"] }
+secrecy = { version = "0.8", features = ["serde"] }
 
 # S-3.01 VP-014/VP-015 — bounded model checking proofs (exact pin; out-of-band nightly
 # toolchain; does not affect workspace MSRV of Rust 1.85).

@@ -919,7 +919,7 @@ fn test_crit2_write_capable_table_provider_new_does_not_panic() {
     use datafusion::datasource::TableProvider;
     let schema = provider.schema();
     assert!(
-        schema.fields().len() > 0,
+        !schema.fields().is_empty(),
         "CRIT-2: WriteCapableTableProvider schema must have at least one field"
     );
 }

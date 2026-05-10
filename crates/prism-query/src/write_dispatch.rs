@@ -394,6 +394,7 @@ impl WriteDispatcher {
 // ---------------------------------------------------------------------------
 
 #[cfg(test)]
+#[allow(clippy::expect_used)]
 mod fan_out_empty_batch_tests {
     use super::*;
     use crate::write_pipeline::{QueryContext, WritePlan};

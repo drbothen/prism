@@ -78,6 +78,26 @@ impl AdapterRegistry {
         self.adapters.get(&(org_id, sensor_type)).cloned()
     }
 
+    /// Returns all adapters registered for the given sensor type, regardless of org.
+    ///
+    /// Used by the materialization pipeline when an OrgSlug→OrgId mapping is not
+    /// available (MVP: single-org adapters registered without strict org binding).
+    /// Returns adapter + org_id pairs so callers can attribute results correctly.
+    ///
+    /// # Multi-tenant note
+    /// Production use MUST migrate to `get(org_id, sensor_type)` once the
+    /// OrgRegistry (OrgSlug→OrgId mapping) is wired (S-WAVE5-PREP-01 §Boot step 3).
+    pub fn get_all_for_sensor_type(
+        &self,
+        sensor_type: SensorType,
+    ) -> Vec<(OrgId, Arc<dyn SensorAdapter>)> {
+        self.adapters
+            .iter()
+            .filter(|((_, st), _)| *st == sensor_type)
+            .map(|((org_id, _), adapter)| (*org_id, Arc::clone(adapter)))
+            .collect()
+    }
+
     /// Returns the total number of `(OrgId, SensorType)` entries in the registry.
     pub fn len(&self) -> usize {
         self.adapters.len()

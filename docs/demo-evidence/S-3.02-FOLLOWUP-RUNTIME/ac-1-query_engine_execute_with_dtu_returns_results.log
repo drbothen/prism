@@ -1,0 +1,8 @@
+   Compiling prism-query v0.1.0 (/Users/jmagady/Dev/prism/.worktrees/S-3.02-FOLLOWUP-RUNTIME/crates/prism-query)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 24.00s
+────────────
+ Nextest run ID 3078fdba-049c-4f4b-8997-f6d788010e52 with nextest profile: default
+    Starting 1 test across 9 binaries (896 tests skipped)
+        PASS [   0.047s] (1/1) prism-query::execute_integration_tests test_AC_1_query_engine_execute_with_dtu_returns_results
+────────────
+     Summary [   0.051s] 1 test run: 1 passed, 896 skipped

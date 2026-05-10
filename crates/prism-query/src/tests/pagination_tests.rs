@@ -283,7 +283,8 @@ fn test_BC_2_07_001_cursor_token_has_no_disk_persistence_fields() {
     // CursorToken is a newtype wrapper around a String (UUID) — no disk I/O.
     let _ = std::any::type_name::<CursorToken>();
     // Confirm CURSOR_EXPIRY_SECS is defined (ephemeral expiry exists by design).
-    assert!(
+    // Use const assertion to avoid "constant value" warning from clippy.
+    const _: () = assert!(
         CURSOR_EXPIRY_SECS > 0,
         "BC-2.07.001: cursor must have a finite ephemeral lifetime"
     );

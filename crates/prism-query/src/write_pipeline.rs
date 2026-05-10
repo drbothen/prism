@@ -418,6 +418,7 @@ impl WriteExecutor {
 // ---------------------------------------------------------------------------
 
 #[cfg(test)]
+#[allow(clippy::expect_used)]
 mod write_plan_from_dml_node_tests {
     use super::*;
     use crate::write_ast::{DmlNode, DmlOperation};

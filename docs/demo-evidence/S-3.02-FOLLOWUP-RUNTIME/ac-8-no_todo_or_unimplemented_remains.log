@@ -1,0 +1,7 @@
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.59s
+────────────
+ Nextest run ID 66850477-0d45-40cf-a6db-c82b9a748465 with nextest profile: default
+    Starting 1 test across 9 binaries (896 tests skipped)
+        PASS [   0.028s] (1/1) prism-query::execute_integration_tests test_AC_8_no_todo_or_unimplemented_remains
+────────────
+     Summary [   0.028s] 1 test run: 1 passed, 896 skipped

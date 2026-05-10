@@ -1,0 +1,7 @@
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.37s
+────────────
+ Nextest run ID 3f50c19a-5097-4e0a-a2ec-9376f127a8de with nextest profile: default
+    Starting 1 test across 9 binaries (896 tests skipped)
+        PASS [   0.030s] (1/1) prism-query::execute_integration_tests test_AC_2_materialization_pipeline_non_vacuous_assertion
+────────────
+     Summary [   0.031s] 1 test run: 1 passed, 896 skipped
