@@ -1,7 +1,7 @@
 ---
 document_type: pipeline-state
 level: ops
-version: "7.79"
+version: "7.80"
 producer: state-manager
 timestamp: 2026-05-10T10:00:00Z
 inputs: []
@@ -175,7 +175,7 @@ workspace_test_count: 3489  # 891 prism-query + workspace total (per implementer
 | **Language** | Rust |
 | **Target Workspace** | per-analyst stdio (MCP server) |
 | **Started** | 2026-04-13 |
-| **Last Updated** | 2026-05-10 (D-328 — S-3.02-FOLLOWUP-RUNTIME fix-pass-6 closure + pass-7 CLEAN (streak 1/3); STATE v7.78→v7.79) |
+| **Last Updated** | 2026-05-10 (D-329 — S-3.02-FOLLOWUP-RUNTIME pass-8 LOCAL idempotency CLEAN (streak 2/3); STATE v7.79→v7.80) |
 | **Current Phase** | Wave 3 Tier-3 COMPLETE — **Wave 3-A 4 of 4 SHIPPED**: S-3.05 (#132 c867c344), S-3.04 (#133 57745ce8), S-3.03 (#134 7c413692), **S-3.07 (#135 2ae7185b MERGED 2026-05-08T04:23:03Z)**; post-merge cleanup confirmed; NEXT: Wave 3-B/C or Wave 4 unblock |
 | **Current Step** | D-299 — Plugin system FULL audit COMPLETE. 14 P0/P1 deferrals discovered (8 P0 + 6 P1). 3 stub-merged Wave-1 stories (S-1.12/1.14/1.15). No production binary loads sensors/*.toml. 13 new TDs filed (TD-PLUGIN-P0-001..008 + P1-001..005). S-3.09 FROZEN. Strategic direction needed: (a) full plugin completion epic, (b) min-viable plugin wiring, or (c) other path. |
 
@@ -212,6 +212,7 @@ _D-001..D-046 archived: [cycles/phase-3-dtu-wave-2/decisions-archive-d001-d032.m
 
 | ID | Decision | Rationale | Phase | Date |
 |----|----------|-----------|-------|------|
+| D-329 | S-3.02-FOLLOWUP-RUNTIME cascade — pass-8 LOCAL idempotency check at HEAD 20829c80 (unchanged from pass-7) holds CLEAN; streak 1/3 → 2/3; AC breadth re-audit confirms all 8 ACs satisfied; 3 OBS scope-bounded non-blocking (OBS-LP8-1 stale test doc-comments; OBS-LP8-2 story↔STORY-INDEX BC-count drift housekeeping; OBS-LP8-3 execute_scheduled design-choice note); pass-9 next (target 3/3 CONVERGED) | STATE v7.79→v7.80; pass-9 idempotency next | 4 | 2026-05-10 |
 | D-328 | S-3.02-FOLLOWUP-RUNTIME cascade — fix-pass-6 (20829c80) closes F-LP6-LOW-1 (DML source_select/filter walking mirrored into both materialization.rs::extract_source_names_recursive AND explain.rs::extract_sources_from_ast); pass-7 verifies closure end-to-end + finds ZERO novel CRIT/HIGH/MED/LOW (5 OBS scope-deferred); verdict CLEAN; streak 1/3 (first CLEAN pass in cascade); cascade F-LP3-CRIT-1→F-LP4-MED-1→F-LP5-LOW-1→F-LP6-LOW-1 closed; Layer 1 walker exhaustive across all four query modes; pass-8 next (idempotency target streak 2/3) | STATE v7.78→v7.79; pass-8 idempotency next | 4 | 2026-05-10 |
 | D-327 | S-3.02-FOLLOWUP-RUNTIME cascade — fix-pass-5 (dcc11f68) closes F-LP5-LOW-1 via C-LOCAL-001 sibling mirror into both materialization walkers (`extract_source_names_shallow` lines 827-837 and `extract_source_names_recursive` lines 882-892); pass-6 verifies closure + final AST exhaustiveness audit surfaces F-LP6-LOW-1 (DML `source_select`/filter not walked by `extract_source_names_recursive` or `extract_sources_from_ast` sibling — latent gap pending S-3.07 Phase 3 wiring); verdict BLOCKED-soft; streak 0/3 (orchestrator reset on Standing Rule 3 #3 sub-clause (b) per user mandate); fix-pass-6 next | STATE v7.77→v7.78; fix-pass-6 dispatched next | 4 | 2026-05-10 |
 | D-326 | S-3.02-FOLLOWUP-RUNTIME cascade — fix-pass-4 (d7e32ab1) closes pass-4 MED-1 + OBS-1 + OBS-2; pass-5 verifies all closures + finds 1 novel LOW (F-LP5-LOW-1: PipeStage::Join sibling C-LOCAL-001 fix not propagated to materialization walkers) + 1 OBS process-gap; verdict BLOCKED-soft; streak 0/3 (orchestrator reset on Standing Rule 3 #3 sub-clause (b) sibling discipline per user mandate); fix-pass-5 next | STATE v7.76→v7.77; fix-pass-5 dispatched next | 4 | 2026-05-10 |
@@ -434,15 +435,15 @@ _TD-VSDD-014..019, TD-W3-COMPLIANCE-001, TD-VSDD-025..029 archived to [tech-debt
 
 Cycle files: [burst-log](cycles/phase-2-patch/burst-log.md) | [convergence-trajectory](cycles/phase-2-patch/convergence-trajectory.md) | [session-checkpoints](cycles/phase-2-patch/session-checkpoints.md) | [lessons](cycles/phase-2-patch/lessons.md) | [resolved-blockers](cycles/phase-2-patch/blocking-issues-resolved.md)
 ---
-## Session Resume Checkpoint (2026-05-10-v7.79-d328-post-pass-7)
+## Session Resume Checkpoint (2026-05-10-v7.80-d329-post-pass-8)
 
-_Previous checkpoint (v7.78/D-327 post-pass-6) archived: [cycles/wave-4-operations/session-checkpoints.md](cycles/wave-4-operations/session-checkpoints.md)_
+_Previous checkpoint (v7.79/D-328 post-pass-7) archived: [cycles/wave-4-operations/session-checkpoints.md](cycles/wave-4-operations/session-checkpoints.md)_
 
-**STATE v7.79. D-328 — S-3.02-FOLLOWUP-RUNTIME fix-pass-6 (20829c80) CLOSED F-LP6-LOW-1 via DML arm mirrored into both extract_source_names_recursive AND extract_sources_from_ast; pass-7 LOCAL CLEAN (0 novel CRIT/HIGH/MED/LOW; 5 OBS scope-deferred); streak 1/3 (FIRST CLEAN PASS IN CASCADE). Cascade F-LP3-CRIT-1→F-LP4-MED-1→F-LP5-LOW-1→F-LP6-LOW-1 closed. Layer 1 walker exhaustive across all four query modes. Pass-8 idempotency next (target 2/3).** develop@f1f284ab. factory-artifacts HEAD: run `git -C .factory log -1` (TD-VSDD-053). BC-2.06.011 v1.2, BC-INDEX v4.53, ADR-022 v1.1, ARCH-INDEX v2.37. vsdd-factory rc.16 active. Standing Orchestrator Rules active (Rules 1, 2, 3). Bundle B Exit Mandate active (task #85). Tasks #80-#84 DISPOSITIONS RECORDED — do NOT re-triage. Worktrees: main (clean) + .factory + .worktrees/S-3.09 (FROZEN per D-298) + .worktrees/S-3.02-FOLLOWUP-RUNTIME (HEAD 20829c80; pass-7 CLEAN 1/3; pass-8 next).
+**STATE v7.80. D-329 — S-3.02-FOLLOWUP-RUNTIME pass-8 LOCAL idempotency check at unchanged HEAD 20829c80 holds CLEAN; streak 2/3. AC breadth re-audit confirms all 8 ACs satisfied. 3 OBS scope-bounded non-blocking (OBS-LP8-1 stale test doc-comments; OBS-LP8-2 story↔STORY-INDEX BC-count drift housekeeping; OBS-LP8-3 execute_scheduled design-choice note). Cascade F-LP3-CRIT-1→F-LP4-MED-1→F-LP5-LOW-1→F-LP6-LOW-1 closed; Layer 1 walker exhaustive across all four query modes.** develop@f1f284ab. factory-artifacts HEAD: run `git -C .factory log -1` (TD-VSDD-053). BC-2.06.011 v1.2, BC-INDEX v4.53, ADR-022 v1.1, ARCH-INDEX v2.37. vsdd-factory rc.16 active. Standing Orchestrator Rules active (Rules 1, 2, 3). Bundle B Exit Mandate active (task #85). Tasks #80-#84 DISPOSITIONS RECORDED — do NOT re-triage. Worktrees: main (clean) + .factory + .worktrees/S-3.09 (FROZEN per D-298) + .worktrees/S-3.02-FOLLOWUP-RUNTIME (HEAD 20829c80; pass-8 CLEAN 2/3; pass-9 next).
 
-**POST-PASS-7 NEXT ACTION:** Dispatch LOCAL adversary pass-8 for S-3.02-FOLLOWUP-RUNTIME at worktree HEAD `20829c80` (idempotency check; no new commits expected since pass-7 was CLEAN). Target: streak 2/3. Then pass-9 → 3/3 CONVERGED → wave-gate eligible. After 3-CLEAN, dispatch pr-manager for the 9-step PR cycle to merge S-3.02-FOLLOWUP-RUNTIME into develop.
+**POST-PASS-8 NEXT ACTION:** Dispatch LOCAL adversary pass-9 for S-3.02-FOLLOWUP-RUNTIME at worktree HEAD `20829c80` (final idempotency check at convergence target). Expected verdict CLEAN → streak 3/3 → CONVERGED → wave-gate eligible. After 3-CLEAN, dispatch demo-recorder + pr-manager for the 9-step PR cycle. Track OBS-LP8-2 story↔STORY-INDEX BC-count sync as state-manager housekeeping at status-flip time.
 
-**Open findings:** NONE (F-LP5-OBS-1 Visit-trait centralization carry-forward, accepted-deferred maintenance; 5 OBS from pass-7 scope-deferred, non-blocking).
+**Open findings:** NONE ranked. 3 OBS non-blocking (OBS-LP8-1/2/3 scope-deferred). F-LP5-OBS-1 Visit-trait centralization carry-forward, accepted-deferred maintenance.
 
 **S-3.09 FREEZE STATE:** Worktree .worktrees/S-3.09 HEAD 43c41389; BUG-S309-PLUGIN P0 blocks resumption (41 *Adapter::new() bypass-spec-engine; TOML read-side missing; ~5-10d effort). See D-298/D-299.
 
@@ -454,7 +455,7 @@ _Previous checkpoint (v7.78/D-327 post-pass-6) archived: [cycles/wave-4-operatio
 
 **Deferred TDs (carry-forward):** W3-FIX-S307-001/002/003 + TD-VSDD-082 + TD-S307-002/003/004 + TD-VSDD-057 (OPEN-DEFERRED-CROSS-REPO) + TD-S309-O1/O2/O3/O4
 
-**Current spec versions:** BC-2.11.004 v1.5, BC-2.09.001..008 v1.4/1.5, BC-2.05.012 v1.3, BC-2.06.011 v1.2, BC-INDEX v4.53, STORY-INDEX v2.31, ARCH-INDEX v2.37, ADR-022 v1.1, VP-INDEX v1.29, prd.md v1.10, error-taxonomy v1.17, develop@f1f284ab; STATE v7.79 SESSION-HANDOFF v7.79 (D-328 fix-pass-6 closure + pass-7 CLEAN 1/3; pass-8 next)
+**Current spec versions:** BC-2.11.004 v1.5, BC-2.09.001..008 v1.4/1.5, BC-2.05.012 v1.3, BC-2.06.011 v1.2, BC-INDEX v4.53, STORY-INDEX v2.31, ARCH-INDEX v2.37, ADR-022 v1.1, VP-INDEX v1.29, prd.md v1.10, error-taxonomy v1.17, develop@f1f284ab; STATE v7.80 SESSION-HANDOFF v7.80 (D-329 pass-8 CLEAN 2/3; pass-9 next)
 
 **Key files:** [SESSION-HANDOFF.md](SESSION-HANDOFF.md) | [cycle-manifest.md](cycles/wave-4-operations/cycle-manifest.md) | [HOLDOUT-INDEX.md](holdout-scenarios/HOLDOUT-INDEX.md)
 
