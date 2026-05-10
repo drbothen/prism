@@ -1,7 +1,7 @@
 ---
 document_type: pipeline-state
 level: ops
-version: "7.89"
+version: "7.90"
 producer: state-manager
 timestamp: 2026-05-10T20:00:00Z
 inputs: []
@@ -176,7 +176,7 @@ workspace_test_count: 3489  # 891 prism-query + workspace total (per implementer
 | **Language** | Rust |
 | **Target Workspace** | per-analyst stdio (MCP server) |
 | **Started** | 2026-04-13 |
-| **Last Updated** | 2026-05-10 (D-338 — ADR-023 pass-5 NOT_CLEAN 3 findings; trajectory 14→3 strong decrease; streak 0/3; STATE v7.88→v7.89) |
+| **Last Updated** | 2026-05-10 (D-339 — ADR-023 pass-6 NOT_CLEAN 3 findings; trajectory holding 3→3; streak 0/3; STATE v7.89→v7.90) |
 | **Current Phase** | Wave 3 Tier-3 COMPLETE — **Wave 3-A 4 of 4 SHIPPED**: S-3.05 (#132 c867c344), S-3.04 (#133 57745ce8), S-3.03 (#134 7c413692), **S-3.07 (#135 2ae7185b MERGED 2026-05-08T04:23:03Z)**; post-merge cleanup confirmed; NEXT: Wave 3-B/C or Wave 4 unblock |
 | **Current Step** | D-299 — Plugin system FULL audit COMPLETE. 14 P0/P1 deferrals discovered (8 P0 + 6 P1). Stub-merged Wave-1 items: S-1.12/1.14/1.15 (3 stubs). No production binary loads sensors/*.toml. 13 new TDs filed (TD-PLUGIN-P0-001..008 + P1-001..005). S-3.09 FROZEN. Strategic direction needed: (a) full plugin completion epic, (b) min-viable plugin wiring, or (c) other path. |
 
@@ -213,6 +213,7 @@ _D-001..D-046 archived: [cycles/phase-3-dtu-wave-2/decisions-archive-d001-d032.m
 
 | ID | Decision | Rationale | Phase | Date |
 |----|----------|-----------|-------|------|
+| D-339 | 2026-05-10 | ADR-023 pass-6 NOT_CLEAN — 1 HIGH residual + 2 OBS, streak 0/3, trajectory holding | Pass-6 fresh-context review of ADR-023 v1.5 surfaces 1 HIGH (F-PASS6-HIGH-001 sibling-site Phase: migration residual at L719 — same defect class as F-PASS5-MED-001 closed at L204+L500 but at §E VP-PLUGIN-006 body location pass-5 line-anchored checks didn't sweep). Plus 2 OBS pending intent (L893 stale v1.4: prefix; v1.5 changelog says MD5 but uses 7-char short hash). 21 of 22 source-of-truth verifications PASS. Fix-burst-6 = single-line edit at L719. After fix: pass-7 high probability CLEAN → streak 1/3. Trajectory 26→16→12→14→3→3 holding (no decay reversal; near convergence). | review(ADR-023-pass-6) |
 | D-338 | ADR-023 pass-5 NOT_CLEAN — 3 findings, trajectory 14→3 (strong decrease), streak 0/3 | Pass-5 fresh-context review surfaces 1 HIGH residual + 1 MED + 1 LOW. F-PASS5-HIGH-001: Status block L80 still says "COMMITTED v1.3" (F-PASS4-HIGH-002 incomplete propagation, S-7.01 partial-fix regression). F-PASS5-MED-001: PREREQ-F VP-INDEX registration instructions cite non-existent phase column + abbreviated module name. F-PASS5-LOW-001 [process-gap]: input-hash placeholder pattern recurs across ADRs. Trajectory 26→16→12→14→3 strong decrease. Fix-burst-5 = 3 small mechanical fixes (single-line v1.3→v1.4 propagation, two-line PREREQ-F instruction correction, compute real input-hash). After fix-burst-5: pass-6 high probability CLEAN → streak 1/3. review(ADR-023-pass-5) | 4 | 2026-05-10 |
 | D-337 | ADR-023 pass-4 NOT_CLEAN — 14 findings, trajectory REVERSED 12→14, streak 0/3 | Pass-4 fresh-context review of ADR-023 v1.3 surfaces 2 pass-3 residuals (F-PASS3-HIGH-001 VP-INDEX deferred to PREREQ-F sub-task; F-PASS3-HIGH-004 DI-012/BC back-references deferred) plus 12 new defects including 3 CRIT cascade defects from v1.3 Wave 1/E rescope: story count 12 vs 13 contradicts at 5+ sites, Wave 1 SP arithmetic 30-47 claimed vs actual 32-52, hook-bypass via Python open/write enabled defects to land. Adversary recommends codifying TD-FACTORY-HOOK-BYPASS-001 BEFORE fix-burst-4. Per user directive 'close everything and continue going until protocol convergence': proceeding to fix-burst-4 with stricter discipline. New process-gap TDs: TD-FACTORY-HOOK-BYPASS-001 P1 (forbid Python open/write bypass) + TD-FIX-BURST-VERIFY-002 scope extension to arithmetic claims. review(ADR-023-pass-4) | 4 | 2026-05-10 |
 | D-336 | ADR-023 pass-3 NOT_CLEAN — 12 findings, streak reset 0/3 | Pass-3 fresh-context review of ADR-023 v1.2 closes 14/14 pass-2 spec defects substantively (with mis-attribution caveat); surfaces 10 new defects + 2 process-gap. Top 3: ad-hoc frontmatter field amends_bcs_pending_full_amendment_in_wave_2_g (project-novel, no validator); VP-PLUGIN-006 referenced but undefined (VP-INDEX has zero VP-PLUGIN entries); POL-11 miscited as ci_positive_coverage_assertion (actual is index_bump_required_for_index_mutations) — TD-FIX-BURST-VERIFY-001 didn't prevent verbatim adoption. User decisions: continue full 3-CLEAN cycle; close process-gap TDs before Wave 0. Trajectory 26→16→12 (novelty 0.833). Fix-burst-3 dispatch ADR-023 v1.3 closing 10 new defects with stricter grep-verification of all POL/VP/BC citations. review(ADR-023-pass-3) | 4 | 2026-05-10 |
