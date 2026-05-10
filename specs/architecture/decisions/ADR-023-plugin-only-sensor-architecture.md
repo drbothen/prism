@@ -4,7 +4,7 @@ adr_id: "ADR-023"
 title: "Plugin-Only Sensor Architecture — TOML Specs, Declarative TOML Baseline, No Compiled-In Sensor Rust"
 status: COMMITTED
 date: "2026-05-10"
-version: "v1.12"
+version: "v1.13"
 producer: architect
 subsystems_affected: [SS-01, SS-02, SS-16, SS-17, SS-21, SS-22]
 supersedes: null
@@ -77,7 +77,7 @@ input-hash: "2f64319"
 
 ## Status
 
-COMMITTED 2026-05-10, v1.12. Status is `COMMITTED` rather than `ACCEPTED` because six
+COMMITTED 2026-05-10, v1.13. Status is `COMMITTED` rather than `ACCEPTED` because six
 infrastructure prerequisites (Constraints C1–C5 plus Wave 0/F BC+DI amendments) must land
 before the hardcoded sensor adapters can be deleted. Once all prerequisite stories ship and
 pass their gates, this ADR transitions to `ACCEPTED`. Implementation is tracked by
@@ -628,8 +628,8 @@ F-MED-NEW-005 ownership: PREREQ-E owns cleanup only, not wiring). No dead code r
 required from the current boot.rs since S-WAVE5-PREP-01 already removed pre-existing dead
 `custom_adapter_registry` references. The actual `CustomAdapter`
 call sites that must be retired before `custom_adapter.rs` is deleted are the re-export in
-`lib.rs`, the example in `examples/demo_spec_loading.rs`, and the BC test in
-`tests/bc_2_16_004_test.rs` — all three are in scope for this story
+`crates/prism-spec-engine/src/lib.rs`, the example in `crates/prism-spec-engine/examples/demo_spec_loading.rs`, and the BC test in
+`crates/prism-spec-engine/tests/bc_2_16_004_test.rs` — all three are in scope for this story
 (F-CRIT-NEW-001-PASS2-RESIDUAL: spec_parser.rs has zero such references).
 
 Depends on: PLUGIN-PREREQ-F, PLUGIN-PREREQ-D (for live PluginRuntime wiring at the plugin-load step per ADR-022 canonical numbering, PREREQ-D specifies exact placement).
@@ -861,7 +861,7 @@ production system.
 
 ### Status as of 2026-05-10
 
-COMMITTED v1.12, pending implementation of Wave 0/F (PLUGIN-PREREQ-F) and Constraints C1–C5
+COMMITTED v1.13, pending implementation of Wave 0/F (PLUGIN-PREREQ-F) and Constraints C1–C5
 (PLUGIN-MIGRATION-001 Wave 0 — 6 stories total: PREREQ-F, A, B, C, D, E). The five hardcoded
 sensor auth modules, the four OCSF mapper modules, the `SensorType` enum, and the `CustomAdapter`
 trait all remain in the codebase until their corresponding Wave 0/1 stories ship and pass
@@ -920,18 +920,18 @@ PLUGIN-MIGRATION-001: 13 stories, 3 waves, approximately 95–146 SP (v1.4: Wave
 - PLUGIN-PREREQ-C: TOML grammar extensions — new grammar only: `[fetch_step.retry]` with
   `retry_action`, `virtual_field_aliases`, `cache_ttl_secs`, `[fetch_step.batch]` (3–5 SP;
   revised from 5–8 SP per F-HIGH-006 close); depends on PREREQ-F.
-- PLUGIN-PREREQ-D: Deliver `PluginRuntime` infrastructure AND wire it into boot.rs plugin-load step (per ADR-022 canonical numbering, PREREQ-D specifies exact placement; typically between storage init and query-engine init)
-  (live plugin load replaces dead instantiation); build `.prx` load pipeline; unsigned-plugin
+- PLUGIN-PREREQ-D: Deliver `PluginRuntime` infrastructure AND insert a new plugin-load step into boot.rs (per ADR-022 canonical numbering, PREREQ-D specifies exact placement; typically between storage init and query-engine init);
+  build `.prx` load pipeline; unsigned-plugin
   boot warning + audit log; host function import validation; PR template creation; allowlist
   manifest field + TODO(S-4.08) closure (8–13 SP); depends on PREREQ-F. Plugin-load step
   insertion (between canonical step 7 storage and canonical step 8 query-engine) is in
   PREREQ-D scope (F-MED-NEW-005).
 - PLUGIN-PREREQ-E: Un-seal `SensorAuth`; retire `CustomAdapter` Rust trait, its re-export in
-  `lib.rs`, `examples/demo_spec_loading.rs`, and `tests/bc_2_16_004_test.rs`; delete
+  `crates/prism-spec-engine/src/lib.rs`, `crates/prism-spec-engine/examples/demo_spec_loading.rs`, and `crates/prism-spec-engine/tests/bc_2_16_004_test.rs`; delete
   `custom_adapter.rs`. PREREQ-E performs three cleanup operations: (1) delete the
   `pub use custom_adapter::{...}` re-export in `crates/prism-spec-engine/src/lib.rs`;
-  (2) delete `examples/demo_spec_loading.rs` CustomAdapter usage; (3) delete
-  `tests/bc_2_16_004_test.rs` CustomAdapter usage. No boot.rs changes required —
+  (2) delete `crates/prism-spec-engine/examples/demo_spec_loading.rs` CustomAdapter usage; (3) delete
+  `crates/prism-spec-engine/tests/bc_2_16_004_test.rs` CustomAdapter usage. No boot.rs changes required —
   S-WAVE5-PREP-01 commit `53b87961` already removed pre-existing dead
   `custom_adapter_registry` references (F-MED-NEW-005: PREREQ-E owns dead-code cleanup
   only, not boot.rs wiring) (3–5 SP); depends on
@@ -1063,6 +1063,7 @@ without bypass.
 
 | Version | Date | Description |
 |---------|------|-------------|
+| v1.13 | 2026-05-10 | Closes 3 pass-16 findings + applies ASSERTION-CHECK METHODOLOGY (per pass-16 insight). F-PASS16-MED-001: L924 stale "(live plugin load replaces dead instantiation)" parenthetical removed (semantic sibling missed by lexical token sweep; "dead instantiation" does not exist in boot.rs — steps 7-11 are todo!() stubs per S-WAVE5-PREP-01). F-PASS16-LOW-001: L923 "wire it into boot.rs plugin-load step" → "insert a new plugin-load step into boot.rs" (tense alignment with L926-928). F-PASS16-LOW-002: L931-934 + C5 L630-632 sibling sites fully qualified all three call-site paths (lib.rs → crates/prism-spec-engine/src/lib.rs; examples/demo_spec_loading.rs → crates/prism-spec-engine/examples/demo_spec_loading.rs; tests/bc_2_16_004_test.rs → crates/prism-spec-engine/tests/bc_2_16_004_test.rs). ASSERTION-CHECK SWEEP: every body claim about boot.rs current state cross-checked against actual boot.rs source. Body version sweep v1.12→v1.13. Edit-only. |
 | v1.12 | 2026-05-10 | COMPREHENSIVE SIBLING-SITE SWEEP: Closes 4 pass-15 findings + 6th S-7.01 sibling-site recurrence pattern. F-PASS15-HIGH-001 + F-PASS15-MED-002 + F-PASS15-LOW-001: body-wide grep sweep of "step 7" / "step-7" / "step 8" / "step-8" references; canonical vs plugin-load step disambiguated at Context (L124-128), Rule 5 (L293-298), C4 (L566-567), Migration Plan PREREQ-D (L926-928). F-PASS15-MED-001: Migration Plan PREREQ-E scope reconciled with C5 — replaced impossible "remove dead step-8 custom_adapter_registry from boot.rs" with three actual call sites (lib.rs re-export, examples/, tests/); no boot.rs changes required (S-WAVE5-PREP-01 commit 53b87961 already removed dead references). Body version sweep L80+L864 v1.11→v1.12. Edit-only per TD-FACTORY-HOOK-BYPASS-001. |
 | v1.11 | 2026-05-10 | Closes F-PASS14-HIGH-001 (S-7.01 sibling-site: C5 step 7 ownership contradiction at L618-620 — PREREQ-D owns step-7 wiring per F-MED-NEW-005; C5 now reads consistently with C4 + Rule 5 + Migration Plan). Closes F-PASS14-OBS-002 [process-gap] (boot.rs step numbering ambiguity: ADR-022 canonical step 7 = storage init; ADR-023 PREREQ-D introduces new plugin-load step between storage and query-engine, exact placement specified by PREREQ-D). Body version sweep v1.10→v1.11 per TD-VERSION-STAMP-SWEEP-001. F-PASS14-OBS-001 (Amendment Status cosmetic wording) deferred as cosmetic. |
 | v1.10 | 2026-05-10 | Closes F-PASS13-HIGH-001 (sibling-site propagation gap: pass-10 amendment introduced v1.0+1 vs v1.0+N internal contradiction at L743 + L848 + L851). All sites now consistently cite v1.0+N when first non-trivial third-party WASM plugin is genuinely needed. Status block + Amendment Status swept v1.9→v1.10 per TD-VERSION-STAMP-SWEEP-001. |
