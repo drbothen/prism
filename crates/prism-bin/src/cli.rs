@@ -32,9 +32,11 @@ use clap::{Parser, Subcommand};
 #[command(version)]
 pub struct CliArgs {
     /// Override the config directory.
-    /// Default: OS-canonical config dir joined with "prism"
-    ///   (~/.config/prism/ on Linux, ~/Library/Application Support/prism/ on macOS,
-    ///    %APPDATA%\prism\ on Windows).
+    /// Default: platform default config directory (per the dirs crate) joined with "prism".
+    ///   - Linux:   $XDG_CONFIG_HOME/prism (if XDG_CONFIG_HOME is set and absolute) else ~/.config/prism/
+    ///   - macOS:   ~/Library/Application Support/prism/
+    ///   - Windows: %APPDATA%\prism\
+    ///
     /// Env var: PRISM_CONFIG_DIR.
     #[arg(long, global = true, env = "PRISM_CONFIG_DIR")]
     pub config_dir: Option<PathBuf>,
