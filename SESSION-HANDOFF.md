@@ -1,11 +1,11 @@
 ---
 document_type: session-handoff
 level: ops
-version: "7.78"
+version: "7.79"
 status: current
-timestamp: 2026-05-10T10:00:00Z
-predecessor_session: "D-321 follow-up pre-compact burst: Standing Orchestrator Rules codified (adversary report backfill + orchestrator-drives-cascade). Deferred items #80-#84 dispositions RECORDED. PRE-COMPACT CHECKPOINT written. STATE v7.71→v7.72. SESSION-HANDOFF v7.71→v7.72. | D-322 (2026-05-10): Standing Rule 3 (Production-Grade Closure Discipline) adopted; Bundle B Exit Mandate documented; S-3.02-FOLLOWUP-RUNTIME LOCAL adv pass-1 BLOCKED-hard with 5 CRIT + 7 HIGH + 5 MED + 4 LOW + 3 OBS, fix-pass-1 dispatched. | D-323 (2026-05-10): pass-3 BLOCKED-soft 0/3, 2 Standing Rule 3 violations (F-LP3-CRIT-1 Layer 1 partial AST walk, F-LP3-MED-1 cosmetic close); plugin upgraded rc.11→rc.16; PAUSE for human-driven Claude restart | D-324 (2026-05-10): PR #140 hook-diagnostics MERGED → develop@f1f284ab; pre-compact state-burst recorded; ready for context compaction | D-325 (2026-05-10): fix-pass-3 (b749e6d7) closed all 5 pass-3 findings; pass-4 BLOCKED-soft 0/3 (F-LP4-MED-1 walk_expr FuncCall args + 3 OBS); fix-pass-4 next | D-326 (2026-05-10): fix-pass-4 (d7e32ab1) closed pass-4 MED-1 + OBS-1 + OBS-2; pass-5 BLOCKED-soft 0/3 (F-LP5-LOW-1 PipeStage::Join sibling C-LOCAL-001 fix not propagated to materialization walkers + 1 OBS process-gap); fix-pass-5 next | D-327 (2026-05-10): fix-pass-5 (dcc11f68) closed F-LP5-LOW-1 via C-LOCAL-001 sibling mirror into both materialization walkers; pass-6 verified closure + ran explicit final AST exhaustiveness audit — surfaced F-LP6-LOW-1 (DML source_select/filter not walked by recursive walker or explain sibling; latent gap pending S-3.07 Phase 3 wiring); verdict BLOCKED-soft 0/3 (orchestrator reset on Standing Rule 3 #3 sub-clause (b)); fix-pass-6 next"
-successor_focus: "POST-PASS-6 CHECKPOINT 2026-05-10 (D-327). Dispatch implementer fix-pass-6 for S-3.02-FOLLOWUP-RUNTIME at worktree HEAD `dcc11f68` to close F-LP6-LOW-1 (mirror `Ast::Sql(SqlStatement::Dml)` walking into both `extract_source_names_recursive` (materialization.rs:875-893) and `extract_sources_from_ast` (explain.rs:479-501) — for each `DmlNode` walk `source_select` via `walk_sql_query` and `filter` via `walk_predicate`; add 1 RED→GREEN mirror test on each walker exercising `Ast::Sql(SqlStatement::Dml { source_select: Some(SELECT FROM prism_audit), .. })` and `Ast::Sql(SqlStatement::Dml { filter: Some(InSubquery on prism_audit), .. })`; update walker enumeration docs at materialization.rs:852-869 and engine.rs:594-598 to mention DML source_select + filter coverage). After fix-pass-6 → pass-7 verifies, target streak 1/3."
+timestamp: 2026-05-10T11:00:00Z
+predecessor_session: "D-321 follow-up pre-compact burst: Standing Orchestrator Rules codified (adversary report backfill + orchestrator-drives-cascade). Deferred items #80-#84 dispositions RECORDED. PRE-COMPACT CHECKPOINT written. STATE v7.71→v7.72. SESSION-HANDOFF v7.71→v7.72. | D-322 (2026-05-10): Standing Rule 3 (Production-Grade Closure Discipline) adopted; Bundle B Exit Mandate documented; S-3.02-FOLLOWUP-RUNTIME LOCAL adv pass-1 BLOCKED-hard with 5 CRIT + 7 HIGH + 5 MED + 4 LOW + 3 OBS, fix-pass-1 dispatched. | D-323 (2026-05-10): pass-3 BLOCKED-soft 0/3, 2 Standing Rule 3 violations (F-LP3-CRIT-1 Layer 1 partial AST walk, F-LP3-MED-1 cosmetic close); plugin upgraded rc.11→rc.16; PAUSE for human-driven Claude restart | D-324 (2026-05-10): PR #140 hook-diagnostics MERGED → develop@f1f284ab; pre-compact state-burst recorded; ready for context compaction | D-325 (2026-05-10): fix-pass-3 (b749e6d7) closed all 5 pass-3 findings; pass-4 BLOCKED-soft 0/3 (F-LP4-MED-1 walk_expr FuncCall args + 3 OBS); fix-pass-4 next | D-326 (2026-05-10): fix-pass-4 (d7e32ab1) closed pass-4 MED-1 + OBS-1 + OBS-2; pass-5 BLOCKED-soft 0/3 (F-LP5-LOW-1 PipeStage::Join sibling C-LOCAL-001 fix not propagated to materialization walkers + 1 OBS process-gap); fix-pass-5 next | D-327 (2026-05-10): fix-pass-5 (dcc11f68) closed F-LP5-LOW-1 via C-LOCAL-001 sibling mirror into both materialization walkers; pass-6 verified closure + ran explicit final AST exhaustiveness audit — surfaced F-LP6-LOW-1 (DML source_select/filter not walked by recursive walker or explain sibling; latent gap pending S-3.07 Phase 3 wiring); verdict BLOCKED-soft 0/3 (orchestrator reset on Standing Rule 3 #3 sub-clause (b)); fix-pass-6 next | D-328 (2026-05-10): fix-pass-6 (20829c80) closed F-LP6-LOW-1 (DML source_select/filter walking mirrored into both extract_source_names_recursive AND extract_sources_from_ast; 3 new tests; just check PASS 3489 workspace); pass-7 CLEAN 0 novel CRIT/HIGH/MED/LOW (5 OBS scope-deferred); streak 1/3 (FIRST CLEAN PASS IN CASCADE); cascade F-LP3-CRIT-1→F-LP4-MED-1→F-LP5-LOW-1→F-LP6-LOW-1 closed; Layer 1 walker exhaustive across all four query modes; pass-8 idempotency next"
+successor_focus: "POST-PASS-7 CHECKPOINT 2026-05-10 (D-328). Dispatch LOCAL adversary pass-8 for S-3.02-FOLLOWUP-RUNTIME at worktree HEAD `20829c80` (idempotency check; no new commits expected since pass-7 was CLEAN). Target: streak 2/3. Then pass-9 → 3/3 CONVERGED → wave-gate eligible. After 3-CLEAN, dispatch pr-manager for the 9-step PR cycle to merge S-3.02-FOLLOWUP-RUNTIME into develop."
 
 **STEP 1 (START HERE):** Read STATE.md v7.77 + this HANDOFF v7.77 in full. S-WAVE5-PREP-01 chassis SHIPPED (D-319, PR #138, develop@53b87961). cli.rs doc-fix maintenance PR #139 ALSO SHIPPED (D-321, develop@c98a38b0). PR #140 CLAUDE.md hook-diagnostics MERGED (D-324, develop@f1f284ab). All outstanding LOW findings from D-319 are now CLOSED. No open maintenance PRs. TD-PR-MANAGER-CONVERGENCE-DISCIPLINE step-1 DONE; CODIFICATION step still pending vsdd-factory plugin scope. PR #139 deferred-items dossier + 6 TDs registered. Tasks #80-#84 DISPOSITIONS RECORDED (see '## Deferred-Items Dispositions' section below — do NOT re-triage). Standing Orchestrator Rules adopted (see '## Standing Orchestrator Process Rules' section). State durable; PRE-COMPACT CHECKPOINT recorded — safe to compact. [process-rule active]: NO #[ignore] deferrals as first-line response to test failures.
 
@@ -146,9 +146,9 @@ User invoked Claude restart to pick up vsdd-factory rc.11→rc.16 hook chain. Re
 
 6. **First post-restart action:** dispatch implementer fix-pass-3 with reference to .factory/cycles/wave-4-operations/adversarial-reviews/S-3.02-FOLLOWUP-RUNTIME-pass-3.md. Apply Standing Rule 3.
 
-## POST-PASS-6 CHECKPOINT (2026-05-10 — D-327)
+## POST-PASS-7 CHECKPOINT (2026-05-10 — D-328)
 
-State is durable. Fix-pass-5 closed; pass-6 BLOCKED-soft 0/3. Fix-pass-6 is the next action.
+State is durable. Fix-pass-6 closed F-LP6-LOW-1; pass-7 CLEAN streak 1/3 (FIRST CLEAN PASS IN CASCADE). Pass-8 idempotency is the next action.
 
 ### Environment verification (run first after compact)
 
@@ -167,7 +167,7 @@ git -C /Users/jmagady/Dev/prism/.factory log --oneline -1
 
 # Worktree state
 git -C /Users/jmagady/Dev/prism/.worktrees/S-3.02-FOLLOWUP-RUNTIME log --oneline develop..HEAD
-# Expected: 7 commits — dcc11f68, d7e32ab1, b749e6d7, 609d7d87, 99d49b20, 73d97726, a6380143
+# Expected: 8 commits — 20829c80, dcc11f68, d7e32ab1, b749e6d7, 609d7d87, 99d49b20, 73d97726, a6380143
 
 # Hook health
 bash /Users/jmagady/Dev/prism/.factory/hooks/verify-sha-currency.sh
@@ -177,19 +177,18 @@ bash /Users/jmagady/Dev/prism/.factory/hooks/verify-sha-currency.sh
 ### Active cascade
 
 - **Story:** S-3.02-FOLLOWUP-RUNTIME (Phase B-2 of Bundle B)
-- **Worktree:** `.worktrees/S-3.02-FOLLOWUP-RUNTIME` at HEAD `dcc11f68`
+- **Worktree:** `.worktrees/S-3.02-FOLLOWUP-RUNTIME` at HEAD `20829c80`
 - **Branch:** `feature/S-3.02-FOLLOWUP-RUNTIME` (pushed to origin)
-- **Test status:** 888 prism-query / 0 failed (per fix-pass-5 implementer report); `just check` PASS; 3486 workspace total
-- **Pass history:** pass-1 BLOCKED-hard → fix-pass-1 → pass-2 BLOCKED-soft → fix-pass-2 → pass-3 BLOCKED-soft 0/3 → fix-pass-3 → pass-4 BLOCKED-soft 0/3 → fix-pass-4 → pass-5 BLOCKED-soft 0/3 → fix-pass-5 → **pass-6 BLOCKED-soft 0/3**
-- **Convergence target:** 3 consecutive CLEAN passes; streak resets on each BLOCKED verdict
-- **Backed-up reports:** `.factory/cycles/wave-4-operations/adversarial-reviews/S-3.02-FOLLOWUP-RUNTIME-{pass-1,fix-pass-1,pass-2,fix-pass-2,pass-3,fix-pass-3,pass-4,fix-pass-4,pass-5,fix-pass-5,pass-6}.md`
+- **Test status:** 891 prism-query / 0 failed (per fix-pass-6 implementer report); `just check` PASS; 3489 workspace total
+- **Pass history:** pass-1 BLOCKED-hard → fix-pass-1 → pass-2 BLOCKED-soft → fix-pass-2 → pass-3 BLOCKED-soft 0/3 → fix-pass-3 → pass-4 BLOCKED-soft 0/3 → fix-pass-4 → pass-5 BLOCKED-soft 0/3 → fix-pass-5 → pass-6 BLOCKED-soft 0/3 → fix-pass-6 → **pass-7 CLEAN 1/3**
+- **Convergence target:** 3 consecutive CLEAN passes; streak at 1/3
+- **Backed-up reports:** `.factory/cycles/wave-4-operations/adversarial-reviews/S-3.02-FOLLOWUP-RUNTIME-{pass-1..pass-7,fix-pass-1..fix-pass-6}.md`
 
-### Open findings requiring fix-pass-6 (NEXT ACTION)
+### Open findings: NONE
 
-| ID | Severity | Evidence | Production-Grade Fix |
-|---|---|---|---|
-| F-LP6-LOW-1 | LOW | `extract_source_names_recursive` (mat.rs:875-893) and `extract_sources_from_ast` (explain.rs:479-501) match only `SqlStatement::Select`; `SqlStatement::Dml` falls through wildcard — latent capability-gate bypass once S-3.07 wires Phase 3 fetch | Mirror `Ast::Sql(SqlStatement::Dml)` arm: walk `source_select` via `walk_sql_query` and `filter` via `walk_predicate`; update doc enumeration at mat.rs:852-869 + engine.rs:594-598; add 1 mirror test per walker |
-| F-LP5-OBS-1 | OBS (process-gap) | Three independent walkers drift (carry-forward); Visit-trait centralization recommended | Defer to maintenance follow-up |
+- F-LP6-LOW-1: CLOSED (fix-pass-6, verified pass-7)
+- F-LP5-OBS-1: carry-forward process-gap (Visit-trait centralization), accepted-deferred maintenance
+- OBS-LP7-1..5: scope-deferred, non-blocking (see pass-7 report)
 
 ### Open follow-ups (NOT blocking S-3.02-FOLLOWUP-RUNTIME)
 
