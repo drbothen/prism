@@ -1,11 +1,11 @@
 ---
 document_type: session-handoff
 level: ops
-version: "7.73"
+version: "7.74"
 status: current
-timestamp: 2026-05-10T00:00:00Z
-predecessor_session: "D-321 follow-up pre-compact burst: Standing Orchestrator Rules codified (adversary report backfill + orchestrator-drives-cascade). Deferred items #80-#84 dispositions RECORDED. PRE-COMPACT CHECKPOINT written. STATE v7.71→v7.72. SESSION-HANDOFF v7.71→v7.72. | D-322 (2026-05-10): Standing Rule 3 (Production-Grade Closure Discipline) adopted; Bundle B Exit Mandate documented; S-3.02-FOLLOWUP-RUNTIME LOCAL adv pass-1 BLOCKED-hard with 5 CRIT + 7 HIGH + 5 MED + 4 LOW + 3 OBS, fix-pass-1 dispatched."
-successor_focus: "S-3.02-FOLLOWUP-RUNTIME fix-pass-1 (production-grade closure of all CRIT + HIGH per Standing Rule 3) IN PROGRESS at worktree HEAD a6380143; backfilled adversary report at .factory/cycles/wave-4-operations/adversarial-reviews/S-3.02-FOLLOWUP-RUNTIME-pass-1.md (factory-artifacts commit 48e2d0f9). Standing Rule 3 active: no MVP-limitation deferrals, no surface-and-defer-via-error, architectural correction in scope. Bundle B Exit Mandate active: full-codebase audit before Bundle B declared complete. Apply Standing Rules 1, 2, 3 throughout cascade."
+timestamp: 2026-05-10T08:30:00Z
+predecessor_session: "D-321 follow-up pre-compact burst: Standing Orchestrator Rules codified (adversary report backfill + orchestrator-drives-cascade). Deferred items #80-#84 dispositions RECORDED. PRE-COMPACT CHECKPOINT written. STATE v7.71→v7.72. SESSION-HANDOFF v7.71→v7.72. | D-322 (2026-05-10): Standing Rule 3 (Production-Grade Closure Discipline) adopted; Bundle B Exit Mandate documented; S-3.02-FOLLOWUP-RUNTIME LOCAL adv pass-1 BLOCKED-hard with 5 CRIT + 7 HIGH + 5 MED + 4 LOW + 3 OBS, fix-pass-1 dispatched. | D-323 (2026-05-10): pass-3 BLOCKED-soft 0/3, 2 Standing Rule 3 violations (F-LP3-CRIT-1 Layer 1 partial AST walk, F-LP3-MED-1 cosmetic close); plugin upgraded rc.11→rc.16; PAUSE for human-driven Claude restart"
+successor_focus: "POST-COMPACT/POST-RESTART NEXT ACTION: dispatch fix-pass-3 for S-3.02-FOLLOWUP-RUNTIME. Worktree HEAD: 609d7d87. Worktree path: .worktrees/S-3.02-FOLLOWUP-RUNTIME. Branch: feature/S-3.02-FOLLOWUP-RUNTIME. Plugin: vsdd-factory rc.16 (upgraded from rc.11; activated 2026-05-10T07:38:25Z). PR #140 (CLAUDE.md hook diagnostics) PENDING merge — review/merge before/after fix-pass-3 as orchestrator decides. Apply Standing Rules 1, 2, 3 throughout cascade. Bundle B Exit Mandate (task #85) still queued for post-Bundle-B audit. Adversary cascade reports persisted at .factory/cycles/wave-4-operations/adversarial-reviews/S-3.02-FOLLOWUP-RUNTIME-{pass-1,fix-pass-1,pass-2,fix-pass-2,pass-3}.md."
 
 **STEP 1 (START HERE):** Read STATE.md v7.72 + this HANDOFF v7.72 in full. S-WAVE5-PREP-01 chassis SHIPPED (D-319, PR #138, develop@53b87961). cli.rs doc-fix maintenance PR #139 ALSO SHIPPED (D-321, develop@c98a38b0). All outstanding LOW findings from D-319 are now CLOSED. No open maintenance PRs. TD-PR-MANAGER-CONVERGENCE-DISCIPLINE step-1 DONE; CODIFICATION step still pending vsdd-factory plugin scope. PR #139 deferred-items dossier + 6 TDs registered. Tasks #80-#84 DISPOSITIONS RECORDED (see '## Deferred-Items Dispositions' section below — do NOT re-triage). Standing Orchestrator Rules adopted (see '## Standing Orchestrator Process Rules' section). State durable; safe to compact. [process-rule active]: NO #[ignore] deferrals as first-line response to test failures.
 
@@ -109,6 +109,43 @@ Before declaring Bundle B complete (after all Bundle B Phase B-2 stories merge: 
 **Enforcement gate:** Bundle B is NOT marked complete in STATE.md until this audit's findings are either (a) closed or (b) explicitly user-approved as deferred-with-TD.
 
 Tracked as task #85 in session task list.
+
+## Post-Restart Resume Checkpoint (2026-05-10 — D-323)
+
+User invoked Claude restart to pick up vsdd-factory rc.11→rc.16 hook chain. Resume sequence after restart:
+
+1. **Verify environment:**
+   - `cat .claude/settings.local.json | jq \'."vsdd-factory"\'` should show `activated_plugin_version: 1.0.0-rc.16`
+   - `git -C . log --oneline -1 develop` should show `c98a38b0` (PR #139 cli.rs doc-fix)
+   - `git -C .factory log --oneline -1` should show this state-burst commit (most recent factory-artifacts SHA)
+   - `git -C .worktrees/S-3.02-FOLLOWUP-RUNTIME log --oneline develop..HEAD` should show 4 commits (a6380143, 73d97726, 99d49b20, 609d7d87)
+   - `bash .factory/hooks/verify-sha-currency.sh` must exit 0 (PASS)
+
+2. **Active cascade state:**
+   - Story: S-3.02-FOLLOWUP-RUNTIME
+   - Worktree: .worktrees/S-3.02-FOLLOWUP-RUNTIME at HEAD `609d7d87`
+   - Adversary passes: 3 LOCAL passes complete (pass-1 BLOCKED-hard → fix-pass-1 → pass-2 BLOCKED-soft → fix-pass-2 → pass-3 BLOCKED-soft 0/3)
+   - Convergence target: 3 consecutive CLEAN passes
+   - Test status: 884 prism-query / 3482 workspace tests pass (per implementer fix-pass-2 report)
+
+3. **Open findings requiring fix-pass-3:**
+   - F-LP3-CRIT-1: Layer 1 walk_sql_query at materialization.rs:877-904 skips Join.on, group_by, order_by[].expr — production-grade fix is to extend the walker (not downgrade the doc, per Standing Rule 3 #3)
+   - F-LP3-MED-1: pushdown.rs:262-287 predicate_tree_to_filter_map calls classify_predicates then discards result via `let _ = plan;` — real fix is to thread per-sensor ColumnSpec slices and use plan.push_down (per ADR-022 §C wiring-not-redesign), or honestly remove the dead call + update doc
+   - F-LP3-LOW-1: prism-core/src/error.rs:577-580 doc comment cites E-QUERY-006 but format string is E-QUERY-001 — one-line doc fix
+   - F-LP3-OBS-1/2/3: original AC-2 vacuous, _filters unused, process-gap on adversary semantic-equivalence — bundle into fix-pass-3 or defer per orchestrator decision
+
+4. **Open follow-up items not blocking S-3.02-FOLLOWUP-RUNTIME:**
+   - PR #140 maintenance/factory-hook-diagnostics — pr-manager 9-step PR cycle when ready
+   - Bundle B Exit Mandate (task #85) — full-codebase audit before Bundle B declared complete
+   - Tasks #80-#84 dispositions remain RECORDED (do NOT re-triage)
+
+5. **Standing rules active:**
+   - Rule 1 — Adversary Pass Report Backfill (per-pass)
+   - Rule 2 — Orchestrator-Drives-Cascade for PR-LEVEL adv (4-5 of pr-manager 9-step)
+   - Rule 3 — Production-Grade Closure Discipline (no MVP-limitation deferrals, no surface-and-defer-via-error, no documented-but-unenforced gates, architectural correction in scope, surface-for-human-approval is last resort)
+
+6. **First post-restart action:** dispatch implementer fix-pass-3 with reference to .factory/cycles/wave-4-operations/adversarial-reviews/S-3.02-FOLLOWUP-RUNTIME-pass-3.md. Apply Standing Rule 3.
+
 
 **PRE-COMPACT CHECKPOINT (2026-05-09 — D-321 follow-up) — state fully durable; safe to compact.**
 

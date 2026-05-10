@@ -1,9 +1,9 @@
 ---
 document_type: pipeline-state
 level: ops
-version: "7.73"
+version: "7.74"
 producer: state-manager
-timestamp: 2026-05-10T08:00:00Z
+timestamp: 2026-05-10T08:30:00Z
 inputs: []
 input-hash: "[live-state]"
 traces_to: ""
@@ -96,211 +96,6 @@ wave_4_phase_4_a_preflight:
   pre_pass24_sweep_status: COMPLETE_TD-VSDD-048-applied
   pre_pass24_findings: "1 CRITICAL (prd.md INV-ACTION-004 D-209 contract drift; v1.8) + 2 HIGH (interface-definitions.md 6 sites; v2.6; query-engine.md 16→8 concurrent + 3.2GB→1.6GB; v1.2) — ALL REMEDIATED"
   vsdd_plugin_td_count: 43 (was 41; +2 items registered 2026-05-06: TD-VSDD-057 P2 positive-coverage-assertion rule pass-13 F-PG-001 + TD-VSDD-058 P3 fuzz-nightly tight-margin advisory pass-14; TD-VSDD-058 RESOLVED PR #128 3e858f9f; TD-VSDD-057 OPEN-DEFERRED-CROSS-REPO)
-gate_status_hook_compat_remediation: 2026-04-24
-wave_0a_complete: 2026-04-22
-wave_0b_complete: 2026-04-22
-wave_0c_complete: 2026-04-22
-wave_0_retrospective_gate_passed: 2026-04-22
-wave_0_gate_remediation_pr: 8
-wave_0_gate_remediation_sha: 6afa2f8
-wave_2_started: 2026-04-24
-wave_2_first_story_merged: "S-2.01 (PR #43, 0d24ab79, 2026-04-24)"
-hotfix_cascade_status: "CLOSED — 7-layer cascade resolved (PRs #44-#50, 2026-04-25). post-merge.yml disabled to workflow_dispatch only. TD-CICD-001 registered. CI: ~40min → ~17min. Detail: cycles/phase-3-dtu-wave-2/burst-log.md"
-ci_optimization_complete: 2026-04-25
-ci_critical_path_pre: "~40 min"
-ci_critical_path_post: "~17 min (~58% reduction)"
-wave_2_stories_merged: ["S-2.01", "S-2.02", "S-2.03", "S-2.04", "S-2.05", "S-2.06", "S-2.07", "S-2.08", "S-6.11", "S-6.12", "S-6.13"]
-wave_2_complete: "2026-04-26"
-wave_2_total_prs: 11
-wave_2_integration_gate_triggered: 2026-04-26
-wave_2_integration_gate_status: "CONVERGED 2026-04-27 — Pass 9 CLEAN (3-clean-passes: P6+P8+P9); 1505 tests; develop HEAD 37c620f7; WAVE 2 CLOSED"
-wave_2_gate_step_c_code_review: { date: 2026-04-26, verdict: FINDINGS_OPEN, high: 2, medium: 6, low: 6, total: 14, report: "cycles/phase-3-dtu-wave-2/gate-step-c-code-review.md" }
-wave_2_gate_step_d_security_review: { date: 2026-04-26, verdict: APPROVED_WITH_CONDITIONS, critical: 0, high: 2, medium: 3, low: 3, total: 8, report: "cycles/phase-3-dtu-wave-2/gate-step-d-security-review.md" }
-wave_2_gate_step_e_consistency_validation: { date: 2026-04-26, verdict: CONDITIONAL_FAIL, critical: 1, high_fail: 1, total_items: 16, report: "cycles/phase-3-dtu-wave-2/gate-step-e-consistency-validation.md" }
-wave_2_gate_step_f_holdout_evaluation: { date: 2026-04-26, verdict: CONDITIONAL_PASS, mean_satisfaction: 0.65, must_pass_ratio: "11/19 strict / 0.58 partial", gaps_total: 5, gaps_fixed: 1, gaps_deferred: 2, gaps_artifacts: 2, w2_fix_j: "PR #70 (e2f206af) — MockStorageEngine unconditional export removed", report: "cycles/phase-3-dtu-wave-2/gate-step-f-holdout-evaluation.md", remediation_appendix: "2026-04-27" }
-wave_2_integration_gate_passes: "9 passes (P1:16 findings→P2:5→P3:0C→P4:0C→P5:3L→P6:0C→P7:2H→P8:1L→P9:0C CONVERGED 2026-04-27; clean envelope P6+P8+P9; detail: cycles/phase-3-dtu-wave-2/adversarial-reviews/)"
-wave_2_story_metrics_archived: "cycles/phase-3-dtu-wave-2/burst-log.md (S-2.01..S-2.08, S-6.11..S-6.13, hotfix cascade PRs #44-#50)"
-vsdd_plugin_prevention_layers_queued: "4 (TD-VSDD-001..004)"
-wave_1_started: 2026-04-22
-develop_head: "c98a38b0"
-td_wv1_04_resolved: "2026-04-23 (PR #32, 4a9dffb1)"
-tech_debt_register_entries: 57  # product register (70 prior - 13 VSDD items extracted 2026-05-02)
-factory_artifacts_tech_debt_entries: 88  # All TD-* families + BUG-* per `grep -c "^| TD-\|^| BUG-"`. Live pin per POL-11 spirit; was 82 at D-299; now 88 with 6 new TDs (TD-VSDD-ADVERSARY-PERSISTENCE P1, TD-PR-MANAGER-AGENT-TOOL-ACCESS P1, TD-VSDD-DEMO-REGEN-CLI-SURFACE P2, TD-VSDD-BC-LIFECYCLE-FIELD-CANONICAL P2, TD-PRISM-INSTALLER-UX-VS-BINARY-DEFAULT-DRIFT P2, TD-PRISM-BC-REFERENCE-H1-MATCH-LINT P3) added in D-321 follow-up persistence burst (2026-05-09). .factory/vsdd-plugin-tech-debt.md v3.41→v3.42. Prior entries: TD-VSDD-057 P2 OPEN-DEFERRED-CROSS-REPO; TD-VSDD-058 RESOLVED PR #128 3e858f9f; TD-VSDD-064 P2 proofs_path_canonicalization; TD-VSDD-075 P2 Tier-3-blocking prerequisite; TD-VSDD-081 P2 cascade-convergence CONVERGED D-281; TD-S307-002/003 P1 coherence tests; TD-S309-O1/O2/O3/O4 P1/P2; BUG-S309-PLUGIN P0; TD-PLUGIN-P0-001..008 + TD-PLUGIN-P1-001..005 (13 plugin audit TDs D-299); 88 total — 1 RESOLVED)
-wave_1_integration_gate_passes: "P3-P18 CONVERGED (3-clean envelope P16+P17+P18; detail: cycles/phase-3-dtu-wave-1/adversarial-reviews/)"
-workspace_test_count: 2993  # CI-verified 2993 passing (S-3.02 PR #129 merge, 5 platforms). +491 prism-query tests from S-3.02 materialization implementation. Previous: 2363 (W3-FIX-CI-001 PR #112). 0 FAIL.
-pre_wave_2_audit_complete: 2026-04-24
-pre_wave_2_audit_findings_remediated: 5
-pre_wave_2_audit_findings_deferred: 0  # OBS-001 RESOLVED 2026-04-25 (PR #51, 8eafb7b7)
-pre_wave_2_audit_remediation_sha: ebf7c63c
-pre_wave_2_audit_residual_fix_remediation_sha: 3f2c7003
-adr_count: 11
-pr_count_merged: 129
-wave_3_integration_gate_step_b: { date: 2026-05-02, verdict: CLEAN, h: 0, m: 0, l: 0, obs: 1, pg: 0, pass: 54, window: "3/3 CONVERGED", report: "cycles/wave-3-multi-tenant/adversarial-reviews/pass-54.md" }
-wave_3_integration_gate_step_c: { date: 2026-05-02, verdict: CONVERGENCE_REACHED, h: 0, m: 0, l: 0, report: "cycles/wave-3-multi-tenant/gate-step-c-code-review-pass7.md" }
-wave_3_integration_gate_step_d: { date: 2026-05-02, verdict: APPROVED, h: 0, m: 0, l: 4, report: "cycles/wave-3-multi-tenant/gate-step-d-security-review-pass7.md" }
-wave_3_integration_gate_step_e: { date: 2026-05-02, verdict: PASS, prior_verdict: PASS, fixes_in: W3-FIX-G, converged_3_clean: true, report: "cycles/wave-3-multi-tenant/gate-step-e-consistency-validation-pass7.md" }
-wave_3_integration_gate_step_f: { date: 2026-05-02, verdict: PASS, mean_satisfaction: 0.907, must_pass_ratio: "28/30 ABOVE_BAR", report: "cycles/wave-3-multi-tenant/gate-step-f-holdout-evaluation-pass7.md" }
-wave_3_integration_gate_pass_51: { date: 2026-05-02, summary: "CLEAN_WITH_LOW; code FINDINGS_REMAIN; holdout 0.886/27-of-30", detail: "cycles/wave-3-multi-tenant/adversarial-reviews/pass-51.md" }
-wave_3_integration_gate_pass_52: { date: 2026-05-02, summary: "CLEAN; all sub-reviewers PASS; holdout 0.907/28-of-30", detail: "cycles/wave-3-multi-tenant/adversarial-reviews/pass-52.md" }
-wave_3_integration_gate_pass_53: { date: 2026-05-02, summary: "CLEAN; consistency CONVERGED 3-clean; holdout 0.907 sustained", detail: "cycles/wave-3-multi-tenant/adversarial-reviews/pass-53.md" }
-wave_3_integration_gate_pass_54:
-  date: 2026-05-02
-  adversary: { verdict: CLEAN, findings: "0H/0M/0L + 1OBS", note: "O-54-001 SIGTERM CI artifact — informational", report: "cycles/wave-3-multi-tenant/adversarial-reviews/pass-54.md" }
-  code_reviewer: { verdict: CONVERGENCE_REACHED, findings: "0 findings; 8 inspection angles", report: "cycles/wave-3-multi-tenant/gate-step-c-code-review-pass7.md" }
-  security_reviewer: { verdict: APPROVED, findings: "0 H/M; 4 LOW carry-forward sustained", report: "cycles/wave-3-multi-tenant/gate-step-d-security-review-pass7.md" }
-  consistency_validator: { verdict: PASS, findings: "CLEAN; 14/14 checks PASS", report: "cycles/wave-3-multi-tenant/gate-step-e-consistency-validation-pass7.md" }
-  holdout_evaluator: { verdict: PASS, mean_satisfaction: 0.907, must_pass_ratio: "28/30 ABOVE_BAR; 3-pass plateau", report: "cycles/wave-3-multi-tenant/gate-step-f-holdout-evaluation-pass7.md" }
-wave_3_integration_gate_status: "CONVERGED"
-wave_3_3_fix_wave_status: "CLOSED — 2 PRs merged 2026-05-02"
-wave_3_3_prs: ["#122 SEC-004 4e053105", "#123 CODE-005 e4be29ae"]
-wave_3_4_fix_wave_status: "CLOSED — 2 PRs merged 2026-05-02"
-wave_3_4_prs: ["#124 CODE-006 981e17d4", "#125 SEC-005 ba3b10c7"]
-wave_3_2_fix_wave_status: "CLOSED — 4 PRs merged 2026-05-02"
-wave_3_2_prs: ["#118 CODE-004 618ad644", "#119 SEC-002 f89e7044", "#120 CODE-002 a7f0d374", "#121 CREDS-001 9d04235d"]
-wave_3_integration_gate_pass_49: { date: 2026-05-02, verdict: FINDINGS_OPEN_NEW_GAPS, h: 1, m: 7, l: 2, c_pass2_verdict: APPROVE_WITH_CONCERNS, d_pass2_verdict: APPROVED_WITH_CONDITIONS, e_pass2_verdict: CONDITIONAL_PASS, f_pass2_verdict: CONDITIONAL_PASS, mean_satisfaction: 0.75, must_pass_ratio: "18/30", reports: "cycles/wave-3-multi-tenant/{adversarial-reviews/pass-49.md,gate-step-c-code-review-pass2.md,gate-step-d-security-review-pass2.md,gate-step-e-consistency-validation-pass2.md}" }
-wave_3_integration_gate_pass_50: { date: 2026-05-02, verdict: FINDINGS_OPEN_NO_HIGHS, h: 0, m: 3, l: 4, obs: 4, pg: 3, c_pass3_verdict: APPROVE_WITH_CONCERNS, d_pass3_verdict: APPROVED_WITH_CONDITIONS, e_pass3_verdict: CONDITIONAL_PASS, f_pass3_verdict: PASS, mean_satisfaction: 0.86, must_pass_ratio: "26/30 ABOVE_BAR", reports: "cycles/wave-3-multi-tenant/adversarial-reviews/pass-50.md + gate-step-{c,d,e,f}-*-pass3.md" }
-wave_3_1_fix_wave_status: "CLOSED — 5 PRs merged 2026-05-01..2026-05-02"
-wave_3_1_prs: ["#113 SEC-001 59803de3", "#114 SEC-003 a68d1748", "#115 CODE-003 bbe79480", "#116 CODE-001 702d10b5", "#117 S-3.1.06-ImplPhase cda17ed4"]
-wave_3_started: "2026-04-28"
-wave_3_closed: "2026-04-30"
-wave_3_stories_merged: 37
-wave_3_total_prs: 40  # 37 stories + W3-FIX-WIN-001 (#105) + W3-FIX-LEFTHOOK-001 (#106) + Batch 10 PRs #107-#111 + W3-FIX-CI-001 (#112)
-wave_3_first_story_merged: "S-3.0.01 (PR #73, 6696e374, 2026-04-28)"
-s_3_0_01_merged: "2026-04-28 (PR #73, 6696e374)"
-s_3_0_01_pattern: "facade-mode tooling fix; td-closure"
-s_3_0_01_td_closed: "TD-W2-FIX-H-001"
-s_3_0_01_significance: "First Wave 3 implementation PR; validates spec-to-implementation pipeline end-to-end"
-s_3_0_02_merged: "2026-04-28 (PR #74, 373baf78)"
-s_3_0_02_review_cycles: 1
-s_3_0_02_tests_added: 17
-s_3_0_02_demo_evidence: "2 GIFs in docs/demo-evidence/S-3.0.02/"
-s_3_0_02_pattern: "facade-mode + real-Rust; healthy TDD; spec-test-impl-demo separation clean"
-s_3_0_02_bc_implemented: "BC-3.2.005"
-s_3_0_02_vps_covered: "VP-091, VP-092, VP-093, VP-094"
-s_3_0_02_unblocks: "S-3.3.01 (DTU_DEFAULT_MODE consumer)"
-s_3_0_02_inline_scope_additions: "Cargo.lock minor delta + Justfile semver-checks --workspace --baseline-rev fix (private-workspace registry-baseline pattern)"
-s_3_0_02_td_filed: "TD-W3-S-3.0.02-DOC-001 (marker comment text wording in story v0.6)"
-s_3_7_00_merged: "2026-04-29 (PR #75, 79f67c93)"
-s_3_7_00_review_cycles: 1
-s_3_7_00_tests_added: "25 TAP shell assertions"
-s_3_7_00_demo_evidence: "2 GIFs in docs/demo-evidence/S-3.7.00/"
-s_3_7_00_pattern: "facade-mode schema derivation; .gitignore narrow exception; brownfield Go SDK translation"
-s_3_7_00_bcs_implemented: "BC-3.4.002, BC-3.4.003"
-s_3_7_00_vps_covered: "VP-112, VP-114"
-s_3_7_00_unblocks: "S-3.7.04, S-3.7.05"
-s_3_7_01_merged: "2026-04-29 (PR #76, 0bb7735d)"
-s_3_7_01_review_cycles: 2
-s_3_7_01_tests_added: "39 (gated --features fixture-gen)"
-s_3_7_01_demo_evidence: "2 GIFs in docs/demo-evidence/S-3.7.01/"
-s_3_7_01_pattern: "facade-mode + real-Rust; feature-gated module; XOR-seed determinism per BC-3.4.001 invariant 2"
-s_3_7_01_bcs_implemented: "BC-3.4.001, BC-3.4.003"
-s_3_7_01_vps_covered: "VP-108, VP-111, VP-115, VP-116, VP-117"
-s_3_7_01_review_findings: "F-001 BLOCKING resolved at 82473db3 (optional deps AC-007); F-002 doc resolved; F-003 → TD"
-s_3_7_01_td_filed: "TD-W3-S-3.7.01-001 (F-003: bare constants in pagination.rs)"
-s_3_7_01_unblocks: "S-3.7.02, S-3.7.03, S-3.7.04, S-3.7.05"
-s_3_7_02_merged: "2026-04-29 (PR #79, 6a333785)"
-s_3_7_02_review_cycles: 1
-s_3_7_02_tests_added: "24 gated --features fixture-gen"
-s_3_7_02_demo_evidence: "GIFs in docs/demo-evidence/S-3.7.02/"
-s_3_7_02_bcs_implemented: "BC-3.4.001/002/003/004"
-s_3_7_02_vps_covered: "VP-108/112-114/119-120"
-s_3_7_02_pattern: "facade-mode + real-Rust generator; required force-push rebase + CI fix (4915fa68) for sibling-merge Cargo.lock conflicts and gitignored specs.json"
-s_3_7_02_test_reconciliation: "dab87f82 — drop stale #[should_panic] (BC-3.4.004 EC-003 fallback)"
-s_3_7_02_unblocks: "downstream E-3.4 test migration (S-3.4.01)"
-s_3_7_03_merged: "2026-04-29 (PR #77, c7a6f4df)"
-s_3_7_03_review_cycles: 1
-s_3_7_03_tests_added: "35 gated --features fixture-gen"
-s_3_7_03_demo_evidence: "GIFs in docs/demo-evidence/S-3.7.03/"
-s_3_7_03_bcs_implemented: "BC-3.4.001/002/004"
-s_3_7_03_vps_covered: "VP-108/112-114/119-120"
-s_3_7_03_pattern: "facade-mode + real-Rust generator; clean parallel delivery; 0 TDs"
-s_3_7_03_unblocks: "downstream E-3.4 test migration (S-3.4.01)"
-s_3_7_04_merged: "2026-04-29 (PR #78, 45732009)"
-s_3_7_04_review_cycles: 1
-s_3_7_04_tests_added: "37 gated --features fixture-gen"
-s_3_7_04_demo_evidence: "GIFs in docs/demo-evidence/S-3.7.04/"
-s_3_7_04_bcs_implemented: "BC-3.4.001/002/003/004"
-s_3_7_04_vps_covered: "VP-108/112-114/119-121"
-s_3_7_04_pattern: "facade-mode + real-Rust generator; clean parallel delivery; 0 TDs"
-s_3_7_04_test_reconciliation: "b2590273 — test_bc_3_4_004_first_asset_id_follows_format fixed to read asset_id field (dual-field model: id polymorphic, asset_id stable per BC-3.4.004 EC-001 + VP-120)"
-s_3_7_04_unblocks: "downstream E-3.4 test migration (S-3.4.01)"
-s_3_7_05_merged: "2026-04-29 (PR #80, 89fa8dea)"
-s_3_7_05_review_cycles: 1
-s_3_7_05_tests_added: "37 gated --features fixture-gen"
-s_3_7_05_demo_evidence: "GIFs in docs/demo-evidence/S-3.7.05/"
-s_3_7_05_bcs_implemented: "BC-3.4.001/002/003/004"
-s_3_7_05_vps_covered: "VP-108/112-114/119-121"
-s_3_7_05_pattern: "facade-mode + real-Rust generator; clean parallel delivery; 1 TD (TD-S3705-001)"
-s_3_7_05_td_filed: "TD-S3705-001 (prism-core dep optionality, suggestion-level)"
-s_3_7_05_unblocks: "downstream E-3.4 test migration (S-3.4.01)"
-s_3_1_01_merged: "2026-04-29 (PR #81, 39125a3e)"
-s_3_1_01_review_cycles: 1
-s_3_1_01_tests_added: 11
-s_3_1_01_bcs_implemented: "BC-3.1.001"
-s_3_1_01_pattern: "OrgId(Uuid v7) newtype; foundation for E-3.1 multi-tenant chain"
-s_3_1_01_unblocks: "S-3.1.02..07 (E-3.1 multi-tenant chain) + E-3.2 DTU re-keying (S-3.2.01..04)"
-s_3_5_01_merged: "2026-04-29 (PR #82, c4287aef)"
-s_3_5_01_review_cycles: 1
-s_3_5_01_tests_added: "12 Rust (bc_3_7_001_check_crate_layout_test) + 24 TAP shell (not cargo count)"
-s_3_5_01_bcs_implemented: "BC-3.7.001"
-s_3_5_01_pattern: "crate-layout sweep; workspace-wide convention enforcement; sibling-merge rebase pattern observed (2 force-push cycles per D-148)"
-s_3_5_01_td_filed: "TD-S3501-W3-001 (pre-existing clippy errors in sensor DTU crates; workspace-wide gate gap)"
-s_3_6_01_merged: "2026-04-29 (PR #83, 36a40f59)"
-s_3_6_01_review_cycles: 1
-s_3_6_01_tests_added: 5
-s_3_6_01_bcs_anchored: "HS-006"
-s_3_6_01_pattern: "holdout HS-006 refresh; retired BC refs updated"
-s_3_6_02_merged: "2026-04-29 (PR #84, 73d1c348)"
-s_3_6_02_review_cycles: 1
-s_3_6_02_tests_added: 5
-s_3_6_02_bcs_anchored: "HS-007"
-s_3_6_02_pattern: "holdout HS-007 refresh; retired BC refs updated"
-pr_manager_fix_validated: 2026-04-22 (v0.51.0 + completion-guard hook)
-drift_rebaseline_complete: 2026-04-20
-vsdd_factory_version: "1.0.0-rc.11 (upgraded from rc.9 2026-05-05; hooks.json + dispatcher binary applied; 38 hook scripts active; factory-dispatcher PreToolUse tier-3 block noted as TD-VSDD-056)"
-adjacent_regression_streak: 9
-structural_fix_in_flight: "2 new lint hooks in vsdd-factory plugin (off-repo); 5 previously-installed hooks landed 2026-04-21"
-linters_installed: 2026-04-21
-pre_build_sweep_waves_completed: 8
-story_corpus_sweep_complete: 2026-04-20
-full_corpus_sweep_complete: 2026-04-20
-total_artifacts_swept: 427
-bc_corpus_sweep_complete: 2026-04-20
-pre_build_sweep_requested: 2026-04-19
-recent_passes_summary: "archived — see cycles/phase-2-patch/convergence-trajectory.md (p59-p99→CONVERGED-user-override→wv1.5_GATE_CONVERGED)"
-convergence_counter: 3
-convergence_status: "PHASE_3_WAVE_1_5_GATE_CONVERGED"
-wave_1_5_integration_gate: "CONVERGED 2026-04-24 — 9 passes (P1-P6 BLOCKED; P7+P8+P9 CLEAN); clean window [7,8,9]. Detail: cycles/phase-3-dtu-wave-2/adversarial-reviews/"
-wave_1_5_gate_follow_up: "Pre-push hook for CHECKLIST #8 needed to prevent 4th SHA-drift recurrence. Hook script at .factory/hooks/verify-sha-currency.sh (created Pass 3 remediation). Wire as wave-gate-prerequisite hook when v0.52 vsdd-factory lands. Until then: run bash .factory/hooks/verify-sha-currency.sh before every state-manager burst push."
-wave_1_5_pr_g_remediation_pr: "#41 (28a085c9)"
-wave_1_5_opened: 2026-04-23
-wave_1_5_sprint_completed: 2026-04-24
-wave_1_5_prs_merged: [33, 34, 35, 36, 37, 38, 39, 40, 41, 42]
-wave_1_5_tds_resolved: 24
-wave_1_5_scope: "Debt-reduction sprint: 19 of 20 TD items (17 + 2 arch-decided) + 4 PR-A FU + 1 PR-D important; TD-S-1.07-01 deferred to Wave 5"
-wave_1_5_gate_required: true
-wave_5_prerequisites: [{id: TD-S-1.07-01, description: "KeyringBackend production wire-up via MCP tool surface", blocks: "Wave 5 closure", target_story: "S-5.01 or S-5.02 (prism-mcp crate)", do_not_forget: "MUST be resolved before Wave 5 gate closes"}]
-wave_1_integration_gate_converged: 2026-04-23
-wave_1_integration_gate_convergence_passes: 15
-wave_1_integration_gate_reconverged: 2026-04-23
-wave_1_reconvergence_passes: 3
-wave_1_total_passes: 18
-wave_1_gate_remediation_pr: "#30 (f290f450)"
-wave_1_gate_pass_2_remediation_pr: "#31 (e187acec)"
-wave_1_complete: 2026-04-23
-adversary_pass_1_2_wave_integration_gate: "archived — P1: 11 findings; P2: 11 findings (9 remediated, 2 deferred). Detail: cycles/phase-3-dtu-wave-2/adversarial-reviews/"
-wave_1_merged_this_session: "10 (S-1.06/08/13/14/15/12/09/05/07/S-6.20) + TD-WV0-05 fix (PR #28)"
-s_6_20_merged: "2026-04-23 (PR #29, db550cec)"
-wave_1_blocked_user_action: 0
-wave_1_impl_done_pending_pr: "0 (all merged)"
-td_wv0_05_resolved: "2026-04-23 (PR #28, 95c7ff15)"
-delete_branch_on_merge: true
-s_6_20_pass_4_verdict: "BLOCKED — 2C+5H+5M+2L; v1.4 remediation required"
-s_6_20_spec_converged: 2026-04-23
-s_6_20_final_version: "1.7"
-s_6_20_convergence_trajectory: "14→7→2→1→0→0→0 (passes 4-9, v1.3 through v1.7)"
-pre_build_sweep_re_converged: 2026-04-20
-pre_build_sweep_total_passes: 11
 dtu_required: true
 dtu_assessment: COMPLETE
 dtu_assessment_approved: 2026-04-20
@@ -377,7 +172,7 @@ user_directive_persistent: "No pragmatic convergence. Fix all issues before buil
 | **Language** | Rust |
 | **Target Workspace** | per-analyst stdio (MCP server) |
 | **Started** | 2026-04-13 |
-| **Last Updated** | 2026-05-10 (D-322 — Standing Rule 3 (Production-Grade Closure Discipline) adopted; Bundle B Exit Mandate documented; STATE v7.72→v7.73) |
+| **Last Updated** | 2026-05-10 (D-323 — S-3.02-FOLLOWUP-RUNTIME pass-3 BLOCKED-soft 0/3; pass-3 report recorded; STATE v7.73→v7.74; compaction: 205 historical YAML lines extracted to burst-log) |
 | **Current Phase** | Wave 3 Tier-3 COMPLETE — **Wave 3-A 4 of 4 SHIPPED**: S-3.05 (#132 c867c344), S-3.04 (#133 57745ce8), S-3.03 (#134 7c413692), **S-3.07 (#135 2ae7185b MERGED 2026-05-08T04:23:03Z)**; post-merge cleanup confirmed; NEXT: Wave 3-B/C or Wave 4 unblock |
 | **Current Step** | D-299 — Plugin system FULL audit COMPLETE. 14 P0/P1 deferrals discovered (8 P0 + 6 P1). 3 stub-merged Wave-1 stories (S-1.12/1.14/1.15). No production binary loads sensors/*.toml. 13 new TDs filed (TD-PLUGIN-P0-001..008 + P1-001..005). S-3.09 FROZEN. Strategic direction needed: (a) full plugin completion epic, (b) min-viable plugin wiring, or (c) other path. |
 
@@ -467,6 +262,7 @@ _D-001..D-046 archived: [cycles/phase-3-dtu-wave-2/decisions-archive-d001-d032.m
 | D-287 | S-3.07 LOCAL adversary pass-5 verdict: BLOCKED (0 CRIT / 0 HIGH / 1 MED / 0 LOW / 3 OBS / 4 KUDOs). Streak RESET to 0/3 due to F-PASS5-MED-001 — fix-pass-3 partial propagation: test fn name `test_ac4_internal_table_write_rejected_e_query_010` + section header comment (write_pipeline_tests.rs:301) + doc comment (304-305) still embed `E-QUERY-010` while body assertion (311-320) correctly checks `E-QUERY-026` post fix-pass-3 catalog alignment. Canonical partial-fix discipline (a) gap from rules/S-7.01. Pass-4+correction closures verified clean: production code (error.rs Display, safety_check.rs:155 callsite, RESERVED comment block update) all correct. 3 OBS findings: (1) F-PASS5-OBS-001 — story spec S-3.07 §AC-4 says E-QUERY-010 but impl returns E-QUERY-026 (catalog v1.2:637 declares 'alias for E-QUERY-010 surfaced in write context' — defer to story-spec amendment); (2) F-PASS5-OBS-002 — E-QUERY-030 'Distinguished from' doc missing E-QUERY-027 cross-ref (single-line bundle into fix-pass-4); (3) F-PASS5-OBS-003 [process-gap] — 7 of 11 E-QUERY-020..030 codes have catalog↔impl format-text divergences (5 NEW: codes 020/021/022/025/026 beyond pass-4 codes 023/029); aggregate pattern signals systemic governance gap. STRUCTURAL-GOVERNANCE ESCALATION: This is the FOURTH consecutive pass with E-QUERY register coherence defects (pass-3 = codes 028/029, pass-4 = 027, pass-5 = test scaffolding + format-text cluster). Per pass-5 brief: trigger threshold reached. Action: file 2 P1-deferred TDs (TD-S307-002 test-name↔code coherence test; TD-S307-003 catalog↔impl Display format coherence test); fix-pass-4 closes F-PASS5-MED-001 + F-PASS5-OBS-002 (single burst); F-PASS5-OBS-003 cluster deferred to TD-S307-003 closure (5 cosmetic format-text alignments to be resolved together by the integration test that would catch them automatically). POL-11 chain: vsdd-plugin-tech-debt v3.28→v3.29, STATE v7.35→v7.36, SESSION-HANDOFF v7.35→v7.36, cycle-manifest v1.88→v1.89. factory_artifacts_tech_debt_entries=61→63 (NEW: TD-S307-002, TD-S307-003 filed this burst). | S-3.07 LOCAL pass-5 BLOCKED (0C/0H/1M/0L/3O); streak RESET 0/3; F-PASS5-MED-001 partial propagation; F-PASS5-OBS-003 process-gap structural escalation; TD-S307-002/003 filed; fix-pass-4 next; STATE v7.36; forward-pin D-288 | 4 | 2026-05-08 |
 | D-315 | 2026-05-09 | Multi-track closure burst. (a) PR #137 (CLAUDE.md TDD inner-loop discipline) squash-merged at develop `1058b24d`; full 9-step protocol completed; APPROVE in 1 review cycle; 4 non-blocking findings surfaced (cargo-watch missing from dev-setup.sh, table separator style, cargo-watch syntax, < 1s qualifier) — tracked as follow-up maintenance PR. (b) BC-2.05.012 v1.1→v1.2 — F-PASS4-LOW-2 closure: §Failure paths and Error Cases table updated to describe RocksDbBackend::open failure (the actually-fallible step) instead of phantom AuditEmitter::new failure (BootAuditEmitter::new is infallible). 4 edits, 247 lines. (c) S-WAVE5-PREP-01 fix-pass-4 closure at HEAD `be6228f0`: 3 surgical commits closed F-PASS4-LOW-1 (broken doclink), F-PASS4-OBS-1 (single Utc::now() call), F-PASS4-OBS-2 (honest SIGTERM log message); subsequent #[ignore] deferral on flaky SIGTERM test (commit 8aba1250) was overruled by user directive ("anything that surfaces during this session gets fixed"); flaky test ACTUALLY FIXED via sentinel-file readiness handshake (commit be6228f0). Implementer's diagnosis: root cause was RocksDB init race against hardcoded sleep, NOT stdio piping as pass-4 implementer initially misdiagnosed. 5/5 consecutive runs pass in ~1s each. just check exits 0 with test in PASSED tally (3456 passed / 17 skipped / 0 failed). [process-rule]: standing rule established this session — NO #[ignore] deferrals as first-line response to test failures, regardless of whether failure was caused by current changes; we are correcting stories the factory previously failed to execute properly. STATE v7.64→v7.65; SESSION-HANDOFF v7.63→v7.64; BC-INDEX [bumped]; develop_head 3898bd58→1058b24d. | Multi-track D-315: PR #137 merged 1058b24d + BC-2.05.012 v1.2 + fix-pass-4 at be6228f0 (sentinel-file handshake RocksDB race fix); develop_head 3898bd58→1058b24d; STATE v7.65 | 4 | 2026-05-09 |
 | D-316 | 2026-05-09 | S-WAVE5-PREP-01 LOCAL adversary pass-5 verdict CLEAN. **Streak advances 1/3 → 2/3.** Severity trend: pass-1 1C/3H/5M/3L/3OBS → pass-2 1C/3H/3M/1L/3OBS → pass-3 0C/1H/1M/1L/2OBS → pass-4 0C/0H/0M/2L/3OBS+5K → pass-5 0C/0H/0M/2L/3OBS+5K. Pass-4 closures: 4 of 5 CLOSED (LOW-1 doclink, LOW-2 BC-2.05.012 v1.2 amendment, OBS-1 single Utc::now(), OBS-3 deferred-as-TD), 1 PARTIAL (F-PASS4-OBS-2 sibling-not-updated — Unix paths fixed but non-Unix path at signals.rs:93 still says "Audit buffer flushed"; surfaced as F-PASS5-LOW-2 per Partial-Fix Regression Discipline). Flaky-test fix audited: sentinel-file readiness handshake correctly implemented; PRISM_TEST_READY_FILE gated #[cfg(feature = "test-injection")]; libc dep gated to test-injection; zero #[ignore] in prism-bin. NEW pass-5 findings: F-PASS5-LOW-1 (duplicate "Test gate: PRISM_TEST_STOP_AFTER_STEP=6" comment block at boot.rs:236-251), F-PASS5-LOW-2 (signals.rs:93 non-Unix branch still misleading), F-PASS5-OBS-1 (boot_emitter expects vs other audit emitters' unwrap_or(0)), F-PASS5-OBS-2 (sentinel write precedes signal handler registration — microsecond race window dominated by polling interval), F-PASS5-OBS-3 (Ctrl-C and SIGTERM handlers identical in signals.rs:55-84 — duplication). 5 KUDOs: sentinel handshake; parent-PID path; libc gating; BC v1.2 amendment; single Utc::now(). Per user directive ("fix everything that surfaces"): fix-pass-5 dispatch for F-PASS5-LOW-1, F-PASS5-LOW-2, F-PASS5-OBS-1, F-PASS5-OBS-2 (defer F-PASS5-OBS-3 — refactor risk > value). Then pass-6 → target streak 3/3 → merge-ready. STATE v7.65→v7.66. | S-WAVE5-PREP-01 LOCAL pass-5 CLEAN; streak 2/3; 2L+3OBS+5K; fix-pass-5 dispatch for LOW-1/LOW-2/OBS-1/OBS-2; F-PASS5-OBS-3 deferred; STATE v7.66 | 4 | 2026-05-09 |
+| D-323 | 2026-05-10 | S-3.02-FOLLOWUP-RUNTIME pass-3 BLOCKED-soft (0/3): 13 KUDOs verifying pass-1+pass-2 closures; 1 NEW CRIT (F-LP3-CRIT-1 Layer 1 AST walk skips JOIN ON/GROUP BY/ORDER BY â defense-in-depth holds via Layer 2; Standing Rule 3 #3 violation), 1 MED (F-LP3-MED-1 classify_predicates called then discarded â Standing Rule 3 #1), 1 LOW (doc-string drift), 3 OBS. fix-pass-3 dispatch pending. PAUSE for hook upgrade rc.11ârc.16 restart. | SESSION-HANDOFF v7.73âv7.74 |
 | D-322 | 2026-05-10 | Standing Rule 3 adopted (Production-Grade Closure Discipline). Bundle B Exit Mandate documented. S-3.02-FOLLOWUP-RUNTIME pass-1 BLOCKED-hard 0/3, fix-pass-1 dispatched. | SESSION-HANDOFF v7.72→v7.73 |
 | D-321b | 2026-05-09 | **Pre-compact checkpoint — Standing Orchestrator Rules + deferred-items dispositions captured.** Two orchestrator-side workaround rules codified in SESSION-HANDOFF.md '## Standing Orchestrator Process Rules': Rule 1 (adversary report backfill after every pass — workaround for TD-VSDD-ADVERSARY-PERSISTENCE); Rule 2 (orchestrator-drives-cascade for PR-LEVEL steps 4-5 — workaround for TD-PR-MANAGER-AGENT-TOOL-ACCESS). Deferred-items dispositions for tasks #80-#84 recorded in SESSION-HANDOFF '## Deferred-Items Dispositions' table and appended to pr-139-deferred-items.md dossier: #80 DEFERRED-plugin, #81 DEFERRED-until-S-3.02-FOLLOWUP-RUNTIME, #82 DEFERRED-next-cascade, #83 DEFERRED-bundle-with-#84, #84 DEFERRED-architect-dispatch. PRE-COMPACT CHECKPOINT written to SESSION-HANDOFF. Post-compact next action: S-3.02-FOLLOWUP-RUNTIME (Phase B-2, 8pt, steps 7-8 QueryEngine + WriteExecutor). STATE v7.71→v7.72. SESSION-HANDOFF v7.71→v7.72. | Standing Rules 1+2 codified; #80-#84 dispositions recorded; PRE-COMPACT CHECKPOINT written; STATE v7.72 | 4 | 2026-05-09 |
 | D-321 | 2026-05-09 | **PR #139 cli.rs doc-fix SHIPPED — TD-PR-MANAGER-CONVERGENCE-DISCIPLINE remediation step 1 complete.** Maintenance branch `maintenance/pr138-cli-doc-fix` squash-merged at develop@`c98a38b0` 2026-05-09. Full 9-step PR protocol executed honestly (unlike PR #138 which was merged at 2/3). PR title: `docs(prism-bin): fix --config-dir default doc-comment (#139)`. Source surface: `crates/prism-bin/src/cli.rs` (+6/-1, bullet-list `--config-dir` doc with XDG_CONFIG_HOME + platform-aware `dirs::config_dir().join("prism")` form); `crates/prism-bin/src/main.rs` (+6/-3, parallel comment sync); `crates/prism-bin/tests/bc_2_06_011_config_load.rs` (+2/-5, 5 sites updated to "platform default" phrasing). PR-LEVEL cascade: 9 adversary passes + 4 fix-passes + 3-CLEAN convergence streak (passes 7/8/9); 14 findings closed (5 from pass-2, 3 from pass-3, 3 from pass-4, 1 MED + 1 LOW from pass-6); final pr-reviewer verdict APPROVE; CI 34/34 SUCCESS mergeState=CLEAN. Factory-artifacts work landed (3 commits on factory-artifacts, HEAD 820a110b): BC-2.06.011 v1.1→v1.2 (lines 33/46/107 `~/.prism/` → platform-aware form; closes F-P2-MED-1); BC-INDEX v4.51→v4.53 (entry update + row title sync per POL-7; closes F-P3-MED-1/F-P3-MED-2); AC-002-help.txt regenerated (bullet-list form); AC-003-validate-config-valid.txt + AC-012-panic-hook.txt regenerated (line-shift + exit=0→exit=1 fix; closes F-P4-MED-1); pr-description.md refreshed (closes F-P4-LOW-1); review-findings.md DELETED (fabricated artifact; closes F-P4-LOW-2); ADR-022 v1.0→v1.1 (§B step 2 stale literal removed; closes F-P6-MED-1); ARCH-INDEX v2.36→v2.37 (ADR-022 v1.1 row per POL-11). Deferred to follow-up tasks: task #81 workspace `~/.prism/` drift in 5+ arch docs (LOW, intent-verification needed); task #82 demo-evidence regeneration rule for CLI surface changes; task #83 POL-7 sync BC-2.05.012 ref; task #84 BC frontmatter status/lifecycle divergence. Note: PR #139 is the FIRST REMEDIATION step of TD-PR-MANAGER-CONVERGENCE-DISCIPLINE — deferred fix landed via PROPER protocol (full 9-step, 3/3 CLEAN, no admin bypass). CODIFICATION step (pr-manager prompt update / hook) still pending in vsdd-factory plugin scope. TD registrations (PR #139 cascade): TD-VSDD-ADVERSARY-PERSISTENCE (P1, engine-wide adversary report persistence gap — adversaries read-only-tooled, 11 pass reports lost to conversation), TD-PR-MANAGER-AGENT-TOOL-ACCESS (P1, root cause of TD-PR-MANAGER-CONVERGENCE-DISCIPLINE phase 2 — pr-manager cannot spawn sub-agent adversaries), TD-VSDD-DEMO-REGEN-CLI-SURFACE (P2, no automated demo regen rule for CLI surface changes, links task #82), TD-VSDD-BC-LIFECYCLE-FIELD-CANONICAL (P2, BC frontmatter status: vs lifecycle: canonical field undeclared, links task #84), TD-PRISM-INSTALLER-UX-VS-BINARY-DEFAULT-DRIFT (P2, arch docs ambiguous installer paths vs binary defaults, links task #81), TD-PRISM-BC-REFERENCE-H1-MATCH-LINT (P3, no POL-7 lint for cross-BC title citations, links task #83). Dossier: cycles/wave-4-operations/pr-139-deferred-items.md (all 9 pass narratives + 4 deferred items + remediation options). STATE v7.70→v7.71. SESSION-HANDOFF v7.70→v7.71. | PR #139 cli.xs doc-fix SHIPPED c98a38b0; 9 PR-LEVEL passes + 4 fix-passes + 3-CLEAN; 14 findings closed; BC-2.06.011 v1.2, BC-INDEX v4.53, ADR-022 v1.1, ARCH-INDEX v2.37; factory-artifacts HEAD 820a110b; TD-PR-MANAGER-CONVERGENCE-DISCIPLINE step-1 DONE; 6 TDs registered; dossier pr-139-deferred-items.md; STATE v7.71 | 4 | 2026-05-09 |
@@ -630,11 +426,11 @@ _TD-VSDD-014..019, TD-W3-COMPLIANCE-001, TD-VSDD-025..029 archived to [tech-debt
 
 Cycle files: [burst-log](cycles/phase-2-patch/burst-log.md) | [convergence-trajectory](cycles/phase-2-patch/convergence-trajectory.md) | [session-checkpoints](cycles/phase-2-patch/session-checkpoints.md) | [lessons](cycles/phase-2-patch/lessons.md) | [resolved-blockers](cycles/phase-2-patch/blocking-issues-resolved.md)
 ---
-## Session Resume Checkpoint (2026-05-10-v7.73-d322-standing-rule-3-bundle-b-exit-mandate)
+## Session Resume Checkpoint (2026-05-10-v7.74-d323-pass3-blocked-soft-rc16-restart)
 
-_Previous checkpoint (v7.72/D-321b pre-compact/standing-rules-dispositions) archived: [cycles/wave-4-operations/session-checkpoints.md](cycles/wave-4-operations/session-checkpoints.md)_
+_Previous checkpoint (v7.73/D-322 standing-rule-3-bundle-b-exit-mandate) archived: [cycles/wave-4-operations/session-checkpoints.md](cycles/wave-4-operations/session-checkpoints.md)_
 
-**STATE v7.73. D-322 — Standing Rule 3 (Production-Grade Closure Discipline) adopted; Bundle B Exit Mandate documented.** develop@c98a38b0 (PR #139 cli.rs doc-fix squash-merged 2026-05-09). factory-artifacts HEAD: run `git -C .factory log -1` (TD-VSDD-053). BC-2.06.011 v1.2, BC-INDEX v4.53, ADR-022 v1.1, ARCH-INDEX v2.37. 6 TDs in vsdd-plugin-tech-debt v3.42 (TD-VSDD-ADVERSARY-PERSISTENCE P1, TD-PR-MANAGER-AGENT-TOOL-ACCESS P1, TD-VSDD-DEMO-REGEN-CLI-SURFACE P2, TD-VSDD-BC-LIFECYCLE-FIELD-CANONICAL P2, TD-PRISM-INSTALLER-UX-VS-BINARY-DEFAULT-DRIFT P2, TD-PRISM-BC-REFERENCE-H1-MATCH-LINT P3). Standing Orchestrator Rules adopted — see SESSION-HANDOFF.md '## Standing Orchestrator Process Rules' (Rules 1, 2, 3). Rule 3 = Production-Grade Closure Discipline: no MVP-limitation deferrals, no surface-and-defer-via-error, architectural correction in scope, surface-for-human-approval is last resort. Bundle B Exit Mandate active — full-codebase audit required before Bundle B complete (task #85). Tasks #80-#84 DISPOSITIONS RECORDED — do NOT re-triage. Dossier: cycles/wave-4-operations/pr-139-deferred-items.md. Worktrees: main (clean) + .factory + .worktrees/S-3.09 (FROZEN per D-298) + .worktrees/S-3.02-FOLLOWUP-RUNTIME (fix-pass-1 IN PROGRESS at HEAD a6380143). POST-COMPACT NEXT ACTION: S-3.02-FOLLOWUP-RUNTIME fix-pass-1 production-grade closure (CRIT + HIGH per Standing Rule 3); adversary pass-2 after fix-pass-1 lands. Apply Standing Rules 1, 2, 3 throughout cascade.**
+**STATE v7.74. D-323 â S-3.02-FOLLOWUP-RUNTIME pass-3 BLOCKED-soft (0/3); pass-3 adversary report recorded (Standing Rule 1); 2 Standing Rule 3 violations (F-LP3-CRIT-1 Layer 1 partial AST walk, F-LP3-MED-1 cosmetic close); plugin upgraded rc.11ârc.16 (2026-05-10T07:38:25Z); PAUSE for human-driven Claude restart.** develop@c98a38b0 (PR #139 cli.rs doc-fix squash-merged 2026-05-09). factory-artifacts HEAD: run `git -C .factory log -1` (TD-VSDD-053). BC-2.06.011 v1.2, BC-INDEX v4.53, ADR-022 v1.1, ARCH-INDEX v2.37. vsdd-factory rc.16 active. Standing Orchestrator Rules active (Rules 1, 2, 3). Bundle B Exit Mandate active (task #85). Tasks #80-#84 DISPOSITIONS RECORDED â do NOT re-triage. Worktrees: main (clean) + .factory + .worktrees/S-3.09 (FROZEN per D-298) + .worktrees/S-3.02-FOLLOWUP-RUNTIME (HEAD 609d7d87; pass-3 BLOCKED-soft 0/3; fix-pass-3 pending). POST-RESTART NEXT ACTION: dispatch fix-pass-3 for S-3.02-FOLLOWUP-RUNTIME. Reference .factory/cycles/wave-4-operations/adversarial-reviews/S-3.02-FOLLOWUP-RUNTIME-pass-3.md. Apply Standing Rule 3.**
 
 **S-3.09 FREEZE STATE:**
 - Worktree: .worktrees/S-3.09 on branch feature/S-3.09 (off develop@2ae7185b)
@@ -668,7 +464,7 @@ _Previous checkpoint (v7.72/D-321b pre-compact/standing-rules-dispositions) arch
 
 **Deferred TDs (carry-forward):** W3-FIX-S307-001/002/003 + TD-VSDD-082 + TD-S307-002/003/004 + TD-VSDD-057 (OPEN-DEFERRED-CROSS-REPO) + TD-S309-O1/O2/O3/O4
 
-**Current spec versions:** BC-2.11.004 v1.5 (active), BC-2.09.001..008 v1.4/1.5 (active), BC-2.11.005 v1.4, BC-2.11.006 v1.17, BC-2.11.007 v1.4, BC-2.07.002 v4.8, BC-2.05.012 v1.3, BC-2.06.011 v1.2 (D-321 amendment), S-3.02 v1.13, S-3.06 v1.8, S-1.10 v1.5, BC-INDEX v4.53, STORY-INDEX v2.31, ARCH-INDEX v2.37, module-decomposition v1.14, ADR-022 v1.1 (D-321 amendment), VP-INDEX v1.29, prd.md v1.10, error-taxonomy v1.17, develop@c98a38b0 (PR #139 cli.rs doc-fix squash-merged 2026-05-09); STATE v7.73 SESSION-HANDOFF v7.73 (D-322 Standing Rule 3 + Bundle B Exit Mandate)
+**Current spec versions:** BC-2.11.004 v1.5 (active), BC-2.09.001..008 v1.4/1.5 (active), BC-2.11.005 v1.4, BC-2.11.006 v1.17, BC-2.11.007 v1.4, BC-2.07.002 v4.8, BC-2.05.012 v1.3, BC-2.06.011 v1.2 (D-321 amendment), S-3.02 v1.13, S-3.06 v1.8, S-1.10 v1.5, BC-INDEX v4.53, STORY-INDEX v2.31, ARCH-INDEX v2.37, module-decomposition v1.14, ADR-022 v1.1 (D-321 amendment), VP-INDEX v1.29, prd.md v1.10, error-taxonomy v1.17, develop@c98a38b0 (PR #139 cli.rs doc-fix squash-merged 2026-05-09); STATE v7.74 SESSION-HANDOFF v7.74 (D-323 pass-3 BLOCKED-soft 0/3; rc.16 restart)
 
 **Key files:** [SESSION-HANDOFF.md](SESSION-HANDOFF.md) | [cycle-manifest.md](cycles/wave-4-operations/cycle-manifest.md) | [HOLDOUT-INDEX.md](holdout-scenarios/HOLDOUT-INDEX.md)
 

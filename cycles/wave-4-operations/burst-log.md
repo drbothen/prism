@@ -90,3 +90,32 @@ STATE.md v6.43 compaction: Decisions D-200 through D-213 (Wave 4 pre-flight + ar
 0H+2M+1L. HIGH count: 0 (exhausted). Disposition: CLEAN. Verdict: FINDINGS_REMAIN (window 1/3 OPEN; Pass 19 + Pass 20 required). ADR-016 v0.11, ADR-017 v0.7, ARCH-INDEX v2.16. STATE v6.52, HANDOFF v6.52, cycle-manifest v1.35. Stage 1 SHA `0063cedd`.
 
 ---
+
+## Burst 2 (2026-05-10) — STATE.md compaction (D-323 v7.74)
+
+**Agents dispatched:** state-manager (compaction + D-323 state burst)
+**Files touched:** .factory/STATE.md (compacted), .factory/SESSION-HANDOFF.md (v7.74), .factory/cycles/wave-4-operations/adversarial-reviews/S-3.02-FOLLOWUP-RUNTIME-pass-3.md (new)
+**Versions bumped:** STATE.md v7.73 → v7.74
+
+### Extracted Historical YAML Fields (removed from STATE.md frontmatter)
+
+The following fields were present in STATE.md frontmatter and extracted here as they represent
+completed historical wave data already archived in cycle directories:
+
+**Wave 0 completion fields:** gate_status_hook_compat_remediation, wave_0a/b/c_complete, wave_0_retrospective_gate_passed, wave_0_gate_remediation_pr/sha
+
+**Wave 1 fields:** wave_1_started, wave_1_integration_gate_converged/convergence_passes/reconverged/reconvergence_passes/total_passes/gate_remediation_pr/gate_pass_2_remediation_pr/complete/merged_this_session/blocked_user_action/impl_done_pending_pr/integration_gate_passes, adversary_pass_1_2_wave_integration_gate, td_wv1_04_resolved, s_6_20_* (merged/pass_4_verdict/spec_converged/final_version/convergence_trajectory), td_wv0_05_resolved, delete_branch_on_merge
+
+**Wave 1.5 fields:** wave_1_5_integration_gate/gate_follow_up/pr_g_remediation_pr/opened/sprint_completed/prs_merged/tds_resolved/scope/gate_required, convergence_counter, convergence_status, recent_passes_summary
+
+**Wave 2 fields:** wave_2_started/first_story_merged/stories_merged/complete/total_prs/integration_gate_triggered/integration_gate_status/gate_step_c/d/e/f/integration_gate_passes/story_metrics_archived, hotfix_cascade_status, ci_optimization_complete, ci_critical_path_pre/post, vsdd_plugin_prevention_layers_queued
+
+**Wave 3 gate pass fields:** wave_3_integration_gate_pass_49/50/51/52/53/54 (full YAML blocks), wave_3_integration_gate_step_b/c/d/e/f, wave_3_1/2/3/4_fix_wave_status/prs, wave_3_integration_gate_status, wave_3_started/closed/stories_merged/total_prs/first_story_merged
+
+**Per-story Wave 3 fields (all s_3_* and s_6_20 narrative blocks):** s_3_0_01/02, s_3_7_00/01/02/03/04/05, s_3_1_01, s_3_5_01, s_3_6_01/02 (merged dates, review_cycles, tests_added, demo_evidence, patterns, bcs_implemented, vps_covered, unblocks, td_filed)
+
+**Pre-build sweep fields:** pre_build_sweep_waves_completed/requested/re_converged/total_passes, story_corpus_sweep_complete, full_corpus_sweep_complete, total_artifacts_swept, bc_corpus_sweep_complete
+
+**Other historical fields:** pr_manager_fix_validated, drift_rebaseline_complete, adjacent_regression_streak, structural_fix_in_flight, linters_installed, vsdd_factory_version (rc.11 — superseded by rc.16 activation in settings.local.json), adr_count, pr_count_merged, pre_wave_2_audit_*, wave_5_prerequisites (carried in SESSION-HANDOFF)
+
+**Rationale:** These fields are fully captured in their respective cycle burst-logs and decisions archive. Removing them reduces STATE.md from 684 lines to ~380 lines, bringing it under the 500-line hook limit.
