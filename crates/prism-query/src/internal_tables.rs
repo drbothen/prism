@@ -209,7 +209,7 @@ impl datafusion::datasource::TableProvider for RocksDbTableProvider {
         let pairs_truncated: Vec<_> = kv_pairs.into_iter().take(cap).collect();
 
         for chunk in pairs_truncated.chunks(chunk_size) {
-            let batch = build_batch_from_kv(schema.clone(), num_fields, chunk)?;
+            let batch = build_batch_from_kv(schema.clone(), num_fields, chunk, domain)?;
             // F-LP1-HIGH-4: inject virtual fields into each batch.
             // BC-2.11.012: internal tables use _sensor = "prism", _client = "<system>",
             // _source_table = <table_name> (the bare domain table name).
@@ -331,46 +331,142 @@ fn inject_internal_virtual_fields(
 // build_batch_from_kv — construct RecordBatch from raw KV pairs
 // ---------------------------------------------------------------------------
 
-/// Build an Arrow `RecordBatch` from raw key-value pairs by filling schema columns.
+/// Build an Arrow `RecordBatch` from raw key-value pairs, with domain-aware deserialization.
 ///
-/// Each column is filled with an empty string (we only have raw bytes; for
-/// MVP the raw values are stored as opaque bytes, not Arrow-typed structs).
-/// The `key` bytes are used for the first text column as a best-effort UTF-8
-/// representation.
+/// # Deserialization Strategy (F-LP1-HIGH-2, AD-012)
+/// - `StorageDomain::AuditBuffer`: values are bincode 2.x encoded `AuditEntry` structs
+///   (produced by `prism-storage::audit_buffer::append_audit_entry`). Deserialized via
+///   `bincode::serde::decode_from_slice` and projected onto the audit schema columns.
+///   Failed deserialization falls back to empty strings (graceful degradation — avoids
+///   panicking on schema drift or partially-written entries).
+/// - All other domains: raw bytes as best-effort UTF-8 for the first column, empty
+///   strings for remaining columns. Full deserialization for those domains is deferred
+///   to follow-up stories as domain types are stabilized.
+///
+/// # Schema Projection
+/// Columns are filled to match `schema.fields()` order. Virtual fields are NOT included
+/// here — they are appended by `inject_internal_virtual_fields()` after this function.
 fn build_batch_from_kv(
     schema: SchemaRef,
     num_fields: usize,
     chunk: &[(Vec<u8>, Vec<u8>)],
+    domain: StorageDomain,
 ) -> datafusion::error::Result<RecordBatch> {
     let n = chunk.len();
     let mut columns: Vec<Arc<dyn arrow::array::Array>> = Vec::with_capacity(num_fields);
 
-    for (i, field) in schema.fields().iter().enumerate() {
-        let arr: Arc<dyn arrow::array::Array> = match field.data_type() {
-            DataType::Utf8 => {
-                // For the first field, use the raw value bytes as UTF-8 (best-effort).
-                // For other fields, use empty string.
-                let strings: Vec<&str> = if i == 0 {
-                    chunk
-                        .iter()
-                        .map(|(_, v)| std::str::from_utf8(v).unwrap_or(""))
-                        .collect()
-                } else {
-                    vec![""; n]
+    match domain {
+        StorageDomain::AuditBuffer => {
+            // F-LP1-HIGH-2: bincode 2.x deserialization of AuditEntry.
+            // Schema: { timestamp: Utf8, event_type: Utf8, org_id: Utf8, payload: Utf8 }
+            // AuditEntry fields: { timestamp_ns: u64, trace_id: String, payload: BTreeMap<String,String> }
+            // Projection:
+            //   timestamp  <- timestamp_ns (formatted as decimal string for query access)
+            //   event_type <- payload.get("event_type").unwrap_or("")
+            //   org_id     <- payload.get("org_id").unwrap_or("")
+            //   payload    <- full payload JSON or trace_id as fallback
+
+            let mut timestamps: Vec<String> = Vec::with_capacity(n);
+            let mut event_types: Vec<String> = Vec::with_capacity(n);
+            let mut org_ids: Vec<String> = Vec::with_capacity(n);
+            let mut payloads: Vec<String> = Vec::with_capacity(n);
+
+            for (_, value_bytes) in chunk {
+                let entry: Option<prism_storage::audit_buffer::AuditEntry> =
+                    bincode::serde::decode_from_slice::<
+                        prism_storage::audit_buffer::AuditEntry,
+                        _,
+                    >(value_bytes, bincode::config::standard())
+                    .ok()
+                    .map(|(e, _)| e);
+
+                match entry {
+                    Some(e) => {
+                        timestamps.push(e.timestamp_ns.to_string());
+                        event_types.push(e.payload.get("event_type").cloned().unwrap_or_default());
+                        org_ids.push(e.payload.get("org_id").cloned().unwrap_or_default());
+                        // Serialize payload map to JSON string for the payload column.
+                        let payload_str = serde_json::to_string(&e.payload)
+                            .unwrap_or_else(|_| e.trace_id.clone());
+                        payloads.push(payload_str);
+                    }
+                    None => {
+                        // Graceful degradation: failed deserialization → empty strings.
+                        // Avoids panicking on schema drift or partially-written entries.
+                        tracing::debug!(
+                            "AuditBuffer: failed to deserialize entry via bincode 2.x; \
+                             using empty strings (graceful degradation)"
+                        );
+                        timestamps.push(String::new());
+                        event_types.push(String::new());
+                        org_ids.push(String::new());
+                        payloads.push(String::new());
+                    }
+                }
+            }
+
+            // Build columns in schema field order: timestamp, event_type, org_id, payload.
+            let field_names: Vec<&str> =
+                schema.fields().iter().map(|f| f.name().as_str()).collect();
+            for field_name in &field_names {
+                let arr: Arc<dyn arrow::array::Array> = match *field_name {
+                    "timestamp" => Arc::new(StringArray::from(
+                        timestamps.iter().map(|s| s.as_str()).collect::<Vec<_>>(),
+                    )),
+                    "event_type" => Arc::new(StringArray::from(
+                        event_types.iter().map(|s| s.as_str()).collect::<Vec<_>>(),
+                    )),
+                    "org_id" => Arc::new(StringArray::from(
+                        org_ids.iter().map(|s| s.as_str()).collect::<Vec<_>>(),
+                    )),
+                    "payload" => Arc::new(StringArray::from(
+                        payloads.iter().map(|s| s.as_str()).collect::<Vec<_>>(),
+                    )),
+                    _ => {
+                        // Unknown field: empty string fallback.
+                        Arc::new(StringArray::from(vec![""; n]))
+                    }
                 };
-                Arc::new(StringArray::from(strings))
+                columns.push(arr);
             }
-            DataType::Int32 => {
-                use arrow::array::Int32Array;
-                Arc::new(Int32Array::from(vec![0i32; n]))
+        }
+
+        _ => {
+            // Other domains: raw bytes fallback — full deserialization deferred to
+            // follow-up stories as domain types are stabilized (AD-012, story §Tasks step 6).
+            for (i, field) in schema.fields().iter().enumerate() {
+                let arr: Arc<dyn arrow::array::Array> = match field.data_type() {
+                    DataType::Utf8 => {
+                        // For the first field, use raw value bytes as UTF-8 (best-effort).
+                        // For other fields, use empty string.
+                        if i == 0 {
+                            let strings: Vec<&str> = chunk
+                                .iter()
+                                .map(|(_, v)| std::str::from_utf8(v).unwrap_or(""))
+                                .collect();
+                            Arc::new(StringArray::from(strings))
+                        } else {
+                            Arc::new(StringArray::from(vec![""; n]))
+                        }
+                    }
+                    DataType::Int32 => {
+                        use arrow::array::Int32Array;
+                        Arc::new(Int32Array::from(vec![0i32; n]))
+                    }
+                    _ => Arc::new(StringArray::from(vec![""; n])),
+                };
+                columns.push(arr);
             }
-            _ => {
-                // Default: empty string array for unknown types.
-                Arc::new(StringArray::from(vec![""; n]))
-            }
-        };
-        columns.push(arr);
+        }
     }
+
+    // Verify column count matches schema field count before building batch.
+    debug_assert_eq!(
+        columns.len(),
+        num_fields,
+        "build_batch_from_kv: column count mismatch: expected {num_fields}, got {}",
+        columns.len()
+    );
 
     RecordBatch::try_new(schema, columns)
         .map_err(|e| datafusion::error::DataFusionError::ArrowError(Box::new(e), None))
