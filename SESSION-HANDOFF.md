@@ -1,11 +1,11 @@
 ---
 document_type: session-handoff
 level: ops
-version: "7.75"
+version: "7.76"
 status: current
 timestamp: 2026-05-10T09:15:00Z
-predecessor_session: "D-321 follow-up pre-compact burst: Standing Orchestrator Rules codified (adversary report backfill + orchestrator-drives-cascade). Deferred items #80-#84 dispositions RECORDED. PRE-COMPACT CHECKPOINT written. STATE v7.71→v7.72. SESSION-HANDOFF v7.71→v7.72. | D-322 (2026-05-10): Standing Rule 3 (Production-Grade Closure Discipline) adopted; Bundle B Exit Mandate documented; S-3.02-FOLLOWUP-RUNTIME LOCAL adv pass-1 BLOCKED-hard with 5 CRIT + 7 HIGH + 5 MED + 4 LOW + 3 OBS, fix-pass-1 dispatched. | D-323 (2026-05-10): pass-3 BLOCKED-soft 0/3, 2 Standing Rule 3 violations (F-LP3-CRIT-1 Layer 1 partial AST walk, F-LP3-MED-1 cosmetic close); plugin upgraded rc.11→rc.16; PAUSE for human-driven Claude restart | D-324 (2026-05-10): PR #140 hook-diagnostics MERGED → develop@f1f284ab; pre-compact state-burst recorded; ready for context compaction"
-successor_focus: "PRE-COMPACT CHECKPOINT 2026-05-10 — state durable, ready for compaction. POST-COMPACT NEXT ACTION: dispatch implementer fix-pass-3 for S-3.02-FOLLOWUP-RUNTIME at worktree HEAD `609d7d87` to close F-LP3-CRIT-1 (Layer 1 AST walk extension to Join.on/group_by/order_by per Standing Rule 3 #3 — production-grade fix is to extend the walker, NOT downgrade the doc; defense-in-depth holds via Layer 2 but doc-vs-code drift must close), F-LP3-MED-1 (real wiring of pushdown::classify_predicates plan.push_down OR honest removal of dead call per ADR-022 §C), F-LP3-LOW-1 (one-line doc fix prism-core/src/error.rs:577-580 E-QUERY-006→E-QUERY-001), F-LP3-OBS-1/2/3 (sibling AC-2 fix + _filters unused decision + adversary semantic-equivalence process-gap). Reference report: .factory/cycles/wave-4-operations/adversarial-reviews/S-3.02-FOLLOWUP-RUNTIME-pass-3.md. Apply Standing Rules 1, 2, 3 throughout. Plugin: rc.16 (verify settings.local.json activated_plugin_version)."
+predecessor_session: "D-321 follow-up pre-compact burst: Standing Orchestrator Rules codified (adversary report backfill + orchestrator-drives-cascade). Deferred items #80-#84 dispositions RECORDED. PRE-COMPACT CHECKPOINT written. STATE v7.71→v7.72. SESSION-HANDOFF v7.71→v7.72. | D-322 (2026-05-10): Standing Rule 3 (Production-Grade Closure Discipline) adopted; Bundle B Exit Mandate documented; S-3.02-FOLLOWUP-RUNTIME LOCAL adv pass-1 BLOCKED-hard with 5 CRIT + 7 HIGH + 5 MED + 4 LOW + 3 OBS, fix-pass-1 dispatched. | D-323 (2026-05-10): pass-3 BLOCKED-soft 0/3, 2 Standing Rule 3 violations (F-LP3-CRIT-1 Layer 1 partial AST walk, F-LP3-MED-1 cosmetic close); plugin upgraded rc.11→rc.16; PAUSE for human-driven Claude restart | D-324 (2026-05-10): PR #140 hook-diagnostics MERGED → develop@f1f284ab; pre-compact state-burst recorded; ready for context compaction | D-325 (2026-05-10): fix-pass-3 (b749e6d7) closed all 5 pass-3 findings; pass-4 BLOCKED-soft 0/3 (F-LP4-MED-1 walk_expr FuncCall args + 3 OBS); fix-pass-4 next"
+successor_focus: "POST-PASS-4 CHECKPOINT 2026-05-10 (D-325). Dispatch implementer fix-pass-4 for S-3.02-FOLLOWUP-RUNTIME at worktree HEAD `b749e6d7` to close F-LP4-MED-1 (extend `walk_expr` to walk `FuncCall::Aggregate.args` + `FuncCall::Scalar.args` via path (a) + add RED→GREEN test analogous to test_LP3_CRIT_1_*), F-LP4-OBS-1 (engine.rs:594-598 remove 'CTEs' or note as forward-coverage), F-LP4-OBS-2 (materialization.rs:333-335 inline comment update). Defer F-LP4-OBS-3 (proptest) as separate maintenance follow-up. After fix-pass-4 → pass-5 verifies idempotency, target streak 1/3."
 
 **STEP 1 (START HERE):** Read STATE.md v7.75 + this HANDOFF v7.75 in full. S-WAVE5-PREP-01 chassis SHIPPED (D-319, PR #138, develop@53b87961). cli.rs doc-fix maintenance PR #139 ALSO SHIPPED (D-321, develop@c98a38b0). PR #140 CLAUDE.md hook-diagnostics MERGED (D-324, develop@f1f284ab). All outstanding LOW findings from D-319 are now CLOSED. No open maintenance PRs. TD-PR-MANAGER-CONVERGENCE-DISCIPLINE step-1 DONE; CODIFICATION step still pending vsdd-factory plugin scope. PR #139 deferred-items dossier + 6 TDs registered. Tasks #80-#84 DISPOSITIONS RECORDED (see '## Deferred-Items Dispositions' section below — do NOT re-triage). Standing Orchestrator Rules adopted (see '## Standing Orchestrator Process Rules' section). State durable; PRE-COMPACT CHECKPOINT recorded — safe to compact. [process-rule active]: NO #[ignore] deferrals as first-line response to test failures.
 
@@ -146,9 +146,9 @@ User invoked Claude restart to pick up vsdd-factory rc.11→rc.16 hook chain. Re
 
 6. **First post-restart action:** dispatch implementer fix-pass-3 with reference to .factory/cycles/wave-4-operations/adversarial-reviews/S-3.02-FOLLOWUP-RUNTIME-pass-3.md. Apply Standing Rule 3.
 
-## PRE-COMPACT CHECKPOINT (2026-05-10 — pre-fix-pass-3, D-324)
+## POST-PASS-4 CHECKPOINT (2026-05-10 — D-325)
 
-State is durable. Safe to compact context now. Post-compact resume sequence:
+State is durable. Fix-pass-3 closed; pass-4 BLOCKED-soft 0/3. Fix-pass-4 is the next action.
 
 ### Environment verification (run first after compact)
 
@@ -167,7 +167,7 @@ git -C /Users/jmagady/Dev/prism/.factory log --oneline -1
 
 # Worktree state
 git -C /Users/jmagady/Dev/prism/.worktrees/S-3.02-FOLLOWUP-RUNTIME log --oneline develop..HEAD
-# Expected: 4 commits — 609d7d87, 99d49b20, 73d97726, a6380143
+# Expected: 5 commits — b749e6d7, 609d7d87, 99d49b20, 73d97726, a6380143
 
 # Hook health
 bash /Users/jmagady/Dev/prism/.factory/hooks/verify-sha-currency.sh
@@ -177,23 +177,21 @@ bash /Users/jmagady/Dev/prism/.factory/hooks/verify-sha-currency.sh
 ### Active cascade
 
 - **Story:** S-3.02-FOLLOWUP-RUNTIME (Phase B-2 of Bundle B)
-- **Worktree:** `.worktrees/S-3.02-FOLLOWUP-RUNTIME` at HEAD `609d7d87`
+- **Worktree:** `.worktrees/S-3.02-FOLLOWUP-RUNTIME` at HEAD `b749e6d7`
 - **Branch:** `feature/S-3.02-FOLLOWUP-RUNTIME` (pushed to origin)
-- **Test status:** 884 prism-query / 3482 workspace tests pass (per fix-pass-2 implementer report)
-- **Pass history:** pass-1 BLOCKED-hard → fix-pass-1 → pass-2 BLOCKED-soft → fix-pass-2 → pass-3 BLOCKED-soft 0/3
-- **Convergence target:** 3 consecutive CLEAN passes
-- **Backed-up reports:** `.factory/cycles/wave-4-operations/adversarial-reviews/S-3.02-FOLLOWUP-RUNTIME-{pass-1,fix-pass-1,pass-2,fix-pass-2,pass-3}.md`
+- **Test status:** 886 prism-query / 0 failed / 6 skipped (per fix-pass-3 implementer report); `just check` PASS
+- **Pass history:** pass-1 BLOCKED-hard → fix-pass-1 → pass-2 BLOCKED-soft → fix-pass-2 → pass-3 BLOCKED-soft 0/3 → fix-pass-3 → **pass-4 BLOCKED-soft 0/3**
+- **Convergence target:** 3 consecutive CLEAN passes; streak resets on each BLOCKED verdict
+- **Backed-up reports:** `.factory/cycles/wave-4-operations/adversarial-reviews/S-3.02-FOLLOWUP-RUNTIME-{pass-1,fix-pass-1,pass-2,fix-pass-2,pass-3,fix-pass-3,pass-4}.md`
 
-### Open findings requiring fix-pass-3 (POST-COMPACT FIRST ACTION)
+### Open findings requiring fix-pass-4 (NEXT ACTION)
 
-| ID | Severity | File:Line | Production-Grade Fix |
+| ID | Severity | Evidence | Production-Grade Fix |
 |---|---|---|---|
-| F-LP3-CRIT-1 | CRITICAL | materialization.rs:877-904 (`walk_sql_query`) | Extend walker to handle `Join.on: Expr` (ast.rs:232), `sql.group_by: Vec<Expr>` (ast.rs:109), `sql.order_by: Vec<OrderExpr>` (ast.rs:112). Defense-in-depth holds via Layer 2 — Standing Rule 3 #3 violation is doc-vs-code drift. Production-grade fix: EXTEND the walker, do NOT downgrade the doc. Add tests for each AST position. |
-| F-LP3-MED-1 | MEDIUM | pushdown.rs:262-287 (`predicate_tree_to_filter_map`) | `classify_predicates` is called then result discarded via `let _ = plan;`. Production-grade fix: thread per-sensor `ColumnSpec` slices and use `plan.push_down` for the FilterMap (true wiring per ADR-022 §C); OR honestly remove the dead call + update doc at materialization.rs:778-779. Standing Rule 3 #1 violation. |
-| F-LP3-LOW-1 | LOW | prism-core/src/error.rs:577-580 (doc) | One-line fix: doc says E-QUERY-006, format string says E-QUERY-001. Update doc to E-QUERY-001. |
-| F-LP3-OBS-1 | OBS | tests/execute_integration_tests.rs:395-424 | Original AC-2 still vacuous (`!session_ctx.catalog_names().is_empty()`); new test added at 1714. Either delete original, rename to `test_AC_2_smoke_pipeline_no_error`, or update assertion. |
-| F-LP3-OBS-2 | OBS | internal_tables.rs:230 (_filters: &[Expr]) | Unused parameter; supports_filters_pushdown returns Inexact. Likely deliberate scope per story §Tasks step 5. Defer or document explicitly. |
-| F-LP3-OBS-3 | OBS | [process-gap] | Adversary closure-claim verification missed semantic equivalence between deleted-and-renamed function patterns. Amend adversary prompt: "X replaces Y" closure claims must verify dataflow not just signature. |
+| F-LP4-MED-1 | MEDIUM | `walk_expr` at `materialization.rs:965-990` wildcard comment claims FuncCall has "no subqueries" — false; `FuncCall::{Aggregate,Scalar}.args: Vec<Expr>` can carry `Expr::InSubquery` | Extend `walk_expr` to recurse into `FuncCall::Aggregate { args }` and `FuncCall::Scalar { args }`; update wildcard comment to honest enumeration; add 4th RED→GREEN test analogous to `test_LP3_CRIT_1_*` |
+| F-LP4-OBS-1 | OBS | `engine.rs:594-598` doc says "CTEs" but `SqlQuery` (ast.rs:101-114) has no CTE/WITH field | Remove "CTEs" from doc or annotate as forward-coverage |
+| F-LP4-OBS-2 | OBS | `materialization.rs:333-335` inline comment still narrates `classify_predicates` routing — residue from F-LP3-MED-1 fix that updated function-level doc but missed call-site narration | Replace stale inline narration with honest description of actual dataflow |
+| F-LP4-OBS-3 | OBS (process-gap) | Walker exhaustiveness verified by manual enumeration — fragile | Defer as separate maintenance: recommend proptest in `crates/prism-query/src/proofs/` |
 
 ### Open follow-ups (NOT blocking S-3.02-FOLLOWUP-RUNTIME)
 

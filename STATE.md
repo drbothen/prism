@@ -1,7 +1,7 @@
 ---
 document_type: pipeline-state
 level: ops
-version: "7.75"
+version: "7.76"
 producer: state-manager
 timestamp: 2026-05-10T09:15:00Z
 inputs: []
@@ -175,7 +175,7 @@ workspace_test_count: 3482  # 884 prism-query + workspace total (per implementer
 | **Language** | Rust |
 | **Target Workspace** | per-analyst stdio (MCP server) |
 | **Started** | 2026-04-13 |
-| **Last Updated** | 2026-05-10 (D-324 — PR #140 hook-diagnostics MERGED develop@f1f284ab; PRE-COMPACT CHECKPOINT recorded; STATE v7.74→v7.75) |
+| **Last Updated** | 2026-05-10 (D-325 — S-3.02-FOLLOWUP-RUNTIME fix-pass-3 closure + pass-4 report backfilled; STATE v7.75→v7.76) |
 | **Current Phase** | Wave 3 Tier-3 COMPLETE — **Wave 3-A 4 of 4 SHIPPED**: S-3.05 (#132 c867c344), S-3.04 (#133 57745ce8), S-3.03 (#134 7c413692), **S-3.07 (#135 2ae7185b MERGED 2026-05-08T04:23:03Z)**; post-merge cleanup confirmed; NEXT: Wave 3-B/C or Wave 4 unblock |
 | **Current Step** | D-299 — Plugin system FULL audit COMPLETE. 14 P0/P1 deferrals discovered (8 P0 + 6 P1). 3 stub-merged Wave-1 stories (S-1.12/1.14/1.15). No production binary loads sensors/*.toml. 13 new TDs filed (TD-PLUGIN-P0-001..008 + P1-001..005). S-3.09 FROZEN. Strategic direction needed: (a) full plugin completion epic, (b) min-viable plugin wiring, or (c) other path. |
 
@@ -212,6 +212,7 @@ _D-001..D-046 archived: [cycles/phase-3-dtu-wave-2/decisions-archive-d001-d032.m
 
 | ID | Decision | Rationale | Phase | Date |
 |----|----------|-----------|-------|------|
+| D-325 | S-3.02-FOLLOWUP-RUNTIME cascade — fix-pass-3 (b749e6d7) closes pass-3 CRIT-1 + MED-1 + LOW-1 + OBS-1/2; pass-4 verifies all 5 closures + finds 1 novel MED (F-LP4-MED-1: walk_expr FuncCall args sibling pattern) + 3 OBS; verdict BLOCKED-soft; streak 0/3 (orchestrator reset on Standing Rule 3 #3 same-pattern recurrence per user mandate); fix-pass-4 next | STATE v7.75→v7.76; fix-pass-4 dispatched next | 4 | 2026-05-10 |
 | D-214 | Wave 4 Phase 4.A Convergence Strategy — B+A Hybrid with Subagent Context Discipline. Component 1 (Option B): Proactive structural sweep. Component 2 (Option A): Formal adversarial passes 13+ to 3-clean window. Component 3: Subagent context discipline MANDATORY (orchestrator NEVER reads large files; state-manager LAST per burst). | Wave 4 Phase 4.A B+A hybrid convergence + mandatory subagent context discipline | 4 | 2026-05-04 |
 | D-215 | R9 gate user question: "Do we need to audit other completed waves (W1/W2/W3)?" — NO formal audit needed. W1/W2/W3 stories grep-clean of W4-class drift (zero live-text 16-permit/1-second-tick/Action Engine references). W4 cleanup focused on W4-specific surfaces (W4 ADRs + W4-greenfield SS-18 + PRD §2 SS-18 paragraph). W3 already passed strict 3-clean integration gate (P51/P52/P53; holdout 0.907). W3 carry-forward debt already captured as W4-FIX-* per D-203. OPTIONAL: structural-drift sweep applying TD-VSDD-039..052 methodologies across W1/W2/W3 stories during R11 (W4-FIX-*) — low-priority, NOT Phase 4.B blocker. | No W1/W2/W3 audit needed at R9 gate | 4 | 2026-05-04 |
 | D-216 | R9 gate user question: "Did we create all holdout scenarios needed for W4?" — NO — REAL GAP. 8 HS files exist (HS-001..HS-008) but NO frontmatter wave/story/BC anchoring; ZERO W4 BC references (BC-2.12.004 / BC-2.18.001/002/004) or W4 story references (S-4.01..S-4.08). Wave 3 success bar: 28/30 ABOVE_BAR holdout coverage at gate. BLOCKER for Phase 4.B wave gate: dispatch product-owner to author W4-specific holdout scenarios (HS-009 through HS-013+) covering schedule execution loop liveness, action delivery at-least-once retry, case management lifecycle, alert generation, differential pack deltas, detection rule validation. Required BEFORE any W4 wave gate can run. | W4 holdout scenarios gap — must author HS-009+ before Phase 4.B wave gate | 4 | 2026-05-04 |
@@ -430,11 +431,22 @@ _TD-VSDD-014..019, TD-W3-COMPLIANCE-001, TD-VSDD-025..029 archived to [tech-debt
 
 Cycle files: [burst-log](cycles/phase-2-patch/burst-log.md) | [convergence-trajectory](cycles/phase-2-patch/convergence-trajectory.md) | [session-checkpoints](cycles/phase-2-patch/session-checkpoints.md) | [lessons](cycles/phase-2-patch/lessons.md) | [resolved-blockers](cycles/phase-2-patch/blocking-issues-resolved.md)
 ---
-## Session Resume Checkpoint (2026-05-10-v7.75-d324-pre-compact-checkpoint)
+## Session Resume Checkpoint (2026-05-10-v7.76-d325-post-pass-4)
 
-_Previous checkpoint (v7.74/D-323 pass3-blocked-soft-rc16-restart) archived: [cycles/wave-4-operations/session-checkpoints.md](cycles/wave-4-operations/session-checkpoints.md)_
+_Previous checkpoint (v7.75/D-324 pre-compact-checkpoint) archived: [cycles/wave-4-operations/session-checkpoints.md](cycles/wave-4-operations/session-checkpoints.md)_
 
-**STATE v7.75. D-324 — PR #140 (CLAUDE.md hook diagnostics) MERGED at develop@f1f284ab; PRE-COMPACT CHECKPOINT recorded; state durable; safe to compact. CASCADE POSITION: S-3.02-FOLLOWUP-RUNTIME pass-3 BLOCKED-soft 0/3; 2 Standing Rule 3 violations (F-LP3-CRIT-1 Layer 1 partial AST walk, F-LP3-MED-1 cosmetic close); fix-pass-3 pending post-compact.** develop@f1f284ab (PR #140 CLAUDE.md hook-diagnostics merged 2026-05-10). factory-artifacts HEAD: run `git -C .factory log -1` (TD-VSDD-053). BC-2.06.011 v1.2, BC-INDEX v4.53, ADR-022 v1.1, ARCH-INDEX v2.37. vsdd-factory rc.16 active. Standing Orchestrator Rules active (Rules 1, 2, 3). Bundle B Exit Mandate active (task #85). Tasks #80-#84 DISPOSITIONS RECORDED — do NOT re-triage. Worktrees: main (clean) + .factory + .worktrees/S-3.09 (FROZEN per D-298) + .worktrees/S-3.02-FOLLOWUP-RUNTIME (HEAD 609d7d87; pass-3 BLOCKED-soft 0/3; fix-pass-3 pending). POST-COMPACT NEXT ACTION: dispatch fix-pass-3 for S-3.02-FOLLOWUP-RUNTIME. Reference .factory/cycles/wave-4-operations/adversarial-reviews/S-3.02-FOLLOWUP-RUNTIME-pass-3.md. Apply Standing Rule 3.
+**STATE v7.76. D-325 — S-3.02-FOLLOWUP-RUNTIME fix-pass-3 (b749e6d7) CLOSED all 5 pass-3 findings; pass-4 LOCAL verified all closures (8 KUDOs) + found 1 novel MED (F-LP4-MED-1: walk_expr FuncCall args, same Standing Rule 3 #3 sibling pattern) + 3 OBS; verdict BLOCKED-soft streak 0/3; fix-pass-4 next.** develop@f1f284ab. factory-artifacts HEAD: run `git -C .factory log -1` (TD-VSDD-053). BC-2.06.011 v1.2, BC-INDEX v4.53, ADR-022 v1.1, ARCH-INDEX v2.37. vsdd-factory rc.16 active. Standing Orchestrator Rules active (Rules 1, 2, 3). Bundle B Exit Mandate active (task #85). Tasks #80-#84 DISPOSITIONS RECORDED — do NOT re-triage. Worktrees: main (clean) + .factory + .worktrees/S-3.09 (FROZEN per D-298) + .worktrees/S-3.02-FOLLOWUP-RUNTIME (HEAD b749e6d7; pass-4 BLOCKED-soft 0/3; fix-pass-4 pending).
+
+**POST-COMPACT NEXT ACTION:** Dispatch implementer fix-pass-4 for S-3.02-FOLLOWUP-RUNTIME at worktree HEAD `b749e6d7` to close: F-LP4-MED-1 (extend `walk_expr` to walk `FuncCall::Aggregate.args` + `FuncCall::Scalar.args` via path (a) + add RED→GREEN test analogous to `test_LP3_CRIT_1_*`), F-LP4-OBS-1 (`engine.rs:594-598` remove "CTEs" or note as forward-coverage), F-LP4-OBS-2 (`materialization.rs:333-335` inline comment update). Defer F-LP4-OBS-3 (proptest) as separate maintenance follow-up.
+
+**Open findings (fix-pass-4 target):**
+
+| ID | Severity | Fix Required |
+|----|----------|-------------|
+| F-LP4-MED-1 | MED | Extend `walk_expr` to walk `FuncCall::{Aggregate,Scalar}.args` recursively; update wildcard comment; add 4th RED→GREEN test |
+| F-LP4-OBS-1 | OBS | `engine.rs:594-598` — remove "CTEs" or annotate as forward-coverage |
+| F-LP4-OBS-2 | OBS | `materialization.rs:333-335` inline comment — replace stale `classify_predicates` narration with honest description |
+| F-LP4-OBS-3 | OBS (process-gap) | Defer to maintenance: recommend proptest for walker exhaustiveness |
 
 **S-3.09 FREEZE STATE:**
 - Worktree: .worktrees/S-3.09 on branch feature/S-3.09 (off develop@2ae7185b)
@@ -468,7 +480,7 @@ _Previous checkpoint (v7.74/D-323 pass3-blocked-soft-rc16-restart) archived: [cy
 
 **Deferred TDs (carry-forward):** W3-FIX-S307-001/002/003 + TD-VSDD-082 + TD-S307-002/003/004 + TD-VSDD-057 (OPEN-DEFERRED-CROSS-REPO) + TD-S309-O1/O2/O3/O4
 
-**Current spec versions:** BC-2.11.004 v1.5 (active), BC-2.09.001..008 v1.4/1.5 (active), BC-2.11.005 v1.4, BC-2.11.006 v1.17, BC-2.11.007 v1.4, BC-2.07.002 v4.8, BC-2.05.012 v1.3, BC-2.06.011 v1.2 (D-321 amendment), S-3.02 v1.13, S-3.06 v1.8, S-1.10 v1.5, BC-INDEX v4.53, STORY-INDEX v2.31, ARCH-INDEX v2.37, module-decomposition v1.14, ADR-022 v1.1 (D-321 amendment), VP-INDEX v1.29, prd.md v1.10, error-taxonomy v1.17, develop@f1f284ab (PR #140 CLAUDE.md hook-diagnostics merged 2026-05-10); STATE v7.75 SESSION-HANDOFF v7.75 (D-324 PRE-COMPACT CHECKPOINT; ready for compaction)
+**Current spec versions:** BC-2.11.004 v1.5 (active), BC-2.09.001..008 v1.4/1.5 (active), BC-2.11.005 v1.4, BC-2.11.006 v1.17, BC-2.11.007 v1.4, BC-2.07.002 v4.8, BC-2.05.012 v1.3, BC-2.06.011 v1.2 (D-321 amendment), S-3.02 v1.13, S-3.06 v1.8, S-1.10 v1.5, BC-INDEX v4.53, STORY-INDEX v2.31, ARCH-INDEX v2.37, module-decomposition v1.14, ADR-022 v1.1 (D-321 amendment), VP-INDEX v1.29, prd.md v1.10, error-taxonomy v1.17, develop@f1f284ab (PR #140 CLAUDE.md hook-diagnostics merged 2026-05-10); STATE v7.76 SESSION-HANDOFF v7.76 (D-325 fix-pass-3 closure + pass-4 BLOCKED-soft 0/3; fix-pass-4 next)
 
 **Key files:** [SESSION-HANDOFF.md](SESSION-HANDOFF.md) | [cycle-manifest.md](cycles/wave-4-operations/cycle-manifest.md) | [HOLDOUT-INDEX.md](holdout-scenarios/HOLDOUT-INDEX.md)
 
