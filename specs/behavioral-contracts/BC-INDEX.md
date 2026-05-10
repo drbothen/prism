@@ -1,7 +1,7 @@
 ---
 document_type: behavioral-contract-index
 level: L3
-version: "4.52"
+version: "4.53"
 status: draft
 producer: state-manager
 timestamp: 2026-05-09T00:00:00
@@ -103,7 +103,7 @@ Phase 3-patch additions (2026-04-16): 22 new BCs added in Burst 1 to close trace
 | BC-2.06.008 | Default Values Apply and Environment Variables Override TOML | 06 - Client Configuration | CAP-009 | P0 | draft |
 | BC-2.06.009 | Config Reload Triggers notifications/tools/list_changed | 06 - Client Configuration | CAP-009 | P0 | draft |
 | BC-2.06.010 | Client ID Validation Enforces Allowed Character Set | 06 - Client Configuration | CAP-009 | P0 | draft |
-| BC-2.06.011 | ConfigManager Initialization Validation — Config Loaded and Validated Before Serving | 06 - Client Configuration | CAP-009 | P0 | active |
+| BC-2.06.011 | ConfigManager Initialization — prism.toml Schema Validation at Process Start | 06 - Client Configuration | CAP-009 | P0 | active |
 | BC-2.07.001 | Internal Ephemeral Pagination Token Structure | 07 - Adapter Pagination & Response Cache | CAP-011 | P0 | draft |
 | BC-2.07.002 | Internal Pagination Token Lifecycle — Forward Progress, Timeout, and Cleanup | 07 - Adapter Pagination & Response Cache | CAP-011 | P0 | draft |
 | BC-2.07.003 | Query Engine Sensor-Fetch Cache with Configurable TTL | 07 - Adapter Pagination & Response Cache | CAP-014 | P1 | draft |
@@ -359,6 +359,8 @@ Phase 3-patch additions (2026-04-16): 22 new BCs added in Burst 1 to close trace
 - Subsystem 19: Infusion Enrichment Framework (AD-020, CAP-031)
 
 ### Change Log (Adversarial Review Fixes)
+
+**v4.53 (2026-05-09):** PR-139-pr-level-pass-3-fix-pass — Sync BC-2.06.011 row title to H1 per POL-7 — closes F-P3-MED-1 from PR #139 PR-LEVEL adversary pass-3 (POL-7 violation, pre-existing drift surfaced during v4.52 amendment). Title updated from "ConfigManager Initialization Validation — Config Loaded and Validated Before Serving" to "ConfigManager Initialization — prism.toml Schema Validation at Process Start". No count changes (total_contracts=235 unchanged).
 
 **v4.52 (2026-05-09):** PR-139-pr-level-pass-2-fix-pass — BC-2.06.011 v1.1→v1.2: replaced obsolete `~/.prism/` default-path references with platform-aware `dirs::config_dir().join("prism")` resolution (F-P2-MED-1 closure). Three sites updated: Description, Preconditions, and TV-06-011-001 test vector. No count changes (total_contracts=235 unchanged).
 
