@@ -859,6 +859,8 @@ pub(crate) fn extract_source_names_for_capability_check(ast: &crate::ast::Ast) -
 /// - HAVING clause predicates (including subqueries)
 /// - ORDER BY expressions (`OrderExpr.expr` — may contain `InSubquery`)
 /// - SELECT projection subqueries
+/// - DML source_select clauses (`INSERT INTO … SELECT … FROM <source>`)
+/// - DML filter predicates (`UPDATE`/`DELETE WHERE` — including `InSubquery`)
 /// - Nested subqueries (recursive descent into each `SqlQuery`)
 ///
 /// This is required for the F-LP2-CRIT-1 security fix: a subquery like
@@ -866,6 +868,7 @@ pub(crate) fn extract_source_names_for_capability_check(ast: &crate::ast::Ast) -
 /// though `prism_audit` only appears in the WHERE subquery, not the top-level FROM.
 /// Coverage extended in F-LP3-CRIT-1 to also cover JOIN ON, GROUP BY, and ORDER BY
 /// positions where `InSubquery` can appear.
+/// Coverage extended in F-LP6-LOW-1 to also cover DML source_select and filter clauses.
 ///
 /// Returns a deduplicated list of source table names.
 pub(crate) fn extract_source_names_recursive(ast: &crate::ast::Ast) -> Vec<String> {
@@ -875,6 +878,19 @@ pub(crate) fn extract_source_names_recursive(ast: &crate::ast::Ast) -> Vec<Strin
     match ast {
         Ast::Sql(SqlStatement::Select(sql)) => {
             walk_sql_query(sql, &mut names);
+        }
+        Ast::Sql(SqlStatement::Dml(dml)) => {
+            // F-LP6-LOW-1: DML carries source_select (INSERT … SELECT …) and filter
+            // (UPDATE/DELETE WHERE) — both can reference internal tables via subqueries.
+            // target_table is parse-time write-protected for prism_* but READ access
+            // through source_select / filter must still be gated by AuditRead.
+            // Layer 1 sibling-pattern lineage: F-LP3-CRIT-1 → F-LP4-MED-1 → F-LP5-LOW-1 → F-LP6-LOW-1.
+            if let Some(ref source_select) = dml.source_select {
+                walk_sql_query(source_select, &mut names);
+            }
+            if let Some(ref filter) = dml.filter {
+                walk_predicate(filter, &mut names);
+            }
         }
         Ast::Filter(filter) => {
             names.insert(filter.source.raw.clone());
@@ -890,6 +906,8 @@ pub(crate) fn extract_source_names_recursive(ast: &crate::ast::Ast) -> Vec<Strin
                 }
             }
         }
+        // SqlStatement and Ast are #[non_exhaustive]; wildcard required for future variants.
+        #[allow(unreachable_patterns)]
         _ => {}
     }
 
@@ -1428,6 +1446,123 @@ mod walker_coverage_tests {
             names2.iter().any(|n| n == "prism_audit"),
             "F-LP4-MED-1 (aggregate): extract_source_names_recursive must discover \
              `prism_audit` hidden in FuncCall::Aggregate args; got names: {names2:?}"
+        );
+    }
+
+    /// F-LP6-LOW-1: DML source_select subquery must be walked by Layer 1.
+    ///
+    /// Represents: `INSERT INTO crowdstrike_contained_hosts SELECT host_id FROM prism_audit`
+    ///
+    /// The capability gate must discover `prism_audit` from the DML source_select
+    /// so that AuditRead is enforced even on INSERT INTO ... SELECT queries.
+    /// Lineage: F-LP3-CRIT-1 → F-LP4-MED-1 → F-LP5-LOW-1 → F-LP6-LOW-1.
+    #[test]
+    #[allow(non_snake_case)]
+    fn test_LP6_LOW_1_dml_source_select_subquery_discovered_by_layer1() {
+        use crate::write_ast::{DmlNode, DmlOperation};
+
+        // Build: INSERT INTO crowdstrike_contained_hosts
+        //        SELECT host_id FROM prism_audit
+        let source_select = SqlQuery {
+            select: SelectClause {
+                distinct: false,
+                items: vec![SelectItem::Expr {
+                    expr: Expr::Field(FieldPath {
+                        segments: vec!["host_id".to_string()],
+                        span: Span::ZERO,
+                    }),
+                    alias: None,
+                }],
+            },
+            from: from("prism_audit"),
+            joins: vec![],
+            where_: None,
+            group_by: vec![],
+            having: None,
+            order_by: vec![],
+            limit: None,
+        };
+
+        let dml = DmlNode {
+            operation: DmlOperation::InsertInto,
+            target_table: "crowdstrike_contained_hosts".to_string(),
+            columns: None,
+            assignments: vec![],
+            filter: None,
+            source_select: Some(source_select),
+        };
+
+        let ast = Ast::Sql(SqlStatement::Dml(dml));
+        let names = extract_source_names_recursive(&ast);
+
+        assert!(
+            names.iter().any(|n| n == "prism_audit"),
+            "F-LP6-LOW-1: extract_source_names_recursive must discover `prism_audit` \
+             in DML source_select (INSERT INTO ... SELECT FROM prism_audit); got names: {names:?}"
+        );
+    }
+
+    /// F-LP6-LOW-1: DML filter predicate (WHERE clause) must be walked by Layer 1.
+    ///
+    /// Represents: `DELETE FROM crowdstrike_contained_hosts
+    ///              WHERE host_id IN (SELECT trace_host FROM prism_audit)`
+    ///
+    /// The capability gate must discover `prism_audit` from the DML filter
+    /// so that AuditRead is enforced on DELETE/UPDATE WHERE subqueries.
+    /// Lineage: F-LP3-CRIT-1 → F-LP4-MED-1 → F-LP5-LOW-1 → F-LP6-LOW-1.
+    #[test]
+    #[allow(non_snake_case)]
+    fn test_LP6_LOW_1_dml_filter_subquery_discovered_by_layer1() {
+        use crate::ast::{FieldPath, Predicate, Span};
+        use crate::write_ast::{DmlNode, DmlOperation};
+
+        // Build: DELETE FROM crowdstrike_contained_hosts
+        //        WHERE host_id IN (SELECT trace_host FROM prism_audit)
+        let subquery = Box::new(SqlQuery {
+            select: SelectClause {
+                distinct: false,
+                items: vec![SelectItem::Expr {
+                    expr: Expr::Field(FieldPath {
+                        segments: vec!["trace_host".to_string()],
+                        span: Span::ZERO,
+                    }),
+                    alias: None,
+                }],
+            },
+            from: from("prism_audit"),
+            joins: vec![],
+            where_: None,
+            group_by: vec![],
+            having: None,
+            order_by: vec![],
+            limit: None,
+        });
+
+        let filter = Predicate::InSubquery {
+            field: FieldPath {
+                segments: vec!["host_id".to_string()],
+                span: Span::ZERO,
+            },
+            subquery,
+            negated: false,
+        };
+
+        let dml = DmlNode {
+            operation: DmlOperation::Delete,
+            target_table: "crowdstrike_contained_hosts".to_string(),
+            columns: None,
+            assignments: vec![],
+            filter: Some(filter),
+            source_select: None,
+        };
+
+        let ast = Ast::Sql(SqlStatement::Dml(dml));
+        let names = extract_source_names_recursive(&ast);
+
+        assert!(
+            names.iter().any(|n| n == "prism_audit"),
+            "F-LP6-LOW-1: extract_source_names_recursive must discover `prism_audit` \
+             in DML filter (DELETE WHERE host_id IN (SELECT FROM prism_audit)); got names: {names:?}"
         );
     }
 }

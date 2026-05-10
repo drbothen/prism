@@ -594,7 +594,8 @@ impl QueryEngine {
 ///
 /// Parses the query string and **recursively** walks all AST positions where a subquery
 /// can appear — WHERE / HAVING predicates, SELECT projection expressions, JOIN sources
-/// and ON conditions, GROUP BY / ORDER BY expressions, and function-call argument lists
+/// and ON conditions, GROUP BY / ORDER BY expressions, function-call argument lists,
+/// and DML source_select and filter clauses (INSERT INTO … SELECT … and UPDATE/DELETE WHERE)
 /// — to extract every referenced `prism_*` table name. (F-LP2-CRIT-1 Layer 1)
 ///
 /// For each extracted table, consults `INTERNAL_TABLE_DESCRIPTORS` to check
