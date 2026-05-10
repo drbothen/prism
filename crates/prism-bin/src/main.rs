@@ -60,9 +60,9 @@ async fn dispatch(args: CliArgs) -> i32 {
     // Resolve config directory from CLI arg or PRISM_CONFIG_DIR env var.
     // The --config-dir / PRISM_CONFIG_DIR resolution is already done by clap
     // (the field is annotated with env = "PRISM_CONFIG_DIR"), so args.config_dir
-    // holds the resolved value. For the OS-canonical default, use dirs::config_dir()
-    // which returns the platform-appropriate config directory:
-    //   - Linux:   ~/.config/prism/
+    // holds the resolved value. For the platform default, dirs::config_dir()
+    // returns the platform-appropriate config directory:
+    //   - Linux:   $XDG_CONFIG_HOME/prism (if XDG_CONFIG_HOME is set and absolute) else ~/.config/prism/
     //   - macOS:   ~/Library/Application Support/prism/
     //   - Windows: %APPDATA%\prism\  (e.g., C:\Users\<user>\AppData\Roaming\prism\)
     let config_dir = match args.config_dir {
