@@ -1,11 +1,11 @@
 ---
 document_type: session-handoff
 level: ops
-version: "7.83"
+version: "7.84"
 status: current
-timestamp: 2026-05-10T12:00:00Z
+timestamp: 2026-05-10T17:00:00Z
 predecessor_session: "D-321 follow-up pre-compact burst: Standing Orchestrator Rules codified (adversary report backfill + orchestrator-drives-cascade). Deferred items #80-#84 dispositions RECORDED. PRE-COMPACT CHECKPOINT written. STATE v7.71→v7.72. SESSION-HANDOFF v7.71→v7.72. | D-322 (2026-05-10): Standing Rule 3 (Production-Grade Closure Discipline) adopted; Bundle B Exit Mandate documented; S-3.02-FOLLOWUP-RUNTIME LOCAL adv pass-1 BLOCKED-hard with 5 CRIT + 7 HIGH + 5 MED + 4 LOW + 3 OBS, fix-pass-1 dispatched. | D-323 (2026-05-10): pass-3 BLOCKED-soft 0/3, 2 Standing Rule 3 violations (F-LP3-CRIT-1 Layer 1 partial AST walk, F-LP3-MED-1 cosmetic close); plugin upgraded rc.11→rc.16; PAUSE for human-driven Claude restart | D-324 (2026-05-10): PR #140 hook-diagnostics MERGED → develop@f1f284ab; pre-compact state-burst recorded; ready for context compaction | D-325 (2026-05-10): fix-pass-3 (b749e6d7) closed all 5 pass-3 findings; pass-4 BLOCKED-soft 0/3 (F-LP4-MED-1 walk_expr FuncCall args + 3 OBS); fix-pass-4 next | D-326 (2026-05-10): fix-pass-4 (d7e32ab1) closed pass-4 MED-1 + OBS-1 + OBS-2; pass-5 BLOCKED-soft 0/3 (F-LP5-LOW-1 PipeStage::Join sibling C-LOCAL-001 fix not propagated to materialization walkers + 1 OBS process-gap); fix-pass-5 next | D-327 (2026-05-10): fix-pass-5 (dcc11f68) closed F-LP5-LOW-1 via C-LOCAL-001 sibling mirror into both materialization walkers; pass-6 verified closure + ran explicit final AST exhaustiveness audit — surfaced F-LP6-LOW-1 (DML source_select/filter not walked by recursive walker or explain sibling; latent gap pending S-3.07 Phase 3 wiring); verdict BLOCKED-soft 0/3 (orchestrator reset on Standing Rule 3 #3 sub-clause (b)); fix-pass-6 next | D-328 (2026-05-10): fix-pass-6 (20829c80) closed F-LP6-LOW-1 (DML source_select/filter walking mirrored into both extract_source_names_recursive AND extract_sources_from_ast; 3 new tests; just check PASS 3489 workspace); pass-7 CLEAN 0 novel CRIT/HIGH/MED/LOW (5 OBS scope-deferred); streak 1/3 (FIRST CLEAN PASS IN CASCADE); cascade F-LP3-CRIT-1→F-LP4-MED-1→F-LP5-LOW-1→F-LP6-LOW-1 closed; Layer 1 walker exhaustive across all four query modes; pass-8 idempotency next | D-329 (2026-05-10): pass-8 LOCAL idempotency check at unchanged HEAD 20829c80 holds CLEAN; streak 1/3 → 2/3; AC breadth re-audit confirms all 8 ACs satisfied; 3 OBS non-blocking (OBS-LP8-1 stale test doc-comments; OBS-LP8-2 story↔STORY-INDEX BC-count drift housekeeping; OBS-LP8-3 execute_scheduled design-choice note); pass-9 final idempotency next | D-330 (2026-05-10): pass-9 LOCAL final idempotency at HEAD 20829c80 holds CLEAN; streak 2/3 → 3/3 → CONVERGED; cascade lineage F-LP3-CRIT-1→F-LP4-MED-1→F-LP5-LOW-1→F-LP6-LOW-1 fully closed; pass-9 NEW audit angles all CLEAN (concurrency, resource bounds, error paths, cancellation, observability, test isolation, API stability, task-list); 2 OBS scope-bounded (OBS-LP9-1 boot.rs cross-story; OBS-LP9-2 Task 8 doc overcommit); STORY-INDEX BC-count corrected (0→7, closes OBS-LP8-2); demo-recorder + pr-manager 9-step PR cycle next | D-332 (2026-05-10): PRE-COMPACT CHECKPOINT written — Bundle B Phase B-2 continuation; S-3.02-FOLLOWUP-RUNTIME merged PR #141 develop@c6dd6602; 4 stories remain (S-5.01-FOLLOWUP-MCP-BOOT, S-1.12-FOLLOWUP, S-1.14-REDO, W3-FIX-S307-001/002); Bundle B Exit Mandate task #85 gates after all 5 merge; STATE v7.82→v7.83"
-successor_focus: "Bundle B Phase B-2 continuation. S-3.02-FOLLOWUP-RUNTIME merged at develop@c6dd6602 (PR #141). 4 stories remain in Phase B-2 before Bundle B Exit Mandate gate: (1) S-5.01-FOLLOWUP-MCP-BOOT (8pt, MCP server bootstrap follow-up — was blocked by S-3.02-FOLLOWUP-RUNTIME, now unblocked); (2) S-1.12-FOLLOWUP notify-watcher (3pt); (3) S-1.14-REDO infusion-engine; (4) W3-FIX-S307-001/002 sensor adapter writes. After ALL 5 stories merge: dispatch task #85 Bundle B Exit Mandate full-codebase audit per user directive 'production-grade, no shortcuts before declaring Bundle B done'. POST-COMPACT FIRST ACTION: dispatch S-5.01-FOLLOWUP-MCP-BOOT per-story-delivery cycle (devops-engineer creates worktree from develop@c6dd6602; story spec at .factory/stories/S-5.01-FOLLOWUP-MCP-BOOT-mcp-server.md)."
+successor_focus: "Begin Wave 0 plugin-prerequisite story dispatch sequence (5 stories: S-PLUGIN-PREREQ-A SensorId migration, S-PLUGIN-PREREQ-B PipelineExecutor build-out, S-PLUGIN-PREREQ-C TOML grammar extensions, S-PLUGIN-PREREQ-D PluginRuntime wiring, S-PLUGIN-PREREQ-E SensorAuth un-sealing). Bundle B Phase B-2 BLOCKED until Wave 0+1 land. FIRST ACTION: dispatch story-writer to author S-PLUGIN-PREREQ-A spec (SensorType → SensorId(Arc<str>) keystone migration; ~13-18 SP; 15-file atomic change; prereq for all other Wave 0+1 stories)."
 
 **STEP 1 (START HERE):** Read STATE.md v7.77 + this HANDOFF v7.77 in full. S-WAVE5-PREP-01 chassis SHIPPED (D-319, PR #138, develop@53b87961). cli.rs doc-fix maintenance PR #139 ALSO SHIPPED (D-321, develop@c98a38b0). PR #140 CLAUDE.md hook-diagnostics MERGED (D-324, develop@f1f284ab). All outstanding LOW findings from D-319 are now CLOSED. No open maintenance PRs. TD-PR-MANAGER-CONVERGENCE-DISCIPLINE step-1 DONE; CODIFICATION step still pending vsdd-factory plugin scope. PR #139 deferred-items dossier + 6 TDs registered. Tasks #80-#84 DISPOSITIONS RECORDED (see '## Deferred-Items Dispositions' section below — do NOT re-triage). Standing Orchestrator Rules adopted (see '## Standing Orchestrator Process Rules' section). State durable; PRE-COMPACT CHECKPOINT recorded — safe to compact. [process-rule active]: NO #[ignore] deferrals as first-line response to test failures.
 
@@ -21,7 +21,7 @@ successor_focus: "Bundle B Phase B-2 continuation. S-3.02-FOLLOWUP-RUNTIME merge
 - D-321: PR #139 cli.rs doc-fix SHIPPED c98a38b0; 9 PR-LEVEL passes + 3-CLEAN convergence; BC-2.06.011 v1.2, BC-INDEX v4.53, ADR-022 v1.1, ARCH-INDEX v2.37; factory-artifacts HEAD 820a110b
 - D-319: PR #138 S-WAVE5-PREP-01 chassis SHIPPED 53b87961 2026-05-10; 5 BCs draft→active
 - D-260: PR #129 S-3.02 MERGED 6fefc774 2026-05-07; tier-2 COMPLETE; 2993 tests; STORY-INDEX v2.14
-- BC-INDEX v4.53, VP-INDEX v1.29, HOLDOUT-INDEX v1.3, invariants.md v1.5, L2-INDEX v1.13, STORY-INDEX v2.32, ARCH-INDEX v2.37, module-decomposition v1.16
+- BC-INDEX v4.53, VP-INDEX v1.29, HOLDOUT-INDEX v1.3, invariants.md v1.5, L2-INDEX v1.13, STORY-INDEX v2.33 (149 stories), ARCH-INDEX v2.37, module-decomposition v1.16
 
 develop HEAD: c6dd6602 (PR #141 S-3.02-FOLLOWUP-RUNTIME merged 2026-05-10; factory-artifacts HEAD: run git -C .factory log -1 per TD-VSDD-053). S-3.02-FOLLOWUP-RUNTIME merged. S-3.02 graduated. 7 BCs active. NEXT: Wave 3-B/C or Wave 4 unblock."
 ---
@@ -147,65 +147,79 @@ User invoked Claude restart to pick up vsdd-factory rc.11→rc.16 hook chain. Re
 
 6. **First post-restart action:** dispatch implementer fix-pass-3 with reference to .factory/cycles/wave-4-operations/adversarial-reviews/S-3.02-FOLLOWUP-RUNTIME-pass-3.md. Apply Standing Rule 3.
 
-## PRE-COMPACT CHECKPOINT (2026-05-10 — D-332, Bundle B Phase B-2 continuation)
+## ARCHITECTURAL-PIVOT CHECKPOINT (2026-05-10 — D-333, PLUGIN-AUDIT-001)
 
-State is durable. S-3.02-FOLLOWUP-RUNTIME merged at PR #141 develop@`c6dd6602`. Bundle B Phase B-2 has 4 stories remaining before Bundle B Exit Mandate gate.
+State is durable. PLUGIN-AUDIT-001 complete. Bundle B Phase B-2 BLOCKED. Plugin foundation (Wave 0+1) must land before any Phase B-2 story can proceed.
+
+**Predecessor session:** D-332 (PRE-COMPACT) → D-333 (PLUGIN-AUDIT-001 architectural pivot)
+
+**User mandate verbatim (2026-05-10):** "we arent suppose to have anything built in, everything uses the plugin system. We need to do a full audit"
+
+**Audit summary:** 21 violations (8 CRIT / 5 HIGH / 3 MED / 3 LOW / 2 OBS). Full catalog at `.factory/cycles/wave-4-operations/audits/plugin-only-violations-2026-05-10.md`. Three root-cause clusters: (1) closed `SensorType` enum in prism-core is the architectural keystone locking all downstream dispatch; (2) four named Rust auth modules in prism-sensors with sealed `SensorAuth` trait; (3) five sensor-name `match` dispatch sites in prism-query.
+
+**5 user decisions (2026-05-10):**
+1. OCSF mapping: hybrid TOML column `ocsf_field` (80%) + in-repo `.prx` WASM transformers (20%); drop 4 in-tree Rust mappers
+2. SensorAuth sealing: un-seal entirely; remove `private::Sealed` marker
+3. TOML authorship: reverse-engineer from existing Rust adapters with DTU-parity tests
+4. CrowdStrike OAuth2 refresh-on-401: in-repo `.prx` WASM plugin signed by us, loaded by `PluginRuntime` at boot
+5. `CustomAdapter` Rust trait RETIRED — `.prx` WASM is sole escape hatch (eat own dog food)
+
+**13-story migration plan:**
+
+| Wave | Story | Scope | Est SP |
+|------|-------|-------|--------|
+| 0 | S-PLUGIN-PREREQ-A | SensorType → SensorId(Arc<str>) keystone | 13-18 |
+| 0 | S-PLUGIN-PREREQ-B | Real PipelineExecutor (HTTP, JSONPath, paginate, retry) | 13-18 |
+| 0 | S-PLUGIN-PREREQ-C | TOML grammar extensions (batch, retry, two-step, ocsf_field) | 5-8 |
+| 0 | S-PLUGIN-PREREQ-D | Wire PluginRuntime into boot.rs step 7; .prx build/sign/load pipeline | 8-13 |
+| 0 | S-PLUGIN-PREREQ-E | Un-seal SensorAuth + deprecate/remove CustomAdapter Rust trait | 3-5 |
+| 1 | PLUGIN-MIGRATION-001-A | Delete 4 named auth modules + init_registry_for_org replacement | 8-13 |
+| 1 | PLUGIN-MIGRATION-001-B | Convert 5 prism-query sites to spec-catalog lookup | 8-13 |
+| 1 | PLUGIN-MIGRATION-001-C | Merge 4 prism-ocsf mappers → SpecDrivenMapper + WASM transformers | 8-13 |
+| 1 | PLUGIN-MIGRATION-001-D | Author 4 production TOMLs + DTU-parity tests | 8-13 |
+| 1 | PLUGIN-MIGRATION-001-E | CrowdStrike OAuth2-refresh .prx WASM plugin | 5-8 |
+| 2 | PLUGIN-MIGRATION-001-F | Rewrite 10+ sensor-named test files + compile-fail perimeter | 5-8 |
+| 2 | PLUGIN-MIGRATION-001-G | Doc/ADR/BC sweep | 5-8 |
+| 2 | PLUGIN-MIGRATION-001-H | Story supersession (S-2.06, S-2.07, W3-FIX-S307-001, S-3.1.06-ImplPhase) | 2-3 |
+
+**Total: 13 stories, ~100-140 SP, HIGH risk.**
+
+**Current worktree status:**
+- `.worktrees/S-3.09` — FROZEN per D-298 (BUG-S309-PLUGIN P0 dependency)
+- `.worktrees/W3-FIX-S307-001` — retained at HEAD `fcab8717`, INACTIVE (story superseded by plugin migration)
+- All other worktrees removed
+
+**Tasks updated by this pivot:**
+- Task #91 (W3-FIX-S307-001 sensor adapter writes) → BLOCKED pending plugin migration Wave 0+1
+- Task #92 (W3-FIX-S307-002 write capability/observability) → BLOCKED
+- Task #88 (S-1.12-FOLLOWUP notify-watcher) → BLOCKED
+- Task #89 (S-1.14-REDO infusion-engine) → BLOCKED
+- Task #90 (S-5.01-FOLLOWUP-MCP-BOOT mcp-server) → BLOCKED
+- Task #94 (PLUGIN-AUDIT-001 audit) → COMPLETED
+- Task #95 (plugin migration story authoring) → CREATED — dispatch story-writer for Wave 0 story specs
+
+**FIRST ACTION (post-pivot):** Dispatch story-writer to author S-PLUGIN-PREREQ-A spec (SensorType → SensorId keystone; ~13-18 SP; atomic 15-file change; prereq for all other Wave 0+1 stories). Story file path: `.factory/stories/S-PLUGIN-PREREQ-A-sensorid-keystone.md`.
 
 **Pin SHAs (verify with):**
-- `git -C /Users/jmagady/Dev/prism rev-parse origin/develop` → expected `c6dd6602` (PR #141 S-3.02-FOLLOWUP-RUNTIME merged)
-- `git -C /Users/jmagady/Dev/prism/.factory rev-parse HEAD` → will be the SHA produced by THIS state burst
-- `git -C /Users/jmagady/Dev/prism/.factory log -1 --format=%s` → current state burst summary
-- Plugin: vsdd-factory `1.0.0-rc.16` (activated 2026-05-10T07:38:25Z)
-- Worktrees: only `.worktrees/S-3.09` remains (FROZEN per D-298). All Bundle B Phase B-2 worktrees removed post-merge.
-- `bash /Users/jmagady/Dev/prism/.factory/hooks/verify-sha-currency.sh` should exit 0 PASS
+- `git -C /Users/jmagady/Dev/prism rev-parse origin/develop` → expected `c6dd6602`
+- `git -C /Users/jmagady/Dev/prism/.factory log -1` → factory-artifacts HEAD (TD-VSDD-053)
+- `bash /Users/jmagady/Dev/prism/.factory/hooks/verify-sha-currency.sh` → should exit 0 PASS
+- Plugin: vsdd-factory `1.0.0-rc.16`
 
-**Bundle B Phase B-2 status:**
+**Standing Rules ACTIVE (carry forward):**
 
-| Step | Story | Status | Points |
-|---|---|---|---|
-| 7 | S-WAVE5-PREP-01 prism-bin chassis | MERGED PR #138 develop@53b87961 (D-319) | 8 |
-| 8 | S-3.02-FOLLOWUP-RUNTIME query-engine pipeline | MERGED PR #141 develop@c6dd6602 (D-331) | 8 |
-| 9 | S-5.01-FOLLOWUP-MCP-BOOT mcp-server | PENDING (next dispatch) | 8 |
-| 10 | S-1.12-FOLLOWUP notify-watcher | PENDING | 3 |
-| 11 | S-1.14-REDO infusion-engine | PENDING | TBD |
-| 12 | W3-FIX-S307-001 sensor adapter writes | PENDING | TBD |
-| 13 | W3-FIX-S307-002 write capability/observability | PENDING | TBD |
-
-After all 5 PENDING stories merge → mark Bundle B Phase B-2 complete in STATE.md → dispatch task #85 Bundle B Exit Mandate full-codebase audit.
-
-**Standing Rules ACTIVE (carry into post-compact):**
-
-- Standing Rule 1 (orchestrator-drives-cascade): adversary report backfill is orchestrator's responsibility via state-manager, single TD-VSDD-053 commit per burst
-- Standing Rule 2 (orchestrator drives cascade): adversary verdict drives streak math; orchestrator decides streak resets on Standing Rule 3 violations even at LOW severity
-- Standing Rule 3 (Production-Grade Closure Discipline) — 5 sub-rules:
-  1. No surface-and-defer-via-error masquerading as fix
-  2. No MVP-limitation deferrals without explicit anchor (wave-N tracking text + concrete numbers)
-  3. No documented-but-unenforced gates (extend coverage to match doc, not vice versa)
-  4. Architectural correction in scope when wiring exposes a gap
-  5. Last-resort surface-for-approval only if all production-grade options exhausted
-- Bundle B Exit Mandate (D-322): full-codebase audit before Bundle B declared complete
-
-**Per-story delivery discipline:**
-
-- Each story follows ALL steps in per-story-delivery.md: (a) test-writer stubs → (b) test-writer failing tests → (c) implementer TDD → (d) demo-recorder per-AC demos → (e) push → (f) pr-manager full 9-step PR process → (g) worktree cleanup
-- 3-CLEAN LOCAL adversarial convergence required before PR cycle
-- 3-CLEAN PR-LEVEL convergence required before merge
-- Single-commit-per-burst on factory-artifacts (TD-VSDD-053); recent theme words used: backfill, capture, record, note, milestone, converge — pick fresh themes for new bursts
-- Hook diagnostics: when factory-dispatcher blocks, grep `.factory/logs/dispatcher-internal-YYYY-MM-DD.jsonl` for trace UUID; see CLAUDE.md "Factory Hook Diagnostics" section
+- Standing Rule 1 (adversary report backfill): state-manager backfill after every adversary pass
+- Standing Rule 2 (orchestrator drives cascade): orchestrator drives PR-LEVEL adversarial cascade steps 4-5
+- Standing Rule 3 (Production-Grade Closure Discipline) — 5 sub-rules: no surface-and-defer-via-error; no MVP-limitation deferrals; no documented-but-unenforced gates; architectural correction in scope; surface-for-human-approval is last resort
+- Bundle B Exit Mandate (D-322): full-codebase audit before Bundle B declared complete (now gated on plugin migration completing first)
 
 **Open follow-ups (NON-blocking):**
-
-- 5 carryover OBS items from S-3.02-FOLLOWUP-RUNTIME cascade (OBS-LP7-1..5, OBS-LP8-1..3, OBS-LP9-1..2 — post-merge maintenance backlog)
+- OBS-LP7-1..5, OBS-LP8-1..3, OBS-LP9-1..2 — post-merge maintenance backlog (S-3.02-FOLLOWUP-RUNTIME carryover)
 - ADV-W3MT-P60-MED-001/002, LOW-001/002 from PR #141 PR-LEVEL cascade
-- F-LP5-OBS-1 standing process gap (Visit-trait centralization) — defer to maintenance burst
-- task #85 Bundle B Exit Mandate (full-codebase audit) — gates after all 5 Phase B-2 stories merge
-- All TD-S307-* / TD-S309-* / pre-existing maintenance backlog (tasks 21, 25-28, 33, 37-44, 65, 71-72, 77, 80-84) — addressed during Bundle B Exit Mandate sweep or routine maintenance bursts
+- Tasks #80-#84 DISPOSITIONS RECORDED — do NOT re-triage
+- TD-S307-*/TD-S309-* — addressed after plugin migration lands
 
-**POST-COMPACT FIRST ACTION (verbatim):**
-
-> Dispatch S-5.01-FOLLOWUP-MCP-BOOT per-story-delivery cycle. Step (a): devops-engineer creates worktree at `.worktrees/S-5.01-FOLLOWUP-MCP-BOOT/` from `develop@c6dd6602`. Story spec at `/Users/jmagady/Dev/prism/.factory/stories/S-5.01-FOLLOWUP-MCP-BOOT-mcp-server.md`. After worktree created, dispatch test-writer for stubs (BC-5.38.001 Red Gate) → test-writer for failing tests → implementer for TDD cycles → 3-CLEAN LOCAL adversary cascade under Standing Rules 1/2/3 → demo-recorder per-AC evidence → pr-manager 9-step PR cycle. After merge: state-manager records story status flip + BC promotion + develop pin. Then advance to S-1.12-FOLLOWUP. Then S-1.14-REDO. Then W3-FIX-S307-001. Then W3-FIX-S307-002. After all 5 merge: mark Bundle B Phase B-2 COMPLETE in STATE.md → dispatch task #85 Bundle B Exit Mandate full-codebase audit per user mandate "production-grade no shortcuts before declaring Bundle B done".
-
-**Hook diagnostics reference:** unchanged. CLAUDE.md "Factory Hook Diagnostics" section contains the full procedure for trace UUID lookup → plugin.log warn entry → recovery procedure for multi-commit chain blocks / SHA drift / table cell count mismatches / novelty assessment format errors.
+**Hook diagnostics reference:** unchanged. CLAUDE.md "Factory Hook Diagnostics" section: trace UUID lookup → `.factory/logs/dispatcher-internal-YYYY-MM-DD.jsonl` → `plugin.log` warn entry → recovery procedure.
 
 **PRE-COMPACT CHECKPOINT (2026-05-09 — D-321 follow-up) — state fully durable; safe to compact.**
 

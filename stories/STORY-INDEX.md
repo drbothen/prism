@@ -1,12 +1,12 @@
 ---
 document_type: story-index
 level: "L4"
-version: "v2.32"
+version: "v2.33"
 status: draft
 producer: state-manager
-timestamp: 2026-05-08T22:00:00
+timestamp: 2026-05-10T17:00:00
 phase: 3
-total_stories: 136
+total_stories: 149
 total_active_bcs: 222
 # 230 total registered (222 active + 6 removed + 2 retired) — stories cover active BCs only
 total_vps_assigned: 145
@@ -20,7 +20,7 @@ Phase 3 decomposes the Prism platform into 113 implementation stories spanning 7
 waves. Stories are organized by crate and ordered topologically so that no story begins
 before its dependencies are complete.
 
-- **Total stories:** 136 (76 through Wave 2 + 37 Wave 3 Multi-Tenant stories: S-3.0.01/02 + S-3.1.01–07 + S-3.2.01–08 + S-3.3.01–06 + S-3.4.01–05 + S-3.5.01 + S-3.6.01/02 + S-3.7.00–05 + 3 E-3.5 devx merged: W3-FIX-WIN/LEFTHOOK/CI-001 + 6 Wave 3.1 fix stories: W3-FIX-SEC-001/002/003 + W3-FIX-CODE-001/002/003 + 1 Wave 3.1 impl-phase story: S-3.1.06-ImplPhase + 2 Wave 3.2 fix stories: W3-FIX-CREDS-001 + W3-FIX-CODE-004 + 2 Wave 3.3 fix stories: W3-FIX-SEC-004 + W3-FIX-CODE-005 + 2 Wave 3.4 fix stories: W3-FIX-SEC-005 + W3-FIX-CODE-006 + 7 E-CLEANUP-02 Runtime Reality stories: S-WAVE5-PREP-01 + S-3.02-FOLLOWUP-RUNTIME + W3-FIX-S307-001/002 + S-1.12-FOLLOWUP + S-1.14-REDO + S-5.01-FOLLOWUP-MCP-BOOT)
+- **Total stories:** 149 (76 through Wave 2 + 37 Wave 3 Multi-Tenant stories: S-3.0.01/02 + S-3.1.01–07 + S-3.2.01–08 + S-3.3.01–06 + S-3.4.01–05 + S-3.5.01 + S-3.6.01/02 + S-3.7.00–05 + 3 E-3.5 devx merged: W3-FIX-WIN/LEFTHOOK/CI-001 + 6 Wave 3.1 fix stories: W3-FIX-SEC-001/002/003 + W3-FIX-CODE-001/002/003 + 1 Wave 3.1 impl-phase story: S-3.1.06-ImplPhase + 2 Wave 3.2 fix stories: W3-FIX-CREDS-001 + W3-FIX-CODE-004 + 2 Wave 3.3 fix stories: W3-FIX-SEC-004 + W3-FIX-CODE-005 + 2 Wave 3.4 fix stories: W3-FIX-SEC-005 + W3-FIX-CODE-006 + 7 E-CLEANUP-02 Runtime Reality stories: S-WAVE5-PREP-01 + S-3.02-FOLLOWUP-RUNTIME + W3-FIX-S307-001/002 + S-1.12-FOLLOWUP + S-1.14-REDO + S-5.01-FOLLOWUP-MCP-BOOT + 13 PLUGIN-MIGRATION stories: S-PLUGIN-PREREQ-A/B/C/D/E + PLUGIN-MIGRATION-001-A/B/C/D/E/F/G/H [planned, D-333])
 - **Total waves:** 7 (Wave 0 expanded to 16 stories: devops + DTU infrastructure)
 - **BCs covered:** 230 total registered (222 active per BC-INDEX.md v4.32; 200 Wave 1-2 BCs + 22 new Wave 3 BCs: BC-3.1.001–004, BC-3.2.001–005, BC-3.3.001–004, BC-3.4.001–004, BC-3.5.001–002, BC-3.6.001–002, BC-3.7.001; at v0.2+ draft status; BC-3.3.004 is a distinct contract from BC-3.3.001 per PO rename in Phase 3.A consistency-validator pass)
 - **VPs assigned:** 145 (30 Kani proofs, 86 proptests, 4 unit_tests, 6 fuzz targets, 19 integration tests)
@@ -380,11 +380,24 @@ pursuing maximum parallelism should schedule by topological layer, not wave numb
 | W3-FIX-CODE-006 | Armis activity/risk endpoint org-id guard test coverage (CR-023 closure) [MERGED PR #124 981e17d4 2026-05-02 +6t] | prism-dtu-armis | 1 | -- | 0.5 | -- |
 | S-WAVE5-PREP-01 | prism-bin: Binary Chassis, CLI, and Boot Sequence [E-CLEANUP-02] [MERGED 2026-05-10T00:55:49Z PR #138 squash 53b87961] [v1.3-merged] | prism-bin | 8 (BC-2.10.001/006/010 + BC-2.06.011/2.21.001/2.03.013/2.05.012/2.22.001) | -- | 3 | -- |
 | S-3.02-FOLLOWUP-RUNTIME | prism-query: QueryEngine Execution Pipeline — Fill todo!() Sites [E-CLEANUP-02] [Graduates S-3.02] [LOCAL CONVERGED 2026-05-10 (9-pass cascade, 3/3 streak); demo-recorder + PR next] | prism-query | 7 (BC-2.11.001/.005/.006/.007/.011/.012, BC-2.15.011) | -- | 4 | S-WAVE5-PREP-01 |
-| W3-FIX-S307-001 | prism-sensors: Concrete Sensor Adapter Write Overrides (4 Built-In Sensors) [E-CLEANUP-02] | prism-sensors | 0 (BCs TBD) | -- | 3 | -- |
-| W3-FIX-S307-002 | prism-query: WriteExecutor Phase 3 Fetch + SQL DML Routing + Write Observability [E-CLEANUP-02] | prism-query | 0 (BCs TBD) | -- | 3 | S-3.02-FOLLOWUP-RUNTIME,W3-FIX-S307-001 |
-| S-1.12-FOLLOWUP | prism-spec-engine: HotReloadWatcher — notify v7, Debounce, Validation Gate, SIGHUP [E-CLEANUP-02] [Graduates S-1.12] | prism-spec-engine | 0 (BCs TBD) | -- | 2 | S-WAVE5-PREP-01 |
-| S-1.14-REDO | prism-spec-engine: Infusion Engine REDO — Loader, Registry, Runtime, Cache Integration [E-CLEANUP-02] [Graduates S-1.14] | prism-spec-engine | 0 (BCs TBD) | -- | 5 | S-WAVE5-PREP-01,S-3.02-FOLLOWUP-RUNTIME |
-| S-5.01-FOLLOWUP-MCP-BOOT | prism-mcp: PrismServer — rmcp 1.4, Tool Router, Injection Defense Wiring [E-CLEANUP-02] | prism-mcp | 0 (BCs TBD) | -- | 5 | S-WAVE5-PREP-01,S-3.02-FOLLOWUP-RUNTIME,W3-FIX-S307-001,W3-FIX-S307-002-write-capability-and-observability |
+| W3-FIX-S307-001 | prism-sensors: Concrete Sensor Adapter Write Overrides (4 Built-In Sensors) [E-CLEANUP-02] [BLOCKED — superseded by PLUGIN-MIGRATION-001-A per D-333] | prism-sensors | 0 (BCs TBD) | -- | 3 | -- |
+| W3-FIX-S307-002 | prism-query: WriteExecutor Phase 3 Fetch + SQL DML Routing + Write Observability [E-CLEANUP-02] [BLOCKED — superseded by PLUGIN-MIGRATION-001-B per D-333] | prism-query | 0 (BCs TBD) | -- | 3 | S-3.02-FOLLOWUP-RUNTIME,W3-FIX-S307-001 |
+| S-1.12-FOLLOWUP | prism-spec-engine: HotReloadWatcher — notify v7, Debounce, Validation Gate, SIGHUP [E-CLEANUP-02] [Graduates S-1.12] [BLOCKED — awaits Wave 0+1 plugin foundation per D-333] | prism-spec-engine | 0 (BCs TBD) | -- | 2 | S-WAVE5-PREP-01 |
+| S-1.14-REDO | prism-spec-engine: Infusion Engine REDO — Loader, Registry, Runtime, Cache Integration [E-CLEANUP-02] [Graduates S-1.14] [BLOCKED — awaits Wave 0+1 plugin foundation per D-333] | prism-spec-engine | 0 (BCs TBD) | -- | 5 | S-WAVE5-PREP-01,S-3.02-FOLLOWUP-RUNTIME |
+| S-5.01-FOLLOWUP-MCP-BOOT | prism-mcp: PrismServer — rmcp 1.4, Tool Router, Injection Defense Wiring [E-CLEANUP-02] [BLOCKED — awaits Wave 0+1 plugin foundation per D-333] | prism-mcp | 0 (BCs TBD) | -- | 5 | S-WAVE5-PREP-01,S-3.02-FOLLOWUP-RUNTIME,W3-FIX-S307-001,W3-FIX-S307-002-write-capability-and-observability |
+| S-PLUGIN-PREREQ-A | prism-core/prism-sensors: SensorType → SensorId(Arc<str>) Keystone Migration [PLUGIN-MIGRATION Wave 0] [planned] | prism-core,prism-sensors | 0 (TBD) | -- | 3 | -- |
+| S-PLUGIN-PREREQ-B | prism-spec-engine: Real PipelineExecutor — HTTP Client, JSONPath, Fan-out, Paginate, Retry, Declarative [PLUGIN-MIGRATION Wave 0] [planned] | prism-spec-engine | 0 (TBD) | -- | 3 | S-PLUGIN-PREREQ-A |
+| S-PLUGIN-PREREQ-C | prism-spec-engine: TOML Grammar Extensions — batch, retry, two-step-fetch, ocsf_field, cache_ttl, table_name [PLUGIN-MIGRATION Wave 0] [planned] | prism-spec-engine | 0 (TBD) | -- | 3 | S-PLUGIN-PREREQ-A |
+| S-PLUGIN-PREREQ-D | prism-bin/prism-spec-engine: Wire PluginRuntime into boot step 7; .prx Build/Sign/Load Pipeline [PLUGIN-MIGRATION Wave 0] [planned] | prism-bin,prism-spec-engine | 0 (TBD) | -- | 3 | S-PLUGIN-PREREQ-A |
+| S-PLUGIN-PREREQ-E | prism-sensors/prism-spec-engine: Un-seal SensorAuth + Deprecate/Remove CustomAdapter Rust Trait [PLUGIN-MIGRATION Wave 0] [planned] | prism-sensors,prism-spec-engine | 0 (TBD) | -- | 3 | S-PLUGIN-PREREQ-A |
+| PLUGIN-MIGRATION-001-A | prism-sensors: Delete 4 Named Auth Modules + Re-exports + Replace init_registry_for_org [PLUGIN-MIGRATION Wave 1] [planned] | prism-sensors,prism-bin | 0 (TBD) | -- | 3 | S-PLUGIN-PREREQ-A,S-PLUGIN-PREREQ-B,S-PLUGIN-PREREQ-C,S-PLUGIN-PREREQ-E |
+| PLUGIN-MIGRATION-001-B | prism-query: Convert 5 Sensor-Name Dispatch Sites to Spec-Catalog Lookup [PLUGIN-MIGRATION Wave 1] [planned] | prism-query | 0 (TBD) | -- | 3 | S-PLUGIN-PREREQ-A,S-PLUGIN-PREREQ-C,PLUGIN-MIGRATION-001-A |
+| PLUGIN-MIGRATION-001-C | prism-ocsf: Merge 4 Hardcoded Mappers → SpecDrivenMapper + .prx WASM Transformers [PLUGIN-MIGRATION Wave 1] [planned] | prism-ocsf,prism-spec-engine | 0 (TBD) | -- | 3 | S-PLUGIN-PREREQ-C,S-PLUGIN-PREREQ-D,PLUGIN-MIGRATION-001-A |
+| PLUGIN-MIGRATION-001-D | prism-sensors: Author 4 Production TOML Sensor Specs — Reverse-Engineered + DTU-Parity Tests [PLUGIN-MIGRATION Wave 1] [planned] | prism-sensors,prism-spec-engine | 0 (TBD) | -- | 3 | S-PLUGIN-PREREQ-B,S-PLUGIN-PREREQ-C,PLUGIN-MIGRATION-001-A |
+| PLUGIN-MIGRATION-001-E | prism-spec-engine: CrowdStrike OAuth2 Refresh-on-401 as In-Repo .prx WASM Plugin [PLUGIN-MIGRATION Wave 1] [planned] | prism-spec-engine | 0 (TBD) | -- | 3 | S-PLUGIN-PREREQ-D,PLUGIN-MIGRATION-001-D |
+| PLUGIN-MIGRATION-001-F | test: Rewrite 10+ Sensor-Named Test Files + Compile-Fail Perimeter Test [PLUGIN-MIGRATION Wave 2] [planned] | prism-sensors,prism-query | 0 (TBD) | -- | 3 | PLUGIN-MIGRATION-001-A,PLUGIN-MIGRATION-001-B |
+| PLUGIN-MIGRATION-001-G | docs: Doc/ADR/BC Sweep — Generalize Sensor-Named Architecture Docs [PLUGIN-MIGRATION Wave 2] [planned] | .factory | 0 (TBD) | -- | 3 | PLUGIN-MIGRATION-001-A,PLUGIN-MIGRATION-001-B,PLUGIN-MIGRATION-001-C |
+| PLUGIN-MIGRATION-001-H | .factory: Story Supersession — Mark S-2.06/S-2.07/W3-FIX-S307-001/S-3.1.06-ImplPhase Superseded [PLUGIN-MIGRATION Wave 2] [planned] | .factory | 0 (TBD) | -- | 3 | PLUGIN-MIGRATION-001-A |
 
 [*] S-5.10 is in the `prism-audit` crate — note that all other Wave 5 stories are in `prism-mcp`. This is intentional: audit trail forwarding belongs to the audit subsystem by BC-2.05.011, but the Wave 5 slot reflects its topological dependency on S-2.04 (Wave 2 anchor).
 
@@ -995,6 +1008,7 @@ All 13 new DTU clones: Wave 0, 0 BCs, priority P0, depends_on: [S-6.06].
 | v2.27 | 2026-05-08 | D-298 S-3.09 FROZEN pending BUG-S309-PLUGIN (state-manager): S-3.09 Full Story List row annotated [FROZEN 2026-05-08 pending BUG-S309-PLUGIN]. Worktree at HEAD 43c41389 (11/15 GREEN; fix-burst 1 landed; fix-burst 2 stopped mid-work). Plugin-migration P0 blocks resumption. STORY-INDEX v2.26→v2.27. |
 | v2.28 | 2026-05-08 | Bundle A.2.2 story status reconciliation (story-writer): ADR-020 closed-enum alignment for 8 stories. S-1.10 `delivered`→`merged` v1.4→v1.5; S-1.11 `merged`→`partial-merge` v1.5→v1.6; S-1.12 `merged`→`partial-merge` v1.5→v1.6; S-1.14 `merged`→`partial-merge` v1.10→v1.11; S-1.15 `merged`→`partial-merge` v1.12→v1.13; S-3.02 `ready`→`partial-merge` v1.12→v1.13; S-3.06 `ready`→`merged` v1.7→v1.8; S-3.07 `draft`→`partial-merge` v1.7→v1.8. Full Story List: [merged]/[partial-merge] annotations added to all 8 rows. STORY-INDEX v2.27→v2.28. |
 | v2.26 | 2026-05-08 | D-296 S-3.09 re-scope per Path A decision (state-manager): S-3.09 Full Story List row version [v1.5]→[v1.6]; points 2→13; days 1→6. BC columns append BC-2.11.005, BC-2.11.006, BC-2.11.007, BC-2.11.011, BC-2.11.012 (transferred from stub-merged S-3.02 deferred scope). Status remains draft pending Phase A implementation cascade. Adversary report: cycles/wave-4-operations/adversarial-reviews/s-3.09-local-pass-1.md. STORY-INDEX v2.25→v2.26. |
+| v2.33 | 2026-05-10 | D-333 PLUGIN-AUDIT-001 architectural pivot (state-manager): 13 PLUGIN-MIGRATION planned stories registered (S-PLUGIN-PREREQ-A/B/C/D/E + PLUGIN-MIGRATION-001-A/B/C/D/E/F/G/H). W3-FIX-S307-001/002 annotated BLOCKED (superseded by plugin migration). S-1.12-FOLLOWUP/S-1.14-REDO/S-5.01-FOLLOWUP-MCP-BOOT annotated BLOCKED (await Wave 0+1 plugin foundation). total_stories 136→149. STORY-INDEX v2.32→v2.33. |
 | v2.32 | 2026-05-10 | D-330 S-3.02-FOLLOWUP-RUNTIME LOCAL CASCADE CONVERGED (state-manager): BC-count column for S-3.02-FOLLOWUP-RUNTIME corrected from "0 (BCs pending Phase B-1b)" to "7 (BC-2.11.001/.005/.006/.007/.011/.012, BC-2.15.011)" matching story frontmatter behavioral_contracts field. Closes OBS-LP8-2 from S-3.02-FOLLOWUP-RUNTIME pass-8 adversarial review. STORY-INDEX v2.31→v2.32. |
 | v2.31 | 2026-05-10 | D-319 S-WAVE5-PREP-01 SHIPPED (state-manager): S-WAVE5-PREP-01 v1.2→v1.3 merged at develop@53b87961 — Bundle B Phase B-2 first ship; 5 BCs graduate draft→active (BC-2.06.011/2.21.001/2.03.013/2.05.012/2.22.001); story status ready→merged per ADR-020 graduation contract. Full Story List row annotated [MERGED 2026-05-10T00:55:49Z PR #138 squash 53b87961] [v1.3-merged]. BC-INDEX v4.50→v4.51 (active_contracts 222→227). STORY-INDEX v2.30→v2.31. |
 | v2.30 | 2026-05-08 | D-307 Bundle B Phase B-1b Option (d) (state-manager): S-WAVE5-PREP-01 v1.1→v1.2 — BC anchors back-filled from [NEW-BC-NEEDED] placeholders to 5 real BC IDs (BC-2.06.011/2.21.001/2.03.013/2.05.012/2.22.001); status draft→ready per orchestrator authorization; Spec-First Gate S-7.01 satisfied. Full Story List row updated [v1.2-ready], 8 BCs. STORY-INDEX v2.29→v2.30. |
