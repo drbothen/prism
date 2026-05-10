@@ -115,7 +115,7 @@ fn test_BC_2_06_011_valid_config_exits_zero() {
 /// TV-06-011-003: Missing config dir → exit 2 + "not found" in error output.
 ///
 /// The invariant: PRISM_CONFIG_DIR pointing to a non-existent dir MUST exit 2;
-/// the binary MUST NOT fall back to ~/.prism/.
+/// the binary MUST NOT fall back to the dirs::config_dir() default.
 ///
 /// RED GATE: Fails today because `dispatch()` is `todo!()`.
 #[test]
@@ -267,16 +267,16 @@ fn test_BC_2_06_011_empty_config_file_exits_two() {
 }
 
 // ---------------------------------------------------------------------------
-// BC-2.06.011 — PRISM_CONFIG_DIR must not fall back to ~/.prism (invariant)
+// BC-2.06.011 — PRISM_CONFIG_DIR must not fall back to platform default (invariant)
 // ---------------------------------------------------------------------------
 
 /// Story: S-WAVE5-PREP-01
 /// BC: BC-2.06.011 Invariant: PRISM_CONFIG_DIR set to non-existent path → exit 2,
-/// MUST NOT fall back to default ~/.prism/.
+/// MUST NOT fall back to the platform default.
 ///
 /// This test verifies the "no fallback" invariant from BC-2.06.011 §Invariants.
 /// We set PRISM_CONFIG_DIR to a unique non-existent path and assert exit is 2,
-/// even if ~/.prism/ happens to exist on the test machine.
+/// even if the platform default config dir happens to exist on the test machine.
 ///
 /// RED GATE: Fails today because `dispatch()` is `todo!()`.
 #[test]
@@ -295,7 +295,7 @@ fn test_BC_2_06_011_invariant_no_fallback_when_config_dir_env_set() {
         output.status.code(),
         Some(2),
         "When PRISM_CONFIG_DIR is set to non-existent path, \
-         binary MUST exit 2 and MUST NOT fall back to ~/.prism/; \
+         binary MUST exit 2 and MUST NOT fall back to the platform default config dir; \
          BC-2.06.011 invariant 3; got exit {:?}",
         output.status.code()
     );
