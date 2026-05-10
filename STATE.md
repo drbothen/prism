@@ -1,7 +1,7 @@
 ---
 document_type: pipeline-state
 level: ops
-version: "7.77"
+version: "7.78"
 producer: state-manager
 timestamp: 2026-05-10T10:00:00Z
 inputs: []
@@ -161,7 +161,7 @@ phase_2_patch_convergence_rationale: "User override post pass-99. Semantic polic
 user_directive_persistent: "No pragmatic convergence. Fix all issues before build."
 develop_head: "f1f284ab"
 vsdd_factory_version: "1.0.0-rc.16 (upgraded from rc.11 2026-05-10T07:38:25Z)"
-workspace_test_count: 3485  # 887 prism-query + workspace total (per implementer fix-pass-4 report)
+workspace_test_count: 3486  # 888 prism-query + workspace total (per implementer fix-pass-5 report)
 ---
 # VSDD Pipeline State — Prism
 
@@ -175,7 +175,7 @@ workspace_test_count: 3485  # 887 prism-query + workspace total (per implementer
 | **Language** | Rust |
 | **Target Workspace** | per-analyst stdio (MCP server) |
 | **Started** | 2026-04-13 |
-| **Last Updated** | 2026-05-10 (D-326 — S-3.02-FOLLOWUP-RUNTIME fix-pass-4 closure + pass-5 report backfilled; STATE v7.76→v7.77) |
+| **Last Updated** | 2026-05-10 (D-327 — S-3.02-FOLLOWUP-RUNTIME fix-pass-5 closure + pass-6 report captured; STATE v7.77→v7.78) |
 | **Current Phase** | Wave 3 Tier-3 COMPLETE — **Wave 3-A 4 of 4 SHIPPED**: S-3.05 (#132 c867c344), S-3.04 (#133 57745ce8), S-3.03 (#134 7c413692), **S-3.07 (#135 2ae7185b MERGED 2026-05-08T04:23:03Z)**; post-merge cleanup confirmed; NEXT: Wave 3-B/C or Wave 4 unblock |
 | **Current Step** | D-299 — Plugin system FULL audit COMPLETE. 14 P0/P1 deferrals discovered (8 P0 + 6 P1). 3 stub-merged Wave-1 stories (S-1.12/1.14/1.15). No production binary loads sensors/*.toml. 13 new TDs filed (TD-PLUGIN-P0-001..008 + P1-001..005). S-3.09 FROZEN. Strategic direction needed: (a) full plugin completion epic, (b) min-viable plugin wiring, or (c) other path. |
 
@@ -212,6 +212,7 @@ _D-001..D-046 archived: [cycles/phase-3-dtu-wave-2/decisions-archive-d001-d032.m
 
 | ID | Decision | Rationale | Phase | Date |
 |----|----------|-----------|-------|------|
+| D-327 | S-3.02-FOLLOWUP-RUNTIME cascade — fix-pass-5 (dcc11f68) closes F-LP5-LOW-1 via C-LOCAL-001 sibling mirror into both materialization walkers (`extract_source_names_shallow` lines 827-837 and `extract_source_names_recursive` lines 882-892); pass-6 verifies closure + final AST exhaustiveness audit surfaces F-LP6-LOW-1 (DML `source_select`/filter not walked by `extract_source_names_recursive` or `extract_sources_from_ast` sibling — latent gap pending S-3.07 Phase 3 wiring); verdict BLOCKED-soft; streak 0/3 (orchestrator reset on Standing Rule 3 #3 sub-clause (b) per user mandate); fix-pass-6 next | STATE v7.77→v7.78; fix-pass-6 dispatched next | 4 | 2026-05-10 |
 | D-326 | S-3.02-FOLLOWUP-RUNTIME cascade — fix-pass-4 (d7e32ab1) closes pass-4 MED-1 + OBS-1 + OBS-2; pass-5 verifies all closures + finds 1 novel LOW (F-LP5-LOW-1: PipeStage::Join sibling C-LOCAL-001 fix not propagated to materialization walkers) + 1 OBS process-gap; verdict BLOCKED-soft; streak 0/3 (orchestrator reset on Standing Rule 3 #3 sub-clause (b) sibling discipline per user mandate); fix-pass-5 next | STATE v7.76→v7.77; fix-pass-5 dispatched next | 4 | 2026-05-10 |
 | D-325 | S-3.02-FOLLOWUP-RUNTIME cascade — fix-pass-3 (b749e6d7) closes pass-3 CRIT-1 + MED-1 + LOW-1 + OBS-1/2; pass-4 verifies all 5 closures + finds 1 novel MED (F-LP4-MED-1: walk_expr FuncCall args sibling pattern) + 3 OBS; verdict BLOCKED-soft; streak 0/3 (orchestrator reset on Standing Rule 3 #3 same-pattern recurrence per user mandate); fix-pass-4 next | STATE v7.75→v7.76; fix-pass-4 dispatched next | 4 | 2026-05-10 |
 | D-214 | Wave 4 Phase 4.A Convergence Strategy — B+A Hybrid with Subagent Context Discipline. Component 1 (Option B): Proactive structural sweep. Component 2 (Option A): Formal adversarial passes 13+ to 3-clean window. Component 3: Subagent context discipline MANDATORY (orchestrator NEVER reads large files; state-manager LAST per burst). | Wave 4 Phase 4.A B+A hybrid convergence + mandatory subagent context discipline | 4 | 2026-05-04 |
@@ -432,20 +433,20 @@ _TD-VSDD-014..019, TD-W3-COMPLIANCE-001, TD-VSDD-025..029 archived to [tech-debt
 
 Cycle files: [burst-log](cycles/phase-2-patch/burst-log.md) | [convergence-trajectory](cycles/phase-2-patch/convergence-trajectory.md) | [session-checkpoints](cycles/phase-2-patch/session-checkpoints.md) | [lessons](cycles/phase-2-patch/lessons.md) | [resolved-blockers](cycles/phase-2-patch/blocking-issues-resolved.md)
 ---
-## Session Resume Checkpoint (2026-05-10-v7.77-d326-post-pass-5)
+## Session Resume Checkpoint (2026-05-10-v7.78-d327-post-pass-6)
 
-_Previous checkpoint (v7.76/D-325 post-pass-4) archived: [cycles/wave-4-operations/session-checkpoints.md](cycles/wave-4-operations/session-checkpoints.md)_
+_Previous checkpoint (v7.77/D-326 post-pass-5) archived: [cycles/wave-4-operations/session-checkpoints.md](cycles/wave-4-operations/session-checkpoints.md)_
 
-**STATE v7.77. D-326 — S-3.02-FOLLOWUP-RUNTIME fix-pass-4 (d7e32ab1) CLOSED all 3 active pass-4 findings (F-LP4-MED-1 + F-LP4-OBS-1 + F-LP4-OBS-2; F-LP4-OBS-3 process-gap deferred); pass-5 LOCAL verified all closures (6 KUDOs) + found 1 novel LOW (F-LP5-LOW-1: PipeStage::Join sibling C-LOCAL-001 fix not propagated to materialization walkers — currently unexploitable latent gap) + 1 OBS process-gap; verdict BLOCKED-soft streak 0/3 (orchestrator reset on Standing Rule 3 #3 sub-clause (b) per user mandate); fix-pass-5 next.** develop@f1f284ab. factory-artifacts HEAD: run `git -C .factory log -1` (TD-VSDD-053). BC-2.06.011 v1.2, BC-INDEX v4.53, ADR-022 v1.1, ARCH-INDEX v2.37. vsdd-factory rc.16 active. Standing Orchestrator Rules active (Rules 1, 2, 3). Bundle B Exit Mandate active (task #85). Tasks #80-#84 DISPOSITIONS RECORDED — do NOT re-triage. Worktrees: main (clean) + .factory + .worktrees/S-3.09 (FROZEN per D-298) + .worktrees/S-3.02-FOLLOWUP-RUNTIME (HEAD d7e32ab1; pass-5 BLOCKED-soft 0/3; fix-pass-5 pending).
+**STATE v7.78. D-327 — S-3.02-FOLLOWUP-RUNTIME fix-pass-5 (dcc11f68) CLOSED F-LP5-LOW-1 via C-LOCAL-001 sibling mirror into both materialization walkers; pass-6 LOCAL verified closure (5 KUDOs) + ran the explicit final AST exhaustiveness audit — surfaced F-LP6-LOW-1 (DML `source_select`/filter not walked by either `extract_source_names_recursive` or `explain.rs::extract_sources_from_ast`; latent gap pending S-3.07 Phase 3 wiring); verdict BLOCKED-soft streak 0/3 (orchestrator reset on Standing Rule 3 #3 sub-clause (b)); fix-pass-6 next.** develop@f1f284ab. factory-artifacts HEAD: run `git -C .factory log -1` (TD-VSDD-053). BC-2.06.011 v1.2, BC-INDEX v4.53, ADR-022 v1.1, ARCH-INDEX v2.37. vsdd-factory rc.16 active. Standing Orchestrator Rules active (Rules 1, 2, 3). Bundle B Exit Mandate active (task #85). Tasks #80-#84 DISPOSITIONS RECORDED — do NOT re-triage. Worktrees: main (clean) + .factory + .worktrees/S-3.09 (FROZEN per D-298) + .worktrees/S-3.02-FOLLOWUP-RUNTIME (HEAD dcc11f68; pass-6 BLOCKED-soft 0/3; fix-pass-6 pending).
 
-**POST-PASS-5 NEXT ACTION:** Dispatch implementer fix-pass-5 for S-3.02-FOLLOWUP-RUNTIME at worktree HEAD `d7e32ab1` to close F-LP5-LOW-1 (mirror C-LOCAL-001 fix into both `extract_source_names_recursive` (materialization.rs:874-876) and `extract_source_names_shallow` (materialization.rs:827-829) — add `for stage in &pipe.stages { if let PipeStage::Join(js) = stage { names.<op>(js.source.raw.clone()); } }` to each, with C-LOCAL-001 anchor comment mirrored from explain.rs:489-499; add 1 mirror test exercising Ast::Pipe with PipeStage::Join referencing prism_audit). Defer F-LP5-OBS-1 (Visit-trait centralization process-gap) as separate maintenance follow-up.
+**POST-PASS-6 NEXT ACTION:** Dispatch implementer fix-pass-6 for S-3.02-FOLLOWUP-RUNTIME at worktree HEAD `dcc11f68` to close F-LP6-LOW-1 (mirror `Ast::Sql(SqlStatement::Dml)` walking into both `extract_source_names_recursive` (materialization.rs:875-893) and `extract_sources_from_ast` (explain.rs:479-501) — for each `DmlNode` walk `source_select` via `walk_sql_query` and `filter` via `walk_predicate`; add 1 RED→GREEN mirror test on each walker exercising `Ast::Sql(SqlStatement::Dml { source_select: Some(SELECT FROM prism_audit), .. })` and `Ast::Sql(SqlStatement::Dml { filter: Some(InSubquery on prism_audit), .. })`; update walker enumeration docs at materialization.rs:852-869 and engine.rs:594-598 to mention DML source_select + filter coverage).
 
-**Open findings (fix-pass-5 target):**
+**Open findings (fix-pass-6 target):**
 
 | ID | Severity | Fix Required |
 |----|----------|-------------|
-| F-LP5-LOW-1 | LOW | Mirror C-LOCAL-001 fix into `extract_source_names_recursive` (mat.rs:874-876) and `extract_source_names_shallow` (mat.rs:827-829); add C-LOCAL-001 anchor comment; add 1 mirror test (Ast::Pipe + PipeStage::Join + prism_audit) |
-| F-LP5-OBS-1 | OBS (process-gap) | Defer to maintenance: Visit-trait centralization or cross-reference invariant doc |
+| F-LP6-LOW-1 | LOW | Mirror `Ast::Sql(SqlStatement::Dml)` arm into both walkers; walk `source_select` via `walk_sql_query` and `filter` via `walk_predicate`; update doc enumeration; add 2 mirror tests |
+| F-LP5-OBS-1 | OBS (process-gap) | Carry-forward — Visit-trait centralization deferred to maintenance |
 
 **S-3.09 FREEZE STATE:**
 - Worktree: .worktrees/S-3.09 on branch feature/S-3.09 (off develop@2ae7185b)
@@ -479,7 +480,7 @@ _Previous checkpoint (v7.76/D-325 post-pass-4) archived: [cycles/wave-4-operatio
 
 **Deferred TDs (carry-forward):** W3-FIX-S307-001/002/003 + TD-VSDD-082 + TD-S307-002/003/004 + TD-VSDD-057 (OPEN-DEFERRED-CROSS-REPO) + TD-S309-O1/O2/O3/O4
 
-**Current spec versions:** BC-2.11.004 v1.5 (active), BC-2.09.001..008 v1.4/1.5 (active), BC-2.11.005 v1.4, BC-2.11.006 v1.17, BC-2.11.007 v1.4, BC-2.07.002 v4.8, BC-2.05.012 v1.3, BC-2.06.011 v1.2 (D-321 amendment), S-3.02 v1.13, S-3.06 v1.8, S-1.10 v1.5, BC-INDEX v4.53, STORY-INDEX v2.31, ARCH-INDEX v2.37, module-decomposition v1.14, ADR-022 v1.1 (D-321 amendment), VP-INDEX v1.29, prd.md v1.10, error-taxonomy v1.17, develop@f1f284ab (PR #140 CLAUDE.md hook-diagnostics merged 2026-05-10); STATE v7.76 SESSION-HANDOFF v7.76 (D-325 fix-pass-3 closure + pass-4 BLOCKED-soft 0/3; fix-pass-4 next)
+**Current spec versions:** BC-2.11.004 v1.5 (active), BC-2.09.001..008 v1.4/1.5 (active), BC-2.11.005 v1.4, BC-2.11.006 v1.17, BC-2.11.007 v1.4, BC-2.07.002 v4.8, BC-2.05.012 v1.3, BC-2.06.011 v1.2 (D-321 amendment), S-3.02 v1.13, S-3.06 v1.8, S-1.10 v1.5, BC-INDEX v4.53, STORY-INDEX v2.31, ARCH-INDEX v2.37, module-decomposition v1.14, ADR-022 v1.1 (D-321 amendment), VP-INDEX v1.29, prd.md v1.10, error-taxonomy v1.17, develop@f1f284ab (PR #140 CLAUDE.md hook-diagnostics merged 2026-05-10); STATE v7.78 SESSION-HANDOFF v7.78 (D-327 fix-pass-5 closure + pass-6 BLOCKED-soft 0/3; fix-pass-6 next)
 
 **Key files:** [SESSION-HANDOFF.md](SESSION-HANDOFF.md) | [cycle-manifest.md](cycles/wave-4-operations/cycle-manifest.md) | [HOLDOUT-INDEX.md](holdout-scenarios/HOLDOUT-INDEX.md)
 
