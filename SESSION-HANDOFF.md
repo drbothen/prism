@@ -1,11 +1,11 @@
 ---
 document_type: session-handoff
 level: ops
-version: "7.72"
+version: "7.73"
 status: current
-timestamp: 2026-05-09T00:00:00Z
-predecessor_session: "D-321 follow-up pre-compact burst: Standing Orchestrator Rules codified (adversary report backfill + orchestrator-drives-cascade). Deferred items #80-#84 dispositions RECORDED. PRE-COMPACT CHECKPOINT written. STATE v7.71→v7.72. SESSION-HANDOFF v7.71→v7.72."
-successor_focus: "PRE-COMPACT CHECKPOINT 2026-05-09. State fully durable. Post-compact action: dispatch S-3.02-FOLLOWUP-RUNTIME (Phase B-2, 8pt, biggest follow-up — steps 7-8 QueryEngine + WriteExecutor wiring; unlocks audit RocksDB CF integration). Worktree base: develop@c98a38b0. Apply Standing Orchestrator Rules (adversary report backfill + orchestrator-drives-cascade) throughout cascade — see SESSION-HANDOFF.md '## Standing Orchestrator Process Rules' section for procedure. 5 deferred items (#80/#81/#82/#83/#84) DISPOSITIONS RECORDED — see SESSION-HANDOFF '## Deferred-Items Dispositions' table; do NOT re-triage unless user asks. Source-of-truth dossier: `.factory/cycles/wave-4-operations/pr-139-deferred-items.md`. 6 TDs in vsdd-plugin-tech-debt v3.42."
+timestamp: 2026-05-10T00:00:00Z
+predecessor_session: "D-321 follow-up pre-compact burst: Standing Orchestrator Rules codified (adversary report backfill + orchestrator-drives-cascade). Deferred items #80-#84 dispositions RECORDED. PRE-COMPACT CHECKPOINT written. STATE v7.71→v7.72. SESSION-HANDOFF v7.71→v7.72. | D-322 (2026-05-10): Standing Rule 3 (Production-Grade Closure Discipline) adopted; Bundle B Exit Mandate documented; S-3.02-FOLLOWUP-RUNTIME LOCAL adv pass-1 BLOCKED-hard with 5 CRIT + 7 HIGH + 5 MED + 4 LOW + 3 OBS, fix-pass-1 dispatched."
+successor_focus: "S-3.02-FOLLOWUP-RUNTIME fix-pass-1 (production-grade closure of all CRIT + HIGH per Standing Rule 3) IN PROGRESS at worktree HEAD a6380143; backfilled adversary report at .factory/cycles/wave-4-operations/adversarial-reviews/S-3.02-FOLLOWUP-RUNTIME-pass-1.md (factory-artifacts commit 48e2d0f9). Standing Rule 3 active: no MVP-limitation deferrals, no surface-and-defer-via-error, architectural correction in scope. Bundle B Exit Mandate active: full-codebase audit before Bundle B declared complete. Apply Standing Rules 1, 2, 3 throughout cascade."
 
 **STEP 1 (START HERE):** Read STATE.md v7.72 + this HANDOFF v7.72 in full. S-WAVE5-PREP-01 chassis SHIPPED (D-319, PR #138, develop@53b87961). cli.rs doc-fix maintenance PR #139 ALSO SHIPPED (D-321, develop@c98a38b0). All outstanding LOW findings from D-319 are now CLOSED. No open maintenance PRs. TD-PR-MANAGER-CONVERGENCE-DISCIPLINE step-1 DONE; CODIFICATION step still pending vsdd-factory plugin scope. PR #139 deferred-items dossier + 6 TDs registered. Tasks #80-#84 DISPOSITIONS RECORDED (see '## Deferred-Items Dispositions' section below — do NOT re-triage). Standing Orchestrator Rules adopted (see '## Standing Orchestrator Process Rules' section). State durable; safe to compact. [process-rule active]: NO #[ignore] deferrals as first-line response to test failures.
 
@@ -56,6 +56,23 @@ For PR-LEVEL adversarial cascades (steps 4-5 of pr-manager 9-step), the orchestr
 
 When pr-manager reports that it cannot drive a cascade due to tooling, orchestrator picks up at step 4 directly — do not retry pr-manager.
 
+### Rule 3 — Production-Grade Closure Discipline (adopted 2026-05-10)
+
+The user explicitly directed: "we want to fix it the most right and correct way, not the fastest. this needs to be production grade. Don't defer things by surfacing for human approval."
+
+This rule applies to every fix-pass, every implementer dispatch, every adversary response:
+
+- **No `MVP limitation` deferrals masquerading as fixes.** If an implementer claims something is "MVP scope" or "test-path-only" or "deferred to follow-up", the orchestrator must verify the claim under fresh-context analysis. Implementer self-disclosure of risk severity is NOT authoritative — adversary independently verifies. (Operationalization of F-LP1-CRIT-2/CRIT-3 lesson from S-3.02-FOLLOWUP-RUNTIME pass-1.)
+- **No surface-and-defer-via-error patterns.** A silent `Vec::new()` return where partial-failure data should be propagated, an `Err(SilentlyMaskedError)` where the real fix would be threading proper plumbing — these are violations of SOUL.md #4 and must be closed as fixes, not as "Err this for the human to approve".
+- **No documented-but-unenforced gates.** A doc comment claiming "this requires capability X" with no actual capability check is a worse-than-silent failure. Either implement the gate or remove the docs.
+- **Architectural correction is in scope when it's the right fix.** If closing a finding requires threading `Arc<dyn Foo>` into a constructor that didn't previously have it, do it. Don't paper over with placeholder constructs. The "wiring not redesign" rule (ADR-022 §C) means don't replace existing implementations; it does NOT mean don't add proper plumbing where it was missing.
+- **Surface-for-human-approval is a last resort, not a first-line response.** If something genuinely cannot be fixed without expanding story scope to an extent that breaks the cycle, surface it explicitly with: (a) what the fix would entail, (b) why deferring is acceptable, (c) what TD ticket tracks the deferred work. Don't use surface-for-approval as a shortcut to avoid the work.
+
+This rule is enforced in:
+- Every implementer fix-pass dispatch (orchestrator includes the rule verbatim in dispatch prompts)
+- Every adversary dispatch (adversary verifies that fix-passes did not paper over findings)
+- Bundle/Wave exit gates (orchestrator audits closed findings against this rule before declaring done)
+
 ## Deferred-Items Dispositions (decided 2026-05-09 D-321 follow-up)
 
 | Task | Disposition | Reason |
@@ -67,6 +84,31 @@ When pr-manager reports that it cannot drive a cascade due to tooling, orchestra
 | #84 (BC frontmatter status:/lifecycle: divergence) | DEFERRED to architect dispatch as separate burst | Real ADR-021 amendment work; not a frontmatter sync. Bundle #83 with this when dispatched. |
 
 All dispositions are reversible. The dossier at `.factory/cycles/wave-4-operations/pr-139-deferred-items.md` remains the source of truth for context.
+
+## Bundle B Exit Mandate (adopted 2026-05-10)
+
+**The user directed: "before we move on from Bundle B (after we complete it), we need to apply the mentality of fix it the most right and correct way, not the fastest. this needs to be production grade. Don't defer things with surfacing for human approval audit across the full code base"**
+
+Before declaring Bundle B complete (after all Bundle B Phase B-2 stories merge: S-3.02-FOLLOWUP-RUNTIME, S-5.01-FOLLOWUP-MCP-BOOT, S-1.12-FOLLOWUP, W3-FIX-S307-001/002, S-1.14-REDO), the orchestrator MUST run a full-codebase audit per Standing Rule 3.
+
+**Audit dimensions:**
+1. **Stub residue (POL-12 broadened)** — every `todo!()` / `unimplemented!()` / `panic!("stub"|"TODO"|"not yet implemented")` across ALL crates (not just story-named sites). Each must be (a) properly implemented, or (b) explicitly retired with justification.
+2. **`#[ignore]` deferrals (D-315 [process-rule])** — every `#[ignore]` in tests must be (a) un-ignored, (b) deleted with rationale, or (c) explicitly approved by user for deferral.
+3. **Surface-and-defer error patterns** — every `Err(...)` followed by `Vec::new()` return, every `unwrap_or(0)` masking signal, every `_silently_dropped` variable.
+4. **Documented-but-unenforced gates** — doc comments claiming security/capability/limit checks with no enforcing code path (pattern from F-LP1-HIGH-3).
+5. **Vacuous-pass tests** — tests with assertion loops over potentially-empty collections without precondition (pattern from F-LP1-CRIT-4).
+6. **MVP placeholder constructs** — `OrgId::new()` where real IDs should thread, `*Auth::default()` where real cred resolution belongs, hardcoded empty Vec where data carries.
+7. **Architecture compliance violations** — parser re-implementations, safety-check bypasses, dead pushdown classifiers (pattern from F-LP1-HIGH-5).
+
+**Audit outputs:**
+- Consolidated finding register at `.factory/cycles/bundle-b-exit-audit/findings-register.md`
+- Per-finding fix recommendation
+- Staged fix plan (per-burst PR groupings)
+- Updated POL-12 enforcement scope codifying broader stub-residue rule
+
+**Enforcement gate:** Bundle B is NOT marked complete in STATE.md until this audit's findings are either (a) closed or (b) explicitly user-approved as deferred-with-TD.
+
+Tracked as task #85 in session task list.
 
 **PRE-COMPACT CHECKPOINT (2026-05-09 — D-321 follow-up) — state fully durable; safe to compact.**
 
