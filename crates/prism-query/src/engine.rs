@@ -592,10 +592,10 @@ impl QueryEngine {
 
 /// Pre-execution capability gate for internal tables (Layer 1 of defense-in-depth).
 ///
-/// Parses the query string and **recursively** walks all AST positions — including
-/// WHERE subqueries (`IN (SELECT ... FROM prism_audit)`), HAVING subqueries, SELECT
-/// projection subqueries, JOINs, and CTEs — to extract every referenced `prism_*`
-/// table name. (F-LP2-CRIT-1 Layer 1)
+/// Parses the query string and **recursively** walks all AST positions where a subquery
+/// can appear — WHERE / HAVING predicates, SELECT projection expressions, JOIN sources
+/// and ON conditions, GROUP BY / ORDER BY expressions, and function-call argument lists
+/// — to extract every referenced `prism_*` table name. (F-LP2-CRIT-1 Layer 1)
 ///
 /// For each extracted table, consults `INTERNAL_TABLE_DESCRIPTORS` to check
 /// `requires_audit_read`. If `true` and `Capability::AuditRead` is absent, rejects

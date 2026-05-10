@@ -330,9 +330,9 @@ pub async fn run_materialization_pipeline(
 
     let source_names = extract_source_names(&ast);
 
-    // Extract WHERE predicates for push-down (BC-2.11.007).
-    // F-LP1-HIGH-5: use pushdown::classify_predicates via extract_push_down_filters
-    // which routes through the existing infrastructure (ADR-022 §C wiring-not-redesign).
+    // Build a flat FilterMap of equality predicates from the WHERE clause (BC-2.11.007).
+    // Per-sensor classify_predicates integration deferred to wave-5
+    // (see extract_push_down_filters_as_map docs for rationale).
     let where_filters = extract_push_down_filters_as_map(&ast);
 
     // Step 2: Resolve client scope.
@@ -890,6 +890,7 @@ pub(crate) fn extract_source_names_recursive(ast: &crate::ast::Ast) -> Vec<Strin
 /// - HAVING clause predicates (including subqueries)
 /// - ORDER BY expressions (OrderExpr.expr — may contain InSubquery)
 /// - SELECT projection subqueries
+/// - Function call argument lists (FuncCall::Scalar / Aggregate args — may contain InSubquery; F-LP4-MED-1)
 /// - Nested subqueries (recursive descent into each SqlQuery)
 fn walk_sql_query(sql: &crate::ast::SqlQuery, names: &mut std::collections::HashSet<String>) {
     use crate::ast::SelectItem;
@@ -963,7 +964,7 @@ fn walk_predicate(pred: &crate::ast::Predicate, names: &mut std::collections::Ha
 
 /// Recursively walk an `Expr`, collecting source table names from any subqueries.
 fn walk_expr(expr: &crate::ast::Expr, names: &mut std::collections::HashSet<String>) {
-    use crate::ast::Expr;
+    use crate::ast::{Expr, FuncCall};
 
     match expr {
         // `field IN (SELECT ... FROM table)` — recurse into subquery body.
@@ -984,7 +985,18 @@ fn walk_expr(expr: &crate::ast::Expr, names: &mut std::collections::HashSet<Stri
         Expr::Not(inner) => {
             walk_expr(inner, names);
         }
-        // Other Expr variants (Literal, Field, VirtualField, FuncCall, Star) have no subqueries.
+        // FuncCall: walk all argument expressions — args may contain InSubquery
+        // (F-LP4-MED-1: e.g. `severity_label(id IN (SELECT trace_id FROM prism_audit))`).
+        Expr::FuncCall(func_call) => match func_call {
+            FuncCall::Scalar { args, .. } | FuncCall::Aggregate { args, .. } => {
+                for arg in args {
+                    walk_expr(arg, names);
+                }
+            }
+            // Window stub has no args yet (S-3.06 will extend this).
+            FuncCall::Window { .. } => {}
+        },
+        // Other Expr variants (Literal, Field, VirtualField, In, Star) have no subqueries.
         _ => {}
     }
 }
@@ -1245,6 +1257,90 @@ mod walker_coverage_tests {
             names.iter().any(|n| n == "prism_audit"),
             "F-LP3-CRIT-1: extract_source_names_recursive must discover `prism_audit` \
              hidden in ORDER BY InSubquery expression; got names: {names:?}"
+        );
+    }
+
+    /// F-LP4-MED-1: FuncCall args containing Expr::InSubquery must be walked by Layer 1.
+    ///
+    /// Represents queries like:
+    ///   `SELECT severity_label(id IN (SELECT trace_id FROM prism_audit)) FROM crowdstrike_detections`
+    ///   (scalar FuncCall arg contains InSubquery)
+    ///
+    /// and:
+    ///   `SELECT count(id IN (SELECT trace_id FROM prism_audit)) FROM crowdstrike_detections`
+    ///   (aggregate FuncCall arg contains InSubquery)
+    ///
+    /// Layer 1 must discover `prism_audit` from function call argument lists.
+    /// Prior to the fix, walk_expr's wildcard arm silently skipped FuncCall args.
+    #[test]
+    fn test_LP4_MED_1_func_call_args_subquery_discovered_by_layer1() {
+        use crate::ast::{AggFunc, FuncCall, ScalarFunc};
+
+        // ── Scalar FuncCall variant ──────────────────────────────────────────
+        // Build: SELECT severity_label(id IN (SELECT trace_id FROM prism_audit))
+        //        FROM crowdstrike_detections
+        let in_subquery_arg = Expr::InSubquery {
+            field: FieldPath {
+                segments: vec!["id".to_string()],
+                span: Span::ZERO,
+            },
+            subquery: prism_audit_subquery(),
+        };
+        let scalar_func_expr = Expr::FuncCall(FuncCall::Scalar {
+            func: ScalarFunc::Unknown("severity_label".to_string()),
+            args: vec![in_subquery_arg],
+        });
+
+        let mut sql = minimal_select("crowdstrike_detections");
+        sql.select = crate::ast::SelectClause {
+            distinct: false,
+            items: vec![SelectItem::Expr {
+                expr: scalar_func_expr,
+                alias: None,
+            }],
+        };
+
+        let ast = Ast::Sql(SqlStatement::Select(sql));
+        let names = extract_source_names_recursive(&ast);
+
+        assert!(
+            names.iter().any(|n| n == "prism_audit"),
+            "F-LP4-MED-1 (scalar): extract_source_names_recursive must discover \
+             `prism_audit` hidden in FuncCall::Scalar args; got names: {names:?}"
+        );
+
+        // ── Aggregate FuncCall variant ───────────────────────────────────────
+        // Build: SELECT count(id IN (SELECT trace_id FROM prism_audit))
+        //        FROM crowdstrike_detections
+        let in_subquery_arg2 = Expr::InSubquery {
+            field: FieldPath {
+                segments: vec!["id".to_string()],
+                span: Span::ZERO,
+            },
+            subquery: prism_audit_subquery(),
+        };
+        let agg_func_expr = Expr::FuncCall(FuncCall::Aggregate {
+            func: AggFunc::Count,
+            args: vec![in_subquery_arg2],
+            distinct: false,
+        });
+
+        let mut sql2 = minimal_select("crowdstrike_detections");
+        sql2.select = crate::ast::SelectClause {
+            distinct: false,
+            items: vec![SelectItem::Expr {
+                expr: agg_func_expr,
+                alias: None,
+            }],
+        };
+
+        let ast2 = Ast::Sql(SqlStatement::Select(sql2));
+        let names2 = extract_source_names_recursive(&ast2);
+
+        assert!(
+            names2.iter().any(|n| n == "prism_audit"),
+            "F-LP4-MED-1 (aggregate): extract_source_names_recursive must discover \
+             `prism_audit` hidden in FuncCall::Aggregate args; got names: {names2:?}"
         );
     }
 }
