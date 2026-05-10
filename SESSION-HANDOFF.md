@@ -1,42 +1,46 @@
 ---
 document_type: session-handoff
 level: ops
-version: "7.69"
+version: "7.70"
 status: current
 timestamp: 2026-05-09T00:00:00Z
-predecessor_session: "D-319 S-WAVE5-PREP-01 prism-bin chassis SHIPPED. PR #138 squash-merged at develop@53b87961 2026-05-10T00:55:49Z. 5 BCs graduate draft→active. STATE v7.68→v7.69. SESSION-HANDOFF v7.67→v7.68."
-successor_focus: "Phase B-2 unblocked for next chassis dependent. Sequence: (1) maintenance PR for cli.rs doc fix from 630e1c3a; (2) dispatch S-3.02-FOLLOWUP-RUNTIME (steps 7-8 QueryEngine + WriteExecutor — biggest follow-up, unlocks audit RocksDB CF integration); (3) S-5.01-FOLLOWUP-MCP-BOOT and S-1.12-FOLLOWUP can run in parallel (3, 4); (4) W3-FIX-S307-001/002 (sensor adapter writes); (5) S-1.14-REDO (infusion engine REDO). All Bundle B follow-ups now have a working chassis to plug into.
+predecessor_session: "D-321 PR #139 cli.rs doc-fix SHIPPED. develop@c98a38b0 2026-05-09. BC-2.06.011 v1.2, ADR-022 v1.1, ARCH-INDEX v2.37. TD-PR-MANAGER-CONVERGENCE-DISCIPLINE step-1 complete. STATE v7.69→v7.70. SESSION-HANDOFF v7.69→v7.70."
+successor_focus: "Phase B-2 unblocked. Maintenance PR #139 CLOSED (cli.rs doc-fix landed). Sequence: (1) dispatch S-3.02-FOLLOWUP-RUNTIME (steps 7-8 QueryEngine + WriteExecutor — biggest follow-up, unlocks audit RocksDB CF integration); (2) S-5.01-FOLLOWUP-MCP-BOOT and S-1.12-FOLLOWUP can run in parallel; (3) W3-FIX-S307-001/002 (sensor adapter writes); (4) S-1.14-REDO (infusion engine REDO). TD-PR-MANAGER-CONVERGENCE-DISCIPLINE CODIFICATION (pr-manager prompt/hook update) is still pending in vsdd-factory plugin scope — task #80 remains open. Tasks #81-#84 are deferred follow-up items from PR #139 cascade.
 
-**STEP 1 (START HERE):** Read STATE.md v7.69 + this HANDOFF v7.68 in full. S-WAVE5-PREP-01 chassis SHIPPED. PR #138 squash-merged at develop HEAD: 53b87961. 5 BCs graduated draft→active (BC-2.06.011/2.21.001/2.03.013/2.05.012/2.22.001). Outstanding: cli.rs doc-fix maintenance PR — local fix exists but was not pushed before merge (tracked TD-PR-MANAGER-CONVERGENCE-DISCIPLINE). [process-rule active]: NO #[ignore] deferrals as first-line response to test failures.
+**STEP 1 (START HERE):** Read STATE.md v7.70 + this HANDOFF v7.70 in full. S-WAVE5-PREP-01 chassis SHIPPED (D-319, PR #138, develop@53b87961). cli.rs doc-fix maintenance PR #139 ALSO SHIPPED (D-321, develop@c98a38b0). All outstanding LOW findings from D-319 are now CLOSED. No open maintenance PRs. TD-PR-MANAGER-CONVERGENCE-DISCIPLINE step-1 DONE; CODIFICATION step still pending vsdd-factory plugin scope. [process-rule active]: NO #[ignore] deferrals as first-line response to test failures.
 
-**STEP 2 (TIER-3 DISPATCH):** Dispatch Tier-3 stories (S-3.03/04/05/07 unblocked by S-3.02 + S-3.06 both merged). Priority: S-3.03 (Explain/Query Diagnostics, 1pt, fastest win) first; then S-3.04 (Alias System P1, 5pts) + S-3.05 (Pagination/Caching, 6pts) in parallel. S-3.07 (Write Execution Pipeline, 5pts) also unblocked (deps: S-3.02 + S-3.06 both merged). Devops: create worktrees from develop HEAD `6fefc774` before dispatching per-story-delivery cycles.
+**STEP 2 (PHASE B-2 DISPATCH):** Dispatch Phase B-2 follow-up stories. Priority: (1) S-3.02-FOLLOWUP-RUNTIME (steps 7-8 QueryEngine + WriteExecutor, 8pt — biggest follow-up, unlocks audit RocksDB CF integration); (2) S-5.01-FOLLOWUP-MCP-BOOT (step 9, 8pt) + S-1.12-FOLLOWUP (step 10, 3pt) in parallel. Devops: create worktrees from develop HEAD `c98a38b0` before dispatching per-story-delivery cycles.
 
 **STEP 3 (TD FOLLOW-UP):** TD-VSDD-064 — add proofs_path_canonicalization to policies.yaml + fix S-3.04/S-3.05 path drift (P2, can be done in-cycle during Tier-3). TD-VSDD-057 OPEN-DEFERRED-CROSS-REPO (separate vsdd-factory plugin session, not Tier-3 blocking).
 
 **STEP 4 (CONTINUE W3-FIRST PLAN):** Tier 3 (8-way: S-3.03/04/05/08/09/11/12/13) → Tier 4 (S-3.07 + S-3.10) → W3 wave gate → Resume Phase 4.B (S-4.01 + S-4.03).
 
 **KEY REFERENCES:**
-- STATE.md v7.30: develop@c867c344 (PR #127 squash 2d7040b1 + PR #128 squash 3e858f9f + PR #130 squash 2a7b83f5 + PR #129 squash 6fefc774 + PR #131 squash e7da9852 + PR #132 squash c867c344, 2026-05-06/07); factory-artifacts HEAD: run git -C .factory log -1 (TD-VSDD-053)
+- STATE.md v7.70: develop@c98a38b0 (PR #139 cli.rs doc-fix squash-merged 2026-05-09); factory-artifacts HEAD: run git -C .factory log -1 (TD-VSDD-053)
+- D-321: PR #139 cli.rs doc-fix SHIPPED c98a38b0; 9 PR-LEVEL passes + 3-CLEAN convergence; BC-2.06.011 v1.2, BC-INDEX v4.53, ADR-022 v1.1, ARCH-INDEX v2.37; factory-artifacts HEAD 820a110b
+- D-319: PR #138 S-WAVE5-PREP-01 chassis SHIPPED 53b87961 2026-05-10; 5 BCs draft→active
 - D-260: PR #129 S-3.02 MERGED 6fefc774 2026-05-07; tier-2 COMPLETE; 2993 tests; STORY-INDEX v2.14
-- D-246: PR #127 S-3.01 MERGED 2d7040b1 + PR #128 TD-VSDD-058 MERGED 3e858f9f 2026-05-06
-- BC-INDEX v4.51, VP-INDEX v1.29, HOLDOUT-INDEX v1.3, invariants.md v1.5, L2-INDEX v1.13, STORY-INDEX v2.31, ARCH-INDEX v2.36, module-decomposition v1.16
+- BC-INDEX v4.53, VP-INDEX v1.29, HOLDOUT-INDEX v1.3, invariants.md v1.5, L2-INDEX v1.13, STORY-INDEX v2.31, ARCH-INDEX v2.37, module-decomposition v1.16
 
-develop HEAD: 53b87961 (PR #138 S-WAVE5-PREP-01 prism-bin chassis squash-merged 2026-05-10T00:55:49Z; factory-artifacts HEAD: run git -C .factory log -1 per TD-VSDD-053)."
+develop HEAD: c98a38b0 (PR #139 cli.rs doc-fix squash-merged 2026-05-09; factory-artifacts HEAD: run git -C .factory log -1 per TD-VSDD-053)."
 ---
 
 # Session Handoff — WAVE 4 PHASE 4.A DECISIONS LOGGED (2026-05-02)
 
 ## TL;DR
 
-**PRE-COMPACT CHECKPOINT (2026-05-09) — state fully durable; safe to compact.**
+**D-321 (2026-05-09) — cli.rs doc-fix SHIPPED. State fully durable.**
 
-Critical preservation pointers for post-compact session:
-- Local branch `maint/pr138-cli-doc-fix` at SHA `630e1c3a` — preserves the cli.rs doc-comment fix from PR-LEVEL adversary pass-1 that wasn't pushed before pr-manager's premature merge of PR #138. POST-COMPACT TASK: cherry-pick this SHA onto a fresh maintenance branch + full 9-step PR cycle to land on develop. Reference: task #79 in TaskList; TD-PR-MANAGER-CONVERGENCE-DISCIPLINE in task #80.
-- Worktree `.worktrees/S-WAVE5-PREP-01/` is now POST-MERGE-DETACHED — upstream branch deleted on merge. Safe to remove (`git worktree remove .worktrees/S-WAVE5-PREP-01`) AFTER the maint/pr138-cli-doc-fix branch is confirmed-pushed-or-PR-merged.
+Current state pointers:
+- PR #139 squash-merged at develop@`c98a38b0` 2026-05-09. No outstanding maintenance PRs. No outstanding LOW findings.
+- TD-PR-MANAGER-CONVERGENCE-DISCIPLINE: step-1 COMPLETE (deferred fix landed via proper 9-step protocol). CODIFICATION step (pr-manager prompt/hook update) pending in vsdd-factory plugin scope — task #80 remains OPEN.
+- Worktree `.worktrees/S-WAVE5-PREP-01/` safe to remove (upstream branch deleted; maint PR #139 MERGED — no dependency remains).
 - Worktree `.worktrees/S-3.09/` remains FROZEN at HEAD `43c41389` per D-298 (BUG-S309-PLUGIN P0 dependency).
-- factory-artifacts HEAD: `9637f653b41b544228230b7c4bbe8f511f2d20ba`. develop HEAD: `53b87961`.
-- 5 BCs graduated active per ADR-021 POL-14 (D-319): BC-2.06.011, BC-2.21.001, BC-2.03.013, BC-2.05.012 v1.3, BC-2.22.001.
+- factory-artifacts HEAD: `820a110b`. develop HEAD: `c98a38b0`.
+- 5 BCs active per ADR-021 POL-14 (D-319): BC-2.06.011 v1.2, BC-2.21.001, BC-2.03.013, BC-2.05.012 v1.3, BC-2.22.001.
 - Phase B-2 next dispatches: S-3.02-FOLLOWUP-RUNTIME (steps 7-8 — biggest), S-5.01-FOLLOWUP-MCP-BOOT (step 9), S-1.12-FOLLOWUP (step 10), W3-FIX-S307-001/002 (sensor adapter writes), S-1.14-REDO (infusion engine).
+
+**D-321 (2026-05-09) — PR #139 cli.rs doc-fix SHIPPED. develop@c98a38b0. Cascade summary: 9 PR-LEVEL adversary passes (independent fresh-context dispatches) + 4 fix-passes + 3-CLEAN convergence streak (passes 7/8/9) + pr-reviewer APPROVE + 34/34 CI green; 14 findings closed (5 from pass-2, 3 from pass-3, 3 from pass-4, 1 MED + 1 LOW from pass-6). Source: cli.rs (+6/-1 bullet-list doc + XDG_CONFIG_HOME + platform-aware dirs::config_dir form), main.rs (+6/-3 parallel sync), bc_2_06_011_config_load.rs (+2/-5 "platform default" phrasing). Factory-artifacts: BC-2.06.011 v1.1→v1.2, BC-INDEX v4.51→v4.53, AC demos regenerated, ADR-022 v1.0→v1.1 (§B step 2 stale literal removed), ARCH-INDEX v2.36→v2.37. factory-artifacts HEAD 820a110b. Deferred follow-up: tasks #81-#84 (workspace drift, demo-evidence rule, BC ref sync, lifecycle divergence). Note: this PR is the FIRST REMEDIATION step of TD-PR-MANAGER-CONVERGENCE-DISCIPLINE — full 9-step protocol executed honestly. CODIFICATION step still pending vsdd-factory plugin scope. STATE v7.69→v7.70. SESSION-HANDOFF v7.69→v7.70.**
 
 **D-319 (2026-05-10) — S-WAVE5-PREP-01 prism-bin chassis SHIPPED. PR #138 squash-merged at develop@53b87961 on 2026-05-10T00:55:49Z. Cascade summary: LOCAL adversarial 6 passes (3-CLEAN convergence at HEAD `b143e3fc`); PR-LEVEL adversarial 2/3 streak (pr-manager merged at 2/3 — process anomaly tracked TD-PR-MANAGER-CONVERGENCE-DISCIPLINE); Final CI: 34/34 PASS at bccde4aa. Cross-crate work landed: prism-bin (new crate, 11 ACs demoed); prism-audit (BootAuditEmitter + BootSentinelFields); prism-storage (append_audit_entry_sync via flush_wal); prism-spec-engine (CredentialRef + SensorSpec.credential_refs, version bumped 0.4.0→0.5.0). 5 boot-sequence BCs graduate draft→active per ADR-021 POL-14: BC-2.06.011 (ConfigManager init), BC-2.21.001 (OrgRegistry init — first BC under SS-21), BC-2.03.013 (CredentialStore init with no-leak invariant), BC-2.05.012 v1.2 (BootAuditEmitter audit init with fsync'd sentinel), BC-2.22.001 (boot orchestration). Story status flips ready→merged per ADR-020 graduation contract. SS-22 (Process Lifecycle) gains its first active BC. Outstanding LOW finding: cli.rs doc comment — fix prepared as local commit `630e1c3a` but NOT pushed before merge; tracked as maintenance PR follow-up. STATE v7.68→v7.69. SESSION-HANDOFF v7.67→v7.68. Bundle B Phase B-2 first ship.**
 
