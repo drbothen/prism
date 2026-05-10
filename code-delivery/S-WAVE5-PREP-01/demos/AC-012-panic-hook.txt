@@ -1,0 +1,8 @@
+  [2m2026-05-09T19:44:14.701168Z[0m [32m INFO[0m [1;32mprism_bin::boot[0m[32m: [32mPrism v0.1.0[0m
+    [2;3mat[0m crates/prism-bin/src/boot.rs:324
+
+  [2m2026-05-09T19:44:14.701211Z[0m [31mERROR[0m [1;31mprism[0m[31m: [31mPrism process panicked — exiting with code 1 (AC-12; ADR-022 §A panic hook), [1;31mpanic.payload[0m[31m: PRISM_TEST_INJECT_PANIC=true: injected panic to exercise AC-12 panic hook, [1;31mpanic.location[0m[31m: crates/prism-bin/src/boot.rs:162:9[0m
+    [2;3mat[0m crates/prism-bin/src/main.rs:159
+
+Prism process panicked — exiting with code 1 (AC-12)
+exit=0

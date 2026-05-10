@@ -1,0 +1,35 @@
+Prism MCP server — sensor management platform for security analysts.
+
+Exit codes: 0  success / clean shutdown 1  unhandled error (caught panic) 2  config-invalid (TOML parse error, schema validation, credential ref failure) 3  sensor-fail (required sensor adapter failed to initialize) 4  internal-error (RocksDB, QueryEngine, audit init failure) 5  permission-denied (credential store access denied)
+
+Usage: prism [OPTIONS] <COMMAND>
+
+Commands:
+  start            Boot and serve (blocks until SIGTERM/Ctrl-C)
+  query            Execute a single PrismQL query and write JSON result to stdout
+  validate-config  Validate configuration file. Exits 2 if any required directory is missing
+  version          Print semantic version and build metadata; exit 0
+  help             Print this message or the help of the given subcommand(s)
+
+Options:
+      --config-dir <CONFIG_DIR>
+          Override the config directory (default: ~/.prism/). Env var: PRISM_CONFIG_DIR
+          
+          [env: PRISM_CONFIG_DIR=]
+
+      --log-format <LOG_FORMAT>
+          Log format: "json" or "pretty" (default: pretty). Env var: PRISM_LOG_FORMAT
+
+          Possible values:
+          - json:   Structured JSON lines (machine-readable; use for production deployments)
+          - pretty: Human-readable pretty output (default for development)
+          
+          [env: PRISM_LOG_FORMAT=]
+          [default: pretty]
+
+  -h, --help
+          Print help (see a summary with '-h')
+
+  -V, --version
+          Print version
+exit=0

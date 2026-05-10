@@ -1,0 +1,10 @@
+  [2m2026-05-09T19:43:52.183445Z[0m [32m INFO[0m [1;32mprism_bin::boot[0m[32m: [32mPrism v0.1.0[0m
+    [2;3mat[0m crates/prism-bin/src/boot.rs:324
+
+prism validate-config failed: config-invalid: Failed to parse prism.toml: TOML parse error at line 3, column 17
+  |
+3 | org_id = {broken
+  |                 ^
+expected `.`, `=`
+ (AC-4: see line/field context above)
+exit=0

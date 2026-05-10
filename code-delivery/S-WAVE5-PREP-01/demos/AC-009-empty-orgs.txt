@@ -1,0 +1,8 @@
+  [2m2026-05-09T19:44:00.571797Z[0m [32m INFO[0m [1;32mprism_bin::boot[0m[32m: [32mPrism v0.1.0[0m
+    [2;3mat[0m crates/prism-bin/src/boot.rs:324
+
+  [2m2026-05-09T19:44:00.572186Z[0m [32m INFO[0m [1;32mprism_bin::boot[0m[32m: [32mConfig loaded successfully, [1;32mconfig_dir[0m[32m: crates/prism-bin/fixtures/config/empty-orgs[0m
+    [2;3mat[0m crates/prism-bin/src/boot.rs:387
+
+prism validate-config failed: org-registry-failed: Config must declare at least one org (BC-2.21.001 EC-21-001-001)
+exit=0

@@ -1,0 +1,27 @@
+=== Step function names ===
+301:pub fn step1_init_tracing(log_format: &crate::cli::LogFormat) {
+336:pub async fn step2_load_config(config_dir: &Path) -> Result<PrismConfig, BootError> {
+404:pub async fn step3_init_org_registry(
+495:pub async fn step4_load_sensor_specs(
+609:pub async fn step5_init_credential_store(
+628:pub async fn step5_init_credential_store_with_probe(
+721:fn step6_init_audit(
+805:pub async fn step7_init_storage() -> Result<(), BootError> {
+816:pub async fn step8_init_query_engine() -> Result<(), BootError> {
+827:pub async fn step9_start_mcp_server() -> Result<(), BootError> {
+836:pub async fn step10_start_hot_reload() -> Result<(), BootError> {
+846:pub async fn step11_install_signal_handlers(
+
+=== todo!() line numbers ===
+Line 806:     todo!(
+Line 814: /// QueryEngine
+Line 817:     todo!(
+Line 828:     todo!("S-WAVE5-PREP-01 step 9 — MCP server boot — resolved by S-5.01-FOLLOWUP-MCP-BOOT")
+Line 837:     todo!("S-WAVE5-PREP-01 step 10 — hot-reload watcher — resolved by S-1.12-FOLLOWUP")
+Line 843: /// which are NOT todo!() — they are implemented in signals.rs.
+Line 850:     todo!(
+Line 943:     /// The actual validation is in step3_init_org_registry (todo!()).
+Line 971:     /// which is todo!() in step 3).
+
+=== Result: all todo!() are in steps 7-11 (>= line 806). Steps 1-6 are clean. ===
+POL-12: PASS

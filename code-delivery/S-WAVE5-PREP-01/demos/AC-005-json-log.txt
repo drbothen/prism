@@ -1,0 +1,2 @@
+{"timestamp":"2026-05-09T19:44:00.418296Z","level":"INFO","fields":{"message":"Prism v0.1.0"},"target":"prism_bin::boot"}
+exit=0

@@ -1,0 +1,31 @@
+  [2m2026-05-09T19:44:14.348514Z[0m [32m INFO[0m [1;32mprism_bin::boot[0m[32m: [32mPrism v0.1.0[0m
+    [2;3mat[0m crates/prism-bin/src/boot.rs:324
+
+  [2m2026-05-09T19:44:14.348828Z[0m [32m INFO[0m [1;32mprism_bin::boot[0m[32m: [32mConfig loaded successfully, [1;32mconfig_dir[0m[32m: /Users/jmagady/Dev/prism/.worktrees/S-WAVE5-PREP-01/crates/prism-bin/fixtures/config/valid[0m
+    [2;3mat[0m crates/prism-bin/src/boot.rs:387
+
+  [2m2026-05-09T19:44:14.349266Z[0m [32m INFO[0m [1;32mprism_bin::boot[0m[32m: [32mOrgRegistry initialized, [1;32morg_count[0m[32m: 1[0m
+    [2;3mat[0m crates/prism-bin/src/boot.rs:483
+
+  [2m2026-05-09T19:44:14.349376Z[0m [32m INFO[0m [1;32mprism_bin::boot[0m[32m: [32mSensor TOML specs loaded, [1;32mspec_dir[0m[32m: /tmp/prism-test-specs[0m
+    [2;3mat[0m crates/prism-bin/src/boot.rs:524
+
+  [2m2026-05-09T19:44:14.349392Z[0m [32m INFO[0m [1;32mprism_bin::boot[0m[32m: [32mCredential store: keyring backend constructed[0m
+    [2;3mat[0m crates/prism-bin/src/boot.rs:647
+
+  [2m2026-05-09T19:44:14.349405Z[0m [32m INFO[0m [1;32mprism_bin::boot[0m[32m: [32mCredential store initialized: 0 refs validated (BC-2.03.013), [1;32mrefs_validated[0m[32m: 0[0m
+    [2;3mat[0m crates/prism-bin/src/boot.rs:693
+
+  [2m2026-05-09T19:44:14.374708Z[0m [32m INFO[0m [1;32mprism_bin::boot[0m[32m: [32mAudit subsystem initialized; boot.audit.initialized persisted (durable via WAL fsync), [1;32mevent_type[0m[32m: "boot.audit.initialized", [1;32mprism_version[0m[32m: 0.1.0, [1;32morg_count[0m[32m: 1, [1;32mboot_step[0m[32m: 6[0m
+    [2;3mat[0m crates/prism-bin/src/boot.rs:785
+
+  [2m2026-05-09T19:44:14.374915Z[0m [32m INFO[0m [1;32mprism_bin::boot[0m[32m: [32mPRISM_TEST_STOP_AFTER_STEP=6: boot reached step 6 — waiting for SIGTERM via create_sigterm_future (MED-2, OBS-2), [1;32mready_file[0m[32m: /tmp/prism-ac6-txt.ready[0m
+    [2;3mat[0m crates/prism-bin/src/boot.rs:272
+
+  [2m2026-05-09T19:44:14.617728Z[0m [32m INFO[0m [1;32mprism_bin::signals[0m[32m: [32mReceived SIGTERM — shutting down[0m
+    [2;3mat[0m crates/prism-bin/src/signals.rs:145
+
+  [2m2026-05-09T19:44:14.617816Z[0m [32m INFO[0m [1;32mprism_bin::signals[0m[32m: [32mAudit buffer flush deferred to S-3.02-FOLLOWUP-RUNTIME (chassis only) — exiting cleanly[0m
+    [2;3mat[0m crates/prism-bin/src/signals.rs:147
+
+exit=0

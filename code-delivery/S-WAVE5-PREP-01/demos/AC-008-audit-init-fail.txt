@@ -1,0 +1,20 @@
+  [2m2026-05-09T19:44:00.529792Z[0m [32m INFO[0m [1;32mprism_bin::boot[0m[32m: [32mPrism v0.1.0[0m
+    [2;3mat[0m crates/prism-bin/src/boot.rs:324
+
+  [2m2026-05-09T19:44:00.530090Z[0m [32m INFO[0m [1;32mprism_bin::boot[0m[32m: [32mConfig loaded successfully, [1;32mconfig_dir[0m[32m: crates/prism-bin/fixtures/config/valid[0m
+    [2;3mat[0m crates/prism-bin/src/boot.rs:387
+
+  [2m2026-05-09T19:44:00.530569Z[0m [32m INFO[0m [1;32mprism_bin::boot[0m[32m: [32mOrgRegistry initialized, [1;32morg_count[0m[32m: 1[0m
+    [2;3mat[0m crates/prism-bin/src/boot.rs:483
+
+  [2m2026-05-09T19:44:00.530676Z[0m [32m INFO[0m [1;32mprism_bin::boot[0m[32m: [32mSensor TOML specs loaded, [1;32mspec_dir[0m[32m: /tmp/prism-test-specs[0m
+    [2;3mat[0m crates/prism-bin/src/boot.rs:524
+
+  [2m2026-05-09T19:44:00.530690Z[0m [32m INFO[0m [1;32mprism_bin::boot[0m[32m: [32mCredential store: keyring backend constructed[0m
+    [2;3mat[0m crates/prism-bin/src/boot.rs:647
+
+  [2m2026-05-09T19:44:00.530700Z[0m [32m INFO[0m [1;32mprism_bin::boot[0m[32m: [32mCredential store initialized: 0 refs validated (BC-2.03.013), [1;32mrefs_validated[0m[32m: 0[0m
+    [2;3mat[0m crates/prism-bin/src/boot.rs:693
+
+prism validate-config failed: audit-init-failed: PRISM_TEST_INJECT_FAIL_STEP=6_audit_failure: injected audit subsystem init failure (BC-2.05.012 TV-05-012-002)
+exit=0
