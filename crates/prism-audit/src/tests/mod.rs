@@ -38,3 +38,6 @@ pub mod bc_3_1_001_org_fields;
 
 // S-3.1.07 — BC-3.1.002 / TD-ADR005-002: SHA-256 aql_hash computation (Red Gate)
 pub mod bc_3_1_002_aql_hash;
+
+// F-PASS3-OBS-1 (S-WAVE5-PREP-01 fix-pass-3): owning-crate unit tests for BootAuditEmitter
+pub mod boot_emitter;

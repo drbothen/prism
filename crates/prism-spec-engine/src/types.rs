@@ -45,6 +45,35 @@ pub struct SensorTableDescriptor {
     pub pagination_type: PaginationType,
 }
 
+/// A credential reference declared in a sensor spec.
+///
+/// References the credential by sensor name and logical key name within that
+/// sensor's namespace.  The reference is resolved at boot time (step 5) via the
+/// keyring backend — no secret value is ever loaded into memory (AD-017).
+///
+/// # F-PASS2-HIGH-3 (S-WAVE5-PREP-01)
+///
+/// BC-2.03.013 §Postconditions (Happy path bullet 2):
+/// "All credential references declared in sensor specs are validated as resolvable."
+/// `SensorSpec.credential_refs` is the data model field that carries those refs.
+///
+/// TOML format in `*.types.toml` specs (optional section):
+/// ```toml
+/// [[credential_refs]]
+/// name = "api_key"
+///
+/// [[credential_refs]]
+/// name = "client_secret"
+/// ```
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct CredentialRef {
+    /// Logical credential name within this sensor's keyring namespace.
+    ///
+    /// Must be non-empty and match `[a-zA-Z0-9_-]+` (validated at parse time).
+    /// Example: `"api_key"`, `"client_secret"`.
+    pub name: String,
+}
+
 /// Parsed representation of a .sensor.toml file.
 /// Origin: S-1.11 — SensorSpec is the parsed representation established there.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -65,6 +94,18 @@ pub struct SensorSpec {
     /// TOML files that do not specify a `mode` field (BC-3.2.005, D-161 lesson).
     #[serde(default)]
     pub mode: DtuMode,
+    /// Credential references declared by this sensor spec.
+    ///
+    /// Each ref names a credential in the sensor's keyring namespace that must be
+    /// resolvable at boot time (BC-2.03.013 §Postconditions bullet 2).
+    /// Empty when the sensor declares no credentials (EC-03-013-001: zero refs
+    /// validated is not an error — boot continues normally).
+    ///
+    /// F-PASS2-HIGH-3 (S-WAVE5-PREP-01): added to support credential-ref
+    /// iteration in step5_init_credential_store. Future sensor TOML specs that
+    /// declare `[[credential_refs]]` sections will have their refs validated here.
+    #[serde(default)]
+    pub credential_refs: Vec<CredentialRef>,
 }
 
 /// Per-spec availability status for list_sensor_specs (BC-2.16.010).

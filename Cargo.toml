@@ -8,6 +8,7 @@ exclude = [
 ]
 members = [
     "crates/ocsf-proto-gen",
+    "crates/prism-bin",
     "crates/prism-core",
     "crates/prism-credentials",
     "crates/prism-dtu-common",

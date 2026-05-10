@@ -184,6 +184,29 @@ impl TableSpec {
     }
 }
 
+/// A credential reference declared in a sensor spec.
+///
+/// References a named credential within this sensor's keyring namespace.
+/// Resolved (reference-only, no secret value) at boot step 5 per BC-2.03.013.
+///
+/// TOML format in `*.sensor.toml` files (optional):
+/// ```toml
+/// [[credential_refs]]
+/// name = "api_key"
+///
+/// [[credential_refs]]
+/// name = "client_secret"
+/// ```
+///
+/// F-PASS2-HIGH-3 (S-WAVE5-PREP-01): added to carry credential refs from TOML
+/// into the in-memory spec so step5_init_credential_store can iterate them.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct CredentialRef {
+    /// Logical credential name within this sensor's keyring namespace.
+    /// Example: `"api_key"`, `"client_secret"`.
+    pub name: String,
+}
+
 /// The top-level sensor spec parsed from a `*.sensor.toml` file (BC-2.16.001).
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct SensorSpec {
@@ -201,6 +224,14 @@ pub struct SensorSpec {
     pub rate_limit_hints: Option<RateLimitHints>,
     /// Spec version string (semver).
     pub version: String,
+    /// Credential references declared by this sensor (BC-2.03.013).
+    ///
+    /// Each ref names a credential in the sensor's keyring namespace that must be
+    /// resolvable at boot time (step 5). Empty = no credentials declared.
+    /// `#[serde(default)]` ensures backward-compatible parsing of TOML files
+    /// that predate this field.
+    #[serde(default)]
+    pub credential_refs: Vec<CredentialRef>,
 }
 
 /// Descriptor exported from a loaded spec for downstream consumption.

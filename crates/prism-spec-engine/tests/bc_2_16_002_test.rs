@@ -229,6 +229,7 @@ async fn test_BC_2_16_002_two_step_pipeline_step2_uses_step1_token() {
         )],
         rate_limit_hints: None,
         version: "1.0.0".to_string(),
+        credential_refs: Vec::new(),
     };
 
     let table = spec.tables[0].clone();
