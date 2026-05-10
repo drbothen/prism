@@ -4,7 +4,7 @@ adr_id: "ADR-023"
 title: "Plugin-Only Sensor Architecture — TOML Specs, Declarative TOML Baseline, No Compiled-In Sensor Rust"
 status: COMMITTED
 date: "2026-05-10"
-version: "v1.6"
+version: "v1.7"
 producer: architect
 subsystems_affected: [SS-01, SS-02, SS-16, SS-17, SS-21, SS-22]
 supersedes: null
@@ -77,7 +77,7 @@ input-hash: "2f64319"
 
 ## Status
 
-COMMITTED 2026-05-10, v1.5. Status is `COMMITTED` rather than `ACCEPTED` because six
+COMMITTED 2026-05-10, v1.7. Status is `COMMITTED` rather than `ACCEPTED` because six
 infrastructure prerequisites (Constraints C1–C5 plus Wave 0/F BC+DI amendments) must land
 before the hardcoded sensor adapters can be deleted. Once all prerequisite stories ship and
 pass their gates, this ADR transitions to `ACCEPTED`. Implementation is tracked by
@@ -847,7 +847,7 @@ production system.
 
 ### Status as of 2026-05-10
 
-COMMITTED v1.5, pending implementation of Wave 0/F (PLUGIN-PREREQ-F) and Constraints C1–C5
+COMMITTED v1.7, pending implementation of Wave 0/F (PLUGIN-PREREQ-F) and Constraints C1–C5
 (PLUGIN-MIGRATION-001 Wave 0 — 6 stories total: PREREQ-F, A, B, C, D, E). The five hardcoded
 sensor auth modules, the four OCSF mapper modules, the `SensorType` enum, and the `CustomAdapter`
 trait all remain in the codebase until their corresponding Wave 0/1 stories ship and pass
@@ -1042,6 +1042,7 @@ without bypass.
 
 | Version | Date | Description |
 |---------|------|-------------|
+| v1.7 | 2026-05-10 | Closes F-PASS7-HIGH-001 (3rd recurrence of body Status block lagging frontmatter version). Sweep L80 + L850 from "v1.5" to "v1.7". Per TD-VERSION-STAMP-SWEEP-001 P2 (newly registered): future fix-bursts must include body version-stamp sweep step. Edit-only discipline maintained. |
 | v1.6 | 2026-05-10 | Closes F-PASS6-HIGH-001 (sibling-site Phase: migration residual at §E VP-PLUGIN-006 body). Cosmetic change to v1.5 changelog text (MD5 → input-hash) per F-PASS6-OBS-002. F-PASS6-OBS-001 left as intentional historical marker. Edit-only discipline maintained. |
 | v1.5 | 2026-05-10 | Closes 3 pass-5 findings (1 HIGH residual + 1 MED + 1 LOW). F-PASS5-HIGH-001: Status block L80 v1.3→v1.5 (closes F-PASS4-HIGH-002 partial-fix residual). F-PASS5-MED-001: PREREQ-F VP-INDEX registration instructions corrected at L204+L499-500 (drop non-existent phase column; use prism-spec-engine full module name). F-PASS5-LOW-001 [process-gap]: input-hash placeholder replaced with computed input-hash. Edit-only discipline maintained per TD-FACTORY-HOOK-BYPASS-001 P1. |
 | v1.4 | 2026-05-10 | Closes 14 pass-4 findings (3 CRIT + 5 HIGH + 4 MED + 3 LOW). F-PASS4-CRIT-001/LOW-003 closed: story count corrected 12→13 at 5 sites; Wave 1 header corrected (3 stories)→(4 stories). F-PASS4-CRIT-002 closed: Wave 1 SP corrected 30-47→38-60 at 3 sites; total SP corrected 95-138→95-146 at 5 sites. F-PASS4-CRIT-003 closed: Process-Gap Awareness section added citing TD-FACTORY-HOOK-BYPASS-001 P1. F-PASS4-HIGH-001 closed: "v1.0+1" replaced with "v1.0+N when first non-trivial third-party WASM plugin is genuinely needed" at 3 sites (C4, VP-PLUGIN-004 twice). F-PASS4-HIGH-002 closed: "COMMITTED v1.2" updated to "COMMITTED v1.4" in Status block. F-PASS4-HIGH-003 closed: VP-PLUGIN-001 through VP-PLUGIN-007 registered in VP-INDEX.md (phase: migration, module: prism-spec-engine; PREREQ-F sub-task closed in this burst). F-PASS4-HIGH-004 closed: DI-012 in invariants.md and BC-2.16.004 + BC-2.01.013 frontmatter annotated with scheduled_amendment_in: ADR-023. F-PASS4-HIGH-005 closed: VP-PLUGIN-006 block added to §E Verification Properties with cross-reference from Rule 1. F-PASS4-MED-001 closed: auth-driver re-acquisition interface specified in VP-PLUGIN-005 (AuthProvider trait, acquire_token, credential_refs lookup). F-PASS4-MED-002 closed: Status block rewritten to cite v1.4 and 6-story Wave 0. F-PASS4-MED-003 closed: v1.3 changelog row corrected from "12 stories ~95-138 SP" to "13 stories (~95-146 SP)". F-PASS4-MED-004 closed: TD-ADR-AMEND-002 augmentation note added specifying amendment_rationale and prefix_note_template fields. F-PASS4-LOW-001 closed: PREREQ-F frontmatter field syntax clarified to two YAML fields. F-PASS4-LOW-002 closed: PREREQ-F annotation updated to reflect v1.3+v1.4 sub-tasks (5-8 SP, covers 8 BC prefix-notes + DI-012 + 2 BC frontmatter annotations + VP-INDEX registration). |
