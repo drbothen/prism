@@ -42,7 +42,7 @@
 
 use std::{any::Any, sync::Arc};
 
-use arrow::array::StringArray;
+use arrow::array::{BooleanArray, StringArray, UInt64Array};
 use arrow::datatypes::{DataType, Field, Schema, SchemaRef};
 use arrow::record_batch::RecordBatch;
 use async_trait::async_trait;
@@ -100,7 +100,8 @@ impl InternalTableDescriptor {
     /// Return the full output schema: domain fields + virtual fields.
     ///
     /// DataFusion query planning uses this schema so that `SELECT *` includes
-    /// `_sensor`, `_client`, and `_source_table`. (F-LP1-HIGH-4, BC-2.11.012)
+    /// `_sensor`, `_client`, `_source_table`, and `_meta_scan_truncated`.
+    /// (F-LP1-HIGH-4, BC-2.11.012, ADV-W3MT-P59-HIGH-001)
     pub fn full_schema(&self) -> SchemaRef {
         let mut fields: Vec<Field> = self
             .schema
@@ -111,6 +112,7 @@ impl InternalTableDescriptor {
         fields.push(Field::new("_sensor", DataType::Utf8, false));
         fields.push(Field::new("_client", DataType::Utf8, false));
         fields.push(Field::new("_source_table", DataType::Utf8, false));
+        fields.push(Field::new("_meta_scan_truncated", DataType::Boolean, false));
         Arc::new(Schema::new(fields))
     }
 }
@@ -245,6 +247,22 @@ impl datafusion::datasource::TableProvider for RocksDbTableProvider {
             ));
         }
 
+        // ADV-W3MT-P59-CRIT-001: prism_aliases is backed by AliasStore (TOML), NOT RocksDB.
+        // `rocksdb_backed: false` — return empty batch pending AliasStore integration.
+        // The domain string for prism_aliases is "aliases" but the CF is reserved; do NOT scan.
+        if self.descriptor.table_name == "prism_aliases" {
+            let schema = Arc::clone(&self.descriptor.schema);
+            let empty = RecordBatch::new_empty(schema);
+            let empty = inject_internal_virtual_fields(empty, &self.descriptor.table_name, false)?;
+            let augmented_schema = empty.schema();
+            let plan = MemorySourceConfig::try_new_exec(
+                &[vec![empty]],
+                augmented_schema,
+                projection.cloned(),
+            )?;
+            return Ok(plan);
+        }
+
         // Parse the StorageDomain from the descriptor's domain string.
         // We use an empty prefix scan to get all records in the domain.
         let domain_str = &self.descriptor.domain;
@@ -276,7 +294,8 @@ impl datafusion::datasource::TableProvider for RocksDbTableProvider {
         let mut batches: Vec<RecordBatch> = Vec::new();
 
         // Collect all pairs first so we can detect truncation.
-        // ADV-W3MT-P58-MED-001: BC-2.15.011 requires truncated scans to be flagged.
+        // ADV-W3MT-P58-MED-001 / ADV-W3MT-P59-HIGH-001: BC-2.15.011 requires truncated scans
+        // to be flagged via both tracing::warn! AND a _meta_scan_truncated Boolean column.
         let all_pairs: Vec<_> = kv_pairs.into_iter().collect();
         let total_pairs = all_pairs.len();
         let pairs_truncated: Vec<_> = all_pairs.into_iter().take(cap).collect();
@@ -296,14 +315,17 @@ impl datafusion::datasource::TableProvider for RocksDbTableProvider {
             // F-LP1-HIGH-4: inject virtual fields into each batch.
             // BC-2.11.012: internal tables use _sensor = "prism", _client = "<system>",
             // _source_table = <table_name> (the bare domain table name).
-            let batch = inject_internal_virtual_fields(batch, &self.descriptor.table_name)?;
+            // ADV-W3MT-P59-HIGH-001: also inject _meta_scan_truncated column.
+            let batch =
+                inject_internal_virtual_fields(batch, &self.descriptor.table_name, scan_truncated)?;
             batches.push(batch);
         }
 
         // If no rows, produce a single empty batch (with virtual fields) to keep DataFusion happy.
         if batches.is_empty() {
             let empty = RecordBatch::new_empty(schema.clone());
-            let empty = inject_internal_virtual_fields(empty, &self.descriptor.table_name)?;
+            let empty =
+                inject_internal_virtual_fields(empty, &self.descriptor.table_name, scan_truncated)?;
             batches.push(empty);
         }
 
@@ -322,8 +344,9 @@ impl datafusion::datasource::TableProvider for RocksDbTableProvider {
     /// `_filters` is unused because `Inexact` delegates all filter evaluation to
     /// DataFusion after the full scan completes.
     ///
-    /// **Why deferred:** The `PRISM_MAX_INTERNAL_TABLE_SCAN=10_000` cap bounds
+    /// **Why deferred:** The `PRISM_MAX_INTERNAL_TABLE_SCAN=50_000` cap bounds
     /// the worst-case scan size, making full-scan acceptable for wave-4.
+    /// (ADV-W3MT-P59-LOW-001: updated from stale 10_000 reference)
     /// True RocksDB seek-based filter pushdown (e.g., prefix scan on timestamp or
     /// audit_event_type) requires a stable `RocksStorageBackend::scan_range` API,
     /// which is out-of-scope until wave-5 schema stabilization.
@@ -349,6 +372,8 @@ impl datafusion::datasource::TableProvider for RocksDbTableProvider {
 /// - `_sensor = "prism"` — distinguishes internal from external sensor data (BC-2.11.012).
 /// - `_client = "<system>"` — internal tables are not per-org; they are system-wide.
 /// - `_source_table = <table_name>` — the fully-qualified `prism_*` table name.
+/// - `_meta_scan_truncated: Boolean` — true if the scan was truncated at PRISM_MAX_INTERNAL_TABLE_SCAN.
+///   (ADV-W3MT-P59-HIGH-001, BC-2.15.011)
 ///
 /// If the batch already contains any of these column names (schema drift or spoofing),
 /// the existing column is overwritten with the canonical value.
@@ -360,11 +385,17 @@ impl datafusion::datasource::TableProvider for RocksDbTableProvider {
 fn inject_internal_virtual_fields(
     batch: RecordBatch,
     table_name: &str,
+    scan_truncated: bool,
 ) -> datafusion::error::Result<RecordBatch> {
     let num_rows = batch.num_rows();
 
     // Remove any pre-existing virtual columns to prevent schema drift / spoofing.
-    let reserved: &[&str] = &["_sensor", "_client", "_source_table"];
+    let reserved: &[&str] = &[
+        "_sensor",
+        "_client",
+        "_source_table",
+        "_meta_scan_truncated",
+    ];
     let keep_indices: Vec<usize> = batch
         .schema()
         .fields()
@@ -397,6 +428,9 @@ fn inject_internal_virtual_fields(
         std::sync::Arc::new(StringArray::from(vec!["<system>"; num_rows]));
     let table_array: std::sync::Arc<dyn arrow::array::Array> =
         std::sync::Arc::new(StringArray::from(vec![table_name; num_rows]));
+    // ADV-W3MT-P59-HIGH-001: _meta_scan_truncated column (BC-2.15.011).
+    let truncated_array: std::sync::Arc<dyn arrow::array::Array> =
+        std::sync::Arc::new(BooleanArray::from(vec![scan_truncated; num_rows]));
 
     // Extend schema with virtual fields.
     let existing_schema = base_batch.schema();
@@ -408,6 +442,7 @@ fn inject_internal_virtual_fields(
     new_fields.push(Field::new("_sensor", DataType::Utf8, false));
     new_fields.push(Field::new("_client", DataType::Utf8, false));
     new_fields.push(Field::new("_source_table", DataType::Utf8, false));
+    new_fields.push(Field::new("_meta_scan_truncated", DataType::Boolean, false));
     let new_schema = std::sync::Arc::new(Schema::new(new_fields));
 
     // Build new column list.
@@ -418,6 +453,7 @@ fn inject_internal_virtual_fields(
     new_columns.push(sensor_array);
     new_columns.push(client_array);
     new_columns.push(table_array);
+    new_columns.push(truncated_array);
 
     RecordBatch::try_new(new_schema, new_columns)
         .map_err(|e| datafusion::error::DataFusionError::ArrowError(Box::new(e), None))
@@ -453,19 +489,27 @@ fn build_batch_from_kv(
 
     match domain {
         StorageDomain::AuditBuffer => {
-            // F-LP1-HIGH-2: bincode 2.x deserialization of AuditEntry.
-            // Schema: { timestamp: Utf8, event_type: Utf8, org_id: Utf8, payload: Utf8 }
+            // F-LP1-HIGH-2 / ADV-W3MT-P59-CRIT-001: bincode 2.x deserialization of AuditEntry.
+            // Authoritative schema (synced with prism-storage):
+            //   { trace_id: Utf8, timestamp_ns: UInt64, operation: Utf8, client_id: Utf8,
+            //     analyst_id: Utf8, outcome: Utf8, capability: Utf8 }
             // AuditEntry fields: { timestamp_ns: u64, trace_id: String, payload: BTreeMap<String,String> }
             // Projection:
-            //   timestamp  <- timestamp_ns (formatted as decimal string for query access)
-            //   event_type <- payload.get("event_type").unwrap_or("")
-            //   org_id     <- payload.get("org_id").unwrap_or("")
-            //   payload    <- full payload JSON or trace_id as fallback
+            //   trace_id   <- e.trace_id
+            //   timestamp_ns <- e.timestamp_ns (u64)
+            //   operation  <- payload.get("operation").unwrap_or("")
+            //   client_id  <- payload.get("client_id").unwrap_or("")
+            //   analyst_id <- payload.get("analyst_id").unwrap_or("")
+            //   outcome    <- payload.get("outcome").unwrap_or("")
+            //   capability <- payload.get("capability").unwrap_or("")
 
-            let mut timestamps: Vec<String> = Vec::with_capacity(n);
-            let mut event_types: Vec<String> = Vec::with_capacity(n);
-            let mut org_ids: Vec<String> = Vec::with_capacity(n);
-            let mut payloads: Vec<String> = Vec::with_capacity(n);
+            let mut trace_ids: Vec<String> = Vec::with_capacity(n);
+            let mut timestamp_ns_vals: Vec<u64> = Vec::with_capacity(n);
+            let mut operations: Vec<String> = Vec::with_capacity(n);
+            let mut client_ids: Vec<String> = Vec::with_capacity(n);
+            let mut analyst_ids: Vec<String> = Vec::with_capacity(n);
+            let mut outcomes: Vec<String> = Vec::with_capacity(n);
+            let mut capabilities: Vec<String> = Vec::with_capacity(n);
 
             for (_, value_bytes) in chunk {
                 // ADV-W3MT-P58-LOW-001: config alignment.
@@ -473,7 +517,7 @@ fn build_batch_from_kv(
                 // `bincode::config::standard()` (bincode 2.x default: little-endian,
                 // variable-length integers, no byte limit). We decode with the same config
                 // here. If the encoding config ever changes in prism-storage, update both
-                // sides together. Failed deserialization gracefully falls back to empty strings.
+                // sides together. Failed deserialization gracefully falls back to defaults.
                 let entry: Option<prism_storage::audit_buffer::AuditEntry> =
                     bincode::serde::decode_from_slice::<
                         prism_storage::audit_buffer::AuditEntry,
@@ -484,45 +528,54 @@ fn build_batch_from_kv(
 
                 match entry {
                     Some(e) => {
-                        timestamps.push(e.timestamp_ns.to_string());
-                        event_types.push(e.payload.get("event_type").cloned().unwrap_or_default());
-                        org_ids.push(e.payload.get("org_id").cloned().unwrap_or_default());
-                        // Serialize payload map to JSON string for the payload column.
-                        let payload_str = serde_json::to_string(&e.payload)
-                            .unwrap_or_else(|_| e.trace_id.clone());
-                        payloads.push(payload_str);
+                        trace_ids.push(e.trace_id.clone());
+                        timestamp_ns_vals.push(e.timestamp_ns);
+                        operations.push(e.payload.get("operation").cloned().unwrap_or_default());
+                        client_ids.push(e.payload.get("client_id").cloned().unwrap_or_default());
+                        analyst_ids.push(e.payload.get("analyst_id").cloned().unwrap_or_default());
+                        outcomes.push(e.payload.get("outcome").cloned().unwrap_or_default());
+                        capabilities.push(e.payload.get("capability").cloned().unwrap_or_default());
                     }
                     None => {
-                        // Graceful degradation: failed deserialization → empty strings.
-                        // Avoids panicking on schema drift or partially-written entries.
+                        // Graceful degradation: failed deserialization → zero/empty defaults.
                         tracing::debug!(
                             "AuditBuffer: failed to deserialize entry via bincode 2.x; \
-                             using empty strings (graceful degradation)"
+                             using defaults (graceful degradation)"
                         );
-                        timestamps.push(String::new());
-                        event_types.push(String::new());
-                        org_ids.push(String::new());
-                        payloads.push(String::new());
+                        trace_ids.push(String::new());
+                        timestamp_ns_vals.push(0u64);
+                        operations.push(String::new());
+                        client_ids.push(String::new());
+                        analyst_ids.push(String::new());
+                        outcomes.push(String::new());
+                        capabilities.push(String::new());
                     }
                 }
             }
 
-            // Build columns in schema field order: timestamp, event_type, org_id, payload.
+            // Build columns in authoritative schema field order.
             let field_names: Vec<&str> =
                 schema.fields().iter().map(|f| f.name().as_str()).collect();
             for field_name in &field_names {
                 let arr: Arc<dyn arrow::array::Array> = match *field_name {
-                    "timestamp" => Arc::new(StringArray::from(
-                        timestamps.iter().map(|s| s.as_str()).collect::<Vec<_>>(),
+                    "trace_id" => Arc::new(StringArray::from(
+                        trace_ids.iter().map(|s| s.as_str()).collect::<Vec<_>>(),
                     )),
-                    "event_type" => Arc::new(StringArray::from(
-                        event_types.iter().map(|s| s.as_str()).collect::<Vec<_>>(),
+                    "timestamp_ns" => Arc::new(UInt64Array::from(timestamp_ns_vals.clone())),
+                    "operation" => Arc::new(StringArray::from(
+                        operations.iter().map(|s| s.as_str()).collect::<Vec<_>>(),
                     )),
-                    "org_id" => Arc::new(StringArray::from(
-                        org_ids.iter().map(|s| s.as_str()).collect::<Vec<_>>(),
+                    "client_id" => Arc::new(StringArray::from(
+                        client_ids.iter().map(|s| s.as_str()).collect::<Vec<_>>(),
                     )),
-                    "payload" => Arc::new(StringArray::from(
-                        payloads.iter().map(|s| s.as_str()).collect::<Vec<_>>(),
+                    "analyst_id" => Arc::new(StringArray::from(
+                        analyst_ids.iter().map(|s| s.as_str()).collect::<Vec<_>>(),
+                    )),
+                    "outcome" => Arc::new(StringArray::from(
+                        outcomes.iter().map(|s| s.as_str()).collect::<Vec<_>>(),
+                    )),
+                    "capability" => Arc::new(StringArray::from(
+                        capabilities.iter().map(|s| s.as_str()).collect::<Vec<_>>(),
                     )),
                     _ => {
                         // Unknown field: empty string fallback.
@@ -536,6 +589,7 @@ fn build_batch_from_kv(
         _ => {
             // Other domains: raw bytes fallback — full deserialization deferred to
             // follow-up stories as domain types are stabilized (AD-012, story §Tasks step 6).
+            // ADV-W3MT-P59-CRIT-001: handle UInt64 and Boolean columns with zero/false defaults.
             for (i, field) in schema.fields().iter().enumerate() {
                 let arr: Arc<dyn arrow::array::Array> = match field.data_type() {
                     DataType::Utf8 => {
@@ -551,6 +605,8 @@ fn build_batch_from_kv(
                             Arc::new(StringArray::from(vec![""; n]))
                         }
                     }
+                    DataType::UInt64 => Arc::new(UInt64Array::from(vec![0u64; n])),
+                    DataType::Boolean => Arc::new(BooleanArray::from(vec![false; n])),
                     DataType::Int32 => {
                         use arrow::array::Int32Array;
                         Arc::new(Int32Array::from(vec![0i32; n]))
@@ -603,86 +659,122 @@ fn parse_domain(domain: &str) -> Result<StorageDomain, PrismError> {
 
 /// Return the Arrow schema for `prism_audit`.
 ///
-/// Schema: `{ timestamp: Utf8, event_type: Utf8, org_id: Utf8, payload: Utf8 }`
+/// Authoritative columns from `prism-storage::internal_tables::audit_columns()`.
+/// (ADV-W3MT-P59-CRIT-001: synced with prism-storage authoritative INTERNAL_TABLES)
+///
+/// Schema: `{ trace_id: Utf8, timestamp_ns: UInt64, operation: Utf8, client_id: Utf8, analyst_id: Utf8, outcome: Utf8, capability: Utf8 }`
 pub(crate) fn audit_schema() -> SchemaRef {
     Arc::new(Schema::new(vec![
-        Field::new("timestamp", DataType::Utf8, false),
-        Field::new("event_type", DataType::Utf8, false),
-        Field::new("org_id", DataType::Utf8, false),
-        Field::new("payload", DataType::Utf8, false),
+        Field::new("trace_id", DataType::Utf8, false),
+        Field::new("timestamp_ns", DataType::UInt64, false),
+        Field::new("operation", DataType::Utf8, false),
+        Field::new("client_id", DataType::Utf8, false),
+        Field::new("analyst_id", DataType::Utf8, false),
+        Field::new("outcome", DataType::Utf8, false),
+        Field::new("capability", DataType::Utf8, false),
     ]))
 }
 
 /// Return the Arrow schema for `prism_alerts`.
 ///
-/// Schema: `{ alert_id: Utf8, rule_id: Utf8, severity: Int32, timestamp: Utf8 }`
+/// Authoritative columns from `prism-storage::internal_tables::alerts_columns()`.
+/// (ADV-W3MT-P59-CRIT-001: synced with prism-storage authoritative INTERNAL_TABLES)
+///
+/// Schema: `{ alert_id: Utf8, severity_id: UInt64, device_ip: Utf8, device_hostname: Utf8, client_id: Utf8, created_at: Utf8, rule_id: Utf8 }`
 pub(crate) fn alerts_schema() -> SchemaRef {
     Arc::new(Schema::new(vec![
         Field::new("alert_id", DataType::Utf8, false),
+        Field::new("severity_id", DataType::UInt64, false),
+        Field::new("device_ip", DataType::Utf8, false),
+        Field::new("device_hostname", DataType::Utf8, false),
+        Field::new("client_id", DataType::Utf8, false),
+        Field::new("created_at", DataType::Utf8, false),
         Field::new("rule_id", DataType::Utf8, false),
-        Field::new("severity", DataType::Int32, false),
-        Field::new("timestamp", DataType::Utf8, false),
     ]))
 }
 
 /// Return the Arrow schema for `prism_cases`.
 ///
-/// Schema: `{ case_id: Utf8, status: Utf8, severity: Int32, created_at: Utf8 }`
+/// Authoritative columns from `prism-storage::internal_tables::cases_columns()`.
+/// (ADV-W3MT-P59-CRIT-001: synced with prism-storage authoritative INTERNAL_TABLES)
+///
+/// Schema: `{ case_id: Utf8, title: Utf8, severity_id: UInt64, client_id: Utf8, created_at: Utf8, status: Utf8 }`
 pub(crate) fn cases_schema() -> SchemaRef {
     Arc::new(Schema::new(vec![
         Field::new("case_id", DataType::Utf8, false),
-        Field::new("status", DataType::Utf8, false),
-        Field::new("severity", DataType::Int32, false),
+        Field::new("title", DataType::Utf8, false),
+        Field::new("severity_id", DataType::UInt64, false),
+        Field::new("client_id", DataType::Utf8, false),
         Field::new("created_at", DataType::Utf8, false),
+        Field::new("status", DataType::Utf8, false),
     ]))
 }
 
 /// Return the Arrow schema for `prism_schedules`.
 ///
-/// Schema: `{ schedule_id: Utf8, query: Utf8, cron: Utf8, next_run: Utf8 }`
+/// Authoritative columns from `prism-storage::internal_tables::schedules_columns()`.
+/// (ADV-W3MT-P59-CRIT-001: synced with prism-storage authoritative INTERNAL_TABLES)
+///
+/// Schema: `{ schedule_id: Utf8, name: Utf8, client_id: Utf8, query: Utf8, interval_secs: UInt64, last_run_at: Utf8 }`
 pub(crate) fn schedules_schema() -> SchemaRef {
     Arc::new(Schema::new(vec![
         Field::new("schedule_id", DataType::Utf8, false),
+        Field::new("name", DataType::Utf8, false),
+        Field::new("client_id", DataType::Utf8, false),
         Field::new("query", DataType::Utf8, false),
-        Field::new("cron", DataType::Utf8, false),
-        Field::new("next_run", DataType::Utf8, false),
+        Field::new("interval_secs", DataType::UInt64, false),
+        Field::new("last_run_at", DataType::Utf8, false),
     ]))
 }
 
 /// Return the Arrow schema for `prism_diff_results`.
 ///
-/// Schema: `{ diff_id: Utf8, rule_id: Utf8, timestamp: Utf8, payload: Utf8 }`
+/// Authoritative columns from `prism-storage::internal_tables::diff_results_columns()`.
+/// (ADV-W3MT-P59-CRIT-001: synced with prism-storage authoritative INTERNAL_TABLES)
+///
+/// Schema: `{ query_hash: Utf8, client_id: Utf8, previous_results_hash: Utf8, epoch: UInt64, counter: UInt64, last_diff_time: Utf8 }`
 pub(crate) fn diff_results_schema() -> SchemaRef {
     Arc::new(Schema::new(vec![
-        Field::new("diff_id", DataType::Utf8, false),
-        Field::new("rule_id", DataType::Utf8, false),
-        Field::new("timestamp", DataType::Utf8, false),
-        Field::new("payload", DataType::Utf8, false),
+        Field::new("query_hash", DataType::Utf8, false),
+        Field::new("client_id", DataType::Utf8, false),
+        Field::new("previous_results_hash", DataType::Utf8, false),
+        Field::new("epoch", DataType::UInt64, false),
+        Field::new("counter", DataType::UInt64, false),
+        Field::new("last_diff_time", DataType::Utf8, false),
     ]))
 }
 
 /// Return the Arrow schema for `prism_rules`.
 ///
-/// Schema: `{ rule_id: Utf8, name: Utf8, query: Utf8, severity: Int32 }`
-/// (ADV-W3MT-P58-HIGH-003: required by BC-2.15.011 — 7 tables minimum)
+/// Authoritative columns from `prism-storage::internal_tables::rules_columns()`.
+/// (ADV-W3MT-P59-CRIT-001: synced with prism-storage authoritative INTERNAL_TABLES)
+///
+/// Schema: `{ rule_id: Utf8, name: Utf8, client_id: Utf8, enabled: Boolean, created_at: Utf8 }`
 pub(crate) fn rules_schema() -> SchemaRef {
     Arc::new(Schema::new(vec![
         Field::new("rule_id", DataType::Utf8, false),
         Field::new("name", DataType::Utf8, false),
-        Field::new("query", DataType::Utf8, false),
-        Field::new("severity", DataType::Int32, false),
+        Field::new("client_id", DataType::Utf8, false),
+        Field::new("enabled", DataType::Boolean, false),
+        Field::new("created_at", DataType::Utf8, false),
     ]))
 }
 
 /// Return the Arrow schema for `prism_aliases`.
 ///
-/// Schema: `{ alias_id: Utf8, name: Utf8, expansion: Utf8 }`
-/// (ADV-W3MT-P58-HIGH-003: required by BC-2.15.011 — 7 tables minimum)
+/// Authoritative columns from `prism-storage::internal_tables::aliases_columns()`.
+/// `prism_aliases` is backed by AliasStore (TOML), NOT RocksDB (`rocksdb_backed: false`).
+/// The scan() method returns an empty batch for this table pending AliasStore integration.
+/// (ADV-W3MT-P59-CRIT-001: synced with prism-storage authoritative INTERNAL_TABLES)
+///
+/// Schema: `{ alias_id: Utf8, alias: Utf8, expansion: Utf8, client_id: Utf8, created_at: Utf8 }`
 pub(crate) fn aliases_schema() -> SchemaRef {
     Arc::new(Schema::new(vec![
         Field::new("alias_id", DataType::Utf8, false),
-        Field::new("name", DataType::Utf8, false),
+        Field::new("alias", DataType::Utf8, false),
         Field::new("expansion", DataType::Utf8, false),
+        Field::new("client_id", DataType::Utf8, false),
+        Field::new("created_at", DataType::Utf8, false),
     ]))
 }
 

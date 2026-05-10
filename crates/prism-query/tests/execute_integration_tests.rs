@@ -1217,17 +1217,19 @@ async fn test_CRIT_1_internal_table_queryable_through_execute() {
 // F-LP1-HIGH-2: bincode 2.x deserialization — AuditEntry fields appear in scan output
 // ---------------------------------------------------------------------------
 
-/// F-LP1-HIGH-2 (AD-012, BC-2.15.011): When `prism_audit` is queried and the
-/// audit buffer contains properly bincode-encoded `AuditEntry` values, the scan
+/// F-LP1-HIGH-2 / ADV-W3MT-P59-CRIT-001 (AD-012, BC-2.15.011): When `prism_audit` is queried
+/// and the audit buffer contains properly bincode-encoded `AuditEntry` values, the scan
 /// must deserialize them and project their fields onto the Arrow schema columns.
 ///
-/// Specifically verifies that `timestamp`, `event_type`, `org_id`, and `payload`
-/// are populated from the deserialized struct (not raw bytes or empty strings).
+/// Authoritative schema (synced with prism-storage::internal_tables):
+///   trace_id: Utf8, timestamp_ns: UInt64, operation: Utf8, client_id: Utf8,
+///   analyst_id: Utf8, outcome: Utf8, capability: Utf8
 ///
 /// This test uses `prism-storage::audit_buffer::append_audit_entry` to write a
 /// properly-encoded entry, then queries through `QueryEngine::execute`.
 #[tokio::test]
 async fn test_HIGH_2_audit_entry_bincode_deserialization() {
+    use arrow::array::UInt64Array;
     use prism_query::engine::{Capability, QueryEngine, QueryEngineConfig, QueryOptions};
     use prism_storage::audit_buffer::{append_audit_entry, AuditEntry};
     use std::collections::BTreeMap;
@@ -1235,11 +1237,13 @@ async fn test_HIGH_2_audit_entry_bincode_deserialization() {
     let org_slug = helpers::org("acme");
     let storage = helpers::make_storage();
 
-    // Seed one properly bincode-encoded AuditEntry.
+    // Seed one properly bincode-encoded AuditEntry with authoritative field names.
     let mut payload = BTreeMap::new();
-    payload.insert("event_type".to_string(), "test_event".to_string());
-    payload.insert("org_id".to_string(), "acme".to_string());
-    payload.insert("detail".to_string(), "test detail value".to_string());
+    payload.insert("operation".to_string(), "query".to_string());
+    payload.insert("client_id".to_string(), "acme".to_string());
+    payload.insert("analyst_id".to_string(), "analyst-001".to_string());
+    payload.insert("outcome".to_string(), "success".to_string());
+    payload.insert("capability".to_string(), "query.execute".to_string());
 
     let entry = AuditEntry {
         timestamp_ns: 1_000_000_000_u64,
@@ -1276,9 +1280,10 @@ async fn test_HIGH_2_audit_entry_bincode_deserialization() {
         ..QueryOptions::default()
     };
 
+    // Use authoritative column names from prism-storage::internal_tables (ADV-W3MT-P59-CRIT-001).
     let result = engine
         .execute(
-            "SELECT timestamp, event_type, org_id FROM prism_audit LIMIT 10",
+            "SELECT trace_id, timestamp_ns, operation FROM prism_audit LIMIT 10",
             options,
         )
         .await
@@ -1296,16 +1301,30 @@ async fn test_HIGH_2_audit_entry_bincode_deserialization() {
         "HIGH-2: must have at least one batch with rows; the seeded AuditEntry must appear"
     );
 
-    // Verify that the `timestamp` column contains the formatted timestamp_ns (not raw bytes).
+    // Verify that the `timestamp_ns` column contains the u64 value (not raw bytes or zero).
     for batch in &data_batches {
-        if let Ok(ts_idx) = batch.schema().index_of("timestamp") {
-            if let Some(ts_arr) = batch.column(ts_idx).as_any().downcast_ref::<StringArray>() {
+        if let Ok(ts_idx) = batch.schema().index_of("timestamp_ns") {
+            if let Some(ts_arr) = batch.column(ts_idx).as_any().downcast_ref::<UInt64Array>() {
                 for row in 0..ts_arr.len() {
                     let ts_val = ts_arr.value(row);
-                    // timestamp must be a decimal number (timestamp_ns.to_string()), not raw bytes.
+                    // timestamp_ns must be the u64 we seeded (1_000_000_000), not 0.
                     assert!(
-                        ts_val.chars().all(|c| c.is_ascii_digit()),
-                        "HIGH-2: timestamp column must be decimal timestamp_ns string; got: {ts_val:?}"
+                        ts_val > 0,
+                        "HIGH-2: timestamp_ns must be non-zero (deserialized from AuditEntry); got: {ts_val}"
+                    );
+                }
+            }
+        }
+    }
+
+    // Verify trace_id is present and non-empty.
+    for batch in &data_batches {
+        if let Ok(tr_idx) = batch.schema().index_of("trace_id") {
+            if let Some(tr_arr) = batch.column(tr_idx).as_any().downcast_ref::<StringArray>() {
+                for row in 0..tr_arr.len() {
+                    assert!(
+                        !tr_arr.value(row).is_empty(),
+                        "HIGH-2: trace_id must be non-empty; got empty string at row {row}"
                     );
                 }
             }

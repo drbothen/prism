@@ -534,6 +534,40 @@ impl QueryEngine {
     > {
         let start = std::time::Instant::now();
 
+        // HIGH-002 / ADV-W3MT-P59-HIGH-002: wrap the entire scheduled execution in a timeout.
+        // BC-2.11.006 requires 30s timeout for the full execution lifecycle, including
+        // execute_scheduled. Mirrors the same pattern as execute().
+        let timeout_secs = self.config.timeout_secs;
+        let result = tokio::time::timeout(
+            std::time::Duration::from_secs(timeout_secs),
+            self.execute_scheduled_inner(query_str, clients),
+        )
+        .await;
+
+        match result {
+            Ok(Ok((mut qr, ctx))) => {
+                qr.context.execution_time_ms = start.elapsed().as_millis() as u64;
+                Ok((qr, ctx))
+            }
+            Ok(Err(e)) => Err(e),
+            Err(_elapsed) => Err(PrismError::QueryTimeout {
+                elapsed_ms: start.elapsed().as_millis() as u64,
+            }),
+        }
+    }
+
+    /// Inner body for `execute_scheduled` (without the timeout wrapper).
+    async fn execute_scheduled_inner(
+        &self,
+        query_str: &str,
+        clients: Option<Vec<OrgSlug>>,
+    ) -> Result<
+        (
+            QueryResult,
+            Arc<datafusion::execution::context::SessionContext>,
+        ),
+        PrismError,
+    > {
         // Resolve client scope (BC-2.11.011).
         let resolved_clients = crate::scoping::resolve_clients(clients, &self.client_registry)?;
 
@@ -586,12 +620,14 @@ impl QueryEngine {
         let total_rows: usize = output.batches.iter().map(|b| b.num_rows()).sum();
 
         // ADV-W3MT-P58-HIGH-005: sensors_queried now populated from materialization output.
+        // Note: execution_time_ms is set to 0 here and filled in by execute_scheduled()
+        // after the timeout wrapper completes. (ADV-W3MT-P59-HIGH-002)
         let context = QueryResultContext {
             original_query: query_str.to_string(),
             expanded_query: query_str.to_string(),
             clients_queried: resolved_clients,
             sensors_queried: output.sensors_queried,
-            execution_time_ms: start.elapsed().as_millis() as u64,
+            execution_time_ms: 0, // filled in by execute_scheduled()
         };
 
         let qr = QueryResult {
