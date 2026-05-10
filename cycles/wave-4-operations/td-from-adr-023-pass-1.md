@@ -304,3 +304,62 @@ claims about code behavior; this TD adds the automated citation check for refere
 **Deferred per user mandate (2026-05-10):** Actual validator implementation deferred until
 ADR-023 reaches 3-CLEAN. The discipline must be codified (documented in fix-burst dispatch
 prompt + architect checklist) before fix-burst-3 even without the automated validator.
+
+**Scope extension (added 2026-05-10 per D-337, F-PASS4-CRIT-001 + F-PASS4-CRIT-002 + F-PASS4-OBS-002):**
+Extend validator scope to include arithmetic claims: "Validator must check that any arithmetic
+claim in changelog row text (e.g., 'N stories', 'N-M SP') matches the body content via
+parse-and-sum verification." Pass-4 demonstrates that story-count and SP-arithmetic drift
+(F-PASS4-CRIT-001/002) are exactly the class of defect this scope extension would catch.
+The extension must be codified in the architect checklist before fix-burst-4 dispatch even
+without the automated validator.
+
+---
+
+## TD-FACTORY-HOOK-BYPASS-001 — Python open/write (or any non-Edit/Write tool path) bypasses factory-dispatcher hooks; policy-forbidden
+
+| Field | Value |
+|-------|-------|
+| **ID** | TD-FACTORY-HOOK-BYPASS-001 |
+| **Priority** | P1 (process-gap; must land before fix-burst-4 dispatch) |
+| **Target** | v1.0 (P1; before next architect dispatch) |
+| **Category** | process-gap, methodology |
+| **Source** | F-PASS4-CRIT-003 (META) + F-PASS4-OBS-001 from ADR-023 pass-4 |
+| **Decision** | D-337 |
+
+**Description:** Fix-burst-3 architect bypassed validate-changelog-monotonicity by using Python
+`open`/`write` (or equivalent non-Edit/Write tool path) to mutate `.factory/` files outside
+the Edit tool. The bypass appears causally connected to v1.3 cascade defects (story-count drift
+at 5+ sites, SP arithmetic error, stale "COMMITTED v1.2" stamp, "v1.0+1" leftovers at 3 sites).
+Per-Edit hook coherence checks would have caught these inconsistencies at write-time. Bypass
+justified as "atomicity" is precisely the expedient the validator exists to prevent.
+
+**Required actions:**
+
+1. **CLAUDE.md "Factory Hook Diagnostics" section** — add a subsection making explicit that
+   any non-Edit/Write file mutation in `.factory/` paths is policy-forbidden. Applies to
+   Python `open`/`write`, shell `echo >/cat <<EOF`, or any other tool path that does not
+   go through the Edit or Write Claude Code tools.
+
+2. **Fix `validate-changelog-monotonicity`** — permit a single-Edit pattern covering both
+   frontmatter `version:` and changelog row in sequence. Validate over post-edit document
+   state for each Edit, not across mid-stream intermediate states. Alternatively: accept
+   that two sequential Edits (changelog row first, then frontmatter version) will each
+   trigger the validator independently, and ensure both intermediate states are syntactically
+   valid (not blocked). Document the two-Edit pattern as the canonical approach for
+   frontmatter+changelog atomic updates.
+
+3. **Post-commit hook** — detect "files changed without corresponding Edit/Write tool
+   invocation" by inspecting tool-call traces in the session transcript. Flag any `.factory/`
+   file modified outside Edit/Write as a bypass violation.
+
+4. **Architect agent prompt template** — add explicit instruction: "MUST NOT use Python
+   `open`/`write`, shell redirection, or any non-Edit/Write method to mutate `.factory/`
+   files. Use the Edit or Write tool exclusively. This is not optional — bypassing the
+   dispatcher hooks defeats the per-write coherence checks that catch consistency violations
+   at authoring time."
+
+**Implementation note:** Items 1 and 4 are docs-only (fast; required before fix-burst-4).
+Items 2 and 3 require hook plugin work (can follow fix-burst-4 but must be tracked).
+
+**Target release:** v1.0 (P1; items 1+4 must land before next architect dispatch;
+items 2+3 deferred to hook plugin work cycle).
