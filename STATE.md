@@ -1,7 +1,7 @@
 ---
 document_type: pipeline-state
 level: ops
-version: "7.82"
+version: "7.83"
 producer: state-manager
 timestamp: 2026-05-10T10:00:00Z
 inputs: []
@@ -176,7 +176,7 @@ workspace_test_count: 3489  # 891 prism-query + workspace total (per implementer
 | **Language** | Rust |
 | **Target Workspace** | per-analyst stdio (MCP server) |
 | **Started** | 2026-04-13 |
-| **Last Updated** | 2026-05-10 (D-331 — S-3.02-FOLLOWUP-RUNTIME PR #141 SQUASH-MERGED → develop c6dd6602; S-3.02 graduated partial-merge→merged; 7 BCs draft→active; STATE v7.81→v7.82) |
+| **Last Updated** | 2026-05-10 (D-332 — PRE-COMPACT CHECKPOINT for Bundle B Phase B-2 continuation; STATE v7.82→v7.83) |
 | **Current Phase** | Wave 3 Tier-3 COMPLETE — **Wave 3-A 4 of 4 SHIPPED**: S-3.05 (#132 c867c344), S-3.04 (#133 57745ce8), S-3.03 (#134 7c413692), **S-3.07 (#135 2ae7185b MERGED 2026-05-08T04:23:03Z)**; post-merge cleanup confirmed; NEXT: Wave 3-B/C or Wave 4 unblock |
 | **Current Step** | D-299 — Plugin system FULL audit COMPLETE. 14 P0/P1 deferrals discovered (8 P0 + 6 P1). Stub-merged Wave-1 items: S-1.12/1.14/1.15 (3 stubs). No production binary loads sensors/*.toml. 13 new TDs filed (TD-PLUGIN-P0-001..008 + P1-001..005). S-3.09 FROZEN. Strategic direction needed: (a) full plugin completion epic, (b) min-viable plugin wiring, or (c) other path. |
 
@@ -213,6 +213,7 @@ _D-001..D-046 archived: [cycles/phase-3-dtu-wave-2/decisions-archive-d001-d032.m
 
 | ID | Decision | Rationale | Phase | Date |
 |----|----------|-----------|-------|------|
+| D-332 | Bundle B Phase B-2 step 8 (S-3.02-FOLLOWUP-RUNTIME) MERGED + closed; Phase B-2 has 4 remaining stories: S-5.01-FOLLOWUP-MCP-BOOT (step 9, 8pt), S-1.12-FOLLOWUP notify-watcher (step 10, 3pt), S-1.14-REDO infusion engine, W3-FIX-S307-001/002 sensor adapter writes; user-directed PRE-COMPACT CHECKPOINT before continuing Bundle B; Bundle B Exit Mandate (task #85) gates after all 5 stories merge | PRE-COMPACT CHECKPOINT — preserve Bundle B Phase B-2 continuation state across context compaction | 4 | 2026-05-10 |
 | D-331 | **S-3.02-FOLLOWUP-RUNTIME PR #141 SQUASH-MERGED — FINAL CLOSURE**. Squash commit SHA `c6dd6602` at 2026-05-10. develop pin updated f1f284ab→c6dd6602. 9-step PR lifecycle complete: structured PR description with 8-AC demo evidence + Mermaid diagrams; security review CLEAN (0 findings); PR-LEVEL adversarial cascade 5 passes (ADV-W3MT-P58 BLOCKED-hard 13 findings → P59 BLOCKED 6 findings → fix-burst-1 [4874025b] → fix-burst-2 [f829ff6e] + additional commit [96128197] → P60 CLEAN 1/3 → P61 CLEAN 2/3 → P62 CLEAN 3/3; 3-CLEAN convergence declared); pr-reviewer APPROVE; CI green (893 tests); all dependency PRs verified merged (PR #129 S-3.02 merged 6fefc774); squash-merge executed; worktree `.worktrees/S-3.02-FOLLOWUP-RUNTIME/` removed + branch deleted. **S-3.02 graduation per ADR-020**: S-3.02-FOLLOWUP-RUNTIME is the graduation story — with its merge, S-3.02 status advances partial-merge→merged. **BC promotion per POL-14** (story merged, 893 tests confirm coverage): BC-2.11.001/005/006/007/011/012 + BC-2.15.011 promoted draft→active. Implementation scope: GreedyMemoryPool session context wiring (BC-2.11.006 200MB cap), Layer 1 capability gate in execute_scheduled (BC-2.11.011), 30-second timeout in execute_scheduled (BC-2.11.006), sensors_queried fan-out tracking, 7-table internal schema sync with prism-storage authoritative INTERNAL_TABLES, _meta_scan_truncated metadata column (BC-2.15.011), prism_aliases AliasStore bypass, E-QUERY-007 error code collision fix. Deferred OBS backlog (non-blocking): OBS-LP7-1..5, OBS-LP8-1..3, OBS-LP9-1..2, ADV-W3MT-P60-MED-001/002, ADV-W3MT-P60-LOW-001/002 logged as maintenance backlog items. Demo evidence: docs/demo-evidence/S-3.02-FOLLOWUP-RUNTIME/ (11 files, 8 ACs). STATE v7.81→v7.82. | **S-3.02-FOLLOWUP-RUNTIME PR #141 MERGED c6dd6602** — 9-step lifecycle COMPLETE; S-3.02 graduated partial-merge→merged; 7 BCs draft→active; 893 tests; STATE v7.82 | 4 | 2026-05-10 |
 | D-330 | S-3.02-FOLLOWUP-RUNTIME LOCAL adversarial cascade CONVERGED — pass-9 final idempotency at HEAD 20829c80 holds CLEAN; streak 3/3; cascade lineage F-LP3-CRIT-1 → F-LP4-MED-1 → F-LP5-LOW-1 → F-LP6-LOW-1 fully closed; Layer 1 walker exhaustive across SELECT/DML/Pipe/Filter; pass-9 NEW audit angles all CLEAN (concurrency, resource bounds, error paths, cancellation, observability, test isolation, API stability, task-list); 2 OBS scope-bounded non-blocking (OBS-LP9-1 boot.rs cross-story; OBS-LP9-2 Task 8 doc overcommit); next: demo-recorder + pr-manager 9-step PR cycle | STATE v7.80→v7.81; cascade closed; demo-recorder + pr-manager 9-step PR cycle next | 4 | 2026-05-10 |
 | D-329 | S-3.02-FOLLOWUP-RUNTIME cascade — pass-8 LOCAL idempotency check at HEAD 20829c80 (unchanged from pass-7) holds CLEAN; streak 1/3 → 2/3; AC breadth re-audit confirms all 8 ACs satisfied; 3 OBS scope-bounded non-blocking (OBS-LP8-1 stale test doc-comments; OBS-LP8-2 story↔STORY-INDEX BC-count drift housekeeping; OBS-LP8-3 execute_scheduled design-choice note); pass-9 next (target 3/3 CONVERGED) | STATE v7.79→v7.80; pass-9 idempotency next | 4 | 2026-05-10 |
