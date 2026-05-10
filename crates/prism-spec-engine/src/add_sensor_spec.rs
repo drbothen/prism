@@ -21,6 +21,18 @@ struct RawSpec {
     sensor: RawSensorSection,
     #[serde(default)]
     tables: Vec<RawTable>,
+    /// F-PASS2-HIGH-3 (S-WAVE5-PREP-01): credential refs declared in the TOML spec.
+    /// Parsed from `[[credential_refs]]` sections. Deserialized as raw refs then
+    /// converted to `types::CredentialRef`.
+    #[serde(default)]
+    credential_refs: Vec<RawCredentialRef>,
+}
+
+/// Raw TOML representation of a `[[credential_refs]]` section.
+#[derive(serde::Deserialize)]
+struct RawCredentialRef {
+    /// Logical credential name within this sensor's keyring namespace.
+    name: String,
 }
 
 #[derive(serde::Deserialize)]
@@ -150,6 +162,13 @@ pub fn parse_and_validate_spec_toml(
         });
     }
 
+    // F-PASS2-HIGH-3: convert raw credential refs from TOML to types::CredentialRef.
+    let credential_refs: Vec<crate::types::CredentialRef> = raw
+        .credential_refs
+        .into_iter()
+        .map(|r| crate::types::CredentialRef { name: r.name })
+        .collect();
+
     Ok(SensorSpec {
         sensor_id,
         name,
@@ -160,6 +179,7 @@ pub fn parse_and_validate_spec_toml(
         file_hash: String::new(), // filled by caller
         source_path: source_path.to_string(),
         mode: crate::types::DtuMode::default(),
+        credential_refs,
     })
 }
 

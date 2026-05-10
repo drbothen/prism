@@ -1,0 +1,135 @@
+[package]
+name = "prism-bin"
+version = "0.1.0"
+edition = "2021"
+description = "Prism binary — CLI entry point, boot sequence, signal handlers (SS-22)"
+license = "MIT"
+publish = false
+
+# CRIT-1 (S-WAVE5-PREP-01 fix-pass-1): Feature flag that gates ALL PRISM_TEST_*
+# env-var reads. This feature MUST NOT be enabled in default features — it only
+# activates in integration test builds that need subprocess injection.
+# The release binary has zero test-injection code paths with this gate.
+# Enable via: cargo test --features test-injection (or in [dev-dependencies] test config).
+[features]
+default = []
+# test-injection: gates PRISM_TEST_INJECT_PANIC, PRISM_TEST_INJECT_FAIL_STEP,
+# and PRISM_TEST_STOP_AFTER_STEP env-var reads. Never enabled in production builds.
+test-injection = ["libc"]
+
+# ADR-022 §A: prism-bin is the ONLY [[bin]] target in the workspace.
+[[bin]]
+name = "prism"
+path = "src/main.rs"
+
+# Public lib API for integration test access (boot_tests.rs spawns the binary
+# as a subprocess but can also import types for fixture construction).
+[lib]
+name = "prism_bin"
+
+[dependencies]
+prism-core = { path = "../prism-core", version = "0.1.0" }
+prism-credentials = { path = "../prism-credentials", version = "0.1.0" }
+prism-audit = { path = "../prism-audit", version = "0.1.0" }
+prism-storage = { path = "../prism-storage", version = "0.1.0" }
+prism-spec-engine = { path = "../prism-spec-engine", version = "0.5.0" }
+prism-query = { path = "../prism-query", version = "0.1.0" }
+prism-mcp = { path = "../prism-mcp", version = "0.1.0" }
+clap = { version = "4", features = ["derive", "env"] }
+keyring = "3"
+tokio = { version = "1", features = ["full"] }
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter", "json"] }
+arc-swap = "1"
+anyhow = "1"
+serde = { version = "1", features = ["derive"] }
+toml = "0.8"
+thiserror = "1"
+uuid = { version = "1", features = ["v7"] }
+chrono = { version = "0.4", features = ["serde"] }
+dirs = "5"
+# libc: used in the test-injection gate (boot.rs) for raw sigaction on unix.
+# Only referenced from cfg(unix) + cfg(feature = "test-injection") code paths;
+# kept as a direct dep to satisfy rustc's E0433 (transitive deps not in scope).
+libc = { version = "0.2", optional = true }
+
+# ---------------------------------------------------------------------------
+# Integration test targets — explicit declarations required for required-features
+# F-PASS2-MED-1 (S-WAVE5-PREP-01): Tests that depend on PRISM_TEST_* env-var
+# injection MUST declare required-features = ["test-injection"] so that
+# `just iter prism-bin` (without --all-features) skips them cleanly rather
+# than running them against a binary that lacks the injection code paths.
+# The `just iter prism-bin --all-features` invocation enables the feature
+# and builds both the binary AND the test binaries with injection code.
+# POL-18: Cargo features named *_test_injection MUST be listed as
+# required-features in all [[test]] sections that depend on them.
+# ---------------------------------------------------------------------------
+
+# --- Injection-dependent tests (require test-injection feature) ---
+
+[[test]]
+name = "bc_2_05_012_audit_init"
+path = "tests/bc_2_05_012_audit_init.rs"
+required-features = ["test-injection"]
+
+[[test]]
+name = "bc_2_03_013_credential_init"
+path = "tests/bc_2_03_013_credential_init.rs"
+required-features = ["test-injection"]
+
+[[test]]
+name = "bc_2_22_001_boot_orchestration"
+path = "tests/bc_2_22_001_boot_orchestration.rs"
+required-features = ["test-injection"]
+
+[[test]]
+name = "signal_handlers"
+path = "tests/signal_handlers.rs"
+required-features = ["test-injection"]
+
+# --- Injection-free tests (no required-features) ---
+
+[[test]]
+name = "bc_2_06_011_config_load"
+path = "tests/bc_2_06_011_config_load.rs"
+
+[[test]]
+name = "bc_2_21_001_org_registry_init"
+path = "tests/bc_2_21_001_org_registry_init.rs"
+
+[[test]]
+name = "cli_subcommands"
+path = "tests/cli_subcommands.rs"
+
+[[test]]
+name = "exit_code_contract"
+path = "tests/exit_code_contract.rs"
+
+[dev-dependencies]
+tempfile = "3"
+libc = "0.2"
+serde_json = "1"
+chrono = { version = "0.4", features = ["serde"] }
+prism-spec-engine = { path = "../prism-spec-engine", version = "0.5.0" }
+prism-storage = { path = "../prism-storage", version = "0.1.0" }
+prism-core = { path = "../prism-core", version = "0.1.0" }
+bincode = "2"
+
+[lints.clippy]
+# Inherited from workspace: workspace lint inheritance is not yet available
+# in this project's Cargo format, so we mirror the workspace rules here.
+await_holding_lock = "deny"
+# Test files use .unwrap()/.unwrap_err() by design — test-writer generated;
+# cannot be modified per story constraints. Allow so -D warnings passes test binaries.
+unwrap_used = "allow"
+
+[lints.rust]
+# Allow #[cfg(kani)] without a registered cfg — kani invoked via `cargo kani`.
+unexpected_cfgs = { level = "warn", check-cfg = ['cfg(kani)'] }
+# Test functions use BC-ID naming convention; cannot modify.
+non_snake_case = "allow"
+# Test files import items used only in certain cfg combinations.
+unused_imports = "allow"
+
+[package.metadata.docs.rs]
+all-features = true

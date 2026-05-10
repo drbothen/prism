@@ -1,0 +1,6 @@
+# Missing required field 'spec_dir' — BC-2.06.011 TV-06-011-005 test.
+state_dir = "/tmp/prism-test-state"
+
+[[orgs]]
+org_id = "0196f000-0000-7000-8000-000000000001"
+org_slug = "acme"

@@ -28,6 +28,12 @@ allow = [
   # Permissive: redistribution permitted with attribution, no patent retaliation.
   # Approved for S-3.02 (CI-FIX-001).
   "bzip2-1.0.6",
+  # MPL-2.0: Mozilla Public License 2.0 — file-level copyleft only; linking is
+  # not infectious. OSI-approved, FSF Free/Libre. Introduced by option-ext v0.2.0
+  # (transitive dep via dirs). We consume the library API only, not modifying
+  # MPL-licensed source files. Acceptable for commercial MSSP binary distribution.
+  # Approved for S-WAVE5-PREP-01 (CI-FIX-002).
+  "MPL-2.0",
 ]
 
 [advisories]

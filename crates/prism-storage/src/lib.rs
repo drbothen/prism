@@ -51,6 +51,7 @@ pub mod proofs;
 pub mod tests;
 
 // ── Re-exports ────────────────────────────────────────────────────────────────
+pub use audit_buffer::{append_audit_entry_sync, AUDIT_BUFFER_CF_NAME};
 pub use backend::{RocksStorageBackend, StorageBackend};
 #[cfg(any(test, feature = "test-utils"))]
 pub use mock::MockStorageEngine;

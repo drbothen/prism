@@ -314,6 +314,7 @@ fn run_ac5() {
             ],
         )],
         rate_limit_hints: None,
+        credential_refs: Vec::new(),
     };
     match validate_sensor_spec(&spec) {
         Err(errors) => {
@@ -337,6 +338,7 @@ fn run_ac5_error() {
         version: "bad-ver".to_string(),    // error 4: invalid semver
         tables: vec![],                    // error 5: no tables
         rate_limit_hints: None,
+        credential_refs: Vec::new(),
     };
     match validate_sensor_spec(&spec) {
         Err(errors) => {
@@ -396,6 +398,7 @@ fn run_vp059() {
                 steps,
             )],
             rate_limit_hints: None,
+            credential_refs: Vec::new(),
         };
         match validate_sensor_spec(&spec) {
             Err(errors) => {

@@ -13,6 +13,13 @@
 use prism_core::{PrismError, StorageDomain};
 
 use crate::backend::RocksStorageBackend;
+use crate::rocksdb_backend::RocksDbBackend;
+
+/// Canonical column family name for the audit buffer.
+///
+/// Use this constant everywhere the CF name is needed to avoid typo divergence
+/// if the name is ever refactored. (F-PASS2-OBS-2 maintenance hazard fix.)
+pub const AUDIT_BUFFER_CF_NAME: &str = "audit_buffer";
 
 /// An audit entry to be persisted in the `audit_buffer` column family.
 ///
@@ -77,6 +84,46 @@ pub fn append_audit_entry<B: RocksStorageBackend>(
         }
     })?;
     backend.put(StorageDomain::AuditBuffer, &key, &value)
+}
+
+/// Append a single audit entry to the `audit_buffer` column family with a
+/// synchronous WAL flush (fsync).
+///
+/// Identical to [`append_audit_entry`] but adds `db.flush_wal(true)` after the
+/// write to guarantee the entry survives a crash immediately after the call
+/// returns.
+///
+/// # BC-2.05.012 Postcondition 2
+///
+/// The boot `boot.audit.initialized` sentinel MUST be "synchronous and confirmed
+/// durable (not queued asynchronously)".  This function provides that guarantee
+/// for the `RocksDbBackend` concrete type.
+///
+/// Strategy (a) per orchestrator pre-decision:
+///   - Serialize and write the entry via `RocksDbBackend::put`.
+///   - Call `db.flush_wal(true)` (synchronous WAL flush) to fsync the WAL.
+///
+/// # Errors
+///
+/// Returns `PrismError::StorageWriteFailed` if the write fails.
+/// Returns `PrismError::StorageWriteFailed` with "WAL flush" in detail if
+/// the fsync fails.
+pub fn append_audit_entry_sync(
+    backend: &RocksDbBackend,
+    entry: &AuditEntry,
+) -> Result<(), PrismError> {
+    // Write via the standard RocksStorageBackend trait path.
+    append_audit_entry(backend, entry)?;
+
+    // BC-2.05.012 Postcondition 2: "confirmed durable" — flush WAL synchronously.
+    // `true` = wait for the flush to complete before returning (synchronous fsync).
+    backend
+        .db()
+        .flush_wal(true)
+        .map_err(|e| PrismError::StorageWriteFailed {
+            domain: AUDIT_BUFFER_CF_NAME.to_owned(),
+            detail: format!("WAL flush (fsync) failed after sentinel write: {e}"),
+        })
 }
 
 /// Scan the `audit_buffer` CF, and if the entry count exceeds

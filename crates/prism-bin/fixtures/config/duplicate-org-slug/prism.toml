@@ -1,0 +1,11 @@
+# Duplicate org_slug — BC-2.21.001 TV-21-001-004 test.
+spec_dir = "/tmp/prism-test-specs"
+state_dir = "/tmp/prism-test-state"
+
+[[orgs]]
+org_id = "0196f000-0000-7000-8000-000000000001"
+org_slug = "acme"
+
+[[orgs]]
+org_id = "0196f000-0000-7000-8000-000000000002"
+org_slug = "acme"

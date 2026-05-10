@@ -1,0 +1,9 @@
+# Non-v7 UUID fixture — BC-2.21.001 EC-21-001-008 test
+# org_id is a UUID v4 (not v7) to trigger the version validation error.
+spec_dir = "/tmp/prism-test-specs-nonexistent"
+state_dir = "/tmp/prism-test-state-nonexistent"
+
+[[orgs]]
+# UUID v4 (not v7): version bits are 4, not 7
+org_id = "550e8400-e29b-41d4-a716-446655440000"
+org_slug = "acme"

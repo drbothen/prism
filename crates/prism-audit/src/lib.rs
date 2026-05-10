@@ -59,6 +59,7 @@
 
 pub mod audit_emitter;
 pub mod audit_entry;
+pub mod boot_emitter;
 pub mod credential_events;
 pub mod flag_events;
 pub mod org_slug_guard;
@@ -79,6 +80,7 @@ pub use audit_emitter::{
 pub use audit_entry::{
     AuditEntry, AuditOutcome, CapabilityCheckRecord, CapabilityCheckResult, DataClassification,
 };
+pub use boot_emitter::{BootAuditEmitter, BootSentinelFields};
 pub use credential_events::{
     emit_credential_event, CredentialAccessDetail, CredentialAccessResult, CredentialAccessType,
     RequestingContext,

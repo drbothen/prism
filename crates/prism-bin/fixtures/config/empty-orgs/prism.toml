@@ -1,0 +1,4 @@
+# Zero org entries — BC-2.21.001 TV-21-001-002 test. AC-9.
+spec_dir = "/tmp/prism-test-specs"
+state_dir = "/tmp/prism-test-state"
+orgs = []

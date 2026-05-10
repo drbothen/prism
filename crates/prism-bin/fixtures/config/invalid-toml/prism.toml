@@ -1,0 +1,3 @@
+# Invalid TOML — syntax error for BC-2.06.011 TV-06-011-004 test.
+spec_dir = "/tmp/prism-test-specs"
+org_id = {broken
