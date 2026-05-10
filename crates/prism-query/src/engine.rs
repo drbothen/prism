@@ -26,7 +26,7 @@
 
 // Implementation module: all stub sites are now filled per S-3.02-FOLLOWUP-RUNTIME.
 // Dead code suppression retained during the transition phase.
-#![allow(dead_code)]
+// dead_code suppression removed — all items are now used (ADV-W3MT-P58-MED-002)
 
 use std::sync::{Arc, Mutex};
 
@@ -179,16 +179,23 @@ pub struct QueryEngine {
     /// Registry of sensor adapters indexed by `(OrgId, SensorType)`.
     pub(crate) adapter_registry: Arc<AdapterRegistry>,
     /// Credential store for sensor authentication. (AI-opaque boundary)
+    /// Retained for production wiring; not yet consumed in execute_inner. (ADV-W3MT-P58-MED-002)
+    #[allow(dead_code)]
     pub(crate) credential_store: Arc<dyn CredentialStore>,
     /// OCSF normalizer for converting raw sensor JSON to Arrow. (S-1.04)
+    /// Passed to MaterializationContext; not read directly. (ADV-W3MT-P58-MED-002)
     pub(crate) ocsf_normalizer: Arc<OcsfNormalizer>,
     /// Registry of configured client IDs. (BC-2.11.011)
     pub(crate) client_registry: Arc<ClientRegistry>,
     /// Engine-level configuration (limits, pool sizes, concurrency).
     pub(crate) config: QueryEngineConfig,
     /// Shared cursor registry — tracks all active pagination cursors (BC-2.07.001/002).
+    /// Used by pagination module; not read directly in execute_inner. (ADV-W3MT-P58-MED-002)
+    #[allow(dead_code)]
     pub(crate) cursor_registry: Arc<Mutex<QueryCursorRegistry>>,
     /// Shared sensor-fetch response cache (BC-2.07.003/006).
+    /// Used by cache module; not read directly in execute_inner. (ADV-W3MT-P58-MED-002)
+    #[allow(dead_code)]
     pub(crate) cache: Arc<QueryCache>,
     /// Cancellation token used to signal the cursor cleanup task to stop.
     cleanup_shutdown: CancellationToken,
@@ -402,8 +409,10 @@ impl QueryEngine {
         let clients =
             crate::scoping::resolve_clients(options.clients.clone(), &self.client_registry)?;
 
-        // Step 2: Create ephemeral SessionContext for this query (BC-2.11.005, AD-002).
-        let session_ctx = datafusion::execution::context::SessionContext::new();
+        // Step 2: Create ephemeral SessionContext with GreedyMemoryPool (BC-2.11.006).
+        // HIGH-001 / ADV-W3MT-P58-HIGH-001: memory_pool_bytes was stored but not consumed.
+        // Now wired via `build_session_context` which wraps RuntimeEnvBuilder + GreedyMemoryPool.
+        let session_ctx = crate::memory::build_session_context(self.config.memory_pool_bytes)?;
 
         // F-LP1-HIGH-3: Capability gate — check BEFORE registering internal tables.
         // Parse-time depth/size checks happen inside PrismQlParser::parse (security.rs).
@@ -466,11 +475,12 @@ impl QueryEngine {
         };
 
         // Step 7: Build QueryResult.
+        // ADV-W3MT-P58-HIGH-005: sensors_queried now populated from materialization output.
         let context = QueryResultContext {
             original_query: query_str.to_string(),
             expanded_query: query_str.to_string(),
             clients_queried: clients,
-            sensors_queried: Vec::new(),
+            sensors_queried: output.sensors_queried,
             execution_time_ms: 0, // filled in by execute()
         };
 
@@ -527,8 +537,18 @@ impl QueryEngine {
         // Resolve client scope (BC-2.11.011).
         let resolved_clients = crate::scoping::resolve_clients(clients, &self.client_registry)?;
 
-        // Create ephemeral SessionContext (kept alive by the returned Arc).
-        let session_ctx = Arc::new(datafusion::execution::context::SessionContext::new());
+        // Create ephemeral SessionContext with GreedyMemoryPool (BC-2.11.006).
+        // HIGH-001 / ADV-W3MT-P58-HIGH-001: use build_session_context (not SessionContext::new()).
+        // Kept alive by the returned Arc so the caller's detection engine can reuse it.
+        let session_ctx = Arc::new(crate::memory::build_session_context(
+            self.config.memory_pool_bytes,
+        )?);
+
+        // HIGH-004 / ADV-W3MT-P58-HIGH-004: add Layer 1 capability gate to execute_scheduled.
+        // Scheduled queries run in system context with no capabilities — this means they
+        // cannot reference prism_audit (correct secure-by-default for scheduled queries).
+        // The gate is best-effort: if query_str fails to parse, the pipeline handles it.
+        check_internal_table_capabilities(query_str, &[])?;
 
         // F-LP1-CRIT-1: register internal tables for scheduled queries too.
         // Scheduled queries run with no caller capabilities (system context).
@@ -565,11 +585,12 @@ impl QueryEngine {
 
         let total_rows: usize = output.batches.iter().map(|b| b.num_rows()).sum();
 
+        // ADV-W3MT-P58-HIGH-005: sensors_queried now populated from materialization output.
         let context = QueryResultContext {
             original_query: query_str.to_string(),
             expanded_query: query_str.to_string(),
             clients_queried: resolved_clients,
-            sensors_queried: Vec::new(),
+            sensors_queried: output.sensors_queried,
             execution_time_ms: start.elapsed().as_millis() as u64,
         };
 

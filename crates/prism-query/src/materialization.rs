@@ -34,7 +34,7 @@
 //! Story: S-2.08 (inject_source_type) | S-3.02 (pipeline)
 
 // S-3.02 stub functions: dead_code suppressed pending implementation (stub-phase convention).
-#![allow(dead_code)]
+// dead_code suppression removed — all items are now used (ADV-W3MT-P58-MED-002)
 
 use std::sync::Arc;
 
@@ -145,6 +145,10 @@ pub struct MaterializationOutput {
     pub sensor_errors: Vec<String>,
     /// Table names registered in the session context.
     pub registered_tables: Vec<String>,
+    /// Sensor type names queried during fan-out. Populated from fan-out targets.
+    /// Used to populate `QueryResultContext.sensors_queried` (BC-2.11.001).
+    /// (ADV-W3MT-P58-HIGH-005)
+    pub sensors_queried: Vec<String>,
 }
 
 // ---------------------------------------------------------------------------
@@ -165,6 +169,9 @@ pub struct MaterializationContext {
     /// Shared adapter registry for sensor fan-out.
     pub(crate) adapter_registry: Arc<AdapterRegistry>,
     /// OCSF normalizer for raw JSON → Arrow RecordBatch conversion.
+    /// Stored for future DataFusion integration; not read directly in current pipeline.
+    /// (ADV-W3MT-P58-MED-002: targeted allow)
+    #[allow(dead_code)]
     pub(crate) ocsf_normalizer: Arc<OcsfNormalizer>,
     /// Running record count across all sources (10K cap enforcer). (BC-2.11.006)
     /// Private to prevent callers from bypassing the cap by zeroing this field.
@@ -355,6 +362,10 @@ pub async fn run_materialization_pipeline(
     // Track all sensor errors for partial-failure reporting (F-LP1-CRIT-5).
     let mut sensor_errors: Vec<String> = Vec::new();
 
+    // Track sensor types queried for QueryResultContext.sensors_queried (BC-2.11.001).
+    // ADV-W3MT-P58-HIGH-005: sensors_queried was always empty before this fix.
+    let mut sensors_queried: std::collections::HashSet<String> = std::collections::HashSet::new();
+
     // F-LP1-CRIT-2/3: use fan_out() with CredentialResolver.
     // Process each target independently so virtual field injection uses the
     // correct per-target (org_id, client_id) — grouping by source_table would
@@ -421,6 +432,9 @@ pub async fn run_materialization_pipeline(
         .await
         {
             Ok(fan_result) => {
+                // Record sensor type in sensors_queried (BC-2.11.001, ADV-W3MT-P58-HIGH-005).
+                sensors_queried.insert(format!("{:?}", target.sensor_type));
+
                 // Collect successes with per-target virtual field injection.
                 let mut fetched_batches: Vec<RecordBatch> = Vec::new();
                 for batch in fan_result.successes {
@@ -510,6 +524,7 @@ pub async fn run_materialization_pipeline(
             batches: Vec::new(),
             sensor_errors,
             registered_tables,
+            sensors_queried: sensors_queried.into_iter().collect(),
         });
     }
 
@@ -519,6 +534,7 @@ pub async fn run_materialization_pipeline(
         batches: collected,
         sensor_errors,
         registered_tables,
+        sensors_queried: sensors_queried.into_iter().collect(),
     })
 }
 
@@ -601,13 +617,21 @@ pub(crate) async fn resolve_source_refs(
         if source_name.starts_with("prism_") {
             continue;
         }
-        // Skip composite/unknown sources.
+        // ADV-W3MT-P58-LOW-002: unknown table names (not prism_*, not a known sensor prefix)
+        // return E-QUERY-006 per EC-001 ("unknown source; no fan-out attempted").
+        // This prevents silent failures where a typo in a table name produces empty results.
         let Some(sensor_type) = sensor_type_from_table_name(source_name) else {
             tracing::debug!(
                 source_name,
-                "resolve_source_refs: unknown sensor prefix; skipping"
+                "resolve_source_refs: unknown sensor prefix; returning E-QUERY-006"
             );
-            continue;
+            return Err(PrismError::QueryExecutionFailed {
+                detail: format!(
+                    "E-QUERY-006: unknown source table '{source_name}'; \
+                     table is not a registered sensor or internal table. \
+                     Check spelling or register the sensor in prism.toml."
+                ),
+            });
         };
 
         if clients.is_empty() {
@@ -845,6 +869,8 @@ fn extract_source_names_shallow(ast: &crate::ast::Ast) -> Vec<String> {
 ///
 /// Kept for backward compatibility. New callers should use `extract_source_names_recursive`.
 /// (F-LP1-HIGH-3 — original gate; superseded by F-LP2-CRIT-1 for security gate)
+/// (ADV-W3MT-P58-MED-002: targeted allow rather than blanket module-level allow)
+#[allow(dead_code)]
 pub(crate) fn extract_source_names_for_capability_check(ast: &crate::ast::Ast) -> Vec<String> {
     extract_source_names_shallow(ast)
 }

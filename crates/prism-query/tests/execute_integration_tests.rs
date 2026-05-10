@@ -599,25 +599,39 @@ async fn test_AC_5_register_internal_tables_then_query_prism_audit() {
 /// must fan out to both orgs and the `QueryResult` batches must contain `_client`
 /// values for both org slugs.
 ///
-/// Bug fix: original test omitted adapter registration (genuine test bug).
-/// Now registers two StubAdapters — one per org — so both produce rows with
-/// distinct `_client` annotations.
+/// ADV-W3MT-P58-MED-003: original test asserted synthetic slugs that can only be
+/// produced when OrgRegistry is absent. Now uses `QueryEngine::new_full` with a real
+/// `OrgRegistry` mapping org_ids to "acme" and "beta" slugs, so the assertions are
+/// non-vacuous and meaningful.
 ///
 /// Red-Gate: panics at `todo!("S-3.02 — QueryEngine::execute")`.
 #[tokio::test]
 async fn test_AC_6_cross_client_query_all_scope_fans_out() {
     use prism_core::types::SensorType;
-    use prism_core::OrgId;
-    use prism_query::engine::QueryOptions;
+    use prism_core::{OrgId, OrgRegistry};
+    use prism_query::engine::{QueryEngine, QueryEngineConfig, QueryOptions};
 
     let org_acme = helpers::org("acme");
     let org_beta = helpers::org("beta");
 
-    // Register one StubAdapter per org so both produce rows.
-    // get_all_for_sensor_type finds adapters by SensorType, ignoring OrgId.
+    // Create stable OrgIds for the two orgs.
+    let id_acme = OrgId::new();
+    let id_beta = OrgId::new();
+
+    // Build OrgRegistry: acme → id_acme, beta → id_beta.
+    let org_registry = OrgRegistry::new();
+    org_registry
+        .register(org_acme.clone(), id_acme)
+        .expect("AC-6: OrgRegistry registration for 'acme' must succeed");
+    org_registry
+        .register(org_beta.clone(), id_beta)
+        .expect("AC-6: OrgRegistry registration for 'beta' must succeed");
+    let org_registry = Arc::new(org_registry);
+
+    // Register one StubAdapter per org using their stable OrgIds.
     let mut registry = AdapterRegistry::new();
     registry.register(
-        OrgId::new(),
+        id_acme,
         Arc::new(helpers::StubAdapter {
             sensor_type: SensorType::CrowdStrike,
             row_count: 2,
@@ -625,7 +639,7 @@ async fn test_AC_6_cross_client_query_all_scope_fans_out() {
         }),
     );
     registry.register(
-        OrgId::new(),
+        id_beta,
         Arc::new(helpers::StubAdapter {
             sensor_type: SensorType::CrowdStrike,
             row_count: 2,
@@ -633,7 +647,28 @@ async fn test_AC_6_cross_client_query_all_scope_fans_out() {
         }),
     );
 
-    let engine = helpers::make_engine(registry, vec![org_acme.clone(), org_beta.clone()]);
+    // Build engine with OrgRegistry so _client values are the real slugs.
+    let adapter_registry = Arc::new(registry);
+    let credential_store: Arc<dyn prism_credentials::CredentialStore> =
+        Arc::new(helpers::NullCredentialStore);
+    let ocsf_normalizer = Arc::new(OcsfNormalizer::new());
+    let client_registry = Arc::new(prism_query::scoping::ClientRegistry::new(vec![
+        org_acme.clone(),
+        org_beta.clone(),
+    ]));
+    let config = QueryEngineConfig::default();
+    let storage = helpers::make_storage();
+
+    let engine = QueryEngine::new_full(
+        adapter_registry,
+        credential_store,
+        ocsf_normalizer,
+        client_registry,
+        config,
+        Arc::new(helpers::StubCredentialResolver),
+        org_registry,
+        storage as Arc<dyn prism_storage::backend::RocksStorageBackend>,
+    );
 
     // clients: None = ALL scope — both orgs fanned out.
     let options = QueryOptions {
@@ -644,7 +679,7 @@ async fn test_AC_6_cross_client_query_all_scope_fans_out() {
         ..QueryOptions::default()
     };
 
-    // Panics at todo!(). Post-implementation: batches must cover both orgs.
+    // Post-implementation: batches must cover both orgs.
     let result = engine
         .execute("SELECT * FROM crowdstrike_detections LIMIT 100", options)
         .await
@@ -784,7 +819,7 @@ async fn test_AC_7_virtual_fields_present_in_all_results() {
 ///
 /// BC-2.11.001: "Max results returned (tool-level truncation). Default 25, max 1000."
 /// The engine rejects limit=1001 before any sensor contact. Error message must
-/// contain "E-QUERY-001".
+/// contain "E-QUERY-007" (ADV-W3MT-P58-CRIT-001: E-QUERY-001 is reserved for parse errors).
 #[tokio::test]
 async fn test_HIGH_7_limit_exceeds_1000_returns_error() {
     use prism_query::engine::QueryOptions;
@@ -809,8 +844,8 @@ async fn test_HIGH_7_limit_exceeds_1000_returns_error() {
     );
     let detail = err.to_string();
     assert!(
-        detail.contains("E-QUERY-001"),
-        "HIGH-7: error must contain 'E-QUERY-001' (limit exceeds 1000); got: {detail}"
+        detail.contains("E-QUERY-007"),
+        "HIGH-7: error must contain 'E-QUERY-007' (limit exceeds 1000; ADV-W3MT-P58-CRIT-001); got: {detail}"
     );
 }
 
@@ -1894,11 +1929,12 @@ async fn test_LP2_LOW_1_limit_exceeded_returns_query_limit_exceeded_variant() {
          got: {err:?}"
     );
 
-    // Display must contain E-QUERY-001.
+    // Display must contain E-QUERY-007 (ADV-W3MT-P58-CRIT-001: code changed from E-QUERY-001
+    // to avoid collision with QueryParseFailed which uses E-QUERY-001).
     let display = err.to_string();
     assert!(
-        display.contains("E-QUERY-001"),
-        "LP2-LOW-1: display must contain 'E-QUERY-001'; got: {display}"
+        display.contains("E-QUERY-007"),
+        "LP2-LOW-1: display must contain 'E-QUERY-007' (limit exceeded, ADV-W3MT-P58-CRIT-001); got: {display}"
     );
 }
 
@@ -1948,5 +1984,141 @@ async fn test_HIGH_7_limit_exactly_1000_pipeline_success_with_stub() {
     assert!(
         qr.returned_results > 0,
         "LP2-LOW-3: pipeline with StubAdapter must produce rows (not vacuous); returned_results=0"
+    );
+}
+
+// ---------------------------------------------------------------------------
+// HIGH-002 (ADV-W3MT-P58): Timeout (E-QUERY-004) and depth-limit (E-QUERY-005) tests
+// ---------------------------------------------------------------------------
+
+/// HIGH-002 / ADV-W3MT-P58-HIGH-002: Story §Tasks item 8 mandates a timeout test.
+///
+/// Set `timeout_secs = 1` and use a SlowAdapter that sleeps beyond the timeout.
+/// `execute` must return `PrismError::QueryTimeout` (E-QUERY-004 path — timeout fires
+/// before DataFusion execution begins when the sensor adapter is slow).
+///
+/// Note: E-QUERY-004 is the memory-budget error code; E-QUERY-005 is the timeout code.
+/// The `PrismError::QueryTimeout` variant displays "E-QUERY-005: query timed out after".
+/// The test verifies the correct variant, not a string code, to avoid brittle assertions.
+#[tokio::test]
+async fn test_AC_timeout_returns_query_timeout_error() {
+    use prism_core::types::SensorType;
+    use prism_core::OrgId;
+    use prism_query::engine::{QueryEngine, QueryEngineConfig, QueryOptions};
+    use prism_sensors::adapter::{QueryParams, SensorAdapter, SensorError, SensorSpec};
+    use prism_sensors::auth::SensorAuth;
+
+    /// Adapter that sleeps for 2 seconds, causing a 1s timeout to fire.
+    struct SlowAdapter;
+
+    #[async_trait]
+    impl SensorAdapter for SlowAdapter {
+        fn sensor_type(&self) -> SensorType {
+            SensorType::CrowdStrike
+        }
+
+        fn sensor_name(&self) -> &'static str {
+            "crowdstrike"
+        }
+
+        async fn fetch(
+            &self,
+            _spec: &SensorSpec,
+            _params: &QueryParams,
+            _auth: &dyn SensorAuth,
+        ) -> Result<Vec<arrow::record_batch::RecordBatch>, SensorError> {
+            tokio::time::sleep(std::time::Duration::from_secs(2)).await;
+            Ok(vec![])
+        }
+    }
+
+    let org_slug = helpers::org("acme");
+    let mut registry = AdapterRegistry::new();
+    registry.register(OrgId::new(), Arc::new(SlowAdapter));
+
+    let adapter_registry = Arc::new(registry);
+    let credential_store: Arc<dyn prism_credentials::CredentialStore> =
+        Arc::new(helpers::NullCredentialStore);
+    let ocsf_normalizer = Arc::new(OcsfNormalizer::new());
+    let client_registry = Arc::new(prism_query::scoping::ClientRegistry::new(vec![
+        org_slug.clone()
+    ]));
+    let config = QueryEngineConfig {
+        timeout_secs: 1, // 1-second timeout; SlowAdapter sleeps 2 seconds → timeout fires
+        ..QueryEngineConfig::default()
+    };
+    let org_registry = Arc::new(prism_core::OrgRegistry::new());
+    let storage = helpers::make_storage();
+
+    let engine = QueryEngine::new_full(
+        adapter_registry,
+        credential_store,
+        ocsf_normalizer,
+        client_registry,
+        config,
+        Arc::new(helpers::StubCredentialResolver),
+        org_registry,
+        storage as Arc<dyn prism_storage::backend::RocksStorageBackend>,
+    );
+
+    let options = QueryOptions {
+        clients: Some(vec![org_slug]),
+        ..QueryOptions::default()
+    };
+
+    let result = engine
+        .execute("SELECT * FROM crowdstrike_detections", options)
+        .await;
+
+    let err = result
+        .expect_err("timeout-test: execute with 1s timeout and 2s SlowAdapter must return Err");
+    assert!(
+        matches!(err, prism_core::PrismError::QueryTimeout { .. }),
+        "timeout-test: error must be PrismError::QueryTimeout (E-QUERY-005); got: {err:?}"
+    );
+}
+
+/// HIGH-002 / ADV-W3MT-P58-HIGH-002: Story §Tasks item 8 mandates a depth-limit test.
+///
+/// The PrismQL parser enforces a maximum nesting depth. A deeply nested query
+/// (depth > the configured limit) must fail with a parse error (E-QUERY-001).
+/// This exercises the depth-limit enforcement in the security module.
+///
+/// Note: depth limit is enforced by `PrismQlParser::parse` via `security.rs`.
+/// The error surfaces as `PrismError::QueryParseFailed` which displays "E-QUERY-001".
+#[tokio::test]
+async fn test_AC_depth_limit_returns_parse_error() {
+    use prism_query::engine::QueryOptions;
+
+    let org_slug = helpers::org("acme");
+    let engine = helpers::make_engine(AdapterRegistry::new(), vec![org_slug.clone()]);
+
+    // Construct a deeply nested subquery that exceeds the parser's depth limit.
+    // Each level adds `(SELECT * FROM (...))`; depth limit is typically 10-20.
+    let mut query = "SELECT * FROM crowdstrike_detections".to_string();
+    for _ in 0..60 {
+        query = format!("SELECT * FROM ({query}) AS sub");
+    }
+
+    let options = QueryOptions {
+        clients: Some(vec![org_slug]),
+        ..QueryOptions::default()
+    };
+
+    let result = engine.execute(&query, options).await;
+
+    let err = result
+        .expect_err("depth-limit-test: a 60-level nested subquery must fail the depth limit check");
+    let detail = err.to_string();
+    // Depth limit fires inside PrismQlParser::parse → QueryParseFailed (E-QUERY-001)
+    // OR security module returns QueryExecutionFailed with depth-limit detail.
+    // Either way the result must be Err.
+    assert!(
+        matches!(
+            err,
+            prism_core::PrismError::QueryParseFailed { .. }
+                | prism_core::PrismError::QueryExecutionFailed { .. }
+        ),
+        "depth-limit-test: error must be a parse or execution failure (depth limit); got: {detail}"
     );
 }

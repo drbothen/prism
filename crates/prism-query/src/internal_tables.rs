@@ -38,7 +38,7 @@
 //!
 //! Story: S-3.02
 
-#![allow(dead_code)]
+// dead_code suppression removed — all items are now used (ADV-W3MT-P58-MED-002)
 
 use std::{any::Any, sync::Arc};
 
@@ -60,8 +60,10 @@ use crate::engine::Capability;
 
 /// Maximum entries returned by an internal table scan before truncation.
 ///
-/// Distinct from the external sensor 10K cap. (BC-2.11.006)
-pub const PRISM_MAX_INTERNAL_TABLE_SCAN: usize = 10_000;
+/// BC-2.15.011 specifies 50,000 as the default soft limit for internal table scans.
+/// This is distinct from the external sensor 10K hard cap (`MAX_MATERIALIZED_RECORDS`).
+/// (ADV-W3MT-P58-CRIT-002)
+pub const PRISM_MAX_INTERNAL_TABLE_SCAN: usize = 50_000;
 
 // ---------------------------------------------------------------------------
 // InternalTableDescriptor (newtype shim)
@@ -273,7 +275,21 @@ impl datafusion::datasource::TableProvider for RocksDbTableProvider {
         let chunk_size = 1000usize;
         let mut batches: Vec<RecordBatch> = Vec::new();
 
-        let pairs_truncated: Vec<_> = kv_pairs.into_iter().take(cap).collect();
+        // Collect all pairs first so we can detect truncation.
+        // ADV-W3MT-P58-MED-001: BC-2.15.011 requires truncated scans to be flagged.
+        let all_pairs: Vec<_> = kv_pairs.into_iter().collect();
+        let total_pairs = all_pairs.len();
+        let pairs_truncated: Vec<_> = all_pairs.into_iter().take(cap).collect();
+        let scan_truncated = pairs_truncated.len() < total_pairs;
+        if scan_truncated {
+            tracing::warn!(
+                table = %self.descriptor.table_name,
+                total_rows = total_pairs,
+                cap,
+                "internal table scan truncated (BC-2.15.011 scan_truncated=true); \
+                 increase PRISM_MAX_INTERNAL_TABLE_SCAN or add row-level filtering"
+            );
+        }
 
         for chunk in pairs_truncated.chunks(chunk_size) {
             let batch = build_batch_from_kv(schema.clone(), num_fields, chunk, domain)?;
@@ -452,6 +468,12 @@ fn build_batch_from_kv(
             let mut payloads: Vec<String> = Vec::with_capacity(n);
 
             for (_, value_bytes) in chunk {
+                // ADV-W3MT-P58-LOW-001: config alignment.
+                // `prism-storage::audit_buffer::append_audit_entry` encodes with
+                // `bincode::config::standard()` (bincode 2.x default: little-endian,
+                // variable-length integers, no byte limit). We decode with the same config
+                // here. If the encoding config ever changes in prism-storage, update both
+                // sides together. Failed deserialization gracefully falls back to empty strings.
                 let entry: Option<prism_storage::audit_buffer::AuditEntry> =
                     bincode::serde::decode_from_slice::<
                         prism_storage::audit_buffer::AuditEntry,
@@ -567,6 +589,8 @@ fn parse_domain(domain: &str) -> Result<StorageDomain, PrismError> {
         "event_buffer" => Ok(StorageDomain::EventBuffer),
         "detection_rules" => Ok(StorageDomain::DetectionRules),
         "detection_state" => Ok(StorageDomain::DetectionState),
+        // ADV-W3MT-P58-HIGH-003: aliases domain added with prism_aliases table.
+        "aliases" => Ok(StorageDomain::Aliases),
         other => Err(PrismError::QueryExecutionFailed {
             detail: format!("unknown storage domain: '{other}'"),
         }),
@@ -637,6 +661,31 @@ pub(crate) fn diff_results_schema() -> SchemaRef {
     ]))
 }
 
+/// Return the Arrow schema for `prism_rules`.
+///
+/// Schema: `{ rule_id: Utf8, name: Utf8, query: Utf8, severity: Int32 }`
+/// (ADV-W3MT-P58-HIGH-003: required by BC-2.15.011 — 7 tables minimum)
+pub(crate) fn rules_schema() -> SchemaRef {
+    Arc::new(Schema::new(vec![
+        Field::new("rule_id", DataType::Utf8, false),
+        Field::new("name", DataType::Utf8, false),
+        Field::new("query", DataType::Utf8, false),
+        Field::new("severity", DataType::Int32, false),
+    ]))
+}
+
+/// Return the Arrow schema for `prism_aliases`.
+///
+/// Schema: `{ alias_id: Utf8, name: Utf8, expansion: Utf8 }`
+/// (ADV-W3MT-P58-HIGH-003: required by BC-2.15.011 — 7 tables minimum)
+pub(crate) fn aliases_schema() -> SchemaRef {
+    Arc::new(Schema::new(vec![
+        Field::new("alias_id", DataType::Utf8, false),
+        Field::new("name", DataType::Utf8, false),
+        Field::new("expansion", DataType::Utf8, false),
+    ]))
+}
+
 // ---------------------------------------------------------------------------
 // register_internal_tables
 // ---------------------------------------------------------------------------
@@ -646,12 +695,16 @@ pub(crate) fn diff_results_schema() -> SchemaRef {
 /// Each entry: `(table_name, domain, requires_audit_read)`.
 /// Used by both `register_internal_tables_with_capabilities` and
 /// `table_requires_audit_read` for descriptor-driven policy. (F-LP2-CRIT-1 Layer 3)
+///
+/// BC-2.15.011 requires at minimum 7 tables. (ADV-W3MT-P58-HIGH-003)
 const INTERNAL_TABLE_SPECS: &[(&str, &str, bool)] = &[
     ("prism_audit", "audit_buffer", true),
     ("prism_alerts", "alerts", false),
     ("prism_cases", "cases", false),
     ("prism_schedules", "schedules", false),
     ("prism_diff_results", "diff_results", false),
+    ("prism_rules", "detection_rules", false),
+    ("prism_aliases", "aliases", false),
 ];
 
 /// Check whether a named internal table requires the `audit.read` capability.
@@ -687,12 +740,16 @@ pub fn register_internal_tables_with_capabilities(
     backend: Arc<dyn RocksStorageBackend>,
     capabilities: &[crate::engine::Capability],
 ) -> Result<(), PrismError> {
+    // ADV-W3MT-P58-HIGH-003: schemas slice must align 1:1 with INTERNAL_TABLE_SPECS entries.
+    // Order: audit, alerts, cases, schedules, diff_results, rules, aliases (7 total per BC-2.15.011).
     let schemas: &[SchemaRef] = &[
         audit_schema(),
         alerts_schema(),
         cases_schema(),
         schedules_schema(),
         diff_results_schema(),
+        rules_schema(),
+        aliases_schema(),
     ];
 
     for ((table_name, domain, requires_audit_read), schema) in
