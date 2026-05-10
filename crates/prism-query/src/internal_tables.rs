@@ -301,7 +301,20 @@ impl datafusion::datasource::TableProvider for RocksDbTableProvider {
 
     /// Return `Inexact` for all filters — full scan, DataFusion applies filters post-scan.
     ///
-    /// For MVP, no server-side prefix filtering into RocksDB scan. (story §Tasks step 5)
+    /// # Scope decision (F-LP3-OBS-2)
+    /// Server-side filter pushdown into the RocksDB scan is intentionally deferred.
+    /// `_filters` is unused because `Inexact` delegates all filter evaluation to
+    /// DataFusion after the full scan completes.
+    ///
+    /// **Why deferred:** The `PRISM_MAX_INTERNAL_TABLE_SCAN=10_000` cap bounds
+    /// the worst-case scan size, making full-scan acceptable for wave-4.
+    /// True RocksDB seek-based filter pushdown (e.g., prefix scan on timestamp or
+    /// audit_event_type) requires a stable `RocksStorageBackend::scan_range` API,
+    /// which is out-of-scope until wave-5 schema stabilization.
+    ///
+    /// **Tracking:** Deferred as wave-5 follow-up: "Implement equality-filter
+    /// pushdown for `RocksDbTableProvider` using RocksDB prefix seek to reduce
+    /// full-CF scan overhead for large prism_audit tables."
     fn supports_filters_pushdown(
         &self,
         filters: &[&Expr],

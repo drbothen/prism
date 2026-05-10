@@ -574,7 +574,7 @@ pub enum PrismError {
         total: u32,
     },
 
-    /// E-QUERY-006: Requested limit exceeds the maximum allowed value (BC-2.11.001).
+    /// E-QUERY-001: Requested limit exceeds the maximum allowed value (BC-2.11.001).
     ///
     /// Returned when `QueryOptions.limit > 1000`. Semantically distinct from
     /// `QueryExecutionFailed` (E-QUERY-003) — this is a pre-execution parameter

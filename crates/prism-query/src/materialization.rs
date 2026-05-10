@@ -775,9 +775,14 @@ fn sensor_type_from_table_name(table_name: &str) -> Option<prism_core::types::Se
 
 /// Extract push-down filters from the AST as a `FilterMap` for `QueryParams`.
 ///
-/// Routes through `pushdown::predicate_tree_to_filter_map` which uses the
-/// `classify_predicates` infrastructure (ADR-022 §C wiring-not-redesign rule).
-/// Extracts simple `field = 'value'` equality predicates from the WHERE clause.
+/// Delegates to `pushdown::predicate_tree_to_filter_map`, which collects
+/// simple `field = 'value'` equality predicates from the WHERE clause and
+/// builds a flat `FilterMap` from them. The result is passed to
+/// `SensorAdapter::fetch` as sensor-level pre-filters.
+///
+/// Per-sensor `classify_predicates` integration (REQUIRED/INDEX/ADDITIONAL
+/// column taxonomy) is deferred to wave-5 when per-sensor `ColumnSpec` is
+/// available at the pre-fan-out stage (F-LP3-MED-1 scope decision).
 /// (F-LP1-HIGH-5 / F-LP2-MED-1: replaces the previous local `collect_eq_filters` call)
 fn extract_push_down_filters_as_map(ast: &crate::ast::Ast) -> prism_sensors::types::FilterMap {
     use crate::ast::{Ast, SqlStatement};
@@ -791,7 +796,6 @@ fn extract_push_down_filters_as_map(ast: &crate::ast::Ast) -> prism_sensors::typ
         return prism_sensors::types::FilterMap::new();
     };
 
-    // Route through pushdown::predicate_tree_to_filter_map (F-LP2-MED-1).
     crate::pushdown::predicate_tree_to_filter_map(pred)
 }
 
@@ -840,15 +844,20 @@ pub(crate) fn extract_source_names_for_capability_check(ast: &crate::ast::Ast) -
 /// Recursively extract ALL source table names from a PrismQL AST.
 ///
 /// Walks all AST positions including:
-/// - Top-level FROM clause and JOINs
+/// - Top-level FROM clause and JOINs (source names)
+/// - JOIN ON conditions (`Expr` — may contain `InSubquery`)
 /// - WHERE clause predicates (including `InSubquery` / `NotInSubquery`)
+/// - GROUP BY expressions (`Expr` — may contain `InSubquery`)
 /// - HAVING clause predicates (including subqueries)
+/// - ORDER BY expressions (`OrderExpr.expr` — may contain `InSubquery`)
 /// - SELECT projection subqueries
 /// - Nested subqueries (recursive descent into each `SqlQuery`)
 ///
 /// This is required for the F-LP2-CRIT-1 security fix: a subquery like
 /// `WHERE id IN (SELECT trace_id FROM prism_audit)` must be caught even
 /// though `prism_audit` only appears in the WHERE subquery, not the top-level FROM.
+/// Coverage extended in F-LP3-CRIT-1 to also cover JOIN ON, GROUP BY, and ORDER BY
+/// positions where `InSubquery` can appear.
 ///
 /// Returns a deduplicated list of source table names.
 pub(crate) fn extract_source_names_recursive(ast: &crate::ast::Ast) -> Vec<String> {
@@ -873,16 +882,26 @@ pub(crate) fn extract_source_names_recursive(ast: &crate::ast::Ast) -> Vec<Strin
 
 /// Recursively walk a `SqlQuery`, collecting all referenced source table names.
 ///
-/// Descends into WHERE, HAVING, SELECT projections, and any nested subqueries.
+/// Walks ALL AST positions where a subquery can appear:
+/// - Top-level FROM clause and JOINs (source names)
+/// - JOIN ON conditions (Expr — may contain InSubquery)
+/// - WHERE clause predicates (including InSubquery / NotInSubquery)
+/// - GROUP BY expressions (Expr — may contain InSubquery)
+/// - HAVING clause predicates (including subqueries)
+/// - ORDER BY expressions (OrderExpr.expr — may contain InSubquery)
+/// - SELECT projection subqueries
+/// - Nested subqueries (recursive descent into each SqlQuery)
 fn walk_sql_query(sql: &crate::ast::SqlQuery, names: &mut std::collections::HashSet<String>) {
     use crate::ast::SelectItem;
 
     // Top-level FROM source.
     names.insert(sql.from.source.raw.clone());
 
-    // JOINs.
+    // JOINs: source name + ON condition expression (may contain InSubquery).
     for join in &sql.joins {
         names.insert(join.source.raw.clone());
+        // Walk JOIN ON expression for subquery references (F-LP3-CRIT-1).
+        walk_expr(&join.on, names);
     }
 
     // WHERE clause — recursively walk predicates for subqueries.
@@ -890,9 +909,19 @@ fn walk_sql_query(sql: &crate::ast::SqlQuery, names: &mut std::collections::Hash
         walk_predicate(pred, names);
     }
 
+    // GROUP BY expressions — walk each Expr for InSubquery (F-LP3-CRIT-1).
+    for expr in &sql.group_by {
+        walk_expr(expr, names);
+    }
+
     // HAVING clause — recursively walk predicates for subqueries.
     if let Some(ref pred) = sql.having {
         walk_predicate(pred, names);
+    }
+
+    // ORDER BY expressions — walk each OrderExpr.expr for InSubquery (F-LP3-CRIT-1).
+    for order_item in &sql.order_by {
+        walk_expr(&order_item.expr, names);
     }
 
     // SELECT projections — walk expressions for scalar subqueries.
@@ -1043,4 +1072,179 @@ pub(crate) async fn collect_record_batch_stream(
                 detail: "stream collection error: <redacted; see server logs>".to_string(),
             }
         })
+}
+
+// ---------------------------------------------------------------------------
+// Unit tests — Layer 1 AST walker coverage (F-LP3-CRIT-1)
+// ---------------------------------------------------------------------------
+
+#[cfg(test)]
+mod walker_coverage_tests {
+    //! Layer 1 AST walker coverage tests (F-LP3-CRIT-1).
+    //!
+    //! These tests build AST structures directly (no parser) and assert that
+    //! `extract_source_names_recursive` discovers every source table name,
+    //! including those hidden in JOIN ON, GROUP BY, and ORDER BY expressions.
+    //!
+    //! Layer 1 is a pure function test — no I/O, no async.
+
+    use crate::ast::{
+        Ast, Expr, FieldPath, FromClause, Join, JoinKind, OrderExpr, SelectClause, SelectItem,
+        SortDirection, SourceRef, SourceRefKind, Span, SqlQuery, SqlStatement,
+    };
+    use crate::materialization::extract_source_names_recursive;
+
+    // Helper: build a minimal SourceRef with raw table name.
+    fn source_ref(name: &str) -> SourceRef {
+        SourceRef {
+            raw: name.to_string(),
+            kind: SourceRefKind::Custom,
+        }
+    }
+
+    // Helper: build a minimal FromClause.
+    fn from(name: &str) -> FromClause {
+        FromClause {
+            source: source_ref(name),
+            alias: None,
+        }
+    }
+
+    // Helper: build a minimal SqlQuery with a single SELECT * FROM <name>.
+    fn minimal_select(table: &str) -> SqlQuery {
+        SqlQuery {
+            select: SelectClause {
+                distinct: false,
+                items: vec![SelectItem::Star],
+            },
+            from: from(table),
+            joins: vec![],
+            where_: None,
+            group_by: vec![],
+            having: None,
+            order_by: vec![],
+            limit: None,
+        }
+    }
+
+    // Helper: build a subquery referencing prism_audit.
+    fn prism_audit_subquery() -> Box<SqlQuery> {
+        Box::new(SqlQuery {
+            select: SelectClause {
+                distinct: false,
+                items: vec![SelectItem::Expr {
+                    expr: Expr::Field(FieldPath {
+                        segments: vec!["trace_id".to_string()],
+                        span: Span::ZERO,
+                    }),
+                    alias: None,
+                }],
+            },
+            from: from("prism_audit"),
+            joins: vec![],
+            where_: None,
+            group_by: vec![],
+            having: None,
+            order_by: vec![],
+            limit: None,
+        })
+    }
+
+    /// F-LP3-CRIT-1: JOIN ON condition containing Expr::InSubquery must be walked.
+    ///
+    /// Represents: `JOIN sensor_data ON id IN (SELECT trace_id FROM prism_audit)`
+    ///
+    /// Layer 1 must discover `prism_audit` from the JOIN ON expression.
+    #[test]
+    fn test_LP3_CRIT_1_join_on_subquery_discovered_by_layer1() {
+        // Build: SELECT * FROM crowdstrike_detections
+        //        JOIN sensor_data ON id IN (SELECT trace_id FROM prism_audit)
+        let on_expr = Expr::InSubquery {
+            field: FieldPath {
+                segments: vec!["id".to_string()],
+                span: Span::ZERO,
+            },
+            subquery: prism_audit_subquery(),
+        };
+
+        let mut sql = minimal_select("crowdstrike_detections");
+        sql.joins = vec![Join {
+            kind: JoinKind::Inner,
+            source: source_ref("sensor_data"),
+            alias: None,
+            on: on_expr,
+        }];
+
+        let ast = Ast::Sql(SqlStatement::Select(sql));
+        let names = extract_source_names_recursive(&ast);
+
+        assert!(
+            names.iter().any(|n| n == "prism_audit"),
+            "F-LP3-CRIT-1: extract_source_names_recursive must discover `prism_audit` \
+             hidden in JOIN ON InSubquery expression; got names: {names:?}"
+        );
+    }
+
+    /// F-LP3-CRIT-1: GROUP BY expression containing Expr::InSubquery must be walked.
+    ///
+    /// Represents: `SELECT * FROM t GROUP BY (id IN (SELECT trace_id FROM prism_audit))`
+    ///
+    /// Layer 1 must discover `prism_audit` from the GROUP BY expression.
+    #[test]
+    fn test_LP3_CRIT_1_group_by_subquery_discovered_by_layer1() {
+        // Build: SELECT * FROM crowdstrike_detections
+        //        GROUP BY (id IN (SELECT trace_id FROM prism_audit))
+        let group_expr = Expr::InSubquery {
+            field: FieldPath {
+                segments: vec!["id".to_string()],
+                span: Span::ZERO,
+            },
+            subquery: prism_audit_subquery(),
+        };
+
+        let mut sql = minimal_select("crowdstrike_detections");
+        sql.group_by = vec![group_expr];
+
+        let ast = Ast::Sql(SqlStatement::Select(sql));
+        let names = extract_source_names_recursive(&ast);
+
+        assert!(
+            names.iter().any(|n| n == "prism_audit"),
+            "F-LP3-CRIT-1: extract_source_names_recursive must discover `prism_audit` \
+             hidden in GROUP BY InSubquery expression; got names: {names:?}"
+        );
+    }
+
+    /// F-LP3-CRIT-1: ORDER BY expression containing Expr::InSubquery must be walked.
+    ///
+    /// Represents: `SELECT * FROM t ORDER BY (id IN (SELECT trace_id FROM prism_audit))`
+    ///
+    /// Layer 1 must discover `prism_audit` from the ORDER BY expression.
+    #[test]
+    fn test_LP3_CRIT_1_order_by_subquery_discovered_by_layer1() {
+        // Build: SELECT * FROM crowdstrike_detections
+        //        ORDER BY (id IN (SELECT trace_id FROM prism_audit))
+        let order_expr = Expr::InSubquery {
+            field: FieldPath {
+                segments: vec!["id".to_string()],
+                span: Span::ZERO,
+            },
+            subquery: prism_audit_subquery(),
+        };
+
+        let mut sql = minimal_select("crowdstrike_detections");
+        sql.order_by = vec![OrderExpr {
+            expr: order_expr,
+            direction: SortDirection::Asc,
+        }];
+
+        let ast = Ast::Sql(SqlStatement::Select(sql));
+        let names = extract_source_names_recursive(&ast);
+
+        assert!(
+            names.iter().any(|n| n == "prism_audit"),
+            "F-LP3-CRIT-1: extract_source_names_recursive must discover `prism_audit` \
+             hidden in ORDER BY InSubquery expression; got names: {names:?}"
+        );
+    }
 }

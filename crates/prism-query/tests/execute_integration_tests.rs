@@ -381,47 +381,11 @@ async fn test_AC_1_query_engine_execute_with_dtu_returns_results() {
 // ---------------------------------------------------------------------------
 // AC-2: run_materialization_pipeline produces a usable SessionContext
 // ---------------------------------------------------------------------------
-
-/// AC-2 (BC-2.11.005): `run_materialization_pipeline` materializes records
-/// from the sensor fan-out into Arrow `RecordBatch` slices and registers them
-/// as `MemTable` entries in the provided `SessionContext`.
-///
-/// Bug fix: original test omitted adapter registration (genuine test bug).
-/// Now uses `make_mat_ctx_with_stub` which registers a StubAdapter returning
-/// 3 rows so the pipeline can produce real materialized output.
-///
-/// Red-Gate: panics at `todo!("S-3.02 — run_materialization_pipeline")`.
-#[tokio::test]
-async fn test_AC_2_materialization_pipeline_produces_session_context() {
-    use prism_query::engine::QueryOptions;
-
-    // Use a StubAdapter so the pipeline has real rows to materialize (bug fix).
-    let mut mat_ctx = helpers::make_mat_ctx_with_stub(10_000, 3);
-    let session_ctx = helpers::make_ctx();
-    let options = QueryOptions {
-        clients: Some(vec![helpers::org("acme")]),
-        sensors: None,
-        limit: Some(10),
-        force_refresh: false,
-        ..QueryOptions::default()
-    };
-
-    // Post-implementation: returns Ok(batches); session_ctx has registered MemTable.
-    let _batches = run_materialization_pipeline(
-        "SELECT * FROM crowdstrike_detections LIMIT 10",
-        &options,
-        &mut mat_ctx,
-        &session_ctx,
-    )
-    .await
-    .expect("AC-2: run_materialization_pipeline must succeed with valid source ref");
-
-    // The session context must have at least the default DataFusion catalog.
-    assert!(
-        !session_ctx.catalog_names().is_empty(),
-        "AC-2: session_ctx must have at least the default DataFusion catalog after pipeline runs"
-    );
-}
+// F-LP3-OBS-1: Original vacuous test deleted (always-true `!catalog_names().is_empty()`).
+// AC-2 enforcement is provided by `test_AC_2_materialization_pipeline_non_vacuous_assertion`
+// (defined further below), which asserts non-empty batches, total_rows==3, and
+// MemTable registration — a strictly stronger check.
+// ---------------------------------------------------------------------------
 
 // ---------------------------------------------------------------------------
 // AC-3: record cap returns E-QUERY-003 before DataFusion execution
