@@ -4,7 +4,7 @@ adr_id: "ADR-023"
 title: "Plugin-Only Sensor Architecture — TOML Specs, Declarative TOML Baseline, No Compiled-In Sensor Rust"
 status: COMMITTED
 date: "2026-05-10"
-version: "v1.9"
+version: "v1.10"
 producer: architect
 subsystems_affected: [SS-01, SS-02, SS-16, SS-17, SS-21, SS-22]
 supersedes: null
@@ -77,7 +77,7 @@ input-hash: "2f64319"
 
 ## Status
 
-COMMITTED 2026-05-10, v1.9. Status is `COMMITTED` rather than `ACCEPTED` because six
+COMMITTED 2026-05-10, v1.10. Status is `COMMITTED` rather than `ACCEPTED` because six
 infrastructure prerequisites (Constraints C1–C5 plus Wave 0/F BC+DI amendments) must land
 before the hardcoded sensor adapters can be deleted. Once all prerequisite stories ship and
 pass their gates, this ADR transitions to `ACCEPTED`. Implementation is tracked by
@@ -740,8 +740,8 @@ warning + audit log applies to these. The PREREQ-D integration test that validat
 allowlist enforcement logic remains in scope — it uses a synthetic test fixture plugin, not a
 production sensor plugin. VP-PLUGIN-007 becomes a v1.0+N candidate for amendment when the first
 non-trivial third-party WASM plugin is genuinely needed. TD-PLUGIN-SIGNING-001 target release
-is v1.0+1 (signing infrastructure deferred even though first-party OCSF complex-transform
-plugins exist in v1.0).
+is v1.0+N when first non-trivial third-party WASM plugin is genuinely needed (signing
+infrastructure deferred even though first-party OCSF complex-transform plugins exist in v1.0).
 
 ---
 
@@ -845,15 +845,16 @@ production system.
   approximately 50ms cold-start overhead. Net: superior fault tolerance with an explicit
   performance trade-off.
 - v1.0 ships first-party in-repo OCSF complex-transform plugins UNSIGNED with explicit security
-  warning + audit log per TD-PLUGIN-SIGNING-001 P0 v1.0+1 target. Operators loading any
+  warning + audit log per TD-PLUGIN-SIGNING-001 P0 v1.0+N target. Operators loading any
   plugins before signing lands must rely on the boot-time warning and audit log entry
   (`event_type: plugin_load_unsigned`) to maintain awareness. TD-PLUGIN-SIGNING-001 target
-  release is v1.0+1 (signing infrastructure deferred even though first-party OCSF
-  complex-transform plugins ship in v1.0).
+  release is v1.0+N when first non-trivial third-party WASM plugin is genuinely needed
+  (signing infrastructure deferred even though first-party OCSF complex-transform plugins
+  ship in v1.0).
 
 ### Status as of 2026-05-10
 
-COMMITTED v1.9, pending implementation of Wave 0/F (PLUGIN-PREREQ-F) and Constraints C1–C5
+COMMITTED v1.10, pending implementation of Wave 0/F (PLUGIN-PREREQ-F) and Constraints C1–C5
 (PLUGIN-MIGRATION-001 Wave 0 — 6 stories total: PREREQ-F, A, B, C, D, E). The five hardcoded
 sensor auth modules, the four OCSF mapper modules, the `SensorType` enum, and the `CustomAdapter`
 trait all remain in the codebase until their corresponding Wave 0/1 stories ship and pass
@@ -1049,6 +1050,7 @@ without bypass.
 
 | Version | Date | Description |
 |---------|------|-------------|
+| v1.10 | 2026-05-10 | Closes F-PASS13-HIGH-001 (sibling-site propagation gap: pass-10 amendment introduced v1.0+1 vs v1.0+N internal contradiction at L743 + L848 + L851). All sites now consistently cite v1.0+N when first non-trivial third-party WASM plugin is genuinely needed. Status block + Amendment Status swept v1.9→v1.10 per TD-VERSION-STAMP-SWEEP-001. |
 | v1.9 | 2026-05-10 | Closes F-PASS11-HIGH-001 (propagate F-PASS10-HIGH-001 scoping to 3 missed sibling sites: Decision opening, Rule 4 body, Consequences/Positive — all now say "sensor-specific in-repo .prx" or qualify "third-party") + F-PASS11-LOW-001 (delete duplicate boot.rs sentence). Status block + Amendment Status swept v1.8→v1.9 per TD-VERSION-STAMP-SWEEP-001. Edit-only per TD-FACTORY-HOOK-BYPASS-001. |
 | v1.8 | 2026-05-10 | Closes 4 pass-10 findings (1 HIGH + 3 MED). F-PASS10-HIGH-001: 5 wording sites clarified — "v1.0 ships zero in-repo plugins" → "v1.0 ships zero third-party plugins; first-party OCSF complex-transform plugins per Rule 1 ARE loaded" (L275, L732, L809-810, L841, L986). F-PASS10-MED-001/002: stale CrowdStrike OAuth refresh plugin examples at L589-590, L609 replaced with generic plugin examples (Rule 4 rescope completeness). F-PASS10-MED-003: Context L121-123 + Constraint C5 L616-617 updated to reflect actual boot.rs state post-S-WAVE5-PREP-01 commit 53b87961 (todo!() stubs, not dead custom_adapter_registry). Status block + Amendment Status updated v1.7→v1.8 per TD-VERSION-STAMP-SWEEP-001. Edit-only discipline. |
 | v1.7 | 2026-05-10 | Closes F-PASS7-HIGH-001 (3rd recurrence of body Status block lagging frontmatter version). Sweep L80 + L850 from "v1.5" to "v1.7". Per TD-VERSION-STAMP-SWEEP-001 P2 (newly registered): future fix-bursts must include body version-stamp sweep step. Edit-only discipline maintained. |

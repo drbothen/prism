@@ -1,7 +1,7 @@
 ---
 document_type: pipeline-state
 level: ops
-version: "7.96"
+version: "7.97"
 producer: state-manager
 timestamp: 2026-05-10T22:00:00Z
 inputs: []
@@ -176,7 +176,7 @@ workspace_test_count: 3489  # 891 prism-query + workspace total (per implementer
 | **Language** | Rust |
 | **Target Workspace** | per-analyst stdio (MCP server) |
 | **Started** | 2026-04-13 |
-| **Last Updated** | 2026-05-10 (D-345 — ADR-023 pass-12 CLEAN, FIRST CLEAN POST-RESET, streak 1/3; STATE v7.95→v7.96) |
+| **Last Updated** | 2026-05-10 (D-347 — ADR-023 v1.10 fix-burst-10 closes F-PASS13-HIGH-001; STATE v7.96→v7.97) |
 | **Current Phase** | Wave 3 Tier-3 COMPLETE — **Wave 3-A 4 of 4 SHIPPED**: S-3.05 (#132 c867c344), S-3.04 (#133 57745ce8), S-3.03 (#134 7c413692), **S-3.07 (#135 2ae7185b MERGED 2026-05-08T04:23:03Z)**; post-merge cleanup confirmed; NEXT: Wave 3-B/C or Wave 4 unblock |
 | **Current Step** | D-299 — Plugin system FULL audit COMPLETE. 14 P0/P1 deferrals discovered (8 P0 + 6 P1). Stub-merged Wave-1 items: S-1.12/1.14/1.15 (3 stubs). No production binary loads sensors/*.toml. 13 new TDs filed (TD-PLUGIN-P0-001..008 + P1-001..005). S-3.09 FROZEN. Strategic direction needed: (a) full plugin completion epic, (b) min-viable plugin wiring, or (c) other path. |
 
@@ -213,6 +213,8 @@ _D-001..D-046 archived: [cycles/phase-3-dtu-wave-2/decisions-archive-d001-d032.m
 
 | ID | Decision | Rationale | Phase | Date |
 |----|----------|-----------|-------|------|
+| D-347 | 2026-05-10 | ADR-023 v1.10 fix-burst-10 — close F-PASS13-HIGH-001 sibling-site v1.0+1 vs v1.0+N propagation | Replaces "v1.0+1" with "v1.0+N when first non-trivial third-party WASM plugin is genuinely needed" at L743 (VP-PLUGIN-007 lifecycle note) + L848 + L851 (Consequences/Negative). Body version sweep v1.9→v1.10 at L80+L857. Now all 8 TD-PLUGIN-SIGNING-001 target references consistently say v1.0+N. Edit-only discipline per TD-FACTORY-HOOK-BYPASS-001 P1. | docs(ADR-023)-v1.10 |
+| D-346 | 2026-05-10 | ADR-023 pass-13 NOT_CLEAN — 1 HIGH (sibling-site v1.0+1 vs v1.0+N), streak RESET 1/3 → 0/3 | Pass-13 fresh-context idempotency review of v1.9 surfaces F-PASS13-HIGH-001 — TD-PLUGIN-SIGNING-001 target inconsistency. v1.0+N canonical at 5 sites (L564, L683, L687, L741, L991) vs stale v1.0+1 at 3 sites (L743, L848, L851). Pass-10's VP-PLUGIN-007 lifecycle note introduced internal contradiction (L741 says v1.0+N, L743 immediately says v1.0+1). Streak reset; fix-burst-10 dispatches in same burst to close. | review(ADR-023-pass-13) |
 | D-345 | 2026-05-10 | ADR-023 pass-12 CLEAN — FIRST CLEAN POST-RESET, streak 0/3 → 1/3 | Pass-12 fresh-context review of v1.9 surfaces ZERO findings across 21 source-of-truth verifications. F-PASS11-HIGH-001 sibling-site propagation closed at all 3 sites (Decision opening, Rule 4 body, Consequences). F-PASS11-LOW-001 Context duplicate deleted. Body version sweep complete L80+L856 → v1.9. Corpus-wide grep confirms no 4th/5th sibling sites exist. Trajectory 26→16→12→14→3→3→1→0→0→4→2→0. Streak 1/3 — pass-13 target 2/3, pass-14 target 3/3 (3-CLEAN convergence). | review(ADR-023-pass-12-CLEAN) |
 | D-344 | 2026-05-10 | ADR-023 pass-11 NOT_CLEAN — 2 findings (1H+1L), streak 0/3 | Pass-11 fresh-context surfaces F-PASS11-HIGH-001 sibling-site propagation gap (F-PASS10-HIGH-001 scoping applied to 5 sites but missed 3 more prominent reader-visible sites at L142-146 Decision opening, L264-265 Rule 4 body, L789-795 Consequences) + F-PASS11-LOW-001 verbatim duplication at L120-122 vs L123-125 from fix-burst-8 boot.rs prose addition. S-7.01 partial-fix propagation pattern continues recurring. Trajectory 26→16→12→14→3→3→1→0→0→4→2. Fix-burst-9 = wording fixes at 3 sites + 1 delete. | review(ADR-023-pass-11) |
 | D-342 | 2026-05-10 | ADR-023 pass-9 CLEAN — SECOND CLEAN, streak 1/3 → 2/3 | Pass-9 fresh-context idempotency review of v1.7 (HEAD frozen at 0502b201 since pass-8) surfaces ZERO findings across 20 source-of-truth verifications (more rigorous than pass-8's 13). Fresh-context re-derivation independently arrives at CLEAN verdict. Rule 4 ↔ Rule 5 coherence, BC frontmatter, DI-012 annotation, VP-INDEX VP-146..152 aliases, SP arithmetic 95-146, story count 13, Process-Gap Awareness section all verified. Trajectory 26→16→12→14→3→3→1→0→0 idempotent. Streak 2/3 — pass-10 target 3/3 (3-CLEAN target convergence). | review(ADR-023-pass-9-CLEAN) |
@@ -452,19 +454,19 @@ _TD-VSDD-014..019, TD-W3-COMPLIANCE-001, TD-VSDD-025..029 archived to [tech-debt
 
 Cycle files: [burst-log](cycles/phase-2-patch/burst-log.md) | [convergence-trajectory](cycles/phase-2-patch/convergence-trajectory.md) | [session-checkpoints](cycles/phase-2-patch/session-checkpoints.md) | [lessons](cycles/phase-2-patch/lessons.md) | [resolved-blockers](cycles/phase-2-patch/blocking-issues-resolved.md)
 ---
-## Session Resume Checkpoint (2026-05-10-v7.96-d345-adr023-pass12-FIRST-CLEAN-POST-RESET-1-OF-3)
+## Session Resume Checkpoint (2026-05-10-v7.97-d347-adr023-v1.10-fix-burst-10-pass13-RESET-0-OF-3)
 
-_Previous checkpoint (v7.95/D-344 ADR-023 pass-11 NOT_CLEAN streak 0/3) archived: [cycles/wave-4-operations/session-checkpoints.md](cycles/wave-4-operations/session-checkpoints.md)_
+_Previous checkpoint (v7.96/D-345 ADR-023 pass-12 CLEAN, streak 1/3) archived: [cycles/wave-4-operations/session-checkpoints.md](cycles/wave-4-operations/session-checkpoints.md)_
 
-**STATE v7.96. D-345 — ADR-023 pass-12 CLEAN. ZERO FINDINGS. STREAK 1/3 (FIRST CLEAN POST-RESET).** develop@c6dd6602. factory-artifacts HEAD: run `git -C .factory log -1` (TD-VSDD-053). vsdd-factory rc.16 active. Standing Orchestrator Rules active (Rules 1, 2, 3). Bundle B Exit Mandate active (task #85). Tasks #80-#84 DISPOSITIONS RECORDED — do NOT re-triage. Worktrees: main (clean) + .factory + .worktrees/S-3.09 (FROZEN per D-298).
+**STATE v7.97. D-347 — ADR-023 v1.10 fix-burst-10 COMPLETE. F-PASS13-HIGH-001 CLOSED. STREAK RESET 0/3.** develop@c6dd6602. factory-artifacts HEAD: run `git -C .factory log -1` (TD-VSDD-053). vsdd-factory rc.16 active. Standing Orchestrator Rules active (Rules 1, 2, 3). Bundle B Exit Mandate active (task #85). Tasks #80-#84 DISPOSITIONS RECORDED — do NOT re-triage. Worktrees: main (clean) + .factory + .worktrees/S-3.09 (FROZEN per D-298).
 
-**CONVERGENCE NEXT ACTION:** Dispatch adversary for ADR-023 pass-13 — fresh-context review of v1.9 HEAD frozen at bc8ed323. Target streak 2/3. After streak 3/3 closes, 3-CLEAN convergence window satisfied per user mandate. Then close process-gap TDs (TD-FACTORY-HOOK-BYPASS-001, TD-FIX-BURST-VERIFY-002, TD-VERSION-STAMP-SWEEP-001, TD-ADR-AMEND-001/002) before Wave 0/F.
+**CONVERGENCE NEXT ACTION:** Dispatch adversary pass-14 against ADR-023 v1.10 (HEAD-frozen at post-fix-burst-10 SHA). Target streak 1/3 (post-second-reset). Trajectory shows S-7.01 sibling-site propagation pattern recurring across multiple amendment passes; codified TDs (VERSION-STAMP-SWEEP, FIX-BURST-VERIFY-001/002) catch some but not all sibling propagation. Per user mandate "continue going until protocol convergence": 3-CLEAN still target.
 
 **S-3.09 FREEZE STATE:** Worktree .worktrees/S-3.09 HEAD 43c41389; BUG-S309-PLUGIN P0 blocks resumption. See D-298/D-299.
 
 **Deferred TDs (carry-forward):** W3-FIX-S307-001/002/003 + TD-VSDD-082 + TD-S307-002/003/004 + TD-VSDD-057 (OPEN-DEFERRED-CROSS-REPO) + TD-S309-O1/O2/O3/O4
 
-**Current spec versions:** BC-INDEX v4.53, STORY-INDEX v2.34 (150 stories), ARCH-INDEX v2.37, ADR-022 v1.1, ADR-023 v1.9 (streak 1/3; pass-13 next), VP-INDEX v1.29, prd.md v1.10, develop@c6dd6602; STATE v7.96 SESSION-HANDOFF v7.96 (D-345 ADR-023 pass-12 CLEAN; streak 1/3)
+**Current spec versions:** BC-INDEX v4.53, STORY-INDEX v2.34 (150 stories), ARCH-INDEX v2.37, ADR-022 v1.1, ADR-023 v1.10 (streak 0/3 RESET; pass-14 next), VP-INDEX v1.29, prd.md v1.10, develop@c6dd6602; STATE v7.97 SESSION-HANDOFF v7.97 (D-347 ADR-023 v1.10 fix-burst-10; streak 0/3)
 
 **Key files:** [SESSION-HANDOFF.md](SESSION-HANDOFF.md) | [cycle-manifest.md](cycles/wave-4-operations/cycle-manifest.md) | [HOLDOUT-INDEX.md](holdout-scenarios/HOLDOUT-INDEX.md)
 
