@@ -16,6 +16,8 @@ inputs:
 input-hash: "76729b7"
 traces_to: ["CAP-001"]
 extracted_from: ".factory/specs/prd.md"
+scheduled_amendment_in: ADR-023
+amendment_lifecycle: pending
 introduced: cycle-1
 modified: null
 deprecated: null

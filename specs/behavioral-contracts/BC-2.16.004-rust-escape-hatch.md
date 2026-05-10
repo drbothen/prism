@@ -25,6 +25,8 @@ input-hash: "76729b7"
 traces_to:
   - "CAP-029"
 extracted_from: ".factory/specs/prd.md"
+scheduled_amendment_in: ADR-023
+amendment_lifecycle: pending
 ---
 
 # BC-2.16.004: Rust Escape Hatch for Custom Adapters — Trait-Based Override When Config Is Insufficient

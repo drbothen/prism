@@ -164,6 +164,13 @@ traces_to: architecture/ARCH-INDEX.md
 | VP-143 | Action delivery non-starvation (per-subsystem semaphore non-starvation for action delivery side) | prism-operations | proptest | P1 | draft | S-4.08 |
 | VP-144 | CEF v0 + LEEF 2.0 encoder correctness (13 proptest invariants: INV-CEF-001..005, INV-LEEF-001..005, INV-RT-001..003) | prism-siem-formats | proptest | P1 | draft | S-4.08 |
 | VP-145 | Case reopen_count monotonic increment (INV-CASE-006) | prism-operations | proptest | P1 | draft | S-4.06, S-4.07 |
+| VP-146 | No production hardcoded sensor references (FORBIDDEN-SYMBOLS-001 compile-fail perimeter) — VP-PLUGIN-001 alias | prism-spec-engine | integration_test | P0 | draft | PLUGIN-MIGRATION-001-A |
+| VP-147 | Unknown sensor registers without code change (end-to-end extensibility) — VP-PLUGIN-002 alias | prism-spec-engine | integration_test | P0 | draft | PLUGIN-MIGRATION-001-D |
+| VP-148 | DTU parity: TOML+plugin path output matches deleted Rust adapter path per sensor — VP-PLUGIN-003 alias | prism-spec-engine | integration_test | P0 | draft | PLUGIN-MIGRATION-001-D |
+| VP-149 | Boot warning fires on unsigned plugin load (v1.0 scope) — VP-PLUGIN-004 alias | prism-spec-engine | integration_test | P0 | draft | PLUGIN-PREREQ-D |
+| VP-150 | OAuth2 refresh-on-401 via declarative TOML retry policy (PipelineExecutor) — VP-PLUGIN-005 alias | prism-spec-engine | integration_test | P0 | draft | PLUGIN-MIGRATION-001-D |
+| VP-151 | OCSF column mapping fixture catalog (6 representative cases, SpecDrivenMapper) — VP-PLUGIN-006 alias | prism-spec-engine | integration_test | P1 | draft | PLUGIN-MIGRATION-001-C |
+| VP-152 | Plugin manifest allowlist not-None after PREREQ-D (allowed_urls enforcement) — VP-PLUGIN-007 alias | prism-spec-engine | integration_test | P0 | draft | PLUGIN-PREREQ-D |
 
 ## Summary
 
@@ -173,8 +180,8 @@ traces_to: architecture/ARCH-INDEX.md
 | Proptest | 86 | 65 | 21 |
 | Unit test | 4 | 4 | 0 |
 | Fuzz | 6 | 5 | 1 |
-| Integration test | 19 | 17 | 2 |
-| **Total** | **145** | **114** | **31** |
+| Integration test | 26 | 23 | 3 |
+| **Total** | **152** | **120** | **32** |
 
 ### Phase 3-Patch Addition (2026-04-16, Burst 2.5)
 

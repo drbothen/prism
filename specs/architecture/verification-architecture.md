@@ -8,6 +8,7 @@ producer: architect
 timestamp: 2026-05-03T00:00:00
 phase: 1b
 inputs: [prd.md, domain-spec/invariants.md]
+input-hash: "962624a"
 traces_to: ARCH-INDEX.md
 ---
 
@@ -272,12 +273,19 @@ Properties are organized by the domain invariant or BC postcondition they verify
 | VP-143 | Action delivery non-starvation (per-subsystem semaphore non-starvation for action delivery side) | prism-operations | proptest | feasible | P1 | ADR-016 §2.11 |
 | VP-144 | CEF v0 + LEEF 2.0 encoder correctness (13 proptest invariants: INV-CEF-001..005, INV-LEEF-001..005, INV-RT-001..003) | prism-siem-formats | proptest | feasible | P1 | ADR-019 §7 |
 | VP-145 | Case reopen_count monotonic increment (INV-CASE-006) | prism-operations | proptest | feasible | P1 | ADR-017 §3.3 |
+| VP-146 | No production hardcoded sensor references (FORBIDDEN-SYMBOLS-001 compile-fail perimeter) | prism-spec-engine | integration_test | feasible | P0 | ADR-023 §E |
+| VP-147 | Unknown sensor registers without code change (end-to-end extensibility) | prism-spec-engine | integration_test | feasible | P0 | ADR-023 §E |
+| VP-148 | DTU parity: TOML+plugin path output matches deleted Rust adapter path per sensor | prism-spec-engine | integration_test | feasible | P0 | ADR-023 §E |
+| VP-149 | Boot warning fires on unsigned plugin load (v1.0 scope) | prism-spec-engine | integration_test | feasible | P0 | ADR-023 §E |
+| VP-150 | OAuth2 refresh-on-401 via declarative TOML retry policy (PipelineExecutor) | prism-spec-engine | integration_test | feasible | P0 | ADR-023 §E |
+| VP-151 | OCSF column mapping fixture catalog (6 representative cases, SpecDrivenMapper) | prism-spec-engine | integration_test | feasible | P1 | ADR-023 §E |
+| VP-152 | Plugin manifest allowlist not-None after PREREQ-D (allowed_urls enforcement) | prism-spec-engine | integration_test | feasible | P0 | ADR-023 §E |
 
 ## Verification Priority
 
-**P0 (must-verify before release):** VP-001 through VP-024, VP-027, VP-028, VP-031, VP-033, VP-034, VP-036, VP-038, VP-039, VP-044, VP-045, VP-046, VP-047, VP-050, VP-051, VP-052, VP-053, VP-057, VP-058, VP-060 (Phase 1-2 baseline, 43); plus Wave 3 P0: VP-063, VP-064, VP-066, VP-067, VP-068, VP-069, VP-070, VP-071, VP-072, VP-073, VP-074, VP-075, VP-076, VP-077, VP-078, VP-079, VP-080, VP-081, VP-082, VP-083, VP-084, VP-085, VP-086, VP-087, VP-088, VP-089, VP-090, VP-091, VP-092, VP-093, VP-094, VP-095, VP-096, VP-097, VP-098, VP-099, VP-100, VP-101, VP-102, VP-103, VP-104, VP-105, VP-106, VP-107, VP-108, VP-109, VP-110, VP-111, VP-112, VP-113, VP-114, VP-115, VP-116, VP-117, VP-118, VP-119, VP-120, VP-121, VP-122, VP-123, VP-124, VP-125, VP-126, VP-127, VP-128, VP-129, VP-130, VP-131, VP-132, VP-133 (70); plus Wave 4 Phase 4.A pass-4 P0 elevation: VP-138 (1) — all safety-critical invariants and security properties. (**114 total P0**)
+**P0 (must-verify before release):** VP-001 through VP-024, VP-027, VP-028, VP-031, VP-033, VP-034, VP-036, VP-038, VP-039, VP-044, VP-045, VP-046, VP-047, VP-050, VP-051, VP-052, VP-053, VP-057, VP-058, VP-060 (Phase 1-2 baseline, 43); plus Wave 3 P0: VP-063, VP-064, VP-066, VP-067, VP-068, VP-069, VP-070, VP-071, VP-072, VP-073, VP-074, VP-075, VP-076, VP-077, VP-078, VP-079, VP-080, VP-081, VP-082, VP-083, VP-084, VP-085, VP-086, VP-087, VP-088, VP-089, VP-090, VP-091, VP-092, VP-093, VP-094, VP-095, VP-096, VP-097, VP-098, VP-099, VP-100, VP-101, VP-102, VP-103, VP-104, VP-105, VP-106, VP-107, VP-108, VP-109, VP-110, VP-111, VP-112, VP-113, VP-114, VP-115, VP-116, VP-117, VP-118, VP-119, VP-120, VP-121, VP-122, VP-123, VP-124, VP-125, VP-126, VP-127, VP-128, VP-129, VP-130, VP-131, VP-132, VP-133 (70); plus Wave 4 Phase 4.A pass-4 P0 elevation: VP-138 (1); plus ADR-023 plugin migration P0: VP-146, VP-147, VP-148, VP-149, VP-150, VP-152 (6) — all safety-critical invariants and security properties. (**120 total P0**)
 
-**P1 (verify during hardening):** VP-025, VP-026, VP-029, VP-030, VP-032, VP-035, VP-037, VP-040, VP-041, VP-042, VP-043, VP-048, VP-049, VP-054, VP-055, VP-056, VP-059, VP-061, VP-062 (Phase 1-2 baseline, 19); plus Wave 3 P1: VP-065, VP-134, VP-135, VP-136 (4); plus Wave 4 Phase 1 ADR P1: VP-137 (1); plus Wave 4 ADR P1: VP-139, VP-140, VP-141, VP-142, VP-143, VP-144, VP-145 (7) — correctness properties that are important but not safety-critical. (**31 total P1**)
+**P1 (verify during hardening):** VP-025, VP-026, VP-029, VP-030, VP-032, VP-035, VP-037, VP-040, VP-041, VP-042, VP-043, VP-048, VP-049, VP-054, VP-055, VP-056, VP-059, VP-061, VP-062 (Phase 1-2 baseline, 19); plus Wave 3 P1: VP-065, VP-134, VP-135, VP-136 (4); plus Wave 4 Phase 1 ADR P1: VP-137 (1); plus Wave 4 ADR P1: VP-139, VP-140, VP-141, VP-142, VP-143, VP-144, VP-145 (7); plus ADR-023 plugin migration P1: VP-151 (1) — correctness properties that are important but not safety-critical. (**32 total P1**)
 
 ## Proof Harness Patterns
 

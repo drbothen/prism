@@ -256,6 +256,15 @@ limited to body prose claims rather than frontmatter schema choices.
 ADR-023 reaches 3-CLEAN. The migration of ADR-023's frontmatter field is part of fix-burst-3
 (not deferred).
 
+**v1.4 augmentation (F-PASS4-MED-004):** The `amends_bcs_pending` schema should also include
+two additional optional fields per entry: `amendment_rationale: <one-sentence>` (documenting
+why the amendment is deferred to that wave rather than immediate) and
+`prefix_note_template: <inline-text-or-reference>` (specifying the exact prefix-note text to be
+applied to the BC during the prefix-note wave, enabling state-manager to validate the note is
+applied verbatim). Without these fields, the prefix-note content is implicit and validators
+cannot check correctness. The state-manager validator (TD-ADR-AMEND-002 primary deliverable)
+should enforce that `amendment_rationale` is non-empty for each pending entry.
+
 ---
 
 ## TD-FIX-BURST-VERIFY-002 — Citation-integrity validator extending TD-FIX-BURST-VERIFY-001 to ALL inline references

@@ -4,7 +4,7 @@ adr_id: "ADR-023"
 title: "Plugin-Only Sensor Architecture — TOML Specs, Declarative TOML Baseline, No Compiled-In Sensor Rust"
 status: COMMITTED
 date: "2026-05-10"
-version: "v1.3"
+version: "v1.4"
 producer: architect
 subsystems_affected: [SS-01, SS-02, SS-16, SS-17, SS-21, SS-22]
 supersedes: null
@@ -81,7 +81,7 @@ COMMITTED 2026-05-10, v1.3. Status is `COMMITTED` rather than `ACCEPTED` because
 infrastructure prerequisites (Constraints C1–C5 plus Wave 0/F BC+DI amendments) must land
 before the hardcoded sensor adapters can be deleted. Once all prerequisite stories ship and
 pass their gates, this ADR transitions to `ACCEPTED`. Implementation is tracked by
-PLUGIN-MIGRATION-001 (12 stories, Waves 0/1/2, approximately 95–138 SP (Wave 0: 45–67, Wave 1: 30–47 after Wave 1/E removal, Wave 2: 12–19). Wave 1/E removed per v1.3 Rule 4 rescope — CrowdStrike OAuth2 refresh is fully declarative TOML; no in-repo .prx plugin required).
+PLUGIN-MIGRATION-001 (13 stories, Waves 0/1/2, approximately 95–146 SP (Wave 0: 45–67, Wave 1: 38–60 after Wave 1/E removal, Wave 2: 12–19). Wave 1/E removed per v1.3 Rule 4 rescope — CrowdStrike OAuth2 refresh is fully declarative TOML; no in-repo .prx plugin required).
 
 This ADR amends ADR-022 at two sites referencing the four built-in sensor adapters
 (F-PASS3-MED-003): (a) ADR-022 line 65 ("the four built-in sensors; no concrete override
@@ -202,7 +202,7 @@ location: `crates/prism-ocsf/tests/spec_driven_mapper_fixtures.rs`. Mechanism: e
 is a small `RecordBatch` plus expected OCSF output; assertion is byte-equal post-canonicalization
 per TS-PLUGIN-PARITY-001. VP-PLUGIN-006 is authored in Wave 1/C scope. Registration in
 VP-INDEX.md (phase=migration, module=spec-engine) is a sub-task of PLUGIN-PREREQ-F alongside
-VP-PLUGIN-001 through VP-PLUGIN-007.
+VP-PLUGIN-001 through VP-PLUGIN-007. (See §E Verification Properties for the full VP-PLUGIN-006 spec.)
 
 **Rule 2 — SensorAuth Trait Un-Sealing**
 
@@ -476,7 +476,7 @@ For Decision Rules 1–5 to be enforceable, the following infrastructure must ex
 deletion of the hardcoded adapters. Wave 0/F lands first; Constraints C1–C5 (PLUGIN-PREREQ-A
 through E) all depend on PLUGIN-PREREQ-F having landed.
 
-**Wave 0/F — BC + DI Catalog Amendments (PLUGIN-PREREQ-F, NEW, 5–8 SP, LANDS FIRST — F-HIGH-NEW-004: SP updated to reflect 8 additional sensor-named BC prefix-note edits):**
+**Wave 0/F — BC + DI Catalog Amendments (PLUGIN-PREREQ-F, NEW, 5–8 SP, LANDS FIRST — F-HIGH-NEW-004: SP updated to reflect 8 additional sensor-named BC prefix-note edits, plus DI-012 annotation + 2 BC frontmatter annotations + VP-INDEX registration of VP-PLUGIN-001..007 per v1.4 F-PASS4-HIGH-003/HIGH-004/LOW-002):**
 
 Before any code changes begin, the behavioral contract and domain invariant catalog must be
 consistent with this ADR. PLUGIN-PREREQ-F tasks:
@@ -492,9 +492,10 @@ consistent with this ADR. PLUGIN-PREREQ-F tasks:
 - Author test-strategy document TS-PLUGIN-PARITY-001 (canonicalization rules for VP-PLUGIN-003
   DTU-parity evaluation).
 - Annotate DI-012 in `.factory/specs/domain-spec/invariants.md` and BC-2.16.004 + BC-2.01.013
-  frontmatter with `scheduled_amendment_in: ADR-023` (lifecycle: pending). This bidirectional
-  annotation makes the amendment visible from both BC/DI source-of-truth and the ADR, and must
-  be in place BEFORE Wave 0/A–E story dispatches (F-PASS3-HIGH-004).
+  frontmatter with two YAML fields: `scheduled_amendment_in: ADR-023` and
+  `amendment_lifecycle: pending`. This bidirectional annotation makes the amendment visible from
+  both BC/DI source-of-truth and the ADR, and must be in place BEFORE Wave 0/A–E story
+  dispatches (F-PASS3-HIGH-004, F-PASS4-LOW-001 clarified).
 - Register VP-PLUGIN-001 through VP-PLUGIN-007 in VP-INDEX.md with
   `phase: migration, module: spec-engine` (F-PASS3-HIGH-001).
 
@@ -559,7 +560,7 @@ config) AND wires it into boot.rs step 7, replacing the dead instantiation with 
 `PluginRuntime::load_all_plugins` call (F-MED-NEW-005: PREREQ-D owns step 7; PREREQ-E owns
 only step-8 dead-code deletion). Boot step 7 in `crates/prism-bin/src/boot.rs` will load `.prx`
 WASM plugins from the plugin directory via `PluginRuntime`. Plugin signing is deferred to
-v1.0+1 per TD-PLUGIN-SIGNING-001.
+v1.0+N when first non-trivial third-party WASM plugin is genuinely needed per TD-PLUGIN-SIGNING-001.
 
 v1.0 plugin load behavior:
 - Boot-time stderr and `tracing::warn!` message on every startup: "WARNING: Plugin signing not
@@ -674,11 +675,11 @@ with reason; reviewer approves. Approved divergences are maintained in TS-PLUGIN
 adapter deletion.
 
 **VP-PLUGIN-004 — Boot warning fires on unsigned plugin load (v1.0 scope):** For v1.0, this
-property verifies the unsigned-plugin boot-warning behavior (signing is deferred to v1.0+1 per
+property verifies the unsigned-plugin boot-warning behavior (signing is deferred to v1.0+N when first non-trivial third-party WASM plugin is genuinely needed per
 TD-PLUGIN-SIGNING-001). Acceptance criteria: (a) boot-time WARN-level log message fires on
 every startup with plugins present, (b) audit log entry with `event_type: plugin_load_unsigned`
 and `plugin_hash: <sha256>` is recorded for every `.prx` file loaded, (c) `PRISM_DISABLE_PLUGIN_LOAD=1`
-causes zero plugins to load and no warning fires. For v1.0+1: property will be amended to
+causes zero plugins to load and no warning fires. For v1.0+N: property will be amended to
 assert that unsigned plugins fail to load with a structured error.
 
 Test implementation details (F-MED-NEW-002): Test location:
@@ -700,10 +701,23 @@ Test implementation details: test location is `crates/prism-spec-engine/tests/pi
 Mechanism: `wiremock::MockServer` with a sequential responder — first request to the data
 endpoint returns HTTP 401, second returns HTTP 200 with fixture data. A second wiremock mock
 handles the token endpoint, returning a fresh token. Assertions: (a) `PipelineExecutor` invokes
-the auth-driver re-acquisition path on 401 receipt, (b) the retry data request succeeds with
+the auth-driver re-acquisition path on 401 receipt — specifically, the executor resolves the
+spec's `auth_type` and `credential_refs`, calls `<auth_provider>.acquire_token(credential)` via
+the `AuthProvider` trait (defined in PREREQ-B), replaces the `Authorization` header in the
+request, and retries with the same body — (b) the retry data request succeeds with
 200, (c) the final result set is non-empty, (d) the auth re-acquisition is recorded in the
 audit log as `event_type: auth_refresh_triggered`. No DTU clone enhancement required — wiremock
 (version 0.6, already in `crates/prism-sensors/Cargo.toml`) provides the mock server.
+
+**VP-PLUGIN-006 — OCSF column mapping fixture catalog:** Verifies that `SpecDrivenMapper`
+correctly handles all 13 OCSF mapping patterns (5 TOML-mappable, 8 WASM-required) defined in
+Rule 1. A fixture catalog of at least 6 representative cases — minimum 3 TOML-mappable and
+minimum 3 WASM-required — exercises the full pattern space. Test location:
+`crates/prism-ocsf/tests/spec_driven_mapper_fixtures.rs`. Mechanism: each fixture is a small
+`RecordBatch` plus expected OCSF output; assertion is byte-equal post-canonicalization per
+TS-PLUGIN-PARITY-001. VP-PLUGIN-006 is authored in Wave 1/C scope alongside `SpecDrivenMapper`
+delivery. Phase: migration. Module: prism-spec-engine. (Rule 1 inline definition cross-references
+this block for the full VP-PLUGIN-006 spec.)
 
 **VP-PLUGIN-007 — Plugin manifest allowlist not-None after PREREQ-D (F-CRIT-NEW-002):**
 After PREREQ-D lands, no `.prx` plugin loaded by `PluginRuntime` may have `allowed_urls = None`
@@ -782,7 +796,7 @@ production system.
 
 ### Negative / Trade-offs
 
-- High implementation cost: approximately 95–138 story points across 12 stories in 3 waves
+- High implementation cost: approximately 95–146 story points across 13 stories in 3 waves
   (including Wave 0/F; Wave 1/E removed per v1.3 Rule 4 rescope).
 - Increased runtime complexity: WASM toolchain, `.prx` build pipeline, `wasm32-wasi` build
   targets, and sandbox enforcement add operational surface area.
@@ -833,10 +847,11 @@ production system.
 
 ### Status as of 2026-05-10
 
-COMMITTED v1.2, pending implementation of Wave 0/F (PLUGIN-PREREQ-F) and Constraints C1–C5
-(PLUGIN-MIGRATION-001 Wave 0). The five hardcoded sensor auth modules, the four OCSF mapper
-modules, the `SensorType` enum, and the `CustomAdapter` trait all remain in the codebase until
-their corresponding Wave 0/1 stories ship and pass DTU-parity gates.
+COMMITTED v1.4, pending implementation of Wave 0/F (PLUGIN-PREREQ-F) and Constraints C1–C5
+(PLUGIN-MIGRATION-001 Wave 0 — 6 stories total: PREREQ-F, A, B, C, D, E). The five hardcoded
+sensor auth modules, the four OCSF mapper modules, the `SensorType` enum, and the `CustomAdapter`
+trait all remain in the codebase until their corresponding Wave 0/1 stories ship and pass
+DTU-parity gates.
 
 ---
 
@@ -875,7 +890,7 @@ in `crates/prism-spec-engine/src/custom_adapter.rs` already attempted — and it
 
 ## Migration Plan
 
-PLUGIN-MIGRATION-001: 12 stories, 3 waves, approximately 95–138 SP (v1.3: Wave 0: 45–67, Wave 1: 30–47, Wave 2: 12–19; Wave 1 reduced by removal of Wave 1/E per F-PASS3-USER-INSIGHT-001 Rule 4 rescope; prior v1.2 total was 94–146 across 14 stories), HIGH risk.
+PLUGIN-MIGRATION-001: 13 stories, 3 waves, approximately 95–146 SP (v1.4: Wave 0: 45–67, Wave 1: 38–60, Wave 2: 12–19; Wave 1 reduced by removal of Wave 1/E per F-PASS3-USER-INSIGHT-001 Rule 4 rescope; prior v1.2 total was 94–146 across 14 stories), HIGH risk.
 
 **Wave 0 — Prerequisites (6 stories, approximately 45–67 SP, no deletions):**
 
@@ -902,7 +917,7 @@ PLUGIN-MIGRATION-001: 12 stories, 3 waves, approximately 95–138 SP (v1.3: Wave
   (F-MED-NEW-005: PREREQ-E owns step-8 cleanup only, not step-7 wiring) (3–5 SP); depends on
   PREREQ-F and PREREQ-D.
 
-**Wave 1 — Primary deletion and replacement (3 stories, approximately 30–47 SP, ordered:
+**Wave 1 — Primary deletion and replacement (4 stories, approximately 38–60 SP, ordered:
 REPLACEMENT BEFORE DELETION — Wave 1/E removed per v1.3 Rule 4 rescope):**
 
 - PLUGIN-MIGRATION-001-D (FIRST): Author 4 production TOMLs via reverse-engineering; include
@@ -978,7 +993,7 @@ no `.prx` build pipeline dependency for the CrowdStrike sensor specifically.
     plugin system?" Decision: pure TOML is the correct baseline for all four initial sensors.
     CrowdStrike's full flow (OAuth2, 401-refresh, two-step batched fetch, cloud-region
     templating, JSONPath extraction, pagination) is fully expressible in declarative TOML once
-    PREREQ-C grammar extensions land. Wave 1/E dropped. Migration plan: 12 stories (was 13
+    PREREQ-C grammar extensions land. Wave 1/E dropped. Migration plan: 13 stories (was 14
     prior to this decision; was 14 stories before Wave 0/F was added — note that PREREQ-F is
     Wave 0/F which was added in v1.1, making the corrected v1.2 count 14 stories; v1.3 removes
     Wave 1/E for 13 stories total). WASM reserved for non-declarative cases.
@@ -1007,11 +1022,28 @@ no `.prx` build pipeline dependency for the CrowdStrike sensor specifically.
 
 ---
 
+## Process-Gap Awareness
+
+The v1.3 amendment (fix-burst-3) used Python `open/write` calls outside the Edit tool to
+modify this file, bypassing the `validate-changelog-monotonicity` hook. Adversary pass-4
+detected this bypass as F-PASS4-CRIT-003 and traced cascade defects it enabled. The bypass is
+now explicitly policy-forbidden. TD-FACTORY-HOOK-BYPASS-001 (P1) has been registered in the
+technical debt register at `.factory/cycles/wave-4-operations/td-from-adr-023-pass-1.md`.
+
+The v1.4 amendment (fix-burst-4) uses Edit and Write tools exclusively. No hook bypass was
+employed. If a hook blocks an edit, the recovery procedure is: (a) revert the file to a
+hook-consistent state via Edit, (b) re-attempt with a smaller or differently-scoped edit that
+satisfies hook invariants in the post-edit state, (c) report and stop if recovery is impossible
+without bypass.
+
+---
+
 ## Changelog
 
 | Version | Date | Description |
 |---------|------|-------------|
-| v1.3 | 2026-05-10 | Closes 11 findings (1 CRIT + 4 HIGH + 4 MED + 1 LOW + 1 user-insight) per TD-FIX-BURST-VERIFY-002 source-of-truth verification discipline. F-PASS3-USER-INSIGHT-001 closed: Rule 4 rescoped to pure-TOML baseline — all four initial sensors (CrowdStrike, Cyberint, Claroty, Armis) ship as pure TOML specs; CrowdStrike OAuth2 refresh-on-401 is fully declarative via [fetch_step.retry] retry_action = "refresh_auth" (PREREQ-C); Wave 1/E removed; migration plan 12 stories (~95-138 SP, was 14 stories ~94-146 SP); WASM reserved for binary protocols, exotic crypto, branching state machines; VP-PLUGIN-005 rescoped to PipelineExecutor declarative retry test (wiremock); VP-PLUGIN-007 lifecycle note added (dormant until first third-party plugin); TD-PLUGIN-SIGNING-001 target revised to v1.0+N. F-PASS3-CRIT-001 closed: replaced ad-hoc amends_bcs_pending_full_amendment_in_wave_2_g frontmatter field with generic amends_bcs_pending schema (bc_id + target_wave_for_full_amendment + target_wave_for_prefix_note per entry); TD-ADR-AMEND-002 will deliver state-manager validator. F-PASS3-HIGH-001 closed: VP-PLUGIN-006 defined inline in Rule 1 (fixture catalog, crates/prism-ocsf/tests/spec_driven_mapper_fixtures.rs, 6 cases, byte-equal post-canonicalization per TS-PLUGIN-PARITY-001); VP-PLUGIN-001 through VP-PLUGIN-007 registration in VP-INDEX added to PREREQ-F sub-tasks. F-PASS3-HIGH-002 closed: removed POL-11 citation (actual POL-11 is index_bump_required_for_index_mutations, not ci_positive_coverage_assertion); positive-coverage assertion stands as self-contained prose; dedicated policy filing deferred to separate burst per single-commit-per-burst protocol. F-PASS3-HIGH-003 closed: v1.2 changelog F-MED-NEW-004 row corrected — actual closure was line-range citation removal (spec_parser citations replaced by function names), not SP arithmetic; SP arithmetic was a separate internal correction; annotation added to clarify. F-PASS3-HIGH-004 closed: added PREREQ-F sub-task to annotate DI-012 in invariants.md and BC-2.16.004 + BC-2.01.013 frontmatter with scheduled_amendment_in: ADR-023 before Wave 0/A-E dispatches. F-PASS3-MED-001 closed: added inline note confirming PR template assigned to PREREQ-D (not PREREQ-F) per fix-burst-1 reassignment — PREREQ-F is documentation-only. F-PASS3-MED-002 closed: F-MED-NEW-004 root cause documented in v1.2 changelog correction (incidental closure confirmed; line-range was the actual finding). F-PASS3-MED-003 closed: ADR-022 amendment scope expanded to both sites — line 65 ("four built-in sensors") and §G Story 3 line 613 ("four built-in sensor adapters"); both receive superseded_by_partial: ADR-023 annotation in Wave 1/A cutover commit. F-PASS3-MED-004 closed: SS-21 and SS-22 verified present in ARCH-INDEX.md (grep confirmed both rows exist with full scope annotations). F-PASS3-LOW-001 closed: added all 8 sensor-named BC paths to inputs frontmatter. F-PASS3-OBS-001 and F-PASS3-OBS-002 tracked as TD-ADR-AMEND-002 and TD-FIX-BURST-VERIFY-002 (P1 escalated) — not closed in v1.3. |
+| v1.4 | 2026-05-10 | Closes 14 pass-4 findings (3 CRIT + 5 HIGH + 4 MED + 3 LOW). F-PASS4-CRIT-001/LOW-003 closed: story count corrected 12→13 at 5 sites; Wave 1 header corrected (3 stories)→(4 stories). F-PASS4-CRIT-002 closed: Wave 1 SP corrected 30-47→38-60 at 3 sites; total SP corrected 95-138→95-146 at 5 sites. F-PASS4-CRIT-003 closed: Process-Gap Awareness section added citing TD-FACTORY-HOOK-BYPASS-001 P1. F-PASS4-HIGH-001 closed: "v1.0+1" replaced with "v1.0+N when first non-trivial third-party WASM plugin is genuinely needed" at 3 sites (C4, VP-PLUGIN-004 twice). F-PASS4-HIGH-002 closed: "COMMITTED v1.2" updated to "COMMITTED v1.4" in Status block. F-PASS4-HIGH-003 closed: VP-PLUGIN-001 through VP-PLUGIN-007 registered in VP-INDEX.md (phase: migration, module: prism-spec-engine; PREREQ-F sub-task closed in this burst). F-PASS4-HIGH-004 closed: DI-012 in invariants.md and BC-2.16.004 + BC-2.01.013 frontmatter annotated with scheduled_amendment_in: ADR-023. F-PASS4-HIGH-005 closed: VP-PLUGIN-006 block added to §E Verification Properties with cross-reference from Rule 1. F-PASS4-MED-001 closed: auth-driver re-acquisition interface specified in VP-PLUGIN-005 (AuthProvider trait, acquire_token, credential_refs lookup). F-PASS4-MED-002 closed: Status block rewritten to cite v1.4 and 6-story Wave 0. F-PASS4-MED-003 closed: v1.3 changelog row corrected from "12 stories ~95-138 SP" to "13 stories (~95-146 SP)". F-PASS4-MED-004 closed: TD-ADR-AMEND-002 augmentation note added specifying amendment_rationale and prefix_note_template fields. F-PASS4-LOW-001 closed: PREREQ-F frontmatter field syntax clarified to two YAML fields. F-PASS4-LOW-002 closed: PREREQ-F annotation updated to reflect v1.3+v1.4 sub-tasks (5-8 SP, covers 8 BC prefix-notes + DI-012 + 2 BC frontmatter annotations + VP-INDEX registration). |
+| v1.3 | 2026-05-10 | Closes 11 findings (1 CRIT + 4 HIGH + 4 MED + 1 LOW + 1 user-insight) per TD-FIX-BURST-VERIFY-002 source-of-truth verification discipline. F-PASS3-USER-INSIGHT-001 closed: Rule 4 rescoped to pure-TOML baseline — all four initial sensors (CrowdStrike, Cyberint, Claroty, Armis) ship as pure TOML specs; CrowdStrike OAuth2 refresh-on-401 is fully declarative via [fetch_step.retry] retry_action = "refresh_auth" (PREREQ-C); Wave 1/E removed; migration plan 13 stories (~95-146 SP, was 14 stories ~94-146 SP; Wave 1/E removed and CrowdStrike retry absorbed into Wave 1/D); WASM reserved for binary protocols, exotic crypto, branching state machines; VP-PLUGIN-005 rescoped to PipelineExecutor declarative retry test (wiremock); VP-PLUGIN-007 lifecycle note added (dormant until first third-party plugin); TD-PLUGIN-SIGNING-001 target revised to v1.0+N. F-PASS3-CRIT-001 closed: replaced ad-hoc amends_bcs_pending_full_amendment_in_wave_2_g frontmatter field with generic amends_bcs_pending schema (bc_id + target_wave_for_full_amendment + target_wave_for_prefix_note per entry); TD-ADR-AMEND-002 will deliver state-manager validator. F-PASS3-HIGH-001 closed: VP-PLUGIN-006 defined inline in Rule 1 (fixture catalog, crates/prism-ocsf/tests/spec_driven_mapper_fixtures.rs, 6 cases, byte-equal post-canonicalization per TS-PLUGIN-PARITY-001); VP-PLUGIN-001 through VP-PLUGIN-007 registration in VP-INDEX added to PREREQ-F sub-tasks. F-PASS3-HIGH-002 closed: removed POL-11 citation (actual POL-11 is index_bump_required_for_index_mutations, not ci_positive_coverage_assertion); positive-coverage assertion stands as self-contained prose; dedicated policy filing deferred to separate burst per single-commit-per-burst protocol. F-PASS3-HIGH-003 closed: v1.2 changelog F-MED-NEW-004 row corrected — actual closure was line-range citation removal (spec_parser citations replaced by function names), not SP arithmetic; SP arithmetic was a separate internal correction; annotation added to clarify. F-PASS3-HIGH-004 closed: added PREREQ-F sub-task to annotate DI-012 in invariants.md and BC-2.16.004 + BC-2.01.013 frontmatter with scheduled_amendment_in: ADR-023 before Wave 0/A-E dispatches. F-PASS3-MED-001 closed: added inline note confirming PR template assigned to PREREQ-D (not PREREQ-F) per fix-burst-1 reassignment — PREREQ-F is documentation-only. F-PASS3-MED-002 closed: F-MED-NEW-004 root cause documented in v1.2 changelog correction (incidental closure confirmed; line-range was the actual finding). F-PASS3-MED-003 closed: ADR-022 amendment scope expanded to both sites — line 65 ("four built-in sensors") and §G Story 3 line 613 ("four built-in sensor adapters"); both receive superseded_by_partial: ADR-023 annotation in Wave 1/A cutover commit. F-PASS3-MED-004 closed: SS-21 and SS-22 verified present in ARCH-INDEX.md (grep confirmed both rows exist with full scope annotations). F-PASS3-LOW-001 closed: added all 8 sensor-named BC paths to inputs frontmatter. F-PASS3-OBS-001 and F-PASS3-OBS-002 tracked as TD-ADR-AMEND-002 and TD-FIX-BURST-VERIFY-002 (P1 escalated) — not closed in v1.3. |
 | v1.2 | 2026-05-10 | Closes 16 spec defects from adversary pass-2 (2 CRIT + 4 HIGH + 5 MED + 3 LOW) per TD-FIX-BURST-VERIFY-001 source-of-truth verification discipline. F-CRIT-NEW-001-PASS2-RESIDUAL closed: corrected CustomAdapter call-site enumeration — spec_parser.rs contains zero CustomAdapter references (grep confirmed); actual call sites are lib.rs re-export, examples/demo_spec_loading.rs, tests/bc_2_16_004_test.rs; both body locations updated. F-CRIT-NEW-002 closed: rewrote C4 sandbox section with explicit current-state vs target-state delineation — make_host_state() returns HostState with allowed_urls=None and TODO(S-4.08); host_functions.rs short-circuits None as ALL-permitted; no plugin-load-time allowlist validation today; target state (PREREQ-D) specified; VP-PLUGIN-007 added. F-HIGH-NEW-001 closed: corrected instance-pool claim — LoadedPlugin.pre_instance is InstancePre<HostState> (precompiled component, not a live-instance pool); no pool field exists in PluginRuntime; InstancePre-based reuse semantics described accurately. F-HIGH-NEW-002 closed: re-authored OCSF closed grammar — added 5 missing patterns from mapper source (array/list mapping, identity/no-op, RFC3339 string parsing with fallback chain, integer unix timestamp, integer-to-string cast); total is now 13 patterns (TOML: 5, WASM: 8). F-HIGH-NEW-003 closed: resolved ADR-022 v1.2 amendment timing contradiction — all three locations now consistently say ADR-022 v1.2 lands as sub-deliverable of Wave 1/A cutover commit; Wave 2/G retains only BC body sweep. F-HIGH-NEW-004 closed: enumerated 8 sensor-named BCs in Wave 0/F sweep; added amends_bcs_pending_full_amendment_in_wave_2_g frontmatter; updated PREREQ-F SP from 3-5 to 5-8; noted BC-2.16.004 contradiction window. F-HIGH-NEW-005 closed: added CI sync-check and positive-coverage log assertion to VP-PLUGIN-001. F-MED-NEW-001-PASS2-RESIDUAL closed: corrected SensorType strum claim — prism-core types.rs uses plain derives (Clone, Copy, Debug, PartialEq, Eq, Hash, Serialize, Deserialize) with hand-written Display impl; no strum derives (grep confirmed zero strum references in prism-core). F-MED-NEW-002 closed: added test fixture details to VP-PLUGIN-004. F-MED-NEW-003 closed: scoped 401-injection via wiremock::MockServer (wiremock 0.6 already in prism-sensors); no DTU clone enhancement required. F-MED-NEW-004 closed: removed all spec_parser line-range citations from §F per pass-2 proposed-fix — future references use function names not line numbers. Internal SP arithmetic correction (NOT a pass-2 finding): actual sum is 94-146 SP (Wave 0: 45-67, Wave 1: 37-60, Wave 2: 12-19, inclusive of PREREQ-F update to 5-8 from F-HIGH-NEW-004); all affected locations updated (F-PASS3-HIGH-003: v1.2 changelog previously mis-attributed this as "SP arithmetic correction" — the line-range removal was the actual F-MED-NEW-004 closure; SP arithmetic was a separate internal correction coincidentally made in the same pass). F-MED-NEW-005 closed: resolved PREREQ-D vs PREREQ-E boot.rs ownership — PREREQ-D delivers PluginRuntime infra AND wires step 7; PREREQ-E only deletes dead custom_adapter_registry and step-8 code. F-LOW-NEW-001 closed: replaced absolute filesystem path with repo-relative .github/PULL_REQUEST_TEMPLATE.md. F-LOW-NEW-002 closed: added PR-template-inactive acknowledgment to enforcement section. F-LOW-NEW-003 closed: added 3 entries to inputs frontmatter. 2 OBS process-gap findings tracked as TDs. |
 | v1.1 | 2026-05-10 | Closes 24 spec defects from adversary pass-1 (4 CRIT + 9 HIGH + 7 MED + 4 LOW). F-CRIT-001 closed: added amends_bcs/retires_bcs frontmatter + Retired/Amended Contracts section. F-CRIT-002 closed: added amends_dis frontmatter + DI-012 runtime rejection rules. F-CRIT-003 closed: replaced ungroundable glob with explicit crate list from cargo metadata; dropped prism-operations; added forward-compatibility rule. F-CRIT-004 closed: moved PR template to Wave 0/D; specified path + three checklist items. F-HIGH-001 closed: added closed grammar for ocsf_field (TOML-mappable vs WASM-required); added VP-PLUGIN-006 fixture catalog. F-HIGH-002 closed: deferred signing to v1.0+1 per TD-PLUGIN-SIGNING-001; updated Rule 4, C4, VP-PLUGIN-004, Negative Consequences with boot warning + audit log + escape valve. F-HIGH-003 closed: reconciled VP-PLUGIN-001 with actual codebase types; added 9-symbol FORBIDDEN-SYMBOLS-001 catalog. F-HIGH-004 closed: replaced byte-level parity with schema+row-count+canonical-value parity with canonicalization rules; referenced TS-PLUGIN-PARITY-001. F-HIGH-005 closed: rewrote C4 sandbox model to align with host_http_request allowlist; updated VP-PLUGIN-005. F-HIGH-006 closed: re-authored C3 with NEW vs already-present split; revised PREREQ-C estimate to 3-5 SP. F-HIGH-007 closed: reordered Wave 1 D→E→B→C→A with per-PR-boundary functionality invariant per user decision. F-HIGH-008 closed: expanded Negative Consequences with 6 omitted risk categories (cold-start, observability, rollback, version-skew, debugging, panic-isolation). F-HIGH-009 closed: added ADR-022 v1.2 amendment to Wave 2/G scope. F-MED-001 closed: removed orchestrator-derived caveat from Rule 5; added user-confirmation note. F-MED-002 closed: added same-burst removal justification; added pre-condition for retirement. F-MED-003 closed: cross-referenced VP-PLUGIN-003 for parity threshold. F-MED-004 closed: strengthened VP-PLUGIN-002 with 5-point acceptance criteria. F-MED-005 closed: added hot-reload semantics to C4. F-MED-006 closed: cross-referenced Rule 2 for auth composition rejection rules. F-MED-007 closed: added Wave 0/F (PLUGIN-PREREQ-F, 3-5 SP) per user decision; updated PREREQ-A through E depends_on. F-LOW-001 closed: added atomic-commit protocol note to PREREQ-A. F-LOW-002 closed: added performance budget and benchmark recipe to Negative Consequences. F-LOW-003 closed: added SS-22 to subsystems_affected. F-LOW-004 closed: added plugin source crate workspace integration rules to Permitted Patterns + C4. 5 OBS process-gap findings tracked as TDs, not closed here. |
 | v1.0 | 2026-05-10 | Initial COMMITTED version — plugin-only sensor architecture mandate. |

@@ -8,6 +8,7 @@ producer: architect
 timestamp: 2026-04-20T18:00:00
 phase: 1b
 inputs: [prd.md, domain-spec/invariants.md]
+input-hash: "962624a"
 traces_to: ARCH-INDEX.md
 ---
 
@@ -26,7 +27,7 @@ See detailed tables below.
 | prism-query | CRITICAL | 4 | 2 | 0 | 2 | 0 | 90% | VP-012, VP-014, VP-015, VP-025 (kani); VP-013, VP-031 (proptest); VP-021, VP-037 (fuzz) |
 | prism-ocsf | CRITICAL | 0 | 2 | 0 | 1 | 0 | 90% | VP-016, VP-017 (proptest); VP-022 (fuzz) |
 | prism-operations | HIGH | 4 | 17 | 0 | 1 | 0 | 85% | VP-026, VP-030, VP-044, VP-053 (kani); VP-018, VP-019, VP-027, VP-045, VP-046, VP-047, VP-052, VP-054, VP-060, VP-137, VP-138, VP-139, VP-140, VP-141, VP-142, VP-143, VP-145 (proptest); VP-028 (fuzz) |
-| prism-spec-engine | HIGH | 2 | 14 | 4 | 1 | 1 | 85% | VP-040, VP-048 (kani); VP-032, VP-041, VP-042, VP-043, VP-049, VP-059, VP-099, VP-100, VP-101, VP-102, VP-103, VP-104, VP-105, VP-106 (proptest); VP-095, VP-096, VP-097, VP-098 (unit_test); VP-023 (fuzz); VP-107 (integration_test) |
+| prism-spec-engine | HIGH | 2 | 14 | 4 | 1 | 8 | 85% | VP-040, VP-048 (kani); VP-032, VP-041, VP-042, VP-043, VP-049, VP-059, VP-099, VP-100, VP-101, VP-102, VP-103, VP-104, VP-105, VP-106 (proptest); VP-095, VP-096, VP-097, VP-098 (unit_test); VP-023 (fuzz); VP-107, VP-146, VP-147, VP-148, VP-149, VP-150, VP-151, VP-152 (integration_test) |
 | prism-sensors | HIGH | 0 | 10 | 0 | 0 | 2 | 80% | VP-077, VP-078, VP-079, VP-080, VP-087, VP-088, VP-089, VP-091, VP-092, VP-093 (proptest); VP-090, VP-094 (integration_test) |
 | prism-credentials | CRITICAL | 0 | 7 | 0 | 0 | 1 | 90% | VP-034, VP-035, VP-081, VP-082, VP-084, VP-085, VP-086 (proptest); VP-083 (integration_test) |
 | prism-storage | HIGH | 1 | 2 | 0 | 0 | 0 | 80% | VP-057 (kani); VP-055, VP-058 (proptest) |
@@ -37,7 +38,7 @@ See detailed tables below.
 | prism-dtu-harness | HIGH | 0 | 4 | 0 | 0 | 8 | 80% | VP-122, VP-123, VP-125, VP-128 (proptest); VP-124, VP-126, VP-127, VP-129, VP-130, VP-131, VP-132, VP-133 (integration_test) |
 | prism-bin | LOW | 0 | 1 | 0 | 0 | 2 | 60% | VP-135 (proptest); VP-134, VP-136 (integration_test) |
 | prism-siem-formats | HIGH | 0 | 1 | 0 | 0 | 0 | 80% | VP-144 (proptest) *(new in Wave 4 per ADR-019)* |
-| **Totals** | | **30** | **86** | **4** | **6** | **19** | | **145** |
+| **Totals** | | **30** | **86** | **4** | **6** | **26** | | **152** |
 
 ## Totals
 
@@ -47,8 +48,8 @@ See detailed tables below.
 | Proptest properties | 86 | 65 | 21 |
 | Unit test VPs | 4 | 4 | 0 |
 | Fuzz targets | 6 | 5 | 1 |
-| Integration test VPs | 19 | 17 | 2 |
-| **Total VPs** | **145** | **114** | **31** |
+| Integration test VPs | 26 | 23 | 3 |
+| **Total VPs** | **152** | **120** | **32** |
 
 <!-- P0/P1 per-method breakdown from VP-INDEX v1.22 recount (Wave 4 Phase 3 ADR burst):
      Kani: 23 P0 / 7 P1; Proptest: 64 P0 / 21 P1; Unit test: 4 P0 / 0 P1;
