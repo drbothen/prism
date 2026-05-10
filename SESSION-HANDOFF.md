@@ -1,28 +1,28 @@
 ---
 document_type: session-handoff
 level: ops
-version: "7.74"
+version: "7.75"
 status: current
-timestamp: 2026-05-10T08:30:00Z
-predecessor_session: "D-321 follow-up pre-compact burst: Standing Orchestrator Rules codified (adversary report backfill + orchestrator-drives-cascade). Deferred items #80-#84 dispositions RECORDED. PRE-COMPACT CHECKPOINT written. STATE v7.71→v7.72. SESSION-HANDOFF v7.71→v7.72. | D-322 (2026-05-10): Standing Rule 3 (Production-Grade Closure Discipline) adopted; Bundle B Exit Mandate documented; S-3.02-FOLLOWUP-RUNTIME LOCAL adv pass-1 BLOCKED-hard with 5 CRIT + 7 HIGH + 5 MED + 4 LOW + 3 OBS, fix-pass-1 dispatched. | D-323 (2026-05-10): pass-3 BLOCKED-soft 0/3, 2 Standing Rule 3 violations (F-LP3-CRIT-1 Layer 1 partial AST walk, F-LP3-MED-1 cosmetic close); plugin upgraded rc.11→rc.16; PAUSE for human-driven Claude restart"
-successor_focus: "POST-COMPACT/POST-RESTART NEXT ACTION: dispatch fix-pass-3 for S-3.02-FOLLOWUP-RUNTIME. Worktree HEAD: 609d7d87. Worktree path: .worktrees/S-3.02-FOLLOWUP-RUNTIME. Branch: feature/S-3.02-FOLLOWUP-RUNTIME. Plugin: vsdd-factory rc.16 (upgraded from rc.11; activated 2026-05-10T07:38:25Z). PR #140 (CLAUDE.md hook diagnostics) PENDING merge — review/merge before/after fix-pass-3 as orchestrator decides. Apply Standing Rules 1, 2, 3 throughout cascade. Bundle B Exit Mandate (task #85) still queued for post-Bundle-B audit. Adversary cascade reports persisted at .factory/cycles/wave-4-operations/adversarial-reviews/S-3.02-FOLLOWUP-RUNTIME-{pass-1,fix-pass-1,pass-2,fix-pass-2,pass-3}.md."
+timestamp: 2026-05-10T09:15:00Z
+predecessor_session: "D-321 follow-up pre-compact burst: Standing Orchestrator Rules codified (adversary report backfill + orchestrator-drives-cascade). Deferred items #80-#84 dispositions RECORDED. PRE-COMPACT CHECKPOINT written. STATE v7.71→v7.72. SESSION-HANDOFF v7.71→v7.72. | D-322 (2026-05-10): Standing Rule 3 (Production-Grade Closure Discipline) adopted; Bundle B Exit Mandate documented; S-3.02-FOLLOWUP-RUNTIME LOCAL adv pass-1 BLOCKED-hard with 5 CRIT + 7 HIGH + 5 MED + 4 LOW + 3 OBS, fix-pass-1 dispatched. | D-323 (2026-05-10): pass-3 BLOCKED-soft 0/3, 2 Standing Rule 3 violations (F-LP3-CRIT-1 Layer 1 partial AST walk, F-LP3-MED-1 cosmetic close); plugin upgraded rc.11→rc.16; PAUSE for human-driven Claude restart | D-324 (2026-05-10): PR #140 hook-diagnostics MERGED → develop@f1f284ab; pre-compact state-burst recorded; ready for context compaction"
+successor_focus: "PRE-COMPACT CHECKPOINT 2026-05-10 — state durable, ready for compaction. POST-COMPACT NEXT ACTION: dispatch implementer fix-pass-3 for S-3.02-FOLLOWUP-RUNTIME at worktree HEAD `609d7d87` to close F-LP3-CRIT-1 (Layer 1 AST walk extension to Join.on/group_by/order_by per Standing Rule 3 #3 — production-grade fix is to extend the walker, NOT downgrade the doc; defense-in-depth holds via Layer 2 but doc-vs-code drift must close), F-LP3-MED-1 (real wiring of pushdown::classify_predicates plan.push_down OR honest removal of dead call per ADR-022 §C), F-LP3-LOW-1 (one-line doc fix prism-core/src/error.rs:577-580 E-QUERY-006→E-QUERY-001), F-LP3-OBS-1/2/3 (sibling AC-2 fix + _filters unused decision + adversary semantic-equivalence process-gap). Reference report: .factory/cycles/wave-4-operations/adversarial-reviews/S-3.02-FOLLOWUP-RUNTIME-pass-3.md. Apply Standing Rules 1, 2, 3 throughout. Plugin: rc.16 (verify settings.local.json activated_plugin_version)."
 
-**STEP 1 (START HERE):** Read STATE.md v7.72 + this HANDOFF v7.72 in full. S-WAVE5-PREP-01 chassis SHIPPED (D-319, PR #138, develop@53b87961). cli.rs doc-fix maintenance PR #139 ALSO SHIPPED (D-321, develop@c98a38b0). All outstanding LOW findings from D-319 are now CLOSED. No open maintenance PRs. TD-PR-MANAGER-CONVERGENCE-DISCIPLINE step-1 DONE; CODIFICATION step still pending vsdd-factory plugin scope. PR #139 deferred-items dossier + 6 TDs registered. Tasks #80-#84 DISPOSITIONS RECORDED (see '## Deferred-Items Dispositions' section below — do NOT re-triage). Standing Orchestrator Rules adopted (see '## Standing Orchestrator Process Rules' section). State durable; safe to compact. [process-rule active]: NO #[ignore] deferrals as first-line response to test failures.
+**STEP 1 (START HERE):** Read STATE.md v7.75 + this HANDOFF v7.75 in full. S-WAVE5-PREP-01 chassis SHIPPED (D-319, PR #138, develop@53b87961). cli.rs doc-fix maintenance PR #139 ALSO SHIPPED (D-321, develop@c98a38b0). PR #140 CLAUDE.md hook-diagnostics MERGED (D-324, develop@f1f284ab). All outstanding LOW findings from D-319 are now CLOSED. No open maintenance PRs. TD-PR-MANAGER-CONVERGENCE-DISCIPLINE step-1 DONE; CODIFICATION step still pending vsdd-factory plugin scope. PR #139 deferred-items dossier + 6 TDs registered. Tasks #80-#84 DISPOSITIONS RECORDED (see '## Deferred-Items Dispositions' section below — do NOT re-triage). Standing Orchestrator Rules adopted (see '## Standing Orchestrator Process Rules' section). State durable; PRE-COMPACT CHECKPOINT recorded — safe to compact. [process-rule active]: NO #[ignore] deferrals as first-line response to test failures.
 
-**STEP 2 (PHASE B-2 DISPATCH):** Dispatch Phase B-2 follow-up stories. Priority: (1) S-3.02-FOLLOWUP-RUNTIME (steps 7-8 QueryEngine + WriteExecutor, 8pt — biggest follow-up, unlocks audit RocksDB CF integration); (2) S-5.01-FOLLOWUP-MCP-BOOT (step 9, 8pt) + S-1.12-FOLLOWUP (step 10, 3pt) in parallel. Devops: create worktrees from develop HEAD `c98a38b0` before dispatching per-story-delivery cycles.
+**STEP 2 (PHASE B-2 DISPATCH):** Dispatch Phase B-2 follow-up stories. Priority: (1) S-3.02-FOLLOWUP-RUNTIME (steps 7-8 QueryEngine + WriteExecutor, 8pt — biggest follow-up, unlocks audit RocksDB CF integration); (2) S-5.01-FOLLOWUP-MCP-BOOT (step 9, 8pt) + S-1.12-FOLLOWUP (step 10, 3pt) in parallel. Devops: create worktrees from develop HEAD `f1f284ab` before dispatching per-story-delivery cycles.
 
 **STEP 3 (TD FOLLOW-UP):** TD-VSDD-064 — add proofs_path_canonicalization to policies.yaml + fix S-3.04/S-3.05 path drift (P2, can be done in-cycle during Tier-3). TD-VSDD-057 OPEN-DEFERRED-CROSS-REPO (separate vsdd-factory plugin session, not Tier-3 blocking).
 
 **STEP 4 (CONTINUE W3-FIRST PLAN):** Tier 3 (8-way: S-3.03/04/05/08/09/11/12/13) → Tier 4 (S-3.07 + S-3.10) → W3 wave gate → Resume Phase 4.B (S-4.01 + S-4.03).
 
 **KEY REFERENCES:**
-- STATE.md v7.72: develop@c98a38b0 (PR #139 cli.rs doc-fix squash-merged 2026-05-09); factory-artifacts HEAD: run git -C .factory log -1 (TD-VSDD-053)
+- STATE.md v7.75: develop@f1f284ab (PR #140 CLAUDE.md hook-diagnostics merged 2026-05-10); factory-artifacts HEAD: run git -C .factory log -1 (TD-VSDD-053)
 - D-321: PR #139 cli.rs doc-fix SHIPPED c98a38b0; 9 PR-LEVEL passes + 3-CLEAN convergence; BC-2.06.011 v1.2, BC-INDEX v4.53, ADR-022 v1.1, ARCH-INDEX v2.37; factory-artifacts HEAD 820a110b
 - D-319: PR #138 S-WAVE5-PREP-01 chassis SHIPPED 53b87961 2026-05-10; 5 BCs draft→active
 - D-260: PR #129 S-3.02 MERGED 6fefc774 2026-05-07; tier-2 COMPLETE; 2993 tests; STORY-INDEX v2.14
 - BC-INDEX v4.53, VP-INDEX v1.29, HOLDOUT-INDEX v1.3, invariants.md v1.5, L2-INDEX v1.13, STORY-INDEX v2.31, ARCH-INDEX v2.37, module-decomposition v1.16
 
-develop HEAD: c98a38b0 (PR #139 cli.rs doc-fix squash-merged 2026-05-09; factory-artifacts HEAD: run git -C .factory log -1 per TD-VSDD-053). PRE-COMPACT CHECKPOINT active — state durable; safe to compact."
+develop HEAD: f1f284ab (PR #140 CLAUDE.md hook-diagnostics merged 2026-05-10; factory-artifacts HEAD: run git -C .factory log -1 per TD-VSDD-053). PRE-COMPACT CHECKPOINT active — state durable; safe to compact."
 ---
 
 # Session Handoff — WAVE 4 PHASE 4.A DECISIONS LOGGED (2026-05-02)
@@ -36,7 +36,7 @@ Current state pointers:
 - TD-PR-MANAGER-CONVERGENCE-DISCIPLINE: step-1 COMPLETE (deferred fix landed via proper 9-step protocol). CODIFICATION step (pr-manager prompt/hook update) pending in vsdd-factory plugin scope — task #80 remains OPEN.
 - Worktree `.worktrees/S-WAVE5-PREP-01/` safe to remove (upstream branch deleted; maint PR #139 MERGED — no dependency remains).
 - Worktree `.worktrees/S-3.09/` remains FROZEN at HEAD `43c41389` per D-298 (BUG-S309-PLUGIN P0 dependency).
-- factory-artifacts HEAD: `820a110b`. develop HEAD: `c98a38b0`.
+- factory-artifacts HEAD: run `git -C .factory log -1` (TD-VSDD-053). develop HEAD: `f1f284ab` (PR #140 CLAUDE.md hook-diagnostics merged 2026-05-10).
 - 5 BCs active per ADR-021 POL-14 (D-319): BC-2.06.011 v1.2, BC-2.21.001, BC-2.03.013, BC-2.05.012 v1.3, BC-2.22.001.
 - Phase B-2 next dispatches: S-3.02-FOLLOWUP-RUNTIME (steps 7-8 — biggest), S-5.01-FOLLOWUP-MCP-BOOT (step 9), S-1.12-FOLLOWUP (step 10), W3-FIX-S307-001/002 (sensor adapter writes), S-1.14-REDO (infusion engine).
 
@@ -146,6 +146,79 @@ User invoked Claude restart to pick up vsdd-factory rc.11→rc.16 hook chain. Re
 
 6. **First post-restart action:** dispatch implementer fix-pass-3 with reference to .factory/cycles/wave-4-operations/adversarial-reviews/S-3.02-FOLLOWUP-RUNTIME-pass-3.md. Apply Standing Rule 3.
 
+## PRE-COMPACT CHECKPOINT (2026-05-10 — pre-fix-pass-3, D-324)
+
+State is durable. Safe to compact context now. Post-compact resume sequence:
+
+### Environment verification (run first after compact)
+
+```bash
+# Plugin version
+cat /Users/jmagady/Dev/prism/.claude/settings.local.json | jq '."vsdd-factory"'
+# Expected: activated_plugin_version: "1.0.0-rc.16", activated_platform: "darwin-arm64"
+
+# Develop SHA
+git -C /Users/jmagady/Dev/prism log --oneline -1 develop
+# Expected: f1f284ab docs(CLAUDE.md): add factory-dispatcher hook diagnostic procedure (#140)
+
+# Factory-artifacts SHA
+git -C /Users/jmagady/Dev/prism/.factory log --oneline -1
+# Expected: this commit (most recent factory-artifacts SHA — run command to discover)
+
+# Worktree state
+git -C /Users/jmagady/Dev/prism/.worktrees/S-3.02-FOLLOWUP-RUNTIME log --oneline develop..HEAD
+# Expected: 4 commits — 609d7d87, 99d49b20, 73d97726, a6380143
+
+# Hook health
+bash /Users/jmagady/Dev/prism/.factory/hooks/verify-sha-currency.sh
+# Expected: exit 0 PASS (1 WARN for missing pyyaml — non-blocking)
+```
+
+### Active cascade
+
+- **Story:** S-3.02-FOLLOWUP-RUNTIME (Phase B-2 of Bundle B)
+- **Worktree:** `.worktrees/S-3.02-FOLLOWUP-RUNTIME` at HEAD `609d7d87`
+- **Branch:** `feature/S-3.02-FOLLOWUP-RUNTIME` (pushed to origin)
+- **Test status:** 884 prism-query / 3482 workspace tests pass (per fix-pass-2 implementer report)
+- **Pass history:** pass-1 BLOCKED-hard → fix-pass-1 → pass-2 BLOCKED-soft → fix-pass-2 → pass-3 BLOCKED-soft 0/3
+- **Convergence target:** 3 consecutive CLEAN passes
+- **Backed-up reports:** `.factory/cycles/wave-4-operations/adversarial-reviews/S-3.02-FOLLOWUP-RUNTIME-{pass-1,fix-pass-1,pass-2,fix-pass-2,pass-3}.md`
+
+### Open findings requiring fix-pass-3 (POST-COMPACT FIRST ACTION)
+
+| ID | Severity | File:Line | Production-Grade Fix |
+|---|---|---|---|
+| F-LP3-CRIT-1 | CRITICAL | materialization.rs:877-904 (`walk_sql_query`) | Extend walker to handle `Join.on: Expr` (ast.rs:232), `sql.group_by: Vec<Expr>` (ast.rs:109), `sql.order_by: Vec<OrderExpr>` (ast.rs:112). Defense-in-depth holds via Layer 2 — Standing Rule 3 #3 violation is doc-vs-code drift. Production-grade fix: EXTEND the walker, do NOT downgrade the doc. Add tests for each AST position. |
+| F-LP3-MED-1 | MEDIUM | pushdown.rs:262-287 (`predicate_tree_to_filter_map`) | `classify_predicates` is called then result discarded via `let _ = plan;`. Production-grade fix: thread per-sensor `ColumnSpec` slices and use `plan.push_down` for the FilterMap (true wiring per ADR-022 §C); OR honestly remove the dead call + update doc at materialization.rs:778-779. Standing Rule 3 #1 violation. |
+| F-LP3-LOW-1 | LOW | prism-core/src/error.rs:577-580 (doc) | One-line fix: doc says E-QUERY-006, format string says E-QUERY-001. Update doc to E-QUERY-001. |
+| F-LP3-OBS-1 | OBS | tests/execute_integration_tests.rs:395-424 | Original AC-2 still vacuous (`!session_ctx.catalog_names().is_empty()`); new test added at 1714. Either delete original, rename to `test_AC_2_smoke_pipeline_no_error`, or update assertion. |
+| F-LP3-OBS-2 | OBS | internal_tables.rs:230 (_filters: &[Expr]) | Unused parameter; supports_filters_pushdown returns Inexact. Likely deliberate scope per story §Tasks step 5. Defer or document explicitly. |
+| F-LP3-OBS-3 | OBS | [process-gap] | Adversary closure-claim verification missed semantic equivalence between deleted-and-renamed function patterns. Amend adversary prompt: "X replaces Y" closure claims must verify dataflow not just signature. |
+
+### Open follow-ups (NOT blocking S-3.02-FOLLOWUP-RUNTIME)
+
+- **Bundle B Exit Mandate** (task #85): full-codebase audit before Bundle B declared complete (7 dimensions: stub residue, #[ignore] deferrals, surface-and-defer patterns, documented-but-unenforced gates, vacuous-pass tests, MVP placeholder constructs, architecture compliance violations)
+- **Tasks #80-#84 dispositions** RECORDED (DEFERRED with reasons in earlier handoff section). Do NOT re-triage.
+- **PR #140** — MERGED 2026-05-10 (develop@f1f284ab). Loop closed.
+
+### Standing Rules (active throughout cascade)
+
+- **Rule 1** — Adversary Pass Report Backfill: orchestrator dispatches state-manager to write each adversary's inline output to `.factory/cycles/<active-cycle>/adversarial-reviews/<artifact>-pass-N.md` after each pass. Single-commit per burst (TD-VSDD-053).
+- **Rule 2** — Orchestrator-Drives-Cascade for PR-LEVEL adv: orchestrator drives steps 4-5 (pr-manager 9-step PR-LEVEL adversarial cascade) directly via Agent dispatches. pr-manager handles steps 1-3 + 6-9.
+- **Rule 3** — Production-Grade Closure Discipline (5 sub-rules):
+  1. No MVP-limitation deferrals masquerading as fixes
+  2. No surface-and-defer-via-error patterns (silent Vec::new where partial-failure data should propagate = SOUL.md #4 violation)
+  3. No documented-but-unenforced gates
+  4. Architectural correction is in scope when it's the right fix
+  5. Surface-for-human-approval is last resort, not first-line response
+
+### Hook diagnostics reference
+
+If a hook block occurs post-compact (`factory-dispatcher trace=<UUID> ... block_intent=true exit_code=2`):
+- See CLAUDE.md "Factory Hook Diagnostics" section (PR #140 merged at develop@f1f284ab)
+- Logs: `.factory/logs/dispatcher-internal-YYYY-MM-DD.jsonl`
+- Common blockers: multi-commit chain (HEAD + HEAD^ both have "backfill"), SHA drift, in-progress narrative, dirty factory-artifacts
+- Recovery: never use `--hard` reset on develop; force-push always requires explicit user approval
 
 **PRE-COMPACT CHECKPOINT (2026-05-09 — D-321 follow-up) — state fully durable; safe to compact.**
 
