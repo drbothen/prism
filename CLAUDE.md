@@ -84,6 +84,78 @@ VP coverage layers:
 - **Commit conventions:** Conventional Commits enforced by `lefthook.yml` (`pre-commit`: fmt + clippy + layout; `pre-push`: `just check`; `pre-tag`: semver-checks + audit + deny)
 - **No AI attribution in commits** — do not add Claude/Co-Authored-By lines unless explicitly requested
 
+## Factory Hook Diagnostics
+
+When `Agent` tool dispatches fail with errors like:
+
+```
+PreToolUse:Agent hook error: [...factory-dispatcher]: factory-dispatcher trace=<UUID> event=PreToolUse tool=Agent host_abi=1 matched_tiers=N plugins_run=N total_ms=N block_intent=true exit_code=2
+```
+
+— the factory-dispatcher hook chain (52 plugins, see `~/.claude/plugins/cache/claude-mp/vsdd-factory/1.0.0-rc.11/hooks-registry.toml`) blocked the dispatch. The error message itself carries NO human-readable reason — only the trace UUID. To diagnose, follow this procedure.
+
+### Step 1 — Locate the dispatcher log
+
+Internal logs live at:
+
+```
+.factory/logs/dispatcher-internal-YYYY-MM-DD.jsonl
+```
+
+(One file per day, JSONL format, one event per line.)
+
+### Step 2 — Find the block reason
+
+Search the day's log for the trace UUID:
+
+```bash
+grep '<TRACE-UUID>' .factory/logs/dispatcher-internal-$(date +%Y-%m-%d).jsonl
+```
+
+Look for `plugin.log` entries with `level: warn` — those carry the human-readable block reason as an embedded multi-line `message` field. Example payload from a real block:
+
+```
+"FAIL: MULTI_COMMIT_CHAIN_NOT_ALLOWED — HEAD and HEAD^ both contain 'backfill'.
+ The single-commit protocol (TD-VSDD-053) does not use backfill commits.
+ ...
+ Recover with: git -C .factory reset --soft HEAD~2 then re-author as a single commit"
+```
+
+The `plugin_name` field on the same record (e.g., `validate-wave-gate-prerequisite`, `validate-pr-merge-prerequisites`, `regression-gate`) tells you which guard fired.
+
+### Step 3 — Common blockers and recovery procedures
+
+| Blocker | Detection | Recovery |
+|---------|-----------|----------|
+| **Multi-commit chain (TD-VSDD-053)** | HEAD and HEAD^ both have `backfill` / `Stage 1` / `Stage 2` in their commit messages | `git -C .factory reset --soft HEAD~N` (preserves working tree); re-author as one combined commit; force-push with `--force-with-lease` (requires explicit user approval) |
+| **SHA drift** | STATE.md or SESSION-HANDOFF.md cite a develop SHA that doesn't match `git rev-parse origin/develop` | Update narrative via state-manager dispatch; STATE.md `develop_head` and SESSION-HANDOFF cited SHAs must match `c98a38b0` (or current `git -C . log -1 --format=%H develop`) |
+| **In-progress narrative** | STATE.md decision log has an open phase without closure | Add closure row via state-manager; bump version |
+| **factory-artifacts dirty** | `git -C .factory status --porcelain` is non-empty | Commit/discard pending changes via state-manager |
+
+### Step 4 — Re-run the validator before re-dispatching
+
+```bash
+bash .factory/hooks/verify-sha-currency.sh
+```
+
+Expected: exit 0 with `PASS` lines and no `FAIL` lines. If it still fails, repeat Step 2 with the new dispatch's trace.
+
+### Step 5 — Going-forward discipline (orchestrator)
+
+To avoid the multi-commit-chain block:
+
+- **Bundle backfills.** When state-manager performs multi-document backfills (e.g., adversary pass-N report + fix-pass-N closure report), stage all files THEN commit ONCE. Never two state-manager dispatches in a row both producing "backfill" commits.
+- **Single-commit-per-burst.** Each logical burst (one adversary cascade step, one fix-pass cycle, one phase transition) → one commit in `.factory/`. Multiple consecutive commits with the same theme word (`backfill`, `Stage`) trigger the chain detector.
+- **Soft-reset for recovery, never `--hard`.** The working tree state is what we want to preserve.
+- **Force-push always needs user approval.** Per project git-safety protocol; orchestrator must request it from the human.
+
+### Hook source locations (read-only reference)
+
+- Dispatcher binary: `~/.claude/plugins/cache/claude-mp/vsdd-factory/<version>/hooks/dispatcher/bin/<platform>/factory-dispatcher`
+- Hook registry config: `~/.claude/plugins/cache/claude-mp/vsdd-factory/<version>/hooks-registry.toml`
+- Hook plugins (WASM): `~/.claude/plugins/cache/claude-mp/vsdd-factory/<version>/hook-plugins/*.wasm`
+- Project-side validator scripts: `.factory/hooks/*.sh` (e.g., `verify-sha-currency.sh`)
+
 ## Project References
 
 | Path | Description |
