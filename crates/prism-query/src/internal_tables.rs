@@ -26,19 +26,21 @@
 //!
 //! Story: S-3.02
 
-// S-3.02 stub functions: dead_code suppressed pending implementation (stub-phase convention).
 #![allow(dead_code)]
 
 use std::{any::Any, sync::Arc};
 
-use arrow::datatypes::SchemaRef;
+use arrow::array::StringArray;
+use arrow::datatypes::{DataType, Field, Schema, SchemaRef};
+use arrow::record_batch::RecordBatch;
 use async_trait::async_trait;
 use datafusion::{
     catalog::Session,
+    datasource::memory::MemorySourceConfig,
     logical_expr::{Expr, TableProviderFilterPushDown, TableType as DfTableType},
     physical_plan::ExecutionPlan,
 };
-use prism_core::PrismError;
+use prism_core::{PrismError, StorageDomain};
 use prism_storage::RocksStorageBackend;
 
 /// Maximum entries returned by an internal table scan before truncation.
@@ -121,30 +123,220 @@ impl datafusion::datasource::TableProvider for RocksDbTableProvider {
         self
     }
 
+    /// Return the Arrow schema for this internal table.
+    ///
+    /// Schema is fixed at compile time per story §Tasks step 5.
     fn schema(&self) -> SchemaRef {
-        todo!("S-3.02 — RocksDbTableProvider::schema")
+        Arc::clone(&self.descriptor.schema)
     }
 
+    /// Return `TableType::Base` — internal tables are base tables (read from RocksDB).
     fn table_type(&self) -> DfTableType {
-        todo!("S-3.02 — RocksDbTableProvider::table_type")
+        DfTableType::Base
     }
 
+    /// Scan the RocksDB column family for this domain.
+    ///
+    /// Reads all key-value pairs from the domain (using empty prefix to scan all),
+    /// converts values to single-column string rows (raw bytes as UTF-8 best-effort),
+    /// returns as `MemoryExec` plan.
+    ///
+    /// Scans are read-only — no `insert_into` is implemented (AD-022 write-safety).
     async fn scan(
         &self,
         _state: &dyn Session,
-        _projection: Option<&Vec<usize>>,
+        projection: Option<&Vec<usize>>,
         _filters: &[Expr],
-        _limit: Option<usize>,
+        limit: Option<usize>,
     ) -> datafusion::error::Result<Arc<dyn ExecutionPlan>> {
-        todo!("S-3.02 — RocksDbTableProvider::scan")
+        // Parse the StorageDomain from the descriptor's domain string.
+        // We use an empty prefix scan to get all records in the domain.
+        let domain_str = &self.descriptor.domain;
+        let domain = parse_domain(domain_str).map_err(|e| {
+            datafusion::error::DataFusionError::External(Box::new(std::io::Error::other(
+                e.to_string(),
+            )))
+        })?;
+
+        let kv_pairs = self.backend.scan(domain, b"").map_err(|e| {
+            datafusion::error::DataFusionError::External(Box::new(std::io::Error::other(
+                e.to_string(),
+            )))
+        })?;
+
+        // Truncate at PRISM_MAX_INTERNAL_TABLE_SCAN or user-supplied limit, whichever is smaller.
+        let cap = limit
+            .map(|l| l.min(PRISM_MAX_INTERNAL_TABLE_SCAN))
+            .unwrap_or(PRISM_MAX_INTERNAL_TABLE_SCAN);
+
+        let schema = self.schema();
+        let num_fields = schema.fields().len();
+
+        // Build batches in chunks of 1000 rows.
+        let chunk_size = 1000usize;
+        let mut batches: Vec<RecordBatch> = Vec::new();
+
+        let pairs_truncated: Vec<_> = kv_pairs.into_iter().take(cap).collect();
+
+        for chunk in pairs_truncated.chunks(chunk_size) {
+            let batch = build_batch_from_kv(schema.clone(), num_fields, chunk)?;
+            batches.push(batch);
+        }
+
+        // If no rows, produce a single empty batch to keep DataFusion happy.
+        if batches.is_empty() {
+            let empty = RecordBatch::new_empty(schema.clone());
+            batches.push(empty);
+        }
+
+        let plan = MemorySourceConfig::try_new_exec(&[batches], schema, projection.cloned())?;
+
+        Ok(plan)
     }
 
+    /// Return `Inexact` for all filters — full scan, DataFusion applies filters post-scan.
+    ///
+    /// For MVP, no server-side prefix filtering into RocksDB scan. (story §Tasks step 5)
     fn supports_filters_pushdown(
         &self,
-        _filters: &[&Expr],
+        filters: &[&Expr],
     ) -> datafusion::error::Result<Vec<TableProviderFilterPushDown>> {
-        todo!("S-3.02 — RocksDbTableProvider::supports_filters_pushdown")
+        Ok(vec![TableProviderFilterPushDown::Inexact; filters.len()])
     }
+}
+
+// ---------------------------------------------------------------------------
+// build_batch_from_kv — construct RecordBatch from raw KV pairs
+// ---------------------------------------------------------------------------
+
+/// Build an Arrow `RecordBatch` from raw key-value pairs by filling schema columns.
+///
+/// Each column is filled with an empty string (we only have raw bytes; for
+/// MVP the raw values are stored as opaque bytes, not Arrow-typed structs).
+/// The `key` bytes are used for the first text column as a best-effort UTF-8
+/// representation.
+fn build_batch_from_kv(
+    schema: SchemaRef,
+    num_fields: usize,
+    chunk: &[(Vec<u8>, Vec<u8>)],
+) -> datafusion::error::Result<RecordBatch> {
+    let n = chunk.len();
+    let mut columns: Vec<Arc<dyn arrow::array::Array>> = Vec::with_capacity(num_fields);
+
+    for (i, field) in schema.fields().iter().enumerate() {
+        let arr: Arc<dyn arrow::array::Array> = match field.data_type() {
+            DataType::Utf8 => {
+                // For the first field, use the raw value bytes as UTF-8 (best-effort).
+                // For other fields, use empty string.
+                let strings: Vec<&str> = if i == 0 {
+                    chunk
+                        .iter()
+                        .map(|(_, v)| std::str::from_utf8(v).unwrap_or(""))
+                        .collect()
+                } else {
+                    vec![""; n]
+                };
+                Arc::new(StringArray::from(strings))
+            }
+            DataType::Int32 => {
+                use arrow::array::Int32Array;
+                Arc::new(Int32Array::from(vec![0i32; n]))
+            }
+            _ => {
+                // Default: empty string array for unknown types.
+                Arc::new(StringArray::from(vec![""; n]))
+            }
+        };
+        columns.push(arr);
+    }
+
+    RecordBatch::try_new(schema, columns)
+        .map_err(|e| datafusion::error::DataFusionError::ArrowError(Box::new(e), None))
+}
+
+// ---------------------------------------------------------------------------
+// parse_domain — convert domain string to StorageDomain variant
+// ---------------------------------------------------------------------------
+
+/// Parse a domain string to the corresponding `StorageDomain`.
+fn parse_domain(domain: &str) -> Result<StorageDomain, PrismError> {
+    match domain {
+        "audit_buffer" => Ok(StorageDomain::AuditBuffer),
+        "alerts" => Ok(StorageDomain::Alerts),
+        "cases" => Ok(StorageDomain::Cases),
+        "schedules" => Ok(StorageDomain::Schedules),
+        "diff_results" => Ok(StorageDomain::DiffResults),
+        "event_buffer" => Ok(StorageDomain::EventBuffer),
+        "detection_rules" => Ok(StorageDomain::DetectionRules),
+        "detection_state" => Ok(StorageDomain::DetectionState),
+        other => Err(PrismError::QueryExecutionFailed {
+            detail: format!("unknown storage domain: '{other}'"),
+        }),
+    }
+}
+
+// ---------------------------------------------------------------------------
+// Internal table schema definitions
+// ---------------------------------------------------------------------------
+
+/// Return the Arrow schema for `prism_audit`.
+///
+/// Schema: `{ timestamp: Utf8, event_type: Utf8, org_id: Utf8, payload: Utf8 }`
+pub(crate) fn audit_schema() -> SchemaRef {
+    Arc::new(Schema::new(vec![
+        Field::new("timestamp", DataType::Utf8, false),
+        Field::new("event_type", DataType::Utf8, false),
+        Field::new("org_id", DataType::Utf8, false),
+        Field::new("payload", DataType::Utf8, false),
+    ]))
+}
+
+/// Return the Arrow schema for `prism_alerts`.
+///
+/// Schema: `{ alert_id: Utf8, rule_id: Utf8, severity: Int32, timestamp: Utf8 }`
+pub(crate) fn alerts_schema() -> SchemaRef {
+    Arc::new(Schema::new(vec![
+        Field::new("alert_id", DataType::Utf8, false),
+        Field::new("rule_id", DataType::Utf8, false),
+        Field::new("severity", DataType::Int32, false),
+        Field::new("timestamp", DataType::Utf8, false),
+    ]))
+}
+
+/// Return the Arrow schema for `prism_cases`.
+///
+/// Schema: `{ case_id: Utf8, status: Utf8, severity: Int32, created_at: Utf8 }`
+pub(crate) fn cases_schema() -> SchemaRef {
+    Arc::new(Schema::new(vec![
+        Field::new("case_id", DataType::Utf8, false),
+        Field::new("status", DataType::Utf8, false),
+        Field::new("severity", DataType::Int32, false),
+        Field::new("created_at", DataType::Utf8, false),
+    ]))
+}
+
+/// Return the Arrow schema for `prism_schedules`.
+///
+/// Schema: `{ schedule_id: Utf8, query: Utf8, cron: Utf8, next_run: Utf8 }`
+pub(crate) fn schedules_schema() -> SchemaRef {
+    Arc::new(Schema::new(vec![
+        Field::new("schedule_id", DataType::Utf8, false),
+        Field::new("query", DataType::Utf8, false),
+        Field::new("cron", DataType::Utf8, false),
+        Field::new("next_run", DataType::Utf8, false),
+    ]))
+}
+
+/// Return the Arrow schema for `prism_diff_results`.
+///
+/// Schema: `{ diff_id: Utf8, rule_id: Utf8, timestamp: Utf8, payload: Utf8 }`
+pub(crate) fn diff_results_schema() -> SchemaRef {
+    Arc::new(Schema::new(vec![
+        Field::new("diff_id", DataType::Utf8, false),
+        Field::new("rule_id", DataType::Utf8, false),
+        Field::new("timestamp", DataType::Utf8, false),
+        Field::new("payload", DataType::Utf8, false),
+    ]))
 }
 
 // ---------------------------------------------------------------------------
@@ -154,16 +346,47 @@ impl datafusion::datasource::TableProvider for RocksDbTableProvider {
 /// Register all internal tables into the given `SessionContext`.
 ///
 /// Called during `run_materialization_pipeline` before SQL plan execution.
-/// Registers: `prism_schedules`, `prism_alerts`, `prism_cases`,
-/// `prism_diff_results`, `prism_audit`. (BC-2.15.011)
+/// Registers: `prism_audit`, `prism_alerts`, `prism_cases`, `prism_schedules`,
+/// `prism_diff_results`. (BC-2.15.011)
 ///
 /// # Capability Gate
 /// `prism_audit` registration is deferred — the capability check occurs at
 /// `scan()` time, not registration time. This allows the table to appear in
 /// schema introspection regardless of capability.
+///
+/// # Idempotency (EC-003)
+/// If called twice, the second call overwrites the first. No error is returned.
 pub fn register_internal_tables(
-    _ctx: &datafusion::execution::context::SessionContext,
-    _backend: Arc<dyn RocksStorageBackend>,
+    ctx: &datafusion::execution::context::SessionContext,
+    backend: Arc<dyn RocksStorageBackend>,
 ) -> Result<(), PrismError> {
-    todo!("S-3.02 — register_internal_tables")
+    let tables: &[(&str, &str, SchemaRef, bool)] = &[
+        ("prism_audit", "audit_buffer", audit_schema(), true),
+        ("prism_alerts", "alerts", alerts_schema(), false),
+        ("prism_cases", "cases", cases_schema(), false),
+        ("prism_schedules", "schedules", schedules_schema(), false),
+        (
+            "prism_diff_results",
+            "diff_results",
+            diff_results_schema(),
+            false,
+        ),
+    ];
+
+    for (table_name, domain, schema, requires_audit_read) in tables {
+        let descriptor = InternalTableDescriptor {
+            table_name: table_name.to_string(),
+            domain: domain.to_string(),
+            schema: Arc::clone(schema),
+            requires_audit_read: *requires_audit_read,
+        };
+        let provider = Arc::new(RocksDbTableProvider::new(descriptor, Arc::clone(&backend)));
+        ctx.register_table(*table_name, provider).map_err(|e| {
+            PrismError::QueryExecutionFailed {
+                detail: format!("failed to register internal table '{table_name}': {e}"),
+            }
+        })?;
+    }
+
+    Ok(())
 }

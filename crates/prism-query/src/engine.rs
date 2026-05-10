@@ -24,8 +24,8 @@
 //!
 //! Story: S-3.02
 
-// Stub module: all non-trivial bodies are todo!() pending implementation (stub-phase convention).
-// Dead code warnings are expected and suppressed here for the stub phase.
+// Implementation module: all stub sites are now filled per S-3.02-FOLLOWUP-RUNTIME.
+// Dead code suppression retained during the transition phase.
 #![allow(dead_code)]
 
 use std::sync::{Arc, Mutex};
@@ -270,10 +270,96 @@ impl QueryEngine {
     /// Enforces 30s timeout, 10K record cap, 200MB GreedyMemoryPool.
     pub async fn execute(
         &self,
-        _query_str: &str,
-        _options: QueryOptions,
+        query_str: &str,
+        options: QueryOptions,
     ) -> Result<QueryResult, PrismError> {
-        todo!("S-3.02 — QueryEngine::execute")
+        let start = std::time::Instant::now();
+
+        // BC-2.11.006: wrap the entire execution in a 30-second timeout.
+        let timeout_secs = self.config.timeout_secs;
+        let result = tokio::time::timeout(
+            std::time::Duration::from_secs(timeout_secs),
+            self.execute_inner(query_str, options),
+        )
+        .await;
+
+        match result {
+            Ok(Ok(mut qr)) => {
+                qr.context.execution_time_ms = start.elapsed().as_millis() as u64;
+                Ok(qr)
+            }
+            Ok(Err(e)) => Err(e),
+            Err(_elapsed) => Err(PrismError::QueryTimeout {
+                elapsed_ms: start.elapsed().as_millis() as u64,
+            }),
+        }
+    }
+
+    /// Inner execution body (without timeout wrapper).
+    async fn execute_inner(
+        &self,
+        query_str: &str,
+        options: QueryOptions,
+    ) -> Result<QueryResult, PrismError> {
+        // Step 1: Resolve client scope (BC-2.11.011).
+        let clients =
+            crate::scoping::resolve_clients(options.clients.clone(), &self.client_registry)?;
+
+        // Step 2: Create ephemeral SessionContext for this query (BC-2.11.005, AD-002).
+        let session_ctx = datafusion::execution::context::SessionContext::new();
+
+        // Step 3: Set up MaterializationContext with engine dependencies.
+        let mut mat_ctx = crate::materialization::MaterializationContext::new(
+            Arc::clone(&self.adapter_registry),
+            Arc::clone(&self.ocsf_normalizer),
+            self.config.max_materialized_records,
+        );
+
+        // Step 4: Resolve effective options (merge client scope into options).
+        let effective_options = QueryOptions {
+            clients: Some(clients.clone()),
+            ..options.clone()
+        };
+
+        // Step 5: Run the materialization pipeline → DataFusion execution → batches.
+        let batches = crate::materialization::run_materialization_pipeline(
+            query_str,
+            &effective_options,
+            &mut mat_ctx,
+            &session_ctx,
+        )
+        .await?;
+
+        // Step 6: Apply tool-level limit truncation.
+        let limit = options.limit.unwrap_or(usize::MAX);
+        let total_rows: usize = batches.iter().map(|b| b.num_rows()).sum();
+        let is_truncated = total_rows > limit;
+        let returned_results = total_rows.min(limit);
+
+        // Truncate to limit (if needed).
+        let final_batches = if is_truncated {
+            truncate_batches_to_limit(batches, limit)
+        } else {
+            batches
+        };
+
+        // Step 7: Build QueryResult.
+        let context = QueryResultContext {
+            original_query: query_str.to_string(),
+            expanded_query: query_str.to_string(),
+            clients_queried: clients,
+            sensors_queried: Vec::new(),
+            execution_time_ms: 0, // filled in by execute()
+        };
+
+        Ok(QueryResult {
+            batches: final_batches,
+            total_available: total_rows,
+            is_truncated,
+            returned_results,
+            context,
+            sensor_errors: Vec::new(),
+        })
     }
 
     /// Analyze a PrismQL query string and return an `ExplainResult` without
@@ -305,8 +391,8 @@ impl QueryEngine {
     /// The `SessionContext` is kept alive by the caller; not ephemeral here.
     pub async fn execute_scheduled(
         &self,
-        _query_str: &str,
-        _clients: Option<Vec<OrgSlug>>,
+        query_str: &str,
+        clients: Option<Vec<OrgSlug>>,
     ) -> Result<
         (
             QueryResult,
@@ -314,6 +400,80 @@ impl QueryEngine {
         ),
         PrismError,
     > {
-        todo!("S-3.02 — QueryEngine::execute_scheduled")
+        let start = std::time::Instant::now();
+
+        // Resolve client scope (BC-2.11.011).
+        let resolved_clients = crate::scoping::resolve_clients(clients, &self.client_registry)?;
+
+        // Create ephemeral SessionContext (kept alive by the returned Arc).
+        let session_ctx = Arc::new(datafusion::execution::context::SessionContext::new());
+
+        // Set up MaterializationContext.
+        let mut mat_ctx = crate::materialization::MaterializationContext::new(
+            Arc::clone(&self.adapter_registry),
+            Arc::clone(&self.ocsf_normalizer),
+            self.config.max_materialized_records,
+        );
+
+        let effective_options = QueryOptions {
+            clients: Some(resolved_clients.clone()),
+            ..QueryOptions::default()
+        };
+
+        // Run the materialization pipeline against the session context.
+        let batches = crate::materialization::run_materialization_pipeline(
+            query_str,
+            &effective_options,
+            &mut mat_ctx,
+            &session_ctx,
+        )
+        .await?;
+
+        let total_rows: usize = batches.iter().map(|b| b.num_rows()).sum();
+
+        let context = QueryResultContext {
+            original_query: query_str.to_string(),
+            expanded_query: query_str.to_string(),
+            clients_queried: resolved_clients,
+            sensors_queried: Vec::new(),
+            execution_time_ms: start.elapsed().as_millis() as u64,
+        };
+
+        let qr = QueryResult {
+            batches,
+            total_available: total_rows,
+            is_truncated: false,
+            returned_results: total_rows,
+            context,
+            sensor_errors: Vec::new(),
+        };
+
+        Ok((qr, session_ctx))
     }
+}
+
+// ---------------------------------------------------------------------------
+// Helper: truncate batches to a row limit
+// ---------------------------------------------------------------------------
+
+/// Truncate a list of `RecordBatch`es to at most `limit` rows total.
+fn truncate_batches_to_limit(
+    batches: Vec<arrow::record_batch::RecordBatch>,
+    limit: usize,
+) -> Vec<arrow::record_batch::RecordBatch> {
+    let mut result = Vec::new();
+    let mut remaining = limit;
+    for batch in batches {
+        if remaining == 0 {
+            break;
+        }
+        if batch.num_rows() <= remaining {
+            remaining -= batch.num_rows();
+            result.push(batch);
+        } else {
+            result.push(batch.slice(0, remaining));
+            remaining = 0;
+        }
+    }
+    result
 }

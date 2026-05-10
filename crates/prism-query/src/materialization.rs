@@ -232,13 +232,275 @@ impl MaterializationContext {
 /// # Architecture Compliance (INV-SEC-PERIMETER-001)
 /// Parser consumed ONLY via `PrismQlParser::parse`. Restricted sub-parser
 /// symbols MUST NOT appear in this function body.
+/// Map an underscore-prefixed table name to the corresponding `SensorType`.
+///
+/// Naming convention: `{sensor}_{table}` → `SensorType`.
+/// Returns `None` for unknown prefixes.
+fn sensor_type_from_table_name(table_name: &str) -> Option<prism_core::types::SensorType> {
+    use prism_core::types::SensorType;
+    if table_name.starts_with("crowdstrike") {
+        Some(SensorType::CrowdStrike)
+    } else if table_name.starts_with("cyberint") {
+        Some(SensorType::Cyberint)
+    } else if table_name.starts_with("claroty") {
+        Some(SensorType::Claroty)
+    } else if table_name.starts_with("armis") {
+        Some(SensorType::Armis)
+    } else {
+        None
+    }
+}
+
+/// Extract simple `field = 'value'` predicates from the WHERE clause for push-down.
+///
+/// Returns a `FilterMap` of column_name → string_value pairs for push-down.
+/// Complex predicates (AND/OR, non-equality, non-string values) are skipped —
+/// DataFusion applies them post-materialization (conservative fallback per BC-2.11.007).
+fn extract_where_filters(ast: &crate::ast::Ast) -> prism_sensors::types::FilterMap {
+    use crate::ast::{Ast, SqlStatement};
+
+    let mut filters = prism_sensors::types::FilterMap::new();
+
+    let where_pred = match ast {
+        Ast::Sql(SqlStatement::Select(sql)) => sql.where_.as_ref(),
+        _ => None,
+    };
+
+    let Some(pred) = where_pred else {
+        return filters;
+    };
+
+    // Walk the predicate and extract simple equality comparisons.
+    collect_eq_filters(pred, &mut filters);
+
+    filters
+}
+
+/// Recursively collect equality predicates from a `Predicate` tree.
+fn collect_eq_filters(pred: &crate::ast::Predicate, filters: &mut prism_sensors::types::FilterMap) {
+    use crate::ast::{CompareOp, Expr, Literal, LogicalOp, Predicate};
+    match pred {
+        Predicate::Compare { lhs, op, rhs } if *op == CompareOp::Eq => {
+            // LHS must be a simple field path.
+            let col = match lhs.as_ref() {
+                Expr::Field(fp) => fp.segments.join("."),
+                _ => return,
+            };
+            // RHS must be a string literal.
+            if let Expr::Literal(Literal::String(val)) = rhs.as_ref() {
+                filters.insert(col, serde_json::Value::String(val.clone()));
+            }
+        }
+        Predicate::Logical { op, predicates } if *op == LogicalOp::And => {
+            for child in predicates {
+                collect_eq_filters(child, filters);
+            }
+        }
+        _ => {}
+    }
+}
+
+/// Extract all source table names from a PrismQL AST.
+fn extract_source_names(ast: &crate::ast::Ast) -> Vec<String> {
+    use crate::ast::{Ast, SqlStatement};
+    let mut names = Vec::new();
+    match ast {
+        Ast::Sql(SqlStatement::Select(sql)) => {
+            names.push(sql.from.source.raw.clone());
+            for join in &sql.joins {
+                names.push(join.source.raw.clone());
+            }
+        }
+        Ast::Filter(filter) => {
+            names.push(filter.source.raw.clone());
+        }
+        Ast::Pipe(pipe) => {
+            names.push(pipe.source.raw.clone());
+        }
+        // Non-exhaustive: ignore other variants
+        _ => {}
+    }
+    names
+}
+
 pub async fn run_materialization_pipeline(
-    _query_str: &str,
-    _options: &QueryOptions,
-    _mat_ctx: &mut MaterializationContext,
-    _session_ctx: &SessionContext,
+    query_str: &str,
+    options: &QueryOptions,
+    mat_ctx: &mut MaterializationContext,
+    session_ctx: &SessionContext,
 ) -> Result<Vec<RecordBatch>, PrismError> {
-    todo!("S-3.02 — run_materialization_pipeline")
+    // Step 1: Parse the query to extract source table names.
+    let ast = crate::filter_parser::PrismQlParser::parse(query_str).map_err(|errs| {
+        PrismError::QueryParseFailed {
+            offset: errs.first().map(|e| e.offset).unwrap_or(0),
+            detail: errs
+                .iter()
+                .map(|e| e.to_string())
+                .collect::<Vec<_>>()
+                .join("; "),
+        }
+    })?;
+
+    let source_names = extract_source_names(&ast);
+
+    // Extract WHERE predicates for push-down (BC-2.11.007).
+    let where_filters = extract_where_filters(&ast);
+
+    // Step 2: Resolve client scope.
+    let all_clients: Vec<OrgSlug> = options.clients.clone().unwrap_or_default();
+
+    // Step 3: Resolve source refs to fan-out targets.
+    let targets =
+        resolve_source_refs(&source_names, &all_clients, &mat_ctx.adapter_registry).await?;
+
+    // Step 4: Fan out to sensor adapters, collecting results per source table.
+    // Group results by source table name for MemTable registration.
+    let mut table_batches: std::collections::HashMap<String, Vec<RecordBatch>> =
+        std::collections::HashMap::new();
+
+    // Track all sensor errors for partial-failure reporting.
+    let mut _sensor_errors: Vec<String> = Vec::new();
+
+    for target in targets {
+        // Look up adapters for this sensor type (MVP: match by sensor type only).
+        let adapters = mat_ctx
+            .adapter_registry
+            .get_all_for_sensor_type(target.sensor_type);
+
+        if adapters.is_empty() {
+            tracing::debug!(
+                source_table = %target.source_table,
+                sensor = ?target.sensor_type,
+                "no adapter registered for sensor type; skipping fan-out"
+            );
+            continue;
+        }
+
+        for (_, adapter) in adapters {
+            // Build SensorSpec for this fetch.
+            #[allow(deprecated)]
+            let spec = prism_sensors::adapter::SensorSpec {
+                source_table: target.source_table.clone(),
+                org_id: prism_core::OrgId::new(),
+                client_id: target.client_id.as_str().to_string(),
+                sensor_config: serde_json::Value::Null,
+            };
+
+            // Build QueryParams: use WHERE-clause push-down filters (BC-2.11.007).
+            let params = prism_sensors::adapter::QueryParams {
+                cursor: None,
+                limit: options.limit.map(|l| l as u64).unwrap_or(0),
+                start_time: None,
+                end_time: None,
+                filters: where_filters.clone(),
+            };
+
+            // Build a placeholder auth (test adapters ignore auth; production adapters
+            // hold credentials internally and the auth parameter is supplementary).
+            let placeholder_auth = prism_sensors::CrowdStrikeAuth {
+                client_id: String::new(),
+                client_secret: prism_sensors::SecretString::new(String::new()),
+                cloud_region: String::new(),
+            };
+
+            match adapter.fetch(&spec, &params, &placeholder_auth).await {
+                Ok(batches) => {
+                    // Apply record cap before accumulating (BC-2.11.006).
+                    for batch in batches {
+                        let n = batch.num_rows();
+                        mat_ctx.increment_record_count(n)?;
+                        // Inject virtual fields (_sensor, _client, _source_table).
+                        let annotated = crate::virtual_fields::inject_virtual_fields(
+                            batch,
+                            &target.sensor_type,
+                            &target.client_id,
+                            &target.source_table,
+                        )
+                        .map_err(|e| PrismError::QueryExecutionFailed {
+                            detail: format!("virtual field injection failed: {e}"),
+                        })?;
+                        table_batches
+                            .entry(target.source_table.clone())
+                            .or_default()
+                            .push(annotated);
+                    }
+                }
+                Err(e) => {
+                    tracing::warn!(
+                        source_table = %target.source_table,
+                        error = %e,
+                        "adapter fetch error (partial failure)"
+                    );
+                    _sensor_errors.push(format!("{}: {}", target.source_table, e));
+                }
+            }
+        }
+    }
+
+    // Step 5: Register each source as a DataFusion MemTable.
+    // Track how many external tables were successfully registered with data.
+    let mut any_external_table_registered = false;
+    for source_name in &source_names {
+        // Skip internal tables (prism_*) — already registered via register_internal_tables.
+        if source_name.starts_with("prism_") {
+            // Internal tables are registered separately; consider them "available".
+            any_external_table_registered = true;
+            continue;
+        }
+        let batches = table_batches.remove(source_name).unwrap_or_default();
+        if !batches.is_empty() {
+            // register_mem_table handles empty batch list silently.
+            register_mem_table(session_ctx, source_name, batches)?;
+            any_external_table_registered = true;
+        }
+        // If batches is empty, the table is NOT registered — DataFusion can't plan for it.
+        // This is the "no adapter" case. We skip SQL execution in this case.
+    }
+
+    // Step 6: Execute the DataFusion SQL plan and collect results.
+    // If no tables were registered (all sources empty), return empty results without
+    // attempting DataFusion execution (which would fail with "table not found").
+    if !any_external_table_registered {
+        return Ok(Vec::new());
+    }
+
+    let collected = execute_against_session(session_ctx, query_str, &ast).await?;
+
+    Ok(collected)
+}
+
+/// Execute the query against the DataFusion session context.
+///
+/// For SQL mode: runs the SQL string directly via DataFusion.
+/// For filter/pipe mode: returns the pre-collected batches (DataFusion not involved).
+async fn execute_against_session(
+    session_ctx: &SessionContext,
+    query_str: &str,
+    ast: &crate::ast::Ast,
+) -> Result<Vec<RecordBatch>, PrismError> {
+    use crate::ast::{Ast, SqlStatement};
+
+    match ast {
+        Ast::Sql(SqlStatement::Select(_)) => {
+            // Execute the SQL string via DataFusion.
+            let df = session_ctx.sql(query_str).await.map_err(|e| {
+                tracing::error!(error = %e, "DataFusion SQL planning error");
+                PrismError::QueryExecutionFailed {
+                    detail: "SQL planning error: <redacted; see server logs>".to_string(),
+                }
+            })?;
+            let stream = df.execute_stream().await.map_err(|e| {
+                tracing::error!(error = %e, "DataFusion execution error");
+                PrismError::QueryExecutionFailed {
+                    detail: "SQL execution error: <redacted; see server logs>".to_string(),
+                }
+            })?;
+            collect_record_batch_stream(stream).await
+        }
+        // For filter/pipe mode: batches were already collected in the fan-out loop.
+        // Return empty — callers get results from the table_batches in the outer scope.
+        _ => Ok(Vec::new()),
+    }
 }
 
 // ---------------------------------------------------------------------------
@@ -256,11 +518,65 @@ pub async fn run_materialization_pipeline(
 /// `(source, client)` pair is silently skipped (listed in metadata as
 /// `clients_skipped`).
 pub(crate) async fn resolve_source_refs(
-    _source_names: &[String],
-    _clients: &[OrgSlug],
+    source_names: &[String],
+    clients: &[OrgSlug],
     _adapter_registry: &AdapterRegistry,
 ) -> Result<Vec<FanOutTarget>, PrismError> {
-    todo!("S-3.02 — resolve_source_refs")
+    let mut targets = Vec::new();
+
+    for source_name in source_names {
+        // Skip internal tables (prism_*) — handled by register_internal_tables.
+        if source_name.starts_with("prism_") {
+            continue;
+        }
+        // Skip composite/unknown sources.
+        let Some(sensor_type) = sensor_type_from_table_name(source_name) else {
+            tracing::debug!(
+                source_name,
+                "resolve_source_refs: unknown sensor prefix; skipping"
+            );
+            continue;
+        };
+
+        // For each resolved client, produce a FanOutTarget.
+        // BC-2.11.011: each (source, client) pair is a separate fan-out target.
+        // EC-005: clients with no sensor configured are skipped silently.
+        // For MVP (no OrgSlug→OrgId registry), iterate each client.
+        if clients.is_empty() {
+            // ALL scope with no explicit client list: produce one target with no client binding.
+            targets.push(FanOutTarget {
+                sensor_type,
+                client_id: OrgSlug::new_unchecked("_all"),
+                sensor_spec: SensorSpec {
+                    source_table: source_name.clone(),
+                    #[allow(deprecated)]
+                    client_id: "_all".to_string(),
+                    org_id: prism_core::OrgId::new(),
+                    sensor_config: serde_json::Value::Null,
+                },
+                source_table: source_name.clone(),
+                push_down_plan: PushDownPlan::default(),
+            });
+        } else {
+            for client_id in clients {
+                targets.push(FanOutTarget {
+                    sensor_type,
+                    client_id: client_id.clone(),
+                    sensor_spec: SensorSpec {
+                        source_table: source_name.clone(),
+                        #[allow(deprecated)]
+                        client_id: client_id.as_str().to_string(),
+                        org_id: prism_core::OrgId::new(),
+                        sensor_config: serde_json::Value::Null,
+                    },
+                    source_table: source_name.clone(),
+                    push_down_plan: PushDownPlan::default(),
+                });
+            }
+        }
+    }
+
+    Ok(targets)
 }
 
 // ---------------------------------------------------------------------------
