@@ -1,0 +1,22 @@
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.39s
+────────────
+ Nextest run ID 6a423335-9c21-46e3-bf47-b1fb6ef0b275 with nextest profile: default
+    Starting 16 tests across 9 binaries (881 tests skipped)
+        PASS [   0.035s] ( 1/16) prism-query::execute_integration_tests test_LP2_CRIT_1_scan_time_gate_allows_with_audit_read
+        PASS [   0.036s] ( 2/16) prism-query::execute_integration_tests test_LP2_CRIT_1_scan_time_gate_rejects_without_audit_read
+        PASS [   0.037s] ( 3/16) prism-query::execute_integration_tests test_LP2_CRIT_1_with_audit_read_capability_subquery_allowed
+        PASS [   0.038s] ( 4/16) prism-query::execute_integration_tests test_LP2_CRIT_1_subquery_in_where_blocked_without_audit_read
+        PASS [   0.038s] ( 5/16) prism-query materialization::walker_coverage_tests::test_LP5_LOW_1_pipe_join_internal_table_discovered_by_layer1
+        PASS [   0.038s] ( 6/16) prism-query materialization::walker_coverage_tests::test_LP3_CRIT_1_order_by_subquery_discovered_by_layer1
+        PASS [   0.039s] ( 7/16) prism-query explain::walker_coverage_tests::test_LP6_LOW_1_dml_source_select_appears_in_explain_sensors
+        PASS [   0.039s] ( 8/16) prism-query materialization::walker_coverage_tests::test_LP6_LOW_1_dml_source_select_subquery_discovered_by_layer1
+        PASS [   0.039s] ( 9/16) prism-query::execute_integration_tests test_LP2_LOW_1_limit_exceeded_returns_query_limit_exceeded_variant
+        PASS [   0.040s] (10/16) prism-query materialization::walker_coverage_tests::test_LP3_CRIT_1_group_by_subquery_discovered_by_layer1
+        PASS [   0.042s] (11/16) prism-query materialization::walker_coverage_tests::test_LP6_LOW_1_dml_filter_subquery_discovered_by_layer1
+        PASS [   0.042s] (12/16) prism-query::execute_integration_tests test_LP2_CRIT_1_having_subquery_blocked_without_audit_read
+        PASS [   0.046s] (13/16) prism-query::execute_integration_tests test_LP2_CRIT_1_descriptor_driven_non_audit_table_also_gated
+        PASS [   0.047s] (14/16) prism-query materialization::walker_coverage_tests::test_LP3_CRIT_1_join_on_subquery_discovered_by_layer1
+        PASS [   0.047s] (15/16) prism-query::execute_integration_tests test_LP2_MED_2_cache_key_includes_filters
+        PASS [   0.050s] (16/16) prism-query materialization::walker_coverage_tests::test_LP4_MED_1_func_call_args_subquery_discovered_by_layer1
+────────────
+     Summary [   0.051s] 16 tests run: 16 passed, 881 skipped

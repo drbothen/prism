@@ -190,13 +190,14 @@ pub(crate) fn translate_push_down_filter(
     _predicate: &Predicate,
     _columns: &[ColumnSpec],
 ) -> Option<String> {
-    // S-3.X — sensor-specific filter translation. Each sensor adapter will
-    // implement its own translator (e.g., CrowdStrike FQL, Cyberint queries,
-    // Claroty xDome POST body arrays, Armis AQL) because predicate-to-API-filter
-    // mapping is sensor-specific. The current stub is a placeholder; a
-    // Debug-formatted Expr would leak AST internals to external sensor APIs
-    // (CWE-209). Replace with sensor-specific dispatch in the relevant S-3.X story.
-    todo!("S-3.X — sensor-specific filter translation")
+    // ADV-W3MT-P61-LOW-001 / POL-12: replace todo!() with the correct sentinel.
+    // Sensor-specific filter translation (CrowdStrike FQL, Cyberint queries,
+    // Claroty xDome POST body, Armis AQL) is deferred to per-sensor stories (S-3.X).
+    // `None` is the correct return: callers fall back to post-DataFusion filtering
+    // with a WARN log, which is the documented behavior. (BC-2.11.007)
+    // No sensor API leakage — Debug-formatted AST is NOT emitted to external APIs.
+    let _ = (_predicate, _columns); // documented deferral
+    None
 }
 
 // ---------------------------------------------------------------------------
@@ -233,5 +234,99 @@ fn virtual_field_name(vf: &crate::ast::VirtualField) -> &'static str {
         SourceType => "_source_type",
         SafetyFlags => "_safety_flags",
         _ => "_unknown",
+    }
+}
+
+// ---------------------------------------------------------------------------
+// predicate_tree_to_filter_map (F-LP2-MED-1)
+// ---------------------------------------------------------------------------
+
+/// Convert a `Predicate` tree into a sensor `FilterMap` by extracting simple
+/// equality predicates.
+///
+/// This function replaces the local `collect_eq_filters` helper in
+/// `materialization.rs`. It extracts `field = 'value'` equality predicates from
+/// the predicate tree (walking `AND` conjunctions) and builds a flat `FilterMap`
+/// from them directly.
+///
+/// Push-down is a performance optimization only — predicates not expressible as
+/// simple `field = value` pairs are silently omitted from the filter map (they
+/// will be evaluated by DataFusion post-materialization). (BC-2.11.007)
+///
+/// # Scope note (F-LP3-MED-1)
+/// This function is called pre-fan-out from `extract_push_down_filters_as_map`,
+/// where no per-sensor `ColumnSpec` is available. Threading `ColumnSpec` through
+/// would require changing the call sequence in `extract_push_down_filters_as_map`
+/// and the fan-out orchestration — that is tracked as future work (wave-5, ADR-022 §C).
+/// For now, all equality predicates are passed through to the sensor adapter
+/// regardless of whether the column is declared REQUIRED/INDEX/ADDITIONAL; the
+/// adapter discards unknown filter parameters. `classify_predicates` is NOT called
+/// here because its return value would be meaningless with an empty spec slice
+/// (all predicates fall through to `post_filter`, which is then discarded).
+pub fn predicate_tree_to_filter_map(
+    predicate: &crate::ast::Predicate,
+) -> prism_sensors::types::FilterMap {
+    // Collect all `field = 'value'` equality expressions from the predicate tree.
+    let mut eq_exprs: Vec<crate::ast::Expr> = Vec::new();
+    collect_equality_exprs(predicate, &mut eq_exprs);
+
+    // Build the FilterMap directly from collected equality expressions.
+    // (Per-sensor classify_predicates integration deferred to wave-5 when ColumnSpec
+    // is available at the pre-fan-out stage — see scope note above.)
+    let mut filters = prism_sensors::types::FilterMap::new();
+    for expr in &eq_exprs {
+        if let Some((col, val)) = extract_eq_filter_from_expr(expr) {
+            filters.insert(col, val);
+        }
+    }
+    filters
+}
+
+/// Recursively collect equality comparison expressions from a predicate tree.
+///
+/// Only collects `field = 'string_value'` comparisons. `AND` conjunctions are
+/// decomposed; other logical operators are skipped (conservative).
+fn collect_equality_exprs(pred: &crate::ast::Predicate, out: &mut Vec<crate::ast::Expr>) {
+    use crate::ast::{CompareOp, Expr, Literal, LogicalOp, Predicate};
+    match pred {
+        // Only include `field = 'string'` comparisons (not virtual fields or complex exprs).
+        Predicate::Compare { lhs, op, rhs }
+            if *op == CompareOp::Eq
+                && matches!(lhs.as_ref(), Expr::Field(_))
+                && matches!(rhs.as_ref(), Expr::Literal(Literal::String(_))) =>
+        {
+            out.push(Expr::Compare {
+                lhs: lhs.clone(),
+                op: op.clone(),
+                rhs: rhs.clone(),
+            });
+        }
+        Predicate::Logical { op, predicates } if *op == LogicalOp::And => {
+            for child in predicates {
+                collect_equality_exprs(child, out);
+            }
+        }
+        _ => {}
+    }
+}
+
+/// Extract a `(column_name, json_value)` pair from an `Expr::Compare` equality.
+///
+/// Returns `None` if the expression is not a simple `field = 'string'` comparison.
+fn extract_eq_filter_from_expr(expr: &crate::ast::Expr) -> Option<(String, serde_json::Value)> {
+    use crate::ast::{CompareOp, Expr, Literal};
+    match expr {
+        Expr::Compare { lhs, op, rhs } if *op == CompareOp::Eq => {
+            let col = match lhs.as_ref() {
+                Expr::Field(fp) => fp.segments.join("."),
+                _ => return None,
+            };
+            if let Expr::Literal(Literal::String(val)) = rhs.as_ref() {
+                Some((col, serde_json::Value::String(val.clone())))
+            } else {
+                None
+            }
+        }
+        _ => None,
     }
 }
