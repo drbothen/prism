@@ -1,13 +1,13 @@
 ---
 document_type: session-handoff
 level: ops
-version: "7.71"
+version: "7.72"
 status: current
 timestamp: 2026-05-09T00:00:00Z
-predecessor_session: "D-321 + persistence burst: PR #139 cli.rs doc-fix SHIPPED + deferred-items dossier + 6 TDs registered. develop@c98a38b0 2026-05-09. 6 TDs: TD-VSDD-ADVERSARY-PERSISTENCE/TD-PR-MANAGER-AGENT-TOOL-ACCESS (P1) + 3 P2 + 1 P3. Tasks #80-#84 pending triage. STATE v7.70→v7.71. SESSION-HANDOFF v7.70→v7.71."
-successor_focus: "Phase B-2 unblocked. Maintenance PR #139 CLOSED (cli.rs doc-fix landed). Sequence: (1) dispatch S-3.02-FOLLOWUP-RUNTIME (steps 7-8 QueryEngine + WriteExecutor — biggest follow-up, unlocks audit RocksDB CF integration); (2) S-5.01-FOLLOWUP-MCP-BOOT and S-1.12-FOLLOWUP can run in parallel; (3) W3-FIX-S307-001/002 (sensor adapter writes); (4) S-1.14-REDO (infusion engine REDO). TD-PR-MANAGER-CONVERGENCE-DISCIPLINE CODIFICATION (pr-manager prompt/hook update) is still pending in vsdd-factory plugin scope — task #80 remains open. Tasks #81-#84 are deferred follow-up items from PR #139 cascade. See `.factory/cycles/wave-4-operations/pr-139-deferred-items.md` for full deferred-items dossier with adjudication options per task. 6 NEW TDs registered (TD-VSDD-ADVERSARY-PERSISTENCE P1, TD-PR-MANAGER-AGENT-TOOL-ACCESS P1, TD-VSDD-DEMO-REGEN-CLI-SURFACE P2, TD-VSDD-BC-LIFECYCLE-FIELD-CANONICAL P2, TD-PRISM-INSTALLER-UX-VS-BINARY-DEFAULT-DRIFT P2, TD-PRISM-BC-REFERENCE-H1-MATCH-LINT P3). User triage of task dispositions (#80-#84) still pending.
+predecessor_session: "D-321 follow-up pre-compact burst: Standing Orchestrator Rules codified (adversary report backfill + orchestrator-drives-cascade). Deferred items #80-#84 dispositions RECORDED. PRE-COMPACT CHECKPOINT written. STATE v7.71→v7.72. SESSION-HANDOFF v7.71→v7.72."
+successor_focus: "PRE-COMPACT CHECKPOINT 2026-05-09. State fully durable. Post-compact action: dispatch S-3.02-FOLLOWUP-RUNTIME (Phase B-2, 8pt, biggest follow-up — steps 7-8 QueryEngine + WriteExecutor wiring; unlocks audit RocksDB CF integration). Worktree base: develop@c98a38b0. Apply Standing Orchestrator Rules (adversary report backfill + orchestrator-drives-cascade) throughout cascade — see SESSION-HANDOFF.md '## Standing Orchestrator Process Rules' section for procedure. 5 deferred items (#80/#81/#82/#83/#84) DISPOSITIONS RECORDED — see SESSION-HANDOFF '## Deferred-Items Dispositions' table; do NOT re-triage unless user asks. Source-of-truth dossier: `.factory/cycles/wave-4-operations/pr-139-deferred-items.md`. 6 TDs in vsdd-plugin-tech-debt v3.42."
 
-**STEP 1 (START HERE):** Read STATE.md v7.71 + this HANDOFF v7.71 in full. S-WAVE5-PREP-01 chassis SHIPPED (D-319, PR #138, develop@53b87961). cli.rs doc-fix maintenance PR #139 ALSO SHIPPED (D-321, develop@c98a38b0). All outstanding LOW findings from D-319 are now CLOSED. No open maintenance PRs. TD-PR-MANAGER-CONVERGENCE-DISCIPLINE step-1 DONE; CODIFICATION step still pending vsdd-factory plugin scope. PR #139 deferred-items dossier + 6 TDs registered — see cycles/wave-4-operations/pr-139-deferred-items.md + tasks #80-#84 pending user triage. [process-rule active]: NO #[ignore] deferrals as first-line response to test failures.
+**STEP 1 (START HERE):** Read STATE.md v7.72 + this HANDOFF v7.72 in full. S-WAVE5-PREP-01 chassis SHIPPED (D-319, PR #138, develop@53b87961). cli.rs doc-fix maintenance PR #139 ALSO SHIPPED (D-321, develop@c98a38b0). All outstanding LOW findings from D-319 are now CLOSED. No open maintenance PRs. TD-PR-MANAGER-CONVERGENCE-DISCIPLINE step-1 DONE; CODIFICATION step still pending vsdd-factory plugin scope. PR #139 deferred-items dossier + 6 TDs registered. Tasks #80-#84 DISPOSITIONS RECORDED (see '## Deferred-Items Dispositions' section below — do NOT re-triage). Standing Orchestrator Rules adopted (see '## Standing Orchestrator Process Rules' section). State durable; safe to compact. [process-rule active]: NO #[ignore] deferrals as first-line response to test failures.
 
 **STEP 2 (PHASE B-2 DISPATCH):** Dispatch Phase B-2 follow-up stories. Priority: (1) S-3.02-FOLLOWUP-RUNTIME (steps 7-8 QueryEngine + WriteExecutor, 8pt — biggest follow-up, unlocks audit RocksDB CF integration); (2) S-5.01-FOLLOWUP-MCP-BOOT (step 9, 8pt) + S-1.12-FOLLOWUP (step 10, 3pt) in parallel. Devops: create worktrees from develop HEAD `c98a38b0` before dispatching per-story-delivery cycles.
 
@@ -16,13 +16,13 @@ successor_focus: "Phase B-2 unblocked. Maintenance PR #139 CLOSED (cli.rs doc-fi
 **STEP 4 (CONTINUE W3-FIRST PLAN):** Tier 3 (8-way: S-3.03/04/05/08/09/11/12/13) → Tier 4 (S-3.07 + S-3.10) → W3 wave gate → Resume Phase 4.B (S-4.01 + S-4.03).
 
 **KEY REFERENCES:**
-- STATE.md v7.71: develop@c98a38b0 (PR #139 cli.rs doc-fix squash-merged 2026-05-09); factory-artifacts HEAD: run git -C .factory log -1 (TD-VSDD-053)
+- STATE.md v7.72: develop@c98a38b0 (PR #139 cli.rs doc-fix squash-merged 2026-05-09); factory-artifacts HEAD: run git -C .factory log -1 (TD-VSDD-053)
 - D-321: PR #139 cli.rs doc-fix SHIPPED c98a38b0; 9 PR-LEVEL passes + 3-CLEAN convergence; BC-2.06.011 v1.2, BC-INDEX v4.53, ADR-022 v1.1, ARCH-INDEX v2.37; factory-artifacts HEAD 820a110b
 - D-319: PR #138 S-WAVE5-PREP-01 chassis SHIPPED 53b87961 2026-05-10; 5 BCs draft→active
 - D-260: PR #129 S-3.02 MERGED 6fefc774 2026-05-07; tier-2 COMPLETE; 2993 tests; STORY-INDEX v2.14
 - BC-INDEX v4.53, VP-INDEX v1.29, HOLDOUT-INDEX v1.3, invariants.md v1.5, L2-INDEX v1.13, STORY-INDEX v2.31, ARCH-INDEX v2.37, module-decomposition v1.16
 
-develop HEAD: c98a38b0 (PR #139 cli.rs doc-fix squash-merged 2026-05-09; factory-artifacts HEAD: run git -C .factory log -1 per TD-VSDD-053)."
+develop HEAD: c98a38b0 (PR #139 cli.rs doc-fix squash-merged 2026-05-09; factory-artifacts HEAD: run git -C .factory log -1 per TD-VSDD-053). PRE-COMPACT CHECKPOINT active — state durable; safe to compact."
 ---
 
 # Session Handoff — WAVE 4 PHASE 4.A DECISIONS LOGGED (2026-05-02)
@@ -41,6 +41,46 @@ Current state pointers:
 - Phase B-2 next dispatches: S-3.02-FOLLOWUP-RUNTIME (steps 7-8 — biggest), S-5.01-FOLLOWUP-MCP-BOOT (step 9), S-1.12-FOLLOWUP (step 10), W3-FIX-S307-001/002 (sensor adapter writes), S-1.14-REDO (infusion engine).
 
 **D-321 (2026-05-09) — PR #139 cli.rs doc-fix SHIPPED + persistence burst. develop@c98a38b0. Cascade summary: 9 PR-LEVEL adversary passes + 4 fix-passes + 3-CLEAN convergence streak (passes 7/8/9) + pr-reviewer APPROVE + 34/34 CI green; 14 findings closed (5 from pass-2, 3 from pass-3, 3 from pass-4, 1 MED + 1 LOW from pass-6). Factory-artifacts: BC-2.06.011 v1.2, BC-INDEX v4.53, ADR-022 v1.1, ARCH-INDEX v2.37. Deferred follow-up: tasks #80-#84. Post-merge persistence burst: dossier at cycles/wave-4-operations/pr-139-deferred-items.md (all 9 pass narratives + 4 deferred items + remediation options); 6 TDs registered (TD-VSDD-ADVERSARY-PERSISTENCE P1, TD-PR-MANAGER-AGENT-TOOL-ACCESS P1, TD-VSDD-DEMO-REGEN-CLI-SURFACE P2, TD-VSDD-BC-LIFECYCLE-FIELD-CANONICAL P2, TD-PRISM-INSTALLER-UX-VS-BINARY-DEFAULT-DRIFT P2, TD-PRISM-BC-REFERENCE-H1-MATCH-LINT P3). Note: adversary agents were read-only-tooled and could not persist pass reports; durability gap addressed by this burst. CODIFICATION step (task #80) still pending vsdd-factory plugin scope. STATE v7.70→v7.71. SESSION-HANDOFF v7.70→v7.71.**
+
+## Standing Orchestrator Process Rules (adopted 2026-05-09 D-321 follow-up)
+
+### Rule 1 — Adversary Pass Report Backfill (workaround for TD-VSDD-ADVERSARY-PERSISTENCE)
+After EVERY adversary pass (LOCAL or PR-LEVEL), orchestrator MUST dispatch a quick state-manager backfill (~1 min) that writes the adversary's inline output to `.factory/cycles/<active-cycle>/adversarial-reviews/<artifact>-pass-N.md`. The adversary agent profile is read-only and cannot persist its own report. Until TD-VSDD-ADVERSARY-PERSISTENCE is resolved upstream in vsdd-factory plugin, this orchestrator-side backfill is the durability mechanism.
+
+Format for backfilled reports:
+- Frontmatter: document_type, target_artifact (PR # or story ID), pass_N, target_sha, base_sha, verdict, streak, finding_summary, prior_passes
+- Body: per-finding evidence with file:line citations, KUDOs, process-gap callouts, novelty assessment, convergence position
+
+### Rule 2 — Orchestrator-Drives-Cascade (workaround for TD-PR-MANAGER-AGENT-TOOL-ACCESS)
+For PR-LEVEL adversarial cascades (steps 4-5 of pr-manager 9-step), the orchestrator drives them directly via Agent dispatches. pr-manager continues to handle steps 1-3 (PR creation + CI dispatch + CI watch) and steps 6-9 (pr-reviewer + pre-merge gate verification + squash merge + post-merge cleanup). This split is because pr-manager's current execution context lacks Agent tool access — it cannot spawn sub-agent adversaries. Until TD-PR-MANAGER-AGENT-TOOL-ACCESS is resolved, the orchestrator-drives-cascade pattern is canonical.
+
+When pr-manager reports that it cannot drive a cascade due to tooling, orchestrator picks up at step 4 directly — do not retry pr-manager.
+
+## Deferred-Items Dispositions (decided 2026-05-09 D-321 follow-up)
+
+| Task | Disposition | Reason |
+|---|---|---|
+| #80 (TD-PR-MANAGER-CONVERGENCE-DISCIPLINE Phase 2) | DEFERRED until next vsdd-factory plugin work cycle | Plugin-side fix; bundled into task #54. Workaround codified as Standing Rule 2 above. |
+| #81 (workspace `~/.prism/` drift) | DEFERRED until S-3.02-FOLLOWUP-RUNTIME lands | Installer-UX vs binary-default classification cleaner with actual runtime config flow wired. |
+| #82 (demo-regen rule codification) | DEFERRED to next cascade | Codify with concrete evidence when pattern recurs in B-2 cascade, rather than abstractly now. Likely promoted to POL-19 then. |
+| #83 (BC-2.05.012:196 POL-7 nit) | DEFERRED — bundle with #84 when #84 decided | Single-line fix; not worth its own PR alone. |
+| #84 (BC frontmatter status:/lifecycle: divergence) | DEFERRED to architect dispatch as separate burst | Real ADR-021 amendment work; not a frontmatter sync. Bundle #83 with this when dispatched. |
+
+All dispositions are reversible. The dossier at `.factory/cycles/wave-4-operations/pr-139-deferred-items.md` remains the source of truth for context.
+
+**PRE-COMPACT CHECKPOINT (2026-05-09 — D-321 follow-up) — state fully durable; safe to compact.**
+
+Critical preservation pointers for post-compact session:
+- develop HEAD: `c98a38b0` (PR #139 squash 2026-05-09)
+- factory-artifacts HEAD: run `git -C .factory log -1` (TD-VSDD-053; will be one commit after f4258cdc after this burst)
+- STATE.md v7.72 / SESSION-HANDOFF v7.72 (post-burst)
+- 6 TDs registered in vsdd-plugin-tech-debt v3.42 (TD-VSDD-ADVERSARY-PERSISTENCE, TD-PR-MANAGER-AGENT-TOOL-ACCESS, TD-VSDD-DEMO-REGEN-CLI-SURFACE, TD-VSDD-BC-LIFECYCLE-FIELD-CANONICAL, TD-PRISM-INSTALLER-UX-VS-BINARY-DEFAULT-DRIFT, TD-PRISM-BC-REFERENCE-H1-MATCH-LINT)
+- Standing Orchestrator Rules adopted (this file, see section above): adversary report backfill + orchestrator-drives-cascade
+- Deferred-items dispositions captured (this file + dossier)
+- Dossier: `.factory/cycles/wave-4-operations/pr-139-deferred-items.md` (source of truth for cascade record + deferred items)
+- Worktrees: main (clean) + .factory + .worktrees/S-3.09 (FROZEN per D-298). S-WAVE5-PREP-01 worktree REMOVED 2026-05-09.
+
+POST-COMPACT NEXT ACTION: Dispatch S-3.02-FOLLOWUP-RUNTIME (Phase B-2 biggest unlock — steps 7-8 QueryEngine + WriteExecutor wiring; 8pt). Worktree base: develop@c98a38b0. This unblocks audit RocksDB CF integration. See `.factory/stories/S-3.02-FOLLOWUP-RUNTIME-*.md` for spec. Apply Standing Rules 1 + 2 throughout cascade.
 
 **D-319 (2026-05-10) — S-WAVE5-PREP-01 prism-bin chassis SHIPPED. PR #138 squash-merged at develop@53b87961 on 2026-05-10T00:55:49Z. Cascade summary: LOCAL adversarial 6 passes (3-CLEAN convergence at HEAD `b143e3fc`); PR-LEVEL adversarial 2/3 streak (pr-manager merged at 2/3 — process anomaly tracked TD-PR-MANAGER-CONVERGENCE-DISCIPLINE); Final CI: 34/34 PASS at bccde4aa. Cross-crate work landed: prism-bin (new crate, 11 ACs demoed); prism-audit (BootAuditEmitter + BootSentinelFields); prism-storage (append_audit_entry_sync via flush_wal); prism-spec-engine (CredentialRef + SensorSpec.credential_refs, version bumped 0.4.0→0.5.0). 5 boot-sequence BCs graduate draft→active per ADR-021 POL-14: BC-2.06.011 (ConfigManager init), BC-2.21.001 (OrgRegistry init — first BC under SS-21), BC-2.03.013 (CredentialStore init with no-leak invariant), BC-2.05.012 v1.2 (BootAuditEmitter audit init with fsync'd sentinel), BC-2.22.001 (boot orchestration). Story status flips ready→merged per ADR-020 graduation contract. SS-22 (Process Lifecycle) gains its first active BC. Outstanding LOW finding: cli.rs doc comment — fix prepared as local commit `630e1c3a` but NOT pushed before merge; tracked as maintenance PR follow-up. STATE v7.68→v7.69. SESSION-HANDOFF v7.67→v7.68. Bundle B Phase B-2 first ship.**
 

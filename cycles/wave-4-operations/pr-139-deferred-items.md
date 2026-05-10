@@ -258,3 +258,17 @@ created: 2026-05-09
 - CI result: 34/34 checks PASS
 - pr-reviewer verdict: APPROVE (0 findings)
 - factory-artifacts HEAD after all factory work: `820a110b`
+
+## Dispositions (decided 2026-05-09)
+
+All five deferred items triaged and dispositioned. All dispositions are reversible.
+
+| Task | Disposition | Reason |
+|---|---|---|
+| #80 (TD-PR-MANAGER-CONVERGENCE-DISCIPLINE Phase 2) | DEFERRED until next vsdd-factory plugin work cycle | Plugin-side fix; bundled into task #54. Workaround codified as Standing Orchestrator Rule 2 in SESSION-HANDOFF.md. |
+| #81 (workspace `~/.prism/` drift) | DEFERRED until S-3.02-FOLLOWUP-RUNTIME lands | Installer-UX vs binary-default classification cleaner with actual runtime config flow wired. |
+| #82 (demo-regen rule codification) | DEFERRED to next cascade | Codify with concrete evidence when pattern recurs in B-2 cascade, rather than abstractly now. Likely promoted to POL-19 then. |
+| #83 (BC-2.05.012:196 POL-7 nit) | DEFERRED — bundle with #84 when #84 decided | Single-line fix; not worth its own PR alone. |
+| #84 (BC frontmatter status:/lifecycle: divergence) | DEFERRED to architect dispatch as separate burst | Real ADR-021 amendment work; not a frontmatter sync. Bundle #83 with this when dispatched. |
+
+Decided: 2026-05-09 D-321b pre-compact burst. SESSION-HANDOFF '## Deferred-Items Dispositions' table is the live reference. This dossier section is the historical record.
