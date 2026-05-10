@@ -1,7 +1,7 @@
 ---
 document_type: session-handoff
 level: ops
-version: "7.68"
+version: "7.69"
 status: current
 timestamp: 2026-05-09T00:00:00Z
 predecessor_session: "D-319 S-WAVE5-PREP-01 prism-bin chassis SHIPPED. PR #138 squash-merged at develop@53b87961 2026-05-10T00:55:49Z. 5 BCs graduate draft→active. STATE v7.68→v7.69. SESSION-HANDOFF v7.67→v7.68."
@@ -27,6 +27,16 @@ develop HEAD: 53b87961 (PR #138 S-WAVE5-PREP-01 prism-bin chassis squash-merged 
 # Session Handoff — WAVE 4 PHASE 4.A DECISIONS LOGGED (2026-05-02)
 
 ## TL;DR
+
+**PRE-COMPACT CHECKPOINT (2026-05-09) — state fully durable; safe to compact.**
+
+Critical preservation pointers for post-compact session:
+- Local branch `maint/pr138-cli-doc-fix` at SHA `630e1c3a` — preserves the cli.rs doc-comment fix from PR-LEVEL adversary pass-1 that wasn't pushed before pr-manager's premature merge of PR #138. POST-COMPACT TASK: cherry-pick this SHA onto a fresh maintenance branch + full 9-step PR cycle to land on develop. Reference: task #79 in TaskList; TD-PR-MANAGER-CONVERGENCE-DISCIPLINE in task #80.
+- Worktree `.worktrees/S-WAVE5-PREP-01/` is now POST-MERGE-DETACHED — upstream branch deleted on merge. Safe to remove (`git worktree remove .worktrees/S-WAVE5-PREP-01`) AFTER the maint/pr138-cli-doc-fix branch is confirmed-pushed-or-PR-merged.
+- Worktree `.worktrees/S-3.09/` remains FROZEN at HEAD `43c41389` per D-298 (BUG-S309-PLUGIN P0 dependency).
+- factory-artifacts HEAD: `9637f653b41b544228230b7c4bbe8f511f2d20ba`. develop HEAD: `53b87961`.
+- 5 BCs graduated active per ADR-021 POL-14 (D-319): BC-2.06.011, BC-2.21.001, BC-2.03.013, BC-2.05.012 v1.3, BC-2.22.001.
+- Phase B-2 next dispatches: S-3.02-FOLLOWUP-RUNTIME (steps 7-8 — biggest), S-5.01-FOLLOWUP-MCP-BOOT (step 9), S-1.12-FOLLOWUP (step 10), W3-FIX-S307-001/002 (sensor adapter writes), S-1.14-REDO (infusion engine).
 
 **D-319 (2026-05-10) — S-WAVE5-PREP-01 prism-bin chassis SHIPPED. PR #138 squash-merged at develop@53b87961 on 2026-05-10T00:55:49Z. Cascade summary: LOCAL adversarial 6 passes (3-CLEAN convergence at HEAD `b143e3fc`); PR-LEVEL adversarial 2/3 streak (pr-manager merged at 2/3 — process anomaly tracked TD-PR-MANAGER-CONVERGENCE-DISCIPLINE); Final CI: 34/34 PASS at bccde4aa. Cross-crate work landed: prism-bin (new crate, 11 ACs demoed); prism-audit (BootAuditEmitter + BootSentinelFields); prism-storage (append_audit_entry_sync via flush_wal); prism-spec-engine (CredentialRef + SensorSpec.credential_refs, version bumped 0.4.0→0.5.0). 5 boot-sequence BCs graduate draft→active per ADR-021 POL-14: BC-2.06.011 (ConfigManager init), BC-2.21.001 (OrgRegistry init — first BC under SS-21), BC-2.03.013 (CredentialStore init with no-leak invariant), BC-2.05.012 v1.2 (BootAuditEmitter audit init with fsync'd sentinel), BC-2.22.001 (boot orchestration). Story status flips ready→merged per ADR-020 graduation contract. SS-22 (Process Lifecycle) gains its first active BC. Outstanding LOW finding: cli.rs doc comment — fix prepared as local commit `630e1c3a` but NOT pushed before merge; tracked as maintenance PR follow-up. STATE v7.68→v7.69. SESSION-HANDOFF v7.67→v7.68. Bundle B Phase B-2 first ship.**
 
