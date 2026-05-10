@@ -372,3 +372,38 @@ Items 2 and 3 require hook plugin work (can follow fix-burst-4 but must be track
 
 **Target release:** v1.0 (P1; items 1+4 must land before next architect dispatch;
 items 2+3 deferred to hook plugin work cycle).
+
+---
+
+## TD-VERSION-STAMP-SWEEP-001 — Fix-burst protocol body version-stamp sweep
+
+| Field | Value |
+|-------|-------|
+| **ID** | TD-VERSION-STAMP-SWEEP-001 |
+| **Priority** | P2 |
+| **Category** | process-gap |
+| **Source** | F-PASS7-HIGH-001 (3rd recurrence — F-PASS4-HIGH-002, F-PASS5-HIGH-001, F-PASS7-HIGH-001 all the same pattern) |
+| **Decision** | D-340 (2026-05-10) |
+
+**Title:** Fix-burst protocol must include "after frontmatter version bump, sweep body for prior version stamp" step.
+
+**Severity:** P2 process-gap
+
+**Origin:** F-PASS7-HIGH-001 is the third recurrence of the same defect class:
+- F-PASS4-HIGH-002: v1.1→v1.2 bump; body Status block retained `v1.1` stamp
+- F-PASS5-HIGH-001: v1.3→v1.4 bump; body Status block retained `v1.3` stamp
+- F-PASS7-HIGH-001: v1.5→v1.6 bump; body Status block retained `v1.5` stamp at L80 + L850
+
+All three recurrences share the identical root cause: the architect performing a frontmatter `version:` bump did not sweep the document body for prior-version references. The fix-burst protocol has no explicit step requiring this sweep.
+
+**Description:** Whenever an ADR/spec frontmatter `version:` is bumped during fix-burst, the body must be swept for prior-version references. Specifically: H2 Status blocks, "Status as of \<date\>" subsections, and any inline references that cite "current version". Changelog rows are exempt (immutable audit trail). Pattern observed across 3 ADR-023 fix-burst cycles.
+
+**Required actions:**
+
+1. **Codify in fix-burst architect agent prompt template:** "After bumping frontmatter version, grep body for `\bv<prior-version>\b` (e.g., `\bv1\.5\b`); update each occurrence outside changelog rows."
+
+2. **Add to ADR template:** a `body_version_stamp_locations:` frontmatter field listing all sites that should be swept on version bump (e.g., L80, L850 for ADR-023). This allows automated validators to verify stamp currency without full-body grep.
+
+3. **State-manager validator (extension to TD-FIX-BURST-VERIFY-002):** on Write/Edit of any spec with frontmatter `version:` change, automatically check body for prior-version stamp; if found outside changelog rows, block the write with a human-readable error citing the stale locations.
+
+**Target release:** v1.0 (P2 — before next ADR amendment cycle if possible; not blocking ADR-023 convergence)
