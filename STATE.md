@@ -1,7 +1,7 @@
 ---
 document_type: pipeline-state
 level: ops
-version: "7.126"
+version: "7.127"
 producer: state-manager
 timestamp: 2026-05-11T07:00:00Z
 inputs: []
@@ -22,7 +22,7 @@ repos:
   - axiathon
   - ocsf-proto-gen
   - mcp-claroty-xdome
-current_step: "S-PLUGIN-PREREQ-A 3/3 CONVERGED — PR delivery next (demo-recorder + push + pr-manager 9-step)"
+current_step: "PRE-COMPACT CHECKPOINT (D-393) — S-PLUGIN-PREREQ-A PR delivery in queue post-compact"
 wave_3_carry_forward_debt: "ALL_REMEDIATE — W4-FIX-PERF-001/002, W4-FIX-CODE-001, W4-FIX-SEC-001 through W4-FIX-SEC-004 planned per D-203"
 wave_4_status: "PHASE_4_A_CONVERGED + R9_APPROVED but PHASE_4_B SUSPENDED — pre-implementation dep check (2026-05-04) found S-4.01 → S-3.02 (status=draft); pivoting to full Wave 3 implementation per user directive D-223"
 wave_4_phase_4_a_preflight:
@@ -176,9 +176,9 @@ workspace_test_count: 3489  # 891 prism-query + workspace total (per implementer
 | **Language** | Rust |
 | **Target Workspace** | per-analyst stdio (MCP server) |
 | **Started** | 2026-04-13 |
-| **Last Updated** | 2026-05-11 (D-392 — S-PLUGIN-PREREQ-A LOCAL pass-12 CLEAN STREAK 3/3 CONVERGED; BC-5.39.001 3-CLEAN protocol SATISFIED; trajectory 14→12→6→4→2→6→4→0→4→0→0→0; STATE v7.125→v7.126) |
+| **Last Updated** | 2026-05-11 (D-393 — PRE-COMPACT CHECKPOINT written; S-PLUGIN-PREREQ-A state durably captured at feature/S-PLUGIN-PREREQ-A@8b949bba; STATE v7.126→v7.127) |
 | **Current Phase** | Wave 3 Tier-3 COMPLETE — **Wave 3-A 4 of 4 SHIPPED**: S-3.05 (#132 c867c344), S-3.04 (#133 57745ce8), S-3.03 (#134 7c413692), **S-3.07 (#135 2ae7185b MERGED 2026-05-08T04:23:03Z)**; post-merge cleanup confirmed; plugin migration: PREREQ-F SHIPPED; PREREQ-A/B/C/D/E pending |
-| **Current Step** | D-392 — S-PLUGIN-PREREQ-A LOCAL pass-12 CLEAN STREAK 3/3 CONVERGED. BC-5.39.001 satisfied. Trajectory 14→12→6→4→2→6→4→0→4→0→0→0 (2026-05-11). PR delivery next: demo-recorder + push + pr-manager 9-step. |
+| **Current Step** | D-393 — PRE-COMPACT CHECKPOINT (2026-05-11). S-PLUGIN-PREREQ-A PR delivery in queue post-compact: demo-recorder (11 ACs) → pr-manager 9-step on origin/feature/S-PLUGIN-PREREQ-A@8b949bba → pre-merge gate verification → D-394 post-merge state burst. |
 
 ## Phase Progress
 
@@ -221,6 +221,7 @@ _D-001..D-046 archived: [cycles/phase-3-dtu-wave-2/decisions-archive-d001-d032.m
 
 | ID | Decision | Rationale | Phase | Date |
 |----|----------|-----------|-------|------|
+| D-393 | 2026-05-11 | PRE-COMPACT CHECKPOINT written. S-PLUGIN-PREREQ-A state durably captured: feature/S-PLUGIN-PREREQ-A@8b949bba pushed to origin (parallel devops-engineer burst); factory-artifacts D-393; STATE+HANDOFF v7.126→v7.127. POST-COMPACT FIRST ACTION explicit: demo-recorder per-AC demos for 11 ACs → pr-manager 9-step on origin/feature/S-PLUGIN-PREREQ-A@8b949bba PR creation → pre-merge gate verification → post-merge state burst (D-394 STORY-INDEX status ready→merged, BC-2.01.013 status draft→active per POL-14). 3/3 CONVERGED at pass-12; trajectory 14→12→6→4→2→6→4→0→4→0→0→0; 12 passes 7 fix-bursts 36+ findings closed. 6 TDs filed (TD-002..006). New process-gaps from cascade: PG-LP7-001 Red Gate materialization audit; PG-LP7-002 sibling-rename axis layer-enumeration; OBS-LP9-001 adversary evidence-or-not-happened. Open methodology TDs from prior cycle: TD-FACTORY-HOOK-BYPASS-001 P0; TD-VSDD-054..063 unchanged. | plugin-migration | 2026-05-11 |
 | D-392 | 2026-05-11 | S-PLUGIN-PREREQ-A LOCAL adversary pass-12 CLEAN — **STREAK 3/3 CONVERGED**. BC-5.39.001 3-CLEAN protocol SATISFIED. Trajectory 14→12→6→4→2→6→4→0→4→0→0→0 (12 passes, 7 fix-bursts, 36+ findings closed). HEAD unchanged from pass-10 + pass-11 (8b949bba) — three independent fresh-context passes converge on the same evidence. Pass-12 EXHAUSTIVE evidence-based audit: 6/6 Red Gate verified at exact BC-prefixed names with absolute file:line; 11/11 ACs satisfied with file:line evidence; 7/7 dispatch sites converted (zero closed-enum fallbacks); 33 sensor_type hits across 15 files categorized (zero defects, all trait-method/test-stub/loop-var/OCSF/migration-doc); 6/6 spec versions pinned (Story v1.4, ADR-023 v1.18, BC-2.01.013 v1.5, DI-012 v1.6, VP-INDEX v1.30, BC-INDEX v4.54). Novel pass-12 dimensions all CLEAN: #[non_exhaustive] preserved, zero println!/eprintln! in production, zero unwrap() in critical paths, dynamic SensorId construction goes through try_from_str, Serde Deserialize validates, CustomAdapter retains BC-2.16.004-awareness. PR-readiness checklist complete. STORY READY for PR delivery (demo-recorder per-AC demos → push → pr-manager 9-step). On PR merge: STORY-INDEX row S-PLUGIN-PREREQ-A status ready→merged; BC-2.01.013 status draft→active (POL-14). | plugin-migration | 2026-05-11 |
 | D-391 | 2026-05-11 | S-PLUGIN-PREREQ-A LOCAL adversary pass-11 CLEAN with evidence-based idempotency check. Streak 1/3 → 2/3. HEAD unchanged from pass-10 (8b949bba). Trajectory 14→12→6→4→2→6→4→0→4→0→0 monotonically clean since pass-10. Red Gate 6/6 verified at exact names with absolute file:line evidence. Workspace sensor_type sweep: 33 hits / 15 files / 0 defects (re-derived categorization independently confirms pass-10's conclusion). Cross-crate version analysis: prism-sensors bumped 0.1→0.2 (breaking trait change SensorAdapter::sensor_type() return type SensorType → SensorId); prism-core stayed 0.1.0 (additive SensorId pub type only). CI POL-11 positive-coverage assertion verified: --color=never present at ci.yml:359, E0432 positive log line at ci.yml:521-525, perimeter compile-fail + CI assertion + workspace grep = three independent gates. NOVEL: 0 findings. 1 process-gap PG-LP11-001 (non-blocking — prior-pass report path-citation drift in pass-10 narrative; recommend OBS-LP9-001 amendment to require absolute paths in evidence citations). 5 KUDOs reinforce convergence quality. Pass-12 required for 3/3 CONVERGED. | plugin-migration | 2026-05-11 |
 | D-390 | 2026-05-11 | S-PLUGIN-PREREQ-A LOCAL adversary pass-10 CLEAN with evidence-based audit. Streak 0/3 → 1/3 (resumed after pass-9 reset). Trajectory 14→12→6→4→2→6→4→0→4→0 — TRUE CLEAN, not narrative-CLEAN. OBS-LP9-001 evidence-or-not-happened protocol operational: every audit step includes literal grep command + match count + file:line inline. Red Gate exact-name audit 6/6 verified: test_BC_2_01_013_001_sensorid_from_str_roundtrip (sensor_id.rs:327), _003_sensorid_hash_eq_invariant (sensor_id.rs:372), _004_sensor_id_borrow_str_lookup (sensor_id.rs:396), _004_adapter_registry_sensorid_insert_lookup (bc_2_01_013_sensorid.rs:74), perimeter SensorType import (perimeter-violation/src/main.rs:69), _005_sensorid_lookup_at_virtual_fields_dispatch (sensorid_dispatch_redgate.rs:37). Workspace sensor_type sweep: 26 hits across 11 files all CATEGORIZED ACCEPTABLE (trait method 2; caller invocation 5; test fixture 6; loop var/OCSF 11; zero defects). KUDOs 5. Pass-11 + pass-12 required for 3/3 convergence. | plugin-migration | 2026-05-11 |
@@ -334,15 +335,15 @@ Cycle files: [burst-log](cycles/phase-2-patch/burst-log.md) | [convergence-traje
 
 ---
 
-## Session Resume Checkpoint (2026-05-11-v7.126-d392-pass-12-CONVERGED)
+## Session Resume Checkpoint (2026-05-11-v7.127-d393-pre-compact)
 
-_Previous checkpoint (v7.125/D-391 pass-11 clean) archived: [cycles/wave-4-operations/session-checkpoints.md](cycles/wave-4-operations/session-checkpoints.md)_
+_Previous checkpoint (v7.126/D-392 pass-12 CONVERGED) archived: [cycles/wave-4-operations/session-checkpoints.md](cycles/wave-4-operations/session-checkpoints.md)_
 
-**STATE v7.126. D-392 — S-PLUGIN-PREREQ-A LOCAL pass-12 CLEAN STREAK 3/3 CONVERGED. SESSION-HANDOFF v7.126.** develop@c6dd6602. factory-artifacts HEAD: run `git -C .factory log -1` (per TD-VSDD-053). vsdd-factory rc.16 active. Standing Orchestrator Rules active (Rules 1, 2, 3). Bundle B Exit Mandate active (task #85). Tasks #80-#84 DISPOSITIONS RECORDED — do NOT re-triage. Worktrees: main (clean) + .factory + .worktrees/S-PLUGIN-PREREQ-A + .worktrees/S-3.09 (FROZEN per D-298).
+**STATE v7.127. D-393 — PRE-COMPACT CHECKPOINT. SESSION-HANDOFF v7.127.** develop@c6dd6602. factory-artifacts HEAD: run `git -C .factory log -1` (per TD-VSDD-053). vsdd-factory rc.16 active. Standing Orchestrator Rules active (Rules 1, 2, 3). Bundle B Exit Mandate active (task #85). Tasks #80-#84 DISPOSITIONS RECORDED — do NOT re-triage. Worktrees: main (clean) + .factory + .worktrees/S-PLUGIN-PREREQ-A + .worktrees/S-3.09 (FROZEN per D-298).
 
-**PASS-12 SUMMARY:** CLEAN. 0 findings (0C+0H+0M+0L+0OBS). Trajectory 14→12→6→4→2→6→4→0→4→0→0→0. **STREAK 3/3 — BC-5.39.001 CONVERGED.** HEAD 8b949bba (unchanged from passes 10/11/12 — three-way idempotency confirmed). Red Gate 6/6 exact BC-prefixed names with absolute file:line. 11/11 ACs satisfied. 7/7 dispatch sites verified. 33 sensor_type hits / 15 files / 0 defects. 6/6 spec versions pinned. 5 novel pass-12 dimensions all CLEAN. KUDOs 5.
+**S-PLUGIN-PREREQ-A STATUS:** 3/3 CONVERGED (D-392). BC-5.39.001 satisfied. Trajectory 14→12→6→4→2→6→4→0→4→0→0→0. HEAD 8b949bba (unchanged passes 10/11/12). feature/S-PLUGIN-PREREQ-A pushed to origin (durably secured). 11/11 ACs satisfied. 6/6 Red Gate exact BC-prefixed names. 7/7 dispatch sites verified. 6 TDs filed.
 
-**NEXT ACTION:** PR delivery for S-PLUGIN-PREREQ-A — demo-recorder (per-AC demos for 11 ACs) → push feature/S-PLUGIN-PREREQ-A → pr-manager 9-step PR lifecycle. Post-merge: STORY-INDEX status ready→merged; BC-2.01.013 status draft→active (POL-14). Then dispatch PREREQ-B/C/D/E in sequence.
+**POST-COMPACT FIRST ACTION:** demo-recorder per-AC demos for 11 ACs at worktree /Users/jmagady/Dev/prism/.worktrees/S-PLUGIN-PREREQ-A → pr-manager 9-step PR lifecycle on origin/feature/S-PLUGIN-PREREQ-A@8b949bba → pre-merge gate verification (orchestrator-drives-cascade Rule 2) → D-394 post-merge state burst (STORY-INDEX ready→merged; BC-2.01.013 draft→active per POL-14). Then dispatch PREREQ-B/C/D/E.
 
 **S-3.09 FREEZE STATE:** Worktree .worktrees/S-3.09 HEAD 43c41389; BUG-S309-PLUGIN P0 blocks resumption. See D-298/D-299.
 
