@@ -181,7 +181,7 @@ F-PASS3-HIGH-001. The numeric VP-146..VP-152 entries above are the sequential in
 | Named ID | Aliases | Property | Module | Method | Priority | Status | Anchor Story |
 |----------|---------|----------|--------|--------|----------|--------|--------------|
 | VP-PLUGIN-001 | VP-146 | SensorId open-newtype replaces SensorType closed enum; zero non-test references to SensorType post-PREREQ-A | prism-spec-engine | integration_test | P0 | draft | PLUGIN-MIGRATION-001-A |
-| VP-PLUGIN-002 | VP-147 | PipelineExecutor::execute returns non-empty records against at least one wiremock DTU clone (replaces Ok(Vec::new()) stub) | prism-spec-engine | integration_test | P0 | draft | PLUGIN-MIGRATION-001-D |
+| VP-PLUGIN-002 | VP-147 | PipelineExecutor::execute returns non-empty records against at least one wiremock DTU clone (replaces Ok(Vec::new()) stub) | prism-spec-engine | integration_test | P0 | draft | S-PLUGIN-PREREQ-B |
 | VP-PLUGIN-003 | VP-148 | DTU-parity: plugin-produced OCSF record matches DTU-clone reference per TS-PLUGIN-PARITY-001 canonicalization | prism-spec-engine | integration_test | P0 | draft | PLUGIN-MIGRATION-001-D |
 | VP-PLUGIN-004 | VP-149 | TOML grammar accepts four new constructs (fetch_step.retry, virtual_field_aliases, cache_ttl_secs, fetch_step.batch) | prism-spec-engine | integration_test | P0 | draft | PLUGIN-PREREQ-D |
 | VP-PLUGIN-005 | VP-150 | OAuth2 refresh-on-401 via declarative TOML retry policy (PipelineExecutor) — VP-150 number | prism-spec-engine | integration_test | P0 | draft | S-PLUGIN-PREREQ-B |
