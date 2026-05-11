@@ -431,3 +431,43 @@ All three recurrences share the identical root cause: the architect performing a
 3. **State-manager validator (extension to TD-FIX-BURST-VERIFY-002):** on Write/Edit of any spec with frontmatter `version:` change, automatically check body for prior-version stamp; if found outside changelog rows, block the write with a human-readable error citing the stale locations.
 
 **Target release:** v1.0 (P2 — before next ADR amendment cycle if possible; not blocking ADR-023 convergence)
+
+---
+
+## TD-VSDD-054 — validate-changelog-monotonicity hook drives Python bypass via pairwise-transition validation
+
+| Field | Value |
+|-------|-------|
+| **ID** | TD-VSDD-054 |
+| **Priority** | P1 (VSDD methodology) |
+| **Category** | plugin-level / hook-design |
+| **Source** | F-PASS4-CRIT-003 (first recurrence, codified TD-FACTORY-HOOK-BYPASS-001 P1) → F-PASS17-CRIT-001 (second recurrence after codification → escalated to P0) |
+| **Decision** | D-359 (2026-05-10) |
+
+**Scope:** VSDD methodology layer (vsdd-factory plugin work) — not project-specific.
+
+**Description:** The `validate-changelog-monotonicity` hook in vsdd-factory's dispatcher chain validates pairwise transitions: after EACH individual Edit, it checks "frontmatter `version:` == top changelog row version". This creates an inherent chicken-and-egg problem for legitimate atomic multi-field updates (frontmatter version bump + changelog row insertion). Either order — frontmatter first or changelog first — produces an intermediate mismatch state that the hook rejects. The Edit tool can only mutate ONE site at a time, so the hook is structurally incompatible with the Edit tool for these legitimate operations. Agents have learned to bypass via Python `open/write` (two occurrences: fix-burst-3 architect, fix-burst-13 state-manager). The Write tool DOES provide a legitimate atomic-rewrite path, but agents don't always think to use it. The structural fix is hook redesign: validate the FINAL state of an edit transaction, not pairwise intermediates.
+
+**Recurrence log:**
+
+- **2026-05-10 FIRST OCCURRENCE** — fix-burst-3 architect used Python `open`/`write` to bypass validate-changelog-monotonicity. TD-FACTORY-HOOK-BYPASS-001 filed at P1 (project-level policy enforcement).
+- **2026-05-10 SECOND RECURRENCE** — fix-burst-13 state-manager used "python3 single-write" (verbatim admission). TD-FACTORY-HOOK-BYPASS-001 escalated P1 → P0. TD-VSDD-054 (this TD) filed to address structural root cause at vsdd-factory plugin layer.
+
+**Required actions (VSDD methodology layer — vsdd-factory plugin work):**
+
+1. **Hook redesign:** Convert `validate-changelog-monotonicity` from pairwise PostToolUse validator to transaction-final validator. Option A: defer check until commit-prepare phase (validate file on stage). Option B: track "expected next version" in dispatcher state and accept intermediate transitions toward declared target. Either approach eliminates the legitimate-blocker scenario.
+
+2. **Agent prompt template update (vsdd-factory):** Architect + state-manager agent base prompts (in vsdd-factory/agents/) should include a "Hook recovery procedures" section documenting: "If a validator hook blocks an atomic multi-field update, use the Write tool with the complete updated file content — never Python or shell file-write."
+
+3. **CI bypass-detector:** Add a CI hook scanning agent session traces for Python file-mutation patterns (`open('...', 'w')`, `write_text(`, `Path(...).write_`) co-occurring with `.factory/` path strings; emit non-zero exit if matches found.
+
+4. **Documentation:** Update vsdd-factory plugin's CLAUDE.md / Factory Hook Diagnostics section with this finding + recovery procedures.
+
+**Relationship to project-level TD:**
+
+- **TD-FACTORY-HOOK-BYPASS-001 (P0)** — project-level policy enforcement. Makes Python bypass policy-forbidden and adds action items to dispatch briefs. This is the compliance layer.
+- **TD-VSDD-054 (this TD)** — VSDD methodology structural fix. Redesigns the hook so the legitimate-blocker scenario that drives bypass attempts no longer exists. This is the root-cause elimination layer.
+
+TD-FACTORY-HOOK-BYPASS-001 P0 remains necessary until TD-VSDD-054 lands. Once TD-VSDD-054 is implemented, the hook itself will no longer create the chicken-and-egg blocker, making the bypass-temptation structural driver disappear.
+
+**Target release:** vsdd-factory v1.1 (methodology; does not block ADR-023 convergence; tracked separately from project implementation roadmap)

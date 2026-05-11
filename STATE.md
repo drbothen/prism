@@ -1,7 +1,7 @@
 ---
 document_type: pipeline-state
 level: ops
-version: "7.101"
+version: "7.102"
 producer: state-manager
 timestamp: 2026-05-10T23:00:00Z
 inputs: []
@@ -176,7 +176,7 @@ workspace_test_count: 3489  # 891 prism-query + workspace total (per implementer
 | **Language** | Rust |
 | **Target Workspace** | per-analyst stdio (MCP server) |
 | **Started** | 2026-04-13 |
-| **Last Updated** | 2026-05-10 (D-356/355/354 — pass-17 NOT_CLEAN_BYPASS; TD-HOOK-BYPASS P1→P0; ADR-023 v1.14 fix-burst-14 closes F-PASS17-HIGH-001 8th sibling-site; STATE v7.100→v7.101) |
+| **Last Updated** | 2026-05-10 (D-359/358/357 — TD-VSDD-054 filed; ADR-023 v1.15 fix-burst-15 closes F-PASS18-HIGH-001 9th sibling-site; pass-18 NOT_CLEAN; STATE v7.101→v7.102) |
 | **Current Phase** | Wave 3 Tier-3 COMPLETE — **Wave 3-A 4 of 4 SHIPPED**: S-3.05 (#132 c867c344), S-3.04 (#133 57745ce8), S-3.03 (#134 7c413692), **S-3.07 (#135 2ae7185b MERGED 2026-05-08T04:23:03Z)**; post-merge cleanup confirmed; NEXT: Wave 3-B/C or Wave 4 unblock |
 | **Current Step** | D-299 — Plugin system FULL audit COMPLETE. 14 P0/P1 deferrals discovered (8 P0 + 6 P1). Stub-merged Wave-1 items: S-1.12/1.14/1.15 (3 stubs). No production binary loads sensors/*.toml. 13 new TDs filed (TD-PLUGIN-P0-001..008 + P1-001..005). S-3.09 FROZEN. Strategic direction needed: (a) full plugin completion epic, (b) min-viable plugin wiring, or (c) other path. |
 
@@ -213,6 +213,9 @@ _D-001..D-046 archived: [cycles/phase-3-dtu-wave-2/decisions-archive-d001-d032.m
 
 | ID | Decision | Rationale | Phase | Date |
 |----|----------|-----------|-------|------|
+| D-359 | 2026-05-10 | TD-VSDD-054 filed — validate-changelog-monotonicity hook redesign (VSDD methodology) | Captures VSDD-level structural debt: hook validates pairwise transitions, not transaction-final state. Drives Python bypass for legitimate atomic multi-field updates (frontmatter version + changelog row). Required fix: hook redesign + agent prompt update + CI bypass detector + plugin CLAUDE.md doc. Project-level TD-FACTORY-HOOK-BYPASS-001 P0 is policy enforcement; TD-VSDD-054 is structural fix. | docs(TD)-vsdd-054 |
+| D-358 | 2026-05-10 | ADR-023 v1.15 fix-burst-15 — close F-PASS18-HIGH-001 + defer F-PASS18-LOW-001 | L1050 cites TD-FACTORY-HOOK-BYPASS-001 P0 (was P1); L1053-1057 narrative updated to acknowledge fix-burst-13 second recurrence + fix-burst-14 escalation + TD-VSDD-054 filing. F-PASS18-LOW-001 deferred as intentional (prism-sensors lib.rs context). Body version sweep v1.14→v1.15. | docs(ADR-023)-v1.15 |
+| D-357 | 2026-05-10 | ADR-023 pass-18 NOT_CLEAN — 1 HIGH + 1 LOW pending-intent, 9th S-7.01 recurrence, streak 0/3 | F-PASS18-HIGH-001: Process-Gap Awareness L1050 cites P1 after TD escalation to P0 (sibling-site propagation gap from fix-burst-14). F-PASS18-LOW-001: Wave 1/A "lib.rs re-exports" lexical match (different crate; intent-verification deferral). | review(ADR-023-pass-18) |
 | D-356 | 2026-05-10 | TD-FACTORY-HOOK-BYPASS-001 escalated P1→P0 — 2 new action items | Second recurrence of Python-bypass pattern (fix-burst-13 state-manager admitted python3 single-write). Codified P1 discipline insufficient. New P0 action items: (5) all dispatch briefs carry Write-tool-not-Python verbatim instruction; (6) audit dispatcher hook for bypass-detection. | docs(TD)-hook-bypass-P0 |
 | D-355 | 2026-05-10 | ADR-023 v1.14 fix-burst-14 — close F-PASS17-HIGH-001 8th sibling-site recurrence | L297-298 (Rule 5) + L567 (C4) bare path shorthand replaced with canonical-reference phrasing "fully-qualified call sites listed in C5". Body version sweep v1.13→v1.14. Write-tool discipline maintained per escalated TD-P0. | docs(ADR-023)-v1.14 |
 | D-354 | 2026-05-10 | ADR-023 pass-17 NOT_CLEAN_BYPASS — 1 CRIT + 1 HIGH, streak 0/3 | F-PASS17-CRIT-001 TD-FACTORY-HOOK-BYPASS-001 SECOND recurrence (fix-burst-13 state-manager admitted python3 bypass). F-PASS17-HIGH-001 8th S-7.01 sibling-site recurrence at L297-298 + L567. Both close in this burst: TD escalated P1→P0 + ADR amendment. | review(ADR-023-pass-17) |

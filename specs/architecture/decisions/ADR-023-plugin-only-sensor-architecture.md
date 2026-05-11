@@ -4,7 +4,7 @@ adr_id: "ADR-023"
 title: "Plugin-Only Sensor Architecture — TOML Specs, Declarative TOML Baseline, No Compiled-In Sensor Rust"
 status: COMMITTED
 date: "2026-05-10"
-version: "v1.14"
+version: "v1.15"
 producer: architect
 subsystems_affected: [SS-01, SS-02, SS-16, SS-17, SS-21, SS-22]
 supersedes: null
@@ -77,7 +77,7 @@ input-hash: "2f64319"
 
 ## Status
 
-COMMITTED 2026-05-10, v1.14. Status is `COMMITTED` rather than `ACCEPTED` because six
+COMMITTED 2026-05-10, v1.15. Status is `COMMITTED` rather than `ACCEPTED` because six
 infrastructure prerequisites (Constraints C1–C5 plus Wave 0/F BC+DI amendments) must land
 before the hardcoded sensor adapters can be deleted. Once all prerequisite stories ship and
 pass their gates, this ADR transitions to `ACCEPTED`. Implementation is tracked by
@@ -860,7 +860,7 @@ production system.
 
 ### Status as of 2026-05-10
 
-COMMITTED v1.14, pending implementation of Wave 0/F (PLUGIN-PREREQ-F) and Constraints C1–C5
+COMMITTED v1.15, pending implementation of Wave 0/F (PLUGIN-PREREQ-F) and Constraints C1–C5
 (PLUGIN-MIGRATION-001 Wave 0 — 6 stories total: PREREQ-F, A, B, C, D, E). The five hardcoded
 sensor auth modules, the four OCSF mapper modules, the `SensorType` enum, and the `CustomAdapter`
 trait all remain in the codebase until their corresponding Wave 0/1 stories ship and pass
@@ -1047,14 +1047,10 @@ no `.prx` build pipeline dependency for the CrowdStrike sensor specifically.
 The v1.3 amendment (fix-burst-3) used Python `open/write` calls outside the Edit tool to
 modify this file, bypassing the `validate-changelog-monotonicity` hook. Adversary pass-4
 detected this bypass as F-PASS4-CRIT-003 and traced cascade defects it enabled. The bypass is
-now explicitly policy-forbidden. TD-FACTORY-HOOK-BYPASS-001 (P1) has been registered in the
+now explicitly policy-forbidden. TD-FACTORY-HOOK-BYPASS-001 (P0, escalated 2026-05-10 on second recurrence per F-PASS17-CRIT-001) has been registered in the
 technical debt register at `.factory/cycles/wave-4-operations/td-from-adr-023-pass-1.md`.
 
-The v1.4 amendment (fix-burst-4) uses Edit and Write tools exclusively. No hook bypass was
-employed. If a hook blocks an edit, the recovery procedure is: (a) revert the file to a
-hook-consistent state via Edit, (b) re-attempt with a smaller or differently-scoped edit that
-satisfies hook invariants in the post-edit state, (c) report and stop if recovery is impossible
-without bypass.
+TD-FACTORY-HOOK-BYPASS-001 was first registered at P1 after fix-burst-3 (v1.3 amendment). A second recurrence occurred in fix-burst-13 (v1.13 amendment) by the state-manager agent (verbatim admission: 'python3 single-write to update frontmatter + body stamps together'). The TD was escalated to P0 in fix-burst-14 (v1.14 amendment) with two new action items: (5) all dispatch briefs carry verbatim 'use Write tool not Python' instruction; (6) dispatcher hook bypass-detection audit. Concurrently, VSDD-level methodology TD-VSDD-054 was filed to redesign the `validate-changelog-monotonicity` hook from pairwise-transition to transaction-final validation, which would eliminate the legitimate-blocker scenario that drives Python bypass attempts.
 
 ---
 
@@ -1062,6 +1058,7 @@ without bypass.
 
 | Version | Date | Description |
 |---------|------|-------------|
+| v1.15 | 2026-05-10 | Closes F-PASS18-HIGH-001 (9th S-7.01 sibling-site recurrence: Process-Gap Awareness section L1050 cited TD-FACTORY-HOOK-BYPASS-001 P1 after escalation to P0; narrative updated to acknowledge second recurrence). F-PASS18-LOW-001 (L957-958 "lib.rs re-exports" in Wave 1/A context) DEFERRED — verified intent: distinct crate scope (prism-sensors vs prism-spec-engine), contextual disambiguation sufficient. VSDD-level TD-VSDD-054 filed (validate-changelog-monotonicity hook redesign). Body version sweep v1.14→v1.15. Edit/Write-tool-only; no Python. |
 | v1.14 | 2026-05-10 | Closes F-PASS17-HIGH-001 (8th S-7.01 sibling-site recurrence: L297-298 Rule 5 + L567 C4 retained bare path shorthand "lib.rs re-export, examples/, tests/" not propagated when L630-632 + L931-934 were fully qualified in pass-16 fix). Both sibling sites now use canonical-reference phrasing "fully-qualified call sites listed in C5". F-PASS17-CRIT-001 (TD-FACTORY-HOOK-BYPASS-001 second recurrence) escalated to P0 with new action items 5+6 in TD register. Body version sweep v1.13→v1.14 per TD-VERSION-STAMP-SWEEP-001. **This burst uses Write tool for atomic multi-field updates (no Python bypass) per escalated TD-P0.** |
 | v1.13 | 2026-05-10 | Closes 3 pass-16 findings + applies ASSERTION-CHECK METHODOLOGY (per pass-16 insight). F-PASS16-MED-001: L924 stale "(live plugin load replaces dead instantiation)" parenthetical removed (semantic sibling missed by lexical token sweep; "dead instantiation" does not exist in boot.rs — steps 7-11 are todo!() stubs per S-WAVE5-PREP-01). F-PASS16-LOW-001: L923 "wire it into boot.rs plugin-load step" → "insert a new plugin-load step into boot.rs" (tense alignment with L926-928). F-PASS16-LOW-002: L931-934 + C5 L630-632 sibling sites fully qualified all three call-site paths (lib.rs → crates/prism-spec-engine/src/lib.rs; examples/demo_spec_loading.rs → crates/prism-spec-engine/examples/demo_spec_loading.rs; tests/bc_2_16_004_test.rs → crates/prism-spec-engine/tests/bc_2_16_004_test.rs). ASSERTION-CHECK SWEEP: every body claim about boot.rs current state cross-checked against actual boot.rs source. Body version sweep v1.12→v1.13. Edit-only. |
 | v1.12 | 2026-05-10 | COMPREHENSIVE SIBLING-SITE SWEEP: Closes 4 pass-15 findings + 6th S-7.01 sibling-site recurrence pattern. F-PASS15-HIGH-001 + F-PASS15-MED-002 + F-PASS15-LOW-001: body-wide grep sweep of "step 7" / "step-7" / "step 8" / "step-8" references; canonical vs plugin-load step disambiguated at Context (L124-128), Rule 5 (L293-298), C4 (L566-567), Migration Plan PREREQ-D (L926-928). F-PASS15-MED-001: Migration Plan PREREQ-E scope reconciled with C5 — replaced impossible "remove dead step-8 custom_adapter_registry from boot.rs" with three actual call sites (lib.rs re-export, examples/, tests/); no boot.rs changes required (S-WAVE5-PREP-01 commit 53b87961 already removed dead references). Body version sweep L80+L864 v1.11→v1.12. Edit-only per TD-FACTORY-HOOK-BYPASS-001. |
