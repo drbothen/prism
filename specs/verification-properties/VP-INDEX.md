@@ -1,7 +1,7 @@
 ---
 document_type: verification-property-index
 level: L4
-version: "1.31"
+version: "1.32"
 status: draft
 producer: product-owner
 timestamp: 2026-05-11T00:00:00
@@ -230,6 +230,8 @@ S-1.02 frontmatter has been updated to `subsystems: [SS-03, SS-07, SS-11, SS-12,
 
 | Version | Burst | Date | Author | Change |
 |---------|-------|------|--------|--------|
+| 1.32 | prereq-b-fix-burst-6 | 2026-05-11 | state-manager | D-410 F-LP6-HIGH-001+HIGH-002 closure: VP-PLUGIN-002 numbered row (VP-INDEX:168) anchor corrected PLUGIN-MIGRATION-001-D→S-PLUGIN-PREREQ-B and description corrected to "PipelineExecutor::execute returns non-empty records against wiremock DTU clone"; VP-PLUGIN-005 numbered row (line 171) anchor corrected to S-PLUGIN-PREREQ-B; VP-PLUGIN-005 named-alias row (line 187) description rewritten to OAuth2 refresh-on-401 + anchor corrected to S-PLUGIN-PREREQ-B; internal contradiction between lines 171 and 187 eliminated (commits 1474a682 + 99a6b07a). |
+| 1.31 | prereq-b-pass-6-backfill | 2026-05-11 | state-manager | Version bump acknowledging VP-PLUGIN-002/005 content was updated by product-owner commits 1474a682+99a6b07a (D-409/D-410 burst); frontmatter version alignment. |
 | 1.30 | prereq-f | 2026-05-11 | product-owner | PREREQ-F: Registered VP-PLUGIN-001..007 named series per ADR-023 L511-512 + F-PASS3-HIGH-001. Added VP-PLUGIN-NNN named table (aliases to VP-146..VP-152) with module: prism-spec-engine. Summary note clarifies named series does not increment sequential count. |
 | 1.29 | pr-127-pass4-remediation | 2026-05-05 | architect | Property-text correction for VP-014 (v1.5→v1.6) and VP-015 (v1.6→v1.7): replaces non-existent `ParseError::QueryTooLarge` and `ParseError::NestingTooDeep` enum-variant references with accurate `Err(Vec<ParseError>)` API description (message contains `E-QUERY-003`). Identified by adversary pass-4 (F-MEDIUM-001). Status, verification_lock, proof_file_hash, proof_completed_date unchanged — only property statement text corrected. Cross-ref: vp-014 v1.6, vp-015 v1.7, verification-architecture.md v1.30, ARCH-INDEX v2.31. |
 | 1.28 | pr-127-formal-verify | 2026-05-05 | architect | VP-014 and VP-015 promoted to `verified` following successful Kani proof runs at commit f5212641 (PR #127). VP-014: harness `proof_check_query_size_rejects_oversize`, 0/4371 failed (285 unreachable). VP-015: 4 harnesses including new `proof_sql_query_depth_limit`, 0/5664 failed (397 unreachable). Status column updated; lock=true; proof_completed_date=2026-05-05. Cross-ref: vp-014 v1.5, vp-015 v1.6, verification-architecture.md v1.29, ARCH-INDEX.md v2.30. |

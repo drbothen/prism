@@ -1,7 +1,7 @@
 ---
 document_type: pipeline-state
 level: ops
-version: "7.143"
+version: "7.144"
 producer: state-manager
 timestamp: 2026-05-11T21:00:00Z
 inputs: []
@@ -22,7 +22,7 @@ repos:
   - axiathon
   - ocsf-proto-gen
   - mcp-claroty-xdome
-current_step: "D-409. S-PLUGIN-PREREQ-B LOCAL pass-6 BLOCKED-soft at HEAD 2fe7068c. 9 findings: 0C+2H+3M+1L+3OBS. Trajectory 20→10→4→7→10→9. Pass-6 verified fix-burst-5 eager-token closure CLEAN, surfaced NOVEL defects from P6-A..K dimensions. F-LP6-HIGH-001 VP-PLUGIN-002 anchor drift (VP-INDEX:168 says PLUGIN-MIGRATION-001-D anchor, story says PREREQ-B). F-LP6-HIGH-002 VP-INDEX internal contradiction (VP-PLUGIN-005 dual definition line 171 vs 187). F-LP6-MED-001 NullAuth/Mock public-API leak (lib.rs:89). F-LP6-MED-002 story frontmatter missing VP-PLUGIN-005 despite 8 body refs. F-LP6-MED-003 execute_step sibling paper-fix regression (line 444 hardcoded empty AuthToken; eager-token not propagated). 1 LOW input-hash drift; 3 OBS observability. fix-burst-6 dispatching: parallel implementer (feature-gate NullAuth/Mock + execute_step decision) + product-owner (VP-INDEX corrections + story frontmatter VP-PLUGIN-005). STATE+HANDOFF v7.142→v7.143."
+current_step: "D-410. S-PLUGIN-PREREQ-B LOCAL fix-burst-6 CLOSED 5 actionable findings via 3 parallel commits + 1 corrective (4 total). Worktree 8e9a92d0 (implementer: F-LP6-MED-001 test-helpers Cargo feature + cfg-gate NullAuth/Mock at lib.rs:94-95 and auth_provider.rs:115; F-LP6-MED-003 execute_step eager-token symmetric with execute per Option A). Factory 1474a682 + 99a6b07a (product-owner: VP-INDEX VP-PLUGIN-002 anchor PLUGIN-MIGRATION-001-D→S-PLUGIN-PREREQ-B + description correction; VP-PLUGIN-005 contradiction resolved; story v1.5→v1.6 frontmatter verification_properties augmented). 1 LOW input-hash + 3 OBS acknowledged. TD-S-PLUGIN-PREREQ-B-011 P3 filed (PREREQ-D wiring test consistency). 273/273 tests pass. Workspace clean. Streak stays 0/3. Pass-7 next (target streak 1/3 anew). STATE+HANDOFF v7.143→v7.144."
 wave_3_carry_forward_debt: "ALL_REMEDIATE — W4-FIX-PERF-001/002, W4-FIX-CODE-001, W4-FIX-SEC-001 through W4-FIX-SEC-004 planned per D-203"
 wave_4_status: "PHASE_4_A_CONVERGED + R9_APPROVED but PHASE_4_B SUSPENDED — pre-implementation dep check (2026-05-04) found S-4.01 → S-3.02 (status=draft); pivoting to full Wave 3 implementation per user directive D-223"
 wave_4_phase_4_a_preflight:
@@ -127,8 +127,8 @@ story_count: 113
 bc_count_corrected: 235
 cap_count: 40  # active; highest_cap_id: CAP-040 (CAP-038 Multi-Tenant Identity, CAP-039 Multi-Tenant Fixture Gen, CAP-040 Multi-Tenant Adapter Dispatch — Wave 3 Phase 3.A Step 2)
 bc_index_version: "4.56"
-vp_index_version: "1.31"
-story_index_version: "v2.43"
+vp_index_version: "1.32"
+story_index_version: "v2.44"
 total_stories: 150
 red_gate_wave_0a_complete: 2026-04-21
 test_vectors_version: "2.7"
@@ -176,9 +176,9 @@ workspace_test_count: 3489  # 891 prism-query + workspace total (per implementer
 | **Language** | Rust |
 | **Target Workspace** | per-analyst stdio (MCP server) |
 | **Started** | 2026-04-13 |
-| **Last Updated** | 2026-05-11 (D-409 — S-PLUGIN-PREREQ-B LOCAL pass-6 BLOCKED-soft at 2fe7068c; 9 findings 2H+3M+1L+3OBS; trajectory 20→10→4→7→10→9; fix-burst-6 dispatching; STATE+HANDOFF v7.142→v7.143) |
+| **Last Updated** | 2026-05-11 (D-410 — S-PLUGIN-PREREQ-B LOCAL fix-burst-6 CLOSED 5 actionable (2H+3M); worktree 8e9a92d0; factory 1474a682+99a6b07a; TD-011 P3 filed; 273/273 tests; STATE+HANDOFF v7.143→v7.144) |
 | **Current Phase** | Wave 3 Tier-3 COMPLETE — **Wave 3-A 4 of 4 SHIPPED**: S-3.05 (#132 c867c344), S-3.04 (#133 57745ce8), S-3.03 (#134 7c413692), **S-3.07 (#135 2ae7185b MERGED 2026-05-08T04:23:03Z)**; post-merge cleanup confirmed; plugin migration: PREREQ-F SHIPPED; PREREQ-A/B/C/D/E pending |
-| **Current Step** | D-409 — S-PLUGIN-PREREQ-B LOCAL pass-6 BLOCKED-soft at 2fe7068c. 9 findings: 2H+3M+1L+3OBS. Trajectory 20→10→4→7→10→9. F-LP6-HIGH-001/002 VP-INDEX defects; F-LP6-MED-001 NullAuth leak; F-LP6-MED-002 frontmatter drift; F-LP6-MED-003 execute_step sibling regression. fix-burst-6 dispatching. Streak 0/3. |
+| **Current Step** | D-410 — S-PLUGIN-PREREQ-B LOCAL fix-burst-6 CLOSED. 5 actionable (2H+3M). Worktree 8e9a92d0 (NullAuth cfg-gate + execute_step eager-token Option A). Factory 1474a682+99a6b07a (VP-INDEX VP-PLUGIN-002/005 anchor+description + story v1.5→v1.6 verification_properties). TD-011 P3 filed. 273/273. Streak 0/3. Pass-7 next. |
 
 ## Phase Progress
 
@@ -215,6 +215,7 @@ workspace_test_count: 3489  # 891 prism-query + workspace total (per implementer
 | S-PLUGIN-PREREQ-B LOCAL fix-burst-4 (D-407) | implementer + state-manager | **CLOSED** | 3 findings closed (2M+1L) at worktree e19372f4. F-LP5-MED-001 gzip. F-LP5-MED-002 audit-log symmetry. F-LP5-LOW-001 dollar-dot defense. 4 TDs filed (006-009). F-LP5-LOW-003 SURFACED as TD-010. 4 new Red Gate (33→37). 271/271 pass. Story v1.3→v1.4. STATE+HANDOFF v7.140→v7.141 |
 | S-PLUGIN-PREREQ-B LOCAL fix-burst-5 (D-408) | implementer + state-manager | **CLOSED — streak 0/3** | F-LP5-LOW-003 CLOSED via dual commit: worktree 2fe7068c (eager-token at pipeline start; auth_initial_acquired/auth_initial_failed events; 2 new Red Gate + 2 adjusted) + factory 82fd868c (BC-2.16.002 v1.4→v1.5 amendment: lazy→eager; request_count HTTP-only; audit family complete). TD-010 CLOSED. 273/273 pass. 39 Red Gate. Story v1.4→v1.5. STATE+HANDOFF v7.141→v7.142 |
 | S-PLUGIN-PREREQ-B LOCAL pass-6 (D-409) | adversary + state-manager | **BLOCKED-soft — streak 0/3** | 9 findings (0C+2H+3M+1L+3OBS) at HEAD 2fe7068c. Trajectory 20→10→4→7→10→9. Fix-burst-5 eager-token verified CLEAN. F-LP6-HIGH-001 VP-PLUGIN-002 anchor drift (VP-INDEX:168 PLUGIN-MIGRATION-001-D vs story PREREQ-B). F-LP6-HIGH-002 VP-PLUGIN-005 dual definition (lines 171 vs 187). F-LP6-MED-001 NullAuth/Mock public re-export no feature-gate. F-LP6-MED-002 story frontmatter missing VP-PLUGIN-005 (8 body refs). F-LP6-MED-003 execute_step sibling line 444 hardcoded empty AuthToken. 1 LOW input-hash pending. fix-burst-6 dispatching parallel. STATE+HANDOFF v7.142→v7.143 |
+| S-PLUGIN-PREREQ-B LOCAL fix-burst-6 (D-410) | implementer + product-owner + state-manager | **CLOSED — streak 0/3** | 5 actionable closed (2H+3M) at worktree 8e9a92d0 + factory 1474a682 + 99a6b07a. F-LP6-HIGH-001 VP-PLUGIN-002 anchor PLUGIN-MIGRATION-001-D→S-PLUGIN-PREREQ-B. F-LP6-HIGH-002 VP-PLUGIN-005 dual-definition resolved. F-LP6-MED-001 NullAuth/Mock cfg-gated behind test-helpers feature. F-LP6-MED-002 story v1.5→v1.6 frontmatter verification_properties augmented. F-LP6-MED-003 execute_step eager-token Option A (symmetric). 1 LOW + 3 OBS acknowledged. TD-011 P3 filed. 273/273 pass. STORY-INDEX v2.43→v2.44. VP-INDEX v1.31→v1.32. tech-debt-register v2.10→v2.11. Pass-7 next. STATE+HANDOFF v7.143→v7.144 |
 
 ## Decisions Log
 
@@ -222,6 +223,7 @@ _D-001..D-046 archived: [cycles/phase-3-dtu-wave-2/decisions-archive-d001-d032.m
 
 | ID | Decision | Rationale | Phase | Date |
 |----|----------|-----------|-------|------|
+| D-410 | 2026-05-11 | S-PLUGIN-PREREQ-B LOCAL fix-burst-6 CLOSED 5 actionable findings via 3 parallel commits + 1 corrective (4 total). Worktree 8e9a92d0 (implementer: F-LP6-MED-001 test-helpers Cargo feature + cfg-gate NullAuth/Mock at lib.rs:94-95 and auth_provider.rs:115; F-LP6-MED-003 execute_step eager-token symmetric with execute per Option A). Factory 1474a682 + 99a6b07a (product-owner: VP-INDEX VP-PLUGIN-002 anchor PLUGIN-MIGRATION-001-D→S-PLUGIN-PREREQ-B and description correction + VP-PLUGIN-005 internal contradiction resolution + story v1.5→v1.6 frontmatter verification_properties augmented). 1 LOW input-hash + 3 OBS acknowledged. TD-S-PLUGIN-PREREQ-B-011 P3 filed (PREREQ-D wiring test consistency). 273/273 tests pass. Workspace clean. Streak stays 0/3. Pass-7 next (target streak 1/3 anew). STATE+HANDOFF v7.143→v7.144. | plugin-migration | 2026-05-11 |
 | D-409 | 2026-05-11 | S-PLUGIN-PREREQ-B LOCAL pass-6 BLOCKED-soft at HEAD 2fe7068c. 9 findings: 0C+2H+3M+1L+3OBS. Trajectory 20→10→4→7→10→9. Pass-6 verified fix-burst-5 eager-token closure CLEAN, surfaced NOVEL defects from P6-A..K dimensions. F-LP6-HIGH-001 VP-PLUGIN-002 anchor drift (VP-INDEX:168 says PLUGIN-MIGRATION-001-D anchor, story says PREREQ-B). F-LP6-HIGH-002 VP-INDEX internal contradiction (VP-PLUGIN-005 dual definition line 171 vs 187). F-LP6-MED-001 NullAuth/Mock public-API leak (lib.rs:89). F-LP6-MED-002 story frontmatter missing VP-PLUGIN-005 despite 8 body refs. F-LP6-MED-003 execute_step sibling paper-fix regression (line 444 hardcoded empty AuthToken; eager-token not propagated). 1 LOW input-hash drift; 3 OBS observability. fix-burst-6 dispatching: parallel implementer (feature-gate NullAuth/Mock + execute_step decision) + product-owner (VP-INDEX corrections + story frontmatter VP-PLUGIN-005). STATE+HANDOFF v7.142→v7.143. | plugin-migration | 2026-05-11 |
 | D-408 | 2026-05-11 | S-PLUGIN-PREREQ-B LOCAL fix-burst-5 CLOSED F-LP5-LOW-003 (lazy-token design) via dual commit: worktree 2fe7068c (eager-token implementation + 2 new Red Gate tests + 2 existing tests adjusted; pipeline.rs:138 now acquires token eagerly at pipeline start since AuthType has no Null variant; new auth_initial_acquired/auth_initial_failed audit events augment existing auth_refresh_* family) + factory-artifacts 82fd868c (BC-2.16.002 v1.4→v1.5 amendment: precondition lifecycle lazy→eager; 3 new/amended postconditions for request_count semantics, initial-acquire audit, refresh audit family completeness). TD-S-PLUGIN-PREREQ-B-010 marked CLOSED in tech-debt-register (was P2 ORCHESTRATOR-DECISION-PENDING, now resolved). 273/273 tests, 39 Red Gate, workspace clean. Story v1.4→v1.5 (red_gate_tests 37→39). Streak stays 0/3 (fix-bursts don't advance). Pass-6 now dispatchable to verify eager-token closure + new audit-log family + look for novel defects from yet-different angles. STATE+HANDOFF v7.141→v7.142. | plugin-migration | 2026-05-11 |
 | D-407 | 2026-05-11 | S-PLUGIN-PREREQ-B LOCAL fix-burst-4 CLOSED 3 actionable findings at worktree e19372f4. F-LP5-MED-001 reqwest features=[gzip,deflate,brotli] added with wiremock+flate2 gzip-decode regression test. F-LP5-MED-002 audit-log symmetry achieved at 3 sites: auth_refresh_succeeded/auth_refresh_failed on acquire_token Ok/Err; auth_refresh_double_401 emit before abort; pipeline_truncated emit before 10K break. F-LP5-LOW-001 extract_at_path "$." double defense: runtime guard at extract_at_path + validator-layer rejection at validation.rs. 4 TDs filed (TD-S-PLUGIN-PREREQ-B-006 P2 proptest; -007 P3 status_code overload; -008 P3 template escape; -009 P3 dead scalar arm). F-LP5-LOW-003 lazy-token-on-401 design SURFACED to orchestrator as TD-010 P2 inline comment — pending human decision: eager-token (recommended; cleaner audit, accurate request_count, halved API quota) requires BC-2.16.002 v1.4→v1.5 amendment + story v1.4→v1.5 vs keep-lazy (audit signal pollution + 401 round-trip per execution accepted). 2 OBS acknowledged (find_fan_out_array first-only PREREQ-C; hot-reload race PREREQ-D). 4 new Red Gate tests (33→37). 271/271 tests pass + workspace builds clean. Streak stays 0/3. Story v1.3→v1.4 (red_gate_tests 33→37). Pass-6 next AFTER human design decision on F-LP5-LOW-003. STATE+HANDOFF v7.140→v7.141. | plugin-migration | 2026-05-11 |
