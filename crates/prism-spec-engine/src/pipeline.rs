@@ -131,17 +131,36 @@ impl PipelineExecutor {
         // across step boundaries, not just within a single step.
         let mut is_first_pipeline_request = true;
 
-        // Start with an empty bearer token. The auth_provider is called lazily on
-        // HTTP 401 (AC-5). This avoids an unconditional token-acquisition round-trip
-        // for specs that don't need auth (NullAuthProvider) and keeps the call count
-        // at exactly 1 for the 401-retry scenario.
+        // Eager token acquisition: acquire_token is called BEFORE the steps loop
+        // (F-LP5-LOW-003 closure). AuthType has no Null variant — all 4 variants
+        // (Oauth2ClientCredentials, BearerStatic, CookieRoundtrip, ApiKey) require auth.
+        // NullAuthProvider (test-only) returns an empty token without I/O.
         //
-        // TD-S-PLUGIN-PREREQ-B-010 P2: lazy-token-on-401 design guarantees a 401 round-trip on
-        // the first request of every production-grade execution (all 4 PLUGIN-MIGRATION-001-D
-        // sensors use bearer auth). Pollutes audit signal: every legitimate execution emits
-        // auth_refresh_triggered. PENDING ORCHESTRATOR DECISION per F-LP5-LOW-003: switch to
-        // eager-token (acquire_token at this site if spec.auth_type != NullAuth).
-        let mut bearer_token = AuthToken::new(String::new());
+        // TD-S-PLUGIN-PREREQ-B-010 CLOSED: lazy-token-on-401 design replaced by eager
+        // acquisition. The auth_refresh_triggered event now fires ONLY on legitimate
+        // token-expiry mid-pipeline (not on every first request). Orchestrator authorized
+        // Option A (eager unconditional) on 2026-05-11.
+        let mut bearer_token = match auth_provider.acquire_token(spec, &context.client_id).await {
+            Ok(tok) => {
+                tracing::info!(
+                    event_type = "auth_initial_acquired",
+                    sensor_id = %spec.sensor_id,
+                    client_id = %context.client_id,
+                    "auth token acquired at pipeline start (eager)",
+                );
+                tok
+            }
+            Err(e) => {
+                tracing::error!(
+                    event_type = "auth_initial_failed",
+                    sensor_id = %spec.sensor_id,
+                    client_id = %context.client_id,
+                    detail = %e,
+                    "auth token acquisition failed at pipeline start",
+                );
+                return Err(e);
+            }
+        };
 
         // F-LP1-HIGH-004: seed step_vars with query context so ${query.filter.*}
         // and ${query.client_id} are available for interpolation in all steps.

@@ -59,21 +59,22 @@ fn auth_retry_spec(base_url: &str) -> SensorSpec {
 // Test 5 (AC-5a): 401 → acquire_token → retry succeeds
 // ---------------------------------------------------------------------------
 
-/// BC-2.16.002 AC-5: When the data endpoint returns HTTP 401, `execute` calls
-/// `auth_provider.acquire_token` exactly once, then retries ONCE with the new token.
-/// The retry succeeds (200) and returns non-empty records.
+/// BC-2.16.002 AC-5: When the data endpoint returns HTTP 401 mid-pipeline,
+/// `execute` calls `auth_provider.acquire_token` a second time (token-expiry refresh)
+/// and retries ONCE with the fresh token. The retry succeeds (200).
+///
+/// With eager-token acquisition (F-LP5-LOW-003 closure), `acquire_token` is called
+/// TWICE total: once eagerly at pipeline start, and once on 401 token-expiry refresh.
 ///
 /// Assertions:
-/// (a) `MockAuthProvider::calls()` == 1 after completion (acquire_token was called once)
-/// (b) `result.records.len() > 0` (retry succeeded)
-/// (c) `result.request_count >= 2` (initial 401 + 1 retry)
-///
-/// FAILS RED: `execute` body is `todo!()`.
+/// (a) `MockAuthProvider::calls()` == 2 after completion (1 eager + 1 on-401 refresh)
+/// (b) `result.records.len() == 2` (retry succeeded, 2 records returned)
+/// (c) `result.request_count >= 2` (initial 401 request + 1 retry request)
 #[tokio::test]
 async fn test_BC_2_16_002_execute_calls_auth_provider_acquire_token_on_401() {
     let mock_server = MockServer::start().await;
 
-    // First request: HTTP 401 (triggers auth refresh)
+    // First request: HTTP 401 (triggers token-expiry refresh)
     Mock::given(method("GET"))
         .and(path("/api/findings"))
         .respond_with(ResponseTemplate::new(401))
@@ -81,7 +82,7 @@ async fn test_BC_2_16_002_execute_calls_auth_provider_acquire_token_on_401() {
         .mount(&mock_server)
         .await;
 
-    // Second request (retry after token refresh): HTTP 200 with data
+    // Second request (retry after token-expiry refresh): HTTP 200 with data
     Mock::given(method("GET"))
         .and(path("/api/findings"))
         .respond_with(ResponseTemplate::new(200).set_body_json(serde_json::json!({
@@ -108,11 +109,11 @@ async fn test_BC_2_16_002_execute_calls_auth_provider_acquire_token_on_401() {
         .await
         .expect("AC-5a: retry after 401 must succeed");
 
-    // (a) acquire_token was called once (on 401 receipt)
+    // (a) acquire_token was called twice: 1 eager (pipeline start) + 1 on-401 refresh
     assert_eq!(
         auth_provider.calls(),
-        1,
-        "AC-5a: acquire_token must be called exactly once on 401; called {} times",
+        2,
+        "AC-5a: acquire_token must be called twice (1 eager + 1 on-401 refresh); called {} times",
         auth_provider.calls()
     );
 
@@ -128,7 +129,7 @@ async fn test_BC_2_16_002_execute_calls_auth_provider_acquire_token_on_401() {
         result.records.len()
     );
 
-    // (c) request count reflects initial + retry
+    // (c) request count reflects initial 401 request + retry request
     assert!(
         result.request_count >= 2,
         "AC-5a: at least 2 requests (401 + retry); got request_count={}",
@@ -144,12 +145,14 @@ async fn test_BC_2_16_002_execute_calls_auth_provider_acquire_token_on_401() {
 /// `execute` aborts with a structured `SpecEngineError::AuthRefreshFailed`
 /// (wrapped in `PrismError`). No further retries are attempted.
 ///
+/// With eager-token acquisition (F-LP5-LOW-003 closure), `acquire_token` is called
+/// TWICE total: once eagerly at pipeline start, and once on the first 401 refresh.
+/// The second 401 (on the retry) triggers abort — no third acquire_token call.
+///
 /// Assertions:
 /// (a) `execute` returns `Err(...)` — not Ok
-/// (b) `auth_provider.calls()` == 1 — token was refreshed once before the second 401
+/// (b) `auth_provider.calls()` == 2 (1 eager + 1 on-first-401 refresh; no third call)
 /// (c) No infinite retry loop (test must terminate promptly)
-///
-/// FAILS RED: `execute` body is `todo!()`.
 #[tokio::test]
 async fn test_BC_2_16_002_execute_aborts_on_double_401() {
     let mock_server = MockServer::start().await;
@@ -180,11 +183,146 @@ async fn test_BC_2_16_002_execute_aborts_on_double_401() {
         result.as_ref().map(|r| r.records.len()).unwrap_or(0)
     );
 
-    // (b) acquire_token was called once (for the retry; not zero, not two)
+    // (b) acquire_token called twice: 1 eager at start + 1 on first-401 refresh.
+    // No third call — abort fires on the double-401.
+    assert_eq!(
+        auth_provider.calls(),
+        2,
+        "AC-5b: acquire_token must be called exactly twice (1 eager + 1 on-401); called {} times",
+        auth_provider.calls()
+    );
+}
+
+// ---------------------------------------------------------------------------
+// New Red Gate tests: F-LP5-LOW-003 closure — eager-token semantics
+// ---------------------------------------------------------------------------
+
+/// F-LP5-LOW-003 (eager-token): `execute` acquires the bearer token BEFORE issuing
+/// the first HTTP request. A single-step pipeline against a 200 endpoint must
+/// produce `request_count == 1` (no spurious 401 round-trip on the initial request).
+///
+/// Prior to F-LP5-LOW-003 closure (lazy-token design), the first request was
+/// always sent with an empty token, guaranteeing a 401 and a second request.
+/// Eager acquisition eliminates that round-trip.
+///
+/// Assertions:
+/// (a) `result.request_count == 1` — exactly one HTTP request (not 2)
+/// (b) `auth_provider.calls() == 1` — acquire_token called once (eagerly, not on 401)
+/// (c) `result.records.len() == 2` — non-empty result (pipeline succeeded)
+#[tokio::test]
+async fn test_BC_2_16_002_execute_acquires_token_eagerly_before_first_request() {
+    let mock_server = MockServer::start().await;
+
+    // Single endpoint — returns 200 immediately (no 401 round-trip).
+    // With eager-token, the bearer token is set before this request fires,
+    // so the server never needs to return 401.
+    Mock::given(method("GET"))
+        .and(path("/api/findings"))
+        .respond_with(ResponseTemplate::new(200).set_body_json(serde_json::json!({
+            "findings": [
+                {"id": "f1", "severity": "critical"},
+                {"id": "f2", "severity": "high"}
+            ]
+        })))
+        .mount(&mock_server)
+        .await;
+
+    let spec = auth_retry_spec(&mock_server.uri());
+    let table = spec.tables[0].clone();
+    let context = default_context();
+    let http_client = reqwest::Client::builder()
+        .timeout(std::time::Duration::from_secs(30))
+        .build()
+        .expect("reqwest Client::build must succeed");
+    let auth_provider = MockAuthProvider::new("eager-token");
+
+    let result = PipelineExecutor::execute(&spec, &table, &context, &http_client, &auth_provider)
+        .await
+        .expect("eager-token: single-step 200 pipeline must succeed");
+
+    // (a) exactly one HTTP request — no spurious 401 round-trip
+    assert_eq!(
+        result.request_count, 1,
+        "F-LP5-LOW-003: eager-token must produce request_count=1 (not 2); got {}",
+        result.request_count
+    );
+
+    // (b) acquire_token called once (eagerly at pipeline start, not on 401)
     assert_eq!(
         auth_provider.calls(),
         1,
-        "AC-5b: acquire_token must be called exactly once before aborting; called {} times",
+        "F-LP5-LOW-003: eager-token must call acquire_token exactly once; called {} times",
         auth_provider.calls()
+    );
+
+    // (c) pipeline produced the expected records
+    assert_eq!(
+        result.records.len(),
+        2,
+        "F-LP5-LOW-003: 2 records expected; got {}",
+        result.records.len()
+    );
+}
+
+/// F-LP5-LOW-003 (no spurious auth_refresh_triggered): On a legitimate 200 execution,
+/// `auth_refresh_triggered` must NOT fire. Only `auth_initial_acquired` fires.
+///
+/// This test verifies the audit-log semantics: `auth_refresh_triggered` is now reserved
+/// for genuine token-expiry mid-pipeline (401 on a request after the initial eager
+/// acquisition). The first-request 401 anti-pattern is eliminated.
+///
+/// Assertions:
+/// (a) Pipeline succeeds (200 response, non-empty records)
+/// (b) `auth_provider.calls() == 1` — acquire_token called once (no on-401 refresh)
+/// (c) `result.request_count == 1` — no 401 round-trip triggered
+#[tokio::test]
+async fn test_BC_2_16_002_no_auth_refresh_triggered_on_legitimate_execution() {
+    let mock_server = MockServer::start().await;
+
+    // 200 on first attempt — no auth refresh needed.
+    Mock::given(method("GET"))
+        .and(path("/api/findings"))
+        .respond_with(ResponseTemplate::new(200).set_body_json(serde_json::json!({
+            "findings": [{"id": "f3", "severity": "low"}]
+        })))
+        .mount(&mock_server)
+        .await;
+
+    let spec = auth_retry_spec(&mock_server.uri());
+    let table = spec.tables[0].clone();
+    let context = default_context();
+    let http_client = reqwest::Client::builder()
+        .timeout(std::time::Duration::from_secs(30))
+        .build()
+        .expect("reqwest Client::build must succeed");
+    let auth_provider = MockAuthProvider::new("valid-token-no-refresh");
+
+    let result = PipelineExecutor::execute(&spec, &table, &context, &http_client, &auth_provider)
+        .await
+        .expect("no-refresh path: legitimate 200 execution must succeed");
+
+    // (a) pipeline succeeded with non-empty records
+    assert_eq!(
+        result.records.len(),
+        1,
+        "no-refresh path: 1 record expected; got {}",
+        result.records.len()
+    );
+
+    // (b) acquire_token called exactly once (only the eager initial acquisition)
+    // — no on-401 refresh call, proving auth_refresh_triggered did NOT fire
+    assert_eq!(
+        auth_provider.calls(),
+        1,
+        "F-LP5-LOW-003: no-refresh path must call acquire_token exactly once (eager only); \
+         called {} times — auth_refresh_triggered must NOT fire on legitimate 200 execution",
+        auth_provider.calls()
+    );
+
+    // (c) exactly one HTTP request (no spurious 401 round-trip)
+    assert_eq!(
+        result.request_count, 1,
+        "F-LP5-LOW-003: no-refresh path must produce request_count=1; got {}",
+        result.request_count
     );
 }
