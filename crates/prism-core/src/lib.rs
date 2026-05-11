@@ -75,6 +75,9 @@ pub mod dtu;
 // ── S-3.1.03 additions ───────────────────────────────────────────────────────
 pub mod org_registry;
 
+// ── S-PLUGIN-PREREQ-A additions ──────────────────────────────────────────────
+pub mod sensor_id;
+
 // ── Kani proofs (cfg-gated; compile everywhere, run only under cargo kani) ───
 pub mod proofs;
 
@@ -129,3 +132,6 @@ pub use dtu::{DtuMode, DtuRegistryEntry, DTU_DEFAULT_MODE};
 
 // S-3.1.03
 pub use org_registry::{OrgRegistry, RegistrationError};
+
+// S-PLUGIN-PREREQ-A
+pub use sensor_id::SensorId;
