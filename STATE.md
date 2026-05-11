@@ -1,9 +1,9 @@
 ---
 document_type: pipeline-state
 level: ops
-version: "7.136"
+version: "7.137"
 producer: state-manager
-timestamp: 2026-05-11T20:30:00Z
+timestamp: 2026-05-11T21:00:00Z
 inputs: []
 input-hash: "[live-state]"
 traces_to: ""
@@ -22,7 +22,7 @@ repos:
   - axiathon
   - ocsf-proto-gen
   - mcp-claroty-xdome
-current_step: "PAUSE CHECKPOINT — D-402. S-PLUGIN-PREREQ-B LOCAL fix-burst-2 closed all 8 pass-2 actionable findings at worktree a6895d7a (pushed origin). Streak 0/3. POST-PAUSE FIRST ACTION: dispatch LOCAL adversary pass-3 against HEAD a6895d7a, target streak 1/3. All state durable: develop@90d7c80f, factory@<run git -C .factory log -1>, origin/feature/S-PLUGIN-PREREQ-B@a6895d7a."
+current_step: "D-403. S-PLUGIN-PREREQ-B LOCAL pass-3 CLEAN at HEAD a6895d7a (UNCHANGED from fix-burst-2). FIRST CLEAN PASS in PREREQ-B LOCAL cascade. Streak 0/3 → 1/3. Trajectory 20→10→4 (all LOW+OBS, ZERO actionable). All 8 fix-burst-2 closures verified paper-fix-free (TD-VSDD-059 discipline). Sibling-site sweep (TD-VSDD-060) clean. 9/9 ACs satisfied. POST-D-403 FIRST ACTION: dispatch LOCAL adversary pass-4 against HEAD a6895d7a, target streak 2/3."
 wave_3_carry_forward_debt: "ALL_REMEDIATE — W4-FIX-PERF-001/002, W4-FIX-CODE-001, W4-FIX-SEC-001 through W4-FIX-SEC-004 planned per D-203"
 wave_4_status: "PHASE_4_A_CONVERGED + R9_APPROVED but PHASE_4_B SUSPENDED — pre-implementation dep check (2026-05-04) found S-4.01 → S-3.02 (status=draft); pivoting to full Wave 3 implementation per user directive D-223"
 wave_4_phase_4_a_preflight:
@@ -176,9 +176,9 @@ workspace_test_count: 3489  # 891 prism-query + workspace total (per implementer
 | **Language** | Rust |
 | **Target Workspace** | per-analyst stdio (MCP server) |
 | **Started** | 2026-04-13 |
-| **Last Updated** | 2026-05-11 (D-400 — S-PLUGIN-PREREQ-B LOCAL fix-burst-1 CLOSED 12 actionable findings; worktree 7511e749; BC amendment c2e7b376; Red Gate 8→16; 2 TDs filed; pass-2 next; STATE v7.133→v7.134) |
+| **Last Updated** | 2026-05-11 (D-403 — S-PLUGIN-PREREQ-B LOCAL pass-3 CLEAN; streak 1/3; trajectory 20→10→4; STATE+HANDOFF v7.136→v7.137) |
 | **Current Phase** | Wave 3 Tier-3 COMPLETE — **Wave 3-A 4 of 4 SHIPPED**: S-3.05 (#132 c867c344), S-3.04 (#133 57745ce8), S-3.03 (#134 7c413692), **S-3.07 (#135 2ae7185b MERGED 2026-05-08T04:23:03Z)**; post-merge cleanup confirmed; plugin migration: PREREQ-F SHIPPED; PREREQ-A/B/C/D/E pending |
-| **Current Step** | D-400 — S-PLUGIN-PREREQ-B LOCAL fix-burst-1 CLOSED at 7511e749. All 4 CRIT closed: body_template interpolation + Content-Type derivation (CRIT-001); percent-encoded cursor (CRIT-002); final-step-only records accumulation (CRIT-003); crowdstrike test converted to wiremock (CRIT-004). All actionable HIGH closed (HIGH-005 deferred TD-001 P2 PREREQ-C scope). 3 MED closed (MED-001 via BC v1.4 amendment at c2e7b376). 8 net new Red Gate tests; Red Gate 8→16. 258 prism-spec-engine tests pass + 1 skipped. 2 TDs filed (TD-S-PLUGIN-PREREQ-B-001 P2, -002 P3). Streak 0/3 → pass-2 expected next. |
+| **Current Step** | D-403 — S-PLUGIN-PREREQ-B LOCAL pass-3 CLEAN at HEAD a6895d7a (UNCHANGED from fix-burst-2). FIRST CLEAN PASS. Trajectory 20→10→4. All 8 fix-burst-2 closures paper-fix-free (TD-VSDD-059). Sibling-site sweep (TD-VSDD-060) clean: find_fan_out_array 1 callsite no orphans; extract_at_path 5 callsites updated; MAX_PAGES_PER_STEP no stale refs; BC-2.16.002 v1.4 all 4 postconditions match. 9/9 ACs satisfied. 2 LOW non-blocking (F-LP3-LOW-001 store_step_vars asymmetric insert pre-existing gap; F-LP3-LOW-002 AC-2 value-verification paper-fix-proof gap). 2 OBS process-gap candidates. 6 KUDOs. Streak 1/3. Pass-4 next. |
 
 ## Phase Progress
 
@@ -210,12 +210,11 @@ workspace_test_count: 3489  # 891 prism-query + workspace total (per implementer
 
 | Step | Agent | Status | Output |
 |------|-------|--------|--------|
-| S-PLUGIN-PREREQ-A PR-LEVEL pass-4 | adversary + state-manager | **CLEAN — CONVERGED** | 0 findings (0C+0H+0M+0L+4OBS); **streak 2/3→3/3 → CONVERGED**; HEAD ba7d7f6f UNCHANGED (three-way idempotency); BC-5.39.001 3-CLEAN SATISFIED; 4 OBS filed as TD-S-PLUGIN-PREREQ-A-{007,008,009,010} P3; PR-LEVEL CASCADE CONVERGED; STATE v7.130→v7.131 (D-397) |
-| S-PLUGIN-PREREQ-A MERGED (D-398) | state-manager | **COMPLETE** | PR #142 squash-merged to develop@90d7c80f 2026-05-11T16:37:14Z. POL-14 promotions: STORY-INDEX ready→merged (v2.36→v2.37); story v1.5→v1.6; BC-2.01.013 draft→active; BC-INDEX v4.54→v4.55. PREREQ-B/C/D/E UNBLOCKED. STATE+HANDOFF v7.131→v7.132 |
 | S-PLUGIN-PREREQ-B LOCAL pass-1 (D-399) | adversary + state-manager | **BLOCKED-hard** | 20 findings (4C+6H+5M+2L+3O) at HEAD b1b529fc; Red Gate missed AC-6/AC-7/AC-8; 4 CRIT: body_template, cursor encoding, record-leak, dead test; AC-6 fan-out unimplemented; AC-5 audit-log absent; fix-burst-1 dispatched; streak 0/3; STATE+HANDOFF v7.132→v7.133 |
 | S-PLUGIN-PREREQ-B LOCAL fix-burst-1 (D-400) | implementer + product-owner + state-manager | **CLOSED** | Worktree 7511e749 + factory c2e7b376 (BC v1.4). All 4 CRIT closed. All actionable HIGH closed (HIGH-005→TD-001 P2). 3 MED closed. 8 net new Red Gate tests (7 new + 1 upgraded crowdstrike→wiremock); Red Gate 8→16. 258 prism-spec-engine tests pass + 1 skipped. 2 TDs filed (TD-S-PLUGIN-PREREQ-B-001 P2, -002 P3). KUDO: implementer closed 8 pre-existing clippy::collapsible_if errors. Streak 0/3. Pass-2 next. STATE+HANDOFF v7.133→v7.134 |
 | S-PLUGIN-PREREQ-B LOCAL pass-2 (D-401) | adversary + state-manager | **BLOCKED-hard** | 10 findings (0C+2H+3M+3L+2O) at HEAD 7511e749; trajectory 20→10; F-LP2-HIGH-001 paper-fix regression (fan-out batch key mismatch, false-green test); F-LP2-HIGH-002 latent cursor infinite-loop; 12 pass-1 closures verified CLEAN; streak 0/3; fix-burst-2 dispatching; STATE+HANDOFF v7.134→v7.135 |
-| S-PLUGIN-PREREQ-B LOCAL fix-burst-2 (D-402) | implementer + state-manager | **CLOSED — PAUSE CHECKPOINT** | 8 actionable findings closed (2H+3M+3L) at worktree a6895d7a (pushed origin). 5 new Red Gate tests. Red Gate 16→29. 263/263 crate + workspace clean. Streak 0/3. 2 OBS acknowledged. 2 TDs filed (TD-003 P3 JSON Pointer; TD-004 P3 resource bound). POST-PAUSE: dispatch pass-3. STATE+HANDOFF v7.135→v7.136 |
+| S-PLUGIN-PREREQ-B LOCAL fix-burst-2 (D-402) | implementer + state-manager | **CLOSED** | 8 actionable findings closed (2H+3M+3L) at worktree a6895d7a (pushed origin). 5 new Red Gate tests. Red Gate 16→29. 263/263 crate + workspace clean. Streak 0/3. 2 OBS acknowledged. 2 TDs filed (TD-003 P3 JSON Pointer; TD-004 P3 resource bound). STATE+HANDOFF v7.135→v7.136 |
+| S-PLUGIN-PREREQ-B LOCAL pass-3 (D-403) | adversary + state-manager | **CLEAN — streak 1/3** | 0 actionable findings (0C+0H+0M+2L+2OBS); FIRST CLEAN PASS; trajectory 20→10→4; all 8 fix-burst-2 closures paper-fix-free (TD-VSDD-059); sibling-site sweep (TD-VSDD-060) clean; 9/9 ACs satisfied; 6 KUDOs; pass-4 next; STATE+HANDOFF v7.136→v7.137 |
 
 ## Decisions Log
 
@@ -223,6 +222,7 @@ _D-001..D-046 archived: [cycles/phase-3-dtu-wave-2/decisions-archive-d001-d032.m
 
 | ID | Decision | Rationale | Phase | Date |
 |----|----------|-----------|-------|------|
+| D-403 | 2026-05-11 | S-PLUGIN-PREREQ-B LOCAL pass-3 CLEAN at HEAD a6895d7a (UNCHANGED from fix-burst-2). FIRST CLEAN PASS in PREREQ-B LOCAL cascade. Streak 0/3 → 1/3. Trajectory 20 → 10 → 4 (all LOW+OBS, ZERO actionable). All 8 fix-burst-2 closures verified paper-fix-free (TD-VSDD-059 discipline applied). Sibling-site sweep (TD-VSDD-060) clean: find_fan_out_array tuple signature change has 1 callsite no orphans; extract_at_path Result<_,String> 5 callsites updated; MAX_PAGES_PER_STEP no stale refs; BC-2.16.002 v1.4 postconditions all match implementation. 9/9 ACs have impl+test pairs. 2 LOW: F-LP3-LOW-001 store_step_vars asymmetric insert vs or_insert_with (pre-existing pagination semantics gap, not PREREQ-B regression); F-LP3-LOW-002 AC-2 wiremock matcher gap (paper-fix-proof discipline application). 2 OBS process-gap candidates: OBS-LP3-001 paper-fix-proof-test methodology codification; OBS-LP3-002 red_gate_tests scope ambiguity. 6 KUDOs (paper-fix-proof exemplar; RFC 6901 escape; AuthProvider object-safety; defense-in-depth pagination guards; AuthToken Debug redaction; numeric-cursor coerce + warn). Pass-4 next (target streak 2/3). STATE+HANDOFF v7.136 → v7.137. | plugin-migration | 2026-05-11 |
 | D-402 | 2026-05-11 | S-PLUGIN-PREREQ-B LOCAL fix-burst-2 CLOSED 8 actionable findings at worktree a6895d7a. F-LP2-HIGH-001 fan-out batch URL paper-fix regression FIXED with paper-fix-proof test (`test_BC_2_16_002_execute_fan_out_sends_distinct_batch_urls` asserts 3 distinct query strings + each <700 chars — full-array regression would be 900+ chars). F-LP2-HIGH-002 cursor infinite-loop CLOSED via MAX_PAGES_PER_STEP=1000 + prev_cursor non-advance guard. 3 MED + 3 LOW all closed. 2 OBS acknowledged: OBS-LP2-001 partial-coverage via HIGH-002 fix + TD-S-PLUGIN-PREREQ-B-004 P3 for full MAX_REQUESTS_PER_PIPELINE; OBS-LP2-002 process-gap links to existing PG-LP7-002. 5 new Red Gate tests added (paper-fix-proof + cursor-abort + array-CT + numeric-cursor + variant-construction). Red Gate count: 16→29 by canonical-name grep (+1 error.rs unit = 30). Full crate: 263/263 pass. Workspace builds clean. 2 TDs filed: TD-S-PLUGIN-PREREQ-B-003 P3 (JSON Pointer bracket/wildcard PREREQ-C scope); TD-S-PLUGIN-PREREQ-B-004 P3 (MAX_REQUESTS_PER_PIPELINE full resource bound). Streak stays 0/3 (fix-burst doesn't advance; pass-3 needed). STATE+HANDOFF v7.135→v7.136. | plugin-migration | 2026-05-11 |
 | D-401 | 2026-05-11 | S-PLUGIN-PREREQ-B LOCAL adversary pass-2 BLOCKED-hard at HEAD 7511e749 (10 findings: 0C+2H+3M+3L+2O). Trajectory 20→10 (improving). F-LP2-HIGH-001 PAPER-FIX REGRESSION INTRODUCED BY FIX-BURST-1: fan-out batches never reach HTTP URL because batch inserted under `{step.name}.batch` key but template uses `${step1.ids}` (prior step's full-array key) — wiremock test is false-green (asserts 3 requests, not 3 distinct query strings). F-LP2-HIGH-002 LATENT GAP missed by pass-1: cursor infinite-loop if API returns same non-empty cursor (no same-cursor check, no MAX_PAGES guard). F-LP2-MED-001 red_gate_tests: 16 vs actual 26 by grep (PG-LP7-002 2nd occurrence — process-gap candidate OBS-LP2-002). F-LP2-MED-002 Content-Type derivation misclassifies JSON arrays. F-LP2-MED-003 numeric cursor silent-failure. 12 pass-1 closures verified CLEAN (including BC-2.16.002 v1.4 amendment). Streak stays 0/3 — HIGH findings present. Fix-burst-2 dispatching: implementer closes 2H + 3M + 3L (8 actionable) + 2 OBS (1 deferred as TD, 1 deferred to follow-up). STATE+HANDOFF v7.134→v7.135. | plugin-migration | 2026-05-11 |
 | D-400 | 2026-05-11 | S-PLUGIN-PREREQ-B LOCAL fix-burst-1 CLOSED 12 actionable findings (worktree 7511e749 + factory c2e7b376). All 4 CRIT closed: F-LP1-CRIT-001 body_template interpolation + Content-Type derivation; CRIT-002 percent-encoded cursor; CRIT-003 final-step-only records accumulation; CRIT-004 crowdstrike test converted to wiremock. All actionable HIGH closed (HIGH-005 deferred-as-TD-S-PLUGIN-PREREQ-B-001 P2 PREREQ-C scope — page_size on CursorToken). 3 MED closed (MED-001 BC v1.3→v1.4 amendment via product-owner at c2e7b376; MED-004/005 acknowledged non-blocking). 8 net new Red Gate tests (7 new + 1 upgraded CRIT-004 crowdstrike→wiremock); Red Gate count 8→16. 258 prism-spec-engine tests pass + 1 skipped. Workspace builds clean. 2 TDs filed inline: TD-S-PLUGIN-PREREQ-B-001 P2 (cursor page_size first-call; PREREQ-C scope) + TD-S-PLUGIN-PREREQ-B-002 P3 (AuthToken zeroize on Drop; PREREQ-D scope). KUDO: implementer closed 8 pre-existing clippy::collapsible_if errors across 5 unrelated files to clear pre-commit hook. Streak 0/3 — ready for pass-2. STATE+HANDOFF v7.133→v7.134. | plugin-migration | 2026-05-11 |
@@ -346,21 +346,21 @@ Cycle files: [burst-log](cycles/phase-2-patch/burst-log.md) | [convergence-traje
 
 ---
 
-## Session Resume Checkpoint (2026-05-11-v7.136-d402-prereq-b-fix-burst-2-pause)
+## Session Resume Checkpoint (2026-05-11-v7.137-d403-prereq-b-pass-3-clean-streak-1-3)
 
-_Previous checkpoint (v7.134/D-400 fix-burst-1 CLOSED) archived: [cycles/wave-4-operations/session-checkpoints.md](cycles/wave-4-operations/session-checkpoints.md)_
+_Previous checkpoint (v7.136/D-402 fix-burst-2 CLOSED PAUSE) archived: [cycles/wave-4-operations/session-checkpoints.md](cycles/wave-4-operations/session-checkpoints.md)_
 
-**PAUSE CHECKPOINT. STATE v7.136. D-402 — S-PLUGIN-PREREQ-B fix-burst-2 CLOSED. Streak 0/3. SESSION-HANDOFF v7.136.** develop@90d7c80f. factory-artifacts HEAD: run `git -C .factory log -1` (per TD-VSDD-053). vsdd-factory rc.16 active. Standing Orchestrator Rules active (Rules 1, 2, 3). Bundle B Exit Mandate active (task #85). Worktrees: main (clean) + .factory + .worktrees/S-PLUGIN-PREREQ-B + .worktrees/S-3.09 (FROZEN per D-298).
+**STATE v7.137. D-403 — S-PLUGIN-PREREQ-B LOCAL pass-3 CLEAN. Streak 1/3. SESSION-HANDOFF v7.137.** develop@90d7c80f. factory-artifacts HEAD: run `git -C .factory log -1` (per TD-VSDD-053). vsdd-factory rc.16 active. Standing Orchestrator Rules active (Rules 1, 2, 3). Bundle B Exit Mandate active (task #85). Worktrees: main (clean) + .factory + .worktrees/S-PLUGIN-PREREQ-B + .worktrees/S-3.09 (FROZEN per D-298).
 
-**S-PLUGIN-PREREQ-B STATUS:** fix-burst-2 CLOSED at a6895d7a (pushed to origin). All 8 pass-2 actionable findings closed (2H+3M+3L). 5 new Red Gate tests; Red Gate 16→29 (canonical-name grep) + 1 error.rs unit = 30 total. 263/263 prism-spec-engine tests pass. Workspace clean. 2 TDs filed (TD-S-PLUGIN-PREREQ-B-003 P3 JSON Pointer, -004 P3 resource bound). 4 total TDs filed for PREREQ-B. Streak 0/3.
+**S-PLUGIN-PREREQ-B STATUS:** pass-3 CLEAN at HEAD a6895d7a (UNCHANGED from fix-burst-2). FIRST CLEAN PASS. Trajectory 20→10→4. All 8 fix-burst-2 closures paper-fix-free. 9/9 ACs satisfied. 2 LOW non-blocking (F-LP3-LOW-001 store_step_vars asymmetric insert pre-existing gap; F-LP3-LOW-002 AC-2 value-verification paper-fix-proof gap). 2 OBS process-gap candidates. 6 KUDOs. Streak 1/3.
 
-**POST-PAUSE FIRST ACTION:** Dispatch LOCAL adversary pass-3 (fresh-context) against HEAD a6895d7a. Target streak 1/3. Adversary scope: full closure verification of fix-burst-2's 8 findings (paper-fix detection per TD-VSDD-059), workspace-wide sibling sweep per TD-VSDD-060, novel-defect detection in fan-out source-key tuple refactor + cursor advance guards + RFC 6901 segment escaping.
+**POST-D-403 FIRST ACTION:** Dispatch LOCAL adversary pass-4 against HEAD a6895d7a. Target streak 2/3. Adversary scope: yet-different fresh-context angles disjoint from passes 2 and 3 — e.g., security/threat-model, async correctness deep-dive, error-path exhaustive enumeration, integration with materialization.rs cap interactions. After pass-4 streak 2/3 → pass-5 streak 3/3 CONVERGED → demo-recorder → PR → PR-LEVEL cascade → merge.
 
 **S-3.09 FREEZE STATE:** Worktree .worktrees/S-3.09 HEAD 43c41389; BUG-S309-PLUGIN P0 blocks resumption. See D-298/D-299.
 
 **Deferred TDs (carry-forward):** W3-FIX-S307-001/002/003 + TD-S307-002/003/004 + TD-S-PLUGIN-PREREQ-A-002 P1 + TD-S-PLUGIN-PREREQ-A-003 P1 + TD-S-PLUGIN-PREREQ-A-004 P1 + TD-S-PLUGIN-PREREQ-A-005..010 P3 + TD-S-PLUGIN-PREREQ-B-001 P2 (cursor page_size; PREREQ-C) + TD-S-PLUGIN-PREREQ-B-002 P3 (AuthToken zeroize; PREREQ-D) + TD-S-PLUGIN-PREREQ-B-003 P3 (JSON Pointer bracket/wildcard; PREREQ-C) + TD-S-PLUGIN-PREREQ-B-004 P3 (MAX_REQUESTS_PER_PIPELINE; PREREQ-D) + TD-VSDD-058/059/060 P0 + TD-FACTORY-HOOK-BYPASS-001 P0 + TD-VSDD-054..063 (all OPEN) + TD-VSDD-082/083/084 + TD-S309-O1/O2/O3/O4
 
-**Current spec versions:** BC-INDEX v4.55, STORY-INDEX v2.40 (150 stories), ARCH-INDEX v2.40, ADR-023 v1.18, VP-INDEX v1.30 (152 VPs + VP-PLUGIN-001..007 aliases), BC-2.16.002 v1.4 (amended D-400 c2e7b376), BC-2.01.013 v1.6 (active, merged PR #142), S-PLUGIN-PREREQ-B v1.2 (red_gate_tests 16→29, D-402), prd.md v1.10, error-taxonomy.md v1.18, develop@90d7c80f; STATE v7.136 SESSION-HANDOFF v7.136 (current)
+**Current spec versions:** BC-INDEX v4.55, STORY-INDEX v2.40 (150 stories), ARCH-INDEX v2.40, ADR-023 v1.18, VP-INDEX v1.30 (152 VPs + VP-PLUGIN-001..007 aliases), BC-2.16.002 v1.4 (amended D-400 c2e7b376), BC-2.01.013 v1.6 (active, merged PR #142), S-PLUGIN-PREREQ-B v1.2 (red_gate_tests 16→29, D-402), prd.md v1.10, error-taxonomy.md v1.18, develop@90d7c80f; STATE v7.137 SESSION-HANDOFF v7.137 (current)
 
 **Key files:** [SESSION-HANDOFF.md](SESSION-HANDOFF.md) | [cycle-manifest.md](cycles/wave-4-operations/cycle-manifest.md) | [HOLDOUT-INDEX.md](holdout-scenarios/HOLDOUT-INDEX.md)
 
