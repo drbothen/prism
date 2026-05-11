@@ -1,9 +1,9 @@
 ---
 document_type: pipeline-state
 level: ops
-version: "7.111"
+version: "7.112"
 producer: state-manager
-timestamp: 2026-05-10T23:59:00Z
+timestamp: 2026-05-11T00:00:00Z
 inputs: []
 input-hash: "[live-state]"
 traces_to: ""
@@ -22,7 +22,7 @@ repos:
   - axiathon
   - ocsf-proto-gen
   - mcp-claroty-xdome
-current_step: "PRE-COMPACT CHECKPOINT (D-377) — ready for context compaction; post-compact dispatches product-owner for Wave 0/F (PLUGIN-PREREQ-F) BC+DI catalog amendments per ADR-023 v1.17"
+current_step: "POST-COMPACT POST-PREREQ-F (D-378) — PREREQ-F SHIPPED at a952ffff; ADR-023 v1.17 BC+DI documentation foundation landed; UNBLOCKS PREREQ-A/B/C/D/E + Wave 1; next action: orchestrator-user decision on PREREQ-D vs PREREQ-A first dispatch"
 wave_3_carry_forward_debt: "ALL_REMEDIATE — W4-FIX-PERF-001/002, W4-FIX-CODE-001, W4-FIX-SEC-001 through W4-FIX-SEC-004 planned per D-203"
 wave_4_status: "PHASE_4_A_CONVERGED + R9_APPROVED but PHASE_4_B SUSPENDED — pre-implementation dep check (2026-05-04) found S-4.01 → S-3.02 (status=draft); pivoting to full Wave 3 implementation per user directive D-223"
 wave_4_phase_4_a_preflight:
@@ -126,8 +126,8 @@ subsystem_count: 20
 story_count: 113
 bc_count_corrected: 235
 cap_count: 40  # active; highest_cap_id: CAP-040 (CAP-038 Multi-Tenant Identity, CAP-039 Multi-Tenant Fixture Gen, CAP-040 Multi-Tenant Adapter Dispatch — Wave 3 Phase 3.A Step 2)
-bc_index_version: "4.53"
-vp_index_version: "1.29"
+bc_index_version: "4.54"
+vp_index_version: "1.30"
 story_index_version: "v2.34"
 total_stories: 150
 red_gate_wave_0a_complete: 2026-04-21
@@ -142,7 +142,7 @@ arch_index_version: "2.39"
 security_architecture_version: "1.1"
 verification_coverage_matrix_version: "1.31"
 verification_architecture_version: "1.30"
-invariants_version: "1.5"
+invariants_version: "1.6"
 deferred_items_count: 0
 vp_count: 152  # VP-INDEX v1.29 total (includes VP-146..VP-152 Wave-4 plugin-alias VPs)
 vp_tbd_resolution_complete: 2026-04-20
@@ -176,9 +176,9 @@ workspace_test_count: 3489  # 891 prism-query + workspace total (per implementer
 | **Language** | Rust |
 | **Target Workspace** | per-analyst stdio (MCP server) |
 | **Started** | 2026-04-13 |
-| **Last Updated** | 2026-05-10 (D-377 — PRE-COMPACT CHECKPOINT; state durable for context compaction; post-compact dispatches Wave 0/F; STATE v7.110→v7.111) |
-| **Current Phase** | Wave 3 Tier-3 COMPLETE — **Wave 3-A 4 of 4 SHIPPED**: S-3.05 (#132 c867c344), S-3.04 (#133 57745ce8), S-3.03 (#134 7c413692), **S-3.07 (#135 2ae7185b MERGED 2026-05-08T04:23:03Z)**; post-merge cleanup confirmed; NEXT: Wave 3-B/C or Wave 4 unblock |
-| **Current Step** | D-377 — PRE-COMPACT CHECKPOINT (2026-05-10). State durable. Post-compact: dispatch product-owner for Wave 0/F (PLUGIN-PREREQ-F) BC+DI catalog amendments per ADR-023 v1.17. |
+| **Last Updated** | 2026-05-11 (D-378 — PREREQ-F SHIPPED at factory-artifacts a952ffff; ADR-023 v1.17 BC+DI documentation foundation; 14 file mutations single commit; STATE v7.111→v7.112) |
+| **Current Phase** | Wave 3 Tier-3 COMPLETE — **Wave 3-A 4 of 4 SHIPPED**: S-3.05 (#132 c867c344), S-3.04 (#133 57745ce8), S-3.03 (#134 7c413692), **S-3.07 (#135 2ae7185b MERGED 2026-05-08T04:23:03Z)**; post-merge cleanup confirmed; plugin migration: PREREQ-F SHIPPED; PREREQ-A/B/C/D/E pending |
+| **Current Step** | D-378 — POST-COMPACT POST-PREREQ-F (2026-05-11). PREREQ-F SHIPPED at a952ffff. Next: orchestrator-user decision on PREREQ-D vs PREREQ-A first dispatch. |
 
 ## Phase Progress
 
@@ -221,6 +221,7 @@ _D-001..D-046 archived: [cycles/phase-3-dtu-wave-2/decisions-archive-d001-d032.m
 
 | ID | Decision | Rationale | Phase | Date |
 |----|----------|-----------|-------|------|
+| D-378 | 2026-05-11 | Wave 0/F PREREQ-F SHIPPED at factory-artifacts a952ffff. ADR-023 v1.17 documentation-only foundation landed | (1) BC-2.16.004 deprecated (CustomAdapter Rust trait retired by ADR-023); (2) BC-2.01.013 amended — un-seal SensorAuth, switch to spec-driven runtime validation; (3) DI-012 amended — compile-time sealed-supertrait → runtime spec-load validation with 3 cross-sensor auth-composition rejection rules; (4) 8 sensor-named BCs (BC-2.01.005-008, BC-2.02.003-006) annotated with PENDING AMENDMENT — ADR-023 prefix notes (full amendment lands Wave 2/G); (5) TS-PLUGIN-PARITY-001 authored (140-line DTU canonicalization rule set for VP-PLUGIN-003 parity evaluation); (6) VP-PLUGIN-001..007 named series registered in VP-INDEX (aliases for VP-146..152, module: prism-spec-engine); (7) BC-INDEX v4.54 with active_contracts 227→226. 14 file mutations, single commit. UNBLOCKS: PLUGIN-PREREQ-A through E + all Wave 1 stories now dispatchable. | plugin-migration |
 | D-377 | 2026-05-10 | PRE-COMPACT CHECKPOINT — state durable for context compaction; post-compact dispatches Wave 0/F | Pin SHAs: develop c6dd6602 / factory-artifacts 07423865 / STATE+HANDOFF v7.111. ADR-023 v1.17 SUBSTANTIVE CONVERGED (D-375). 25 adversary passes + 20 fix-bursts complete; cycle reflection at cycles/wave-4-operations/adr-023-cycle-reflection.md. 10 methodology TDs filed (TD-FACTORY-HOOK-BYPASS-001 + TD-VSDD-054..063). Bundle B Phase B-2 BLOCKED (5 stories pending plugin migration). Standing rules active post-compact: Edit/Write tools ONLY; sibling-site sweep on value changes; post-commit claim verification per TD-VSDD-059. POST-COMPACT FIRST ACTION: dispatch product-owner for Wave 0/F per ADR-023 v1.17 PREREQ-F scope. | docs(pre-compact-checkpoint) |
 | D-376 | 2026-05-10 | Cycle reflection + 4 additional VSDD methodology TDs filed (TD-VSDD-060/061/062/063) | Captures broader methodology insights from 25-pass ADR-023 cycle: S-7.01 sibling-site sweep automation (P0), agent-ecosystem drift rate observation (P1), fresh-context compounding value pattern (P2), orchestrator context consumption on state-management (P2). Cycle reflection document written at .factory/cycles/wave-4-operations/adr-023-cycle-reflection.md. Per user request "make sure we capture those TD thoughts". | docs(cycle-reflection) |
 | D-375 | 2026-05-10 | ADR-023 SUBSTANTIVE CONVERGENCE DECLARED — moving to Wave 0/F dispatch | User decision: declare convergence based on pass-19+20 clean at moderate rigor + 6 passes stable substantive content. Accept state-corpus drift as residual TDs (TD-VSDD-054..059). ADR-023 stays COMMITTED (transition to ACCEPTED requires Wave 0 implementation). Next: dispatch product-owner for PLUGIN-PREREQ-F BC+DI catalog amendments. | docs(convergence-declaration) |
@@ -319,21 +320,21 @@ Cycle files: [burst-log](cycles/phase-2-patch/burst-log.md) | [convergence-traje
 
 ---
 
-## Session Resume Checkpoint (2026-05-10-v7.111-d377-pre-compact-wave-0-f)
+## Session Resume Checkpoint (2026-05-11-v7.112-d378-post-prereq-f)
 
-_Previous checkpoint (v7.110/D-376 cycle-reflection + methodology TDs) archived: [cycles/wave-4-operations/session-checkpoints.md](cycles/wave-4-operations/session-checkpoints.md)_
+_Previous checkpoint (v7.111/D-377 PRE-COMPACT CHECKPOINT) archived: [cycles/wave-4-operations/session-checkpoints.md](cycles/wave-4-operations/session-checkpoints.md)_
 
-**STATE v7.111. D-377 — PRE-COMPACT CHECKPOINT. State durable for context compaction. POST-COMPACT FIRST ACTION: dispatch product-owner for Wave 0/F (PLUGIN-PREREQ-F). SESSION-HANDOFF v7.111.** develop@c6dd6602. factory-artifacts HEAD: 07423865 (run `git -C .factory log -1` to confirm per TD-VSDD-053). vsdd-factory rc.16 active. Standing Orchestrator Rules active (Rules 1, 2, 3). Bundle B Exit Mandate active (task #85). Tasks #80-#84 DISPOSITIONS RECORDED — do NOT re-triage. Worktrees: main (clean) + .factory + .worktrees/S-3.09 (FROZEN per D-298).
+**STATE v7.112. D-378 — POST-COMPACT POST-PREREQ-F. PREREQ-F SHIPPED at factory-artifacts a952ffff. SESSION-HANDOFF v7.112.** develop@c6dd6602. factory-artifacts HEAD: a952ffff (run `git -C .factory log -1` to confirm per TD-VSDD-053). vsdd-factory rc.16 active. Standing Orchestrator Rules active (Rules 1, 2, 3). Bundle B Exit Mandate active (task #85). Tasks #80-#84 DISPOSITIONS RECORDED — do NOT re-triage. Worktrees: main (clean) + .factory + .worktrees/S-3.09 (FROZEN per D-298).
 
-**CONVERGENCE STATUS:** ADR-023 v1.17 substantive content DECLARED CONVERGED per user decision (2026-05-10). Basis: pass-19/20 CLEAN at moderate rigor + 6 passes stable substantive content. 25 adversary passes + 20 fix-bursts complete. ADR-023 stays COMMITTED (transitions to ACCEPTED only after Wave 0 implementation). Trajectory 26→16→12→14→3→3→1→0→0→4→2→0→1→1→4→3→2→2→0→0→3→4→5→3→2.
+**PREREQ-F SHIP SUMMARY:** ADR-023 v1.17 documentation-only foundation at a952ffff. 14 file mutations, single commit: (1) BC-2.16.004 deprecated; (2) BC-2.01.013 amended — spec-driven runtime validation; (3) DI-012 amended — runtime validation + 3 auth-composition rejection rules; (4) 8 sensor-named BCs annotated PENDING AMENDMENT; (5) TS-PLUGIN-PARITY-001 authored (140 lines); (6) VP-PLUGIN-001..007 registered in VP-INDEX; (7) BC-INDEX v4.54 active_contracts 227→226.
 
-**NEXT ACTION:** Dispatch product-owner for Wave 0/F (PLUGIN-PREREQ-F) BC+DI catalog amendments per ADR-023 v1.17 PREREQ-F scope. Scope: (1) Deprecate BC-2.16.004 (rust-escape-hatch); (2) Amend BC-2.01.013 (datasource-trait-adapter-pattern); (3) Amend DI-012 in invariants.md — downgrade compile-time to runtime + 3 auth-composition rejection rules; (4) Sweep 8 sensor-named BCs (BC-2.01.005-008 + BC-2.02.003-006). Edit/Write tools ONLY per TD-FACTORY-HOOK-BYPASS-001 P0.
+**NEXT ACTION:** Orchestrator-user decision needed: (a) PREREQ-D (PluginRuntime + .prx loader infrastructure + PR template — gates PREREQ-E + Wave 1/A WASM enforcement), or (b) PREREQ-A (SensorId open-newtype + SensorType deletion — gates Wave 1/B sensor-spec validation work). User decision required before dispatch.
 
 **S-3.09 FREEZE STATE:** Worktree .worktrees/S-3.09 HEAD 43c41389; BUG-S309-PLUGIN P0 blocks resumption. See D-298/D-299.
 
-**Deferred TDs (carry-forward):** W3-FIX-S307-001/002/003 + TD-VSDD-082 + TD-S307-002/003/004 + TD-VSDD-058 P0 (STATE.md compaction must preserve D-row content; D-214..D-320 LOST; recovery via git history pre-fix-burst-17) + TD-VSDD-059 P0 (paper-fix detection) + TD-VSDD-060 P0 (sibling-site sweep automation) + TD-S309-O1/O2/O3/O4
+**Deferred TDs (carry-forward):** W3-FIX-S307-001/002/003 + TD-VSDD-082 + TD-S307-002/003/004 + TD-VSDD-058 P0 (STATE.md compaction must preserve D-row content; D-214..D-320 LOST; recovery via git history pre-fix-burst-17) + TD-VSDD-059 P0 (paper-fix detection) + TD-VSDD-060 P0 (sibling-site sweep automation) + TD-FACTORY-HOOK-BYPASS-001 P0 + TD-VSDD-054..063 (all OPEN) + TD-S309-O1/O2/O3/O4
 
-**Current spec versions:** BC-INDEX v4.53, STORY-INDEX v2.34 (150 stories), ARCH-INDEX v2.39, ADR-022 v1.1, ADR-023 v1.17 (SUBSTANTIVE CONVERGENCE DECLARED 2026-05-10), VP-INDEX v1.29 (152 VPs), prd.md v1.10, develop@c6dd6602; STATE v7.111 SESSION-HANDOFF v7.111 (current)
+**Current spec versions:** BC-INDEX v4.54, STORY-INDEX v2.34 (150 stories), ARCH-INDEX v2.39, ADR-022 v1.1, ADR-023 v1.17 (SUBSTANTIVE CONVERGENCE DECLARED 2026-05-10), VP-INDEX v1.30 (152 VPs + VP-PLUGIN-001..007 aliases), DI-012 invariants.md v1.6, TS-PLUGIN-PARITY-001 v1.0 (NEW), BC-2.16.004 v1.4 (deprecated), BC-2.01.013 v1.4 (amended), prd.md v1.10, develop@c6dd6602; STATE v7.112 SESSION-HANDOFF v7.112 (current)
 
 **Key files:** [SESSION-HANDOFF.md](SESSION-HANDOFF.md) | [cycle-manifest.md](cycles/wave-4-operations/cycle-manifest.md) | [HOLDOUT-INDEX.md](holdout-scenarios/HOLDOUT-INDEX.md)
 
