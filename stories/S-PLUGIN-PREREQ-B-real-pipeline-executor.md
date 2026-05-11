@@ -31,10 +31,10 @@ target_module: prism-spec-engine
 #   and the new auth interface is consumed at query time through the same dispatch path that
 #   SS-01 currently owns.
 subsystems: [SS-16, SS-01]
-version: "1.1"
+version: "1.2"
 level: "L4"
 producer: story-writer
-timestamp: "2026-05-11T18:00:00Z"
+timestamp: "2026-05-11T20:30:00Z"
 input-hash: "6954524"
 traces_to: []
 cycle: "v1.0.0-greenfield"
@@ -48,7 +48,7 @@ anchor_subsystem: [SS-16, SS-01]
 assumption_validations: []
 risk_mitigations: []
 acceptance_criteria_count: 9
-red_gate_tests: 16
+red_gate_tests: 29
 inputs:
   - ".factory/specs/architecture/decisions/ADR-023-plugin-only-sensor-architecture.md"
   - ".factory/specs/behavioral-contracts/BC-2.16.002-multi-step-fetch-pipeline.md"
@@ -560,5 +560,6 @@ This story is shipped when ALL of the following are true:
 
 | Version | Burst | Date | Author | Changes |
 |---------|-------|------|--------|---------|
+| 1.2 | prereq-b-fix-burst-2 | 2026-05-11 | state-manager | LOCAL pass-2 fix-burst-2 CLOSED (D-402). 8 actionable findings closed (2 HIGH + 3 MED + 3 LOW). red_gate_tests corrected 16→29 (F-LP2-MED-001; canonical-name grep + 1 error.rs unit = 30 total). 5 new Red Gate tests added (paper-fix-proof fan-out + cursor abort + array CT + numeric cursor + variant construction). 2 OBS acknowledged (OBS-LP2-001 partial-cover via MAX_PAGES guard + TD-S-PLUGIN-PREREQ-B-004; OBS-LP2-002 links PG-LP7-002). 2 TDs filed: TD-S-PLUGIN-PREREQ-B-003 P3 (JSON Pointer bracket/wildcard PREREQ-C scope), TD-S-PLUGIN-PREREQ-B-004 P3 (MAX_REQUESTS_PER_PIPELINE full bound; PREREQ-D scope). Worktree HEAD a6895d7a. |
 | 1.1 | prereq-b-fix-burst-1 | 2026-05-11 | state-manager | LOCAL pass-1 fix-burst-1 CLOSED (D-400). 12 actionable findings closed (4 CRIT + 5 HIGH + 3 MED). 8 net new Red Gate tests (7 new + 1 upgraded crowdstrike→wiremock); red_gate_tests 8→16. 2 TDs filed: TD-S-PLUGIN-PREREQ-B-001 P2 (cursor page_size first-call; PREREQ-C scope), TD-S-PLUGIN-PREREQ-B-002 P3 (AuthToken zeroize; PREREQ-D scope). Worktree HEAD 7511e749; BC-2.16.002 v1.4 amendment at factory-artifacts c2e7b376. |
 | 1.0 | prereq-b-materialization | 2026-05-11 | story-writer | Initial story creation from ADR-023 §C2 + workspace grep of PipelineExecutor stub + BC-2.16.002 postcondition tracing. 9 ACs, 8 Red Gate tests. AuthProvider trait scoped, JSONPath implementation notes added. Stub replacement inventory from pipeline.rs read. Subsystem anchors justified per PG-PR1-002. Forbidden dependency rules explicit. LP-PR1-001 file-structure derivation applied. |
