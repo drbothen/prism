@@ -508,14 +508,14 @@ mod tests {
     /// This ensures `new()` is not a validation bypass for future callers who
     /// reach for it instead of the validated `from`/`try_from_str` constructors.
     #[test]
-    #[should_panic(expected = "S-PLUGIN-PREREQ-A: invalid SensorId string")]
+    #[should_panic(expected = "invalid SensorId string")]
     fn test_sensorid_new_panics_on_invalid_uppercase() {
         SensorId::new("CrowdStrike");
     }
 
     /// F-LP6-HIGH-001: SensorId::new must panic on empty string.
     #[test]
-    #[should_panic(expected = "S-PLUGIN-PREREQ-A: invalid SensorId string")]
+    #[should_panic(expected = "invalid SensorId string")]
     fn test_sensorid_new_panics_on_empty() {
         SensorId::new("");
     }

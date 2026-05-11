@@ -32,7 +32,7 @@ use crate::invalidation::{CacheInvalidator, WRITE_TOOL_INVALIDATION_MAP};
 fn make_key(client: &str, sensor: &str, source: &str) -> CacheKey {
     CacheKey {
         client_id: client.to_string(),
-        sensor_id: sensor.to_string(),
+        sensor_id: SensorId::from(sensor),
         source_id: source.to_string(),
         push_down_hash: "a".repeat(64),
     }
@@ -200,7 +200,7 @@ fn test_ac8_lru_eviction_keeps_entry_count_within_bound() {
     for i in 0u8..3 {
         let key = CacheKey {
             client_id: "acme".to_string(),
-            sensor_id: "armis".to_string(),
+            sensor_id: prism_core::SensorId::from("armis"),
             source_id: "armis_devices".to_string(),
             push_down_hash: format!("{:0<64}", i),
         };
@@ -210,7 +210,7 @@ fn test_ac8_lru_eviction_keeps_entry_count_within_bound() {
     // Insert a 4th entry — must evict LRU.
     let overflow_key = CacheKey {
         client_id: "acme".to_string(),
-        sensor_id: "armis".to_string(),
+        sensor_id: prism_core::SensorId::from("armis"),
         source_id: "armis_devices".to_string(),
         push_down_hash: format!("{:0<64}", 99u8),
     };
@@ -381,7 +381,7 @@ fn test_BC_2_07_003_health_status_source_not_cached() {
     // Use a health-type source_id — exact string to be recognized by from_source_id().
     let key = CacheKey {
         client_id: "acme".to_string(),
-        sensor_id: "crowdstrike".to_string(),
+        sensor_id: prism_core::SensorId::from("crowdstrike"),
         source_id: "crowdstrike_health".to_string(),
         push_down_hash: "e".repeat(64),
     };
@@ -777,13 +777,13 @@ fn test_BC_2_07_005_prefix_scan_invalidation_covers_all_hash_variants() {
     // Two entries with the same (client, sensor, source) but different hashes.
     let key_a = CacheKey {
         client_id: "acme".to_string(),
-        sensor_id: "crowdstrike".to_string(),
+        sensor_id: prism_core::SensorId::from("crowdstrike"),
         source_id: "crowdstrike_detections".to_string(),
         push_down_hash: "a".repeat(64),
     };
     let key_b = CacheKey {
         client_id: "acme".to_string(),
-        sensor_id: "crowdstrike".to_string(),
+        sensor_id: prism_core::SensorId::from("crowdstrike"),
         source_id: "crowdstrike_detections".to_string(),
         push_down_hash: "b".repeat(64),
     };
@@ -836,7 +836,7 @@ fn test_cr001_invalidate_by_prefix_single_pass_correctness_50_entries() {
     for i in 0..n {
         let key = CacheKey {
             client_id: "acme".to_string(),
-            sensor_id: "crowdstrike".to_string(),
+            sensor_id: prism_core::SensorId::from("crowdstrike"),
             source_id: "crowdstrike_detections".to_string(),
             push_down_hash: format!("{i:0>64}"),
         };
@@ -858,7 +858,7 @@ fn test_cr001_invalidate_by_prefix_single_pass_correctness_50_entries() {
     for i in 0..n {
         let key = CacheKey {
             client_id: "acme".to_string(),
-            sensor_id: "crowdstrike".to_string(),
+            sensor_id: prism_core::SensorId::from("crowdstrike"),
             source_id: "crowdstrike_detections".to_string(),
             push_down_hash: format!("{i:0>64}"),
         };
@@ -912,19 +912,19 @@ fn test_BC_2_07_006_ec07051_same_access_time_fifo_tiebreaker() {
     // Insert entries in order; no access in between (same created_at order).
     let key_first = CacheKey {
         client_id: "acme".to_string(),
-        sensor_id: "crowdstrike".to_string(),
+        sensor_id: prism_core::SensorId::from("crowdstrike"),
         source_id: "crowdstrike_detections".to_string(),
         push_down_hash: "1".repeat(64),
     };
     let key_second = CacheKey {
         client_id: "acme".to_string(),
-        sensor_id: "crowdstrike".to_string(),
+        sensor_id: prism_core::SensorId::from("crowdstrike"),
         source_id: "crowdstrike_detections".to_string(),
         push_down_hash: "2".repeat(64),
     };
     let key_third = CacheKey {
         client_id: "acme".to_string(),
-        sensor_id: "crowdstrike".to_string(),
+        sensor_id: prism_core::SensorId::from("crowdstrike"),
         source_id: "crowdstrike_detections".to_string(),
         push_down_hash: "3".repeat(64),
     };
@@ -976,13 +976,13 @@ fn test_BC_2_07_006_ec07053_cross_client_partitions_independent() {
     // evict B's entries.
     let overflow_a = CacheKey {
         client_id: "client-a".to_string(),
-        sensor_id: "armis".to_string(),
+        sensor_id: prism_core::SensorId::from("armis"),
         source_id: "armis_devices".to_string(),
         push_down_hash: "f".repeat(64),
     };
     let overflow_a2 = CacheKey {
         client_id: "client-a".to_string(),
-        sensor_id: "armis".to_string(),
+        sensor_id: prism_core::SensorId::from("armis"),
         source_id: "armis_devices".to_string(),
         push_down_hash: "g".repeat(64),
     };
@@ -1012,13 +1012,13 @@ fn test_BC_2_07_006_recently_accessed_entry_not_evicted() {
 
     let key_old = CacheKey {
         client_id: "acme".to_string(),
-        sensor_id: "armis".to_string(),
+        sensor_id: prism_core::SensorId::from("armis"),
         source_id: "armis_alerts".to_string(),
         push_down_hash: "0".repeat(64),
     };
     let key_recent = CacheKey {
         client_id: "acme".to_string(),
-        sensor_id: "armis".to_string(),
+        sensor_id: prism_core::SensorId::from("armis"),
         source_id: "armis_alerts".to_string(),
         push_down_hash: "r".repeat(64),
     };
@@ -1035,7 +1035,7 @@ fn test_BC_2_07_006_recently_accessed_entry_not_evicted() {
     // Insert a new entry — LRU should evict key_recent (older last access).
     let key_new = CacheKey {
         client_id: "acme".to_string(),
-        sensor_id: "armis".to_string(),
+        sensor_id: prism_core::SensorId::from("armis"),
         source_id: "armis_alerts".to_string(),
         push_down_hash: "n".repeat(64),
     };
@@ -1070,7 +1070,7 @@ fn test_BC_2_07_006_di018_entry_count_never_exceeds_bound_under_many_insertions(
     for i in 0u8..(bound as u8 * 3) {
         let key = CacheKey {
             client_id: "acme".to_string(),
-            sensor_id: "crowdstrike".to_string(),
+            sensor_id: prism_core::SensorId::from("crowdstrike"),
             source_id: "crowdstrike_detections".to_string(),
             push_down_hash: format!("{:0<64}", i),
         };
@@ -1097,7 +1097,7 @@ fn test_cr006_remove_entry_cleans_up_empty_partition() {
     // Insert a single entry with a near-zero TTL.
     let key = CacheKey {
         client_id: "acme".to_string(),
-        sensor_id: "crowdstrike".to_string(),
+        sensor_id: prism_core::SensorId::from("crowdstrike"),
         source_id: "crowdstrike_detections".to_string(),
         push_down_hash: format!("{:0<64}", 0),
     };

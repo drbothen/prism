@@ -406,7 +406,12 @@ pub async fn fan_out(
                 result.errors.push(FanOutError {
                     org_id: OrgId::new(),
                     client_id: "unknown".into(),
-                    sensor_id: prism_core::SensorId::from("unknown"),
+                    // Reserved sentinel that cannot collide with user-defined sensor ids.
+                    // "unknown" passes validate_sensor_id_string (length 7, [a-z]) so it
+                    // could legitimately be authored by a spec writer. Use a hyphenated
+                    // prefix that is semantically distinct and unlikely to be chosen as a
+                    // plugin name (F-PR1-MED-001).
+                    sensor_id: prism_core::SensorId::from("internal-panic-recovery"),
                     error: SensorError::Internal {
                         detail: format!("task panic: {join_err}"),
                     },

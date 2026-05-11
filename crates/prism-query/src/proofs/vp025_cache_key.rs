@@ -382,7 +382,7 @@ mod dynamic_tests {
             "VP-025: CacheKey::derive must produce identical full keys for identical inputs"
         );
         assert_eq!(key_a.client_id, "acme");
-        assert_eq!(key_a.sensor_id, "crowdstrike");
+        assert_eq!(key_a.sensor_id.as_ref(), "crowdstrike");
         assert_eq!(key_a.source_id, "crowdstrike_detections");
         assert_eq!(
             key_a.push_down_hash.len(),

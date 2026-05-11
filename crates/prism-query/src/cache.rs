@@ -205,7 +205,7 @@ type PartitionKey = (String, String);
 type PartitionVec = Vec<(CacheKey, usize)>;
 
 fn partition_key(key: &CacheKey) -> PartitionKey {
-    (key.client_id.clone(), key.sensor_id.clone())
+    (key.client_id.clone(), key.sensor_id.as_ref().to_owned())
 }
 
 // ---------------------------------------------------------------------------
@@ -930,7 +930,7 @@ mod tests {
         let cache = QueryCache::with_defaults();
         let key = crate::cache_key::CacheKey {
             client_id: "acme".to_string(),
-            sensor_id: "crowdstrike".to_string(),
+            sensor_id: prism_core::SensorId::from("crowdstrike"),
             source_id: "crowdstrike_detections".to_string(),
             push_down_hash: "a".repeat(64),
         };
@@ -952,7 +952,7 @@ mod tests {
         let cache = QueryCache::with_defaults();
         let key = crate::cache_key::CacheKey {
             client_id: "acme".to_string(),
-            sensor_id: "crowdstrike".to_string(),
+            sensor_id: prism_core::SensorId::from("crowdstrike"),
             source_id: "crowdstrike_detections".to_string(),
             push_down_hash: "b".repeat(64),
         };
@@ -974,7 +974,7 @@ mod tests {
 
         let make_key = |n: u8| crate::cache_key::CacheKey {
             client_id: "acme".to_string(),
-            sensor_id: "armis".to_string(),
+            sensor_id: prism_core::SensorId::from("armis"),
             source_id: "armis_devices".to_string(),
             push_down_hash: format!("{:0<64}", n),
         };
@@ -1011,7 +1011,7 @@ mod tests {
 
         let make_key = |n: u8| crate::cache_key::CacheKey {
             client_id: "acme".to_string(),
-            sensor_id: "crowdstrike".to_string(),
+            sensor_id: prism_core::SensorId::from("crowdstrike"),
             source_id: "cs_devices".to_string(),
             push_down_hash: format!("{:0<64}", n),
         };
@@ -1062,7 +1062,7 @@ mod tests {
 
         let make_key = |thread: u8, n: u8| crate::cache_key::CacheKey {
             client_id: format!("t{thread}"),
-            sensor_id: "crowdstrike".to_string(),
+            sensor_id: prism_core::SensorId::from("crowdstrike"),
             source_id: "cs_devices".to_string(),
             push_down_hash: format!("{:0<64}", n),
         };
@@ -1109,7 +1109,7 @@ mod tests {
         let cache = QueryCache::with_defaults();
         let key = crate::cache_key::CacheKey {
             client_id: "acme".to_string(),
-            sensor_id: "crowdstrike".to_string(),
+            sensor_id: prism_core::SensorId::from("crowdstrike"),
             source_id: "crowdstrike_hosts".to_string(),
             push_down_hash: "c".repeat(64),
         };
@@ -1143,7 +1143,7 @@ mod tests {
         // (get() acquires the lock only on a cache hit to update LRU position.)
         let key = crate::cache_key::CacheKey {
             client_id: "acme".to_string(),
-            sensor_id: "crowdstrike".to_string(),
+            sensor_id: prism_core::SensorId::from("crowdstrike"),
             source_id: "crowdstrike_detections".to_string(),
             push_down_hash: "e".repeat(64),
         };
@@ -1213,7 +1213,7 @@ mod tests {
 
         let make_key = |n: u8| crate::cache_key::CacheKey {
             client_id: "acme".to_string(),
-            sensor_id: "crowdstrike".to_string(),
+            sensor_id: prism_core::SensorId::from("crowdstrike"),
             source_id: "crowdstrike_detections".to_string(),
             push_down_hash: format!("{n:0<64}"),
         };
@@ -1250,7 +1250,7 @@ mod tests {
         let cache = QueryCache::new(config);
         let key = crate::cache_key::CacheKey {
             client_id: "acme".to_string(),
-            sensor_id: "crowdstrike".to_string(),
+            sensor_id: prism_core::SensorId::from("crowdstrike"),
             source_id: "crowdstrike_detections".to_string(),
             push_down_hash: "f".repeat(64),
         };
@@ -1303,7 +1303,7 @@ mod tests {
         for i in 0..n {
             let key = crate::cache_key::CacheKey {
                 client_id: "acme".to_string(),
-                sensor_id: "crowdstrike".to_string(),
+                sensor_id: prism_core::SensorId::from("crowdstrike"),
                 source_id: "crowdstrike_detections".to_string(),
                 push_down_hash: format!("{i:0<64}"),
             };
@@ -1354,7 +1354,7 @@ mod tests {
         ] {
             let key = crate::cache_key::CacheKey {
                 client_id: "tenant-x".to_string(),
-                sensor_id: sensor.to_string(),
+                sensor_id: prism_core::SensorId::from(*sensor),
                 source_id: source.to_string(),
                 push_down_hash: hash_char.to_string().repeat(64),
             };
@@ -1365,7 +1365,7 @@ mod tests {
         // Insert 1 entry under a different client — must NOT be evicted.
         let other_key = crate::cache_key::CacheKey {
             client_id: "other-tenant".to_string(),
-            sensor_id: "armis".to_string(),
+            sensor_id: prism_core::SensorId::from("armis"),
             source_id: "armis_devices".to_string(),
             push_down_hash: "d".repeat(64),
         };
@@ -1403,7 +1403,7 @@ mod tests {
 
         let make_key = |src: &str| crate::cache_key::CacheKey {
             client_id: "acme".to_string(),
-            sensor_id: "crowdstrike".to_string(),
+            sensor_id: prism_core::SensorId::from("crowdstrike"),
             source_id: src.to_string(),
             push_down_hash: src.repeat(64)[..64].to_string(),
         };
@@ -1474,7 +1474,7 @@ mod tests {
 
         let make_key = |src: &str| crate::cache_key::CacheKey {
             client_id: "acme".to_string(),
-            sensor_id: "crowdstrike".to_string(),
+            sensor_id: prism_core::SensorId::from("crowdstrike"),
             source_id: src.to_string(),
             push_down_hash: src.repeat(64)[..64].to_string(),
         };

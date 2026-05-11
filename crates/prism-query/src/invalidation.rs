@@ -297,7 +297,7 @@ mod tests {
         let cache = Arc::new(QueryCache::with_defaults());
         let key = crate::cache_key::CacheKey {
             client_id: "acme".to_string(),
-            sensor_id: "crowdstrike".to_string(),
+            sensor_id: prism_core::SensorId::from("crowdstrike"),
             source_id: "crowdstrike_detections".to_string(),
             push_down_hash: "d".repeat(64),
         };
@@ -333,7 +333,7 @@ mod tests {
         // Insert one entry for crowdstrike_hosts.
         let key_hosts = crate::cache_key::CacheKey {
             client_id: "acme".to_string(),
-            sensor_id: "crowdstrike".to_string(),
+            sensor_id: prism_core::SensorId::from("crowdstrike"),
             source_id: "crowdstrike_hosts".to_string(),
             push_down_hash: "a".repeat(64),
         };
@@ -344,7 +344,7 @@ mod tests {
         // Insert one entry for crowdstrike_detections.
         let key_dets = crate::cache_key::CacheKey {
             client_id: "acme".to_string(),
-            sensor_id: "crowdstrike".to_string(),
+            sensor_id: prism_core::SensorId::from("crowdstrike"),
             source_id: "crowdstrike_detections".to_string(),
             push_down_hash: "b".repeat(64),
         };
