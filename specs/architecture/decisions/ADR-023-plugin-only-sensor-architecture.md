@@ -4,7 +4,7 @@ adr_id: "ADR-023"
 title: "Plugin-Only Sensor Architecture — TOML Specs as Declarative Baseline, .prx WASM for Non-Declarative Cases, Retired CustomAdapter Rust Trait"
 status: COMMITTED
 date: "2026-05-10"
-version: "v1.17"
+version: "v1.18"
 producer: architect
 subsystems_affected: [SS-01, SS-02, SS-16, SS-17, SS-21, SS-22]
 supersedes: null
@@ -77,7 +77,7 @@ input-hash: "2f64319"
 
 ## Status
 
-COMMITTED 2026-05-10, v1.17. Status is `COMMITTED` rather than `ACCEPTED` because six
+COMMITTED 2026-05-10, v1.18. Status is `COMMITTED` rather than `ACCEPTED` because six
 infrastructure prerequisites (Constraints C1–C5 plus Wave 0/F BC+DI amendments) must land
 before the hardcoded sensor adapters can be deleted. Once all prerequisite stories ship and
 pass their gates, this ADR transitions to `ACCEPTED`. Implementation is tracked by
@@ -518,8 +518,7 @@ PLUGIN-PREREQ-A through E and all Wave 1 stories depend on this story.
 **C1 — SensorId newtype (PLUGIN-PREREQ-A):** `SensorId(Arc<str>)` open newtype replaces the
 closed `SensorType` enum in `prism-core`. `SensorAdapter::sensor_type` return type changes to
 `SensorId`. `AdapterRegistry` storage changes from a `SensorType`-keyed map to a
-`SensorId`-keyed map. All downstream `match SensorType::X` arms across seven locations in four
-crates (`prism-core`, `prism-sensors`, `prism-query`, `prism-ocsf`) per PLUGIN-AUDIT-001 source-of-truth crate enumeration are replaced with
+`SensorId`-keyed map. All downstream `match SensorType::X` arms across seven locations in production crates (`prism-core`, `prism-sensors`, `prism-query`, plus DTU generator crates `prism-dtu-{crowdstrike,cyberint,claroty,armis}`) per PLUGIN-AUDIT-001 source-of-truth crate enumeration are replaced with
 open dispatch patterns (trait object dispatch or `HashMap<SensorId, _>` lookup). The closed
 `SensorType` enum is deleted from `prism-core`. Atomic commit: all 15 files change in a single
 commit — no intermediate broken state. Acceptance criterion: `cargo build --workspace` passes
@@ -860,7 +859,7 @@ production system.
 
 ### Status as of 2026-05-10
 
-COMMITTED v1.17, pending implementation of Wave 0/F (PLUGIN-PREREQ-F) and Constraints C1–C5
+COMMITTED v1.18, pending implementation of Wave 0/F (PLUGIN-PREREQ-F) and Constraints C1–C5
 (PLUGIN-MIGRATION-001 Wave 0 — 6 stories total: PREREQ-F, A, B, C, D, E). The four hardcoded
 sensor auth modules, the four OCSF mapper modules, the `SensorType` enum, and the `CustomAdapter`
 trait all remain in the codebase until their corresponding Wave 0/1 stories ship and pass
@@ -1058,6 +1057,7 @@ TD-FACTORY-HOOK-BYPASS-001 was first registered at P1 after fix-burst-3 (v1.3 am
 
 | Version | Date | Description |
 |---------|------|-------------|
+| v1.18 | 2026-05-11 | F-LP2-LOW-002 closure — C1 crate enumeration corrected from "four crates (prism-core, prism-sensors, prism-query, prism-ocsf)" to "production crates including DTU generators"; prism-ocsf has zero SensorType references; actual fourth crate set is the DTU generators. Verified via `grep -rn 'SensorType' crates/prism-ocsf/` returns zero. Body version sweep v1.17→v1.18. **THIS BURST USES EDIT/WRITE TOOLS ONLY — no bash, no Python, no sed.** |
 | v1.17 | 2026-05-10 | Closes 3 pass-22 content findings (F-PASS22-CRIT-001 cannot be closed by fix-burst — it is a recurrence count). F-PASS22-HIGH-001: Process-Gap Awareness narrative L1050+L1053 acknowledges 3rd recurrence + TD-VSDD-055/056 filings. F-PASS22-HIGH-002: v1.16 changelog row corrected to honestly document sed bypass. F-PASS22-MED-001: title sync — frontmatter + H1 updated to ARCH-INDEX tagline. TD-VSDD-055 P0 (write-tool-only PreToolUse hook) and TD-VSDD-056 P1 (maintenance-burst dispatch type) filed. Body version sweep v1.16→v1.17. **THIS BURST USES EDIT/WRITE TOOLS ONLY — no bash, no Python, no sed.** |
 | v1.16 | 2026-05-10 | Closes 3 pass-21 findings. F-PASS21-HIGH-001: L864 "five hardcoded sensor auth modules" → "four" (factual correction; mod.rs trait file is not a sensor auth module). F-PASS21-MED-001: C1 PREREQ-A scope crate enumeration corrected from (prism-sensors, prism-spec-engine, prism-query, prism-mcp) to (prism-core, prism-sensors, prism-query, prism-ocsf) per PLUGIN-AUDIT-001 source-of-truth crate enumeration. F-PASS21-MED-002: ARCH-INDEX Decision Records table row added for ADR-023 (sibling-file partial-fix gap closed). Body version sweep v1.15→v1.16. State-manager used `sed -i ''` (bash) for 4 ARCH-INDEX sites (TD-031 line citations in AD-022 row + cell-count fixes in AD-005/SS-10/SS-21/SS-22 rows) per state-manager admission; this is the 3rd recurrence of TD-FACTORY-HOOK-BYPASS-001 and is logged as F-PASS22-CRIT-001 in pass-22 adversary report. |
 | v1.15 | 2026-05-10 | Closes F-PASS18-HIGH-001 (9th S-7.01 sibling-site recurrence: Process-Gap Awareness section L1050 cited TD-FACTORY-HOOK-BYPASS-001 P1 after escalation to P0; narrative updated to acknowledge second recurrence). F-PASS18-LOW-001 (L957-958 "lib.rs re-exports" in Wave 1/A context) DEFERRED — verified intent: distinct crate scope (prism-sensors vs prism-spec-engine), contextual disambiguation sufficient. VSDD-level TD-VSDD-054 filed (validate-changelog-monotonicity hook redesign). Body version sweep v1.14→v1.15. Edit/Write-tool-only; no Python. |

@@ -1,7 +1,7 @@
 ---
 document_type: architecture-index
 level: L3
-version: "2.39"
+version: "2.40"
 status: draft
 producer: architect
 timestamp: 2026-05-04T00:00:00
@@ -88,7 +88,7 @@ deployment_topology: single-service  # planned — no service binary exists yet 
 | ADR-020 | Story Status Taxonomy Reform — Closed Enum, Partial-Merge Semantics, and Graduation Contract | ACCEPTED v1.1 | 2026-05-08 | decisions/ADR-020-story-status-taxonomy-reform.md |
 | ADR-021 | BC/VP Promotion Lifecycle — Draft → Active → Verified Transitions, Audit Cadence, and BC-INDEX Count Authority | ACCEPTED v1.1 | 2026-05-08 | decisions/ADR-021-bc-vp-promotion-lifecycle.md |
 | ADR-022 | Production Runtime Wiring — prism-bin Chassis, Boot Sequence, Wiring Contracts, Infusion Fate, Hot-Reload Watcher, MCP Topology | ACCEPTED v1.1 | 2026-05-08 | decisions/ADR-022-production-runtime-wiring.md |
-| ADR-023 | Plugin-Only Sensor Architecture — TOML Specs as Declarative Baseline, .prx WASM for Non-Declarative Cases, Retired CustomAdapter Rust Trait | COMMITTED v1.17 | 2026-05-10 | decisions/ADR-023-plugin-only-sensor-architecture.md |
+| ADR-023 | Plugin-Only Sensor Architecture — TOML Specs as Declarative Baseline, .prx WASM for Non-Declarative Cases, Retired CustomAdapter Rust Trait | COMMITTED v1.18 | 2026-05-10 | decisions/ADR-023-plugin-only-sensor-architecture.md |
 
 ## Architecture Decisions
 
@@ -148,6 +148,7 @@ deployment_topology: single-service  # planned — no service binary exists yet 
 
 | Version | Pass | Date | Author | Change |
 |---------|------|------|--------|--------|
+| 2.40 | ADR-023-fix-burst-2-D-382 | 2026-05-11 | state-manager | ADR-023 row version sync v1.17→v1.18 per F-LP2-LOW-002 closure (S-PLUGIN-PREREQ-A fix-burst-2 state-manager scope; C1 crate enumeration typo fixed — prism-ocsf has zero SensorType references). TD-VSDD-060 sibling-site sweep applied. ARCH-INDEX v2.39→v2.40. |
 | 2.39 | ADR-023-fix-burst-18-pass-23 | 2026-05-10 | state-manager | ADR-023 row version sync v1.16→v1.17 per F-PASS23-HIGH-001 closure (12th S-7.01 sibling-site recurrence; fix-burst-17 bumped ADR-023 to v1.17 but did not update ARCH-INDEX sibling-site). Version-sync sibling-site sweep applied. ARCH-INDEX v2.38→v2.39. |
 | 2.38 | ADR-023-fix-burst-16-pass-21 | 2026-05-10 | state-manager | ADR-023 row added to ADR Registry (F-PASS21-MED-002 closure — sibling-file partial-fix gap closed; ADR-023 COMMITTED v1.16 since 2026-05-10). Pre-existing TD-031 volatile line citations fixed in AD-022 row (write_pipeline/adapter/write_table_registration line numbers replaced with function-name anchors). Pre-existing table cell-count violations fixed: AD-005, AD-022 (Architecture Decisions table extra annotation cell merged into Rationale), SS-10, SS-21, SS-22 (Subsystem Registry extra annotation cell merged into Phase Introduced). ARCH-INDEX v2.37→v2.38. |
 | 2.37 | PR-139-pr-level-pass-6-fix-F-P6-MED-1 | 2026-05-09 | product-owner | ADR-022 v1.0→v1.1: §B step 2 stale `~/.prism/` literal replaced with platform-aware default (dirs::config_dir().join("prism")) to match BC-2.06.011 v1.2. Closes F-P6-MED-1 from PR #139 PR-LEVEL adversary pass-6. ARCH-INDEX v2.36→v2.37. |
