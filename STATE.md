@@ -1,9 +1,9 @@
 ---
 document_type: pipeline-state
 level: ops
-version: "7.121"
+version: "7.122"
 producer: state-manager
-timestamp: 2026-05-11T06:30:00Z
+timestamp: 2026-05-11T07:00:00Z
 inputs: []
 input-hash: "[live-state]"
 traces_to: ""
@@ -22,7 +22,7 @@ repos:
   - axiathon
   - ocsf-proto-gen
   - mcp-claroty-xdome
-current_step: "S-PLUGIN-PREREQ-A LOCAL pass-7 BLOCKED-soft; fix-burst-7 in flight (1 test add)"
+current_step: "S-PLUGIN-PREREQ-A LOCAL pass-8 CLEAN — streak 1/3; pass-9 in flight"
 wave_3_carry_forward_debt: "ALL_REMEDIATE — W4-FIX-PERF-001/002, W4-FIX-CODE-001, W4-FIX-SEC-001 through W4-FIX-SEC-004 planned per D-203"
 wave_4_status: "PHASE_4_A_CONVERGED + R9_APPROVED but PHASE_4_B SUSPENDED — pre-implementation dep check (2026-05-04) found S-4.01 → S-3.02 (status=draft); pivoting to full Wave 3 implementation per user directive D-223"
 wave_4_phase_4_a_preflight:
@@ -176,9 +176,9 @@ workspace_test_count: 3489  # 891 prism-query + workspace total (per implementer
 | **Language** | Rust |
 | **Target Workspace** | per-analyst stdio (MCP server) |
 | **Started** | 2026-04-13 |
-| **Last Updated** | 2026-05-11 (D-387 — S-PLUGIN-PREREQ-A LOCAL pass-7 BLOCKED-soft (0C+0H+2M+2L; trajectory 14→12→6→4→2→6→4; streak 0/3); pass-6 closures 7/7 PERFECT; F-LP7-MED-001 missing Red Gate test; F-LP7-MED-002 self-closing partial-close record; F-LP7-LOW-001 scope-out; F-LP7-LOW-002→TD-006 P3; story v1.2→v1.3 OPTION B &SensorId canonical API; STATE v7.120→v7.121) |
+| **Last Updated** | 2026-05-11 (D-388 — S-PLUGIN-PREREQ-A LOCAL pass-8 CLEAN — FIRST CLEAN PASS in cascade; streak 0/3 → 1/3; trajectory 14→12→6→4→2→6→4→0 fully converged; 11/11 ACs verified; Red Gate 6/6 exact + 6/6 semantic; ZERO CRIT/HIGH/MED/LOW; 3 OBS narrative-correctness non-blocking; pass-7 closures 4/4 RESOLVED; READY for PR pending 2 more clean passes; STATE v7.121→v7.122) |
 | **Current Phase** | Wave 3 Tier-3 COMPLETE — **Wave 3-A 4 of 4 SHIPPED**: S-3.05 (#132 c867c344), S-3.04 (#133 57745ce8), S-3.03 (#134 7c413692), **S-3.07 (#135 2ae7185b MERGED 2026-05-08T04:23:03Z)**; post-merge cleanup confirmed; plugin migration: PREREQ-F SHIPPED; PREREQ-A/B/C/D/E pending |
-| **Current Step** | D-385 — S-PLUGIN-PREREQ-A LOCAL pass-5 BLOCKED-soft (1 MED + 1 LOW + 6 OBS; ZERO CRIT/HIGH; trajectory 14→12→6→4→2); fix-burst-5 in flight (2026-05-11). Streak 0/3. |
+| **Current Step** | D-388 — S-PLUGIN-PREREQ-A LOCAL pass-8 CLEAN — FIRST CLEAN PASS; streak 1/3; trajectory 14→12→6→4→2→6→4→0 fully converged (2026-05-11). Pass-9 in flight. |
 
 ## Phase Progress
 
@@ -210,10 +210,10 @@ workspace_test_count: 3489  # 891 prism-query + workspace total (per implementer
 
 | Step | Agent | Status | Output |
 |------|-------|--------|--------|
-| S-PLUGIN-PREREQ-A LOCAL pass-4 | adversary + state-manager | BLOCKED-soft | 4 findings (0C+0H+4M+2L+3OBS); trajectory 14→12→6→4; pass-3 closures 6/6 PERFECT (zero paper-closes); ZERO CRIT/HIGH; median severity dropped HIGH→MED; fix-burst-4 in flight; STATE v7.117→v7.118 (D-384) |
 | S-PLUGIN-PREREQ-A LOCAL pass-5 | adversary + state-manager | BLOCKED-soft | 2 findings (0C+0H+1M+1L+6OBS); trajectory 14→12→6→4→2; pass-4 closures 5/6 (1 sibling-miss F-LP5-MED-001 virtual_fields.rs); ZERO CRIT/HIGH two consecutive passes; TD-S-PLUGIN-PREREQ-A-005 P3 filed; fix-burst-5 in flight; STATE v7.118→v7.119 (D-385) |
 | S-PLUGIN-PREREQ-A LOCAL pass-6 | adversary + state-manager | BLOCKED-soft | 7 findings (0C+1H+4M+2L+7OBS); trajectory NON-MONOTONIC 14→12→6→4→2→6; pass-5 closures 4/4 PERFECT; F-LP6-HIGH-001 latent SensorId::new unvalidated constructor; BC-2.01.013 v1.4→v1.5 + story v1.1→v1.2 resolved in this burst; fix-burst-6 in flight; STATE v7.119→v7.120 (D-386) |
 | S-PLUGIN-PREREQ-A LOCAL pass-7 | adversary + state-manager | BLOCKED-soft | 4 findings (0C+0H+2M+2L+0OBS); trajectory 14→12→6→4→2→6→4; pass-6 closures 7/7 PERFECT (textbook HIGH-001 rename); F-LP7-MED-001 missing Red Gate test (AC-9(b) borrow_str_lookup); F-LP7-MED-002 self-closing (story v1.3 OPTION B applied); F-LP7-LOW-001 scope-out; F-LP7-LOW-002→TD-006 P3; fix-burst-7 in flight (tiny: 1 test add); STATE v7.120→v7.121 (D-387) |
+| S-PLUGIN-PREREQ-A LOCAL pass-8 | adversary + state-manager | CLEAN | 0 findings (0C+0H+0M+0L+3OBS); trajectory 14→12→6→4→2→6→4→0 FULLY CONVERGED; FIRST CLEAN PASS in cascade; streak 0/3 → 1/3; pass-7 closures 4/4 RESOLVED; 11/11 ACs verified at cda9abf5; Red Gate 6/6; 3 OBS narrative-correctness non-blocking; READY for PR pending 2 more clean passes; STATE v7.121→v7.122 (D-388) |
 
 ## Decisions Log
 
@@ -221,6 +221,7 @@ _D-001..D-046 archived: [cycles/phase-3-dtu-wave-2/decisions-archive-d001-d032.m
 
 | ID | Decision | Rationale | Phase | Date |
 |----|----------|-----------|-------|------|
+| D-388 | 2026-05-11 | S-PLUGIN-PREREQ-A LOCAL adversary pass-8 CLEAN — FIRST CLEAN PASS in cascade. Streak 0/3 → 1/3. Trajectory 14→12→6→4→2→6→4→0 fully converged. 11/11 ACs verified at HEAD cda9abf5; Red Gate 6/6 functional coverage; ZERO CRITICAL/HIGH/MED/LOW novel findings. 3 OBS items all NARRATIVE-CORRECTNESS concerns in pass-7 closure report (not code defects; non-blocking convergence per adversary explicit disposition). Pass-7 closures all RESOLVED clean (4/4: missing AC-9(b) test added; story v1.3 OPTION B documented; LOW-001 adjudication codified; TD-006 P3 filed). Story is READY for PR pending 2 more clean passes (pass-9 → 2/3, pass-10 → 3/3 CONVERGED). KUDOs 5: textbook AC-9(b) test closure; story v1.3 OPTION B inline rationale; TD-006 filing precision (cross-newtype scope); sustained #[non_exhaustive] forward-compat through 8 passes; cross-crate validator parity proptest with 6 strategies as exemplar pattern. | plugin-migration | 2026-05-11 |
 | D-387 | 2026-05-11 | S-PLUGIN-PREREQ-A LOCAL adversary pass-7 BLOCKED-soft (2 MED + 2 LOW; ZERO CRITICAL/HIGH/OBS). Trajectory 14→12→6→4→2→6→4. Streak 0/3. Pass-6 closures all clean (7/7). NEW findings: F-LP7-MED-001 missing Red Gate test_sensor_id_borrow_str_lookup (story task 11 + AC-9(b) mandate; survived 6 fresh-context passes — Red Gate test materialization not audited); F-LP7-MED-002 partial-close of F-LP6-MED-004 (story task 7 Borrow<str> mandate untouched; orchestrator decision OPTION B amend story v1.3 to canonical &SensorId; relaxes Borrow<str> mandate); F-LP7-LOW-001 5th sibling-rename recurrence (loop variable names — orchestrator adjudication OUT-OF-SCOPE for rename axis); F-LP7-LOW-002 cross-newtype audit pattern (OrgSlug::new_unchecked — file TD-S-PLUGIN-PREREQ-A-006 P3 post-PREREQ-A maintenance). 3 process-gaps codified: Red Gate test materialization audit checklist (PG-LP7-002); sibling-rename axis layer-enumeration (struct fields/function names/trait methods YES; local vars NO) (PG-LP7-001); partial-close pattern detection (closure must verify full story task scope not just cited blast radius) (PG-LP7-003). 5 KUDOs (HIGH-001 textbook closure; non-ASCII proptest diversity; BC-2.01.013 v1.5 amendment quality; comprehensive Deserialize rejection tests; #[non_exhaustive] survival). Fix-burst-7 in flight (tiny: 1 test add) + state-burst (story v1.3 + TD-006). | plugin-migration | 2026-05-11 |
 | D-386 | 2026-05-11 | S-PLUGIN-PREREQ-A LOCAL adversary pass-6 BLOCKED-soft (1 HIGH + 4 MED + 2 LOW + 7 OBS). Trajectory NON-MONOTONIC 14→12→6→4→2→6 (latent defect emergence). Streak 0/3. F-LP6-HIGH-001 LATENT: SensorId::new(impl Into<Arc<str>>) public unvalidated constructor at sensor_id.rs:47-52 persisted through 5 fresh-context passes — zero callers today but pub visibility means future plugin code WILL reach it; same defect class as F-LP2-CRIT-002 (panic-safety inverse). F-LP6-MED-001: test stub field naming inconsistency sensor_type vs sensor_id (orchestrator pass-4 decision not propagated uniformly to test stubs). F-LP6-MED-002: BC-2.01.013 body doesn't document sensor_type() trait method rename rationale (story anchor claim mis-anchored). F-LP6-MED-003: parity proptest ASCII-only (non-ASCII surface untested). F-LP6-MED-004: AdapterRegistry::get violates story task 7 Borrow<str> mandate (forced clones at fanout.rs:337,490). F-LP6-LOW-001: validate_sensor_id_string pub vs pub(crate) (pass-5 narrative drift). F-LP6-LOW-002: story input-hash stale vs ADR-023 v1.18. KUDOs: fix-burst-5 scope discipline; #[non_exhaustive] forward-compat hygiene; TD-005 bidirectional citation; cross-crate parity contract comments; production-side field naming convergence. 3 process-gaps: pub-API enumeration discipline; BC-anchor verification; cross-crate proptest input-domain auditing. Fix-burst-6 in flight (5 mandatory + state-manager BC amendment + input-hash recompute). BC-2.01.013 amended v1.4→v1.5 (Adapter Identity Method postcondition, F-LP6-MED-002 closure). Story v1.1→v1.2 (input-hash 7d38067→6954524, F-LP6-LOW-002 closure). | plugin-migration | 2026-05-11 |
 | D-385 | 2026-05-11 | S-PLUGIN-PREREQ-A LOCAL adversary pass-5 BLOCKED-soft (1 MED + 1 LOW + 6 OBS; ZERO CRITICAL/HIGH this pass; trajectory 14→12→6→4→2 declining). Pass-4 closures verified: 5/6 RESOLVED — F-LP4-MED-003 PARTIALLY RESOLVED (sibling-miss cascades to F-LP5-MED-001: sensor_type_to_string private helper in virtual_fields.rs:154-165 + call site 74; same closed-enum-concept residue, blast radius 2 sites in 1 file). NEW findings: F-LP5-MED-001 sensor_type_to_string private helper sibling-miss; F-LP5-LOW-001 TD-S-PLUGIN-PREREQ-A-005 cited in explain.rs:665 but absent from tech-debt-register.md (process-gap orphan citation). OBS: untracked proptest-regressions; SensorIdValidationError missing #[non_exhaustive]; SensorSpec.sensor_id not SensorId (newtype boundary not propagated); AC-1 missing Serialize/Deserialize; proptest case count default 256; pass-4 narrative drift "sensor_name" vs "sensor_id". KUDOs 5 (bidirectional proptest invariant for F-LP4-MED-001 closure; honest trait-method doc-comment; parity contract citation; proptest input strategy bias; step8 deferral honesty). 3 new process-gaps: TODO↔TD-register round-trip discipline; sibling-rename exhaustiveness; cross-crate validator-parity-by-input as recurring adversary axis. TD-S-PLUGIN-PREREQ-A-005 P3 filed by this burst (F-LP5-LOW-001 closure). Fix-burst-5 in flight (tiny: 1 inline rename + state-manager bookkeeping). Pass-6 expected CLEAN. | plugin-migration | 2026-05-11 |
@@ -329,15 +330,15 @@ Cycle files: [burst-log](cycles/phase-2-patch/burst-log.md) | [convergence-traje
 
 ---
 
-## Session Resume Checkpoint (2026-05-11-v7.121-d387-pass-7-blocked-soft)
+## Session Resume Checkpoint (2026-05-11-v7.122-d388-pass-8-clean)
 
-_Previous checkpoint (v7.120/D-386 pass-6 blocked-soft) archived: [cycles/wave-4-operations/session-checkpoints.md](cycles/wave-4-operations/session-checkpoints.md)_
+_Previous checkpoint (v7.121/D-387 pass-7 blocked-soft) archived: [cycles/wave-4-operations/session-checkpoints.md](cycles/wave-4-operations/session-checkpoints.md)_
 
-**STATE v7.121. D-387 — S-PLUGIN-PREREQ-A LOCAL pass-7 BLOCKED-soft (0C+0H+2M+2L). SESSION-HANDOFF v7.121.** develop@c6dd6602. factory-artifacts HEAD: run `git -C .factory log -1` (per TD-VSDD-053). vsdd-factory rc.16 active. Standing Orchestrator Rules active (Rules 1, 2, 3). Bundle B Exit Mandate active (task #85). Tasks #80-#84 DISPOSITIONS RECORDED — do NOT re-triage. Worktrees: main (clean) + .factory + .worktrees/S-PLUGIN-PREREQ-A + .worktrees/S-3.09 (FROZEN per D-298).
+**STATE v7.122. D-388 — S-PLUGIN-PREREQ-A LOCAL pass-8 CLEAN — FIRST CLEAN PASS. SESSION-HANDOFF v7.122.** develop@c6dd6602. factory-artifacts HEAD: run `git -C .factory log -1` (per TD-VSDD-053). vsdd-factory rc.16 active. Standing Orchestrator Rules active (Rules 1, 2, 3). Bundle B Exit Mandate active (task #85). Tasks #80-#84 DISPOSITIONS RECORDED — do NOT re-triage. Worktrees: main (clean) + .factory + .worktrees/S-PLUGIN-PREREQ-A + .worktrees/S-3.09 (FROZEN per D-298).
 
-**PASS-7 SUMMARY:** 4 findings (0C+0H+2M+2L+0OBS). Trajectory 14→12→6→4→2→6→4. Pass-6 closures 7/7 PERFECT (textbook HIGH-001 `new_unchecked` rename). F-LP7-MED-001: missing Red Gate test `test_sensor_id_borrow_str_lookup` (survived 6 passes — Red Gate materialization axis absent from prior checklists; PG-LP7-002 codified). F-LP7-MED-002: self-closing partial-close record (story v1.3 OPTION B applied in this state-burst). F-LP7-LOW-001: scope-out (loop variable names not in rename axis; PG-LP7-001 codified). F-LP7-LOW-002: TD-S-PLUGIN-PREREQ-A-006 P3 filed (OrgSlug::new_unchecked cross-newtype audit). Streak 0/3.
+**PASS-8 SUMMARY:** CLEAN. 0 findings (0C+0H+0M+0L+3OBS). Trajectory 14→12→6→4→2→6→4→0 FULLY CONVERGED. Streak 0/3 → 1/3. Pass-7 closures 4/4 RESOLVED: `test_sensor_id_borrow_str_lookup` added (F-LP7-MED-001); story v1.3 OPTION B documented (F-LP7-MED-002); PG-LP7-001 scope-out adjudication (F-LP7-LOW-001); TD-006 P3 filed (F-LP7-LOW-002). 3 OBS all NARRATIVE-CORRECTNESS non-blocking. 11/11 ACs verified at cda9abf5. Red Gate 6/6 exact name.
 
-**NEXT ACTION:** Fix-burst-7 (implementer): add `test_sensor_id_borrow_str_lookup` to `crates/prism-core/src/sensor_id.rs` tests module (~8 lines). Verify `just iter prism-core test_sensor_id_borrow_str_lookup` passes. Then adversary pass-8 fresh-context (expected CLEAN; streak 0/3 → 1/3).
+**NEXT ACTION:** Dispatch adversary pass-9 fresh-context for streak 2/3. Then pass-10 for 3/3 CONVERGED. After 3-CLEAN protocol satisfied: PR delivery for S-PLUGIN-PREREQ-A.
 
 **S-3.09 FREEZE STATE:** Worktree .worktrees/S-3.09 HEAD 43c41389; BUG-S309-PLUGIN P0 blocks resumption. See D-298/D-299.
 
