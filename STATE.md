@@ -1,7 +1,7 @@
 ---
 document_type: pipeline-state
 level: ops
-version: "7.104"
+version: "7.105"
 producer: state-manager
 timestamp: 2026-05-10T23:45:00Z
 inputs: []
@@ -138,7 +138,7 @@ holdout_index_version: "1.3"
 capabilities_version: "1.14"
 l2_index_version: "1.13"
 module_decomposition_version: "1.16"
-arch_index_version: "2.37"
+arch_index_version: "2.38"
 security_architecture_version: "1.1"
 verification_coverage_matrix_version: "1.31"
 verification_architecture_version: "1.30"
@@ -176,7 +176,7 @@ workspace_test_count: 3489  # 891 prism-query + workspace total (per implementer
 | **Language** | Rust |
 | **Target Workspace** | per-analyst stdio (MCP server) |
 | **Started** | 2026-04-13 |
-| **Last Updated** | 2026-05-10 (D-361 — ADR-023 pass-20 CLEAN; second clean post-second-reset; streak 1/3→2/3; STATE v7.103→v7.104) |
+| **Last Updated** | 2026-05-10 (D-363 — ADR-023 v1.16 fix-burst-16; pass-21 NOT_CLEAN 3 findings; streak RESET 2/3→0/3; ARCH-INDEX v2.38; STATE v7.104→v7.105) |
 | **Current Phase** | Wave 3 Tier-3 COMPLETE — **Wave 3-A 4 of 4 SHIPPED**: S-3.05 (#132 c867c344), S-3.04 (#133 57745ce8), S-3.03 (#134 7c413692), **S-3.07 (#135 2ae7185b MERGED 2026-05-08T04:23:03Z)**; post-merge cleanup confirmed; NEXT: Wave 3-B/C or Wave 4 unblock |
 | **Current Step** | D-299 — Plugin system FULL audit COMPLETE. 14 P0/P1 deferrals discovered (8 P0 + 6 P1). Stub-merged Wave-1 items: S-1.12/1.14/1.15 (3 stubs). No production binary loads sensors/*.toml. 13 new TDs filed (TD-PLUGIN-P0-001..008 + P1-001..005). S-3.09 FROZEN. Strategic direction needed: (a) full plugin completion epic, (b) min-viable plugin wiring, or (c) other path. |
 
@@ -213,6 +213,8 @@ _D-001..D-046 archived: [cycles/phase-3-dtu-wave-2/decisions-archive-d001-d032.m
 
 | ID | Decision | Rationale | Phase | Date |
 |----|----------|-----------|-------|------|
+| D-363 | 2026-05-10 | ADR-023 v1.16 fix-burst-16 — close 3 pass-21 findings | F-PASS21-HIGH-001: L864 "five hardcoded sensor auth modules" → "four" (factual correction; mod.rs trait file is not a sensor auth module). F-PASS21-MED-001: C1 PREREQ-A scope crate enumeration corrected from (prism-sensors, prism-spec-engine, prism-query, prism-mcp) to (prism-core, prism-sensors, prism-query, prism-ocsf) per PLUGIN-AUDIT-001 source-of-truth. F-PASS21-MED-002: ARCH-INDEX Decision Records table row added for ADR-023 (sibling-file partial-fix gap closed). ARCH-INDEX v2.37→v2.38. Pre-existing TD-031 volatile line citations + table cell-count violations fixed in ARCH-INDEX. Body version sweep v1.15→v1.16. Edit/Write-tool-only; no Python. | docs(ADR-023)-v1.16 |
+| D-362 | 2026-05-10 | ADR-023 pass-21 NOT_CLEAN — 3 findings (1H+2M), streak RESET 2/3 → 0/3 | Pass-21 max-rigor review (30+ verifications) surfaces 3 NEW defects pass-19/20 missed: F-PASS21-HIGH-001 numerical contradiction "five vs four" at L864 vs Context L110-111. F-PASS21-MED-001 C1 wrong crate enumeration (prism-spec-engine + prism-mcp have ZERO SensorType refs). F-PASS21-MED-002 ARCH-INDEX sibling-file gap (no row for ADR-023 across 21 passes). Demonstrates "fresh-context compounding value" — each rigor increase finds new defect axes. Trajectory 26→16→12→14→3→3→1→0→0→4→2→0→1→1→4→3→2→2→0→0→3. | review(ADR-023-pass-21) |
 | D-361 | 2026-05-10 | ADR-023 pass-20 CLEAN — SECOND CLEAN POST-SECOND-RESET, streak 1/3 → 2/3 | Pass-20 fresh-context idempotency review of v1.15 (HEAD frozen at 2fe48fd1) surfaces ZERO findings across 25 source-of-truth verifications (3.1× rigor vs pass-19's 8). Comprehensive cross-document audit: BC frontmatter (2 BCs), DI invariants, VP-INDEX, BC-INDEX, ARCH-INDEX, ADR-022 sources, boot.rs, codebase symbols (SensorType, SensorAuth, make_host_state, host_http_request, init_registry_for_org), 8 sensor BC files, pass-1 finding tally, TD register, commit SHA. S-7.01 10th-recurrence audit clean. Sub-threshold observation "Concurrently" L1053 confirmed sub-threshold. Pass-19's CLEAN verdict idempotency-reproduced at higher rigor. Trajectory holds at 0→0. Streak 2/3 — pass-21 target 3/3 = 3-CLEAN convergence achieved. | review(ADR-023-pass-20-CLEAN) |
 | D-360 | 2026-05-10 | ADR-023 pass-19 CLEAN — first clean post-second-reset, streak 0/3 → 1/3 | Pass-19 fresh-context review of v1.15 (HEAD frozen at 2fe48fd1) surfaces ZERO findings across 8 source-of-truth verifications. F-PASS18-HIGH-001 closed cleanly at L1050+L1053-1057. TD-VSDD-054 verified filed. Sibling-site propagation audit clean (no 10th S-7.01 recurrence). Tool-discipline indicators consistent with Edit/Write-only (state-manager's reported no-Python trace validated). Trajectory 26→16→12→14→3→3→1→0→0→4→2→0→1→1→4→3→2→2→0. Streak 1/3 — pass-20 target 2/3, pass-21 target 3/3 (3-CLEAN convergence). | review(ADR-023-pass-19-CLEAN) |
 | D-359 | 2026-05-10 | TD-VSDD-054 filed — validate-changelog-monotonicity hook redesign (VSDD methodology) | Captures VSDD-level structural debt: hook validates pairwise transitions, not transaction-final state. Drives Python bypass for legitimate atomic multi-field updates (frontmatter version + changelog row). Required fix: hook redesign + agent prompt update + CI bypass detector + plugin CLAUDE.md doc. Project-level TD-FACTORY-HOOK-BYPASS-001 P0 is policy enforcement; TD-VSDD-054 is structural fix. | docs(TD)-vsdd-054 |
@@ -480,7 +482,7 @@ _Previous checkpoint (v7.97/D-347 ADR-023 v1.10 fix-burst-10, streak 0/3 RESET) 
 
 **Deferred TDs (carry-forward):** W3-FIX-S307-001/002/003 + TD-VSDD-082 + TD-S307-002/003/004 + TD-VSDD-057 (OPEN-DEFERRED-CROSS-REPO) + TD-S309-O1/O2/O3/O4
 
-**Current spec versions:** BC-INDEX v4.53, STORY-INDEX v2.34 (150 stories), ARCH-INDEX v2.37, ADR-022 v1.1, ADR-023 v1.15 (streak 1/3; pass-20 next), VP-INDEX v1.29, prd.md v1.10, develop@c6dd6602; STATE v7.103 SESSION-HANDOFF v7.103 (D-360 ADR-023 pass-19 CLEAN; streak 1/3)
+**Current spec versions:** BC-INDEX v4.53, STORY-INDEX v2.34 (150 stories), ARCH-INDEX v2.38, ADR-022 v1.1, ADR-023 v1.16 (streak 0/3 post-third-reset; pass-22 next), VP-INDEX v1.29, prd.md v1.10, develop@c6dd6602; STATE v7.105 SESSION-HANDOFF v7.105 (D-363 ADR-023 v1.16 fix-burst-16; pass-21 NOT_CLEAN 3 findings; streak RESET)
 
 **Key files:** [SESSION-HANDOFF.md](SESSION-HANDOFF.md) | [cycle-manifest.md](cycles/wave-4-operations/cycle-manifest.md) | [HOLDOUT-INDEX.md](holdout-scenarios/HOLDOUT-INDEX.md)
 

@@ -1,7 +1,7 @@
 ---
 document_type: architecture-index
 level: L3
-version: "2.37"
+version: "2.38"
 status: draft
 producer: architect
 timestamp: 2026-05-04T00:00:00
@@ -88,6 +88,7 @@ deployment_topology: single-service  # planned — no service binary exists yet 
 | ADR-020 | Story Status Taxonomy Reform — Closed Enum, Partial-Merge Semantics, and Graduation Contract | ACCEPTED v1.1 | 2026-05-08 | decisions/ADR-020-story-status-taxonomy-reform.md |
 | ADR-021 | BC/VP Promotion Lifecycle — Draft → Active → Verified Transitions, Audit Cadence, and BC-INDEX Count Authority | ACCEPTED v1.1 | 2026-05-08 | decisions/ADR-021-bc-vp-promotion-lifecycle.md |
 | ADR-022 | Production Runtime Wiring — prism-bin Chassis, Boot Sequence, Wiring Contracts, Infusion Fate, Hot-Reload Watcher, MCP Topology | ACCEPTED v1.1 | 2026-05-08 | decisions/ADR-022-production-runtime-wiring.md |
+| ADR-023 | Plugin-Only Sensor Architecture — TOML Specs as Declarative Baseline, .prx WASM for Non-Declarative Cases, Retired CustomAdapter Rust Trait | COMMITTED v1.16 | 2026-05-10 | decisions/ADR-023-plugin-only-sensor-architecture.md |
 
 ## Architecture Decisions
 
@@ -97,7 +98,7 @@ deployment_topology: single-service  # planned — no service binary exists yet 
 | AD-002 | DataFusion as SQL execution engine | Provides Arrow-native SQL with UDF extensibility; ephemeral SessionContext per query aligns with data-in-flight model |
 | AD-003 | Chumsky 0.12 for PrismQL parsing | Zero-copy parser combinators with error recovery; axiathon reference proves pattern viability |
 | AD-004 | RocksDB with 17 column families | Domain-isolated persistence for operational state; osquery-proven pattern; single-process LOCK fits stdio model. CFs: default, schedules, diff_results, detection_rules, detection_state, alerts, cases, audit_buffer, dirty_bits, watchdog, aliases, decorators, action_state, infusion_cache, plugin_state, event_buffer, case_dedup_idx. |
-| AD-005 | rmcp 1.4 as MCP SDK | Official Anthropic SDK; #[tool_router] macro for 35+ tool registration; native tokio async | [NOT IMPLEMENTED — prism-mcp is a 10-line stub (verified 2026-05-08); no rmcp dep in Cargo.toml; covered by ADR-022 §F; tracked by S-5.01-FOLLOWUP-MCP-BOOT] |
+| AD-005 | rmcp 1.4 as MCP SDK | Official Anthropic SDK; #[tool_router] macro for 35+ tool registration; native tokio async. [NOT IMPLEMENTED — prism-mcp is a 10-line stub (verified 2026-05-08); no rmcp dep in Cargo.toml; covered by ADR-022 §F; tracked by S-5.01-FOLLOWUP-MCP-BOOT] |
 | AD-006 | Config-driven sensor adapters via TOML spec files | 80% of sensors need zero Rust code; eat-our-own-dog-food principle for built-in sensors |
 | AD-007 | arc-swap for hot config reload | Lock-free reads on query hot path; atomic snapshot swap; in-flight queries unaffected |
 | AD-008 | Pure core / effectful shell separation | Maximizes formal verification surface; domain logic testable without I/O mocking |
@@ -114,7 +115,7 @@ deployment_topology: single-service  # planned — no service binary exists yet 
 | AD-019 | WASM plugins for custom sensor adapters and infusions | Polyglot (Rust/Go/Python/JS/C#), sandboxed, hot-reloadable via `.prx` files. `wasmtime` runtime with WIT interface. Augments TOML specs, doesn't replace them. |
 | AD-020 | Infusions — composable enrichment framework | GeoIP, threat intel, asset inventory, CVSS as TOML specs + `.prx` plugins. Register as DataFusion UDFs and `enrich` pipe stages. Same two-tier pattern as sensors. |
 | AD-021 | Actions — config-driven alert delivery and reporting | Slack, PagerDuty, Jira, email, syslog, custom webhooks as TOML specs + `.prx` plugins. Three triggers: alert, schedule, manual. At-least-once delivery with retry. |
-| AD-022 | PrismQL Write Operations | Pipe mode terminal action verbs + SQL DML (INSERT/UPDATE/DELETE) targeting sensor write endpoints. All writes route through feature flags, risk-tier gates, dry-run/confirmation system, and intent-log audit. Filter mode remains read-only. Internal tables write-protected via PrismQL. | [PARTIAL — safety gates landed via S-3.07 PR #135 (commit 2ae7185b); Phase 3 fetch hardcoded empty (write_pipeline.rs:349); no concrete adapter write overrides (adapter.rs:365); SQL DML verbs NotImplemented (write_table_registration.rs:176/190/205); covered by ADR-022 §C + S-3.02-FOLLOWUP-RUNTIME / W3-FIX-S307-001/002/003] |
+| AD-022 | PrismQL Write Operations | Pipe mode terminal action verbs + SQL DML (INSERT/UPDATE/DELETE) targeting sensor write endpoints. All writes route through feature flags, risk-tier gates, dry-run/confirmation system, and intent-log audit. Filter mode remains read-only. Internal tables write-protected via PrismQL. [PARTIAL — safety gates landed via S-3.07 PR #135 (commit 2ae7185b); Phase 3 fetch hardcoded empty (`write_pipeline::execute_write_phase3`); no concrete adapter write overrides (`adapter::SensorAdapter::write`); SQL DML verbs NotImplemented (`write_table_registration` INSERT/UPDATE/DELETE handlers); covered by ADR-022 §C + S-3.02-FOLLOWUP-RUNTIME / W3-FIX-S307-001/002/003] |
 
 ## Subsystem Registry
 
@@ -129,7 +130,7 @@ deployment_topology: single-service  # planned — no service binary exists yet 
 | SS-07 | Adapter Pagination & Response Cache | query-engine.md | prism-query | Phase 1 |
 | SS-08 | Sensor Health | api-surface.md § Sensor Health, operational-pipeline.md | prism-mcp, prism-sensors | Phase 1 |
 | SS-09 | Prompt Injection Defense | security-architecture.md | prism-security | Phase 1 |
-| SS-10 | MCP Interface | api-surface.md | prism-mcp, prism-bin *(planned — S-WAVE5-PREP-01)* | Phase 1 | [NOT IMPLEMENTED — crate is 10-line stub; PrismServer struct absent; no tool router; no rmcp dep; covered by ADR-022 §F + S-5.01-FOLLOWUP-MCP-BOOT] |
+| SS-10 | MCP Interface | api-surface.md | prism-mcp, prism-bin *(planned — S-WAVE5-PREP-01)* | Phase 1 [NOT IMPLEMENTED — crate is 10-line stub; PrismServer struct absent; no tool router; no rmcp dep; covered by ADR-022 §F + S-5.01-FOLLOWUP-MCP-BOOT] |
 | SS-11 | Query Execution | query-engine.md | prism-query | Phase 1 |
 | SS-12 | Scheduler | operational-pipeline.md | prism-operations | Phase 1 |
 | SS-13 | Detection Engine | operational-pipeline.md, detection-rule-format.md | prism-operations | Phase 1 |
@@ -140,13 +141,14 @@ deployment_topology: single-service  # planned — no service binary exists yet 
 | SS-18 | Action Delivery Engine | actions.md (AD-021) | prism-operations, prism-siem-formats | Phase 3 |
 | SS-19 | Infusion Enrichment Framework | infusions.md (AD-020) | prism-spec-engine | Phase 3 |
 | SS-20 | Observability / Log Forwarding | observability.md | prism-mcp | Phase 3 |
-| SS-21 | Identity & Core Types | system-overview.md, module-decomposition.md | prism-core | Phase 3 | First BC anchored 2026-05-08: BC-2.21.001 (OrgRegistry init) per Option (d) decomposition — SS-21 transitions from 0-BC placeholder to active subsystem |
-| SS-22 | Process Lifecycle | module-decomposition.md | prism-bin *(S-WAVE5-PREP-01 — NOT IMPLEMENTED)* | Phase 5 | Scope: boot orchestration contract only (sequencing of ADR-022 §B 11-step boot, startup failure exit-code map, traffic gate signal handlers); per-subsystem init contracts (config/org/cred/audit init) live in their respective subsystems (SS-06/SS-21/SS-03/SS-05) per Option (d) decomposition |
+| SS-21 | Identity & Core Types | system-overview.md, module-decomposition.md | prism-core | Phase 3 — First BC anchored 2026-05-08: BC-2.21.001 (OrgRegistry init) per Option (d) decomposition — SS-21 transitions from 0-BC placeholder to active subsystem |
+| SS-22 | Process Lifecycle | module-decomposition.md | prism-bin *(S-WAVE5-PREP-01 — NOT IMPLEMENTED)* | Phase 5 — Scope: boot orchestration contract only (sequencing of ADR-022 §B 11-step boot, startup failure exit-code map, traffic gate signal handlers); per-subsystem init contracts (config/org/cred/audit init) live in their respective subsystems (SS-06/SS-21/SS-03/SS-05) per Option (d) decomposition |
 
 ## Changelog
 
 | Version | Pass | Date | Author | Change |
 |---------|------|------|--------|--------|
+| 2.38 | ADR-023-fix-burst-16-pass-21 | 2026-05-10 | state-manager | ADR-023 row added to ADR Registry (F-PASS21-MED-002 closure — sibling-file partial-fix gap closed; ADR-023 COMMITTED v1.16 since 2026-05-10). Pre-existing TD-031 volatile line citations fixed in AD-022 row (write_pipeline/adapter/write_table_registration line numbers replaced with function-name anchors). Pre-existing table cell-count violations fixed: AD-005, AD-022 (Architecture Decisions table extra annotation cell merged into Rationale), SS-10, SS-21, SS-22 (Subsystem Registry extra annotation cell merged into Phase Introduced). ARCH-INDEX v2.37→v2.38. |
 | 2.37 | PR-139-pr-level-pass-6-fix-F-P6-MED-1 | 2026-05-09 | product-owner | ADR-022 v1.0→v1.1: §B step 2 stale `~/.prism/` literal replaced with platform-aware default (dirs::config_dir().join("prism")) to match BC-2.06.011 v1.2. Closes F-P6-MED-1 from PR #139 PR-LEVEL adversary pass-6. ARCH-INDEX v2.36→v2.37. |
 | 2.36 | bundle-B-1b-option-d-decomposition-2026-05-08 | 2026-05-08 | architect | Bundle B Phase B-1b Option (d) correction: SS-22 scope narrowed to boot orchestration contract only (BC-2.22.001); per-subsystem init BCs distributed to natural subsystems. SS-21 row annotated — first BC (BC-2.21.001 OrgRegistry init) now anchored as of 2026-05-08; SS-21 is no longer a 0-BC placeholder. Subsystem Registry SS-21 and SS-22 rows updated with scope annotations. Mirrors module-decomposition.md v1.16 amendment. |
 | 2.35 | bundle-B-1b-ss22-process-lifecycle-2026-05-08 | 2026-05-08 | architect | Bundle B Phase B-1b: SS-22 (Process Lifecycle) added to Subsystem Registry. Scope: ordered 11-step boot sequence orchestrated by prism-bin (ADR-022 §B), startup failure exit-code contract, signal handler lifecycle. Boot-sequence BCs assigned namespace BC-2.22.001..004 (pending PO authorship). BC-2.BOOT.001..004 placeholders in S-WAVE5-PREP-01 resolve to BC-2.22.001..004. |

@@ -4,7 +4,7 @@ adr_id: "ADR-023"
 title: "Plugin-Only Sensor Architecture — TOML Specs, Declarative TOML Baseline, No Compiled-In Sensor Rust"
 status: COMMITTED
 date: "2026-05-10"
-version: "v1.15"
+version: "v1.16"
 producer: architect
 subsystems_affected: [SS-01, SS-02, SS-16, SS-17, SS-21, SS-22]
 supersedes: null
@@ -77,7 +77,7 @@ input-hash: "2f64319"
 
 ## Status
 
-COMMITTED 2026-05-10, v1.15. Status is `COMMITTED` rather than `ACCEPTED` because six
+COMMITTED 2026-05-10, v1.16. Status is `COMMITTED` rather than `ACCEPTED` because six
 infrastructure prerequisites (Constraints C1–C5 plus Wave 0/F BC+DI amendments) must land
 before the hardcoded sensor adapters can be deleted. Once all prerequisite stories ship and
 pass their gates, this ADR transitions to `ACCEPTED`. Implementation is tracked by
@@ -519,7 +519,7 @@ PLUGIN-PREREQ-A through E and all Wave 1 stories depend on this story.
 closed `SensorType` enum in `prism-core`. `SensorAdapter::sensor_type` return type changes to
 `SensorId`. `AdapterRegistry` storage changes from a `SensorType`-keyed map to a
 `SensorId`-keyed map. All downstream `match SensorType::X` arms across seven locations in four
-crates (`prism-sensors`, `prism-spec-engine`, `prism-query`, `prism-mcp`) are replaced with
+crates (`prism-core`, `prism-sensors`, `prism-query`, `prism-ocsf`) per PLUGIN-AUDIT-001 source-of-truth crate enumeration are replaced with
 open dispatch patterns (trait object dispatch or `HashMap<SensorId, _>` lookup). The closed
 `SensorType` enum is deleted from `prism-core`. Atomic commit: all 15 files change in a single
 commit — no intermediate broken state. Acceptance criterion: `cargo build --workspace` passes
@@ -860,8 +860,8 @@ production system.
 
 ### Status as of 2026-05-10
 
-COMMITTED v1.15, pending implementation of Wave 0/F (PLUGIN-PREREQ-F) and Constraints C1–C5
-(PLUGIN-MIGRATION-001 Wave 0 — 6 stories total: PREREQ-F, A, B, C, D, E). The five hardcoded
+COMMITTED v1.16, pending implementation of Wave 0/F (PLUGIN-PREREQ-F) and Constraints C1–C5
+(PLUGIN-MIGRATION-001 Wave 0 — 6 stories total: PREREQ-F, A, B, C, D, E). The four hardcoded
 sensor auth modules, the four OCSF mapper modules, the `SensorType` enum, and the `CustomAdapter`
 trait all remain in the codebase until their corresponding Wave 0/1 stories ship and pass
 DTU-parity gates.
@@ -1058,6 +1058,7 @@ TD-FACTORY-HOOK-BYPASS-001 was first registered at P1 after fix-burst-3 (v1.3 am
 
 | Version | Date | Description |
 |---------|------|-------------|
+| v1.16 | 2026-05-10 | Closes 3 pass-21 findings. F-PASS21-HIGH-001: L864 "five hardcoded sensor auth modules" → "four" (factual correction; mod.rs trait file is not a sensor auth module). F-PASS21-MED-001: C1 PREREQ-A scope crate enumeration corrected from (prism-sensors, prism-spec-engine, prism-query, prism-mcp) to (prism-core, prism-sensors, prism-query, prism-ocsf) per PLUGIN-AUDIT-001 source-of-truth crate enumeration. F-PASS21-MED-002: ARCH-INDEX Decision Records table row added for ADR-023 (sibling-file partial-fix gap closed). Body version sweep v1.15→v1.16. Edit/Write-tool-only; no Python. |
 | v1.15 | 2026-05-10 | Closes F-PASS18-HIGH-001 (9th S-7.01 sibling-site recurrence: Process-Gap Awareness section L1050 cited TD-FACTORY-HOOK-BYPASS-001 P1 after escalation to P0; narrative updated to acknowledge second recurrence). F-PASS18-LOW-001 (L957-958 "lib.rs re-exports" in Wave 1/A context) DEFERRED — verified intent: distinct crate scope (prism-sensors vs prism-spec-engine), contextual disambiguation sufficient. VSDD-level TD-VSDD-054 filed (validate-changelog-monotonicity hook redesign). Body version sweep v1.14→v1.15. Edit/Write-tool-only; no Python. |
 | v1.14 | 2026-05-10 | Closes F-PASS17-HIGH-001 (8th S-7.01 sibling-site recurrence: L297-298 Rule 5 + L567 C4 retained bare path shorthand "lib.rs re-export, examples/, tests/" not propagated when L630-632 + L931-934 were fully qualified in pass-16 fix). Both sibling sites now use canonical-reference phrasing "fully-qualified call sites listed in C5". F-PASS17-CRIT-001 (TD-FACTORY-HOOK-BYPASS-001 second recurrence) escalated to P0 with new action items 5+6 in TD register. Body version sweep v1.13→v1.14 per TD-VERSION-STAMP-SWEEP-001. **This burst uses Write tool for atomic multi-field updates (no Python bypass) per escalated TD-P0.** |
 | v1.13 | 2026-05-10 | Closes 3 pass-16 findings + applies ASSERTION-CHECK METHODOLOGY (per pass-16 insight). F-PASS16-MED-001: L924 stale "(live plugin load replaces dead instantiation)" parenthetical removed (semantic sibling missed by lexical token sweep; "dead instantiation" does not exist in boot.rs — steps 7-11 are todo!() stubs per S-WAVE5-PREP-01). F-PASS16-LOW-001: L923 "wire it into boot.rs plugin-load step" → "insert a new plugin-load step into boot.rs" (tense alignment with L926-928). F-PASS16-LOW-002: L931-934 + C5 L630-632 sibling sites fully qualified all three call-site paths (lib.rs → crates/prism-spec-engine/src/lib.rs; examples/demo_spec_loading.rs → crates/prism-spec-engine/examples/demo_spec_loading.rs; tests/bc_2_16_004_test.rs → crates/prism-spec-engine/tests/bc_2_16_004_test.rs). ASSERTION-CHECK SWEEP: every body claim about boot.rs current state cross-checked against actual boot.rs source. Body version sweep v1.12→v1.13. Edit-only. |
