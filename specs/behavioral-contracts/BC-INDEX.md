@@ -1,15 +1,15 @@
 ---
 document_type: behavioral-contract-index
 level: L3
-version: "4.53"
+version: "4.54"
 status: draft
-producer: state-manager
-timestamp: 2026-05-09T00:00:00
+producer: product-owner
+timestamp: 2026-05-11T00:00:00
 phase: 3.A
 total_contracts: 235
-active_contracts: 227
+active_contracts: 226
 removed_contracts: 6
-retired_contracts: 2
+retired_contracts: 3
 ---
 
 # Behavioral Contract Index
@@ -30,23 +30,23 @@ Phase 3-patch additions (2026-04-16): 22 new BCs added in Burst 1 to close trace
 | BC-2.01.002 | Cross-Client Fan-Out — Query Engine Orchestrates Parallel Sensor Fetches | 01 - Sensor Adapters | CAP-002 | P0 | draft |
 | BC-2.01.003 | ~~Cursor-Based Forward-Only Pagination (MCP-Exposed)~~ | 01 - Sensor Adapters | CAP-001 | P0 | removed |
 | BC-2.01.004 | Offset-Based Hybrid Pagination for Claroty Audit Logs | 01 - Sensor Adapters | CAP-001 | P0 | draft |
-| BC-2.01.005 | CrowdStrike OAuth2 Authentication and Two-Step Fetch | 01 - Sensor Adapters | CAP-001 | P0 | draft |
-| BC-2.01.006 | Cyberint Cookie-Based Authentication and Multi-Format Timestamp Parsing | 01 - Sensor Adapters | CAP-001 | P0 | draft |
-| BC-2.01.007 | Claroty Bearer Token Auth with Polymorphic ID Handling | 01 - Sensor Adapters | CAP-001 | P0 | draft |
-| BC-2.01.008 | Armis Bearer Token Auth with AQL Query Forwarding and Timestamp Fallback | 01 - Sensor Adapters | CAP-001 | P0 | draft |
+| BC-2.01.005 | CrowdStrike OAuth2 Authentication and Two-Step Fetch | 01 - Sensor Adapters | CAP-001 | P0 | draft (amendment_lifecycle: pending — ADR-023) |
+| BC-2.01.006 | Cyberint Cookie-Based Authentication and Multi-Format Timestamp Parsing | 01 - Sensor Adapters | CAP-001 | P0 | draft (amendment_lifecycle: pending — ADR-023) |
+| BC-2.01.007 | Claroty Bearer Token Auth with Polymorphic ID Handling | 01 - Sensor Adapters | CAP-001 | P0 | draft (amendment_lifecycle: pending — ADR-023) |
+| BC-2.01.008 | Armis Bearer Token Auth with AQL Query Forwarding and Timestamp Fallback | 01 - Sensor Adapters | CAP-001 | P0 | draft (amendment_lifecycle: pending — ADR-023) |
 | BC-2.01.009 | ~~Query Filtering and Sorting Parameters~~ | 01 - Sensor Adapters | CAP-001 | P0 | removed |
 | BC-2.01.010 | Partial Failure Handling for Paginated and Cross-Client Queries | 01 - Sensor Adapters | CAP-001, CAP-002 | P0 | draft |
 | BC-2.01.011 | ~~Cross-Sensor Correlation via OCSF Field Alignment~~ | 01 - Sensor Adapters | CAP-012 | P1 | removed |
 | BC-2.01.012 | ~~Query Fingerprint Validation at Startup~~ | 01 - Sensor Adapters | CAP-001 | P0 | removed |
-| BC-2.01.013 | DataSource Trait Eliminates Per-Sensor Code Duplication | 01 - Sensor Adapters | CAP-001 | P0 | draft |
+| BC-2.01.013 | DataSource Trait Eliminates Per-Sensor Code Duplication | 01 - Sensor Adapters | CAP-001 | P0 | draft (amendment_lifecycle: pending — ADR-023) |
 | BC-2.01.014 | Exponential Backoff and Retry for Transient Sensor API Errors | 01 - Sensor Adapters | CAP-001 | P0 | draft |
 | BC-2.01.015 | ~~MCP Tool Response Envelope Structure~~ | 01 - Sensor Adapters | CAP-001 | P0 | removed |
 | BC-2.02.001 | OCSF Schema Loading at Build Time via ocsf-proto-gen | 02 - OCSF Normalization | CAP-003 | P0 | draft |
 | BC-2.02.002 | DynamicMessage Creation from Sensor Records | 02 - OCSF Normalization | CAP-003 | P0 | draft |
-| BC-2.02.003 | CrowdStrike Alert Field Mapping to OCSF | 02 - OCSF Normalization | CAP-003 | P0 | draft |
-| BC-2.02.004 | Cyberint Alert Field Mapping to OCSF | 02 - OCSF Normalization | CAP-003 | P0 | draft |
-| BC-2.02.005 | Claroty xDome Field Mapping to OCSF (9 Data Sources) | 02 - OCSF Normalization | CAP-003 | P0 | draft |
-| BC-2.02.006 | Armis Centrix Field Mapping to OCSF (7 Data Sources) | 02 - OCSF Normalization | CAP-003 | P0 | draft |
+| BC-2.02.003 | CrowdStrike Alert Field Mapping to OCSF | 02 - OCSF Normalization | CAP-003 | P0 | draft (amendment_lifecycle: pending — ADR-023) |
+| BC-2.02.004 | Cyberint Alert Field Mapping to OCSF | 02 - OCSF Normalization | CAP-003 | P0 | draft (amendment_lifecycle: pending — ADR-023) |
+| BC-2.02.005 | Claroty xDome Field Mapping to OCSF (9 Data Sources) | 02 - OCSF Normalization | CAP-003 | P0 | draft (amendment_lifecycle: pending — ADR-023) |
+| BC-2.02.006 | Armis Centrix Field Mapping to OCSF (7 Data Sources) | 02 - OCSF Normalization | CAP-003 | P0 | draft (amendment_lifecycle: pending — ADR-023) |
 | BC-2.02.007 | Vendor Extension Preservation in raw_extensions | 02 - OCSF Normalization | CAP-003 | P0 | draft |
 | BC-2.02.008 | Four-Tier Field Alias Resolution | 02 - OCSF Normalization | CAP-003 | P0 | draft |
 | BC-2.02.009 | OCSF Version Pinning Per Release | 02 - OCSF Normalization | CAP-003 | P0 | draft |
@@ -205,7 +205,7 @@ Phase 3-patch additions (2026-04-16): 22 new BCs added in Burst 1 to close trace
 | BC-2.16.001 | Sensor Spec File Loading — Parse TOML, Validate Schema, Register Tables | 16 - Spec Engine | CAP-029 | P0 | draft |
 | BC-2.16.002 | Multi-Step Fetch Pipeline Execution — Sequential Steps with Variable Interpolation | 16 - Spec Engine | CAP-029 | P0 | draft |
 | BC-2.16.003 | Column-to-OCSF Mapping at Query Time — Map Sensor Columns to OCSF Fields Per Spec | 16 - Spec Engine | CAP-029 | P0 | draft |
-| BC-2.16.004 | Rust Escape Hatch for Custom Adapters — Trait-Based Override When Config Is Insufficient | 16 - Spec Engine | CAP-029 | P0 | draft |
+| BC-2.16.004 | ~~Rust Escape Hatch for Custom Adapters — Trait-Based Override When Config Is Insufficient~~ | 16 - Spec Engine | CAP-029 | P0 | deprecated (ADR-023 PREREQ-F) |
 | BC-2.16.005 | `reload_config` MCP Tool — Re-Read All Config Files, Validate, Atomic Swap, Notify | 16 - Spec Engine | CAP-030 | P1 | draft |
 | BC-2.16.006 | Arc-Swap Config Access on Hot Path — Lock-Free Reads for Query-Time Config Access | 16 - Spec Engine | CAP-030 | P1 | draft |
 | BC-2.16.007 | Sensor Spec Hot Reload — Add/Remove/Update Sensor Tables Without Restart | 16 - Spec Engine | CAP-030 | P1 | draft |
@@ -359,6 +359,8 @@ Phase 3-patch additions (2026-04-16): 22 new BCs added in Burst 1 to close trace
 - Subsystem 19: Infusion Enrichment Framework (AD-020, CAP-031)
 
 ### Change Log (Adversarial Review Fixes)
+
+**v4.54 (2026-05-11):** PREREQ-F — ADR-023 v1.17 BC catalog amendments. (1) BC-2.16.004 lifecycle_status active→deprecated (deprecated_by: ADR-023); index row strikethrough + status updated to "deprecated (ADR-023 PREREQ-F)"; active_contracts 227→226, retired_contracts 2→3. (2) BC-2.01.013 amendment_lifecycle: pending — ADR-023 v1.4 amendment removes sealed-trait language, adds spec-driven runtime validation rules; index status updated. (3) Eight sensor-named BCs (BC-2.01.005/006/007/008, BC-2.02.003/004/005/006) amendment_lifecycle: pending — ADR-023 prefix notes added; index status updated. VP-PLUGIN-001..007 registered in VP-INDEX.md. TS-PLUGIN-PARITY-001 authored.
 
 **v4.53 (2026-05-09):** PR-139-pr-level-pass-3-fix-pass — Sync BC-2.06.011 row title to H1 per POL-7 — closes F-P3-MED-1 from PR #139 PR-LEVEL adversary pass-3 (POL-7 violation, pre-existing drift surfaced during v4.52 amendment). Title updated from "ConfigManager Initialization Validation — Config Loaded and Validated Before Serving" to "ConfigManager Initialization — prism.toml Schema Validation at Process Start". No count changes (total_contracts=235 unchanged).
 

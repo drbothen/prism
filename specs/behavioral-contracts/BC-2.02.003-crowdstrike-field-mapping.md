@@ -1,7 +1,7 @@
 ---
 document_type: behavioral-contract
 level: L3
-version: "1.4"
+version: "1.5"
 status: draft
 producer: product-owner
 timestamp: 2026-04-14T05:00:00
@@ -16,8 +16,10 @@ inputs:
 input-hash: "76729b7"
 traces_to: ["CAP-003"]
 extracted_from: ".factory/specs/prd.md"
+scheduled_amendment_in: ADR-023
+amendment_lifecycle: pending
 introduced: cycle-1
-modified: null
+modified: "2026-05-11"
 deprecated: null
 deprecated_by: null
 replacement: null
@@ -27,6 +29,8 @@ removal_reason: null
 ---
 
 # BC-2.02.003: CrowdStrike Alert Field Mapping to OCSF
+
+> **PENDING AMENDMENT — ADR-023**: This BC is being amended for plugin-only architecture per ADR-023. The sensor auth and field-mapping behavior described here will be replaced by TOML spec configuration and, where required, `.prx` WASM plugins. Full BC amendment language is authored in PLUGIN-MIGRATION-001-G (Wave 2/G). See PLUGIN-MIGRATION-001-D for replacement TOMLs.
 
 ## Description
 
@@ -96,6 +100,7 @@ The CrowdStrike normalizer maps CrowdStrike alert fields to their canonical OCSF
 
 | Version | Burst | Date | Author | Change |
 |---------|-------|------|--------|--------|
+| 1.5 | prereq-f | 2026-05-11 | product-owner | PREREQ-F prefix note: added PENDING AMENDMENT — ADR-023 callout under H1 per ADR-023 L370 wording; added scheduled_amendment_in: ADR-023 and amendment_lifecycle: pending to frontmatter. No semantic change to BC body. Full amendment in Wave 2/G. |
 | 1.4 | BLOCK-WV1-04 | 2026-04-22 | product-owner | Severity format fix: corrected CrowdStrike severity from integer (1-5) to string (e.g., "High") with OCSF v1.x name-to-id mapping; added severity_name preservation in raw_extensions; expanded postconditions with full field list per S-1.05 Task 2; updated test vectors to use string severity; added missing-detection_id error case. |
 | 1.3 | pass-73-fix | 2026-04-20 | state-manager | Deterministic changelog reorder: sorted all rows to descending version order (pass-73 bash script). |
 | 1.2 | pass-69-housekeeping | 2026-04-20 | product-owner | Normalized changelog schema to canonical 5-col schema. |

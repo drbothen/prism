@@ -1,7 +1,7 @@
 ---
 document_type: verification-property-index
 level: L4
-version: "1.29"
+version: "1.30"
 status: draft
 producer: product-owner
 timestamp: 2026-05-05T00:00:00
@@ -172,6 +172,22 @@ traces_to: architecture/ARCH-INDEX.md
 | VP-151 | OCSF column mapping fixture catalog (6 representative cases, SpecDrivenMapper) — VP-PLUGIN-006 alias | prism-spec-engine | integration_test | P1 | draft | PLUGIN-MIGRATION-001-C |
 | VP-152 | Plugin manifest allowlist not-None after PREREQ-D (allowed_urls enforcement) — VP-PLUGIN-007 alias | prism-spec-engine | integration_test | P0 | draft | PLUGIN-PREREQ-D |
 
+## VP-PLUGIN-001..007 Named Series (PREREQ-F Registration, ADR-023 §Architectural Constraints)
+
+The VP-PLUGIN-NNN series is the canonical named series for plugin-only architecture verification
+properties. Each is registered with `module: prism-spec-engine` per ADR-023 L511-512 and
+F-PASS3-HIGH-001. The numeric VP-146..VP-152 entries above are the sequential index aliases.
+
+| Named ID | Aliases | Property | Module | Method | Priority | Status | Anchor Story |
+|----------|---------|----------|--------|--------|----------|--------|--------------|
+| VP-PLUGIN-001 | VP-146 | SensorId open-newtype replaces SensorType closed enum; zero non-test references to SensorType post-PREREQ-A | prism-spec-engine | integration_test | P0 | draft | PLUGIN-MIGRATION-001-A |
+| VP-PLUGIN-002 | VP-147 | PipelineExecutor::execute returns non-empty records against at least one wiremock DTU clone (replaces Ok(Vec::new()) stub) | prism-spec-engine | integration_test | P0 | draft | PLUGIN-MIGRATION-001-D |
+| VP-PLUGIN-003 | VP-148 | DTU-parity: plugin-produced OCSF record matches DTU-clone reference per TS-PLUGIN-PARITY-001 canonicalization | prism-spec-engine | integration_test | P0 | draft | PLUGIN-MIGRATION-001-D |
+| VP-PLUGIN-004 | VP-149 | TOML grammar accepts four new constructs (fetch_step.retry, virtual_field_aliases, cache_ttl_secs, fetch_step.batch) | prism-spec-engine | integration_test | P0 | draft | PLUGIN-PREREQ-D |
+| VP-PLUGIN-005 | VP-150 | PluginRuntime::load_all_plugins boot-time wired; allowed_urls host-only enforcement after PREREQ-D | prism-spec-engine | integration_test | P0 | draft | PLUGIN-MIGRATION-001-D |
+| VP-PLUGIN-006 | VP-151 | Cross-sensor auth-composition rejection — three runtime rules from DI-012 reject malformed specs at spec-load | prism-spec-engine | integration_test | P1 | draft | PLUGIN-MIGRATION-001-C |
+| VP-PLUGIN-007 | VP-152 | Zero hardcoded CustomAdapter Rust adapters in production code paths post-PREREQ-A; trait fully retired | prism-spec-engine | integration_test | P0 | draft | PLUGIN-PREREQ-D |
+
 ## Summary
 
 | Method | Count | P0 | P1 |
@@ -182,6 +198,8 @@ traces_to: architecture/ARCH-INDEX.md
 | Fuzz | 6 | 5 | 1 |
 | Integration test | 26 | 23 | 3 |
 | **Total** | **152** | **120** | **32** |
+
+> Note: VP-PLUGIN-001..007 are named aliases for VP-146..VP-152; they do not add to the sequential count. Total sequential VPs remains 152.
 
 ### Phase 3-Patch Addition (2026-04-16, Burst 2.5)
 
@@ -212,6 +230,7 @@ S-1.02 frontmatter has been updated to `subsystems: [SS-03, SS-07, SS-11, SS-12,
 
 | Version | Burst | Date | Author | Change |
 |---------|-------|------|--------|--------|
+| 1.30 | prereq-f | 2026-05-11 | product-owner | PREREQ-F: Registered VP-PLUGIN-001..007 named series per ADR-023 L511-512 + F-PASS3-HIGH-001. Added VP-PLUGIN-NNN named table (aliases to VP-146..VP-152) with module: prism-spec-engine. Summary note clarifies named series does not increment sequential count. |
 | 1.29 | pr-127-pass4-remediation | 2026-05-05 | architect | Property-text correction for VP-014 (v1.5→v1.6) and VP-015 (v1.6→v1.7): replaces non-existent `ParseError::QueryTooLarge` and `ParseError::NestingTooDeep` enum-variant references with accurate `Err(Vec<ParseError>)` API description (message contains `E-QUERY-003`). Identified by adversary pass-4 (F-MEDIUM-001). Status, verification_lock, proof_file_hash, proof_completed_date unchanged — only property statement text corrected. Cross-ref: vp-014 v1.6, vp-015 v1.7, verification-architecture.md v1.30, ARCH-INDEX v2.31. |
 | 1.28 | pr-127-formal-verify | 2026-05-05 | architect | VP-014 and VP-015 promoted to `verified` following successful Kani proof runs at commit f5212641 (PR #127). VP-014: harness `proof_check_query_size_rejects_oversize`, 0/4371 failed (285 unreachable). VP-015: 4 harnesses including new `proof_sql_query_depth_limit`, 0/5664 failed (397 unreachable). Status column updated; lock=true; proof_completed_date=2026-05-05. Cross-ref: vp-014 v1.5, vp-015 v1.6, verification-architecture.md v1.29, ARCH-INDEX.md v2.30. |
 | 1.27 | pr-127-review-remediation | 2026-05-05 | product-owner | PR-127 Task 2: VP-021 v1.3→v1.4 — clarified Property Statement to explicitly state that `PrismQlParser::parse` takes `&str` not `&[u8]`; the from_utf8 conversion step is now spelled out inline. Removed "malformed unicode" from inputs list (from_utf8 filters that before parse receives input). Harness skeleton was already correct; property statement is now unambiguous on type signature. |

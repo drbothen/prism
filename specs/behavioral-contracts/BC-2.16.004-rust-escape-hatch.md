@@ -1,7 +1,7 @@
 ---
 document_type: behavioral-contract
 level: L3
-version: "1.3"
+version: "1.4"
 status: draft
 producer: product-owner
 timestamp: 2026-04-13T12:00:00
@@ -9,11 +9,12 @@ phase: 1a
 origin: greenfield
 subsystem: "SS-16"
 capability: "CAP-029"
-lifecycle_status: active
+lifecycle_status: deprecated
 introduced: cycle-1
-modified: null
-deprecated: null
-deprecated_by: null
+modified: "2026-05-11"
+deprecated: "2026-05-11"
+deprecated_by: ADR-023
+deprecated_in_version: "1.4"
 replacement: null
 retired: null
 removed: null
@@ -30,6 +31,14 @@ amendment_lifecycle: pending
 ---
 
 # BC-2.16.004: Rust Escape Hatch for Custom Adapters — Trait-Based Override When Config Is Insufficient
+
+## Deprecation Notice
+
+This BC is RETIRED by ADR-023 (Plugin-Only Sensor Architecture, v1.17 substantive convergence).
+The CustomAdapter Rust trait escape hatch is replaced by the `.prx` WASM plugin escape hatch
+(deferred to v1.0+1 per TD-PLUGIN-SIGNING-001). Any reader landing here should consult ADR-023
+and PLUGIN-MIGRATION-001-D for the new approach. Trait retirement effective when
+PLUGIN-PREREQ-F + PREREQ-A lands.
 
 ## Description
 
@@ -126,6 +135,7 @@ See `.factory/specs/prd-supplements/test-vectors.md` for full canonical vectors.
 
 | Version | Burst | Date | Author | Change |
 |---------|-------|------|--------|--------|
+| 1.4 | prereq-f | 2026-05-11 | product-owner | PREREQ-F: Deprecated by ADR-023 v1.17 (Plugin-Only Sensor Architecture, substantive convergence). lifecycle_status active → deprecated; deprecated_by ADR-023; deprecated_in_version 1.4; added Deprecation Notice body block. The CustomAdapter Rust trait escape hatch is superseded by .prx WASM plugin escape hatch (deferred to v1.0+1 per TD-PLUGIN-SIGNING-001). |
 | 1.3 | pass-74-fix | 2026-04-20 | product-owner | Resolved (placeholder) row in ## Verification Properties per pass-74 VP-TBD decision matrix extension. |
 | 1.2 | pass-73-fix | 2026-04-20 | state-manager | Deterministic changelog reorder: sorted all rows to descending version order (pass-73 bash script). |
 | 1.1 | pre-build-sweep | 2026-04-20 | product-owner | Template-compliance sweep: added extracted_from/inputs/input-hash/traces_to frontmatter; added ## Description; added ## Invariants; added ## Error Conditions (from inline Error Handling); converted ## Traces → ## Traceability table; added ## Canonical Test Vectors; added ## Verification Properties; added ## Changelog. |

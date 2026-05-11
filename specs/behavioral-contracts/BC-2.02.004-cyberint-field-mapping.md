@@ -1,7 +1,7 @@
 ---
 document_type: behavioral-contract
 level: L3
-version: "1.4"
+version: "1.5"
 status: draft
 producer: product-owner
 timestamp: 2026-04-14T05:00:00
@@ -16,8 +16,10 @@ inputs:
 input-hash: "76729b7"
 traces_to: ["CAP-003"]
 extracted_from: ".factory/specs/prd.md"
+scheduled_amendment_in: ADR-023
+amendment_lifecycle: pending
 introduced: cycle-1
-modified: null
+modified: "2026-05-11"
 deprecated: null
 deprecated_by: null
 replacement: null
@@ -27,6 +29,8 @@ removal_reason: null
 ---
 
 # BC-2.02.004: Cyberint Alert Field Mapping to OCSF
+
+> **PENDING AMENDMENT — ADR-023**: This BC is being amended for plugin-only architecture per ADR-023. The sensor auth and field-mapping behavior described here will be replaced by TOML spec configuration and, where required, `.prx` WASM plugins. Full BC amendment language is authored in PLUGIN-MIGRATION-001-G (Wave 2/G). See PLUGIN-MIGRATION-001-D for replacement TOMLs.
 
 ## Description
 
@@ -84,6 +88,7 @@ The Cyberint normalizer maps alert and asset records fetched from the Cyberint A
 
 | Version | Burst | Date | Author | Change |
 |---------|-------|------|--------|--------|
+| 1.5 | prereq-f | 2026-05-11 | product-owner | PREREQ-F prefix note: added PENDING AMENDMENT — ADR-023 callout under H1 per ADR-023 L370 wording; added scheduled_amendment_in: ADR-023 and amendment_lifecycle: pending to frontmatter. No semantic change to BC body. Full amendment in Wave 2/G. |
 | 1.4 | S-1.04-red-gate-fix | 2026-04-22 | product-owner | Corrected TV-001 annotation: severity_id 4 = "High" (was "Critical") per OCSF v1.x; updated Description and Postconditions to enumerate full severity mapping. |
 | 1.3 | pass-73-fix | 2026-04-20 | state-manager | Deterministic changelog reorder: sorted all rows to descending version order (pass-73 bash script). |
 | 1.2 | pass-69-housekeeping | 2026-04-20 | product-owner | Normalized changelog schema to canonical 5-col schema. |
