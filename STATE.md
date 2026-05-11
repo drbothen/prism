@@ -1,7 +1,7 @@
 ---
 document_type: pipeline-state
 level: ops
-version: "7.127"
+version: "7.128"
 producer: state-manager
 timestamp: 2026-05-11T07:00:00Z
 inputs: []
@@ -22,7 +22,7 @@ repos:
   - axiathon
   - ocsf-proto-gen
   - mcp-claroty-xdome
-current_step: "PRE-COMPACT CHECKPOINT (D-393) — S-PLUGIN-PREREQ-A PR delivery in queue post-compact"
+current_step: "D-394 — PR-LEVEL pass-1 cascade closed (fix-burst-PR1). Streak 0/3. Pass-2 at HEAD ba7d7f6f required for streak 1/3."
 wave_3_carry_forward_debt: "ALL_REMEDIATE — W4-FIX-PERF-001/002, W4-FIX-CODE-001, W4-FIX-SEC-001 through W4-FIX-SEC-004 planned per D-203"
 wave_4_status: "PHASE_4_A_CONVERGED + R9_APPROVED but PHASE_4_B SUSPENDED — pre-implementation dep check (2026-05-04) found S-4.01 → S-3.02 (status=draft); pivoting to full Wave 3 implementation per user directive D-223"
 wave_4_phase_4_a_preflight:
@@ -176,9 +176,9 @@ workspace_test_count: 3489  # 891 prism-query + workspace total (per implementer
 | **Language** | Rust |
 | **Target Workspace** | per-analyst stdio (MCP server) |
 | **Started** | 2026-04-13 |
-| **Last Updated** | 2026-05-11 (D-393 — PRE-COMPACT CHECKPOINT written; S-PLUGIN-PREREQ-A state durably captured at feature/S-PLUGIN-PREREQ-A@8b949bba; STATE v7.126→v7.127) |
+| **Last Updated** | 2026-05-11 (D-394 — PR-LEVEL pass-1 cascade closure; fix-burst-PR1 closed 6 findings + 1 reclassified; STATE v7.127→v7.128) |
 | **Current Phase** | Wave 3 Tier-3 COMPLETE — **Wave 3-A 4 of 4 SHIPPED**: S-3.05 (#132 c867c344), S-3.04 (#133 57745ce8), S-3.03 (#134 7c413692), **S-3.07 (#135 2ae7185b MERGED 2026-05-08T04:23:03Z)**; post-merge cleanup confirmed; plugin migration: PREREQ-F SHIPPED; PREREQ-A/B/C/D/E pending |
-| **Current Step** | D-393 — PRE-COMPACT CHECKPOINT (2026-05-11). S-PLUGIN-PREREQ-A PR delivery in queue post-compact: demo-recorder (11 ACs) → pr-manager 9-step on origin/feature/S-PLUGIN-PREREQ-A@8b949bba → pre-merge gate verification → D-394 post-merge state burst. |
+| **Current Step** | D-394 — PR-LEVEL pass-1 cascade CLOSED (2026-05-11). fix-burst-PR1 closed 6 findings + 1 reclassified (F-PR1-CRIT-001 adversary-Glob-FP). F-PR1-HIGH-002 cache_key shadow `pub type SensorId = String;` TRULY NOVEL (missed 12 LOCAL passes). Worktree ba7d7f6f pushed to origin. Streak 0/3. Next: PR-LEVEL pass-2 at HEAD ba7d7f6f → streak 1/3 → 2/3 → 3/3 CONVERGED → pr-reviewer → pre-merge gate → squash-merge. |
 
 ## Phase Progress
 
@@ -221,6 +221,7 @@ _D-001..D-046 archived: [cycles/phase-3-dtu-wave-2/decisions-archive-d001-d032.m
 
 | ID | Decision | Rationale | Phase | Date |
 |----|----------|-----------|-------|------|
+| D-394 | 2026-05-11 | PR-LEVEL pass-1 cascade for PR #142 (S-PLUGIN-PREREQ-A) — fix-burst-PR1 closed all 6 actionable findings + 1 reclassified. F-PR1-CRIT-001 (demo-evidence missing) reclassified as adversary-Glob-tool false-positive (12 files verified present in 8dd9a89e). F-PR1-HIGH-001 (subsystems mis-anchor) → story v1.5 [SS-01, SS-11, SS-16, SS-21]. F-PR1-HIGH-002 (cache_key shadow `pub type SensorId = String;` — TRULY NOVEL, missed across 12 LOCAL passes) → migrated to `pub use prism_core::SensorId;` + 30+ sibling sites in cache.rs/cache_tests.rs/invalidation.rs/vp025_cache_key.rs. F-PR1-MED-001 fanout sentinel renamed. F-PR1-MED-002 cache_key.rs added to §File Structure + AC-12 created. F-PR1-MED-003/LP-PR1-001 codified as PG-PR1-002/003. F-PR1-LOW-001 should_panic shortened. 3 process-gaps codified (PG-PR1-001/002/003). Test runs: 1,398/1,398 pass (235 prism-core + 896/6 prism-query + 267 prism-sensors). Worktree ba7d7f6f pushed to origin/feature/S-PLUGIN-PREREQ-A. Story S-PLUGIN-PREREQ-A v1.4→v1.5. PR-LEVEL streak 0/3 (pass-1 BLOCKED-hard; fix-burst closes all blockers; pass-2 at HEAD ba7d7f6f required for streak 1/3). 3 TDs filed: TD-VSDD-082 (story-template type-alias grep gap P2), TD-VSDD-083 (adversary subsystem-vs-ARCH-INDEX gap P2), TD-VSDD-084 (adversary Glob negative-result verification P2). STATE+HANDOFF v7.127→v7.128. | plugin-migration | 2026-05-11 |
 | D-393 | 2026-05-11 | PRE-COMPACT CHECKPOINT written. S-PLUGIN-PREREQ-A state durably captured: feature/S-PLUGIN-PREREQ-A@8b949bba pushed to origin (parallel devops-engineer burst); factory-artifacts D-393; STATE+HANDOFF v7.126→v7.127. POST-COMPACT FIRST ACTION explicit: demo-recorder per-AC demos for 11 ACs → pr-manager 9-step on origin/feature/S-PLUGIN-PREREQ-A@8b949bba PR creation → pre-merge gate verification → post-merge state burst (D-394 STORY-INDEX status ready→merged, BC-2.01.013 status draft→active per POL-14). 3/3 CONVERGED at pass-12; trajectory 14→12→6→4→2→6→4→0→4→0→0→0; 12 passes 7 fix-bursts 36+ findings closed. 6 TDs filed (TD-002..006). New process-gaps from cascade: PG-LP7-001 Red Gate materialization audit; PG-LP7-002 sibling-rename axis layer-enumeration; OBS-LP9-001 adversary evidence-or-not-happened. Open methodology TDs from prior cycle: TD-FACTORY-HOOK-BYPASS-001 P0; TD-VSDD-054..063 unchanged. | plugin-migration | 2026-05-11 |
 | D-392 | 2026-05-11 | S-PLUGIN-PREREQ-A LOCAL adversary pass-12 CLEAN — **STREAK 3/3 CONVERGED**. BC-5.39.001 3-CLEAN protocol SATISFIED. Trajectory 14→12→6→4→2→6→4→0→4→0→0→0 (12 passes, 7 fix-bursts, 36+ findings closed). HEAD unchanged from pass-10 + pass-11 (8b949bba) — three independent fresh-context passes converge on the same evidence. Pass-12 EXHAUSTIVE evidence-based audit: 6/6 Red Gate verified at exact BC-prefixed names with absolute file:line; 11/11 ACs satisfied with file:line evidence; 7/7 dispatch sites converted (zero closed-enum fallbacks); 33 sensor_type hits across 15 files categorized (zero defects, all trait-method/test-stub/loop-var/OCSF/migration-doc); 6/6 spec versions pinned (Story v1.4, ADR-023 v1.18, BC-2.01.013 v1.5, DI-012 v1.6, VP-INDEX v1.30, BC-INDEX v4.54). Novel pass-12 dimensions all CLEAN: #[non_exhaustive] preserved, zero println!/eprintln! in production, zero unwrap() in critical paths, dynamic SensorId construction goes through try_from_str, Serde Deserialize validates, CustomAdapter retains BC-2.16.004-awareness. PR-readiness checklist complete. STORY READY for PR delivery (demo-recorder per-AC demos → push → pr-manager 9-step). On PR merge: STORY-INDEX row S-PLUGIN-PREREQ-A status ready→merged; BC-2.01.013 status draft→active (POL-14). | plugin-migration | 2026-05-11 |
 | D-391 | 2026-05-11 | S-PLUGIN-PREREQ-A LOCAL adversary pass-11 CLEAN with evidence-based idempotency check. Streak 1/3 → 2/3. HEAD unchanged from pass-10 (8b949bba). Trajectory 14→12→6→4→2→6→4→0→4→0→0 monotonically clean since pass-10. Red Gate 6/6 verified at exact names with absolute file:line evidence. Workspace sensor_type sweep: 33 hits / 15 files / 0 defects (re-derived categorization independently confirms pass-10's conclusion). Cross-crate version analysis: prism-sensors bumped 0.1→0.2 (breaking trait change SensorAdapter::sensor_type() return type SensorType → SensorId); prism-core stayed 0.1.0 (additive SensorId pub type only). CI POL-11 positive-coverage assertion verified: --color=never present at ci.yml:359, E0432 positive log line at ci.yml:521-525, perimeter compile-fail + CI assertion + workspace grep = three independent gates. NOVEL: 0 findings. 1 process-gap PG-LP11-001 (non-blocking — prior-pass report path-citation drift in pass-10 narrative; recommend OBS-LP9-001 amendment to require absolute paths in evidence citations). 5 KUDOs reinforce convergence quality. Pass-12 required for 3/3 CONVERGED. | plugin-migration | 2026-05-11 |
@@ -335,21 +336,21 @@ Cycle files: [burst-log](cycles/phase-2-patch/burst-log.md) | [convergence-traje
 
 ---
 
-## Session Resume Checkpoint (2026-05-11-v7.127-d393-pre-compact)
+## Session Resume Checkpoint (2026-05-11-v7.128-d394-pr-level-pass1-cascade)
 
-_Previous checkpoint (v7.126/D-392 pass-12 CONVERGED) archived: [cycles/wave-4-operations/session-checkpoints.md](cycles/wave-4-operations/session-checkpoints.md)_
+_Previous checkpoint (v7.127/D-393 PRE-COMPACT) archived: [cycles/wave-4-operations/session-checkpoints.md](cycles/wave-4-operations/session-checkpoints.md)_
 
-**STATE v7.127. D-393 — PRE-COMPACT CHECKPOINT. SESSION-HANDOFF v7.127.** develop@c6dd6602. factory-artifacts HEAD: run `git -C .factory log -1` (per TD-VSDD-053). vsdd-factory rc.16 active. Standing Orchestrator Rules active (Rules 1, 2, 3). Bundle B Exit Mandate active (task #85). Tasks #80-#84 DISPOSITIONS RECORDED — do NOT re-triage. Worktrees: main (clean) + .factory + .worktrees/S-PLUGIN-PREREQ-A + .worktrees/S-3.09 (FROZEN per D-298).
+**STATE v7.128. D-394 — PR-LEVEL pass-1 cascade CLOSED. SESSION-HANDOFF v7.128.** develop@c6dd6602. factory-artifacts HEAD: run `git -C .factory log -1` (per TD-VSDD-053). vsdd-factory rc.16 active. Standing Orchestrator Rules active (Rules 1, 2, 3). Bundle B Exit Mandate active (task #85). Tasks #80-#84 DISPOSITIONS RECORDED — do NOT re-triage. Worktrees: main (clean) + .factory + .worktrees/S-PLUGIN-PREREQ-A + .worktrees/S-3.09 (FROZEN per D-298).
 
-**S-PLUGIN-PREREQ-A STATUS:** 3/3 CONVERGED (D-392). BC-5.39.001 satisfied. Trajectory 14→12→6→4→2→6→4→0→4→0→0→0. HEAD 8b949bba (unchanged passes 10/11/12). feature/S-PLUGIN-PREREQ-A pushed to origin (durably secured). 11/11 ACs satisfied. 6/6 Red Gate exact BC-prefixed names. 7/7 dispatch sites verified. 6 TDs filed.
+**S-PLUGIN-PREREQ-A STATUS:** PR-LEVEL pass-1 BLOCKED-hard (6 findings + 1 reclassified-FP), fix-burst-PR1 CLOSED all blockers. Worktree ba7d7f6f pushed to origin/feature/S-PLUGIN-PREREQ-A. Story v1.4→v1.5. Streak 0/3. Next: PR-LEVEL pass-2 at HEAD ba7d7f6f → streak 1/3. KEY FINDING: F-PR1-HIGH-002 cache_key.rs shadow `pub type SensorId = String;` (TRULY NOVEL — missed 12 LOCAL passes). 1,398/1,398 tests PASS.
 
-**POST-COMPACT FIRST ACTION:** demo-recorder per-AC demos for 11 ACs at worktree /Users/jmagady/Dev/prism/.worktrees/S-PLUGIN-PREREQ-A → pr-manager 9-step PR lifecycle on origin/feature/S-PLUGIN-PREREQ-A@8b949bba → pre-merge gate verification (orchestrator-drives-cascade Rule 2) → D-394 post-merge state burst (STORY-INDEX ready→merged; BC-2.01.013 draft→active per POL-14). Then dispatch PREREQ-B/C/D/E.
+**NEXT ACTION:** PR-LEVEL pass-2 at HEAD ba7d7f6f (fresh-context adversary, no LOCAL cascade context). After 3/3 CONVERGED → pr-reviewer dispatch → pre-merge gate → squash-merge → D-395 post-merge state burst (STORY-INDEX ready→merged; BC-2.01.013 draft→active per POL-14). Then dispatch PREREQ-B/C/D/E.
 
 **S-3.09 FREEZE STATE:** Worktree .worktrees/S-3.09 HEAD 43c41389; BUG-S309-PLUGIN P0 blocks resumption. See D-298/D-299.
 
-**Deferred TDs (carry-forward):** W3-FIX-S307-001/002/003 + TD-VSDD-082 + TD-S307-002/003/004 + TD-S-PLUGIN-PREREQ-A-002 P1 (sentinel-nil OrgId; W3-FIX-S307-002 dep) + TD-S-PLUGIN-PREREQ-A-003 P1 (WriteToolInvalidationMap runtime extensibility; PREREQ-E) + TD-S-PLUGIN-PREREQ-A-004 P1 (boot.rs step8 AdapterRegistry assertion; step8 wiring successor) + TD-S-PLUGIN-PREREQ-A-005 P3 (EXPLAIN silent-skip UX; PLUGIN-MIGRATION-001-B) + TD-S-PLUGIN-PREREQ-A-006 P3 (cross-newtype audit; post-PREREQ-A maintenance) + TD-VSDD-058 P0 + TD-VSDD-059 P0 + TD-VSDD-060 P0 + TD-FACTORY-HOOK-BYPASS-001 P0 + TD-VSDD-054..063 (all OPEN) + TD-S309-O1/O2/O3/O4
+**Deferred TDs (carry-forward):** W3-FIX-S307-001/002/003 + TD-S307-002/003/004 + TD-S-PLUGIN-PREREQ-A-002 P1 (sentinel-nil OrgId; W3-FIX-S307-002 dep) + TD-S-PLUGIN-PREREQ-A-003 P1 (WriteToolInvalidationMap runtime extensibility; PREREQ-E) + TD-S-PLUGIN-PREREQ-A-004 P1 (boot.rs step8 AdapterRegistry assertion; step8 wiring successor) + TD-S-PLUGIN-PREREQ-A-005 P3 (EXPLAIN silent-skip UX; PLUGIN-MIGRATION-001-B) + TD-S-PLUGIN-PREREQ-A-006 P3 (cross-newtype audit; post-PREREQ-A maintenance) + TD-VSDD-058 P0 + TD-VSDD-059 P0 + TD-VSDD-060 P0 + TD-FACTORY-HOOK-BYPASS-001 P0 + TD-VSDD-054..063 (all OPEN) + TD-VSDD-082/083/084 (NEW D-394) + TD-S309-O1/O2/O3/O4
 
-**Current spec versions:** BC-INDEX v4.54, STORY-INDEX v2.34 (150 stories), ARCH-INDEX v2.40, ADR-022 v1.1, ADR-023 v1.18, VP-INDEX v1.30 (152 VPs + VP-PLUGIN-001..007 aliases), DI-012 invariants.md v1.6, TS-PLUGIN-PARITY-001 v1.0, BC-2.16.004 v1.4 (deprecated), BC-2.01.013 v1.5 (amended — Adapter Identity Method postcondition added D-386), prd.md v1.10, error-taxonomy.md v1.18 (E-QUERY-031 added), S-PLUGIN-PREREQ-A v1.4 (input-hash 6954524; OPTION B &SensorId canonical API + BC-prefixed Red Gate names; task 7 + AC-4 amended), develop@c6dd6602; STATE v7.126 SESSION-HANDOFF v7.126 (current)
+**Current spec versions:** BC-INDEX v4.54, STORY-INDEX v2.36 (150 stories), ARCH-INDEX v2.40, ADR-022 v1.1, ADR-023 v1.18, VP-INDEX v1.30 (152 VPs + VP-PLUGIN-001..007 aliases), DI-012 invariants.md v1.6, TS-PLUGIN-PARITY-001 v1.0, BC-2.16.004 v1.4 (deprecated), BC-2.01.013 v1.5 (amended — Adapter Identity Method postcondition added D-386), prd.md v1.10, error-taxonomy.md v1.18 (E-QUERY-031 added), S-PLUGIN-PREREQ-A v1.5 (input-hash updated; subsystems [SS-01,SS-11,SS-16,SS-21]; cache_key.rs cluster added to §File Structure; AC-12 type-alias grep; LP-PR1-001 lesson; D-394), develop@c6dd6602; STATE v7.128 SESSION-HANDOFF v7.128 (current)
 
 **Key files:** [SESSION-HANDOFF.md](SESSION-HANDOFF.md) | [cycle-manifest.md](cycles/wave-4-operations/cycle-manifest.md) | [HOLDOUT-INDEX.md](holdout-scenarios/HOLDOUT-INDEX.md)
 
