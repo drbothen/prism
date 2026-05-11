@@ -405,8 +405,8 @@ pub async fn fan_out(
                 #[allow(deprecated)]
                 result.errors.push(FanOutError {
                     org_id: OrgId::new(),
-                    client_id: "<unknown>".into(),
-                    sensor_type: prism_core::SensorId::from("<unknown>"),
+                    client_id: "unknown".into(),
+                    sensor_type: prism_core::SensorId::from("unknown"),
                     error: SensorError::Internal {
                         detail: format!("task panic: {join_err}"),
                     },

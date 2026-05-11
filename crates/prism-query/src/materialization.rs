@@ -11,7 +11,7 @@
 //! ## S-3.02 layer: `MaterializationPipeline`
 //! Full 8-step ephemeral materialization pipeline (BC-2.11.005):
 //!   Step 1: Parse PrismQL string via `PrismQlParser::parse` (public API only)
-//!   Step 2: Resolve source refs to `(SensorType, client_id, SensorSpec)` tuples
+//!   Step 2: Resolve source refs to `(SensorId, client_id, SensorSpec)` tuples
 //!   Step 3: Fan out to sensor adapters via `fan_out()` — all sources in parallel
 //!   Step 4: Normalize each `Vec<serde_json::Value>` via `OcsfNormalizer`
 //!   Step 5: Inject virtual field columns into each RecordBatch
@@ -617,9 +617,15 @@ pub(crate) async fn resolve_source_refs(
         if source_name.starts_with("prism_") {
             continue;
         }
-        // ADV-W3MT-P58-LOW-002: unknown table names (not prism_*, not a known sensor prefix)
-        // return E-QUERY-006 per EC-001 ("unknown source; no fan-out attempted").
-        // This prevents silent failures where a typo in a table name produces empty results.
+        // ADV-W3MT-P58-LOW-002 / F-LP1-CRITICAL-001: unknown table names (not prism_*,
+        // not a prefix for a registered sensor) return E-QUERY-006 per EC-001.
+        // This prevents silent empty results for typos or unregistered sensor names.
+        //
+        // Two-stage check:
+        //   1. sensor_type_from_table_name: extracts and validates the prefix (returns None
+        //      for empty or invalid-charset prefixes — cannot be a valid SensorId).
+        //   2. is_sensor_registered: checks adapter_registry membership (returns E-QUERY-006
+        //      for valid-looking prefixes with no registered adapter — unknown sensor name).
         let Some(sensor_type) = sensor_type_from_table_name(source_name) else {
             tracing::debug!(
                 source_name,
@@ -633,6 +639,32 @@ pub(crate) async fn resolve_source_refs(
                 ),
             });
         };
+
+        // F-LP1-CRITICAL-001: after extracting the sensor prefix, verify that at least
+        // one adapter is registered for it. Without this check, unknown sensor names
+        // (e.g. "unknown_table") silently produce empty results rather than E-QUERY-006.
+        //
+        // Guard: only apply when the registry is non-empty. An empty registry indicates
+        // test mode or early boot where no adapters are wired yet — in that state we
+        // cannot distinguish "unknown sensor" from "known sensor not yet registered".
+        // In production, the registry is always populated at boot with at least the
+        // four built-in sensors; any table prefix absent from a populated registry is
+        // genuinely unknown and must return E-QUERY-006.
+        if !adapter_registry.is_empty() && !adapter_registry.is_sensor_registered(&sensor_type) {
+            tracing::debug!(
+                source_name,
+                sensor_id = %sensor_type,
+                "resolve_source_refs: no adapter registered for sensor prefix; returning E-QUERY-006"
+            );
+            return Err(PrismError::QueryExecutionFailed {
+                detail: format!(
+                    "E-QUERY-006: unknown source table '{source_name}'; \
+                     sensor prefix '{}' is not registered in the adapter registry. \
+                     Check spelling or register the sensor in prism.toml.",
+                    sensor_type
+                ),
+            });
+        }
 
         if clients.is_empty() {
             // ALL scope with no explicit client list: fan out to ALL registered adapters
@@ -787,14 +819,16 @@ fn resolve_org_id(
 fn sensor_type_from_table_name(table_name: &str) -> Option<SensorId> {
     // Extract the sensor prefix by splitting at the first underscore.
     // Convention: `crowdstrike_hosts` → "crowdstrike", `armis_devices` → "armis".
+    // MED-002: apply .to_lowercase() to match explain.rs convention and the
+    // SensorId validation charset (lowercase only).
     let prefix = table_name.split('_').next()?;
     if prefix.is_empty() {
         return None;
     }
-    // Return Some(SensorId) for any non-empty prefix — open dispatch.
-    // The caller uses the SensorId to look up adapters; if none is registered,
-    // the lookup returns None and the source is skipped.
-    Some(SensorId::from(prefix))
+    let prefix_lower = prefix.to_lowercase();
+    // Construct SensorId from lowercase prefix. SensorId::from panics on invalid
+    // charset, so use the fallible try_from_str for untrusted table name input.
+    SensorId::try_from_str(prefix_lower.as_str()).ok()
 }
 
 // ---------------------------------------------------------------------------

@@ -1,13 +1,8 @@
-//! Red Gate tests for BC-2.01.013 — SensorId-keyed AdapterRegistry.
+//! Green tests for BC-2.01.013 — SensorId-keyed AdapterRegistry.
 //!
-//! These tests exercise the NEW `AdapterRegistry` interface where lookup
-//! uses `SensorId` (open newtype) instead of `SensorType` (closed enum).
-//!
-//! # Red Gate status
-//! ALL tests in this module MUST FAIL before implementation. They fail because
-//! `AdapterRegistry` currently keys by `SensorType`, not `SensorId`. The
-//! `get_by_sensor_id()` bridge function in this module panics at `todo!()`
-//! to represent the unimplemented migration.
+//! These tests verify the `AdapterRegistry` interface where lookup
+//! uses `SensorId` (open newtype). Migration from `SensorType` (closed enum)
+//! is complete as of S-PLUGIN-PREREQ-A.
 //!
 //! # Story: S-PLUGIN-PREREQ-A
 //! # BC: BC-2.01.013 — DataSource Trait: Spec-Driven Adapter Pattern (AC-4, AC-10)
@@ -71,8 +66,8 @@ fn stub_adapter(sensor_id: SensorIdType, name: &'static str) -> Arc<dyn SensorAd
 
 /// BC-2.01.013 AC-4 + AC-10: AdapterRegistry insert + lookup with SensorId key.
 ///
-/// GREEN: AdapterRegistry has been re-keyed from (OrgId, SensorType) to (OrgId, SensorId).
-/// The registry's `get()` method now accepts `SensorId` directly.
+/// Verifies BC-2.01.013 postcondition: AdapterRegistry is keyed by (OrgId, SensorId).
+/// The registry's `get()` method accepts `SensorId` directly (open newtype dispatch).
 ///
 /// AC-4: HashMap keyed by (OrgId, SensorId)
 /// AC-10: register a mock adapter under SensorId::from("crowdstrike"), look it up,

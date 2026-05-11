@@ -61,10 +61,6 @@ pub enum PrismError {
     #[error("E-SENSOR-003: sensor {sensor} response parse error: {detail}")]
     SensorResponseParse { sensor: String, detail: String },
 
-    /// E-SENSOR-010: Unknown sensor ID — sensor name not registered.
-    #[error("E-SENSOR-010: unknown sensor id: {id}")]
-    UnknownSensorId { id: String },
-
     /// E-SENSOR-020: Sensor rate limited.
     #[error("E-SENSOR-020: sensor {sensor} rate limited; retry after {retry_after_ms}ms")]
     SensorRateLimited { sensor: String, retry_after_ms: u64 },

@@ -18,7 +18,7 @@
 //!
 //! Story: S-3.05
 
-use std::sync::Arc;
+use std::sync::{Arc, LazyLock};
 
 use prism_core::error::PrismError;
 use prism_core::{OrgSlug, SensorId};
@@ -34,62 +34,72 @@ use crate::cache::QueryCache;
 ///
 /// Each adapter MUST register its write tools here — omitting a mapping is a bug.
 ///
-/// Uses `sensor_name: &'static str` (instead of `SensorId`) to allow static array
-/// initialization — `SensorId` wraps `Arc<str>` which cannot be constructed in const context.
-/// Callers compare `entry.sensor_name` against `sensor_id.as_ref()`.
+/// `sensor_id` is a `SensorId` (open newtype) — replaces the previous
+/// `sensor_name: &'static str` field (S-PLUGIN-PREREQ-A / F-LP1-MED-003).
+/// The map is a `LazyLock<Vec<...>>` (not a static slice) so that future plugin-registered
+/// write tools can extend it at runtime without recompiling (Vec is mutable in shape
+/// even though this initial set is read-only after init).
 #[derive(Debug, Clone)]
 pub struct WriteToolInvalidationMap {
     /// Tool name (e.g., `"crowdstrike_contain_host"`).
     pub tool_name: &'static str,
     /// source_id values to invalidate (e.g., `&["crowdstrike_hosts", "crowdstrike_detections"]`).
     pub source_ids: &'static [&'static str],
-    /// Sensor name string — compare against `sensor_id.as_ref()` for lookup.
-    /// Equivalent to `SensorId::as_ref()` for the owning sensor.
-    pub sensor_name: &'static str,
+    /// Sensor identity — the owning sensor for this write tool.
+    /// Use `entry.sensor_id == *probe_sensor_id` for lookup comparisons.
+    pub sensor_id: SensorId,
 }
 
-pub static WRITE_TOOL_INVALIDATION_MAP: &[WriteToolInvalidationMap] = &[
-    WriteToolInvalidationMap {
-        tool_name: "crowdstrike_contain_host",
-        source_ids: &["crowdstrike_hosts", "crowdstrike_detections"],
-        sensor_name: "crowdstrike",
-    },
-    WriteToolInvalidationMap {
-        tool_name: "crowdstrike_acknowledge_alert",
-        source_ids: &["crowdstrike_alerts", "crowdstrike_detections"],
-        sensor_name: "crowdstrike",
-    },
-    WriteToolInvalidationMap {
-        tool_name: "cyberint_acknowledge_alert",
-        source_ids: &["cyberint_alerts"],
-        sensor_name: "cyberint",
-    },
-    WriteToolInvalidationMap {
-        tool_name: "cyberint_close_alert",
-        source_ids: &["cyberint_alerts"],
-        sensor_name: "cyberint",
-    },
-    WriteToolInvalidationMap {
-        tool_name: "claroty_resolve_alert",
-        source_ids: &["claroty_alerts"],
-        sensor_name: "claroty",
-    },
-    WriteToolInvalidationMap {
-        tool_name: "claroty_device_action",
-        source_ids: &["claroty_devices"],
-        sensor_name: "claroty",
-    },
-    WriteToolInvalidationMap {
-        tool_name: "armis_update_alert_status",
-        source_ids: &["armis_alerts"],
-        sensor_name: "armis",
-    },
-    WriteToolInvalidationMap {
-        tool_name: "armis_device_action",
-        source_ids: &["armis_devices"],
-        sensor_name: "armis",
-    },
-];
+/// Lazily-initialized mapping of all write tools to their invalidation targets.
+///
+/// Currently populated with the four built-in sensors (crowdstrike, cyberint,
+/// claroty, armis). The `Vec` shape (not `&[...]` static slice) allows future
+/// plugin-registered write tools to extend the map at runtime (Wave 5+).
+pub static WRITE_TOOL_INVALIDATION_MAP: LazyLock<Vec<WriteToolInvalidationMap>> =
+    LazyLock::new(|| {
+        vec![
+            WriteToolInvalidationMap {
+                tool_name: "crowdstrike_contain_host",
+                source_ids: &["crowdstrike_hosts", "crowdstrike_detections"],
+                sensor_id: SensorId::from("crowdstrike"),
+            },
+            WriteToolInvalidationMap {
+                tool_name: "crowdstrike_acknowledge_alert",
+                source_ids: &["crowdstrike_alerts", "crowdstrike_detections"],
+                sensor_id: SensorId::from("crowdstrike"),
+            },
+            WriteToolInvalidationMap {
+                tool_name: "cyberint_acknowledge_alert",
+                source_ids: &["cyberint_alerts"],
+                sensor_id: SensorId::from("cyberint"),
+            },
+            WriteToolInvalidationMap {
+                tool_name: "cyberint_close_alert",
+                source_ids: &["cyberint_alerts"],
+                sensor_id: SensorId::from("cyberint"),
+            },
+            WriteToolInvalidationMap {
+                tool_name: "claroty_resolve_alert",
+                source_ids: &["claroty_alerts"],
+                sensor_id: SensorId::from("claroty"),
+            },
+            WriteToolInvalidationMap {
+                tool_name: "claroty_device_action",
+                source_ids: &["claroty_devices"],
+                sensor_id: SensorId::from("claroty"),
+            },
+            WriteToolInvalidationMap {
+                tool_name: "armis_update_alert_status",
+                source_ids: &["armis_alerts"],
+                sensor_id: SensorId::from("armis"),
+            },
+            WriteToolInvalidationMap {
+                tool_name: "armis_device_action",
+                source_ids: &["armis_devices"],
+                sensor_id: SensorId::from("armis"),
+            },
+        ]
+    });
 
 // ---------------------------------------------------------------------------
 // CacheInvalidator
@@ -136,8 +146,8 @@ impl CacheInvalidator {
 
         // Collect all unique source_ids for this sensor from the map.
         let mut sources_to_invalidate: Vec<&'static str> = Vec::new();
-        for entry in WRITE_TOOL_INVALIDATION_MAP {
-            if entry.sensor_name == sensor_name {
+        for entry in WRITE_TOOL_INVALIDATION_MAP.iter() {
+            if entry.sensor_id == *sensor_id {
                 for &source_id in entry.source_ids {
                     if !sources_to_invalidate.contains(&source_id) {
                         sources_to_invalidate.push(source_id);
@@ -184,7 +194,7 @@ impl CacheInvalidator {
         })?;
 
         let client_str = client_id.as_str();
-        let sensor_name = entry.sensor_name;
+        let sensor_name = entry.sensor_id.as_ref();
 
         let mut total_evicted: usize = 0;
         for &source_id in entry.source_ids {

@@ -1046,6 +1046,9 @@ pub fn explain(query_str: &str, options: ExplainOptions) -> Result<ExplainResult
 
         // Heuristic: base latency by sensor id (will be replaced by real metrics).
         // Open dispatch: unknown sensors fall to the default case.
+        // TODO: replace with HashMap<SensorId, u64> when N grows beyond 4-5 sensors
+        // (linear match is acceptable for the current built-in sensor count but will
+        // not scale for plugin-registered sensors in Wave 5+).
         let latency_ms = match src.sensor_type.as_ref() {
             "crowdstrike" => 250,
             "cyberint" => 400,

@@ -2140,3 +2140,60 @@ async fn test_AC_depth_limit_returns_parse_error() {
         "depth-limit-test: error must be a parse or execution failure (depth limit); got: {detail}"
     );
 }
+
+// ---------------------------------------------------------------------------
+// F-LP1-CRITICAL-001 regression: unknown source table must return E-QUERY-006
+// ---------------------------------------------------------------------------
+
+/// S-PLUGIN-PREREQ-A F-LP1-CRITICAL-001 regression test.
+///
+/// An unknown table name (prefix not registered in the adapter registry) MUST
+/// return `Err` containing "E-QUERY-006" rather than silently producing empty
+/// results. Before the fix, `unknown_table | host = 'x'` would silently produce
+/// an empty result set because `sensor_type_from_table_name` accepted any
+/// non-empty prefix, and `get_all_for_sensor_type("unknown")` returned empty.
+///
+/// The registry must be NON-EMPTY for this guard to fire — an empty registry
+/// indicates test/boot mode where the sensor roster is not yet known. In production
+/// the registry is always populated with at least the four built-in sensors.
+///
+/// This test verifies the two-stage check: extract prefix + registry membership.
+#[tokio::test]
+async fn test_resolve_source_refs_unknown_table_returns_e_query_006() {
+    use prism_core::{OrgId, OrgSlug, SensorId};
+    use prism_query::engine::QueryOptions;
+    use prism_sensors::AdapterRegistry;
+
+    // Register a known sensor (crowdstrike) so the registry is non-empty.
+    // This matches production behavior where built-in sensors are always registered.
+    let org_id = OrgId::new();
+    let mut registry = AdapterRegistry::new();
+    registry.register(
+        org_id,
+        std::sync::Arc::new(helpers::StubAdapter {
+            sensor_type: SensorId::from("crowdstrike"),
+            row_count: 0,
+            client_slug: "acme".to_string(),
+        }),
+    );
+    let org_slug = OrgSlug::new("acme");
+    let engine = helpers::make_engine(registry, vec![org_slug.clone()]);
+
+    let options = QueryOptions {
+        clients: Some(vec![org_slug]),
+        ..QueryOptions::default()
+    };
+
+    // "unknown_table" has prefix "unknown" — not in registry → must be E-QUERY-006.
+    // (Registry is non-empty so the guard fires; "unknown" != "crowdstrike".)
+    let result = engine.execute("unknown_table | host = 'x'", options).await;
+
+    let err = result.expect_err(
+        "F-LP1-CRITICAL-001: unknown_table must return Err (E-QUERY-006), not empty results",
+    );
+    let detail = err.to_string();
+    assert!(
+        detail.contains("E-QUERY-006"),
+        "F-LP1-CRITICAL-001: error must contain 'E-QUERY-006'; got: {detail}"
+    );
+}

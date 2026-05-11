@@ -280,12 +280,13 @@ impl WriteDispatcher {
         // `registry.get()` below returns None and we emit E-SENSOR-010 errors there.
         let sensor_id = SensorId::from(plan.sensor.as_str());
 
-        // TODO: W3-FIX-S307-002 — replace sentinel OrgId with proper OrgRegistry lookup.
+        // TODO: TD-S-PLUGIN-PREREQ-A-002 — replace sentinel nil OrgId with proper OrgRegistry lookup.
         // The AdapterRegistry uses (OrgId, SensorId) composite key.
         // QueryContext carries OrgSlug; translating to OrgId requires OrgRegistry (future story).
         // In test contexts the registry is empty so `get()` returns None immediately.
         // In production, init_registry_for_org() must be called with the correct OrgId
-        // before this code path is reachable.
+        // before this code path is reachable. This sentinel-nil OrgId is pre-existing tech debt
+        // (filed as TD-S-PLUGIN-PREREQ-A-002; tracked for OrgRegistry wiring in Wave 5).
         let org_id = OrgId::from_uuid(uuid::Uuid::nil()); // sentinel: empty registry returns None
         let adapter = self.adapter_registry.get(org_id, sensor_id);
 

@@ -25,21 +25,16 @@ use serde::{Deserialize, Deserializer, Serialize, Serializer};
 /// - `Display` delegates to the inner string; no round-trip loss.
 ///
 /// # Construction
+/// Use `SensorId::from("crowdstrike")` (panics on invalid input) or
+/// `SensorId::try_from_str("crowdstrike")` (returns `Err(SensorIdValidationError)`) for
+/// fallible construction. Valid strings: 1..=64 chars, `[a-z0-9_-]`, no leading/trailing
+/// `-` or `_`.
+///
 /// ```rust,ignore
 /// let id = SensorId::from("crowdstrike");
 /// let id = SensorId::from(String::from("armis"));
 /// let id = SensorId::from(Arc::from("claroty"));
-/// ```
-/// Open newtype identifying a sensor by string key.
-///
-/// Inner payload is `Arc<str>` — cheap clone (reference-counted), immutable,
-/// thread-safe. All equality and hashing are content-based, not pointer-based.
-///
-/// # Construction
-/// ```rust,ignore
-/// let id = SensorId::from("crowdstrike");
-/// let id = SensorId::from(String::from("armis"));
-/// let id = SensorId::from(Arc::from("claroty"));
+/// let id = SensorId::try_from_str("my-sensor")?;
 /// ```
 #[derive(Clone)]
 pub struct SensorId(Arc<str>);
@@ -52,19 +47,44 @@ impl SensorId {
 }
 
 impl From<&str> for SensorId {
+    /// Construct a `SensorId` from a string slice.
+    ///
+    /// # Panics
+    /// Panics if `s` fails `validate_sensor_id_string`. For untrusted/external input
+    /// use `SensorId::try_from(s)` instead.
+    ///
+    /// Valid inputs: 1..=64 lowercase alphanumeric + `_` + `-`; no leading/trailing `_` or `-`.
     fn from(s: &str) -> Self {
+        if let Err(e) = validate_sensor_id_string(s) {
+            panic!("S-PLUGIN-PREREQ-A: invalid SensorId string '{s}': {e}");
+        }
         SensorId(Arc::from(s))
     }
 }
 
 impl From<String> for SensorId {
+    /// Construct a `SensorId` from an owned `String`.
+    ///
+    /// # Panics
+    /// Panics if `s` fails `validate_sensor_id_string`. For untrusted/external input
+    /// use `SensorId::try_from(s)` instead.
     fn from(s: String) -> Self {
+        if let Err(e) = validate_sensor_id_string(&s) {
+            panic!("S-PLUGIN-PREREQ-A: invalid SensorId string '{s}': {e}");
+        }
         SensorId(Arc::from(s.as_str()))
     }
 }
 
 impl From<Arc<str>> for SensorId {
+    /// Construct a `SensorId` from an `Arc<str>`.
+    ///
+    /// # Panics
+    /// Panics if the string fails `validate_sensor_id_string`.
     fn from(s: Arc<str>) -> Self {
+        if let Err(e) = validate_sensor_id_string(&s) {
+            panic!("S-PLUGIN-PREREQ-A: invalid SensorId string '{s}': {e}");
+        }
         SensorId(s)
     }
 }
@@ -131,13 +151,105 @@ impl Serialize for SensorId {
 impl<'de> Deserialize<'de> for SensorId {
     fn deserialize<D: Deserializer<'de>>(d: D) -> Result<Self, D::Error> {
         let raw = String::deserialize(d)?;
-        Ok(SensorId::from(raw))
+        SensorId::try_from_str(&raw).map_err(|e| serde::de::Error::custom(e.to_string()))
     }
 }
 
 // ---------------------------------------------------------------------------
-// Unit tests — Red Gate set
-// All three tests MUST FAIL (panic at todo!()) before implementation.
+// SensorId validation
+// ---------------------------------------------------------------------------
+
+/// Validation errors for `SensorId` string values.
+///
+/// Returned by `SensorId::try_from` and `validate_sensor_id_string`.
+/// `From<&str>` and `From<String>` panick on invalid input instead of returning
+/// this error — use `try_from` for fallible construction from untrusted input.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum SensorIdValidationError {
+    /// String is empty (length 0).
+    TooShort,
+    /// String exceeds 64 characters.
+    TooLong { len: usize },
+    /// String contains characters outside `[a-z0-9_-]`.
+    InvalidChars { offending: String },
+    /// String begins or ends with `-` or `_`.
+    InvalidBoundary,
+}
+
+impl std::fmt::Display for SensorIdValidationError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::TooShort => write!(f, "sensor id must not be empty"),
+            Self::TooLong { len } => write!(f, "sensor id is {len} characters; maximum is 64"),
+            Self::InvalidChars { offending } => write!(
+                f,
+                "sensor id contains invalid characters '{offending}'; \
+                 only [a-z0-9_-] are allowed"
+            ),
+            Self::InvalidBoundary => write!(f, "sensor id must not start or end with '-' or '_'"),
+        }
+    }
+}
+
+impl std::error::Error for SensorIdValidationError {}
+
+/// Validate a sensor id candidate string.
+///
+/// Rules:
+/// - Length: 1..=64 characters.
+/// - Charset: `[a-z0-9_-]` (lowercase alphanumeric, underscore, hyphen).
+/// - No leading or trailing `-` or `_`.
+/// - No control characters.
+///
+/// Returns `Ok(())` for valid inputs; `Err(SensorIdValidationError)` otherwise.
+pub fn validate_sensor_id_string(s: &str) -> Result<(), SensorIdValidationError> {
+    if s.is_empty() {
+        return Err(SensorIdValidationError::TooShort);
+    }
+    if s.len() > 64 {
+        return Err(SensorIdValidationError::TooLong { len: s.len() });
+    }
+    let invalid: String = s
+        .chars()
+        .filter(|c| !matches!(c, 'a'..='z' | '0'..='9' | '_' | '-'))
+        .collect();
+    if !invalid.is_empty() {
+        return Err(SensorIdValidationError::InvalidChars { offending: invalid });
+    }
+    let first = s.chars().next().expect("non-empty checked above");
+    let last = s.chars().next_back().expect("non-empty checked above");
+    if first == '-' || first == '_' || last == '-' || last == '_' {
+        return Err(SensorIdValidationError::InvalidBoundary);
+    }
+    Ok(())
+}
+
+impl SensorId {
+    /// Fallible construction from a string slice — use when input is untrusted.
+    ///
+    /// Returns `Err(SensorIdValidationError)` if the string fails validation.
+    /// Prefer this over `SensorId::from(s)` for deserialized or user-supplied input.
+    ///
+    /// # Example
+    /// ```rust,ignore
+    /// let id = SensorId::try_from_str("my-plugin")?;
+    /// ```
+    pub fn try_from_str(s: &str) -> Result<Self, SensorIdValidationError> {
+        validate_sensor_id_string(s)?;
+        Ok(SensorId(Arc::from(s)))
+    }
+
+    /// Fallible construction from an owned `String` — use when input is untrusted.
+    ///
+    /// Returns `Err(SensorIdValidationError)` if the string fails validation.
+    pub fn try_from_string(s: String) -> Result<Self, SensorIdValidationError> {
+        validate_sensor_id_string(&s)?;
+        Ok(SensorId(Arc::from(s.as_str())))
+    }
+}
+
+// ---------------------------------------------------------------------------
+// Unit tests — Green (all passing post-implementation)
 // ---------------------------------------------------------------------------
 #[cfg(test)]
 mod tests {
@@ -145,7 +257,7 @@ mod tests {
     use std::collections::{HashMap, HashSet};
 
     /// BC-2.01.013 postcondition: sensor identity is a runtime string value.
-    /// Red Gate: panics at todo!() in From<&str> or Display.
+    /// Verifies BC-2.01.013 postcondition: From<&str> and Display round-trip correctly.
     ///
     /// Exercises AC-1 (From<&str>, Display), AC-9(a) (equality, hash, display roundtrip).
     #[test]
@@ -167,7 +279,7 @@ mod tests {
     }
 
     /// BC-2.01.013 postcondition: From<String> produces same identity as From<&str>.
-    /// Red Gate: panics at todo!() in From<String>.
+    /// Verifies BC-2.01.013 postcondition: From<String> and From<&str> produce equal SensorIds.
     ///
     /// Exercises AC-1 (From<String>), AC-9(a).
     #[test]
@@ -188,11 +300,12 @@ mod tests {
     }
 
     /// BC-2.01.013 invariant: sensor identity equality and hash are content-based.
-    /// Red Gate: panics at todo!() in Hash or PartialEq.
+    /// Verifies BC-2.01.013 postcondition: hash and equality are content-based, not pointer-based.
     ///
     /// Exercises AC-1 (Hash, PartialEq, Eq), AC-9(a) (hash + equality invariant),
     /// EC-001 (two SensorIds from identical strings must be equal).
     #[test]
+    #[allow(non_snake_case)]
     fn test_BC_2_01_013_003_sensorid_hash_eq_invariant() {
         let a = SensorId::from("crowdstrike");
         let b = SensorId::from("crowdstrike");
@@ -209,5 +322,73 @@ mod tests {
             Some(42),
             "HashMap lookup via separately-constructed SensorId must find the inserted value"
         );
+    }
+
+    // ---------------------------------------------------------------------------
+    // Validation tests (S-PLUGIN-PREREQ-A / F-LP1-HIGH-005)
+    // ---------------------------------------------------------------------------
+
+    /// S-PLUGIN-PREREQ-A: validation rejects uppercase characters.
+    #[test]
+    fn test_sensorid_validation_rejects_uppercase() {
+        let result = SensorId::try_from_str("CrowdStrike");
+        assert!(
+            matches!(result, Err(SensorIdValidationError::InvalidChars { .. })),
+            "uppercase characters must be rejected by SensorId validation"
+        );
+    }
+
+    /// S-PLUGIN-PREREQ-A: validation rejects control characters.
+    #[test]
+    fn test_sensorid_validation_rejects_control_chars() {
+        let result = SensorId::try_from_str("crowdstrike\x00");
+        assert!(
+            matches!(result, Err(SensorIdValidationError::InvalidChars { .. })),
+            "control characters must be rejected by SensorId validation"
+        );
+    }
+
+    /// S-PLUGIN-PREREQ-A: validation rejects empty string and strings exceeding 64 chars.
+    #[test]
+    fn test_sensorid_validation_rejects_empty_and_too_long() {
+        let empty = SensorId::try_from_str("");
+        assert_eq!(
+            empty,
+            Err(SensorIdValidationError::TooShort),
+            "empty string must be rejected"
+        );
+
+        let too_long = SensorId::try_from_str("a".repeat(65).as_str());
+        assert!(
+            matches!(too_long, Err(SensorIdValidationError::TooLong { .. })),
+            "65-character string must be rejected (max 64)"
+        );
+
+        // Exactly 64 chars must be accepted.
+        let ok_64 = SensorId::try_from_str("a".repeat(64).as_str());
+        assert!(ok_64.is_ok(), "64-character string must be accepted");
+    }
+
+    /// S-PLUGIN-PREREQ-A: Deserialize rejects invalid sensor id strings.
+    #[test]
+    fn test_sensorid_deserialize_rejects_invalid() {
+        let json_uppercase = r#""CrowdStrike""#;
+        let result: Result<SensorId, _> = serde_json::from_str(json_uppercase);
+        assert!(
+            result.is_err(),
+            "deserializing an uppercase sensor id must fail"
+        );
+
+        let json_empty = r#""""#;
+        let result: Result<SensorId, _> = serde_json::from_str(json_empty);
+        assert!(
+            result.is_err(),
+            "deserializing an empty sensor id must fail"
+        );
+
+        // Valid values round-trip correctly.
+        let json_valid = r#""crowdstrike""#;
+        let result: Result<SensorId, _> = serde_json::from_str(json_valid);
+        assert!(result.is_ok(), "valid lowercase sensor id must deserialize");
     }
 }

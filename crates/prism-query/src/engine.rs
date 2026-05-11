@@ -176,7 +176,7 @@ pub struct QueryResultContext {
 /// `cleanup_shutdown` when `QueryEngine` is dropped. Without this wiring,
 /// cursor cleanup is dead code and the cache is unreachable.
 pub struct QueryEngine {
-    /// Registry of sensor adapters indexed by `(OrgId, SensorType)`.
+    /// Registry of sensor adapters indexed by `(OrgId, SensorId)`.
     pub(crate) adapter_registry: Arc<AdapterRegistry>,
     /// Credential store for sensor authentication. (AI-opaque boundary)
     /// Retained for production wiring; not yet consumed in execute_inner. (ADV-W3MT-P58-MED-002)

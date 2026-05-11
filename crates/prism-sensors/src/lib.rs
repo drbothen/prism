@@ -7,7 +7,7 @@
 //! # Modules
 //! - [`adapter`]        — `SensorAdapter` trait, `SensorSpec`, `QueryParams`, `SensorError`
 //! - [`auth`]           — `SensorAuth` sealed trait + per-sensor auth subtypes + adapters
-//! - [`registry`]       — `AdapterRegistry` mapping `SensorType` → `Arc<dyn SensorAdapter>`
+//! - [`registry`]       — `AdapterRegistry` mapping `SensorId` → `Arc<dyn SensorAdapter>`
 //! - [`fanout`]         — Cross-client fan-out orchestrator (`fan_out()`)
 //! - [`retry`]          — `retry_with_backoff()` with full-jitter exponential backoff
 //! - [`http`]           — Global HTTP connection semaphore (200 permits)
@@ -92,10 +92,10 @@ pub use write_result::{RecordWriteResult, WriteStatus};
 ///
 /// Called once at process startup (e.g., from `main()` or the MCP server
 /// initialization path).  Registers:
-/// - `CrowdStrikeAdapter` for `SensorType::CrowdStrike`
-/// - `CyberintAdapter` for `SensorType::Cyberint`
-/// - `ClarotyAdapter` for `SensorType::Claroty`
-/// - `ArmisAdapter` for `SensorType::Armis`
+/// - `CrowdStrikeAdapter` for `SensorId::from("crowdstrike")`
+/// - `CyberintAdapter` for `SensorId::from("cyberint")`
+/// - `ClarotyAdapter` for `SensorId::from("claroty")`
+/// - `ArmisAdapter` for `SensorId::from("armis")`
 ///
 /// Each adapter is wrapped in `Arc` and stored in the registry under the
 /// sentinel nil `OrgId`.
@@ -150,7 +150,7 @@ pub fn init_registry(
 /// so adapter dispatch is structurally keyed per org (BC-3.2.001 precondition 4).
 ///
 /// Registers all four built-in sensor adapters under the composite
-/// `(org_id, SensorType)` key, each constructed with the provided credentials
+/// `(org_id, SensorId)` key, each constructed with the provided credentials
 /// and the given `org_id`.
 ///
 /// # Arguments

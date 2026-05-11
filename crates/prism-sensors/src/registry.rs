@@ -98,27 +98,17 @@ impl AdapterRegistry {
             .collect()
     }
 
-    /// Returns all adapters registered for the given sensor id, regardless of org.
+    /// Returns `true` if any adapter is registered for the given `sensor_id`,
+    /// regardless of org.
     ///
-    /// Alias for `get_all_for_sensor_type` using the new naming convention.
-    /// Provided for forward-compatibility with callers migrated to `SensorId`.
-    pub fn get_all_for_sensor(&self, sensor_id: &SensorId) -> Vec<(OrgId, Arc<dyn SensorAdapter>)> {
-        self.adapters
-            .iter()
-            .filter(|((_, sid), _)| sid == sensor_id)
-            .map(|((org_id, _), adapter)| (*org_id, Arc::clone(adapter)))
-            .collect()
+    /// Used by the query engine to distinguish "unknown table name" (no adapters
+    /// registered for any org) from "known sensor with no active adapters yet"
+    /// (which does not occur in the current model — adapters are registered at boot).
+    pub fn is_sensor_registered(&self, sensor_id: &SensorId) -> bool {
+        self.adapters.keys().any(|(_, sid)| sid == sensor_id)
     }
 
-    /// Look up an adapter by `(org_id, sensor_id)` where `sensor_id` is a string key.
-    ///
-    /// Convenience accessor for callers that hold a `SensorId` reference.
-    /// Equivalent to `get(org_id, sensor_id.clone())` but avoids cloning for lookup.
-    pub fn get_by_id(&self, org_id: OrgId, sensor_id: SensorId) -> Option<Arc<dyn SensorAdapter>> {
-        self.adapters.get(&(org_id, sensor_id)).cloned()
-    }
-
-    /// Returns the total number of `(OrgId, SensorType)` entries in the registry.
+    /// Returns the total number of `(OrgId, SensorId)` entries in the registry.
     pub fn len(&self) -> usize {
         self.adapters.len()
     }
