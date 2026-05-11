@@ -530,3 +530,58 @@ TD-FACTORY-HOOK-BYPASS-001 P0 remains necessary until TD-VSDD-054 lands. Once TD
 **Eliminates rationalization vector:** All 3 hook-bypass recurrences were rationalized by agents facing a genuine or perceived blocking situation. TD-VSDD-056 provides a legitimate non-bypass path for that situation, removing the rationalization without requiring agents to choose between progress and compliance.
 
 **Target release:** vsdd-factory v1.1 (methodology; P1 — before next plugin migration cycle dispatch)
+
+---
+
+## TD-VSDD-057 — STATE.md Compaction Must Preserve D-Row Content
+
+| Field | Value |
+|-------|-------|
+| **ID** | TD-VSDD-057 |
+| **Priority** | P0 (audit-trail integrity) |
+| **Category** | plugin-level / state-management / compaction protocol |
+| **Source** | F-PASS24-HIGH-001 (ADR-023 pass-24) — fix-burst-17 compaction discarded D-214..D-320; fix-burst-18 "repair" archive note was itself false |
+| **Decision** | D-372 (2026-05-10) |
+
+**Origin:** Fix-burst-17 state-manager compacted STATE.md from 502 to 297 lines, discarding
+D-214..D-320 (107 decisions covering Wave-4 Phase-4A adversary cascade + Bundle-B initiation
+period). Fix-burst-18 (D-369) attempted to repair the audit trail by rewriting the archive note
+to claim "D-214..D-325 retained in inline `predecessor_session`" — but predecessor_session
+starts at D-321. The rewritten claim was factually false. F-PASS24-HIGH-001 surfaced the loss.
+
+**Description:** State-manager STATE.md compaction has no formal "preserve before discard"
+protocol. When inline D-rows are removed from STATE.md to reduce size, their full text must be
+appended to burst-log.md FIRST, with cross-references validated before the STATE.md compaction
+commit lands. Without this protocol, compaction silently destroys audit-trail content that other
+artifacts (SESSION-HANDOFF predecessor_session, ADR amendments, BC frontmatter) cite by ID.
+
+**Current loss status:** D-214..D-320 are LOST from the live state corpus. Recovery requires
+retrieving the pre-compaction STATE.md from factory-artifacts git history (SHA prior to
+fix-burst-17 commit). The archive note in STATE.md now truthfully discloses this loss and
+provides the recovery path.
+
+**Required actions (vsdd-factory plugin work):**
+
+1. **Codify in state-manager agent prompt:** "Before any STATE.md compaction (size reduction
+   > 20% of current line count), the discarded D-row content MUST be appended to burst-log.md
+   with verbatim text. Post-commit verification: every D-ID cited in any other artifact
+   (STATE.md narrative, SESSION-HANDOFF predecessor_session, ADR amendments, BC frontmatter)
+   MUST resolve to a full-text entry in burst-log OR remain inline in STATE.md decisions table."
+
+2. **Add compaction-validator PostToolUse hook:** Scan STATE.md edits for line-count delta
+   > 100; if compaction detected, verify burst-log line-count grew by at least equal amount.
+   Block commit if burst-log did not receive the discarded content.
+
+3. **Recovery for current loss:** State-manager dispatch to retrieve pre-fix-burst-17 STATE.md
+   from git history (factory-artifacts SHA prior to the fix-burst-17 compaction commit) and
+   extract D-214..D-320 content; append to burst-log as Burst 2. This closes the audit gap
+   for the current project; the hook (item 2) prevents recurrence.
+
+**Recurrence log:**
+
+- **2026-05-10 FIRST OCCURRENCE** — fix-burst-17 compacted STATE.md 502→297 lines; D-214..D-320
+  (107 decisions) discarded without archival. Fix-burst-18 authored a false replacement archive
+  note. F-PASS24-HIGH-001 surfaced the loss as the 13th S-7.01 recurrence.
+
+**Target release:** vsdd-factory v1.1 (methodology; P0 audit-trail — recovery item 3 is
+in-cycle; hook items 1+2 tracked for plugin cycle)
