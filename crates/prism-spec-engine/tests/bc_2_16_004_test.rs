@@ -104,10 +104,10 @@ fn minimal_step() -> FetchStep {
 }
 
 fn test_context() -> FetchContext {
-    FetchContext {
-        client_id: OrgSlug::new("test-client"),
-        query_filters: std::collections::HashMap::new(),
-    }
+    FetchContext::new(
+        OrgSlug::new("test-client"),
+        std::collections::HashMap::new(),
+    )
 }
 
 // ---------------------------------------------------------------------------

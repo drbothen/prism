@@ -64,10 +64,7 @@ fn one_step_spec(base_url: &str, path_template: &str, response_path: &str) -> Se
 }
 
 fn default_context() -> FetchContext {
-    FetchContext {
-        client_id: OrgSlug::new("test-org"),
-        query_filters: HashMap::new(),
-    }
+    FetchContext::new(OrgSlug::new("test-org"), HashMap::new())
 }
 
 // ---------------------------------------------------------------------------
@@ -101,7 +98,10 @@ async fn test_BC_PLUGIN_002_pipeline_executor_returns_nonempty_records_against_w
     let spec = one_step_spec(&mock_server.uri(), "/api/detections", "$.resources");
     let table = spec.tables[0].clone();
     let context = default_context();
-    let http_client = reqwest::Client::new();
+    let http_client = reqwest::Client::builder()
+        .timeout(std::time::Duration::from_secs(30))
+        .build()
+        .expect("reqwest Client::build must succeed");
     let auth_provider = NullAuthProvider;
 
     let result = PipelineExecutor::execute(&spec, &table, &context, &http_client, &auth_provider)
@@ -147,7 +147,10 @@ async fn test_BC_2_16_002_execute_issues_http_request_and_returns_nonempty_recor
     let spec = one_step_spec(&mock_server.uri(), "/alerts", "$.data");
     let table = spec.tables[0].clone();
     let context = default_context();
-    let http_client = reqwest::Client::new();
+    let http_client = reqwest::Client::builder()
+        .timeout(std::time::Duration::from_secs(30))
+        .build()
+        .expect("reqwest Client::build must succeed");
     let auth_provider = NullAuthProvider;
 
     let result = PipelineExecutor::execute(&spec, &table, &context, &http_client, &auth_provider)
@@ -256,7 +259,10 @@ async fn test_BC_2_16_002_execute_interpolates_step1_var_into_step2_url() {
 
     let table = spec.tables[0].clone();
     let context = default_context();
-    let http_client = reqwest::Client::new();
+    let http_client = reqwest::Client::builder()
+        .timeout(std::time::Duration::from_secs(30))
+        .build()
+        .expect("reqwest Client::build must succeed");
     let auth_provider = NullAuthProvider;
 
     let result = PipelineExecutor::execute(&spec, &table, &context, &http_client, &auth_provider)
@@ -345,7 +351,10 @@ async fn test_BC_2_16_002_execute_iterates_cursor_pagination_until_null() {
 
     let table = spec.tables[0].clone();
     let context = default_context();
-    let http_client = reqwest::Client::new();
+    let http_client = reqwest::Client::builder()
+        .timeout(std::time::Duration::from_secs(30))
+        .build()
+        .expect("reqwest Client::build must succeed");
     let auth_provider = NullAuthProvider;
 
     let result = PipelineExecutor::execute(&spec, &table, &context, &http_client, &auth_provider)
@@ -435,7 +444,10 @@ async fn test_BC_2_16_002_execute_iterates_offset_pagination_until_short_page() 
 
     let table = spec.tables[0].clone();
     let context = default_context();
-    let http_client = reqwest::Client::new();
+    let http_client = reqwest::Client::builder()
+        .timeout(std::time::Duration::from_secs(30))
+        .build()
+        .expect("reqwest Client::build must succeed");
     let auth_provider = NullAuthProvider;
 
     let result = PipelineExecutor::execute(&spec, &table, &context, &http_client, &auth_provider)
@@ -535,11 +547,11 @@ async fn test_BC_2_16_002_execute_interpolates_body_template_and_derives_content
     };
 
     let table = spec.tables[0].clone();
-    let context = FetchContext {
-        client_id: OrgSlug::new("test-org"),
-        query_filters: HashMap::new(),
-    };
-    let http_client = reqwest::Client::new();
+    let context = FetchContext::new(OrgSlug::new("test-org"), HashMap::new());
+    let http_client = reqwest::Client::builder()
+        .timeout(std::time::Duration::from_secs(30))
+        .build()
+        .expect("reqwest Client::build must succeed");
     let auth_provider = NullAuthProvider;
 
     let result = PipelineExecutor::execute(&spec, &table, &context, &http_client, &auth_provider)
@@ -628,11 +640,11 @@ async fn test_BC_2_16_002_execute_percent_encodes_opaque_cursor() {
     };
 
     let table = spec.tables[0].clone();
-    let context = FetchContext {
-        client_id: OrgSlug::new("test-org"),
-        query_filters: HashMap::new(),
-    };
-    let http_client = reqwest::Client::new();
+    let context = FetchContext::new(OrgSlug::new("test-org"), HashMap::new());
+    let http_client = reqwest::Client::builder()
+        .timeout(std::time::Duration::from_secs(30))
+        .build()
+        .expect("reqwest Client::build must succeed");
     let auth_provider = NullAuthProvider;
 
     let result = PipelineExecutor::execute(&spec, &table, &context, &http_client, &auth_provider)
@@ -726,11 +738,11 @@ async fn test_BC_2_16_002_execute_only_final_step_records_in_pipeline_result() {
     };
 
     let table = spec.tables[0].clone();
-    let context = FetchContext {
-        client_id: OrgSlug::new("test-org"),
-        query_filters: HashMap::new(),
-    };
-    let http_client = reqwest::Client::new();
+    let context = FetchContext::new(OrgSlug::new("test-org"), HashMap::new());
+    let http_client = reqwest::Client::builder()
+        .timeout(std::time::Duration::from_secs(30))
+        .build()
+        .expect("reqwest Client::build must succeed");
     let auth_provider = NullAuthProvider;
 
     let result = PipelineExecutor::execute(&spec, &table, &context, &http_client, &auth_provider)
@@ -822,11 +834,11 @@ async fn test_BC_2_16_002_execute_fan_out_invokes_step_per_batch() {
     };
 
     let table = spec.tables[0].clone();
-    let context = FetchContext {
-        client_id: OrgSlug::new("test-org"),
-        query_filters: HashMap::new(),
-    };
-    let http_client = reqwest::Client::new();
+    let context = FetchContext::new(OrgSlug::new("test-org"), HashMap::new());
+    let http_client = reqwest::Client::builder()
+        .timeout(std::time::Duration::from_secs(30))
+        .build()
+        .expect("reqwest Client::build must succeed");
     let auth_provider = NullAuthProvider;
 
     let result = PipelineExecutor::execute(&spec, &table, &context, &http_client, &auth_provider)
@@ -919,11 +931,11 @@ async fn test_BC_2_16_002_execute_inserts_rate_limit_delay_between_pagination_ca
     };
 
     let table = spec.tables[0].clone();
-    let context = FetchContext {
-        client_id: OrgSlug::new("test-org"),
-        query_filters: HashMap::new(),
-    };
-    let http_client = reqwest::Client::new();
+    let context = FetchContext::new(OrgSlug::new("test-org"), HashMap::new());
+    let http_client = reqwest::Client::builder()
+        .timeout(std::time::Duration::from_secs(30))
+        .build()
+        .expect("reqwest Client::build must succeed");
     let auth_provider = NullAuthProvider;
 
     let start = std::time::Instant::now();
@@ -1002,11 +1014,11 @@ async fn test_BC_2_16_002_execute_interpolates_query_filter_in_path_template() {
     let table = spec.tables[0].clone();
     let mut filters = HashMap::new();
     filters.insert("severity".to_string(), "critical".to_string());
-    let context = FetchContext {
-        client_id: OrgSlug::new("test-org"),
-        query_filters: filters,
-    };
-    let http_client = reqwest::Client::new();
+    let context = FetchContext::new(OrgSlug::new("test-org"), filters);
+    let http_client = reqwest::Client::builder()
+        .timeout(std::time::Duration::from_secs(30))
+        .build()
+        .expect("reqwest Client::build must succeed");
     let auth_provider = NullAuthProvider;
 
     let result = PipelineExecutor::execute(&spec, &table, &context, &http_client, &auth_provider)
@@ -1092,11 +1104,11 @@ async fn test_BC_2_16_002_execute_truncates_at_10k_with_truncated_flag_set() {
     };
 
     let table = spec.tables[0].clone();
-    let context = FetchContext {
-        client_id: OrgSlug::new("test-org"),
-        query_filters: HashMap::new(),
-    };
-    let http_client = reqwest::Client::new();
+    let context = FetchContext::new(OrgSlug::new("test-org"), HashMap::new());
+    let http_client = reqwest::Client::builder()
+        .timeout(std::time::Duration::from_secs(30))
+        .build()
+        .expect("reqwest Client::build must succeed");
     let auth_provider = NullAuthProvider;
 
     let result = PipelineExecutor::execute(&spec, &table, &context, &http_client, &auth_provider)
@@ -1198,11 +1210,11 @@ async fn test_BC_2_16_002_execute_fan_out_sends_distinct_batch_urls() {
     };
 
     let table = spec.tables[0].clone();
-    let context = FetchContext {
-        client_id: OrgSlug::new("test-org"),
-        query_filters: HashMap::new(),
-    };
-    let http_client = reqwest::Client::new();
+    let context = FetchContext::new(OrgSlug::new("test-org"), HashMap::new());
+    let http_client = reqwest::Client::builder()
+        .timeout(std::time::Duration::from_secs(30))
+        .build()
+        .expect("reqwest Client::build must succeed");
     let auth_provider = NullAuthProvider;
 
     let result = PipelineExecutor::execute(&spec, &table, &context, &http_client, &auth_provider)
@@ -1339,11 +1351,11 @@ async fn test_BC_2_16_002_execute_aborts_on_non_advancing_cursor() {
     };
 
     let table = spec.tables[0].clone();
-    let context = FetchContext {
-        client_id: OrgSlug::new("test-org"),
-        query_filters: HashMap::new(),
-    };
-    let http_client = reqwest::Client::new();
+    let context = FetchContext::new(OrgSlug::new("test-org"), HashMap::new());
+    let http_client = reqwest::Client::builder()
+        .timeout(std::time::Duration::from_secs(30))
+        .build()
+        .expect("reqwest Client::build must succeed");
     let auth_provider = NullAuthProvider;
 
     let err = PipelineExecutor::execute(&spec, &table, &context, &http_client, &auth_provider)
@@ -1410,11 +1422,11 @@ async fn test_BC_2_16_002_execute_derives_application_json_for_array_body() {
     };
 
     let table = spec.tables[0].clone();
-    let context = FetchContext {
-        client_id: OrgSlug::new("test-org"),
-        query_filters: HashMap::new(),
-    };
-    let http_client = reqwest::Client::new();
+    let context = FetchContext::new(OrgSlug::new("test-org"), HashMap::new());
+    let http_client = reqwest::Client::builder()
+        .timeout(std::time::Duration::from_secs(30))
+        .build()
+        .expect("reqwest Client::build must succeed");
     let auth_provider = NullAuthProvider;
 
     let result = PipelineExecutor::execute(&spec, &table, &context, &http_client, &auth_provider)
@@ -1500,11 +1512,11 @@ async fn test_BC_2_16_002_execute_coerces_numeric_cursor_to_string() {
     };
 
     let table = spec.tables[0].clone();
-    let context = FetchContext {
-        client_id: OrgSlug::new("test-org"),
-        query_filters: HashMap::new(),
-    };
-    let http_client = reqwest::Client::new();
+    let context = FetchContext::new(OrgSlug::new("test-org"), HashMap::new());
+    let http_client = reqwest::Client::builder()
+        .timeout(std::time::Duration::from_secs(30))
+        .build()
+        .expect("reqwest Client::build must succeed");
     let auth_provider = NullAuthProvider;
 
     let result = PipelineExecutor::execute(&spec, &table, &context, &http_client, &auth_provider)
@@ -1521,5 +1533,113 @@ async fn test_BC_2_16_002_execute_coerces_numeric_cursor_to_string() {
         result.request_count, 2,
         "F-LP2-MED-003: exactly 2 HTTP requests (page1 + page2 with cursor=42); got {}",
         result.request_count
+    );
+}
+
+// ---------------------------------------------------------------------------
+// F-LP4-MED-002: MAX_PAGES_PER_STEP cap test
+// ---------------------------------------------------------------------------
+
+/// BC-2.16.002 / F-LP4-MED-002: `PipelineExecutor::execute` must abort with
+/// `HttpRequestFailed` after `MAX_PAGES_PER_STEP` (1000) pagination calls.
+///
+/// Uses 1001 distinct cursor values ("page-0" through "page-1000") so the
+/// cursor-non-advance guard never fires — only the page-cap guard does.
+/// After 1000 cursor-advancing pages, the 1001st page-count check aborts.
+///
+/// This test exercises the `F-LP2-HIGH-002` guard at production capacity.
+/// It makes exactly 1000 requests to the mock server (bounded; will not hang).
+#[tokio::test]
+async fn test_BC_2_16_002_execute_aborts_at_max_pages_per_step() {
+    let mock_server = MockServer::start().await;
+
+    // Page 1: no cursor (first call) → returns cursor "page-1"
+    Mock::given(method("GET"))
+        .and(path("/infinite"))
+        .and(|req: &wiremock::Request| {
+            // Match requests WITHOUT a cursor query param (first page).
+            !req.url.query().unwrap_or("").contains("cursor=")
+        })
+        .respond_with(ResponseTemplate::new(200).set_body_json(serde_json::json!({
+            "items": [{"id": "rec-0"}],
+            "pagination": {"cursor": "page-1"}
+        })))
+        .up_to_n_times(1)
+        .mount(&mock_server)
+        .await;
+
+    // Pages 2..=1000: each cursor value "page-N" → cursor "page-(N+1)".
+    // Register mocks for cursor values "page-1" through "page-999".
+    // Each advances to the next cursor. After 1000 pages the guard fires.
+    // We use priority ordering (later registrations win) — register in reverse so
+    // that each cursor has a unique match. Alternatively, each is uniquely matched
+    // by the exact cursor query param value.
+    for page_n in 1usize..=999 {
+        let cursor_in = format!("page-{}", page_n);
+        let cursor_out = format!("page-{}", page_n + 1);
+        let rec_id = format!("rec-{page_n}");
+        Mock::given(method("GET"))
+            .and(path("/infinite"))
+            .and(query_param("cursor", cursor_in.as_str()))
+            .respond_with(ResponseTemplate::new(200).set_body_json(serde_json::json!({
+                "items": [{"id": rec_id}],
+                "pagination": {"cursor": cursor_out}
+            })))
+            .up_to_n_times(1)
+            .mount(&mock_server)
+            .await;
+    }
+
+    let spec = SensorSpec {
+        sensor_id: "infinite-sensor".to_string(),
+        name: "Infinite Sensor".to_string(),
+        auth_type: AuthType::BearerStatic,
+        base_url: mock_server.uri(),
+        tables: vec![TableSpec::new_point_in_time(
+            "items",
+            "security_finding",
+            vec![ColumnSpec {
+                name: "id".to_string(),
+                column_type: ColumnType::String,
+                ocsf_field: None,
+                options: vec![],
+            }],
+            vec![FetchStep {
+                name: "fetch_items".to_string(),
+                method: "GET".to_string(),
+                path_template: "/infinite".to_string(),
+                body_template: None,
+                response_path: "$.items".to_string(),
+                pagination_cursor_path: None,
+                variables_produced: vec![],
+                fan_out_batch_size: None,
+                pagination: Some(PaginationConfig::CursorToken {
+                    cursor_response_path: "$.pagination.cursor".to_string(),
+                }),
+            }],
+        )],
+        rate_limit_hints: None,
+        version: "1.0.0".to_string(),
+        credential_refs: vec![],
+    };
+
+    let table = spec.tables[0].clone();
+    let context = default_context();
+    let http_client = reqwest::Client::builder()
+        .timeout(std::time::Duration::from_secs(30))
+        .build()
+        .expect("reqwest Client::build must succeed");
+    let auth_provider = NullAuthProvider;
+
+    let err = PipelineExecutor::execute(&spec, &table, &context, &http_client, &auth_provider)
+        .await
+        .expect_err(
+            "F-LP4-MED-002: execute must abort with Err when page cap is exceeded, not loop forever",
+        );
+
+    let msg = err.to_string();
+    assert!(
+        msg.contains("exceeded") || msg.contains("pages") || msg.contains("1000"),
+        "F-LP4-MED-002: error must mention page cap ('exceeded', 'pages', or '1000'); got: {msg}"
     );
 }

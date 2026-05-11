@@ -239,6 +239,27 @@ pub fn validate_sensor_spec(spec: &SensorSpec) -> ValidatorOutput {
             }
 
             // -------------------------------------------------------------------------
+            // Category 3b: Fan-Out Batch Size (F-LP4-HIGH-001 DoS guard)
+            // -------------------------------------------------------------------------
+            // fan_out_batch_size = 0 would cause slice::chunks(0) to panic.
+            // Validate here (symmetric to page_size check below) so invalid specs
+            // are rejected before PipelineExecutor::execute is ever called.
+            if let Some(batch_size) = step.fan_out_batch_size
+                && batch_size == 0
+            {
+                errors.push(ValidationError {
+                    code: SpecErrorCode::ESpec001,
+                    message: format!(
+                        "step '{}': fan_out_batch_size must be > 0 (got 0)",
+                        step.name
+                    ),
+                    toml_path: Some(format!("{step_path}.fan_out_batch_size")),
+                    file_path: None,
+                    line_number: None,
+                });
+            }
+
+            // -------------------------------------------------------------------------
             // Category 4: Pagination Configuration
             // -------------------------------------------------------------------------
             if let Some(ref pagination) = step.pagination {

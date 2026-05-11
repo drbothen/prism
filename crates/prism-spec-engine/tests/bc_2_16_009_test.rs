@@ -475,3 +475,90 @@ fn test_BC_2_16_009_reports_all_errors_together_no_fail_fast() {
         errors.len()
     );
 }
+
+// ---------------------------------------------------------------------------
+// F-LP4-HIGH-001: fan_out_batch_size = 0 validation
+// ---------------------------------------------------------------------------
+
+/// BC-2.16.002 / F-LP4-HIGH-001: `fan_out_batch_size = 0` must be rejected by
+/// `validate_sensor_spec` before `PipelineExecutor::execute` is ever called.
+///
+/// A value of 0 would cause `slice::chunks(0)` to panic at runtime (DoS via
+/// TOML spec input). This validation is the primary guard; `fan_out_batches`
+/// has a defense-in-depth `.max(1)` clamp as secondary protection.
+///
+/// The test verifies:
+/// 1. The error is for `fan_out_batch_size` specifically (not some other field).
+/// 2. The error message contains "fan_out_batch_size" and the offending step name.
+/// 3. The error code is `E-SPEC-001`.
+#[test]
+fn test_BC_2_16_002_validation_rejects_fan_out_batch_size_zero() {
+    let mut spec = minimal_valid_spec();
+    // Set fan_out_batch_size = 0 on the first step (DoS input).
+    spec.tables[0].steps[0].fan_out_batch_size = Some(0);
+
+    let result = validate_sensor_spec(&spec);
+    assert!(
+        result.is_err(),
+        "spec with fan_out_batch_size = 0 must be rejected by validation; got Ok"
+    );
+
+    let errors = result.unwrap_err();
+    let fan_out_err = errors
+        .iter()
+        .find(|e| e.message.contains("fan_out_batch_size"));
+    assert!(
+        fan_out_err.is_some(),
+        "error list must contain an entry mentioning 'fan_out_batch_size'; got: {errors:?}"
+    );
+
+    let e = fan_out_err.unwrap();
+    assert_eq!(
+        e.code,
+        SpecErrorCode::ESpec001,
+        "fan_out_batch_size=0 error must carry E-SPEC-001 code; got {:?}",
+        e.code
+    );
+    // Step name must appear in the message for actionable diagnostics.
+    assert!(
+        e.message.contains("fetch_alerts"),
+        "error message must identify the offending step name 'fetch_alerts'; got: {}",
+        e.message
+    );
+    assert!(
+        e.message.contains("> 0") || e.message.contains("must be"),
+        "error message must communicate the constraint (> 0 or 'must be'); got: {}",
+        e.message
+    );
+}
+
+/// BC-2.16.002 / F-LP4-HIGH-001: `fan_out_batch_size = 1` (minimum valid) must
+/// be accepted by `validate_sensor_spec`.
+#[test]
+fn test_BC_2_16_002_validation_accepts_fan_out_batch_size_one() {
+    let mut spec = minimal_valid_spec();
+    spec.tables[0].steps[0].fan_out_batch_size = Some(1);
+    let result = validate_sensor_spec(&spec);
+    assert!(
+        result.is_ok(),
+        "fan_out_batch_size = 1 must be accepted; got: {:?}",
+        result.err()
+    );
+}
+
+/// BC-2.16.002 / F-LP4-HIGH-001 (defense-in-depth): `fan_out_batch_size = None`
+/// (absent — uses default 100) must be accepted by `validate_sensor_spec`.
+#[test]
+fn test_BC_2_16_002_validation_accepts_fan_out_batch_size_none() {
+    let spec = minimal_valid_spec();
+    assert!(
+        spec.tables[0].steps[0].fan_out_batch_size.is_none(),
+        "minimal_valid_spec must leave fan_out_batch_size unset"
+    );
+    let result = validate_sensor_spec(&spec);
+    assert!(
+        result.is_ok(),
+        "spec with fan_out_batch_size absent must be valid; got: {:?}",
+        result.err()
+    );
+}

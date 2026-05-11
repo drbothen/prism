@@ -43,7 +43,24 @@ use std::pin::Pin;
 /// `zeroize-memory` Cargo feature (off by default) to avoid pulling `zeroize` into
 /// the dependency graph before it is needed.
 #[derive(Clone)]
-pub struct AuthToken(pub String);
+pub struct AuthToken(String);
+
+impl AuthToken {
+    /// Construct an `AuthToken` from a raw bearer token string.
+    ///
+    /// The value is private — callers MUST NOT read or log it directly.
+    /// Use [`as_str`] only for constructing `Authorization: Bearer ...` headers.
+    pub fn new(token: String) -> Self {
+        Self(token)
+    }
+
+    /// Borrow the raw token string for use in `Authorization` headers.
+    ///
+    /// Do NOT log this value at any level (INV-INFUSE-005 / AD-017).
+    pub fn as_str(&self) -> &str {
+        &self.0
+    }
+}
 
 impl std::fmt::Debug for AuthToken {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
@@ -103,7 +120,7 @@ impl AuthProvider for NullAuthProvider {
         _spec: &'a SensorSpec,
         _client_id: &'a OrgSlug,
     ) -> Pin<Box<dyn Future<Output = Result<AuthToken, SpecEngineError>> + Send + 'a>> {
-        Box::pin(async move { Ok(AuthToken(String::new())) })
+        Box::pin(async move { Ok(AuthToken::new(String::new())) })
     }
 }
 
@@ -146,7 +163,7 @@ impl AuthProvider for MockAuthProvider {
         self.call_count
             .fetch_add(1, std::sync::atomic::Ordering::SeqCst);
         let token = self.token.clone();
-        Box::pin(async move { Ok(AuthToken(token)) })
+        Box::pin(async move { Ok(AuthToken::new(token)) })
     }
 }
 

@@ -37,6 +37,7 @@ const MAX_PIPELINE_RECORDS: usize = 10_000;
 const MAX_PAGES_PER_STEP: usize = 1_000;
 
 /// Context provided to each pipeline execution.
+#[non_exhaustive]
 #[derive(Debug, Clone)]
 pub struct FetchContext {
     /// The client/tenant this query is executing for.
@@ -45,10 +46,27 @@ pub struct FetchContext {
     pub query_filters: std::collections::HashMap<String, String>,
 }
 
+impl FetchContext {
+    /// Construct a `FetchContext`.
+    ///
+    /// Required because `#[non_exhaustive]` prevents struct-literal construction
+    /// outside the crate. External callers (tests, integration code) MUST use this.
+    pub fn new(
+        client_id: OrgSlug,
+        query_filters: std::collections::HashMap<String, String>,
+    ) -> Self {
+        Self {
+            client_id,
+            query_filters,
+        }
+    }
+}
+
 /// The output of a successful pipeline execution.
 ///
 /// Contains the raw JSON records from the final step. OCSF mapping (BC-2.16.003)
 /// is applied by `ColumnMapper` separately.
+#[non_exhaustive]
 #[derive(Debug, Clone)]
 pub struct PipelineResult {
     /// Raw records from the final step, as JSON values.
@@ -74,6 +92,10 @@ impl PipelineExecutor {
     /// - `context` — Runtime context: client ID and query push-down filters.
     /// - `http_client` — Injected `reqwest::Client`; MUST NOT be a global singleton.
     ///   Tests inject a client whose traffic is directed at a wiremock mock server.
+    ///   **TD-S-PLUGIN-PREREQ-B-005 P2:** Production callers (boot.rs / chassis) MUST
+    ///   construct this client with a configurable timeout (default 30s) using
+    ///   `reqwest::Client::builder().timeout(Duration::from_secs(30)).build()`.
+    ///   Test fixtures already use this pattern (F-LP4-MED-001).
     /// - `auth_provider` — Injected `&dyn AuthProvider`; called to acquire/refresh
     ///   bearer tokens. Tests inject `MockAuthProvider`; production injects a
     ///   `CredentialStoreAuthProvider` (or `NullAuthProvider` placeholder).
@@ -113,7 +135,7 @@ impl PipelineExecutor {
         // HTTP 401 (AC-5). This avoids an unconditional token-acquisition round-trip
         // for specs that don't need auth (NullAuthProvider) and keeps the call count
         // at exactly 1 for the 401-retry scenario.
-        let mut bearer_token = AuthToken(String::new());
+        let mut bearer_token = AuthToken::new(String::new());
 
         // F-LP1-HIGH-004: seed step_vars with query context so ${query.filter.*}
         // and ${query.client_id} are available for interpolation in all steps.
@@ -226,7 +248,9 @@ impl PipelineExecutor {
                             .and_then(|h| h.requests_per_second)
                             .filter(|&r| r > 0.0);
                         if let Some(rps) = rps_opt {
-                            let delay_secs = 1.0 / rps;
+                            // Cap at 1 hour (3600s) to prevent Duration overflow when
+                            // rps is pathologically small (F-LP4-LOW-003 overflow guard).
+                            let delay_secs = (1.0 / rps).min(3600.0);
                             tokio::time::sleep(Duration::from_secs_f64(delay_secs)).await;
                         }
                     }
@@ -347,21 +371,25 @@ impl PipelineExecutor {
         })
     }
 
-    /// Execute a single fetch step, given resolved variables from prior steps.
+    /// Execute a single fetch step against the resolved variables — issues ONE HTTP
+    /// request without pagination, fan-out, rate-limit, or truncation.
+    ///
+    /// This helper is intended for plugin-runtime contexts that have pre-resolved a
+    /// step's state and want to delegate the single HTTP issue to the shared executor.
+    ///
+    /// **Pagination, fan-out, 10K truncation (DI-019), rate-limit delays, and auth
+    /// refresh are NOT performed here.** Use [`PipelineExecutor::execute`] for those
+    /// semantics (BC-2.16.002 full pipeline).
     ///
     /// # Parameters
     ///
-    /// - `step` — The fetch step to execute (method, path_template, pagination, etc.).
-    /// - `spec` — Full sensor spec for base URL, auth type, rate limit hints.
+    /// - `step` — The fetch step to execute (method, path_template, etc.).
+    /// - `spec` — Full sensor spec for base URL, auth type.
     /// - `prior_vars` — Resolved variables from all previous steps
     ///   (keyed `"step_name.field"` per BC-2.16.002 interpolation semantics).
     /// - `context` — Runtime context: client ID and query push-down filters.
     /// - `http_client` — Injected HTTP client (same instance as `execute`).
     /// - `auth_provider` — Injected auth provider (same instance as `execute`).
-    ///
-    /// Returns the raw JSON response body extracted at `step.response_path`.
-    /// Pagination is handled internally — all page records are concatenated before
-    /// returning.
     ///
     /// # Errors
     ///
@@ -374,7 +402,7 @@ impl PipelineExecutor {
         http_client: &reqwest::Client,
         auth_provider: &dyn AuthProvider,
     ) -> Result<serde_json::Value, SpecEngineError> {
-        let bearer_token = AuthToken(String::new());
+        let bearer_token = AuthToken::new(String::new());
         let mut request_count: u32 = 0;
 
         let interpolated_path = Interpolator::interpolate(
@@ -428,6 +456,10 @@ impl PipelineExecutor {
         values: &serde_json::Value,
         batch_size: usize,
     ) -> Vec<Vec<serde_json::Value>> {
+        // Defense-in-depth: clamp to 1 so chunks(0) can never panic even if the
+        // caller bypasses validation. Callers SHOULD validate before reaching here
+        // (F-LP4-HIGH-001 validation in validation.rs is the primary guard).
+        let batch_size = batch_size.max(1);
         match values {
             serde_json::Value::Array(arr) => {
                 if arr.is_empty() {
@@ -598,8 +630,8 @@ fn build_request(
     let mut req = http_client.request(method, url);
 
     // Add bearer token if non-empty.
-    if !token.0.is_empty() {
-        req = req.header("Authorization", format!("Bearer {}", token.0));
+    if !token.as_str().is_empty() {
+        req = req.header("Authorization", format!("Bearer {}", token.as_str()));
     }
 
     // F-LP1-CRIT-001: Add request body for POST/PUT/PATCH.

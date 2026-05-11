@@ -18,10 +18,7 @@ use wiremock::matchers::{method, path};
 use wiremock::{Mock, MockServer, ResponseTemplate};
 
 fn default_context() -> FetchContext {
-    FetchContext {
-        client_id: OrgSlug::new("test-org"),
-        query_filters: HashMap::new(),
-    }
+    FetchContext::new(OrgSlug::new("test-org"), HashMap::new())
 }
 
 /// Build a one-step `SensorSpec` for auth-retry tests.
@@ -100,7 +97,10 @@ async fn test_BC_2_16_002_execute_calls_auth_provider_acquire_token_on_401() {
     let spec = auth_retry_spec(&mock_server.uri());
     let table = spec.tables[0].clone();
     let context = default_context();
-    let http_client = reqwest::Client::new();
+    let http_client = reqwest::Client::builder()
+        .timeout(std::time::Duration::from_secs(30))
+        .build()
+        .expect("reqwest Client::build must succeed");
     // MockAuthProvider records every acquire_token call.
     let auth_provider = MockAuthProvider::new("fresh-bearer-token-after-refresh");
 
@@ -164,7 +164,10 @@ async fn test_BC_2_16_002_execute_aborts_on_double_401() {
     let spec = auth_retry_spec(&mock_server.uri());
     let table = spec.tables[0].clone();
     let context = default_context();
-    let http_client = reqwest::Client::new();
+    let http_client = reqwest::Client::builder()
+        .timeout(std::time::Duration::from_secs(30))
+        .build()
+        .expect("reqwest Client::build must succeed");
     let auth_provider = MockAuthProvider::new("token-that-wont-work");
 
     let result =
