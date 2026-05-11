@@ -1,7 +1,7 @@
 ---
 document_type: behavioral-contract
 level: L3
-version: "1.3"
+version: "1.4"
 status: draft
 producer: product-owner
 timestamp: 2026-04-13T12:00:00
@@ -45,7 +45,7 @@ final collected records, not intermediate step results. Rate limit hints from th
 ## Preconditions
 - A spec-driven table has been registered (BC-2.16.001) with one or more `FetchStep` entries in its `steps` array
 - A query targeting this table has been dispatched by the query engine (CAP-015)
-- Credentials for the sensor's `auth_type` have been resolved for the target `client_id`
+- An `AuthProvider` implementation is available to resolve credentials for the sensor's `auth_type` on demand. Credentials are NOT required to be pre-resolved — `PipelineExecutor::execute` invokes `AuthProvider::acquire_token` lazily: once at the first 401-Unauthorized response from a fetch step, and additionally only if the retry also returns 401 (in which case execution aborts per AC-5 abort semantics).
 
 ## Postconditions
 - Steps are executed sequentially in the order defined in the spec's `[[table.steps]]` array
@@ -64,6 +64,9 @@ final collected records, not intermediate step results. Rate limit hints from th
 - Pagination within a step follows the sensor spec's declared pagination config (cursor/offset/none), iterating until the API returns an empty page or the cursor is null
 - The final step's response records are collected into an Arrow RecordBatch using the table's column definitions
 - Rate limit hints from the `SensorSpec` are applied between API calls: inter-request delay = `1 / requests_per_second`, with burst allowance from `burst_size`
+- **Adapter abstraction** — The auth-resolution mechanism is provided via a dyn-compatible `AuthProvider` trait (defined in `prism-spec-engine/src/auth_provider.rs`). `PipelineExecutor` accepts `&dyn AuthProvider`; the trait is object-safe (`Send + Sync` + manually-boxed Future return type per Rust stable RPITIT limitations). This enables sensor-spec-driven adapter dispatch at runtime, replacing compile-time-keyed `SensorAuth` enum dispatch.
+- **Record truncation** — When the cumulative `PipelineResult.records.len()` would exceed the DI-019 cap of 10,000, execution truncates the final-step accumulator to exactly 10,000 records and sets `PipelineResult.truncated = true`. The truncation flag is the user-facing signal that data was lost; it does NOT propagate to the per-step `request_count`. The outer materialization-layer cap (in `prism-query/src/materialization.rs`) does NOT double-apply when the executor cap fires.
+- **Auth refresh audit signal** — When `AuthProvider::acquire_token` is invoked on a 401 retry, the executor emits a `tracing::warn` event with fields `event_type = "auth_refresh_triggered"`, `sensor_id`, `client_id`, `step_name`. The token value itself is NEVER included in the event. This satisfies VP-PLUGIN-005 assertion (d) (ADR-023 §E).
 
 ## Variable Scope and Lifetime
 - Variables produced by a step are available to all subsequent steps but not to prior steps
@@ -126,6 +129,7 @@ See `.factory/specs/prd-supplements/test-vectors.md` for full canonical vectors.
 
 | Version | Burst | Date | Author | Change |
 |---------|-------|------|--------|--------|
+| 1.4 | LOCAL-pass-1-fix | 2026-05-11 | product-owner | Amend preconditions and postconditions to reflect AuthProvider abstraction introduced by S-PLUGIN-PREREQ-B. Lazy credential resolution replaces eager. New postconditions: AuthProvider trait dyn-safety; PipelineResult.truncated semantics; auth_refresh_triggered tracing event for VP-PLUGIN-005. Closes F-LP1-MED-001 from LOCAL pass-1 adversary review at b1b529fc. Status remains draft pending PREREQ-B merge — POL-14 promotes draft→active on merge. |
 | 1.3 | pass-74-fix | 2026-04-20 | product-owner | Resolved (placeholder) row in ## Verification Properties per pass-74 VP-TBD decision matrix extension. |
 | 1.2 | pass-73-fix | 2026-04-20 | state-manager | Deterministic changelog reorder: sorted all rows to descending version order (pass-73 bash script). |
 | 1.1 | pre-build-sweep | 2026-04-20 | product-owner | Template-compliance sweep: added extracted_from/inputs/input-hash/traces_to frontmatter; added ## Description; added ## Invariants; added ## Error Conditions (from inline Error Handling); converted ## Traces → ## Traceability table; added ## Canonical Test Vectors; added ## Verification Properties; added ## Changelog. |
