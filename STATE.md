@@ -1,7 +1,7 @@
 ---
 document_type: pipeline-state
 level: ops
-version: "7.112"
+version: "7.113"
 producer: state-manager
 timestamp: 2026-05-11T00:00:00Z
 inputs: []
@@ -22,7 +22,7 @@ repos:
   - axiathon
   - ocsf-proto-gen
   - mcp-claroty-xdome
-current_step: "POST-COMPACT POST-PREREQ-F (D-378) — PREREQ-F SHIPPED at a952ffff; ADR-023 v1.17 BC+DI documentation foundation landed; UNBLOCKS PREREQ-A/B/C/D/E + Wave 1; next action: orchestrator-user decision on PREREQ-D vs PREREQ-A first dispatch"
+current_step: "S-PLUGIN-PREREQ-A LOCAL pass-1 BLOCKED-hard (D-379); fix-burst-1 in flight"
 wave_3_carry_forward_debt: "ALL_REMEDIATE — W4-FIX-PERF-001/002, W4-FIX-CODE-001, W4-FIX-SEC-001 through W4-FIX-SEC-004 planned per D-203"
 wave_4_status: "PHASE_4_A_CONVERGED + R9_APPROVED but PHASE_4_B SUSPENDED — pre-implementation dep check (2026-05-04) found S-4.01 → S-3.02 (status=draft); pivoting to full Wave 3 implementation per user directive D-223"
 wave_4_phase_4_a_preflight:
@@ -128,7 +128,7 @@ bc_count_corrected: 235
 cap_count: 40  # active; highest_cap_id: CAP-040 (CAP-038 Multi-Tenant Identity, CAP-039 Multi-Tenant Fixture Gen, CAP-040 Multi-Tenant Adapter Dispatch — Wave 3 Phase 3.A Step 2)
 bc_index_version: "4.54"
 vp_index_version: "1.30"
-story_index_version: "v2.34"
+story_index_version: "v2.35"
 total_stories: 150
 red_gate_wave_0a_complete: 2026-04-21
 test_vectors_version: "2.7"
@@ -176,9 +176,9 @@ workspace_test_count: 3489  # 891 prism-query + workspace total (per implementer
 | **Language** | Rust |
 | **Target Workspace** | per-analyst stdio (MCP server) |
 | **Started** | 2026-04-13 |
-| **Last Updated** | 2026-05-11 (D-378 — PREREQ-F SHIPPED at factory-artifacts a952ffff; ADR-023 v1.17 BC+DI documentation foundation; 14 file mutations single commit; STATE v7.111→v7.112) |
+| **Last Updated** | 2026-05-11 (D-379 — S-PLUGIN-PREREQ-A LOCAL adversary pass-1 BLOCKED-hard; 14 findings 2C+5H+4M+3L+2OBS+4PG; streak 0/3; fix-burst-1 in flight; STATE v7.112→v7.113) |
 | **Current Phase** | Wave 3 Tier-3 COMPLETE — **Wave 3-A 4 of 4 SHIPPED**: S-3.05 (#132 c867c344), S-3.04 (#133 57745ce8), S-3.03 (#134 7c413692), **S-3.07 (#135 2ae7185b MERGED 2026-05-08T04:23:03Z)**; post-merge cleanup confirmed; plugin migration: PREREQ-F SHIPPED; PREREQ-A/B/C/D/E pending |
-| **Current Step** | D-378 — POST-COMPACT POST-PREREQ-F (2026-05-11). PREREQ-F SHIPPED at a952ffff. Next: orchestrator-user decision on PREREQ-D vs PREREQ-A first dispatch. |
+| **Current Step** | D-379 — S-PLUGIN-PREREQ-A LOCAL adversary pass-1 BLOCKED-hard (2026-05-11). 14 findings: 2C+5H+4M+3L+2OBS+4PG. Streak 0/3. Fix-burst-1 in flight. |
 
 ## Phase Progress
 
@@ -221,6 +221,7 @@ _D-001..D-046 archived: [cycles/phase-3-dtu-wave-2/decisions-archive-d001-d032.m
 
 | ID | Decision | Rationale | Phase | Date |
 |----|----------|-----------|-------|------|
+| D-379 | 2026-05-11 | S-PLUGIN-PREREQ-A LOCAL adversary pass-1 BLOCKED-hard (14 findings: 2 CRITICAL + 5 HIGH + 4 MED + 3 LOW + 2 OBS + 4 process-gaps). Streak 0/3. CRITICAL findings: F-LP1-CRITICAL-001 silent unknown-table regression of ADV-W3MT-P58-LOW-002; F-LP1-CRITICAL-002 AC-6 perimeter compile-fail absent (implementer's PARTIAL-with-TD rejected per Standing Rule 3). HIGH: 9 stale SensorType doc-comments (5 files), 3 Red-Gate stale docs (3 test files), register() drift vs AC-4 (decision: adopt implementation, update AC-4), duplicate registry methods (3 pairs), SensorId Deserialize injection surface (DI-014 sibling pattern). MED: dead UnknownSensorId variant, case-sensitivity asymmetry, WriteToolInvalidationMap closed-set residue, sentinel-nil OrgId. LOW: AC-8 wording, doc redundancy, latency heuristic perf. Fix-burst-1 in flight. Report backfilled at cycles/wave-4-operations/adversarial-reviews/S-PLUGIN-PREREQ-A-pass-1.md. | plugin-migration | 2026-05-11 |
 | D-378 | 2026-05-11 | Wave 0/F PREREQ-F SHIPPED at factory-artifacts a952ffff. ADR-023 v1.17 documentation-only foundation landed | (1) BC-2.16.004 deprecated (CustomAdapter Rust trait retired by ADR-023); (2) BC-2.01.013 amended — un-seal SensorAuth, switch to spec-driven runtime validation; (3) DI-012 amended — compile-time sealed-supertrait → runtime spec-load validation with 3 cross-sensor auth-composition rejection rules; (4) 8 sensor-named BCs (BC-2.01.005-008, BC-2.02.003-006) annotated with PENDING AMENDMENT — ADR-023 prefix notes (full amendment lands Wave 2/G); (5) TS-PLUGIN-PARITY-001 authored (140-line DTU canonicalization rule set for VP-PLUGIN-003 parity evaluation); (6) VP-PLUGIN-001..007 named series registered in VP-INDEX (aliases for VP-146..152, module: prism-spec-engine); (7) BC-INDEX v4.54 with active_contracts 227→226. 14 file mutations, single commit. UNBLOCKS: PLUGIN-PREREQ-A through E + all Wave 1 stories now dispatchable. | plugin-migration |
 | D-377 | 2026-05-10 | PRE-COMPACT CHECKPOINT — state durable for context compaction; post-compact dispatches Wave 0/F | Pin SHAs: develop c6dd6602 / factory-artifacts 07423865 / STATE+HANDOFF v7.111. ADR-023 v1.17 SUBSTANTIVE CONVERGED (D-375). 25 adversary passes + 20 fix-bursts complete; cycle reflection at cycles/wave-4-operations/adr-023-cycle-reflection.md. 10 methodology TDs filed (TD-FACTORY-HOOK-BYPASS-001 + TD-VSDD-054..063). Bundle B Phase B-2 BLOCKED (5 stories pending plugin migration). Standing rules active post-compact: Edit/Write tools ONLY; sibling-site sweep on value changes; post-commit claim verification per TD-VSDD-059. POST-COMPACT FIRST ACTION: dispatch product-owner for Wave 0/F per ADR-023 v1.17 PREREQ-F scope. | docs(pre-compact-checkpoint) |
 | D-376 | 2026-05-10 | Cycle reflection + 4 additional VSDD methodology TDs filed (TD-VSDD-060/061/062/063) | Captures broader methodology insights from 25-pass ADR-023 cycle: S-7.01 sibling-site sweep automation (P0), agent-ecosystem drift rate observation (P1), fresh-context compounding value pattern (P2), orchestrator context consumption on state-management (P2). Cycle reflection document written at .factory/cycles/wave-4-operations/adr-023-cycle-reflection.md. Per user request "make sure we capture those TD thoughts". | docs(cycle-reflection) |
@@ -320,15 +321,15 @@ Cycle files: [burst-log](cycles/phase-2-patch/burst-log.md) | [convergence-traje
 
 ---
 
-## Session Resume Checkpoint (2026-05-11-v7.112-d378-post-prereq-f)
+## Session Resume Checkpoint (2026-05-11-v7.113-d379-prereq-a-pass1-blocked)
 
-_Previous checkpoint (v7.111/D-377 PRE-COMPACT CHECKPOINT) archived: [cycles/wave-4-operations/session-checkpoints.md](cycles/wave-4-operations/session-checkpoints.md)_
+_Previous checkpoint (v7.112/D-378 POST-COMPACT POST-PREREQ-F) archived: [cycles/wave-4-operations/session-checkpoints.md](cycles/wave-4-operations/session-checkpoints.md)_
 
-**STATE v7.112. D-378 — POST-COMPACT POST-PREREQ-F. PREREQ-F SHIPPED at factory-artifacts a952ffff. SESSION-HANDOFF v7.112.** develop@c6dd6602. factory-artifacts HEAD: a952ffff (run `git -C .factory log -1` to confirm per TD-VSDD-053). vsdd-factory rc.16 active. Standing Orchestrator Rules active (Rules 1, 2, 3). Bundle B Exit Mandate active (task #85). Tasks #80-#84 DISPOSITIONS RECORDED — do NOT re-triage. Worktrees: main (clean) + .factory + .worktrees/S-3.09 (FROZEN per D-298).
+**STATE v7.113. D-379 — S-PLUGIN-PREREQ-A LOCAL pass-1 BLOCKED-hard. SESSION-HANDOFF v7.113.** develop@c6dd6602. factory-artifacts HEAD: run `git -C .factory log -1` (per TD-VSDD-053). vsdd-factory rc.16 active. Standing Orchestrator Rules active (Rules 1, 2, 3). Bundle B Exit Mandate active (task #85). Tasks #80-#84 DISPOSITIONS RECORDED — do NOT re-triage. Worktrees: main (clean) + .factory + .worktrees/S-PLUGIN-PREREQ-A + .worktrees/S-3.09 (FROZEN per D-298).
 
-**PREREQ-F SHIP SUMMARY:** ADR-023 v1.17 documentation-only foundation at a952ffff. 14 file mutations, single commit: (1) BC-2.16.004 deprecated; (2) BC-2.01.013 amended — spec-driven runtime validation; (3) DI-012 amended — runtime validation + 3 auth-composition rejection rules; (4) 8 sensor-named BCs annotated PENDING AMENDMENT; (5) TS-PLUGIN-PARITY-001 authored (140 lines); (6) VP-PLUGIN-001..007 registered in VP-INDEX; (7) BC-INDEX v4.54 active_contracts 227→226.
+**PREREQ-A PASS-1 SUMMARY:** S-PLUGIN-PREREQ-A LOCAL adversary pass-1 BLOCKED-hard at target SHA 4ab8d33c (diff base c6dd6602). 14 findings: 2 CRITICAL (silent unknown-table regression of ADV-W3MT-P58-LOW-002; AC-6 perimeter compile-fail absent — PARTIAL-with-TD rejected per Standing Rule 3) + 5 HIGH (9 stale SensorType doc-comments, 3 stale Red-Gate docs, register() drift vs AC-4, duplicate registry methods, SensorId Deserialize injection surface) + 4 MED + 3 LOW + 2 OBS + 4 process-gaps. Streak 0/3 reset. Report at cycles/wave-4-operations/adversarial-reviews/S-PLUGIN-PREREQ-A-pass-1.md.
 
-**NEXT ACTION:** Orchestrator-user decision needed: (a) PREREQ-D (PluginRuntime + .prx loader infrastructure + PR template — gates PREREQ-E + Wave 1/A WASM enforcement), or (b) PREREQ-A (SensorId open-newtype + SensorType deletion — gates Wave 1/B sensor-spec validation work). User decision required before dispatch.
+**NEXT ACTION:** Dispatch implementer for S-PLUGIN-PREREQ-A fix-burst-1 targeting all 14 findings in severity order (2 CRITICAL first). After fix-burst-1 lands, dispatch pass-2 fresh-context.
 
 **S-3.09 FREEZE STATE:** Worktree .worktrees/S-3.09 HEAD 43c41389; BUG-S309-PLUGIN P0 blocks resumption. See D-298/D-299.
 
