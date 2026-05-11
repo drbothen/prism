@@ -12,9 +12,12 @@
 //! - AC-3: Cursor-paginated step iterates until null cursor
 //! - AC-4: Offset-paginated step iterates until short page
 //! - VP-PLUGIN-002: Canonical acceptance test (AC-9)
+//! - F-LP5-MED-001: gzip response auto-decoded by reqwest (regression)
 //!
 //! All tests use wiremock as the HTTP backend so no real sensor API is required.
 
+use flate2::Compression;
+use flate2::write::GzEncoder;
 use prism_core::{ColumnType, OrgSlug};
 use prism_spec_engine::NullAuthProvider;
 use prism_spec_engine::pipeline::{FetchContext, PipelineExecutor};
@@ -22,6 +25,7 @@ use prism_spec_engine::spec_parser::{
     AuthType, ColumnSpec, FetchStep, PaginationConfig, RateLimitHints, SensorSpec, TableSpec,
 };
 use std::collections::HashMap;
+use std::io::Write;
 use wiremock::matchers::{header, method, path, query_param};
 use wiremock::{Mock, MockServer, ResponseTemplate};
 
@@ -1641,5 +1645,205 @@ async fn test_BC_2_16_002_execute_aborts_at_max_pages_per_step() {
     assert!(
         msg.contains("exceeded") || msg.contains("pages") || msg.contains("1000"),
         "F-LP4-MED-002: error must mention page cap ('exceeded', 'pages', or '1000'); got: {msg}"
+    );
+}
+
+// ---------------------------------------------------------------------------
+// F-LP5-MED-001 regression: reqwest decodes gzip-compressed responses
+// ---------------------------------------------------------------------------
+
+/// BC-2.16.002 / F-LP5-MED-001: `reqwest` with the `gzip` feature enabled must
+/// transparently decompress a `Content-Encoding: gzip` response body.
+///
+/// Without the `gzip` feature, the raw compressed bytes reach `response.json()`,
+/// which fails to parse and the pipeline returns `HttpRequestFailed`. This test
+/// proves the feature is enabled and the decompression path is exercised.
+///
+/// Fixture: wiremock serves a gzip-compressed JSON body `[{"id":1},{"id":2}]`
+/// with `Content-Encoding: gzip`.
+#[tokio::test]
+async fn test_BC_2_16_002_execute_decodes_gzipped_response() {
+    let mock_server = MockServer::start().await;
+
+    // Encode a JSON payload with gzip.
+    let json_payload = serde_json::json!({
+        "items": [{"id": 1}, {"id": 2}]
+    });
+    let json_bytes = serde_json::to_vec(&json_payload).expect("serialize fixture JSON");
+    let mut encoder = GzEncoder::new(Vec::new(), Compression::default());
+    encoder.write_all(&json_bytes).expect("write gzip bytes");
+    let gzip_bytes = encoder.finish().expect("finish gzip encoder");
+
+    // Serve compressed bytes with Content-Encoding: gzip and Content-Type: application/json.
+    Mock::given(method("GET"))
+        .and(path("/gzip-endpoint"))
+        .respond_with(
+            ResponseTemplate::new(200)
+                .insert_header("Content-Encoding", "gzip")
+                .insert_header("Content-Type", "application/json")
+                .set_body_raw(gzip_bytes, "application/json"),
+        )
+        .mount(&mock_server)
+        .await;
+
+    let spec = one_step_spec(&mock_server.uri(), "/gzip-endpoint", "$.items");
+    let table = spec.tables[0].clone();
+    let context = default_context();
+    let http_client = reqwest::Client::builder()
+        .timeout(std::time::Duration::from_secs(30))
+        .build()
+        .expect("reqwest Client::build must succeed");
+    let auth_provider = prism_spec_engine::NullAuthProvider;
+
+    let result = PipelineExecutor::execute(&spec, &table, &context, &http_client, &auth_provider)
+        .await
+        .expect(
+            "F-LP5-MED-001: gzip-encoded response must be decoded transparently by reqwest; \
+             if this panics, the 'gzip' feature is missing from Cargo.toml",
+        );
+
+    assert_eq!(
+        result.records.len(),
+        2,
+        "F-LP5-MED-001: gzip-decoded response must yield 2 records; got {}",
+        result.records.len()
+    );
+}
+
+// ---------------------------------------------------------------------------
+// F-LP5-MED-002 (site c) regression: pipeline_truncated event emitted on 10K cap
+// ---------------------------------------------------------------------------
+
+/// BC-2.16.002 / F-LP5-MED-002 (audit-log site c): When the DI-019 10K record cap
+/// is hit, a `pipeline_truncated` warn event with `event_type`, `max_records`, and
+/// `accumulated` fields must be emitted before the pipeline truncates.
+///
+/// Log capture strategy: install a `tracing-subscriber` fmt subscriber scoped to
+/// this test via `set_default`, then assert the captured string buffer contains
+/// the required event fields.
+///
+/// This test is equivalent in setup to `test_BC_2_16_002_execute_truncates_at_10k_with_truncated_flag_set`
+/// but focuses on the audit log event rather than the record count.
+#[tokio::test]
+async fn test_BC_2_16_002_emits_pipeline_truncated_event_on_10k_cap() {
+    use std::sync::{Arc, Mutex};
+    use tracing_subscriber::util::SubscriberInitExt;
+
+    // Capture all tracing output into a string buffer.
+    let log_buffer: Arc<Mutex<String>> = Arc::new(Mutex::new(String::new()));
+    let log_buffer_clone = log_buffer.clone();
+
+    let writer = tracing_subscriber::fmt::writer::BoxMakeWriter::new(move || {
+        struct BufWriter(Arc<Mutex<String>>);
+        impl std::io::Write for BufWriter {
+            fn write(&mut self, buf: &[u8]) -> std::io::Result<usize> {
+                let s = String::from_utf8_lossy(buf);
+                self.0.lock().unwrap().push_str(&s);
+                Ok(buf.len())
+            }
+            fn flush(&mut self) -> std::io::Result<()> {
+                Ok(())
+            }
+        }
+        BufWriter(log_buffer_clone.clone())
+    });
+
+    let subscriber = tracing_subscriber::fmt()
+        .with_writer(writer)
+        .with_max_level(tracing::Level::WARN)
+        .finish();
+
+    // Use set_default so this subscriber only affects the current thread (test-scoped).
+    let _guard = subscriber.set_default();
+
+    let mock_server = MockServer::start().await;
+
+    // Page 1: 6000 records → triggers accumulation
+    let records_6k: Vec<serde_json::Value> =
+        (0u32..6000).map(|i| serde_json::json!({"id": i})).collect();
+    Mock::given(method("GET"))
+        .and(path("/truncate-audit"))
+        .respond_with(
+            ResponseTemplate::new(200)
+                .set_body_json(serde_json::json!({ "items": records_6k, "cursor": "p2" })),
+        )
+        .up_to_n_times(1)
+        .mount(&mock_server)
+        .await;
+
+    // Page 2: 6000 more records → pushes total past 10K, triggers truncation event
+    let records_6k_b: Vec<serde_json::Value> = (6000u32..12000)
+        .map(|i| serde_json::json!({"id": i}))
+        .collect();
+    Mock::given(method("GET"))
+        .and(path("/truncate-audit"))
+        .respond_with(
+            ResponseTemplate::new(200)
+                .set_body_json(serde_json::json!({ "items": records_6k_b, "cursor": null })),
+        )
+        .up_to_n_times(1)
+        .mount(&mock_server)
+        .await;
+
+    let spec = SensorSpec {
+        sensor_id: "truncate-audit-sensor".to_string(),
+        name: "Truncate Audit Sensor".to_string(),
+        auth_type: prism_spec_engine::spec_parser::AuthType::BearerStatic,
+        base_url: mock_server.uri(),
+        tables: vec![
+            prism_spec_engine::spec_parser::TableSpec::new_point_in_time(
+                "big",
+                "security_finding",
+                vec![ColumnSpec {
+                    name: "id".to_string(),
+                    column_type: ColumnType::String,
+                    ocsf_field: None,
+                    options: vec![],
+                }],
+                vec![FetchStep {
+                    name: "fetch_big".to_string(),
+                    method: "GET".to_string(),
+                    path_template: "/truncate-audit".to_string(),
+                    body_template: None,
+                    response_path: "$.items".to_string(),
+                    pagination_cursor_path: None,
+                    variables_produced: vec![],
+                    fan_out_batch_size: None,
+                    pagination: Some(PaginationConfig::CursorToken {
+                        cursor_response_path: "$.cursor".to_string(),
+                    }),
+                }],
+            ),
+        ],
+        rate_limit_hints: None,
+        version: "1.0.0".to_string(),
+        credential_refs: vec![],
+    };
+
+    let table = spec.tables[0].clone();
+    let context = default_context();
+    let http_client = reqwest::Client::builder()
+        .timeout(std::time::Duration::from_secs(30))
+        .build()
+        .expect("reqwest Client::build must succeed");
+    let auth_provider = prism_spec_engine::NullAuthProvider;
+
+    let result = PipelineExecutor::execute(&spec, &table, &context, &http_client, &auth_provider)
+        .await
+        .expect("truncate-audit test must succeed");
+
+    assert!(result.truncated, "truncated flag must be set");
+    assert_eq!(result.records.len(), 10_000, "records must be exactly 10K");
+
+    // Verify the audit log event was emitted.
+    let captured = log_buffer.lock().unwrap().clone();
+    assert!(
+        captured.contains("pipeline_truncated"),
+        "F-LP5-MED-002 site (c): 'pipeline_truncated' event_type must appear in log output; \
+         captured log: {captured}",
+    );
+    assert!(
+        captured.contains("DI-019") || captured.contains("truncated to 10K"),
+        "F-LP5-MED-002 site (c): log must mention DI-019 cap reason; captured log: {captured}",
     );
 }

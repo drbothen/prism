@@ -31,7 +31,7 @@ tracing = "0.1"
 wasmtime = { version = "44", features = ["component-model"] }
 # notify: cross-platform filesystem event watcher (AD-018 / S-1.12 / S-1.15)
 notify = "7"
-reqwest = { version = "0.12", features = ["json", "rustls-tls"], default-features = false }
+reqwest = { version = "0.12", features = ["json", "rustls-tls", "gzip", "deflate", "brotli"], default-features = false }
 bincode = "2"
 anyhow = "1"
 
@@ -43,6 +43,10 @@ tempfile = "3"
 # S-PLUGIN-PREREQ-B: wiremock for VP-PLUGIN-002 and VP-PLUGIN-005 integration tests.
 # Version pinned to match prism-sensors usage (R-PB-006 known gap, now resolved).
 wiremock = "0.6"
+# flate2: gzip compression for F-LP5-MED-001 regression test (encode mock gzip response bodies).
+flate2 = "1"
+# tracing-subscriber: structured log capture for audit-log regression tests.
+tracing-subscriber = { version = "0.3", features = ["env-filter"] }
 
 [features]
 default = []

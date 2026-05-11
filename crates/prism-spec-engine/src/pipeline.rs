@@ -135,6 +135,12 @@ impl PipelineExecutor {
         // HTTP 401 (AC-5). This avoids an unconditional token-acquisition round-trip
         // for specs that don't need auth (NullAuthProvider) and keeps the call count
         // at exactly 1 for the 401-retry scenario.
+        //
+        // TD-S-PLUGIN-PREREQ-B-010 P2: lazy-token-on-401 design guarantees a 401 round-trip on
+        // the first request of every production-grade execution (all 4 PLUGIN-MIGRATION-001-D
+        // sensors use bearer auth). Pollutes audit signal: every legitimate execution emits
+        // auth_refresh_triggered. PENDING ORCHESTRATOR DECISION per F-LP5-LOW-003: switch to
+        // eager-token (acquire_token at this site if spec.auth_type != NullAuth).
         let mut bearer_token = AuthToken::new(String::new());
 
         // F-LP1-HIGH-004: seed step_vars with query context so ${query.filter.*}
@@ -204,6 +210,11 @@ impl PipelineExecutor {
                 }
 
                 // Interpolate the path template with variables from prior steps.
+                //
+                // TD-S-PLUGIN-PREREQ-B-007 P3: HttpRequestFailed.status_code = 0 is overloaded
+                // across 11 distinct origins (interpolation, network, JSON parse, page-cap,
+                // cursor non-advance). Future error-classification refactor should add an origin
+                // discriminator field to SpecEngineError. Per F-LP5-LOW-004.
                 let interpolated_path = Interpolator::interpolate(
                     &step.path_template,
                     &InterpolationContext::UrlPath,
@@ -318,6 +329,15 @@ impl PipelineExecutor {
 
                     // AC-8 / DI-019: truncate at 10K total records.
                     if all_records.len() >= MAX_PIPELINE_RECORDS {
+                        tracing::warn!(
+                            event_type = "pipeline_truncated",
+                            sensor_id = %spec.sensor_id,
+                            client_id = %context.client_id,
+                            step_name = %step.name,
+                            max_records = MAX_PIPELINE_RECORDS,
+                            accumulated = all_records.len(),
+                            "DI-019 cap reached — records truncated to 10K",
+                        );
                         all_records.truncate(MAX_PIPELINE_RECORDS);
                         truncated = true;
                         break 'steps;
@@ -446,6 +466,10 @@ impl PipelineExecutor {
     /// Resolve and expand fan-out: if a variable resolves to an array, return
     /// batches of `batch_size` items each (BC-2.16.002 Fan-Out Behavior).
     ///
+    /// TD-S-PLUGIN-PREREQ-B-006 P2: pure functions (fan_out_batches, extract_at_path,
+    /// Interpolator::interpolate) lack proptest coverage. PREREQ-A established
+    /// cross-crate validator-parity proptest precedent. PREREQ-C scope.
+    ///
     /// - Array input: batches of up to `batch_size` elements each.
     /// - Scalar input: single batch containing that one value.
     /// - Empty array: zero batches.
@@ -469,6 +493,10 @@ impl PipelineExecutor {
             }
             scalar => {
                 // Non-array: single batch of one item.
+                // TD-S-PLUGIN-PREREQ-B-009 P3: this scalar arm is unreachable from
+                // production callers (find_fan_out_array filters on .is_array()). Either
+                // delete with unreachable!() or add regression test documenting the
+                // external-caller contract. Per F-LP5-OBS-001.
                 vec![vec![scalar.clone()]]
             }
         }
@@ -532,7 +560,29 @@ async fn issue_request_with_retry(
         );
 
         // AC-5: refresh token and retry ONCE.
-        let fresh_token = auth_provider.acquire_token(spec, client_id).await?;
+        let fresh_token = match auth_provider.acquire_token(spec, client_id).await {
+            Ok(tok) => {
+                tracing::info!(
+                    event_type = "auth_refresh_succeeded",
+                    sensor_id = %spec.sensor_id,
+                    client_id = %client_id,
+                    step_name = %step.name,
+                    "auth refresh acquired fresh token",
+                );
+                tok
+            }
+            Err(e) => {
+                tracing::error!(
+                    event_type = "auth_refresh_failed",
+                    sensor_id = %spec.sensor_id,
+                    client_id = %client_id,
+                    step_name = %step.name,
+                    detail = %e,
+                    "auth refresh acquire_token failed",
+                );
+                return Err(e);
+            }
+        };
 
         let retry_response = build_request(http_client, step, url, &fresh_token, step_vars)
             .map_err(|e| SpecEngineError::HttpRequestFailed {
@@ -554,6 +604,13 @@ async fn issue_request_with_retry(
         let retry_status = retry_response.status();
         if retry_status == reqwest::StatusCode::UNAUTHORIZED {
             // AC-5 abort condition: double-401.
+            tracing::error!(
+                event_type = "auth_refresh_double_401",
+                sensor_id = %spec.sensor_id,
+                client_id = %client_id,
+                step_name = %step.name,
+                "auth refresh resulted in second 401 — aborting pipeline",
+            );
             return Err(SpecEngineError::AuthRefreshFailed {
                 sensor_id: spec.sensor_id.clone(),
                 client_id: client_id.to_string(),
@@ -636,6 +693,10 @@ fn build_request(
 
     // F-LP1-CRIT-001: Add request body for POST/PUT/PATCH.
     // Interpolate body_template against step_vars and derive Content-Type from shape.
+    //
+    // TD-S-PLUGIN-PREREQ-B-008 P3: Interpolator grammar has no escape mechanism for
+    // literal ${...}. Spec authors cannot send documentation strings containing template
+    // syntax. PREREQ-C scope: add $${...} or \${...} escape convention. Per F-LP5-LOW-005.
     if let Some(ref body_tpl) = step.body_template {
         let interpolated_body =
             Interpolator::interpolate(body_tpl, &InterpolationContext::JsonBody, step_vars)
@@ -710,6 +771,13 @@ fn extract_at_path(body: &serde_json::Value, path: &str) -> Result<serde_json::V
     let stripped = path
         .strip_prefix("$.")
         .ok_or_else(|| format!("path must start with '$.' : {path}"))?;
+    // F-LP5-LOW-001: reject "$." with no key segment — this is a malformed path
+    // that would produce an empty JSON Pointer "/" matching the root, not a key.
+    if stripped.is_empty() {
+        return Err(format!(
+            "response_path '{path}' must contain at least one key segment after '$.'",
+        ));
+    }
     // Each dot-separated segment is a JSON key; escape ~ and / per RFC 6901
     // before joining with '/' as the JSON Pointer segment separator.
     let segments: Vec<String> = stripped

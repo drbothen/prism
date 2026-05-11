@@ -239,6 +239,31 @@ pub fn validate_sensor_spec(spec: &SensorSpec) -> ValidatorOutput {
             }
 
             // -------------------------------------------------------------------------
+            // Category 3a: response_path syntax (F-LP5-LOW-001 defense layer 2)
+            // -------------------------------------------------------------------------
+            // Reject "$." (empty key segment after prefix) and any path that does
+            // not start with "$.". extract_at_path also rejects these at runtime,
+            // but validator-time rejection prevents reaching the executor at all.
+            if step.response_path == "$."
+                || !step.response_path.starts_with("$.")
+                || step
+                    .response_path
+                    .strip_prefix("$.")
+                    .is_some_and(|s| s.is_empty())
+            {
+                errors.push(ValidationError {
+                    code: SpecErrorCode::ESpec001,
+                    message: format!(
+                        "step '{}': response_path '{}' must be a non-empty JSONPath starting with '$.<key>'",
+                        step.name, step.response_path
+                    ),
+                    toml_path: Some(format!("{step_path}.response_path")),
+                    file_path: None,
+                    line_number: None,
+                });
+            }
+
+            // -------------------------------------------------------------------------
             // Category 3b: Fan-Out Batch Size (F-LP4-HIGH-001 DoS guard)
             // -------------------------------------------------------------------------
             // fan_out_batch_size = 0 would cause slice::chunks(0) to panic.

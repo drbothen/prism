@@ -562,3 +562,50 @@ fn test_BC_2_16_002_validation_accepts_fan_out_batch_size_none() {
         result.err()
     );
 }
+
+// ---------------------------------------------------------------------------
+// F-LP5-LOW-001 regression: response_path "$." rejected at validator layer
+// ---------------------------------------------------------------------------
+
+/// BC-2.16.009 / F-LP5-LOW-001: `validate_sensor_spec` must reject a step whose
+/// `response_path` is `"$."` — the path contains no key segment after the prefix,
+/// which would cause `extract_at_path` to silently produce an empty pointer.
+///
+/// This is defense layer 2: the validator catches malformed paths before the
+/// pipeline executor is ever invoked.
+#[test]
+fn test_BC_2_16_002_validation_rejects_malformed_dollar_dot_response_path() {
+    let mut spec = minimal_valid_spec();
+    // Inject "$." as response_path on the single step.
+    spec.tables[0].steps[0].response_path = "$.".to_string();
+
+    let result = validate_sensor_spec(&spec);
+    assert!(
+        result.is_err(),
+        "F-LP5-LOW-001: response_path='$.' must produce a validation error; got Ok"
+    );
+
+    let errors = result.unwrap_err();
+    assert!(
+        errors.iter().any(|e| e.message.contains("response_path")
+            || e.message.contains("$.")
+            || e.message.contains("non-empty JSONPath")),
+        "F-LP5-LOW-001: error must mention response_path malformation; got errors: {:?}",
+        errors
+    );
+}
+
+/// BC-2.16.009 / F-LP5-LOW-001: `validate_sensor_spec` must accept a valid
+/// response_path such as `"$.items"` — regression guard for the new validator rule.
+#[test]
+fn test_BC_2_16_002_validation_accepts_valid_dollar_dot_response_path() {
+    let mut spec = minimal_valid_spec();
+    spec.tables[0].steps[0].response_path = "$.items".to_string();
+
+    let result = validate_sensor_spec(&spec);
+    assert!(
+        result.is_ok(),
+        "F-LP5-LOW-001 guard: valid response_path '$.items' must pass validation; got: {:?}",
+        result.err()
+    );
+}
