@@ -40,6 +40,9 @@ proptest = "1"
 tokio = { version = "1", features = ["rt-multi-thread", "macros", "time"] }
 wat = "1"
 tempfile = "3"
+# S-PLUGIN-PREREQ-B: wiremock for VP-PLUGIN-002 and VP-PLUGIN-005 integration tests.
+# Version pinned to match prism-sensors usage (R-PB-006 known gap, now resolved).
+wiremock = "0.6"
 
 [features]
 default = []
@@ -64,3 +67,13 @@ path = "tests/infusion_tests.rs"
 [[test]]
 name = "hot_reload_tests"
 path = "tests/hot_reload_tests.rs"
+
+# S-PLUGIN-PREREQ-B: VP-PLUGIN-002 wiremock integration tests
+[[test]]
+name = "pipeline_http_integration"
+path = "tests/pipeline_http_integration.rs"
+
+# S-PLUGIN-PREREQ-B: VP-PLUGIN-005 401-retry integration tests
+[[test]]
+name = "pipeline_oauth_retry"
+path = "tests/pipeline_oauth_retry.rs"

@@ -17,6 +17,9 @@ use prism_core::{ColumnType, OrgSlug};
 use prism_spec_engine::interpolation::{InterpolationContext, InterpolationError, Interpolator};
 use prism_spec_engine::pipeline::{FetchContext, PipelineExecutor};
 use prism_spec_engine::spec_parser::{AuthType, ColumnSpec, FetchStep, SensorSpec, TableSpec};
+use prism_spec_engine::NullAuthProvider;
+// reqwest is a production dep of prism-spec-engine — accessible in integration tests.
+use reqwest::Client as ReqwestClient;
 
 use std::collections::HashMap;
 
@@ -238,7 +241,13 @@ async fn test_BC_2_16_002_two_step_pipeline_step2_uses_step1_token() {
         query_filters: HashMap::new(),
     };
 
-    let result = PipelineExecutor::execute(&spec, &table, &context).await;
+    // S-PLUGIN-PREREQ-B: updated to new signature (http_client + auth_provider).
+    // Body is todo!() — this test panics in Red Gate state and passes when implemented.
+    // TODO(S-PLUGIN-PREREQ-B): replace NullAuthProvider with wiremock-backed variant
+    // once the HTTP executor is implemented (see pipeline_http_integration.rs for full test).
+    let http_client = ReqwestClient::new();
+    let auth_provider = NullAuthProvider;
+    let result = PipelineExecutor::execute(&spec, &table, &context, &http_client, &auth_provider).await;
 
     // When implemented: result.is_ok() and records from step 2 use the token from step 1.
     drop(result);

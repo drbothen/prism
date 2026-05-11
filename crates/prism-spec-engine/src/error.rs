@@ -64,4 +64,62 @@ pub enum SpecEngineError {
     /// API MUST NOT panic — it returns this error instead.
     #[error("E-SPEC-ORG-003: OrgRegistry not initialized; call is too early in startup sequence")]
     RegistryNotInitialized,
+
+    // -------------------------------------------------------------------------
+    // S-PLUGIN-PREREQ-B — PipelineExecutor auth errors (BC-2.16.002, BC-2.01.013)
+    // -------------------------------------------------------------------------
+
+    /// E-AUTH-001: Auth token acquisition failed for the given sensor / client.
+    ///
+    /// Returned by `AuthProvider::acquire_token` implementations when credentials
+    /// cannot be resolved (bad config, network failure, invalid auth_type).
+    #[error("E-AUTH-001: auth token acquisition failed for sensor '{sensor_id}', client '{client_id}': {detail}")]
+    AuthAcquisitionFailed {
+        sensor_id: String,
+        client_id: String,
+        detail: String,
+    },
+
+    /// E-AUTH-002: Auth refresh failed — double-401 after token re-acquisition.
+    ///
+    /// Returned by `PipelineExecutor::execute` when a step returns HTTP 401,
+    /// `acquire_token` is called to get a fresh token, and the retry ALSO
+    /// returns HTTP 401. Pipeline aborts; no further retries (AC-5 abort condition).
+    #[error(
+        "E-AUTH-002: auth refresh failed for sensor '{sensor_id}', client '{client_id}': \
+         HTTP 401 persisted after token re-acquisition on step '{step_name}'"
+    )]
+    AuthRefreshFailed {
+        sensor_id: String,
+        client_id: String,
+        step_name: String,
+    },
+
+    /// E-HTTP-001: HTTP request failed (non-401 error, e.g., 500, network error).
+    ///
+    /// Returned by `PipelineExecutor` when a step receives a non-retryable HTTP
+    /// error. Pipeline aborts (EC-007).
+    #[error(
+        "E-HTTP-001: HTTP {status_code} from sensor '{sensor_id}' step '{step_name}': {detail}"
+    )]
+    HttpRequestFailed {
+        sensor_id: String,
+        step_name: String,
+        status_code: u16,
+        detail: String,
+    },
+
+    /// E-JSONPATH-001: JSONPath extraction failed — `response_path` did not match
+    /// the response structure (E-SPEC-010).
+    ///
+    /// Step name and path are included for diagnostics (BC-2.16.002 error table).
+    #[error(
+        "E-JSONPATH-001 (E-SPEC-010): response_path '{path}' did not match response \
+         from sensor '{sensor_id}' step '{step_name}'"
+    )]
+    JsonPathExtractionFailed {
+        sensor_id: String,
+        step_name: String,
+        path: String,
+    },
 }

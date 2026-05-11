@@ -35,6 +35,9 @@ pub mod spec_parser;
 pub mod validation;
 pub mod write_endpoint;
 
+// S-PLUGIN-PREREQ-B — spec-driven auth interface (BC-2.01.013 / ADR-023 §C2)
+pub mod auth_provider;
+
 pub(crate) mod proofs;
 
 // S-1.12 modules — hot reload and runtime management (BC-2.16.005..010 / AD-018)
@@ -81,6 +84,9 @@ pub use write_endpoint::{
 // S-1.12 hot-reload re-exports
 pub use config_manager::ConfigManager;
 pub use error::SpecEngineError;
+
+// S-PLUGIN-PREREQ-B — auth interface re-exports (BC-2.01.013 / ADR-023 §C2)
+pub use auth_provider::{AuthProvider, AuthToken, MockAuthProvider, NullAuthProvider};
 
 // S-3.1.05 re-exports
 pub use org_scoped_store::OrgScopedSpecStore;
