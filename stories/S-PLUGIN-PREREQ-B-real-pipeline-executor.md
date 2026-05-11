@@ -31,10 +31,10 @@ target_module: prism-spec-engine
 #   and the new auth interface is consumed at query time through the same dispatch path that
 #   SS-01 currently owns.
 subsystems: [SS-16, SS-01]
-version: "1.4"
+version: "1.5"
 level: "L4"
 producer: story-writer
-timestamp: "2026-05-11T22:30:00Z"
+timestamp: "2026-05-11T23:45:00Z"
 input-hash: "6954524"
 traces_to: []
 cycle: "v1.0.0-greenfield"
@@ -48,7 +48,7 @@ anchor_subsystem: [SS-16, SS-01]
 assumption_validations: []
 risk_mitigations: []
 acceptance_criteria_count: 9
-red_gate_tests: 37
+red_gate_tests: 39
 inputs:
   - ".factory/specs/architecture/decisions/ADR-023-plugin-only-sensor-architecture.md"
   - ".factory/specs/behavioral-contracts/BC-2.16.002-multi-step-fetch-pipeline.md"
@@ -560,6 +560,7 @@ This story is shipped when ALL of the following are true:
 
 | Version | Burst | Date | Author | Changes |
 |---------|-------|------|--------|---------|
+| 1.5 | prereq-b-fix-burst-5 | 2026-05-11 | state-manager | LOCAL fix-burst-5 CLOSED F-LP5-LOW-003 (D-408). red_gate_tests 37→39 (2 new: test_BC_2_16_002_execute_acquires_token_eagerly_before_first_request + test_BC_2_16_002_no_auth_refresh_triggered_on_legitimate_execution). Eager-token implementation: pipeline.rs acquires token at pipeline start — unconditional for all AuthType variants (no Null variant exists). 2 existing tests adjusted for acquire_token call-count semantics (1→2 for refresh scenarios). BC-2.16.002 v1.4→v1.5 amendment: precondition lifecycle lazy→eager; request_count counts HTTP requests only (excludes acquire_token transport); auth_initial_acquired/auth_initial_failed audit family added; auth_refresh_* family fully enumerated. TD-S-PLUGIN-PREREQ-B-010 CLOSED. 273/273 tests pass. Worktree HEAD 2fe7068c. Factory commit 82fd868c. |
 | 1.4 | prereq-b-fix-burst-4 | 2026-05-11 | state-manager | LOCAL pass-5 fix-burst-4 CLOSED 3 actionable findings (D-407). red_gate_tests 33→37 (4 new: MED-001 gzip-decode wiremock+flate2; MED-002(c) pipeline_truncated tracing-subscriber; LOW-001 extract_at_path dollar-dot negative + validator). F-LP5-MED-001 reqwest features=[gzip,deflate,brotli] added to Cargo.toml. F-LP5-MED-002 audit-log symmetry: auth_refresh_succeeded/failed on acquire_token Ok/Err; auth_refresh_double_401 before abort; pipeline_truncated before 10K break. F-LP5-LOW-001 dollar-dot double defense: runtime guard + validator rejection. 4 TDs filed: TD-S-PLUGIN-PREREQ-B-006 P2 (proptest); -007 P3 (status_code overload); -008 P3 (template escape); -009 P3 (dead scalar arm). F-LP5-LOW-003 lazy-token SURFACED as TD-010 P2 — ORCHESTRATOR-DECISION-PENDING. 2 OBS acknowledged. 271/271 tests pass. Worktree HEAD e19372f4. |
 | 1.3 | prereq-b-fix-burst-3 | 2026-05-11 | state-manager | LOCAL pass-4 fix-burst-3 CLOSED (D-405). 7 actionable findings closed (1 HIGH + 2 MED + 4 LOW). red_gate_tests 29→33 (4 new: F-LP4-HIGH-001 paper-fix-proof rejection test + accept-1 + accept-None; F-LP4-MED-002 MAX_PAGES_PER_STEP regression). F-LP4-HIGH-001 double defense: validation.rs:247 validator reject + pipeline.rs:451 `.max(1)` runtime clamp. F-LP4-MED-001 reqwest timeout: 18 test fixture sites updated to builder pattern; TD-S-PLUGIN-PREREQ-B-005 P2 filed for PREREQ-D production wiring. F-LP4-MED-002 MAX_PAGES_PER_STEP regression test at pipeline_http_integration.rs:1538. 4 LOW: execute_step docstring rewritten; PipelineResult/FetchContext `#[non_exhaustive]` + FetchContext::new() constructor; Duration `.min(3600.0)` clamp; AuthToken private field + as_str(). 267/267 tests pass. Worktree HEAD d5a12e4a. 1 TD filed: TD-S-PLUGIN-PREREQ-B-005 P2 (production reqwest::Client.timeout; PREREQ-D scope). |
 | 1.2 | prereq-b-fix-burst-2 | 2026-05-11 | state-manager | LOCAL pass-2 fix-burst-2 CLOSED (D-402). 8 actionable findings closed (2 HIGH + 3 MED + 3 LOW). red_gate_tests corrected 16→29 (F-LP2-MED-001; canonical-name grep + 1 error.rs unit = 30 total). 5 new Red Gate tests added (paper-fix-proof fan-out + cursor abort + array CT + numeric cursor + variant construction). 2 OBS acknowledged (OBS-LP2-001 partial-cover via MAX_PAGES guard + TD-S-PLUGIN-PREREQ-B-004; OBS-LP2-002 links PG-LP7-002). 2 TDs filed: TD-S-PLUGIN-PREREQ-B-003 P3 (JSON Pointer bracket/wildcard PREREQ-C scope), TD-S-PLUGIN-PREREQ-B-004 P3 (MAX_REQUESTS_PER_PIPELINE full bound; PREREQ-D scope). Worktree HEAD a6895d7a. |

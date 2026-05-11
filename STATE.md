@@ -1,7 +1,7 @@
 ---
 document_type: pipeline-state
 level: ops
-version: "7.141"
+version: "7.142"
 producer: state-manager
 timestamp: 2026-05-11T21:00:00Z
 inputs: []
@@ -22,7 +22,7 @@ repos:
   - axiathon
   - ocsf-proto-gen
   - mcp-claroty-xdome
-current_step: "D-407. S-PLUGIN-PREREQ-B LOCAL fix-burst-4 CLOSED 3 actionable findings at worktree e19372f4. F-LP5-MED-001 reqwest gzip features added. F-LP5-MED-002 audit-log symmetry (3 sites). F-LP5-LOW-001 extract_at_path dollar-dot double defense. 4 TDs filed (006-009). F-LP5-LOW-003 SURFACED to orchestrator as TD-010 — human decision pending. 37 Red Gate. 271/271 tests. Streak 0/3. Pass-6 HELD pending F-LP5-LOW-003 decision. STATE+HANDOFF v7.140→v7.141."
+current_step: "D-408. S-PLUGIN-PREREQ-B LOCAL fix-burst-5 CLOSED F-LP5-LOW-003 (lazy-token design) via dual commit: worktree 2fe7068c (eager-token implementation + 2 new Red Gate tests + 2 existing tests adjusted) + factory-artifacts 82fd868c (BC-2.16.002 v1.4→v1.5 amendment). TD-010 CLOSED. 273/273 tests, 39 Red Gate, workspace clean. Story v1.4→v1.5. Streak stays 0/3. Pass-6 now dispatchable. STATE+HANDOFF v7.141→v7.142."
 wave_3_carry_forward_debt: "ALL_REMEDIATE — W4-FIX-PERF-001/002, W4-FIX-CODE-001, W4-FIX-SEC-001 through W4-FIX-SEC-004 planned per D-203"
 wave_4_status: "PHASE_4_A_CONVERGED + R9_APPROVED but PHASE_4_B SUSPENDED — pre-implementation dep check (2026-05-04) found S-4.01 → S-3.02 (status=draft); pivoting to full Wave 3 implementation per user directive D-223"
 wave_4_phase_4_a_preflight:
@@ -126,9 +126,9 @@ subsystem_count: 20
 story_count: 113
 bc_count_corrected: 235
 cap_count: 40  # active; highest_cap_id: CAP-040 (CAP-038 Multi-Tenant Identity, CAP-039 Multi-Tenant Fixture Gen, CAP-040 Multi-Tenant Adapter Dispatch — Wave 3 Phase 3.A Step 2)
-bc_index_version: "4.55"
+bc_index_version: "4.56"
 vp_index_version: "1.30"
-story_index_version: "v2.42"
+story_index_version: "v2.43"
 total_stories: 150
 red_gate_wave_0a_complete: 2026-04-21
 test_vectors_version: "2.7"
@@ -176,9 +176,9 @@ workspace_test_count: 3489  # 891 prism-query + workspace total (per implementer
 | **Language** | Rust |
 | **Target Workspace** | per-analyst stdio (MCP server) |
 | **Started** | 2026-04-13 |
-| **Last Updated** | 2026-05-11 (D-407 — S-PLUGIN-PREREQ-B LOCAL fix-burst-4 CLOSED 3 findings at e19372f4; Red Gate 33→37; 5 TDs filed 006-010; F-LP5-LOW-003 ORCHESTRATOR-DECISION-PENDING; STATE+HANDOFF v7.140→v7.141) |
+| **Last Updated** | 2026-05-11 (D-408 — S-PLUGIN-PREREQ-B LOCAL fix-burst-5 CLOSED F-LP5-LOW-003; eager-token 2fe7068c + BC v1.5 82fd868c; TD-010 CLOSED; Red Gate 37→39; 273/273 tests; STATE+HANDOFF v7.141→v7.142) |
 | **Current Phase** | Wave 3 Tier-3 COMPLETE — **Wave 3-A 4 of 4 SHIPPED**: S-3.05 (#132 c867c344), S-3.04 (#133 57745ce8), S-3.03 (#134 7c413692), **S-3.07 (#135 2ae7185b MERGED 2026-05-08T04:23:03Z)**; post-merge cleanup confirmed; plugin migration: PREREQ-F SHIPPED; PREREQ-A/B/C/D/E pending |
-| **Current Step** | D-407 — S-PLUGIN-PREREQ-B LOCAL fix-burst-4 CLOSED 3 actionable findings at e19372f4. F-LP5-MED-001 reqwest gzip. F-LP5-MED-002 audit-log symmetry (3 sites). F-LP5-LOW-001 dollar-dot double defense. 5 TDs filed (006-010). F-LP5-LOW-003 ORCHESTRATOR-DECISION-PENDING (eager vs lazy token). Pass-6 HELD. |
+| **Current Step** | D-408 — S-PLUGIN-PREREQ-B LOCAL fix-burst-5 CLOSED F-LP5-LOW-003. Eager-token (2fe7068c) + BC-2.16.002 v1.5 (82fd868c). TD-010 CLOSED. 273/273 tests, 39 Red Gate. Streak 0/3. Pass-6 dispatchable at HEAD 2fe7068c. |
 
 ## Phase Progress
 
@@ -214,7 +214,8 @@ workspace_test_count: 3489  # 891 prism-query + workspace total (per implementer
 | S-PLUGIN-PREREQ-B LOCAL pass-4 (D-404) | adversary + state-manager | **BLOCKED-hard — streak RESET 0/3** | 7 findings (0C+1H+2M+4L) at HEAD a6895d7a (UNCHANGED); PASS-3 FALSE-CLEAN CAUGHT; trajectory 20→10→4→7; F-LP4-HIGH-001 fan_out_batch_size=0 chunks(0) panic DoS; F-LP4-MED-001 no reqwest timeout; F-LP4-MED-002 MAX_PAGES_PER_STEP cap untested; 4 LOW: doc drift, missing #[non_exhaustive], Duration panic, AuthToken pub field; fix-burst-3 dispatches; STATE+HANDOFF v7.137→v7.138 |
 | S-PLUGIN-PREREQ-B LOCAL fix-burst-3 (D-405) | implementer + state-manager | **CLOSED** | 7 findings closed (1H+2M+4L) at worktree d5a12e4a (pushed origin). F-LP4-HIGH-001 double defense: validator reject at validation.rs:247 + runtime clamp at pipeline.rs:451. F-LP4-MED-001 reqwest timeout: 18 fixture sites + TD-005 P2. F-LP4-MED-002 MAX_PAGES_PER_STEP regression test added. 4 LOW all closed. 4 new Red Gate tests (29→33). 267/267 pass. 1 TD filed. Streak 0/3. Pass-5 next. STATE+HANDOFF v7.138→v7.139 |
 | S-PLUGIN-PREREQ-B LOCAL pass-5 (D-406) | adversary + state-manager | **BLOCKED-soft — streak 0/3** | 10 findings (0C+0H+2M+5L+3O) at HEAD d5a12e4a. Trajectory 20→10→4→7→10 (non-monotonic; fresh dimensions). All 7 fix-burst-3 closures verified clean (Part A no paper-fix). F-LP5-MED-001 reqwest gzip feature gap; F-LP5-MED-002 audit-log asymmetry (3 missing tracing events). F-LP5-LOW-003 lazy-token design SURFACED TO ORCHESTRATOR. 3 PGs codified. 3 OBS acknowledged/deferred. fix-burst-4 dispatching. STATE+HANDOFF v7.139→v7.140 |
-| S-PLUGIN-PREREQ-B LOCAL fix-burst-4 (D-407) | implementer + state-manager | **PARTIALLY_CLOSED — streak 0/3** | 3 findings closed (2M+1L) at worktree e19372f4 (pushed origin). F-LP5-MED-001 reqwest gzip features=[gzip,deflate,brotli] + wiremock gzip test. F-LP5-MED-002 audit-log symmetry at 3 sites. F-LP5-LOW-001 dollar-dot double defense. 4 TDs filed (006-009). F-LP5-LOW-003 SURFACED as TD-010 ORCHESTRATOR-DECISION-PENDING. 4 new Red Gate (33→37). 271/271 pass. Story v1.3→v1.4. STATE+HANDOFF v7.140→v7.141 |
+| S-PLUGIN-PREREQ-B LOCAL fix-burst-4 (D-407) | implementer + state-manager | **CLOSED** | 3 findings closed (2M+1L) at worktree e19372f4. F-LP5-MED-001 gzip. F-LP5-MED-002 audit-log symmetry. F-LP5-LOW-001 dollar-dot defense. 4 TDs filed (006-009). F-LP5-LOW-003 SURFACED as TD-010. 4 new Red Gate (33→37). 271/271 pass. Story v1.3→v1.4. STATE+HANDOFF v7.140→v7.141 |
+| S-PLUGIN-PREREQ-B LOCAL fix-burst-5 (D-408) | implementer + state-manager | **CLOSED — streak 0/3** | F-LP5-LOW-003 CLOSED via dual commit: worktree 2fe7068c (eager-token at pipeline start; auth_initial_acquired/auth_initial_failed events; 2 new Red Gate + 2 adjusted) + factory 82fd868c (BC-2.16.002 v1.4→v1.5 amendment: lazy→eager; request_count HTTP-only; audit family complete). TD-010 CLOSED. 273/273 pass. 39 Red Gate. Story v1.4→v1.5. STATE+HANDOFF v7.141→v7.142 |
 
 ## Decisions Log
 
@@ -222,6 +223,7 @@ _D-001..D-046 archived: [cycles/phase-3-dtu-wave-2/decisions-archive-d001-d032.m
 
 | ID | Decision | Rationale | Phase | Date |
 |----|----------|-----------|-------|------|
+| D-408 | 2026-05-11 | S-PLUGIN-PREREQ-B LOCAL fix-burst-5 CLOSED F-LP5-LOW-003 (lazy-token design) via dual commit: worktree 2fe7068c (eager-token implementation + 2 new Red Gate tests + 2 existing tests adjusted; pipeline.rs:138 now acquires token eagerly at pipeline start since AuthType has no Null variant; new auth_initial_acquired/auth_initial_failed audit events augment existing auth_refresh_* family) + factory-artifacts 82fd868c (BC-2.16.002 v1.4→v1.5 amendment: precondition lifecycle lazy→eager; 3 new/amended postconditions for request_count semantics, initial-acquire audit, refresh audit family completeness). TD-S-PLUGIN-PREREQ-B-010 marked CLOSED in tech-debt-register (was P2 ORCHESTRATOR-DECISION-PENDING, now resolved). 273/273 tests, 39 Red Gate, workspace clean. Story v1.4→v1.5 (red_gate_tests 37→39). Streak stays 0/3 (fix-bursts don't advance). Pass-6 now dispatchable to verify eager-token closure + new audit-log family + look for novel defects from yet-different angles. STATE+HANDOFF v7.141→v7.142. | plugin-migration | 2026-05-11 |
 | D-407 | 2026-05-11 | S-PLUGIN-PREREQ-B LOCAL fix-burst-4 CLOSED 3 actionable findings at worktree e19372f4. F-LP5-MED-001 reqwest features=[gzip,deflate,brotli] added with wiremock+flate2 gzip-decode regression test. F-LP5-MED-002 audit-log symmetry achieved at 3 sites: auth_refresh_succeeded/auth_refresh_failed on acquire_token Ok/Err; auth_refresh_double_401 emit before abort; pipeline_truncated emit before 10K break. F-LP5-LOW-001 extract_at_path "$." double defense: runtime guard at extract_at_path + validator-layer rejection at validation.rs. 4 TDs filed (TD-S-PLUGIN-PREREQ-B-006 P2 proptest; -007 P3 status_code overload; -008 P3 template escape; -009 P3 dead scalar arm). F-LP5-LOW-003 lazy-token-on-401 design SURFACED to orchestrator as TD-010 P2 inline comment — pending human decision: eager-token (recommended; cleaner audit, accurate request_count, halved API quota) requires BC-2.16.002 v1.4→v1.5 amendment + story v1.4→v1.5 vs keep-lazy (audit signal pollution + 401 round-trip per execution accepted). 2 OBS acknowledged (find_fan_out_array first-only PREREQ-C; hot-reload race PREREQ-D). 4 new Red Gate tests (33→37). 271/271 tests pass + workspace builds clean. Streak stays 0/3. Story v1.3→v1.4 (red_gate_tests 33→37). Pass-6 next AFTER human design decision on F-LP5-LOW-003. STATE+HANDOFF v7.140→v7.141. | plugin-migration | 2026-05-11 |
 | D-406 | 2026-05-11 | S-PLUGIN-PREREQ-B LOCAL pass-5 BLOCKED-soft at HEAD d5a12e4a. 10 findings: 0C+0H+2M+5L+3O. Trajectory 20→10→4→7→10 (non-monotonic; fresh-context value compounds — each pass surfaces NEW dimensions). All 7 fix-burst-3 closures verified clean (Part A no paper-fix). F-LP5-MED-001 reqwest gzip feature gap (CrowdStrike/Cyberint gzipped responses fail opaquely); F-LP5-MED-002 audit-log asymmetry (auth_refresh_triggered/double-401-abort/truncation events missing closure). 5 LOW: $. malformed path; zero proptest; lazy-token design (DESIGN-LEVEL — needs human decision); status_code:0 overload; no template escape. 3 OBS: scalar arm dead code; first-array-only fan-out; hot-reload race. 3 process-gaps codified (PG-LP5-001 feature-flag review; PG-LP5-002 audit-log symmetry; PG-LP5-003 proptest coverage parity). Streak stays 0/3 (2 MED block). fix-burst-4 dispatching to close 2 MED + F-LP5-LOW-001 + file 4 TDs for deferrals. F-LP5-LOW-003 SURFACED TO ORCHESTRATOR for human design decision. STATE+HANDOFF v7.139→v7.140. | plugin-migration | 2026-05-11 |
 | D-405 | 2026-05-11 | S-PLUGIN-PREREQ-B LOCAL fix-burst-3 CLOSED 7 actionable pass-4 findings at worktree d5a12e4a (pushed origin). F-LP4-HIGH-001 double defense (validator reject at validation.rs:247 + runtime clamp at pipeline.rs:451) — paper-fix-proof test verifies validation path. F-LP4-MED-001 reqwest timeout: 18 test fixture sites updated to builder pattern; TD-S-PLUGIN-PREREQ-B-005 P2 filed for production wiring (PREREQ-D scope). F-LP4-MED-002 MAX_PAGES_PER_STEP regression test added at pipeline_http_integration.rs:1538. 4 LOW closed: execute_step docstring rewritten; PipelineResult/FetchContext `#[non_exhaustive]` + FetchContext::new() constructor; Duration::from_secs_f64 clamp at 3600s; AuthToken private field + as_str() accessor. 4 new Red Gate tests (count 29→33). 267/267 prism-spec-engine tests pass. Workspace builds clean. Streak stays 0/3 (fix-bursts don't advance). Pass-5 next (target streak 1/3 anew). 1 new TD filed: TD-S-PLUGIN-PREREQ-B-005 P2 (production reqwest::Client.timeout requirement). Story v1.2→v1.3 (red_gate_tests 29→33). STATE+HANDOFF v7.138→v7.139. | plugin-migration | 2026-05-11 |
@@ -350,21 +352,21 @@ Cycle files: [burst-log](cycles/phase-2-patch/burst-log.md) | [convergence-traje
 
 ---
 
-## Session Resume Checkpoint (2026-05-11-v7.141-d407-prereq-b-fix-burst-4-partially-closed)
+## Session Resume Checkpoint (2026-05-11-v7.142-d408-prereq-b-fix-burst-5-closed)
 
-_Previous checkpoint (v7.140/D-406 pass-5 BLOCKED-soft at d5a12e4a) archived: [cycles/wave-4-operations/session-checkpoints.md](cycles/wave-4-operations/session-checkpoints.md)_
+_Previous checkpoint (v7.141/D-407 fix-burst-4 PARTIALLY_CLOSED at e19372f4) archived: [cycles/wave-4-operations/session-checkpoints.md](cycles/wave-4-operations/session-checkpoints.md)_
 
-**STATE v7.141. D-407 — S-PLUGIN-PREREQ-B LOCAL fix-burst-4 PARTIALLY_CLOSED at e19372f4. 3 findings closed (2M+1L). F-LP5-LOW-003 ORCHESTRATOR-DECISION-PENDING. Streak 0/3. SESSION-HANDOFF v7.141.** develop@90d7c80f. factory-artifacts HEAD: run `git -C .factory log -1` (per TD-VSDD-053). vsdd-factory rc.16 active. Standing Orchestrator Rules active (Rules 1, 2, 3). Bundle B Exit Mandate active (task #85). Worktrees: main (clean) + .factory + .worktrees/S-PLUGIN-PREREQ-B + .worktrees/S-3.09 (FROZEN per D-298).
+**STATE v7.142. D-408 — S-PLUGIN-PREREQ-B LOCAL fix-burst-5 CLOSED F-LP5-LOW-003. Eager-token 2fe7068c + BC-2.16.002 v1.5 82fd868c. TD-010 CLOSED. 273/273 tests. 39 Red Gate. Streak 0/3. SESSION-HANDOFF v7.142.** develop@90d7c80f. factory-artifacts HEAD: run `git -C .factory log -1` (per TD-VSDD-053). vsdd-factory rc.16 active. Standing Orchestrator Rules active (Rules 1, 2, 3). Bundle B Exit Mandate active (task #85). Worktrees: main (clean) + .factory + .worktrees/S-PLUGIN-PREREQ-B + .worktrees/S-3.09 (FROZEN per D-298).
 
-**S-PLUGIN-PREREQ-B STATUS:** fix-burst-4 PARTIALLY_CLOSED at HEAD e19372f4. 271/271 tests pass. 37 Red Gate. Trajectory 20→10→4→7→10. F-LP5-LOW-003 lazy-token design — HUMAN DECISION REQUIRED before pass-6 dispatch. Option A (eager-token, recommended): requires BC-2.16.002 v1.4→v1.5 + story v1.4→v1.5. Option B (keep lazy): no spec changes.
+**S-PLUGIN-PREREQ-B STATUS:** fix-burst-5 CLOSED at HEAD 2fe7068c. 273/273 tests pass. 39 Red Gate. Trajectory 20→10→4→7→10 (pass-5 non-monotonic; fix-burst-5 closes F-LP5-LOW-003). Streak 0/3. Pass-6 dispatchable.
 
-**POST-D-407 FIRST ACTION:** Human decision on F-LP5-LOW-003 (eager vs lazy token). Then dispatch LOCAL pass-6 against HEAD e19372f4 (target streak 1/3 anew).
+**POST-D-408 FIRST ACTION:** Dispatch LOCAL pass-6 against HEAD 2fe7068c (target streak 1/3 anew). Adversary scope: verify eager-token closure paper-fix-free + audit-log event family complete + no regression from request_count semantics change + novel defects from yet-different angles.
 
 **S-3.09 FREEZE STATE:** Worktree .worktrees/S-3.09 HEAD 43c41389; BUG-S309-PLUGIN P0 blocks resumption. See D-298/D-299.
 
-**Deferred TDs (carry-forward):** W3-FIX-S307-001/002/003 + TD-S307-002/003/004 + TD-S-PLUGIN-PREREQ-A-002 P1 + TD-S-PLUGIN-PREREQ-A-003 P1 + TD-S-PLUGIN-PREREQ-A-004 P1 + TD-S-PLUGIN-PREREQ-A-005..010 P3 + TD-S-PLUGIN-PREREQ-B-001 P2 (cursor page_size; PREREQ-C) + TD-S-PLUGIN-PREREQ-B-002 P3 (AuthToken zeroize; PREREQ-D) + TD-S-PLUGIN-PREREQ-B-003 P3 (JSON Pointer bracket/wildcard; PREREQ-C) + TD-S-PLUGIN-PREREQ-B-004 P3 (MAX_REQUESTS_PER_PIPELINE; PREREQ-D) + TD-S-PLUGIN-PREREQ-B-005 P2 (production reqwest::Client.timeout; PREREQ-D) + TD-S-PLUGIN-PREREQ-B-006 P2 (proptest; PREREQ-C) + TD-S-PLUGIN-PREREQ-B-007 P3 (status_code overload) + TD-S-PLUGIN-PREREQ-B-008 P3 (template escape; PREREQ-C) + TD-S-PLUGIN-PREREQ-B-009 P3 (dead scalar arm) + TD-S-PLUGIN-PREREQ-B-010 P2 ORCHESTRATOR-DECISION-PENDING (lazy-token) + TD-VSDD-058/059/060 P0 + TD-FACTORY-HOOK-BYPASS-001 P0 + TD-VSDD-054..063 (all OPEN) + TD-VSDD-082/083/084 + TD-S309-O1/O2/O3/O4
+**Deferred TDs (carry-forward):** W3-FIX-S307-001/002/003 + TD-S307-002/003/004 + TD-S-PLUGIN-PREREQ-A-002 P1 + TD-S-PLUGIN-PREREQ-A-003 P1 + TD-S-PLUGIN-PREREQ-A-004 P1 + TD-S-PLUGIN-PREREQ-A-005..010 P3 + TD-S-PLUGIN-PREREQ-B-001 P2 (cursor page_size; PREREQ-C) + TD-S-PLUGIN-PREREQ-B-002 P3 (AuthToken zeroize; PREREQ-D) + TD-S-PLUGIN-PREREQ-B-003 P3 (JSON Pointer bracket/wildcard; PREREQ-C) + TD-S-PLUGIN-PREREQ-B-004 P3 (MAX_REQUESTS_PER_PIPELINE; PREREQ-D) + TD-S-PLUGIN-PREREQ-B-005 P2 (production reqwest::Client.timeout; PREREQ-D) + TD-S-PLUGIN-PREREQ-B-006 P2 (proptest; PREREQ-C) + TD-S-PLUGIN-PREREQ-B-007 P3 (status_code overload) + TD-S-PLUGIN-PREREQ-B-008 P3 (template escape; PREREQ-C) + TD-S-PLUGIN-PREREQ-B-009 P3 (dead scalar arm) + TD-VSDD-058/059/060 P0 + TD-FACTORY-HOOK-BYPASS-001 P0 + TD-VSDD-054..063 (all OPEN) + TD-VSDD-082/083/084 + TD-S309-O1/O2/O3/O4
 
-**Current spec versions:** BC-INDEX v4.55, STORY-INDEX v2.42 (150 stories), ARCH-INDEX v2.40, ADR-023 v1.18, VP-INDEX v1.30 (152 VPs + VP-PLUGIN-001..007 aliases), BC-2.16.002 v1.4 (amended D-400 c2e7b376), BC-2.01.013 v1.6 (active, merged PR #142), S-PLUGIN-PREREQ-B v1.4 (red_gate_tests 33→37, D-407), prd.md v1.10, error-taxonomy.md v1.18, develop@90d7c80f; STATE v7.141 SESSION-HANDOFF v7.141 (current)
+**Current spec versions:** BC-INDEX v4.56, STORY-INDEX v2.43 (150 stories), ARCH-INDEX v2.40, ADR-023 v1.18, VP-INDEX v1.30 (152 VPs + VP-PLUGIN-001..007 aliases), BC-2.16.002 v1.5 (eager-token amendment D-408 82fd868c), BC-2.01.013 v1.6 (active, merged PR #142), S-PLUGIN-PREREQ-B v1.5 (red_gate_tests 37→39, D-408), prd.md v1.10, error-taxonomy.md v1.18, develop@90d7c80f; STATE v7.142 SESSION-HANDOFF v7.142 (current)
 
 **Key files:** [SESSION-HANDOFF.md](SESSION-HANDOFF.md) | [cycle-manifest.md](cycles/wave-4-operations/cycle-manifest.md) | [HOLDOUT-INDEX.md](holdout-scenarios/HOLDOUT-INDEX.md)
 

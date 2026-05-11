@@ -1,7 +1,7 @@
 ---
 document_type: behavioral-contract-index
 level: L3
-version: "4.55"
+version: "4.56"
 status: draft
 producer: product-owner
 timestamp: 2026-05-11T00:00:00
@@ -359,6 +359,8 @@ Phase 3-patch additions (2026-04-16): 22 new BCs added in Burst 1 to close trace
 - Subsystem 19: Infusion Enrichment Framework (AD-020, CAP-031)
 
 ### Change Log (Adversarial Review Fixes)
+
+**v4.56 (2026-05-11):** D-408 S-PLUGIN-PREREQ-B fix-burst-5 — BC-2.16.002 v1.4→v1.5 amendment. Precondition lifecycle changed lazy→eager: token acquired unconditionally at pipeline start (AuthType has no Null variant). New postconditions: (1) request_count counts HTTP pipeline requests only, excluding acquire_token transport; (2) auth_initial_acquired (info) + auth_initial_failed (error) audit events added; (3) auth_refresh_* family fully enumerated (triggered/succeeded/failed/double_401). Factory commit 82fd868c. total_contracts=235 unchanged; active_contracts=227 unchanged (BC-2.16.002 remains draft).
 
 **v4.55 (2026-05-11):** D-398 post-merge POL-14 promotion — BC-2.01.013 status draft→active (anchor story S-PLUGIN-PREREQ-A merged via PR #142 at develop@90d7c80f, 2026-05-11T16:37:14Z). active_contracts 226→227. total_contracts=235 unchanged.
 
