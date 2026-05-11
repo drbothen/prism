@@ -441,7 +441,34 @@ impl PipelineExecutor {
         http_client: &reqwest::Client,
         auth_provider: &dyn AuthProvider,
     ) -> Result<serde_json::Value, SpecEngineError> {
-        let bearer_token = AuthToken::new(String::new());
+        // Eager token acquisition: symmetric with PipelineExecutor::execute (BC-2.16.002 v1.5).
+        // Ensures consistent audit signal when plugin-runtime calls execute_step directly
+        // (PREREQ-D wiring scope). On acquisition failure the call is aborted immediately,
+        // matching the execute() contract. If the step's HTTP request returns 401, the
+        // issue_request_with_retry helper calls acquire_token again as a refresh.
+        let bearer_token = match auth_provider.acquire_token(spec, &context.client_id).await {
+            Ok(tok) => {
+                tracing::info!(
+                    event_type = "auth_initial_acquired",
+                    sensor_id = %spec.sensor_id,
+                    client_id = %context.client_id,
+                    step_name = %step.name,
+                    "execute_step: auth token acquired (eager)",
+                );
+                tok
+            }
+            Err(e) => {
+                tracing::error!(
+                    event_type = "auth_initial_failed",
+                    sensor_id = %spec.sensor_id,
+                    client_id = %context.client_id,
+                    step_name = %step.name,
+                    detail = %e,
+                    "execute_step: auth token acquisition failed",
+                );
+                return Err(e);
+            }
+        };
         let mut request_count: u32 = 0;
 
         let interpolated_path = Interpolator::interpolate(

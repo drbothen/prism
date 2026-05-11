@@ -36,6 +36,11 @@ bincode = "2"
 anyhow = "1"
 
 [dev-dependencies]
+# Self-referential dep to enable test-helpers feature for integration test binaries.
+# Integration tests (tests/*.rs) link against the library and use NullAuthProvider /
+# MockAuthProvider — they are NOT under cfg(test) in the lib, so the feature must
+# be enabled explicitly. NEVER add test-helpers to [dependencies].
+prism-spec-engine = { path = ".", features = ["test-helpers"] }
 proptest = "1"
 tokio = { version = "1", features = ["rt-multi-thread", "macros", "time"] }
 wat = "1"
@@ -50,6 +55,9 @@ tracing-subscriber = { version = "0.3", features = ["env-filter"] }
 
 [features]
 default = []
+# Exposes NullAuthProvider + MockAuthProvider for downstream test crates.
+# NEVER enable in production deps — these types bypass real auth.
+test-helpers = []
 
 [lints.rust]
 # Allow #[cfg(kani)] without a registered cfg — kani is not a Cargo feature

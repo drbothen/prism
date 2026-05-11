@@ -112,8 +112,14 @@ pub trait AuthProvider: Send + Sync {
 ///
 /// Use in tests that exercise pagination or fan-out logic but do not need
 /// real auth (the mock HTTP server does not validate `Authorization` headers).
+///
+/// **Feature-gated:** only available under `cfg(test)` or the `test-helpers`
+/// Cargo feature. Do NOT enable `test-helpers` in production dependency trees —
+/// these types bypass real credential resolution.
+#[cfg(any(test, feature = "test-helpers"))]
 pub struct NullAuthProvider;
 
+#[cfg(any(test, feature = "test-helpers"))]
 impl AuthProvider for NullAuthProvider {
     fn acquire_token<'a>(
         &'a self,
@@ -132,6 +138,11 @@ impl AuthProvider for NullAuthProvider {
 /// returns a fixed bearer token string.
 ///
 /// Use in tests that exercise 401-retry behavior (AC-5, VP-PLUGIN-005).
+///
+/// **Feature-gated:** only available under `cfg(test)` or the `test-helpers`
+/// Cargo feature. Do NOT enable `test-helpers` in production dependency trees —
+/// these types bypass real credential resolution.
+#[cfg(any(test, feature = "test-helpers"))]
 pub struct MockAuthProvider {
     /// Token returned on every call.
     pub token: String,
@@ -139,6 +150,7 @@ pub struct MockAuthProvider {
     pub call_count: std::sync::atomic::AtomicU32,
 }
 
+#[cfg(any(test, feature = "test-helpers"))]
 impl MockAuthProvider {
     /// Create a new `MockAuthProvider` returning `token` on every call.
     pub fn new(token: impl Into<String>) -> Self {
@@ -154,6 +166,7 @@ impl MockAuthProvider {
     }
 }
 
+#[cfg(any(test, feature = "test-helpers"))]
 impl AuthProvider for MockAuthProvider {
     fn acquire_token<'a>(
         &'a self,

@@ -4848,6 +4848,7 @@ dependencies = [
  "notify",
  "percent-encoding",
  "prism-core",
+ "prism-spec-engine",
  "proptest",
  "regex",
  "reqwest",
