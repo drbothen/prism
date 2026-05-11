@@ -14,8 +14,8 @@ risk: HIGH
 tdd_mode: strict
 crates_touched: [prism-core, prism-sensors, prism-query, prism-spec-engine]
 target_module: prism-core
-subsystems: [SS-01, SS-02, SS-08, SS-16]
-version: "1.4"
+subsystems: [SS-01, SS-11, SS-16, SS-21]
+version: "1.5"
 level: "L4"
 producer: story-writer
 timestamp: "2026-05-11T08:00:00Z"
@@ -32,7 +32,7 @@ verification_properties:
 anchor_bcs: [BC-2.01.013, BC-2.16.004]
 anchor_vps: [VP-PLUGIN-001, VP-PLUGIN-007]
 anchor_capabilities: [CAP-001]
-anchor_subsystem: [SS-01, SS-02, SS-08, SS-16]
+anchor_subsystem: [SS-01, SS-11, SS-16, SS-21]
 assumption_validations: []
 risk_mitigations: []
 inputs:
@@ -190,7 +190,9 @@ declarations at runtime; sensor identity is a string key, not a compile-time enu
 **AC-2:** `pub enum SensorType { CrowdStrike, Cyberint, Claroty, Armis }` is DELETED from
 `prism-core/src/types.rs`. After merge, `grep -rn "SensorType" crates/` returns ZERO matches
 in non-test production code (files under `src/`, not `tests/`). The `Display` impl and serde
-derive block are removed with it.
+derive block are removed with it. Additionally, `grep -rn "pub type SensorId" crates/` returns
+ZERO matches in all production code — no shadow type alias for SensorId exists anywhere in the
+workspace (see AC-12).
 (traces to BC-2.01.013 postcondition — no hand-written adapter code outside prism-sensors is
 required for TOML-expressible sensors; closed enum is the compile-time barrier to this)
 
@@ -287,6 +289,17 @@ retirement. The `CustomAdapterRegistry` in `prism-spec-engine/src/custom_adapter
 as a key, migrate to `SensorId` or `String` in this story's atomic commit.
 (traces to BC-2.16.004 Deprecation Notice — trait retirement effective with PREREQ-F + PREREQ-A
 lands, but the trait body itself is retired by PREREQ-E)
+
+**AC-12 (type-alias inventory):** After merge, `grep -rn "pub type SensorId" crates/` returns
+ZERO matches in production code (`src/` paths). The workspace MUST have exactly ONE `SensorId`
+type definition — the `pub struct SensorId(Arc<str>)` in `prism-core/src/sensor_id.rs`. Any
+shadow type aliases or re-definitions are defects. This AC was added in response to
+F-PR1-MED-002: the shadow alias `pub type SensorId = String;` at
+`crates/prism-query/src/cache_key.rs:37` was missed across all 12 LOCAL adversarial passes
+because `cache_key.rs` was not in the §File Structure Requirements inventory.
+(traces to BC-2.01.013 invariant — each DataSource produces records of a single type; the
+SensorId type definition must be unified workspace-wide to prevent cross-crate type bifurcation
+that would let cache-layer code accept un-validated identifiers.)
 
 ---
 
@@ -441,6 +454,7 @@ standard library traits.
 | `crates/prism-query/src/write_dispatch.rs` | Modify | Dispatch site 5: str → `SensorType` match → `SensorId::from(name)` |
 | `crates/prism-query/src/materialization.rs` | Modify | Dispatch site 6: `Some(SensorType::X)` → `Some(SensorId::from("x"))`; field type change |
 | `crates/prism-query/src/invalidation.rs` | Modify | Dispatch site 7: struct literals `sensor_type: SensorType::X` → `sensor_id: SensorId::from("x")` |
+| `crates/prism-query/src/cache_key.rs` | Modify | MODIFIED: migrate `pub type SensorId = String;` shadow alias to `prism_core::SensorId` newtype re-export; align CacheKey field types with adapter-layer invariant. (Added in v1.5 per F-PR1-MED-002 — this file was missing from the inventory; shadow alias was missed across 12 LOCAL adversarial passes.) |
 | `crates/prism-dtu-crowdstrike/src/generator.rs` | Modify | Struct field `sensor_type: SensorType::CrowdStrike` → `SensorId::from("crowdstrike")` |
 | `crates/prism-dtu-cyberint/src/generator.rs` | Modify | Struct field → `SensorId::from("cyberint")` |
 | `crates/prism-dtu-claroty/src/generator.rs` | Modify | Struct field → `SensorId::from("claroty")` |
@@ -543,10 +557,19 @@ The story is shipped when ALL of the following are true:
 
 ---
 
+## Lessons Codified
+
+| ID | Lesson | Source Finding | Applies To |
+|----|--------|---------------|------------|
+| LP-PR1-001 | §File Structure Requirements MUST be derived from a workspace-wide grep for the target identifier across multiple patterns (`pub type <Name>`, `pub struct <Name>`, `type <Name> =`), not just dispatch-site enumeration. A shadow type alias `pub type SensorId = String;` in `cache_key.rs` was missed across all 12 LOCAL adversarial passes because the file inventory was built from dispatch-site grep (`grep -rn "SensorType::"`) rather than a type-definition grep (`grep -rn "pub type SensorId\|pub struct SensorId\|type SensorId"`). Future identity-newtype migration stories must run both greps and reconcile the union. | F-PR1-MED-002 (PR-LEVEL adversary pass-1) | All identity-newtype migration stories; any story that migrates a type definition across a workspace |
+
+---
+
 ## Changelog
 
 | Version | Burst | Date | Author | Changes |
 |---------|-------|------|--------|---------|
+| 1.5 | PR-LEVEL-fix-burst-1 | 2026-05-11 | story-writer | Closed F-PR1-HIGH-001 (subsystems frontmatter mis-anchor): replaced [SS-01, SS-02, SS-08, SS-16] with correctly anchored set [SS-01, SS-11, SS-16, SS-21] per ARCH-INDEX. Removed SS-02 (prism-ocsf not touched) and SS-08 (prism-mcp not touched). Added SS-21 (prism-core, SensorId newtype home) and SS-11 (prism-query, 7 dispatch sites converted). Verified residual subsystems against PR diff scope. Closed F-PR1-MED-002: added `crates/prism-query/src/cache_key.rs` to §File Structure Requirements; created AC-12 (type-alias inventory) enforcing workspace-wide grep for `pub type SensorId` patterns. Lessons codified as LP-PR1-001 (file-structure derivation must include type-alias grep). These amendments close shadow-alias and subsystem-anchor drift detected in PR-LEVEL adversary pass-1 (was missed across 12 LOCAL passes). |
 | 1.4 | pass-9-state-burst | 2026-05-11 | state-manager | F-LP9-MED-002 closure — OPTION B adopted: §Red Gate Test Set amended with canonical BC-prefixed test names; original design-phase names retained as parentheticals for audit-trail. input-hash unchanged (6954524 — external inputs ADR-023 v1.18 + BC-2.01.013 v1.5 unchanged). |
 | 1.3 | pass-7-state-burst | 2026-05-11 | state-manager | F-LP7-MED-002 closure — OPTION B adopted: `&SensorId` is the canonical API for `get_all_for_sensor`. Task 7 Borrow<str> mandate relaxed with rationale (generic Borrow constraints add cognitive cost; `&SensorId` is more discoverable and forces callers to validate input via `SensorId::try_from_str` before lookup, providing defense-in-depth; `&str` callers construct `SensorId::try_from_str(&s)?` then pass `&sid`). AC-4 updated to reflect canonical `&SensorId` API. |
 | 1.2 | pass-6-closures | 2026-05-11 | state-manager | Input-hash recomputed after ADR-023 v1.18 amendment (D-382 ADR-023 typo fix) + BC-2.01.013 v1.5 amendment (F-LP6-MED-002 Adapter Identity Method postcondition added). New input-hash: 6954524 (was 7d38067). Closes F-LP6-LOW-002. |
