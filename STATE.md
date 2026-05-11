@@ -1,7 +1,7 @@
 ---
 document_type: pipeline-state
 level: ops
-version: "7.123"
+version: "7.124"
 producer: state-manager
 timestamp: 2026-05-11T07:00:00Z
 inputs: []
@@ -22,7 +22,7 @@ repos:
   - axiathon
   - ocsf-proto-gen
   - mcp-claroty-xdome
-current_step: "S-PLUGIN-PREREQ-A LOCAL pass-9 BLOCKED-soft; PASS-8 FALSE-CLEAN detected; streak reset 1/3→0/3; fix-burst-9 in flight"
+current_step: "S-PLUGIN-PREREQ-A LOCAL pass-10 CLEAN streak 1/3; pass-11 in flight"
 wave_3_carry_forward_debt: "ALL_REMEDIATE — W4-FIX-PERF-001/002, W4-FIX-CODE-001, W4-FIX-SEC-001 through W4-FIX-SEC-004 planned per D-203"
 wave_4_status: "PHASE_4_A_CONVERGED + R9_APPROVED but PHASE_4_B SUSPENDED — pre-implementation dep check (2026-05-04) found S-4.01 → S-3.02 (status=draft); pivoting to full Wave 3 implementation per user directive D-223"
 wave_4_phase_4_a_preflight:
@@ -176,9 +176,9 @@ workspace_test_count: 3489  # 891 prism-query + workspace total (per implementer
 | **Language** | Rust |
 | **Target Workspace** | per-analyst stdio (MCP server) |
 | **Started** | 2026-04-13 |
-| **Last Updated** | 2026-05-11 (D-389 — S-PLUGIN-PREREQ-A LOCAL pass-9 BLOCKED-soft — PASS-8 FALSE-CLEAN detected; streak reset 1/3→0/3; trajectory 14→12→6→4→2→6→4→0→4 non-monotonic; fix-burst-9 + story v1.4 in flight; STATE v7.122→v7.123) |
+| **Last Updated** | 2026-05-11 (D-390 — S-PLUGIN-PREREQ-A LOCAL pass-10 CLEAN with evidence-based audit; streak 0/3→1/3; trajectory 14→12→6→4→2→6→4→0→4→0 TRUE CLEAN; STATE v7.123→v7.124) |
 | **Current Phase** | Wave 3 Tier-3 COMPLETE — **Wave 3-A 4 of 4 SHIPPED**: S-3.05 (#132 c867c344), S-3.04 (#133 57745ce8), S-3.03 (#134 7c413692), **S-3.07 (#135 2ae7185b MERGED 2026-05-08T04:23:03Z)**; post-merge cleanup confirmed; plugin migration: PREREQ-F SHIPPED; PREREQ-A/B/C/D/E pending |
-| **Current Step** | D-389 — S-PLUGIN-PREREQ-A LOCAL pass-9 BLOCKED-soft — PASS-8 FALSE-CLEAN detected; streak reset 1/3→0/3; trajectory 14→12→6→4→2→6→4→0→4 non-monotonic (2026-05-11). Fix-burst-9 + story v1.4 in flight. |
+| **Current Step** | D-390 — S-PLUGIN-PREREQ-A LOCAL pass-10 CLEAN with evidence-based audit; streak 0/3→1/3; trajectory 14→12→6→4→2→6→4→0→4→0 TRUE CLEAN (2026-05-11). Pass-11 in flight for streak 2/3. |
 
 ## Phase Progress
 
@@ -210,10 +210,10 @@ workspace_test_count: 3489  # 891 prism-query + workspace total (per implementer
 
 | Step | Agent | Status | Output |
 |------|-------|--------|--------|
-| S-PLUGIN-PREREQ-A LOCAL pass-6 | adversary + state-manager | BLOCKED-soft | 7 findings (0C+1H+4M+2L+7OBS); trajectory NON-MONOTONIC 14→12→6→4→2→6; pass-5 closures 4/4 PERFECT; F-LP6-HIGH-001 latent SensorId::new unvalidated constructor; BC-2.01.013 v1.4→v1.5 + story v1.1→v1.2 resolved in this burst; fix-burst-6 in flight; STATE v7.119→v7.120 (D-386) |
 | S-PLUGIN-PREREQ-A LOCAL pass-7 | adversary + state-manager | BLOCKED-soft | 4 findings (0C+0H+2M+2L+0OBS); trajectory 14→12→6→4→2→6→4; pass-6 closures 7/7 PERFECT (textbook HIGH-001 rename); F-LP7-MED-001 missing Red Gate test (AC-9(b) borrow_str_lookup); F-LP7-MED-002 self-closing (story v1.3 OPTION B applied); F-LP7-LOW-001 scope-out; F-LP7-LOW-002→TD-006 P3; fix-burst-7 in flight (tiny: 1 test add); STATE v7.120→v7.121 (D-387) |
 | S-PLUGIN-PREREQ-A LOCAL pass-8 | adversary + state-manager | CLEAN (FALSE) | 0 findings reported (0C+0H+0M+0L+3OBS); trajectory 14→12→6→4→2→6→4→0; streak 0/3 → 1/3; RETROACTIVELY: FALSE-CLEAN — OBS-LP8-003 claimed "6/6 exact" Red Gate names without grep evidence; actual count 0/6 exact; STATE v7.121→v7.122 (D-388) |
-| S-PLUGIN-PREREQ-A LOCAL pass-9 | adversary + state-manager | BLOCKED-soft | 4 findings (0C+0H+2M+2L+1OBS); trajectory NON-MONOTONIC 14→12→6→4→2→6→4→0→4; PASS-8 FALSE-CLEAN detected; streak reset 1/3→0/3; F-LP9-MED-001 invalidation.rs:125,129 doc-drift; F-LP9-MED-002 story §Red Gate 0/6 exact-name → story v1.4 OPTION B; F-LP9-LOW-001 materialization.rs:775; F-LP9-LOW-002 registry.rs:56 intentional; OBS-LP9-001 PG-LP7-002 bypass; KUDOs 5; fix-burst-9 in flight; STATE v7.122→v7.123 (D-389) |
+| S-PLUGIN-PREREQ-A LOCAL pass-9 | adversary + state-manager | BLOCKED-soft | 4 findings (0C+0H+2M+2L+1OBS); trajectory NON-MONOTONIC 14→12→6→4→2→6→4→0→4; PASS-8 FALSE-CLEAN detected; streak reset 1/3→0/3; F-LP9-MED-001 invalidation.rs:125,129 doc-drift; F-LP9-MED-002 story §Red Gate 0/6 exact-name → story v1.4 OPTION B; F-LP9-LOW-001 materialization.rs:775; F-LP9-LOW-002 registry.rs:56 intentional; OBS-LP9-001 PG-LP7-002 bypass; KUDOs 5; fix-burst-9 + story v1.4 committed; STATE v7.122→v7.123 (D-389) |
+| S-PLUGIN-PREREQ-A LOCAL pass-10 | adversary + state-manager | CLEAN | 0 findings (0C+0H+0M+0L+0OBS); trajectory 14→12→6→4→2→6→4→0→4→0 TRUE CLEAN; streak 0/3→1/3 (resumed after pass-9 reset); pass-9 closures 4/4 VERIFIED + 1 intentional + 1 process-gap operational; Red Gate 6/6 exact names with file:line evidence; workspace sensor_type sweep 26 hits/0 defects CLEAN; 11/11 ACs satisfied; KUDOs 5; pass-11 in flight; STATE v7.123→v7.124 (D-390) |
 
 ## Decisions Log
 
@@ -221,6 +221,7 @@ _D-001..D-046 archived: [cycles/phase-3-dtu-wave-2/decisions-archive-d001-d032.m
 
 | ID | Decision | Rationale | Phase | Date |
 |----|----------|-----------|-------|------|
+| D-390 | 2026-05-11 | S-PLUGIN-PREREQ-A LOCAL adversary pass-10 CLEAN with evidence-based audit. Streak 0/3 → 1/3 (resumed after pass-9 reset). Trajectory 14→12→6→4→2→6→4→0→4→0 — TRUE CLEAN, not narrative-CLEAN. OBS-LP9-001 evidence-or-not-happened protocol operational: every audit step includes literal grep command + match count + file:line inline. Red Gate exact-name audit 6/6 verified: test_BC_2_01_013_001_sensorid_from_str_roundtrip (sensor_id.rs:327), _003_sensorid_hash_eq_invariant (sensor_id.rs:372), _004_sensor_id_borrow_str_lookup (sensor_id.rs:396), _004_adapter_registry_sensorid_insert_lookup (bc_2_01_013_sensorid.rs:74), perimeter SensorType import (perimeter-violation/src/main.rs:69), _005_sensorid_lookup_at_virtual_fields_dispatch (sensorid_dispatch_redgate.rs:37). Workspace sensor_type sweep: 26 hits across 11 files all CATEGORIZED ACCEPTABLE (trait method 2; caller invocation 5; test fixture 6; loop var/OCSF 11; zero defects). KUDOs 5. Pass-11 + pass-12 required for 3/3 convergence. | plugin-migration | 2026-05-11 |
 | D-389 | 2026-05-11 | S-PLUGIN-PREREQ-A LOCAL adversary pass-9 BLOCKED-soft — PASS-8 FALSE-CLEAN DETECTED. Streak reset 1/3 → 0/3. Trajectory 14→12→6→4→2→6→4→0→4 non-monotonic. Pass-8's CLEAN was premature: OBS-LP8-003 claimed "6/6 by exact name" for Red Gate tests but actual count is 0/6 (all tests use BC-prefixed naming convention). Pass-7 PG-LP7-002 Red Gate exact-name audit codified but BYPASSED in pass-8. Production doc-comment drift also missed: invalidation.rs:125,129 + materialization.rs:775 reference "sensor_type" after rename to "sensor_id". NEW findings: F-LP9-MED-001 (invalidation.rs doc drift); F-LP9-MED-002 (story §Red Gate name divergence — orchestrator decision OPTION B amend story v1.4 with BC-prefixed canonical names); F-LP9-LOW-001 (materialization.rs:775); F-LP9-LOW-002 (registry.rs:56 INTENTIONAL trait method ref); OBS-LP9-001 process-gap PG-LP7-002 evidence-or-not-happened amendment. KUDOs 5: validator parity proptest exemplar; panic contract uniformity; try_from_str blanket-impl footgun warning; CI --color=never with story citation; VP-PLUGIN-001 dual-assertion. Fix-burst-9 in flight (3-line doc edits) + state-burst (story v1.4 + D-389). | plugin-migration | 2026-05-11 |
 | D-388 | 2026-05-11 | S-PLUGIN-PREREQ-A LOCAL adversary pass-8 CLEAN — FIRST CLEAN PASS in cascade. Streak 0/3 → 1/3. Trajectory 14→12→6→4→2→6→4→0 fully converged. 11/11 ACs verified at HEAD cda9abf5; Red Gate 6/6 functional coverage; ZERO CRITICAL/HIGH/MED/LOW novel findings. 3 OBS items all NARRATIVE-CORRECTNESS concerns in pass-7 closure report (not code defects; non-blocking convergence per adversary explicit disposition). Pass-7 closures all RESOLVED clean (4/4: missing AC-9(b) test added; story v1.3 OPTION B documented; LOW-001 adjudication codified; TD-006 P3 filed). Story is READY for PR pending 2 more clean passes (pass-9 → 2/3, pass-10 → 3/3 CONVERGED). KUDOs 5: textbook AC-9(b) test closure; story v1.3 OPTION B inline rationale; TD-006 filing precision (cross-newtype scope); sustained #[non_exhaustive] forward-compat through 8 passes; cross-crate validator parity proptest with 6 strategies as exemplar pattern. | plugin-migration | 2026-05-11 |
 | D-387 | 2026-05-11 | S-PLUGIN-PREREQ-A LOCAL adversary pass-7 BLOCKED-soft (2 MED + 2 LOW; ZERO CRITICAL/HIGH/OBS). Trajectory 14→12→6→4→2→6→4. Streak 0/3. Pass-6 closures all clean (7/7). NEW findings: F-LP7-MED-001 missing Red Gate test_sensor_id_borrow_str_lookup (story task 11 + AC-9(b) mandate; survived 6 fresh-context passes — Red Gate test materialization not audited); F-LP7-MED-002 partial-close of F-LP6-MED-004 (story task 7 Borrow<str> mandate untouched; orchestrator decision OPTION B amend story v1.3 to canonical &SensorId; relaxes Borrow<str> mandate); F-LP7-LOW-001 5th sibling-rename recurrence (loop variable names — orchestrator adjudication OUT-OF-SCOPE for rename axis); F-LP7-LOW-002 cross-newtype audit pattern (OrgSlug::new_unchecked — file TD-S-PLUGIN-PREREQ-A-006 P3 post-PREREQ-A maintenance). 3 process-gaps codified: Red Gate test materialization audit checklist (PG-LP7-002); sibling-rename axis layer-enumeration (struct fields/function names/trait methods YES; local vars NO) (PG-LP7-001); partial-close pattern detection (closure must verify full story task scope not just cited blast radius) (PG-LP7-003). 5 KUDOs (HIGH-001 textbook closure; non-ASCII proptest diversity; BC-2.01.013 v1.5 amendment quality; comprehensive Deserialize rejection tests; #[non_exhaustive] survival). Fix-burst-7 in flight (tiny: 1 test add) + state-burst (story v1.3 + TD-006). | plugin-migration | 2026-05-11 |
@@ -331,21 +332,21 @@ Cycle files: [burst-log](cycles/phase-2-patch/burst-log.md) | [convergence-traje
 
 ---
 
-## Session Resume Checkpoint (2026-05-11-v7.122-d388-pass-8-clean)
+## Session Resume Checkpoint (2026-05-11-v7.124-d390-pass-10-clean)
 
-_Previous checkpoint (v7.121/D-387 pass-7 blocked-soft) archived: [cycles/wave-4-operations/session-checkpoints.md](cycles/wave-4-operations/session-checkpoints.md)_
+_Previous checkpoint (v7.122/D-388 pass-8 clean — retroactively FALSE-CLEAN) archived: [cycles/wave-4-operations/session-checkpoints.md](cycles/wave-4-operations/session-checkpoints.md)_
 
-**STATE v7.122. D-388 — S-PLUGIN-PREREQ-A LOCAL pass-8 CLEAN — FIRST CLEAN PASS. SESSION-HANDOFF v7.122.** develop@c6dd6602. factory-artifacts HEAD: run `git -C .factory log -1` (per TD-VSDD-053). vsdd-factory rc.16 active. Standing Orchestrator Rules active (Rules 1, 2, 3). Bundle B Exit Mandate active (task #85). Tasks #80-#84 DISPOSITIONS RECORDED — do NOT re-triage. Worktrees: main (clean) + .factory + .worktrees/S-PLUGIN-PREREQ-A + .worktrees/S-3.09 (FROZEN per D-298).
+**STATE v7.124. D-390 — S-PLUGIN-PREREQ-A LOCAL pass-10 CLEAN with evidence-based audit. SESSION-HANDOFF v7.124.** develop@c6dd6602. factory-artifacts HEAD: run `git -C .factory log -1` (per TD-VSDD-053). vsdd-factory rc.16 active. Standing Orchestrator Rules active (Rules 1, 2, 3). Bundle B Exit Mandate active (task #85). Tasks #80-#84 DISPOSITIONS RECORDED — do NOT re-triage. Worktrees: main (clean) + .factory + .worktrees/S-PLUGIN-PREREQ-A + .worktrees/S-3.09 (FROZEN per D-298).
 
-**PASS-8 SUMMARY:** CLEAN. 0 findings (0C+0H+0M+0L+3OBS). Trajectory 14→12→6→4→2→6→4→0 FULLY CONVERGED. Streak 0/3 → 1/3. Pass-7 closures 4/4 RESOLVED: `test_sensor_id_borrow_str_lookup` added (F-LP7-MED-001); story v1.3 OPTION B documented (F-LP7-MED-002); PG-LP7-001 scope-out adjudication (F-LP7-LOW-001); TD-006 P3 filed (F-LP7-LOW-002). 3 OBS all NARRATIVE-CORRECTNESS non-blocking. 11/11 ACs verified at cda9abf5. Red Gate 6/6 exact name.
+**PASS-10 SUMMARY:** CLEAN. 0 findings (0C+0H+0M+0L+0OBS). Trajectory 14→12→6→4→2→6→4→0→4→0 TRUE CLEAN. Streak 0/3 → 1/3 (resumed after pass-9 reset). Pass-9 closures 4/4 RESOLVED + 1 intentional + 1 process-gap operational. Red Gate 6/6 exact names with file:line evidence (PG-LP7-002 evidence-or-not-happened protocol active). Workspace sensor_type sweep 26 hits / 0 defects CLEAN. 11/11 ACs satisfied at HEAD 8b949bba. KUDOs 5.
 
-**NEXT ACTION:** Dispatch adversary pass-9 fresh-context for streak 2/3. Then pass-10 for 3/3 CONVERGED. After 3-CLEAN protocol satisfied: PR delivery for S-PLUGIN-PREREQ-A.
+**NEXT ACTION:** Dispatch adversary pass-11 fresh-context for streak 2/3. Then pass-12 for 3/3 CONVERGED. After 3/3: PR delivery for S-PLUGIN-PREREQ-A.
 
 **S-3.09 FREEZE STATE:** Worktree .worktrees/S-3.09 HEAD 43c41389; BUG-S309-PLUGIN P0 blocks resumption. See D-298/D-299.
 
 **Deferred TDs (carry-forward):** W3-FIX-S307-001/002/003 + TD-VSDD-082 + TD-S307-002/003/004 + TD-S-PLUGIN-PREREQ-A-002 P1 (sentinel-nil OrgId; W3-FIX-S307-002 dep) + TD-S-PLUGIN-PREREQ-A-003 P1 (WriteToolInvalidationMap runtime extensibility; PREREQ-E) + TD-S-PLUGIN-PREREQ-A-004 P1 (boot.rs step8 AdapterRegistry assertion; step8 wiring successor) + TD-S-PLUGIN-PREREQ-A-005 P3 (EXPLAIN silent-skip UX; PLUGIN-MIGRATION-001-B) + TD-S-PLUGIN-PREREQ-A-006 P3 (cross-newtype audit; post-PREREQ-A maintenance) + TD-VSDD-058 P0 + TD-VSDD-059 P0 + TD-VSDD-060 P0 + TD-FACTORY-HOOK-BYPASS-001 P0 + TD-VSDD-054..063 (all OPEN) + TD-S309-O1/O2/O3/O4
 
-**Current spec versions:** BC-INDEX v4.54, STORY-INDEX v2.34 (150 stories), ARCH-INDEX v2.40, ADR-022 v1.1, ADR-023 v1.18, VP-INDEX v1.30 (152 VPs + VP-PLUGIN-001..007 aliases), DI-012 invariants.md v1.6, TS-PLUGIN-PARITY-001 v1.0, BC-2.16.004 v1.4 (deprecated), BC-2.01.013 v1.5 (amended — Adapter Identity Method postcondition added D-386), prd.md v1.10, error-taxonomy.md v1.18 (E-QUERY-031 added), S-PLUGIN-PREREQ-A v1.3 (input-hash 6954524; OPTION B &SensorId canonical API; task 7 + AC-4 amended), develop@c6dd6602; STATE v7.121 SESSION-HANDOFF v7.121 (current)
+**Current spec versions:** BC-INDEX v4.54, STORY-INDEX v2.34 (150 stories), ARCH-INDEX v2.40, ADR-022 v1.1, ADR-023 v1.18, VP-INDEX v1.30 (152 VPs + VP-PLUGIN-001..007 aliases), DI-012 invariants.md v1.6, TS-PLUGIN-PARITY-001 v1.0, BC-2.16.004 v1.4 (deprecated), BC-2.01.013 v1.5 (amended — Adapter Identity Method postcondition added D-386), prd.md v1.10, error-taxonomy.md v1.18 (E-QUERY-031 added), S-PLUGIN-PREREQ-A v1.4 (input-hash 6954524; OPTION B &SensorId canonical API + BC-prefixed Red Gate names; task 7 + AC-4 amended), develop@c6dd6602; STATE v7.124 SESSION-HANDOFF v7.124 (current)
 
 **Key files:** [SESSION-HANDOFF.md](SESSION-HANDOFF.md) | [cycle-manifest.md](cycles/wave-4-operations/cycle-manifest.md) | [HOLDOUT-INDEX.md](holdout-scenarios/HOLDOUT-INDEX.md)
 
