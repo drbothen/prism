@@ -772,7 +772,7 @@ pub(crate) async fn resolve_source_refs(
 ///
 /// Priority:
 /// 1. OrgRegistry lookup (production path) — exact slug → id mapping.
-/// 2. First registered adapter for sensor_type (test/MVP fallback) — avoids
+/// 2. First registered adapter for sensor_id (test/MVP fallback) — avoids
 ///    the OrgId::new() randomness that caused F-LP1-CRIT-3.
 /// 3. Fresh OrgId (last resort — will miss in registry.get()).
 fn resolve_org_id(

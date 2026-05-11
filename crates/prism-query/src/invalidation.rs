@@ -122,11 +122,11 @@ impl CacheInvalidator {
     }
 
     /// Invalidate all cache entries for all `source_id` values associated with
-    /// `sensor_type` for `client_id`.
+    /// `sensor_id` for `client_id`.
     ///
     /// Called from write tool handlers that modify sensor data (BC-2.07.004).
     ///
-    /// Performs one prefix-scan per affected `source_id`. If the `sensor_type`
+    /// Performs one prefix-scan per affected `source_id`. If the `sensor_id`
     /// has no entries in `WRITE_TOOL_INVALIDATION_MAP`, this is a no-op.
     ///
     /// Returns `Ok(n)` where `n` is the total number of entries evicted across all
