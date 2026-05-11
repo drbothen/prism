@@ -1,7 +1,7 @@
 ---
 document_type: behavioral-contract
 level: L3
-version: "1.4"
+version: "1.5"
 status: draft
 producer: product-owner
 timestamp: 2026-04-14T05:00:00
@@ -60,6 +60,8 @@ naming convention (e.g., `crowdstrike_alert`, `armis_device`).
   1. `SensorSpec.auth_type` accepts exactly one value from the enumerated set; arrays or mixed types are rejected at spec-load
   2. Each auth method declares exactly one `credential_ref` binding; multiple credential bindings per auth method are rejected at spec-load
   3. The credential record schema must structurally match the declared `auth_type`; mismatches are rejected at spec-load
+- **Adapter Identity Method (SensorAdapter::sensor_type → SensorId, S-PLUGIN-PREREQ-A):**
+  The trait method `SensorAdapter::sensor_type(&self) -> SensorId` is the canonical adapter identity accessor. The method name `sensor_type` is preserved through the S-PLUGIN-PREREQ-A keystone migration (despite the type rename `SensorType` enum → `SensorId(Arc<str>)` newtype) to maintain caller-side idiomatic readability: `let sensor_id = adapter.sensor_type()`. Implementations construct the SensorId from the canonical lowercase sensor name (e.g., `SensorId::from("crowdstrike")`). The trait method is sealed-by-convention: implementations live in `prism-sensors` or are plugin-generated via PluginRuntime; direct user-code impls are discouraged but not enforced at the type level (DI-012 v1.6 amendment downgraded sealed-supertrait to runtime validation).
 
 ## Invariants
 - Each `DataSource<T>` produces records of a single type
@@ -100,6 +102,7 @@ naming convention (e.g., `crowdstrike_alert`, `armis_device`).
 | Field | Value |
 |-------|-------|
 | L2 Capability | CAP-001 |
+| Capability Anchor Justification | CAP-001 ("Enumerate and fetch data from sensor APIs") per capabilities.md §CAP-001 |
 | L2 Invariants | DI-012 (amended — runtime enforcement replaces compile-time sealed trait per ADR-023 Rule 2) |
 | Priority | P0 |
 
@@ -107,6 +110,7 @@ naming convention (e.g., `crowdstrike_alert`, `armis_device`).
 
 | Version | Burst | Date | Author | Change |
 |---------|-------|------|--------|--------|
+| 1.5 | pass-6-closures | 2026-05-11 | product-owner | S-PLUGIN-PREREQ-A pass-6 closure (F-LP6-MED-002): added Adapter Identity Method postcondition block documenting SensorAdapter::sensor_type() → SensorId canonical adapter identity accessor, name-preservation rationale through S-PLUGIN-PREREQ-A keystone migration, SensorId construction convention, and sealed-by-convention provenance (DI-012 v1.6 amendment). Closes story anchor claim that BC body "drives the open dispatch requirement." |
 | 1.4 | prereq-f | 2026-05-11 | product-owner | ADR-023 v1.17 PREREQ-F amendment: removed sealed-trait language; replaced with spec-driven adapter pattern where implementations are produced from TOML SensorSpec declarations at runtime; replaced compile-time SensorAuth sealing with three runtime cross-sensor auth-composition rejection rules per ADR-023 Rule 2; updated Error Cases, Edge Cases, Canonical Test Vectors, and Verification Properties accordingly. DI-012 reference updated to reflect amended runtime enforcement. |
 | 1.3 | pass-73-fix | 2026-04-20 | state-manager | Deterministic changelog reorder: sorted all rows to descending version order (pass-73 bash script). |
 | 1.2 | pass-69-housekeeping | 2026-04-20 | product-owner | Normalized changelog schema to canonical 5-col schema. |

@@ -15,11 +15,11 @@ tdd_mode: strict
 crates_touched: [prism-core, prism-sensors, prism-query, prism-spec-engine]
 target_module: prism-core
 subsystems: [SS-01, SS-02, SS-08, SS-16]
-version: "1.1"
+version: "1.2"
 level: "L4"
 producer: story-writer
 timestamp: "2026-05-11T00:00:00Z"
-input-hash: "7d38067"
+input-hash: "6954524"
 traces_to: []
 cycle: "v1.0.0-greenfield"
 phase: 3
@@ -534,5 +534,6 @@ The story is shipped when ALL of the following are true:
 
 | Version | Burst | Date | Author | Changes |
 |---------|-------|------|--------|---------|
+| 1.2 | pass-6-closures | 2026-05-11 | state-manager | Input-hash recomputed after ADR-023 v1.18 amendment (D-382 ADR-023 typo fix) + BC-2.01.013 v1.5 amendment (F-LP6-MED-002 Adapter Identity Method postcondition added). New input-hash: 6954524 (was 7d38067). Closes F-LP6-LOW-002. |
 | 1.1 | fix-burst-1-closure | 2026-05-11 | state-manager | AC-4 wording updated: adopted implementation where adapter owns identity (register() derives SensorId from adapter.sensor_type() internally); rationale recorded per F-LP1-HIGH-003 orchestrator decision. AC-8 wording clarified: squash-merge is the operative atomic unit; intermediate Red Gate commit on feature branch is permitted per F-LP1-LOW-001. Both changes record adversary pass-1 closure disposition. |
 | 1.0 | prereq-a-materialization | 2026-05-10 | story-writer | Initial story creation from ADR-023 §C1 + grep-verified dispatch site inventory. All 11 ACs traced to BC-2.01.013 / VP-PLUGIN-001 / VP-PLUGIN-007. 7 dispatch groups enumerated with exact file:line from workspace grep. Red Gate set (6 failing tests) specified. Atomic commit requirement documented. |
