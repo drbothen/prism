@@ -11,7 +11,7 @@
 //! ## S-3.02 layer: `MaterializationPipeline`
 //! Full 8-step ephemeral materialization pipeline (BC-2.11.005):
 //!   Step 1: Parse PrismQL string via `PrismQlParser::parse` (public API only)
-//!   Step 2: Resolve source refs to `(SensorType, client_id, SensorSpec)` tuples
+//!   Step 2: Resolve source refs to `(SensorId, client_id, SensorSpec)` tuples
 //!   Step 3: Fan out to sensor adapters via `fan_out()` — all sources in parallel
 //!   Step 4: Normalize each `Vec<serde_json::Value>` via `OcsfNormalizer`
 //!   Step 5: Inject virtual field columns into each RecordBatch
@@ -40,7 +40,7 @@ use std::sync::Arc;
 
 use arrow::record_batch::RecordBatch;
 use datafusion::execution::context::SessionContext;
-use prism_core::{OrgId, OrgSlug, PrismError};
+use prism_core::{OrgId, OrgSlug, PrismError, SensorId};
 use prism_ocsf::OcsfNormalizer;
 use prism_sensors::{AdapterRegistry, CredentialResolver, SensorSpec};
 
@@ -114,8 +114,8 @@ pub fn inject_source_type(rows: &mut Vec<serde_json::Value>, descriptor: &Sensor
 /// represents the post-resolution fan-out target after client-scope expansion.
 #[derive(Debug, Clone)]
 pub struct FanOutTarget {
-    /// The sensor type (e.g., `SensorType::CrowdStrike`).
-    pub sensor_type: prism_core::types::SensorType,
+    /// The sensor id (e.g., `SensorId::from("crowdstrike")`).
+    pub sensor_id: SensorId,
     /// The client ID owning this sensor instance. (BC-2.11.011)
     pub client_id: OrgSlug,
     /// The resolved OrgId for per-org adapter selection. (BC-3.2.001)
@@ -186,7 +186,7 @@ pub struct MaterializationContext {
     /// Credential resolver for fan_out() dispatch. (F-LP1-CRIT-2)
     pub(crate) credential_resolver: Arc<dyn CredentialResolver>,
     /// OrgSlug → OrgId registry for per-org adapter selection. (F-LP1-CRIT-3)
-    /// When `None`, falls back to `get_all_for_sensor_type` (test/MVP mode).
+    /// When `None`, falls back to `get_all_for_sensor` (test/MVP mode).
     pub(crate) org_registry: Option<Arc<prism_core::OrgRegistry>>,
 }
 
@@ -276,11 +276,11 @@ impl CredentialResolver for NullMaterializationCredentialResolver {
     fn resolve(
         &self,
         _client_id: &str,
-        sensor_type: prism_core::types::SensorType,
+        sensor_id: SensorId,
     ) -> Result<Box<dyn prism_sensors::SensorAuth>, prism_sensors::SensorError> {
         Err(prism_sensors::SensorError::Internal {
             detail: format!(
-                "NullMaterializationCredentialResolver: no credential for sensor {sensor_type:?}"
+                "NullMaterializationCredentialResolver: no credential for sensor {sensor_id:?}"
             ),
         })
     }
@@ -377,7 +377,7 @@ pub async fn run_materialization_pipeline(
         let cache_key = format!(
             "{}:{:?}:{}:{}",
             target.client_id.as_str(),
-            target.sensor_type,
+            target.sensor_id,
             &target.source_table,
             serde_json::to_string(&where_filters).unwrap_or_default()
         );
@@ -404,7 +404,7 @@ pub async fn run_materialization_pipeline(
             prism_sensors::fanout::FanOutTarget {
                 org_id: target.org_id,
                 client_id: target.client_id.as_str().to_string(),
-                sensor_type: target.sensor_type,
+                sensor_id: target.sensor_id.clone(),
                 spec: prism_sensors::adapter::SensorSpec {
                     source_table: target.source_table.clone(),
                     #[allow(deprecated)]
@@ -433,7 +433,7 @@ pub async fn run_materialization_pipeline(
         {
             Ok(fan_result) => {
                 // Record sensor type in sensors_queried (BC-2.11.001, ADV-W3MT-P58-HIGH-005).
-                sensors_queried.insert(format!("{:?}", target.sensor_type));
+                sensors_queried.insert(format!("{:?}", target.sensor_id));
 
                 // Collect successes with per-target virtual field injection.
                 let mut fetched_batches: Vec<RecordBatch> = Vec::new();
@@ -444,7 +444,7 @@ pub async fn run_materialization_pipeline(
                     // Uses this target's client_id for correct per-client attribution (AC-6).
                     let annotated = crate::virtual_fields::inject_virtual_fields(
                         batch,
-                        &target.sensor_type,
+                        &target.sensor_id,
                         &target.client_id,
                         &target.source_table,
                     )
@@ -463,7 +463,7 @@ pub async fn run_materialization_pipeline(
                     // Redact internal detail — expose error code only (OBS-1 / CWE-209).
                     tracing::warn!(
                         source_table = %target.source_table,
-                        sensor = ?target.sensor_type,
+                        sensor = ?target.sensor_id,
                         error = %fan_err,
                         "fan_out partial failure"
                     );
@@ -603,7 +603,7 @@ async fn execute_against_session(
 /// # F-LP1-CRIT-3 / BC-3.2.001
 /// When `org_registry` is provided, resolves `OrgSlug → OrgId` for per-org
 /// adapter selection. When `None`, uses a per-adapter `OrgId` from the registry
-/// (test/MVP mode via `get_all_for_sensor_type`).
+/// (test/MVP mode via `get_all_for_sensor`).
 pub(crate) async fn resolve_source_refs(
     source_names: &[String],
     clients: &[OrgSlug],
@@ -617,10 +617,16 @@ pub(crate) async fn resolve_source_refs(
         if source_name.starts_with("prism_") {
             continue;
         }
-        // ADV-W3MT-P58-LOW-002: unknown table names (not prism_*, not a known sensor prefix)
-        // return E-QUERY-006 per EC-001 ("unknown source; no fan-out attempted").
-        // This prevents silent failures where a typo in a table name produces empty results.
-        let Some(sensor_type) = sensor_type_from_table_name(source_name) else {
+        // ADV-W3MT-P58-LOW-002 / F-LP1-CRITICAL-001: unknown table names (not prism_*,
+        // not a prefix for a registered sensor) return E-QUERY-006 per EC-001.
+        // This prevents silent empty results for typos or unregistered sensor names.
+        //
+        // Two-stage check:
+        //   1. sensor_id_from_table_name: extracts and validates the prefix (returns None
+        //      for empty or invalid-charset prefixes — cannot be a valid SensorId).
+        //   2. is_sensor_registered: checks adapter_registry membership (returns E-QUERY-006
+        //      for valid-looking prefixes with no registered adapter — unknown sensor name).
+        let Some(sensor_id) = sensor_id_from_table_name(source_name) else {
             tracing::debug!(
                 source_name,
                 "resolve_source_refs: unknown sensor prefix; returning E-QUERY-006"
@@ -634,13 +640,39 @@ pub(crate) async fn resolve_source_refs(
             });
         };
 
+        // F-LP1-CRITICAL-001: after extracting the sensor prefix, verify that at least
+        // one adapter is registered for it. Without this check, unknown sensor names
+        // (e.g. "unknown_table") silently produce empty results rather than E-QUERY-006.
+        //
+        // Guard: only apply when the registry is non-empty. An empty registry indicates
+        // test mode or early boot where no adapters are wired yet — in that state we
+        // cannot distinguish "unknown sensor" from "known sensor not yet registered".
+        // In production, the registry is always populated at boot with at least the
+        // four built-in sensors; any table prefix absent from a populated registry is
+        // genuinely unknown and must return E-QUERY-006.
+        if !adapter_registry.is_empty() && !adapter_registry.is_sensor_registered(&sensor_id) {
+            tracing::debug!(
+                source_name,
+                sensor_id = %sensor_id,
+                "resolve_source_refs: no adapter registered for sensor prefix; returning E-QUERY-006"
+            );
+            return Err(PrismError::QueryExecutionFailed {
+                detail: format!(
+                    "E-QUERY-006: unknown source table '{source_name}'; \
+                     sensor prefix '{}' is not registered in the adapter registry. \
+                     Check spelling or register the sensor in prism.toml.",
+                    sensor_id
+                ),
+            });
+        }
+
         if clients.is_empty() {
             // ALL scope with no explicit client list: fan out to ALL registered adapters
             // for this sensor type. This is the correct behavior for cross-client queries.
             //
             // F-LP1-CRIT-3/HIGH-6: use per-org adapter selection.
             // When no explicit client list, iterate all registered (org_id, adapter) pairs.
-            let all_adapters = adapter_registry.get_all_for_sensor_type(sensor_type);
+            let all_adapters = adapter_registry.get_all_for_sensor(&sensor_id);
             for (org_id, _adapter) in all_adapters {
                 // Derive client_id from OrgRegistry (reverse lookup).
                 // F-LP2-LOW-2: if no slug is found, emit a warn and SKIP this target.
@@ -662,7 +694,7 @@ pub(crate) async fn resolve_source_refs(
                     let synthetic_slug =
                         OrgSlug::new_unchecked(&format!("org-{}", &org_id.to_string()[..8]));
                     targets.push(FanOutTarget {
-                        sensor_type,
+                        sensor_id: sensor_id.clone(),
                         client_id: synthetic_slug.clone(),
                         org_id,
                         sensor_spec: SensorSpec {
@@ -679,7 +711,7 @@ pub(crate) async fn resolve_source_refs(
                 };
 
                 targets.push(FanOutTarget {
-                    sensor_type,
+                    sensor_id: sensor_id.clone(),
                     client_id: client_slug.clone(),
                     org_id,
                     sensor_spec: SensorSpec {
@@ -697,10 +729,7 @@ pub(crate) async fn resolve_source_refs(
             // When no adapters registered: target list is empty; fan-out produces nothing.
             // BC-2.11.011 EC-005: sources with no adapters produce empty results without error.
             // F-LP2-LOW-2: no sentinel `_all` target is added — that would expose internal details.
-            if adapter_registry
-                .get_all_for_sensor_type(sensor_type)
-                .is_empty()
-            {
+            if adapter_registry.get_all_for_sensor(&sensor_id).is_empty() {
                 tracing::debug!(
                     source_table = %source_name,
                     "resolve_source_refs: no adapters registered for sensor type; \
@@ -713,12 +742,13 @@ pub(crate) async fn resolve_source_refs(
             // EC-005: clients with no sensor configured are skipped silently.
             for client_id in clients {
                 // F-LP1-CRIT-3: resolve OrgSlug → OrgId via OrgRegistry if available.
-                // When OrgRegistry is absent (test mode), use `get_all_for_sensor_type`
+                // When OrgRegistry is absent (test mode), use `get_all_for_sensor`
                 // to find the OrgId associated with a registered adapter for this sensor.
-                let org_id = resolve_org_id(client_id, sensor_type, adapter_registry, org_registry);
+                let org_id =
+                    resolve_org_id(client_id, sensor_id.clone(), adapter_registry, org_registry);
 
                 targets.push(FanOutTarget {
-                    sensor_type,
+                    sensor_id: sensor_id.clone(),
                     client_id: client_id.clone(),
                     org_id,
                     sensor_spec: SensorSpec {
@@ -742,12 +772,12 @@ pub(crate) async fn resolve_source_refs(
 ///
 /// Priority:
 /// 1. OrgRegistry lookup (production path) — exact slug → id mapping.
-/// 2. First registered adapter for sensor_type (test/MVP fallback) — avoids
+/// 2. First registered adapter for sensor_id (test/MVP fallback) — avoids
 ///    the OrgId::new() randomness that caused F-LP1-CRIT-3.
 /// 3. Fresh OrgId (last resort — will miss in registry.get()).
 fn resolve_org_id(
     client_id: &OrgSlug,
-    sensor_type: prism_core::types::SensorType,
+    sensor_id: SensorId,
     adapter_registry: &AdapterRegistry,
     org_registry: &Option<Arc<prism_core::OrgRegistry>>,
 ) -> OrgId {
@@ -758,10 +788,10 @@ fn resolve_org_id(
         }
     }
 
-    // Path 2: Fall back to first registered adapter's OrgId for this sensor type.
+    // Path 2: Fall back to first registered adapter's OrgId for this sensor id.
     // This preserves the test-path behavior where adapters are registered with
     // known OrgIds but no OrgRegistry is present.
-    let adapters = adapter_registry.get_all_for_sensor_type(sensor_type);
+    let adapters = adapter_registry.get_all_for_sensor(&sensor_id);
     if let Some((org_id, _)) = adapters.into_iter().next() {
         return org_id;
     }
@@ -771,26 +801,27 @@ fn resolve_org_id(
 }
 
 // ---------------------------------------------------------------------------
-// sensor_type_from_table_name
+// sensor_id_from_table_name
 // ---------------------------------------------------------------------------
 
-/// Map an underscore-prefixed table name to the corresponding `SensorType`.
+/// Map an underscore-prefixed table name to the corresponding `SensorId`.
 ///
-/// Naming convention: `{sensor}_{table}` → `SensorType`.
-/// Returns `None` for unknown prefixes.
-fn sensor_type_from_table_name(table_name: &str) -> Option<prism_core::types::SensorType> {
-    use prism_core::types::SensorType;
-    if table_name.starts_with("crowdstrike") {
-        Some(SensorType::CrowdStrike)
-    } else if table_name.starts_with("cyberint") {
-        Some(SensorType::Cyberint)
-    } else if table_name.starts_with("claroty") {
-        Some(SensorType::Claroty)
-    } else if table_name.starts_with("armis") {
-        Some(SensorType::Armis)
-    } else {
-        None
+/// Naming convention: `{sensor}_{table}` — extract the sensor prefix.
+/// Open dispatch: any recognized prefix returns a `SensorId`. Unknown prefixes
+/// return `None` (not an error — composite or internal tables have no sensor prefix).
+fn sensor_id_from_table_name(table_name: &str) -> Option<SensorId> {
+    // Extract the sensor prefix by splitting at the first underscore.
+    // Convention: `crowdstrike_hosts` → "crowdstrike", `armis_devices` → "armis".
+    // MED-002: apply .to_lowercase() to match explain.rs convention and the
+    // SensorId validation charset (lowercase only).
+    let prefix = table_name.split('_').next()?;
+    if prefix.is_empty() {
+        return None;
     }
+    let prefix_lower = prefix.to_lowercase();
+    // Construct SensorId from lowercase prefix. SensorId::from panics on invalid
+    // charset, so use the fallible try_from_str for untrusted table name input.
+    SensorId::try_from_str(prefix_lower.as_str()).ok()
 }
 
 // ---------------------------------------------------------------------------

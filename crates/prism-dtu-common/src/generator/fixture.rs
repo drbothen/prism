@@ -2,7 +2,7 @@
 
 use serde_json::Value;
 
-use prism_core::types::SensorType;
+use prism_core::SensorId;
 
 use super::archetype::Archetype;
 
@@ -24,8 +24,8 @@ impl OrgId {
 pub struct Provenance {
     /// Organisation for which this fixture was generated.
     pub org_id: OrgId,
-    /// Sensor type targeted by the fixture.
-    pub sensor_type: SensorType,
+    /// Sensor id targeted by the fixture.
+    pub sensor_id: SensorId,
     /// Archetype that shaped the generated data.
     pub archetype: Archetype,
     /// Seed used to initialise the RNG.

@@ -813,6 +813,25 @@ pub async fn step7_init_storage() -> Result<(), BootError> {
 /// TODO(S-WAVE5-PREP-01/S-3.02-FOLLOWUP-RUNTIME): Construct QueryEngine + WriteExecutor.
 /// QueryEngine::execute is todo!() at engine.rs:276 — resolved by S-3.02-FOLLOWUP-RUNTIME.
 /// After construction completes: engine accepts queries (via MCP tools).
+///
+/// # AdapterRegistry assertion (DEFERRED — TD-S-PLUGIN-PREREQ-A-004 P1)
+///
+/// When step8 (init_query_engine) is wired to a non-stub body
+/// (S-WAVE5-PREP-01 / S-3.02-FOLLOWUP-RUNTIME), the FIRST thing it must do is
+/// verify the `AdapterRegistry` contains at least one adapter before serving
+/// queries. Without this assertion, a silent `init_registry_for_org` failure
+/// would propagate as silent empty results across all queries (regressing
+/// ADV-W3MT-P58-LOW-002 fix).
+///
+/// Implementation when step8 wires:
+/// ```rust,ignore
+/// if registry.is_empty() && !is_test_mode() {
+///     return Err(BootError::EmptyRegistry { /* ... */ });
+/// }
+/// ```
+///
+/// Defense-in-depth: `materialization.rs:653` retains `is_empty()` short-circuit
+/// (test-mode aware) until this assertion is enforced.
 pub async fn step8_init_query_engine() -> Result<(), BootError> {
     todo!(
         "S-WAVE5-PREP-01 step 8 — QueryEngine/WriteExecutor — resolved by S-3.02-FOLLOWUP-RUNTIME"

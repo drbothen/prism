@@ -20,7 +20,7 @@ use arrow::datatypes::{DataType, Field, Schema};
 use arrow::record_batch::RecordBatch;
 use async_trait::async_trait;
 use futures::StreamExt;
-use prism_core::types::SensorType;
+use prism_core::SensorId;
 use reqwest::Client;
 use secrecy::{ExposeSecret, SecretString};
 use serde::{Deserialize, Serialize};
@@ -244,8 +244,8 @@ impl ClarotyAdapter {
 
 #[async_trait]
 impl SensorAdapter for ClarotyAdapter {
-    fn sensor_type(&self) -> SensorType {
-        SensorType::Claroty
+    fn sensor_type(&self) -> SensorId {
+        SensorId::from("claroty")
     }
 
     fn sensor_name(&self) -> &'static str {

@@ -26,7 +26,7 @@ use std::sync::Arc;
 use arrow::array::StringArray;
 use arrow::datatypes::{DataType, Field, Schema};
 use arrow::record_batch::RecordBatch;
-use prism_core::{types::SensorType, OrgSlug};
+use prism_core::{OrgSlug, SensorId};
 
 // ---------------------------------------------------------------------------
 // VIRTUAL_FIELD_NAMES
@@ -61,7 +61,7 @@ pub const VIRTUAL_FIELD_SOURCE_TABLE: &str = "_source_table";
 /// - Pipe: `| where _sensor = "claroty" | stats count by _client`
 pub fn inject_virtual_fields(
     batch: RecordBatch,
-    sensor: &SensorType,
+    sensor: &SensorId,
     client_id: &OrgSlug,
     source_table: &str,
 ) -> Result<RecordBatch, arrow::error::ArrowError> {
@@ -71,7 +71,7 @@ pub fn inject_virtual_fields(
     let batch = remove_spoofed_virtual_columns(batch)?;
 
     // Step 2: Build the three virtual field arrays.
-    let sensor_val = sensor_type_to_string(sensor);
+    let sensor_val = sensor_id_to_str(sensor);
     let client_val = client_id.as_str();
 
     let sensor_array = Arc::new(StringArray::from(vec![sensor_val; num_rows])) as _;
@@ -151,18 +151,15 @@ pub(crate) fn remove_spoofed_virtual_columns(
 }
 
 // ---------------------------------------------------------------------------
-// sensor_type_to_string
+// sensor_id_to_str
 // ---------------------------------------------------------------------------
 
-/// Convert a `SensorType` enum to the canonical virtual field string value.
+/// Return the canonical virtual field string value for a sensor.
 ///
-/// Returns the lowercase sensor name used in `_sensor` column values.
+/// Returns the sensor id string used in `_sensor` column values.
 /// (BC-2.11.012 `_sensor` field values)
-pub(crate) fn sensor_type_to_string(sensor: &SensorType) -> &'static str {
-    match sensor {
-        SensorType::CrowdStrike => "crowdstrike",
-        SensorType::Cyberint => "cyberint",
-        SensorType::Claroty => "claroty",
-        SensorType::Armis => "armis",
-    }
+///
+/// `SensorId` IS the string — delegates to `AsRef<str>`.
+pub(crate) fn sensor_id_to_str(sensor: &SensorId) -> &str {
+    sensor.as_ref()
 }

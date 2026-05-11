@@ -41,8 +41,8 @@
 //! - `test_BC_2_11_012_inject_virtual_fields_overwrites_sensor_spoofed_column` (EC-005)
 //! - `test_BC_2_11_012_inject_virtual_fields_idempotent_second_call`
 //! - `test_BC_2_11_012_remove_spoofed_columns_strips_all_reserved_names`
-//! - `test_BC_2_11_012_sensor_type_to_string_crowdstrike`
-//! - `test_BC_2_11_012_sensor_type_to_string_armis`
+//! - `test_BC_2_11_012_sensor_id_to_str_crowdstrike`
+//! - `test_BC_2_11_012_sensor_id_to_str_armis`
 //! - `test_BC_2_11_012_virtual_field_names_are_correct_constants`
 //!
 //! ## BC-2.11.006 Security Limits — Additional Coverage
@@ -595,11 +595,10 @@ mod bc_gap_fill {
         use arrow::array::StringArray;
         use arrow::datatypes::{DataType, Field, Schema};
         use arrow::record_batch::RecordBatch;
-        use prism_core::types::SensorType;
-        use prism_core::OrgSlug;
+        use prism_core::{OrgSlug, SensorId};
 
         use crate::virtual_fields::{
-            inject_virtual_fields, remove_spoofed_virtual_columns, sensor_type_to_string,
+            inject_virtual_fields, remove_spoofed_virtual_columns, sensor_id_to_str,
             VIRTUAL_FIELD_CLIENT, VIRTUAL_FIELD_SENSOR, VIRTUAL_FIELD_SOURCE_TABLE,
         };
 
@@ -628,7 +627,7 @@ mod bc_gap_fill {
         fn test_BC_2_11_012_inject_virtual_fields_adds_all_three_columns(
         ) -> Result<(), Box<dyn std::error::Error>> {
             let batch = make_batch_with_columns(&["severity", "description"], 3);
-            let sensor = SensorType::CrowdStrike;
+            let sensor = SensorId::from("crowdstrike");
             let client = make_client("acme");
             let result = inject_virtual_fields(batch, &sensor, &client, "crowdstrike.detections")?;
 
@@ -656,7 +655,7 @@ mod bc_gap_fill {
             let batch = make_batch_with_columns(&[VIRTUAL_FIELD_SENSOR, "description"], 2);
 
             // Inject with canonical value "crowdstrike".
-            let sensor = SensorType::CrowdStrike;
+            let sensor = SensorId::from("crowdstrike");
             let client = make_client("acme");
             let result = inject_virtual_fields(batch, &sensor, &client, "crowdstrike.detections")?;
 
@@ -693,7 +692,7 @@ mod bc_gap_fill {
         fn test_BC_2_11_012_inject_virtual_fields_idempotent_second_call(
         ) -> Result<(), Box<dyn std::error::Error>> {
             let batch = make_batch_with_columns(&["severity"], 2);
-            let sensor = SensorType::Armis;
+            let sensor = SensorId::from("armis");
             let client = make_client("acme");
 
             // First injection.
@@ -764,21 +763,21 @@ mod bc_gap_fill {
             Ok(())
         }
 
-        /// BC-2.11.012: sensor_type_to_string(CrowdStrike) returns "crowdstrike".
+        /// BC-2.11.012: sensor_id_to_str(CrowdStrike) returns "crowdstrike".
         #[test]
-        fn test_BC_2_11_012_sensor_type_to_string_crowdstrike() {
+        fn test_BC_2_11_012_sensor_id_to_str_crowdstrike() {
             assert_eq!(
-                sensor_type_to_string(&SensorType::CrowdStrike),
+                sensor_id_to_str(&SensorId::from("crowdstrike")),
                 "crowdstrike",
                 "CrowdStrike must map to lowercase 'crowdstrike'"
             );
         }
 
-        /// BC-2.11.012: sensor_type_to_string(Armis) returns "armis".
+        /// BC-2.11.012: sensor_id_to_str(Armis) returns "armis".
         #[test]
-        fn test_BC_2_11_012_sensor_type_to_string_armis() {
+        fn test_BC_2_11_012_sensor_id_to_str_armis() {
             assert_eq!(
-                sensor_type_to_string(&SensorType::Armis),
+                sensor_id_to_str(&SensorId::from("armis")),
                 "armis",
                 "Armis must map to lowercase 'armis'"
             );

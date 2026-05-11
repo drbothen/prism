@@ -15,8 +15,7 @@ use std::fmt;
 
 use arrow::record_batch::RecordBatch;
 use async_trait::async_trait;
-use prism_core::types::SensorType;
-use prism_core::OrgId;
+use prism_core::{OrgId, SensorId};
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
 
@@ -114,9 +113,9 @@ pub enum SensorError {
     #[error("E-SENSOR-020: sensor {sensor} rate limited; retry after {retry_after_ms}ms")]
     RateLimited { sensor: String, retry_after_ms: u64 },
 
-    /// No sensor adapter is registered for the requested sensor type.
-    #[error("E-SENSOR-010: no adapter registered for sensor type {sensor_type}")]
-    AdapterNotFound { sensor_type: SensorType },
+    /// No sensor adapter is registered for the requested sensor id.
+    #[error("E-SENSOR-010: no adapter registered for sensor id {sensor_id}")]
+    AdapterNotFound { sensor_id: SensorId },
 
     /// All fan-out targets failed — no partial results are available.
     ///
@@ -297,10 +296,19 @@ pub fn is_transient_status(status: u16) -> bool {
 /// Story: S-2.06 | BC: BC-2.01.013
 #[async_trait]
 pub trait SensorAdapter: Send + Sync + 'static {
-    /// Returns the sensor type this adapter handles.
+    /// Returns the sensor id this adapter handles.
     ///
     /// Used by `AdapterRegistry` to key the adapter lookup table.
-    fn sensor_type(&self) -> SensorType;
+    /// Returns an open `SensorId` string key (ADR-023 §C1, BC-2.01.013).
+    ///
+    /// **Method name preserved post-rename (S-PLUGIN-PREREQ-A story task 5).** The
+    /// return type is `SensorId` (open newtype, ADR-023 Rule 1) replacing the historical
+    /// closed `SensorType` enum. Implementations typically return
+    /// `SensorId::from("<lowercase-sensor-name>")` (e.g. `SensorId::from("crowdstrike")`).
+    /// Local variable convention in callers: `let sensor_id = adapter.sensor_type();` —
+    /// the variable name reflects the value's type rather than the method name, making
+    /// code at the call site self-documenting.
+    fn sensor_type(&self) -> SensorId;
 
     /// Fetches a page of records from the sensor API.
     ///
@@ -389,8 +397,6 @@ impl fmt::Display for SensorSpec {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use prism_core::types::SensorType;
-
     /// F-PASS7-OBS-001: Codify the SensorError → E-SENSOR-NNN mapping intended by
     /// adapter.rs::SensorError::error_code(). The exhaustive `match self` arm
     /// (no wildcard) in error_code() provides compile-time safety against future
@@ -439,7 +445,7 @@ mod tests {
         // E-SENSOR-010: AdapterNotFound
         assert_eq!(
             SensorError::AdapterNotFound {
-                sensor_type: SensorType::CrowdStrike,
+                sensor_id: prism_core::SensorId::from("crowdstrike"),
             }
             .error_code(),
             "E-SENSOR-010"

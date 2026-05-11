@@ -22,7 +22,7 @@
 #![cfg(feature = "fixture-gen")]
 #![allow(clippy::unwrap_used, clippy::expect_used)]
 
-use prism_core::types::SensorType;
+use prism_core::SensorId;
 use prism_dtu_armis::generator::generate;
 use prism_dtu_common::generator::{default_page_size, Archetype, GenOpts, OrgId};
 use serde_json::Value;
@@ -347,7 +347,7 @@ fn test_bc_3_4_003_ac_001_large_scale_baseline_counts() {
 fn test_bc_3_4_003_ac_001_pagination_edge_cases_baseline_counts() {
     let opts = GenOpts::default();
     let fs = generate(org_a(), SLUG_A, Archetype::PaginationEdgeCases, &opts);
-    let expected_records = default_page_size(SensorType::Armis) * 3;
+    let expected_records = default_page_size(SensorId::from("armis")) * 3;
 
     assert_eq!(
         fs.records.len(),
@@ -1112,8 +1112,8 @@ fn test_bc_3_4_001_provenance_fields_correct() {
         "Provenance.archetype must match the requested archetype"
     );
     assert_eq!(
-        fs.provenance.sensor_type,
-        SensorType::Armis,
-        "Provenance.sensor_type must be Armis"
+        fs.provenance.sensor_id,
+        SensorId::from("armis"),
+        "Provenance.sensor_id must be Armis"
     );
 }

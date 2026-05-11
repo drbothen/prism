@@ -25,3 +25,6 @@ pub mod wgc_w2_002_evict_backend;
 pub mod bc_3_2_001_stub;
 // S-3.1.06: BC-3.2.001 Red Gate tests — OrgId-keyed dispatch isolation
 pub mod bc_3_2_001_org_id_dispatch;
+
+// S-PLUGIN-PREREQ-A: BC-2.01.013 Red Gate tests — SensorId-keyed registry (AC-4, AC-10)
+pub mod bc_2_01_013_sensorid;

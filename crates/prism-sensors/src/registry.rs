@@ -1,31 +1,31 @@
-//! `AdapterRegistry` — maps `(OrgId, SensorType)` to `Arc<dyn SensorAdapter>`.
+//! `AdapterRegistry` — maps `(OrgId, SensorId)` to `Arc<dyn SensorAdapter>`.
 //!
 //! The registry is populated at startup by `init_registry_for_org()` with all
-//! four built-in sensor adapters keyed by org identity.  The query engine obtains
+//! built-in sensor adapters keyed by org identity.  The query engine obtains
 //! a shared reference to the registry and calls `get()` to look up the adapter for
 //! each fan-out target (BC-2.01.013, AC-3, AC-002).
 //!
 //! # Multi-Tenant Key
-//! The composite `(OrgId, SensorType)` key enforces that adapters for different
-//! organisations are structurally segregated — `get(org_a, SensorType::CrowdStrike)`
-//! and `get(org_b, SensorType::CrowdStrike)` return independent instances
+//! The composite `(OrgId, SensorId)` key enforces that adapters for different
+//! organisations are structurally segregated — `get(org_a, SensorId::from("crowdstrike"))`
+//! and `get(org_b, SensorId::from("crowdstrike"))` return independent instances
 //! (BC-3.2.001 invariant 1, AC-002).
 //!
 //! # Thread Safety
 //! The registry is read-only after initialization and is `Send + Sync`.
 //! It is shared via `Arc<AdapterRegistry>`.
 //!
-//! Story: S-2.06 | S-3.1.06-ImplPhase | BC: BC-2.01.013, BC-3.2.001
+//! Story: S-2.06 | S-3.1.06-ImplPhase | S-PLUGIN-PREREQ-A | BC: BC-2.01.013, BC-3.2.001
 
 use std::{collections::HashMap, sync::Arc};
 
-use prism_core::{types::SensorType, OrgId};
+use prism_core::{OrgId, SensorId};
 
 use crate::adapter::SensorAdapter;
 
-/// Registry mapping `(OrgId, SensorType)` composite keys to `SensorAdapter` instances.
+/// Registry mapping `(OrgId, SensorId)` composite keys to `SensorAdapter` instances.
 ///
-/// Populated at process startup with all four built-in sensor adapters per org.
+/// Populated at process startup with all built-in sensor adapters per org.
 /// After initialization the registry is immutable — adapters are registered
 /// once and never removed at runtime.
 ///
@@ -33,11 +33,11 @@ use crate::adapter::SensorAdapter;
 /// adapter registered for org B (BC-3.2.001 invariant 1).
 #[derive(Default)]
 pub struct AdapterRegistry {
-    /// Internal store keyed by `(OrgId, SensorType)` composite.
+    /// Internal store keyed by `(OrgId, SensorId)` composite.
     ///
     /// Populated via `register()`. The composite key guarantees that a lookup
     /// for org A cannot return an adapter registered for org B.
-    adapters: HashMap<(OrgId, SensorType), Arc<dyn SensorAdapter>>,
+    adapters: HashMap<(OrgId, SensorId), Arc<dyn SensorAdapter>>,
 }
 
 impl AdapterRegistry {
@@ -51,54 +51,67 @@ impl AdapterRegistry {
         }
     }
 
-    /// Registers an adapter under the `(org_id, sensor_type)` composite key.
+    /// Registers an adapter under the `(org_id, sensor_id)` composite key.
     ///
-    /// `sensor_type` is obtained from `adapter.sensor_type()`.
+    /// `sensor_id` is obtained from `adapter.sensor_type()`.
     ///
-    /// If an adapter for the same `(org_id, sensor_type)` pair is already
+    /// If an adapter for the same `(org_id, sensor_id)` pair is already
     /// registered, the new adapter replaces the existing one (last-write-wins
     /// within a single org bootstrap sequence, AC-002 EC-002).
     ///
-    /// Story: S-3.1.06-ImplPhase | AC-002 | BC-3.2.001 invariant 1
+    /// Story: S-3.1.06-ImplPhase | S-PLUGIN-PREREQ-A | AC-002 | BC-3.2.001 invariant 1
     pub fn register(&mut self, org_id: OrgId, adapter: Arc<dyn SensorAdapter>) {
-        let sensor_type = adapter.sensor_type();
-        self.adapters.insert((org_id, sensor_type), adapter);
+        let sensor_id = adapter.sensor_type();
+        self.adapters.insert((org_id, sensor_id), adapter);
     }
 
     /// Returns a clone of the `Arc<dyn SensorAdapter>` for the
-    /// `(org_id, sensor_type)` composite key, or `None` if no adapter is
+    /// `(org_id, sensor_id)` composite key, or `None` if no adapter is
     /// registered for that pair.
     ///
+    /// Accepts `&SensorId` to avoid requiring the caller to clone or give up
+    /// ownership. `Borrow<str>` on `SensorId` makes the inner HashMap lookup
+    /// work correctly by content.
+    ///
     /// # AC-001 / EC-001
-    /// `get(org_id_A, SensorType::CrowdStrike)` must never return an adapter
+    /// `get(org_id_A, &SensorId::from("crowdstrike"))` must never return an adapter
     /// registered under `org_id_B` (BC-3.2.001 invariant 1).
     ///
-    /// Story: S-3.1.06-ImplPhase | AC-002 | BC-3.2.001 invariant 1
-    pub fn get(&self, org_id: OrgId, sensor_type: SensorType) -> Option<Arc<dyn SensorAdapter>> {
-        self.adapters.get(&(org_id, sensor_type)).cloned()
+    /// Story: S-3.1.06-ImplPhase | S-PLUGIN-PREREQ-A | AC-002 | BC-3.2.001 invariant 1
+    pub fn get(&self, org_id: OrgId, sensor_id: &SensorId) -> Option<Arc<dyn SensorAdapter>> {
+        self.adapters.get(&(org_id, sensor_id.clone())).cloned()
     }
 
-    /// Returns all adapters registered for the given sensor type, regardless of org.
+    /// Returns all adapters registered for the given sensor id, regardless of org.
+    ///
+    /// Accepts `&SensorId` to avoid requiring callers to clone or give up ownership.
     ///
     /// Used by the materialization pipeline when an OrgSlug→OrgId mapping is not
     /// available (MVP: single-org adapters registered without strict org binding).
     /// Returns adapter + org_id pairs so callers can attribute results correctly.
     ///
     /// # Multi-tenant note
-    /// Production use MUST migrate to `get(org_id, sensor_type)` once the
+    /// Production use MUST migrate to `get(org_id, &sensor_id)` once the
     /// OrgRegistry (OrgSlug→OrgId mapping) is wired (S-WAVE5-PREP-01 §Boot step 3).
-    pub fn get_all_for_sensor_type(
-        &self,
-        sensor_type: SensorType,
-    ) -> Vec<(OrgId, Arc<dyn SensorAdapter>)> {
+    pub fn get_all_for_sensor(&self, sensor_id: &SensorId) -> Vec<(OrgId, Arc<dyn SensorAdapter>)> {
         self.adapters
             .iter()
-            .filter(|((_, st), _)| *st == sensor_type)
+            .filter(|((_, sid), _)| sid == sensor_id)
             .map(|((org_id, _), adapter)| (*org_id, Arc::clone(adapter)))
             .collect()
     }
 
-    /// Returns the total number of `(OrgId, SensorType)` entries in the registry.
+    /// Returns `true` if any adapter is registered for the given `sensor_id`,
+    /// regardless of org.
+    ///
+    /// Used by the query engine to distinguish "unknown table name" (no adapters
+    /// registered for any org) from "known sensor with no active adapters yet"
+    /// (which does not occur in the current model — adapters are registered at boot).
+    pub fn is_sensor_registered(&self, sensor_id: &SensorId) -> bool {
+        self.adapters.keys().any(|(_, sid)| sid == sensor_id)
+    }
+
+    /// Returns the total number of `(OrgId, SensorId)` entries in the registry.
     pub fn len(&self) -> usize {
         self.adapters.len()
     }

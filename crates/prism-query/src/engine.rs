@@ -30,7 +30,7 @@
 
 use std::sync::{Arc, Mutex};
 
-use prism_core::{OrgSlug, PrismError};
+use prism_core::{OrgSlug, PrismError, SensorId};
 use prism_credentials::CredentialStore;
 use prism_ocsf::OcsfNormalizer;
 use prism_sensors::{AdapterRegistry, CredentialResolver};
@@ -103,7 +103,7 @@ pub struct QueryOptions {
     /// Client scope override: `None` = all configured clients. (BC-2.11.011)
     pub clients: Option<Vec<OrgSlug>>,
     /// Sensor scope override: `None` = all sensors for resolved clients.
-    pub sensors: Option<Vec<prism_core::types::SensorType>>,
+    pub sensors: Option<Vec<SensorId>>,
     /// Max results returned (tool-level truncation). Default 25, max 1000. (BC-2.11.001)
     pub limit: Option<usize>,
     /// Bypass response cache. (BC-2.11.001)
@@ -176,7 +176,7 @@ pub struct QueryResultContext {
 /// `cleanup_shutdown` when `QueryEngine` is dropped. Without this wiring,
 /// cursor cleanup is dead code and the cache is unreachable.
 pub struct QueryEngine {
-    /// Registry of sensor adapters indexed by `(OrgId, SensorType)`.
+    /// Registry of sensor adapters indexed by `(OrgId, SensorId)`.
     pub(crate) adapter_registry: Arc<AdapterRegistry>,
     /// Credential store for sensor authentication. (AI-opaque boundary)
     /// Retained for production wiring; not yet consumed in execute_inner. (ADV-W3MT-P58-MED-002)
@@ -206,7 +206,7 @@ pub struct QueryEngine {
     /// (F-LP1-CRIT-2: replaces placeholder CrowdStrikeAuth construction)
     pub(crate) credential_resolver: Arc<dyn CredentialResolver>,
     /// OrgSlug → OrgId mapping for per-org adapter selection. (F-LP1-CRIT-3)
-    /// When `None`, falls back to `get_all_for_sensor_type` (test/MVP mode).
+    /// When `None`, falls back to `get_all_for_sensor` (test/MVP mode).
     pub(crate) org_registry: Option<Arc<prism_core::OrgRegistry>>,
     /// RocksDB storage backend for internal table registration.
     /// (F-LP1-CRIT-1: `register_internal_tables` invoked from `execute_inner`)
@@ -705,11 +705,11 @@ impl CredentialResolver for NullCredentialResolver {
     fn resolve(
         &self,
         _client_id: &str,
-        sensor_type: prism_core::types::SensorType,
+        sensor_id: SensorId,
     ) -> Result<Box<dyn prism_sensors::SensorAuth>, prism_sensors::SensorError> {
         Err(prism_sensors::SensorError::Internal {
             detail: format!(
-                "NullCredentialResolver: no credential configured for sensor {sensor_type:?}; \
+                "NullCredentialResolver: no credential configured for sensor {sensor_id:?}; \
                  use QueryEngine::new_full with a real CredentialResolver in production"
             ),
         })

@@ -492,6 +492,38 @@ jobs:
               f"Perimeter check passed: all {len(raw_spec_symbols)} restricted symbols "
               f"produced E0603/E0624 errors (cargo check correctly failed)."
           )
+
+          # --- VP-PLUGIN-001 / F-LP2-CRIT-001: SensorType deleted-type regression gate ---
+          #
+          # The closed `SensorType` enum was removed in S-PLUGIN-PREREQ-A (ADR-023 §C1).
+          # perimeter-violation/src/main.rs imports `prism_core::SensorType` which MUST
+          # produce E0432 (unresolved import). If `pub enum SensorType` is ever
+          # re-introduced in prism-core, this import would compile successfully and the
+          # cargo check exit code would still be non-zero (from E0603/E0624 above), so
+          # the binary gate would not catch the regression. This literal-string check
+          # ensures the E0432 for SensorType is present.
+          sensor_type_e0432_found = False
+          for line in log_content.splitlines():
+              if re.search(r'error\[E0432\].*SensorType', line):
+                  sensor_type_e0432_found = True
+                  break
+
+          if not sensor_type_e0432_found:
+              print(
+                  "::error::VP-PLUGIN-001 / F-LP2-CRIT-001: E0432 for 'SensorType' NOT found "
+                  "in cargo check output. This means `pub enum SensorType` may have been "
+                  "re-introduced in prism-core — check prism-core/src/types.rs and "
+                  "prism-core/src/lib.rs. The perimeter-violation crate imports "
+                  "`prism_core::SensorType` which must produce E0432 (unresolved import).",
+                  file=sys.stderr
+              )
+              sys.exit(1)
+          else:
+              print(
+                  "VP-PLUGIN-001 assertion passed: E0432 for 'SensorType' found in cargo "
+                  "output (closed enum correctly absent from prism-core)."
+              )
+
           sys.exit(0)
           PYEOF
 

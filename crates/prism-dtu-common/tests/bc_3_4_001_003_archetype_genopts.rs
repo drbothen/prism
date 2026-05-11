@@ -12,7 +12,7 @@
 #![allow(clippy::unwrap_used, clippy::expect_used)]
 
 use chrono::DateTime;
-use prism_core::types::SensorType;
+use prism_core::SensorId;
 use prism_dtu_common::generator::{
     all_archetypes, apply_overrides, default_page_size, seeded_rng, Archetype, FixtureSet, GenOpts,
     GenOptsError, OrgId, Provenance,
@@ -401,13 +401,14 @@ fn test_bc_3_4_001_ac_004_non_null_patch_result_is_deterministic() {
 #[test]
 fn test_bc_3_4_003_ac_005_vp_115_default_page_size_nonzero_for_all_sensors() {
     for sensor in [
-        SensorType::Claroty,
-        SensorType::Armis,
-        SensorType::CrowdStrike,
-        SensorType::Cyberint,
+        SensorId::from("claroty"),
+        SensorId::from("armis"),
+        SensorId::from("crowdstrike"),
+        SensorId::from("cyberint"),
     ] {
+        let name = format!("{sensor}");
         let size = default_page_size(sensor);
-        assert!(size > 0, "default_page_size({sensor}) must be > 0");
+        assert!(size > 0, "default_page_size({name}) must be > 0");
     }
 }
 
@@ -416,7 +417,7 @@ fn test_bc_3_4_003_ac_005_vp_115_default_page_size_nonzero_for_all_sensors() {
 #[test]
 fn test_bc_3_4_003_ac_005_default_page_size_claroty() {
     // poller-bear SDK default page size is 100 (confirmed from .references/poller-bear/docs/specs.json)
-    let size = default_page_size(SensorType::Claroty);
+    let size = default_page_size(SensorId::from("claroty"));
     assert_eq!(
         size, 100,
         "default_page_size(Claroty) must equal the poller-bear SDK default of 100"
@@ -427,7 +428,7 @@ fn test_bc_3_4_003_ac_005_default_page_size_claroty() {
 #[test]
 fn test_bc_3_4_003_ac_005_default_page_size_armis() {
     // Armis AQL default page size: 100 per S-3.7.00 DERIVATION.md
-    let size = default_page_size(SensorType::Armis);
+    let size = default_page_size(SensorId::from("armis"));
     assert_eq!(
         size, 100,
         "default_page_size(Armis) must equal the DERIVATION.md constant of 100"
@@ -438,7 +439,7 @@ fn test_bc_3_4_003_ac_005_default_page_size_armis() {
 #[test]
 fn test_bc_3_4_003_ac_005_default_page_size_crowdstrike() {
     // CrowdStrike FQL default page size: 100 per S-3.7.00 DERIVATION.md
-    let size = default_page_size(SensorType::CrowdStrike);
+    let size = default_page_size(SensorId::from("crowdstrike"));
     assert_eq!(
         size, 100,
         "default_page_size(CrowdStrike) must equal the DERIVATION.md constant of 100"
@@ -449,7 +450,7 @@ fn test_bc_3_4_003_ac_005_default_page_size_crowdstrike() {
 #[test]
 fn test_bc_3_4_003_ac_005_default_page_size_cyberint() {
     // Cyberint default page size: 100 per poller-express SDK constants
-    let size = default_page_size(SensorType::Cyberint);
+    let size = default_page_size(SensorId::from("cyberint"));
     assert_eq!(
         size, 100,
         "default_page_size(Cyberint) must equal the poller-express SDK default of 100"
@@ -466,7 +467,7 @@ fn test_bc_3_4_003_ac_005_default_page_size_cyberint() {
 fn test_bc_3_4_001_ac_006_fixture_set_fields_accessible() {
     let prov = Provenance {
         org_id: org_a(),
-        sensor_type: SensorType::Claroty,
+        sensor_id: SensorId::from("claroty"),
         archetype: Archetype::HealthyOtEnvironment,
         seed: 42,
         schema_valid: true,
@@ -487,7 +488,7 @@ fn test_bc_3_4_001_ac_006_fixture_set_fields_accessible() {
 fn test_bc_3_4_001_ac_006_provenance_schema_valid_true_for_non_schema_drift() {
     let prov = Provenance {
         org_id: org_a(),
-        sensor_type: SensorType::Armis,
+        sensor_id: SensorId::from("armis"),
         archetype: Archetype::HealthyOtEnvironment,
         seed: 1,
         schema_valid: true, // caller must set true; verify field is writable
@@ -503,7 +504,7 @@ fn test_bc_3_4_001_ac_006_provenance_schema_valid_true_for_non_schema_drift() {
 fn test_bc_3_4_001_ac_006_provenance_schema_valid_false_for_schema_drift() {
     let prov = Provenance {
         org_id: org_a(),
-        sensor_type: SensorType::Claroty,
+        sensor_id: SensorId::from("claroty"),
         archetype: Archetype::SchemaDrift,
         seed: 7,
         schema_valid: false, // generator must set this; field must accept false

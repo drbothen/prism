@@ -368,6 +368,36 @@ pub fn validate_sensor_id(sensor_id: &str, file_path: Option<&str>) -> Option<Va
         }
     }
 
+    // Length: 1..=64 characters.
+    // Parity with prism_core::sensor_id::validate_sensor_id_string — the SensorId
+    // newtype enforces this domain limit; TOML spec values must not exceed it.
+    if sensor_id.len() > 64 {
+        return Some(ValidationError {
+            code: SpecErrorCode::ESpec001,
+            message: format!("sensor_id is {} characters; maximum is 64", sensor_id.len()),
+            toml_path: Some("sensor.sensor_id".to_string()),
+            file_path: file_path.map(|s| s.to_string()),
+            line_number: None,
+        });
+    }
+
+    // No trailing `-` or `_`.
+    // Parity with prism_core::sensor_id::validate_sensor_id_string (InvalidBoundary).
+    // Real sensor IDs never end in a delimiter; this prevents ambiguous TOML keys.
+    let last = sensor_id
+        .chars()
+        .next_back()
+        .expect("non-empty checked above");
+    if last == '-' || last == '_' {
+        return Some(ValidationError {
+            code: SpecErrorCode::ESpec001,
+            message: "sensor_id must not end with '-' or '_'".to_string(),
+            toml_path: Some("sensor.sensor_id".to_string()),
+            file_path: file_path.map(|s| s.to_string()),
+            line_number: None,
+        });
+    }
+
     None
 }
 

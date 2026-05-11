@@ -27,7 +27,7 @@
 use std::collections::HashMap;
 use std::sync::Arc;
 
-use prism_core::{OrgSlug, PrismError, SensorType};
+use prism_core::{OrgSlug, PrismError, SensorId};
 use serde::Serialize;
 
 use crate::ast::{Ast, SourceRef, SourceRefKind, SqlStatement, VirtualField};
@@ -55,7 +55,7 @@ pub struct AuditEvent {
     /// The client scope parameter.
     pub clients: Option<Vec<OrgSlug>>,
     /// The sensor scope parameter.
-    pub sensors: Option<Vec<SensorType>>,
+    pub sensors: Option<Vec<SensorId>>,
     /// The source scope parameter.
     pub sources: Option<Vec<String>>,
     /// Human-readable outcome summary (e.g. "success", "E-QUERY-001").
@@ -83,7 +83,7 @@ pub struct ExplainOptions {
     /// Client scope override: `None` = all configured clients. (BC-2.11.011)
     pub clients: Option<Vec<OrgSlug>>,
     /// Sensor scope override: `None` = all sensors for resolved clients. (BC-2.11.010)
-    pub sensors: Option<Vec<SensorType>>,
+    pub sensors: Option<Vec<SensorId>>,
     /// Data source scope override: `None` = all sources for resolved sensors. (BC-2.11.010)
     pub sources: Option<Vec<String>>,
     /// Alias registry mapping alias names to their expanded definitions.
@@ -226,8 +226,8 @@ pub struct ExplainSource {
     /// Source reference string, e.g. `"crowdstrike.detections"`.
     pub source_ref: String,
 
-    /// The sensor type this source belongs to.
-    pub sensor_type: SensorType,
+    /// The sensor id this source belongs to.
+    pub sensor_id: SensorId,
 
     /// Push-down predicates as PrismQL-native predicate strings (e.g. `"severity = 'critical'"`).
     /// Sensor-native translation (FQL, KQL, etc.) is deferred to S-3.X via
@@ -648,22 +648,25 @@ fn post_fetch_operations_from_ast(ast: &Ast) -> Vec<String> {
 }
 
 // ---------------------------------------------------------------------------
-// sensor_type_from_source_ref — derive SensorType from SourceRef
+// sensor_id_from_source_ref — derive SensorId from SourceRef
 // ---------------------------------------------------------------------------
 
-/// Derive the sensor type for a source reference.
+/// Derive the sensor id for a source reference.
 ///
 /// Returns `None` for composite, internal, or custom source kinds that do not
-/// map to a specific sensor adapter.
-fn sensor_type_from_source_ref(s: &SourceRef) -> Option<SensorType> {
+/// map to a specific sensor adapter. Any non-empty external sensor name is valid
+/// (open dispatch — no closed-enum match).
+fn sensor_id_from_source_ref(s: &SourceRef) -> Option<SensorId> {
     match &s.kind {
-        SourceRefKind::External { sensor, .. } => match sensor.to_lowercase().as_str() {
-            "crowdstrike" => Some(SensorType::CrowdStrike),
-            "cyberint" => Some(SensorType::Cyberint),
-            "claroty" => Some(SensorType::Claroty),
-            "armis" => Some(SensorType::Armis),
-            _ => None,
-        },
+        SourceRefKind::External { sensor, .. } => {
+            let lower = sensor.to_lowercase();
+            // Use try_from_str for untrusted PrismQL sensor names — returns None
+            // for empty or charset-invalid strings rather than panicking (F-LP2-CRIT-002).
+            // TODO: TD-S-PLUGIN-PREREQ-A-005 — distinguish invalid-sensor-name from
+            // non-external source; should emit a warning or non-fatal note in the EXPLAIN
+            // response rather than silently skipping. See F-LP4-LOW-002.
+            SensorId::try_from_str(&lower).ok()
+        }
         _ => None,
     }
 }
@@ -910,7 +913,7 @@ pub fn explain(query_str: &str, options: ExplainOptions) -> Result<ExplainResult
     // they cannot be validated against any specific sensor type. This is intentional.
     if let Some(sensor_scope) = &options.sensors {
         raw_sources.retain(|s| {
-            if let Some(st) = sensor_type_from_source_ref(s) {
+            if let Some(st) = sensor_id_from_source_ref(s) {
                 sensor_scope.contains(&st)
             } else {
                 false
@@ -940,7 +943,7 @@ pub fn explain(query_str: &str, options: ExplainOptions) -> Result<ExplainResult
     let sensors_to_query: Vec<ExplainSource> = raw_sources
         .iter()
         .filter_map(|s| {
-            let sensor_type = sensor_type_from_source_ref(s)?;
+            let sensor_id = sensor_id_from_source_ref(s)?;
             // `plan` is shared across all sources at this stage (no per-sensor ColumnSpec).
 
             let api_filters: Vec<String> = plan
@@ -957,7 +960,7 @@ pub fn explain(query_str: &str, options: ExplainOptions) -> Result<ExplainResult
 
             Some(ExplainSource {
                 source_ref: s.raw.clone(),
-                sensor_type,
+                sensor_id,
                 api_filters_pushed: api_filters,
                 post_filter_predicates: post_filter,
                 estimated_row_count: None, // S-3.X: wire count_hint() here
@@ -1040,17 +1043,19 @@ pub fn explain(query_str: &str, options: ExplainOptions) -> Result<ExplainResult
     let mut per_sensor_rate_limit_headroom: HashMap<String, u64> = HashMap::new();
 
     for src in &sensors_to_query {
-        let sensor_key = src.sensor_type.to_string();
+        let sensor_key = src.sensor_id.to_string();
 
-        // Heuristic: base latency by sensor type (will be replaced by real metrics).
-        let latency_ms = match src.sensor_type {
-            SensorType::CrowdStrike => 250,
-            SensorType::Cyberint => 400,
-            SensorType::Claroty => 350,
-            SensorType::Armis => 300,
-            // #[non_exhaustive] catch-all for future sensor types.
-            #[allow(unreachable_patterns)]
-            _ => 500,
+        // Heuristic: base latency by sensor id (will be replaced by real metrics).
+        // Open dispatch: unknown sensors fall to the default case.
+        // TODO: replace with HashMap<SensorId, u64> when N grows beyond 4-5 sensors
+        // (linear match is acceptable for the current built-in sensor count but will
+        // not scale for plugin-registered sensors in Wave 5+).
+        let latency_ms = match src.sensor_id.as_ref() {
+            "crowdstrike" => 250,
+            "cyberint" => 400,
+            "claroty" => 350,
+            "armis" => 300,
+            _ => 300,
         };
         per_sensor_latency_ms.insert(sensor_key.clone(), latency_ms);
 
@@ -1084,7 +1089,7 @@ pub fn explain(query_str: &str, options: ExplainOptions) -> Result<ExplainResult
             total_calls,
             sensors_to_query
                 .iter()
-                .map(|s| s.sensor_type.to_string())
+                .map(|s| s.sensor_id.to_string())
                 .collect::<Vec<_>>()
                 .join(", ")
         )
@@ -1299,6 +1304,10 @@ fn ocsf_path_for_field(field_name: &str) -> String {
 /// Return the OCSF path for a virtual field.
 fn ocsf_path_for_virtual_field(name: &str) -> String {
     match name {
+        // "metadata.sensor_type" is the stable OCSF downstream field path for the
+        // sensor identity virtual field (_sensor). This is the OCSF schema field name
+        // (preserved during the S-PLUGIN-PREREQ-A Provenance.sensor_id migration) —
+        // not subject to the Rust struct field rename.
         "_sensor" => "metadata.sensor_type".to_string(),
         "_client" => "metadata.org_id".to_string(),
         "_source_table" => "metadata.source_table".to_string(),

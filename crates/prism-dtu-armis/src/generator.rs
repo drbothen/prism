@@ -35,7 +35,7 @@
 
 #![allow(dead_code)]
 
-use prism_core::types::SensorType;
+use prism_core::SensorId;
 use prism_dtu_common::generator::{
     default_page_size, seeded_rng, Archetype, FixtureSet, GenOpts, OrgId, Provenance,
 };
@@ -205,7 +205,7 @@ fn generate_large_scale(org_id: &OrgId, org_slug: &str, opts: &GenOpts) -> Fixtu
 ///   • each record has `status`, `data`, `data.results` keys (AQL envelope shape)
 ///   • `fs.cursors.len() == 3` (one cursor per logical page)
 fn generate_pagination_edge_cases(org_id: &OrgId, org_slug: &str, opts: &GenOpts) -> FixtureSet {
-    let page_size = default_page_size(SensorType::Armis);
+    let page_size = default_page_size(SensorId::from("armis"));
     let total_assets = page_size * 3;
 
     let mut records = Vec::with_capacity(total_assets);
@@ -480,7 +480,7 @@ fn provenance(
 ) -> Provenance {
     Provenance {
         org_id,
-        sensor_type: SensorType::Armis,
+        sensor_id: SensorId::from("armis"),
         archetype,
         seed: opts.seed,
         schema_valid,

@@ -126,7 +126,7 @@ mod helpers {
         fn resolve(
             &self,
             _client_id: &str,
-            _sensor_type: prism_core::types::SensorType,
+            _sensor_id: prism_core::SensorId,
         ) -> Result<Box<dyn prism_sensors::auth::SensorAuth>, SensorError> {
             Ok(Box::new(prism_sensors::CrowdStrikeAuth {
                 client_id: "test-stub".to_string(),
@@ -218,8 +218,7 @@ mod helpers {
     // StubAdapter — returns a fixed RecordBatch with N rows
     // -----------------------------------------------------------------------
 
-    use prism_core::types::SensorType;
-    use prism_core::OrgId;
+    use prism_core::{OrgId, SensorId};
     use prism_sensors::adapter::{QueryParams, SensorAdapter, SensorError, SensorSpec};
     use prism_sensors::auth::SensorAuth;
 
@@ -227,15 +226,15 @@ mod helpers {
     /// `detection_id` column.  Used in tests that need real row data to exercise
     /// record-cap, virtual-field, and cross-client fan-out logic.
     pub struct StubAdapter {
-        pub sensor_type: SensorType,
+        pub sensor_id: SensorId,
         pub row_count: usize,
         pub client_slug: String,
     }
 
     #[async_trait]
     impl SensorAdapter for StubAdapter {
-        fn sensor_type(&self) -> SensorType {
-            self.sensor_type
+        fn sensor_type(&self) -> SensorId {
+            self.sensor_id.clone()
         }
 
         fn sensor_name(&self) -> &'static str {
@@ -266,14 +265,14 @@ mod helpers {
     ///
     /// Uses `StubCredentialResolver` so `fan_out()` can reach `StubAdapter::fetch`
     /// without credential failures. The `OrgId` is saved so the adapter can be
-    /// found via `get_all_for_sensor_type`. (F-LP1-CRIT-2)
+    /// found via `get_all_for_sensor`. (F-LP1-CRIT-2)
     pub fn make_mat_ctx_with_stub(max_records: usize, row_count: usize) -> MaterializationContext {
         let org_id = OrgId::new();
         let mut registry = AdapterRegistry::new();
         registry.register(
             org_id,
             Arc::new(StubAdapter {
-                sensor_type: SensorType::CrowdStrike,
+                sensor_id: SensorId::from("crowdstrike"),
                 row_count,
                 client_slug: "acme".to_string(),
             }),
@@ -305,7 +304,7 @@ mod helpers {
 /// Red-Gate: panics at `todo!("S-3.02 — QueryEngine::execute")` in engine.rs:276.
 #[tokio::test]
 async fn test_AC_1_query_engine_execute_with_dtu_returns_results() {
-    use prism_core::{types::SensorType, OrgId};
+    use prism_core::{OrgId, SensorId};
     use prism_query::engine::QueryOptions;
 
     let org_slug = helpers::org("acme");
@@ -316,7 +315,7 @@ async fn test_AC_1_query_engine_execute_with_dtu_returns_results() {
     registry.register(
         org_id,
         Arc::new(helpers::StubAdapter {
-            sensor_type: SensorType::CrowdStrike,
+            sensor_id: SensorId::from("crowdstrike"),
             row_count: 3,
             client_slug: "acme".to_string(),
         }),
@@ -446,7 +445,7 @@ async fn test_AC_3_size_limit_returns_e_query_003() {
 /// `todo!("S-3.02 — resolve_source_refs")` reached first).
 #[tokio::test]
 async fn test_AC_4_filter_pushdown_passed_to_adapter() {
-    use prism_core::{types::SensorType, OrgId};
+    use prism_core::{OrgId, SensorId};
     use prism_query::engine::QueryOptions;
     use prism_sensors::adapter::{QueryParams, SensorAdapter, SensorError, SensorSpec};
     use prism_sensors::auth::SensorAuth;
@@ -460,8 +459,8 @@ async fn test_AC_4_filter_pushdown_passed_to_adapter() {
 
     #[async_trait]
     impl SensorAdapter for FilterSpyAdapter {
-        fn sensor_type(&self) -> SensorType {
-            SensorType::CrowdStrike
+        fn sensor_type(&self) -> SensorId {
+            SensorId::from("crowdstrike")
         }
 
         fn sensor_name(&self) -> &'static str {
@@ -607,7 +606,7 @@ async fn test_AC_5_register_internal_tables_then_query_prism_audit() {
 /// Red-Gate: panics at `todo!("S-3.02 — QueryEngine::execute")`.
 #[tokio::test]
 async fn test_AC_6_cross_client_query_all_scope_fans_out() {
-    use prism_core::types::SensorType;
+    use prism_core::SensorId;
     use prism_core::{OrgId, OrgRegistry};
     use prism_query::engine::{QueryEngine, QueryEngineConfig, QueryOptions};
 
@@ -633,7 +632,7 @@ async fn test_AC_6_cross_client_query_all_scope_fans_out() {
     registry.register(
         id_acme,
         Arc::new(helpers::StubAdapter {
-            sensor_type: SensorType::CrowdStrike,
+            sensor_id: SensorId::from("crowdstrike"),
             row_count: 2,
             client_slug: "acme".to_string(),
         }),
@@ -641,7 +640,7 @@ async fn test_AC_6_cross_client_query_all_scope_fans_out() {
     registry.register(
         id_beta,
         Arc::new(helpers::StubAdapter {
-            sensor_type: SensorType::CrowdStrike,
+            sensor_id: SensorId::from("crowdstrike"),
             row_count: 2,
             client_slug: "beta".to_string(),
         }),
@@ -723,7 +722,7 @@ async fn test_AC_6_cross_client_query_all_scope_fans_out() {
 /// Red-Gate: panics at `todo!("S-3.02 — QueryEngine::execute")`.
 #[tokio::test]
 async fn test_AC_7_virtual_fields_present_in_all_results() {
-    use prism_core::{types::SensorType, OrgId};
+    use prism_core::{OrgId, SensorId};
     use prism_query::engine::QueryOptions;
 
     let org_slug = helpers::org("acme");
@@ -734,7 +733,7 @@ async fn test_AC_7_virtual_fields_present_in_all_results() {
     registry.register(
         org_id,
         Arc::new(helpers::StubAdapter {
-            sensor_type: SensorType::CrowdStrike,
+            sensor_id: SensorId::from("crowdstrike"),
             row_count: 3,
             client_slug: "acme".to_string(),
         }),
@@ -1102,7 +1101,7 @@ async fn test_HIGH_4_internal_table_virtual_fields_present() {
 /// tests a 1-row cap with a single-source stub.
 #[tokio::test]
 async fn test_AC_3_bis_size_limit_at_10k_boundary() {
-    use prism_core::{types::SensorType, OrgId};
+    use prism_core::{OrgId, SensorId};
     use prism_query::engine::QueryOptions;
 
     // Register two StubAdapters each returning 6000 rows.
@@ -1111,7 +1110,7 @@ async fn test_AC_3_bis_size_limit_at_10k_boundary() {
     registry.register(
         OrgId::new(),
         Arc::new(helpers::StubAdapter {
-            sensor_type: SensorType::CrowdStrike,
+            sensor_id: SensorId::from("crowdstrike"),
             row_count: 6_000,
             client_slug: "acme".to_string(),
         }),
@@ -1119,7 +1118,7 @@ async fn test_AC_3_bis_size_limit_at_10k_boundary() {
     registry.register(
         OrgId::new(),
         Arc::new(helpers::StubAdapter {
-            sensor_type: SensorType::CrowdStrike,
+            sensor_id: SensorId::from("crowdstrike"),
             row_count: 6_000,
             client_slug: "beta".to_string(),
         }),
@@ -1398,7 +1397,7 @@ async fn test_LP2_CRIT_1_subquery_in_where_blocked_without_audit_read() {
     registry.register(
         OrgId::new(),
         Arc::new(helpers::StubAdapter {
-            sensor_type: prism_core::types::SensorType::CrowdStrike,
+            sensor_id: prism_core::SensorId::from("crowdstrike"),
             row_count: 2,
             client_slug: "acme".to_string(),
         }),
@@ -1464,7 +1463,7 @@ async fn test_LP2_CRIT_1_with_audit_read_capability_subquery_allowed() {
     registry.register(
         OrgId::new(),
         Arc::new(helpers::StubAdapter {
-            sensor_type: prism_core::types::SensorType::CrowdStrike,
+            sensor_id: prism_core::SensorId::from("crowdstrike"),
             row_count: 2,
             client_slug: "acme".to_string(),
         }),
@@ -1530,7 +1529,7 @@ async fn test_LP2_CRIT_1_having_subquery_blocked_without_audit_read() {
     registry.register(
         OrgId::new(),
         Arc::new(helpers::StubAdapter {
-            sensor_type: prism_core::types::SensorType::CrowdStrike,
+            sensor_id: prism_core::SensorId::from("crowdstrike"),
             row_count: 2,
             client_slug: "acme".to_string(),
         }),
@@ -1797,8 +1796,8 @@ async fn test_LP2_MED_2_cache_key_includes_filters() {
 
     #[async_trait]
     impl SensorAdapter for CountingAdapter {
-        fn sensor_type(&self) -> prism_core::types::SensorType {
-            prism_core::types::SensorType::CrowdStrike
+        fn sensor_type(&self) -> prism_core::SensorId {
+            prism_core::SensorId::from("crowdstrike")
         }
 
         fn sensor_name(&self) -> &'static str {
@@ -1975,7 +1974,7 @@ async fn test_HIGH_7_limit_exactly_1000_pipeline_success_with_stub() {
     registry.register(
         org_id,
         Arc::new(helpers::StubAdapter {
-            sensor_type: prism_core::types::SensorType::CrowdStrike,
+            sensor_id: prism_core::SensorId::from("crowdstrike"),
             row_count: 5,
             client_slug: "acme".to_string(),
         }),
@@ -2021,8 +2020,8 @@ async fn test_HIGH_7_limit_exactly_1000_pipeline_success_with_stub() {
 /// The test verifies the correct variant, not a string code, to avoid brittle assertions.
 #[tokio::test]
 async fn test_AC_timeout_returns_query_timeout_error() {
-    use prism_core::types::SensorType;
     use prism_core::OrgId;
+    use prism_core::SensorId;
     use prism_query::engine::{QueryEngine, QueryEngineConfig, QueryOptions};
     use prism_sensors::adapter::{QueryParams, SensorAdapter, SensorError, SensorSpec};
     use prism_sensors::auth::SensorAuth;
@@ -2032,8 +2031,8 @@ async fn test_AC_timeout_returns_query_timeout_error() {
 
     #[async_trait]
     impl SensorAdapter for SlowAdapter {
-        fn sensor_type(&self) -> SensorType {
-            SensorType::CrowdStrike
+        fn sensor_type(&self) -> SensorId {
+            SensorId::from("crowdstrike")
         }
 
         fn sensor_name(&self) -> &'static str {
@@ -2139,5 +2138,62 @@ async fn test_AC_depth_limit_returns_parse_error() {
                 | prism_core::PrismError::QueryExecutionFailed { .. }
         ),
         "depth-limit-test: error must be a parse or execution failure (depth limit); got: {detail}"
+    );
+}
+
+// ---------------------------------------------------------------------------
+// F-LP1-CRITICAL-001 regression: unknown source table must return E-QUERY-006
+// ---------------------------------------------------------------------------
+
+/// S-PLUGIN-PREREQ-A F-LP1-CRITICAL-001 regression test.
+///
+/// An unknown table name (prefix not registered in the adapter registry) MUST
+/// return `Err` containing "E-QUERY-006" rather than silently producing empty
+/// results. Before the fix, `unknown_table | host = 'x'` would silently produce
+/// an empty result set because `sensor_id_from_table_name` accepted any
+/// non-empty prefix, and `get_all_for_sensor("unknown")` returned empty.
+///
+/// The registry must be NON-EMPTY for this guard to fire — an empty registry
+/// indicates test/boot mode where the sensor roster is not yet known. In production
+/// the registry is always populated with at least the four built-in sensors.
+///
+/// This test verifies the two-stage check: extract prefix + registry membership.
+#[tokio::test]
+async fn test_resolve_source_refs_unknown_table_returns_e_query_006() {
+    use prism_core::{OrgId, OrgSlug, SensorId};
+    use prism_query::engine::QueryOptions;
+    use prism_sensors::AdapterRegistry;
+
+    // Register a known sensor (crowdstrike) so the registry is non-empty.
+    // This matches production behavior where built-in sensors are always registered.
+    let org_id = OrgId::new();
+    let mut registry = AdapterRegistry::new();
+    registry.register(
+        org_id,
+        std::sync::Arc::new(helpers::StubAdapter {
+            sensor_id: SensorId::from("crowdstrike"),
+            row_count: 0,
+            client_slug: "acme".to_string(),
+        }),
+    );
+    let org_slug = OrgSlug::new("acme");
+    let engine = helpers::make_engine(registry, vec![org_slug.clone()]);
+
+    let options = QueryOptions {
+        clients: Some(vec![org_slug]),
+        ..QueryOptions::default()
+    };
+
+    // "unknown_table" has prefix "unknown" — not in registry → must be E-QUERY-006.
+    // (Registry is non-empty so the guard fires; "unknown" != "crowdstrike".)
+    let result = engine.execute("unknown_table | host = 'x'", options).await;
+
+    let err = result.expect_err(
+        "F-LP1-CRITICAL-001: unknown_table must return Err (E-QUERY-006), not empty results",
+    );
+    let detail = err.to_string();
+    assert!(
+        detail.contains("E-QUERY-006"),
+        "F-LP1-CRITICAL-001: error must contain 'E-QUERY-006'; got: {detail}"
     );
 }

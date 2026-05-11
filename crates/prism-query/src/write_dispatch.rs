@@ -23,7 +23,7 @@ use std::sync::Arc;
 use arrow::record_batch::RecordBatch;
 use async_trait::async_trait;
 use chrono::Utc;
-use prism_core::{OrgId, OrgSlug, PrismError, RiskTier, SensorType};
+use prism_core::{OrgId, OrgSlug, PrismError, RiskTier, SensorId};
 use prism_security::feature_flag::CapabilityCheckResult;
 use prism_sensors::AdapterRegistry;
 use prism_sensors::RecordWriteResult;
@@ -275,24 +275,59 @@ impl WriteDispatcher {
             return (vec![], vec![]);
         }
 
-        // Resolve SensorType from plan sensor name.
-        let sensor_type = match plan.sensor.as_str() {
-            "crowdstrike" => SensorType::CrowdStrike,
-            "cyberint" => SensorType::Cyberint,
-            "claroty" => SensorType::Claroty,
-            "armis" => SensorType::Armis,
-            _ => {
-                // Unknown sensor: accumulate a write error for all records.
+        // Fallible SensorId construction from the user-supplied plan.sensor string.
+        // Uses try_from_str (not From<&str>) to avoid panics on invalid PrismQL
+        // sensor names (e.g. empty string, uppercase, charset violation).
+        // E-QUERY-031: invalid sensor name in query plan (F-LP2-CRIT-002).
+        let sensor_id = match SensorId::try_from_str(plan.sensor.as_str()) {
+            Ok(id) => id,
+            Err(e) => {
                 let error_count: usize = records.iter().map(|rb| rb.num_rows()).sum();
-                // F-PASS2-MED-005: fix phantom error when record batches are present but
-                // all have zero rows. The previous `error_count.max(1)` fabricated a
-                // per-record error that referenced no actual records. Emit a single
-                // context-level error for the empty-batch case instead.
-                let sensor_errors: Vec<SensorWriteError> = if error_count == 0 {
-                    // Record batches were present (passed the `records.is_empty()` guard above)
-                    // but contained zero rows. Emit one context-level error rather than
-                    // fabricating phantom per-record errors.
-                    vec![SensorWriteError {
+                let detail = format!(
+                    "E-QUERY-031: invalid sensor name '{}' in write plan: {e}",
+                    plan.sensor
+                );
+                let errors: Vec<SensorWriteError> = (0..error_count.max(1))
+                    .map(|_| SensorWriteError {
+                        sensor: plan.sensor.clone(),
+                        client_id: context.client_id.clone(),
+                        error_code: "E-QUERY-031".to_string(),
+                        detail: detail.clone(),
+                    })
+                    .collect();
+                return (vec![], errors);
+            }
+        };
+
+        // TODO: TD-S-PLUGIN-PREREQ-A-002 — replace sentinel nil OrgId with proper OrgRegistry lookup.
+        // The AdapterRegistry uses (OrgId, SensorId) composite key.
+        // QueryContext carries OrgSlug; translating to OrgId requires OrgRegistry (future story).
+        // In test contexts the registry is empty so `get()` returns None immediately.
+        // In production, init_registry_for_org() must be called with the correct OrgId
+        // before this code path is reachable. This sentinel-nil OrgId is pre-existing tech debt
+        // (filed as TD-S-PLUGIN-PREREQ-A-002; tracked for OrgRegistry wiring in Wave 5).
+        let org_id = OrgId::from_uuid(uuid::Uuid::nil()); // sentinel: empty registry returns None
+        let adapter = self.adapter_registry.get(org_id, &sensor_id);
+
+        let mut per_record_results: Vec<RecordWriteResult> = vec![];
+        let mut sensor_errors: Vec<SensorWriteError> = vec![];
+
+        match adapter {
+            None => {
+                // No adapter registered for this (org_id, sensor_id) pair.
+                // This happens when: (a) the sensor name is unknown to the registry,
+                // or (b) test contexts with an empty registry.
+                // Accumulate a sensor error for each record (or one context-level error
+                // for empty batches) — same semantics as the old closed-enum unknown branch.
+                tracing::debug!(
+                    sensor = %plan.sensor,
+                    org_id = ?org_id,
+                    "fan_out: no adapter registered — emitting sensor errors",
+                );
+                let error_count: usize = records.iter().map(|rb| rb.num_rows()).sum();
+                if error_count == 0 {
+                    // Empty record batches present: emit one context-level error (F-PASS2-MED-005).
+                    sensor_errors.push(SensorWriteError {
                         sensor: plan.sensor.clone(),
                         client_id: context.client_id.clone(),
                         error_code: "E-SENSOR-010".to_string(),
@@ -300,44 +335,18 @@ impl WriteDispatcher {
                             "unknown sensor '{}' with empty record batch — no writes attempted",
                             plan.sensor
                         ),
-                    }]
+                    });
                 } else {
-                    (0..error_count)
-                        .map(|_| SensorWriteError {
+                    // Non-empty batches: emit one error per record.
+                    for _ in 0..error_count {
+                        sensor_errors.push(SensorWriteError {
                             sensor: plan.sensor.clone(),
                             client_id: context.client_id.clone(),
                             error_code: "E-SENSOR-010".to_string(),
                             detail: format!("unknown sensor '{}'", plan.sensor),
-                        })
-                        .collect()
-                };
-                return (vec![], sensor_errors);
-            }
-        };
-
-        // TODO: W3-FIX-S307-002 — replace sentinel OrgId with proper OrgRegistry lookup.
-        // The AdapterRegistry uses (OrgId, SensorType) composite key.
-        // QueryContext carries OrgSlug; translating to OrgId requires OrgRegistry (future story).
-        // In test contexts the registry is empty so `get()` returns None immediately.
-        // In production, init_registry_for_org() must be called with the correct OrgId
-        // before this code path is reachable.
-        let org_id = OrgId::from_uuid(uuid::Uuid::nil()); // sentinel: empty registry returns None
-        let adapter = self.adapter_registry.get(org_id, sensor_type);
-
-        let mut per_record_results: Vec<RecordWriteResult> = vec![];
-        let mut sensor_errors: Vec<SensorWriteError> = vec![];
-
-        match adapter {
-            None => {
-                // No adapter registered for this (org_id, sensor_type) pair.
-                // Normal in test contexts (empty registry). Accumulate a sensor error.
-                tracing::debug!(
-                    sensor = %plan.sensor,
-                    org_id = ?org_id,
-                    "fan_out: no adapter registered for ({org_id:?}, {sensor_type}) — \
-                     zero records dispatched",
-                );
-                // No per-record results: registry is empty → 0 affected records (expected in tests).
+                        });
+                    }
+                }
             }
             Some(adapter) => {
                 // Dispatch write() for each record batch.
@@ -503,6 +512,86 @@ mod fan_out_empty_batch_tests {
             "MED-005: context-level error must describe empty batch situation; \
              got: {}",
             sensor_errors[0].detail
+        );
+    }
+
+    /// BC-2.01.013 AC-6 / E-QUERY-031: invalid sensor name in write plan →
+    /// fan_out returns no per-record results and exactly one error per
+    /// record-row with error_code == "E-QUERY-031" and a detail string
+    /// that names the invalid sensor and includes the "E-QUERY-031" code.
+    ///
+    /// Covers two invalid cases: uppercase chars (charset violation) and empty string.
+    #[tokio::test]
+    async fn test_BC_2_01_013_006_write_dispatch_invalid_sensor_returns_e_query_031() {
+        let dispatcher = make_dispatcher();
+        let context = make_context();
+        let endpoint_spec = make_endpoint_spec();
+
+        // Build a schema with 2 rows to check per-record error count.
+        let schema = Arc::new(arrow::datatypes::Schema::new(vec![
+            arrow::datatypes::Field::new("id", arrow::datatypes::DataType::Utf8, false),
+        ]));
+        let array = arrow::array::StringArray::from(vec!["r1", "r2"]);
+        let batch = RecordBatch::try_new(schema.clone(), vec![Arc::new(array)])
+            .expect("must construct 2-row batch");
+
+        // Case 1: uppercase charset violation ("INVALID-NAME")
+        let mut plan_invalid_charset = make_unknown_sensor_plan();
+        plan_invalid_charset.sensor = "INVALID-NAME".to_string();
+        let (per_record, sensor_errors) = dispatcher
+            .fan_out(
+                &plan_invalid_charset,
+                &context,
+                &endpoint_spec,
+                &[batch.clone()],
+            )
+            .await;
+        assert!(
+            per_record.is_empty(),
+            "E-QUERY-031: no per-record results for invalid sensor name"
+        );
+        assert_eq!(
+            sensor_errors.len(),
+            2,
+            "E-QUERY-031: 2-row batch with invalid sensor must emit 2 errors; got {}",
+            sensor_errors.len()
+        );
+        assert_eq!(
+            sensor_errors[0].error_code, "E-QUERY-031",
+            "E-QUERY-031: error_code field must be 'E-QUERY-031'; got '{}'",
+            sensor_errors[0].error_code
+        );
+        assert!(
+            sensor_errors[0].detail.contains("E-QUERY-031"),
+            "E-QUERY-031: detail must contain 'E-QUERY-031'; got '{}'",
+            sensor_errors[0].detail
+        );
+        assert!(
+            sensor_errors[0].detail.contains("INVALID-NAME"),
+            "E-QUERY-031: detail must name the invalid sensor; got '{}'",
+            sensor_errors[0].detail
+        );
+
+        // Case 2: empty string sensor name
+        let empty_schema = Arc::new(arrow::datatypes::Schema::new(vec![
+            arrow::datatypes::Field::new("id", arrow::datatypes::DataType::Utf8, false),
+        ]));
+        let empty_array = arrow::array::StringArray::from(vec!["r1"]);
+        let empty_batch = RecordBatch::try_new(empty_schema, vec![Arc::new(empty_array)])
+            .expect("must construct 1-row batch");
+        let mut plan_empty = make_unknown_sensor_plan();
+        plan_empty.sensor = String::new();
+        let (per_record2, sensor_errors2) = dispatcher
+            .fan_out(&plan_empty, &context, &endpoint_spec, &[empty_batch])
+            .await;
+        assert!(
+            per_record2.is_empty(),
+            "E-QUERY-031: no per-record results for empty sensor name"
+        );
+        assert_eq!(
+            sensor_errors2[0].error_code, "E-QUERY-031",
+            "E-QUERY-031: empty sensor name must also return E-QUERY-031; got '{}'",
+            sensor_errors2[0].error_code
         );
     }
 
