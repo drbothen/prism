@@ -36,9 +36,6 @@ use crate::cache::QueryCache;
 ///
 /// `sensor_id` is a `SensorId` (open newtype) — replaces the previous
 /// `sensor_name: &'static str` field (S-PLUGIN-PREREQ-A / F-LP1-MED-003).
-/// The map is a `LazyLock<Vec<...>>` (not a static slice) so that future plugin-registered
-/// write tools can extend it at runtime without recompiling (Vec is mutable in shape
-/// even though this initial set is read-only after init).
 #[derive(Debug, Clone)]
 pub struct WriteToolInvalidationMap {
     /// Tool name (e.g., `"crowdstrike_contain_host"`).
@@ -53,8 +50,10 @@ pub struct WriteToolInvalidationMap {
 /// Lazily-initialized mapping of all write tools to their invalidation targets.
 ///
 /// Currently populated with the four built-in sensors (crowdstrike, cyberint,
-/// claroty, armis). The `Vec` shape (not `&[...]` static slice) allows future
-/// plugin-registered write tools to extend the map at runtime (Wave 5+).
+/// claroty, armis). The `Vec` shape (not `&[...]` static slice) is a forward-
+/// compatibility choice — runtime extensibility for plugin-registered write tools
+/// requires additional infrastructure (RwLock + register API); that work is
+/// deferred to PREREQ-E (see TD-S-PLUGIN-PREREQ-A-003 P1).
 pub static WRITE_TOOL_INVALIDATION_MAP: LazyLock<Vec<WriteToolInvalidationMap>> =
     LazyLock::new(|| {
         vec![

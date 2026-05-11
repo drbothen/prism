@@ -135,12 +135,12 @@ fn test_AC_001_init_registry_for_org_uses_org_id_in_signature() {
 }
 
 // ---------------------------------------------------------------------------
-// AC-002: AdapterRegistry keyed by (OrgId, SensorType) composite key
+// AC-002: AdapterRegistry keyed by (OrgId, SensorId) composite key
 // (traces to BC-3.2.001 invariant 1 and BC-3.1.003 invariant 2)
 // ---------------------------------------------------------------------------
 
 /// AC-002 (RED): Registering adapters for two distinct OrgIds under the same
-/// SensorType produces two independent registry entries.
+/// SensorId produces two independent registry entries.
 ///
 /// Specifically: `get(org_id_A, SensorId::from("crowdstrike"))` and
 /// `get(org_id_B, SensorId::from("crowdstrike"))` must return different Arc pointers.

@@ -115,7 +115,7 @@ fn test_ac2_pushdown_predicates_populated_for_required_column() {
         .execution_plan
         .sensors_to_query
         .iter()
-        .find(|s| s.sensor_type == SensorId::from("crowdstrike"));
+        .find(|s| s.sensor_id == SensorId::from("crowdstrike"));
     assert!(
         src.is_some(),
         "ExplainSource for CrowdStrike must appear in sensors_to_query"
@@ -261,7 +261,7 @@ fn test_ec11_050_unknown_sensor_source_produces_empty_sensors_to_query() {
         .execution_plan
         .sensors_to_query
         .iter()
-        .any(|s| s.sensor_type.as_ref() == "unknown");
+        .any(|s| s.sensor_id.as_ref() == "unknown");
     assert!(
         has_unknown,
         "sensors_to_query must contain the 'unknown' sensor id (open dispatch); got: {:?}",
@@ -290,7 +290,7 @@ fn test_ec11_051_non_pushdown_predicates_go_to_post_filter() {
         .execution_plan
         .sensors_to_query
         .iter()
-        .find(|s| s.sensor_type == SensorId::from("crowdstrike"))
+        .find(|s| s.sensor_id == SensorId::from("crowdstrike"))
         .expect("CrowdStrike source must be present");
 
     // Conservative: no ColumnSpec → all predicates → post_filter.
@@ -480,10 +480,10 @@ fn test_BC_2_11_010_sensors_scope_param_accepted() {
     // Only CrowdStrike source should appear after sensor-scope filtering.
     for src in &r.execution_plan.sensors_to_query {
         assert_eq!(
-            src.sensor_type,
+            src.sensor_id,
             SensorId::from("crowdstrike"),
             "Only CrowdStrike sources must appear when sensors=[CrowdStrike]; got: {:?}",
-            src.sensor_type
+            src.sensor_id
         );
     }
 }
@@ -733,7 +733,7 @@ fn test_BC_2_11_010_cost_estimate_latency_map_has_entry_per_sensor() {
         );
         // Verify the sensor key is present.
         for src in &r.execution_plan.sensors_to_query {
-            let key = src.sensor_type.to_string();
+            let key = src.sensor_id.to_string();
             assert!(
                 r.estimated_cost.per_sensor_latency_ms.contains_key(&key),
                 "per_sensor_latency_ms must have key '{}'; got: {:?}",
@@ -766,7 +766,7 @@ fn test_BC_2_11_010_cost_estimate_api_call_count_map_has_entry_per_sensor() {
             r.estimated_cost.per_sensor_api_call_count.len()
         );
         for src in &r.execution_plan.sensors_to_query {
-            let key = src.sensor_type.to_string();
+            let key = src.sensor_id.to_string();
             let count = r.estimated_cost.per_sensor_api_call_count[&key];
             assert!(
                 count >= 1,
@@ -1197,7 +1197,7 @@ fn test_cr003_not_predicate_falls_to_post_filter() {
         .execution_plan
         .sensors_to_query
         .iter()
-        .find(|s| s.sensor_type == SensorId::from("crowdstrike"))
+        .find(|s| s.sensor_id == SensorId::from("crowdstrike"))
         .expect("crowdstrike.detections must produce a CrowdStrike sensor entry");
     assert!(
         src.api_filters_pushed.is_empty(),
@@ -1317,7 +1317,7 @@ fn test_predicate_as_string_like_operator_renders_correctly() {
         .execution_plan
         .sensors_to_query
         .iter()
-        .find(|s| s.sensor_type == SensorId::from("crowdstrike"))
+        .find(|s| s.sensor_id == SensorId::from("crowdstrike"))
         .expect("CrowdStrike source must be present");
     assert!(
         src.post_filter_predicates
@@ -1349,7 +1349,7 @@ fn test_predicate_as_string_cidr_operator_renders_correctly() {
         .execution_plan
         .sensors_to_query
         .iter()
-        .find(|s| s.sensor_type == SensorId::from("crowdstrike"))
+        .find(|s| s.sensor_id == SensorId::from("crowdstrike"))
         .expect("CrowdStrike source must be present");
     // CIDR predicates go to post_filter (conservative — no push-down spec wired).
     assert!(
@@ -1397,7 +1397,7 @@ fn test_BC_2_11_010_pipe_join_collects_both_source_and_target_sensors() {
         .execution_plan
         .sensors_to_query
         .iter()
-        .map(|s| s.sensor_type.clone())
+        .map(|s| s.sensor_id.clone())
         .collect();
 
     assert!(
@@ -1443,7 +1443,7 @@ fn test_negated_cidr_predicate_renders_with_not_prefix() {
         .execution_plan
         .sensors_to_query
         .iter()
-        .find(|s| s.sensor_type == SensorId::from("crowdstrike"))
+        .find(|s| s.sensor_id == SensorId::from("crowdstrike"))
         .expect("CrowdStrike source must be present");
 
     // The negated CIDR must go to post_filter (conservative — no push-down spec wired).
@@ -1491,7 +1491,7 @@ fn test_non_negated_cidr_predicate_does_not_render_with_not_prefix() {
         .execution_plan
         .sensors_to_query
         .iter()
-        .find(|s| s.sensor_type == SensorId::from("crowdstrike"))
+        .find(|s| s.sensor_id == SensorId::from("crowdstrike"))
         .expect("CrowdStrike source must be present");
 
     // Non-negated CIDR must NOT contain "NOT".

@@ -35,7 +35,7 @@ fn virtual_field_sensor_name(sensor_id: &SensorId) -> &str {
 /// including unknown/custom sensors, without modification (open extensibility).
 #[test]
 fn test_BC_2_01_013_005_sensorid_lookup_at_virtual_fields_dispatch() {
-    // Constructing SensorId panics at todo!() in From<&str> — Red Gate confirmed.
+    // SensorId::from("crowdstrike") — validated input, no panic.
     let sensor_id = SensorId::from("crowdstrike");
 
     // Post-migration: open dispatch — sensor identity IS the string.

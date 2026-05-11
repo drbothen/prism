@@ -275,10 +275,29 @@ impl WriteDispatcher {
             return (vec![], vec![]);
         }
 
-        // Open dispatch: any non-empty sensor name is a valid SensorId.
-        // Unknown sensors: if the registry has no adapter for this sensor, the
-        // `registry.get()` below returns None and we emit E-SENSOR-010 errors there.
-        let sensor_id = SensorId::from(plan.sensor.as_str());
+        // Fallible SensorId construction from the user-supplied plan.sensor string.
+        // Uses try_from_str (not From<&str>) to avoid panics on invalid PrismQL
+        // sensor names (e.g. empty string, uppercase, charset violation).
+        // E-QUERY-031: invalid sensor name in query plan (F-LP2-CRIT-002).
+        let sensor_id = match SensorId::try_from_str(plan.sensor.as_str()) {
+            Ok(id) => id,
+            Err(e) => {
+                let error_count: usize = records.iter().map(|rb| rb.num_rows()).sum();
+                let detail = format!(
+                    "E-QUERY-031: invalid sensor name '{}' in write plan: {e}",
+                    plan.sensor
+                );
+                let errors: Vec<SensorWriteError> = (0..error_count.max(1))
+                    .map(|_| SensorWriteError {
+                        sensor: plan.sensor.clone(),
+                        client_id: context.client_id.clone(),
+                        error_code: "E-QUERY-031".to_string(),
+                        detail: detail.clone(),
+                    })
+                    .collect();
+                return (vec![], errors);
+            }
+        };
 
         // TODO: TD-S-PLUGIN-PREREQ-A-002 — replace sentinel nil OrgId with proper OrgRegistry lookup.
         // The AdapterRegistry uses (OrgId, SensorId) composite key.

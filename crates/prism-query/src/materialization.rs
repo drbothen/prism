@@ -115,7 +115,7 @@ pub fn inject_source_type(rows: &mut Vec<serde_json::Value>, descriptor: &Sensor
 #[derive(Debug, Clone)]
 pub struct FanOutTarget {
     /// The sensor id (e.g., `SensorId::from("crowdstrike")`).
-    pub sensor_type: SensorId,
+    pub sensor_id: SensorId,
     /// The client ID owning this sensor instance. (BC-2.11.011)
     pub client_id: OrgSlug,
     /// The resolved OrgId for per-org adapter selection. (BC-3.2.001)
@@ -276,11 +276,11 @@ impl CredentialResolver for NullMaterializationCredentialResolver {
     fn resolve(
         &self,
         _client_id: &str,
-        sensor_type: SensorId,
+        sensor_id: SensorId,
     ) -> Result<Box<dyn prism_sensors::SensorAuth>, prism_sensors::SensorError> {
         Err(prism_sensors::SensorError::Internal {
             detail: format!(
-                "NullMaterializationCredentialResolver: no credential for sensor {sensor_type:?}"
+                "NullMaterializationCredentialResolver: no credential for sensor {sensor_id:?}"
             ),
         })
     }
@@ -377,7 +377,7 @@ pub async fn run_materialization_pipeline(
         let cache_key = format!(
             "{}:{:?}:{}:{}",
             target.client_id.as_str(),
-            target.sensor_type,
+            target.sensor_id,
             &target.source_table,
             serde_json::to_string(&where_filters).unwrap_or_default()
         );
@@ -404,7 +404,7 @@ pub async fn run_materialization_pipeline(
             prism_sensors::fanout::FanOutTarget {
                 org_id: target.org_id,
                 client_id: target.client_id.as_str().to_string(),
-                sensor_type: target.sensor_type.clone(),
+                sensor_id: target.sensor_id.clone(),
                 spec: prism_sensors::adapter::SensorSpec {
                     source_table: target.source_table.clone(),
                     #[allow(deprecated)]
@@ -433,7 +433,7 @@ pub async fn run_materialization_pipeline(
         {
             Ok(fan_result) => {
                 // Record sensor type in sensors_queried (BC-2.11.001, ADV-W3MT-P58-HIGH-005).
-                sensors_queried.insert(format!("{:?}", target.sensor_type));
+                sensors_queried.insert(format!("{:?}", target.sensor_id));
 
                 // Collect successes with per-target virtual field injection.
                 let mut fetched_batches: Vec<RecordBatch> = Vec::new();
@@ -444,7 +444,7 @@ pub async fn run_materialization_pipeline(
                     // Uses this target's client_id for correct per-client attribution (AC-6).
                     let annotated = crate::virtual_fields::inject_virtual_fields(
                         batch,
-                        &target.sensor_type,
+                        &target.sensor_id,
                         &target.client_id,
                         &target.source_table,
                     )
@@ -463,7 +463,7 @@ pub async fn run_materialization_pipeline(
                     // Redact internal detail — expose error code only (OBS-1 / CWE-209).
                     tracing::warn!(
                         source_table = %target.source_table,
-                        sensor = ?target.sensor_type,
+                        sensor = ?target.sensor_id,
                         error = %fan_err,
                         "fan_out partial failure"
                     );
@@ -626,7 +626,7 @@ pub(crate) async fn resolve_source_refs(
         //      for empty or invalid-charset prefixes — cannot be a valid SensorId).
         //   2. is_sensor_registered: checks adapter_registry membership (returns E-QUERY-006
         //      for valid-looking prefixes with no registered adapter — unknown sensor name).
-        let Some(sensor_type) = sensor_type_from_table_name(source_name) else {
+        let Some(sensor_id) = sensor_type_from_table_name(source_name) else {
             tracing::debug!(
                 source_name,
                 "resolve_source_refs: unknown sensor prefix; returning E-QUERY-006"
@@ -650,10 +650,10 @@ pub(crate) async fn resolve_source_refs(
         // In production, the registry is always populated at boot with at least the
         // four built-in sensors; any table prefix absent from a populated registry is
         // genuinely unknown and must return E-QUERY-006.
-        if !adapter_registry.is_empty() && !adapter_registry.is_sensor_registered(&sensor_type) {
+        if !adapter_registry.is_empty() && !adapter_registry.is_sensor_registered(&sensor_id) {
             tracing::debug!(
                 source_name,
-                sensor_id = %sensor_type,
+                sensor_id = %sensor_id,
                 "resolve_source_refs: no adapter registered for sensor prefix; returning E-QUERY-006"
             );
             return Err(PrismError::QueryExecutionFailed {
@@ -661,7 +661,7 @@ pub(crate) async fn resolve_source_refs(
                     "E-QUERY-006: unknown source table '{source_name}'; \
                      sensor prefix '{}' is not registered in the adapter registry. \
                      Check spelling or register the sensor in prism.toml.",
-                    sensor_type
+                    sensor_id
                 ),
             });
         }
@@ -672,7 +672,7 @@ pub(crate) async fn resolve_source_refs(
             //
             // F-LP1-CRIT-3/HIGH-6: use per-org adapter selection.
             // When no explicit client list, iterate all registered (org_id, adapter) pairs.
-            let all_adapters = adapter_registry.get_all_for_sensor_type(sensor_type.clone());
+            let all_adapters = adapter_registry.get_all_for_sensor_type(sensor_id.clone());
             for (org_id, _adapter) in all_adapters {
                 // Derive client_id from OrgRegistry (reverse lookup).
                 // F-LP2-LOW-2: if no slug is found, emit a warn and SKIP this target.
@@ -694,7 +694,7 @@ pub(crate) async fn resolve_source_refs(
                     let synthetic_slug =
                         OrgSlug::new_unchecked(&format!("org-{}", &org_id.to_string()[..8]));
                     targets.push(FanOutTarget {
-                        sensor_type: sensor_type.clone(),
+                        sensor_id: sensor_id.clone(),
                         client_id: synthetic_slug.clone(),
                         org_id,
                         sensor_spec: SensorSpec {
@@ -711,7 +711,7 @@ pub(crate) async fn resolve_source_refs(
                 };
 
                 targets.push(FanOutTarget {
-                    sensor_type: sensor_type.clone(),
+                    sensor_id: sensor_id.clone(),
                     client_id: client_slug.clone(),
                     org_id,
                     sensor_spec: SensorSpec {
@@ -730,7 +730,7 @@ pub(crate) async fn resolve_source_refs(
             // BC-2.11.011 EC-005: sources with no adapters produce empty results without error.
             // F-LP2-LOW-2: no sentinel `_all` target is added — that would expose internal details.
             if adapter_registry
-                .get_all_for_sensor_type(sensor_type.clone())
+                .get_all_for_sensor_type(sensor_id.clone())
                 .is_empty()
             {
                 tracing::debug!(
@@ -747,15 +747,11 @@ pub(crate) async fn resolve_source_refs(
                 // F-LP1-CRIT-3: resolve OrgSlug → OrgId via OrgRegistry if available.
                 // When OrgRegistry is absent (test mode), use `get_all_for_sensor_type`
                 // to find the OrgId associated with a registered adapter for this sensor.
-                let org_id = resolve_org_id(
-                    client_id,
-                    sensor_type.clone(),
-                    adapter_registry,
-                    org_registry,
-                );
+                let org_id =
+                    resolve_org_id(client_id, sensor_id.clone(), adapter_registry, org_registry);
 
                 targets.push(FanOutTarget {
-                    sensor_type: sensor_type.clone(),
+                    sensor_id: sensor_id.clone(),
                     client_id: client_id.clone(),
                     org_id,
                     sensor_spec: SensorSpec {

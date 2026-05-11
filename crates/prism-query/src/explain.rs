@@ -227,7 +227,7 @@ pub struct ExplainSource {
     pub source_ref: String,
 
     /// The sensor id this source belongs to.
-    pub sensor_type: SensorId,
+    pub sensor_id: SensorId,
 
     /// Push-down predicates as PrismQL-native predicate strings (e.g. `"severity = 'critical'"`).
     /// Sensor-native translation (FQL, KQL, etc.) is deferred to S-3.X via
@@ -660,11 +660,9 @@ fn sensor_type_from_source_ref(s: &SourceRef) -> Option<SensorId> {
     match &s.kind {
         SourceRefKind::External { sensor, .. } => {
             let lower = sensor.to_lowercase();
-            if lower.is_empty() {
-                None
-            } else {
-                Some(SensorId::from(lower.as_str()))
-            }
+            // Use try_from_str for untrusted PrismQL sensor names — returns None
+            // for empty or charset-invalid strings rather than panicking (F-LP2-CRIT-002).
+            SensorId::try_from_str(&lower).ok()
         }
         _ => None,
     }
@@ -942,7 +940,7 @@ pub fn explain(query_str: &str, options: ExplainOptions) -> Result<ExplainResult
     let sensors_to_query: Vec<ExplainSource> = raw_sources
         .iter()
         .filter_map(|s| {
-            let sensor_type = sensor_type_from_source_ref(s)?;
+            let sensor_id = sensor_type_from_source_ref(s)?;
             // `plan` is shared across all sources at this stage (no per-sensor ColumnSpec).
 
             let api_filters: Vec<String> = plan
@@ -959,7 +957,7 @@ pub fn explain(query_str: &str, options: ExplainOptions) -> Result<ExplainResult
 
             Some(ExplainSource {
                 source_ref: s.raw.clone(),
-                sensor_type,
+                sensor_id,
                 api_filters_pushed: api_filters,
                 post_filter_predicates: post_filter,
                 estimated_row_count: None, // S-3.X: wire count_hint() here
@@ -1042,14 +1040,14 @@ pub fn explain(query_str: &str, options: ExplainOptions) -> Result<ExplainResult
     let mut per_sensor_rate_limit_headroom: HashMap<String, u64> = HashMap::new();
 
     for src in &sensors_to_query {
-        let sensor_key = src.sensor_type.to_string();
+        let sensor_key = src.sensor_id.to_string();
 
         // Heuristic: base latency by sensor id (will be replaced by real metrics).
         // Open dispatch: unknown sensors fall to the default case.
         // TODO: replace with HashMap<SensorId, u64> when N grows beyond 4-5 sensors
         // (linear match is acceptable for the current built-in sensor count but will
         // not scale for plugin-registered sensors in Wave 5+).
-        let latency_ms = match src.sensor_type.as_ref() {
+        let latency_ms = match src.sensor_id.as_ref() {
             "crowdstrike" => 250,
             "cyberint" => 400,
             "claroty" => 350,
@@ -1088,7 +1086,7 @@ pub fn explain(query_str: &str, options: ExplainOptions) -> Result<ExplainResult
             total_calls,
             sensors_to_query
                 .iter()
-                .map(|s| s.sensor_type.to_string())
+                .map(|s| s.sensor_id.to_string())
                 .collect::<Vec<_>>()
                 .join(", ")
         )

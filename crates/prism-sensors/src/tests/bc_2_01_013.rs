@@ -5,7 +5,7 @@
 //! - `SensorAdapter` object-safety and `Send + Sync + 'static` bounds (AC-3)
 //! - `AdapterRegistry::register()` + `get()` round-trip (AC-3, TV-BC-2.01.013-001)
 //! - Lookup returns the *same* `Arc` instance after registration
-//! - `get()` for an unregistered `SensorType` returns `None`
+//! - `get()` for an unregistered `SensorId` returns `None`
 //! - Registry `len()` / `is_empty()` helpers
 //! - Sealed trait: `SensorAuth` cannot be implemented outside `prism_sensors`
 //!   (verified structurally — the private module is not accessible from tests)
@@ -134,7 +134,7 @@ fn test_BC_2_01_013_registry_get_returns_none_for_unregistered_sensor() {
     );
 }
 
-/// Registering a second adapter for the same `SensorType` replaces the first.
+/// Registering a second adapter for the same `SensorId` replaces the first.
 #[test]
 fn test_BC_2_01_013_registry_re_register_replaces_existing_adapter() {
     let first = stub(SensorId::from("crowdstrike"), "first");

@@ -126,7 +126,7 @@ mod helpers {
         fn resolve(
             &self,
             _client_id: &str,
-            _sensor_type: prism_core::SensorId,
+            _sensor_id: prism_core::SensorId,
         ) -> Result<Box<dyn prism_sensors::auth::SensorAuth>, SensorError> {
             Ok(Box::new(prism_sensors::CrowdStrikeAuth {
                 client_id: "test-stub".to_string(),

@@ -57,11 +57,11 @@ fn make_spec(org_id: OrgId, table: &str) -> SensorSpec {
 
 /// Minimal `FanOutTarget` for dispatch tests.
 #[allow(deprecated)]
-fn make_target(org_id: OrgId, sensor_type: SensorId) -> FanOutTarget {
+fn make_target(org_id: OrgId, sensor_id: SensorId) -> FanOutTarget {
     FanOutTarget {
         org_id,
         client_id: String::new(), // deprecated
-        sensor_type,
+        sensor_id,
         spec: make_spec(org_id, "test_table"),
         params: QueryParams::default(),
     }

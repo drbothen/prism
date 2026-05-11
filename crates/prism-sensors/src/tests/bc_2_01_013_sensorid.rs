@@ -23,8 +23,8 @@ use crate::{
 
 // ---------------------------------------------------------------------------
 // Stub adapter — minimal SensorAdapter impl for registry wiring tests.
-// Keeps existing trait method signatures so this file compiles today
-// (sensor_type() still returns SensorType per the current trait definition).
+// sensor_type() returns SensorId (open newtype) — migration to SensorId
+// is complete as of S-PLUGIN-PREREQ-A.
 // ---------------------------------------------------------------------------
 
 use prism_core::SensorId as SensorIdType;

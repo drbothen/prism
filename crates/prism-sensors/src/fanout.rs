@@ -67,7 +67,7 @@ pub struct FanOutTarget {
     /// Will be removed once all callers migrate to `org_id` (S-3.1.06).
     #[deprecated(since = "0.2.0", note = "use `org_id: OrgId` instead (S-3.1.06)")]
     pub client_id: String,
-    pub sensor_type: SensorId,
+    pub sensor_id: SensorId,
     pub spec: SensorSpec,
     pub params: QueryParams,
 }
@@ -112,7 +112,7 @@ pub struct FanOutError {
     /// Will be removed once all callers migrate to `org_id` (S-3.1.06).
     #[deprecated(since = "0.2.0", note = "use `org_id: OrgId` instead (S-3.1.06)")]
     pub client_id: String,
-    pub sensor_type: SensorId,
+    pub sensor_id: SensorId,
     pub error: SensorError,
     pub retry_metadata: RetryMetadata,
 }
@@ -123,7 +123,7 @@ impl std::fmt::Display for FanOutError {
             f,
             "FanOutError(org_id={}, sensor={}, attempts={}, transient={}): {}",
             self.org_id,
-            self.sensor_type,
+            self.sensor_id,
             self.retry_metadata.attempts,
             self.retry_metadata.is_transient,
             self.error,
@@ -168,7 +168,7 @@ pub trait CredentialResolver: Send + Sync {
     fn resolve(
         &self,
         client_id: &str,
-        sensor_type: SensorId,
+        sensor_id: SensorId,
     ) -> Result<Box<dyn SensorAuth>, SensorError>;
 }
 
@@ -208,10 +208,10 @@ pub async fn dispatch_by_table_type(target: &FanOutTarget) -> Result<FanOutResul
     //
     // The `target` variable is used via the `_target` pattern in the outer fan_out,
     // so we reference it here to confirm dispatch entry.
-    let _ = &target.sensor_type; // used to confirm type dispatch entry point
+    let _ = &target.sensor_id; // used to confirm type dispatch entry point
     tracing::debug!(
         org_id = %target.org_id,
-        sensor_type = %target.sensor_type,
+        sensor_id = %target.sensor_id,
         "AC-3/AC-5: dispatch_by_table_type: routing through live API fetch (S-3.02 will wire EventStream buffer scan)"
     );
     // Return empty result — callers that need actual data use fan_out() directly.
@@ -229,8 +229,8 @@ pub async fn dispatch_by_table_type(target: &FanOutTarget) -> Result<FanOutResul
 /// Spawns one tokio task per target. Each task:
 /// 1. Acquires one permit from the fan-out semaphore (cap: `MAX_FANOUT_CONCURRENCY`).
 /// 2. Acquires one permit from the global HTTP semaphore (cap: 200).
-/// 3. Resolves credentials via `credentials.resolve(client_id, sensor_type)`.
-/// 4. Calls `registry.get(sensor_type)?.fetch(spec, params, auth)`.
+/// 3. Resolves credentials via `credentials.resolve(client_id, sensor_id)`.
+/// 4. Calls `registry.get(sensor_id)?.fetch(spec, params, auth)`.
 /// 5. Releases both permits on completion or error.
 ///
 /// After all tasks complete via `join_all`, results are partitioned:
@@ -238,7 +238,7 @@ pub async fn dispatch_by_table_type(target: &FanOutTarget) -> Result<FanOutResul
 /// - All targets fail     → `Err(SensorError::AllTargetsFailed { errors })`
 ///
 /// # Arguments
-/// - `targets` — list of `(client_id, sensor_type, spec, params)` tuples.
+/// - `targets` — list of `(client_id, sensor_id, spec, params)` tuples.
 /// - `registry` — shared adapter registry for adapter lookup.
 /// - `credentials` — credential resolver for per-client auth.
 ///
@@ -293,7 +293,7 @@ pub async fn fan_out(
                         return Err(FanOutError {
                             org_id: target.org_id,
                             client_id: target.client_id.clone(),
-                            sensor_type: target.sensor_type,
+                            sensor_id: target.sensor_id,
                             error: e,
                             retry_metadata,
                         });
@@ -309,7 +309,7 @@ pub async fn fan_out(
                         let err = FanOutError {
                             org_id: target.org_id,
                             client_id: target.client_id.clone(),
-                            sensor_type: target.sensor_type,
+                            sensor_id: target.sensor_id,
                             error: e,
                             retry_metadata,
                         };
@@ -318,7 +318,7 @@ pub async fn fan_out(
                 };
 
                 // Resolve credentials for this (client, sensor) pair
-                let auth = match credentials.resolve(&target.client_id, target.sensor_type.clone()) {
+                let auth = match credentials.resolve(&target.client_id, target.sensor_id.clone()) {
                     Ok(a) => a,
                     Err(e) => {
                         let retry_metadata = error_to_retry_metadata(&e, 1);
@@ -326,26 +326,26 @@ pub async fn fan_out(
                         return Err(FanOutError {
                             org_id: target.org_id,
                             client_id: target.client_id.clone(),
-                            sensor_type: target.sensor_type,
+                            sensor_id: target.sensor_id,
                             error: e,
                             retry_metadata,
                         });
                     }
                 };
 
-                // Look up the adapter for this sensor type
-                let adapter = match registry.get(target.org_id, target.sensor_type.clone()) {
+                // Look up the adapter for this sensor id
+                let adapter = match registry.get(target.org_id, target.sensor_id.clone()) {
                     Some(a) => a,
                     None => {
                         let e = SensorError::AdapterNotFound {
-                            sensor_id: target.sensor_type.clone(),
+                            sensor_id: target.sensor_id.clone(),
                         };
                         let retry_metadata = error_to_retry_metadata(&e, 1);
                         #[allow(deprecated)]
                         return Err(FanOutError {
                             org_id: target.org_id,
                             client_id: target.client_id.clone(),
-                            sensor_type: target.sensor_type,
+                            sensor_id: target.sensor_id,
                             error: e,
                             retry_metadata,
                         });
@@ -356,7 +356,7 @@ pub async fn fan_out(
                 let span = tracing::info_span!(
                     "fan_out_task",
                     org_id = %target.org_id,
-                    sensor_type = %target.sensor_type,
+                    sensor_id = %target.sensor_id,
                 );
                 let _enter = span.enter();
 
@@ -380,7 +380,7 @@ pub async fn fan_out(
                         let err = FanOutError {
                             org_id: target.org_id,
                             client_id: target.client_id.clone(),
-                            sensor_type: target.sensor_type,
+                            sensor_id: target.sensor_id,
                             error: e,
                             retry_metadata,
                         };
@@ -406,7 +406,7 @@ pub async fn fan_out(
                 result.errors.push(FanOutError {
                     org_id: OrgId::new(),
                     client_id: "unknown".into(),
-                    sensor_type: prism_core::SensorId::from("unknown"),
+                    sensor_id: prism_core::SensorId::from("unknown"),
                     error: SensorError::Internal {
                         detail: format!("task panic: {join_err}"),
                     },
@@ -463,7 +463,7 @@ async fn execute_target(
             return Err(FanOutError {
                 org_id: target.org_id,
                 client_id: target.client_id.clone(),
-                sensor_type: target.sensor_type,
+                sensor_id: target.sensor_id,
                 error: e,
                 retry_metadata,
             });
@@ -471,7 +471,7 @@ async fn execute_target(
     };
 
     // Resolve credentials
-    let auth = match credentials.resolve(&target.client_id, target.sensor_type.clone()) {
+    let auth = match credentials.resolve(&target.client_id, target.sensor_id.clone()) {
         Ok(a) => a,
         Err(e) => {
             let retry_metadata = error_to_retry_metadata(&e, 1);
@@ -479,7 +479,7 @@ async fn execute_target(
             return Err(FanOutError {
                 org_id: target.org_id,
                 client_id: target.client_id.clone(),
-                sensor_type: target.sensor_type,
+                sensor_id: target.sensor_id,
                 error: e,
                 retry_metadata,
             });
@@ -487,29 +487,29 @@ async fn execute_target(
     };
 
     // Look up the adapter
-    let adapter = match registry.get(target.org_id, target.sensor_type.clone()) {
+    let adapter = match registry.get(target.org_id, target.sensor_id.clone()) {
         Some(a) => a,
         None => {
             let e = SensorError::AdapterNotFound {
-                sensor_id: target.sensor_type.clone(),
+                sensor_id: target.sensor_id.clone(),
             };
             let retry_metadata = error_to_retry_metadata(&e, 1);
             #[allow(deprecated)]
             return Err(FanOutError {
                 org_id: target.org_id,
                 client_id: target.client_id.clone(),
-                sensor_type: target.sensor_type,
+                sensor_id: target.sensor_id,
                 error: e,
                 retry_metadata,
             });
         }
     };
 
-    // Fetch with a tracing span (AC-1: distinct org_id + sensor_type fields)
+    // Fetch with a tracing span (AC-1: distinct org_id + sensor_id fields)
     let span = tracing::info_span!(
         "fan_out_task",
         org_id = %target.org_id,
-        sensor_type = %target.sensor_type,
+        sensor_id = %target.sensor_id,
     );
     let _enter = span.enter();
 
@@ -522,7 +522,7 @@ async fn execute_target(
             FanOutError {
                 org_id: target.org_id,
                 client_id: target.client_id.clone(),
-                sensor_type: target.sensor_type,
+                sensor_id: target.sensor_id,
                 error: e,
                 retry_metadata,
             }

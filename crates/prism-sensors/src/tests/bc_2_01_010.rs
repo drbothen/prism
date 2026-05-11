@@ -7,7 +7,7 @@
 //! - EC-002 / AC-2: 5 of 6 succeed, 1 returns HTTP 503 →
 //!   `successes.len() == 5`, `errors.len() == 1`, `is_transient == true`
 //! - Partial failure: at least one success → `Ok(FanOutResult)` not `Err`
-//! - `FanOutError` fields accessible: `client_id`, `sensor_type`, `error`,
+//! - `FanOutError` fields accessible: `client_id`, `sensor_id`, `error`,
 //!   `retry_metadata`
 //! - `SensorError::AllTargetsFailed` carries the full error list
 //!
@@ -31,7 +31,7 @@ fn test_BC_2_01_010_fan_out_error_fields_accessible() {
     let err = FanOutError {
         org_id: prism_core::OrgId::new(),
         client_id: "acme".into(),
-        sensor_type: SensorId::from("crowdstrike"),
+        sensor_id: SensorId::from("crowdstrike"),
         error: SensorError::HttpError {
             sensor: "crowdstrike".into(),
             status: 503,
@@ -46,7 +46,7 @@ fn test_BC_2_01_010_fan_out_error_fields_accessible() {
 
     #[allow(deprecated)]
     let _ = assert_eq!(err.client_id, "acme");
-    assert_eq!(err.sensor_type, SensorId::from("crowdstrike"));
+    assert_eq!(err.sensor_id, SensorId::from("crowdstrike"));
     assert_eq!(err.retry_metadata.attempts, 3);
     assert_eq!(err.retry_metadata.last_error_code, "503");
     assert!(err.retry_metadata.is_transient);
@@ -84,7 +84,7 @@ fn test_BC_2_01_010_all_targets_failed_contains_error_count() {
         FanOutError {
             org_id: prism_core::OrgId::new(),
             client_id: "acme".into(),
-            sensor_type: SensorId::from("crowdstrike"),
+            sensor_id: SensorId::from("crowdstrike"),
             error: SensorError::HttpError {
                 sensor: "crowdstrike".into(),
                 status: 503,
@@ -99,7 +99,7 @@ fn test_BC_2_01_010_all_targets_failed_contains_error_count() {
         FanOutError {
             org_id: prism_core::OrgId::new(),
             client_id: "globex".into(),
-            sensor_type: SensorId::from("armis"),
+            sensor_id: SensorId::from("armis"),
             error: SensorError::Timeout {
                 sensor: "armis".into(),
                 elapsed_ms: 30_000,
@@ -175,7 +175,7 @@ async fn test_BC_2_01_010_fan_out_all_targets_fail_returns_all_targets_failed() 
         fn resolve(
             &self,
             _client_id: &str,
-            _sensor_type: SensorId,
+            _sensor_id: SensorId,
         ) -> Result<Box<dyn SensorAuth>, SensorError> {
             use secrecy::SecretString;
             Ok(Box::new(crate::auth::CrowdStrikeAuth {
@@ -200,7 +200,7 @@ async fn test_BC_2_01_010_fan_out_all_targets_fail_returns_all_targets_failed() 
         FanOutTarget {
             org_id: shared_org_id,
             client_id: "acme".into(),
-            sensor_type: SensorId::from("crowdstrike"),
+            sensor_id: SensorId::from("crowdstrike"),
             spec: SensorSpec {
                 org_id: shared_org_id,
                 source_table: "crowdstrike_alert".into(),
@@ -212,7 +212,7 @@ async fn test_BC_2_01_010_fan_out_all_targets_fail_returns_all_targets_failed() 
         FanOutTarget {
             org_id: shared_org_id,
             client_id: "globex".into(),
-            sensor_type: SensorId::from("crowdstrike"),
+            sensor_id: SensorId::from("crowdstrike"),
             spec: SensorSpec {
                 org_id: shared_org_id,
                 source_table: "crowdstrike_alert".into(),
@@ -299,7 +299,7 @@ async fn test_BC_2_01_010_fan_out_five_succeed_one_503_returns_partial_result() 
         fn resolve(
             &self,
             _client_id: &str,
-            _sensor_type: SensorId,
+            _sensor_id: SensorId,
         ) -> Result<Box<dyn SensorAuth>, SensorError> {
             use secrecy::SecretString;
             Ok(Box::new(crate::auth::CrowdStrikeAuth {
@@ -329,7 +329,7 @@ async fn test_BC_2_01_010_fan_out_five_succeed_one_503_returns_partial_result() 
         .map(|&client_id| FanOutTarget {
             org_id: shared_org_id,
             client_id: client_id.into(),
-            sensor_type: SensorId::from("crowdstrike"),
+            sensor_id: SensorId::from("crowdstrike"),
             spec: SensorSpec {
                 org_id: shared_org_id,
                 source_table: "crowdstrike_alert".into(),

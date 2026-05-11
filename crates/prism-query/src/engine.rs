@@ -705,11 +705,11 @@ impl CredentialResolver for NullCredentialResolver {
     fn resolve(
         &self,
         _client_id: &str,
-        sensor_type: SensorId,
+        sensor_id: SensorId,
     ) -> Result<Box<dyn prism_sensors::SensorAuth>, prism_sensors::SensorError> {
         Err(prism_sensors::SensorError::Internal {
             detail: format!(
-                "NullCredentialResolver: no credential configured for sensor {sensor_type:?}; \
+                "NullCredentialResolver: no credential configured for sensor {sensor_id:?}; \
                  use QueryEngine::new_full with a real CredentialResolver in production"
             ),
         })
