@@ -10,9 +10,9 @@
 //! - AC-5b: 401 on retry too → pipeline aborts with structured error (double-401)
 
 use prism_core::{ColumnType, OrgSlug};
+use prism_spec_engine::MockAuthProvider;
 use prism_spec_engine::pipeline::{FetchContext, PipelineExecutor};
 use prism_spec_engine::spec_parser::{AuthType, ColumnSpec, FetchStep, SensorSpec, TableSpec};
-use prism_spec_engine::MockAuthProvider;
 use std::collections::HashMap;
 use wiremock::matchers::{method, path};
 use wiremock::{Mock, MockServer, ResponseTemplate};
@@ -167,8 +167,8 @@ async fn test_BC_2_16_002_execute_aborts_on_double_401() {
     let http_client = reqwest::Client::new();
     let auth_provider = MockAuthProvider::new("token-that-wont-work");
 
-    let result = PipelineExecutor::execute(&spec, &table, &context, &http_client, &auth_provider)
-        .await;
+    let result =
+        PipelineExecutor::execute(&spec, &table, &context, &http_client, &auth_provider).await;
 
     // (a) must be an error — double-401 is not recoverable
     assert!(

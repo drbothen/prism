@@ -36,6 +36,12 @@ use std::pin::Pin;
 ///
 /// The inner `String` is the raw bearer token value — do NOT log it.
 /// Credentials MUST NOT appear in log output at any level (INV-INFUSE-005 / AD-017).
+///
+/// TD-S-PLUGIN-PREREQ-B-002 P3: `AuthToken` does not implement `zeroize::Zeroize`
+/// on `Drop`, meaning the token string may linger in heap memory after the token is
+/// discarded. PREREQ-D credential-store integration scope: gate `zeroize` behind a
+/// `zeroize-memory` Cargo feature (off by default) to avoid pulling `zeroize` into
+/// the dependency graph before it is needed.
 #[derive(Clone)]
 pub struct AuthToken(pub String);
 

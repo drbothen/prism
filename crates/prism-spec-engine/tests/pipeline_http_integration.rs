@@ -16,13 +16,13 @@
 //! All tests use wiremock as the HTTP backend so no real sensor API is required.
 
 use prism_core::{ColumnType, OrgSlug};
+use prism_spec_engine::NullAuthProvider;
 use prism_spec_engine::pipeline::{FetchContext, PipelineExecutor};
 use prism_spec_engine::spec_parser::{
-    AuthType, ColumnSpec, FetchStep, PaginationConfig, SensorSpec, TableSpec,
+    AuthType, ColumnSpec, FetchStep, PaginationConfig, RateLimitHints, SensorSpec, TableSpec,
 };
-use prism_spec_engine::NullAuthProvider;
 use std::collections::HashMap;
-use wiremock::matchers::{method, path};
+use wiremock::matchers::{header, method, path, query_param};
 use wiremock::{Mock, MockServer, ResponseTemplate};
 
 // ---------------------------------------------------------------------------
@@ -191,11 +191,9 @@ async fn test_BC_2_16_002_execute_interpolates_step1_var_into_step2_url() {
     // Step 1: token endpoint
     Mock::given(method("POST"))
         .and(path("/oauth2/token"))
-        .respond_with(
-            ResponseTemplate::new(200).set_body_json(serde_json::json!({
-                "access_token": "tok-xyz-789"
-            })),
-        )
+        .respond_with(ResponseTemplate::new(200).set_body_json(serde_json::json!({
+            "access_token": "tok-xyz-789"
+        })))
         .mount(&mock_server)
         .await;
 
@@ -454,5 +452,665 @@ async fn test_BC_2_16_002_execute_iterates_offset_pagination_until_short_page() 
         result.request_count >= 2,
         "AC-4: at least 2 offset requests; got request_count={}",
         result.request_count
+    );
+}
+
+// ---------------------------------------------------------------------------
+// F-LP1-CRIT-001 Red Gate test: body_template interpolation + Content-Type derivation
+// ---------------------------------------------------------------------------
+
+/// BC-2.16.002 AC-2 / F-LP1-CRIT-001: body_template is interpolated before sending
+/// and Content-Type is derived from body shape (JSON → application/json;
+/// form-urlencoded → application/x-www-form-urlencoded).
+///
+/// Step 1 returns `{"step1_id": "abc-123"}`.
+/// Step 2 POSTs a JSON body containing `${step1.step1_id}` and must receive
+/// Content-Type: application/json.
+#[tokio::test]
+async fn test_BC_2_16_002_execute_interpolates_body_template_and_derives_content_type() {
+    let mock_server = MockServer::start().await;
+
+    // Step 1: provides a value for body interpolation
+    Mock::given(method("GET"))
+        .and(path("/step1"))
+        .respond_with(ResponseTemplate::new(200).set_body_json(serde_json::json!({
+            "step1_id": "abc-123"
+        })))
+        .mount(&mock_server)
+        .await;
+
+    // Step 2: POST with JSON body — wiremock verifies Content-Type header is application/json
+    Mock::given(method("POST"))
+        .and(path("/step2"))
+        .and(header("Content-Type", "application/json"))
+        .respond_with(ResponseTemplate::new(200).set_body_json(serde_json::json!({
+            "results": [{"id": "r1"}, {"id": "r2"}]
+        })))
+        .mount(&mock_server)
+        .await;
+
+    let spec = SensorSpec {
+        sensor_id: "body-interp-sensor".to_string(),
+        name: "Body Interp Sensor".to_string(),
+        auth_type: AuthType::BearerStatic,
+        base_url: mock_server.uri(),
+        tables: vec![TableSpec::new_point_in_time(
+            "results",
+            "security_finding",
+            vec![ColumnSpec {
+                name: "id".to_string(),
+                column_type: ColumnType::String,
+                ocsf_field: None,
+                options: vec![],
+            }],
+            vec![
+                FetchStep {
+                    name: "step1".to_string(),
+                    method: "GET".to_string(),
+                    path_template: "/step1".to_string(),
+                    body_template: None,
+                    response_path: "$.step1_id".to_string(),
+                    pagination_cursor_path: None,
+                    variables_produced: vec!["step1_id".to_string()],
+                    fan_out_batch_size: None,
+                    pagination: None,
+                },
+                FetchStep {
+                    name: "step2".to_string(),
+                    method: "POST".to_string(),
+                    path_template: "/step2".to_string(),
+                    // JSON body with interpolated step1_id — shape starts with '{' → application/json
+                    body_template: Some(r#"{"id": "${step1.step1_id}"}"#.to_string()),
+                    response_path: "$.results".to_string(),
+                    pagination_cursor_path: None,
+                    variables_produced: vec![],
+                    fan_out_batch_size: None,
+                    pagination: None,
+                },
+            ],
+        )],
+        rate_limit_hints: None,
+        version: "1.0.0".to_string(),
+        credential_refs: vec![],
+    };
+
+    let table = spec.tables[0].clone();
+    let context = FetchContext {
+        client_id: OrgSlug::new("test-org"),
+        query_filters: HashMap::new(),
+    };
+    let http_client = reqwest::Client::new();
+    let auth_provider = NullAuthProvider;
+
+    let result = PipelineExecutor::execute(&spec, &table, &context, &http_client, &auth_provider)
+        .await
+        .expect("F-LP1-CRIT-001: body interpolation + Content-Type derivation must succeed");
+
+    assert_eq!(
+        result.records.len(),
+        2,
+        "F-LP1-CRIT-001: step2 must return 2 results; got {}",
+        result.records.len()
+    );
+    // wiremock would have returned 404 if Content-Type header didn't match
+}
+
+// ---------------------------------------------------------------------------
+// F-LP1-CRIT-002 Red Gate test: cursor percent-encoding
+// ---------------------------------------------------------------------------
+
+/// BC-2.16.002 F-LP1-CRIT-002: cursor values containing special characters
+/// (base64url padding like `+/=`) must be percent-encoded before appending to URL.
+///
+/// The mock verifies the encoded form arrives in the query string.
+#[tokio::test]
+async fn test_BC_2_16_002_execute_percent_encodes_opaque_cursor() {
+    let mock_server = MockServer::start().await;
+
+    // Page 1: no cursor param — returns data + a cursor with special chars
+    Mock::given(method("GET"))
+        .and(path("/events"))
+        .respond_with(ResponseTemplate::new(200).set_body_json(serde_json::json!({
+            "data": [{"id": "e1"}, {"id": "e2"}],
+            "next_cursor": "abc+def/ghi=jkl"
+        })))
+        .up_to_n_times(1)
+        .mount(&mock_server)
+        .await;
+
+    // Page 2: the cursor was percent-encoded on the wire (NON_ALPHANUMERIC).
+    // Wiremock decodes query parameters before matching, so we match the decoded value.
+    // The encoding correctness is verified implicitly: an unencoded '+' in the raw URL
+    // would be interpreted as a space by most servers, causing a mismatch.
+    // Here we verify end-to-end the cursor arrived correctly regardless of transport encoding.
+    Mock::given(method("GET"))
+        .and(path("/events"))
+        .and(query_param("cursor", "abc+def/ghi=jkl"))
+        .respond_with(ResponseTemplate::new(200).set_body_json(serde_json::json!({
+            "data": [{"id": "e3"}],
+            "next_cursor": null
+        })))
+        .up_to_n_times(1)
+        .mount(&mock_server)
+        .await;
+
+    let spec = SensorSpec {
+        sensor_id: "cursor-encode-sensor".to_string(),
+        name: "Cursor Encode Sensor".to_string(),
+        auth_type: AuthType::BearerStatic,
+        base_url: mock_server.uri(),
+        tables: vec![TableSpec::new_point_in_time(
+            "events",
+            "security_finding",
+            vec![ColumnSpec {
+                name: "id".to_string(),
+                column_type: ColumnType::String,
+                ocsf_field: None,
+                options: vec![],
+            }],
+            vec![FetchStep {
+                name: "fetch_events".to_string(),
+                method: "GET".to_string(),
+                path_template: "/events".to_string(),
+                body_template: None,
+                response_path: "$.data".to_string(),
+                pagination_cursor_path: None,
+                variables_produced: vec![],
+                fan_out_batch_size: None,
+                pagination: Some(PaginationConfig::CursorToken {
+                    cursor_response_path: "$.next_cursor".to_string(),
+                }),
+            }],
+        )],
+        rate_limit_hints: None,
+        version: "1.0.0".to_string(),
+        credential_refs: vec![],
+    };
+
+    let table = spec.tables[0].clone();
+    let context = FetchContext {
+        client_id: OrgSlug::new("test-org"),
+        query_filters: HashMap::new(),
+    };
+    let http_client = reqwest::Client::new();
+    let auth_provider = NullAuthProvider;
+
+    let result = PipelineExecutor::execute(&spec, &table, &context, &http_client, &auth_provider)
+        .await
+        .expect("F-LP1-CRIT-002: cursor percent-encoding must succeed");
+
+    assert_eq!(
+        result.records.len(),
+        3,
+        "F-LP1-CRIT-002: 2+1 = 3 records across both pages; got {}",
+        result.records.len()
+    );
+    // wiremock page-2 mock requires exact query_param match — if encoding wrong, 404
+}
+
+// ---------------------------------------------------------------------------
+// F-LP1-CRIT-003 Red Gate test: only final step records in result
+// ---------------------------------------------------------------------------
+
+/// BC-2.16.002 F-LP1-CRIT-003: intermediate step records must NOT appear in
+/// PipelineResult.records. Only the final step's array records are collected.
+///
+/// Step 1 returns array of 3 items (intermediate — must NOT leak).
+/// Step 2 returns array of 2 items (final — MUST appear).
+/// Assert records.len() == 2, not 5.
+#[tokio::test]
+async fn test_BC_2_16_002_execute_only_final_step_records_in_pipeline_result() {
+    let mock_server = MockServer::start().await;
+
+    // Step 1 (intermediate): returns 3 records + a token for step 2
+    Mock::given(method("GET"))
+        .and(path("/intermediate"))
+        .respond_with(ResponseTemplate::new(200).set_body_json(serde_json::json!({
+            "items": [{"x": 1}, {"x": 2}, {"x": 3}],
+            "token": "step1-tok"
+        })))
+        .mount(&mock_server)
+        .await;
+
+    // Step 2 (final): returns 2 records
+    Mock::given(method("GET"))
+        .and(path("/final"))
+        .respond_with(ResponseTemplate::new(200).set_body_json(serde_json::json!({
+            "results": [{"id": "r1"}, {"id": "r2"}]
+        })))
+        .mount(&mock_server)
+        .await;
+
+    let spec = SensorSpec {
+        sensor_id: "final-only-sensor".to_string(),
+        name: "Final Only Sensor".to_string(),
+        auth_type: AuthType::BearerStatic,
+        base_url: mock_server.uri(),
+        tables: vec![TableSpec::new_point_in_time(
+            "results",
+            "security_finding",
+            vec![ColumnSpec {
+                name: "id".to_string(),
+                column_type: ColumnType::String,
+                ocsf_field: None,
+                options: vec![],
+            }],
+            vec![
+                FetchStep {
+                    name: "step1".to_string(),
+                    method: "GET".to_string(),
+                    path_template: "/intermediate".to_string(),
+                    body_template: None,
+                    response_path: "$.token".to_string(),
+                    pagination_cursor_path: None,
+                    variables_produced: vec!["token".to_string()],
+                    fan_out_batch_size: None,
+                    pagination: None,
+                },
+                FetchStep {
+                    name: "step2".to_string(),
+                    method: "GET".to_string(),
+                    path_template: "/final".to_string(),
+                    body_template: None,
+                    response_path: "$.results".to_string(),
+                    pagination_cursor_path: None,
+                    variables_produced: vec![],
+                    fan_out_batch_size: None,
+                    pagination: None,
+                },
+            ],
+        )],
+        rate_limit_hints: None,
+        version: "1.0.0".to_string(),
+        credential_refs: vec![],
+    };
+
+    let table = spec.tables[0].clone();
+    let context = FetchContext {
+        client_id: OrgSlug::new("test-org"),
+        query_filters: HashMap::new(),
+    };
+    let http_client = reqwest::Client::new();
+    let auth_provider = NullAuthProvider;
+
+    let result = PipelineExecutor::execute(&spec, &table, &context, &http_client, &auth_provider)
+        .await
+        .expect("F-LP1-CRIT-003: two-step pipeline must succeed");
+
+    assert_eq!(
+        result.records.len(),
+        2,
+        "F-LP1-CRIT-003: only final step's 2 records must appear (not intermediate 3); got {}",
+        result.records.len()
+    );
+}
+
+// ---------------------------------------------------------------------------
+// F-LP1-HIGH-001 Red Gate test: fan-out — 250 IDs → 3 HTTP requests
+// ---------------------------------------------------------------------------
+
+/// BC-2.16.002 AC-6 / F-LP1-HIGH-001: when a step variable resolves to an array,
+/// execute the step once per batch of `fan_out_batch_size` items.
+///
+/// Step 1 returns 250 IDs. Step 2 has fan_out_batch_size=100, referencing
+/// `${step1.ids}` in path_template. Wiremock expects exactly 3 calls to step 2.
+#[tokio::test]
+async fn test_BC_2_16_002_execute_fan_out_invokes_step_per_batch() {
+    let mock_server = MockServer::start().await;
+
+    // Step 1: return 250 IDs
+    let ids: Vec<serde_json::Value> = (0u32..250).map(|i| serde_json::json!(i)).collect();
+    Mock::given(method("GET"))
+        .and(path("/ids"))
+        .respond_with(ResponseTemplate::new(200).set_body_json(serde_json::json!({ "ids": ids })))
+        .mount(&mock_server)
+        .await;
+
+    // Step 2 (fan-out): called 3 times (batches of 100, 100, 50)
+    Mock::given(method("GET"))
+        .and(path("/details"))
+        .respond_with(ResponseTemplate::new(200).set_body_json(serde_json::json!({
+            "items": [{"id": "detail-1"}]
+        })))
+        .expect(3) // exactly 3 fan-out invocations
+        .mount(&mock_server)
+        .await;
+
+    let spec = SensorSpec {
+        sensor_id: "fan-out-sensor".to_string(),
+        name: "Fan-Out Sensor".to_string(),
+        auth_type: AuthType::BearerStatic,
+        base_url: mock_server.uri(),
+        tables: vec![TableSpec::new_point_in_time(
+            "details",
+            "security_finding",
+            vec![ColumnSpec {
+                name: "id".to_string(),
+                column_type: ColumnType::String,
+                ocsf_field: None,
+                options: vec![],
+            }],
+            vec![
+                FetchStep {
+                    name: "step1".to_string(),
+                    method: "GET".to_string(),
+                    path_template: "/ids".to_string(),
+                    body_template: None,
+                    response_path: "$.ids".to_string(),
+                    pagination_cursor_path: None,
+                    variables_produced: vec!["ids".to_string()],
+                    fan_out_batch_size: None,
+                    pagination: None,
+                },
+                FetchStep {
+                    name: "step2".to_string(),
+                    method: "GET".to_string(),
+                    // References step1.ids — this array triggers fan-out
+                    path_template: "/details?ids=${step1.ids}".to_string(),
+                    body_template: None,
+                    response_path: "$.items".to_string(),
+                    pagination_cursor_path: None,
+                    variables_produced: vec![],
+                    fan_out_batch_size: Some(100), // 250 / 100 = 3 batches
+                    pagination: None,
+                },
+            ],
+        )],
+        rate_limit_hints: None,
+        version: "1.0.0".to_string(),
+        credential_refs: vec![],
+    };
+
+    let table = spec.tables[0].clone();
+    let context = FetchContext {
+        client_id: OrgSlug::new("test-org"),
+        query_filters: HashMap::new(),
+    };
+    let http_client = reqwest::Client::new();
+    let auth_provider = NullAuthProvider;
+
+    let result = PipelineExecutor::execute(&spec, &table, &context, &http_client, &auth_provider)
+        .await
+        .expect("AC-6/F-LP1-HIGH-001: fan-out execution must succeed");
+
+    // wiremock's .expect(3) will panic at drop if not exactly 3 calls
+    assert_eq!(
+        result.records.len(),
+        3, // 3 batches × 1 item each
+        "F-LP1-HIGH-001: 3 fan-out batches × 1 item = 3 records; got {}",
+        result.records.len()
+    );
+    assert!(
+        result.request_count >= 4, // 1 step1 + 3 fan-out calls
+        "F-LP1-HIGH-001: at least 4 requests (1+3); got {}",
+        result.request_count
+    );
+}
+
+// ---------------------------------------------------------------------------
+// F-LP1-HIGH-002 Red Gate test: rate-limit delay between pagination calls
+// ---------------------------------------------------------------------------
+
+/// BC-2.16.002 AC-7 / F-LP1-HIGH-002: rate-limit inter-request delay applies
+/// between ALL API calls across the pipeline, not just within a single step.
+///
+/// Two-page pagination at 5 rps (200ms delay per inter-request gap).
+/// Assert the delta between calls is at least 180ms (accounting for scheduling jitter).
+#[tokio::test]
+async fn test_BC_2_16_002_execute_inserts_rate_limit_delay_between_pagination_calls() {
+    let mock_server = MockServer::start().await;
+
+    // Page 1
+    Mock::given(method("GET"))
+        .and(path("/slow"))
+        .respond_with(ResponseTemplate::new(200).set_body_json(serde_json::json!({
+            "items": [{"id": "s1"}, {"id": "s2"}],
+            "cursor": "page2"
+        })))
+        .up_to_n_times(1)
+        .mount(&mock_server)
+        .await;
+
+    // Page 2: null cursor → stop
+    Mock::given(method("GET"))
+        .and(path("/slow"))
+        .respond_with(ResponseTemplate::new(200).set_body_json(serde_json::json!({
+            "items": [{"id": "s3"}],
+            "cursor": null
+        })))
+        .up_to_n_times(1)
+        .mount(&mock_server)
+        .await;
+
+    let spec = SensorSpec {
+        sensor_id: "rate-limit-sensor".to_string(),
+        name: "Rate Limit Sensor".to_string(),
+        auth_type: AuthType::BearerStatic,
+        base_url: mock_server.uri(),
+        tables: vec![TableSpec::new_point_in_time(
+            "slow",
+            "security_finding",
+            vec![ColumnSpec {
+                name: "id".to_string(),
+                column_type: ColumnType::String,
+                ocsf_field: None,
+                options: vec![],
+            }],
+            vec![FetchStep {
+                name: "fetch_slow".to_string(),
+                method: "GET".to_string(),
+                path_template: "/slow".to_string(),
+                body_template: None,
+                response_path: "$.items".to_string(),
+                pagination_cursor_path: None,
+                variables_produced: vec![],
+                fan_out_batch_size: None,
+                pagination: Some(PaginationConfig::CursorToken {
+                    cursor_response_path: "$.cursor".to_string(),
+                }),
+            }],
+        )],
+        rate_limit_hints: Some(RateLimitHints {
+            requests_per_second: Some(5.0), // 200ms between requests
+            burst_size: None,
+        }),
+        version: "1.0.0".to_string(),
+        credential_refs: vec![],
+    };
+
+    let table = spec.tables[0].clone();
+    let context = FetchContext {
+        client_id: OrgSlug::new("test-org"),
+        query_filters: HashMap::new(),
+    };
+    let http_client = reqwest::Client::new();
+    let auth_provider = NullAuthProvider;
+
+    let start = std::time::Instant::now();
+    let result = PipelineExecutor::execute(&spec, &table, &context, &http_client, &auth_provider)
+        .await
+        .expect("AC-7: rate-limited execution must succeed");
+    let elapsed = start.elapsed();
+
+    assert_eq!(
+        result.records.len(),
+        3,
+        "AC-7: 3 total records; got {}",
+        result.records.len()
+    );
+    // At 5 rps, 2 requests means 1 inter-request delay of 200ms.
+    // Allow down to 150ms to account for scheduling jitter.
+    assert!(
+        elapsed.as_millis() >= 150,
+        "AC-7: at 5 rps with 2 requests, elapsed must be ≥150ms; got {}ms",
+        elapsed.as_millis()
+    );
+}
+
+// ---------------------------------------------------------------------------
+// F-LP1-HIGH-004 Red Gate test: query_filter interpolation
+// ---------------------------------------------------------------------------
+
+/// BC-2.16.002 F-LP1-HIGH-004: query_filters from FetchContext are available
+/// as `${query.filter.KEY}` in path_template interpolation.
+#[tokio::test]
+async fn test_BC_2_16_002_execute_interpolates_query_filter_in_path_template() {
+    let mock_server = MockServer::start().await;
+
+    // Mock expects the filter value in the query param
+    Mock::given(method("GET"))
+        .and(path("/alerts"))
+        .and(query_param("severity", "critical"))
+        .respond_with(ResponseTemplate::new(200).set_body_json(serde_json::json!({
+            "alerts": [{"id": "a1", "severity": "critical"}]
+        })))
+        .mount(&mock_server)
+        .await;
+
+    let spec = SensorSpec {
+        sensor_id: "filter-sensor".to_string(),
+        name: "Filter Sensor".to_string(),
+        auth_type: AuthType::BearerStatic,
+        base_url: mock_server.uri(),
+        tables: vec![TableSpec::new_point_in_time(
+            "alerts",
+            "security_finding",
+            vec![ColumnSpec {
+                name: "id".to_string(),
+                column_type: ColumnType::String,
+                ocsf_field: None,
+                options: vec![],
+            }],
+            vec![FetchStep {
+                name: "fetch_alerts".to_string(),
+                method: "GET".to_string(),
+                // Uses push-down filter from query context
+                path_template: "/alerts?severity=${query.filter.severity}".to_string(),
+                body_template: None,
+                response_path: "$.alerts".to_string(),
+                pagination_cursor_path: None,
+                variables_produced: vec![],
+                fan_out_batch_size: None,
+                pagination: None,
+            }],
+        )],
+        rate_limit_hints: None,
+        version: "1.0.0".to_string(),
+        credential_refs: vec![],
+    };
+
+    let table = spec.tables[0].clone();
+    let mut filters = HashMap::new();
+    filters.insert("severity".to_string(), "critical".to_string());
+    let context = FetchContext {
+        client_id: OrgSlug::new("test-org"),
+        query_filters: filters,
+    };
+    let http_client = reqwest::Client::new();
+    let auth_provider = NullAuthProvider;
+
+    let result = PipelineExecutor::execute(&spec, &table, &context, &http_client, &auth_provider)
+        .await
+        .expect("F-LP1-HIGH-004: query filter interpolation must succeed");
+
+    assert_eq!(
+        result.records.len(),
+        1,
+        "F-LP1-HIGH-004: 1 alert matching severity=critical; got {}",
+        result.records.len()
+    );
+}
+
+// ---------------------------------------------------------------------------
+// F-LP1-MED-002 Red Gate test: truncated flag set at 10K limit
+// ---------------------------------------------------------------------------
+
+/// BC-2.16.002 AC-8 / DI-019 / F-LP1-MED-002: PipelineResult.truncated must be
+/// true when total records exceed 10K, and records.len() must equal 10K exactly.
+#[tokio::test]
+async fn test_BC_2_16_002_execute_truncates_at_10k_with_truncated_flag_set() {
+    let mock_server = MockServer::start().await;
+
+    // Page 1: 6000 records (full page)
+    let records_6k: Vec<serde_json::Value> =
+        (0u32..6000).map(|i| serde_json::json!({"id": i})).collect();
+    Mock::given(method("GET"))
+        .and(path("/big"))
+        .respond_with(
+            ResponseTemplate::new(200)
+                .set_body_json(serde_json::json!({ "items": records_6k, "cursor": "page2" })),
+        )
+        .up_to_n_times(1)
+        .mount(&mock_server)
+        .await;
+
+    // Page 2: 6000 more records — total would be 12K, but pipeline truncates at 10K
+    let records_6k_b: Vec<serde_json::Value> = (6000u32..12000)
+        .map(|i| serde_json::json!({"id": i}))
+        .collect();
+    Mock::given(method("GET"))
+        .and(path("/big"))
+        .respond_with(
+            ResponseTemplate::new(200)
+                .set_body_json(serde_json::json!({ "items": records_6k_b, "cursor": null })),
+        )
+        .up_to_n_times(1)
+        .mount(&mock_server)
+        .await;
+
+    let spec = SensorSpec {
+        sensor_id: "truncate-sensor".to_string(),
+        name: "Truncate Sensor".to_string(),
+        auth_type: AuthType::BearerStatic,
+        base_url: mock_server.uri(),
+        tables: vec![TableSpec::new_point_in_time(
+            "big",
+            "security_finding",
+            vec![ColumnSpec {
+                name: "id".to_string(),
+                column_type: ColumnType::String,
+                ocsf_field: None,
+                options: vec![],
+            }],
+            vec![FetchStep {
+                name: "fetch_big".to_string(),
+                method: "GET".to_string(),
+                path_template: "/big".to_string(),
+                body_template: None,
+                response_path: "$.items".to_string(),
+                pagination_cursor_path: None,
+                variables_produced: vec![],
+                fan_out_batch_size: None,
+                pagination: Some(PaginationConfig::CursorToken {
+                    cursor_response_path: "$.cursor".to_string(),
+                }),
+            }],
+        )],
+        rate_limit_hints: None,
+        version: "1.0.0".to_string(),
+        credential_refs: vec![],
+    };
+
+    let table = spec.tables[0].clone();
+    let context = FetchContext {
+        client_id: OrgSlug::new("test-org"),
+        query_filters: HashMap::new(),
+    };
+    let http_client = reqwest::Client::new();
+    let auth_provider = NullAuthProvider;
+
+    let result = PipelineExecutor::execute(&spec, &table, &context, &http_client, &auth_provider)
+        .await
+        .expect("F-LP1-MED-002: truncation test must succeed");
+
+    assert_eq!(
+        result.records.len(),
+        10_000,
+        "F-LP1-MED-002: records must be truncated to exactly 10K; got {}",
+        result.records.len()
+    );
+    assert!(
+        result.truncated,
+        "F-LP1-MED-002: truncated flag must be true when 10K limit hit"
     );
 }

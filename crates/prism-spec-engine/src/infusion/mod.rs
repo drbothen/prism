@@ -427,10 +427,10 @@ impl InfusionRegistry {
     /// (BC-2.19.003 / INV-INFUSE-003 / AC-4)
     pub fn is_api_backed(&self, udf_name: &str) -> bool {
         let current = self.inner.load();
-        if let Some(infusion_id) = current.udf_to_infusion.get(udf_name) {
-            if let Some((spec, _)) = current.entries.get(infusion_id) {
-                return spec.infusion_type == InfusionType::Plugin;
-            }
+        if let Some(infusion_id) = current.udf_to_infusion.get(udf_name)
+            && let Some((spec, _)) = current.entries.get(infusion_id)
+        {
+            return spec.infusion_type == InfusionType::Plugin;
         }
         false
     }

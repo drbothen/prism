@@ -6,7 +6,7 @@ use std::sync::Arc;
 use prism_core::PluginError;
 use tracing::{error, info};
 
-use super::loader::{compile_component, pre_instantiate, HostState, PluginMetadata};
+use super::loader::{HostState, PluginMetadata, compile_component, pre_instantiate};
 use super::{LoadedPlugin, PluginType};
 
 /// Required WIT exports for a sensor plugin (`prism:sensor-plugin`).

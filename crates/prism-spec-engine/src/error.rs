@@ -68,12 +68,13 @@ pub enum SpecEngineError {
     // -------------------------------------------------------------------------
     // S-PLUGIN-PREREQ-B — PipelineExecutor auth errors (BC-2.16.002, BC-2.01.013)
     // -------------------------------------------------------------------------
-
     /// E-AUTH-001: Auth token acquisition failed for the given sensor / client.
     ///
     /// Returned by `AuthProvider::acquire_token` implementations when credentials
     /// cannot be resolved (bad config, network failure, invalid auth_type).
-    #[error("E-AUTH-001: auth token acquisition failed for sensor '{sensor_id}', client '{client_id}': {detail}")]
+    #[error(
+        "E-AUTH-001: auth token acquisition failed for sensor '{sensor_id}', client '{client_id}': {detail}"
+    )]
     AuthAcquisitionFailed {
         sensor_id: String,
         client_id: String,

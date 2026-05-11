@@ -170,7 +170,7 @@ impl Interpolator {
     /// Encodes all characters except unreserved per RFC 3986: `[A-Za-z0-9._~-]`.
     /// Spaces become `%20`; `&` becomes `%26`; `=` becomes `%3D`.
     pub fn percent_encode(value: &str) -> String {
-        use percent_encoding::{utf8_percent_encode, AsciiSet, CONTROLS};
+        use percent_encoding::{AsciiSet, CONTROLS, utf8_percent_encode};
         // RFC 3986 unreserved characters: ALPHA / DIGIT / "-" / "." / "_" / "~"
         // All other chars (including space, &, =, /, ?, #) are encoded.
         const UNRESERVED: &AsciiSet = &CONTROLS

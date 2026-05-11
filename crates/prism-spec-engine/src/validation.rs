@@ -283,30 +283,30 @@ pub fn validate_sensor_spec(spec: &SensorSpec) -> ValidatorOutput {
     // Category 5: Rate Limit Hints
     // -------------------------------------------------------------------------
     if let Some(ref hints) = spec.rate_limit_hints {
-        if let Some(rps) = hints.requests_per_second {
-            if rps <= 0.0 {
-                errors.push(ValidationError {
-                    code: SpecErrorCode::ESpec001,
-                    message: format!(
-                        "rate_limit_hints.requests_per_second must be > 0, got {}",
-                        rps
-                    ),
-                    toml_path: Some("sensor.rate_limit_hints.requests_per_second".to_string()),
-                    file_path: None,
-                    line_number: None,
-                });
-            }
+        if let Some(rps) = hints.requests_per_second
+            && rps <= 0.0
+        {
+            errors.push(ValidationError {
+                code: SpecErrorCode::ESpec001,
+                message: format!(
+                    "rate_limit_hints.requests_per_second must be > 0, got {}",
+                    rps
+                ),
+                toml_path: Some("sensor.rate_limit_hints.requests_per_second".to_string()),
+                file_path: None,
+                line_number: None,
+            });
         }
-        if let Some(burst) = hints.burst_size {
-            if burst == 0 {
-                errors.push(ValidationError {
-                    code: SpecErrorCode::ESpec001,
-                    message: "rate_limit_hints.burst_size must be >= 1, got 0".to_string(),
-                    toml_path: Some("sensor.rate_limit_hints.burst_size".to_string()),
-                    file_path: None,
-                    line_number: None,
-                });
-            }
+        if let Some(burst) = hints.burst_size
+            && burst == 0
+        {
+            errors.push(ValidationError {
+                code: SpecErrorCode::ESpec001,
+                message: "rate_limit_hints.burst_size must be >= 1, got 0".to_string(),
+                toml_path: Some("sensor.rate_limit_hints.burst_size".to_string()),
+                file_path: None,
+                line_number: None,
+            });
         }
     }
 

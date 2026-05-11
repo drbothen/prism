@@ -51,8 +51,8 @@ use prism_core::{RiskTier, SpecErrorCode};
 use prism_spec_engine::{
     interpolation::{InterpolationContext, Interpolator},
     write_endpoint::{
-        check_reserved_keyword, validate_write_endpoints, BatchMode, WriteEndpointRegistry,
-        WriteEndpointSpec, WriteStep, WriteTableDescriptor,
+        BatchMode, WriteEndpointRegistry, WriteEndpointSpec, WriteStep, WriteTableDescriptor,
+        check_reserved_keyword, validate_write_endpoints,
     },
 };
 

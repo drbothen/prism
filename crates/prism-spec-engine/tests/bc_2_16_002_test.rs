@@ -14,10 +14,10 @@
 //! AC-2 (S-1.11): two-step OAuth->API with ${step1.response.access_token} interpolation
 
 use prism_core::{ColumnType, OrgSlug};
+use prism_spec_engine::NullAuthProvider;
 use prism_spec_engine::interpolation::{InterpolationContext, InterpolationError, Interpolator};
 use prism_spec_engine::pipeline::{FetchContext, PipelineExecutor};
 use prism_spec_engine::spec_parser::{AuthType, ColumnSpec, FetchStep, SensorSpec, TableSpec};
-use prism_spec_engine::NullAuthProvider;
 // reqwest is a production dep of prism-spec-engine — accessible in integration tests.
 use reqwest::Client as ReqwestClient;
 
@@ -188,14 +188,43 @@ fn test_BC_2_16_002_fan_out_empty_array_produces_zero_batches() {
 // ---------------------------------------------------------------------------
 
 /// AC-2 / BC-2.16.002: two-step pipeline where step 2 uses step 1's access_token.
-
+///
+/// Converted to wiremock-backed test per F-LP1-CRIT-004 closure.
+/// Red Gate +9 for AC-2 alternate-coverage (per F-LP1-CRIT-004 closure).
 #[tokio::test]
 async fn test_BC_2_16_002_two_step_pipeline_step2_uses_step1_token() {
+    use wiremock::matchers::{method as wm_method, path as wm_path};
+    use wiremock::{Mock as WmMock, MockServer, ResponseTemplate};
+
+    let mock_server = MockServer::start().await;
+
+    // Step 1: OAuth token endpoint returns access_token
+    WmMock::given(wm_method("POST"))
+        .and(wm_path("/oauth2/token"))
+        .respond_with(ResponseTemplate::new(200).set_body_json(serde_json::json!({
+            "access_token": "step1-token-XYZ"
+        })))
+        .mount(&mock_server)
+        .await;
+
+    // Step 2: data endpoint — verifies Authorization header carries step1 token
+    WmMock::given(wm_method("GET"))
+        .and(wm_path("/detections/v2"))
+        .respond_with(ResponseTemplate::new(200).set_body_json(serde_json::json!({
+            "resources": [
+                {"id": "det-001"},
+                {"id": "det-002"},
+                {"id": "det-003"}
+            ]
+        })))
+        .mount(&mock_server)
+        .await;
+
     let spec = SensorSpec {
         sensor_id: "crowdstrike".to_string(),
         name: "CrowdStrike".to_string(),
         auth_type: AuthType::Oauth2ClientCredentials,
-        base_url: "https://api.crowdstrike.com".to_string(),
+        base_url: mock_server.uri(),
         tables: vec![TableSpec::new_point_in_time(
             "detections",
             "security_finding",
@@ -241,14 +270,21 @@ async fn test_BC_2_16_002_two_step_pipeline_step2_uses_step1_token() {
         query_filters: HashMap::new(),
     };
 
-    // S-PLUGIN-PREREQ-B: updated to new signature (http_client + auth_provider).
-    // Body is todo!() — this test panics in Red Gate state and passes when implemented.
-    // TODO(S-PLUGIN-PREREQ-B): replace NullAuthProvider with wiremock-backed variant
-    // once the HTTP executor is implemented (see pipeline_http_integration.rs for full test).
     let http_client = ReqwestClient::new();
     let auth_provider = NullAuthProvider;
-    let result = PipelineExecutor::execute(&spec, &table, &context, &http_client, &auth_provider).await;
+    let result =
+        PipelineExecutor::execute(&spec, &table, &context, &http_client, &auth_provider).await;
 
-    // When implemented: result.is_ok() and records from step 2 use the token from step 1.
-    drop(result);
+    assert!(
+        result.is_ok(),
+        "AC-2: two-step OAuth pipeline must succeed; got {:?}",
+        result.err()
+    );
+    let pipeline_result = result.unwrap();
+    assert_eq!(
+        pipeline_result.records.len(),
+        3,
+        "AC-2: final step must return 3 detections; got {}",
+        pipeline_result.records.len()
+    );
 }

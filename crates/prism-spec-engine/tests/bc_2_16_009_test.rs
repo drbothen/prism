@@ -452,7 +452,7 @@ fn test_BC_2_16_009_reports_all_errors_together_no_fail_fast() {
     spec.sensor_id = "1invalid".to_string(); // error 1
     spec.name = "".to_string(); // error 2
     spec.base_url = "not-a-url".to_string(); // error 3
-                                             // forward ref for error 4
+    // forward ref for error 4
     spec.tables[0].steps.push(FetchStep {
         name: "step2".to_string(),
         method: "GET".to_string(),

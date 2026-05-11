@@ -94,124 +94,195 @@ impl PipelineExecutor {
         let mut step_vars: HashMap<String, serde_json::Value> = HashMap::new();
         let mut truncated = false;
 
+        // AC-7 (F-LP1-HIGH-002): rate-limit flag is pipeline-scoped, not step-scoped.
+        // Hoisted OUTSIDE the steps loop so the delay applies between ALL API calls
+        // across step boundaries, not just within a single step.
+        let mut is_first_pipeline_request = true;
+
         // Start with an empty bearer token. The auth_provider is called lazily on
         // HTTP 401 (AC-5). This avoids an unconditional token-acquisition round-trip
         // for specs that don't need auth (NullAuthProvider) and keeps the call count
         // at exactly 1 for the 401-retry scenario.
         let mut bearer_token = AuthToken(String::new());
 
-        'steps: for step in &table.steps {
-            // Rate limit inter-step delay (AC-7): apply BETWEEN requests, not before the first.
-            // We track whether this is the very first request in the pipeline.
-            let mut is_first_request_in_step = true;
+        // F-LP1-HIGH-004: seed step_vars with query context so ${query.filter.*}
+        // and ${query.client_id} are available for interpolation in all steps.
+        step_vars.insert(
+            "query.client_id".to_string(),
+            serde_json::Value::String(context.client_id.to_string()),
+        );
+        for (k, v) in &context.query_filters {
+            step_vars.insert(
+                format!("query.filter.{k}"),
+                serde_json::Value::String(v.clone()),
+            );
+        }
 
-            // Interpolate the path template with variables from prior steps.
-            let interpolated_path = Interpolator::interpolate(
-                &step.path_template,
-                &InterpolationContext::UrlPath,
-                &step_vars,
-            )
-            .map_err(|e| SpecEngineError::HttpRequestFailed {
-                sensor_id: spec.sensor_id.clone(),
-                step_name: step.name.clone(),
-                status_code: 0,
-                detail: format!("path interpolation failed: {e}"),
-            })?;
+        let step_count = table.steps.len();
 
-            let url = format!("{}{}", spec.base_url, interpolated_path);
+        'steps: for (step_idx, step) in table.steps.iter().enumerate() {
+            let is_final_step = step_idx == step_count - 1;
 
-            // Pagination state for this step.
-            let mut cursor: Option<String> = None;
-            let mut offset: u32 = 0;
+            // AC-6 (F-LP1-HIGH-001): fan-out — if any variable in the step's
+            // path_template or body_template resolves to an array from a prior step,
+            // execute the step once per batch.
+            //
+            // Fan-out variable convention: ${step_name.batch} where step_name is the
+            // prior step whose response_path resolved to an array. We detect this by
+            // checking step_vars for any array-valued key and matching path_template
+            // references to it.
+            let fan_out_array = find_fan_out_array(step, &step_vars);
+            let batch_size = step.fan_out_batch_size.map(|s| s as usize).unwrap_or(100); // AC-6 default per spec
 
-            loop {
-                // AC-7: apply rate-limit delay BETWEEN consecutive HTTP calls.
-                if !is_first_request_in_step {
-                    if let Some(ref hints) = spec.rate_limit_hints {
-                        if let Some(rps) = hints.requests_per_second {
-                            if rps > 0.0 {
-                                let delay_secs = 1.0 / rps;
-                                tokio::time::sleep(Duration::from_secs_f64(delay_secs)).await;
-                            }
-                        }
-                    }
+            // Build batches (or a single pass if no fan-out)
+            let batches: Vec<Option<Vec<serde_json::Value>>> = if let Some(ref arr) = fan_out_array
+            {
+                // Fan-out: one batch per chunk
+                Self::fan_out_batches(arr, batch_size)
+                    .into_iter()
+                    .map(Some)
+                    .collect()
+            } else {
+                // No fan-out: single pass
+                vec![None]
+            };
+
+            for batch in batches {
+                // Build per-batch step_vars: inject ${step_name.batch} if fanning out.
+                let mut batch_step_vars = step_vars.clone();
+                if let Some(ref batch_items) = batch {
+                    // Inject the batch array as ${step_name.batch} so templates can reference it.
+                    // The template author writes ${prior_step.batch} to receive each batch.
+                    // We store under a synthetic key for this step's batch resolution.
+                    batch_step_vars.insert(
+                        format!("{}.batch", step.name),
+                        serde_json::Value::Array(batch_items.clone()),
+                    );
                 }
-                is_first_request_in_step = false;
 
-                // Build the paginated URL.
-                let paged_url = build_paged_url(&url, step, &cursor, offset);
-
-                // Issue the request (with 401-retry logic per AC-5).
-                let (body, new_token) = issue_request_with_retry(
-                    http_client,
-                    step,
-                    spec,
-                    &paged_url,
-                    bearer_token,
-                    auth_provider,
-                    &context.client_id,
-                    &mut request_count,
+                // Interpolate the path template with variables from prior steps.
+                let interpolated_path = Interpolator::interpolate(
+                    &step.path_template,
+                    &InterpolationContext::UrlPath,
+                    &batch_step_vars,
                 )
-                .await?;
-                bearer_token = new_token;
-
-                // Extract records at `step.response_path`.
-                let page_records = extract_at_path(&body, &step.response_path).map_err(|_| {
-                    SpecEngineError::JsonPathExtractionFailed {
-                        sensor_id: spec.sensor_id.clone(),
-                        step_name: step.name.clone(),
-                        path: step.response_path.clone(),
-                    }
+                .map_err(|e| SpecEngineError::HttpRequestFailed {
+                    sensor_id: spec.sensor_id.clone(),
+                    step_name: step.name.clone(),
+                    status_code: 0,
+                    detail: format!("path interpolation failed: {e}"),
                 })?;
 
-                // Store step variables for downstream interpolation.
-                // Each field of the first record (or the raw scalar) is stored as
-                // "step_name.field" for subsequent steps.
-                store_step_vars(step, &body, &page_records, &mut step_vars);
+                let url = format!("{}{}", spec.base_url, interpolated_path);
 
-                let page_count = match &page_records {
-                    serde_json::Value::Array(arr) => {
-                        all_records.extend(arr.iter().cloned());
-                        arr.len()
+                // Pagination state for this step/batch.
+                let mut cursor: Option<String> = None;
+                let mut offset: u32 = 0;
+
+                loop {
+                    // AC-7: apply rate-limit delay BETWEEN consecutive HTTP calls.
+                    // is_first_pipeline_request is pipeline-scoped (F-LP1-HIGH-002 fix).
+                    if !is_first_pipeline_request {
+                        let rps_opt = spec
+                            .rate_limit_hints
+                            .as_ref()
+                            .and_then(|h| h.requests_per_second)
+                            .filter(|&r| r > 0.0);
+                        if let Some(rps) = rps_opt {
+                            let delay_secs = 1.0 / rps;
+                            tokio::time::sleep(Duration::from_secs_f64(delay_secs)).await;
+                        }
                     }
-                    scalar => {
-                        // Single scalar result (e.g., `$.access_token`).
-                        // Don't add to all_records for intermediate steps —
-                        // only the last step's records are collected.
-                        // We still need the page_count to decide pagination.
-                        let _ = scalar;
-                        1
-                    }
-                };
+                    is_first_pipeline_request = false;
 
-                // AC-8 / DI-019: truncate at 10K total records.
-                if all_records.len() >= MAX_PIPELINE_RECORDS {
-                    all_records.truncate(MAX_PIPELINE_RECORDS);
-                    truncated = true;
-                    break 'steps;
-                }
+                    // F-LP1-CRIT-002: cursor must be percent-encoded before appending to URL.
+                    let encoded_cursor = cursor.as_deref().map(|c| {
+                        use percent_encoding::{NON_ALPHANUMERIC, utf8_percent_encode};
+                        utf8_percent_encode(c, NON_ALPHANUMERIC).to_string()
+                    });
 
-                // Advance pagination or break.
-                match &step.pagination {
-                    Some(PaginationConfig::CursorToken {
-                        cursor_response_path,
-                    }) => {
-                        let next = extract_cursor(&body, cursor_response_path);
-                        match next {
-                            Some(c) if !c.is_empty() && page_count > 0 => {
-                                cursor = Some(c);
+                    // Build the paginated URL with encoded cursor.
+                    let paged_url = build_paged_url(&url, step, &encoded_cursor, offset);
+
+                    // Issue the request (with 401-retry logic per AC-5).
+                    let (body, new_token) = issue_request_with_retry(
+                        http_client,
+                        step,
+                        spec,
+                        &paged_url,
+                        bearer_token,
+                        auth_provider,
+                        &context.client_id,
+                        &mut request_count,
+                        &batch_step_vars,
+                    )
+                    .await?;
+                    bearer_token = new_token;
+
+                    // Extract records at `step.response_path`.
+                    let page_records =
+                        extract_at_path(&body, &step.response_path).map_err(|_| {
+                            SpecEngineError::JsonPathExtractionFailed {
+                                sensor_id: spec.sensor_id.clone(),
+                                step_name: step.name.clone(),
+                                path: step.response_path.clone(),
                             }
-                            _ => break,
+                        })?;
+
+                    // Store step variables for downstream interpolation.
+                    // Each field of the first record (or the raw scalar) is stored as
+                    // "step_name.field" for subsequent steps.
+                    store_step_vars(step, &body, &page_records, &mut step_vars);
+
+                    // F-LP1-CRIT-003: only accumulate records for the FINAL step.
+                    // Intermediate step records (e.g., OAuth tokens) must not appear
+                    // in the pipeline result.
+                    let page_count = match &page_records {
+                        serde_json::Value::Array(arr) => {
+                            if is_final_step {
+                                all_records.extend(arr.iter().cloned());
+                            }
+                            arr.len()
                         }
-                    }
-                    Some(PaginationConfig::OffsetLimit { page_size }) => {
-                        let ps = *page_size as usize;
-                        if page_count < ps {
-                            break;
+                        scalar => {
+                            // Single scalar result (e.g., `$.access_token`).
+                            // Never added to all_records regardless of step position.
+                            let _ = scalar;
+                            1
                         }
-                        offset += *page_size;
+                    };
+
+                    // AC-8 / DI-019: truncate at 10K total records.
+                    if all_records.len() >= MAX_PIPELINE_RECORDS {
+                        all_records.truncate(MAX_PIPELINE_RECORDS);
+                        truncated = true;
+                        break 'steps;
                     }
-                    Some(PaginationConfig::None) | None => break,
+
+                    // Advance pagination or break.
+                    // Cursor read from raw body (before encoding); stored raw for
+                    // next iteration where it will be encoded by build_paged_url.
+                    match &step.pagination {
+                        Some(PaginationConfig::CursorToken {
+                            cursor_response_path,
+                        }) => {
+                            let next = extract_cursor(&body, cursor_response_path);
+                            match next {
+                                Some(c) if !c.is_empty() && page_count > 0 => {
+                                    cursor = Some(c);
+                                }
+                                _ => break,
+                            }
+                        }
+                        Some(PaginationConfig::OffsetLimit { page_size }) => {
+                            let ps = *page_size as usize;
+                            if page_count < ps {
+                                break;
+                            }
+                            offset += *page_size;
+                        }
+                        Some(PaginationConfig::None) | None => break,
+                    }
                 }
             }
         }
@@ -277,6 +348,7 @@ impl PipelineExecutor {
             auth_provider,
             &context.client_id,
             &mut request_count,
+            prior_vars,
         )
         .await?;
 
@@ -328,7 +400,8 @@ impl PipelineExecutor {
 /// Takes `current_token` by value (consumed) and returns `(body, token)` so the
 /// caller can store the (possibly refreshed) token without borrow conflicts.
 ///
-/// On 401: calls `auth_provider.acquire_token` once and retries the request once.
+/// On 401: calls `auth_provider.acquire_token` once, logs the event (AC-5 audit),
+/// and retries the request once.
 /// If the retry also returns 401, returns `SpecEngineError::AuthRefreshFailed`.
 ///
 /// On any other non-2xx: returns `SpecEngineError::HttpRequestFailed`.
@@ -342,9 +415,16 @@ async fn issue_request_with_retry(
     auth_provider: &dyn AuthProvider,
     client_id: &OrgSlug,
     request_count: &mut u32,
+    step_vars: &HashMap<String, serde_json::Value>,
 ) -> Result<(serde_json::Value, AuthToken), SpecEngineError> {
     // Issue the first request.
-    let response = build_request(http_client, step, url, &current_token)
+    let response = build_request(http_client, step, url, &current_token, step_vars)
+        .map_err(|e| SpecEngineError::HttpRequestFailed {
+            sensor_id: spec.sensor_id.clone(),
+            step_name: step.name.clone(),
+            status_code: 0,
+            detail: format!("body interpolation failed: {e}"),
+        })?
         .send()
         .await
         .map_err(|e| SpecEngineError::HttpRequestFailed {
@@ -358,10 +438,25 @@ async fn issue_request_with_retry(
     let status = response.status();
 
     if status == reqwest::StatusCode::UNAUTHORIZED {
+        // F-LP1-HIGH-003 (AC-5 audit): log auth refresh event. Token value is NEVER logged.
+        tracing::warn!(
+            event_type = "auth_refresh_triggered",
+            sensor_id = %spec.sensor_id,
+            client_id = %client_id,
+            step_name = %step.name,
+            "auth refresh triggered by 401 response"
+        );
+
         // AC-5: refresh token and retry ONCE.
         let fresh_token = auth_provider.acquire_token(spec, client_id).await?;
 
-        let retry_response = build_request(http_client, step, url, &fresh_token)
+        let retry_response = build_request(http_client, step, url, &fresh_token, step_vars)
+            .map_err(|e| SpecEngineError::HttpRequestFailed {
+                sensor_id: spec.sensor_id.clone(),
+                step_name: step.name.clone(),
+                status_code: 0,
+                detail: format!("body interpolation failed on retry: {e}"),
+            })?
             .send()
             .await
             .map_err(|e| SpecEngineError::HttpRequestFailed {
@@ -428,12 +523,18 @@ async fn issue_request_with_retry(
 }
 
 /// Build a `reqwest::RequestBuilder` for the given step and URL.
+///
+/// F-LP1-CRIT-001: body_template is interpolated against `step_vars` before sending.
+/// Content-Type is derived from body shape:
+///   - JSON object (`{...}`) → `application/json`
+///   - Otherwise → `application/x-www-form-urlencoded`
 fn build_request(
     http_client: &reqwest::Client,
     step: &FetchStep,
     url: &str,
     token: &AuthToken,
-) -> reqwest::RequestBuilder {
+    step_vars: &HashMap<String, serde_json::Value>,
+) -> Result<reqwest::RequestBuilder, String> {
     let method = match step.method.to_ascii_uppercase().as_str() {
         "POST" => reqwest::Method::POST,
         "PUT" => reqwest::Method::PUT,
@@ -449,14 +550,26 @@ fn build_request(
         req = req.header("Authorization", format!("Bearer {}", token.0));
     }
 
-    // Add request body for POST/PUT/PATCH.
-    if let Some(ref body) = step.body_template {
+    // F-LP1-CRIT-001: Add request body for POST/PUT/PATCH.
+    // Interpolate body_template against step_vars and derive Content-Type from shape.
+    if let Some(ref body_tpl) = step.body_template {
+        let interpolated_body =
+            Interpolator::interpolate(body_tpl, &InterpolationContext::JsonBody, step_vars)
+                .map_err(|e| format!("body template interpolation failed: {e}"))?;
+
+        // Derive Content-Type: JSON if body starts with '{', else form-urlencoded.
+        let content_type = if interpolated_body.trim_start().starts_with('{') {
+            "application/json"
+        } else {
+            "application/x-www-form-urlencoded"
+        };
+
         req = req
-            .header("Content-Type", "application/x-www-form-urlencoded")
-            .body(body.clone());
+            .header("Content-Type", content_type)
+            .body(interpolated_body);
     }
 
-    req
+    Ok(req)
 }
 
 /// Build a paginated URL by appending pagination query parameters.
@@ -468,7 +581,10 @@ fn build_paged_url(
 ) -> String {
     match &step.pagination {
         Some(PaginationConfig::CursorToken { .. }) => {
-            if let Some(ref c) = cursor {
+            // TD-S-PLUGIN-PREREQ-B-001 P2: cursor pagination first-call does not include page_size param.
+            // Real-world APIs (CrowdStrike GraphQL cursor) require first: N on every request. PREREQ-C scope:
+            // add `page_size: Option<u32>` field to PaginationConfig::CursorToken.
+            if let Some(c) = cursor {
                 if base_url.contains('?') {
                     format!("{base_url}&cursor={c}")
                 } else {
@@ -489,19 +605,19 @@ fn build_paged_url(
 /// Extract the value at a simple JSONPath expression (e.g. `$.field` or `$.a.b.c`).
 ///
 /// Supported syntax: `$.field1.field2...fieldN` (dot-notation only).
-/// Returns `Err(())` if the path does not match the response structure.
-fn extract_at_path(body: &serde_json::Value, path: &str) -> Result<serde_json::Value, ()> {
-    // Strip leading `$.` prefix.
-    let stripped = path.strip_prefix("$.").ok_or(())?;
-
-    let mut current = body;
-    for segment in stripped.split('.') {
-        match current.get(segment) {
-            Some(v) => current = v,
-            None => return Err(()),
-        }
-    }
-    Ok(current.clone())
+/// Internally converts to a JSON Pointer (RFC 6901) and delegates to
+/// `serde_json::Value::pointer` so nested key lookup is unambiguous.
+///
+/// Returns `Err(String)` with a descriptive message if the path does not match.
+fn extract_at_path(body: &serde_json::Value, path: &str) -> Result<serde_json::Value, String> {
+    let stripped = path
+        .strip_prefix("$.")
+        .ok_or_else(|| format!("path must start with '$.' : {path}"))?;
+    // Convert dot-notation to RFC 6901 JSON Pointer: "$.a.b.c" -> "/a/b/c"
+    let pointer_path = format!("/{}", stripped.replace('.', "/"));
+    body.pointer(&pointer_path)
+        .cloned()
+        .ok_or_else(|| format!("path not found: {path}"))
 }
 
 /// Extract a cursor string from the response body at the given JSONPath.
@@ -547,4 +663,33 @@ fn store_step_vars(
         let key = format!("{}.{last_seg}", step.name);
         step_vars.entry(key).or_insert_with(|| extracted.clone());
     }
+}
+
+/// Detect whether any variable referenced in `step`'s templates resolves to an
+/// array in `step_vars`. Returns the array value if fan-out should be applied.
+///
+/// Fan-out is triggered when a step variable reference (${step_name.field}) resolves
+/// to a JSON array. The first such array found is used as the fan-out source.
+/// Non-array variables are not considered for fan-out.
+///
+/// AC-6: `fan_out_batch_size` field on `FetchStep` controls batch size (default 100).
+fn find_fan_out_array(
+    step: &FetchStep,
+    step_vars: &HashMap<String, serde_json::Value>,
+) -> Option<serde_json::Value> {
+    // Check all variables referenced in path_template and body_template for arrays.
+    let templates: Vec<&str> = std::iter::once(step.path_template.as_str())
+        .chain(step.body_template.as_deref())
+        .collect();
+
+    for template in templates {
+        let refs = crate::interpolation::Interpolator::extract_references(template);
+        for (step_name, field_path) in refs {
+            let key = format!("{step_name}.{field_path}");
+            if let Some(val) = step_vars.get(&key).filter(|v| v.is_array()) {
+                return Some(val.clone());
+            }
+        }
+    }
+    None
 }

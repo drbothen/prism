@@ -75,10 +75,10 @@ pub use spec_parser::{
 };
 // TableType is now re-exported from prism-core (S-2.08 Defect 2 fix)
 pub use prism_core::TableType;
-pub use validation::{validate_sensor_spec, ValidationError, ValidationWarning, ValidatorOutput};
+pub use validation::{ValidationError, ValidationWarning, ValidatorOutput, validate_sensor_spec};
 pub use write_endpoint::{
-    check_reserved_keyword, validate_write_endpoints, BatchMode, WriteEndpointRegistry,
-    WriteEndpointSpec, WriteStep, WriteTableDescriptor,
+    BatchMode, WriteEndpointRegistry, WriteEndpointSpec, WriteStep, WriteTableDescriptor,
+    check_reserved_keyword, validate_write_endpoints,
 };
 
 // S-1.12 hot-reload re-exports

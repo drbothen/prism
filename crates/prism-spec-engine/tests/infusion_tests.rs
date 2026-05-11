@@ -17,8 +17,8 @@
     unused_mut
 )]
 use std::sync::{
-    atomic::{AtomicUsize, Ordering},
     Arc,
+    atomic::{AtomicUsize, Ordering},
 };
 
 use prism_core::InfusionError;

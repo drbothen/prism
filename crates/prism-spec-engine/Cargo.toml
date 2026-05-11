@@ -1,7 +1,7 @@
 [package]
 name = "prism-spec-engine"
 version = "0.5.0"
-edition = "2021"
+edition = "2024"
 license = "MIT"
 description = "Prism config-driven sensor adapter engine: TOML spec loading, pipeline execution, OCSF mapping, infusion enrichment framework, WASM plugin runtime (S-1.15), and hot reload + runtime management (S-1.12)"
 

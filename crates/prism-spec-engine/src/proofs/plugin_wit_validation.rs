@@ -20,11 +20,11 @@ mod tests {
     use proptest::prelude::*;
 
     // Import the target under test — will not compile until S-1.15 is implemented.
-    use crate::plugin::discovery::{
-        validate_wit_interface, ACTION_REQUIRED_EXPORTS, INFUSION_REQUIRED_EXPORTS,
-        SENSOR_REQUIRED_EXPORTS,
-    };
     use crate::plugin::PluginType;
+    use crate::plugin::discovery::{
+        ACTION_REQUIRED_EXPORTS, INFUSION_REQUIRED_EXPORTS, SENSOR_REQUIRED_EXPORTS,
+        validate_wit_interface,
+    };
 
     /// Helper: generate all non-empty strict subsets of `exports` as proptest strategies.
     fn arb_strict_subset(
@@ -34,7 +34,7 @@ mod tests {
         // We use a u64 bitmask for up to 64 exports (all our sets are << 64).
         let n = exports.len();
         let max_mask = (1u64 << n) - 1; // all bits set = full set
-                                        // Exclude the full set mask (that would be a complete set, not strict subset).
+        // Exclude the full set mask (that would be a complete set, not strict subset).
         (0u64..max_mask).prop_map(move |mask| {
             exports
                 .iter()
