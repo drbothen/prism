@@ -1,7 +1,7 @@
 ---
 document_type: pipeline-state
 level: ops
-version: "7.131"
+version: "7.132"
 producer: state-manager
 timestamp: 2026-05-11T17:30:00Z
 inputs: []
@@ -22,7 +22,7 @@ repos:
   - axiathon
   - ocsf-proto-gen
   - mcp-claroty-xdome
-current_step: "D-397 — PR-LEVEL pass-4 CLEAN at HEAD ba7d7f6f (UNCHANGED). THIRD CLEAN PASS. Streak 2/3→3/3→CONVERGED. BC-5.39.001 3-CLEAN protocol SATISFIED. 9 new dimensions (P4-A security/threat model; P4-B concurrency Send+Sync; P4-C performance Borrow<str>; P4-D API stability semver; P4-E error handling 5 variants; P4-F observability; P4-G test hygiene; P4-H doc coherence; P4-I bookkeeping). 4 OBS non-blocking filed as TD-S-PLUGIN-PREREQ-A-{007,008,009,010} P3. PR-LEVEL CASCADE CONVERGED. Next: pr-reviewer step 6."
+current_step: "D-398 — S-PLUGIN-PREREQ-A MERGED via PR #142 at develop@90d7c80f (squash-merge 2026-05-11T16:37:14Z). POL-14 promotions complete: STORY-INDEX v2.36→v2.37 (row merged+PR+SHA); story file v1.5→v1.6; BC-2.01.013 draft→active v1.5→v1.6; BC-INDEX v4.54→v4.55 (active_contracts 226→227). PREREQ-B/C/D/E now UNBLOCKED. STATE+HANDOFF v7.131→v7.132."
 wave_3_carry_forward_debt: "ALL_REMEDIATE — W4-FIX-PERF-001/002, W4-FIX-CODE-001, W4-FIX-SEC-001 through W4-FIX-SEC-004 planned per D-203"
 wave_4_status: "PHASE_4_A_CONVERGED + R9_APPROVED but PHASE_4_B SUSPENDED — pre-implementation dep check (2026-05-04) found S-4.01 → S-3.02 (status=draft); pivoting to full Wave 3 implementation per user directive D-223"
 wave_4_phase_4_a_preflight:
@@ -126,9 +126,9 @@ subsystem_count: 20
 story_count: 113
 bc_count_corrected: 235
 cap_count: 40  # active; highest_cap_id: CAP-040 (CAP-038 Multi-Tenant Identity, CAP-039 Multi-Tenant Fixture Gen, CAP-040 Multi-Tenant Adapter Dispatch — Wave 3 Phase 3.A Step 2)
-bc_index_version: "4.54"
+bc_index_version: "4.55"
 vp_index_version: "1.30"
-story_index_version: "v2.36"
+story_index_version: "v2.37"
 total_stories: 150
 red_gate_wave_0a_complete: 2026-04-21
 test_vectors_version: "2.7"
@@ -160,7 +160,7 @@ phase_2_patch_remediation_bursts: 20
 phase_2_patch_findings_total_fixed: 95
 phase_2_patch_convergence_rationale: "User override post pass-99. Semantic policies all PASS; meta-doc drift deferred to vsdd-factory lint hooks."
 user_directive_persistent: "No pragmatic convergence. Fix all issues before build."
-develop_head: "c6dd6602"
+develop_head: "90d7c80f"
 vsdd_factory_version: "1.0.0-rc.16 (upgraded from rc.11 2026-05-10T07:38:25Z)"
 workspace_test_count: 3489  # 891 prism-query + workspace total (per implementer fix-pass-6 report; +3 new DML walker tests)
 ---
@@ -176,9 +176,9 @@ workspace_test_count: 3489  # 891 prism-query + workspace total (per implementer
 | **Language** | Rust |
 | **Target Workspace** | per-analyst stdio (MCP server) |
 | **Started** | 2026-04-13 |
-| **Last Updated** | 2026-05-11 (D-397 — PR-LEVEL pass-4 CLEAN streak 3/3 CONVERGED at HEAD ba7d7f6f; 9 new dimensions CLEAN; 4 OBS TDs filed; STATE v7.130→v7.131) |
+| **Last Updated** | 2026-05-11 (D-398 — S-PLUGIN-PREREQ-A MERGED PR #142 develop@90d7c80f; POL-14 promotions complete; PREREQ-B/C/D/E UNBLOCKED; STATE v7.131→v7.132) |
 | **Current Phase** | Wave 3 Tier-3 COMPLETE — **Wave 3-A 4 of 4 SHIPPED**: S-3.05 (#132 c867c344), S-3.04 (#133 57745ce8), S-3.03 (#134 7c413692), **S-3.07 (#135 2ae7185b MERGED 2026-05-08T04:23:03Z)**; post-merge cleanup confirmed; plugin migration: PREREQ-F SHIPPED; PREREQ-A/B/C/D/E pending |
-| **Current Step** | D-397 — PR-LEVEL pass-4 CLEAN at HEAD ba7d7f6f (2026-05-11). THIRD CLEAN PASS. Streak 2/3 → 3/3 → CONVERGED. BC-5.39.001 3-CLEAN protocol SATISFIED. 9 NEW dimensions (P4-A security/threat model, P4-B concurrency, P4-C performance, P4-D API stability, P4-E error handling, P4-F observability, P4-G test hygiene, P4-H doc coherence, P4-I bookkeeping). ZERO CRITICAL/HIGH/MED/LOW. 4 OBS non-blocking: TD-S-PLUGIN-PREREQ-A-{007,008,009,010} P3 filed. PR-LEVEL CASCADE CONVERGED. Next: pr-reviewer (step 6). |
+| **Current Step** | D-398 — S-PLUGIN-PREREQ-A MERGED via PR #142 at develop@90d7c80f (squash-merge 2026-05-11T16:37:14Z). Full lifecycle complete: LOCAL 12 passes (3/3 CONVERGED) → PR-LEVEL 4 passes + 1 fix-burst (3/3 CONVERGED, novel F-PR1-HIGH-002 cache_key shadow alias caught) → pr-reviewer APPROVE → squash-merge → POL-14 status flips complete. Active BCs +1: BC-2.01.013 v1.6 (status:active). 9 TDs filed (TD-S-PLUGIN-PREREQ-A-{002..010}). Wave 0/A UNBLOCKED: PREREQ-B/C/D/E now dispatchable. |
 
 ## Phase Progress
 
@@ -214,6 +214,7 @@ workspace_test_count: 3489  # 891 prism-query + workspace total (per implementer
 | S-PLUGIN-PREREQ-A PR-LEVEL pass-2 | adversary + state-manager | CLEAN | 0 findings (0C+0H+0M+0L+2OBS); streak 0/3→1/3 (FIRST CLEAN PASS in PR-LEVEL cascade); HEAD ba7d7f6f unchanged from fix-burst-PR1; all 6 fix-burst-PR1 closures paper-fix-free; OBS-PR2-001 AC-12 CI gate gap non-blocking; OBS-PR2-002 BC-2.01.013 status:draft correct pre-merge; KUDOs 5; STATE v7.128→v7.129 (D-395) |
 | S-PLUGIN-PREREQ-A PR-LEVEL pass-3 | adversary + state-manager | **CLEAN** | 0 findings (0C+0H+0M+0L+2OBS); **streak 1/3→2/3 (SECOND CLEAN PASS)**; HEAD ba7d7f6f UNCHANGED from pass-2; 9 NEW dimensions (P3-A perimeter regex; P3-B Deserialize error-path; P3-C OrgId tuple-key; P3-D BC-2.01.013 v1.5 postconditions; P3-E 12 ACs; P3-F ADR-023 §C1 v1.18; P3-G validator edge cases; P3-H VP-PLUGIN-001; P3-I TD register integrity); OBS-PR3-001 proptest-regressions empty; OBS-PR3-002 3 narrative doc-comments reference deleted SensorType (intentional); STATE v7.129→v7.130 (D-396) |
 | S-PLUGIN-PREREQ-A PR-LEVEL pass-4 | adversary + state-manager | **CLEAN — CONVERGED** | 0 findings (0C+0H+0M+0L+4OBS); **streak 2/3→3/3 → CONVERGED**; HEAD ba7d7f6f UNCHANGED (three-way idempotency); 9 NEW dimensions (P4-A security/threat model; P4-B concurrency Send+Sync; P4-C performance Borrow<str>; P4-D API stability semver; P4-E error handling 5 variants reachable; P4-F observability; P4-G test hygiene; P4-H doc coherence; P4-I bookkeeping); BC-5.39.001 3-CLEAN SATISFIED; 4 OBS filed as TD-S-PLUGIN-PREREQ-A-{007,008,009,010} P3; PR-LEVEL CASCADE CONVERGED; STATE v7.130→v7.131 (D-397) |
+| S-PLUGIN-PREREQ-A MERGED (D-398) | state-manager | **COMPLETE** | PR #142 squash-merged to develop@90d7c80f 2026-05-11T16:37:14Z. Worktree removed; feature branch deleted. POL-14 promotions: STORY-INDEX S-PLUGIN-PREREQ-A ready→merged + PR#142 + SHA 90d7c80f (v2.36→v2.37); story v1.5→v1.6 + merge metadata; BC-2.01.013 draft→active v1.5→v1.6; BC-INDEX v4.54→v4.55 (active_contracts 226→227). PREREQ-B/C/D/E UNBLOCKED. STATE+HANDOFF v7.131→v7.132 |
 
 ## Decisions Log
 
@@ -221,6 +222,7 @@ _D-001..D-046 archived: [cycles/phase-3-dtu-wave-2/decisions-archive-d001-d032.m
 
 | ID | Decision | Rationale | Phase | Date |
 |----|----------|-----------|-------|------|
+| D-398 | 2026-05-11 | S-PLUGIN-PREREQ-A MERGED via PR #142 at develop@90d7c80f (squash-merge of feature/S-PLUGIN-PREREQ-A; branch deleted local+origin; worktree cleaned). PR-LEVEL CASCADE FULLY CLOSED: 4 passes + 1 fix-burst, 3/3 CLEAN at HEAD ba7d7f6f. Cascade trajectory: pass-1 BLOCKED-hard(1C+2H+3M+1L+2O+1FP) → fix-burst-PR1 (6 closed including F-PR1-HIGH-002 cache_key shadow alias) → pass-2 CLEAN 1/3 → pass-3 CLEAN 2/3 → pass-4 CLEAN 3/3. pr-reviewer fresh-eyes APPROVE (verdict at .factory/code-delivery/S-PLUGIN-PREREQ-A/pr-review.md). POL-14 promotions: STORY-INDEX S-PLUGIN-PREREQ-A status ready→merged + PR# 142 + merge SHA 90d7c80f recorded (STORY-INDEX v2.36→v2.37); story file v1.5→v1.6 with merge metadata; BC-2.01.013 status draft→active v1.5→v1.6; BC-INDEX v4.54→v4.55 (active_contracts 226→227). PREREQ-B/C/D/E now UNBLOCKED for dispatch. develop HEAD pin: c6dd6602 → 90d7c80f. STATE+HANDOFF v7.131→v7.132. | plugin-migration | 2026-05-11 |
 | D-397 | 2026-05-11 | PR-LEVEL pass-4 CLEAN at HEAD ba7d7f6f (HEAD unchanged passes 2/3/4 — three-way idempotency). THIRD CLEAN PASS. Streak 2/3 → 3/3 → CONVERGED. BC-5.39.001 3-CLEAN protocol SATISFIED. ZERO new CRITICAL/HIGH/MEDIUM/LOW. Pass-4 attacked 9 NEW dimensions disjoint from passes 2 and 3: P4-A security threat model (untrusted entry-point classification, NUL-byte handling, length-bound DoS), P4-B concurrency (registry/SensorId Send+Sync, hash determinism), P4-C performance (construction cost, Borrow<str> lookup, memory amplification), P4-D API stability (#[non_exhaustive] discipline, semver-checks coverage), P4-E error handling (all 5 SensorIdValidationError variants reachable + E-QUERY-031 emission), P4-F observability surface, P4-G test hygiene (#[ignore] + #[should_panic] audit), P4-H documentation coherence (sensor_type() trait method name preservation), P4-I bookkeeping coherence (STATE/SESSION-HANDOFF/STORY-INDEX/TD register integrity). 4 OBS non-blocking, all filed as TDs: TD-S-PLUGIN-PREREQ-A-007 P3 (charset-before-length validator reorder defense-in-depth), TD-S-PLUGIN-PREREQ-A-008 P3 (SensorIdValidationError crate-root re-export), TD-S-PLUGIN-PREREQ-A-009 P3 (validator-level metrics counter), TD-S-PLUGIN-PREREQ-A-010 P3 (SensorId interning fast-path). Cascade trajectory: BLOCKED-hard(1C+2H+3M+1L+2O+1FP)→fix-burst-PR1(6 closed)→CLEAN-1/3→CLEAN-2/3→CLEAN-3/3. PR-LEVEL CASCADE CONVERGED. Next: pr-reviewer step 6 → pre-merge gate verification → squash-merge → D-398 post-merge state-burst (STORY-INDEX merged + BC-2.01.013 active POL-14 + PREREQ-B/C/D/E unblock). STATE+HANDOFF v7.130→v7.131. | plugin-migration | 2026-05-11 |
 | D-396 | 2026-05-11 | PR-LEVEL pass-3 CLEAN at HEAD ba7d7f6f (HEAD unchanged from pass-2). SECOND CLEAN PASS. Streak 1/3 → 2/3. ZERO new CRITICAL/HIGH/MEDIUM/LOW findings. Pass-3 attacked 9 NEW dimensions pass-2 did not exhaustively cover: P3-A perimeter regex robustness + rustc-output format check; P3-B Deserialize error-path (verified sensor_id.rs:183 Deserialize calls try_from_str — no JSON/TOML invariant bypass); P3-C OrgId+SensorId tuple-key collision (verified OrgId content-based Hash via derive at ids.rs:16; cross-org test exists at org_id_binding.rs:152); P3-D BC-2.01.013 v1.5 postconditions exhaustive enumeration; P3-E 12 ACs ↔ code+test pairs; P3-F ADR-023 v1.18 §C1 ↔ code; P3-G validator parity edge cases (empty/64-char/65-char/leading-/trailing-/digit-first); P3-H VP-PLUGIN-001 reachability (VP-INDEX.md:183 alias for VP-146); P3-I TD register integrity (8 entries verified). 2 OBS non-blocking: OBS-PR3-001 (proptest-regressions seed corpus empty — operational, no actionable defect), OBS-PR3-002 (3 narrative doc-comments reference deleted SensorType — intentional ADR-023 §C1 cross-reference, NOT identifier residue). Pass-4 next (target 3/3 CONVERGED). STATE+HANDOFF v7.129→v7.130. | plugin-migration | 2026-05-11 |
 | D-395 | 2026-05-11 | PR-LEVEL pass-2 CLEAN at HEAD ba7d7f6f (post fix-burst-PR1). FIRST CLEAN PASS in PR-LEVEL cascade. Streak 0/3 → 1/3. All 6 fix-burst-PR1 closures verified paper-fix-free (cache_key shadow alias gone + 30+ sibling sites migrated; subsystems frontmatter fixed; fanout sentinel renamed; AC-12 added; should_panic shortened). ZERO new critical/high/medium/low findings. 2 OBS non-blocking: OBS-PR2-001 (AC-12 CI gate gap = PG-PR2-001 candidate; symmetric coverage with existing SensorType E0432 gate would close); OBS-PR2-002 (BC-2.01.013 status:draft correct pre-merge; POL-14 promotion deferred to post-merge state-burst D-396). 5 KUDOs. Pass-3 next (target 2/3). After 3/3 CONVERGED → pr-reviewer (step 6) → squash-merge. STATE+HANDOFF v7.128→v7.129. | plugin-migration | 2026-05-11 |

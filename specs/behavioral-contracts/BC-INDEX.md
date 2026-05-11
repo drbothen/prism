@@ -1,13 +1,13 @@
 ---
 document_type: behavioral-contract-index
 level: L3
-version: "4.54"
+version: "4.55"
 status: draft
 producer: product-owner
 timestamp: 2026-05-11T00:00:00
 phase: 3.A
 total_contracts: 235
-active_contracts: 226
+active_contracts: 227
 removed_contracts: 6
 retired_contracts: 3
 ---
@@ -38,7 +38,7 @@ Phase 3-patch additions (2026-04-16): 22 new BCs added in Burst 1 to close trace
 | BC-2.01.010 | Partial Failure Handling for Paginated and Cross-Client Queries | 01 - Sensor Adapters | CAP-001, CAP-002 | P0 | draft |
 | BC-2.01.011 | ~~Cross-Sensor Correlation via OCSF Field Alignment~~ | 01 - Sensor Adapters | CAP-012 | P1 | removed |
 | BC-2.01.012 | ~~Query Fingerprint Validation at Startup~~ | 01 - Sensor Adapters | CAP-001 | P0 | removed |
-| BC-2.01.013 | DataSource Trait Eliminates Per-Sensor Code Duplication | 01 - Sensor Adapters | CAP-001 | P0 | draft (amendment_lifecycle: pending — ADR-023) |
+| BC-2.01.013 | DataSource Trait Eliminates Per-Sensor Code Duplication | 01 - Sensor Adapters | CAP-001 | P0 | active (promoted draft→active D-398 per POL-14; anchor story S-PLUGIN-PREREQ-A merged PR #142 develop@90d7c80f) |
 | BC-2.01.014 | Exponential Backoff and Retry for Transient Sensor API Errors | 01 - Sensor Adapters | CAP-001 | P0 | draft |
 | BC-2.01.015 | ~~MCP Tool Response Envelope Structure~~ | 01 - Sensor Adapters | CAP-001 | P0 | removed |
 | BC-2.02.001 | OCSF Schema Loading at Build Time via ocsf-proto-gen | 02 - OCSF Normalization | CAP-003 | P0 | draft |
@@ -359,6 +359,8 @@ Phase 3-patch additions (2026-04-16): 22 new BCs added in Burst 1 to close trace
 - Subsystem 19: Infusion Enrichment Framework (AD-020, CAP-031)
 
 ### Change Log (Adversarial Review Fixes)
+
+**v4.55 (2026-05-11):** D-398 post-merge POL-14 promotion — BC-2.01.013 status draft→active (anchor story S-PLUGIN-PREREQ-A merged via PR #142 at develop@90d7c80f, 2026-05-11T16:37:14Z). active_contracts 226→227. total_contracts=235 unchanged.
 
 **v4.54 (2026-05-11):** PREREQ-F — ADR-023 v1.17 BC catalog amendments. (1) BC-2.16.004 lifecycle_status active→deprecated (deprecated_by: ADR-023); index row strikethrough + status updated to "deprecated (ADR-023 PREREQ-F)"; active_contracts 227→226, retired_contracts 2→3. (2) BC-2.01.013 amendment_lifecycle: pending — ADR-023 v1.4 amendment removes sealed-trait language, adds spec-driven runtime validation rules; index status updated. (3) Eight sensor-named BCs (BC-2.01.005/006/007/008, BC-2.02.003/004/005/006) amendment_lifecycle: pending — ADR-023 prefix notes added; index status updated. VP-PLUGIN-001..007 registered in VP-INDEX.md. TS-PLUGIN-PARITY-001 authored.
 
