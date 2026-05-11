@@ -1,10 +1,10 @@
 ---
 document_type: story-index
 level: "L4"
-version: "v2.34"
+version: "v2.35"
 status: draft
 producer: state-manager
-timestamp: 2026-05-10T17:00:00
+timestamp: 2026-05-10T18:00:00
 phase: 3
 total_stories: 150
 total_active_bcs: 222
@@ -386,7 +386,7 @@ pursuing maximum parallelism should schedule by topological layer, not wave numb
 | S-1.14-REDO | prism-spec-engine: Infusion Engine REDO — Loader, Registry, Runtime, Cache Integration [E-CLEANUP-02] [Graduates S-1.14] [BLOCKED — awaits Wave 0+1 plugin foundation per D-333] | prism-spec-engine | 0 (BCs TBD) | -- | 5 | S-WAVE5-PREP-01,S-3.02-FOLLOWUP-RUNTIME |
 | S-5.01-FOLLOWUP-MCP-BOOT | prism-mcp: PrismServer — rmcp 1.4, Tool Router, Injection Defense Wiring [E-CLEANUP-02] [BLOCKED — awaits Wave 0+1 plugin foundation per D-333] | prism-mcp | 0 (BCs TBD) | -- | 5 | S-WAVE5-PREP-01,S-3.02-FOLLOWUP-RUNTIME,W3-FIX-S307-001,W3-FIX-S307-002-write-capability-and-observability |
 | S-PLUGIN-PREREQ-F | .factory/prism-specs: BC + DI Catalog Amendments Before Code Changes — deprecate rust-escape-hatch BC, amend datasource-trait-adapter-pattern BC, amend sealed-auth-trait DI, sweep sensor-named BCs [PLUGIN-MIGRATION Wave 0 — LANDS FIRST] [planned] | .factory | 0 (TBD) | -- | 2 | -- |
-| S-PLUGIN-PREREQ-A | prism-core/prism-sensors: SensorType → SensorId(Arc<str>) Keystone Migration [PLUGIN-MIGRATION Wave 0] [planned] | prism-core,prism-sensors | 0 (TBD) | -- | 3 | S-PLUGIN-PREREQ-F |
+| S-PLUGIN-PREREQ-A | prism-core/prism-sensors: SensorType → SensorId(Arc<str>) Keystone Migration [PLUGIN-MIGRATION Wave 0] [ready] | prism-core,prism-sensors,prism-query,prism-spec-engine | 2 (BC-2.01.013, BC-2.16.004) | S-PLUGIN-PREREQ-F | 13 | S-PLUGIN-PREREQ-F |
 | S-PLUGIN-PREREQ-B | prism-spec-engine: Real PipelineExecutor — HTTP Client, JSONPath, Fan-out, Paginate, Retry, Declarative [PLUGIN-MIGRATION Wave 0] [planned] | prism-spec-engine | 0 (TBD) | -- | 3 | S-PLUGIN-PREREQ-F,S-PLUGIN-PREREQ-A |
 | S-PLUGIN-PREREQ-C | prism-spec-engine: TOML Grammar Extensions — batch, retry, two-step-fetch, ocsf_field, cache_ttl, table_name [PLUGIN-MIGRATION Wave 0] [planned] | prism-spec-engine | 0 (TBD) | -- | 3 | S-PLUGIN-PREREQ-F,S-PLUGIN-PREREQ-A |
 | S-PLUGIN-PREREQ-D | prism-bin/prism-spec-engine: Wire PluginRuntime into boot step 7; .prx Build/Sign/Load Pipeline (unsigned plugins v1.0; boot warning + audit log required; signing deferred TD-PLUGIN-SIGNING-001) [PLUGIN-MIGRATION Wave 0] [planned] | prism-bin,prism-spec-engine | 0 (TBD) | -- | 3 | S-PLUGIN-PREREQ-F,S-PLUGIN-PREREQ-A |
@@ -1009,6 +1009,7 @@ All 13 new DTU clones: Wave 0, 0 BCs, priority P0, depends_on: [S-6.06].
 | v2.27 | 2026-05-08 | D-298 S-3.09 FROZEN pending BUG-S309-PLUGIN (state-manager): S-3.09 Full Story List row annotated [FROZEN 2026-05-08 pending BUG-S309-PLUGIN]. Worktree at HEAD 43c41389 (11/15 GREEN; fix-burst 1 landed; fix-burst 2 stopped mid-work). Plugin-migration P0 blocks resumption. STORY-INDEX v2.26→v2.27. |
 | v2.28 | 2026-05-08 | Bundle A.2.2 story status reconciliation (story-writer): ADR-020 closed-enum alignment for 8 stories. S-1.10 `delivered`→`merged` v1.4→v1.5; S-1.11 `merged`→`partial-merge` v1.5→v1.6; S-1.12 `merged`→`partial-merge` v1.5→v1.6; S-1.14 `merged`→`partial-merge` v1.10→v1.11; S-1.15 `merged`→`partial-merge` v1.12→v1.13; S-3.02 `ready`→`partial-merge` v1.12→v1.13; S-3.06 `ready`→`merged` v1.7→v1.8; S-3.07 `draft`→`partial-merge` v1.7→v1.8. Full Story List: [merged]/[partial-merge] annotations added to all 8 rows. STORY-INDEX v2.27→v2.28. |
 | v2.26 | 2026-05-08 | D-296 S-3.09 re-scope per Path A decision (state-manager): S-3.09 Full Story List row version [v1.5]→[v1.6]; points 2→13; days 1→6. BC columns append BC-2.11.005, BC-2.11.006, BC-2.11.007, BC-2.11.011, BC-2.11.012 (transferred from stub-merged S-3.02 deferred scope). Status remains draft pending Phase A implementation cascade. Adversary report: cycles/wave-4-operations/adversarial-reviews/s-3.09-local-pass-1.md. STORY-INDEX v2.25→v2.26. |
+| v2.35 | 2026-05-10 | S-PLUGIN-PREREQ-A story materialization (story-writer): S-PLUGIN-PREREQ-A spec written to S-PLUGIN-PREREQ-A-sensorid-newtype.md — 11 ACs traced to BC-2.01.013/VP-PLUGIN-001/VP-PLUGIN-007; 7 grep-verified dispatch site groups enumerated; Red Gate set (6 failing tests) specified; atomic-commit requirement documented. STORY-INDEX row: status planned→ready; BCs 0(TBD)→2(BC-2.01.013,BC-2.16.004); anchor S-PLUGIN-PREREQ-F; sp 3→13. STORY-INDEX v2.34→v2.35. |
 | v2.34 | 2026-05-10 | D-334 ADR-023 pass-1 fix-burst plan (state-manager): S-PLUGIN-PREREQ-F added — Wave 0 BC+DI amendments story (lands FIRST, blocks A-E). PREREQ-A/B/C/D/E depends_on updated to include S-PLUGIN-PREREQ-F. PLUGIN-MIGRATION-001-A depends_on updated to include PLUGIN-MIGRATION-001-D and PLUGIN-MIGRATION-001-E (replacement-before-deletion per user decision on HIGH-007). S-PLUGIN-PREREQ-D annotated with unsigned-plugin boot-warning requirement + TD-PLUGIN-SIGNING-001. S-PLUGIN-PREREQ-E annotated with spec_parser.rs call-site migration requirement. total_stories 149→150. STORY-INDEX v2.33→v2.34. |
 | v2.33 | 2026-05-10 | D-333 PLUGIN-AUDIT-001 architectural pivot (state-manager): 13 PLUGIN-MIGRATION planned stories registered (S-PLUGIN-PREREQ-A/B/C/D/E + PLUGIN-MIGRATION-001-A/B/C/D/E/F/G/H). W3-FIX-S307-001/002 annotated BLOCKED (superseded by plugin migration). S-1.12-FOLLOWUP/S-1.14-REDO/S-5.01-FOLLOWUP-MCP-BOOT annotated BLOCKED (await Wave 0+1 plugin foundation). total_stories 136→149. STORY-INDEX v2.32→v2.33. |
 | v2.32 | 2026-05-10 | D-330 S-3.02-FOLLOWUP-RUNTIME LOCAL CASCADE CONVERGED (state-manager): BC-count column for S-3.02-FOLLOWUP-RUNTIME corrected from "0 (BCs pending Phase B-1b)" to "7 (BC-2.11.001/.005/.006/.007/.011/.012, BC-2.15.011)" matching story frontmatter behavioral_contracts field. Closes OBS-LP8-2 from S-3.02-FOLLOWUP-RUNTIME pass-8 adversarial review. STORY-INDEX v2.31→v2.32. |
