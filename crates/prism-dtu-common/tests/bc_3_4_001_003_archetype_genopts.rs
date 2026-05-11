@@ -467,7 +467,7 @@ fn test_bc_3_4_003_ac_005_default_page_size_cyberint() {
 fn test_bc_3_4_001_ac_006_fixture_set_fields_accessible() {
     let prov = Provenance {
         org_id: org_a(),
-        sensor_type: SensorId::from("claroty"),
+        sensor_id: SensorId::from("claroty"),
         archetype: Archetype::HealthyOtEnvironment,
         seed: 42,
         schema_valid: true,
@@ -488,7 +488,7 @@ fn test_bc_3_4_001_ac_006_fixture_set_fields_accessible() {
 fn test_bc_3_4_001_ac_006_provenance_schema_valid_true_for_non_schema_drift() {
     let prov = Provenance {
         org_id: org_a(),
-        sensor_type: SensorId::from("armis"),
+        sensor_id: SensorId::from("armis"),
         archetype: Archetype::HealthyOtEnvironment,
         seed: 1,
         schema_valid: true, // caller must set true; verify field is writable
@@ -504,7 +504,7 @@ fn test_bc_3_4_001_ac_006_provenance_schema_valid_true_for_non_schema_drift() {
 fn test_bc_3_4_001_ac_006_provenance_schema_valid_false_for_schema_drift() {
     let prov = Provenance {
         org_id: org_a(),
-        sensor_type: SensorId::from("claroty"),
+        sensor_id: SensorId::from("claroty"),
         archetype: Archetype::SchemaDrift,
         seed: 7,
         schema_valid: false, // generator must set this; field must accept false

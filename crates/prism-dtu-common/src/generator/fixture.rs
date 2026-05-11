@@ -25,7 +25,7 @@ pub struct Provenance {
     /// Organisation for which this fixture was generated.
     pub org_id: OrgId,
     /// Sensor id targeted by the fixture.
-    pub sensor_type: SensorId,
+    pub sensor_id: SensorId,
     /// Archetype that shaped the generated data.
     pub archetype: Archetype,
     /// Seed used to initialise the RNG.

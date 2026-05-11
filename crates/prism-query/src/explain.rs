@@ -1301,6 +1301,10 @@ fn ocsf_path_for_field(field_name: &str) -> String {
 /// Return the OCSF path for a virtual field.
 fn ocsf_path_for_virtual_field(name: &str) -> String {
     match name {
+        // "metadata.sensor_type" is the stable OCSF downstream field path for the
+        // sensor identity virtual field (_sensor). This is the OCSF schema field name
+        // (preserved during the S-PLUGIN-PREREQ-A Provenance.sensor_id migration) —
+        // not subject to the Rust struct field rename.
         "_sensor" => "metadata.sensor_type".to_string(),
         "_client" => "metadata.org_id".to_string(),
         "_source_table" => "metadata.source_table".to_string(),

@@ -814,23 +814,24 @@ pub async fn step7_init_storage() -> Result<(), BootError> {
 /// QueryEngine::execute is todo!() at engine.rs:276 — resolved by S-3.02-FOLLOWUP-RUNTIME.
 /// After construction completes: engine accepts queries (via MCP tools).
 ///
-/// # AdapterRegistry assertion (F-LP2-MED-003)
-/// When step8 is implemented, it MUST verify that the `AdapterRegistry` is non-empty
-/// before the QueryEngine starts serving queries:
+/// # AdapterRegistry assertion (DEFERRED — TD-S-PLUGIN-PREREQ-A-004 P1)
 ///
+/// When step8 (init_query_engine) is wired to a non-stub body
+/// (S-WAVE5-PREP-01 / S-3.02-FOLLOWUP-RUNTIME), the FIRST thing it must do is
+/// verify the `AdapterRegistry` contains at least one adapter before serving
+/// queries. Without this assertion, a silent `init_registry_for_org` failure
+/// would propagate as silent empty results across all queries (regressing
+/// ADV-W3MT-P58-LOW-002 fix).
+///
+/// Implementation when step8 wires:
 /// ```rust,ignore
-/// if registry.is_empty() {
-///     return Err(BootError::InternalError(
-///         "E-BOOT-001: AdapterRegistry is empty after boot; \
-///          plugin/sensor init failed — at least one adapter must be registered".to_string()
-///     ));
+/// if registry.is_empty() && !is_test_mode() {
+///     return Err(BootError::EmptyRegistry { /* ... */ });
 /// }
 /// ```
 ///
-/// This fail-fast check at boot time means the `is_empty()` short-circuit in
-/// `materialization.rs:653` is a defense-in-depth fallback for test mode only
-/// (where an empty registry is legitimate). In production the registry is always
-/// non-empty after step8 completes.
+/// Defense-in-depth: `materialization.rs:653` retains `is_empty()` short-circuit
+/// (test-mode aware) until this assertion is enforced.
 pub async fn step8_init_query_engine() -> Result<(), BootError> {
     todo!(
         "S-WAVE5-PREP-01 step 8 — QueryEngine/WriteExecutor — resolved by S-3.02-FOLLOWUP-RUNTIME"

@@ -480,7 +480,7 @@ fn provenance(
 ) -> Provenance {
     Provenance {
         org_id,
-        sensor_type: SensorId::from("armis"),
+        sensor_id: SensorId::from("armis"),
         archetype,
         seed: opts.seed,
         schema_valid,

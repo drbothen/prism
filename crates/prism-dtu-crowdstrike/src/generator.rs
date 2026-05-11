@@ -84,7 +84,7 @@ pub fn generate(org_id: OrgId, archetype: Archetype, opts: GenOpts) -> FixtureSe
         cursors,
         provenance: Provenance {
             org_id,
-            sensor_type: SensorId::from("crowdstrike"),
+            sensor_id: SensorId::from("crowdstrike"),
             archetype,
             seed: opts.seed,
             schema_valid,

@@ -515,6 +515,86 @@ mod fan_out_empty_batch_tests {
         );
     }
 
+    /// BC-2.01.013 AC-6 / E-QUERY-031: invalid sensor name in write plan →
+    /// fan_out returns no per-record results and exactly one error per
+    /// record-row with error_code == "E-QUERY-031" and a detail string
+    /// that names the invalid sensor and includes the "E-QUERY-031" code.
+    ///
+    /// Covers two invalid cases: uppercase chars (charset violation) and empty string.
+    #[tokio::test]
+    async fn test_BC_2_01_013_006_write_dispatch_invalid_sensor_returns_e_query_031() {
+        let dispatcher = make_dispatcher();
+        let context = make_context();
+        let endpoint_spec = make_endpoint_spec();
+
+        // Build a schema with 2 rows to check per-record error count.
+        let schema = Arc::new(arrow::datatypes::Schema::new(vec![
+            arrow::datatypes::Field::new("id", arrow::datatypes::DataType::Utf8, false),
+        ]));
+        let array = arrow::array::StringArray::from(vec!["r1", "r2"]);
+        let batch = RecordBatch::try_new(schema.clone(), vec![Arc::new(array)])
+            .expect("must construct 2-row batch");
+
+        // Case 1: uppercase charset violation ("INVALID-NAME")
+        let mut plan_invalid_charset = make_unknown_sensor_plan();
+        plan_invalid_charset.sensor = "INVALID-NAME".to_string();
+        let (per_record, sensor_errors) = dispatcher
+            .fan_out(
+                &plan_invalid_charset,
+                &context,
+                &endpoint_spec,
+                &[batch.clone()],
+            )
+            .await;
+        assert!(
+            per_record.is_empty(),
+            "E-QUERY-031: no per-record results for invalid sensor name"
+        );
+        assert_eq!(
+            sensor_errors.len(),
+            2,
+            "E-QUERY-031: 2-row batch with invalid sensor must emit 2 errors; got {}",
+            sensor_errors.len()
+        );
+        assert_eq!(
+            sensor_errors[0].error_code, "E-QUERY-031",
+            "E-QUERY-031: error_code field must be 'E-QUERY-031'; got '{}'",
+            sensor_errors[0].error_code
+        );
+        assert!(
+            sensor_errors[0].detail.contains("E-QUERY-031"),
+            "E-QUERY-031: detail must contain 'E-QUERY-031'; got '{}'",
+            sensor_errors[0].detail
+        );
+        assert!(
+            sensor_errors[0].detail.contains("INVALID-NAME"),
+            "E-QUERY-031: detail must name the invalid sensor; got '{}'",
+            sensor_errors[0].detail
+        );
+
+        // Case 2: empty string sensor name
+        let empty_schema = Arc::new(arrow::datatypes::Schema::new(vec![
+            arrow::datatypes::Field::new("id", arrow::datatypes::DataType::Utf8, false),
+        ]));
+        let empty_array = arrow::array::StringArray::from(vec!["r1"]);
+        let empty_batch = RecordBatch::try_new(empty_schema, vec![Arc::new(empty_array)])
+            .expect("must construct 1-row batch");
+        let mut plan_empty = make_unknown_sensor_plan();
+        plan_empty.sensor = String::new();
+        let (per_record2, sensor_errors2) = dispatcher
+            .fan_out(&plan_empty, &context, &endpoint_spec, &[empty_batch])
+            .await;
+        assert!(
+            per_record2.is_empty(),
+            "E-QUERY-031: no per-record results for empty sensor name"
+        );
+        assert_eq!(
+            sensor_errors2[0].error_code, "E-QUERY-031",
+            "E-QUERY-031: empty sensor name must also return E-QUERY-031; got '{}'",
+            sensor_errors2[0].error_code
+        );
+    }
+
     /// MED-005: unknown sensor + non-empty record batch (N rows) →
     /// exactly N errors emitted (one per row).
     #[tokio::test]

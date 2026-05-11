@@ -204,6 +204,19 @@ impl std::error::Error for SensorIdValidationError {}
 
 /// Validate a sensor id candidate string.
 ///
+/// This function is `pub` to support external validation use cases — e.g. to
+/// pre-validate user input before construction, or as a standalone validation
+/// pass without constructing a `SensorId`. The canonical fallible constructor is
+/// [`SensorId::try_from_str`].
+///
+/// # Example
+/// ```rust,ignore
+/// // Pre-validate before construction:
+/// validate_sensor_id_string(user_input)?;
+/// // Or construct directly (preferred when you need the SensorId):
+/// let id = SensorId::try_from_str(user_input)?;
+/// ```
+///
 /// Rules (checked in this order):
 /// 1. Charset: `[a-z0-9_-]` (lowercase alphanumeric, underscore, hyphen).
 ///    Multi-byte / non-ASCII characters are rejected here, ensuring that the
@@ -245,15 +258,15 @@ pub fn validate_sensor_id_string(s: &str) -> Result<(), SensorIdValidationError>
 impl SensorId {
     /// Fallible construction from a string slice — use when input is untrusted.
     ///
-    /// Equivalent to `SensorId::try_from(s)` (via `TryFrom<&str>`).
     /// Returns `Err(SensorIdValidationError)` if the string fails validation.
-    /// Prefer this or `SensorId::try_from(s)?` over `SensorId::from(s)` for
-    /// deserialized or user-supplied input.
+    /// Use this for deserialized or user-supplied input. Do NOT use
+    /// `SensorId::try_from(s)?` — Rust's blanket `TryFrom<U> for T where U: Into<T>`
+    /// makes that call infallible (`Error = Infallible`) and delegates to the PANICKING
+    /// `From::from` impl. Always use `try_from_str` for fallible construction.
     ///
     /// # Example
     /// ```rust,ignore
     /// let id = SensorId::try_from_str("my-plugin")?;
-    /// let id = SensorId::try_from("my-plugin")?;  // equivalent
     /// ```
     pub fn try_from_str(s: &str) -> Result<Self, SensorIdValidationError> {
         validate_sensor_id_string(s)?;

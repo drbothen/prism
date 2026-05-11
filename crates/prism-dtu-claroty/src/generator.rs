@@ -62,7 +62,7 @@ pub fn generate(org_id: &OrgId, archetype: Archetype, opts: &GenOpts) -> Fixture
             cursors: vec![],
             provenance: Provenance {
                 org_id: org_id.clone(),
-                sensor_type: SensorId::from("claroty"),
+                sensor_id: SensorId::from("claroty"),
                 archetype,
                 seed: opts.seed,
                 schema_valid: true,
@@ -184,7 +184,7 @@ fn gen_healthy_ot_environment(org_id: &OrgId, opts: &GenOpts) -> FixtureSet {
         cursors: vec![],
         provenance: Provenance {
             org_id: org_id.clone(),
-            sensor_type: SensorId::from("claroty"),
+            sensor_id: SensorId::from("claroty"),
             archetype: Archetype::HealthyOtEnvironment,
             seed: opts.seed,
             schema_valid: true,
@@ -225,7 +225,7 @@ fn gen_compromised_endpoint(org_id: &OrgId, opts: &GenOpts) -> FixtureSet {
         cursors: vec![],
         provenance: Provenance {
             org_id: org_id.clone(),
-            sensor_type: SensorId::from("claroty"),
+            sensor_id: SensorId::from("claroty"),
             archetype: Archetype::CompromisedEndpoint,
             seed: opts.seed,
             schema_valid: true,
@@ -270,7 +270,7 @@ fn gen_auth_outage(org_id: &OrgId, opts: &GenOpts) -> FixtureSet {
         cursors: vec![],
         provenance: Provenance {
             org_id: org_id.clone(),
-            sensor_type: SensorId::from("claroty"),
+            sensor_id: SensorId::from("claroty"),
             archetype: Archetype::AuthOutage,
             seed: opts.seed,
             schema_valid: true,
@@ -312,7 +312,7 @@ fn gen_large_scale(org_id: &OrgId, opts: &GenOpts) -> FixtureSet {
         cursors: vec![],
         provenance: Provenance {
             org_id: org_id.clone(),
-            sensor_type: SensorId::from("claroty"),
+            sensor_id: SensorId::from("claroty"),
             archetype: Archetype::LargeScale,
             seed: opts.seed,
             schema_valid: true,
@@ -349,7 +349,7 @@ fn gen_pagination_edge_cases(org_id: &OrgId, opts: &GenOpts) -> FixtureSet {
         cursors,
         provenance: Provenance {
             org_id: org_id.clone(),
-            sensor_type: SensorId::from("claroty"),
+            sensor_id: SensorId::from("claroty"),
             archetype: Archetype::PaginationEdgeCases,
             seed: opts.seed,
             schema_valid: true,
@@ -395,7 +395,7 @@ fn gen_schema_drift(org_id: &OrgId, opts: &GenOpts) -> FixtureSet {
         cursors: vec![],
         provenance: Provenance {
             org_id: org_id.clone(),
-            sensor_type: SensorId::from("claroty"),
+            sensor_id: SensorId::from("claroty"),
             archetype: Archetype::SchemaDrift,
             seed: opts.seed,
             schema_valid: false,
@@ -449,7 +449,7 @@ fn gen_high_churn(org_id: &OrgId, opts: &GenOpts) -> FixtureSet {
         cursors: vec![],
         provenance: Provenance {
             org_id: org_id.clone(),
-            sensor_type: SensorId::from("claroty"),
+            sensor_id: SensorId::from("claroty"),
             archetype: Archetype::HighChurn,
             seed: opts.seed,
             schema_valid: true,
@@ -467,7 +467,7 @@ fn gen_dormant_tenant(org_id: &OrgId, opts: &GenOpts) -> FixtureSet {
         cursors: vec![],
         provenance: Provenance {
             org_id: org_id.clone(),
-            sensor_type: SensorId::from("claroty"),
+            sensor_id: SensorId::from("claroty"),
             archetype: Archetype::DormantTenant,
             seed: opts.seed,
             schema_valid: true,

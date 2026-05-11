@@ -60,7 +60,7 @@ pub fn generate(org_id: &OrgId, archetype: Archetype, opts: &GenOpts) -> Fixture
             cursors: vec![],
             provenance: Provenance {
                 org_id: org_id.clone(),
-                sensor_type: SensorId::from("cyberint"),
+                sensor_id: SensorId::from("cyberint"),
                 archetype,
                 seed,
                 schema_valid: true,
@@ -131,7 +131,7 @@ pub fn generate(org_id: &OrgId, archetype: Archetype, opts: &GenOpts) -> Fixture
         cursors,
         provenance: Provenance {
             org_id: org_id.clone(),
-            sensor_type: SensorId::from("cyberint"),
+            sensor_id: SensorId::from("cyberint"),
             archetype,
             seed,
             schema_valid,

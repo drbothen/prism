@@ -1112,8 +1112,8 @@ fn test_bc_3_4_001_provenance_fields_correct() {
         "Provenance.archetype must match the requested archetype"
     );
     assert_eq!(
-        fs.provenance.sensor_type,
+        fs.provenance.sensor_id,
         SensorId::from("armis"),
-        "Provenance.sensor_type must be Armis"
+        "Provenance.sensor_id must be Armis"
     );
 }
