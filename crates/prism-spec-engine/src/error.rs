@@ -124,3 +124,36 @@ pub enum SpecEngineError {
         path: String,
     },
 }
+
+// ---------------------------------------------------------------------------
+// Tests
+// ---------------------------------------------------------------------------
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// F-LP2-LOW-001: `AuthAcquisitionFailed` variant is constructible and its
+    /// Display output includes sensor_id and client_id for operator diagnostics.
+    #[test]
+    fn test_auth_acquisition_failed_error_constructs() {
+        let err = SpecEngineError::AuthAcquisitionFailed {
+            sensor_id: "crowdstrike".to_string(),
+            client_id: "test-org".to_string(),
+            detail: "credentials store unavailable".to_string(),
+        };
+        let msg = err.to_string();
+        assert!(
+            msg.contains("crowdstrike"),
+            "error message must contain sensor_id; got: {msg}"
+        );
+        assert!(
+            msg.contains("test-org"),
+            "error message must contain client_id; got: {msg}"
+        );
+        assert!(
+            msg.contains("credentials store unavailable"),
+            "error message must contain detail; got: {msg}"
+        );
+    }
+}

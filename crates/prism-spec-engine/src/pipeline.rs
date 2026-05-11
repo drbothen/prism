@@ -16,6 +16,7 @@
 use std::collections::HashMap;
 use std::time::Duration;
 
+use percent_encoding::{NON_ALPHANUMERIC, utf8_percent_encode};
 use prism_core::OrgSlug;
 
 use crate::auth_provider::{AuthProvider, AuthToken};
@@ -25,6 +26,15 @@ use crate::spec_parser::{FetchStep, PaginationConfig, SensorSpec, TableSpec};
 
 /// Maximum records materialised per pipeline execution (DI-019 / AC-8).
 const MAX_PIPELINE_RECORDS: usize = 10_000;
+
+/// Maximum pages fetched per step to guard against infinite pagination loops
+/// caused by APIs that fail to advance cursors or that emit perpetual data.
+///
+/// F-LP2-HIGH-002 defense: if a step exceeds this page count, the pipeline
+/// aborts with `SpecEngineError::HttpRequestFailed` (detail includes step name
+/// and page limit). Full resource bound (MAX_REQUESTS_PER_PIPELINE) deferred to
+/// TD-S-PLUGIN-PREREQ-B-004 P3.
+const MAX_PAGES_PER_STEP: usize = 1_000;
 
 /// Context provided to each pipeline execution.
 #[derive(Debug, Clone)]
@@ -127,33 +137,44 @@ impl PipelineExecutor {
             // path_template or body_template resolves to an array from a prior step,
             // execute the step once per batch.
             //
-            // Fan-out variable convention: ${step_name.batch} where step_name is the
-            // prior step whose response_path resolved to an array. We detect this by
-            // checking step_vars for any array-valued key and matching path_template
-            // references to it.
-            let fan_out_array = find_fan_out_array(step, &step_vars);
+            // F-LP2-HIGH-001 fix: `find_fan_out_array` now returns (key, value) so
+            // the fan-out loop can override the source key with each batch slice.
+            // Previously, only `{step.name}.batch` was inserted, but the template
+            // still referenced `${step1.ids}` (the full 250-element array), causing
+            // every fan-out iteration to send the same payload — a paper-fix regression
+            // introduced in fix-burst-1.
+            let fan_out = find_fan_out_array(step, &step_vars);
             let batch_size = step.fan_out_batch_size.map(|s| s as usize).unwrap_or(100); // AC-6 default per spec
 
             // Build batches (or a single pass if no fan-out)
-            let batches: Vec<Option<Vec<serde_json::Value>>> = if let Some(ref arr) = fan_out_array
-            {
-                // Fan-out: one batch per chunk
-                Self::fan_out_batches(arr, batch_size)
-                    .into_iter()
-                    .map(Some)
-                    .collect()
-            } else {
-                // No fan-out: single pass
-                vec![None]
-            };
+            let batches: Vec<Option<(String, Vec<serde_json::Value>)>> =
+                if let Some((source_key, ref arr)) = fan_out {
+                    // Fan-out: one batch per chunk; carry the source key so we can
+                    // override step_vars[source_key] with the current batch slice.
+                    Self::fan_out_batches(arr, batch_size)
+                        .into_iter()
+                        .map(|b| Some((source_key.clone(), b)))
+                        .collect()
+                } else {
+                    // No fan-out: single pass
+                    vec![None]
+                };
 
             for batch in batches {
-                // Build per-batch step_vars: inject ${step_name.batch} if fanning out.
+                // Build per-batch step_vars: override the source array key with the
+                // current batch slice so that template interpolation receives only the
+                // batch items, not the full prior-step array.
                 let mut batch_step_vars = step_vars.clone();
-                if let Some(ref batch_items) = batch {
-                    // Inject the batch array as ${step_name.batch} so templates can reference it.
-                    // The template author writes ${prior_step.batch} to receive each batch.
-                    // We store under a synthetic key for this step's batch resolution.
+                if let Some((ref source_key, ref batch_items)) = batch {
+                    // Override the source key (e.g. "step1.ids") with the current
+                    // batch slice.  This ensures ${step1.ids} in the template resolves
+                    // to this batch's items, not the full 250-element array.
+                    batch_step_vars.insert(
+                        source_key.clone(),
+                        serde_json::Value::Array(batch_items.clone()),
+                    );
+                    // Also inject under the synthetic {this_step}.batch key for
+                    // templates that prefer the explicit batch reference.
                     batch_step_vars.insert(
                         format!("{}.batch", step.name),
                         serde_json::Value::Array(batch_items.clone()),
@@ -177,9 +198,25 @@ impl PipelineExecutor {
 
                 // Pagination state for this step/batch.
                 let mut cursor: Option<String> = None;
+                let mut prev_cursor: Option<String> = None; // F-LP2-HIGH-002: cursor non-advance guard
                 let mut offset: u32 = 0;
+                let mut page_count: usize = 0; // F-LP2-HIGH-002: MAX_PAGES_PER_STEP guard
 
                 loop {
+                    // F-LP2-HIGH-002: abort if step has exceeded the page cap.
+                    if page_count >= MAX_PAGES_PER_STEP {
+                        return Err(SpecEngineError::HttpRequestFailed {
+                            sensor_id: spec.sensor_id.clone(),
+                            step_name: step.name.clone(),
+                            status_code: 0,
+                            detail: format!(
+                                "step '{}' exceeded {MAX_PAGES_PER_STEP} pages — \
+                                 likely API misbehavior or cursor non-advancement",
+                                step.name
+                            ),
+                        });
+                    }
+                    page_count += 1;
                     // AC-7: apply rate-limit delay BETWEEN consecutive HTTP calls.
                     // is_first_pipeline_request is pipeline-scoped (F-LP1-HIGH-002 fix).
                     if !is_first_pipeline_request {
@@ -196,10 +233,10 @@ impl PipelineExecutor {
                     is_first_pipeline_request = false;
 
                     // F-LP1-CRIT-002: cursor must be percent-encoded before appending to URL.
-                    let encoded_cursor = cursor.as_deref().map(|c| {
-                        use percent_encoding::{NON_ALPHANUMERIC, utf8_percent_encode};
-                        utf8_percent_encode(c, NON_ALPHANUMERIC).to_string()
-                    });
+                    // F-LP2-LOW-003: `percent_encoding` imports are hoisted to module top.
+                    let encoded_cursor = cursor
+                        .as_deref()
+                        .map(|c| utf8_percent_encode(c, NON_ALPHANUMERIC).to_string());
 
                     // Build the paginated URL with encoded cursor.
                     let paged_url = build_paged_url(&url, step, &encoded_cursor, offset);
@@ -237,7 +274,10 @@ impl PipelineExecutor {
                     // F-LP1-CRIT-003: only accumulate records for the FINAL step.
                     // Intermediate step records (e.g., OAuth tokens) must not appear
                     // in the pipeline result.
-                    let page_count = match &page_records {
+                    //
+                    // `page_record_count` is the number of records returned in this
+                    // single page response; used by the pagination-advance logic below.
+                    let page_record_count = match &page_records {
                         serde_json::Value::Array(arr) => {
                             if is_final_step {
                                 all_records.extend(arr.iter().cloned());
@@ -268,7 +308,19 @@ impl PipelineExecutor {
                         }) => {
                             let next = extract_cursor(&body, cursor_response_path);
                             match next {
-                                Some(c) if !c.is_empty() && page_count > 0 => {
+                                Some(c) if !c.is_empty() && page_record_count > 0 => {
+                                    // F-LP2-HIGH-002: cursor non-advance guard.
+                                    // If the API returns the same cursor AND non-empty data,
+                                    // the pagination loop would run forever.
+                                    if prev_cursor.as_deref() == Some(c.as_str()) {
+                                        return Err(SpecEngineError::HttpRequestFailed {
+                                            sensor_id: spec.sensor_id.clone(),
+                                            step_name: step.name.clone(),
+                                            status_code: 0,
+                                            detail: "pagination cursor did not advance".to_string(),
+                                        });
+                                    }
+                                    prev_cursor = Some(c.clone());
                                     cursor = Some(c);
                                 }
                                 _ => break,
@@ -276,7 +328,7 @@ impl PipelineExecutor {
                         }
                         Some(PaginationConfig::OffsetLimit { page_size }) => {
                             let ps = *page_size as usize;
-                            if page_count < ps {
+                            if page_record_count < ps {
                                 break;
                             }
                             offset += *page_size;
@@ -557,8 +609,10 @@ fn build_request(
             Interpolator::interpolate(body_tpl, &InterpolationContext::JsonBody, step_vars)
                 .map_err(|e| format!("body template interpolation failed: {e}"))?;
 
-        // Derive Content-Type: JSON if body starts with '{', else form-urlencoded.
-        let content_type = if interpolated_body.trim_start().starts_with('{') {
+        // Derive Content-Type: JSON if body starts with '{' or '[', else form-urlencoded.
+        // F-LP2-MED-002: JSON arrays (starting with '[') are also application/json.
+        let trimmed = interpolated_body.trim_start();
+        let content_type = if trimmed.starts_with('{') || trimmed.starts_with('[') {
             "application/json"
         } else {
             "application/x-www-form-urlencoded"
@@ -608,13 +662,29 @@ fn build_paged_url(
 /// Internally converts to a JSON Pointer (RFC 6901) and delegates to
 /// `serde_json::Value::pointer` so nested key lookup is unambiguous.
 ///
+/// F-LP2-LOW-002: RFC 6901 key-content escaping is applied to each dot-separated
+/// segment before joining with '/'. The escape rules are:
+///
+/// - `~` → `~0`  (must be applied BEFORE the `/` escape to avoid double-escape)
+/// - `/` → `~1`
+///
+/// This handles JSON keys that contain literal `~` or `/` characters.
+///
+/// TD-S-PLUGIN-PREREQ-B-003 P3: JSON Pointer dot-notation only. Bracket notation
+/// ($.x[0]) and wildcards ($.x[*]) deferred to PREREQ-C scope (per fix-burst-1 OBS).
+///
 /// Returns `Err(String)` with a descriptive message if the path does not match.
 fn extract_at_path(body: &serde_json::Value, path: &str) -> Result<serde_json::Value, String> {
     let stripped = path
         .strip_prefix("$.")
         .ok_or_else(|| format!("path must start with '$.' : {path}"))?;
-    // Convert dot-notation to RFC 6901 JSON Pointer: "$.a.b.c" -> "/a/b/c"
-    let pointer_path = format!("/{}", stripped.replace('.', "/"));
+    // Each dot-separated segment is a JSON key; escape ~ and / per RFC 6901
+    // before joining with '/' as the JSON Pointer segment separator.
+    let segments: Vec<String> = stripped
+        .split('.')
+        .map(|seg| seg.replace('~', "~0").replace('/', "~1"))
+        .collect();
+    let pointer_path = format!("/{}", segments.join("/"));
     body.pointer(&pointer_path)
         .cloned()
         .ok_or_else(|| format!("path not found: {path}"))
@@ -622,13 +692,25 @@ fn extract_at_path(body: &serde_json::Value, path: &str) -> Result<serde_json::V
 
 /// Extract a cursor string from the response body at the given JSONPath.
 ///
-/// Returns `None` if the path does not match, the value is null, or the
-/// value is not a string.
+/// F-LP2-MED-003: Numeric cursors are coerced to their string representation
+/// so that APIs returning `{"cursor": 42}` correctly advance pagination.
+/// Object/Array/Bool cursor values are treated as terminal and logged as a
+/// diagnostic warning. Empty strings are terminal (no next page).
 fn extract_cursor(body: &serde_json::Value, cursor_path: &str) -> Option<String> {
-    match extract_at_path(body, cursor_path) {
-        Ok(serde_json::Value::String(s)) => Some(s),
-        Ok(serde_json::Value::Null) => None,
-        _ => None,
+    match extract_at_path(body, cursor_path).ok()? {
+        serde_json::Value::String(s) if !s.is_empty() => Some(s),
+        serde_json::Value::String(_) => None, // empty string = terminal
+        serde_json::Value::Number(n) => Some(n.to_string()), // numeric cursor → string
+        serde_json::Value::Null => None,
+        other => {
+            // Object/Array/Bool: treat as terminal but emit diagnostic.
+            tracing::warn!(
+                cursor_path = %cursor_path,
+                actual_type = ?other,
+                "non-string/non-numeric cursor terminated pagination"
+            );
+            None
+        }
     }
 }
 
@@ -666,17 +748,21 @@ fn store_step_vars(
 }
 
 /// Detect whether any variable referenced in `step`'s templates resolves to an
-/// array in `step_vars`. Returns the array value if fan-out should be applied.
+/// array in `step_vars`. Returns `(source_key, array_value)` if fan-out applies.
 ///
 /// Fan-out is triggered when a step variable reference (${step_name.field}) resolves
 /// to a JSON array. The first such array found is used as the fan-out source.
 /// Non-array variables are not considered for fan-out.
 ///
+/// F-LP2-HIGH-001: The source key is returned alongside the array so the caller
+/// can override `step_vars[source_key]` with each batch slice during iteration,
+/// ensuring the template receives the batch items rather than the full array.
+///
 /// AC-6: `fan_out_batch_size` field on `FetchStep` controls batch size (default 100).
 fn find_fan_out_array(
     step: &FetchStep,
     step_vars: &HashMap<String, serde_json::Value>,
-) -> Option<serde_json::Value> {
+) -> Option<(String, serde_json::Value)> {
     // Check all variables referenced in path_template and body_template for arrays.
     let templates: Vec<&str> = std::iter::once(step.path_template.as_str())
         .chain(step.body_template.as_deref())
@@ -687,7 +773,7 @@ fn find_fan_out_array(
         for (step_name, field_path) in refs {
             let key = format!("{step_name}.{field_path}");
             if let Some(val) = step_vars.get(&key).filter(|v| v.is_array()) {
-                return Some(val.clone());
+                return Some((key, val.clone()));
             }
         }
     }
