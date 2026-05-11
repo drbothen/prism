@@ -307,7 +307,7 @@ impl WriteDispatcher {
         // before this code path is reachable. This sentinel-nil OrgId is pre-existing tech debt
         // (filed as TD-S-PLUGIN-PREREQ-A-002; tracked for OrgRegistry wiring in Wave 5).
         let org_id = OrgId::from_uuid(uuid::Uuid::nil()); // sentinel: empty registry returns None
-        let adapter = self.adapter_registry.get(org_id, sensor_id);
+        let adapter = self.adapter_registry.get(org_id, &sensor_id);
 
         let mut per_record_results: Vec<RecordWriteResult> = vec![];
         let mut sensor_errors: Vec<SensorWriteError> = vec![];

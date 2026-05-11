@@ -32,14 +32,14 @@ use crate::{
 /// A no-op adapter stub that never calls `fetch()`.
 /// Used to test registry insertion and retrieval without touching HTTP.
 struct StubAdapter {
-    sensor_type: SensorId,
+    sensor_id: SensorId,
     name: &'static str,
 }
 
 #[async_trait]
 impl SensorAdapter for StubAdapter {
     fn sensor_type(&self) -> SensorId {
-        self.sensor_type.clone()
+        self.sensor_id.clone()
     }
 
     fn sensor_name(&self) -> &'static str {
@@ -58,8 +58,8 @@ impl SensorAdapter for StubAdapter {
     }
 }
 
-fn stub(sensor_type: SensorId, name: &'static str) -> Arc<dyn SensorAdapter> {
-    Arc::new(StubAdapter { sensor_type, name })
+fn stub(sensor_id: SensorId, name: &'static str) -> Arc<dyn SensorAdapter> {
+    Arc::new(StubAdapter { sensor_id, name })
 }
 
 // ---------------------------------------------------------------------------
@@ -80,7 +80,7 @@ fn test_BC_2_01_013_registry_get_returns_registered_crowdstrike_adapter() {
     registry.register(org_id, Arc::clone(&adapter));
 
     let retrieved = registry
-        .get(org_id, SensorId::from("crowdstrike"))
+        .get(org_id, &SensorId::from("crowdstrike"))
         .expect("CrowdStrike adapter must be registered");
     assert_eq!(
         Arc::as_ptr(&retrieved),
@@ -114,7 +114,7 @@ fn test_BC_2_01_013_registry_all_four_sensor_types_registered_and_retrieved() {
     ] {
         let name = format!("{sensor_type}");
         assert!(
-            registry.get(org_id, sensor_type).is_some(),
+            registry.get(org_id, &sensor_type).is_some(),
             "adapter for {name} must be retrievable after registration"
         );
     }
@@ -129,7 +129,7 @@ fn test_BC_2_01_013_registry_get_returns_none_for_unregistered_sensor() {
     registry.register(org_id, stub(SensorId::from("crowdstrike"), "crowdstrike"));
 
     assert!(
-        registry.get(org_id, SensorId::from("armis")).is_none(),
+        registry.get(org_id, &SensorId::from("armis")).is_none(),
         "get() must return None for a sensor type that was not registered"
     );
 }
@@ -147,7 +147,7 @@ fn test_BC_2_01_013_registry_re_register_replaces_existing_adapter() {
     registry.register(org_id, Arc::clone(&second));
 
     let retrieved = registry
-        .get(org_id, SensorId::from("crowdstrike"))
+        .get(org_id, &SensorId::from("crowdstrike"))
         .expect("adapter must be present");
     assert_eq!(
         Arc::as_ptr(&retrieved),

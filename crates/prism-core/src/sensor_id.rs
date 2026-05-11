@@ -46,8 +46,28 @@ pub struct SensorId(Arc<str>);
 
 impl SensorId {
     /// Construct a `SensorId` from any value that can be converted to `Arc<str>`.
+    ///
+    /// Validates the string against `validate_sensor_id_string` before constructing.
+    /// Use this when you have a value that converts to `Arc<str>` and you know it
+    /// is a trusted literal. For untrusted or user-supplied input use
+    /// `SensorId::try_from_str(s)` instead.
+    ///
+    /// # Panics
+    /// Panics if the string fails `validate_sensor_id_string`. Valid inputs:
+    /// 1..=64 chars, `[a-z0-9_-]`, first char `[a-z]`, no leading/trailing `-` or `_`.
+    ///
+    /// # Alternatives
+    /// - `SensorId::from("literal")` — same contract, ergonomic for string literals.
+    /// - `SensorId::try_from_str(s)?` — fallible construction for untrusted input.
     pub fn new(s: impl Into<Arc<str>>) -> Self {
-        SensorId(s.into())
+        let arc: Arc<str> = s.into();
+        if let Err(e) = validate_sensor_id_string(&arc) {
+            panic!(
+                "S-PLUGIN-PREREQ-A: invalid SensorId string '{}': {}",
+                arc, e
+            );
+        }
+        SensorId(arc)
     }
 }
 
@@ -170,9 +190,10 @@ impl<'de> Deserialize<'de> for SensorId {
 
 /// Validation errors for `SensorId` string values.
 ///
-/// Returned by `SensorId::try_from_str()` and `validate_sensor_id_string()`.
-/// `From<&str>`, `From<String>`, and `From<Arc<str>>` panic on invalid input —
-/// use `try_from_str` for fallible construction from untrusted input.
+/// Returned by `SensorId::try_from_str()`. The panicking constructors
+/// (`From<&str>`, `From<String>`, `From<Arc<str>>`, `new`) call the internal
+/// validator and panic on the same conditions — use `try_from_str` for fallible
+/// construction from untrusted input.
 #[derive(Debug, Clone, PartialEq, Eq)]
 #[non_exhaustive]
 pub enum SensorIdValidationError {
@@ -215,27 +236,14 @@ impl std::error::Error for SensorIdValidationError {}
 
 /// Validate a sensor id candidate string.
 ///
-/// This function is `pub` to provide a standalone validation primitive that can
-/// be used without constructing a `SensorId` — e.g., for testing input strings
-/// before deserialization, or for external integration tests that need to verify a
-/// string would pass the SensorId newtype invariant. Currently no crate-external
-/// callers; the canonical fallible constructor is `SensorId::try_from_str` which
-/// validates internally. Future callers landing here: this function returns
-/// `Result<(), SensorIdValidationError>` so the caller can decide what to do on
-/// validation failure without paying the cost of newtype construction.
+/// Internal helper used by `SensorId` constructors (`new`, `from`, `try_from_str`).
+/// External callers should use `SensorId::try_from_str` — it validates internally
+/// and returns the constructed `SensorId` in one step.
 ///
 /// **Parity contract:** Validation rules match
 /// `prism_spec_engine::validation::validate_sensor_id` (regex `^[a-z][a-z0-9_-]*$`);
 /// the invariant is locked by the cross-crate proptest in
 /// `crates/prism-core/tests/sensor_id_validator_parity.rs`.
-///
-/// # Example
-/// ```rust,ignore
-/// // Pre-validate before construction:
-/// validate_sensor_id_string(user_input)?;
-/// // Or construct directly (preferred when you need the SensorId):
-/// let id = SensorId::try_from_str(user_input)?;
-/// ```
 ///
 /// Rules (checked in this order):
 /// 1. Charset: `[a-z0-9_-]` (lowercase alphanumeric, underscore, hyphen).
@@ -247,7 +255,7 @@ impl std::error::Error for SensorIdValidationError {}
 /// 4. No leading or trailing `-` or `_`.
 ///
 /// Returns `Ok(())` for valid inputs; `Err(SensorIdValidationError)` otherwise.
-pub fn validate_sensor_id_string(s: &str) -> Result<(), SensorIdValidationError> {
+pub(crate) fn validate_sensor_id_string(s: &str) -> Result<(), SensorIdValidationError> {
     // Step 1: charset check FIRST — rejects non-ASCII and disallowed characters.
     // This must precede the length check so that `s.len()` is always measured in
     // bytes == characters (all valid chars are single-byte ASCII).
@@ -468,6 +476,33 @@ mod tests {
                 "'{case}' must be rejected with InvalidFirstChar (digit-first violates ^[a-z])"
             );
         }
+    }
+
+    /// F-LP6-HIGH-001: SensorId::new must panic on invalid input, matching the
+    /// From<&str> / From<String> / From<Arc<str>> panic contract.
+    ///
+    /// This ensures `new()` is not a validation bypass for future callers who
+    /// reach for it instead of the validated `from`/`try_from_str` constructors.
+    #[test]
+    #[should_panic(expected = "S-PLUGIN-PREREQ-A: invalid SensorId string")]
+    fn test_sensorid_new_panics_on_invalid_uppercase() {
+        SensorId::new("CrowdStrike");
+    }
+
+    /// F-LP6-HIGH-001: SensorId::new must panic on empty string.
+    #[test]
+    #[should_panic(expected = "S-PLUGIN-PREREQ-A: invalid SensorId string")]
+    fn test_sensorid_new_panics_on_empty() {
+        SensorId::new("");
+    }
+
+    /// F-LP6-HIGH-001: SensorId::new accepts valid lowercase strings (positive case).
+    #[test]
+    fn test_sensorid_new_accepts_valid() {
+        let id = SensorId::new("crowdstrike");
+        assert_eq!(format!("{id}"), "crowdstrike");
+        let id2 = SensorId::new(String::from("armis"));
+        assert_eq!(format!("{id2}"), "armis");
     }
 
     /// S-PLUGIN-PREREQ-A: Deserialize rejects invalid sensor id strings.

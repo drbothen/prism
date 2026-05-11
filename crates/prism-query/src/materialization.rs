@@ -672,7 +672,7 @@ pub(crate) async fn resolve_source_refs(
             //
             // F-LP1-CRIT-3/HIGH-6: use per-org adapter selection.
             // When no explicit client list, iterate all registered (org_id, adapter) pairs.
-            let all_adapters = adapter_registry.get_all_for_sensor(sensor_id.clone());
+            let all_adapters = adapter_registry.get_all_for_sensor(&sensor_id);
             for (org_id, _adapter) in all_adapters {
                 // Derive client_id from OrgRegistry (reverse lookup).
                 // F-LP2-LOW-2: if no slug is found, emit a warn and SKIP this target.
@@ -729,10 +729,7 @@ pub(crate) async fn resolve_source_refs(
             // When no adapters registered: target list is empty; fan-out produces nothing.
             // BC-2.11.011 EC-005: sources with no adapters produce empty results without error.
             // F-LP2-LOW-2: no sentinel `_all` target is added — that would expose internal details.
-            if adapter_registry
-                .get_all_for_sensor(sensor_id.clone())
-                .is_empty()
-            {
+            if adapter_registry.get_all_for_sensor(&sensor_id).is_empty() {
                 tracing::debug!(
                     source_table = %source_name,
                     "resolve_source_refs: no adapters registered for sensor type; \
@@ -794,7 +791,7 @@ fn resolve_org_id(
     // Path 2: Fall back to first registered adapter's OrgId for this sensor id.
     // This preserves the test-path behavior where adapters are registered with
     // known OrgIds but no OrgRegistry is present.
-    let adapters = adapter_registry.get_all_for_sensor(sensor_id);
+    let adapters = adapter_registry.get_all_for_sensor(&sensor_id);
     if let Some((org_id, _)) = adapters.into_iter().next() {
         return org_id;
     }

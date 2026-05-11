@@ -69,28 +69,34 @@ impl AdapterRegistry {
     /// `(org_id, sensor_id)` composite key, or `None` if no adapter is
     /// registered for that pair.
     ///
+    /// Accepts `&SensorId` to avoid requiring the caller to clone or give up
+    /// ownership. `Borrow<str>` on `SensorId` makes the inner HashMap lookup
+    /// work correctly by content.
+    ///
     /// # AC-001 / EC-001
-    /// `get(org_id_A, SensorId::from("crowdstrike"))` must never return an adapter
+    /// `get(org_id_A, &SensorId::from("crowdstrike"))` must never return an adapter
     /// registered under `org_id_B` (BC-3.2.001 invariant 1).
     ///
     /// Story: S-3.1.06-ImplPhase | S-PLUGIN-PREREQ-A | AC-002 | BC-3.2.001 invariant 1
-    pub fn get(&self, org_id: OrgId, sensor_id: SensorId) -> Option<Arc<dyn SensorAdapter>> {
-        self.adapters.get(&(org_id, sensor_id)).cloned()
+    pub fn get(&self, org_id: OrgId, sensor_id: &SensorId) -> Option<Arc<dyn SensorAdapter>> {
+        self.adapters.get(&(org_id, sensor_id.clone())).cloned()
     }
 
     /// Returns all adapters registered for the given sensor id, regardless of org.
+    ///
+    /// Accepts `&SensorId` to avoid requiring callers to clone or give up ownership.
     ///
     /// Used by the materialization pipeline when an OrgSlug→OrgId mapping is not
     /// available (MVP: single-org adapters registered without strict org binding).
     /// Returns adapter + org_id pairs so callers can attribute results correctly.
     ///
     /// # Multi-tenant note
-    /// Production use MUST migrate to `get(org_id, sensor_id)` once the
+    /// Production use MUST migrate to `get(org_id, &sensor_id)` once the
     /// OrgRegistry (OrgSlug→OrgId mapping) is wired (S-WAVE5-PREP-01 §Boot step 3).
-    pub fn get_all_for_sensor(&self, sensor_id: SensorId) -> Vec<(OrgId, Arc<dyn SensorAdapter>)> {
+    pub fn get_all_for_sensor(&self, sensor_id: &SensorId) -> Vec<(OrgId, Arc<dyn SensorAdapter>)> {
         self.adapters
             .iter()
-            .filter(|((_, sid), _)| *sid == sensor_id)
+            .filter(|((_, sid), _)| sid == sensor_id)
             .map(|((org_id, _), adapter)| (*org_id, Arc::clone(adapter)))
             .collect()
     }

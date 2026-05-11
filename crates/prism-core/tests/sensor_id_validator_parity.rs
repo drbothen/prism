@@ -11,10 +11,10 @@ use prism_spec_engine::validation::validate_sensor_id;
 /// invariant so no future divergence can occur silently.
 use proptest::prelude::*;
 
-/// Generate arbitrary ASCII strings up to 70 characters to cover the
-/// 1..=64 valid range and common invalid inputs (empty, too long, bad chars).
+/// Generate arbitrary strings up to 70 characters to cover the
+/// 1..=64 valid range and common invalid inputs (empty, too long, bad chars, non-ASCII).
 fn arb_candidate() -> impl Strategy<Value = String> {
-    // Mix of targeted and arbitrary ASCII to stress all rule boundaries.
+    // Mix of targeted and arbitrary strings to stress all rule boundaries.
     prop_oneof![
         // Fully arbitrary printable ASCII strings (length 0..=70).
         proptest::string::string_regex("[[:print:]]{0,70}").unwrap(),
@@ -24,6 +24,10 @@ fn arb_candidate() -> impl Strategy<Value = String> {
         proptest::string::string_regex("[0-9][a-z0-9_-]{0,63}").unwrap(),
         // Strings starting with a lowercase letter (most likely to be valid).
         proptest::string::string_regex("[a-z][a-z0-9_-]{0,63}").unwrap(),
+        // Mixed Unicode (letter-class + digit-class) — both validators must reject non-ASCII.
+        proptest::string::string_regex("[a-z][\\p{L}\\p{N}]{0,30}").unwrap(),
+        // Non-control Unicode characters — exercises the charset check for multi-byte input.
+        proptest::string::string_regex("\\PC{0,70}").unwrap(),
     ]
 }
 

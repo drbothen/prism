@@ -173,13 +173,13 @@ async fn test_BC_2_01_002_fan_out_six_targets_all_succeed() {
 
     // Stub adapter that always returns one empty RecordBatch
     struct AlwaysOkAdapter {
-        sensor_type: SensorId,
+        sensor_id: SensorId,
     }
 
     #[async_trait]
     impl SensorAdapter for AlwaysOkAdapter {
         fn sensor_type(&self) -> SensorId {
-            self.sensor_type.clone()
+            self.sensor_id.clone()
         }
         fn sensor_name(&self) -> &'static str {
             "stub-ok"
@@ -225,13 +225,13 @@ async fn test_BC_2_01_002_fan_out_six_targets_all_succeed() {
     registry.register(
         shared_org_id,
         Arc::new(AlwaysOkAdapter {
-            sensor_type: SensorId::from("crowdstrike"),
+            sensor_id: SensorId::from("crowdstrike"),
         }),
     );
     registry.register(
         shared_org_id,
         Arc::new(AlwaysOkAdapter {
-            sensor_type: SensorId::from("armis"),
+            sensor_id: SensorId::from("armis"),
         }),
     );
 

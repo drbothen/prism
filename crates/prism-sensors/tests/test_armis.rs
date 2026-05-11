@@ -443,20 +443,20 @@ fn test_BC_2_01_008_init_registry_registers_armis_adapter() {
     let nil_org = prism_sensors::OrgId::from_uuid(uuid::Uuid::nil());
     assert!(
         registry
-            .get(nil_org, SensorId::from("crowdstrike"))
+            .get(nil_org, &SensorId::from("crowdstrike"))
             .is_some(),
         "init_registry must register CrowdStrikeAdapter"
     );
     assert!(
-        registry.get(nil_org, SensorId::from("cyberint")).is_some(),
+        registry.get(nil_org, &SensorId::from("cyberint")).is_some(),
         "init_registry must register CyberintAdapter"
     );
     assert!(
-        registry.get(nil_org, SensorId::from("claroty")).is_some(),
+        registry.get(nil_org, &SensorId::from("claroty")).is_some(),
         "init_registry must register ClarotyAdapter"
     );
     assert!(
-        registry.get(nil_org, SensorId::from("armis")).is_some(),
+        registry.get(nil_org, &SensorId::from("armis")).is_some(),
         "init_registry must register ArmisAdapter"
     );
 }

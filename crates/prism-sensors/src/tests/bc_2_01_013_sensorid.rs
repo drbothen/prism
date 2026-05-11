@@ -27,16 +27,14 @@ use crate::{
 // is complete as of S-PLUGIN-PREREQ-A.
 // ---------------------------------------------------------------------------
 
-use prism_core::SensorId as SensorIdType;
-
 struct SensorIdStubAdapter {
-    sensor_id: SensorIdType,
+    sensor_id: SensorId,
     name: &'static str,
 }
 
 #[async_trait]
 impl SensorAdapter for SensorIdStubAdapter {
-    fn sensor_type(&self) -> SensorIdType {
+    fn sensor_type(&self) -> SensorId {
         self.sensor_id.clone()
     }
 
@@ -56,7 +54,7 @@ impl SensorAdapter for SensorIdStubAdapter {
     }
 }
 
-fn stub_adapter(sensor_id: SensorIdType, name: &'static str) -> Arc<dyn SensorAdapter> {
+fn stub_adapter(sensor_id: SensorId, name: &'static str) -> Arc<dyn SensorAdapter> {
     Arc::new(SensorIdStubAdapter { sensor_id, name })
 }
 
@@ -84,7 +82,7 @@ fn test_BC_2_01_013_004_adapter_registry_sensorid_insert_lookup() {
     );
 
     // Lookup via SensorId — now the native API.
-    let result = registry.get(org_id, SensorId::from("crowdstrike"));
+    let result = registry.get(org_id, &SensorId::from("crowdstrike"));
 
     assert!(
         result.is_some(),
@@ -93,7 +91,7 @@ fn test_BC_2_01_013_004_adapter_registry_sensorid_insert_lookup() {
 
     // Cross-sensor isolation: looking up "cyberint" must return None when only
     // "crowdstrike" was registered (BC-3.2.001 invariant 1).
-    let no_result = registry.get(org_id, SensorId::from("cyberint"));
+    let no_result = registry.get(org_id, &SensorId::from("cyberint"));
     assert!(
         no_result.is_none(),
         "registry.get must return None for sensor not registered (cross-sensor isolation, AC-10)"

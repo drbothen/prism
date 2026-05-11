@@ -226,7 +226,7 @@ mod helpers {
     /// `detection_id` column.  Used in tests that need real row data to exercise
     /// record-cap, virtual-field, and cross-client fan-out logic.
     pub struct StubAdapter {
-        pub sensor_type: SensorId,
+        pub sensor_id: SensorId,
         pub row_count: usize,
         pub client_slug: String,
     }
@@ -234,7 +234,7 @@ mod helpers {
     #[async_trait]
     impl SensorAdapter for StubAdapter {
         fn sensor_type(&self) -> SensorId {
-            self.sensor_type.clone()
+            self.sensor_id.clone()
         }
 
         fn sensor_name(&self) -> &'static str {
@@ -272,7 +272,7 @@ mod helpers {
         registry.register(
             org_id,
             Arc::new(StubAdapter {
-                sensor_type: SensorId::from("crowdstrike"),
+                sensor_id: SensorId::from("crowdstrike"),
                 row_count,
                 client_slug: "acme".to_string(),
             }),
@@ -315,7 +315,7 @@ async fn test_AC_1_query_engine_execute_with_dtu_returns_results() {
     registry.register(
         org_id,
         Arc::new(helpers::StubAdapter {
-            sensor_type: SensorId::from("crowdstrike"),
+            sensor_id: SensorId::from("crowdstrike"),
             row_count: 3,
             client_slug: "acme".to_string(),
         }),
@@ -632,7 +632,7 @@ async fn test_AC_6_cross_client_query_all_scope_fans_out() {
     registry.register(
         id_acme,
         Arc::new(helpers::StubAdapter {
-            sensor_type: SensorId::from("crowdstrike"),
+            sensor_id: SensorId::from("crowdstrike"),
             row_count: 2,
             client_slug: "acme".to_string(),
         }),
@@ -640,7 +640,7 @@ async fn test_AC_6_cross_client_query_all_scope_fans_out() {
     registry.register(
         id_beta,
         Arc::new(helpers::StubAdapter {
-            sensor_type: SensorId::from("crowdstrike"),
+            sensor_id: SensorId::from("crowdstrike"),
             row_count: 2,
             client_slug: "beta".to_string(),
         }),
@@ -733,7 +733,7 @@ async fn test_AC_7_virtual_fields_present_in_all_results() {
     registry.register(
         org_id,
         Arc::new(helpers::StubAdapter {
-            sensor_type: SensorId::from("crowdstrike"),
+            sensor_id: SensorId::from("crowdstrike"),
             row_count: 3,
             client_slug: "acme".to_string(),
         }),
@@ -1110,7 +1110,7 @@ async fn test_AC_3_bis_size_limit_at_10k_boundary() {
     registry.register(
         OrgId::new(),
         Arc::new(helpers::StubAdapter {
-            sensor_type: SensorId::from("crowdstrike"),
+            sensor_id: SensorId::from("crowdstrike"),
             row_count: 6_000,
             client_slug: "acme".to_string(),
         }),
@@ -1118,7 +1118,7 @@ async fn test_AC_3_bis_size_limit_at_10k_boundary() {
     registry.register(
         OrgId::new(),
         Arc::new(helpers::StubAdapter {
-            sensor_type: SensorId::from("crowdstrike"),
+            sensor_id: SensorId::from("crowdstrike"),
             row_count: 6_000,
             client_slug: "beta".to_string(),
         }),
@@ -1397,7 +1397,7 @@ async fn test_LP2_CRIT_1_subquery_in_where_blocked_without_audit_read() {
     registry.register(
         OrgId::new(),
         Arc::new(helpers::StubAdapter {
-            sensor_type: prism_core::SensorId::from("crowdstrike"),
+            sensor_id: prism_core::SensorId::from("crowdstrike"),
             row_count: 2,
             client_slug: "acme".to_string(),
         }),
@@ -1463,7 +1463,7 @@ async fn test_LP2_CRIT_1_with_audit_read_capability_subquery_allowed() {
     registry.register(
         OrgId::new(),
         Arc::new(helpers::StubAdapter {
-            sensor_type: prism_core::SensorId::from("crowdstrike"),
+            sensor_id: prism_core::SensorId::from("crowdstrike"),
             row_count: 2,
             client_slug: "acme".to_string(),
         }),
@@ -1529,7 +1529,7 @@ async fn test_LP2_CRIT_1_having_subquery_blocked_without_audit_read() {
     registry.register(
         OrgId::new(),
         Arc::new(helpers::StubAdapter {
-            sensor_type: prism_core::SensorId::from("crowdstrike"),
+            sensor_id: prism_core::SensorId::from("crowdstrike"),
             row_count: 2,
             client_slug: "acme".to_string(),
         }),
@@ -1974,7 +1974,7 @@ async fn test_HIGH_7_limit_exactly_1000_pipeline_success_with_stub() {
     registry.register(
         org_id,
         Arc::new(helpers::StubAdapter {
-            sensor_type: prism_core::SensorId::from("crowdstrike"),
+            sensor_id: prism_core::SensorId::from("crowdstrike"),
             row_count: 5,
             client_slug: "acme".to_string(),
         }),
@@ -2171,7 +2171,7 @@ async fn test_resolve_source_refs_unknown_table_returns_e_query_006() {
     registry.register(
         org_id,
         std::sync::Arc::new(helpers::StubAdapter {
-            sensor_type: SensorId::from("crowdstrike"),
+            sensor_id: SensorId::from("crowdstrike"),
             row_count: 0,
             client_slug: "acme".to_string(),
         }),
