@@ -12,7 +12,7 @@ points: 13
 estimated_days: 4
 risk: HIGH
 tdd_mode: strict
-crates_touched: [prism-core, prism-sensors, prism-query, prism-sensors, prism-spec-engine]
+crates_touched: [prism-core, prism-sensors, prism-query, prism-spec-engine]
 target_module: prism-core
 subsystems: [SS-01, SS-02, SS-08, SS-16]
 version: "1.0"
