@@ -186,7 +186,7 @@ pub struct MaterializationContext {
     /// Credential resolver for fan_out() dispatch. (F-LP1-CRIT-2)
     pub(crate) credential_resolver: Arc<dyn CredentialResolver>,
     /// OrgSlug → OrgId registry for per-org adapter selection. (F-LP1-CRIT-3)
-    /// When `None`, falls back to `get_all_for_sensor_type` (test/MVP mode).
+    /// When `None`, falls back to `get_all_for_sensor` (test/MVP mode).
     pub(crate) org_registry: Option<Arc<prism_core::OrgRegistry>>,
 }
 
@@ -603,7 +603,7 @@ async fn execute_against_session(
 /// # F-LP1-CRIT-3 / BC-3.2.001
 /// When `org_registry` is provided, resolves `OrgSlug → OrgId` for per-org
 /// adapter selection. When `None`, uses a per-adapter `OrgId` from the registry
-/// (test/MVP mode via `get_all_for_sensor_type`).
+/// (test/MVP mode via `get_all_for_sensor`).
 pub(crate) async fn resolve_source_refs(
     source_names: &[String],
     clients: &[OrgSlug],
@@ -622,11 +622,11 @@ pub(crate) async fn resolve_source_refs(
         // This prevents silent empty results for typos or unregistered sensor names.
         //
         // Two-stage check:
-        //   1. sensor_type_from_table_name: extracts and validates the prefix (returns None
+        //   1. sensor_id_from_table_name: extracts and validates the prefix (returns None
         //      for empty or invalid-charset prefixes — cannot be a valid SensorId).
         //   2. is_sensor_registered: checks adapter_registry membership (returns E-QUERY-006
         //      for valid-looking prefixes with no registered adapter — unknown sensor name).
-        let Some(sensor_id) = sensor_type_from_table_name(source_name) else {
+        let Some(sensor_id) = sensor_id_from_table_name(source_name) else {
             tracing::debug!(
                 source_name,
                 "resolve_source_refs: unknown sensor prefix; returning E-QUERY-006"
@@ -672,7 +672,7 @@ pub(crate) async fn resolve_source_refs(
             //
             // F-LP1-CRIT-3/HIGH-6: use per-org adapter selection.
             // When no explicit client list, iterate all registered (org_id, adapter) pairs.
-            let all_adapters = adapter_registry.get_all_for_sensor_type(sensor_id.clone());
+            let all_adapters = adapter_registry.get_all_for_sensor(sensor_id.clone());
             for (org_id, _adapter) in all_adapters {
                 // Derive client_id from OrgRegistry (reverse lookup).
                 // F-LP2-LOW-2: if no slug is found, emit a warn and SKIP this target.
@@ -730,7 +730,7 @@ pub(crate) async fn resolve_source_refs(
             // BC-2.11.011 EC-005: sources with no adapters produce empty results without error.
             // F-LP2-LOW-2: no sentinel `_all` target is added — that would expose internal details.
             if adapter_registry
-                .get_all_for_sensor_type(sensor_id.clone())
+                .get_all_for_sensor(sensor_id.clone())
                 .is_empty()
             {
                 tracing::debug!(
@@ -745,7 +745,7 @@ pub(crate) async fn resolve_source_refs(
             // EC-005: clients with no sensor configured are skipped silently.
             for client_id in clients {
                 // F-LP1-CRIT-3: resolve OrgSlug → OrgId via OrgRegistry if available.
-                // When OrgRegistry is absent (test mode), use `get_all_for_sensor_type`
+                // When OrgRegistry is absent (test mode), use `get_all_for_sensor`
                 // to find the OrgId associated with a registered adapter for this sensor.
                 let org_id =
                     resolve_org_id(client_id, sensor_id.clone(), adapter_registry, org_registry);
@@ -794,7 +794,7 @@ fn resolve_org_id(
     // Path 2: Fall back to first registered adapter's OrgId for this sensor id.
     // This preserves the test-path behavior where adapters are registered with
     // known OrgIds but no OrgRegistry is present.
-    let adapters = adapter_registry.get_all_for_sensor_type(sensor_id);
+    let adapters = adapter_registry.get_all_for_sensor(sensor_id);
     if let Some((org_id, _)) = adapters.into_iter().next() {
         return org_id;
     }
@@ -804,7 +804,7 @@ fn resolve_org_id(
 }
 
 // ---------------------------------------------------------------------------
-// sensor_type_from_table_name
+// sensor_id_from_table_name
 // ---------------------------------------------------------------------------
 
 /// Map an underscore-prefixed table name to the corresponding `SensorId`.
@@ -812,7 +812,7 @@ fn resolve_org_id(
 /// Naming convention: `{sensor}_{table}` — extract the sensor prefix.
 /// Open dispatch: any recognized prefix returns a `SensorId`. Unknown prefixes
 /// return `None` (not an error — composite or internal tables have no sensor prefix).
-fn sensor_type_from_table_name(table_name: &str) -> Option<SensorId> {
+fn sensor_id_from_table_name(table_name: &str) -> Option<SensorId> {
     // Extract the sensor prefix by splitting at the first underscore.
     // Convention: `crowdstrike_hosts` → "crowdstrike", `armis_devices` → "armis".
     // MED-002: apply .to_lowercase() to match explain.rs convention and the

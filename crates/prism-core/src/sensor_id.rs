@@ -183,6 +183,12 @@ pub enum SensorIdValidationError {
     InvalidChars { offending: String },
     /// String begins or ends with `-` or `_`.
     InvalidBoundary,
+    /// First character is not a lowercase ASCII letter `[a-z]`.
+    ///
+    /// Matches the canonical rule in `prism_spec_engine::validation::validate_sensor_id`
+    /// (regex `^[a-z][a-z0-9_-]*$`). Digit-first identifiers (e.g. `"1sensor"`) are
+    /// rejected here so that no TOML spec can register a key that the newtype refuses.
+    InvalidFirstChar { actual: char },
 }
 
 impl std::fmt::Display for SensorIdValidationError {
@@ -196,6 +202,10 @@ impl std::fmt::Display for SensorIdValidationError {
                  only [a-z0-9_-] are allowed"
             ),
             Self::InvalidBoundary => write!(f, "sensor id must not start or end with '-' or '_'"),
+            Self::InvalidFirstChar { actual } => write!(
+                f,
+                "sensor id must start with a lowercase letter [a-z]; got '{actual}'"
+            ),
         }
     }
 }
@@ -204,10 +214,19 @@ impl std::error::Error for SensorIdValidationError {}
 
 /// Validate a sensor id candidate string.
 ///
-/// This function is `pub` to support external validation use cases — e.g. to
-/// pre-validate user input before construction, or as a standalone validation
-/// pass without constructing a `SensorId`. The canonical fallible constructor is
-/// [`SensorId::try_from_str`].
+/// This function is `pub` to provide a standalone validation primitive that can
+/// be used without constructing a `SensorId` — e.g., for testing input strings
+/// before deserialization, or for external integration tests that need to verify a
+/// string would pass the SensorId newtype invariant. Currently no crate-external
+/// callers; the canonical fallible constructor is `SensorId::try_from_str` which
+/// validates internally. Future callers landing here: this function returns
+/// `Result<(), SensorIdValidationError>` so the caller can decide what to do on
+/// validation failure without paying the cost of newtype construction.
+///
+/// **Parity contract:** Validation rules match
+/// `prism_spec_engine::validation::validate_sensor_id` (regex `^[a-z][a-z0-9_-]*$`);
+/// the invariant is locked by the cross-crate proptest in
+/// `crates/prism-core/tests/sensor_id_validator_parity.rs`.
 ///
 /// # Example
 /// ```rust,ignore
@@ -222,7 +241,9 @@ impl std::error::Error for SensorIdValidationError {}
 ///    Multi-byte / non-ASCII characters are rejected here, ensuring that the
 ///    subsequent byte-length check is equivalent to a character-count check.
 /// 2. Length: 1..=64 characters (= bytes after charset validation).
-/// 3. No leading or trailing `-` or `_`.
+/// 3. First character: must be a lowercase ASCII letter `[a-z]` (not a digit or
+///    boundary character). Matches `prism_spec_engine::validation::validate_sensor_id`.
+/// 4. No leading or trailing `-` or `_`.
 ///
 /// Returns `Ok(())` for valid inputs; `Err(SensorIdValidationError)` otherwise.
 pub fn validate_sensor_id_string(s: &str) -> Result<(), SensorIdValidationError> {
@@ -246,10 +267,17 @@ pub fn validate_sensor_id_string(s: &str) -> Result<(), SensorIdValidationError>
         return Err(SensorIdValidationError::TooLong { len: s.len() });
     }
 
-    // Step 3: boundary check.
+    // Step 3: first-char check — must be a lowercase ASCII letter [a-z].
+    // Matches prism_spec_engine::validation::validate_sensor_id (regex ^[a-z][a-z0-9_-]*$).
+    // Digit-first ids like "1sensor" pass the charset check but are rejected here.
     let first = s.chars().next().expect("non-empty checked above");
+    if !first.is_ascii_lowercase() {
+        return Err(SensorIdValidationError::InvalidFirstChar { actual: first });
+    }
+
+    // Step 4: trailing boundary check — first char already checked above.
     let last = s.chars().next_back().expect("non-empty checked above");
-    if first == '-' || first == '_' || last == '-' || last == '_' {
+    if last == '-' || last == '_' {
         return Err(SensorIdValidationError::InvalidBoundary);
     }
     Ok(())
@@ -398,16 +426,45 @@ mod tests {
     /// S-PLUGIN-PREREQ-A / F-LP2-MED-002: validation rejects strings with leading or
     /// trailing `-` or `_` boundary characters.
     ///
-    /// Exercises the `InvalidBoundary` error variant of `SensorIdValidationError`.
+    /// Leading `-`/`_` are caught by Step 3 (first-char check, `InvalidFirstChar`)
+    /// because neither `-` nor `_` is an ascii_lowercase letter.
+    /// Trailing `-`/`_` are caught by Step 4 (boundary check, `InvalidBoundary`).
     #[test]
     fn test_sensorid_validation_rejects_boundary_chars() {
-        let cases = ["-foo", "foo-", "_foo", "foo_"];
-        for case in cases {
+        // Leading `-` or `_` → InvalidFirstChar (Step 3 fires before Step 4).
+        for case in ["-foo", "_foo"] {
+            let result = SensorId::try_from_str(case);
+            assert!(
+                matches!(result, Err(SensorIdValidationError::InvalidFirstChar { .. })),
+                "'{case}' must be rejected with InvalidFirstChar (leading boundary char is not [a-z])"
+            );
+        }
+        // Trailing `-` or `_` → InvalidBoundary (Step 4; first char passes Step 3).
+        for case in ["foo-", "foo_"] {
             let result = SensorId::try_from_str(case);
             assert_eq!(
                 result,
                 Err(SensorIdValidationError::InvalidBoundary),
                 "'{case}' must be rejected with InvalidBoundary"
+            );
+        }
+    }
+
+    /// F-LP4-MED-001: digit-first sensor ids are rejected (parity with spec-engine rule).
+    ///
+    /// SensorId::try_from_str("1sensor") must return Err(InvalidFirstChar) because
+    /// `^[a-z][a-z0-9_-]*$` requires the first character to be a lowercase letter.
+    #[test]
+    fn test_sensorid_validation_rejects_digit_first() {
+        let cases = ["1sensor", "9digits", "0abc"];
+        for case in cases {
+            let result = SensorId::try_from_str(case);
+            assert!(
+                matches!(
+                    result,
+                    Err(SensorIdValidationError::InvalidFirstChar { .. })
+                ),
+                "'{case}' must be rejected with InvalidFirstChar (digit-first violates ^[a-z])"
             );
         }
     }

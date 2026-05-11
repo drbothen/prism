@@ -300,6 +300,14 @@ pub trait SensorAdapter: Send + Sync + 'static {
     ///
     /// Used by `AdapterRegistry` to key the adapter lookup table.
     /// Returns an open `SensorId` string key (ADR-023 §C1, BC-2.01.013).
+    ///
+    /// **Method name preserved post-rename (S-PLUGIN-PREREQ-A story task 5).** The
+    /// return type is `SensorId` (open newtype, ADR-023 Rule 1) replacing the historical
+    /// closed `SensorType` enum. Implementations typically return
+    /// `SensorId::from("<lowercase-sensor-name>")` (e.g. `SensorId::from("crowdstrike")`).
+    /// Local variable convention in callers: `let sensor_id = adapter.sensor_type();` —
+    /// the variable name reflects the value's type rather than the method name, making
+    /// code at the call site self-documenting.
     fn sensor_type(&self) -> SensorId;
 
     /// Fetches a page of records from the sensor API.

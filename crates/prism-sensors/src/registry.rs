@@ -87,10 +87,7 @@ impl AdapterRegistry {
     /// # Multi-tenant note
     /// Production use MUST migrate to `get(org_id, sensor_id)` once the
     /// OrgRegistry (OrgSlug→OrgId mapping) is wired (S-WAVE5-PREP-01 §Boot step 3).
-    pub fn get_all_for_sensor_type(
-        &self,
-        sensor_id: SensorId,
-    ) -> Vec<(OrgId, Arc<dyn SensorAdapter>)> {
+    pub fn get_all_for_sensor(&self, sensor_id: SensorId) -> Vec<(OrgId, Arc<dyn SensorAdapter>)> {
         self.adapters
             .iter()
             .filter(|((_, sid), _)| *sid == sensor_id)

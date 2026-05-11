@@ -265,7 +265,7 @@ mod helpers {
     ///
     /// Uses `StubCredentialResolver` so `fan_out()` can reach `StubAdapter::fetch`
     /// without credential failures. The `OrgId` is saved so the adapter can be
-    /// found via `get_all_for_sensor_type`. (F-LP1-CRIT-2)
+    /// found via `get_all_for_sensor`. (F-LP1-CRIT-2)
     pub fn make_mat_ctx_with_stub(max_records: usize, row_count: usize) -> MaterializationContext {
         let org_id = OrgId::new();
         let mut registry = AdapterRegistry::new();
@@ -2150,8 +2150,8 @@ async fn test_AC_depth_limit_returns_parse_error() {
 /// An unknown table name (prefix not registered in the adapter registry) MUST
 /// return `Err` containing "E-QUERY-006" rather than silently producing empty
 /// results. Before the fix, `unknown_table | host = 'x'` would silently produce
-/// an empty result set because `sensor_type_from_table_name` accepted any
-/// non-empty prefix, and `get_all_for_sensor_type("unknown")` returned empty.
+/// an empty result set because `sensor_id_from_table_name` accepted any
+/// non-empty prefix, and `get_all_for_sensor("unknown")` returned empty.
 ///
 /// The registry must be NON-EMPTY for this guard to fire — an empty registry
 /// indicates test/boot mode where the sensor roster is not yet known. In production

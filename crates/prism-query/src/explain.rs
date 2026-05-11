@@ -648,7 +648,7 @@ fn post_fetch_operations_from_ast(ast: &Ast) -> Vec<String> {
 }
 
 // ---------------------------------------------------------------------------
-// sensor_type_from_source_ref — derive SensorId from SourceRef
+// sensor_id_from_source_ref — derive SensorId from SourceRef
 // ---------------------------------------------------------------------------
 
 /// Derive the sensor id for a source reference.
@@ -656,12 +656,15 @@ fn post_fetch_operations_from_ast(ast: &Ast) -> Vec<String> {
 /// Returns `None` for composite, internal, or custom source kinds that do not
 /// map to a specific sensor adapter. Any non-empty external sensor name is valid
 /// (open dispatch — no closed-enum match).
-fn sensor_type_from_source_ref(s: &SourceRef) -> Option<SensorId> {
+fn sensor_id_from_source_ref(s: &SourceRef) -> Option<SensorId> {
     match &s.kind {
         SourceRefKind::External { sensor, .. } => {
             let lower = sensor.to_lowercase();
             // Use try_from_str for untrusted PrismQL sensor names — returns None
             // for empty or charset-invalid strings rather than panicking (F-LP2-CRIT-002).
+            // TODO: TD-S-PLUGIN-PREREQ-A-005 — distinguish invalid-sensor-name from
+            // non-external source; should emit a warning or non-fatal note in the EXPLAIN
+            // response rather than silently skipping. See F-LP4-LOW-002.
             SensorId::try_from_str(&lower).ok()
         }
         _ => None,
@@ -910,7 +913,7 @@ pub fn explain(query_str: &str, options: ExplainOptions) -> Result<ExplainResult
     // they cannot be validated against any specific sensor type. This is intentional.
     if let Some(sensor_scope) = &options.sensors {
         raw_sources.retain(|s| {
-            if let Some(st) = sensor_type_from_source_ref(s) {
+            if let Some(st) = sensor_id_from_source_ref(s) {
                 sensor_scope.contains(&st)
             } else {
                 false
@@ -940,7 +943,7 @@ pub fn explain(query_str: &str, options: ExplainOptions) -> Result<ExplainResult
     let sensors_to_query: Vec<ExplainSource> = raw_sources
         .iter()
         .filter_map(|s| {
-            let sensor_id = sensor_type_from_source_ref(s)?;
+            let sensor_id = sensor_id_from_source_ref(s)?;
             // `plan` is shared across all sources at this stage (no per-sensor ColumnSpec).
 
             let api_filters: Vec<String> = plan

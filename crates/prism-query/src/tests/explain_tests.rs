@@ -234,7 +234,7 @@ fn test_ac5_clients_none_lists_all_clients_without_fanout() {
 /// `explain()` returns `Ok` — the parse succeeds, but no sensor plan is
 /// Post-S-PLUGIN-PREREQ-A: open dispatch means any external sensor name is valid.
 ///
-/// Before migration: `sensor_type_from_source_ref` returned `None` for non-built-in
+/// Before migration: `sensor_id_from_source_ref` returned `None` for non-built-in
 /// sensors, producing empty `sensors_to_query`.
 ///
 /// After migration (open dispatch, ADR-023 §C1): any external sensor name produces a

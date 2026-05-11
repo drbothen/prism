@@ -206,7 +206,7 @@ pub struct QueryEngine {
     /// (F-LP1-CRIT-2: replaces placeholder CrowdStrikeAuth construction)
     pub(crate) credential_resolver: Arc<dyn CredentialResolver>,
     /// OrgSlug → OrgId mapping for per-org adapter selection. (F-LP1-CRIT-3)
-    /// When `None`, falls back to `get_all_for_sensor_type` (test/MVP mode).
+    /// When `None`, falls back to `get_all_for_sensor` (test/MVP mode).
     pub(crate) org_registry: Option<Arc<prism_core::OrgRegistry>>,
     /// RocksDB storage backend for internal table registration.
     /// (F-LP1-CRIT-1: `register_internal_tables` invoked from `execute_inner`)
