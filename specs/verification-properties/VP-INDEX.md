@@ -1,10 +1,10 @@
 ---
 document_type: verification-property-index
 level: L4
-version: "1.30"
+version: "1.31"
 status: draft
 producer: product-owner
-timestamp: 2026-05-05T00:00:00
+timestamp: 2026-05-11T00:00:00
 phase: 2-patch
 inputs: [architecture/verification-architecture.md]
 traces_to: architecture/ARCH-INDEX.md
@@ -165,10 +165,10 @@ traces_to: architecture/ARCH-INDEX.md
 | VP-144 | CEF v0 + LEEF 2.0 encoder correctness (13 proptest invariants: INV-CEF-001..005, INV-LEEF-001..005, INV-RT-001..003) | prism-siem-formats | proptest | P1 | draft | S-4.08 |
 | VP-145 | Case reopen_count monotonic increment (INV-CASE-006) | prism-operations | proptest | P1 | draft | S-4.06, S-4.07 |
 | VP-146 | No production hardcoded sensor references (FORBIDDEN-SYMBOLS-001 compile-fail perimeter) — VP-PLUGIN-001 alias | prism-spec-engine | integration_test | P0 | draft | PLUGIN-MIGRATION-001-A |
-| VP-147 | Unknown sensor registers without code change (end-to-end extensibility) — VP-PLUGIN-002 alias | prism-spec-engine | integration_test | P0 | draft | PLUGIN-MIGRATION-001-D |
+| VP-147 | PipelineExecutor::execute returns non-empty records against wiremock DTU clone (integration test target) — VP-PLUGIN-002 alias | prism-spec-engine | integration_test | P0 | draft | S-PLUGIN-PREREQ-B |
 | VP-148 | DTU parity: TOML+plugin path output matches deleted Rust adapter path per sensor — VP-PLUGIN-003 alias | prism-spec-engine | integration_test | P0 | draft | PLUGIN-MIGRATION-001-D |
 | VP-149 | Boot warning fires on unsigned plugin load (v1.0 scope) — VP-PLUGIN-004 alias | prism-spec-engine | integration_test | P0 | draft | PLUGIN-PREREQ-D |
-| VP-150 | OAuth2 refresh-on-401 via declarative TOML retry policy (PipelineExecutor) — VP-PLUGIN-005 alias | prism-spec-engine | integration_test | P0 | draft | PLUGIN-MIGRATION-001-D |
+| VP-150 | OAuth2 refresh-on-401 via declarative TOML retry policy (PipelineExecutor) — VP-PLUGIN-005 alias | prism-spec-engine | integration_test | P0 | draft | S-PLUGIN-PREREQ-B |
 | VP-151 | OCSF column mapping fixture catalog (6 representative cases, SpecDrivenMapper) — VP-PLUGIN-006 alias | prism-spec-engine | integration_test | P1 | draft | PLUGIN-MIGRATION-001-C |
 | VP-152 | Plugin manifest allowlist not-None after PREREQ-D (allowed_urls enforcement) — VP-PLUGIN-007 alias | prism-spec-engine | integration_test | P0 | draft | PLUGIN-PREREQ-D |
 
@@ -184,7 +184,7 @@ F-PASS3-HIGH-001. The numeric VP-146..VP-152 entries above are the sequential in
 | VP-PLUGIN-002 | VP-147 | PipelineExecutor::execute returns non-empty records against at least one wiremock DTU clone (replaces Ok(Vec::new()) stub) | prism-spec-engine | integration_test | P0 | draft | PLUGIN-MIGRATION-001-D |
 | VP-PLUGIN-003 | VP-148 | DTU-parity: plugin-produced OCSF record matches DTU-clone reference per TS-PLUGIN-PARITY-001 canonicalization | prism-spec-engine | integration_test | P0 | draft | PLUGIN-MIGRATION-001-D |
 | VP-PLUGIN-004 | VP-149 | TOML grammar accepts four new constructs (fetch_step.retry, virtual_field_aliases, cache_ttl_secs, fetch_step.batch) | prism-spec-engine | integration_test | P0 | draft | PLUGIN-PREREQ-D |
-| VP-PLUGIN-005 | VP-150 | PluginRuntime::load_all_plugins boot-time wired; allowed_urls host-only enforcement after PREREQ-D | prism-spec-engine | integration_test | P0 | draft | PLUGIN-MIGRATION-001-D |
+| VP-PLUGIN-005 | VP-150 | OAuth2 refresh-on-401 via declarative TOML retry policy (PipelineExecutor) — VP-150 number | prism-spec-engine | integration_test | P0 | draft | S-PLUGIN-PREREQ-B |
 | VP-PLUGIN-006 | VP-151 | Cross-sensor auth-composition rejection — three runtime rules from DI-012 reject malformed specs at spec-load | prism-spec-engine | integration_test | P1 | draft | PLUGIN-MIGRATION-001-C |
 | VP-PLUGIN-007 | VP-152 | Zero hardcoded CustomAdapter Rust adapters in production code paths post-PREREQ-A; trait fully retired | prism-spec-engine | integration_test | P0 | draft | PLUGIN-PREREQ-D |
 
