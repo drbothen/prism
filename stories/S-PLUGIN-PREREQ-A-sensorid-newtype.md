@@ -15,7 +15,7 @@ tdd_mode: strict
 crates_touched: [prism-core, prism-sensors, prism-query, prism-spec-engine]
 target_module: prism-core
 subsystems: [SS-01, SS-02, SS-08, SS-16]
-version: "1.2"
+version: "1.3"
 level: "L4"
 producer: story-writer
 timestamp: "2026-05-11T00:00:00Z"
@@ -147,7 +147,7 @@ Within the 30% context window budget (~40k tokens for a 128k-context agent).
 7. **Update `prism-sensors/src/registry.rs`**:
    - Change `HashMap<(OrgId, SensorType), Arc<dyn SensorAdapter>>` → `HashMap<(OrgId, SensorId), Arc<dyn SensorAdapter>>`
    - Update `register`, `get`, and `get_all_for_sensor_type` signatures to accept `SensorId`
-   - The `get_all_for_sensor_type` method becomes `get_all_for_sensor(sensor_id: &SensorId)` — use `Borrow<str>` so callers can pass `&str` directly
+   - The `get_all_for_sensor_type` method becomes `get_all_for_sensor(sensor_id: &SensorId)` taking SensorId by reference. (v1.3 amendment: original v1.0 spec mandated `Borrow<str>` for `&str` direct lookup; F-LP7-MED-002 closure ADOPTED `&SensorId` as the canonical API per implementation choice — generic Borrow constraints add cognitive cost; explicit `&SensorId` is more discoverable and forces callers to validate input via `SensorId::try_from_str` before lookup, providing defense-in-depth against unvalidated user input. `&str` callers can construct `SensorId::try_from_str(&s)?` then pass `&sid`.)
 
 8. **Replace 7 match-site dispatch groups** (see AC-5 enumeration below). Each match arm
    against a `SensorType::X` variant becomes either a `HashMap<SensorId, _>` lookup or
@@ -205,8 +205,10 @@ is preserved via SensorId string)
 **AC-4:** `AdapterRegistry` in `prism-sensors/src/registry.rs` keys its internal
 `HashMap` by `(OrgId, SensorId)` instead of `(OrgId, SensorType)`. The `register(org_id, adapter)`
 method derives `SensorId` from `adapter.sensor_type()` internally — adapter owns identity invariant,
-preventing cross-method inconsistency. The `get(org_id, sensor_id)` and
-`get_all_for_sensor_type(sensor_id)` lookup methods accept `SensorId` by value or reference.
+preventing cross-method inconsistency. The `get(org_id, sensor_id)` and `get_all_for_sensor(sensor_id)`
+lookup methods accept `&SensorId` by reference. (v1.3 amendment: `Borrow<str>` mandate from task 7
+relaxed per F-LP7-MED-002 OPTION B closure — `&SensorId` is the canonical API; callers construct
+`SensorId::try_from_str(&s)?` before passing to the registry, providing validation at the call site.)
 (Adversary pass-1 F-LP1-HIGH-003 closure: this AC was originally drafted to specify explicit
 SensorId/&str arguments to `register()`; ADOPTED current implementation where adapter owns
 identity — better design than spec text, prevents inconsistent SensorId registration.)
@@ -534,6 +536,7 @@ The story is shipped when ALL of the following are true:
 
 | Version | Burst | Date | Author | Changes |
 |---------|-------|------|--------|---------|
+| 1.3 | pass-7-state-burst | 2026-05-11 | state-manager | F-LP7-MED-002 closure — OPTION B adopted: `&SensorId` is the canonical API for `get_all_for_sensor`. Task 7 Borrow<str> mandate relaxed with rationale (generic Borrow constraints add cognitive cost; `&SensorId` is more discoverable and forces callers to validate input via `SensorId::try_from_str` before lookup, providing defense-in-depth; `&str` callers construct `SensorId::try_from_str(&s)?` then pass `&sid`). AC-4 updated to reflect canonical `&SensorId` API. |
 | 1.2 | pass-6-closures | 2026-05-11 | state-manager | Input-hash recomputed after ADR-023 v1.18 amendment (D-382 ADR-023 typo fix) + BC-2.01.013 v1.5 amendment (F-LP6-MED-002 Adapter Identity Method postcondition added). New input-hash: 6954524 (was 7d38067). Closes F-LP6-LOW-002. |
 | 1.1 | fix-burst-1-closure | 2026-05-11 | state-manager | AC-4 wording updated: adopted implementation where adapter owns identity (register() derives SensorId from adapter.sensor_type() internally); rationale recorded per F-LP1-HIGH-003 orchestrator decision. AC-8 wording clarified: squash-merge is the operative atomic unit; intermediate Red Gate commit on feature branch is permitted per F-LP1-LOW-001. Both changes record adversary pass-1 closure disposition. |
 | 1.0 | prereq-a-materialization | 2026-05-10 | story-writer | Initial story creation from ADR-023 §C1 + grep-verified dispatch site inventory. All 11 ACs traced to BC-2.01.013 / VP-PLUGIN-001 / VP-PLUGIN-007. 7 dispatch groups enumerated with exact file:line from workspace grep. Red Gate set (6 failing tests) specified. Atomic commit requirement documented. |
