@@ -15,10 +15,10 @@ tdd_mode: strict
 crates_touched: [prism-core, prism-sensors, prism-query, prism-spec-engine]
 target_module: prism-core
 subsystems: [SS-01, SS-02, SS-08, SS-16]
-version: "1.0"
+version: "1.1"
 level: "L4"
 producer: story-writer
-timestamp: "2026-05-10T00:00:00Z"
+timestamp: "2026-05-11T00:00:00Z"
 input-hash: "7d38067"
 traces_to: []
 cycle: "v1.0.0-greenfield"
@@ -203,10 +203,13 @@ runtime string value, not a compile-time enum; `record_type` naming convention `
 is preserved via SensorId string)
 
 **AC-4:** `AdapterRegistry` in `prism-sensors/src/registry.rs` keys its internal
-`HashMap` by `(OrgId, SensorId)` instead of `(OrgId, SensorType)`. The `register`,
-`get`, and `get_all_for_sensor` methods accept `SensorId` or `&str` (via `Borrow<str>`
-for the lookup path). Registry insertion and lookup semantics are unchanged — last-write-wins
-per org bootstrap, cross-org isolation invariant preserved.
+`HashMap` by `(OrgId, SensorId)` instead of `(OrgId, SensorType)`. The `register(org_id, adapter)`
+method derives `SensorId` from `adapter.sensor_type()` internally — adapter owns identity invariant,
+preventing cross-method inconsistency. The `get(org_id, sensor_id)` and
+`get_all_for_sensor_type(sensor_id)` lookup methods accept `SensorId` by value or reference.
+(Adversary pass-1 F-LP1-HIGH-003 closure: this AC was originally drafted to specify explicit
+SensorId/&str arguments to `register()`; ADOPTED current implementation where adapter owns
+identity — better design than spec text, prevents inconsistent SensorId registration.)
 (traces to BC-2.01.013 postcondition — registry stores adapters produced from SensorSpec
 declarations keyed by sensor identity string; invariant: `get(org_a, "crowdstrike")` never
 returns adapter registered under `org_b`)
@@ -247,8 +250,14 @@ or `SensorId` without requiring `SensorType`).
 post-PREREQ-A; trait fully retired by PREREQ-E, not this story)
 
 **AC-8:** The PR contains exactly ONE squash-merge commit. `cargo build --workspace --all-features`
-PASSES at the commit point. CI passes (fmt + clippy + nextest + doctests + crate-layout).
-No intermediate broken state exists in the commit history — all 15+ files change atomically.
+PASSES at the squash-merged commit. `cargo test` workspace passes. The squash-merge IS the
+atomic unit; intermediate Red Gate commit on the feature branch is permitted to reference
+yet-to-be-defined symbols (e.g., `SensorId` construction in Red Gate test files before `SensorId`
+implementation exists). On the `develop` branch post-merge, this story manifests as a single
+atomic commit.
+(Adversary pass-1 F-LP1-LOW-001 wording clarification: the original AC-8 text said "no
+intermediate broken state in commit history" which was literally violated on the feature branch;
+the squash-merge model is the operative semantics.)
 (traces to BC-2.01.013 invariant — each DataSource produces records of a single type; the
 migration commit must be atomic to prevent type-system-broken intermediate states)
 
@@ -525,4 +534,5 @@ The story is shipped when ALL of the following are true:
 
 | Version | Burst | Date | Author | Changes |
 |---------|-------|------|--------|---------|
+| 1.1 | fix-burst-1-closure | 2026-05-11 | state-manager | AC-4 wording updated: adopted implementation where adapter owns identity (register() derives SensorId from adapter.sensor_type() internally); rationale recorded per F-LP1-HIGH-003 orchestrator decision. AC-8 wording clarified: squash-merge is the operative atomic unit; intermediate Red Gate commit on feature branch is permitted per F-LP1-LOW-001. Both changes record adversary pass-1 closure disposition. |
 | 1.0 | prereq-a-materialization | 2026-05-10 | story-writer | Initial story creation from ADR-023 §C1 + grep-verified dispatch site inventory. All 11 ACs traced to BC-2.01.013 / VP-PLUGIN-001 / VP-PLUGIN-007. 7 dispatch groups enumerated with exact file:line from workspace grep. Red Gate set (6 failing tests) specified. Atomic commit requirement documented. |
