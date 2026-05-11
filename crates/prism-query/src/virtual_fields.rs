@@ -71,7 +71,7 @@ pub fn inject_virtual_fields(
     let batch = remove_spoofed_virtual_columns(batch)?;
 
     // Step 2: Build the three virtual field arrays.
-    let sensor_val = sensor_type_to_string(sensor);
+    let sensor_val = sensor_id_to_str(sensor);
     let client_val = client_id.as_str();
 
     let sensor_array = Arc::new(StringArray::from(vec![sensor_val; num_rows])) as _;
@@ -151,7 +151,7 @@ pub(crate) fn remove_spoofed_virtual_columns(
 }
 
 // ---------------------------------------------------------------------------
-// sensor_type_to_string
+// sensor_id_to_str
 // ---------------------------------------------------------------------------
 
 /// Return the canonical virtual field string value for a sensor.
@@ -159,7 +159,7 @@ pub(crate) fn remove_spoofed_virtual_columns(
 /// Returns the sensor id string used in `_sensor` column values.
 /// (BC-2.11.012 `_sensor` field values)
 ///
-/// Post-migration: `SensorId` IS the string — delegates to `AsRef<str>`.
-pub(crate) fn sensor_type_to_string(sensor: &SensorId) -> &str {
+/// `SensorId` IS the string — delegates to `AsRef<str>`.
+pub(crate) fn sensor_id_to_str(sensor: &SensorId) -> &str {
     sensor.as_ref()
 }

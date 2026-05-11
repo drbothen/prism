@@ -174,6 +174,7 @@ impl<'de> Deserialize<'de> for SensorId {
 /// `From<&str>`, `From<String>`, and `From<Arc<str>>` panic on invalid input —
 /// use `try_from_str` for fallible construction from untrusted input.
 #[derive(Debug, Clone, PartialEq, Eq)]
+#[non_exhaustive]
 pub enum SensorIdValidationError {
     /// String is empty (length 0).
     TooShort,
