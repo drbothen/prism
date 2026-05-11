@@ -1,7 +1,7 @@
 ---
 document_type: pipeline-state
 level: ops
-version: "7.109"
+version: "7.110"
 producer: state-manager
 timestamp: 2026-05-10T23:59:00Z
 inputs: []
@@ -176,7 +176,7 @@ workspace_test_count: 3489  # 891 prism-query + workspace total (per implementer
 | **Language** | Rust |
 | **Target Workspace** | per-analyst stdio (MCP server) |
 | **Started** | 2026-04-13 |
-| **Last Updated** | 2026-05-10 (D-375 — ADR-023 SUBSTANTIVE CONVERGENCE DECLARED; fix-burst-20 closes 2 pass-25 findings; TD-VSDD-058+059 filed; convergence section added; STATE v7.108→v7.109) |
+| **Last Updated** | 2026-05-10 (D-376 — 4 additional VSDD methodology TDs filed (TD-VSDD-060/061/062/063); adr-023-cycle-reflection.md written; STATE v7.109→v7.110) |
 | **Current Phase** | Wave 3 Tier-3 COMPLETE — **Wave 3-A 4 of 4 SHIPPED**: S-3.05 (#132 c867c344), S-3.04 (#133 57745ce8), S-3.03 (#134 7c413692), **S-3.07 (#135 2ae7185b MERGED 2026-05-08T04:23:03Z)**; post-merge cleanup confirmed; NEXT: Wave 3-B/C or Wave 4 unblock |
 | **Current Step** | D-375 — ADR-023 SUBSTANTIVE CONVERGENCE DECLARED (2026-05-10). Dispatch product-owner for Wave 0/F (PLUGIN-PREREQ-F) BC+DI catalog amendments per ADR-023 v1.17. |
 
@@ -221,6 +221,7 @@ _D-001..D-046 archived: [cycles/phase-3-dtu-wave-2/decisions-archive-d001-d032.m
 
 | ID | Decision | Rationale | Phase | Date |
 |----|----------|-----------|-------|------|
+| D-376 | 2026-05-10 | Cycle reflection + 4 additional VSDD methodology TDs filed (TD-VSDD-060/061/062/063) | Captures broader methodology insights from 25-pass ADR-023 cycle: S-7.01 sibling-site sweep automation (P0), agent-ecosystem drift rate observation (P1), fresh-context compounding value pattern (P2), orchestrator context consumption on state-management (P2). Cycle reflection document written at .factory/cycles/wave-4-operations/adr-023-cycle-reflection.md. Per user request "make sure we capture those TD thoughts". | docs(cycle-reflection) |
 | D-375 | 2026-05-10 | ADR-023 SUBSTANTIVE CONVERGENCE DECLARED — moving to Wave 0/F dispatch | User decision: declare convergence based on pass-19+20 clean at moderate rigor + 6 passes stable substantive content. Accept state-corpus drift as residual TDs (TD-VSDD-054..059). ADR-023 stays COMMITTED (transition to ACCEPTED requires Wave 0 implementation). Next: dispatch product-owner for PLUGIN-PREREQ-F BC+DI catalog amendments. | docs(convergence-declaration) |
 | D-374 | 2026-05-10 | Fix-burst-20 — close 2 pass-25 findings + file TD-VSDD-058 + TD-VSDD-059 | F-PASS25-HIGH-001: paper-filed TD repaired (TD-VSDD-058 properly written with correct ID; STATE/HANDOFF refs updated from TD-VSDD-057→TD-VSDD-058 for compaction TD). F-PASS25-HIGH-002: STATE.md body Current Step table row synced with frontmatter (stale D-299 replaced with D-375 convergence context). Plus filed TD-VSDD-059 P0 for paper-fix detection methodology fix. | docs(td-repair) |
 | D-373 | 2026-05-10 | ADR-023 pass-25 NOT_CLEAN — 2 HIGH (paper-TD + frontmatter-body sibling-site), streak 0/3 | Pass-25 surfaces F-PASS25-HIGH-001 (state-manager claimed to file TD-VSDD-057 but ID was already occupied in vsdd-plugin-tech-debt.md; entry filed under conflicting ID) + F-PASS25-HIGH-002 (frontmatter current_step refreshed but body table row stale at D-299). Final pass before user-declared substantive convergence. | review(ADR-023-pass-25) |
@@ -317,11 +318,11 @@ Cycle files: [burst-log](cycles/phase-2-patch/burst-log.md) | [convergence-traje
 
 ---
 
-## Session Resume Checkpoint (2026-05-10-v7.109-d375-adr023-SUBSTANTIVE-CONVERGENCE-DECLARED)
+## Session Resume Checkpoint (2026-05-10-v7.110-d376-methodology-tds-and-cycle-reflection)
 
-_Previous checkpoint (v7.108/D-372 fix-burst-19 COMPLETE) archived: [cycles/wave-4-operations/session-checkpoints.md](cycles/wave-4-operations/session-checkpoints.md)_
+_Previous checkpoint (v7.109/D-375 ADR-023 SUBSTANTIVE CONVERGENCE DECLARED) archived: [cycles/wave-4-operations/session-checkpoints.md](cycles/wave-4-operations/session-checkpoints.md)_
 
-**STATE v7.109. D-375 — ADR-023 SUBSTANTIVE CONVERGENCE DECLARED. Fix-burst-20 COMPLETE. Pass-25 NOT_CLEAN (2 findings: 0C+2H). TD-VSDD-058+059 filed. ARCH-INDEX v2.39. SESSION-HANDOFF v7.109.** develop@c6dd6602. factory-artifacts HEAD: run `git -C .factory log -1` (TD-VSDD-053). vsdd-factory rc.16 active. Standing Orchestrator Rules active (Rules 1, 2, 3). Bundle B Exit Mandate active (task #85). Tasks #80-#84 DISPOSITIONS RECORDED — do NOT re-triage. Worktrees: main (clean) + .factory + .worktrees/S-3.09 (FROZEN per D-298).
+**STATE v7.110. D-376 — 4 additional VSDD methodology TDs filed (TD-VSDD-060/061/062/063) + adr-023-cycle-reflection.md written. D-375 ADR-023 SUBSTANTIVE CONVERGENCE DECLARED. TD-VSDD-058+059 filed. ARCH-INDEX v2.39. SESSION-HANDOFF v7.110.** develop@c6dd6602. factory-artifacts HEAD: run `git -C .factory log -1` (TD-VSDD-053). vsdd-factory rc.16 active. Standing Orchestrator Rules active (Rules 1, 2, 3). Bundle B Exit Mandate active (task #85). Tasks #80-#84 DISPOSITIONS RECORDED — do NOT re-triage. Worktrees: main (clean) + .factory + .worktrees/S-3.09 (FROZEN per D-298).
 
 **CONVERGENCE STATUS:** ADR-023 v1.17 substantive content DECLARED CONVERGED per user decision (2026-05-10). Basis: pass-19/20 CLEAN at moderate rigor + 6 passes stable substantive content. ADR-023 stays COMMITTED (transitions to ACCEPTED only after Wave 0 implementation). Trajectory 26→16→12→14→3→3→1→0→0→4→2→0→1→1→4→3→2→2→0→0→3→4→5→3→2.
 
@@ -331,7 +332,7 @@ _Previous checkpoint (v7.108/D-372 fix-burst-19 COMPLETE) archived: [cycles/wave
 
 **Deferred TDs (carry-forward):** W3-FIX-S307-001/002/003 + TD-VSDD-082 + TD-S307-002/003/004 + TD-VSDD-058 P0 (STATE.md compaction must preserve D-row content; D-214..D-320 LOST; recovery via git history pre-fix-burst-17) + TD-VSDD-059 P0 (paper-fix detection) + TD-S309-O1/O2/O3/O4
 
-**Current spec versions:** BC-INDEX v4.53, STORY-INDEX v2.34 (150 stories), ARCH-INDEX v2.39, ADR-022 v1.1, ADR-023 v1.17 (SUBSTANTIVE CONVERGENCE DECLARED 2026-05-10), VP-INDEX v1.29 (152 VPs), prd.md v1.10, develop@c6dd6602; STATE v7.109 SESSION-HANDOFF v7.109 (current)
+**Current spec versions:** BC-INDEX v4.53, STORY-INDEX v2.34 (150 stories), ARCH-INDEX v2.39, ADR-022 v1.1, ADR-023 v1.17 (SUBSTANTIVE CONVERGENCE DECLARED 2026-05-10), VP-INDEX v1.29 (152 VPs), prd.md v1.10, develop@c6dd6602; STATE v7.110 SESSION-HANDOFF v7.110 (current)
 
 **Key files:** [SESSION-HANDOFF.md](SESSION-HANDOFF.md) | [cycle-manifest.md](cycles/wave-4-operations/cycle-manifest.md) | [HOLDOUT-INDEX.md](holdout-scenarios/HOLDOUT-INDEX.md)
 

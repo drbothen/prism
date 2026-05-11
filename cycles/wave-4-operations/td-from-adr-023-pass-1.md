@@ -698,3 +698,194 @@ register file after the write tool call completes.
 
 **Target release:** vsdd-factory v1.1 (methodology; P0 process integrity — item 1 codifiable
 immediately; items 2+3 tracked for plugin cycle)
+
+---
+
+## TD-VSDD-060 — S-7.01 Sibling-Site Sweep Automation (chronic recurrence pattern)
+
+| Field | Value |
+|-------|-------|
+| **ID** | TD-VSDD-060 |
+| **Priority** | P0 (process integrity) |
+| **Category** | plugin-level / adversary-review / sibling-site-discipline |
+| **Source** | ADR-023 convergence cycle — 14 confirmed S-7.01 sibling-site partial-fix recurrences across passes 4, 5, 7, 11, 13, 14, 15, 16, 17, 18, 21, 23, 24, 25 |
+| **Decision** | D-376 (2026-05-10) |
+
+**Description:** The ADR-023 25-pass convergence cycle had 14 confirmed S-7.01 sibling-site
+partial-fix recurrences. Each fix-burst targeted named sites but missed sibling sites in the
+same file or sibling files. Even after codifying STATE-MANAGER-CHECKLIST.md with explicit
+sibling-site sweep checkpoints, the pattern persisted because the checklist is documentation,
+not enforcement. Need automated sibling-site sweep: for every value-change Edit operation,
+the architect/state-manager agent must grep the body for the OLD value AND the project-known
+sibling-site list for the artifact class, before declaring done. This must be codified as a
+tool/hook, not a checklist item.
+
+**Recurrence log:** Passes 4, 5, 7, 11, 13, 14, 15, 16, 17, 18, 21, 23, 24, 25 (14 total).
+Each was an independently identified S-7.01 partial-fix gap. STATE-MANAGER-CHECKLIST.md
+codification after pass-7 did not prevent subsequent recurrences — checklist items are not
+enforced at write-time.
+
+**Required actions (vsdd-factory plugin work):**
+
+1. **Add `sibling-site-sweep` PreCommit hook:** Scans current edit for declared-value-changes
+   (e.g., `version: "vX.Y"` bumps); for each change, runs body+sibling-file grep for the OLD
+   value; blocks commit if OLD value remains anywhere outside changelog/historical sections.
+
+2. **Codify sibling-site lookup table per artifact class:**
+   - ADR: frontmatter version + Status block + Status-as-of + ARCH-INDEX row + STATE.md
+     spec-versions table + SESSION-HANDOFF spec-versions table
+   - BC: frontmatter title + H1 + BC-INDEX row
+   - VP: frontmatter title + H1 + VP-INDEX row
+   - Story: frontmatter title + H1 + STORY-INDEX row
+   This lookup table drives the PreCommit hook's sibling-file grep list.
+
+3. **Update architect/state-manager agent prompts:** Invoke sibling-site grep before commit.
+   The prompt must enumerate the artifact-class lookup table verbatim, not by reference.
+
+**Target release:** vsdd-factory v1.1 (methodology; P0 — must precede next multi-site
+amendment cycle to prevent 15th+ recurrence)
+
+---
+
+## TD-VSDD-061 — Agent-Ecosystem Drift Rate Observation (cycle exhaustion phenomenon)
+
+| Field | Value |
+|-------|-------|
+| **ID** | TD-VSDD-061 |
+| **Priority** | P1 (methodology / observability) |
+| **Category** | plugin-level / cycle-management / convergence-target |
+| **Source** | ADR-023 convergence cycle — at maximum-rigor passes (21, 23, 25), each fix-burst introduced 1-2 new sibling-site or state-corpus defects equal to or greater than the rate at which it closed prior defects |
+| **Decision** | D-376 (2026-05-10) |
+
+**Description:** The current VSDD 3-CLEAN convergence target is rigor-coupled. At maximum rigor
+with the current agent ecosystem, asymptotic non-convergence is the predicted outcome for any
+spec that survives multiple amendment cycles. The ADR-023 cycle demonstrated this empirically:
+passes 21-25 could not achieve 3-CLEAN because each fix-burst introduced drift at a rate equal
+to or exceeding the closure rate. User declared "substantive convergence" at moderate rigor as
+the practical convergence target.
+
+The methodology needs a calibrated rigor definition:
+- "3-CLEAN at PRODUCTION rigor" — clean per a fixed verification protocol (~10-15 items per
+  artifact class); this is the blocking convergence gate
+- "3-CLEAN at MAXIMUM rigor" — clean against any fresh-context probe; this is optional
+  escalation, not a blocking gate
+
+**Drift-rate metric:** Defects-closed per burst / defects-introduced per burst. If this ratio
+is < 1.0 for 3+ consecutive bursts, the methodology must accept residual defects as TDs and
+advance rather than continuing the cycle.
+
+**Required actions:**
+
+1. Document the rigor-calibration distinction in VSDD methodology docs (VSDD.md + FACTORY.md).
+
+2. Codify "production-rigor verification protocol" with fixed checklist (~10-15 items) per
+   artifact class. This becomes the 3-CLEAN blocking gate. The checklist items should cover:
+   version-stamp consistency, sibling-site sync, citation integrity (VP/BC/SS references),
+   arithmetic claim verification, changelog monotonicity, frontmatter-body consistency.
+
+3. Maximum-rigor adversary passes become optional escalation. They do NOT reset the 3-CLEAN
+   window if they only surface state-corpus drift defects (not substantive content defects).
+   Substantive content defects still reset the window.
+
+4. Track drift-rate metric: add a `drift_rate` field to convergence-trajectory.md per pass.
+   If ratio < 1.0 for 3+ consecutive passes, orchestrator must surface this to the user with
+   a recommendation to declare substantive convergence and advance.
+
+**Target release:** vsdd-factory v1.1 (methodology; P1 — before next long-running convergence
+cycle to prevent cycle exhaustion without a principled exit criterion)
+
+---
+
+## TD-VSDD-062 — Fresh-Context Compounding Value Pattern (validated benefit)
+
+| Field | Value |
+|-------|-------|
+| **ID** | TD-VSDD-062 |
+| **Priority** | P2 (methodology / positive pattern) |
+| **Category** | plugin-level / adversary-review / value-pattern |
+| **Source** | ADR-023 convergence cycle — each adversary pass with fresh context surfaced novel defects that prior passes (anchored to their own framings) missed |
+| **Decision** | D-376 (2026-05-10) |
+
+**Description:** Throughout the 25-pass ADR-023 cycle, each adversary pass with fresh context
+(no prior-pass memory) surfaced novel defects that prior passes anchored to their own framings
+missed. Pass-19 (8 verifications) → pass-20 (25 verifications) → pass-21 (30 verifications)
+demonstrated cumulative discovery: each pass found different defects via different axes. The
+trajectory 26→16→12→14→3→3→1→0→0→4→2→0→1→1→4→3→2→2→0→0→3→4→5→3→2 shows that each rigor
+escalation opened new finding axes even after prior clean passes.
+
+Fresh-context adversary review provides genuine value-add beyond what same-context iterative
+review catches. This pattern should be formally codified as a VSDD principle with empirical
+evidence, not left as an emergent observation.
+
+**Required actions:**
+
+1. **Update FACTORY.md / VSDD.md / orchestrator.md:** Formalize "fresh-context compounding
+   value" as a named methodology principle. Extend the existing fresh-context rule with:
+   (a) empirical evidence from this cycle, (b) recommended minimum verification count per
+   pass (escalating: pass-N should run >= 1.5x the verification count of pass-N-1), and
+   (c) verification-axis diversification guidance.
+
+2. **Codify verification-axis diversification:** Each subsequent adversary pass should target
+   axes prior passes did not deeply examine. Suggested axis rotation for ADR convergence:
+   - Pass 1-3: citation integrity + arithmetic claims
+   - Pass 4-6: sibling-site consistency + changelog
+   - Pass 7-9: semantic contradiction (cross-section consistency)
+   - Pass 10+: escalate to maximum-rigor free-form
+
+3. **Document the ADR-023 trajectory as canonical example** in lessons-learned:
+   26→16→12→14→3→3→1→0→0→4→2→0→1→1→4→3→2→2→0→0→3→4→5→3→2. The initial decrease (26→3)
+   reflects substantive content closure. The subsequent oscillation reflects state-corpus
+   drift at increasing rigor. Both phases are expected behavior under this principle.
+
+**Target release:** vsdd-factory v1.1 (methodology; P2 — codification of positive pattern;
+does not block any convergence cycle)
+
+---
+
+## TD-VSDD-063 — Orchestrator Context Consumption on State-Management (efficiency concern)
+
+| Field | Value |
+|-------|-------|
+| **ID** | TD-VSDD-063 |
+| **Priority** | P2 (methodology / efficiency) |
+| **Category** | plugin-level / orchestrator-prompts / dispatch-economy |
+| **Source** | ADR-023 convergence cycle — dispatch briefs consumed substantial orchestrator context because standing-discipline content (policies, sweep instructions, verification discipline) had to be inlined verbatim in each brief |
+| **Decision** | D-376 (2026-05-10) |
+
+**Description:** The ADR-023 cycle consumed substantial orchestrator context on writing detailed
+state-manager + adversary dispatch briefs (some briefs exceeded 3000 tokens) because:
+(a) policies needed verbatim repetition each dispatch to prevent hook-bypass recurrence,
+(b) sibling-site sweep instructions needed enumeration per artifact class,
+(c) verification discipline (TD-FIX-BURST-VERIFY-001/002) needed restatement.
+Across 25 passes + 20 fix-bursts (~45 dispatches), this multiplied substantially.
+
+The root cause: agent prompt templates are slow to update at the plugin level, so dispatch
+briefs carry both standing-discipline content (should be in templates) and burst-specific scope
+(should be the only content in briefs). Need a "standing-discipline preamble" mechanism where
+dispatch briefs can `@include` versioned standing-discipline blocks rather than inlining them.
+
+**Estimated impact:** ~30-40% reduction in dispatch-brief token count per dispatch.
+For a 25-pass cycle this represents a non-trivial context budget savings across the orchestrator.
+
+**Required actions:**
+
+1. **Add `@include` directive support to dispatch brief templating (vsdd-factory plugin work):**
+   Syntax: `@include standing-discipline/td-factory-hook-bypass-001-P0.md` in a dispatch
+   brief resolves to the versioned standing-discipline block at dispatch time. Supports
+   versioned blocks so the content can be updated without modifying every dispatch brief.
+
+2. **Factor common preambles into versioned standing-discipline files:**
+   - `standing-discipline/edit-write-tools-only.md` — TD-FACTORY-HOOK-BYPASS-001 P0 verbatim
+   - `standing-discipline/td-fix-burst-verify-002.md` — citation integrity discipline
+   - `standing-discipline/sibling-site-sweep.md` — sibling-site lookup tables per artifact class
+   - `standing-discipline/convergence-verification.md` — TD-FIX-BURST-VERIFY-001/002 combined
+
+3. **Update orchestrator agent prompt:** Use `@include` for standing-discipline blocks rather
+   than inlined verbatim text. Burst-specific scope (which files to touch, which findings to
+   close) remains inline in the dispatch brief.
+
+4. **Measure baseline:** Record average dispatch-brief token count before and after; track
+   reduction in convergence-trajectory.md or cost-summary.md.
+
+**Target release:** vsdd-factory v1.1 (methodology; P2 — efficiency improvement; does not
+block any convergence cycle)
