@@ -15,10 +15,10 @@ tdd_mode: strict
 crates_touched: [prism-core, prism-sensors, prism-query, prism-spec-engine]
 target_module: prism-core
 subsystems: [SS-01, SS-02, SS-08, SS-16]
-version: "1.3"
+version: "1.4"
 level: "L4"
 producer: story-writer
-timestamp: "2026-05-11T00:00:00Z"
+timestamp: "2026-05-11T08:00:00Z"
 input-hash: "6954524"
 traces_to: []
 cycle: "v1.0.0-greenfield"
@@ -321,27 +321,38 @@ references in production source, grouped by dispatch location):**
 
 The test-writer MUST produce these failing tests before the implementer writes any production code:
 
-1. **`test_sensor_id_exists`** (prism-core) — attempts to construct `SensorId::from("crowdstrike")`;
-   fails RED because `SensorId` type does not exist yet.
+1. **`test_BC_2_01_013_001_sensorid_from_str_roundtrip`** (prism-core) — attempts to construct
+   `SensorId::from("crowdstrike")`; fails RED because `SensorId` type does not exist yet.
+   (formerly named `test_sensor_id_exists` in design; renamed to BC-prefixed convention)
 
-2. **`test_sensor_id_hash_eq_display_roundtrip`** (prism-core) — constructs two `SensorId`s
+2. **`test_BC_2_01_013_003_sensorid_hash_eq_invariant`** (prism-core) — constructs two `SensorId`s
    from the same string, asserts equality and same hash bucket; fails RED because type doesn't exist.
+   (formerly named `test_sensor_id_hash_eq_display_roundtrip` in design)
 
-3. **`test_sensor_id_borrow_str_lookup`** (prism-core) — inserts `SensorId::from("armis")` in
-   `HashMap<SensorId, u32>`, looks up via `map.get("armis" as &str)`; fails RED.
+3. **`test_BC_2_01_013_004_sensor_id_borrow_str_lookup`** (prism-core) — inserts
+   `SensorId::from("armis")` in `HashMap<SensorId, u32>`, looks up via `map.get("armis" as &str)`;
+   fails RED. Added in fix-burst-7 (F-LP7-MED-001 closure).
+   (formerly named `test_sensor_id_borrow_str_lookup` in design)
 
-4. **`test_adapter_registry_sensorid_keyed`** (prism-sensors integration test) — registers a
-   mock adapter under `SensorId::from("crowdstrike")`, asserts lookup succeeds; fails RED because
-   `AdapterRegistry::register` still takes `SensorType`.
+4. **`test_BC_2_01_013_004_adapter_registry_sensorid_insert_lookup`** (prism-sensors,
+   bc_2_01_013_sensorid.rs) — registers a mock adapter under `SensorId::from("crowdstrike")`,
+   asserts lookup succeeds; fails RED because `AdapterRegistry::register` still takes `SensorType`.
+   (formerly named `test_adapter_registry_sensorid_keyed` in design)
 
-5. **`test_sensorttype_reintroduction_compile_fails`** (perimeter-violation compile-fail test) —
-   asserts that `pub enum SensorType { CrowdStrike }` in a test crate causes a compile error;
-   fails RED if the enum still exists in prism-core (it shouldn't fail yet, which is the
-   Red Gate condition proving the test is correctly structured to block reintroduction).
+5. **Compile-fail assertion at `tests/external/perimeter-violation/src/main.rs`** (VP-PLUGIN-001
+   CI gate) — asserts that `pub enum SensorType { CrowdStrike }` in a test crate causes a compile
+   error; fails RED if the enum still exists in prism-core. This is not a `#[test]` function —
+   it is a compile-fail crate enforced by CI.
+   (formerly named `test_sensorttype_reintroduction_compile_fails` in design)
 
-6. **`test_prism_query_dispatch_uses_sensorid`** (prism-query unit test) — imports and calls a
-   converted dispatch site function with a `SensorId`; fails RED because the function still
-   accepts `SensorType`.
+6. **`test_BC_2_01_013_005_sensorid_lookup_at_virtual_fields_dispatch`** (prism-query,
+   sensorid_dispatch_redgate.rs) — imports and calls a converted dispatch site function with a
+   `SensorId`; fails RED because the function still accepts `SensorType`.
+   (formerly named `test_prism_query_dispatch_uses_sensorid` in design)
+
+_v1.4 amendment (2026-05-11): test names listed canonically under project's BC-prefixed convention.
+Original design-phase names retained as parentheticals for audit-trail. F-LP9-MED-002 closure per
+OPTION B (amend spec to match implementation)._
 
 ---
 
@@ -536,6 +547,7 @@ The story is shipped when ALL of the following are true:
 
 | Version | Burst | Date | Author | Changes |
 |---------|-------|------|--------|---------|
+| 1.4 | pass-9-state-burst | 2026-05-11 | state-manager | F-LP9-MED-002 closure — OPTION B adopted: §Red Gate Test Set amended with canonical BC-prefixed test names; original design-phase names retained as parentheticals for audit-trail. input-hash unchanged (6954524 — external inputs ADR-023 v1.18 + BC-2.01.013 v1.5 unchanged). |
 | 1.3 | pass-7-state-burst | 2026-05-11 | state-manager | F-LP7-MED-002 closure — OPTION B adopted: `&SensorId` is the canonical API for `get_all_for_sensor`. Task 7 Borrow<str> mandate relaxed with rationale (generic Borrow constraints add cognitive cost; `&SensorId` is more discoverable and forces callers to validate input via `SensorId::try_from_str` before lookup, providing defense-in-depth; `&str` callers construct `SensorId::try_from_str(&s)?` then pass `&sid`). AC-4 updated to reflect canonical `&SensorId` API. |
 | 1.2 | pass-6-closures | 2026-05-11 | state-manager | Input-hash recomputed after ADR-023 v1.18 amendment (D-382 ADR-023 typo fix) + BC-2.01.013 v1.5 amendment (F-LP6-MED-002 Adapter Identity Method postcondition added). New input-hash: 6954524 (was 7d38067). Closes F-LP6-LOW-002. |
 | 1.1 | fix-burst-1-closure | 2026-05-11 | state-manager | AC-4 wording updated: adopted implementation where adapter owns identity (register() derives SensorId from adapter.sensor_type() internally); rationale recorded per F-LP1-HIGH-003 orchestrator decision. AC-8 wording clarified: squash-merge is the operative atomic unit; intermediate Red Gate commit on feature branch is permitted per F-LP1-LOW-001. Both changes record adversary pass-1 closure disposition. |
