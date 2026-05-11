@@ -2,14 +2,14 @@
 document_type: prd-supplement
 level: L3
 section: "error-taxonomy"
-version: "1.17"
+version: "1.18"
 status: draft
 producer: product-owner
-timestamp: 2026-04-27T00:00:00
+timestamp: 2026-05-11T02:00:00Z
 phase: 1a
 origin: greenfield
 inputs: [".factory/specs/prd.md", ".factory/specs/behavioral-contracts/**"]
-input-hash: "83d46e6"
+input-hash: "fbb5fd3"
 traces_to: [".factory/specs/prd.md"]
 ---
 
@@ -187,6 +187,7 @@ These codes cover runtime errors referencing client configuration (e.g., unknown
 | E-QUERY-023 | broken | validation | "Write verb '{verb}' is not available for source '{source}'. Available verbs: [{verbs}]" | No | Pipe mode write verb not registered for the source table |
 | E-QUERY-024 | broken | validation | "Write stage must be the terminal stage in a pipe pipeline. Found additional stages after '{verb}'." | No | Write verb in non-terminal position |
 | E-QUERY-025 | degraded | partial | "Write operation failed for {failed}/{total} records on {sensor}/{endpoint}. See WriteResult.results for detail." | No | Partial write failure — some records succeeded, others failed |
+| E-QUERY-031 | broken | query-input-validation | "invalid sensor name in query: '{sensor}' — {validation_error}" | No | Sensor name in PrismQL write plan or explain path failed SensorId validation (length, charset, or boundary check). Emitted by `WriteDispatcher::execute_at` when `SensorId::try_from_str(plan.sensor)` returns Err. Introduced in S-PLUGIN-PREREQ-A fix-burst-2 (F-LP2-CRIT-002 closure) to prevent panic-on-invalid-input. References: BC-2.01.013 v1.4. |
 
 ## ALIAS: Alias Errors
 
@@ -466,6 +467,7 @@ Additional state errors beyond E-STATE-001 and E-STATE-002 (defined in the STATE
 
 | Version | Burst | Date | Author | Change |
 |---------|-------|------|--------|--------|
+| 1.18 | S-PLUGIN-PREREQ-A-pass-3-state-burst | 2026-05-11 | state-manager | Added E-QUERY-031 (InvalidSensorName — sensor name in PrismQL write plan or explain path failed SensorId validation; emitted by WriteDispatcher::execute_at when SensorId::try_from_str returns Err; introduced in S-PLUGIN-PREREQ-A fix-burst-2 F-LP2-CRIT-002 closure; references BC-2.01.013 v1.4). Closes F-LP3-MED-003 taxonomy-gap finding from pass-3. D-383. |
 | 1.17 | S-3.04-fix-pass-29 | 2026-05-07 | implementer | Added E-STORE-020 (CursorCapExceeded — active cursor count at cross-client cap of 200; new cursor allocation rejected; cursor expiry automatic at 60s TTL; see BC-2.07.002 §Cursor Lifecycle (MCP-exposed surface) — Cap). Code was implemented in crates/prism-core/src/error.rs but absent from taxonomy (F-PASS10-MED-001). |
 | 1.16 | S-3.04-fix-pass-28 | 2026-05-07 | implementer | Anchor reformat: E-QUERY-012 anchor updated from nonexistent §Cursor TTL Expiry → §Cursor Lifecycle (MCP-exposed surface) — Expiry; E-QUERY-013 anchor updated from §CursorPageSizeInvalid → §Cursor Lifecycle (MCP-exposed surface) — Creation; E-QUERY-014 anchor added → §Cursor Lifecycle (MCP-exposed surface) — Advancement. All three now cite the real section added to BC-2.07.002 v4.6. Resolves F-PASS9-MED-002. |
 | 1.15 | S-3.04-fix-pass-27 | 2026-05-07 | implementer | Anchor correction: E-QUERY-013 mis-anchored to nonexistent BC-2.07.001 §AC-2 (BCs don't have ACs); corrected to BC-2.07.002 §CursorPageSizeInvalid (canonical location). Resolves F-PASS8-CRIT-003. |

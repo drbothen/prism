@@ -1,7 +1,7 @@
 ---
 document_type: pipeline-state
 level: ops
-version: "7.116"
+version: "7.117"
 producer: state-manager
 timestamp: 2026-05-11T01:00:00Z
 inputs: []
@@ -22,7 +22,7 @@ repos:
   - axiathon
   - ocsf-proto-gen
   - mcp-claroty-xdome
-current_step: "S-PLUGIN-PREREQ-A fix-burst-2 SHIPPED at 9578f574; ADR-023 v1.17→v1.18 typo fix + TD-S-PLUGIN-PREREQ-A-003 filed; ready for adversary pass-3"
+current_step: "S-PLUGIN-PREREQ-A LOCAL pass-3 BLOCKED-hard with 6 findings (2 paper-close regressions); fix-burst-3 in flight"
 wave_3_carry_forward_debt: "ALL_REMEDIATE — W4-FIX-PERF-001/002, W4-FIX-CODE-001, W4-FIX-SEC-001 through W4-FIX-SEC-004 planned per D-203"
 wave_4_status: "PHASE_4_A_CONVERGED + R9_APPROVED but PHASE_4_B SUSPENDED — pre-implementation dep check (2026-05-04) found S-4.01 → S-3.02 (status=draft); pivoting to full Wave 3 implementation per user directive D-223"
 wave_4_phase_4_a_preflight:
@@ -133,7 +133,7 @@ total_stories: 150
 red_gate_wave_0a_complete: 2026-04-21
 test_vectors_version: "2.7"
 prd_version: "1.10"
-error_taxonomy_version: "1.17"
+error_taxonomy_version: "1.18"
 holdout_index_version: "1.3"
 capabilities_version: "1.14"
 l2_index_version: "1.13"
@@ -176,9 +176,9 @@ workspace_test_count: 3489  # 891 prism-query + workspace total (per implementer
 | **Language** | Rust |
 | **Target Workspace** | per-analyst stdio (MCP server) |
 | **Started** | 2026-04-13 |
-| **Last Updated** | 2026-05-11 (D-382 — S-PLUGIN-PREREQ-A fix-burst-2 SHIPPED at 9578f574; ADR-023 v1.17→v1.18 typo fix + TD-S-PLUGIN-PREREQ-A-003 filed P1; 1433/1433 prism-{core,sensors,query,bin} PASS; streak 0/3 ready for pass-3; STATE v7.115→v7.116) |
+| **Last Updated** | 2026-05-11 (D-383 — S-PLUGIN-PREREQ-A LOCAL pass-3 BLOCKED-hard (6 findings: 1H+3M+2L+3OBS); trajectory 14→12→6; 2 paper-close regressions (F-LP3-HIGH-001, F-LP3-MED-001); TD-S-PLUGIN-PREREQ-A-004 filed P1; E-QUERY-031 added to error-taxonomy.md v1.18; fix-burst-3 in flight; STATE v7.116→v7.117) |
 | **Current Phase** | Wave 3 Tier-3 COMPLETE — **Wave 3-A 4 of 4 SHIPPED**: S-3.05 (#132 c867c344), S-3.04 (#133 57745ce8), S-3.03 (#134 7c413692), **S-3.07 (#135 2ae7185b MERGED 2026-05-08T04:23:03Z)**; post-merge cleanup confirmed; plugin migration: PREREQ-F SHIPPED; PREREQ-A/B/C/D/E pending |
-| **Current Step** | D-382 — S-PLUGIN-PREREQ-A fix-burst-2 SHIPPED at 9578f574; ADR-023 v1.18 + TD-S-PLUGIN-PREREQ-A-003 filed; ready for adversary pass-3 (2026-05-11). Streak 0/3. |
+| **Current Step** | D-383 — S-PLUGIN-PREREQ-A LOCAL pass-3 BLOCKED-hard with 6 findings (2 paper-close regressions); fix-burst-3 in flight (2026-05-11). Streak 0/3. |
 
 ## Phase Progress
 
@@ -210,10 +210,10 @@ workspace_test_count: 3489  # 891 prism-query + workspace total (per implementer
 
 | Step | Agent | Status | Output |
 |------|-------|--------|--------|
-| fix-burst-20 + convergence declaration | state-manager | COMPLETE | TD-VSDD-058+059 filed; D-373/374/375 inserted; SUBSTANTIVE CONVERGENCE declared; STATE v7.108→v7.109 |
 | S-PLUGIN-PREREQ-A fix-burst-1 | implementer | COMPLETE | 8a33d981 — 14 findings closed (2C+5H+4M+3L); AC-4+AC-8 wording updated; TD-S-PLUGIN-PREREQ-A-002 filed; just check 3501/3501 PASS; STATE v7.113→v7.114 (D-380) |
 | S-PLUGIN-PREREQ-A LOCAL pass-2 | adversary | BLOCKED-hard | 12 findings: 2C+4H+3M+3L+2OBS; trajectory 14→12; PAPER-FIX of pass-1 CRIT-002 (CI E0432 gap); NEW CRIT F-LP2-CRIT-002 (From<&str> panic on user input at 2 dispatch sites); streak 0/3; D-381 |
 | S-PLUGIN-PREREQ-A fix-burst-2 | implementer + state-manager | COMPLETE | 9578f574 — 12 findings closed (2C+4H+3M+3L); ADR-023 v1.18 typo fix; TD-S-PLUGIN-PREREQ-A-003 filed; 1433/1433 PASS; STATE v7.115→v7.116 (D-382) |
+| S-PLUGIN-PREREQ-A LOCAL pass-3 | adversary + state-manager | BLOCKED-hard | 6 findings (1H+3M+2L+3OBS); trajectory 14→12→6; 2 paper-close regressions; TD-S-PLUGIN-PREREQ-A-004 filed P1; E-QUERY-031 taxonomy entry added; fix-burst-3 in flight; STATE v7.116→v7.117 (D-383) |
 
 ## Decisions Log
 
@@ -221,6 +221,7 @@ _D-001..D-046 archived: [cycles/phase-3-dtu-wave-2/decisions-archive-d001-d032.m
 
 | ID | Decision | Rationale | Phase | Date |
 |----|----------|-----------|-------|------|
+| D-383 | 2026-05-11 | S-PLUGIN-PREREQ-A LOCAL adversary pass-3 BLOCKED-hard (6 findings: 1 HIGH + 3 MED + 2 LOW + 3 OBS + 4 process-gaps). Trajectory 14→12→6 declining. Streak 0/3 RESET. PAPER-CLOSE REGRESSIONS detected: F-LP3-HIGH-001 (F-LP2-HIGH-001 partial — sensor_id.rs:246-257 doc-comment still claims SensorId::try_from(s)? returns Err(SensorIdValidationError); blanket TryFrom impl actually PANICS; L33-37 correctly explains but L248-256 contradicts); F-LP3-MED-001 (F-LP2-MED-003 partial — boot.rs step8 added doc-comment template but body remains todo!(); assertion is documented-not-enforced). NOVEL: F-LP3-MED-002 sibling-site sweep gap — prism-dtu-common/src/generator/fixture.rs:28 Provenance.sensor_type + 11 caller sites in 4 DTU-generator crates missed by fix-burst-2 (cross-crate boundary); F-LP3-MED-003 E-QUERY-031 introduced in code without taxonomy/test entry; F-LP3-LOW-001 explain.rs:1304 stale metadata.sensor_type string; F-LP3-LOW-002 validate_sensor_id_string pub vs pub(crate). KUDOs: 8 strong implementation wins. Fix-burst-3 in flight: doc rewrite, DTU rename, E-QUERY-031 taxonomy entry + test, MED-001 TD filing. | plugin-migration | 2026-05-11 |
 | D-382 | 2026-05-11 | S-PLUGIN-PREREQ-A LOCAL fix-burst-2 (9578f574 on worktree) closes 12 findings from pass-2 + verifies closure of 2 pass-1 partial-closes. Per-finding: 2 CRITICAL CLOSED (F-LP2-CRIT-001 CI E0432 detection added — VP-PLUGIN-001 assertion passes; F-LP2-CRIT-002 dispatch sites converted from panic-on-input From<&str> to try_from_str with new E-QUERY-031 error code); 4 HIGH CLOSED (try_from_string deleted — sibling pattern to pass-1 HIGH-004 closed via deletion not TryFrom impl per implementer decision; WriteToolInvalidationMap doc-comment honesty rewrite with TD-S-PLUGIN-PREREQ-A-003 citation; validate_sensor_id_string validation order reordered charset-first; doc-comments aligned with implementation); 3 MED CLOSED (4 stale SensorType test-file doc-comments swept; InvalidBoundary test added; boot.rs startup assertion documented as defense-in-depth); 3 LOW CLOSED (residual Red Gate comment fixed; ADR-023 §C1 prism-ocsf typo deferred to this state-burst; sensor_type/sensor_id field name unified across FanOutTarget/FanOutError/ExplainSource — S-7.01 sibling sweep affecting 11 files). 2 items state-manager scope in this burst: F-LP2-LOW-002 ADR-023 §C1 prism-ocsf typo fixed (v1.17→v1.18); TD-S-PLUGIN-PREREQ-A-003 filed. cargo nextest 1433/1433 PASS for prism-{core,sensors,query,bin}; pre-existing 3 prism-dtu-demo-server TLS test failures under concurrent just check are not S-PLUGIN-PREREQ-A regressions (verified 34/34 PASS when prism-dtu-demo-server tested in isolation). Streak reset 0/3 → next: adversary pass-3 fresh-context. | plugin-migration | 2026-05-11 |
 | D-381 | 2026-05-11 | S-PLUGIN-PREREQ-A LOCAL adversary pass-2 BLOCKED-hard (12 findings: 2 CRITICAL + 4 HIGH + 3 MED + 3 LOW + 2 OBS + 4 process-gaps). Trajectory 14→12 from pass-1. Streak 0/3 RESET. PAPER-FIX of pass-1 CRIT-002 detected (F-LP2-CRIT-001 — ci.yml E0432 not parsed → SensorType regression undetected). NEW critical: F-LP2-CRIT-002 — SensorId::From<&str> panics on user-controlled PrismQL input at 2 dispatch sites (DoS vector; pass-1 HIGH-005 validation work only covered Deserialize). HIGH: TryFrom impls absent (try_from_string dead), WriteToolInvalidationMap doc-comment lies (LazyLock not extensible), byte-vs-char length inconsistency, duplicate try_from_string. MED: 4 stale SensorType refs in test files, missing InvalidBoundary test, registry-empty defense-in-depth gap. LOW: residual Red Gate comment, ADR-023 prism-ocsf mis-citation, sensor_type/sensor_id field name inconsistency. Fix-burst-2 in flight. | plugin-migration | 2026-05-11 |
 | D-380 | 2026-05-11 | S-PLUGIN-PREREQ-A LOCAL fix-burst-1 (8a33d981) closes 14 findings from pass-1. Per-finding: 2 CRITICAL CLOSED (perimeter compile-fail assertion added — E0432 confirmed; unknown-table guard restored — regression test passes); 5 HIGH CLOSED (9 SensorType doc-comments swept; 10 Red-Gate doc-comments updated to Green framing; duplicate registry methods removed (get_all_for_sensor + get_by_id deleted); SensorId validation infrastructure added — SensorIdValidationError, validate_sensor_id_string, try_from_str/try_from_string, Deserialize validation, 4 new tests); 4 MED CLOSED (dead UnknownSensorId variant removed; case-sensitivity asymmetry fixed via lowercase; WriteToolInvalidationMap LazyLock conversion with SensorId field; sentinel-nil OrgId TODO updated to cite TD-S-PLUGIN-PREREQ-A-002); 3 LOW CLOSED (duplicate doc-block removed, latency-match TODO comment added, AC-8 wording — state-manager scope, fixed in this burst). 3 items SCOPE-EXCEEDED to state-manager (this burst): F-LP1-HIGH-003 story AC-4 wording adopted-implementation rationale, F-LP1-LOW-001 story AC-8 wording, TD-S-PLUGIN-PREREQ-A-002 filing. 1 item DEFERRED with TD: F-LP1-MED-004 OrgRegistry wiring (W3-FIX-S307-002 dependency). just check 3501/3501 PASS. Streak reset 0/3 → next: adversary pass-2 fresh-context. | plugin-migration | 2026-05-11 |
@@ -324,21 +325,21 @@ Cycle files: [burst-log](cycles/phase-2-patch/burst-log.md) | [convergence-traje
 
 ---
 
-## Session Resume Checkpoint (2026-05-11-v7.116-d382-fix-burst-2-shipped)
+## Session Resume Checkpoint (2026-05-11-v7.117-d383-pass-3-blocked)
 
-_Previous checkpoint (v7.115/D-381 PREREQ-A pass-2 BLOCKED-hard) archived: [cycles/wave-4-operations/session-checkpoints.md](cycles/wave-4-operations/session-checkpoints.md)_
+_Previous checkpoint (v7.116/D-382 fix-burst-2 shipped) archived: [cycles/wave-4-operations/session-checkpoints.md](cycles/wave-4-operations/session-checkpoints.md)_
 
-**STATE v7.116. D-382 — S-PLUGIN-PREREQ-A LOCAL fix-burst-2 SHIPPED at 9578f574. SESSION-HANDOFF v7.116.** develop@c6dd6602. factory-artifacts HEAD: run `git -C .factory log -1` (per TD-VSDD-053). vsdd-factory rc.16 active. Standing Orchestrator Rules active (Rules 1, 2, 3). Bundle B Exit Mandate active (task #85). Tasks #80-#84 DISPOSITIONS RECORDED — do NOT re-triage. Worktrees: main (clean) + .factory + .worktrees/S-PLUGIN-PREREQ-A + .worktrees/S-3.09 (FROZEN per D-298).
+**STATE v7.117. D-383 — S-PLUGIN-PREREQ-A LOCAL pass-3 BLOCKED-hard (6 findings). SESSION-HANDOFF v7.117.** develop@c6dd6602. factory-artifacts HEAD: run `git -C .factory log -1` (per TD-VSDD-053). vsdd-factory rc.16 active. Standing Orchestrator Rules active (Rules 1, 2, 3). Bundle B Exit Mandate active (task #85). Tasks #80-#84 DISPOSITIONS RECORDED — do NOT re-triage. Worktrees: main (clean) + .factory + .worktrees/S-PLUGIN-PREREQ-A + .worktrees/S-3.09 (FROZEN per D-298).
 
-**FIX-BURST-2 SUMMARY:** 12 findings closed (2 CRITICAL + 4 HIGH + 3 MED + 3 LOW). Worktree commit 9578f574. cargo nextest 1433/1433 PASS for prism-{core,sensors,query,bin}. Pre-existing 3 prism-dtu-demo-server TLS test failures under concurrent just check are NOT S-PLUGIN-PREREQ-A regressions (verified 34/34 PASS in isolation). State-manager scope: ADR-023 v1.17→v1.18 (F-LP2-LOW-002 §C1 crate enumeration typo fixed); TD-S-PLUGIN-PREREQ-A-003 filed P1 (runtime extensibility for WriteToolInvalidationMap, defer to PREREQ-E). ARCH-INDEX v2.39→v2.40.
+**PASS-3 SUMMARY:** 6 findings (1H+3M+2L+3OBS). Trajectory 14→12→6 (50% reduction). 2 paper-close regressions via TD-VSDD-059 discipline: F-LP3-HIGH-001 (try_from doc paper-close from F-LP2-HIGH-001); F-LP3-MED-001 (boot.rs assertion paper-close from F-LP2-MED-003, accepted with TD-S-PLUGIN-PREREQ-A-004). Novel: F-LP3-MED-002 prism-dtu-common Provenance cross-crate sibling-site miss; F-LP3-MED-003 E-QUERY-031 added without taxonomy. State-manager burst D-383: TD-S-PLUGIN-PREREQ-A-004 filed P1; E-QUERY-031 entry added to error-taxonomy.md v1.17→v1.18.
 
-**NEXT ACTION:** Dispatch adversary pass-3 fresh-context against feature/S-PLUGIN-PREREQ-A@9578f574. Expect streak 0/3 → 1/3 if CLEAN.
+**NEXT ACTION:** Dispatch implementer fix-burst-3: (1) sensor_id.rs:248-256 doc rewrite / TryFrom impl; (2) Provenance.sensor_type → sensor_name rename across prism-dtu-common + 11 DTU caller sites; (3) unit test for E-QUERY-031 path; (4) explain.rs:1304 metadata key fix; (5) validate_sensor_id_string pub→pub(crate). Then pass-4 fresh-context.
 
 **S-3.09 FREEZE STATE:** Worktree .worktrees/S-3.09 HEAD 43c41389; BUG-S309-PLUGIN P0 blocks resumption. See D-298/D-299.
 
-**Deferred TDs (carry-forward):** W3-FIX-S307-001/002/003 + TD-VSDD-082 + TD-S307-002/003/004 + TD-S-PLUGIN-PREREQ-A-002 P1 (sentinel-nil OrgId; W3-FIX-S307-002 dep) + TD-S-PLUGIN-PREREQ-A-003 P1 (WriteToolInvalidationMap runtime extensibility; PREREQ-E) + TD-VSDD-058 P0 + TD-VSDD-059 P0 + TD-VSDD-060 P0 + TD-FACTORY-HOOK-BYPASS-001 P0 + TD-VSDD-054..063 (all OPEN) + TD-S309-O1/O2/O3/O4
+**Deferred TDs (carry-forward):** W3-FIX-S307-001/002/003 + TD-VSDD-082 + TD-S307-002/003/004 + TD-S-PLUGIN-PREREQ-A-002 P1 (sentinel-nil OrgId; W3-FIX-S307-002 dep) + TD-S-PLUGIN-PREREQ-A-003 P1 (WriteToolInvalidationMap runtime extensibility; PREREQ-E) + TD-S-PLUGIN-PREREQ-A-004 P1 (boot.rs step8 AdapterRegistry assertion; step8 wiring successor) + TD-VSDD-058 P0 + TD-VSDD-059 P0 + TD-VSDD-060 P0 + TD-FACTORY-HOOK-BYPASS-001 P0 + TD-VSDD-054..063 (all OPEN) + TD-S309-O1/O2/O3/O4
 
-**Current spec versions:** BC-INDEX v4.54, STORY-INDEX v2.34 (150 stories), ARCH-INDEX v2.40, ADR-022 v1.1, ADR-023 v1.18 (SUBSTANTIVE CONVERGENCE DECLARED 2026-05-10; v1.18 §C1 typo fix 2026-05-11), VP-INDEX v1.30 (152 VPs + VP-PLUGIN-001..007 aliases), DI-012 invariants.md v1.6, TS-PLUGIN-PARITY-001 v1.0, BC-2.16.004 v1.4 (deprecated), BC-2.01.013 v1.4 (amended), prd.md v1.10, S-PLUGIN-PREREQ-A v1.1, develop@c6dd6602; STATE v7.116 SESSION-HANDOFF v7.116 (current)
+**Current spec versions:** BC-INDEX v4.54, STORY-INDEX v2.34 (150 stories), ARCH-INDEX v2.40, ADR-022 v1.1, ADR-023 v1.18, VP-INDEX v1.30 (152 VPs + VP-PLUGIN-001..007 aliases), DI-012 invariants.md v1.6, TS-PLUGIN-PARITY-001 v1.0, BC-2.16.004 v1.4 (deprecated), BC-2.01.013 v1.4 (amended), prd.md v1.10, error-taxonomy.md v1.18 (E-QUERY-031 added), S-PLUGIN-PREREQ-A v1.1, develop@c6dd6602; STATE v7.117 SESSION-HANDOFF v7.117 (current)
 
 **Key files:** [SESSION-HANDOFF.md](SESSION-HANDOFF.md) | [cycle-manifest.md](cycles/wave-4-operations/cycle-manifest.md) | [HOLDOUT-INDEX.md](holdout-scenarios/HOLDOUT-INDEX.md)
 
