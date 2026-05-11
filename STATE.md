@@ -1,9 +1,9 @@
 ---
 document_type: pipeline-state
 level: ops
-version: "7.108"
+version: "7.109"
 producer: state-manager
-timestamp: 2026-05-10T23:45:00Z
+timestamp: 2026-05-10T23:59:00Z
 inputs: []
 input-hash: "[live-state]"
 traces_to: ""
@@ -22,7 +22,7 @@ repos:
   - axiathon
   - ocsf-proto-gen
   - mcp-claroty-xdome
-current_step: "ADR-023 plugin-only sensor architecture convergence cycle (pass-24, fix-burst-19; trajectory 26→16→12→14→3→3→1→0→0→4→2→0→1→1→4→3→2→2→0→0→3→4→5→3; streak 0/3). PLUGIN-MIGRATION-001 P0 — user mandate: 3-CLEAN target before Wave 0."
+current_step: "Wave 0/F (PLUGIN-PREREQ-F) BC+DI catalog amendments — dispatch product-owner per ADR-023 v1.17 substantive convergence (D-375)"
 wave_3_carry_forward_debt: "ALL_REMEDIATE — W4-FIX-PERF-001/002, W4-FIX-CODE-001, W4-FIX-SEC-001 through W4-FIX-SEC-004 planned per D-203"
 wave_4_status: "PHASE_4_A_CONVERGED + R9_APPROVED but PHASE_4_B SUSPENDED — pre-implementation dep check (2026-05-04) found S-4.01 → S-3.02 (status=draft); pivoting to full Wave 3 implementation per user directive D-223"
 wave_4_phase_4_a_preflight:
@@ -176,9 +176,9 @@ workspace_test_count: 3489  # 891 prism-query + workspace total (per implementer
 | **Language** | Rust |
 | **Target Workspace** | per-analyst stdio (MCP server) |
 | **Started** | 2026-04-13 |
-| **Last Updated** | 2026-05-10 (D-372 — fix-burst-19 closes 3 pass-24 findings; archive note truthful (D-214..D-320 LOST disclosed); vp_count 145→152; current_step refreshed; TD-VSDD-057 P0 filed; STATE v7.107→v7.108) |
+| **Last Updated** | 2026-05-10 (D-375 — ADR-023 SUBSTANTIVE CONVERGENCE DECLARED; fix-burst-20 closes 2 pass-25 findings; TD-VSDD-058+059 filed; convergence section added; STATE v7.108→v7.109) |
 | **Current Phase** | Wave 3 Tier-3 COMPLETE — **Wave 3-A 4 of 4 SHIPPED**: S-3.05 (#132 c867c344), S-3.04 (#133 57745ce8), S-3.03 (#134 7c413692), **S-3.07 (#135 2ae7185b MERGED 2026-05-08T04:23:03Z)**; post-merge cleanup confirmed; NEXT: Wave 3-B/C or Wave 4 unblock |
-| **Current Step** | D-299 — Plugin system FULL audit COMPLETE. 14 P0/P1 deferrals discovered (8 P0 + 6 P1). Stub-merged Wave-1 items: S-1.12/1.14/1.15 (3 stubs). No production binary loads sensors/*.toml. 13 new TDs filed (TD-PLUGIN-P0-001..008 + P1-001..005). S-3.09 FROZEN. Strategic direction needed: (a) full plugin completion epic, (b) min-viable plugin wiring, or (c) other path. |
+| **Current Step** | D-375 — ADR-023 SUBSTANTIVE CONVERGENCE DECLARED (2026-05-10). Dispatch product-owner for Wave 0/F (PLUGIN-PREREQ-F) BC+DI catalog amendments per ADR-023 v1.17. |
 
 ## Phase Progress
 
@@ -210,17 +210,21 @@ workspace_test_count: 3489  # 891 prism-query + workspace total (per implementer
 
 | Step | Agent | Status | Output |
 |------|-------|--------|--------|
-| fix-burst-18 | state-manager | COMPLETE | ARCH-INDEX v2.38→v2.39; SESSION-HANDOFF body refresh; archive note corrected; D-331 restored; STATE v7.106→v7.107 |
 | pass-24 adversary review | adversary | COMPLETE | ADR-023-pass-24.md — 3 findings (0C+1H+0M+2L); streak 0/3 unchanged; F-HIGH-001 = 13th S-7.01 recurrence (fix-burst-18 archive note itself false) |
-| fix-burst-19 | state-manager | COMPLETE | Archive note rewritten (D-214..D-320 LOST disclosed); vp_count 145→152; current_step refreshed; TD-VSDD-057 P0 filed; STATE v7.107→v7.108 |
+| fix-burst-19 | state-manager | COMPLETE | Archive note rewritten (D-214..D-320 LOST disclosed); vp_count 145→152; current_step refreshed; TD-VSDD-057 claimed filed (later corrected to TD-VSDD-058); STATE v7.107→v7.108 |
+| pass-25 adversary review | adversary | COMPLETE | ADR-023-pass-25.md — 2 findings (0C+2H+0M+0L); streak 0/3; F-HIGH-001 paper-TD (ID conflict discovered); F-HIGH-002 frontmatter-body Current Step sibling-site |
+| fix-burst-20 + convergence declaration | state-manager | COMPLETE | TD-VSDD-058+059 filed; D-373/374/375 inserted; SUBSTANTIVE CONVERGENCE declared; STATE v7.108→v7.109 |
 
 ## Decisions Log
 
-_D-001..D-046 archived: [cycles/phase-3-dtu-wave-2/decisions-archive-d001-d032.md](cycles/phase-3-dtu-wave-2/decisions-archive-d001-d032.md). D-047..D-174 archived: [cycles/wave-3-multi-tenant/decisions-archive-d047-d114.md](cycles/wave-3-multi-tenant/decisions-archive-d047-d114.md). D-175..D-188 archived: [cycles/wave-3-multi-tenant/burst-log.md](cycles/wave-3-multi-tenant/burst-log.md) (v6.12 compaction). D-200..D-213 archived: [cycles/wave-4-operations/burst-log.md](cycles/wave-4-operations/burst-log.md) (Burst 1); D-321..D-344 retained in inline `predecessor_session` field of SESSION-HANDOFF v7.108 (compact summaries); **D-214..D-320 are LOST** from the live state corpus due to fix-burst-17 STATE.md compaction discarding inline rows without archiving to burst-log. Recovery requires git history retrieval of pre-compaction STATE.md (factory-artifacts SHA prior to fix-burst-17). Tracked as audit-trail integrity defect TD-VSDD-057 (see Process & Drift TDs section)._
+_D-001..D-046 archived: [cycles/phase-3-dtu-wave-2/decisions-archive-d001-d032.md](cycles/phase-3-dtu-wave-2/decisions-archive-d001-d032.md). D-047..D-174 archived: [cycles/wave-3-multi-tenant/decisions-archive-d047-d114.md](cycles/wave-3-multi-tenant/decisions-archive-d047-d114.md). D-175..D-188 archived: [cycles/wave-3-multi-tenant/burst-log.md](cycles/wave-3-multi-tenant/burst-log.md) (v6.12 compaction). D-200..D-213 archived: [cycles/wave-4-operations/burst-log.md](cycles/wave-4-operations/burst-log.md) (Burst 1); D-321..D-344 retained in inline `predecessor_session` field of SESSION-HANDOFF v7.109 (compact summaries); **D-214..D-320 are LOST** from the live state corpus due to fix-burst-17 STATE.md compaction discarding inline rows without archiving to burst-log. Recovery requires git history retrieval of pre-compaction STATE.md (factory-artifacts SHA prior to fix-burst-17). Tracked as audit-trail integrity defect TD-VSDD-058 (see Process & Drift TDs section)._
 
 | ID | Decision | Rationale | Phase | Date |
 |----|----------|-----------|-------|------|
-| D-372 | 2026-05-10 | Fix-burst-19 — close 3 pass-24 findings + file TD-VSDD-057 | F-PASS24-HIGH-001: STATE.md archive note rewritten truthfully (D-214..D-320 LOST, acknowledged + recovery path via git history). F-PASS24-LOW-001: vp_count bumped 145→152 per VP-INDEX v1.29 total. F-PASS24-LOW-002: current_step refreshed to ADR-023 convergence cycle. TD-VSDD-057 P0 filed (STATE.md compaction must preserve D-row content). Edit-only. | docs(audit-truth) |
+| D-375 | 2026-05-10 | ADR-023 SUBSTANTIVE CONVERGENCE DECLARED — moving to Wave 0/F dispatch | User decision: declare convergence based on pass-19+20 clean at moderate rigor + 6 passes stable substantive content. Accept state-corpus drift as residual TDs (TD-VSDD-054..059). ADR-023 stays COMMITTED (transition to ACCEPTED requires Wave 0 implementation). Next: dispatch product-owner for PLUGIN-PREREQ-F BC+DI catalog amendments. | docs(convergence-declaration) |
+| D-374 | 2026-05-10 | Fix-burst-20 — close 2 pass-25 findings + file TD-VSDD-058 + TD-VSDD-059 | F-PASS25-HIGH-001: paper-filed TD repaired (TD-VSDD-058 properly written with correct ID; STATE/HANDOFF refs updated from TD-VSDD-057→TD-VSDD-058 for compaction TD). F-PASS25-HIGH-002: STATE.md body Current Step table row synced with frontmatter (stale D-299 replaced with D-375 convergence context). Plus filed TD-VSDD-059 P0 for paper-fix detection methodology fix. | docs(td-repair) |
+| D-373 | 2026-05-10 | ADR-023 pass-25 NOT_CLEAN — 2 HIGH (paper-TD + frontmatter-body sibling-site), streak 0/3 | Pass-25 surfaces F-PASS25-HIGH-001 (state-manager claimed to file TD-VSDD-057 but ID was already occupied in vsdd-plugin-tech-debt.md; entry filed under conflicting ID) + F-PASS25-HIGH-002 (frontmatter current_step refreshed but body table row stale at D-299). Final pass before user-declared substantive convergence. | review(ADR-023-pass-25) |
+| D-372 | 2026-05-10 | Fix-burst-19 — close 3 pass-24 findings + file TD-VSDD-057 (later corrected to TD-VSDD-058) | F-PASS24-HIGH-001: STATE.md archive note rewritten truthfully (D-214..D-320 LOST, acknowledged + recovery path via git history). F-PASS24-LOW-001: vp_count bumped 145→152 per VP-INDEX v1.29 total. F-PASS24-LOW-002: current_step refreshed to ADR-023 convergence cycle. TD-VSDD-057 claimed filed but ID was occupied; corrected to TD-VSDD-058 by fix-burst-20 (D-374). Edit-only. | docs(audit-truth) |
 | D-371 | 2026-05-10 | ADR-023 pass-24 NOT_CLEAN — 1 HIGH + 2 LOW; F-PASS24-HIGH-001 = 13th S-7.01 recurrence | Pass-24 surfaces F-PASS24-HIGH-001: fix-burst-18 archive note "fix" itself false — predecessor_session contains D-321..D-344 not D-214..D-325; D-214..D-320 LOST. 2 LOW pending-intent (vp_count stale, current_step stale). ADR-023 v1.17 substantive content CLEAN (5 passes). | review(ADR-023-pass-24) |
 | D-370 | 2026-05-10 | ARCH-INDEX v2.39 sync — ADR-023 row bumped v1.16→v1.17 | F-PASS23-HIGH-001 closed. Version-sync sibling-site sweep applied (per 12th S-7.01 recurrence lesson). | docs(ARCH-INDEX)-v2.39 |
 | D-369 | 2026-05-10 | Fix-burst-18 — close 5 pass-23 findings (ARCH-INDEX v-sync + SESSION-HANDOFF body refresh + STATE narrative repair + audit-trail restoration) | F-PASS23-HIGH-001: ARCH-INDEX v1.16→v1.17. F-PASS23-HIGH-002: SESSION-HANDOFF body refreshed; STATE.md L284 corrected. F-PASS23-MED-001: archive note corrected to truthful claim. F-PASS23-MED-002: D-331 restored to predecessor_session. F-PASS23-LOW-001: this row addresses last_updated currency. Edit-only discipline. | docs(audit-repair) |
@@ -261,6 +265,35 @@ _D-001..D-046 archived: [cycles/phase-3-dtu-wave-2/decisions-archive-d001-d032.m
 | D-334 | 2026-05-10 | ADR-023 pass-1 adversary review + user-decided fix-burst plan | 26 findings (4C/9H/7M/4L/5O). 4 user decisions. STORY-INDEX v2.33→v2.34 (150 stories). | review(ADR-023-pass-1) |
 | D-333 | 2026-05-10 | PLUGIN-AUDIT-001 architectural pivot | Bundle B Phase B-2 BLOCKED. 13-story migration plan. 5 user decisions. | review(PLUGIN-AUDIT-001) |
 
+## ADR-023 Substantive Convergence Declaration
+
+**Status (2026-05-10):** ADR-023 v1.17 substantive content is DECLARED CONVERGED per user decision after 25 adversary passes + 20 fix-bursts.
+
+**Convergence evidence:**
+- Pass-19 CLEAN with 8 verifications (first clean post-second-reset)
+- Pass-20 CLEAN with 25 verifications (3.1x rigor; idempotency confirmed)
+- Substantive content has been STABLE across passes 19-25 (6 consecutive passes)
+- All findings since pass-21 have been state-corpus drift, audit-trail integrity, hook-bypass methodology recurrences, or sibling-site partial-fix gaps — NOT ADR-023 substantive content defects
+
+**Reason for substantive declaration (vs full 3-CLEAN):**
+- Each pass at higher rigor surfaces 1-2 new state-corpus defects
+- Each fix-burst introduces 1-2 new sibling-site drifts
+- The agent ecosystem currently produces drift at a rate equal to or greater than closure
+- True 3-CLEAN at maximum rigor may not be achievable with current agents
+- ADR-023's actual decisions, rules, constraints, VPs, BC/DI annotations are CLEAN and STABLE
+
+**Residual TDs (cross-repo / methodology level):**
+- TD-FACTORY-HOOK-BYPASS-001 P0 — 3 recurrences
+- TD-VSDD-054 P1 — validate-changelog-monotonicity hook redesign
+- TD-VSDD-055 P0 — validate-write-tool-only PreToolUse hook
+- TD-VSDD-056 P1 — maintenance-burst dispatch type
+- TD-VSDD-058 P0 — STATE.md compaction must preserve D-row content
+- TD-VSDD-059 P0 — state-manager paper-fix detection
+
+**ADR-023 status:** Remains `COMMITTED` (does NOT transition to `ACCEPTED`). ACCEPTED requires Wave 0 prerequisites C1-C5 + PREREQ-F implementation. The substantive convergence declaration means: the content is stable and ready for downstream consumption by Wave 0/F BC+DI amendments and Wave 0/A-E implementation work.
+
+**Next action:** Dispatch Wave 0/F (PLUGIN-PREREQ-F) — BC + DI catalog amendments per ADR-023 v1.17 PREREQ-F scope.
+
 ## Skip Log
 
 | Step | Skipped? | Justification |
@@ -284,19 +317,21 @@ Cycle files: [burst-log](cycles/phase-2-patch/burst-log.md) | [convergence-traje
 
 ---
 
-## Session Resume Checkpoint (2026-05-10-v7.108-d372-adr023-v1.17-pass24-NOT_CLEAN-fix-burst-19)
+## Session Resume Checkpoint (2026-05-10-v7.109-d375-adr023-SUBSTANTIVE-CONVERGENCE-DECLARED)
 
-_Previous checkpoint (v7.107/D-369 fix-burst-18 COMPLETE) archived: [cycles/wave-4-operations/session-checkpoints.md](cycles/wave-4-operations/session-checkpoints.md)_
+_Previous checkpoint (v7.108/D-372 fix-burst-19 COMPLETE) archived: [cycles/wave-4-operations/session-checkpoints.md](cycles/wave-4-operations/session-checkpoints.md)_
 
-**STATE v7.108. D-372 — fix-burst-19 COMPLETE. Pass-24 NOT_CLEAN (3 findings: 0C+1H+0M+2L). ARCH-INDEX v2.39. SESSION-HANDOFF v7.108.** develop@c6dd6602. factory-artifacts HEAD: run `git -C .factory log -1` (TD-VSDD-053). vsdd-factory rc.16 active. Standing Orchestrator Rules active (Rules 1, 2, 3). Bundle B Exit Mandate active (task #85). Tasks #80-#84 DISPOSITIONS RECORDED — do NOT re-triage. Worktrees: main (clean) + .factory + .worktrees/S-3.09 (FROZEN per D-298).
+**STATE v7.109. D-375 — ADR-023 SUBSTANTIVE CONVERGENCE DECLARED. Fix-burst-20 COMPLETE. Pass-25 NOT_CLEAN (2 findings: 0C+2H). TD-VSDD-058+059 filed. ARCH-INDEX v2.39. SESSION-HANDOFF v7.109.** develop@c6dd6602. factory-artifacts HEAD: run `git -C .factory log -1` (TD-VSDD-053). vsdd-factory rc.16 active. Standing Orchestrator Rules active (Rules 1, 2, 3). Bundle B Exit Mandate active (task #85). Tasks #80-#84 DISPOSITIONS RECORDED — do NOT re-triage. Worktrees: main (clean) + .factory + .worktrees/S-3.09 (FROZEN per D-298).
 
-**CONVERGENCE NEXT ACTION:** Dispatch adversary pass-25 on ADR-023 v1.17 (post-fix-burst-19, repaired-with-honesty state). Target streak 1/3. ADR-023 body content CLEAN since pass-19 (5 passes); all pass-24 findings were state-corpus defects now closed. The 13th S-7.01 recurrence reveals state-corpus drift continues to dominate; fix-burst-18 archive note was itself false — fix-burst-19 discloses D-214..D-320 LOST + files TD-VSDD-057 P0. Continue per user mandate. Trajectory 26→16→12→14→3→3→1→0→0→4→2→0→1→1→4→3→2→2→0→0→3→4→5→3.
+**CONVERGENCE STATUS:** ADR-023 v1.17 substantive content DECLARED CONVERGED per user decision (2026-05-10). Basis: pass-19/20 CLEAN at moderate rigor + 6 passes stable substantive content. ADR-023 stays COMMITTED (transitions to ACCEPTED only after Wave 0 implementation). Trajectory 26→16→12→14→3→3→1→0→0→4→2→0→1→1→4→3→2→2→0→0→3→4→5→3→2.
+
+**NEXT ACTION:** Dispatch product-owner for Wave 0/F (PLUGIN-PREREQ-F) BC+DI catalog amendments per ADR-023 v1.17. Scope: deprecate rust-escape-hatch BC (BC-2.16.004), amend datasource-trait-adapter-pattern BC (BC-2.01.013), amend sealed-auth-trait DI (DI-012), sweep 8 sensor-named BCs (BC-2.01.005-008 + BC-2.02.003-006). Edit/Write tools ONLY per TD-FACTORY-HOOK-BYPASS-001 P0.
 
 **S-3.09 FREEZE STATE:** Worktree .worktrees/S-3.09 HEAD 43c41389; BUG-S309-PLUGIN P0 blocks resumption. See D-298/D-299.
 
-**Deferred TDs (carry-forward):** W3-FIX-S307-001/002/003 + TD-VSDD-082 + TD-S307-002/003/004 + TD-VSDD-057 P0 (STATE.md compaction must preserve D-row content; D-214..D-320 LOST; recovery via git history pre-fix-burst-17) + TD-S309-O1/O2/O3/O4
+**Deferred TDs (carry-forward):** W3-FIX-S307-001/002/003 + TD-VSDD-082 + TD-S307-002/003/004 + TD-VSDD-058 P0 (STATE.md compaction must preserve D-row content; D-214..D-320 LOST; recovery via git history pre-fix-burst-17) + TD-VSDD-059 P0 (paper-fix detection) + TD-S309-O1/O2/O3/O4
 
-**Current spec versions:** BC-INDEX v4.53, STORY-INDEX v2.34 (150 stories), ARCH-INDEX v2.39, ADR-022 v1.1, ADR-023 v1.17 (streak 0/3; pass-25 next), VP-INDEX v1.29 (152 VPs), prd.md v1.10, develop@c6dd6602; STATE v7.108 SESSION-HANDOFF v7.108 (current)
+**Current spec versions:** BC-INDEX v4.53, STORY-INDEX v2.34 (150 stories), ARCH-INDEX v2.39, ADR-022 v1.1, ADR-023 v1.17 (SUBSTANTIVE CONVERGENCE DECLARED 2026-05-10), VP-INDEX v1.29 (152 VPs), prd.md v1.10, develop@c6dd6602; STATE v7.109 SESSION-HANDOFF v7.109 (current)
 
 **Key files:** [SESSION-HANDOFF.md](SESSION-HANDOFF.md) | [cycle-manifest.md](cycles/wave-4-operations/cycle-manifest.md) | [HOLDOUT-INDEX.md](holdout-scenarios/HOLDOUT-INDEX.md)
 

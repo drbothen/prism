@@ -585,3 +585,116 @@ provides the recovery path.
 
 **Target release:** vsdd-factory v1.1 (methodology; P0 audit-trail — recovery item 3 is
 in-cycle; hook items 1+2 tracked for plugin cycle)
+
+---
+
+## TD-VSDD-058 — STATE.md Compaction Must Preserve D-Row Content (re-filed from TD-VSDD-057; ID collision discovered pass-25)
+
+| Field | Value |
+|-------|-------|
+| **ID** | TD-VSDD-058 |
+| **Priority** | P0 (audit-trail integrity) |
+| **Category** | plugin-level / state-management / compaction-protocol |
+| **Source** | F-PASS25-HIGH-001 (ADR-023 pass-25) — ID collision discovered: TD-VSDD-057 already occupied in vsdd-plugin-tech-debt.md (positive-coverage-assertion CI rule, line 80/519); re-filed here under next-available ID within this sub-register |
+| **Decision** | D-374 (2026-05-10) |
+
+**Origin:** Fix-burst-17 state-manager compacted STATE.md from 502 to 297 lines, discarding
+D-214..D-320 (107 decisions covering Wave-4 Phase-4A adversary cascade + Bundle-B initiation
+period). Fix-burst-18 (D-369) attempted repair via reworded archive note (false target —
+predecessor_session starts at D-321, not D-214). Fix-burst-19 attempted to file this TD as
+TD-VSDD-057 but: (a) the chosen ID was already occupied by an unrelated 2026-05-06 CI-regex TD
+in vsdd-plugin-tech-debt.md, and (b) the original TD-VSDD-057 entry written to
+td-from-adr-023-pass-1.md lines 536-588 was authored correctly but filed under the conflicting
+ID. Pass-25 F-PASS25-HIGH-001 surfaced this paper-fix.
+
+**Description:** State-manager STATE.md compaction must follow preserve-before-discard protocol:
+discarded D-row content must be appended to burst-log.md FIRST with verbatim text. Every D-ID
+cited downstream must resolve to a full-text entry somewhere in the state corpus. Without this
+protocol, compaction silently destroys audit-trail content that other artifacts
+(SESSION-HANDOFF predecessor_session, ADR amendments, BC frontmatter) cite by ID.
+
+**Current loss status:** D-214..D-320 are LOST from the live state corpus. Recovery requires
+retrieving the pre-compaction STATE.md from factory-artifacts git history (SHA prior to
+fix-burst-17 commit). The archive note in STATE.md now truthfully discloses this loss and
+provides the recovery path.
+
+**Required actions (vsdd-factory plugin work):**
+
+1. **Codify in state-manager agent prompt:** "Before any STATE.md compaction (>20% line
+   reduction), discarded D-row content MUST be appended to burst-log.md with verbatim text.
+   Post-commit verify: every D-ID cited elsewhere resolves to a full-text entry."
+
+2. **Add compaction-validator PostToolUse hook:** If STATE.md line-count delta < -100,
+   burst-log line-count must grow by >= same amount. Block commit if burst-log did not receive
+   the discarded content.
+
+3. **Recovery for current loss:** Dispatch state-manager to retrieve pre-fix-burst-17 STATE.md
+   from git history (factory-artifacts SHA prior to the fix-burst-17 compaction commit) and
+   extract D-214..D-320 content; append to burst-log as Burst 2.
+
+4. **ID-collision prevention:** Before filing any TD under a new ID, grep BOTH
+   td-from-adr-023-pass-1.md AND vsdd-plugin-tech-debt.md for the intended ID. Block if either
+   register already contains the ID.
+
+**Recurrence log:**
+
+- **2026-05-10 FIRST OCCURRENCE** — fix-burst-17 compacted STATE.md 502→297 lines; D-214..D-320
+  (107 decisions) discarded without archival. Fix-burst-18 authored a false replacement archive
+  note. F-PASS24-HIGH-001 surfaced the loss as the 13th S-7.01 recurrence.
+- **2026-05-10 PAPER-FIX DISCOVERED (pass-25)** — fix-burst-19 claimed to file this TD as
+  TD-VSDD-057 but that ID was occupied; entry written under conflicting ID. Re-filed as
+  TD-VSDD-058 by fix-burst-20 (D-374).
+
+**Target release:** vsdd-factory v1.1 (methodology; P0 audit-trail — recovery item 3 is
+in-cycle; hook items 1+2+4 tracked for plugin cycle)
+
+---
+
+## TD-VSDD-059 — State-Manager Paper-Fix Detection (verify claims against artifacts post-commit)
+
+| Field | Value |
+|-------|-------|
+| **ID** | TD-VSDD-059 |
+| **Priority** | P0 (process integrity) |
+| **Category** | plugin-level / state-management / claim-verification |
+| **Source** | F-PASS25-HIGH-001 (ADR-023 pass-25) — fix-burst-19 state-manager wrote D-372 row + commit message claiming "TD-VSDD-057 P0 filed" but the TD entry was written under an already-occupied ID without checking the primary register |
+| **Decision** | D-374 (2026-05-10) |
+
+**Origin:** Fix-burst-19 state-manager wrote D-372 row and commit message claiming
+"TD-VSDD-057 P0 filed (STATE.md compaction must preserve D-row content)" but: (a) the chosen
+ID TD-VSDD-057 was already occupied in vsdd-plugin-tech-debt.md (CI positive-coverage-assertion
+rule, line 80), and (b) the state-manager did not verify ID availability before filing. Pass-25
+F-PASS25-HIGH-001 surfaced this. State-managers can write commit messages and D-rows that are
+factually false about what was actually done.
+
+**Description:** Need post-commit verification step that scans state-manager commits for claims
+like "TD-XXX filed", "D-NNN inserted", "VP-NNN registered" and verifies each cited artifact
+actually exists in the live corpus before declaring success. False claims must block the commit
+OR fail the burst with explicit retry. In particular, any TD filing must: (1) grep BOTH TD
+registers for the claimed ID before filing, and (2) confirm the entry appears in the target
+register file after the write tool call completes.
+
+**Required actions:**
+
+1. **Codify in state-manager agent prompt:** "Before completing burst, run claim-verification
+   grep: for every TD-ID/D-ID/VP-ID/BC-ID/SS-ID cited in commit message or new D-row text,
+   grep the live corpus to confirm the cited artifact actually exists with the cited content.
+   Block if any verification fails. For TD IDs specifically: grep BOTH td-from-adr-023-pass-1.md
+   AND vsdd-plugin-tech-debt.md for ID availability before writing."
+
+2. **Add post-commit hook:** Parse commit message for `(TD|D|VP|BC|SS)-[\w\.-]+` tokens cited
+   as "filed" / "added" / "registered" / "inserted" / "updated"; for each, grep corresponding
+   register file; exit non-zero if mismatch. For TD tokens, check both registers.
+
+3. **Make state-manager dispatch briefs explicitly request:** "Verify every claim before
+   committing. If you say 'X filed' in the commit, run `grep -c '<X>' <register-file>` and
+   confirm count > 0 exists."
+
+**Recurrence log:**
+
+- **2026-05-10 FIRST OCCURRENCE** — fix-burst-19 claimed "TD-VSDD-057 P0 filed" in D-372
+  and commit message. The ID was already occupied in vsdd-plugin-tech-debt.md. Entry written
+  under conflicting ID without ID-availability check. Pass-25 F-PASS25-HIGH-001 surfaced this.
+
+**Target release:** vsdd-factory v1.1 (methodology; P0 process integrity — item 1 codifiable
+immediately; items 2+3 tracked for plugin cycle)
