@@ -387,6 +387,30 @@ mod tests {
         );
     }
 
+    /// BC-2.01.013 postcondition: `Borrow<str>` enables `HashMap<SensorId, _>::get(&str)`.
+    ///
+    /// Exercises AC-9(b): a `HashMap<SensorId, V>` must be queryable with a bare `&str`
+    /// key without constructing a `SensorId`. This verifies that the `Borrow<str>` impl
+    /// satisfies the `K: Borrow<Q>` bound used by `HashMap::get`.
+    #[test]
+    fn test_BC_2_01_013_004_sensor_id_borrow_str_lookup() {
+        use std::collections::HashMap;
+        let mut map: HashMap<SensorId, u32> = HashMap::new();
+        map.insert(SensorId::from("armis"), 42);
+
+        // AC-9(b): Borrow<str> must enable HashMap<SensorId, _>::get(&str)
+        assert_eq!(
+            map.get("armis").copied(),
+            Some(42),
+            "Borrow<str> impl must allow HashMap lookup via &str without constructing SensorId"
+        );
+        assert_eq!(
+            map.get("crowdstrike"),
+            None,
+            "non-inserted key returns None"
+        );
+    }
+
     // ---------------------------------------------------------------------------
     // Validation tests (S-PLUGIN-PREREQ-A / F-LP1-HIGH-005)
     // ---------------------------------------------------------------------------
