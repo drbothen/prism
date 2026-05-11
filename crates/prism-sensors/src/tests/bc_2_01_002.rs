@@ -17,7 +17,7 @@
 //!
 //! Story: S-2.06 | BC: BC-2.01.002
 
-use prism_core::types::SensorType;
+use prism_core::SensorId;
 
 use crate::adapter::SensorError;
 use crate::fanout::{error_to_retry_metadata, MAX_FANOUT_CONCURRENCY};
@@ -55,7 +55,7 @@ fn test_BC_2_01_002_fan_out_target_fields_accessible() {
     let target = FanOutTarget {
         org_id: prism_core::OrgId::new(),
         client_id: "acme".into(),
-        sensor_type: SensorType::CrowdStrike,
+        sensor_id: SensorId::from("crowdstrike"),
         spec: SensorSpec {
             org_id: prism_core::OrgId::new(),
             source_table: "crowdstrike_alert".into(),
@@ -67,7 +67,7 @@ fn test_BC_2_01_002_fan_out_target_fields_accessible() {
 
     #[allow(deprecated)]
     let _ = assert_eq!(target.client_id, "acme");
-    assert_eq!(target.sensor_type, SensorType::CrowdStrike);
+    assert_eq!(target.sensor_id, SensorId::from("crowdstrike"));
     assert_eq!(target.spec.source_table, "crowdstrike_alert");
 
     // Clone round-trip
@@ -173,13 +173,13 @@ async fn test_BC_2_01_002_fan_out_six_targets_all_succeed() {
 
     // Stub adapter that always returns one empty RecordBatch
     struct AlwaysOkAdapter {
-        sensor_type: SensorType,
+        sensor_id: SensorId,
     }
 
     #[async_trait]
     impl SensorAdapter for AlwaysOkAdapter {
-        fn sensor_type(&self) -> SensorType {
-            self.sensor_type
+        fn sensor_type(&self) -> SensorId {
+            self.sensor_id.clone()
         }
         fn sensor_name(&self) -> &'static str {
             "stub-ok"
@@ -203,7 +203,7 @@ async fn test_BC_2_01_002_fan_out_six_targets_all_succeed() {
         fn resolve(
             &self,
             _client_id: &str,
-            _sensor_type: SensorType,
+            _sensor_id: SensorId,
         ) -> Result<Box<dyn SensorAuth>, SensorError> {
             use secrecy::SecretString;
             Ok(Box::new(crate::auth::CrowdStrikeAuth {
@@ -225,27 +225,27 @@ async fn test_BC_2_01_002_fan_out_six_targets_all_succeed() {
     registry.register(
         shared_org_id,
         Arc::new(AlwaysOkAdapter {
-            sensor_type: SensorType::CrowdStrike,
+            sensor_id: SensorId::from("crowdstrike"),
         }),
     );
     registry.register(
         shared_org_id,
         Arc::new(AlwaysOkAdapter {
-            sensor_type: SensorType::Armis,
+            sensor_id: SensorId::from("armis"),
         }),
     );
 
     // 3 clients × 2 sensors = 6 targets
     let clients = ["acme", "globex", "initech"];
-    let sensors = [SensorType::CrowdStrike, SensorType::Armis];
+    let sensors = [SensorId::from("crowdstrike"), SensorId::from("armis")];
     #[allow(deprecated)]
     let targets: Vec<FanOutTarget> = clients
         .iter()
         .flat_map(|&client_id| {
-            sensors.iter().map(move |&sensor_type| FanOutTarget {
+            sensors.iter().map(move |sensor_type| FanOutTarget {
                 org_id: shared_org_id,
                 client_id: client_id.into(),
-                sensor_type,
+                sensor_id: sensor_type.clone(),
                 spec: SensorSpec {
                     org_id: shared_org_id,
                     source_table: format!("{sensor_type}_alert"),
@@ -292,7 +292,7 @@ async fn test_BC_2_01_002_fan_out_empty_targets_returns_empty_result() {
         fn resolve(
             &self,
             _client_id: &str,
-            _sensor_type: SensorType,
+            _sensor_id: SensorId,
         ) -> Result<Box<dyn crate::auth::SensorAuth>, SensorError> {
             Err(SensorError::Internal {
                 detail: "unreachable".into(),

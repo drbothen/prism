@@ -21,7 +21,7 @@ use arrow::datatypes::{DataType, Field, Schema};
 use arrow::record_batch::RecordBatch;
 use async_trait::async_trait;
 use chrono::{DateTime, Utc};
-use prism_core::types::SensorType;
+use prism_core::SensorId;
 use reqwest::Client;
 use secrecy::{ExposeSecret, SecretString};
 
@@ -555,8 +555,8 @@ impl ArmisAdapter {
 
 #[async_trait]
 impl SensorAdapter for ArmisAdapter {
-    fn sensor_type(&self) -> SensorType {
-        SensorType::Armis
+    fn sensor_type(&self) -> SensorId {
+        SensorId::from("armis")
     }
 
     fn sensor_name(&self) -> &'static str {

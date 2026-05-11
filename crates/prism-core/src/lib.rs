@@ -16,7 +16,8 @@
 //! - [`column::ColumnOptions`] — spec-engine column options (S-1.11)
 //! - [`column::ColumnType`] — spec-engine column type enum (S-1.11)
 //! - [`types::ClientId`], [`types::AnalystId`], [`types::SeverityId`]
-//! - [`types::Timestamp`], [`types::SensorType`], [`types::ColumnType`]
+//! - [`types::Timestamp`], [`types::ColumnType`]
+//! - [`sensor_id::SensorId`] — open newtype identifying a sensor by string key (ADR-023 §C1)
 //! - [`cache::CacheBackend`] — subset of StorageBackend (get/set/execute)
 //! - [`config::ConfigSnapshot`] — opaque config snapshot shell
 //! - [`telemetry::TracingConfig`], [`telemetry::init_tracing`]
@@ -75,6 +76,9 @@ pub mod dtu;
 // ── S-3.1.03 additions ───────────────────────────────────────────────────────
 pub mod org_registry;
 
+// ── S-PLUGIN-PREREQ-A additions ──────────────────────────────────────────────
+pub mod sensor_id;
+
 // ── Kani proofs (cfg-gated; compile everywhere, run only under cargo kani) ───
 pub mod proofs;
 
@@ -97,7 +101,7 @@ pub use tenant::OrgSlug;
 #[allow(deprecated)]
 pub use tenant::TenantId;
 pub use trust::TrustLevel;
-pub use types::{AnalystId, ClientId, SensorType, SeverityId, Timestamp};
+pub use types::{AnalystId, ClientId, SeverityId, Timestamp};
 
 // S-1.02
 pub use alert::AlertSeverity;
@@ -129,3 +133,6 @@ pub use dtu::{DtuMode, DtuRegistryEntry, DTU_DEFAULT_MODE};
 
 // S-3.1.03
 pub use org_registry::{OrgRegistry, RegistrationError};
+
+// S-PLUGIN-PREREQ-A
+pub use sensor_id::SensorId;

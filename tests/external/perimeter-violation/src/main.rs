@@ -59,6 +59,15 @@
 //!            S-3.06 BC-2.11.006 v1.16 INV-SEC-PERIMETER-001;
 //!            S-3.04 local adversary pass-1 F-HIGH-003.
 
+// ── S-PLUGIN-PREREQ-A AC-6 / VP-PLUGIN-001: SensorType perimeter ────────────
+//
+// The closed `SensorType` enum was deleted in S-PLUGIN-PREREQ-A (ADR-023 §C1).
+// This import MUST fail to compile — any attempt to re-introduce `pub enum SensorType`
+// in prism-core would need to pass this assertion to be detectable by CI.
+//
+// Expected error: E0432 "unresolved import `prism_core::SensorType`"
+use prism_core::SensorType;
+
 // ── Sub-parser entry points ──────────────────────────────────────────────────
 
 // `parse_filter` is `pub(crate)` — forbidden from external crates.
@@ -245,4 +254,10 @@ fn main() {
     // Expected error: E0624 "method `create_or_update` is private"
     // The method-reference form forces the visibility check even when unreachable.
     let _ = AliasStore::create_or_update;
+
+    // S-PLUGIN-PREREQ-A AC-6 / VP-PLUGIN-001: SensorType perimeter reference.
+    // Unreachable due to compile failures above, but forces the E0432 error
+    // for SensorType to be emitted by the compiler even if import elision occurs.
+    // CI grep: `E0432.*SensorType` must appear in `cargo check -p perimeter-violation` stderr.
+    let _: Option<SensorType> = None;
 }

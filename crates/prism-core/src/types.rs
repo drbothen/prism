@@ -62,32 +62,6 @@ pub struct SeverityId(pub u32);
 #[serde(transparent)]
 pub struct Timestamp(pub DateTime<Utc>);
 
-/// Enumeration of first-class sensor types.
-///
-/// Lives in prism-core to avoid circular dependency: error variants and
-/// prism-query virtual fields reference sensor types; sensor adapters are
-/// implemented in prism-sensors (S-2.06).
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, Serialize, Deserialize)]
-#[serde(rename_all = "snake_case")]
-pub enum SensorType {
-    CrowdStrike,
-    Cyberint,
-    Claroty,
-    Armis,
-}
-
-impl std::fmt::Display for SensorType {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        let s = match self {
-            SensorType::CrowdStrike => "crowdstrike",
-            SensorType::Cyberint => "cyberint",
-            SensorType::Claroty => "claroty",
-            SensorType::Armis => "armis",
-        };
-        write!(f, "{s}")
-    }
-}
-
 /// Column type used by `InternalTableDescriptor` (S-2.03) for schema
 /// definitions without an Arrow dependency.
 ///

@@ -26,7 +26,7 @@ use std::sync::Arc;
 
 use arrow::record_batch::RecordBatch;
 use async_trait::async_trait;
-use prism_core::{types::SensorType, OrgId};
+use prism_core::{OrgId, SensorId};
 use prism_sensors::{
     adapter::{QueryParams, SensorAdapter, SensorError, SensorSpec},
     auth::SensorAuth,
@@ -44,8 +44,8 @@ struct NoopAdapter;
 
 #[async_trait]
 impl SensorAdapter for NoopAdapter {
-    fn sensor_type(&self) -> SensorType {
-        SensorType::CrowdStrike
+    fn sensor_type(&self) -> SensorId {
+        SensorId::from("crowdstrike")
     }
     fn sensor_name(&self) -> &'static str {
         "noop"
@@ -65,7 +65,7 @@ impl CredentialResolver for StubCreds {
     fn resolve(
         &self,
         _client_id: &str,
-        _sensor_type: SensorType,
+        _sensor_id: SensorId,
     ) -> Result<Box<dyn SensorAuth>, SensorError> {
         Ok(Box::new(prism_sensors::auth::CrowdStrikeAuth {
             client_id: "stub".into(),
@@ -120,7 +120,7 @@ async fn test_BC_3_2_001_precon4_matched_org_ids_fan_out_succeeds() {
     let target = FanOutTarget {
         org_id: org,
         client_id: "acme".to_owned(),
-        sensor_type: SensorType::CrowdStrike,
+        sensor_id: SensorId::from("crowdstrike"),
         spec: make_spec(org), // spec.org_id == target.org_id
         params: QueryParams::default(),
     };
@@ -171,7 +171,7 @@ async fn test_BC_3_2_001_precon4_mismatched_org_ids_assert_fires_in_debug() {
     let target = FanOutTarget {
         org_id: org_target,
         client_id: "acme".to_owned(),
-        sensor_type: SensorType::CrowdStrike,
+        sensor_id: SensorId::from("crowdstrike"),
         spec: make_spec(org_spec), // spec.org_id = org_b ≠ target.org_id = org_a
         params: QueryParams::default(),
     };

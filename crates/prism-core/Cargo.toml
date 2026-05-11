@@ -27,6 +27,7 @@ regex = "1"
 tempfile = "3"
 proptest = "1"
 uuid = { version = "1", features = ["v7"] }
+prism-spec-engine = { path = "../prism-spec-engine", version = "0.5.0" }
 
 [[test]]
 name = "ac_1_tenant_id_rejects_empty"
@@ -75,6 +76,10 @@ path = "tests/bc_3_7_001_check_crate_layout_test.rs"
 [[test]]
 name = "bc_3_1_003_org_registry"
 path = "tests/bc_3_1_003_org_registry.rs"
+
+[[test]]
+name = "sensor_id_validator_parity"
+path = "tests/sensor_id_validator_parity.rs"
 
 [lints.rust]
 # From workspace lints — must be re-stated when not using workspace = true

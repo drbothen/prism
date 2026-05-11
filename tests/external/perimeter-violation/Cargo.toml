@@ -20,6 +20,7 @@ publish = false
 
 [dependencies]
 prism-query = { path = "../../../crates/prism-query" }
+prism-core = { path = "../../../crates/prism-core" }
 
 # Empty workspace table: opts this crate out of the parent workspace resolver
 # so it can be compiled standalone (required for the CI compile-fail pattern).

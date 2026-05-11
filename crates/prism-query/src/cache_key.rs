@@ -31,10 +31,11 @@ use std::collections::BTreeMap;
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
 
-/// Sensor identifier (e.g., `"crowdstrike"`, `"armis"`).
-///
-/// First-class key component enabling prefix-scan invalidation.
-pub type SensorId = String;
+// Re-export the validated newtype so callers that import from this module can
+// use `cache_key::SensorId` without a separate `prism_core` import.  The alias
+// is removed — `SensorId` is now the full validated newtype and the cache layer
+// enforces `validate_sensor_id_string` through every construction path.
+pub use prism_core::SensorId;
 
 /// Data source identifier within a sensor (e.g., `"crowdstrike_detections"`).
 ///
@@ -102,7 +103,13 @@ impl PushDownParams {
 pub struct CacheKey {
     /// Tenant / client scope. First-class key component (not hashed).
     pub client_id: String,
-    /// Sensor identifier (e.g. `"crowdstrike"`). First-class key component.
+    /// Validated sensor identifier (e.g. `"crowdstrike"`). First-class key component.
+    ///
+    /// Typed as `prism_core::SensorId` — the validated newtype — so the cache layer
+    /// enforces the same `validate_sensor_id_string` invariant as the adapter layer.
+    /// Accepts only strings matching `^[a-z][a-z0-9_-]{0,63}$` with no leading/trailing
+    /// `-` or `_` (BC-2.01.013). Construction via `SensorId::from("literal")` (trusted)
+    /// or `SensorId::try_from_str(s)?` (untrusted input).
     pub sensor_id: SensorId,
     /// Data source identifier (e.g. `"crowdstrike_detections"`). First-class.
     pub source_id: SourceId,
@@ -134,7 +141,7 @@ impl CacheKey {
     /// language is from a prior revision (CR-001).
     pub fn derive(
         client_id: impl Into<String>,
-        sensor_id: impl Into<String>,
+        sensor_id: impl Into<SensorId>,
         source_id: impl Into<String>,
         params: &PushDownParams,
     ) -> Self {
@@ -206,7 +213,7 @@ impl CacheKey {
     /// GREEN-BY-DESIGN: returns a tuple of cloned string references.
     /// Zero branching, no I/O, no helpers, 1 line.
     pub fn prefix(&self) -> (&str, &str, &str) {
-        (&self.client_id, &self.sensor_id, &self.source_id)
+        (&self.client_id, self.sensor_id.as_ref(), &self.source_id)
     }
 
     /// Access the `push_down_hash` field (read-only accessor).
@@ -328,7 +335,7 @@ mod tests {
     fn test_cache_key_prefix_returns_three_tuple() {
         let key = CacheKey {
             client_id: "acme".to_string(),
-            sensor_id: "crowdstrike".to_string(),
+            sensor_id: SensorId::from("crowdstrike"),
             source_id: "crowdstrike_detections".to_string(),
             push_down_hash: "a".repeat(64),
         };

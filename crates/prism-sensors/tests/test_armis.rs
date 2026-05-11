@@ -404,7 +404,7 @@ async fn test_BC_2_01_008_absent_aql_query_uses_default_template_with_table() {
 /// `init_registry_for_org`.
 #[test]
 fn test_BC_2_01_008_init_registry_registers_armis_adapter() {
-    use prism_core::types::SensorType;
+    use prism_core::SensorId;
     use prism_sensors::{init_registry, ArmisAuth, ClarotyAuth, CrowdStrikeAuth, CyberintAuth};
     use secrecy::SecretString;
 
@@ -442,19 +442,21 @@ fn test_BC_2_01_008_init_registry_registers_armis_adapter() {
     // Callers must migrate to init_registry_for_org to use a real OrgId (AC-005).
     let nil_org = prism_sensors::OrgId::from_uuid(uuid::Uuid::nil());
     assert!(
-        registry.get(nil_org, SensorType::CrowdStrike).is_some(),
+        registry
+            .get(nil_org, &SensorId::from("crowdstrike"))
+            .is_some(),
         "init_registry must register CrowdStrikeAdapter"
     );
     assert!(
-        registry.get(nil_org, SensorType::Cyberint).is_some(),
+        registry.get(nil_org, &SensorId::from("cyberint")).is_some(),
         "init_registry must register CyberintAdapter"
     );
     assert!(
-        registry.get(nil_org, SensorType::Claroty).is_some(),
+        registry.get(nil_org, &SensorId::from("claroty")).is_some(),
         "init_registry must register ClarotyAdapter"
     );
     assert!(
-        registry.get(nil_org, SensorType::Armis).is_some(),
+        registry.get(nil_org, &SensorId::from("armis")).is_some(),
         "init_registry must register ArmisAdapter"
     );
 }

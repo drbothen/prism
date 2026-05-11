@@ -18,11 +18,10 @@
 //!
 //! Story: S-3.05
 
-use std::sync::Arc;
+use std::sync::{Arc, LazyLock};
 
 use prism_core::error::PrismError;
-use prism_core::types::SensorType;
-use prism_core::OrgSlug;
+use prism_core::{OrgSlug, SensorId};
 
 use crate::cache::QueryCache;
 
@@ -34,63 +33,72 @@ use crate::cache::QueryCache;
 /// invalidates, per BC-2.07.004 §Write Tool to source_id Mapping.
 ///
 /// Each adapter MUST register its write tools here — omitting a mapping is a bug.
+///
+/// `sensor_id` is a `SensorId` (open newtype) — replaces the previous
+/// `sensor_name: &'static str` field (S-PLUGIN-PREREQ-A / F-LP1-MED-003).
 #[derive(Debug, Clone)]
 pub struct WriteToolInvalidationMap {
     /// Tool name (e.g., `"crowdstrike_contain_host"`).
     pub tool_name: &'static str,
     /// source_id values to invalidate (e.g., `&["crowdstrike_hosts", "crowdstrike_detections"]`).
     pub source_ids: &'static [&'static str],
-    /// The sensor that owns this write tool.
-    pub sensor_type: SensorType,
+    /// Sensor identity — the owning sensor for this write tool.
+    /// Use `entry.sensor_id == *probe_sensor_id` for lookup comparisons.
+    pub sensor_id: SensorId,
 }
 
-/// Full static mapping of all write tools to their invalidation targets.
+/// Lazily-initialized mapping of all write tools to their invalidation targets.
 ///
-/// BC-2.07.004 §Write Tool to source_id Mapping (authoritative table).
-/// `configure_credential_source` and `delete_credential` are excluded — they
-/// do not invalidate sensor cache entries.
-pub static WRITE_TOOL_INVALIDATION_MAP: &[WriteToolInvalidationMap] = &[
-    WriteToolInvalidationMap {
-        tool_name: "crowdstrike_contain_host",
-        source_ids: &["crowdstrike_hosts", "crowdstrike_detections"],
-        sensor_type: SensorType::CrowdStrike,
-    },
-    WriteToolInvalidationMap {
-        tool_name: "crowdstrike_acknowledge_alert",
-        source_ids: &["crowdstrike_alerts", "crowdstrike_detections"],
-        sensor_type: SensorType::CrowdStrike,
-    },
-    WriteToolInvalidationMap {
-        tool_name: "cyberint_acknowledge_alert",
-        source_ids: &["cyberint_alerts"],
-        sensor_type: SensorType::Cyberint,
-    },
-    WriteToolInvalidationMap {
-        tool_name: "cyberint_close_alert",
-        source_ids: &["cyberint_alerts"],
-        sensor_type: SensorType::Cyberint,
-    },
-    WriteToolInvalidationMap {
-        tool_name: "claroty_resolve_alert",
-        source_ids: &["claroty_alerts"],
-        sensor_type: SensorType::Claroty,
-    },
-    WriteToolInvalidationMap {
-        tool_name: "claroty_device_action",
-        source_ids: &["claroty_devices"],
-        sensor_type: SensorType::Claroty,
-    },
-    WriteToolInvalidationMap {
-        tool_name: "armis_update_alert_status",
-        source_ids: &["armis_alerts"],
-        sensor_type: SensorType::Armis,
-    },
-    WriteToolInvalidationMap {
-        tool_name: "armis_device_action",
-        source_ids: &["armis_devices"],
-        sensor_type: SensorType::Armis,
-    },
-];
+/// Currently populated with the four built-in sensors (crowdstrike, cyberint,
+/// claroty, armis). The `Vec` shape (not `&[...]` static slice) is a forward-
+/// compatibility choice — runtime extensibility for plugin-registered write tools
+/// requires additional infrastructure (RwLock + register API); that work is
+/// deferred to PREREQ-E (see TD-S-PLUGIN-PREREQ-A-003 P1).
+pub static WRITE_TOOL_INVALIDATION_MAP: LazyLock<Vec<WriteToolInvalidationMap>> =
+    LazyLock::new(|| {
+        vec![
+            WriteToolInvalidationMap {
+                tool_name: "crowdstrike_contain_host",
+                source_ids: &["crowdstrike_hosts", "crowdstrike_detections"],
+                sensor_id: SensorId::from("crowdstrike"),
+            },
+            WriteToolInvalidationMap {
+                tool_name: "crowdstrike_acknowledge_alert",
+                source_ids: &["crowdstrike_alerts", "crowdstrike_detections"],
+                sensor_id: SensorId::from("crowdstrike"),
+            },
+            WriteToolInvalidationMap {
+                tool_name: "cyberint_acknowledge_alert",
+                source_ids: &["cyberint_alerts"],
+                sensor_id: SensorId::from("cyberint"),
+            },
+            WriteToolInvalidationMap {
+                tool_name: "cyberint_close_alert",
+                source_ids: &["cyberint_alerts"],
+                sensor_id: SensorId::from("cyberint"),
+            },
+            WriteToolInvalidationMap {
+                tool_name: "claroty_resolve_alert",
+                source_ids: &["claroty_alerts"],
+                sensor_id: SensorId::from("claroty"),
+            },
+            WriteToolInvalidationMap {
+                tool_name: "claroty_device_action",
+                source_ids: &["claroty_devices"],
+                sensor_id: SensorId::from("claroty"),
+            },
+            WriteToolInvalidationMap {
+                tool_name: "armis_update_alert_status",
+                source_ids: &["armis_alerts"],
+                sensor_id: SensorId::from("armis"),
+            },
+            WriteToolInvalidationMap {
+                tool_name: "armis_device_action",
+                source_ids: &["armis_devices"],
+                sensor_id: SensorId::from("armis"),
+            },
+        ]
+    });
 
 // ---------------------------------------------------------------------------
 // CacheInvalidator
@@ -114,11 +122,11 @@ impl CacheInvalidator {
     }
 
     /// Invalidate all cache entries for all `source_id` values associated with
-    /// `sensor_type` for `client_id`.
+    /// `sensor_id` for `client_id`.
     ///
     /// Called from write tool handlers that modify sensor data (BC-2.07.004).
     ///
-    /// Performs one prefix-scan per affected `source_id`. If the `sensor_type`
+    /// Performs one prefix-scan per affected `source_id`. If the `sensor_id`
     /// has no entries in `WRITE_TOOL_INVALIDATION_MAP`, this is a no-op.
     ///
     /// Returns `Ok(n)` where `n` is the total number of entries evicted across all
@@ -130,15 +138,15 @@ impl CacheInvalidator {
     pub fn invalidate_for_sensor(
         &self,
         client_id: &OrgSlug,
-        sensor_type: SensorType,
+        sensor_id: &SensorId,
     ) -> Result<usize, PrismError> {
-        let sensor_name = sensor_type.to_string();
+        let sensor_name = sensor_id.as_ref();
         let client_str = client_id.as_str();
 
-        // Collect all unique source_ids for this sensor type from the map.
+        // Collect all unique source_ids for this sensor from the map.
         let mut sources_to_invalidate: Vec<&'static str> = Vec::new();
-        for entry in WRITE_TOOL_INVALIDATION_MAP {
-            if entry.sensor_type == sensor_type {
+        for entry in WRITE_TOOL_INVALIDATION_MAP.iter() {
+            if entry.sensor_id == *sensor_id {
                 for &source_id in entry.source_ids {
                     if !sources_to_invalidate.contains(&source_id) {
                         sources_to_invalidate.push(source_id);
@@ -152,7 +160,7 @@ impl CacheInvalidator {
         for source_id in sources_to_invalidate {
             let n = self
                 .cache
-                .invalidate_by_prefix(client_str, &sensor_name, source_id)?;
+                .invalidate_by_prefix(client_str, sensor_name, source_id)?;
             total_evicted = total_evicted.saturating_add(n);
         }
 
@@ -185,13 +193,13 @@ impl CacheInvalidator {
         })?;
 
         let client_str = client_id.as_str();
-        let sensor_name = entry.sensor_type.to_string();
+        let sensor_name = entry.sensor_id.as_ref();
 
         let mut total_evicted: usize = 0;
         for &source_id in entry.source_ids {
             let n = self
                 .cache
-                .invalidate_by_prefix(client_str, &sensor_name, source_id)?;
+                .invalidate_by_prefix(client_str, sensor_name, source_id)?;
             total_evicted = total_evicted.saturating_add(n);
         }
 
@@ -289,7 +297,7 @@ mod tests {
         let cache = Arc::new(QueryCache::with_defaults());
         let key = crate::cache_key::CacheKey {
             client_id: "acme".to_string(),
-            sensor_id: "crowdstrike".to_string(),
+            sensor_id: prism_core::SensorId::from("crowdstrike"),
             source_id: "crowdstrike_detections".to_string(),
             push_down_hash: "d".repeat(64),
         };
@@ -299,7 +307,7 @@ mod tests {
         let invalidator = CacheInvalidator::new(Arc::clone(&cache));
         let client_id = OrgSlug::new("acme");
         invalidator
-            .invalidate_for_sensor(&client_id, SensorType::CrowdStrike)
+            .invalidate_for_sensor(&client_id, &prism_core::SensorId::from("crowdstrike"))
             .expect("invalidation must not fail");
 
         assert!(
@@ -312,10 +320,10 @@ mod tests {
     /// all source_ids for the sensor.
     ///
     /// Inserts one entry for `crowdstrike_hosts` and one for
-    /// `crowdstrike_detections` (both map to `SensorType::CrowdStrike`).
-    /// Calls `invalidate_for_sensor("crowdstrike")` and asserts the returned
-    /// count equals 2 (one per source_id), exercising the `saturating_add`
-    /// aggregation path in the CacheInvalidator wrapper.
+    /// `crowdstrike_detections` (both map to sensor "crowdstrike").
+    /// Calls `invalidate_for_sensor(SensorId::from("crowdstrike"))` and asserts
+    /// the returned count equals 2 (one per source_id), exercising the
+    /// `saturating_add` aggregation path in the CacheInvalidator wrapper.
     #[test]
     fn test_i2_invalidate_for_sensor_returns_sum_across_sources() {
         use prism_core::tenant::OrgSlug;
@@ -325,7 +333,7 @@ mod tests {
         // Insert one entry for crowdstrike_hosts.
         let key_hosts = crate::cache_key::CacheKey {
             client_id: "acme".to_string(),
-            sensor_id: "crowdstrike".to_string(),
+            sensor_id: prism_core::SensorId::from("crowdstrike"),
             source_id: "crowdstrike_hosts".to_string(),
             push_down_hash: "a".repeat(64),
         };
@@ -336,7 +344,7 @@ mod tests {
         // Insert one entry for crowdstrike_detections.
         let key_dets = crate::cache_key::CacheKey {
             client_id: "acme".to_string(),
-            sensor_id: "crowdstrike".to_string(),
+            sensor_id: prism_core::SensorId::from("crowdstrike"),
             source_id: "crowdstrike_detections".to_string(),
             push_down_hash: "b".repeat(64),
         };
@@ -348,12 +356,12 @@ mod tests {
         let client_id = OrgSlug::new("acme");
 
         let evicted = invalidator
-            .invalidate_for_sensor(&client_id, SensorType::CrowdStrike)
+            .invalidate_for_sensor(&client_id, &prism_core::SensorId::from("crowdstrike"))
             .expect("invalidation must not fail");
 
         // crowdstrike_contain_host maps to [hosts, detections] and
         // crowdstrike_acknowledge_alert maps to [alerts, detections], so
-        // SensorType::CrowdStrike aggregates: hosts + alerts + detections.
+        // "crowdstrike" aggregates: hosts + alerts + detections.
         // We inserted into hosts (1) and detections (1) only — both evicted.
         assert_eq!(
             evicted, 2,
@@ -382,7 +390,8 @@ mod tests {
         let client_id = OrgSlug::new("no-data");
 
         // Must succeed without error even if no entries exist.
-        let result = invalidator.invalidate_for_sensor(&client_id, SensorType::Armis);
+        let result =
+            invalidator.invalidate_for_sensor(&client_id, &prism_core::SensorId::from("armis"));
         assert!(
             result.is_ok(),
             "EC-07-010: invalidation with no matching entries must be a no-op"

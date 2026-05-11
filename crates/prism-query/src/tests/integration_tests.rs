@@ -25,7 +25,7 @@ mod tests {
     use arrow::array::StringArray;
     use arrow::datatypes::{DataType, Field, Schema};
     use arrow::record_batch::RecordBatch;
-    use prism_core::{types::SensorType, OrgSlug};
+    use prism_core::{OrgSlug, SensorId};
 
     use crate::{
         materialization::register_mem_table,
@@ -64,7 +64,7 @@ mod tests {
     async fn test_ac1_virtual_fields_present_in_every_row() {
         // Build a batch with one data column.
         let batch = make_batch("severity", &["high", "medium", "low"]);
-        let sensor = SensorType::CrowdStrike;
+        let sensor = SensorId::from("crowdstrike");
         let client = make_slug("acme");
 
         // Inject virtual fields.
@@ -243,7 +243,7 @@ mod tests {
 
         let acme = make_slug("acme");
         let contoso = make_slug("contoso");
-        let sensor = SensorType::CrowdStrike;
+        let sensor = SensorId::from("crowdstrike");
 
         let result_acme =
             inject_virtual_fields(batch_acme, &sensor, &acme, "crowdstrike.detections").unwrap();
@@ -497,7 +497,7 @@ mod tests {
         )
         .unwrap();
 
-        let sensor = SensorType::Armis;
+        let sensor = SensorId::from("armis");
         let client = make_slug("acme");
 
         let result =

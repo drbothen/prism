@@ -26,7 +26,7 @@ use proptest::prelude::*;
 
 use crate::adapter::{QueryParams, SensorSpec};
 use crate::fanout::FanOutTarget;
-use prism_core::types::SensorType;
+use prism_core::SensorId;
 
 // ---------------------------------------------------------------------------
 // Test helpers
@@ -57,11 +57,11 @@ fn make_spec(org_id: OrgId, table: &str) -> SensorSpec {
 
 /// Minimal `FanOutTarget` for dispatch tests.
 #[allow(deprecated)]
-fn make_target(org_id: OrgId, sensor_type: SensorType) -> FanOutTarget {
+fn make_target(org_id: OrgId, sensor_id: SensorId) -> FanOutTarget {
     FanOutTarget {
         org_id,
         client_id: String::new(), // deprecated
-        sensor_type,
+        sensor_id,
         spec: make_spec(org_id, "test_table"),
         params: QueryParams::default(),
     }
@@ -181,7 +181,7 @@ fn test_BC_3_2_001_sensor_spec_distinct_org_ids_are_not_equal() {
 #[test]
 fn test_BC_3_2_001_fan_out_target_org_id_field_is_org_id_type() {
     let org_id = OrgId::new();
-    let target = make_target(org_id, SensorType::CrowdStrike);
+    let target = make_target(org_id, SensorId::from("crowdstrike"));
     let retrieved: OrgId = target.org_id;
     assert_eq!(
         retrieved, org_id,
@@ -269,7 +269,7 @@ fn test_BC_3_2_001_org_id_mismatch_is_fatal_dispatch_error() {
 
     // A FanOutTarget carrying org_b should never be dispatched through a
     // registry initialized for org_a.
-    let target_for_b = make_target(org_b, SensorType::Armis);
+    let target_for_b = make_target(org_b, SensorId::from("armis"));
 
     // GREEN GATE: The FanOutTarget carries org_id so the dispatch layer can compare
     // target.org_id against the registry's registered org_id. Structural verification:
