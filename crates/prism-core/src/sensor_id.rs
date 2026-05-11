@@ -12,6 +12,8 @@
 use std::borrow::Borrow;
 use std::sync::Arc;
 
+use serde::{Deserialize, Deserializer, Serialize, Serializer};
+
 /// Open newtype identifying a sensor type by string ID.
 ///
 /// Replaces the closed `SensorType` enum per ADR-023 §C1 + BC-2.01.013.
@@ -28,79 +30,108 @@ use std::sync::Arc;
 /// let id = SensorId::from(String::from("armis"));
 /// let id = SensorId::from(Arc::from("claroty"));
 /// ```
-// The inner Arc<str> field appears "never read" to the compiler because all
-// trait impls are todo!() stubs. Allow dead_code until implementation fills them.
-#[allow(dead_code)]
+/// Open newtype identifying a sensor by string key.
+///
+/// Inner payload is `Arc<str>` — cheap clone (reference-counted), immutable,
+/// thread-safe. All equality and hashing are content-based, not pointer-based.
+///
+/// # Construction
+/// ```rust,ignore
+/// let id = SensorId::from("crowdstrike");
+/// let id = SensorId::from(String::from("armis"));
+/// let id = SensorId::from(Arc::from("claroty"));
+/// ```
 #[derive(Clone)]
 pub struct SensorId(Arc<str>);
 
+impl SensorId {
+    /// Construct a `SensorId` from any value that can be converted to `Arc<str>`.
+    pub fn new(s: impl Into<Arc<str>>) -> Self {
+        SensorId(s.into())
+    }
+}
+
 impl From<&str> for SensorId {
-    fn from(_s: &str) -> Self {
-        todo!("S-PLUGIN-PREREQ-A: implement SensorId::from(&str) — Arc::from(s)")
+    fn from(s: &str) -> Self {
+        SensorId(Arc::from(s))
     }
 }
 
 impl From<String> for SensorId {
-    fn from(_s: String) -> Self {
-        todo!("S-PLUGIN-PREREQ-A: implement SensorId::from(String) — Arc::from(s.as_str())")
+    fn from(s: String) -> Self {
+        SensorId(Arc::from(s.as_str()))
     }
 }
 
 impl From<Arc<str>> for SensorId {
-    fn from(_s: Arc<str>) -> Self {
-        todo!("S-PLUGIN-PREREQ-A: implement SensorId::from(Arc<str>) — SensorId(s)")
+    fn from(s: Arc<str>) -> Self {
+        SensorId(s)
     }
 }
 
 impl std::fmt::Display for SensorId {
-    fn fmt(&self, _f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        todo!("S-PLUGIN-PREREQ-A: implement Display — delegate to inner Arc<str>")
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_str(&self.0)
     }
 }
 
 impl std::fmt::Debug for SensorId {
-    fn fmt(&self, _f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        todo!("S-PLUGIN-PREREQ-A: implement Debug — write SensorId(inner)")
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "SensorId({:?})", &*self.0)
     }
 }
 
 impl PartialEq for SensorId {
-    fn eq(&self, _other: &Self) -> bool {
-        todo!("S-PLUGIN-PREREQ-A: implement PartialEq — self.0 == other.0 (content-based)")
+    fn eq(&self, other: &Self) -> bool {
+        // Content-based: same string value → equal, regardless of Arc pointer.
+        *self.0 == *other.0
     }
 }
 
 impl Eq for SensorId {}
 
 impl std::hash::Hash for SensorId {
-    fn hash<H: std::hash::Hasher>(&self, _state: &mut H) {
-        todo!("S-PLUGIN-PREREQ-A: implement Hash — hash &*self.0 (content-based, consistent with PartialEq)")
+    fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
+        // Hash the string bytes — consistent with PartialEq (content-based).
+        (*self.0).hash(state);
     }
 }
 
 impl Ord for SensorId {
-    fn cmp(&self, _other: &Self) -> std::cmp::Ordering {
-        todo!("S-PLUGIN-PREREQ-A: implement Ord — (*self.0).cmp(&*other.0)")
+    fn cmp(&self, other: &Self) -> std::cmp::Ordering {
+        (*self.0).cmp(&*other.0)
     }
 }
 
 impl PartialOrd for SensorId {
     fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
-        // Canonical form required by clippy::non_canonical_partial_ord_impl.
-        // Delegates to Ord::cmp, which also panics at todo!() until implemented.
+        // Canonical form: delegate to Ord::cmp (clippy::non_canonical_partial_ord_impl).
         Some(self.cmp(other))
     }
 }
 
 impl Borrow<str> for SensorId {
     fn borrow(&self) -> &str {
-        todo!("S-PLUGIN-PREREQ-A: implement Borrow<str> — &*self.0")
+        &self.0
     }
 }
 
 impl AsRef<str> for SensorId {
     fn as_ref(&self) -> &str {
-        todo!("S-PLUGIN-PREREQ-A: implement AsRef<str> — &*self.0")
+        &self.0
+    }
+}
+
+impl Serialize for SensorId {
+    fn serialize<S: Serializer>(&self, s: S) -> Result<S::Ok, S::Error> {
+        s.serialize_str(&self.0)
+    }
+}
+
+impl<'de> Deserialize<'de> for SensorId {
+    fn deserialize<D: Deserializer<'de>>(d: D) -> Result<Self, D::Error> {
+        let raw = String::deserialize(d)?;
+        Ok(SensorId::from(raw))
     }
 }
 

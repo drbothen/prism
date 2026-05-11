@@ -23,7 +23,7 @@
 //! - `.references/poller-express/docs/specs/cve_api_specs.json`
 //! - `.references/poller-express/docs/specs/ioc_api_specs.json`
 
-use prism_core::types::SensorType;
+use prism_core::SensorId;
 use prism_dtu_common::{gen_seeded_rng, Archetype, FixtureSet, GenOpts, OrgId, Provenance};
 use rand::Rng;
 use serde_json::{json, Value};
@@ -60,7 +60,7 @@ pub fn generate(org_id: &OrgId, archetype: Archetype, opts: &GenOpts) -> Fixture
             cursors: vec![],
             provenance: Provenance {
                 org_id: org_id.clone(),
-                sensor_type: SensorType::Cyberint,
+                sensor_type: SensorId::from("cyberint"),
                 archetype,
                 seed,
                 schema_valid: true,
@@ -131,7 +131,7 @@ pub fn generate(org_id: &OrgId, archetype: Archetype, opts: &GenOpts) -> Fixture
         cursors,
         provenance: Provenance {
             org_id: org_id.clone(),
-            sensor_type: SensorType::Cyberint,
+            sensor_type: SensorId::from("cyberint"),
             archetype,
             seed,
             schema_valid,

@@ -28,18 +28,16 @@ use prism_core::SensorId;
 // proving the Red Gate is intact.
 // ---------------------------------------------------------------------------
 
-/// Bridge stub simulating the post-migration dispatch interface.
+/// Post-migration dispatch interface — open SensorId-based dispatch.
 ///
-/// Panics at todo!() because SensorId::from(&str) is not implemented.
-/// Represents what dispatch sites in virtual_fields.rs will look like after migration.
+/// After S-PLUGIN-PREREQ-A, dispatch sites use `sensor_id.as_ref()` instead of
+/// `match sensor_type { SensorType::X => "x" }`. This function represents the
+/// migrated virtual_fields.rs dispatch site (AC-5 dispatch site 2).
+///
+/// GREEN: SensorId::as_ref() (AsRef<str>) is now implemented.
 fn virtual_field_sensor_name(sensor_id: &SensorId) -> &str {
-    // Post-migration: dispatch is open — sensor_id.as_ref() returns the string directly.
-    // Currently panics because AsRef<str> is not implemented.
-    todo!(
-        "S-PLUGIN-PREREQ-A: implement SensorId::as_ref() (AsRef<str>) so dispatch sites can \
-        use sensor_id.as_ref() instead of match sensor_type {{ SensorType::X => \"x\" }}. \
-        See AC-5 dispatch site 2: virtual_fields.rs:163-166"
-    )
+    // Open dispatch: SensorId IS the string. No closed-enum match needed.
+    sensor_id.as_ref()
 }
 
 /// BC-2.01.013 AC-5 postcondition: all dispatch sites use open SensorId-based dispatch,

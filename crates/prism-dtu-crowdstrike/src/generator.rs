@@ -26,7 +26,7 @@
 
 use serde_json::{json, Value};
 
-use prism_core::types::SensorType;
+use prism_core::SensorId;
 use prism_dtu_common::generator::{
     default_page_size, Archetype, FixtureSet, GenOpts, OrgId, Provenance,
 };
@@ -84,7 +84,7 @@ pub fn generate(org_id: OrgId, archetype: Archetype, opts: GenOpts) -> FixtureSe
         cursors,
         provenance: Provenance {
             org_id,
-            sensor_type: SensorType::CrowdStrike,
+            sensor_type: SensorId::from("crowdstrike"),
             archetype,
             seed: opts.seed,
             schema_valid,
@@ -220,7 +220,7 @@ fn gen_large_scale(org_id: &OrgId, opts: &GenOpts) -> (Vec<Value>, Vec<String>) 
     let slug = org_slug(org_id);
     let dev_count = scaled(10_000, opts.scale, 1);
     let det_count = scaled(500, opts.scale, 1);
-    let page_size = default_page_size(SensorType::CrowdStrike);
+    let page_size = default_page_size(SensorId::from("crowdstrike"));
 
     let device_ids: Vec<String> = (0..dev_count)
         .map(|n| format!("dev-{slug}-{}-{n}", opts.seed))
@@ -260,7 +260,7 @@ fn gen_large_scale(org_id: &OrgId, opts: &GenOpts) -> (Vec<Value>, Vec<String>) 
 /// Produces 3 IdPage records + 3 detail pages.
 fn gen_pagination_edge_cases(org_id: &OrgId, opts: &GenOpts) -> (Vec<Value>, Vec<String>) {
     let slug = org_slug(org_id);
-    let page_size = default_page_size(SensorType::CrowdStrike);
+    let page_size = default_page_size(SensorId::from("crowdstrike"));
     let dev_count = scaled(page_size * 3, opts.scale, page_size * 3);
 
     let device_ids: Vec<String> = (0..dev_count)

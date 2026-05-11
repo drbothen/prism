@@ -595,8 +595,7 @@ mod bc_gap_fill {
         use arrow::array::StringArray;
         use arrow::datatypes::{DataType, Field, Schema};
         use arrow::record_batch::RecordBatch;
-        use prism_core::types::SensorType;
-        use prism_core::OrgSlug;
+        use prism_core::{OrgSlug, SensorId};
 
         use crate::virtual_fields::{
             inject_virtual_fields, remove_spoofed_virtual_columns, sensor_type_to_string,
@@ -628,7 +627,7 @@ mod bc_gap_fill {
         fn test_BC_2_11_012_inject_virtual_fields_adds_all_three_columns(
         ) -> Result<(), Box<dyn std::error::Error>> {
             let batch = make_batch_with_columns(&["severity", "description"], 3);
-            let sensor = SensorType::CrowdStrike;
+            let sensor = SensorId::from("crowdstrike");
             let client = make_client("acme");
             let result = inject_virtual_fields(batch, &sensor, &client, "crowdstrike.detections")?;
 
@@ -656,7 +655,7 @@ mod bc_gap_fill {
             let batch = make_batch_with_columns(&[VIRTUAL_FIELD_SENSOR, "description"], 2);
 
             // Inject with canonical value "crowdstrike".
-            let sensor = SensorType::CrowdStrike;
+            let sensor = SensorId::from("crowdstrike");
             let client = make_client("acme");
             let result = inject_virtual_fields(batch, &sensor, &client, "crowdstrike.detections")?;
 
@@ -693,7 +692,7 @@ mod bc_gap_fill {
         fn test_BC_2_11_012_inject_virtual_fields_idempotent_second_call(
         ) -> Result<(), Box<dyn std::error::Error>> {
             let batch = make_batch_with_columns(&["severity"], 2);
-            let sensor = SensorType::Armis;
+            let sensor = SensorId::from("armis");
             let client = make_client("acme");
 
             // First injection.
@@ -768,7 +767,7 @@ mod bc_gap_fill {
         #[test]
         fn test_BC_2_11_012_sensor_type_to_string_crowdstrike() {
             assert_eq!(
-                sensor_type_to_string(&SensorType::CrowdStrike),
+                sensor_type_to_string(&SensorId::from("crowdstrike")),
                 "crowdstrike",
                 "CrowdStrike must map to lowercase 'crowdstrike'"
             );
@@ -778,7 +777,7 @@ mod bc_gap_fill {
         #[test]
         fn test_BC_2_11_012_sensor_type_to_string_armis() {
             assert_eq!(
-                sensor_type_to_string(&SensorType::Armis),
+                sensor_type_to_string(&SensorId::from("armis")),
                 "armis",
                 "Armis must map to lowercase 'armis'"
             );

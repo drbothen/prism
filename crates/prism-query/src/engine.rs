@@ -30,7 +30,7 @@
 
 use std::sync::{Arc, Mutex};
 
-use prism_core::{OrgSlug, PrismError};
+use prism_core::{OrgSlug, PrismError, SensorId};
 use prism_credentials::CredentialStore;
 use prism_ocsf::OcsfNormalizer;
 use prism_sensors::{AdapterRegistry, CredentialResolver};
@@ -103,7 +103,7 @@ pub struct QueryOptions {
     /// Client scope override: `None` = all configured clients. (BC-2.11.011)
     pub clients: Option<Vec<OrgSlug>>,
     /// Sensor scope override: `None` = all sensors for resolved clients.
-    pub sensors: Option<Vec<prism_core::types::SensorType>>,
+    pub sensors: Option<Vec<SensorId>>,
     /// Max results returned (tool-level truncation). Default 25, max 1000. (BC-2.11.001)
     pub limit: Option<usize>,
     /// Bypass response cache. (BC-2.11.001)
@@ -705,7 +705,7 @@ impl CredentialResolver for NullCredentialResolver {
     fn resolve(
         &self,
         _client_id: &str,
-        sensor_type: prism_core::types::SensorType,
+        sensor_type: SensorId,
     ) -> Result<Box<dyn prism_sensors::SensorAuth>, prism_sensors::SensorError> {
         Err(prism_sensors::SensorError::Internal {
             detail: format!(

@@ -282,10 +282,10 @@ fn test_bc_3_4_003_ac_001_large_scale_baseline_counts_and_subnets() {
 /// BC-3.4.003 baseline row 5: PaginationEdgeCases → page_size×3 devices, 3 cursors.
 #[test]
 fn test_bc_3_4_003_ac_001_pagination_edge_cases_counts_and_cursors() {
-    use prism_core::types::SensorType;
+    use prism_core::SensorId;
     use prism_dtu_common::generator::default_page_size;
 
-    let page_size = default_page_size(SensorType::Claroty);
+    let page_size = default_page_size(SensorId::from("claroty"));
     let fs = generate(&org_a(), Archetype::PaginationEdgeCases, &default_opts());
 
     let devices: Vec<_> = fs

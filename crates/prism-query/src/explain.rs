@@ -27,7 +27,7 @@
 use std::collections::HashMap;
 use std::sync::Arc;
 
-use prism_core::{OrgSlug, PrismError, SensorType};
+use prism_core::{OrgSlug, PrismError, SensorId};
 use serde::Serialize;
 
 use crate::ast::{Ast, SourceRef, SourceRefKind, SqlStatement, VirtualField};
@@ -55,7 +55,7 @@ pub struct AuditEvent {
     /// The client scope parameter.
     pub clients: Option<Vec<OrgSlug>>,
     /// The sensor scope parameter.
-    pub sensors: Option<Vec<SensorType>>,
+    pub sensors: Option<Vec<SensorId>>,
     /// The source scope parameter.
     pub sources: Option<Vec<String>>,
     /// Human-readable outcome summary (e.g. "success", "E-QUERY-001").
@@ -83,7 +83,7 @@ pub struct ExplainOptions {
     /// Client scope override: `None` = all configured clients. (BC-2.11.011)
     pub clients: Option<Vec<OrgSlug>>,
     /// Sensor scope override: `None` = all sensors for resolved clients. (BC-2.11.010)
-    pub sensors: Option<Vec<SensorType>>,
+    pub sensors: Option<Vec<SensorId>>,
     /// Data source scope override: `None` = all sources for resolved sensors. (BC-2.11.010)
     pub sources: Option<Vec<String>>,
     /// Alias registry mapping alias names to their expanded definitions.
@@ -226,8 +226,8 @@ pub struct ExplainSource {
     /// Source reference string, e.g. `"crowdstrike.detections"`.
     pub source_ref: String,
 
-    /// The sensor type this source belongs to.
-    pub sensor_type: SensorType,
+    /// The sensor id this source belongs to.
+    pub sensor_type: SensorId,
 
     /// Push-down predicates as PrismQL-native predicate strings (e.g. `"severity = 'critical'"`).
     /// Sensor-native translation (FQL, KQL, etc.) is deferred to S-3.X via
@@ -648,22 +648,24 @@ fn post_fetch_operations_from_ast(ast: &Ast) -> Vec<String> {
 }
 
 // ---------------------------------------------------------------------------
-// sensor_type_from_source_ref — derive SensorType from SourceRef
+// sensor_type_from_source_ref — derive SensorId from SourceRef
 // ---------------------------------------------------------------------------
 
-/// Derive the sensor type for a source reference.
+/// Derive the sensor id for a source reference.
 ///
 /// Returns `None` for composite, internal, or custom source kinds that do not
-/// map to a specific sensor adapter.
-fn sensor_type_from_source_ref(s: &SourceRef) -> Option<SensorType> {
+/// map to a specific sensor adapter. Any non-empty external sensor name is valid
+/// (open dispatch — no closed-enum match).
+fn sensor_type_from_source_ref(s: &SourceRef) -> Option<SensorId> {
     match &s.kind {
-        SourceRefKind::External { sensor, .. } => match sensor.to_lowercase().as_str() {
-            "crowdstrike" => Some(SensorType::CrowdStrike),
-            "cyberint" => Some(SensorType::Cyberint),
-            "claroty" => Some(SensorType::Claroty),
-            "armis" => Some(SensorType::Armis),
-            _ => None,
-        },
+        SourceRefKind::External { sensor, .. } => {
+            let lower = sensor.to_lowercase();
+            if lower.is_empty() {
+                None
+            } else {
+                Some(SensorId::from(lower.as_str()))
+            }
+        }
         _ => None,
     }
 }
@@ -1042,15 +1044,14 @@ pub fn explain(query_str: &str, options: ExplainOptions) -> Result<ExplainResult
     for src in &sensors_to_query {
         let sensor_key = src.sensor_type.to_string();
 
-        // Heuristic: base latency by sensor type (will be replaced by real metrics).
-        let latency_ms = match src.sensor_type {
-            SensorType::CrowdStrike => 250,
-            SensorType::Cyberint => 400,
-            SensorType::Claroty => 350,
-            SensorType::Armis => 300,
-            // #[non_exhaustive] catch-all for future sensor types.
-            #[allow(unreachable_patterns)]
-            _ => 500,
+        // Heuristic: base latency by sensor id (will be replaced by real metrics).
+        // Open dispatch: unknown sensors fall to the default case.
+        let latency_ms = match src.sensor_type.as_ref() {
+            "crowdstrike" => 250,
+            "cyberint" => 400,
+            "claroty" => 350,
+            "armis" => 300,
+            _ => 300,
         };
         per_sensor_latency_ms.insert(sensor_key.clone(), latency_ms);
 

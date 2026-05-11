@@ -24,8 +24,7 @@
 use std::sync::Arc;
 
 use arrow::record_batch::RecordBatch;
-use prism_core::types::SensorType;
-use prism_core::OrgId;
+use prism_core::{OrgId, SensorId};
 use tokio::sync::Semaphore;
 use tracing::instrument;
 
@@ -68,7 +67,7 @@ pub struct FanOutTarget {
     /// Will be removed once all callers migrate to `org_id` (S-3.1.06).
     #[deprecated(since = "0.2.0", note = "use `org_id: OrgId` instead (S-3.1.06)")]
     pub client_id: String,
-    pub sensor_type: SensorType,
+    pub sensor_type: SensorId,
     pub spec: SensorSpec,
     pub params: QueryParams,
 }
@@ -113,7 +112,7 @@ pub struct FanOutError {
     /// Will be removed once all callers migrate to `org_id` (S-3.1.06).
     #[deprecated(since = "0.2.0", note = "use `org_id: OrgId` instead (S-3.1.06)")]
     pub client_id: String,
-    pub sensor_type: SensorType,
+    pub sensor_type: SensorId,
     pub error: SensorError,
     pub retry_metadata: RetryMetadata,
 }
@@ -161,15 +160,15 @@ pub struct FanOutResult {
 ///
 /// Concrete implementation lives in S-2.07 (per-sensor auth resolution).
 pub trait CredentialResolver: Send + Sync {
-    /// Resolves the auth credential for `(client_id, sensor_type)`.
+    /// Resolves the auth credential for `(client_id, sensor_id)`.
     ///
     /// Returns a boxed `dyn SensorAuth` on success. The concrete type is one
-    /// of the four sealed `SensorAuth` subtypes; the resolver knows which type
-    /// to return based on the sensor.
+    /// of the sensor-specific `SensorAuth` subtypes; the resolver knows which type
+    /// to return based on the sensor id string.
     fn resolve(
         &self,
         client_id: &str,
-        sensor_type: SensorType,
+        sensor_type: SensorId,
     ) -> Result<Box<dyn SensorAuth>, SensorError>;
 }
 
@@ -319,7 +318,7 @@ pub async fn fan_out(
                 };
 
                 // Resolve credentials for this (client, sensor) pair
-                let auth = match credentials.resolve(&target.client_id, target.sensor_type) {
+                let auth = match credentials.resolve(&target.client_id, target.sensor_type.clone()) {
                     Ok(a) => a,
                     Err(e) => {
                         let retry_metadata = error_to_retry_metadata(&e, 1);
@@ -335,11 +334,11 @@ pub async fn fan_out(
                 };
 
                 // Look up the adapter for this sensor type
-                let adapter = match registry.get(target.org_id, target.sensor_type) {
+                let adapter = match registry.get(target.org_id, target.sensor_type.clone()) {
                     Some(a) => a,
                     None => {
                         let e = SensorError::AdapterNotFound {
-                            sensor_type: target.sensor_type,
+                            sensor_id: target.sensor_type.clone(),
                         };
                         let retry_metadata = error_to_retry_metadata(&e, 1);
                         #[allow(deprecated)]
@@ -407,7 +406,7 @@ pub async fn fan_out(
                 result.errors.push(FanOutError {
                     org_id: OrgId::new(),
                     client_id: "<unknown>".into(),
-                    sensor_type: prism_core::types::SensorType::CrowdStrike,
+                    sensor_type: prism_core::SensorId::from("<unknown>"),
                     error: SensorError::Internal {
                         detail: format!("task panic: {join_err}"),
                     },
@@ -472,7 +471,7 @@ async fn execute_target(
     };
 
     // Resolve credentials
-    let auth = match credentials.resolve(&target.client_id, target.sensor_type) {
+    let auth = match credentials.resolve(&target.client_id, target.sensor_type.clone()) {
         Ok(a) => a,
         Err(e) => {
             let retry_metadata = error_to_retry_metadata(&e, 1);
@@ -488,11 +487,11 @@ async fn execute_target(
     };
 
     // Look up the adapter
-    let adapter = match registry.get(target.org_id, target.sensor_type) {
+    let adapter = match registry.get(target.org_id, target.sensor_type.clone()) {
         Some(a) => a,
         None => {
             let e = SensorError::AdapterNotFound {
-                sensor_type: target.sensor_type,
+                sensor_id: target.sensor_type.clone(),
             };
             let retry_metadata = error_to_retry_metadata(&e, 1);
             #[allow(deprecated)]

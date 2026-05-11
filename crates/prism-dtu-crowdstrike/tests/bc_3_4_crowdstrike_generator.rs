@@ -199,7 +199,7 @@ fn test_bc_3_4_003_ac_001_large_scale_baseline_counts() {
 /// AC-002: two-step pagination structure preserved.
 #[test]
 fn test_bc_3_4_003_ac_001_pagination_edge_cases_baseline_counts() {
-    let page_size = default_page_size(prism_core::types::SensorType::CrowdStrike);
+    let page_size = default_page_size(prism_core::SensorId::from("crowdstrike"));
     let fs = generate(org_a(), Archetype::PaginationEdgeCases, GenOpts::default());
     let devs = devices(&fs);
     let pages = id_pages(&fs);
@@ -360,7 +360,7 @@ fn test_bc_3_4_002_ac_002_id_page_has_resources_array_of_strings() {
 /// step-2 detail record.
 #[test]
 fn test_bc_3_4_002_ac_002_id_page_ids_match_detail_device_ids() {
-    let page_size = default_page_size(prism_core::types::SensorType::CrowdStrike);
+    let page_size = default_page_size(prism_core::SensorId::from("crowdstrike"));
     let fs = generate(org_a(), Archetype::PaginationEdgeCases, GenOpts::default());
 
     let all_ids_in_pages: Vec<String> = fs

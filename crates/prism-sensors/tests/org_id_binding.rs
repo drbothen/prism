@@ -76,8 +76,8 @@ fn make_armis_auth(instance_url: &str) -> ArmisAuth {
 // ---------------------------------------------------------------------------
 
 /// AC-001 (RED): `init_registry_for_org` with org_id_A must produce a registry
-/// that returns `Some` for `(org_id_A, SensorType::CrowdStrike)` and `None`
-/// for `(org_id_B, SensorType::CrowdStrike)` where org_id_B ≠ org_id_A.
+/// that returns `Some` for `(org_id_A, SensorId::from("crowdstrike"))` and `None`
+/// for `(org_id_B, SensorId::from("crowdstrike"))` where org_id_B ≠ org_id_A.
 ///
 /// RED: panics via `todo!("AC-001: propagate org_id through adapter constructors")`
 /// in `init_registry_for_org` until the implementation phase.
@@ -85,7 +85,7 @@ fn make_armis_auth(instance_url: &str) -> ArmisAuth {
 /// Story: S-3.1.06-ImplPhase | AC-001 | BC-3.2.001 precondition 4
 #[test]
 fn test_AC_001_init_registry_for_org_uses_org_id_in_signature() {
-    use prism_core::types::SensorType;
+    use prism_core::SensorId;
     use prism_sensors::init_registry_for_org;
 
     let a = org_a();
@@ -124,12 +124,12 @@ fn test_AC_001_init_registry_for_org_uses_org_id_in_signature() {
 
     // After implementation: registry keyed under org_a should have CrowdStrike
     assert!(
-        registry.get(a, SensorType::CrowdStrike).is_some(),
+        registry.get(a, SensorId::from("crowdstrike")).is_some(),
         "AC-001: registry for org_a must contain CrowdStrike adapter"
     );
     // After implementation: registry for org_a should NOT serve org_b
     assert!(
-        registry.get(b, SensorType::CrowdStrike).is_none(),
+        registry.get(b, SensorId::from("crowdstrike")).is_none(),
         "AC-001: registry for org_a must NOT return adapter for org_b"
     );
 }
@@ -142,15 +142,15 @@ fn test_AC_001_init_registry_for_org_uses_org_id_in_signature() {
 /// AC-002 (RED): Registering adapters for two distinct OrgIds under the same
 /// SensorType produces two independent registry entries.
 ///
-/// Specifically: `get(org_id_A, SensorType::CrowdStrike)` and
-/// `get(org_id_B, SensorType::CrowdStrike)` must return different Arc pointers.
+/// Specifically: `get(org_id_A, SensorId::from("crowdstrike"))` and
+/// `get(org_id_B, SensorId::from("crowdstrike"))` must return different Arc pointers.
 ///
 /// RED: panics via `todo!()` in `AdapterRegistry::register` until implementation.
 ///
 /// Story: S-3.1.06-ImplPhase | AC-002 | BC-3.2.001 invariant 1
 #[test]
 fn test_AC_002_adapter_registry_keyed_by_org_id_and_sensor_type() {
-    use prism_core::types::SensorType;
+    use prism_core::SensorId;
     use std::sync::Arc;
 
     let a = org_a();
@@ -181,10 +181,10 @@ fn test_AC_002_adapter_registry_keyed_by_org_id_and_sensor_type() {
 
     // After implementation: separate entries per org
     let got_a = registry
-        .get(a, SensorType::Armis)
+        .get(a, SensorId::from("armis"))
         .expect("AC-002: adapter for org_a must be registered");
     let got_b = registry
-        .get(b, SensorType::Armis)
+        .get(b, SensorId::from("armis"))
         .expect("AC-002: adapter for org_b must be registered");
 
     assert_eq!(
@@ -206,7 +206,7 @@ fn test_AC_002_adapter_registry_keyed_by_org_id_and_sensor_type() {
     // EC-001: org_a's adapter must NOT be visible via org_b's key
     // (by pointer: the pointer addresses for a and b are different, proven above)
     assert!(
-        registry.get(b, SensorType::CrowdStrike).is_none(),
+        registry.get(b, SensorId::from("crowdstrike")).is_none(),
         "AC-002: org_b must not have a CrowdStrike adapter (only Armis was registered for org_b)"
     );
 }

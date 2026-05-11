@@ -15,7 +15,7 @@
 use std::sync::Arc;
 
 use prism_core::tenant::OrgSlug;
-use prism_core::types::SensorType;
+use prism_core::SensorId;
 use serde_json::json;
 
 use crate::cache::{
@@ -132,7 +132,7 @@ fn test_ac6_cache_entry_evicted_synchronously_after_write() {
     let invalidator = CacheInvalidator::new(Arc::clone(&cache));
     let client = OrgSlug::new("acme");
     invalidator
-        .invalidate_for_sensor(&client, SensorType::CrowdStrike)
+        .invalidate_for_sensor(&client, &SensorId::from("crowdstrike"))
         .expect("invalidation must succeed");
 
     assert!(

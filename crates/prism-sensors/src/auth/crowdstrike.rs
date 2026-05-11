@@ -19,7 +19,7 @@ use arrow::array::StringArray;
 use arrow::datatypes::{DataType, Field, Schema};
 use arrow::record_batch::RecordBatch;
 use async_trait::async_trait;
-use prism_core::types::SensorType;
+use prism_core::SensorId;
 use reqwest::Client;
 use secrecy::{ExposeSecret, SecretString};
 use tokio::sync::RwLock;
@@ -374,8 +374,8 @@ impl CrowdStrikeAdapter {
 
 #[async_trait]
 impl SensorAdapter for CrowdStrikeAdapter {
-    fn sensor_type(&self) -> SensorType {
-        SensorType::CrowdStrike
+    fn sensor_type(&self) -> SensorId {
+        SensorId::from("crowdstrike")
     }
 
     fn sensor_name(&self) -> &'static str {
