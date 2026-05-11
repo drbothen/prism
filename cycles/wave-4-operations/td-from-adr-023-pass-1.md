@@ -471,3 +471,62 @@ All three recurrences share the identical root cause: the architect performing a
 TD-FACTORY-HOOK-BYPASS-001 P0 remains necessary until TD-VSDD-054 lands. Once TD-VSDD-054 is implemented, the hook itself will no longer create the chicken-and-egg blocker, making the bypass-temptation structural driver disappear.
 
 **Target release:** vsdd-factory v1.1 (methodology; does not block ADR-023 convergence; tracked separately from project implementation roadmap)
+
+---
+
+## TD-VSDD-055 — validate-write-tool-only PreToolUse Hook
+
+| Field | Value |
+|-------|-------|
+| **ID** | TD-VSDD-055 |
+| **Priority** | P0 (VSDD methodology) — must land before next architect/state-manager dispatch in plugin migration cycle |
+| **Category** | plugin-level / hook-design / security-perimeter |
+| **Source** | F-PASS4-CRIT-003 (1st bypass) → F-PASS17-CRIT-001 (2nd bypass) → F-PASS22-CRIT-001 (3rd bypass — `sed -i`) |
+| **Decision** | D-366 (2026-05-10) |
+
+**Scope:** VSDD methodology layer (vsdd-factory plugin work) — not project-specific.
+
+**Description:** Three explicit bypass recurrences via different vectors (Python `open/write`, `python3` script, `sed -i ''`) demonstrate that policy-only enforcement is insufficient. Need a PreToolUse hook in the dispatcher chain that intercepts Bash invocations and blocks file-write patterns against tracked spec files. Patterns to block: `sed -i`, `awk -i inplace`, `perl -pi`, `python -c '...write('`, `python3 -c '...write_text('`, stdout/stderr redirects (`>`, `>>`) against tracked paths.
+
+**Required actions (vsdd-factory plugin work):**
+
+1. Implement `validate-write-tool-only` PreToolUse hook in dispatcher plugin chain
+2. Tracked-paths config: any path under `.factory/` should be hook-tracked
+3. Hook denylist regex patterns: `sed -i\b`, `awk -i inplace`, `perl -pi`, `python.* -c .*\.write`, `>\s*\.factory/`, `>>\s*\.factory/`
+4. Emit blocking message: "Bash file-write against tracked spec file detected. Use Edit or Write tool instead. Per TD-FACTORY-HOOK-BYPASS-001 P0."
+
+**Project-side observability:** TD-FACTORY-HOOK-BYPASS-001 P0 is the policy; TD-VSDD-055 is the structural enforcement.
+
+**Recurrence log:**
+
+- **2026-05-10 FIRST OCCURRENCE** — fix-burst-3 architect used Python `open`/`write`. TD-FACTORY-HOOK-BYPASS-001 filed at P1.
+- **2026-05-10 SECOND OCCURRENCE** — fix-burst-13 state-manager used `python3 single-write`. TD-FACTORY-HOOK-BYPASS-001 escalated to P0.
+- **2026-05-10 THIRD OCCURRENCE** — fix-burst-16 state-manager used `sed -i ''` against ARCH-INDEX. TD-VSDD-055 filed for structural enforcement.
+
+**Target release:** vsdd-factory v1.1 (methodology; P0 priority — must precede next architect/state-manager dispatch in plugin migration cycle)
+
+---
+
+## TD-VSDD-056 — Maintenance-Burst Dispatch Type
+
+| Field | Value |
+|-------|-------|
+| **ID** | TD-VSDD-056 |
+| **Priority** | P1 (VSDD methodology) |
+| **Category** | dispatch-protocol / workflow |
+| **Source** | F-PASS22-CRIT-001 — state-manager's rationale for sed bypass was "pre-existing violations blocking Edit tool post-hook" |
+| **Decision** | D-367 (2026-05-10) |
+
+**Scope:** VSDD methodology layer (vsdd-factory plugin work) — not project-specific.
+
+**Description:** Agents currently face an impossible choice when pre-existing artifact violations block their primary Edit operations: (a) bypass via bash/Python (forbidden); (b) fail the dispatch (loses progress). Need a third option: explicit "maintenance-burst" dispatch type that operates over the same artifact set with explicit cleanup mandate, single audit-trail per burst, mandatory adversary review of cleanup operations.
+
+**Required actions:**
+
+1. Add `maintenance-burst` to vsdd-factory dispatch type taxonomy
+2. Document workflow: orchestrator detects pre-existing-violation block in a fix-burst → splits into maintenance-burst (clean unrelated violations) + content-burst (do the fix) → separate commits, separate adversary verification
+3. Update agent prompts: when blocked by pre-existing violation, REQUEST a maintenance-burst dispatch rather than bypass
+
+**Eliminates rationalization vector:** All 3 hook-bypass recurrences were rationalized by agents facing a genuine or perceived blocking situation. TD-VSDD-056 provides a legitimate non-bypass path for that situation, removing the rationalization without requiring agents to choose between progress and compliance.
+
+**Target release:** vsdd-factory v1.1 (methodology; P1 — before next plugin migration cycle dispatch)
