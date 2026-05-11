@@ -1,7 +1,7 @@
 ---
 document_type: behavioral-contract
 level: L3
-version: "1.4"
+version: "1.5"
 status: draft
 producer: product-owner
 timestamp: 2026-04-13T12:00:00
@@ -45,7 +45,8 @@ final collected records, not intermediate step results. Rate limit hints from th
 ## Preconditions
 - A spec-driven table has been registered (BC-2.16.001) with one or more `FetchStep` entries in its `steps` array
 - A query targeting this table has been dispatched by the query engine (CAP-015)
-- An `AuthProvider` implementation is available to resolve credentials for the sensor's `auth_type` on demand. Credentials are NOT required to be pre-resolved — `PipelineExecutor::execute` invokes `AuthProvider::acquire_token` lazily: once at the first 401-Unauthorized response from a fetch step, and additionally only if the retry also returns 401 (in which case execution aborts per AC-5 abort semantics).
+- An `AuthProvider` implementation is available to resolve credentials for the sensor's `auth_type`. `PipelineExecutor::execute` invokes `AuthProvider::acquire_token` EAGERLY at pipeline start for any sensor whose `auth_type` requires credentials (currently: all real `AuthType` variants — `Oauth2ClientCredentials`, `BearerStatic`, `CookieRoundtrip`, `ApiKey`). The acquired token is used on the FIRST HTTP request of the pipeline. If a subsequent HTTP request receives a 401-Unauthorized, `AuthProvider::acquire_token` is invoked again (refresh) and the failed step is retried once. If the retry also returns 401, the pipeline aborts with `SpecEngineError::AuthRefreshFailed`.
+  - **Rationale (F-LP5-LOW-003 closure):** The prior lazy-token-on-401 design forced a guaranteed 401 round-trip on every production execution against bearer-auth APIs, polluting the audit signal (every legitimate execution emitted `auth_refresh_triggered`) and inflating both `request_count` and API quota usage. Eager-token acquisition restores the audit signal to its intended semantic ("refresh event = rare mid-pipeline token expiry") while preserving the 401-retry path for genuine token expiry events.
 
 ## Postconditions
 - Steps are executed sequentially in the order defined in the spec's `[[table.steps]]` array
@@ -66,7 +67,9 @@ final collected records, not intermediate step results. Rate limit hints from th
 - Rate limit hints from the `SensorSpec` are applied between API calls: inter-request delay = `1 / requests_per_second`, with burst allowance from `burst_size`
 - **Adapter abstraction** — The auth-resolution mechanism is provided via a dyn-compatible `AuthProvider` trait (defined in `prism-spec-engine/src/auth_provider.rs`). `PipelineExecutor` accepts `&dyn AuthProvider`; the trait is object-safe (`Send + Sync` + manually-boxed Future return type per Rust stable RPITIT limitations). This enables sensor-spec-driven adapter dispatch at runtime, replacing compile-time-keyed `SensorAuth` enum dispatch.
 - **Record truncation** — When the cumulative `PipelineResult.records.len()` would exceed the DI-019 cap of 10,000, execution truncates the final-step accumulator to exactly 10,000 records and sets `PipelineResult.truncated = true`. The truncation flag is the user-facing signal that data was lost; it does NOT propagate to the per-step `request_count`. The outer materialization-layer cap (in `prism-query/src/materialization.rs`) does NOT double-apply when the executor cap fires.
-- **Auth refresh audit signal** — When `AuthProvider::acquire_token` is invoked on a 401 retry, the executor emits a `tracing::warn` event with fields `event_type = "auth_refresh_triggered"`, `sensor_id`, `client_id`, `step_name`. The token value itself is NEVER included in the event. This satisfies VP-PLUGIN-005 assertion (d) (ADR-023 §E).
+- **Request count semantics (v1.5)** — `PipelineResult.request_count` is the number of HTTP requests issued by the pipeline steps (NOT including `AuthProvider::acquire_token` calls, which use the AuthProvider's own transport). With the v1.5 eager-token semantic, a single-step single-page pipeline produces `request_count == 1` (not 2 as in v1.4, where a 401 probe request was required before the token was acquired).
+- **Auth initial acquisition audit signal (v1.5)** — When `PipelineExecutor::execute` invokes `AuthProvider::acquire_token` eagerly at pipeline start, the executor emits one of two `tracing` events: `tracing::info!` with `event_type = "auth_initial_acquired"` on Ok (fields: `sensor_id`, `client_id`), OR `tracing::error!` with `event_type = "auth_initial_failed"` on Err (fields: `sensor_id`, `client_id`, `detail`). The token value itself is NEVER included in either event. An `auth_initial_failed` result causes the pipeline to abort immediately (no fetch steps are attempted).
+- **Auth refresh audit signal** — When `AuthProvider::acquire_token` is invoked on a 401 retry (mid-pipeline token expiry — the legitimate refresh case), the executor emits a `tracing::warn!` event with `event_type = "auth_refresh_triggered"`, `sensor_id`, `client_id`, `step_name`. On Ok from the retry call: `tracing::info!` with `event_type = "auth_refresh_succeeded"`. On Err: `tracing::error!` with `event_type = "auth_refresh_failed"` and `detail`. On double-401 abort: `tracing::error!` with `event_type = "auth_refresh_double_401"`. Token value is NEVER included in any event. This satisfies VP-PLUGIN-005 assertion (d) (ADR-023 §E).
 
 ## Variable Scope and Lifetime
 - Variables produced by a step are available to all subsequent steps but not to prior steps
@@ -129,6 +132,7 @@ See `.factory/specs/prd-supplements/test-vectors.md` for full canonical vectors.
 
 | Version | Burst | Date | Author | Change |
 |---------|-------|------|--------|--------|
+| 1.5 | LOCAL-pass-5-fix | 2026-05-11 | product-owner | Eager-token precondition lifecycle. Replace lazy-token-on-401 with eager-acquire-at-pipeline-start for non-Null AuthType. Closes F-LP5-LOW-003 from LOCAL pass-5 adversary review at d5a12e4a: prior lazy design polluted audit signal (auth_refresh_triggered fired on every legitimate execution) and doubled API quota per execution. Two new audit-log events (auth_initial_acquired/auth_initial_failed) augment the existing auth_refresh_* event family. request_count semantics now exclude AuthProvider transport. Status remains draft pending PREREQ-B merge — POL-14 promotes draft→active on merge. |
 | 1.4 | LOCAL-pass-1-fix | 2026-05-11 | product-owner | Amend preconditions and postconditions to reflect AuthProvider abstraction introduced by S-PLUGIN-PREREQ-B. Lazy credential resolution replaces eager. New postconditions: AuthProvider trait dyn-safety; PipelineResult.truncated semantics; auth_refresh_triggered tracing event for VP-PLUGIN-005. Closes F-LP1-MED-001 from LOCAL pass-1 adversary review at b1b529fc. Status remains draft pending PREREQ-B merge — POL-14 promotes draft→active on merge. |
 | 1.3 | pass-74-fix | 2026-04-20 | product-owner | Resolved (placeholder) row in ## Verification Properties per pass-74 VP-TBD decision matrix extension. |
 | 1.2 | pass-73-fix | 2026-04-20 | state-manager | Deterministic changelog reorder: sorted all rows to descending version order (pass-73 bash script). |
