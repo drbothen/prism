@@ -31,10 +31,10 @@ target_module: prism-spec-engine
 #   and the new auth interface is consumed at query time through the same dispatch path that
 #   SS-01 currently owns.
 subsystems: [SS-16, SS-01]
-version: "1.16"
+version: "1.17"
 level: "L4"
 producer: state-manager
-timestamp: "2026-05-12T02:00:00Z"
+timestamp: "2026-05-12T03:00:00Z"
 input-hash: "6954524"
 traces_to: []
 cycle: "v1.0.0-greenfield"
@@ -49,7 +49,7 @@ anchor_subsystem: [SS-16, SS-01]
 assumption_validations: []
 risk_mitigations: []
 acceptance_criteria_count: 9
-red_gate_tests: 56
+red_gate_tests: 59
 inputs:
   - ".factory/specs/architecture/decisions/ADR-023-plugin-only-sensor-architecture.md"
   - ".factory/specs/behavioral-contracts/BC-2.16.002-multi-step-fetch-pipeline.md"
@@ -561,6 +561,7 @@ This story is shipped when ALL of the following are true:
 
 | Version | Burst | Date | Author | Changes |
 |---------|-------|------|--------|---------|
+| 1.17 | prereq-b-fix-burst-12 | 2026-05-11 | state-manager | fix-burst-12 closure: F-LP12-M001 (3 execute_step unit tests anchor BC v1.8 rows 4/5/6 — full catalog coverage 14/14) + F-LP12-L001 (BC v1.5 pin removed from code comment) + F-LP12-L002 [process-gap] (PG-LP11-001 codified at cycles/wave-4-operations/lessons.md) + TD-VSDD-093 filed. Worktree HEAD c72702cc. +3 Red Gate tests (56→59); 292/292 prism-spec-engine tests pass. just check-fast clean. tech-debt-register v2.13→v2.14. STORY-INDEX v2.54→v2.55. STATE+HANDOFF v7.154→v7.155. |
 | 1.16 | prereq-b-pass-12 | 2026-05-11 | state-manager | pass-12 record: 1 MED + 2 LOW + 3 OBS + 1 [process-gap] filed; streak 0/3 unchanged; fix-burst-12 dispatched. F-LP12-MED-001: BC v1.8 catalog enumerates 3 execute_step rows with zero test/production triggers — contract surface grew via v1.8 amendment without commensurate coverage (novel vs OBS-LP8-003: v1.8 promoted execute_step emissions to contract surface). F-LP12-LOW-001: stale BC v1.5 reference in pipeline.rs:461 comment (volatile version pin; TD-VSDD-091 class). F-LP12-LOW-002 [process-gap]: PG-LP11-001 SOP codification shallow — only in D-419; no cycle lessons file; no template updated; TD-VSDD-058 compaction risk. All fix-burst-11 closures CLEAN per TD-VSDD-059. Novelty 6/6=1.0. Trajectory 20→10→4→7→10→9→8→4→4→2→3→3. Report: .factory/code-delivery/S-PLUGIN-PREREQ-B/adversarial-review/local-pass-12.md. STORY-INDEX v2.53→v2.54. STATE+HANDOFF v7.153→v7.154. |
 | 1.15 | prereq-b-fix-burst-11 | 2026-05-11 | state-manager | fix-burst-11 closure: F-LP11-MED-001+MED-002 (BC-2.16.002 v1.7→v1.8 Structured Event Catalog — 14-row table enumerating all event_types with execute() vs execute_step() field-schema distinction; product-owner field-name correction detail not error) + F-LP11-LOW-001 (truncate_at_char_boundary 7 unit tests: empty+0, empty+100, ASCII at-boundary, ASCII under-max, UTF-8 multi-byte 5→3, zero-max, single-char-at-max — all assert_eq! load-bearing per TD-VSDD-059) + PG-LP11-001 SOP codified in D-419 (new event_type site MUST amend BC catalog in same burst). red_gate_tests 49→56 (+7). Worktree HEAD 6e436d65. 289/289 tests pass. just check-fast clean. BC-INDEX v4.58→v4.59. STORY-INDEX v2.52→v2.53. STATE+HANDOFF v7.152→v7.153. |
 | 1.14 | prereq-b-pass-11 | 2026-05-11 | state-manager | pass-11 record: 2 MED + 1 LOW + 4 OBS + 1 [process-gap] filed; streak 0/3 unchanged; fix-burst-11 dispatched. F-LP11-MED-001: BC catalog drift — 4 event_types emitted but not in BC-2.16.002 v1.7 (pipeline_truncated, pagination_cursor_unsupported_type, fanout_invalid_source_type, fanout_ambiguous_multi_array) — same pattern as F-LP9-MED-001 for non-auth events. F-LP11-MED-002: auth_initial_* field-schema drift — execute_step emits step_name field that execute does not; neither documented in BC. F-LP11-LOW-001: truncate_at_char_boundary has zero direct unit tests (5 edge cases untested: empty+0, empty+max>0, ASCII at-boundary, UTF-8 at-boundary, max>length). PG-LP11-001 [process-gap] recurrence=2: new event_type sites repeatedly miss BC backfill; SOP codification required in fix-burst-11. Fix-burst-11 scope: BC-2.16.002 v1.7→v1.8 Structured Event Catalog + 5 unit tests for truncate_at_char_boundary + SOP codification. Novelty 7/7=1.0. All 4 fix-burst-10 closures CLEAN per TD-VSDD-059. Trajectory 20→10→4→7→10→9→8→4→4→2 (pass-11 2M+1L). Report: .factory/code-delivery/S-PLUGIN-PREREQ-B/adversarial-review/local-pass-11.md. STORY-INDEX v2.51→v2.52. STATE+HANDOFF v7.151→v7.152. |
