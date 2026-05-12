@@ -1,7 +1,7 @@
 ---
 document_type: pipeline-state
 level: ops
-version: "7.176"
+version: "7.177"
 producer: state-manager
 timestamp: 2026-05-12T15:00:00Z
 inputs: []
@@ -22,7 +22,7 @@ repos:
   - axiathon
   - ocsf-proto-gen
   - mcp-claroty-xdome
-current_step: "D-442. S-PLUGIN-PREREQ-C MERGED via PR #144 at develop@ea958a4d 2026-05-12T23:14:05Z. 36/36 CI PASS. Story v1.3→v1.4 (status: ready→merged). STORY-INDEX v2.64→v2.65. PREREQ keystone trio (A+B+C) all merged. PLUGIN-MIGRATION Wave 1 unblocked. STATE+HANDOFF v7.175→v7.176. Next: PLUGIN-MIGRATION-001-A story-writer dispatch OR sprint-review for PREREQ trio."
+current_step: "D-443. PRE-COMPACT CHECKPOINT (2026-05-12). User locked B→C→A sequence: STEP 1 sprint-review on PREREQ trio (A+B+C), STEP 2 maintenance burst on deferred items, STEP 3 PLUGIN-MIGRATION Wave 1 starting at -001-A. STATE+HANDOFF v7.176→v7.177. sidecar-learning.md cleanup included. Context clear intended; resume from SESSION-HANDOFF.md successor_focus STEP 1."
 feature_branch_head: "ea958a4d"
 worktree_status: "merged"
 adversary_streak: "3/3 LOCKED"
@@ -183,9 +183,9 @@ workspace_test_count: 3598  # updated at D-433 fix-burst-1 closure (just check c
 | **Language** | Rust |
 | **Target Workspace** | per-analyst stdio (MCP server) |
 | **Started** | 2026-04-13 |
-| **Last Updated** | 2026-05-12 (D-442 — S-PLUGIN-PREREQ-C MERGED PR #144 at develop@ea958a4d 2026-05-12T23:14:05Z. Story v1.4. STORY-INDEX v2.65. PREREQ trio complete. STATE+HANDOFF v7.175→v7.176) |
+| **Last Updated** | 2026-05-12 (D-443 — PRE-COMPACT CHECKPOINT. B→C→A sequence locked. sidecar-learning.md cleaned. STATE+HANDOFF v7.176→v7.177) |
 | **Current Phase** | Wave 3 Tier-3 COMPLETE — **Wave 3-A 4 of 4 SHIPPED**; plugin migration: PREREQ-F + PREREQ-A + PREREQ-B + **PREREQ-C MERGED** (PR #144 ea958a4d 2026-05-12T23:14:05Z); PREREQ keystone trio COMPLETE; PLUGIN-MIGRATION Wave 1 unblocked; PREREQ-D/E pending |
-| **Current Step** | D-442 — S-PLUGIN-PREREQ-C MERGED. PR #144 squash@ea958a4d. 36/36 CI PASS. Story v1.4 status:merged. PREREQ trio (A+B+C) all merged. Next: PLUGIN-MIGRATION-001-A story-writer OR sprint-review for PREREQ trio. |
+| **Current Step** | D-443 — PRE-COMPACT CHECKPOINT. B→C→A sequence locked (STEP 1 sprint-review → STEP 2 maintenance → STEP 3 PLUGIN-MIGRATION-001-A). Context clear imminent. Resume from SESSION-HANDOFF.md successor_focus STEP 1. |
 
 ## Phase Progress
 
@@ -231,6 +231,7 @@ _D-001..D-046 archived: [cycles/phase-3-dtu-wave-2/decisions-archive-d001-d032.m
 
 | ID | Decision | Rationale | Phase | Date |
 |----|----------|-----------|-------|------|
+| D-443 | 2026-05-12 | PRE-COMPACT CHECKPOINT (orchestrator + state-manager + user). User cleared next-action ambiguity: locked-in sequence is B (sprint-review on PREREQ trio) → C (maintenance burst on deferred items) → A (PLUGIN-MIGRATION Wave 1 starting with -001-A). State durability sealed: SESSION-HANDOFF successor_focus contains full STEP 1/2/3 dispatch specs. All pins current at develop@ea958a4d, factory-artifacts HEAD set by this commit. sidecar-learning.md cleanup included. No uncommitted work in factory-artifacts. User intends to clear context next; post-compact session resumes via SESSION-HANDOFF.md successor_focus STEP 1. | plugin-migration | 2026-05-12 |
 | D-442 | 2026-05-12 | **S-PLUGIN-PREREQ-C MERGED** (orchestrator + pr-manager + user) via PR #144 squash-merged at develop@ea958a4d 2026-05-12T23:14:05Z. 36/36 CI checks PASS. Story v1.3→v1.4 (status: ready→merged). STORY-INDEX v2.64→v2.65. develop@ae7e26c8 → develop@ea958a4d. 13 feature-branch commits squashed into 1 develop commit. Pre-merge: 5 LOCAL adversary passes (trajectory 18→8→5→5→1) → 3/3 LOCKED at pass-5 → demo evidence (8 files/835 lines) → PR-LEVEL adversary CLEAR → pr-reviewer APPROVE → 1 PR-LEVEL fix (semver 0.1→0.2 + 0.6→0.7). Total: 7 ACs satisfied, 30 #[non_exhaustive] types audited (CI EXPECTED=30), 2 new BC-2.16.002 catalog rows (jsonpath_extraction_failed + jsonpath_size_cap_exceeded). PREREQ keystone trio (A+B+C) all merged. Unblocks PLUGIN-MIGRATION-001-A/B/C/D Wave 1. Worktree retained at .worktrees/S-PLUGIN-PREREQ-C/ (archival per PREREQ-A/B precedent). Next: PLUGIN-MIGRATION-001-A story-writer dispatch OR sprint-review for PREREQ trio. | plugin-migration | 2026-05-12 |
 | D-441 | 2026-05-12 | PREREQ-C post-LOCAL-CONVERGED cleanup + demo evidence (implementer + demo-recorder) on feature/S-PLUGIN-PREREQ-C@450b082c. F-LP5-LOW-001 closed (main.rs doc-header 29→30 types + fix-burst-4 attribution + 30th type bullet appended, c9bb9d26). Demo evidence generated at docs/demo-evidence/S-PLUGIN-PREREQ-C/ — 8 files (INDEX + AC-1..AC-7), 835 lines, real test output captured for all 7 ACs (450b082c). POL-10 demo_evidence_story_scoped satisfied. Per-story-delivery step 5 COMPLETE. Outstanding findings: 0 CRIT + 0 HIGH + 0 MED + 0 LOW. Next: per-story-delivery step 6 — rebase + pr-manager 9-step PR cycle including PR-LEVEL adversary cascade. | plugin-migration | 2026-05-12 |
 | D-440 | 2026-05-12 | **LOCAL CONVERGED** (adversary) on feature/S-PLUGIN-PREREQ-C@651bbb64. STREAK 2/3 → **3/3** **— PREREQ-C LOCAL CONVERGENCE LOCKED**. Pass-5: 1 finding (0 CRIT + 0 HIGH + 0 MED + 1 LOW — F-LP5-LOW-001 main.rs doc-header sibling-sweep miss "29 types" → "30 types" 3-line fix, non-blocking). All 4 in-scope pass-4 closures verified REAL. CI regression detector positive-coverage audit clean. Trajectory 18→8→5→5→1 (CRIT 3→1→0→0→0, HIGH 8→2→0→0→0). PREREQ-C converged in 5 LOCAL passes vs PREREQ-A 12 vs PREREQ-B 16 — highly efficient. Next: fix F-LP5-LOW-001 (trivial) → per-story-delivery step 5 demo-recorder for AC evidence under docs/demo-evidence/S-PLUGIN-PREREQ-C/ → step 6 rebase + pr-manager 9-step PR cycle. | plugin-migration | 2026-05-12 |
@@ -458,21 +459,19 @@ Cycle files: [burst-log](cycles/phase-2-patch/burst-log.md) | [convergence-traje
 
 ---
 
-## Session Resume Checkpoint (2026-05-12-v7.174-d440-prereq-c-local-converged)
+## Session Resume Checkpoint (2026-05-12-v7.177-d443-pre-compact-b-c-a-locked)
 
-_Previous checkpoint (v7.173/D-439 PREREQ-C fix-burst-4-CONVERGED) archived: [cycles/wave-4-operations/session-checkpoints.md](cycles/wave-4-operations/session-checkpoints.md)_
+_Previous checkpoint (v7.174/D-440 PREREQ-C LOCAL CONVERGED) archived: [cycles/wave-4-operations/session-checkpoints.md](cycles/wave-4-operations/session-checkpoints.md)_
 
-**STATE v7.174. D-440 — PREREQ-C LOCAL CONVERGED. STREAK 3/3 LOCKED. feature/S-PLUGIN-PREREQ-C@651bbb64. Story v1.3. STORY-INDEX v2.64. SESSION-HANDOFF v7.174.** factory-artifacts HEAD: run `git -C .factory log -1` (per TD-VSDD-053). vsdd-factory rc.16 active. Standing Orchestrator Rules active (Rules 1, 2, 3). Bundle B Exit Mandate active (task #85). Worktrees: main (clean) + .factory + .worktrees/S-PLUGIN-PREREQ-C (LOCAL-CONVERGED) + .worktrees/S-3.09 (FROZEN per D-298).
+**STATE v7.177. D-443 — PRE-COMPACT CHECKPOINT. B→C→A SEQUENCE LOCKED.** develop@ea958a4d. factory-artifacts HEAD: run `git -C .factory log -1` (per TD-VSDD-053). vsdd-factory rc.16 active. Standing Orchestrator Rules active (Rules 1, 2, 3). Bundle B Exit Mandate active (task #85). Worktrees: main (clean) + .factory + .worktrees/S-PLUGIN-PREREQ-C (archival) + .worktrees/S-3.09 (FROZEN per D-298).
 
-**S-PLUGIN-PREREQ-B STATUS:** MERGED. PR #143 squash-merged at ae7e26c8. Story v1.23 status: merged. BC-2.16.002 v1.9→v1.10 status: active (POL-14 promotion; v1.10 amended by fix-burst-1). Per-story-delivery cycle CLOSED.
-
-**S-PLUGIN-PREREQ-C STATUS:** LOCAL-CONVERGED. Worktree at /Users/jmagady/Dev/prism/.worktrees/S-PLUGIN-PREREQ-C/ on feature/S-PLUGIN-PREREQ-C@651bbb64. Streak 3/3 LOCKED at pass-5. 30 #[non_exhaustive] types. Trajectory 18→8→5→5→1 (CRIT 3→1→0→0→0, HIGH 8→2→0→0→0). 1 outstanding LOW (F-LP5-LOW-001 main.rs doc-header non-blocking). Adversary report: .factory/code-delivery/S-PLUGIN-PREREQ-C/adversary-pass-5.md. NEXT: fix F-LP5-LOW-001 (trivial 3-line) → demo-recorder step 5 (AC evidence under docs/demo-evidence/S-PLUGIN-PREREQ-C/) → rebase + pr-manager 9-step PR cycle.
+**PREREQ TRIO STATUS (all merged):** PREREQ-A (PR #142 develop@90d7c80f, story v1.6 merged) + PREREQ-B (PR #143 develop@ae7e26c8, story v1.23 merged) + PREREQ-C (PR #144 develop@ea958a4d, story v1.4 merged). PLUGIN-MIGRATION Wave 1 unblocked. 91 active TDs (was 98; 7 closed by PREREQ-C trio: TD-B-001/003/006/008/016 + TD-A-006/008). LOCAL convergence efficiency 12 → 16 → 5 passes (acceleration confirmed).
 
 **S-3.09 FREEZE STATE:** Worktree .worktrees/S-3.09 HEAD 43c41389; BUG-S309-PLUGIN P0 blocks resumption. See D-298/D-299.
 
-**Deferred TDs (carry-forward — not PREREQ-C):** W3-FIX-S307-001/002/003 + TD-S307-002/003/004 + TD-S-PLUGIN-PREREQ-A-002 P1 + TD-S-PLUGIN-PREREQ-A-003 P1 + TD-S-PLUGIN-PREREQ-A-004 P1 + TD-S-PLUGIN-PREREQ-A-005/009/010 P3 + TD-S-PLUGIN-PREREQ-B-002 P3 (AuthToken zeroize; PREREQ-D) + TD-S-PLUGIN-PREREQ-B-004 P3 (MAX_REQUESTS_PER_PIPELINE; PREREQ-D) + TD-S-PLUGIN-PREREQ-B-005 P2 (reqwest::Client.timeout; PREREQ-D) + TD-S-PLUGIN-PREREQ-B-007 P3 (status_code overload) + TD-S-PLUGIN-PREREQ-B-009 P3 (dead scalar arm) + TD-S-PLUGIN-PREREQ-B-011 P3 (execute_step PREREQ-D wiring) + TD-S-PLUGIN-PREREQ-B-012 P3 (execute_step PREREQ-D test coverage) + TD-VSDD-058/059/060 P0 + TD-FACTORY-HOOK-BYPASS-001 P0 + TD-VSDD-054..063 (all OPEN) + TD-VSDD-082/083/084 + TD-S309-O1/O2/O3/O4 + TD-S-PLUGIN-PREREQ-C-001 P4 (types.rs duplicate consolidation; F-LP2-OBS-002 deferred)
+**Post-compact action sequence (B→C→A — DO NOT skip steps):** STEP 1: /vsdd-factory:sprint-review on PREREQ-A/B/C. STEP 2: Maintenance burst on deferred items (F-LP4-OBS-001, types.rs TD-S-PLUGIN-PREREQ-C-001, TD-VSDD-091 sweep). STEP 3: PLUGIN-MIGRATION Wave 1 dispatch starting at PLUGIN-MIGRATION-001-A. Full dispatch specs in SESSION-HANDOFF.md successor_focus.
 
-**Current spec versions:** BC-INDEX v4.61, STORY-INDEX v2.64, ARCH-INDEX v2.40, ADR-023 v1.18, VP-INDEX v1.32 (152 VPs + VP-PLUGIN-001..007 aliases), BC-2.16.002 v1.10 (active; 16 catalog rows), BC-2.01.013 v1.6 (active, merged PR #142), S-PLUGIN-PREREQ-B v1.23 (status: merged, PR #143 ae7e26c8), S-PLUGIN-PREREQ-C v1.3 (status: ready; LOCAL-CONVERGED D-440 feature@651bbb64 streak 3/3 LOCKED; 30 types), prd.md v1.10, error-taxonomy.md v1.18, develop@ae7e26c8; STATE v7.174 SESSION-HANDOFF v7.174 (current)
+**Current spec versions:** BC-INDEX v4.61, STORY-INDEX v2.65, ARCH-INDEX v2.40, ADR-023 v1.18, VP-INDEX v1.32 (152 VPs + VP-PLUGIN-001..007 aliases), BC-2.16.002 v1.10 (active; 16 catalog rows), BC-2.01.013 v1.6 (active, merged PR #142), S-PLUGIN-PREREQ-A v1.6 (merged PR #142), S-PLUGIN-PREREQ-B v1.23 (merged PR #143), S-PLUGIN-PREREQ-C v1.4 (merged PR #144 ea958a4d), prd.md v1.10, error-taxonomy.md v1.18, develop@ea958a4d; STATE v7.177 SESSION-HANDOFF v7.177 (current)
 
 **Key files:** [SESSION-HANDOFF.md](SESSION-HANDOFF.md) | [cycle-manifest.md](cycles/wave-4-operations/cycle-manifest.md) | [HOLDOUT-INDEX.md](holdout-scenarios/HOLDOUT-INDEX.md)
 
