@@ -36,36 +36,31 @@ use wiremock::{Mock, MockServer, ResponseTemplate};
 
 /// Build a minimal one-step `SensorSpec` pointing at `base_url`.
 fn one_step_spec(base_url: &str, path_template: &str, response_path: &str) -> SensorSpec {
-    SensorSpec {
-        sensor_id: "test-sensor".to_string(),
-        name: "Test Sensor".to_string(),
-        auth_type: AuthType::BearerStatic,
-        base_url: base_url.to_string(),
-        tables: vec![TableSpec::new_point_in_time(
+    SensorSpec::new(
+        "test-sensor",
+        "Test Sensor",
+        AuthType::BearerStatic,
+        base_url,
+        vec![TableSpec::new_point_in_time(
             "items",
             "security_finding",
-            vec![ColumnSpec {
-                name: "id".to_string(),
-                column_type: ColumnType::String,
-                ocsf_field: None,
-                options: vec![],
-            }],
-            vec![FetchStep {
-                name: "fetch_items".to_string(),
-                method: "GET".to_string(),
-                path_template: path_template.to_string(),
-                body_template: None,
-                response_path: response_path.to_string(),
-                pagination_cursor_path: None,
-                variables_produced: vec![],
-                fan_out_batch_size: None,
-                pagination: None,
-            }],
+            vec![ColumnSpec::new("id", ColumnType::String, None, vec![])],
+            vec![FetchStep::new(
+                "fetch_items",
+                "GET",
+                path_template,
+                None,
+                response_path,
+                None,
+                vec![],
+                None,
+                None,
+            )],
         )],
-        rate_limit_hints: None,
-        version: "1.0.0".to_string(),
-        credential_refs: vec![],
-    }
+        None,
+        "1.0.0",
+        vec![],
+    )
 }
 
 fn default_context() -> FetchContext {
@@ -217,50 +212,45 @@ async fn test_BC_2_16_002_execute_interpolates_step1_var_into_step2_url() {
         .mount(&mock_server)
         .await;
 
-    let spec = SensorSpec {
-        sensor_id: "two-step-sensor".to_string(),
-        name: "Two-Step Sensor".to_string(),
-        auth_type: AuthType::Oauth2ClientCredentials,
-        base_url: mock_server.uri(),
-        tables: vec![TableSpec::new_point_in_time(
+    let spec = SensorSpec::new(
+        "two-step-sensor",
+        "Two-Step Sensor",
+        AuthType::Oauth2ClientCredentials,
+        mock_server.uri(),
+        vec![TableSpec::new_point_in_time(
             "items",
             "security_finding",
-            vec![ColumnSpec {
-                name: "item_id".to_string(),
-                column_type: ColumnType::String,
-                ocsf_field: None,
-                options: vec![],
-            }],
+            vec![ColumnSpec::new("item_id", ColumnType::String, None, vec![])],
             vec![
-                FetchStep {
-                    name: "step1".to_string(),
-                    method: "POST".to_string(),
-                    path_template: "/oauth2/token".to_string(),
-                    body_template: Some("grant_type=client_credentials".to_string()),
-                    response_path: "$.access_token".to_string(),
-                    pagination_cursor_path: None,
-                    variables_produced: vec!["access_token".to_string()],
-                    fan_out_batch_size: None,
-                    pagination: None,
-                },
-                FetchStep {
-                    name: "step2".to_string(),
-                    method: "GET".to_string(),
+                FetchStep::new(
+                    "step1",
+                    "POST",
+                    "/oauth2/token",
+                    Some("grant_type=client_credentials".to_string()),
+                    "$.access_token",
+                    None,
+                    vec!["access_token".to_string()],
+                    None,
+                    None,
+                ),
+                FetchStep::new(
+                    "step2",
+                    "GET",
                     // AC-2: token from step1 interpolated into step2 URL
-                    path_template: "/api/data?token=${step1.access_token}".to_string(),
-                    body_template: None,
-                    response_path: "$.items".to_string(),
-                    pagination_cursor_path: None,
-                    variables_produced: vec![],
-                    fan_out_batch_size: None,
-                    pagination: None,
-                },
+                    "/api/data?token=${step1.access_token}",
+                    None,
+                    "$.items",
+                    None,
+                    vec![],
+                    None,
+                    None,
+                ),
             ],
         )],
-        rate_limit_hints: None,
-        version: "1.0.0".to_string(),
-        credential_refs: vec![],
-    };
+        None,
+        "1.0.0",
+        vec![],
+    );
 
     let table = spec.tables[0].clone();
     let context = default_context();
@@ -321,39 +311,34 @@ async fn test_BC_2_16_002_execute_iterates_cursor_pagination_until_null() {
         .mount(&mock_server)
         .await;
 
-    let spec = SensorSpec {
-        sensor_id: "cursor-sensor".to_string(),
-        name: "Cursor Sensor".to_string(),
-        auth_type: AuthType::BearerStatic,
-        base_url: mock_server.uri(),
-        tables: vec![TableSpec::new_point_in_time(
+    let spec = SensorSpec::new(
+        "cursor-sensor",
+        "Cursor Sensor",
+        AuthType::BearerStatic,
+        mock_server.uri(),
+        vec![TableSpec::new_point_in_time(
             "events",
             "security_finding",
-            vec![ColumnSpec {
-                name: "id".to_string(),
-                column_type: ColumnType::String,
-                ocsf_field: None,
-                options: vec![],
-            }],
-            vec![FetchStep {
-                name: "fetch_events".to_string(),
-                method: "GET".to_string(),
-                path_template: "/events".to_string(),
-                body_template: None,
-                response_path: "$.data".to_string(),
-                pagination_cursor_path: None,
-                variables_produced: vec![],
-                fan_out_batch_size: None,
-                pagination: Some(PaginationConfig::CursorToken {
+            vec![ColumnSpec::new("id", ColumnType::String, None, vec![])],
+            vec![FetchStep::new(
+                "fetch_events",
+                "GET",
+                "/events",
+                None,
+                "$.data",
+                None,
+                vec![],
+                None,
+                Some(PaginationConfig::CursorToken {
                     cursor_response_path: "$.pagination.cursor".to_string(),
                     page_size: None,
                 }),
-            }],
+            )],
         )],
-        rate_limit_hints: None,
-        version: "1.0.0".to_string(),
-        credential_refs: vec![],
-    };
+        None,
+        "1.0.0",
+        vec![],
+    );
 
     let table = spec.tables[0].clone();
     let context = default_context();
@@ -417,36 +402,31 @@ async fn test_BC_2_16_002_execute_iterates_offset_pagination_until_short_page() 
         .mount(&mock_server)
         .await;
 
-    let spec = SensorSpec {
-        sensor_id: "offset-sensor".to_string(),
-        name: "Offset Sensor".to_string(),
-        auth_type: AuthType::ApiKey,
-        base_url: mock_server.uri(),
-        tables: vec![TableSpec::new_point_in_time(
+    let spec = SensorSpec::new(
+        "offset-sensor",
+        "Offset Sensor",
+        AuthType::ApiKey,
+        mock_server.uri(),
+        vec![TableSpec::new_point_in_time(
             "logs",
             "security_finding",
-            vec![ColumnSpec {
-                name: "id".to_string(),
-                column_type: ColumnType::String,
-                ocsf_field: None,
-                options: vec![],
-            }],
-            vec![FetchStep {
-                name: "fetch_logs".to_string(),
-                method: "GET".to_string(),
-                path_template: "/logs".to_string(),
-                body_template: None,
-                response_path: "$.items".to_string(),
-                pagination_cursor_path: None,
-                variables_produced: vec![],
-                fan_out_batch_size: None,
-                pagination: Some(PaginationConfig::OffsetLimit { page_size: 3 }),
-            }],
+            vec![ColumnSpec::new("id", ColumnType::String, None, vec![])],
+            vec![FetchStep::new(
+                "fetch_logs",
+                "GET",
+                "/logs",
+                None,
+                "$.items",
+                None,
+                vec![],
+                None,
+                Some(PaginationConfig::OffsetLimit { page_size: 3 }),
+            )],
         )],
-        rate_limit_hints: None,
-        version: "1.0.0".to_string(),
-        credential_refs: vec![],
-    };
+        None,
+        "1.0.0",
+        vec![],
+    );
 
     let table = spec.tables[0].clone();
     let context = default_context();
@@ -507,50 +487,45 @@ async fn test_BC_2_16_002_execute_interpolates_body_template_and_derives_content
         .mount(&mock_server)
         .await;
 
-    let spec = SensorSpec {
-        sensor_id: "body-interp-sensor".to_string(),
-        name: "Body Interp Sensor".to_string(),
-        auth_type: AuthType::BearerStatic,
-        base_url: mock_server.uri(),
-        tables: vec![TableSpec::new_point_in_time(
+    let spec = SensorSpec::new(
+        "body-interp-sensor",
+        "Body Interp Sensor",
+        AuthType::BearerStatic,
+        mock_server.uri(),
+        vec![TableSpec::new_point_in_time(
             "results",
             "security_finding",
-            vec![ColumnSpec {
-                name: "id".to_string(),
-                column_type: ColumnType::String,
-                ocsf_field: None,
-                options: vec![],
-            }],
+            vec![ColumnSpec::new("id", ColumnType::String, None, vec![])],
             vec![
-                FetchStep {
-                    name: "step1".to_string(),
-                    method: "GET".to_string(),
-                    path_template: "/step1".to_string(),
-                    body_template: None,
-                    response_path: "$.step1_id".to_string(),
-                    pagination_cursor_path: None,
-                    variables_produced: vec!["step1_id".to_string()],
-                    fan_out_batch_size: None,
-                    pagination: None,
-                },
-                FetchStep {
-                    name: "step2".to_string(),
-                    method: "POST".to_string(),
-                    path_template: "/step2".to_string(),
+                FetchStep::new(
+                    "step1",
+                    "GET",
+                    "/step1",
+                    None,
+                    "$.step1_id",
+                    None,
+                    vec!["step1_id".to_string()],
+                    None,
+                    None,
+                ),
+                FetchStep::new(
+                    "step2",
+                    "POST",
+                    "/step2",
                     // JSON body with interpolated step1_id — shape starts with '{' → application/json
-                    body_template: Some(r#"{"id": "${step1.step1_id}"}"#.to_string()),
-                    response_path: "$.results".to_string(),
-                    pagination_cursor_path: None,
-                    variables_produced: vec![],
-                    fan_out_batch_size: None,
-                    pagination: None,
-                },
+                    Some(r#"{"id": "${step1.step1_id}"}"#.to_string()),
+                    "$.results",
+                    None,
+                    vec![],
+                    None,
+                    None,
+                ),
             ],
         )],
-        rate_limit_hints: None,
-        version: "1.0.0".to_string(),
-        credential_refs: vec![],
-    };
+        None,
+        "1.0.0",
+        vec![],
+    );
 
     let table = spec.tables[0].clone();
     let context = FetchContext::new(OrgSlug::new("test-org"), HashMap::new());
@@ -612,39 +587,34 @@ async fn test_BC_2_16_002_execute_percent_encodes_opaque_cursor() {
         .mount(&mock_server)
         .await;
 
-    let spec = SensorSpec {
-        sensor_id: "cursor-encode-sensor".to_string(),
-        name: "Cursor Encode Sensor".to_string(),
-        auth_type: AuthType::BearerStatic,
-        base_url: mock_server.uri(),
-        tables: vec![TableSpec::new_point_in_time(
+    let spec = SensorSpec::new(
+        "cursor-encode-sensor",
+        "Cursor Encode Sensor",
+        AuthType::BearerStatic,
+        mock_server.uri(),
+        vec![TableSpec::new_point_in_time(
             "events",
             "security_finding",
-            vec![ColumnSpec {
-                name: "id".to_string(),
-                column_type: ColumnType::String,
-                ocsf_field: None,
-                options: vec![],
-            }],
-            vec![FetchStep {
-                name: "fetch_events".to_string(),
-                method: "GET".to_string(),
-                path_template: "/events".to_string(),
-                body_template: None,
-                response_path: "$.data".to_string(),
-                pagination_cursor_path: None,
-                variables_produced: vec![],
-                fan_out_batch_size: None,
-                pagination: Some(PaginationConfig::CursorToken {
+            vec![ColumnSpec::new("id", ColumnType::String, None, vec![])],
+            vec![FetchStep::new(
+                "fetch_events",
+                "GET",
+                "/events",
+                None,
+                "$.data",
+                None,
+                vec![],
+                None,
+                Some(PaginationConfig::CursorToken {
                     cursor_response_path: "$.next_cursor".to_string(),
                     page_size: None,
                 }),
-            }],
+            )],
         )],
-        rate_limit_hints: None,
-        version: "1.0.0".to_string(),
-        credential_refs: vec![],
-    };
+        None,
+        "1.0.0",
+        vec![],
+    );
 
     let table = spec.tables[0].clone();
     let context = FetchContext::new(OrgSlug::new("test-org"), HashMap::new());
@@ -700,49 +670,44 @@ async fn test_BC_2_16_002_execute_only_final_step_records_in_pipeline_result() {
         .mount(&mock_server)
         .await;
 
-    let spec = SensorSpec {
-        sensor_id: "final-only-sensor".to_string(),
-        name: "Final Only Sensor".to_string(),
-        auth_type: AuthType::BearerStatic,
-        base_url: mock_server.uri(),
-        tables: vec![TableSpec::new_point_in_time(
+    let spec = SensorSpec::new(
+        "final-only-sensor",
+        "Final Only Sensor",
+        AuthType::BearerStatic,
+        mock_server.uri(),
+        vec![TableSpec::new_point_in_time(
             "results",
             "security_finding",
-            vec![ColumnSpec {
-                name: "id".to_string(),
-                column_type: ColumnType::String,
-                ocsf_field: None,
-                options: vec![],
-            }],
+            vec![ColumnSpec::new("id", ColumnType::String, None, vec![])],
             vec![
-                FetchStep {
-                    name: "step1".to_string(),
-                    method: "GET".to_string(),
-                    path_template: "/intermediate".to_string(),
-                    body_template: None,
-                    response_path: "$.token".to_string(),
-                    pagination_cursor_path: None,
-                    variables_produced: vec!["token".to_string()],
-                    fan_out_batch_size: None,
-                    pagination: None,
-                },
-                FetchStep {
-                    name: "step2".to_string(),
-                    method: "GET".to_string(),
-                    path_template: "/final".to_string(),
-                    body_template: None,
-                    response_path: "$.results".to_string(),
-                    pagination_cursor_path: None,
-                    variables_produced: vec![],
-                    fan_out_batch_size: None,
-                    pagination: None,
-                },
+                FetchStep::new(
+                    "step1",
+                    "GET",
+                    "/intermediate",
+                    None,
+                    "$.token",
+                    None,
+                    vec!["token".to_string()],
+                    None,
+                    None,
+                ),
+                FetchStep::new(
+                    "step2",
+                    "GET",
+                    "/final",
+                    None,
+                    "$.results",
+                    None,
+                    vec![],
+                    None,
+                    None,
+                ),
             ],
         )],
-        rate_limit_hints: None,
-        version: "1.0.0".to_string(),
-        credential_refs: vec![],
-    };
+        None,
+        "1.0.0",
+        vec![],
+    );
 
     let table = spec.tables[0].clone();
     let context = FetchContext::new(OrgSlug::new("test-org"), HashMap::new());
@@ -795,50 +760,45 @@ async fn test_BC_2_16_002_execute_fan_out_invokes_step_per_batch() {
         .mount(&mock_server)
         .await;
 
-    let spec = SensorSpec {
-        sensor_id: "fan-out-sensor".to_string(),
-        name: "Fan-Out Sensor".to_string(),
-        auth_type: AuthType::BearerStatic,
-        base_url: mock_server.uri(),
-        tables: vec![TableSpec::new_point_in_time(
+    let spec = SensorSpec::new(
+        "fan-out-sensor",
+        "Fan-Out Sensor",
+        AuthType::BearerStatic,
+        mock_server.uri(),
+        vec![TableSpec::new_point_in_time(
             "details",
             "security_finding",
-            vec![ColumnSpec {
-                name: "id".to_string(),
-                column_type: ColumnType::String,
-                ocsf_field: None,
-                options: vec![],
-            }],
+            vec![ColumnSpec::new("id", ColumnType::String, None, vec![])],
             vec![
-                FetchStep {
-                    name: "step1".to_string(),
-                    method: "GET".to_string(),
-                    path_template: "/ids".to_string(),
-                    body_template: None,
-                    response_path: "$.ids".to_string(),
-                    pagination_cursor_path: None,
-                    variables_produced: vec!["ids".to_string()],
-                    fan_out_batch_size: None,
-                    pagination: None,
-                },
-                FetchStep {
-                    name: "step2".to_string(),
-                    method: "GET".to_string(),
+                FetchStep::new(
+                    "step1",
+                    "GET",
+                    "/ids",
+                    None,
+                    "$.ids",
+                    None,
+                    vec!["ids".to_string()],
+                    None,
+                    None,
+                ),
+                FetchStep::new(
+                    "step2",
+                    "GET",
                     // References step1.ids — this array triggers fan-out
-                    path_template: "/details?ids=${step1.ids}".to_string(),
-                    body_template: None,
-                    response_path: "$.items".to_string(),
-                    pagination_cursor_path: None,
-                    variables_produced: vec![],
-                    fan_out_batch_size: Some(100), // 250 / 100 = 3 batches
-                    pagination: None,
-                },
+                    "/details?ids=${step1.ids}",
+                    None,
+                    "$.items",
+                    None,
+                    vec![],
+                    Some(100), // 250 / 100 = 3 batches
+                    None,
+                ),
             ],
         )],
-        rate_limit_hints: None,
-        version: "1.0.0".to_string(),
-        credential_refs: vec![],
-    };
+        None,
+        "1.0.0",
+        vec![],
+    );
 
     let table = spec.tables[0].clone();
     let context = FetchContext::new(OrgSlug::new("test-org"), HashMap::new());
@@ -901,42 +861,37 @@ async fn test_BC_2_16_002_execute_inserts_rate_limit_delay_between_pagination_ca
         .mount(&mock_server)
         .await;
 
-    let spec = SensorSpec {
-        sensor_id: "rate-limit-sensor".to_string(),
-        name: "Rate Limit Sensor".to_string(),
-        auth_type: AuthType::BearerStatic,
-        base_url: mock_server.uri(),
-        tables: vec![TableSpec::new_point_in_time(
+    let spec = SensorSpec::new(
+        "rate-limit-sensor",
+        "Rate Limit Sensor",
+        AuthType::BearerStatic,
+        mock_server.uri(),
+        vec![TableSpec::new_point_in_time(
             "slow",
             "security_finding",
-            vec![ColumnSpec {
-                name: "id".to_string(),
-                column_type: ColumnType::String,
-                ocsf_field: None,
-                options: vec![],
-            }],
-            vec![FetchStep {
-                name: "fetch_slow".to_string(),
-                method: "GET".to_string(),
-                path_template: "/slow".to_string(),
-                body_template: None,
-                response_path: "$.items".to_string(),
-                pagination_cursor_path: None,
-                variables_produced: vec![],
-                fan_out_batch_size: None,
-                pagination: Some(PaginationConfig::CursorToken {
+            vec![ColumnSpec::new("id", ColumnType::String, None, vec![])],
+            vec![FetchStep::new(
+                "fetch_slow",
+                "GET",
+                "/slow",
+                None,
+                "$.items",
+                None,
+                vec![],
+                None,
+                Some(PaginationConfig::CursorToken {
                     cursor_response_path: "$.cursor".to_string(),
                     page_size: None,
                 }),
-            }],
+            )],
         )],
-        rate_limit_hints: Some(RateLimitHints {
+        Some(RateLimitHints {
             requests_per_second: Some(5.0), // 200ms between requests
             burst_size: None,
         }),
-        version: "1.0.0".to_string(),
-        credential_refs: vec![],
-    };
+        "1.0.0",
+        vec![],
+    );
 
     let table = spec.tables[0].clone();
     let context = FetchContext::new(OrgSlug::new("test-org"), HashMap::new());
@@ -987,37 +942,32 @@ async fn test_BC_2_16_002_execute_interpolates_query_filter_in_path_template() {
         .mount(&mock_server)
         .await;
 
-    let spec = SensorSpec {
-        sensor_id: "filter-sensor".to_string(),
-        name: "Filter Sensor".to_string(),
-        auth_type: AuthType::BearerStatic,
-        base_url: mock_server.uri(),
-        tables: vec![TableSpec::new_point_in_time(
+    let spec = SensorSpec::new(
+        "filter-sensor",
+        "Filter Sensor",
+        AuthType::BearerStatic,
+        mock_server.uri(),
+        vec![TableSpec::new_point_in_time(
             "alerts",
             "security_finding",
-            vec![ColumnSpec {
-                name: "id".to_string(),
-                column_type: ColumnType::String,
-                ocsf_field: None,
-                options: vec![],
-            }],
-            vec![FetchStep {
-                name: "fetch_alerts".to_string(),
-                method: "GET".to_string(),
+            vec![ColumnSpec::new("id", ColumnType::String, None, vec![])],
+            vec![FetchStep::new(
+                "fetch_alerts",
+                "GET",
                 // Uses push-down filter from query context
-                path_template: "/alerts?severity=${query.filter.severity}".to_string(),
-                body_template: None,
-                response_path: "$.alerts".to_string(),
-                pagination_cursor_path: None,
-                variables_produced: vec![],
-                fan_out_batch_size: None,
-                pagination: None,
-            }],
+                "/alerts?severity=${query.filter.severity}",
+                None,
+                "$.alerts",
+                None,
+                vec![],
+                None,
+                None,
+            )],
         )],
-        rate_limit_hints: None,
-        version: "1.0.0".to_string(),
-        credential_refs: vec![],
-    };
+        None,
+        "1.0.0",
+        vec![],
+    );
 
     let table = spec.tables[0].clone();
     let mut filters = HashMap::new();
@@ -1078,39 +1028,34 @@ async fn test_BC_2_16_002_execute_truncates_at_10k_with_truncated_flag_set() {
         .mount(&mock_server)
         .await;
 
-    let spec = SensorSpec {
-        sensor_id: "truncate-sensor".to_string(),
-        name: "Truncate Sensor".to_string(),
-        auth_type: AuthType::BearerStatic,
-        base_url: mock_server.uri(),
-        tables: vec![TableSpec::new_point_in_time(
+    let spec = SensorSpec::new(
+        "truncate-sensor",
+        "Truncate Sensor",
+        AuthType::BearerStatic,
+        mock_server.uri(),
+        vec![TableSpec::new_point_in_time(
             "big",
             "security_finding",
-            vec![ColumnSpec {
-                name: "id".to_string(),
-                column_type: ColumnType::String,
-                ocsf_field: None,
-                options: vec![],
-            }],
-            vec![FetchStep {
-                name: "fetch_big".to_string(),
-                method: "GET".to_string(),
-                path_template: "/big".to_string(),
-                body_template: None,
-                response_path: "$.items".to_string(),
-                pagination_cursor_path: None,
-                variables_produced: vec![],
-                fan_out_batch_size: None,
-                pagination: Some(PaginationConfig::CursorToken {
+            vec![ColumnSpec::new("id", ColumnType::String, None, vec![])],
+            vec![FetchStep::new(
+                "fetch_big",
+                "GET",
+                "/big",
+                None,
+                "$.items",
+                None,
+                vec![],
+                None,
+                Some(PaginationConfig::CursorToken {
                     cursor_response_path: "$.cursor".to_string(),
                     page_size: None,
                 }),
-            }],
+            )],
         )],
-        rate_limit_hints: None,
-        version: "1.0.0".to_string(),
-        credential_refs: vec![],
-    };
+        None,
+        "1.0.0",
+        vec![],
+    );
 
     let table = spec.tables[0].clone();
     let context = FetchContext::new(OrgSlug::new("test-org"), HashMap::new());
@@ -1173,50 +1118,45 @@ async fn test_BC_2_16_002_execute_fan_out_sends_distinct_batch_urls() {
         .mount(&mock_server)
         .await;
 
-    let spec = SensorSpec {
-        sensor_id: "fan-out-distinct-sensor".to_string(),
-        name: "Fan-Out Distinct Sensor".to_string(),
-        auth_type: AuthType::BearerStatic,
-        base_url: mock_server.uri(),
-        tables: vec![TableSpec::new_point_in_time(
+    let spec = SensorSpec::new(
+        "fan-out-distinct-sensor",
+        "Fan-Out Distinct Sensor",
+        AuthType::BearerStatic,
+        mock_server.uri(),
+        vec![TableSpec::new_point_in_time(
             "details",
             "security_finding",
-            vec![ColumnSpec {
-                name: "id".to_string(),
-                column_type: ColumnType::String,
-                ocsf_field: None,
-                options: vec![],
-            }],
+            vec![ColumnSpec::new("id", ColumnType::String, None, vec![])],
             vec![
-                FetchStep {
-                    name: "step1".to_string(),
-                    method: "GET".to_string(),
-                    path_template: "/ids".to_string(),
-                    body_template: None,
-                    response_path: "$.ids".to_string(),
-                    pagination_cursor_path: None,
-                    variables_produced: vec!["ids".to_string()],
-                    fan_out_batch_size: None,
-                    pagination: None,
-                },
-                FetchStep {
-                    name: "step2".to_string(),
-                    method: "GET".to_string(),
+                FetchStep::new(
+                    "step1",
+                    "GET",
+                    "/ids",
+                    None,
+                    "$.ids",
+                    None,
+                    vec!["ids".to_string()],
+                    None,
+                    None,
+                ),
+                FetchStep::new(
+                    "step2",
+                    "GET",
                     // References step1.ids — this array triggers fan-out
-                    path_template: "/details?ids=${step1.ids}".to_string(),
-                    body_template: None,
-                    response_path: "$.items".to_string(),
-                    pagination_cursor_path: None,
-                    variables_produced: vec![],
-                    fan_out_batch_size: Some(100), // 250 / 100 = 3 batches
-                    pagination: None,
-                },
+                    "/details?ids=${step1.ids}",
+                    None,
+                    "$.items",
+                    None,
+                    vec![],
+                    Some(100), // 250 / 100 = 3 batches
+                    None,
+                ),
             ],
         )],
-        rate_limit_hints: None,
-        version: "1.0.0".to_string(),
-        credential_refs: vec![],
-    };
+        None,
+        "1.0.0",
+        vec![],
+    );
 
     let table = spec.tables[0].clone();
     let context = FetchContext::new(OrgSlug::new("test-org"), HashMap::new());
@@ -1326,39 +1266,34 @@ async fn test_BC_2_16_002_execute_aborts_on_non_advancing_cursor() {
         .mount(&mock_server)
         .await;
 
-    let spec = SensorSpec {
-        sensor_id: "stuck-sensor".to_string(),
-        name: "Stuck Sensor".to_string(),
-        auth_type: AuthType::BearerStatic,
-        base_url: mock_server.uri(),
-        tables: vec![TableSpec::new_point_in_time(
+    let spec = SensorSpec::new(
+        "stuck-sensor",
+        "Stuck Sensor",
+        AuthType::BearerStatic,
+        mock_server.uri(),
+        vec![TableSpec::new_point_in_time(
             "stuck",
             "security_finding",
-            vec![ColumnSpec {
-                name: "id".to_string(),
-                column_type: ColumnType::String,
-                ocsf_field: None,
-                options: vec![],
-            }],
-            vec![FetchStep {
-                name: "fetch_stuck".to_string(),
-                method: "GET".to_string(),
-                path_template: "/stuck".to_string(),
-                body_template: None,
-                response_path: "$.items".to_string(),
-                pagination_cursor_path: None,
-                variables_produced: vec![],
-                fan_out_batch_size: None,
-                pagination: Some(PaginationConfig::CursorToken {
+            vec![ColumnSpec::new("id", ColumnType::String, None, vec![])],
+            vec![FetchStep::new(
+                "fetch_stuck",
+                "GET",
+                "/stuck",
+                None,
+                "$.items",
+                None,
+                vec![],
+                None,
+                Some(PaginationConfig::CursorToken {
                     cursor_response_path: "$.cursor".to_string(),
                     page_size: None,
                 }),
-            }],
+            )],
         )],
-        rate_limit_hints: None,
-        version: "1.0.0".to_string(),
-        credential_refs: vec![],
-    };
+        None,
+        "1.0.0",
+        vec![],
+    );
 
     let table = spec.tables[0].clone();
     let context = FetchContext::new(OrgSlug::new("test-org"), HashMap::new());
@@ -1399,37 +1334,32 @@ async fn test_BC_2_16_002_execute_derives_application_json_for_array_body() {
         .mount(&mock_server)
         .await;
 
-    let spec = SensorSpec {
-        sensor_id: "array-body-sensor".to_string(),
-        name: "Array Body Sensor".to_string(),
-        auth_type: AuthType::BearerStatic,
-        base_url: mock_server.uri(),
-        tables: vec![TableSpec::new_point_in_time(
+    let spec = SensorSpec::new(
+        "array-body-sensor",
+        "Array Body Sensor",
+        AuthType::BearerStatic,
+        mock_server.uri(),
+        vec![TableSpec::new_point_in_time(
             "batch",
             "security_finding",
-            vec![ColumnSpec {
-                name: "id".to_string(),
-                column_type: ColumnType::String,
-                ocsf_field: None,
-                options: vec![],
-            }],
-            vec![FetchStep {
-                name: "fetch_batch".to_string(),
-                method: "POST".to_string(),
-                path_template: "/batch".to_string(),
+            vec![ColumnSpec::new("id", ColumnType::String, None, vec![])],
+            vec![FetchStep::new(
+                "fetch_batch",
+                "POST",
+                "/batch",
                 // JSON array body template — must trigger Content-Type: application/json
-                body_template: Some(r#"[{"type":"query"}]"#.to_string()),
-                response_path: "$.results".to_string(),
-                pagination_cursor_path: None,
-                variables_produced: vec![],
-                fan_out_batch_size: None,
-                pagination: None,
-            }],
+                Some(r#"[{"type":"query"}]"#.to_string()),
+                "$.results",
+                None,
+                vec![],
+                None,
+                None,
+            )],
         )],
-        rate_limit_hints: None,
-        version: "1.0.0".to_string(),
-        credential_refs: vec![],
-    };
+        None,
+        "1.0.0",
+        vec![],
+    );
 
     let table = spec.tables[0].clone();
     let context = FetchContext::new(OrgSlug::new("test-org"), HashMap::new());
@@ -1488,39 +1418,34 @@ async fn test_BC_2_16_002_execute_coerces_numeric_cursor_to_string() {
         .mount(&mock_server)
         .await;
 
-    let spec = SensorSpec {
-        sensor_id: "numeric-cursor-sensor".to_string(),
-        name: "Numeric Cursor Sensor".to_string(),
-        auth_type: AuthType::BearerStatic,
-        base_url: mock_server.uri(),
-        tables: vec![TableSpec::new_point_in_time(
+    let spec = SensorSpec::new(
+        "numeric-cursor-sensor",
+        "Numeric Cursor Sensor",
+        AuthType::BearerStatic,
+        mock_server.uri(),
+        vec![TableSpec::new_point_in_time(
             "numeric",
             "security_finding",
-            vec![ColumnSpec {
-                name: "id".to_string(),
-                column_type: ColumnType::String,
-                ocsf_field: None,
-                options: vec![],
-            }],
-            vec![FetchStep {
-                name: "fetch_numeric".to_string(),
-                method: "GET".to_string(),
-                path_template: "/numeric".to_string(),
-                body_template: None,
-                response_path: "$.items".to_string(),
-                pagination_cursor_path: None,
-                variables_produced: vec![],
-                fan_out_batch_size: None,
-                pagination: Some(PaginationConfig::CursorToken {
+            vec![ColumnSpec::new("id", ColumnType::String, None, vec![])],
+            vec![FetchStep::new(
+                "fetch_numeric",
+                "GET",
+                "/numeric",
+                None,
+                "$.items",
+                None,
+                vec![],
+                None,
+                Some(PaginationConfig::CursorToken {
                     cursor_response_path: "$.cursor".to_string(),
                     page_size: None,
                 }),
-            }],
+            )],
         )],
-        rate_limit_hints: None,
-        version: "1.0.0".to_string(),
-        credential_refs: vec![],
-    };
+        None,
+        "1.0.0",
+        vec![],
+    );
 
     let table = spec.tables[0].clone();
     let context = FetchContext::new(OrgSlug::new("test-org"), HashMap::new());
@@ -1601,39 +1526,34 @@ async fn test_BC_2_16_002_execute_aborts_at_max_pages_per_step() {
             .await;
     }
 
-    let spec = SensorSpec {
-        sensor_id: "infinite-sensor".to_string(),
-        name: "Infinite Sensor".to_string(),
-        auth_type: AuthType::BearerStatic,
-        base_url: mock_server.uri(),
-        tables: vec![TableSpec::new_point_in_time(
+    let spec = SensorSpec::new(
+        "infinite-sensor",
+        "Infinite Sensor",
+        AuthType::BearerStatic,
+        mock_server.uri(),
+        vec![TableSpec::new_point_in_time(
             "items",
             "security_finding",
-            vec![ColumnSpec {
-                name: "id".to_string(),
-                column_type: ColumnType::String,
-                ocsf_field: None,
-                options: vec![],
-            }],
-            vec![FetchStep {
-                name: "fetch_items".to_string(),
-                method: "GET".to_string(),
-                path_template: "/infinite".to_string(),
-                body_template: None,
-                response_path: "$.items".to_string(),
-                pagination_cursor_path: None,
-                variables_produced: vec![],
-                fan_out_batch_size: None,
-                pagination: Some(PaginationConfig::CursorToken {
+            vec![ColumnSpec::new("id", ColumnType::String, None, vec![])],
+            vec![FetchStep::new(
+                "fetch_items",
+                "GET",
+                "/infinite",
+                None,
+                "$.items",
+                None,
+                vec![],
+                None,
+                Some(PaginationConfig::CursorToken {
                     cursor_response_path: "$.pagination.cursor".to_string(),
                     page_size: None,
                 }),
-            }],
+            )],
         )],
-        rate_limit_hints: None,
-        version: "1.0.0".to_string(),
-        credential_refs: vec![],
-    };
+        None,
+        "1.0.0",
+        vec![],
+    );
 
     let table = spec.tables[0].clone();
     let context = default_context();
@@ -1793,41 +1713,36 @@ async fn test_BC_2_16_002_emits_pipeline_truncated_event_on_10k_cap() {
         .mount(&mock_server)
         .await;
 
-    let spec = SensorSpec {
-        sensor_id: "truncate-audit-sensor".to_string(),
-        name: "Truncate Audit Sensor".to_string(),
-        auth_type: prism_spec_engine::spec_parser::AuthType::BearerStatic,
-        base_url: mock_server.uri(),
-        tables: vec![
+    let spec = SensorSpec::new(
+        "truncate-audit-sensor",
+        "Truncate Audit Sensor",
+        prism_spec_engine::spec_parser::AuthType::BearerStatic,
+        mock_server.uri(),
+        vec![
             prism_spec_engine::spec_parser::TableSpec::new_point_in_time(
                 "big",
                 "security_finding",
-                vec![ColumnSpec {
-                    name: "id".to_string(),
-                    column_type: ColumnType::String,
-                    ocsf_field: None,
-                    options: vec![],
-                }],
-                vec![FetchStep {
-                    name: "fetch_big".to_string(),
-                    method: "GET".to_string(),
-                    path_template: "/truncate-audit".to_string(),
-                    body_template: None,
-                    response_path: "$.items".to_string(),
-                    pagination_cursor_path: None,
-                    variables_produced: vec![],
-                    fan_out_batch_size: None,
-                    pagination: Some(PaginationConfig::CursorToken {
+                vec![ColumnSpec::new("id", ColumnType::String, None, vec![])],
+                vec![FetchStep::new(
+                    "fetch_big",
+                    "GET",
+                    "/truncate-audit",
+                    None,
+                    "$.items",
+                    None,
+                    vec![],
+                    None,
+                    Some(PaginationConfig::CursorToken {
                         cursor_response_path: "$.cursor".to_string(),
                         page_size: None,
                     }),
-                }],
+                )],
             ),
         ],
-        rate_limit_hints: None,
-        version: "1.0.0".to_string(),
-        credential_refs: vec![],
-    };
+        None,
+        "1.0.0",
+        vec![],
+    );
 
     let table = spec.tables[0].clone();
     let context = default_context();
@@ -1889,35 +1804,32 @@ async fn test_BC_2_16_002_auth_initial_acquired_emits_distinct_events_per_token_
     let mock_server = MockServer::start().await;
 
     // One-step spec reused for both sub-cases.
-    let make_spec = |base_url: &str| SensorSpec {
-        sensor_id: "auth-event-sensor".to_string(),
-        name: "Auth Event Sensor".to_string(),
-        auth_type: AuthType::BearerStatic,
-        base_url: base_url.to_string(),
-        tables: vec![TableSpec::new_point_in_time(
-            "items",
-            "security_finding",
-            vec![ColumnSpec {
-                name: "id".to_string(),
-                column_type: ColumnType::String,
-                ocsf_field: None,
-                options: vec![],
-            }],
-            vec![FetchStep {
-                name: "fetch_items".to_string(),
-                method: "GET".to_string(),
-                path_template: "/auth-event".to_string(),
-                body_template: None,
-                response_path: "$.items".to_string(),
-                pagination_cursor_path: None,
-                variables_produced: vec![],
-                fan_out_batch_size: None,
-                pagination: None,
-            }],
-        )],
-        rate_limit_hints: None,
-        version: "1.0.0".to_string(),
-        credential_refs: vec![],
+    let make_spec = |base_url: &str| {
+        SensorSpec::new(
+            "auth-event-sensor",
+            "Auth Event Sensor",
+            AuthType::BearerStatic,
+            base_url,
+            vec![TableSpec::new_point_in_time(
+                "items",
+                "security_finding",
+                vec![ColumnSpec::new("id", ColumnType::String, None, vec![])],
+                vec![FetchStep::new(
+                    "fetch_items",
+                    "GET",
+                    "/auth-event",
+                    None,
+                    "$.items",
+                    None,
+                    vec![],
+                    None,
+                    None,
+                )],
+            )],
+            None,
+            "1.0.0",
+            vec![],
+        )
     };
 
     Mock::given(method("GET"))
@@ -2097,41 +2009,36 @@ async fn test_BC_2_16_002_execute_discards_partial_records_on_mid_pipeline_500()
         .mount(&mock_server)
         .await;
 
-    let spec = SensorSpec {
-        sensor_id: "discard-partial-sensor".to_string(),
-        name: "Discard Partial Sensor".to_string(),
-        auth_type: AuthType::BearerStatic,
-        base_url: mock_server.uri(),
-        tables: vec![TableSpec::new_point_in_time(
+    let spec = SensorSpec::new(
+        "discard-partial-sensor",
+        "Discard Partial Sensor",
+        AuthType::BearerStatic,
+        mock_server.uri(),
+        vec![TableSpec::new_point_in_time(
             "items",
             "security_finding",
-            vec![ColumnSpec {
-                name: "id".to_string(),
-                column_type: ColumnType::String,
-                ocsf_field: None,
-                options: vec![],
-            }],
-            vec![FetchStep {
-                name: "step1".to_string(),
-                method: "GET".to_string(),
-                path_template: "/items".to_string(),
-                body_template: None,
+            vec![ColumnSpec::new("id", ColumnType::String, None, vec![])],
+            vec![FetchStep::new(
+                "step1",
+                "GET",
+                "/items",
+                None,
                 // ARRAY response_path — records accumulate into all_records
-                response_path: "$.items".to_string(),
-                pagination_cursor_path: None,
-                variables_produced: vec![],
-                fan_out_batch_size: None,
+                "$.items",
+                None,
+                vec![],
+                None,
                 // CursorToken pagination: page-1 cursor "abc", page-2 returns 500
-                pagination: Some(PaginationConfig::CursorToken {
+                Some(PaginationConfig::CursorToken {
                     cursor_response_path: "$.next".to_string(),
                     page_size: None,
                 }),
-            }],
+            )],
         )],
-        rate_limit_hints: None,
-        version: "1.0.0".to_string(),
-        credential_refs: vec![],
-    };
+        None,
+        "1.0.0",
+        vec![],
+    );
 
     let table = spec.tables[0].clone();
     let context = FetchContext::new(OrgSlug::new("test-org"), HashMap::new());
@@ -2199,39 +2106,34 @@ async fn test_BC_2_16_002_cursor_unsupported_type_emits_structured_event() {
         .mount(&mock_server)
         .await;
 
-    let spec = SensorSpec {
-        sensor_id: "cursor-type-sensor".to_string(),
-        name: "Cursor Type Sensor".to_string(),
-        auth_type: AuthType::BearerStatic,
-        base_url: mock_server.uri(),
-        tables: vec![TableSpec::new_point_in_time(
+    let spec = SensorSpec::new(
+        "cursor-type-sensor",
+        "Cursor Type Sensor",
+        AuthType::BearerStatic,
+        mock_server.uri(),
+        vec![TableSpec::new_point_in_time(
             "items",
             "security_finding",
-            vec![ColumnSpec {
-                name: "id".to_string(),
-                column_type: ColumnType::String,
-                ocsf_field: None,
-                options: vec![],
-            }],
-            vec![FetchStep {
-                name: "fetch_items".to_string(),
-                method: "GET".to_string(),
-                path_template: "/cursor-unsupported".to_string(),
-                body_template: None,
-                response_path: "$.items".to_string(),
-                pagination_cursor_path: None,
-                variables_produced: vec![],
-                fan_out_batch_size: None,
-                pagination: Some(PaginationConfig::CursorToken {
+            vec![ColumnSpec::new("id", ColumnType::String, None, vec![])],
+            vec![FetchStep::new(
+                "fetch_items",
+                "GET",
+                "/cursor-unsupported",
+                None,
+                "$.items",
+                None,
+                vec![],
+                None,
+                Some(PaginationConfig::CursorToken {
                     cursor_response_path: "$.next".to_string(),
                     page_size: None,
                 }),
-            }],
+            )],
         )],
-        rate_limit_hints: None,
-        version: "1.0.0".to_string(),
-        credential_refs: vec![],
-    };
+        None,
+        "1.0.0",
+        vec![],
+    );
 
     let log_buffer: Arc<Mutex<String>> = Arc::new(Mutex::new(String::new()));
     let log_buffer_clone = log_buffer.clone();
@@ -2318,69 +2220,64 @@ fn test_BC_2_16_002_spec_with_multi_array_fan_out_template_rejected() {
     // - step1 is paginated (implies array output for $.ids)
     // - step2 is paginated (implies array output for $.codes)
     // - step3's path_template references BOTH step1.ids AND step2.codes
-    let spec = SensorSpec {
-        sensor_id: "multi-array-sensor".to_string(),
-        name: "Multi Array Sensor".to_string(),
-        auth_type: AuthType::BearerStatic,
-        base_url: "https://api.example.com".to_string(),
-        tables: vec![TableSpec::new_point_in_time(
+    let spec = SensorSpec::new(
+        "multi-array-sensor",
+        "Multi Array Sensor",
+        AuthType::BearerStatic,
+        "https://api.example.com",
+        vec![TableSpec::new_point_in_time(
             "items",
             "security_finding",
-            vec![ColumnSpec {
-                name: "id".to_string(),
-                column_type: ColumnType::String,
-                ocsf_field: None,
-                options: vec![],
-            }],
+            vec![ColumnSpec::new("id", ColumnType::String, None, vec![])],
             vec![
-                FetchStep {
-                    name: "step1".to_string(),
-                    method: "GET".to_string(),
-                    path_template: "/ids".to_string(),
-                    body_template: None,
-                    response_path: "$.ids[*]".to_string(),
-                    pagination_cursor_path: None,
-                    variables_produced: vec![],
-                    fan_out_batch_size: None,
+                FetchStep::new(
+                    "step1",
+                    "GET",
+                    "/ids",
+                    None,
+                    "$.ids[*]",
+                    None,
+                    vec![],
+                    None,
                     // Paginated step: implies array output
-                    pagination: Some(PaginationConfig::CursorToken {
+                    Some(PaginationConfig::CursorToken {
                         cursor_response_path: "$.next".to_string(),
                         page_size: None,
                     }),
-                },
-                FetchStep {
-                    name: "step2".to_string(),
-                    method: "GET".to_string(),
-                    path_template: "/codes".to_string(),
-                    body_template: None,
-                    response_path: "$.codes[*]".to_string(),
-                    pagination_cursor_path: None,
-                    variables_produced: vec![],
-                    fan_out_batch_size: None,
+                ),
+                FetchStep::new(
+                    "step2",
+                    "GET",
+                    "/codes",
+                    None,
+                    "$.codes[*]",
+                    None,
+                    vec![],
+                    None,
                     // Also paginated: implies array output
-                    pagination: Some(PaginationConfig::CursorToken {
+                    Some(PaginationConfig::CursorToken {
                         cursor_response_path: "$.next".to_string(),
                         page_size: None,
                     }),
-                },
-                FetchStep {
-                    name: "step3".to_string(),
-                    method: "GET".to_string(),
+                ),
+                FetchStep::new(
+                    "step3",
+                    "GET",
                     // References both step1 and step2 array-valued outputs simultaneously.
-                    path_template: "/api/${step1.ids}/details/${step2.codes}".to_string(),
-                    body_template: None,
-                    response_path: "$.items".to_string(),
-                    pagination_cursor_path: None,
-                    variables_produced: vec![],
-                    fan_out_batch_size: None,
-                    pagination: None,
-                },
+                    "/api/${step1.ids}/details/${step2.codes}",
+                    None,
+                    "$.items",
+                    None,
+                    vec![],
+                    None,
+                    None,
+                ),
             ],
         )],
-        rate_limit_hints: None,
-        version: "1.0.0".to_string(),
-        credential_refs: vec![],
-    };
+        None,
+        "1.0.0",
+        vec![],
+    );
 
     let result = validate_sensor_spec(&spec);
 
@@ -2459,39 +2356,34 @@ async fn test_BC_2_16_002_cursor_preview_handles_multi_byte_utf8_without_panic()
         .mount(&mock_server)
         .await;
 
-    let spec = SensorSpec {
-        sensor_id: "utf8-cursor-sensor".to_string(),
-        name: "UTF-8 Cursor Sensor".to_string(),
-        auth_type: AuthType::BearerStatic,
-        base_url: mock_server.uri(),
-        tables: vec![TableSpec::new_point_in_time(
+    let spec = SensorSpec::new(
+        "utf8-cursor-sensor",
+        "UTF-8 Cursor Sensor",
+        AuthType::BearerStatic,
+        mock_server.uri(),
+        vec![TableSpec::new_point_in_time(
             "items",
             "security_finding",
-            vec![ColumnSpec {
-                name: "id".to_string(),
-                column_type: ColumnType::String,
-                ocsf_field: None,
-                options: vec![],
-            }],
-            vec![FetchStep {
-                name: "fetch_items".to_string(),
-                method: "GET".to_string(),
-                path_template: "/utf8-cursor".to_string(),
-                body_template: None,
-                response_path: "$.items".to_string(),
-                pagination_cursor_path: None,
-                variables_produced: vec![],
-                fan_out_batch_size: None,
-                pagination: Some(PaginationConfig::CursorToken {
+            vec![ColumnSpec::new("id", ColumnType::String, None, vec![])],
+            vec![FetchStep::new(
+                "fetch_items",
+                "GET",
+                "/utf8-cursor",
+                None,
+                "$.items",
+                None,
+                vec![],
+                None,
+                Some(PaginationConfig::CursorToken {
                     cursor_response_path: "$.next".to_string(),
                     page_size: None,
                 }),
-            }],
+            )],
         )],
-        rate_limit_hints: None,
-        version: "1.0.0".to_string(),
-        credential_refs: vec![],
-    };
+        None,
+        "1.0.0",
+        vec![],
+    );
 
     let table = spec.tables[0].clone();
     let context = FetchContext::new(OrgSlug::new("test-org"), HashMap::new());
@@ -2605,62 +2497,57 @@ async fn test_BC_2_16_002_fanout_ambiguous_multi_array_emits_structured_event() 
         .mount(&mock_server)
         .await;
 
-    let spec = SensorSpec {
-        sensor_id: "multi-array-fanout-sensor".to_string(),
-        name: "Multi-Array Fan-Out Sensor".to_string(),
-        auth_type: AuthType::BearerStatic,
-        base_url: mock_server.uri(),
-        tables: vec![TableSpec::new_point_in_time(
+    let spec = SensorSpec::new(
+        "multi-array-fanout-sensor",
+        "Multi-Array Fan-Out Sensor",
+        AuthType::BearerStatic,
+        mock_server.uri(),
+        vec![TableSpec::new_point_in_time(
             "items",
             "security_finding",
-            vec![ColumnSpec {
-                name: "id".to_string(),
-                column_type: ColumnType::String,
-                ocsf_field: None,
-                options: vec![],
-            }],
+            vec![ColumnSpec::new("id", ColumnType::String, None, vec![])],
             vec![
-                FetchStep {
-                    name: "step1".to_string(),
-                    method: "GET".to_string(),
-                    path_template: "/step1".to_string(),
-                    body_template: None,
-                    response_path: "$.ids".to_string(),
-                    pagination_cursor_path: None,
-                    variables_produced: vec!["ids".to_string()],
-                    fan_out_batch_size: None,
-                    pagination: None,
-                },
-                FetchStep {
-                    name: "step2".to_string(),
-                    method: "GET".to_string(),
-                    path_template: "/step2".to_string(),
-                    body_template: None,
-                    response_path: "$.codes".to_string(),
-                    pagination_cursor_path: None,
-                    variables_produced: vec!["codes".to_string()],
-                    fan_out_batch_size: None,
-                    pagination: None,
-                },
-                FetchStep {
-                    name: "step3".to_string(),
-                    method: "GET".to_string(),
+                FetchStep::new(
+                    "step1",
+                    "GET",
+                    "/step1",
+                    None,
+                    "$.ids",
+                    None,
+                    vec!["ids".to_string()],
+                    None,
+                    None,
+                ),
+                FetchStep::new(
+                    "step2",
+                    "GET",
+                    "/step2",
+                    None,
+                    "$.codes",
+                    None,
+                    vec!["codes".to_string()],
+                    None,
+                    None,
+                ),
+                FetchStep::new(
+                    "step3",
+                    "GET",
                     // References BOTH step1.ids and step2.codes — both are array-valued.
                     // This triggers the multi-array fan-out ambiguity warn.
-                    path_template: "/api/${step1.ids}/x/${step2.codes}".to_string(),
-                    body_template: None,
-                    response_path: "$.items".to_string(),
-                    pagination_cursor_path: None,
-                    variables_produced: vec![],
-                    fan_out_batch_size: None,
-                    pagination: None,
-                },
+                    "/api/${step1.ids}/x/${step2.codes}",
+                    None,
+                    "$.items",
+                    None,
+                    vec![],
+                    None,
+                    None,
+                ),
             ],
         )],
-        rate_limit_hints: None,
-        version: "1.0.0".to_string(),
-        credential_refs: vec![],
-    };
+        None,
+        "1.0.0",
+        vec![],
+    );
 
     let table = spec.tables[0].clone();
     let context = FetchContext::new(OrgSlug::new("test-org"), HashMap::new());
@@ -2763,52 +2650,47 @@ async fn test_BC_2_16_002_fanout_invalid_source_type_emits_structured_event_for_
         .mount(&mock_server)
         .await;
 
-    let spec = SensorSpec {
-        sensor_id: "object-fanout-sensor".to_string(),
-        name: "Object Fanout Sensor".to_string(),
-        auth_type: AuthType::BearerStatic,
-        base_url: mock_server.uri(),
-        tables: vec![TableSpec::new_point_in_time(
+    let spec = SensorSpec::new(
+        "object-fanout-sensor",
+        "Object Fanout Sensor",
+        AuthType::BearerStatic,
+        mock_server.uri(),
+        vec![TableSpec::new_point_in_time(
             "devices",
             "security_finding",
-            vec![ColumnSpec {
-                name: "device".to_string(),
-                column_type: ColumnType::String,
-                ocsf_field: None,
-                options: vec![],
-            }],
+            vec![ColumnSpec::new("device", ColumnType::String, None, vec![])],
             vec![
-                FetchStep {
-                    name: "step1".to_string(),
-                    method: "GET".to_string(),
-                    path_template: "/step1/metadata".to_string(),
-                    body_template: None,
+                FetchStep::new(
+                    "step1",
+                    "GET",
+                    "/step1/metadata",
+                    None,
                     // response_path resolves to the Object value itself
-                    response_path: "$.metadata".to_string(),
-                    pagination_cursor_path: None,
-                    variables_produced: vec!["metadata".to_string()],
-                    fan_out_batch_size: None,
-                    pagination: None,
-                },
-                FetchStep {
-                    name: "step2".to_string(),
-                    method: "GET".to_string(),
+                    "$.metadata",
+                    None,
+                    vec!["metadata".to_string()],
+                    None,
+                    None,
+                ),
+                FetchStep::new(
+                    "step2",
+                    "GET",
                     // ${step1.metadata} is an Object — will be stringified into URL.
                     // F-LP10-MED-002: must emit fanout_invalid_source_type warn.
-                    path_template: "/api/devices/${step1.metadata}/lookup".to_string(),
-                    body_template: None,
-                    response_path: "$.items".to_string(),
-                    pagination_cursor_path: None,
-                    variables_produced: vec![],
-                    fan_out_batch_size: None,
-                    pagination: None,
-                },
+                    "/api/devices/${step1.metadata}/lookup",
+                    None,
+                    "$.items",
+                    None,
+                    vec![],
+                    None,
+                    None,
+                ),
             ],
         )],
-        rate_limit_hints: None,
-        version: "1.0.0".to_string(),
-        credential_refs: vec![],
-    };
+        None,
+        "1.0.0",
+        vec![],
+    );
 
     let table = spec.tables[0].clone();
     let context = FetchContext::new(OrgSlug::new("test-org"), HashMap::new());

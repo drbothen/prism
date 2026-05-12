@@ -407,8 +407,8 @@ mod escape_tests {
     /// but does not handle the leading `$$` escape prefix. Before AC-4:
     ///   - The regex matches `${step1.var}` (the tail), producing `$$hello`
     ///     (two literal `$` from unprocessed prefix, then interpolated `hello`).
-    /// After AC-4: the `$$` is consumed as escape → `$`, and the remaining
-    /// `${step1.var}` is interpolated → `hello`. Combined: `$hello`.
+    ///   - After AC-4: the `$$` is consumed as escape → `$`, and the remaining
+    ///     `${step1.var}` is interpolated → `hello`. Combined: `$hello`.
     ///
     /// This test MUST FAIL until AC-4 is implemented.
     #[test]

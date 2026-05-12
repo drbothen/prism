@@ -19,6 +19,11 @@ use serde::{Deserialize, Serialize};
 ///
 /// Determines how prism-spec-engine resolves credentials from the credential
 /// store at query time (BC-2.16.001 Auth Type Resolution).
+///
+/// `#[non_exhaustive]`: forward-compat for plugin TOML schema evolution — new auth
+/// variants will be added (ADR-023 §C2 WASM auth). Fields may expand without a semver bump.
+/// External crates matching on this enum MUST include a wildcard `_ => {}` arm.
+#[non_exhaustive]
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum AuthType {
@@ -33,6 +38,11 @@ pub enum AuthType {
 }
 
 /// Pagination configuration for a fetch step (BC-2.16.002).
+///
+/// `#[non_exhaustive]`: forward-compat for plugin TOML schema evolution — AC-1 adds
+/// `page_size` field to `CursorToken`; future variants possible (e.g., keyset pagination).
+/// Fields may expand without a semver bump; use the `Default` impl or builder pattern.
+#[non_exhaustive]
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(tag = "type", rename_all = "snake_case")]
 pub enum PaginationConfig {
@@ -69,6 +79,11 @@ pub struct RateLimitHints {
 }
 
 /// A single step in a multi-step fetch pipeline (BC-2.16.002).
+///
+/// `#[non_exhaustive]`: forward-compat for plugin TOML schema evolution — `retry`,
+/// `batch`, `cache_ttl` are planned additions. Fields may expand without a semver bump;
+/// use the `Default` impl or builder pattern for external construction.
+#[non_exhaustive]
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct FetchStep {
     /// Step name, used as variable scope prefix (e.g., `${step_name.field}`).
@@ -91,7 +106,42 @@ pub struct FetchStep {
     pub pagination: Option<PaginationConfig>,
 }
 
+impl FetchStep {
+    /// Construct a `FetchStep` with all fields.
+    ///
+    /// Required because `#[non_exhaustive]` prevents struct-literal construction
+    /// outside the crate. Use this constructor in tests and external code.
+    #[allow(clippy::too_many_arguments)]
+    pub fn new(
+        name: impl Into<String>,
+        method: impl Into<String>,
+        path_template: impl Into<String>,
+        body_template: Option<String>,
+        response_path: impl Into<String>,
+        pagination_cursor_path: Option<String>,
+        variables_produced: Vec<String>,
+        fan_out_batch_size: Option<u32>,
+        pagination: Option<PaginationConfig>,
+    ) -> Self {
+        Self {
+            name: name.into(),
+            method: method.into(),
+            path_template: path_template.into(),
+            body_template,
+            response_path: response_path.into(),
+            pagination_cursor_path,
+            variables_produced,
+            fan_out_batch_size,
+            pagination,
+        }
+    }
+}
+
 /// A single column definition in a sensor table (BC-2.16.001 postconditions).
+///
+/// `#[non_exhaustive]`: forward-compat for plugin TOML schema evolution — `ocsf_field`
+/// grammar expansions expected. Fields may expand without a semver bump.
+#[non_exhaustive]
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct ColumnSpec {
     /// Column name. Must be unique within the table.
@@ -105,6 +155,26 @@ pub struct ColumnSpec {
     pub options: Vec<ColumnOptions>,
 }
 
+impl ColumnSpec {
+    /// Construct a `ColumnSpec`.
+    ///
+    /// Required because `#[non_exhaustive]` prevents struct-literal construction
+    /// outside the crate. Use this constructor in tests and external code.
+    pub fn new(
+        name: impl Into<String>,
+        column_type: ColumnType,
+        ocsf_field: Option<String>,
+        options: Vec<ColumnOptions>,
+    ) -> Self {
+        Self {
+            name: name.into(),
+            column_type,
+            ocsf_field,
+            options,
+        }
+    }
+}
+
 /// A table within a sensor spec (BC-2.16.001).
 ///
 /// S-2.08 adds `table_type`, `poll_interval_secs`, and `retention_secs` fields.
@@ -112,6 +182,10 @@ pub struct ColumnSpec {
 /// `table_type == TableType::EventStream`; `SpecParser::validate_table_spec`
 /// enforces this constraint (AC-7, EC-002).
 ///
+/// `#[non_exhaustive]`: forward-compat for plugin TOML schema evolution — new declarative
+/// features planned. Fields may expand without a semver bump; use `TableSpec::new_point_in_time`
+/// or `TableSpec::new` constructors for forward-compatible construction.
+#[non_exhaustive]
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct TableSpec {
     /// Table name. Combined with sensor_id as `{sensor_id}.{table_name}` in DataFusion.
@@ -215,6 +289,11 @@ impl TableSpec {
 ///
 /// F-PASS2-HIGH-3 (S-WAVE5-PREP-01): added to carry credential refs from TOML
 /// into the in-memory spec so step5_init_credential_store can iterate them.
+///
+/// `#[non_exhaustive]`: forward-compat for plugin TOML schema evolution — fields may
+/// expand as new auth types are added (e.g., scope, rotation policy). Fields may expand
+/// without a semver bump.
+#[non_exhaustive]
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct CredentialRef {
     /// Logical credential name within this sensor's keyring namespace.
@@ -222,7 +301,22 @@ pub struct CredentialRef {
     pub name: String,
 }
 
+impl CredentialRef {
+    /// Construct a `CredentialRef` with the given name.
+    ///
+    /// Required because `#[non_exhaustive]` prevents struct-literal construction
+    /// outside the crate. Use this constructor in tests and external code.
+    pub fn new(name: impl Into<String>) -> Self {
+        Self { name: name.into() }
+    }
+}
+
 /// The top-level sensor spec parsed from a `*.sensor.toml` file (BC-2.16.001).
+///
+/// `#[non_exhaustive]`: forward-compat for plugin TOML schema evolution — root spec
+/// type; fields will expand with ADR-023 grammar. Fields may expand without a semver bump;
+/// use the `Default` impl or builder pattern for external construction.
+#[non_exhaustive]
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct SensorSpec {
     /// Unique sensor identifier. Must match `^[a-z][a-z0-9_-]*$`.
@@ -249,10 +343,43 @@ pub struct SensorSpec {
     pub credential_refs: Vec<CredentialRef>,
 }
 
+impl SensorSpec {
+    /// Construct a `SensorSpec` with all fields.
+    ///
+    /// Required because `#[non_exhaustive]` prevents struct-literal construction
+    /// outside the crate. Use this constructor in tests and external code.
+    #[allow(clippy::too_many_arguments)]
+    pub fn new(
+        sensor_id: impl Into<String>,
+        name: impl Into<String>,
+        auth_type: AuthType,
+        base_url: impl Into<String>,
+        tables: Vec<TableSpec>,
+        rate_limit_hints: Option<RateLimitHints>,
+        version: impl Into<String>,
+        credential_refs: Vec<CredentialRef>,
+    ) -> Self {
+        Self {
+            sensor_id: sensor_id.into(),
+            name: name.into(),
+            auth_type,
+            base_url: base_url.into(),
+            tables,
+            rate_limit_hints,
+            version: version.into(),
+            credential_refs,
+        }
+    }
+}
+
 /// Descriptor exported from a loaded spec for downstream consumption.
 ///
 /// prism-query (S-3.02) uses these descriptors to register DataFusion TableProviders.
 /// prism-spec-engine MUST NOT import DataFusion — it exports descriptors only (AD-015).
+///
+/// `#[non_exhaustive]`: forward-compat for plugin TOML schema evolution — table metadata
+/// fields (columns, steps) may gain new config fields. Fields may expand without a semver bump.
+#[non_exhaustive]
 #[derive(Debug, Clone, PartialEq)]
 pub struct SensorTableDescriptor {
     /// Fully-qualified DataFusion table name: `{sensor_id}.{table_name}`.
@@ -264,6 +391,26 @@ pub struct SensorTableDescriptor {
     /// Whether the sensor has credentials registered for any client.
     /// False = tables queryable but return `status: no_credentials` (DEC-036).
     pub has_credentials: bool,
+}
+
+impl SensorTableDescriptor {
+    /// Construct a `SensorTableDescriptor`.
+    ///
+    /// Required because `#[non_exhaustive]` prevents struct-literal construction
+    /// outside the crate. Use this constructor in tests and external code.
+    pub fn new(
+        table_name: impl Into<String>,
+        columns: Vec<ColumnSpec>,
+        sensor_id: impl Into<String>,
+        has_credentials: bool,
+    ) -> Self {
+        Self {
+            table_name: table_name.into(),
+            columns,
+            sensor_id: sensor_id.into(),
+            has_credentials,
+        }
+    }
 }
 
 // ---------------------------------------------------------------------------

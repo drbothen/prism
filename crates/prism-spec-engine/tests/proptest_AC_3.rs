@@ -115,7 +115,7 @@ proptest! {
             _ => 0,
         };
         let batches = PipelineExecutor::fan_out_batches(&values, batch_size);
-        let expected_count = if n == 0 { 0 } else { (n + batch_size - 1) / batch_size };
+        let expected_count = if n == 0 { 0 } else { n.div_ceil(batch_size) };
         let got = batches.len();
         prop_assert_eq!(
             got,
