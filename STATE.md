@@ -1,7 +1,7 @@
 ---
 document_type: pipeline-state
 level: ops
-version: "7.175"
+version: "7.176"
 producer: state-manager
 timestamp: 2026-05-12T15:00:00Z
 inputs: []
@@ -22,9 +22,9 @@ repos:
   - axiathon
   - ocsf-proto-gen
   - mcp-claroty-xdome
-current_step: "D-441. PREREQ-C step 5 COMPLETE — F-LP5-LOW-001 closed (main.rs doc-header 29→30 types + fix-burst-4 attribution + 30th type bullet appended, c9bb9d26). Demo evidence generated at docs/demo-evidence/S-PLUGIN-PREREQ-C/ — 8 files (INDEX + AC-1..AC-7), 835 lines, real test output for all 7 ACs (450b082c). POL-10 demo_evidence_story_scoped satisfied. STATE+HANDOFF v7.174→v7.175. Next: per-story-delivery step 6 — rebase + pr-manager 9-step PR cycle."
-feature_branch_head: "450b082c"
-worktree_status: "demo-evidence-recorded"
+current_step: "D-442. S-PLUGIN-PREREQ-C MERGED via PR #144 at develop@ea958a4d 2026-05-12T23:14:05Z. 36/36 CI PASS. Story v1.3→v1.4 (status: ready→merged). STORY-INDEX v2.64→v2.65. PREREQ keystone trio (A+B+C) all merged. PLUGIN-MIGRATION Wave 1 unblocked. STATE+HANDOFF v7.175→v7.176. Next: PLUGIN-MIGRATION-001-A story-writer dispatch OR sprint-review for PREREQ trio."
+feature_branch_head: "ea958a4d"
+worktree_status: "merged"
 adversary_streak: "3/3 LOCKED"
 adversary_pass_count: 5
 pending_findings: "0 CRIT + 0 HIGH + 0 MED + 0 LOW"
@@ -135,7 +135,7 @@ bc_count_corrected: 235
 cap_count: 40  # active; highest_cap_id: CAP-040 (CAP-038 Multi-Tenant Identity, CAP-039 Multi-Tenant Fixture Gen, CAP-040 Multi-Tenant Adapter Dispatch — Wave 3 Phase 3.A Step 2)
 bc_index_version: "4.61"
 vp_index_version: "1.32"
-story_index_version: "v2.64"
+story_index_version: "v2.65"
 total_stories: 150
 red_gate_wave_0a_complete: 2026-04-21
 test_vectors_version: "2.7"
@@ -167,7 +167,7 @@ phase_2_patch_remediation_bursts: 20
 phase_2_patch_findings_total_fixed: 95
 phase_2_patch_convergence_rationale: "User override post pass-99. Semantic policies all PASS; meta-doc drift deferred to vsdd-factory lint hooks."
 user_directive_persistent: "No pragmatic convergence. Fix all issues before build."
-develop_head: "ae7e26c8"
+develop_head: "ea958a4d"
 vsdd_factory_version: "1.0.0-rc.16 (upgraded from rc.11 2026-05-10T07:38:25Z)"
 workspace_test_count: 3598  # updated at D-433 fix-burst-1 closure (just check clean 3598 tests pass)
 ---
@@ -183,9 +183,9 @@ workspace_test_count: 3598  # updated at D-433 fix-burst-1 closure (just check c
 | **Language** | Rust |
 | **Target Workspace** | per-analyst stdio (MCP server) |
 | **Started** | 2026-04-13 |
-| **Last Updated** | 2026-05-12 (D-441 — PREREQ-C step 5 COMPLETE; F-LP5-LOW-001 closed + demo evidence 8 files 835 lines; feature@450b082c; STATE+HANDOFF v7.174→v7.175) |
-| **Current Phase** | Wave 3 Tier-3 COMPLETE — **Wave 3-A 4 of 4 SHIPPED**; plugin migration: PREREQ-F + PREREQ-A + **PREREQ-B SHIPPED** (PR #143 ae7e26c8 2026-05-12); **PREREQ-C demo-evidence-recorded** (D-441 feature@450b082c; step 5 COMPLETE); PREREQ-D/E pending |
-| **Current Step** | D-441 — PREREQ-C step 5 COMPLETE. F-LP5-LOW-001 closed (c9bb9d26). Demo evidence at docs/demo-evidence/S-PLUGIN-PREREQ-C/ (8 files, 835 lines, 7 ACs, 450b082c). 0 outstanding findings. Next: step 6 rebase + pr-manager 9-step PR cycle. |
+| **Last Updated** | 2026-05-12 (D-442 — S-PLUGIN-PREREQ-C MERGED PR #144 at develop@ea958a4d 2026-05-12T23:14:05Z. Story v1.4. STORY-INDEX v2.65. PREREQ trio complete. STATE+HANDOFF v7.175→v7.176) |
+| **Current Phase** | Wave 3 Tier-3 COMPLETE — **Wave 3-A 4 of 4 SHIPPED**; plugin migration: PREREQ-F + PREREQ-A + PREREQ-B + **PREREQ-C MERGED** (PR #144 ea958a4d 2026-05-12T23:14:05Z); PREREQ keystone trio COMPLETE; PLUGIN-MIGRATION Wave 1 unblocked; PREREQ-D/E pending |
+| **Current Step** | D-442 — S-PLUGIN-PREREQ-C MERGED. PR #144 squash@ea958a4d. 36/36 CI PASS. Story v1.4 status:merged. PREREQ trio (A+B+C) all merged. Next: PLUGIN-MIGRATION-001-A story-writer OR sprint-review for PREREQ trio. |
 
 ## Phase Progress
 
@@ -223,6 +223,7 @@ workspace_test_count: 3598  # updated at D-433 fix-burst-1 closure (just check c
 | S-PLUGIN-PREREQ-C Red Gate (D-430) | test-writer + state-manager | **COMPLETE — Red Gate established** | 11 failing tests across 7 ACs on feature/S-PLUGIN-PREREQ-C@f97e91d1. AC-1 (4 fail/2 pass), AC-2 (2 fail/2 pass), AC-3 (1 fail/4 pass), AC-4 (2 fail/1 pass), AC-5 (1 fail compile-fail crate), AC-6 (1 fail), AC-7 (1 fail). 543 pre-existing tests pass (no regressions). Minimal stub: page_size: Option<u32> added to PaginationConfig::CursorToken. AC-5 uses tests/external/non-exhaustive-violation/ pattern. STATE+HANDOFF v7.163→v7.164. Next: implementer Green TDD. |
 | S-PLUGIN-PREREQ-C LOCAL CONVERGED pass-5 (D-440) | adversary + state-manager | **CLEAN — streak 3/3 — LOCAL CONVERGED** | STREAK LOCKED. 1 finding (F-LP5-LOW-001 main.rs doc-header non-blocking LOW). 0 CRIT + 0 HIGH + 0 MED. Trajectory 18→8→5→5→1. 5 passes + 4 fix-bursts. Feature@651bbb64. STATE+HANDOFF v7.173→v7.174. Next: fix F-LP5-LOW-001 → demo-recorder step 5. |
 | PREREQ-C step 5 COMPLETE — F-LP5-LOW-001 + demo evidence (D-441) | implementer + demo-recorder + state-manager | **COMPLETE — demo-evidence-recorded** | F-LP5-LOW-001 closed (main.rs doc-header 29→30 types + fix-burst-4 attribution + 30th type bullet, c9bb9d26). Demo evidence: docs/demo-evidence/S-PLUGIN-PREREQ-C/ — 8 files (INDEX + AC-1..AC-7), 835 lines, real test output all 7 ACs (450b082c). 0 outstanding findings. POL-10 satisfied. STATE+HANDOFF v7.174→v7.175. Next: step 6 rebase + pr-manager 9-step PR cycle. |
+| S-PLUGIN-PREREQ-C MERGED — D-442 | state-manager | **MERGED — develop@ea958a4d** | PR #144 squash-merged 2026-05-12T23:14:05Z. 36/36 CI PASS. Story v1.3→v1.4 status: ready→merged. STORY-INDEX v2.64→v2.65. PREREQ keystone trio (A+B+C) complete. PLUGIN-MIGRATION Wave 1 unblocked. STATE+HANDOFF v7.175→v7.176. |
 
 ## Decisions Log
 
@@ -230,6 +231,7 @@ _D-001..D-046 archived: [cycles/phase-3-dtu-wave-2/decisions-archive-d001-d032.m
 
 | ID | Decision | Rationale | Phase | Date |
 |----|----------|-----------|-------|------|
+| D-442 | 2026-05-12 | **S-PLUGIN-PREREQ-C MERGED** (orchestrator + pr-manager + user) via PR #144 squash-merged at develop@ea958a4d 2026-05-12T23:14:05Z. 36/36 CI checks PASS. Story v1.3→v1.4 (status: ready→merged). STORY-INDEX v2.64→v2.65. develop@ae7e26c8 → develop@ea958a4d. 13 feature-branch commits squashed into 1 develop commit. Pre-merge: 5 LOCAL adversary passes (trajectory 18→8→5→5→1) → 3/3 LOCKED at pass-5 → demo evidence (8 files/835 lines) → PR-LEVEL adversary CLEAR → pr-reviewer APPROVE → 1 PR-LEVEL fix (semver 0.1→0.2 + 0.6→0.7). Total: 7 ACs satisfied, 30 #[non_exhaustive] types audited (CI EXPECTED=30), 2 new BC-2.16.002 catalog rows (jsonpath_extraction_failed + jsonpath_size_cap_exceeded). PREREQ keystone trio (A+B+C) all merged. Unblocks PLUGIN-MIGRATION-001-A/B/C/D Wave 1. Worktree retained at .worktrees/S-PLUGIN-PREREQ-C/ (archival per PREREQ-A/B precedent). Next: PLUGIN-MIGRATION-001-A story-writer dispatch OR sprint-review for PREREQ trio. | plugin-migration | 2026-05-12 |
 | D-441 | 2026-05-12 | PREREQ-C post-LOCAL-CONVERGED cleanup + demo evidence (implementer + demo-recorder) on feature/S-PLUGIN-PREREQ-C@450b082c. F-LP5-LOW-001 closed (main.rs doc-header 29→30 types + fix-burst-4 attribution + 30th type bullet appended, c9bb9d26). Demo evidence generated at docs/demo-evidence/S-PLUGIN-PREREQ-C/ — 8 files (INDEX + AC-1..AC-7), 835 lines, real test output captured for all 7 ACs (450b082c). POL-10 demo_evidence_story_scoped satisfied. Per-story-delivery step 5 COMPLETE. Outstanding findings: 0 CRIT + 0 HIGH + 0 MED + 0 LOW. Next: per-story-delivery step 6 — rebase + pr-manager 9-step PR cycle including PR-LEVEL adversary cascade. | plugin-migration | 2026-05-12 |
 | D-440 | 2026-05-12 | **LOCAL CONVERGED** (adversary) on feature/S-PLUGIN-PREREQ-C@651bbb64. STREAK 2/3 → **3/3** **— PREREQ-C LOCAL CONVERGENCE LOCKED**. Pass-5: 1 finding (0 CRIT + 0 HIGH + 0 MED + 1 LOW — F-LP5-LOW-001 main.rs doc-header sibling-sweep miss "29 types" → "30 types" 3-line fix, non-blocking). All 4 in-scope pass-4 closures verified REAL. CI regression detector positive-coverage audit clean. Trajectory 18→8→5→5→1 (CRIT 3→1→0→0→0, HIGH 8→2→0→0→0). PREREQ-C converged in 5 LOCAL passes vs PREREQ-A 12 vs PREREQ-B 16 — highly efficient. Next: fix F-LP5-LOW-001 (trivial) → per-story-delivery step 5 demo-recorder for AC evidence under docs/demo-evidence/S-PLUGIN-PREREQ-C/ → step 6 rebase + pr-manager 9-step PR cycle. | plugin-migration | 2026-05-12 |
 | D-439 | 2026-05-12 | PREREQ-C fix-burst-4 CONVERGED (implementer + story-writer) on feature/S-PLUGIN-PREREQ-C@651bbb64. 3 findings closed: F-LP4-MED-001+002 joint resolution (added v30_types_sensor_spec to violator crate; types::SensorSpec now in regression coverage; CI EXPECTED 29→30; story sub-table arithmetic discrepancy resolved 29→30 types audited), F-LP4-LOW-001 sibling-sweep (check-non-exhaustive wired into just check-ci), F-LP4-LOW-002 DtuMode footnote in story v1.3 (BC-3.2.005 pre-existing annotation explicitly excluded from AC-5 scope). F-LP4-OBS-001 deferred (cosmetic). Workspace commit 651bbb64. Story v1.2→v1.3. STORY-INDEX v2.63→v2.64. just check clean (3598 tests pass). Next: LOCAL adversary pass-5 — streak target 2/3 → 3/3 LOCAL CONVERGED. | plugin-migration | 2026-05-12 |

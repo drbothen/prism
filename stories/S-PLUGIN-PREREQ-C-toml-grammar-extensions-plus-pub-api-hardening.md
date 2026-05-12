@@ -5,7 +5,7 @@ title: "TOML Grammar Extensions + Pub-API Hardening — page_size, JSONPath Brac
 wave: 0
 epic_id: PLUGIN-MIGRATION-001
 priority: P0
-status: ready
+status: merged
 # BC status: behavioral_contracts populated — BC-2.16.002 (pipeline execution; surface extended
 #            by AC-1/AC-2) and BC-2.01.013 (datasource-trait adapter pattern; pub-API hardening
 #            for spec-engine TOML types is load-bearing for the spec-driven auth surface).
@@ -40,11 +40,14 @@ subsystems: [SS-16, SS-01]
 # Capability anchors: CAP-029 (spec-driven sensor fetch pipeline, primary); CAP-001 (sensor
 # identifier and type system — impacted by AC-6/7 prism-core pub-API hardening)
 capabilities: [CAP-029, CAP-001]
-version: "1.3"
+version: "1.4"
 level: "L4"
 producer: story-writer
 timestamp: "2026-05-12T00:00:00Z"
 updated: "2026-05-12"
+merged_at: "2026-05-12T23:14:05Z"
+merged_via_pr: 144
+merged_into_develop_sha: "ea958a4d"
 input-hash: "6954524"
 traces_to: []
 cycle: "v1.0.0-greenfield"
@@ -791,6 +794,7 @@ Rationale:
 
 | Version | Date | Author | Change |
 |---------|------|--------|--------|
+| 1.4 | 2026-05-12 | S-PLUGIN-PREREQ-C-merge | Status: ready→merged. PR #144 squash-merged at develop@ea958a4d 2026-05-12T23:14:05Z. 36/36 CI checks PASS. 5 LOCAL adversary passes (trajectory 18→8→5→5→1, streak 3/3 LOCKED at pass-5) + 1 PR-LEVEL pass APPROVE. 13 feature-branch commits squashed into 1 develop commit. Tech debt resolved: TD-B-001, B-003, B-006, B-008, B-016, A-006, A-008. BC-2.16.002 v1.10 active (no flip needed). |
 | 1.3 | 2026-05-12 | S-PLUGIN-PREREQ-C-fix-burst-4 | AC-5 audit scope reconciliation: 29 → 30 types (added types::SensorSpec to violator crate coverage per F-LP4-MED-002; resolves sub-table arithmetic discrepancy F-LP4-MED-001). DtuMode footnote added (F-LP4-LOW-002 pending-intent resolved: pre-existing BC-3.2.005 annotation, not in AC-5 scope). Authority: ci.yml EXPECTED=30. No structural/AC/BC/frontmatter-list changes. |
 | 1.2 | 2026-05-12 | S-PLUGIN-PREREQ-C-fix-burst-3 | AC-5 narrative reconciliation: 4 "8 types" references replaced with "29 types"; full enumeration table added (29 types across 5 files); explicit AC-5 scope exclusion documented for 11 MCP-wire types (F-LP3-MED-001 + F-LP3-MED-002 adjudication). ClientStatus moved into types.rs sub-table as explicit row. No structural/AC/BC/frontmatter-list changes. Authority: ci.yml EXPECTED=29. |
 | 1.1 | 2026-05-12 | state-manager | Narrative amendments for fix-burst-1 closure: AC-4 escape grammar described as context-free (matches implementation); AC-6 notes production caller migrated from new_unchecked to validated new(). No structural/AC/BC/frontmatter-list changes. Burst: S-PLUGIN-PREREQ-C-fix-burst-1. |
