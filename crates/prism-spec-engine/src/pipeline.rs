@@ -2099,6 +2099,11 @@ mod jsonpath_bracket_tests {
 // BC-2.16.002 postcondition: extract_at_path returns Ok(_) or Err(_) for any
 // (Value, &str) input — never panics, never produces an unwrap() failure.
 //
+// HIGH-002 (S-PLUGIN-PREREQ-C): proptest body was previously fixed (hardcoded JSON);
+// AC-3(c) required "ANY JSON string" as input. The body is now an arbitrary
+// serde_json::Value generated via a depth-limited recursive strategy. The path
+// regex is also expanded to include `~` characters (RFC 6901 tilde escapes).
+//
 // Placed in-module (not in tests/proptest_AC_3.rs) because `extract_at_path`
 // is a private function. The tests/proptest_AC_3.rs sentinel test delegates
 // to the canonical test in this module once the proptest is wired here.
@@ -2109,25 +2114,47 @@ mod proptest_extract_at_path {
     use super::extract_at_path;
 
     use proptest::prelude::*;
+    use serde_json::Value;
+
+    /// Generate an arbitrary JSON leaf value.
+    fn json_leaf() -> impl Strategy<Value = Value> {
+        prop_oneof![
+            Just(Value::Null),
+            any::<bool>().prop_map(|b| Value::Bool(b)),
+            any::<i64>().prop_map(|n| Value::Number(n.into())),
+            ".*".prop_map(|s: String| Value::String(s)),
+        ]
+    }
+
+    /// Generate an arbitrary JSON value with depth-bounded recursion.
+    ///
+    /// Depth 4 and branching factor 8 produce bodies up to ~4096 nodes —
+    /// realistic for API responses without being too slow for proptest.
+    fn arbitrary_json() -> impl Strategy<Value = Value> {
+        json_leaf().prop_recursive(4, 64, 8, |inner| {
+            prop_oneof![
+                // JSON array: 0..8 elements of arbitrary type
+                prop::collection::vec(inner.clone(), 0..8).prop_map(|v| Value::Array(v)),
+                // JSON object: 0..8 key-value pairs
+                prop::collection::hash_map(".*", inner, 0..8)
+                    .prop_map(|m| { Value::Object(m.into_iter().collect()) }),
+            ]
+        })
+    }
 
     proptest! {
-        /// AC-3(c): `extract_at_path` totality — for any JSON value and path string,
+        /// AC-3(c): `extract_at_path` totality — for ANY JSON value and path string,
         /// the function returns Ok(_) or Err(_) without panic.
+        ///
+        /// HIGH-002: body strategy is now arbitrary JSON (not a fixed literal).
+        /// Path regex includes `~` for RFC 6901 tilde escape coverage.
         ///
         /// Traces to BC-2.16.002 postcondition: JSONPath extraction returns Ok or Err.
         #[test]
         fn proptest_extract_at_path_totality(
-            path in "\\$\\.[a-zA-Z0-9_\\.\\[\\]\\*]{1,30}"
+            body in arbitrary_json(),
+            path in "\\$\\.[a-zA-Z0-9_\\.\\[\\]\\*~]{1,30}"
         ) {
-            // Test with a fixed non-trivial JSON body.
-            let body = serde_json::json!({
-                "devices": [
-                    {"id": "A", "host": "h1"},
-                    {"id": "B", "host": "h2"}
-                ],
-                "total": 2,
-                "nested": {"key": "value"}
-            });
             // The invariant: MUST NOT panic. Return type is always Ok(_) or Err(_).
             let _ = extract_at_path(&body, &path);
         }
