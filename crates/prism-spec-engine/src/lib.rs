@@ -88,11 +88,11 @@ pub use error::SpecEngineError;
 // S-PLUGIN-PREREQ-B — auth interface re-exports (BC-2.01.013 / ADR-023 §C2)
 pub use auth_provider::{AuthProvider, AuthToken};
 
-// NullAuthProvider + MockAuthProvider: test-only; feature-gated to prevent
-// accidental use in production callers that would silently bypass real auth.
+// NullAuthProvider + MockAuthProvider + FailingAuthProvider: test-only; feature-gated
+// to prevent accidental use in production callers that would silently bypass real auth.
 // Enable the `test-helpers` Cargo feature in [dev-dependencies] to access these.
 #[cfg(any(test, feature = "test-helpers"))]
-pub use auth_provider::{MockAuthProvider, NullAuthProvider};
+pub use auth_provider::{FailingAuthProvider, MockAuthProvider, NullAuthProvider};
 
 // S-3.1.05 re-exports
 pub use org_scoped_store::OrgScopedSpecStore;

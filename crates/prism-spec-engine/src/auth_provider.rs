@@ -181,6 +181,57 @@ impl AuthProvider for MockAuthProvider {
 }
 
 // ---------------------------------------------------------------------------
+// FailingAuthProvider — always returns AuthAcquisitionFailed; for abort tests
+// ---------------------------------------------------------------------------
+
+/// Test helper `AuthProvider` that always returns `AuthAcquisitionFailed`.
+///
+/// Use in tests that verify the pipeline aborts immediately when `acquire_token` errors,
+/// without issuing any HTTP requests (F-LP7-MED-002 / BC-2.16.002 AC-5 abort condition).
+///
+/// **Feature-gated:** only available under `cfg(test)` or the `test-helpers`
+/// Cargo feature. Do NOT enable `test-helpers` in production dependency trees —
+/// these types bypass real credential resolution.
+#[cfg(any(test, feature = "test-helpers"))]
+#[derive(Debug, Default)]
+pub struct FailingAuthProvider {
+    /// Number of times `acquire_token` was called (interior-mutable for `&self` API).
+    pub call_count: std::sync::atomic::AtomicU32,
+}
+
+#[cfg(any(test, feature = "test-helpers"))]
+impl FailingAuthProvider {
+    /// Create a new `FailingAuthProvider`.
+    pub fn new() -> Self {
+        Self::default()
+    }
+
+    /// Return the number of times `acquire_token` was invoked.
+    pub fn calls(&self) -> u32 {
+        self.call_count.load(std::sync::atomic::Ordering::SeqCst)
+    }
+}
+
+#[cfg(any(test, feature = "test-helpers"))]
+impl AuthProvider for FailingAuthProvider {
+    fn acquire_token<'a>(
+        &'a self,
+        _spec: &'a SensorSpec,
+        _client_id: &'a OrgSlug,
+    ) -> Pin<Box<dyn Future<Output = Result<AuthToken, SpecEngineError>> + Send + 'a>> {
+        self.call_count
+            .fetch_add(1, std::sync::atomic::Ordering::SeqCst);
+        Box::pin(async move {
+            Err(SpecEngineError::AuthAcquisitionFailed {
+                sensor_id: "test-failing".to_string(),
+                client_id: "test-org".to_string(),
+                detail: "FailingAuthProvider always errors (test fixture)".to_string(),
+            })
+        })
+    }
+}
+
+// ---------------------------------------------------------------------------
 // Unit test: trait-object-safety (AC-5 / Red Gate test 8)
 // ---------------------------------------------------------------------------
 

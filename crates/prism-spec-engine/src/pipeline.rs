@@ -141,12 +141,23 @@ impl PipelineExecutor {
         // token-expiry mid-pipeline (not on every first request). Orchestrator authorized
         // Option A (eager unconditional) on 2026-05-11.
         let mut bearer_token = match auth_provider.acquire_token(spec, &context.client_id).await {
-            Ok(tok) => {
+            Ok(tok) if !tok.as_str().is_empty() => {
                 tracing::info!(
                     event_type = "auth_initial_acquired",
                     sensor_id = %spec.sensor_id,
                     client_id = %context.client_id,
-                    "auth token acquired at pipeline start (eager)",
+                    "auth token acquired (eager)",
+                );
+                tok
+            }
+            Ok(tok) => {
+                // Empty token — typically NullAuthProvider (test-only) or buggy production provider.
+                // Emit debug log rather than info to keep production audit signal clean.
+                tracing::debug!(
+                    event_type = "auth_initial_acquired_empty",
+                    sensor_id = %spec.sensor_id,
+                    client_id = %context.client_id,
+                    "auth_provider returned empty token (NullAuth test path or provider bug)",
                 );
                 tok
             }
@@ -420,6 +431,12 @@ impl PipelineExecutor {
     /// refresh are NOT performed here.** Use [`PipelineExecutor::execute`] for those
     /// semantics (BC-2.16.002 full pipeline).
     ///
+    /// ## Testing
+    ///
+    /// This helper is intentionally untested at the PREREQ-B integration test layer
+    /// because it has no PREREQ-B callers (per story §94-96 deferral to Wave 1).
+    /// PREREQ-D wiring will add the test vehicle. See TD-S-PLUGIN-PREREQ-B-012 P3.
+    ///
     /// # Parameters
     ///
     /// - `step` — The fetch step to execute (method, path_template, etc.).
@@ -447,13 +464,25 @@ impl PipelineExecutor {
         // matching the execute() contract. If the step's HTTP request returns 401, the
         // issue_request_with_retry helper calls acquire_token again as a refresh.
         let bearer_token = match auth_provider.acquire_token(spec, &context.client_id).await {
-            Ok(tok) => {
+            Ok(tok) if !tok.as_str().is_empty() => {
                 tracing::info!(
                     event_type = "auth_initial_acquired",
                     sensor_id = %spec.sensor_id,
                     client_id = %context.client_id,
                     step_name = %step.name,
                     "execute_step: auth token acquired (eager)",
+                );
+                tok
+            }
+            Ok(tok) => {
+                // Empty token — typically NullAuthProvider (test-only) or buggy production provider.
+                // Emit debug log rather than info to keep production audit signal clean.
+                tracing::debug!(
+                    event_type = "auth_initial_acquired_empty",
+                    sensor_id = %spec.sensor_id,
+                    client_id = %context.client_id,
+                    step_name = %step.name,
+                    "execute_step: auth_provider returned empty token (NullAuth test path or provider bug)",
                 );
                 tok
             }

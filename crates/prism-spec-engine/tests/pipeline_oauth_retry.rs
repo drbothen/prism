@@ -10,9 +10,10 @@
 //! - AC-5b: 401 on retry too → pipeline aborts with structured error (double-401)
 
 use prism_core::{ColumnType, OrgSlug};
-use prism_spec_engine::MockAuthProvider;
+use prism_spec_engine::error::SpecEngineError;
 use prism_spec_engine::pipeline::{FetchContext, PipelineExecutor};
 use prism_spec_engine::spec_parser::{AuthType, ColumnSpec, FetchStep, SensorSpec, TableSpec};
+use prism_spec_engine::{FailingAuthProvider, MockAuthProvider};
 use std::collections::HashMap;
 use wiremock::matchers::{method, path};
 use wiremock::{Mock, MockServer, ResponseTemplate};
@@ -262,6 +263,63 @@ async fn test_BC_2_16_002_execute_acquires_token_eagerly_before_first_request() 
         "F-LP5-LOW-003: 2 records expected; got {}",
         result.records.len()
     );
+}
+
+// ---------------------------------------------------------------------------
+// F-LP7-MED-002 Red Gate test: auth_initial_failed aborts pipeline immediately
+// ---------------------------------------------------------------------------
+
+/// BC-2.16.002 / F-LP7-MED-002: When `acquire_token` fails at pipeline start,
+/// `execute` aborts immediately with `SpecEngineError::AuthAcquisitionFailed`
+/// and NO HTTP requests are issued to the data endpoint.
+///
+/// `FailingAuthProvider` always returns `AuthAcquisitionFailed`, giving a clean
+/// test surface without needing a real auth endpoint.
+///
+/// Assertions:
+/// (a) `execute` returns `Err(SpecEngineError::AuthAcquisitionFailed { .. })`
+/// (b) `auth_provider.calls() == 1` — acquire_token called exactly once before abort
+/// (c) Zero HTTP requests made to the mock data server (wiremock `.expect(0)` enforces this)
+#[tokio::test]
+async fn test_BC_2_16_002_eager_auth_initial_failed_aborts_pipeline_immediately() {
+    let mock_server = MockServer::start().await;
+
+    // Mount a mock that would respond if the executor somehow got past auth.
+    // `.expect(0)` asserts ZERO requests are made — wiremock enforces this in drop.
+    Mock::given(method("GET"))
+        .and(path("/api/findings"))
+        .respond_with(ResponseTemplate::new(200).set_body_json(serde_json::json!({"findings": []})))
+        .expect(0)
+        .mount(&mock_server)
+        .await;
+
+    let spec = auth_retry_spec(&mock_server.uri());
+    let table = spec.tables[0].clone();
+    let context = default_context();
+    let http_client = reqwest::Client::builder()
+        .timeout(std::time::Duration::from_secs(5))
+        .build()
+        .expect("reqwest Client::build must succeed");
+    let auth_provider = FailingAuthProvider::new();
+
+    let result =
+        PipelineExecutor::execute(&spec, &table, &context, &http_client, &auth_provider).await;
+
+    // (a) must error with AuthAcquisitionFailed
+    assert!(
+        matches!(result, Err(SpecEngineError::AuthAcquisitionFailed { .. })),
+        "F-LP7-MED-002: auth_initial_failed must propagate as AuthAcquisitionFailed; got {:?}",
+        result
+    );
+
+    // (b) acquire_token called exactly once before abort
+    assert_eq!(
+        auth_provider.calls(),
+        1,
+        "F-LP7-MED-002: acquire_token must be called exactly once before abort; called {} times",
+        auth_provider.calls()
+    );
+    // (c) wiremock .expect(0) enforces zero HTTP requests in drop
 }
 
 /// F-LP5-LOW-003 (no spurious auth_refresh_triggered): On a legitimate 200 execution,

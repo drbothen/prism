@@ -20,6 +20,7 @@ use flate2::Compression;
 use flate2::write::GzEncoder;
 use prism_core::{ColumnType, OrgSlug};
 use prism_spec_engine::NullAuthProvider;
+use prism_spec_engine::error::SpecEngineError;
 use prism_spec_engine::pipeline::{FetchContext, PipelineExecutor};
 use prism_spec_engine::spec_parser::{
     AuthType, ColumnSpec, FetchStep, PaginationConfig, RateLimitHints, SensorSpec, TableSpec,
@@ -1846,4 +1847,111 @@ async fn test_BC_2_16_002_emits_pipeline_truncated_event_on_10k_cap() {
         captured.contains("DI-019") || captured.contains("truncated to 10K"),
         "F-LP5-MED-002 site (c): log must mention DI-019 cap reason; captured log: {captured}",
     );
+}
+
+// ---------------------------------------------------------------------------
+// F-LP7-MED-003 Red Gate test: partial-record discard on mid-pipeline HTTP 500
+// ---------------------------------------------------------------------------
+
+/// BC-2.16.002 / F-LP7-MED-003: When any fetch step's HTTP request fails with a
+/// non-401, non-200 status (e.g., 500), the pipeline aborts and `Err` is propagated.
+/// All records accumulated from prior steps are discarded — no partial `PipelineResult`
+/// is returned.
+///
+/// Setup:
+/// - Step 1 succeeds with 2 records (`/step1` → 200)
+/// - Step 2 fails with 500 (`/step2` → 500)
+///
+/// Assertions:
+/// (a) `execute` returns `Err(SpecEngineError::HttpRequestFailed { .. })`
+/// (b) The error is NOT a partial Ok — no records from step 1 are returned
+#[tokio::test]
+async fn test_BC_2_16_002_execute_discards_partial_records_on_mid_pipeline_500() {
+    let mock_server = MockServer::start().await;
+
+    // Step 1 succeeds — returns a token that step 2 would use.
+    // response_path "$.token" produces a scalar stored as step1.token in step_vars.
+    Mock::given(method("GET"))
+        .and(path("/step1"))
+        .respond_with(ResponseTemplate::new(200).set_body_json(serde_json::json!({
+            "token": "tok-abc"
+        })))
+        .expect(1)
+        .mount(&mock_server)
+        .await;
+
+    // Step 2 fails with HTTP 500 — pipeline must abort here.
+    Mock::given(method("GET"))
+        .and(path("/step2"))
+        .respond_with(ResponseTemplate::new(500))
+        .expect(1)
+        .mount(&mock_server)
+        .await;
+
+    // Two-step spec: step1 extracts a token scalar, step2 is the final step and
+    // fails with 500. The pipeline must propagate Err — no partial PipelineResult.
+    let spec = SensorSpec {
+        sensor_id: "partial-discard-sensor".to_string(),
+        name: "Partial Discard Sensor".to_string(),
+        auth_type: AuthType::BearerStatic,
+        base_url: mock_server.uri(),
+        tables: vec![TableSpec::new_point_in_time(
+            "items",
+            "security_finding",
+            vec![ColumnSpec {
+                name: "id".to_string(),
+                column_type: ColumnType::String,
+                ocsf_field: None,
+                options: vec![],
+            }],
+            vec![
+                FetchStep {
+                    name: "step1".to_string(),
+                    method: "GET".to_string(),
+                    path_template: "/step1".to_string(),
+                    body_template: None,
+                    response_path: "$.token".to_string(),
+                    pagination_cursor_path: None,
+                    variables_produced: vec!["token".to_string()],
+                    fan_out_batch_size: None,
+                    pagination: None,
+                },
+                FetchStep {
+                    name: "step2".to_string(),
+                    method: "GET".to_string(),
+                    path_template: "/step2".to_string(),
+                    body_template: None,
+                    response_path: "$.items".to_string(),
+                    pagination_cursor_path: None,
+                    variables_produced: vec![],
+                    fan_out_batch_size: None,
+                    pagination: None,
+                },
+            ],
+        )],
+        rate_limit_hints: None,
+        version: "1.0.0".to_string(),
+        credential_refs: vec![],
+    };
+
+    let table = spec.tables[0].clone();
+    let context = FetchContext::new(OrgSlug::new("test-org"), HashMap::new());
+    let http_client = reqwest::Client::builder()
+        .timeout(std::time::Duration::from_secs(5))
+        .build()
+        .expect("reqwest Client::build must succeed");
+    let auth_provider = NullAuthProvider;
+
+    let result =
+        PipelineExecutor::execute(&spec, &table, &context, &http_client, &auth_provider).await;
+
+    // (a) must error with HttpRequestFailed (500 from step2)
+    assert!(
+        matches!(result, Err(SpecEngineError::HttpRequestFailed { .. })),
+        "F-LP7-MED-003: mid-pipeline 500 must propagate as HttpRequestFailed; got {:?}",
+        result
+    );
+    // (b) no partial PipelineResult returned — Err propagates, records discarded
+    // (This is structurally guaranteed by (a) above — if it's Err, there's no Ok with records.)
+    // wiremock .expect(1) on each mock enforces step1 and step2 were both called.
 }
