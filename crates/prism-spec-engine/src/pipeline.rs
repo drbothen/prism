@@ -458,7 +458,7 @@ impl PipelineExecutor {
         http_client: &reqwest::Client,
         auth_provider: &dyn AuthProvider,
     ) -> Result<serde_json::Value, SpecEngineError> {
-        // Eager token acquisition: symmetric with PipelineExecutor::execute (BC-2.16.002 v1.5).
+        // Eager token acquisition: symmetric with PipelineExecutor::execute (BC-2.16.002 — see Structured Event Catalog).
         // Ensures consistent audit signal when plugin-runtime calls execute_step directly
         // (PREREQ-D wiring scope). On acquisition failure the call is aborted immediately,
         // matching the execute() contract. If the step's HTTP request returns 401, the
@@ -1034,5 +1034,303 @@ fn find_fan_out_array(
             // Preserve current behavior: first array drives fan-out.
             array_vars.into_iter().next()
         }
+    }
+}
+
+// ---------------------------------------------------------------------------
+// F-LP12-MED-001: execute_step unit tests — pre-emptive anchoring for BC v1.8 rows 4/5/6
+//
+// BC-2.16.002 Structured Event Catalog rows 4/5/6 document three events emitted by
+// PipelineExecutor::execute_step during eager auth token acquisition. These tests
+// anchor the field-schema for those rows so that any future refactor that removes or
+// renames `step_name` (or other fields) from the tracing macros causes a test failure.
+//
+// RED GATE verified against HEAD 6e436d65: these tests did not exist, so they could not
+// pass. Adding them with field-schema assertions converts the 3 contract-only rows into
+// 3 test-anchored rows.
+// ---------------------------------------------------------------------------
+
+#[cfg(test)]
+mod execute_step_tests {
+    use std::collections::HashMap;
+    use std::sync::{Arc, Mutex};
+
+    use prism_core::OrgSlug;
+    use tracing_subscriber::util::SubscriberInitExt;
+    use wiremock::matchers::{method as wm_method, path as wm_path};
+    use wiremock::{Mock as WmMock, MockServer, ResponseTemplate};
+
+    use crate::auth_provider::{FailingAuthProvider, MockAuthProvider, NullAuthProvider};
+    use crate::pipeline::{FetchContext, PipelineExecutor};
+    use crate::spec_parser::{AuthType, ColumnSpec, FetchStep, SensorSpec, TableSpec};
+    use prism_core::ColumnType;
+
+    // ---------------------------------------------------------------------------
+    // Log-capture helper — returns the buffer + a DefaultGuard that installs
+    // a tracing subscriber for the current thread.
+    // Matches the pattern used in pipeline_http_integration.rs tests.
+    // ---------------------------------------------------------------------------
+
+    fn setup_log_capture() -> (Arc<Mutex<String>>, tracing::dispatcher::DefaultGuard) {
+        let buf: Arc<Mutex<String>> = Arc::new(Mutex::new(String::new()));
+        let buf_clone = buf.clone();
+        let writer = tracing_subscriber::fmt::writer::BoxMakeWriter::new(move || {
+            struct BufWriter(Arc<Mutex<String>>);
+            impl std::io::Write for BufWriter {
+                fn write(&mut self, b: &[u8]) -> std::io::Result<usize> {
+                    self.0.lock().unwrap().push_str(&String::from_utf8_lossy(b));
+                    Ok(b.len())
+                }
+                fn flush(&mut self) -> std::io::Result<()> {
+                    Ok(())
+                }
+            }
+            BufWriter(buf_clone.clone())
+        });
+        let subscriber = tracing_subscriber::fmt()
+            .with_writer(writer)
+            .with_max_level(tracing::Level::TRACE)
+            .finish();
+        let guard = subscriber.set_default();
+        (buf, guard)
+    }
+
+    fn make_single_step_spec(base_url: &str, step_name: &str) -> SensorSpec {
+        SensorSpec {
+            sensor_id: "execute-step-test-sensor".to_string(),
+            name: "Execute Step Test Sensor".to_string(),
+            auth_type: AuthType::BearerStatic,
+            base_url: base_url.to_string(),
+            tables: vec![TableSpec::new_point_in_time(
+                "items",
+                "security_finding",
+                vec![ColumnSpec {
+                    name: "id".to_string(),
+                    column_type: ColumnType::String,
+                    ocsf_field: None,
+                    options: vec![],
+                }],
+                vec![FetchStep {
+                    name: step_name.to_string(),
+                    method: "GET".to_string(),
+                    path_template: "/items".to_string(),
+                    body_template: None,
+                    response_path: "$.items".to_string(),
+                    pagination_cursor_path: None,
+                    variables_produced: vec![],
+                    fan_out_batch_size: None,
+                    pagination: None,
+                }],
+            )],
+            rate_limit_hints: None,
+            version: "1.0.0".to_string(),
+            credential_refs: Vec::new(),
+        }
+    }
+
+    // ---------------------------------------------------------------------------
+    // Test 1: BC row 4 — execute_step / auth_initial_acquired / fields: sensor_id,
+    // client_id, step_name
+    // ---------------------------------------------------------------------------
+
+    /// BC-2.16.002 Structured Event Catalog row 4:
+    /// `execute_step` with a non-empty token emits `event_type = "auth_initial_acquired"`
+    /// at INFO level with fields `sensor_id`, `client_id`, and `step_name`.
+    ///
+    /// RED GATE: Before this test existed there were ZERO test or production callers of
+    /// execute_step. A future refactor that removes `step_name` from the tracing macro at
+    /// pipeline.rs:470-474 would cause this test to FAIL on the `step_name` assertion.
+    #[tokio::test]
+    async fn test_BC_2_16_002_execute_step_emits_auth_initial_acquired_with_step_name_field() {
+        let mock_server = MockServer::start().await;
+        WmMock::given(wm_method("GET"))
+            .and(wm_path("/items"))
+            .respond_with(
+                ResponseTemplate::new(200).set_body_json(serde_json::json!({"items": [{"id": 1}]})),
+            )
+            .mount(&mock_server)
+            .await;
+
+        let (log_buf, _guard) = setup_log_capture();
+
+        let step_name = "fetch_items_step";
+        let spec = make_single_step_spec(&mock_server.uri(), step_name);
+        let step = spec.tables[0].steps[0].clone();
+        let prior_vars = HashMap::new();
+        let context = FetchContext::new(OrgSlug::new("test-org"), HashMap::new());
+        let http_client = reqwest::Client::new();
+        let auth_provider = MockAuthProvider::new("real-token");
+
+        let result = PipelineExecutor::execute_step(
+            &step,
+            &spec,
+            &prior_vars,
+            &context,
+            &http_client,
+            &auth_provider,
+        )
+        .await;
+
+        assert!(
+            result.is_ok(),
+            "execute_step must succeed with MockAuthProvider; got {:?}",
+            result.err()
+        );
+
+        let captured = log_buf.lock().unwrap().clone();
+        // BC row 4: event_type field
+        assert!(
+            captured.contains("auth_initial_acquired"),
+            "BC row 4: log must contain 'auth_initial_acquired'; captured: {captured}",
+        );
+        // Must NOT emit the empty variant (token is non-empty)
+        assert!(
+            !captured.contains("auth_initial_acquired_empty"),
+            "BC row 4: non-empty token must NOT emit 'auth_initial_acquired_empty'; captured: {captured}",
+        );
+        // BC row 4: step_name field must be present
+        assert!(
+            captured.contains(step_name),
+            "BC row 4: log must contain step_name='{step_name}'; captured: {captured}",
+        );
+    }
+
+    // ---------------------------------------------------------------------------
+    // Test 2: BC row 5 — execute_step / auth_initial_acquired_empty / fields: sensor_id,
+    // client_id, step_name
+    // ---------------------------------------------------------------------------
+
+    /// BC-2.16.002 Structured Event Catalog row 5:
+    /// `execute_step` with an empty token (NullAuthProvider) emits
+    /// `event_type = "auth_initial_acquired_empty"` at DEBUG level with fields
+    /// `sensor_id`, `client_id`, and `step_name`.
+    ///
+    /// RED GATE: A future refactor merging the empty/non-empty Ok arms into a single
+    /// emit, or removing `step_name` from the empty-token arm, would cause this test
+    /// to FAIL on the `step_name` or `auth_initial_acquired_empty` assertion.
+    #[tokio::test]
+    async fn test_BC_2_16_002_execute_step_emits_auth_initial_acquired_empty_with_step_name_field()
+    {
+        let mock_server = MockServer::start().await;
+        WmMock::given(wm_method("GET"))
+            .and(wm_path("/items"))
+            .respond_with(
+                ResponseTemplate::new(200).set_body_json(serde_json::json!({"items": [{"id": 1}]})),
+            )
+            .mount(&mock_server)
+            .await;
+
+        let (log_buf, _guard) = setup_log_capture();
+
+        let step_name = "fetch_items_step";
+        let spec = make_single_step_spec(&mock_server.uri(), step_name);
+        let step = spec.tables[0].steps[0].clone();
+        let prior_vars = HashMap::new();
+        let context = FetchContext::new(OrgSlug::new("test-org"), HashMap::new());
+        let http_client = reqwest::Client::new();
+        let auth_provider = NullAuthProvider;
+
+        let result = PipelineExecutor::execute_step(
+            &step,
+            &spec,
+            &prior_vars,
+            &context,
+            &http_client,
+            &auth_provider,
+        )
+        .await;
+
+        assert!(
+            result.is_ok(),
+            "execute_step must succeed with NullAuthProvider (empty token path); got {:?}",
+            result.err()
+        );
+
+        let captured = log_buf.lock().unwrap().clone();
+        // BC row 5: event_type field
+        assert!(
+            captured.contains("auth_initial_acquired_empty"),
+            "BC row 5: log must contain 'auth_initial_acquired_empty'; captured: {captured}",
+        );
+        // BC row 5: step_name field must be present
+        assert!(
+            captured.contains(step_name),
+            "BC row 5: log must contain step_name='{step_name}'; captured: {captured}",
+        );
+    }
+
+    // ---------------------------------------------------------------------------
+    // Test 3: BC row 6 — execute_step / auth_initial_failed / fields: sensor_id,
+    // client_id, step_name, detail
+    // ---------------------------------------------------------------------------
+
+    /// BC-2.16.002 Structured Event Catalog row 6:
+    /// `execute_step` when `acquire_token` returns `Err` emits
+    /// `event_type = "auth_initial_failed"` at ERROR level with fields
+    /// `sensor_id`, `client_id`, `step_name`, and `detail`.
+    ///
+    /// FailingAuthProvider always errors without making any HTTP request.
+    /// The wiremock server expects 0 calls (verifying the auth-abort path fires before HTTP).
+    ///
+    /// RED GATE: A future refactor that removes `step_name` or `detail` from the error
+    /// arm's tracing macro at pipeline.rs:490-497 would cause this test to FAIL.
+    #[tokio::test]
+    async fn test_BC_2_16_002_execute_step_emits_auth_initial_failed_with_step_name_field() {
+        let mock_server = MockServer::start().await;
+        // FailingAuthProvider aborts before any HTTP — expect 0 wiremock hits.
+        WmMock::given(wm_method("GET"))
+            .and(wm_path("/items"))
+            .respond_with(ResponseTemplate::new(200).set_body_json(serde_json::json!({})))
+            .expect(0)
+            .mount(&mock_server)
+            .await;
+
+        let (log_buf, _guard) = setup_log_capture();
+
+        let step_name = "fetch_items_step";
+        let spec = make_single_step_spec(&mock_server.uri(), step_name);
+        let step = spec.tables[0].steps[0].clone();
+        let prior_vars = HashMap::new();
+        let context = FetchContext::new(OrgSlug::new("test-org"), HashMap::new());
+        let http_client = reqwest::Client::new();
+        let auth_provider = FailingAuthProvider::new();
+
+        let result = PipelineExecutor::execute_step(
+            &step,
+            &spec,
+            &prior_vars,
+            &context,
+            &http_client,
+            &auth_provider,
+        )
+        .await;
+
+        assert!(
+            result.is_err(),
+            "execute_step must fail when FailingAuthProvider errors; got Ok"
+        );
+        // HTTP must not have been called (auth abort fires before fetch).
+        assert_eq!(
+            auth_provider.calls(),
+            1,
+            "FailingAuthProvider must be called exactly once"
+        );
+
+        let captured = log_buf.lock().unwrap().clone();
+        // BC row 6: event_type field
+        assert!(
+            captured.contains("auth_initial_failed"),
+            "BC row 6: log must contain 'auth_initial_failed'; captured: {captured}",
+        );
+        // BC row 6: step_name field must be present
+        assert!(
+            captured.contains(step_name),
+            "BC row 6: log must contain step_name='{step_name}'; captured: {captured}",
+        );
+        // BC row 6: detail field must be present (FailingAuthProvider includes error detail)
+        assert!(
+            captured.contains("detail"),
+            "BC row 6: log must contain 'detail' field; captured: {captured}",
+        );
     }
 }
