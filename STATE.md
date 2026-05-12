@@ -1,7 +1,7 @@
 ---
 document_type: pipeline-state
 level: ops
-version: "7.148"
+version: "7.149"
 producer: state-manager
 timestamp: 2026-05-12T01:30:00Z
 inputs: []
@@ -22,7 +22,7 @@ repos:
   - axiathon
   - ocsf-proto-gen
   - mcp-claroty-xdome
-current_step: "D-414. S-PLUGIN-PREREQ-B LOCAL pass-9 BLOCKED-soft. 2 MED + 1 LOW + 4 OBS. F-LP9-MED-001: BC-2.16.002 v1.6 audit-signal row says two events; impl emits three (auth_initial_acquired_empty). F-LP9-MED-002: validator multi-array heuristic misses non-paginated whole-array response_path. Streak 0/3. Fix-burst-9 dispatch pending. STATE+HANDOFF v7.147→v7.148."
+current_step: "D-415. S-PLUGIN-PREREQ-B fix-burst-9 CLOSED. 2 MED + 1 LOW + 1 OBS-bundled. BC-2.16.002 v1.6→v1.7. Worktree HEAD f5746553. +2 Red Gate (45→47). 280/280 pass. Streak 0/3. Pass-10 pending. STATE+HANDOFF v7.148→v7.149."
 wave_3_carry_forward_debt: "ALL_REMEDIATE — W4-FIX-PERF-001/002, W4-FIX-CODE-001, W4-FIX-SEC-001 through W4-FIX-SEC-004 planned per D-203"
 wave_4_status: "PHASE_4_A_CONVERGED + R9_APPROVED but PHASE_4_B SUSPENDED — pre-implementation dep check (2026-05-04) found S-4.01 → S-3.02 (status=draft); pivoting to full Wave 3 implementation per user directive D-223"
 wave_4_phase_4_a_preflight:
@@ -126,9 +126,9 @@ subsystem_count: 20
 story_count: 113
 bc_count_corrected: 235
 cap_count: 40  # active; highest_cap_id: CAP-040 (CAP-038 Multi-Tenant Identity, CAP-039 Multi-Tenant Fixture Gen, CAP-040 Multi-Tenant Adapter Dispatch — Wave 3 Phase 3.A Step 2)
-bc_index_version: "4.57"
+bc_index_version: "4.58"
 vp_index_version: "1.32"
-story_index_version: "v2.48"
+story_index_version: "v2.49"
 total_stories: 150
 red_gate_wave_0a_complete: 2026-04-21
 test_vectors_version: "2.7"
@@ -176,9 +176,9 @@ workspace_test_count: 3489  # 891 prism-query + workspace total (per implementer
 | **Language** | Rust |
 | **Target Workspace** | per-analyst stdio (MCP server) |
 | **Started** | 2026-04-13 |
-| **Last Updated** | 2026-05-11 (D-414 — S-PLUGIN-PREREQ-B LOCAL pass-9 BLOCKED-soft; 2M+1L+4O; streak 0/3; fix-burst-9 pending; STATE+HANDOFF v7.147→v7.148) |
+| **Last Updated** | 2026-05-11 (D-415 — S-PLUGIN-PREREQ-B fix-burst-9 CLOSED; 2M+1L+1OBS; BC v1.7; +2 Red Gate (45→47); worktree HEAD f5746553; STATE+HANDOFF v7.148→v7.149) |
 | **Current Phase** | Wave 3 Tier-3 COMPLETE — **Wave 3-A 4 of 4 SHIPPED**: S-3.05 (#132 c867c344), S-3.04 (#133 57745ce8), S-3.03 (#134 7c413692), **S-3.07 (#135 2ae7185b MERGED 2026-05-08T04:23:03Z)**; post-merge cleanup confirmed; plugin migration: PREREQ-F SHIPPED; PREREQ-A/B/C/D/E pending |
-| **Current Step** | D-414 — S-PLUGIN-PREREQ-B LOCAL pass-9 BLOCKED-soft. 2 MED + 1 LOW + 4 OBS. F-LP9-MED-001: BC-2.16.002 v1.6 postcondition says "two events"; impl emits three. F-LP9-MED-002: validator multi-array heuristic false-negative on non-paginated whole-array. Streak 0/3. Fix-burst-9 pending. |
+| **Current Step** | D-415 — S-PLUGIN-PREREQ-B fix-burst-9 CLOSED. 2 MED + 1 LOW + 1 OBS-bundled closed. BC-2.16.002 v1.6→v1.7 audit-signal enumeration. Worktree HEAD f5746553. +2 Red Gate (45→47). 280/280 pass. Streak 0/3. Pass-10 pending. |
 
 ## Phase Progress
 
@@ -210,7 +210,7 @@ workspace_test_count: 3489  # 891 prism-query + workspace total (per implementer
 
 | Step | Agent | Status | Output |
 |------|-------|--------|--------|
-| S-PLUGIN-PREREQ-B LOCAL pass-7 + fix-burst-7 (D-411) | adversary + implementer + state-manager | **CLOSED — streak 0/3** | Pass-7 BLOCKED-soft 8 findings (3M+1L+3O) at 8e9a92d0. Fix-burst-7 CLOSED 3M+1L(TD-012) at ebd9a3ec + BC v1.6 at d11dbf0d. Red Gate 39→41. 275/275+1skip. Trajectory 20→10→4→7→10→9→8. STATE+HANDOFF v7.144→v7.145 |
+| S-PLUGIN-PREREQ-B LOCAL fix-burst-9 (D-415) | implementer + product-owner + state-manager | **CLOSED — streak 0/3** | 2M+1L+1OBS-bundled closed. BC-2.16.002 v1.6→v1.7 (F-LP9-MED-001 audit-signal enumeration). find_fan_out_array runtime warn (F-LP9-MED-002). Dead Mock 1 deleted (F-LP9-LOW-001). UTF-8 boundary fix (OBS-LP9-003). +2 Red Gate (45→47). 280/280 pass. Worktree HEAD f5746553. Pass-10 pending. STATE+HANDOFF v7.148→v7.149 |
 | S-PLUGIN-PREREQ-B LOCAL pass-8 (D-412) | adversary + state-manager | **BLOCKED-soft — streak 0/3** | 4 findings (0C+0H+3M+1L+4O) at HEAD ebd9a3ec (no code change). F-LP8-MED-001 empty-token branch untested (paper-fix TD-VSDD-059); F-LP8-MED-002 partial-discard test seeds scalar (paper-fix TD-VSDD-059); F-LP8-MED-003 cursor non-string warn lacks event_type; F-LP8-LOW-001 multi-array fan-out silent. Trajectory 20→10→4→7→10→9→8→4. Streak unchanged 0/3. STATE+HANDOFF v7.145→v7.146 |
 | S-PLUGIN-PREREQ-B LOCAL fix-burst-8 (D-413) | test-writer + implementer + state-manager | **CLOSED — streak 0/3** | 4 findings closed (3M+1L). Red Gate 41→45 (+4). 278/278 pass. TD-VSDD-059 paper-fix verification + TD-VSDD-060 sibling sweeps complete. Worktree HEAD 411f4cbf. Story v1.8→v1.9. Pass-9 dispatch pending. STATE+HANDOFF v7.146→v7.147 |
 | S-PLUGIN-PREREQ-B LOCAL pass-9 (D-414) | adversary + state-manager | **BLOCKED-soft — streak 0/3** | 2M+1L+4O at HEAD 411f4cbf (no code change). F-LP9-MED-001 BC-2.16.002 v1.6 audit-signal row says "two events"; impl emits three. F-LP9-MED-002 validator heuristic false-negative on non-paginated whole-array. F-LP9-LOW-001 dead mock. OBS-LP9-003 UTF-8 boundary panic bundled. All 4 fix-burst-8 closures CLEAN+LOAD-BEARING. Streak 0/3. Fix-burst-9 pending. STATE+HANDOFF v7.147→v7.148 |
@@ -221,6 +221,7 @@ _D-001..D-046 archived: [cycles/phase-3-dtu-wave-2/decisions-archive-d001-d032.m
 
 | ID | Decision | Rationale | Phase | Date |
 |----|----------|-----------|-------|------|
+| D-415 | 2026-05-11 | fix-burst-9 CLOSED for S-PLUGIN-PREREQ-B. Closed 2 MED + 1 LOW + 1 OBS-bundled-as-bug from pass-9. F-LP9-MED-001 BC-2.16.002 v1.6→v1.7 audit-signal enumeration (parallel product-owner + implementer). F-LP9-MED-002 find_fan_out_array runtime warn for multi-array (fanout_ambiguous_multi_array structured event). F-LP9-LOW-001 dead Mock 1 deleted. OBS-LP9-003 cursor_preview UTF-8 boundary fix (genuine bug bundled). Worktree HEAD f5746553. +2 Red Gate tests (45→47). 280/280 tests pass. just check-fast clean. Sibling sweeps complete. Next: pass-10 dispatch targeting streak 0/3 → 1/3. Report: `.factory/code-delivery/S-PLUGIN-PREREQ-B/adversarial-review/fix-burst-9.md`. STATE+HANDOFF v7.148→v7.149. | plugin-migration | 2026-05-11 |
 | D-414 | 2026-05-11 | LOCAL adversary pass-9 BLOCKED-soft for S-PLUGIN-PREREQ-B. 2 MED + 1 LOW + 4 OBS. F-LP9-MED-001: BC-2.16.002 v1.6 audit-signal row says "one of two" events but impl emits three (auth_initial_acquired_empty added in fix-burst-7 not enumerated in BC). F-LP9-MED-002: validator multi-array heuristic misses non-paginated whole-array response_path (sibling-sweep gap on F-LP8-LOW-001 — silent data corruption regression). F-LP9-LOW-001: dead Mock 1 in rewritten test. OBS-LP9-003: cursor_preview UTF-8 boundary panic — genuine bug, bundled into fix-burst-9. Streak does not advance (0/3). Fix-burst-9 to amend BC + add runtime warn + UTF-8 fix + delete dead mock. Report: `.factory/code-delivery/S-PLUGIN-PREREQ-B/adversarial-review/local-pass-9.md`. STATE+HANDOFF v7.147→v7.148. | plugin-migration | 2026-05-11 |
 | D-413 | 2026-05-11 | fix-burst-8 CLOSED for S-PLUGIN-PREREQ-B. Closed 3 MED + 1 LOW from pass-8 (paper-fix detections + audit-signal discipline + multi-array fan-out validator). Worktree HEAD 411f4cbf. +4 Red Gate tests (41→45). 278/278 tests pass. just check-fast clean. Sibling sweeps complete per TD-VSDD-060. TD-VSDD-059 paper-fix detection applied to all 4 closures. Next: dispatch LOCAL adversary pass-9 to target streak 0/3→1/3. Report: `.factory/code-delivery/S-PLUGIN-PREREQ-B/adversarial-review/fix-burst-8.md`. STATE+HANDOFF v7.146→v7.147. | plugin-migration | 2026-05-11 |
 | D-412 | 2026-05-11 | LOCAL adversary pass-8 BLOCKED-soft for S-PLUGIN-PREREQ-B. 3 MED + 1 LOW + 4 OBS. F-LP8-MED-001 and F-LP8-MED-002 are paper-fix detections (TD-VSDD-059) on fix-burst-7's claimed closures: empty-token tracing branch has no asserting test; partial-discard test uses scalar response_path so all_records is always empty before failure. F-LP8-MED-003: extract_cursor non-string termination has no structured event_type (bare warn vs project audit-signal discipline). F-LP8-LOW-001: multi-array fan-out templates silently use first array only. Streak does not advance (0/3). Trajectory: 20→10→4→7→10→9→8→4 (continued descent, novelty positive). Worktree HEAD ebd9a3ec unchanged (no code change in this burst). Report: `.factory/code-delivery/S-PLUGIN-PREREQ-B/adversarial-review/local-pass-8.md`. STATE+HANDOFF v7.145→v7.146. | plugin-migration | 2026-05-11 |
@@ -356,21 +357,21 @@ Cycle files: [burst-log](cycles/phase-2-patch/burst-log.md) | [convergence-traje
 
 ---
 
-## Session Resume Checkpoint (2026-05-11-v7.147-d413-prereq-b-fix-burst-8-closed)
+## Session Resume Checkpoint (2026-05-11-v7.149-d415-prereq-b-fix-burst-9-closed)
 
-_Previous checkpoint (v7.146/D-412 pass-8 BLOCKED-soft at ebd9a3ec) archived: [cycles/wave-4-operations/session-checkpoints.md](cycles/wave-4-operations/session-checkpoints.md)_
+_Previous checkpoint (v7.147/D-413 fix-burst-8 CLOSED at 411f4cbf) archived: [cycles/wave-4-operations/session-checkpoints.md](cycles/wave-4-operations/session-checkpoints.md)_
 
-**STATE v7.147. D-413 — S-PLUGIN-PREREQ-B fix-burst-8 CLOSED (4 findings: 3M+1L). Worktree HEAD 411f4cbf. Red Gate 45. Streak 0/3. SESSION-HANDOFF v7.147.** develop@90d7c80f. factory-artifacts HEAD: run `git -C .factory log -1` (per TD-VSDD-053). vsdd-factory rc.16 active. Standing Orchestrator Rules active (Rules 1, 2, 3). Bundle B Exit Mandate active (task #85). Worktrees: main (clean) + .factory + .worktrees/S-PLUGIN-PREREQ-B + .worktrees/S-3.09 (FROZEN per D-298).
+**STATE v7.149. D-415 — S-PLUGIN-PREREQ-B fix-burst-9 CLOSED (2M+1L+1OBS). Worktree HEAD f5746553. Red Gate 47. Streak 0/3. SESSION-HANDOFF v7.149.** develop@90d7c80f. factory-artifacts HEAD: run `git -C .factory log -1` (per TD-VSDD-053). vsdd-factory rc.16 active. Standing Orchestrator Rules active (Rules 1, 2, 3). Bundle B Exit Mandate active (task #85). Worktrees: main (clean) + .factory + .worktrees/S-PLUGIN-PREREQ-B + .worktrees/S-3.09 (FROZEN per D-298).
 
-**S-PLUGIN-PREREQ-B STATUS:** fix-burst-8 CLOSED at HEAD 411f4cbf. 45 Red Gate. Trajectory 20→10→4→7→10→9→8→4 (8 passes, 8 fix-bursts, streak 0/3). Pass-9 dispatch pending (target streak 0/3→1/3). TD-VSDD-059 paper-fix detection verified on all 4 closures. TD-VSDD-060 sibling sweeps documented in fix-burst-8.md.
+**S-PLUGIN-PREREQ-B STATUS:** fix-burst-9 CLOSED at HEAD f5746553. 47 Red Gate (+2). Trajectory 20→10→4→7→10→9→8→4 (9 passes, 9 fix-bursts, streak 0/3). BC-2.16.002 v1.7 (audit-signal enumeration corrected). Pass-10 dispatch pending (target streak 0/3→1/3). TD-VSDD-059 paper-fix detection verified on all 4 closures. TD-VSDD-060 sibling sweeps documented in fix-burst-9.md.
 
-**POST-D-413 FIRST ACTION:** Dispatch LOCAL adversary pass-9 against worktree HEAD `411f4cbf`. Scope: (a) closure verification of fix-burst-8's 4 findings (F-LP8-MED-001 empty-token load-bearing test, F-LP8-MED-002 partial-discard real record accumulation, F-LP8-MED-003 structured event_type on cursor warn, F-LP8-LOW-001 validator Category 2b multi-array rejection); (b) NEW dimensions disjoint from P5-A..K, P6-A..K, P7-A..L, P8-A..J. Apply TD-VSDD-059 paper-fix detection to fix-burst-8 closures with same rigor.
+**POST-D-415 FIRST ACTION:** Dispatch LOCAL adversary pass-10 against worktree HEAD `f5746553`. Scope: (a) closure verification of fix-burst-9's 4 findings (F-LP9-MED-001 BC v1.7 audit-signal enumeration, F-LP9-MED-002 fanout_ambiguous_multi_array runtime warn, F-LP9-LOW-001 dead mock deletion, OBS-LP9-003 cursor_preview UTF-8 fix); (b) NEW dimensions disjoint from P5-A..K, P6-A..K, P7-A..L, P8-A..J, P9-A..L. Apply TD-VSDD-059 paper-fix detection to fix-burst-9 closures with same rigor as pass-9 applied to fix-burst-8.
 
 **S-3.09 FREEZE STATE:** Worktree .worktrees/S-3.09 HEAD 43c41389; BUG-S309-PLUGIN P0 blocks resumption. See D-298/D-299.
 
 **Deferred TDs (carry-forward):** W3-FIX-S307-001/002/003 + TD-S307-002/003/004 + TD-S-PLUGIN-PREREQ-A-002 P1 + TD-S-PLUGIN-PREREQ-A-003 P1 + TD-S-PLUGIN-PREREQ-A-004 P1 + TD-S-PLUGIN-PREREQ-A-005..010 P3 + TD-S-PLUGIN-PREREQ-B-001 P2 (cursor page_size; PREREQ-C) + TD-S-PLUGIN-PREREQ-B-002 P3 (AuthToken zeroize; PREREQ-D) + TD-S-PLUGIN-PREREQ-B-003 P3 (JSON Pointer bracket/wildcard; PREREQ-C) + TD-S-PLUGIN-PREREQ-B-004 P3 (MAX_REQUESTS_PER_PIPELINE; PREREQ-D) + TD-S-PLUGIN-PREREQ-B-005 P2 (production reqwest::Client.timeout; PREREQ-D) + TD-S-PLUGIN-PREREQ-B-006 P2 (proptest; PREREQ-C) + TD-S-PLUGIN-PREREQ-B-007 P3 (status_code overload) + TD-S-PLUGIN-PREREQ-B-008 P3 (template escape; PREREQ-C) + TD-S-PLUGIN-PREREQ-B-009 P3 (dead scalar arm) + TD-S-PLUGIN-PREREQ-B-011 P3 (execute_step PREREQ-D wiring) + TD-S-PLUGIN-PREREQ-B-012 P3 (execute_step PREREQ-D test coverage) + TD-VSDD-058/059/060 P0 + TD-FACTORY-HOOK-BYPASS-001 P0 + TD-VSDD-054..063 (all OPEN) + TD-VSDD-082/083/084 + TD-S309-O1/O2/O3/O4
 
-**Current spec versions:** BC-INDEX v4.57, STORY-INDEX v2.47, ARCH-INDEX v2.40, ADR-023 v1.18, VP-INDEX v1.32 (152 VPs + VP-PLUGIN-001..007 aliases), BC-2.16.002 v1.6, BC-2.01.013 v1.6 (active, merged PR #142), S-PLUGIN-PREREQ-B v1.9 (red_gate_tests 45, fix-burst-8 CLOSED, pass-9 pending), prd.md v1.10, error-taxonomy.md v1.18, develop@90d7c80f; STATE v7.147 SESSION-HANDOFF v7.147 (current)
+**Current spec versions:** BC-INDEX v4.58, STORY-INDEX v2.49, ARCH-INDEX v2.40, ADR-023 v1.18, VP-INDEX v1.32 (152 VPs + VP-PLUGIN-001..007 aliases), BC-2.16.002 v1.7, BC-2.01.013 v1.6 (active, merged PR #142), S-PLUGIN-PREREQ-B v1.11 (red_gate_tests 47, fix-burst-9 CLOSED, pass-10 pending), prd.md v1.10, error-taxonomy.md v1.18, develop@90d7c80f; STATE v7.149 SESSION-HANDOFF v7.149 (current)
 
 **Key files:** [SESSION-HANDOFF.md](SESSION-HANDOFF.md) | [cycle-manifest.md](cycles/wave-4-operations/cycle-manifest.md) | [HOLDOUT-INDEX.md](holdout-scenarios/HOLDOUT-INDEX.md)
 
