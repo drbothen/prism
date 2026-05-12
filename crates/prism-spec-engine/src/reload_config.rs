@@ -4,7 +4,7 @@
 
 use std::path::Path;
 
-use crate::config_manager::{parse_spec_directory, ConfigManager};
+use crate::config_manager::{ConfigManager, parse_spec_directory};
 use crate::error::SpecEngineError;
 use crate::types::{
     ConfigSnapshot, ModeChange, ModifiedSpec, ReloadConfigArgs, ReloadResult, ReloadStatus,
@@ -161,20 +161,20 @@ pub fn detect_mode_changes(old: &ConfigSnapshot, candidate: &ConfigSnapshot) -> 
 
     for (sensor_id, old_spec) in &old.sensor_specs {
         // Only compare specs present in BOTH snapshots (AC-005).
-        if let Some(candidate_spec) = candidate.sensor_specs.get(sensor_id) {
-            if old_spec.mode != candidate_spec.mode {
-                changes.push(ModeChange {
-                    // Use the sensor_id as org_slug — the config-manager SensorSpec
-                    // does not yet carry a separate org_slug field; sensor_id serves
-                    // as the stable identifier for the [[dtu]] block (BC-3.2.005).
-                    org_slug: sensor_id.clone(),
-                    // Use the sensor_id as dtu_type until the TOML schema exposes a
-                    // dedicated `dtu_type` field (BC-3.2.005 invariant 4).
-                    dtu_type: sensor_id.clone(),
-                    old: old_spec.mode,
-                    new: candidate_spec.mode,
-                });
-            }
+        if let Some(candidate_spec) = candidate.sensor_specs.get(sensor_id)
+            && old_spec.mode != candidate_spec.mode
+        {
+            changes.push(ModeChange {
+                // Use the sensor_id as org_slug — the config-manager SensorSpec
+                // does not yet carry a separate org_slug field; sensor_id serves
+                // as the stable identifier for the [[dtu]] block (BC-3.2.005).
+                org_slug: sensor_id.clone(),
+                // Use the sensor_id as dtu_type until the TOML schema exposes a
+                // dedicated `dtu_type` field (BC-3.2.005 invariant 4).
+                dtu_type: sensor_id.clone(),
+                old: old_spec.mode,
+                new: candidate_spec.mode,
+            });
         }
     }
 

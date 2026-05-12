@@ -5,7 +5,7 @@
 use std::path::PathBuf;
 use std::sync::Arc;
 
-use crate::config_manager::{compute_file_hash, extract_sensor_id_from_path, ConfigManager};
+use crate::config_manager::{ConfigManager, compute_file_hash, extract_sensor_id_from_path};
 use crate::error::SpecEngineError;
 use crate::types::{ModifiedSpec, ReloadResult, ReloadStatus, ValidationError};
 

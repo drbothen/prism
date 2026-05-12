@@ -35,6 +35,9 @@ pub mod spec_parser;
 pub mod validation;
 pub mod write_endpoint;
 
+// S-PLUGIN-PREREQ-B — spec-driven auth interface (BC-2.01.013 / ADR-023 §C2)
+pub mod auth_provider;
+
 pub(crate) mod proofs;
 
 // S-1.12 modules — hot reload and runtime management (BC-2.16.005..010 / AD-018)
@@ -72,15 +75,26 @@ pub use spec_parser::{
 };
 // TableType is now re-exported from prism-core (S-2.08 Defect 2 fix)
 pub use prism_core::TableType;
-pub use validation::{validate_sensor_spec, ValidationError, ValidationWarning, ValidatorOutput};
+pub use validation::{ValidationError, ValidationWarning, ValidatorOutput, validate_sensor_spec};
 pub use write_endpoint::{
-    check_reserved_keyword, validate_write_endpoints, BatchMode, WriteEndpointRegistry,
-    WriteEndpointSpec, WriteStep, WriteTableDescriptor,
+    BatchMode, WriteEndpointRegistry, WriteEndpointSpec, WriteStep, WriteTableDescriptor,
+    check_reserved_keyword, validate_write_endpoints,
 };
 
 // S-1.12 hot-reload re-exports
 pub use config_manager::ConfigManager;
 pub use error::SpecEngineError;
+
+// S-PLUGIN-PREREQ-B — auth interface re-exports (BC-2.01.013 / ADR-023 §C2)
+pub use auth_provider::{AuthProvider, AuthToken};
+
+// NullAuthProvider + MockAuthProvider + FailingAuthProvider: test-only; feature-gated
+// to prevent accidental use in production callers that would silently bypass real auth.
+// Enable the `test-helpers` Cargo feature in [dev-dependencies] to access these.
+#[cfg(any(test, feature = "test-helpers"))]
+pub use auth_provider::{
+    AuthOutcome, ChainAuthProvider, FailingAuthProvider, MockAuthProvider, NullAuthProvider,
+};
 
 // S-3.1.05 re-exports
 pub use org_scoped_store::OrgScopedSpecStore;

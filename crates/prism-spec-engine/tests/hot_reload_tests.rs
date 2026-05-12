@@ -27,10 +27,11 @@ use proptest::prelude::*;
 use tempfile::TempDir;
 
 use prism_spec_engine::{
+    SpecEngineError,
     add_sensor_spec::{add_sensor_spec, parse_and_validate_spec_toml},
-    config_manager::{parse_spec_directory, ConfigManager},
+    config_manager::{ConfigManager, parse_spec_directory},
     hot_reload::{
-        process_spec_changes, HotReloadConfig, HotReloadWatcher, SpecChangeEvent, WatchMechanism,
+        HotReloadConfig, HotReloadWatcher, SpecChangeEvent, WatchMechanism, process_spec_changes,
     },
     list_sensor_specs::list_sensor_specs,
     reload_config::{reload_config, validate_snapshot},
@@ -39,7 +40,6 @@ use prism_spec_engine::{
         ConfigSnapshot, ListSensorSpecsArgs, ReloadConfigArgs, ReloadStatus, SensorSpec,
         SensorTableDescriptor, SpecStatus, ValidationError,
     },
-    SpecEngineError,
 };
 
 // ---------------------------------------------------------------------------
@@ -381,9 +381,11 @@ fn test_BC_2_16_007_new_spec_file_registers_tables() {
 
     let result = process_spec_changes(events, &manager, dir.path()).unwrap();
 
-    assert!(result
-        .added
-        .contains(&"brand_new_vendor.events".to_string()));
+    assert!(
+        result
+            .added
+            .contains(&"brand_new_vendor.events".to_string())
+    );
     let current = manager.load();
     assert!(current.sensor_specs.contains_key("brand_new_vendor"));
 }
