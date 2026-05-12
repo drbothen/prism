@@ -23,6 +23,7 @@ check:
     PROPTEST_CASES=100 cargo nextest run --workspace --all-features --no-fail-fast
     PROPTEST_CASES=100 cargo test --workspace --all-features --doc
     @scripts/check-crate-layout.sh
+    @scripts/check-non-exhaustive.sh
 
 # iter <crate>: TDD inner loop. PROPTEST_CASES=32 (8x less than default 256) for speed.
 # WARNING: property-test failures during `iter` may not reproduce at full strength.
