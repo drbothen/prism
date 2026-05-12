@@ -35,6 +35,11 @@ use prism_core::InfusionError;
 ///
 /// Determines how the `InfusionSource` is constructed and whether API-backed
 /// calls are permitted in detection rule filters (BC-2.19.003 / INV-INFUSE-003).
+///
+/// `#[non_exhaustive]`: forward-compat for infusion schema evolution — new source types
+/// (e.g., remote API lookup, streaming source) may be added without a breaking semver change.
+/// External match arms must include a wildcard arm.
+#[non_exhaustive]
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum InfusionType {
@@ -51,6 +56,11 @@ pub enum InfusionType {
 // ---------------------------------------------------------------------------
 
 /// Source type for a local lookup infusion.
+///
+/// `#[non_exhaustive]`: forward-compat for infusion schema evolution — new built-in
+/// source types (e.g., SQLite lookup, parquet reference) may be added without a breaking
+/// semver change. External match arms must include a wildcard arm.
+#[non_exhaustive]
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum BuiltInSourceType {
@@ -63,6 +73,11 @@ pub enum BuiltInSourceType {
 }
 
 /// Source configuration block from the infusion TOML spec.
+///
+/// `#[non_exhaustive]`: forward-compat for infusion schema evolution — fields may expand
+/// (e.g., auth config, cache policy, compression settings) without a breaking semver change.
+/// Use `..Default::default()` for forward-compatible external construction.
+#[non_exhaustive]
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct InfusionSourceConfig {
     /// The source type discriminant.
@@ -73,6 +88,37 @@ pub struct InfusionSourceConfig {
     pub key_column: Option<String>,
     /// Refresh interval in seconds (0 = no refresh).
     pub refresh_interval_secs: Option<u64>,
+}
+
+impl Default for InfusionSourceConfig {
+    fn default() -> Self {
+        Self {
+            source_type: BuiltInSourceType::JsonLookup,
+            file_path: String::new(),
+            key_column: None,
+            refresh_interval_secs: None,
+        }
+    }
+}
+
+impl InfusionSourceConfig {
+    /// Construct an `InfusionSourceConfig`.
+    ///
+    /// `#[non_exhaustive]` prevents struct literal construction from external crates;
+    /// use this constructor for forward-compatible external construction.
+    pub fn new(
+        source_type: BuiltInSourceType,
+        file_path: impl Into<String>,
+        key_column: Option<String>,
+        refresh_interval_secs: Option<u64>,
+    ) -> Self {
+        Self {
+            source_type,
+            file_path: file_path.into(),
+            key_column,
+            refresh_interval_secs,
+        }
+    }
 }
 
 // ---------------------------------------------------------------------------
@@ -127,7 +173,12 @@ impl CredentialRef {
 /// A single enrichment field declared in `[[infusion.fields]]`.
 ///
 /// Each field produces exactly one `InfusionUdfDescriptor` (INV-INFUSE-001 / BC-2.19.001).
-#[derive(Debug, Clone, Serialize, Deserialize)]
+///
+/// `#[non_exhaustive]`: forward-compat for infusion schema evolution — fields may expand
+/// (e.g., transformation functions, output format hints) without a breaking semver change.
+/// External callers must use `InfusionField::new()` or `InfusionField::with_all()`.
+#[non_exhaustive]
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
 pub struct InfusionField {
     /// UDF name (global within DataFusion SessionContext — must be unique across all specs).
     pub name: String,
@@ -143,15 +194,72 @@ pub struct InfusionField {
     pub source_column: Option<String>,
 }
 
+impl InfusionField {
+    /// Construct an `InfusionField` with the common fields.
+    ///
+    /// Use `..Default::default()` is not available for `#[non_exhaustive]` structs
+    /// from external crates; use this constructor instead for forward-compatible
+    /// external construction.
+    pub fn new(
+        name: impl Into<String>,
+        input_field: impl Into<String>,
+        input_type: impl Into<String>,
+        output_type: impl Into<String>,
+    ) -> Self {
+        Self {
+            name: name.into(),
+            input_field: input_field.into(),
+            input_type: input_type.into(),
+            output_type: output_type.into(),
+            description: None,
+            source_column: None,
+        }
+    }
+
+    /// Construct an `InfusionField` with all fields (for test fixtures).
+    pub fn with_all(
+        name: impl Into<String>,
+        input_field: impl Into<String>,
+        input_type: impl Into<String>,
+        output_type: impl Into<String>,
+        description: Option<String>,
+        source_column: Option<String>,
+    ) -> Self {
+        Self {
+            name: name.into(),
+            input_field: input_field.into(),
+            input_type: input_type.into(),
+            output_type: output_type.into(),
+            description,
+            source_column,
+        }
+    }
+}
+
 // ---------------------------------------------------------------------------
 // Pipe stage config
 // ---------------------------------------------------------------------------
 
 /// Configuration for the `| enrich` PrismQL pipe stage (BC-2.19.001 / AC-3).
-#[derive(Debug, Clone, Serialize, Deserialize)]
+///
+/// `#[non_exhaustive]`: forward-compat for infusion schema evolution — pipe stage config
+/// may expand (e.g., filter conditions, pass-through columns) without a breaking semver
+/// change. External callers must use `PipeStageConfig::new()`.
+#[non_exhaustive]
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
 pub struct PipeStageConfig {
     /// Column names added to the upstream result schema by this enrich stage.
     pub adds_columns: Vec<String>,
+}
+
+impl PipeStageConfig {
+    /// Construct a `PipeStageConfig` with the given column list.
+    ///
+    /// `#[non_exhaustive]` prevents struct literal construction from external crates;
+    /// use this constructor for forward-compatible external construction.
+    pub fn new(adds_columns: Vec<String>) -> Self {
+        Self { adds_columns }
+    }
 }
 
 // ---------------------------------------------------------------------------
@@ -159,10 +267,27 @@ pub struct PipeStageConfig {
 // ---------------------------------------------------------------------------
 
 /// Configuration for a `type = "plugin"` infusion.
-#[derive(Debug, Clone, Serialize, Deserialize)]
+///
+/// `#[non_exhaustive]`: forward-compat for infusion schema evolution — plugin config
+/// may expand (e.g., plugin version pinning, sandbox config) without a breaking semver
+/// change. External callers must use `PluginConfig::new()`.
+#[non_exhaustive]
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
 pub struct PluginConfig {
     /// Path to the `.prx` WASM plugin file.
     pub plugin_path: String,
+}
+
+impl PluginConfig {
+    /// Construct a `PluginConfig` with the given plugin path.
+    ///
+    /// `#[non_exhaustive]` prevents struct literal construction from external crates;
+    /// use this constructor for forward-compatible external construction.
+    pub fn new(plugin_path: impl Into<String>) -> Self {
+        Self {
+            plugin_path: plugin_path.into(),
+        }
+    }
 }
 
 // ---------------------------------------------------------------------------
@@ -173,6 +298,12 @@ pub struct PluginConfig {
 ///
 /// Loaded by `InfusionRegistry::load_spec` (BC-2.19.001).
 /// Credentials use the reference-based model (AD-017) — values are never stored here.
+///
+/// `#[non_exhaustive]`: forward-compat for infusion schema evolution — root spec type;
+/// fields may expand (e.g., schema version, loaded_at timestamp, reload policy) without
+/// a breaking semver change. Use `..Default::default()` for forward-compatible external
+/// construction.
+#[non_exhaustive]
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct InfusionSpec {
     /// Unique infusion identifier (e.g., `"geoip"`).
@@ -195,6 +326,50 @@ pub struct InfusionSpec {
     pub source_path: String,
     /// Per-infusion TTL for cache entries (seconds). Default 3600.
     pub cache_ttl_secs: Option<u64>,
+}
+
+impl Default for InfusionSpec {
+    fn default() -> Self {
+        Self {
+            infusion_id: String::new(),
+            name: String::new(),
+            infusion_type: InfusionType::LocalLookup,
+            source: None,
+            fields: vec![],
+            pipe_stage: None,
+            plugin_config: None,
+            credentials: vec![],
+            source_path: String::new(),
+            cache_ttl_secs: None,
+        }
+    }
+}
+
+impl InfusionSpec {
+    /// Construct an `InfusionSpec` with the essential fields.
+    ///
+    /// `#[non_exhaustive]` prevents struct literal construction from external crates;
+    /// use this constructor for forward-compatible external construction.
+    pub fn new(
+        infusion_id: impl Into<String>,
+        name: impl Into<String>,
+        infusion_type: InfusionType,
+        fields: Vec<InfusionField>,
+        source_path: impl Into<String>,
+    ) -> Self {
+        Self {
+            infusion_id: infusion_id.into(),
+            name: name.into(),
+            infusion_type,
+            source: None,
+            fields,
+            pipe_stage: None,
+            plugin_config: None,
+            credentials: vec![],
+            source_path: source_path.into(),
+            cache_ttl_secs: None,
+        }
+    }
 }
 
 // ---------------------------------------------------------------------------

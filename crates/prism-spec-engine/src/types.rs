@@ -6,6 +6,11 @@
 use serde::{Deserialize, Serialize};
 
 /// Column type for a sensor table column.
+///
+/// `#[non_exhaustive]`: forward-compat for schema evolution — new column types
+/// (e.g., UUID, Duration, nested Object) may be added without a breaking semver change.
+/// External match arms must include a wildcard arm.
+#[non_exhaustive]
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub enum ColumnType {
     String,
@@ -17,6 +22,11 @@ pub enum ColumnType {
 }
 
 /// A single column definition within a sensor table.
+///
+/// `#[non_exhaustive]`: forward-compat for schema evolution — fields may expand
+/// (e.g., default value, index hints, description) without a breaking semver change.
+/// Use `..Default::default()` for forward-compatible external construction.
+#[non_exhaustive]
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct ColumnDef {
     pub name: String,
@@ -26,7 +36,23 @@ pub struct ColumnDef {
     pub nullable: bool,
 }
 
+impl Default for ColumnDef {
+    fn default() -> Self {
+        Self {
+            name: String::new(),
+            column_type: ColumnType::String,
+            ocsf_field: None,
+            nullable: true,
+        }
+    }
+}
+
 /// Pagination type for a fetch pipeline.
+///
+/// `#[non_exhaustive]`: forward-compat for schema evolution — new pagination strategies
+/// (e.g., page-based with link header, keyset pagination) may be added without a breaking
+/// semver change. External match arms must include a wildcard arm.
+#[non_exhaustive]
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub enum PaginationType {
     Cursor,
@@ -208,6 +234,11 @@ impl SensorSpec {
 }
 
 /// Per-spec availability status for list_sensor_specs (BC-2.16.010).
+///
+/// `#[non_exhaustive]`: forward-compat for spec lifecycle evolution — new status
+/// values (e.g., `Deprecated`, `Upgrading`) may be added without a breaking semver change.
+/// External match arms must include a wildcard arm.
+#[non_exhaustive]
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum SpecStatus {
@@ -219,6 +250,11 @@ pub enum SpecStatus {
 }
 
 /// Per-client credential status in list_sensor_specs response.
+///
+/// `#[non_exhaustive]`: forward-compat for credential status evolution — new states
+/// (e.g., `Expired`, `PartiallyConfigured`) may be added without a breaking semver change.
+/// External match arms must include a wildcard arm.
+#[non_exhaustive]
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum ClientStatus {
