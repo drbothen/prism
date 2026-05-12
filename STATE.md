@@ -1,9 +1,9 @@
 ---
 document_type: pipeline-state
 level: ops
-version: "7.160"
+version: "7.161"
 producer: state-manager
-timestamp: 2026-05-12T07:00:00Z
+timestamp: 2026-05-12T07:30:00Z
 inputs: []
 input-hash: "[live-state]"
 traces_to: ""
@@ -22,7 +22,7 @@ repos:
   - axiathon
   - ocsf-proto-gen
   - mcp-claroty-xdome
-current_step: "D-426. S-PLUGIN-PREREQ-B LOCAL CONVERGENCE DECLARED per BC-5.39.001. Pass-16 CLEAN; streak 2/3→3/3. 16 LOCAL passes + 13 fix-bursts complete. Zero findings across 13 novel dimensions (P16-A..M). All 5 BC-5.39.001 criteria met. Story v1.21→v1.22. STORY-INDEX v2.59→v2.60. STATE+HANDOFF v7.159→v7.160. Next: demo-recorder dispatch → push → pr-manager 9-step → PR-LEVEL cascade → squash-merge → PREREQ-C."
+current_step: "D-427. S-PLUGIN-PREREQ-B PR #143 squash-merged to develop@ae7e26c8 (2026-05-12T06:58:48Z). Story v1.22→v1.23 status: merged. BC-2.16.002 v1.8→v1.9 draft→active (POL-14). BC-INDEX v4.59→v4.60 (active_contracts 227→228). STORY-INDEX v2.60→v2.61. STATE+HANDOFF v7.160→v7.161. Next: dispatch story-writer for S-PLUGIN-PREREQ-C."
 wave_3_carry_forward_debt: "ALL_REMEDIATE — W4-FIX-PERF-001/002, W4-FIX-CODE-001, W4-FIX-SEC-001 through W4-FIX-SEC-004 planned per D-203"
 wave_4_status: "PHASE_4_A_CONVERGED + R9_APPROVED but PHASE_4_B SUSPENDED — pre-implementation dep check (2026-05-04) found S-4.01 → S-3.02 (status=draft); pivoting to full Wave 3 implementation per user directive D-223"
 wave_4_phase_4_a_preflight:
@@ -126,9 +126,9 @@ subsystem_count: 20
 story_count: 113
 bc_count_corrected: 235
 cap_count: 40  # active; highest_cap_id: CAP-040 (CAP-038 Multi-Tenant Identity, CAP-039 Multi-Tenant Fixture Gen, CAP-040 Multi-Tenant Adapter Dispatch — Wave 3 Phase 3.A Step 2)
-bc_index_version: "4.59"
+bc_index_version: "4.60"
 vp_index_version: "1.32"
-story_index_version: "v2.60"
+story_index_version: "v2.61"
 total_stories: 150
 red_gate_wave_0a_complete: 2026-04-21
 test_vectors_version: "2.7"
@@ -160,7 +160,7 @@ phase_2_patch_remediation_bursts: 20
 phase_2_patch_findings_total_fixed: 95
 phase_2_patch_convergence_rationale: "User override post pass-99. Semantic policies all PASS; meta-doc drift deferred to vsdd-factory lint hooks."
 user_directive_persistent: "No pragmatic convergence. Fix all issues before build."
-develop_head: "90d7c80f"
+develop_head: "ae7e26c8"
 vsdd_factory_version: "1.0.0-rc.16 (upgraded from rc.11 2026-05-10T07:38:25Z)"
 workspace_test_count: 3489  # 891 prism-query + workspace total (per implementer fix-pass-6 report; +3 new DML walker tests)
 ---
@@ -176,9 +176,9 @@ workspace_test_count: 3489  # 891 prism-query + workspace total (per implementer
 | **Language** | Rust |
 | **Target Workspace** | per-analyst stdio (MCP server) |
 | **Started** | 2026-04-13 |
-| **Last Updated** | 2026-05-12 (D-426 — S-PLUGIN-PREREQ-B LOCAL CONVERGENCE DECLARED per BC-5.39.001; pass-16 CLEAN; streak 2/3→3/3; 16 LOCAL passes + 13 fix-bursts; P16-A..M ZERO findings; all 5 criteria met; STATE+HANDOFF v7.159→v7.160) |
-| **Current Phase** | Wave 3 Tier-3 COMPLETE — **Wave 3-A 4 of 4 SHIPPED**: S-3.05 (#132 c867c344), S-3.04 (#133 57745ce8), S-3.03 (#134 7c413692), **S-3.07 (#135 2ae7185b MERGED 2026-05-08T04:23:03Z)**; post-merge cleanup confirmed; plugin migration: PREREQ-F SHIPPED; PREREQ-A/B/C/D/E pending |
-| **Current Step** | D-426 — S-PLUGIN-PREREQ-B LOCAL CONVERGENCE DECLARED per BC-5.39.001. Pass-16 CLEAN; streak 2/3→3/3. 16 LOCAL passes + 13 fix-bursts complete. Zero findings across 13 novel dimensions (P16-A..M). All 5 BC-5.39.001 criteria met. Story v1.22. Next: demo-recorder dispatch → push → pr-manager 9-step → PR-LEVEL cascade → squash-merge → PREREQ-C. |
+| **Last Updated** | 2026-05-12 (D-427 — S-PLUGIN-PREREQ-B PR #143 squash-merged to develop@ae7e26c8; BC-2.16.002 draft→active (POL-14); PREREQ-C unblocked; STATE+HANDOFF v7.160→v7.161) |
+| **Current Phase** | Wave 3 Tier-3 COMPLETE — **Wave 3-A 4 of 4 SHIPPED**; plugin migration: PREREQ-F + PREREQ-A + **PREREQ-B SHIPPED** (PR #143 ae7e26c8 2026-05-12); PREREQ-C/D/E pending |
+| **Current Step** | D-427 — S-PLUGIN-PREREQ-B PR #143 squash-merged at develop@ae7e26c8 (2026-05-12T06:58:48Z). Story merged. BC-2.16.002 v1.9 active. Unblocks PREREQ-C dispatch (cursor page_size + JSONPath bracket/wildcard + MAX_REQUESTS_PER_PIPELINE + proptest coverage + #[non_exhaustive] crate-wide). |
 
 ## Phase Progress
 
@@ -210,9 +210,9 @@ workspace_test_count: 3489  # 891 prism-query + workspace total (per implementer
 
 | Step | Agent | Status | Output |
 |------|-------|--------|--------|
-| S-PLUGIN-PREREQ-B LOCAL pass-14 (D-424) | adversary + state-manager | **CLEAN — streak 1/3** | FIRST CLEAN after 13 BLOCKED-soft. Trajectory 20→10→4→7→10→9→8→4→4→2→3→3→2→0. Fix-burst-13 closures paper-fix-free: F-LP13-MED-001 CONFIRMED CLOSED (GENUINE 14/14; 5 load-bearing tests); F-LP13-LOW-001 CONFIRMED CLOSED (honest lessons.md). P14-A..H novel-dimension sweep ZERO actionable findings. STORY-INDEX v2.57→v2.58. STATE+HANDOFF v7.157→v7.158 |
 | S-PLUGIN-PREREQ-B LOCAL pass-15 (D-425) | adversary + state-manager | **CLEAN — streak 2/3** | SECOND CONSECUTIVE CLEAN. Trajectory →0→0. Fix-burst-13 invariants re-verified: 14↔14 catalog load-bearing; ChainAuthProvider feature-gated; lessons.md honest. P15-A..L ZERO actionable findings. STORY-INDEX v2.58→v2.59. STATE+HANDOFF v7.158→v7.159 |
-| S-PLUGIN-PREREQ-B LOCAL pass-16 (D-426) | adversary + state-manager | **CLEAN — streak 3/3 — LOCAL CONVERGED** | THIRD CONSECUTIVE CLEAN. Trajectory 20→10→4→7→10→9→8→4→4→2→3→3→2→0→0→0. 13 novel dimensions (P16-A..M) all CLEAN. All 5 BC-5.39.001 criteria met. 16 passes + 13 fix-bursts. Story v1.22. STORY-INDEX v2.59→v2.60. STATE+HANDOFF v7.159→v7.160. Next: demo-recorder → PR cycle → PREREQ-C. |
+| S-PLUGIN-PREREQ-B LOCAL pass-16 (D-426) | adversary + state-manager | **CLEAN — streak 3/3 — LOCAL CONVERGED** | THIRD CONSECUTIVE CLEAN. Trajectory →0→0→0. 13 novel dimensions (P16-A..M) all CLEAN. All 5 BC-5.39.001 criteria met. 16 passes + 13 fix-bursts. Story v1.22. STORY-INDEX v2.59→v2.60. STATE+HANDOFF v7.159→v7.160. |
+| S-PLUGIN-PREREQ-B PR #143 MERGED (D-427) | state-manager | **MERGED — develop@ae7e26c8** | PR #143 squash-merged 2026-05-12T06:58:48Z. Story v1.22→v1.23 status: merged. BC-2.16.002 v1.8→v1.9 draft→active (POL-14). BC-INDEX v4.59→v4.60 (active_contracts 227→228). STORY-INDEX v2.60→v2.61. STATE+HANDOFF v7.160→v7.161. PREREQ-C unblocked. |
 
 ## Decisions Log
 
@@ -220,6 +220,7 @@ _D-001..D-046 archived: [cycles/phase-3-dtu-wave-2/decisions-archive-d001-d032.m
 
 | ID | Decision | Rationale | Phase | Date |
 |----|----------|-----------|-------|------|
+| D-427 | 2026-05-12 | S-PLUGIN-PREREQ-B PR #143 squash-merged to develop. After 16 LOCAL adversary passes + 13 fix-bursts + PR-LEVEL 1/1 CLEAN + pr-reviewer APPROVE + 34/34 CI checks pass + user authorization, PR #143 merged at ae7e26c8 (2026-05-12T06:58:48Z). Story PREREQ-B status: merged. BC-2.16.002 v1.8→v1.9 status: active per POL-14 (story merged → BCs in behavioral_contracts array auto-promote draft→active). BC-2.01.013 v1.6 already active (promoted at PREREQ-A merge). Unblocks PREREQ-C dispatch (cursor page_size + JSONPath bracket/wildcard + MAX_REQUESTS_PER_PIPELINE + proptest coverage + #[non_exhaustive] crate-wide; see TD-S-PLUGIN-PREREQ-B-001/003/004/006/008/009/016 carry-forward). Worktree path retained for archival; future maintenance cleanup. Reference: PR #143 merge commit ae7e26c8. | plugin-migration | 2026-05-12 |
 | D-426 | 2026-05-12 | LOCAL CONVERGENCE DECLARED for S-PLUGIN-PREREQ-B (BC-5.39.001 3-CLEAN protocol satisfied). Pass-16 CLEAN; streak 2/3→3/3. Final convergence pass: zero findings across 13 new dimensions (P16-A..M). All 5 BC-5.39.001 criteria met: (1) 3/3 streak (passes 14/15/16); (2) 14/14 BC v1.8 catalog rows test-anchored; (3) zero unresolved CRIT/HIGH (all closed by fix-bursts 1-13); (4) PG-LP11-001 codified in lessons.md, PG-LP12-001 closed; (5) trajectory 20→10→4→7→10→9→8→4→4→2→3→3→2→0→0→0 shows 3 consecutive zeros + saturated dimension exploration. Total: 16 LOCAL passes + 13 fix-bursts. Worktree HEAD b75f317e; 297 prism-spec-engine tests pass; 64 Red Gate tests; BC v1.8 / story v1.22. Reference: `.factory/code-delivery/S-PLUGIN-PREREQ-B/adversarial-review/local-pass-16.md`. Story v1.21→v1.22. STORY-INDEX v2.59→v2.60. STATE+HANDOFF v7.159→v7.160. Next: demo-recorder dispatch → push → pr-manager 9-step → PR-LEVEL cascade → squash-merge → PREREQ-C. | plugin-migration | 2026-05-12 |
 | D-425 | 2026-05-12 | LOCAL adversary pass-15 CLEAN for S-PLUGIN-PREREQ-B — streak 1/3→2/3. Second consecutive CLEAN pass. Fix-burst-13 invariants verified still load-bearing: 14 event_type literals ↔ 14 BC v1.8 catalog rows (14↔14 mapping intact); ChainAuthProvider feature-gated at auth_provider.rs:258-324 + lib.rs:96 (no production leak); lessons.md enforcement-layer honesty preserved (Layer 3 ACTIVE sole). Part B P15-A..L novel-dimension sweep returned ZERO actionable findings. Trajectory 20→10→4→7→10→9→8→4→4→2→3→3→2→0→0. Streak position now 2/3. One more CLEAN pass (pass-16) closes BC-5.39.001 3-CLEAN protocol and authorizes LOCAL convergence. Worktree HEAD b75f317e (unchanged). Reference: `.factory/code-delivery/S-PLUGIN-PREREQ-B/adversarial-review/local-pass-15.md`. Story v1.20→v1.21. STORY-INDEX v2.58→v2.59. STATE+HANDOFF v7.158→v7.159. | plugin-migration | 2026-05-12 |
 | D-424 | 2026-05-12 | LOCAL adversary pass-14 CLEAN for S-PLUGIN-PREREQ-B — streak 0/3→1/3. FIRST CLEAN pass after 13 BLOCKED-soft passes. Fix-burst-13 closures verified paper-fix-free (GENUINE 14/14 catalog coverage; honest enforcement-layer documentation). Part B P14-A..H novel-dimension sweep returned ZERO actionable findings. Trajectory 20→10→4→7→10→9→8→4→4→2→3→3→2→0. Streak position now 1/3. Need 2 more consecutive CLEAN passes for 3-CLEAN local convergence (BC-5.39.001). Worktree HEAD b75f317e (unchanged). Reference: `.factory/code-delivery/S-PLUGIN-PREREQ-B/adversarial-review/local-pass-14.md`. Story v1.19→v1.20. STORY-INDEX v2.57→v2.58. STATE+HANDOFF v7.157→v7.158. | plugin-migration | 2026-05-12 |
@@ -367,21 +368,21 @@ Cycle files: [burst-log](cycles/phase-2-patch/burst-log.md) | [convergence-traje
 
 ---
 
-## Session Resume Checkpoint (2026-05-12-v7.160-d426-prereq-b-LOCAL-CONVERGED)
+## Session Resume Checkpoint (2026-05-12-v7.161-d427-prereq-b-MERGED)
 
-_Previous checkpoint (v7.159/D-425 pass-15 CLEAN streak 2/3) archived: [cycles/wave-4-operations/session-checkpoints.md](cycles/wave-4-operations/session-checkpoints.md)_
+_Previous checkpoint (v7.160/D-426 LOCAL CONVERGED streak 3/3) archived: [cycles/wave-4-operations/session-checkpoints.md](cycles/wave-4-operations/session-checkpoints.md)_
 
-**STATE v7.160. D-426 — S-PLUGIN-PREREQ-B LOCAL CONVERGENCE DECLARED (BC-5.39.001). Streak 3/3. Worktree HEAD b75f317e. Red Gate 64. SESSION-HANDOFF v7.160.** develop@90d7c80f. factory-artifacts HEAD: run `git -C .factory log -1` (per TD-VSDD-053). vsdd-factory rc.16 active. Standing Orchestrator Rules active (Rules 1, 2, 3). Bundle B Exit Mandate active (task #85). Worktrees: main (clean) + .factory + .worktrees/S-PLUGIN-PREREQ-B + .worktrees/S-3.09 (FROZEN per D-298).
+**STATE v7.161. D-427 — S-PLUGIN-PREREQ-B PR #143 MERGED at develop@ae7e26c8 (2026-05-12T06:58:48Z). SESSION-HANDOFF v7.161.** factory-artifacts HEAD: run `git -C .factory log -1` (per TD-VSDD-053). vsdd-factory rc.16 active. Standing Orchestrator Rules active (Rules 1, 2, 3). Bundle B Exit Mandate active (task #85). Worktrees: main (clean) + .factory + .worktrees/S-PLUGIN-PREREQ-B (retained for archival) + .worktrees/S-3.09 (FROZEN per D-298).
 
-**S-PLUGIN-PREREQ-B STATUS:** LOCAL CONVERGED at HEAD b75f317e. 64 Red Gate (unchanged). Trajectory 20→10→4→7→10→9→8→4→4→2→3→3→2→0→0→0 (16 passes, 13 fix-bursts, streak 3/3). BC-2.16.002 v1.8 — 14↔14 catalog anchoring. Story v1.22. All 5 BC-5.39.001 criteria met. Pass-16 report: .factory/code-delivery/S-PLUGIN-PREREQ-B/adversarial-review/local-pass-16.md.
+**S-PLUGIN-PREREQ-B STATUS:** MERGED. PR #143 squash-merged at ae7e26c8. Story v1.23 status: merged. BC-2.16.002 v1.9 status: active (POL-14 promotion). 16 LOCAL passes + 13 fix-bursts + PR-LEVEL 1/1 CLEAN + 34/34 CI + pr-reviewer APPROVE. Per-story-delivery cycle CLOSED.
 
-**POST-D-426 FIRST ACTION:** Dispatch demo-recorder against worktree HEAD `b75f317e` for per-AC evidence per per-story-delivery.md step (d). Story has 9 ACs (read story file for current AC list); demo-recorder produces docs/demo-evidence/S-PLUGIN-PREREQ-B/INDEX.md + per-AC evidence files per POL-10. Each AC should have either: real test output (cargo nextest or similar) demonstrating the AC's behavior; OR file:line excerpts proving the implementation; OR cross-reference to the BC v1.8 Structured Event Catalog rows that govern the audit-signal behavior. After demo-recorder completes, push worktree to GitHub via devops-engineer, then dispatch pr-manager for the 9-step PR cycle (PR creation → PR-LEVEL adversarial cascade → pr-reviewer → squash-merge → branch cleanup). Post-merge: state-burst (D-427 likely) → unblock PREREQ-C dispatch.
+**POST-D-427 FIRST ACTION:** Dispatch story-writer for S-PLUGIN-PREREQ-C (sensor TOML wire-up + JSONPath grammar + remaining PREREQ-B carry-forward TDs). PREREQ-C scope per TDs filed during PREREQ-B cycle: TD-S-PLUGIN-PREREQ-B-001 (cursor page_size), TD-003 (JSONPath bracket/wildcard), TD-004 (MAX_REQUESTS_PER_PIPELINE), TD-006 (proptest coverage), TD-008 (template escape), TD-009 (dead scalar arm), TD-016 (#[non_exhaustive] crate-wide audit). Carry-forward also includes TD-VSDD-093 (lefthook catalog discipline automation) at tooling-sprint. Reference cycle lessons at .factory/cycles/wave-4-operations/lessons.md for PG-LP11-001 SOP (Structured Event Catalog discipline must propagate to PREREQ-C if it adds new event_types).
 
 **S-3.09 FREEZE STATE:** Worktree .worktrees/S-3.09 HEAD 43c41389; BUG-S309-PLUGIN P0 blocks resumption. See D-298/D-299.
 
 **Deferred TDs (carry-forward):** W3-FIX-S307-001/002/003 + TD-S307-002/003/004 + TD-S-PLUGIN-PREREQ-A-002 P1 + TD-S-PLUGIN-PREREQ-A-003 P1 + TD-S-PLUGIN-PREREQ-A-004 P1 + TD-S-PLUGIN-PREREQ-A-005..010 P3 + TD-S-PLUGIN-PREREQ-B-001 P2 (cursor page_size; PREREQ-C) + TD-S-PLUGIN-PREREQ-B-002 P3 (AuthToken zeroize; PREREQ-D) + TD-S-PLUGIN-PREREQ-B-003 P3 (JSON Pointer bracket/wildcard; PREREQ-C) + TD-S-PLUGIN-PREREQ-B-004 P3 (MAX_REQUESTS_PER_PIPELINE; PREREQ-D) + TD-S-PLUGIN-PREREQ-B-005 P2 (production reqwest::Client.timeout; PREREQ-D) + TD-S-PLUGIN-PREREQ-B-006 P2 (proptest; PREREQ-C) + TD-S-PLUGIN-PREREQ-B-007 P3 (status_code overload) + TD-S-PLUGIN-PREREQ-B-008 P3 (template escape; PREREQ-C) + TD-S-PLUGIN-PREREQ-B-009 P3 (dead scalar arm) + TD-S-PLUGIN-PREREQ-B-011 P3 (execute_step PREREQ-D wiring) + TD-S-PLUGIN-PREREQ-B-012 P3 (execute_step PREREQ-D test coverage) + TD-S-PLUGIN-PREREQ-B-016 P2 (#[non_exhaustive] crate-wide; PREREQ-C) + TD-VSDD-058/059/060 P0 + TD-FACTORY-HOOK-BYPASS-001 P0 + TD-VSDD-054..063 (all OPEN) + TD-VSDD-082/083/084 + TD-S309-O1/O2/O3/O4
 
-**Current spec versions:** BC-INDEX v4.59, STORY-INDEX v2.60, ARCH-INDEX v2.40, ADR-023 v1.18, VP-INDEX v1.32 (152 VPs + VP-PLUGIN-001..007 aliases), BC-2.16.002 v1.8, BC-2.01.013 v1.6 (active, merged PR #142), S-PLUGIN-PREREQ-B v1.22 (red_gate_tests 64, LOCAL CONVERGED, streak 3/3), prd.md v1.10, error-taxonomy.md v1.18, develop@90d7c80f; STATE v7.160 SESSION-HANDOFF v7.160 (current)
+**Current spec versions:** BC-INDEX v4.60, STORY-INDEX v2.61, ARCH-INDEX v2.40, ADR-023 v1.18, VP-INDEX v1.32 (152 VPs + VP-PLUGIN-001..007 aliases), BC-2.16.002 v1.9 (active, merged PR #143), BC-2.01.013 v1.6 (active, merged PR #142), S-PLUGIN-PREREQ-B v1.23 (status: merged, PR #143 ae7e26c8), prd.md v1.10, error-taxonomy.md v1.18, develop@ae7e26c8; STATE v7.161 SESSION-HANDOFF v7.161 (current)
 
 **Key files:** [SESSION-HANDOFF.md](SESSION-HANDOFF.md) | [cycle-manifest.md](cycles/wave-4-operations/cycle-manifest.md) | [HOLDOUT-INDEX.md](holdout-scenarios/HOLDOUT-INDEX.md)
 

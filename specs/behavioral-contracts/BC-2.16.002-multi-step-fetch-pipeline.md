@@ -1,8 +1,8 @@
 ---
 document_type: behavioral-contract
 level: L3
-version: "1.8"
-status: draft
+version: "1.9"
+status: active
 producer: product-owner
 timestamp: 2026-04-13T12:00:00
 phase: 1a
@@ -151,6 +151,7 @@ See `.factory/specs/prd-supplements/test-vectors.md` for full canonical vectors.
 
 | Version | Burst | Date | Author | Change |
 |---------|-------|------|--------|--------|
+| 1.9 | S-PLUGIN-PREREQ-B-post-merge | 2026-05-12 | state-manager | Status draft→active per POL-14: anchor story S-PLUGIN-PREREQ-B merged via PR #143 at develop@ae7e26c8 (2026-05-12T06:58:48Z). 16 LOCAL adversary passes + 13 fix-bursts + PR-LEVEL 1/1 CLEAN + 34/34 CI + pr-reviewer APPROVE. No substantive content change — metadata-only promotion. |
 | 1.8 | S-PLUGIN-PREREQ-B-fix-burst-11 | 2026-05-11 | product-owner | Add Structured Event Catalog enumerating all 14 event_type variants emitted by PipelineExecutor (auth_initial_* x 2 functions x 3 outcomes = 6; auth_refresh_* = 4; pipeline_truncated; pagination_cursor_unsupported_type; fanout_invalid_source_type; fanout_ambiguous_multi_array). Documents field-schema differences between execute() (no step_name on auth_initial_*) and execute_step() (includes step_name). Closes BC↔impl catalog drift surfaced by pass-11 (F-LP11-MED-001 + F-LP11-MED-002 + PG-LP11-001) and codifies the SOP that new event_type sites must be enumerated in BC. |
 | 1.7 | S-PLUGIN-PREREQ-B-fix-burst-9 | 2026-05-11 | product-owner | Amend audit-signal postcondition row to enumerate THREE tracing events (was "one of two"): auth_initial_acquired (info, non-empty token), auth_initial_acquired_empty (debug, empty token), auth_initial_failed (error). Closes BC↔impl drift surfaced by pass-9 (F-LP9-MED-001). The third branch was added by fix-burst-7 (closing F-LP7-MED-001) and tested by fix-burst-8 (closing F-LP8-MED-001) but the BC text was never updated. |
 | 1.6 | LOCAL-pass-7-fix | 2026-05-11 | product-owner | Clarify partial-record discard policy on mid-pipeline HTTP failure. Existing § Error Conditions row replaced with explicit "ALL accumulated records discarded" + new postcondition explaining all-or-nothing rationale. Closes F-LP7-MED-003 from LOCAL pass-7 adversary review at 8e9a92d0 (BC text ambiguity surfaced by partial-record test coverage gap). |

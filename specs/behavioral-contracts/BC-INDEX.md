@@ -1,13 +1,13 @@
 ---
 document_type: behavioral-contract-index
 level: L3
-version: "4.59"
+version: "4.60"
 status: draft
 producer: product-owner
-timestamp: 2026-05-11T00:00:00
+timestamp: 2026-05-12T07:30:00
 phase: 3.A
 total_contracts: 235
-active_contracts: 227
+active_contracts: 228
 removed_contracts: 6
 retired_contracts: 3
 ---
@@ -203,7 +203,7 @@ Phase 3-patch additions (2026-04-16): 22 new BCs added in Burst 1 to close trace
 | BC-2.15.010 | Decorator Three-Phase Model — Config-Time, Query-Time, Periodic | 15 - Storage Layer | CAP-026 | P0 | draft |
 | BC-2.15.011 | Internal Table Registration — RocksDB Domains as DataFusion Tables | 15 - Storage Layer | CAP-028 | P0 | draft |
 | BC-2.16.001 | Sensor Spec File Loading — Parse TOML, Validate Schema, Register Tables | 16 - Spec Engine | CAP-029 | P0 | draft |
-| BC-2.16.002 | Multi-Step Fetch Pipeline Execution — Sequential Steps with Variable Interpolation | 16 - Spec Engine | CAP-029 | P0 | draft v1.8 |
+| BC-2.16.002 | Multi-Step Fetch Pipeline Execution — Sequential Steps with Variable Interpolation | 16 - Spec Engine | CAP-029 | P0 | active (promoted draft→active D-427 per POL-14; anchor story S-PLUGIN-PREREQ-B merged PR #143 develop@ae7e26c8 2026-05-12) |
 | BC-2.16.003 | Column-to-OCSF Mapping at Query Time — Map Sensor Columns to OCSF Fields Per Spec | 16 - Spec Engine | CAP-029 | P0 | draft |
 | BC-2.16.004 | ~~Rust Escape Hatch for Custom Adapters — Trait-Based Override When Config Is Insufficient~~ | 16 - Spec Engine | CAP-029 | P0 | deprecated (ADR-023 PREREQ-F) |
 | BC-2.16.005 | `reload_config` MCP Tool — Re-Read All Config Files, Validate, Atomic Swap, Notify | 16 - Spec Engine | CAP-030 | P1 | draft |
@@ -359,6 +359,8 @@ Phase 3-patch additions (2026-04-16): 22 new BCs added in Burst 1 to close trace
 - Subsystem 19: Infusion Enrichment Framework (AD-020, CAP-031)
 
 ### Change Log (Adversarial Review Fixes)
+
+**v4.60 (2026-05-12):** D-427 S-PLUGIN-PREREQ-B PR #143 merge — BC-2.16.002 v1.8→v1.9 status promoted draft→active per POL-14 (anchor story S-PLUGIN-PREREQ-B merged at develop@ae7e26c8 2026-05-12T06:58:48Z). active_contracts 227→228. total_contracts=235 unchanged.
 
 **v4.59 (2026-05-11):** D-419 S-PLUGIN-PREREQ-B fix-burst-11 — BC-2.16.002 v1.7→v1.8 amendment (F-LP11-MED-001 BC event-catalog drift + F-LP11-MED-002 field-schema drift). New "Structured Event Catalog (v1.8)" postcondition with 14-row table enumerating ALL event_type values emitted by PipelineExecutor: auth_initial_acquired/_empty/_failed for both execute() (no step_name) and execute_step() (with step_name field); auth_refresh_triggered/succeeded/failed/double_401 × issue_request_with_retry; pipeline_truncated; pagination_cursor_unsupported_type; fanout_invalid_source_type; fanout_ambiguous_multi_array. Product-owner field-name discipline correction: actual tracing macro field is `detail` not `error`. Two superseded audit-signal bullets redirect to catalog (narrative+VP-PLUGIN-005 cites preserved). PG-LP11-001 SOP codified in D-419. Factory commit (this burst). total_contracts=235 unchanged; active_contracts=227 unchanged (BC-2.16.002 remains draft).
 
