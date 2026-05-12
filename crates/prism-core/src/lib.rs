@@ -138,7 +138,7 @@ pub use org_registry::{OrgRegistry, RegistrationError};
 pub use sensor_id::SensorId;
 
 // S-PLUGIN-PREREQ-C: AC-7 — SensorIdValidationError at crate root for ergonomic parity with SensorId.
-/// Re-export of `SensorIdValidationError` at the crate root.
+/// Re-export of [`sensor_id::SensorIdValidationError`] for ergonomic external use.
 ///
 /// Provides ergonomic parity with `prism_core::SensorId` (already at crate root per PREREQ-A).
 /// Before this re-export, callers had to use the module path
@@ -146,7 +146,13 @@ pub use sensor_id::SensorId;
 ///
 /// ```
 /// use prism_core::SensorIdValidationError;
-/// // SensorIdValidationError is accessible at crate root
-/// let _: Option<SensorIdValidationError> = None;
+///
+/// // Construct a specific variant and match on it — exercises the re-export AND
+/// // the type's pub variant structure (HIGH-008, S-PLUGIN-PREREQ-C).
+/// let err = SensorIdValidationError::TooShort;
+/// match err {
+///     SensorIdValidationError::TooShort => assert!(true, "TooShort variant accessible"),
+///     _ => panic!("unexpected variant"),
+/// }
 /// ```
 pub use sensor_id::SensorIdValidationError;
