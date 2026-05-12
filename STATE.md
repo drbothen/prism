@@ -1,9 +1,9 @@
 ---
 document_type: pipeline-state
 level: ops
-version: "7.150"
+version: "7.151"
 producer: state-manager
-timestamp: 2026-05-12T02:00:00Z
+timestamp: 2026-05-12T00:30:00Z
 inputs: []
 input-hash: "[live-state]"
 traces_to: ""
@@ -22,7 +22,7 @@ repos:
   - axiathon
   - ocsf-proto-gen
   - mcp-claroty-xdome
-current_step: "D-416. S-PLUGIN-PREREQ-B LOCAL pass-10 BLOCKED-soft. 2 MED + 2 LOW + 3 OBS. F-LP10-MED-001 validation.rs:126 byte-slice UTF-8 panic (TD-VSDD-060 sibling-sweep gap). F-LP10-MED-002 Object-stringification silent corruption in fan-out source. Streak 0/3. Fix-burst-10 pending. STATE+HANDOFF v7.149→v7.150."
+current_step: "D-417. S-PLUGIN-PREREQ-B fix-burst-10 CLOSED. 3 actionable (2M+1L) + 1 deferred-as-TD (TD-016). validation.rs:126 byte-slice → truncate_at_char_boundary + BROAD sibling sweep. find_fan_out_array Object-warn. MockAuthProvider visibility. Worktree HEAD 01df68cd. Red Gate 49. 282/282 pass. Streak 0/3. Pass-11 pending. STATE+HANDOFF v7.150→v7.151."
 wave_3_carry_forward_debt: "ALL_REMEDIATE — W4-FIX-PERF-001/002, W4-FIX-CODE-001, W4-FIX-SEC-001 through W4-FIX-SEC-004 planned per D-203"
 wave_4_status: "PHASE_4_A_CONVERGED + R9_APPROVED but PHASE_4_B SUSPENDED — pre-implementation dep check (2026-05-04) found S-4.01 → S-3.02 (status=draft); pivoting to full Wave 3 implementation per user directive D-223"
 wave_4_phase_4_a_preflight:
@@ -128,7 +128,7 @@ bc_count_corrected: 235
 cap_count: 40  # active; highest_cap_id: CAP-040 (CAP-038 Multi-Tenant Identity, CAP-039 Multi-Tenant Fixture Gen, CAP-040 Multi-Tenant Adapter Dispatch — Wave 3 Phase 3.A Step 2)
 bc_index_version: "4.58"
 vp_index_version: "1.32"
-story_index_version: "v2.50"
+story_index_version: "v2.51"
 total_stories: 150
 red_gate_wave_0a_complete: 2026-04-21
 test_vectors_version: "2.7"
@@ -176,9 +176,9 @@ workspace_test_count: 3489  # 891 prism-query + workspace total (per implementer
 | **Language** | Rust |
 | **Target Workspace** | per-analyst stdio (MCP server) |
 | **Started** | 2026-04-13 |
-| **Last Updated** | 2026-05-11 (D-416 — S-PLUGIN-PREREQ-B LOCAL pass-10 BLOCKED-soft; 2M+2L+3O; F-LP10-MED-001 validation.rs byte-slice; F-LP10-MED-002 Object-stringification; streak 0/3; STATE+HANDOFF v7.149→v7.150) |
+| **Last Updated** | 2026-05-12 (D-417 — S-PLUGIN-PREREQ-B fix-burst-10 CLOSED; 3 actionable (2M+1L) + TD-016 deferred; validation.rs:126 truncate_at_char_boundary + BROAD sweep; Object-warn; MockAuthProvider visibility; worktree HEAD 01df68cd; Red Gate 47→49; STATE+HANDOFF v7.150→v7.151) |
 | **Current Phase** | Wave 3 Tier-3 COMPLETE — **Wave 3-A 4 of 4 SHIPPED**: S-3.05 (#132 c867c344), S-3.04 (#133 57745ce8), S-3.03 (#134 7c413692), **S-3.07 (#135 2ae7185b MERGED 2026-05-08T04:23:03Z)**; post-merge cleanup confirmed; plugin migration: PREREQ-F SHIPPED; PREREQ-A/B/C/D/E pending |
-| **Current Step** | D-415 — S-PLUGIN-PREREQ-B fix-burst-9 CLOSED. 2 MED + 1 LOW + 1 OBS-bundled closed. BC-2.16.002 v1.6→v1.7 audit-signal enumeration. Worktree HEAD f5746553. +2 Red Gate (45→47). 280/280 pass. Streak 0/3. Pass-10 pending. |
+| **Current Step** | D-417 — S-PLUGIN-PREREQ-B fix-burst-10 CLOSED. 3 actionable (2M+1L) + 1 deferred-as-TD (TD-016 P2 PREREQ-C). validation.rs:126 → truncate_at_char_boundary + BROAD sibling sweep (7 sites). Object-warn in find_fan_out_array. MockAuthProvider visibility. Worktree HEAD 01df68cd. +2 Red Gate (47→49). 282/282 pass. Streak 0/3. Pass-11 pending. |
 
 ## Phase Progress
 
@@ -210,10 +210,9 @@ workspace_test_count: 3489  # 891 prism-query + workspace total (per implementer
 
 | Step | Agent | Status | Output |
 |------|-------|--------|--------|
-| S-PLUGIN-PREREQ-B LOCAL fix-burst-8 (D-413) | test-writer + implementer + state-manager | **CLOSED — streak 0/3** | 4 findings closed (3M+1L). Red Gate 41→45 (+4). 278/278 pass. TD-VSDD-059 paper-fix verification + TD-VSDD-060 sibling sweeps complete. Worktree HEAD 411f4cbf. Story v1.8→v1.9. Pass-9 dispatch pending. STATE+HANDOFF v7.146→v7.147 |
-| S-PLUGIN-PREREQ-B LOCAL pass-9 (D-414) | adversary + state-manager | **BLOCKED-soft — streak 0/3** | 2M+1L+4O at HEAD 411f4cbf (no code change). F-LP9-MED-001 BC-2.16.002 v1.6 audit-signal row says "two events"; impl emits three. F-LP9-MED-002 validator heuristic false-negative on non-paginated whole-array. F-LP9-LOW-001 dead mock. OBS-LP9-003 UTF-8 boundary panic bundled. All 4 fix-burst-8 closures CLEAN+LOAD-BEARING. Streak 0/3. Fix-burst-9 pending. STATE+HANDOFF v7.147→v7.148 |
 | S-PLUGIN-PREREQ-B LOCAL fix-burst-9 (D-415) | implementer + product-owner + state-manager | **CLOSED — streak 0/3** | 2M+1L+1OBS-bundled closed. BC-2.16.002 v1.6→v1.7 (F-LP9-MED-001 audit-signal enumeration). find_fan_out_array runtime warn (F-LP9-MED-002). Dead Mock 1 deleted (F-LP9-LOW-001). UTF-8 boundary fix (OBS-LP9-003). +2 Red Gate (45→47). 280/280 pass. Worktree HEAD f5746553. Pass-10 pending. STATE+HANDOFF v7.148→v7.149 |
 | S-PLUGIN-PREREQ-B LOCAL pass-10 (D-416) | adversary + state-manager | **BLOCKED-soft — streak 0/3** | 2M+2L+3O at HEAD f5746553 (no code change). F-LP10-MED-001 validation.rs:126 byte-slice on user-controlled base_url (TD-VSDD-060 sibling-sweep gap — fix-burst-9 sweep was pipeline.rs-only). F-LP10-MED-002 find_fan_out_array Object-stringification silent corruption (parallel to F-LP8-LOW-001 for Object values). F-LP10-LOW-001 #[non_exhaustive] gap (defer PREREQ-C). F-LP10-LOW-002 MockAuthProvider.token pub-mut. All 4 fix-burst-9 closures CLEAN. Streak 0/3. Fix-burst-10 pending. STATE+HANDOFF v7.149→v7.150 |
+| S-PLUGIN-PREREQ-B LOCAL fix-burst-10 (D-417) | implementer + state-manager | **CLOSED — streak 0/3** | 3 actionable (2M+1L) + 1 deferred-as-TD. F-LP10-MED-001 validation.rs:126 → truncate_at_char_boundary helper + BROAD sibling sweep (7 sites: 2 FIXED incl bonus spec_parser.rs:383, 5 EXEMPT). F-LP10-MED-002 find_fan_out_array Object-warn (fanout_invalid_source_type; Strategy A). F-LP10-LOW-002 MockAuthProvider.token/call_count private+getter. F-LP10-LOW-001 deferred as TD-S-PLUGIN-PREREQ-B-016 P2 (PREREQ-C). +2 Red Gate (47→49). 282/282 pass. Worktree HEAD 01df68cd. just check-fast clean. tech-debt-register v2.12→v2.13. Pass-11 pending. STATE+HANDOFF v7.150→v7.151 |
 
 ## Decisions Log
 
@@ -221,6 +220,7 @@ _D-001..D-046 archived: [cycles/phase-3-dtu-wave-2/decisions-archive-d001-d032.m
 
 | ID | Decision | Rationale | Phase | Date |
 |----|----------|-----------|-------|------|
+| D-417 | 2026-05-11 | fix-burst-10 CLOSED for S-PLUGIN-PREREQ-B. Closed 3 actionable (2 MED + 1 LOW). F-LP10-MED-001 validation.rs:126 byte-slice fixed via truncate_at_char_boundary helper + BROAD sibling sweep across entire prism-spec-engine crate (7 sites classified: 2 FIXED, 5 EXEMPT; bonus defensive fix at spec_parser.rs:383). F-LP10-MED-002 find_fan_out_array Object-warn (fanout_invalid_source_type structured event; Strategy A). F-LP10-LOW-002 MockAuthProvider.token + call_count visibility tightened (private + getter). F-LP10-LOW-001 deferred as TD-S-PLUGIN-PREREQ-B-016 P2 (PREREQ-C scope) with substantial justification. Worktree HEAD 01df68cd. +2 Red Gate tests (47→49). 282/282 tests pass. just check-fast clean. tech-debt-register v2.12→v2.13. Story v1.12→v1.13. STORY-INDEX v2.50→v2.51. Next: pass-11 dispatch targeting streak 0/3→1/3. Report: `.factory/code-delivery/S-PLUGIN-PREREQ-B/adversarial-review/fix-burst-10.md`. STATE+HANDOFF v7.150→v7.151. | plugin-migration | 2026-05-11 |
 | D-416 | 2026-05-11 | LOCAL adversary pass-10 BLOCKED-soft for S-PLUGIN-PREREQ-B. 2 MED + 2 LOW + 3 OBS. F-LP10-MED-001 TD-VSDD-060 sibling-sweep gap: validation.rs:126 byte-slice on user-controlled base_url has same UTF-8 panic vector as OBS-LP9-003 (fix-burst-9 sibling sweep was scoped to pipeline.rs only; TD-VSDD-060 mandate covers all same-layer files including validation.rs). F-LP10-MED-002 find_fan_out_array Object-stringification silent corruption parallel to F-LP8-LOW-001: Object-typed step variables JSON-stringified into URLs silently; validator Category 2b and runtime warn both arrays-only. F-LP10-LOW-001 inconsistent #[non_exhaustive] across pub types in spec_parser.rs (defer to PREREQ-C as TD-S-PLUGIN-PREREQ-B-016). F-LP10-LOW-002 MockAuthProvider.token pub-mut field (bundle into fix-burst-10). Streak does not advance (0/3). Fix-burst-10 scope: validation.rs byte-slice fix + broad sibling sweep across spec_parser.rs/validation.rs/interpolation.rs/infusion/*/types.rs + Red Gate test; Object/Array detection in find_fan_out_array or interpolation.rs with fanout_invalid_source_type warn + Red Gate test; MockAuthProvider.token visibility. Report: `.factory/code-delivery/S-PLUGIN-PREREQ-B/adversarial-review/local-pass-10.md`. STATE+HANDOFF v7.149→v7.150. | plugin-migration | 2026-05-11 |
 | D-415 | 2026-05-11 | fix-burst-9 CLOSED for S-PLUGIN-PREREQ-B. Closed 2 MED + 1 LOW + 1 OBS-bundled-as-bug from pass-9. F-LP9-MED-001 BC-2.16.002 v1.6→v1.7 audit-signal enumeration (parallel product-owner + implementer). F-LP9-MED-002 find_fan_out_array runtime warn for multi-array (fanout_ambiguous_multi_array structured event). F-LP9-LOW-001 dead Mock 1 deleted. OBS-LP9-003 cursor_preview UTF-8 boundary fix (genuine bug bundled). Worktree HEAD f5746553. +2 Red Gate tests (45→47). 280/280 tests pass. just check-fast clean. Sibling sweeps complete. Next: pass-10 dispatch targeting streak 0/3 → 1/3. Report: `.factory/code-delivery/S-PLUGIN-PREREQ-B/adversarial-review/fix-burst-9.md`. STATE+HANDOFF v7.148→v7.149. | plugin-migration | 2026-05-11 |
 | D-414 | 2026-05-11 | LOCAL adversary pass-9 BLOCKED-soft for S-PLUGIN-PREREQ-B. 2 MED + 1 LOW + 4 OBS. F-LP9-MED-001: BC-2.16.002 v1.6 audit-signal row says "one of two" events but impl emits three (auth_initial_acquired_empty added in fix-burst-7 not enumerated in BC). F-LP9-MED-002: validator multi-array heuristic misses non-paginated whole-array response_path (sibling-sweep gap on F-LP8-LOW-001 — silent data corruption regression). F-LP9-LOW-001: dead Mock 1 in rewritten test. OBS-LP9-003: cursor_preview UTF-8 boundary panic — genuine bug, bundled into fix-burst-9. Streak does not advance (0/3). Fix-burst-9 to amend BC + add runtime warn + UTF-8 fix + delete dead mock. Report: `.factory/code-delivery/S-PLUGIN-PREREQ-B/adversarial-review/local-pass-9.md`. STATE+HANDOFF v7.147→v7.148. | plugin-migration | 2026-05-11 |
@@ -358,21 +358,21 @@ Cycle files: [burst-log](cycles/phase-2-patch/burst-log.md) | [convergence-traje
 
 ---
 
-## Session Resume Checkpoint (2026-05-11-v7.150-d416-prereq-b-pass-10-blocked-soft)
+## Session Resume Checkpoint (2026-05-12-v7.151-d417-prereq-b-fix-burst-10-closed)
 
-_Previous checkpoint (v7.149/D-415 fix-burst-9 CLOSED at f5746553) archived: [cycles/wave-4-operations/session-checkpoints.md](cycles/wave-4-operations/session-checkpoints.md)_
+_Previous checkpoint (v7.150/D-416 pass-10 BLOCKED-soft at f5746553) archived: [cycles/wave-4-operations/session-checkpoints.md](cycles/wave-4-operations/session-checkpoints.md)_
 
-**STATE v7.150. D-416 — S-PLUGIN-PREREQ-B LOCAL pass-10 BLOCKED-soft (2M+2L+3O). Worktree HEAD f5746553 (unchanged). Red Gate 47. Streak 0/3. SESSION-HANDOFF v7.150.** develop@90d7c80f. factory-artifacts HEAD: run `git -C .factory log -1` (per TD-VSDD-053). vsdd-factory rc.16 active. Standing Orchestrator Rules active (Rules 1, 2, 3). Bundle B Exit Mandate active (task #85). Worktrees: main (clean) + .factory + .worktrees/S-PLUGIN-PREREQ-B + .worktrees/S-3.09 (FROZEN per D-298).
+**STATE v7.151. D-417 — S-PLUGIN-PREREQ-B fix-burst-10 CLOSED (3 actionable + 1 deferred-as-TD). Worktree HEAD 01df68cd. Red Gate 49. Streak 0/3. SESSION-HANDOFF v7.151.** develop@90d7c80f. factory-artifacts HEAD: run `git -C .factory log -1` (per TD-VSDD-053). vsdd-factory rc.16 active. Standing Orchestrator Rules active (Rules 1, 2, 3). Bundle B Exit Mandate active (task #85). Worktrees: main (clean) + .factory + .worktrees/S-PLUGIN-PREREQ-B + .worktrees/S-3.09 (FROZEN per D-298).
 
-**S-PLUGIN-PREREQ-B STATUS:** pass-10 BLOCKED-soft at HEAD f5746553. 47 Red Gate (unchanged). Trajectory 20→10→4→7→10→9→8→4→4 (10 passes, 9 fix-bursts, streak 0/3). All 4 fix-burst-9 closures CLEAN+LOAD-BEARING. F-LP10-MED-001 validation.rs:126 byte-slice (TD-VSDD-060 sibling-sweep gap). F-LP10-MED-002 Object-stringification in fan-out source. Fix-burst-10 required before pass-11.
+**S-PLUGIN-PREREQ-B STATUS:** fix-burst-10 CLOSED at HEAD 01df68cd. 49 Red Gate (+2). Trajectory 20→10→4→7→10→9→8→4→4 (10 passes, 10 fix-bursts, streak 0/3). F-LP10-MED-001 validation.rs:126 → truncate_at_char_boundary + BROAD sibling sweep (7 sites). F-LP10-MED-002 find_fan_out_array Object-warn. F-LP10-LOW-002 MockAuthProvider visibility. F-LP10-LOW-001 deferred TD-016 P2 PREREQ-C. Story v1.13. 282/282 tests pass.
 
-**POST-D-416 FIRST ACTION:** Dispatch fix-burst-10 (implementer): (1) F-LP10-MED-001 — fix validation.rs:126 byte-slice → char-boundary-safe pattern; Red Gate test (non-ASCII base_url failing starts_with); sibling sweep spec_parser.rs/validation.rs/interpolation.rs/infusion/*/types.rs; (2) F-LP10-MED-002 — add Object/Array detection in find_fan_out_array or interpolation.rs::value_to_string; emit `event_type = "fanout_invalid_source_type"` warn; Red Gate test; (3) F-LP10-LOW-002 — MockAuthProvider.token → private + getter (or document intent); (4) file TD-S-PLUGIN-PREREQ-B-016 for F-LP10-LOW-001 #[non_exhaustive] crate-wide discipline (PREREQ-C scope). After fix-burst-10, state-manager records closure + dispatches pass-11 targeting 0/3→1/3.
+**POST-D-417 FIRST ACTION:** Dispatch LOCAL adversary pass-11 against worktree HEAD `01df68cd` per BC-5.39.001 — target streak 0/3→1/3. Adversary scope: (a) closure verification of fix-burst-10's 3 actionable (F-LP10-M001 truncate_at_char_boundary helper + BROAD sibling sweep verification; F-LP10-M002 find_fan_out_array fanout_invalid_source_type Object warn; F-LP10-L002 MockAuthProvider visibility) AND the bonus fix at spec_parser.rs:383 + the TD-S-PLUGIN-PREREQ-B-016 filing for F-LP10-L001; (b) NEW dimensions disjoint from P5..P10. Apply TD-VSDD-059/060 with same rigor.
 
 **S-3.09 FREEZE STATE:** Worktree .worktrees/S-3.09 HEAD 43c41389; BUG-S309-PLUGIN P0 blocks resumption. See D-298/D-299.
 
-**Deferred TDs (carry-forward):** W3-FIX-S307-001/002/003 + TD-S307-002/003/004 + TD-S-PLUGIN-PREREQ-A-002 P1 + TD-S-PLUGIN-PREREQ-A-003 P1 + TD-S-PLUGIN-PREREQ-A-004 P1 + TD-S-PLUGIN-PREREQ-A-005..010 P3 + TD-S-PLUGIN-PREREQ-B-001 P2 (cursor page_size; PREREQ-C) + TD-S-PLUGIN-PREREQ-B-002 P3 (AuthToken zeroize; PREREQ-D) + TD-S-PLUGIN-PREREQ-B-003 P3 (JSON Pointer bracket/wildcard; PREREQ-C) + TD-S-PLUGIN-PREREQ-B-004 P3 (MAX_REQUESTS_PER_PIPELINE; PREREQ-D) + TD-S-PLUGIN-PREREQ-B-005 P2 (production reqwest::Client.timeout; PREREQ-D) + TD-S-PLUGIN-PREREQ-B-006 P2 (proptest; PREREQ-C) + TD-S-PLUGIN-PREREQ-B-007 P3 (status_code overload) + TD-S-PLUGIN-PREREQ-B-008 P3 (template escape; PREREQ-C) + TD-S-PLUGIN-PREREQ-B-009 P3 (dead scalar arm) + TD-S-PLUGIN-PREREQ-B-011 P3 (execute_step PREREQ-D wiring) + TD-S-PLUGIN-PREREQ-B-012 P3 (execute_step PREREQ-D test coverage) + TD-S-PLUGIN-PREREQ-B-016 P3 (pending: #[non_exhaustive] crate-wide — PREREQ-C) + TD-VSDD-058/059/060 P0 + TD-FACTORY-HOOK-BYPASS-001 P0 + TD-VSDD-054..063 (all OPEN) + TD-VSDD-082/083/084 + TD-S309-O1/O2/O3/O4
+**Deferred TDs (carry-forward):** W3-FIX-S307-001/002/003 + TD-S307-002/003/004 + TD-S-PLUGIN-PREREQ-A-002 P1 + TD-S-PLUGIN-PREREQ-A-003 P1 + TD-S-PLUGIN-PREREQ-A-004 P1 + TD-S-PLUGIN-PREREQ-A-005..010 P3 + TD-S-PLUGIN-PREREQ-B-001 P2 (cursor page_size; PREREQ-C) + TD-S-PLUGIN-PREREQ-B-002 P3 (AuthToken zeroize; PREREQ-D) + TD-S-PLUGIN-PREREQ-B-003 P3 (JSON Pointer bracket/wildcard; PREREQ-C) + TD-S-PLUGIN-PREREQ-B-004 P3 (MAX_REQUESTS_PER_PIPELINE; PREREQ-D) + TD-S-PLUGIN-PREREQ-B-005 P2 (production reqwest::Client.timeout; PREREQ-D) + TD-S-PLUGIN-PREREQ-B-006 P2 (proptest; PREREQ-C) + TD-S-PLUGIN-PREREQ-B-007 P3 (status_code overload) + TD-S-PLUGIN-PREREQ-B-008 P3 (template escape; PREREQ-C) + TD-S-PLUGIN-PREREQ-B-009 P3 (dead scalar arm) + TD-S-PLUGIN-PREREQ-B-011 P3 (execute_step PREREQ-D wiring) + TD-S-PLUGIN-PREREQ-B-012 P3 (execute_step PREREQ-D test coverage) + TD-S-PLUGIN-PREREQ-B-016 P2 (NEW: #[non_exhaustive] crate-wide; PREREQ-C) + TD-VSDD-058/059/060 P0 + TD-FACTORY-HOOK-BYPASS-001 P0 + TD-VSDD-054..063 (all OPEN) + TD-VSDD-082/083/084 + TD-S309-O1/O2/O3/O4
 
-**Current spec versions:** BC-INDEX v4.58, STORY-INDEX v2.50, ARCH-INDEX v2.40, ADR-023 v1.18, VP-INDEX v1.32 (152 VPs + VP-PLUGIN-001..007 aliases), BC-2.16.002 v1.7, BC-2.01.013 v1.6 (active, merged PR #142), S-PLUGIN-PREREQ-B v1.12 (red_gate_tests 47, pass-10 BLOCKED-soft, fix-burst-10 pending), prd.md v1.10, error-taxonomy.md v1.18, develop@90d7c80f; STATE v7.150 SESSION-HANDOFF v7.150 (current)
+**Current spec versions:** BC-INDEX v4.58, STORY-INDEX v2.51, ARCH-INDEX v2.40, ADR-023 v1.18, VP-INDEX v1.32 (152 VPs + VP-PLUGIN-001..007 aliases), BC-2.16.002 v1.7, BC-2.01.013 v1.6 (active, merged PR #142), S-PLUGIN-PREREQ-B v1.13 (red_gate_tests 49, fix-burst-10 CLOSED, pass-11 pending, streak 0/3), prd.md v1.10, error-taxonomy.md v1.18, develop@90d7c80f; STATE v7.151 SESSION-HANDOFF v7.151 (current)
 
 **Key files:** [SESSION-HANDOFF.md](SESSION-HANDOFF.md) | [cycle-manifest.md](cycles/wave-4-operations/cycle-manifest.md) | [HOLDOUT-INDEX.md](holdout-scenarios/HOLDOUT-INDEX.md)
 

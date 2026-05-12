@@ -31,10 +31,10 @@ target_module: prism-spec-engine
 #   and the new auth interface is consumed at query time through the same dispatch path that
 #   SS-01 currently owns.
 subsystems: [SS-16, SS-01]
-version: "1.12"
+version: "1.13"
 level: "L4"
 producer: state-manager
-timestamp: "2026-05-11T05:00:00Z"
+timestamp: "2026-05-12T00:30:00Z"
 input-hash: "6954524"
 traces_to: []
 cycle: "v1.0.0-greenfield"
@@ -49,7 +49,7 @@ anchor_subsystem: [SS-16, SS-01]
 assumption_validations: []
 risk_mitigations: []
 acceptance_criteria_count: 9
-red_gate_tests: 47
+red_gate_tests: 49
 inputs:
   - ".factory/specs/architecture/decisions/ADR-023-plugin-only-sensor-architecture.md"
   - ".factory/specs/behavioral-contracts/BC-2.16.002-multi-step-fetch-pipeline.md"
@@ -561,6 +561,7 @@ This story is shipped when ALL of the following are true:
 
 | Version | Burst | Date | Author | Changes |
 |---------|-------|------|--------|---------|
+| 1.13 | prereq-b-fix-burst-10 | 2026-05-11 | state-manager | D-417 fix-burst-10 CLOSED 3 actionable (2 MED + 1 LOW) + 1 deferred-as-TD. red_gate_tests 47→49 (+2). F-LP10-MED-001: validation.rs:126 byte-slice fixed via truncate_at_char_boundary helper + BROAD sibling sweep (7 sites: 2 FIXED incl bonus spec_parser.rs:383, 5 EXEMPT). F-LP10-MED-002: find_fan_out_array Object-type warn (fanout_invalid_source_type structured event; Strategy A). F-LP10-LOW-002: MockAuthProvider.token + call_count visibility tightened (private + getter). F-LP10-LOW-001: deferred as TD-S-PLUGIN-PREREQ-B-016 P2 (PREREQ-C scope; #[non_exhaustive] crate-wide audit). Worktree HEAD 01df68cd. 282/282 tests pass. just check-fast clean. tech-debt-register v2.12→v2.13. STORY-INDEX v2.50→v2.51. STATE+HANDOFF v7.150→v7.151. |
 | 1.12 | prereq-b-pass-10 | 2026-05-11 | state-manager | pass-10 record: 2 MED + 2 LOW + 3 OBS filed; streak 0/3 unchanged; fix-burst-10 dispatched. F-LP10-MED-001: validation.rs:126 byte-slice anti-pattern on user-controlled base_url (TD-VSDD-060 sibling-sweep gap — fix-burst-9 sweep scoped to pipeline.rs only; same UTF-8 panic vector as OBS-LP9-003). F-LP10-MED-002: find_fan_out_array Object-stringification silent corruption parallel to F-LP8-LOW-001 (Object-typed step vars JSON-stringified into URLs; no warn, no validator rejection). F-LP10-LOW-001: inconsistent #[non_exhaustive] across pub types (defer to PREREQ-C as TD-S-PLUGIN-PREREQ-B-016). F-LP10-LOW-002: MockAuthProvider.token pub-mut field (test-helper hygiene; pending intent verification). All 4 fix-burst-9 closures CLEAN+LOAD-BEARING per TD-VSDD-059 (Part A). Streak 0/3 unchanged. Trajectory 20→10→4→7→10→9→8→4→4 (pass-10 2M+2L+3O; novelty 5/5=1.0). Report: .factory/code-delivery/S-PLUGIN-PREREQ-B/adversarial-review/local-pass-10.md. STATE+HANDOFF v7.149→v7.150. |
 | 1.11 | prereq-b-fix-burst-9 | 2026-05-11 | state-manager | D-415 fix-burst-9 CLOSED 2 MED + 1 LOW + 1 OBS-bundled. red_gate_tests 45→47 (+2). F-LP9-MED-001: BC-2.16.002 v1.6→v1.7 audit-signal enumeration (3 distinct events: auth_initial_acquired info, auth_initial_acquired_empty debug, auth_initial_failed error). F-LP9-MED-002: find_fan_out_array runtime warn fanout_ambiguous_multi_array when >=2 array-valued variables referenced. F-LP9-LOW-001: dead Mock 1 (query_param cursor="") deleted. OBS-LP9-003: cursor_preview UTF-8 boundary fix (char_indices nth(100) vs byte-slice). 280/280 tests pass. just check-fast clean. Worktree HEAD f5746553. BC-INDEX v4.57→v4.58. STORY-INDEX v2.48→v2.49. STATE+HANDOFF v7.148→v7.149. |
 | 1.10 | prereq-b-pass-9 | 2026-05-11 | state-manager | pass-9 record: 2 MED + 1 LOW + 4 OBS (incl 1 [process-gap]) filed; streak 0/3 unchanged; fix-burst-9 dispatched. F-LP9-MED-001: BC-2.16.002 v1.6 audit-signal row says "two events" but impl emits three (auth_initial_acquired_empty added in fix-burst-7 not enumerated in BC). F-LP9-MED-002: validator multi-array heuristic misses non-paginated whole-array response_path (sibling-sweep gap on F-LP8-LOW-001 — silent data corruption regression). F-LP9-LOW-001: dead Mock 1 in rewritten partial-discard test. OBS-LP9-003: cursor_preview UTF-8 boundary panic — genuine bug, bundled into fix-burst-9. Trajectory 20→10→4→7→10→9→8→4→4 (pass-9 adds 4 findings; novelty score 3/3=1.0). Worktree HEAD 411f4cbf unchanged. Report: .factory/code-delivery/S-PLUGIN-PREREQ-B/adversarial-review/local-pass-9.md. |
