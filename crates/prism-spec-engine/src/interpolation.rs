@@ -60,8 +60,31 @@ fn var_regex() -> &'static regex::Regex {
     })
 }
 
+/// Placeholder used internally for the `$$` escape mechanism.
+///
+/// This string must not appear in any legitimate template or variable value.
+/// It is substituted in before interpolation and replaced with `$` after.
+/// A `$$` in the template produces one literal `$` in the output.
+const DOLLAR_ESCAPE_PLACEHOLDER: &str = "\x00DOLLAR_ESCAPE\x00";
+
 impl Interpolator {
     /// Interpolate all `${step_name.field}` references in `template`.
+    ///
+    /// ## Escape mechanism (AC-4, S-PLUGIN-PREREQ-C)
+    ///
+    /// Supports a double-dollar escape sequence to produce literal `${...}` in output:
+    ///
+    /// - `$${var}` → literal `${var}` (no variable lookup; `$$` before `{` suppresses interpolation)
+    /// - `${var}` → interpolated value of `var` (existing behavior, unchanged)
+    /// - `$$${var}` → literal `$` followed by interpolated value of `var`
+    ///
+    /// **Escape grammar:** `$$` immediately before `{...}` is consumed as a single literal `$`.
+    /// Consecutive `$$` pairs are each consumed: `$$$$${var}` → `$$$<interpolated_var>`.
+    ///
+    /// **Implementation:** two-pass approach:
+    /// 1. Replace `$${` with an internal placeholder.
+    /// 2. Run the interpolation regex on the modified template.
+    /// 3. Replace the placeholder back with `${` in the output.
     ///
     /// - `context`: escaping mode (JsonBody or UrlPath)
     /// - `vars`: map of `"step_name.field"` → resolved JSON values
@@ -72,18 +95,31 @@ impl Interpolator {
         context: &InterpolationContext,
         vars: &std::collections::HashMap<String, serde_json::Value>,
     ) -> Result<String, InterpolationError> {
+        // AC-4: Two-pass escape mechanism.
+        // Pass 1: Replace `$$` pairs with a placeholder (representing a single literal `$`).
+        // This is a left-to-right non-overlapping replacement.
+        //
+        // Semantics:
+        //   - `$${var}` = `$$` (→ placeholder `$`) + `{var}` (literal brace) = `${var}` literal ✓
+        //   - `$$${var}` = `$$` (→ placeholder `$`) + `${var}` (live reference) = `$<value>` ✓
+        //   - `${var}` = live reference (unaffected; no `$$`) ✓
+        //
+        // Implementation: replace `$$` (non-overlapping, left-to-right) with placeholder.
+        // The placeholder value cannot appear in templates or variable values (NUL bytes).
+        let escaped_template = replace_double_dollar_escapes(template);
+
         let re = var_regex();
-        let mut result = String::with_capacity(template.len());
+        let mut result = String::with_capacity(escaped_template.len());
         let mut last_end = 0;
 
-        for cap in re.captures_iter(template) {
+        for cap in re.captures_iter(&escaped_template) {
             let full_match = cap.get(0).expect("full match always present");
             let step_name = cap.get(1).expect("group 1").as_str();
             let field_path = cap.get(2).expect("group 2").as_str();
             let key = format!("{step_name}.{field_path}");
 
-            // Append the literal portion before this match
-            result.push_str(&template[last_end..full_match.start()]);
+            // Append the literal portion before this match (from escaped_template)
+            result.push_str(&escaped_template[last_end..full_match.start()]);
 
             // Look up the variable value
             let value = match vars.get(&key) {
@@ -125,9 +161,11 @@ impl Interpolator {
             last_end = full_match.end();
         }
 
-        // Append the remainder of the template after the last match
-        result.push_str(&template[last_end..]);
-        Ok(result)
+        // Append the remainder of the escaped_template after the last match
+        result.push_str(&escaped_template[last_end..]);
+
+        // AC-4 Pass 3: Replace placeholder back with literal `$` in the final output.
+        Ok(result.replace(DOLLAR_ESCAPE_PLACEHOLDER, "$"))
     }
 
     /// Extract all variable references from a template string.
@@ -205,6 +243,39 @@ impl Interpolator {
             .add(b'}');
         utf8_percent_encode(value, UNRESERVED).to_string()
     }
+}
+
+/// Replace `$$` pairs with a placeholder representing a single literal `$`.
+///
+/// Left-to-right non-overlapping scan: for each `$$` (two adjacent dollar signs),
+/// consume both and emit the placeholder. The remaining text is passed through
+/// unchanged for the interpolation regex to process.
+///
+/// This implements the AC-4 escape mechanism:
+/// - `$${var}` = `$$` (→ `PLACEHOLDER`) + `{var}` → `PLACEHOLDER{var}` → no regex match → `${var}` literal
+/// - `$$${var}` = `$$` (→ `PLACEHOLDER`) + `${var}` → `PLACEHOLDER${var}` → regex → `PLACEHOLDERvalue` → `$value`
+/// - `${var}` = no `$$` → unchanged → regex match → `value`
+fn replace_double_dollar_escapes(template: &str) -> String {
+    let mut result = String::with_capacity(template.len());
+    let bytes = template.as_bytes();
+    let len = bytes.len();
+    let mut i = 0;
+
+    while i < len {
+        // Check for `$$` pattern: two adjacent dollar signs (non-overlapping).
+        if i + 1 < len && bytes[i] == b'$' && bytes[i + 1] == b'$' {
+            // Consume both `$` chars as a single escape unit; emit the placeholder.
+            result.push_str(DOLLAR_ESCAPE_PLACEHOLDER);
+            i += 2; // skip both `$` chars
+        } else {
+            // Safety: template is valid UTF-8. We only match ASCII `$` chars;
+            // all other bytes are passed through as-is.
+            result.push(bytes[i] as char);
+            i += 1;
+        }
+    }
+
+    result
 }
 
 /// Convert a `serde_json::Value` to its string representation for interpolation.
