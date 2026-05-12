@@ -796,26 +796,58 @@ fn build_request(
 }
 
 /// Build a paginated URL by appending pagination query parameters.
+///
+/// AC-1 (S-PLUGIN-PREREQ-C): When `PaginationConfig::CursorToken { page_size: Some(n), .. }`,
+/// appends `page_size=n` to BOTH first-call and cursor-continuation URLs.
+/// When `page_size: None`, the parameter is omitted (backward-compatible).
 fn build_paged_url(
     base_url: &str,
     step: &FetchStep,
     cursor: &Option<String>,
     offset: u32,
 ) -> String {
+    build_paged_url_impl(base_url, step, cursor, offset)
+}
+
+/// Public test-helper wrapper for `build_paged_url` (exposed under test-helpers feature).
+///
+/// Allows integration tests in `crates/prism-spec-engine/tests/` to call the private
+/// URL-construction function directly rather than driving it through a full pipeline execution.
+///
+/// AC-1 (S-PLUGIN-PREREQ-C): Integration tests in `ac_1_cursor_page_size_test.rs` use this
+/// to verify `page_size` threading without spinning up a wiremock server.
+#[cfg(any(test, feature = "test-helpers"))]
+pub fn build_paged_url_for_test(
+    base_url: &str,
+    step: &FetchStep,
+    cursor: &Option<String>,
+    offset: u32,
+) -> String {
+    build_paged_url_impl(base_url, step, cursor, offset)
+}
+
+fn build_paged_url_impl(
+    base_url: &str,
+    step: &FetchStep,
+    cursor: &Option<String>,
+    offset: u32,
+) -> String {
     match &step.pagination {
-        Some(PaginationConfig::CursorToken { .. }) => {
-            // TD-S-PLUGIN-PREREQ-B-001 P2: cursor pagination first-call does not include page_size param.
-            // Real-world APIs (CrowdStrike GraphQL cursor) require first: N on every request. PREREQ-C scope:
-            // add `page_size: Option<u32>` field to PaginationConfig::CursorToken.
-            if let Some(c) = cursor {
-                if base_url.contains('?') {
-                    format!("{base_url}&cursor={c}")
-                } else {
-                    format!("{base_url}?cursor={c}")
-                }
+        Some(PaginationConfig::CursorToken {
+            page_size: ps_opt, ..
+        }) => {
+            let mut url = if let Some(c) = cursor {
+                let sep = if base_url.contains('?') { '&' } else { '?' };
+                format!("{base_url}{sep}cursor={c}")
             } else {
                 base_url.to_string()
+            };
+            // AC-1: append page_size parameter when declared.
+            if let Some(n) = ps_opt {
+                let sep = if url.contains('?') { '&' } else { '?' };
+                url = format!("{url}{sep}page_size={n}");
             }
+            url
         }
         Some(PaginationConfig::OffsetLimit { page_size }) => {
             let sep = if base_url.contains('?') { '&' } else { '?' };
