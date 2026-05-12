@@ -888,12 +888,14 @@ fn extract_cursor(body: &serde_json::Value, cursor_path: &str) -> Option<String>
                 serde_json::Value::Bool(_) => "Bool",
                 _ => "Unknown",
             };
+            // OBS-LP9-003: use char_indices for char-boundary-safe truncation.
+            // `s.len()` is BYTES; byte-index slicing panics on multi-byte UTF-8.
+            // `char_indices().nth(100)` gives the byte index of the 100th codepoint.
             let cursor_preview = {
                 let s = other.to_string();
-                if s.len() > 100 {
-                    s[..100].to_string()
-                } else {
-                    s
+                match s.char_indices().nth(100) {
+                    Some((idx, _)) => format!("{}...", &s[..idx]),
+                    None => s,
                 }
             };
             tracing::warn!(
@@ -958,19 +960,54 @@ fn find_fan_out_array(
     step: &FetchStep,
     step_vars: &HashMap<String, serde_json::Value>,
 ) -> Option<(String, serde_json::Value)> {
-    // Check all variables referenced in path_template and body_template for arrays.
+    // Collect ALL array-valued variables referenced in path_template and body_template.
+    // F-LP9-MED-002: must iterate all templates to detect multi-array ambiguity.
     let templates: Vec<&str> = std::iter::once(step.path_template.as_str())
         .chain(step.body_template.as_deref())
         .collect();
+
+    let mut array_vars: Vec<(String, serde_json::Value)> = Vec::new();
+    let mut seen_keys = std::collections::HashSet::new();
 
     for template in templates {
         let refs = crate::interpolation::Interpolator::extract_references(template);
         for (step_name, field_path) in refs {
             let key = format!("{step_name}.{field_path}");
+            if seen_keys.contains(&key) {
+                continue; // dedup: same var referenced in multiple templates
+            }
             if let Some(val) = step_vars.get(&key).filter(|v| v.is_array()) {
-                return Some((key, val.clone()));
+                seen_keys.insert(key.clone());
+                array_vars.push((key, val.clone()));
             }
         }
     }
-    None
+
+    match array_vars.len() {
+        0 => None, // no fan-out
+        1 => {
+            // Exactly one array — normal fan-out, no ambiguity.
+            array_vars.into_iter().next()
+        }
+        _ => {
+            // F-LP9-MED-002: multiple array-valued variables → ambiguous fan-out semantics.
+            // Emit structured warn so operators/SIEM can detect this case.
+            // Future PREREQ-C/D may define cartesian or zipped fan-out.
+            let first_var_name = array_vars[0].0.clone();
+            let other_var_names: Vec<&str> =
+                array_vars[1..].iter().map(|(k, _)| k.as_str()).collect();
+            tracing::warn!(
+                event_type = "fanout_ambiguous_multi_array",
+                step_name = %step.name,
+                array_vars_count = array_vars.len(),
+                first_var = %first_var_name,
+                other_vars = ?other_var_names,
+                "Step references multiple array-valued variables; fan-out semantics ambiguous \
+                 (only first array drives batching). Future PREREQ-C/D may define cartesian \
+                 or zipped fan-out."
+            );
+            // Preserve current behavior: first array drives fan-out.
+            array_vars.into_iter().next()
+        }
+    }
 }

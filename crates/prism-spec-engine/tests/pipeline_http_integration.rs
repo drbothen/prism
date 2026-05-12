@@ -27,7 +27,7 @@ use prism_spec_engine::spec_parser::{
 };
 use std::collections::HashMap;
 use std::io::Write;
-use wiremock::matchers::{header, method, path, query_param};
+use wiremock::matchers::{header, method, path, path_regex, query_param};
 use wiremock::{Mock, MockServer, ResponseTemplate};
 
 // ---------------------------------------------------------------------------
@@ -2069,19 +2069,7 @@ async fn test_BC_2_16_002_execute_discards_partial_records_on_mid_pipeline_500()
     let mock_server = MockServer::start().await;
 
     // Page 1: returns 2 records + next cursor "abc". Pipeline accumulates these.
-    Mock::given(method("GET"))
-        .and(path("/items"))
-        .and(query_param("cursor", ""))
-        .respond_with(ResponseTemplate::new(200).set_body_json(serde_json::json!({
-            "items": [{"id": 1, "name": "r1"}, {"id": 2, "name": "r2"}],
-            "next": "abc"
-        })))
-        .up_to_n_times(1)
-        .mount(&mock_server)
-        .await;
-
-    // Also accept requests WITHOUT the cursor param for the first page hit
-    // (the URL builder omits the param when cursor is None).
+    // No cursor query param on the first request (URL builder omits param when cursor is None).
     Mock::given(method("GET"))
         .and(path("/items"))
         .respond_with(ResponseTemplate::new(200).set_body_json(serde_json::json!({
@@ -2403,5 +2391,291 @@ fn test_BC_2_16_002_spec_with_multi_array_fan_out_template_rejected() {
     assert!(
         has_multi_array_error,
         "F-LP8-LOW-001: validator error must mention multi-array fan-out; got errors: {errors:?}",
+    );
+}
+
+// ---------------------------------------------------------------------------
+// OBS-LP9-003 Red Gate: cursor_preview must NOT panic on multi-byte UTF-8
+// ---------------------------------------------------------------------------
+
+/// BC-2.16.002 / OBS-LP9-003: When `extract_cursor` encounters a cursor value
+/// of an unsupported type whose JSON serialization contains multi-byte UTF-8
+/// codepoints (e.g., emoji), the cursor_preview truncation MUST NOT panic.
+///
+/// Bug: the pre-fix code uses `&s[..100]` (byte-index slice). If byte 100 falls
+/// inside a multi-byte codepoint (4 bytes for emoji), Rust panics with:
+///   "byte index 100 is not a char boundary; it is inside '🎯' (bytes 96..100)"
+///
+/// Construction: response returns `"next": ["🎯🎯...30 emoji"]`.
+/// The array serializes as `["🎯🎯..."]`. Each 🎯 = 4 bytes.
+/// JSON prefix `["` = 2 bytes. Byte 100 = offset 98 from the start of emoji =
+/// 98/4 = 24.5 → falls mid-codepoint inside the 25th emoji. Pre-fix: panic.
+/// Post-fix (char-boundary-safe truncation): Ok(records from page 1).
+///
+/// RED GATE: run this test against HEAD 411f4cbf — it MUST panic/fail.
+/// After applying the char_indices fix: MUST pass without panic.
+#[tokio::test]
+async fn test_BC_2_16_002_cursor_preview_handles_multi_byte_utf8_without_panic() {
+    let mock_server = MockServer::start().await;
+
+    // Cursor resolves to an Array containing emoji strings.
+    // The Array JSON form is: ["🎯🎯🎯🎯🎯🎯🎯🎯🎯🎯🎯🎯🎯🎯🎯🎯🎯🎯🎯🎯🎯🎯🎯🎯🎯🎯🎯🎯🎯🎯"]
+    // Prefix `["` = 2 bytes. Each 🎯 = 4 bytes. After 24 emoji: 2 + 96 = 98 bytes.
+    // The 25th emoji starts at byte 98 → bytes 98-101. Byte 100 is mid-codepoint.
+    let emoji_string: String = "🎯".repeat(30);
+    let cursor_array = serde_json::json!([emoji_string]);
+    // Verify the panic condition: byte 100 of the serialized array is mid-codepoint.
+    let serialized = cursor_array.to_string();
+    assert!(
+        serialized.len() > 100,
+        "test setup: serialized array must be >100 bytes for the truncation to trigger; got {} bytes",
+        serialized.len()
+    );
+    assert!(
+        !serialized.is_char_boundary(100),
+        "test setup: byte 100 must be a non-char-boundary (mid-codepoint) for the panic to trigger; \
+         pre-fix code would panic, post-fix code must not"
+    );
+
+    Mock::given(method("GET"))
+        .and(path("/utf8-cursor"))
+        .respond_with(ResponseTemplate::new(200).set_body_json(serde_json::json!({
+            "items": [{"id": "r1"}],
+            "next": [emoji_string]   // cursor resolves to Array → unsupported type branch
+        })))
+        .up_to_n_times(5)
+        .mount(&mock_server)
+        .await;
+
+    let spec = SensorSpec {
+        sensor_id: "utf8-cursor-sensor".to_string(),
+        name: "UTF-8 Cursor Sensor".to_string(),
+        auth_type: AuthType::BearerStatic,
+        base_url: mock_server.uri(),
+        tables: vec![TableSpec::new_point_in_time(
+            "items",
+            "security_finding",
+            vec![ColumnSpec {
+                name: "id".to_string(),
+                column_type: ColumnType::String,
+                ocsf_field: None,
+                options: vec![],
+            }],
+            vec![FetchStep {
+                name: "fetch_items".to_string(),
+                method: "GET".to_string(),
+                path_template: "/utf8-cursor".to_string(),
+                body_template: None,
+                response_path: "$.items".to_string(),
+                pagination_cursor_path: None,
+                variables_produced: vec![],
+                fan_out_batch_size: None,
+                pagination: Some(PaginationConfig::CursorToken {
+                    cursor_response_path: "$.next".to_string(),
+                }),
+            }],
+        )],
+        rate_limit_hints: None,
+        version: "1.0.0".to_string(),
+        credential_refs: vec![],
+    };
+
+    let table = spec.tables[0].clone();
+    let context = FetchContext::new(OrgSlug::new("test-org"), HashMap::new());
+    let http_client = reqwest::Client::builder()
+        .timeout(std::time::Duration::from_secs(30))
+        .build()
+        .expect("reqwest Client::build must succeed");
+    let auth_provider = NullAuthProvider;
+
+    // The pipeline must NOT panic. It should return Ok (cursor resolves to
+    // unsupported type → pagination terminates → returns page-1 records).
+    let result =
+        PipelineExecutor::execute(&spec, &table, &context, &http_client, &auth_provider).await;
+    assert!(
+        result.is_ok(),
+        "OBS-LP9-003: pipeline must not panic on multi-byte UTF-8 cursor; got: {:?}",
+        result
+    );
+    let pipeline_result = result.unwrap();
+    assert_eq!(
+        pipeline_result.records.len(),
+        1,
+        "OBS-LP9-003: page-1 record must be returned when cursor terminates at unsupported type"
+    );
+}
+
+// ---------------------------------------------------------------------------
+// F-LP9-MED-002 Red Gate: multi-array fan-out emits structured warn event
+// ---------------------------------------------------------------------------
+
+/// BC-2.16.002 / F-LP9-MED-002: When a pipeline step's path_template references
+/// MULTIPLE array-valued variables from prior steps (fan-out ambiguity), the
+/// runtime MUST emit a structured `tracing::warn!` event with:
+///   - `event_type = "fanout_ambiguous_multi_array"`
+///   - the step name
+///   - `array_vars_count >= 2`
+///
+/// The pipeline continues executing using the FIRST array as fan-out source
+/// (backward-compatible behavior). The warn surfaces the ambiguity for operators.
+///
+/// Setup:
+///   - step1: GET /step1 → `{"ids": [1,2,3]}` (response_path: "$.ids")
+///   - step2: GET /step2 → `{"codes": ["a","b"]}` (response_path: "$.codes")
+///   - step3: path_template: "/api/${step1.ids}/x/${step2.codes}" — references BOTH arrays
+///
+/// RED GATE: Pre-fix code (find_fan_out_array returns at first match, no warn) → test FAILS
+///   because log buffer will not contain `fanout_ambiguous_multi_array`.
+/// Post-fix: test PASSES — warn emitted, pipeline succeeds.
+///
+/// Sibling note: The static validator (validation.rs Cat-2b) catches paginated/`[*]`
+/// patterns at spec-load time; this runtime warn catches what the validator misses
+/// for the non-paginated whole-array case.
+#[tokio::test]
+async fn test_BC_2_16_002_fanout_ambiguous_multi_array_emits_structured_event() {
+    use std::sync::{Arc, Mutex};
+    use tracing_subscriber::util::SubscriberInitExt;
+
+    let log_buffer: Arc<Mutex<String>> = Arc::new(Mutex::new(String::new()));
+    let log_buffer_clone = log_buffer.clone();
+
+    let writer = tracing_subscriber::fmt::writer::BoxMakeWriter::new(move || {
+        struct BufWriter(Arc<Mutex<String>>);
+        impl std::io::Write for BufWriter {
+            fn write(&mut self, buf: &[u8]) -> std::io::Result<usize> {
+                let s = String::from_utf8_lossy(buf);
+                self.0.lock().unwrap().push_str(&s);
+                Ok(buf.len())
+            }
+            fn flush(&mut self) -> std::io::Result<()> {
+                Ok(())
+            }
+        }
+        BufWriter(log_buffer_clone.clone())
+    });
+
+    let subscriber = tracing_subscriber::fmt()
+        .with_writer(writer)
+        .with_max_level(tracing::Level::WARN)
+        .finish();
+    let _guard = subscriber.set_default();
+
+    let mock_server = MockServer::start().await;
+
+    // step1: returns array of IDs
+    Mock::given(method("GET"))
+        .and(path("/step1"))
+        .respond_with(ResponseTemplate::new(200).set_body_json(serde_json::json!({
+            "ids": [1, 2, 3]
+        })))
+        .up_to_n_times(1)
+        .mount(&mock_server)
+        .await;
+
+    // step2: returns array of codes
+    Mock::given(method("GET"))
+        .and(path("/step2"))
+        .respond_with(ResponseTemplate::new(200).set_body_json(serde_json::json!({
+            "codes": ["a", "b"]
+        })))
+        .up_to_n_times(1)
+        .mount(&mock_server)
+        .await;
+
+    // step3: references BOTH arrays in path_template — drives the multi-array warn.
+    // The URL after interpolation will be percent-encoded, starting with /api/.
+    Mock::given(method("GET"))
+        .and(path_regex(r"^/api/"))
+        .respond_with(ResponseTemplate::new(200).set_body_json(serde_json::json!({
+            "items": [{"id": "result-1"}]
+        })))
+        .mount(&mock_server)
+        .await;
+
+    let spec = SensorSpec {
+        sensor_id: "multi-array-fanout-sensor".to_string(),
+        name: "Multi-Array Fan-Out Sensor".to_string(),
+        auth_type: AuthType::BearerStatic,
+        base_url: mock_server.uri(),
+        tables: vec![TableSpec::new_point_in_time(
+            "items",
+            "security_finding",
+            vec![ColumnSpec {
+                name: "id".to_string(),
+                column_type: ColumnType::String,
+                ocsf_field: None,
+                options: vec![],
+            }],
+            vec![
+                FetchStep {
+                    name: "step1".to_string(),
+                    method: "GET".to_string(),
+                    path_template: "/step1".to_string(),
+                    body_template: None,
+                    response_path: "$.ids".to_string(),
+                    pagination_cursor_path: None,
+                    variables_produced: vec!["ids".to_string()],
+                    fan_out_batch_size: None,
+                    pagination: None,
+                },
+                FetchStep {
+                    name: "step2".to_string(),
+                    method: "GET".to_string(),
+                    path_template: "/step2".to_string(),
+                    body_template: None,
+                    response_path: "$.codes".to_string(),
+                    pagination_cursor_path: None,
+                    variables_produced: vec!["codes".to_string()],
+                    fan_out_batch_size: None,
+                    pagination: None,
+                },
+                FetchStep {
+                    name: "step3".to_string(),
+                    method: "GET".to_string(),
+                    // References BOTH step1.ids and step2.codes — both are array-valued.
+                    // This triggers the multi-array fan-out ambiguity warn.
+                    path_template: "/api/${step1.ids}/x/${step2.codes}".to_string(),
+                    body_template: None,
+                    response_path: "$.items".to_string(),
+                    pagination_cursor_path: None,
+                    variables_produced: vec![],
+                    fan_out_batch_size: None,
+                    pagination: None,
+                },
+            ],
+        )],
+        rate_limit_hints: None,
+        version: "1.0.0".to_string(),
+        credential_refs: vec![],
+    };
+
+    let table = spec.tables[0].clone();
+    let context = FetchContext::new(OrgSlug::new("test-org"), HashMap::new());
+    let http_client = reqwest::Client::builder()
+        .timeout(std::time::Duration::from_secs(30))
+        .build()
+        .expect("reqwest Client::build must succeed");
+    let auth_provider = NullAuthProvider;
+
+    let result =
+        PipelineExecutor::execute(&spec, &table, &context, &http_client, &auth_provider).await;
+
+    // Pipeline must succeed — first array drives fan-out, backward-compatible behavior.
+    assert!(
+        result.is_ok(),
+        "F-LP9-MED-002: pipeline must succeed (first array drives fan-out); got: {:?}",
+        result
+    );
+
+    // The structured warn MUST have been emitted.
+    let log_output = log_buffer.lock().unwrap().clone();
+    assert!(
+        log_output.contains("fanout_ambiguous_multi_array"),
+        "F-LP9-MED-002: log must contain event_type=fanout_ambiguous_multi_array; \
+         pre-fix code returns first match without warn. Log output: {log_output}"
+    );
+    assert!(
+        log_output.contains("step3"),
+        "F-LP9-MED-002: log must contain the step name (step3); log output: {log_output}"
     );
 }
