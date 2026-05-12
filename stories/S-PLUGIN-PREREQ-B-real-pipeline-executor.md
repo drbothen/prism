@@ -31,10 +31,10 @@ target_module: prism-spec-engine
 #   and the new auth interface is consumed at query time through the same dispatch path that
 #   SS-01 currently owns.
 subsystems: [SS-16, SS-01]
-version: "1.18"
+version: "1.19"
 level: "L4"
 producer: state-manager
-timestamp: "2026-05-12T03:00:00Z"
+timestamp: "2026-05-12T05:00:00Z"
 input-hash: "6954524"
 traces_to: []
 cycle: "v1.0.0-greenfield"
@@ -49,7 +49,7 @@ anchor_subsystem: [SS-16, SS-01]
 assumption_validations: []
 risk_mitigations: []
 acceptance_criteria_count: 9
-red_gate_tests: 59
+red_gate_tests: 64
 inputs:
   - ".factory/specs/architecture/decisions/ADR-023-plugin-only-sensor-architecture.md"
   - ".factory/specs/behavioral-contracts/BC-2.16.002-multi-step-fetch-pipeline.md"
@@ -561,6 +561,7 @@ This story is shipped when ALL of the following are true:
 
 | Version | Burst | Date | Author | Changes |
 |---------|-------|------|--------|---------|
+| 1.19 | prereq-b-fix-burst-13 | 2026-05-11 | state-manager | fix-burst-13 closure: F-LP13-MED-001 (5 new unit tests for BC v1.8 catalog rows 3/7/8/9/10 — GENUINE 14/14 anchoring; ChainAuthProvider + AuthOutcome helper added to auth_provider.rs feature-gated; 4th-occurrence catalog-drift pattern closed) + F-LP13-LOW-001 [process-gap] (lessons.md Enforcement Layers section rewritten honestly: Layer 1+2 PAPER — implementer.md/state-manager.md not wired into engine prompts; Layer 3 ACTIVE — adversary closure verification, sole load-bearing enforcement; Layer 4 DEFERRED to TD-VSDD-093). Worktree HEAD b75f317e. red_gate_tests 59→64 (+5). 297/297 prism-spec-engine tests pass. just check-fast clean. STORY-INDEX v2.56→v2.57. STATE+HANDOFF v7.156→v7.157. |
 | 1.18 | prereq-b-pass-13 | 2026-05-11 | state-manager | pass-13 record: 1 MED + 1 LOW [process-gap] + 2 OBS filed; streak 0/3 unchanged; fix-burst-13 dispatched. F-LP13-MED-001: fix-burst-12 "14/14 catalog coverage" claim overstated — rows 3/7/8/9/10 (auth_initial_failed exec + auth_refresh_triggered/succeeded/failed/double_401) lack positive log-buffer assertions (path-coverage only); 4th recurrence of catalog-drift pattern (F-LP9/11/12/13). F-LP13-LOW-001 [process-gap]: PG-LP11-001 Layer 1 (implementer self-check) unwired in implementer.md engine prompt; Layer 3 (adversary) sole active enforcement; Layer 4 deferred to TD-VSDD-093. OBS-LP13-002: BC v1.8 stable across fix-burst-12 — first non-amendment burst since fix-burst-1 (positive convergence signal). All fix-burst-12 closures CLEAN per TD-VSDD-059/060/091. Novelty 4/4=1.0. Trajectory 20→10→4→7→10→9→8→4→4→2→3→3→2 (descending). Report: .factory/code-delivery/S-PLUGIN-PREREQ-B/adversarial-review/local-pass-13.md. STORY-INDEX v2.55→v2.56. STATE+HANDOFF v7.155→v7.156. |
 | 1.17 | prereq-b-fix-burst-12 | 2026-05-11 | state-manager | fix-burst-12 closure: F-LP12-M001 (3 execute_step unit tests anchor BC v1.8 rows 4/5/6 — full catalog coverage 14/14) + F-LP12-L001 (BC v1.5 pin removed from code comment) + F-LP12-L002 [process-gap] (PG-LP11-001 codified at cycles/wave-4-operations/lessons.md) + TD-VSDD-093 filed. Worktree HEAD c72702cc. +3 Red Gate tests (56→59); 292/292 prism-spec-engine tests pass. just check-fast clean. tech-debt-register v2.13→v2.14. STORY-INDEX v2.54→v2.55. STATE+HANDOFF v7.154→v7.155. |
 | 1.16 | prereq-b-pass-12 | 2026-05-11 | state-manager | pass-12 record: 1 MED + 2 LOW + 3 OBS + 1 [process-gap] filed; streak 0/3 unchanged; fix-burst-12 dispatched. F-LP12-MED-001: BC v1.8 catalog enumerates 3 execute_step rows with zero test/production triggers — contract surface grew via v1.8 amendment without commensurate coverage (novel vs OBS-LP8-003: v1.8 promoted execute_step emissions to contract surface). F-LP12-LOW-001: stale BC v1.5 reference in pipeline.rs:461 comment (volatile version pin; TD-VSDD-091 class). F-LP12-LOW-002 [process-gap]: PG-LP11-001 SOP codification shallow — only in D-419; no cycle lessons file; no template updated; TD-VSDD-058 compaction risk. All fix-burst-11 closures CLEAN per TD-VSDD-059. Novelty 6/6=1.0. Trajectory 20→10→4→7→10→9→8→4→4→2→3→3. Report: .factory/code-delivery/S-PLUGIN-PREREQ-B/adversarial-review/local-pass-12.md. STORY-INDEX v2.53→v2.54. STATE+HANDOFF v7.153→v7.154. |

@@ -30,12 +30,19 @@ This file durably codifies lessons-learned that emerged during the wave-4 operat
 
 **Verification at adversary pass:** the adversary review (LOCAL passes) MUST grep `event_type = "` in pipeline.rs / auth_provider.rs / validation.rs / interpolation.rs and cross-reference against BC-2.16.002 catalog rows. Discrepancy = finding.
 
-**Enforcement layers:**
+**Enforcement layers (status as of 2026-05-11 post-fix-burst-13):**
 
-1. Implementer agent: burst-closure self-check per the operative rule above
-2. State-manager agent: when committing a worktree change that touches the named files, verify BC-2.16.002 catalog row count is updated if grep shows new event_types
-3. Adversary agent: pass-N closure verification per the operative rule
-4. State-manager future codification: add a lefthook pre-commit check in `.factory/hooks/` that runs the grep automatically (filed as TD-VSDD-093 P3 for tooling sprint)
+The SOP relies on FOUR enforcement layers. Current wiring status:
+
+1. **Implementer agent: burst-closure self-check** — STATUS: **PAPER** (not wired in engine prompt as of 2026-05-11). The implementer.md prompt does NOT reference lessons.md or the Structured Event Catalog discipline. A future engine-side TD (filed under vsdd-factory plugin work, task #54) should extend implementer.md to cite this lesson. Until that lands, Layer 1 is aspirational, not enforced.
+
+2. **State-manager agent: pre-commit grep verification** — STATUS: **PAPER** (not wired in state-manager.md prompt as of 2026-05-11). The state-manager.md prompt does NOT include a grep step cross-referencing new event_type sites against BC catalog rows. Until tooling lands (Layer 4), Layer 2 is aspirational.
+
+3. **Adversary agent: pass-N closure verification** — STATUS: **ACTIVE**. Each LOCAL adversary pass since pass-9 has applied this verification. F-LP9-MED-001, F-LP11-MED-001, F-LP12-MED-001, and F-LP13-MED-001 all surfaced via this layer. Layer 3 is the sole load-bearing enforcement until other layers wire.
+
+4. **Lefthook automation: pre-commit grep hook** — STATUS: **DEFERRED** (filed as TD-VSDD-093 P3 for tooling-sprint). When TD-093 lands, a `.factory/hooks/` lefthook pre-commit hook will automatically grep new `event_type = "..."` literals and block commits that don't update BC-2.16.002 catalog. Until then, no automated check exists.
+
+**Net enforcement reality:** 1 of 4 layers actively enforces (adversary). Recurrence count of catalog-drift findings has reached 4 (F-LP9/11/12/13) BECAUSE Layer 3 is the only layer catching it post-impl. The other layers need wiring/tooling to provide pre-impl prevention.
 
 **Linked artifacts:**
 - BC-2.16.002 Structured Event Catalog (v1.8 latest)
