@@ -1,7 +1,7 @@
 ---
 document_type: pipeline-state
 level: ops
-version: "7.174"
+version: "7.175"
 producer: state-manager
 timestamp: 2026-05-12T15:00:00Z
 inputs: []
@@ -22,12 +22,13 @@ repos:
   - axiathon
   - ocsf-proto-gen
   - mcp-claroty-xdome
-current_step: "D-440. LOCAL CONVERGED (adversary) on feature/S-PLUGIN-PREREQ-C@651bbb64. STREAK 3/3 LOCKED. Pass-5: 1 finding (0 CRIT + 0 HIGH + 0 MED + 1 LOW — F-LP5-LOW-001 main.rs doc-header sibling-sweep miss '29 types' → '30 types' 3-line fix, non-blocking). All 4 in-scope pass-4 closures verified REAL. Trajectory 18→8→5→5→1. STATE+HANDOFF v7.173→v7.174. Next: fix F-LP5-LOW-001 (trivial) → demo-recorder step 5 → rebase + pr-manager 9-step PR cycle."
-feature_branch_head: "651bbb64"
-worktree_status: "LOCAL-CONVERGED"
+current_step: "D-441. PREREQ-C step 5 COMPLETE — F-LP5-LOW-001 closed (main.rs doc-header 29→30 types + fix-burst-4 attribution + 30th type bullet appended, c9bb9d26). Demo evidence generated at docs/demo-evidence/S-PLUGIN-PREREQ-C/ — 8 files (INDEX + AC-1..AC-7), 835 lines, real test output for all 7 ACs (450b082c). POL-10 demo_evidence_story_scoped satisfied. STATE+HANDOFF v7.174→v7.175. Next: per-story-delivery step 6 — rebase + pr-manager 9-step PR cycle."
+feature_branch_head: "450b082c"
+worktree_status: "demo-evidence-recorded"
 adversary_streak: "3/3 LOCKED"
 adversary_pass_count: 5
-pending_findings: "0 CRIT + 0 HIGH + 0 MED + 1 LOW (F-LP5-LOW-001 main.rs doc-header '29'→'30' 3-line fix, non-blocking)"
+pending_findings: "0 CRIT + 0 HIGH + 0 MED + 0 LOW"
+demo_evidence_path: "docs/demo-evidence/S-PLUGIN-PREREQ-C/"
 local_converged_at_pass: 5
 wave_3_carry_forward_debt: "ALL_REMEDIATE — W4-FIX-PERF-001/002, W4-FIX-CODE-001, W4-FIX-SEC-001 through W4-FIX-SEC-004 planned per D-203"
 wave_4_status: "PHASE_4_A_CONVERGED + R9_APPROVED but PHASE_4_B SUSPENDED — pre-implementation dep check (2026-05-04) found S-4.01 → S-3.02 (status=draft); pivoting to full Wave 3 implementation per user directive D-223"
@@ -182,9 +183,9 @@ workspace_test_count: 3598  # updated at D-433 fix-burst-1 closure (just check c
 | **Language** | Rust |
 | **Target Workspace** | per-analyst stdio (MCP server) |
 | **Started** | 2026-04-13 |
-| **Last Updated** | 2026-05-12 (D-440 — PREREQ-C LOCAL CONVERGED; adversary pass-5 streak 3/3 LOCKED; trajectory 18→8→5→5→1; 1 LOW non-blocking; STATE+HANDOFF v7.173→v7.174) |
-| **Current Phase** | Wave 3 Tier-3 COMPLETE — **Wave 3-A 4 of 4 SHIPPED**; plugin migration: PREREQ-F + PREREQ-A + **PREREQ-B SHIPPED** (PR #143 ae7e26c8 2026-05-12); **PREREQ-C LOCAL CONVERGED** (D-440 feature@651bbb64 streak 3/3 LOCKED 5 passes); PREREQ-D/E pending |
-| **Current Step** | D-440 — PREREQ-C LOCAL CONVERGED (adversary pass-5). STREAK 3/3 LOCKED. 1 finding (F-LP5-LOW-001 main.rs doc-header non-blocking). All pass-4 closures REAL. Trajectory 18→8→5→5→1 (CRIT 3→1→0→0→0, HIGH 8→2→0→0→0). Next: fix F-LP5-LOW-001 (trivial) → demo-recorder step 5 → pr-manager 9-step. |
+| **Last Updated** | 2026-05-12 (D-441 — PREREQ-C step 5 COMPLETE; F-LP5-LOW-001 closed + demo evidence 8 files 835 lines; feature@450b082c; STATE+HANDOFF v7.174→v7.175) |
+| **Current Phase** | Wave 3 Tier-3 COMPLETE — **Wave 3-A 4 of 4 SHIPPED**; plugin migration: PREREQ-F + PREREQ-A + **PREREQ-B SHIPPED** (PR #143 ae7e26c8 2026-05-12); **PREREQ-C demo-evidence-recorded** (D-441 feature@450b082c; step 5 COMPLETE); PREREQ-D/E pending |
+| **Current Step** | D-441 — PREREQ-C step 5 COMPLETE. F-LP5-LOW-001 closed (c9bb9d26). Demo evidence at docs/demo-evidence/S-PLUGIN-PREREQ-C/ (8 files, 835 lines, 7 ACs, 450b082c). 0 outstanding findings. Next: step 6 rebase + pr-manager 9-step PR cycle. |
 
 ## Phase Progress
 
@@ -221,6 +222,7 @@ workspace_test_count: 3598  # updated at D-433 fix-burst-1 closure (just check c
 | S-PLUGIN-PREREQ-C story-writer (D-429) | story-writer + state-manager | **COMPLETE — story v1.0 ready** | 7 ACs from D-428 TD scope (TD-B-001/003/006/008/016 + TD-A-006/008). AC-8 deferred (TD-A-007 P3 non-blocking). Story 728 lines. STORY-INDEX v2.61→v2.62. STATE+HANDOFF v7.162→v7.163. Next: test-writer Red Gate stubs. |
 | S-PLUGIN-PREREQ-C Red Gate (D-430) | test-writer + state-manager | **COMPLETE — Red Gate established** | 11 failing tests across 7 ACs on feature/S-PLUGIN-PREREQ-C@f97e91d1. AC-1 (4 fail/2 pass), AC-2 (2 fail/2 pass), AC-3 (1 fail/4 pass), AC-4 (2 fail/1 pass), AC-5 (1 fail compile-fail crate), AC-6 (1 fail), AC-7 (1 fail). 543 pre-existing tests pass (no regressions). Minimal stub: page_size: Option<u32> added to PaginationConfig::CursorToken. AC-5 uses tests/external/non-exhaustive-violation/ pattern. STATE+HANDOFF v7.163→v7.164. Next: implementer Green TDD. |
 | S-PLUGIN-PREREQ-C LOCAL CONVERGED pass-5 (D-440) | adversary + state-manager | **CLEAN — streak 3/3 — LOCAL CONVERGED** | STREAK LOCKED. 1 finding (F-LP5-LOW-001 main.rs doc-header non-blocking LOW). 0 CRIT + 0 HIGH + 0 MED. Trajectory 18→8→5→5→1. 5 passes + 4 fix-bursts. Feature@651bbb64. STATE+HANDOFF v7.173→v7.174. Next: fix F-LP5-LOW-001 → demo-recorder step 5. |
+| PREREQ-C step 5 COMPLETE — F-LP5-LOW-001 + demo evidence (D-441) | implementer + demo-recorder + state-manager | **COMPLETE — demo-evidence-recorded** | F-LP5-LOW-001 closed (main.rs doc-header 29→30 types + fix-burst-4 attribution + 30th type bullet, c9bb9d26). Demo evidence: docs/demo-evidence/S-PLUGIN-PREREQ-C/ — 8 files (INDEX + AC-1..AC-7), 835 lines, real test output all 7 ACs (450b082c). 0 outstanding findings. POL-10 satisfied. STATE+HANDOFF v7.174→v7.175. Next: step 6 rebase + pr-manager 9-step PR cycle. |
 
 ## Decisions Log
 
@@ -228,6 +230,7 @@ _D-001..D-046 archived: [cycles/phase-3-dtu-wave-2/decisions-archive-d001-d032.m
 
 | ID | Decision | Rationale | Phase | Date |
 |----|----------|-----------|-------|------|
+| D-441 | 2026-05-12 | PREREQ-C post-LOCAL-CONVERGED cleanup + demo evidence (implementer + demo-recorder) on feature/S-PLUGIN-PREREQ-C@450b082c. F-LP5-LOW-001 closed (main.rs doc-header 29→30 types + fix-burst-4 attribution + 30th type bullet appended, c9bb9d26). Demo evidence generated at docs/demo-evidence/S-PLUGIN-PREREQ-C/ — 8 files (INDEX + AC-1..AC-7), 835 lines, real test output captured for all 7 ACs (450b082c). POL-10 demo_evidence_story_scoped satisfied. Per-story-delivery step 5 COMPLETE. Outstanding findings: 0 CRIT + 0 HIGH + 0 MED + 0 LOW. Next: per-story-delivery step 6 — rebase + pr-manager 9-step PR cycle including PR-LEVEL adversary cascade. | plugin-migration | 2026-05-12 |
 | D-440 | 2026-05-12 | **LOCAL CONVERGED** (adversary) on feature/S-PLUGIN-PREREQ-C@651bbb64. STREAK 2/3 → **3/3** **— PREREQ-C LOCAL CONVERGENCE LOCKED**. Pass-5: 1 finding (0 CRIT + 0 HIGH + 0 MED + 1 LOW — F-LP5-LOW-001 main.rs doc-header sibling-sweep miss "29 types" → "30 types" 3-line fix, non-blocking). All 4 in-scope pass-4 closures verified REAL. CI regression detector positive-coverage audit clean. Trajectory 18→8→5→5→1 (CRIT 3→1→0→0→0, HIGH 8→2→0→0→0). PREREQ-C converged in 5 LOCAL passes vs PREREQ-A 12 vs PREREQ-B 16 — highly efficient. Next: fix F-LP5-LOW-001 (trivial) → per-story-delivery step 5 demo-recorder for AC evidence under docs/demo-evidence/S-PLUGIN-PREREQ-C/ → step 6 rebase + pr-manager 9-step PR cycle. | plugin-migration | 2026-05-12 |
 | D-439 | 2026-05-12 | PREREQ-C fix-burst-4 CONVERGED (implementer + story-writer) on feature/S-PLUGIN-PREREQ-C@651bbb64. 3 findings closed: F-LP4-MED-001+002 joint resolution (added v30_types_sensor_spec to violator crate; types::SensorSpec now in regression coverage; CI EXPECTED 29→30; story sub-table arithmetic discrepancy resolved 29→30 types audited), F-LP4-LOW-001 sibling-sweep (check-non-exhaustive wired into just check-ci), F-LP4-LOW-002 DtuMode footnote in story v1.3 (BC-3.2.005 pre-existing annotation explicitly excluded from AC-5 scope). F-LP4-OBS-001 deferred (cosmetic). Workspace commit 651bbb64. Story v1.2→v1.3. STORY-INDEX v2.63→v2.64. just check clean (3598 tests pass). Next: LOCAL adversary pass-5 — streak target 2/3 → 3/3 LOCAL CONVERGED. | plugin-migration | 2026-05-12 |
 | D-438 | 2026-05-12 | LOCAL adversary pass-4 CLEAN (adversary) on feature/S-PLUGIN-PREREQ-C@68c8b62d. STREAK 1/3 → 2/3. 5 findings (0 CRIT, 0 HIGH, 2 MED, 3 LOW/OBS). MEDs co-resolvable: F-LP4-MED-001 (story AC-5 sub-tables sum to 30 but body says 29 — drift), F-LP4-MED-002 (types::SensorSpec annotated but not in violator crate — silent coverage gap). LOW-001 sibling-sweep: just check-ci missing check-non-exhaustive wiring. LOW-002 DtuMode AC-5 scope (pending intent), OBS-001 cosmetic. All 4 in-scope pass-3 closures REAL. Trajectory 18→8→5→5 (CRIT 3→1→0→0, HIGH 8→2→0→0). CI regression detector positive-coverage audit clean. Next: fix-burst-4 (joint resolution MED-001+002 via add v30_types_sensor_spec violation + bump EXPECTED=30 + sibling-sweep just check-ci wiring + DtuMode footnote), then pass-5 streak 2/3 → 3/3 lock attempt. | plugin-migration | 2026-05-12 |
