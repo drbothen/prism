@@ -54,13 +54,18 @@ use std::path::Path;
 //     the file path and a comment explaining the production use case.
 // ---------------------------------------------------------------------------
 const GATED_OR_ALLOWLISTED_UNCHECKED: &[&str] = &[
-    // Empty allowlist at Red Gate phase.
-    // The implementer adds entries here ONLY for new_unchecked sites that have a
-    // legitimate ungated production use case (documented with a justification comment
-    // in the source). Each entry is the relative file path (from prism-core/src/).
+    // AC-6 audit result (S-PLUGIN-PREREQ-C): OrgSlug::new_unchecked in tenant.rs is
+    // allowlisted because it has a legitimate production use case:
     //
-    // Example (post-AC-6 if ungated production use is justified):
-    //   "tenant.rs",  // OrgSlug::new_unchecked: called from boot.rs step-3 after slug validation
+    // prism-query/src/materialization.rs calls new_unchecked to construct a synthetic
+    // OrgSlug from a UUID prefix when OrgRegistry is absent at runtime (fallback path).
+    // The caller guarantees the UUID-prefix string matches [a-zA-Z0-9_-]{1,64} because
+    // UUIDs contain only hex digits and hyphens, and the 8-char prefix is always valid.
+    //
+    // Feature-gating with cfg(test) is NOT appropriate here because the call site is
+    // in production (non-cfg-gated) code. The precondition is documented in the
+    // doc-comment on OrgSlug::new_unchecked in tenant.rs.
+    "tenant.rs",
 ];
 
 /// AC-6 Red Gate: asserts no ungated `fn new_unchecked` exists in `crates/prism-core/src/`

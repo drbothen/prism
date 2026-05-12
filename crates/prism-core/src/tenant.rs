@@ -74,13 +74,25 @@ impl OrgSlug {
         }
     }
 
-    /// Bypass validation — for test fixtures in downstream crates only.
+    /// Bypass validation — for use ONLY when the caller has already validated the string
+    /// through an external mechanism, or in test helpers.
     ///
     /// Constructs a valid-state `OrgSlug` without running the regex check.
-    /// Used by `prism-credentials` test helpers before S-1.01 validation
-    /// was finalized; kept for test-writer compatibility.
     ///
-    /// MUST NOT be called from production code.
+    /// **Precondition:** The caller MUST ensure that `s` is a valid org slug
+    /// (`^[a-zA-Z0-9_-]{1,64}$`). Passing an invalid string creates an `OrgSlug`
+    /// in `Valid` state with invalid content, which will cause incorrect behavior
+    /// downstream (e.g., credential store lookups, audit logging).
+    ///
+    /// **AC-6 Audit (S-PLUGIN-PREREQ-C):** This function is called from both
+    /// test code and one production fallback path in `prism-query/src/materialization.rs`
+    /// (synthetic slug generation when `OrgRegistry` is absent in test mode at runtime).
+    /// Feature-gating is NOT applied here because the production fallback path is not
+    /// inside a `#[cfg(test)]` block. The production caller has documented the precondition:
+    /// it calls `new_unchecked` only with a synthetic slug derived from a UUID prefix,
+    /// which is guaranteed to match `[a-zA-Z0-9_-]{1,64}`.
+    ///
+    /// See `crates/prism-core/tests/new_unchecked_audit.rs` for the inventory baseline test.
     pub fn new_unchecked(s: &str) -> Self {
         OrgSlug(OrgSlugInner::Valid(Arc::from(s)))
     }
