@@ -136,3 +136,17 @@ pub use org_registry::{OrgRegistry, RegistrationError};
 
 // S-PLUGIN-PREREQ-A
 pub use sensor_id::SensorId;
+
+// S-PLUGIN-PREREQ-C: AC-7 — SensorIdValidationError at crate root for ergonomic parity with SensorId.
+/// Re-export of `SensorIdValidationError` at the crate root.
+///
+/// Provides ergonomic parity with `prism_core::SensorId` (already at crate root per PREREQ-A).
+/// Before this re-export, callers had to use the module path
+/// `prism_core::sensor_id::SensorIdValidationError`.
+///
+/// ```
+/// use prism_core::SensorIdValidationError;
+/// // SensorIdValidationError is accessible at crate root
+/// let _: Option<SensorIdValidationError> = None;
+/// ```
+pub use sensor_id::SensorIdValidationError;
