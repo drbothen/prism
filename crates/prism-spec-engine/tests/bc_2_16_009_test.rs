@@ -411,10 +411,7 @@ fn test_BC_2_16_009_rejects_offset_pagination_with_zero_page_size() {
 #[test]
 fn test_BC_2_16_009_rejects_rate_limit_requests_per_second_zero_or_negative() {
     let mut spec = minimal_valid_spec();
-    spec.rate_limit_hints = Some(RateLimitHints {
-        requests_per_second: Some(0.0), // invalid: must be > 0
-        burst_size: None,
-    });
+    spec.rate_limit_hints = Some(RateLimitHints::new(Some(0.0), None)); // invalid: must be > 0
 
     let result = validate_sensor_spec(&spec);
     assert!(
@@ -427,10 +424,7 @@ fn test_BC_2_16_009_rejects_rate_limit_requests_per_second_zero_or_negative() {
 #[test]
 fn test_BC_2_16_009_rejects_rate_limit_burst_size_zero() {
     let mut spec = minimal_valid_spec();
-    spec.rate_limit_hints = Some(RateLimitHints {
-        requests_per_second: Some(10.0),
-        burst_size: Some(0), // invalid: must be >= 1
-    });
+    spec.rate_limit_hints = Some(RateLimitHints::new(Some(10.0), Some(0))); // invalid: must be >= 1
 
     let result = validate_sensor_spec(&spec);
     assert!(result.is_err(), "burst_size=0 must produce an error");

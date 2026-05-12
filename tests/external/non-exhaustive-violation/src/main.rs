@@ -31,10 +31,14 @@
 //! Expected: FAIL (non-zero) after AC-5 implementation.
 //! Currently (Red Gate): PASS (zero) = Red Gate condition met.
 
-use prism_core::{ColumnType, TableType};
+use prism_core::{ColumnOptions, ColumnType, TableType};
+use prism_spec_engine::infusion::CredentialRef as InfusionCredentialRef;
 use prism_spec_engine::spec_parser::{
-    AuthType, ColumnSpec, CredentialRef, FetchStep, PaginationConfig, SensorSpec,
+    AuthType, ColumnSpec, CredentialRef, FetchStep, PaginationConfig, RateLimitHints, SensorSpec,
     SensorTableDescriptor, TableSpec,
+};
+use prism_spec_engine::types::{
+    CredentialRef as TypesCredentialRef, SensorTableDescriptor as TypesSensorTableDescriptor,
 };
 
 /// test_BC_2_01_013_non_exhaustive_sensor_spec_no_external_literal
@@ -135,6 +139,76 @@ fn main() {
         // Before AC-5: this compiles fine (no #[non_exhaustive]).
     }
 
+    // ── 9. RateLimitHints ────────────────────────────────────────────────────
+    // Expected error after HIGH-004 fix: E0639 — cannot create non-exhaustive struct
+    // `RateLimitHints` with a struct expression
+    let _rate_hints = RateLimitHints {
+        requests_per_second: Some(10.0),
+        burst_size: Some(100),
+    };
+
+    // ── 10. types::SensorTableDescriptor ─────────────────────────────────────
+    // Expected error after HIGH-004 fix: E0639 — cannot create non-exhaustive struct
+    // `types::SensorTableDescriptor` with a struct expression
+    let _types_descriptor = TypesSensorTableDescriptor {
+        table_name: "crowdstrike.devices".to_string(),
+        columns: vec![],
+        steps_count: 1,
+        pagination_type: prism_spec_engine::types::PaginationType::Cursor,
+    };
+
+    // ── 11. types::CredentialRef ──────────────────────────────────────────────
+    // Expected error after HIGH-004 fix: E0639 — cannot create non-exhaustive struct
+    // `types::CredentialRef` with a struct expression
+    let _types_cred = TypesCredentialRef {
+        name: "api_key".to_string(),
+    };
+
+    // ── 12. infusion::CredentialRef ───────────────────────────────────────────
+    // Expected error after HIGH-004 fix: E0639 — cannot create non-exhaustive struct
+    // `infusion::CredentialRef` with a struct expression
+    let _infusion_cred = InfusionCredentialRef {
+        field_name: "api_key".to_string(),
+        env_var: "MY_API_KEY".to_string(),
+    };
+
+    // ── 13. prism_core::ColumnType (exhaustive match without wildcard) ────────
+    // Expected error after HIGH-004 fix: E0004 — non-exhaustive patterns without wildcard
+    let col_type: ColumnType = ColumnType::String;
+    match col_type {
+        ColumnType::String => {}
+        ColumnType::Integer => {}
+        ColumnType::Float => {}
+        ColumnType::Boolean => {}
+        ColumnType::Datetime => {}
+        ColumnType::Json => {}
+        // After HIGH-004: E0004 — `_` arm required for non-exhaustive enum
+    }
+
+    // ── 14. prism_core::ColumnOptions (exhaustive match without wildcard) ─────
+    // Expected error after HIGH-004 fix: E0004 — non-exhaustive patterns without wildcard
+    let col_opt: ColumnOptions = ColumnOptions::Required;
+    match col_opt {
+        ColumnOptions::Required => {}
+        ColumnOptions::Index => {}
+        ColumnOptions::Additional => {}
+        ColumnOptions::Hidden => {}
+        ColumnOptions::Optimized => {}
+        // After HIGH-004: E0004 — `_` arm required for non-exhaustive enum
+    }
+
     // Force all bindings to be used (suppress dead-code warnings).
-    let _ = (_cred, _sensor, _descriptor, _step, _col, _table, _pagination);
+    let _ = (
+        _cred,
+        _sensor,
+        _descriptor,
+        _step,
+        _col,
+        _table,
+        _pagination,
+        _rate_hints,
+        _types_descriptor,
+        _types_cred,
+        _infusion_cred,
+    );
 }

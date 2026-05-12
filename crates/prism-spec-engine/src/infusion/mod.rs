@@ -83,7 +83,12 @@ pub struct InfusionSourceConfig {
 ///
 /// Values are resolved at runtime from env vars or keyring; they MUST NOT
 /// be stored in this struct or included in any log output (INV-INFUSE-005).
-#[derive(Clone, Serialize, Deserialize)]
+///
+/// `#[non_exhaustive]`: forward-compat for infusion schema evolution — fields may
+/// expand as new credential resolution mechanisms are added (e.g., vault paths,
+/// rotation policies). Use `CredentialRef::new()` for forward-compatible construction.
+#[non_exhaustive]
+#[derive(Clone, Default, Serialize, Deserialize)]
 pub struct CredentialRef {
     /// Credential field name (for diagnostics only — safe to log).
     pub field_name: String,
@@ -99,6 +104,19 @@ impl std::fmt::Debug for CredentialRef {
             .field("env_var", &self.env_var)
             .field("value", &"<redacted>")
             .finish()
+    }
+}
+
+impl CredentialRef {
+    /// Construct a `CredentialRef` with the given field name and env var.
+    ///
+    /// Internal construction shortcut. External callers should use `CredentialRef::new()`
+    /// for forward-compatible construction when new fields are added.
+    pub fn new(field_name: impl Into<String>, env_var: impl Into<String>) -> Self {
+        Self {
+            field_name: field_name.into(),
+            env_var: env_var.into(),
+        }
     }
 }
 

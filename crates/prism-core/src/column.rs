@@ -9,6 +9,11 @@ use serde::{Deserialize, Serialize};
 ///
 /// Corresponds to the TOML `type` field in a `[[table.columns]]` entry.
 /// Maps to Arrow schema types when prism-query registers DataFusion tables.
+///
+/// `#[non_exhaustive]`: forward-compat for TOML schema evolution — new column types
+/// (e.g., `Binary`, `Uuid`, `Decimal`) may be added without a semver bump.
+/// External matchers MUST include a wildcard `_ => {}` arm.
+#[non_exhaustive]
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum ColumnType {
@@ -30,6 +35,11 @@ pub enum ColumnType {
 ///
 /// Maps to the TOML `options` array in a `[[table.columns]]` entry.
 /// Multiple options can be combined.
+///
+/// `#[non_exhaustive]`: forward-compat for TOML schema evolution — new options
+/// may be added (e.g., `Encrypted`, `PII`) without a semver bump.
+/// External matchers MUST include a wildcard `_ => {}` arm.
+#[non_exhaustive]
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "SCREAMING_SNAKE_CASE")]
 pub enum ColumnOptions {

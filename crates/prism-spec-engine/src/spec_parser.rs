@@ -70,12 +70,35 @@ pub enum PaginationConfig {
 }
 
 /// Rate limit hints from the sensor spec (BC-2.16.002 postcondition).
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+///
+/// `#[non_exhaustive]`: forward-compat for plugin TOML schema evolution — request
+/// bucket policy, jitter, and retry configuration are planned additions.
+/// Fields may expand without a semver bump.
+///
+/// # Forward-compatible construction
+/// External callers should use `..Default::default()` to avoid breakage when new fields are added:
+/// ```ignore
+/// let hints = RateLimitHints { requests_per_second: Some(10.0), ..Default::default() };
+/// ```
+#[non_exhaustive]
+#[derive(Debug, Clone, PartialEq, Default, Serialize, Deserialize)]
 pub struct RateLimitHints {
     /// Maximum requests per second. inter-request delay = 1 / requests_per_second.
     pub requests_per_second: Option<f64>,
     /// Burst allowance in requests.
     pub burst_size: Option<u32>,
+}
+
+impl RateLimitHints {
+    /// Construct a `RateLimitHints` with the specified values.
+    ///
+    /// Internal construction shortcut for forward-compatible external construction.
+    pub fn new(requests_per_second: Option<f64>, burst_size: Option<u32>) -> Self {
+        Self {
+            requests_per_second,
+            burst_size,
+        }
+    }
 }
 
 /// A single step in a multi-step fetch pipeline (BC-2.16.002).
@@ -106,11 +129,34 @@ pub struct FetchStep {
     pub pagination: Option<PaginationConfig>,
 }
 
+impl Default for FetchStep {
+    /// Default `FetchStep` — all optional fields are `None`/empty; required fields use empty strings.
+    ///
+    /// External callers should use struct-literal + `..Default::default()` for forward-compatible
+    /// construction — adding a field to `FetchStep` will not break callers that use this pattern:
+    /// ```ignore
+    /// let step = FetchStep { name: "fetch".to_string(), method: "GET".to_string(), ..Default::default() };
+    /// ```
+    fn default() -> Self {
+        Self {
+            name: String::new(),
+            method: "GET".to_string(),
+            path_template: String::new(),
+            body_template: None,
+            response_path: "$.items".to_string(),
+            pagination_cursor_path: None,
+            variables_produced: vec![],
+            fan_out_batch_size: None,
+            pagination: None,
+        }
+    }
+}
+
 impl FetchStep {
     /// Construct a `FetchStep` with all fields.
     ///
-    /// Required because `#[non_exhaustive]` prevents struct-literal construction
-    /// outside the crate. Use this constructor in tests and external code.
+    /// Internal construction shortcut. External callers should use struct-literal +
+    /// `..Default::default()` for forward compatibility when new fields are added.
     #[allow(clippy::too_many_arguments)]
     pub fn new(
         name: impl Into<String>,
@@ -155,11 +201,29 @@ pub struct ColumnSpec {
     pub options: Vec<ColumnOptions>,
 }
 
+impl Default for ColumnSpec {
+    /// Default `ColumnSpec` — empty name, `ColumnType::String`, no OCSF field, no options.
+    ///
+    /// External callers should use struct-literal + `..Default::default()` for forward-compatible
+    /// construction:
+    /// ```ignore
+    /// let col = ColumnSpec { name: "host".to_string(), column_type: ColumnType::String, ..Default::default() };
+    /// ```
+    fn default() -> Self {
+        Self {
+            name: String::new(),
+            column_type: ColumnType::String,
+            ocsf_field: None,
+            options: vec![],
+        }
+    }
+}
+
 impl ColumnSpec {
     /// Construct a `ColumnSpec`.
     ///
-    /// Required because `#[non_exhaustive]` prevents struct-literal construction
-    /// outside the crate. Use this constructor in tests and external code.
+    /// Internal construction shortcut. External callers should use struct-literal +
+    /// `..Default::default()` for forward compatibility when new fields are added.
     pub fn new(
         name: impl Into<String>,
         column_type: ColumnType,
@@ -293,8 +357,11 @@ impl TableSpec {
 /// `#[non_exhaustive]`: forward-compat for plugin TOML schema evolution — fields may
 /// expand as new auth types are added (e.g., scope, rotation policy). Fields may expand
 /// without a semver bump.
+///
+/// # Forward-compatible construction
+/// External callers should use the `new()` constructor for forward-compatible construction.
 #[non_exhaustive]
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Default, Serialize, Deserialize)]
 pub struct CredentialRef {
     /// Logical credential name within this sensor's keyring namespace.
     /// Example: `"api_key"`, `"client_secret"`.
@@ -304,8 +371,8 @@ pub struct CredentialRef {
 impl CredentialRef {
     /// Construct a `CredentialRef` with the given name.
     ///
-    /// Required because `#[non_exhaustive]` prevents struct-literal construction
-    /// outside the crate. Use this constructor in tests and external code.
+    /// Internal construction shortcut. External callers should use struct-literal +
+    /// `..Default::default()` for forward compatibility when new fields are added.
     pub fn new(name: impl Into<String>) -> Self {
         Self { name: name.into() }
     }
@@ -343,11 +410,39 @@ pub struct SensorSpec {
     pub credential_refs: Vec<CredentialRef>,
 }
 
+impl Default for SensorSpec {
+    /// Default `SensorSpec` — empty strings, `AuthType::ApiKey`, no tables.
+    ///
+    /// External callers should use struct-literal + `..Default::default()` for forward-compatible
+    /// construction:
+    /// ```ignore
+    /// let spec = SensorSpec {
+    ///     sensor_id: "my-sensor".to_string(),
+    ///     name: "My Sensor".to_string(),
+    ///     auth_type: AuthType::ApiKey,
+    ///     base_url: "https://api.example.com".to_string(),
+    ///     ..Default::default()
+    /// };
+    /// ```
+    fn default() -> Self {
+        Self {
+            sensor_id: String::new(),
+            name: String::new(),
+            auth_type: AuthType::ApiKey,
+            base_url: String::new(),
+            tables: vec![],
+            rate_limit_hints: None,
+            version: "1.0.0".to_string(),
+            credential_refs: vec![],
+        }
+    }
+}
+
 impl SensorSpec {
     /// Construct a `SensorSpec` with all fields.
     ///
-    /// Required because `#[non_exhaustive]` prevents struct-literal construction
-    /// outside the crate. Use this constructor in tests and external code.
+    /// Internal construction shortcut. External callers should use struct-literal +
+    /// `..Default::default()` for forward compatibility when new fields are added.
     #[allow(clippy::too_many_arguments)]
     pub fn new(
         sensor_id: impl Into<String>,
@@ -393,11 +488,33 @@ pub struct SensorTableDescriptor {
     pub has_credentials: bool,
 }
 
+impl Default for SensorTableDescriptor {
+    /// Default `SensorTableDescriptor` — empty table name, no columns, empty sensor_id, no credentials.
+    ///
+    /// External callers should use struct-literal + `..Default::default()` for forward-compatible
+    /// construction:
+    /// ```ignore
+    /// let desc = SensorTableDescriptor {
+    ///     table_name: "crowdstrike.devices".to_string(),
+    ///     sensor_id: "crowdstrike".to_string(),
+    ///     ..Default::default()
+    /// };
+    /// ```
+    fn default() -> Self {
+        Self {
+            table_name: String::new(),
+            columns: vec![],
+            sensor_id: String::new(),
+            has_credentials: false,
+        }
+    }
+}
+
 impl SensorTableDescriptor {
     /// Construct a `SensorTableDescriptor`.
     ///
-    /// Required because `#[non_exhaustive]` prevents struct-literal construction
-    /// outside the crate. Use this constructor in tests and external code.
+    /// Internal construction shortcut. External callers should use struct-literal +
+    /// `..Default::default()` for forward compatibility when new fields are added.
     pub fn new(
         table_name: impl Into<String>,
         columns: Vec<ColumnSpec>,

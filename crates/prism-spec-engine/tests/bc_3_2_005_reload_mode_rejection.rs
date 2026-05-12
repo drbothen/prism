@@ -58,17 +58,19 @@ fn make_config_sensor_spec(sensor_id: &str) -> SensorSpec {
 
 /// Build a minimal `SensorSpec` with an explicit DTU mode.
 fn make_config_sensor_spec_with_mode(sensor_id: &str, mode: DtuMode) -> SensorSpec {
-    SensorSpec {
-        sensor_id: sensor_id.to_string(),
-        name: format!("Test {sensor_id}"),
-        version: "1.0".to_string(),
-        auth_type: "api_key".to_string(),
-        base_url: "https://api.example.com".to_string(),
-        tables: vec![],
-        file_hash: format!("hash_{sensor_id}"),
-        source_path: format!("/specs/{sensor_id}.sensor.toml"),
-        mode,
-        credential_refs: Vec::new(),
+    {
+        let mut spec = SensorSpec::new_hot_reload(
+            sensor_id,
+            &format!("Test {sensor_id}"),
+            "1.0",
+            "api_key",
+            "https://api.example.com",
+            vec![],
+            &format!("hash_{sensor_id}"),
+            &format!("/specs/{sensor_id}.sensor.toml"),
+        );
+        spec.mode = mode;
+        spec
     }
 }
 

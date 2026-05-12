@@ -151,10 +151,10 @@ fn build_threat_intel_plugin_spec() -> InfusionSpec {
         plugin_config: Some(prism_spec_engine::infusion::PluginConfig {
             plugin_path: "plugins/threat_intel.prx".to_string(),
         }),
-        credentials: vec![prism_spec_engine::infusion::CredentialRef {
-            field_name: "threat_intel_api_key".to_string(),
-            env_var: "THREAT_INTEL_API_KEY".to_string(),
-        }],
+        credentials: vec![prism_spec_engine::infusion::CredentialRef::new(
+            "threat_intel_api_key",
+            "THREAT_INTEL_API_KEY",
+        )],
         source_path: "threat_intel.infusion.toml".to_string(),
         cache_ttl_secs: Some(900),
     }
@@ -792,10 +792,8 @@ fn test_BC_2_19_004_hot_reload_with_duplicate_udf_rejected_e_infuse_002() {
 /// Traces to: BC-2.19.005 / INV-INFUSE-005 / AC-6.
 #[test]
 fn test_BC_2_19_005_credential_ref_debug_output_redacts_value() {
-    let cred = prism_spec_engine::infusion::CredentialRef {
-        field_name: "maxmind_api_key".to_string(),
-        env_var: "MAXMIND_API_KEY".to_string(),
-    };
+    let cred =
+        prism_spec_engine::infusion::CredentialRef::new("maxmind_api_key", "MAXMIND_API_KEY");
 
     let debug_output = format!("{:?}", cred);
 

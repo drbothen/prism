@@ -36,6 +36,14 @@ pub enum PaginationType {
 
 /// Exported table descriptor for downstream prism-query consumption.
 /// Origin: S-1.11 — SensorTableDescriptor is the public export from spec loading.
+///
+/// `#[non_exhaustive]`: forward-compat for hot-reload config schema evolution —
+/// table metadata may gain new config fields. External construction must use
+/// `..Default::default()` pattern.
+///
+/// Note: This is the hot-reload infrastructure type (distinct from
+/// `spec_parser::SensorTableDescriptor` which is the spec-parser output type).
+#[non_exhaustive]
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct SensorTableDescriptor {
     /// Fully-qualified table name: "{sensor_id}.{table_name}"
@@ -45,11 +53,45 @@ pub struct SensorTableDescriptor {
     pub pagination_type: PaginationType,
 }
 
+impl Default for SensorTableDescriptor {
+    fn default() -> Self {
+        Self {
+            table_name: String::new(),
+            columns: vec![],
+            steps_count: 0,
+            pagination_type: PaginationType::None,
+        }
+    }
+}
+
+impl SensorTableDescriptor {
+    /// Construct a `SensorTableDescriptor`.
+    ///
+    /// Internal construction shortcut for forward-compatible external construction.
+    pub fn new(
+        table_name: impl Into<String>,
+        columns: Vec<ColumnDef>,
+        steps_count: usize,
+        pagination_type: PaginationType,
+    ) -> Self {
+        Self {
+            table_name: table_name.into(),
+            columns,
+            steps_count,
+            pagination_type,
+        }
+    }
+}
+
 /// A credential reference declared in a sensor spec.
 ///
 /// References the credential by sensor name and logical key name within that
 /// sensor's namespace.  The reference is resolved at boot time (step 5) via the
 /// keyring backend — no secret value is ever loaded into memory (AD-017).
+///
+/// `#[non_exhaustive]`: forward-compat for hot-reload config schema evolution —
+/// fields may expand as new auth types are added. External construction must use
+/// `..Default::default()` pattern.
 ///
 /// # F-PASS2-HIGH-3 (S-WAVE5-PREP-01)
 ///
@@ -65,7 +107,8 @@ pub struct SensorTableDescriptor {
 /// [[credential_refs]]
 /// name = "client_secret"
 /// ```
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[non_exhaustive]
+#[derive(Debug, Clone, PartialEq, Eq, Default, Serialize, Deserialize)]
 pub struct CredentialRef {
     /// Logical credential name within this sensor's keyring namespace.
     ///
@@ -76,6 +119,14 @@ pub struct CredentialRef {
 
 /// Parsed representation of a .sensor.toml file.
 /// Origin: S-1.11 — SensorSpec is the parsed representation established there.
+///
+/// `#[non_exhaustive]`: forward-compat for hot-reload config schema evolution —
+/// root spec type; fields will expand with ADR-023 grammar. External construction
+/// must use `..Default::default()` pattern.
+///
+/// Note: This is the hot-reload infrastructure type (distinct from
+/// `spec_parser::SensorSpec` which is the TOML spec-parser output type).
+#[non_exhaustive]
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct SensorSpec {
     pub sensor_id: String,
@@ -106,6 +157,54 @@ pub struct SensorSpec {
     /// declare `[[credential_refs]]` sections will have their refs validated here.
     #[serde(default)]
     pub credential_refs: Vec<CredentialRef>,
+}
+
+impl Default for SensorSpec {
+    fn default() -> Self {
+        Self {
+            sensor_id: String::new(),
+            name: String::new(),
+            version: "1.0.0".to_string(),
+            auth_type: "api_key".to_string(),
+            base_url: String::new(),
+            tables: vec![],
+            file_hash: String::new(),
+            source_path: String::new(),
+            mode: DtuMode::default(),
+            credential_refs: vec![],
+        }
+    }
+}
+
+impl SensorSpec {
+    /// Construct a `SensorSpec` for the hot-reload config manager.
+    ///
+    /// Internal construction shortcut for forward-compatible external construction.
+    /// Sets `mode = DtuMode::Shared` (default) and `credential_refs = []`.
+    #[allow(clippy::too_many_arguments)]
+    pub fn new_hot_reload(
+        sensor_id: impl Into<String>,
+        name: impl Into<String>,
+        version: impl Into<String>,
+        auth_type: impl Into<String>,
+        base_url: impl Into<String>,
+        tables: Vec<SensorTableDescriptor>,
+        file_hash: impl Into<String>,
+        source_path: impl Into<String>,
+    ) -> Self {
+        Self {
+            sensor_id: sensor_id.into(),
+            name: name.into(),
+            version: version.into(),
+            auth_type: auth_type.into(),
+            base_url: base_url.into(),
+            tables,
+            file_hash: file_hash.into(),
+            source_path: source_path.into(),
+            mode: DtuMode::default(),
+            credential_refs: vec![],
+        }
+    }
 }
 
 /// Per-spec availability status for list_sensor_specs (BC-2.16.010).

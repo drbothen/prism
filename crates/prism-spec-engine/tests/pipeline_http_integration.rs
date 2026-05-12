@@ -885,10 +885,7 @@ async fn test_BC_2_16_002_execute_inserts_rate_limit_delay_between_pagination_ca
                 }),
             )],
         )],
-        Some(RateLimitHints {
-            requests_per_second: Some(5.0), // 200ms between requests
-            burst_size: None,
-        }),
+        Some(RateLimitHints::new(Some(5.0), None)), // 200ms between requests
         "1.0.0",
         vec![],
     );

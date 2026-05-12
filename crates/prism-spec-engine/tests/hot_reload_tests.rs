@@ -110,23 +110,21 @@ fn snapshot_with_one_spec(sensor_id: &str) -> ConfigSnapshot {
     let mut specs = HashMap::new();
     specs.insert(
         sensor_id.to_string(),
-        SensorSpec {
-            sensor_id: sensor_id.to_string(),
-            name: format!("Test {}", sensor_id),
-            version: "1.0".to_string(),
-            auth_type: "api_key".to_string(),
-            base_url: "https://api.example.com".to_string(),
-            tables: vec![SensorTableDescriptor {
-                table_name: format!("{}.events", sensor_id),
-                columns: vec![],
-                steps_count: 1,
-                pagination_type: prism_spec_engine::PaginationType::Cursor,
-            }],
-            file_hash,
-            source_path: format!("/specs/{}.sensor.toml", sensor_id),
-            mode: prism_spec_engine::DtuMode::default(),
-            credential_refs: Vec::new(),
-        },
+        SensorSpec::new_hot_reload(
+            sensor_id,
+            &format!("Test {}", sensor_id),
+            "1.0",
+            "api_key",
+            "https://api.example.com",
+            vec![SensorTableDescriptor::new(
+                format!("{}.events", sensor_id),
+                vec![],
+                1,
+                prism_spec_engine::PaginationType::Cursor,
+            )],
+            &file_hash,
+            &format!("/specs/{}.sensor.toml", sensor_id),
+        ),
     );
     ConfigSnapshot {
         sensor_specs: specs,
@@ -430,23 +428,21 @@ fn test_BC_2_16_007_modified_spec_schema_change_reregisters_tables() {
     let mut specs = HashMap::new();
     specs.insert(
         "schema_vendor".to_string(),
-        SensorSpec {
-            sensor_id: "schema_vendor".to_string(),
-            name: "Test schema_vendor".to_string(),
-            version: "1.0".to_string(),
-            auth_type: "api_key".to_string(),
-            base_url: "https://api.example.com".to_string(),
-            tables: vec![SensorTableDescriptor {
-                table_name: "schema_vendor.events".to_string(),
-                columns: vec![],
-                steps_count: 1,
-                pagination_type: prism_spec_engine::PaginationType::Cursor,
-            }],
-            file_hash: old_hash,
-            source_path: path.to_string_lossy().to_string(),
-            mode: prism_spec_engine::DtuMode::default(),
-            credential_refs: Vec::new(),
-        },
+        SensorSpec::new_hot_reload(
+            "schema_vendor",
+            "Test schema_vendor",
+            "1.0",
+            "api_key",
+            "https://api.example.com",
+            vec![SensorTableDescriptor::new(
+                "schema_vendor.events",
+                vec![],
+                1,
+                prism_spec_engine::PaginationType::Cursor,
+            )],
+            &old_hash,
+            path.to_string_lossy().as_ref(),
+        ),
     );
     let old_snapshot = ConfigSnapshot {
         sensor_specs: specs,
@@ -742,33 +738,29 @@ fn test_BC_2_16_010_sensor_id_filter_returns_only_matching() {
     let mut specs = HashMap::new();
     specs.insert(
         "alpha".to_string(),
-        SensorSpec {
-            sensor_id: "alpha".to_string(),
-            name: "Alpha".to_string(),
-            version: "1.0".to_string(),
-            auth_type: "api_key".to_string(),
-            base_url: "https://alpha.example.com".to_string(),
-            tables: vec![],
-            file_hash: "hash_alpha".to_string(),
-            source_path: "/specs/alpha.sensor.toml".to_string(),
-            mode: prism_spec_engine::DtuMode::default(),
-            credential_refs: Vec::new(),
-        },
+        SensorSpec::new_hot_reload(
+            "alpha",
+            "Alpha",
+            "1.0",
+            "api_key",
+            "https://alpha.example.com",
+            vec![],
+            "hash_alpha",
+            "/specs/alpha.sensor.toml",
+        ),
     );
     specs.insert(
         "beta".to_string(),
-        SensorSpec {
-            sensor_id: "beta".to_string(),
-            name: "Beta".to_string(),
-            version: "1.0".to_string(),
-            auth_type: "api_key".to_string(),
-            base_url: "https://beta.example.com".to_string(),
-            tables: vec![],
-            file_hash: "hash_beta".to_string(),
-            source_path: "/specs/beta.sensor.toml".to_string(),
-            mode: prism_spec_engine::DtuMode::default(),
-            credential_refs: Vec::new(),
-        },
+        SensorSpec::new_hot_reload(
+            "beta",
+            "Beta",
+            "1.0",
+            "api_key",
+            "https://beta.example.com",
+            vec![],
+            "hash_beta",
+            "/specs/beta.sensor.toml",
+        ),
     );
     let snapshot = ConfigSnapshot {
         sensor_specs: specs,
