@@ -9,7 +9,7 @@
 # Update EXPECTED when adding/removing violations from enum_violations.rs or struct_violations.rs.
 # (BC-2.01.013 AC-5 / F-LP2-OBS-001 S-PLUGIN-PREREQ-C)
 
-EXPECTED=29
+EXPECTED=30
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 WORKSPACE_ROOT="$(dirname "${SCRIPT_DIR}")"
 

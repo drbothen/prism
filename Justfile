@@ -59,6 +59,7 @@ check-ci:
     cargo deny check
     cargo audit
     cargo semver-checks --workspace --baseline-rev origin/develop
+    @scripts/check-non-exhaustive.sh
     @scripts/check-crate-layout.sh
 
 # Standalone: cargo audit (supply-chain advisories)

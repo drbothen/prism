@@ -4,7 +4,7 @@
 //! struct-literal construction. After `#[non_exhaustive]` is applied, each
 //! literal MUST fail with E0639 (cannot create non-exhaustive struct expression).
 //!
-//! Violations 1-6, 9-12, 16-17, 20-24, 26 (18 total E0639 expected).
+//! Violations 1-6, 9-12, 16-17, 20-24, 26, 30 (19 total E0639 expected).
 
 use prism_core::{ColumnType, RiskTier, TableType};
 use prism_spec_engine::infusion::{
@@ -17,7 +17,7 @@ use prism_spec_engine::spec_parser::{
 };
 use prism_spec_engine::types::{
     ColumnDef, ColumnType as TypesColumnType, CredentialRef as TypesCredentialRef,
-    SensorTableDescriptor as TypesSensorTableDescriptor,
+    SensorSpec as TypesSensorSpec, SensorTableDescriptor as TypesSensorTableDescriptor,
 };
 use prism_spec_engine::write_endpoint::{BatchMode, WriteEndpointSpec, WriteStep};
 
@@ -225,4 +225,29 @@ pub fn v26_column_def() {
         nullable: false,
     };
     let _ = _column_def;
+}
+
+/// Violation 30: types::SensorSpec struct literal (E0639).
+///
+/// `prism_spec_engine::types::SensorSpec` is annotated `#[non_exhaustive]`
+/// (hot-reload infrastructure type, distinct from spec_parser::SensorSpec).
+/// External crates MUST NOT construct it via struct literal — fields may expand
+/// as ADR-023 grammar evolves. This violation exercises the annotation to ensure
+/// it is never silently removed.
+#[allow(dead_code)]
+pub fn v30_types_sensor_spec() {
+    let _spec = TypesSensorSpec {
+        sensor_id: "crowdstrike".to_string(),
+        name: "CrowdStrike".to_string(),
+        version: "1.0.0".to_string(),
+        auth_type: "oauth2_client_credentials".to_string(),
+        base_url: "https://api.crowdstrike.com".to_string(),
+        tables: vec![],
+        file_hash: "abc123".to_string(),
+        source_path: "/specs/crowdstrike.sensor.toml".to_string(),
+        // Intentionally omitting `mode` and `credential_refs` — E0639 fires because
+        // #[non_exhaustive] prevents external struct-literal construction regardless
+        // of whether all fields are supplied.
+    };
+    let _ = _spec;
 }
