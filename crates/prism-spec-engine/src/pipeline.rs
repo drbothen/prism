@@ -857,45 +857,167 @@ fn build_paged_url_impl(
     }
 }
 
-/// Extract the value at a simple JSONPath expression (e.g. `$.field` or `$.a.b.c`).
+/// Extract the value at a JSONPath expression.
 ///
-/// Supported syntax: `$.field1.field2...fieldN` (dot-notation only).
-/// Internally converts to a JSON Pointer (RFC 6901) and delegates to
-/// `serde_json::Value::pointer` so nested key lookup is unambiguous.
+/// ## Supported syntax (AC-2, S-PLUGIN-PREREQ-C)
 ///
-/// F-LP2-LOW-002: RFC 6901 key-content escaping is applied to each dot-separated
-/// segment before joining with '/'. The escape rules are:
+/// Extended beyond dot-notation to support bracket notation and wildcards:
 ///
-/// - `~` → `~0`  (must be applied BEFORE the `/` escape to avoid double-escape)
+/// - `$.field` — dot-notation key lookup
+/// - `$.a.b.c` — nested dot-notation
+/// - `$.array[0]` — bracket index (0-based)
+/// - `$.array[*].field` — wildcard enumeration (returns JSON array of all matches)
+/// - Mixed: `$.data[0].items[*].name`
+///
+/// ## F-LP2-LOW-002: RFC 6901 escaping
+///
+/// Dot-separated key segments apply RFC 6901 escaping before lookup:
+/// - `~` → `~0` (applied before `/` escape to avoid double-escape)
 /// - `/` → `~1`
 ///
-/// This handles JSON keys that contain literal `~` or `/` characters.
+/// ## Out-of-bounds behavior (AC-2d)
 ///
-/// TD-S-PLUGIN-PREREQ-B-003 P3: JSON Pointer dot-notation only. Bracket notation
-/// ($.x[0]) and wildcards ($.x[*]) deferred to PREREQ-C scope (per fix-burst-1 OBS).
+/// `$.x[99]` on a 3-element array returns `Err` with a descriptive message mentioning
+/// the index and bound; never panics.
 ///
-/// Returns `Err(String)` with a descriptive message if the path does not match.
+/// ## Error variants
+///
+/// Returns `Err(String)` with a descriptive message for:
+/// - Malformed path (missing `$.` prefix)
+/// - Key not found at any step
+/// - Bracket index out of bounds
+/// - Wildcard on non-array value (EC-002)
 fn extract_at_path(body: &serde_json::Value, path: &str) -> Result<serde_json::Value, String> {
     let stripped = path
         .strip_prefix("$.")
         .ok_or_else(|| format!("path must start with '$.' : {path}"))?;
-    // F-LP5-LOW-001: reject "$." with no key segment — this is a malformed path
-    // that would produce an empty JSON Pointer "/" matching the root, not a key.
+    // F-LP5-LOW-001: reject "$." with no key segment.
     if stripped.is_empty() {
         return Err(format!(
             "response_path '{path}' must contain at least one key segment after '$.'",
         ));
     }
-    // Each dot-separated segment is a JSON key; escape ~ and / per RFC 6901
-    // before joining with '/' as the JSON Pointer segment separator.
-    let segments: Vec<String> = stripped
-        .split('.')
-        .map(|seg| seg.replace('~', "~0").replace('/', "~1"))
-        .collect();
-    let pointer_path = format!("/{}", segments.join("/"));
-    body.pointer(&pointer_path)
-        .cloned()
-        .ok_or_else(|| format!("path not found: {path}"))
+
+    // Tokenize the path into segments supporting both dot-notation and bracket notation.
+    let tokens = tokenize_jsonpath(stripped);
+
+    // Traverse the JSON value following the token sequence.
+    // When a wildcard `[*]` is encountered, switch to multi-value mode.
+    extract_with_tokens(body, &tokens, path)
+}
+
+/// A single path token in a tokenized JSONPath expression.
+#[derive(Debug, Clone)]
+enum PathToken {
+    /// A dot-notation key segment (e.g., `field`).
+    Key(String),
+    /// A bracket index (e.g., `[0]`).
+    Index(usize),
+    /// A wildcard selector (e.g., `[*]`).
+    Wildcard,
+}
+
+/// Tokenize a JSONPath expression (after stripping the `$.` prefix) into tokens.
+///
+/// Handles:
+/// - `field` → `Key("field")`
+/// - `field[0]` → `Key("field")`, `Index(0)`
+/// - `field[*]` → `Key("field")`, `Wildcard`
+/// - `a.b[0].c[*]` → `Key("a")`, `Key("b")`, `Index(0)`, `Key("c")`, `Wildcard`
+fn tokenize_jsonpath(path: &str) -> Vec<PathToken> {
+    let mut tokens = Vec::new();
+    // Split on `.` first to get dot-segments; each may contain bracket suffixes.
+    for dot_segment in path.split('.') {
+        if dot_segment.is_empty() {
+            continue;
+        }
+        // Check if this segment contains a `[` bracket.
+        if let Some(bracket_start) = dot_segment.find('[') {
+            let key_part = &dot_segment[..bracket_start];
+            if !key_part.is_empty() {
+                // Apply RFC 6901 escaping for the key part.
+                tokens.push(PathToken::Key(
+                    key_part.replace('~', "~0").replace('/', "~1"),
+                ));
+            }
+            // Parse bracket suffixes (there may be multiple: `field[0][*]`).
+            let mut rest = &dot_segment[bracket_start..];
+            while let Some(stripped) = rest.strip_prefix('[') {
+                if let Some(end) = stripped.find(']') {
+                    let inner = &stripped[..end];
+                    if inner == "*" {
+                        tokens.push(PathToken::Wildcard);
+                    } else if let Ok(idx) = inner.parse::<usize>() {
+                        tokens.push(PathToken::Index(idx));
+                    }
+                    rest = &stripped[end + 1..]; // advance past `]`
+                } else {
+                    break;
+                }
+            }
+        } else {
+            // No brackets — plain key segment with RFC 6901 escaping.
+            tokens.push(PathToken::Key(
+                dot_segment.replace('~', "~0").replace('/', "~1"),
+            ));
+        }
+    }
+    tokens
+}
+
+/// Traverse a JSON value following a sequence of path tokens.
+///
+/// Returns `Ok(Value)` for a single-value path (no wildcards), or
+/// `Ok(Value::Array([...]))` for wildcard paths.
+/// Returns `Err(String)` for missing keys, out-of-bounds indexes, or type mismatches.
+fn extract_with_tokens(
+    current: &serde_json::Value,
+    tokens: &[PathToken],
+    original_path: &str,
+) -> Result<serde_json::Value, String> {
+    if tokens.is_empty() {
+        return Ok(current.clone());
+    }
+
+    let (head, tail) = tokens.split_first().expect("tokens non-empty");
+
+    match head {
+        PathToken::Key(k) => {
+            // RFC 6901 pointer step for key lookup.
+            let pointer = format!("/{k}");
+            let next = current
+                .pointer(&pointer)
+                .ok_or_else(|| format!("path not found: {original_path}"))?;
+            extract_with_tokens(next, tail, original_path)
+        }
+        PathToken::Index(idx) => {
+            let arr = current.as_array().ok_or_else(|| {
+                format!("expected array at bracket index step in path '{original_path}'")
+            })?;
+            let elem = arr.get(*idx).ok_or_else(|| {
+                format!(
+                    "index {idx} out of bounds: array has {} elements in path '{original_path}'",
+                    arr.len()
+                )
+            })?;
+            extract_with_tokens(elem, tail, original_path)
+        }
+        PathToken::Wildcard => {
+            // Wildcard: enumerate all elements of the array; apply remaining tokens to each.
+            let arr = current.as_array().ok_or_else(|| {
+                format!(
+                    "wildcard [*] applied to non-array value in path '{original_path}' \
+                     (EC-002: wildcard on object)"
+                )
+            })?;
+            let mut results = Vec::with_capacity(arr.len());
+            for elem in arr {
+                let val = extract_with_tokens(elem, tail, original_path)?;
+                results.push(val);
+            }
+            Ok(serde_json::Value::Array(results))
+        }
+    }
 }
 
 /// Extract a cursor string from the response body at the given JSONPath.
