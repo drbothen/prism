@@ -309,3 +309,133 @@ impl Interpolator {
         Ok(result)
     }
 }
+
+// ---------------------------------------------------------------------------
+// S-PLUGIN-PREREQ-C: AC-4 Red Gate — `$${...}` literal escape mechanism
+//
+// BC-2.16.002 postcondition: path_template and body_template are interpolated
+// against variables; the escape mechanism is a grammar extension of the
+// interpolation surface.
+//
+// AC-4 requires: `$${var}` → literal `${var}` (no variable lookup).
+//                `${var}` → interpolated value of `var` (existing, unchanged).
+//                `$$${var}` → literal `$` followed by interpolated `var`.
+//
+// RED GATE MECHANISM: The current `Interpolator::interpolate` uses a regex that
+// matches `\$\{([a-zA-Z0-9_]+)\.([a-zA-Z0-9_.]+)\}`. A double-dollar `$$` before
+// the opening brace is NOT recognized as an escape — the current regex will either
+// match (treating `$$` as a literal `$` before the live reference) or not match
+// (if the regex is anchored differently). These tests verify the EXPECTED semantics;
+// they fail until the escape mechanism is implemented.
+// ---------------------------------------------------------------------------
+
+#[cfg(test)]
+mod escape_tests {
+    use std::collections::HashMap;
+
+    use super::{InterpolationContext, Interpolator};
+
+    /// AC-4(a): double-dollar escape (`$$` before `{`) produces literal `${var}`.
+    ///
+    /// Template `"$${step1.var}"` with `step1.var = "hello"` in scope must produce
+    /// the literal string `"${step1.var}"` — NOT the interpolated value `"hello"`.
+    ///
+    /// RED GATE: the current regex matches `${step1.var}` inside the template
+    /// (treating the leading `$` as literal preceding text), producing `"$hello"`.
+    /// After AC-4, `$$` before `{` suppresses interpolation and the output is literal.
+    /// This test MUST FAIL until AC-4 is implemented.
+    #[test]
+    fn test_BC_2_16_002_interpolator_escape_double_dollar() {
+        let mut vars = HashMap::new();
+        vars.insert(
+            "step1.var".to_string(),
+            serde_json::Value::String("hello".to_string()),
+        );
+
+        // Template contains "$$" before "${step1.var}" — the AC-4 escape sequence.
+        let template = "$${step1.var}";
+        let result = Interpolator::interpolate(template, &InterpolationContext::UrlPath, &vars);
+
+        assert!(
+            result.is_ok(),
+            "AC-4 RED GATE: double-dollar escape must not return an error; got: {:?}",
+            result.err()
+        );
+        let output = result.unwrap();
+        let expected_literal = "${step1.var}";
+        assert_eq!(
+            output, expected_literal,
+            "AC-4 RED GATE: double-dollar escape must produce literal '{expected_literal}', \
+             not the interpolated value. CURRENT OUTPUT (before AC-4): '{output}'\n\
+             IMPLEMENTATION NEEDED: detect $$ prefix before ${{...}} and suppress interpolation."
+        );
+    }
+
+    /// AC-4(b): `${var}` with `var` in scope still produces the interpolated value.
+    ///
+    /// Backward compat: existing interpolation behavior is unchanged after AC-4.
+    /// This test MUST PASS before AND after AC-4.
+    #[test]
+    fn test_BC_2_16_002_interpolator_live_reference_unaffected() {
+        let mut vars = HashMap::new();
+        vars.insert(
+            "step1.var".to_string(),
+            serde_json::Value::String("hello".to_string()),
+        );
+
+        let template = "${step1.var}";
+        let result = Interpolator::interpolate(template, &InterpolationContext::UrlPath, &vars);
+
+        assert!(
+            result.is_ok(),
+            "backward compat: dollar-brace reference must succeed"
+        );
+        assert_eq!(
+            result.unwrap(),
+            "hello",
+            "backward compat: dollar-brace reference must interpolate to 'hello'"
+        );
+    }
+
+    /// AC-4(c): triple-dollar before brace — one literal `$` plus interpolated value.
+    ///
+    /// Template `"$$${step1.var}"` (three dollars):
+    ///   AC-4 semantics: `$$` escapes to literal `$`; `${step1.var}` is a live reference.
+    ///   Result: `"$"` + `"hello"` = `"$hello"`.
+    ///
+    /// RED GATE: the current regex processes `${step1.var}` inside the template
+    /// but does not handle the leading `$$` escape prefix. Before AC-4:
+    ///   - The regex matches `${step1.var}` (the tail), producing `$$hello`
+    ///     (two literal `$` from unprocessed prefix, then interpolated `hello`).
+    /// After AC-4: the `$$` is consumed as escape → `$`, and the remaining
+    /// `${step1.var}` is interpolated → `hello`. Combined: `$hello`.
+    ///
+    /// This test MUST FAIL until AC-4 is implemented.
+    #[test]
+    fn test_BC_2_16_002_interpolator_triple_dollar_escape() {
+        let mut vars = HashMap::new();
+        vars.insert(
+            "step1.var".to_string(),
+            serde_json::Value::String("hello".to_string()),
+        );
+
+        // "$$${step1.var}" — two dollar signs then a live reference.
+        // AC-4: `$$` → literal `$`; `${step1.var}` → `hello`; combined: `$hello`.
+        let template = "$$${step1.var}";
+        let result = Interpolator::interpolate(template, &InterpolationContext::UrlPath, &vars);
+
+        assert!(
+            result.is_ok(),
+            "AC-4(c): triple-dollar template must not return an error; got: {:?}",
+            result.err()
+        );
+        let output = result.unwrap();
+        assert_eq!(
+            output, "$hello",
+            "AC-4 RED GATE: triple-dollar template must produce '$hello' \
+             (literal $ from double-dollar escape plus interpolated value 'hello'). \
+             CURRENT OUTPUT (before AC-4 implementation): '{}'",
+            output
+        );
+    }
+}

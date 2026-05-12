@@ -379,6 +379,7 @@ impl PipelineExecutor {
                     match &step.pagination {
                         Some(PaginationConfig::CursorToken {
                             cursor_response_path,
+                            ..
                         }) => {
                             let next = extract_cursor(&body, cursor_response_path);
                             match next {
@@ -1686,6 +1687,233 @@ mod execute_step_tests {
         assert!(
             captured.contains("fetch_items"),
             "row 10: log must contain step_name='fetch_items'; captured: {captured}",
+        );
+    }
+}
+
+// ---------------------------------------------------------------------------
+// S-PLUGIN-PREREQ-C: AC-1 Red Gate — page_size on CursorToken first-call and continuation
+//
+// BC-2.16.002 postcondition: pagination follows the sensor spec's declared config.
+// AC-1 extends `PaginationConfig::CursorToken` with `page_size: Option<u32>`.
+// When `Some(n)`, `page_size=n` MUST appear in first-call and continuation URLs.
+// When `None`, no `page_size` parameter may appear.
+//
+// RED GATE MECHANISM: `build_paged_url` currently ignores the `page_size` field
+// (see TD-S-PLUGIN-PREREQ-B-001 comment at pipeline.rs build_paged_url). These tests
+// assert the EXPECTED postcondition; they fail until `build_paged_url` reads and
+// threads `page_size` into the URL.
+// ---------------------------------------------------------------------------
+
+#[cfg(test)]
+mod cursor_page_size_tests {
+    use super::{PaginationConfig, build_paged_url};
+    use crate::spec_parser::FetchStep;
+
+    fn cursor_step(page_size: Option<u32>) -> FetchStep {
+        FetchStep {
+            name: "fetch".to_string(),
+            method: "GET".to_string(),
+            path_template: "/api/devices".to_string(),
+            body_template: None,
+            response_path: "$.resources".to_string(),
+            pagination_cursor_path: None,
+            variables_produced: vec![],
+            fan_out_batch_size: None,
+            pagination: Some(PaginationConfig::CursorToken {
+                cursor_response_path: "$.next_cursor".to_string(),
+                page_size,
+            }),
+        }
+    }
+
+    /// AC-1(a): `page_size: Some(50)` on a first call (no cursor) → URL contains `page_size=50`.
+    ///
+    /// RED GATE: `build_paged_url` does not yet thread `page_size` into the URL.
+    /// This test MUST FAIL until AC-1 implementation is complete.
+    #[test]
+    fn test_BC_2_16_002_cursor_pagination_first_call_includes_page_size() {
+        let step = cursor_step(Some(50));
+        let base = "https://api.crowdstrike.com/devices/queries/devices/v1";
+        let url = build_paged_url(base, &step, &None, 0);
+        assert!(
+            url.contains("page_size=50"),
+            "AC-1 RED GATE: first-call URL must contain 'page_size=50' when page_size=Some(50); \
+             got: {url}\n\
+             IMPLEMENTATION NEEDED: update build_paged_url to read \
+             PaginationConfig::CursorToken {{ page_size }} and append page_size=N to the URL."
+        );
+    }
+
+    /// AC-1(b): `page_size: Some(50)` on a continuation call (cursor present) → URL contains
+    /// both `page_size=50` and the cursor parameter.
+    ///
+    /// RED GATE: `build_paged_url` does not yet append `page_size` on continuation calls.
+    /// This test MUST FAIL until AC-1 implementation is complete.
+    #[test]
+    fn test_BC_2_16_002_cursor_pagination_continuation_includes_page_size() {
+        let step = cursor_step(Some(50));
+        let base = "https://api.crowdstrike.com/devices/queries/devices/v1";
+        let cursor = Some("cursor_xyz_abc".to_string());
+        let url = build_paged_url(base, &step, &cursor, 0);
+        assert!(
+            url.contains("page_size=50"),
+            "AC-1 RED GATE: continuation URL must contain 'page_size=50' when page_size=Some(50); \
+             got: {url}"
+        );
+        assert!(
+            url.contains("cursor_xyz_abc"),
+            "continuation URL must also contain the cursor value; got: {url}"
+        );
+    }
+
+    /// AC-1(c): `page_size: None` → URL does NOT contain `page_size` parameter (backward compat).
+    ///
+    /// This assertion is expected to PASS already (existing behavior omits page_size).
+    /// Included to document the backward-compat invariant.
+    #[test]
+    fn test_BC_2_16_002_cursor_pagination_page_size_none_omitted() {
+        let step = cursor_step(None);
+        let base = "https://api.crowdstrike.com/devices/queries/devices/v1";
+        // First call: no cursor, page_size None
+        let url_first = build_paged_url(base, &step, &None, 0);
+        assert!(
+            !url_first.contains("page_size="),
+            "when page_size=None, first-call URL must not contain 'page_size='; got: {url_first}"
+        );
+        // Continuation call: cursor present, page_size None
+        let cursor = Some("some_cursor".to_string());
+        let url_cont = build_paged_url(base, &step, &cursor, 0);
+        assert!(
+            !url_cont.contains("page_size="),
+            "when page_size=None, continuation URL must not contain 'page_size='; got: {url_cont}"
+        );
+    }
+}
+
+// ---------------------------------------------------------------------------
+// S-PLUGIN-PREREQ-C: AC-2 Red Gate — JSONPath bracket notation + wildcard support
+//
+// BC-2.16.002 postcondition: `extract_at_path` supports dot-notation paths.
+// AC-2 extends this to bracket indexing (`$.x[0]`) and wildcard (`$.x[*]`).
+//
+// RED GATE MECHANISM: `extract_at_path` currently only supports dot-notation paths
+// (see TD-S-PLUGIN-PREREQ-B-003 comment). Bracket notation returns Err.
+// These tests assert the EXPECTED postcondition; they fail until AC-2 is implemented.
+// ---------------------------------------------------------------------------
+
+#[cfg(test)]
+mod jsonpath_bracket_tests {
+    use super::extract_at_path;
+    use serde_json::json;
+
+    /// AC-2(a): `$.devices[0].id` on an array-valued JSON object extracts the first element.
+    ///
+    /// RED GATE: `extract_at_path` splits on `.` only; `[0]` is not recognized as an
+    /// array index, so this path fails to match. Test MUST FAIL until AC-2 is complete.
+    #[test]
+    fn test_BC_2_16_002_extract_bracket_index() {
+        let body = json!({
+            "devices": [
+                {"id": "device-A", "hostname": "host1"},
+                {"id": "device-B", "hostname": "host2"}
+            ]
+        });
+        let result = extract_at_path(&body, "$.devices[0].id");
+        assert!(
+            result.is_ok(),
+            "AC-2 RED GATE: $.devices[0].id must succeed; got Err: {:?}\n\
+             IMPLEMENTATION NEEDED: extend extract_at_path to parse bracket index notation.",
+            result.err()
+        );
+        assert_eq!(
+            result.unwrap(),
+            json!("device-A"),
+            "$.devices[0].id must return 'device-A'"
+        );
+    }
+
+    /// AC-2(b): `$.devices[*].id` on an array-valued JSON object returns all matching values.
+    ///
+    /// RED GATE: wildcard `[*]` is not supported by the current dot-split path traversal.
+    /// Test MUST FAIL until AC-2 is complete.
+    #[test]
+    fn test_BC_2_16_002_extract_wildcard_enumeration() {
+        let body = json!({
+            "devices": [
+                {"id": "device-A"},
+                {"id": "device-B"}
+            ]
+        });
+        let result = extract_at_path(&body, "$.devices[*].id");
+        assert!(
+            result.is_ok(),
+            "AC-2 RED GATE: $.devices[*].id must succeed; got Err: {:?}\n\
+             IMPLEMENTATION NEEDED: extend extract_at_path to support wildcard [*] enumeration \
+             returning a JSON array of matched values.",
+            result.err()
+        );
+        let values = result.unwrap();
+        let expected = json!(["device-A", "device-B"]);
+        assert_eq!(
+            values, expected,
+            "$.devices[*].id must return [\"device-A\", \"device-B\"]; got: {values}"
+        );
+    }
+
+    /// AC-2(c): Backward compat — `$.resources` on an object still resolves to the array.
+    ///
+    /// This test verifies the existing dot-notation behavior is unchanged after AC-2 impl.
+    /// Expected to PASS before AC-2 (existing behavior). Included as a regression anchor.
+    #[test]
+    fn test_BC_2_16_002_extract_backward_compat_dot_path() {
+        let body = json!({
+            "resources": [{"id": 1}, {"id": 2}]
+        });
+        let result = extract_at_path(&body, "$.resources");
+        assert!(
+            result.is_ok(),
+            "backward compat: $.resources must still resolve; got Err: {:?}",
+            result.err()
+        );
+        assert_eq!(
+            result.unwrap(),
+            json!([{"id": 1}, {"id": 2}]),
+            "$.resources must return the full array"
+        );
+    }
+
+    /// AC-2(d): `$.x[99]` on a 3-element array returns a structured error (not panic, not None).
+    ///
+    /// RED GATE: current `extract_at_path` returns `Err(String)` for any bracket path.
+    /// After AC-2, it must return `Err` specifically for out-of-bounds (not panic).
+    /// This test will fail at the first assertion because `$.x[99]` syntax is not
+    /// parsed — after AC-2 it should return Err due to out-of-bounds (not due to
+    /// unrecognized syntax). The behavior changes but the no-panic invariant is the goal.
+    #[test]
+    fn test_BC_2_16_002_extract_bracket_out_of_bounds_structured_error() {
+        let body = json!({
+            "x": [1, 2, 3]
+        });
+        let result = extract_at_path(&body, "$.x[99]");
+        // Post-AC-2: must return Err (structured, not panic). Currently returns Err for a
+        // different reason (unrecognized bracket syntax). The invariant: MUST NOT panic.
+        assert!(
+            result.is_err(),
+            "AC-2: $.x[99] on a 3-element array must return Err (out-of-bounds); \
+             after AC-2 impl this Err should have a descriptive message, not just 'path not found'"
+        );
+        // Post-AC-2 refinement: the error message should indicate out-of-bounds.
+        // Before AC-2 this message says "path must start with '$.'..." or "path not found".
+        // After AC-2 this message should say something like "index 99 out of bounds".
+        // This assertion documents the EXPECTED post-AC-2 error message and FAILS before AC-2.
+        let err_msg = result.unwrap_err();
+        assert!(
+            err_msg.contains("out of bounds")
+                || err_msg.contains("index")
+                || err_msg.contains("99"),
+            "AC-2 RED GATE: out-of-bounds error message must reference the index or 'out of bounds'; \
+             current message before AC-2 is: '{err_msg}'"
         );
     }
 }

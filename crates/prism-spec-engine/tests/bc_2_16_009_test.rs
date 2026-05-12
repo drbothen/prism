@@ -382,6 +382,7 @@ fn test_BC_2_16_009_rejects_cursor_pagination_with_empty_response_path() {
     if let Some(step) = spec.tables[0].steps.first_mut() {
         step.pagination = Some(PaginationConfig::CursorToken {
             cursor_response_path: "".to_string(), // invalid
+            page_size: None,
         });
     }
 

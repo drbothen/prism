@@ -201,6 +201,7 @@ fn inject_error_cursor_pagination_missing_path(spec: &mut SensorSpec) {
         if let Some(step) = table.steps.first_mut() {
             step.pagination = Some(PaginationConfig::CursorToken {
                 cursor_response_path: "".to_string(), // empty = invalid
+                page_size: None,
             });
         }
     }

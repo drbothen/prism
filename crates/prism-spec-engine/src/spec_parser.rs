@@ -39,7 +39,22 @@ pub enum PaginationConfig {
     /// No pagination; single request returns all records.
     None,
     /// Cursor-token pagination; `cursor_response_path` must be a valid JSONPath.
-    CursorToken { cursor_response_path: String },
+    ///
+    /// `page_size` — when `Some(n)`, the `page_size` query parameter is appended to
+    /// BOTH the first-call URL (no cursor yet) and all cursor-continuation URLs.
+    /// When `None`, no `page_size` parameter is appended.
+    ///
+    /// TD-S-PLUGIN-PREREQ-B-001 (AC-1): stub field added in Red Gate phase.
+    /// `build_paged_url` does not yet thread this value into the URL — that is the
+    /// implementation obligation for the green phase.
+    CursorToken {
+        cursor_response_path: String,
+        /// Page size to append to every cursor-pagination request (first-call and continuations).
+        /// `None` = omit the parameter (default). Supports backward-compatible TOML parsing
+        /// where older specs do not declare a `page_size` field.
+        #[serde(default)]
+        page_size: Option<u32>,
+    },
     /// Offset/limit pagination; `page_size` must be > 0.
     OffsetLimit { page_size: u32 },
 }

@@ -346,6 +346,7 @@ async fn test_BC_2_16_002_execute_iterates_cursor_pagination_until_null() {
                 fan_out_batch_size: None,
                 pagination: Some(PaginationConfig::CursorToken {
                     cursor_response_path: "$.pagination.cursor".to_string(),
+                    page_size: None,
                 }),
             }],
         )],
@@ -636,6 +637,7 @@ async fn test_BC_2_16_002_execute_percent_encodes_opaque_cursor() {
                 fan_out_batch_size: None,
                 pagination: Some(PaginationConfig::CursorToken {
                     cursor_response_path: "$.next_cursor".to_string(),
+                    page_size: None,
                 }),
             }],
         )],
@@ -924,6 +926,7 @@ async fn test_BC_2_16_002_execute_inserts_rate_limit_delay_between_pagination_ca
                 fan_out_batch_size: None,
                 pagination: Some(PaginationConfig::CursorToken {
                     cursor_response_path: "$.cursor".to_string(),
+                    page_size: None,
                 }),
             }],
         )],
@@ -1100,6 +1103,7 @@ async fn test_BC_2_16_002_execute_truncates_at_10k_with_truncated_flag_set() {
                 fan_out_batch_size: None,
                 pagination: Some(PaginationConfig::CursorToken {
                     cursor_response_path: "$.cursor".to_string(),
+                    page_size: None,
                 }),
             }],
         )],
@@ -1347,6 +1351,7 @@ async fn test_BC_2_16_002_execute_aborts_on_non_advancing_cursor() {
                 fan_out_batch_size: None,
                 pagination: Some(PaginationConfig::CursorToken {
                     cursor_response_path: "$.cursor".to_string(),
+                    page_size: None,
                 }),
             }],
         )],
@@ -1508,6 +1513,7 @@ async fn test_BC_2_16_002_execute_coerces_numeric_cursor_to_string() {
                 fan_out_batch_size: None,
                 pagination: Some(PaginationConfig::CursorToken {
                     cursor_response_path: "$.cursor".to_string(),
+                    page_size: None,
                 }),
             }],
         )],
@@ -1620,6 +1626,7 @@ async fn test_BC_2_16_002_execute_aborts_at_max_pages_per_step() {
                 fan_out_batch_size: None,
                 pagination: Some(PaginationConfig::CursorToken {
                     cursor_response_path: "$.pagination.cursor".to_string(),
+                    page_size: None,
                 }),
             }],
         )],
@@ -1812,6 +1819,7 @@ async fn test_BC_2_16_002_emits_pipeline_truncated_event_on_10k_cap() {
                     fan_out_batch_size: None,
                     pagination: Some(PaginationConfig::CursorToken {
                         cursor_response_path: "$.cursor".to_string(),
+                        page_size: None,
                     }),
                 }],
             ),
@@ -2116,6 +2124,7 @@ async fn test_BC_2_16_002_execute_discards_partial_records_on_mid_pipeline_500()
                 // CursorToken pagination: page-1 cursor "abc", page-2 returns 500
                 pagination: Some(PaginationConfig::CursorToken {
                     cursor_response_path: "$.next".to_string(),
+                    page_size: None,
                 }),
             }],
         )],
@@ -2215,6 +2224,7 @@ async fn test_BC_2_16_002_cursor_unsupported_type_emits_structured_event() {
                 fan_out_batch_size: None,
                 pagination: Some(PaginationConfig::CursorToken {
                     cursor_response_path: "$.next".to_string(),
+                    page_size: None,
                 }),
             }],
         )],
@@ -2335,6 +2345,7 @@ fn test_BC_2_16_002_spec_with_multi_array_fan_out_template_rejected() {
                     // Paginated step: implies array output
                     pagination: Some(PaginationConfig::CursorToken {
                         cursor_response_path: "$.next".to_string(),
+                        page_size: None,
                     }),
                 },
                 FetchStep {
@@ -2349,6 +2360,7 @@ fn test_BC_2_16_002_spec_with_multi_array_fan_out_template_rejected() {
                     // Also paginated: implies array output
                     pagination: Some(PaginationConfig::CursorToken {
                         cursor_response_path: "$.next".to_string(),
+                        page_size: None,
                     }),
                 },
                 FetchStep {
@@ -2472,6 +2484,7 @@ async fn test_BC_2_16_002_cursor_preview_handles_multi_byte_utf8_without_panic()
                 fan_out_batch_size: None,
                 pagination: Some(PaginationConfig::CursorToken {
                     cursor_response_path: "$.next".to_string(),
+                    page_size: None,
                 }),
             }],
         )],
