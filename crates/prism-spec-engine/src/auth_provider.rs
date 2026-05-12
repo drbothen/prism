@@ -145,9 +145,15 @@ impl AuthProvider for NullAuthProvider {
 #[cfg(any(test, feature = "test-helpers"))]
 pub struct MockAuthProvider {
     /// Token returned on every call.
-    pub token: String,
+    ///
+    /// Private: construct via [`MockAuthProvider::new`] and read via [`MockAuthProvider::token`].
+    /// Direct field mutation is disallowed — use a new instance if the token must change
+    /// (F-LP10-LOW-002: was `pub`, which invited accidental mutation bypassing construction).
+    token: String,
     /// Number of times `acquire_token` was called (interior-mutable for `&self` API).
-    pub call_count: std::sync::atomic::AtomicU32,
+    ///
+    /// Private: read via [`MockAuthProvider::calls`] (F-LP10-LOW-002 sibling).
+    call_count: std::sync::atomic::AtomicU32,
 }
 
 #[cfg(any(test, feature = "test-helpers"))]
@@ -158,6 +164,14 @@ impl MockAuthProvider {
             token: token.into(),
             call_count: std::sync::atomic::AtomicU32::new(0),
         }
+    }
+
+    /// Return the configured bearer token string (read-only).
+    ///
+    /// Use only for assertions in tests that need to verify the token value.
+    /// Do NOT log this value at any level (INV-INFUSE-005 / AD-017).
+    pub fn token(&self) -> &str {
+        &self.token
     }
 
     /// Return the number of times `acquire_token` was invoked.
@@ -196,7 +210,9 @@ impl AuthProvider for MockAuthProvider {
 #[derive(Debug, Default)]
 pub struct FailingAuthProvider {
     /// Number of times `acquire_token` was called (interior-mutable for `&self` API).
-    pub call_count: std::sync::atomic::AtomicU32,
+    ///
+    /// Private: read via [`FailingAuthProvider::calls`] (F-LP10-LOW-002 sibling sweep).
+    call_count: std::sync::atomic::AtomicU32,
 }
 
 #[cfg(any(test, feature = "test-helpers"))]

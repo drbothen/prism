@@ -969,7 +969,7 @@ fn find_fan_out_array(
     let mut array_vars: Vec<(String, serde_json::Value)> = Vec::new();
     let mut seen_keys = std::collections::HashSet::new();
 
-    for template in templates {
+    for template in &templates {
         let refs = crate::interpolation::Interpolator::extract_references(template);
         for (step_name, field_path) in refs {
             let key = format!("{step_name}.{field_path}");
@@ -979,6 +979,31 @@ fn find_fan_out_array(
             if let Some(val) = step_vars.get(&key).filter(|v| v.is_array()) {
                 seen_keys.insert(key.clone());
                 array_vars.push((key, val.clone()));
+            }
+        }
+    }
+
+    // F-LP10-MED-002: After collecting array vars, check for Object-typed variables that
+    // are referenced in templates but were NOT classified as fan-out source (they are
+    // Objects, not Arrays). Object values passed through `value_to_string` are silently
+    // stringified as JSON into the URL/body — likely a spec bug. Emit a structured warn
+    // per offending reference so operators can detect this ambiguity.
+    for template in &templates {
+        let refs = crate::interpolation::Interpolator::extract_references(template);
+        for (ref_step_name, ref_field_path) in refs {
+            let key = format!("{ref_step_name}.{ref_field_path}");
+            if let Some(value) = step_vars.get(&key)
+                && value.is_object()
+            {
+                tracing::warn!(
+                    event_type = "fanout_invalid_source_type",
+                    step_name = %step.name,
+                    var_name = %key,
+                    actual_type = "Object",
+                    "Step references an Object-valued variable in a template; will be \
+                     stringified into URL/body. This is likely a spec bug — consider \
+                     referencing a scalar field (${{var.field}}) instead."
+                );
             }
         }
     }

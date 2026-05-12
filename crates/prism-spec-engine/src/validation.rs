@@ -17,6 +17,19 @@ use prism_core::{SpecError, SpecErrorCode};
 use crate::interpolation::Interpolator;
 use crate::spec_parser::{FetchStep, PaginationConfig, SensorSpec};
 
+/// Return a byte-index-safe prefix of `s` containing at most `max_chars` Unicode codepoints.
+///
+/// Using `s[..byte_index]` where `byte_index` may land mid-codepoint causes a panic for
+/// multi-byte UTF-8 strings (e.g., emoji). This helper is safe for all UTF-8 input.
+///
+/// Used to sanitize user-controlled strings before embedding them in error messages (F-LP10-MED-001).
+pub(crate) fn truncate_at_char_boundary(s: &str, max_chars: usize) -> &str {
+    match s.char_indices().nth(max_chars) {
+        Some((idx, _)) => &s[..idx],
+        None => s,
+    }
+}
+
 /// A validation error that causes the spec to be rejected.
 ///
 /// Carries an E-SPEC-* code, message, and TOML path for actionable correction.
@@ -122,8 +135,9 @@ pub fn validate_sensor_spec(spec: &SensorSpec) -> ValidatorOutput {
             code: SpecErrorCode::ESpec001,
             message: format!(
                 "base_url '{}' is not a valid URL (must start with http:// or https://)",
-                // Sanitize: truncate to 200 chars to avoid log injection
-                &spec.base_url[..spec.base_url.len().min(200)]
+                // Sanitize: truncate to 200 codepoints (char-boundary-safe) to avoid log injection.
+                // F-LP10-MED-001: old byte-index slice panics on multi-byte UTF-8 (e.g., emoji).
+                truncate_at_char_boundary(&spec.base_url, 200)
             ),
             toml_path: Some("sensor.base_url".to_string()),
             file_path: None,

@@ -2679,3 +2679,154 @@ async fn test_BC_2_16_002_fanout_ambiguous_multi_array_emits_structured_event() 
         "F-LP9-MED-002: log must contain the step name (step3); log output: {log_output}"
     );
 }
+
+// ---------------------------------------------------------------------------
+// F-LP10-MED-002: Object-valued step_var silently stringified — warn emitted
+// ---------------------------------------------------------------------------
+
+/// BC-2.16.002 / F-LP10-MED-002: When a step's path_template references an
+/// Object-valued step variable (not an Array), `find_fan_out_array` must emit
+/// a structured `fanout_invalid_source_type` warn.
+///
+/// Setup:
+/// - step1: GET /step1/metadata → `{"metadata": {"host_id":"abc","region":"us-east"}}`,
+///   response_path: `"$.metadata"`, variables_produced: `["metadata"]`
+/// - step2: GET `/api/devices/${step1.metadata}/lookup` → `{"items": [{"device":"d1"}]}`
+///
+/// `step1.metadata` is Object-typed. Without the fix, `find_fan_out_array` silently
+/// skips it (not an Array), then interpolation stringifies the object into the URL —
+/// no warning emitted. With the fix, a structured `fanout_invalid_source_type` warn
+/// is emitted with the step name and variable name.
+///
+/// RED GATE: No `fanout_invalid_source_type` event in log → assertion FAILS.
+/// GREEN (post-fix): warn emitted → assertion PASSES. Pipeline still executes.
+#[tokio::test]
+async fn test_BC_2_16_002_fanout_invalid_source_type_emits_structured_event_for_object() {
+    use std::sync::{Arc, Mutex};
+    use tracing_subscriber::util::SubscriberInitExt;
+
+    // Set up log capture harness.
+    let log_buffer: Arc<Mutex<String>> = Arc::new(Mutex::new(String::new()));
+    let log_buffer_clone = log_buffer.clone();
+
+    let writer = tracing_subscriber::fmt::writer::BoxMakeWriter::new(move || {
+        struct BufWriter(Arc<Mutex<String>>);
+        impl std::io::Write for BufWriter {
+            fn write(&mut self, buf: &[u8]) -> std::io::Result<usize> {
+                let s = String::from_utf8_lossy(buf);
+                self.0.lock().unwrap().push_str(&s);
+                Ok(buf.len())
+            }
+            fn flush(&mut self) -> std::io::Result<()> {
+                Ok(())
+            }
+        }
+        BufWriter(log_buffer_clone.clone())
+    });
+
+    let subscriber = tracing_subscriber::fmt()
+        .with_writer(writer)
+        .with_max_level(tracing::Level::WARN)
+        .finish();
+
+    let _guard = subscriber.set_default();
+
+    let mock_server = MockServer::start().await;
+
+    // step1: returns an Object under "metadata"
+    Mock::given(method("GET"))
+        .and(path("/step1/metadata"))
+        .respond_with(ResponseTemplate::new(200).set_body_json(serde_json::json!({
+            "metadata": {"host_id": "abc", "region": "us-east"}
+        })))
+        .mount(&mock_server)
+        .await;
+
+    // step2: accepts any request (object gets stringified into URL path)
+    Mock::given(method("GET"))
+        .respond_with(ResponseTemplate::new(200).set_body_json(serde_json::json!({
+            "items": [{"device": "d1"}]
+        })))
+        .mount(&mock_server)
+        .await;
+
+    let spec = SensorSpec {
+        sensor_id: "object-fanout-sensor".to_string(),
+        name: "Object Fanout Sensor".to_string(),
+        auth_type: AuthType::BearerStatic,
+        base_url: mock_server.uri(),
+        tables: vec![TableSpec::new_point_in_time(
+            "devices",
+            "security_finding",
+            vec![ColumnSpec {
+                name: "device".to_string(),
+                column_type: ColumnType::String,
+                ocsf_field: None,
+                options: vec![],
+            }],
+            vec![
+                FetchStep {
+                    name: "step1".to_string(),
+                    method: "GET".to_string(),
+                    path_template: "/step1/metadata".to_string(),
+                    body_template: None,
+                    // response_path resolves to the Object value itself
+                    response_path: "$.metadata".to_string(),
+                    pagination_cursor_path: None,
+                    variables_produced: vec!["metadata".to_string()],
+                    fan_out_batch_size: None,
+                    pagination: None,
+                },
+                FetchStep {
+                    name: "step2".to_string(),
+                    method: "GET".to_string(),
+                    // ${step1.metadata} is an Object — will be stringified into URL.
+                    // F-LP10-MED-002: must emit fanout_invalid_source_type warn.
+                    path_template: "/api/devices/${step1.metadata}/lookup".to_string(),
+                    body_template: None,
+                    response_path: "$.items".to_string(),
+                    pagination_cursor_path: None,
+                    variables_produced: vec![],
+                    fan_out_batch_size: None,
+                    pagination: None,
+                },
+            ],
+        )],
+        rate_limit_hints: None,
+        version: "1.0.0".to_string(),
+        credential_refs: vec![],
+    };
+
+    let table = spec.tables[0].clone();
+    let context = FetchContext::new(OrgSlug::new("test-org"), HashMap::new());
+    let http_client = reqwest::Client::builder()
+        .timeout(std::time::Duration::from_secs(30))
+        .build()
+        .expect("reqwest Client::build must succeed");
+    let auth_provider = NullAuthProvider;
+
+    // Pipeline must execute (backward-compatible: Object gets stringified; warn surfaced).
+    let result =
+        PipelineExecutor::execute(&spec, &table, &context, &http_client, &auth_provider).await;
+    assert!(
+        result.is_ok(),
+        "F-LP10-MED-002: pipeline must execute (Object stringified into URL); got: {:?}",
+        result
+    );
+
+    // Structured warn MUST have been emitted.
+    let log_output = log_buffer.lock().unwrap().clone();
+    assert!(
+        log_output.contains("fanout_invalid_source_type"),
+        "F-LP10-MED-002: log must contain event_type=fanout_invalid_source_type; \
+         pre-fix code emits no warn for Object-typed variables. Log output: {log_output}"
+    );
+    assert!(
+        log_output.contains("Object"),
+        "F-LP10-MED-002: log must state actual_type=Object; log output: {log_output}"
+    );
+    assert!(
+        log_output.contains("step2"),
+        "F-LP10-MED-002: log must contain the step name (step2); log output: {log_output}"
+    );
+}

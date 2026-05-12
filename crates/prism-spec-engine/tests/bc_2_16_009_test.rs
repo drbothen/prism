@@ -609,3 +609,51 @@ fn test_BC_2_16_002_validation_accepts_valid_dollar_dot_response_path() {
         result.err()
     );
 }
+
+// ---------------------------------------------------------------------------
+// F-LP10-MED-001: byte-boundary-safe truncation of base_url in error messages
+// ---------------------------------------------------------------------------
+
+/// BC-2.16.009 / F-LP10-MED-001: `validate_sensor_spec` must NOT panic when
+/// `base_url` contains multi-byte UTF-8 characters and a byte-index slice lands
+/// mid-codepoint.
+///
+/// Constructs `base_url = "x" + "🎯".repeat(60)` = 1 + 60*4 = 241 bytes.
+/// With the old `&url[..url.len().min(200)]`, byte 200 falls inside the 50th emoji
+/// (bytes 197..201) — a non-char-boundary — causing a `byte index 200 is not a
+/// char boundary` panic.
+///
+/// RED GATE (pre-fix): PANICS with byte-boundary panic.
+/// GREEN (post-fix): returns `Err(ValidationError)` — no panic — and error message
+///   contains a truncated prefix of the URL.
+#[test]
+fn test_BC_2_16_009_validation_handles_multibyte_utf8_base_url_without_panic() {
+    let mut spec = minimal_valid_spec();
+    // "x" + 60 × "🎯" = 1 + 240 = 241 bytes; 61 codepoints.
+    // Old code: &url[..241.min(200)] = &url[..200] — byte 200 is inside emoji 50 → panic.
+    spec.base_url = format!("x{}", "🎯".repeat(60));
+
+    // Must not panic — must return a clean ValidationError.
+    let result = validate_sensor_spec(&spec);
+    assert!(
+        result.is_err(),
+        "base_url not starting with http:// must produce an error; got Ok"
+    );
+    let errors = result.unwrap_err();
+    // The error must exist and must NOT panic to reach this assert.
+    assert!(
+        errors.iter().any(|e| e.code == SpecErrorCode::ESpec001),
+        "error must carry E-SPEC-001: {:?}",
+        errors
+    );
+    // Error message must contain a truncated (but char-boundary-safe) prefix of the URL.
+    let msg = &errors
+        .iter()
+        .find(|e| e.code == SpecErrorCode::ESpec001)
+        .unwrap()
+        .message;
+    assert!(
+        msg.contains('x') || msg.contains("base_url"),
+        "error message must reference the url or contain its prefix: {msg}"
+    );
+}
