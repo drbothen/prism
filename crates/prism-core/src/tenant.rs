@@ -74,25 +74,26 @@ impl OrgSlug {
         }
     }
 
-    /// Bypass validation — for use ONLY when the caller has already validated the string
-    /// through an external mechanism, or in test helpers.
+    /// Bypass-validation constructor for test fixtures only.
     ///
-    /// Constructs a valid-state `OrgSlug` without running the regex check.
+    /// # Precondition
+    /// The caller MUST ensure `s` satisfies `^[a-zA-Z0-9_-]{1,64}$`. Passing an
+    /// invalid string creates an `OrgSlug` in `Valid` state with invalid content
+    /// — incorrect behavior downstream (credential store lookups, audit logging).
     ///
-    /// **Precondition:** The caller MUST ensure that `s` is a valid org slug
-    /// (`^[a-zA-Z0-9_-]{1,64}$`). Passing an invalid string creates an `OrgSlug`
-    /// in `Valid` state with invalid content, which will cause incorrect behavior
-    /// downstream (e.g., credential store lookups, audit logging).
+    /// Feature-gating is NOT applied: test fixtures across crate boundaries
+    /// (`prism-credentials/`, `prism-query/tests/`, `prism-query/src/write_dispatch.rs`)
+    /// need this function and `#[cfg(test)]` does not propagate downstream.
     ///
-    /// **AC-6 Audit (S-PLUGIN-PREREQ-C):** This function is called from both
-    /// test code and one production fallback path in `prism-query/src/materialization.rs`
-    /// (synthetic slug generation when `OrgRegistry` is absent in test mode at runtime).
-    /// Feature-gating is NOT applied here because the production fallback path is not
-    /// inside a `#[cfg(test)]` block. The production caller has documented the precondition:
-    /// it calls `new_unchecked` only with a synthetic slug derived from a UUID prefix,
-    /// which is guaranteed to match `[a-zA-Z0-9_-]{1,64}`.
+    /// # History (MED-001 update, S-PLUGIN-PREREQ-C fix-burst-2)
+    /// The prior production caller in `prism-query/src/materialization.rs` was migrated
+    /// to `OrgSlug::new()` with `"synthetic-unmapped"` sentinel fallback (HIGH-006 closure,
+    /// fix-burst-1). No production caller of `new_unchecked` remains.
     ///
-    /// See `crates/prism-core/tests/new_unchecked_audit.rs` for the inventory baseline test.
+    /// # Audit guardrail
+    /// Locked by `crates/prism-core/tests/new_unchecked_audit.rs` allowlist tuple
+    /// `("tenant.rs", "OrgSlug")`. Any new `*::new_unchecked` in the workspace requires
+    /// an explicit allowlist entry or feature-gate.
     pub fn new_unchecked(s: &str) -> Self {
         OrgSlug(OrgSlugInner::Valid(Arc::from(s)))
     }
