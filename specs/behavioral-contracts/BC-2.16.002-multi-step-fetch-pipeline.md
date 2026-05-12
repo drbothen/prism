@@ -1,7 +1,7 @@
 ---
 document_type: behavioral-contract
 level: L3
-version: "1.5"
+version: "1.6"
 status: draft
 producer: product-owner
 timestamp: 2026-04-13T12:00:00
@@ -70,6 +70,7 @@ final collected records, not intermediate step results. Rate limit hints from th
 - **Request count semantics (v1.5)** — `PipelineResult.request_count` is the number of HTTP requests issued by the pipeline steps (NOT including `AuthProvider::acquire_token` calls, which use the AuthProvider's own transport). With the v1.5 eager-token semantic, a single-step single-page pipeline produces `request_count == 1` (not 2 as in v1.4, where a 401 probe request was required before the token was acquired).
 - **Auth initial acquisition audit signal (v1.5)** — When `PipelineExecutor::execute` invokes `AuthProvider::acquire_token` eagerly at pipeline start, the executor emits one of two `tracing` events: `tracing::info!` with `event_type = "auth_initial_acquired"` on Ok (fields: `sensor_id`, `client_id`), OR `tracing::error!` with `event_type = "auth_initial_failed"` on Err (fields: `sensor_id`, `client_id`, `detail`). The token value itself is NEVER included in either event. An `auth_initial_failed` result causes the pipeline to abort immediately (no fetch steps are attempted).
 - **Auth refresh audit signal** — When `AuthProvider::acquire_token` is invoked on a 401 retry (mid-pipeline token expiry — the legitimate refresh case), the executor emits a `tracing::warn!` event with `event_type = "auth_refresh_triggered"`, `sensor_id`, `client_id`, `step_name`. On Ok from the retry call: `tracing::info!` with `event_type = "auth_refresh_succeeded"`. On Err: `tracing::error!` with `event_type = "auth_refresh_failed"` and `detail`. On double-401 abort: `tracing::error!` with `event_type = "auth_refresh_double_401"`. Token value is NEVER included in any event. This satisfies VP-PLUGIN-005 assertion (d) (ADR-023 §E).
+- **Partial-record discard on mid-pipeline HTTP failure** — When any fetch step's HTTP request fails with a non-401 non-200 status (e.g., 500, 503, network timeout, JSON parse error, page-cap exceeded, cursor non-advance), `PipelineExecutor::execute` returns `Err(SpecEngineError::HttpRequestFailed{...})`. The `PipelineResult` is NOT returned to the caller. ALL records accumulated from prior successfully-completed steps are discarded. This is the "all-or-nothing" semantic: callers must not assume partial data on Err return. Rationale: a partial PipelineResult could mislead downstream OCSF mappers into producing schema-mismatched rows; explicit Err propagation forces the caller to handle the failure mode. The 401-retry path is the exception (handled internally per the auth-refresh postcondition family).
 
 ## Variable Scope and Lifetime
 - Variables produced by a step are available to all subsequent steps but not to prior steps
@@ -91,7 +92,7 @@ final collected records, not intermediate step results. Rate limit hints from th
 | Error | Condition | Behavior |
 |-------|-----------|----------|
 | `E-SPEC-010` | Variable interpolation failure at runtime (variable exists but field path does not match response structure) | `E-SPEC-010` with the step name, variable reference, and actual response structure hint |
-| (sensor_error) | HTTP error on any step | Pipeline aborts for the current client; `sensor_error` reported in query response (consistent with BC-2.01.010 partial failure handling) |
+| (sensor_error) | HTTP error on any step (non-401, non-200) | Pipeline aborts; ALL accumulated records discarded; `Err(HttpRequestFailed)` propagated to caller. NO partial `PipelineResult` returned. See partial-record-discard postcondition for rationale. |
 | (no error) | Empty response from a non-final step | Subsequent steps receive empty arrays; produces zero results (not an error) |
 
 ## Edge Cases
@@ -132,6 +133,7 @@ See `.factory/specs/prd-supplements/test-vectors.md` for full canonical vectors.
 
 | Version | Burst | Date | Author | Change |
 |---------|-------|------|--------|--------|
+| 1.6 | LOCAL-pass-7-fix | 2026-05-11 | product-owner | Clarify partial-record discard policy on mid-pipeline HTTP failure. Existing § Error Conditions row replaced with explicit "ALL accumulated records discarded" + new postcondition explaining all-or-nothing rationale. Closes F-LP7-MED-003 from LOCAL pass-7 adversary review at 8e9a92d0 (BC text ambiguity surfaced by partial-record test coverage gap). |
 | 1.5 | LOCAL-pass-5-fix | 2026-05-11 | product-owner | Eager-token precondition lifecycle. Replace lazy-token-on-401 with eager-acquire-at-pipeline-start for non-Null AuthType. Closes F-LP5-LOW-003 from LOCAL pass-5 adversary review at d5a12e4a: prior lazy design polluted audit signal (auth_refresh_triggered fired on every legitimate execution) and doubled API quota per execution. Two new audit-log events (auth_initial_acquired/auth_initial_failed) augment the existing auth_refresh_* event family. request_count semantics now exclude AuthProvider transport. Status remains draft pending PREREQ-B merge — POL-14 promotes draft→active on merge. |
 | 1.4 | LOCAL-pass-1-fix | 2026-05-11 | product-owner | Amend preconditions and postconditions to reflect AuthProvider abstraction introduced by S-PLUGIN-PREREQ-B. Lazy credential resolution replaces eager. New postconditions: AuthProvider trait dyn-safety; PipelineResult.truncated semantics; auth_refresh_triggered tracing event for VP-PLUGIN-005. Closes F-LP1-MED-001 from LOCAL pass-1 adversary review at b1b529fc. Status remains draft pending PREREQ-B merge — POL-14 promotes draft→active on merge. |
 | 1.3 | pass-74-fix | 2026-04-20 | product-owner | Resolved (placeholder) row in ## Verification Properties per pass-74 VP-TBD decision matrix extension. |
