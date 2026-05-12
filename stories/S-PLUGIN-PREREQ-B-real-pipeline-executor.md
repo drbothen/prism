@@ -31,7 +31,7 @@ target_module: prism-spec-engine
 #   and the new auth interface is consumed at query time through the same dispatch path that
 #   SS-01 currently owns.
 subsystems: [SS-16, SS-01]
-version: "1.8"
+version: "1.9"
 level: "L4"
 producer: story-writer
 timestamp: "2026-05-11T23:45:00Z"
@@ -49,7 +49,7 @@ anchor_subsystem: [SS-16, SS-01]
 assumption_validations: []
 risk_mitigations: []
 acceptance_criteria_count: 9
-red_gate_tests: 41
+red_gate_tests: 45
 inputs:
   - ".factory/specs/architecture/decisions/ADR-023-plugin-only-sensor-architecture.md"
   - ".factory/specs/behavioral-contracts/BC-2.16.002-multi-step-fetch-pipeline.md"
@@ -561,6 +561,7 @@ This story is shipped when ALL of the following are true:
 
 | Version | Burst | Date | Author | Changes |
 |---------|-------|------|--------|---------|
+| 1.9 | prereq-b-fix-burst-8 | 2026-05-11 | state-manager | D-413 fix-burst-8 CLOSED 3 MED + 1 LOW. red_gate_tests 41→45 (+4). F-LP8-MED-001: test_BC_2_16_002_auth_initial_acquired_emits_distinct_events_per_token_state added — sub-case (b) asserts auth_initial_acquired_empty appears AND auth_initial_acquired absent (load-bearing per TD-VSDD-059). F-LP8-MED-002: partial-discard test rewritten with CursorToken paginated pipeline + real record accumulation (page-1 2 records, page-2 500) — assert!(result.is_err()) now regression-load-bearing. F-LP8-MED-003: extract_cursor warn enriched with event_type="pagination_cursor_unsupported_type" structured field + test captures tracing buffer. F-LP8-LOW-001: validation.rs Category 2b multi-array fan-out check added — validator rejects specs referencing >1 array-valued variable; test asserts Err(ValidationError). just check-fast clean. 278/278 tests pass. Worktree HEAD 411f4cbf. Factory commit: this burst. |
 | 1.8 | prereq-b-pass-8 | 2026-05-11 | state-manager | D-412 pass-8 BLOCKED-soft record: 3 MED + 1 LOW + 4 OBS filed; streak 0/3 unchanged; fix-burst-8 dispatched. F-LP8-MED-001: empty-token branch (auth_initial_acquired_empty) has zero test assertions — paper-fix (TD-VSDD-059). F-LP8-MED-002: partial-discard test uses scalar response_path so all_records always empty before failure — paper-fix (TD-VSDD-059). F-LP8-MED-003: extract_cursor non-string termination emits bare warn without event_type structured field. F-LP8-LOW-001: multi-array fan-out templates silently use first array only. 4 OBS non-blocking (request_count semantics; POL-15 deferred PREREQ-D; execute_step zero call sites TD-012; BC postcondition amendment SOP process-gap). Trajectory 20→10→4→7→10→9→8→4. Worktree HEAD ebd9a3ec (no code change). Pass-8 report: .factory/code-delivery/S-PLUGIN-PREREQ-B/adversarial-review/local-pass-8.md. |
 | 1.7 | prereq-b-fix-burst-7 | 2026-05-11 | state-manager | D-411 fix-burst-7 CLOSED 3 MED + 1 LOW (deferred). red_gate_tests 39→41 (2 new: test_BC_2_16_002_eager_auth_initial_failed_aborts_pipeline_immediately + test_BC_2_16_002_execute_discards_partial_records_on_mid_pipeline_500). F-LP7-MED-001: empty-token branch in execute() + execute_step() emits auth_initial_acquired_empty (debug) vs auth_initial_acquired (info) — audit signal integrity restored. F-LP7-MED-002: FailingAuthProvider added under cfg(feature="test-helpers"); abort test verifies zero HTTP requests on auth failure. F-LP7-MED-003: partial-record discard test + BC-2.16.002 v1.5→v1.6 postcondition amendment (all-or-nothing semantics). F-LP7-LOW-001: DEFERRED as TD-S-PLUGIN-PREREQ-B-012 P3 (execute_step PREREQ-D test vehicle; doc comment added at pipeline.rs:424). 3 OBS acknowledged. 275/275 prism-spec-engine tests pass + 1 skipped. Worktree HEAD ebd9a3ec. Factory commit d11dbf0d. |
 | 1.6 | prereq-b-fix-burst-6 | 2026-05-11 | product-owner | SPEC-SIDE pass-6 fixes. F-LP6-HIGH-001 CLOSED: VP-PLUGIN-002 anchor corrected from PLUGIN-MIGRATION-001-D to S-PLUGIN-PREREQ-B in VP-INDEX (VP-147 numbered row + VP-PLUGIN-002 named-alias row). VP-147 description updated from stale "Unknown sensor registers without code change" to "PipelineExecutor::execute returns non-empty records against wiremock DTU clone". F-LP6-HIGH-002 CLOSED: VP-PLUGIN-005 (VP-150) description in VP-INDEX named-alias row (line 187) corrected from "PluginRuntime::load_all_plugins boot-time wired; allowed_urls host-only enforcement after PREREQ-D" to "OAuth2 refresh-on-401 via declarative TOML retry policy"; anchor updated PLUGIN-MIGRATION-001-D → S-PLUGIN-PREREQ-B (both VP-150 numbered row and VP-PLUGIN-005 named-alias row). F-LP6-MED-002 CLOSED: verification_properties frontmatter + anchor_vps extended to include VP-PLUGIN-005 (pipeline_oauth_retry.rs test target). VP-INDEX v1.30 → v1.31. |
