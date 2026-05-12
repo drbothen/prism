@@ -168,42 +168,30 @@ proptest! {
 // test body here and use a sentinel assertion that FAILS.
 // ---------------------------------------------------------------------------
 
-/// AC-3(c): `extract_at_path` totality — sentinel test (GREEN gate).
-///
-/// The canonical proptest for `extract_at_path` totality lives in
-/// `crates/prism-spec-engine/src/pipeline.rs` as `proptest_extract_at_path_totality`
-/// inside the `proptest_extract_at_path` module. It is in-module because `extract_at_path`
-/// is a private function.
-///
-/// This sentinel test now passes to confirm AC-3 is complete. The actual property
-/// is exercised by the in-module proptest above.
-#[test]
-fn proptest_extract_at_path_totality_sentinel() {
-    // AC-3 GREEN: proptest for extract_at_path is wired in pipeline.rs #[cfg(test)] module.
-    // This sentinel test passes to confirm AC-3(c) implementation is complete.
-}
+// AC-3(c) NOTE: The canonical proptest for `extract_at_path` totality lives in
+// `crates/prism-spec-engine/src/pipeline.rs` as `proptest_extract_at_path_totality`
+// inside the `proptest_extract_at_path` module (in-module because `extract_at_path`
+// is a private function). The sentinel test is removed (OBS-004: no-op stubs add no value).
 
 // ---------------------------------------------------------------------------
 // AC-3(d+e): Interpolator totality and extract_references round-trip
 // ---------------------------------------------------------------------------
 
 proptest! {
-    /// AC-3(d): `Interpolator::interpolate` totality — for any template and variable map,
+    /// AC-3(d): `Interpolator::interpolate` totality — for ANY template string and variable map,
     /// returns Ok(String) or a structured error without panic.
     ///
-    /// Strategy: use simple templates (0..3 references) against a matching var map.
-    /// The var map always contains the referenced keys so no UnknownStep errors arise.
-    /// We test the case where keys are absent separately (should return Err, not panic).
+    /// OBS-003 (S-PLUGIN-PREREQ-C): expanded from narrow template_strategy (well-formed
+    /// ${step.field} references only) to arbitrary printable strings. Malformed templates
+    /// (${unbalanced, ${.empty_step}, $$, $, empty string) must never cause a panic.
     ///
-    /// RED GATE: currently PASSES (Interpolator is regex-based and doesn't panic).
-    /// Included as a regression anchor — AC-4 escape mechanism must not break this.
+    /// The invariant: MUST NOT panic for any input.
     #[test]
     fn proptest_interpolate_totality(
-        template in template_strategy()
+        template in "\\PC{0,100}"
     ) {
         let vars: HashMap<String, serde_json::Value> = HashMap::new();
-        // With empty vars, either Ok (no references in template) or Err (unknown step).
-        // The invariant: MUST NOT panic.
+        // The invariant: MUST NOT panic. Either Ok (no live references) or Err.
         let _ = Interpolator::interpolate(&template, &InterpolationContext::UrlPath, &vars);
     }
 }
