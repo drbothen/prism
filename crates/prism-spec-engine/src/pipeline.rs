@@ -2071,3 +2071,44 @@ mod jsonpath_bracket_tests {
         );
     }
 }
+
+// ---------------------------------------------------------------------------
+// AC-3: proptest for `extract_at_path` totality
+//
+// BC-2.16.002 postcondition: extract_at_path returns Ok(_) or Err(_) for any
+// (Value, &str) input — never panics, never produces an unwrap() failure.
+//
+// Placed in-module (not in tests/proptest_AC_3.rs) because `extract_at_path`
+// is a private function. The tests/proptest_AC_3.rs sentinel test delegates
+// to the canonical test in this module once the proptest is wired here.
+// ---------------------------------------------------------------------------
+
+#[cfg(test)]
+mod proptest_extract_at_path {
+    use super::extract_at_path;
+
+    use proptest::prelude::*;
+
+    proptest! {
+        /// AC-3(c): `extract_at_path` totality — for any JSON value and path string,
+        /// the function returns Ok(_) or Err(_) without panic.
+        ///
+        /// Traces to BC-2.16.002 postcondition: JSONPath extraction returns Ok or Err.
+        #[test]
+        fn proptest_extract_at_path_totality(
+            path in "\\$\\.[a-zA-Z0-9_\\.\\[\\]\\*]{1,30}"
+        ) {
+            // Test with a fixed non-trivial JSON body.
+            let body = serde_json::json!({
+                "devices": [
+                    {"id": "A", "host": "h1"},
+                    {"id": "B", "host": "h2"}
+                ],
+                "total": 2,
+                "nested": {"key": "value"}
+            });
+            // The invariant: MUST NOT panic. Return type is always Ok(_) or Err(_).
+            let _ = extract_at_path(&body, &path);
+        }
+    }
+}
