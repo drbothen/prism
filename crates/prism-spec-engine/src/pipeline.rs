@@ -27,6 +27,18 @@ use crate::spec_parser::{FetchStep, PaginationConfig, SensorSpec, TableSpec};
 /// Maximum records materialised per pipeline execution (DI-019 / AC-8).
 const MAX_PIPELINE_RECORDS: usize = 10_000;
 
+/// Maximum total elements returned by a single JSONPath extraction (HIGH-007).
+///
+/// Guards against nested-wildcard memory amplification: a path like
+/// `$.a[*].b[*].c[*]` against hostile JSON with large arrays produces O(|a|*|b|*|c|)
+/// elements. This cap aborts extraction before OOM occurs.
+const MAX_JSONPATH_RESULT_SIZE: usize = 100_000;
+
+/// Maximum recursion depth for JSONPath traversal (HIGH-007).
+///
+/// Prevents stack overflow on deeply nested `[*]` wildcards (e.g., 32+ levels).
+const MAX_JSONPATH_DEPTH: usize = 32;
+
 /// Maximum pages fetched per step to guard against infinite pagination loops
 /// caused by APIs that fail to advance cursors or that emit perpetual data.
 ///
@@ -924,7 +936,26 @@ fn extract_at_path(body: &serde_json::Value, path: &str) -> Result<serde_json::V
 
     // Traverse the JSON value following the token sequence.
     // When a wildcard `[*]` is encountered, switch to multi-value mode.
-    extract_with_tokens(body, &tokens, path)
+    // HIGH-007: thread extraction context to enforce size and depth caps.
+    let mut ctx = ExtractionContext::new();
+    extract_with_tokens(body, &tokens, path, &mut ctx)
+}
+
+/// Accumulator threaded through extract_with_tokens to enforce resource caps.
+///
+/// HIGH-007 defense: prevents nested-wildcard O(N^k) memory amplification and
+/// stack overflow from deeply nested paths.
+struct ExtractionContext {
+    /// Current recursion depth (incremented on wildcard recursion).
+    depth: usize,
+    /// Total elements produced so far (incremented on each wildcard result push).
+    size: usize,
+}
+
+impl ExtractionContext {
+    fn new() -> Self {
+        Self { depth: 0, size: 0 }
+    }
 }
 
 /// A single path token in a tokenized JSONPath expression.
@@ -990,12 +1021,21 @@ fn tokenize_jsonpath(path: &str) -> Vec<PathToken> {
 ///
 /// Returns `Ok(Value)` for a single-value path (no wildcards), or
 /// `Ok(Value::Array([...]))` for wildcard paths.
-/// Returns `Err(String)` for missing keys, out-of-bounds indexes, or type mismatches.
+/// Returns `Err(String)` for missing keys, out-of-bounds indexes, type mismatches,
+/// or when size/depth caps are exceeded (HIGH-007).
 fn extract_with_tokens(
     current: &serde_json::Value,
     tokens: &[PathToken],
     original_path: &str,
+    ctx: &mut ExtractionContext,
 ) -> Result<serde_json::Value, String> {
+    // HIGH-007: depth cap — prevents stack overflow on deeply nested wildcards.
+    if ctx.depth > MAX_JSONPATH_DEPTH {
+        return Err(format!(
+            "JSONPath depth exceeded {MAX_JSONPATH_DEPTH} levels in path '{original_path}'"
+        ));
+    }
+
     if tokens.is_empty() {
         return Ok(current.clone());
     }
@@ -1009,7 +1049,7 @@ fn extract_with_tokens(
             let next = current
                 .pointer(&pointer)
                 .ok_or_else(|| format!("path not found: {original_path}"))?;
-            extract_with_tokens(next, tail, original_path)
+            extract_with_tokens(next, tail, original_path, ctx)
         }
         PathToken::Index(idx) => {
             let arr = current.as_array().ok_or_else(|| {
@@ -1021,7 +1061,7 @@ fn extract_with_tokens(
                     arr.len()
                 )
             })?;
-            extract_with_tokens(elem, tail, original_path)
+            extract_with_tokens(elem, tail, original_path, ctx)
         }
         PathToken::Wildcard => {
             // Wildcard: enumerate all elements of the array; apply remaining tokens to each.
@@ -1031,11 +1071,26 @@ fn extract_with_tokens(
                      (EC-002: wildcard on object)"
                 )
             })?;
-            let mut results = Vec::with_capacity(arr.len());
+            let mut results = Vec::with_capacity(arr.len().min(MAX_JSONPATH_RESULT_SIZE));
+            ctx.depth += 1;
             for elem in arr {
-                let val = extract_with_tokens(elem, tail, original_path)?;
+                // HIGH-007: size cap — abort if total result elements exceed limit.
+                if ctx.size >= MAX_JSONPATH_RESULT_SIZE {
+                    tracing::warn!(
+                        event_type = "jsonpath_size_cap_exceeded",
+                        path = %original_path,
+                        max_size = MAX_JSONPATH_RESULT_SIZE,
+                        "JSONPath result size cap exceeded — truncating extraction",
+                    );
+                    return Err(format!(
+                        "JSONPath result exceeded {MAX_JSONPATH_RESULT_SIZE} elements in path '{original_path}'"
+                    ));
+                }
+                let val = extract_with_tokens(elem, tail, original_path, ctx)?;
+                ctx.size += 1;
                 results.push(val);
             }
+            ctx.depth -= 1;
             Ok(serde_json::Value::Array(results))
         }
     }
@@ -2089,6 +2144,52 @@ mod jsonpath_bracket_tests {
                 || err_msg.contains("99"),
             "AC-2 RED GATE: out-of-bounds error message must reference the index or 'out of bounds'; \
              current message before AC-2 is: '{err_msg}'"
+        );
+    }
+
+    /// HIGH-007: JSONPath result size cap fires when nested wildcards produce > 100_000 elements.
+    ///
+    /// `$.a[*].b[*]` on a 201x500 = 100_500 element nested array must return Err.
+    #[test]
+    fn test_BC_2_16_002_jsonpath_wildcard_size_cap_fires() {
+        // Build 201 items each containing 500 b-values = 100_500 > MAX_JSONPATH_RESULT_SIZE
+        let inner: Vec<serde_json::Value> = (0..500).map(|i| json!(i)).collect();
+        let outer: Vec<serde_json::Value> = (0..201).map(|_| json!({"b": inner.clone()})).collect();
+        let body = json!({"a": outer});
+        let result = extract_at_path(&body, "$.a[*].b[*]");
+        assert!(
+            result.is_err(),
+            "HIGH-007: nested wildcard producing >100_000 elements must return Err; got Ok"
+        );
+        let err = result.unwrap_err();
+        assert!(
+            err.contains("exceeded") || err.contains("100000") || err.contains("100_000"),
+            "HIGH-007: size cap error must mention 'exceeded' or the cap value; got: {err}"
+        );
+    }
+
+    /// HIGH-007: Depth cap fires at 32+ nested wildcard levels.
+    ///
+    /// A path with 33 nested wildcards must return Err before stack overflow.
+    #[test]
+    fn test_BC_2_16_002_jsonpath_depth_cap_fires() {
+        // Build a deeply nested array: [[[[...]]]] 33 levels deep with single element each.
+        let mut deep: serde_json::Value = json!([1]);
+        for _ in 0..33 {
+            deep = json!([deep]);
+        }
+        let body = json!({"a": deep});
+        // Path with 33 wildcards
+        let path = "$.a[*][*][*][*][*][*][*][*][*][*][*][*][*][*][*][*][*][*][*][*][*][*][*][*][*][*][*][*][*][*][*][*][*]";
+        let result = extract_at_path(&body, path);
+        assert!(
+            result.is_err(),
+            "HIGH-007: 33-level deep wildcard path must return Err (depth cap); got Ok"
+        );
+        let err = result.unwrap_err();
+        assert!(
+            err.contains("depth") || err.contains("exceeded"),
+            "HIGH-007: depth cap error must mention 'depth' or 'exceeded'; got: {err}"
         );
     }
 }
