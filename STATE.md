@@ -1,9 +1,9 @@
 ---
 document_type: pipeline-state
 level: ops
-version: "7.158"
+version: "7.159"
 producer: state-manager
-timestamp: 2026-05-12T05:00:00Z
+timestamp: 2026-05-12T07:00:00Z
 inputs: []
 input-hash: "[live-state]"
 traces_to: ""
@@ -22,7 +22,7 @@ repos:
   - axiathon
   - ocsf-proto-gen
   - mcp-claroty-xdome
-current_step: "D-424. S-PLUGIN-PREREQ-B LOCAL pass-14 CLEAN. Streak 0/3→1/3. FIRST CLEAN after 13 BLOCKED-soft passes. Trajectory 20→10→4→7→10→9→8→4→4→2→3→3→2→0. Fix-burst-13 closures paper-fix-free (F-LP13-MED-001: GENUINE 14/14 catalog; F-LP13-LOW-001: honest lessons.md). P14-A..H novel sweep ZERO actionable findings. No fix-burst required. Pass-15 next (target streak 2/3). Story v1.19→v1.20. STORY-INDEX v2.57→v2.58. STATE+HANDOFF v7.157→v7.158."
+current_step: "D-425. S-PLUGIN-PREREQ-B LOCAL pass-15 CLEAN. Streak 1/3→2/3. Second consecutive CLEAN. Trajectory 20→10→4→7→10→9→8→4→4→2→3→3→2→0→0. Fix-burst-13 invariants re-verified load-bearing (14↔14 event_type catalog mapping, ChainAuthProvider feature-gated, lessons.md honest). Part B P15-A..L novel-dimension sweep ZERO actionable findings. No fix-burst required. Pass-16 next (target streak 2/3→3/3 LOCAL CONVERGENCE). Story v1.20→v1.21. STORY-INDEX v2.58→v2.59. STATE+HANDOFF v7.158→v7.159."
 wave_3_carry_forward_debt: "ALL_REMEDIATE — W4-FIX-PERF-001/002, W4-FIX-CODE-001, W4-FIX-SEC-001 through W4-FIX-SEC-004 planned per D-203"
 wave_4_status: "PHASE_4_A_CONVERGED + R9_APPROVED but PHASE_4_B SUSPENDED — pre-implementation dep check (2026-05-04) found S-4.01 → S-3.02 (status=draft); pivoting to full Wave 3 implementation per user directive D-223"
 wave_4_phase_4_a_preflight:
@@ -128,7 +128,7 @@ bc_count_corrected: 235
 cap_count: 40  # active; highest_cap_id: CAP-040 (CAP-038 Multi-Tenant Identity, CAP-039 Multi-Tenant Fixture Gen, CAP-040 Multi-Tenant Adapter Dispatch — Wave 3 Phase 3.A Step 2)
 bc_index_version: "4.59"
 vp_index_version: "1.32"
-story_index_version: "v2.58"
+story_index_version: "v2.59"
 total_stories: 150
 red_gate_wave_0a_complete: 2026-04-21
 test_vectors_version: "2.7"
@@ -176,9 +176,9 @@ workspace_test_count: 3489  # 891 prism-query + workspace total (per implementer
 | **Language** | Rust |
 | **Target Workspace** | per-analyst stdio (MCP server) |
 | **Started** | 2026-04-13 |
-| **Last Updated** | 2026-05-12 (D-424 — S-PLUGIN-PREREQ-B LOCAL pass-14 CLEAN; streak 0/3→1/3; FIRST CLEAN after 13 BLOCKED-soft; trajectory 20→10→4→7→10→9→8→4→4→2→3→3→2→0; fix-burst-13 closures paper-fix-free; P14-A..H novel sweep ZERO findings; catalog-drift pattern closed; STATE+HANDOFF v7.157→v7.158) |
+| **Last Updated** | 2026-05-12 (D-425 — S-PLUGIN-PREREQ-B LOCAL pass-15 CLEAN; streak 1/3→2/3; second consecutive CLEAN; trajectory 20→10→4→7→10→9→8→4→4→2→3→3→2→0→0; fix-burst-13 invariants re-verified load-bearing; P15-A..L novel sweep ZERO findings; STATE+HANDOFF v7.158→v7.159) |
 | **Current Phase** | Wave 3 Tier-3 COMPLETE — **Wave 3-A 4 of 4 SHIPPED**: S-3.05 (#132 c867c344), S-3.04 (#133 57745ce8), S-3.03 (#134 7c413692), **S-3.07 (#135 2ae7185b MERGED 2026-05-08T04:23:03Z)**; post-merge cleanup confirmed; plugin migration: PREREQ-F SHIPPED; PREREQ-A/B/C/D/E pending |
-| **Current Step** | D-424 — S-PLUGIN-PREREQ-B LOCAL pass-14 CLEAN. Streak 0/3→1/3. FIRST CLEAN after 13 BLOCKED-soft passes. Trajectory 20→10→4→7→10→9→8→4→4→2→3→3→2→0. Fix-burst-13 closures paper-fix-free (F-LP13-MED-001: GENUINE 14/14 catalog; F-LP13-LOW-001: honest lessons.md). P14-A..H novel-dimension sweep ZERO actionable findings. No fix-burst required. Pass-15 dispatch next (target streak 2/3). |
+| **Current Step** | D-425 — S-PLUGIN-PREREQ-B LOCAL pass-15 CLEAN. Streak 1/3→2/3. Second consecutive CLEAN. Trajectory 20→10→4→7→10→9→8→4→4→2→3→3→2→0→0. Fix-burst-13 invariants re-verified load-bearing (14↔14 event_type catalog, ChainAuthProvider feature-gated, lessons.md honest). P15-A..L novel-dimension sweep ZERO actionable findings. No fix-burst required. Pass-16 dispatch next (target streak 3/3 LOCAL CONVERGENCE). |
 
 ## Phase Progress
 
@@ -210,9 +210,9 @@ workspace_test_count: 3489  # 891 prism-query + workspace total (per implementer
 
 | Step | Agent | Status | Output |
 |------|-------|--------|--------|
-| S-PLUGIN-PREREQ-B LOCAL pass-13 (D-422) | adversary + state-manager | **BLOCKED-soft — streak 0/3** | 1M+1L[process-gap]+2OBS. All fix-burst-12 closures CLEAN per TD-VSDD-059. F-LP13-MED-001: 14/14 coverage claim overstated — rows 3/7/8/9/10 lack log-buffer assertions (4th recurrence). F-LP13-LOW-001 [process-gap]: PG-LP11-001 Layer 1 unwired. Trajectory →2. Fix-burst-13 dispatched. STORY-INDEX v2.55→v2.56. STATE+HANDOFF v7.155→v7.156 |
 | S-PLUGIN-PREREQ-B fix-burst-13 (D-423) | implementer + state-manager | **CLOSED — streak 0/3** | 2 actionable (1M+1L[process-gap]) CLOSED. F-LP13-MED-001: GENUINE 14/14 — 5 new unit tests for BC v1.8 rows 3/7/8/9/10; ChainAuthProvider+AuthOutcome helper (feature-gated). F-LP13-LOW-001 [process-gap]: lessons.md Enforcement Layers honest (Layer 3 ACTIVE sole). +5 Red Gate (59→64). 297/297 pass. Worktree HEAD b75f317e. STORY-INDEX v2.56→v2.57. STATE+HANDOFF v7.156→v7.157 |
 | S-PLUGIN-PREREQ-B LOCAL pass-14 (D-424) | adversary + state-manager | **CLEAN — streak 1/3** | FIRST CLEAN after 13 BLOCKED-soft. Trajectory 20→10→4→7→10→9→8→4→4→2→3→3→2→0. Fix-burst-13 closures paper-fix-free: F-LP13-MED-001 CONFIRMED CLOSED (GENUINE 14/14; 5 load-bearing tests); F-LP13-LOW-001 CONFIRMED CLOSED (honest lessons.md). P14-A..H novel-dimension sweep ZERO actionable findings. No fix-burst required. Pass-15 next (target streak 2/3). STORY-INDEX v2.57→v2.58. STATE+HANDOFF v7.157→v7.158 |
+| S-PLUGIN-PREREQ-B LOCAL pass-15 (D-425) | adversary + state-manager | **CLEAN — streak 2/3** | SECOND CONSECUTIVE CLEAN. Trajectory 20→10→4→7→10→9→8→4→4→2→3→3→2→0→0. Fix-burst-13 invariants re-verified: 14↔14 event_type catalog mapping load-bearing; ChainAuthProvider feature-gated intact; lessons.md honest. P15-A..L novel-dimension sweep ZERO actionable findings. No fix-burst required. Pass-16 next (target streak 3/3 LOCAL CONVERGENCE). STORY-INDEX v2.58→v2.59. STATE+HANDOFF v7.158→v7.159 |
 
 ## Decisions Log
 
@@ -220,6 +220,7 @@ _D-001..D-046 archived: [cycles/phase-3-dtu-wave-2/decisions-archive-d001-d032.m
 
 | ID | Decision | Rationale | Phase | Date |
 |----|----------|-----------|-------|------|
+| D-425 | 2026-05-12 | LOCAL adversary pass-15 CLEAN for S-PLUGIN-PREREQ-B — streak 1/3→2/3. Second consecutive CLEAN pass. Fix-burst-13 invariants verified still load-bearing: 14 event_type literals ↔ 14 BC v1.8 catalog rows (14↔14 mapping intact); ChainAuthProvider feature-gated at auth_provider.rs:258-324 + lib.rs:96 (no production leak); lessons.md enforcement-layer honesty preserved (Layer 3 ACTIVE sole). Part B P15-A..L novel-dimension sweep returned ZERO actionable findings. Trajectory 20→10→4→7→10→9→8→4→4→2→3→3→2→0→0. Streak position now 2/3. One more CLEAN pass (pass-16) closes BC-5.39.001 3-CLEAN protocol and authorizes LOCAL convergence. Worktree HEAD b75f317e (unchanged). Reference: `.factory/code-delivery/S-PLUGIN-PREREQ-B/adversarial-review/local-pass-15.md`. Story v1.20→v1.21. STORY-INDEX v2.58→v2.59. STATE+HANDOFF v7.158→v7.159. | plugin-migration | 2026-05-12 |
 | D-424 | 2026-05-12 | LOCAL adversary pass-14 CLEAN for S-PLUGIN-PREREQ-B — streak 0/3→1/3. FIRST CLEAN pass after 13 BLOCKED-soft passes. Fix-burst-13 closures verified paper-fix-free (GENUINE 14/14 catalog coverage; honest enforcement-layer documentation). Part B P14-A..H novel-dimension sweep returned ZERO actionable findings. Trajectory 20→10→4→7→10→9→8→4→4→2→3→3→2→0. Streak position now 1/3. Need 2 more consecutive CLEAN passes for 3-CLEAN local convergence (BC-5.39.001). Worktree HEAD b75f317e (unchanged). Reference: `.factory/code-delivery/S-PLUGIN-PREREQ-B/adversarial-review/local-pass-14.md`. Story v1.19→v1.20. STORY-INDEX v2.57→v2.58. STATE+HANDOFF v7.157→v7.158. | plugin-migration | 2026-05-12 |
 | D-423 | 2026-05-11 | fix-burst-13 CLOSED for S-PLUGIN-PREREQ-B. Closed F-LP13-MED-001 (BC v1.8 catalog rows 3/7/8/9/10 now have positive log-buffer asserting tests) — GENUINE 14/14 coverage achieved. 5 new unit tests added: test_BC_2_16_002_execute_auth_initial_failed_emits_event_with_detail (row 3); test_BC_2_16_002_auth_refresh_triggered_emits_event_with_step_name (row 7); test_BC_2_16_002_auth_refresh_succeeded_emits_event_with_step_name (row 8); test_BC_2_16_002_auth_refresh_failed_emits_event_with_detail (row 9); test_BC_2_16_002_auth_refresh_double_401_emits_event (row 10). Helper ChainAuthProvider + AuthOutcome added to auth_provider.rs (feature-gated `#[cfg(any(test, feature = "test-helpers"))]`). Closed F-LP13-LOW-001 [process-gap] by honestly rewriting lessons.md Enforcement Layers section (Layer 1+2 PAPER — implementer.md/state-manager.md not wired; Layer 3 ACTIVE — adversary closure verification, sole load-bearing enforcement; Layer 4 DEFERRED to TD-VSDD-093). Worktree HEAD b75f317e. +5 Red Gate tests (59→64). 297/297 prism-spec-engine tests pass. just check-fast clean. The 4-occurrence catalog-drift pattern (F-LP9/11/12/13) is closed. Conditions exist for streak 0/3 → 1/3 if pass-14 finds genuinely zero MED+ findings. Story v1.18→v1.19. STORY-INDEX v2.56→v2.57. STATE+HANDOFF v7.156→v7.157. Reference: `.factory/code-delivery/S-PLUGIN-PREREQ-B/adversarial-review/fix-burst-13.md`. | plugin-migration | 2026-05-11 |
 | D-422 | 2026-05-11 | LOCAL adversary pass-13 BLOCKED-soft for S-PLUGIN-PREREQ-B. 1 MED + 1 LOW + 2 OBS + 1 [process-gap]. F-LP13-MED-001: fix-burst-12 "14/14 catalog coverage" claim OVERSTATED — fresh-context audit reveals rows 3/7/8/9/10 (auth_initial_failed exec + auth_refresh_triggered/succeeded/failed/double_401) lack positive log-buffer assertions; have path-coverage only (call counts + error results); BC v1.8 explicitly enumerates these as audit-signal contract surface; 4th occurrence of catalog-drift pattern (F-LP9/11/12/13). F-LP13-LOW-001 [process-gap]: PG-LP11-001 Layer 1 (implementer self-check) unwired in implementer.md engine prompt — Layer 3 (adversary closure verification) is sole active enforcement; Layer 2 paper; Layer 4 (lefthook) deferred to TD-VSDD-093 tooling-sprint. OBS-LP13-002 positive convergence signal: BC v1.8 NOT amended in fix-burst-12 — first non-amendment burst since fix-burst-1. All fix-burst-12 closures CLEAN per TD-VSDD-059/060/091. Novelty 4/4=1.0. Streak 0/3. Trajectory 20→10→4→7→10→9→8→4→4→2→3→3→2 (descending). Fix-burst-13 scope: (1) 5 unit tests in pipeline.rs #[cfg(test)] for catalog rows 3/7/8/9/10 using setup_log_capture + asserts contains(event_type) + step_name + detail (genuine 14/14); (2) update lessons.md enforcement-layer section to honestly document Layer 1+2 paper, Layer 3 sole active, Layer 4 deferred. Report: `.factory/code-delivery/S-PLUGIN-PREREQ-B/adversarial-review/local-pass-13.md`. Story v1.17→v1.18. STORY-INDEX v2.55→v2.56. STATE+HANDOFF v7.155→v7.156. | plugin-migration | 2026-05-11 |
@@ -365,21 +366,21 @@ Cycle files: [burst-log](cycles/phase-2-patch/burst-log.md) | [convergence-traje
 
 ---
 
-## Session Resume Checkpoint (2026-05-12-v7.158-d424-prereq-b-pass-14-clean-streak-1-3)
+## Session Resume Checkpoint (2026-05-12-v7.159-d425-prereq-b-pass-15-clean-streak-2-3)
 
-_Previous checkpoint (v7.157/D-423 fix-burst-13 CLOSED at b75f317e) archived: [cycles/wave-4-operations/session-checkpoints.md](cycles/wave-4-operations/session-checkpoints.md)_
+_Previous checkpoint (v7.158/D-424 pass-14 CLEAN streak 1/3) archived: [cycles/wave-4-operations/session-checkpoints.md](cycles/wave-4-operations/session-checkpoints.md)_
 
-**STATE v7.158. D-424 — S-PLUGIN-PREREQ-B LOCAL pass-14 CLEAN. Streak 1/3. Worktree HEAD b75f317e. Red Gate 64. SESSION-HANDOFF v7.158.** develop@90d7c80f. factory-artifacts HEAD: run `git -C .factory log -1` (per TD-VSDD-053). vsdd-factory rc.16 active. Standing Orchestrator Rules active (Rules 1, 2, 3). Bundle B Exit Mandate active (task #85). Worktrees: main (clean) + .factory + .worktrees/S-PLUGIN-PREREQ-B + .worktrees/S-3.09 (FROZEN per D-298).
+**STATE v7.159. D-425 — S-PLUGIN-PREREQ-B LOCAL pass-15 CLEAN. Streak 2/3. Worktree HEAD b75f317e. Red Gate 64. SESSION-HANDOFF v7.159.** develop@90d7c80f. factory-artifacts HEAD: run `git -C .factory log -1` (per TD-VSDD-053). vsdd-factory rc.16 active. Standing Orchestrator Rules active (Rules 1, 2, 3). Bundle B Exit Mandate active (task #85). Worktrees: main (clean) + .factory + .worktrees/S-PLUGIN-PREREQ-B + .worktrees/S-3.09 (FROZEN per D-298).
 
-**S-PLUGIN-PREREQ-B STATUS:** pass-14 CLEAN at HEAD b75f317e. 64 Red Gate (unchanged). Trajectory 20→10→4→7→10→9→8→4→4→2→3→3→2→0 (14 passes, 13 fix-bursts, streak 1/3). FIRST CLEAN after 13 BLOCKED-soft passes. BC-2.16.002 v1.8 — GENUINE 14/14 catalog anchoring confirmed. 4-occurrence catalog-drift pattern (F-LP9/11/12/13) CLOSED. Story v1.20. Pass-15 next (target streak 2/3).
+**S-PLUGIN-PREREQ-B STATUS:** pass-15 CLEAN at HEAD b75f317e. 64 Red Gate (unchanged). Trajectory 20→10→4→7→10→9→8→4→4→2→3→3→2→0→0 (15 passes, 13 fix-bursts, streak 2/3). Second consecutive CLEAN. BC-2.16.002 v1.8 — 14↔14 catalog anchoring re-confirmed. Story v1.21. Pass-16 next (target streak 3/3 LOCAL CONVERGENCE).
 
-**POST-D-424 FIRST ACTION:** Dispatch LOCAL adversary pass-15 against worktree HEAD `b75f317e` per BC-5.39.001 — target streak 1/3→2/3 (second consecutive CLEAN). Adversary scope: (a) fresh-context dimension sweep disjoint from P5-P14; (b) verify fix-burst-13 invariants still hold (5 new tests still pass; BC catalog row count == 14 == event_type literal site count in pipeline.rs). Apply TD-VSDD-059/060 paper-fix discipline rigorously.
+**POST-D-425 FIRST ACTION:** Dispatch LOCAL adversary pass-16 against worktree HEAD `b75f317e` per BC-5.39.001 — target streak 2/3→3/3 (LOCAL CONVERGENCE). Apply rigor of pass-14/15: (a) closure verification of fix-burst-13 invariants (14↔14 event_type mapping, ChainAuthProvider feature-gating, lessons.md honest); (b) fresh-context novel-dimension sweep disjoint from P5-P15. If pass-16 finds zero MED+ findings, declare LOCAL CONVERGENCE → next steps: demo-recorder for per-AC evidence → push worktree to GitHub → pr-manager 9-step PR cycle → PR-LEVEL adversarial cascade → pr-reviewer → squash-merge → post-merge state burst → dispatch PREREQ-C.
 
 **S-3.09 FREEZE STATE:** Worktree .worktrees/S-3.09 HEAD 43c41389; BUG-S309-PLUGIN P0 blocks resumption. See D-298/D-299.
 
 **Deferred TDs (carry-forward):** W3-FIX-S307-001/002/003 + TD-S307-002/003/004 + TD-S-PLUGIN-PREREQ-A-002 P1 + TD-S-PLUGIN-PREREQ-A-003 P1 + TD-S-PLUGIN-PREREQ-A-004 P1 + TD-S-PLUGIN-PREREQ-A-005..010 P3 + TD-S-PLUGIN-PREREQ-B-001 P2 (cursor page_size; PREREQ-C) + TD-S-PLUGIN-PREREQ-B-002 P3 (AuthToken zeroize; PREREQ-D) + TD-S-PLUGIN-PREREQ-B-003 P3 (JSON Pointer bracket/wildcard; PREREQ-C) + TD-S-PLUGIN-PREREQ-B-004 P3 (MAX_REQUESTS_PER_PIPELINE; PREREQ-D) + TD-S-PLUGIN-PREREQ-B-005 P2 (production reqwest::Client.timeout; PREREQ-D) + TD-S-PLUGIN-PREREQ-B-006 P2 (proptest; PREREQ-C) + TD-S-PLUGIN-PREREQ-B-007 P3 (status_code overload) + TD-S-PLUGIN-PREREQ-B-008 P3 (template escape; PREREQ-C) + TD-S-PLUGIN-PREREQ-B-009 P3 (dead scalar arm) + TD-S-PLUGIN-PREREQ-B-011 P3 (execute_step PREREQ-D wiring) + TD-S-PLUGIN-PREREQ-B-012 P3 (execute_step PREREQ-D test coverage) + TD-S-PLUGIN-PREREQ-B-016 P2 (#[non_exhaustive] crate-wide; PREREQ-C) + TD-VSDD-058/059/060 P0 + TD-FACTORY-HOOK-BYPASS-001 P0 + TD-VSDD-054..063 (all OPEN) + TD-VSDD-082/083/084 + TD-S309-O1/O2/O3/O4
 
-**Current spec versions:** BC-INDEX v4.59, STORY-INDEX v2.58, ARCH-INDEX v2.40, ADR-023 v1.18, VP-INDEX v1.32 (152 VPs + VP-PLUGIN-001..007 aliases), BC-2.16.002 v1.8, BC-2.01.013 v1.6 (active, merged PR #142), S-PLUGIN-PREREQ-B v1.20 (red_gate_tests 64, pass-14 CLEAN, streak 1/3), prd.md v1.10, error-taxonomy.md v1.18, develop@90d7c80f; STATE v7.158 SESSION-HANDOFF v7.158 (current)
+**Current spec versions:** BC-INDEX v4.59, STORY-INDEX v2.59, ARCH-INDEX v2.40, ADR-023 v1.18, VP-INDEX v1.32 (152 VPs + VP-PLUGIN-001..007 aliases), BC-2.16.002 v1.8, BC-2.01.013 v1.6 (active, merged PR #142), S-PLUGIN-PREREQ-B v1.21 (red_gate_tests 64, pass-15 CLEAN, streak 2/3), prd.md v1.10, error-taxonomy.md v1.18, develop@90d7c80f; STATE v7.159 SESSION-HANDOFF v7.159 (current)
 
 **Key files:** [SESSION-HANDOFF.md](SESSION-HANDOFF.md) | [cycle-manifest.md](cycles/wave-4-operations/cycle-manifest.md) | [HOLDOUT-INDEX.md](holdout-scenarios/HOLDOUT-INDEX.md)
 
