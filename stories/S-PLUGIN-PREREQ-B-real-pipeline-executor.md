@@ -31,10 +31,10 @@ target_module: prism-spec-engine
 #   and the new auth interface is consumed at query time through the same dispatch path that
 #   SS-01 currently owns.
 subsystems: [SS-16, SS-01]
-version: "1.19"
+version: "1.20"
 level: "L4"
 producer: state-manager
-timestamp: "2026-05-12T05:00:00Z"
+timestamp: "2026-05-12T06:00:00Z"
 input-hash: "6954524"
 traces_to: []
 cycle: "v1.0.0-greenfield"
@@ -561,6 +561,7 @@ This story is shipped when ALL of the following are true:
 
 | Version | Burst | Date | Author | Changes |
 |---------|-------|------|--------|---------|
+| 1.20 | prereq-b-pass-14 | 2026-05-12 | state-manager | pass-14 CLEAN; streak 0/3 → 1/3. FIRST CLEAN pass after 13 BLOCKED-soft passes. Major milestone — 4-occurrence BC↔impl catalog-drift pattern (F-LP9/11/12/13) closed. Trajectory 20→10→4→7→10→9→8→4→4→2→3→3→2→0. Fix-burst-13 closures verified paper-fix-free per TD-VSDD-059: F-LP13-MED-001 CONFIRMED CLOSED (GENUINE 14/14 catalog coverage; 5 new tests for rows 3/7/8/9/10 load-bearing; ChainAuthProvider+AuthOutcome feature-gated correctly); F-LP13-LOW-001 CONFIRMED CLOSED (lessons.md enforcement-layer honest; no over-claim). Novel-dimension sweep P14-A..H: ZERO actionable findings. No fix-burst required. Pass-14 report: .factory/code-delivery/S-PLUGIN-PREREQ-B/adversarial-review/local-pass-14.md. STORY-INDEX v2.57→v2.58. STATE+HANDOFF v7.157→v7.158. |
 | 1.19 | prereq-b-fix-burst-13 | 2026-05-11 | state-manager | fix-burst-13 closure: F-LP13-MED-001 (5 new unit tests for BC v1.8 catalog rows 3/7/8/9/10 — GENUINE 14/14 anchoring; ChainAuthProvider + AuthOutcome helper added to auth_provider.rs feature-gated; 4th-occurrence catalog-drift pattern closed) + F-LP13-LOW-001 [process-gap] (lessons.md Enforcement Layers section rewritten honestly: Layer 1+2 PAPER — implementer.md/state-manager.md not wired into engine prompts; Layer 3 ACTIVE — adversary closure verification, sole load-bearing enforcement; Layer 4 DEFERRED to TD-VSDD-093). Worktree HEAD b75f317e. red_gate_tests 59→64 (+5). 297/297 prism-spec-engine tests pass. just check-fast clean. STORY-INDEX v2.56→v2.57. STATE+HANDOFF v7.156→v7.157. |
 | 1.18 | prereq-b-pass-13 | 2026-05-11 | state-manager | pass-13 record: 1 MED + 1 LOW [process-gap] + 2 OBS filed; streak 0/3 unchanged; fix-burst-13 dispatched. F-LP13-MED-001: fix-burst-12 "14/14 catalog coverage" claim overstated — rows 3/7/8/9/10 (auth_initial_failed exec + auth_refresh_triggered/succeeded/failed/double_401) lack positive log-buffer assertions (path-coverage only); 4th recurrence of catalog-drift pattern (F-LP9/11/12/13). F-LP13-LOW-001 [process-gap]: PG-LP11-001 Layer 1 (implementer self-check) unwired in implementer.md engine prompt; Layer 3 (adversary) sole active enforcement; Layer 4 deferred to TD-VSDD-093. OBS-LP13-002: BC v1.8 stable across fix-burst-12 — first non-amendment burst since fix-burst-1 (positive convergence signal). All fix-burst-12 closures CLEAN per TD-VSDD-059/060/091. Novelty 4/4=1.0. Trajectory 20→10→4→7→10→9→8→4→4→2→3→3→2 (descending). Report: .factory/code-delivery/S-PLUGIN-PREREQ-B/adversarial-review/local-pass-13.md. STORY-INDEX v2.55→v2.56. STATE+HANDOFF v7.155→v7.156. |
 | 1.17 | prereq-b-fix-burst-12 | 2026-05-11 | state-manager | fix-burst-12 closure: F-LP12-M001 (3 execute_step unit tests anchor BC v1.8 rows 4/5/6 — full catalog coverage 14/14) + F-LP12-L001 (BC v1.5 pin removed from code comment) + F-LP12-L002 [process-gap] (PG-LP11-001 codified at cycles/wave-4-operations/lessons.md) + TD-VSDD-093 filed. Worktree HEAD c72702cc. +3 Red Gate tests (56→59); 292/292 prism-spec-engine tests pass. just check-fast clean. tech-debt-register v2.13→v2.14. STORY-INDEX v2.54→v2.55. STATE+HANDOFF v7.154→v7.155. |
