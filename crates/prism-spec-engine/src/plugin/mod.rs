@@ -20,8 +20,8 @@ use tracing::info;
 // Re-export public types used by callers (S-1.14, S-4.08).
 pub use loader::{HostState, LoadedPlugin, PluginConfigMap, PluginKvStore};
 use sandbox::{
-    classify_wasm_error, create_store, EpochTickerHandle, DEFAULT_MEMORY_LIMIT_MB,
-    DEFAULT_TIMEOUT_SECONDS,
+    DEFAULT_MEMORY_LIMIT_MB, DEFAULT_TIMEOUT_SECONDS, EpochTickerHandle, classify_wasm_error,
+    create_store,
 };
 
 /// The three Prism plugin types recognised by WIT validation.

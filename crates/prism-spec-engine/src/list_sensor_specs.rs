@@ -27,10 +27,8 @@ pub fn list_sensor_specs(
     // Add loaded specs
     for (sensor_id, spec) in &snapshot.sensor_specs {
         // Apply sensor_id filter if provided
-        if let Some(ref filter) = args.sensor_id {
-            if sensor_id != filter {
-                continue;
-            }
+        if args.sensor_id.as_deref().is_some_and(|f| sensor_id != f) {
+            continue;
         }
 
         let client_status = args.client_id.as_ref().map(|_| ClientStatus::Configured);
@@ -50,10 +48,8 @@ pub fn list_sensor_specs(
     // Add failed specs
     for sensor_id in snapshot.failed_specs.keys() {
         // Apply sensor_id filter if provided
-        if let Some(ref filter) = args.sensor_id {
-            if sensor_id != filter {
-                continue;
-            }
+        if args.sensor_id.as_deref().is_some_and(|f| sensor_id != f) {
+            continue;
         }
 
         let client_status = args.client_id.as_ref().map(|_| ClientStatus::NotConfigured);

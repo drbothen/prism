@@ -242,10 +242,7 @@ fn run_ac4() {
         fan_out_batch_size: None,
         pagination: None,
     };
-    let ctx = FetchContext {
-        client_id: OrgSlug::new("tenant-001").unwrap(),
-        query_filters: HashMap::new(),
-    };
+    let ctx = FetchContext::new(OrgSlug::new("tenant-001").unwrap(), HashMap::new());
     let records = adapter.override_fetch("detections", &step, &ctx);
     println!("adapter id : {}", adapter.sensor_id());
     println!(

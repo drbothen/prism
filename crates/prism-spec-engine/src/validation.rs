@@ -17,6 +17,19 @@ use prism_core::{SpecError, SpecErrorCode};
 use crate::interpolation::Interpolator;
 use crate::spec_parser::{FetchStep, PaginationConfig, SensorSpec};
 
+/// Return a byte-index-safe prefix of `s` containing at most `max_chars` Unicode codepoints.
+///
+/// Using `s[..byte_index]` where `byte_index` may land mid-codepoint causes a panic for
+/// multi-byte UTF-8 strings (e.g., emoji). This helper is safe for all UTF-8 input.
+///
+/// Used to sanitize user-controlled strings before embedding them in error messages (F-LP10-MED-001).
+pub(crate) fn truncate_at_char_boundary(s: &str, max_chars: usize) -> &str {
+    match s.char_indices().nth(max_chars) {
+        Some((idx, _)) => &s[..idx],
+        None => s,
+    }
+}
+
 /// A validation error that causes the spec to be rejected.
 ///
 /// Carries an E-SPEC-* code, message, and TOML path for actionable correction.
@@ -122,8 +135,9 @@ pub fn validate_sensor_spec(spec: &SensorSpec) -> ValidatorOutput {
             code: SpecErrorCode::ESpec001,
             message: format!(
                 "base_url '{}' is not a valid URL (must start with http:// or https://)",
-                // Sanitize: truncate to 200 chars to avoid log injection
-                &spec.base_url[..spec.base_url.len().min(200)]
+                // Sanitize: truncate to 200 codepoints (char-boundary-safe) to avoid log injection.
+                // F-LP10-MED-001: old byte-index slice panics on multi-byte UTF-8 (e.g., emoji).
+                truncate_at_char_boundary(&spec.base_url, 200)
             ),
             toml_path: Some("sensor.base_url".to_string()),
             file_path: None,
@@ -239,6 +253,122 @@ pub fn validate_sensor_spec(spec: &SensorSpec) -> ValidatorOutput {
             }
 
             // -------------------------------------------------------------------------
+            // Category 2b: Multi-Array Fan-Out Ambiguity (F-LP8-LOW-001)
+            // -------------------------------------------------------------------------
+            // Fan-out is single-array only. `find_fan_out_array` (pipeline.rs) returns
+            // the FIRST array-valued variable it finds; if a step references TWO distinct
+            // prior-step array-valued sources, the second is silently stringified as JSON
+            // (e.g., `[1,2,3]` → percent-encoded in the URL).
+            //
+            // Cartesian / zipped fan-out semantics are deferred to PREREQ-C/D scope.
+            // Silently using only the first array is worst-of-all-worlds; we reject at
+            // validation time to force the spec author to be explicit.
+            //
+            // Heuristic: a prior step's output is classified as "likely array" if:
+            //   (a) The step has a pagination config (implies repeated array accumulation), OR
+            //   (b) The step's response_path ends with `[*]` (explicit wildcard).
+            // If > 1 distinct source steps under this heuristic are referenced from the
+            // same downstream step, the spec is rejected.
+            {
+                let array_source_steps: Vec<&str> = table.steps[..si]
+                    .iter()
+                    .filter(|prior| {
+                        prior.pagination.is_some() || prior.response_path.ends_with("[*]")
+                    })
+                    .map(|s| s.name.as_str())
+                    .collect();
+
+                if array_source_steps.len() > 1 {
+                    // Check if THIS step references more than one of those array sources.
+                    let templates: Vec<&str> = std::iter::once(step.path_template.as_str())
+                        .chain(step.body_template.as_deref())
+                        .collect();
+
+                    let mut referenced_array_steps: Vec<&str> = Vec::new();
+                    for template in &templates {
+                        let refs = Interpolator::extract_references(template);
+                        for (step_name, _field) in refs {
+                            if array_source_steps.contains(&step_name.as_str())
+                                && !referenced_array_steps.contains(&step_name.as_str())
+                            {
+                                referenced_array_steps.push(
+                                    array_source_steps
+                                        .iter()
+                                        .find(|&&s| s == step_name.as_str())
+                                        .copied()
+                                        .unwrap_or(""),
+                                );
+                            }
+                        }
+                    }
+
+                    if referenced_array_steps.len() > 1 {
+                        errors.push(ValidationError {
+                            code: SpecErrorCode::ESpec001,
+                            message: format!(
+                                "step '{}' references multiple potentially-array-valued variables \
+                                 from prior steps ({}) — fan-out is single-array only; \
+                                 cartesian/zipped fan-out is not yet supported (PREREQ-C/D scope). \
+                                 Restructure so only one prior step's array output is referenced \
+                                 per step.",
+                                step.name,
+                                referenced_array_steps.join(", ")
+                            ),
+                            toml_path: Some(format!("{step_path}.path_template")),
+                            file_path: None,
+                            line_number: None,
+                        });
+                    }
+                }
+            }
+
+            // -------------------------------------------------------------------------
+            // Category 3a: response_path syntax (F-LP5-LOW-001 defense layer 2)
+            // -------------------------------------------------------------------------
+            // Reject "$." (empty key segment after prefix) and any path that does
+            // not start with "$.". extract_at_path also rejects these at runtime,
+            // but validator-time rejection prevents reaching the executor at all.
+            if step.response_path == "$."
+                || !step.response_path.starts_with("$.")
+                || step
+                    .response_path
+                    .strip_prefix("$.")
+                    .is_some_and(|s| s.is_empty())
+            {
+                errors.push(ValidationError {
+                    code: SpecErrorCode::ESpec001,
+                    message: format!(
+                        "step '{}': response_path '{}' must be a non-empty JSONPath starting with '$.<key>'",
+                        step.name, step.response_path
+                    ),
+                    toml_path: Some(format!("{step_path}.response_path")),
+                    file_path: None,
+                    line_number: None,
+                });
+            }
+
+            // -------------------------------------------------------------------------
+            // Category 3b: Fan-Out Batch Size (F-LP4-HIGH-001 DoS guard)
+            // -------------------------------------------------------------------------
+            // fan_out_batch_size = 0 would cause slice::chunks(0) to panic.
+            // Validate here (symmetric to page_size check below) so invalid specs
+            // are rejected before PipelineExecutor::execute is ever called.
+            if let Some(batch_size) = step.fan_out_batch_size
+                && batch_size == 0
+            {
+                errors.push(ValidationError {
+                    code: SpecErrorCode::ESpec001,
+                    message: format!(
+                        "step '{}': fan_out_batch_size must be > 0 (got 0)",
+                        step.name
+                    ),
+                    toml_path: Some(format!("{step_path}.fan_out_batch_size")),
+                    file_path: None,
+                    line_number: None,
+                });
+            }
+
+            // -------------------------------------------------------------------------
             // Category 4: Pagination Configuration
             // -------------------------------------------------------------------------
             if let Some(ref pagination) = step.pagination {
@@ -283,30 +413,30 @@ pub fn validate_sensor_spec(spec: &SensorSpec) -> ValidatorOutput {
     // Category 5: Rate Limit Hints
     // -------------------------------------------------------------------------
     if let Some(ref hints) = spec.rate_limit_hints {
-        if let Some(rps) = hints.requests_per_second {
-            if rps <= 0.0 {
-                errors.push(ValidationError {
-                    code: SpecErrorCode::ESpec001,
-                    message: format!(
-                        "rate_limit_hints.requests_per_second must be > 0, got {}",
-                        rps
-                    ),
-                    toml_path: Some("sensor.rate_limit_hints.requests_per_second".to_string()),
-                    file_path: None,
-                    line_number: None,
-                });
-            }
+        if let Some(rps) = hints.requests_per_second
+            && rps <= 0.0
+        {
+            errors.push(ValidationError {
+                code: SpecErrorCode::ESpec001,
+                message: format!(
+                    "rate_limit_hints.requests_per_second must be > 0, got {}",
+                    rps
+                ),
+                toml_path: Some("sensor.rate_limit_hints.requests_per_second".to_string()),
+                file_path: None,
+                line_number: None,
+            });
         }
-        if let Some(burst) = hints.burst_size {
-            if burst == 0 {
-                errors.push(ValidationError {
-                    code: SpecErrorCode::ESpec001,
-                    message: "rate_limit_hints.burst_size must be >= 1, got 0".to_string(),
-                    toml_path: Some("sensor.rate_limit_hints.burst_size".to_string()),
-                    file_path: None,
-                    line_number: None,
-                });
-            }
+        if let Some(burst) = hints.burst_size
+            && burst == 0
+        {
+            errors.push(ValidationError {
+                code: SpecErrorCode::ESpec001,
+                message: "rate_limit_hints.burst_size must be >= 1, got 0".to_string(),
+                toml_path: Some("sensor.rate_limit_hints.burst_size".to_string()),
+                file_path: None,
+                line_number: None,
+            });
         }
     }
 
@@ -486,4 +616,52 @@ fn is_semver_like(version: &str) -> bool {
         return false;
     }
     segments.iter().all(|s| s.parse::<u64>().is_ok())
+}
+
+#[cfg(test)]
+mod truncate_at_char_boundary_tests {
+    use super::truncate_at_char_boundary;
+
+    // Empty string with max_chars=0: trivial no-op, must not panic.
+    #[test]
+    fn empty_string_zero_chars() {
+        assert_eq!(truncate_at_char_boundary("", 0), "");
+    }
+
+    // Empty string with large max_chars: caller asks for more than available, returns all (empty).
+    #[test]
+    fn empty_string_nonzero_max() {
+        assert_eq!(truncate_at_char_boundary("", 100), "");
+    }
+
+    // ASCII string where char count equals max_chars: full string returned (no truncation).
+    #[test]
+    fn ascii_string_at_boundary() {
+        assert_eq!(truncate_at_char_boundary("abc", 3), "abc");
+    }
+
+    // ASCII string shorter than max_chars: max_chars > length is a no-op.
+    #[test]
+    fn ascii_string_under_max() {
+        assert_eq!(truncate_at_char_boundary("hi", 100), "hi");
+    }
+
+    // Multi-byte UTF-8: 5 emoji (4 bytes each = 20 bytes total), truncate to 3 codepoints.
+    // Must slice at byte index 12 (3 × 4 bytes), NOT byte index 3 (which would be mid-codepoint).
+    #[test]
+    fn utf8_multi_byte_truncation_no_panic() {
+        assert_eq!(truncate_at_char_boundary("🎯🎯🎯🎯🎯", 3), "🎯🎯🎯");
+    }
+
+    // max_chars=0 on a non-empty string: returns empty string (not the full string, not a panic).
+    #[test]
+    fn ascii_string_under_zero() {
+        assert_eq!(truncate_at_char_boundary("abc", 0), "");
+    }
+
+    // Single-char string at max=1: boundary where length equals max exactly, 1-char case.
+    #[test]
+    fn single_char_at_max() {
+        assert_eq!(truncate_at_char_boundary("a", 1), "a");
+    }
 }

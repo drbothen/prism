@@ -514,7 +514,7 @@ fn test_BC_2_17_002_ac8_kv_store_scoped_per_plugin() {
     ignore = "wasmtime JIT stack overflow on Windows debug (STATUS_STACK_BUFFER_OVERRUN)"
 )]
 fn test_BC_2_17_003_ac9_memory_limit_exceeded_returns_err() {
-    use prism_spec_engine::plugin::sandbox::{try_allocate_wasm_memory, DEFAULT_MEMORY_LIMIT_MB};
+    use prism_spec_engine::plugin::sandbox::{DEFAULT_MEMORY_LIMIT_MB, try_allocate_wasm_memory};
 
     let engine = wasmtime::Engine::default();
 
@@ -662,7 +662,7 @@ async fn test_BC_2_17_001_ec17_004_concurrent_traps_independent() {
     ignore = "wasmtime JIT stack overflow on Windows debug (STATUS_STACK_BUFFER_OVERRUN)"
 )]
 fn test_BC_2_17_003_ec17_009_at_limit_allocation_succeeds() {
-    use prism_spec_engine::plugin::sandbox::{try_allocate_wasm_memory, DEFAULT_MEMORY_LIMIT_MB};
+    use prism_spec_engine::plugin::sandbox::{DEFAULT_MEMORY_LIMIT_MB, try_allocate_wasm_memory};
 
     let engine = wasmtime::Engine::default();
 

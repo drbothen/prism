@@ -11,13 +11,13 @@
 #[cfg(test)]
 mod dedup_proofs {
     use std::sync::{
-        atomic::{AtomicUsize, Ordering},
         Arc,
+        atomic::{AtomicUsize, Ordering},
     };
 
     use proptest::prelude::*;
 
-    use crate::infusion::{cache::QueryScopedInfusionCache, InfusionSource};
+    use crate::infusion::{InfusionSource, cache::QueryScopedInfusionCache};
 
     // -----------------------------------------------------------------------
     // Mock InfusionSource with call counter

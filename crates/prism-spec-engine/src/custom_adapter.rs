@@ -51,7 +51,7 @@ pub trait CustomAdapter: Send + Sync {
     /// Return `Some(transformed)` to replace the raw response.
     /// Return `None` to use the raw response as-is (pass-through).
     fn transform_response(&self, table: &str, raw: &serde_json::Value)
-        -> Option<serde_json::Value>;
+    -> Option<serde_json::Value>;
 }
 
 /// Placeholder trait for sensor authentication (full definition in prism-sensors).

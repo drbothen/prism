@@ -327,51 +327,47 @@ impl SpecLoader {
         }
 
         // EventStream: validate poll_interval_secs minimum
-        if let Some(poll_interval) = table.poll_interval_secs {
-            if poll_interval < MIN_POLL_INTERVAL_SECS {
-                return Err(PrismError::Spec(SpecError {
-                    code: SpecErrorCode::ESpec001,
-                    message: format!(
-                        "sensor '{}' table '{}': poll_interval_secs={} is below the minimum \
-                         of {}s (AC-7, EC-002). Increase poll_interval to at least {}s.",
-                        sensor_id,
-                        table.table_name,
-                        poll_interval,
-                        MIN_POLL_INTERVAL_SECS,
-                        MIN_POLL_INTERVAL_SECS
-                    ),
-                    toml_path: Some(format!(
-                        "sensor.tables[{}].poll_interval_secs",
-                        table.table_name
-                    )),
-                    file_path: None,
-                    line_number: None,
-                }));
-            }
+        if let Some(poll_interval) = table.poll_interval_secs
+            && poll_interval < MIN_POLL_INTERVAL_SECS
+        {
+            return Err(PrismError::Spec(SpecError {
+                code: SpecErrorCode::ESpec001,
+                message: format!(
+                    "sensor '{}' table '{}': poll_interval_secs={} is below the minimum \
+                     of {}s (AC-7, EC-002). Increase poll_interval to at least {}s.",
+                    sensor_id,
+                    table.table_name,
+                    poll_interval,
+                    MIN_POLL_INTERVAL_SECS,
+                    MIN_POLL_INTERVAL_SECS
+                ),
+                toml_path: Some(format!(
+                    "sensor.tables[{}].poll_interval_secs",
+                    table.table_name
+                )),
+                file_path: None,
+                line_number: None,
+            }));
         }
 
         // EventStream: validate retention_secs maximum
-        if let Some(retention) = table.retention_secs {
-            if retention > MAX_RETENTION_SECS {
-                return Err(PrismError::Spec(SpecError {
-                    code: SpecErrorCode::ESpec001,
-                    message: format!(
-                        "sensor '{}' table '{}': retention_secs={} exceeds the maximum of \
-                         {}s (7 days) (AC-7). Reduce retention to at most {} seconds.",
-                        sensor_id,
-                        table.table_name,
-                        retention,
-                        MAX_RETENTION_SECS,
-                        MAX_RETENTION_SECS
-                    ),
-                    toml_path: Some(format!(
-                        "sensor.tables[{}].retention_secs",
-                        table.table_name
-                    )),
-                    file_path: None,
-                    line_number: None,
-                }));
-            }
+        if let Some(retention) = table.retention_secs
+            && retention > MAX_RETENTION_SECS
+        {
+            return Err(PrismError::Spec(SpecError {
+                code: SpecErrorCode::ESpec001,
+                message: format!(
+                    "sensor '{}' table '{}': retention_secs={} exceeds the maximum of \
+                     {}s (7 days) (AC-7). Reduce retention to at most {} seconds.",
+                    sensor_id, table.table_name, retention, MAX_RETENTION_SECS, MAX_RETENTION_SECS
+                ),
+                toml_path: Some(format!(
+                    "sensor.tables[{}].retention_secs",
+                    table.table_name
+                )),
+                file_path: None,
+                line_number: None,
+            }));
         }
 
         Ok(())
@@ -383,9 +379,17 @@ impl SpecLoader {
     pub fn parse(toml_input: &str) -> Result<SensorSpec, PrismError> {
         toml::from_str::<SensorSpec>(toml_input).map_err(|e| {
             let line_number = e.span().map(|span| {
-                // Count newlines before the error span start
-                let before = &toml_input[..span.start.min(toml_input.len())];
-                (before.chars().filter(|&c| c == '\n').count() + 1) as u32
+                // Count newlines before the error span start.
+                // F-LP10-MED-001 (defensive): `span.start` is a byte offset from the toml crate.
+                // TOML structural tokens are always ASCII so span.start is always a char boundary
+                // in practice; however, we use char_indices to count safely regardless.
+                let safe_start = span.start.min(toml_input.len());
+                let newline_count = toml_input
+                    .char_indices()
+                    .take_while(|(byte_idx, _)| *byte_idx < safe_start)
+                    .filter(|(_, c)| *c == '\n')
+                    .count();
+                (newline_count + 1) as u32
             });
             PrismError::Spec(SpecError {
                 code: SpecErrorCode::ESpec001,

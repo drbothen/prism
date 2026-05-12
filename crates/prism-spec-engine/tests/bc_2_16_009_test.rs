@@ -452,7 +452,7 @@ fn test_BC_2_16_009_reports_all_errors_together_no_fail_fast() {
     spec.sensor_id = "1invalid".to_string(); // error 1
     spec.name = "".to_string(); // error 2
     spec.base_url = "not-a-url".to_string(); // error 3
-                                             // forward ref for error 4
+    // forward ref for error 4
     spec.tables[0].steps.push(FetchStep {
         name: "step2".to_string(),
         method: "GET".to_string(),
@@ -473,5 +473,187 @@ fn test_BC_2_16_009_reports_all_errors_together_no_fail_fast() {
         errors.len() >= 4,
         "at least 4 errors must be reported together (no fail-fast); got {}",
         errors.len()
+    );
+}
+
+// ---------------------------------------------------------------------------
+// F-LP4-HIGH-001: fan_out_batch_size = 0 validation
+// ---------------------------------------------------------------------------
+
+/// BC-2.16.002 / F-LP4-HIGH-001: `fan_out_batch_size = 0` must be rejected by
+/// `validate_sensor_spec` before `PipelineExecutor::execute` is ever called.
+///
+/// A value of 0 would cause `slice::chunks(0)` to panic at runtime (DoS via
+/// TOML spec input). This validation is the primary guard; `fan_out_batches`
+/// has a defense-in-depth `.max(1)` clamp as secondary protection.
+///
+/// The test verifies:
+/// 1. The error is for `fan_out_batch_size` specifically (not some other field).
+/// 2. The error message contains "fan_out_batch_size" and the offending step name.
+/// 3. The error code is `E-SPEC-001`.
+#[test]
+fn test_BC_2_16_002_validation_rejects_fan_out_batch_size_zero() {
+    let mut spec = minimal_valid_spec();
+    // Set fan_out_batch_size = 0 on the first step (DoS input).
+    spec.tables[0].steps[0].fan_out_batch_size = Some(0);
+
+    let result = validate_sensor_spec(&spec);
+    assert!(
+        result.is_err(),
+        "spec with fan_out_batch_size = 0 must be rejected by validation; got Ok"
+    );
+
+    let errors = result.unwrap_err();
+    let fan_out_err = errors
+        .iter()
+        .find(|e| e.message.contains("fan_out_batch_size"));
+    assert!(
+        fan_out_err.is_some(),
+        "error list must contain an entry mentioning 'fan_out_batch_size'; got: {errors:?}"
+    );
+
+    let e = fan_out_err.unwrap();
+    assert_eq!(
+        e.code,
+        SpecErrorCode::ESpec001,
+        "fan_out_batch_size=0 error must carry E-SPEC-001 code; got {:?}",
+        e.code
+    );
+    // Step name must appear in the message for actionable diagnostics.
+    assert!(
+        e.message.contains("fetch_alerts"),
+        "error message must identify the offending step name 'fetch_alerts'; got: {}",
+        e.message
+    );
+    assert!(
+        e.message.contains("> 0") || e.message.contains("must be"),
+        "error message must communicate the constraint (> 0 or 'must be'); got: {}",
+        e.message
+    );
+}
+
+/// BC-2.16.002 / F-LP4-HIGH-001: `fan_out_batch_size = 1` (minimum valid) must
+/// be accepted by `validate_sensor_spec`.
+#[test]
+fn test_BC_2_16_002_validation_accepts_fan_out_batch_size_one() {
+    let mut spec = minimal_valid_spec();
+    spec.tables[0].steps[0].fan_out_batch_size = Some(1);
+    let result = validate_sensor_spec(&spec);
+    assert!(
+        result.is_ok(),
+        "fan_out_batch_size = 1 must be accepted; got: {:?}",
+        result.err()
+    );
+}
+
+/// BC-2.16.002 / F-LP4-HIGH-001 (defense-in-depth): `fan_out_batch_size = None`
+/// (absent — uses default 100) must be accepted by `validate_sensor_spec`.
+#[test]
+fn test_BC_2_16_002_validation_accepts_fan_out_batch_size_none() {
+    let spec = minimal_valid_spec();
+    assert!(
+        spec.tables[0].steps[0].fan_out_batch_size.is_none(),
+        "minimal_valid_spec must leave fan_out_batch_size unset"
+    );
+    let result = validate_sensor_spec(&spec);
+    assert!(
+        result.is_ok(),
+        "spec with fan_out_batch_size absent must be valid; got: {:?}",
+        result.err()
+    );
+}
+
+// ---------------------------------------------------------------------------
+// F-LP5-LOW-001 regression: response_path "$." rejected at validator layer
+// ---------------------------------------------------------------------------
+
+/// BC-2.16.009 / F-LP5-LOW-001: `validate_sensor_spec` must reject a step whose
+/// `response_path` is `"$."` — the path contains no key segment after the prefix,
+/// which would cause `extract_at_path` to silently produce an empty pointer.
+///
+/// This is defense layer 2: the validator catches malformed paths before the
+/// pipeline executor is ever invoked.
+#[test]
+fn test_BC_2_16_002_validation_rejects_malformed_dollar_dot_response_path() {
+    let mut spec = minimal_valid_spec();
+    // Inject "$." as response_path on the single step.
+    spec.tables[0].steps[0].response_path = "$.".to_string();
+
+    let result = validate_sensor_spec(&spec);
+    assert!(
+        result.is_err(),
+        "F-LP5-LOW-001: response_path='$.' must produce a validation error; got Ok"
+    );
+
+    let errors = result.unwrap_err();
+    assert!(
+        errors.iter().any(|e| e.message.contains("response_path")
+            || e.message.contains("$.")
+            || e.message.contains("non-empty JSONPath")),
+        "F-LP5-LOW-001: error must mention response_path malformation; got errors: {:?}",
+        errors
+    );
+}
+
+/// BC-2.16.009 / F-LP5-LOW-001: `validate_sensor_spec` must accept a valid
+/// response_path such as `"$.items"` — regression guard for the new validator rule.
+#[test]
+fn test_BC_2_16_002_validation_accepts_valid_dollar_dot_response_path() {
+    let mut spec = minimal_valid_spec();
+    spec.tables[0].steps[0].response_path = "$.items".to_string();
+
+    let result = validate_sensor_spec(&spec);
+    assert!(
+        result.is_ok(),
+        "F-LP5-LOW-001 guard: valid response_path '$.items' must pass validation; got: {:?}",
+        result.err()
+    );
+}
+
+// ---------------------------------------------------------------------------
+// F-LP10-MED-001: byte-boundary-safe truncation of base_url in error messages
+// ---------------------------------------------------------------------------
+
+/// BC-2.16.009 / F-LP10-MED-001: `validate_sensor_spec` must NOT panic when
+/// `base_url` contains multi-byte UTF-8 characters and a byte-index slice lands
+/// mid-codepoint.
+///
+/// Constructs `base_url = "x" + "🎯".repeat(60)` = 1 + 60*4 = 241 bytes.
+/// With the old `&url[..url.len().min(200)]`, byte 200 falls inside the 50th emoji
+/// (bytes 197..201) — a non-char-boundary — causing a `byte index 200 is not a
+/// char boundary` panic.
+///
+/// RED GATE (pre-fix): PANICS with byte-boundary panic.
+/// GREEN (post-fix): returns `Err(ValidationError)` — no panic — and error message
+///   contains a truncated prefix of the URL.
+#[test]
+fn test_BC_2_16_009_validation_handles_multibyte_utf8_base_url_without_panic() {
+    let mut spec = minimal_valid_spec();
+    // "x" + 60 × "🎯" = 1 + 240 = 241 bytes; 61 codepoints.
+    // Old code: &url[..241.min(200)] = &url[..200] — byte 200 is inside emoji 50 → panic.
+    spec.base_url = format!("x{}", "🎯".repeat(60));
+
+    // Must not panic — must return a clean ValidationError.
+    let result = validate_sensor_spec(&spec);
+    assert!(
+        result.is_err(),
+        "base_url not starting with http:// must produce an error; got Ok"
+    );
+    let errors = result.unwrap_err();
+    // The error must exist and must NOT panic to reach this assert.
+    assert!(
+        errors.iter().any(|e| e.code == SpecErrorCode::ESpec001),
+        "error must carry E-SPEC-001: {:?}",
+        errors
+    );
+    // Error message must contain a truncated (but char-boundary-safe) prefix of the URL.
+    let msg = &errors
+        .iter()
+        .find(|e| e.code == SpecErrorCode::ESpec001)
+        .unwrap()
+        .message;
+    assert!(
+        msg.contains('x') || msg.contains("base_url"),
+        "error message must reference the url or contain its prefix: {msg}"
     );
 }

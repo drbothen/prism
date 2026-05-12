@@ -38,13 +38,13 @@
 use std::collections::HashMap;
 
 use prism_spec_engine::{
+    ColumnType,
     config_manager::ConfigManager,
     reload_config::{detect_mode_changes, reload_config},
     types::{
         ConfigSnapshot, DtuMode, ModeChange, ModifiedSpec, ReloadConfigArgs, ReloadResult,
         ReloadStatus, SensorSpec, SensorTableDescriptor, ValidationError,
     },
-    ColumnType,
 };
 
 // ---------------------------------------------------------------------------
