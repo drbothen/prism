@@ -239,6 +239,76 @@ pub fn validate_sensor_spec(spec: &SensorSpec) -> ValidatorOutput {
             }
 
             // -------------------------------------------------------------------------
+            // Category 2b: Multi-Array Fan-Out Ambiguity (F-LP8-LOW-001)
+            // -------------------------------------------------------------------------
+            // Fan-out is single-array only. `find_fan_out_array` (pipeline.rs) returns
+            // the FIRST array-valued variable it finds; if a step references TWO distinct
+            // prior-step array-valued sources, the second is silently stringified as JSON
+            // (e.g., `[1,2,3]` → percent-encoded in the URL).
+            //
+            // Cartesian / zipped fan-out semantics are deferred to PREREQ-C/D scope.
+            // Silently using only the first array is worst-of-all-worlds; we reject at
+            // validation time to force the spec author to be explicit.
+            //
+            // Heuristic: a prior step's output is classified as "likely array" if:
+            //   (a) The step has a pagination config (implies repeated array accumulation), OR
+            //   (b) The step's response_path ends with `[*]` (explicit wildcard).
+            // If > 1 distinct source steps under this heuristic are referenced from the
+            // same downstream step, the spec is rejected.
+            {
+                let array_source_steps: Vec<&str> = table.steps[..si]
+                    .iter()
+                    .filter(|prior| {
+                        prior.pagination.is_some() || prior.response_path.ends_with("[*]")
+                    })
+                    .map(|s| s.name.as_str())
+                    .collect();
+
+                if array_source_steps.len() > 1 {
+                    // Check if THIS step references more than one of those array sources.
+                    let templates: Vec<&str> = std::iter::once(step.path_template.as_str())
+                        .chain(step.body_template.as_deref())
+                        .collect();
+
+                    let mut referenced_array_steps: Vec<&str> = Vec::new();
+                    for template in &templates {
+                        let refs = Interpolator::extract_references(template);
+                        for (step_name, _field) in refs {
+                            if array_source_steps.contains(&step_name.as_str())
+                                && !referenced_array_steps.contains(&step_name.as_str())
+                            {
+                                referenced_array_steps.push(
+                                    array_source_steps
+                                        .iter()
+                                        .find(|&&s| s == step_name.as_str())
+                                        .copied()
+                                        .unwrap_or(""),
+                                );
+                            }
+                        }
+                    }
+
+                    if referenced_array_steps.len() > 1 {
+                        errors.push(ValidationError {
+                            code: SpecErrorCode::ESpec001,
+                            message: format!(
+                                "step '{}' references multiple potentially-array-valued variables \
+                                 from prior steps ({}) — fan-out is single-array only; \
+                                 cartesian/zipped fan-out is not yet supported (PREREQ-C/D scope). \
+                                 Restructure so only one prior step's array output is referenced \
+                                 per step.",
+                                step.name,
+                                referenced_array_steps.join(", ")
+                            ),
+                            toml_path: Some(format!("{step_path}.path_template")),
+                            file_path: None,
+                            line_number: None,
+                        });
+                    }
+                }
+            }
+
+            // -------------------------------------------------------------------------
             // Category 3a: response_path syntax (F-LP5-LOW-001 defense layer 2)
             // -------------------------------------------------------------------------
             // Reject "$." (empty key segment after prefix) and any path that does

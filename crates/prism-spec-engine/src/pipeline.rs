@@ -878,11 +878,31 @@ fn extract_cursor(body: &serde_json::Value, cursor_path: &str) -> Option<String>
         serde_json::Value::Number(n) => Some(n.to_string()), // numeric cursor → string
         serde_json::Value::Null => None,
         other => {
-            // Object/Array/Bool: treat as terminal but emit diagnostic.
+            // Object/Array/Bool: treat as terminal but emit structured diagnostic.
+            // F-LP8-MED-003: include event_type for SIEM/SOC alerting pipelines.
+            // The bare-warn without event_type was inconsistent with the project's
+            // audit-signal discipline (compare pipeline_truncated at pipeline.rs:362-370).
+            let actual_type = match &other {
+                serde_json::Value::Array(_) => "Array",
+                serde_json::Value::Object(_) => "Object",
+                serde_json::Value::Bool(_) => "Bool",
+                _ => "Unknown",
+            };
+            let cursor_preview = {
+                let s = other.to_string();
+                if s.len() > 100 {
+                    s[..100].to_string()
+                } else {
+                    s
+                }
+            };
             tracing::warn!(
+                event_type = "pagination_cursor_unsupported_type",
                 cursor_path = %cursor_path,
-                actual_type = ?other,
-                "non-string/non-numeric cursor terminated pagination"
+                actual_type = %actual_type,
+                cursor_preview = %cursor_preview,
+                "Cursor pagination terminated: cursor resolved to unsupported type \
+                 (only String, Number, Null are supported)"
             );
             None
         }
