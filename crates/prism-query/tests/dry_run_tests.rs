@@ -136,29 +136,30 @@ mod helpers {
         // make_reversible_plan() uses verb="create_schedule" → Reversible
         // make_irreversible_plan() uses verb="contain" → Irreversible
         let mut endpoint_registry = WriteEndpointRegistry::new();
+        // #[non_exhaustive]: use WriteEndpointSpec::new() constructor
         let _ = endpoint_registry.register(
             "crowdstrike",
             vec![
-                WriteEndpointSpec {
-                    pipe_verb: "create_schedule".to_string(),
-                    sql_table: "crowdstrike_schedules".to_string(),
-                    capability_path: "sensor.crowdstrike.create_schedule".to_string(),
-                    risk_tier: RiskTier::Reversible,
-                    batch_limit: 100,
-                    batch_mode: BatchMode::Serial,
-                    steps: vec![],
-                    record_id_field: "id".to_string(),
-                },
-                WriteEndpointSpec {
-                    pipe_verb: "contain".to_string(),
-                    sql_table: "crowdstrike_contained_hosts".to_string(),
-                    capability_path: "sensor.crowdstrike.contain".to_string(),
-                    risk_tier: RiskTier::Irreversible,
-                    batch_limit: 100,
-                    batch_mode: BatchMode::Serial,
-                    steps: vec![],
-                    record_id_field: "device_id".to_string(),
-                },
+                WriteEndpointSpec::new(
+                    "create_schedule",
+                    "crowdstrike_schedules",
+                    RiskTier::Reversible,
+                    "sensor.crowdstrike.create_schedule",
+                    100,
+                    BatchMode::Serial,
+                    "id",
+                    vec![],
+                ),
+                WriteEndpointSpec::new(
+                    "contain",
+                    "crowdstrike_contained_hosts",
+                    RiskTier::Irreversible,
+                    "sensor.crowdstrike.contain",
+                    100,
+                    BatchMode::Serial,
+                    "device_id",
+                    vec![],
+                ),
             ],
         );
 

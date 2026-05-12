@@ -60,8 +60,36 @@ fn var_regex() -> &'static regex::Regex {
     })
 }
 
+/// Placeholder used internally for the `$$` escape mechanism.
+///
+/// This string must not appear in any legitimate template or variable value.
+/// It is substituted in before interpolation and replaced with `$` after.
+/// A `$$` in the template produces one literal `$` in the output.
+const DOLLAR_ESCAPE_PLACEHOLDER: &str = "\x00DOLLAR_ESCAPE\x00";
+
 impl Interpolator {
     /// Interpolate all `${step_name.field}` references in `template`.
+    ///
+    /// ## Escape mechanism (AC-4, S-PLUGIN-PREREQ-C)
+    ///
+    /// Supports a double-dollar escape sequence to produce literal `$` in output.
+    /// The escape is **context-free**: any `$$` pair anywhere in the template is
+    /// collapsed to a single literal `$`, regardless of what follows.
+    ///
+    /// - `$$abc` → literal `$abc` (context-free: `$$` collapses to `$`)
+    /// - `$${var}` → literal `${var}` (no variable lookup; `$$` collapses to `$`,
+    ///   then `{var}` is no longer preceded by `$` so it is NOT interpolated)
+    /// - `${var}` → interpolated value of `var` (existing behavior, unchanged)
+    /// - `$$${var}` → literal `$` followed by interpolated value of `var`
+    ///
+    /// **Escape grammar:** `$$` anywhere (non-overlapping, left-to-right) is consumed
+    /// as a single literal `$`. Consecutive `$$` pairs are each consumed independently:
+    /// `$$$$${var}` → `$$<interpolated_var>`.
+    ///
+    /// **Implementation:** two-pass approach:
+    /// 1. Replace `$${` with an internal placeholder.
+    /// 2. Run the interpolation regex on the modified template.
+    /// 3. Replace the placeholder back with `${` in the output.
     ///
     /// - `context`: escaping mode (JsonBody or UrlPath)
     /// - `vars`: map of `"step_name.field"` → resolved JSON values
@@ -72,18 +100,31 @@ impl Interpolator {
         context: &InterpolationContext,
         vars: &std::collections::HashMap<String, serde_json::Value>,
     ) -> Result<String, InterpolationError> {
+        // AC-4: Two-pass escape mechanism.
+        // Pass 1: Replace `$$` pairs with a placeholder (representing a single literal `$`).
+        // This is a left-to-right non-overlapping replacement.
+        //
+        // Semantics:
+        //   - `$${var}` = `$$` (→ placeholder `$`) + `{var}` (literal brace) = `${var}` literal ✓
+        //   - `$$${var}` = `$$` (→ placeholder `$`) + `${var}` (live reference) = `$<value>` ✓
+        //   - `${var}` = live reference (unaffected; no `$$`) ✓
+        //
+        // Implementation: replace `$$` (non-overlapping, left-to-right) with placeholder.
+        // The placeholder value cannot appear in templates or variable values (NUL bytes).
+        let escaped_template = replace_double_dollar_escapes(template);
+
         let re = var_regex();
-        let mut result = String::with_capacity(template.len());
+        let mut result = String::with_capacity(escaped_template.len());
         let mut last_end = 0;
 
-        for cap in re.captures_iter(template) {
+        for cap in re.captures_iter(&escaped_template) {
             let full_match = cap.get(0).expect("full match always present");
             let step_name = cap.get(1).expect("group 1").as_str();
             let field_path = cap.get(2).expect("group 2").as_str();
             let key = format!("{step_name}.{field_path}");
 
-            // Append the literal portion before this match
-            result.push_str(&template[last_end..full_match.start()]);
+            // Append the literal portion before this match (from escaped_template)
+            result.push_str(&escaped_template[last_end..full_match.start()]);
 
             // Look up the variable value
             let value = match vars.get(&key) {
@@ -125,9 +166,11 @@ impl Interpolator {
             last_end = full_match.end();
         }
 
-        // Append the remainder of the template after the last match
-        result.push_str(&template[last_end..]);
-        Ok(result)
+        // Append the remainder of the escaped_template after the last match
+        result.push_str(&escaped_template[last_end..]);
+
+        // AC-4 Pass 3: Replace placeholder back with literal `$` in the final output.
+        Ok(result.replace(DOLLAR_ESCAPE_PLACEHOLDER, "$"))
     }
 
     /// Extract all variable references from a template string.
@@ -205,6 +248,41 @@ impl Interpolator {
             .add(b'}');
         utf8_percent_encode(value, UNRESERVED).to_string()
     }
+}
+
+/// Replace `$$` pairs with a placeholder representing a single literal `$`.
+///
+/// Left-to-right non-overlapping scan: for each `$$` (two adjacent dollar signs),
+/// consume both and emit the placeholder. The remaining text is passed through
+/// unchanged for the interpolation regex to process.
+///
+/// The escape is **context-free**: `$$` is consumed regardless of what follows.
+/// This implements the AC-4 escape mechanism:
+/// - `$$abc` = `$$` (→ `PLACEHOLDER`) + `abc` → `PLACEHOLDERabc` → no regex match → `$abc` literal
+/// - `$${var}` = `$$` (→ `PLACEHOLDER`) + `{var}` → `PLACEHOLDER{var}` → no regex match → `${var}` literal
+/// - `$$${var}` = `$$` (→ `PLACEHOLDER`) + `${var}` → `PLACEHOLDER${var}` → regex → `PLACEHOLDERvalue` → `$value`
+/// - `${var}` = no `$$` → unchanged → regex match → `value`
+fn replace_double_dollar_escapes(template: &str) -> String {
+    let mut result = String::with_capacity(template.len());
+    let bytes = template.as_bytes();
+    let len = bytes.len();
+    let mut i = 0;
+
+    while i < len {
+        // Check for `$$` pattern: two adjacent dollar signs (non-overlapping).
+        if i + 1 < len && bytes[i] == b'$' && bytes[i + 1] == b'$' {
+            // Consume both `$` chars as a single escape unit; emit the placeholder.
+            result.push_str(DOLLAR_ESCAPE_PLACEHOLDER);
+            i += 2; // skip both `$` chars
+        } else {
+            // Safety: template is valid UTF-8. We only match ASCII `$` chars;
+            // all other bytes are passed through as-is.
+            result.push(bytes[i] as char);
+            i += 1;
+        }
+    }
+
+    result
 }
 
 /// Convert a `serde_json::Value` to its string representation for interpolation.
@@ -307,5 +385,163 @@ impl Interpolator {
 
         result.push_str(&template[last_end..]);
         Ok(result)
+    }
+}
+
+// ---------------------------------------------------------------------------
+// S-PLUGIN-PREREQ-C: AC-4 Red Gate — `$${...}` literal escape mechanism
+//
+// BC-2.16.002 postcondition: path_template and body_template are interpolated
+// against variables; the escape mechanism is a grammar extension of the
+// interpolation surface.
+//
+// AC-4 requires: `$${var}` → literal `${var}` (no variable lookup).
+//                `${var}` → interpolated value of `var` (existing, unchanged).
+//                `$$${var}` → literal `$` followed by interpolated `var`.
+//
+// RED GATE MECHANISM: The current `Interpolator::interpolate` uses a regex that
+// matches `\$\{([a-zA-Z0-9_]+)\.([a-zA-Z0-9_.]+)\}`. A double-dollar `$$` before
+// the opening brace is NOT recognized as an escape — the current regex will either
+// match (treating `$$` as a literal `$` before the live reference) or not match
+// (if the regex is anchored differently). These tests verify the EXPECTED semantics;
+// they fail until the escape mechanism is implemented.
+// ---------------------------------------------------------------------------
+
+#[cfg(test)]
+mod escape_tests {
+    use std::collections::HashMap;
+
+    use super::{InterpolationContext, Interpolator};
+
+    /// AC-4(a): double-dollar escape (`$$` before `{`) produces literal `${var}`.
+    ///
+    /// Template `"$${step1.var}"` with `step1.var = "hello"` in scope must produce
+    /// the literal string `"${step1.var}"` — NOT the interpolated value `"hello"`.
+    ///
+    /// RED GATE: the current regex matches `${step1.var}` inside the template
+    /// (treating the leading `$` as literal preceding text), producing `"$hello"`.
+    /// After AC-4, `$$` before `{` suppresses interpolation and the output is literal.
+    /// This test MUST FAIL until AC-4 is implemented.
+    #[test]
+    fn test_BC_2_16_002_interpolator_escape_double_dollar() {
+        let mut vars = HashMap::new();
+        vars.insert(
+            "step1.var".to_string(),
+            serde_json::Value::String("hello".to_string()),
+        );
+
+        // Template contains "$$" before "${step1.var}" — the AC-4 escape sequence.
+        let template = "$${step1.var}";
+        let result = Interpolator::interpolate(template, &InterpolationContext::UrlPath, &vars);
+
+        assert!(
+            result.is_ok(),
+            "AC-4 RED GATE: double-dollar escape must not return an error; got: {:?}",
+            result.err()
+        );
+        let output = result.unwrap();
+        let expected_literal = "${step1.var}";
+        assert_eq!(
+            output, expected_literal,
+            "AC-4 RED GATE: double-dollar escape must produce literal '{expected_literal}', \
+             not the interpolated value. CURRENT OUTPUT (before AC-4): '{output}'\n\
+             IMPLEMENTATION NEEDED: detect $$ prefix before ${{...}} and suppress interpolation."
+        );
+    }
+
+    /// AC-4(b): `${var}` with `var` in scope still produces the interpolated value.
+    ///
+    /// Backward compat: existing interpolation behavior is unchanged after AC-4.
+    /// This test MUST PASS before AND after AC-4.
+    #[test]
+    fn test_BC_2_16_002_interpolator_live_reference_unaffected() {
+        let mut vars = HashMap::new();
+        vars.insert(
+            "step1.var".to_string(),
+            serde_json::Value::String("hello".to_string()),
+        );
+
+        let template = "${step1.var}";
+        let result = Interpolator::interpolate(template, &InterpolationContext::UrlPath, &vars);
+
+        assert!(
+            result.is_ok(),
+            "backward compat: dollar-brace reference must succeed"
+        );
+        assert_eq!(
+            result.unwrap(),
+            "hello",
+            "backward compat: dollar-brace reference must interpolate to 'hello'"
+        );
+    }
+
+    /// AC-4(c): triple-dollar before brace — one literal `$` plus interpolated value.
+    ///
+    /// Template `"$$${step1.var}"` (three dollars):
+    ///   AC-4 semantics: `$$` escapes to literal `$`; `${step1.var}` is a live reference.
+    ///   Result: `"$"` + `"hello"` = `"$hello"`.
+    ///
+    /// RED GATE: the current regex processes `${step1.var}` inside the template
+    /// but does not handle the leading `$$` escape prefix. Before AC-4:
+    ///   - The regex matches `${step1.var}` (the tail), producing `$$hello`
+    ///     (two literal `$` from unprocessed prefix, then interpolated `hello`).
+    ///   - After AC-4: the `$$` is consumed as escape → `$`, and the remaining
+    ///     `${step1.var}` is interpolated → `hello`. Combined: `$hello`.
+    ///
+    /// This test MUST FAIL until AC-4 is implemented.
+    #[test]
+    fn test_BC_2_16_002_interpolator_triple_dollar_escape() {
+        let mut vars = HashMap::new();
+        vars.insert(
+            "step1.var".to_string(),
+            serde_json::Value::String("hello".to_string()),
+        );
+
+        // "$$${step1.var}" — two dollar signs then a live reference.
+        // AC-4: `$$` → literal `$`; `${step1.var}` → `hello`; combined: `$hello`.
+        let template = "$$${step1.var}";
+        let result = Interpolator::interpolate(template, &InterpolationContext::UrlPath, &vars);
+
+        assert!(
+            result.is_ok(),
+            "AC-4(c): triple-dollar template must not return an error; got: {:?}",
+            result.err()
+        );
+        let output = result.unwrap();
+        assert_eq!(
+            output, "$hello",
+            "AC-4 RED GATE: triple-dollar template must produce '$hello' \
+             (literal $ from double-dollar escape plus interpolated value 'hello'). \
+             CURRENT OUTPUT (before AC-4 implementation): '{}'",
+            output
+        );
+    }
+
+    /// HIGH-003 (S-PLUGIN-PREREQ-C): context-free `$$` locking test.
+    ///
+    /// The escape grammar is context-free: `$$` collapses to `$` regardless of
+    /// what follows. This test locks the chosen semantics against a future
+    /// implementation that might anchor escape on `$${` (brace-anchored).
+    ///
+    /// If the implementation were switched to "anchored on `{`", these assertions
+    /// would fail — confirming the test locks the context-free behavior.
+    #[test]
+    fn test_AC4_escape_context_free_double_dollar_to_single() {
+        let vars = HashMap::new();
+
+        // `$$abc` → `$abc` (no variable in scope required; context-free collapse)
+        let result = Interpolator::interpolate("$$abc", &InterpolationContext::UrlPath, &vars);
+        assert!(result.is_ok(), "$$abc must not error");
+        assert_eq!(result.unwrap(), "$abc", "$$abc must collapse to $abc");
+
+        // `$$1.99` → `$1.99` (dollar amount with non-brace suffix)
+        let result = Interpolator::interpolate("$$1.99", &InterpolationContext::UrlPath, &vars);
+        assert!(result.is_ok(), "$$1.99 must not error");
+        assert_eq!(result.unwrap(), "$1.99", "$$1.99 must collapse to $1.99");
+
+        // `a$$b$$c` → `a$b$c` (multiple non-overlapping pairs)
+        let result = Interpolator::interpolate("a$$b$$c", &InterpolationContext::UrlPath, &vars);
+        assert!(result.is_ok(), "a$$b$$c must not error");
+        assert_eq!(result.unwrap(), "a$b$c", "a$$b$$c must collapse to a$b$c");
     }
 }

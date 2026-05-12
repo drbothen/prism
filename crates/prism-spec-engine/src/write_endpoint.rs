@@ -31,6 +31,11 @@ pub const RESERVED_KEYWORDS: &[&str] = &["where", "sort", "limit", "join", "enri
 // ---------------------------------------------------------------------------
 
 /// Execution mode for batched write operations.
+///
+/// `#[non_exhaustive]`: forward-compat for write pipeline schema evolution — new batch
+/// modes (e.g., transactional, streaming) may be added without a breaking semver change.
+/// External match arms must include a wildcard arm.
+#[non_exhaustive]
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "lowercase")]
 pub enum BatchMode {
@@ -49,7 +54,12 @@ pub type RiskTierSpec = RiskTier;
 /// A single HTTP step within a write endpoint pipeline.
 ///
 /// Corresponds to `[[write_endpoints.{verb}.steps]]` in the sensor TOML.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+///
+/// `#[non_exhaustive]`: forward-compat for write pipeline schema evolution — fields may
+/// expand (e.g., retry config, timeout, conditional guards) without a breaking semver change.
+/// External callers must use `WriteStep::new()`.
+#[non_exhaustive]
+#[derive(Debug, Clone, PartialEq, Default, Serialize, Deserialize)]
 pub struct WriteStep {
     /// HTTP method ("POST", "PUT", "PATCH", "DELETE").
     pub method: String,
@@ -59,6 +69,39 @@ pub struct WriteStep {
     pub body_template: Option<String>,
     /// Optional JSONPath expression to extract a field from the response.
     pub response_path: Option<String>,
+}
+
+impl WriteStep {
+    /// Convenience constructor for in-crate use.
+    ///
+    /// **Forward-compatibility note:** This positional `::new()` takes a fixed
+    /// argument count and is NOT forward-compatible by itself. Adding a new field
+    /// to `WriteStep` requires changing this constructor's signature, which is a
+    /// breaking semver change for any caller using `WriteStep::new(...)`.
+    ///
+    /// For forward-compatible external construction across future field additions,
+    /// use struct-literal + `..Default::default()`:
+    ///
+    /// ```ignore
+    /// let step = WriteStep {
+    ///     method: "POST".to_string(),
+    ///     url: "https://api.example.com/v1/write".to_string(),
+    ///     ..Default::default()
+    /// };
+    /// ```
+    pub fn new(
+        method: impl Into<String>,
+        url: impl Into<String>,
+        body_template: Option<String>,
+        response_path: Option<String>,
+    ) -> Self {
+        Self {
+            method: method.into(),
+            url: url.into(),
+            body_template,
+            response_path,
+        }
+    }
 }
 
 /// Specification for a single write endpoint on a sensor.
@@ -72,6 +115,11 @@ pub struct WriteStep {
 /// - `batch_limit = 0` + `risk_tier = Irreversible`: structured warning (not error)
 /// - `steps` must be non-empty
 /// - `record_id_field` must match `[a-z0-9_]+`
+///
+/// `#[non_exhaustive]`: forward-compat for write pipeline schema evolution — fields may
+/// expand (e.g., timeout config, retry policy, auth override) without a breaking semver change.
+/// Use `..Default::default()` for forward-compatible external construction.
+#[non_exhaustive]
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct WriteEndpointSpec {
     /// Verb name used in PrismQL pipe stages (e.g., `contain`, `acknowledge`).
@@ -90,6 +138,63 @@ pub struct WriteEndpointSpec {
     pub record_id_field: String,
     /// HTTP steps to execute for this write operation (must be non-empty).
     pub steps: Vec<WriteStep>,
+}
+
+impl Default for WriteEndpointSpec {
+    fn default() -> Self {
+        Self {
+            pipe_verb: String::new(),
+            sql_table: String::new(),
+            risk_tier: RiskTier::Reversible,
+            capability_path: String::new(),
+            batch_limit: 0,
+            batch_mode: BatchMode::Serial,
+            record_id_field: String::new(),
+            steps: vec![],
+        }
+    }
+}
+
+impl WriteEndpointSpec {
+    /// Convenience constructor for in-crate use.
+    ///
+    /// **Forward-compatibility note:** This positional `::new()` takes a fixed
+    /// argument count and is NOT forward-compatible by itself. Adding a new field
+    /// to `WriteEndpointSpec` requires changing this constructor's signature, which is a
+    /// breaking semver change for any caller using `WriteEndpointSpec::new(...)`.
+    ///
+    /// For forward-compatible external construction across future field additions,
+    /// use struct-literal + `..Default::default()`:
+    ///
+    /// ```ignore
+    /// let spec = WriteEndpointSpec {
+    ///     pipe_verb: "contain".to_string(),
+    ///     sql_table: "crowdstrike_contain".to_string(),
+    ///     ..Default::default()
+    /// };
+    /// ```
+    #[allow(clippy::too_many_arguments)]
+    pub fn new(
+        pipe_verb: impl Into<String>,
+        sql_table: impl Into<String>,
+        risk_tier: RiskTier,
+        capability_path: impl Into<String>,
+        batch_limit: u32,
+        batch_mode: BatchMode,
+        record_id_field: impl Into<String>,
+        steps: Vec<WriteStep>,
+    ) -> Self {
+        Self {
+            pipe_verb: pipe_verb.into(),
+            sql_table: sql_table.into(),
+            risk_tier,
+            capability_path: capability_path.into(),
+            batch_limit,
+            batch_mode,
+            record_id_field: record_id_field.into(),
+            steps,
+        }
+    }
 }
 
 /// Descriptor exported from a loaded write endpoint for downstream consumption.

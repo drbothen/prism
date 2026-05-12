@@ -10,7 +10,7 @@ publish = false
 name = "prism_audit"
 
 [dependencies]
-prism-core = { path = "../prism-core", version = "0.1.0" }
+prism-core = { path = "../prism-core", version = "0.2.0" }
 prism-storage = { path = "../prism-storage", version = "0.1.0" }
 tower = { version = "0.4" }
 serde = { version = "1", features = ["derive"] }
@@ -26,7 +26,7 @@ sha2 = "0.10"
 [dev-dependencies]
 tokio = { version = "1", features = ["rt", "macros"] }
 prism-storage = { path = "../prism-storage", version = "0.1.0", features = ["test-utils"] }
-prism-core = { path = "../prism-core", version = "0.1.0" }
+prism-core = { path = "../prism-core", version = "0.2.0" }
 tower = { version = "0.4", features = ["util"] }
 serial_test = "3"
 bincode = { version = "2", features = ["serde"] }

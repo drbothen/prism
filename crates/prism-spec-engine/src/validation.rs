@@ -375,6 +375,7 @@ pub fn validate_sensor_spec(spec: &SensorSpec) -> ValidatorOutput {
                 match pagination {
                     PaginationConfig::CursorToken {
                         cursor_response_path,
+                        ..
                     } => {
                         if cursor_response_path.is_empty() {
                             errors.push(ValidationError {

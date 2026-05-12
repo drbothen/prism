@@ -177,18 +177,18 @@ fn run_ac3() {
         "detections",
         "security_finding",
         vec![
-            ColumnSpec {
-                name: "created_timestamp".to_string(),
-                column_type: ColumnType::Datetime,
-                ocsf_field: Some("time".to_string()),
-                options: vec![],
-            },
-            ColumnSpec {
-                name: "severity_name".to_string(),
-                column_type: ColumnType::String,
-                ocsf_field: Some("severity".to_string()),
-                options: vec![],
-            },
+            ColumnSpec::new(
+                "created_timestamp",
+                ColumnType::Datetime,
+                Some("time".to_string()),
+                vec![],
+            ),
+            ColumnSpec::new(
+                "severity_name",
+                ColumnType::String,
+                Some("severity".to_string()),
+                vec![],
+            ),
         ],
         vec![],
     );
@@ -209,12 +209,12 @@ fn run_ac3_error() {
     let table = TableSpec::new_point_in_time(
         "detections",
         "security_finding",
-        vec![ColumnSpec {
-            name: "vendor_specific_field".to_string(),
-            column_type: ColumnType::String,
-            ocsf_field: None, // no OCSF mapping
-            options: vec![],
-        }],
+        vec![ColumnSpec::new(
+            "vendor_specific_field",
+            ColumnType::String,
+            None,
+            vec![],
+        )],
         vec![],
     );
     let raw = json!({ "vendor_specific_field": "some_value" });
@@ -231,17 +231,17 @@ fn run_ac4() {
         .register(Box::new(MockCrowdStrikeAdapter))
         .expect("first registration must succeed");
     let adapter = registry.get("crowdstrike").expect("adapter must be found");
-    let step = FetchStep {
-        name: "fetch".to_string(),
-        method: "GET".to_string(),
-        path_template: "/detections".to_string(),
-        body_template: None,
-        response_path: "$.resources".to_string(),
-        pagination_cursor_path: None,
-        variables_produced: vec![],
-        fan_out_batch_size: None,
-        pagination: None,
-    };
+    let step = FetchStep::new(
+        "fetch",
+        "GET",
+        "/detections",
+        None,
+        "$.resources",
+        None,
+        vec![],
+        None,
+        None,
+    );
     let ctx = FetchContext::new(OrgSlug::new("tenant-001").unwrap(), HashMap::new());
     let records = adapter.override_fetch("detections", &step, &ctx);
     println!("adapter id : {}", adapter.sensor_id());
@@ -269,50 +269,45 @@ fn run_ac4_error() {
 
 fn run_ac5() {
     println!("=== AC-5: BC-2.16.009 — Validation: Dangling Variable Ref ===");
-    let spec = SensorSpec {
-        sensor_id: "test-sensor".to_string(),
-        name: "Test Sensor".to_string(),
-        auth_type: AuthType::BearerStatic,
-        base_url: "https://api.example.com".to_string(),
-        version: "1.0.0".to_string(),
-        tables: vec![TableSpec::new_point_in_time(
+    let spec = SensorSpec::new(
+        "test-sensor",
+        "Test Sensor",
+        AuthType::BearerStatic,
+        "https://api.example.com",
+        vec![TableSpec::new_point_in_time(
             "alerts",
             "security_finding",
-            vec![ColumnSpec {
-                name: "id".to_string(),
-                column_type: ColumnType::String,
-                ocsf_field: None,
-                options: vec![],
-            }],
+            vec![ColumnSpec::new("id", ColumnType::String, None, vec![])],
             vec![
-                FetchStep {
-                    name: "step1".to_string(),
-                    method: "POST".to_string(),
-                    path_template: "/auth/token".to_string(),
-                    body_template: None,
-                    response_path: "$.access_token".to_string(),
-                    pagination_cursor_path: None,
-                    variables_produced: vec!["access_token".to_string()],
-                    fan_out_batch_size: None,
-                    pagination: None,
-                },
-                FetchStep {
-                    name: "step2".to_string(),
-                    method: "GET".to_string(),
+                FetchStep::new(
+                    "step1",
+                    "POST",
+                    "/auth/token",
+                    None,
+                    "$.access_token",
+                    None,
+                    vec!["access_token".to_string()],
+                    None,
+                    None,
+                ),
+                FetchStep::new(
+                    "step2",
+                    "GET",
                     // Dangling ref: ${nonexistent.field} was never produced by step1
-                    path_template: "/alerts?token=${nonexistent.field}".to_string(),
-                    body_template: None,
-                    response_path: "$.resources".to_string(),
-                    pagination_cursor_path: None,
-                    variables_produced: vec![],
-                    fan_out_batch_size: None,
-                    pagination: None,
-                },
+                    "/alerts?token=${nonexistent.field}",
+                    None,
+                    "$.resources",
+                    None,
+                    vec![],
+                    None,
+                    None,
+                ),
             ],
         )],
-        rate_limit_hints: None,
-        credential_refs: Vec::new(),
-    };
+        None,
+        "1.0.0",
+        Vec::new(),
+    );
     match validate_sensor_spec(&spec) {
         Err(errors) => {
             println!("Validation returned {} error(s):", errors.len());
@@ -327,16 +322,16 @@ fn run_ac5() {
 
 fn run_ac5_error() {
     println!("=== AC-5 (error): multi-error collection — no fail-fast ===");
-    let spec = SensorSpec {
-        sensor_id: "".to_string(), // error 1: empty sensor_id
-        name: "".to_string(),      // error 2: empty name
-        auth_type: AuthType::BearerStatic,
-        base_url: "not-a-url".to_string(), // error 3: invalid base_url
-        version: "bad-ver".to_string(),    // error 4: invalid semver
-        tables: vec![],                    // error 5: no tables
-        rate_limit_hints: None,
-        credential_refs: Vec::new(),
-    };
+    let spec = SensorSpec::new(
+        "", // error 1: empty sensor_id
+        "", // error 2: empty name
+        AuthType::BearerStatic,
+        "not-a-url", // error 3: invalid base_url
+        vec![],      // error 5: no tables
+        None,
+        "bad-ver", // error 4: invalid semver
+        Vec::new(),
+    );
     match validate_sensor_spec(&spec) {
         Err(errors) => {
             println!(
@@ -361,42 +356,39 @@ fn run_vp059() {
         // Construct a spec with exactly `n` category errors (empty sensor_id counts as 1;
         // we inject `n` invalid column names to produce N distinct errors).
         let columns: Vec<ColumnSpec> = (0..n)
-            .map(|i| ColumnSpec {
-                name: format!("col-{i}"), // valid column names
-                column_type: ColumnType::String,
-                ocsf_field: None,
-                options: vec![],
-            })
+            .map(|i| ColumnSpec::new(format!("col-{i}"), ColumnType::String, None, vec![]))
             .collect();
         // Introduce n dangling variable refs in steps
         let steps: Vec<FetchStep> = (0..n)
-            .map(|i| FetchStep {
-                name: format!("step{i}"),
-                method: "GET".to_string(),
-                path_template: format!("/api?ref=${{dangling_ref_{i}.value}}"),
-                body_template: None,
-                response_path: "$.data".to_string(),
-                pagination_cursor_path: None,
-                variables_produced: vec![],
-                fan_out_batch_size: None,
-                pagination: None,
+            .map(|i| {
+                FetchStep::new(
+                    format!("step{i}"),
+                    "GET",
+                    format!("/api?ref=${{dangling_ref_{i}.value}}"),
+                    None,
+                    "$.data",
+                    None,
+                    vec![],
+                    None,
+                    None,
+                )
             })
             .collect();
-        let spec = SensorSpec {
-            sensor_id: "test".to_string(),
-            name: "Test".to_string(),
-            auth_type: AuthType::BearerStatic,
-            base_url: "https://api.example.com".to_string(),
-            version: "1.0.0".to_string(),
-            tables: vec![TableSpec::new_point_in_time(
+        let spec = SensorSpec::new(
+            "test",
+            "Test",
+            AuthType::BearerStatic,
+            "https://api.example.com",
+            vec![TableSpec::new_point_in_time(
                 "t",
                 "security_finding",
                 columns,
                 steps,
             )],
-            rate_limit_hints: None,
-            credential_refs: Vec::new(),
-        };
+            None,
+            "1.0.0",
+            Vec::new(),
+        );
         match validate_sensor_spec(&spec) {
             Err(errors) => {
                 println!(

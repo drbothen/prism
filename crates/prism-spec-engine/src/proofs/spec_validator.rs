@@ -197,12 +197,13 @@ fn inject_error_invalid_version(spec: &mut SensorSpec) {
 
 /// Rule 10: cursor_token pagination without cursor_response_path.
 fn inject_error_cursor_pagination_missing_path(spec: &mut SensorSpec) {
-    if let Some(table) = spec.tables.first_mut() {
-        if let Some(step) = table.steps.first_mut() {
-            step.pagination = Some(PaginationConfig::CursorToken {
-                cursor_response_path: "".to_string(), // empty = invalid
-            });
-        }
+    if let Some(table) = spec.tables.first_mut()
+        && let Some(step) = table.steps.first_mut()
+    {
+        step.pagination = Some(PaginationConfig::CursorToken {
+            cursor_response_path: "".to_string(), // empty = invalid
+            page_size: None,
+        });
     }
 }
 

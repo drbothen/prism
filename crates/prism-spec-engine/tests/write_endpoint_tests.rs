@@ -62,216 +62,210 @@ use prism_spec_engine::{
 
 /// Build a minimal valid WriteEndpointSpec for testing.
 fn minimal_write_endpoint(pipe_verb: &str, risk_tier: RiskTier) -> WriteEndpointSpec {
-    WriteEndpointSpec {
-        pipe_verb: pipe_verb.to_string(),
-        sql_table: format!("sensor_{}_table", pipe_verb),
+    // #[non_exhaustive]: use WriteEndpointSpec::new() constructor for forward-compat external construction
+    WriteEndpointSpec::new(
+        pipe_verb,
+        format!("sensor_{}_table", pipe_verb),
         risk_tier,
-        capability_path: "sensor.resource.write".to_string(),
-        batch_limit: 10,
-        batch_mode: BatchMode::Serial,
-        record_id_field: "resource_id".to_string(),
-        steps: vec![WriteStep {
-            method: "POST".to_string(),
-            url: "/api/v1/action".to_string(),
-            body_template: Some(r#"{"ids": ${record_ids}}"#.to_string()),
-            response_path: None,
-        }],
-    }
+        "sensor.resource.write",
+        10,
+        BatchMode::Serial,
+        "resource_id",
+        vec![WriteStep::new(
+            "POST",
+            "/api/v1/action",
+            Some(r#"{"ids": ${record_ids}}"#.to_string()),
+            None,
+        )],
+    )
 }
 
 /// Build the CrowdStrike contain endpoint from spec (canonical test vector — AC-1).
 fn crowdstrike_contain_endpoint() -> WriteEndpointSpec {
-    WriteEndpointSpec {
-        pipe_verb: "contain".to_string(),
-        sql_table: "crowdstrike_contained_hosts".to_string(),
-        risk_tier: RiskTier::Irreversible,
-        capability_path: "crowdstrike.hosts.write".to_string(),
-        batch_limit: 10,
-        batch_mode: BatchMode::Serial,
-        record_id_field: "device_id".to_string(),
-        steps: vec![WriteStep {
-            method: "POST".to_string(),
-            url: "/devices/entities/host-actions/v2".to_string(),
-            body_template: Some(r#"{"action_name": "contain", "ids": ${record_ids}}"#.to_string()),
-            response_path: None,
-        }],
-    }
+    // #[non_exhaustive]: use WriteEndpointSpec::new() constructor for forward-compat external construction
+    WriteEndpointSpec::new(
+        "contain",
+        "crowdstrike_contained_hosts",
+        RiskTier::Irreversible,
+        "crowdstrike.hosts.write",
+        10,
+        BatchMode::Serial,
+        "device_id",
+        vec![WriteStep::new(
+            "POST",
+            "/devices/entities/host-actions/v2",
+            Some(r#"{"action_name": "contain", "ids": ${record_ids}}"#.to_string()),
+            None,
+        )],
+    )
 }
 
 fn crowdstrike_endpoints() -> Vec<WriteEndpointSpec> {
+    // #[non_exhaustive]: use WriteEndpointSpec::new() and WriteStep::new() constructors
     vec![
         crowdstrike_contain_endpoint(),
-        WriteEndpointSpec {
-            pipe_verb: "uncontain".to_string(),
-            sql_table: "crowdstrike_uncontained_hosts".to_string(),
-            risk_tier: RiskTier::Reversible,
-            capability_path: "crowdstrike.hosts.write".to_string(),
-            batch_limit: 10,
-            batch_mode: BatchMode::Serial,
-            record_id_field: "device_id".to_string(),
-            steps: vec![WriteStep {
-                method: "POST".to_string(),
-                url: "/devices/entities/host-actions/v2".to_string(),
-                body_template: Some(
-                    r#"{"action_name": "lift_containment", "ids": ${record_ids}}"#.to_string(),
-                ),
-                response_path: None,
-            }],
-        },
-        WriteEndpointSpec {
-            pipe_verb: "update_status".to_string(),
-            sql_table: "crowdstrike_status_updates".to_string(),
-            risk_tier: RiskTier::Reversible,
-            capability_path: "crowdstrike.detections.write".to_string(),
-            batch_limit: 100,
-            batch_mode: BatchMode::Serial,
-            record_id_field: "detection_id".to_string(),
-            steps: vec![WriteStep {
-                method: "PATCH".to_string(),
-                url: "/detects/entities/detect/v2".to_string(),
-                body_template: Some(
-                    r#"{"ids": ${record_ids}, "status": "${params.status}"}"#.to_string(),
-                ),
-                response_path: None,
-            }],
-        },
-        WriteEndpointSpec {
-            pipe_verb: "assign".to_string(),
-            sql_table: "crowdstrike_assignments".to_string(),
-            risk_tier: RiskTier::Reversible,
-            capability_path: "crowdstrike.detections.write".to_string(),
-            batch_limit: 100,
-            batch_mode: BatchMode::Serial,
-            record_id_field: "detection_id".to_string(),
-            steps: vec![WriteStep {
-                method: "PATCH".to_string(),
-                url: "/detects/entities/detect/v2".to_string(),
-                body_template: Some(
+        WriteEndpointSpec::new(
+            "uncontain",
+            "crowdstrike_uncontained_hosts",
+            RiskTier::Reversible,
+            "crowdstrike.hosts.write",
+            10,
+            BatchMode::Serial,
+            "device_id",
+            vec![WriteStep::new(
+                "POST",
+                "/devices/entities/host-actions/v2",
+                Some(r#"{"action_name": "lift_containment", "ids": ${record_ids}}"#.to_string()),
+                None,
+            )],
+        ),
+        WriteEndpointSpec::new(
+            "update_status",
+            "crowdstrike_status_updates",
+            RiskTier::Reversible,
+            "crowdstrike.detections.write",
+            100,
+            BatchMode::Serial,
+            "detection_id",
+            vec![WriteStep::new(
+                "PATCH",
+                "/detects/entities/detect/v2",
+                Some(r#"{"ids": ${record_ids}, "status": "${params.status}"}"#.to_string()),
+                None,
+            )],
+        ),
+        WriteEndpointSpec::new(
+            "assign",
+            "crowdstrike_assignments",
+            RiskTier::Reversible,
+            "crowdstrike.detections.write",
+            100,
+            BatchMode::Serial,
+            "detection_id",
+            vec![WriteStep::new(
+                "PATCH",
+                "/detects/entities/detect/v2",
+                Some(
                     r#"{"ids": ${record_ids}, "assigned_to_uid": "${params.user_id}"}"#.to_string(),
                 ),
-                response_path: None,
-            }],
-        },
+                None,
+            )],
+        ),
     ]
 }
 
 fn cyberint_endpoints() -> Vec<WriteEndpointSpec> {
+    // #[non_exhaustive]: use constructors
     vec![
-        WriteEndpointSpec {
-            pipe_verb: "acknowledge".to_string(),
-            sql_table: "cyberint_acknowledged_alerts".to_string(),
-            risk_tier: RiskTier::Reversible,
-            capability_path: "cyberint.alerts.write".to_string(),
-            batch_limit: 50,
-            batch_mode: BatchMode::Serial,
-            record_id_field: "alert_id".to_string(),
-            steps: vec![WriteStep {
-                method: "POST".to_string(),
-                url: "/v1/alerts/acknowledge".to_string(),
-                body_template: Some(r#"{"alert_ids": ${record_ids}}"#.to_string()),
-                response_path: None,
-            }],
-        },
-        WriteEndpointSpec {
-            pipe_verb: "close_alert".to_string(),
-            sql_table: "cyberint_closed_alerts".to_string(),
-            risk_tier: RiskTier::Irreversible,
-            capability_path: "cyberint.alerts.write".to_string(),
-            batch_limit: 20,
-            batch_mode: BatchMode::Serial,
-            record_id_field: "alert_id".to_string(),
-            steps: vec![WriteStep {
-                method: "POST".to_string(),
-                url: "/v1/alerts/close".to_string(),
-                body_template: Some(
+        WriteEndpointSpec::new(
+            "acknowledge",
+            "cyberint_acknowledged_alerts",
+            RiskTier::Reversible,
+            "cyberint.alerts.write",
+            50,
+            BatchMode::Serial,
+            "alert_id",
+            vec![WriteStep::new(
+                "POST",
+                "/v1/alerts/acknowledge",
+                Some(r#"{"alert_ids": ${record_ids}}"#.to_string()),
+                None,
+            )],
+        ),
+        WriteEndpointSpec::new(
+            "close_alert",
+            "cyberint_closed_alerts",
+            RiskTier::Irreversible,
+            "cyberint.alerts.write",
+            20,
+            BatchMode::Serial,
+            "alert_id",
+            vec![WriteStep::new(
+                "POST",
+                "/v1/alerts/close",
+                Some(
                     r#"{"alert_ids": ${record_ids}, "reason": "${params.reason|default:resolved}"}"#
                         .to_string(),
                 ),
-                response_path: None,
-            }],
-        },
+                None,
+            )],
+        ),
     ]
 }
 
 fn claroty_endpoints() -> Vec<WriteEndpointSpec> {
+    // #[non_exhaustive]: use constructors
     vec![
-        WriteEndpointSpec {
-            pipe_verb: "tag".to_string(),
-            sql_table: "claroty_tagged_assets".to_string(),
-            risk_tier: RiskTier::Reversible,
-            capability_path: "claroty.assets.write".to_string(),
-            batch_limit: 50,
-            batch_mode: BatchMode::Serial,
-            record_id_field: "asset_id".to_string(),
-            steps: vec![WriteStep {
-                method: "POST".to_string(),
-                url: "/v1/assets/tag".to_string(),
-                body_template: Some(
-                    r#"{"asset_ids": ${record_ids}, "tag": "${params.tag}"}"#.to_string(),
-                ),
-                response_path: None,
-            }],
-        },
-        WriteEndpointSpec {
-            pipe_verb: "remove_tag".to_string(),
-            sql_table: "claroty_untagged_assets".to_string(),
-            risk_tier: RiskTier::Reversible,
-            capability_path: "claroty.assets.write".to_string(),
-            batch_limit: 50,
-            batch_mode: BatchMode::Serial,
-            record_id_field: "asset_id".to_string(),
-            steps: vec![WriteStep {
-                method: "DELETE".to_string(),
-                url: "/v1/assets/tag".to_string(),
-                body_template: Some(
-                    r#"{"asset_ids": ${record_ids}, "tag": "${params.tag}"}"#.to_string(),
-                ),
-                response_path: None,
-            }],
-        },
+        WriteEndpointSpec::new(
+            "tag",
+            "claroty_tagged_assets",
+            RiskTier::Reversible,
+            "claroty.assets.write",
+            50,
+            BatchMode::Serial,
+            "asset_id",
+            vec![WriteStep::new(
+                "POST",
+                "/v1/assets/tag",
+                Some(r#"{"asset_ids": ${record_ids}, "tag": "${params.tag}"}"#.to_string()),
+                None,
+            )],
+        ),
+        WriteEndpointSpec::new(
+            "remove_tag",
+            "claroty_untagged_assets",
+            RiskTier::Reversible,
+            "claroty.assets.write",
+            50,
+            BatchMode::Serial,
+            "asset_id",
+            vec![WriteStep::new(
+                "DELETE",
+                "/v1/assets/tag",
+                Some(r#"{"asset_ids": ${record_ids}, "tag": "${params.tag}"}"#.to_string()),
+                None,
+            )],
+        ),
     ]
 }
 
 fn armis_endpoints() -> Vec<WriteEndpointSpec> {
+    // #[non_exhaustive]: use constructors
     vec![
-        WriteEndpointSpec {
-            // Armis uses "label" (not "tag") to satisfy EC-002 global pipe_verb uniqueness.
-            // "tag" is already claimed by claroty; "label" is semantically appropriate
-            // for Armis device categorization (Armis API calls these "labels" internally).
-            pipe_verb: "label".to_string(),
-            sql_table: "armis_labeled_devices".to_string(),
-            risk_tier: RiskTier::Reversible,
-            capability_path: "armis.devices.write".to_string(),
-            batch_limit: 50,
-            batch_mode: BatchMode::Serial,
-            record_id_field: "device_id".to_string(),
-            steps: vec![WriteStep {
-                method: "POST".to_string(),
-                url: "/api/v1/devices/labels".to_string(),
-                body_template: Some(
-                    r#"{"device_ids": ${record_ids}, "label": "${params.label}"}"#.to_string(),
-                ),
-                response_path: None,
-            }],
-        },
-        WriteEndpointSpec {
-            // "remove_label" pairs with "label" — unique, semantically correct for Armis.
-            pipe_verb: "remove_label".to_string(),
-            sql_table: "armis_unlabeled_devices".to_string(),
-            risk_tier: RiskTier::Reversible,
-            capability_path: "armis.devices.write".to_string(),
-            batch_limit: 50,
-            batch_mode: BatchMode::Serial,
-            record_id_field: "device_id".to_string(),
-            steps: vec![WriteStep {
-                method: "DELETE".to_string(),
-                url: "/api/v1/devices/labels".to_string(),
-                body_template: Some(
-                    r#"{"device_ids": ${record_ids}, "label": "${params.label}"}"#.to_string(),
-                ),
-                response_path: None,
-            }],
-        },
+        // Armis uses "label" (not "tag") to satisfy EC-002 global pipe_verb uniqueness.
+        // "tag" is already claimed by claroty; "label" is semantically appropriate
+        // for Armis device categorization (Armis API calls these "labels" internally).
+        WriteEndpointSpec::new(
+            "label",
+            "armis_labeled_devices",
+            RiskTier::Reversible,
+            "armis.devices.write",
+            50,
+            BatchMode::Serial,
+            "device_id",
+            vec![WriteStep::new(
+                "POST",
+                "/api/v1/devices/labels",
+                Some(r#"{"device_ids": ${record_ids}, "label": "${params.label}"}"#.to_string()),
+                None,
+            )],
+        ),
+        // "remove_label" pairs with "label" — unique, semantically correct for Armis.
+        WriteEndpointSpec::new(
+            "remove_label",
+            "armis_unlabeled_devices",
+            RiskTier::Reversible,
+            "armis.devices.write",
+            50,
+            BatchMode::Serial,
+            "device_id",
+            vec![WriteStep::new(
+                "DELETE",
+                "/api/v1/devices/labels",
+                Some(r#"{"device_ids": ${record_ids}, "label": "${params.label}"}"#.to_string()),
+                None,
+            )],
+        ),
     ]
 }
 
@@ -530,11 +524,10 @@ fn test_BC_2_16_009_non_reserved_verb_passes() {
 /// BC-2.16.009 validation rule: warning, not error.
 #[test]
 fn test_BC_2_16_009_batch_limit_zero_irreversible_emits_warning() {
-    let endpoint = WriteEndpointSpec {
-        batch_limit: 0,
-        risk_tier: RiskTier::Irreversible,
-        ..minimal_write_endpoint("quarantine", RiskTier::Irreversible)
-    };
+    // #[non_exhaustive]: use field mutation instead of struct update syntax
+    let mut endpoint = minimal_write_endpoint("quarantine", RiskTier::Irreversible);
+    endpoint.batch_limit = 0;
+    endpoint.risk_tier = RiskTier::Irreversible;
 
     let result = validate_write_endpoints("test_sensor", &[endpoint]);
     let warnings = result.expect("batch_limit=0+irreversible must not fail validation");
@@ -559,11 +552,10 @@ fn test_BC_2_16_009_batch_limit_zero_irreversible_emits_warning() {
 /// BC-2.16.009 invariant: warnings never block loading.
 #[test]
 fn test_BC_2_16_009_batch_limit_zero_irreversible_spec_loads() {
-    let endpoint = WriteEndpointSpec {
-        batch_limit: 0,
-        risk_tier: RiskTier::Irreversible,
-        ..minimal_write_endpoint("quarantine", RiskTier::Irreversible)
-    };
+    // #[non_exhaustive]: use field mutation instead of struct update syntax
+    let mut endpoint = minimal_write_endpoint("quarantine", RiskTier::Irreversible);
+    endpoint.batch_limit = 0;
+    endpoint.risk_tier = RiskTier::Irreversible;
 
     let result = validate_write_endpoints("test_sensor", &[endpoint]);
     assert!(
@@ -582,10 +574,9 @@ fn test_BC_2_16_009_batch_limit_zero_irreversible_spec_loads() {
 /// BC-2.16.009 validation rule: steps must be non-empty.
 #[test]
 fn test_BC_2_16_009_empty_steps_rejected() {
-    let endpoint = WriteEndpointSpec {
-        steps: vec![],
-        ..minimal_write_endpoint("quarantine", RiskTier::Reversible)
-    };
+    // #[non_exhaustive]: use field mutation instead of struct update syntax
+    let mut endpoint = minimal_write_endpoint("quarantine", RiskTier::Reversible);
+    endpoint.steps = vec![];
 
     let result = validate_write_endpoints("test_sensor", &[endpoint]);
     assert!(
@@ -617,10 +608,9 @@ fn test_BC_2_16_009_empty_steps_rejected() {
 /// BC-2.16.009: record_id_field must match [a-z0-9_]+.
 #[test]
 fn test_BC_2_16_009_record_id_field_uppercase_rejected() {
-    let endpoint = WriteEndpointSpec {
-        record_id_field: "DeviceID".to_string(),
-        ..minimal_write_endpoint("quarantine", RiskTier::Reversible)
-    };
+    // #[non_exhaustive]: use field mutation instead of struct update syntax
+    let mut endpoint = minimal_write_endpoint("quarantine", RiskTier::Reversible);
+    endpoint.record_id_field = "DeviceID".to_string();
 
     let result = validate_write_endpoints("test_sensor", &[endpoint]);
     assert!(
@@ -646,10 +636,9 @@ fn test_BC_2_16_009_record_id_field_uppercase_rejected() {
 /// BC-2.16.009: record_id_field must match [a-z0-9_]+ (underscore only, no dash).
 #[test]
 fn test_BC_2_16_009_record_id_field_special_chars_rejected() {
-    let endpoint = WriteEndpointSpec {
-        record_id_field: "device-id".to_string(),
-        ..minimal_write_endpoint("quarantine", RiskTier::Reversible)
-    };
+    // #[non_exhaustive]: use field mutation instead of struct update syntax
+    let mut endpoint = minimal_write_endpoint("quarantine", RiskTier::Reversible);
+    endpoint.record_id_field = "device-id".to_string();
 
     let result = validate_write_endpoints("test_sensor", &[endpoint]);
     assert!(
@@ -663,10 +652,9 @@ fn test_BC_2_16_009_record_id_field_special_chars_rejected() {
 /// BC-2.16.009: valid record_id_field passes validation.
 #[test]
 fn test_BC_2_16_009_record_id_field_valid_lowercase() {
-    let endpoint = WriteEndpointSpec {
-        record_id_field: "device_id".to_string(),
-        ..minimal_write_endpoint("quarantine", RiskTier::Reversible)
-    };
+    // #[non_exhaustive]: use field mutation instead of struct update syntax
+    let mut endpoint = minimal_write_endpoint("quarantine", RiskTier::Reversible);
+    endpoint.record_id_field = "device_id".to_string();
 
     let result = validate_write_endpoints("test_sensor", &[endpoint]);
     assert!(
@@ -692,21 +680,22 @@ fn test_BC_2_16_009_cross_sensor_verb_uniqueness_collision() {
         .expect("crowdstrike registration succeeds");
 
     // A second sensor claiming "contain" must fail.
-    let conflicting_endpoint = WriteEndpointSpec {
-        pipe_verb: "contain".to_string(),
-        sql_table: "other_sensor_contain".to_string(),
-        risk_tier: RiskTier::Irreversible,
-        capability_path: "other_sensor.hosts.write".to_string(),
-        batch_limit: 5,
-        batch_mode: BatchMode::Serial,
-        record_id_field: "host_id".to_string(),
-        steps: vec![WriteStep {
-            method: "POST".to_string(),
-            url: "/api/contain".to_string(),
-            body_template: Some(r#"{"ids": ${record_ids}}"#.to_string()),
-            response_path: None,
-        }],
-    };
+    // #[non_exhaustive]: use WriteEndpointSpec::new() constructor
+    let conflicting_endpoint = WriteEndpointSpec::new(
+        "contain",
+        "other_sensor_contain",
+        RiskTier::Irreversible,
+        "other_sensor.hosts.write",
+        5,
+        BatchMode::Serial,
+        "host_id",
+        vec![WriteStep::new(
+            "POST",
+            "/api/contain",
+            Some(r#"{"ids": ${record_ids}}"#.to_string()),
+            None,
+        )],
+    );
 
     let result = registry.register("other_sensor", vec![conflicting_endpoint]);
     assert!(
@@ -724,15 +713,13 @@ fn test_BC_2_16_009_cross_sensor_verb_uniqueness_collision() {
 /// Two invalid endpoints in the same slice must both produce errors.
 #[test]
 fn test_BC_2_16_009_all_errors_collected_no_fail_fast() {
-    let bad_endpoint_1 = WriteEndpointSpec {
-        pipe_verb: "where".to_string(), // reserved keyword — E-SPEC-011
-        ..minimal_write_endpoint("where", RiskTier::Reversible)
-    };
-    let bad_endpoint_2 = WriteEndpointSpec {
-        record_id_field: "BadFieldName".to_string(), // uppercase — E-SPEC-001
-        steps: vec![],                               // empty steps — E-SPEC-001
-        ..minimal_write_endpoint("good_verb", RiskTier::Reversible)
-    };
+    // #[non_exhaustive]: use field mutation instead of struct update syntax
+    let mut bad_endpoint_1 = minimal_write_endpoint("where", RiskTier::Reversible);
+    bad_endpoint_1.pipe_verb = "where".to_string(); // reserved keyword — E-SPEC-011
+
+    let mut bad_endpoint_2 = minimal_write_endpoint("good_verb", RiskTier::Reversible);
+    bad_endpoint_2.record_id_field = "BadFieldName".to_string(); // uppercase — E-SPEC-001
+    bad_endpoint_2.steps = vec![]; // empty steps — E-SPEC-001
 
     let result = validate_write_endpoints("test_sensor", &[bad_endpoint_1, bad_endpoint_2]);
     assert!(

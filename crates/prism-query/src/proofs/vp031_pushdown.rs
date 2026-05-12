@@ -68,22 +68,17 @@ mod kani_proofs {
 
     /// Build a ColumnSpec declaring `column_name` as REQUIRED.
     fn make_required_col_spec(column_name: &str) -> ColumnSpec {
-        ColumnSpec {
-            name: column_name.to_string(),
-            column_type: ColumnType::String,
-            ocsf_field: None,
-            options: vec![ColumnOptions::Required],
-        }
+        ColumnSpec::new(
+            column_name,
+            ColumnType::String,
+            None,
+            vec![ColumnOptions::Required],
+        )
     }
 
     /// Build a ColumnSpec with no special options (DEFAULT).
     fn make_default_col_spec(column_name: &str) -> ColumnSpec {
-        ColumnSpec {
-            name: column_name.to_string(),
-            column_type: ColumnType::String,
-            ocsf_field: None,
-            options: vec![],
-        }
+        ColumnSpec::new(column_name, ColumnType::String, None, vec![])
     }
 
     prop_compose! {

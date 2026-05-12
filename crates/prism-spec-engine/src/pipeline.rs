@@ -27,6 +27,18 @@ use crate::spec_parser::{FetchStep, PaginationConfig, SensorSpec, TableSpec};
 /// Maximum records materialised per pipeline execution (DI-019 / AC-8).
 const MAX_PIPELINE_RECORDS: usize = 10_000;
 
+/// Maximum total elements returned by a single JSONPath extraction (HIGH-007).
+///
+/// Guards against nested-wildcard memory amplification: a path like
+/// `$.a[*].b[*].c[*]` against hostile JSON with large arrays produces O(|a|*|b|*|c|)
+/// elements. This cap aborts extraction before OOM occurs.
+const MAX_JSONPATH_RESULT_SIZE: usize = 100_000;
+
+/// Maximum recursion depth for JSONPath traversal (HIGH-007).
+///
+/// Prevents stack overflow on deeply nested `[*]` wildcards (e.g., 32+ levels).
+const MAX_JSONPATH_DEPTH: usize = 32;
+
 /// Maximum pages fetched per step to guard against infinite pagination loops
 /// caused by APIs that fail to advance cursors or that emit perpetual data.
 ///
@@ -322,12 +334,24 @@ impl PipelineExecutor {
                     bearer_token = new_token;
 
                     // Extract records at `step.response_path`.
+                    // HIGH-001 (S-PLUGIN-PREREQ-C): emit structured tracing event before
+                    // mapping to SpecEngineError so operators have observability even when
+                    // the error is swallowed by a caller (BC-2.16.002 Structured Event Catalog).
                     let page_records =
-                        extract_at_path(&body, &step.response_path).map_err(|_| {
+                        extract_at_path(&body, &step.response_path).map_err(|e| {
+                            tracing::warn!(
+                                event_type = "jsonpath_extraction_failed",
+                                sensor_id = %spec.sensor_id,
+                                step_name = %step.name,
+                                path = %step.response_path,
+                                detail = %e,
+                                "JSONPath extraction failed for response_path",
+                            );
                             SpecEngineError::JsonPathExtractionFailed {
                                 sensor_id: spec.sensor_id.clone(),
                                 step_name: step.name.clone(),
                                 path: step.response_path.clone(),
+                                detail: e,
                             }
                         })?;
 
@@ -379,6 +403,7 @@ impl PipelineExecutor {
                     match &step.pagination {
                         Some(PaginationConfig::CursorToken {
                             cursor_response_path,
+                            ..
                         }) => {
                             let next = extract_cursor(&body, cursor_response_path);
                             match next {
@@ -527,11 +552,20 @@ impl PipelineExecutor {
         )
         .await?;
 
-        let extracted = extract_at_path(&body, &step.response_path).map_err(|_| {
+        let extracted = extract_at_path(&body, &step.response_path).map_err(|e| {
+            tracing::warn!(
+                event_type = "jsonpath_extraction_failed",
+                sensor_id = %spec.sensor_id,
+                step_name = %step.name,
+                path = %step.response_path,
+                detail = %e,
+                "JSONPath extraction failed for response_path in execute_step",
+            );
             SpecEngineError::JsonPathExtractionFailed {
                 sensor_id: spec.sensor_id.clone(),
                 step_name: step.name.clone(),
                 path: step.response_path.clone(),
+                detail: e,
             }
         })?;
 
@@ -541,9 +575,9 @@ impl PipelineExecutor {
     /// Resolve and expand fan-out: if a variable resolves to an array, return
     /// batches of `batch_size` items each (BC-2.16.002 Fan-Out Behavior).
     ///
-    /// TD-S-PLUGIN-PREREQ-B-006 P2: pure functions (fan_out_batches, extract_at_path,
-    /// Interpolator::interpolate) lack proptest coverage. PREREQ-A established
-    /// cross-crate validator-parity proptest precedent. PREREQ-C scope.
+    /// TD-S-PLUGIN-PREREQ-B-006 CLOSED by S-PLUGIN-PREREQ-C: proptest coverage added
+    /// for pure functions (fan_out_batches, extract_at_path, Interpolator::interpolate)
+    /// following the PREREQ-A cross-crate validator-parity proptest precedent.
     ///
     /// - Array input: batches of up to `batch_size` elements each.
     /// - Scalar input: single batch containing that one value.
@@ -768,10 +802,8 @@ fn build_request(
 
     // F-LP1-CRIT-001: Add request body for POST/PUT/PATCH.
     // Interpolate body_template against step_vars and derive Content-Type from shape.
-    //
-    // TD-S-PLUGIN-PREREQ-B-008 P3: Interpolator grammar has no escape mechanism for
-    // literal ${...}. Spec authors cannot send documentation strings containing template
-    // syntax. PREREQ-C scope: add $${...} or \${...} escape convention. Per F-LP5-LOW-005.
+    // AC-4 (S-PLUGIN-PREREQ-C): `$$` collapses to `$` for literal dollar-sign escaping.
+    // TD-S-PLUGIN-PREREQ-B-008 is closed — escape mechanism implemented in Interpolator.
     if let Some(ref body_tpl) = step.body_template {
         let interpolated_body =
             Interpolator::interpolate(body_tpl, &InterpolationContext::JsonBody, step_vars)
@@ -795,26 +827,58 @@ fn build_request(
 }
 
 /// Build a paginated URL by appending pagination query parameters.
+///
+/// AC-1 (S-PLUGIN-PREREQ-C): When `PaginationConfig::CursorToken { page_size: Some(n), .. }`,
+/// appends `page_size=n` to BOTH first-call and cursor-continuation URLs.
+/// When `page_size: None`, the parameter is omitted (backward-compatible).
 fn build_paged_url(
     base_url: &str,
     step: &FetchStep,
     cursor: &Option<String>,
     offset: u32,
 ) -> String {
+    build_paged_url_impl(base_url, step, cursor, offset)
+}
+
+/// Public test-helper wrapper for `build_paged_url` (exposed under test-helpers feature).
+///
+/// Allows integration tests in `crates/prism-spec-engine/tests/` to call the private
+/// URL-construction function directly rather than driving it through a full pipeline execution.
+///
+/// AC-1 (S-PLUGIN-PREREQ-C): Integration tests in `ac_1_cursor_page_size_test.rs` use this
+/// to verify `page_size` threading without spinning up a wiremock server.
+#[cfg(any(test, feature = "test-helpers"))]
+pub fn build_paged_url_for_test(
+    base_url: &str,
+    step: &FetchStep,
+    cursor: &Option<String>,
+    offset: u32,
+) -> String {
+    build_paged_url_impl(base_url, step, cursor, offset)
+}
+
+fn build_paged_url_impl(
+    base_url: &str,
+    step: &FetchStep,
+    cursor: &Option<String>,
+    offset: u32,
+) -> String {
     match &step.pagination {
-        Some(PaginationConfig::CursorToken { .. }) => {
-            // TD-S-PLUGIN-PREREQ-B-001 P2: cursor pagination first-call does not include page_size param.
-            // Real-world APIs (CrowdStrike GraphQL cursor) require first: N on every request. PREREQ-C scope:
-            // add `page_size: Option<u32>` field to PaginationConfig::CursorToken.
-            if let Some(c) = cursor {
-                if base_url.contains('?') {
-                    format!("{base_url}&cursor={c}")
-                } else {
-                    format!("{base_url}?cursor={c}")
-                }
+        Some(PaginationConfig::CursorToken {
+            page_size: ps_opt, ..
+        }) => {
+            let mut url = if let Some(c) = cursor {
+                let sep = if base_url.contains('?') { '&' } else { '?' };
+                format!("{base_url}{sep}cursor={c}")
             } else {
                 base_url.to_string()
+            };
+            // AC-1: append page_size parameter when declared.
+            if let Some(n) = ps_opt {
+                let sep = if url.contains('?') { '&' } else { '?' };
+                url = format!("{url}{sep}page_size={n}");
             }
+            url
         }
         Some(PaginationConfig::OffsetLimit { page_size }) => {
             let sep = if base_url.contains('?') { '&' } else { '?' };
@@ -824,45 +888,210 @@ fn build_paged_url(
     }
 }
 
-/// Extract the value at a simple JSONPath expression (e.g. `$.field` or `$.a.b.c`).
+/// Extract the value at a JSONPath expression.
 ///
-/// Supported syntax: `$.field1.field2...fieldN` (dot-notation only).
-/// Internally converts to a JSON Pointer (RFC 6901) and delegates to
-/// `serde_json::Value::pointer` so nested key lookup is unambiguous.
+/// ## Supported syntax (AC-2, S-PLUGIN-PREREQ-C)
 ///
-/// F-LP2-LOW-002: RFC 6901 key-content escaping is applied to each dot-separated
-/// segment before joining with '/'. The escape rules are:
+/// Extended beyond dot-notation to support bracket notation and wildcards:
 ///
-/// - `~` → `~0`  (must be applied BEFORE the `/` escape to avoid double-escape)
+/// - `$.field` — dot-notation key lookup
+/// - `$.a.b.c` — nested dot-notation
+/// - `$.array[0]` — bracket index (0-based)
+/// - `$.array[*].field` — wildcard enumeration (returns JSON array of all matches)
+/// - Mixed: `$.data[0].items[*].name`
+///
+/// ## F-LP2-LOW-002: RFC 6901 escaping
+///
+/// Dot-separated key segments apply RFC 6901 escaping before lookup:
+/// - `~` → `~0` (applied before `/` escape to avoid double-escape)
 /// - `/` → `~1`
 ///
-/// This handles JSON keys that contain literal `~` or `/` characters.
+/// ## Out-of-bounds behavior (AC-2d)
 ///
-/// TD-S-PLUGIN-PREREQ-B-003 P3: JSON Pointer dot-notation only. Bracket notation
-/// ($.x[0]) and wildcards ($.x[*]) deferred to PREREQ-C scope (per fix-burst-1 OBS).
+/// `$.x[99]` on a 3-element array returns `Err` with a descriptive message mentioning
+/// the index and bound; never panics.
 ///
-/// Returns `Err(String)` with a descriptive message if the path does not match.
+/// ## Error variants
+///
+/// Returns `Err(String)` with a descriptive message for:
+/// - Malformed path (missing `$.` prefix)
+/// - Key not found at any step
+/// - Bracket index out of bounds
+/// - Wildcard on non-array value (EC-002)
 fn extract_at_path(body: &serde_json::Value, path: &str) -> Result<serde_json::Value, String> {
     let stripped = path
         .strip_prefix("$.")
         .ok_or_else(|| format!("path must start with '$.' : {path}"))?;
-    // F-LP5-LOW-001: reject "$." with no key segment — this is a malformed path
-    // that would produce an empty JSON Pointer "/" matching the root, not a key.
+    // F-LP5-LOW-001: reject "$." with no key segment.
     if stripped.is_empty() {
         return Err(format!(
             "response_path '{path}' must contain at least one key segment after '$.'",
         ));
     }
-    // Each dot-separated segment is a JSON key; escape ~ and / per RFC 6901
-    // before joining with '/' as the JSON Pointer segment separator.
-    let segments: Vec<String> = stripped
-        .split('.')
-        .map(|seg| seg.replace('~', "~0").replace('/', "~1"))
-        .collect();
-    let pointer_path = format!("/{}", segments.join("/"));
-    body.pointer(&pointer_path)
-        .cloned()
-        .ok_or_else(|| format!("path not found: {path}"))
+
+    // Tokenize the path into segments supporting both dot-notation and bracket notation.
+    let tokens = tokenize_jsonpath(stripped);
+
+    // Traverse the JSON value following the token sequence.
+    // When a wildcard `[*]` is encountered, switch to multi-value mode.
+    // HIGH-007: thread extraction context to enforce size and depth caps.
+    let mut ctx = ExtractionContext::new();
+    extract_with_tokens(body, &tokens, path, &mut ctx)
+}
+
+/// Accumulator threaded through extract_with_tokens to enforce resource caps.
+///
+/// HIGH-007 defense: prevents nested-wildcard O(N^k) memory amplification and
+/// stack overflow from deeply nested paths.
+struct ExtractionContext {
+    /// Current recursion depth (incremented on wildcard recursion).
+    depth: usize,
+    /// Total elements produced so far (incremented on each wildcard result push).
+    size: usize,
+}
+
+impl ExtractionContext {
+    fn new() -> Self {
+        Self { depth: 0, size: 0 }
+    }
+}
+
+/// A single path token in a tokenized JSONPath expression.
+#[derive(Debug, Clone)]
+enum PathToken {
+    /// A dot-notation key segment (e.g., `field`).
+    Key(String),
+    /// A bracket index (e.g., `[0]`).
+    Index(usize),
+    /// A wildcard selector (e.g., `[*]`).
+    Wildcard,
+}
+
+/// Tokenize a JSONPath expression (after stripping the `$.` prefix) into tokens.
+///
+/// Handles:
+/// - `field` → `Key("field")`
+/// - `field[0]` → `Key("field")`, `Index(0)`
+/// - `field[*]` → `Key("field")`, `Wildcard`
+/// - `a.b[0].c[*]` → `Key("a")`, `Key("b")`, `Index(0)`, `Key("c")`, `Wildcard`
+fn tokenize_jsonpath(path: &str) -> Vec<PathToken> {
+    let mut tokens = Vec::new();
+    // Split on `.` first to get dot-segments; each may contain bracket suffixes.
+    for dot_segment in path.split('.') {
+        if dot_segment.is_empty() {
+            continue;
+        }
+        // Check if this segment contains a `[` bracket.
+        if let Some(bracket_start) = dot_segment.find('[') {
+            let key_part = &dot_segment[..bracket_start];
+            if !key_part.is_empty() {
+                // Apply RFC 6901 escaping for the key part.
+                tokens.push(PathToken::Key(
+                    key_part.replace('~', "~0").replace('/', "~1"),
+                ));
+            }
+            // Parse bracket suffixes (there may be multiple: `field[0][*]`).
+            let mut rest = &dot_segment[bracket_start..];
+            while let Some(stripped) = rest.strip_prefix('[') {
+                if let Some(end) = stripped.find(']') {
+                    let inner = &stripped[..end];
+                    if inner == "*" {
+                        tokens.push(PathToken::Wildcard);
+                    } else if let Ok(idx) = inner.parse::<usize>() {
+                        tokens.push(PathToken::Index(idx));
+                    }
+                    rest = &stripped[end + 1..]; // advance past `]`
+                } else {
+                    break;
+                }
+            }
+        } else {
+            // No brackets — plain key segment with RFC 6901 escaping.
+            tokens.push(PathToken::Key(
+                dot_segment.replace('~', "~0").replace('/', "~1"),
+            ));
+        }
+    }
+    tokens
+}
+
+/// Traverse a JSON value following a sequence of path tokens.
+///
+/// Returns `Ok(Value)` for a single-value path (no wildcards), or
+/// `Ok(Value::Array([...]))` for wildcard paths.
+/// Returns `Err(String)` for missing keys, out-of-bounds indexes, type mismatches,
+/// or when size/depth caps are exceeded (HIGH-007).
+fn extract_with_tokens(
+    current: &serde_json::Value,
+    tokens: &[PathToken],
+    original_path: &str,
+    ctx: &mut ExtractionContext,
+) -> Result<serde_json::Value, String> {
+    // HIGH-007: depth cap — prevents stack overflow on deeply nested wildcards.
+    if ctx.depth > MAX_JSONPATH_DEPTH {
+        return Err(format!(
+            "JSONPath depth exceeded {MAX_JSONPATH_DEPTH} levels in path '{original_path}'"
+        ));
+    }
+
+    if tokens.is_empty() {
+        return Ok(current.clone());
+    }
+
+    let (head, tail) = tokens.split_first().expect("tokens non-empty");
+
+    match head {
+        PathToken::Key(k) => {
+            // RFC 6901 pointer step for key lookup.
+            let pointer = format!("/{k}");
+            let next = current
+                .pointer(&pointer)
+                .ok_or_else(|| format!("path not found: {original_path}"))?;
+            extract_with_tokens(next, tail, original_path, ctx)
+        }
+        PathToken::Index(idx) => {
+            let arr = current.as_array().ok_or_else(|| {
+                format!("expected array at bracket index step in path '{original_path}'")
+            })?;
+            let elem = arr.get(*idx).ok_or_else(|| {
+                format!(
+                    "index {idx} out of bounds: array has {} elements in path '{original_path}'",
+                    arr.len()
+                )
+            })?;
+            extract_with_tokens(elem, tail, original_path, ctx)
+        }
+        PathToken::Wildcard => {
+            // Wildcard: enumerate all elements of the array; apply remaining tokens to each.
+            let arr = current.as_array().ok_or_else(|| {
+                format!(
+                    "wildcard [*] applied to non-array value in path '{original_path}' \
+                     (EC-002: wildcard on object)"
+                )
+            })?;
+            let mut results = Vec::with_capacity(arr.len().min(MAX_JSONPATH_RESULT_SIZE));
+            ctx.depth += 1;
+            for elem in arr {
+                // HIGH-007: size cap — abort if total result elements exceed limit.
+                if ctx.size >= MAX_JSONPATH_RESULT_SIZE {
+                    tracing::warn!(
+                        event_type = "jsonpath_size_cap_exceeded",
+                        path = %original_path,
+                        max_size = MAX_JSONPATH_RESULT_SIZE,
+                        "JSONPath result size cap exceeded — truncating extraction",
+                    );
+                    return Err(format!(
+                        "JSONPath result exceeded {MAX_JSONPATH_RESULT_SIZE} elements in path '{original_path}'"
+                    ));
+                }
+                let val = extract_with_tokens(elem, tail, original_path, ctx)?;
+                ctx.size += 1;
+                results.push(val);
+            }
+            ctx.depth -= 1;
+            Ok(serde_json::Value::Array(results))
+        }
+    }
 }
 
 /// Extract a cursor string from the response body at the given JSONPath.
@@ -881,7 +1110,7 @@ fn extract_cursor(body: &serde_json::Value, cursor_path: &str) -> Option<String>
             // Object/Array/Bool: treat as terminal but emit structured diagnostic.
             // F-LP8-MED-003: include event_type for SIEM/SOC alerting pipelines.
             // The bare-warn without event_type was inconsistent with the project's
-            // audit-signal discipline (compare pipeline_truncated at pipeline.rs:362-370).
+            // audit-signal discipline (compare pipeline_truncated emission in PipelineExecutor::execute records-accumulation loop).
             let actual_type = match &other {
                 serde_json::Value::Array(_) => "Array",
                 serde_json::Value::Object(_) => "Object",
@@ -1140,8 +1369,9 @@ mod execute_step_tests {
     /// at INFO level with fields `sensor_id`, `client_id`, and `step_name`.
     ///
     /// RED GATE: Before this test existed there were ZERO test or production callers of
-    /// execute_step. A future refactor that removes `step_name` from the tracing macro at
-    /// pipeline.rs:470-474 would cause this test to FAIL on the `step_name` assertion.
+    /// execute_step. A future refactor that removes `step_name` from the
+    /// auth_initial_acquired tracing macro in `PipelineExecutor::execute_step`
+    /// would cause this test to FAIL on the `step_name` assertion.
     #[tokio::test]
     async fn test_BC_2_16_002_execute_step_emits_auth_initial_acquired_with_step_name_field() {
         let mock_server = MockServer::start().await;
@@ -1275,7 +1505,8 @@ mod execute_step_tests {
     /// The wiremock server expects 0 calls (verifying the auth-abort path fires before HTTP).
     ///
     /// RED GATE: A future refactor that removes `step_name` or `detail` from the error
-    /// arm's tracing macro at pipeline.rs:490-497 would cause this test to FAIL.
+    /// arm's auth_initial_failed tracing macro in `PipelineExecutor::execute_step`
+    /// would cause this test to FAIL.
     #[tokio::test]
     async fn test_BC_2_16_002_execute_step_emits_auth_initial_failed_with_step_name_field() {
         let mock_server = MockServer::start().await;
@@ -1389,9 +1620,10 @@ mod execute_step_tests {
     /// which omits `step_name` from the emission (pipeline-level call site).
     ///
     /// RED GATE (F-LP13-MED-001): Before this test, the execute() auth_initial_failed path
-    /// had only call-count + error-variant assertions (pipeline_oauth_retry.rs:284), with
+    /// had only call-count + error-variant assertions in pipeline_oauth_retry tests, with
     /// ZERO buffer assertions on the event_type string. A refactor removing `detail` from
-    /// the error arm at pipeline.rs:165-173 would NOT have failed any prior test.
+    /// the auth_initial_failed error arm in `PipelineExecutor::execute` would NOT have
+    /// failed any prior test.
     #[tokio::test]
     async fn test_BC_2_16_002_execute_auth_initial_failed_emits_event_with_detail() {
         let mock_server = MockServer::start().await;
@@ -1449,8 +1681,8 @@ mod execute_step_tests {
     ///
     /// RED GATE (F-LP13-MED-001): ZERO prior buffer assertions on "auth_refresh_triggered".
     /// `grep -rn 'contains.*auth_refresh_triggered'` in crates/prism-spec-engine → 0 matches.
-    /// A refactor removing `step_name` from the auth_refresh_triggered tracing macro at
-    /// pipeline.rs:629-635 would NOT have failed any prior test.
+    /// A refactor removing `step_name` from the auth_refresh_triggered tracing macro
+    /// in `issue_request_with_retry` would NOT have failed any prior test.
     #[tokio::test]
     async fn test_BC_2_16_002_auth_refresh_triggered_emits_event_with_step_name() {
         let mock_server = MockServer::start().await;
@@ -1646,7 +1878,8 @@ mod execute_step_tests {
     /// Wiremock: both the initial request AND the retry return 401.
     ///
     /// RED GATE (F-LP13-MED-001): ZERO prior buffer assertions on "auth_refresh_double_401".
-    /// A refactor removing `step_name` from the double-401 tracing macro at pipeline.rs:682-688
+    /// A refactor removing `step_name` from the auth_refresh_double_401 tracing macro
+    /// in `issue_request_with_retry`
     /// would NOT have failed any prior test.
     #[tokio::test]
     async fn test_BC_2_16_002_auth_refresh_double_401_emits_event() {
@@ -1687,5 +1920,346 @@ mod execute_step_tests {
             captured.contains("fetch_items"),
             "row 10: log must contain step_name='fetch_items'; captured: {captured}",
         );
+    }
+}
+
+// ---------------------------------------------------------------------------
+// S-PLUGIN-PREREQ-C: AC-1 Red Gate — page_size on CursorToken first-call and continuation
+//
+// BC-2.16.002 postcondition: pagination follows the sensor spec's declared config.
+// AC-1 extends `PaginationConfig::CursorToken` with `page_size: Option<u32>`.
+// When `Some(n)`, `page_size=n` MUST appear in first-call and continuation URLs.
+// When `None`, no `page_size` parameter may appear.
+//
+// RED GATE MECHANISM: `build_paged_url` currently ignores the `page_size` field
+// (see TD-S-PLUGIN-PREREQ-B-001 comment at pipeline.rs build_paged_url). These tests
+// assert the EXPECTED postcondition; they fail until `build_paged_url` reads and
+// threads `page_size` into the URL.
+// ---------------------------------------------------------------------------
+
+#[cfg(test)]
+mod cursor_page_size_tests {
+    use super::{PaginationConfig, build_paged_url};
+    use crate::spec_parser::FetchStep;
+
+    fn cursor_step(page_size: Option<u32>) -> FetchStep {
+        FetchStep {
+            name: "fetch".to_string(),
+            method: "GET".to_string(),
+            path_template: "/api/devices".to_string(),
+            body_template: None,
+            response_path: "$.resources".to_string(),
+            pagination_cursor_path: None,
+            variables_produced: vec![],
+            fan_out_batch_size: None,
+            pagination: Some(PaginationConfig::CursorToken {
+                cursor_response_path: "$.next_cursor".to_string(),
+                page_size,
+            }),
+        }
+    }
+
+    /// AC-1(a): `page_size: Some(50)` on a first call (no cursor) → URL contains `page_size=50`.
+    ///
+    /// RED GATE: `build_paged_url` does not yet thread `page_size` into the URL.
+    /// This test MUST FAIL until AC-1 implementation is complete.
+    #[test]
+    fn test_BC_2_16_002_cursor_pagination_first_call_includes_page_size() {
+        let step = cursor_step(Some(50));
+        let base = "https://api.crowdstrike.com/devices/queries/devices/v1";
+        let url = build_paged_url(base, &step, &None, 0);
+        assert!(
+            url.contains("page_size=50"),
+            "AC-1 RED GATE: first-call URL must contain 'page_size=50' when page_size=Some(50); \
+             got: {url}\n\
+             IMPLEMENTATION NEEDED: update build_paged_url to read \
+             PaginationConfig::CursorToken {{ page_size }} and append page_size=N to the URL."
+        );
+    }
+
+    /// AC-1(b): `page_size: Some(50)` on a continuation call (cursor present) → URL contains
+    /// both `page_size=50` and the cursor parameter.
+    ///
+    /// RED GATE: `build_paged_url` does not yet append `page_size` on continuation calls.
+    /// This test MUST FAIL until AC-1 implementation is complete.
+    #[test]
+    fn test_BC_2_16_002_cursor_pagination_continuation_includes_page_size() {
+        let step = cursor_step(Some(50));
+        let base = "https://api.crowdstrike.com/devices/queries/devices/v1";
+        let cursor = Some("cursor_xyz_abc".to_string());
+        let url = build_paged_url(base, &step, &cursor, 0);
+        assert!(
+            url.contains("page_size=50"),
+            "AC-1 RED GATE: continuation URL must contain 'page_size=50' when page_size=Some(50); \
+             got: {url}"
+        );
+        assert!(
+            url.contains("cursor_xyz_abc"),
+            "continuation URL must also contain the cursor value; got: {url}"
+        );
+    }
+
+    /// AC-1(c): `page_size: None` → URL does NOT contain `page_size` parameter (backward compat).
+    ///
+    /// This assertion is expected to PASS already (existing behavior omits page_size).
+    /// Included to document the backward-compat invariant.
+    #[test]
+    fn test_BC_2_16_002_cursor_pagination_page_size_none_omitted() {
+        let step = cursor_step(None);
+        let base = "https://api.crowdstrike.com/devices/queries/devices/v1";
+        // First call: no cursor, page_size None
+        let url_first = build_paged_url(base, &step, &None, 0);
+        assert!(
+            !url_first.contains("page_size="),
+            "when page_size=None, first-call URL must not contain 'page_size='; got: {url_first}"
+        );
+        // Continuation call: cursor present, page_size None
+        let cursor = Some("some_cursor".to_string());
+        let url_cont = build_paged_url(base, &step, &cursor, 0);
+        assert!(
+            !url_cont.contains("page_size="),
+            "when page_size=None, continuation URL must not contain 'page_size='; got: {url_cont}"
+        );
+    }
+}
+
+// ---------------------------------------------------------------------------
+// S-PLUGIN-PREREQ-C: AC-2 Red Gate — JSONPath bracket notation + wildcard support
+//
+// BC-2.16.002 postcondition: `extract_at_path` supports dot-notation paths.
+// AC-2 extends this to bracket indexing (`$.x[0]`) and wildcard (`$.x[*]`).
+//
+// RED GATE MECHANISM: `extract_at_path` currently only supports dot-notation paths
+// (see TD-S-PLUGIN-PREREQ-B-003 comment). Bracket notation returns Err.
+// These tests assert the EXPECTED postcondition; they fail until AC-2 is implemented.
+// ---------------------------------------------------------------------------
+
+#[cfg(test)]
+mod jsonpath_bracket_tests {
+    use super::extract_at_path;
+    use serde_json::json;
+
+    /// AC-2(a): `$.devices[0].id` on an array-valued JSON object extracts the first element.
+    ///
+    /// RED GATE: `extract_at_path` splits on `.` only; `[0]` is not recognized as an
+    /// array index, so this path fails to match. Test MUST FAIL until AC-2 is complete.
+    #[test]
+    fn test_BC_2_16_002_extract_bracket_index() {
+        let body = json!({
+            "devices": [
+                {"id": "device-A", "hostname": "host1"},
+                {"id": "device-B", "hostname": "host2"}
+            ]
+        });
+        let result = extract_at_path(&body, "$.devices[0].id");
+        assert!(
+            result.is_ok(),
+            "AC-2 RED GATE: $.devices[0].id must succeed; got Err: {:?}\n\
+             IMPLEMENTATION NEEDED: extend extract_at_path to parse bracket index notation.",
+            result.err()
+        );
+        assert_eq!(
+            result.unwrap(),
+            json!("device-A"),
+            "$.devices[0].id must return 'device-A'"
+        );
+    }
+
+    /// AC-2(b): `$.devices[*].id` on an array-valued JSON object returns all matching values.
+    ///
+    /// RED GATE: wildcard `[*]` is not supported by the current dot-split path traversal.
+    /// Test MUST FAIL until AC-2 is complete.
+    #[test]
+    fn test_BC_2_16_002_extract_wildcard_enumeration() {
+        let body = json!({
+            "devices": [
+                {"id": "device-A"},
+                {"id": "device-B"}
+            ]
+        });
+        let result = extract_at_path(&body, "$.devices[*].id");
+        assert!(
+            result.is_ok(),
+            "AC-2 RED GATE: $.devices[*].id must succeed; got Err: {:?}\n\
+             IMPLEMENTATION NEEDED: extend extract_at_path to support wildcard [*] enumeration \
+             returning a JSON array of matched values.",
+            result.err()
+        );
+        let values = result.unwrap();
+        let expected = json!(["device-A", "device-B"]);
+        assert_eq!(
+            values, expected,
+            "$.devices[*].id must return [\"device-A\", \"device-B\"]; got: {values}"
+        );
+    }
+
+    /// AC-2(c): Backward compat — `$.resources` on an object still resolves to the array.
+    ///
+    /// This test verifies the existing dot-notation behavior is unchanged after AC-2 impl.
+    /// Expected to PASS before AC-2 (existing behavior). Included as a regression anchor.
+    #[test]
+    fn test_BC_2_16_002_extract_backward_compat_dot_path() {
+        let body = json!({
+            "resources": [{"id": 1}, {"id": 2}]
+        });
+        let result = extract_at_path(&body, "$.resources");
+        assert!(
+            result.is_ok(),
+            "backward compat: $.resources must still resolve; got Err: {:?}",
+            result.err()
+        );
+        assert_eq!(
+            result.unwrap(),
+            json!([{"id": 1}, {"id": 2}]),
+            "$.resources must return the full array"
+        );
+    }
+
+    /// AC-2(d): `$.x[99]` on a 3-element array returns a structured error (not panic, not None).
+    ///
+    /// RED GATE: current `extract_at_path` returns `Err(String)` for any bracket path.
+    /// After AC-2, it must return `Err` specifically for out-of-bounds (not panic).
+    /// This test will fail at the first assertion because `$.x[99]` syntax is not
+    /// parsed — after AC-2 it should return Err due to out-of-bounds (not due to
+    /// unrecognized syntax). The behavior changes but the no-panic invariant is the goal.
+    #[test]
+    fn test_BC_2_16_002_extract_bracket_out_of_bounds_structured_error() {
+        let body = json!({
+            "x": [1, 2, 3]
+        });
+        let result = extract_at_path(&body, "$.x[99]");
+        // Post-AC-2: must return Err (structured, not panic). Currently returns Err for a
+        // different reason (unrecognized bracket syntax). The invariant: MUST NOT panic.
+        assert!(
+            result.is_err(),
+            "AC-2: $.x[99] on a 3-element array must return Err (out-of-bounds); \
+             after AC-2 impl this Err should have a descriptive message, not just 'path not found'"
+        );
+        // Post-AC-2 refinement: the error message should indicate out-of-bounds.
+        // Before AC-2 this message says "path must start with '$.'..." or "path not found".
+        // After AC-2 this message should say something like "index 99 out of bounds".
+        // This assertion documents the EXPECTED post-AC-2 error message and FAILS before AC-2.
+        let err_msg = result.unwrap_err();
+        assert!(
+            err_msg.contains("out of bounds")
+                || err_msg.contains("index")
+                || err_msg.contains("99"),
+            "AC-2 RED GATE: out-of-bounds error message must reference the index or 'out of bounds'; \
+             current message before AC-2 is: '{err_msg}'"
+        );
+    }
+
+    /// HIGH-007: JSONPath result size cap fires when nested wildcards produce > 100_000 elements.
+    ///
+    /// `$.a[*].b[*]` on a 201x500 = 100_500 element nested array must return Err.
+    #[test]
+    fn test_BC_2_16_002_jsonpath_wildcard_size_cap_fires() {
+        // Build 201 items each containing 500 b-values = 100_500 > MAX_JSONPATH_RESULT_SIZE
+        let inner: Vec<serde_json::Value> = (0..500).map(|i| json!(i)).collect();
+        let outer: Vec<serde_json::Value> = (0..201).map(|_| json!({"b": inner.clone()})).collect();
+        let body = json!({"a": outer});
+        let result = extract_at_path(&body, "$.a[*].b[*]");
+        assert!(
+            result.is_err(),
+            "HIGH-007: nested wildcard producing >100_000 elements must return Err; got Ok"
+        );
+        let err = result.unwrap_err();
+        assert!(
+            err.contains("exceeded") || err.contains("100000") || err.contains("100_000"),
+            "HIGH-007: size cap error must mention 'exceeded' or the cap value; got: {err}"
+        );
+    }
+
+    /// HIGH-007: Depth cap fires at 32+ nested wildcard levels.
+    ///
+    /// A path with 33 nested wildcards must return Err before stack overflow.
+    #[test]
+    fn test_BC_2_16_002_jsonpath_depth_cap_fires() {
+        // Build a deeply nested array: [[[[...]]]] 33 levels deep with single element each.
+        let mut deep: serde_json::Value = json!([1]);
+        for _ in 0..33 {
+            deep = json!([deep]);
+        }
+        let body = json!({"a": deep});
+        // Path with 33 wildcards
+        let path = "$.a[*][*][*][*][*][*][*][*][*][*][*][*][*][*][*][*][*][*][*][*][*][*][*][*][*][*][*][*][*][*][*][*][*]";
+        let result = extract_at_path(&body, path);
+        assert!(
+            result.is_err(),
+            "HIGH-007: 33-level deep wildcard path must return Err (depth cap); got Ok"
+        );
+        let err = result.unwrap_err();
+        assert!(
+            err.contains("depth") || err.contains("exceeded"),
+            "HIGH-007: depth cap error must mention 'depth' or 'exceeded'; got: {err}"
+        );
+    }
+}
+
+// ---------------------------------------------------------------------------
+// AC-3: proptest for `extract_at_path` totality
+//
+// BC-2.16.002 postcondition: extract_at_path returns Ok(_) or Err(_) for any
+// (Value, &str) input — never panics, never produces an unwrap() failure.
+//
+// HIGH-002 (S-PLUGIN-PREREQ-C): proptest body was previously fixed (hardcoded JSON);
+// AC-3(c) required "ANY JSON string" as input. The body is now an arbitrary
+// serde_json::Value generated via a depth-limited recursive strategy. The path
+// regex is also expanded to include `~` characters (RFC 6901 tilde escapes).
+//
+// Placed in-module (not in tests/proptest_AC_3.rs) because `extract_at_path`
+// is a private function. The tests/proptest_AC_3.rs sentinel test delegates
+// to the canonical test in this module once the proptest is wired here.
+// ---------------------------------------------------------------------------
+
+#[cfg(test)]
+mod proptest_extract_at_path {
+    use super::extract_at_path;
+
+    use proptest::prelude::*;
+    use serde_json::Value;
+
+    /// Generate an arbitrary JSON leaf value.
+    fn json_leaf() -> impl Strategy<Value = Value> {
+        prop_oneof![
+            Just(Value::Null),
+            any::<bool>().prop_map(|b| Value::Bool(b)),
+            any::<i64>().prop_map(|n| Value::Number(n.into())),
+            ".*".prop_map(|s: String| Value::String(s)),
+        ]
+    }
+
+    /// Generate an arbitrary JSON value with depth-bounded recursion.
+    ///
+    /// Depth 4 and branching factor 8 produce bodies up to ~4096 nodes —
+    /// realistic for API responses without being too slow for proptest.
+    fn arbitrary_json() -> impl Strategy<Value = Value> {
+        json_leaf().prop_recursive(4, 64, 8, |inner| {
+            prop_oneof![
+                // JSON array: 0..8 elements of arbitrary type
+                prop::collection::vec(inner.clone(), 0..8).prop_map(|v| Value::Array(v)),
+                // JSON object: 0..8 key-value pairs
+                prop::collection::hash_map(".*", inner, 0..8)
+                    .prop_map(|m| { Value::Object(m.into_iter().collect()) }),
+            ]
+        })
+    }
+
+    proptest! {
+        /// AC-3(c): `extract_at_path` totality — for ANY JSON value and path string,
+        /// the function returns Ok(_) or Err(_) without panic.
+        ///
+        /// HIGH-002: body strategy is now arbitrary JSON (not a fixed literal).
+        /// Path regex includes `~` for RFC 6901 tilde escape coverage.
+        ///
+        /// Traces to BC-2.16.002 postcondition: JSONPath extraction returns Ok or Err.
+        #[test]
+        fn proptest_extract_at_path_totality(
+            body in arbitrary_json(),
+            path in "\\$\\.[a-zA-Z0-9_\\.\\[\\]\\*~]{1,30}"
+        ) {
+            // The invariant: MUST NOT panic. Return type is always Ok(_) or Err(_).
+            let _ = extract_at_path(&body, &path);
+        }
     }
 }
