@@ -40,7 +40,7 @@ subsystems: [SS-16, SS-01]
 # Capability anchors: CAP-029 (spec-driven sensor fetch pipeline, primary); CAP-001 (sensor
 # identifier and type system — impacted by AC-6/7 prism-core pub-API hardening)
 capabilities: [CAP-029, CAP-001]
-version: "1.2"
+version: "1.3"
 level: "L4"
 producer: story-writer
 timestamp: "2026-05-12T00:00:00Z"
@@ -131,7 +131,7 @@ depend on. Without PREREQ-C, 001-A cannot safely delete the four hardcoded auth 
 |----------|-----------------|
 | This story spec | ~6,500 |
 | `prism-spec-engine/src/pipeline.rs` (AC-1 page_size + AC-2 bracket/wildcard) | ~2,500 |
-| `prism-spec-engine/src/spec_parser.rs` (AC-5 #[non_exhaustive] on 29 types — see CI EXPECTED=29) | ~2,000 |
+| `prism-spec-engine/src/spec_parser.rs` (AC-5 #[non_exhaustive] on 30 types — see CI EXPECTED=30) | ~2,000 |
 | `prism-spec-engine/src/interpolator.rs` or sibling (AC-4 escape mechanism) | ~1,500 |
 | `prism-spec-engine/tests/` (AC-3 proptest suite) | ~3,000 |
 | `prism-spec-engine/tests/external-construction/` (AC-5 compile-fail test) | ~1,000 |
@@ -315,7 +315,7 @@ against variables — escape mechanism is a grammar extension of the interpolati
 `crates/prism-spec-engine/`. The full target set (from TD-S-PLUGIN-PREREQ-B-016, sourced
 from pass-10 F-LP10-LOW-001) is:
 
-**Audited types (29 total) — `#[non_exhaustive]` applied:**
+**Audited types (30 total) — `#[non_exhaustive]` applied:**
 
 #### `crates/prism-spec-engine/src/spec_parser.rs` (9 types)
 | Type | Variant kind | Default impl |
@@ -349,7 +349,7 @@ from pass-10 F-LP10-LOW-001) is:
 | `PluginConfig` | struct | derived |
 | `InfusionSpec` | struct | explicit `impl Default` |
 
-#### `crates/prism-spec-engine/src/types.rs` (7 config-input types + 1)
+#### `crates/prism-spec-engine/src/types.rs` (8 types)
 | Type | Variant kind | Default impl |
 |------|--------------|--------------|
 | `SensorTableDescriptor` | struct | explicit `impl Default` |
@@ -361,17 +361,19 @@ from pass-10 F-LP10-LOW-001) is:
 | `SpecStatus` | enum | N/A (enum) |
 | `ClientStatus` | enum | N/A (edge case — annotated for completeness; conceptually edge of config-input / wire boundary) |
 
+**Note on `DtuMode`:** `crates/prism-spec-engine/src/types.rs` also contains `pub enum DtuMode` annotated with `#[non_exhaustive]`. This is a pre-existing annotation governed by BC-3.2.005 (different audit lifecycle); it is intentionally NOT enumerated in AC-5's audit table or counted toward the 30-type total. The annotation remains in place; its exclusion from AC-5 audit scope is documented per F-LP4-LOW-002 adjudication.
+
 #### `crates/prism-core/src/column.rs` (2 types)
 | Type | Variant kind | Default impl |
 |------|--------------|--------------|
 | `ColumnType` | enum | N/A (enum) |
 | `ColumnOptions` | struct | derived |
 
-**Total: 29 types audited.** Source-of-truth: `.github/workflows/ci.yml` `EXPECTED=29` assertion in the `non-exhaustive-violation-compile-fail` job. Violator crate at `tests/external/non-exhaustive-violation/` exercises external struct-literal violations (18 E0639) + match-without-wildcard violations (11 E0004) = 29 total compile-fail errors.
+**Total: 30 types audited.** Source-of-truth: `.github/workflows/ci.yml` `EXPECTED=30` assertion in the `non-exhaustive-violation-compile-fail` job. Violator crate at `tests/external/non-exhaustive-violation/` exercises external struct-literal violations (19 E0639) + match-without-wildcard violations (11 E0004) = 30 total compile-fail errors.
 
 **AC-5 audit scope:**
 
-- **INCLUDED:** pub TOML-deserialized CONFIG-INPUT types in prism-spec-engine and prism-core (the 29 types enumerated above). These types are deserialized from `*.sensor.toml`, `*.infusion.toml`, and other configuration sources.
+- **INCLUDED:** pub TOML-deserialized CONFIG-INPUT types in prism-spec-engine and prism-core (the 30 types enumerated above). These types are deserialized from `*.sensor.toml`, `*.infusion.toml`, and other configuration sources.
 - **EXCLUDED:** pub Deserialize MCP-wire types (request DTOs, result types, status events). These types are stability-governed by the MCP protocol specification, not by Rust's `#[non_exhaustive]` forward-compat property. Documented in `crates/prism-spec-engine/src/types.rs` per the F-LP3-MED-002 adjudication.
 
 The excluded MCP-wire types (11 total — for awareness, NOT audited by AC-5):
@@ -498,7 +500,7 @@ TD-S-PLUGIN-PREREQ-A-007, which remains open at P3.
 The following sequence minimizes blast radius and front-loads API-stability changes:
 
 **Step 1 — AC-5: `#[non_exhaustive]` audit first (pub-API stability gate)**
-Apply `#[non_exhaustive]` to all pub TOML-deserialized config-input types in prism-spec-engine + prism-core (29 types total — see AC-5 body for enumeration; CI EXPECTED=29) before any other changes.
+Apply `#[non_exhaustive]` to all pub TOML-deserialized config-input types in prism-spec-engine + prism-core (30 types total — see AC-5 body for enumeration; CI EXPECTED=30) before any other changes.
 This ensures that AC-1's `page_size: Option<u32>` field addition to
 `PaginationConfig::CursorToken` is immediately covered by the `#[non_exhaustive]` policy.
 If AC-5 is applied after AC-1, the field addition risks slipping through without the
@@ -685,7 +687,7 @@ in the workspace `Cargo.lock` and `Cargo.toml` before adding any new dependency.
 | File | Action | AC |
 |------|--------|----|
 | `crates/prism-spec-engine/src/pipeline.rs` | Modify: add `page_size: Option<u32>` to `PaginationConfig::CursorToken`; update `build_paged_url`; extend `extract_at_path` | AC-1, AC-2 |
-| `crates/prism-spec-engine/src/spec_parser.rs` | Modify: add `#[non_exhaustive]` to 29 pub TOML-deserialized config-input types across prism-spec-engine and prism-core (see AC-5 body table + CI EXPECTED=29) | AC-5 |
+| `crates/prism-spec-engine/src/spec_parser.rs` | Modify: add `#[non_exhaustive]` to 30 pub TOML-deserialized config-input types across prism-spec-engine and prism-core (see AC-5 body table + CI EXPECTED=30) | AC-5 |
 | `crates/prism-spec-engine/src/interpolator.rs` | Modify: update escape regex + replacement logic; or equivalent file containing `Interpolator` | AC-4 |
 | `crates/prism-spec-engine/tests/proptest_pipeline.rs` | Create (or extend existing proptest file): add 5 proptest properties for AC-3 | AC-3 |
 | `crates/prism-spec-engine/tests/external-construction/` | Create directory + `main.rs` or use trybuild fixture: compile-fail test for AC-5 | AC-5 |
@@ -756,7 +758,7 @@ Create `docs/demo-evidence/S-PLUGIN-PREREQ-C/INDEX.md` with the following eviden
 | `AC-2-jsonpath-bracket-wildcard.md` | AC-2 | Test output for `$.devices[0].id` and `$.devices[*].id` extraction; out-of-bounds structured error |
 | `AC-3-proptest-pure-functions.md` | AC-3 | `cargo test -p prism-spec-engine proptest` output showing pass counts; PROPTEST_CASES value used |
 | `AC-4-escape-mechanism.md` | AC-4 | Test output for `$${var}` → `${var}`, `${var}` → value, `$$${var}` → `$value` |
-| `AC-5-non-exhaustive-audit.md` | AC-5 | `grep #\[non_exhaustive\]` output showing all 29 types annotated (matches CI EXPECTED=29 in ci.yml non-exhaustive-violation-compile-fail job); compile-fail test output showing expected build failure |
+| `AC-5-non-exhaustive-audit.md` | AC-5 | `grep #\[non_exhaustive\]` output showing all 30 types annotated (matches CI EXPECTED=30 in ci.yml non-exhaustive-violation-compile-fail job); compile-fail test output showing expected build failure |
 | `AC-6-new-unchecked-audit.md` | AC-6 | Output of `scripts/audit-new-unchecked.sh` (or equivalent grep); doc-comment diffs for each audited site |
 | `AC-7-sensor-id-validation-error-reexport.md` | AC-7 | `cargo test --doc -p prism-core` output showing doctest pass; `cargo doc` output showing `SensorIdValidationError` at crate root |
 
@@ -789,6 +791,7 @@ Rationale:
 
 | Version | Date | Author | Change |
 |---------|------|--------|--------|
+| 1.3 | 2026-05-12 | S-PLUGIN-PREREQ-C-fix-burst-4 | AC-5 audit scope reconciliation: 29 → 30 types (added types::SensorSpec to violator crate coverage per F-LP4-MED-002; resolves sub-table arithmetic discrepancy F-LP4-MED-001). DtuMode footnote added (F-LP4-LOW-002 pending-intent resolved: pre-existing BC-3.2.005 annotation, not in AC-5 scope). Authority: ci.yml EXPECTED=30. No structural/AC/BC/frontmatter-list changes. |
 | 1.2 | 2026-05-12 | S-PLUGIN-PREREQ-C-fix-burst-3 | AC-5 narrative reconciliation: 4 "8 types" references replaced with "29 types"; full enumeration table added (29 types across 5 files); explicit AC-5 scope exclusion documented for 11 MCP-wire types (F-LP3-MED-001 + F-LP3-MED-002 adjudication). ClientStatus moved into types.rs sub-table as explicit row. No structural/AC/BC/frontmatter-list changes. Authority: ci.yml EXPECTED=29. |
 | 1.1 | 2026-05-12 | state-manager | Narrative amendments for fix-burst-1 closure: AC-4 escape grammar described as context-free (matches implementation); AC-6 notes production caller migrated from new_unchecked to validated new(). No structural/AC/BC/frontmatter-list changes. Burst: S-PLUGIN-PREREQ-C-fix-burst-1. |
 | 1.0 | 2026-05-12 | story-writer | Initial draft. 7 ACs from carry-forward TD audit (TD-S-PLUGIN-PREREQ-B-001/003/006/008/016 + TD-S-PLUGIN-PREREQ-A-006/008). AC-8 (TD-A-007 validate_sensor_id_string order reorder) deferred: P3, non-blocking at current perimeter, adds scope to a two-crate story; deferred to first micro-cleanup maintenance story. Estimate 8–12 LOCAL passes. Status: ready. |
