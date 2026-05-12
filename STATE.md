@@ -1,7 +1,7 @@
 ---
 document_type: pipeline-state
 level: ops
-version: "7.169"
+version: "7.170"
 producer: state-manager
 timestamp: 2026-05-12T08:00:00Z
 inputs: []
@@ -22,12 +22,12 @@ repos:
   - axiathon
   - ocsf-proto-gen
   - mcp-claroty-xdome
-current_step: "D-435. PREREQ-C fix-burst-2 CONVERGED. 7 findings closed (1 CRIT + 2 HIGH + 2 MED + 2 OBS). 29 #[non_exhaustive] types. just check clean (3598 tests, 17 skipped). STATE+HANDOFF v7.168→v7.169. Next: LOCAL adversary pass-3."
+current_step: "D-436. LOCAL adversary pass-3 CLEAN. STREAK 0/3 → 1/3. 5 findings (0 CRIT + 0 HIGH + 2 MED + 3 OBS). All 7 fix-burst-2 closures verified REAL. Trajectory 18→8→5. STATE+HANDOFF v7.169→v7.170. Next: optional fix-burst-3 (MED-001 story v1.2 + MED-002 doc adjudication + LOW cleanups), then pass-4."
 feature_branch_head: "4bf3dfdd"
-worktree_status: "fix-burst-2-converged"
-adversary_streak: "0/3"
-adversary_pass_count: 2
-pending_findings: "cleared"
+worktree_status: "adversary-pass-3-CLEAN"
+adversary_streak: "1/3"
+adversary_pass_count: 3
+pending_findings: "0 CRIT + 0 HIGH + 2 MED (F-LP3-MED-001 story v1.1 AC-5 '8 types' in 4 places — POL-7 drift; F-LP3-MED-002 types.rs 9 MCP-wire pub Deserialize types — adjudication: protocol types exhaustive by design) + 3 LOW/OBS"
 wave_3_carry_forward_debt: "ALL_REMEDIATE — W4-FIX-PERF-001/002, W4-FIX-CODE-001, W4-FIX-SEC-001 through W4-FIX-SEC-004 planned per D-203"
 wave_4_status: "PHASE_4_A_CONVERGED + R9_APPROVED but PHASE_4_B SUSPENDED — pre-implementation dep check (2026-05-04) found S-4.01 → S-3.02 (status=draft); pivoting to full Wave 3 implementation per user directive D-223"
 wave_4_phase_4_a_preflight:
@@ -227,6 +227,7 @@ _D-001..D-046 archived: [cycles/phase-3-dtu-wave-2/decisions-archive-d001-d032.m
 
 | ID | Decision | Rationale | Phase | Date |
 |----|----------|-----------|-------|------|
+| D-436 | 2026-05-12 | LOCAL adversary pass-3 CLEAN (adversary) on feature/S-PLUGIN-PREREQ-C@4bf3dfdd. STREAK 0/3 → 1/3. 5 findings (vs pass-2 8, 38% reduction). 0 CRIT, 0 HIGH, 2 MED (F-LP3-MED-001 story v1.1 narrative says "8 types" in 4 places — POL-7 drift; F-LP3-MED-002 types.rs has 9 MCP-wire pub Deserialize types — adjudication: protocol types should be exhaustive, document not annotate), 3 LOW/OBS. All 7 fix-burst-2 closures verified REAL. CRIT-002 positional-constructor anti-pattern does NOT recur — all 10 new ::new() have paired Default impls. Trajectory 18→8→5 healthy decay. Next: optional fix-burst-3 (MED-001 story v1.2 reconciliation + MED-002 doc-only adjudication + LOW-001/OBS-001 cleanups), then pass-4 targeting streak 2/3. | plugin-migration | 2026-05-12 |
 | D-435 | 2026-05-12 | PREREQ-C fix-burst-2 CONVERGED (implementer) on feature/S-PLUGIN-PREREQ-C@4bf3dfdd. 7 findings closed (1 CRIT + 2 HIGH + 2 MED + 2 OBS) across 5 atomic commits. just check clean (3598 tests pass, 17 skipped). All paper-fix detection protocols passed. F-LP2-CRIT-001: CI threshold bumped 8→29 (runtime-computed-equivalent). F-LP2-HIGH-001: FULL sibling sweep — 15 additional types annotated (write_endpoint.rs +3, infusion/mod.rs +7, types.rs +5); total 29 #[non_exhaustive] types audited. F-LP2-HIGH-002: verify-workflow-structure reachability check added. F-LP2-MED-001: tenant.rs OrgSlug::new_unchecked doc-comment refreshed (test-fixtures-only post HIGH-006 migration). F-LP2-MED-002: 6 volatile pipeline.rs line-number citations replaced with stable anchors. F-LP2-OBS-001: just check-non-exhaustive recipe added (scripts/check-non-exhaustive.sh + scripts/count-non-exhaustive-errors.py). F-LP2-OBS-003: stale TD-S-PLUGIN-PREREQ-B-008 P3 comment removed. Deviations: (1) Rust 1.95.0 blocks ..Default::default() for #[non_exhaustive] from external crates — implementer added named constructors (WriteEndpointSpec::new() etc.) instead, MORE robust than Default for forward-compat; (2) violation crate split into enum_violations.rs + struct_violations.rs to overcome rustc's per-file error cap (~20) — required for 29-count accuracy. Deferred: F-LP2-OBS-002 types.rs duplicate consolidation → file TD via this burst. Next: LOCAL adversary pass-3 (streak attempt 0/3 → 1/3 if zero CRIT+HIGH). | plugin-migration | 2026-05-12 |
 | D-434 | 2026-05-12 | LOCAL adversary pass-2 BLOCKED-soft (adversary) on feature/S-PLUGIN-PREREQ-C@5e608b76. 8 findings (vs pass-1 18, 56% reduction). 1 CRIT (F-LP2-CRIT-001 CI threshold=8 but log enumerates 14 types — false-green vector POL-11), 2 HIGH (F-LP2-HIGH-001 sibling-sweep recurrence — write_endpoint.rs + 7 infusion/* types still unannotated; F-LP2-HIGH-002 verify-workflow-structure missing non-exhaustive reachability check), 2 MED (F-LP2-MED-001 tenant.rs doc-comment stale post-HIGH-006 S-7.01 partial-fix; F-LP2-MED-002 volatile line-number citations decayed worsened by diff), 3 OBS. 12 of 14 pass-1 closures verified REAL, 3 PARTIAL (CRIT-001 threshold gap, HIGH-004 sibling-sweep recurrence, HIGH-006 stale doc), 3 deferred-LOW acceptable. Streak 0/3 (resets — 1 CRIT + 2 HIGH still present). Trajectory PREREQ-A 12 passes, PREREQ-B 16 passes, PREREQ-C 8 at pass-2. Next: fix-burst-2. | plugin-migration | 2026-05-12 |
 | D-433 | 2026-05-12 | PREREQ-C fix-burst-1 CONVERGED (implementer + product-owner) on feature/S-PLUGIN-PREREQ-C@5e608b76. 14 findings closed (3 CRIT + 8 HIGH + 3 OBS) across 10 atomic commits. just check clean (3598 tests pass, 0 fail). All paper-fix detection protocols passed. BC-2.16.002 v1.9→v1.10 amendment (2 new catalog rows: jsonpath_extraction_failed + jsonpath_size_cap_exceeded). BC-INDEX v4.60→v4.61. Story S-PLUGIN-PREREQ-C v1.0→v1.1 (AC-4 + AC-6 narrative amendments — prose-only). Deferred: F-LP1-OBS-001 (PREREQ-B-inherited volatile pins — out of scope). OBS-005/006/007 not actioned. types.rs duplicate types investigated — distinct hot-reload infrastructure model, not dead code (TD for design-smell of triple CredentialRef documented in code). Two new tracing emission sites under PG-LP11-001 SOP, BC catalog row count 14→16. Next: LOCAL adversary pass-2 with paper-fix-detection + sibling-sweep verification + BROAD audit of new caps. | plugin-migration | 2026-05-12 |
