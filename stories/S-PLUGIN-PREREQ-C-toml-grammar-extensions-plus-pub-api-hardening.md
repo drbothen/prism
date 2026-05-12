@@ -40,10 +40,11 @@ subsystems: [SS-16, SS-01]
 # Capability anchors: CAP-029 (spec-driven sensor fetch pipeline, primary); CAP-001 (sensor
 # identifier and type system — impacted by AC-6/7 prism-core pub-API hardening)
 capabilities: [CAP-029, CAP-001]
-version: "1.0"
+version: "1.1"
 level: "L4"
 producer: story-writer
 timestamp: "2026-05-12T00:00:00Z"
+updated: "2026-05-12"
 input-hash: "6954524"
 traces_to: []
 cycle: "v1.0.0-greenfield"
@@ -282,7 +283,11 @@ without triggering variable substitution. This allows TOML spec authors to embed
 documentation strings that contain template syntax (e.g., a body_template that
 explains the format to the API without interpolating).
 
-**Exact escape semantics:**
+**Exact escape semantics (fix-burst-1 closure: context-free implementation):**
+The escape is context-free — any `$$` pair collapses to `$` regardless of what follows.
+To embed a literal `${var}` in the output, write `$${var}`: the `$$` collapses to `$`,
+then the remaining `{var}` is NOT interpolated (no longer preceded by `$`).
+
 - `$${var}` → literal `${var}` (no lookup in variable map).
 - `${var}` → interpolated value of `var` (existing behavior, unchanged).
 - `$$${var}` → literal `$` followed by interpolated value of `var` (double-dollar
@@ -362,6 +367,11 @@ canonical validation logic that the normal `TryFrom`/`new` path would invoke).
   if the constructor has no legitimate production use (implementer's judgment; if
   `OrgSlug::new_unchecked` is called from production paths, document why; if it is
   test-only, gate it).
+
+Note (fix-burst-1 closure): the production caller in `prism-query/src/materialization.rs`
+has been migrated from `OrgSlug::new_unchecked()` to validated `OrgSlug::new()` with
+explicit error handling. The `new_unchecked` constructor remains in the allowlist for
+test fixtures only.
 
 **Red Gate test (workspace grep regression):** Add a CI script or a Rust `#[test]` in
 `prism-core` that asserts no new `new_unchecked` symbols exist in
@@ -527,8 +537,9 @@ file introduced by AC-2's bracket/wildcard implementation), the implementer MUST
 `tracing::warn!(event_type = "array_index_out_of_bounds", path = %path, array_len = %len)`.
 If so, a new catalog row is REQUIRED before the PR can merge.
 
-**Current catalog state:** BC-2.16.002 v1.9 contains 14 rows (all auth/pagination/fanout
-events). Any PREREQ-C events expand this to 15+.
+**Current catalog state:** BC-2.16.002 v1.10 contains 16 rows (14 auth/pagination/fanout
+events + 2 new rows: jsonpath_extraction_failed + jsonpath_size_cap_exceeded added in
+fix-burst-1). Any PREREQ-C pass-2+ events expand this to 17+.
 
 **Enforcement status (as of 2026-05-12):** Adversary review (LOCAL passes) is the sole
 load-bearing enforcement layer. Layer 1 (implementer self-check) and Layer 2
@@ -725,4 +736,5 @@ Rationale:
 
 | Version | Date | Author | Change |
 |---------|------|--------|--------|
+| 1.1 | 2026-05-12 | state-manager | Narrative amendments for fix-burst-1 closure: AC-4 escape grammar described as context-free (matches implementation); AC-6 notes production caller migrated from new_unchecked to validated new(). No structural/AC/BC/frontmatter-list changes. Burst: S-PLUGIN-PREREQ-C-fix-burst-1. |
 | 1.0 | 2026-05-12 | story-writer | Initial draft. 7 ACs from carry-forward TD audit (TD-S-PLUGIN-PREREQ-B-001/003/006/008/016 + TD-S-PLUGIN-PREREQ-A-006/008). AC-8 (TD-A-007 validate_sensor_id_string order reorder) deferred: P3, non-blocking at current perimeter, adds scope to a two-crate story; deferred to first micro-cleanup maintenance story. Estimate 8–12 LOCAL passes. Status: ready. |

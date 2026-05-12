@@ -1,7 +1,7 @@
 ---
 document_type: pipeline-state
 level: ops
-version: "7.166"
+version: "7.167"
 producer: state-manager
 timestamp: 2026-05-12T08:00:00Z
 inputs: []
@@ -22,12 +22,12 @@ repos:
   - axiathon
   - ocsf-proto-gen
   - mcp-claroty-xdome
-current_step: "D-432. LOCAL adversary pass-1 BLOCKED-soft on feature/S-PLUGIN-PREREQ-C@0e7d8bca. 18 findings: 3 CRIT + 8 HIGH + 7 OBS. Streak 0/3. Next: implementer fix-burst-1 (3 CRIT + 8 HIGH). STATE+HANDOFF v7.165→v7.166."
-feature_branch_head: "0e7d8bca"
-worktree_status: "adversary-pass-1-blocked-soft"
+current_step: "D-433. PREREQ-C fix-burst-1 CONVERGED. feature/S-PLUGIN-PREREQ-C@5e608b76. 14 findings closed (3 CRIT + 8 HIGH + 3 OBS). just check clean (3598 tests). BC v1.9→v1.10. BC-INDEX v4.60→v4.61. Story v1.0→v1.1. STATE+HANDOFF v7.166→v7.167. Next: adversary pass-2."
+feature_branch_head: "5e608b76"
+worktree_status: "fix-burst-1-converged"
 adversary_streak: "0/3"
 adversary_pass_count: 1
-pending_findings: "3 CRIT + 8 HIGH + 7 OBS"
+pending_findings: "0 (fix-burst-1 closed 14 findings; awaiting pass-2)"
 wave_3_carry_forward_debt: "ALL_REMEDIATE — W4-FIX-PERF-001/002, W4-FIX-CODE-001, W4-FIX-SEC-001 through W4-FIX-SEC-004 planned per D-203"
 wave_4_status: "PHASE_4_A_CONVERGED + R9_APPROVED but PHASE_4_B SUSPENDED — pre-implementation dep check (2026-05-04) found S-4.01 → S-3.02 (status=draft); pivoting to full Wave 3 implementation per user directive D-223"
 wave_4_phase_4_a_preflight:
@@ -131,7 +131,7 @@ subsystem_count: 20
 story_count: 113
 bc_count_corrected: 235
 cap_count: 40  # active; highest_cap_id: CAP-040 (CAP-038 Multi-Tenant Identity, CAP-039 Multi-Tenant Fixture Gen, CAP-040 Multi-Tenant Adapter Dispatch — Wave 3 Phase 3.A Step 2)
-bc_index_version: "4.60"
+bc_index_version: "4.61"
 vp_index_version: "1.32"
 story_index_version: "v2.62"
 total_stories: 150
@@ -167,7 +167,7 @@ phase_2_patch_convergence_rationale: "User override post pass-99. Semantic polic
 user_directive_persistent: "No pragmatic convergence. Fix all issues before build."
 develop_head: "ae7e26c8"
 vsdd_factory_version: "1.0.0-rc.16 (upgraded from rc.11 2026-05-10T07:38:25Z)"
-workspace_test_count: 3489  # 891 prism-query + workspace total (per implementer fix-pass-6 report; +3 new DML walker tests)
+workspace_test_count: 3598  # updated at D-433 fix-burst-1 closure (just check clean 3598 tests pass)
 ---
 # VSDD Pipeline State — Prism
 
@@ -181,9 +181,9 @@ workspace_test_count: 3489  # 891 prism-query + workspace total (per implementer
 | **Language** | Rust |
 | **Target Workspace** | per-analyst stdio (MCP server) |
 | **Started** | 2026-04-13 |
-| **Last Updated** | 2026-05-12 (D-432 — S-PLUGIN-PREREQ-C LOCAL adversary pass-1 BLOCKED-soft; 18 findings: 3 CRIT + 8 HIGH + 7 OBS; streak 0/3; STATE+HANDOFF v7.165→v7.166) |
-| **Current Phase** | Wave 3 Tier-3 COMPLETE — **Wave 3-A 4 of 4 SHIPPED**; plugin migration: PREREQ-F + PREREQ-A + **PREREQ-B SHIPPED** (PR #143 ae7e26c8 2026-05-12); **PREREQ-C adversary pass-1 BLOCKED-soft** (D-432 feature@0e7d8bca streak 0/3); PREREQ-D/E pending |
-| **Current Step** | D-432 — LOCAL adversary pass-1 BLOCKED-soft on feature/S-PLUGIN-PREREQ-C@0e7d8bca. 18 findings: 3 CRIT (F-LP1-CRIT-001 AC-5 compile-fail CI-inert, F-LP1-CRIT-002 AC-5 positional ::new defeats non_exhaustive, F-LP1-CRIT-003 AC-1(c) paper-fix), 8 HIGH (observability silence, partial totality, escape grammar drift, sibling-sweep miss, allowlist over-broad, security-precondition fragility, nested-wildcard memory amplification, doctest tautology), 7 OBS/LOW. Streak 0/3. Next: implementer fix-burst-1 (3 CRIT + 8 HIGH + selected OBS). |
+| **Last Updated** | 2026-05-12 (D-433 — PREREQ-C fix-burst-1 CONVERGED; feature/S-PLUGIN-PREREQ-C@5e608b76; 14 findings closed; BC v1.10 + BC-INDEX v4.61 + story v1.1; STATE+HANDOFF v7.166→v7.167) |
+| **Current Phase** | Wave 3 Tier-3 COMPLETE — **Wave 3-A 4 of 4 SHIPPED**; plugin migration: PREREQ-F + PREREQ-A + **PREREQ-B SHIPPED** (PR #143 ae7e26c8 2026-05-12); **PREREQ-C fix-burst-1 CONVERGED** (D-433 feature@5e608b76 streak 0/3); adversary pass-2 ready; PREREQ-D/E pending |
+| **Current Step** | D-433 — PREREQ-C fix-burst-1 CONVERGED (implementer + product-owner) on feature/S-PLUGIN-PREREQ-C@5e608b76. 14 findings closed (3 CRIT + 8 HIGH + 3 OBS) across 10 atomic commits. just check clean (3598 tests pass, 0 fail). BC-2.16.002 v1.9→v1.10 (2 new catalog rows: jsonpath_extraction_failed + jsonpath_size_cap_exceeded). BC-INDEX v4.60→v4.61. Story S-PLUGIN-PREREQ-C v1.0→v1.1 (AC-4 + AC-6 narrative amendments). Streak 0/3 (fix-burst doesn't advance). Next: adversary LOCAL pass-2 with paper-fix-detection. |
 
 ## Phase Progress
 
@@ -227,6 +227,7 @@ _D-001..D-046 archived: [cycles/phase-3-dtu-wave-2/decisions-archive-d001-d032.m
 
 | ID | Decision | Rationale | Phase | Date |
 |----|----------|-----------|-------|------|
+| D-433 | 2026-05-12 | PREREQ-C fix-burst-1 CONVERGED (implementer + product-owner) on feature/S-PLUGIN-PREREQ-C@5e608b76. 14 findings closed (3 CRIT + 8 HIGH + 3 OBS) across 10 atomic commits. just check clean (3598 tests pass, 0 fail). All paper-fix detection protocols passed. BC-2.16.002 v1.9→v1.10 amendment (2 new catalog rows: jsonpath_extraction_failed + jsonpath_size_cap_exceeded). BC-INDEX v4.60→v4.61. Story S-PLUGIN-PREREQ-C v1.0→v1.1 (AC-4 + AC-6 narrative amendments — prose-only). Deferred: F-LP1-OBS-001 (PREREQ-B-inherited volatile pins — out of scope). OBS-005/006/007 not actioned. types.rs duplicate types investigated — distinct hot-reload infrastructure model, not dead code (TD for design-smell of triple CredentialRef documented in code). Two new tracing emission sites under PG-LP11-001 SOP, BC catalog row count 14→16. Next: LOCAL adversary pass-2 with paper-fix-detection + sibling-sweep verification + BROAD audit of new caps. | plugin-migration | 2026-05-12 |
 | D-432 | 2026-05-12 | LOCAL adversary pass-1 BLOCKED-soft (adversary) on feature/S-PLUGIN-PREREQ-C@0e7d8bca. 18 findings: 3 CRIT (F-LP1-CRIT-001 AC-5 compile-fail CI-inert, F-LP1-CRIT-002 AC-5 positional ::new defeats non_exhaustive, F-LP1-CRIT-003 AC-1(c) paper-fix), 8 HIGH (F-LP1-HIGH-001/2/3/4/5/6/7/8 — observability silence, partial totality, escape grammar drift, sibling-sweep miss, allowlist over-broad, security-precondition fragility, nested-wildcard memory amplification, doctest tautology), 7 OBS/LOW. Trajectory 18 at pass-1 (vs PREREQ-A 14, PREREQ-B 20). Streak 0/3. Two findings tagged [process-gap]: F-LP1-CRIT-001 (CI-as-Code policy lift) and F-LP1-OBS-001 (TD-VSDD-091 inherited from PREREQ-B). Next: dispatch implementer for fix-burst-1 covering 3 CRIT + 8 HIGH + selected OBS. Pre-existing tests: 555 green, no regressions. | plugin-migration | 2026-05-12 |
 | D-431 | 2026-05-12 | S-PLUGIN-PREREQ-C Green TDD complete (implementer) on feature/S-PLUGIN-PREREQ-C@0e7d8bca. 7 ACs implemented across 8 atomic commits in 54min (well under 4-5h estimate). All 11 Red Gates turned green. just check clean (132s warm, 3586 tests pass, 17 skipped pre-existing, 1 leaky pre-existing). BC-2.16.002 amendment NOT required (AC-2 chose Err(String) over structured tracing emission). Two judgment calls for adversary scrutiny: (1) AC-2 plain-error vs structured event_type — story body said "structured error (event_type emission — must update BC-2.16.002 catalog if new)"; (2) AC-6 OrgSlug::new_unchecked kept ungated with allowlist + doc-comment (production caller in prism-query/materialization.rs). AC-5 blast radius larger than anticipated — added constructors (FetchStep::new, ColumnSpec::new, SensorSpec::new etc.) + 20+ test/example file updates. Next: LOCAL adversary pass-1 (estimated 30-45min). | plugin-migration | 2026-05-12 |
 | D-430 | 2026-05-12 | S-PLUGIN-PREREQ-C Red Gate established (test-writer) on feature/S-PLUGIN-PREREQ-C@f97e91d1. 11 failing tests across 7 ACs: AC-1 (4 fail/2 pass), AC-2 (2 fail/2 pass), AC-3 (1 fail/4 pass), AC-4 (2 fail/1 pass), AC-5 (1 fail compile-fail crate), AC-6 (1 fail), AC-7 (1 fail). 543 pre-existing tests still pass (no regressions). Minimal stub: page_size: Option<u32> field added to PaginationConfig::CursorToken with #[serde(default)]. AC-5 uses tests/external/non-exhaustive-violation/ pattern (no trybuild dep — follows established perimeter-violation precedent). Next: implementer Green TDD (~4-5h first pass per test-writer estimate). | plugin-migration | 2026-05-12 |
@@ -444,21 +445,21 @@ Cycle files: [burst-log](cycles/phase-2-patch/burst-log.md) | [convergence-traje
 
 ---
 
-## Session Resume Checkpoint (2026-05-12-v7.166-d432-prereq-c-pass1-blocked)
+## Session Resume Checkpoint (2026-05-12-v7.167-d433-prereq-c-fix-burst-1-converged)
 
-_Previous checkpoint (v7.165/D-431 S-PLUGIN-PREREQ-C green-tdd-complete) archived: [cycles/wave-4-operations/session-checkpoints.md](cycles/wave-4-operations/session-checkpoints.md)_
+_Previous checkpoint (v7.166/D-432 S-PLUGIN-PREREQ-C adversary-pass-1-blocked-soft) archived: [cycles/wave-4-operations/session-checkpoints.md](cycles/wave-4-operations/session-checkpoints.md)_
 
-**STATE v7.166. D-432 — S-PLUGIN-PREREQ-C LOCAL adversary pass-1 BLOCKED-soft. feature/S-PLUGIN-PREREQ-C@0e7d8bca. 18 findings: 3 CRIT + 8 HIGH + 7 OBS. Streak 0/3. SESSION-HANDOFF v7.166.** factory-artifacts HEAD: run `git -C .factory log -1` (per TD-VSDD-053). vsdd-factory rc.16 active. Standing Orchestrator Rules active (Rules 1, 2, 3). Bundle B Exit Mandate active (task #85). Worktrees: main (clean) + .factory + .worktrees/S-PLUGIN-PREREQ-C (adversary-pass-1-blocked-soft) + .worktrees/S-3.09 (FROZEN per D-298).
+**STATE v7.167. D-433 — PREREQ-C fix-burst-1 CONVERGED. feature/S-PLUGIN-PREREQ-C@5e608b76. 14 findings closed (3 CRIT + 8 HIGH + 3 OBS). Streak 0/3. SESSION-HANDOFF v7.167.** factory-artifacts HEAD: run `git -C .factory log -1` (per TD-VSDD-053). vsdd-factory rc.16 active. Standing Orchestrator Rules active (Rules 1, 2, 3). Bundle B Exit Mandate active (task #85). Worktrees: main (clean) + .factory + .worktrees/S-PLUGIN-PREREQ-C (fix-burst-1-converged) + .worktrees/S-3.09 (FROZEN per D-298).
 
-**S-PLUGIN-PREREQ-B STATUS:** MERGED. PR #143 squash-merged at ae7e26c8. Story v1.23 status: merged. BC-2.16.002 v1.9 status: active (POL-14 promotion). Per-story-delivery cycle CLOSED.
+**S-PLUGIN-PREREQ-B STATUS:** MERGED. PR #143 squash-merged at ae7e26c8. Story v1.23 status: merged. BC-2.16.002 v1.9→v1.10 status: active (POL-14 promotion; v1.10 amended by fix-burst-1). Per-story-delivery cycle CLOSED.
 
-**S-PLUGIN-PREREQ-C STATUS:** ADVERSARY-PASS-1-BLOCKED-SOFT. Worktree at /Users/jmagady/Dev/prism/.worktrees/S-PLUGIN-PREREQ-C/ on feature/S-PLUGIN-PREREQ-C@0e7d8bca (adversary read-only — unchanged). 18 findings: 3 CRIT (F-LP1-CRIT-001 AC-5 compile-fail CI-inert, F-LP1-CRIT-002 AC-5 positional ::new defeats non_exhaustive, F-LP1-CRIT-003 AC-1(c) paper-fix), 8 HIGH (observability silence, proptest partial totality, escape grammar drift, sibling-sweep miss, allowlist over-broad, security-precondition fragility, nested-wildcard OOM, doctest tautology), 7 OBS/LOW. Streak 0/3. Adversary report at: .factory/code-delivery/S-PLUGIN-PREREQ-C/adversary-pass-1.md. NEXT: dispatch implementer for fix-burst-1 (3 CRIT + 8 HIGH mandatory; selected OBS at discretion).
+**S-PLUGIN-PREREQ-C STATUS:** FIX-BURST-1-CONVERGED. Worktree at /Users/jmagady/Dev/prism/.worktrees/S-PLUGIN-PREREQ-C/ on feature/S-PLUGIN-PREREQ-C@5e608b76. 14 findings closed (3 CRIT + 8 HIGH + 3 OBS). just check clean (3598 tests pass). BC-2.16.002 v1.9→v1.10 (2 new catalog rows). BC-INDEX v4.60→v4.61. Story v1.0→v1.1. Streak 0/3 (fix-burst doesn't advance). NEXT: dispatch adversary for LOCAL pass-2 with paper-fix-detection.
 
 **S-3.09 FREEZE STATE:** Worktree .worktrees/S-3.09 HEAD 43c41389; BUG-S309-PLUGIN P0 blocks resumption. See D-298/D-299.
 
 **Deferred TDs (carry-forward — not PREREQ-C):** W3-FIX-S307-001/002/003 + TD-S307-002/003/004 + TD-S-PLUGIN-PREREQ-A-002 P1 + TD-S-PLUGIN-PREREQ-A-003 P1 + TD-S-PLUGIN-PREREQ-A-004 P1 + TD-S-PLUGIN-PREREQ-A-005/009/010 P3 + TD-S-PLUGIN-PREREQ-B-002 P3 (AuthToken zeroize; PREREQ-D) + TD-S-PLUGIN-PREREQ-B-004 P3 (MAX_REQUESTS_PER_PIPELINE; PREREQ-D) + TD-S-PLUGIN-PREREQ-B-005 P2 (reqwest::Client.timeout; PREREQ-D) + TD-S-PLUGIN-PREREQ-B-007 P3 (status_code overload) + TD-S-PLUGIN-PREREQ-B-009 P3 (dead scalar arm) + TD-S-PLUGIN-PREREQ-B-011 P3 (execute_step PREREQ-D wiring) + TD-S-PLUGIN-PREREQ-B-012 P3 (execute_step PREREQ-D test coverage) + TD-VSDD-058/059/060 P0 + TD-FACTORY-HOOK-BYPASS-001 P0 + TD-VSDD-054..063 (all OPEN) + TD-VSDD-082/083/084 + TD-S309-O1/O2/O3/O4
 
-**Current spec versions:** BC-INDEX v4.60, STORY-INDEX v2.62, ARCH-INDEX v2.40, ADR-023 v1.18, VP-INDEX v1.32 (152 VPs + VP-PLUGIN-001..007 aliases), BC-2.16.002 v1.9 (active, merged PR #143), BC-2.01.013 v1.6 (active, merged PR #142), S-PLUGIN-PREREQ-B v1.23 (status: merged, PR #143 ae7e26c8), S-PLUGIN-PREREQ-C v1.0 (status: ready; adversary-pass-1-blocked-soft D-432 feature@0e7d8bca streak 0/3), prd.md v1.10, error-taxonomy.md v1.18, develop@ae7e26c8; STATE v7.166 SESSION-HANDOFF v7.166 (current)
+**Current spec versions:** BC-INDEX v4.61, STORY-INDEX v2.62, ARCH-INDEX v2.40, ADR-023 v1.18, VP-INDEX v1.32 (152 VPs + VP-PLUGIN-001..007 aliases), BC-2.16.002 v1.10 (active; 2 new catalog rows from fix-burst-1), BC-2.01.013 v1.6 (active, merged PR #142), S-PLUGIN-PREREQ-B v1.23 (status: merged, PR #143 ae7e26c8), S-PLUGIN-PREREQ-C v1.1 (status: ready; fix-burst-1-converged D-433 feature@5e608b76 streak 0/3), prd.md v1.10, error-taxonomy.md v1.18, develop@ae7e26c8; STATE v7.167 SESSION-HANDOFF v7.167 (current)
 
 **Key files:** [SESSION-HANDOFF.md](SESSION-HANDOFF.md) | [cycle-manifest.md](cycles/wave-4-operations/cycle-manifest.md) | [HOLDOUT-INDEX.md](holdout-scenarios/HOLDOUT-INDEX.md)
 
