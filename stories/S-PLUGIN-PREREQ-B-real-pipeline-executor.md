@@ -31,7 +31,7 @@ target_module: prism-spec-engine
 #   and the new auth interface is consumed at query time through the same dispatch path that
 #   SS-01 currently owns.
 subsystems: [SS-16, SS-01]
-version: "1.6"
+version: "1.7"
 level: "L4"
 producer: story-writer
 timestamp: "2026-05-11T23:45:00Z"
@@ -49,7 +49,7 @@ anchor_subsystem: [SS-16, SS-01]
 assumption_validations: []
 risk_mitigations: []
 acceptance_criteria_count: 9
-red_gate_tests: 39
+red_gate_tests: 41
 inputs:
   - ".factory/specs/architecture/decisions/ADR-023-plugin-only-sensor-architecture.md"
   - ".factory/specs/behavioral-contracts/BC-2.16.002-multi-step-fetch-pipeline.md"
@@ -561,6 +561,7 @@ This story is shipped when ALL of the following are true:
 
 | Version | Burst | Date | Author | Changes |
 |---------|-------|------|--------|---------|
+| 1.7 | prereq-b-fix-burst-7 | 2026-05-11 | state-manager | D-411 fix-burst-7 CLOSED 3 MED + 1 LOW (deferred). red_gate_tests 39→41 (2 new: test_BC_2_16_002_eager_auth_initial_failed_aborts_pipeline_immediately + test_BC_2_16_002_execute_discards_partial_records_on_mid_pipeline_500). F-LP7-MED-001: empty-token branch in execute() + execute_step() emits auth_initial_acquired_empty (debug) vs auth_initial_acquired (info) — audit signal integrity restored. F-LP7-MED-002: FailingAuthProvider added under cfg(feature="test-helpers"); abort test verifies zero HTTP requests on auth failure. F-LP7-MED-003: partial-record discard test + BC-2.16.002 v1.5→v1.6 postcondition amendment (all-or-nothing semantics). F-LP7-LOW-001: DEFERRED as TD-S-PLUGIN-PREREQ-B-012 P3 (execute_step PREREQ-D test vehicle; doc comment added at pipeline.rs:424). 3 OBS acknowledged. 275/275 prism-spec-engine tests pass + 1 skipped. Worktree HEAD ebd9a3ec. Factory commit d11dbf0d. |
 | 1.6 | prereq-b-fix-burst-6 | 2026-05-11 | product-owner | SPEC-SIDE pass-6 fixes. F-LP6-HIGH-001 CLOSED: VP-PLUGIN-002 anchor corrected from PLUGIN-MIGRATION-001-D to S-PLUGIN-PREREQ-B in VP-INDEX (VP-147 numbered row + VP-PLUGIN-002 named-alias row). VP-147 description updated from stale "Unknown sensor registers without code change" to "PipelineExecutor::execute returns non-empty records against wiremock DTU clone". F-LP6-HIGH-002 CLOSED: VP-PLUGIN-005 (VP-150) description in VP-INDEX named-alias row (line 187) corrected from "PluginRuntime::load_all_plugins boot-time wired; allowed_urls host-only enforcement after PREREQ-D" to "OAuth2 refresh-on-401 via declarative TOML retry policy"; anchor updated PLUGIN-MIGRATION-001-D → S-PLUGIN-PREREQ-B (both VP-150 numbered row and VP-PLUGIN-005 named-alias row). F-LP6-MED-002 CLOSED: verification_properties frontmatter + anchor_vps extended to include VP-PLUGIN-005 (pipeline_oauth_retry.rs test target). VP-INDEX v1.30 → v1.31. |
 | 1.5 | prereq-b-fix-burst-5 | 2026-05-11 | state-manager | LOCAL fix-burst-5 CLOSED F-LP5-LOW-003 (D-408). red_gate_tests 37→39 (2 new: test_BC_2_16_002_execute_acquires_token_eagerly_before_first_request + test_BC_2_16_002_no_auth_refresh_triggered_on_legitimate_execution). Eager-token implementation: pipeline.rs acquires token at pipeline start — unconditional for all AuthType variants (no Null variant exists). 2 existing tests adjusted for acquire_token call-count semantics (1→2 for refresh scenarios). BC-2.16.002 v1.4→v1.5 amendment: precondition lifecycle lazy→eager; request_count counts HTTP requests only (excludes acquire_token transport); auth_initial_acquired/auth_initial_failed audit family added; auth_refresh_* family fully enumerated. TD-S-PLUGIN-PREREQ-B-010 CLOSED. 273/273 tests pass. Worktree HEAD 2fe7068c. Factory commit 82fd868c. |
 | 1.4 | prereq-b-fix-burst-4 | 2026-05-11 | state-manager | LOCAL pass-5 fix-burst-4 CLOSED 3 actionable findings (D-407). red_gate_tests 33→37 (4 new: MED-001 gzip-decode wiremock+flate2; MED-002(c) pipeline_truncated tracing-subscriber; LOW-001 extract_at_path dollar-dot negative + validator). F-LP5-MED-001 reqwest features=[gzip,deflate,brotli] added to Cargo.toml. F-LP5-MED-002 audit-log symmetry: auth_refresh_succeeded/failed on acquire_token Ok/Err; auth_refresh_double_401 before abort; pipeline_truncated before 10K break. F-LP5-LOW-001 dollar-dot double defense: runtime guard + validator rejection. 4 TDs filed: TD-S-PLUGIN-PREREQ-B-006 P2 (proptest); -007 P3 (status_code overload); -008 P3 (template escape); -009 P3 (dead scalar arm). F-LP5-LOW-003 lazy-token SURFACED as TD-010 P2 — ORCHESTRATOR-DECISION-PENDING. 2 OBS acknowledged. 271/271 tests pass. Worktree HEAD e19372f4. |
