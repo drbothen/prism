@@ -142,27 +142,38 @@ fn test_BC_2_16_002_cursor_pagination_continuation_includes_page_size() {
 /// AC-1(c): `PaginationConfig::CursorToken { page_size: None }` on any call
 /// produces a URL with no `page_size` query parameter.
 ///
-/// This assertion IS expected to pass already (no page_size is the current default).
-/// It is included to document the backward-compat invariant.
-///
-/// NOTE: This test MAY pass even before AC-1 impl — that is acceptable per the Red Gate
-/// protocol (only AC-1(a) and AC-1(b) are the true red anchors).
+/// This test exercises the ACTUAL build_paged_url_for_test output for both the first
+/// call (no cursor) and continuation call (with cursor).
 #[test]
 fn test_BC_2_16_002_cursor_pagination_page_size_none_omitted() {
-    let pagination = PaginationConfig::CursorToken {
-        cursor_response_path: "$.next_cursor".to_string(),
-        page_size: None,
-    };
-    let PaginationConfig::CursorToken { page_size, .. } = pagination else {
-        panic!("Expected CursorToken variant");
-    };
-    assert_eq!(
-        page_size, None,
-        "page_size None must round-trip through the struct"
+    let base_url = "https://api.example.com/v1/devices";
+    let step = FetchStep::new(
+        "fetch",
+        "GET",
+        "/v1/devices",
+        None,
+        "$.items",
+        None,
+        vec![],
+        None,
+        Some(PaginationConfig::CursorToken {
+            cursor_response_path: "$.next_cursor".to_string(),
+            page_size: None,
+        }),
     );
 
-    // On first call with page_size None: URL must not contain page_size parameter.
-    let base_url = "https://api.example.com/v1/devices";
-    let current_output = base_url.to_string();
-    assert_url_omits_page_size(&current_output);
+    // First call (no cursor): URL must not contain page_size parameter.
+    let first_call = build_paged_url_for_test(base_url, &step, &None, 0);
+    assert_url_omits_page_size(&first_call);
+
+    // Continuation call (with cursor): URL must not contain page_size parameter.
+    let continuation =
+        build_paged_url_for_test(base_url, &step, &Some("cursor_xyz".to_string()), 0);
+    assert_url_omits_page_size(&continuation);
+
+    // Cursor continuation must still include cursor parameter.
+    assert!(
+        continuation.contains("cursor=cursor_xyz"),
+        "AC-1(c): continuation URL must contain cursor parameter even when page_size is None; got: {continuation}"
+    );
 }
