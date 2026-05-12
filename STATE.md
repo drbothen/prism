@@ -1,7 +1,7 @@
 ---
 document_type: pipeline-state
 level: ops
-version: "7.168"
+version: "7.169"
 producer: state-manager
 timestamp: 2026-05-12T08:00:00Z
 inputs: []
@@ -22,12 +22,12 @@ repos:
   - axiathon
   - ocsf-proto-gen
   - mcp-claroty-xdome
-current_step: "D-434. LOCAL adversary pass-2 BLOCKED-soft on feature/S-PLUGIN-PREREQ-C@5e608b76. 8 findings (1 CRIT + 2 HIGH + 2 MED + 3 OBS). 12 of 14 pass-1 closures REAL, 3 PARTIAL, 3 deferred-LOW. Streak 0/3. STATE+HANDOFF v7.167→v7.168. Next: fix-burst-2."
-feature_branch_head: "5e608b76"
-worktree_status: "adversary-pass-2-blocked-soft"
+current_step: "D-435. PREREQ-C fix-burst-2 CONVERGED. 7 findings closed (1 CRIT + 2 HIGH + 2 MED + 2 OBS). 29 #[non_exhaustive] types. just check clean (3598 tests, 17 skipped). STATE+HANDOFF v7.168→v7.169. Next: LOCAL adversary pass-3."
+feature_branch_head: "4bf3dfdd"
+worktree_status: "fix-burst-2-converged"
 adversary_streak: "0/3"
 adversary_pass_count: 2
-pending_findings: "1 CRIT + 2 HIGH + 2 MED + 3 OBS"
+pending_findings: "cleared"
 wave_3_carry_forward_debt: "ALL_REMEDIATE — W4-FIX-PERF-001/002, W4-FIX-CODE-001, W4-FIX-SEC-001 through W4-FIX-SEC-004 planned per D-203"
 wave_4_status: "PHASE_4_A_CONVERGED + R9_APPROVED but PHASE_4_B SUSPENDED — pre-implementation dep check (2026-05-04) found S-4.01 → S-3.02 (status=draft); pivoting to full Wave 3 implementation per user directive D-223"
 wave_4_phase_4_a_preflight:
@@ -181,9 +181,9 @@ workspace_test_count: 3598  # updated at D-433 fix-burst-1 closure (just check c
 | **Language** | Rust |
 | **Target Workspace** | per-analyst stdio (MCP server) |
 | **Started** | 2026-04-13 |
-| **Last Updated** | 2026-05-12 (D-434 — PREREQ-C LOCAL adversary pass-2 BLOCKED-soft; 8 findings (1 CRIT + 2 HIGH + 2 MED + 3 OBS); 56% reduction from pass-1; streak 0/3; STATE+HANDOFF v7.167→v7.168) |
-| **Current Phase** | Wave 3 Tier-3 COMPLETE — **Wave 3-A 4 of 4 SHIPPED**; plugin migration: PREREQ-F + PREREQ-A + **PREREQ-B SHIPPED** (PR #143 ae7e26c8 2026-05-12); **PREREQ-C adversary pass-2 BLOCKED-soft** (D-434 feature@5e608b76 streak 0/3); fix-burst-2 ready; PREREQ-D/E pending |
-| **Current Step** | D-434 — LOCAL adversary pass-2 BLOCKED-soft (adversary) on feature/S-PLUGIN-PREREQ-C@5e608b76. 8 findings: 1 CRIT (F-LP2-CRIT-001 CI threshold=8 but 14 types — POL-11 false-green vector), 2 HIGH (F-LP2-HIGH-001 sibling-sweep recurrence write_endpoint.rs + 7 infusion/* types unannotated; F-LP2-HIGH-002 verify-workflow-structure missing non-exhaustive reachability check), 2 MED (F-LP2-MED-001 tenant.rs stale doc S-7.01; F-LP2-MED-002 volatile line-number citations decayed), 3 OBS. 12/14 pass-1 closures REAL, 3 PARTIAL, 3 deferred-LOW. Streak 0/3. Next: fix-burst-2. |
+| **Last Updated** | 2026-05-12 (D-435 — PREREQ-C fix-burst-2 CONVERGED; 7 findings closed (1 CRIT + 2 HIGH + 2 MED + 2 OBS); 29 #[non_exhaustive] types; just check clean 3598 tests; STATE+HANDOFF v7.168→v7.169) |
+| **Current Phase** | Wave 3 Tier-3 COMPLETE — **Wave 3-A 4 of 4 SHIPPED**; plugin migration: PREREQ-F + PREREQ-A + **PREREQ-B SHIPPED** (PR #143 ae7e26c8 2026-05-12); **PREREQ-C fix-burst-2 CONVERGED** (D-435 feature@4bf3dfdd streak 0/3); pass-3 ready; PREREQ-D/E pending |
+| **Current Step** | D-435 — PREREQ-C fix-burst-2 CONVERGED (implementer) on feature/S-PLUGIN-PREREQ-C@4bf3dfdd. 7 findings closed: 1 CRIT (F-LP2-CRIT-001 CI threshold bumped 8→29 runtime-computed-equivalent), 2 HIGH (F-LP2-HIGH-001 FULL sibling sweep — 15 additional types annotated, total 29 audited; F-LP2-HIGH-002 verify-workflow-structure reachability check added), 2 MED (F-LP2-MED-001 tenant.rs doc-comment refreshed; F-LP2-MED-002 6 volatile pipeline.rs citations replaced), 2 OBS (F-LP2-OBS-001 just check-non-exhaustive recipe added; F-LP2-OBS-003 stale TD comment removed). 3598 tests pass, 17 skipped. Streak 0/3. Next: LOCAL adversary pass-3. |
 
 ## Phase Progress
 
@@ -227,6 +227,7 @@ _D-001..D-046 archived: [cycles/phase-3-dtu-wave-2/decisions-archive-d001-d032.m
 
 | ID | Decision | Rationale | Phase | Date |
 |----|----------|-----------|-------|------|
+| D-435 | 2026-05-12 | PREREQ-C fix-burst-2 CONVERGED (implementer) on feature/S-PLUGIN-PREREQ-C@4bf3dfdd. 7 findings closed (1 CRIT + 2 HIGH + 2 MED + 2 OBS) across 5 atomic commits. just check clean (3598 tests pass, 17 skipped). All paper-fix detection protocols passed. F-LP2-CRIT-001: CI threshold bumped 8→29 (runtime-computed-equivalent). F-LP2-HIGH-001: FULL sibling sweep — 15 additional types annotated (write_endpoint.rs +3, infusion/mod.rs +7, types.rs +5); total 29 #[non_exhaustive] types audited. F-LP2-HIGH-002: verify-workflow-structure reachability check added. F-LP2-MED-001: tenant.rs OrgSlug::new_unchecked doc-comment refreshed (test-fixtures-only post HIGH-006 migration). F-LP2-MED-002: 6 volatile pipeline.rs line-number citations replaced with stable anchors. F-LP2-OBS-001: just check-non-exhaustive recipe added (scripts/check-non-exhaustive.sh + scripts/count-non-exhaustive-errors.py). F-LP2-OBS-003: stale TD-S-PLUGIN-PREREQ-B-008 P3 comment removed. Deviations: (1) Rust 1.95.0 blocks ..Default::default() for #[non_exhaustive] from external crates — implementer added named constructors (WriteEndpointSpec::new() etc.) instead, MORE robust than Default for forward-compat; (2) violation crate split into enum_violations.rs + struct_violations.rs to overcome rustc's per-file error cap (~20) — required for 29-count accuracy. Deferred: F-LP2-OBS-002 types.rs duplicate consolidation → file TD via this burst. Next: LOCAL adversary pass-3 (streak attempt 0/3 → 1/3 if zero CRIT+HIGH). | plugin-migration | 2026-05-12 |
 | D-434 | 2026-05-12 | LOCAL adversary pass-2 BLOCKED-soft (adversary) on feature/S-PLUGIN-PREREQ-C@5e608b76. 8 findings (vs pass-1 18, 56% reduction). 1 CRIT (F-LP2-CRIT-001 CI threshold=8 but log enumerates 14 types — false-green vector POL-11), 2 HIGH (F-LP2-HIGH-001 sibling-sweep recurrence — write_endpoint.rs + 7 infusion/* types still unannotated; F-LP2-HIGH-002 verify-workflow-structure missing non-exhaustive reachability check), 2 MED (F-LP2-MED-001 tenant.rs doc-comment stale post-HIGH-006 S-7.01 partial-fix; F-LP2-MED-002 volatile line-number citations decayed worsened by diff), 3 OBS. 12 of 14 pass-1 closures verified REAL, 3 PARTIAL (CRIT-001 threshold gap, HIGH-004 sibling-sweep recurrence, HIGH-006 stale doc), 3 deferred-LOW acceptable. Streak 0/3 (resets — 1 CRIT + 2 HIGH still present). Trajectory PREREQ-A 12 passes, PREREQ-B 16 passes, PREREQ-C 8 at pass-2. Next: fix-burst-2. | plugin-migration | 2026-05-12 |
 | D-433 | 2026-05-12 | PREREQ-C fix-burst-1 CONVERGED (implementer + product-owner) on feature/S-PLUGIN-PREREQ-C@5e608b76. 14 findings closed (3 CRIT + 8 HIGH + 3 OBS) across 10 atomic commits. just check clean (3598 tests pass, 0 fail). All paper-fix detection protocols passed. BC-2.16.002 v1.9→v1.10 amendment (2 new catalog rows: jsonpath_extraction_failed + jsonpath_size_cap_exceeded). BC-INDEX v4.60→v4.61. Story S-PLUGIN-PREREQ-C v1.0→v1.1 (AC-4 + AC-6 narrative amendments — prose-only). Deferred: F-LP1-OBS-001 (PREREQ-B-inherited volatile pins — out of scope). OBS-005/006/007 not actioned. types.rs duplicate types investigated — distinct hot-reload infrastructure model, not dead code (TD for design-smell of triple CredentialRef documented in code). Two new tracing emission sites under PG-LP11-001 SOP, BC catalog row count 14→16. Next: LOCAL adversary pass-2 with paper-fix-detection + sibling-sweep verification + BROAD audit of new caps. | plugin-migration | 2026-05-12 |
 | D-432 | 2026-05-12 | LOCAL adversary pass-1 BLOCKED-soft (adversary) on feature/S-PLUGIN-PREREQ-C@0e7d8bca. 18 findings: 3 CRIT (F-LP1-CRIT-001 AC-5 compile-fail CI-inert, F-LP1-CRIT-002 AC-5 positional ::new defeats non_exhaustive, F-LP1-CRIT-003 AC-1(c) paper-fix), 8 HIGH (F-LP1-HIGH-001/2/3/4/5/6/7/8 — observability silence, partial totality, escape grammar drift, sibling-sweep miss, allowlist over-broad, security-precondition fragility, nested-wildcard memory amplification, doctest tautology), 7 OBS/LOW. Trajectory 18 at pass-1 (vs PREREQ-A 14, PREREQ-B 20). Streak 0/3. Two findings tagged [process-gap]: F-LP1-CRIT-001 (CI-as-Code policy lift) and F-LP1-OBS-001 (TD-VSDD-091 inherited from PREREQ-B). Next: dispatch implementer for fix-burst-1 covering 3 CRIT + 8 HIGH + selected OBS. Pre-existing tests: 555 green, no regressions. | plugin-migration | 2026-05-12 |
@@ -446,21 +447,21 @@ Cycle files: [burst-log](cycles/phase-2-patch/burst-log.md) | [convergence-traje
 
 ---
 
-## Session Resume Checkpoint (2026-05-12-v7.167-d433-prereq-c-fix-burst-1-converged)
+## Session Resume Checkpoint (2026-05-12-v7.169-d435-prereq-c-fix-burst-2-converged)
 
-_Previous checkpoint (v7.166/D-432 S-PLUGIN-PREREQ-C adversary-pass-1-blocked-soft) archived: [cycles/wave-4-operations/session-checkpoints.md](cycles/wave-4-operations/session-checkpoints.md)_
+_Previous checkpoint (v7.167/D-433 PREREQ-C fix-burst-1-converged) archived: [cycles/wave-4-operations/session-checkpoints.md](cycles/wave-4-operations/session-checkpoints.md)_
 
-**STATE v7.167. D-433 — PREREQ-C fix-burst-1 CONVERGED. feature/S-PLUGIN-PREREQ-C@5e608b76. 14 findings closed (3 CRIT + 8 HIGH + 3 OBS). Streak 0/3. SESSION-HANDOFF v7.167.** factory-artifacts HEAD: run `git -C .factory log -1` (per TD-VSDD-053). vsdd-factory rc.16 active. Standing Orchestrator Rules active (Rules 1, 2, 3). Bundle B Exit Mandate active (task #85). Worktrees: main (clean) + .factory + .worktrees/S-PLUGIN-PREREQ-C (fix-burst-1-converged) + .worktrees/S-3.09 (FROZEN per D-298).
+**STATE v7.169. D-435 — PREREQ-C fix-burst-2 CONVERGED. feature/S-PLUGIN-PREREQ-C@4bf3dfdd. 7 findings closed (1 CRIT + 2 HIGH + 2 MED + 2 OBS). 29 #[non_exhaustive] types. Streak 0/3. SESSION-HANDOFF v7.169.** factory-artifacts HEAD: run `git -C .factory log -1` (per TD-VSDD-053). vsdd-factory rc.16 active. Standing Orchestrator Rules active (Rules 1, 2, 3). Bundle B Exit Mandate active (task #85). Worktrees: main (clean) + .factory + .worktrees/S-PLUGIN-PREREQ-C (fix-burst-2-converged) + .worktrees/S-3.09 (FROZEN per D-298).
 
 **S-PLUGIN-PREREQ-B STATUS:** MERGED. PR #143 squash-merged at ae7e26c8. Story v1.23 status: merged. BC-2.16.002 v1.9→v1.10 status: active (POL-14 promotion; v1.10 amended by fix-burst-1). Per-story-delivery cycle CLOSED.
 
-**S-PLUGIN-PREREQ-C STATUS:** FIX-BURST-1-CONVERGED. Worktree at /Users/jmagady/Dev/prism/.worktrees/S-PLUGIN-PREREQ-C/ on feature/S-PLUGIN-PREREQ-C@5e608b76. 14 findings closed (3 CRIT + 8 HIGH + 3 OBS). just check clean (3598 tests pass). BC-2.16.002 v1.9→v1.10 (2 new catalog rows). BC-INDEX v4.60→v4.61. Story v1.0→v1.1. Streak 0/3 (fix-burst doesn't advance). NEXT: dispatch adversary for LOCAL pass-2 with paper-fix-detection.
+**S-PLUGIN-PREREQ-C STATUS:** FIX-BURST-2-CONVERGED. Worktree at /Users/jmagady/Dev/prism/.worktrees/S-PLUGIN-PREREQ-C/ on feature/S-PLUGIN-PREREQ-C@4bf3dfdd. 7 findings closed (1 CRIT + 2 HIGH + 2 MED + 2 OBS) across 5 atomic commits. just check clean (3598 tests pass, 17 skipped). 29 #[non_exhaustive] types audited. BC-2.16.002 v1.10 unchanged (no new event_type emissions). Story v1.1 (unchanged by fix-burst-2). Streak 0/3. NEXT: dispatch adversary for LOCAL pass-3 (paper-fix verification of all 7 closures).
 
 **S-3.09 FREEZE STATE:** Worktree .worktrees/S-3.09 HEAD 43c41389; BUG-S309-PLUGIN P0 blocks resumption. See D-298/D-299.
 
-**Deferred TDs (carry-forward — not PREREQ-C):** W3-FIX-S307-001/002/003 + TD-S307-002/003/004 + TD-S-PLUGIN-PREREQ-A-002 P1 + TD-S-PLUGIN-PREREQ-A-003 P1 + TD-S-PLUGIN-PREREQ-A-004 P1 + TD-S-PLUGIN-PREREQ-A-005/009/010 P3 + TD-S-PLUGIN-PREREQ-B-002 P3 (AuthToken zeroize; PREREQ-D) + TD-S-PLUGIN-PREREQ-B-004 P3 (MAX_REQUESTS_PER_PIPELINE; PREREQ-D) + TD-S-PLUGIN-PREREQ-B-005 P2 (reqwest::Client.timeout; PREREQ-D) + TD-S-PLUGIN-PREREQ-B-007 P3 (status_code overload) + TD-S-PLUGIN-PREREQ-B-009 P3 (dead scalar arm) + TD-S-PLUGIN-PREREQ-B-011 P3 (execute_step PREREQ-D wiring) + TD-S-PLUGIN-PREREQ-B-012 P3 (execute_step PREREQ-D test coverage) + TD-VSDD-058/059/060 P0 + TD-FACTORY-HOOK-BYPASS-001 P0 + TD-VSDD-054..063 (all OPEN) + TD-VSDD-082/083/084 + TD-S309-O1/O2/O3/O4
+**Deferred TDs (carry-forward — not PREREQ-C):** W3-FIX-S307-001/002/003 + TD-S307-002/003/004 + TD-S-PLUGIN-PREREQ-A-002 P1 + TD-S-PLUGIN-PREREQ-A-003 P1 + TD-S-PLUGIN-PREREQ-A-004 P1 + TD-S-PLUGIN-PREREQ-A-005/009/010 P3 + TD-S-PLUGIN-PREREQ-B-002 P3 (AuthToken zeroize; PREREQ-D) + TD-S-PLUGIN-PREREQ-B-004 P3 (MAX_REQUESTS_PER_PIPELINE; PREREQ-D) + TD-S-PLUGIN-PREREQ-B-005 P2 (reqwest::Client.timeout; PREREQ-D) + TD-S-PLUGIN-PREREQ-B-007 P3 (status_code overload) + TD-S-PLUGIN-PREREQ-B-009 P3 (dead scalar arm) + TD-S-PLUGIN-PREREQ-B-011 P3 (execute_step PREREQ-D wiring) + TD-S-PLUGIN-PREREQ-B-012 P3 (execute_step PREREQ-D test coverage) + TD-VSDD-058/059/060 P0 + TD-FACTORY-HOOK-BYPASS-001 P0 + TD-VSDD-054..063 (all OPEN) + TD-VSDD-082/083/084 + TD-S309-O1/O2/O3/O4 + TD-S-PLUGIN-PREREQ-C-001 P4 (types.rs duplicate consolidation; F-LP2-OBS-002 deferred)
 
-**Current spec versions:** BC-INDEX v4.61, STORY-INDEX v2.62, ARCH-INDEX v2.40, ADR-023 v1.18, VP-INDEX v1.32 (152 VPs + VP-PLUGIN-001..007 aliases), BC-2.16.002 v1.10 (active; 2 new catalog rows from fix-burst-1), BC-2.01.013 v1.6 (active, merged PR #142), S-PLUGIN-PREREQ-B v1.23 (status: merged, PR #143 ae7e26c8), S-PLUGIN-PREREQ-C v1.1 (status: ready; fix-burst-1-converged D-433 feature@5e608b76 streak 0/3), prd.md v1.10, error-taxonomy.md v1.18, develop@ae7e26c8; STATE v7.167 SESSION-HANDOFF v7.167 (current)
+**Current spec versions:** BC-INDEX v4.61, STORY-INDEX v2.62, ARCH-INDEX v2.40, ADR-023 v1.18, VP-INDEX v1.32 (152 VPs + VP-PLUGIN-001..007 aliases), BC-2.16.002 v1.10 (active; 16 catalog rows; unchanged by fix-burst-2), BC-2.01.013 v1.6 (active, merged PR #142), S-PLUGIN-PREREQ-B v1.23 (status: merged, PR #143 ae7e26c8), S-PLUGIN-PREREQ-C v1.1 (status: ready; fix-burst-2-converged D-435 feature@4bf3dfdd streak 0/3), prd.md v1.10, error-taxonomy.md v1.18, develop@ae7e26c8; STATE v7.169 SESSION-HANDOFF v7.169 (current)
 
 **Key files:** [SESSION-HANDOFF.md](SESSION-HANDOFF.md) | [cycle-manifest.md](cycles/wave-4-operations/cycle-manifest.md) | [HOLDOUT-INDEX.md](holdout-scenarios/HOLDOUT-INDEX.md)
 
