@@ -691,8 +691,19 @@ pub(crate) async fn resolve_source_refs(
                     );
                     // When OrgRegistry is absent (test mode), fall back to a synthetic slug
                     // derived from the org_id hex rather than `_all` sentinel.
-                    let synthetic_slug =
-                        OrgSlug::new_unchecked(&format!("org-{}", &org_id.to_string()[..8]));
+                    // HIGH-006 (S-PLUGIN-PREREQ-C): use OrgSlug::new() (validated constructor)
+                    // instead of new_unchecked(). The 8-char prefix of a UUID v7 is always
+                    // valid for OrgSlug ([a-zA-Z0-9_-]{1,64}), but using the validated path
+                    // removes the silent dependency on OrgId::Display format.
+                    let synthetic_candidate = format!("org-{}", &org_id.to_string()[..8]);
+                    let synthetic_slug_candidate = OrgSlug::new(&synthetic_candidate);
+                    let synthetic_slug = if synthetic_slug_candidate.is_ok() {
+                        synthetic_slug_candidate
+                    } else {
+                        // Fallback: if somehow the UUID prefix produces an invalid slug,
+                        // use a hardcoded sentinel rather than crashing or corrupting state.
+                        OrgSlug::new("synthetic-unmapped")
+                    };
                     targets.push(FanOutTarget {
                         sensor_id: sensor_id.clone(),
                         client_id: synthetic_slug.clone(),
