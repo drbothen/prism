@@ -263,6 +263,17 @@ pub enum ClientStatus {
 }
 
 /// Entry in the list_sensor_specs response (BC-2.16.010).
+///
+/// # AC-5 scope exclusion
+///
+/// This type is intentionally NOT marked `#[non_exhaustive]`. It is an MCP
+/// protocol wire type (request DTO / result / event / status), and its stability
+/// is governed by the MCP protocol specification rather than by the Rust
+/// forward-compatibility property. External consumers (Claude Code / MCP clients)
+/// exhaustively match against the protocol's enumerated variants; adding a new
+/// variant requires an MCP protocol version bump, not a Rust source-level
+/// non-exhaustive annotation. Documented per S-PLUGIN-PREREQ-C F-LP3-MED-002
+/// adjudication.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct SensorSpecEntry {
     pub sensor_id: String,
@@ -277,6 +288,17 @@ pub struct SensorSpecEntry {
 
 /// Immutable configuration snapshot. Arc-swapped atomically on reload.
 /// Origin: AD-018 — ArcSwap<ConfigSnapshot> is the mandated config access pattern.
+///
+/// # AC-5 scope exclusion
+///
+/// This type is intentionally NOT marked `#[non_exhaustive]`. It is an MCP
+/// protocol wire type (request DTO / result / event / status), and its stability
+/// is governed by the MCP protocol specification rather than by the Rust
+/// forward-compatibility property. External consumers (Claude Code / MCP clients)
+/// exhaustively match against the protocol's enumerated variants; adding a new
+/// variant requires an MCP protocol version bump, not a Rust source-level
+/// non-exhaustive annotation. Documented per S-PLUGIN-PREREQ-C F-LP3-MED-002
+/// adjudication.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ConfigSnapshot {
     /// All successfully loaded sensor specs, keyed by sensor_id
@@ -298,6 +320,17 @@ impl ConfigSnapshot {
 }
 
 /// Structured validation error for a spec file (BC-2.16.009).
+///
+/// # AC-5 scope exclusion
+///
+/// This type is intentionally NOT marked `#[non_exhaustive]`. It is an MCP
+/// protocol wire type (request DTO / result / event / status), and its stability
+/// is governed by the MCP protocol specification rather than by the Rust
+/// forward-compatibility property. External consumers (Claude Code / MCP clients)
+/// exhaustively match against the protocol's enumerated variants; adding a new
+/// variant requires an MCP protocol version bump, not a Rust source-level
+/// non-exhaustive annotation. Documented per S-PLUGIN-PREREQ-C F-LP3-MED-002
+/// adjudication.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ValidationError {
     pub sensor_id: Option<String>,
@@ -348,6 +381,17 @@ impl Default for DtuMode {
 /// require restart, but does not apply the change; running mode is preserved."
 ///
 /// Stub added by S-3.3.06 stub-architect phase; full wiring by implementer.
+///
+/// # AC-5 scope exclusion
+///
+/// This type is intentionally NOT marked `#[non_exhaustive]`. It is an MCP
+/// protocol wire type (request DTO / result / event / status), and its stability
+/// is governed by the MCP protocol specification rather than by the Rust
+/// forward-compatibility property. External consumers (Claude Code / MCP clients)
+/// exhaustively match against the protocol's enumerated variants; adding a new
+/// variant requires an MCP protocol version bump, not a Rust source-level
+/// non-exhaustive annotation. Documented per S-PLUGIN-PREREQ-C F-LP3-MED-002
+/// adjudication.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct ModeChange {
     /// Organisation slug for the affected `[[dtu]]` block.
@@ -361,6 +405,17 @@ pub struct ModeChange {
 }
 
 /// Result of a reload operation (BC-2.16.005 postconditions).
+///
+/// # AC-5 scope exclusion
+///
+/// This type is intentionally NOT marked `#[non_exhaustive]`. It is an MCP
+/// protocol wire type (request DTO / result / event / status), and its stability
+/// is governed by the MCP protocol specification rather than by the Rust
+/// forward-compatibility property. External consumers (Claude Code / MCP clients)
+/// exhaustively match against the protocol's enumerated variants; adding a new
+/// variant requires an MCP protocol version bump, not a Rust source-level
+/// non-exhaustive annotation. Documented per S-PLUGIN-PREREQ-C F-LP3-MED-002
+/// adjudication.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ReloadResult {
     pub status: ReloadStatus,
@@ -379,6 +434,18 @@ pub struct ReloadResult {
     pub mode_change_warnings: Vec<ModeChange>,
 }
 
+/// Status of a reload operation (BC-2.16.005).
+///
+/// # AC-5 scope exclusion
+///
+/// This type is intentionally NOT marked `#[non_exhaustive]`. It is an MCP
+/// protocol wire type (request DTO / result / event / status), and its stability
+/// is governed by the MCP protocol specification rather than by the Rust
+/// forward-compatibility property. External consumers (Claude Code / MCP clients)
+/// exhaustively match against the protocol's enumerated variants; adding a new
+/// variant requires an MCP protocol version bump, not a Rust source-level
+/// non-exhaustive annotation. Documented per S-PLUGIN-PREREQ-C F-LP3-MED-002
+/// adjudication.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum ReloadStatus {
@@ -389,6 +456,18 @@ pub enum ReloadStatus {
     DryRun,
 }
 
+/// A sensor spec that was modified during a reload operation (BC-2.16.005).
+///
+/// # AC-5 scope exclusion
+///
+/// This type is intentionally NOT marked `#[non_exhaustive]`. It is an MCP
+/// protocol wire type (request DTO / result / event / status), and its stability
+/// is governed by the MCP protocol specification rather than by the Rust
+/// forward-compatibility property. External consumers (Claude Code / MCP clients)
+/// exhaustively match against the protocol's enumerated variants; adding a new
+/// variant requires an MCP protocol version bump, not a Rust source-level
+/// non-exhaustive annotation. Documented per S-PLUGIN-PREREQ-C F-LP3-MED-002
+/// adjudication.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ModifiedSpec {
     pub sensor_id: String,
@@ -403,6 +482,17 @@ pub struct ReloadConfigArgs {
 }
 
 /// Arguments to add_sensor_spec (BC-2.16.008).
+///
+/// # AC-5 scope exclusion
+///
+/// This type is intentionally NOT marked `#[non_exhaustive]`. It is an MCP
+/// protocol wire type (request DTO / result / event / status), and its stability
+/// is governed by the MCP protocol specification rather than by the Rust
+/// forward-compatibility property. External consumers (Claude Code / MCP clients)
+/// exhaustively match against the protocol's enumerated variants; adding a new
+/// variant requires an MCP protocol version bump, not a Rust source-level
+/// non-exhaustive annotation. Documented per S-PLUGIN-PREREQ-C F-LP3-MED-002
+/// adjudication.
 #[derive(Debug, Clone)]
 pub struct AddSensorSpecArgs {
     pub spec_toml: String,
@@ -411,6 +501,17 @@ pub struct AddSensorSpecArgs {
 }
 
 /// Result of add_sensor_spec (BC-2.16.008).
+///
+/// # AC-5 scope exclusion
+///
+/// This type is intentionally NOT marked `#[non_exhaustive]`. It is an MCP
+/// protocol wire type (request DTO / result / event / status), and its stability
+/// is governed by the MCP protocol specification rather than by the Rust
+/// forward-compatibility property. External consumers (Claude Code / MCP clients)
+/// exhaustively match against the protocol's enumerated variants; adding a new
+/// variant requires an MCP protocol version bump, not a Rust source-level
+/// non-exhaustive annotation. Documented per S-PLUGIN-PREREQ-C F-LP3-MED-002
+/// adjudication.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum AddSensorSpecResult {
     Added {
@@ -436,6 +537,17 @@ pub enum AddSensorSpecResult {
 }
 
 /// Arguments to list_sensor_specs (BC-2.16.010).
+///
+/// # AC-5 scope exclusion
+///
+/// This type is intentionally NOT marked `#[non_exhaustive]`. It is an MCP
+/// protocol wire type (request DTO / result / event / status), and its stability
+/// is governed by the MCP protocol specification rather than by the Rust
+/// forward-compatibility property. External consumers (Claude Code / MCP clients)
+/// exhaustively match against the protocol's enumerated variants; adding a new
+/// variant requires an MCP protocol version bump, not a Rust source-level
+/// non-exhaustive annotation. Documented per S-PLUGIN-PREREQ-C F-LP3-MED-002
+/// adjudication.
 #[derive(Debug, Clone, Default)]
 pub struct ListSensorSpecsArgs {
     pub client_id: Option<String>,
@@ -443,6 +555,17 @@ pub struct ListSensorSpecsArgs {
 }
 
 /// Result of list_sensor_specs (BC-2.16.010).
+///
+/// # AC-5 scope exclusion
+///
+/// This type is intentionally NOT marked `#[non_exhaustive]`. It is an MCP
+/// protocol wire type (request DTO / result / event / status), and its stability
+/// is governed by the MCP protocol specification rather than by the Rust
+/// forward-compatibility property. External consumers (Claude Code / MCP clients)
+/// exhaustively match against the protocol's enumerated variants; adding a new
+/// variant requires an MCP protocol version bump, not a Rust source-level
+/// non-exhaustive annotation. Documented per S-PLUGIN-PREREQ-C F-LP3-MED-002
+/// adjudication.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ListSensorSpecsResult {
     pub specs: Vec<SensorSpecEntry>,

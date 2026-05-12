@@ -72,10 +72,23 @@ pub struct WriteStep {
 }
 
 impl WriteStep {
-    /// Construct a `WriteStep`.
+    /// Convenience constructor for in-crate use.
     ///
-    /// `#[non_exhaustive]` prevents struct literal construction from external crates;
-    /// use this constructor for forward-compatible external construction.
+    /// **Forward-compatibility note:** This positional `::new()` takes a fixed
+    /// argument count and is NOT forward-compatible by itself. Adding a new field
+    /// to `WriteStep` requires changing this constructor's signature, which is a
+    /// breaking semver change for any caller using `WriteStep::new(...)`.
+    ///
+    /// For forward-compatible external construction across future field additions,
+    /// use struct-literal + `..Default::default()`:
+    ///
+    /// ```ignore
+    /// let step = WriteStep {
+    ///     method: "POST".to_string(),
+    ///     url: "https://api.example.com/v1/write".to_string(),
+    ///     ..Default::default()
+    /// };
+    /// ```
     pub fn new(
         method: impl Into<String>,
         url: impl Into<String>,
@@ -143,10 +156,23 @@ impl Default for WriteEndpointSpec {
 }
 
 impl WriteEndpointSpec {
-    /// Construct a `WriteEndpointSpec`.
+    /// Convenience constructor for in-crate use.
     ///
-    /// `#[non_exhaustive]` prevents struct literal construction from external crates;
-    /// use this constructor for forward-compatible external construction.
+    /// **Forward-compatibility note:** This positional `::new()` takes a fixed
+    /// argument count and is NOT forward-compatible by itself. Adding a new field
+    /// to `WriteEndpointSpec` requires changing this constructor's signature, which is a
+    /// breaking semver change for any caller using `WriteEndpointSpec::new(...)`.
+    ///
+    /// For forward-compatible external construction across future field additions,
+    /// use struct-literal + `..Default::default()`:
+    ///
+    /// ```ignore
+    /// let spec = WriteEndpointSpec {
+    ///     pipe_verb: "contain".to_string(),
+    ///     sql_table: "crowdstrike_contain".to_string(),
+    ///     ..Default::default()
+    /// };
+    /// ```
     #[allow(clippy::too_many_arguments)]
     pub fn new(
         pipe_verb: impl Into<String>,
