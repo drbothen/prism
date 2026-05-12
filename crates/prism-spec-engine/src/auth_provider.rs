@@ -248,6 +248,82 @@ impl AuthProvider for FailingAuthProvider {
 }
 
 // ---------------------------------------------------------------------------
+// ChainAuthProvider — per-call outcomes for auth-refresh integration tests
+// ---------------------------------------------------------------------------
+
+/// Predetermined outcome for a single `acquire_token` call.
+///
+/// Used with [`ChainAuthProvider`] to simulate success-then-failure or
+/// different-tokens-per-call scenarios in auth-refresh tests.
+#[cfg(any(test, feature = "test-helpers"))]
+#[derive(Clone)]
+pub enum AuthOutcome {
+    /// Return this token string as `Ok(AuthToken)`.
+    Ok(String),
+    /// Return `Err(AuthAcquisitionFailed)` with this detail string.
+    Err(String),
+}
+
+/// Test helper `AuthProvider` that returns predetermined per-call outcomes.
+///
+/// On call N (0-indexed), `acquire_token` consults `outcomes[N]`. If N ≥ outcomes.len(),
+/// defaults to `Err("ChainAuthProvider: call index out of bounds")`.
+///
+/// Use in tests that need different behavior on first vs. subsequent calls, e.g.:
+/// - First call (acquire): `AuthOutcome::Ok("token1")` → succeeds
+/// - Second call (refresh): `AuthOutcome::Err("cred expired")` → auth_refresh_failed
+///
+/// **Feature-gated:** only available under `cfg(test)` or the `test-helpers`
+/// Cargo feature. Do NOT enable `test-helpers` in production dependency trees.
+#[cfg(any(test, feature = "test-helpers"))]
+pub struct ChainAuthProvider {
+    outcomes: Vec<AuthOutcome>,
+    call_count: std::sync::atomic::AtomicU32,
+}
+
+#[cfg(any(test, feature = "test-helpers"))]
+impl ChainAuthProvider {
+    /// Create a `ChainAuthProvider` with the given per-call outcomes (in call order).
+    pub fn new(outcomes: Vec<AuthOutcome>) -> Self {
+        Self {
+            outcomes,
+            call_count: std::sync::atomic::AtomicU32::new(0),
+        }
+    }
+
+    /// Return the number of times `acquire_token` was invoked.
+    pub fn calls(&self) -> u32 {
+        self.call_count.load(std::sync::atomic::Ordering::SeqCst)
+    }
+}
+
+#[cfg(any(test, feature = "test-helpers"))]
+impl AuthProvider for ChainAuthProvider {
+    fn acquire_token<'a>(
+        &'a self,
+        _spec: &'a SensorSpec,
+        _client_id: &'a OrgSlug,
+    ) -> Pin<Box<dyn Future<Output = Result<AuthToken, SpecEngineError>> + Send + 'a>> {
+        let idx = self
+            .call_count
+            .fetch_add(1, std::sync::atomic::Ordering::SeqCst) as usize;
+        let outcome = self.outcomes.get(idx).cloned().unwrap_or(AuthOutcome::Err(
+            "ChainAuthProvider: call index out of bounds".to_string(),
+        ));
+        Box::pin(async move {
+            match outcome {
+                AuthOutcome::Ok(token) => Ok(AuthToken::new(token)),
+                AuthOutcome::Err(detail) => Err(SpecEngineError::AuthAcquisitionFailed {
+                    sensor_id: "chain-auth-test-sensor".to_string(),
+                    client_id: "test-org".to_string(),
+                    detail,
+                }),
+            }
+        })
+    }
+}
+
+// ---------------------------------------------------------------------------
 // Unit test: trait-object-safety (AC-5 / Red Gate test 8)
 // ---------------------------------------------------------------------------
 

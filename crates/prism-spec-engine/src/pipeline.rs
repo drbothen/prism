@@ -1060,7 +1060,9 @@ mod execute_step_tests {
     use wiremock::matchers::{method as wm_method, path as wm_path};
     use wiremock::{Mock as WmMock, MockServer, ResponseTemplate};
 
-    use crate::auth_provider::{FailingAuthProvider, MockAuthProvider, NullAuthProvider};
+    use crate::auth_provider::{
+        AuthOutcome, ChainAuthProvider, FailingAuthProvider, MockAuthProvider, NullAuthProvider,
+    };
     use crate::pipeline::{FetchContext, PipelineExecutor};
     use crate::spec_parser::{AuthType, ColumnSpec, FetchStep, SensorSpec, TableSpec};
     use prism_core::ColumnType;
@@ -1331,6 +1333,359 @@ mod execute_step_tests {
         assert!(
             captured.contains("detail"),
             "BC row 6: log must contain 'detail' field; captured: {captured}",
+        );
+    }
+
+    // ---------------------------------------------------------------------------
+    // auth_refresh tests — BC v1.8 catalog rows 3, 7, 8, 9, 10
+    // All invoke PipelineExecutor::execute (NOT execute_step) because the
+    // auth_refresh_* events fire from issue_request_with_retry, called from execute.
+    // ---------------------------------------------------------------------------
+
+    fn make_execute_spec(base_url: &str) -> SensorSpec {
+        SensorSpec {
+            sensor_id: "auth-refresh-test-sensor".to_string(),
+            name: "Auth Refresh Test Sensor".to_string(),
+            auth_type: AuthType::BearerStatic,
+            base_url: base_url.to_string(),
+            tables: vec![TableSpec::new_point_in_time(
+                "items",
+                "security_finding",
+                vec![ColumnSpec {
+                    name: "id".to_string(),
+                    column_type: prism_core::ColumnType::String,
+                    ocsf_field: None,
+                    options: vec![],
+                }],
+                vec![FetchStep {
+                    name: "fetch_items".to_string(),
+                    method: "GET".to_string(),
+                    path_template: "/items".to_string(),
+                    body_template: None,
+                    response_path: "$.items".to_string(),
+                    pagination_cursor_path: None,
+                    variables_produced: vec![],
+                    fan_out_batch_size: None,
+                    pagination: None,
+                }],
+            )],
+            rate_limit_hints: None,
+            version: "1.0.0".to_string(),
+            credential_refs: Vec::new(),
+        }
+    }
+
+    // ---------------------------------------------------------------------------
+    // Test: BC row 3 — execute / auth_initial_failed / fields: sensor_id, client_id, detail
+    // F-LP13-MED-001 closure
+    // ---------------------------------------------------------------------------
+
+    /// BC-2.16.002 Structured Event Catalog row 3:
+    /// `PipelineExecutor::execute` when `acquire_token` returns `Err` at pipeline start
+    /// emits `event_type = "auth_initial_failed"` at ERROR level with fields
+    /// `sensor_id`, `client_id`, and `detail`. No HTTP request is issued.
+    ///
+    /// Distinct from row 6 (execute_step / auth_initial_failed): this test uses execute()
+    /// which omits `step_name` from the emission (pipeline-level call site).
+    ///
+    /// RED GATE (F-LP13-MED-001): Before this test, the execute() auth_initial_failed path
+    /// had only call-count + error-variant assertions (pipeline_oauth_retry.rs:284), with
+    /// ZERO buffer assertions on the event_type string. A refactor removing `detail` from
+    /// the error arm at pipeline.rs:165-173 would NOT have failed any prior test.
+    #[tokio::test]
+    async fn test_BC_2_16_002_execute_auth_initial_failed_emits_event_with_detail() {
+        let mock_server = MockServer::start().await;
+        // FailingAuthProvider aborts before any HTTP — expect 0 wiremock hits.
+        WmMock::given(wm_method("GET"))
+            .and(wm_path("/items"))
+            .respond_with(ResponseTemplate::new(200).set_body_json(serde_json::json!({})))
+            .expect(0)
+            .mount(&mock_server)
+            .await;
+
+        let (log_buf, _guard) = setup_log_capture();
+
+        let spec = make_execute_spec(&mock_server.uri());
+        let table = spec.tables[0].clone();
+        let context = FetchContext::new(OrgSlug::new("test-org"), HashMap::new());
+        let http_client = reqwest::Client::new();
+        let auth_provider = FailingAuthProvider::new();
+
+        let result =
+            PipelineExecutor::execute(&spec, &table, &context, &http_client, &auth_provider).await;
+
+        assert!(
+            result.is_err(),
+            "row 3: execute must fail when FailingAuthProvider errors; got Ok"
+        );
+        // Negative assertion: auth_initial_acquired must NOT fire.
+        let captured = log_buf.lock().unwrap().clone();
+        assert!(
+            !captured.contains("auth_initial_acquired"),
+            "row 3: auth_initial_failed path must NOT emit 'auth_initial_acquired'; captured: {captured}",
+        );
+        // BC row 3: event_type field.
+        assert!(
+            captured.contains("auth_initial_failed"),
+            "row 3: log must contain 'auth_initial_failed'; captured: {captured}",
+        );
+        // BC row 3: detail field must be present.
+        assert!(
+            captured.contains("detail"),
+            "row 3: log must contain 'detail' field; captured: {captured}",
+        );
+    }
+
+    // ---------------------------------------------------------------------------
+    // Test: BC row 7 — issue_request_with_retry / auth_refresh_triggered / step_name
+    // F-LP13-MED-001 closure
+    // ---------------------------------------------------------------------------
+
+    /// BC-2.16.002 Structured Event Catalog row 7:
+    /// When HTTP 401 is received on first request, `issue_request_with_retry` emits
+    /// `event_type = "auth_refresh_triggered"` at WARN level with `step_name`.
+    ///
+    /// Setup: MockAuthProvider (returns Ok on both calls); wiremock returns 401 then 200.
+    ///
+    /// RED GATE (F-LP13-MED-001): ZERO prior buffer assertions on "auth_refresh_triggered".
+    /// `grep -rn 'contains.*auth_refresh_triggered'` in crates/prism-spec-engine → 0 matches.
+    /// A refactor removing `step_name` from the auth_refresh_triggered tracing macro at
+    /// pipeline.rs:629-635 would NOT have failed any prior test.
+    #[tokio::test]
+    async fn test_BC_2_16_002_auth_refresh_triggered_emits_event_with_step_name() {
+        let mock_server = MockServer::start().await;
+        // First request: 401 (triggers auth refresh).
+        WmMock::given(wm_method("GET"))
+            .and(wm_path("/items"))
+            .respond_with(ResponseTemplate::new(401))
+            .up_to_n_times(1)
+            .mount(&mock_server)
+            .await;
+        // Retry after refresh: 200 with data.
+        WmMock::given(wm_method("GET"))
+            .and(wm_path("/items"))
+            .respond_with(
+                ResponseTemplate::new(200).set_body_json(serde_json::json!({"items": []})),
+            )
+            .up_to_n_times(1)
+            .mount(&mock_server)
+            .await;
+
+        let (log_buf, _guard) = setup_log_capture();
+
+        let spec = make_execute_spec(&mock_server.uri());
+        let table = spec.tables[0].clone();
+        let context = FetchContext::new(OrgSlug::new("test-org"), HashMap::new());
+        let http_client = reqwest::Client::new();
+        // MockAuthProvider: Ok on every call (both initial acquire and refresh).
+        let auth_provider = MockAuthProvider::new("token1");
+
+        let result =
+            PipelineExecutor::execute(&spec, &table, &context, &http_client, &auth_provider).await;
+
+        assert!(
+            result.is_ok(),
+            "row 7: 401→200 with refresh must succeed; got {:?}",
+            result.err()
+        );
+
+        let captured = log_buf.lock().unwrap().clone();
+        // BC row 7: event_type field.
+        assert!(
+            captured.contains("auth_refresh_triggered"),
+            "row 7: log must contain 'auth_refresh_triggered'; captured: {captured}",
+        );
+        // BC row 7: step_name field must be present.
+        assert!(
+            captured.contains("fetch_items"),
+            "row 7: log must contain step_name='fetch_items'; captured: {captured}",
+        );
+    }
+
+    // ---------------------------------------------------------------------------
+    // Test: BC row 8 — issue_request_with_retry / auth_refresh_succeeded / step_name
+    // F-LP13-MED-001 closure
+    // ---------------------------------------------------------------------------
+
+    /// BC-2.16.002 Structured Event Catalog row 8:
+    /// After auth_refresh_triggered, when `acquire_token` on the refresh path returns Ok,
+    /// `issue_request_with_retry` emits `event_type = "auth_refresh_succeeded"` at INFO
+    /// level with `step_name`.
+    ///
+    /// Distinct from row 7 by event_type literal ("auth_refresh_succeeded" vs "auth_refresh_triggered").
+    /// Same wiremock setup as row 7 (401 then 200); same MockAuthProvider.
+    ///
+    /// RED GATE (F-LP13-MED-001): ZERO prior buffer assertions on "auth_refresh_succeeded".
+    #[tokio::test]
+    async fn test_BC_2_16_002_auth_refresh_succeeded_emits_event_with_step_name() {
+        let mock_server = MockServer::start().await;
+        // First request: 401 (triggers auth refresh).
+        WmMock::given(wm_method("GET"))
+            .and(wm_path("/items"))
+            .respond_with(ResponseTemplate::new(401))
+            .up_to_n_times(1)
+            .mount(&mock_server)
+            .await;
+        // Retry after refresh: 200 with data.
+        WmMock::given(wm_method("GET"))
+            .and(wm_path("/items"))
+            .respond_with(
+                ResponseTemplate::new(200).set_body_json(serde_json::json!({"items": []})),
+            )
+            .up_to_n_times(1)
+            .mount(&mock_server)
+            .await;
+
+        let (log_buf, _guard) = setup_log_capture();
+
+        let spec = make_execute_spec(&mock_server.uri());
+        let table = spec.tables[0].clone();
+        let context = FetchContext::new(OrgSlug::new("test-org"), HashMap::new());
+        let http_client = reqwest::Client::new();
+        let auth_provider = MockAuthProvider::new("token1");
+
+        let result =
+            PipelineExecutor::execute(&spec, &table, &context, &http_client, &auth_provider).await;
+
+        assert!(
+            result.is_ok(),
+            "row 8: 401→200 with refresh must succeed; got {:?}",
+            result.err()
+        );
+
+        let captured = log_buf.lock().unwrap().clone();
+        // BC row 8: event_type field (distinct from row 7).
+        assert!(
+            captured.contains("auth_refresh_succeeded"),
+            "row 8: log must contain 'auth_refresh_succeeded'; captured: {captured}",
+        );
+        // BC row 8: step_name field must be present.
+        assert!(
+            captured.contains("fetch_items"),
+            "row 8: log must contain step_name='fetch_items'; captured: {captured}",
+        );
+    }
+
+    // ---------------------------------------------------------------------------
+    // Test: BC row 9 — issue_request_with_retry / auth_refresh_failed / step_name + detail
+    // F-LP13-MED-001 closure
+    // ---------------------------------------------------------------------------
+
+    /// BC-2.16.002 Structured Event Catalog row 9:
+    /// When HTTP 401 is received and `acquire_token` on the refresh path returns Err,
+    /// `issue_request_with_retry` emits `event_type = "auth_refresh_failed"` at ERROR
+    /// level with `step_name` and `detail`. Pipeline aborts.
+    ///
+    /// Uses ChainAuthProvider: call 0 (initial acquire) → Ok("token1");
+    ///                         call 1 (refresh)         → Err("cred store unavailable").
+    /// Wiremock: first request returns 401 (triggering refresh). No retry request because
+    /// refresh itself fails before the retry is issued.
+    ///
+    /// RED GATE (F-LP13-MED-001): ZERO prior buffer assertions on "auth_refresh_failed".
+    #[tokio::test]
+    async fn test_BC_2_16_002_auth_refresh_failed_emits_event_with_detail() {
+        let mock_server = MockServer::start().await;
+        // Only the initial request fires; refresh fails before retry → expect exactly 1 hit.
+        WmMock::given(wm_method("GET"))
+            .and(wm_path("/items"))
+            .respond_with(ResponseTemplate::new(401))
+            .expect(1)
+            .mount(&mock_server)
+            .await;
+
+        let (log_buf, _guard) = setup_log_capture();
+
+        let spec = make_execute_spec(&mock_server.uri());
+        let table = spec.tables[0].clone();
+        let context = FetchContext::new(OrgSlug::new("test-org"), HashMap::new());
+        let http_client = reqwest::Client::new();
+        // Call 0: initial acquire → Ok. Call 1: refresh → Err.
+        let auth_provider = ChainAuthProvider::new(vec![
+            AuthOutcome::Ok("token1".to_string()),
+            AuthOutcome::Err("cred store unavailable".to_string()),
+        ]);
+
+        let result =
+            PipelineExecutor::execute(&spec, &table, &context, &http_client, &auth_provider).await;
+
+        assert!(
+            result.is_err(),
+            "row 9: auth_refresh_failed path must return Err; got Ok"
+        );
+
+        let captured = log_buf.lock().unwrap().clone();
+        // BC row 9: event_type field.
+        assert!(
+            captured.contains("auth_refresh_failed"),
+            "row 9: log must contain 'auth_refresh_failed'; captured: {captured}",
+        );
+        // BC row 9: step_name field must be present.
+        assert!(
+            captured.contains("fetch_items"),
+            "row 9: log must contain step_name='fetch_items'; captured: {captured}",
+        );
+        // BC row 9: detail field must be present.
+        assert!(
+            captured.contains("detail"),
+            "row 9: log must contain 'detail' field; captured: {captured}",
+        );
+    }
+
+    // ---------------------------------------------------------------------------
+    // Test: BC row 10 — issue_request_with_retry / auth_refresh_double_401
+    // F-LP13-MED-001 closure
+    // ---------------------------------------------------------------------------
+
+    /// BC-2.16.002 Structured Event Catalog row 10:
+    /// When HTTP 401 is received on first request AND the retry after token refresh
+    /// ALSO returns 401, `issue_request_with_retry` emits
+    /// `event_type = "auth_refresh_double_401"` at ERROR level with `step_name`.
+    /// Pipeline aborts with `SpecEngineError::AuthRefreshFailed`.
+    ///
+    /// Uses MockAuthProvider (succeeds on both acquire and refresh calls).
+    /// Wiremock: both the initial request AND the retry return 401.
+    ///
+    /// RED GATE (F-LP13-MED-001): ZERO prior buffer assertions on "auth_refresh_double_401".
+    /// A refactor removing `step_name` from the double-401 tracing macro at pipeline.rs:682-688
+    /// would NOT have failed any prior test.
+    #[tokio::test]
+    async fn test_BC_2_16_002_auth_refresh_double_401_emits_event() {
+        let mock_server = MockServer::start().await;
+        // All requests return 401 — both initial and retry.
+        WmMock::given(wm_method("GET"))
+            .and(wm_path("/items"))
+            .respond_with(ResponseTemplate::new(401))
+            .mount(&mock_server)
+            .await;
+
+        let (log_buf, _guard) = setup_log_capture();
+
+        let spec = make_execute_spec(&mock_server.uri());
+        let table = spec.tables[0].clone();
+        let context = FetchContext::new(OrgSlug::new("test-org"), HashMap::new());
+        let http_client = reqwest::Client::new();
+        // MockAuthProvider: Ok on both calls (acquire + refresh succeed; double-401 is the
+        // server side, not the auth provider side).
+        let auth_provider = MockAuthProvider::new("token-that-wont-work");
+
+        let result =
+            PipelineExecutor::execute(&spec, &table, &context, &http_client, &auth_provider).await;
+
+        assert!(
+            result.is_err(),
+            "row 10: double-401 must return Err; got Ok"
+        );
+
+        let captured = log_buf.lock().unwrap().clone();
+        // BC row 10: event_type field.
+        assert!(
+            captured.contains("auth_refresh_double_401"),
+            "row 10: log must contain 'auth_refresh_double_401'; captured: {captured}",
+        );
+        // BC row 10: step_name field must be present.
+        assert!(
+            captured.contains("fetch_items"),
+            "row 10: log must contain step_name='fetch_items'; captured: {captured}",
         );
     }
 }
