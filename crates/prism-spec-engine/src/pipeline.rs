@@ -322,12 +322,24 @@ impl PipelineExecutor {
                     bearer_token = new_token;
 
                     // Extract records at `step.response_path`.
+                    // HIGH-001 (S-PLUGIN-PREREQ-C): emit structured tracing event before
+                    // mapping to SpecEngineError so operators have observability even when
+                    // the error is swallowed by a caller (BC-2.16.002 Structured Event Catalog).
                     let page_records =
-                        extract_at_path(&body, &step.response_path).map_err(|_| {
+                        extract_at_path(&body, &step.response_path).map_err(|e| {
+                            tracing::warn!(
+                                event_type = "jsonpath_extraction_failed",
+                                sensor_id = %spec.sensor_id,
+                                step_name = %step.name,
+                                path = %step.response_path,
+                                detail = %e,
+                                "JSONPath extraction failed for response_path",
+                            );
                             SpecEngineError::JsonPathExtractionFailed {
                                 sensor_id: spec.sensor_id.clone(),
                                 step_name: step.name.clone(),
                                 path: step.response_path.clone(),
+                                detail: e,
                             }
                         })?;
 
@@ -528,11 +540,20 @@ impl PipelineExecutor {
         )
         .await?;
 
-        let extracted = extract_at_path(&body, &step.response_path).map_err(|_| {
+        let extracted = extract_at_path(&body, &step.response_path).map_err(|e| {
+            tracing::warn!(
+                event_type = "jsonpath_extraction_failed",
+                sensor_id = %spec.sensor_id,
+                step_name = %step.name,
+                path = %step.response_path,
+                detail = %e,
+                "JSONPath extraction failed for response_path in execute_step",
+            );
             SpecEngineError::JsonPathExtractionFailed {
                 sensor_id: spec.sensor_id.clone(),
                 step_name: step.name.clone(),
                 path: step.response_path.clone(),
+                detail: e,
             }
         })?;
 
