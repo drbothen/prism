@@ -4367,7 +4367,7 @@ dependencies = [
 
 [[package]]
 name = "prism-core"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "async-trait",
  "bimap",
@@ -4837,7 +4837,7 @@ dependencies = [
 
 [[package]]
 name = "prism-spec-engine"
-version = "0.6.0"
+version = "0.7.0"
 dependencies = [
  "anyhow",
  "arc-swap",
