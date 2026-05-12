@@ -72,14 +72,19 @@ impl Interpolator {
     ///
     /// ## Escape mechanism (AC-4, S-PLUGIN-PREREQ-C)
     ///
-    /// Supports a double-dollar escape sequence to produce literal `${...}` in output:
+    /// Supports a double-dollar escape sequence to produce literal `$` in output.
+    /// The escape is **context-free**: any `$$` pair anywhere in the template is
+    /// collapsed to a single literal `$`, regardless of what follows.
     ///
-    /// - `$${var}` → literal `${var}` (no variable lookup; `$$` before `{` suppresses interpolation)
+    /// - `$$abc` → literal `$abc` (context-free: `$$` collapses to `$`)
+    /// - `$${var}` → literal `${var}` (no variable lookup; `$$` collapses to `$`,
+    ///   then `{var}` is no longer preceded by `$` so it is NOT interpolated)
     /// - `${var}` → interpolated value of `var` (existing behavior, unchanged)
     /// - `$$${var}` → literal `$` followed by interpolated value of `var`
     ///
-    /// **Escape grammar:** `$$` immediately before `{...}` is consumed as a single literal `$`.
-    /// Consecutive `$$` pairs are each consumed: `$$$$${var}` → `$$$<interpolated_var>`.
+    /// **Escape grammar:** `$$` anywhere (non-overlapping, left-to-right) is consumed
+    /// as a single literal `$`. Consecutive `$$` pairs are each consumed independently:
+    /// `$$$$${var}` → `$$<interpolated_var>`.
     ///
     /// **Implementation:** two-pass approach:
     /// 1. Replace `$${` with an internal placeholder.
@@ -251,7 +256,9 @@ impl Interpolator {
 /// consume both and emit the placeholder. The remaining text is passed through
 /// unchanged for the interpolation regex to process.
 ///
+/// The escape is **context-free**: `$$` is consumed regardless of what follows.
 /// This implements the AC-4 escape mechanism:
+/// - `$$abc` = `$$` (→ `PLACEHOLDER`) + `abc` → `PLACEHOLDERabc` → no regex match → `$abc` literal
 /// - `$${var}` = `$$` (→ `PLACEHOLDER`) + `{var}` → `PLACEHOLDER{var}` → no regex match → `${var}` literal
 /// - `$$${var}` = `$$` (→ `PLACEHOLDER`) + `${var}` → `PLACEHOLDER${var}` → regex → `PLACEHOLDERvalue` → `$value`
 /// - `${var}` = no `$$` → unchanged → regex match → `value`
@@ -508,5 +515,33 @@ mod escape_tests {
              CURRENT OUTPUT (before AC-4 implementation): '{}'",
             output
         );
+    }
+
+    /// HIGH-003 (S-PLUGIN-PREREQ-C): context-free `$$` locking test.
+    ///
+    /// The escape grammar is context-free: `$$` collapses to `$` regardless of
+    /// what follows. This test locks the chosen semantics against a future
+    /// implementation that might anchor escape on `$${` (brace-anchored).
+    ///
+    /// If the implementation were switched to "anchored on `{`", these assertions
+    /// would fail — confirming the test locks the context-free behavior.
+    #[test]
+    fn test_AC4_escape_context_free_double_dollar_to_single() {
+        let vars = HashMap::new();
+
+        // `$$abc` → `$abc` (no variable in scope required; context-free collapse)
+        let result = Interpolator::interpolate("$$abc", &InterpolationContext::UrlPath, &vars);
+        assert!(result.is_ok(), "$$abc must not error");
+        assert_eq!(result.unwrap(), "$abc", "$$abc must collapse to $abc");
+
+        // `$$1.99` → `$1.99` (dollar amount with non-brace suffix)
+        let result = Interpolator::interpolate("$$1.99", &InterpolationContext::UrlPath, &vars);
+        assert!(result.is_ok(), "$$1.99 must not error");
+        assert_eq!(result.unwrap(), "$1.99", "$$1.99 must collapse to $1.99");
+
+        // `a$$b$$c` → `a$b$c` (multiple non-overlapping pairs)
+        let result = Interpolator::interpolate("a$$b$$c", &InterpolationContext::UrlPath, &vars);
+        assert!(result.is_ok(), "a$$b$$c must not error");
+        assert_eq!(result.unwrap(), "a$b$c", "a$$b$$c must collapse to a$b$c");
     }
 }
