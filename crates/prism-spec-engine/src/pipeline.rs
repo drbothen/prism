@@ -575,9 +575,9 @@ impl PipelineExecutor {
     /// Resolve and expand fan-out: if a variable resolves to an array, return
     /// batches of `batch_size` items each (BC-2.16.002 Fan-Out Behavior).
     ///
-    /// TD-S-PLUGIN-PREREQ-B-006 P2: pure functions (fan_out_batches, extract_at_path,
-    /// Interpolator::interpolate) lack proptest coverage. PREREQ-A established
-    /// cross-crate validator-parity proptest precedent. PREREQ-C scope.
+    /// TD-S-PLUGIN-PREREQ-B-006 CLOSED by S-PLUGIN-PREREQ-C: proptest coverage added
+    /// for pure functions (fan_out_batches, extract_at_path, Interpolator::interpolate)
+    /// following the PREREQ-A cross-crate validator-parity proptest precedent.
     ///
     /// - Array input: batches of up to `batch_size` elements each.
     /// - Scalar input: single batch containing that one value.
@@ -802,10 +802,8 @@ fn build_request(
 
     // F-LP1-CRIT-001: Add request body for POST/PUT/PATCH.
     // Interpolate body_template against step_vars and derive Content-Type from shape.
-    //
-    // TD-S-PLUGIN-PREREQ-B-008 P3: Interpolator grammar has no escape mechanism for
-    // literal ${...}. Spec authors cannot send documentation strings containing template
-    // syntax. PREREQ-C scope: add $${...} or \${...} escape convention. Per F-LP5-LOW-005.
+    // AC-4 (S-PLUGIN-PREREQ-C): `$$` collapses to `$` for literal dollar-sign escaping.
+    // TD-S-PLUGIN-PREREQ-B-008 is closed — escape mechanism implemented in Interpolator.
     if let Some(ref body_tpl) = step.body_template {
         let interpolated_body =
             Interpolator::interpolate(body_tpl, &InterpolationContext::JsonBody, step_vars)
@@ -1112,7 +1110,7 @@ fn extract_cursor(body: &serde_json::Value, cursor_path: &str) -> Option<String>
             // Object/Array/Bool: treat as terminal but emit structured diagnostic.
             // F-LP8-MED-003: include event_type for SIEM/SOC alerting pipelines.
             // The bare-warn without event_type was inconsistent with the project's
-            // audit-signal discipline (compare pipeline_truncated at pipeline.rs:362-370).
+            // audit-signal discipline (compare pipeline_truncated emission in PipelineExecutor::execute records-accumulation loop).
             let actual_type = match &other {
                 serde_json::Value::Array(_) => "Array",
                 serde_json::Value::Object(_) => "Object",
@@ -1371,8 +1369,9 @@ mod execute_step_tests {
     /// at INFO level with fields `sensor_id`, `client_id`, and `step_name`.
     ///
     /// RED GATE: Before this test existed there were ZERO test or production callers of
-    /// execute_step. A future refactor that removes `step_name` from the tracing macro at
-    /// pipeline.rs:470-474 would cause this test to FAIL on the `step_name` assertion.
+    /// execute_step. A future refactor that removes `step_name` from the
+    /// auth_initial_acquired tracing macro in `PipelineExecutor::execute_step`
+    /// would cause this test to FAIL on the `step_name` assertion.
     #[tokio::test]
     async fn test_BC_2_16_002_execute_step_emits_auth_initial_acquired_with_step_name_field() {
         let mock_server = MockServer::start().await;
@@ -1506,7 +1505,8 @@ mod execute_step_tests {
     /// The wiremock server expects 0 calls (verifying the auth-abort path fires before HTTP).
     ///
     /// RED GATE: A future refactor that removes `step_name` or `detail` from the error
-    /// arm's tracing macro at pipeline.rs:490-497 would cause this test to FAIL.
+    /// arm's auth_initial_failed tracing macro in `PipelineExecutor::execute_step`
+    /// would cause this test to FAIL.
     #[tokio::test]
     async fn test_BC_2_16_002_execute_step_emits_auth_initial_failed_with_step_name_field() {
         let mock_server = MockServer::start().await;
@@ -1620,9 +1620,10 @@ mod execute_step_tests {
     /// which omits `step_name` from the emission (pipeline-level call site).
     ///
     /// RED GATE (F-LP13-MED-001): Before this test, the execute() auth_initial_failed path
-    /// had only call-count + error-variant assertions (pipeline_oauth_retry.rs:284), with
+    /// had only call-count + error-variant assertions in pipeline_oauth_retry tests, with
     /// ZERO buffer assertions on the event_type string. A refactor removing `detail` from
-    /// the error arm at pipeline.rs:165-173 would NOT have failed any prior test.
+    /// the auth_initial_failed error arm in `PipelineExecutor::execute` would NOT have
+    /// failed any prior test.
     #[tokio::test]
     async fn test_BC_2_16_002_execute_auth_initial_failed_emits_event_with_detail() {
         let mock_server = MockServer::start().await;
@@ -1680,8 +1681,8 @@ mod execute_step_tests {
     ///
     /// RED GATE (F-LP13-MED-001): ZERO prior buffer assertions on "auth_refresh_triggered".
     /// `grep -rn 'contains.*auth_refresh_triggered'` in crates/prism-spec-engine → 0 matches.
-    /// A refactor removing `step_name` from the auth_refresh_triggered tracing macro at
-    /// pipeline.rs:629-635 would NOT have failed any prior test.
+    /// A refactor removing `step_name` from the auth_refresh_triggered tracing macro
+    /// in `issue_request_with_retry` would NOT have failed any prior test.
     #[tokio::test]
     async fn test_BC_2_16_002_auth_refresh_triggered_emits_event_with_step_name() {
         let mock_server = MockServer::start().await;
@@ -1877,7 +1878,8 @@ mod execute_step_tests {
     /// Wiremock: both the initial request AND the retry return 401.
     ///
     /// RED GATE (F-LP13-MED-001): ZERO prior buffer assertions on "auth_refresh_double_401".
-    /// A refactor removing `step_name` from the double-401 tracing macro at pipeline.rs:682-688
+    /// A refactor removing `step_name` from the auth_refresh_double_401 tracing macro
+    /// in `issue_request_with_retry`
     /// would NOT have failed any prior test.
     #[tokio::test]
     async fn test_BC_2_16_002_auth_refresh_double_401_emits_event() {
