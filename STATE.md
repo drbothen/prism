@@ -1,7 +1,7 @@
 ---
 document_type: pipeline-state
 level: ops
-version: "7.163"
+version: "7.164"
 producer: state-manager
 timestamp: 2026-05-12T08:00:00Z
 inputs: []
@@ -22,7 +22,7 @@ repos:
   - axiathon
   - ocsf-proto-gen
   - mcp-claroty-xdome
-current_step: "D-429. S-PLUGIN-PREREQ-C story-writer COMPLETE. 7 ACs decomposed from D-428 carry-forward TD scope. Story v1.0 status:ready. STORY-INDEX v2.61→v2.62. Next: dispatch test-writer for Red Gate stubs (per-story-delivery step b). STATE+HANDOFF v7.162→v7.163."
+current_step: "D-430. S-PLUGIN-PREREQ-C Red Gate established on feature/S-PLUGIN-PREREQ-C@f97e91d1. 11 failing tests across 7 ACs; 543 pre-existing tests pass (no regressions). Next: implementer Green TDD (per-story-delivery step c). STATE+HANDOFF v7.163→v7.164."
 wave_3_carry_forward_debt: "ALL_REMEDIATE — W4-FIX-PERF-001/002, W4-FIX-CODE-001, W4-FIX-SEC-001 through W4-FIX-SEC-004 planned per D-203"
 wave_4_status: "PHASE_4_A_CONVERGED + R9_APPROVED but PHASE_4_B SUSPENDED — pre-implementation dep check (2026-05-04) found S-4.01 → S-3.02 (status=draft); pivoting to full Wave 3 implementation per user directive D-223"
 wave_4_phase_4_a_preflight:
@@ -176,9 +176,9 @@ workspace_test_count: 3489  # 891 prism-query + workspace total (per implementer
 | **Language** | Rust |
 | **Target Workspace** | per-analyst stdio (MCP server) |
 | **Started** | 2026-04-13 |
-| **Last Updated** | 2026-05-12 (D-429 — S-PLUGIN-PREREQ-C story-writer complete; 7 ACs; STORY-INDEX v2.61→v2.62; STATE+HANDOFF v7.162→v7.163) |
-| **Current Phase** | Wave 3 Tier-3 COMPLETE — **Wave 3-A 4 of 4 SHIPPED**; plugin migration: PREREQ-F + PREREQ-A + **PREREQ-B SHIPPED** (PR #143 ae7e26c8 2026-05-12); **PREREQ-C story ready** (D-429); PREREQ-D/E pending |
-| **Current Step** | D-429 — S-PLUGIN-PREREQ-C story-writer complete. Story v1.0 status:ready (728 lines, 7 ACs). STORY-INDEX v2.62. Next: dispatch test-writer for Red Gate stubs (per-story-delivery step b). |
+| **Last Updated** | 2026-05-12 (D-430 — S-PLUGIN-PREREQ-C Red Gate established; 11 failing tests across 7 ACs; STATE+HANDOFF v7.163→v7.164) |
+| **Current Phase** | Wave 3 Tier-3 COMPLETE — **Wave 3-A 4 of 4 SHIPPED**; plugin migration: PREREQ-F + PREREQ-A + **PREREQ-B SHIPPED** (PR #143 ae7e26c8 2026-05-12); **PREREQ-C Red Gate established** (D-430); PREREQ-D/E pending |
+| **Current Step** | D-430 — S-PLUGIN-PREREQ-C Red Gate established on feature/S-PLUGIN-PREREQ-C@f97e91d1. 11 failing tests across 7 ACs: AC-1 (4 fail/2 pass), AC-2 (2 fail/2 pass), AC-3 (1 fail/4 pass), AC-4 (2 fail/1 pass), AC-5 (1 fail compile-fail crate), AC-6 (1 fail), AC-7 (1 fail). 543 pre-existing tests still pass. Next: implementer Green TDD (per-story-delivery step c). |
 
 ## Phase Progress
 
@@ -214,6 +214,7 @@ workspace_test_count: 3489  # 891 prism-query + workspace total (per implementer
 | S-PLUGIN-PREREQ-B PR #143 MERGED (D-427) | state-manager | **MERGED — develop@ae7e26c8** | PR #143 squash-merged 2026-05-12T06:58:48Z. Story v1.22→v1.23 status: merged. BC-2.16.002 v1.8→v1.9 draft→active (POL-14). BC-INDEX v4.59→v4.60 (active_contracts 227→228). STORY-INDEX v2.60→v2.61. STATE+HANDOFF v7.160→v7.161. PREREQ-C unblocked. |
 | PRE-COMPACT CHECKPOINT (D-428) | state-manager | **RECORDED — /compact authorized** | PREREQ-C scope user-authorized (2026-05-12). 7 TDs as explicit ACs: TD-B-001/003/006/008/016 + TD-A-006/008. Optional 8th TD (TD-A-007). Story title per STORY-INDEX line 391 (planned→ready post story-writer). STATE+HANDOFF v7.161→v7.162. |
 | S-PLUGIN-PREREQ-C story-writer (D-429) | story-writer + state-manager | **COMPLETE — story v1.0 ready** | 7 ACs from D-428 TD scope (TD-B-001/003/006/008/016 + TD-A-006/008). AC-8 deferred (TD-A-007 P3 non-blocking). Story 728 lines. STORY-INDEX v2.61→v2.62. STATE+HANDOFF v7.162→v7.163. Next: test-writer Red Gate stubs. |
+| S-PLUGIN-PREREQ-C Red Gate (D-430) | test-writer + state-manager | **COMPLETE — Red Gate established** | 11 failing tests across 7 ACs on feature/S-PLUGIN-PREREQ-C@f97e91d1. AC-1 (4 fail/2 pass), AC-2 (2 fail/2 pass), AC-3 (1 fail/4 pass), AC-4 (2 fail/1 pass), AC-5 (1 fail compile-fail crate), AC-6 (1 fail), AC-7 (1 fail). 543 pre-existing tests pass (no regressions). Minimal stub: page_size: Option<u32> added to PaginationConfig::CursorToken. AC-5 uses tests/external/non-exhaustive-violation/ pattern. STATE+HANDOFF v7.163→v7.164. Next: implementer Green TDD. |
 
 ## Decisions Log
 
@@ -221,6 +222,7 @@ _D-001..D-046 archived: [cycles/phase-3-dtu-wave-2/decisions-archive-d001-d032.m
 
 | ID | Decision | Rationale | Phase | Date |
 |----|----------|-----------|-------|------|
+| D-430 | 2026-05-12 | S-PLUGIN-PREREQ-C Red Gate established (test-writer) on feature/S-PLUGIN-PREREQ-C@f97e91d1. 11 failing tests across 7 ACs: AC-1 (4 fail/2 pass), AC-2 (2 fail/2 pass), AC-3 (1 fail/4 pass), AC-4 (2 fail/1 pass), AC-5 (1 fail compile-fail crate), AC-6 (1 fail), AC-7 (1 fail). 543 pre-existing tests still pass (no regressions). Minimal stub: page_size: Option<u32> field added to PaginationConfig::CursorToken with #[serde(default)]. AC-5 uses tests/external/non-exhaustive-violation/ pattern (no trybuild dep — follows established perimeter-violation precedent). Next: implementer Green TDD (~4-5h first pass per test-writer estimate). | plugin-migration | 2026-05-12 |
 | D-429 | 2026-05-12 | S-PLUGIN-PREREQ-C story written: 7 ACs decomposed from D-428 carry-forward TD scope (5 PREREQ-B + 2 PREREQ-A). AC-8 (TD-A-007 P3 length-before-charset reorder) deferred with sound rationale — non-blocking at PRISM_MAX_QUERY_SIZE=65_536 perimeter. Story v1.0 status:ready. STORY-INDEX v2.61→v2.62. Next: dispatch test-writer for Red Gate stubs (per-story-delivery step b). | plugin-migration | 2026-05-12 |
 | D-428 | 2026-05-12 | PRE-COMPACT CHECKPOINT — user authorized /compact before PREREQ-C story-writer dispatch. Session arc: PREREQ-B fully delivered (16 LOCAL passes + 13 fix-bursts + PR-LEVEL 1/1 + 34/34 CI + squash-merge at develop@ae7e26c8 / 2026-05-12T06:58:48Z). BC-2.16.002 v1.9 active per POL-14. 12 active TDs filed under PREREQ-B + 9 under PREREQ-A. User-authorized PREREQ-C scope decision (2026-05-12): Option B Full (5 PREREQ-B-targeted TDs as explicit PREREQ-C ACs) + Option C extension (2 PREREQ-A-targeted TDs naturally bundle). **Confirmed PREREQ-C scope:** Core deliverable: TOML Grammar Extensions (STORY-INDEX line 391). Explicit ACs for 7 TDs: (1) TD-S-PLUGIN-PREREQ-B-001 P2 — page_size on CursorToken first-call; (2) TD-S-PLUGIN-PREREQ-B-003 P3 — extract_at_path bracket/wildcard JSONPath (`$.x[0]`, `$.x[*]`); (3) TD-S-PLUGIN-PREREQ-B-006 P2 — proptest coverage for fan_out_batches, extract_at_path, Interpolator; (4) TD-S-PLUGIN-PREREQ-B-008 P3 — `${...}` literal escape mechanism; (5) TD-S-PLUGIN-PREREQ-B-016 P2 — `#[non_exhaustive]` crate-wide audit; (6) TD-S-PLUGIN-PREREQ-A-006 P3 — cross-newtype pub-API validation-bypass audit; (7) TD-S-PLUGIN-PREREQ-A-008 P3 — SensorIdValidationError re-export at prism-core root. Optional 8th: TD-S-PLUGIN-PREREQ-A-007 P3 (charset-before-length reorder, freebie if validator touched). **NOT in PREREQ-C:** PREREQ-A P1s (TD-A-002/003/004); PREREQ-D-scoped (TD-B-002/005/011/012); post-keystone (TD-B-007/009); VSDD-plugin scope (TD-VSDD-082/083/084/093); all PREREQ-A P3s not bundled (TD-A-005/009/010). **Pin SHAs:** develop@ae7e26c8 / factory@<this burst> / worktree S-PLUGIN-PREREQ-B retained (cleanup deferred); PREREQ-C will spin up at feature/S-PLUGIN-PREREQ-C. STATE+HANDOFF v7.161→v7.162. | plugin-migration | 2026-05-12 |
 | D-427 | 2026-05-12 | S-PLUGIN-PREREQ-B PR #143 squash-merged to develop. After 16 LOCAL adversary passes + 13 fix-bursts + PR-LEVEL 1/1 CLEAN + pr-reviewer APPROVE + 34/34 CI checks pass + user authorization, PR #143 merged at ae7e26c8 (2026-05-12T06:58:48Z). Story PREREQ-B status: merged. BC-2.16.002 v1.8→v1.9 status: active per POL-14 (story merged → BCs in behavioral_contracts array auto-promote draft→active). BC-2.01.013 v1.6 already active (promoted at PREREQ-A merge). Unblocks PREREQ-C dispatch (cursor page_size + JSONPath bracket/wildcard + MAX_REQUESTS_PER_PIPELINE + proptest coverage + #[non_exhaustive] crate-wide; see TD-S-PLUGIN-PREREQ-B-001/003/004/006/008/009/016 carry-forward). Worktree path retained for archival; future maintenance cleanup. Reference: PR #143 merge commit ae7e26c8. | plugin-migration | 2026-05-12 |
@@ -435,21 +437,21 @@ Cycle files: [burst-log](cycles/phase-2-patch/burst-log.md) | [convergence-traje
 
 ---
 
-## Session Resume Checkpoint (2026-05-12-v7.163-d429-prereq-c-story-ready)
+## Session Resume Checkpoint (2026-05-12-v7.164-d430-prereq-c-red-gate)
 
-_Previous checkpoint (v7.162/D-428 PRE-COMPACT CHECKPOINT) archived: [cycles/wave-4-operations/session-checkpoints.md](cycles/wave-4-operations/session-checkpoints.md)_
+_Previous checkpoint (v7.163/D-429 S-PLUGIN-PREREQ-C story-ready) archived: [cycles/wave-4-operations/session-checkpoints.md](cycles/wave-4-operations/session-checkpoints.md)_
 
-**STATE v7.163. D-429 — S-PLUGIN-PREREQ-C story-writer COMPLETE. Story v1.0 status:ready (728 lines, 7 ACs). STORY-INDEX v2.62. SESSION-HANDOFF v7.163.** factory-artifacts HEAD: run `git -C .factory log -1` (per TD-VSDD-053). vsdd-factory rc.16 active. Standing Orchestrator Rules active (Rules 1, 2, 3). Bundle B Exit Mandate active (task #85). Worktrees: main (clean) + .factory + .worktrees/S-PLUGIN-PREREQ-B (retained for archival) + .worktrees/S-3.09 (FROZEN per D-298).
+**STATE v7.164. D-430 — S-PLUGIN-PREREQ-C Red Gate established. feature/S-PLUGIN-PREREQ-C@f97e91d1. 11 failing tests across 7 ACs. 543 pre-existing tests pass. SESSION-HANDOFF v7.164.** factory-artifacts HEAD: run `git -C .factory log -1` (per TD-VSDD-053). vsdd-factory rc.16 active. Standing Orchestrator Rules active (Rules 1, 2, 3). Bundle B Exit Mandate active (task #85). Worktrees: main (clean) + .factory + .worktrees/S-PLUGIN-PREREQ-C (red-gate-established) + .worktrees/S-3.09 (FROZEN per D-298).
 
 **S-PLUGIN-PREREQ-B STATUS:** MERGED. PR #143 squash-merged at ae7e26c8. Story v1.23 status: merged. BC-2.16.002 v1.9 status: active (POL-14 promotion). 16 LOCAL passes + 13 fix-bursts + PR-LEVEL 1/1 CLEAN + 34/34 CI + pr-reviewer APPROVE. Per-story-delivery cycle CLOSED.
 
-**S-PLUGIN-PREREQ-C STATUS:** READY. Story v1.0 at `/Users/jmagady/Dev/prism/.factory/stories/S-PLUGIN-PREREQ-C-toml-grammar-extensions-plus-pub-api-hardening.md` (728 lines). 7 ACs: TD-B-001/003/006/008/016 + TD-A-006/008. AC-8 (TD-A-007) deferred. Anchored: BC-2.16.002 v1.9 + BC-2.01.013 v1.6. NEXT: dispatch test-writer for Red Gate stubs (per-story-delivery step b).
+**S-PLUGIN-PREREQ-C STATUS:** RED-GATE-ESTABLISHED. Worktree at /Users/jmagady/Dev/prism/.worktrees/S-PLUGIN-PREREQ-C/ on feature/S-PLUGIN-PREREQ-C@f97e91d1. 11 failing tests across 7 ACs; 543 pre-existing tests pass. Minimal stub: page_size: Option<u32> added to PaginationConfig::CursorToken with #[serde(default)]. AC-5 uses tests/external/non-exhaustive-violation/ pattern. NEXT: implementer Green TDD (per-story-delivery step c).
 
 **S-3.09 FREEZE STATE:** Worktree .worktrees/S-3.09 HEAD 43c41389; BUG-S309-PLUGIN P0 blocks resumption. See D-298/D-299.
 
 **Deferred TDs (carry-forward — not PREREQ-C):** W3-FIX-S307-001/002/003 + TD-S307-002/003/004 + TD-S-PLUGIN-PREREQ-A-002 P1 + TD-S-PLUGIN-PREREQ-A-003 P1 + TD-S-PLUGIN-PREREQ-A-004 P1 + TD-S-PLUGIN-PREREQ-A-005/009/010 P3 + TD-S-PLUGIN-PREREQ-B-002 P3 (AuthToken zeroize; PREREQ-D) + TD-S-PLUGIN-PREREQ-B-004 P3 (MAX_REQUESTS_PER_PIPELINE; PREREQ-D) + TD-S-PLUGIN-PREREQ-B-005 P2 (reqwest::Client.timeout; PREREQ-D) + TD-S-PLUGIN-PREREQ-B-007 P3 (status_code overload) + TD-S-PLUGIN-PREREQ-B-009 P3 (dead scalar arm) + TD-S-PLUGIN-PREREQ-B-011 P3 (execute_step PREREQ-D wiring) + TD-S-PLUGIN-PREREQ-B-012 P3 (execute_step PREREQ-D test coverage) + TD-VSDD-058/059/060 P0 + TD-FACTORY-HOOK-BYPASS-001 P0 + TD-VSDD-054..063 (all OPEN) + TD-VSDD-082/083/084 + TD-S309-O1/O2/O3/O4
 
-**Current spec versions:** BC-INDEX v4.60, STORY-INDEX v2.62, ARCH-INDEX v2.40, ADR-023 v1.18, VP-INDEX v1.32 (152 VPs + VP-PLUGIN-001..007 aliases), BC-2.16.002 v1.9 (active, merged PR #143), BC-2.01.013 v1.6 (active, merged PR #142), S-PLUGIN-PREREQ-B v1.23 (status: merged, PR #143 ae7e26c8), S-PLUGIN-PREREQ-C v1.0 (status: ready, D-429 2026-05-12), prd.md v1.10, error-taxonomy.md v1.18, develop@ae7e26c8; STATE v7.163 SESSION-HANDOFF v7.163 (current)
+**Current spec versions:** BC-INDEX v4.60, STORY-INDEX v2.62, ARCH-INDEX v2.40, ADR-023 v1.18, VP-INDEX v1.32 (152 VPs + VP-PLUGIN-001..007 aliases), BC-2.16.002 v1.9 (active, merged PR #143), BC-2.01.013 v1.6 (active, merged PR #142), S-PLUGIN-PREREQ-B v1.23 (status: merged, PR #143 ae7e26c8), S-PLUGIN-PREREQ-C v1.0 (status: ready, D-429 2026-05-12; red-gate-established D-430), prd.md v1.10, error-taxonomy.md v1.18, develop@ae7e26c8; STATE v7.164 SESSION-HANDOFF v7.164 (current)
 
 **Key files:** [SESSION-HANDOFF.md](SESSION-HANDOFF.md) | [cycle-manifest.md](cycles/wave-4-operations/cycle-manifest.md) | [HOLDOUT-INDEX.md](holdout-scenarios/HOLDOUT-INDEX.md)
 
