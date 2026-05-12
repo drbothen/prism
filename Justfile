@@ -146,6 +146,15 @@ check-layout:
 layout-report:
     @scripts/check-crate-layout.sh --markdown
 
+# Verify #[non_exhaustive] types reject external struct-literal or exhaustive-match construction.
+# Mirrors the CI `non-exhaustive-violation-compile-fail` job for local pre-push parity.
+# Violations are split across src/enum_violations.rs and src/struct_violations.rs;
+# the cargo --message-format=json path ensures all 29 violations are counted (not capped
+# by rustc's per-file error limit). Update EXPECTED when adding/removing violations.
+# (BC-2.01.013 AC-5 / F-LP2-OBS-001 S-PLUGIN-PREREQ-C)
+check-non-exhaustive:
+    @scripts/check-non-exhaustive.sh
+
 # Install all development toolchain extensions (idempotent)
 setup:
     @bash scripts/dev-setup.sh
