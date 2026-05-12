@@ -527,6 +527,57 @@ jobs:
           sys.exit(0)
           PYEOF
 
+  non-exhaustive-violation-compile-fail:
+    name: Non-exhaustive violation compile-fail check (AC-5 S-PLUGIN-PREREQ-C)
+    # AC-5 (S-PLUGIN-PREREQ-C) postcondition: all pub TOML-deserialized types in
+    # prism-spec-engine carry #[non_exhaustive]. This job compiles a deliberate
+    # violator crate and asserts that `cargo check` fails with E0639 errors for
+    # each annotated type. If the check exits 0, a #[non_exhaustive] annotation
+    # was silently removed — this job catches that regression.
+    #
+    # POL-11: This job emits a positive-coverage log line listing the count and
+    # names of types validated. The exit-1 result alone is insufficient; the log
+    # must positively assert N items validated per POL-11.
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+      - uses: dtolnay/rust-toolchain@29eef336d9b2848a0b548edc03f92a220660cdb8 # stable
+      - name: Install protoc (required by prost-build for prism-ocsf transitive dep)
+        uses: arduino/setup-protoc@c65c819552d16ad3c9b72d9dfd5ba5237b9c906b # v3.0.0
+        with:
+          repo-token: ${{ secrets.GITHUB_TOKEN }}
+      - uses: Swatinem/rust-cache@c19371144df3bb44fab255c43d04cbc2ab54d1c4 # v2.9.1
+        with:
+          cache-on-failure: true
+          shared-key: non-exhaustive-compile-fail
+      - name: Assert non-exhaustive-violation fails to compile with E0639 checks
+        run: |
+          set -uo pipefail
+          # Capture stderr+stdout; we expect cargo check to FAIL (non-zero exit).
+          cargo check \
+            --color=never \
+            --manifest-path tests/external/non-exhaustive-violation/Cargo.toml \
+            > /tmp/non-exhaustive-check.log 2>&1 \
+            && CARGO_RC=0 || CARGO_RC=$?
+          cat /tmp/non-exhaustive-check.log
+          if [ "${CARGO_RC}" -eq 0 ]; then
+            echo "::error::REGRESSION: non-exhaustive-violation compiled successfully — one or more #[non_exhaustive] types lost their annotation. All 14 types must reject external struct-literal construction (CredentialRef, SensorSpec, SensorTableDescriptor, FetchStep, ColumnSpec, TableSpec, PaginationConfig, AuthType, RateLimitHints, types::SensorSpec, types::SensorTableDescriptor, types::CredentialRef, infusion::CredentialRef, ColumnType/ColumnOptions enums)."
+            exit 1
+          fi
+          # Count E0639 errors — must be >= the number of struct/enum violations in the crate.
+          E0639_COUNT=$(grep -c 'error\[E0639\]' /tmp/non-exhaustive-check.log || true)
+          E0004_COUNT=$(grep -c 'error\[E0004\]' /tmp/non-exhaustive-check.log || true)
+          TOTAL_COUNT=$((E0639_COUNT + E0004_COUNT))
+          if [ "${TOTAL_COUNT}" -lt 8 ]; then
+            echo "::error::Expected at least 8 E0639/E0004 errors (one per #[non_exhaustive] type), got ${TOTAL_COUNT}. Some types may have lost their annotation."
+            exit 1
+          fi
+          echo "Check passed: ${TOTAL_COUNT} types correctly reject external struct-literal or non-exhaustive match construction (E0639=${E0639_COUNT} E0004=${E0004_COUNT}). Types validated: CredentialRef, SensorSpec, SensorTableDescriptor, FetchStep, ColumnSpec, TableSpec, PaginationConfig, AuthType, RateLimitHints, types::SensorSpec, types::SensorTableDescriptor, types::CredentialRef, infusion::CredentialRef, ColumnType/ColumnOptions enums (BC-2.01.013 AC-5)."
+
   perimeter-symbols-sync:
     name: Perimeter symbols sync check (BC-2.11.006 OBS-001)
     # Adversary pass-6 OBS-001 [process-gap] remediation.

@@ -5,6 +5,10 @@ exclude = [
     # Building this crate is expected to fail (visibility violation); including it in
     # the workspace would break every `cargo build --workspace` run.
     "tests/external/perimeter-violation",
+    # AC-5 S-PLUGIN-PREREQ-C: compile-fail non-exhaustive violation test — must NOT be in workspace members.
+    # Building this crate is expected to fail (E0639 — non-exhaustive struct expression); including
+    # it in the workspace would break every `cargo build --workspace` run.
+    "tests/external/non-exhaustive-violation",
 ]
 members = [
     "crates/ocsf-proto-gen",
