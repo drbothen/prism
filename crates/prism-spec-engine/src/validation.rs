@@ -617,3 +617,51 @@ fn is_semver_like(version: &str) -> bool {
     }
     segments.iter().all(|s| s.parse::<u64>().is_ok())
 }
+
+#[cfg(test)]
+mod truncate_at_char_boundary_tests {
+    use super::truncate_at_char_boundary;
+
+    // Empty string with max_chars=0: trivial no-op, must not panic.
+    #[test]
+    fn empty_string_zero_chars() {
+        assert_eq!(truncate_at_char_boundary("", 0), "");
+    }
+
+    // Empty string with large max_chars: caller asks for more than available, returns all (empty).
+    #[test]
+    fn empty_string_nonzero_max() {
+        assert_eq!(truncate_at_char_boundary("", 100), "");
+    }
+
+    // ASCII string where char count equals max_chars: full string returned (no truncation).
+    #[test]
+    fn ascii_string_at_boundary() {
+        assert_eq!(truncate_at_char_boundary("abc", 3), "abc");
+    }
+
+    // ASCII string shorter than max_chars: max_chars > length is a no-op.
+    #[test]
+    fn ascii_string_under_max() {
+        assert_eq!(truncate_at_char_boundary("hi", 100), "hi");
+    }
+
+    // Multi-byte UTF-8: 5 emoji (4 bytes each = 20 bytes total), truncate to 3 codepoints.
+    // Must slice at byte index 12 (3 × 4 bytes), NOT byte index 3 (which would be mid-codepoint).
+    #[test]
+    fn utf8_multi_byte_truncation_no_panic() {
+        assert_eq!(truncate_at_char_boundary("🎯🎯🎯🎯🎯", 3), "🎯🎯🎯");
+    }
+
+    // max_chars=0 on a non-empty string: returns empty string (not the full string, not a panic).
+    #[test]
+    fn ascii_string_under_zero() {
+        assert_eq!(truncate_at_char_boundary("abc", 0), "");
+    }
+
+    // Single-char string at max=1: boundary where length equals max exactly, 1-char case.
+    #[test]
+    fn single_char_at_max() {
+        assert_eq!(truncate_at_char_boundary("a", 1), "a");
+    }
+}
