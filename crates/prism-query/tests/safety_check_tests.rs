@@ -49,16 +49,17 @@ use std::collections::HashMap;
 // ---------------------------------------------------------------------------
 
 fn make_write_endpoint_spec(risk: RiskTier) -> WriteEndpointSpec {
-    WriteEndpointSpec {
-        pipe_verb: "contain".to_string(),
-        sql_table: "crowdstrike_contained_hosts".to_string(),
-        capability_path: "sensor.crowdstrike.containment".to_string(),
-        risk_tier: risk,
-        batch_limit: 100,
-        batch_mode: BatchMode::Serial,
-        steps: vec![],
-        record_id_field: "device_id".to_string(),
-    }
+    // #[non_exhaustive]: use WriteEndpointSpec::new() constructor
+    WriteEndpointSpec::new(
+        "contain",
+        "crowdstrike_contained_hosts",
+        risk,
+        "sensor.crowdstrike.containment",
+        100,
+        BatchMode::Serial,
+        "device_id",
+        vec![],
+    )
 }
 
 fn make_bounded_plan() -> WritePlan {

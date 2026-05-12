@@ -220,49 +220,44 @@ async fn test_BC_2_16_002_two_step_pipeline_step2_uses_step1_token() {
         .mount(&mock_server)
         .await;
 
-    let spec = SensorSpec {
-        sensor_id: "crowdstrike".to_string(),
-        name: "CrowdStrike".to_string(),
-        auth_type: AuthType::Oauth2ClientCredentials,
-        base_url: mock_server.uri(),
-        tables: vec![TableSpec::new_point_in_time(
+    let spec = SensorSpec::new(
+        "crowdstrike",
+        "CrowdStrike",
+        AuthType::Oauth2ClientCredentials,
+        mock_server.uri(),
+        vec![TableSpec::new_point_in_time(
             "detections",
             "security_finding",
-            vec![ColumnSpec {
-                name: "id".to_string(),
-                column_type: ColumnType::String,
-                ocsf_field: None,
-                options: vec![],
-            }],
+            vec![ColumnSpec::new("id", ColumnType::String, None, vec![])],
             vec![
-                FetchStep {
-                    name: "get_token".to_string(),
-                    method: "POST".to_string(),
-                    path_template: "/oauth2/token".to_string(),
-                    body_template: Some("grant_type=client_credentials".to_string()),
-                    response_path: "$.access_token".to_string(),
-                    pagination_cursor_path: None,
-                    variables_produced: vec!["access_token".to_string()],
-                    fan_out_batch_size: None,
-                    pagination: None,
-                },
-                FetchStep {
-                    name: "fetch_detections".to_string(),
-                    method: "GET".to_string(),
-                    path_template: "/detections/v2?token=${get_token.access_token}".to_string(),
-                    body_template: None,
-                    response_path: "$.resources".to_string(),
-                    pagination_cursor_path: None,
-                    variables_produced: vec![],
-                    fan_out_batch_size: None,
-                    pagination: None,
-                },
+                FetchStep::new(
+                    "get_token",
+                    "POST",
+                    "/oauth2/token",
+                    Some("grant_type=client_credentials".to_string()),
+                    "$.access_token",
+                    None,
+                    vec!["access_token".to_string()],
+                    None,
+                    None,
+                ),
+                FetchStep::new(
+                    "fetch_detections",
+                    "GET",
+                    "/detections/v2?token=${get_token.access_token}",
+                    None,
+                    "$.resources",
+                    None,
+                    vec![],
+                    None,
+                    None,
+                ),
             ],
         )],
-        rate_limit_hints: None,
-        version: "1.0.0".to_string(),
-        credential_refs: Vec::new(),
-    };
+        None,
+        "1.0.0",
+        Vec::new(),
+    );
 
     let table = spec.tables[0].clone();
     let context = FetchContext::new(OrgSlug::new("test-client"), HashMap::new());

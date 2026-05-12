@@ -23,36 +23,31 @@ use prism_spec_engine::validation::{
 };
 
 fn minimal_valid_spec() -> SensorSpec {
-    SensorSpec {
-        sensor_id: "valid-sensor".to_string(),
-        name: "Valid Sensor".to_string(),
-        auth_type: AuthType::BearerStatic,
-        base_url: "https://api.example.com".to_string(),
-        tables: vec![TableSpec::new_point_in_time(
+    SensorSpec::new(
+        "valid-sensor",
+        "Valid Sensor",
+        AuthType::BearerStatic,
+        "https://api.example.com",
+        vec![TableSpec::new_point_in_time(
             "alerts",
             "security_finding",
-            vec![ColumnSpec {
-                name: "id".to_string(),
-                column_type: ColumnType::String,
-                ocsf_field: None,
-                options: vec![],
-            }],
-            vec![FetchStep {
-                name: "fetch_alerts".to_string(),
-                method: "GET".to_string(),
-                path_template: "/alerts".to_string(),
-                body_template: None,
-                response_path: "$.resources".to_string(),
-                pagination_cursor_path: None,
-                variables_produced: vec![],
-                fan_out_batch_size: None,
-                pagination: None,
-            }],
+            vec![ColumnSpec::new("id", ColumnType::String, None, vec![])],
+            vec![FetchStep::new(
+                "fetch_alerts",
+                "GET",
+                "/alerts",
+                None,
+                "$.resources",
+                None,
+                vec![],
+                None,
+                None,
+            )],
         )],
-        rate_limit_hints: None,
-        version: "1.0.0".to_string(),
-        credential_refs: Vec::new(),
-    }
+        None,
+        "1.0.0",
+        Vec::new(),
+    )
 }
 
 // ---------------------------------------------------------------------------
@@ -205,17 +200,17 @@ fn test_BC_2_16_009_rejects_invalid_version_string() {
 /// Canonical test vector for AC-5.
 #[test]
 fn test_BC_2_16_009_rejects_dangling_variable_ref_with_toml_path() {
-    let steps = vec![FetchStep {
-        name: "step_one".to_string(),
-        method: "GET".to_string(),
-        path_template: "/alerts?id=${nonexistent.field}".to_string(),
-        body_template: None,
-        response_path: "$.data".to_string(),
-        pagination_cursor_path: None,
-        variables_produced: vec![],
-        fan_out_batch_size: None,
-        pagination: None,
-    }];
+    let steps = vec![FetchStep::new(
+        "step_one",
+        "GET",
+        "/alerts?id=${nonexistent.field}",
+        None,
+        "$.data",
+        None,
+        vec![],
+        None,
+        None,
+    )];
 
     let errors = validate_variable_references(
         "/alerts?id=${nonexistent.field}",
@@ -249,28 +244,28 @@ fn test_BC_2_16_009_rejects_dangling_variable_ref_with_toml_path() {
 #[test]
 fn test_BC_2_16_009_rejects_forward_variable_reference() {
     let steps = vec![
-        FetchStep {
-            name: "step_one".to_string(),
-            method: "GET".to_string(),
-            path_template: "/data?ids=${step_two.ids}".to_string(), // forward ref
-            body_template: None,
-            response_path: "$.data".to_string(),
-            pagination_cursor_path: None,
-            variables_produced: vec![],
-            fan_out_batch_size: None,
-            pagination: None,
-        },
-        FetchStep {
-            name: "step_two".to_string(),
-            method: "GET".to_string(),
-            path_template: "/ids".to_string(),
-            body_template: None,
-            response_path: "$.ids".to_string(),
-            pagination_cursor_path: None,
-            variables_produced: vec!["ids".to_string()],
-            fan_out_batch_size: None,
-            pagination: None,
-        },
+        FetchStep::new(
+            "step_one",
+            "GET",
+            "/data?ids=${step_two.ids}", // forward ref
+            None,
+            "$.data",
+            None,
+            vec![],
+            None,
+            None,
+        ),
+        FetchStep::new(
+            "step_two",
+            "GET",
+            "/ids",
+            None,
+            "$.ids",
+            None,
+            vec!["ids".to_string()],
+            None,
+            None,
+        ),
     ];
 
     let errors = validate_variable_references(
@@ -293,28 +288,28 @@ fn test_BC_2_16_009_rejects_forward_variable_reference() {
 #[test]
 fn test_BC_2_16_009_accepts_valid_backward_variable_reference() {
     let steps = vec![
-        FetchStep {
-            name: "get_token".to_string(),
-            method: "POST".to_string(),
-            path_template: "/oauth/token".to_string(),
-            body_template: None,
-            response_path: "$.access_token".to_string(),
-            pagination_cursor_path: None,
-            variables_produced: vec!["access_token".to_string()],
-            fan_out_batch_size: None,
-            pagination: None,
-        },
-        FetchStep {
-            name: "fetch_data".to_string(),
-            method: "GET".to_string(),
-            path_template: "/data?token=${get_token.access_token}".to_string(), // valid back-ref
-            body_template: None,
-            response_path: "$.resources".to_string(),
-            pagination_cursor_path: None,
-            variables_produced: vec![],
-            fan_out_batch_size: None,
-            pagination: None,
-        },
+        FetchStep::new(
+            "get_token",
+            "POST",
+            "/oauth/token",
+            None,
+            "$.access_token",
+            None,
+            vec!["access_token".to_string()],
+            None,
+            None,
+        ),
+        FetchStep::new(
+            "fetch_data",
+            "GET",
+            "/data?token=${get_token.access_token}", // valid back-ref
+            None,
+            "$.resources",
+            None,
+            vec![],
+            None,
+            None,
+        ),
     ];
 
     let errors = validate_variable_references(
@@ -382,6 +377,7 @@ fn test_BC_2_16_009_rejects_cursor_pagination_with_empty_response_path() {
     if let Some(step) = spec.tables[0].steps.first_mut() {
         step.pagination = Some(PaginationConfig::CursorToken {
             cursor_response_path: "".to_string(), // invalid
+            page_size: None,
         });
     }
 
@@ -415,10 +411,7 @@ fn test_BC_2_16_009_rejects_offset_pagination_with_zero_page_size() {
 #[test]
 fn test_BC_2_16_009_rejects_rate_limit_requests_per_second_zero_or_negative() {
     let mut spec = minimal_valid_spec();
-    spec.rate_limit_hints = Some(RateLimitHints {
-        requests_per_second: Some(0.0), // invalid: must be > 0
-        burst_size: None,
-    });
+    spec.rate_limit_hints = Some(RateLimitHints::new(Some(0.0), None)); // invalid: must be > 0
 
     let result = validate_sensor_spec(&spec);
     assert!(
@@ -431,10 +424,7 @@ fn test_BC_2_16_009_rejects_rate_limit_requests_per_second_zero_or_negative() {
 #[test]
 fn test_BC_2_16_009_rejects_rate_limit_burst_size_zero() {
     let mut spec = minimal_valid_spec();
-    spec.rate_limit_hints = Some(RateLimitHints {
-        requests_per_second: Some(10.0),
-        burst_size: Some(0), // invalid: must be >= 1
-    });
+    spec.rate_limit_hints = Some(RateLimitHints::new(Some(10.0), Some(0))); // invalid: must be >= 1
 
     let result = validate_sensor_spec(&spec);
     assert!(result.is_err(), "burst_size=0 must produce an error");
@@ -453,17 +443,17 @@ fn test_BC_2_16_009_reports_all_errors_together_no_fail_fast() {
     spec.name = "".to_string(); // error 2
     spec.base_url = "not-a-url".to_string(); // error 3
     // forward ref for error 4
-    spec.tables[0].steps.push(FetchStep {
-        name: "step2".to_string(),
-        method: "GET".to_string(),
-        path_template: "/detail".to_string(),
-        body_template: None,
-        response_path: "$.data".to_string(),
-        pagination_cursor_path: None,
-        variables_produced: vec!["ids".to_string()],
-        fan_out_batch_size: None,
-        pagination: None,
-    });
+    spec.tables[0].steps.push(FetchStep::new(
+        "step2",
+        "GET",
+        "/detail",
+        None,
+        "$.data",
+        None,
+        vec!["ids".to_string()],
+        None,
+        None,
+    ));
     spec.tables[0].steps[0].path_template = "/data?id=${step2.ids}".to_string(); // forward ref
 
     let result = validate_sensor_spec(&spec);

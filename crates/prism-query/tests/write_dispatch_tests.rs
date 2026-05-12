@@ -184,16 +184,17 @@ async fn test_BC_2_05_009_audit_intent_fail_closed_returns_e_audit_001() {
     let plan = helpers::make_plan_with_filter();
     let context = helpers::make_context("acme", false);
 
-    let endpoint_spec = WriteEndpointSpec {
-        pipe_verb: "contain".to_string(),
-        sql_table: "crowdstrike_contained_hosts".to_string(),
-        capability_path: "sensor.crowdstrike.containment".to_string(),
-        risk_tier: RiskTier::Irreversible,
-        batch_limit: 100,
-        batch_mode: BatchMode::Serial,
-        steps: vec![],
-        record_id_field: "device_id".to_string(),
-    };
+    // #[non_exhaustive]: use WriteEndpointSpec::new() constructor
+    let endpoint_spec = WriteEndpointSpec::new(
+        "contain",
+        "crowdstrike_contained_hosts",
+        RiskTier::Irreversible,
+        "sensor.crowdstrike.containment",
+        100,
+        BatchMode::Serial,
+        "device_id",
+        vec![],
+    );
 
     let inputs = DispatchInputs {
         plan: &plan,
@@ -241,16 +242,17 @@ async fn test_BC_2_05_009_audit_intent_called_before_sensor_outcome_after() {
     let plan = helpers::make_plan_with_filter();
     let context = helpers::make_context("acme", false);
 
-    let endpoint_spec = WriteEndpointSpec {
-        pipe_verb: "contain".to_string(),
-        sql_table: "crowdstrike_contained_hosts".to_string(),
-        capability_path: "sensor.crowdstrike.containment".to_string(),
-        risk_tier: RiskTier::Irreversible,
-        batch_limit: 100,
-        batch_mode: BatchMode::Serial,
-        steps: vec![],
-        record_id_field: "device_id".to_string(),
-    };
+    // #[non_exhaustive]: use WriteEndpointSpec::new() constructor
+    let endpoint_spec = WriteEndpointSpec::new(
+        "contain",
+        "crowdstrike_contained_hosts",
+        RiskTier::Irreversible,
+        "sensor.crowdstrike.containment",
+        100,
+        BatchMode::Serial,
+        "device_id",
+        vec![],
+    );
 
     let inputs = DispatchInputs {
         plan: &plan,
@@ -315,16 +317,17 @@ async fn test_BC_2_05_009_audit_outcome_failure_does_not_unwind_write() {
     let plan = helpers::make_plan_with_filter();
     let context = helpers::make_context("acme", false);
 
-    let endpoint_spec = WriteEndpointSpec {
-        pipe_verb: "contain".to_string(),
-        sql_table: "crowdstrike_contained_hosts".to_string(),
-        capability_path: "sensor.crowdstrike.containment".to_string(),
-        risk_tier: RiskTier::Irreversible,
-        batch_limit: 100,
-        batch_mode: BatchMode::Serial,
-        steps: vec![],
-        record_id_field: "device_id".to_string(),
-    };
+    // #[non_exhaustive]: use WriteEndpointSpec::new() constructor
+    let endpoint_spec = WriteEndpointSpec::new(
+        "contain",
+        "crowdstrike_contained_hosts",
+        RiskTier::Irreversible,
+        "sensor.crowdstrike.containment",
+        100,
+        BatchMode::Serial,
+        "device_id",
+        vec![],
+    );
 
     let inputs = DispatchInputs {
         plan: &plan,
@@ -391,16 +394,17 @@ async fn test_BC_2_04_007_partial_write_failure_represented_in_write_result_not_
     let plan = helpers::make_plan_with_filter();
     let context = helpers::make_context("acme", false);
 
-    let endpoint_spec = WriteEndpointSpec {
-        pipe_verb: "contain".to_string(),
-        sql_table: "crowdstrike_contained_hosts".to_string(),
-        capability_path: "sensor.crowdstrike.containment".to_string(),
-        risk_tier: RiskTier::Irreversible,
-        batch_limit: 100,
-        batch_mode: BatchMode::Serial,
-        steps: vec![],
-        record_id_field: "device_id".to_string(),
-    };
+    // #[non_exhaustive]: use WriteEndpointSpec::new() constructor
+    let endpoint_spec = WriteEndpointSpec::new(
+        "contain",
+        "crowdstrike_contained_hosts",
+        RiskTier::Irreversible,
+        "sensor.crowdstrike.containment",
+        100,
+        BatchMode::Serial,
+        "device_id",
+        vec![],
+    );
 
     let inputs = DispatchInputs {
         plan: &plan,
@@ -452,16 +456,17 @@ async fn test_crit4_permit_path_audit_intent_called_with_allowed() {
     let plan = helpers::make_plan_with_filter();
     let context = helpers::make_context("acme", false);
 
-    let endpoint_spec = WriteEndpointSpec {
-        pipe_verb: "contain".to_string(),
-        sql_table: "crowdstrike_contained_hosts".to_string(),
-        capability_path: "sensor.crowdstrike.containment".to_string(),
-        risk_tier: RiskTier::Irreversible,
-        batch_limit: 100,
-        batch_mode: BatchMode::Serial,
-        steps: vec![],
-        record_id_field: "device_id".to_string(),
-    };
+    // #[non_exhaustive]: use WriteEndpointSpec::new() constructor
+    let endpoint_spec = WriteEndpointSpec::new(
+        "contain",
+        "crowdstrike_contained_hosts",
+        RiskTier::Irreversible,
+        "sensor.crowdstrike.containment",
+        100,
+        BatchMode::Serial,
+        "device_id",
+        vec![],
+    );
 
     let inputs = DispatchInputs {
         plan: &plan,

@@ -1,6 +1,6 @@
 [package]
 name = "prism-core"
-version = "0.1.0"
+version = "0.2.0"
 edition = "2021"
 description = "Prism foundational types — dependency root for the entire workspace"
 license = "MIT"
@@ -27,7 +27,7 @@ regex = "1"
 tempfile = "3"
 proptest = "1"
 uuid = { version = "1", features = ["v7"] }
-prism-spec-engine = { path = "../prism-spec-engine", version = "0.6.0" }
+prism-spec-engine = { path = "../prism-spec-engine", version = "0.7.0" }
 
 [[test]]
 name = "ac_1_tenant_id_rejects_empty"

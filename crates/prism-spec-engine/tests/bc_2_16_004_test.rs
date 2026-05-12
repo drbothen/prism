@@ -90,17 +90,17 @@ impl CustomAdapter for PanickingAdapter {
 }
 
 fn minimal_step() -> FetchStep {
-    FetchStep {
-        name: "fetch".to_string(),
-        method: "GET".to_string(),
-        path_template: "/data".to_string(),
-        body_template: None,
-        response_path: "$.data".to_string(),
-        pagination_cursor_path: None,
-        variables_produced: vec![],
-        fan_out_batch_size: None,
-        pagination: None,
-    }
+    FetchStep::new(
+        "fetch",
+        "GET",
+        "/data",
+        None,
+        "$.data",
+        None,
+        vec![],
+        None,
+        None,
+    )
 }
 
 fn test_context() -> FetchContext {

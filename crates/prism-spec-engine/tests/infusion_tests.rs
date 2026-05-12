@@ -35,129 +35,118 @@ use prism_spec_engine::{
 /// Build a minimal valid `InfusionSpec` with `n` distinct fields.
 fn build_spec_n_fields(infusion_id: &str, n: usize) -> InfusionSpec {
     let fields: Vec<InfusionField> = (0..n)
-        .map(|i| InfusionField {
-            name: format!("{}_{}", infusion_id, i),
-            input_field: "device_ip".to_string(),
-            input_type: "ip".to_string(),
-            output_type: "string".to_string(),
-            description: None,
-            source_column: Some(format!("col_{}", i)),
+        .map(|i| {
+            // #[non_exhaustive]: use constructor for forward-compat external construction
+            InfusionField::with_all(
+                format!("{}_{}", infusion_id, i),
+                "device_ip".to_string(),
+                "ip".to_string(),
+                "string".to_string(),
+                None,
+                Some(format!("col_{}", i)),
+            )
         })
         .collect();
-    InfusionSpec {
-        infusion_id: infusion_id.to_string(),
-        name: format!("Test {}", infusion_id),
-        infusion_type: InfusionType::LocalLookup,
-        source: None,
+    // #[non_exhaustive]: use InfusionSpec::new() constructor for forward-compat construction
+    let mut spec = InfusionSpec::new(
+        infusion_id,
+        format!("Test {}", infusion_id),
+        InfusionType::LocalLookup,
         fields,
-        pipe_stage: None,
-        plugin_config: None,
-        credentials: vec![],
-        source_path: format!("{}.infusion.toml", infusion_id),
-        cache_ttl_secs: Some(3600),
-    }
+        format!("{}.infusion.toml", infusion_id),
+    );
+    spec.cache_ttl_secs = Some(3600);
+    spec
 }
 
 /// Build the canonical `geoip` spec (4 fields: country, city, asn, is_tor).
 /// TV-19-001-happy canonical test vector from BC-2.19.001.
 fn build_geoip_spec() -> InfusionSpec {
-    InfusionSpec {
-        infusion_id: "geoip".to_string(),
-        name: "MaxMind GeoIP2".to_string(),
-        infusion_type: InfusionType::LocalLookup,
-        source: Some(prism_spec_engine::infusion::InfusionSourceConfig {
-            source_type: prism_spec_engine::infusion::BuiltInSourceType::MaxmindMmdb,
-            file_path: "fixtures/test.mmdb".to_string(),
-            key_column: None,
-            refresh_interval_secs: Some(3600),
-        }),
-        fields: vec![
-            InfusionField {
-                name: "geoip_country".to_string(),
-                input_field: "device_ip".to_string(),
-                input_type: "ip".to_string(),
-                output_type: "string".to_string(),
-                description: Some("ISO 3166-1 alpha-2 country code".to_string()),
-                source_column: Some("country_iso_code".to_string()),
-            },
-            InfusionField {
-                name: "geoip_city".to_string(),
-                input_field: "device_ip".to_string(),
-                input_type: "ip".to_string(),
-                output_type: "string".to_string(),
-                description: Some("City name".to_string()),
-                source_column: Some("city_name".to_string()),
-            },
-            InfusionField {
-                name: "geoip_asn".to_string(),
-                input_field: "device_ip".to_string(),
-                input_type: "ip".to_string(),
-                output_type: "integer".to_string(),
-                description: Some("ASN".to_string()),
-                source_column: Some("asn".to_string()),
-            },
-            InfusionField {
-                name: "geoip_is_tor".to_string(),
-                input_field: "device_ip".to_string(),
-                input_type: "ip".to_string(),
-                output_type: "boolean".to_string(),
-                description: Some("Tor exit node flag".to_string()),
-                source_column: Some("is_tor".to_string()),
-            },
-        ],
-        pipe_stage: Some(prism_spec_engine::infusion::PipeStageConfig {
-            adds_columns: vec![
-                "geoip_country".to_string(),
-                "geoip_city".to_string(),
-                "geoip_asn".to_string(),
-                "geoip_is_tor".to_string(),
-            ],
-        }),
-        plugin_config: None,
-        credentials: vec![],
-        source_path: "geoip.infusion.toml".to_string(),
-        cache_ttl_secs: Some(3600),
-    }
+    // #[non_exhaustive]: use constructors for forward-compat external construction
+    let fields = vec![
+        InfusionField::with_all(
+            "geoip_country",
+            "device_ip",
+            "ip",
+            "string",
+            Some("ISO 3166-1 alpha-2 country code".to_string()),
+            Some("country_iso_code".to_string()),
+        ),
+        InfusionField::with_all(
+            "geoip_city",
+            "device_ip",
+            "ip",
+            "string",
+            Some("City name".to_string()),
+            Some("city_name".to_string()),
+        ),
+        InfusionField::with_all(
+            "geoip_asn",
+            "device_ip",
+            "ip",
+            "integer",
+            Some("ASN".to_string()),
+            Some("asn".to_string()),
+        ),
+        InfusionField::with_all(
+            "geoip_is_tor",
+            "device_ip",
+            "ip",
+            "boolean",
+            Some("Tor exit node flag".to_string()),
+            Some("is_tor".to_string()),
+        ),
+    ];
+    let mut spec = InfusionSpec::new(
+        "geoip",
+        "MaxMind GeoIP2",
+        InfusionType::LocalLookup,
+        fields,
+        "geoip.infusion.toml",
+    );
+    spec.source = Some(prism_spec_engine::infusion::InfusionSourceConfig::new(
+        prism_spec_engine::infusion::BuiltInSourceType::MaxmindMmdb,
+        "fixtures/test.mmdb",
+        None,
+        Some(3600),
+    ));
+    spec.pipe_stage = Some(prism_spec_engine::infusion::PipeStageConfig::new(vec![
+        "geoip_country".to_string(),
+        "geoip_city".to_string(),
+        "geoip_asn".to_string(),
+        "geoip_is_tor".to_string(),
+    ]));
+    spec.cache_ttl_secs = Some(3600);
+    spec
 }
 
 /// Build the `threat_intel` plugin spec (AC-4 / BC-2.19.003).
 fn build_threat_intel_plugin_spec() -> InfusionSpec {
-    InfusionSpec {
-        infusion_id: "threat_intel".to_string(),
-        name: "Threat Intelligence Plugin".to_string(),
-        infusion_type: InfusionType::Plugin,
-        source: None,
-        fields: vec![
-            InfusionField {
-                name: "threat_score".to_string(),
-                input_field: "device_ip".to_string(),
-                input_type: "ip".to_string(),
-                output_type: "float".to_string(),
-                description: None,
-                source_column: None,
-            },
-            InfusionField {
-                name: "is_known_bad".to_string(),
-                input_field: "device_ip".to_string(),
-                input_type: "ip".to_string(),
-                output_type: "boolean".to_string(),
-                description: None,
-                source_column: None,
-            },
-        ],
-        pipe_stage: Some(prism_spec_engine::infusion::PipeStageConfig {
-            adds_columns: vec!["threat_score".to_string(), "is_known_bad".to_string()],
-        }),
-        plugin_config: Some(prism_spec_engine::infusion::PluginConfig {
-            plugin_path: "plugins/threat_intel.prx".to_string(),
-        }),
-        credentials: vec![prism_spec_engine::infusion::CredentialRef {
-            field_name: "threat_intel_api_key".to_string(),
-            env_var: "THREAT_INTEL_API_KEY".to_string(),
-        }],
-        source_path: "threat_intel.infusion.toml".to_string(),
-        cache_ttl_secs: Some(900),
-    }
+    // #[non_exhaustive]: use constructors for forward-compat external construction
+    let fields = vec![
+        InfusionField::new("threat_score", "device_ip", "ip", "float"),
+        InfusionField::new("is_known_bad", "device_ip", "ip", "boolean"),
+    ];
+    let mut spec = InfusionSpec::new(
+        "threat_intel",
+        "Threat Intelligence Plugin",
+        InfusionType::Plugin,
+        fields,
+        "threat_intel.infusion.toml",
+    );
+    spec.pipe_stage = Some(prism_spec_engine::infusion::PipeStageConfig::new(vec![
+        "threat_score".to_string(),
+        "is_known_bad".to_string(),
+    ]));
+    spec.plugin_config = Some(prism_spec_engine::infusion::PluginConfig::new(
+        "plugins/threat_intel.prx",
+    ));
+    spec.credentials = vec![prism_spec_engine::infusion::CredentialRef::new(
+        "threat_intel_api_key",
+        "THREAT_INTEL_API_KEY",
+    )];
+    spec.cache_ttl_secs = Some(900);
+    spec
 }
 
 // ---------------------------------------------------------------------------
@@ -792,10 +781,8 @@ fn test_BC_2_19_004_hot_reload_with_duplicate_udf_rejected_e_infuse_002() {
 /// Traces to: BC-2.19.005 / INV-INFUSE-005 / AC-6.
 #[test]
 fn test_BC_2_19_005_credential_ref_debug_output_redacts_value() {
-    let cred = prism_spec_engine::infusion::CredentialRef {
-        field_name: "maxmind_api_key".to_string(),
-        env_var: "MAXMIND_API_KEY".to_string(),
-    };
+    let cred =
+        prism_spec_engine::infusion::CredentialRef::new("maxmind_api_key", "MAXMIND_API_KEY");
 
     let debug_output = format!("{:?}", cred);
 
@@ -996,42 +983,44 @@ fn test_ac_6_credential_values_never_in_error_messages() {
 
 #[test]
 fn test_ac_7_csv_source_asset_owner_spec_loads_correctly() {
-    let spec = InfusionSpec {
-        infusion_id: "asset_inventory".to_string(),
-        name: "Asset Inventory CSV".to_string(),
-        infusion_type: InfusionType::LocalLookup,
-        source: Some(prism_spec_engine::infusion::InfusionSourceConfig {
-            source_type: prism_spec_engine::infusion::BuiltInSourceType::Csv,
-            file_path: "fixtures/asset_inventory.csv".to_string(),
-            key_column: Some("ip_address".to_string()),
-            refresh_interval_secs: Some(300),
-        }),
-        fields: vec![
-            InfusionField {
-                name: "asset_owner".to_string(),
-                input_field: "device_ip".to_string(),
-                input_type: "ip".to_string(),
-                output_type: "string".to_string(),
-                description: None,
-                source_column: Some("owner".to_string()),
-            },
-            InfusionField {
-                name: "asset_department".to_string(),
-                input_field: "device_ip".to_string(),
-                input_type: "ip".to_string(),
-                output_type: "string".to_string(),
-                description: None,
-                source_column: Some("department".to_string()),
-            },
-        ],
-        pipe_stage: Some(prism_spec_engine::infusion::PipeStageConfig {
-            adds_columns: vec!["asset_owner".to_string(), "asset_department".to_string()],
-        }),
-        plugin_config: None,
-        credentials: vec![],
-        source_path: "asset_inventory.infusion.toml".to_string(),
-        cache_ttl_secs: Some(300),
-    };
+    // #[non_exhaustive]: use constructors for forward-compat external construction
+    let fields = vec![
+        InfusionField::with_all(
+            "asset_owner",
+            "device_ip",
+            "ip",
+            "string",
+            None,
+            Some("owner".to_string()),
+        ),
+        InfusionField::with_all(
+            "asset_department",
+            "device_ip",
+            "ip",
+            "string",
+            None,
+            Some("department".to_string()),
+        ),
+    ];
+    let mut spec = InfusionSpec::new(
+        "asset_inventory",
+        "Asset Inventory CSV",
+        InfusionType::LocalLookup,
+        fields,
+        "asset_inventory.infusion.toml",
+    );
+    spec.source = Some(prism_spec_engine::infusion::InfusionSourceConfig::new(
+        prism_spec_engine::infusion::BuiltInSourceType::Csv,
+        "fixtures/asset_inventory.csv",
+        Some("ip_address".to_string()),
+        Some(300),
+    ));
+    spec.pipe_stage = Some(prism_spec_engine::infusion::PipeStageConfig::new(vec![
+        "asset_owner".to_string(),
+        "asset_department".to_string(),
+    ]));
+    spec.cache_ttl_secs = Some(300);
+    let spec = spec;
 
     let registry = InfusionRegistry::new();
     let descriptors = registry

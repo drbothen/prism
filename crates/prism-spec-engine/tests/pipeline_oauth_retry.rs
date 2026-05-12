@@ -24,36 +24,31 @@ fn default_context() -> FetchContext {
 
 /// Build a one-step `SensorSpec` for auth-retry tests.
 fn auth_retry_spec(base_url: &str) -> SensorSpec {
-    SensorSpec {
-        sensor_id: "retry-sensor".to_string(),
-        name: "Retry Sensor".to_string(),
-        auth_type: AuthType::Oauth2ClientCredentials,
-        base_url: base_url.to_string(),
-        tables: vec![TableSpec::new_point_in_time(
+    SensorSpec::new(
+        "retry-sensor",
+        "Retry Sensor",
+        AuthType::Oauth2ClientCredentials,
+        base_url,
+        vec![TableSpec::new_point_in_time(
             "findings",
             "security_finding",
-            vec![ColumnSpec {
-                name: "id".to_string(),
-                column_type: ColumnType::String,
-                ocsf_field: None,
-                options: vec![],
-            }],
-            vec![FetchStep {
-                name: "fetch_findings".to_string(),
-                method: "GET".to_string(),
-                path_template: "/api/findings".to_string(),
-                body_template: None,
-                response_path: "$.findings".to_string(),
-                pagination_cursor_path: None,
-                variables_produced: vec![],
-                fan_out_batch_size: None,
-                pagination: None,
-            }],
+            vec![ColumnSpec::new("id", ColumnType::String, None, vec![])],
+            vec![FetchStep::new(
+                "fetch_findings",
+                "GET",
+                "/api/findings",
+                None,
+                "$.findings",
+                None,
+                vec![],
+                None,
+                None,
+            )],
         )],
-        rate_limit_hints: None,
-        version: "1.0.0".to_string(),
-        credential_refs: vec![],
-    }
+        None,
+        "1.0.0",
+        vec![],
+    )
 }
 
 // ---------------------------------------------------------------------------

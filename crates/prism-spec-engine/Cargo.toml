@@ -1,6 +1,6 @@
 [package]
 name = "prism-spec-engine"
-version = "0.6.0"
+version = "0.7.0"
 edition = "2024"
 license = "MIT"
 description = "Prism config-driven sensor adapter engine: TOML spec loading, pipeline execution, OCSF mapping, infusion enrichment framework, WASM plugin runtime (S-1.15), and hot reload + runtime management (S-1.12)"
@@ -10,7 +10,7 @@ description = "Prism config-driven sensor adapter engine: TOML spec loading, pip
 # See architecture/module-decomposition.md SS-16; AD-015.
 
 [dependencies]
-prism-core = { path = "../prism-core", version = "0.1.0" }
+prism-core = { path = "../prism-core", version = "0.2.0" }
 serde = { version = "1", features = ["derive"] }
 toml = "0.8"
 percent-encoding = "2"
@@ -89,3 +89,13 @@ path = "tests/pipeline_http_integration.rs"
 [[test]]
 name = "pipeline_oauth_retry"
 path = "tests/pipeline_oauth_retry.rs"
+
+# S-PLUGIN-PREREQ-C: AC-1 Red Gate — page_size on CursorToken first-call
+[[test]]
+name = "ac_1_cursor_page_size_test"
+path = "tests/ac_1_cursor_page_size_test.rs"
+
+# S-PLUGIN-PREREQ-C: AC-3 Red Gate — proptest suite for pure functions
+[[test]]
+name = "proptest_AC_3"
+path = "tests/proptest_AC_3.rs"

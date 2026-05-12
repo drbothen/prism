@@ -292,16 +292,17 @@ impl WriteExecutor {
 
         // Look up endpoint spec from registry (if registered)
         // If not found, use defaults for tests (no panic — test registry is empty)
-        let default_spec = prism_spec_engine::write_endpoint::WriteEndpointSpec {
-            pipe_verb: plan.verb.clone(),
-            sql_table: plan.target_table.clone(),
-            capability_path: format!("sensor.{}.{}", plan.sensor, plan.verb),
-            risk_tier: RiskTier::Irreversible, // default conservative: Irreversible
-            batch_limit: 100,
-            batch_mode: prism_spec_engine::write_endpoint::BatchMode::Serial,
-            steps: vec![],
-            record_id_field: "id".to_string(),
-        };
+        // #[non_exhaustive]: use WriteEndpointSpec::new() constructor for external construction
+        let default_spec = prism_spec_engine::write_endpoint::WriteEndpointSpec::new(
+            plan.verb.clone(),
+            plan.target_table.clone(),
+            RiskTier::Irreversible, // default conservative: Irreversible
+            format!("sensor.{}.{}", plan.sensor, plan.verb),
+            100,
+            prism_spec_engine::write_endpoint::BatchMode::Serial,
+            "id",
+            vec![],
+        );
         let endpoint_spec = self
             .endpoint_registry
             .get(&plan.sensor, &plan.verb)
@@ -428,16 +429,17 @@ mod write_plan_from_dml_node_tests {
         let mut r = WriteEndpointRegistry::new();
         r.register(
             sensor,
-            vec![WriteEndpointSpec {
-                pipe_verb: "contain".to_string(),
-                sql_table: table.to_string(),
-                capability_path: format!("sensor.{}.contain", sensor),
-                risk_tier: prism_core::RiskTier::Irreversible,
-                batch_limit: 100,
-                batch_mode: BatchMode::Serial,
-                steps: vec![],
-                record_id_field: "id".to_string(),
-            }],
+            // #[non_exhaustive]: use WriteEndpointSpec::new() constructor
+            vec![WriteEndpointSpec::new(
+                "contain",
+                table,
+                prism_core::RiskTier::Irreversible,
+                format!("sensor.{}.contain", sensor),
+                100,
+                BatchMode::Serial,
+                "id",
+                vec![],
+            )],
         )
         .expect("test registry register must succeed");
         r

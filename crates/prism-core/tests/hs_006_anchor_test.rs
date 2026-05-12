@@ -51,10 +51,9 @@ fn extract_frontmatter(content: &str) -> &str {
     let mut lines = content.splitn(3, "---\n");
     // Skip any leading content before the first `---`
     let _ = lines.next(); // may be empty or a comment block
-    let fm = lines
+    lines
         .next()
-        .expect("HS-006 file must contain a YAML frontmatter block delimited by '---'");
-    fm
+        .expect("HS-006 file must contain a YAML frontmatter block delimited by '---'")
 }
 
 // ---------------------------------------------------------------------------
@@ -97,8 +96,8 @@ fn test_hs_006_anchored_to_wave_3_bcs() {
     // We accept either inline YAML list or multi-line list items.
     let declared_bcs: Vec<String> = {
         let after_colon = bc_line
-            .splitn(2, ':')
-            .nth(1)
+            .split_once(':')
+            .map(|(_, v)| v)
             .unwrap_or("")
             .trim()
             .to_string();
@@ -122,11 +121,7 @@ fn test_hs_006_anchored_to_wave_3_bcs() {
                 .lines()
                 .skip(bc_key_idx + 1)
                 .take_while(|l| l.starts_with("  -") || l.starts_with("- "))
-                .map(|l| {
-                    l.trim_start_matches(|c: char| c == ' ' || c == '-')
-                        .trim()
-                        .to_string()
-                })
+                .map(|l| l.trim_start_matches([' ', '-']).trim().to_string())
                 .filter(|s| !s.is_empty())
                 .collect()
         } else {
@@ -200,8 +195,8 @@ fn test_hs_006_phase_is_3a() {
         .expect("AC-001: `phase:` key must be present in HS-006 frontmatter");
 
     let phase_value = phase_line
-        .splitn(2, ':')
-        .nth(1)
+        .split_once(':')
+        .map(|(_, v)| v)
         .unwrap_or("")
         .trim()
         .trim_matches('"')

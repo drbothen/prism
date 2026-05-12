@@ -1,0 +1,37 @@
+[package]
+name = "non-exhaustive-violation"
+version = "0.1.0"
+edition = "2024"
+publish = false
+
+# AC-5 (S-PLUGIN-PREREQ-C) — #[non_exhaustive] compile-fail test crate.
+#
+# PURPOSE: This crate deliberately attempts struct-literal construction of
+# `prism_spec_engine` TOML-deserialized types from outside the crate.
+# With `#[non_exhaustive]` in place on all 8 types (post AC-5 implementation),
+# this MUST NOT compile — E0639 "cannot create non-exhaustive struct/enum variant
+# with a struct expression".
+#
+# RED GATE MECHANISM: Before AC-5 is implemented, `#[non_exhaustive]` is NOT applied
+# to these types. Therefore, struct-literal construction SUCCEEDS and this crate
+# COMPILES. The CI assertion `cargo check -p non-exhaustive-violation MUST fail`
+# does not hold — the check exits 0 = RED GATE.
+#
+# After AC-5 implementation, `#[non_exhaustive]` is applied to all 8 types.
+# Struct-literal construction FAILS with E0639. The CI assertion holds = GREEN.
+#
+# Named types covered (per AC-5 table in story spec):
+#   CredentialRef, SensorSpec, SensorTableDescriptor, FetchStep,
+#   ColumnSpec, TableSpec, PaginationConfig, AuthType
+#
+# This crate is EXCLUDED from the workspace default members (see root Cargo.toml).
+# Run standalone: cargo check -p non-exhaustive-violation
+# CI pattern: assert non-zero exit code from `cargo check -p non-exhaustive-violation`
+
+[dependencies]
+prism-spec-engine = { path = "../../../crates/prism-spec-engine" }
+prism-core = { path = "../../../crates/prism-core" }
+serde_json = "1"
+
+# Empty workspace table: opts this crate out of the parent workspace resolver.
+[workspace]

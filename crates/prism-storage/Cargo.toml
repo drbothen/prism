@@ -15,7 +15,7 @@ name = "prism_storage"
 test-utils = []
 
 [dependencies]
-prism-core = { path = "../prism-core", version = "0.1.0" }
+prism-core = { path = "../prism-core", version = "0.2.0" }
 rocksdb = { version = "0.24" }
 bincode = { version = "2", features = ["serde"] }
 thiserror = "1"

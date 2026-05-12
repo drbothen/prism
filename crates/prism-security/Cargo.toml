@@ -23,7 +23,7 @@ armis-write = []
 all-write = ["crowdstrike-write", "cyberint-write", "claroty-write", "armis-write"]
 
 [dependencies]
-prism-core = { path = "../prism-core", version = "0.1.0" }
+prism-core = { path = "../prism-core", version = "0.2.0" }
 arc-swap = "1"
 dashmap = "5"
 rand = "0.8"

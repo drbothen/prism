@@ -517,10 +517,10 @@ fn test_BC_3_1_003_invariant_forward_len_eq_reverse_len() {
     }
 }
 
-/// VP-3.1.003-01 / AC-5: proptest bijection size invariant.
-///
-/// After N valid registrations, forward_len == reverse_len (== N).
-/// Uses 1000 cases as required by the BC proptest requirement.
+// VP-3.1.003-01 / AC-5: proptest bijection size invariant.
+//
+// After N valid registrations, forward_len == reverse_len (== N).
+// Uses 1000 cases as required by the BC proptest requirement.
 proptest! {
     #![proptest_config(ProptestConfig::with_cases(1000))]
 
@@ -921,10 +921,10 @@ fn test_BC_3_1_004_invariant3_id_conflict_error_display() {
     );
 }
 
-/// VP-3.1.004-01: Registry size is unchanged after any Err return from register.
-///
-/// Proptest: apply a random sequence of valid registrations followed by a conflicting
-/// one; assert size is unchanged by the conflict.
+// VP-3.1.004-01: Registry size is unchanged after any Err return from register.
+//
+// Proptest: apply a random sequence of valid registrations followed by a conflicting
+// one; assert size is unchanged by the conflict.
 proptest! {
     #![proptest_config(ProptestConfig::with_cases(1000))]
 

@@ -114,14 +114,18 @@ pub enum SpecEngineError {
     /// the response structure (E-SPEC-010).
     ///
     /// Step name and path are included for diagnostics (BC-2.16.002 error table).
+    /// `detail` carries the descriptive message from `extract_at_path` (e.g.,
+    /// "index 99 out of bounds: array has 3 elements in path '$.x[99]'").
     #[error(
         "E-JSONPATH-001 (E-SPEC-010): response_path '{path}' did not match response \
-         from sensor '{sensor_id}' step '{step_name}'"
+         from sensor '{sensor_id}' step '{step_name}': {detail}"
     )]
     JsonPathExtractionFailed {
         sensor_id: String,
         step_name: String,
         path: String,
+        /// Descriptive extraction failure reason from the JSONPath engine.
+        detail: String,
     },
 }
 

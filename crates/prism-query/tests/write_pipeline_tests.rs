@@ -177,29 +177,30 @@ fn make_executor(fail_audit: bool) -> WriteExecutor {
 
     // Register test endpoint specs
     let mut endpoint_registry = WriteEndpointRegistry::new();
+    // #[non_exhaustive]: use WriteEndpointSpec::new() constructor
     let _ = endpoint_registry.register(
         "crowdstrike",
         vec![
-            WriteEndpointSpec {
-                pipe_verb: "contain".to_string(),
-                sql_table: "crowdstrike_contained_hosts".to_string(),
-                capability_path: "sensor.crowdstrike.contain".to_string(),
-                risk_tier: prism_core::RiskTier::Irreversible,
-                batch_limit: 100,
-                batch_mode: BatchMode::Serial,
-                steps: vec![],
-                record_id_field: "device_id".to_string(),
-            },
-            WriteEndpointSpec {
-                pipe_verb: "update".to_string(),
-                sql_table: "crowdstrike_detections".to_string(),
-                capability_path: "sensor.crowdstrike.update".to_string(),
-                risk_tier: prism_core::RiskTier::Reversible,
-                batch_limit: 100,
-                batch_mode: BatchMode::Serial,
-                steps: vec![],
-                record_id_field: "id".to_string(),
-            },
+            WriteEndpointSpec::new(
+                "contain",
+                "crowdstrike_contained_hosts",
+                prism_core::RiskTier::Irreversible,
+                "sensor.crowdstrike.contain",
+                100,
+                BatchMode::Serial,
+                "device_id",
+                vec![],
+            ),
+            WriteEndpointSpec::new(
+                "update",
+                "crowdstrike_detections",
+                prism_core::RiskTier::Reversible,
+                "sensor.crowdstrike.update",
+                100,
+                BatchMode::Serial,
+                "id",
+                vec![],
+            ),
         ],
     );
     WriteExecutor::new(
@@ -899,16 +900,17 @@ fn test_crit2_write_capable_table_provider_new_does_not_panic() {
         risk_tier: RiskTier::Irreversible,
     };
 
-    let endpoint_spec = WriteEndpointSpec {
-        pipe_verb: "contain".to_string(),
-        sql_table: "crowdstrike_contained_hosts".to_string(),
-        capability_path: "sensor.crowdstrike.contain".to_string(),
-        risk_tier: RiskTier::Irreversible,
-        batch_limit: 100,
-        batch_mode: BatchMode::Serial,
-        steps: vec![],
-        record_id_field: "device_id".to_string(),
-    };
+    // #[non_exhaustive]: use WriteEndpointSpec::new() constructor
+    let endpoint_spec = WriteEndpointSpec::new(
+        "contain",
+        "crowdstrike_contained_hosts",
+        RiskTier::Irreversible,
+        "sensor.crowdstrike.contain",
+        100,
+        BatchMode::Serial,
+        "device_id",
+        vec![],
+    );
 
     let executor = Arc::new(make_executor(false));
 
@@ -944,16 +946,17 @@ async fn test_crit2_insert_into_returns_not_implemented_not_panic() {
         verb: "contain".to_string(),
         risk_tier: RiskTier::Irreversible,
     };
-    let endpoint_spec = WriteEndpointSpec {
-        pipe_verb: "contain".to_string(),
-        sql_table: "crowdstrike_contained_hosts".to_string(),
-        capability_path: "sensor.crowdstrike.contain".to_string(),
-        risk_tier: RiskTier::Irreversible,
-        batch_limit: 100,
-        batch_mode: BatchMode::Serial,
-        steps: vec![],
-        record_id_field: "device_id".to_string(),
-    };
+    // #[non_exhaustive]: use WriteEndpointSpec::new() constructor
+    let endpoint_spec = WriteEndpointSpec::new(
+        "contain",
+        "crowdstrike_contained_hosts",
+        RiskTier::Irreversible,
+        "sensor.crowdstrike.contain",
+        100,
+        BatchMode::Serial,
+        "device_id",
+        vec![],
+    );
 
     let executor = Arc::new(make_executor(false));
     let provider = WriteCapableTableProvider::new(descriptor, endpoint_spec, executor);

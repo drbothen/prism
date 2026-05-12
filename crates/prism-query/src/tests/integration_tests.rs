@@ -181,12 +181,12 @@ mod tests {
         use crate::ast::{CompareOp, Expr, FieldPath, Literal, Span};
         use crate::pushdown::classify_predicates;
 
-        let columns = vec![ColumnSpec {
-            name: "severity_id".to_string(),
-            column_type: ColumnType::Integer,
-            ocsf_field: None,
-            options: vec![ColumnOptions::Required],
-        }];
+        let columns = vec![ColumnSpec::new(
+            "severity_id",
+            ColumnType::Integer,
+            None,
+            vec![ColumnOptions::Required],
+        )];
 
         let expr = Expr::Compare {
             lhs: Box::new(Expr::Field(FieldPath {

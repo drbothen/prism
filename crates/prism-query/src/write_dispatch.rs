@@ -460,16 +460,17 @@ mod fan_out_empty_batch_tests {
     }
 
     fn make_endpoint_spec() -> WriteEndpointSpec {
-        WriteEndpointSpec {
-            pipe_verb: "write".to_string(),
-            sql_table: "unknown_sensor_things".to_string(),
-            capability_path: "sensor.unknown_sensor.write".to_string(),
-            risk_tier: prism_core::RiskTier::Irreversible,
-            batch_limit: 100,
-            batch_mode: BatchMode::Serial,
-            steps: vec![],
-            record_id_field: "id".to_string(),
-        }
+        // #[non_exhaustive]: use WriteEndpointSpec::new() constructor
+        WriteEndpointSpec::new(
+            "write",
+            "unknown_sensor_things",
+            prism_core::RiskTier::Irreversible,
+            "sensor.unknown_sensor.write",
+            100,
+            BatchMode::Serial,
+            "id",
+            vec![],
+        )
     }
 
     /// MED-005: unknown sensor + empty record batch (RecordBatch with 0 rows) →

@@ -24,23 +24,23 @@ fn make_table_with_mapping(
     TableSpec::new_point_in_time(
         "alerts",
         "security_finding",
-        vec![ColumnSpec {
-            name: col_name.to_string(),
-            column_type: col_type,
-            ocsf_field: ocsf_field.map(|s| s.to_string()),
-            options: vec![],
-        }],
-        vec![FetchStep {
-            name: "fetch".to_string(),
-            method: "GET".to_string(),
-            path_template: "/data".to_string(),
-            body_template: None,
-            response_path: "$.data".to_string(),
-            pagination_cursor_path: None,
-            variables_produced: vec![],
-            fan_out_batch_size: None,
-            pagination: None,
-        }],
+        vec![ColumnSpec::new(
+            col_name,
+            col_type,
+            ocsf_field.map(|s| s.to_string()),
+            vec![],
+        )],
+        vec![FetchStep::new(
+            "fetch",
+            "GET",
+            "/data",
+            None,
+            "$.data",
+            None,
+            vec![],
+            None,
+            None,
+        )],
     )
 }
 
@@ -88,30 +88,25 @@ fn test_BC_2_16_003_mixed_mapping_partial_ocsf_partial_raw_extensions() {
         "events",
         "security_finding",
         vec![
-            ColumnSpec {
-                name: "event_time".to_string(),
-                column_type: ColumnType::Datetime,
-                ocsf_field: Some("time".to_string()),
-                options: vec![],
-            },
-            ColumnSpec {
-                name: "internal_ref".to_string(),
-                column_type: ColumnType::String,
-                ocsf_field: None,
-                options: vec![],
-            },
+            ColumnSpec::new(
+                "event_time",
+                ColumnType::Datetime,
+                Some("time".to_string()),
+                vec![],
+            ),
+            ColumnSpec::new("internal_ref", ColumnType::String, None, vec![]),
         ],
-        vec![FetchStep {
-            name: "fetch".to_string(),
-            method: "GET".to_string(),
-            path_template: "/events".to_string(),
-            body_template: None,
-            response_path: "$.data".to_string(),
-            pagination_cursor_path: None,
-            variables_produced: vec![],
-            fan_out_batch_size: None,
-            pagination: None,
-        }],
+        vec![FetchStep::new(
+            "fetch",
+            "GET",
+            "/events",
+            None,
+            "$.data",
+            None,
+            vec![],
+            None,
+            None,
+        )],
     );
     let raw = serde_json::json!({
         "event_time": "2024-01-15T10:30:00Z",
@@ -134,12 +129,12 @@ fn test_BC_2_16_003_mixed_mapping_partial_ocsf_partial_raw_extensions() {
 /// Canonical test vector from BC-2.16.003.
 #[test]
 fn test_BC_2_16_003_coerces_string_42_to_integer_field() {
-    let col = ColumnSpec {
-        name: "event_id".to_string(),
-        column_type: ColumnType::String, // declared as string in sensor
-        ocsf_field: Some("metadata.event_code".to_string()),
-        options: vec![],
-    };
+    let col = ColumnSpec::new(
+        "event_id",
+        ColumnType::String,
+        Some("metadata.event_code".to_string()),
+        vec![],
+    );
 
     let result = ColumnMapper::coerce_value(&serde_json::json!("42"), &col, "metadata.event_code");
 
@@ -154,12 +149,12 @@ fn test_BC_2_16_003_coerces_string_42_to_integer_field() {
 /// Invariant: record is NEVER dropped due to coercion failure.
 #[test]
 fn test_BC_2_16_003_coercion_failure_produces_warning_record_not_dropped() {
-    let col = ColumnSpec {
-        name: "event_code".to_string(),
-        column_type: ColumnType::String,
-        ocsf_field: Some("metadata.event_code".to_string()),
-        options: vec![],
-    };
+    let col = ColumnSpec::new(
+        "event_code",
+        ColumnType::String,
+        Some("metadata.event_code".to_string()),
+        vec![],
+    );
 
     let result = ColumnMapper::coerce_value(
         &serde_json::json!("not-a-number"),
@@ -187,30 +182,30 @@ fn test_BC_2_16_003_invariant_record_never_dropped_on_coercion_failure() {
         "events",
         "security_finding",
         vec![
-            ColumnSpec {
-                name: "event_id".to_string(),
-                column_type: ColumnType::String,
-                ocsf_field: Some("metadata.event_code".to_string()),
-                options: vec![],
-            },
-            ColumnSpec {
-                name: "event_name".to_string(),
-                column_type: ColumnType::String,
-                ocsf_field: Some("activity_name".to_string()),
-                options: vec![],
-            },
+            ColumnSpec::new(
+                "event_id",
+                ColumnType::String,
+                Some("metadata.event_code".to_string()),
+                vec![],
+            ),
+            ColumnSpec::new(
+                "event_name",
+                ColumnType::String,
+                Some("activity_name".to_string()),
+                vec![],
+            ),
         ],
-        vec![FetchStep {
-            name: "fetch".to_string(),
-            method: "GET".to_string(),
-            path_template: "/events".to_string(),
-            body_template: None,
-            response_path: "$.data".to_string(),
-            pagination_cursor_path: None,
-            variables_produced: vec![],
-            fan_out_batch_size: None,
-            pagination: None,
-        }],
+        vec![FetchStep::new(
+            "fetch",
+            "GET",
+            "/events",
+            None,
+            "$.data",
+            None,
+            vec![],
+            None,
+            None,
+        )],
     );
     let raw = serde_json::json!({
         "event_id": "not-a-number",  // will fail coercion

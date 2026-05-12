@@ -27,21 +27,21 @@ use prism_spec_engine::{OrgScopedSpecStore, SpecEngineError};
 
 /// Build a minimal `SensorSpec` with the given `sensor_id`.
 fn make_sensor_spec(sensor_id: &str) -> SensorSpec {
-    SensorSpec {
-        sensor_id: sensor_id.to_string(),
-        name: format!("{sensor_id} sensor"),
-        auth_type: AuthType::ApiKey,
-        base_url: "https://example.com".to_string(),
-        tables: vec![TableSpec::new_point_in_time(
+    SensorSpec::new(
+        sensor_id,
+        format!("{sensor_id} sensor"),
+        AuthType::ApiKey,
+        "https://example.com",
+        vec![TableSpec::new_point_in_time(
             "events",
             "security_finding",
             vec![],
             vec![],
         )],
-        rate_limit_hints: None,
-        version: "1.0.0".to_string(),
-        credential_refs: Vec::new(),
-    }
+        None,
+        "1.0.0",
+        Vec::new(),
+    )
 }
 
 /// Populate an `OrgRegistry` with `(slug, id)` pairs and return it wrapped in `Arc`.

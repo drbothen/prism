@@ -95,21 +95,11 @@ mod bc_gap_fill {
         use crate::pushdown::classify_predicates;
 
         fn make_col(name: &str, option: ColumnOptions) -> ColumnSpec {
-            ColumnSpec {
-                name: name.to_string(),
-                column_type: ColumnType::String,
-                ocsf_field: None,
-                options: vec![option],
-            }
+            ColumnSpec::new(name, ColumnType::String, None, vec![option])
         }
 
         fn make_default_col(name: &str) -> ColumnSpec {
-            ColumnSpec {
-                name: name.to_string(),
-                column_type: ColumnType::String,
-                ocsf_field: None,
-                options: vec![],
-            }
+            ColumnSpec::new(name, ColumnType::String, None, vec![])
         }
 
         fn make_compare_expr(column_name: &str) -> Expr {
@@ -271,21 +261,11 @@ mod bc_gap_fill {
         };
 
         fn make_col(name: &str, option: ColumnOptions) -> ColumnSpec {
-            ColumnSpec {
-                name: name.to_string(),
-                column_type: ColumnType::String,
-                ocsf_field: None,
-                options: vec![option],
-            }
+            ColumnSpec::new(name, ColumnType::String, None, vec![option])
         }
 
         fn make_default_col(name: &str) -> ColumnSpec {
-            ColumnSpec {
-                name: name.to_string(),
-                column_type: ColumnType::String,
-                ocsf_field: None,
-                options: vec![],
-            }
+            ColumnSpec::new(name, ColumnType::String, None, vec![])
         }
 
         fn make_compare_expr(column_name: &str) -> Expr {
@@ -1149,12 +1129,12 @@ mod bc_gap_fill {
         use crate::pushdown::classify_predicates;
 
         fn make_required_col(name: &str) -> ColumnSpec {
-            ColumnSpec {
-                name: name.to_string(),
-                column_type: ColumnType::String,
-                ocsf_field: None,
-                options: vec![ColumnOptions::Required],
-            }
+            ColumnSpec::new(
+                name,
+                ColumnType::String,
+                None,
+                vec![ColumnOptions::Required],
+            )
         }
 
         fn make_compare_expr(column_name: &str) -> Expr {

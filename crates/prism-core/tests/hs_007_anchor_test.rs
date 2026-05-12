@@ -271,6 +271,8 @@ fn test_hs_007_no_legacy_wave_bc_references() {
         .unwrap_or_else(|e| panic!("Cannot read {}: {e}", path.display()));
 
     let (_yaml, body) = parse_frontmatter(&source);
+    let legacy_pattern =
+        regex::Regex::new(r"BC-[12]\.\d+\.\d+").expect("static regex must compile");
 
     let mut violations: Vec<String> = Vec::new();
 
@@ -281,8 +283,6 @@ fn test_hs_007_no_legacy_wave_bc_references() {
         }
 
         // Check for legacy BC-1.X.X or BC-2.X.X patterns anywhere on BC-bearing lines.
-        let legacy_pattern =
-            regex::Regex::new(r"BC-[12]\.\d+\.\d+").expect("static regex must compile");
         if legacy_pattern.is_match(line) {
             violations.push(format!(
                 "  line {}: legacy BC reference — {}",
