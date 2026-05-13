@@ -95,16 +95,18 @@ pub fn v19_built_in_source_type_match() {
 }
 
 /// Violation 25: types::ColumnType exhaustive match (E0004).
+/// ADR-024: types::ColumnType is now re-exported from prism_core::column::ColumnType
+/// (domain-level names Integer/Float/Datetime; #[non_exhaustive] preserved via re-export).
 pub fn v25_types_column_type_match() {
     let types_col_type: TypesColumnType = TypesColumnType::String;
     match types_col_type {
         TypesColumnType::String => {}
-        TypesColumnType::Int64 => {}
-        TypesColumnType::Float64 => {}
+        TypesColumnType::Integer => {}
+        TypesColumnType::Float => {}
         TypesColumnType::Boolean => {}
-        TypesColumnType::Timestamp => {}
+        TypesColumnType::Datetime => {}
         TypesColumnType::Json => {}
-        // After fix-burst-2: E0004 — `_` arm required for #[non_exhaustive] enum
+        // After ADR-024: E0004 — `_` arm required for #[non_exhaustive] enum
     }
 }
 
