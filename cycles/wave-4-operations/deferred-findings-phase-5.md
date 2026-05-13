@@ -62,3 +62,40 @@ Story EC-D-007 (line 126) is internally consistent (cites E-PLUGIN-008 per BC-2.
 ### Resolution Criteria
 
 Before Phase 5 convergence can be declared: error-taxonomy.md E-PLUGIN-008 entry updated so that the message template is not misleading for the boot-time initial-load context, OR a distinct error code for that context is established, with BC-2.17.005 and BC-2.17.006 updated accordingly.
+
+---
+
+## F-LP16-OBS-001 — Workspace Edition Inconsistency (`prism-bin` edition 2021 vs. canonical 2024)
+
+| Field | Value |
+|-------|-------|
+| **Finding ID** | F-LP16-OBS-001 |
+| **Severity** | OBS (out-of-perimeter for story scope; substantive for phase-5) |
+| **Confidence** | HIGH |
+| **Story source** | S-PLUGIN-PREREQ-D |
+| **Surfaced at** | Pass-16 (adversary fresh-context audit) |
+| **Date routed** | 2026-05-13 |
+| **Target** | Workspace-wide edition unification (phase-5 architect adjudication) |
+
+### Evidence
+
+- `crates/prism-bin/Cargo.toml:4` declares `edition = "2021"`.
+- CLAUDE.md §Toolchain states the canonical edition is `"2024"` (rust-toolchain.toml, resolver 2, edition 2024).
+- `crates/prism-spec-engine/Cargo.toml` correctly uses `edition = "2024"`.
+- Other crates were not surveyed in this pass (full workspace audit is a phase-5 sweep task).
+
+### Why It Matters
+
+Inconsistent crate editions create friction for cross-crate feature usage (e.g., `let`-chains, raw-pointer patterns, and other edition-gated syntax are available in edition 2024 but not edition 2021). Future Rust edition deprecation cycles will make edition 2021 a lag item. As prism-bin is the binary entry point for the platform, it should be on the canonical edition.
+
+### Fix Options
+
+**Option A — Workspace-wide edition sweep:** Update all crates to `edition = "2024"` simultaneously. Verify each crate's MSRV compatibility (run `cargo check` after each bump to catch edition-gated breakage).
+
+**Option B — Per-crate migration:** Incremental edition bump as each crate is touched in a feature cycle. Track in tech-debt register. Lowest disruption but longest tail.
+
+**Option C — Architect decision on canonical timeline:** Architect issues an ADR decision or decision log entry specifying "all crates on edition 2024 by Wave 5" (or equivalent). Option A or B executes under that mandate.
+
+### Resolution Criteria
+
+Phase-5 architect adjudication picks an option and either executes the sweep or schedules it with a specific wave anchor. Re-check at session-reviewer post-cycle. The finding is RESOLVED when `crates/prism-bin/Cargo.toml:4` reads `edition = "2024"` (and any other crates found to lag are updated, per the chosen option).
