@@ -23,8 +23,13 @@
 #                                   # here so the adversary knows HOW to verify them.
 
 metadata:
-  version: "1.7"
+  version: "1.8"
   changelog:
+    - version: "1.8"
+      date: 2026-05-13
+      burst: F-LP1-CRITICAL-001-fix
+      findings: [F-LP1-CRITICAL-001, PG-LP1-001]
+      change: "Amend POL-9 verification_steps: add step 5 requiring semantic match between named-alias rows (VP-PLUGIN-NNN) and their sequential VP-NNN row descriptions. Closes process-gap PG-LP1-001 from S-PLUGIN-PREREQ-D pass-1 adversarial review."
     - version: "1.7"
       date: 2026-05-09
       burst: S-WAVE5-PREP-01-fix-pass-2
@@ -188,6 +193,7 @@ policies:
       - "For each VP in VP-INDEX, verify it appears in verification-coverage-matrix.md VP-to-Module table"
       - "Sum coverage matrix per-tool columns — must equal VP-INDEX per-tool totals"
       - "Reverse check: every VP in arch docs must exist in VP-INDEX"
+      - "Named-alias semantic sync: for each VP-PLUGIN-NNN (or other named-alias) row in the Named Series table, verify its description semantically matches the description of the sequential VP-NNN row it aliases. The named row and its sequential counterpart must describe the SAME property. Mismatch means the named-alias table has drifted from ADR-023 §E (the canonical VP definition source) and must be corrected before convergence."
 
   - id: 10
     name: demo_evidence_story_scoped
