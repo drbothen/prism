@@ -338,46 +338,11 @@ impl TableSpec {
     }
 }
 
-/// A credential reference declared in a sensor spec.
-///
-/// References a named credential within this sensor's keyring namespace.
-/// Resolved (reference-only, no secret value) at boot step 5 per BC-2.03.013.
-///
-/// TOML format in `*.sensor.toml` files (optional):
-/// ```toml
-/// [[credential_refs]]
-/// name = "api_key"
-///
-/// [[credential_refs]]
-/// name = "client_secret"
-/// ```
-///
-/// F-PASS2-HIGH-3 (S-WAVE5-PREP-01): added to carry credential refs from TOML
-/// into the in-memory spec so step5_init_credential_store can iterate them.
-///
-/// `#[non_exhaustive]`: forward-compat for plugin TOML schema evolution — fields may
-/// expand as new auth types are added (e.g., scope, rotation policy). Fields may expand
-/// without a semver bump.
-///
-/// # Forward-compatible construction
-/// External callers should use the `new()` constructor for forward-compatible construction.
-#[non_exhaustive]
-#[derive(Debug, Clone, PartialEq, Eq, Default, Serialize, Deserialize)]
-pub struct CredentialRef {
-    /// Logical credential name within this sensor's keyring namespace.
-    /// Example: `"api_key"`, `"client_secret"`.
-    pub name: String,
-}
-
-impl CredentialRef {
-    /// Construct a `CredentialRef` with the given name.
-    ///
-    /// Internal construction shortcut. External callers should use struct-literal +
-    /// `..Default::default()` for forward compatibility when new fields are added.
-    pub fn new(name: impl Into<String>) -> Self {
-        Self { name: name.into() }
-    }
-}
+// `CredentialRef` canonical definition lives in `crate::types` — re-export here
+// so `spec_parser::CredentialRef` import paths remain stable for callers.
+// Consolidation closes TD-S-PLUGIN-PREREQ-C-001-A: the two byte-identical
+// declarations were a Rule 3 violation (Canonical Principle, CLAUDE.md).
+pub use crate::types::CredentialRef;
 
 /// The top-level sensor spec parsed from a `*.sensor.toml` file (BC-2.16.001).
 ///
