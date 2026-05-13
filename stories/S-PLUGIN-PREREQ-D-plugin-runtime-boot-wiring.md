@@ -49,7 +49,7 @@ target_module: prism-bin
 #   format_version check all land in crates/prism-spec-engine/src/plugin/.
 subsystems: [SS-22, SS-17]
 capabilities: [CAP-029, CAP-032, CAP-034]
-version: "1.8"
+version: "1.9"
 level: "L4"
 producer: story-writer
 timestamp: "2026-05-13T10:30:00Z"
@@ -536,7 +536,7 @@ Only the exact string `"1"` disables loading (EC-D-011: values like `"true"`, `"
 
 13. **[tests/fixtures] Commit all 4 `.prx` test fixtures** — `minimal.prx`, `trap_plugin.prx`, `infinite_loop.prx`, `bad_wit.prx` (pre-built binaries) plus WAT sources in `tests/fixtures/src/` — see Fixture Strategy
 
-14. **[prism-spec-engine] Update Structured Event Catalog** — see §Structured Event Catalog Additions
+14. **[prism-spec-engine] Verify Structured Event Catalog wiring** — emit each event from the function-name anchor recorded in BC-2.16.002 v1.11 catalog row; if implementation discovers ANY new event_type site beyond the 7 already cataloged, amend BC-2.16.002 in the same commit per PG-LP11-001; see §Structured Event Catalog Additions for the canonical 7-row list and BC source-of-truth for Level/Emitter/Fields/Trigger
 
 15. **[tech-debt-register] Mark TD-S-PLUGIN-PREREQ-B-002/004/005/011/012 RESOLVED** (state-manager responsibility in same commit)
 
@@ -544,7 +544,7 @@ Only the exact string `"1"` disables loading (EC-D-011: values like `"true"`, `"
 
 | Item | Estimated Tokens |
 |------|-----------------|
-| Story spec (this file) | ~7,000 |
+| Story spec (this file) | ~7,100 |
 | BC files (8 BCs × ~1,500) | ~12,000 |
 | ADR-023 §C4 (relevant sections) | ~4,000 |
 | crates/prism-spec-engine/src/plugin/ source (mod.rs, host_functions.rs) + src/pipeline.rs + src/auth_provider.rs | ~8,000 |
@@ -552,7 +552,7 @@ Only the exact string `"1"` disables loading (EC-D-011: values like `"true"`, `"
 | Cargo.toml files (2) | ~1,000 |
 | tests/fixtures/src/*.wat (4 WAT source files × ~50 LOC each) | ~800 |
 | Test output / error messages during TDD | ~4,000 |
-| **Total** | **~39,800** |
+| **Total** | **~39,900** |
 
 This is approximately 15.5% of a 256k-token context window — within the 20-30% limit.
 No splitting required.
@@ -798,8 +798,11 @@ In `crates/prism-bin/src/boot.rs`, the plugin-load step must be annotated with:
 Previous stories in this epic (PREREQ-A/B/C) established the following lessons that apply here:
 
 1. **PG-LP11-001: New structured event type sites MUST amend BC-2.16.002 in the same burst.**
-   This story introduces 7 new event types (see Structured Event Catalog Additions). The implementer
-   must add all 7 rows to BC-2.16.002 in the same commit as the first site that emits them.
+   This story introduces 7 new event types (see §Structured Event Catalog Additions). All 7 rows
+   already exist in BC-2.16.002 v1.11 (Path B Canonical Structured Event Catalog, fix-burst-8 commit
+   4ed96e06). The implementer's responsibility is to wire each emission site to match the BC row
+   metadata (Level/Emitter/Fields/Trigger). If implementation discovers ANY new event_type site beyond
+   the 7 cataloged, amend BC-2.16.002 in the same commit per PG-LP11-001 invariant.
 
 2. **Volatile pin discipline:** Do not add `# volatile pin` comments to wasmtime or any other
    dep without explicit architect approval. The wasmtime 44 pin has an explicit RUSTSEC rationale
@@ -878,6 +881,7 @@ comment explaining the addition.
 
 | Version | Burst | Date | Author | Change |
 |---------|-------|------|--------|--------|
+| 1.9 | pass-10 fix-burst-9 stage 1 | 2026-05-13 | story-writer | Closes F-LP10-LOW-001 (Task 14 + Previous Story Intelligence item 1 Path B sibling-prose propagation). Task 14 reworded from "Update Structured Event Catalog" (implies implementer authors rows) to "Verify Structured Event Catalog wiring" with explicit instruction to emit from BC-2.16.002 v1.11 function-name anchors and amend only if new sites are discovered. Previous Story Intelligence item 1 corrected from "must add all 7 rows" to "all 7 rows already exist in BC-2.16.002 v1.11 (Path B, fix-burst-8 commit 4ed96e06); implementer wires emission sites to match BC row metadata." Upstream PO Path B at `4ed96e06`. Sibling-site sweep confirmed zero additional sites carrying old "add"/"author catalog rows" or "rows do not yet exist" framing. Token Budget delta +~110 tokens; Total recomputed below (see §Token Budget Estimate). |
 | 1.8 | pass-9 fix-burst-8 stage 2 | 2026-05-13 | story-writer | F-LP9-MED-001 story portion: Catalog Additions preamble updated to Path B — events already added to BC-2.16.002 v1.11 in fix-burst-8 stage 1 (commit 4ed96e06); implementer role reframed from "will add" to "verify wiring matches BC row". Table metadata corrected to match BC-2.16.002 v1.11 canonical rows: (1) `plugin_load_disabled_via_envvar` emitter corrected from `boot.rs plugin-load step` → `boot::plugin_load_step` (TD-VSDD-091 function-name anchor); (2) `plugin_load_disabled_via_envvar` Level corrected from `WARN/AUDIT` → `WARN` (BC v1.11 authoritative); (3) `plugin_http_request_blocked` Level corrected from `WARN/AUDIT` → `WARN` (BC v1.11 authoritative); (4) trigger text for `plugin_load_unsigned` and 5 other rows aligned to BC v1.11 prose. Sister-site sweep: no "PipelineExecutor catalog" old framing found in story file (grep confirmed zero hits). F-LP9-LOW-001: AC-9 body closure note temporal contradiction resolved — Form A: "Closed by BC-2.17.002 v1.4 amendment (fix-burst-6); current pinned version v1.5 (fix-burst-7 lifecycle_status-only sweep)." Upstream PO stage 1 at factory SHA `4ed96e06`. |
 | 1.7 | pass-8 fix-burst-7 stage 2 | 2026-05-13 | story-writer | Closes F-LP8-HIGH-001 story portion (line 16 frontmatter comment "All BCs are active" → accurate POL-14 lifecycle_status statement: BC-2.22.001 active; BC-2.17.001/002/003/004/006/007 draft pending PR-merge promotion). Closes F-LP8-MEDIUM-001 (Structured Event Catalog `plugin_load_unsigned` Level AUDIT → WARN; audit-channel routing captured via `event_type` field note; `plugin_load_disabled_via_envvar` WARN/AUDIT unchanged — correct per BC-2.22.001 §Postconditions escape valve). Closes F-LP8-MEDIUM-002 (AC-9 trace header extended: ADR-023 §C4 + BC-2.17.002 v1.5 §Error Conditions E-PLUGIN-005; AC-9 closure note version ref v1.4 → v1.5). Upstream stages: PO BC lifecycle sweep at factory SHA `a03d9d36`, architect ADR-022 v1.3 cross-ref at factory SHA `b0021477`. |
 | 1.6 | pass-7 fix-burst-6 stage 2 | 2026-05-13 | story-writer | Closes F-LP7-HIGH-001 (path mis-anchor `src/plugin/pipeline.rs` → `src/pipeline.rs`: Architecture Mapping, Purity Classification, AC-16 body, Token Budget row, File Structure Modified Files, Match-Site Inventory ×4 rows — 8 sites swept). Closes F-LP7-HIGH-002 (path mis-anchor `src/plugin/auth_provider.rs` → `src/auth_provider.rs`: Architecture Mapping, Purity Classification, AC-15 body, File Structure Modified Files, Match-Site Inventory ×2 rows — 5 sites swept). Closes F-LP7-HIGH-004 (paper-fix risk AC-9 / TD-B-005: new Match-Site Inventory row for `host_functions.rs` per-request `.timeout(10)` override; Task 4 extended with TD-VSDD-060 sibling-site sweep instructions for `host_http_request` builder + doc-comment update). Closes F-LP7-MED-002 (Task 9 step numbering: removed "or new 8, query-engine=new 9" alternative; final wording: storage=7, plugin-load=7.5, query-engine=8, MCP=9 with `step9_start_mcp_server` retained, rationale cited). AC traces updated for BC-2.22.001 v1.4: AC-1 references step 7.5 in §Sequencing Invariant; AC-2 references §Pre-Traffic Gate Invariant condition 6; AC-3 references `plugin_load_disabled_via_envvar` audit event name from §Postconditions escape valve; AC-4 references happy-path step 7.5 postcondition. Event name `plugin_disabled_env` corrected to `plugin_load_disabled_via_envvar` throughout (Scope, EC-D-004, AC-3, AC-18 Task 9, Structured Event Catalog — 5 additional sites). AC-9 out-of-perimeter note removed and replaced with 1-line closed reference (MED-001 closed by BC-2.17.002 v1.4 amendment). State-manager stage 3 will close F-LP7-LOW-001 (BC-2.22.001 lifecycle_status) and update indexes. |
