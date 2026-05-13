@@ -6,7 +6,7 @@ target_pass: 8
 findings_closed: "4_actionable + 1_OBS_in_scope (5_total)"
 findings_deferred: "1 (F-LP8-OBS-002 codification candidate to cycle-closing)"
 producer: state-manager (orchestrator-coordinated; PO + architect parallel + story-writer + state-manager stages)
-factory_shas: [a03d9d36, b0021477, 867ee947, "<this commit SHA>"]
+factory_shas: [a03d9d36, b0021477, 867ee947, c8c618c4]
 trajectory: "16 → 8 → 6 → 4 → 0 → 4 → 7 → 4"
 next_action: "Adversary pass-9 dispatch — target streak 0/3 → 1/3 if CLEAN"
 ---
@@ -33,7 +33,7 @@ See §Process-Gap Codifications for cycle-closing codification candidates regist
 
 ## §Verification Rederivation
 
-Placeholder for pass-9. Pass-9 adversary will rederive all 5 closures from fresh context against story v1.7 + BC amendments at factory SHA `<this commit SHA>`.
+Placeholder for pass-9. Pass-9 adversary will rederive all 5 closures from fresh context against story v1.7 + BC amendments at factory SHA `c8c618c4`.
 
 Expected verification:
 - F-LP8-HIGH-001: story line 16 reads "BC-2.22.001 active; remaining 6 plugin BCs draft pending POL-14..."; 6 BC files have `lifecycle_status: draft`.

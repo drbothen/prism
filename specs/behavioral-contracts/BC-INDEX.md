@@ -1,7 +1,7 @@
 ---
 document_type: behavioral-contract-index
 level: L3
-version: "4.69"
+version: "4.70"
 status: draft
 producer: product-owner
 timestamp: 2026-05-13T00:00:00
@@ -360,6 +360,8 @@ Phase 3-patch additions (2026-04-16): 22 new BCs added in Burst 1 to close trace
 - Subsystem 19: Infusion Enrichment Framework (AD-020, CAP-031)
 
 ### Change Log (Adversarial Review Fixes)
+
+**v4.70 (2026-05-13):** state(D-480/D-481) fix-burst-8 stage-3 — BC-INDEX frontmatter v4.69→v4.70. fix-burst-8 closed both pass-9 actionable findings in-scope (zero MVP-deferrals per CLAUDE.md Canonical Principle Rule 3). PO stage 1 (4ed96e06): BC-2.16.002 v1.10→v1.11 Path B adjudication — scope broadened from "PipelineExecutor and pipeline.rs helpers" to canonical universal catalog (all `prism-spec-engine` + `prism-bin` boot-step plugin-load emissions); catalog header renamed "Canonical Structured Event Catalog (v1.11)"; 7 new rows: plugin_load_unsigned, plugin_load_disabled_via_envvar, plugin_load_failed_manifest_no_allowed_urls, plugin_load_failed_format_version_exceeded, plugin_load_failed_wit_invalid, plugin_http_request_blocked, pipeline_max_requests_exceeded; total 16→23 rows. Story-writer stage 2 (0f126bbe): story v1.7→v1.8 Catalog Additions preamble Path B sync + 5 metadata corrections + F-LP9-LOW-001 AC-9 line 373 Form A fix. F-LP9-OBS-001 [process-gap] routed to cycle-closing checklist (codification candidate). total_contracts=236 unchanged; active_contracts=229 unchanged.
 
 **v4.69 (2026-05-13):** state(D-478/D-479) fix-burst-7 stage-3 — (1) 6 plugin BCs lifecycle_status Path B sweep (BC-2.17.001/002/003/004/006/007): `lifecycle_status: active` → `lifecycle_status: draft` per BC-INDEX draft status and absence of POL-14 merge event (stale value from Wave-6-pre-build-sweep at v1.1; corrected fix-burst-7 stage 1A by product-owner); versions bumped: BC-2.17.001 v1.2→v1.3, BC-2.17.002 v1.4→v1.5, BC-2.17.003 v1.3→v1.4, BC-2.17.004 v1.3→v1.4, BC-2.17.006 v1.3→v1.4, BC-2.17.007 v1.1→v1.2; (2) BC-2.22.001 v1.4→v1.5: `plugin_load_unsigned` level adjudicated Option A (WARN canonical tracing level + orthogonal audit-channel routing via `event_type` field; clarifying sentence added to §Postconditions plugin-load happy-path block to remove WARN/AUDIT ambiguity for implementer). Index rows updated to reflect new versions. total_contracts=236 unchanged; active_contracts=229 unchanged (6 plugin BCs remain draft; BC-2.22.001 remains active).
 
