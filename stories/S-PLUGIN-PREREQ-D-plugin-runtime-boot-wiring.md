@@ -49,7 +49,7 @@ target_module: prism-bin
 #   format_version check all land in crates/prism-spec-engine/src/plugin/.
 subsystems: [SS-22, SS-17]
 capabilities: [CAP-029, CAP-032, CAP-034]
-version: "1.7"
+version: "1.8"
 level: "L4"
 producer: story-writer
 timestamp: "2026-05-13T10:30:00Z"
@@ -370,7 +370,7 @@ Integration tests that need HTTP mocking construct their own test-scoped client 
 directly into `PluginRuntime::new(...)` in the test setup (already done in PREREQ-B test
 conventions).
 
-> **Closed by BC-2.17.002 v1.5 amendment (fix-burst-6):** BC-2.17.002 E-PLUGIN-005 timeout
+> **Closed by BC-2.17.002 v1.4 amendment (fix-burst-6); current pinned version v1.5 (fix-burst-7 lifecycle_status-only sweep):** BC-2.17.002 E-PLUGIN-005 timeout
 > updated from 10s to 30s by product-owner in fix-burst-6 stage 1, aligning with ADR-023 §C4
 > and `PLUGIN_HTTP_CLIENT_TIMEOUT_SECS = 30`. No cross-doc gap remains.
 
@@ -650,22 +650,28 @@ Red Gate density target: >= 15 failing tests before first implementation commit.
 
 ## Structured Event Catalog Additions
 
-Per BC-2.16.002 and PG-LP11-001: every new `tracing::*!(event_type=…)` site introduced by this
-story MUST be added to the BC-2.16.002 Structured Event Catalog in the same commit as the
-implementation. The following catalog rows will be added:
+Per BC-2.16.002 v1.11 (Canonical Structured Event Catalog) and PG-LP11-001: every new
+`tracing::*!(event_type=…)` site introduced by this story is enumerated as a row in the
+BC-2.16.002 v1.11 Canonical Structured Event Catalog. The 7 events below have already been
+added to BC-2.16.002 in fix-burst-8 (commit 4ed96e06); the implementer's responsibility is
+to ensure each emission site is wired correctly during S-PLUGIN-PREREQ-D implementation,
+with the BC-2.16.002 row as the source of truth for Level / Emitter / Fields / Trigger.
 
 | Event Type | Level | Emitter | Fields | Trigger |
 |-----------|-------|---------|--------|---------|
-| `plugin_load_unsigned` | WARN | `PluginRuntime::load_all_plugins` | `plugin_path`, `plugin_hash` | Each successfully loaded plugin (v1.0 unsigned); audit-channel routing via `event_type: plugin_load_unsigned` field per BC-2.16.002 |
-| `plugin_load_disabled_via_envvar` | WARN/AUDIT | boot.rs plugin-load step | `env_var: "PRISM_DISABLE_PLUGIN_LOAD"` | PRISM_DISABLE_PLUGIN_LOAD=1 at boot |
-| `plugin_load_failed_manifest_no_allowed_urls` | ERROR | `PluginRuntime::load_plugin` | `plugin_path`, `error: E-PLUGIN-013` | Plugin manifest missing allowed_urls field |
-| `plugin_load_failed_format_version_exceeded` | ERROR | `PluginRuntime::load_plugin` | `plugin_path`, `format_version`, `max_supported` | Plugin format_version > CURRENT_SUPPORTED_VERSION |
-| `plugin_load_failed_wit_invalid` | ERROR | `PluginRuntime::load_plugin` | `plugin_path`, `missing_export`, `error: E-PLUGIN-001` | WIT validation failure |
-| `plugin_http_request_blocked` | WARN/AUDIT | `host_http_request` | `plugin_id`, `url`, `reason: allowlist_mismatch` | URL not in plugin manifest allowed_urls |
-| `pipeline_max_requests_exceeded` | ERROR | `PipelineExecutor` executor loop | `plugin_id`, `total_requests`, `max: MAX_REQUESTS_PER_PIPELINE` | Cumulative request count exceeds 10,000 |
+| `plugin_load_unsigned` | WARN | `PluginRuntime::load_all_plugins` | `plugin_path`, `plugin_hash` | Each successfully loaded plugin (v1.0 unsigned); audit-channel routing encoded by `event_type` field per ADR-023 §C4 |
+| `plugin_load_disabled_via_envvar` | WARN | `boot::plugin_load_step` | `env_var: "PRISM_DISABLE_PLUGIN_LOAD"` | `PRISM_DISABLE_PLUGIN_LOAD=1` detected at boot before plugin-load step; emitted before skip to preserve DI-004 audit completeness |
+| `plugin_load_failed_manifest_no_allowed_urls` | ERROR | `PluginRuntime::load_plugin` | `plugin_path`, `error: E-PLUGIN-013` | Plugin manifest missing required `allowed_urls` field; plugin rejected; remaining plugins continue loading |
+| `plugin_load_failed_format_version_exceeded` | ERROR | `PluginRuntime::load_plugin` | `plugin_path`, `format_version`, `max_supported` | Plugin `format_version` exceeds `CURRENT_SUPPORTED_VERSION`; plugin rejected; remaining plugins continue loading |
+| `plugin_load_failed_wit_invalid` | ERROR | `PluginRuntime::load_plugin` | `plugin_path`, `missing_export`, `error: E-PLUGIN-001` | WIT validation failure — plugin component is missing one or more required WIT exports; plugin rejected; remaining plugins continue loading |
+| `plugin_http_request_blocked` | WARN | `host_http_request` | `plugin_id`, `url`, `reason: allowlist_mismatch` | Plugin attempted an outbound HTTP request to a URL not present in its manifest `allowed_urls` list; request blocked; plugin execution continues |
+| `pipeline_max_requests_exceeded` | ERROR | `PipelineExecutor` executor loop | `plugin_id`, `total_requests`, `max: MAX_REQUESTS_PER_PIPELINE` | Cumulative HTTP request count across all pipeline steps reaches `MAX_REQUESTS_PER_PIPELINE` (10,000); pipeline aborts |
 
-For each new site, the implementer MUST amend BC-2.16.002 with the catalog row in the same burst
-per PG-LP11-001 SOP codified in `.factory/cycles/wave-4-operations/lessons.md` Lesson 1.
+The BC-2.16.002 v1.11 catalog row is the authoritative source for each event's field schema,
+audit role, and recurrence policy. PG-LP11-001 requires that any new `event_type` sites added
+during S-PLUGIN-PREREQ-D implementation that are not listed above MUST be enumerated in
+BC-2.16.002 as a BC amendment in the same commit as the implementation, per SOP codified in
+`.factory/cycles/wave-4-operations/lessons.md` Lesson 1.
 
 ## Fixture Strategy
 
@@ -872,6 +878,7 @@ comment explaining the addition.
 
 | Version | Burst | Date | Author | Change |
 |---------|-------|------|--------|--------|
+| 1.8 | pass-9 fix-burst-8 stage 2 | 2026-05-13 | story-writer | F-LP9-MED-001 story portion: Catalog Additions preamble updated to Path B — events already added to BC-2.16.002 v1.11 in fix-burst-8 stage 1 (commit 4ed96e06); implementer role reframed from "will add" to "verify wiring matches BC row". Table metadata corrected to match BC-2.16.002 v1.11 canonical rows: (1) `plugin_load_disabled_via_envvar` emitter corrected from `boot.rs plugin-load step` → `boot::plugin_load_step` (TD-VSDD-091 function-name anchor); (2) `plugin_load_disabled_via_envvar` Level corrected from `WARN/AUDIT` → `WARN` (BC v1.11 authoritative); (3) `plugin_http_request_blocked` Level corrected from `WARN/AUDIT` → `WARN` (BC v1.11 authoritative); (4) trigger text for `plugin_load_unsigned` and 5 other rows aligned to BC v1.11 prose. Sister-site sweep: no "PipelineExecutor catalog" old framing found in story file (grep confirmed zero hits). F-LP9-LOW-001: AC-9 body closure note temporal contradiction resolved — Form A: "Closed by BC-2.17.002 v1.4 amendment (fix-burst-6); current pinned version v1.5 (fix-burst-7 lifecycle_status-only sweep)." Upstream PO stage 1 at factory SHA `4ed96e06`. |
 | 1.7 | pass-8 fix-burst-7 stage 2 | 2026-05-13 | story-writer | Closes F-LP8-HIGH-001 story portion (line 16 frontmatter comment "All BCs are active" → accurate POL-14 lifecycle_status statement: BC-2.22.001 active; BC-2.17.001/002/003/004/006/007 draft pending PR-merge promotion). Closes F-LP8-MEDIUM-001 (Structured Event Catalog `plugin_load_unsigned` Level AUDIT → WARN; audit-channel routing captured via `event_type` field note; `plugin_load_disabled_via_envvar` WARN/AUDIT unchanged — correct per BC-2.22.001 §Postconditions escape valve). Closes F-LP8-MEDIUM-002 (AC-9 trace header extended: ADR-023 §C4 + BC-2.17.002 v1.5 §Error Conditions E-PLUGIN-005; AC-9 closure note version ref v1.4 → v1.5). Upstream stages: PO BC lifecycle sweep at factory SHA `a03d9d36`, architect ADR-022 v1.3 cross-ref at factory SHA `b0021477`. |
 | 1.6 | pass-7 fix-burst-6 stage 2 | 2026-05-13 | story-writer | Closes F-LP7-HIGH-001 (path mis-anchor `src/plugin/pipeline.rs` → `src/pipeline.rs`: Architecture Mapping, Purity Classification, AC-16 body, Token Budget row, File Structure Modified Files, Match-Site Inventory ×4 rows — 8 sites swept). Closes F-LP7-HIGH-002 (path mis-anchor `src/plugin/auth_provider.rs` → `src/auth_provider.rs`: Architecture Mapping, Purity Classification, AC-15 body, File Structure Modified Files, Match-Site Inventory ×2 rows — 5 sites swept). Closes F-LP7-HIGH-004 (paper-fix risk AC-9 / TD-B-005: new Match-Site Inventory row for `host_functions.rs` per-request `.timeout(10)` override; Task 4 extended with TD-VSDD-060 sibling-site sweep instructions for `host_http_request` builder + doc-comment update). Closes F-LP7-MED-002 (Task 9 step numbering: removed "or new 8, query-engine=new 9" alternative; final wording: storage=7, plugin-load=7.5, query-engine=8, MCP=9 with `step9_start_mcp_server` retained, rationale cited). AC traces updated for BC-2.22.001 v1.4: AC-1 references step 7.5 in §Sequencing Invariant; AC-2 references §Pre-Traffic Gate Invariant condition 6; AC-3 references `plugin_load_disabled_via_envvar` audit event name from §Postconditions escape valve; AC-4 references happy-path step 7.5 postcondition. Event name `plugin_disabled_env` corrected to `plugin_load_disabled_via_envvar` throughout (Scope, EC-D-004, AC-3, AC-18 Task 9, Structured Event Catalog — 5 additional sites). AC-9 out-of-perimeter note removed and replaced with 1-line closed reference (MED-001 closed by BC-2.17.002 v1.4 amendment). State-manager stage 3 will close F-LP7-LOW-001 (BC-2.22.001 lifecycle_status) and update indexes. |
 | 1.5 | pass-6 fix-burst-5 | 2026-05-13 | story-writer | Closes F-LP6-MEDIUM-001 (Token Budget arithmetic: row sum 39,800 corrected; Total ~38,300→~39,800; percentage ~15%→~15.5%). Closes F-LP6-LOW-002 (v1.1 changelog BC count notation: "8→7 BCs net" rewritten to "swap BC-2.17.005 for BC-2.17.007 (7→7 BCs net)"). Closes F-LP6-LOW-003 (Match-Site Inventory Closure column: "AC-8 tasks:" corrected to "Task 8:" to match column convention). Closes F-LP6-OBS-004 (AC-9 header re-anchored from BC-2.17.002 timeout citation to ADR-023 §C4; cross-doc gap BC-2.17.002 E-PLUGIN-005 10s vs 30s documented in AC-9 body as out-of-perimeter note for future PO-led amendment). 4/4 in-scope findings closed. |
