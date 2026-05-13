@@ -1,7 +1,7 @@
 ---
 document_type: pipeline-state
 level: ops
-version: "7.195"
+version: "7.196"
 producer: state-manager
 timestamp: 2026-05-13T08:52:23Z
 inputs: []
@@ -22,12 +22,12 @@ repos:
   - axiathon
   - ocsf-proto-gen
   - mcp-claroty-xdome
-current_step: "D-472. PREREQ-D PASS-5 CLEAN — first streak advance 0/3→1/3 after 4 fix-burst cycles. ZERO findings in fresh-context audit. Trajectory 16→8→6→4→0 geometric convergence. Need 2 more CLEAN passes (pass-6 + pass-7 idempotency at unchanged HEAD 34ab594c) for 3-CLEAN convergence per BC-5.39.001. Pass-6 dispatched in parallel with this backfill."
+current_step: "D-473/D-474. PREREQ-D PASS-6 IDEMPOTENCY CAUGHT PASS-5 FALSE-CLEAN — 4 findings (1M/2L/1OBS) via fresh-context audit at unchanged HEAD 34ab594c. Streak 1/3 → 0/3 RESET. Fix-burst-5 closed all 4 (story-writer 8254f075 → story v1.5). Trajectory 16→8→6→4→0→4. Pass-7 next target 0/3→1/3."
 feature_branch_head: "ea958a4d"
 worktree_status: "merged"
-adversary_streak: "3/3 LOCKED"
-adversary_pass_count: 5
-pending_findings: "0 CRIT + 0 HIGH + 0 MED + 0 LOW"
+adversary_streak: "0/3 (reset — pass-5 false-CLEAN; pass-6 idempotency caught 4 findings)"
+adversary_pass_count: 6
+pending_findings: "0 CRIT + 0 HIGH + 0 MED + 0 LOW (fix-burst-5 closed all 4)"
 demo_evidence_path: "docs/demo-evidence/S-PLUGIN-PREREQ-C/"
 local_converged_at_pass: 5
 wave_3_carry_forward_debt: "ALL_REMEDIATE — W4-FIX-PERF-001/002, W4-FIX-CODE-001, W4-FIX-SEC-001 through W4-FIX-SEC-004 planned per D-203"
@@ -135,7 +135,7 @@ bc_count_corrected: 236
 cap_count: 40  # active; highest_cap_id: CAP-040 (CAP-038 Multi-Tenant Identity, CAP-039 Multi-Tenant Fixture Gen, CAP-040 Multi-Tenant Adapter Dispatch — Wave 3 Phase 3.A Step 2)
 bc_index_version: "4.67"
 vp_index_version: "1.34"
-story_index_version: "v2.71"
+story_index_version: "v2.72"
 policies_version: "1.10"
 total_stories: 150
 red_gate_wave_0a_complete: 2026-04-21
@@ -184,9 +184,9 @@ workspace_test_count: 3598  # updated at D-433 fix-burst-1 closure (just check c
 | **Language** | Rust |
 | **Target Workspace** | per-analyst stdio (MCP server) |
 | **Started** | 2026-04-13 |
-| **Last Updated** | 2026-05-13 (D-472 — PREREQ-D pass-5 CLEAN; streak 0/3→1/3; trajectory 16→8→6→4→0; STATE+HANDOFF v7.194→v7.195) |
+| **Last Updated** | 2026-05-13 (D-473/474 — PREREQ-D pass-6 BLOCKED-soft idempotency false-CLEAN reset; fix-burst-5 closed 4/4; STATE+HANDOFF v7.195→v7.196) |
 | **Current Phase** | Wave 3 Tier-3 COMPLETE — **Wave 3-A 4 of 4 SHIPPED**; plugin migration: PREREQ-F + PREREQ-A + PREREQ-B + **PREREQ-C MERGED** (PR #144 ea958a4d 2026-05-12T23:14:05Z); PREREQ keystone trio COMPLETE; PLUGIN-MIGRATION Wave 1 unblocked; PREREQ-D/E pending |
-| **Current Step** | D-472 — PREREQ-D pass-5 CLEAN (streak 0/3→1/3). ZERO findings in fresh-context audit. Trajectory 16→8→6→4→0 geometric convergence. Pass-6 idempotency next. |
+| **Current Step** | D-474 — PREREQ-D fix-burst-5 CLOSED 4/4 (story-writer 8254f075; story v1.5). Streak reset 0/3. Trajectory 16→8→6→4→0→4. Pass-7 next target 0/3→1/3. |
 
 ## Phase Progress
 
@@ -218,12 +218,10 @@ workspace_test_count: 3598  # updated at D-433 fix-burst-1 closure (just check c
 
 | Step | Agent | Status | Output |
 |------|-------|--------|--------|
-| D-466/D-467 — PREREQ-D fix-burst-3 CLOSED (6/6) + POL-20 workspace sweep | state-manager | **COMPLETE** | 16/24 BC violations canonicalized (cycle-3/cycle-1); 8 blocked by pre-existing TD-031 — new TD filed. BC-INDEX v4.64→v4.65. Fix-burst-3 closure report at cycles/wave-4-operations/adversarial-reviews/S-PLUGIN-PREREQ-D-fix-burst-3.md. STATE+HANDOFF v7.191→v7.192. Pass-4 dispatchable. |
-| D-468 — POL-20 sweep 100% + TD-VSDD-091 cleanup (8 BC violations unblocked) | state-manager | **COMPLETE** | 8 BC violations unblocked: TD-VSDD-091 line-number anchors → symbol-name + POL-20 wave-3/v3.0.0 → cycle-3 via Write tool. BC-INDEX v4.65→v4.66. Anchored regex later revealed 8 additional violations (D-469). STATE+HANDOFF v7.192→v7.193. |
-| D-468 — POL-20 sweep 100% + TD-VSDD-091 cleanup (8 BC violations unblocked) | state-manager | **COMPLETE** | 8 BC violations unblocked: TD-VSDD-091 line-number anchors → symbol-name + POL-20 wave-3/v3.0.0 → cycle-3 via Write tool. BC-INDEX v4.65→v4.66. Anchored regex later revealed 8 additional violations (D-469). STATE+HANDOFF v7.192→v7.193. |
-| D-465 — PREREQ-D adversary pass-4 BLOCKED-soft (2M/1L/1OBS; streak 0/3) | state-manager | **COMPLETE** | Pass-4 report at cycles/wave-4-operations/adversarial-reviews/S-PLUGIN-PREREQ-D-pass-4.md. Trajectory 16→8→6→4. 5/6 pass-3 CONFIRMED CLEAN + 1 PAPER-FIX (F-LP3-MED-002 unanchored grep). 4 new findings. Fix-burst-4 dispatched. STATE+HANDOFF v7.193→v7.194. |
 | D-469/470/471 — PREREQ-D pass-4 fix-burst CLOSED (4/4) + POL-20 ACTUAL 100% | state-manager | **COMPLETE** | 8 more BCs migrated (cycle-1-pass-80→cycle-1; opaque burst-IDs→2026-05-08). policies.yaml v1.9→v1.10 (anchored-regex amendment, F-LP4-OBS-004). BC-INDEX v4.66→v4.67. Story v1.3→v1.4 (story-writer parallel). POL-20 anchored verification: zero violations. STATE+HANDOFF v7.193→v7.194. |
 | D-472 — PREREQ-D pass-5 CLEAN (streak 0/3→1/3; trajectory 16→8→6→4→0) | state-manager | **COMPLETE** | ZERO findings. All 4 pass-4 closures load-bearing verified. POL-20 anchored clean. Geometric convergence confirmed. Pass-6 idempotency next. Report: cycles/wave-4-operations/adversarial-reviews/S-PLUGIN-PREREQ-D-pass-5.md. STATE+HANDOFF v7.194→v7.195. |
+| D-473 — PREREQ-D pass-6 BLOCKED-soft (1M/2L/1OBS; idempotency false-CLEAN reset; streak 1/3→0/3) | state-manager | **COMPLETE** | 4 findings at unchanged HEAD 34ab594c (idempotency check). Pass-5 confirmed false-CLEAN. Trajectory 16→8→6→4→0→4. Fix-burst-5 dispatched. Report: cycles/wave-4-operations/adversarial-reviews/S-PLUGIN-PREREQ-D-pass-6.md. STATE+HANDOFF v7.195→v7.196. |
+| D-474 — PREREQ-D fix-burst-5 CLOSED (4/4); story v1.5 at SHA 8254f075 | state-manager | **COMPLETE** | F-LP6-MED-001 Token Budget 38,300→39,800; F-LP6-LOW-002 changelog 8→7 arithmetic corrected; F-LP6-LOW-003 Match-Site AC-8→Task 8; F-LP6-OBS-004 AC-9 re-anchored ADR-023 §C4. STORY-INDEX v2.71→v2.72. Pass-7 next target streak 0/3→1/3. Closure: cycles/wave-4-operations/adversarial-reviews/S-PLUGIN-PREREQ-D-fix-burst-5.md. STATE+HANDOFF v7.195→v7.196. |
 
 ## Decisions Log
 
@@ -231,6 +229,8 @@ _D-001..D-046 archived: [cycles/phase-3-dtu-wave-2/decisions-archive-d001-d032.m
 
 | ID | Decision | Rationale | Phase | Date |
 |----|----------|-----------|-------|------|
+| D-474 | 2026-05-13 | **PREREQ-D fix-burst-5 CLOSED 4/4 (story-writer 8254f075 → story v1.5)** (state-manager). Pass-6 BLOCKED-soft 4 findings closed in-scope by story-writer: F-LP6-MED-001 Token Budget Total 38,300→39,800 (rows verified sum to 39,800; percentage 15%→15.5%); F-LP6-LOW-002 v1.1 changelog "8→7 BCs net" → "swap BC-2.17.005 for BC-2.17.007 (7→7 BCs net)"; F-LP6-LOW-003 Match-Site Inventory "AC-8 tasks" → "Task 8"; F-LP6-OBS-004 AC-9 re-anchored to ADR-023 §C4 plugin HTTP defaults (authoritative ADR-level source); BC-2.17.002 amendment surfaced as out-of-perimeter. STORY-INDEX v2.71→v2.72. Process-gap: Token Budget arithmetic validation not covered by any tool/agent — codification candidate. Zero deferrals. Closure report: cycles/wave-4-operations/adversarial-reviews/S-PLUGIN-PREREQ-D-fix-burst-5.md. Pass-7 next target streak 0/3→1/3. STATE+HANDOFF v7.195→v7.196. | plugin-migration | 2026-05-13 |
+| D-473 | 2026-05-13 | **PREREQ-D pass-6 BLOCKED-soft (1M/2L/1OBS) — idempotency audit caught pass-5 false-CLEAN; streak 1/3→0/3 RESET** (adversary). Fresh-context audit at unchanged HEAD 34ab594c (idempotency check). Pass-5 was false-CLEAN: 4 findings missed. F-LP6-MED-001 Token Budget arithmetic drift (rows sum 39,800 but Total showed 38,300 — 1,500-token gap; survived 5 full passes); F-LP6-LOW-002 v1.1 changelog "8→7 BCs net" arithmetic anomaly (was a swap, net 7→7); F-LP6-LOW-003 Match-Site Inventory "AC-8 tasks" vs "Task 8" terminology; F-LP6-OBS-004 AC-9 cites BC-2.17.002 timeout 30s but BC declares 10s (ADR vs BC authority question). Trajectory 16→8→6→4→0→4 (regression post false-CLEAN). Process-gap codified: Token Budget row arithmetic validation gap. Report: cycles/wave-4-operations/adversarial-reviews/S-PLUGIN-PREREQ-D-pass-6.md. STATE+HANDOFF v7.195→v7.196. | plugin-migration | 2026-05-13 |
 | D-472 | 2026-05-13 | **PREREQ-D pass-5 CLEAN — first streak advance (0/3 → 1/3)** (adversary + state-manager). Adversary pass-5 fresh-context audit at story SHA 34ab594c surfaced ZERO findings. All 4 pass-4 closures verified load-bearing via direct file evidence: F-LP4-MED-001 anchored regex zero violations across 236 BCs; F-LP4-MED-002 changelog rows truthful; F-LP4-LOW-003 AC-7 None-arm stripped consistent with AC-17 Vec<String>; F-LP4-OBS-004 policies.yaml v1.10 POL-20 verification_steps anchored + worked example embedded. POL-20 workspace-wide compliance confirmed clean. Trajectory 16(pass-1)→8(pass-2)→6(pass-3)→4(pass-4)→0(pass-5) — textbook geometric convergence. Streak 0/3→1/3 (FIRST clean pass). Pass-6 idempotency next. Report: cycles/wave-4-operations/adversarial-reviews/S-PLUGIN-PREREQ-D-pass-5.md. STATE+HANDOFF v7.194→v7.195. | plugin-migration | 2026-05-13 |
 | D-471 | 2026-05-13 | **PREREQ-D pass-4 fix-burst CLOSED (4/4)** (state-manager + story-writer). Pass-4 BLOCKED-soft 4 findings closed in-scope: state-manager (F-LP4-MED-001: 8 BCs migrated to canonical POL-20 format via Write tool; BC-INDEX v4.67; F-LP4-OBS-004: policies.yaml v1.9→v1.10 anchored-regex amendment); story-writer parallel (F-LP4-MED-002: story v1.3→v1.4 changelog accuracy; F-LP4-LOW-003: AC-7 None-branch clarification). Zero deferrals. Trajectory: 16→8→6→4. Adversary pass-5 next; target streak 0/3→1/3 if CLEAN. Closure report: cycles/wave-4-operations/adversarial-reviews/S-PLUGIN-PREREQ-D-fix-burst-4.md. | plugin-migration | 2026-05-13 |
 | D-470 | 2026-05-13 | **POL-20 ACTUAL 100% workspace sweep — 8 BCs missed by prior unanchored grep migrated** (state-manager). Pass-4 adversary caught that D-468 verification used UNANCHORED grep which false-greened on `cycle-1-pass-80` (substring matches `cycle-[0-9]+`) and opaque burst-IDs containing embedded dates. Correct anchored regex `^(cycle-[0-9]+\|[0-9]{4}-[0-9]{2}-[0-9]{2})$` (after quote-stripping) reveals 8 violations. Migrations: BC-2.20.001..005 `cycle-1-pass-80`→`cycle-1`; BC-2.06.011 + BC-2.21.001 + BC-2.22.001 opaque burst-IDs→`2026-05-08`. policies.yaml v1.9→v1.10 closes F-LP4-OBS-004 (anchored-regex requirement codified + unanchored grep forbidden). BC-INDEX v4.66→v4.67. Anchored verification: zero violations. | plugin-migration | 2026-05-13 |
@@ -270,17 +270,17 @@ Cycle files: [burst-log](cycles/phase-2-patch/burst-log.md) | [convergence-traje
 
 ---
 
-## Session Resume Checkpoint (2026-05-13-v7.195-d472-pass-5-clean)
+## Session Resume Checkpoint (2026-05-13-v7.196-d474-fix-burst-5-closed)
 
-_Previous checkpoint (v7.194/D-469/470/471 pass-4 fix-burst closed) archived: [cycles/wave-4-operations/session-checkpoints.md](cycles/wave-4-operations/session-checkpoints.md)_
+_Previous checkpoint (v7.195/D-472 pass-5 CLEAN) archived: [cycles/wave-4-operations/session-checkpoints.md](cycles/wave-4-operations/session-checkpoints.md)_
 
-**STATE v7.195. D-472 — PREREQ-D pass-5 CLEAN. Streak 0/3→1/3. Trajectory 16→8→6→4→0 geometric convergence.** develop@95d46be2. factory-artifacts HEAD: run `git -C .factory log -1` (per TD-VSDD-053). vsdd-factory rc.16 active.
+**STATE v7.196. D-473/474 — PREREQ-D pass-6 idempotency BLOCKED-soft (false-CLEAN reset); fix-burst-5 closed 4/4. Streak 0/3. Trajectory 16→8→6→4→0→4.** Story v1.5 at SHA 8254f075. develop@95d46be2. factory-artifacts HEAD: run `git -C .factory log -1` (per TD-VSDD-053). vsdd-factory rc.16 active.
 
-**RESUME ACTION:** Pass-5 CLEAN (streak 1/3). Pass-6 idempotency next at unchanged HEAD 34ab594c; pass-7 thereafter. After 3-CLEAN convergence: test-writer dispatch for Red Gate stubs, then implementer TDD green, then pr-manager 9-step PR lifecycle, then squash-merge to develop unblocking PLUGIN-MIGRATION Wave 1.
+**RESUME ACTION:** Pass-6 fix-burst-5 CLOSED (4/4). Pass-7 next at story SHA 8254f075; target streak 0/3→1/3. Need 3 consecutive CLEAN passes for BC-5.39.001 convergence. After convergence: test-writer dispatch for Red Gate stubs, then implementer TDD green, then pr-manager 9-step PR lifecycle, then squash-merge to develop unblocking PLUGIN-MIGRATION Wave 1.
 
 **PREREQ TRIO STATUS (all merged):** PREREQ-A PR #142 + PREREQ-B PR #143 + PREREQ-C PR #144 ea958a4d. develop@95d46be2 (post-ColumnType migration). PLUGIN-MIGRATION Wave 1 gated on PREREQ-D + PREREQ-E.
 
-**Current spec versions:** BC-INDEX v4.67, STORY-INDEX v2.71, VP-INDEX v1.34, ARCH-INDEX v2.42, policies v1.10 (POL-20 anchored-regex), BC-2.17.007 v1.1, develop@95d46be2; STATE v7.195 SESSION-HANDOFF v7.195. **Key files:** [SESSION-HANDOFF.md](SESSION-HANDOFF.md) | [cycles/wave-4-operations/adversarial-reviews/S-PLUGIN-PREREQ-D-pass-5.md](cycles/wave-4-operations/adversarial-reviews/S-PLUGIN-PREREQ-D-pass-5.md)
+**Current spec versions:** BC-INDEX v4.67, STORY-INDEX v2.72, VP-INDEX v1.34, ARCH-INDEX v2.42, policies v1.10 (POL-20 anchored-regex), BC-2.17.007 v1.1, develop@95d46be2; STATE v7.196 SESSION-HANDOFF v7.196. **Key files:** [SESSION-HANDOFF.md](SESSION-HANDOFF.md) | [cycles/wave-4-operations/adversarial-reviews/S-PLUGIN-PREREQ-D-pass-6.md](cycles/wave-4-operations/adversarial-reviews/S-PLUGIN-PREREQ-D-pass-6.md)
 
 ## Agent Routing Quick Reference
 
