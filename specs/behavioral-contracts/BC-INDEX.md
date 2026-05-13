@@ -1,7 +1,7 @@
 ---
 document_type: behavioral-contract-index
 level: L3
-version: "4.70"
+version: "4.71"
 status: draft
 producer: product-owner
 timestamp: 2026-05-13T00:00:00
@@ -203,7 +203,7 @@ Phase 3-patch additions (2026-04-16): 22 new BCs added in Burst 1 to close trace
 | BC-2.15.010 | Decorator Three-Phase Model — Config-Time, Query-Time, Periodic | 15 - Storage Layer | CAP-026 | P0 | draft |
 | BC-2.15.011 | Internal Table Registration — RocksDB Domains as DataFusion Tables | 15 - Storage Layer | CAP-028 | P0 | draft |
 | BC-2.16.001 | Sensor Spec File Loading — Parse TOML, Validate Schema, Register Tables | 16 - Spec Engine | CAP-029 | P0 | draft |
-| BC-2.16.002 | Multi-Step Fetch Pipeline Execution — Sequential Steps with Variable Interpolation | 16 - Spec Engine | CAP-029 | P0 | active (promoted draft→active D-427 per POL-14; anchor story S-PLUGIN-PREREQ-B merged PR #143 develop@ae7e26c8 2026-05-12) — v1.11 |
+| BC-2.16.002 | Multi-Step Fetch Pipeline Execution — Sequential Steps with Variable Interpolation | 16 - Spec Engine | CAP-029 | P0 | active (promoted draft→active D-427 per POL-14; anchor story S-PLUGIN-PREREQ-B merged PR #143 develop@ae7e26c8 2026-05-12) — v1.12 |
 | BC-2.16.003 | Column-to-OCSF Mapping at Query Time — Map Sensor Columns to OCSF Fields Per Spec | 16 - Spec Engine | CAP-029 | P0 | draft |
 | BC-2.16.004 | ~~Rust Escape Hatch for Custom Adapters — Trait-Based Override When Config Is Insufficient~~ | 16 - Spec Engine | CAP-029 | P0 | deprecated (ADR-023 PREREQ-F) |
 | BC-2.16.005 | `reload_config` MCP Tool — Re-Read All Config Files, Validate, Atomic Swap, Notify | 16 - Spec Engine | CAP-030 | P1 | draft |
@@ -360,6 +360,8 @@ Phase 3-patch additions (2026-04-16): 22 new BCs added in Burst 1 to close trace
 - Subsystem 19: Infusion Enrichment Framework (AD-020, CAP-031)
 
 ### Change Log (Adversarial Review Fixes)
+
+**v4.71 (2026-05-13):** state(D-498/D-499) fix-burst-17 stage-3 — BC-INDEX frontmatter v4.70→v4.71. BC-2.16.002 v1.11→v1.12 (product-owner stage 1A @ 84f58565): 2 new structured event catalog rows added — `plugin_load_failed_manifest_name_missing` (E-PLUGIN-015; WARN level; audit role: plugin load failure audit; recurrence: once per manifest name validation failure) + `plugin_load_failed_manifest_version_malformed` (E-PLUGIN-016; WARN level; audit role: plugin load failure audit; recurrence: once per manifest version validation failure). Catalog total 23→25 rows. Closes F-LP18-MED-001 BC portion. Story-writer stage 1B (4b28d5d6) closes F-LP18-MED-001 story portion + F-LP18-LOW-001 + F-LP18-LOW-002 (STORY-INDEX v2.83→v2.84 in parallel). F-LP18-OBS-001 reinforces existing process-gap codification candidate 5 (4th lexical-vs-semantic-sweep recurrence); no new deferral. 9th consecutive single-commit-with-TBD-pin (F-LP10-OBS-001 decisively stable). total_contracts=236 unchanged; active_contracts=229 unchanged.
 
 **v4.70 (2026-05-13):** state(D-480/D-481) fix-burst-8 stage-3 — BC-INDEX frontmatter v4.69→v4.70. fix-burst-8 closed both pass-9 actionable findings in-scope (zero MVP-deferrals per CLAUDE.md Canonical Principle Rule 3). PO stage 1 (4ed96e06): BC-2.16.002 v1.10→v1.11 Path B adjudication — scope broadened from "PipelineExecutor and pipeline.rs helpers" to canonical universal catalog (all `prism-spec-engine` + `prism-bin` boot-step plugin-load emissions); catalog header renamed "Canonical Structured Event Catalog (v1.11)"; 7 new rows: plugin_load_unsigned, plugin_load_disabled_via_envvar, plugin_load_failed_manifest_no_allowed_urls, plugin_load_failed_format_version_exceeded, plugin_load_failed_wit_invalid, plugin_http_request_blocked, pipeline_max_requests_exceeded; total 16→23 rows. Story-writer stage 2 (0f126bbe): story v1.7→v1.8 Catalog Additions preamble Path B sync + 5 metadata corrections + F-LP9-LOW-001 AC-9 line 373 Form A fix. F-LP9-OBS-001 [process-gap] routed to cycle-closing checklist (codification candidate). total_contracts=236 unchanged; active_contracts=229 unchanged.
 
