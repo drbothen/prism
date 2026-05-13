@@ -23,8 +23,13 @@
 #                                   # here so the adversary knows HOW to verify them.
 
 metadata:
-  version: "1.8"
+  version: "1.9"
   changelog:
+    - version: "1.9"
+      date: 2026-05-13
+      burst: state(D-464)
+      findings: [F-LP2-OBS-007]
+      change: "Add POL-20 (bc_introduced_field_canonical_format). Codifies that greenfield BCs use `introduced: cycle-N` and fix-burst-introduced BCs use `introduced: YYYY-MM-DD` (ISO date). Closes F-LP2-OBS-007 from S-PLUGIN-PREREQ-D pass-2 adversarial review."
     - version: "1.8"
       date: 2026-05-13
       burst: F-LP1-CRITICAL-001-fix
@@ -342,3 +347,27 @@ policies:
       - "Run `rg --type rust 'PRISM_TEST_' crates/*/src/ --glob '!**/tests/**'` to find env-var reads in production source. Each hit must be inside a `#[cfg(feature = \"test-injection\")]` block, NOT inside `#[cfg(test)]` alone."
       - "Run `just iter <crate>` (without `--all-features`) and verify injection-dependent tests are SKIPPED (not FAILED). If any injection test runs without the feature and fails → policy violation."
       - "Run `just iter <crate> --all-features` and verify injection-dependent tests are INCLUDED and PASS. If they are incorrectly excluded → policy violation."
+
+  - id: 20
+    name: bc_introduced_field_canonical_format
+    description: |
+      The `introduced:` frontmatter field on BC files has two canonical formats depending on origin:
+      (1) BCs created during a greenfield cycle use `introduced: cycle-N` (e.g., `cycle-1`).
+      (2) BCs created during a fix burst (adversarial remediation, process-gap closure, etc.)
+          use `introduced: YYYY-MM-DD` (ISO 8601 date of introduction, e.g., `2026-05-13`).
+      Opaque burst-ID notation (e.g., `introduced: wave-4-fix-burst-F-LP1-HIGH-004`) is
+      prohibited — it embeds internal finding IDs that are meaningless without lookup context
+      and silently collide if burst IDs are ever renumbered or renamed.
+    adopted: state(D-464)-2026-05-13
+    severity: MEDIUM
+    enforced_by: [adversary-prompt, consistency-validator]
+    scope: [bc]
+    lint_hook: null
+    citations:
+      - "F-LP2-OBS-007 (S-PLUGIN-PREREQ-D pass-2 adversarial review)"
+    verification_steps:
+      - "For each BC file, read the `introduced:` frontmatter field."
+      - "If the value matches `cycle-N` (e.g., `cycle-1`, `cycle-2`) → PASS (greenfield origin)."
+      - "If the value matches `YYYY-MM-DD` (ISO 8601 date, e.g., `2026-05-13`) → PASS (fix-burst origin)."
+      - "If the value is any other string (burst ID, finding ID, wave-label with finding suffix, etc.) → VIOLATION. Report the BC ID, the offending value, and the correct format based on whether the BC was authored in a greenfield cycle or a fix burst."
+      - "Cross-check: if a BC's `closes_finding:` frontmatter field is populated, it was introduced in a fix burst → must use date format, not `cycle-N`."

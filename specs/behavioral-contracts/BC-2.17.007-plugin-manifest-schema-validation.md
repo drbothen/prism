@@ -1,7 +1,7 @@
 ---
 document_type: behavioral-contract
 level: L3
-version: "1.0"
+version: "1.1"
 status: draft
 producer: product-owner
 timestamp: 2026-05-13T00:00:00Z
@@ -10,7 +10,7 @@ origin: greenfield
 subsystem: "SS-17"
 capability: "CAP-032"
 lifecycle_status: active
-introduced: wave-4-fix-burst-F-LP1-HIGH-004
+introduced: 2026-05-13
 modified: 2026-05-13
 deprecated: ~
 deprecated_by: ~
@@ -176,4 +176,5 @@ VP-PLUGIN-007 (VP-152): `PluginRuntime` allowlist not-None post-boot assertion �
 
 | Version | Burst | Date | Author | Change |
 |---------|-------|------|--------|--------|
+| 1.1 | state(D-464) | 2026-05-13 | state-manager | F-LP2-OBS-007 closure — `introduced:` field updated from opaque burst-ID notation to canonical date-keyed format per POL-20 (bc_introduced_field_canonical_format). No spec content change. |
 | 1.0 | wave-4-fix-burst-F-LP1-HIGH-004 | 2026-05-13 | product-owner | Initial contract — closes F-LP1-HIGH-004; establishes manifest schema validation as prerequisite gate before WIT validation (BC-2.17.006); authors E-PLUGIN-013/014/015/016 |

@@ -49,10 +49,10 @@ target_module: prism-bin
 #   format_version check all land in crates/prism-spec-engine/src/plugin/.
 subsystems: [SS-22, SS-17]
 capabilities: [CAP-029, CAP-032, CAP-034]
-version: "1.1"
+version: "1.2"
 level: "L4"
 producer: story-writer
-timestamp: "2026-05-13T00:00:00Z"
+timestamp: "2026-05-13T02:00:00Z"
 updated: "2026-05-13"
 input-hash: "6954524"
 traces_to: []
@@ -868,5 +868,6 @@ comment explaining the addition.
 
 | Version | Burst | Date | Author | Change |
 |---------|-------|------|--------|--------|
+| 1.2 | pass-2 fix-burst-2 | 2026-05-13 | story-writer | Closes F-LP2-MED-001 (AC-14 re-anchored story-local; hot-reload test names drop BC-2.17.005 prefix), F-LP2-MED-002 (BC-2.16.002 added to behavioral_contracts + anchor_bcs + inputs + body BC table; capabilities/anchor_capabilities updated to [CAP-029,CAP-032,CAP-034]; Token Budget 7→8 BCs), F-LP2-MED-003 (red_gate_tests 0→25), F-LP2-LOW-004 (CAP-034 already in capabilities via BC-2.22.001; anchor_capabilities now union-correct; capabilities updated to [CAP-029,CAP-032,CAP-034]), F-LP2-LOW-005 (AC-17 moved to follow AC-16 — body order now matches AC numbering), F-LP2-OBS-008 (.github/PULL_REQUEST_TEMPLATE.md non-crate note added to File Structure). 6/8 pass-2 findings closed in-scope. |
 | 1.1 | pass-1 fix-burst | 2026-05-13 | story-writer | Closes F-LP1-HIGH-002/003/005/006/007/008/009/010/011/012/013/014 + F-LP1-OBS-015/016 (14 findings). Re-anchors AC-5 to BC-2.17.007 (F-LP1-HIGH-004 PO fix). Drops BC-2.17.005 from frontmatter (scope gap per F-LP1-MED-010; S-1.12-FOLLOWUP owns watcher promotion). Adds BC-2.17.007 to frontmatter + body (8→7 BCs net after 2.17.005 drop + 2.17.007 add). Adds AC-17 (HostState #[non_exhaustive]) and AC-18 (PRISM_DISABLE_PLUGIN_LOAD precedence). Token budget updated. Fixture Strategy prose corrected to "4 fixtures". reqwest::Client single-instance semantics made explicit in AC-9, Architecture Mapping, and Implementation Notes. Test names standardized to BC/VP prefix convention. make_host_state sibling sites enumerated. sha2 workspace dep confirmed. wasmtime advisory count claim replaced with cargo-audit-based language. |
 | 1.0 | PREREQ-D authorship | 2026-05-13 | story-writer | Initial authorship. Scope derived from ADR-023 v1.18 §C4. 16 ACs, 5 TDs absorbed (TD-B-002/004/005/011/012). |
