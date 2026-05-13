@@ -4,7 +4,7 @@ adr_id: "ADR-022"
 title: "Production Runtime Wiring — prism-bin Chassis, Boot Sequence, Wiring Contracts, Infusion Fate, Hot-Reload Watcher, MCP Topology"
 status: ACCEPTED
 date: "2026-05-08"
-version: "1.1"
+version: "1.2"
 producer: architect
 subsystems_affected: [SS-06, SS-10, SS-11, SS-16, SS-17, SS-19]
 supersedes: null
@@ -29,7 +29,7 @@ runtime_deliverables:
   - crates/prism-mcp/src/tools/mod.rs      # tool router + all 35+ tool implementations
   - crates/prism-spec-engine/src/hot_reload.rs  # HotReloadWatcher::start/stop (notify 7)
 wiring_deferred_to: null  # This ADR IS the wiring specification — no further deferral
-input-hash: "[md5]"
+input-hash: "[pending-recompute]"
 ---
 
 # ADR-022: Production Runtime Wiring
@@ -53,23 +53,56 @@ runtime is functionally absent:
 
 - `prism-mcp/src/lib.rs` is a 10-line stub (verified: `wc -l` = 10; only `pub mod
   safety_envelope` and `pub mod tool_registry` — no rmcp server, no tool router, no binary).
-- `QueryEngine::execute` at `engine.rs:276` is `todo!("S-3.02 — QueryEngine::execute")`.
-- `run_materialization_pipeline` at `materialization.rs:241` is `todo!("S-3.02 — ...")`.
-- `RocksDbTableProvider::schema/scan/register_internal_tables` at `internal_tables.rs:125/139/168`
-  are `todo!("S-3.02 — ...")`.
-- `WriteExecutor::execute` Phase 3 fetch at `write_pipeline.rs:349` is `let fetched_records:
+- `QueryEngine::execute` in `engine.rs` was `todo!("S-3.02 — QueryEngine::execute")` until
+  resolved by S-3.02-FOLLOWUP-RUNTIME (PR #141 c6dd6602, 2026-05-10). HISTORICAL.
+- `run_materialization_pipeline` in `materialization.rs` was `todo!("S-3.02 — ...")` until
+  resolved by S-3.02-FOLLOWUP-RUNTIME. HISTORICAL.
+- `RocksDbTableProvider::schema/scan/register_internal_tables` in `internal_tables.rs`
+  were `todo!("S-3.02 — ...")` until resolved by S-3.02-FOLLOWUP-RUNTIME. HISTORICAL.
+- `WriteExecutor::execute` Phase 3 fetch at `write_pipeline.rs` is `let fetched_records:
   Vec<...> = vec![];` — hardcoded empty, never fetches records.
 - `WriteCapableTableProvider::insert_into/delete_from/update` at
-  `write_table_registration.rs:176/190/205` return `DataFusionError::NotImplemented("S-3.07-pending")`.
-- `SensorAdapter::write()` default at `adapter.rs:365` returns `WriteNotImplemented` for all
+  `write_table_registration.rs` return `DataFusionError::NotImplemented("S-3.07-pending")`.
+- `SensorAdapter::write()` default at `adapter.rs` returns `WriteNotImplemented` for all
   four built-in sensors; no concrete override exists.
-- `HotReloadWatcher::start/stop` at `hot_reload.rs:66/72` are
+- `HotReloadWatcher::start/stop` at `hot_reload.rs` are
   `unimplemented!("S-1.12: ... Red Gate stub")`.
 - `ConfigManager::new` and `parse_spec_directory` are called only from test code; no production
   binary instantiates them (verified: grep for callers outside test files returns zero matches).
 
 Bundles A (taxonomy reform), B (runtime gap), D (doc cleanup) are the three cleanup epics
 approved at D-302. This ADR is the Phase B-0 architecture output for Bundle B.
+
+---
+
+## Decision
+
+The Prism workspace acquires a `prism-bin` binary crate as the sole `[[bin]]` target. The
+binary implements an ordered 11-step boot sequence (§B) that constructs all subsystems in
+dependency order and exposes them via an rmcp 1.4 stdio MCP server. Infusions (§D) are
+retained but deferred to Wave 5 (REDO). Hot-reload watcher (§E) runs as a background task
+post-boot. Full wiring contracts per subsystem are specified in §C.
+
+---
+
+## Rationale
+
+The workspace audit (D-301) confirmed that no binary constructs or wires any subsystem. This
+ADR closes that gap by specifying the wiring contracts, boot sequence, and story seeds for
+implementation. See §A–§G for per-subsystem rationale. The single-binary decision is driven
+by the per-analyst stdio deployment model (AD-005). The infusion REDO decision is driven by
+critical-path analysis (§D — MCP server and query engine are blocking; infusions are not).
+
+---
+
+## Consequences
+
+- `prism-bin` crate added to workspace at `S-WAVE5-PREP-01` — all subsystems become wired.
+- `QueryEngine::execute` gap closed by S-3.02-FOLLOWUP-RUNTIME (merged PR #141 c6dd6602).
+- Hot-reload watcher remains `unimplemented!()` until S-1.12-FOLLOWUP.
+- MCP server (`PrismServer`) absent from `prism-mcp` until S-5.01-FOLLOWUP-MCP-BOOT.
+- Write path gaps (Phase 3 fetch, SQL DML) remain until W3-FIX-S307-001/002/003.
+- S-1.14 reclassified `staged-redo`; infusion framework retained at Wave 5 scope.
 
 ---
 
@@ -169,7 +202,7 @@ Step 4   [BLOCKING] Sensor TOML spec load
          Action: construct ConfigManager::new(snapshot) wrapped in Arc<ArcSwap<ConfigManager>>
          Action: validate all sensor specs (format + credential ref resolution)
          Failure: exit 2 (sensor spec parse failure)
-         NOTE: currently parse_spec_directory (prism-spec-engine/src/config_manager.rs:75)
+         NOTE: currently parse_spec_directory (prism-spec-engine/src/config_manager.rs)
                and ConfigManager::new are real but called only from tests. This step is the
                first production call site.
 
@@ -185,16 +218,16 @@ Step 6   [BLOCKING] Audit subsystem init
 
 Step 7   [BLOCKING] Storage + internal-tables provider init
          Action: open RocksDB with all 17 column families (per AD-004; prism-storage)
-         Action: call register_internal_tables (prism-query/src/internal_tables.rs:164)
-                 — currently todo!("S-3.02 — register_internal_tables"); contract gap
+         Action: call register_internal_tables (prism-query/src/internal_tables.rs)
+                 — was todo!("S-3.02 — register_internal_tables") until S-3.02-FOLLOWUP-RUNTIME
          Action: construct AdapterRegistry::init_registry_for_org per loaded sensor specs
          Failure: exit 4 (RocksDB open failure or internal-tables registration failure)
 
 Step 8   [BLOCKING → BACKGROUND] QueryEngine + WriteExecutor construction
          Action: construct QueryEngine (prism-query); bind AdapterRegistry + StorageBackend
          Action: construct WriteExecutor (prism-query); bind feature-flag check + capability check
-         Note: QueryEngine::execute at engine.rs:276 is todo!() — S-3.02-FOLLOWUP-RUNTIME
-               resolves this before Step 8 can function
+         Note: QueryEngine::execute in engine.rs was todo!() — resolved by S-3.02-FOLLOWUP-RUNTIME
+               (PR #141 c6dd6602, 2026-05-10)
          After construction completes: engine accepts queries (via MCP tools)
          Failure: exit 4
 
@@ -209,7 +242,7 @@ Step 9   [BACKGROUND] MCP server start
 
 Step 10  [BACKGROUND] Hot-reload watcher install
          Action: call HotReloadWatcher::start(manager.clone(), config.spec_dir, debounce_ms=500)
-         Action: currently unimplemented!() at hot_reload.rs:66 — S-1.12-FOLLOWUP resolves
+         Action: currently unimplemented!() at hot_reload.rs — S-1.12-FOLLOWUP resolves
          Background task: fs events → validate → arc-swap (§E)
          Failure: log warning (non-fatal — degrade gracefully without reload; alert is emitted)
 
@@ -243,10 +276,10 @@ For each subsystem, the constructor / init / shutdown function that `prism-bin` 
 use prism_spec_engine::config_manager::{parse_spec_directory, ConfigManager};
 use arc_swap::ArcSwap;
 
-// File: crates/prism-spec-engine/src/config_manager.rs:75 — REAL (not stubbed)
+// File: crates/prism-spec-engine/src/config_manager.rs — REAL (not stubbed)
 pub fn parse_spec_directory(spec_dir: &Path) -> Result<ConfigSnapshot, SpecEngineError>;
 
-// File: crates/prism-spec-engine/src/config_manager.rs:27 — REAL (not stubbed)
+// File: crates/prism-spec-engine/src/config_manager.rs — REAL (not stubbed)
 impl ConfigManager {
     pub fn new(snapshot: ConfigSnapshot) -> Self;
     pub fn current(&self) -> Arc<ConfigSnapshot>;
@@ -271,17 +304,16 @@ use prism_query::engine::QueryEngine;
 impl QueryEngine {
     pub fn new(registry: Arc<AdapterRegistry>, storage: Arc<dyn RocksStorageBackend>,
                ocsf: Arc<OcsfNormalizer>) -> Self;
-    // execute is TODO — contract gap:
+    // execute and execute_scheduled: resolved by S-3.02-FOLLOWUP-RUNTIME (PR #141 c6dd6602)
     pub async fn execute(&self, query_str: &str, options: QueryOptions)
-        -> Result<QueryResult, PrismError>;  // engine.rs:276 — todo!("S-3.02")
+        -> Result<QueryResult, PrismError>;
 }
 ```
 
-Contract gap: `QueryEngine::execute` at `crates/prism-query/src/engine.rs:276` is `todo!()`.
-Also: `run_materialization_pipeline` at `materialization.rs:241` and `resolve_source_refs` at
-`materialization.rs:263` are `todo!()`. `RocksDbTableProvider::schema/scan` at
-`internal_tables.rs:125/139` are `todo!()`. `register_internal_tables` at
-`internal_tables.rs:168` is `todo!()`. All are resolved by `S-3.02-FOLLOWUP-RUNTIME`.
+Contract gap: `QueryEngine::execute` and `QueryEngine::execute_scheduled` in engine.rs were
+`todo!()`. Also: `run_materialization_pipeline` and `resolve_source_refs` in materialization.rs,
+and `RocksDbTableProvider::{schema,scan}`, `register_internal_tables` in internal_tables.rs were
+`todo!()`. All resolved by `S-3.02-FOLLOWUP-RUNTIME` (PR #141 c6dd6602, 2026-05-10). HISTORICAL.
 
 ### WriteExecutor (SS-11 / prism-query)
 
@@ -294,15 +326,15 @@ impl WriteExecutor {
     pub fn new(feature_flags: Arc<FeatureFlagStore>, audit: Arc<AuditEmitter>) -> Self;
     // execute has structural gap — Phase 3 fetch hardcoded empty:
     pub async fn execute(&self, plan: WritePlan)
-        -> Result<WriteExecutionReport, PrismError>;  // write_pipeline.rs:349 — empty vec![]
+        -> Result<WriteExecutionReport, PrismError>;  // write_pipeline.rs — empty vec![]
 }
 ```
 
 Contract gaps:
-- `write_pipeline.rs:349` — Phase 3 fetch returns `vec![]` (never fetches records).
-- `adapter.rs:365` — `SensorAdapter::write()` default returns `WriteNotImplemented`; no
+- `write_pipeline.rs` — Phase 3 fetch returns `vec![]` (never fetches records).
+- `adapter.rs` — `SensorAdapter::write()` default returns `WriteNotImplemented`; no
   concrete override exists for CrowdStrike, Cyberint, Claroty, or Armis.
-- `write_table_registration.rs:176/190/205` — `insert_into/delete_from/update` return
+- `write_table_registration.rs` — `insert_into/delete_from/update` return
   `DataFusionError::NotImplemented("S-3.07-pending")`.
 
 Resolved by: `W3-FIX-S307-001` (concrete adapter write overrides), `W3-FIX-S307-002`
@@ -318,12 +350,12 @@ impl HotReloadWatcher {
     pub fn new() -> Self;
     // Both are unimplemented!() — contract gap:
     pub fn start(&self, manager: Arc<ConfigManager>, spec_dir: PathBuf,
-                 debounce_ms: u64) -> Result<(), SpecEngineError>;  // hot_reload.rs:66
-    pub fn stop(&self) -> Result<(), SpecEngineError>;               // hot_reload.rs:72
+                 debounce_ms: u64) -> Result<(), SpecEngineError>;  // hot_reload.rs
+    pub fn stop(&self) -> Result<(), SpecEngineError>;               // hot_reload.rs
 }
 ```
 
-Contract gap: both methods are `unimplemented!()` at `hot_reload.rs:66/72`. Resolved by
+Contract gap: both methods are `unimplemented!()` at `hot_reload.rs`. Resolved by
 `S-1.12-FOLLOWUP`.
 
 ### MCP Server (SS-10 / prism-mcp)
@@ -389,11 +421,11 @@ This is more work than the REDO story and produces a worse product. RETIRE is re
 ### S-1.14-REDO scope constraints
 
 S-1.14-REDO must implement (in dependency order):
-1. `InfusionLoader::parse/load_all/validate_credentials` (loader.rs:42/50/57/66)
-2. `InfusionLruCache::get/insert` (cache.rs:109/120) — LRU backed by RocksDB CF `infusion_cache`
-3. `MmdbSource::load/enrich_single/enrich_batch` (sources/mmdb.rs:23/29/37)
+1. `InfusionLoader::{parse,load_all,validate_credentials}`
+2. `InfusionLruCache::{get,insert}` — LRU backed by RocksDB CF `infusion_cache`
+3. `MmdbSource::{load,enrich_single,enrich_batch}`
 4. `CsvSource` and `JsonLookupSource` equivalents
-5. `plugin_bridge::enrich_via_plugin` (plugin_bridge.rs:26/37) — calls S-1.15 WASM runtime
+5. `plugin_bridge::enrich_via_plugin` — calls S-1.15 WASM runtime
 6. DataFusion UDF registration for `enrich(source, field)` expression
 7. Pipe stage `| enrich <source>` compilation to UDF invocation
 
@@ -499,7 +531,7 @@ impl PrismServer {
 ### Tool registration via `#[tool_router]` macro
 
 All tools are registered in a single `#[tool_router]` impl block per the rmcp 1.4 API.
-The 35-tool claim in `module-decomposition.md:513` is aspirational but grounded in BC-2.13.*
+The 35-tool claim in `module-decomposition.md` is aspirational but grounded in BC-2.13.*
 (the tool catalog BC). Tool count at MVP target: the full BC-2.13.* catalog.
 
 ### Per-tool input validation
@@ -582,19 +614,15 @@ boot-steps 1–6. New provisional BCs may be needed for: config-load (BC-2.BOOT.
 
 ---
 
-### Story 2: S-3.02-FOLLOWUP-RUNTIME — QueryEngine Execution Pipeline
+### Story 2: S-3.02-FOLLOWUP-RUNTIME — QueryEngine Execution Pipeline (HISTORICAL — merged PR #141 c6dd6602)
 
-**Scope:** Implement the eight `todo!()` sites in `prism-query`:
-- `QueryEngine::execute` at `engine.rs:276`
-- `QueryEngine::execute_scheduled` at `engine.rs:317`
-- `run_materialization_pipeline` at `materialization.rs:241`
-- `resolve_source_refs` at `materialization.rs:263`
-- `RocksDbTableProvider::schema/table_type/scan/supports_filters_pushdown` at
-  `internal_tables.rs:125/129/139/146`
-- `register_internal_tables` at `internal_tables.rs:168`
+**Scope:** Implemented the `todo!()` sites in `prism-query`:
+- `QueryEngine::execute` and `QueryEngine::execute_scheduled` in engine.rs
+- `run_materialization_pipeline` and `resolve_source_refs` in materialization.rs
+- `RocksDbTableProvider::{schema,table_type,scan,supports_filters_pushdown}` in internal_tables.rs
+- `register_internal_tables` in internal_tables.rs
 
-This story makes the query engine functional from end to end. It is the critical-path
-dependency for all MCP tool calls that execute PrismQL.
+This story made the query engine functional end to end. Merged 2026-05-10 via PR #141 (c6dd6602).
 
 **Points estimate:** 8
 
@@ -613,7 +641,7 @@ the story can proceed in isolation with integration tests).
 **Scope:** Implement `fn write(...)` override in each of the four built-in sensor adapters:
 CrowdStrike, Cyberint, Claroty, Armis. Each override must call the appropriate sensor write
 API endpoint per the sensor's TOML spec `[[endpoints]]` write section. The default
-`adapter.rs:365` body returns `WriteNotImplemented` and must not be replaced — it remains the
+`adapter.rs` body returns `WriteNotImplemented` and must not be replaced — it remains the
 correct default for sensors that do not declare write endpoints.
 
 **Points estimate:** 5
@@ -630,10 +658,10 @@ correct default for sensors that do not declare write endpoints.
 
 **Scope:**
 - W3-FIX-S307-002: Wire `QueryMaterializer` into `WriteExecutor::execute` Phase 3 at
-  `write_pipeline.rs:349` so it actually fetches records. Requires S-3.02-FOLLOWUP-RUNTIME
+  `write_pipeline.rs` so it actually fetches records. Requires S-3.02-FOLLOWUP-RUNTIME
   to be merged first (materialization pipeline must be real to call it).
-- W3-FIX-S307-003: Implement `WriteCapableTableProvider::insert_into/delete_from/update` at
-  `write_table_registration.rs:176/190/205` to route SQL DML to `WriteExecutor`.
+- W3-FIX-S307-003: Implement `WriteCapableTableProvider::{insert_into,delete_from,update}` at
+  `write_table_registration.rs` to route SQL DML to `WriteExecutor`.
 
 These can be a single story (combined scope ~5 points) or two stories (3+3). The story-writer
 decides based on AC independence.
@@ -651,7 +679,7 @@ decides based on AC independence.
 
 ### Story 5: S-1.12-FOLLOWUP — Hot-Reload Watcher
 
-**Scope:** Implement `HotReloadWatcher::start/stop` at `hot_reload.rs:66/72` per the
+**Scope:** Implement `HotReloadWatcher::{start,stop}` at `hot_reload.rs` per the
 specification in §E of this ADR. Specifically: `notify` v7 integration, 500ms debounce,
 dry-run validation gate before arc-swap, audit emission on reload success/fail, SIGHUP
 handler integration, cross-platform quirk handling per §E table.
@@ -718,9 +746,17 @@ but it introduces TLS, authentication, and connection management complexity out 
 
 ---
 
+## Source / Origin
+
+Bundle B Phase B-0 architecture output. Authored at D-302 from workspace audit D-301
+(F-AUD-D2-13, F-AUD-D1-01..06). Satisfies POL-15 for AD-005, AD-007, AD-018, AD-022.
+
+---
+
 ## Changelog
 
 | Version | Date | Author | Change |
 |---------|------|--------|--------|
-| 1.0 | 2026-05-08 | architect | Initial authorship — Bundle B Phase B-0 architecture output |
+| 1.2 | 2026-05-12 | state-manager | TD-VSDD-091 volatile-pin strip per audit at cycles/wave-4-operations/sprint-review-PREREQ-trio.md §7. No architectural content change. 18 line-number citations stripped across §Context/§B/§C/§D/§G; function-name pivots applied for InfusionLoader::{parse,load_all,validate_credentials}, InfusionLruCache::{get,insert}, MmdbSource::{load,enrich_single,enrich_batch}, plugin_bridge::enrich_via_plugin, QueryEngine::execute and execute_scheduled, RocksDbTableProvider::{schema,scan,...}, register_internal_tables. engine.rs/materialization.rs/internal_tables.rs references marked HISTORICAL post S-3.02-FOLLOWUP-RUNTIME merge c6dd6602. Added missing template H2 sections (Decision, Rationale, Consequences, Source / Origin) per template compliance. |
 | 1.1 | 2026-05-09 | product-owner | §B step 2: replace stale `~/.prism/` literal with platform-aware default to match BC-2.06.011 v1.2 phrasing. Closes F-P6-MED-1 from PR #139 PR-LEVEL adversary pass-6. |
+| 1.0 | 2026-05-08 | architect | Initial authorship — Bundle B Phase B-0 architecture output |

@@ -1,9 +1,9 @@
 ---
 document_type: pipeline-state
 level: ops
-version: "7.180"
+version: "7.181"
 producer: state-manager
-timestamp: 2026-05-12T23:58:00Z
+timestamp: 2026-05-12T21:35:00Z
 inputs: []
 input-hash: "[live-state]"
 traces_to: ""
@@ -22,7 +22,7 @@ repos:
   - axiathon
   - ocsf-proto-gen
   - mcp-claroty-xdome
-current_step: "D-446. STEP 2 MAINTENANCE BURST A — STORY-INDEX:397 cycle resolved (001-D depends_on canonical PREREQ-A/B/C/D per D-444) + TD-VSDD-094 filed for adversarial-review path-drift codification. Step 2 Burst B (volatile-pin sweep + types.rs investigation + BC frontmatter divergence) queued. Step 3 (Wave 1) now unblocked from cycle perspective; gates on PREREQ-D/E land."
+current_step: "D-447. STEP 2 MAINTENANCE BURST B COMPLETE — TD-VSDD-091 closed via ADR-022 v1.1→v1.2 volatile-pin strip (18 pins stripped/pivoted across 7 sections); TD-VSDD-095 P4 filed for residual merged-story cosmetics. ARCH-INDEX v2.40→v2.41. Step 2 Burst C (types.rs consolidation) and Burst D (BC frontmatter divergence) queued."
 feature_branch_head: "ea958a4d"
 worktree_status: "merged"
 adversary_streak: "3/3 LOCKED"
@@ -145,7 +145,7 @@ holdout_index_version: "1.3"
 capabilities_version: "1.14"
 l2_index_version: "1.13"
 module_decomposition_version: "1.16"
-arch_index_version: "2.40"
+arch_index_version: "2.41"
 security_architecture_version: "1.1"
 verification_coverage_matrix_version: "1.31"
 verification_architecture_version: "1.30"
@@ -217,13 +217,11 @@ workspace_test_count: 3598  # updated at D-433 fix-burst-1 closure (just check c
 
 | Step | Agent | Status | Output |
 |------|-------|--------|--------|
-| S-PLUGIN-PREREQ-B PR #143 MERGED (D-427) | state-manager | **MERGED — develop@ae7e26c8** | PR #143 squash-merged 2026-05-12T06:58:48Z. Story v1.22→v1.23 status: merged. BC-2.16.002 v1.8→v1.9 draft→active (POL-14). BC-INDEX v4.59→v4.60 (active_contracts 227→228). STORY-INDEX v2.60→v2.61. STATE+HANDOFF v7.160→v7.161. PREREQ-C unblocked. |
-| PRE-COMPACT CHECKPOINT (D-428) | state-manager | **RECORDED — /compact authorized** | PREREQ-C scope user-authorized (2026-05-12). 7 TDs as explicit ACs: TD-B-001/003/006/008/016 + TD-A-006/008. Optional 8th TD (TD-A-007). Story title per STORY-INDEX line 391 (planned→ready post story-writer). STATE+HANDOFF v7.161→v7.162. |
-| S-PLUGIN-PREREQ-C story-writer (D-429) | story-writer + state-manager | **COMPLETE — story v1.0 ready** | 7 ACs from D-428 TD scope (TD-B-001/003/006/008/016 + TD-A-006/008). AC-8 deferred (TD-A-007 P3 non-blocking). Story 728 lines. STORY-INDEX v2.61→v2.62. STATE+HANDOFF v7.162→v7.163. Next: test-writer Red Gate stubs. |
-| S-PLUGIN-PREREQ-C Red Gate (D-430) | test-writer + state-manager | **COMPLETE — Red Gate established** | 11 failing tests across 7 ACs on feature/S-PLUGIN-PREREQ-C@f97e91d1. AC-1 (4 fail/2 pass), AC-2 (2 fail/2 pass), AC-3 (1 fail/4 pass), AC-4 (2 fail/1 pass), AC-5 (1 fail compile-fail crate), AC-6 (1 fail), AC-7 (1 fail). 543 pre-existing tests pass (no regressions). Minimal stub: page_size: Option<u32> added to PaginationConfig::CursorToken. AC-5 uses tests/external/non-exhaustive-violation/ pattern. STATE+HANDOFF v7.163→v7.164. Next: implementer Green TDD. |
 | S-PLUGIN-PREREQ-C LOCAL CONVERGED pass-5 (D-440) | adversary + state-manager | **CLEAN — streak 3/3 — LOCAL CONVERGED** | STREAK LOCKED. 1 finding (F-LP5-LOW-001 main.rs doc-header non-blocking LOW). 0 CRIT + 0 HIGH + 0 MED. Trajectory 18→8→5→5→1. 5 passes + 4 fix-bursts. Feature@651bbb64. STATE+HANDOFF v7.173→v7.174. Next: fix F-LP5-LOW-001 → demo-recorder step 5. |
 | PREREQ-C step 5 COMPLETE — F-LP5-LOW-001 + demo evidence (D-441) | implementer + demo-recorder + state-manager | **COMPLETE — demo-evidence-recorded** | F-LP5-LOW-001 closed (main.rs doc-header 29→30 types + fix-burst-4 attribution + 30th type bullet, c9bb9d26). Demo evidence: docs/demo-evidence/S-PLUGIN-PREREQ-C/ — 8 files (INDEX + AC-1..AC-7), 835 lines, real test output all 7 ACs (450b082c). 0 outstanding findings. POL-10 satisfied. STATE+HANDOFF v7.174→v7.175. Next: step 6 rebase + pr-manager 9-step PR cycle. |
 | S-PLUGIN-PREREQ-C MERGED — D-442 | state-manager | **MERGED — develop@ea958a4d** | PR #144 squash-merged 2026-05-12T23:14:05Z. 36/36 CI PASS. Story v1.3→v1.4 status: ready→merged. STORY-INDEX v2.64→v2.65. PREREQ keystone trio (A+B+C) complete. PLUGIN-MIGRATION Wave 1 unblocked. STATE+HANDOFF v7.175→v7.176. |
+| STEP 2 Burst A — STORY-INDEX cycle resolved (D-446) | state-manager | **COMPLETE** | STORY-INDEX:397 001-D depends_on corrected to PREREQ-A/B/C/D. TD-VSDD-094 P3 filed. tech-debt-register v2.15→v2.16. STATE+HANDOFF v7.179→v7.180. |
+| STEP 2 Burst B — ADR-022 volatile-pin strip (D-447) | state-manager | **COMPLETE** | ADR-022 v1.1→v1.2 — 18 pins stripped across 7 sections. TD-VSDD-091 CLOSED. TD-VSDD-095 P4 filed. ARCH-INDEX v2.40→v2.41. tech-debt-register v2.16→v2.17. STATE+HANDOFF v7.180→v7.181. |
 
 ## Decisions Log
 
@@ -231,6 +229,7 @@ _D-001..D-046 archived: [cycles/phase-3-dtu-wave-2/decisions-archive-d001-d032.m
 
 | ID | Decision | Rationale | Phase | Date |
 |----|----------|-----------|-------|------|
+| D-447 | 2026-05-12 | **STEP 2 Burst B — TD-VSDD-091 closed** (state-manager). Sample audit of 15 files (5 BCs, 5 ADRs, 5 stories) identified 22 VOLATILE pins; 80% of files clean; 18 of 22 concentrated in ADR-022. Surgical fix: ADR-022 v1.1→v1.2 strips 18 pins across §Context/§B/§C/§D/§G. Function-name pivots applied per audit recommendations for InfusionLoader/InfusionLruCache/MmdbSource/plugin_bridge/QueryEngine sites; engine.rs/materialization.rs/internal_tables.rs references marked HISTORICAL post S-3.02-FOLLOWUP-RUNTIME (c6dd6602). ARCH-INDEX v2.40→v2.41. TD-VSDD-091 closed; TD-VSDD-095 P4 filed for residual S-PLUGIN-PREREQ-A/B cosmetics (merged stories, archeological). open_count unchanged 92→92 (close 1, add 1). Workspace-wide lint hook deferred (false-positive risk). STATE+HANDOFF v7.180→v7.181. | plugin-migration | 2026-05-12 |
 | D-446 | 2026-05-12 | **STEP 2 Maintenance Burst A — cycle resolution** (state-manager). STORY-INDEX:397 PLUGIN-MIGRATION-001-D depends_on updated from stale `…001-A` (cycle) to canonical `…PREREQ-A,…PREREQ-B,…PREREQ-C,…PREREQ-D` per D-444 resolution. 001-A's depends_on unchanged (retains 001-D forward arc). STORY-INDEX v2.65→v2.66. TD-VSDD-094 P3 filed for PREREQ-C adversarial-review path-drift codification (cycles/<cycle>/adversarial-reviews/ canonical pattern; PREREQ-D/E must follow). open_count 91→92. tech-debt-register v2.15→v2.16. STATE+HANDOFF v7.179→v7.180. Wave 1 dispatch now cycle-clear; still gates on PREREQ-D/E land. | plugin-migration | 2026-05-12 |
 | D-445 | 2026-05-12 | **Sprint Review Step 1 COMPLETE** (state-manager). Sprint-analyzer ANALYSIS for PREREQ keystone trio (A+B+C) persisted at `cycles/wave-4-operations/sprint-review-PREREQ-trio.md`. 8-section structured brief: sprint summary, epic breakdown, business linkage, convergence efficiency, tech debt scoreboard, process gap insights, next-wave readiness, demo points. Key metrics: 34 pts, 3 stories merged (PR #142/143/144), 3,598 tests, 33 LOCAL passes, 24 fix-bursts, 36/36 CI, 7 TDs closed (91 active). Two inconsistencies flagged for Step 2: (1) STORY-INDEX:397 stale 001-D depends_on apparent cycle with 001-A (per D-444 resolution, true fix: 001-D depends on PREREQ-A/B/C/D, NOT 001-A); (2) PREREQ-C adversarial pass reports live under `.factory/code-delivery/` not `cycles/wave-4-operations/adversarial-reviews/` — path-convention drift, cosmetic. Step 2 (maintenance burst) dispatchable; Step 3 (Wave 1) gated on STORY-INDEX:397 cycle fix + PREREQ-D/E landing. STATE+HANDOFF v7.178 → v7.179. | plugin-migration | 2026-05-12 |
 | D-444 | 2026-05-12 | PRE-COMPACT FORWARD-PLAN EXPANSION (state-manager + user). Comprehensive Tier 1-8 Forward Task Map sealed in STATE.md "Forward Task Map" section. Captures: TIER 1 immediate B→C→A (in successor_focus), TIER 2 PREREQ-D/E (still planned, gate 001-A), TIER 3 PLUGIN-MIGRATION Wave 1 (5 stories, true topological order resolved from depends_on analysis + cycle resolution), TIER 4 PLUGIN-MIGRATION Wave 2 (3 stories), TIER 5 unblocked-by-plugin-migration (Bundle B Phase B-2 + S-3.09 resumption), TIER 6 Multi-Tenant Wave 3 (37 stories by epic), TIER 7 Wave 4+ operational features (alerting/audit-replay/log-forwarding/retry-obs), TIER 8 end-product convergence per project memory MSSP MCP vision. CYCLE RESOLUTION FINDING: STORY-INDEX 001-D depends_on includes PLUGIN-MIGRATION-001-A — this is stale; per D-334 the design intent is 001-D lands BEFORE 001-A (replacement-before-deletion). The true topological order is: PREREQ-D → 001-D → 001-E → 001-A → 001-B/001-C. SESSION-HANDOFF v7.177→v7.178 with forward-map pointer added. Post-compact session reads STATE.md Forward Task Map for any context beyond immediate TIER 1. | plugin-migration | 2026-05-12 |
@@ -484,7 +483,7 @@ _Previous checkpoint (v7.177/D-443 B→C→A LOCKED) archived: [cycles/wave-4-op
 
 **Post-compact action sequence (B→C→A — DO NOT skip steps):** STEP 1: /vsdd-factory:sprint-review on PREREQ-A/B/C. STEP 2: Maintenance burst on deferred items (F-LP4-OBS-001, types.rs TD-S-PLUGIN-PREREQ-C-001, TD-VSDD-091 sweep). STEP 3: PLUGIN-MIGRATION Wave 1 dispatch starting at PLUGIN-MIGRATION-001-A. Full dispatch specs in SESSION-HANDOFF.md successor_focus.
 
-**Current spec versions:** BC-INDEX v4.61, STORY-INDEX v2.65, ARCH-INDEX v2.40, ADR-023 v1.18, VP-INDEX v1.32 (152 VPs + VP-PLUGIN-001..007 aliases), BC-2.16.002 v1.10 (active; 16 catalog rows), BC-2.01.013 v1.6 (active, merged PR #142), S-PLUGIN-PREREQ-A v1.6 (merged PR #142), S-PLUGIN-PREREQ-B v1.23 (merged PR #143), S-PLUGIN-PREREQ-C v1.4 (merged PR #144 ea958a4d), prd.md v1.10, error-taxonomy.md v1.18, develop@ea958a4d; STATE v7.178 SESSION-HANDOFF v7.178 (current)
+**Current spec versions:** BC-INDEX v4.61, STORY-INDEX v2.66, ARCH-INDEX v2.41, ADR-022 v1.2, ADR-023 v1.18, VP-INDEX v1.32 (152 VPs + VP-PLUGIN-001..007 aliases), BC-2.16.002 v1.10 (active; 16 catalog rows), BC-2.01.013 v1.6 (active, merged PR #142), S-PLUGIN-PREREQ-A v1.6 (merged PR #142), S-PLUGIN-PREREQ-B v1.23 (merged PR #143), S-PLUGIN-PREREQ-C v1.4 (merged PR #144 ea958a4d), prd.md v1.10, error-taxonomy.md v1.18, tech-debt-register v2.17, develop@ea958a4d; STATE v7.181 SESSION-HANDOFF v7.181 (current)
 
 **Key files:** [SESSION-HANDOFF.md](SESSION-HANDOFF.md) | [cycle-manifest.md](cycles/wave-4-operations/cycle-manifest.md) | [HOLDOUT-INDEX.md](holdout-scenarios/HOLDOUT-INDEX.md)
 
