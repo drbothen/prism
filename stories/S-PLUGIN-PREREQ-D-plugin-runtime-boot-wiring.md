@@ -6,17 +6,24 @@ wave: 0
 epic_id: PLUGIN-MIGRATION-001
 priority: P0
 status: draft
-# BC status: behavioral_contracts populated — BC-2.17.001..006 (plugin sandbox + lifecycle
-#            contracts) and BC-2.22.001 (boot orchestration). All BCs are active. This story
-#            closes the TODO(S-4.08) in make_host_state() and the None-allowlist short-circuit
-#            in host_http_request (ADR-023 §C4 F-CRIT-NEW-002).
+# BC status: behavioral_contracts populated — BC-2.17.001..004 (plugin capability + WIT
+#            isolation contracts: panic isolation, fs sandbox, memory, cpu),
+#            BC-2.17.006 (WIT interface validation), BC-2.17.007 (manifest schema validation
+#            — NEW, landed wave-4-fix-burst-F-LP1-HIGH-004), and BC-2.22.001 (boot
+#            orchestration). All BCs are active.
+#            BC-2.17.005 (hot-reload watcher) is NOT in this list: PREREQ-D delivers only
+#            the programmatic hot_reload() API surface; boot notify watcher wiring is
+#            S-1.12-FOLLOWUP scope (see Out of Scope). BC-2.17.005 will be promoted by
+#            S-1.12-FOLLOWUP, not by this story.
+#            This story closes the TODO(S-4.08) in make_host_state() and the None-allowlist
+#            short-circuit in host_http_request (ADR-023 §C4 F-CRIT-NEW-002).
 behavioral_contracts:
   - BC-2.17.001
   - BC-2.17.002
   - BC-2.17.003
   - BC-2.17.004
-  - BC-2.17.005
   - BC-2.17.006
+  - BC-2.17.007
   - BC-2.22.001
 verification_properties:
   - VP-PLUGIN-004
@@ -41,12 +48,12 @@ target_module: prism-bin
 #   SS-22 (Process Lifecycle, prism-bin) owns the boot-sequence wiring: the new plugin-load
 #   step is inserted into crates/prism-bin/src/boot.rs between ADR-022 canonical step 7
 #   (storage init) and step 8 (query-engine). BC-2.22.001 is the primary contract.
-#   SS-17 (Plugin Runtime, prism-spec-engine) owns all sandbox BCs (BC-2.17.001..006) and
+#   SS-17 (Plugin Runtime, prism-spec-engine) owns all sandbox BCs (BC-2.17.001..007) and
 #   the PluginRuntime type itself. The allowlist enforcement, WIT validation, and manifest
 #   format_version check all land in crates/prism-spec-engine/src/plugin/.
 subsystems: [SS-22, SS-17]
 capabilities: [CAP-032, CAP-034]
-version: "1.0"
+version: "1.1"
 level: "L4"
 producer: story-writer
 timestamp: "2026-05-13T00:00:00Z"
@@ -56,12 +63,12 @@ traces_to: []
 cycle: "v1.0.0-greenfield"
 phase: 3
 anchor_vps: [VP-PLUGIN-004, VP-PLUGIN-007]
-anchor_bcs: [BC-2.17.001, BC-2.17.002, BC-2.17.003, BC-2.17.004, BC-2.17.005, BC-2.17.006, BC-2.22.001]
+anchor_bcs: [BC-2.17.001, BC-2.17.002, BC-2.17.003, BC-2.17.004, BC-2.17.006, BC-2.17.007, BC-2.22.001]
 anchor_capabilities: [CAP-032]
 anchor_subsystem: [SS-22, SS-17]
 assumption_validations: []
 risk_mitigations: []
-acceptance_criteria_count: 16
+acceptance_criteria_count: 18
 red_gate_tests: 0
 estimated_passes: "8-12 LOCAL adversary passes"
 # TD items absorbed by this story
@@ -77,9 +84,11 @@ inputs:
   - ".factory/specs/behavioral-contracts/BC-2.17.002-plugin-sandbox-filesystem.md"
   - ".factory/specs/behavioral-contracts/BC-2.17.003-plugin-memory-limit.md"
   - ".factory/specs/behavioral-contracts/BC-2.17.004-plugin-cpu-time-limit.md"
-  - ".factory/specs/behavioral-contracts/BC-2.17.005-plugin-hot-reload-atomic-swap.md"
   - ".factory/specs/behavioral-contracts/BC-2.17.006-plugin-wit-validation.md"
+  - ".factory/specs/behavioral-contracts/BC-2.17.007-plugin-manifest-schema-validation.md"
   - ".factory/specs/behavioral-contracts/BC-2.22.001-boot-orchestration.md"
+  - ".factory/specs/verification-properties/VP-INDEX.md"
+  - ".factory/specs/prd-supplements/error-taxonomy.md"
   - ".factory/stories/S-PLUGIN-PREREQ-A-sensorid-newtype.md"
   - ".factory/stories/S-PLUGIN-PREREQ-B-real-pipeline-executor.md"
   - ".factory/stories/S-PLUGIN-PREREQ-C-toml-grammar-extensions-plus-pub-api-hardening.md"
@@ -101,7 +110,7 @@ inputs:
 | `PluginRuntime` | `crates/prism-spec-engine/src/plugin/mod.rs` | Effectful (filesystem scan, WASM compilation, arc-swap registry) |
 | `load_all_plugins` | `crates/prism-spec-engine/src/plugin/mod.rs` | Effectful (I/O, spawn_blocking, audit emit) |
 | `host_http_request` | `crates/prism-spec-engine/src/plugin/host_functions.rs` | Effectful (outbound HTTP via reqwest) |
-| `make_host_state` | `crates/prism-spec-engine/src/plugin/mod.rs` | Pure (constructs HostState from parsed manifest) |
+| `make_host_state` | `crates/prism-spec-engine/src/plugin/mod.rs` | Pure (constructs HostState from parsed manifest + injected Arc<reqwest::Client>; no I/O; receives http_client by Arc::clone — does NOT construct the client) |
 | `validate_wit_interface` | `crates/prism-spec-engine/src/plugin/mod.rs` | Pure (inspects Component exports) |
 | Boot plugin-load step | `crates/prism-bin/src/boot.rs` | Effectful (filesystem, audit, epoch ticker start) |
 | `AuthToken` | `crates/prism-spec-engine/src/plugin/auth_provider.rs` | Pure-core (value type with zeroize-on-drop) |
@@ -127,12 +136,12 @@ inputs:
 
 | Module | Classification | Justification |
 |--------|---------------|---------------|
-| `crates/prism-spec-engine/src/plugin/mod.rs` — `make_host_state()` | pure-core | Deterministic construction from inputs; no I/O |
+| `crates/prism-spec-engine/src/plugin/mod.rs` — `make_host_state()` | pure-core | Deterministic construction from inputs; no I/O. Receives `Arc<reqwest::Client>` by Arc::clone (injected dependency) — does NOT construct the client. purity preserved: same input → same HostState. |
 | `crates/prism-spec-engine/src/plugin/mod.rs` — `validate_wit_interface()` | pure-core | Inspects Component export names; no I/O; suitable for unit test |
 | `crates/prism-spec-engine/src/plugin/mod.rs` — `load_all_plugins()` | effectful-shell | Filesystem scan, WASM compilation (`spawn_blocking`), arc-swap mutation, audit emit |
 | `crates/prism-spec-engine/src/plugin/host_functions.rs` — `host_http_request` | effectful-shell | Outbound HTTP via reqwest; allowlist check is pure sub-step |
 | `crates/prism-spec-engine/src/plugin/pipeline.rs` — `MAX_REQUESTS_PER_PIPELINE` check | pure-core | Counter comparison against constant; extractable for unit test |
-| `crates/prism-bin/src/boot.rs` — plugin-load step | effectful-shell | Calls `load_all_plugins`; reads env var; emits audit |
+| `crates/prism-bin/src/boot.rs` — plugin-load step | effectful-shell | Calls `load_all_plugins`; reads env var; emits audit; constructs single shared `reqwest::Client` with 30s timeout and injects into `PluginRuntime::new()` |
 | `crates/prism-spec-engine/src/plugin/auth_provider.rs` — `AuthToken` | pure-core (value type) | Holds credential bytes; `Zeroizing<String>` wrapper is drop-safe pure value |
 
 ## Library & Framework Requirements (MANDATORY)
@@ -141,7 +150,7 @@ inputs:
 |---------|---------|---------|----------|
 | `wasmtime` | `44` (exact crate pin) | WASM Component Model runtime; epoch interruption; StoreLimits | RUSTSEC advisory comment in `prism-spec-engine/Cargo.toml` — do not change without security rationale |
 | `zeroize` | `"1"` | `AuthToken` zeroing on drop (TD-S-PLUGIN-PREREQ-B-002 / AD-017) | Accept any `1.x`; add to `prism-spec-engine/Cargo.toml` if not already present |
-| `sha2` | `"0.10"` | SHA-256 `plugin_hash` field in audit entry | Use workspace dep if present; else add `sha2 = "0.10"` with comment "plugin audit hash" |
+| `sha2` | `"0.10"` | SHA-256 `plugin_hash` field in audit entry | Confirmed workspace dep (workspace `Cargo.toml` line 21: `sha2 = "0.10"`). Use via `sha2 = { workspace = true }` in `prism-spec-engine/Cargo.toml`. |
 | `url` | workspace version | URL host extraction for allowlist enforcement in `host_http_request` | Must already be present in `prism-spec-engine`; verify before adding |
 | `reqwest` | workspace version | HTTP client; MUST use `.timeout(Duration::from_secs(30))` builder | TD-S-PLUGIN-PREREQ-B-005: builder pattern mandatory; no bare `reqwest::Client::new()` |
 | `arc-swap` | workspace version | Lock-free atomic registry updates for hot-reload | Already in `prism-spec-engine`; no version change |
@@ -228,9 +237,15 @@ this story being merged first.
 | BC-2.17.002 | Plugin Sandbox — No Direct Filesystem or Network Access | AC-11 (WASI not linked; allowlist enforcement via host_http_request) |
 | BC-2.17.003 | Plugin Sandbox — Memory Limit Enforced Per Plugin Instance (default 64MB) | AC-12 (StoreLimits 64MB; configurable per manifest) |
 | BC-2.17.004 | Plugin Sandbox — CPU Time Limit Enforced via Epoch Interruption (default 5s) | AC-13 (epoch ticker started once; per-call deadline) |
-| BC-2.17.005 | Plugin Hot Reload — Atomic Module Swap, In-Flight Calls Complete Against Old Version | AC-14 (arc-swap registry; spawn_blocking compilation) |
-| BC-2.17.006 | WIT Interface Validation Before Plugin Registration | AC-5 (manifest validation; WIT export check; E-PLUGIN-001) |
+| BC-2.17.006 | WIT Interface Validation Before Plugin Registration | AC-6 (WIT export check; E-PLUGIN-001 on missing export) |
+| BC-2.17.007 | Plugin Manifest Schema Validation Before WIT Validation | AC-5 (manifest field presence + format_version + allowed_urls; E-PLUGIN-013/014/015/016) |
 | BC-2.22.001 | Boot Orchestration — Sequencing, Exit-Code Map, and Pre-Traffic Gate | AC-1, AC-2, AC-3, AC-4 (boot step placement; gate; escape valve; unsigned warning) |
+
+Note: BC-2.17.005 (Plugin Hot Reload — Atomic Module Swap) is NOT anchored to this story.
+PREREQ-D delivers the programmatic `hot_reload()` API surface (AC-14 confirms the arc-swap
+mechanism remains intact after boot wiring). The `notify` file-watcher installation into the
+boot chassis is S-1.12-FOLLOWUP scope (blocked on PLUGIN-MIGRATION-001-A). BC-2.17.005 will
+be promoted to active by S-1.12-FOLLOWUP, not by this story.
 
 ## Acceptance Criteria
 
@@ -269,25 +284,38 @@ The `plugin_hash` is the SHA-256 hex digest of the raw `.prx` file bytes (comput
 compilation). These entries are written to the audit emitter (BC-2.05.012). Both items are
 verified by integration test `test_VP_PLUGIN_004_unsigned_plugin_boot_warn_audit`.
 
-### AC-5 — Manifest validation: name, version, format_version, allowed_urls required; E-PLUGIN-013 and E-PLUGIN-014 on rejection (traces to BC-2.17.006 postconditions; ADR-023 §C4)
+### AC-5 — Manifest schema validation: name, version, format_version, allowed_urls required before WIT compilation (traces to BC-2.17.007 postconditions 1–5; BC-2.17.007 invariants; ADR-023 §C4)
 
-`PluginRuntime::load_plugin` validates the plugin manifest embedded in the `.prx` file:
+`PluginRuntime::load_plugin` validates the plugin manifest embedded in the `.prx` file BEFORE
+any WASM Component compilation is attempted (BC-2.17.007 manifest-before-WIT ordering invariant):
 
-- `name`: non-empty string; empty name → `E-PLUGIN-010` (existing code)
-- `version`: non-empty string; missing → `E-PLUGIN-001`
-- `format_version`: u32; must be `<= CURRENT_SUPPORTED_VERSION` (crate constant, initial value `1`); `format_version > CURRENT_SUPPORTED_VERSION` → `E-PLUGIN-014: "Plugin '{path}' manifest format_version {n} exceeds supported version {CURRENT_SUPPORTED_VERSION}"`
-- `allowed_urls`: `Vec<String>`; must be present and non-empty; absent or empty → `E-PLUGIN-013: "Plugin '{path}' manifest missing required allowed_urls field. All plugins must declare their permitted outbound URL hostnames."` (VP-PLUGIN-007)
+- `name`: non-empty UTF-8 string; absent or empty → `E-PLUGIN-015: "Plugin manifest at '{path}' missing or empty required field 'name'"` (BC-2.17.007 postcondition 1)
+- `version`: non-empty semver-parseable string; absent or malformed → `E-PLUGIN-016: "Plugin manifest at '{path}' field 'version' is not a valid semver string: '{value}'"` (BC-2.17.007 postcondition 2)
+- `format_version`: u32; must be `<= CURRENT_SUPPORTED_VERSION` (crate constant, initial value `1`); absent or `> CURRENT_SUPPORTED_VERSION` → `E-PLUGIN-014: "Plugin manifest at '{path}' format_version {actual} exceeds maximum supported version {supported}"` (BC-2.17.007 postcondition 3)
+- `allowed_urls`: `Vec<String>`; field must be explicitly present (empty list `[]` is accepted; absent/null → rejection); absent or `None` → `E-PLUGIN-013: "Plugin manifest at '{path}' missing required field 'allowed_urls'; field must be an explicit list (use allowed_urls = [] for no URLs)"` (BC-2.17.007 postcondition 4; VP-PLUGIN-007)
 
-Manifest parsing errors are logged at ERROR level. The plugin is NOT registered. Other plugins
-in the scan continue loading (per BC-2.17.006 invariant: incompatible plugins don't block others).
+Field validation order: `name` → `version` → `format_version` → `allowed_urls`. First failure
+returns immediately; one error per load attempt (BC-2.17.007 EC-17-032).
+
+Manifest validation errors are logged at ERROR level. The plugin is NOT registered. No partial
+registration state (BC-2.17.007 no-partial-registration invariant). Other plugins in the scan
+continue loading (BC-2.17.007 postcondition 9: sibling-plugin isolation).
+
+Only after all four manifest fields pass does control flow to WIT interface validation (AC-6 /
+BC-2.17.006). Manifest validation passing is necessary but not sufficient for registration
+(BC-2.17.007 postcondition 5).
 
 ### AC-6 — WIT interface validation before registration (traces to BC-2.17.006 postconditions)
 
-`PluginRuntime::load_plugin` calls `validate_wit_interface(component)` before registering the
-plugin. A plugin missing required WIT exports (`name`, `version`, and primary dispatch function)
-is rejected with `E-PLUGIN-001`. The error log names the missing export. This behavior is
-unchanged from S-1.15 implementation but is explicitly confirmed by a new integration test using
-the `minimal.prx` fixture with a deliberately broken WIT interface.
+After manifest schema validation passes (AC-5 / BC-2.17.007), `PluginRuntime::load_plugin`
+calls `validate_wit_interface(component)` on the compiled WASM Component. A plugin missing
+required WIT exports (`name`, `version`, and primary dispatch function) is rejected with
+`E-PLUGIN-001`. The error log names the missing export. This behavior is unchanged from the
+S-1.15 implementation but is explicitly confirmed by a new integration test using the
+`bad_wit.prx` fixture (a Component with a deliberately missing required WIT export).
+
+The ordering guarantee: manifest validation (BC-2.17.007) → WIT compilation → WIT validation
+(BC-2.17.006) → registration. A plugin that fails at any gate is not registered.
 
 ### AC-7 — Allowlist enforcement in host_http_request: host-only comparison (traces to BC-2.17.002 postcondition; ADR-023 §C4 F-CRIT-NEW-002; VP-PLUGIN-007)
 
@@ -310,16 +338,35 @@ asserts the count and names match the canonical host function list. This prevent
 drift when new host functions are added. The test panics with a descriptive message on mismatch:
 `"Linker import count mismatch: expected {N}, found {M}. Did you add a host function without updating the import list?"`.
 
-### AC-9 — reqwest::Client constructed with 30-second timeout in boot wiring (traces to TD-S-PLUGIN-PREREQ-B-005; BC-2.17.002 error condition for http_request timeout)
+### AC-9 — Single shared reqwest::Client constructed once at boot with 30-second timeout; injected into PluginRuntime (traces to TD-S-PLUGIN-PREREQ-B-005; BC-2.17.002 error condition for http_request timeout)
 
-The `reqwest::Client` passed into `HostState` is constructed using:
+A **single** `reqwest::Client` instance is constructed **once** in `crates/prism-bin/src/boot.rs`
+during the plugin-load boot step, using:
+
 ```rust
-reqwest::Client::builder()
-    .timeout(Duration::from_secs(30))
+let http_client = reqwest::Client::builder()
+    .timeout(Duration::from_secs(PLUGIN_HTTP_CLIENT_TIMEOUT_SECS))
     .build()
-    .expect("reqwest client construction is infallible with these settings")
+    .expect("reqwest client construction is infallible with these settings");
 ```
-This prevents slow-loris API server hangs. The 30-second value is a constant `PLUGIN_HTTP_CLIENT_TIMEOUT_SECS = 30` in `crates/prism-spec-engine/src/plugin/mod.rs`. Integration tests that set up wiremock-based mock HTTP servers use the builder pattern (already done in PREREQ-B test conventions).
+
+The constant `PLUGIN_HTTP_CLIENT_TIMEOUT_SECS: u64 = 30` is defined in
+`crates/prism-spec-engine/src/plugin/mod.rs`. The 30-second value is a per-request timeout
+(each individual HTTP call gets 30 seconds), not a global session timeout.
+
+The constructed client is passed into `PluginRuntime::new(engine, linker, http_client, kv_store)`
+as an owned value and stored (wrapped in `Arc<reqwest::Client>`) on `PluginRuntime`. All plugins
+share this single client instance — `make_host_state()` receives it by `Arc::clone`, so the
+function remains Pure (no I/O, no construction side-effects; it merely clones the Arc reference).
+The boot.rs site owns construction; `make_host_state()` owns distribution.
+
+This is TD-S-PLUGIN-PREREQ-B-005 closure: the canonical reqwest::Client constructor lives in
+`crates/prism-bin/src/boot.rs` and is injected into PluginRuntime via `Arc<reqwest::Client>`.
+No bare `reqwest::Client::new()` calls are permitted in plugin-related code.
+
+Integration tests that need HTTP mocking construct their own test-scoped client and inject it
+directly into `PluginRuntime::new(...)` in the test setup (already done in PREREQ-B test
+conventions).
 
 ### AC-10 — Plugin panic isolation: trap caught at Rust boundary; fresh Store per call (traces to BC-2.17.001 postconditions; INV-PLUGIN-001)
 
@@ -344,12 +391,12 @@ Each `wasmtime::Store` is constructed with `StoreLimits` setting max linear memo
 (optional, u64) overrides the default when present. Exceeding the limit returns
 `Err(PluginError::MemoryExceeded { plugin_id, limit_mb })` and emits a WARN log. This is
 confirmed existing from S-1.15; PREREQ-D confirms it remains intact after boot wiring via
-the `test_BC_2_17_003_memory_limit_enforced` integration test.
+the `test_BC_2_17_003_memory_limit_enforced_default_64mb` integration test.
 
 ### AC-13 — CPU time limit 5s default via epoch interruption; epoch ticker started once at PluginRuntime::new (traces to BC-2.17.004 postconditions; INV-PLUGIN-004)
 
 The epoch background ticker task is started exactly once in `PluginRuntime::new()`, not per call.
-Per-call `Store::epoch_deadline` is set proportional to `timeout_seconds` (default 5s, manifest-overridable). Timeout returns `Err(PluginError::Timeout { plugin_id, duration_ms })`. Verified by integration test with infinite-loop WAT fixture.
+Per-call `Store::epoch_deadline` is set proportional to `timeout_seconds` (default 5s, manifest-overridable). Timeout returns `Err(PluginError::Timeout { plugin_id, duration_ms })`. Verified by integration test `test_BC_2_17_004_cpu_timeout_enforced_infinite_loop` using the `infinite_loop.prx` fixture (a WAT module containing an infinite loop compiled to WASM Component).
 
 ### AC-14 — Hot-reload: arc-swap atomic registry update; failed reload retains old plugin (traces to BC-2.17.005 postconditions; INV-PLUGIN-005)
 
@@ -365,6 +412,22 @@ emitted per outcome. In-flight calls holding old `Arc<LoadedPlugin>` complete no
 `Drop` manually to overwrite the bytes before deallocation. A doc comment at the `AuthToken`
 definition cites AD-017 (credential safety) and explains the zeroize obligation. The `TD-S-PLUGIN-PREREQ-B-002` inline reference is removed when this is implemented.
 
+### AC-17 — HostState struct marked #[non_exhaustive] before allowed_urls field addition (traces to CLAUDE.md #[non_exhaustive] convention; BC-2.17.007 invariant: no partial registration state)
+
+`crates/prism-spec-engine/src/plugin/loader.rs` defines `pub struct HostState`. Inspection of
+the current source confirms `HostState` is `pub` but does NOT carry `#[non_exhaustive]`
+(confirmed: `loader.rs` line ~101 shows bare `pub struct HostState`). Adding `allowed_urls:
+Vec<String>` (replacing `Option<Vec<String>>` as part of AC-7) without `#[non_exhaustive]`
+is a breaking change for any downstream crate constructing `HostState` with struct literal
+syntax.
+
+This story MUST add `#[non_exhaustive]` to `HostState` before or in the same commit as the
+`allowed_urls` field type change. Per CLAUDE.md convention: all new pub types AND all pub
+types modified to add fields must carry `#[non_exhaustive]`.
+
+Verified by code review gate: `grep -n '#\[non_exhaustive\]' crates/prism-spec-engine/src/plugin/loader.rs`
+must show the attribute on the line immediately preceding `pub struct HostState`.
+
 ### AC-16 — MAX_REQUESTS_PER_PIPELINE cumulative cap enforced in executor loop (traces to TD-S-PLUGIN-PREREQ-B-004; BC-2.16.002 preconditions)
 
 `crates/prism-spec-engine/src/plugin/pipeline.rs` defines `MAX_REQUESTS_PER_PIPELINE: usize = 10_000`
@@ -372,6 +435,25 @@ constant. The `PipelineExecutor` executor loop maintains a cumulative request co
 steps. When the counter reaches `MAX_REQUESTS_PER_PIPELINE`, the executor returns
 `Err(PipelineError::TooManyRequests { total: usize })` and emits `event_type: pipeline_max_requests_exceeded`.
 The `TD-S-PLUGIN-PREREQ-B-004` inline reference in pipeline.rs is replaced with the implementation.
+
+### AC-18 — PRISM_DISABLE_PLUGIN_LOAD env var takes absolute precedence over plugin_dir config (traces to BC-2.22.001 postcondition; ADR-023 §C4 escape valve)
+
+`PRISM_DISABLE_PLUGIN_LOAD=1` is checked in `crates/prism-bin/src/boot.rs` BEFORE any
+`plugin_dir` config resolution or filesystem access. Precedence rule:
+
+1. If `PRISM_DISABLE_PLUGIN_LOAD=1` is set: emit WARN + audit `plugin_disabled_env`; return
+   `Ok(0)` immediately. No `plugin_dir` resolution. No filesystem access. No "plugin directory
+   not found" event (avoiding confusing double-signal when the operator deliberately disabled
+   plugins).
+2. If `PRISM_DISABLE_PLUGIN_LOAD` is unset or any value other than the exact string `"1"`:
+   proceed with normal `plugin_dir` resolution from `PrismConfig`.
+
+This precedence prevents the operator anti-pattern of: setting `PRISM_DISABLE_PLUGIN_LOAD=1`
+without removing `plugin_dir` from `prism.toml`, which would otherwise emit a spurious
+`plugin_directory_not_found` error before the disable check fires.
+
+Only the exact string `"1"` disables loading (EC-D-011: values like `"true"`, `"yes"`,
+`"TRUE"` are treated as unset).
 
 ## Tasks
 
@@ -451,7 +533,7 @@ The `TD-S-PLUGIN-PREREQ-B-004` inline reference in pipeline.rs is replaced with 
 12. **[.github] Create `.github/PULL_REQUEST_TEMPLATE.md`** (ADR-023 §C4 F-PASS3-MED-001)
     - Three-item sensor-pattern checklist (content defined in Implementation Notes §PR Template)
 
-13. **[tests/fixtures] Commit `tests/fixtures/minimal.prx`** — see Fixture Strategy
+13. **[tests/fixtures] Commit all 4 `.prx` test fixtures** — `minimal.prx`, `trap_plugin.prx`, `infinite_loop.prx`, `bad_wit.prx` (pre-built binaries) plus WAT sources in `tests/fixtures/src/` — see Fixture Strategy
 
 14. **[prism-spec-engine] Update Structured Event Catalog** — see §Structured Event Catalog Additions
 
@@ -461,14 +543,15 @@ The `TD-S-PLUGIN-PREREQ-B-004` inline reference in pipeline.rs is replaced with 
 
 | Item | Estimated Tokens |
 |------|-----------------|
-| Story spec (this file) | ~6,000 |
+| Story spec (this file) | ~7,000 |
 | BC files (7 BCs × ~1,500) | ~10,500 |
 | ADR-023 §C4 (relevant sections) | ~4,000 |
 | crates/prism-spec-engine/src/plugin/ source (mod.rs, host_functions.rs, pipeline.rs, auth_provider.rs) | ~8,000 |
 | crates/prism-bin/src/boot.rs | ~3,000 |
 | Cargo.toml files (2) | ~1,000 |
+| tests/fixtures/src/*.wat (4 WAT source files × ~50 LOC each) | ~800 |
 | Test output / error messages during TDD | ~4,000 |
-| **Total** | **~36,500** |
+| **Total** | **~38,300** |
 
 This is approximately 15% of a 256k-token context window — within the 20-30% limit.
 No splitting required.
@@ -503,13 +586,18 @@ The following concrete stub/TODO sites are closed by this story:
 
 | Site | File | Line Reference | Closure |
 |------|------|---------------|---------|
-| `TODO(S-4.08)` in `make_host_state()` | `crates/prism-spec-engine/src/plugin/mod.rs` | `allowed_urls: None` construction | AC-7: replaced with `Some(parsed_hostnames)` parameter |
+| `TODO(S-4.08)` in `make_host_state()` — primary definition | `crates/prism-spec-engine/src/plugin/mod.rs` | ~line 165: `allowed_urls: None` construction | AC-7: replaced with `Some(parsed_hostnames)` parameter |
+| `make_host_state()` call site | `crates/prism-spec-engine/src/plugin/mod.rs` | ~line 202: `make_host_state(plugin_id, config)` | AC-7: update to pass `allowed_urls` after signature change |
+| `make_host_state()` call site | `crates/prism-spec-engine/src/plugin/mod.rs` | ~line 279: `make_host_state(plugin_id, config)` | AC-7: update to pass `allowed_urls` after signature change |
 | `host_http_request` None-short-circuit | `crates/prism-spec-engine/src/plugin/host_functions.rs` | `if allowed_urls.is_none() { /* permit all */ }` | AC-7: replaced with host-only comparison |
 | `TD-S-PLUGIN-PREREQ-B-002` inline comment | `crates/prism-spec-engine/src/plugin/auth_provider.rs` | `AuthToken` definition | AC-15: removed when zeroize implemented |
 | `TD-S-PLUGIN-PREREQ-B-004` inline comment | `crates/prism-spec-engine/src/plugin/pipeline.rs` | `MAX_REQUESTS` note | AC-16: removed when cap implemented |
 | `TD-S-PLUGIN-PREREQ-B-005` inline comment | `crates/prism-spec-engine/src/plugin/pipeline.rs` | reqwest timeout note | AC-9: removed when timeout wired |
 | `TD-S-PLUGIN-PREREQ-B-011/012` doc comment | `crates/prism-spec-engine/src/plugin/pipeline.rs` | `execute_step` doc comment | AC-8 tasks: removed after tests added |
 | `todo!()` in plugin-load step | `crates/prism-bin/src/boot.rs` | step between storage and query-engine | AC-1: replaced with `PluginRuntime::load_all_plugins` call |
+| `TODO(S-4.08)` fire-alert dispatch stub | `crates/prism-spec-engine/src/plugin/mod.rs` | ~line 395 | OUT OF SCOPE — S-4.08. Remains open; tracked under separate story. |
+| `TODO(S-4.08)` fire-case dispatch stub | `crates/prism-spec-engine/src/plugin/mod.rs` | ~line 419 | OUT OF SCOPE — S-4.08. Remains open; tracked under separate story. |
+| `TODO(S-4.08)` fire-report dispatch stub | `crates/prism-spec-engine/src/plugin/mod.rs` | ~line 442 | OUT OF SCOPE — S-4.08. Remains open; tracked under separate story. |
 
 ## Red Gate Tests
 
@@ -523,6 +611,7 @@ after:
 test_BC_2_22_001_boot_step_plugin_load_placement
 test_BC_2_22_001_plugin_load_failure_exits_code_4
 test_BC_2_22_001_plugin_load_disabled_env
+test_BC_2_22_001_disable_env_takes_precedence_over_plugin_dir_config
 test_VP_PLUGIN_004_unsigned_plugin_boot_warn_audit
 test_VP_PLUGIN_007_plugin_load_rejected_no_allowlist
 test_VP_PLUGIN_007_plugin_load_rejected_format_version_exceeded
@@ -540,13 +629,20 @@ test_BC_2_17_004_cpu_timeout_enforced_infinite_loop
 test_BC_2_17_005_hot_reload_atomic_swap_success
 test_BC_2_17_005_hot_reload_failed_recompile_retains_old
 test_BC_2_17_006_wit_validation_rejects_missing_export
-test_BC_2_17_006_manifest_format_version_exceeded_rejected
-test_BC_2_17_006_manifest_missing_allowed_urls_rejected
-test_linker_imports_match_host_functions
-test_execute_step_eager_token_calls_auth_once
-test_pipeline_max_requests_exceeded
-test_authtoken_zeroize_on_drop
+test_BC_2_17_006_duplicate_plugin_id_first_wins
+test_BC_2_17_007_manifest_format_version_exceeded_rejected
+test_BC_2_17_007_manifest_missing_allowed_urls_rejected
+test_BC_2_17_007_manifest_name_empty_rejected
+test_BC_2_17_007_manifest_version_malformed_rejected
+test_BC_2_17_002_linker_imports_match_host_functions
+test_TD_S_PLUGIN_PREREQ_B_011_execute_step_eager_token_calls_auth_once
+test_BC_2_16_002_pipeline_max_requests_exceeded
+test_TD_S_PLUGIN_PREREQ_B_002_authtoken_zeroize_on_drop
 ```
+
+Test naming convention: `test_BC_<bc_id>_<descriptor>` for BC-anchored tests;
+`test_VP_PLUGIN_<NNN>_<descriptor>` for VP-anchored tests;
+`test_TD_<td_id>_<descriptor>` for TD-absorbed tests with no dedicated BC/VP anchor.
 
 Red Gate density target: >= 15 failing tests before first implementation commit.
 
@@ -571,7 +667,7 @@ per PG-LP11-001 SOP codified in `.factory/cycles/wave-4-operations/lessons.md` L
 
 ## Fixture Strategy
 
-**Decision: COMMIT `tests/fixtures/minimal.prx` as a pre-built binary artifact.**
+**Decision: COMMIT all 4 `.prx` test fixtures as pre-built binary artifacts.**
 
 Rationale: avoiding a `just plugin-build` or `cargo component build` bootstrap dependency in
 the test suite is critical. The integration test suite must run with `cargo nextest run` and
@@ -597,7 +693,8 @@ WAT sources are committed alongside the binaries in `tests/fixtures/src/` for au
 
 `crates/prism-spec-engine/Cargo.toml` pins:
 ```toml
-# wasmtime 44 resolves 17 RUSTSEC advisories (RUSTSEC-2024-0438 through RUSTSEC-2026-0096)
+# wasmtime 44 resolves multiple RUSTSEC advisories in the RUSTSEC-2024-0438 through
+# RUSTSEC-2026-0096 range — run `cargo audit` for the current count and advisory list.
 wasmtime = { version = "44", features = ["component-model"] }
 ```
 
@@ -619,6 +716,13 @@ injection (`PluginRuntime::new(engine, linker, http_client, kv_store)`). The ins
 in `Arc<PluginRuntime>` and threaded through the boot chassis. No global statics. The boot step
 receives `Arc<PluginRuntime>` and passes it to the query-engine and MCP server steps that need
 plugin dispatch.
+
+**TD-B-005 closure:** The constant `PLUGIN_HTTP_CLIENT_TIMEOUT_SECS: u64 = 30` is defined in
+`crates/prism-spec-engine/src/plugin/mod.rs`. The `reqwest::Client` constructor is in
+`crates/prism-bin/src/boot.rs` (the boot step), which reads this constant. The client is passed
+to `PluginRuntime::new()` as an owned value and stored as `Arc<reqwest::Client>` on the runtime.
+This makes the construction site unambiguous: `prism-bin::boot` constructs, `prism-spec-engine`
+distributes via Arc::clone in `make_host_state()`.
 
 ### Forbidden Dependencies
 
@@ -732,7 +836,7 @@ Extracted from architecture documents and ADRs:
 |---------|---------|---------|----------|
 | `wasmtime` | `44` (exact) | WASM Component Model runtime | RUSTSEC rationale in Cargo.toml |
 | `zeroize` | `"1"` | AuthToken zeroing on drop (TD-B-002) | Accept any 1.x |
-| `sha2` | workspace version | SHA-256 for plugin_hash audit field | Use workspace dep if present; else add `sha2 = "0.10"` |
+| `sha2` | `"0.10"` (workspace dep confirmed) | SHA-256 for plugin_hash audit field | Confirmed at workspace `Cargo.toml` line 21. Use `sha2 = { workspace = true }` in crate Cargo.toml. |
 | `url` | workspace version | URL parsing for allowlist enforcement | Must already be present in prism-spec-engine |
 | `reqwest` | workspace version | HTTP client with 30s timeout | Builder pattern mandatory |
 | `arc-swap` | workspace version | Lock-free registry updates | Already in prism-spec-engine |
@@ -751,6 +855,7 @@ comment explaining the addition.
 - [BC-2.17.004](../specs/behavioral-contracts/BC-2.17.004-plugin-cpu-time-limit.md) — CPU Time Limit via Epoch Interruption
 - [BC-2.17.005](../specs/behavioral-contracts/BC-2.17.005-plugin-hot-reload-atomic-swap.md) — Hot Reload Atomic Swap
 - [BC-2.17.006](../specs/behavioral-contracts/BC-2.17.006-plugin-wit-validation.md) — WIT Validation Before Registration
+- [BC-2.17.007](../specs/behavioral-contracts/BC-2.17.007-plugin-manifest-schema-validation.md) — Plugin Manifest Schema Validation Before WIT Validation (NEW — landed wave-4-fix-burst-F-LP1-HIGH-004)
 - [BC-2.22.001](../specs/behavioral-contracts/BC-2.22.001-boot-orchestration.md) — Boot Orchestration Sequencing
 - [VP-INDEX §VP-149/VP-PLUGIN-004](../specs/verification-properties/VP-INDEX.md) — Boot warning on unsigned plugin load
 - [VP-INDEX §VP-152/VP-PLUGIN-007](../specs/verification-properties/VP-INDEX.md) — Allowlist not-None after PREREQ-D
@@ -765,4 +870,5 @@ comment explaining the addition.
 
 | Version | Burst | Date | Author | Change |
 |---------|-------|------|--------|--------|
+| 1.1 | pass-1 fix-burst | 2026-05-13 | story-writer | Closes F-LP1-HIGH-002/003/005/006/007/008/009/010/011/012/013/014 + F-LP1-OBS-015/016 (14 findings). Re-anchors AC-5 to BC-2.17.007 (F-LP1-HIGH-004 PO fix). Drops BC-2.17.005 from frontmatter (scope gap per F-LP1-MED-010; S-1.12-FOLLOWUP owns watcher promotion). Adds BC-2.17.007 to frontmatter + body (8→7 BCs net after 2.17.005 drop + 2.17.007 add). Adds AC-17 (HostState #[non_exhaustive]) and AC-18 (PRISM_DISABLE_PLUGIN_LOAD precedence). Token budget updated. Fixture Strategy prose corrected to "4 fixtures". reqwest::Client single-instance semantics made explicit in AC-9, Architecture Mapping, and Implementation Notes. Test names standardized to BC/VP prefix convention. make_host_state sibling sites enumerated. sha2 workspace dep confirmed. wasmtime advisory count claim replaced with cargo-audit-based language. |
 | 1.0 | PREREQ-D authorship | 2026-05-13 | story-writer | Initial authorship. Scope derived from ADR-023 v1.18 §C4. 16 ACs, 5 TDs absorbed (TD-B-002/004/005/011/012). |
