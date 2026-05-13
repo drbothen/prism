@@ -1,7 +1,7 @@
 ---
 document_type: behavioral-contract-index
 level: L3
-version: "4.67"
+version: "4.68"
 status: draft
 producer: product-owner
 timestamp: 2026-05-13T00:00:00
@@ -213,7 +213,7 @@ Phase 3-patch additions (2026-04-16): 22 new BCs added in Burst 1 to close trace
 | BC-2.16.009 | Spec File Validation — Schema Validation, Variable Reference Resolution, OCSF Field Validation | 16 - Spec Engine | CAP-029 | P0 | draft |
 | BC-2.16.010 | `list_sensor_specs` MCP Tool — List Loaded Sensor Specs with Table Schemas and Status | 16 - Spec Engine | CAP-029 | P0 | draft |
 | BC-2.17.001 | Plugin Panic Isolation — Crashed Plugin Does Not Terminate Host Process | 17 - WASM Plugin Runtime | CAP-032 | P0 | draft |
-| BC-2.17.002 | Plugin Sandbox — No Direct Filesystem or Network Access | 17 - WASM Plugin Runtime | CAP-032 | P0 | draft |
+| BC-2.17.002 | Plugin Sandbox — No Direct Filesystem or Network Access | 17 - WASM Plugin Runtime | CAP-032 | P0 | draft | v1.4 |
 | BC-2.17.003 | Plugin Sandbox — Memory Limit Enforced Per Plugin Instance (default 64MB) | 17 - WASM Plugin Runtime | CAP-032 | P0 | draft |
 | BC-2.17.004 | Plugin Sandbox — CPU Time Limit Enforced via Epoch Interruption (default 5s) | 17 - WASM Plugin Runtime | CAP-032 | P0 | draft |
 | BC-2.17.005 | Plugin Hot Reload — Atomic Module Swap, In-Flight Calls Complete Against Old Version | 17 - WASM Plugin Runtime | CAP-030, CAP-032 | P0 | draft |
@@ -239,7 +239,7 @@ Phase 3-patch additions (2026-04-16): 22 new BCs added in Burst 1 to close trace
 | BC-2.20.004 | Log Forwarder Credential Resolution — AD-017 Opaque Reference Model at Forward Time | 20 - Observability / Log Forwarding | CAP-035 | P0 | draft |
 | BC-2.20.005 | Log Forwarder Destination Isolation — Single Failed Destination Must Not Block Others | 20 - Observability / Log Forwarding | CAP-035 | P0 | draft |
 | BC-2.21.001 | OrgRegistry Initialization — Bijective Resolution Verified at Process Start | 21 - Identity & Core Types | CAP-038 | P0 | draft |
-| BC-2.22.001 | Boot Orchestration — Sequencing, Exit-Code Map, and Pre-Traffic Gate | 22 - Binary Entrypoint | CAP-034 | P0 | draft |
+| BC-2.22.001 | Boot Orchestration — Sequencing, Exit-Code Map, and Pre-Traffic Gate | 22 - Binary Entrypoint | CAP-034 | P0 | active | v1.4 |
 
 ## Wave 3 — Phase 3.A Behavioral Contracts (2026-04-27)
 
@@ -360,6 +360,8 @@ Phase 3-patch additions (2026-04-16): 22 new BCs added in Burst 1 to close trace
 - Subsystem 19: Infusion Enrichment Framework (AD-020, CAP-031)
 
 ### Change Log (Adversarial Review Fixes)
+
+**v4.68 (2026-05-13):** state(D-476/D-477) fix-burst-6 stage-3 — (1) BC-2.22.001 v1.3→v1.4 (fix-burst-6 stage-1 by product-owner: plugin-load step 7.5 added to §Sequencing Invariant; new postconditions for happy-path / PRISM_DISABLE_PLUGIN_LOAD escape valve / manifest n-1 survivor / fatal exit(4); §Pre-Traffic Gate Invariant condition 6 added; §Exit-Code Map updated; cross-refs to ADR-023 §C4 + BC-2.17.007 added); (2) BC-2.22.001 lifecycle_status adjudicated **Path A** (promoted draft→active per D-319 S-WAVE5-PREP-01 merge at develop@53b87961 2026-05-10; BC file frontmatter `status: draft` + `lifecycle_status: draft` were stale sibling-sweep gap from ADR-025 sweep at v4.62 — corrected to `status: active` + `lifecycle_status: active`); (3) BC-2.17.002 v1.3→v1.4 (fix-burst-6 stage-1 by product-owner: E-PLUGIN-005 timeout corrected 10s → 30s per ADR-023 §C4). Row updates: BC-2.22.001 row status draft→active; BC-2.17.002 row annotated v1.4. total_contracts=236 unchanged; active_contracts=229 unchanged (BC-2.22.001 was already counted active in BC-INDEX since v4.51 D-319; this corrects the BC file frontmatter to match the index).
 
 **v4.67 (2026-05-13):** state(D-469/470/471) — POL-20 actual 100% workspace sweep: 8 BCs with compound-suffix or opaque burst-ID `introduced:` fields migrated to canonical format. (1) BC-2.20.001/002/003/004/005 v1.3→v1.4: `introduced: cycle-1-pass-80` → `introduced: cycle-1` (drop compound pass suffix; pass-80 is pass-metadata not a cycle boundary); input-hash 335606b→3a0a478. (2) BC-2.06.011 v1.3→v1.4 + BC-2.21.001 v1.2→v1.3 + BC-2.22.001 v1.2→v1.3: `introduced: "bundle-B-phase-B-1b-ss22-bcs-2026-05-08"` / `"redirect-option-d-2026-05-08"` → `introduced: "2026-05-08"` (extract embedded ISO date; opaque burst-ID prohibited). input-hash d852024 unchanged (inputs not modified). Closes F-LP4-MED-001. total_contracts=236 unchanged; active_contracts=229 unchanged. POL-20 workspace compliance: 100% (anchored regex `^(cycle-[0-9]+|[0-9]{4}-[0-9]{2}-[0-9]{2})$` returns zero violations).
 

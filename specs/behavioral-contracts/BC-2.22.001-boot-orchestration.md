@@ -2,7 +2,7 @@
 document_type: behavioral-contract
 level: L3
 version: "1.4"
-status: draft
+status: active
 producer: product-owner
 timestamp: 2026-05-08T00:00:00Z
 phase: 3
@@ -10,9 +10,9 @@ origin: greenfield
 extracted_from: null
 subsystem: "SS-22"
 capability: "CAP-034"
-lifecycle_status: draft
+lifecycle_status: active
 introduced: "2026-05-08"
-modified: [D-319-post-merge-state-burst, D-454, D-469, fix-burst-6-stage-1]
+modified: [D-319-post-merge-state-burst, D-454, D-469, fix-burst-6-stage-1, fix-burst-6-stage-3]
 deprecated: null
 deprecated_by: null
 replacement: null
