@@ -2,7 +2,7 @@
 document_type: prd-supplement
 level: L3
 section: "error-taxonomy"
-version: "1.19"
+version: "1.20"
 status: draft
 producer: product-owner
 timestamp: 2026-05-11T02:00:00Z
@@ -457,6 +457,12 @@ Additional state errors beyond E-STATE-001 and E-STATE-002 (defined in the STATE
 | E-PLUGIN-015 | broken | validation | "Plugin manifest at '{path}' missing or empty required field 'name'" | No | `.prx` manifest `name` field is absent or is an empty string. `name` is required and must be a non-empty UTF-8 string. | BC-2.17.007 (Error Conditions: E-PLUGIN-015) |
 | E-PLUGIN-016 | broken | validation | "Plugin manifest at '{path}' field 'version' is not a valid semver string: '{value}'" | No | `.prx` manifest `version` field is absent or does not parse as a semantic version (major.minor.patch). Malformed version strings are rejected at the manifest gate before WIT compilation is attempted. | BC-2.17.007 (Error Conditions: E-PLUGIN-016) |
 
+## PIPELINE: Pipeline Executor Errors
+
+| Code | Severity | Category | Message Format | Retryable | Description |
+|------|----------|----------|---------------|-----------|-------------|
+| E-PIPELINE-001 | broken | resource | "Pipeline executor reached MAX_REQUESTS_PER_PIPELINE cap of 10_000 ({total} requests attempted); aborting pipeline execution" | No | `SpecEngineError::TooManyRequests { total: usize }` — emitted by `PipelineExecutor::execute` when the cumulative HTTP request counter across all steps reaches the 10,000-request hard cap (AC-16 of S-PLUGIN-PREREQ-D). Pipeline aborts immediately; partial results are discarded. Fail-closed: no partial data is returned to the caller. Structured event `pipeline_max_requests_exceeded` is emitted per BC-2.16.002 v1.12 catalog row. Non-retryable: the cap is a hard invariant, not a transient condition; operators must narrow the pipeline spec to reduce request volume. Traces to BC-2.16.002 §S-PLUGIN-PREREQ-D AC-16. |
+
 ## FWD: Log Forwarder Errors
 
 | Code | Severity | Category | Message Format | Retryable | Description |
@@ -471,6 +477,7 @@ Additional state errors beyond E-STATE-001 and E-STATE-002 (defined in the STATE
 
 | Version | Burst | Date | Author | Change |
 |---------|-------|------|--------|--------|
+| 1.20 | fix-burst-20-stage-1a | 2026-05-13 | product-owner | Added PIPELINE namespace (E-PIPELINE-001): `SpecEngineError::TooManyRequests { total: usize }` — pipeline executor MAX_REQUESTS_PER_PIPELINE cap (10,000) exceeded; fail-closed abort; structured event `pipeline_max_requests_exceeded` per BC-2.16.002 v1.12. Closes F-LP21-HIGH-001 taxonomy portion (S-PLUGIN-PREREQ-D pass-21). |
 | 1.19 | wave-4-fix-burst-F-LP1-HIGH-004 | 2026-05-13 | product-owner | Added E-PLUGIN-013 (allowed_urls absent/None — hard rejection, no silent default), E-PLUGIN-014 (format_version absent or exceeds CURRENT_SUPPORTED_VERSION; also umbrella for malformed manifest TOML), E-PLUGIN-015 (name field absent or empty), E-PLUGIN-016 (version field absent or not semver-parseable). All four anchor to BC-2.17.007. Closes F-LP1-HIGH-004 (S-PLUGIN-PREREQ-D pass-1). |
 | 1.18 | S-PLUGIN-PREREQ-A-pass-3-state-burst | 2026-05-11 | state-manager | Added E-QUERY-031 (InvalidSensorName — sensor name in PrismQL write plan or explain path failed SensorId validation; emitted by WriteDispatcher::execute_at when SensorId::try_from_str returns Err; introduced in S-PLUGIN-PREREQ-A fix-burst-2 F-LP2-CRIT-002 closure; references BC-2.01.013 v1.4). Closes F-LP3-MED-003 taxonomy-gap finding from pass-3. D-383. |
 | 1.17 | S-3.04-fix-pass-29 | 2026-05-07 | implementer | Added E-STORE-020 (CursorCapExceeded — active cursor count at cross-client cap of 200; new cursor allocation rejected; cursor expiry automatic at 60s TTL; see BC-2.07.002 §Cursor Lifecycle (MCP-exposed surface) — Cap). Code was implemented in crates/prism-core/src/error.rs but absent from taxonomy (F-PASS10-MED-001). |
