@@ -1,7 +1,7 @@
 ---
 document_type: behavioral-contract
 level: L3
-version: "0.5"
+version: "0.6"
 status: draft
 producer: product-owner
 timestamp: 2026-04-27T00:00:00
@@ -14,7 +14,7 @@ extracted_from: null
 subsystem: SS-03
 capability: CAP-004
 lifecycle_status: active
-introduced: v3.0.0
+introduced: cycle-3
 modified: []
 deprecated: null
 deprecated_by: null
@@ -104,8 +104,8 @@ Bearer and session tokens issued by sensor adapters (e.g., CrowdStrike OAuth tok
 
 ## Architecture Anchors
 
-- `crates/prism-dtu-cyberint/src/state.rs:56` — `session_store: Mutex<HashSet<String>>` migration target → `HashSet<(OrgId, String)>`
-- `crates/prism-dtu-cyberint/src/state.rs:214` — `register_session` call site (must accept OrgId parameter)
+- `crates/prism-dtu-cyberint/src/state.rs` — `CyberintState::session_store` migration target → `HashSet<(OrgId, String)>`
+- `crates/prism-dtu-cyberint/src/state.rs` — `CyberintState::register_session` call site (must accept OrgId parameter)
 - ADR-008 §2.1 — Cyberint session_store rationale; CrowdStrike session_registry non-re-keying rationale
 - ADR-008 §3.2 — cross-tenant session token reuse threat
 
@@ -129,6 +129,7 @@ None. All open questions resolved.
 
 | Version | Change |
 |---------|--------|
+| v0.6 | D-468 (2026-05-13): TD-VSDD-091 cleanup — line-number anchors in Architecture Anchors converted to symbol-name form (`CyberintState::session_store`, `CyberintState::register_session`). POL-20 migration: `introduced: v3.0.0` → `introduced: cycle-3`. |
 | v0.5 | M-004 (pass-8-remediation): Title corrected to Title Case — "Per-Org Session Token Isolation via (OrgId, token) Composite Key". Frontmatter `title:` and H1 updated; BC-INDEX entry updated in same pass. |
 | v0.4 | M-003 (Pass 3): Stories field and Story Anchor resolved from TBD to S-3.2.01, S-3.2.03, S-3.2.04, S-3.2.08 per STORY-INDEX BC Traceability Matrix. |
 | v0.3 | C-1 sync (2026-04-27): Open Questions marked resolved per D-048 (CrowdStrike session_registry org-scoped at query-engine layer). |

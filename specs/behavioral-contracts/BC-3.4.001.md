@@ -1,7 +1,7 @@
 ---
 document_type: behavioral-contract
 level: L3
-version: "0.7"
+version: "0.8"
 status: draft
 producer: product-owner
 timestamp: 2026-04-27T00:00:00
@@ -16,7 +16,7 @@ extracted_from: null
 subsystem: "SS-01"
 capability: "CAP-039"
 lifecycle_status: active
-introduced: wave-3
+introduced: cycle-3
 modified: []
 deprecated: null
 deprecated_by: null
@@ -124,7 +124,7 @@ The `generate(org_id, sensor_type, archetype, GenOpts { seed, scale, time_anchor
 - ADR-009 §2.4 — Determinism Contract; XOR-seed construction formula
 - ADR-009 §2.3 — Generator API: `generate()` signature, `GenOpts`, `FixtureSet`
 - ADR-009 §3.2 — Threat: non-determinism contamination; mitigation via `seeded_rng` convention
-- `crates/prism-dtu-common/src/seed.rs:9` — `seeded_rng(seed: u64) -> ChaCha20Rng`; generator extends this convention
+- `crates/prism-dtu-common/src/seed.rs` — `prism_dtu_common::seed::seeded_rng`; generator extends this convention
 
 ## Story Anchor
 
@@ -147,6 +147,7 @@ None. All open questions resolved.
 
 | Version | Change |
 |---------|--------|
+| v0.8 | D-468 (2026-05-13): TD-VSDD-091 cleanup — line-number anchor in Architecture Anchors converted to symbol-name form (`prism_dtu_common::seed::seeded_rng`). POL-20 migration: `introduced: wave-3` → `introduced: cycle-3`. |
 | v0.7 | M-24-001 (Pass 24): Body Traceability Architecture Module row corrected SS-06 (Client Configuration) → SS-01 (Sensor Adapters) per ARCH-INDEX.md; prism-dtu-common is the implementation site per D-056. |
 | v0.6 | M-23-001 (Pass 23): `subsystem:` corrected SS-06 (Client Configuration) → SS-01 (Sensor Adapters — prism-dtu-common is the implementation site per D-056). |
 | v0.5 | M-004 (Pass 5): Frontmatter `title:` corrected to title-case to match H1 heading. |

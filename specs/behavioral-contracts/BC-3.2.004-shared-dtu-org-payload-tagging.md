@@ -1,7 +1,7 @@
 ---
 document_type: behavioral-contract
 level: L3
-version: "0.5"
+version: "0.6"
 status: draft
 producer: product-owner
 timestamp: 2026-04-27T00:00:00
@@ -14,7 +14,7 @@ extracted_from: null
 subsystem: SS-01
 capability: CAP-040
 lifecycle_status: active
-introduced: v3.0.0
+introduced: cycle-3
 modified: []
 deprecated: null
 deprecated_by: null
@@ -106,8 +106,8 @@ Shared-infrastructure DTUs (Slack, PagerDuty, Jira, NVD, ThreatIntel) operate as
 
 ## Architecture Anchors
 
-- `crates/prism-dtu-slack/src/state.rs:153` — `capture_payload(payload: Value)` call site; OrgId to be embedded in payload construction (ADR-007 §2.6 Step 3)
-- `crates/prism-dtu-pagerduty/src/state.rs:91` — incident_registry; dedup_key remains MSSP-scoped (not re-keyed)
+- `crates/prism-dtu-slack/src/state.rs` — `SlackState::capture_payload_tagged`; OrgId embedded in payload body (ADR-007 §2.6 Step 3)
+- `crates/prism-dtu-pagerduty/src/state.rs` — `PagerDutyState::incident_registry`; dedup_key remains MSSP-scoped (not re-keyed)
 - ADR-007 §3.2 — shared-mode payload leakage threat model
 - ADR-006 §3.5 — privacy in shared-infrastructure DTU
 
@@ -132,6 +132,7 @@ None. All open questions resolved.
 
 | Version | Change |
 |---------|--------|
+| v0.6 | D-468 (2026-05-13): TD-VSDD-091 cleanup — line-number anchors in Architecture Anchors converted to symbol-name form (`SlackState::capture_payload_tagged`, `PagerDutyState::incident_registry`). POL-20 migration: `introduced: v3.0.0` → `introduced: cycle-3`. |
 | v0.5 | M-004 (pass-8-remediation): Title corrected to Title Case — "Shared-Mode DTU Tags OrgId in Payload Body Not in Routing Headers". Frontmatter `title:` and H1 updated; BC-INDEX entry updated in same pass. |
 | v0.4 | M-003 (Pass 3): Stories field and Story Anchor resolved from TBD to S-3.1.06, S-3.2.05, S-3.2.06, S-3.2.07, S-3.4.05 per STORY-INDEX BC Traceability Matrix. |
 | v0.3 | C-5 re-anchoring (2026-04-27): capability CAP-009 → CAP-040; Capability Anchor Justification updated to cite CAP-040 ("Multi-Tenant Adapter Dispatch Mode") verbatim. Open Questions resolved per D-049. |

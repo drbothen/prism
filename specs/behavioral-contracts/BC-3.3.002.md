@@ -1,7 +1,7 @@
 ---
 document_type: behavioral-contract
 level: L3
-version: "0.3"
+version: "0.4"
 status: draft
 producer: product-owner
 timestamp: 2026-04-27T00:00:00
@@ -16,7 +16,7 @@ extracted_from: null
 subsystem: "SS-06"
 capability: "CAP-009"
 lifecycle_status: active
-introduced: wave-3
+introduced: cycle-3
 modified: []
 deprecated: null
 deprecated_by: null
@@ -139,7 +139,7 @@ Note: The field value is intentionally NOT included in the error message to prev
 
 - ADR-010 §2.3.1 — Credential Reference Schemes table; four allowed scheme prefixes
 - ADR-010 §3.1 — Threat model: config file as credential exfiltration vector
-- `crates/prism-credentials/src/namespace.rs:20` — `namespace_key(tenant, sensor, name)` — operator-facing counterpart to opaque reference model
+- `crates/prism-credentials/src/namespace.rs` — `prism_credentials::namespace::namespace_key_by_org_id` — operator-facing counterpart to opaque reference model
 
 ## Story Anchor
 
@@ -155,5 +155,6 @@ S-3.3.01
 
 | Version | Change |
 |---------|--------|
+| v0.4 | D-468 (2026-05-13): TD-VSDD-091 cleanup — line-number anchor in Architecture Anchors converted to symbol-name form (`prism_credentials::namespace::namespace_key_by_org_id`). POL-20 migration: `introduced: wave-3` → `introduced: cycle-3`. |
 | v0.3 | M-004 (Pass 5): Frontmatter `title:` corrected to title-case to match H1 heading. |
 | v0.2 | Initial authoring from ADR-010. |

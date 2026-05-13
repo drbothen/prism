@@ -1,7 +1,7 @@
 ---
 document_type: behavioral-contract
 level: L3
-version: "0.3"
+version: "0.4"
 status: draft
 producer: product-owner
 timestamp: 2026-04-27T00:00:00
@@ -14,7 +14,7 @@ extracted_from: null
 subsystem: SS-03
 capability: CAP-004
 lifecycle_status: active
-introduced: v3.0.0
+introduced: cycle-3
 modified: []
 deprecated: null
 deprecated_by: null
@@ -104,8 +104,8 @@ Bearer tokens and API keys for `OrgId(A)`'s sensors are unreachable from a query
 
 ## Architecture Anchors
 
-- `crates/prism-credentials/src/namespace.rs:20` — `namespace_key` function; migration target from `&TenantId` to `&OrgId`
-- `crates/prism-credentials/src/trait_.rs:27-66` — credential store trait methods; all async methods gain `&OrgId` parameter
+- `crates/prism-credentials/src/namespace.rs` — `prism_credentials::namespace::namespace_key_by_org_id`; migration target from `&TenantId` to `&OrgId`
+- `crates/prism-credentials/src/trait_.rs` — `prism_credentials::trait_::CredentialStoreOrgId` trait; all async methods carry `&OrgId` parameter
 - ADR-006 §3.2 — cross-tenant credential reachability threat model
 
 ## Story Anchor
@@ -126,5 +126,6 @@ S-3.1.04
 
 | Version | Change |
 |---------|--------|
+| v0.4 | D-468 (2026-05-13): TD-VSDD-091 cleanup — line-number anchors in Architecture Anchors converted to symbol-name form (`prism_credentials::namespace::namespace_key_by_org_id`, `prism_credentials::trait_::CredentialStoreOrgId`). POL-20 migration: `introduced: v3.0.0` → `introduced: cycle-3`. |
 | v0.3 | M-004 (pass-8-remediation): Title corrected to Title Case — "Per-Org Credential Isolation via OrgId-Keyed Namespace". Frontmatter `title:` and H1 updated; BC-INDEX entry updated in same pass. |
 | v0.2 | Initial authoring from ADR-006. |

@@ -1,7 +1,7 @@
 ---
 document_type: behavioral-contract
 level: L3
-version: "0.8"
+version: "0.9"
 status: draft
 producer: product-owner
 timestamp: 2026-04-27T00:00:00
@@ -16,7 +16,7 @@ extracted_from: null
 subsystem: "SS-01"
 capability: "CAP-039"
 lifecycle_status: active
-introduced: wave-3
+introduced: cycle-3
 modified: []
 deprecated: null
 deprecated_by: null
@@ -140,7 +140,7 @@ Where `{index}` is the zero-based record index within the generated `FixtureSet:
 
 - ADR-009 §2.5 — Org-Tagged Record IDs: ID formats, slug resolution, hex fallback
 - ADR-009 §3.1 — Threat: cross-tenant leakage via identical device IDs; mitigation via org-tagged IDs
-- `crates/prism-dtu-claroty/src/state.rs:24` — `tag_store: Mutex<HashMap<String, HashSet<String>>>` — the store that org-tagged IDs protect against keying bugs in
+- `crates/prism-dtu-claroty/src/state.rs` — `ClarotyState::tag_store`; the store that org-tagged IDs protect against keying bugs in
 
 ## Story Anchor
 
@@ -162,6 +162,7 @@ None. All open questions resolved.
 
 | Version | Change |
 |---------|--------|
+| v0.9 | D-468 (2026-05-13): TD-VSDD-091 cleanup — line-number anchor in Architecture Anchors converted to symbol-name form (`ClarotyState::tag_store`). POL-20 migration: `introduced: wave-3` → `introduced: cycle-3`. |
 | v0.8 | M-24-001 (Pass 24): Body Traceability Architecture Module row corrected SS-06 (Client Configuration) → SS-01 (Sensor Adapters) per ARCH-INDEX.md; prism-dtu-common is the implementation site per D-056. |
 | v0.7 | M-23-001 (Pass 23): `subsystem:` corrected SS-06 (Client Configuration) → SS-01 (Sensor Adapters — prism-dtu-common is the implementation site per D-056). |
 | v0.6 | M-004 (Pass 5): Frontmatter `title:` corrected to title-case to match H1 heading. |

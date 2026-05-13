@@ -1,7 +1,7 @@
 ---
 document_type: behavioral-contract
 level: L3
-version: "0.5"
+version: "0.6"
 status: draft
 producer: product-owner
 timestamp: 2026-04-27T00:00:00
@@ -14,7 +14,7 @@ extracted_from: null
 subsystem: SS-01
 capability: CAP-001
 lifecycle_status: active
-introduced: v3.0.0
+introduced: cycle-3
 modified: []
 deprecated: null
 deprecated_by: null
@@ -106,10 +106,10 @@ A fetch or write call carrying `OrgId(A)` must not read or modify DTU state entr
 
 ## Architecture Anchors
 
-- `crates/prism-dtu-claroty/src/state.rs:24` — `tag_store` migration target: `HashMap<String,_>` to `HashMap<(OrgId,String),_>`
-- `crates/prism-dtu-armis/src/state.rs:72` — `tag_store` migration target
-- `crates/prism-dtu-crowdstrike/src/state.rs:86,88` — `containment_store`, `detection_status_store` migration targets
-- `crates/prism-dtu-cyberint/src/state.rs:52,56` — `alert_store`, `session_store` migration targets
+- `crates/prism-dtu-claroty/src/state.rs` — `ClarotyState::tag_store` migration target: `HashMap<String,_>` to `HashMap<(OrgId,String),_>`
+- `crates/prism-dtu-armis/src/state.rs` — `ArmisState::tag_store` migration target
+- `crates/prism-dtu-crowdstrike/src/state.rs` — `CrowdstrikeState::containment_store`, `CrowdstrikeState::detection_status_store` migration targets
+- `crates/prism-dtu-cyberint/src/state.rs` — `CyberintState::alert_store`, `CyberintState::session_store` migration targets
 - ADR-008 §2.1 — full crate-by-crate migration table
 
 ## Story Anchor
@@ -134,6 +134,7 @@ None. All open questions resolved.
 
 | Version | Change |
 |---------|--------|
+| v0.6 | D-468 (2026-05-13): TD-VSDD-091 cleanup — line-number anchors in Architecture Anchors section converted to symbol-name form (`ClarotyState::tag_store`, `ArmisState::tag_store`, `CrowdstrikeState::containment_store`/`detection_status_store`, `CyberintState::alert_store`/`session_store`). POL-20 migration: `introduced: v3.0.0` → `introduced: cycle-3`. |
 | v0.5 | M-004 (pass-8-remediation): Title corrected to Title Case — "Per-Org Sensor Data Isolation via Composite HashMap Key". Frontmatter `title:` and H1 updated; BC-INDEX entry updated in same pass. |
 | v0.4 | M-003 (Pass 3): Stories field and Story Anchor resolved from TBD to S-3.1.06, S-3.2.01, S-3.2.02, S-3.2.03, S-3.2.04 per STORY-INDEX BC Traceability Matrix. |
 | v0.3 | C-1 sync (2026-04-27): Open Questions marked resolved per D-048 (CrowdStrike session_registry org-scoped at query-engine layer) and D-049 (NVD/ThreatIntel no re-keying). |

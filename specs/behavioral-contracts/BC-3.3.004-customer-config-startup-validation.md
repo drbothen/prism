@@ -1,7 +1,7 @@
 ---
 document_type: behavioral-contract
 level: L3
-version: "0.9"
+version: "1.0"
 status: draft
 producer: product-owner
 timestamp: 2026-04-27T00:00:00
@@ -17,7 +17,7 @@ extracted_from: null
 subsystem: "SS-06"
 capability: "CAP-009"
 lifecycle_status: active
-introduced: wave-3
+introduced: cycle-3
 modified: []
 deprecated: null
 deprecated_by: null
@@ -156,7 +156,7 @@ At Prism startup, every `customers/*.toml` file is parsed and structurally valid
 
 ## Architecture Anchors
 
-- `crates/prism-core/src/ids.rs:10-42` — UUID v7 constraint; `OrgId` implemented via `uuid_v7_newtype!` macro; `OrgId::try_from` validates version nibble (planned implementation site)
+- `crates/prism-core/src/ids.rs` — `prism_core::ids::uuid_v7_newtype` macro / `OrgId`; UUID v7 constraint; `OrgId::try_from` validates version nibble (planned implementation site)
 - ADR-010 §2.2 — required top-level fields and their type constraints
 - ADR-010 §2.3 — `[[dtu]]` block validation rules 1–10
 - ADR-010 §2.5 — loading lifecycle: validation-before-registration ordering invariant
@@ -175,6 +175,7 @@ S-3.3.01, S-3.3.02
 
 | Version | Change |
 |---------|--------|
+| v1.0 | D-468 (2026-05-13): TD-VSDD-091 cleanup — line-number anchor in Architecture Anchors converted to symbol-name form (`prism_core::ids::uuid_v7_newtype` macro / `OrgId`). POL-20 migration: `introduced: wave-3` → `introduced: cycle-3`. |
 | v0.9 | M-31-002 (Pass 31): R-CUST-013 cross-reference removed from R-CUST-001 note row — R-CUST-013 covers test-only types (E-CFG-013), not `schema_version`. Note now reads: "`schema_version` absent → E-CFG-030 (BC-3.3.003); `schema_version` unsupported value → E-CFG-031 (BC-3.3.003)." |
 | v0.8 | M-30-001 (Pass 30): R-CUST-001 condition updated — removed `schema_version` from the missing-required-field enumeration. R-CUST-001 now covers only `org_id`, `org_slug`, `display_name`. Added cross-reference note: `schema_version` absent → E-CFG-030 / BC-3.3.003; unsupported value → E-CFG-031 / BC-3.3.003. Eliminates contradiction with E-CFG-030 disclaimer. |
 | v0.7 | M-002 (Pass 6): R-CUST-016 / E-CFG-016 added: `[[dtu]] mode='shared'` with `spec` field present → E-CFG-016. `spec` is a known schema field so `deny_unknown_fields` does not catch this — requires explicit semantic rule per ADR-010 §2.3 rule 5. EC-3.3.004-10 and TV-3.3.004-15 added. E-CFG-016 added to error-taxonomy.md v1.10. |
