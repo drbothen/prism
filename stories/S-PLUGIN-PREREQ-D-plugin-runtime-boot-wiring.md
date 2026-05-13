@@ -49,10 +49,10 @@ target_module: prism-bin
 #   format_version check all land in crates/prism-spec-engine/src/plugin/.
 subsystems: [SS-22, SS-17]
 capabilities: [CAP-029, CAP-032, CAP-034]
-version: "1.2"
+version: "1.3"
 level: "L4"
 producer: story-writer
-timestamp: "2026-05-13T02:00:00Z"
+timestamp: "2026-05-13T07:35:00Z"
 updated: "2026-05-13"
 input-hash: "6954524"
 traces_to: []
@@ -372,8 +372,8 @@ Per BC-2.17.001: `wasmtime::Store` is created fresh per plugin call. Plugin trap
 the `instance.call_*` boundary and returned as `Err(PluginError::Trapped { plugin_id, message })`.
 The host process continues. WARN log emitted per trap. Plugin registry entry retained. This
 behavior is confirmed existing from S-1.15; PREREQ-D adds an integration test using
-`tests/fixtures/trap_plugin.wat`-compiled fixture that explicitly verifies trap isolation after
-the plugin-load step wires the runtime into boot.
+`tests/fixtures/trap_plugin.prx` (compiled from `tests/fixtures/src/trap_plugin.wat`) that
+explicitly verifies trap isolation after the plugin-load step wires the runtime into boot.
 
 ### AC-11 — Filesystem and network sandbox: WASI not linked; allowlist enforced (traces to BC-2.17.002 invariants; INV-PLUGIN-002)
 
@@ -518,15 +518,9 @@ Only the exact string `"1"` disables loading (EC-D-011: values like `"true"`, `"
     - `test_VP_PLUGIN_007_plugin_load_rejected_no_allowlist`
 
 11. **[prism-spec-engine] Add plugin integration tests in crates/prism-spec-engine/tests/**
-    - `test_BC_2_17_001_plugin_panic_isolation`
-    - `test_BC_2_17_002_wasi_not_linked`
-    - `test_BC_2_17_002_allowlist_enforcement_blocks_non_allowlisted_url`
-    - `test_BC_2_17_003_memory_limit_enforced`
-    - `test_BC_2_17_004_cpu_timeout_enforced`
-    - `test_hot_reload_atomic_swap_inflight_complete`
-    - `test_BC_2_17_006_wit_validation_rejects_missing_export`
-    - `test_BC_2_17_006_format_version_exceeded_rejected`
-    - `test_BC_2_17_006_missing_allowed_urls_rejected`
+    Implement all 18 named test functions enumerated in §Red Gate Tests
+    (`crates/prism-spec-engine/tests/plugin_integration_tests.rs` block) — that section is the
+    single source of truth for canonical test names. Do not diverge from those names.
 
 12. **[.github] Create `.github/PULL_REQUEST_TEMPLATE.md`** (ADR-023 §C4 F-PASS3-MED-001)
     - Three-item sensor-pattern checklist (content defined in Implementation Notes §PR Template)
@@ -593,9 +587,9 @@ The following concrete stub/TODO sites are closed by this story:
 | `TD-S-PLUGIN-PREREQ-B-005` inline comment | `crates/prism-spec-engine/src/plugin/pipeline.rs` | reqwest timeout note | AC-9: removed when timeout wired |
 | `TD-S-PLUGIN-PREREQ-B-011/012` doc comment | `crates/prism-spec-engine/src/plugin/pipeline.rs` | `execute_step` doc comment | AC-8 tasks: removed after tests added |
 | `todo!()` in plugin-load step | `crates/prism-bin/src/boot.rs` | step between storage and query-engine | AC-1: replaced with `PluginRuntime::load_all_plugins` call |
-| `TODO(S-4.08)` fire-alert dispatch stub | `crates/prism-spec-engine/src/plugin/mod.rs` | ~line 395 | OUT OF SCOPE — S-4.08. Remains open; tracked under separate story. |
-| `TODO(S-4.08)` fire-case dispatch stub | `crates/prism-spec-engine/src/plugin/mod.rs` | ~line 419 | OUT OF SCOPE — S-4.08. Remains open; tracked under separate story. |
-| `TODO(S-4.08)` fire-report dispatch stub | `crates/prism-spec-engine/src/plugin/mod.rs` | ~line 442 | OUT OF SCOPE — S-4.08. Remains open; tracked under separate story. |
+| `TODO(S-4.08)` fire-alert dispatch stub | `crates/prism-spec-engine/src/plugin/mod.rs` | ~line 395 | OUT OF SCOPE — S-4.08. Remains open; tracked under separate story. **Implementer action:** when closing the `make_host_state` TODO above, rename this tag to `TODO(S-4.08-fire-alert-dispatch)` so post-merge `rg 'TODO(S-4.08)'` returns zero hits for the closed site. |
+| `TODO(S-4.08)` fire-case dispatch stub | `crates/prism-spec-engine/src/plugin/mod.rs` | ~line 419 | OUT OF SCOPE — S-4.08. Remains open; tracked under separate story. **Implementer action:** rename to `TODO(S-4.08-fire-case-dispatch)` (same rationale as above). |
+| `TODO(S-4.08)` fire-report dispatch stub | `crates/prism-spec-engine/src/plugin/mod.rs` | ~line 442 | OUT OF SCOPE — S-4.08. Remains open; tracked under separate story. **Implementer action:** rename to `TODO(S-4.08-fire-report-dispatch)` (same rationale as above). |
 
 ## Red Gate Tests
 
@@ -818,7 +812,7 @@ Extracted from architecture documents and ADRs:
 | Rule | Source | Enforcement |
 |------|--------|------------|
 | WASI interfaces MUST NOT be linked into plugin instances | BC-2.17.002 INV-PLUGIN-002 | VP-040 Kani proof + linker assertion (AC-8) |
-| Plugin compilation MUST run in `spawn_blocking` | BC-2.17.005 invariant | Code review; tokio lint |
+| Plugin compilation MUST run in `spawn_blocking` | ADR-023 §C4 | Code review; tokio lint |
 | `wasmtime::Store` created fresh per plugin call | BC-2.17.001 invariant | Code review |
 | Epoch ticker started once at PluginRuntime::new() | BC-2.17.004 invariant | Unit test assertion |
 | Plugin-load step after storage init, before query-engine | BC-2.22.001 sequencing | Integration test (AC-1) |
@@ -868,6 +862,7 @@ comment explaining the addition.
 
 | Version | Burst | Date | Author | Change |
 |---------|-------|------|--------|--------|
-| 1.2 | pass-2 fix-burst-2 | 2026-05-13 | story-writer | Closes F-LP2-MED-001 (AC-14 re-anchored story-local; hot-reload test names drop BC-2.17.005 prefix), F-LP2-MED-002 (BC-2.16.002 added to behavioral_contracts + anchor_bcs + inputs + body BC table; capabilities/anchor_capabilities updated to [CAP-029,CAP-032,CAP-034]; Token Budget 7→8 BCs), F-LP2-MED-003 (red_gate_tests 0→25), F-LP2-LOW-004 (CAP-034 already in capabilities via BC-2.22.001; anchor_capabilities now union-correct; capabilities updated to [CAP-029,CAP-032,CAP-034]), F-LP2-LOW-005 (AC-17 moved to follow AC-16 — body order now matches AC numbering), F-LP2-OBS-008 (.github/PULL_REQUEST_TEMPLATE.md non-crate note added to File Structure). 6/8 pass-2 findings closed in-scope. |
+| 1.3 | pass-3 fix-burst-3 | 2026-05-13 | story-writer | Closes F-LP3-MED-001 (Task 11 test list replaced with §Red Gate Tests reference; BC_2_17_006 mis-anchors on 2 test names corrected to BC_2_17_007 — manifest tests belong to BC-2.17.007 not BC-2.17.006/WIT), F-LP3-LOW-003 (AC-10 fixture path clarified: `trap_plugin.prx` compiled from `tests/fixtures/src/trap_plugin.wat`), F-LP3-LOW-004 (Match-Site Inventory out-of-scope TODO(S-4.08) rows now carry implementer rename instructions to distinguish closed vs open sites post-merge), F-LP3-OBS-005 (v1.2 changelog row updated: 6/8 in-story-file + 2/8 sibling artifacts = 8/8 closed across burst; VP-INDEX SHA and BC-2.17.007+policies.yaml SHA cited), F-LP3-OBS-006 (Architecture Compliance Rules spawn_blocking row re-anchored from BC-2.17.005 invariant to ADR-023 §C4 — BC-2.17.005 not in frontmatter). F-LP3-MED-002 dispatched to state-manager separately (23-BC POL-20 workspace sweep). 5/6 in-perimeter findings closed. |
+| 1.2 | pass-2 fix-burst-2 | 2026-05-13 | story-writer | Closes F-LP2-MED-001 (AC-14 re-anchored story-local; hot-reload test names drop BC-2.17.005 prefix), F-LP2-MED-002 (BC-2.16.002 added to behavioral_contracts + anchor_bcs + inputs + body BC table; capabilities/anchor_capabilities updated to [CAP-029,CAP-032,CAP-034]; Token Budget 7→8 BCs), F-LP2-MED-003 (red_gate_tests 0→25), F-LP2-LOW-004 (CAP-034 already in capabilities via BC-2.22.001; anchor_capabilities now union-correct; capabilities updated to [CAP-029,CAP-032,CAP-034]), F-LP2-LOW-005 (AC-17 moved to follow AC-16 — body order now matches AC numbering), F-LP2-OBS-008 (.github/PULL_REQUEST_TEMPLATE.md non-crate note added to File Structure). 6/8 pass-2 findings closed in this story file; F-LP2-LOW-006 closed in VP-INDEX v1.34 (SHA 4218e72a); F-LP2-OBS-007 closed in BC-2.17.007 v1.1 + policies.yaml v1.9 (POL-20 adopted) (SHA 97deaf37); 8/8 closed in-scope across the burst. |
 | 1.1 | pass-1 fix-burst | 2026-05-13 | story-writer | Closes F-LP1-HIGH-002/003/005/006/007/008/009/010/011/012/013/014 + F-LP1-OBS-015/016 (14 findings). Re-anchors AC-5 to BC-2.17.007 (F-LP1-HIGH-004 PO fix). Drops BC-2.17.005 from frontmatter (scope gap per F-LP1-MED-010; S-1.12-FOLLOWUP owns watcher promotion). Adds BC-2.17.007 to frontmatter + body (8→7 BCs net after 2.17.005 drop + 2.17.007 add). Adds AC-17 (HostState #[non_exhaustive]) and AC-18 (PRISM_DISABLE_PLUGIN_LOAD precedence). Token budget updated. Fixture Strategy prose corrected to "4 fixtures". reqwest::Client single-instance semantics made explicit in AC-9, Architecture Mapping, and Implementation Notes. Test names standardized to BC/VP prefix convention. make_host_state sibling sites enumerated. sha2 workspace dep confirmed. wasmtime advisory count claim replaced with cargo-audit-based language. |
 | 1.0 | PREREQ-D authorship | 2026-05-13 | story-writer | Initial authorship. Scope derived from ADR-023 v1.18 §C4. 16 ACs, 5 TDs absorbed (TD-B-002/004/005/011/012). |
