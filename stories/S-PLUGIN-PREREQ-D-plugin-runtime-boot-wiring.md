@@ -49,10 +49,10 @@ target_module: prism-bin
 #   format_version check all land in crates/prism-spec-engine/src/plugin/.
 subsystems: [SS-22, SS-17]
 capabilities: [CAP-029, CAP-032, CAP-034]
-version: "1.4"
+version: "1.5"
 level: "L4"
 producer: story-writer
-timestamp: "2026-05-13T09:00:00Z"
+timestamp: "2026-05-13T10:30:00Z"
 updated: "2026-05-13"
 input-hash: "6954524"
 traces_to: []
@@ -340,7 +340,7 @@ asserts the count and names match the canonical host function list. This prevent
 drift when new host functions are added. The test panics with a descriptive message on mismatch:
 `"Linker import count mismatch: expected {N}, found {M}. Did you add a host function without updating the import list?"`.
 
-### AC-9 — Single shared reqwest::Client constructed once at boot with 30-second timeout; injected into PluginRuntime (traces to TD-S-PLUGIN-PREREQ-B-005; BC-2.17.002 error condition for http_request timeout)
+### AC-9 — Single shared reqwest::Client constructed once at boot with 30-second timeout; injected into PluginRuntime (traces to ADR-023 §C4 plugin HTTP defaults; closes TD-S-PLUGIN-PREREQ-B-005)
 
 A **single** `reqwest::Client` instance is constructed **once** in `crates/prism-bin/src/boot.rs`
 during the plugin-load boot step, using:
@@ -369,6 +369,14 @@ No bare `reqwest::Client::new()` calls are permitted in plugin-related code.
 Integration tests that need HTTP mocking construct their own test-scoped client and inject it
 directly into `PluginRuntime::new(...)` in the test setup (already done in PREREQ-B test
 conventions).
+
+> **Cross-doc gap (out-of-perimeter, documentation only):** BC-2.17.002 E-PLUGIN-005 cites a
+> 10-second `host::http_request` timeout. The PipelineExecutor (PREREQ-B) and this story's
+> `PLUGIN_HTTP_CLIENT_TIMEOUT_SECS` both use 30 seconds as the operational value per ADR-023 §C4.
+> The 10s value in BC-2.17.002 may have been set without coordination and may need product-owner
+> amendment to align with the 30s standard. A future PO-led story or backlog item should update
+> BC-2.17.002 E-PLUGIN-005 if 30s is confirmed as the production target. No action required for
+> PREREQ-D delivery.
 
 ### AC-10 — Plugin panic isolation: trap caught at Rust boundary; fresh Store per call (traces to BC-2.17.001 postconditions; INV-PLUGIN-001)
 
@@ -547,9 +555,9 @@ Only the exact string `"1"` disables loading (EC-D-011: values like `"true"`, `"
 | Cargo.toml files (2) | ~1,000 |
 | tests/fixtures/src/*.wat (4 WAT source files × ~50 LOC each) | ~800 |
 | Test output / error messages during TDD | ~4,000 |
-| **Total** | **~38,300** |
+| **Total** | **~39,800** |
 
-This is approximately 15% of a 256k-token context window — within the 20-30% limit.
+This is approximately 15.5% of a 256k-token context window — within the 20-30% limit.
 No splitting required.
 
 ## File Structure Requirements
@@ -589,7 +597,7 @@ The following concrete stub/TODO sites are closed by this story:
 | `TD-S-PLUGIN-PREREQ-B-002` inline comment | `crates/prism-spec-engine/src/plugin/auth_provider.rs` | `AuthToken` definition | AC-15: removed when zeroize implemented |
 | `TD-S-PLUGIN-PREREQ-B-004` inline comment | `crates/prism-spec-engine/src/plugin/pipeline.rs` | `MAX_REQUESTS` note | AC-16: removed when cap implemented |
 | `TD-S-PLUGIN-PREREQ-B-005` inline comment | `crates/prism-spec-engine/src/plugin/pipeline.rs` | reqwest timeout note | AC-9: removed when timeout wired |
-| `TD-S-PLUGIN-PREREQ-B-011/012` doc comment | `crates/prism-spec-engine/src/plugin/pipeline.rs` | `execute_step` doc comment | AC-8 tasks: removed after tests added |
+| `TD-S-PLUGIN-PREREQ-B-011/012` doc comment | `crates/prism-spec-engine/src/plugin/pipeline.rs` | `execute_step` doc comment | Task 8: removed after tests added |
 | `todo!()` in plugin-load step | `crates/prism-bin/src/boot.rs` | step between storage and query-engine | AC-1: replaced with `PluginRuntime::load_all_plugins` call |
 | `TODO(S-4.08)` fire-alert dispatch stub | `crates/prism-spec-engine/src/plugin/mod.rs` | ~line 395 | OUT OF SCOPE — S-4.08. Remains open; tracked under separate story. **Implementer action:** when closing the `make_host_state` TODO above, rename this tag to `TODO(S-4.08-fire-alert-dispatch)` so post-merge `rg 'TODO(S-4.08)'` returns zero hits for the closed site. |
 | `TODO(S-4.08)` fire-case dispatch stub | `crates/prism-spec-engine/src/plugin/mod.rs` | ~line 419 | OUT OF SCOPE — S-4.08. Remains open; tracked under separate story. **Implementer action:** rename to `TODO(S-4.08-fire-case-dispatch)` (same rationale as above). |
@@ -866,8 +874,9 @@ comment explaining the addition.
 
 | Version | Burst | Date | Author | Change |
 |---------|-------|------|--------|--------|
+| 1.5 | pass-6 fix-burst-5 | 2026-05-13 | story-writer | Closes F-LP6-MEDIUM-001 (Token Budget arithmetic: row sum 39,800 corrected; Total ~38,300→~39,800; percentage ~15%→~15.5%). Closes F-LP6-LOW-002 (v1.1 changelog BC count notation: "8→7 BCs net" rewritten to "swap BC-2.17.005 for BC-2.17.007 (7→7 BCs net)"). Closes F-LP6-LOW-003 (Match-Site Inventory Closure column: "AC-8 tasks:" corrected to "Task 8:" to match column convention). Closes F-LP6-OBS-004 (AC-9 header re-anchored from BC-2.17.002 timeout citation to ADR-023 §C4; cross-doc gap BC-2.17.002 E-PLUGIN-005 10s vs 30s documented in AC-9 body as out-of-perimeter note for future PO-led amendment). 4/4 in-scope findings closed. |
 | 1.4 | pass-4 fix-burst-4 | 2026-05-13 | story-writer | Closes F-LP4-MED-002 (v1.3 changelog row truthfulness: row now accurately discloses that pass-3 state-manager sweep covered 24 BCs initially at SHAs 4f1cd312+2385b188, that pass-4 adversary caught 8 remaining BCs missed by unanchored grep per F-LP4-MED-001, and that completion + POL-20 anchored-regex amendment land in parallel state-manager commit). Closes F-LP4-LOW-003 (AC-7 None-arm cleanup: `Option<Vec<String>>` language removed; None branch was type-system-impossible after AC-17 changes field to `Vec<String>`; dead-code defensive spec stripped per option-a recommendation). 2/2 in-scope findings closed. State-manager parallel commit handles F-LP4-MED-001 (8 remaining BCs) + F-LP4-OBS-004 (POL-20 regex amendment). |
 | 1.3 | pass-3 fix-burst-3 | 2026-05-13 | story-writer | Closes F-LP3-MED-001 (Task 11 test list replaced with §Red Gate Tests reference; BC_2_17_006 mis-anchors on 2 test names corrected to BC_2_17_007 — manifest tests belong to BC-2.17.007 not BC-2.17.006/WIT), F-LP3-LOW-003 (AC-10 fixture path clarified: `trap_plugin.prx` compiled from `tests/fixtures/src/trap_plugin.wat`), F-LP3-LOW-004 (Match-Site Inventory out-of-scope TODO(S-4.08) rows now carry implementer rename instructions to distinguish closed vs open sites post-merge), F-LP3-OBS-005 (v1.2 changelog row updated: 6/8 in-story-file + 2/8 sibling artifacts = 8/8 closed across burst; VP-INDEX SHA and BC-2.17.007+policies.yaml SHA cited), F-LP3-OBS-006 (Architecture Compliance Rules spawn_blocking row re-anchored from BC-2.17.005 invariant to ADR-023 §C4 — BC-2.17.005 not in frontmatter). F-LP3-MED-002 dispatched to state-manager (pass-3 round 1) at SHAs 4f1cd312+2385b188 covering 24 BCs; pass-4 adversary caught 8 remaining BCs missed by unanchored verification grep (F-LP4-MED-001) → completion lands in parallel state-manager commit with POL-20 verification regex now anchored per F-LP4-OBS-004 closure (policies.yaml v1.10). 5/6 in-perimeter findings closed in this file. |
 | 1.2 | pass-2 fix-burst-2 | 2026-05-13 | story-writer | Closes F-LP2-MED-001 (AC-14 re-anchored story-local; hot-reload test names drop BC-2.17.005 prefix), F-LP2-MED-002 (BC-2.16.002 added to behavioral_contracts + anchor_bcs + inputs + body BC table; capabilities/anchor_capabilities updated to [CAP-029,CAP-032,CAP-034]; Token Budget 7→8 BCs), F-LP2-MED-003 (red_gate_tests 0→25), F-LP2-LOW-004 (CAP-034 already in capabilities via BC-2.22.001; anchor_capabilities now union-correct; capabilities updated to [CAP-029,CAP-032,CAP-034]), F-LP2-LOW-005 (AC-17 moved to follow AC-16 — body order now matches AC numbering), F-LP2-OBS-008 (.github/PULL_REQUEST_TEMPLATE.md non-crate note added to File Structure). 6/8 pass-2 findings closed in this story file; F-LP2-LOW-006 closed in VP-INDEX v1.34 (SHA 4218e72a); F-LP2-OBS-007 closed in BC-2.17.007 v1.1 + policies.yaml v1.9 (POL-20 adopted) (SHA 97deaf37); 8/8 closed in-scope across the burst. |
-| 1.1 | pass-1 fix-burst | 2026-05-13 | story-writer | Closes F-LP1-HIGH-002/003/005/006/007/008/009/010/011/012/013/014 + F-LP1-OBS-015/016 (14 findings). Re-anchors AC-5 to BC-2.17.007 (F-LP1-HIGH-004 PO fix). Drops BC-2.17.005 from frontmatter (scope gap per F-LP1-MED-010; S-1.12-FOLLOWUP owns watcher promotion). Adds BC-2.17.007 to frontmatter + body (8→7 BCs net after 2.17.005 drop + 2.17.007 add). Adds AC-17 (HostState #[non_exhaustive]) and AC-18 (PRISM_DISABLE_PLUGIN_LOAD precedence). Token budget updated. Fixture Strategy prose corrected to "4 fixtures". reqwest::Client single-instance semantics made explicit in AC-9, Architecture Mapping, and Implementation Notes. Test names standardized to BC/VP prefix convention. make_host_state sibling sites enumerated. sha2 workspace dep confirmed. wasmtime advisory count claim replaced with cargo-audit-based language. |
+| 1.1 | pass-1 fix-burst | 2026-05-13 | story-writer | Closes F-LP1-HIGH-002/003/005/006/007/008/009/010/011/012/013/014 + F-LP1-OBS-015/016 (14 findings). Re-anchors AC-5 to BC-2.17.007 (F-LP1-HIGH-004 PO fix). Drops BC-2.17.005 from frontmatter (scope gap per F-LP1-MED-010; S-1.12-FOLLOWUP owns watcher promotion). swap BC-2.17.005 for BC-2.17.007 (7→7 BCs net; BC-2.17.005 promotion deferred to S-1.12-FOLLOWUP per F-LP1-MED-010). Adds AC-17 (HostState #[non_exhaustive]) and AC-18 (PRISM_DISABLE_PLUGIN_LOAD precedence). Token budget updated. Fixture Strategy prose corrected to "4 fixtures". reqwest::Client single-instance semantics made explicit in AC-9, Architecture Mapping, and Implementation Notes. Test names standardized to BC/VP prefix convention. make_host_state sibling sites enumerated. sha2 workspace dep confirmed. wasmtime advisory count claim replaced with cargo-audit-based language. |
 | 1.0 | PREREQ-D authorship | 2026-05-13 | story-writer | Initial authorship. Scope derived from ADR-023 v1.18 §C4. 16 ACs, 5 TDs absorbed (TD-B-002/004/005/011/012). |
