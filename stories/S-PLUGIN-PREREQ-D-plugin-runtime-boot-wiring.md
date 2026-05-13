@@ -49,7 +49,7 @@ target_module: prism-bin
 #   format_version check all land in crates/prism-spec-engine/src/plugin/.
 subsystems: [SS-22, SS-17]
 capabilities: [CAP-029, CAP-032, CAP-034]
-version: "1.5"
+version: "1.6"
 level: "L4"
 producer: story-writer
 timestamp: "2026-05-13T10:30:00Z"
@@ -110,8 +110,8 @@ inputs:
 | `make_host_state` | `crates/prism-spec-engine/src/plugin/mod.rs` | Pure (constructs HostState from parsed manifest + injected Arc<reqwest::Client>; no I/O; receives http_client by Arc::clone — does NOT construct the client) |
 | `validate_wit_interface` | `crates/prism-spec-engine/src/plugin/mod.rs` | Pure (inspects Component exports) |
 | Boot plugin-load step | `crates/prism-bin/src/boot.rs` | Effectful (filesystem, audit, epoch ticker start) |
-| `AuthToken` | `crates/prism-spec-engine/src/plugin/auth_provider.rs` | Pure-core (value type with zeroize-on-drop) |
-| `PipelineExecutor` | `crates/prism-spec-engine/src/plugin/pipeline.rs` | Effectful (HTTP fetches, auth acquisition) |
+| `AuthToken` | `crates/prism-spec-engine/src/auth_provider.rs` | Pure-core (value type with zeroize-on-drop) |
+| `PipelineExecutor` | `crates/prism-spec-engine/src/pipeline.rs` | Effectful (HTTP fetches, auth acquisition) |
 
 ## Edge Cases
 
@@ -120,7 +120,7 @@ inputs:
 | EC-D-001 | Plugin directory does not exist at boot | `load_all_plugins` returns `Ok(0)`; INFO log "plugin directory not found, skipping"; boot continues |
 | EC-D-002 | Plugin directory exists but contains zero `.prx` files | `Ok(0)`; INFO log; unsigned-plugin WARN not emitted (no plugins loaded) |
 | EC-D-003 | One of N plugins fails manifest validation (missing `allowed_urls`) | That plugin rejected with `E-PLUGIN-013`; remaining N-1 continue loading; `load_all_plugins` returns `Ok(N-1)` |
-| EC-D-004 | `PRISM_DISABLE_PLUGIN_LOAD=1` set; plugin directory has valid plugins | Skip all loading; WARN + audit `plugin_disabled_env`; `Ok(0)` |
+| EC-D-004 | `PRISM_DISABLE_PLUGIN_LOAD=1` set; plugin directory has valid plugins | Skip all loading; WARN + audit `plugin_load_disabled_via_envvar`; `Ok(0)` |
 | EC-D-005 | Plugin manifest `format_version = 0` (below `CURRENT_SUPPORTED_VERSION = 1`) | Accepted (version <= supported); loaded normally |
 | EC-D-006 | Plugin manifest `format_version = 2` (above `CURRENT_SUPPORTED_VERSION = 1`) | Rejected with `E-PLUGIN-014`; ERROR log naming `format_version` and `max_supported` |
 | EC-D-007 | `Component::from_binary` fails (corrupt `.prx` bytes) | `E-PLUGIN-008` logged; plugin skipped; other plugins continue |
@@ -137,9 +137,9 @@ inputs:
 | `crates/prism-spec-engine/src/plugin/mod.rs` — `validate_wit_interface()` | pure-core | Inspects Component export names; no I/O; suitable for unit test |
 | `crates/prism-spec-engine/src/plugin/mod.rs` — `load_all_plugins()` | effectful-shell | Filesystem scan, WASM compilation (`spawn_blocking`), arc-swap mutation, audit emit |
 | `crates/prism-spec-engine/src/plugin/host_functions.rs` — `host_http_request` | effectful-shell | Outbound HTTP via reqwest; allowlist check is pure sub-step |
-| `crates/prism-spec-engine/src/plugin/pipeline.rs` — `MAX_REQUESTS_PER_PIPELINE` check | pure-core | Counter comparison against constant; extractable for unit test |
+| `crates/prism-spec-engine/src/pipeline.rs` — `MAX_REQUESTS_PER_PIPELINE` check | pure-core | Counter comparison against constant; extractable for unit test |
 | `crates/prism-bin/src/boot.rs` — plugin-load step | effectful-shell | Calls `load_all_plugins`; reads env var; emits audit; constructs single shared `reqwest::Client` with 30s timeout and injects into `PluginRuntime::new()` |
-| `crates/prism-spec-engine/src/plugin/auth_provider.rs` — `AuthToken` | pure-core (value type) | Holds credential bytes; `Zeroizing<String>` wrapper is drop-safe pure value |
+| `crates/prism-spec-engine/src/auth_provider.rs` — `AuthToken` | pure-core (value type) | Holds credential bytes; `Zeroizing<String>` wrapper is drop-safe pure value |
 
 ## Library & Framework Requirements (MANDATORY)
 
@@ -204,7 +204,7 @@ this story being merged first.
 - Implement `PRISM_DISABLE_PLUGIN_LOAD=1` environment variable escape valve
 - Boot-time WARN log: `"WARNING: Plugin signing not yet implemented (TD-PLUGIN-SIGNING-001). Loaded plugins are NOT cryptographically verified. Do not run untrusted plugins."`
 - Audit log entry per plugin load: `event_type: plugin_load_unsigned`, `plugin_path: <path>`, `plugin_hash: <sha256-hex>`
-- Boot-time audit entry when plugin load is disabled: `event_type: plugin_disabled_env`
+- Boot-time audit entry when plugin load is disabled: `event_type: plugin_load_disabled_via_envvar`
 - Close `TODO(S-4.08)` in `make_host_state()`: parse `allowed_urls` from manifest TOML, construct `HostState { allowed_urls: Some(parsed_hostnames) }`
 - Replace `host_http_request` None-short-circuit with host-only comparison enforcement against allowlist (VP-PLUGIN-007)
 - Reject plugins whose manifest omits `allowed_urls` with `E-PLUGIN-013` (new error code — see Error Taxonomy section)
@@ -247,7 +247,7 @@ be promoted to active by S-1.12-FOLLOWUP, not by this story.
 
 ## Acceptance Criteria
 
-### AC-1 — Plugin-load step inserted between storage and query-engine init (traces to BC-2.22.001 sequencing invariant)
+### AC-1 — Plugin-load step inserted between storage and query-engine init (traces to BC-2.22.001 §Sequencing Invariant — step 7.5 intercalation between storage step 7 and query-engine step 8)
 
 `crates/prism-bin/src/boot.rs` calls `PluginRuntime::load_all_plugins(&plugin_dir)` in a step
 that runs after the ADR-022 canonical step 7 (storage init / `StorageEngine` construction) and
@@ -256,21 +256,21 @@ before the query-engine init step. The plugin directory path is resolved from `P
 boot steps are renumbered in code comments to reflect the new sequence. The step log line emitted
 is: `INFO "boot: plugin-load step complete ({n} plugins loaded)"`.
 
-### AC-2 — Pre-traffic gate holds: MCP server does not bind before plugin-load step completes (traces to BC-2.22.001 pre-traffic gate invariant)
+### AC-2 — Pre-traffic gate holds: MCP server does not bind before plugin-load step completes (traces to BC-2.22.001 §Pre-Traffic Gate Invariant condition 6 — plugin-load step 7.5 must complete or be audited-disabled before MCP server bind proceeds)
 
 If `PluginRuntime::load_all_plugins` returns `Err`, the boot sequence exits immediately with exit
 code 4 (internal-error per ADR-022 §A) and the MCP server never binds. If `load_all_plugins`
 returns `Ok`, the MCP server bind (step 9 gate) may proceed. Verified by integration test with
 injected plugin-load failure (see Red Gate Tests).
 
-### AC-3 — PRISM_DISABLE_PLUGIN_LOAD=1 skips plugin loading; audit entry emitted (traces to BC-2.22.001 postcondition; ADR-023 §C4)
+### AC-3 — PRISM_DISABLE_PLUGIN_LOAD=1 skips plugin loading; audit entry emitted (traces to BC-2.22.001 §Postconditions — `PRISM_DISABLE_PLUGIN_LOAD=1` escape valve postcondition; `plugin_load_disabled_via_envvar` audit event name; ADR-023 §C4)
 
 When `PRISM_DISABLE_PLUGIN_LOAD=1` is set at boot, `PluginRuntime::load_all_plugins` is not
 called. A WARN log is emitted: `"Plugin loading disabled via PRISM_DISABLE_PLUGIN_LOAD=1"`. An
-audit log entry is written: `event_type: plugin_disabled_env`. The MCP server bind proceeds
-normally (zero plugins registered).
+audit log entry is written: `event_type: plugin_load_disabled_via_envvar`. The MCP server bind
+proceeds normally (zero plugins registered).
 
-### AC-4 — Unsigned-plugin boot warning + per-plugin audit entry emitted (traces to BC-2.22.001 postcondition; ADR-023 §C4; VP-PLUGIN-004)
+### AC-4 — Unsigned-plugin boot warning + per-plugin audit entry emitted (traces to BC-2.22.001 §Postconditions — happy-path plugin-load step 7.5 postcondition: `plugin_load_unsigned` audit event with `plugin_path` + `plugin_hash` fields; ADR-023 §C4; VP-PLUGIN-004)
 
 For every `.prx` plugin successfully loaded at boot, the following are emitted before the
 plugin-load step completes:
@@ -370,13 +370,9 @@ Integration tests that need HTTP mocking construct their own test-scoped client 
 directly into `PluginRuntime::new(...)` in the test setup (already done in PREREQ-B test
 conventions).
 
-> **Cross-doc gap (out-of-perimeter, documentation only):** BC-2.17.002 E-PLUGIN-005 cites a
-> 10-second `host::http_request` timeout. The PipelineExecutor (PREREQ-B) and this story's
-> `PLUGIN_HTTP_CLIENT_TIMEOUT_SECS` both use 30 seconds as the operational value per ADR-023 §C4.
-> The 10s value in BC-2.17.002 may have been set without coordination and may need product-owner
-> amendment to align with the 30s standard. A future PO-led story or backlog item should update
-> BC-2.17.002 E-PLUGIN-005 if 30s is confirmed as the production target. No action required for
-> PREREQ-D delivery.
+> **Closed by BC-2.17.002 v1.4 amendment (fix-burst-6):** BC-2.17.002 E-PLUGIN-005 timeout
+> updated from 10s to 30s by product-owner in fix-burst-6 stage 1, aligning with ADR-023 §C4
+> and `PLUGIN_HTTP_CLIENT_TIMEOUT_SECS = 30`. No cross-doc gap remains.
 
 ### AC-10 — Plugin panic isolation: trap caught at Rust boundary; fresh Store per call (traces to BC-2.17.001 postconditions; INV-PLUGIN-001)
 
@@ -417,14 +413,14 @@ emitted per outcome. In-flight calls holding old `Arc<LoadedPlugin>` complete no
 
 ### AC-15 — AuthToken zeroize-on-drop (traces to TD-S-PLUGIN-PREREQ-B-002; AD-017 credential safety)
 
-`AuthToken` in `crates/prism-spec-engine/src/plugin/auth_provider.rs` implements
+`AuthToken` in `crates/prism-spec-engine/src/auth_provider.rs` implements
 `zeroize::Zeroize` on Drop. Either wrap the inner string as `Zeroizing<String>`, or implement
 `Drop` manually to overwrite the bytes before deallocation. A doc comment at the `AuthToken`
 definition cites AD-017 (credential safety) and explains the zeroize obligation. The `TD-S-PLUGIN-PREREQ-B-002` inline reference is removed when this is implemented.
 
 ### AC-16 — MAX_REQUESTS_PER_PIPELINE cumulative cap enforced in executor loop (traces to TD-S-PLUGIN-PREREQ-B-004; BC-2.16.002 preconditions)
 
-`crates/prism-spec-engine/src/plugin/pipeline.rs` defines `MAX_REQUESTS_PER_PIPELINE: usize = 10_000`
+`crates/prism-spec-engine/src/pipeline.rs` defines `MAX_REQUESTS_PER_PIPELINE: usize = 10_000`
 constant. The `PipelineExecutor` executor loop maintains a cumulative request counter across all
 steps. When the counter reaches `MAX_REQUESTS_PER_PIPELINE`, the executor returns
 `Err(PipelineError::TooManyRequests { total: usize })` and emits `event_type: pipeline_max_requests_exceeded`.
@@ -451,7 +447,7 @@ must show the attribute on the line immediately preceding `pub struct HostState`
 `PRISM_DISABLE_PLUGIN_LOAD=1` is checked in `crates/prism-bin/src/boot.rs` BEFORE any
 `plugin_dir` config resolution or filesystem access. Precedence rule:
 
-1. If `PRISM_DISABLE_PLUGIN_LOAD=1` is set: emit WARN + audit `plugin_disabled_env`; return
+1. If `PRISM_DISABLE_PLUGIN_LOAD=1` is set: emit WARN + audit `plugin_load_disabled_via_envvar`; return
    `Ok(0)` immediately. No `plugin_dir` resolution. No filesystem access. No "plugin directory
    not found" event (avoiding confusing double-signal when the operator deliberately disabled
    plugins).
@@ -489,9 +485,10 @@ Only the exact string `"1"` disables loading (EC-D-011: values like `"true"`, `"
    - On mismatch: return HTTP 403 to plugin; emit WARN log + audit entry `event_type: plugin_http_request_blocked`
    - On allowed: forward to reqwest client
 
-4. **[prism-spec-engine] Add reqwest::Client 30-second timeout (TD-B-005)**
+4. **[prism-spec-engine] Add reqwest::Client 30-second timeout (TD-B-005) — sibling-site sweep required (TD-VSDD-060)**
    - In `PluginRuntime::new()` or the boot wiring call site, construct client with `.timeout(Duration::from_secs(PLUGIN_HTTP_CLIENT_TIMEOUT_SECS))`
    - Define `PLUGIN_HTTP_CLIENT_TIMEOUT_SECS: u64 = 30` constant in `mod.rs`
+   - **Sibling-site sweep (TD-VSDD-060):** `crates/prism-spec-engine/src/plugin/host_functions.rs` contains a per-request `.timeout(Duration::from_secs(10))` override on the RequestBuilder in `host_http_request`. Because `RequestBuilder::timeout()` overrides `Client::builder().timeout()`, leaving this site at 10s means the effective timeout remains 10s even after AC-9's `Client::builder().timeout(30)` lands in boot.rs — making the TD-B-005 closure functionally inert. In the same commit: remove the `.timeout(Duration::from_secs(10))` per-request call OR replace it with `.timeout(Duration::from_secs(PLUGIN_HTTP_CLIENT_TIMEOUT_SECS))` to be explicit. Also update any file-level doc comment in `host_functions.rs` that describes a "10-second per-request timeout" to say "30-second per-request timeout".
 
 5. **[prism-spec-engine] Implement AuthToken zeroize-on-drop (TD-B-002)**
    - Add `zeroize = "1"` to `prism-spec-engine/Cargo.toml` dev/prod deps (or use already-present if available)
@@ -517,10 +514,10 @@ Only the exact string `"1"` disables loading (EC-D-011: values like `"true"`, `"
 9. **[prism-bin] Wire plugin-load step into boot.rs**
    - After storage init step: call `PluginRuntime::load_all_plugins(&config.plugin_dir)`
    - Check `PRISM_DISABLE_PLUGIN_LOAD` env var before calling
-   - On disable: emit WARN + audit entry `event_type: plugin_disabled_env`; continue
+   - On disable: emit WARN + audit entry `event_type: plugin_load_disabled_via_envvar`; continue
    - On success: emit INFO log with plugin count
    - On error: exit with code 4 (ADR-022 §A internal-error)
-   - Renumber subsequent steps in comments (storage=7, plugin-load=7.5 or new 8, query-engine=new 9, etc.)
+   - Renumber subsequent steps in comments: storage = step 7, **plugin-load = step 7.5**, query-engine = step 8, MCP server = step 9 (function `step9_start_mcp_server` retained). Rationale: step 7.5 chosen to avoid cascading renumber across ADR-022 §B canonical step table, boot.rs function names, and BC-2.22.001 §Sequencing Invariant.
    - Inject `reqwest::Client` with 30s timeout into `PluginRuntime::new()`
 
 10. **[prism-bin] Add boot integration tests**
@@ -550,7 +547,7 @@ Only the exact string `"1"` disables loading (EC-D-011: values like `"true"`, `"
 | Story spec (this file) | ~7,000 |
 | BC files (8 BCs × ~1,500) | ~12,000 |
 | ADR-023 §C4 (relevant sections) | ~4,000 |
-| crates/prism-spec-engine/src/plugin/ source (mod.rs, host_functions.rs, pipeline.rs, auth_provider.rs) | ~8,000 |
+| crates/prism-spec-engine/src/plugin/ source (mod.rs, host_functions.rs) + src/pipeline.rs + src/auth_provider.rs | ~8,000 |
 | crates/prism-bin/src/boot.rs | ~3,000 |
 | Cargo.toml files (2) | ~1,000 |
 | tests/fixtures/src/*.wat (4 WAT source files × ~50 LOC each) | ~800 |
@@ -576,8 +573,8 @@ No splitting required.
 |------|-------------|
 | `crates/prism-spec-engine/src/plugin/mod.rs` | Complete `load_all_plugins`; close `TODO(S-4.08)` in `make_host_state()`; add `CURRENT_SUPPORTED_VERSION` constant; add `PLUGIN_HTTP_CLIENT_TIMEOUT_SECS` constant |
 | `crates/prism-spec-engine/src/plugin/host_functions.rs` | Replace None-short-circuit in `host_http_request` with allowlist enforcement |
-| `crates/prism-spec-engine/src/plugin/auth_provider.rs` | Add `Zeroizing<String>` wrapper on `AuthToken`; remove TD inline comment |
-| `crates/prism-spec-engine/src/plugin/pipeline.rs` | Add `MAX_REQUESTS_PER_PIPELINE` constant; add cumulative counter; add structured event; remove TD inline comments |
+| `crates/prism-spec-engine/src/auth_provider.rs` | Add `Zeroizing<String>` wrapper on `AuthToken`; remove TD inline comment |
+| `crates/prism-spec-engine/src/pipeline.rs` | Add `MAX_REQUESTS_PER_PIPELINE` constant; add cumulative counter; add structured event; remove TD inline comments |
 | `crates/prism-bin/src/boot.rs` | Insert plugin-load step; renumber subsequent steps |
 | `crates/prism-spec-engine/Cargo.toml` | Add `zeroize = "1"` if not present; confirm `sha2` or `sha-2` for SHA-256 |
 | `crates/prism-bin/Cargo.toml` | Add `prism-spec-engine` as dependency if not already present for `PluginRuntime` |
@@ -594,10 +591,11 @@ The following concrete stub/TODO sites are closed by this story:
 | `make_host_state()` call site | `crates/prism-spec-engine/src/plugin/mod.rs` | ~line 202: `make_host_state(plugin_id, config)` | AC-7: update to pass `allowed_urls` after signature change |
 | `make_host_state()` call site | `crates/prism-spec-engine/src/plugin/mod.rs` | ~line 279: `make_host_state(plugin_id, config)` | AC-7: update to pass `allowed_urls` after signature change |
 | `host_http_request` None-short-circuit | `crates/prism-spec-engine/src/plugin/host_functions.rs` | `if allowed_urls.is_none() { /* permit all */ }` | AC-7: replaced with host-only comparison |
-| `TD-S-PLUGIN-PREREQ-B-002` inline comment | `crates/prism-spec-engine/src/plugin/auth_provider.rs` | `AuthToken` definition | AC-15: removed when zeroize implemented |
-| `TD-S-PLUGIN-PREREQ-B-004` inline comment | `crates/prism-spec-engine/src/plugin/pipeline.rs` | `MAX_REQUESTS` note | AC-16: removed when cap implemented |
-| `TD-S-PLUGIN-PREREQ-B-005` inline comment | `crates/prism-spec-engine/src/plugin/pipeline.rs` | reqwest timeout note | AC-9: removed when timeout wired |
-| `TD-S-PLUGIN-PREREQ-B-011/012` doc comment | `crates/prism-spec-engine/src/plugin/pipeline.rs` | `execute_step` doc comment | Task 8: removed after tests added |
+| `TD-S-PLUGIN-PREREQ-B-002` inline comment | `crates/prism-spec-engine/src/auth_provider.rs` | `AuthToken` definition | AC-15: removed when zeroize implemented |
+| `TD-S-PLUGIN-PREREQ-B-004` inline comment | `crates/prism-spec-engine/src/pipeline.rs` | `MAX_REQUESTS` note | AC-16: removed when cap implemented |
+| `TD-S-PLUGIN-PREREQ-B-005` inline comment | `crates/prism-spec-engine/src/pipeline.rs` | reqwest timeout note | AC-9: removed when timeout wired |
+| `TD-S-PLUGIN-PREREQ-B-011/012` doc comment | `crates/prism-spec-engine/src/pipeline.rs` | `execute_step` doc comment | Task 8: removed after tests added |
+| Per-request `.timeout(Duration::from_secs(10))` override in `host_http_request` builder | `crates/prism-spec-engine/src/plugin/host_functions.rs` | `host_http_request` function — RequestBuilder `.timeout()` call (sibling site to TD-S-PLUGIN-PREREQ-B-005) | AC-9 sibling sweep (TD-VSDD-060): Remove per-request `.timeout(Duration::from_secs(10))` override OR change to `.timeout(Duration::from_secs(PLUGIN_HTTP_CLIENT_TIMEOUT_SECS))` to be explicit; rely on `Client::builder().timeout(30)` from boot.rs as source of truth. File doc-comment near top of `host_functions.rs` that reads "Enforces a 10-second per-request timeout" must be updated to "30-second per-request timeout" in the same commit. |
 | `todo!()` in plugin-load step | `crates/prism-bin/src/boot.rs` | step between storage and query-engine | AC-1: replaced with `PluginRuntime::load_all_plugins` call |
 | `TODO(S-4.08)` fire-alert dispatch stub | `crates/prism-spec-engine/src/plugin/mod.rs` | ~line 395 | OUT OF SCOPE — S-4.08. Remains open; tracked under separate story. **Implementer action:** when closing the `make_host_state` TODO above, rename this tag to `TODO(S-4.08-fire-alert-dispatch)` so post-merge `rg 'TODO(S-4.08)'` returns zero hits for the closed site. |
 | `TODO(S-4.08)` fire-case dispatch stub | `crates/prism-spec-engine/src/plugin/mod.rs` | ~line 419 | OUT OF SCOPE — S-4.08. Remains open; tracked under separate story. **Implementer action:** rename to `TODO(S-4.08-fire-case-dispatch)` (same rationale as above). |
@@ -659,7 +657,7 @@ implementation. The following catalog rows will be added:
 | Event Type | Level | Emitter | Fields | Trigger |
 |-----------|-------|---------|--------|---------|
 | `plugin_load_unsigned` | AUDIT | `PluginRuntime::load_all_plugins` | `plugin_path`, `plugin_hash` | Each successfully loaded plugin (v1.0 unsigned) |
-| `plugin_disabled_env` | WARN/AUDIT | boot.rs plugin-load step | `env_var: "PRISM_DISABLE_PLUGIN_LOAD"` | PRISM_DISABLE_PLUGIN_LOAD=1 at boot |
+| `plugin_load_disabled_via_envvar` | WARN/AUDIT | boot.rs plugin-load step | `env_var: "PRISM_DISABLE_PLUGIN_LOAD"` | PRISM_DISABLE_PLUGIN_LOAD=1 at boot |
 | `plugin_load_failed_manifest_no_allowed_urls` | ERROR | `PluginRuntime::load_plugin` | `plugin_path`, `error: E-PLUGIN-013` | Plugin manifest missing allowed_urls field |
 | `plugin_load_failed_format_version_exceeded` | ERROR | `PluginRuntime::load_plugin` | `plugin_path`, `format_version`, `max_supported` | Plugin format_version > CURRENT_SUPPORTED_VERSION |
 | `plugin_load_failed_wit_invalid` | ERROR | `PluginRuntime::load_plugin` | `plugin_path`, `missing_export`, `error: E-PLUGIN-001` | WIT validation failure |
@@ -874,6 +872,7 @@ comment explaining the addition.
 
 | Version | Burst | Date | Author | Change |
 |---------|-------|------|--------|--------|
+| 1.6 | pass-7 fix-burst-6 stage 2 | 2026-05-13 | story-writer | Closes F-LP7-HIGH-001 (path mis-anchor `src/plugin/pipeline.rs` → `src/pipeline.rs`: Architecture Mapping, Purity Classification, AC-16 body, Token Budget row, File Structure Modified Files, Match-Site Inventory ×4 rows — 8 sites swept). Closes F-LP7-HIGH-002 (path mis-anchor `src/plugin/auth_provider.rs` → `src/auth_provider.rs`: Architecture Mapping, Purity Classification, AC-15 body, File Structure Modified Files, Match-Site Inventory ×2 rows — 5 sites swept). Closes F-LP7-HIGH-004 (paper-fix risk AC-9 / TD-B-005: new Match-Site Inventory row for `host_functions.rs` per-request `.timeout(10)` override; Task 4 extended with TD-VSDD-060 sibling-site sweep instructions for `host_http_request` builder + doc-comment update). Closes F-LP7-MED-002 (Task 9 step numbering: removed "or new 8, query-engine=new 9" alternative; final wording: storage=7, plugin-load=7.5, query-engine=8, MCP=9 with `step9_start_mcp_server` retained, rationale cited). AC traces updated for BC-2.22.001 v1.4: AC-1 references step 7.5 in §Sequencing Invariant; AC-2 references §Pre-Traffic Gate Invariant condition 6; AC-3 references `plugin_load_disabled_via_envvar` audit event name from §Postconditions escape valve; AC-4 references happy-path step 7.5 postcondition. Event name `plugin_disabled_env` corrected to `plugin_load_disabled_via_envvar` throughout (Scope, EC-D-004, AC-3, AC-18 Task 9, Structured Event Catalog — 5 additional sites). AC-9 out-of-perimeter note removed and replaced with 1-line closed reference (MED-001 closed by BC-2.17.002 v1.4 amendment). State-manager stage 3 will close F-LP7-LOW-001 (BC-2.22.001 lifecycle_status) and update indexes. |
 | 1.5 | pass-6 fix-burst-5 | 2026-05-13 | story-writer | Closes F-LP6-MEDIUM-001 (Token Budget arithmetic: row sum 39,800 corrected; Total ~38,300→~39,800; percentage ~15%→~15.5%). Closes F-LP6-LOW-002 (v1.1 changelog BC count notation: "8→7 BCs net" rewritten to "swap BC-2.17.005 for BC-2.17.007 (7→7 BCs net)"). Closes F-LP6-LOW-003 (Match-Site Inventory Closure column: "AC-8 tasks:" corrected to "Task 8:" to match column convention). Closes F-LP6-OBS-004 (AC-9 header re-anchored from BC-2.17.002 timeout citation to ADR-023 §C4; cross-doc gap BC-2.17.002 E-PLUGIN-005 10s vs 30s documented in AC-9 body as out-of-perimeter note for future PO-led amendment). 4/4 in-scope findings closed. |
 | 1.4 | pass-4 fix-burst-4 | 2026-05-13 | story-writer | Closes F-LP4-MED-002 (v1.3 changelog row truthfulness: row now accurately discloses that pass-3 state-manager sweep covered 24 BCs initially at SHAs 4f1cd312+2385b188, that pass-4 adversary caught 8 remaining BCs missed by unanchored grep per F-LP4-MED-001, and that completion + POL-20 anchored-regex amendment land in parallel state-manager commit). Closes F-LP4-LOW-003 (AC-7 None-arm cleanup: `Option<Vec<String>>` language removed; None branch was type-system-impossible after AC-17 changes field to `Vec<String>`; dead-code defensive spec stripped per option-a recommendation). 2/2 in-scope findings closed. State-manager parallel commit handles F-LP4-MED-001 (8 remaining BCs) + F-LP4-OBS-004 (POL-20 regex amendment). |
 | 1.3 | pass-3 fix-burst-3 | 2026-05-13 | story-writer | Closes F-LP3-MED-001 (Task 11 test list replaced with §Red Gate Tests reference; BC_2_17_006 mis-anchors on 2 test names corrected to BC_2_17_007 — manifest tests belong to BC-2.17.007 not BC-2.17.006/WIT), F-LP3-LOW-003 (AC-10 fixture path clarified: `trap_plugin.prx` compiled from `tests/fixtures/src/trap_plugin.wat`), F-LP3-LOW-004 (Match-Site Inventory out-of-scope TODO(S-4.08) rows now carry implementer rename instructions to distinguish closed vs open sites post-merge), F-LP3-OBS-005 (v1.2 changelog row updated: 6/8 in-story-file + 2/8 sibling artifacts = 8/8 closed across burst; VP-INDEX SHA and BC-2.17.007+policies.yaml SHA cited), F-LP3-OBS-006 (Architecture Compliance Rules spawn_blocking row re-anchored from BC-2.17.005 invariant to ADR-023 §C4 — BC-2.17.005 not in frontmatter). F-LP3-MED-002 dispatched to state-manager (pass-3 round 1) at SHAs 4f1cd312+2385b188 covering 24 BCs; pass-4 adversary caught 8 remaining BCs missed by unanchored verification grep (F-LP4-MED-001) → completion lands in parallel state-manager commit with POL-20 verification regex now anchored per F-LP4-OBS-004 closure (policies.yaml v1.10). 5/6 in-perimeter findings closed in this file. |
