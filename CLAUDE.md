@@ -216,7 +216,7 @@ Prism-specific coding patterns enforced by CI and/or adversarial review. These a
 
 - **ColumnType canonical naming.** `prism_core::column::ColumnType` (variants `String / Integer / Float / Boolean / Datetime / Json`) is the canonical sensor schema API (ADR-024). The retired shadow enum `prism_spec_engine::types::ColumnType` must not be reintroduced. The distinct `prism_core::types::ColumnType` (variants `Text / Int64 / UInt64 / Float64 / Bool / Timestamp / Json / Bytes`) serves internal table schemas only — do not conflate the two.
 
-- **Error taxonomy.** Use `SpecEngineError` for spec-engine failures, `E-QUERY-NNN` codes for query engine errors, `E-SENSOR-NNN` for sensor adapter errors — all defined in `.factory/specs/prd/error-taxonomy.md`. No `unwrap()` or `expect()` in critical code paths. No silent `Vec::new()` return where partial-failure data should propagate (Standing Rule 3 §2).
+- **Error taxonomy.** Use `SpecEngineError` for spec-engine failures, `E-QUERY-NNN` codes for query engine errors, `E-SENSOR-NNN` for sensor adapter errors — all defined in `.factory/specs/prd-supplements/error-taxonomy.md`. No `unwrap()` or `expect()` in critical code paths. No silent `Vec::new()` return where partial-failure data should propagate (Standing Rule 3 §2).
 
 - **No `println!` in production code.** Use `tracing::*!` with structured fields only. `println!` is restricted to examples and CLI formatting helpers.
 
@@ -242,7 +242,7 @@ Prism-specific coding patterns enforced by CI and/or adversarial review. These a
 
 ### Error handling
 
-- Sensor adapter errors: return `SpecEngineError` variants from `.factory/specs/prd/error-taxonomy.md` `E-SENSOR-NNN` namespace.
+- Sensor adapter errors: return `SpecEngineError` variants from `.factory/specs/prd-supplements/error-taxonomy.md` `E-SENSOR-NNN` namespace.
 - Query engine errors: `E-QUERY-NNN` variants from `prism_core::error::PrismError`.
 - Partial failures in fan-out: propagate via `prism-query` partial-failure handling (BC-2.01.010); do not swallow and return empty `Vec`.
 - Boot step failures: exit codes per ADR-022 §A table; `exit(4)` for audit init failure (BC-2.05.012), `exit(5)` for credential init failure (BC-2.03.013).
