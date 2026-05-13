@@ -49,7 +49,7 @@ target_module: prism-bin
 #   format_version check all land in crates/prism-spec-engine/src/plugin/.
 subsystems: [SS-22, SS-17]
 capabilities: [CAP-029, CAP-032, CAP-034]
-version: "1.11"
+version: "1.12"
 level: "L4"
 producer: story-writer
 timestamp: "2026-05-13T10:30:00Z"
@@ -120,13 +120,13 @@ inputs:
 | EC-D-001 | Plugin directory does not exist at boot | `load_all_plugins` returns `Ok(0)`; INFO log "plugin directory not found, skipping"; boot continues |
 | EC-D-002 | Plugin directory exists but contains zero `.prx` files | `Ok(0)`; INFO log; unsigned-plugin WARN not emitted (no plugins loaded) |
 | EC-D-003 | One of N plugins fails manifest validation (missing `allowed_urls`) | That plugin rejected with `E-PLUGIN-013`; remaining N-1 continue loading; `load_all_plugins` returns `Ok(N-1)` |
-| EC-D-004 | `PRISM_DISABLE_PLUGIN_LOAD=1` set; plugin directory has valid plugins | Skip all loading; WARN + audit `plugin_load_disabled_via_envvar`; `Ok(0)` |
+| EC-D-004 | `PRISM_DISABLE_PLUGIN_LOAD=1` set; plugin directory has valid plugins | Skip all loading; single `tracing::warn!(event_type = "plugin_load_disabled_via_envvar", ...)` emission (BC-2.16.002 catalog; AC-3); `Ok(0)` |
 | EC-D-005 | Plugin manifest `format_version = 0` (below `CURRENT_SUPPORTED_VERSION = 1`) | Accepted (version <= supported); loaded normally |
 | EC-D-006 | Plugin manifest `format_version = 2` (above `CURRENT_SUPPORTED_VERSION = 1`) | Rejected with `E-PLUGIN-014`; ERROR log naming `format_version` and `max_supported` |
 | EC-D-007 | `Component::from_binary` fails (corrupt `.prx` bytes) | `E-PLUGIN-008` logged; plugin skipped; other plugins continue |
 | EC-D-008 | Two `.prx` files declare the same `plugin_id` | Second load logs `WARN "Duplicate plugin_id '{id}': first-registered plugin retained"`; first wins (BC-2.17.006 invariant) |
 | EC-D-009 | `reqwest::Client` construction fails (OS resource exhaustion) | `PluginRuntime::new` returns `Err`; boot exits code 4 |
-| EC-D-010 | Plugin calls `host::http_request` to URL not in `allowed_urls` | HTTP 403 returned to plugin; WARN log + audit `plugin_http_request_blocked` |
+| EC-D-010 | Plugin calls `host::http_request` to URL not in `allowed_urls` | HTTP 403 returned to plugin; single `tracing::warn!(event_type = "plugin_http_request_blocked", ...)` emission (BC-2.16.002 catalog; AC-7) |
 | EC-D-011 | `PRISM_DISABLE_PLUGIN_LOAD` set to non-"1" value (e.g., "true", "yes") | Only exact string `"1"` disables loading; other values treated as unset |
 
 ## Purity Classification
@@ -327,7 +327,7 @@ hostnames from the manifest `allowed_urls` list (e.g., `"api.crowdstrike.com"` n
 
 - Extract the host from the requested URL using `url::Url::parse`; compare against each entry in
   `allowed_urls` using `==` (exact host-only match, not substring); mismatch → HTTP 403 returned
-  to plugin + `WARN` log + `event_type: plugin_http_request_blocked` audit entry
+  to plugin AND a single `tracing::warn!(event_type = "plugin_http_request_blocked", plugin_id, url, reason = "allowlist_mismatch")` emission (the WARN-level log and audit-channel routing are orthogonal per BC-2.16.002 catalog discipline; same convention as `plugin_load_unsigned` per AC-4 and `plugin_load_disabled_via_envvar` per AC-3)
 
 The `TODO(S-4.08)` comment in `make_host_state()` is removed. The None-short-circuit in
 `host_http_request` is removed and replaced with the enforcement logic. The `Option<Vec<String>>`
@@ -450,7 +450,7 @@ must show the attribute on the line immediately preceding `pub struct HostState`
 `PRISM_DISABLE_PLUGIN_LOAD=1` is checked in `crates/prism-bin/src/boot.rs` BEFORE any
 `plugin_dir` config resolution or filesystem access. Precedence rule:
 
-1. If `PRISM_DISABLE_PLUGIN_LOAD=1` is set: emit WARN + audit `plugin_load_disabled_via_envvar`; return
+1. If `PRISM_DISABLE_PLUGIN_LOAD=1` is set: emit a single `tracing::warn!(event_type = "plugin_load_disabled_via_envvar", env_var = "PRISM_DISABLE_PLUGIN_LOAD", ...)` emission (BC-2.16.002 catalog; AC-3); return
    `Ok(0)` immediately. No `plugin_dir` resolution. No filesystem access. No "plugin directory
    not found" event (avoiding confusing double-signal when the operator deliberately disabled
    plugins).
@@ -485,7 +485,7 @@ Only the exact string `"1"` disables loading (EC-D-011: values like `"true"`, `"
    - Parse `allowed_urls` from `HostState`
    - Extract host from requested URL via `url::Url::parse`
    - Host-only comparison (`==`) against each entry in allowlist
-   - On mismatch: return HTTP 403 to plugin; emit WARN log + audit entry `event_type: plugin_http_request_blocked`
+   - On mismatch: return HTTP 403 to plugin; emit a single `tracing::warn!(event_type = "plugin_http_request_blocked", plugin_id, url, reason = "allowlist_mismatch")` emission (single structured emission per BC-2.16.002 catalog; AC-7)
    - On allowed: forward to reqwest client
 
 4. **[prism-spec-engine] Add reqwest::Client 30-second timeout (TD-B-005) — sibling-site sweep required (TD-VSDD-060)**
@@ -517,7 +517,7 @@ Only the exact string `"1"` disables loading (EC-D-011: values like `"true"`, `"
 9. **[prism-bin] Wire plugin-load step into boot.rs**
    - After storage init step: call `PluginRuntime::load_all_plugins(&config.plugin_dir)`
    - Check `PRISM_DISABLE_PLUGIN_LOAD` env var before calling
-   - On disable: emit WARN + audit entry `event_type: plugin_load_disabled_via_envvar`; continue
+   - On disable: emit a single `tracing::warn!(event_type = "plugin_load_disabled_via_envvar", env_var = "PRISM_DISABLE_PLUGIN_LOAD", ...)` emission (single structured emission per BC-2.16.002 catalog; AC-3); continue with MCP server bind (zero plugins registered)
    - On success: emit INFO log with plugin count
    - On error: exit with code 4 (ADR-022 §A internal-error)
    - Renumber subsequent steps in comments: storage = step 7, **plugin-load = step 7.5**, query-engine = step 8, MCP server = step 9 (function `step9_start_mcp_server` retained). Rationale: step 7.5 chosen to avoid cascading renumber across ADR-022 §B canonical step table, boot.rs function names, and BC-2.22.001 §Sequencing Invariant.
@@ -547,7 +547,7 @@ Only the exact string `"1"` disables loading (EC-D-011: values like `"true"`, `"
 
 | Item | Estimated Tokens |
 |------|-----------------|
-| Story spec (this file) | ~7,100 |
+| Story spec (this file) | ~7,200 |
 | BC files (8 BCs × ~1,500) | ~12,000 |
 | ADR-023 §C4 (relevant sections) | ~4,000 |
 | crates/prism-spec-engine/src/plugin/ source (mod.rs, host_functions.rs) + src/pipeline.rs + src/auth_provider.rs | ~8,000 |
@@ -555,7 +555,7 @@ Only the exact string `"1"` disables loading (EC-D-011: values like `"true"`, `"
 | Cargo.toml files (2) | ~1,000 |
 | tests/fixtures/src/*.wat (4 WAT source files × ~50 LOC each) | ~800 |
 | Test output / error messages during TDD | ~4,000 |
-| **Total** | **~39,900** |
+| **Total** | **~40,000** |
 
 This is approximately 15.6% of a 256k-token context window — within the 20-30% limit.
 No splitting required.
@@ -884,6 +884,7 @@ comment explaining the addition.
 
 | Version | Burst | Date | Author | Change |
 |---------|-------|------|--------|--------|
+| 1.12 | pass-13 fix-burst-12 stage 1 | 2026-05-13 | story-writer | Closes F-LP13-LOW-001 (3 sibling-prose sites carrying dual-emission "WARN log + audit entry" framing for events BC-2.16.002 catalogs as single-emission): Site 1 AC-7 body (allowlist-mismatch path) rewritten to single `tracing::warn!(event_type = "plugin_http_request_blocked", ...)` framing with orthogonal Level/routing cross-reference; Site 2 Task 3 bullet rewritten to single-emission framing referencing BC-2.16.002 catalog + AC-7; Site 3 Task 9 disable bullet rewritten to single-emission framing referencing BC-2.16.002 catalog + AC-3. Concise-form decision (pass-13 §7): Option (b) chosen — all 3 concise-form sites (EC-D-004, EC-D-010, AC-18 item 1) rewritten to unambiguous single-emission framing to achieve full semantic consistency; mixed convention in a single-file would create implementer ambiguity. EC table entries use compact but unambiguous form referencing BC-2.16.002 catalog. Semantic sibling sweep (8 checks, per pass-13 meta-finding on lexical-vs-semantic distinction): (1) `audit entry` — all remaining hits are Changelog historical text only, PASS; (2) `WARN log + audit` active body — ZERO hits, PASS; (3) `emit WARN + audit entry` active body — ZERO hits, PASS; (4) `WARN.*+.*audit` regex — ZERO active-body hits, PASS; (5) `+ audit` active body — ZERO active-body hits beyond Changelog, PASS; (6) `event_type:` references in story body — all use single-emission framing, PASS; (7) concise-form sites EC-D-004/EC-D-010/AC-18 — rewritten Option (b), PASS; (8) AC-4 2-emission no-regression — AC-4 boot-time aggregate WARN + per-plugin structured audit preserved, NO REGRESSION. Pass-13 meta-finding (lexical-vs-semantic sweep gap as 5th process-gap codification candidate) routed to state-manager. Token Budget delta: 6 rewrites ~+450 chars (~112 tokens); crosses 50-token threshold; story-spec row 7,100 → 7,200; Total 39,900 → 40,000; pct 40,000 / 256,000 = 15.625% → rounds to 15.6% (no pct cell change). |
 | 1.11 | pass-12 fix-burst-11 stage 1 | 2026-05-13 | story-writer | Closes F-LP12-LOW-001 (AC-3 prose single-emission clarity: dual-emission framing "A WARN log is emitted... An audit log entry is written" replaced with explicit single `tracing::warn!(event_type = "plugin_load_disabled_via_envvar", ...)` emission prose; orthogonal Level/routing cross-reference to BC-2.22.001 v1.5 + BC-2.16.002 catalog discipline added, matching AC-4 `plugin_load_unsigned` convention). F-LP12-OBS-001 (E-PLUGIN-008 dual-semantic reuse gap between BC-2.17.005 and BC-2.17.006) is out-of-story-perimeter; routed to state-manager for phase-5 deferred-findings list. Sibling-sweep (TD-VSDD-060): 5 mandatory greps all PASS — (1) zero hits `audit log entry is written` active body; (2) single remaining `audit log entry` hit is Changelog historical text only; (3) `event_type` body references all use single-emission framing consistent with BC-2.16.002; (4) Structured Event Catalog `plugin_load_disabled_via_envvar` Trigger column consistent with corrected AC-3; (5) EC-D-004 row uses `WARN + audit plugin_load_disabled_via_envvar` concise framing (no dual-emission implication). AC-4 2-emission framing preserved — no regression. Token Budget delta +~160 chars (~40 tokens); Total ~39,900 (within 50-token tolerance; no recompute required). |
 | 1.10 | pass-11 fix-burst-10 stage 1 | 2026-05-13 | story-writer | Closes F-LP11-LOW-001 (4 sibling-prose sites carrying `Some(...)` Option-wrapping from fix-burst-4 F-LP4-LOW-003 — surviving passes 5–10): Site 1 Scope bullet (construct `HostState { allowed_urls: parsed_hostnames }`); Site 2 Task 1 success path (same); Site 3 Task 2 first bullet (rewrite: `Replace allowed_urls: None field-default with Vec<String> parameter; field type retired from Option<Vec<String>> to Vec<String> per AC-17; None-branch type-system-impossible`); Site 4 Match-Site Inventory closure column (`parsed_hostnames value (Vec<String> per AC-17; None-branch type-system-impossible)`). Closes F-LP11-LOW-002 (Token Budget percentage cell 15.5% → 15.6%: 39,900 / 256,000 = 15.586%, rounds half-up to 15.6%; Total row unchanged at ~39,900). Sibling-sweep (TD-VSDD-060): 5 mandatory greps all PASS — zero hits for `Some(parsed_hostnames)`, `Some(urls_from_manifest)`, `allowed_urls: Some`, `approximately 15.5`; exactly one hit for `approximately 15.6`. |
 | 1.9 | pass-10 fix-burst-9 stage 1 | 2026-05-13 | story-writer | Closes F-LP10-LOW-001 (Task 14 + Previous Story Intelligence item 1 Path B sibling-prose propagation). Task 14 reworded from "Update Structured Event Catalog" (implies implementer authors rows) to "Verify Structured Event Catalog wiring" with explicit instruction to emit from BC-2.16.002 v1.11 function-name anchors and amend only if new sites are discovered. Previous Story Intelligence item 1 corrected from "must add all 7 rows" to "all 7 rows already exist in BC-2.16.002 v1.11 (Path B, fix-burst-8 commit 4ed96e06); implementer wires emission sites to match BC row metadata." Upstream PO Path B at `4ed96e06`. Sibling-site sweep confirmed zero additional sites carrying old "add"/"author catalog rows" or "rows do not yet exist" framing. Token Budget delta +~110 tokens; Total recomputed below (see §Token Budget Estimate). |
