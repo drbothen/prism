@@ -1,7 +1,7 @@
 ---
 document_type: behavioral-contract-index
 level: L3
-version: "4.68"
+version: "4.69"
 status: draft
 producer: product-owner
 timestamp: 2026-05-13T00:00:00
@@ -212,13 +212,13 @@ Phase 3-patch additions (2026-04-16): 22 new BCs added in Burst 1 to close trace
 | BC-2.16.008 | `add_sensor_spec` MCP Tool — Upload a New Sensor Spec at Runtime | 16 - Spec Engine | CAP-029, CAP-030 | P0 | draft |
 | BC-2.16.009 | Spec File Validation — Schema Validation, Variable Reference Resolution, OCSF Field Validation | 16 - Spec Engine | CAP-029 | P0 | draft |
 | BC-2.16.010 | `list_sensor_specs` MCP Tool — List Loaded Sensor Specs with Table Schemas and Status | 16 - Spec Engine | CAP-029 | P0 | draft |
-| BC-2.17.001 | Plugin Panic Isolation — Crashed Plugin Does Not Terminate Host Process | 17 - WASM Plugin Runtime | CAP-032 | P0 | draft |
-| BC-2.17.002 | Plugin Sandbox — No Direct Filesystem or Network Access | 17 - WASM Plugin Runtime | CAP-032 | P0 | draft | v1.4 |
-| BC-2.17.003 | Plugin Sandbox — Memory Limit Enforced Per Plugin Instance (default 64MB) | 17 - WASM Plugin Runtime | CAP-032 | P0 | draft |
-| BC-2.17.004 | Plugin Sandbox — CPU Time Limit Enforced via Epoch Interruption (default 5s) | 17 - WASM Plugin Runtime | CAP-032 | P0 | draft |
+| BC-2.17.001 | Plugin Panic Isolation — Crashed Plugin Does Not Terminate Host Process | 17 - WASM Plugin Runtime | CAP-032 | P0 | draft (lifecycle_status: draft — Path B: BC-INDEX draft; no POL-14 merge event; corrected fix-burst-7 stage 1A) | v1.3 |
+| BC-2.17.002 | Plugin Sandbox — No Direct Filesystem or Network Access | 17 - WASM Plugin Runtime | CAP-032 | P0 | draft (lifecycle_status: draft — Path B: BC-INDEX draft; no POL-14 merge event; corrected fix-burst-7 stage 1A) | v1.5 |
+| BC-2.17.003 | Plugin Sandbox — Memory Limit Enforced Per Plugin Instance (default 64MB) | 17 - WASM Plugin Runtime | CAP-032 | P0 | draft (lifecycle_status: draft — Path B: BC-INDEX draft; no POL-14 merge event; corrected fix-burst-7 stage 1A) | v1.4 |
+| BC-2.17.004 | Plugin Sandbox — CPU Time Limit Enforced via Epoch Interruption (default 5s) | 17 - WASM Plugin Runtime | CAP-032 | P0 | draft (lifecycle_status: draft — Path B: BC-INDEX draft; no POL-14 merge event; corrected fix-burst-7 stage 1A) | v1.4 |
 | BC-2.17.005 | Plugin Hot Reload — Atomic Module Swap, In-Flight Calls Complete Against Old Version | 17 - WASM Plugin Runtime | CAP-030, CAP-032 | P0 | draft |
-| BC-2.17.006 | WIT Interface Validation Before Plugin Registration | 17 - WASM Plugin Runtime | CAP-032 | P0 | draft |
-| BC-2.17.007 | Plugin Manifest Schema Validation Before WIT Validation | 17 - WASM Plugin Runtime | CAP-032 | P0 | draft |
+| BC-2.17.006 | WIT Interface Validation Before Plugin Registration | 17 - WASM Plugin Runtime | CAP-032 | P0 | draft (lifecycle_status: draft — Path B: BC-INDEX draft; no POL-14 merge event; corrected fix-burst-7 stage 1A) | v1.4 |
+| BC-2.17.007 | Plugin Manifest Schema Validation Before WIT Validation | 17 - WASM Plugin Runtime | CAP-032 | P0 | draft (lifecycle_status: draft — Path B: BC-INDEX draft; no POL-14 merge event; corrected fix-burst-7 stage 1A) | v1.2 |
 | BC-2.18.001 | Alert and Case Action Triggers — At-Least-Once Delivery with Exponential Backoff Retry | 18 - Action Delivery Engine | CAP-033 | P0 | draft |
 | BC-2.18.002 | Schedule Action Triggers — Best-Effort, Retry on Next Cron Tick | 18 - Action Delivery Engine | CAP-033 | P0 | draft |
 | BC-2.18.003 | Manual Action Triggers — Fire-and-Forget, Result Returned Immediately to AI Caller | 18 - Action Delivery Engine | CAP-033 | P0 | draft |
@@ -239,7 +239,7 @@ Phase 3-patch additions (2026-04-16): 22 new BCs added in Burst 1 to close trace
 | BC-2.20.004 | Log Forwarder Credential Resolution — AD-017 Opaque Reference Model at Forward Time | 20 - Observability / Log Forwarding | CAP-035 | P0 | draft |
 | BC-2.20.005 | Log Forwarder Destination Isolation — Single Failed Destination Must Not Block Others | 20 - Observability / Log Forwarding | CAP-035 | P0 | draft |
 | BC-2.21.001 | OrgRegistry Initialization — Bijective Resolution Verified at Process Start | 21 - Identity & Core Types | CAP-038 | P0 | draft |
-| BC-2.22.001 | Boot Orchestration — Sequencing, Exit-Code Map, and Pre-Traffic Gate | 22 - Binary Entrypoint | CAP-034 | P0 | active | v1.4 |
+| BC-2.22.001 | Boot Orchestration — Sequencing, Exit-Code Map, and Pre-Traffic Gate | 22 - Binary Entrypoint | CAP-034 | P0 | active | v1.5 |
 
 ## Wave 3 — Phase 3.A Behavioral Contracts (2026-04-27)
 
@@ -360,6 +360,8 @@ Phase 3-patch additions (2026-04-16): 22 new BCs added in Burst 1 to close trace
 - Subsystem 19: Infusion Enrichment Framework (AD-020, CAP-031)
 
 ### Change Log (Adversarial Review Fixes)
+
+**v4.69 (2026-05-13):** state(D-478/D-479) fix-burst-7 stage-3 — (1) 6 plugin BCs lifecycle_status Path B sweep (BC-2.17.001/002/003/004/006/007): `lifecycle_status: active` → `lifecycle_status: draft` per BC-INDEX draft status and absence of POL-14 merge event (stale value from Wave-6-pre-build-sweep at v1.1; corrected fix-burst-7 stage 1A by product-owner); versions bumped: BC-2.17.001 v1.2→v1.3, BC-2.17.002 v1.4→v1.5, BC-2.17.003 v1.3→v1.4, BC-2.17.004 v1.3→v1.4, BC-2.17.006 v1.3→v1.4, BC-2.17.007 v1.1→v1.2; (2) BC-2.22.001 v1.4→v1.5: `plugin_load_unsigned` level adjudicated Option A (WARN canonical tracing level + orthogonal audit-channel routing via `event_type` field; clarifying sentence added to §Postconditions plugin-load happy-path block to remove WARN/AUDIT ambiguity for implementer). Index rows updated to reflect new versions. total_contracts=236 unchanged; active_contracts=229 unchanged (6 plugin BCs remain draft; BC-2.22.001 remains active).
 
 **v4.68 (2026-05-13):** state(D-476/D-477) fix-burst-6 stage-3 — (1) BC-2.22.001 v1.3→v1.4 (fix-burst-6 stage-1 by product-owner: plugin-load step 7.5 added to §Sequencing Invariant; new postconditions for happy-path / PRISM_DISABLE_PLUGIN_LOAD escape valve / manifest n-1 survivor / fatal exit(4); §Pre-Traffic Gate Invariant condition 6 added; §Exit-Code Map updated; cross-refs to ADR-023 §C4 + BC-2.17.007 added); (2) BC-2.22.001 lifecycle_status adjudicated **Path A** (promoted draft→active per D-319 S-WAVE5-PREP-01 merge at develop@53b87961 2026-05-10; BC file frontmatter `status: draft` + `lifecycle_status: draft` were stale sibling-sweep gap from ADR-025 sweep at v4.62 — corrected to `status: active` + `lifecycle_status: active`); (3) BC-2.17.002 v1.3→v1.4 (fix-burst-6 stage-1 by product-owner: E-PLUGIN-005 timeout corrected 10s → 30s per ADR-023 §C4). Row updates: BC-2.22.001 row status draft→active; BC-2.17.002 row annotated v1.4. total_contracts=236 unchanged; active_contracts=229 unchanged (BC-2.22.001 was already counted active in BC-INDEX since v4.51 D-319; this corrects the BC file frontmatter to match the index).
 

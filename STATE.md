@@ -1,9 +1,9 @@
 ---
 document_type: pipeline-state
 level: ops
-version: "7.198"
+version: "7.199"
 producer: state-manager
-timestamp: 2026-05-13T16:00:00Z
+timestamp: 2026-05-13T17:00:00Z
 inputs: []
 input-hash: "[live-state]"
 traces_to: ""
@@ -22,12 +22,12 @@ repos:
   - axiathon
   - ocsf-proto-gen
   - mcp-claroty-xdome
-current_step: "D-477. PREREQ-D fix-burst-6 CLOSED 7/7 (PO 77ba2b0f + story-writer 479aee14 + state-manager stage-3). Pass-8 next; target streak 0/3→1/3. STATE+HANDOFF v7.197→v7.198."
+current_step: "D-479. PREREQ-D fix-burst-7 CLOSED 5/6 + 1 deferred to cycle-closing (PO a03d9d36 + architect b0021477 + story-writer 867ee947 + state-manager stage-3). Pass-9 next; target streak 0/3→1/3. STATE+HANDOFF v7.198→v7.199."
 feature_branch_head: "ea958a4d"
 worktree_status: "merged"
-adversary_streak: "0/3 (pass-7 BLOCKED-hard 7 findings; fix-burst-6 closed all 7; pass-8 next)"
-adversary_pass_count: 7
-pending_findings: "0 CRIT + 0 HIGH + 0 MED + 0 LOW (fix-burst-6 closed all 7 pass-7 findings)"
+adversary_streak: "0/3 (pass-8 BLOCKED-hard 4 actionable + 2 OBS; fix-burst-7 closed 5/6 + 1 deferred to cycle-closing)"
+adversary_pass_count: 8
+pending_findings: "0 CRIT + 0 HIGH + 0 MED + 0 LOW (fix-burst-7 closed all 4 actionable pass-8 findings; F-LP8-OBS-002 routed to cycle-closing checklist)"
 demo_evidence_path: "docs/demo-evidence/S-PLUGIN-PREREQ-C/"
 local_converged_at_pass: 5
 wave_3_carry_forward_debt: "ALL_REMEDIATE — W4-FIX-PERF-001/002, W4-FIX-CODE-001, W4-FIX-SEC-001 through W4-FIX-SEC-004 planned per D-203"
@@ -133,9 +133,9 @@ subsystem_count: 20
 story_count: 113
 bc_count_corrected: 236
 cap_count: 40  # active; highest_cap_id: CAP-040 (CAP-038 Multi-Tenant Identity, CAP-039 Multi-Tenant Fixture Gen, CAP-040 Multi-Tenant Adapter Dispatch — Wave 3 Phase 3.A Step 2)
-bc_index_version: "4.68"
+bc_index_version: "4.69"
 vp_index_version: "1.34"
-story_index_version: "v2.73"
+story_index_version: "v2.74"
 policies_version: "1.10"
 total_stories: 150
 red_gate_wave_0a_complete: 2026-04-21
@@ -146,7 +146,7 @@ holdout_index_version: "1.3"
 capabilities_version: "1.14"
 l2_index_version: "1.13"
 module_decomposition_version: "1.16"
-arch_index_version: "2.42"
+arch_index_version: "2.43"
 security_architecture_version: "1.1"
 verification_coverage_matrix_version: "1.31"
 verification_architecture_version: "1.30"
@@ -184,9 +184,9 @@ workspace_test_count: 3598  # updated at D-433 fix-burst-1 closure (just check c
 | **Language** | Rust |
 | **Target Workspace** | per-analyst stdio (MCP server) |
 | **Started** | 2026-04-13 |
-| **Last Updated** | 2026-05-13 (D-476/477 — PREREQ-D pass-7 BLOCKED-hard 7 findings; fix-burst-6 closed 7/7; BC-INDEX v4.68 + STORY-INDEX v2.73; BC-2.22.001 promoted active; STATE+HANDOFF v7.197→v7.198) |
+| **Last Updated** | 2026-05-13 (D-478/479 — PREREQ-D pass-8 BLOCKED-hard 4 actionable+2OBS; fix-burst-7 closed 5/6+1deferred; BC-INDEX v4.69 + STORY-INDEX v2.74 + ARCH-INDEX v2.43; STATE+HANDOFF v7.198→v7.199) |
 | **Current Phase** | Wave 3 Tier-3 COMPLETE — **Wave 3-A 4 of 4 SHIPPED**; plugin migration: PREREQ-F + PREREQ-A + PREREQ-B + **PREREQ-C MERGED** (PR #144 ea958a4d 2026-05-12T23:14:05Z); PREREQ keystone trio COMPLETE; PLUGIN-MIGRATION Wave 1 unblocked; PREREQ-D/E pending |
-| **Current Step** | D-477 — PREREQ-D fix-burst-6 CLOSED 7/7 (PO 77ba2b0f + story-writer 479aee14 + state-manager). Streak 0/3. Trajectory 16→8→6→4→0→4→7. Pass-8 next target 0/3→1/3. |
+| **Current Step** | D-479 — PREREQ-D fix-burst-7 CLOSED 5/6+1deferred (PO a03d9d36 + architect b0021477 + story-writer 867ee947 + state-manager). Streak 0/3. Trajectory 16→8→6→4→0→4→7→4. Pass-9 next target 0/3→1/3. |
 
 ## Phase Progress
 
@@ -218,11 +218,11 @@ workspace_test_count: 3598  # updated at D-433 fix-burst-1 closure (just check c
 
 | Step | Agent | Status | Output |
 |------|-------|--------|--------|
-| D-472 — PREREQ-D pass-5 CLEAN (streak 0/3→1/3; trajectory 16→8→6→4→0) | state-manager | **COMPLETE** | ZERO findings. All 4 pass-4 closures load-bearing verified. POL-20 anchored clean. Geometric convergence confirmed. Pass-6 idempotency next. Report: cycles/wave-4-operations/adversarial-reviews/S-PLUGIN-PREREQ-D-pass-5.md. STATE+HANDOFF v7.194→v7.195. |
-| D-473 — PREREQ-D pass-6 BLOCKED-soft (1M/2L/1OBS; idempotency false-CLEAN reset; streak 1/3→0/3) | state-manager | **COMPLETE** | 4 findings at unchanged HEAD 34ab594c (idempotency check). Pass-5 confirmed false-CLEAN. Trajectory 16→8→6→4→0→4. Fix-burst-5 dispatched. Report: cycles/wave-4-operations/adversarial-reviews/S-PLUGIN-PREREQ-D-pass-6.md. STATE+HANDOFF v7.195→v7.196. |
 | D-474 — PREREQ-D fix-burst-5 CLOSED (4/4); story v1.5 at SHA 8254f075 | state-manager | **COMPLETE** | F-LP6-MED-001 Token Budget 38,300→39,800; F-LP6-LOW-002 changelog 8→7 arithmetic corrected; F-LP6-LOW-003 Match-Site AC-8→Task 8; F-LP6-OBS-004 AC-9 re-anchored ADR-023 §C4. STORY-INDEX v2.71→v2.72. Pass-7 next target streak 0/3→1/3. Closure: cycles/wave-4-operations/adversarial-reviews/S-PLUGIN-PREREQ-D-fix-burst-5.md. STATE+HANDOFF v7.195→v7.196. |
-| D-476 — PREREQ-D pass-7 BLOCKED-hard (4H/2M/1L; anti-convergence 4→7) | state-manager | **COMPLETE** | Pass-7 report reified from chat output. 7 findings: HIGH-001/002 systematic path mis-anchors (pipeline.rs + auth_provider.rs under /src/plugin/ but actual /src/); HIGH-003 BC-2.22.001 has no plugin content (grep returns zero; 4 ACs trace to non-existent invariant slots); HIGH-004 host_http_request .timeout(10) clamps 30s client-builder (TD-VSDD-059 paper-fix risk); MED-001 BC-2.17.002 E-PLUGIN-005 10s vs 30s contradiction; MED-002 Task 9 step numbering ambiguity; LOW-001 BC-2.22.001 lifecycle_status drift. Fix-burst-6 dispatched. Report: cycles/wave-4-operations/adversarial-reviews/S-PLUGIN-PREREQ-D-pass-7.md. |
+| D-476 — PREREQ-D pass-7 BLOCKED-hard (4H/2M/1L; anti-convergence 4→7) | state-manager | **COMPLETE** | Pass-7 report reified from chat output. 7 findings: HIGH-001/002 systematic path mis-anchors (pipeline.rs + auth_provider.rs under /src/plugin/ but actual /src/); HIGH-003 BC-2.22.001 has no plugin content; HIGH-004 host_http_request .timeout(10) clamps 30s client-builder; MED-001 BC-2.17.002 E-PLUGIN-005 10s vs 30s; MED-002 Task 9 step numbering ambiguity; LOW-001 BC-2.22.001 lifecycle_status drift. Fix-burst-6 dispatched. Report: cycles/wave-4-operations/adversarial-reviews/S-PLUGIN-PREREQ-D-pass-7.md. |
 | D-477 — PREREQ-D fix-burst-6 CLOSED (7/7); BC-INDEX v4.68 + STORY-INDEX v2.73 | state-manager | **COMPLETE** | PO stage-1 (77ba2b0f): BC-2.22.001 v1.3→v1.4 + BC-2.17.002 v1.3→v1.4. Story-writer stage-2 (479aee14): story v1.5→v1.6 (8+5 path sites; host_functions.rs Match-Site row; Task 9 disambiguation; AC traces). State-manager stage-3: pass-7 report reified; BC-2.22.001 promoted active (Path A); BC-INDEX v4.68; STORY-INDEX v2.73. Zero deferrals. Pass-8 next. Closure: cycles/wave-4-operations/adversarial-reviews/S-PLUGIN-PREREQ-D-fix-burst-6.md. STATE+HANDOFF v7.197→v7.198. |
+| D-478 — PREREQ-D pass-8 BLOCKED-hard (1H/2M/1L+2OBS; trajectory 7→4) | state-manager | **COMPLETE** | Pass-8 report reified from chat output (adversary tool-profile constraint; 2nd consecutive occurrence). 6 findings: HIGH-001 sibling lifecycle_status drift on 6 plugin BCs (BC-2.17.001/002/003/004/006/007 status:draft + lifecycle_status:active; story line 16 "All BCs active" falsified); MED-001 plugin_load_unsigned level WARN/AUDIT divergence BC vs story Catalog; MED-002 AC-9 trace header omits BC-2.17.002 v1.4 (now canonical owner of 30s timeout); LOW-001 BC-2.17.002 status/lifecycle_status divergence (PO touched file in fix-burst-6 but missed; subset of HIGH-001); OBS-001 ADR-022 §B no step 7.5 cross-ref; OBS-002 lifecycle_status-drift-pattern confirmed across 8 BCs (codification candidate). Fix-burst-7 dispatched. Report: cycles/wave-4-operations/adversarial-reviews/S-PLUGIN-PREREQ-D-pass-8.md. STATE+HANDOFF v7.198→v7.199. |
+| D-479 — PREREQ-D fix-burst-7 CLOSED (5/6+1deferred); BC-INDEX v4.69 + STORY-INDEX v2.74 + ARCH-INDEX v2.43 | state-manager | **COMPLETE** | PO stage-1A (a03d9d36): 6 plugin BCs lifecycle_status active→draft (Path B sweep) + BC-2.22.001 v1.5 plugin_load_unsigned Option A clarification (WARN + audit-channel routing). Architect stage-1B (b0021477): ADR-022 v1.3 step 7.5 cross-ref + Related ADRs section; ARCH-INDEX v2.43. Story-writer stage-2 (867ee947): story v1.7 line 16 corrected; Catalog Level AUDIT→WARN; AC-9 trace header extended to BC-2.17.002 v1.5. State-manager stage-3 (this burst): pass-8 report reified; BC-INDEX v4.69; STORY-INDEX v2.74; fix-burst-7 closure at cycles/wave-4-operations/adversarial-reviews/S-PLUGIN-PREREQ-D-fix-burst-7.md. F-LP8-OBS-002 routed to cycle-closing checklist. Pass-9 next; target 0/3→1/3. STATE+HANDOFF v7.198→v7.199. |
 
 ## Decisions Log
 
@@ -230,6 +230,8 @@ _D-001..D-046 archived: [cycles/phase-3-dtu-wave-2/decisions-archive-d001-d032.m
 
 | ID | Decision | Rationale | Phase | Date |
 |----|----------|-----------|-------|------|
+| D-479 | 2026-05-13 | **PREREQ-D fix-burst-7 CLOSED 5/6+1deferred (PO a03d9d36 + architect b0021477 + story-writer 867ee947 + state-manager stage-3)** (state-manager). All 4 actionable pass-8 findings closed in-scope per CLAUDE.md Canonical Principle Rule 3 (zero MVP-deferrals). F-LP8-OBS-001 also closed in-scope per Canonical Principle Rule 6 (cosmetic discoverability gap). F-LP8-OBS-002 routed to cycle-closing checklist (codification candidate — recurrent process-gap, not a content defect). PO stage 1A: 6 plugin BCs lifecycle_status active→draft sweep (Path B per BC-INDEX draft confirmation + no POL-14 merge event yet) + BC-2.22.001 v1.5 plugin_load_unsigned Option A clarification (WARN tracing level + orthogonal audit-channel routing via event_type). Architect stage 1B: ADR-022 v1.3 with step 7.5 cross-reference to ADR-023 §C4 + Related ADRs section; ARCH-INDEX row updated v1.2→v1.3. Story-writer stage 2: story v1.7 line 16 corrected ("BC-2.22.001 active; remaining 6 draft pending POL-14 PR merge"); Catalog plugin_load_unsigned Level AUDIT→WARN sweep (5 rows reviewed, 1 modified); AC-9 trace header extended to BC-2.17.002 v1.5 §Error Conditions E-PLUGIN-005. State-manager stage 3 (this burst): pass-8 report reified; BC-INDEX v4.68→v4.69; STORY-INDEX v2.73→v2.74; ARCH-INDEX v2.42→v2.43; fix-burst-7 closure report at cycles/wave-4-operations/adversarial-reviews/S-PLUGIN-PREREQ-D-fix-burst-7.md. Adversary pass-9 next; target streak 0/3 → 1/3 if CLEAN. Trajectory 16→8→6→4→0→4→7→4→? — convergence reachable in 2–3 more passes per pass-8 prediction if sibling-sweep gaps stay closed. STATE+HANDOFF v7.198→v7.199. | plugin-migration | 2026-05-13 |
+| D-478 | 2026-05-13 | **PREREQ-D pass-8 BLOCKED-hard (1H/2M/1L + 2 OBS; trajectory decline 7→4)** (adversary — rendered via state-manager). Pass-8 fresh-context audit at story SHA 479aee14 (story v1.6) + BC amendments SHA 77ba2b0f. All 7 pass-7 closures CONFIRMED CLEAN on primary targets (paths, BC plugin enumeration, host_functions.rs Match-Site row, Task 9 numbering, BC-2.17.002 30s, BC-2.22.001 Path A promotion). 6 NEW findings: F-LP8-HIGH-001 [process-gap] sibling lifecycle_status drift on 6 plugin BCs (BC-2.17.001/002/003/004/006/007 inverted: status:draft + lifecycle_status:active; story claim "All BCs are active" falsified); F-LP8-MED-001 plugin_load_unsigned level WARN/AUDIT divergence between BC and story Catalog; F-LP8-MED-002 AC-9 trace header omits BC-2.17.002 v1.4 now that PO closed cross-doc gap; F-LP8-LOW-001 BC-2.17.002 status/lifecycle_status divergence (PO touched file in fix-burst-6 but missed drift; subset of HIGH-001); F-LP8-OBS-001 ADR-022 §B no step 7.5 cross-reference (discoverability gap); F-LP8-OBS-002 [process-gap] lifecycle_status-drift-pattern now confirmed across 8 BC files (codification candidate). Adversary did NOT write report file (recurring pass-7 + pass-8 tool-profile constraint; structural codification candidate). Report reified by state-manager (this commit). STATE+HANDOFF v7.198→v7.199. | plugin-migration | 2026-05-13 |
 | D-477 | 2026-05-13 | **PREREQ-D fix-burst-6 CLOSED 7/7 (PO 77ba2b0f + story-writer 479aee14 + state-manager stage-3)** (state-manager). All 7 pass-7 findings closed in-scope per CLAUDE.md Canonical Principle Rule 3 (zero deferrals). PO stage 1: BC-2.22.001 v1.3→v1.4 (plugin-load step 7.5 added to §Sequencing Invariant; new postconditions for happy-path / PRISM_DISABLE_PLUGIN_LOAD escape valve / manifest n-1 survivor / fatal exit(4); §Pre-Traffic Gate Invariant condition 6 added; §Exit-Code Map updated; cross-refs to ADR-023 §C4 + BC-2.17.007 added) + BC-2.17.002 v1.3→v1.4 (E-PLUGIN-005 10s → 30s matching ADR-023 §C4). Story-writer stage 2: story v1.5→v1.6 (8 sites pipeline.rs path swept; 5 sites auth_provider.rs path swept; Match-Site row added for host_functions.rs host_http_request per-request timeout sibling-site; Task 4 + Task 9 prose; AC-1/2/3/4 traces propagated to BC-2.22.001 v1.4 sections; bonus correction plugin_disabled_env→plugin_load_disabled_via_envvar at 5 additional sites; AC-9 out-of-perimeter note shortened). State-manager stage 3 (this commit): pass-7 report file reified; BC-2.22.001 lifecycle_status adjudicated Path A chosen — S-WAVE5-PREP-01 merged at develop@53b87961; D-319 BC-INDEX v4.51 correctly recorded promotion; BC file frontmatter was sibling-sweep gap from ADR-025 v4.62 sweep; corrected to status/lifecycle_status active; BC-INDEX v4.67→v4.68; STORY-INDEX v2.72→v2.73; fix-burst-6 closure report at cycles/wave-4-operations/adversarial-reviews/S-PLUGIN-PREREQ-D-fix-burst-6.md. Adversary pass-8 next; target streak 0/3 → 1/3 if CLEAN. Trajectory 16→8→6→4→0→4→7→? — anti-convergence broken if pass-8 trends down. STATE+HANDOFF v7.197→v7.198. | plugin-migration | 2026-05-13 |
 | D-476 | 2026-05-13 | **PREREQ-D pass-7 BLOCKED-hard (4H/2M/1L; trajectory regression 4→7)** (adversary — rendered via state-manager). Pass-7 fresh-context audit at story SHA 8254f075 surfaced 4 HIGH novel findings: F-LP7-HIGH-001 (pipeline.rs path mis-anchor — 8 sites, survived 6 prior passes; no prior adversary executed Glob); F-LP7-HIGH-002 (auth_provider.rs path mis-anchor — 5 sites); F-LP7-HIGH-003 (BC-2.22.001 semantic chain failure: 4 ACs traced to non-existent invariant slots; grep "plugin" BC returned zero); F-LP7-HIGH-004 (TD-VSDD-059 paper-fix risk: host_functions.rs `.timeout(10)` RequestBuilder override clamps the 30s Client::builder().timeout — TD closure functionally inert under literal implementation path); 2 MEDIUM: F-LP7-MED-001 (BC-2.17.002 E-PLUGIN-005 10s vs ADR-023 §C4 30s contradiction; explicit defer-to-future-PO punt violated production-grade default Rule 3 + Rule 6); F-LP7-MED-002 (Task 9 step numbering ambiguity 7.5 vs renumber); 1 LOW: F-LP7-LOW-001 (BC-2.22.001 lifecycle_status drift; story "all BCs are active" comment contradicts BC frontmatter draft). Fresh-context-compounding-value principle confirmed: pass-7 derived its own understanding rather than inheriting prior passes' assumptions. Report: cycles/wave-4-operations/adversarial-reviews/S-PLUGIN-PREREQ-D-pass-7.md. Process-gap surfaced: adversary did not write pass-7 report file (codification candidate). STATE+HANDOFF v7.197→v7.198. | plugin-migration | 2026-05-13 |
 | D-475 | 2026-05-13 | **vsdd-factory plugin pin refresh rc.16→rc.18 (pre-compact)** (state-manager). Plugin upgraded via /plugin + /reload-plugins; /vsdd-factory:activate at 2026-05-13T15:00:19Z refreshed .claude/settings.local.json with new activated_plugin_version=1.0.0-rc.18, activated_platform=darwin-arm64 (unchanged), activated_at=2026-05-13T15:00:19Z. apply-platform.sh darwin-arm64 succeeded: hooks.json variant copied, dispatcher binary verified at hooks/dispatcher/bin/darwin-arm64/factory-dispatcher. STATE.md vsdd_factory_version field synchronized (upgrade chain rc.11→rc.16 2026-05-10→rc.18 2026-05-13). No behavioral changes; pin sync only. STATE+HANDOFF v7.196→v7.197. | plugin-migration | 2026-05-13 |
@@ -274,17 +276,17 @@ Cycle files: [burst-log](cycles/phase-2-patch/burst-log.md) | [convergence-traje
 
 ---
 
-## Session Resume Checkpoint (2026-05-13-v7.198-d477-fix-burst-6-closed)
+## Session Resume Checkpoint (2026-05-13-v7.199-d479-fix-burst-7-closed)
 
-_Previous checkpoint (v7.197/D-475 plugin pin refresh rc.18) archived: [cycles/wave-4-operations/session-checkpoints.md](cycles/wave-4-operations/session-checkpoints.md)_
+_Previous checkpoint (v7.198/D-477 fix-burst-6 closed) archived: [cycles/wave-4-operations/session-checkpoints.md](cycles/wave-4-operations/session-checkpoints.md)_
 
-**STATE v7.198. D-476 — PREREQ-D pass-7 BLOCKED-hard (4H/2M/1L; anti-convergence 4→7). D-477 — fix-burst-6 CLOSED 7/7 (PO 77ba2b0f + story-writer 479aee14 + state-manager stage-3). Streak 0/3. Trajectory 16→8→6→4→0→4→7.** Story v1.6 at fix-burst-6 stage-3 SHA. develop@95d46be2. factory-artifacts HEAD: run `git -C .factory log -1` (per TD-VSDD-053). vsdd-factory rc.18 active.
+**STATE v7.199. D-478 — PREREQ-D pass-8 BLOCKED-hard (1H/2M/1L+2OBS; trajectory 7→4). D-479 — fix-burst-7 CLOSED 5/6+1deferred (PO a03d9d36 + architect b0021477 + story-writer 867ee947 + state-manager stage-3). Streak 0/3. Trajectory 16→8→6→4→0→4→7→4.** Story v1.7 at fix-burst-7 stage-3 SHA. develop@95d46be2. factory-artifacts HEAD: run `git -C .factory log -1` (per TD-VSDD-053). vsdd-factory rc.18 active.
 
-**RESUME ACTION:** Fix-burst-6 CLOSED (7/7). Pass-8 next at story v1.6; target streak 0/3→1/3. Key closures: BC-2.22.001 v1.3→v1.4 (plugin-load step 7.5 + postconditions + gate + exit-codes); BC-2.17.002 v1.3→v1.4 (E-PLUGIN-005 30s); story path corrections (pipeline.rs + auth_provider.rs /src/ not /src/plugin/); host_functions.rs timeout Match-Site added; BC-2.22.001 promoted active (Path A). Pass-8 may surface 2-4 second-order findings from BC amendment cascade — true convergence 3-4 passes away per trajectory analysis. After 3-CLEAN: test-writer → implementer → pr-manager 9-step → squash-merge → PLUGIN-MIGRATION Wave 1 unblock.
+**RESUME ACTION:** Fix-burst-7 CLOSED (5/6; F-LP8-OBS-002 deferred to cycle-closing). Pass-9 next at story v1.7; target streak 0/3→1/3. Key closures: 6 plugin BCs lifecycle_status active→draft (Path B sweep); BC-2.22.001 v1.5 plugin_load_unsigned WARN/AUDIT Option A clarification; ADR-022 v1.3 step 7.5 cross-ref; story line 16 corrected; AC-9 trace updated to BC-2.17.002 v1.5. F-LP8-OBS-002 codification candidate routed to cycle-closing checklist. Pass-9 should surface 1-3 findings (mostly observation-class) if sibling-sweep gaps stayed closed. Convergence reachable 2-3 more passes. After 3-CLEAN: test-writer → implementer → pr-manager 9-step → squash-merge → PLUGIN-MIGRATION Wave 1 unblock.
 
 **PREREQ TRIO STATUS (all merged):** PREREQ-A PR #142 + PREREQ-B PR #143 + PREREQ-C PR #144 ea958a4d. develop@95d46be2 (post-ColumnType migration). PLUGIN-MIGRATION Wave 1 gated on PREREQ-D + PREREQ-E.
 
-**Current spec versions:** BC-INDEX v4.68, STORY-INDEX v2.73, VP-INDEX v1.34, ARCH-INDEX v2.42, policies v1.10 (POL-20 anchored-regex), BC-2.22.001 v1.4 (active), BC-2.17.002 v1.4, BC-2.17.007 v1.1, develop@95d46be2; STATE v7.198 SESSION-HANDOFF v7.198. **Key files:** [SESSION-HANDOFF.md](SESSION-HANDOFF.md) | [cycles/wave-4-operations/adversarial-reviews/S-PLUGIN-PREREQ-D-pass-7.md](cycles/wave-4-operations/adversarial-reviews/S-PLUGIN-PREREQ-D-pass-7.md)
+**Current spec versions:** BC-INDEX v4.69, STORY-INDEX v2.74, VP-INDEX v1.34, ARCH-INDEX v2.43, policies v1.10 (POL-20 anchored-regex), BC-2.22.001 v1.5 (active), BC-2.17.002 v1.5 (draft), BC-2.17.007 v1.2 (draft), develop@95d46be2; STATE v7.199 SESSION-HANDOFF v7.199. **Key files:** [SESSION-HANDOFF.md](SESSION-HANDOFF.md) | [cycles/wave-4-operations/adversarial-reviews/S-PLUGIN-PREREQ-D-pass-8.md](cycles/wave-4-operations/adversarial-reviews/S-PLUGIN-PREREQ-D-pass-8.md)
 
 ## Agent Routing Quick Reference
 
