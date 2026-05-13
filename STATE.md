@@ -1,9 +1,9 @@
 ---
 document_type: pipeline-state
 level: ops
-version: "7.181"
+version: "7.182"
 producer: state-manager
-timestamp: 2026-05-12T21:35:00Z
+timestamp: 2026-05-12T22:00:00Z
 inputs: []
 input-hash: "[live-state]"
 traces_to: ""
@@ -22,7 +22,7 @@ repos:
   - axiathon
   - ocsf-proto-gen
   - mcp-claroty-xdome
-current_step: "D-447. STEP 2 MAINTENANCE BURST B COMPLETE — TD-VSDD-091 closed via ADR-022 v1.1→v1.2 volatile-pin strip (18 pins stripped/pivoted across 7 sections); TD-VSDD-095 P4 filed for residual merged-story cosmetics. ARCH-INDEX v2.40→v2.41. Step 2 Burst C (types.rs consolidation) and Burst D (BC frontmatter divergence) queued."
+current_step: "D-448. STEP 2 MAINTENANCE BURST C COMPLETE — Burst C investigation closed placeholder TD-S-PLUGIN-PREREQ-C-001 via filing properly-scoped TD-S-PLUGIN-PREREQ-C-001-A P4 (2 cosmetic consolidations, ~45 min). 3 of 5 surfaced 'duplicates' confirmed as intentional hot-reload splits with documented rationale; 1 is distinct-schema unrelated; 1 is parallel-concept (not duplicate). Burst D (BC frontmatter status/lifecycle divergence task #84) remains queued for next session due to context-budget considerations and architect dispatch dependency."
 feature_branch_head: "ea958a4d"
 worktree_status: "merged"
 adversary_streak: "3/3 LOCKED"
@@ -217,11 +217,11 @@ workspace_test_count: 3598  # updated at D-433 fix-burst-1 closure (just check c
 
 | Step | Agent | Status | Output |
 |------|-------|--------|--------|
-| S-PLUGIN-PREREQ-C LOCAL CONVERGED pass-5 (D-440) | adversary + state-manager | **CLEAN — streak 3/3 — LOCAL CONVERGED** | STREAK LOCKED. 1 finding (F-LP5-LOW-001 main.rs doc-header non-blocking LOW). 0 CRIT + 0 HIGH + 0 MED. Trajectory 18→8→5→5→1. 5 passes + 4 fix-bursts. Feature@651bbb64. STATE+HANDOFF v7.173→v7.174. Next: fix F-LP5-LOW-001 → demo-recorder step 5. |
 | PREREQ-C step 5 COMPLETE — F-LP5-LOW-001 + demo evidence (D-441) | implementer + demo-recorder + state-manager | **COMPLETE — demo-evidence-recorded** | F-LP5-LOW-001 closed (main.rs doc-header 29→30 types + fix-burst-4 attribution + 30th type bullet, c9bb9d26). Demo evidence: docs/demo-evidence/S-PLUGIN-PREREQ-C/ — 8 files (INDEX + AC-1..AC-7), 835 lines, real test output all 7 ACs (450b082c). 0 outstanding findings. POL-10 satisfied. STATE+HANDOFF v7.174→v7.175. Next: step 6 rebase + pr-manager 9-step PR cycle. |
 | S-PLUGIN-PREREQ-C MERGED — D-442 | state-manager | **MERGED — develop@ea958a4d** | PR #144 squash-merged 2026-05-12T23:14:05Z. 36/36 CI PASS. Story v1.3→v1.4 status: ready→merged. STORY-INDEX v2.64→v2.65. PREREQ keystone trio (A+B+C) complete. PLUGIN-MIGRATION Wave 1 unblocked. STATE+HANDOFF v7.175→v7.176. |
 | STEP 2 Burst A — STORY-INDEX cycle resolved (D-446) | state-manager | **COMPLETE** | STORY-INDEX:397 001-D depends_on corrected to PREREQ-A/B/C/D. TD-VSDD-094 P3 filed. tech-debt-register v2.15→v2.16. STATE+HANDOFF v7.179→v7.180. |
 | STEP 2 Burst B — ADR-022 volatile-pin strip (D-447) | state-manager | **COMPLETE** | ADR-022 v1.1→v1.2 — 18 pins stripped across 7 sections. TD-VSDD-091 CLOSED. TD-VSDD-095 P4 filed. ARCH-INDEX v2.40→v2.41. tech-debt-register v2.16→v2.17. STATE+HANDOFF v7.180→v7.181. |
+| STEP 2 Burst C — types.rs investigation closed (D-448) | state-manager | **COMPLETE** | Placeholder TD-S-PLUGIN-PREREQ-C-001 retired. TD-S-PLUGIN-PREREQ-C-001-A P4 filed (2 cosmetic consolidations ~45 min). 3 intentional splits + 1 unrelated + 1 parallel-concept confirmed. tech-debt-register v2.17→v2.18. STATE+HANDOFF v7.181→v7.182. |
 
 ## Decisions Log
 
@@ -229,6 +229,7 @@ _D-001..D-046 archived: [cycles/phase-3-dtu-wave-2/decisions-archive-d001-d032.m
 
 | ID | Decision | Rationale | Phase | Date |
 |----|----------|-----------|-------|------|
+| D-448 | 2026-05-12 | **STEP 2 Burst C — types.rs investigation closed; TD-A scoped** (state-manager). Burst C audit confirmed placeholder TD-S-PLUGIN-PREREQ-C-001 was never filed in register (narrative reference only in SESSION-HANDOFF + forward-task-map). Of 5 type-clusters in F-LP2-OBS-002 scope: 3 are intentional hot-reload splits (SensorSpec/SensorTableDescriptor split per AD-018 ArcSwap<ConfigSnapshot>; documented at types.rs:70-71 + types.rs:153-154); 1 is distinct-schema unrelated (infusion::CredentialRef with env-var infusion enrichment per INV-INFUSE-005); 1 PaginationType/PaginationConfig pair is parallel-concept (not duplicate). 2 real consolidation candidates filed as TD-S-PLUGIN-PREREQ-C-001-A P4 (CredentialRef byte-identical → consolidate; ColumnType local enum → re-export from prism-core; ~45 min total). open_count 92→93. STATE+HANDOFF v7.181→v7.182. | plugin-migration | 2026-05-12 |
 | D-447 | 2026-05-12 | **STEP 2 Burst B — TD-VSDD-091 closed** (state-manager). Sample audit of 15 files (5 BCs, 5 ADRs, 5 stories) identified 22 VOLATILE pins; 80% of files clean; 18 of 22 concentrated in ADR-022. Surgical fix: ADR-022 v1.1→v1.2 strips 18 pins across §Context/§B/§C/§D/§G. Function-name pivots applied per audit recommendations for InfusionLoader/InfusionLruCache/MmdbSource/plugin_bridge/QueryEngine sites; engine.rs/materialization.rs/internal_tables.rs references marked HISTORICAL post S-3.02-FOLLOWUP-RUNTIME (c6dd6602). ARCH-INDEX v2.40→v2.41. TD-VSDD-091 closed; TD-VSDD-095 P4 filed for residual S-PLUGIN-PREREQ-A/B cosmetics (merged stories, archeological). open_count unchanged 92→92 (close 1, add 1). Workspace-wide lint hook deferred (false-positive risk). STATE+HANDOFF v7.180→v7.181. | plugin-migration | 2026-05-12 |
 | D-446 | 2026-05-12 | **STEP 2 Maintenance Burst A — cycle resolution** (state-manager). STORY-INDEX:397 PLUGIN-MIGRATION-001-D depends_on updated from stale `…001-A` (cycle) to canonical `…PREREQ-A,…PREREQ-B,…PREREQ-C,…PREREQ-D` per D-444 resolution. 001-A's depends_on unchanged (retains 001-D forward arc). STORY-INDEX v2.65→v2.66. TD-VSDD-094 P3 filed for PREREQ-C adversarial-review path-drift codification (cycles/<cycle>/adversarial-reviews/ canonical pattern; PREREQ-D/E must follow). open_count 91→92. tech-debt-register v2.15→v2.16. STATE+HANDOFF v7.179→v7.180. Wave 1 dispatch now cycle-clear; still gates on PREREQ-D/E land. | plugin-migration | 2026-05-12 |
 | D-445 | 2026-05-12 | **Sprint Review Step 1 COMPLETE** (state-manager). Sprint-analyzer ANALYSIS for PREREQ keystone trio (A+B+C) persisted at `cycles/wave-4-operations/sprint-review-PREREQ-trio.md`. 8-section structured brief: sprint summary, epic breakdown, business linkage, convergence efficiency, tech debt scoreboard, process gap insights, next-wave readiness, demo points. Key metrics: 34 pts, 3 stories merged (PR #142/143/144), 3,598 tests, 33 LOCAL passes, 24 fix-bursts, 36/36 CI, 7 TDs closed (91 active). Two inconsistencies flagged for Step 2: (1) STORY-INDEX:397 stale 001-D depends_on apparent cycle with 001-A (per D-444 resolution, true fix: 001-D depends on PREREQ-A/B/C/D, NOT 001-A); (2) PREREQ-C adversarial pass reports live under `.factory/code-delivery/` not `cycles/wave-4-operations/adversarial-reviews/` — path-convention drift, cosmetic. Step 2 (maintenance burst) dispatchable; Step 3 (Wave 1) gated on STORY-INDEX:397 cycle fix + PREREQ-D/E landing. STATE+HANDOFF v7.178 → v7.179. | plugin-migration | 2026-05-12 |
