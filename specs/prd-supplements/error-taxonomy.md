@@ -2,14 +2,14 @@
 document_type: prd-supplement
 level: L3
 section: "error-taxonomy"
-version: "1.18"
+version: "1.19"
 status: draft
 producer: product-owner
 timestamp: 2026-05-11T02:00:00Z
 phase: 1a
 origin: greenfield
 inputs: [".factory/specs/prd.md", ".factory/specs/behavioral-contracts/**"]
-input-hash: "fbb5fd3"
+input-hash: "f2a67c4"
 traces_to: [".factory/specs/prd.md"]
 ---
 
@@ -452,6 +452,10 @@ Additional state errors beyond E-STATE-001 and E-STATE-002 (defined in the STATE
 | E-PLUGIN-009 | broken | validation | "Plugin binary exceeds maximum size of 50MB" | No | Plugin `.prx` file size exceeds the 50MB hard limit; rejected at load time before WASM compilation is attempted; plugin not registered | BC-2.17.006 (Error Cases, line 67 / EC-17-025) |
 | E-PLUGIN-010 | broken | validation | "plugin_id cannot be empty" | No | Plugin's `name()` export returned an empty string after WIT validation; `plugin_id` is required; plugin not registered | BC-2.17.006 (EC-17-027) |
 | E-PLUGIN-011 | broken | not_found | "Plugin '{plugin_id}' is not loaded" | No | Caller requested a plugin that is not present in the registry (e.g., the `.prx` file was deleted and the registry entry was removed); `Err(PluginError::NotLoaded { plugin_id })` returned | BC-2.17.005 (Error Cases, line 54 and 70 — `PluginError::NotLoaded`) |
+| E-PLUGIN-013 | broken | validation | "Plugin manifest at '{path}' missing required field 'allowed_urls'; field must be an explicit list (use `allowed_urls = []` for no URLs)" | No | `.prx` manifest is missing the `allowed_urls` field or the field is `None`/`null`. The loader does NOT silently default to allow-all — absence is a hard rejection. Prevents silent-allow-all vulnerability described in ADR-023 §C4 current-state. | BC-2.17.007 (Error Conditions: E-PLUGIN-013) |
+| E-PLUGIN-014 | broken | validation | "Plugin manifest at '{path}' format_version {actual} exceeds maximum supported version {supported}" | No | `.prx` manifest `format_version` field is absent OR its integer value exceeds `CURRENT_SUPPORTED_VERSION` (crate constant in `prism-spec-engine`). Also used as umbrella code for structurally malformed manifest TOML that cannot be deserialized. Plugins compiled for a newer format are rejected at load time with no partial registration. | BC-2.17.007 (Error Conditions: E-PLUGIN-014) |
+| E-PLUGIN-015 | broken | validation | "Plugin manifest at '{path}' missing or empty required field 'name'" | No | `.prx` manifest `name` field is absent or is an empty string. `name` is required and must be a non-empty UTF-8 string. | BC-2.17.007 (Error Conditions: E-PLUGIN-015) |
+| E-PLUGIN-016 | broken | validation | "Plugin manifest at '{path}' field 'version' is not a valid semver string: '{value}'" | No | `.prx` manifest `version` field is absent or does not parse as a semantic version (major.minor.patch). Malformed version strings are rejected at the manifest gate before WIT compilation is attempted. | BC-2.17.007 (Error Conditions: E-PLUGIN-016) |
 
 ## FWD: Log Forwarder Errors
 
@@ -467,6 +471,7 @@ Additional state errors beyond E-STATE-001 and E-STATE-002 (defined in the STATE
 
 | Version | Burst | Date | Author | Change |
 |---------|-------|------|--------|--------|
+| 1.19 | wave-4-fix-burst-F-LP1-HIGH-004 | 2026-05-13 | product-owner | Added E-PLUGIN-013 (allowed_urls absent/None — hard rejection, no silent default), E-PLUGIN-014 (format_version absent or exceeds CURRENT_SUPPORTED_VERSION; also umbrella for malformed manifest TOML), E-PLUGIN-015 (name field absent or empty), E-PLUGIN-016 (version field absent or not semver-parseable). All four anchor to BC-2.17.007. Closes F-LP1-HIGH-004 (S-PLUGIN-PREREQ-D pass-1). |
 | 1.18 | S-PLUGIN-PREREQ-A-pass-3-state-burst | 2026-05-11 | state-manager | Added E-QUERY-031 (InvalidSensorName — sensor name in PrismQL write plan or explain path failed SensorId validation; emitted by WriteDispatcher::execute_at when SensorId::try_from_str returns Err; introduced in S-PLUGIN-PREREQ-A fix-burst-2 F-LP2-CRIT-002 closure; references BC-2.01.013 v1.4). Closes F-LP3-MED-003 taxonomy-gap finding from pass-3. D-383. |
 | 1.17 | S-3.04-fix-pass-29 | 2026-05-07 | implementer | Added E-STORE-020 (CursorCapExceeded — active cursor count at cross-client cap of 200; new cursor allocation rejected; cursor expiry automatic at 60s TTL; see BC-2.07.002 §Cursor Lifecycle (MCP-exposed surface) — Cap). Code was implemented in crates/prism-core/src/error.rs but absent from taxonomy (F-PASS10-MED-001). |
 | 1.16 | S-3.04-fix-pass-28 | 2026-05-07 | implementer | Anchor reformat: E-QUERY-012 anchor updated from nonexistent §Cursor TTL Expiry → §Cursor Lifecycle (MCP-exposed surface) — Expiry; E-QUERY-013 anchor updated from §CursorPageSizeInvalid → §Cursor Lifecycle (MCP-exposed surface) — Creation; E-QUERY-014 anchor added → §Cursor Lifecycle (MCP-exposed surface) — Advancement. All three now cite the real section added to BC-2.07.002 v4.6. Resolves F-PASS9-MED-002. |

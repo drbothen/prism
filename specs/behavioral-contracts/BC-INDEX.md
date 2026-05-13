@@ -1,13 +1,13 @@
 ---
 document_type: behavioral-contract-index
 level: L3
-version: "4.63"
+version: "4.64"
 status: draft
 producer: product-owner
-timestamp: 2026-05-12T07:30:00
+timestamp: 2026-05-13T00:00:00
 phase: 3.A
-total_contracts: 235
-active_contracts: 228
+total_contracts: 236
+active_contracts: 229
 removed_contracts: 6
 retired_contracts: 3
 ---
@@ -218,6 +218,7 @@ Phase 3-patch additions (2026-04-16): 22 new BCs added in Burst 1 to close trace
 | BC-2.17.004 | Plugin Sandbox — CPU Time Limit Enforced via Epoch Interruption (default 5s) | 17 - WASM Plugin Runtime | CAP-032 | P0 | draft |
 | BC-2.17.005 | Plugin Hot Reload — Atomic Module Swap, In-Flight Calls Complete Against Old Version | 17 - WASM Plugin Runtime | CAP-030, CAP-032 | P0 | draft |
 | BC-2.17.006 | WIT Interface Validation Before Plugin Registration | 17 - WASM Plugin Runtime | CAP-032 | P0 | draft |
+| BC-2.17.007 | Plugin Manifest Schema Validation Before WIT Validation | 17 - WASM Plugin Runtime | CAP-032 | P0 | draft |
 | BC-2.18.001 | Alert and Case Action Triggers — At-Least-Once Delivery with Exponential Backoff Retry | 18 - Action Delivery Engine | CAP-033 | P0 | draft |
 | BC-2.18.002 | Schedule Action Triggers — Best-Effort, Retry on Next Cron Tick | 18 - Action Delivery Engine | CAP-033 | P0 | draft |
 | BC-2.18.003 | Manual Action Triggers — Fire-and-Forget, Result Returned Immediately to AI Caller | 18 - Action Delivery Engine | CAP-033 | P0 | draft |
@@ -343,7 +344,7 @@ Phase 3-patch additions (2026-04-16): 22 new BCs added in Burst 1 to close trace
 **Burst 1:**
 - BC-2.14.012: Acknowledge Alert MCP Tool (stub completed — was placeholder since phase 1a)
 - BC-2.14.013: Auto-Case-Creation from High-Severity Detection Rules (CAP-022 tracking note fulfilled)
-- BC-2.17.001 through BC-2.17.006: WASM Plugin Runtime (AD-019) — 6 BCs from INV-PLUGIN-001 through INV-PLUGIN-006
+- BC-2.17.001 through BC-2.17.007: WASM Plugin Runtime (AD-019) — 7 BCs from INV-PLUGIN-001 through INV-PLUGIN-006 + BC-2.17.007 manifest schema validation (closes F-LP1-HIGH-004)
 - BC-2.18.001 through BC-2.18.009: Action Delivery Engine (AD-021) — 9 BCs from INV-ACTION-001 through INV-ACTION-009
 - BC-2.19.001 through BC-2.19.005: Infusion Enrichment Framework (AD-020) — 5 BCs from INV-INFUSE-001 through INV-INFUSE-005
 
@@ -359,6 +360,8 @@ Phase 3-patch additions (2026-04-16): 22 new BCs added in Burst 1 to close trace
 - Subsystem 19: Infusion Enrichment Framework (AD-020, CAP-031)
 
 ### Change Log (Adversarial Review Fixes)
+
+**v4.64 (2026-05-13):** wave-4-fix-burst-F-LP1-HIGH-004 — New BC-2.17.007 "Plugin Manifest Schema Validation Before WIT Validation" (CAP-032, SS-17, P0, draft). Closes F-LP1-HIGH-004 from S-PLUGIN-PREREQ-D pass-1. Authors E-PLUGIN-013/014/015/016 in error-taxonomy.md v1.19. total_contracts=235→236; active_contracts=228→229.
 
 **v4.63 (2026-05-13):** D-457 ADR-025 BC-2.03.013 sweep — removed `lifecycle: active` per ADR-025; added template frontmatter fields (lifecycle_status, introduced, modified, deprecated, deprecated_by, replacement, retired, removed, removal_reason, extracted_from); fixed duplicate v1.0 changelog rows (second renamed v1.0.1); BC-INDEX title synced to H1 source of truth ("Reference Validation Only, No Values in Memory at Process Start"). BC-2.03.013 v1.1→v1.2. total_contracts=235 unchanged; active_contracts=228 unchanged.
 
