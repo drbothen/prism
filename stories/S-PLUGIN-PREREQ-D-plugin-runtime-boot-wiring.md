@@ -49,7 +49,7 @@ target_module: prism-bin
 #   format_version check all land in crates/prism-spec-engine/src/plugin/.
 subsystems: [SS-22, SS-17]
 capabilities: [CAP-029, CAP-032, CAP-034]
-version: "1.13"
+version: "1.14"
 level: "L4"
 producer: story-writer
 timestamp: "2026-05-13T10:30:00Z"
@@ -146,14 +146,14 @@ inputs:
 | Library | Version | Purpose | Pin Note |
 |---------|---------|---------|----------|
 | `wasmtime` | `44` (exact crate pin) | WASM Component Model runtime; epoch interruption; StoreLimits | RUSTSEC advisory comment in `prism-spec-engine/Cargo.toml` — do not change without security rationale |
-| `zeroize` | `"1"` | `AuthToken` zeroing on drop (TD-S-PLUGIN-PREREQ-B-002 / AD-017) | Accept any `1.x`; add to `prism-spec-engine/Cargo.toml` if not already present |
-| `sha2` | `"0.10"` | SHA-256 `plugin_hash` field in audit entry | Confirmed workspace dep (workspace `Cargo.toml` line 21: `sha2 = "0.10"`). Use via `sha2 = { workspace = true }` in `prism-spec-engine/Cargo.toml`. |
-| `url` | workspace version | URL host extraction for allowlist enforcement in `host_http_request` | Must already be present in `prism-spec-engine`; verify before adding |
-| `reqwest` | workspace version | HTTP client; MUST use `.timeout(Duration::from_secs(30))` builder | TD-S-PLUGIN-PREREQ-B-005: builder pattern mandatory; no bare `reqwest::Client::new()` |
-| `arc-swap` | workspace version | Lock-free atomic registry updates for hot-reload | Already in `prism-spec-engine`; no version change |
-| `tokio` | workspace version | `spawn_blocking` for CPU-intensive WASM compilation | Already in `prism-spec-engine` |
+| `zeroize` | `"1"` | `AuthToken` zeroing on drop (TD-S-PLUGIN-PREREQ-B-002 / AD-017) | Accept any `1.x`; add to `crates/prism-spec-engine/Cargo.toml` if not already present |
+| `sha2` | `"0.10"` | SHA-256 `plugin_hash` field in audit entry | Already pinned at `sha2 = "0.10"` in `crates/prism-spec-engine/Cargo.toml` (crate-local pin, line 21); no Cargo.toml change required for the sha2 dep itself. |
+| `url` | `"2"` | URL host extraction for allowlist enforcement in `host_http_request` | NOT currently in `crates/prism-spec-engine/Cargo.toml`; ADD `url = "2"` (or current ecosystem-compatible 2.x version) with comment `# Used by PluginRuntime::host_http_request for allowlist host extraction`. |
+| `reqwest` | `"0.12"` | HTTP client; MUST use `.timeout(Duration::from_secs(30))` builder | Already pinned at `reqwest = { version = "0.12", ... }` in `crates/prism-spec-engine/Cargo.toml` (crate-local pin, line 34); no version change required. Builder pattern mandatory; no bare `reqwest::Client::new()`. |
+| `arc-swap` | `"1"` | Lock-free atomic registry updates for hot-reload | Already pinned at `arc-swap = "1"` in `crates/prism-spec-engine/Cargo.toml` (crate-local pin, line 20); no Cargo.toml change required. |
+| `tokio` | `"1"` | `spawn_blocking` for CPU-intensive WASM compilation | Already pinned at `tokio = { version = "1", ... }` in `crates/prism-spec-engine/Cargo.toml` (crate-local pin, line 26); no Cargo.toml change required. |
 
-Do NOT invent version numbers. Use workspace pin or the explicit value shown. If `sha2` or `zeroize` are absent from the workspace, add at versions shown with an explanatory comment.
+Do NOT invent version numbers. Use the exact versions confirmed above from `crates/prism-spec-engine/Cargo.toml`. If `zeroize` is not yet in that file, add at version `"1"` with an explanatory comment. Note: the workspace root `Cargo.toml` has no `[workspace.dependencies]` table — all dep versions are crate-local pins.
 
 ## Summary
 
@@ -352,8 +352,20 @@ during the plugin-load boot step, using:
 let http_client = reqwest::Client::builder()
     .timeout(Duration::from_secs(PLUGIN_HTTP_CLIENT_TIMEOUT_SECS))
     .build()
-    .expect("reqwest client construction is infallible with these settings");
+    .map_err(|e| PrismError::PluginRuntimeInit { source: e })?;
 ```
+
+Client construction is fallible (OS resource exhaustion per EC-D-009). Construction failures
+propagate `Err` to the boot sequence caller, which exits with code 4 per ADR-022 §A
+(internal-error). Using `.expect()` on this `Result` is **forbidden** — `expect_used = "deny"`
+is set in the workspace `Cargo.toml` `[workspace.lints.clippy]` table, and `expect()` would
+panic instead of returning the structured error that EC-D-009 requires.
+
+Note on error variant: use whichever `PrismError` variant is most appropriate per the project
+error taxonomy (`E-PLUGIN-NNN` or an existing internal-error variant per ADR-022 §A). If no
+existing variant covers PluginRuntime construction failure, introduce a new `E-PLUGIN` code
+per POL-1 (error taxonomy is append-only) with template:
+`"PluginRuntime HTTP client construction failed: {source}"`.
 
 The constant `PLUGIN_HTTP_CLIENT_TIMEOUT_SECS: u64 = 30` is defined in
 `crates/prism-spec-engine/src/plugin/mod.rs`. The 30-second value is a per-request timeout
@@ -547,7 +559,7 @@ Only the exact string `"1"` disables loading (EC-D-011: values like `"true"`, `"
 
 | Item | Estimated Tokens |
 |------|-----------------|
-| Story spec (this file) | ~7,200 |
+| Story spec (this file) | ~7,300 |
 | BC files (8 BCs × ~1,500) | ~12,000 |
 | ADR-023 §C4 (relevant sections) | ~4,000 |
 | crates/prism-spec-engine/src/plugin/ source (mod.rs, host_functions.rs) + src/pipeline.rs + src/auth_provider.rs | ~8,000 |
@@ -555,9 +567,9 @@ Only the exact string `"1"` disables loading (EC-D-011: values like `"true"`, `"
 | Cargo.toml files (2) | ~1,000 |
 | tests/fixtures/src/*.wat (4 WAT source files × ~50 LOC each) | ~800 |
 | Test output / error messages during TDD | ~4,000 |
-| **Total** | **~40,000** |
+| **Total** | **~40,100** |
 
-This is approximately 15.6% of a 256k-token context window — within the 20-30% limit.
+This is approximately 15.7% of a 256k-token context window — within the 20-30% limit.
 No splitting required.
 
 ## File Structure Requirements
@@ -760,15 +772,19 @@ Before merging any PR that touches sensor fetch, authentication, or data transfo
 
 ### Error Taxonomy Additions
 
-Two new error codes are introduced. These must be added to the project error taxonomy (location:
+Four new error codes are introduced. These must be added to the project error taxonomy (location:
 `crates/prism-spec-engine/src/plugin/error.rs` or equivalent):
 
 | Code | Name | Message Template |
 |------|------|-----------------|
 | `E-PLUGIN-013` | `PluginError::MissingAllowedUrls` | `"Plugin '{path}' manifest missing required allowed_urls field. All plugins must declare their permitted outbound URL hostnames."` |
 | `E-PLUGIN-014` | `PluginError::FormatVersionExceeded` | `"Plugin '{path}' manifest format_version {n} exceeds supported version {CURRENT_SUPPORTED_VERSION}. Update Prism to load this plugin."` |
+| `E-PLUGIN-015` | `PluginError::ManifestNameMissing` | `"Plugin manifest at '{path}' missing or empty required field 'name'"` |
+| `E-PLUGIN-016` | `PluginError::ManifestVersionMalformed` | `"Plugin manifest at '{path}' field 'version' is not a valid semver string: '{value}'"` |
 
-Both variants must be `#[non_exhaustive]` if `PluginError` is a non-exhaustive enum.
+All four variants must be `#[non_exhaustive]` if `PluginError` is a non-exhaustive enum.
+E-PLUGIN-015 and E-PLUGIN-016 correspond to AC-5 validation steps for `name` and `version`
+fields respectively (BC-2.17.007 postconditions 1 and 2).
 
 ### Credential Safety (AD-017)
 
@@ -848,17 +864,15 @@ Extracted from architecture documents and ADRs:
 
 | Library | Version | Purpose | Pin Note |
 |---------|---------|---------|----------|
-| `wasmtime` | `44` (exact) | WASM Component Model runtime | RUSTSEC rationale in Cargo.toml |
-| `zeroize` | `"1"` | AuthToken zeroing on drop (TD-B-002) | Accept any 1.x |
-| `sha2` | `"0.10"` (workspace dep confirmed) | SHA-256 for plugin_hash audit field | Confirmed at workspace `Cargo.toml` line 21. Use `sha2 = { workspace = true }` in crate Cargo.toml. |
-| `url` | workspace version | URL parsing for allowlist enforcement | Must already be present in prism-spec-engine |
-| `reqwest` | workspace version | HTTP client with 30s timeout | Builder pattern mandatory |
-| `arc-swap` | workspace version | Lock-free registry updates | Already in prism-spec-engine |
-| `tokio` | workspace version | `spawn_blocking` for WASM compilation | Already in prism-spec-engine |
+| `wasmtime` | `44` (exact) | WASM Component Model runtime | RUSTSEC rationale in `crates/prism-spec-engine/Cargo.toml` |
+| `zeroize` | `"1"` | AuthToken zeroing on drop (TD-B-002) | Accept any 1.x; add to `crates/prism-spec-engine/Cargo.toml` if not already present |
+| `sha2` | `"0.10"` | SHA-256 for plugin_hash audit field | Already pinned at `sha2 = "0.10"` in `crates/prism-spec-engine/Cargo.toml` (crate-local pin, line 21); no Cargo.toml change required for sha2. |
+| `url` | `"2"` | URL parsing for allowlist enforcement | NOT currently in `crates/prism-spec-engine/Cargo.toml`; ADD `url = "2"` with comment `# Used by PluginRuntime::host_http_request for allowlist host extraction`. |
+| `reqwest` | `"0.12"` | HTTP client with 30s timeout | Already pinned at `reqwest = { version = "0.12", ... }` in `crates/prism-spec-engine/Cargo.toml` (crate-local pin, line 34); builder pattern mandatory; no bare `reqwest::Client::new()`. |
+| `arc-swap` | `"1"` | Lock-free registry updates | Already pinned at `arc-swap = "1"` in `crates/prism-spec-engine/Cargo.toml` (crate-local pin, line 20); no Cargo.toml change required. |
+| `tokio` | `"1"` | `spawn_blocking` for WASM compilation | Already pinned at `tokio = { version = "1", ... }` in `crates/prism-spec-engine/Cargo.toml` (crate-local pin, line 26); no Cargo.toml change required. |
 
-Do NOT invent version numbers. All versions above are stated as constraints; use the workspace
-pin or the explicit value shown. If `sha2` is not in the workspace, add it at `"0.10"` with a
-comment explaining the addition.
+Do NOT invent version numbers. All versions above are confirmed from `crates/prism-spec-engine/Cargo.toml`. Note: the workspace root `Cargo.toml` has no `[workspace.dependencies]` table — all dep versions are crate-local pins in this project. If `zeroize` is absent from `crates/prism-spec-engine/Cargo.toml`, add it at `"1"` with an explanatory comment.
 
 ## References
 
@@ -884,6 +898,7 @@ comment explaining the addition.
 
 | Version | Burst | Date | Author | Change |
 |---------|-------|------|--------|--------|
+| 1.14 | pass-15 fix-burst-14 stage 1 | 2026-05-13 | story-writer | Closes F-LP15-MED-001 (AC-9 `.expect()` replaced with `.map_err(...)?` propagation; client construction is fallible per EC-D-009 — OS resource exhaustion returns Err, boot exits code 4 per ADR-022 §A; `expect_used = "deny"` in workspace lints makes `.expect()` a clippy-deny failure; error variant guidance added with POL-1 append-only note). Closes F-LP15-MED-002 (both Library Requirements tables — §Library & Framework Requirements (MANDATORY) and §Library and Framework Requirements — corrected from "workspace dep" / "workspace version" framing: workspace `Cargo.toml` has no `[workspace.dependencies]` table; all deps are crate-local pins in `crates/prism-spec-engine/Cargo.toml`; sha2 row: "confirmed workspace dep line 21" → "crate-local pin line 21, no Cargo.toml change required"; url row: "Must already be present" → "NOT currently present — ADD `url = "2"`"; reqwest row: "workspace version" → `"0.12"` crate-local pin line 34; arc-swap row: "workspace version" → `"1"` crate-local pin line 20; tokio row: "workspace version" → `"1"` crate-local pin line 26; both DRY tables updated symmetrically). Closes F-LP15-LOW-001 (Error Taxonomy Additions intro "Two new error codes" → "Four new error codes"; added E-PLUGIN-015 row `PluginError::ManifestNameMissing` + E-PLUGIN-016 row `PluginError::ManifestVersionMalformed` consistent with AC-5 BC-2.17.007 postconditions 1–2 and existing E-PLUGIN-013/014 naming conventions). Meta: pass-15 identified external-anchor verification gap (adversary-must-verify-external-anchors) as 5th process-gap codification candidate; 3 instances across passes 1/14/15 meets threshold. Token Budget delta: AC-9 code block + prose additions ~+400 chars; both table rewrites ~+300 chars; 2 new error taxonomy rows ~+200 chars; total net ~+900 chars (~225 tokens). Story-spec row: 7,200 → 7,300; Total: 40,000 → 40,100; pct: 40,100 / 256,000 = 15.664% → rounds to 15.7% (pct cell bumped from 15.6% to 15.7%). |
 | 1.13 | pass-14 fix-burst-13 stage 1 | 2026-05-13 | story-writer | Closes F-LP14-LOW-001 (Summary lines 166-167 cardinality contradiction with AC-4: "emits a WARN-level boot log plus an audit entry for every successfully loaded plugin" rewritten to "emits per-plugin audit entries accompanied by a one-time boot-level WARN log" per Option A.2 — explicit cardinality disambiguation; WARN log is once-per-boot, audit entry is per-plugin). Closes F-LP14-OBS-001 (AC-3 + AC-7 cross-reference ambiguity resolved with Option B — drop "same convention as plugin_load_unsigned per AC-4" framing; both now anchor directly to "BC-2.16.002 v1.11 catalog discipline — WARN-level log and audit-channel routing are orthogonal via event_type field"). Extended semantic sibling-sweep (8 checks): (1) Summary section re-read — cardinality rewrite verified, no other compound emission claims found, PASS; (2) Background section — no cardinality claims contradicting AC body, PASS; (3) Scope section lines 205-206 — "Boot-time WARN log: WARNING..." vs "Audit log entry per plugin load: event_type: plugin_load_unsigned" correctly disambiguates once-per-boot vs per-plugin, no regression after Summary rewrite, PASS; (4) EC table cardinality — EC-D-004 single-emission framing intact, EC-D-002 correctly notes unsigned WARN not emitted when zero plugins loaded, no per-plugin vs per-boot conflation, PASS; (5) grep `for every` body — single remaining hit is "for every .prx plugin" in AC-4 body which is correct (it sets up the 2-emission deliberate framing: item 1 is once-per-boot, item 2 is per-plugin); PASS; (6) grep `per plugin` body — all hits correctly describe per-plugin audit entry behavior; PASS; (7) grep `accompanied by` — appears in corrected Summary wording; PASS; (8) AC-4 no-regression — lines describing "1. One boot-time WARN (emitted once per boot, not per plugin)" and "2. Per-plugin audit entry" preserved; NO REGRESSION. Pass-14 meta-finding (sibling-prose cardinality axis — Summary paraphrases AC body without preserving dual-cardinality semantics — noted as potential 5th codification candidate alongside lexical-vs-semantic). Token Budget delta: Summary rewrite net-neutral (~0 char change); AC-3 + AC-7 cross-ref rewrites net-neutral (~+20 chars); stays at ~40,000 (within 50-token tolerance; no recompute). |
 | 1.12 | pass-13 fix-burst-12 stage 1 | 2026-05-13 | story-writer | Closes F-LP13-LOW-001 (3 sibling-prose sites carrying dual-emission "WARN log + audit entry" framing for events BC-2.16.002 catalogs as single-emission): Site 1 AC-7 body (allowlist-mismatch path) rewritten to single `tracing::warn!(event_type = "plugin_http_request_blocked", ...)` framing with orthogonal Level/routing cross-reference; Site 2 Task 3 bullet rewritten to single-emission framing referencing BC-2.16.002 catalog + AC-7; Site 3 Task 9 disable bullet rewritten to single-emission framing referencing BC-2.16.002 catalog + AC-3. Concise-form decision (pass-13 §7): Option (b) chosen — all 3 concise-form sites (EC-D-004, EC-D-010, AC-18 item 1) rewritten to unambiguous single-emission framing to achieve full semantic consistency; mixed convention in a single-file would create implementer ambiguity. EC table entries use compact but unambiguous form referencing BC-2.16.002 catalog. Semantic sibling sweep (8 checks, per pass-13 meta-finding on lexical-vs-semantic distinction): (1) `audit entry` — all remaining hits are Changelog historical text only, PASS; (2) `WARN log + audit` active body — ZERO hits, PASS; (3) `emit WARN + audit entry` active body — ZERO hits, PASS; (4) `WARN.*+.*audit` regex — ZERO active-body hits, PASS; (5) `+ audit` active body — ZERO active-body hits beyond Changelog, PASS; (6) `event_type:` references in story body — all use single-emission framing, PASS; (7) concise-form sites EC-D-004/EC-D-010/AC-18 — rewritten Option (b), PASS; (8) AC-4 2-emission no-regression — AC-4 boot-time aggregate WARN + per-plugin structured audit preserved, NO REGRESSION. Pass-13 meta-finding (lexical-vs-semantic sweep gap as 5th process-gap codification candidate) routed to state-manager. Token Budget delta: 6 rewrites ~+450 chars (~112 tokens); crosses 50-token threshold; story-spec row 7,100 → 7,200; Total 39,900 → 40,000; pct 40,000 / 256,000 = 15.625% → rounds to 15.6% (no pct cell change). |
 | 1.11 | pass-12 fix-burst-11 stage 1 | 2026-05-13 | story-writer | Closes F-LP12-LOW-001 (AC-3 prose single-emission clarity: dual-emission framing "A WARN log is emitted... An audit log entry is written" replaced with explicit single `tracing::warn!(event_type = "plugin_load_disabled_via_envvar", ...)` emission prose; orthogonal Level/routing cross-reference to BC-2.22.001 v1.5 + BC-2.16.002 catalog discipline added, matching AC-4 `plugin_load_unsigned` convention). F-LP12-OBS-001 (E-PLUGIN-008 dual-semantic reuse gap between BC-2.17.005 and BC-2.17.006) is out-of-story-perimeter; routed to state-manager for phase-5 deferred-findings list. Sibling-sweep (TD-VSDD-060): 5 mandatory greps all PASS — (1) zero hits `audit log entry is written` active body; (2) single remaining `audit log entry` hit is Changelog historical text only; (3) `event_type` body references all use single-emission framing consistent with BC-2.16.002; (4) Structured Event Catalog `plugin_load_disabled_via_envvar` Trigger column consistent with corrected AC-3; (5) EC-D-004 row uses `WARN + audit plugin_load_disabled_via_envvar` concise framing (no dual-emission implication). AC-4 2-emission framing preserved — no regression. Token Budget delta +~160 chars (~40 tokens); Total ~39,900 (within 50-token tolerance; no recompute required). |
