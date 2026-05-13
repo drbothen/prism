@@ -1,7 +1,7 @@
 ---
 document_type: architecture-index
 level: L3
-version: "2.41"
+version: "2.42"
 status: draft
 producer: architect
 timestamp: 2026-05-04T00:00:00
@@ -89,6 +89,8 @@ deployment_topology: single-service  # planned — no service binary exists yet 
 | ADR-021 | BC/VP Promotion Lifecycle — Draft → Active → Verified Transitions, Audit Cadence, and BC-INDEX Count Authority | ACCEPTED v1.1 | 2026-05-08 | decisions/ADR-021-bc-vp-promotion-lifecycle.md |
 | ADR-022 | Production Runtime Wiring — prism-bin Chassis, Boot Sequence, Wiring Contracts, Infusion Fate, Hot-Reload Watcher, MCP Topology | ACCEPTED v1.2 | 2026-05-08 | decisions/ADR-022-production-runtime-wiring.md |
 | ADR-023 | Plugin-Only Sensor Architecture — TOML Specs as Declarative Baseline, .prx WASM for Non-Declarative Cases, Retired CustomAdapter Rust Trait | COMMITTED v1.18 | 2026-05-10 | decisions/ADR-023-plugin-only-sensor-architecture.md |
+| ADR-024 | ColumnType Canonical Naming — Domain-Level Variant Names for Sensor Schema API; prism-spec-engine Shadow Enum Retirement | ACCEPTED v1.0 | 2026-05-12 | decisions/ADR-024-column-type-canonical-naming.md |
+| ADR-025 | BC Lifecycle Field Canonical Scheme — Single status Field Governs; lifecycle Field Retired | ACCEPTED v1.0 | 2026-05-12 | decisions/ADR-025-bc-lifecycle-field-canonical-scheme.md |
 
 ## Architecture Decisions
 
@@ -148,6 +150,7 @@ deployment_topology: single-service  # planned — no service binary exists yet 
 
 | Version | Pass | Date | Author | Change |
 |---------|------|------|--------|--------|
+| 2.42 | D-450-D-451-D-452-architect-cascade | 2026-05-12 | architect | ADR-024 (ColumnType canonical naming — domain-level wins; prism-spec-engine shadow enum retired) + ADR-025 (BC lifecycle field canonical scheme — status sole field; lifecycle retired per ADR-021 amendment) registered. ARCH-INDEX v2.41→v2.42. |
 | 2.41 | D-447-volatile-pin-strip | 2026-05-12 | state-manager | ADR-022 row version sync v1.1→v1.2 per TD-VSDD-091 volatile-pin strip (18 line-number citations removed across §Context/§B/§C/§D/§G; function-name pivots applied; HISTORICAL markers for S-3.02-FOLLOWUP-RUNTIME sites). Template compliance sections added. ARCH-INDEX v2.40→v2.41. |
 | 2.40 | ADR-023-fix-burst-2-D-382 | 2026-05-11 | state-manager | ADR-023 row version sync v1.17→v1.18 per F-LP2-LOW-002 closure (S-PLUGIN-PREREQ-A fix-burst-2 state-manager scope; C1 crate enumeration typo fixed — prism-ocsf has zero SensorType references). TD-VSDD-060 sibling-site sweep applied. ARCH-INDEX v2.39→v2.40. |
 | 2.39 | ADR-023-fix-burst-18-pass-23 | 2026-05-10 | state-manager | ADR-023 row version sync v1.16→v1.17 per F-PASS23-HIGH-001 closure (12th S-7.01 sibling-site recurrence; fix-burst-17 bumped ADR-023 to v1.17 but did not update ARCH-INDEX sibling-site). Version-sync sibling-site sweep applied. ARCH-INDEX v2.38→v2.39. |

@@ -1,15 +1,24 @@
 ---
 document_type: behavioral-contract
 level: L3
-version: "1.3"
-status: draft
+version: "1.5"
+status: active
 producer: product-owner
 timestamp: 2026-05-08T00:00:00Z
 phase: 3
 origin: greenfield
+extracted_from: null
 subsystem: "SS-05"
 capability: "CAP-007"
-lifecycle: active
+lifecycle_status: active
+introduced: "bundle-B-phase-B-1b"
+modified: [redirect-option-d, adversary-f-pass3, f-pass4-low-2, D-319, D-452]
+deprecated: null
+deprecated_by: null
+replacement: null
+retired: null
+removed: null
+removal_reason: null
 anchored_stories: [S-WAVE5-PREP-01]
 verifying_vps: []
 crates: [prism-bin, prism-audit]
@@ -17,7 +26,7 @@ inputs:
   - .factory/specs/architecture/decisions/ADR-022-production-runtime-wiring.md
   - .factory/specs/architecture/module-decomposition.md
   - .factory/cycles/wave-4-operations/research/audit-emitter-architecture-2026-05-09.md
-input-hash: "2f0a646"
+input-hash: "d852024"
 traces_to: ["CAP-007"]
 ---
 
@@ -193,7 +202,7 @@ persistence ordering is deferred to the S-WAVE5-PREP-01 implementer.
 - BC-2.06.011 — Config load (depends on: this BC requires all preceding boot steps)
 - BC-2.21.001 — OrgRegistry init (depends on: this BC requires BC-2.21.001)
 - BC-2.03.013 — Credential store init (depends on: this BC requires BC-2.03.013)
-- BC-2.05.001 — Every MCP Tool Invocation Produces Exactly One Audit Entry (composes with:
+- BC-2.05.001 — Every MCP Tool Invocation Produces Exactly One Audit Entry (Fail-Closed for Writes) (composes with:
   this BC is the prerequisite that ensures AuditEmitter is ready before BC-2.05.001 applies)
 - BC-2.05.006 — Audit Entries Are Append-Only and Immutable (enforced by: the sentinel write
   uses the same append-only CF that BC-2.05.006 specifies; duplicate sentinels from crash
@@ -241,8 +250,9 @@ this boot step; see Verification Properties)
 
 | Version | Burst | Date | Author | Change |
 |---------|-------|------|--------|--------|
+| 1.5 | D-452-maintenance-burst | 2026-05-12 | architect | D-452 maintenance: (1) Add required template frontmatter keys (lifecycle_status, introduced, modified, deprecated, deprecated_by, replacement, retired, removed, removal_reason, extracted_from) per behavioral-contract-template.md; (2) Remove retired lifecycle: active field per ADR-025; (3) Fix duplicate version 1.0 in changelog (relocation row corrected to 1.1, shifting subsequent rows); (4) Fix POL-7 nit: BC-2.05.001 reference at Related BCs now includes full H1 suffix "(Fail-Closed for Writes)"; (5) Sync input-hash to d852024. |
+| 1.4 | D-319-post-merge-state-burst | 2026-05-10 | state-manager | Promoted status: draft → active per ADR-021 POL-14 (S-WAVE5-PREP-01 merged at develop@53b87961 PR #138 2026-05-10T00:55:49Z). Note: BC-INDEX v4.51 records this as v1.2→v1.3 (pre-correction numbering before duplicate-1.0 was fixed). |
+| 1.3 | f-pass4-low-2-cleanup-2026-05-09 | 2026-05-09 | product-owner | F-PASS4-LOW-2 closure — clarify §Failure paths and Error Cases that BootAuditEmitter::new is infallible; the fallible step is RocksDbBackend::open(state_dir). Removed phantom "AuditEmitter construction failure" failure path; replaced with accurate "RocksDB backend construction failure" path. |
+| 1.2 | adversary-f-pass3-med-1-amendment-2026-05-09 | 2026-05-09 | product-owner | Amendment per research-agent recommendation + adversary F-PASS3-MED-1 closure — clarify BootAuditEmitter is the boot-time specialization distinct from request-time AuditEmitterLayer; resolve OQ-2. Research artifact: audit-emitter-architecture-2026-05-09.md. |
+| 1.1 | redirect-option-d-2026-05-08 | 2026-05-08 | product-owner | Relocated from BC-2.22.004 (SS-22) to BC-2.05.012 (SS-05 Audit Trail) per Option (d) decomposition. Capability anchor updated CAP-034 → CAP-007. EC/TV IDs renumbered to EC-05-012-NNN / TV-05-012-NNN. OQ-2 preserved (sentinel schema confirmation). |
 | 1.0 | bundle-B-phase-B-1b-ss22-bcs-2026-05-08 | 2026-05-08 | product-owner | Initial authorship — Bundle B Phase B-1b SS-22 boot-sequence BCs |
-| 1.0 | redirect-option-d-2026-05-08 | 2026-05-08 | product-owner | Relocated from BC-2.22.004 (SS-22) to BC-2.05.012 (SS-05 Audit Trail) per Option (d) decomposition. Capability anchor updated CAP-034 → CAP-007. EC/TV IDs renumbered to EC-05-012-NNN / TV-05-012-NNN. OQ-2 preserved (sentinel schema confirmation). |
-| 1.1 | adversary-f-pass3-med-1-amendment-2026-05-09 | 2026-05-09 | product-owner | Amendment per research-agent recommendation + adversary F-PASS3-MED-1 closure — clarify BootAuditEmitter is the boot-time specialization distinct from request-time AuditEmitterLayer; resolve OQ-2. Research artifact: audit-emitter-architecture-2026-05-09.md. |
-| 1.2 | f-pass4-low-2-cleanup-2026-05-09 | 2026-05-09 | product-owner | F-PASS4-LOW-2 closure — clarify §Failure paths and Error Cases that BootAuditEmitter::new is infallible; the fallible step is RocksDbBackend::open(state_dir). Removed phantom "AuditEmitter construction failure" failure path; replaced with accurate "RocksDB backend construction failure" path. |
-| 1.3 | D-319-post-merge-state-burst | 2026-05-10 | state-manager | lifecycle draft → active per ADR-021 POL-14 (S-WAVE5-PREP-01 merged at develop@53b87961 PR #138 2026-05-10T00:55:49Z). |
