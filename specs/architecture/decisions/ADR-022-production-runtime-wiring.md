@@ -4,7 +4,7 @@ adr_id: "ADR-022"
 title: "Production Runtime Wiring — prism-bin Chassis, Boot Sequence, Wiring Contracts, Infusion Fate, Hot-Reload Watcher, MCP Topology"
 status: ACCEPTED
 date: "2026-05-08"
-version: "1.2"
+version: "1.3"
 producer: architect
 subsystems_affected: [SS-06, SS-10, SS-11, SS-16, SS-17, SS-19]
 supersedes: null
@@ -223,6 +223,21 @@ Step 7   [BLOCKING] Storage + internal-tables provider init
          Action: construct AdapterRegistry::init_registry_for_org per loaded sensor specs
          Failure: exit 4 (RocksDB open failure or internal-tables registration failure)
 
+Step 7.5 [BLOCKING] Plugin runtime load  ← see ADR-023 §C4 (authoritative placement spec)
+         ADR-023 §C4 supersedes this ADR for plugin-load step placement (Source-of-Truth
+         Precedence Rule 2: later, more-specific ADR wins for the surface it owns).
+         Action: call PluginRuntime::load_all_plugins (crates/prism-spec-engine/src/plugin/mod.rs)
+         Action: emit tracing::warn! + stderr banner — plugin signing not yet implemented
+                 (TD-PLUGIN-SIGNING-001); PRISM_DISABLE_PLUGIN_LOAD=1 skips this step entirely
+         Action: emit audit log entry per loaded plugin: event_type: plugin_load_unsigned
+         Failure: exit 4 (plugin load failure)
+         NOTE: The fractional step number (7.5) is intentional — it avoids a cascading
+               renumber of this canonical step table, boot.rs function names
+               (e.g. step9_start_mcp_server), and historical STATE.md narrative.
+               Authoritative behavior: BC-2.22.001 §Sequencing Invariant,
+               §Pre-Traffic Gate Invariant condition 6, §Postconditions, §Exit-Code Map.
+         Delivered by: PLUGIN-PREREQ-D (depends on PLUGIN-PREREQ-F for PluginRuntime infra)
+
 Step 8   [BLOCKING → BACKGROUND] QueryEngine + WriteExecutor construction
          Action: construct QueryEngine (prism-query); bind AdapterRegistry + StorageBackend
          Action: construct WriteExecutor (prism-query); bind feature-flag check + capability check
@@ -254,9 +269,10 @@ Step 11  [BACKGROUND] Signal handler install
          Failure: log error, continue (OS may still deliver signals)
 ```
 
-**Traffic gate:** steps 1–8 are blocking. Queries cannot reach `QueryEngine::execute` until
-step 8 completes. The MCP server (step 9) only starts after step 8. Steps 10–11 are
-background and non-fatal; their failure degrades capability but does not prevent serving queries.
+**Traffic gate:** steps 1–8 (inclusive of step 7.5) are blocking. Queries cannot reach
+`QueryEngine::execute` until step 8 completes. The MCP server (step 9) only starts after step
+8. Steps 10–11 are background and non-fatal; their failure degrades capability but does not
+prevent serving queries.
 
 **Idempotency:** If any step fails and the process exits, re-executing `prism start` with
 corrected config must successfully complete all steps. No step leaves permanent state corruption
@@ -753,10 +769,22 @@ Bundle B Phase B-0 architecture output. Authored at D-302 from workspace audit D
 
 ---
 
+## Related ADRs
+
+| ADR | Relationship |
+|-----|-------------|
+| **ADR-023 §C4** (plugin runtime configuration) | Defines plugin-load step 7.5 intercalation between storage init (step 7) and query-engine init (step 8). ADR-023 §C4 is the authoritative specification for plugin-load step placement; it supersedes this ADR for that surface area per Source-of-Truth Precedence Rule 2. |
+| **ADR-021** | BC/VP promotion lifecycle — boot steps interact with lifecycle state transitions |
+| **ADR-020** | Story status taxonomy — story-seed numbering in §G |
+| **ADR-005** | rmcp MCP server — wired at step 9 |
+
+---
+
 ## Changelog
 
 | Version | Date | Author | Change |
 |---------|------|--------|--------|
+| 1.3 | 2026-05-13 | architect | Closes F-LP8-OBS-001 (PREREQ-D fix-burst-7 stage 1B): add step 7.5 plugin-load cross-reference to §B boot sequence table and Related ADRs section; update traffic-gate note to include step 7.5; bump version. ADR-023 §C4 is cited as the authoritative placement spec; Source-of-Truth Precedence Rule 2 noted inline. No architectural content changed — editorial discoverability amendment only. |
 | 1.2 | 2026-05-12 | state-manager | TD-VSDD-091 volatile-pin strip per audit at cycles/wave-4-operations/sprint-review-PREREQ-trio.md §7. No architectural content change. 18 line-number citations stripped across §Context/§B/§C/§D/§G; function-name pivots applied for InfusionLoader::{parse,load_all,validate_credentials}, InfusionLruCache::{get,insert}, MmdbSource::{load,enrich_single,enrich_batch}, plugin_bridge::enrich_via_plugin, QueryEngine::execute and execute_scheduled, RocksDbTableProvider::{schema,scan,...}, register_internal_tables. engine.rs/materialization.rs/internal_tables.rs references marked HISTORICAL post S-3.02-FOLLOWUP-RUNTIME merge c6dd6602. Added missing template H2 sections (Decision, Rationale, Consequences, Source / Origin) per template compliance. |
 | 1.1 | 2026-05-09 | product-owner | §B step 2: replace stale `~/.prism/` literal with platform-aware default to match BC-2.06.011 v1.2 phrasing. Closes F-P6-MED-1 from PR #139 PR-LEVEL adversary pass-6. |
 | 1.0 | 2026-05-08 | architect | Initial authorship — Bundle B Phase B-0 architecture output |
