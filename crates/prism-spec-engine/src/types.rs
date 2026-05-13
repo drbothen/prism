@@ -5,21 +5,10 @@
 
 use serde::{Deserialize, Serialize};
 
-/// Column type for a sensor table column.
-///
-/// `#[non_exhaustive]`: forward-compat for schema evolution — new column types
-/// (e.g., UUID, Duration, nested Object) may be added without a breaking semver change.
-/// External match arms must include a wildcard arm.
-#[non_exhaustive]
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-pub enum ColumnType {
-    String,
-    Int64,
-    Float64,
-    Boolean,
-    Timestamp,
-    Json,
-}
+// ADR-024: retire the shadow ColumnType stub; use the canonical enum from prism-core.
+// prism_core::column::ColumnType has variants String | Integer | Float | Boolean | Datetime | Json
+// with #[non_exhaustive] and serde rename_all = "snake_case".
+pub use prism_core::column::ColumnType;
 
 /// A single column definition within a sensor table.
 ///
