@@ -1,9 +1,9 @@
 ---
 document_type: pipeline-state
 level: ops
-version: "7.196"
+version: "7.197"
 producer: state-manager
-timestamp: 2026-05-13T08:52:23Z
+timestamp: 2026-05-13T15:05:00Z
 inputs: []
 input-hash: "[live-state]"
 traces_to: ""
@@ -22,7 +22,7 @@ repos:
   - axiathon
   - ocsf-proto-gen
   - mcp-claroty-xdome
-current_step: "D-473/D-474. PREREQ-D PASS-6 IDEMPOTENCY CAUGHT PASS-5 FALSE-CLEAN — 4 findings (1M/2L/1OBS) via fresh-context audit at unchanged HEAD 34ab594c. Streak 1/3 → 0/3 RESET. Fix-burst-5 closed all 4 (story-writer 8254f075 → story v1.5). Trajectory 16→8→6→4→0→4. Pass-7 next target 0/3→1/3."
+current_step: "D-475. PRE-COMPACT VERSION PIN REFRESH — vsdd-factory plugin upgraded rc.16 → rc.18 (released 2026-05-13). Re-activation via /vsdd-factory:activate at 2026-05-13T15:00:19Z refreshed .claude/settings.local.json (agent + platform + version block). STATE.md narrative pin synchronized. Pass-7 next per RESUME RECOMMENDATION at story v1.5 SHA 8254f075. STATE+HANDOFF v7.196→v7.197."
 feature_branch_head: "ea958a4d"
 worktree_status: "merged"
 adversary_streak: "0/3 (reset — pass-5 false-CLEAN; pass-6 idempotency caught 4 findings)"
@@ -169,7 +169,7 @@ phase_2_patch_findings_total_fixed: 95
 phase_2_patch_convergence_rationale: "User override post pass-99. Semantic policies all PASS; meta-doc drift deferred to vsdd-factory lint hooks."
 user_directive_persistent: "No pragmatic convergence. Fix all issues before build."
 develop_head: "95d46be2"
-vsdd_factory_version: "1.0.0-rc.16 (upgraded from rc.11 2026-05-10T07:38:25Z)"
+vsdd_factory_version: "1.0.0-rc.18 (re-activated 2026-05-13T15:00:19Z; upgrade chain rc.11 → rc.16 2026-05-10 → rc.18 2026-05-13)"
 workspace_test_count: 3598  # updated at D-433 fix-burst-1 closure (just check clean 3598 tests pass)
 ---
 # VSDD Pipeline State — Prism
@@ -229,6 +229,7 @@ _D-001..D-046 archived: [cycles/phase-3-dtu-wave-2/decisions-archive-d001-d032.m
 
 | ID | Decision | Rationale | Phase | Date |
 |----|----------|-----------|-------|------|
+| D-475 | 2026-05-13 | **vsdd-factory plugin pin refresh rc.16→rc.18 (pre-compact)** (state-manager). Plugin upgraded via /plugin + /reload-plugins; /vsdd-factory:activate at 2026-05-13T15:00:19Z refreshed .claude/settings.local.json with new activated_plugin_version=1.0.0-rc.18, activated_platform=darwin-arm64 (unchanged), activated_at=2026-05-13T15:00:19Z. apply-platform.sh darwin-arm64 succeeded: hooks.json variant copied, dispatcher binary verified at hooks/dispatcher/bin/darwin-arm64/factory-dispatcher. STATE.md vsdd_factory_version field synchronized (upgrade chain rc.11→rc.16 2026-05-10→rc.18 2026-05-13). No behavioral changes; pin sync only. STATE+HANDOFF v7.196→v7.197. | plugin-migration | 2026-05-13 |
 | D-474 | 2026-05-13 | **PREREQ-D fix-burst-5 CLOSED 4/4 (story-writer 8254f075 → story v1.5)** (state-manager). Pass-6 BLOCKED-soft 4 findings closed in-scope by story-writer: F-LP6-MED-001 Token Budget Total 38,300→39,800 (rows verified sum to 39,800; percentage 15%→15.5%); F-LP6-LOW-002 v1.1 changelog "8→7 BCs net" → "swap BC-2.17.005 for BC-2.17.007 (7→7 BCs net)"; F-LP6-LOW-003 Match-Site Inventory "AC-8 tasks" → "Task 8"; F-LP6-OBS-004 AC-9 re-anchored to ADR-023 §C4 plugin HTTP defaults (authoritative ADR-level source); BC-2.17.002 amendment surfaced as out-of-perimeter. STORY-INDEX v2.71→v2.72. Process-gap: Token Budget arithmetic validation not covered by any tool/agent — codification candidate. Zero deferrals. Closure report: cycles/wave-4-operations/adversarial-reviews/S-PLUGIN-PREREQ-D-fix-burst-5.md. Pass-7 next target streak 0/3→1/3. STATE+HANDOFF v7.195→v7.196. | plugin-migration | 2026-05-13 |
 | D-473 | 2026-05-13 | **PREREQ-D pass-6 BLOCKED-soft (1M/2L/1OBS) — idempotency audit caught pass-5 false-CLEAN; streak 1/3→0/3 RESET** (adversary). Fresh-context audit at unchanged HEAD 34ab594c (idempotency check). Pass-5 was false-CLEAN: 4 findings missed. F-LP6-MED-001 Token Budget arithmetic drift (rows sum 39,800 but Total showed 38,300 — 1,500-token gap; survived 5 full passes); F-LP6-LOW-002 v1.1 changelog "8→7 BCs net" arithmetic anomaly (was a swap, net 7→7); F-LP6-LOW-003 Match-Site Inventory "AC-8 tasks" vs "Task 8" terminology; F-LP6-OBS-004 AC-9 cites BC-2.17.002 timeout 30s but BC declares 10s (ADR vs BC authority question). Trajectory 16→8→6→4→0→4 (regression post false-CLEAN). Process-gap codified: Token Budget row arithmetic validation gap. Report: cycles/wave-4-operations/adversarial-reviews/S-PLUGIN-PREREQ-D-pass-6.md. STATE+HANDOFF v7.195→v7.196. | plugin-migration | 2026-05-13 |
 | D-472 | 2026-05-13 | **PREREQ-D pass-5 CLEAN — first streak advance (0/3 → 1/3)** (adversary + state-manager). Adversary pass-5 fresh-context audit at story SHA 34ab594c surfaced ZERO findings. All 4 pass-4 closures verified load-bearing via direct file evidence: F-LP4-MED-001 anchored regex zero violations across 236 BCs; F-LP4-MED-002 changelog rows truthful; F-LP4-LOW-003 AC-7 None-arm stripped consistent with AC-17 Vec<String>; F-LP4-OBS-004 policies.yaml v1.10 POL-20 verification_steps anchored + worked example embedded. POL-20 workspace-wide compliance confirmed clean. Trajectory 16(pass-1)→8(pass-2)→6(pass-3)→4(pass-4)→0(pass-5) — textbook geometric convergence. Streak 0/3→1/3 (FIRST clean pass). Pass-6 idempotency next. Report: cycles/wave-4-operations/adversarial-reviews/S-PLUGIN-PREREQ-D-pass-5.md. STATE+HANDOFF v7.194→v7.195. | plugin-migration | 2026-05-13 |
@@ -274,7 +275,7 @@ Cycle files: [burst-log](cycles/phase-2-patch/burst-log.md) | [convergence-traje
 
 _Previous checkpoint (v7.195/D-472 pass-5 CLEAN) archived: [cycles/wave-4-operations/session-checkpoints.md](cycles/wave-4-operations/session-checkpoints.md)_
 
-**STATE v7.196. D-473/474 — PREREQ-D pass-6 idempotency BLOCKED-soft (false-CLEAN reset); fix-burst-5 closed 4/4. Streak 0/3. Trajectory 16→8→6→4→0→4.** Story v1.5 at SHA 8254f075. develop@95d46be2. factory-artifacts HEAD: run `git -C .factory log -1` (per TD-VSDD-053). vsdd-factory rc.16 active.
+**STATE v7.197. D-475 — vsdd-factory plugin pin refresh rc.16→rc.18 (pre-compact sync). D-473/474 — PREREQ-D pass-6 idempotency BLOCKED-soft (false-CLEAN reset); fix-burst-5 closed 4/4. Streak 0/3. Trajectory 16→8→6→4→0→4.** Story v1.5 at SHA 8254f075. develop@95d46be2. factory-artifacts HEAD: run `git -C .factory log -1` (per TD-VSDD-053). vsdd-factory rc.18 active.
 
 **RESUME ACTION:** Pass-6 fix-burst-5 CLOSED (4/4). Pass-7 next at story SHA 8254f075; target streak 0/3→1/3. Need 3 consecutive CLEAN passes for BC-5.39.001 convergence. After convergence: test-writer dispatch for Red Gate stubs, then implementer TDD green, then pr-manager 9-step PR lifecycle, then squash-merge to develop unblocking PLUGIN-MIGRATION Wave 1.
 
