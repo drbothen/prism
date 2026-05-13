@@ -143,6 +143,16 @@ pub struct CredentialRef {
     pub name: String,
 }
 
+impl CredentialRef {
+    /// Construct a `CredentialRef` with the given name.
+    ///
+    /// Internal construction shortcut. External callers should use struct-literal +
+    /// `..Default::default()` for forward compatibility when new fields are added.
+    pub fn new(name: impl Into<String>) -> Self {
+        Self { name: name.into() }
+    }
+}
+
 /// Parsed representation of a .sensor.toml file.
 /// Origin: S-1.11 — SensorSpec is the parsed representation established there.
 ///

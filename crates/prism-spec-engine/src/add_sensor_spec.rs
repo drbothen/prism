@@ -162,11 +162,13 @@ pub fn parse_and_validate_spec_toml(
         });
     }
 
-    // F-PASS2-HIGH-3: convert raw credential refs from TOML to types::CredentialRef.
+    // F-PASS2-HIGH-3: collect credential refs from TOML into types::CredentialRef.
+    // No rename-mapping needed — RawCredentialRef.name maps 1-to-1 to CredentialRef.name.
+    // Consolidation: TD-S-PLUGIN-PREREQ-C-001-A (Canonical Principle Rule 3, CLAUDE.md).
     let credential_refs: Vec<crate::types::CredentialRef> = raw
         .credential_refs
         .into_iter()
-        .map(|r| crate::types::CredentialRef { name: r.name })
+        .map(|r| crate::types::CredentialRef::new(r.name))
         .collect();
 
     Ok(SensorSpec {
