@@ -7,7 +7,7 @@ producer: state-manager
 timestamp: 2026-05-03T00:00:00Z
 cycle: "wave-4-operations"
 inputs: [STATE.md]
-input-hash: "a5a60ee"
+input-hash: "84804be"
 traces_to: STATE.md
 ---
 
@@ -119,3 +119,12 @@ completed historical wave data already archived in cycle directories:
 **Other historical fields:** pr_manager_fix_validated, drift_rebaseline_complete, adjacent_regression_streak, structural_fix_in_flight, linters_installed, vsdd_factory_version (rc.11 — superseded by rc.16 activation in settings.local.json), adr_count, pr_count_merged, pre_wave_2_audit_*, wave_5_prerequisites (carried in SESSION-HANDOFF)
 
 **Rationale:** These fields are fully captured in their respective cycle burst-logs and decisions archive. Removing them reduces STATE.md from 684 lines to ~380 lines, bringing it under the 500-line hook limit.
+
+---
+
+## Archived Current Phase Steps (STATE.md compaction 2026-05-13 v7.189)
+
+| Step | Agent | Status | Output |
+|------|-------|--------|--------|
+| STEP 2 Burst E — TD-VSDD-095 closed in-scope (D-449) | state-manager | **COMPLETE** | 5 volatile pins stripped: 4 in S-PLUGIN-PREREQ-A Task 6 (crowdstrike/cyberint/claroty/armis.rs `:NNN` removed, v1.6→v1.7); 1 in S-PLUGIN-PREREQ-A Impl Notes (explain.rs:1046 → function-name form); 1 in S-PLUGIN-PREREQ-B Match-Site §458 (bc_2_16_002_test.rs:241 → file-only, v1.23→v1.24). tech-debt-register v2.18→v2.19 (open_count 93→92). STATE+HANDOFF v7.182→v7.183. |
+| D-460 — develop_head correction (post-D-459 parallel-dispatch race) | state-manager | **COMPLETE** | develop_head e408435e→95d46be2 (PR #148 merge landed during D-459 parallel window). STATE+HANDOFF v7.185→v7.186. |

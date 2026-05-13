@@ -6,25 +6,21 @@ wave: 0
 epic_id: PLUGIN-MIGRATION-001
 priority: P0
 status: draft
-# BC status: behavioral_contracts populated — BC-2.17.001..004 (plugin capability + WIT
-#            isolation contracts: panic isolation, fs sandbox, memory, cpu),
-#            BC-2.17.006 (WIT interface validation), BC-2.17.007 (manifest schema validation
-#            — NEW, landed wave-4-fix-burst-F-LP1-HIGH-004), and BC-2.22.001 (boot
-#            orchestration). All BCs are active.
+# BC status: behavioral_contracts populated — BC-2.16.002 (Structured Event Catalog /
+#            PipelineExecutor multi-step fetch — active since PREREQ-B merge; PREREQ-D
+#            adds 7 new event_type rows and enforces MAX_REQUESTS_PER_PIPELINE cap),
+#            BC-2.17.001..004 (plugin capability + WIT isolation contracts: panic
+#            isolation, fs sandbox, memory, cpu), BC-2.17.006 (WIT interface validation),
+#            BC-2.17.007 (manifest schema validation — NEW, landed
+#            wave-4-fix-burst-F-LP1-HIGH-004), and BC-2.22.001 (boot orchestration).
+#            All BCs are active.
 #            BC-2.17.005 (hot-reload watcher) is NOT in this list: PREREQ-D delivers only
 #            the programmatic hot_reload() API surface; boot notify watcher wiring is
 #            S-1.12-FOLLOWUP scope (see Out of Scope). BC-2.17.005 will be promoted by
 #            S-1.12-FOLLOWUP, not by this story.
 #            This story closes the TODO(S-4.08) in make_host_state() and the None-allowlist
 #            short-circuit in host_http_request (ADR-023 §C4 F-CRIT-NEW-002).
-behavioral_contracts:
-  - BC-2.17.001
-  - BC-2.17.002
-  - BC-2.17.003
-  - BC-2.17.004
-  - BC-2.17.006
-  - BC-2.17.007
-  - BC-2.22.001
+behavioral_contracts: [BC-2.16.002, BC-2.17.001, BC-2.17.002, BC-2.17.003, BC-2.17.004, BC-2.17.006, BC-2.17.007, BC-2.22.001]
 verification_properties:
   - VP-PLUGIN-004
   - VP-PLUGIN-007
@@ -52,7 +48,7 @@ target_module: prism-bin
 #   the PluginRuntime type itself. The allowlist enforcement, WIT validation, and manifest
 #   format_version check all land in crates/prism-spec-engine/src/plugin/.
 subsystems: [SS-22, SS-17]
-capabilities: [CAP-032, CAP-034]
+capabilities: [CAP-029, CAP-032, CAP-034]
 version: "1.1"
 level: "L4"
 producer: story-writer
@@ -63,13 +59,13 @@ traces_to: []
 cycle: "v1.0.0-greenfield"
 phase: 3
 anchor_vps: [VP-PLUGIN-004, VP-PLUGIN-007]
-anchor_bcs: [BC-2.17.001, BC-2.17.002, BC-2.17.003, BC-2.17.004, BC-2.17.006, BC-2.17.007, BC-2.22.001]
-anchor_capabilities: [CAP-032]
+anchor_bcs: [BC-2.16.002, BC-2.17.001, BC-2.17.002, BC-2.17.003, BC-2.17.004, BC-2.17.006, BC-2.17.007, BC-2.22.001]
+anchor_capabilities: [CAP-029, CAP-032, CAP-034]
 anchor_subsystem: [SS-22, SS-17]
 assumption_validations: []
 risk_mitigations: []
 acceptance_criteria_count: 18
-red_gate_tests: 0
+red_gate_tests: 25
 estimated_passes: "8-12 LOCAL adversary passes"
 # TD items absorbed by this story
 td_resolves:
@@ -80,6 +76,7 @@ td_resolves:
   - TD-S-PLUGIN-PREREQ-B-012  # P3 — execute_step PREREQ-D wiring test coverage
 inputs:
   - ".factory/specs/architecture/decisions/ADR-023-plugin-only-sensor-architecture.md"
+  - ".factory/specs/behavioral-contracts/BC-2.16.002-multi-step-fetch-pipeline.md"
   - ".factory/specs/behavioral-contracts/BC-2.17.001-plugin-panic-isolation.md"
   - ".factory/specs/behavioral-contracts/BC-2.17.002-plugin-sandbox-filesystem.md"
   - ".factory/specs/behavioral-contracts/BC-2.17.003-plugin-memory-limit.md"
@@ -233,6 +230,7 @@ this story being merged first.
 
 | BC | Title | Primary Coverage |
 |----|-------|-----------------|
+| BC-2.16.002 | Multi-Step Fetch Pipeline — Structured Event Catalog | AC-16 (MAX_REQUESTS_PER_PIPELINE cap; traces to BC-2.16.002 preconditions); Structured Event Catalog Additions §intro (7 new event_type rows) |
 | BC-2.17.001 | Plugin Panic Isolation — Crashed Plugin Does Not Terminate Host Process | AC-10 (panic isolation via fresh Store per call) |
 | BC-2.17.002 | Plugin Sandbox — No Direct Filesystem or Network Access | AC-11 (WASI not linked; allowlist enforcement via host_http_request) |
 | BC-2.17.003 | Plugin Sandbox — Memory Limit Enforced Per Plugin Instance (default 64MB) | AC-12 (StoreLimits 64MB; configurable per manifest) |
@@ -398,7 +396,7 @@ the `test_BC_2_17_003_memory_limit_enforced_default_64mb` integration test.
 The epoch background ticker task is started exactly once in `PluginRuntime::new()`, not per call.
 Per-call `Store::epoch_deadline` is set proportional to `timeout_seconds` (default 5s, manifest-overridable). Timeout returns `Err(PluginError::Timeout { plugin_id, duration_ms })`. Verified by integration test `test_BC_2_17_004_cpu_timeout_enforced_infinite_loop` using the `infinite_loop.prx` fixture (a WAT module containing an infinite loop compiled to WASM Component).
 
-### AC-14 — Hot-reload: arc-swap atomic registry update; failed reload retains old plugin (traces to BC-2.17.005 postconditions; INV-PLUGIN-005)
+### AC-14 — Hot-reload: arc-swap atomic registry update; failed reload retains old plugin (story-local API surface confirmation; full BC-2.17.005 promotion deferred to S-1.12-FOLLOWUP per F-LP1-MED-010 closure)
 
 `PluginRuntime::hot_reload(plugin_id, new_bytes)` compiles the new bytes in `spawn_blocking`,
 runs WIT validation, and on success atomically swaps the `Arc<LoadedPlugin>` in the registry via
@@ -411,6 +409,14 @@ emitted per outcome. In-flight calls holding old `Arc<LoadedPlugin>` complete no
 `zeroize::Zeroize` on Drop. Either wrap the inner string as `Zeroizing<String>`, or implement
 `Drop` manually to overwrite the bytes before deallocation. A doc comment at the `AuthToken`
 definition cites AD-017 (credential safety) and explains the zeroize obligation. The `TD-S-PLUGIN-PREREQ-B-002` inline reference is removed when this is implemented.
+
+### AC-16 — MAX_REQUESTS_PER_PIPELINE cumulative cap enforced in executor loop (traces to TD-S-PLUGIN-PREREQ-B-004; BC-2.16.002 preconditions)
+
+`crates/prism-spec-engine/src/plugin/pipeline.rs` defines `MAX_REQUESTS_PER_PIPELINE: usize = 10_000`
+constant. The `PipelineExecutor` executor loop maintains a cumulative request counter across all
+steps. When the counter reaches `MAX_REQUESTS_PER_PIPELINE`, the executor returns
+`Err(PipelineError::TooManyRequests { total: usize })` and emits `event_type: pipeline_max_requests_exceeded`.
+The `TD-S-PLUGIN-PREREQ-B-004` inline reference in pipeline.rs is replaced with the implementation.
 
 ### AC-17 — HostState struct marked #[non_exhaustive] before allowed_urls field addition (traces to CLAUDE.md #[non_exhaustive] convention; BC-2.17.007 invariant: no partial registration state)
 
@@ -427,14 +433,6 @@ types modified to add fields must carry `#[non_exhaustive]`.
 
 Verified by code review gate: `grep -n '#\[non_exhaustive\]' crates/prism-spec-engine/src/plugin/loader.rs`
 must show the attribute on the line immediately preceding `pub struct HostState`.
-
-### AC-16 — MAX_REQUESTS_PER_PIPELINE cumulative cap enforced in executor loop (traces to TD-S-PLUGIN-PREREQ-B-004; BC-2.16.002 preconditions)
-
-`crates/prism-spec-engine/src/plugin/pipeline.rs` defines `MAX_REQUESTS_PER_PIPELINE: usize = 10_000`
-constant. The `PipelineExecutor` executor loop maintains a cumulative request counter across all
-steps. When the counter reaches `MAX_REQUESTS_PER_PIPELINE`, the executor returns
-`Err(PipelineError::TooManyRequests { total: usize })` and emits `event_type: pipeline_max_requests_exceeded`.
-The `TD-S-PLUGIN-PREREQ-B-004` inline reference in pipeline.rs is replaced with the implementation.
 
 ### AC-18 — PRISM_DISABLE_PLUGIN_LOAD env var takes absolute precedence over plugin_dir config (traces to BC-2.22.001 postcondition; ADR-023 §C4 escape valve)
 
@@ -525,7 +523,7 @@ Only the exact string `"1"` disables loading (EC-D-011: values like `"true"`, `"
     - `test_BC_2_17_002_allowlist_enforcement_blocks_non_allowlisted_url`
     - `test_BC_2_17_003_memory_limit_enforced`
     - `test_BC_2_17_004_cpu_timeout_enforced`
-    - `test_BC_2_17_005_hot_reload_atomic_swap_inflight_complete`
+    - `test_hot_reload_atomic_swap_inflight_complete`
     - `test_BC_2_17_006_wit_validation_rejects_missing_export`
     - `test_BC_2_17_006_format_version_exceeded_rejected`
     - `test_BC_2_17_006_missing_allowed_urls_rejected`
@@ -544,7 +542,7 @@ Only the exact string `"1"` disables loading (EC-D-011: values like `"true"`, `"
 | Item | Estimated Tokens |
 |------|-----------------|
 | Story spec (this file) | ~7,000 |
-| BC files (7 BCs × ~1,500) | ~10,500 |
+| BC files (8 BCs × ~1,500) | ~12,000 |
 | ADR-023 §C4 (relevant sections) | ~4,000 |
 | crates/prism-spec-engine/src/plugin/ source (mod.rs, host_functions.rs, pipeline.rs, auth_provider.rs) | ~8,000 |
 | crates/prism-bin/src/boot.rs | ~3,000 |
@@ -562,7 +560,7 @@ No splitting required.
 
 | File | Purpose |
 |------|---------|
-| `.github/PULL_REQUEST_TEMPLATE.md` | Three-item sensor-pattern checklist |
+| `.github/PULL_REQUEST_TEMPLATE.md` | Three-item sensor-pattern checklist (non-crate root-repo deliverable; not under `crates/`) |
 | `tests/fixtures/minimal.prx` | Pre-built minimal WASM Component for integration tests |
 | `crates/prism-bin/tests/plugin_boot_tests.rs` | Boot-sequence integration tests for plugin-load step |
 
@@ -626,8 +624,8 @@ test_BC_2_17_002_allowlist_enforcement_blocks_non_allowlisted_url
 test_BC_2_17_002_allowlist_enforcement_allows_listed_url
 test_BC_2_17_003_memory_limit_enforced_default_64mb
 test_BC_2_17_004_cpu_timeout_enforced_infinite_loop
-test_BC_2_17_005_hot_reload_atomic_swap_success
-test_BC_2_17_005_hot_reload_failed_recompile_retains_old
+test_hot_reload_atomic_swap_success
+test_hot_reload_failed_recompile_retains_old
 test_BC_2_17_006_wit_validation_rejects_missing_export
 test_BC_2_17_006_duplicate_plugin_id_first_wins
 test_BC_2_17_007_manifest_format_version_exceeded_rejected
