@@ -131,3 +131,45 @@ VP-INDEX editing requires spec-steward or architect adjudication (cross-document
 ### Resolution Criteria
 
 Phase-5 architect or PO review of VP-INDEX VP-PLUGIN-004 framing against BC-2.16.002 v1.12 catalog single-emission discipline. Specific target: reconcile VP-INDEX line 187 prose to accurately reflect either (a) the single-emission discipline per BC-2.16.002 v1.12 §Catalog, or (b) document the intentional divergence with explicit rationale. Finding is RESOLVED when VP-INDEX framing is verified consistent with BC-2.16.002 v1.12 or the divergence is explicitly justified.
+
+---
+
+## F-LP22-OBS-001 — `PluginError` enum lacks `#[non_exhaustive]` despite story adding 4 new variants
+
+| Field | Value |
+|-------|-------|
+| **Finding ID** | F-LP22-OBS-001 |
+| **Severity** | OBS (out-of-perimeter for story scope; substantive for phase-5) |
+| **Confidence** | MEDIUM |
+| **Story source** | S-PLUGIN-PREREQ-D pass-22 |
+| **Surfaced at** | Pass-22 (adversary fresh-context audit) |
+| **Date routed** | 2026-05-14 |
+| **Target** | Architectural review — `PluginError` enum at `crates/prism-core/src/error.rs:983-984` lacks `#[non_exhaustive]` despite CLAUDE.md Conventions "All public TOML-deserialized types and pub-API surface types require `#[non_exhaustive]`" requirement |
+
+### Evidence
+
+- Story S-PLUGIN-PREREQ-D adds 4 new variants to `PluginError`: E-PLUGIN-013 (`PluginError::ManifestNameMissing`), E-PLUGIN-014 (`PluginError::ManifestVersionMalformed`), E-PLUGIN-015, E-PLUGIN-016.
+- `SpecEngineError` at `crates/prism-spec-engine/src/error.rs` carries `#[non_exhaustive]`.
+- `PluginError` at `crates/prism-core/src/error.rs:983-984` does **NOT** carry `#[non_exhaustive]`.
+- CLAUDE.md Conventions: "All public TOML-deserialized types and pub-API surface types require `#[non_exhaustive]`."
+- The current compile-fail gate at `tests/external/perimeter-violation/` enforces `EXPECTED=30` (30 `#[non_exhaustive]` types; established by S-PLUGIN-PREREQ-C AC-5). Adding `#[non_exhaustive]` to `PluginError` would change the count to 31, requiring a gate update.
+
+### Why It Matters
+
+`PluginError` is a pub-API surface type in `prism-core` that accepts new variants across story cycles (this story adds 4). Without `#[non_exhaustive]`, downstream match expressions on `PluginError` in external crates are NOT required to include a wildcard arm — meaning future variant additions to `PluginError` (in Wave 5, 6, etc.) will be source-breaking changes for external consumers. This is the exact asymmetry that `#[non_exhaustive]` is designed to prevent. `SpecEngineError` (prism-spec-engine) already carries this attribute; the asymmetry with `PluginError` (prism-core) creates inconsistent API stability guarantees across the two primary error types.
+
+### Why It Is Out-of-Perimeter
+
+Adding `#[non_exhaustive]` to `PluginError` is scope expansion into `prism-core` — the story's primary crate targets are `prism-spec-engine` and `prism-bin`. The compile-fail gate EXPECTED count (30 → 31) impact requires architect evaluation before execution. Story-scoped fix-bursts are not authorized to amend `prism-core` internals that affect the compile-fail gate count without explicit architect adjudication of the gate impact.
+
+### Fix Options (for Phase-5 architect adjudication)
+
+**Option A — Add `#[non_exhaustive]` to `PluginError` + update gate:** Add `#[non_exhaustive]` attribute to `PluginError` at `crates/prism-core/src/error.rs:983`. Update the compile-fail gate `EXPECTED` from 30 → 31 in `tests/external/perimeter-violation/`. Run `just check` to verify the gate update is coherent. This is the CLAUDE.md-compliant path.
+
+**Option B — Explicit decision to keep `PluginError` exhaustive:** Architect issues a decision log entry documenting the rationale for keeping `PluginError` exhaustive (e.g., `PluginError` is considered a closed set with no external-crate consumers expected; internal-to-workspace match exhaustiveness is enforced via Rust compiler). This option requires explicit documentation that CLAUDE.md Conventions §`#[non_exhaustive]` does NOT apply to `PluginError` and why.
+
+**Option C — Workspace-wide pub-API enum audit:** Before resolving `PluginError` in isolation, audit all pub-API enums in `prism-core` and `prism-spec-engine` for `#[non_exhaustive]` compliance. Update the gate EXPECTED count once for all discovered gaps rather than incrementally per story. This option provides the most complete resolution.
+
+### Resolution Criteria
+
+Phase-5 architect adjudication picks one of the three options above and executes it. The finding is RESOLVED when either: (a) `PluginError` carries `#[non_exhaustive]` and the compile-fail gate EXPECTED is updated to reflect the new count; OR (b) a decision log entry explicitly documents why `PluginError` is exempt from the CLAUDE.md `#[non_exhaustive]` requirement with a concrete rationale.
