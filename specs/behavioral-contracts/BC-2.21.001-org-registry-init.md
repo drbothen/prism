@@ -1,7 +1,7 @@
 ---
 document_type: behavioral-contract
 level: L3
-version: "1.2"
+version: "1.3"
 status: draft
 producer: product-owner
 timestamp: 2026-05-08T00:00:00Z
@@ -11,8 +11,8 @@ extracted_from: null
 subsystem: "SS-21"
 capability: "CAP-038"
 lifecycle_status: draft
-introduced: "bundle-B-phase-B-1b-ss22-bcs-2026-05-08"
-modified: [redirect-option-d-2026-05-08, D-319-post-merge-state-burst, D-454]
+introduced: "2026-05-08"
+modified: [redirect-option-d-2026-05-08, D-319-post-merge-state-burst, D-454, D-469]
 deprecated: null
 deprecated_by: null
 replacement: null
@@ -201,6 +201,7 @@ None (see Verification Properties)
 
 | Version | Burst | Date | Author | Change |
 |---------|-------|------|--------|--------|
+| 1.3 | state(D-469/470/471) | 2026-05-13 | state-manager | F-LP4-MED-001 closure: `introduced: "bundle-B-phase-B-1b-ss22-bcs-2026-05-08"` → `introduced: "2026-05-08"` (extract embedded ISO date per POL-20 canonical format for fix-burst-introduced BCs). input-hash unchanged (d852024 — inputs not modified). |
 | 1.2 | D-454 | 2026-05-12 | state-manager | ADR-025 sweep: `lifecycle: active` removed (ADR-025 retires `lifecycle:` field; `status:` is sole canonical authority). Template fields added: `extracted_from`, `lifecycle_status`, `introduced`, `modified`, `deprecated`, `deprecated_by`, `replacement`, `retired`, `removed`, `removal_reason`. `input-hash` computed from `[md5]` placeholder. Changelog reordered newest-first and duplicate v1.0 rows collapsed. BC-INDEX title synced to H1. |
 | 1.1 | D-319-post-merge-state-burst | 2026-05-10 | state-manager | lifecycle draft → active per ADR-021 POL-14 (S-WAVE5-PREP-01 merged at develop@53b87961 PR #138 2026-05-10T00:55:49Z). First active BC under SS-21. |
 | 1.0 | redirect-option-d-2026-05-08 | 2026-05-08 | product-owner | Initial authorship (bundle-B-phase-B-1b) + same-burst relocation from BC-2.22.002 (SS-22) to BC-2.21.001 (SS-21 Identity & Core Types) per Option (d) decomposition. Capability anchor updated CAP-034 → CAP-038. EC/TV IDs renumbered to EC-21-001-NNN / TV-21-001-NNN. This is the FIRST BC under SS-21. |

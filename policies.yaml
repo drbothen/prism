@@ -23,8 +23,13 @@
 #                                   # here so the adversary knows HOW to verify them.
 
 metadata:
-  version: "1.9"
+  version: "1.10"
   changelog:
+    - version: "1.10"
+      date: 2026-05-13
+      burst: state(D-469/470/471)
+      findings: [F-LP4-OBS-004]
+      change: "Amend POL-20 verification_steps: add explicit ANCHORED regex requirement. Prior unanchored substring grep was FORBIDDEN — it false-greened on `cycle-1-pass-80` substring-matching `cycle-[0-9]+`, missing 8 BC violations (F-LP4-OBS-004). Correct verification must use anchored regex `^(cycle-[0-9]+|[0-9]{4}-[0-9]{2}-[0-9]{2})$` after stripping surrounding quotes from the extracted `introduced:` value. Unanchored substring grep is explicitly FORBIDDEN as a POL-20 verification mechanism."
     - version: "1.9"
       date: 2026-05-13
       burst: state(D-464)
@@ -367,7 +372,8 @@ policies:
       - "F-LP2-OBS-007 (S-PLUGIN-PREREQ-D pass-2 adversarial review)"
     verification_steps:
       - "For each BC file, read the `introduced:` frontmatter field."
-      - "If the value matches `cycle-N` (e.g., `cycle-1`, `cycle-2`) → PASS (greenfield origin)."
-      - "If the value matches `YYYY-MM-DD` (ISO 8601 date, e.g., `2026-05-13`) → PASS (fix-burst origin)."
-      - "If the value is any other string (burst ID, finding ID, wave-label with finding suffix, etc.) → VIOLATION. Report the BC ID, the offending value, and the correct format based on whether the BC was authored in a greenfield cycle or a fix burst."
+      - "Extract the raw value: strip the `introduced:` YAML key and any surrounding whitespace. Then strip any surrounding double-quotes (the field may be quoted or unquoted in YAML). The resulting string is the value to validate."
+      - "Pattern verification: validate the extracted value against the ANCHORED regex `^(cycle-[0-9]+|[0-9]{4}-[0-9]{2}-[0-9]{2})$`. PASS if it matches entirely. VIOLATION if any part of the string fails to match. UNANCHORED substring grep is FORBIDDEN as a verification mechanism — `cycle-1-pass-80` substring-matches `cycle-[0-9]+` but violates POL-20 (compound suffix). This gap was demonstrated by F-LP4-OBS-004 which caught 8 BC violations missed by prior unanchored grep."
+      - "If the value does NOT match the anchored regex → VIOLATION. Report the BC ID, the full offending value, and the correct format based on whether the BC was authored in a greenfield cycle (use `cycle-N`) or a fix burst (use `YYYY-MM-DD` ISO date)."
       - "Cross-check: if a BC's `closes_finding:` frontmatter field is populated, it was introduced in a fix burst → must use date format, not `cycle-N`."
+      - "Recommended shell one-liner for bulk verification: `grep '^introduced:' .factory/specs/behavioral-contracts/*.md | awk -F': ' '{print $2}' | sed 's/^\"//' | sed 's/\"$//' | grep -Ev '^(cycle-[0-9]+|[0-9]{4}-[0-9]{2}-[0-9]{2})$'` — empty output = PASS; any output = VIOLATION."

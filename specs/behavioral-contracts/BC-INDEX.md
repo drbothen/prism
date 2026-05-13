@@ -1,7 +1,7 @@
 ---
 document_type: behavioral-contract-index
 level: L3
-version: "4.66"
+version: "4.67"
 status: draft
 producer: product-owner
 timestamp: 2026-05-13T00:00:00
@@ -360,6 +360,12 @@ Phase 3-patch additions (2026-04-16): 22 new BCs added in Burst 1 to close trace
 - Subsystem 19: Infusion Enrichment Framework (AD-020, CAP-031)
 
 ### Change Log (Adversarial Review Fixes)
+
+**v4.67 (2026-05-13):** state(D-469/470/471) — POL-20 actual 100% workspace sweep: 8 BCs with compound-suffix or opaque burst-ID `introduced:` fields migrated to canonical format. (1) BC-2.20.001/002/003/004/005 v1.3→v1.4: `introduced: cycle-1-pass-80` → `introduced: cycle-1` (drop compound pass suffix; pass-80 is pass-metadata not a cycle boundary); input-hash 335606b→3a0a478. (2) BC-2.06.011 v1.3→v1.4 + BC-2.21.001 v1.2→v1.3 + BC-2.22.001 v1.2→v1.3: `introduced: "bundle-B-phase-B-1b-ss22-bcs-2026-05-08"` / `"redirect-option-d-2026-05-08"` → `introduced: "2026-05-08"` (extract embedded ISO date; opaque burst-ID prohibited). input-hash d852024 unchanged (inputs not modified). Closes F-LP4-MED-001. total_contracts=236 unchanged; active_contracts=229 unchanged. POL-20 workspace compliance: 100% (anchored regex `^(cycle-[0-9]+|[0-9]{4}-[0-9]{2}-[0-9]{2})$` returns zero violations).
+
+**v4.66 (2026-05-13):** D-468 POL-20 sweep 100% + TD-VSDD-091 cleanup — 8 BC violations unblocked: BC-3.2.001/002/003/004 + BC-3.3.002 + BC-3.3.004 + BC-3.4.001 + BC-3.4.004 had pre-existing TD-031 line-number anchors blocking Edit-tool POL-20 fix at D-466. TD-VSDD-091 anti-volatile-pin cleanup (line-number → symbol-name) bundled with POL-20 migration (wave-3/v3.0.0 → cycle-3) via Write tool. POL-20 workspace compliance: 100% per prior unanchored grep (NOTE: anchored verification at D-469 found 8 additional violations — see v4.67). total_contracts=236 unchanged; active_contracts=229 unchanged.
+
+**v4.65 (2026-05-13):** D-466/D-467 POL-20 workspace sweep (16 of 24 violations) — 16 BC violations canonicalized: 14 (wave-3/v3.0.0 cluster) → cycle-3; BC-2.03.013 (v1.0.0-greenfield) → cycle-1; BC-2.05.012 (bundle-B-phase-B-1b) → cycle-3. 8 blocked by pre-existing TD-031 violations (validate-stable-anchors). New TD filed. total_contracts=236 unchanged; active_contracts=229 unchanged.
 
 **v4.64 (2026-05-13):** wave-4-fix-burst-F-LP1-HIGH-004 — New BC-2.17.007 "Plugin Manifest Schema Validation Before WIT Validation" (CAP-032, SS-17, P0, draft). Closes F-LP1-HIGH-004 from S-PLUGIN-PREREQ-D pass-1. Authors E-PLUGIN-013/014/015/016 in error-taxonomy.md v1.19. total_contracts=235→236; active_contracts=228→229.
 

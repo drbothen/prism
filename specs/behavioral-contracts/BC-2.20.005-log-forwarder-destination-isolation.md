@@ -1,7 +1,7 @@
 ---
 document_type: behavioral-contract
 level: L3
-version: "1.3"
+version: "1.4"
 status: draft
 producer: product-owner
 timestamp: 2026-04-21T00:00:00Z
@@ -10,8 +10,8 @@ origin: greenfield
 subsystem: "SS-20"
 capability: "CAP-035"
 lifecycle_status: active
-introduced: cycle-1-pass-80
-modified: 2026-04-21
+introduced: cycle-1
+modified: 2026-05-13
 deprecated: ~
 deprecated_by: ~
 replacement: ~
@@ -22,7 +22,7 @@ inputs:
   - ".factory/specs/architecture/observability.md"
   - ".factory/specs/prd.md"
   - ".factory/specs/domain-spec/capabilities.md"
-input-hash: "335606b"
+input-hash: "3a0a478"
 traces_to: ["CAP-035"]
 extracted_from: ".factory/specs/architecture/observability.md"
 ---
@@ -136,6 +136,7 @@ S-5.09 — prism-mcp: External Log Forwarding Subsystem
 
 | Version | Burst | Date | Author | Change |
 |---------|-------|------|--------|--------|
+| 1.4 | state(D-469/470/471) | 2026-05-13 | state-manager | F-LP4-MED-001 closure: `introduced: cycle-1-pass-80` → `introduced: cycle-1` (drop compound pass suffix per POL-20 canonical format). input-hash updated 335606b→3a0a478. |
 | 1.3 | pass-81 | 2026-04-21 | architect | F81-009: Resolved VP-TBD-20-005 → MARK-NONE; multi-destination concurrent delivery isolation is effectful (Tokio tasks + mock HTTP receivers); integration tests TV-20-005-isolation/quarantine/concurrent are the verification vehicle. |
 | 1.2 | pass-81-remediation | 2026-04-21 | product-owner | F81-008: Added L2 Invariants row to Traceability (derived from SS-20 arch; DI-008 as conceptual peer; no direct DI; no new DI required). |
 | 1.1 | pass-80-follow-on | 2026-04-21 | product-owner | Re-anchored CAP-025 → CAP-035 (business-analyst created CAP-035 post-hoc per pass-80 F80-002 follow-on); removed Capability Anchor Note; added capabilities.md to inputs |
