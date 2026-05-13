@@ -99,3 +99,35 @@ Inconsistent crate editions create friction for cross-crate feature usage (e.g.,
 ### Resolution Criteria
 
 Phase-5 architect adjudication picks an option and either executes the sweep or schedules it with a specific wave anchor. Re-check at session-reviewer post-cycle. The finding is RESOLVED when `crates/prism-bin/Cargo.toml:4` reads `edition = "2024"` (and any other crates found to lag are updated, per the chosen option).
+
+---
+
+## F-LP19-LOW-002 — VP-INDEX VP-PLUGIN-004 Dual-Emission Framing Diverges from BC-2.16.002 v1.12 Catalog Single-Emission Discipline
+
+| Field | Value |
+|-------|-------|
+| **Finding ID** | F-LP19-LOW-002 |
+| **Severity** | LOW |
+| **Confidence** | LOW |
+| **Story source** | S-PLUGIN-PREREQ-D pass-19 |
+| **Surfaced at** | Pass-19 (adversary fresh-context audit) |
+| **Date routed** | 2026-05-14 |
+| **Target** | Cross-doc framing reconciliation (VP-INDEX line 187 vs BC-2.16.002 v1.12 catalog single-emission discipline) |
+
+### Evidence
+
+- VP-INDEX v1.34 VP-PLUGIN-004 entry (line 187 area) contains prose framing that predates the Path B BC-2.16.002 universal-catalog scope decision established at fix-burst-8 (commit 4ed96e06, pass-9 F-LP9-MED-001 resolution).
+- BC-2.16.002 v1.12 (SHA 84f58565) defines single-emission discipline for plugin events in its §Structured Event Catalog scope statement.
+- The VP-INDEX VP-PLUGIN-004 summary prose describes a dual-emission verification pattern that may diverge from the catalog's single-emission discipline as currently codified in BC-2.16.002 v1.12.
+
+### Why It Matters
+
+VP-PLUGIN-004 (VP-149) is a verification property referenced by S-PLUGIN-PREREQ-D. If the VP-INDEX framing of VP-PLUGIN-004 predates or diverges from the BC-2.16.002 v1.12 catalog's current single-emission discipline, implementers and verifiers may apply inconsistent verification expectations — one derived from the VP-INDEX framing and one derived from the BC catalog. The divergence is LOW confidence because the VP-INDEX prose may represent an intentional scope distinction rather than a true conflict.
+
+### Why It Is Out-of-Perimeter
+
+VP-INDEX editing requires spec-steward or architect adjudication (cross-document governance). Story-scoped fix-bursts are not authorized to amend VP-INDEX content that does not trace directly to the story body under review. This finding routes to phase-5 per the CLAUDE.md boundaries clause.
+
+### Resolution Criteria
+
+Phase-5 architect or PO review of VP-INDEX VP-PLUGIN-004 framing against BC-2.16.002 v1.12 catalog single-emission discipline. Specific target: reconcile VP-INDEX line 187 prose to accurately reflect either (a) the single-emission discipline per BC-2.16.002 v1.12 §Catalog, or (b) document the intentional divergence with explicit rationale. Finding is RESOLVED when VP-INDEX framing is verified consistent with BC-2.16.002 v1.12 or the divergence is explicitly justified.
