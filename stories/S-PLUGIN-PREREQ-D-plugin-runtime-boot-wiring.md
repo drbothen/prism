@@ -49,7 +49,7 @@ target_module: prism-bin
 #   format_version check all land in crates/prism-spec-engine/src/plugin/.
 subsystems: [SS-22, SS-17]
 capabilities: [CAP-029, CAP-032, CAP-034]
-version: "1.9"
+version: "1.10"
 level: "L4"
 producer: story-writer
 timestamp: "2026-05-13T10:30:00Z"
@@ -205,7 +205,7 @@ this story being merged first.
 - Boot-time WARN log: `"WARNING: Plugin signing not yet implemented (TD-PLUGIN-SIGNING-001). Loaded plugins are NOT cryptographically verified. Do not run untrusted plugins."`
 - Audit log entry per plugin load: `event_type: plugin_load_unsigned`, `plugin_path: <path>`, `plugin_hash: <sha256-hex>`
 - Boot-time audit entry when plugin load is disabled: `event_type: plugin_load_disabled_via_envvar`
-- Close `TODO(S-4.08)` in `make_host_state()`: parse `allowed_urls` from manifest TOML, construct `HostState { allowed_urls: Some(parsed_hostnames) }`
+- Close `TODO(S-4.08)` in `make_host_state()`: parse `allowed_urls` from manifest TOML, construct `HostState { allowed_urls: parsed_hostnames }`
 - Replace `host_http_request` None-short-circuit with host-only comparison enforcement against allowlist (VP-PLUGIN-007)
 - Reject plugins whose manifest omits `allowed_urls` with `E-PLUGIN-013` (new error code — see Error Taxonomy section)
 - Reject plugins whose manifest `format_version` exceeds `CURRENT_SUPPORTED_VERSION` with `E-PLUGIN-014`
@@ -469,12 +469,12 @@ Only the exact string `"1"` disables loading (EC-D-011: values like `"true"`, `"
    - Parse manifest fields: `name`, `version`, `format_version`, `allowed_urls`
    - Validate: name non-empty, format_version <= CURRENT_SUPPORTED_VERSION, allowed_urls non-empty
    - Call `validate_wit_interface(component)`; reject with E-PLUGIN-001 on failure
-   - On success: construct `HostState { allowed_urls: Some(parsed_hostnames), http_client, kv_store }`; register via arc-swap
+   - On success: construct `HostState { allowed_urls: parsed_hostnames, http_client, kv_store }`; register via arc-swap
    - On manifest rejection: log ERROR, emit structured event, continue to next plugin
    - Return `Ok(n_loaded)` after all files processed
 
 2. **[prism-spec-engine] Close TODO(S-4.08) in `make_host_state()`**
-   - Replace `allowed_urls: None` construction with `allowed_urls: Some(urls_from_manifest)` parameter
+   - Replace `allowed_urls: None` field-default with `allowed_urls: Vec<String>` parameter populated from manifest; field type retired from `Option<Vec<String>>` to `Vec<String>` per AC-17 (None-branch is type-system-impossible)
    - Update `make_host_state()` signature to accept `allowed_urls: Vec<String>`
    - Remove the `TODO(S-4.08)` comment
 
@@ -554,7 +554,7 @@ Only the exact string `"1"` disables loading (EC-D-011: values like `"true"`, `"
 | Test output / error messages during TDD | ~4,000 |
 | **Total** | **~39,900** |
 
-This is approximately 15.5% of a 256k-token context window — within the 20-30% limit.
+This is approximately 15.6% of a 256k-token context window — within the 20-30% limit.
 No splitting required.
 
 ## File Structure Requirements
@@ -587,7 +587,7 @@ The following concrete stub/TODO sites are closed by this story:
 
 | Site | File | Line Reference | Closure |
 |------|------|---------------|---------|
-| `TODO(S-4.08)` in `make_host_state()` — primary definition | `crates/prism-spec-engine/src/plugin/mod.rs` | ~line 165: `allowed_urls: None` construction | AC-7: replaced with `Some(parsed_hostnames)` parameter |
+| `TODO(S-4.08)` in `make_host_state()` — primary definition | `crates/prism-spec-engine/src/plugin/mod.rs` | ~line 165: `allowed_urls: None` construction | AC-7: replaced with `parsed_hostnames` value (`Vec<String>` per AC-17; None-branch type-system-impossible) |
 | `make_host_state()` call site | `crates/prism-spec-engine/src/plugin/mod.rs` | ~line 202: `make_host_state(plugin_id, config)` | AC-7: update to pass `allowed_urls` after signature change |
 | `make_host_state()` call site | `crates/prism-spec-engine/src/plugin/mod.rs` | ~line 279: `make_host_state(plugin_id, config)` | AC-7: update to pass `allowed_urls` after signature change |
 | `host_http_request` None-short-circuit | `crates/prism-spec-engine/src/plugin/host_functions.rs` | `if allowed_urls.is_none() { /* permit all */ }` | AC-7: replaced with host-only comparison |
@@ -881,6 +881,7 @@ comment explaining the addition.
 
 | Version | Burst | Date | Author | Change |
 |---------|-------|------|--------|--------|
+| 1.10 | pass-11 fix-burst-10 stage 1 | 2026-05-13 | story-writer | Closes F-LP11-LOW-001 (4 sibling-prose sites carrying `Some(...)` Option-wrapping from fix-burst-4 F-LP4-LOW-003 — surviving passes 5–10): Site 1 Scope bullet (construct `HostState { allowed_urls: parsed_hostnames }`); Site 2 Task 1 success path (same); Site 3 Task 2 first bullet (rewrite: `Replace allowed_urls: None field-default with Vec<String> parameter; field type retired from Option<Vec<String>> to Vec<String> per AC-17; None-branch type-system-impossible`); Site 4 Match-Site Inventory closure column (`parsed_hostnames value (Vec<String> per AC-17; None-branch type-system-impossible)`). Closes F-LP11-LOW-002 (Token Budget percentage cell 15.5% → 15.6%: 39,900 / 256,000 = 15.586%, rounds half-up to 15.6%; Total row unchanged at ~39,900). Sibling-sweep (TD-VSDD-060): 5 mandatory greps all PASS — zero hits for `Some(parsed_hostnames)`, `Some(urls_from_manifest)`, `allowed_urls: Some`, `approximately 15.5`; exactly one hit for `approximately 15.6`. |
 | 1.9 | pass-10 fix-burst-9 stage 1 | 2026-05-13 | story-writer | Closes F-LP10-LOW-001 (Task 14 + Previous Story Intelligence item 1 Path B sibling-prose propagation). Task 14 reworded from "Update Structured Event Catalog" (implies implementer authors rows) to "Verify Structured Event Catalog wiring" with explicit instruction to emit from BC-2.16.002 v1.11 function-name anchors and amend only if new sites are discovered. Previous Story Intelligence item 1 corrected from "must add all 7 rows" to "all 7 rows already exist in BC-2.16.002 v1.11 (Path B, fix-burst-8 commit 4ed96e06); implementer wires emission sites to match BC row metadata." Upstream PO Path B at `4ed96e06`. Sibling-site sweep confirmed zero additional sites carrying old "add"/"author catalog rows" or "rows do not yet exist" framing. Token Budget delta +~110 tokens; Total recomputed below (see §Token Budget Estimate). |
 | 1.8 | pass-9 fix-burst-8 stage 2 | 2026-05-13 | story-writer | F-LP9-MED-001 story portion: Catalog Additions preamble updated to Path B — events already added to BC-2.16.002 v1.11 in fix-burst-8 stage 1 (commit 4ed96e06); implementer role reframed from "will add" to "verify wiring matches BC row". Table metadata corrected to match BC-2.16.002 v1.11 canonical rows: (1) `plugin_load_disabled_via_envvar` emitter corrected from `boot.rs plugin-load step` → `boot::plugin_load_step` (TD-VSDD-091 function-name anchor); (2) `plugin_load_disabled_via_envvar` Level corrected from `WARN/AUDIT` → `WARN` (BC v1.11 authoritative); (3) `plugin_http_request_blocked` Level corrected from `WARN/AUDIT` → `WARN` (BC v1.11 authoritative); (4) trigger text for `plugin_load_unsigned` and 5 other rows aligned to BC v1.11 prose. Sister-site sweep: no "PipelineExecutor catalog" old framing found in story file (grep confirmed zero hits). F-LP9-LOW-001: AC-9 body closure note temporal contradiction resolved — Form A: "Closed by BC-2.17.002 v1.4 amendment (fix-burst-6); current pinned version v1.5 (fix-burst-7 lifecycle_status-only sweep)." Upstream PO stage 1 at factory SHA `4ed96e06`. |
 | 1.7 | pass-8 fix-burst-7 stage 2 | 2026-05-13 | story-writer | Closes F-LP8-HIGH-001 story portion (line 16 frontmatter comment "All BCs are active" → accurate POL-14 lifecycle_status statement: BC-2.22.001 active; BC-2.17.001/002/003/004/006/007 draft pending PR-merge promotion). Closes F-LP8-MEDIUM-001 (Structured Event Catalog `plugin_load_unsigned` Level AUDIT → WARN; audit-channel routing captured via `event_type` field note; `plugin_load_disabled_via_envvar` WARN/AUDIT unchanged — correct per BC-2.22.001 §Postconditions escape valve). Closes F-LP8-MEDIUM-002 (AC-9 trace header extended: ADR-023 §C4 + BC-2.17.002 v1.5 §Error Conditions E-PLUGIN-005; AC-9 closure note version ref v1.4 → v1.5). Upstream stages: PO BC lifecycle sweep at factory SHA `a03d9d36`, architect ADR-022 v1.3 cross-ref at factory SHA `b0021477`. |
