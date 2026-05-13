@@ -1,9 +1,9 @@
 ---
 document_type: pipeline-state
 level: ops
-version: "7.184"
+version: "7.185"
 producer: state-manager
-timestamp: 2026-05-12T23:55:00Z
+timestamp: 2026-05-13T01:20:00Z
 inputs: []
 input-hash: "[live-state]"
 traces_to: ""
@@ -22,7 +22,7 @@ repos:
   - axiathon
   - ocsf-proto-gen
   - mcp-claroty-xdome
-current_step: "D-454. STEP 2 wrapping — 8 bursts complete (A–G+). develop@d3ad61a5 (2 PRs merged: #145 CLAUDE.md canonical principles + #146 CredentialRef consolidation). ADR-024/025+POL-7+BC sweep+CLAUDE.md prism-conventions all completed in-scope. BC-2.22.001 v1.2 (status:accepted→draft+lifecycle removed), BC-2.06.011 v1.3 (lifecycle removed), BC-2.21.001 v1.2 (lifecycle removed). BC-INDEX v4.62. 1 PR in flight (CLAUDE.md prism-conventions #147+). 1 implementer dispatch in flight (ADR-024 ColumnType migration). Burst H (~/.prism drift sweep) + Step 3 (PREREQ-D) pending."
+current_step: "D-459. STEP 2 BURST H + BC-2.03.013 SWEEP + V7.185 — 4 ~/.prism drift fixes applied; 3 AMBIGUOUS-hit anchors added; BC-2.03.013 lifecycle:active removed; installation.md §path-resolution anchor added (SP-1 addressed in-scope). 4 PRs merged this session: #145 CLAUDE.md canonical principles, #146 CredentialRef consolidation, #147 CLAUDE.md prism-conventions, #148 ColumnType migration. TD-S-PLUGIN-PREREQ-C-001-A FULLY CLOSED. Step 2 COMPLETE except authoring follow-ups (story-writer dispatched in parallel for PREREQ-D Step 3 Stage 1). STATE+HANDOFF v7.184→v7.185."
 feature_branch_head: "ea958a4d"
 worktree_status: "merged"
 adversary_streak: "3/3 LOCKED"
@@ -133,9 +133,9 @@ subsystem_count: 20
 story_count: 113
 bc_count_corrected: 235
 cap_count: 40  # active; highest_cap_id: CAP-040 (CAP-038 Multi-Tenant Identity, CAP-039 Multi-Tenant Fixture Gen, CAP-040 Multi-Tenant Adapter Dispatch — Wave 3 Phase 3.A Step 2)
-bc_index_version: "4.62"
+bc_index_version: "4.63"
 vp_index_version: "1.32"
-story_index_version: "v2.66"
+story_index_version: "v2.67"
 total_stories: 150
 red_gate_wave_0a_complete: 2026-04-21
 test_vectors_version: "2.7"
@@ -167,7 +167,7 @@ phase_2_patch_remediation_bursts: 20
 phase_2_patch_findings_total_fixed: 95
 phase_2_patch_convergence_rationale: "User override post pass-99. Semantic policies all PASS; meta-doc drift deferred to vsdd-factory lint hooks."
 user_directive_persistent: "No pragmatic convergence. Fix all issues before build."
-develop_head: "d3ad61a5"
+develop_head: "e408435e"
 vsdd_factory_version: "1.0.0-rc.16 (upgraded from rc.11 2026-05-10T07:38:25Z)"
 workspace_test_count: 3598  # updated at D-433 fix-burst-1 closure (just check clean 3598 tests pass)
 ---
@@ -183,9 +183,9 @@ workspace_test_count: 3598  # updated at D-433 fix-burst-1 closure (just check c
 | **Language** | Rust |
 | **Target Workspace** | per-analyst stdio (MCP server) |
 | **Started** | 2026-04-13 |
-| **Last Updated** | 2026-05-12 (D-445 — Sprint Review Step 1 COMPLETE. Brief persisted at cycles/wave-4-operations/sprint-review-PREREQ-trio.md. STATE+HANDOFF v7.178→v7.179) |
+| **Last Updated** | 2026-05-13 (D-459 — Burst H drift fixes + BC-2.03.013 ADR-025 sweep + installation.md path-resolution anchor + STATE+HANDOFF v7.184→v7.185) |
 | **Current Phase** | Wave 3 Tier-3 COMPLETE — **Wave 3-A 4 of 4 SHIPPED**; plugin migration: PREREQ-F + PREREQ-A + PREREQ-B + **PREREQ-C MERGED** (PR #144 ea958a4d 2026-05-12T23:14:05Z); PREREQ keystone trio COMPLETE; PLUGIN-MIGRATION Wave 1 unblocked; PREREQ-D/E pending |
-| **Current Step** | D-445 — Sprint Review Step 1 COMPLETE. Brief at cycles/wave-4-operations/sprint-review-PREREQ-trio.md. Step 2 (maintenance burst) next. STORY-INDEX:397 cycle fix gates Step 3. |
+| **Current Step** | D-459 — STATE+HANDOFF v7.184→v7.185. Burst H drift fixes complete. BC-2.03.013 lifecycle:active removed (ADR-025). installation.md path-resolution anchor (SP-1). develop@e408435e (4 PRs merged: #145 #146 #148 #147). PREREQ-D story authored (story-writer parallel, STORY-INDEX v2.67). Step 2 COMPLETE. Step 3 (PREREQ-D TDD cascade) next. |
 
 ## Phase Progress
 
@@ -228,6 +228,11 @@ _D-001..D-046 archived: [cycles/phase-3-dtu-wave-2/decisions-archive-d001-d032.m
 
 | ID | Decision | Rationale | Phase | Date |
 |----|----------|-----------|-------|------|
+| D-459 | 2026-05-13 | **STATE+HANDOFF v7.184→v7.185 + develop_head=e408435e** (state-manager). Burst H drift fixes + BC-2.03.013 sweep + installation.md path-resolution anchor + STATE/HANDOFF bump committed atomically. develop_head d3ad61a5 (prior session end) → e408435e (now; 4 PRs merged this session: #145 #146 #148 #147). bc_index_version 4.62→4.63; story_index_version v2.66→v2.67 (PREREQ-D story authored in parallel). | plugin-migration | 2026-05-13 |
+| D-458 | 2026-05-13 | **Burst H ~/.prism drift fixes + SP-1 codification** (state-manager). Sample-sweep of 23 ~/.prism hits found 4 DRIFTED + 3 AMBIGUOUS + 4 HISTORICAL + 12 CANONICAL. 4 DRIFTED fixed in-scope: S-WAVE5-PREP-01:171 (binary default clarified to dirs::config_dir-based path + installer bridge), S-6.05:129 (state_dir confirmed required in prism.toml — no dirs:: default; installer sets ~/.prism/state), config-schema.md:68 + observability.md:209 (stale Default comments replaced with installer-default vs binary-default split). 3 AMBIGUOUS anchored via clarifying notes (detection-rule-format.md + infusions.md File Organization sections; config-schema.md [Section Content] block). SP-1 addressed: installation.md §path-resolution anchor codifies installer-UX vs binary-default distinction. SP-2 (state_dir code documentation) addressed inline via code-confirmed finding (required field, no dirs:: resolution). Burst H CLOSED. | plugin-migration | 2026-05-13 |
+| D-457 | 2026-05-13 | **BC-2.03.013 ADR-025 sweep** (state-manager). Surface-point from D-454: BC-2.03.013 carried `lifecycle: active` — removed per ADR-025. Added template frontmatter fields (lifecycle_status, introduced, modified, deprecated, deprecated_by, replacement, retired, removed, removal_reason, extracted_from). Fixed pre-existing duplicate v1.0 changelog (second row renamed v1.0.1). Synced BC-INDEX title to H1 source of truth (POL-7). BC-2.03.013 v1.1→v1.2. BC-INDEX v4.62→v4.63. No remaining lifecycle: hits in corpus confirmed. | plugin-migration | 2026-05-13 |
+| D-456 | 2026-05-13 | **PR #148 MERGED — ColumnType migration; TD-S-PLUGIN-PREREQ-C-001-A FULLY CLOSED** (orchestrator). Sub-fix 2 of TD-S-PLUGIN-PREREQ-C-001-A landed at develop@95d46be2. ADR-024 implemented: `prism_spec_engine::types::ColumnType` shadow enum retired; `pub use prism_core::column::ColumnType`. 3 variant renames (Int64→Integer, Float64→Float, Timestamp→Datetime). CI workaround: cargo-semver-checks `enum_missing = "allow"` annotated with ADR-024 rationale (tooling limitation: pub use re-export not recognized as satisfying enum presence). TD-A FULLY CLOSED. | plugin-migration | 2026-05-13 |
+| D-455 | 2026-05-13 | **PR #147 MERGED — CLAUDE.md prism-conventions** (orchestrator). CLAUDE.md prism-conventions section landed at develop@e408435e. 1 review cycle (F-001 error-taxonomy path fix). Burst G+ closed; prism-specific code-level conventions now codified at project root. | plugin-migration | 2026-05-13 |
 | D-454 | 2026-05-12 | **STATE+HANDOFF v7.183→v7.184 + ADR-025 BC sweep** (state-manager). BC frontmatter sweep applied ADR-025: BC-2.22.001 (status:accepted→draft + lifecycle:active removed + template fields added; v1.1→v1.2), BC-2.06.011 (lifecycle:active removed + template fields added; v1.2→v1.3), BC-2.21.001 (lifecycle:active removed + template fields added; v1.1→v1.2). BC-INDEX v4.61→v4.62 (title synced: BC-2.22.001 + BC-2.21.001 H1 drift fixed per POL-7). develop_head ea958a4d→d3ad61a5 (2 PRs merged this session: #145 CLAUDE.md canonical principles, #146 CredentialRef consolidation). PRs #147+ in flight: CLAUDE.md prism-conventions + ADR-024 ColumnType migration. STATE+HANDOFF v7.183→v7.184. Over-broad sweep finding: BC-2.03.013 also carries lifecycle:active — flagged for follow-up burst (not in ADR-025 architect-flagged scope). | plugin-migration | 2026-05-12 |
 | D-453 | 2026-05-12 | **CLAUDE.md prism-conventions section added (uncommitted)** (architect). Architect bundled cascade authored prism-specific Conventions (Code-Level) section in CLAUDE.md (between Operational Discipline TDs and Conflict resolution). References: #[non_exhaustive] discipline, Arc-DI plumbing (ADR-022), structured event catalog (PG-LP11-001), AuthToken redacted Debug (AD-017), error taxonomy, no-println, perimeter-violation gates, single-workspace MSRV, OCSF normalization, production reqwest timeout. Uncommitted on develop; devops-engineer + pr-manager dispatches in flight to land via PR. | plugin-migration | 2026-05-12 |
 | D-452 | 2026-05-12 | **POL-7 nit closed** (architect). Architect bundled cascade fixed BC-2.05.012 line 196 H1 reference to BC-2.05.001 (full title 'Every MCP Tool Invocation Produces Exactly One Audit Entry (Fail-Closed for Writes)'); also repaired frontmatter template gaps + changelog duplicate + BC-INDEX title sync. BC-2.05.012 v1.4→v1.5. Factory commit 7954122e. Closes task #83 from D-321 deferred list. | plugin-migration | 2026-05-12 |

@@ -12,11 +12,12 @@ points: 5
 risk: HIGH
 status: merged
 document_type: story
-version: "1.3"
+version: "1.4"
 level: "L4"
 producer: story-writer
 timestamp: "2026-05-08T00:00:00Z"
-input-hash: "[md5]"
+input-hash: "d852024"
+tdd_mode: green
 traces_to: []
 cycle: "v1.0.0-greenfield"
 epic_id: "E-CLEANUP-02"
@@ -168,7 +169,7 @@ Within the 30% context window budget (~40k tokens for a 128k-context agent).
    - First log line: `tracing::info!("Prism v{}", env!("CARGO_PKG_VERSION"))`
    - Failure → `eprintln!("Failed to init tracing: {err}"); std::process::exit(4)`
 
-   Step 2 [BLOCKING]: Load prism.toml from `PRISM_CONFIG_DIR` (default `~/.prism/`).
+   Step 2 [BLOCKING]: Load prism.toml from `PRISM_CONFIG_DIR` (default: `dirs::config_dir().join("prism")` — macOS: `~/Library/Application Support/prism/`, Linux: `~/.config/prism/`, Windows: `%APPDATA%\prism\`). The installer (`prism init`) places files at `~/.prism/` and emits explicit `--config-dir ~/.prism/config` flags in the generated Claude Code `mcpServers` entry, bridging the gap.
    - Deserialize via serde + toml crate.
    - Failure → `exit(2)` with structured error message naming missing/invalid fields.
 
@@ -483,7 +484,8 @@ N/A — this is a new story with no predecessor `partial-merge` story to graduat
 
 | Version | Burst | Date | Author | Changes |
 |---------|-------|------|--------|---------|
-| 1.0 | Bundle-B-Phase-B-1 | 2026-05-08 | story-writer | Initial story creation from ADR-022 §G seed (Story 1). |
-| 1.1 | Bundle-B-Phase-B-1b | 2026-05-08 | story-writer | BC back-fill: replaced 4 `[NEW-BC-NEEDED]` placeholders with authored BC IDs (BC-2.06.011, BC-2.21.001, BC-2.03.013, BC-2.05.012, BC-2.22.001). Updated frontmatter `behavioral_contracts`, `anchor_bcs`, `anchor_subsystem`, and `inputs`. Propagated BC traces to AC-3–AC-8 per `bc_array_changes_propagate_to_body_and_acs` policy. Added AC-9 (BC-2.21.001 OrgRegistry), AC-10 (BC-2.22.001 traffic gate); renumbered original AC-10 to AC-12. Token budget updated to 8 BCs (~17,300 tokens). |
-| 1.2 | Bundle-B-Phase-B-1b | 2026-05-08 | state-manager | status draft → ready per orchestrator authorization; Spec-First Gate S-7.01 satisfied (BC anchors back-filled, every AC traces to a BC, POL-12 compliance preserved at AC-11). |
+| 1.4 | D-458-burst-H-drift-fix | 2026-05-13 | state-manager | Clarified Step 2 config-dir default to platform-aware `dirs::config_dir().join("prism")` path with per-OS examples; installer bridge via `--config-dir` flag documented. Added tdd_mode frontmatter; reordered changelog newest-first; computed input-hash. |
 | 1.3 | D-319-post-merge-state-burst | 2026-05-10 | state-manager | Merged at develop@53b87961 per ADR-020 graduation contract; status ready → merged. 5 BCs graduate draft→active per ADR-021 POL-14: BC-2.06.011, BC-2.21.001, BC-2.03.013, BC-2.05.012, BC-2.22.001. PR #138 squash-merged 2026-05-10T00:55:49Z. |
+| 1.2 | Bundle-B-Phase-B-1b | 2026-05-08 | state-manager | status draft → ready per orchestrator authorization; Spec-First Gate S-7.01 satisfied (BC anchors back-filled, every AC traces to a BC, POL-12 compliance preserved at AC-11). |
+| 1.1 | Bundle-B-Phase-B-1b | 2026-05-08 | story-writer | BC back-fill: replaced 4 `[NEW-BC-NEEDED]` placeholders with authored BC IDs (BC-2.06.011, BC-2.21.001, BC-2.03.013, BC-2.05.012, BC-2.22.001). Updated frontmatter `behavioral_contracts`, `anchor_bcs`, `anchor_subsystem`, and `inputs`. Propagated BC traces to AC-3–AC-8 per `bc_array_changes_propagate_to_body_and_acs` policy. Added AC-9 (BC-2.21.001 OrgRegistry), AC-10 (BC-2.22.001 traffic gate); renumbered original AC-10 to AC-12. Token budget updated to 8 BCs (~17,300 tokens). |
+| 1.0 | Bundle-B-Phase-B-1 | 2026-05-08 | story-writer | Initial story creation from ADR-022 §G seed (Story 1). |

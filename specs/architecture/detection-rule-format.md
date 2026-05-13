@@ -2,16 +2,21 @@
 document_type: architecture-section
 level: L3
 section: "detection-rule-format"
-version: "1.0"
+version: "1.1"
 status: draft
 producer: architect
 timestamp: 2026-04-15T18:00:00
 phase: 1b
 inputs: [prd.md, domain-spec/scheduled-detection-concept.md, operational-pipeline.md]
+input-hash: "e8aceba"
 traces_to: ARCH-INDEX.md
 ---
 
 # Detection Rule Format (.detect)
+
+## [Section Content]
+
+<!-- Sections: .detect Rule Structure | Rule-to-SQL Compilation Pipeline | Rate Limiting Defense | Overview | Rule Structure | Condition Modes | Alert Template Variables | Validation Rules | Rule-to-SQL Compilation | File Organization | Rule Evaluation Order | Rate Limiting -->
 
 ## .detect Rule Structure
 
@@ -291,6 +296,8 @@ The compilation pipeline:
 6. Static filter SQL is cached per rule — recompilation only on rule update. Sequence steps with `${step.field}` variable references use parameterized templates (cached) with runtime value binding (per evaluation)
 
 ## File Organization
+
+> **Note:** This layout describes the standard installer (`prism init`) layout at `~/.prism/`. The binary's runtime default config directory is platform-aware (`dirs::config_dir().join("prism")`). The installer bridges this gap by emitting explicit `--config-dir` flags in the generated Claude Code `mcpServers` entry.
 
 Detection rules live in the `rules/` subdirectory of the config directory, organized by scope:
 

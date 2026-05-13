@@ -1,22 +1,31 @@
 ---
 document_type: behavioral-contract
 level: L3
-version: "1.1"
+version: "1.2"
 status: draft
+lifecycle_status: active
+introduced: v1.0.0-greenfield
+modified: [v1.0.0-greenfield]
+deprecated: null
+deprecated_by: null
+replacement: null
+retired: null
+removed: null
+removal_reason: null
+extracted_from: null
 producer: product-owner
 timestamp: 2026-05-08T00:00:00Z
 phase: 3
 origin: greenfield
 subsystem: "SS-03"
 capability: "CAP-004"
-lifecycle: active
 anchored_stories: [S-WAVE5-PREP-01]
 verifying_vps: []
 crates: [prism-bin, prism-credentials]
 inputs:
   - .factory/specs/architecture/decisions/ADR-022-production-runtime-wiring.md
   - .factory/specs/architecture/module-decomposition.md
-input-hash: "[md5]"
+input-hash: "d852024"
 traces_to: ["CAP-004"]
 ---
 
@@ -246,6 +255,7 @@ renders the process-scan approach (Approach C) unreliable.
 
 | Version | Burst | Date | Author | Change |
 |---------|-------|------|--------|--------|
-| 1.0 | bundle-B-phase-B-1b-ss22-bcs-2026-05-08 | 2026-05-08 | product-owner | Initial authorship — Bundle B Phase B-1b SS-22 boot-sequence BCs |
-| 1.0 | redirect-option-d-2026-05-08 | 2026-05-08 | product-owner | Relocated from BC-2.22.003 (SS-22) to BC-2.03.013 (SS-03 Credential Management) per Option (d) decomposition. Capability anchor updated CAP-034 → CAP-004. EC/TV IDs renumbered to EC-03-013-NNN / TV-03-013-NNN. |
+| 1.2 | D-457-adr-025-sweep | 2026-05-13 | state-manager | Removed `lifecycle: active` per ADR-025 (`status:` is sole canonical authority; `lifecycle:` field retired). Added template frontmatter fields (lifecycle_status, introduced, modified, deprecated, deprecated_by, replacement, retired, removed, removal_reason, extracted_from). Added input-hash. |
 | 1.1 | D-319-post-merge-state-burst | 2026-05-10 | state-manager | lifecycle draft → active per ADR-021 POL-14 (S-WAVE5-PREP-01 merged at develop@53b87961 PR #138 2026-05-10T00:55:49Z). |
+| 1.0.1 | redirect-option-d-2026-05-08 | 2026-05-08 | product-owner | Relocated from BC-2.22.003 (SS-22) to BC-2.03.013 (SS-03 Credential Management) per Option (d) decomposition. Capability anchor updated CAP-034 → CAP-004. EC/TV IDs renumbered to EC-03-013-NNN / TV-03-013-NNN. |
+| 1.0 | bundle-B-phase-B-1b-ss22-bcs-2026-05-08 | 2026-05-08 | product-owner | Initial authorship — Bundle B Phase B-1b SS-22 boot-sequence BCs |

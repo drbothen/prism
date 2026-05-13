@@ -2,18 +2,23 @@
 document_type: architecture-section
 level: L3
 section: "infusions"
-version: "1.0"
+version: "1.1"
 status: draft
 producer: architect
 timestamp: 2026-04-15T22:00:00
 phase: 1b
 inputs: [prd.md, query-engine.md, sensor-adapters.md]
+input-hash: "38a6e32"
 traces_to: ARCH-INDEX.md
 ---
 
 # Infusions — Enrichment Framework
 
 **Behavioral Contracts (AD-020):** BC-2.19.001 (spec loading, one UDF per field), BC-2.19.002 (per-query dedup), BC-2.19.003 (API-backed UDF rejection in detection rules, E-RULE-012), BC-2.19.004 (hot reload CI-002 atomicity), BC-2.19.005 (credential redaction)
+
+## [Section Content]
+
+<!-- Sections: Overview | Design Principle | Two Access Patterns | Infusion Spec Files | Caching Strategy | Built-In Infusion Source Types | Infusion in Detection Rules | File Organization | Hot Reload | PrismQL Grammar Addition | Security Considerations | Testing Infrastructure -->
 
 ## Overview
 
@@ -337,6 +342,8 @@ filter = 'ioc_match(device_ip, "known_bad_ips") = TRUE AND geoip_country(device_
 ```
 
 ## File Organization
+
+> **Note:** This layout describes the standard installer (`prism init`) layout at `~/.prism/`. The binary's runtime default config directory is platform-aware (`dirs::config_dir().join("prism")`). The installer bridges this gap by emitting explicit `--config-dir` flags in the generated Claude Code `mcpServers` entry.
 
 ```
 ~/.prism/config/

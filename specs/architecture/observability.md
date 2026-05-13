@@ -2,18 +2,23 @@
 document_type: architecture-section
 level: L3
 section: "observability"
-version: "1.1"
+version: "1.2"
 status: draft
 producer: architect
 timestamp: 2026-04-16T00:00:00
 phase: 1b
 inputs: [system-overview.md, operational-pipeline.md, concurrency-architecture.md]
+input-hash: "f242a61"
 traces_to: ARCH-INDEX.md
 ---
 
 # Observability — Diagnostic Logging & Debugging
 
 > **Subsystem anchor:** This document specifies SS-20 (Observability / Log Forwarding) per ARCH-INDEX.md Subsystem Registry. SS-20 covers external log forwarding destinations (Datadog, Splunk HEC, Elasticsearch, OTLP) and diagnostic log infrastructure. Sensor health diagnostics (`get_diagnostics`, diagnostic_resources) remain in SS-08.
+
+## [Section Content]
+
+<!-- Sections: Overview | Subsystem Log Targets | Trace IDs | CLI: prism logs | MCP Tool: get_diagnostics | MCP Resource: prism://diagnostics | Common Debugging Workflows | External Log Forwarding | Testing Infrastructure | Security Constraints | Changelog -->
 
 ## Overview
 
@@ -206,7 +211,7 @@ prism logs --subsystem config --filter 'event=reload' --since 24h
 # prism.toml
 [server.log_storage]
 enabled = true                           # Write diagnostic logs to disk
-directory = "{state_dir}/logs"           # Default: ~/.prism/state/logs/
+directory = "{state_dir}/logs"           # Example (installer default): ~/.prism/state/logs/. Binary default: state_dir is required in prism.toml — set by installer to ~/.prism/state.
 max_file_size_mb = 50                    # Rotate after 50 MB
 max_files = 10                           # Keep last 10 rotated files (500 MB total)
 format = "json"                          # json (machine-parseable) or pretty (human-readable)
@@ -543,5 +548,6 @@ See `dtu-assessment.md` §3.7 for per-destination endpoint lists, fidelity level
 
 | Version | Burst | Date | Author | Change |
 |---------|-------|------|--------|--------|
+| 1.2 | D-458-burst-H-drift-fix | 2026-05-13 | state-manager | Fixed stale `# Default: ~/.prism/state/logs/` comment in Log Storage block — state_dir is a required prism.toml field, not a binary default. Added [Section Content] template anchor; added input-hash. |
 | 1.1 | F-PreP22-H-002 | 2026-05-03 | architect | D-209 LOCKED split-semaphore propagation: updated scheduler debug log example (3/16 → split 3/8 + 0/8) and get_diagnostics JSON example (semaphore_state → schedule_executor_semaphore_state + action_delivery_semaphore_state). |
 | 1.0 | Phase 1b | 2026-04-16 | architect | Initial observability architecture. |

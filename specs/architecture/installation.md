@@ -2,16 +2,23 @@
 document_type: architecture-section
 level: L3
 section: "installation"
-version: "1.0"
+version: "1.1"
 status: draft
 producer: architect
 timestamp: 2026-04-15T23:30:00
 phase: 1b
 inputs: [system-overview.md, product-brief.md]
+input-hash: "914c2dd"
 traces_to: ARCH-INDEX.md
 ---
 
 # Installation & Distribution
+
+## [Section Content]
+
+<!-- Sections: Distribution Channels | CLI Commands | SecOps Factory Integration -->
+
+> **Path resolution:** The prism installer (`prism init`) provisions a standard `~/.prism/` layout for ease of MSSP analyst deployment. The prism binary's default config directory is platform-aware (`dirs::config_dir().join("prism")`), independent of `~/.prism/`. The installer bridges this gap by emitting explicit `--config-dir` flags in the generated Claude Code `mcpServers` entry. Specs that reference `~/.prism/` are referring to the installer layout unless explicitly stating the binary default.
 
 ## Distribution Channels
 

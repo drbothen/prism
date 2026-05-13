@@ -2,16 +2,23 @@
 document_type: architecture-section
 level: L3
 section: "config-schema"
-version: "1.0"
+version: "1.1"
 status: draft
 producer: architect
 timestamp: 2026-04-15T23:45:00
 phase: 1b
 inputs: [system-overview.md, security-architecture.md, sensor-adapters.md, operational-pipeline.md]
+input-hash: "580ac5b"
 traces_to: ARCH-INDEX.md
 ---
 
 # Configuration Schema
+
+## [Section Content]
+
+<!-- Sections: File Layout | prism.toml Full Schema | aliases.toml | Env Var Overrides | Config Validation | Config Diff Tool -->
+
+> **Path resolution:** This layout describes the standard installer (`prism init`) layout at `~/.prism/`. The prism binary's default config directory is platform-aware (`dirs::config_dir().join("prism")`), independent of `~/.prism/`. The installer bridges this gap by emitting explicit `--config-dir` flags in the generated Claude Code `mcpServers` entry. Specs that reference `~/.prism/` are referring to the installer layout unless explicitly stating the binary default.
 
 ## File Layout
 
@@ -65,7 +72,7 @@ analyst_id = ""                          # Optional. Analyst identifier for audi
 # Diagnostic log file storage
 [server.log_storage]
 enabled = true                           # Write diagnostic logs to disk
-directory = "{state_dir}/logs"           # Default: ~/.prism/state/logs/
+directory = "{state_dir}/logs"           # Example (installer default): ~/.prism/state/logs/. Binary default: state_dir is required in prism.toml — set by installer to ~/.prism/state.
 max_file_size_mb = 50                    # Rotate after 50 MB
 max_files = 10                           # Keep last 10 rotated files (500 MB total)
 

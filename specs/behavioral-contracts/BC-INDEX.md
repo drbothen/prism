@@ -1,7 +1,7 @@
 ---
 document_type: behavioral-contract-index
 level: L3
-version: "4.62"
+version: "4.63"
 status: draft
 producer: product-owner
 timestamp: 2026-05-12T07:30:00
@@ -65,7 +65,7 @@ Phase 3-patch additions (2026-04-16): 22 new BCs added in Burst 1 to close trace
 | BC-2.03.010 | Credential Access Audit Logging | 03 - Credential Management | CAP-004 | P0 | draft |
 | BC-2.03.011 | Keyring Startup Probe for Permission Pre-Authorization | 03 - Credential Management | CAP-004 | P0 | draft |
 | BC-2.03.012 | Credential Backend Selection and Fallback | 03 - Credential Management | CAP-004 | P0 | draft |
-| BC-2.03.013 | CredentialStore Initialization — Reference Validation Only, No-Leak Invariant | 03 - Credential Management | CAP-004 | P0 | active |
+| BC-2.03.013 | CredentialStore Initialization — Reference Validation Only, No Values in Memory at Process Start | 03 - Credential Management | CAP-004 | P0 | active |
 | BC-2.04.001 | Compile-Time Cargo Features Gate Write Code Families | 04 - Feature Flags | CAP-005 | P0 | draft |
 | BC-2.04.002 | Runtime Per-Client TOML Feature Flag Configuration | 04 - Feature Flags | CAP-005 | P0 | draft |
 | BC-2.04.003 | Hierarchical Capability Resolution (BTreeMap, Most-Specific-Path Wins, Deny Support) | 04 - Feature Flags | CAP-005 | P0 | draft |
@@ -359,6 +359,8 @@ Phase 3-patch additions (2026-04-16): 22 new BCs added in Burst 1 to close trace
 - Subsystem 19: Infusion Enrichment Framework (AD-020, CAP-031)
 
 ### Change Log (Adversarial Review Fixes)
+
+**v4.63 (2026-05-13):** D-457 ADR-025 BC-2.03.013 sweep — removed `lifecycle: active` per ADR-025; added template frontmatter fields (lifecycle_status, introduced, modified, deprecated, deprecated_by, replacement, retired, removed, removal_reason, extracted_from); fixed duplicate v1.0 changelog rows (second renamed v1.0.1); BC-INDEX title synced to H1 source of truth ("Reference Validation Only, No Values in Memory at Process Start"). BC-2.03.013 v1.1→v1.2. total_contracts=235 unchanged; active_contracts=228 unchanged.
 
 **v4.62 (2026-05-12):** D-454 ADR-025 BC lifecycle sweep — BC-2.22.001 v1.1→v1.2 (status:accepted→draft, lifecycle:active removed, template fields added, changelog reordered newest-first, BC-INDEX title synced to H1 adding "and"); BC-2.06.011 v1.2→v1.3 (lifecycle:active removed, template fields added, input-hash computed); BC-2.21.001 v1.1→v1.2 (lifecycle:active removed, template fields added, input-hash computed). Per ADR-025: `status:` is sole canonical lifecycle field; `lifecycle:` field retired. total_contracts=235 unchanged; active_contracts=228 unchanged.
 
