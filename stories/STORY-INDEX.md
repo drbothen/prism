@@ -1,7 +1,7 @@
 ---
 document_type: story-index
 level: "L4"
-version: "v2.65"
+version: "v2.66"
 status: draft
 producer: state-manager
 timestamp: 2026-05-12T07:30:00
@@ -394,7 +394,7 @@ pursuing maximum parallelism should schedule by topological layer, not wave numb
 | PLUGIN-MIGRATION-001-A | prism-sensors: Delete 4 Named Auth Modules + Re-exports + Replace init_registry_for_org [PLUGIN-MIGRATION Wave 1] [planned — gated on VP-PLUGIN-003 parity test pass for all 4 sensors] | prism-sensors,prism-bin | 0 (TBD) | -- | 3 | S-PLUGIN-PREREQ-A,S-PLUGIN-PREREQ-B,S-PLUGIN-PREREQ-C,S-PLUGIN-PREREQ-E,PLUGIN-MIGRATION-001-D,PLUGIN-MIGRATION-001-E |
 | PLUGIN-MIGRATION-001-B | prism-query: Convert 5 Sensor-Name Dispatch Sites to Spec-Catalog Lookup [PLUGIN-MIGRATION Wave 1] [planned] | prism-query | 0 (TBD) | -- | 3 | S-PLUGIN-PREREQ-A,S-PLUGIN-PREREQ-C,PLUGIN-MIGRATION-001-A |
 | PLUGIN-MIGRATION-001-C | prism-ocsf: Merge 4 Hardcoded Mappers → SpecDrivenMapper + .prx WASM Transformers [PLUGIN-MIGRATION Wave 1] [planned] | prism-ocsf,prism-spec-engine | 0 (TBD) | -- | 3 | S-PLUGIN-PREREQ-C,S-PLUGIN-PREREQ-D,PLUGIN-MIGRATION-001-A |
-| PLUGIN-MIGRATION-001-D | prism-sensors: Author 4 Production TOML Sensor Specs — Reverse-Engineered + DTU-Parity Tests [PLUGIN-MIGRATION Wave 1] [planned] | prism-sensors,prism-spec-engine | 0 (TBD) | -- | 3 | S-PLUGIN-PREREQ-B,S-PLUGIN-PREREQ-C,PLUGIN-MIGRATION-001-A |
+| PLUGIN-MIGRATION-001-D | prism-sensors: Author 4 Production TOML Sensor Specs — Reverse-Engineered + DTU-Parity Tests [PLUGIN-MIGRATION Wave 1] [planned] | prism-sensors,prism-spec-engine | 0 (TBD) | -- | 3 | S-PLUGIN-PREREQ-A,S-PLUGIN-PREREQ-B,S-PLUGIN-PREREQ-C,S-PLUGIN-PREREQ-D |
 | PLUGIN-MIGRATION-001-E | prism-spec-engine: CrowdStrike OAuth2 Refresh-on-401 as In-Repo .prx WASM Plugin [PLUGIN-MIGRATION Wave 1] [planned] | prism-spec-engine | 0 (TBD) | -- | 3 | S-PLUGIN-PREREQ-D,PLUGIN-MIGRATION-001-D |
 | PLUGIN-MIGRATION-001-F | test: Rewrite 10+ Sensor-Named Test Files + Compile-Fail Perimeter Test [PLUGIN-MIGRATION Wave 2] [planned] | prism-sensors,prism-query | 0 (TBD) | -- | 3 | PLUGIN-MIGRATION-001-A,PLUGIN-MIGRATION-001-B |
 | PLUGIN-MIGRATION-001-G | docs: Doc/ADR/BC Sweep — Generalize Sensor-Named Architecture Docs [PLUGIN-MIGRATION Wave 2] [planned] | .factory | 0 (TBD) | -- | 3 | PLUGIN-MIGRATION-001-A,PLUGIN-MIGRATION-001-B,PLUGIN-MIGRATION-001-C |

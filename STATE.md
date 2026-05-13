@@ -1,9 +1,9 @@
 ---
 document_type: pipeline-state
 level: ops
-version: "7.179"
+version: "7.180"
 producer: state-manager
-timestamp: 2026-05-12T23:45:00Z
+timestamp: 2026-05-12T23:58:00Z
 inputs: []
 input-hash: "[live-state]"
 traces_to: ""
@@ -22,7 +22,7 @@ repos:
   - axiathon
   - ocsf-proto-gen
   - mcp-claroty-xdome
-current_step: "D-445. STEP 1 OF B→C→A SEQUENCE COMPLETE — Sprint review brief on PREREQ keystone trio (A+B+C) persisted at cycles/wave-4-operations/sprint-review-PREREQ-trio.md. Step 2 (maintenance burst) next; STORY-INDEX:397 cycle fix is gating Step 3."
+current_step: "D-446. STEP 2 MAINTENANCE BURST A — STORY-INDEX:397 cycle resolved (001-D depends_on canonical PREREQ-A/B/C/D per D-444) + TD-VSDD-094 filed for adversarial-review path-drift codification. Step 2 Burst B (volatile-pin sweep + types.rs investigation + BC frontmatter divergence) queued. Step 3 (Wave 1) now unblocked from cycle perspective; gates on PREREQ-D/E land."
 feature_branch_head: "ea958a4d"
 worktree_status: "merged"
 adversary_streak: "3/3 LOCKED"
@@ -135,7 +135,7 @@ bc_count_corrected: 235
 cap_count: 40  # active; highest_cap_id: CAP-040 (CAP-038 Multi-Tenant Identity, CAP-039 Multi-Tenant Fixture Gen, CAP-040 Multi-Tenant Adapter Dispatch — Wave 3 Phase 3.A Step 2)
 bc_index_version: "4.61"
 vp_index_version: "1.32"
-story_index_version: "v2.65"
+story_index_version: "v2.66"
 total_stories: 150
 red_gate_wave_0a_complete: 2026-04-21
 test_vectors_version: "2.7"
@@ -231,6 +231,7 @@ _D-001..D-046 archived: [cycles/phase-3-dtu-wave-2/decisions-archive-d001-d032.m
 
 | ID | Decision | Rationale | Phase | Date |
 |----|----------|-----------|-------|------|
+| D-446 | 2026-05-12 | **STEP 2 Maintenance Burst A — cycle resolution** (state-manager). STORY-INDEX:397 PLUGIN-MIGRATION-001-D depends_on updated from stale `…001-A` (cycle) to canonical `…PREREQ-A,…PREREQ-B,…PREREQ-C,…PREREQ-D` per D-444 resolution. 001-A's depends_on unchanged (retains 001-D forward arc). STORY-INDEX v2.65→v2.66. TD-VSDD-094 P3 filed for PREREQ-C adversarial-review path-drift codification (cycles/<cycle>/adversarial-reviews/ canonical pattern; PREREQ-D/E must follow). open_count 91→92. tech-debt-register v2.15→v2.16. STATE+HANDOFF v7.179→v7.180. Wave 1 dispatch now cycle-clear; still gates on PREREQ-D/E land. | plugin-migration | 2026-05-12 |
 | D-445 | 2026-05-12 | **Sprint Review Step 1 COMPLETE** (state-manager). Sprint-analyzer ANALYSIS for PREREQ keystone trio (A+B+C) persisted at `cycles/wave-4-operations/sprint-review-PREREQ-trio.md`. 8-section structured brief: sprint summary, epic breakdown, business linkage, convergence efficiency, tech debt scoreboard, process gap insights, next-wave readiness, demo points. Key metrics: 34 pts, 3 stories merged (PR #142/143/144), 3,598 tests, 33 LOCAL passes, 24 fix-bursts, 36/36 CI, 7 TDs closed (91 active). Two inconsistencies flagged for Step 2: (1) STORY-INDEX:397 stale 001-D depends_on apparent cycle with 001-A (per D-444 resolution, true fix: 001-D depends on PREREQ-A/B/C/D, NOT 001-A); (2) PREREQ-C adversarial pass reports live under `.factory/code-delivery/` not `cycles/wave-4-operations/adversarial-reviews/` — path-convention drift, cosmetic. Step 2 (maintenance burst) dispatchable; Step 3 (Wave 1) gated on STORY-INDEX:397 cycle fix + PREREQ-D/E landing. STATE+HANDOFF v7.178 → v7.179. | plugin-migration | 2026-05-12 |
 | D-444 | 2026-05-12 | PRE-COMPACT FORWARD-PLAN EXPANSION (state-manager + user). Comprehensive Tier 1-8 Forward Task Map sealed in STATE.md "Forward Task Map" section. Captures: TIER 1 immediate B→C→A (in successor_focus), TIER 2 PREREQ-D/E (still planned, gate 001-A), TIER 3 PLUGIN-MIGRATION Wave 1 (5 stories, true topological order resolved from depends_on analysis + cycle resolution), TIER 4 PLUGIN-MIGRATION Wave 2 (3 stories), TIER 5 unblocked-by-plugin-migration (Bundle B Phase B-2 + S-3.09 resumption), TIER 6 Multi-Tenant Wave 3 (37 stories by epic), TIER 7 Wave 4+ operational features (alerting/audit-replay/log-forwarding/retry-obs), TIER 8 end-product convergence per project memory MSSP MCP vision. CYCLE RESOLUTION FINDING: STORY-INDEX 001-D depends_on includes PLUGIN-MIGRATION-001-A — this is stale; per D-334 the design intent is 001-D lands BEFORE 001-A (replacement-before-deletion). The true topological order is: PREREQ-D → 001-D → 001-E → 001-A → 001-B/001-C. SESSION-HANDOFF v7.177→v7.178 with forward-map pointer added. Post-compact session reads STATE.md Forward Task Map for any context beyond immediate TIER 1. | plugin-migration | 2026-05-12 |
 | D-443 | 2026-05-12 | PRE-COMPACT CHECKPOINT (orchestrator + state-manager + user). User cleared next-action ambiguity: locked-in sequence is B (sprint-review on PREREQ trio) → C (maintenance burst on deferred items) → A (PLUGIN-MIGRATION Wave 1 starting with -001-A). State durability sealed: SESSION-HANDOFF successor_focus contains full STEP 1/2/3 dispatch specs. All pins current at develop@ea958a4d, factory-artifacts HEAD set by this commit. sidecar-learning.md cleanup included. No uncommitted work in factory-artifacts. User intends to clear context next; post-compact session resumes via SESSION-HANDOFF.md successor_focus STEP 1. | plugin-migration | 2026-05-12 |
