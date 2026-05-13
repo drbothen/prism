@@ -1,7 +1,7 @@
 ---
 document_type: pipeline-state
 level: ops
-version: "7.177"
+version: "7.178"
 producer: state-manager
 timestamp: 2026-05-12T15:00:00Z
 inputs: []
@@ -22,7 +22,7 @@ repos:
   - axiathon
   - ocsf-proto-gen
   - mcp-claroty-xdome
-current_step: "D-443. PRE-COMPACT CHECKPOINT (2026-05-12). User locked B→C→A sequence: STEP 1 sprint-review on PREREQ trio (A+B+C), STEP 2 maintenance burst on deferred items, STEP 3 PLUGIN-MIGRATION Wave 1 starting at -001-A. STATE+HANDOFF v7.176→v7.177. sidecar-learning.md cleanup included. Context clear intended; resume from SESSION-HANDOFF.md successor_focus STEP 1."
+current_step: "D-444. PRE-COMPACT FORWARD-PLAN EXPANSION (2026-05-12). Comprehensive Tier 1-8 Forward Task Map sealed in STATE.md 'Forward Task Map' section. Cycle resolution for PLUGIN-MIGRATION-001 apparent cycle documented. Full roadmap from B-C-A through PREREQ-D/E, Wave 1/2 plugin migration, post-plugin unblocks, Multi-Tenant Wave 3, Wave 4+ ops, and end-product MSSP vision captured. SESSION-HANDOFF v7.177→v7.178 with forward-map pointer. STATE+HANDOFF v7.177→v7.178. Context clear ready."
 feature_branch_head: "ea958a4d"
 worktree_status: "merged"
 adversary_streak: "3/3 LOCKED"
@@ -183,9 +183,9 @@ workspace_test_count: 3598  # updated at D-433 fix-burst-1 closure (just check c
 | **Language** | Rust |
 | **Target Workspace** | per-analyst stdio (MCP server) |
 | **Started** | 2026-04-13 |
-| **Last Updated** | 2026-05-12 (D-443 — PRE-COMPACT CHECKPOINT. B→C→A sequence locked. sidecar-learning.md cleaned. STATE+HANDOFF v7.176→v7.177) |
+| **Last Updated** | 2026-05-12 (D-444 — PRE-COMPACT FORWARD-PLAN EXPANSION. Tier 1-8 Forward Task Map sealed. Cycle resolution documented. STATE+HANDOFF v7.177→v7.178) |
 | **Current Phase** | Wave 3 Tier-3 COMPLETE — **Wave 3-A 4 of 4 SHIPPED**; plugin migration: PREREQ-F + PREREQ-A + PREREQ-B + **PREREQ-C MERGED** (PR #144 ea958a4d 2026-05-12T23:14:05Z); PREREQ keystone trio COMPLETE; PLUGIN-MIGRATION Wave 1 unblocked; PREREQ-D/E pending |
-| **Current Step** | D-443 — PRE-COMPACT CHECKPOINT. B→C→A sequence locked (STEP 1 sprint-review → STEP 2 maintenance → STEP 3 PLUGIN-MIGRATION-001-A). Context clear imminent. Resume from SESSION-HANDOFF.md successor_focus STEP 1. |
+| **Current Step** | D-444 — PRE-COMPACT FORWARD-PLAN EXPANSION. Full forward roadmap sealed in "Forward Task Map" section. Context clear ready. Resume from SESSION-HANDOFF.md successor_focus STEP 1. |
 
 ## Phase Progress
 
@@ -231,6 +231,7 @@ _D-001..D-046 archived: [cycles/phase-3-dtu-wave-2/decisions-archive-d001-d032.m
 
 | ID | Decision | Rationale | Phase | Date |
 |----|----------|-----------|-------|------|
+| D-444 | 2026-05-12 | PRE-COMPACT FORWARD-PLAN EXPANSION (state-manager + user). Comprehensive Tier 1-8 Forward Task Map sealed in STATE.md "Forward Task Map" section. Captures: TIER 1 immediate B→C→A (in successor_focus), TIER 2 PREREQ-D/E (still planned, gate 001-A), TIER 3 PLUGIN-MIGRATION Wave 1 (5 stories, true topological order resolved from depends_on analysis + cycle resolution), TIER 4 PLUGIN-MIGRATION Wave 2 (3 stories), TIER 5 unblocked-by-plugin-migration (Bundle B Phase B-2 + S-3.09 resumption), TIER 6 Multi-Tenant Wave 3 (37 stories by epic), TIER 7 Wave 4+ operational features (alerting/audit-replay/log-forwarding/retry-obs), TIER 8 end-product convergence per project memory MSSP MCP vision. CYCLE RESOLUTION FINDING: STORY-INDEX 001-D depends_on includes PLUGIN-MIGRATION-001-A — this is stale; per D-334 the design intent is 001-D lands BEFORE 001-A (replacement-before-deletion). The true topological order is: PREREQ-D → 001-D → 001-E → 001-A → 001-B/001-C. SESSION-HANDOFF v7.177→v7.178 with forward-map pointer added. Post-compact session reads STATE.md Forward Task Map for any context beyond immediate TIER 1. | plugin-migration | 2026-05-12 |
 | D-443 | 2026-05-12 | PRE-COMPACT CHECKPOINT (orchestrator + state-manager + user). User cleared next-action ambiguity: locked-in sequence is B (sprint-review on PREREQ trio) → C (maintenance burst on deferred items) → A (PLUGIN-MIGRATION Wave 1 starting with -001-A). State durability sealed: SESSION-HANDOFF successor_focus contains full STEP 1/2/3 dispatch specs. All pins current at develop@ea958a4d, factory-artifacts HEAD set by this commit. sidecar-learning.md cleanup included. No uncommitted work in factory-artifacts. User intends to clear context next; post-compact session resumes via SESSION-HANDOFF.md successor_focus STEP 1. | plugin-migration | 2026-05-12 |
 | D-442 | 2026-05-12 | **S-PLUGIN-PREREQ-C MERGED** (orchestrator + pr-manager + user) via PR #144 squash-merged at develop@ea958a4d 2026-05-12T23:14:05Z. 36/36 CI checks PASS. Story v1.3→v1.4 (status: ready→merged). STORY-INDEX v2.64→v2.65. develop@ae7e26c8 → develop@ea958a4d. 13 feature-branch commits squashed into 1 develop commit. Pre-merge: 5 LOCAL adversary passes (trajectory 18→8→5→5→1) → 3/3 LOCKED at pass-5 → demo evidence (8 files/835 lines) → PR-LEVEL adversary CLEAR → pr-reviewer APPROVE → 1 PR-LEVEL fix (semver 0.1→0.2 + 0.6→0.7). Total: 7 ACs satisfied, 30 #[non_exhaustive] types audited (CI EXPECTED=30), 2 new BC-2.16.002 catalog rows (jsonpath_extraction_failed + jsonpath_size_cap_exceeded). PREREQ keystone trio (A+B+C) all merged. Unblocks PLUGIN-MIGRATION-001-A/B/C/D Wave 1. Worktree retained at .worktrees/S-PLUGIN-PREREQ-C/ (archival per PREREQ-A/B precedent). Next: PLUGIN-MIGRATION-001-A story-writer dispatch OR sprint-review for PREREQ trio. | plugin-migration | 2026-05-12 |
 | D-441 | 2026-05-12 | PREREQ-C post-LOCAL-CONVERGED cleanup + demo evidence (implementer + demo-recorder) on feature/S-PLUGIN-PREREQ-C@450b082c. F-LP5-LOW-001 closed (main.rs doc-header 29→30 types + fix-burst-4 attribution + 30th type bullet appended, c9bb9d26). Demo evidence generated at docs/demo-evidence/S-PLUGIN-PREREQ-C/ — 8 files (INDEX + AC-1..AC-7), 835 lines, real test output captured for all 7 ACs (450b082c). POL-10 demo_evidence_story_scoped satisfied. Per-story-delivery step 5 COMPLETE. Outstanding findings: 0 CRIT + 0 HIGH + 0 MED + 0 LOW. Next: per-story-delivery step 6 — rebase + pr-manager 9-step PR cycle including PR-LEVEL adversary cascade. | plugin-migration | 2026-05-12 |
@@ -436,6 +437,16 @@ Status as of develop@ae7e26c8 with PREREQ-A + PREREQ-B both merged. This matrix 
 
 _This matrix is the authoritative routing reference. Any future story planning that opens a target above should consult this matrix and explicitly close or re-route the listed TDs. Updates to this matrix MUST go through state-manager + bump STATE.md version per POL-11. Detail source-of-truth: [tech-debt-register.md](tech-debt-register.md)._
 
+## Forward Task Map (D-444 PRE-COMPACT 2026-05-12)
+
+**Full roadmap is in the cycle file** — read it before any post-compact dispatch beyond TIER 1:
+
+**File:** [cycles/wave-4-operations/forward-task-map.md](cycles/wave-4-operations/forward-task-map.md)
+
+**Chain:** Tier 1 (B→C→A in successor_focus) → Tier 2 (PREREQ-D + PREREQ-E [planned]) → Tier 3 (Wave 1: PREREQ-D → 001-D → 001-E → 001-A → [001-B || 001-C]) → Tier 4 (Wave 2: 001-H → [001-F || 001-G]) → Tier 5 (S-5.01/S-1.12/S-1.14 unblocks + S-3.09 thaw) → Tier 6 (Wave 3 COMPLETE) → Tier 7 (Wave 4+ TD-W4-AUDIT/LOG/ALERTING) → Tier 8 (MSSP MCP end-product)
+
+**Cycle resolution (CRITICAL — read before Wave 1 dispatch):** STORY-INDEX 001-D depends_on contains a stale PLUGIN-MIGRATION-001-A entry (data error per D-444/D-334). Fix this before dispatching 001-D. True order: PREREQ-D → 001-D → 001-E → 001-A → 001-B/C.
+
 ## Skip Log
 
 | Step | Skipped? | Justification |
@@ -459,11 +470,11 @@ Cycle files: [burst-log](cycles/phase-2-patch/burst-log.md) | [convergence-traje
 
 ---
 
-## Session Resume Checkpoint (2026-05-12-v7.177-d443-pre-compact-b-c-a-locked)
+## Session Resume Checkpoint (2026-05-12-v7.178-d444-pre-compact-forward-plan-sealed)
 
-_Previous checkpoint (v7.174/D-440 PREREQ-C LOCAL CONVERGED) archived: [cycles/wave-4-operations/session-checkpoints.md](cycles/wave-4-operations/session-checkpoints.md)_
+_Previous checkpoint (v7.177/D-443 B→C→A LOCKED) archived: [cycles/wave-4-operations/session-checkpoints.md](cycles/wave-4-operations/session-checkpoints.md)_
 
-**STATE v7.177. D-443 — PRE-COMPACT CHECKPOINT. B→C→A SEQUENCE LOCKED.** develop@ea958a4d. factory-artifacts HEAD: run `git -C .factory log -1` (per TD-VSDD-053). vsdd-factory rc.16 active. Standing Orchestrator Rules active (Rules 1, 2, 3). Bundle B Exit Mandate active (task #85). Worktrees: main (clean) + .factory + .worktrees/S-PLUGIN-PREREQ-C (archival) + .worktrees/S-3.09 (FROZEN per D-298).
+**STATE v7.178. D-444 — PRE-COMPACT FORWARD-PLAN EXPANSION. TIER 1-8 ROADMAP SEALED.** develop@ea958a4d. factory-artifacts HEAD: run `git -C .factory log -1` (per TD-VSDD-053). vsdd-factory rc.16 active. Standing Orchestrator Rules active (Rules 1, 2, 3). Bundle B Exit Mandate active (task #85). Worktrees: main (clean) + .factory + .worktrees/S-PLUGIN-PREREQ-C (archival) + .worktrees/S-3.09 (FROZEN per D-298). **Forward Task Map in [cycles/wave-4-operations/forward-task-map.md](cycles/wave-4-operations/forward-task-map.md) — read for any roadmap context beyond TIER 1.**
 
 **PREREQ TRIO STATUS (all merged):** PREREQ-A (PR #142 develop@90d7c80f, story v1.6 merged) + PREREQ-B (PR #143 develop@ae7e26c8, story v1.23 merged) + PREREQ-C (PR #144 develop@ea958a4d, story v1.4 merged). PLUGIN-MIGRATION Wave 1 unblocked. 91 active TDs (was 98; 7 closed by PREREQ-C trio: TD-B-001/003/006/008/016 + TD-A-006/008). LOCAL convergence efficiency 12 → 16 → 5 passes (acceleration confirmed).
 
@@ -471,7 +482,7 @@ _Previous checkpoint (v7.174/D-440 PREREQ-C LOCAL CONVERGED) archived: [cycles/w
 
 **Post-compact action sequence (B→C→A — DO NOT skip steps):** STEP 1: /vsdd-factory:sprint-review on PREREQ-A/B/C. STEP 2: Maintenance burst on deferred items (F-LP4-OBS-001, types.rs TD-S-PLUGIN-PREREQ-C-001, TD-VSDD-091 sweep). STEP 3: PLUGIN-MIGRATION Wave 1 dispatch starting at PLUGIN-MIGRATION-001-A. Full dispatch specs in SESSION-HANDOFF.md successor_focus.
 
-**Current spec versions:** BC-INDEX v4.61, STORY-INDEX v2.65, ARCH-INDEX v2.40, ADR-023 v1.18, VP-INDEX v1.32 (152 VPs + VP-PLUGIN-001..007 aliases), BC-2.16.002 v1.10 (active; 16 catalog rows), BC-2.01.013 v1.6 (active, merged PR #142), S-PLUGIN-PREREQ-A v1.6 (merged PR #142), S-PLUGIN-PREREQ-B v1.23 (merged PR #143), S-PLUGIN-PREREQ-C v1.4 (merged PR #144 ea958a4d), prd.md v1.10, error-taxonomy.md v1.18, develop@ea958a4d; STATE v7.177 SESSION-HANDOFF v7.177 (current)
+**Current spec versions:** BC-INDEX v4.61, STORY-INDEX v2.65, ARCH-INDEX v2.40, ADR-023 v1.18, VP-INDEX v1.32 (152 VPs + VP-PLUGIN-001..007 aliases), BC-2.16.002 v1.10 (active; 16 catalog rows), BC-2.01.013 v1.6 (active, merged PR #142), S-PLUGIN-PREREQ-A v1.6 (merged PR #142), S-PLUGIN-PREREQ-B v1.23 (merged PR #143), S-PLUGIN-PREREQ-C v1.4 (merged PR #144 ea958a4d), prd.md v1.10, error-taxonomy.md v1.18, develop@ea958a4d; STATE v7.178 SESSION-HANDOFF v7.178 (current)
 
 **Key files:** [SESSION-HANDOFF.md](SESSION-HANDOFF.md) | [cycle-manifest.md](cycles/wave-4-operations/cycle-manifest.md) | [HOLDOUT-INDEX.md](holdout-scenarios/HOLDOUT-INDEX.md)
 
