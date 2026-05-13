@@ -1,15 +1,24 @@
 ---
 document_type: behavioral-contract
 level: L3
-version: "1.1"
-status: accepted
+version: "1.2"
+status: draft
 producer: product-owner
 timestamp: 2026-05-08T00:00:00Z
 phase: 3
 origin: greenfield
+extracted_from: null
 subsystem: "SS-22"
 capability: "CAP-034"
-lifecycle: active
+lifecycle_status: draft
+introduced: "redirect-option-d-2026-05-08"
+modified: [D-319-post-merge-state-burst, D-454]
+deprecated: null
+deprecated_by: null
+replacement: null
+retired: null
+removed: null
+removal_reason: null
 anchored_stories: [S-WAVE5-PREP-01]
 verifying_vps: []
 crates: [prism-bin]
@@ -20,7 +29,7 @@ inputs:
   - .factory/specs/behavioral-contracts/BC-2.21.001-org-registry-init.md
   - .factory/specs/behavioral-contracts/BC-2.03.013-credential-store-init.md
   - .factory/specs/behavioral-contracts/BC-2.05.012-audit-subsystem-init.md
-input-hash: "[md5]"
+input-hash: "d852024"
 traces_to: ["CAP-034"]
 ---
 
@@ -261,5 +270,6 @@ VP-NNN (Boot Sequencing Invariant) — proposed above; assigned by architect at 
 
 | Version | Burst | Date | Author | Change |
 |---------|-------|------|--------|--------|
-| 1.0 | redirect-option-d-2026-05-08 | 2026-05-08 | product-owner | Initial authorship — Option (d) decomposition: 4 subsystem init contracts relocated to native SS; this BC holds only the cross-cutting orchestration (sequencing, exit-code map, traffic gate). |
+| 1.2 | D-454 | 2026-05-12 | state-manager | ADR-025 sweep: `lifecycle: active` removed (ADR-025 retires `lifecycle:` field; `status:` is sole canonical authority). `status: accepted` corrected to `status: draft` (accepted is not a valid status taxonomy value). Template fields added: `extracted_from`, `lifecycle_status`, `introduced`, `modified`, `deprecated`, `deprecated_by`, `replacement`, `retired`, `removed`, `removal_reason`. `input-hash` computed from placeholder. Changelog reordered newest-first per hook discipline. BC-INDEX title synced to H1 (added "and"). |
 | 1.1 | D-319-post-merge-state-burst | 2026-05-10 | state-manager | lifecycle draft → active per ADR-021 POL-14 (S-WAVE5-PREP-01 merged at develop@53b87961 PR #138 2026-05-10T00:55:49Z). First active BC under SS-22 (Process Lifecycle). |
+| 1.0 | redirect-option-d-2026-05-08 | 2026-05-08 | product-owner | Initial authorship — Option (d) decomposition: 4 subsystem init contracts relocated to native SS; this BC holds only the cross-cutting orchestration (sequencing, exit-code map, traffic gate). |

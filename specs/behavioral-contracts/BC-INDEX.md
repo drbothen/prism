@@ -1,7 +1,7 @@
 ---
 document_type: behavioral-contract-index
 level: L3
-version: "4.61"
+version: "4.62"
 status: draft
 producer: product-owner
 timestamp: 2026-05-12T07:30:00
@@ -237,8 +237,8 @@ Phase 3-patch additions (2026-04-16): 22 new BCs added in Burst 1 to close trace
 | BC-2.20.003 | Log Forwarder Queue Cap — Drop-Oldest on Overflow with Metric Emission | 20 - Observability / Log Forwarding | CAP-035 | P0 | draft |
 | BC-2.20.004 | Log Forwarder Credential Resolution — AD-017 Opaque Reference Model at Forward Time | 20 - Observability / Log Forwarding | CAP-035 | P0 | draft |
 | BC-2.20.005 | Log Forwarder Destination Isolation — Single Failed Destination Must Not Block Others | 20 - Observability / Log Forwarding | CAP-035 | P0 | draft |
-| BC-2.21.001 | OrgRegistry Initialization — Empty-Org-List Exit 2, Bijective Resolution Ready | 21 - Identity & Core Types | CAP-038 | P0 | active |
-| BC-2.22.001 | Boot Orchestration — Sequencing, Exit-Code Map, Pre-Traffic Gate | 22 - Binary Entrypoint | CAP-034 | P0 | active |
+| BC-2.21.001 | OrgRegistry Initialization — Bijective Resolution Verified at Process Start | 21 - Identity & Core Types | CAP-038 | P0 | draft |
+| BC-2.22.001 | Boot Orchestration — Sequencing, Exit-Code Map, and Pre-Traffic Gate | 22 - Binary Entrypoint | CAP-034 | P0 | draft |
 
 ## Wave 3 — Phase 3.A Behavioral Contracts (2026-04-27)
 
@@ -359,6 +359,8 @@ Phase 3-patch additions (2026-04-16): 22 new BCs added in Burst 1 to close trace
 - Subsystem 19: Infusion Enrichment Framework (AD-020, CAP-031)
 
 ### Change Log (Adversarial Review Fixes)
+
+**v4.62 (2026-05-12):** D-454 ADR-025 BC lifecycle sweep — BC-2.22.001 v1.1→v1.2 (status:accepted→draft, lifecycle:active removed, template fields added, changelog reordered newest-first, BC-INDEX title synced to H1 adding "and"); BC-2.06.011 v1.2→v1.3 (lifecycle:active removed, template fields added, input-hash computed); BC-2.21.001 v1.1→v1.2 (lifecycle:active removed, template fields added, input-hash computed). Per ADR-025: `status:` is sole canonical lifecycle field; `lifecycle:` field retired. total_contracts=235 unchanged; active_contracts=228 unchanged.
 
 **v4.61 (2026-05-12):** S-PLUGIN-PREREQ-C-fix-burst-1 — BC-2.16.002 v1.9 → v1.10 (PREREQ-C fix-burst-1 catalog amendment: +2 event_type rows for jsonpath_extraction_failed and jsonpath_size_cap_exceeded). total_contracts=235 unchanged; active_contracts=228 unchanged.
 
