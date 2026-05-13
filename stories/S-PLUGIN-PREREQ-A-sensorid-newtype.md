@@ -18,7 +18,7 @@ tdd_mode: strict
 crates_touched: [prism-core, prism-sensors, prism-query, prism-spec-engine]
 target_module: prism-core
 subsystems: [SS-01, SS-11, SS-16, SS-21]
-version: "1.6"
+version: "1.7"
 level: "L4"
 producer: story-writer
 timestamp: "2026-05-11T08:00:00Z"
@@ -142,10 +142,10 @@ Within the 30% context window budget (~40k tokens for a 128k-context agent).
    Update the `AdapterNotFound` error variant field type accordingly.
 
 6. **Update all four `impl SensorAdapter for ...` blocks** in `prism-sensors/src/auth/`:
-   - `crowdstrike.rs:378`: return `SensorId::from("crowdstrike")`
-   - `cyberint.rs:255`: return `SensorId::from("cyberint")`
-   - `claroty.rs:248`: return `SensorId::from("claroty")`
-   - `armis.rs:559`: return `SensorId::from("armis")`
+   - `crowdstrike.rs`: return `SensorId::from("crowdstrike")`
+   - `cyberint.rs`: return `SensorId::from("cyberint")`
+   - `claroty.rs`: return `SensorId::from("claroty")`
+   - `armis.rs`: return `SensorId::from("armis")`
 
 7. **Update `prism-sensors/src/registry.rs`**:
    - Change `HashMap<(OrgId, SensorType), Arc<dyn SensorAdapter>>` → `HashMap<(OrgId, SensorId), Arc<dyn SensorAdapter>>`
@@ -531,7 +531,7 @@ land in a single commit. There is no intermediate state where `SensorType` is de
 `fn sensor_type(&self) -> SensorType` still exists — the workspace will not compile. Stage all
 23+ file changes before issuing any `git commit`. CI will reject any non-green intermediate state.
 
-**Latency dispatch site (explain.rs:1046):** The four sensor-specific latency estimates (250ms
+**Latency dispatch site (`prism_query::explain::explain` — sensor latency match):** The four sensor-specific latency estimates (250ms
 CrowdStrike, 400ms Cyberint, 350ms Claroty, 300ms Armis) should migrate to either:
 - A `match sensor_id.as_ref() { "crowdstrike" => 250, "cyberint" => 400, ... _ => 300 }` —
   acceptable for this story because it is feature-equivalent and not a closed-enum violation
@@ -572,6 +572,7 @@ The story is shipped when ALL of the following are true:
 
 | Version | Burst | Date | Author | Changes |
 |---------|-------|------|--------|---------|
+| 1.7 | D-449 | 2026-05-12 | state-manager | TD-VSDD-095 closed in-scope per production-grade default (CLAUDE.md Canonical Principle Rule 3). 5 volatile pins stripped: Task 6 line-number citations removed from crowdstrike.rs/cyberint.rs/claroty.rs/armis.rs (4 pins, `:NNN` suffixes stripped, file paths retained); Implementation Notes explain.rs:1046 pin pivoted to function-name form `prism_query::explain::explain — sensor latency match` (1 pin). Original TD deferral rationale "opportunistic cleanup window" failed all three Rule 3 gates. |
 | 1.6 | D-398-post-merge | 2026-05-11 | state-manager | POL-14 post-merge status flip: status ready→merged. Merge metadata recorded: pr_number 142, merge_commit 90d7c80f, merged_at 2026-05-11T16:37:14Z. PR #142 squash-merged to develop@90d7c80f. BC-2.01.013 status promoted draft→active per POL-14 (anchor story merged). PREREQ-B/C/D/E now UNBLOCKED for dispatch. |
 | 1.5 | PR-LEVEL-fix-burst-1 | 2026-05-11 | story-writer | Closed F-PR1-HIGH-001 (subsystems frontmatter mis-anchor): replaced [SS-01, SS-02, SS-08, SS-16] with correctly anchored set [SS-01, SS-11, SS-16, SS-21] per ARCH-INDEX. Removed SS-02 (prism-ocsf not touched) and SS-08 (prism-mcp not touched). Added SS-21 (prism-core, SensorId newtype home) and SS-11 (prism-query, 7 dispatch sites converted). Verified residual subsystems against PR diff scope. Closed F-PR1-MED-002: added `crates/prism-query/src/cache_key.rs` to §File Structure Requirements; created AC-12 (type-alias inventory) enforcing workspace-wide grep for `pub type SensorId` patterns. Lessons codified as LP-PR1-001 (file-structure derivation must include type-alias grep). These amendments close shadow-alias and subsystem-anchor drift detected in PR-LEVEL adversary pass-1 (was missed across 12 LOCAL passes). |
 | 1.4 | pass-9-state-burst | 2026-05-11 | state-manager | F-LP9-MED-002 closure — OPTION B adopted: §Red Gate Test Set amended with canonical BC-prefixed test names; original design-phase names retained as parentheticals for audit-trail. input-hash unchanged (6954524 — external inputs ADR-023 v1.18 + BC-2.01.013 v1.5 unchanged). |

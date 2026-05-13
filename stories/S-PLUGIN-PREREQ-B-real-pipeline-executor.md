@@ -34,7 +34,7 @@ target_module: prism-spec-engine
 #   and the new auth interface is consumed at query time through the same dispatch path that
 #   SS-01 currently owns.
 subsystems: [SS-16, SS-01]
-version: "1.23"
+version: "1.24"
 level: "L4"
 producer: state-manager
 timestamp: "2026-05-12T07:30:00Z"
@@ -455,7 +455,7 @@ pub async fn execute(
 ) -> Result<PipelineResult, PrismError>
 ```
 
-Call site in `tests/bc_2_16_002_test.rs:241` must be updated to match the new signature.
+Call site in `tests/bc_2_16_002_test.rs` must be updated to match the new signature.
 
 ---
 
@@ -564,6 +564,7 @@ This story is shipped when ALL of the following are true:
 
 | Version | Burst | Date | Author | Changes |
 |---------|-------|------|--------|---------|
+| 1.24 | D-449 | 2026-05-12 | state-manager | TD-VSDD-095 closed in-scope per production-grade default (CLAUDE.md Canonical Principle Rule 3). 1 volatile pin stripped: Match-Site/Stub Replacement Inventory narrative prose `tests/bc_2_16_002_test.rs:241` → `tests/bc_2_16_002_test.rs` (`:NNN` suffix removed). Original TD deferral rationale "opportunistic cleanup window" failed all three Rule 3 gates. |
 | 1.23 | prereq-b-post-merge | 2026-05-12 | state-manager | status: draft → merged. PR #143 squash-merged at develop@ae7e26c8 2026-05-12T06:58:48Z. 16 LOCAL passes + 13 fix-bursts + PR-LEVEL 1/1 CLEAN + 34/34 CI + pr-reviewer APPROVE. LOCAL CONVERGED milestone. BC-2.16.002 v1.8 → v1.9 active per POL-14 (behavioral_contracts array cite). Unblocks PREREQ-C dispatch. |
 | 1.22 | prereq-b-pass-16 | 2026-05-12 | state-manager | pass-16 CLEAN; streak 2/3 → 3/3. **LOCAL CONVERGENCE DECLARED per BC-5.39.001.** 16 LOCAL passes + 13 fix-bursts → 3/3 CLEAN. Zero findings across 13 novel dimensions (P16-A..M). All 5 BC-5.39.001 criteria met: (1) 3/3 streak (passes 14/15/16); (2) 14/14 BC v1.8 catalog rows test-anchored; (3) zero unresolved CRIT/HIGH; (4) PG-LP11-001 codified in lessons.md, PG-LP12-001 closed; (5) trajectory 20→10→4→7→10→9→8→4→4→2→3→3→2→0→0→0 (3 consecutive zeros). Worktree HEAD b75f317e (unchanged). Pass-16 report: .factory/code-delivery/S-PLUGIN-PREREQ-B/adversarial-review/local-pass-16.md. STORY-INDEX v2.59→v2.60. STATE+HANDOFF v7.159→v7.160. |
 | 1.21 | prereq-b-pass-15 | 2026-05-12 | state-manager | pass-15 CLEAN; streak 1/3 → 2/3. Second consecutive CLEAN. Trajectory 20→10→4→7→10→9→8→4→4→2→3→3→2→0→0. Fix-burst-13 invariants re-verified load-bearing: 14 event_type literals ↔ 14 BC v1.8 catalog rows confirmed; ChainAuthProvider feature-gating intact; lessons.md honest. Part B P15-A..L novel-dimension sweep: ZERO actionable findings (compile-fail coverage, SpecEngineError runtime, zero-step pipeline, fan-out URL bounds, idempotency under retry, header injection, extract_at_path, pagination isolation, POL-13/POL-1/DI traceability). Pass-15 report: .factory/code-delivery/S-PLUGIN-PREREQ-B/adversarial-review/local-pass-15.md. STORY-INDEX v2.58→v2.59. STATE+HANDOFF v7.158→v7.159. |
