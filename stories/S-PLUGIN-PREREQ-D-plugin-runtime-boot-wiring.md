@@ -49,7 +49,7 @@ target_module: prism-bin
 #   format_version check all land in crates/prism-spec-engine/src/plugin/.
 subsystems: [SS-22, SS-17]
 capabilities: [CAP-029, CAP-032, CAP-034]
-version: "1.10"
+version: "1.11"
 level: "L4"
 producer: story-writer
 timestamp: "2026-05-13T10:30:00Z"
@@ -266,9 +266,12 @@ injected plugin-load failure (see Red Gate Tests).
 ### AC-3 — PRISM_DISABLE_PLUGIN_LOAD=1 skips plugin loading; audit entry emitted (traces to BC-2.22.001 §Postconditions — `PRISM_DISABLE_PLUGIN_LOAD=1` escape valve postcondition; `plugin_load_disabled_via_envvar` audit event name; ADR-023 §C4)
 
 When `PRISM_DISABLE_PLUGIN_LOAD=1` is set at boot, `PluginRuntime::load_all_plugins` is not
-called. A WARN log is emitted: `"Plugin loading disabled via PRISM_DISABLE_PLUGIN_LOAD=1"`. An
-audit log entry is written: `event_type: plugin_load_disabled_via_envvar`. The MCP server bind
-proceeds normally (zero plugins registered).
+called. A single `tracing::warn!(event_type = "plugin_load_disabled_via_envvar", message =
+"Plugin loading disabled via PRISM_DISABLE_PLUGIN_LOAD=1", env_var = "PRISM_DISABLE_PLUGIN_LOAD",
+...)` emission is made before the step is skipped. This one structured emission satisfies BOTH
+the WARN-level operator-visible log AND the audit-channel routing — the Level and routing are
+orthogonal per BC-2.22.001 v1.5 + BC-2.16.002 catalog discipline (same convention as
+`plugin_load_unsigned` per AC-4). The MCP server bind proceeds normally (zero plugins registered).
 
 ### AC-4 — Unsigned-plugin boot warning + per-plugin audit entry emitted (traces to BC-2.22.001 §Postconditions — happy-path plugin-load step 7.5 postcondition: `plugin_load_unsigned` audit event with `plugin_path` + `plugin_hash` fields; ADR-023 §C4; VP-PLUGIN-004)
 
@@ -881,6 +884,7 @@ comment explaining the addition.
 
 | Version | Burst | Date | Author | Change |
 |---------|-------|------|--------|--------|
+| 1.11 | pass-12 fix-burst-11 stage 1 | 2026-05-13 | story-writer | Closes F-LP12-LOW-001 (AC-3 prose single-emission clarity: dual-emission framing "A WARN log is emitted... An audit log entry is written" replaced with explicit single `tracing::warn!(event_type = "plugin_load_disabled_via_envvar", ...)` emission prose; orthogonal Level/routing cross-reference to BC-2.22.001 v1.5 + BC-2.16.002 catalog discipline added, matching AC-4 `plugin_load_unsigned` convention). F-LP12-OBS-001 (E-PLUGIN-008 dual-semantic reuse gap between BC-2.17.005 and BC-2.17.006) is out-of-story-perimeter; routed to state-manager for phase-5 deferred-findings list. Sibling-sweep (TD-VSDD-060): 5 mandatory greps all PASS — (1) zero hits `audit log entry is written` active body; (2) single remaining `audit log entry` hit is Changelog historical text only; (3) `event_type` body references all use single-emission framing consistent with BC-2.16.002; (4) Structured Event Catalog `plugin_load_disabled_via_envvar` Trigger column consistent with corrected AC-3; (5) EC-D-004 row uses `WARN + audit plugin_load_disabled_via_envvar` concise framing (no dual-emission implication). AC-4 2-emission framing preserved — no regression. Token Budget delta +~160 chars (~40 tokens); Total ~39,900 (within 50-token tolerance; no recompute required). |
 | 1.10 | pass-11 fix-burst-10 stage 1 | 2026-05-13 | story-writer | Closes F-LP11-LOW-001 (4 sibling-prose sites carrying `Some(...)` Option-wrapping from fix-burst-4 F-LP4-LOW-003 — surviving passes 5–10): Site 1 Scope bullet (construct `HostState { allowed_urls: parsed_hostnames }`); Site 2 Task 1 success path (same); Site 3 Task 2 first bullet (rewrite: `Replace allowed_urls: None field-default with Vec<String> parameter; field type retired from Option<Vec<String>> to Vec<String> per AC-17; None-branch type-system-impossible`); Site 4 Match-Site Inventory closure column (`parsed_hostnames value (Vec<String> per AC-17; None-branch type-system-impossible)`). Closes F-LP11-LOW-002 (Token Budget percentage cell 15.5% → 15.6%: 39,900 / 256,000 = 15.586%, rounds half-up to 15.6%; Total row unchanged at ~39,900). Sibling-sweep (TD-VSDD-060): 5 mandatory greps all PASS — zero hits for `Some(parsed_hostnames)`, `Some(urls_from_manifest)`, `allowed_urls: Some`, `approximately 15.5`; exactly one hit for `approximately 15.6`. |
 | 1.9 | pass-10 fix-burst-9 stage 1 | 2026-05-13 | story-writer | Closes F-LP10-LOW-001 (Task 14 + Previous Story Intelligence item 1 Path B sibling-prose propagation). Task 14 reworded from "Update Structured Event Catalog" (implies implementer authors rows) to "Verify Structured Event Catalog wiring" with explicit instruction to emit from BC-2.16.002 v1.11 function-name anchors and amend only if new sites are discovered. Previous Story Intelligence item 1 corrected from "must add all 7 rows" to "all 7 rows already exist in BC-2.16.002 v1.11 (Path B, fix-burst-8 commit 4ed96e06); implementer wires emission sites to match BC row metadata." Upstream PO Path B at `4ed96e06`. Sibling-site sweep confirmed zero additional sites carrying old "add"/"author catalog rows" or "rows do not yet exist" framing. Token Budget delta +~110 tokens; Total recomputed below (see §Token Budget Estimate). |
 | 1.8 | pass-9 fix-burst-8 stage 2 | 2026-05-13 | story-writer | F-LP9-MED-001 story portion: Catalog Additions preamble updated to Path B — events already added to BC-2.16.002 v1.11 in fix-burst-8 stage 1 (commit 4ed96e06); implementer role reframed from "will add" to "verify wiring matches BC row". Table metadata corrected to match BC-2.16.002 v1.11 canonical rows: (1) `plugin_load_disabled_via_envvar` emitter corrected from `boot.rs plugin-load step` → `boot::plugin_load_step` (TD-VSDD-091 function-name anchor); (2) `plugin_load_disabled_via_envvar` Level corrected from `WARN/AUDIT` → `WARN` (BC v1.11 authoritative); (3) `plugin_http_request_blocked` Level corrected from `WARN/AUDIT` → `WARN` (BC v1.11 authoritative); (4) trigger text for `plugin_load_unsigned` and 5 other rows aligned to BC v1.11 prose. Sister-site sweep: no "PipelineExecutor catalog" old framing found in story file (grep confirmed zero hits). F-LP9-LOW-001: AC-9 body closure note temporal contradiction resolved — Form A: "Closed by BC-2.17.002 v1.4 amendment (fix-burst-6); current pinned version v1.5 (fix-burst-7 lifecycle_status-only sweep)." Upstream PO stage 1 at factory SHA `4ed96e06`. |
