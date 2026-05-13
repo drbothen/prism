@@ -59,6 +59,17 @@ default = []
 # NEVER enable in production deps — these types bypass real auth.
 test-helpers = []
 
+# ADR-024 — ColumnType shadow enum retirement.
+# prism_spec_engine::types::ColumnType was a locally-defined shadow enum.
+# It has been replaced by `pub use prism_core::column::ColumnType` which preserves
+# the same public import path (prism_spec_engine::types::ColumnType and
+# prism_spec_engine::ColumnType are still fully importable and type-identical).
+# cargo-semver-checks v0.47 fires `enum_missing` because the rustdoc item of kind
+# `enum` is gone from this crate's JSON even though the path is preserved via re-export.
+# This is an intentional, ADR-024-directed breaking change with path-stability preserved.
+[package.metadata.cargo-semver-checks.lints]
+enum_missing = "allow"
+
 [lints.rust]
 # Allow #[cfg(kani)] without a registered cfg — kani is not a Cargo feature
 # kani is invoked via `cargo kani` which sets cfg(kani) automatically.
