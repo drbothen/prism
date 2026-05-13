@@ -49,10 +49,10 @@ target_module: prism-bin
 #   format_version check all land in crates/prism-spec-engine/src/plugin/.
 subsystems: [SS-22, SS-17]
 capabilities: [CAP-029, CAP-032, CAP-034]
-version: "1.3"
+version: "1.4"
 level: "L4"
 producer: story-writer
-timestamp: "2026-05-13T07:35:00Z"
+timestamp: "2026-05-13T09:00:00Z"
 updated: "2026-05-13"
 input-hash: "6954524"
 traces_to: []
@@ -317,15 +317,19 @@ The ordering guarantee: manifest validation (BC-2.17.007) → WIT compilation �
 
 ### AC-7 — Allowlist enforcement in host_http_request: host-only comparison (traces to BC-2.17.002 postcondition; ADR-023 §C4 F-CRIT-NEW-002; VP-PLUGIN-007)
 
-After PREREQ-D lands, `make_host_state()` constructs `HostState { allowed_urls: Some(parsed_hostnames) }`.
-The `parsed_hostnames` are the bare hostnames from the manifest `allowed_urls` list (e.g.,
-`"api.crowdstrike.com"` not `"https://api.crowdstrike.com/"`). `host_http_request` enforces:
+After PREREQ-D lands, `make_host_state()` constructs `HostState { allowed_urls: parsed_hostnames }`
+(type `Vec<String>`, not `Option<Vec<String>>` — see AC-17). The `parsed_hostnames` are the bare
+hostnames from the manifest `allowed_urls` list (e.g., `"api.crowdstrike.com"` not
+`"https://api.crowdstrike.com/"`). `host_http_request` enforces:
 
-- If `allowed_urls` is `None`: this state must not occur after PREREQ-D (VP-PLUGIN-007 asserts `Some`); if somehow `None`, all requests are rejected with HTTP 403 to the plugin
-- If `allowed_urls` is `Some(list)`: extract the host from the requested URL using `url::Url::parse`; compare against each entry in `list` using `==` (exact host-only match, not substring); mismatch → HTTP 403 returned to plugin + `WARN` log + `event_type: plugin_http_request_blocked` audit entry
+- Extract the host from the requested URL using `url::Url::parse`; compare against each entry in
+  `allowed_urls` using `==` (exact host-only match, not substring); mismatch → HTTP 403 returned
+  to plugin + `WARN` log + `event_type: plugin_http_request_blocked` audit entry
 
 The `TODO(S-4.08)` comment in `make_host_state()` is removed. The None-short-circuit in
-`host_http_request` is removed and replaced with the enforcement logic.
+`host_http_request` is removed and replaced with the enforcement logic. The `Option<Vec<String>>`
+→ `Vec<String>` field type change (AC-17) makes the None branch type-system-impossible; no
+defensive None handling is specified or required.
 
 ### AC-8 — Linker import list validated at build time via #[cfg(test)] assertion (traces to BC-2.17.002 invariant; ADR-023 §C4)
 
@@ -862,7 +866,8 @@ comment explaining the addition.
 
 | Version | Burst | Date | Author | Change |
 |---------|-------|------|--------|--------|
-| 1.3 | pass-3 fix-burst-3 | 2026-05-13 | story-writer | Closes F-LP3-MED-001 (Task 11 test list replaced with §Red Gate Tests reference; BC_2_17_006 mis-anchors on 2 test names corrected to BC_2_17_007 — manifest tests belong to BC-2.17.007 not BC-2.17.006/WIT), F-LP3-LOW-003 (AC-10 fixture path clarified: `trap_plugin.prx` compiled from `tests/fixtures/src/trap_plugin.wat`), F-LP3-LOW-004 (Match-Site Inventory out-of-scope TODO(S-4.08) rows now carry implementer rename instructions to distinguish closed vs open sites post-merge), F-LP3-OBS-005 (v1.2 changelog row updated: 6/8 in-story-file + 2/8 sibling artifacts = 8/8 closed across burst; VP-INDEX SHA and BC-2.17.007+policies.yaml SHA cited), F-LP3-OBS-006 (Architecture Compliance Rules spawn_blocking row re-anchored from BC-2.17.005 invariant to ADR-023 §C4 — BC-2.17.005 not in frontmatter). F-LP3-MED-002 dispatched to state-manager separately (23-BC POL-20 workspace sweep). 5/6 in-perimeter findings closed. |
+| 1.4 | pass-4 fix-burst-4 | 2026-05-13 | story-writer | Closes F-LP4-MED-002 (v1.3 changelog row truthfulness: row now accurately discloses that pass-3 state-manager sweep covered 24 BCs initially at SHAs 4f1cd312+2385b188, that pass-4 adversary caught 8 remaining BCs missed by unanchored grep per F-LP4-MED-001, and that completion + POL-20 anchored-regex amendment land in parallel state-manager commit). Closes F-LP4-LOW-003 (AC-7 None-arm cleanup: `Option<Vec<String>>` language removed; None branch was type-system-impossible after AC-17 changes field to `Vec<String>`; dead-code defensive spec stripped per option-a recommendation). 2/2 in-scope findings closed. State-manager parallel commit handles F-LP4-MED-001 (8 remaining BCs) + F-LP4-OBS-004 (POL-20 regex amendment). |
+| 1.3 | pass-3 fix-burst-3 | 2026-05-13 | story-writer | Closes F-LP3-MED-001 (Task 11 test list replaced with §Red Gate Tests reference; BC_2_17_006 mis-anchors on 2 test names corrected to BC_2_17_007 — manifest tests belong to BC-2.17.007 not BC-2.17.006/WIT), F-LP3-LOW-003 (AC-10 fixture path clarified: `trap_plugin.prx` compiled from `tests/fixtures/src/trap_plugin.wat`), F-LP3-LOW-004 (Match-Site Inventory out-of-scope TODO(S-4.08) rows now carry implementer rename instructions to distinguish closed vs open sites post-merge), F-LP3-OBS-005 (v1.2 changelog row updated: 6/8 in-story-file + 2/8 sibling artifacts = 8/8 closed across burst; VP-INDEX SHA and BC-2.17.007+policies.yaml SHA cited), F-LP3-OBS-006 (Architecture Compliance Rules spawn_blocking row re-anchored from BC-2.17.005 invariant to ADR-023 §C4 — BC-2.17.005 not in frontmatter). F-LP3-MED-002 dispatched to state-manager (pass-3 round 1) at SHAs 4f1cd312+2385b188 covering 24 BCs; pass-4 adversary caught 8 remaining BCs missed by unanchored verification grep (F-LP4-MED-001) → completion lands in parallel state-manager commit with POL-20 verification regex now anchored per F-LP4-OBS-004 closure (policies.yaml v1.10). 5/6 in-perimeter findings closed in this file. |
 | 1.2 | pass-2 fix-burst-2 | 2026-05-13 | story-writer | Closes F-LP2-MED-001 (AC-14 re-anchored story-local; hot-reload test names drop BC-2.17.005 prefix), F-LP2-MED-002 (BC-2.16.002 added to behavioral_contracts + anchor_bcs + inputs + body BC table; capabilities/anchor_capabilities updated to [CAP-029,CAP-032,CAP-034]; Token Budget 7→8 BCs), F-LP2-MED-003 (red_gate_tests 0→25), F-LP2-LOW-004 (CAP-034 already in capabilities via BC-2.22.001; anchor_capabilities now union-correct; capabilities updated to [CAP-029,CAP-032,CAP-034]), F-LP2-LOW-005 (AC-17 moved to follow AC-16 — body order now matches AC numbering), F-LP2-OBS-008 (.github/PULL_REQUEST_TEMPLATE.md non-crate note added to File Structure). 6/8 pass-2 findings closed in this story file; F-LP2-LOW-006 closed in VP-INDEX v1.34 (SHA 4218e72a); F-LP2-OBS-007 closed in BC-2.17.007 v1.1 + policies.yaml v1.9 (POL-20 adopted) (SHA 97deaf37); 8/8 closed in-scope across the burst. |
 | 1.1 | pass-1 fix-burst | 2026-05-13 | story-writer | Closes F-LP1-HIGH-002/003/005/006/007/008/009/010/011/012/013/014 + F-LP1-OBS-015/016 (14 findings). Re-anchors AC-5 to BC-2.17.007 (F-LP1-HIGH-004 PO fix). Drops BC-2.17.005 from frontmatter (scope gap per F-LP1-MED-010; S-1.12-FOLLOWUP owns watcher promotion). Adds BC-2.17.007 to frontmatter + body (8→7 BCs net after 2.17.005 drop + 2.17.007 add). Adds AC-17 (HostState #[non_exhaustive]) and AC-18 (PRISM_DISABLE_PLUGIN_LOAD precedence). Token budget updated. Fixture Strategy prose corrected to "4 fixtures". reqwest::Client single-instance semantics made explicit in AC-9, Architecture Mapping, and Implementation Notes. Test names standardized to BC/VP prefix convention. make_host_state sibling sites enumerated. sha2 workspace dep confirmed. wasmtime advisory count claim replaced with cargo-audit-based language. |
 | 1.0 | PREREQ-D authorship | 2026-05-13 | story-writer | Initial authorship. Scope derived from ADR-023 v1.18 §C4. 16 ACs, 5 TDs absorbed (TD-B-002/004/005/011/012). |
