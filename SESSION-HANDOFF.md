@@ -10,14 +10,14 @@ successor_focus: "## POST-COMPACT CURRENT STATE (D-445 — STEP 1 COMPLETE, STEP
 **CURRENT STATE (2026-05-13, D-460 — develop_head CORRECTED e408435e→95d46be2; v7.186)**
 
 **Pin SHAs:**
-- develop HEAD: 95d46be2 (D-460 correction: PR #148 ColumnType migration full SHA 95d46be2fa95, not e408435e; state-manager parallel-dispatch race resolved)
+- develop HEAD: 95d46be2 (D-460 correction: PR #148 ColumnType migration squash-merge; stale ref from D-459 parallel-dispatch race resolved)
 - worktrees: .worktrees/S-PLUGIN-PREREQ-C/ (archival), .worktrees/S-PLUGIN-PREREQ-B/ (archival), .worktrees/W3-FIX-S307-001 (archival), .worktrees/S-3.09 (FROZEN per D-298)
 - factory-artifacts HEAD: run `git -C .factory log -1 --format='%H'` (per TD-VSDD-053)
 - STATE.md / SESSION-HANDOFF: v7.184 → v7.185 → v7.186 (D-460 develop_head correction)
 - STORY-INDEX v2.67 (PREREQ-D story authored in parallel), BC-INDEX v4.63, tech-debt-register v2.19, ADR-022 v1.2, ARCH-INDEX v2.42, 92 active TDs
 
 **D-460 — develop_head CORRECTED e408435e→95d46be2 (2026-05-13, v7.186)**
-- Root cause: D-459 state-burst read develop HEAD before PR #148 squash-merged to origin/develop. Actual SHA: 95d46be2fa9541f0c1636493280570969760d8c3 (fix(prism-spec-engine): retire ColumnType shadow enum — ADR-024).
+- Root cause: D-459 state-burst read develop HEAD before PR #148 squash-merged to origin/develop. Correct SHA 95d46be2 (fix(prism-spec-engine): retire ColumnType shadow enum — ADR-024).
 - Process-gap codified (not new TD): orchestrator must serialize state-manager AFTER pr-manager merge confirmation in parallel-dispatch windows. POL-3 ('state-manager-last within burst') satisfied; cross-burst serialization discipline needed.
 - PREREQ-D story authored at factory SHA 72687483; adversary LOCAL cascade dispatched in parallel.
 - STATE+HANDOFF v7.185→v7.186.
