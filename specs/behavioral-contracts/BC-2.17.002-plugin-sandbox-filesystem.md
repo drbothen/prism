@@ -1,7 +1,7 @@
 ---
 document_type: behavioral-contract
 level: L3
-version: "1.3"
+version: "1.4"
 status: draft
 producer: product-owner
 timestamp: 2026-04-16T12:00:00
@@ -74,7 +74,7 @@ interfaces are deliberately NOT linked to plugin instances. This is INV-PLUGIN-0
 |-------|-----------|----------|
 | `E-PLUGIN-004` | Plugin attempts WASI filesystem/network call (import not linked) | WASM trap → `Err(PluginError::Trapped)` at call boundary |
 | `E-PLUGIN-005` | `host::http_request` URL not in configured allowlist | Plugin receives HTTP 403 response; host logs `WARN "Plugin '{plugin_id}' attempted HTTP to non-allowlisted URL: {url}"` |
-| `E-PLUGIN-005` | `host::http_request` times out (10s per request limit) | Plugin receives HTTP 408/timeout response; host audit-logs failure with latency |
+| `E-PLUGIN-005` | `host::http_request` times out (30s per request limit) | Plugin receives HTTP 408/timeout response; host audit-logs failure with latency |
 
 ## Edge Cases
 
@@ -136,6 +136,7 @@ Integration test: `tests/plugin_tests.rs` — "Verify `host::http_request` proxy
 
 | Version | Burst | Date | Author | Change |
 |---------|-------|------|--------|--------|
+| 1.4 | fix-burst-6-stage-1 | 2026-05-13 | product-owner | F-LP7-MED-001 closure: E-PLUGIN-005 timeout corrected from "10s per request limit" → "30s per request limit" per ADR-023 §C4 canonical plugin HTTP defaults. The 30s value matches `PLUGIN_HTTP_CLIENT_TIMEOUT_SECS = 30` constant in story AC-9 (S-PLUGIN-PREREQ-D) and the operational value enforced by the production reqwest::Client. No 10s load-bearing assertion exists — the 10s value was a spec authoring error. |
 | 1.3 | pass-69-housekeeping | 2026-04-20 | product-owner | Normalized changelog schema to canonical 5-col schema. |
 | 1.2 | pass-69-housekeeping | 2026-04-20 | product-owner | Resolved VP-TBD placeholder per decision matrix (ADD-VP-040); normalized changelog schema to canonical 5-col form. |
 | 1.1 | Wave-6-pre-build-sweep | 2026-04-20 | product-owner | Added frontmatter (inputs, input-hash, traces_to, extracted_from, lifecycle fields); renamed Error Cases → Error Conditions; added Canonical Test Vectors, Verification Properties, Changelog |
