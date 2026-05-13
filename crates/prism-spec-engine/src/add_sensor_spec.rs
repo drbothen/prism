@@ -188,10 +188,10 @@ pub fn parse_and_validate_spec_toml(
 fn parse_column_type(s: &str) -> ColumnType {
     match s.to_lowercase().as_str() {
         "string" | "text" | "varchar" => ColumnType::String,
-        "int64" | "int" | "integer" | "bigint" => ColumnType::Int64,
-        "float64" | "float" | "double" | "real" => ColumnType::Float64,
+        "int64" | "int" | "integer" | "bigint" => ColumnType::Integer,
+        "float64" | "float" | "double" | "real" => ColumnType::Float,
         "boolean" | "bool" => ColumnType::Boolean,
-        "timestamp" | "datetime" => ColumnType::Timestamp,
+        "timestamp" | "datetime" => ColumnType::Datetime,
         "json" | "object" => ColumnType::Json,
         _ => ColumnType::String, // default to string for unknown types
     }
