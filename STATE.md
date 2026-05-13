@@ -1,9 +1,9 @@
 ---
 document_type: pipeline-state
 level: ops
-version: "7.186"
+version: "7.187"
 producer: state-manager
-timestamp: 2026-05-13T02:05:00Z
+timestamp: 2026-05-13T06:32:00Z
 inputs: []
 input-hash: "[live-state]"
 traces_to: ""
@@ -22,7 +22,7 @@ repos:
   - axiathon
   - ocsf-proto-gen
   - mcp-claroty-xdome
-current_step: "D-460. POST-PARALLEL-DISPATCH SHA CORRECTION — develop_head e408435e→95d46be2 (PR #148 ColumnType migration merge landed during D-459 parallel dispatch window; state-manager used stale read). STATE+HANDOFF v7.185→v7.186. PREREQ-D story authored at SHA 72687483; adversary LOCAL cascade dispatched in parallel with this correction."
+current_step: "D-461. PREREQ-D adversary pass-1 BLOCKED-hard (1C/5H/5M/3L/2OBS). VP-INDEX named-alias semantic drift is CRITICAL. Fix-burst routing: architect+PO parallel, story-writer sequential, state-manager last. STATE+HANDOFF v7.186→v7.187."
 feature_branch_head: "ea958a4d"
 worktree_status: "merged"
 adversary_streak: "3/3 LOCKED"
@@ -183,9 +183,9 @@ workspace_test_count: 3598  # updated at D-433 fix-burst-1 closure (just check c
 | **Language** | Rust |
 | **Target Workspace** | per-analyst stdio (MCP server) |
 | **Started** | 2026-04-13 |
-| **Last Updated** | 2026-05-13 (D-460 — develop_head correction e408435e→95d46be2; post-D-459 parallel-dispatch race resolved; STATE+HANDOFF v7.185→v7.186) |
+| **Last Updated** | 2026-05-13 (D-461 — PREREQ-D adversary pass-1 BLOCKED-hard persisted; STATE+HANDOFF v7.186→v7.187) |
 | **Current Phase** | Wave 3 Tier-3 COMPLETE — **Wave 3-A 4 of 4 SHIPPED**; plugin migration: PREREQ-F + PREREQ-A + PREREQ-B + **PREREQ-C MERGED** (PR #144 ea958a4d 2026-05-12T23:14:05Z); PREREQ keystone trio COMPLETE; PLUGIN-MIGRATION Wave 1 unblocked; PREREQ-D/E pending |
-| **Current Step** | D-460 — develop_head corrected e408435e→95d46be2 (PR #148 full SHA; post-D-459 parallel-dispatch race). STATE+HANDOFF v7.185→v7.186. PREREQ-D story authored at factory SHA 72687483; adversary LOCAL cascade in flight. Step 3 (PREREQ-D TDD cascade) next. |
+| **Current Step** | D-461 — PREREQ-D adversary pass-1 BLOCKED-hard (1C/5H/5M/3L/2OBS). Fix-burst routing: architect (VP-INDEX F-LP1-CRIT-001) + product-owner (manifest BC F-LP1-HIGH-004) in parallel; story-writer sequential after; state-manager (POL amendment) last. STATE+HANDOFF v7.186→v7.187. |
 
 ## Phase Progress
 
@@ -228,6 +228,7 @@ _D-001..D-046 archived: [cycles/phase-3-dtu-wave-2/decisions-archive-d001-d032.m
 
 | ID | Decision | Rationale | Phase | Date |
 |----|----------|-----------|-------|------|
+| D-461 | 2026-05-13 | **PREREQ-D LOCAL adversary pass-1 BLOCKED-hard** (adversary). S-PLUGIN-PREREQ-D v1.0 at factory 72687483 reviewed against ADR-023 §C4 + 7 BCs + 2 VPs + 16 active policies. Verdict: BLOCKED-hard (1 CRIT + 5 HIGH + 5 MED + 3 LOW + 2 OBS). Critical: VP-INDEX named-aliases VP-PLUGIN-004/007 describe wrong properties semantically (TOML grammar/CustomAdapter instead of boot-warning/allowlist). 2 process-gaps codified: VP-INDEX semantic-sync (no standing policy) + manifest validation has no BC anchor. Fix-burst routing: architect (VP-INDEX F-LP1-CRIT-001) + product-owner (BC for manifest validation F-LP1-HIGH-004) in parallel; story-writer (story-content findings HIGH-002/003/005/006 + 5 MEDs + 3 LOWs + 2 OBS) sequential after; state-manager (VP-INDEX semantic-sync POL amendment) last. Streak 0/3. Report: cycles/wave-4-operations/adversarial-reviews/S-PLUGIN-PREREQ-D-pass-1.md. STATE+HANDOFF v7.186→v7.187. | plugin-migration | 2026-05-13 |
 | D-460 | 2026-05-13 | **develop_head correction (post-D-459 parallel-dispatch race)** (state-manager). D-459 state-burst committed develop_head=e408435e but actual current HEAD is 95d46be2 (PR #148 ColumnType migration merge landed during state-manager's parallel-dispatch window with pr-manager). Stale develop read. Correction: develop_head e408435e→95d46be2. Process-gap codification (not new TD): orchestrator must serialize state-manager AFTER pr-manager confirmation in future parallel-dispatch windows. Orchestrator rule 'state-manager runs LAST in every burst' (POL-3) was satisfied within the state-burst itself but not across cross-cutting dispatches. STATE+HANDOFF v7.185→v7.186. | plugin-migration | 2026-05-13 |
 | D-459 | 2026-05-13 | **STATE+HANDOFF v7.184→v7.185 + develop_head=e408435e** (state-manager). Burst H drift fixes + BC-2.03.013 sweep + installation.md path-resolution anchor + STATE/HANDOFF bump committed atomically. develop_head d3ad61a5 (prior session end) → e408435e (now; 4 PRs merged this session: #145 #146 #148 #147). bc_index_version 4.62→4.63; story_index_version v2.66→v2.67 (PREREQ-D story authored in parallel). | plugin-migration | 2026-05-13 |
 | D-458 | 2026-05-13 | **Burst H ~/.prism drift fixes + SP-1 codification** (state-manager). Sample-sweep of 23 ~/.prism hits found 4 DRIFTED + 3 AMBIGUOUS + 4 HISTORICAL + 12 CANONICAL. 4 DRIFTED fixed in-scope: S-WAVE5-PREP-01:171 (binary default clarified to dirs::config_dir-based path + installer bridge), S-6.05:129 (state_dir confirmed required in prism.toml — no dirs:: default; installer sets ~/.prism/state), config-schema.md:68 + observability.md:209 (stale Default comments replaced with installer-default vs binary-default split). 3 AMBIGUOUS anchored via clarifying notes (detection-rule-format.md + infusions.md File Organization sections; config-schema.md [Section Content] block). SP-1 addressed: installation.md §path-resolution anchor codifies installer-UX vs binary-default distinction. SP-2 (state_dir code documentation) addressed inline via code-confirmed finding (required field, no dirs:: resolution). Burst H CLOSED. | plugin-migration | 2026-05-13 |
