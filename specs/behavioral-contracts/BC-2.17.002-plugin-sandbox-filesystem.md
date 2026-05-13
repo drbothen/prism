@@ -1,7 +1,7 @@
 ---
 document_type: behavioral-contract
 level: L3
-version: "1.4"
+version: "1.5"
 status: draft
 producer: product-owner
 timestamp: 2026-04-16T12:00:00
@@ -9,9 +9,9 @@ phase: 2-patch
 origin: greenfield
 subsystem: "SS-17"
 capability: "CAP-032"
-lifecycle_status: active
+lifecycle_status: draft
 introduced: cycle-1
-modified: 2026-04-20
+modified: 2026-05-13
 deprecated: ~
 deprecated_by: ~
 replacement: ~
@@ -136,6 +136,7 @@ Integration test: `tests/plugin_tests.rs` — "Verify `host::http_request` proxy
 
 | Version | Burst | Date | Author | Change |
 |---------|-------|------|--------|--------|
+| 1.5 | fix-burst-7-stage-1A | 2026-05-13 | product-owner | F-LP8-HIGH-001 + F-LP8-LOW-001 closure (Path B): `lifecycle_status: active` → `lifecycle_status: draft`. BC-INDEX v4.68 rows confirm `draft` status; S-PLUGIN-PREREQ-D is pre-merge — no story PR has merged with this BC in its `behavioral_contracts:` array. `lifecycle_status: active` was set in Wave-6-pre-build-sweep v1.1 pre-POL-14 canonicalization (legacy artifact). Per POL-14 (`bc_vp_promotion_on_anchor_merge`), auto-promotion to `active` will occur at S-PLUGIN-PREREQ-D PR merge. |
 | 1.4 | fix-burst-6-stage-1 | 2026-05-13 | product-owner | F-LP7-MED-001 closure: E-PLUGIN-005 timeout corrected from "10s per request limit" → "30s per request limit" per ADR-023 §C4 canonical plugin HTTP defaults. The 30s value matches `PLUGIN_HTTP_CLIENT_TIMEOUT_SECS = 30` constant in story AC-9 (S-PLUGIN-PREREQ-D) and the operational value enforced by the production reqwest::Client. No 10s load-bearing assertion exists — the 10s value was a spec authoring error. |
 | 1.3 | pass-69-housekeeping | 2026-04-20 | product-owner | Normalized changelog schema to canonical 5-col schema. |
 | 1.2 | pass-69-housekeeping | 2026-04-20 | product-owner | Resolved VP-TBD placeholder per decision matrix (ADD-VP-040); normalized changelog schema to canonical 5-col form. |

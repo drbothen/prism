@@ -1,7 +1,7 @@
 ---
 document_type: behavioral-contract
 level: L3
-version: "1.1"
+version: "1.2"
 status: draft
 producer: product-owner
 timestamp: 2026-05-13T00:00:00Z
@@ -9,7 +9,7 @@ phase: 3.A
 origin: greenfield
 subsystem: "SS-17"
 capability: "CAP-032"
-lifecycle_status: active
+lifecycle_status: draft
 introduced: 2026-05-13
 modified: 2026-05-13
 deprecated: ~
@@ -176,5 +176,6 @@ VP-PLUGIN-007 (VP-152): `PluginRuntime` allowlist not-None post-boot assertion �
 
 | Version | Burst | Date | Author | Change |
 |---------|-------|------|--------|--------|
+| 1.2 | fix-burst-7-stage-1A | 2026-05-13 | product-owner | F-LP8-HIGH-001 closure (Path B): `lifecycle_status: active` → `lifecycle_status: draft`. S-PLUGIN-PREREQ-D is pre-merge — this BC was introduced during fix-burst and has never been part of a merged story PR. `lifecycle_status: active` was set at initial authorship before POL-14 canonicalization applied to new BCs authored in-burst. Per POL-14 (`bc_vp_promotion_on_anchor_merge`), auto-promotion to `active` will occur at S-PLUGIN-PREREQ-D PR merge. |
 | 1.1 | state(D-464) | 2026-05-13 | state-manager | F-LP2-OBS-007 closure — `introduced:` field updated from opaque burst-ID notation to canonical date-keyed format per POL-20 (bc_introduced_field_canonical_format). No spec content change. |
 | 1.0 | wave-4-fix-burst-F-LP1-HIGH-004 | 2026-05-13 | product-owner | Initial contract — closes F-LP1-HIGH-004; establishes manifest schema validation as prerequisite gate before WIT validation (BC-2.17.006); authors E-PLUGIN-013/014/015/016 |

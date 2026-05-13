@@ -1,7 +1,7 @@
 ---
 document_type: behavioral-contract
 level: L3
-version: "1.4"
+version: "1.5"
 status: active
 producer: product-owner
 timestamp: 2026-05-08T00:00:00Z
@@ -12,7 +12,7 @@ subsystem: "SS-22"
 capability: "CAP-034"
 lifecycle_status: active
 introduced: "2026-05-08"
-modified: [D-319-post-merge-state-burst, D-454, D-469, fix-burst-6-stage-1, fix-burst-6-stage-3]
+modified: [D-319-post-merge-state-burst, D-454, D-469, fix-burst-6-stage-1, fix-burst-6-stage-3, fix-burst-7-stage-1A]
 deprecated: null
 deprecated_by: null
 replacement: null
@@ -97,7 +97,7 @@ watchdog can only be reliably applied after the gate in step 8 has passed.
 **Plugin-load step (step 7.5) — happy path:**
 - `PluginRuntime::load_all_plugins` is called after step 7 (storage init) completes and before step 8 (QueryEngine + WriteExecutor construction)
 - Each `.prx` file discovered in the plugin directory is loaded, manifest-validated (BC-2.17.007), and registered
-- For every plugin loaded: audit event `plugin_load_unsigned` emitted at WARN with fields `plugin_path` and `plugin_hash` (sha256) — this is v1.0 behavior per ADR-023 §C4 (plugin signing deferred to v1.0+N)
+- For every plugin loaded: audit event `plugin_load_unsigned` emitted at WARN with fields `plugin_path` and `plugin_hash` (sha256) — this is v1.0 behavior per ADR-023 §C4 (plugin signing deferred to v1.0+N). Note: `plugin_load_unsigned` is emitted at `tracing::warn!` level; the WARN tracing level and the "audit" routing characteristic are orthogonal concerns — the tracing level signals operator-visible security relevance, while audit-channel routing is encoded by the `event_type: plugin_load_unsigned` structured field per BC-2.16.002.
 - Boot proceeds to step 8 after `load_all_plugins` returns
 
 **Plugin-load step (step 7.5) — `PRISM_DISABLE_PLUGIN_LOAD=1` escape valve:**
@@ -323,6 +323,7 @@ VP-NNN (Boot Sequencing Invariant) — proposed above; assigned by architect at 
 
 | Version | Burst | Date | Author | Change |
 |---------|-------|------|--------|--------|
+| 1.5 | fix-burst-7-stage-1A | 2026-05-13 | product-owner | F-LP8-MEDIUM-001 closure (Option A): added clarifying sentence to §Postconditions plugin-load happy-path block after `plugin_load_unsigned` emission statement. Clarification: WARN is the correct `tracing` level for `plugin_load_unsigned` (operator-visible security relevance); "audit" is a routing characteristic encoded by the `event_type` structured field, not a tracing level. WARN and audit-channel routing are orthogonal. Story Structured Event Catalog Level column value of "AUDIT" describes the role/routing of the event — the implementing `tracing::warn!` call is the authoritative tracing level. No BC postcondition changed. |
 | 1.4 | fix-burst-6-stage-1 | 2026-05-13 | product-owner | F-LP7-HIGH-003 closure: added plugin-load step 7.5 throughout — §Description (mentions BC-2.17.007 as new related subsystem), §Postconditions (new blocks for happy path / PRISM_DISABLE_PLUGIN_LOAD escape valve / individual manifest failure / fatal failure), §Sequencing Invariant (step 7.5 intercalation with 7.5-numbering rationale), §Exit-Code Map (plugin-load rows for fatal failure exit(4) and partial-load non-exit), §Pre-Traffic Gate Invariant (condition 6 plugin-load), §Invariants (plugin-load ordering + audited-disable rule), §Related BCs (BC-2.17.007), §Architecture Anchors (ADR-023 §C4), §Traceability ADR Source (ADR-023 §C4), inputs frontmatter (ADR-023 + BC-2.17.007). Step 7.5 fractional numbering avoids cascading renumber of ADR-022 §B and boot.rs function names. All plugin-load semantics sourced from ADR-023 §C4 as authoritative truth. |
 | 1.3 | state(D-469/470/471) | 2026-05-13 | state-manager | F-LP4-MED-001 closure: `introduced: "redirect-option-d-2026-05-08"` → `introduced: "2026-05-08"` (extract embedded ISO date per POL-20 canonical format for fix-burst-introduced BCs). input-hash unchanged (d852024 — inputs not modified). |
 | 1.2 | D-454 | 2026-05-12 | state-manager | ADR-025 sweep: `lifecycle: active` removed (ADR-025 retires `lifecycle:` field; `status:` is sole canonical authority). `status: accepted` corrected to `status: draft` (accepted is not a valid status taxonomy value). Template fields added: `extracted_from`, `lifecycle_status`, `introduced`, `modified`, `deprecated`, `deprecated_by`, `replacement`, `retired`, `removed`, `removal_reason`. `input-hash` computed from placeholder. Changelog reordered newest-first per hook discipline. BC-INDEX title synced to H1 (added "and"). |
