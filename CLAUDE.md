@@ -200,6 +200,65 @@ These project-specific operational rules layer onto the canonical principle. Rec
 - **TD-FACTORY-HOOK-BYPASS-001 P0** — Use Edit/Write tools ONLY for `.factory/` mutations. NEVER use Python/sed/echo bypass. Enforced by POL-3.
 - **POL-14 — Auto-promotion at merge.** When a story's PR merges, BCs in `behavioral_contracts` frontmatter auto-promote `draft → active`. State-manager runs this transition.
 
+## Conventions (Code-Level)
+
+Prism-specific coding patterns enforced by CI and/or adversarial review. These are non-negotiable under the production-grade default — violations are bugs, not style preferences.
+
+### Highlights
+
+- **`#[non_exhaustive]` discipline.** All public TOML-deserialized types and pub-API surface types require `#[non_exhaustive]`. 30+ types currently enforced via the compile-fail gate at `tests/external/perimeter-violation/` (AC-5 of S-PLUGIN-PREREQ-C; `ci.yml EXPECTED=30` is the authority). External match arms must include a wildcard `_ => {}` arm. New public types added to `prism-core` or `prism-spec-engine` need `#[non_exhaustive]` added before the PR can merge.
+
+- **Arc-DI plumbing.** Production runtime wires dependencies via `Arc<dyn ...>` constructors per ADR-022. The placeholder-construct anti-pattern (constructing a type without wiring real Arc dependencies "for now") is explicitly forbidden (Standing Rule 3 §4 in SESSION-HANDOFF.md). Adding `Arc<dyn Foo>` to a constructor that lacked it is "wiring, not redesign" and must be done in-scope.
+
+- **Structured event catalog discipline.** Every `tracing::*!(event_type=…)` site must appear as a row in BC-2.16.002 Structured Event Catalog with full field schema, audit role, and recurrence policy (PG-LP11-001, established during S-PLUGIN-PREREQ-B cascade). New emission sites added without a corresponding BC-2.16.002 row are a P1 finding in adversarial review.
+
+- **Newtype + redacted `Debug` for credentials.** Sensitive types (`AuthToken`, `OrgSlug`, credential names) use newtypes with redacted `Debug` impls. `OrgSlug::new_unchecked` is test-helpers-feature-gated and must not appear in production code paths. Credential values never transit AI context (AD-017; see project memory `project_ai_opaque_credentials.md`).
+
+- **ColumnType canonical naming.** `prism_core::column::ColumnType` (variants `String / Integer / Float / Boolean / Datetime / Json`) is the canonical sensor schema API (ADR-024). The retired shadow enum `prism_spec_engine::types::ColumnType` must not be reintroduced. The distinct `prism_core::types::ColumnType` (variants `Text / Int64 / UInt64 / Float64 / Bool / Timestamp / Json / Bytes`) serves internal table schemas only — do not conflate the two.
+
+- **Error taxonomy.** Use `SpecEngineError` for spec-engine failures, `E-QUERY-NNN` codes for query engine errors, `E-SENSOR-NNN` for sensor adapter errors — all defined in `.factory/specs/prd-supplements/error-taxonomy.md`. No `unwrap()` or `expect()` in critical code paths. No silent `Vec::new()` return where partial-failure data should propagate (Standing Rule 3 §2).
+
+- **No `println!` in production code.** Use `tracing::*!` with structured fields only. `println!` is restricted to examples and CLI formatting helpers.
+
+- **Perimeter-violation compile-fail gates.** `tests/external/perimeter-violation/` is the canonical pattern for enforcing pub-API surface invariants (E0432 from S-PLUGIN-PREREQ-A, E0639 from S-PLUGIN-PREREQ-C). New compile-fail gates for future API surface invariants use this crate as the template.
+
+- **Single-workspace MSRV.** Toolchain is pinned via `rust-toolchain.toml`. No per-crate MSRV divergence. All crates build on the single pinned channel.
+
+- **OCSF normalization.** Sensor adapters emit OCSF + protobuf shapes per the project vision (ephemeral federated query engine, see `project_core_architecture_insight.md` memory). Raw API responses are not forwarded; they are normalized at the adapter boundary.
+
+- **HTTP client timeout.** Production `reqwest::Client` instances must use `.timeout(Duration::from_secs(30))`. The missing production timeout is tracked as TD-S-PLUGIN-PREREQ-B-005 P2 (PipelineExecutor HTTP client wired via `reqwest::Client::builder()` but default timeout is infinite; production wiring gap open as of 2026-05-12).
+
+### Forbidden patterns
+
+| Pattern | Reason |
+|---------|--------|
+| `prism_spec_engine::types::ColumnType::Int64` / `::Float64` / `::Timestamp` | Retired shadow enum variants (ADR-024); use `prism_core::column::ColumnType::Integer` / `::Float` / `::Datetime` |
+| `lifecycle: active` in BC frontmatter | Retired field (ADR-025); use `lifecycle_status: active` + `status:` per ADR-021 |
+| `OrgSlug::new_unchecked` outside `#[cfg(feature = "test-helpers")]` | Credential safety (AD-017) |
+| `Arc::new(SomeThing::placeholder())` style stub construction in production boot path | ADR-022 wiring contract; placeholder-construct is Standing Rule 3 §4 violation |
+| `reqwest::Client::new()` without `.timeout()` in production code | TD-S-PLUGIN-PREREQ-B-005 P2 open gap; must set 30s timeout |
+| `unwrap()` / `expect()` on `Result` in non-test code paths | Error taxonomy rule; use `?` + structured `SpecEngineError` / `PrismError` variants |
+| `tracing::*!(event_type=…)` without BC-2.16.002 catalog row | PG-LP11-001; structured event catalog must be kept in sync |
+
+### Error handling
+
+- Sensor adapter errors: return `SpecEngineError` variants from `.factory/specs/prd-supplements/error-taxonomy.md` `E-SENSOR-NNN` namespace.
+- Query engine errors: `E-QUERY-NNN` variants from `prism_core::error::PrismError`.
+- Partial failures in fan-out: propagate via `prism-query` partial-failure handling (BC-2.01.010); do not swallow and return empty `Vec`.
+- Boot step failures: exit codes per ADR-022 §A table; `exit(4)` for audit init failure (BC-2.05.012), `exit(5)` for credential init failure (BC-2.03.013).
+
+### Logging
+
+- Use `tracing::info!` / `tracing::warn!` / `tracing::error!` / `tracing::debug!` with structured field syntax: `tracing::info!(sensor_id = %id, event_type = "fetch.started", "fetching sensor data")`.
+- All `event_type` values must be registered in BC-2.16.002 Structured Event Catalog before the PR merges.
+- Log target discipline: 18 diagnostic targets defined in `architecture/observability.md`; match the target to the subsystem.
+
+### Channels / async
+
+- Tokio multi-threaded runtime (AD-013). All sensor fan-out is async. Do not block the tokio thread pool with synchronous I/O.
+- Arc-swap for config hot-reload (AD-007): read via `ArcSwap::load()`, not via Mutex. In-flight queries hold a snapshot reference across their lifetime.
+- Concurrency permit limits: 8 permits for sensor fetch + 8 permits for DataFusion execution per ADR-022 §D (D-209 8/8 split). Do not acquire both pools simultaneously without explicit justification.
+
 ### Conflict resolution
 
 If this principle conflicts with a vsdd-factory agent prompt, skill, or rule, this principle wins for prism. Upstream changes to canonicalize these principles across all VSDD projects are tracked in the `drbothen/vsdd-factory` GitHub issue tracker.
