@@ -1,9 +1,9 @@
 ---
 document_type: pipeline-state
 level: ops
-version: "7.185"
+version: "7.186"
 producer: state-manager
-timestamp: 2026-05-13T01:20:00Z
+timestamp: 2026-05-13T02:05:00Z
 inputs: []
 input-hash: "[live-state]"
 traces_to: ""
@@ -22,7 +22,7 @@ repos:
   - axiathon
   - ocsf-proto-gen
   - mcp-claroty-xdome
-current_step: "D-459. STEP 2 BURST H + BC-2.03.013 SWEEP + V7.185 — 4 ~/.prism drift fixes applied; 3 AMBIGUOUS-hit anchors added; BC-2.03.013 lifecycle:active removed; installation.md §path-resolution anchor added (SP-1 addressed in-scope). 4 PRs merged this session: #145 CLAUDE.md canonical principles, #146 CredentialRef consolidation, #147 CLAUDE.md prism-conventions, #148 ColumnType migration. TD-S-PLUGIN-PREREQ-C-001-A FULLY CLOSED. Step 2 COMPLETE except authoring follow-ups (story-writer dispatched in parallel for PREREQ-D Step 3 Stage 1). STATE+HANDOFF v7.184→v7.185."
+current_step: "D-460. POST-PARALLEL-DISPATCH SHA CORRECTION — develop_head e408435e→95d46be2 (PR #148 ColumnType migration merge landed during D-459 parallel dispatch window; state-manager used stale read). STATE+HANDOFF v7.185→v7.186. PREREQ-D story authored at SHA 72687483; adversary LOCAL cascade dispatched in parallel with this correction."
 feature_branch_head: "ea958a4d"
 worktree_status: "merged"
 adversary_streak: "3/3 LOCKED"
@@ -167,7 +167,7 @@ phase_2_patch_remediation_bursts: 20
 phase_2_patch_findings_total_fixed: 95
 phase_2_patch_convergence_rationale: "User override post pass-99. Semantic policies all PASS; meta-doc drift deferred to vsdd-factory lint hooks."
 user_directive_persistent: "No pragmatic convergence. Fix all issues before build."
-develop_head: "e408435e"
+develop_head: "95d46be2"
 vsdd_factory_version: "1.0.0-rc.16 (upgraded from rc.11 2026-05-10T07:38:25Z)"
 workspace_test_count: 3598  # updated at D-433 fix-burst-1 closure (just check clean 3598 tests pass)
 ---
@@ -183,9 +183,9 @@ workspace_test_count: 3598  # updated at D-433 fix-burst-1 closure (just check c
 | **Language** | Rust |
 | **Target Workspace** | per-analyst stdio (MCP server) |
 | **Started** | 2026-04-13 |
-| **Last Updated** | 2026-05-13 (D-459 — Burst H drift fixes + BC-2.03.013 ADR-025 sweep + installation.md path-resolution anchor + STATE+HANDOFF v7.184→v7.185) |
+| **Last Updated** | 2026-05-13 (D-460 — develop_head correction e408435e→95d46be2; post-D-459 parallel-dispatch race resolved; STATE+HANDOFF v7.185→v7.186) |
 | **Current Phase** | Wave 3 Tier-3 COMPLETE — **Wave 3-A 4 of 4 SHIPPED**; plugin migration: PREREQ-F + PREREQ-A + PREREQ-B + **PREREQ-C MERGED** (PR #144 ea958a4d 2026-05-12T23:14:05Z); PREREQ keystone trio COMPLETE; PLUGIN-MIGRATION Wave 1 unblocked; PREREQ-D/E pending |
-| **Current Step** | D-459 — STATE+HANDOFF v7.184→v7.185. Burst H drift fixes complete. BC-2.03.013 lifecycle:active removed (ADR-025). installation.md path-resolution anchor (SP-1). develop@e408435e (4 PRs merged: #145 #146 #148 #147). PREREQ-D story authored (story-writer parallel, STORY-INDEX v2.67). Step 2 COMPLETE. Step 3 (PREREQ-D TDD cascade) next. |
+| **Current Step** | D-460 — develop_head corrected e408435e→95d46be2 (PR #148 full SHA; post-D-459 parallel-dispatch race). STATE+HANDOFF v7.185→v7.186. PREREQ-D story authored at factory SHA 72687483; adversary LOCAL cascade in flight. Step 3 (PREREQ-D TDD cascade) next. |
 
 ## Phase Progress
 
@@ -217,10 +217,10 @@ workspace_test_count: 3598  # updated at D-433 fix-burst-1 closure (just check c
 
 | Step | Agent | Status | Output |
 |------|-------|--------|--------|
-| STEP 2 Burst A — STORY-INDEX cycle resolved (D-446) | state-manager | **COMPLETE** | STORY-INDEX:397 001-D depends_on corrected to PREREQ-A/B/C/D. TD-VSDD-094 P3 filed. tech-debt-register v2.15→v2.16. STATE+HANDOFF v7.179→v7.180. |
 | STEP 2 Burst B — ADR-022 volatile-pin strip (D-447) | state-manager | **COMPLETE** | ADR-022 v1.1→v1.2 — 18 pins stripped across 7 sections. TD-VSDD-091 CLOSED. TD-VSDD-095 P4 filed. ARCH-INDEX v2.40→v2.41. tech-debt-register v2.16→v2.17. STATE+HANDOFF v7.180→v7.181. |
 | STEP 2 Burst C — types.rs investigation closed (D-448) | state-manager | **COMPLETE** | Placeholder TD-S-PLUGIN-PREREQ-C-001 retired. TD-S-PLUGIN-PREREQ-C-001-A P4 filed (2 cosmetic consolidations ~45 min). 3 intentional splits + 1 unrelated + 1 parallel-concept confirmed. tech-debt-register v2.17→v2.18. STATE+HANDOFF v7.181→v7.182. |
 | STEP 2 Burst E — TD-VSDD-095 closed in-scope (D-449) | state-manager | **COMPLETE** | 5 volatile pins stripped: 4 in S-PLUGIN-PREREQ-A Task 6 (crowdstrike/cyberint/claroty/armis.rs `:NNN` removed, v1.6→v1.7); 1 in S-PLUGIN-PREREQ-A Impl Notes (explain.rs:1046 → function-name form); 1 in S-PLUGIN-PREREQ-B Match-Site §458 (bc_2_16_002_test.rs:241 → file-only, v1.23→v1.24). tech-debt-register v2.18→v2.19 (open_count 93→92). STATE+HANDOFF v7.182→v7.183. |
+| D-460 — develop_head correction (post-D-459 parallel-dispatch race) | state-manager | **COMPLETE** | develop_head e408435e→95d46be2 (PR #148 merge landed during D-459 parallel window). STATE+HANDOFF v7.185→v7.186. |
 
 ## Decisions Log
 
@@ -228,6 +228,7 @@ _D-001..D-046 archived: [cycles/phase-3-dtu-wave-2/decisions-archive-d001-d032.m
 
 | ID | Decision | Rationale | Phase | Date |
 |----|----------|-----------|-------|------|
+| D-460 | 2026-05-13 | **develop_head correction (post-D-459 parallel-dispatch race)** (state-manager). D-459 state-burst committed develop_head=e408435e but actual current HEAD is 95d46be2 (PR #148 ColumnType migration merge landed during state-manager's parallel-dispatch window with pr-manager). Stale develop read. Correction: develop_head e408435e→95d46be2. Process-gap codification (not new TD): orchestrator must serialize state-manager AFTER pr-manager confirmation in future parallel-dispatch windows. Orchestrator rule 'state-manager runs LAST in every burst' (POL-3) was satisfied within the state-burst itself but not across cross-cutting dispatches. STATE+HANDOFF v7.185→v7.186. | plugin-migration | 2026-05-13 |
 | D-459 | 2026-05-13 | **STATE+HANDOFF v7.184→v7.185 + develop_head=e408435e** (state-manager). Burst H drift fixes + BC-2.03.013 sweep + installation.md path-resolution anchor + STATE/HANDOFF bump committed atomically. develop_head d3ad61a5 (prior session end) → e408435e (now; 4 PRs merged this session: #145 #146 #148 #147). bc_index_version 4.62→4.63; story_index_version v2.66→v2.67 (PREREQ-D story authored in parallel). | plugin-migration | 2026-05-13 |
 | D-458 | 2026-05-13 | **Burst H ~/.prism drift fixes + SP-1 codification** (state-manager). Sample-sweep of 23 ~/.prism hits found 4 DRIFTED + 3 AMBIGUOUS + 4 HISTORICAL + 12 CANONICAL. 4 DRIFTED fixed in-scope: S-WAVE5-PREP-01:171 (binary default clarified to dirs::config_dir-based path + installer bridge), S-6.05:129 (state_dir confirmed required in prism.toml — no dirs:: default; installer sets ~/.prism/state), config-schema.md:68 + observability.md:209 (stale Default comments replaced with installer-default vs binary-default split). 3 AMBIGUOUS anchored via clarifying notes (detection-rule-format.md + infusions.md File Organization sections; config-schema.md [Section Content] block). SP-1 addressed: installation.md §path-resolution anchor codifies installer-UX vs binary-default distinction. SP-2 (state_dir code documentation) addressed inline via code-confirmed finding (required field, no dirs:: resolution). Burst H CLOSED. | plugin-migration | 2026-05-13 |
 | D-457 | 2026-05-13 | **BC-2.03.013 ADR-025 sweep** (state-manager). Surface-point from D-454: BC-2.03.013 carried `lifecycle: active` — removed per ADR-025. Added template frontmatter fields (lifecycle_status, introduced, modified, deprecated, deprecated_by, replacement, retired, removed, removal_reason, extracted_from). Fixed pre-existing duplicate v1.0 changelog (second row renamed v1.0.1). Synced BC-INDEX title to H1 source of truth (POL-7). BC-2.03.013 v1.1→v1.2. BC-INDEX v4.62→v4.63. No remaining lifecycle: hits in corpus confirmed. | plugin-migration | 2026-05-13 |
