@@ -1,9 +1,9 @@
 ---
 document_type: pipeline-state
 level: ops
-version: "7.187"
+version: "7.188"
 producer: state-manager
-timestamp: 2026-05-13T06:32:00Z
+timestamp: 2026-05-13T06:58:07Z
 inputs: []
 input-hash: "[live-state]"
 traces_to: ""
@@ -22,7 +22,7 @@ repos:
   - axiathon
   - ocsf-proto-gen
   - mcp-claroty-xdome
-current_step: "D-461. PREREQ-D adversary pass-1 BLOCKED-hard (1C/5H/5M/3L/2OBS). VP-INDEX named-alias semantic drift is CRITICAL. Fix-burst routing: architect+PO parallel, story-writer sequential, state-manager last. STATE+HANDOFF v7.186→v7.187."
+current_step: "D-462. PREREQ-D PASS-1 FIX-BURST CLOSED — 16/16 findings closed in-scope across architect (272fb1a3, F-LP1-CRIT-001), PO (7b27844a, F-LP1-HIGH-004), story-writer (fa2201d0, 14 remaining). No deferrals. Story v1.0→v1.1. New BC-2.17.007. VP-INDEX v1.33 (4 alias rows corrected). policies.yaml v1.8 (POL-9 step 6). STATE+HANDOFF v7.187→v7.188. Adversary pass-2 next (target streak 0/3→1/3)."
 feature_branch_head: "ea958a4d"
 worktree_status: "merged"
 adversary_streak: "3/3 LOCKED"
@@ -131,16 +131,16 @@ historical_cycles:
 layout_bootstrap_date: 2026-04-18
 subsystem_count: 20
 story_count: 113
-bc_count_corrected: 235
+bc_count_corrected: 236
 cap_count: 40  # active; highest_cap_id: CAP-040 (CAP-038 Multi-Tenant Identity, CAP-039 Multi-Tenant Fixture Gen, CAP-040 Multi-Tenant Adapter Dispatch — Wave 3 Phase 3.A Step 2)
-bc_index_version: "4.63"
-vp_index_version: "1.32"
-story_index_version: "v2.67"
+bc_index_version: "4.64"
+vp_index_version: "1.33"
+story_index_version: "v2.68"
 total_stories: 150
 red_gate_wave_0a_complete: 2026-04-21
 test_vectors_version: "2.7"
 prd_version: "1.10"
-error_taxonomy_version: "1.18"
+error_taxonomy_version: "1.19"
 holdout_index_version: "1.3"
 capabilities_version: "1.14"
 l2_index_version: "1.13"
@@ -183,9 +183,9 @@ workspace_test_count: 3598  # updated at D-433 fix-burst-1 closure (just check c
 | **Language** | Rust |
 | **Target Workspace** | per-analyst stdio (MCP server) |
 | **Started** | 2026-04-13 |
-| **Last Updated** | 2026-05-13 (D-461 — PREREQ-D adversary pass-1 BLOCKED-hard persisted; STATE+HANDOFF v7.186→v7.187) |
+| **Last Updated** | 2026-05-13 (D-462 — PREREQ-D pass-1 fix-burst CLOSED 16/16; STATE+HANDOFF v7.187→v7.188) |
 | **Current Phase** | Wave 3 Tier-3 COMPLETE — **Wave 3-A 4 of 4 SHIPPED**; plugin migration: PREREQ-F + PREREQ-A + PREREQ-B + **PREREQ-C MERGED** (PR #144 ea958a4d 2026-05-12T23:14:05Z); PREREQ keystone trio COMPLETE; PLUGIN-MIGRATION Wave 1 unblocked; PREREQ-D/E pending |
-| **Current Step** | D-461 — PREREQ-D adversary pass-1 BLOCKED-hard (1C/5H/5M/3L/2OBS). Fix-burst routing: architect (VP-INDEX F-LP1-CRIT-001) + product-owner (manifest BC F-LP1-HIGH-004) in parallel; story-writer sequential after; state-manager (POL amendment) last. STATE+HANDOFF v7.186→v7.187. |
+| **Current Step** | D-462 — PREREQ-D pass-1 fix-burst CLOSED (16/16 in-scope). Story v1.0→v1.1 at fa2201d0. New BC-2.17.007. VP-INDEX v1.33. policies.yaml v1.8. Adversary pass-2 next (target streak 0/3→1/3). STATE+HANDOFF v7.187→v7.188. |
 
 ## Phase Progress
 
@@ -217,10 +217,9 @@ workspace_test_count: 3598  # updated at D-433 fix-burst-1 closure (just check c
 
 | Step | Agent | Status | Output |
 |------|-------|--------|--------|
-| STEP 2 Burst B — ADR-022 volatile-pin strip (D-447) | state-manager | **COMPLETE** | ADR-022 v1.1→v1.2 — 18 pins stripped across 7 sections. TD-VSDD-091 CLOSED. TD-VSDD-095 P4 filed. ARCH-INDEX v2.40→v2.41. tech-debt-register v2.16→v2.17. STATE+HANDOFF v7.180→v7.181. |
-| STEP 2 Burst C — types.rs investigation closed (D-448) | state-manager | **COMPLETE** | Placeholder TD-S-PLUGIN-PREREQ-C-001 retired. TD-S-PLUGIN-PREREQ-C-001-A P4 filed (2 cosmetic consolidations ~45 min). 3 intentional splits + 1 unrelated + 1 parallel-concept confirmed. tech-debt-register v2.17→v2.18. STATE+HANDOFF v7.181→v7.182. |
 | STEP 2 Burst E — TD-VSDD-095 closed in-scope (D-449) | state-manager | **COMPLETE** | 5 volatile pins stripped: 4 in S-PLUGIN-PREREQ-A Task 6 (crowdstrike/cyberint/claroty/armis.rs `:NNN` removed, v1.6→v1.7); 1 in S-PLUGIN-PREREQ-A Impl Notes (explain.rs:1046 → function-name form); 1 in S-PLUGIN-PREREQ-B Match-Site §458 (bc_2_16_002_test.rs:241 → file-only, v1.23→v1.24). tech-debt-register v2.18→v2.19 (open_count 93→92). STATE+HANDOFF v7.182→v7.183. |
 | D-460 — develop_head correction (post-D-459 parallel-dispatch race) | state-manager | **COMPLETE** | develop_head e408435e→95d46be2 (PR #148 merge landed during D-459 parallel window). STATE+HANDOFF v7.185→v7.186. |
+| D-462 — PREREQ-D pass-1 fix-burst CLOSED (16/16 in-scope) | state-manager | **COMPLETE** | 16/16 findings closed: architect 272fb1a3 (VP-INDEX v1.33 + POL-9 step 6), PO 7b27844a (BC-2.17.007 + error-taxonomy v1.19 + BC-INDEX v4.64), story-writer fa2201d0 (story v1.1 + STORY-INDEX v2.68). No deferrals. STATE+HANDOFF v7.187→v7.188. |
 
 ## Decisions Log
 
@@ -228,6 +227,7 @@ _D-001..D-046 archived: [cycles/phase-3-dtu-wave-2/decisions-archive-d001-d032.m
 
 | ID | Decision | Rationale | Phase | Date |
 |----|----------|-----------|-------|------|
+| D-462 | 2026-05-13 | **PREREQ-D pass-1 fix-burst CLOSED (16/16)** (state-manager). Pass-1 BLOCKED-hard 16 findings closed in-scope across 4 commits: architect 272fb1a3 (VP-INDEX semantic correction + POL-9 step 6), PO 7b27844a (BC-2.17.007 Plugin Manifest Schema Validation + E-PLUGIN-013..016 + BC-INDEX v4.64), story-writer fa2201d0 (story v1.1, 14 findings closed, STORY-INDEX v2.68, BC-2.17.005 dropped). 2 process-gaps codified. ALL findings closed in-scope per CLAUDE.md Canonical Principle Rule 3 (zero TD-defer). Closure report at cycles/wave-4-operations/adversarial-reviews/S-PLUGIN-PREREQ-D-fix-burst-1.md. STATE+HANDOFF v7.187→v7.188. | plugin-migration | 2026-05-13 |
 | D-461 | 2026-05-13 | **PREREQ-D LOCAL adversary pass-1 BLOCKED-hard** (adversary). S-PLUGIN-PREREQ-D v1.0 at factory 72687483 reviewed against ADR-023 §C4 + 7 BCs + 2 VPs + 16 active policies. Verdict: BLOCKED-hard (1 CRIT + 5 HIGH + 5 MED + 3 LOW + 2 OBS). Critical: VP-INDEX named-aliases VP-PLUGIN-004/007 describe wrong properties semantically (TOML grammar/CustomAdapter instead of boot-warning/allowlist). 2 process-gaps codified: VP-INDEX semantic-sync (no standing policy) + manifest validation has no BC anchor. Fix-burst routing: architect (VP-INDEX F-LP1-CRIT-001) + product-owner (BC for manifest validation F-LP1-HIGH-004) in parallel; story-writer (story-content findings HIGH-002/003/005/006 + 5 MEDs + 3 LOWs + 2 OBS) sequential after; state-manager (VP-INDEX semantic-sync POL amendment) last. Streak 0/3. Report: cycles/wave-4-operations/adversarial-reviews/S-PLUGIN-PREREQ-D-pass-1.md. STATE+HANDOFF v7.186→v7.187. | plugin-migration | 2026-05-13 |
 | D-460 | 2026-05-13 | **develop_head correction (post-D-459 parallel-dispatch race)** (state-manager). D-459 state-burst committed develop_head=e408435e but actual current HEAD is 95d46be2 (PR #148 ColumnType migration merge landed during state-manager's parallel-dispatch window with pr-manager). Stale develop read. Correction: develop_head e408435e→95d46be2. Process-gap codification (not new TD): orchestrator must serialize state-manager AFTER pr-manager confirmation in future parallel-dispatch windows. Orchestrator rule 'state-manager runs LAST in every burst' (POL-3) was satisfied within the state-burst itself but not across cross-cutting dispatches. STATE+HANDOFF v7.185→v7.186. | plugin-migration | 2026-05-13 |
 | D-459 | 2026-05-13 | **STATE+HANDOFF v7.184→v7.185 + develop_head=e408435e** (state-manager). Burst H drift fixes + BC-2.03.013 sweep + installation.md path-resolution anchor + STATE/HANDOFF bump committed atomically. develop_head d3ad61a5 (prior session end) → e408435e (now; 4 PRs merged this session: #145 #146 #148 #147). bc_index_version 4.62→4.63; story_index_version v2.66→v2.67 (PREREQ-D story authored in parallel). | plugin-migration | 2026-05-13 |
