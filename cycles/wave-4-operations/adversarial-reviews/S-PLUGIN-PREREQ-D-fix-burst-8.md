@@ -6,7 +6,7 @@ target_pass: 9
 findings_closed: 2_actionable (MED + LOW)
 findings_deferred: 1 (F-LP9-OBS-001 — version-pin-sweep-burst-vs-version-prose-distinction pattern — codification candidate routed to cycle-closing checklist alongside F-LP8-OBS-002)
 producer: state-manager (orchestrator-coordinated; PO + story-writer + state-manager stages)
-factory_shas: [4ed96e06, 0f126bbe, TBD-this-commit]
+factory_shas: [4ed96e06, 0f126bbe, 204b08bb]
 trajectory: "16 → 8 → 6 → 4 → 0 → 4 → 7 → 4 → 2"
 next_action: "Adversary pass-10 dispatch — target streak 0/3 → 1/3 if CLEAN"
 ---
