@@ -14,7 +14,7 @@ extracted_from: null
 subsystem: SS-05
 capability: CAP-007
 lifecycle_status: active
-introduced: v3.0.0
+introduced: cycle-3
 modified: []
 deprecated: null
 deprecated_by: null

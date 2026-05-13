@@ -16,7 +16,7 @@ extracted_from: null
 subsystem: "SS-01"
 capability: "CAP-039"
 lifecycle_status: active
-introduced: wave-3
+introduced: cycle-3
 modified: []
 deprecated: null
 deprecated_by: null

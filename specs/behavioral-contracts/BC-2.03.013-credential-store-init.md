@@ -4,7 +4,7 @@ level: L3
 version: "1.2"
 status: draft
 lifecycle_status: active
-introduced: v1.0.0-greenfield
+introduced: cycle-1
 modified: [v1.0.0-greenfield]
 deprecated: null
 deprecated_by: null

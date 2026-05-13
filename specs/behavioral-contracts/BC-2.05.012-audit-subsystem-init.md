@@ -11,7 +11,7 @@ extracted_from: null
 subsystem: "SS-05"
 capability: "CAP-007"
 lifecycle_status: active
-introduced: "bundle-B-phase-B-1b"
+introduced: cycle-3
 modified: [redirect-option-d, adversary-f-pass3, f-pass4-low-2, D-319, D-452]
 deprecated: null
 deprecated_by: null

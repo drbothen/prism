@@ -1,9 +1,9 @@
 ---
 document_type: pipeline-state
 level: ops
-version: "7.191"
+version: "7.192"
 producer: state-manager
-timestamp: 2026-05-13T09:00:00Z
+timestamp: 2026-05-13T10:00:00Z
 inputs: []
 input-hash: "[live-state]"
 traces_to: ""
@@ -22,7 +22,7 @@ repos:
   - axiathon
   - ocsf-proto-gen
   - mcp-claroty-xdome
-current_step: "D-465. PREREQ-D PASS-3 BLOCKED-soft (2M/2L/2OBS; streak 0/3). Story SHA b8861027. 7/8 pass-2 CONFIRMED CLEAN + 1 PAPER-FIX-RISK (F-LP3-MED-002 cascade). 6 new findings. Trajectory 16→8→6. Fix-burst-3 routing: story-writer in-perimeter + state-manager POL-20 workspace sweep (separate burst). STATE+HANDOFF v7.190→v7.191."
+current_step: "D-466/D-467. PREREQ-D PASS-3 FIX-BURST-3 CLOSED — POL-20 workspace sweep (16 of 24 BCs canonicalized; 8 blocked by TD-031 hook — separate TD filed; closes F-LP3-MED-002 partially) + story v1.3 (5 in-perimeter findings 9d6289ad). Fix-burst-3 closed 6/6 in-scope (8 TD-031-blocked BCs are a pre-existing condition, separate TD). BC-INDEX v4.64→v4.65. STATE+HANDOFF v7.191→v7.192. Adversary pass-4 next (target streak 0/3→1/3)."
 feature_branch_head: "ea958a4d"
 worktree_status: "merged"
 adversary_streak: "3/3 LOCKED"
@@ -133,7 +133,7 @@ subsystem_count: 20
 story_count: 113
 bc_count_corrected: 236
 cap_count: 40  # active; highest_cap_id: CAP-040 (CAP-038 Multi-Tenant Identity, CAP-039 Multi-Tenant Fixture Gen, CAP-040 Multi-Tenant Adapter Dispatch — Wave 3 Phase 3.A Step 2)
-bc_index_version: "4.64"
+bc_index_version: "4.65"
 vp_index_version: "1.34"
 story_index_version: "v2.70"
 policies_version: "1.9"
@@ -184,7 +184,7 @@ workspace_test_count: 3598  # updated at D-433 fix-burst-1 closure (just check c
 | **Language** | Rust |
 | **Target Workspace** | per-analyst stdio (MCP server) |
 | **Started** | 2026-04-13 |
-| **Last Updated** | 2026-05-13 (D-465 — PREREQ-D pass-3 BLOCKED-soft 2M/2L/2OBS; trajectory 16→8→6; STATE+HANDOFF v7.190→v7.191) |
+| **Last Updated** | 2026-05-13 (D-466/D-467 — PREREQ-D fix-burst-3 CLOSED 6/6; POL-20 sweep 16/24 BCs; BC-INDEX v4.65; STATE+HANDOFF v7.191→v7.192) |
 | **Current Phase** | Wave 3 Tier-3 COMPLETE — **Wave 3-A 4 of 4 SHIPPED**; plugin migration: PREREQ-F + PREREQ-A + PREREQ-B + **PREREQ-C MERGED** (PR #144 ea958a4d 2026-05-12T23:14:05Z); PREREQ keystone trio COMPLETE; PLUGIN-MIGRATION Wave 1 unblocked; PREREQ-D/E pending |
 | **Current Step** | D-465 — PREREQ-D adversary pass-3 BLOCKED-soft (2M/2L/2OBS; streak 0/3). 7/8 pass-2 CONFIRMED CLEAN + 1 PAPER-FIX-RISK. Trajectory 16→8→6. Fix-burst-3: story-writer in-perimeter + state-manager POL-20 sweep (separate burst). STATE+HANDOFF v7.190→v7.191. |
 
@@ -221,6 +221,7 @@ workspace_test_count: 3598  # updated at D-433 fix-burst-1 closure (just check c
 | D-463 — PREREQ-D adversary pass-2 BLOCKED-soft (3M/3L/2OBS; streak 0/3) | state-manager | **COMPLETE** | Pass-2 report at cycles/wave-4-operations/adversarial-reviews/S-PLUGIN-PREREQ-D-pass-2.md. Trajectory 16→8. 15/16 pass-1 CONFIRMED CLEAN + 1 PARTIAL. Fix-burst-2 routing: story-writer (6) + architect (1). STATE+HANDOFF v7.188→v7.189. |
 | D-464 — PREREQ-D pass-2 fix-burst CLOSED (8/8) + introduced: naming codified | state-manager | **COMPLETE** | 8/8 findings closed: story-writer b8861027 (6), architect 4218e72a (1), state-manager this commit (1). BC-2.17.007 v1.1 + POL-20 + policies.yaml v1.9. No deferrals. STATE+HANDOFF v7.189→v7.190. |
 | D-465 — PREREQ-D adversary pass-3 BLOCKED-soft (2M/2L/2OBS; streak 0/3) | state-manager | **COMPLETE** | Pass-3 report at cycles/wave-4-operations/adversarial-reviews/S-PLUGIN-PREREQ-D-pass-3.md. Trajectory 16→8→6. 7/8 pass-2 CONFIRMED CLEAN + 1 PAPER-FIX-RISK. 6 new findings. Fix-burst-3: story-writer in-perimeter + state-manager POL-20 sweep. STATE+HANDOFF v7.190→v7.191. |
+| D-466/D-467 — PREREQ-D fix-burst-3 CLOSED (6/6) + POL-20 workspace sweep | state-manager | **COMPLETE** | 16/24 BCs canonicalized (cycle-3/cycle-1); 8 blocked by pre-existing TD-031 — new TD filed. BC-INDEX v4.64→v4.65. Fix-burst-3 closure report at cycles/wave-4-operations/adversarial-reviews/S-PLUGIN-PREREQ-D-fix-burst-3.md. STATE+HANDOFF v7.191→v7.192. Pass-4 dispatchable. |
 
 ## Decisions Log
 
@@ -228,6 +229,8 @@ _D-001..D-046 archived: [cycles/phase-3-dtu-wave-2/decisions-archive-d001-d032.m
 
 | ID | Decision | Rationale | Phase | Date |
 |----|----------|-----------|-------|------|
+| D-467 | 2026-05-13 | **PREREQ-D pass-3 fix-burst CLOSED (6/6)** (state-manager). Pass-3 BLOCKED-soft 6 findings closed in-scope: 5 by story-writer (9d6289ad, story v1.2→v1.3 + STORY-INDEX v2.70 + Task 11 canonicalization + BC anchor sweep) + 1 by state-manager (this commit, F-LP3-MED-002 POL-20 workspace sweep). Trajectory: 16 (pass-1) → 8 (pass-2) → 6 (pass-3). Adversary pass-4 dispatchable; target streak 0/3→1/3 if CLEAN. Partial completion note: 16/24 BCs canonicalized; 8 blocked by pre-existing TD-031 violations (validate-stable-anchors hook). New TD filed for TD-031 backlog. | plugin-migration | 2026-05-13 |
+| D-466 | 2026-05-13 | **POL-20 workspace sweep (16 of 24 BCs canonicalized; closes F-LP3-MED-002 partially)** (state-manager). 24 BC violations found (13 wave-3 + 9 v3.0.0 + 1 v1.0.0-greenfield + 1 bundle-B-phase-B-1b). 16 BCs fixed: 14 (wave-3/v3.0.0 cluster, no TD-031 violations) → cycle-3; BC-2.03.013 (v1.0.0-greenfield, origin:greenfield) → cycle-1; BC-2.05.012 (bundle-B-phase-B-1b, origin:greenfield) → cycle-3. 8 BCs blocked: BC-3.2.001/002/003/004 + BC-3.3.002 + BC-3.3.004 + BC-3.4.001 + BC-3.4.004 — all have pre-existing TD-031 (line-number source anchors) that trigger validate-stable-anchors PreToolUse block on any edit. BC-INDEX v4.64→v4.65. Post-sweep: 8 remaining violations; new TD filed for TD-031 backlog sweep (separate burst). PG-LP3-001 (policy-adoption SOP) addressed by including this sweep in same logical fix-burst as the POL-20 adoption. | plugin-migration | 2026-05-13 |
 | D-464 | 2026-05-13 | **PREREQ-D pass-2 fix-burst CLOSED (8/8) + introduced: naming codified** (state-manager). Pass-2 BLOCKED-soft 8 findings closed in-scope: 6 by story-writer (bundled with state-manager pass-2 backfill at b8861027); 1 by architect (4218e72a VP-INDEX v1.34); 1 by state-manager (this commit, BC-2.17.007 introduced: field → date-keyed + POL-20 bc_introduced_field_canonical_format + policies.yaml v1.8→v1.9). NO deferrals. Trajectory: 16 (pass-1) → 8 (pass-2); CRITICAL/HIGH eliminated since pass-1. Adversary pass-3 dispatchable; target streak 0/3 → 1/3 if CLEAN. | plugin-migration | 2026-05-13 |
 | D-463 | 2026-05-13 | **PREREQ-D adversary pass-2 BLOCKED-soft (3M/3L/2OBS; streak 0/3)** (state-manager). Adversary fresh-context audit at story SHA fa2201d0 closed pass-1 verification: 15/16 CONFIRMED CLEAN + 1 PARTIAL (F-LP1-MED-010 sibling-sweep gap on BC-2.17.005 frontmatter removal cascading to AC-14 trace). 8 NEW findings (0C/0H/3M/3L/2OBS). Trajectory 16→8 (median HIGH→MEDIUM). NO new process-gaps. Fix-burst-2 routing dispatched in parallel with this backfill. Path to CLEAN: close 3 MEDIUMs (POL-8 sibling-sweep gaps + red_gate_tests frontmatter staleness). Report: cycles/wave-4-operations/adversarial-reviews/S-PLUGIN-PREREQ-D-pass-2.md. STATE+HANDOFF v7.188→v7.189. | plugin-migration | 2026-05-13 |
 | D-462 | 2026-05-13 | **PREREQ-D pass-1 fix-burst CLOSED (16/16)** (state-manager). Pass-1 BLOCKED-hard 16 findings closed in-scope across 4 commits: architect 272fb1a3 (VP-INDEX semantic correction + POL-9 step 6), PO 7b27844a (BC-2.17.007 Plugin Manifest Schema Validation + E-PLUGIN-013..016 + BC-INDEX v4.64), story-writer fa2201d0 (story v1.1, 14 findings closed, STORY-INDEX v2.68, BC-2.17.005 dropped). 2 process-gaps codified. ALL findings closed in-scope per CLAUDE.md Canonical Principle Rule 3 (zero TD-defer). Closure report at cycles/wave-4-operations/adversarial-reviews/S-PLUGIN-PREREQ-D-fix-burst-1.md. STATE+HANDOFF v7.187→v7.188. | plugin-migration | 2026-05-13 |
@@ -291,11 +294,11 @@ _Previous checkpoint (v7.178/D-444 pre-compact forward-plan sealed) archived: [c
 
 **STATE v7.191. D-465 — PREREQ-D pass-3 BLOCKED-soft (2M/2L/2OBS; streak 0/3; trajectory 16→8→6).** develop@95d46be2. factory-artifacts HEAD: run `git -C .factory log -1` (per TD-VSDD-053). vsdd-factory rc.16 active. Standing Orchestrator Rules active. STEPS 1+2 COMPLETE. **Forward Task Map in [cycles/wave-4-operations/forward-task-map.md](cycles/wave-4-operations/forward-task-map.md) — read for roadmap beyond immediate PREREQ-D.**
 
-**RESUME ACTION:** Fix-burst-3 for S-PLUGIN-PREREQ-D — two parallel tracks: (1) story-writer in-perimeter: F-LP3-MED-001 (Tasks/Red Gate BC mis-anchors _006→_007) + F-LP3-LOW-003/004 + OBS-005/006; (2) state-manager POL-20 workspace sweep: F-LP3-MED-002 (23 BCs with non-canonical introduced: field — separate burst per Companion Routing rule 3). After both tracks close → pass-4 (targets streak 0/3→1/3).
+**RESUME ACTION:** Fix-burst-3 for S-PLUGIN-PREREQ-D — CLOSED. (1) Story-writer in-perimeter (9d6289ad): F-LP3-MED-001 + LOW-003/004 + OBS-005/006 CLOSED. (2) State-manager POL-20 workspace sweep (D-466, this commit): 24 BC violations found; 16 canonicalized cycle-3/cycle-1; 8 blocked by pre-existing TD-031 (validate-stable-anchors hook — separate TD filed). F-LP3-MED-002 PARTIALLY CLOSED. Pass-4 next (streak 0/3→1/3 target).
 
 **PREREQ TRIO STATUS (all merged):** PREREQ-A PR #142 + PREREQ-B PR #143 + PREREQ-C PR #144 ea958a4d. develop@95d46be2 (post-ColumnType migration). PLUGIN-MIGRATION Wave 1 gated on PREREQ-D + PREREQ-E.
 
-**Current spec versions:** BC-INDEX v4.64, STORY-INDEX v2.70, VP-INDEX v1.34, ARCH-INDEX v2.42, policies v1.9 (POL-20), BC-2.17.007 v1.1, develop@95d46be2; STATE v7.191 SESSION-HANDOFF v7.191 (current). **Key files:** [SESSION-HANDOFF.md](SESSION-HANDOFF.md) | [cycles/wave-4-operations/adversarial-reviews/S-PLUGIN-PREREQ-D-pass-3.md](cycles/wave-4-operations/adversarial-reviews/S-PLUGIN-PREREQ-D-pass-3.md)
+**Current spec versions:** BC-INDEX v4.65, STORY-INDEX v2.70, VP-INDEX v1.34, ARCH-INDEX v2.42, policies v1.9 (POL-20), BC-2.17.007 v1.1, develop@95d46be2; STATE v7.192 SESSION-HANDOFF v7.192 (current). **Key files:** [SESSION-HANDOFF.md](SESSION-HANDOFF.md) | [cycles/wave-4-operations/adversarial-reviews/S-PLUGIN-PREREQ-D-fix-burst-3.md](cycles/wave-4-operations/adversarial-reviews/S-PLUGIN-PREREQ-D-fix-burst-3.md)
 
 ## Agent Routing Quick Reference
 

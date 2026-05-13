@@ -22,7 +22,7 @@ related_adrs: [ADR-012]
 inherits_from: null
 superseded_by: null
 lifecycle_status: active
-introduced: wave-3
+introduced: cycle-3
 modified: []
 deprecated: null
 deprecated_by: null

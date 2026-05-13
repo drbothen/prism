@@ -1,7 +1,7 @@
 ---
 document_type: behavioral-contract-index
 level: L3
-version: "4.64"
+version: "4.65"
 status: draft
 producer: product-owner
 timestamp: 2026-05-13T00:00:00
