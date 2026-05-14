@@ -1,17 +1,17 @@
 ---
 document_type: behavioral-contract
 level: L3
-version: "1.3"
+version: "1.4"
 status: draft
 producer: product-owner
-timestamp: 2026-05-13T00:00:00Z
+timestamp: 2026-05-14T00:00:00Z
 phase: 3.A
 origin: greenfield
 subsystem: "SS-17"
 capability: "CAP-032"
 lifecycle_status: draft
 introduced: 2026-05-13
-modified: 2026-05-13
+modified: 2026-05-14
 deprecated: ~
 deprecated_by: ~
 replacement: ~
@@ -135,7 +135,7 @@ from being attempted.
 
 | VP ID | Description | Verification Method |
 |-------|-------------|---------------------|
-| VP-PLUGIN-007 | After PREREQ-D lands, every loaded `.prx` plugin in `PluginRuntime` registry carries an explicit `allowed_urls: Vec<String>` field — manifest omission is a hard load rejection (E-PLUGIN-013) per AC-7 default-deny | Integration test (property assertion on PluginRuntime state post-load) |
+| VP-PLUGIN-007 | After PREREQ-D lands, every loaded `.prx` plugin in `PluginRuntime` registry carries an explicit `allowed_urls: Vec<String>` field — manifest omission is a hard load rejection (E-PLUGIN-013) per AC-5 manifest gate; default-deny consumer is AC-7 | Integration test (property assertion on PluginRuntime state post-load) |
 
 Note: VP-PLUGIN-007 numeric alias is VP-152 per VP-INDEX. This BC is the contract that
 establishes the invariant VP-PLUGIN-007 verifies.
@@ -158,7 +158,7 @@ S-PLUGIN-PREREQ-D — prism-bin/prism-spec-engine: Wire PluginRuntime into Boot 
 
 ## VP Anchors
 
-VP-PLUGIN-007 (VP-152): `PluginRuntime` allowlist explicit `Vec<String>` post-boot assertion — verifies the postcondition that every loaded plugin carries an explicit `allowed_urls` list (manifest omission rejected at load gate per AC-7 default-deny).
+VP-PLUGIN-007 (VP-152): `PluginRuntime` allowlist explicit `Vec<String>` post-boot assertion — verifies the postcondition that every loaded plugin carries an explicit `allowed_urls` list (manifest omission rejected at load gate per AC-5 manifest gate; default-deny consumer is AC-7).
 
 ## Traceability
 
@@ -176,6 +176,7 @@ VP-PLUGIN-007 (VP-152): `PluginRuntime` allowlist explicit `Vec<String>` post-bo
 
 | Version | Burst | Date | Author | Change |
 |---------|-------|------|--------|--------|
+| 1.4 | fix-burst-34 | 2026-05-14 | product-owner | F-LP36-MED-001 closure: frontmatter timestamp+modified bumped to 2026-05-14 sync (fix-burst-33-introduced staleness; TD-VSDD-060 frontmatter axis sibling-sweep gap; 2nd recurrence of frontmatter-modified-field-stale pattern in cascade). F-LP36-LOW-001 closure: VP-PLUGIN-007 row line 138 rewritten from `per AC-7 default-deny` to `per AC-5 manifest gate; default-deny consumer is AC-7` — restores canonical anchor to story AC-5 per BC §Story Anchor at line 157; preserves downstream-consumer rationale citing AC-7. Sibling-site sweep (TD-VSDD-060) on AC-7 references: line 161 (VP Anchors narrative) carried same mis-anchor — rewritten to match line 138 correction. Line 179 (§Changelog 1.3 historical record) retained as-is — accurate factual record of fix-burst-33 changes. |
 | 1.3 | fix-burst-33 | 2026-05-14 | product-owner | F-LP35-MED-001 closure: VP-PLUGIN-007 description sweep — line 138 + line 161 rewritten from pre-AC-7 "allowed_urls = None" / "allowlist not-None" Option-semantics to post-AC-7 "explicit allowed_urls: Vec<String>" / "explicit list under AC-7 default-deny" framing. Sibling-document propagation gap from F-LP34-LOW-001 closure (D-533) — fix-burst-32 propagated to VP-INDEX + story §References but missed these 2 in-perimeter BC sites. Cross-document propagation: VP-INDEX v1.35 + story §References:1034 corrected in D-533 fix-burst-32; this BC update closes the in-perimeter remainder. OBS-LP35-001 (verification-architecture.md:282 + ADR-023:732-733 architecture-layer siblings) deferred phase-5 architect adjudication. |
 | 1.2 | fix-burst-7-stage-1A | 2026-05-13 | product-owner | F-LP8-HIGH-001 closure (Path B): `lifecycle_status: active` → `lifecycle_status: draft`. S-PLUGIN-PREREQ-D is pre-merge — this BC was introduced during fix-burst and has never been part of a merged story PR. `lifecycle_status: active` was set at initial authorship before POL-14 canonicalization applied to new BCs authored in-burst. Per POL-14 (`bc_vp_promotion_on_anchor_merge`), auto-promotion to `active` will occur at S-PLUGIN-PREREQ-D PR merge. |
 | 1.1 | state(D-464) | 2026-05-13 | state-manager | F-LP2-OBS-007 closure — `introduced:` field updated from opaque burst-ID notation to canonical date-keyed format per POL-20 (bc_introduced_field_canonical_format). No spec content change. |
