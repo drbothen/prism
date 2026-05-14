@@ -1388,3 +1388,80 @@ gap). This is not a novel semantic drift class — it mirrors F-LP36-MED-001 (fi
 BC-2.17.007). The underlying convergence zone is maintained. Pass-41 dispatch is next
 (target: fresh 1/3 streak advance). User-mandated 10-pass window: 8 of 10 done.
 **46th consecutive single-commit (TD-VSDD-053 DECISIVELY STABLE).**
+
+---
+
+## §POST-PASS-41 CLEAN STREAK ADVANCE (D-542)
+
+### Summary
+
+Pass-41 CLEAN (0 CRIT / 0 HIGH / 0 MED / 0 LOW / 1 OBS non-blocking).
+Streak ADVANCES 0/3 → 1/3 per BC-5.39.001. Second CLEAN pass in D-529 cascade.
+
+### Trajectory Context
+
+- Pass-39: CLEAN (first CLEAN in cascade — streak opened 1/3)
+- Pass-40: BLOCKED 1 MED F-LP40-MED-001 (frontmatter-sync sibling-sweep gap; streak RESET 0/3)
+- Pass-41: CLEAN — streak RE-OPENS at 1/3
+
+The pass-40 interruption was bounded to a single mechanical frontmatter-sync gap
+(BC-2.16.002 `modified: null`). Fix-burst-37 closed it. Pass-41 confirms the closure
+holds with zero new findings.
+
+### OBS-LP41-001 — BC-2.22.001 modified-field format heterogeneity
+
+BC-2.22.001 v1.5 uses burst-ID-list format for `modified:` rather than ISO-date scalar.
+~30 workspace files share this pattern (project-wide convention divergence, pre-existing).
+BC-2.22.001 is semantically current. POL-20 covers `introduced:` format but NOT `modified:`.
+codification_candidates_active: 25 → **26**.
+
+Routing: cycle-close session-reviewer (Path A: codify ISO + sweep; Path B: accept heterogeneity).
+
+### Frontmatter-Modified-Sync Axis Results
+
+All 8 anchored BCs verified under stricter check class (modified-date matches §Changelog):
+
+| BC | Version | modified | Latest §Changelog | Sync |
+|----|---------|----------|-------------------|------|
+| BC-2.16.002 | v1.13 | 2026-05-14 | 2026-05-14 (v1.13) | CLEAN |
+| BC-2.17.001 | v1.3 | 2026-05-13 | 2026-05-13 (v1.3) | CLEAN |
+| BC-2.17.002 | v1.7 | 2026-05-14 | 2026-05-14 (v1.7) | CLEAN |
+| BC-2.17.003 | v1.4 | 2026-05-13 | 2026-05-13 (v1.4) | CLEAN |
+| BC-2.17.004 | v1.4 | 2026-05-13 | 2026-05-13 (v1.4) | CLEAN |
+| BC-2.17.006 | v1.4 | 2026-05-13 | 2026-05-13 (v1.4) | CLEAN |
+| BC-2.17.007 | v1.4 | 2026-05-14 | 2026-05-14 (v1.4) | CLEAN |
+| BC-2.22.001 | v1.5 | [burst-ID-list] | 2026-05-13 (v1.5) | OBS (format) |
+
+### Convergence Prognosis
+
+- Pass-42 CLEAN → streak 2/3 (user-mandated 10-pass minimum also satisfied at pass-42)
+- Pass-43 CLEAN → streak 3/3 → CONVERGENCE per BC-5.39.001
+- If pass-42 BLOCKED → streak resets to 0/3; fix-burst required
+
+After convergence: test-writer → implementer TDD green (fresh worktree) →
+LOCAL adversary 3-CLEAN → demo-recorder per-AC → pr-manager 9-step PR lifecycle →
+squash-merge to develop → post-merge state burst (PREREQ-D merged; BCs promoted
+POL-14; PREREQ-E next). DO NOT dispatch PLUGIN-MIGRATION-001-A/B/C/D until
+PREREQ-D + PREREQ-E both land.
+
+### Artifact State After D-542
+
+| Artifact | Version | Change | Note |
+|----------|---------|--------|------|
+| Story S-PLUGIN-PREREQ-D | v1.32 | UNCHANGED | No story amendments needed pass-41 |
+| STATE.md | v7.247 | v7.246 → v7.247 | Streak 0/3→1/3; pass count 40→41 |
+| SESSION-HANDOFF.md | v7.247 | v7.246 → v7.247 | §POST-PASS-41 appended |
+| pass-41 report | NEW | Created | `.factory/cycles/wave-4-operations/adversarial-reviews/S-PLUGIN-PREREQ-D-pass-41.md` |
+| CYCLE-SNAPSHOT.md | — | §POST-PASS-41 appended | This section |
+| factory-artifacts HEAD | D-542 | `git -C .factory log -1 --format='%H'` | — |
+| develop HEAD | unchanged | 95d46be2 | No source commits this cascade |
+
+### Convergence Trajectory Note
+
+Trajectory through D-542: 4→1→4→5→1→1→3→4→5→5→5→2→1→2→0→1→**0** (pass-25..pass-41).
+
+Second zero confirms the frontmatter-sync closure is durable and the cascade has
+returned to convergence zone. The 0→1→0 pattern (pass-39→pass-40→pass-41) shows
+a bounded single-finding interruption cleanly resolved.
+
+**47th consecutive single-commit (TD-VSDD-053 DECISIVELY STABLE).**
