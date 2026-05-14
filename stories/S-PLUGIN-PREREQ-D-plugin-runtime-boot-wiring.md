@@ -53,11 +53,11 @@ target_module: prism-bin
 #   subsystems: [SS-16, SS-01], any story anchoring BC-2.16.002 must list SS-16.
 subsystems: [SS-22, SS-17, SS-16]
 capabilities: [CAP-029, CAP-032, CAP-034]
-version: "1.28"
+version: "1.29"
 level: "L4"
 producer: story-writer
-timestamp: "2026-05-14T08:00:00Z"
-updated: "2026-05-13"
+timestamp: "2026-05-14T10:00:00Z"
+updated: "2026-05-14"
 input-hash: "6954524"
 traces_to: []
 cycle: "v1.0.0-greenfield"
@@ -370,7 +370,7 @@ asserts the count and names match the canonical host function list. This prevent
 drift when new host functions are added. The test panics with a descriptive message on mismatch:
 `"Linker import count mismatch: expected {N}, found {M}. Did you add a host function without updating the import list?"`.
 
-### AC-9 — Single shared reqwest::Client constructed once at boot with 30-second timeout; injected into PluginRuntime (traces to BC-2.17.002 v1.5 §Error Conditions E-PLUGIN-005; closes TD-S-PLUGIN-PREREQ-B-005)
+### AC-9 — Single shared reqwest::Client constructed once at boot with 30-second timeout; injected into PluginRuntime (traces to BC-2.17.002 v1.6 §Error Conditions E-PLUGIN-005; closes TD-S-PLUGIN-PREREQ-B-005)
 
 A **single** `reqwest::Client` instance is constructed **once** in `crates/prism-bin/src/boot.rs`
 during the plugin-load boot step, using:
@@ -903,8 +903,8 @@ added to `crates/prism-spec-engine/src/error.rs` (the canonical `SpecEngineError
 
 | Code | Name | Message Template |
 |------|------|-----------------|
-| `E-PLUGIN-013` | `PluginError::MissingAllowedUrls` | `"Plugin '{path}' manifest missing required allowed_urls field. All plugins must declare their permitted outbound URL hostnames."` |
-| `E-PLUGIN-014` | `PluginError::FormatVersionExceeded` | `"Plugin '{path}' manifest format_version {n} exceeds supported version {CURRENT_SUPPORTED_VERSION}. Update Prism to load this plugin."` |
+| `E-PLUGIN-013` | `PluginError::MissingAllowedUrls` | `"Plugin manifest at '{path}' missing required field 'allowed_urls'; field must be an explicit list (use 'allowed_urls = []' for no URLs)"` |
+| `E-PLUGIN-014` | `PluginError::FormatVersionExceeded` | `"Plugin manifest at '{path}' format_version {actual} exceeds maximum supported version {supported}"` |
 | `E-PLUGIN-015` | `PluginError::ManifestNameMissing` | `"Plugin manifest at '{path}' missing or empty required field 'name'"` |
 | `E-PLUGIN-016` | `PluginError::ManifestVersionMalformed` | `"Plugin manifest at '{path}' field 'version' is not a valid semver string: '{value}'"` |
 | `E-PIPELINE-001` | `SpecEngineError::TooManyRequests { total: usize }` | `"Pipeline executor reached MAX_REQUESTS_PER_PIPELINE cap of 10_000 ({total} requests attempted); aborting pipeline execution"` |
@@ -922,9 +922,10 @@ Traces to BC-2.16.002 §Canonical Structured Event Catalog row pipeline_max_requ
 
 `AuthToken` contains bearer token bytes. After the zeroize fix (AC-15), the token is overwritten
 on drop. The `AuthToken` type must NEVER appear in tracing log fields, structured event catalog
-entries, or audit log entries. The `Debug` impl for `AuthToken` must redact the value:
-`AuthToken("[REDACTED]")`. This is an existing requirement from AD-017; confirm the `Debug` impl
-is already redacted, or add it in this story.
+entries, or audit log entries. The `Debug` impl for `AuthToken` must redact the value: the existing
+implementation at `crates/prism-spec-engine/src/auth_provider.rs:68` uses `AuthToken(<redacted>)`
+(angle-bracket form, lowercase). Per AD-017, the redaction discipline applies regardless of exact
+form; confirm the existing `Debug` impl is intact during AC-15 zeroize work.
 
 ### #[non_exhaustive] Requirements
 
@@ -992,6 +993,27 @@ Extracted from architecture documents and ADRs:
 | Arc-DI for all constructor injection | ADR-022 | Code review |
 | prism-spec-engine MUST NOT depend on prism-storage or prism-audit | Forbidden dependency | cargo deny / code review |
 
+## BC Amendments In-Scope
+
+The following Behavioral Contract amendments MUST land in the same fix-burst as AC-7's default-deny semantics (i.e., the PR that merges this story):
+
+### BC-2.17.002 v1.5 → v1.6 — EC-17-007 default-deny alignment
+
+**Current EC-17-007 (BC-2.17.002 v1.5 line 85):**
+> Plugin calls `host::http_request` when no allowlist is configured | Request allowed to any URL (open by default); audit log entry created
+
+**Problem:** This describes pre-AC-7 allow-all semantics. After AC-7 lands, `allowed_urls: Vec<String>` makes "no allowlist configured" representationally impossible — `vec![]` means "empty allowlist → deny all URLs" (default-deny). Per CLAUDE.md Source-of-Truth Precedence Rule 1, BC text supersedes when conflict is contract semantics — leaving the stale EC-17-007 in BC-2.17.002 v1.5 creates security drift risk where future readers could argue allow-all default from the BC text.
+
+**Required amendment (BC-2.17.002 v1.6):**
+- Replace EC-17-007 with: `Plugin calls 'host::http_request' when allowed_urls is empty (vec![]) | Request denied; PluginError::AllowlistRejected returned; audit log entry created (default-deny per AC-7)`
+- Update BC-2.17.002 frontmatter: `version: "1.5"` → `version: "1.6"`
+- Add v1.6 changelog row noting EC-17-007 alignment with AC-7 default-deny + Source-of-Truth Precedence Rule 1
+- Update BC-INDEX BC-2.17.002 row from v1.5 to v1.6
+
+This amendment is routed to product-owner in the same fix-burst as this story-writer edit (per CLAUDE.md Agent Routing: BC content is product-owner-scope).
+
+**Routing per CLAUDE.md:** product-owner owns BC content amendments; story-writer owns this §BC Amendments directive in story body.
+
 ## Library and Framework Requirements
 
 | Library | Version | Purpose | Pin Note |
@@ -1031,6 +1053,7 @@ Do NOT invent version numbers. All versions above are confirmed from `crates/pri
 
 | Version | Burst | Date | Author | Change |
 |---------|-------|------|--------|--------|
+| 1.29 | 2026-05-14 | story-writer | F-LP31-HIGH-001 (POL-7 axis EXTENSION): §Error Taxonomy Additions table E-PLUGIN-013 + E-PLUGIN-014 message templates aligned to canonical (matching AC-5 body + error-taxonomy.md); E-PLUGIN-015/016 unchanged (already verbatim). F-LP31-HIGH-002 STORY SITE: new §BC Amendments In-Scope section added directing product-owner to amend BC-2.17.002 v1.5→v1.6 EC-17-007 to align with AC-7 default-deny semantics per Source-of-Truth Precedence Rule 1 (security-semantic cross-spec drift mitigation). F-LP31-MED-001: AC-15 §Credential Safety AuthToken Debug example aligned to existing code at auth_provider.rs:68 ('AuthToken(<redacted>)' angle-bracket form). fix-burst-29 stage-1 story-writer scope; product-owner BC amendment dispatched in parallel. |
 | 1.28 | 2026-05-14 | story-writer | F-LP30-MED-001 (POL-7, codification #13 sub-extension): §References section appended BC-2.16.002 entry (verbatim H1 "Multi-Step Fetch Pipeline Execution — Sequential Steps with Variable Interpolation") between ADR-023 §C4 and BC-2.17.001 in alphanumeric BC-ID order. Cross-table completeness gap: BC-2.16.002 was anchored in `behavioral_contracts:` since v1.2 (fix-burst-2) and appears verbatim in body BC table line 260, but never landed in §References. Total §References BC entries: 8 → 9 (8 `behavioral_contracts:` anchored + BC-2.17.005 exclusion-note per Codification #15). fix-burst-28 stage-1. |
 | 1.27 | 2026-05-13 | story-writer | F-LP29-MED-001 (POL-7, codification #13 extension): story line 269 BC-2.17.005 title appended ", In-Flight Calls Complete Against Old Version" to make verbatim BC H1 / BC-INDEX line 219 / §References line 1016. 5th POL-7 recurrence; fix-burst-26 §References sweep targeted anchored BCs only (behavioral_contracts: array), missed exclusion-note paragraph for non-anchored BC-2.17.005. Sibling-site sweep: "Atomic Module Swap" now appears at line 269 (verbatim, fixed) + line 1016 (verbatim, unchanged) + changelog rows (historical). Zero active-body paraphrase instances remain. fix-burst-27 stage-1. |
 | 1.26 | fix-burst-26 stage-1 | 2026-05-13 | story-writer | F-LP28-MED-001 (POL-4, story site): phantom §-section "BC-2.16.002 §S-PLUGIN-PREREQ-D AC-16" replaced with "BC-2.16.002 §Canonical Structured Event Catalog row pipeline_max_requests_exceeded (anchored by AC-16 of S-PLUGIN-PREREQ-D)" at line 918; product-owner handles error-taxonomy.md:464 sibling drift in parallel. F-LP28-MED-002 (POL-4): AC-16 trace header at line 466 "BC-2.16.002 preconditions" replaced with "BC-2.16.002 §Canonical Structured Event Catalog row pipeline_max_requests_exceeded" — preconditions doesn't contain MAX_REQUESTS_PER_PIPELINE; cap introduced by AC-16, emission documented in catalog. F-LP28-LOW-001: Token Budget BC count 8→9 (BC-2.17.005 in inputs since fix-burst-25 not propagated to Token Budget row); row recomputed ~12,000→~13,500; Total 40,900→42,400; percentage 16.0%→16.6%. F-LP28-LOW-003: inputs prepended ADR-022-production-runtime-wiring.md (cited ~17 times throughout story but missing from inputs). fix-burst-26 stage-1 story-writer scope. |

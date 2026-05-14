@@ -1,10 +1,10 @@
 ---
 document_type: behavioral-contract-index
 level: L3
-version: "4.71"
+version: "4.72"
 status: draft
 producer: product-owner
-timestamp: 2026-05-13T00:00:00
+timestamp: 2026-05-14T00:00:00
 phase: 3.A
 total_contracts: 236
 active_contracts: 229
@@ -213,7 +213,7 @@ Phase 3-patch additions (2026-04-16): 22 new BCs added in Burst 1 to close trace
 | BC-2.16.009 | Spec File Validation — Schema Validation, Variable Reference Resolution, OCSF Field Validation | 16 - Spec Engine | CAP-029 | P0 | draft |
 | BC-2.16.010 | `list_sensor_specs` MCP Tool — List Loaded Sensor Specs with Table Schemas and Status | 16 - Spec Engine | CAP-029 | P0 | draft |
 | BC-2.17.001 | Plugin Panic Isolation — Crashed Plugin Does Not Terminate Host Process | 17 - WASM Plugin Runtime | CAP-032 | P0 | draft (lifecycle_status: draft — Path B: BC-INDEX draft; no POL-14 merge event; corrected fix-burst-7 stage 1A) | v1.3 |
-| BC-2.17.002 | Plugin Sandbox — No Direct Filesystem or Network Access | 17 - WASM Plugin Runtime | CAP-032 | P0 | draft (lifecycle_status: draft — Path B: BC-INDEX draft; no POL-14 merge event; corrected fix-burst-7 stage 1A) | v1.5 |
+| BC-2.17.002 | Plugin Sandbox — No Direct Filesystem or Network Access | 17 - WASM Plugin Runtime | CAP-032 | P0 | draft (lifecycle_status: draft — Path B: BC-INDEX draft; no POL-14 merge event; corrected fix-burst-7 stage 1A) | v1.6 |
 | BC-2.17.003 | Plugin Sandbox — Memory Limit Enforced Per Plugin Instance (default 64MB) | 17 - WASM Plugin Runtime | CAP-032 | P0 | draft (lifecycle_status: draft — Path B: BC-INDEX draft; no POL-14 merge event; corrected fix-burst-7 stage 1A) | v1.4 |
 | BC-2.17.004 | Plugin Sandbox — CPU Time Limit Enforced via Epoch Interruption (default 5s) | 17 - WASM Plugin Runtime | CAP-032 | P0 | draft (lifecycle_status: draft — Path B: BC-INDEX draft; no POL-14 merge event; corrected fix-burst-7 stage 1A) | v1.4 |
 | BC-2.17.005 | Plugin Hot Reload — Atomic Module Swap, In-Flight Calls Complete Against Old Version | 17 - WASM Plugin Runtime | CAP-030, CAP-032 | P0 | draft |
@@ -360,6 +360,8 @@ Phase 3-patch additions (2026-04-16): 22 new BCs added in Burst 1 to close trace
 - Subsystem 19: Infusion Enrichment Framework (AD-020, CAP-031)
 
 ### Change Log (Adversarial Review Fixes)
+
+**v4.72 (2026-05-14):** fix-burst-29 stage-1 product-owner — BC-2.17.002 v1.5→v1.6: EC-17-007 default-deny alignment (F-LP31-HIGH-002). Pre-AC-7 "Request allowed to any URL (open by default)" semantics replaced with post-AC-7 default-deny semantics: "Request denied; `PluginError::AllowlistRejected` returned; audit log entry created; empty allowlist → no host matches → deny" per S-PLUGIN-PREREQ-D AC-7 + AC-17 `Vec<String>` field-type contract. BC-INDEX row v1.5→v1.6. total_contracts=236 unchanged; active_contracts=229 unchanged.
 
 **v4.71 (2026-05-13):** state(D-498/D-499) fix-burst-17 stage-3 — BC-INDEX frontmatter v4.70→v4.71. BC-2.16.002 v1.11→v1.12 (product-owner stage 1A @ 84f58565): 2 new structured event catalog rows added — `plugin_load_failed_manifest_name_missing` (E-PLUGIN-015; WARN level; audit role: plugin load failure audit; recurrence: once per manifest name validation failure) + `plugin_load_failed_manifest_version_malformed` (E-PLUGIN-016; WARN level; audit role: plugin load failure audit; recurrence: once per manifest version validation failure). Catalog total 23→25 rows. Closes F-LP18-MED-001 BC portion. Story-writer stage 1B (4b28d5d6) closes F-LP18-MED-001 story portion + F-LP18-LOW-001 + F-LP18-LOW-002 (STORY-INDEX v2.83→v2.84 in parallel). F-LP18-OBS-001 reinforces existing process-gap codification candidate 5 (4th lexical-vs-semantic-sweep recurrence); no new deferral. 9th consecutive single-commit-with-TBD-pin (F-LP10-OBS-001 decisively stable). total_contracts=236 unchanged; active_contracts=229 unchanged.
 
