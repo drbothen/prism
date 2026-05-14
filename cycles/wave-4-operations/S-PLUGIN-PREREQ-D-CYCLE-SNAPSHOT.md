@@ -1304,3 +1304,87 @@ inflection. The FIRST CLEAN pass in 7 passes (33-39) represents a genuine transi
 in the cascade state. All active defect classes documented by fix-bursts 31-36 have
 been closed without introducing new drift. **45th consecutive single-commit
 (TD-VSDD-053 DECISIVELY STABLE).**
+
+---
+
+## §POST-PASS-40 COMBINED REIFY+CLOSE (D-541)
+
+### Summary
+
+Pass-40 BLOCKED (1 MED / 0 CRIT / 0 HIGH / 0 LOW / 0 OBS). Fix-burst-37 CLOSED the
+MED finding in the same commit (combined-burst variant, same pattern as D-538/D-539/D-541).
+Streak RESETS 1/3 ADVANCED → 0/3 HOLD per BC-5.39.001.
+
+### Root Cause: Anchored-BC-Frontmatter Sibling-Sweep Gap
+
+BC-2.16.002 had `modified: null` and stale `timestamp: 2026-04-13T12:00:00` (original
+v1.0 cycle-1 authorship date). The BC was amended 12 times through v1.12 across
+PREREQ-B, PREREQ-C, and PREREQ-D cascades without the `modified` or `timestamp`
+frontmatter fields ever being updated.
+
+Fix-burst-34 (D-537) corrected the same pattern in BC-2.17.007 under F-LP36-MED-001
+(OBS-LP36-001 codification candidate). That burst did not apply the sibling-sweep
+to BC-2.16.002 because it was processed in a different cascade. Pass-40 added an
+explicit anchored-BC-frontmatter-sweep axis (absent from pass-39 dispatch rubric)
+and caught the BC-2.16.002 deviation.
+
+This is the **3rd recurrence** of the frontmatter-axis sibling-sweep gap pattern
+(F-LP7-stage-1A lifecycle_status miss → F-LP36-MED-001 BC-2.17.007 → F-LP40-MED-001
+BC-2.16.002). Each recurrence has been bounded to a single BC rather than being
+systemic.
+
+### Findings Closed
+
+| Finding | Severity | Artifact | Fix |
+|---------|----------|----------|-----|
+| F-LP40-MED-001 | MED | BC-2.16.002 frontmatter | `modified: null` → `2026-05-14`; `timestamp: 2026-04-13T12:00:00` → `2026-05-14T00:00:00Z`; version v1.12 → v1.13; v1.13 §Changelog row added |
+
+BC-INDEX v4.75 → v4.76: BC-2.16.002 row annotation updated v1.12 → v1.13; v4.76
+changelog entry added.
+
+### Sibling-Sweep Results
+
+Other 5 story-anchored BCs checked for same `modified: null` drift class:
+
+| BC | modified | Result |
+|----|----------|--------|
+| BC-2.17.001 | 2026-05-13 | CLEAN (non-null) |
+| BC-2.17.003 | 2026-05-13 | CLEAN (non-null) |
+| BC-2.17.004 | 2026-05-13 | CLEAN (non-null) |
+| BC-2.17.006 | 2026-05-13 | CLEAN (non-null) |
+| BC-2.22.001 | complex list | CLEAN (non-null) |
+
+No other `modified: null` drift in story-anchored BC set. BC-2.16.002 was the sole
+null-modified outlier. **The `modified: 2026-05-13` dates in BC-2.17.001/003/004/006
+were NOT validated** against their most recent §Changelog amendment dates — that is
+a stricter check class. Pass-41 should apply this stricter check.
+
+### Artifact State After D-541
+
+| Artifact | Version | Change | Path |
+|----------|---------|--------|------|
+| BC-2.16.002 | v1.13 | v1.12 → v1.13 (frontmatter sync) | `.factory/specs/behavioral-contracts/BC-2.16.002-multi-step-fetch-pipeline.md` |
+| BC-INDEX | v4.76 | v4.75 → v4.76 | `.factory/specs/behavioral-contracts/BC-INDEX.md` |
+| Story S-PLUGIN-PREREQ-D | v1.32 | UNCHANGED | `.factory/stories/S-PLUGIN-PREREQ-D-plugin-runtime-boot-wiring.md` |
+| BC-2.17.002 | v1.7 (draft) | UNCHANGED | `.factory/specs/behavioral-contracts/BC-2.17.002-plugin-sandbox-enforcement.md` |
+| BC-2.17.007 | v1.4 (draft) | UNCHANGED | `.factory/specs/behavioral-contracts/BC-2.17.007-plugin-manifest-schema-validation.md` |
+| error-taxonomy | v1.22 | UNCHANGED | `.factory/specs/prd-supplements/error-taxonomy.md` |
+| BC-2.22.001 | v1.5 | UNCHANGED | `.factory/specs/behavioral-contracts/BC-2.22.001-boot-orchestration.md` |
+| VP-INDEX | v1.37 | UNCHANGED | `.factory/specs/verification-properties/VP-INDEX.md` |
+| STORY-INDEX | v2.103 | UNCHANGED | `.factory/stories/STORY-INDEX.md` |
+| STATE.md | v7.246 | v7.245 → v7.246 | `.factory/STATE.md` |
+| SESSION-HANDOFF.md | v7.246 | v7.245 → v7.246 | `.factory/SESSION-HANDOFF.md` |
+| pass-40 report | NEW | Created | `.factory/cycles/wave-4-operations/adversarial-reviews/S-PLUGIN-PREREQ-D-pass-40.md` |
+| fix-burst-37 report | NEW | Created | `.factory/cycles/wave-4-operations/adversarial-reviews/S-PLUGIN-PREREQ-D-fix-burst-37.md` |
+| factory-artifacts HEAD | D-541 | `git -C .factory log -1 --format='%H'` | — |
+| develop HEAD | unchanged | 95d46be2 | — |
+
+### Convergence Trajectory Note
+
+Trajectory through D-541: 4→1→4→5→1→1→3→4→5→5→5→2→1→2→0→**1** (pass-25..pass-40).
+
+The 0→1 uptick is a frontmatter-sync finding (anchored-BC-frontmatter sibling-sweep
+gap). This is not a novel semantic drift class — it mirrors F-LP36-MED-001 (fix-burst-34,
+BC-2.17.007). The underlying convergence zone is maintained. Pass-41 dispatch is next
+(target: fresh 1/3 streak advance). User-mandated 10-pass window: 8 of 10 done.
+**46th consecutive single-commit (TD-VSDD-053 DECISIVELY STABLE).**

@@ -1,7 +1,7 @@
 ---
 document_type: behavioral-contract-index
 level: L3
-version: "4.75"
+version: "4.76"
 status: draft
 producer: product-owner
 timestamp: 2026-05-14T00:00:00
@@ -203,7 +203,7 @@ Phase 3-patch additions (2026-04-16): 22 new BCs added in Burst 1 to close trace
 | BC-2.15.010 | Decorator Three-Phase Model — Config-Time, Query-Time, Periodic | 15 - Storage Layer | CAP-026 | P0 | draft |
 | BC-2.15.011 | Internal Table Registration — RocksDB Domains as DataFusion Tables | 15 - Storage Layer | CAP-028 | P0 | draft |
 | BC-2.16.001 | Sensor Spec File Loading — Parse TOML, Validate Schema, Register Tables | 16 - Spec Engine | CAP-029 | P0 | draft |
-| BC-2.16.002 | Multi-Step Fetch Pipeline Execution — Sequential Steps with Variable Interpolation | 16 - Spec Engine | CAP-029 | P0 | active (promoted draft→active D-427 per POL-14; anchor story S-PLUGIN-PREREQ-B merged PR #143 develop@ae7e26c8 2026-05-12) — v1.12 |
+| BC-2.16.002 | Multi-Step Fetch Pipeline Execution — Sequential Steps with Variable Interpolation | 16 - Spec Engine | CAP-029 | P0 | active (promoted draft→active D-427 per POL-14; anchor story S-PLUGIN-PREREQ-B merged PR #143 develop@ae7e26c8 2026-05-12) — v1.13 |
 | BC-2.16.003 | Column-to-OCSF Mapping at Query Time — Map Sensor Columns to OCSF Fields Per Spec | 16 - Spec Engine | CAP-029 | P0 | draft |
 | BC-2.16.004 | ~~Rust Escape Hatch for Custom Adapters — Trait-Based Override When Config Is Insufficient~~ | 16 - Spec Engine | CAP-029 | P0 | deprecated (ADR-023 PREREQ-F) |
 | BC-2.16.005 | `reload_config` MCP Tool — Re-Read All Config Files, Validate, Atomic Swap, Notify | 16 - Spec Engine | CAP-030 | P1 | draft |
@@ -360,6 +360,8 @@ Phase 3-patch additions (2026-04-16): 22 new BCs added in Burst 1 to close trace
 - Subsystem 19: Infusion Enrichment Framework (AD-020, CAP-031)
 
 ### Change Log (Adversarial Review Fixes)
+
+**v4.76 (2026-05-14):** state-manager | BC-2.16.002 v1.12→v1.13 (fix-burst-37: F-LP40-MED-001 frontmatter sync — `modified` updated null→2026-05-14; `timestamp` updated 2026-04-13T12:00:00→2026-05-14T00:00:00Z; sibling-sweep gap from F-LP36-MED-001 / OBS-LP36-001 fix-burst-34 not propagated to BC-2.16.002 despite 12 prior amendments; pure metadata sync, no body change) | D-541
 
 **v4.75 (2026-05-14):** state-manager | BC-2.17.007 v1.3→v1.4 (fix-burst-34: F-LP36-MED-001 frontmatter modified+timestamp sync to 2026-05-14 + F-LP36-LOW-001 VP-PLUGIN-007 description line 138+161 sibling-catch rewrite from "per AC-7 default-deny" to "per AC-5 manifest gate; default-deny consumer is AC-7" — canonical anchor restoration per BC §Story Anchor line 157) | D-537
 

@@ -1,17 +1,17 @@
 ---
 document_type: behavioral-contract
 level: L3
-version: "1.12"
+version: "1.13"
 status: active
 producer: product-owner
-timestamp: 2026-04-13T12:00:00
+timestamp: 2026-05-14T00:00:00Z
 phase: 1a
 origin: greenfield
 subsystem: "SS-16"
 capability: "CAP-029"
 lifecycle_status: active
 introduced: cycle-1
-modified: null
+modified: 2026-05-14
 deprecated: null
 deprecated_by: null
 replacement: null
@@ -162,6 +162,7 @@ See `.factory/specs/prd-supplements/test-vectors.md` for full canonical vectors.
 
 | Version | Burst | Date | Author | Change |
 |---------|-------|------|--------|--------|
+| 1.13 | fix-burst-37 | 2026-05-14 | state-manager | (D-541) F-LP40-MED-001 closure: frontmatter `modified` field updated from `null` to `2026-05-14` and `timestamp` updated from stale 2026-04-13T12:00:00 (original v1.0 cycle-1 authorship date) to 2026-05-14T00:00:00Z. Sibling-sweep gap from F-LP36-MED-001 / OBS-LP36-001 codification (fix-burst-34) — pattern was caught in BC-2.17.007 but not propagated to BC-2.16.002 despite 12 amendments through v1.12. Matches canonical pattern established in fix-burst-34 (BC-2.17.007 v1.2→v1.3 frontmatter sync). No body content changes — pure metadata sync per state-manager frontmatter-sync routing. |
 | 1.12 | S-PLUGIN-PREREQ-D-fix-burst-17-stage-1A | 2026-05-13 | product-owner | F-LP18-MED-001 BC portion closure — add 2 new Structured Event Catalog rows for E-PLUGIN-015 and E-PLUGIN-016 manifest validation errors: `plugin_load_failed_manifest_name_missing` (ERROR, `PluginRuntime::load_plugin`, `plugin_path` + `error: E-PLUGIN-015`) and `plugin_load_failed_manifest_version_malformed` (ERROR, `PluginRuntime::load_plugin`, `plugin_path` + `version_value` + `error: E-PLUGIN-016`). AC-5 specifies 4 manifest error codes (E-PLUGIN-013/014/015/016); EC table covered all 4 after fix-burst-16; catalog was asymmetric with only E-PLUGIN-013/014 cataloged. This amendment restores symmetry. Total catalog rows: 23 → 25. Catalog label updated from "(v1.11)" to "(v1.12)". |
 | 1.11 | S-PLUGIN-PREREQ-D-fix-burst-8-stage-1 | 2026-05-13 | product-owner | F-LP9-MEDIUM-001 closure — Path B adjudication: catalog-destination scope mismatch between BC-2.16.002 narrow scope ("PipelineExecutor and helpers / pipeline.rs only") and PG-LP11-001's universal-catalog architectural intent. 6 of 7 new story-listed event_type rows emit from outside pipeline.rs (PluginRuntime, host_functions, boot.rs step-7.5). Path B chosen: expand BC-2.16.002 scope to cover all prism-spec-engine emissions + prism-bin boot-step plugin-load emissions. Path A (new BC-2.17.008) rejected: unnecessary new ID per POL-1 append-only cost. Path C (scatter across 4 BCs) rejected: breaks PG-LP11-001 single-source-of-truth intent. Changes: (1) catalog header renamed from "Structured Event Catalog (v1.10)" to "Canonical Structured Event Catalog (v1.11)"; (2) scope statement rewritten to cover all prism-spec-engine + prism-bin plugin-load event_type sites; (3) 7 new rows added: plugin_load_unsigned, plugin_load_disabled_via_envvar, plugin_load_failed_manifest_no_allowed_urls, plugin_load_failed_format_version_exceeded, plugin_load_failed_wit_invalid, plugin_http_request_blocked, pipeline_max_requests_exceeded. Total catalog rows: 16 → 23. BC-2.22.001 delegation ("per BC-2.16.002") preserved unchanged — Path B makes BC-2.16.002 the correct authority; no material edit needed there. |
 | 1.10 | S-PLUGIN-PREREQ-C-fix-burst-1 | 2026-05-12 | product-owner | Add 2 new Structured Event Catalog rows: jsonpath_extraction_failed (F-LP1-HIGH-001 — AC-2 bounds-check observability silence closure) and jsonpath_size_cap_exceeded (F-LP1-HIGH-007 — AC-2 nested-wildcard memory amplification protection). Total catalog rows: 14 → 16. Catalog label updated from "(v1.8)" to "(v1.10)". PG-LP11-001 SOP enforced. |
