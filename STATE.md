@@ -1,7 +1,7 @@
 ---
 document_type: pipeline-state
 level: ops
-version: "7.222"
+version: "7.223"
 producer: state-manager
 timestamp: 2026-05-13T14:00:00Z
 inputs: []
@@ -22,12 +22,12 @@ repos:
   - axiathon
   - ocsf-proto-gen
   - mcp-claroty-xdome
-current_step: "D-517 (pass-27 BLOCKED — 3 MED + 1 LOW + 1 OBS). Fresh-context surfaced 3 new finding classes 26 prior passes missed: F-LP27-MED-001 subsystems:[SS-22,SS-17] missing SS-16 despite BC-2.16.002 anchoring (PREREQ-B precedent [SS-16,SS-01]); F-LP27-MED-002 PluginError enum lacks #[non_exhaustive] + story MVP-hedge conditional language (PrismError error.rs:15-17 proves convention); F-LP27-MED-003 [process-gap] §References paraphrases 7/8 BC titles (POL-7; sibling to codification #12 body-table sweep); F-LP27-LOW-001 BC-2.17.005 cited at body lines 980+1012 but absent from inputs frontmatter (fix-burst-23 sibling-site gap). F-LP27-OBS-001 [process-gap] codification candidate #13 (POL-7 cross-table sweep). Streak 0/3 HOLD. fix-burst-25 next (3 MED + 1 LOW in-scope). STATE+HANDOFF v7.221→v7.222. 22nd consecutive single-commit."
+current_step: "D-518 (fix-burst-25 CLOSED — 4/4 in-scope findings: F-LP27-MED-001 subsystems [SS-22,SS-17]→[SS-22,SS-17,SS-16] + anchor_subsystem symmetric; F-LP27-MED-002 PluginError #[non_exhaustive] MVP-hedge stripped; F-LP27-MED-003 §References 7/8 BC titles verbatim BC H1; F-LP27-LOW-001 inputs BC-2.17.005 added. Story v1.24→v1.25. 1 OBS (F-LP27-OBS-001 codification #13 POL-7 cross-table sweep) routed cycle-close session-reviewer. Sibling-site sweep 5/5 CLEAN. Pass-28 dispatch next. STATE+HANDOFF v7.222→v7.223. 23rd consecutive single-commit.)"
 feature_branch_head: "ea958a4d"
 worktree_status: "merged"
-adversary_streak: "**0/3 HOLD — pass-27 BLOCKED (3 MED + 1 LOW; codification #13 candidate); fix-burst-25 next**"
+adversary_streak: "**0/3 HOLD — fix-burst-25 closed 4 in-scope findings; pass-28 dispatch next**"
 adversary_pass_count: 27
-pending_findings: "0 CRIT + 0 HIGH + 3 MED + 1 LOW + 1 OBS (F-LP27-MED-001 subsystems SS-16 anchor gap; F-LP27-MED-002 PluginError #[non_exhaustive] MVP-hedge; F-LP27-MED-003 References POL-7 paraphrase 7/8; F-LP27-LOW-001 BC-2.17.005 inputs gap; F-LP27-OBS-001 [process-gap] POL-7 cross-table sweep)"
+pending_findings: "0 CRIT + 0 HIGH + 0 MED + 0 LOW (fix-burst-25 closed all 4 in-scope; 1 OBS routed cycle-close session-reviewer codification #13)"
 demo_evidence_path: "docs/demo-evidence/S-PLUGIN-PREREQ-C/"
 local_converged_at_pass: 5
 wave_3_carry_forward_debt: "ALL_REMEDIATE — W4-FIX-PERF-001/002, W4-FIX-CODE-001, W4-FIX-SEC-001 through W4-FIX-SEC-004 planned per D-203"
@@ -69,7 +69,7 @@ wave_4_phase_4_a_preflight:
   passes_1_7_archived: "cycles/wave-4-operations/adversarial-reviews/ — all BLOCKED+remediated; SHAs 618b453e/15d1bf73/64f4ea81/55b75700/3f393b44/bae288ad/246b9f71"
   passes_8_13_archived: "cycles/wave-4-operations/adversarial-reviews/ — all BLOCKED+remediated; SHAs 39f065c7/6576df60/40458029/4a47ddd5/1849145b/398c5273"
   convergence_window: "3/3 CLOSED — CONVERGED"
-  pass_trajectory: "38→17→8→7→7→5→5→6→6→5→5→4→7→9→2→4→3→3(CLEAN)→18:CLEAN(1/3)→19:CLEAN(2/3)→20:BLOCKED(RESET 0/3)→PreSweep→21:BLOCKED→REMEDIATED(0/3)→PreP22Sweep(COMPLETE;0/3)→22:BLOCKED→REMEDIATED(1H+1M+1L;TD-VSDD-047)→23:BLOCKED→REMEDIATED(2H+1M+1L;sweep-target-list gap)→24:BLOCKED→REMEDIATED(1CRIT;comprehensive sweep found 1/200 drift = encouraging)→25:BLOCKED→REMEDIATED(1H;orchestrator-prompt-introduced orphan token caught)→26:BLOCKED→REMEDIATED(1H+1H-preP27;orchestrator-prompt-introduced orphan PATTERN now codified TD-VSDD-051)→27:BLOCKED→REMEDIATED(1H; VP rationale semantic mis-anchor — 6th orchestrator-prompt drift class)→28:BLOCKED→REMEDIATED(1H; VP H1 sister-line gap — 7th orchestrator-prompt drift class)→ 29:CLEAN(0/0/0/1L; CONVERGENCE_REACHED; window 1/3 OPEN post-reset)→ 30:CLEAN(0/0/0/0/0; PERFECT; window 2/3 OPEN)→ 31:CLEAN(0/0/0/0/0; CONVERGENCE_REACHED; window 3/3 CLOSED)→ 32-EQUIV-25:BLOCKED(1H+1M+2L+1OBS; idempotency caught spawn_blocking anchor; streak RESET 0/3)→FIX-BURST-23-CLOSED(3/3 in-scope; 1OBS deferred)→33-EQUIV-26:BLOCKED(1MED;asymmetric-BC-table-title;codification#12)→FIX-BURST-24-CLOSED(1/1 in-scope; codification#12)→34-EQUIV-27:BLOCKED(3M+1L+1OBS;codification#13POL-7sweep)"
+  pass_trajectory: "38→17→8→7→7→5→5→6→6→5→5→4→7→9→2→4→3→3(CLEAN)→18:CLEAN(1/3)→19:CLEAN(2/3)→20:BLOCKED(RESET 0/3)→PreSweep→21:BLOCKED→REMEDIATED(0/3)→PreP22Sweep(COMPLETE;0/3)→22:BLOCKED→REMEDIATED(1H+1M+1L;TD-VSDD-047)→23:BLOCKED→REMEDIATED(2H+1M+1L;sweep-target-list gap)→24:BLOCKED→REMEDIATED(1CRIT;comprehensive sweep found 1/200 drift = encouraging)→25:BLOCKED→REMEDIATED(1H;orchestrator-prompt-introduced orphan token caught)→26:BLOCKED→REMEDIATED(1H+1H-preP27;orchestrator-prompt-introduced orphan PATTERN now codified TD-VSDD-051)→27:BLOCKED→REMEDIATED(1H; VP rationale semantic mis-anchor — 6th orchestrator-prompt drift class)→28:BLOCKED→REMEDIATED(1H; VP H1 sister-line gap — 7th orchestrator-prompt drift class)→ 29:CLEAN(0/0/0/1L; CONVERGENCE_REACHED; window 1/3 OPEN post-reset)→ 30:CLEAN(0/0/0/0/0; PERFECT; window 2/3 OPEN)→ 31:CLEAN(0/0/0/0/0; CONVERGENCE_REACHED; window 3/3 CLOSED)→ 32-EQUIV-25:BLOCKED(1H+1M+2L+1OBS; idempotency caught spawn_blocking anchor; streak RESET 0/3)→FIX-BURST-23-CLOSED(3/3 in-scope; 1OBS deferred)→33-EQUIV-26:BLOCKED(1MED;asymmetric-BC-table-title;codification#12)→FIX-BURST-24-CLOSED(1/1 in-scope; codification#12)→34-EQUIV-27:BLOCKED(3M+1L+1OBS;codification#13POL-7sweep)→FIX-BURST-25-CLOSED(4/4 in-scope; codification#13)"
   passes_consumed: 34
   convergence_strategy: B+A_hybrid (D-214)
   subagent_context_discipline: MANDATORY
@@ -135,7 +135,7 @@ bc_count_corrected: 236
 cap_count: 40  # active; highest_cap_id: CAP-040 (CAP-038 Multi-Tenant Identity, CAP-039 Multi-Tenant Fixture Gen, CAP-040 Multi-Tenant Adapter Dispatch — Wave 3 Phase 3.A Step 2)
 bc_index_version: "4.71"
 vp_index_version: "1.34"
-story_index_version: "v2.93"
+story_index_version: "v2.94"
 policies_version: "1.10"
 total_stories: 150
 red_gate_wave_0a_complete: 2026-04-21
@@ -189,9 +189,9 @@ cycle_snapshot_factory_head: "TBD"
 | **Language** | Rust |
 | **Target Workspace** | per-analyst stdio (MCP server) |
 | **Started** | 2026-04-13 |
-| **Last Updated** | 2026-05-13 (D-517 — PREREQ-D pass-27 BLOCKED; 3 MED + 1 LOW + 1 OBS; codification #13 (POL-7 cross-table sweep); fix-burst-25 next; STATE+HANDOFF v7.221→v7.222) |
+| **Last Updated** | 2026-05-13 (D-518 — PREREQ-D fix-burst-25 CLOSED; 4/4 in-scope (3 MED + 1 LOW); story v1.24→v1.25; STORY-INDEX v2.93→v2.94; 1 OBS codification #13 routed cycle-close; pass-28 dispatch next; STATE+HANDOFF v7.222→v7.223) |
 | **Current Phase** | Wave 3 Tier-3 COMPLETE — **Wave 3-A 4 of 4 SHIPPED**; plugin migration: PREREQ-F + PREREQ-A + PREREQ-B + **PREREQ-C MERGED** (PR #144 ea958a4d 2026-05-12T23:14:05Z); PREREQ keystone trio COMPLETE; PLUGIN-MIGRATION Wave 1 unblocked; PREREQ-D/E pending |
-| **Current Step** | D-517 — PREREQ-D pass-27 BLOCKED (3 MED + 1 LOW + 1 OBS; codification #13 POL-7 cross-table sweep). F-LP27-MED-001 subsystems SS-16 anchor gap; F-LP27-MED-002 PluginError #[non_exhaustive] MVP-hedge; F-LP27-MED-003 §References POL-7 paraphrase 7/8; F-LP27-LOW-001 BC-2.17.005 inputs gap. fix-burst-25 next. **22nd consecutive single-commit.** |
+| **Current Step** | D-518 — PREREQ-D fix-burst-25 CLOSED (4/4 in-scope: 3 MED + 1 LOW). F-LP27-MED-001 subsystems [SS-22,SS-17]→[SS-22,SS-17,SS-16] + anchor_subsystem symmetric; F-LP27-MED-002 PluginError #[non_exhaustive] MVP-hedge stripped; F-LP27-MED-003 §References 7/8 BC titles verbatim; F-LP27-LOW-001 inputs BC-2.17.005 added. Story v1.24→v1.25. 1 OBS codification #13 routed cycle-close. Pass-28 dispatch next. **23rd consecutive single-commit.** |
 
 ## Phase Progress
 
@@ -236,6 +236,7 @@ _D-001..D-046 archived: [cycles/phase-3-dtu-wave-2/decisions-archive-d001-d032.m
 
 | ID | Decision | Rationale | Phase | Date |
 |----|----------|-----------|-------|------|
+| D-518 | 2026-05-13 | state-manager | PREREQ-D fix-burst-25 CLOSED — 4 in-scope findings (3 MED + 1 LOW) closed in single commit | F-LP27-MED-001 [POL-4]: subsystems: [SS-22, SS-17] → [SS-22, SS-17, SS-16]; YAML comment block + symmetric anchor_subsystem: updated; PREREQ-B precedent [SS-16, SS-01] cited. F-LP27-MED-002 [CLAUDE.md production-grade]: PluginError #[non_exhaustive] conditional MVP-hedge replaced with direct prescription; §non_exhaustive Requirements lists PluginError enum-level unconditionally; aligns PrismError at error.rs:15-17 + 30+-type perimeter audit. F-LP27-MED-003 [POL-7]: §References section 7/8 BC titles rewritten verbatim BC H1 (sibling pattern to codification #12 body BC table sweep); BC-2.17.007 parenthetical annotation preserved. F-LP27-LOW-001: inputs: appended BC-2.17.005-plugin-hot-reload-atomic-swap.md (gap from fix-burst-23 spawn_blocking re-anchor — sibling-site-sweep miss). Story v1.24 → v1.25. STORY-INDEX v2.93 → v2.94. F-LP27-OBS-001 [process-gap] codification candidate #13 (POL-7 cross-table sweep — extend POL-7 verification beyond body BC table to all citation sites) routed to cycle-close session-reviewer adjudication. Sibling-site sweep 5/5 clean. Pass-28 dispatch next — apply codifications #11 + #12 + #13. 23rd consecutive single-commit. STATE+HANDOFF v7.222→v7.223. | plugin-migration | 2026-05-13 |
 | D-517 | 2026-05-13 | state-manager | PREREQ-D pass-27 BLOCKED — 3 MED + 1 LOW + 1 OBS (process-gap codification #13); fresh-context surfaced 3 new finding classes 26 prior passes missed | F-LP27-MED-001 [POL-4]: subsystems:[SS-22,SS-17] missing SS-16 despite BC-2.16.002 anchoring (PREREQ-B precedent [SS-16,SS-01]). F-LP27-MED-002 [CLAUDE.md production-grade]: PluginError enum lacks #[non_exhaustive] + story line ~906 MVP-hedge conditional language; PrismError at error.rs:15-17 proves convention. F-LP27-MED-003 [process-gap, POL-7]: References section paraphrases 7/8 BC titles (sibling pattern to codification #12 which swept body BC table only); raises codification candidate #13: POL-7 sweep must cover ALL BC title citation sites. F-LP27-LOW-001: BC-2.17.005 cited at body lines 980+1012 but missing from inputs frontmatter (sibling-site-sweep gap from fix-burst-23 spawn_blocking re-anchor). F-LP27-OBS-001 [process-gap] tags codification #13. fix-burst-25 dispatched to story-writer. Special verifications A/B/C all PASS (fix-burst-23 + fix-burst-24 closures HELD). 22nd consecutive single-commit. STATE+HANDOFF v7.221→v7.222. | plugin-migration | 2026-05-13 |
 | D-516 | 2026-05-13 | state-manager | PREREQ-D fix-burst-24 CLOSED — 1 MED in-scope finding closed in single commit | F-LP26-MED-001 BC-2.16.002 body BC table title (story line 254) canonicalized from paraphrased sub-scope "Multi-Step Fetch Pipeline — Structured Event Catalog" → verbatim BC H1 + BC-INDEX "Multi-Step Fetch Pipeline Execution — Sequential Steps with Variable Interpolation" per POL-7. Primary Coverage cell unchanged (story-specific sub-scope label preserved). Sibling-site sweep: 8/8 BC body-table titles now match canonical BC H1 verbatim. Story v1.23 → v1.24. STORY-INDEX v2.92 → v2.93. OBS-LP26-001 already routed phase-5 via prior F-LP19-LOW-002; 5 phase-5 deferred findings unchanged. Pass-27 dispatch next — target streak 0/3 → 1/3. 21st consecutive single-commit. STATE+HANDOFF v7.220→v7.221. Codification #12 (BC body-table title verbatim verification) remains active pending session-reviewer adjudication. | plugin-migration | 2026-05-13 |
 | D-515 | 2026-05-13 | state-manager | PREREQ-D pass-26 BLOCKED — 1 MED post-fix-burst-23 (streak 0/3 HOLD) | F-LP26-MED-001 [process-gap]: BC-2.16.002 body BC table title (story line 254) reads "Multi-Step Fetch Pipeline — Structured Event Catalog" but canonical BC H1 + BC-INDEX both say "Multi-Step Fetch Pipeline Execution — Sequential Steps with Variable Interpolation". The other 7 BCs in the same body table all match their H1 verbatim — only BC-2.16.002 deviates. POL-7 + POL-4 violations. Asymmetric drift survived 25 passes. Codification candidate #12: BC body-table title verbatim verification (extend POL-22 Phase B to verify EACH BC row's Title cell against H1, not just type-unification chains). OBS-LP26-001 (VP-PLUGIN-007 not-None framing) already routed phase-5 via prior F-LP19-LOW-002. fix-burst-24 dispatched to story-writer. Special verifications A/B/C from fix-burst-23 all PASS. POL-22 Phase A 25/25 + Phase B 4/4 + Phase C 9/9 PASS. 20th consecutive single-commit. STATE+HANDOFF v7.219→v7.220. | plugin-migration | 2026-05-13 |
