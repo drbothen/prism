@@ -18,13 +18,14 @@ bc_index_version: v4.73
 bc_index_content_sha: 3bb2f96a02639d1b8640bd76ea79083bc8c8732b
 story_index_version: v2.100
 story_index_content_sha: aef12ba648b86af7ea9e8337fc05ec39a6df55b5
-adversary_pass_count: 32
+adversary_pass_count: 33
 fix_burst_count: 30
 adversary_streak: 0/3 HOLD
-codification_candidates_active: 17
+codification_candidates_active: 19
 phase_5_deferred_findings: 6
 pass_24_status: COMPLETE_CLEAN_FIRST_STREAK_ADVANCE
 post_pass_32_snapshot_at: D-529
+post_pass_33_burst_p_at: D-530
 user_directive_2026_05_14: "minimum 10 more passes after compact (pass-33..pass-42+)"
 safe_to_compact: true
 producer: state-manager
@@ -678,5 +679,76 @@ AFTER PREREQ-D CONVERGES + MERGES:
 - PREREQ-E next (gating PLUGIN-MIGRATION Wave 1)
 - PLUGIN-MIGRATION-001-A/B/C/D dispatch (only after PREREQ-D + PREREQ-E both merged)
 ```
+
+---
+
+## §POST-PASS-33 BLOCKED SUMMARY (D-530)
+
+> **Status:** Pass-33 BLOCKED. Supersedes §POST-PASS-32 RESUME SNAPSHOT for resume purposes.
+> Captured at D-530 (Burst P). fix-burst-31 next. Story v1.30 unchanged.
+
+### Pass-33 Finding Inventory
+
+**Verdict: BLOCKED (0 CRIT / 0 HIGH / 2 MED / 1 LOW / 2 OBS)**
+
+| Finding | Severity | Description | Route |
+|---------|----------|-------------|-------|
+| F-LP33-MED-001 | MEDIUM | AC-9 trace header line 373 stale BC-2.17.002 v1.6 pin (canonical v1.7). 8th version-pin sibling-prose drift instance. Fix-burst-30 updated line 419 but not line 373. | story-writer fix-burst-31 |
+| F-LP33-MED-002 | MEDIUM | E-PLUGIN-013 message template in 3 forms: line 906 single-quoted + line 323 no-delimiter vs error-taxonomy.md:455 backtick canonical. Codification #16 table-row check missed prose occurrences. 2nd consecutive pass triggering this class. | story-writer fix-burst-31 |
+| F-LP33-LOW-001 | LOW | "BC-2.16.002 v1.12 catalog discipline" phrasing at 8 sites (lines 300/357/581/616/648/692/808/916) implies named section not in BC-2.16.002 v1.12. No LOW deferral per production-grade default. | story-writer fix-burst-31 |
+| F-LP33-OBS-001 | OBS [process-gap] | 8th recurrence of version-pin sibling-prose drift. POL-23 candidate: automated BC-version-bump sibling grep gate. Codification candidate #18. | cycle-close session-reviewer |
+| F-LP33-OBS-002 | OBS [process-gap] | Codification #16 partially-implemented 2nd consecutive pass. Formal promotion to POL-24 (prose occurrences + table rows). | cycle-close session-reviewer |
+
+### Trajectory Update
+
+**Trajectory (pass-25..33):** 4 → 1 → 4 → 5 → 1 → 1 → 3 → 4 → **5**
+
+Third consecutive pass with 3+ findings. Both trend breaks caused by recurring class failures
+(version-pin sibling drift + error message delimiter) rather than new architectural drift. No
+CRIT/HIGH this pass — severity ceiling has dropped compared to passes 31-32.
+
+### Codification Candidates Update
+
+Previous count: 17 active candidates queued for cycle-close.
+
+Changes at D-530:
+- Codification #16 formally promoted to POL-24 (prose-occurrence scope extension; 2 consecutive trigger instances)
+- POL-23 newly proposed as codification candidate #18 (BC-version-bump sibling grep gate)
+
+**New total: 19 codification candidates in cycle-close adjudication queue.**
+
+### fix-burst-31 Dispatch Template (Story-Writer Single-Agent)
+
+No BC amendments needed this pass. Single-agent dispatch:
+
+```
+story-writer: (fix-burst-31)
+  Edit 1: story line 373 — replace `v1.6` with `v1.7`
+  Edit 2: story line 906 — replace `'allowed_urls = []'` with `\`allowed_urls = []\``
+  Edit 3: story line 323 — replace `allowed_urls = []` with `\`allowed_urls = []\``
+  Edit 4 (8-site sweep): lines 300, 357, 581, 616, 648, 692, 808, 916 —
+    replace "catalog discipline" phrasing with canonical anchor:
+    "BC-2.16.002 v1.12 §Canonical Structured Event Catalog (row plugin_load_unsigned Trigger cell)"
+    OR lighter: "catalog routing convention"
+  Edit 5: add v1.31 changelog row documenting fix-burst-31 edits
+
+state-manager Burst Q (after fix-burst-31 complete):
+  fix-burst-31 closure + log D-531 (single commit per TD-VSDD-053)
+```
+
+### Artifact State (Unchanged from D-529)
+
+| Artifact | Version | Path |
+|----------|---------|------|
+| Story S-PLUGIN-PREREQ-D | v1.30 (fix-burst-31 → v1.31) | `.factory/stories/S-PLUGIN-PREREQ-D-plugin-runtime-boot-wiring.md` |
+| BC-2.17.002 | v1.7 (draft) | `.factory/specs/behavioral-contracts/BC-2.17.002-plugin-sandbox-filesystem.md` |
+| BC-INDEX | v4.73 | `.factory/specs/behavioral-contracts/BC-INDEX.md` |
+| STORY-INDEX | v2.100 | `.factory/stories/STORY-INDEX.md` |
+| error-taxonomy | v1.21 | `.factory/specs/prd-supplements/error-taxonomy.md` |
+| BC-2.16.002 | v1.12 (active) | `.factory/specs/behavioral-contracts/BC-2.16.002-*.md` |
+| factory-artifacts HEAD | D-530 | `git -C .factory log -1 --format='%H'` |
+| develop HEAD | unchanged | 95d46be2 |
+| STATE.md | v7.235 | `.factory/STATE.md` |
+| SESSION-HANDOFF.md | v7.235 | `.factory/SESSION-HANDOFF.md` |
 
 **Total BC amendments this cycle: 8 files touched, 13 amendment events**
