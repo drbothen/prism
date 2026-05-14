@@ -11,12 +11,12 @@ bc_2_16_002_version: v1.12
 bc_2_16_002_content_sha: 84f58565
 error_taxonomy_version: v1.20
 error_taxonomy_content_sha: 8e980a0e
-adversary_pass_count: 23
+adversary_pass_count: 24
 fix_burst_count: 22
-adversary_streak: 0/3
+adversary_streak: 1/3
 codification_candidates_active: 10
 phase_5_deferred_findings: 4
-pass_24_status: in_flight_retry_after_rate_limit
+pass_24_status: COMPLETE_CLEAN_FIRST_STREAK_ADVANCE
 producer: state-manager
 ---
 
@@ -26,7 +26,7 @@ producer: state-manager
 > A fresh session must read this file AFTER `STATE.md` + `SESSION-HANDOFF.md` to fully reconstruct
 > the PREREQ-D adversarial convergence state.
 >
-> **Captured at:** fix-burst-22 closed (factory HEAD `6a862840`); pass-24 retry dispatched after rate-limit.
+> **Captured at:** fix-burst-22 closed + pass-24 CLEAN (factory HEAD `6a862840`); FIRST STREAK ADVANCE 0/3 → 1/3; pass-25 idempotency next.
 
 ---
 
@@ -36,8 +36,8 @@ producer: state-manager
 |-------|-------|
 | **Story** | S-PLUGIN-PREREQ-D — Plugin Runtime Boot Wiring |
 | **Cycle start** | Pass-1, decision D-461, 2026-05-13 |
-| **Current state** | Pass-23 CLOSED via fix-burst-22; pass-24 retry in flight (rate-limited on first attempt) |
-| **Adversary streak** | 0/3 HOLD |
+| **Current state** | Pass-24 CLEAN — FIRST STREAK ADVANCE 0/3 → 1/3; pass-25 idempotency dispatch next |
+| **Adversary streak** | 1/3 (pass-24 CLEAN; pass-25 idempotency next → target 2/3) |
 | **Story version** | v1.22 (content SHA a9a51671) |
 | **ACs** | 18 |
 | **Red Gate Tests** | 25 |
@@ -53,7 +53,7 @@ producer: state-manager
 
 ## §2 Pass Trajectory — Full 23-Pass History
 
-**Trajectory:** 16 → 8 → 6 → 4 → 0 → 4 → 7 → 4 → 2 → 2 → 2 → 1 → 1 → 1 → 3 → 6 → 4 → 4 → 4 → 1 → 1 → 1 → 1
+**Trajectory:** 16 → 8 → 6 → 4 → 0 → 4 → 7 → 4 → 2 → 2 → 2 → 1 → 1 → 1 → 3 → 6 → 4 → 4 → 4 → 1 → 1 → 1 → 1 → **0**
 
 | Pass | Verdict | Findings | Key Discovery | Fix-Burst |
 |------|---------|----------|---------------|-----------|
@@ -80,7 +80,7 @@ producer: state-manager
 | 21 | BLOCKED-hard | 1 | PipelineError::TooManyRequests non-existent (HIGH; 3rd recursive prescription gap; POL-22 threshold met) | fb-20 |
 | 22 | BLOCKED-soft | 2 | AC-17 HostState test-crate Match-Site sibling-sweep (MED) | fb-21 |
 | 23 | BLOCKED-hard | 1 | Option→Vec type-contract regression (HIGH; 4th in-burst regression — POL-22 Phase B candidate) | fb-22 |
-| **24** | **in flight** | — | Retry dispatched after rate-limit on first attempt | pending |
+| **24** | **CLEAN** | **0** | **FIRST STREAK ADVANCE — 0/3 → 1/3 ✓** POL-22 Phase A 25/25 PASS; Phase B 4/4 chains PASS; 13 carry-forward samples CLEAN; trajectory collapse 1→0 | — |
 
 ---
 
@@ -188,7 +188,7 @@ These are out-of-perimeter for story-scoped fix-bursts. NOT in tech-debt-registe
 
 The following operational disciplines held throughout the PREREQ-D cascade:
 
-- **14 consecutive single-commit-with-TBD-pin** (fix-burst-9 through fix-burst-22; F-LP10-OBS-001 DECISIVELY STABLE)
+- **16 consecutive single-commit-with-TBD-pin** (fix-burst-9 through fix-burst-22 + D-510 pre-compact snapshot + D-511 pass-24 CLEAN reification; F-LP10-OBS-001 DECISIVELY STABLE)
 - **NO PUSH to factory-artifacts remote** — LOCAL-ONLY per CLAUDE.md orchestrator policy; 56+ commit divergence is expected and correct state
 - **POL-22 Phase A** — recursive external-anchor verification active; enforced by adversary since pass-21 (caught fix-burst-15 mis-prescription at pass-16; PipelineError mis-prescription at pass-21)
 - **POL-22 Phase B** — internal cross-reference type-unification raised as 10th codification candidate at pass-23
@@ -202,9 +202,9 @@ The following operational disciplines held throughout the PREREQ-D cascade:
 
 | Artifact | Version | Notes |
 |----------|---------|-------|
-| STATE.md | v7.214 | `adversary_pass_count: 23` |
-| SESSION-HANDOFF.md | v7.214 | Updated this burst |
-| STORY-INDEX | v2.89 | PREREQ-D row at v1.22 |
+| STATE.md | v7.216 | `adversary_pass_count: 24`; `adversary_streak: 1/3` |
+| SESSION-HANDOFF.md | v7.216 | Updated with pass-24 CLEAN resume narrative |
+| STORY-INDEX | v2.90 | PREREQ-D row at v1.22 (no content change — pass-24 CLEAN) |
 | BC-INDEX | v4.71 | No change this burst |
 | ARCH-INDEX | v2.43 | No change this burst |
 | error-taxonomy | v1.20 | E-PIPELINE-001 most recent addition |
@@ -218,25 +218,22 @@ The following operational disciplines held throughout the PREREQ-D cascade:
 
 ## §9 Resume Action Plan — Next Session
 
-### If pass-24 retry returned a verdict during the current session
+### Pass-24 CLEAN — First Streak Advance Complete
 
-Route per its verdict:
+Pass-24 returned CLEAN with ZERO findings. Streak is now 1/3. The next action is:
 
-- **CLEAN** → dispatch pass-25 idempotency check (target 1/3 streak); Token Budget pct 16.0% unchanged
-- **BLOCKED** → dispatch story-writer fix-burst-23 (same pattern: fresh context, story v1.22 target)
+**Priority 1: Dispatch adversary pass-25 (idempotency check)**
+- Target: story v1.22 (content SHA a9a51671) at SAME factory HEAD (no content change since pass-24)
+- Streak goal: 1/3 → 2/3 if CLEAN
+- Apply POL-22 Phase A (25 external anchors) AND Phase B (4 internal cross-reference chains)
+- Expected: HIGH likelihood CLEAN (idempotency at unchanged HEAD); but pass-5 false-CLEAN precedent says verify rigorously
+- If CLEAN → advance streak to 2/3; dispatch pass-26 immediately
+- If BLOCKED → dispatch story-writer fix-burst-23; reset streak to 0/3
 
-### If pass-24 retry did NOT complete (session reset or rate-limit persists)
-
-Re-dispatch adversary for PREREQ-D pass-24 with these coordinates:
-
-- **Target story version:** v1.22 (content SHA a9a51671)
-- **Factory HEAD:** `6a862840` (run `git -C .factory log -1` to confirm)
-- **develop HEAD:** 95d46be2
-- **Token Budget pct:** 16.0% (40,900 of 256k)
-- **Streak:** 0/3 HOLD
-- **Trajectory:** 16→8→6→4→0→4→7→4→2→2→2→1→1→1→3→6→4→4→4→1→1→1→1
-- Apply POL-22 Phase A (recursive external-anchor verification) AND Phase B (internal cross-reference type-unification) disciplines
-- **Convergence forecast:** ~85% CLEAN (fix-burst-22 closed the Option→Vec type-contract regression at all 8 sites + obsolete test A.ii)
+**Priority 2: After pass-25 CLEAN, dispatch adversary pass-26 (final)**
+- Streak goal: 2/3 → 3/3 CONVERGED (BC-5.39.001)
+- If CLEAN → 3/3 CONVERGENCE DECLARED; route to fix-burst close-out + cycle-closing session-reviewer dispatch
+- If BLOCKED → dispatch story-writer fix-burst at new finding; reset streak to 0/3
 
 ### After 3-CLEAN convergence
 
@@ -264,13 +261,17 @@ git -C /Users/jmagady/Dev/prism log -1 --format='%h %s' develop
 cat /Users/jmagady/Dev/prism/.factory/cycles/wave-4-operations/S-PLUGIN-PREREQ-D-CYCLE-SNAPSHOT.md
 
 # Read the CURRENT session resume section
-grep -A 80 "RESUME RECOMMENDATION FOR NEXT SESSION" /Users/jmagady/Dev/prism/.factory/SESSION-HANDOFF.md | head -80
+grep -A 80 "RESUME RECOMMENDATION" /Users/jmagady/Dev/prism/.factory/SESSION-HANDOFF.md | head -80
 
-# Verify story version
+# Verify story version (should be v1.22; SHA a9a51671)
 grep "story_version\|version:" /Users/jmagady/Dev/prism/.factory/stories/S-PLUGIN-PREREQ-D*.md 2>/dev/null | head -5
 
-# Check if pass-24 adversary agent result exists
-ls /Users/jmagady/Dev/prism/.factory/cycles/wave-4-operations/adversarial-reviews/ | grep "PREREQ-D-pass-24" 2>/dev/null
+# Confirm pass-24 CLEAN report exists
+ls /Users/jmagady/Dev/prism/.factory/cycles/wave-4-operations/adversarial-reviews/ | grep "PREREQ-D-pass-24"
+
+# Dispatch adversary pass-25 (idempotency — story v1.22 UNCHANGED)
+# Streak: 1/3 → 2/3 if CLEAN
+# Next after that: pass-26 for 3-CLEAN convergence
 ```
 
 ---
@@ -279,10 +280,10 @@ ls /Users/jmagady/Dev/prism/.factory/cycles/wave-4-operations/adversarial-review
 
 | Metric | Value |
 |--------|-------|
-| Total adversary passes | 23 (pass-24 in flight) |
+| Total adversary passes | 24 (pass-24 CLEAN — FIRST STREAK ADVANCE) |
 | Total fix-bursts | 22 |
 | Trajectory start | 16 findings |
-| Trajectory current | 1 finding (plateau 1→1→1→1 at passes 20-23) |
+| Trajectory current | **0 findings** (plateau 1→1→1→1 at passes 20-23; collapsed to 0 at pass-24) |
 | False-CLEAN (idempotency catch) | 1 (pass-5) |
 | In-burst regressions | 4 (passes 7, 15→16, 21, 23) |
 | HIGH-severity defects closed | 8 |
@@ -291,7 +292,7 @@ ls /Users/jmagady/Dev/prism/.factory/cycles/wave-4-operations/adversarial-review
 | BC lifecycle remediations | 8 BCs updated (BC-2.17.001/002/003/004/006/007 + BC-2.22.001 + BC-2.06.011) |
 | ADRs amended | 1 (ADR-022 v1.0→v1.3) |
 | Factory commits | 44 (fix-burst-1..22 + state bursts) |
-| Single-commit-with-TBD-pin streak | 14 consecutive (fix-burst-9..22) |
+| Single-commit-with-TBD-pin streak | 16 consecutive (fix-burst-9..22 + D-510 + D-511) |
 | Phase-5 deferred findings | 4 |
 | Codification candidates active | 10 |
 | Formally codified (this cycle) | 1 (adversary-cannot-write-reports) |
