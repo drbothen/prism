@@ -1640,3 +1640,242 @@ mechanical fix, not a novel semantic drift class. Three consecutive clean passes
 interruption (41, 42, 43) provide strong evidence of convergence stability.
 
 **49th consecutive single-commit (TD-VSDD-053 DECISIVELY STABLE).**
+
+---
+
+## §PRE-IMPLEMENTATION RESUME SNAPSHOT (D-545 — 2026-05-14)
+
+> **This section is the deep-persistence durability anchor for the post-/clear implementation session.** Written at D-545 per user request. Mirrors SESSION-HANDOFF.md §PRE-IMPLEMENTATION RESUME SNAPSHOT. A fresh session reading this file has complete context to execute the 8-step per-story delivery workflow with zero ambiguity.
+
+### §1 — Cycle Final State
+
+- D-529 resume cascade COMPLETE at D-544 (S-PLUGIN-PREREQ-D ADVERSARIAL CONVERGENCE per BC-5.39.001)
+- 11 passes (33-43): 7 BLOCKED (33-38, 40) + 4 CLEAN (39, 41, 42, 43)
+- 8 fix-bursts (fix-burst-31 through fix-burst-37)
+- 17+ findings closed across the cascade
+- Final trajectory pass-25..43: **4→1→4→5→1→1→3→4→5→5→5→2→1→2→0→1→0→0→0**
+- Carry-forward: 17 codification candidates (cycle-close session-reviewer) + 8 phase-5 deferred findings (architect) + 1 cycle-close OBS (OBS-LP41-001)
+- 50 consecutive single-commits at D-545 (TD-VSDD-053 DECISIVELY STABLE)
+- SAFE_TO_COMPACT declared
+
+### §2 — Current Artifact State Table
+
+| Artifact | Version | Status | Note |
+|----------|---------|--------|------|
+| Story S-PLUGIN-PREREQ-D | v1.32 | draft | UNCHANGED; ready for implementation; content_sha: 7ee3b7c48be6baaeb1e74868c9f12e33ffc21b6d |
+| BC-2.16.002 | v1.13 | active | fix-burst-37 frontmatter sync; 25 catalog rows |
+| BC-2.17.001 | current | draft | Promotes → active at PREREQ-D PR merge per POL-14 |
+| BC-2.17.002 | v1.7 | draft | EC-17-007 uses E-PLUGIN-005 SandboxViolation for HTTP 403; promotes → active at merge |
+| BC-2.17.003 | current | draft | Promotes → active at PREREQ-D PR merge per POL-14 |
+| BC-2.17.004 | current | draft | Promotes → active at PREREQ-D PR merge per POL-14 |
+| BC-2.17.006 | current | draft | Promotes → active at PREREQ-D PR merge per POL-14 |
+| BC-2.17.007 | v1.4 | draft | fix-burst-34: frontmatter sync + AC-5 anchor; promotes → active at merge |
+| BC-2.22.001 | v1.5 | active | OBS-LP41-001 modified-field format intent-pending Path A/B |
+| BC-INDEX | v4.76 | — | Unchanged at convergence |
+| STORY-INDEX | v2.103 | — | Unchanged at convergence |
+| VP-INDEX | v1.37 | — | Unchanged at convergence |
+| ARCH-INDEX | v2.43 | — | Unchanged at convergence |
+| error-taxonomy | v1.22 | — | Unchanged at convergence |
+| policies.yaml | v1.10 | — | Unchanged |
+| STATE.md | v7.250 | — | D-545 pre-implementation snapshot |
+| SESSION-HANDOFF.md | v7.250 | — | D-545 pre-implementation snapshot |
+| develop HEAD | 95d46be2 | — | UNCHANGED throughout entire cascade |
+| factory-artifacts HEAD | D-545 | — | `git -C .factory log -1 --format='%H'` |
+| adversary_pass_count | 43 | — | CONVERGED; DO NOT dispatch pass-44 |
+| adversary_streak | 3/3 CONVERGED | — | 4 consecutive zero-finding passes (39,41,42,43) |
+| token_budget | 42,400 / 256,000 | 16.6% | Within 20% limit; flag if >18-19% during TDD green |
+
+### §3 — Per-Story Delivery 8-Step Dispatch Checklist
+
+Execute in order after /clear per `workflows/code-delivery.lobster` + `per-story-delivery.md`:
+
+1. **test-writer** — Red Gate stubs for 25 named tests; worktree `.worktrees/S-PLUGIN-PREREQ-D`; ALL compile + ALL fail (zero implementation logic)
+2. **Red Gate confirmation** — `just iter prism-bin` + `just iter prism-spec-engine` show 25 FAIL; BC-5.38.001 confirmed
+3. **implementer** — TDD green cycle; pick failing test → minimum code → micro-commit → repeat; per per-story-delivery.md
+4. **adversary (LOCAL)** — 3-CLEAN cascade on implementation (BC-5.39.001 applies to implementation phase too)
+5. **demo-recorder** — per-AC; output: `docs/demo-evidence/S-PLUGIN-PREREQ-D/`; 18 ACs
+6. **devops-engineer** — push `feature/S-PLUGIN-PREREQ-D` to remote (first push for this story)
+7. **pr-manager** — 9-step PR lifecycle (create, code-reviewer, security-reviewer, pr-reviewer, triage, fix-pr-delivery, squash-merge to develop); user authorization for merge
+8. **state-manager** — post-merge burst: PREREQ-D merged; 6 BCs promote draft→active (POL-14: BC-2.17.001/002/003/004/006/007); STATE.md wave_3_implementation_status updated; PREREQ-E next
+
+### §4 — Test-Writer Dispatch Template (copy-paste ready)
+
+```
+Agent(
+  subagent_type="vsdd-factory:test-writer",
+  prompt="""cd /Users/jmagady/Dev/prism
+
+Create Red Gate test stubs for story S-PLUGIN-PREREQ-D.
+
+Story file: .factory/stories/S-PLUGIN-PREREQ-D-plugin-runtime-boot-wiring.md (v1.32)
+Worktree: .worktrees/S-PLUGIN-PREREQ-D/ (create via devops-engineer if missing, branch: feature/S-PLUGIN-PREREQ-D)
+
+Read story §Red Gate Tests section (25 named tests total):
+  prism-bin block (7 tests):
+    test_BC_2_22_001_boot_step_plugin_load_placement
+    test_BC_2_22_001_plugin_load_failure_exits_code_4
+    test_BC_2_22_001_plugin_load_disabled_env
+    test_BC_2_22_001_disable_env_takes_precedence_over_plugin_dir_config
+    (+ 3 more from prism-bin block in story §Red Gate Tests)
+
+  prism-spec-engine block (18 tests):
+    test_BC_2_17_001_plugin_panic_isolation
+    test_BC_2_17_002_wasi_not_linked_trap_on_fs_call
+    test_BC_2_17_002_allowlist_enforcement_blocks_non_allowlisted_url
+    test_BC_2_17_002_allowlist_enforcement_allows_listed_url
+    test_BC_2_17_003_memory_limit_enforced_default_64mb
+    test_BC_2_17_004_cpu_timeout_enforced_infinite_loop
+    test_BC_2_17_006_wit_validation_rejects_missing_export
+    test_BC_2_17_006_duplicate_plugin_id_first_wins
+    test_BC_2_17_007_manifest_format_version_exceeded_rejected
+    test_BC_2_17_007_manifest_missing_allowed_urls_rejected
+    test_BC_2_17_007_manifest_name_empty_rejected
+    test_BC_2_17_007_manifest_version_malformed_rejected
+    test_BC_2_17_002_linker_imports_match_host_functions
+    test_BC_2_16_002_pipeline_max_requests_exceeded
+    (+ 4 more from prism-spec-engine block in story §Red Gate Tests)
+
+Requirements:
+- ALL 25 compile; ALL 25 FAIL with todo!() or #[should_panic(expected = "not yet implemented")]
+- Zero implementation logic in stub bodies
+- Naming convention: test_BC_<bc_id>_<descriptor>
+
+Verify: just iter prism-bin (7 FAIL) + just iter prism-spec-engine (18 FAIL)
+"""
+)
+```
+
+### §5 — Implementer Dispatch Template (after Red Gate confirmation)
+
+```
+Agent(
+  subagent_type="vsdd-factory:implementer",
+  prompt="""cd /Users/jmagady/Dev/prism/.worktrees/S-PLUGIN-PREREQ-D
+
+Implement S-PLUGIN-PREREQ-D via TDD per per-story-delivery.md.
+
+Story: /Users/jmagady/Dev/prism/.factory/stories/S-PLUGIN-PREREQ-D-plugin-runtime-boot-wiring.md (v1.32)
+25 stubs in place. Pick next failing test → minimum code → micro-commit → repeat.
+
+CRITICAL CONSTRAINTS:
+
+1. Vec<String> contract (AC-7 + AC-17):
+   - allowed_urls: Vec<String> NEVER Option<Vec<String>>
+   - Default-deny: vec![] = deny all; vec!["host"] = allow that host
+   - HostState::test_default() uses allowed_urls: vec![] (default-deny)
+   - test_default() gated: #[cfg(any(test, feature = "test-helpers"))]
+
+2. Match-Site Inventory (plugin_tests.rs):
+   - :287 drop allowed_urls override (vec![] is default)
+   - :305 vec![...] not Some(vec![...])
+   - :912 rename → test_BC_2_17_002_ec17_007_http_request_empty_allowlist_blocked; assert 403
+   - :946 vec![...] not Some(vec![...])
+   - :977 same as :946
+   - :1018 drop allowed_urls: None override
+
+3. AC-9 timeout:
+   - reqwest::Client production: .timeout(Duration::from_secs(30))
+   - Update host_functions.rs:30 doc + :154 timeout config
+
+4. AC-16 error type:
+   - Add: SpecEngineError::TooManyRequests { total: usize }
+   - Use E-PIPELINE-001 code; DO NOT use PipelineError (type does not exist)
+   - DO NOT use PluginError::AllowlistRejected (variant does not exist; use E-PLUGIN-005 SandboxViolation for HTTP 403)
+
+5. Discipline:
+   - All new public types: #[non_exhaustive]
+   - All new event_type= tracing sites: register in BC-2.16.002 §Canonical Structured Event Catalog SAME COMMIT
+   - No unwrap()/expect() in non-test code; use ? + SpecEngineError variants
+   - No println!; use tracing::*! with structured fields only
+"""
+)
+```
+
+### §6 — 17 Codification Candidates Queue (for cycle-close session-reviewer)
+
+| # | Candidate | POL candidate | Priority | Source |
+|---|-----------|---------------|----------|--------|
+| 11 | Lexical-vs-semantic anchor-content verification | POL-21 | HIGH | 6+ recurrences |
+| 12 | BC body-table title verbatim verification | POL-22 ext | HIGH | 5+ recurrences |
+| 13 | POL-7 cross-table sweep scope extension | POL-7 amend | HIGH | 5+ recurrences |
+| 13-sub | §References completeness check | POL-7 amend | MED | 1 recurrence |
+| 14 | Phantom-section-anchor sweep (§X → actual ##) | new POL | HIGH | 4+ recurrences |
+| 15 | Sibling-prose exclusion-note sweep | POL-7 amend | MED | 2 recurrences |
+| 16 | Error message template byte-verbatim (POL-24 formally promoted) | POL-24 | HIGH | 2+ recurrences |
+| 17 | BC-amendment entity existence verification | new POL | HIGH | 4 recurrences (4th in-burst regression) |
+| POL-23 | BC-version-bump sibling-site grep gate (TD-VSDD-060 frontmatter extension) | POL-23 | HIGH | 8+ recurrences |
+| POL-24 | Byte-verbatim error message template gate | POL-24 | HIGH | same as #16 |
+| POL-25 | Multi-cite VP-row propagation sweep mandatory | POL-25 | HIGH | 4 recurrences |
+| POL-26 | §Changelog schema-integrity validator (count cells vs header) | POL-26 | HIGH | 4 recurrences (F-LP32-MED-002, F-LP34-HIGH-001, F-LP38-MED-001/002) |
+| POL-14 ref | Bold-labeled bullets admissible WITH parent-section ancestry notation | POL-14 amend | MED | 1 adjudication |
+| #24 | frontmatter-modified-sweep (modified: + timestamp: fields as TD-VSDD-060 sibling targets) | POL-23 ext | HIGH | 2 recurrences |
+| MD-int | Markdown-table row-delimiter discipline (>500 chars suspicious; >1000 chars = merged row) | new POL | MED | 2 recurrences |
+| OBS-LP41-001 | BC-2.22.001 modified-field format heterogeneity Path A vs Path B adjudication | policies.yaml | MED | 1 intent-pending |
+| OBS-LP35-003 | format_version forward-compat policy gap (no MIN_SUPPORTED_VERSION deprecation policy) | architect/PO | MED | 1 observation |
+
+### §7 — Phase-5 Deferred Findings Catalog
+
+| Finding | Description | Routing | Deferred at |
+|---------|-------------|---------|-------------|
+| OBS-LP35-001 | verification-architecture.md:282 + ADR-023:732-733 pre-AC-7 "not-None" Option-semantics | architect adjudication | D-534 |
+| OBS-LP36-002 | BC-INDEX prose vs frontmatter count drift (system-level; 3 independent count claims disagree) | workspace-wide BC enumeration | D-536 |
+| F-LP12-OBS-001 | pre-D-529 deferred finding 1 | phase-5 | pre-D-529 |
+| F-LP16-OBS-001 | pre-D-529 deferred finding 2 | phase-5 | pre-D-529 |
+| F-LP19-LOW-002 | VP-INDEX VP-PLUGIN-004 framing vs BC-2.16.002 v1.12 catalog scope | spec-steward/architect | D-535 |
+| F-LP22-OBS-001 | PluginError enum lacks #[non_exhaustive] (prism-core asymmetry vs SpecEngineError) | architect: add + update compile-fail gate OR explicit exemption | D-507 |
+| F-LP25-OBS-001 | BC-2.17.002 EC-17-007 vacuous-truth under Vec<String> | product-owner phase-5 | D-513 |
+| F-LP28-OBS-001 | E-INT-001 absent from error-taxonomy.md (pre-existing gap) | product-owner phase-5 | D-519 |
+
+All 8 deferred at `.factory/cycles/wave-4-operations/deferred-findings-phase-5.md`.
+
+### §8 — Standing Directives + Canonical Principle Reminders
+
+**CLAUDE.md Production-Grade Default (permanent, binds all agents):**
+- No MVP-driven deferrals; no "for now"; no "good enough"; no "ship fast and iterate"
+- Feature order is the only acceptable speed lever; each shipped feature must be production-grade
+- AI-built defects are the AI's responsibility to fix in scope
+- "Pending architect review" in spec artifacts is forbidden when question is answerable in scope
+
+**Project-Specific Operational Rules:**
+- TD-VSDD-053: single-commit-per-burst (50th consecutive at D-545)
+- TD-VSDD-059: paper-fix detection (adversary independently verifies all closures)
+- TD-VSDD-060: sibling-site sweep when changing function sig/constant/canonical identifier
+- TD-VSDD-091: anti-volatile-pin (no file:line citations in narrative spec content; exceptions: Red Gate tables, AC source-of-truth tables, pass-report changelogs)
+- BC-5.39.001: 3-CLEAN convergence protocol (applies to BOTH spec and implementation phases)
+- POL-3: state-manager-last in each burst
+- POL-11: index-bump on mutations
+- POL-14: BC promotion at merge (6 BCs: BC-2.17.001/002/003/004/006/007)
+
+### §9 — Critical Do-NOT-Do List
+
+- DO NOT dispatch adversary pass-44 — 3/3 CONVERGED; convergence DECLARED
+- DO NOT compose PR body or `gh pr create` directly — pr-manager owns PR lifecycle
+- DO NOT push factory-artifacts to remote — local-only policy; 60+ commit local divergence is correct
+- DO NOT use `--no-verify` on any commit
+- DO NOT add Co-Authored-By or Claude attribution to commits
+- DO NOT force-push to develop
+- DO NOT dispatch PLUGIN-MIGRATION-001-A/B/C/D until PREREQ-D + PREREQ-E BOTH merged
+- DO NOT use `Option<Vec<String>>` for allowed_urls — type contract is `Vec<String>` (compile error)
+- DO NOT introduce `PluginError::AllowlistRejected` — variant does not exist in error.rs
+- DO NOT use `PipelineError::TooManyRequests` — type `PipelineError` does not exist; use `SpecEngineError::TooManyRequests`
+
+### §10 — Safe-to-Compact Declaration + Signature
+
+**SAFE_TO_COMPACT — D-545 — 2026-05-14 — state-manager**
+
+This section completes the durability anchor for the pre-implementation /clear event.
+
+Verification: a fresh session reading STATE.md v7.250 + SESSION-HANDOFF.md v7.250 (§PRE-IMPLEMENTATION RESUME SNAPSHOT) + this file §PRE-IMPLEMENTATION RESUME SNAPSHOT (D-545) has:
+
+- Complete convergence state (D-529 cascade summary, trajectory, 3/3 CONVERGED milestone)
+- Exact artifact version pins for all 8 BCs, 3 indexes, story, error-taxonomy
+- 8-step per-story delivery checklist with step-level detail
+- Copy-paste-ready test-writer dispatch template (§4)
+- Copy-paste-ready implementer dispatch template (§5)
+- 17 codification candidates with priority ratings for session-reviewer
+- 8 phase-5 deferred findings with routing notes
+- All standing directives verbatim
+- Complete do-NOT-do list
+
+50th consecutive single-commit (TD-VSDD-053 DECISIVELY STABLE).
+STATE.md v7.249 → v7.250 / SESSION-HANDOFF.md v7.249 → v7.250 / CYCLE-SNAPSHOT.md §PRE-IMPLEMENTATION RESUME SNAPSHOT (D-545) appended.
