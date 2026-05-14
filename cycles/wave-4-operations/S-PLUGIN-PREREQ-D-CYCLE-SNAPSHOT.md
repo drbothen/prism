@@ -794,3 +794,68 @@ The adversary's pass-33 report cited 8 sites matching the broader pattern `'cata
 | error-taxonomy | v1.21 | UNCHANGED | `.factory/specs/prd-supplements/error-taxonomy.md` |
 | factory-artifacts HEAD | D-531 | `git -C .factory log -1 --format='%H'` | — |
 | develop HEAD | unchanged | 95d46be2 | — |
+
+---
+
+### §POST-PASS-34 BLOCKED SUMMARY (D-532)
+
+**Pass-34 BLOCKED — 0 CRIT + 1 HIGH + 1 MED + 1 LOW + 2 OBS**
+
+Trajectory pass-25..34: 4→1→4→5→1→1→3→4→5→**5** (second consecutive 5-finding pass; flat trajectory at 5).
+
+#### Finding Inventory
+
+| Finding | Severity | Description | Route |
+|---------|----------|-------------|-------|
+| F-LP34-HIGH-001 | HIGH | §Changelog table lines 1055+1056 contain multiple rows concatenated without inter-row `\n` newlines (line 1055=11,930 chars: v1.22+v1.21+v1.20+v1.19 merged; line 1056=4,117 chars: v1.18+v1.17+v1.16 merged). Write-tool artifact from fix-burst-31 §Changelog update. 7 rows affected (fix-burst-14..fix-burst-20). | story-writer — fix-burst-32 |
+| F-LP34-MED-001 | MEDIUM | `§Canonical Structured Event Catalog` cited at 4 active-body sites (lines 260/300/466/918). BC-2.16.002 has no `##` heading with this title — phrase is bold-labeled bullet at BC line 74 within `## Postconditions`. Fix-burst-31-introduced: replaced "catalog discipline" at lines 300/301 with §-sigil form, creating 3rd fix-burst-closure-introduced drift instance. Option B fix: drop § sigil. | story-writer — fix-burst-32 |
+| F-LP34-LOW-001 | LOW | VP-INDEX VP-152/VP-PLUGIN-007 descriptions carry "not-None" Option-semantics for `allowed_urls`. Post-AC-7+AC-17, `allowed_urls: Vec<String>` — "not-None" is type-system-impossible. Story §References line 1034 mirrors same phrasing. | state-manager (VP-INDEX edit + v1.34→v1.35) + story-writer (§References mirror) — same fix-burst-32 per POL-9 |
+| F-LP34-OBS-001 | OBS [process-gap] | Codification #14 needs explicit treatment of bold-labeled bullets as anchor targets — `§` sigil should NOT be used; non-§ citation form required. | cycle-close session-reviewer — codification candidate #20 |
+| F-LP34-OBS-002 | OBS [process-gap] | Markdown-table row-delimiter integrity sweep needed. 2nd schema-corruption class in §Changelog: F-LP32-MED-002 = missing column; F-LP34-HIGH-001 = missing inter-row newlines. | cycle-close session-reviewer — codification candidate #21 |
+
+#### Scope Adjudication Note
+
+Pass-34 CONCURRED with fix-burst-31 F-LP33-LOW-001 scope adjudication: the 6 bare-"catalog" sibling sites (lines 581/616/648/692/808/916) are legitimate shorthand referencing the real §Canonical Structured Event Catalog section without implying a `##` heading. NOT re-surfaced. Only the 4 `§`-sigil sites (lines 260/300/466/918) violate Codification #14.
+
+#### 3rd Fix-Burst-Closure-Introduced Drift Pattern
+
+| Instance | Fix-burst | Pass | Finding |
+|----------|-----------|------|---------|
+| 1st | fix-burst-25 | pass-27 | F-LP27-MED-003: §References format asymmetry introduced |
+| 2nd | fix-burst-29 | pass-32 | F-LP32-CRIT-001: phantom `PluginError::AllowlistRejected` introduced in BC-2.17.002 |
+| 3rd | fix-burst-31 | pass-34 | F-LP34-MED-001: `§Canonical Structured Event Catalog` phantom ## heading at 4 sites |
+
+Pattern: fix-burst applies targeted correction but introduces neighboring drift at closely-related sites in the same edit session. All 3 instances represent cases where the fix correctly closed the specific targeted site but missed or altered an adjacent citation.
+
+#### Codification Updates
+
+Codification candidates updated: 19→21 (pass-34 adds candidates #20 and #21).
+
+#### Fix-Burst-32 Dispatch Template
+
+**story-writer** (4 edits):
+1. Lines 1055+1056: insert `\n` between each adjacent `| <version> |` row to restore 7 individual §Changelog rows
+2. Lines 260/300/466/918: replace `§Canonical Structured Event Catalog` → `Canonical Structured Event Catalog (v1.12)` (Option B: drop § sigil)
+3. §References line 1034: VP-PLUGIN-007 "not-None" phrasing → Vec<String>-semantics mirror
+4. Story v1.31→v1.32 changelog row for fix-burst-32
+
+**state-manager** (same burst commit per POL-9):
+- VP-INDEX VP-152 row description: "not-None" → "non-Option / explicit-list-required under Vec<String>"
+- VP-INDEX VP-PLUGIN-007 row description: same semantic correction
+- VP-INDEX version: v1.34 → v1.35
+
+#### Artifact State After Pass-34 BLOCKED (D-532)
+
+| Artifact | Version | Change | Path |
+|----------|---------|--------|------|
+| Story S-PLUGIN-PREREQ-D | v1.31 | UNCHANGED (pending fix-burst-32 → v1.32) | `.factory/stories/S-PLUGIN-PREREQ-D-plugin-runtime-boot-wiring.md` |
+| VP-INDEX | v1.34 | UNCHANGED (pending fix-burst-32 → v1.35) | `.factory/specs/verification-properties/VP-INDEX.md` |
+| STORY-INDEX | v2.101 | UNCHANGED | `.factory/stories/STORY-INDEX.md` |
+| STATE.md | v7.237 | v7.236 → v7.237 | `.factory/STATE.md` |
+| SESSION-HANDOFF.md | v7.237 | v7.236 → v7.237 | `.factory/SESSION-HANDOFF.md` |
+| Pass-34 report | NEW | Created | `.factory/cycles/wave-4-operations/adversarial-reviews/S-PLUGIN-PREREQ-D-pass-34.md` |
+| BC-2.17.002 | v1.7 (draft) | UNCHANGED | `.factory/specs/behavioral-contracts/BC-2.17.002-plugin-sandbox-filesystem.md` |
+| BC-INDEX | v4.73 | UNCHANGED | `.factory/specs/behavioral-contracts/BC-INDEX.md` |
+| error-taxonomy | v1.21 | UNCHANGED | `.factory/specs/prd-supplements/error-taxonomy.md` |
+| factory-artifacts HEAD | D-532 | `git -C .factory log -1 --format='%H'` | — |
+| develop HEAD | unchanged | 95d46be2 | — |
