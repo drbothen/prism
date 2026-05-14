@@ -4354,6 +4354,7 @@ dependencies = [
  "prism-query",
  "prism-spec-engine",
  "prism-storage",
+ "reqwest",
  "serde",
  "serde_json",
  "tempfile",
@@ -4363,6 +4364,7 @@ dependencies = [
  "tracing",
  "tracing-subscriber",
  "uuid",
+ "wat",
 ]
 
 [[package]]

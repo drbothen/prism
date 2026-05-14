@@ -3,22 +3,23 @@
 //! Implements the 11-step boot sequence specified in ADR-022 §B and wired to
 //! BC-2.22.001 (orchestration contract).  Steps 1–6 are fully implemented per
 //! the story's AC numbering.  Steps 7–11 are annotated `todo!()` stubs for
-//! sibling stories.
+//! sibling stories. Step 7.5 (plugin-load) is implemented by S-PLUGIN-PREREQ-D.
 //!
 //! # Sequencing Invariant (BC-2.22.001)
 //!
 //! ```text
-//! Step 1  [BLOCKING] Tracing init
-//! Step 2  [BLOCKING] Config load          (BC-2.06.011)
-//! Step 3  [BLOCKING] OrgRegistry init     (BC-2.21.001)
-//! Step 4  [BLOCKING] Sensor TOML spec load
-//! Step 5  [BLOCKING] Credential store init (BC-2.03.013)
-//! Step 6  [BLOCKING] Audit subsystem init  (BC-2.05.012)
-//! Step 7  [BLOCKING] Storage + internal-tables provider init
-//! Step 8  [BLOCKING→BACKGROUND] QueryEngine + WriteExecutor
-//! Step 9  [BACKGROUND] MCP server start
-//! Step 10 [BACKGROUND] Hot-reload watcher install
-//! Step 11 [BACKGROUND] Signal handler install
+//! Step 1   [BLOCKING] Tracing init
+//! Step 2   [BLOCKING] Config load          (BC-2.06.011)
+//! Step 3   [BLOCKING] OrgRegistry init     (BC-2.21.001)
+//! Step 4   [BLOCKING] Sensor TOML spec load
+//! Step 5   [BLOCKING] Credential store init (BC-2.03.013)
+//! Step 6   [BLOCKING] Audit subsystem init  (BC-2.05.012)
+//! Step 7   [BLOCKING] Storage + internal-tables provider init
+//! Step 7.5 [BLOCKING] Plugin-load step (S-PLUGIN-PREREQ-D)
+//! Step 8   [BLOCKING→BACKGROUND] QueryEngine + WriteExecutor
+//! Step 9   [BACKGROUND] MCP server start
+//! Step 10  [BACKGROUND] Hot-reload watcher install
+//! Step 11  [BACKGROUND] Signal handler install
 //! ```
 //!
 //! No step may begin concurrently with or before its predecessor completes
@@ -791,6 +792,119 @@ fn step6_init_audit(
     );
 
     Ok(backend)
+}
+
+// ---------------------------------------------------------------------------
+// Step 7.5 — Plugin-load step (S-PLUGIN-PREREQ-D / BC-2.22.001)
+// ---------------------------------------------------------------------------
+
+/// Result of the plugin-load step 7.5.
+///
+/// Holds the constructed `PluginRuntime` (zero plugins registered if
+/// `PRISM_DISABLE_PLUGIN_LOAD=1` was set) so callers can pass it to the
+/// query-engine and MCP server steps.
+pub struct PluginLoadResult {
+    /// The initialized plugin runtime (always `Some` — never None).
+    pub runtime: Arc<prism_spec_engine::plugin::PluginRuntime>,
+    /// Number of plugins successfully loaded (0 if disabled or none found).
+    pub plugins_loaded: usize,
+}
+
+/// Step 7.5 [BLOCKING]: Plugin-load step — scan plugin directory and load `.prx` plugins.
+///
+/// BC-2.22.001: plugin-load step — positioned after step 7 (storage init) and before
+/// query-engine init per ADR-023 §C4 + ADR-022 §B sequencing invariant.
+/// PRISM_DISABLE_PLUGIN_LOAD=1 skips this step (emergency escape valve).
+///
+/// # Behavior
+///
+/// 1. Check `PRISM_DISABLE_PLUGIN_LOAD` env var; if set to exact string `"1"`, emit
+///    a single `tracing::warn!(event_type = "plugin_load_disabled_via_envvar", ...)` and
+///    return `Ok(PluginLoadResult { runtime, plugins_loaded: 0 })` immediately (AC-3/AC-18).
+/// 2. Construct a single `reqwest::Client` with 30-second timeout (AC-9).
+/// 3. Construct `PluginRuntime::new(http_client)`.
+/// 4. Call `runtime.load_all_plugins(&plugin_dir)` (AC-1).
+/// 5. Return the runtime for injection into downstream boot steps.
+///
+/// # Errors
+///
+/// Returns `Err(BootError::InternalError)` if:
+/// - `reqwest::Client` construction fails (OS resource exhaustion, EC-D-009)
+/// - `PluginRuntime::new` fails (wasmtime Engine construction)
+///
+/// These failures exit with code 4 per ADR-022 §A (AC-2).
+///
+/// Per-plugin load failures do NOT cause this function to fail — the n-1 survivor rule
+/// applies inside `load_all_plugins`.
+pub async fn plugin_load_step(plugin_dir: &Path) -> Result<PluginLoadResult, BootError> {
+    use prism_spec_engine::plugin::{PluginRuntime, PLUGIN_HTTP_CLIENT_TIMEOUT_SECS};
+    use std::time::Duration;
+
+    // AC-18: PRISM_DISABLE_PLUGIN_LOAD takes absolute precedence over plugin_dir config.
+    // Only the exact string "1" disables loading (EC-D-011). Values like "true", "yes", "0"
+    // are treated as unset.
+    if std::env::var("PRISM_DISABLE_PLUGIN_LOAD").as_deref() == Ok("1") {
+        // Single structured emission per BC-2.16.002 v1.12 catalog row plugin_load_disabled_via_envvar.
+        tracing::warn!(
+            event_type = "plugin_load_disabled_via_envvar",
+            env_var = "PRISM_DISABLE_PLUGIN_LOAD",
+            "Plugin loading disabled via PRISM_DISABLE_PLUGIN_LOAD=1; \
+             no plugins loaded (emergency escape valve)"
+        );
+
+        // Construct runtime without loading plugins (MCP server still binds with zero plugins).
+        let http_client = reqwest::Client::builder()
+            .timeout(Duration::from_secs(PLUGIN_HTTP_CLIENT_TIMEOUT_SECS))
+            .build()
+            .map_err(|e| {
+                BootError::InternalError(format!(
+                    "PluginRuntime HTTP client construction failed (EC-D-009): {e}"
+                ))
+            })?;
+
+        let runtime =
+            PluginRuntime::new(http_client).map_err(|e| BootError::InternalError(e.to_string()))?;
+
+        return Ok(PluginLoadResult {
+            runtime: Arc::new(runtime),
+            plugins_loaded: 0,
+        });
+    }
+
+    // AC-9: Construct ONE shared reqwest::Client with 30-second timeout.
+    // Construction is fallible (OS resource exhaustion per EC-D-009).
+    // On failure: return Err → boot exits with code 4 (ADR-022 §A internal-error class).
+    // Using .expect() is FORBIDDEN here — it would panic instead of returning the structured
+    // error that EC-D-009 requires (expect_used = "deny" in workspace clippy config).
+    let http_client = reqwest::Client::builder()
+        .timeout(Duration::from_secs(PLUGIN_HTTP_CLIENT_TIMEOUT_SECS))
+        .build()
+        .map_err(|e| {
+            BootError::InternalError(format!(
+                "PluginRuntime HTTP client construction failed (EC-D-009): {e}"
+            ))
+        })?;
+
+    // AC-9: Inject the single shared client into PluginRuntime::new().
+    let runtime =
+        PluginRuntime::new(http_client).map_err(|e| BootError::InternalError(e.to_string()))?;
+
+    // AC-1: Scan plugin_dir for .prx files and load each one.
+    let plugins_loaded = runtime
+        .load_all_plugins(plugin_dir)
+        .await
+        .map_err(|e| BootError::InternalError(e.to_string()))?;
+
+    tracing::info!(
+        n_loaded = plugins_loaded,
+        plugin_dir = %plugin_dir.display(),
+        "boot: plugin-load step complete ({plugins_loaded} plugins loaded)"
+    );
+
+    Ok(PluginLoadResult {
+        runtime: Arc::new(runtime),
+        plugins_loaded,
+    })
 }
 
 // ---------------------------------------------------------------------------
