@@ -959,3 +959,49 @@ Trajectory pass-25..35: 4→1→4→5→1→1→3→4→5→5→**5** (third con
 | BC-2.17.002 | v1.7 (draft) | UNCHANGED | `.factory/specs/behavioral-contracts/BC-2.17.002-plugin-sandbox-filesystem.md` |
 | factory-artifacts HEAD | D-534 | `git -C .factory log -1 --format='%H'` | — |
 | develop HEAD | unchanged | 95d46be2 | — |
+
+---
+
+### §POST-FIX-BURST-33 CLOSURE (D-535)
+
+**Fix-burst-33 CLOSED — 2 in-scope MED from pass-35 remediated. 40th consecutive single-commit.**
+
+Trajectory pass-25..35: 4→1→4→5→1→1→3→4→5→5→5 (unchanged — this is fix-burst, not a pass).
+
+#### Findings Closed
+
+**F-LP35-MED-001 CLOSED:** BC-2.17.007 v1.2→v1.3 — product-owner rewrote lines 138+161 from pre-AC-7 "allowed_urls = None"/"allowlist not-None" Option-semantics to post-AC-7 "explicit allowed_urls: Vec<String>"/"explicit list under AC-7 default-deny" framing. Sibling-document propagation gap from F-LP34-LOW-001 closure (D-533): fix-burst-32 swept VP-INDEX + story §References but did not reach BC-2.17.007 body lines 138+161. Total propagation footprint: 7 sites; 3 closed D-533; 2 now closed D-535; 2 deferred arch layer (OBS-LP35-001). Story S-PLUGIN-PREREQ-D unchanged at v1.32 — grep confirms zero active-body BC-2.17.007 version-pin sites; both hits in §Changelog are historical rows (immutable per TD-VSDD-091).
+
+**F-LP35-MED-002 CLOSED:** error-taxonomy.md v1.21→v1.22 — product-owner rewrote line 464 from `BC-2.16.002 §Canonical Structured Event Catalog row pipeline_max_requests_exceeded` (Codification #14 phantom-section-anchor) to `BC-2.16.002 §Postconditions (Canonical Structured Event Catalog bullet, v1.12) row pipeline_max_requests_exceeded` (correct-ancestry form). Sibling-document propagation gap from F-LP34-MED-001 closure (D-533): fix-burst-32 swept 4 story sites but missed error-taxonomy.md:464. Total propagation footprint: 5 sites; 4 closed D-533; 1 now closed D-535.
+
+#### Sibling Sweep Results (TD-VSDD-060 compliance)
+
+- BC-2.17.007 active-body "not-None" hits after fix: **ZERO** (both grep hits are §Changelog historical rows, exempt TD-VSDD-091)
+- error-taxonomy.md "§Canonical Structured Event Catalog" active-body hits after fix: **ZERO**
+- Count-propagation sweep: no count changes this burst (total_contracts=236 unchanged; active_contracts=229 unchanged)
+
+#### Propagation-Pattern Observation
+
+Fix-burst-33 closed the in-perimeter sibling documents. Closure rates:
+- F-LP35-MED-001 (allowed_urls Option-semantics): 100% in-perimeter closed (VP-INDEX D-533 + story §References D-533 + BC-2.17.007 body D-535); OBS-LP35-001 architecture/ADR 0% deferred phase-5.
+- F-LP35-MED-002 (§Canonical anchor form): 100% in-perimeter closed (4 story sites D-533 + error-taxonomy D-535); arch-layer remainder covered by OBS-LP35-001 routing.
+
+Both recurrences contribute to the 5-instance POL-25 codification candidate #22.
+
+#### Artifact State After Fix-Burst-33 CLOSED
+
+| Artifact | Version | Change | Path |
+|----------|---------|--------|------|
+| Story S-PLUGIN-PREREQ-D | v1.32 | UNCHANGED (story body not modified this burst) | `.factory/stories/S-PLUGIN-PREREQ-D-plugin-runtime-boot-wiring.md` |
+| BC-2.17.007 | v1.3 | v1.2 → v1.3 | `.factory/specs/behavioral-contracts/BC-2.17.007-plugin-manifest-schema-validation.md` |
+| error-taxonomy | v1.22 | v1.21 → v1.22 | `.factory/specs/prd-supplements/error-taxonomy.md` |
+| BC-INDEX | v4.74 | v4.73 → v4.74 | `.factory/specs/behavioral-contracts/BC-INDEX.md` |
+| VP-INDEX | v1.35 | UNCHANGED | `.factory/specs/verification-properties/VP-INDEX.md` |
+| STORY-INDEX | v2.102 | UNCHANGED | `.factory/stories/STORY-INDEX.md` |
+| STATE.md | v7.240 | v7.239 → v7.240 | `.factory/STATE.md` |
+| SESSION-HANDOFF.md | v7.240 | v7.239 → v7.240 | `.factory/SESSION-HANDOFF.md` |
+| Fix-burst-33 report | NEW | Created | `.factory/cycles/wave-4-operations/adversarial-reviews/S-PLUGIN-PREREQ-D-fix-burst-33.md` |
+| deferred-findings-phase-5 | 7 entries | UNCHANGED (OBS-LP35-001 appended D-534) | `.factory/cycles/wave-4-operations/deferred-findings-phase-5.md` |
+| BC-2.17.002 | v1.7 (draft) | UNCHANGED | `.factory/specs/behavioral-contracts/BC-2.17.002-plugin-sandbox-filesystem.md` |
+| factory-artifacts HEAD | D-535 | `git -C .factory log -1 --format='%H'` | — |
+| develop HEAD | unchanged | 95d46be2 | — |

@@ -1,7 +1,7 @@
 ---
 document_type: behavioral-contract-index
 level: L3
-version: "4.73"
+version: "4.74"
 status: draft
 producer: product-owner
 timestamp: 2026-05-14T00:00:00
@@ -218,7 +218,7 @@ Phase 3-patch additions (2026-04-16): 22 new BCs added in Burst 1 to close trace
 | BC-2.17.004 | Plugin Sandbox — CPU Time Limit Enforced via Epoch Interruption (default 5s) | 17 - WASM Plugin Runtime | CAP-032 | P0 | draft (lifecycle_status: draft — Path B: BC-INDEX draft; no POL-14 merge event; corrected fix-burst-7 stage 1A) | v1.4 |
 | BC-2.17.005 | Plugin Hot Reload — Atomic Module Swap, In-Flight Calls Complete Against Old Version | 17 - WASM Plugin Runtime | CAP-030, CAP-032 | P0 | draft |
 | BC-2.17.006 | WIT Interface Validation Before Plugin Registration | 17 - WASM Plugin Runtime | CAP-032 | P0 | draft (lifecycle_status: draft — Path B: BC-INDEX draft; no POL-14 merge event; corrected fix-burst-7 stage 1A) | v1.4 |
-| BC-2.17.007 | Plugin Manifest Schema Validation Before WIT Validation | 17 - WASM Plugin Runtime | CAP-032 | P0 | draft (lifecycle_status: draft — Path B: BC-INDEX draft; no POL-14 merge event; corrected fix-burst-7 stage 1A) | v1.2 |
+| BC-2.17.007 | Plugin Manifest Schema Validation Before WIT Validation | 17 - WASM Plugin Runtime | CAP-032 | P0 | draft (lifecycle_status: draft — Path B: BC-INDEX draft; no POL-14 merge event; corrected fix-burst-7 stage 1A) | v1.3 |
 | BC-2.18.001 | Alert and Case Action Triggers — At-Least-Once Delivery with Exponential Backoff Retry | 18 - Action Delivery Engine | CAP-033 | P0 | draft |
 | BC-2.18.002 | Schedule Action Triggers — Best-Effort, Retry on Next Cron Tick | 18 - Action Delivery Engine | CAP-033 | P0 | draft |
 | BC-2.18.003 | Manual Action Triggers — Fire-and-Forget, Result Returned Immediately to AI Caller | 18 - Action Delivery Engine | CAP-033 | P0 | draft |
@@ -360,6 +360,8 @@ Phase 3-patch additions (2026-04-16): 22 new BCs added in Burst 1 to close trace
 - Subsystem 19: Infusion Enrichment Framework (AD-020, CAP-031)
 
 ### Change Log (Adversarial Review Fixes)
+
+**v4.74 (2026-05-14):** state-manager | BC-2.17.007 v1.2→v1.3 (fix-burst-33: VP-PLUGIN-007 description sweep — lines 138+161 from pre-AC-7 "allowed_urls = None"/"allowlist not-None" Option-semantics to post-AC-7 "explicit Vec<String>"/"explicit list under AC-7 default-deny" framing; sibling-doc propagation gap from F-LP34-LOW-001 D-533 closure); error-taxonomy.md v1.21→v1.22 same-burst per POL-9 (line 464 §Canonical Structured Event Catalog → §Postconditions (Canonical Structured Event Catalog bullet, v1.12)) | D-535
 
 **v4.73 (2026-05-14):** fix-burst-30 stage-1 product-owner — BC-2.17.002 v1.6→v1.7: EC-17-007 phantom variant removal (F-LP32-CRIT-001 closure, Path A: existing-semantics-alignment). Fabricated `PluginError::AllowlistRejected` introduced in v1.6 fix-burst-29 removed — variant does not exist in crates/prism-core/src/error.rs PluginError enum (8 real variants: Trapped/Timeout/MemoryExceeded/NotLoaded/InvalidInterface/SandboxViolation/CompilationFailed/EmptyPluginId), not in error-taxonomy.md, not in story §Error Taxonomy Additions, not in AC-7 prescription. Replaced with existing E-PLUGIN-005 SandboxViolation semantics: `host_http_request` returns `HttpResponse { status: 403, ... }` synchronously per AC-7 prescription and host_functions.rs:64-68. Audit-log mechanism documented via `tracing::warn!(event_type = "plugin_http_request_blocked", ...)`. Path A: zero new error variant, zero signature change, zero new scope. BC-INDEX row v1.6→v1.7. total_contracts=236 unchanged; active_contracts=229 unchanged.
 

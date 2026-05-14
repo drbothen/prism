@@ -1,7 +1,7 @@
 ---
 document_type: behavioral-contract
 level: L3
-version: "1.2"
+version: "1.3"
 status: draft
 producer: product-owner
 timestamp: 2026-05-13T00:00:00Z
@@ -135,7 +135,7 @@ from being attempted.
 
 | VP ID | Description | Verification Method |
 |-------|-------------|---------------------|
-| VP-PLUGIN-007 | After PREREQ-D lands, no `.prx` plugin in `PluginRuntime` registry carries `allowed_urls = None` — manifest omission is a hard load rejection | Integration test (property assertion on PluginRuntime state post-load) |
+| VP-PLUGIN-007 | After PREREQ-D lands, every loaded `.prx` plugin in `PluginRuntime` registry carries an explicit `allowed_urls: Vec<String>` field — manifest omission is a hard load rejection (E-PLUGIN-013) per AC-7 default-deny | Integration test (property assertion on PluginRuntime state post-load) |
 
 Note: VP-PLUGIN-007 numeric alias is VP-152 per VP-INDEX. This BC is the contract that
 establishes the invariant VP-PLUGIN-007 verifies.
@@ -158,7 +158,7 @@ S-PLUGIN-PREREQ-D — prism-bin/prism-spec-engine: Wire PluginRuntime into Boot 
 
 ## VP Anchors
 
-VP-PLUGIN-007 (VP-152): `PluginRuntime` allowlist not-None post-boot assertion — verifies the postcondition that no loaded plugin carries `allowed_urls = None`.
+VP-PLUGIN-007 (VP-152): `PluginRuntime` allowlist explicit `Vec<String>` post-boot assertion — verifies the postcondition that every loaded plugin carries an explicit `allowed_urls` list (manifest omission rejected at load gate per AC-7 default-deny).
 
 ## Traceability
 
@@ -176,6 +176,7 @@ VP-PLUGIN-007 (VP-152): `PluginRuntime` allowlist not-None post-boot assertion �
 
 | Version | Burst | Date | Author | Change |
 |---------|-------|------|--------|--------|
+| 1.3 | fix-burst-33 | 2026-05-14 | product-owner | F-LP35-MED-001 closure: VP-PLUGIN-007 description sweep — line 138 + line 161 rewritten from pre-AC-7 "allowed_urls = None" / "allowlist not-None" Option-semantics to post-AC-7 "explicit allowed_urls: Vec<String>" / "explicit list under AC-7 default-deny" framing. Sibling-document propagation gap from F-LP34-LOW-001 closure (D-533) — fix-burst-32 propagated to VP-INDEX + story §References but missed these 2 in-perimeter BC sites. Cross-document propagation: VP-INDEX v1.35 + story §References:1034 corrected in D-533 fix-burst-32; this BC update closes the in-perimeter remainder. OBS-LP35-001 (verification-architecture.md:282 + ADR-023:732-733 architecture-layer siblings) deferred phase-5 architect adjudication. |
 | 1.2 | fix-burst-7-stage-1A | 2026-05-13 | product-owner | F-LP8-HIGH-001 closure (Path B): `lifecycle_status: active` → `lifecycle_status: draft`. S-PLUGIN-PREREQ-D is pre-merge — this BC was introduced during fix-burst and has never been part of a merged story PR. `lifecycle_status: active` was set at initial authorship before POL-14 canonicalization applied to new BCs authored in-burst. Per POL-14 (`bc_vp_promotion_on_anchor_merge`), auto-promotion to `active` will occur at S-PLUGIN-PREREQ-D PR merge. |
 | 1.1 | state(D-464) | 2026-05-13 | state-manager | F-LP2-OBS-007 closure — `introduced:` field updated from opaque burst-ID notation to canonical date-keyed format per POL-20 (bc_introduced_field_canonical_format). No spec content change. |
 | 1.0 | wave-4-fix-burst-F-LP1-HIGH-004 | 2026-05-13 | product-owner | Initial contract — closes F-LP1-HIGH-004; establishes manifest schema validation as prerequisite gate before WIT validation (BC-2.17.006); authors E-PLUGIN-013/014/015/016 |
