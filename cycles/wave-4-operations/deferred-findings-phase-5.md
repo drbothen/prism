@@ -223,3 +223,46 @@ BC-2.17.002 amendment requires PO adjudication and is a cross-story governance g
 ### Resolution Criteria
 
 Before Phase 5 convergence can be declared: BC-2.17.002 §EC-17-007 entry is updated so that its framing is consistent with the PREREQ-D Vec<String> type contract, OR an explicit decision log entry documents why EC-17-007 is intentionally retained in its current form despite the type-contract contradiction.
+
+---
+
+## F-LP28-OBS-001 [process-gap] — E-INT-001 Absent from error-taxonomy.md
+
+| Field | Value |
+|-------|-------|
+| **Finding ID** | F-LP28-OBS-001 |
+| **Severity** | OBS (out-of-perimeter for story scope; substantive for phase-5) |
+| **Confidence** | HIGH |
+| **Story source** | S-PLUGIN-PREREQ-D |
+| **Surfaced at** | Pass-28 (adversary fresh-context audit) |
+| **Date routed** | 2026-05-13 |
+| **Target** | Phase-5 product-owner adjudication — error-taxonomy.md E-INT namespace entirely absent |
+
+### Evidence
+
+- Story S-PLUGIN-PREREQ-D body line 393 cites E-INT-001 referencing `error.rs:881-883`.
+- Grep confirms E-INT-001 IS present in `crates/prism-spec-engine/src/error.rs` at lines 881-883 (real code — not fabricated).
+- E-INT-001 does NOT appear in `.factory/specs/prd-supplements/error-taxonomy.md`.
+- The E-INT-NNN namespace is entirely absent from error-taxonomy.md (no E-INT rows, no E-INT section).
+
+### Why It Matters
+
+error-taxonomy.md is the canonical cross-reference for all project error codes (per CLAUDE.md §Error handling). If E-INT-001 exists in production code but is absent from the taxonomy, implementers cannot look up the code semantics, audit role, or handling guidance via the spec. The gap means the error taxonomy is incomplete with respect to the current codebase.
+
+This is a pre-existing gap — E-INT-001 was not introduced by S-PLUGIN-PREREQ-D. The story correctly cites E-INT-001 as an existing code from the codebase. The defect is in the taxonomy artifact, not in the story.
+
+### Why It Is Out-of-Perimeter
+
+Adding a new namespace (E-INT) to error-taxonomy.md requires product-owner adjudication and is broader than the story scope. A full E-INT namespace survey (how many E-INT-NNN codes exist in the codebase, their semantics, audit roles) is a cross-cutting taxonomy task. Story-scoped fix-bursts cannot add new namespaces to the taxonomy without explicit PO authorization.
+
+### Fix Options (for Phase-5 PO adjudication)
+
+**Option A — E-INT namespace audit + taxonomy append:** Survey all E-INT-NNN codes in the codebase (`grep -r "E-INT-" crates/`). Add a new E-INT namespace section to error-taxonomy.md with a row for each discovered code. This is the CLAUDE.md-compliant path.
+
+**Option B — Architectural rename:** If E-INT codes are internal-to-crate error variants that are not intended to be user-facing or cross-crate, determine whether they should be renamed to a more appropriate namespace (E-INTERNAL, E-PIPELINE, etc.) and then added to the taxonomy under the correct name.
+
+**Option C — Decision to keep E-INT internal (not in taxonomy):** If the architect determines that E-INT codes are purely internal implementation detail not subject to error-taxonomy documentation, record an explicit decision log entry stating this exception. This would require updating CLAUDE.md §Error handling to carve out internal codes.
+
+### Resolution Criteria
+
+Before Phase 5 convergence can be declared: either (a) E-INT-001 (and any other discovered E-INT-NNN codes) are added to error-taxonomy.md with complete entries (code, message template, subsystem, BC anchor, audit role); OR (b) a decision log entry documents why E-INT codes are exempt from the error taxonomy requirement with concrete rationale.
