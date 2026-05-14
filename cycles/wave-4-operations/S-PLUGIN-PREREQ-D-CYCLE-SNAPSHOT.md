@@ -3,20 +3,30 @@ document_type: cycle-snapshot
 target_artifact: S-PLUGIN-PREREQ-D
 purpose: pre-compact-resume-durability
 snapshot_at: 2026-05-14
-factory_head: 6a862840
+factory_head: 18d34718
+factory_head_d529: TBD
 develop_head: 95d46be2
-story_version: v1.22
-story_content_sha: a9a51671
+story_version: v1.30
+story_content_sha: ebbf241c07295f785a464cdf7ba0eaf57c38a9f6
+bc_2_17_002_version: v1.7
+bc_2_17_002_content_sha: 898ad6282b8f514e5b378b483932ea40f3a05a2c
 bc_2_16_002_version: v1.12
 bc_2_16_002_content_sha: 84f58565
-error_taxonomy_version: v1.20
-error_taxonomy_content_sha: 8e980a0e
-adversary_pass_count: 24
-fix_burst_count: 22
-adversary_streak: 1/3
-codification_candidates_active: 10
-phase_5_deferred_findings: 4
+error_taxonomy_version: v1.21
+error_taxonomy_content_sha: 2e6af6997d6c2d9a239f725afd22877ac7823e8c
+bc_index_version: v4.73
+bc_index_content_sha: 3bb2f96a02639d1b8640bd76ea79083bc8c8732b
+story_index_version: v2.100
+story_index_content_sha: aef12ba648b86af7ea9e8337fc05ec39a6df55b5
+adversary_pass_count: 32
+fix_burst_count: 30
+adversary_streak: 0/3 HOLD
+codification_candidates_active: 17
+phase_5_deferred_findings: 6
 pass_24_status: COMPLETE_CLEAN_FIRST_STREAK_ADVANCE
+post_pass_32_snapshot_at: D-529
+user_directive_2026_05_14: "minimum 10 more passes after compact (pass-33..pass-42+)"
+safe_to_compact: true
 producer: state-manager
 ---
 
@@ -36,9 +46,9 @@ producer: state-manager
 |-------|-------|
 | **Story** | S-PLUGIN-PREREQ-D — Plugin Runtime Boot Wiring |
 | **Cycle start** | Pass-1, decision D-461, 2026-05-13 |
-| **Current state** | Pass-24 CLEAN — FIRST STREAK ADVANCE 0/3 → 1/3; pass-25 idempotency dispatch next |
-| **Adversary streak** | 1/3 (pass-24 CLEAN; pass-25 idempotency next → target 2/3) |
-| **Story version** | v1.22 (content SHA a9a51671) |
+| **Current state** | Pass-32 BLOCKED — fix-burst-30 CLOSED (3/3 in-scope Path A); D-529 pre-compact durable state persist complete; pass-33 dispatch on resume |
+| **Adversary streak** | 0/3 HOLD (pass-33 next; user directive: minimum 10 more passes) |
+| **Story version** | v1.30 (content SHA ebbf241c07295f785a464cdf7ba0eaf57c38a9f6) |
 | **ACs** | 18 |
 | **Red Gate Tests** | 25 |
 | **BCs traced** | 8 (BC-2.22.001, BC-2.17.001/002/003/004/006/007, BC-2.16.002) |
@@ -433,5 +443,240 @@ Supplements §11 with session-level tracking:
 | ADR-022 | v1.0→v1.3: step 7.5 cross-ref; Related ADRs section |
 | error-taxonomy | v1.x→v1.20: E-PLUGIN-013/014/015/016 + E-PIPELINE-001 (5 new codes) |
 | BC-2.06.011 | ADR-025 lifecycle sweep |
+
+---
+
+## §POST-PASS-32 RESUME SNAPSHOT (D-529)
+
+> **Purpose:** Pre-compact durable state persist for 8-pass + 8-fix-burst cascade (pass-25..pass-32).
+> Captured at D-529. A fresh session reading ONLY STATE.md + SESSION-HANDOFF.md + this file
+> has complete context to dispatch pass-33 without losing any cascade information.
+
+---
+
+### §1 — Current Artifact State (Durable Pins as of D-529)
+
+| Artifact | Version | Content SHA (git hash-object) | Path |
+|----------|---------|-------------------------------|------|
+| Story S-PLUGIN-PREREQ-D | v1.30 | ebbf241c07295f785a464cdf7ba0eaf57c38a9f6 | `.factory/stories/S-PLUGIN-PREREQ-D-plugin-runtime-boot-wiring.md` |
+| BC-2.17.002 | v1.7 (draft) | 898ad6282b8f514e5b378b483932ea40f3a05a2c | `.factory/specs/behavioral-contracts/BC-2.17.002-plugin-sandbox-filesystem.md` |
+| BC-INDEX | v4.73 | 3bb2f96a02639d1b8640bd76ea79083bc8c8732b | `.factory/specs/behavioral-contracts/BC-INDEX.md` |
+| STORY-INDEX | v2.100 | aef12ba648b86af7ea9e8337fc05ec39a6df55b5 | `.factory/stories/STORY-INDEX.md` |
+| error-taxonomy | v1.21 | 2e6af6997d6c2d9a239f725afd22877ac7823e8c | `.factory/specs/prd-supplements/error-taxonomy.md` |
+| BC-2.16.002 | v1.12 (active) | 84f58565 | `.factory/specs/behavioral-contracts/BC-2.16.002-*.md` |
+| factory-artifacts HEAD | D-529 | 18d34718 (D-528 HEAD at capture; D-529 this commit) | `git -C .factory log -1 --format='%H'` |
+| develop HEAD | unchanged | 95d46be2 | no source commits this cascade |
+| STATE.md | v7.234 | — | `.factory/STATE.md` |
+| SESSION-HANDOFF.md | v7.234 | — | `.factory/SESSION-HANDOFF.md` |
+| ARCH-INDEX | v2.43 | — | `.factory/specs/architecture/ARCH-INDEX.md` |
+| VP-INDEX | v1.34 | — | `.factory/specs/verification-properties/VP-INDEX.md` |
+
+**Verification:** `git hash-object <path>` for each file confirms no disk corruption. factory-artifacts HEAD is the authoritative anchor per TD-VSDD-053; run `git -C .factory log -1 --format='%H'` (never cite in-content).
+
+---
+
+### §2 — Cascade Trajectory (Pass-25 through Pass-32, 8 passes)
+
+**Trajectory shorthand (pass-25..pass-32):** 4 → 1 → 4 → 5 → 1 → 1 → 3 → 4
+
+| Pass | Equiv | Verdict | CRIT | HIGH | MED | LOW | OBS | Key Finding Class | Fix-Burst |
+|------|-------|---------|------|------|-----|-----|-----|-------------------|-----------|
+| 25 | equiv-25 | BLOCKED | 0 | 1 | 1 | 2 | 1 | spawn_blocking fabricated anchor (ADR-023 §C4 doesn't contain rule; canonical home BC-2.17.005 §Invariants) — lexical-vs-semantic codification #11 | fb-23 |
+| 26 | equiv-26 | BLOCKED | 0 | 0 | 1 | 0 | 1 | BC body-table title paraphrase (BC-2.16.002 title truncated; 7/8 other BCs verbatim — asymmetric drift survived 25 passes) — codification #12 | fb-24 |
+| 27 | equiv-27 | BLOCKED | 0 | 0 | 3 | 1 | 1 | POL-7 cross-table gaps: subsystems SS-16 missing; PluginError MVP-hedge; §References 7/8 BC titles paraphrased — codification #13 | fb-25 |
+| 28 | equiv-28 | BLOCKED | 0 | 0 | 2 | 3 | 1 | phantom §-section reference (BC-2.16.002 §S-PLUGIN-PREREQ-D AC-16 doesn't exist); §References completeness gap — codification #14 | fb-26 |
+| 29 | equiv-29 | BLOCKED | 0 | 0 | 1 | 0 | 0 | exclusion-note paraphrase (BC-2.17.005 subordinate clause dropped) — codification #15 | fb-27 |
+| 30 | equiv-30 | BLOCKED | 0 | 0 | 1 | 2 | 0 | §References BC-2.16.002 completeness (not in §References despite being in frontmatter `behavioral_contracts:`) — codification #13 sub-extension | fb-28 |
+| 31 | equiv-31 | BLOCKED | 0 | 2 | 1 | 0 | 0 | §Error Taxonomy Additions E-PLUGIN-013/014 message template diverges from canonical + BC-2.17.002 EC-17-007 default-deny contradiction + AC-15 AuthToken Debug mismatch — codification #16 | fb-29 |
+| 32 | equiv-32 | BLOCKED | 1 | 0 | 2 | 0 | 2 | phantom PluginError::AllowlistRejected variant in BC-2.17.002 v1.6 (fix-burst-29 introduced without existence verification) — codification #17; Path A adjudication | fb-30 |
+
+**Pattern notes:**
+- Each pass surfaced 1+ novel finding class even when codifications held on all prior classes
+- Two trend breaks (pass-27 and pass-32): both caused by fix-burst-closure-introduced drift (fix-burst-25 and fix-burst-29 respectively)
+- Passes 29-30 (1→1) showed convergence trajectory; pass-31 broke it with 2 HIGH (fresh content drifts)
+- Pass-32 broke again with CRIT caused by fix-burst-29's BC amendment introducing a phantom variant
+
+---
+
+### §3 — Fix-Burst Inventory (8 Bursts: D-513 through D-528)
+
+| Burst | D-Num | Target Pass | Findings Closed | Story Version | BC Transitions | Key Fix | Agents |
+|-------|-------|-------------|-----------------|---------------|----------------|---------|--------|
+| fix-burst-23 | D-514 | pass-25 | 3/3 in-scope (1H+2L) | v1.22→v1.23 | — | spawn_blocking re-anchored ADR-023→BC-2.17.005 §Invariants; SS-17 short-name normalized; AC-9 trace header stripped | story-writer |
+| fix-burst-24 | D-516 | pass-26 | 1/1 in-scope (1M) | v1.23→v1.24 | — | BC-2.16.002 body BC table title verbatim (7→8 canonical titles) | story-writer |
+| fix-burst-25 | D-518 | pass-27 | 4/4 in-scope (3M+1L) | v1.24→v1.25 | — | SS-16 added to subsystems; PluginError #[non_exhaustive] hedge removed; §References 7/8 BC titles verbatim; BC-2.17.005 added to inputs | story-writer |
+| fix-burst-26 | D-520 | pass-28 | 4/4 in-scope + 1 sibling-catch (3M+1L+sibling) | v1.25→v1.26 | error-taxonomy v1.20→v1.21 | phantom §-section references replaced with canonical catalog row anchors; E-INT-001 pre-existing gap routed phase-5 | story-writer + product-owner (parallel) |
+| fix-burst-27 | D-522 | pass-29 | 1/1 in-scope (1M) | v1.26→v1.27 | — | BC-2.17.005 subordinate clause restored in exclusion-note | story-writer |
+| fix-burst-28 | D-524 | pass-30 | 1/1 in-scope (1M) | v1.27→v1.28 | — | §References BC-2.16.002 entry inserted (alphanumeric order) | story-writer |
+| fix-burst-29 | D-526 | pass-31 | 3/3 in-scope + 1 sibling-catch (2H+1M+sibling) | v1.28→v1.29 | BC-2.17.002 v1.5→v1.6; BC-INDEX v4.71→v4.72 | §Error Taxonomy Additions messages aligned to canonical; BC-2.17.002 EC-17-007 rewritten to default-deny; AC-15 AuthToken Debug example corrected; sibling story line 373 BC-2.17.002 version pin bumped | story-writer + product-owner (parallel) |
+| fix-burst-30 | D-528 | pass-32 | 3/3 in-scope (1CRIT+2M); Path A adjudication | v1.29→v1.30 | BC-2.17.002 v1.6→v1.7; BC-INDEX v4.72→v4.73 | EC-17-007 phantom PluginError::AllowlistRejected removed; replaced with existing E-PLUGIN-005 SandboxViolation semantics (HTTP 403 per AC-7); AC-9 closure note stale pin corrected; changelog rows 1.27/1.28/1.29 Burst column restored | story-writer + product-owner (parallel) |
+
+**Total findings closed (pass-25..32):** 17 (1 CRIT + 1 HIGH + 11 MED + 4 LOW). 7 OBS routed to phase-5-deferred or cycle-close codification queue.
+
+---
+
+### §4 — Active Codification Candidates (17 Total Queued for Cycle-Close)
+
+All 17 are in the session-reviewer adjudication queue for cycle-close. None have been formally codified yet — they are pattern descriptions awaiting POL amendment or formal rejection.
+
+| # | Name | Pass Triggered | Pattern Description | Applied by Subsequent Passes |
+|---|------|----------------|---------------------|------------------------------|
+| #1–#10 | Pre-pass-25 codifications | pass-1..24 | See original §5 above | YES — enforced in passes 25-32 (all held) |
+| #11 | Lexical-vs-semantic anchor-content | pass-25 (D-513) | Adversary must grep cited target document content (not just confirm citation text exists in story body). POL-22 Phase A false-PASS pattern: story says "ADR-023 §C4" → adversary confirms substring in story → PASSES; but §C4 doesn't contain the rule. 6th recurrence. | Applied from pass-26 onward |
+| #12 | BC body-table title verbatim | pass-26 (D-515) | Each BC row's Title cell in the story body BC table must match verbatim the BC H1 (not a shortened or paraphrased sub-scope label). Extends POL-22 Phase B. | Applied from pass-27 onward |
+| #13 | POL-7 cross-table sweep | pass-27 (D-517) | POL-7 BC-title verbatim sweep must cover ALL BC title citation sites: body BC table + §References + Architecture Compliance Rules table + prose exclusion-notes. Not just body BC table. | Applied from pass-28 onward |
+| #14 | Phantom-section-anchor sweep | pass-28 (D-519) | §X notation (e.g., "BC-2.16.002 §S-PLUGIN-PREREQ-D AC-16") must resolve to an actual section heading in the cited document. Fabricated sub-section names are a POL-4 violation. | Applied from pass-29 onward |
+| #15 | Sibling-prose exclusion-note sweep | pass-29 (D-521) | BCs cited in exclusion-note paragraphs must also be swept for verbatim title matching, even if the BC is NOT in `behavioral_contracts:` frontmatter array. Extends POL-7 scope. | Applied from pass-30 onward |
+| #13-sub-extension | §References completeness check | pass-30 (D-523) | §References section must contain an entry for EVERY BC in `behavioral_contracts:` frontmatter (completeness), not just format symmetry. POL-7 extension. | Applied from pass-31 onward |
+| #16 | Error message template verbatim sweep | pass-31 (D-525) | §Error Taxonomy Additions table message-template cells must match verbatim the canonical error-taxonomy.md entry for that code. Extends POL-7 verbatim discipline to error message text (not just BC titles). | Status: candidate (fix-burst-29 applied; pass-32 held; not yet formally adjudicated) |
+| #17 | BC-amendment error-variant existence verification | pass-32 (D-527) | When a BC body introduces or cites a named entity (enum variant, error code, type name), the adversary MUST grep the canonical definition location (error.rs, error-taxonomy.md, §Error Taxonomy Additions) before declaring closure CLEAN. Prevents phantom-variant drift (root cause of F-LP32-CRIT-001). | Status: candidate (introduced D-527; pending cycle-close session-reviewer adjudication) |
+
+---
+
+### §5 — Phase-5 Deferred Findings (6 Items)
+
+See full detail in `.factory/cycles/wave-4-operations/deferred-findings-phase-5.md`.
+
+| Finding ID | Pass Surfaced | Severity | Description | Routing Target |
+|------------|---------------|----------|-------------|----------------|
+| F-LP12-OBS-001 | pass-12 | OBS | E-PLUGIN-008 dual-semantic reuse (BC-2.17.005 hot-reload vs BC-2.17.006 initial-load; message template misleading for boot context) | Phase-5 product-owner error namespace adjudication |
+| F-LP16-OBS-001 | pass-16 | OBS | `prism-bin` edition 2021 vs canonical edition 2024; workspace-wide edition unification needed | Phase-5 architect adjudication (workspace sweep) |
+| F-LP19-LOW-002 | pass-19 | LOW | VP-INDEX VP-PLUGIN-004 dual-emission framing diverges from BC-2.16.002 v1.12 single-emission discipline | Phase-5 spec-steward / architect adjudication |
+| F-LP22-OBS-001 | pass-22 | OBS | PluginError enum lacks `#[non_exhaustive]` despite story adding 4 new variants; cross-story governance concern | Phase-5 architect adjudication (implementer scope) |
+| F-LP25-OBS-001 | pass-25 | OBS | BC-2.17.002 v1.5 EC-17-007 becomes vacuously true under Vec<String> contract (allowlist empty = deny all = EC-17-007 vacuously never fires) | Phase-5 product-owner cross-wave governance adjudication |
+| F-LP28-OBS-001 | pass-28 | OBS | E-INT-001 exists in production code (error.rs:881-883) but absent from error-taxonomy.md canonical cross-reference | Phase-5 product-owner (taxonomy completeness) |
+
+**Resolution criteria:** ALL 6 must be addressed before Phase 5 (Adversarial Refinement) convergence is declared.
+
+---
+
+### §6 — Standing User Directive (Post-Compact Resume)
+
+```
+USER DIRECTIVE 2026-05-14: "continue convergence path for at least another 10 passes"
+
+INTERPRETATION:
+- Next dispatch: pass-33
+- Minimum target: pass-42 (10 additional passes from current pass-32)
+- May exceed 10 passes if convergence (3-CLEAN streak) achieved earlier
+- May exceed 10 passes if streak resets repeatedly (cascade continues until 3-CLEAN per BC-5.39.001)
+- Each BLOCKED pass routes to fix-burst (story-writer + product-owner as needed) + state-manager closure
+- All codifications #11-#17 + #13 sub-extension MUST be applied in adversary prompts
+- User has NOT authorized pragmatic convergence — strict 3-CLEAN per BC-5.39.001 protocol
+- Path A adjudication preferred over Path B when minimum-scope choice available
+```
+
+---
+
+### §7 — Per-Pass Dispatch Template (Efficient Reference for Next Session)
+
+The cycle has established a stable multi-agent burst pattern. Use this for every BLOCKED pass:
+
+**Step 1 — Adversary pass-N dispatch:**
+```
+Agent: vsdd-factory:adversary (fresh-context, read-only, all codifications injected)
+
+Policy rubric prefix for adversary prompts:
+  MANDATORY — apply all of:
+  POL-22 Phase A: verify 25 external anchors (grep cited documents, not story-body substring match)
+  POL-22 Phase B (extended): for each BC-NNN.NNN — (a) Title cell verbatim BC H1, AND
+    (b) all behavioral_contracts: frontmatter members appear in §References (completeness)
+  POL-22 Phase C: internal cross-reference symmetry chains
+  Codification #11: lexical-vs-semantic — grep cited target docs for cited content (not just substring)
+  Codification #12: BC body-table title verbatim against BC H1
+  Codification #13: POL-7 sweep covers body BC table + §References + Architecture Compliance Rules + prose
+  Codification #14: §X notation must resolve to actual section headings in cited docs
+  Codification #15: exclusion-note BCs swept for verbatim title even if not in behavioral_contracts:
+  Codification #13-sub-extension: §References completeness (all behavioral_contracts: members present)
+  Codification #16-candidate: error message template text verbatim vs error-taxonomy.md canonical
+  Codification #17-candidate: when BC cites enum variant/error code/type name — grep canonical
+    definition location (error.rs, error-taxonomy.md, §Error Taxonomy Additions) before CLEAN verdict
+```
+
+**Step 2 — If BLOCKED:**
+```
+state-manager Burst K: reify pass-N findings + log D-NNN (single commit per TD-VSDD-053)
+```
+
+**Step 3 — Multi-agent fix-burst:**
+```
+story-writer: story body edits (AC text, §References, §Error Taxonomy Additions, §Changelog, prose)
+product-owner: BC-NNN.NNN body edits + BC-INDEX version bump (if BC amendment needed)
+Run in parallel if both needed; state-manager closure after both complete
+```
+
+**Step 4 — State-manager Burst L:**
+```
+state-manager: fix-burst-N closure + log D-NNN+1 (single commit per TD-VSDD-053)
+```
+
+**Step 5 — Next adversary pass (N+1)**
+
+**Path A vs Path B adjudication rule:**
+- Path A (minimum scope): preferred when existing enum variants/error codes/types already cover the semantic. Zero new scope; reuse existing contract. Example: EC-17-007 phantom AllowlistRejected → replaced with E-PLUGIN-005 SandboxViolation (HTTP 403).
+- Path B (introduce new entity): use only when Path A cannot satisfy the contract. 6-site blast radius (new enum variant + error-taxonomy.md row + story §Error Taxonomy Additions row + BC amendment + test sites). Requires architect concurrence if cross-wave scope.
+
+---
+
+### §8 — Trajectory Analysis and Convergence Outlook
+
+**Pass-25..32 trajectory:** 4 → 1 → 4 → 5 → 1 → 1 → 3 → 4
+
+**Pattern observed:**
+- Passes 25-26: 4→1 (decreasing — initial gains from codification enforcement)
+- Passes 27-28: 4→5 (trend break — new finding classes not covered by prior codifications)
+- Passes 29-30: 1→1 (plateau — convergence near; codifications holding on prior classes)
+- Pass 31: 3 (trend break — 2 HIGH fresh content drifts; E-PLUGIN message templates and BC security semantic)
+- Pass 32: 4 (second trend break — fix-burst-29 introduced phantom variant without existence verification)
+
+**Cause of both trend breaks:** Fix-burst-closure-introduced drift. Each major BC amendment (fix-burst-25 POL-7 sweep, fix-burst-29 EC-17-007 default-deny) created new drift in the next pass.
+
+**Convergence prognosis for pass-33:**
+- Codifications #11-#17 are comprehensive; all prior finding classes held in passes 29-30
+- However, each of the 8 passes in this session surfaced at least 1 novel finding class
+- Expect 1-5 findings per pass; 1-3 new codification candidates may emerge across pass-33..pass-42
+- The phantom-variant class (codification #17) is new and not yet battle-tested across passes
+- The error-message-template class (codification #16) passed 1 pass (32) — needs more validation
+
+**Pre-convergence estimate:** 3-CLEAN streak likely requires 3-8 more clean passes after a genuinely clean pass. Based on trajectory, 3-CLEAN may be achievable around pass-35..pass-38, contingent on no new finding classes emerging.
+
+---
+
+### §9 — Sub-Tasks Queued (Task List for Post-Compact Resume)
+
+```
+TASK QUEUE (post-compact resume):
+
+1. Dispatch adversary pass-33 (fresh-context; ALL codifications #11-#17 + #13-sub injected)
+2. If pass-33 BLOCKED:
+   a. state-manager Burst P: reify pass-33 findings + log D-530
+   b. story-writer fix-burst-31 (story body edits as needed)
+   c. product-owner fix-burst-31 (BC edits if BC amendment needed; run parallel with story-writer)
+   d. state-manager Burst Q: fix-burst-31 closure + log D-531
+3. Dispatch adversary pass-34 (same codification injection as pass-33)
+4. Continue pattern for passes 35-42 minimum (10 passes total from pass-32)
+5. If 3-CLEAN achieved (streak 1/3 → 2/3 → 3/3):
+   CYCLE CONVERGED → route to per-story-delivery.md workflow:
+   - test-writer: Red Gate stubs (fresh worktree .worktrees/S-PLUGIN-PREREQ-D/)
+   - implementer: TDD green phase
+   - LOCAL adversary 3-CLEAN (story implementation)
+   - demo-recorder: per-AC demo evidence
+   - pr-manager: 9-step PR cycle
+   - squash-merge to develop (user authorization)
+   - post-merge state burst (PREREQ-D merged; BCs promoted POL-14; PREREQ-E next)
+6. If still BLOCKED at pass-42: surface to user for re-evaluation of convergence strategy
+
+STANDING NOTES:
+- Path A adjudication preferred
+- NO PUSH factory-artifacts (local-only; 60+ commit divergence is correct state)
+- NEVER use --no-verify on commits
+- NEVER add Co-Authored-By to commits
+- All codification candidates active until cycle-close session-reviewer adjudicates
+- 6 phase-5 deferred findings are non-blocking for spec convergence; blocking for Phase-5 gate
+
+AFTER PREREQ-D CONVERGES + MERGES:
+- PREREQ-E next (gating PLUGIN-MIGRATION Wave 1)
+- PLUGIN-MIGRATION-001-A/B/C/D dispatch (only after PREREQ-D + PREREQ-E both merged)
+```
 
 **Total BC amendments this cycle: 8 files touched, 13 amendment events**
