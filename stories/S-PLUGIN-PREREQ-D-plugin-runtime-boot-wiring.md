@@ -53,10 +53,10 @@ target_module: prism-bin
 #   subsystems: [SS-16, SS-01], any story anchoring BC-2.16.002 must list SS-16.
 subsystems: [SS-22, SS-17, SS-16]
 capabilities: [CAP-029, CAP-032, CAP-034]
-version: "1.25"
+version: "1.26"
 level: "L4"
 producer: story-writer
-timestamp: "2026-05-13T17:00:00Z"
+timestamp: "2026-05-13T19:00:00Z"
 updated: "2026-05-13"
 input-hash: "6954524"
 traces_to: []
@@ -94,6 +94,7 @@ td_resolves:
   - TD-S-PLUGIN-PREREQ-B-011  # P3 — execute_step eager-token semantic consistency in PREREQ-D wiring tests
   - TD-S-PLUGIN-PREREQ-B-012  # P3 — execute_step PREREQ-D wiring test coverage
 inputs:
+  - ".factory/specs/architecture/decisions/ADR-022-production-runtime-wiring.md"
   - ".factory/specs/architecture/decisions/ADR-023-plugin-only-sensor-architecture.md"
   - ".factory/specs/behavioral-contracts/BC-2.16.002-multi-step-fetch-pipeline.md"
   - ".factory/specs/behavioral-contracts/BC-2.17.001-plugin-panic-isolation.md"
@@ -256,7 +257,7 @@ this story being merged first.
 
 | BC | Title | Primary Coverage |
 |----|-------|-----------------|
-| BC-2.16.002 | Multi-Step Fetch Pipeline Execution — Sequential Steps with Variable Interpolation | AC-16 (MAX_REQUESTS_PER_PIPELINE cap; traces to BC-2.16.002 preconditions); Structured Event Catalog Additions §intro (9 new event_type rows) |
+| BC-2.16.002 | Multi-Step Fetch Pipeline Execution — Sequential Steps with Variable Interpolation | AC-16 (MAX_REQUESTS_PER_PIPELINE cap; traces to BC-2.16.002 §Canonical Structured Event Catalog row pipeline_max_requests_exceeded); Structured Event Catalog Additions §intro (9 new event_type rows) |
 | BC-2.17.001 | Plugin Panic Isolation — Crashed Plugin Does Not Terminate Host Process | AC-10 (panic isolation via fresh Store per call) |
 | BC-2.17.002 | Plugin Sandbox — No Direct Filesystem or Network Access | AC-11 (WASI not linked; allowlist enforcement via host_http_request) |
 | BC-2.17.003 | Plugin Sandbox — Memory Limit Enforced Per Plugin Instance (default 64MB) | AC-12 (StoreLimits 64MB; configurable per manifest) |
@@ -463,7 +464,7 @@ emitted per outcome. In-flight calls holding old `Arc<LoadedPlugin>` complete no
 `Drop` manually to overwrite the bytes before deallocation. A doc comment at the `AuthToken`
 definition cites AD-017 (credential safety) and explains the zeroize obligation. The `TD-S-PLUGIN-PREREQ-B-002` inline reference is removed when this is implemented.
 
-### AC-16 — MAX_REQUESTS_PER_PIPELINE cumulative cap enforced in executor loop (traces to TD-S-PLUGIN-PREREQ-B-004; BC-2.16.002 preconditions)
+### AC-16 — MAX_REQUESTS_PER_PIPELINE cumulative cap enforced in executor loop (traces to TD-S-PLUGIN-PREREQ-B-004; BC-2.16.002 §Canonical Structured Event Catalog row pipeline_max_requests_exceeded)
 
 `crates/prism-spec-engine/src/pipeline.rs` defines `MAX_REQUESTS_PER_PIPELINE: usize = 10_000`
 constant. The `PipelineExecutor` executor loop maintains a cumulative request counter across all
@@ -674,16 +675,16 @@ Only the exact string `"1"` disables loading (EC-D-011: values like `"true"`, `"
 | Item | Estimated Tokens |
 |------|-----------------|
 | Story spec (this file) | ~8,100 |
-| BC files (8 BCs × ~1,500) | ~12,000 |
+| BC files (9 BCs × ~1,500) | ~13,500 |
 | ADR-023 §C4 (relevant sections) | ~4,000 |
 | crates/prism-spec-engine/src/plugin/ source (mod.rs, host_functions.rs) + src/pipeline.rs + src/auth_provider.rs | ~8,000 |
 | crates/prism-bin/src/boot.rs | ~3,000 |
 | Cargo.toml files (2) | ~1,000 |
 | tests/fixtures/src/*.wat (4 WAT source files × ~50 LOC each) | ~800 |
 | Test output / error messages during TDD | ~4,000 |
-| **Total** | **~40,900** |
+| **Total** | **~42,400** |
 
-This is approximately 16.0% of a 256k-token context window — within the 20-30% limit.
+This is approximately 16.6% of a 256k-token context window — within the 20-30% limit.
 No splitting required.
 
 ## File Structure Requirements
@@ -915,7 +916,7 @@ the `SpecEngineError::TooManyRequests` variant is emitted by `PipelineExecutor::
 cumulative HTTP request counter across all pipeline steps reaches the 10,000-request hard cap.
 Pipeline aborts immediately; partial results are discarded. Non-retryable: the cap is a hard invariant.
 Structured event `pipeline_max_requests_exceeded` is emitted per BC-2.16.002 v1.12 catalog row.
-Traces to BC-2.16.002 §S-PLUGIN-PREREQ-D AC-16.
+Traces to BC-2.16.002 §Canonical Structured Event Catalog row pipeline_max_requests_exceeded (anchored by AC-16 of S-PLUGIN-PREREQ-D).
 
 ### Credential Safety (AD-017)
 
@@ -1029,6 +1030,7 @@ Do NOT invent version numbers. All versions above are confirmed from `crates/pri
 
 | Version | Burst | Date | Author | Change |
 |---------|-------|------|--------|--------|
+| 1.26 | fix-burst-26 stage-1 | 2026-05-13 | story-writer | F-LP28-MED-001 (POL-4, story site): phantom §-section "BC-2.16.002 §S-PLUGIN-PREREQ-D AC-16" replaced with "BC-2.16.002 §Canonical Structured Event Catalog row pipeline_max_requests_exceeded (anchored by AC-16 of S-PLUGIN-PREREQ-D)" at line 918; product-owner handles error-taxonomy.md:464 sibling drift in parallel. F-LP28-MED-002 (POL-4): AC-16 trace header at line 466 "BC-2.16.002 preconditions" replaced with "BC-2.16.002 §Canonical Structured Event Catalog row pipeline_max_requests_exceeded" — preconditions doesn't contain MAX_REQUESTS_PER_PIPELINE; cap introduced by AC-16, emission documented in catalog. F-LP28-LOW-001: Token Budget BC count 8→9 (BC-2.17.005 in inputs since fix-burst-25 not propagated to Token Budget row); row recomputed ~12,000→~13,500; Total 40,900→42,400; percentage 16.0%→16.6%. F-LP28-LOW-003: inputs prepended ADR-022-production-runtime-wiring.md (cited ~17 times throughout story but missing from inputs). fix-burst-26 stage-1 story-writer scope. |
 | 1.25 | fix-burst-25 stage-1 | 2026-05-13 | story-writer | F-LP27-MED-001 (POL-4): subsystems: [SS-22, SS-17] → [SS-22, SS-17, SS-16] (SS-16 added per BC-2.16.002 subsystem: SS-16 + S-PLUGIN-PREREQ-B precedent + AC-16 MAX_REQUESTS_PER_PIPELINE in prism-spec-engine/src/pipeline.rs SS-16 territory); YAML comment block updated with SS-16 justification; anchor_subsystem updated symmetrically. F-LP27-MED-002 (CLAUDE.md production-grade): PluginError #[non_exhaustive] conditional MVP-hedge language replaced with direct prescription — PluginError MUST be marked #[non_exhaustive] same-commit as new variants (aligns PrismError at error.rs:15-17 sibling + 30+-type perimeter audit); §non_exhaustive Requirements section updated to include PluginError enum-level as explicit unconditional requirement. F-LP27-MED-003 (POL-7): §References section rewritten with verbatim BC H1 titles for all 8 BCs (was 7/8 paraphrased — sibling pattern to codification #12); BC-2.17.007 parenthetical annotation preserved. F-LP27-LOW-001: inputs: appended BC-2.17.005-plugin-hot-reload-atomic-swap.md (cited at body line 980 + §References but absent from inputs since fix-burst-23). fix-burst-25 stage-1. |
 | 1.24 | fix-burst-24 stage-1 | 2026-05-13 | story-writer | F-LP26-MED-001 BC-2.16.002 body BC table title (line 254) canonicalized: paraphrased sub-scope "Multi-Step Fetch Pipeline — Structured Event Catalog" → verbatim BC H1 + BC-INDEX "Multi-Step Fetch Pipeline Execution — Sequential Steps with Variable Interpolation" per POL-7. Primary Coverage cell unchanged (story-specific sub-scope label preserved there). 7 other BCs in same table already verbatim; only BC-2.16.002 had asymmetric deviation. fix-burst-24 stage-1. |
 | 1.23 | fix-burst-23 stage-1 | 2026-05-13 | story-writer | F-LP25-HIGH-001 spawn_blocking re-anchor (Architecture Compliance Rules row 980: ADR-023 §C4 → BC-2.17.005 §Invariants); F-LP25-LOW-001 SS-17 short-name normalization (line 48: "Plugin Runtime" → "WASM Plugin Runtime" per POL-6); F-LP25-LOW-002 AC-9 trace header strip "ADR-023 §C4 plugin HTTP defaults +" fabricated prose (line 367) — keep BC-2.17.002 v1.5 §Error Conditions E-PLUGIN-005 canonical only. fix-burst-23 stage-1. |
