@@ -53,7 +53,7 @@ target_module: prism-bin
 #   subsystems: [SS-16, SS-01], any story anchoring BC-2.16.002 must list SS-16.
 subsystems: [SS-22, SS-17, SS-16]
 capabilities: [CAP-029, CAP-032, CAP-034]
-version: "1.30"
+version: "1.31"
 level: "L4"
 producer: story-writer
 timestamp: "2026-05-14T13:00:00Z"
@@ -297,8 +297,7 @@ called. A single `tracing::warn!(event_type = "plugin_load_disabled_via_envvar",
 "Plugin loading disabled via PRISM_DISABLE_PLUGIN_LOAD=1", env_var = "PRISM_DISABLE_PLUGIN_LOAD",
 ...)` emission is made before the step is skipped. This one structured emission satisfies BOTH
 the WARN-level operator-visible log AND the audit-channel routing — WARN-level log and
-audit-channel routing are orthogonal via `event_type` field per BC-2.16.002 v1.12 catalog
-discipline. The MCP server bind proceeds normally (zero plugins registered).
+audit-channel routing are orthogonal via `event_type` field per BC-2.16.002 v1.12 §Canonical Structured Event Catalog (row plugin_load_unsigned Trigger cell). The MCP server bind proceeds normally (zero plugins registered).
 
 ### AC-4 — Unsigned-plugin boot warning + per-plugin audit entry emitted (traces to BC-2.22.001 §Postconditions — happy-path plugin-load step 7.5 postcondition: `plugin_load_unsigned` audit event with `plugin_path` + `plugin_hash` fields; ADR-023 §C4; VP-PLUGIN-004)
 
@@ -320,7 +319,7 @@ any WASM Component compilation is attempted (BC-2.17.007 manifest-before-WIT ord
 - `name`: non-empty UTF-8 string; absent or empty → `E-PLUGIN-015: "Plugin manifest at '{path}' missing or empty required field 'name'"` (BC-2.17.007 postcondition 1)
 - `version`: non-empty semver-parseable string; absent or malformed → `E-PLUGIN-016: "Plugin manifest at '{path}' field 'version' is not a valid semver string: '{value}'"` (BC-2.17.007 postcondition 2)
 - `format_version`: u32; must be `<= CURRENT_SUPPORTED_VERSION` (crate constant, initial value `1`); absent or `> CURRENT_SUPPORTED_VERSION` → `E-PLUGIN-014: "Plugin manifest at '{path}' format_version {actual} exceeds maximum supported version {supported}"` (BC-2.17.007 postcondition 3)
-- `allowed_urls`: `Vec<String>`; field must be explicitly present (empty list `[]` is accepted; absent/null → rejection); absent or `None` → `E-PLUGIN-013: "Plugin manifest at '{path}' missing required field 'allowed_urls'; field must be an explicit list (use allowed_urls = [] for no URLs)"` (BC-2.17.007 postcondition 4; VP-PLUGIN-007)
+- `allowed_urls`: `Vec<String>`; field must be explicitly present (empty list `[]` is accepted; absent/null → rejection); absent or `None` → `E-PLUGIN-013: "Plugin manifest at '{path}' missing required field 'allowed_urls'; field must be an explicit list (use `allowed_urls = []` for no URLs)"` (BC-2.17.007 postcondition 4; VP-PLUGIN-007)
 
 Field validation order: `name` → `version` → `format_version` → `allowed_urls`. First failure
 returns immediately; one error per load attempt (BC-2.17.007 EC-17-032).
@@ -354,7 +353,7 @@ hostnames from the manifest `allowed_urls` list (e.g., `"api.crowdstrike.com"` n
 
 - Extract the host from the requested URL using `url::Url::parse`; compare against each entry in
   `allowed_urls` using `==` (exact host-only match, not substring); mismatch → HTTP 403 returned
-  to plugin AND a single `tracing::warn!(event_type = "plugin_http_request_blocked", plugin_id, url, reason = "allowlist_mismatch")` emission (single structured emission per BC-2.16.002 v1.12 catalog discipline — WARN-level log and audit-channel routing are orthogonal via `event_type` field)
+  to plugin AND a single `tracing::warn!(event_type = "plugin_http_request_blocked", plugin_id, url, reason = "allowlist_mismatch")` emission (single structured emission per BC-2.16.002 v1.12 catalog routing convention — WARN-level log and audit-channel routing are orthogonal via `event_type` field)
 
 The `TODO(S-4.08)` comment in `make_host_state()` is removed. The None-short-circuit in
 `host_http_request` is removed and replaced with the enforcement logic. The `Option<Vec<String>>`
@@ -370,7 +369,7 @@ asserts the count and names match the canonical host function list. This prevent
 drift when new host functions are added. The test panics with a descriptive message on mismatch:
 `"Linker import count mismatch: expected {N}, found {M}. Did you add a host function without updating the import list?"`.
 
-### AC-9 — Single shared reqwest::Client constructed once at boot with 30-second timeout; injected into PluginRuntime (traces to BC-2.17.002 v1.6 §Error Conditions E-PLUGIN-005; closes TD-S-PLUGIN-PREREQ-B-005)
+### AC-9 — Single shared reqwest::Client constructed once at boot with 30-second timeout; injected into PluginRuntime (traces to BC-2.17.002 v1.7 §Error Conditions E-PLUGIN-005; closes TD-S-PLUGIN-PREREQ-B-005)
 
 A **single** `reqwest::Client` instance is constructed **once** in `crates/prism-bin/src/boot.rs`
 during the plugin-load boot step, using:
@@ -903,7 +902,7 @@ added to `crates/prism-spec-engine/src/error.rs` (the canonical `SpecEngineError
 
 | Code | Name | Message Template |
 |------|------|-----------------|
-| `E-PLUGIN-013` | `PluginError::MissingAllowedUrls` | `"Plugin manifest at '{path}' missing required field 'allowed_urls'; field must be an explicit list (use 'allowed_urls = []' for no URLs)"` |
+| `E-PLUGIN-013` | `PluginError::MissingAllowedUrls` | ``"Plugin manifest at '{path}' missing required field 'allowed_urls'; field must be an explicit list (use `allowed_urls = []` for no URLs)"`` |
 | `E-PLUGIN-014` | `PluginError::FormatVersionExceeded` | `"Plugin manifest at '{path}' format_version {actual} exceeds maximum supported version {supported}"` |
 | `E-PLUGIN-015` | `PluginError::ManifestNameMissing` | `"Plugin manifest at '{path}' missing or empty required field 'name'"` |
 | `E-PLUGIN-016` | `PluginError::ManifestVersionMalformed` | `"Plugin manifest at '{path}' field 'version' is not a valid semver string: '{value}'"` |
@@ -1044,6 +1043,7 @@ Do NOT invent version numbers. All versions above are confirmed from `crates/pri
 
 | Version | Burst | Date | Author | Change |
 |---------|-------|------|--------|--------|
+| 1.31 | fix-burst-31 | 2026-05-14 | story-writer | F-LP33-MED-001: AC-9 trace header line 373 stale BC-2.17.002 v1.6 pin updated to v1.7 (8th instance of version-pin sibling-prose drift in cascade; pass-33 surfacing). F-LP33-MED-002: E-PLUGIN-013 message template aligned to canonical backtick form: story line 906 (single-quoted → double-backtick-fenced backticks) + story line 323 (no-delim → backtick-fenced inline). F-LP33-LOW-001: "catalog discipline" 2 active-body sites (lines 300–301, 357) replaced with resolvable anchors per Codification #14 (phantom-section-anchor sweep): line 300–301 uses precise form `§Canonical Structured Event Catalog (row plugin_load_unsigned Trigger cell)` (first occurrence, anchor established); line 357 uses lighter form `catalog routing convention` (back-reference in AC-7, anchor already established upstream). Sibling-site sweep results: (1) `BC-2.17.002 v1.[0-6]` active body — ZERO stale pins (lines 418/999 are legitimate historical references within §BC Amendments Landed and versioned narrative prose); (2) `catalog discipline` active body — ZERO hits (changelog rows 1.22/1.13/1.11 are historical); (3) `use allowed_urls = []` without backticks active body — ZERO hits (lines 322, 905 both use canonical backtick form). Closure justification: production-grade default (no LOW deferral); zero scope expansion (story-only edits). |
 | 1.30 | fix-burst-30 stage-1 | 2026-05-14 | story-writer | F-LP32-MED-001: AC-9 closure note line 419 stale BC-2.17.002 v1.5 pin updated to v1.7 (fix-burst-30 phantom-variant removal closure). F-LP32-MED-002: §Changelog rows 1.27/1.28/1.29 schema-corruption fix — added Burst column values (fix-burst-27/28/29 stage-1) restoring 5-cell schema parity with rows 1.26+. F-LP32-OBS-001: §BC Amendments In-Scope retrospectively reframed past-tense as §BC Amendments Landed documenting v1.6 (fix-burst-29) and v1.7 (fix-burst-30) amendments. Product-owner BC-2.17.002 v1.6→v1.7 EC-17-007 phantom-variant removal dispatched in parallel. fix-burst-30 stage-1 story-writer scope. |
 | 1.29 | fix-burst-29 stage-1 | 2026-05-14 | story-writer | F-LP31-HIGH-001 (POL-7 axis EXTENSION): §Error Taxonomy Additions table E-PLUGIN-013 + E-PLUGIN-014 message templates aligned to canonical (matching AC-5 body + error-taxonomy.md); E-PLUGIN-015/016 unchanged (already verbatim). F-LP31-HIGH-002 STORY SITE: new §BC Amendments In-Scope section added directing product-owner to amend BC-2.17.002 v1.5→v1.6 EC-17-007 to align with AC-7 default-deny semantics per Source-of-Truth Precedence Rule 1 (security-semantic cross-spec drift mitigation). F-LP31-MED-001: AC-15 §Credential Safety AuthToken Debug example aligned to existing code at auth_provider.rs:68 ('AuthToken(<redacted>)' angle-bracket form). fix-burst-29 stage-1 story-writer scope; product-owner BC amendment dispatched in parallel. |
 | 1.28 | fix-burst-28 stage-1 | 2026-05-14 | story-writer | F-LP30-MED-001 (POL-7, codification #13 sub-extension): §References section appended BC-2.16.002 entry (verbatim H1 "Multi-Step Fetch Pipeline Execution — Sequential Steps with Variable Interpolation") between ADR-023 §C4 and BC-2.17.001 in alphanumeric BC-ID order. Cross-table completeness gap: BC-2.16.002 was anchored in `behavioral_contracts:` since v1.2 (fix-burst-2) and appears verbatim in body BC table line 260, but never landed in §References. Total §References BC entries: 8 → 9 (8 `behavioral_contracts:` anchored + BC-2.17.005 exclusion-note per Codification #15). fix-burst-28 stage-1. |

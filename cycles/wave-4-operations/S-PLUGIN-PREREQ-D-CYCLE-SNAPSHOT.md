@@ -752,3 +752,45 @@ state-manager Burst Q (after fix-burst-31 complete):
 | SESSION-HANDOFF.md | v7.235 | `.factory/SESSION-HANDOFF.md` |
 
 **Total BC amendments this cycle: 8 files touched, 13 amendment events**
+
+---
+
+## §POST-FIX-BURST-31 CLOSURE (D-531)
+
+> **Status:** Fix-burst-31 CLOSED. Supersedes §POST-PASS-33 BLOCKED SUMMARY for resume purposes.
+> Captured at D-531 (Burst Q). Pass-34 dispatch next. Story v1.31.
+
+### Fix-Burst-31 Finding Closure Inventory
+
+**Verdict: 3 IN-SCOPE CLOSED + 2 OBS routed cycle-close**
+
+| Finding | Severity | Before | After | Route |
+|---------|----------|--------|-------|-------|
+| F-LP33-MED-001 | MEDIUM | AC-9 trace header story line 373: `BC-2.17.002 v1.6` | `BC-2.17.002 v1.7` | story-writer fix-burst-31 — CLOSED |
+| F-LP33-MED-002 | MEDIUM | story line 906: single-quoted `'allowed_urls = []'`; story line 323: no-delimiter `allowed_urls = []` | Both → backtick-fenced `` `allowed_urls = []` `` (canonical per error-taxonomy.md:455) | story-writer fix-burst-31 — CLOSED |
+| F-LP33-LOW-001 | LOW (scope-bounded) | lines 300-301: `BC-2.16.002 v1.12 catalog discipline`; line 357: `BC-2.16.002 v1.12 catalog discipline` | line 300-301: `§Canonical Structured Event Catalog (row plugin_load_unsigned Trigger cell)` (precise); line 357: `catalog routing convention` (light back-ref) | story-writer fix-burst-31 — CLOSED (2 of 8 sites) |
+| F-LP33-OBS-001 | OBS [process-gap] | POL-23 candidate: BC-version-bump sibling grep gate | Unchanged | cycle-close session-reviewer queue |
+| F-LP33-OBS-002 | OBS [process-gap] | Codification #16 formal POL-24 promotion candidate | Unchanged | cycle-close session-reviewer queue |
+
+### F-LP33-LOW-001 Scope Adjudication (Documented for Pass-34 Transparency)
+
+The adversary's pass-33 report cited 8 sites matching the broader pattern `'catalog discipline' / 'BC-2.16.002 ... catalog'`. Story-writer adjudicated as follows:
+
+- **2 sites FIXED** (lines 300-301 and 357): These used the literal phrase "catalog discipline" — a phrase implying a named section that does not exist in BC-2.16.002 v1.12. This constitutes a phantom-section-anchor violation per Codification #14 spirit.
+- **6 sites NOT MODIFIED** (lines 581, 616, 648, 692, 808, 916): These use shorter forms like `(BC-2.16.002 catalog; AC-X)` or `catalog row`. These reference the real `§Canonical Structured Event Catalog` section title and actual catalog rows — they are resolvable anchors, not phantom section references.
+
+**Pass-34 note:** Pass-34 adversary is free to re-surface the broader bare-"catalog" phrasing as a new finding class if it disagrees with this adjudication. If surfaced, it becomes fix-burst-32 scope. The adjudication is intentional and this document is the audit trail.
+
+### Artifact State After Fix-Burst-31 (D-531)
+
+| Artifact | Version | Change | Path |
+|----------|---------|--------|------|
+| Story S-PLUGIN-PREREQ-D | v1.31 | v1.30 → v1.31 | `.factory/stories/S-PLUGIN-PREREQ-D-plugin-runtime-boot-wiring.md` |
+| STORY-INDEX | v2.101 | v2.100 → v2.101 | `.factory/stories/STORY-INDEX.md` |
+| STATE.md | v7.236 | v7.235 → v7.236 | `.factory/STATE.md` |
+| SESSION-HANDOFF.md | v7.236 | v7.235 → v7.236 | `.factory/SESSION-HANDOFF.md` |
+| BC-2.17.002 | v1.7 (draft) | UNCHANGED | `.factory/specs/behavioral-contracts/BC-2.17.002-plugin-sandbox-filesystem.md` |
+| BC-INDEX | v4.73 | UNCHANGED | `.factory/specs/behavioral-contracts/BC-INDEX.md` |
+| error-taxonomy | v1.21 | UNCHANGED | `.factory/specs/prd-supplements/error-taxonomy.md` |
+| factory-artifacts HEAD | D-531 | `git -C .factory log -1 --format='%H'` | — |
+| develop HEAD | unchanged | 95d46be2 | — |
