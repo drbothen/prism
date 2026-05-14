@@ -1109,3 +1109,59 @@ Trajectory through fix-burst-34: ...→5→5→5→2→CLOSED(fix-burst-34). The
 | BC-2.17.002 | v1.7 (draft) | UNCHANGED | `.factory/specs/behavioral-contracts/BC-2.17.002-plugin-sandbox-filesystem.md` |
 | factory-artifacts HEAD | D-537 | `git -C .factory log -1 --format='%H'` | — |
 | develop HEAD | unchanged | 95d46be2 | — |
+
+---
+
+## §POST-PASS-37 COMBINED REIFY+CLOSE (D-538)
+
+> **Purpose:** Pass-37 reify + fix-burst-35 closure combined in single commit per TD-VSDD-053 state-manager-domain consolidation.
+
+### Combined-Burst Variant Rationale
+
+Pass-37 found a single MED finding (VP-INDEX:190 VP-PLUGIN-007 description mis-anchor) that is exclusively state-manager-domain. VP-INDEX is state-manager responsibility per CLAUDE.md routing table. No product-owner or story-writer involvement required. This is the same type as the v1.34→v1.35 VP-INDEX bump at fix-burst-32 (D-533), which was also a single-agent state-manager commit. Combining reify + fix + closure into one D-538 commit is operationally correct and context-budget-conserving per the combined-burst authorization framework.
+
+### 4-Cascade Propagation Pattern (Final Closure)
+
+The "per AC-7 default-deny" anchor-string class is now fully closed across all 4 cascade propagation sites:
+
+| Burst | Artifact Fixed | D-Number | Status |
+|-------|---------------|----------|--------|
+| fix-burst-32 (D-533) | VP-INDEX VP-152/VP-PLUGIN-007 "not-None" Option-semantics | D-533 | CLOSED |
+| fix-burst-33 (D-535) | BC-2.17.007:138+161 pre-AC-7 Option-semantics framing | D-535 | CLOSED |
+| fix-burst-34 (D-537) | BC-2.17.007:138+161 "per AC-7 default-deny" anchor | D-537 | CLOSED |
+| fix-burst-35 (D-538) | VP-INDEX:190 "per AC-7 default-deny" anchor | D-538 | CLOSED |
+
+### VP-INDEX Edit Detail
+
+- **Location:** VP-INDEX:190 VP-PLUGIN-007 named-alias row description
+- **Before:** `manifest without allowed_urls field rejected at load time per AC-7 default-deny;`
+- **After:** `manifest without allowed_urls field rejected at load time per AC-5 manifest gate (default-deny consumer is AC-7);`
+- **Version:** v1.35 → v1.36
+- **Sibling-sweep result:** `grep -rn 'per AC-7 default-deny' .factory/specs/` → ZERO active-body hits; all remaining hits in §Changelog historical rows (immutable TD-VSDD-091)
+
+### Artifact State After D-538
+
+| Artifact | Version | Change | Path |
+|----------|---------|--------|------|
+| VP-INDEX | v1.36 | v1.35 → v1.36 | `.factory/specs/verification-properties/VP-INDEX.md` |
+| Story S-PLUGIN-PREREQ-D | v1.32 | UNCHANGED | `.factory/stories/S-PLUGIN-PREREQ-D-plugin-runtime-boot-wiring.md` |
+| BC-2.17.007 | v1.4 (draft) | UNCHANGED | `.factory/specs/behavioral-contracts/BC-2.17.007-plugin-manifest-schema-validation.md` |
+| error-taxonomy | v1.22 | UNCHANGED | `.factory/specs/prd-supplements/error-taxonomy.md` |
+| BC-INDEX | v4.75 | UNCHANGED | `.factory/specs/behavioral-contracts/BC-INDEX.md` |
+| STORY-INDEX | v2.102 | UNCHANGED | `.factory/stories/STORY-INDEX.md` |
+| STATE.md | v7.243 | v7.242 → v7.243 | `.factory/STATE.md` |
+| SESSION-HANDOFF.md | v7.243 | v7.242 → v7.243 | `.factory/SESSION-HANDOFF.md` |
+| pass-37 report | NEW | Created | `.factory/cycles/wave-4-operations/adversarial-reviews/S-PLUGIN-PREREQ-D-pass-37.md` |
+| fix-burst-35 report | NEW | Created | `.factory/cycles/wave-4-operations/adversarial-reviews/S-PLUGIN-PREREQ-D-fix-burst-35.md` |
+| factory-artifacts HEAD | D-538 | `git -C .factory log -1 --format='%H'` | — |
+| develop HEAD | unchanged | 95d46be2 | — |
+
+### Convergence Trajectory Note
+
+Trajectory through D-538: 4→1→4→5→1→1→3→4→5→5→5→2→1 (pass-25..pass-37).
+
+The 5→2→1 pattern (passes 35→36→37) shows continued convergence-favorable decrease. Pass-38 has HIGH CLEAN probability — the anchor-string class (AC-7 vs AC-5 mis-anchor) is now fully exhausted across all 4 cascade propagation sites. Pass-38 adversary should prioritize: confirm no further `per AC-7 default-deny` active-body sites and verify POL-25 candidate gap coverage.
+
+### OBS-LP37-001 POL-25 Candidate HIGH-Priority
+
+The 4-burst cascade on the same anchor-string class (32→33→34→37) is the strongest evidence yet for POL-25 formalization. Proposed codification: when editing a BC whose AC text appears in VP-INDEX named-alias row descriptions, the SAME grep that finds BC body sites MUST also query VP-INDEX rows in the same burst. Dispatched to cycle-close session-reviewer as HIGH-priority (was MEDIUM from OBS-LP35-002; strengthened by 2 additional recurrences). **43rd consecutive single-commit (TD-VSDD-053 DECISIVELY STABLE).**
