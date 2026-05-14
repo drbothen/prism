@@ -320,3 +320,56 @@ Before Phase 5 adversarial convergence: architect rewrites both locations to use
 Vec<String>-semantics framing established by AC-7 + AC-17. The verification-architecture
 VP-PLUGIN-007 entry and ADR-023 prose should match the phrasing in BC-2.17.007 (post
 fix-burst-33 v1.3) and VP-INDEX (post D-533 v1.35).
+
+---
+
+## OBS-LP36-002 — BC-INDEX prose vs frontmatter count drift (System-level; Pre-existing)
+
+| Field | Value |
+|-------|-------|
+| **Finding ID** | OBS-LP36-002 |
+| **Severity** | OBS (system-level; pre-existing; deferred phase-5) |
+| **Confidence** | HIGH |
+| **Story source** | S-PLUGIN-PREREQ-D |
+| **Surfaced at** | Pass-36 (adversary fresh-context audit) |
+| **Date routed** | 2026-05-14 |
+| **Target** | Phase-5 architect adjudication — BC-INDEX.md has three independent count claims that disagree with each other |
+
+### Evidence
+
+BC-INDEX.md frontmatter line 4 reads:
+`total_contracts: 236, active_contracts: 229, draft_contracts: 6, deprecated_contracts: 3`
+
+Note: 229 + 6 + 3 = 238, not 236 — the frontmatter subcounts do not sum to the total.
+
+BC-INDEX.md prose at lines 17 and 19-20 reads:
+`235 contracts total (227 active + 6 draft + 2 deprecated)`
+
+Three independent count claims disagree:
+- **Frontmatter declared total**: 236 (with internal inconsistency: subcounts sum to 238)
+- **Prose total**: 235
+- **Prose subcounts**: 227 active + 6 draft + 2 deprecated = 235
+
+### Why It Matters
+
+BC-INDEX is the authoritative count source for all BC-count-propagation sweeps (TD-VSDD-060
+discipline). If the three count fields disagree, count-propagation sweeps across STATE.md,
+ARCH-INDEX, STORY-INDEX, and prd.md may anchor to any of the three values and produce
+inconsistent results. The count-propagation sweep in D-535 anchored to `total_contracts: 236`
+(frontmatter) — but a verifier reading the prose would see 235.
+
+### Why It Is Out-of-Perimeter
+
+A correct fix requires a workspace-wide BC enumeration (`find .factory/specs/behavioral-contracts -name "BC-*.md" | wc -l`) to determine the authoritative count. This is a system-level architect task that is broader than story-scope fix-bursts. The drift is pre-existing and was not introduced by this cascade.
+
+### Fix Options (for Phase-5 Architect Adjudication)
+
+**Option A — Workspace enumeration + single-source reconciliation:** Run `find .factory/specs/behavioral-contracts -name "BC-*.md" | wc -l` to get the actual count. Update frontmatter + prose to match. Reconcile subcounts (active/draft/deprecated) by examining BC frontmatter `lifecycle_status` fields. This is the CLAUDE.md-compliant path.
+
+**Option B — Frontmatter-wins policy:** Declare frontmatter as the authoritative source; update prose to match frontmatter values. Run the workspace enumeration to verify frontmatter is correct.
+
+**Option C — Prose-wins policy:** Declare prose as the authoritative source; update frontmatter to match prose values. Run the workspace enumeration to verify prose is correct.
+
+### Resolution Criteria
+
+Before Phase 5 adversarial convergence: BC-INDEX.md has exactly one consistent count claim across frontmatter and prose, and the declared count matches the actual count of BC-*.md files in `.factory/specs/behavioral-contracts/`.

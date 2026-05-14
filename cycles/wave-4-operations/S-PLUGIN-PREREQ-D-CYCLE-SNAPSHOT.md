@@ -1005,3 +1005,59 @@ Both recurrences contribute to the 5-instance POL-25 codification candidate #22.
 | BC-2.17.002 | v1.7 (draft) | UNCHANGED | `.factory/specs/behavioral-contracts/BC-2.17.002-plugin-sandbox-filesystem.md` |
 | factory-artifacts HEAD | D-535 | `git -C .factory log -1 --format='%H'` | — |
 | develop HEAD | unchanged | 95d46be2 | — |
+
+---
+
+### §POST-PASS-36 BLOCKED SUMMARY (D-536)
+
+**Pass-36 BLOCKED — 0 CRIT + 0 HIGH + 1 MED + 1 LOW + 2 OBS**
+
+Trajectory pass-25..36: 4→1→4→5→1→1→3→4→5→5→5→**2** (DROP from 5 to 2; first genuine decrease in 3 passes; convergence signal).
+
+**Fix-burst-33 closure verification:** All 2 closures HELD. BC-2.17.007:138+161 pre-AC-7 "not-None" Option-semantics CLEAN. error-taxonomy.md:464 §Postconditions ancestry form CLEAN.
+
+#### Finding Inventory
+
+| Finding | Severity | Description | Route |
+|---------|----------|-------------|-------|
+| F-LP36-MED-001 | MEDIUM | BC-2.17.007 frontmatter `modified: 2026-05-13` (line 14) + `timestamp: 2026-05-13T00:00:00Z` (line 7) stale. Fix-burst-33 (D-535) bumped v1.2→v1.3 with §Changelog row dated 2026-05-14 but did not update frontmatter fields (TD-VSDD-060 sibling-site sweep gap on frontmatter axis; 2nd recurrence). | product-owner — fix-burst-34 |
+| F-LP36-LOW-001 | LOW | BC-2.17.007:138 VP-PLUGIN-007 gate-rationale "per AC-7 default-deny" semantically mis-anchors. Manifest load rejection (E-PLUGIN-013) is at AC-5 (manifest gate); AC-7 is downstream HTTP-request consumer. Fix-burst-33 fixed Option-semantics but retained wrong AC anchor. Fix: "per AC-7 default-deny" → "per AC-5 manifest gate; default-deny consumer is AC-7". | product-owner — fix-burst-34 |
+| OBS-LP36-001 | OBS [process-gap] | Frontmatter-modified-field sibling-sweep on BC version bump — 2nd recurrence. Codification candidate #24 (POL-23 extension to frontmatter axis). | cycle-close session-reviewer |
+| OBS-LP36-002 | OBS [system-level; deferred] | BC-INDEX.md three independent count claims disagree (frontmatter 236 vs prose 235). Pre-existing drift. Appended to deferred-findings-phase-5.md (8th deferred finding). | phase-5 architect adjudication |
+
+#### Codification Candidate Update
+
+- candidates_active: 23 → **24** (OBS-LP36-001 frontmatter-modified-sweep added as #24)
+- deferred_findings_phase_5: 7 → **8** (OBS-LP36-002 BC-INDEX count drift appended)
+
+#### Fix-Burst-34 Dispatch Template
+
+**product-owner** (single-agent, single-file BC-2.17.007):
+1. Line 7: `timestamp: 2026-05-13T00:00:00Z` → `timestamp: 2026-05-14T00:00:00Z`
+2. Line 14: `modified: 2026-05-13` → `modified: 2026-05-14`
+3. Line 138: "per AC-7 default-deny" → "per AC-5 manifest gate; default-deny consumer is AC-7"
+4. Version v1.3→v1.4; §Changelog row added documenting both fixes
+
+**state-manager** (same burst per TD-VSDD-053):
+- BC-INDEX v4.74→v4.75 (BC-2.17.007 v1.4 minor bump)
+- STATE+HANDOFF v7.241→v7.242 (D-537 closure)
+
+**Post-burst:** pass-37 dispatch (fresh-context; target CLEAN; streak 0/3→1/3).
+
+#### Artifact State After Pass-36 BLOCKED (D-536)
+
+| Artifact | Version | Change | Path |
+|----------|---------|--------|------|
+| Story S-PLUGIN-PREREQ-D | v1.32 | UNCHANGED | `.factory/stories/S-PLUGIN-PREREQ-D-plugin-runtime-boot-wiring.md` |
+| BC-2.17.007 | v1.3 | UNCHANGED (pending fix-burst-34 → v1.4 frontmatter+line138) | `.factory/specs/behavioral-contracts/BC-2.17.007-plugin-manifest-schema-validation.md` |
+| error-taxonomy | v1.22 | UNCHANGED | `.factory/specs/prd-supplements/error-taxonomy.md` |
+| BC-INDEX | v4.74 | UNCHANGED (pending fix-burst-34 → v4.75) | `.factory/specs/behavioral-contracts/BC-INDEX.md` |
+| VP-INDEX | v1.35 | UNCHANGED | `.factory/specs/verification-properties/VP-INDEX.md` |
+| STORY-INDEX | v2.102 | UNCHANGED | `.factory/stories/STORY-INDEX.md` |
+| STATE.md | v7.241 | v7.240 → v7.241 | `.factory/STATE.md` |
+| SESSION-HANDOFF.md | v7.241 | v7.240 → v7.241 | `.factory/SESSION-HANDOFF.md` |
+| Pass-36 report | NEW | Created | `.factory/cycles/wave-4-operations/adversarial-reviews/S-PLUGIN-PREREQ-D-pass-36.md` |
+| deferred-findings-phase-5 | +1 (OBS-LP36-002) | 8th entry appended | `.factory/cycles/wave-4-operations/deferred-findings-phase-5.md` |
+| BC-2.17.002 | v1.7 (draft) | UNCHANGED | `.factory/specs/behavioral-contracts/BC-2.17.002-plugin-sandbox-filesystem.md` |
+| factory-artifacts HEAD | D-536 | `git -C .factory log -1 --format='%H'` | — |
+| develop HEAD | unchanged | 95d46be2 | — |
