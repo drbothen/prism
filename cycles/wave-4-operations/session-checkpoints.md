@@ -231,3 +231,11 @@ STATE v7.62. D-312 — S-WAVE5-PREP-01 fix-pass-3 COMPLETE across two parallel t
 **Archived from STATE.md at D-316 transition (STATE v7.65→v7.66).**
 
 STATE v7.65. D-315 — Multi-track closure burst. (a) PR #137 (CLAUDE.md TDD inner-loop discipline) squash-merged at develop `1058b24d`. (b) BC-2.05.012 v1.1→v1.2 — F-PASS4-LOW-2 closure: §Failure paths + Error Cases updated to describe RocksDbBackend::open failure (BootAuditEmitter::new is infallible). (c) S-WAVE5-PREP-01 fix-pass-4 CLOSED at HEAD `be6228f0`: F-PASS4-LOW-1 (doclink) + F-PASS4-OBS-1 (single Utc::now()) + F-PASS4-OBS-2 (honest SIGTERM log) closed surgically; flaky SIGTERM test fixed via sentinel-file readiness handshake (root cause: RocksDB init race vs hardcoded sleep, NOT stdio piping). 5/5 runs pass in ~1s; just check 3456 passed/17 skipped/0 failed. [process-rule]: NO #[ignore] deferrals as first-line response. NEXT: S-WAVE5-PREP-01 LOCAL adversary pass-5 (target streak 2/3). Worktree HEAD be6228f0. develop HEAD: 1058b24d. factory-artifacts HEAD: run `git -C .factory log -1 --format='%h %s'`.
+
+---
+
+## Session Resume Checkpoint (2026-05-14-v7.249-d544-S-PLUGIN-PREREQ-D-CONVERGED) — ARCHIVED
+
+**Archived from STATE.md at D-545 transition (STATE v7.249→v7.250).**
+
+STATE v7.249. D-544 convergence burst COMPLETE. Pass-43 CLEAN (0/0/0/0/0-NEW-OBS; OBS-LP41-001 carry-forward non-blocking). Streak CONVERGED 2/3 → 3/3 per BC-5.39.001. Four consecutive zero-finding passes (39, 41, 42, 43). D-529 resume cascade COMPLETE (11 passes: 7 BLOCKED + 4 CLEAN; 8 fix-bursts; 17+ findings closed). Final trajectory: 4→1→4→5→1→1→3→4→5→5→5→2→1→2→0→1→0→0→0. Story S-PLUGIN-PREREQ-D v1.32 (unchanged). develop@95d46be2. NEXT: test-writer Red Gate stubs per per-story-delivery.md. POST-CONVERGENCE DISPATCH: DO NOT dispatch pass-44 — CONVERGED. (1) cycle-close session-reviewer adjudication of 17 codification candidates + OBS-LP41-001; (2) test-writer Red Gate stubs; (3) implementer TDD green; (4) LOCAL adversary 3-CLEAN; (5) demo-recorder per-AC; (6) pr-manager 9-step PR → squash-merge to develop; (7) post-merge state burst (PREREQ-D merged; BCs promote POL-14; PREREQ-E next).

@@ -350,17 +350,17 @@ Cycle files: [burst-log](cycles/phase-2-patch/burst-log.md) | [convergence-traje
 
 ---
 
-## Session Resume Checkpoint (2026-05-14-v7.249-d544-S-PLUGIN-PREREQ-D-CONVERGED)
+## Session Resume Checkpoint (2026-05-14-v7.250-d545-PRE-IMPLEMENTATION-SNAPSHOT)
 
-_Previous checkpoint (v7.242/D-537 fix-burst-34-closed-pass-37-next) archived: [cycles/wave-4-operations/session-checkpoints.md](cycles/wave-4-operations/session-checkpoints.md)_
+_Previous checkpoint (v7.249/D-544 S-PLUGIN-PREREQ-D-CONVERGED) archived: [cycles/wave-4-operations/session-checkpoints.md](cycles/wave-4-operations/session-checkpoints.md)_
 
-**STATE v7.249. S-PLUGIN-PREREQ-D ADVERSARIAL CONVERGENCE COMPLETE — pass-43 CLEAN; streak 3/3 CONVERGED per BC-5.39.001. NEXT ACTION: test-writer dispatch for Red Gate stubs (25 named tests in story §Red Gate Tests), then implementer TDD green burst.**
+**STATE v7.250. S-PLUGIN-PREREQ-D PRE-IMPLEMENTATION DURABLE SNAPSHOT — SAFE_TO_COMPACT. NEXT ACTION: test-writer dispatch for Red Gate stubs (25 named tests in story §Red Gate Tests) per §6 dispatch template in SESSION-HANDOFF.md §PRE-IMPLEMENTATION RESUME SNAPSHOT.**
 
-D-544 convergence burst COMPLETE. Pass-43 CLEAN (0/0/0/0/0-NEW-OBS; OBS-LP41-001 carry-forward non-blocking). Streak CONVERGED 2/3 → 3/3 per BC-5.39.001. Four consecutive zero-finding passes (39, 41, 42, 43). D-529 resume cascade COMPLETE (11 passes: 7 BLOCKED + 4 CLEAN; 8 fix-bursts; 17+ findings closed). Final trajectory: 4→1→4→5→1→1→3→4→5→5→5→2→1→2→0→1→0→0→0. Story S-PLUGIN-PREREQ-D v1.32 (unchanged). develop@95d46be2. factory-artifacts HEAD: run `git -C .factory log -1`.
+D-545 pre-implementation snapshot COMPLETE. Adversarial convergence declared at D-544 (3/3 CONVERGED per BC-5.39.001; 4 consecutive zero-finding passes 39/41/42/43). All resume context persisted across STATE.md v7.250 + SESSION-HANDOFF.md v7.250 (§PRE-IMPLEMENTATION RESUME SNAPSHOT) + CYCLE-SNAPSHOT.md §PRE-IMPLEMENTATION RESUME SNAPSHOT (D-545). Story S-PLUGIN-PREREQ-D v1.32 (unchanged; content_sha: 7ee3b7c48be6baaeb1e74868c9f12e33ffc21b6d). develop@95d46be2. factory-artifacts HEAD: `git -C .factory log -1 --format='%H'` (D-545 = 0b70ac65d4ea47fcb84858b5b1fe8dc631c2782a).
 
-**POST-CONVERGENCE DISPATCH:** DO NOT dispatch pass-44 — cycle CONVERGED. (1) cycle-close session-reviewer adjudication of 17 codification candidates + OBS-LP41-001; (2) test-writer Red Gate stubs (25 named tests in §Red Gate Tests); (3) implementer TDD green burst; (4) LOCAL adversary 3-CLEAN; (5) demo-recorder per-AC; (6) pr-manager 9-step PR lifecycle → squash-merge to develop; (7) post-merge state burst (PREREQ-D merged; BCs promote POL-14; PREREQ-E next).
+**NEXT DISPATCH:** DO NOT dispatch pass-44 — CONVERGED. Next session: (1) OPTIONAL cycle-close session-reviewer adjudication of 17 codification candidates + OBS-LP41-001; (2) test-writer Red Gate stubs (25 named tests in story §Red Gate Tests — see SESSION-HANDOFF.md §6 dispatch template); (3) implementer TDD green burst; (4) LOCAL adversary 3-CLEAN; (5) demo-recorder per-AC; (6) pr-manager 9-step PR lifecycle → squash-merge to develop; (7) post-merge state burst (PREREQ-D merged; BCs promote POL-14; PREREQ-E next). DO NOT dispatch PLUGIN-MIGRATION-001-A/B/C/D until PREREQ-D + PREREQ-E both merged.
 
-**Current spec versions:** BC-INDEX v4.76, STORY-INDEX v2.103, VP-INDEX v1.37, ARCH-INDEX v2.43, policies v1.10, error-taxonomy v1.22, BC-2.17.007 v1.4, BC-2.16.002 v1.13 (active; 25 rows), BC-2.22.001 v1.5 (active), BC-2.17.002 v1.7 (draft), develop@95d46be2; STATE v7.249, SESSION-HANDOFF v7.249. **Key files:** [SESSION-HANDOFF.md](SESSION-HANDOFF.md) | [cycles/wave-4-operations/S-PLUGIN-PREREQ-D-CYCLE-SNAPSHOT.md](cycles/wave-4-operations/S-PLUGIN-PREREQ-D-CYCLE-SNAPSHOT.md) | [cycles/wave-4-operations/deferred-findings-phase-5.md](cycles/wave-4-operations/deferred-findings-phase-5.md)
+**Current spec versions:** BC-INDEX v4.76, STORY-INDEX v2.103, VP-INDEX v1.37, ARCH-INDEX v2.43, policies v1.10, error-taxonomy v1.22, BC-2.17.007 v1.4 (draft→active at merge), BC-2.16.002 v1.13 (active; 25 rows), BC-2.22.001 v1.5 (active), BC-2.17.002 v1.7 (draft→active at merge), develop@95d46be2; STATE v7.250, SESSION-HANDOFF v7.250. **Key files:** [SESSION-HANDOFF.md §PRE-IMPLEMENTATION RESUME SNAPSHOT](SESSION-HANDOFF.md) | [cycles/wave-4-operations/S-PLUGIN-PREREQ-D-CYCLE-SNAPSHOT.md §PRE-IMPLEMENTATION RESUME SNAPSHOT (D-545)](cycles/wave-4-operations/S-PLUGIN-PREREQ-D-CYCLE-SNAPSHOT.md) | [cycles/wave-4-operations/deferred-findings-phase-5.md](cycles/wave-4-operations/deferred-findings-phase-5.md)
 
 ## Agent Routing Quick Reference
 
