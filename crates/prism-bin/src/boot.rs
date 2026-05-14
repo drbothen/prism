@@ -122,8 +122,20 @@ pub struct BootContext {
 pub async fn run_boot_sequence(config_dir: &Path) -> Result<RunningServer, BootError> {
     let _ctx = boot_to_step_6(config_dir).await?;
 
-    // Steps 7–11 are todo!() stubs for sibling stories.
+    // Step 2 re-loads config to obtain plugin_dir for step 7.5.
+    // This is acceptable because step2_load_config is idempotent (pure read + validate).
+    let config = step2_load_config(config_dir).await?;
+
+    // Step 7 [BLOCKING]: Storage + internal-tables provider init.
     step7_init_storage().await?;
+
+    // Step 7.5 [BLOCKING]: Plugin-load step — BC-2.22.001 §Sequencing Invariant.
+    // Must run AFTER step 7 (storage init) and BEFORE step 8 (query-engine init).
+    // The pre-traffic gate (AC-2): MCP server (step 9) does NOT bind before this completes.
+    // ADR-023 §C4 + ADR-022 §B.
+    let _plugin_result = plugin_load_step(&config.plugin_dir).await?;
+
+    // Steps 8–11 are todo!() stubs for sibling stories.
     step8_init_query_engine().await?;
     step9_start_mcp_server().await?;
     step10_start_hot_reload().await?;
@@ -1057,6 +1069,7 @@ mod tests {
         let config = PrismConfig {
             spec_dir: PathBuf::from("/tmp/specs"),
             state_dir: PathBuf::from("/tmp/state"),
+            plugin_dir: PathBuf::from("plugins"),
             orgs: vec![OrgEntry {
                 org_id: "0196f000-0000-7000-8000-000000000001".to_string(),
                 org_slug: "acme".to_string(),
@@ -1131,13 +1144,27 @@ mod tests {
 
 /// Deserialized `prism.toml` config struct.
 ///
-/// Fields match the schema required by boot steps 2–6.
+/// Fields match the schema required by boot steps 2–6 and step 7.5 (plugin-load).
+///
+/// Marked `#[non_exhaustive]` — new fields may be added in future releases without
+/// breaking external code that constructs or matches on this type (CLAUDE.md convention).
+#[non_exhaustive]
 #[derive(Debug, serde::Deserialize)]
 pub struct PrismConfig {
     /// Path to the sensor spec directory (required; boot step 4 uses this).
     pub spec_dir: PathBuf,
     /// Path to the state directory (RocksDB data; required; boot step 6 uses this).
     pub state_dir: PathBuf,
+    /// Path to the plugin directory (optional; boot step 7.5 uses this).
+    ///
+    /// Default is `"plugins"` relative to the config file's directory when absent from
+    /// `prism.toml`. The directory is scanned for `*.prx` plugin files at boot step 7.5
+    /// (BC-2.22.001 §Sequencing Invariant / S-PLUGIN-PREREQ-D AC-1).
+    ///
+    /// Set `PRISM_DISABLE_PLUGIN_LOAD=1` to skip plugin loading regardless of this path
+    /// (emergency escape valve — AC-18).
+    #[serde(default = "default_plugin_dir")]
+    pub plugin_dir: PathBuf,
     /// List of configured orgs (required; boot step 3 uses this).
     #[serde(default)]
     pub orgs: Vec<OrgEntry>,
@@ -1146,7 +1173,41 @@ pub struct PrismConfig {
     pub credential_backend: CredentialBackendConfig,
 }
 
+impl PrismConfig {
+    /// Construct a `PrismConfig` for use in tests.
+    ///
+    /// The `#[non_exhaustive]` attribute prevents external struct literal construction;
+    /// use this factory for tests in external crates (e.g., `prism-bin` integration tests).
+    ///
+    /// `plugin_dir` defaults to `"plugins"` (the TOML default); callers may override it.
+    pub fn new_for_test(
+        spec_dir: impl Into<PathBuf>,
+        state_dir: impl Into<PathBuf>,
+        plugin_dir: impl Into<PathBuf>,
+        orgs: Vec<OrgEntry>,
+        credential_backend: CredentialBackendConfig,
+    ) -> Self {
+        Self {
+            spec_dir: spec_dir.into(),
+            state_dir: state_dir.into(),
+            plugin_dir: plugin_dir.into(),
+            orgs,
+            credential_backend,
+        }
+    }
+}
+
+/// Default `plugin_dir` when absent from `prism.toml`: `"plugins"` relative to config
+/// file location (AC-1 line 282-283 of S-PLUGIN-PREREQ-D story spec v1.32).
+fn default_plugin_dir() -> PathBuf {
+    PathBuf::from("plugins")
+}
+
 /// A single org entry from `prism.toml`.
+///
+/// Marked `#[non_exhaustive]` per project convention (CLAUDE.md) — new fields may be
+/// added to `prism.toml` without breaking external code.
+#[non_exhaustive]
 #[derive(Debug, Clone, serde::Deserialize)]
 pub struct OrgEntry {
     /// UUID v7 org identifier.
@@ -1155,7 +1216,24 @@ pub struct OrgEntry {
     pub org_slug: String,
 }
 
+impl OrgEntry {
+    /// Construct a new `OrgEntry` with the given org_id and org_slug strings.
+    ///
+    /// Prefer this over struct literal syntax (which is forbidden externally due to
+    /// `#[non_exhaustive]`).
+    pub fn new(org_id: impl Into<String>, org_slug: impl Into<String>) -> Self {
+        Self {
+            org_id: org_id.into(),
+            org_slug: org_slug.into(),
+        }
+    }
+}
+
 /// Credential backend selector from `prism.toml`.
+///
+/// Marked `#[non_exhaustive]` per project convention (CLAUDE.md) — new backend variants
+/// may be added in future releases.
+#[non_exhaustive]
 #[derive(Debug, Default, serde::Deserialize)]
 #[serde(tag = "type", rename_all = "snake_case")]
 pub enum CredentialBackendConfig {
