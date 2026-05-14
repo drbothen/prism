@@ -53,10 +53,10 @@ target_module: prism-bin
 #   subsystems: [SS-16, SS-01], any story anchoring BC-2.16.002 must list SS-16.
 subsystems: [SS-22, SS-17, SS-16]
 capabilities: [CAP-029, CAP-032, CAP-034]
-version: "1.27"
+version: "1.28"
 level: "L4"
 producer: story-writer
-timestamp: "2026-05-13T21:00:00Z"
+timestamp: "2026-05-14T08:00:00Z"
 updated: "2026-05-13"
 input-hash: "6954524"
 traces_to: []
@@ -1009,6 +1009,7 @@ Do NOT invent version numbers. All versions above are confirmed from `crates/pri
 ## References
 
 - [ADR-023 §C4](../specs/architecture/decisions/ADR-023-plugin-only-sensor-architecture.md) — PRIMARY SCOPE SOURCE (PLUGIN-PREREQ-D)
+- [BC-2.16.002](../specs/behavioral-contracts/BC-2.16.002-multi-step-fetch-pipeline.md) — Multi-Step Fetch Pipeline Execution — Sequential Steps with Variable Interpolation
 - [BC-2.17.001](../specs/behavioral-contracts/BC-2.17.001-plugin-panic-isolation.md) — Plugin Panic Isolation — Crashed Plugin Does Not Terminate Host Process
 - [BC-2.17.002](../specs/behavioral-contracts/BC-2.17.002-plugin-sandbox-filesystem.md) — Plugin Sandbox — No Direct Filesystem or Network Access
 - [BC-2.17.003](../specs/behavioral-contracts/BC-2.17.003-plugin-memory-limit.md) — Plugin Sandbox — Memory Limit Enforced Per Plugin Instance (default 64MB)
@@ -1030,6 +1031,7 @@ Do NOT invent version numbers. All versions above are confirmed from `crates/pri
 
 | Version | Burst | Date | Author | Change |
 |---------|-------|------|--------|--------|
+| 1.28 | 2026-05-14 | story-writer | F-LP30-MED-001 (POL-7, codification #13 sub-extension): §References section appended BC-2.16.002 entry (verbatim H1 "Multi-Step Fetch Pipeline Execution — Sequential Steps with Variable Interpolation") between ADR-023 §C4 and BC-2.17.001 in alphanumeric BC-ID order. Cross-table completeness gap: BC-2.16.002 was anchored in `behavioral_contracts:` since v1.2 (fix-burst-2) and appears verbatim in body BC table line 260, but never landed in §References. Total §References BC entries: 8 → 9 (8 `behavioral_contracts:` anchored + BC-2.17.005 exclusion-note per Codification #15). fix-burst-28 stage-1. |
 | 1.27 | 2026-05-13 | story-writer | F-LP29-MED-001 (POL-7, codification #13 extension): story line 269 BC-2.17.005 title appended ", In-Flight Calls Complete Against Old Version" to make verbatim BC H1 / BC-INDEX line 219 / §References line 1016. 5th POL-7 recurrence; fix-burst-26 §References sweep targeted anchored BCs only (behavioral_contracts: array), missed exclusion-note paragraph for non-anchored BC-2.17.005. Sibling-site sweep: "Atomic Module Swap" now appears at line 269 (verbatim, fixed) + line 1016 (verbatim, unchanged) + changelog rows (historical). Zero active-body paraphrase instances remain. fix-burst-27 stage-1. |
 | 1.26 | fix-burst-26 stage-1 | 2026-05-13 | story-writer | F-LP28-MED-001 (POL-4, story site): phantom §-section "BC-2.16.002 §S-PLUGIN-PREREQ-D AC-16" replaced with "BC-2.16.002 §Canonical Structured Event Catalog row pipeline_max_requests_exceeded (anchored by AC-16 of S-PLUGIN-PREREQ-D)" at line 918; product-owner handles error-taxonomy.md:464 sibling drift in parallel. F-LP28-MED-002 (POL-4): AC-16 trace header at line 466 "BC-2.16.002 preconditions" replaced with "BC-2.16.002 §Canonical Structured Event Catalog row pipeline_max_requests_exceeded" — preconditions doesn't contain MAX_REQUESTS_PER_PIPELINE; cap introduced by AC-16, emission documented in catalog. F-LP28-LOW-001: Token Budget BC count 8→9 (BC-2.17.005 in inputs since fix-burst-25 not propagated to Token Budget row); row recomputed ~12,000→~13,500; Total 40,900→42,400; percentage 16.0%→16.6%. F-LP28-LOW-003: inputs prepended ADR-022-production-runtime-wiring.md (cited ~17 times throughout story but missing from inputs). fix-burst-26 stage-1 story-writer scope. |
 | 1.25 | fix-burst-25 stage-1 | 2026-05-13 | story-writer | F-LP27-MED-001 (POL-4): subsystems: [SS-22, SS-17] → [SS-22, SS-17, SS-16] (SS-16 added per BC-2.16.002 subsystem: SS-16 + S-PLUGIN-PREREQ-B precedent + AC-16 MAX_REQUESTS_PER_PIPELINE in prism-spec-engine/src/pipeline.rs SS-16 territory); YAML comment block updated with SS-16 justification; anchor_subsystem updated symmetrically. F-LP27-MED-002 (CLAUDE.md production-grade): PluginError #[non_exhaustive] conditional MVP-hedge language replaced with direct prescription — PluginError MUST be marked #[non_exhaustive] same-commit as new variants (aligns PrismError at error.rs:15-17 sibling + 30+-type perimeter audit); §non_exhaustive Requirements section updated to include PluginError enum-level as explicit unconditional requirement. F-LP27-MED-003 (POL-7): §References section rewritten with verbatim BC H1 titles for all 8 BCs (was 7/8 paraphrased — sibling pattern to codification #12); BC-2.17.007 parenthetical annotation preserved. F-LP27-LOW-001: inputs: appended BC-2.17.005-plugin-hot-reload-atomic-swap.md (cited at body line 980 + §References but absent from inputs since fix-burst-23). fix-burst-25 stage-1. |
