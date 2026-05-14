@@ -1927,3 +1927,82 @@ Dispatch implementer using §5 Implementer Dispatch Template in SESSION-HANDOFF.
 
 **51st consecutive single-commit (TD-VSDD-053 DECISIVELY STABLE).**
 STATE.md v7.250 → v7.251 / SESSION-HANDOFF.md v7.250 → v7.251 / CYCLE-SNAPSHOT.md §POST-RED-GATE-LANDING UPDATE (D-546) appended.
+
+---
+
+## §POST-IMPL-GREEN UPDATE (D-547 — 2026-05-14)
+
+> **Per-story-delivery Step 3/8 COMPLETE. Step 4 (LOCAL adversary impl-pass-1) is next.**
+> Supersedes §POST-RED-GATE-LANDING UPDATE (D-546) as the current resume anchor.
+
+### Implementation Outcome
+
+- **Feature branch HEAD:** `08d084fa` (4 implementation micro-commits since Red Gate stubs `8ca17f3f`)
+- **25/25 Red Gate tests pass** — 7 prism-bin + 18 prism-spec-engine
+- **Pre-existing baseline:** 368 pass + 1 skip unchanged (no regressions)
+- **`just check` from worktree root:** 3623/3623 pass; 17 skipped; 0 failures
+
+### Spec Delta Applied In-Commit (per PG-LP11-001 + Standing Rule 3 §6)
+
+**BC-2.16.002 v1.13 → v1.14** — 3 net-new event_type catalog rows added beyond the 9 enumerated in story §Structured Event Catalog Additions:
+
+| event_type | Level | Error Code | Description |
+|-----------|-------|------------|-------------|
+| `plugin_directory_not_found` | INFO | EC-D-001 (non-error path) | Plugin directory absent — proceeds without load |
+| `plugin_load_failed_read_error` | ERROR | — | I/O failure on .prx read |
+| `plugin_load_failed_compilation` | ERROR | E-PLUGIN-008 | WASM compile fail |
+
+These 3 are legitimate precise observability at the actual implementation sites, not over-emission.
+
+**BC-INDEX:** expected v4.76 → v4.77 (implementer in-commit; state-manager to verify).
+
+### 3 Scope-Expansions Explicitly Recorded (for adversary impl-pass-1 adjudication)
+
+These are recorded as RECORDED, not HIDDEN. Adversary sees them as known deviations to evaluate — not as undisclosed implementation choices.
+
+**Scope-Expansion 1: iter_module() behavioral substitution (AC-8/AC-11)**
+- AC-8 (linker-imports-match-host-functions) and AC-11 (wasi-not-linked) were originally specified to assert via `iter_module()` reflection over `wasmtime::component::Linker`.
+- `iter_module()` does not exist on that type — Wasmtime API mismatch.
+- Implementer rewrote both as behavioral verification: pre-instantiate with minimal plugin → confirm no fs trap registered (AC-11 WASI not linked); AC-8 verified by successful host-function instantiation.
+- Production behavior unchanged; test mechanism shifted from reflection to behavioral proof.
+- Adversary evaluates: acceptable adaptation to actual Wasmtime API semantics? BC postconditions satisfied by behavioral proof?
+
+**Scope-Expansion 2: HostState test-helper constructors (AC-17)**
+- Story §AC-17 prescribed `HostState { allowed_urls: vec![...], plugin_id: ..., ..HostState::test_default() }` functional-update from external test files.
+- Rustc's `#[non_exhaustive]` rule disallows functional-update syntax from outside the defining crate.
+- Implementer adapted by adding two `#[cfg(any(test, feature = "test-helpers"))]` constructors: `HostState::test_with_plugin_id(plugin_id)` and `HostState::test_with_allowed_urls(plugin_id, urls)`.
+- Functionally equivalent to functional-update but compiles externally.
+- Adversary evaluates: (a) accept test-helper pattern and note §AC-17 prescription handled via equivalence, OR (b) flag as deviation requiring spec amendment.
+
+**Scope-Expansion 3: 3 net-new event_type emission sites**
+- 9 sites were enumerated in story §Structured Event Catalog Additions. Implementer discovered 3 additional natural emission sites during TDD.
+- All 3 added to BC-2.16.002 v1.14 in the same commit per PG-LP11-001.
+- Adversary evaluates: are all 3 appropriate observability sites? Any over-emission or misrouting?
+
+### New Error Variants Added
+
+- `prism-core::error::PluginError`: variants for E-PLUGIN-013/014/015/016 (manifest rejections); `#[non_exhaustive]` added
+- `prism-spec-engine::error::SpecEngineError::TooManyRequests { total: usize }` (E-PIPELINE-001 for AC-16)
+
+### Durable Pins (D-547)
+
+- `feature_branch_head: 08d084fa`
+- `worktree_status: active (.worktrees/S-PLUGIN-PREREQ-D mounted at develop@95d46be2)`
+- `story_v: 1.32` (UNCHANGED)
+- `develop_head: 95d46be2` (UNCHANGED)
+- `state_v: 7.252` / `handoff_v: 7.252`
+- `impl_adversary_streak: 0/3` (implementation cascade starts fresh)
+- `impl_adversary_pass_count: 0`
+- factory-artifacts HEAD: `git -C .factory log -1 --format=%H` (D-547 is this commit)
+
+### Step 4 — LOCAL Adversary impl-pass-1 ⏳ NEXT
+
+Dispatch `vsdd-factory:adversary` against implementation code in worktree `.worktrees/S-PLUGIN-PREREQ-D/`.
+
+- BC-5.39.001 3-CLEAN protocol applies to implementation cascade (DISTINCT from spec convergence 3/3 at D-544)
+- Fresh context; all 17 codification candidates remain active for implementation review too
+- Adversary evaluates 3 scope-expansions recorded above + all AC behavioral correctness
+- 3 consecutive CLEAN passes required before declaring implementation done
+
+**52nd consecutive single-commit (TD-VSDD-053 DECISIVELY STABLE).**
+STATE.md v7.251 → v7.252 / SESSION-HANDOFF.md v7.251 → v7.252 / CYCLE-SNAPSHOT.md §POST-IMPL-GREEN UPDATE (D-547) appended.
