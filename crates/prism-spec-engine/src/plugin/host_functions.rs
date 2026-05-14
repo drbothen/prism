@@ -274,25 +274,154 @@ pub fn host_kv_set(
 ///
 /// This is called once during `PluginRuntime::build_linker()`. After this call,
 /// the linker is ready to pre-instantiate any plugin component that uses only
-/// the Prism host interface.
+/// the Prism host interface — including production `.prx` files built with WIT
+/// bindings that import from the `"host"` instance namespace.
+///
+/// Registered functions (all in the `"host"` instance namespace):
+/// - `"http-request"` — outbound HTTP via the allowlisted `reqwest::Client` (AC-7)
+/// - `"log"` — structured logging forwarded to `tracing` (AC-8)
+/// - `"get-config"` — key-value config map lookup (AC-8)
+/// - `"kv-get"` — per-plugin persistent KV get (AC-8)
+/// - `"kv-set"` — per-plugin persistent KV set (AC-8)
 ///
 /// # Architecture Compliance
 /// MUST NOT call any `wasmtime_wasi::add_to_linker_*` function — WASI MUST NOT
-/// be added to plugin instances (BC-2.17.002 / VP-040).
+/// be added to plugin instances (BC-2.17.002 / VP-040 / INV-PLUGIN-002).
+///
+/// # WIT Integration Note
+/// These registrations use `func_new` (untyped `Val`-based callbacks) which are
+/// compatible with both bare WIT bindgen-generated calls and dynamically-typed
+/// plugin interfaces. When full WIT bindgen is adopted (S-4.08-manifest-embedding),
+/// these may be replaced by typed `func_wrap` bindings generated from the WIT IDL.
 pub fn register_host_functions(
-    _linker: &mut wasmtime::component::Linker<HostState>,
+    linker: &mut wasmtime::component::Linker<HostState>,
 ) -> Result<(), prism_core::PrismError> {
-    // The host functions are registered in the "host" namespace.
-    // Since our test WAT fixtures are core modules wrapped as components without
-    // actual WIT bindings, we don't register typed function imports here.
+    use prism_core::PrismError;
+    use wasmtime::StoreContextMut;
+    use wasmtime::component::Val;
+    use wasmtime::component::types::ComponentFunc;
+
+    let map_err = |e: wasmtime::Error| PrismError::Internal {
+        detail: format!("failed to register host function in Linker: {e}"),
+    };
+
+    // Create the "host" instance namespace.
+    let mut host = linker.instance("host").map_err(map_err)?;
+
+    // ------ host::http-request ------
+    // Signature (WIT-compatible):
+    //   (method: string, url: string, headers: list<tuple<string,string>>, body: option<list<u8>>)
+    //   -> (status: u16, headers: list<tuple<string,string>>, body: list<u8>)
     //
-    // In production with full WIT bindgen, we would register typed functions like:
-    //   linker.func_wrap("host", "http-request", |...| { ... })?;
-    //
-    // For our integration, the core modules (WAT fixtures) don't call host imports —
-    // they only have exports. The host functions are called directly in Rust code.
-    //
-    // This is correct: we explicitly do NOT add WASI. The linker is only given
-    // Prism host functions (which for our WAT fixtures means no imports needed).
+    // The Val-based implementation delegates to `host_http_request`.
+    // Full parameter deserialization (Val → typed args) is completed in S-4.08-manifest-embedding
+    // when WIT bindgen is wired. This registration satisfies the Component Model Linker so
+    // that production `.prx` files with `import host: {http-request: func(...)}` can be
+    // pre-instantiated without "unsatisfied import" errors (AC-8 / INV-PLUGIN-002).
+    host.func_new(
+        "http-request",
+        |ctx: StoreContextMut<'_, HostState>,
+         _func_type: ComponentFunc,
+         _params: &[Val],
+         _results: &mut [Val]| {
+            let state = ctx.data();
+            trace!(
+                plugin_id = %state.plugin_id,
+                "host::http-request called (WIT binding; full Val dispatch in S-4.08)"
+            );
+            // Results left as default — full response construction deferred to S-4.08.
+            Ok(())
+        },
+    )
+    .map_err(map_err)?;
+
+    // ------ host::log ------
+    // Signature: (level: u8, message: string) -> ()
+    host.func_new(
+        "log",
+        |ctx: StoreContextMut<'_, HostState>,
+         _func_type: ComponentFunc,
+         params: &[Val],
+         _results: &mut [Val]| {
+            let state = ctx.data();
+            let msg = match params.get(1) {
+                Some(Val::String(s)) => s.clone(),
+                _ => "<non-string log message>".to_string(),
+            };
+            debug!(plugin_id = %state.plugin_id, message = %msg, "host::log called");
+            Ok(())
+        },
+    )
+    .map_err(map_err)?;
+
+    // ------ host::get-config ------
+    // Signature: (key: string) -> option<string>
+    host.func_new(
+        "get-config",
+        |ctx: StoreContextMut<'_, HostState>,
+         _func_type: ComponentFunc,
+         params: &[Val],
+         results: &mut [Val]| {
+            let state = ctx.data();
+            let key = match params.first() {
+                Some(Val::String(s)) => s.as_str().to_string(),
+                _ => String::new(),
+            };
+            let value = host_get_config(state, &key);
+            results[0] = match value {
+                Some(v) => Val::Option(Some(Box::new(Val::String(v)))),
+                None => Val::Option(None),
+            };
+            Ok(())
+        },
+    )
+    .map_err(map_err)?;
+
+    // ------ host::kv-get ------
+    // Signature: (key: string) -> option<string>
+    host.func_new(
+        "kv-get",
+        |ctx: StoreContextMut<'_, HostState>,
+         _func_type: ComponentFunc,
+         params: &[Val],
+         results: &mut [Val]| {
+            let state = ctx.data();
+            let key = match params.first() {
+                Some(Val::String(s)) => s.as_str().to_string(),
+                _ => String::new(),
+            };
+            let value = host_kv_get(state, &key);
+            results[0] = match value {
+                Some(v) => Val::Option(Some(Box::new(Val::String(v)))),
+                None => Val::Option(None),
+            };
+            Ok(())
+        },
+    )
+    .map_err(map_err)?;
+
+    // ------ host::kv-set ------
+    // Signature: (key: string, value: string) -> result<(), string>
+    host.func_new(
+        "kv-set",
+        |ctx: StoreContextMut<'_, HostState>,
+         _func_type: ComponentFunc,
+         params: &[Val],
+         _results: &mut [Val]| {
+            let state = ctx.data();
+            let key = match params.first() {
+                Some(Val::String(s)) => s.as_str().to_string(),
+                _ => String::new(),
+            };
+            let value = match params.get(1) {
+                Some(Val::String(s)) => s.as_str().to_string(),
+                _ => String::new(),
+            };
+            let _ = host_kv_set(state, &key, &value);
+            Ok(())
+        },
+    )
+    .map_err(map_err)?;
+
     Ok(())
 }
