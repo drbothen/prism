@@ -1072,4 +1072,35 @@ pub enum PluginError {
     /// The `version` field must parse as a valid semver string (e.g., `"1.0.0"`).
     #[error("Plugin manifest at '{path}' field 'version' is not a valid semver string: '{value}'")]
     ManifestVersionMalformed { path: String, value: String },
+
+    /// E-PLUGIN-017: Plugin manifest TOML is present but fails to parse (BC-2.17.007).
+    ///
+    /// The companion `.manifest.toml` file exists but is structurally invalid TOML
+    /// (syntax error, invalid encoding). This is distinct from E-PLUGIN-015 (name absent)
+    /// which applies only when TOML parses correctly but a field is missing.
+    #[error("Plugin manifest at '{path}' failed TOML parse: {detail}")]
+    ManifestParseError { path: String, detail: String },
+
+    /// E-PLUGIN-018: Plugin manifest file is absent entirely (BC-2.17.007).
+    ///
+    /// The `.prx` plugin binary was found but no companion `.manifest.toml` exists at
+    /// the expected path. A manifest is required for all production plugins.
+    #[error(
+        "Plugin at '{plugin_path}' has no manifest file at '{expected_manifest_path}'; \
+         a companion .manifest.toml is required"
+    )]
+    ManifestNotFound {
+        plugin_path: String,
+        expected_manifest_path: String,
+    },
+
+    /// E-PLUGIN-019: Plugin manifest `format_version` field is absent (BC-2.17.007 / AC-5).
+    ///
+    /// `format_version` must be explicitly present; absent means the manifest predates the
+    /// versioning scheme or is malformed. Distinct from E-PLUGIN-014 (value exceeds max).
+    #[error(
+        "Plugin manifest at '{path}' missing required field 'format_version'; \
+         must be an integer <= {supported}"
+    )]
+    FormatVersionMissing { path: String, supported: u32 },
 }

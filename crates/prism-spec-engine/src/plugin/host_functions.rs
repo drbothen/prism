@@ -68,13 +68,16 @@ pub fn host_http_request(
     // Substring matching (`url.contains(domain)`) is bypassable via query parameters
     // (e.g. `https://evil.com/?ref=allowed.com`). We parse the URL and compare only the
     // normalized host string against each allowlist entry (BC-2.17.002 / INV-PLUGIN-002).
+    // MED-007 (F-IMPL-LP1-MED-007): guard against empty allowlist entries.
+    // An empty string entry in allowed_urls would match host_str() == "" on unparseable
+    // URLs, creating a de-facto allow-all bypass. Empty entries are rejected at manifest
+    // parse time (parse_manifest), but we also filter here for defense-in-depth.
     let url_allowed = match Url::parse(url) {
         Ok(parsed) => {
             let url_host = parsed.host_str().unwrap_or("");
-            state
-                .allowed_urls
-                .iter()
-                .any(|allowed_domain| url_host == allowed_domain.as_str())
+            state.allowed_urls.iter().any(|allowed_domain| {
+                !allowed_domain.is_empty() && url_host == allowed_domain.as_str()
+            })
         }
         Err(_) => false, // unparseable URL is never allowed
     };

@@ -348,7 +348,7 @@ impl PipelineExecutor {
                         let total = request_count as usize;
                         tracing::error!(
                             event_type = "pipeline_max_requests_exceeded",
-                            plugin_id = %spec.sensor_id,
+                            sensor_id = %spec.sensor_id,
                             total_requests = total,
                             max = MAX_REQUESTS_PER_PIPELINE,
                             "Pipeline executor reached MAX_REQUESTS_PER_PIPELINE cap; aborting"

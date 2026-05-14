@@ -4854,6 +4854,7 @@ dependencies = [
  "proptest",
  "regex",
  "reqwest",
+ "semver",
  "serde",
  "serde_json",
  "sha2",

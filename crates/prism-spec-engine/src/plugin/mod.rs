@@ -300,6 +300,29 @@ impl PluginRuntime {
                 Err(err) => {
                     // Emit appropriate structured event and log at ERROR.
                     match &err {
+                        PluginError::ManifestNotFound {
+                            expected_manifest_path,
+                            ..
+                        } => {
+                            // HIGH-005 (F-IMPL-LP1-HIGH-005): E-PLUGIN-018 manifest not found.
+                            error!(
+                                plugin_path = %path_str,
+                                expected_manifest_path = %expected_manifest_path,
+                                error = "E-PLUGIN-018",
+                                event_type = "plugin_load_failed_manifest_not_found",
+                                "Plugin missing companion manifest file"
+                            );
+                        }
+                        PluginError::ManifestParseError { detail, .. } => {
+                            // HIGH-003 (F-IMPL-LP1-HIGH-003): E-PLUGIN-017 TOML parse error.
+                            error!(
+                                plugin_path = %path_str,
+                                error = "E-PLUGIN-017",
+                                detail = %detail,
+                                event_type = "plugin_load_failed_manifest_parse_error",
+                                "Plugin manifest TOML parse failed"
+                            );
+                        }
                         PluginError::ManifestNameMissing { .. } => {
                             error!(
                                 plugin_path = %path_str,
@@ -315,6 +338,16 @@ impl PluginRuntime {
                                 error = "E-PLUGIN-016",
                                 event_type = "plugin_load_failed_manifest_version_malformed",
                                 "Plugin manifest 'version' field is not valid semver"
+                            );
+                        }
+                        PluginError::FormatVersionMissing { supported, .. } => {
+                            // HIGH-006 (F-IMPL-LP1-HIGH-006): E-PLUGIN-019 absent format_version.
+                            error!(
+                                plugin_path = %path_str,
+                                supported = supported,
+                                error = "E-PLUGIN-019",
+                                event_type = "plugin_load_failed_format_version_missing",
+                                "Plugin manifest missing required field 'format_version'"
                             );
                         }
                         PluginError::FormatVersionExceeded {
@@ -825,17 +858,23 @@ fn parse_manifest(
     path: &str,
 ) -> Result<(String, String, u32, Vec<String>), PluginError> {
     let manifest: PluginManifest = if let Some(toml_str) = manifest_toml {
-        toml::from_str(toml_str).map_err(|_e| PluginError::ManifestNameMissing {
+        // HIGH-003 (F-IMPL-LP1-HIGH-003): TOML parse failures map to E-PLUGIN-017
+        // (ManifestParseError), NOT E-PLUGIN-015 (ManifestNameMissing).
+        // This distinguishes "file exists but is invalid TOML" from "TOML parses
+        // but the name field is absent or empty".
+        toml::from_str(toml_str).map_err(|e| PluginError::ManifestParseError {
             path: path.to_string(),
+            detail: e.to_string(),
         })?
     } else {
-        // No manifest file present — treat as all fields absent (will fail on 'name').
-        PluginManifest {
-            name: None,
-            version: None,
-            format_version: None,
-            allowed_urls: None,
-        }
+        // HIGH-005 (F-IMPL-LP1-HIGH-005): absent manifest → explicit E-PLUGIN-018
+        // (ManifestNotFound), not synthesized all-None that silently fails on 'name'.
+        // A manifest is REQUIRED for production plugins; no manifest = hard rejection.
+        let expected = format!("{path}.manifest.toml");
+        return Err(PluginError::ManifestNotFound {
+            plugin_path: path.to_string(),
+            expected_manifest_path: expected,
+        });
     };
 
     // 1. Validate name (E-PLUGIN-015): must be non-empty string.
@@ -849,6 +888,10 @@ fn parse_manifest(
     };
 
     // 2. Validate version (E-PLUGIN-016): must be parseable as semver.
+    // HIGH-004 (F-IMPL-LP1-HIGH-004): use semver::Version::parse (strict semver 2.0.0),
+    // replacing the permissive is_valid_semver() that accepted "a.b", "1.+", etc.
+    // semver::Version::parse requires exactly "major.minor.patch[-prerelease][+build]".
+    // "1.2" (missing patch) and "a.b" (non-integer) are correctly rejected.
     let version_str = match manifest.version.as_deref() {
         Some(v) if !v.is_empty() => v.to_string(),
         _ => {
@@ -859,16 +902,26 @@ fn parse_manifest(
         }
     };
 
-    // Simple semver validation: must contain at least one dot and parseable as N.N.N or N.N.
-    if !is_valid_semver(&version_str) {
+    if semver::Version::parse(&version_str).is_err() {
         return Err(PluginError::ManifestVersionMalformed {
             path: path.to_string(),
             value: version_str,
         });
     }
 
-    // 3. Validate format_version (E-PLUGIN-014): must be <= CURRENT_SUPPORTED_VERSION.
-    let format_version = manifest.format_version.unwrap_or(0);
+    // 3. Validate format_version (E-PLUGIN-014 / E-PLUGIN-019).
+    // HIGH-006 (F-IMPL-LP1-HIGH-006): absent format_version → E-PLUGIN-019
+    // (FormatVersionMissing), NOT a silent default of 0 that passes the cap check.
+    // AC-5 (story line 322): absent format_version MUST be rejected.
+    let format_version = match manifest.format_version {
+        Some(v) => v,
+        None => {
+            return Err(PluginError::FormatVersionMissing {
+                path: path.to_string(),
+                supported: CURRENT_SUPPORTED_VERSION,
+            });
+        }
+    };
     if format_version > CURRENT_SUPPORTED_VERSION {
         return Err(PluginError::FormatVersionExceeded {
             path: path.to_string(),
@@ -879,8 +932,20 @@ fn parse_manifest(
 
     // 4. Validate allowed_urls (E-PLUGIN-013): must be EXPLICITLY present (Some(_)).
     // An empty list `[]` is accepted (default-deny). Absent / null → rejection.
+    // MED-007 (F-IMPL-LP1-MED-007): validate that no entry is an empty string.
+    // An empty string in allowed_urls would match any URL with an empty host (unparseable
+    // URLs return host_str() == ""), creating a de-facto allow-all bypass.
     let allowed_urls = match manifest.allowed_urls {
-        Some(urls) => urls,
+        Some(urls) => {
+            if urls.iter().any(|u| u.is_empty()) {
+                return Err(PluginError::MissingAllowedUrls {
+                    path: format!(
+                        "{path} — allowed_urls contains empty string entry (default-deny bypass)"
+                    ),
+                });
+            }
+            urls
+        }
         None => {
             return Err(PluginError::MissingAllowedUrls {
                 path: path.to_string(),
@@ -889,21 +954,4 @@ fn parse_manifest(
     };
 
     Ok((name, version_str, format_version, allowed_urls))
-}
-
-/// Minimal semver validation: checks that the string contains only digits and dots
-/// and has at least one dot (e.g., "1.0", "1.0.0", "0.1.0").
-///
-/// Not a full semver parser — sufficient for BC-2.17.007 postcondition 2.
-fn is_valid_semver(s: &str) -> bool {
-    if s.is_empty() {
-        return false;
-    }
-    let has_dot = s.contains('.');
-    let all_valid_chars = s
-        .chars()
-        .all(|c| c.is_ascii_digit() || c == '.' || c == '-' || c == '+' || c.is_ascii_alphabetic());
-    let no_leading_dot = !s.starts_with('.');
-    let no_trailing_dot = !s.ends_with('.');
-    has_dot && all_valid_chars && no_leading_dot && no_trailing_dot
 }

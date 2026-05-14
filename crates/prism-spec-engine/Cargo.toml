@@ -35,6 +35,7 @@ tracing = "0.1"
 # WASM Plugin Runtime (S-1.15 / SS-17 / AD-019)
 # wasmtime 44 resolves 17 RUSTSEC advisories (RUSTSEC-2024-0438 through RUSTSEC-2026-0096)
 wasmtime = { version = "44", features = ["component-model"] }
+semver = "1"
 # notify: cross-platform filesystem event watcher (AD-018 / S-1.12 / S-1.15)
 notify = "7"
 reqwest = { version = "0.12", features = ["json", "rustls-tls", "gzip", "deflate", "brotli"], default-features = false }
