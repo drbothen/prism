@@ -173,3 +173,53 @@ Adding `#[non_exhaustive]` to `PluginError` is scope expansion into `prism-core`
 ### Resolution Criteria
 
 Phase-5 architect adjudication picks one of the three options above and executes it. The finding is RESOLVED when either: (a) `PluginError` carries `#[non_exhaustive]` and the compile-fail gate EXPECTED is updated to reflect the new count; OR (b) a decision log entry explicitly documents why `PluginError` is exempt from the CLAUDE.md `#[non_exhaustive]` requirement with a concrete rationale.
+
+---
+
+## F-LP25-OBS-001 — BC-2.17.002 v1.5 EC-17-007 Becomes Vacuously True Under Vec<String> Contract
+
+| Field | Value |
+|-------|-------|
+| **Finding ID** | F-LP25-OBS-001 |
+| **Severity** | OBS (out-of-perimeter for story scope; cross-wave governance concern for phase-5) |
+| **Confidence** | MEDIUM |
+| **Story source** | S-PLUGIN-PREREQ-D pass-25 |
+| **Surfaced at** | Pass-25 (adversary fresh-context idempotency audit) |
+| **Date routed** | 2026-05-13 |
+| **Target** | Phase-5 product-owner adjudication — BC-2.17.002 v1.5 §EC-17-007 cross-story/wave-gate concern |
+
+### Evidence
+
+BC-2.17.002 v1.5 §EC-17-007 (line 85) reads: "Plugin calls `host::http_request` when no allowlist is configured | Request allowed to any URL (open by default); audit log entry created"
+
+Under the PREREQ-D Vec<String> field-type contract (established at fix-burst-4, enforced through fix-burst-22 via F-LP23-HIGH-001 8-site type-contract correction):
+
+- `allowed_urls` field type is `Vec<String>` (non-Option, always present)
+- An empty `Vec<String>` (`vec![]`) represents "no URLs allowed" (all requests blocked per AC-7 canonical framing)
+- A non-empty `Vec<String>` represents an explicit allowlist
+- There is no representational state for "no allowlist configured" — the Vec is always present in the configuration structure
+
+Therefore, EC-17-007's framing of "no allowlist configured" becomes representationally impossible after PREREQ-D ships: the `allowed_urls` field cannot be absent; it is always configured (always a Vec<String>). EC-17-007 describes a state the Vec<String> type contract makes impossible to express.
+
+### Why It Matters
+
+If EC-17-007 is not updated to reflect the Vec<String> contract, an implementer reading BC-2.17.002 §EC-17-007 post-PREREQ-D may believe there is an "open by default" mode that is achievable via configuration — but the Vec<String> type makes this mode unreachable. The gap is a cross-BC governance inconsistency between:
+
+1. PREREQ-D AC-7 / BC-2.17.002's Vec<String> field-type contract (enforced)
+2. BC-2.17.002 §EC-17-007 prose framing that describes an "absent allowlist" state (contradicted by the Vec<String> contract)
+
+### Why It Is Out-of-Perimeter
+
+BC-2.17.002 amendment requires PO adjudication and is a cross-story governance gap. The story-scoped fix-burst cannot amend BC-2.17.002 without explicit scope expansion. This finding is also not blocking PREREQ-D implementation since the Vec<String> contract itself is correctly specified in the story.
+
+### Fix Options (for Phase-5 PO adjudication)
+
+**Option A — Update EC-17-007 to reflect Vec<String> semantics:** Rewrite EC-17-007 to describe the "empty Vec<String>" state (not "absent allowlist"). New framing: "Plugin calls `host::http_request` when `allowed_urls` is empty (`vec![]`) | All URLs blocked (empty list = deny-all); `plugin_http_request_denied` audit log entry emitted." This accurately describes the post-PREREQ-D behavior for the "no-URLs-configured" case.
+
+**Option B — Remove EC-17-007 as vacuously obsolete:** After PREREQ-D ships, EC-17-007 describes an unreachable state. Remove EC-17-007 from BC-2.17.002 and update any story cross-references that cite it.
+
+**Option C — Grandfather EC-17-007 with an explicit note:** Add a note to EC-17-007 stating "NOTE: With PREREQ-D Vec<String> contract, this condition is representationally impossible; EC-17-007 is preserved for historical audit trail only. See AC-7 for current allowlist behavior."
+
+### Resolution Criteria
+
+Before Phase 5 convergence can be declared: BC-2.17.002 §EC-17-007 entry is updated so that its framing is consistent with the PREREQ-D Vec<String> type contract, OR an explicit decision log entry documents why EC-17-007 is intentionally retained in its current form despite the type-contract contradiction.

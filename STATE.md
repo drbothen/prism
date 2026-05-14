@@ -1,9 +1,9 @@
 ---
 document_type: pipeline-state
 level: ops
-version: "7.217"
+version: "7.218"
 producer: state-manager
-timestamp: 2026-05-14T08:00:00Z
+timestamp: 2026-05-13T10:30:00Z
 inputs: []
 input-hash: "[live-state]"
 traces_to: ""
@@ -22,12 +22,12 @@ repos:
   - axiathon
   - ocsf-proto-gen
   - mcp-claroty-xdome
-current_step: "D-512 (pre-compact final task-completeness audit + post-convergence roadmap captured). PREREQ-D adversarial cascade: pass-24 CLEAN — FIRST STREAK ADVANCE 0/3 → 1/3 OF ENTIRE CYCLE. Streak 1/3. Pass-25 idempotency next (target 2/3); pass-26 final (target 3/3 CONVERGED). 24 adversary passes / 22 fix-bursts / 10 codification candidates. CYCLE-SNAPSHOT §12/13/14/15 added. SESSION-HANDOFF POST-CONVERGENCE ROADMAP + STANDING DIRECTIVES added. Token Budget 40,900 / 16.0%. 17th consecutive single-commit-with-TBD-pin. STATE+HANDOFF v7.216→v7.217. SAFE TO COMPACT."
+current_step: "D-513 (pass-25 BLOCKED — idempotency caught 4 findings missed by 24 prior passes; streak 1/3 → 0/3 RESET). F-LP25-MED-001 STORY-INDEX date drift CLOSED in-burst (v2.90→v2.91). F-LP25-HIGH-001 spawn_blocking anchor mis-routed to ADR-023 §C4 (canonical: BC-2.17.005 §invariant) + F-LP25-LOW-001/LOW-002 routed to story-writer fix-burst-23. F-LP25-OBS-001 BC-2.17.002 EC-17-007 vacuous-truth routed to phase-5 deferred. 11th process-gap codification candidate (lexical-vs-semantic anchor-content verification; 6th recurrence). STATE+HANDOFF v7.217→v7.218. 18th consecutive single-commit."
 feature_branch_head: "ea958a4d"
 worktree_status: "merged"
-adversary_streak: "**1/3 (PASS-24 CLEAN — FIRST STREAK ADVANCE OF CYCLE)**; trajectory collapse 1→0; pass-25 idempotency next (target 2/3); pass-26 final (target 3/3 CONVERGED); pre-compact resume snapshot complete at fix-burst-22 closure + this commit; cycle-snapshot doc at cycles/wave-4-operations/S-PLUGIN-PREREQ-D-CYCLE-SNAPSHOT.md"
-adversary_pass_count: 24
-pending_findings: "0 CRIT + 0 HIGH + 0 MED + 0 LOW (pass-24 CLEAN; streak 1/3; idempotency pass-25 next)"
+adversary_streak: "**0/3 RESET — pass-25 BLOCKED (idempotency caught fresh anchor drift); 4 findings (1H+1M+2L); fix-burst-23 next**"
+adversary_pass_count: 25
+pending_findings: "1H + 1M + 2L + 1OBS (F-LP25-HIGH-001 spawn_blocking ADR-023 §C4 mis-anchor; F-LP25-MED-001 STORY-INDEX date drift CLOSED in this burst; F-LP25-LOW-001 SS-17 short-name; F-LP25-LOW-002 AC-9 plugin HTTP defaults hedge; F-LP25-OBS-001 EC-17-007 vacuous-truth)"
 demo_evidence_path: "docs/demo-evidence/S-PLUGIN-PREREQ-C/"
 local_converged_at_pass: 5
 wave_3_carry_forward_debt: "ALL_REMEDIATE — W4-FIX-PERF-001/002, W4-FIX-CODE-001, W4-FIX-SEC-001 through W4-FIX-SEC-004 planned per D-203"
@@ -69,8 +69,8 @@ wave_4_phase_4_a_preflight:
   passes_1_7_archived: "cycles/wave-4-operations/adversarial-reviews/ — all BLOCKED+remediated; SHAs 618b453e/15d1bf73/64f4ea81/55b75700/3f393b44/bae288ad/246b9f71"
   passes_8_13_archived: "cycles/wave-4-operations/adversarial-reviews/ — all BLOCKED+remediated; SHAs 39f065c7/6576df60/40458029/4a47ddd5/1849145b/398c5273"
   convergence_window: "3/3 CLOSED — CONVERGED"
-  pass_trajectory: "38→17→8→7→7→5→5→6→6→5→5→4→7→9→2→4→3→3(CLEAN)→18:CLEAN(1/3)→19:CLEAN(2/3)→20:BLOCKED(RESET 0/3)→PreSweep→21:BLOCKED→REMEDIATED(0/3)→PreP22Sweep(COMPLETE;0/3)→22:BLOCKED→REMEDIATED(1H+1M+1L;TD-VSDD-047)→23:BLOCKED→REMEDIATED(2H+1M+1L;sweep-target-list gap)→24:BLOCKED→REMEDIATED(1CRIT;comprehensive sweep found 1/200 drift = encouraging)→25:BLOCKED→REMEDIATED(1H;orchestrator-prompt-introduced orphan token caught)→26:BLOCKED→REMEDIATED(1H+1H-preP27;orchestrator-prompt-introduced orphan PATTERN now codified TD-VSDD-051)→27:BLOCKED→REMEDIATED(1H; VP rationale semantic mis-anchor — 6th orchestrator-prompt drift class)→28:BLOCKED→REMEDIATED(1H; VP H1 sister-line gap — 7th orchestrator-prompt drift class)→ 29:CLEAN(0/0/0/1L; CONVERGENCE_REACHED; window 1/3 OPEN post-reset)→ 30:CLEAN(0/0/0/0/0; PERFECT; window 2/3 OPEN)→ 31:CLEAN(0/0/0/0/0; CONVERGENCE_REACHED; window 3/3 CLOSED)"
-  passes_consumed: 31
+  pass_trajectory: "38→17→8→7→7→5→5→6→6→5→5→4→7→9→2→4→3→3(CLEAN)→18:CLEAN(1/3)→19:CLEAN(2/3)→20:BLOCKED(RESET 0/3)→PreSweep→21:BLOCKED→REMEDIATED(0/3)→PreP22Sweep(COMPLETE;0/3)→22:BLOCKED→REMEDIATED(1H+1M+1L;TD-VSDD-047)→23:BLOCKED→REMEDIATED(2H+1M+1L;sweep-target-list gap)→24:BLOCKED→REMEDIATED(1CRIT;comprehensive sweep found 1/200 drift = encouraging)→25:BLOCKED→REMEDIATED(1H;orchestrator-prompt-introduced orphan token caught)→26:BLOCKED→REMEDIATED(1H+1H-preP27;orchestrator-prompt-introduced orphan PATTERN now codified TD-VSDD-051)→27:BLOCKED→REMEDIATED(1H; VP rationale semantic mis-anchor — 6th orchestrator-prompt drift class)→28:BLOCKED→REMEDIATED(1H; VP H1 sister-line gap — 7th orchestrator-prompt drift class)→ 29:CLEAN(0/0/0/1L; CONVERGENCE_REACHED; window 1/3 OPEN post-reset)→ 30:CLEAN(0/0/0/0/0; PERFECT; window 2/3 OPEN)→ 31:CLEAN(0/0/0/0/0; CONVERGENCE_REACHED; window 3/3 CLOSED)→ 32-EQUIV-25:BLOCKED(1H+1M+2L+1OBS; idempotency caught spawn_blocking anchor; streak RESET 0/3)"
+  passes_consumed: 32
   convergence_strategy: B+A_hybrid (D-214)
   subagent_context_discipline: MANDATORY
   proactive_sweep_status: "COMPLETE_2026-05-03 + Pass 13 surfaced 2 HIGH not caught by sweep methodology — TD-VSDD-039 filed"
@@ -135,7 +135,7 @@ bc_count_corrected: 236
 cap_count: 40  # active; highest_cap_id: CAP-040 (CAP-038 Multi-Tenant Identity, CAP-039 Multi-Tenant Fixture Gen, CAP-040 Multi-Tenant Adapter Dispatch — Wave 3 Phase 3.A Step 2)
 bc_index_version: "4.71"
 vp_index_version: "1.34"
-story_index_version: "v2.90"
+story_index_version: "v2.91"
 policies_version: "1.10"
 total_stories: 150
 red_gate_wave_0a_complete: 2026-04-21
@@ -174,7 +174,8 @@ workspace_test_count: 3598  # updated at D-433 fix-burst-1 closure (just check c
 pre_compact_snapshot: "cycles/wave-4-operations/S-PLUGIN-PREREQ-D-CYCLE-SNAPSHOT.md"
 pre_compact_snapshot_at: "2026-05-14 (D-512 final — SAFE TO COMPACT)"
 pass_24_status: "COMPLETE_CLEAN_FIRST_STREAK_ADVANCE"
-cycle_snapshot_factory_head: "6a862840"
+pass_25_status: "COMPLETE_BLOCKED_IDEMPOTENCY_CAUGHT_4_FINDINGS_STREAK_RESET"
+cycle_snapshot_factory_head: "TBD"
 ---
 # VSDD Pipeline State — Prism
 
@@ -188,9 +189,9 @@ cycle_snapshot_factory_head: "6a862840"
 | **Language** | Rust |
 | **Target Workspace** | per-analyst stdio (MCP server) |
 | **Started** | 2026-04-13 |
-| **Last Updated** | 2026-05-14 (D-512 — PREREQ-D pre-compact final task-completeness audit; CYCLE-SNAPSHOT §12/13/14/15 added; SESSION-HANDOFF POST-CONVERGENCE ROADMAP + STANDING DIRECTIVES added; STATE+HANDOFF v7.216→v7.217; SAFE TO COMPACT) |
+| **Last Updated** | 2026-05-13 (D-513 — PREREQ-D pass-25 BLOCKED; idempotency caught 4 fresh findings; streak 1/3 → 0/3 RESET; F-LP25-MED-001 STORY-INDEX date drift CLOSED in-burst; STORY-INDEX v2.90→v2.91; STATE+HANDOFF v7.217→v7.218) |
 | **Current Phase** | Wave 3 Tier-3 COMPLETE — **Wave 3-A 4 of 4 SHIPPED**; plugin migration: PREREQ-F + PREREQ-A + PREREQ-B + **PREREQ-C MERGED** (PR #144 ea958a4d 2026-05-12T23:14:05Z); PREREQ keystone trio COMPLETE; PLUGIN-MIGRATION Wave 1 unblocked; PREREQ-D/E pending |
-| **Current Step** | D-512 — Pre-compact final task-completeness audit COMPLETE. CYCLE-SNAPSHOT §12/13/14/15 added. SESSION-HANDOFF POST-CONVERGENCE ROADMAP (12-step) + OUTSTANDING OPERATIONAL TASKS + STANDING DIRECTIVES sections added. Streak 1/3. 17th consecutive TBD-pin (F-LP10-OBS-001 DECISIVELY STABLE). Pass-25 idempotency next → target 2/3. **SAFE TO COMPACT.** |
+| **Current Step** | D-513 — PREREQ-D pass-25 BLOCKED (idempotency caught 4 findings missed by 24 passes; streak 1/3 → 0/3 RESET). F-LP25-MED-001 CLOSED in-burst (STORY-INDEX v2.90→v2.91). F-LP25-HIGH-001 + F-LP25-LOW-001/LOW-002 → fix-burst-23. F-LP25-OBS-001 → phase-5 deferred. 11th codification candidate (lexical-vs-semantic anchor-content; 6th recurrence). **18th consecutive single-commit.** |
 
 ## Phase Progress
 
@@ -222,10 +223,10 @@ cycle_snapshot_factory_head: "6a862840"
 
 | Step | Agent | Status | Output |
 |------|-------|--------|--------|
-| D-508 — PREREQ-D pass-23 BLOCKED-hard (1H; 4th in-burst regression; streak HOLD 0/3) | state-manager | **COMPLETE** | F-LP23-HIGH-001: `Option<Vec<String>>` vs `Vec<String>` type-contract regression at 8 sites. **10th codification candidate: POL-22 Phase B**. **14th consecutive TBD-pin**. STATE+HANDOFF v7.213→v7.214. |
 | D-509/D-510 — fix-burst-22 CLOSED 1H (story-writer a9a51671); STORY-INDEX v2.89; pre-compact snapshot written | state-manager | **COMPLETE** | Story v1.21→v1.22: 8 Option→Vec corrections; obsolete test Option A.ii adjudication. Token Budget 40,700→40,900 (pct 15.9%→16.0%). 15th consecutive TBD-pin. Cycle snapshot: CYCLE-SNAPSHOT.md. STATE+HANDOFF v7.213→v7.215. |
 | D-511 — PREREQ-D pass-24 CLEAN — FIRST STREAK ADVANCE 0/3 → 1/3 OF ENTIRE CYCLE; STORY-INDEX v2.90 | state-manager | **COMPLETE** | Fresh-context adversary pass-24 at story v1.22 SHA a9a51671 returned ZERO findings. POL-22 Phase A: 25/25 anchors PASS; Phase B: 4/4 symmetry chains PASS; 13 carry-forward samples CLEAN. Trajectory collapse 1→0. Pass-25 idempotency next (target 2/3). **16th CONSECUTIVE single-commit-with-TBD-pin** — F-LP10-OBS-001 DECISIVELY STABLE. STORY-INDEX v2.89→v2.90. STATE+HANDOFF v7.215→v7.216. |
-| D-512 — PREREQ-D pre-compact final task-completeness audit + post-convergence roadmap + standing directives captured | state-manager | **COMPLETE** | CYCLE-SNAPSHOT §12 (12-step post-convergence action plan) + §13 (pending operational tasks: stale worktrees + session-reviewer queue) + §14 (standing directives: fix-it-and-continue + production-grade + no-push + TBD-pin) + §15 (cycle statistics: token budget growth + spec versions + factory commits + BC amendments) added. SESSION-HANDOFF D-512 section added (POST-CONVERGENCE ROADMAP 12-step + OUTSTANDING OPERATIONAL TASKS + STANDING DIRECTIVES table). Verified 8 task categories captured. **17th CONSECUTIVE single-commit-with-TBD-pin** — F-LP10-OBS-001 DECISIVELY STABLE. STATE+HANDOFF v7.216→v7.217. **SAFE TO COMPACT.** |
+| D-512 — PREREQ-D pre-compact final task-completeness audit + post-convergence roadmap + standing directives captured | state-manager | **COMPLETE** | CYCLE-SNAPSHOT §12 (12-step post-convergence action plan) + §13 (pending operational tasks: stale worktrees + session-reviewer queue) + §14 (standing directives: fix-it-and-continue + production-grade + no-push + TBD-pin) + §15 (cycle statistics: token budget growth + spec versions + factory commits + BC amendments) added. SESSION-HANDOFF D-512 section added. Verified 8 task categories captured. **17th CONSECUTIVE single-commit-with-TBD-pin** — F-LP10-OBS-001 DECISIVELY STABLE. STATE+HANDOFF v7.216→v7.217. **SAFE TO COMPACT.** |
+| D-513 — PREREQ-D pass-25 BLOCKED; idempotency caught 4 findings; streak 1/3 → 0/3 RESET; F-LP25-MED-001 CLOSED in-burst | state-manager | **COMPLETE** | F-LP25-HIGH-001 spawn_blocking mis-anchor (ADR-023 §C4 → should cite BC-2.17.005 §invariant) + F-LP25-LOW-001 SS-17 short-name + F-LP25-LOW-002 AC-9 fabricated ADR-023 prose → fix-burst-23. F-LP25-MED-001 CLOSED: STORY-INDEX line 393 date 2026-05-14→2026-05-13 (v2.90→v2.91). F-LP25-OBS-001 EC-17-007 vacuous-truth → phase-5 deferred. 11th codification candidate. **18th consecutive single-commit**. STATE+HANDOFF v7.217→v7.218. |
 
 ## Decisions Log
 
@@ -233,6 +234,7 @@ _D-001..D-046 archived: [cycles/phase-3-dtu-wave-2/decisions-archive-d001-d032.m
 
 | ID | Decision | Rationale | Phase | Date |
 |----|----------|-----------|-------|------|
+| D-513 | 2026-05-13 | state-manager | PREREQ-D pass-25 BLOCKED — idempotency check at unchanged HEAD caught 4 findings missed by 24 prior passes | F-LP25-HIGH-001 (spawn_blocking anchored to ADR-023 §C4 where rule does not appear; canonical home is BC-2.17.005 §invariant line 73) routed to story-writer for fix-burst-23. F-LP25-MED-001 (STORY-INDEX date drift) CLOSED in this burst (v2.90→v2.91; line 393 date 2026-05-14→2026-05-13). F-LP25-LOW-001 (SS-17 short-name "Plugin Runtime" → "WASM Plugin Runtime") + F-LP25-LOW-002 (AC-9 "ADR-023 §C4 plugin HTTP defaults" fabricated prose hedge) routed to story-writer for same fix-burst. F-LP25-OBS-001 (BC-2.17.002 EC-17-007 vacuous-truth under Vec<String>) routed to product-owner phase-5 deferred. Streak: 1/3 → 0/3 RESET per BC-5.39.001. Cycle process-gap codification candidate #11 added: lexical-vs-semantic anchor-content verification (6th instance — adversary regex confirmed citation text `ADR-023 §C4` in story body without verifying §C4 CONTENT contains spawn_blocking rule; POL-22 Phase A false-PASS pattern). 18th consecutive single-commit. STORY-INDEX v2.90→v2.91. STATE+HANDOFF v7.217→v7.218. | plugin-migration | 2026-05-13 |
 | D-512 | 2026-05-14 | **PREREQ-D pre-compact final task-completeness audit + post-convergence roadmap captured** (state-manager; user-prompted "did we capture all tasks"). Audited CYCLE-SNAPSHOT.md for completeness against 8 task categories: (1) post-convergence workflow per per-story-delivery.md — 12-step sequence from test-writer Red Gate stubs through PLUGIN-MIGRATION Wave 1 unblock; (2) pending stale worktree cleanup — PREREQ-B+C confirmed merged/safe, user-permission-denied this session, re-request next session; S-3.09 status unknown (3 unmerged commits), W3-FIX-S307-001 keep; (3) cycle-closing session-reviewer — 10 codification candidates queued; (4) PLUGIN-MIGRATION Wave 1 unblock gated on PREREQ-D + PREREQ-E both merged; (5) PREREQ-E pending after D; (6) "fix it and continue" implicit pre-authorization captured as standing directive with explicit expiry at pass-26 CLEAN; (7) NO PUSH discipline reconfirmed — 56+ commit local divergence is correct state; (8) Token Budget growth trend captured — 16.0%, 20% limit threshold documented for implementer. Augmented CYCLE-SNAPSHOT.md with §12 Post-Convergence Action Plan (12-step) + §13 Pending Operational Tasks (worktree table + session-reviewer queue) + §14 Standing Directives (4 directives with scope/expiry) + §15 Cycle Statistics (token budget table + spec versions + factory commits + BC amendments). SESSION-HANDOFF.md augmented with D-512 body section: POST-CONVERGENCE ROADMAP (12-step) + OUTSTANDING OPERATIONAL TASKS (4 worktrees) + STANDING DIRECTIVES (5-row table). Resume readiness reconfirmed: fresh session can read STATE.md + SESSION-HANDOFF.md + CYCLE-SNAPSHOT.md and execute pass-25 dispatch with full context including 12-step post-convergence roadmap, 2 operational follow-ups, 5 standing directives, and SAFE-TO-COMPACT signal. **17th CONSECUTIVE single-commit-with-TBD-pin** — F-LP10-OBS-001 DECISIVELY STABLE (recommend "stable convention" at cycle close). STATE+HANDOFF v7.216→v7.217. **SAFE TO COMPACT.** | plugin-migration | 2026-05-14 |
 | D-511 | 2026-05-14 | **PREREQ-D pass-24 CLEAN — FIRST STREAK ADVANCE 0/3 → 1/3 OF ENTIRE CYCLE** (adversary verdict reified by state-manager). After 23 prior failed advance attempts (1 false-CLEAN pass-5; 22 BLOCKED passes 6-23), pass-24 fresh-context audit at story v1.22 SHA a9a51671 + BC-2.16.002 v1.12 SHA 84f58565 + error-taxonomy v1.20 SHA 8e980a0e returned ZERO findings. POL-22 Phase A verified 25 external anchors PASS; Phase B verified 4 internal cross-reference symmetry chains PASS (Vec<String> contract chain across AC-7/AC-17/Task 2/test_default(); E-PLUGIN-013/014/015/016 4-layer AC-5↔EC↔Catalog↔BC; E-PIPELINE-001 5-layer AC-16↔Taxonomy↔ErrorTaxonomyMd↔BCcatalog↔CanonicalType; manifest 4-code symmetry); carry-forward sample of 13 prior closures (F-LP1/4/7/8/9/11/15/16/18/20/21/22/23) all CLEAN with no regressions. Trajectory: 16→8→6→4→0→4→7→4→2→2→2→1→1→1→3→6→4→4→4→1→1→1→1→**0**. 10 codification candidates carried forward to cycle-closing. 4 phase-5 deferred findings unchanged. Next dispatch: adversary pass-25 idempotency check at unchanged HEAD; CLEAN advances streak 1/3 → 2/3; pass-26 CLEAN closes 3-CLEAN window (BC-5.39.001 convergence). STATE+HANDOFF v7.215 → v7.216. PRE-COMPACT RESUME READINESS: VERIFIED. **16th CONSECUTIVE single-commit-with-TBD-pin** — F-LP10-OBS-001 DECISIVELY STABLE. | plugin-migration | 2026-05-14 |
 | D-510 | 2026-05-14 | **PREREQ-D pre-compact resume durability snapshot — 23 passes / 22 fix-bursts / 10 codification candidates / pass-24 retry pending** (state-manager). Comprehensive cycle snapshot written to `cycles/wave-4-operations/S-PLUGIN-PREREQ-D-CYCLE-SNAPSHOT.md` (TBD — see this commit's SHA). SESSION-HANDOFF.md resume recommendation updated to v7.215 with explicit pass-24 routing instructions. STATE.md frontmatter augmented: `pre_compact_snapshot`, `pass_24_status: in_flight_retry_after_rate_limit`, `cycle_snapshot_factory_head: 6a862840`. Snapshot covers full 23-pass trajectory, 8 HIGH production defects prevented, 10 codification candidates, 4 Phase-5 deferred findings, 14-consecutive single-commit TBD-pin discipline. F-LP10-OBS-001 status: DECISIVELY STABLE → recommend "stable convention" mark at cycle close, not formal codification. **15th CONSECUTIVE single-commit-with-TBD-pin** discipline maintained. Token Budget 40,900 / 16.0% (unchanged). develop@95d46be2 (unchanged). STATE+HANDOFF v7.214→v7.215. | plugin-migration | 2026-05-14 |
