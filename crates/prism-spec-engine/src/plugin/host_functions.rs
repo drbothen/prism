@@ -1,8 +1,23 @@
 //! Plugin host functions — the only interfaces available to WASM plugins.
+//!
+//! ## Allowlist enforcement (AC-7 / VP-PLUGIN-007)
+//!
+//! `host_http_request` enforces allowlist using host-only `==` comparison via `url::Url::parse`.
+//! The allowlist is `Vec<String>` (not `Option`) — empty list = default-deny all outbound HTTP.
+//! A blocked request returns HTTP 403 to the plugin and emits a single structured
+//! `tracing::warn!(event_type = "plugin_http_request_blocked", ...)` per BC-2.16.002 catalog.
+//!
+//! ## Timeout (AC-9 / TD-S-PLUGIN-PREREQ-B-005 closure)
+//!
+//! Effective per-request timeout is 30-second, enforced by the shared `reqwest::Client`
+//! constructed in `boot.rs` with `.timeout(Duration::from_secs(PLUGIN_HTTP_CLIENT_TIMEOUT_SECS))`.
+//! No per-request `.timeout()` override is set here — the Client-level timeout is the source
+//! of truth.
 
 use std::time::Instant;
 
 use tracing::{debug, error, info, trace, warn};
+use url::Url;
 
 use super::loader::HostState;
 
@@ -26,12 +41,21 @@ pub enum LogLevel {
 
 /// Execute an HTTP request on behalf of a plugin via the host's `reqwest::Client`.
 ///
-/// - Validates the URL against `HostState.allowed_urls` (if configured).
-/// - Enforces a 10-second per-request timeout (separate from the per-call epoch limit).
+/// - Validates the URL against `HostState.allowed_urls` (Vec<String>, default-deny).
+/// - Enforces 30-second per-request timeout via shared `reqwest::Client` from boot.rs.
 /// - Audit-logs `(plugin_id, method, url, status, latency_ms)` at `INFO` level.
 ///
-/// Returns HTTP 403 equivalent (status 403, empty body) if URL is not allowlisted.
+/// Returns HTTP 403 equivalent (status 403, empty body) if URL host is not in allowlist.
 /// Returns HTTP 408 equivalent (status 408) if the request times out.
+///
+/// ## Allowlist enforcement (AC-7 / VP-PLUGIN-007)
+///
+/// Host-only `==` comparison (not substring matching): `url::Url::parse` extracts the host
+/// component, which is compared against each entry in `allowed_urls`. An empty `allowed_urls`
+/// list blocks ALL outbound HTTP from the plugin (default-deny semantics).
+///
+/// Emits: `event_type = "plugin_http_request_blocked"` (WARN) on blocked requests per
+/// BC-2.16.002 v1.12 Canonical Structured Event Catalog row (PG-LP11-001).
 pub fn host_http_request(
     state: &HostState,
     method: &str,
@@ -39,34 +63,37 @@ pub fn host_http_request(
     headers: Vec<(String, String)>,
     body: Option<Vec<u8>>,
 ) -> HttpResponse {
-    // URL allowlist check — parse the URL and compare the HOST component only.
+    // URL allowlist enforcement — host-only == comparison (AC-7 / VP-PLUGIN-007).
+    // allowed_urls is Vec<String> (not Option): empty list = default-deny all outbound HTTP.
     // Substring matching (`url.contains(domain)`) is bypassable via query parameters
-    // (e.g. `https://evil.com/?ref=allowed.com`). We instead parse the URL and compare
-    // the normalized host string against each allowlist entry (BC-2.17.002 / INV-PLUGIN-002).
-    if let Some(ref allowed_urls) = state.allowed_urls {
-        let url_allowed = match reqwest::Url::parse(url) {
-            Ok(parsed) => {
-                let url_host = parsed.host_str().unwrap_or("");
-                allowed_urls
-                    .iter()
-                    .any(|allowed_domain| url_host == allowed_domain.as_str())
-            }
-            Err(_) => false, // unparseable URL is never allowed
-        };
-
-        if !url_allowed {
-            warn!(
-                plugin_id = %state.plugin_id,
-                url = %url,
-                method = %method,
-                "Plugin HTTP request to non-allowlisted URL blocked (403)"
-            );
-            return HttpResponse {
-                status: 403,
-                headers: vec![],
-                body: vec![],
-            };
+    // (e.g. `https://evil.com/?ref=allowed.com`). We parse the URL and compare only the
+    // normalized host string against each allowlist entry (BC-2.17.002 / INV-PLUGIN-002).
+    let url_allowed = match Url::parse(url) {
+        Ok(parsed) => {
+            let url_host = parsed.host_str().unwrap_or("");
+            state
+                .allowed_urls
+                .iter()
+                .any(|allowed_domain| url_host == allowed_domain.as_str())
         }
+        Err(_) => false, // unparseable URL is never allowed
+    };
+
+    if !url_allowed {
+        // Single structured emission per BC-2.16.002 v1.12 catalog row plugin_http_request_blocked.
+        // WARN-level log and audit-channel routing are orthogonal via event_type field.
+        warn!(
+            event_type = "plugin_http_request_blocked",
+            plugin_id = %state.plugin_id,
+            url = %url,
+            reason = "allowlist_mismatch",
+            "Plugin HTTP request blocked: URL host not in allowed_urls allowlist"
+        );
+        return HttpResponse {
+            status: 403,
+            headers: vec![],
+            body: vec![],
+        };
     }
 
     // Make the actual HTTP request via the host's reqwest client.
@@ -115,6 +142,10 @@ pub fn host_http_request(
 }
 
 /// Internal async HTTP request execution.
+///
+/// Relies on the 30-second timeout configured in the shared `reqwest::Client` at boot
+/// (TD-S-PLUGIN-PREREQ-B-005 closure; `PLUGIN_HTTP_CLIENT_TIMEOUT_SECS = 30` in mod.rs).
+/// No per-request `.timeout()` override — the Client-level timeout is the source of truth.
 async fn do_http_request(
     state: &HostState,
     method: &str,
@@ -122,9 +153,8 @@ async fn do_http_request(
     headers: &[(String, String)],
     body: Option<Vec<u8>>,
 ) -> HttpResponse {
-    use reqwest::{Method, Url};
+    use reqwest::Method;
     use std::str::FromStr;
-    use std::time::Duration;
 
     let method = match Method::from_str(method) {
         Ok(m) => m,
@@ -137,7 +167,10 @@ async fn do_http_request(
         }
     };
 
-    let url_parsed = match Url::parse(url) {
+    // url was already parsed (and host extracted) during allowlist check above; parse again
+    // for reqwest. The `url` crate's `Url` and `reqwest::Url` are the same type (reqwest
+    // re-exports it), so this is zero-cost in practice.
+    let url_parsed = match reqwest::Url::parse(url) {
         Ok(u) => u,
         Err(_) => {
             return HttpResponse {
@@ -148,10 +181,8 @@ async fn do_http_request(
         }
     };
 
-    let mut request_builder = state
-        .http_client
-        .request(method, url_parsed)
-        .timeout(Duration::from_secs(10));
+    // No per-request .timeout() call: the 30s timeout is enforced at Client::builder() level.
+    let mut request_builder = state.http_client.request(method, url_parsed);
 
     for (key, value) in headers {
         if let (Ok(name), Ok(val)) = (

@@ -19,6 +19,12 @@ serde_json = "1"
 regex = "1"
 arc-swap = "1"
 sha2 = "0.10"
+# S-PLUGIN-PREREQ-D AC-15: AuthToken zeroize-on-drop (TD-S-PLUGIN-PREREQ-B-002 / AD-017).
+# Wraps AuthToken inner field in Zeroizing<String> so credential bytes are overwritten on drop.
+zeroize = "1"
+# S-PLUGIN-PREREQ-D AC-7: host_http_request allowlist enforcement uses url::Url::parse
+# for host-only extraction (prevents substring bypass via query params).
+url = "2"
 hex = "0.4"
 # uuid v7 for time-ordered confirmation tokens (TD-S112-001)
 uuid = { version = "1", features = ["v7"] }
@@ -110,3 +116,13 @@ path = "tests/ac_1_cursor_page_size_test.rs"
 [[test]]
 name = "proptest_AC_3"
 path = "tests/proptest_AC_3.rs"
+
+# S-PLUGIN-PREREQ-D: existing plugin sandbox / host_function integration tests
+[[test]]
+name = "plugin_tests"
+path = "tests/plugin_tests.rs"
+
+# S-PLUGIN-PREREQ-D: new plugin integration tests (boot wiring, manifest validation, etc.)
+[[test]]
+name = "plugin_integration_tests"
+path = "tests/plugin_integration_tests.rs"
