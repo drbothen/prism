@@ -266,3 +266,57 @@ Adding a new namespace (E-INT) to error-taxonomy.md requires product-owner adjud
 ### Resolution Criteria
 
 Before Phase 5 convergence can be declared: either (a) E-INT-001 (and any other discovered E-INT-NNN codes) are added to error-taxonomy.md with complete entries (code, message template, subsystem, BC anchor, audit role); OR (b) a decision log entry documents why E-INT codes are exempt from the error taxonomy requirement with concrete rationale.
+
+---
+
+## OBS-LP35-001 — Pre-AC-7 "not-None" Option-Semantics in verification-architecture.md:282 + ADR-023:732-733 (Out-of-Perimeter — Architecture Layer)
+
+| Field | Value |
+|-------|-------|
+| **Finding ID** | OBS-LP35-001 |
+| **Severity** | OBS (out-of-story-perimeter for S-PLUGIN-PREREQ-D cascade; substantive for phase-5) |
+| **Confidence** | HIGH |
+| **Story source** | S-PLUGIN-PREREQ-D |
+| **Surfaced at** | Pass-35 (adversary fresh-context audit) |
+| **Date routed** | 2026-05-14 |
+| **Target** | Phase-5 architect adjudication — verification-architecture.md:282 + ADR-023:732-733 carry pre-AC-7 Option-semantics for VP-PLUGIN-007 `allowed_urls` |
+
+### Evidence
+
+- **verification-architecture.md:282** — VP-PLUGIN-007 prose description in the verification
+  architecture carries "not-None" or "allowlist not-None" Option-presence framing for
+  `allowed_urls`. This framing predates AC-7, which established `allowed_urls: Vec<String>`
+  (never `Option`).
+- **ADR-023-plugin-only-sensor-architecture.md:732-733** — ADR-023 prose discussion of the
+  `allowed_urls` type contract retains the same pre-AC-7 Option-semantics framing at lines
+  732-733.
+
+### Propagation Context
+
+The pre-AC-7 "not-None" / "allowlist not-None" phrasing for `allowed_urls` has been propagated
+across 7 sites total (see OBS-LP35-001 in pass-35 report for full table). The in-perimeter
+sites (VP-INDEX, story §References, BC-2.17.007) are being addressed by fix-burst-32/33.
+These two architecture-layer sites are out-of-story-perimeter and require architect adjudication.
+
+### Why It Is Out-of-Perimeter
+
+Architecture documents (verification-architecture.md, ADR-023) are owned by the `architect`
+specialist. Their amendment requires architect adjudication and is outside the story-scope
+fix-burst discipline. They cannot be corrected by product-owner or story-writer dispatch
+during this cascade.
+
+### Fix (for Phase-5 Architect Adjudication)
+
+Architect rewrites verification-architecture.md:282 and ADR-023:732-733 to replace
+Option-presence framing ("not-None", "allowlist not-None") with Vec<String>-semantics framing
+consistent with AC-7 + AC-17:
+- "Empty Vec<String> → deny-all (default)"
+- "Non-empty Vec<String> → URL-set active"
+- Never `Option<Vec<String>>`; the None state is type-system-impossible.
+
+### Resolution Criteria
+
+Before Phase 5 adversarial convergence: architect rewrites both locations to use the
+Vec<String>-semantics framing established by AC-7 + AC-17. The verification-architecture
+VP-PLUGIN-007 entry and ADR-023 prose should match the phrasing in BC-2.17.007 (post
+fix-burst-33 v1.3) and VP-INDEX (post D-533 v1.35).

@@ -896,3 +896,66 @@ F-LP34-OBS-001 (Codification #14 bold-labeled bullet anchor treatment) + F-LP34-
 | error-taxonomy | v1.21 | UNCHANGED | `.factory/specs/prd-supplements/error-taxonomy.md` |
 | factory-artifacts HEAD | D-533 | `git -C .factory log -1 --format='%H'` | — |
 | develop HEAD | unchanged | 95d46be2 | — |
+
+---
+
+### §POST-PASS-35 BLOCKED SUMMARY (D-534)
+
+**Pass-35 BLOCKED — 0 CRIT + 0 HIGH + 2 MED + 0 LOW + 3 OBS**
+
+Trajectory pass-25..35: 4→1→4→5→1→1→3→4→5→5→**5** (third consecutive 5-finding pass; trajectory flat at 5).
+
+**Fix-burst-32 closure verification:** All 3 closures HELD. §Changelog 7 rows CLEAN. §Postconditions ancestry at lines 260/300/466/918 CLEAN. VP-INDEX Vec<String>-semantics CLEAN.
+
+#### Finding Inventory
+
+| Finding | Severity | Description | Route |
+|---------|----------|-------------|-------|
+| F-LP35-MED-001 | MEDIUM | BC-2.17.007:138+161 retain pre-AC-7 "not-None"/"allowlist not-None" Option-semantics for `allowed_urls`. Sibling-gap from fix-burst-32 F-LP34-LOW-001 closure — sweep covered VP-INDEX + story §References but not BC-2.17.007 body. Total propagation footprint: 7 sites; 3 closed D-533; 2 open (fix-burst-33); 2 deferred arch layer (OBS-LP35-001). In-perimeter (BC-2.17.007 in story `behavioral_contracts:`). | product-owner — fix-burst-33 |
+| F-LP35-MED-002 | MEDIUM | error-taxonomy.md:464 retains superseded `§Canonical Structured Event Catalog` form. Sibling-gap from fix-burst-32 F-LP34-MED-001 closure — swept 4 story sites but missed error-taxonomy. Total propagation footprint: 5 sites; 4 closed D-533; 1 open (fix-burst-33). In-perimeter. | product-owner — fix-burst-33 |
+| OBS-LP35-001 | OBS [out-of-perimeter] | verification-architecture.md:282 + ADR-023:732-733 same pre-AC-7 Option-semantics for `allowed_urls`. Out-of-story-perimeter (architecture layer). Appended to deferred-findings-phase-5.md this burst (7th deferred finding). | architect — phase-5 |
+| OBS-LP35-002 | OBS [process-gap] | Multi-cite propagation sweep pattern — 4th and 5th cascade recurrence in same pass-35 from same fix-burst-32. Both F-LP34-LOW-001 closure (3/6 sites) and F-LP34-MED-001 closure (4/5 sites) missed sibling documents. POL-25 codification candidate #22: mandatory grep sweep before closure declared. | cycle-close session-reviewer |
+| OBS-LP35-003 | OBS [intent-pending] | format_version forward-compat policy gap — EC-D-005/EC-D-006 + BC-2.17.007 postcondition 3 describe current behavior but no MIN_SUPPORTED_VERSION or deprecation policy defined. | architect/PO cycle-close adjudication |
+
+#### Multi-Cite Propagation Pattern — 5 Cascade Instances
+
+| Instance # | Pass surfaced | Fix-burst | Missed site | Prop. rate |
+|------------|---------------|-----------|-------------|-----------|
+| 1st | pass-28 | fix-burst-26 | E-INT-001 error-taxonomy.md | 0/1 (OBS) |
+| 2nd | pass-32 | fix-burst-30 | BC-2.17.002 line 419 stale pin | partial |
+| 3rd | pass-33 | fix-burst-31 | story line 373 BC v1.6→v1.7 | 0/1 |
+| 4th | pass-35 | fix-burst-32 (F-LP34-MED-001) | error-taxonomy.md:464 | 4/5 (80%) |
+| 5th | pass-35 | fix-burst-32 (F-LP34-LOW-001) | BC-2.17.007:138+161 | 3/6 (50%) |
+
+5 recurrences → POL-25 codification candidate #22.
+
+#### Fix-Burst-33 Dispatch Template
+
+**product-owner** (2 artifacts, 5 edits):
+1. BC-2.17.007:138 → Vec<String>-semantics framing (AC-7 default-deny anchor)
+2. BC-2.17.007:161 → same rewrite
+3. BC-2.17.007 v1.2→v1.3; §Changelog row added
+4. error-taxonomy.md:464: `§Canonical Structured Event Catalog` → `§Postconditions (Canonical Structured Event Catalog bullet, v1.12)`
+5. error-taxonomy.md v1.21→v1.22
+
+**state-manager** (same commit per TD-VSDD-053):
+- BC-INDEX minor bump for BC-2.17.007 v1.3 (per POL-11)
+- STATE.md + SESSION-HANDOFF.md D-535 closure
+
+#### Artifact State After Pass-35 BLOCKED (D-534)
+
+| Artifact | Version | Change | Path |
+|----------|---------|--------|------|
+| Story S-PLUGIN-PREREQ-D | v1.32 | UNCHANGED | `.factory/stories/S-PLUGIN-PREREQ-D-plugin-runtime-boot-wiring.md` |
+| BC-2.17.007 | v1.2 | UNCHANGED (pending fix-burst-33 → v1.3) | `.factory/specs/behavioral-contracts/BC-2.17.007-plugin-manifest-schema-validation.md` |
+| error-taxonomy | v1.21 | UNCHANGED (pending fix-burst-33 → v1.22) | `.factory/specs/prd-supplements/error-taxonomy.md` |
+| BC-INDEX | v4.73 | UNCHANGED (pending fix-burst-33 minor bump) | `.factory/specs/behavioral-contracts/BC-INDEX.md` |
+| VP-INDEX | v1.35 | UNCHANGED | `.factory/specs/verification-properties/VP-INDEX.md` |
+| STORY-INDEX | v2.102 | UNCHANGED | `.factory/stories/STORY-INDEX.md` |
+| STATE.md | v7.239 | v7.238 → v7.239 | `.factory/STATE.md` |
+| SESSION-HANDOFF.md | v7.239 | v7.238 → v7.239 | `.factory/SESSION-HANDOFF.md` |
+| Pass-35 report | NEW | Created | `.factory/cycles/wave-4-operations/adversarial-reviews/S-PLUGIN-PREREQ-D-pass-35.md` |
+| deferred-findings-phase-5 | +1 (OBS-LP35-001) | 7th entry appended | `.factory/cycles/wave-4-operations/deferred-findings-phase-5.md` |
+| BC-2.17.002 | v1.7 (draft) | UNCHANGED | `.factory/specs/behavioral-contracts/BC-2.17.002-plugin-sandbox-filesystem.md` |
+| factory-artifacts HEAD | D-534 | `git -C .factory log -1 --format='%H'` | — |
+| develop HEAD | unchanged | 95d46be2 | — |
