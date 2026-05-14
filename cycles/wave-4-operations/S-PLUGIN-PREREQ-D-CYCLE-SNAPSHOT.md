@@ -1879,3 +1879,51 @@ Verification: a fresh session reading STATE.md v7.250 + SESSION-HANDOFF.md v7.25
 
 50th consecutive single-commit (TD-VSDD-053 DECISIVELY STABLE).
 STATE.md v7.249 → v7.250 / SESSION-HANDOFF.md v7.249 → v7.250 / CYCLE-SNAPSHOT.md §PRE-IMPLEMENTATION RESUME SNAPSHOT (D-545) appended.
+
+---
+
+## §POST-RED-GATE-LANDING UPDATE (D-546 — 2026-05-14)
+
+**Per-story-delivery Steps 1 and 2 COMPLETE. Step 3 (implementer TDD green) is next.**
+
+### Step 1 — Worktree ✅ COMPLETE
+
+devops-engineer created worktree `/Users/jmagady/Dev/prism/.worktrees/S-PLUGIN-PREREQ-D/` on branch `feature/S-PLUGIN-PREREQ-D` from develop@95d46be2.
+
+### Step 2 — Red Gate Stubs ✅ COMPLETE @ feature/S-PLUGIN-PREREQ-D@8ca17f3f
+
+| File | Tests | ACs Covered |
+|------|-------|-------------|
+| `crates/prism-bin/tests/plugin_boot_tests.rs` | 7 | AC-1, AC-2, AC-3, AC-4, AC-5, AC-18 |
+| `crates/prism-spec-engine/tests/plugin_integration_tests.rs` | 18 | AC-5, AC-6, AC-7, AC-8, AC-10, AC-11, AC-12, AC-13, AC-14, AC-15, AC-16, Task-8 |
+| **Total** | **25** | |
+
+All 25 stubs use `todo!("not yet implemented (S-PLUGIN-PREREQ-D AC-N)")` pattern. Crate-level `#![allow(dead_code, unused_imports)]` suppresses accumulation warnings during TDD green phase.
+
+**Verification snapshot:**
+- `just iter prism-bin`: 49 tests — 42 passed (1 leaky pre-existing) + **7 FAILED** (all new) + 0 skipped
+- `just iter prism-spec-engine`: 344 tests — 326 passed + **18 FAILED** (all new) + 1 skipped (pre-existing)
+- BC-5.38.001 Red Gate density target ≥15 SATISFIED: **25 ≥ 15** ✓
+
+### Durable Pins (D-546)
+
+- `feature_branch_head: 8ca17f3f`
+- `worktree_status: active (.worktrees/S-PLUGIN-PREREQ-D mounted at develop@95d46be2)`
+- `story_v: 1.32` (UNCHANGED)
+- `develop_head: 95d46be2` (UNCHANGED)
+- `state_v: 7.251` / `handoff_v: 7.251`
+- factory-artifacts HEAD: `git -C .factory log -1 --format=%H` (D-546 is this commit)
+
+### Step 3 — Implementer TDD Green ⏳ NEXT
+
+Dispatch implementer using §5 Implementer Dispatch Template in SESSION-HANDOFF.md §PRE-IMPLEMENTATION RESUME SNAPSHOT. Critical constraints (do not lose):
+- `allowed_urls: Vec<String>` NOT `Option<Vec<String>>` (AC-7/AC-17 type contract)
+- `HostState::test_default()` with `#[cfg(any(test, feature = "test-helpers"))]` gate
+- Match-Site Inventory: 6 sites at plugin_tests.rs:287,305,912,946,977,1018
+- AC-9: `reqwest::Client` production timeout `Duration::from_secs(30)` + host_functions.rs doc comment
+- AC-16: `SpecEngineError::TooManyRequests { total: usize }` variant + E-PIPELINE-001 error code
+- All new `event_type=` tracing sites registered in BC-2.16.002 Structured Event Catalog (PG-LP11-001)
+- All new enum variants with `#[non_exhaustive]` per CLAUDE.md Conventions
+
+**51st consecutive single-commit (TD-VSDD-053 DECISIVELY STABLE).**
+STATE.md v7.250 → v7.251 / SESSION-HANDOFF.md v7.250 → v7.251 / CYCLE-SNAPSHOT.md §POST-RED-GATE-LANDING UPDATE (D-546) appended.
