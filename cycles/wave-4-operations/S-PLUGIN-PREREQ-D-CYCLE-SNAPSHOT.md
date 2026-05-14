@@ -859,3 +859,40 @@ Codification candidates updated: 19→21 (pass-34 adds candidates #20 and #21).
 | error-taxonomy | v1.21 | UNCHANGED | `.factory/specs/prd-supplements/error-taxonomy.md` |
 | factory-artifacts HEAD | D-532 | `git -C .factory log -1 --format='%H'` | — |
 | develop HEAD | unchanged | 95d46be2 | — |
+
+---
+
+### §POST-FIX-BURST-32 CLOSURE (D-533)
+
+**Date:** 2026-05-14
+**Burst type:** story-writer (HIGH+MED) + state-manager (LOW + VP-INDEX same-burst per POL-9)
+**Pattern:** fix-burst-32; 38th consecutive single-commit (TD-VSDD-053 DECISIVELY STABLE)
+**Findings closed:** 3 in-scope from pass-34 (1 HIGH + 1 MED + 1 LOW)
+
+#### Closures
+
+**F-LP34-HIGH-001 CLOSED (story-writer):** §Changelog lines 1055+1056 split into 7 individual rows. Each `| <version> |` entry now on its own physical line. Root cause: write-tool artifact from fix-burst-31 §Changelog update — 4 rows concatenated onto line 1055 (v1.22+v1.21+v1.20+v1.19) and 3 rows onto line 1056 (v1.18+v1.17+v1.16).
+
+**F-LP34-MED-001 CLOSED (story-writer):** 4 active-body `§Canonical Structured Event Catalog` phantom-heading references (lines 260/300/466/918) rewritten to `§Postconditions (Canonical Structured Event Catalog bullet, v1.12)` — making BC ##-heading ancestry explicit. 3rd fix-burst-closure-introduced drift instance in cascade (fix-burst-25→pass-27; fix-burst-29→pass-32; fix-burst-31→pass-34). Now addressed.
+
+**F-LP34-LOW-001 CLOSED (state-manager):** VP-INDEX VP-152 (line 174) and VP-PLUGIN-007 (line 190) descriptions rewritten from "not-None" Option-semantics to "explicit Vec<String> under default-deny semantics". VP-INDEX v1.34→v1.35. Story §References line 1034 mirror updated same-burst per POL-9.
+
+VP-INDEX cross-document propagation: sibling sweep confirmed ZERO active-body "not-None" hits after fix (line 235 historical changelog, exempt TD-VSDD-091). Story active-body "Allowlist not-None" — ZERO hits after fix.
+
+F-LP34-OBS-001 (Codification #14 bold-labeled bullet anchor treatment) + F-LP34-OBS-002 (markdown-table row-delimiter integrity sweep) both routed cycle-close session-reviewer queue.
+
+#### Artifact State After Fix-Burst-32 CLOSED (D-533)
+
+| Artifact | Version | Change | Path |
+|----------|---------|--------|------|
+| Story S-PLUGIN-PREREQ-D | v1.32 | v1.31 → v1.32 | `.factory/stories/S-PLUGIN-PREREQ-D-plugin-runtime-boot-wiring.md` |
+| VP-INDEX | v1.35 | v1.34 → v1.35 | `.factory/specs/verification-properties/VP-INDEX.md` |
+| STORY-INDEX | v2.102 | v2.101 → v2.102 | `.factory/stories/STORY-INDEX.md` |
+| STATE.md | v7.238 | v7.237 → v7.238 | `.factory/STATE.md` |
+| SESSION-HANDOFF.md | v7.238 | v7.237 → v7.238 | `.factory/SESSION-HANDOFF.md` |
+| Fix-burst-32 report | NEW | Created | `.factory/cycles/wave-4-operations/adversarial-reviews/S-PLUGIN-PREREQ-D-fix-burst-32.md` |
+| BC-2.17.002 | v1.7 (draft) | UNCHANGED | `.factory/specs/behavioral-contracts/BC-2.17.002-plugin-sandbox-filesystem.md` |
+| BC-INDEX | v4.73 | UNCHANGED | `.factory/specs/behavioral-contracts/BC-INDEX.md` |
+| error-taxonomy | v1.21 | UNCHANGED | `.factory/specs/prd-supplements/error-taxonomy.md` |
+| factory-artifacts HEAD | D-533 | `git -C .factory log -1 --format='%H'` | — |
+| develop HEAD | unchanged | 95d46be2 | — |

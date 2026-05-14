@@ -1,7 +1,7 @@
 ---
 document_type: verification-property-index
 level: L4
-version: "1.34"
+version: "1.35"
 status: draft
 producer: product-owner
 timestamp: 2026-05-11T00:00:00
@@ -171,7 +171,7 @@ total_vps: 152
 | VP-149 | Boot warning fires on unsigned plugin load (v1.0 scope) — VP-PLUGIN-004 alias | prism-spec-engine | integration_test | P0 | draft | PLUGIN-PREREQ-D |
 | VP-150 | OAuth2 refresh-on-401 via declarative TOML retry policy (PipelineExecutor) — VP-PLUGIN-005 alias | prism-spec-engine | integration_test | P0 | draft | S-PLUGIN-PREREQ-B |
 | VP-151 | OCSF column mapping fixture catalog (6 representative cases, SpecDrivenMapper) — VP-PLUGIN-006 alias | prism-spec-engine | integration_test | P1 | draft | PLUGIN-MIGRATION-001-C |
-| VP-152 | Plugin manifest allowlist not-None after PREREQ-D (allowed_urls enforcement) — VP-PLUGIN-007 alias | prism-spec-engine | integration_test | P0 | draft | PLUGIN-PREREQ-D |
+| VP-152 | Plugin manifest allowlist explicit Vec<String> after PREREQ-D (allowed_urls enforcement under default-deny semantics) — VP-PLUGIN-007 alias | prism-spec-engine | integration_test | P0 | draft | PLUGIN-PREREQ-D |
 
 ## VP-PLUGIN-001..007 Named Series (PREREQ-F Registration, ADR-023 §Architectural Constraints)
 
@@ -187,7 +187,7 @@ F-PASS3-HIGH-001. The numeric VP-146..VP-152 entries above are the sequential in
 | VP-PLUGIN-004 | VP-149 | Boot warning fires on unsigned plugin load (v1.0 scope): WARN-level log + audit log entry event_type=plugin_load_unsigned on every startup with plugins present | prism-spec-engine | integration_test | P0 | draft | PLUGIN-PREREQ-D |
 | VP-PLUGIN-005 | VP-150 | OAuth2 refresh-on-401 via declarative TOML retry policy (PipelineExecutor) | prism-spec-engine | integration_test | P0 | draft | S-PLUGIN-PREREQ-B |
 | VP-PLUGIN-006 | VP-151 | OCSF column mapping fixture catalog (6 representative cases, SpecDrivenMapper): all 13 mapping patterns covered, byte-equal post-canonicalization per TS-PLUGIN-PARITY-001 | prism-spec-engine | integration_test | P1 | draft | PLUGIN-MIGRATION-001-C |
-| VP-PLUGIN-007 | VP-152 | Plugin manifest allowlist not-None after PREREQ-D: manifest without allowed_urls field rejected at load time; allowed_urls=[] blocks all HTTP; non-empty list enforces host-only allowlist | prism-spec-engine | integration_test | P0 | draft | PLUGIN-PREREQ-D |
+| VP-PLUGIN-007 | VP-152 | Plugin manifest allowlist explicit Vec<String> after PREREQ-D: manifest without allowed_urls field rejected at load time per AC-7 default-deny; allowed_urls=[] blocks all HTTP; non-empty list enforces host-only allowlist | prism-spec-engine | integration_test | P0 | draft | PLUGIN-PREREQ-D |
 
 ## Summary
 
@@ -231,6 +231,7 @@ S-1.02 frontmatter has been updated to `subsystems: [SS-03, SS-07, SS-11, SS-12,
 
 | Version | Burst | Date | Author | Change |
 |---------|-------|------|--------|--------|
+| 1.35 | 2026-05-14 | state-manager | F-LP34-LOW-001 closure: VP-152 + VP-PLUGIN-007 descriptions rewritten from pre-AC-7 "not-None" Option-semantics to post-AC-7 "explicit Vec<String> under default-deny" semantic; reflects AC-7 + AC-17 type-system contract change (Option<Vec<String>> → Vec<String>). Cross-document propagation: story §References:1034 mirror updated same-burst per POL-9. | D-533 |
 | 1.34 | F-LP2-LOW-006-fix | 2026-05-13 | architect | F-LP2-LOW-006 closure: removed stale trailing annotation "— VP-150 number" from VP-PLUGIN-005 named-alias description row. Sibling rows VP-PLUGIN-001..004/006/007 carry no trailing annotation; VP-PLUGIN-005 now matches the established convention. No semantic change — description content is identical to v1.33 corrected text. |
 | 1.33 | F-LP1-CRITICAL-001-fix | 2026-05-13 | architect | F-LP1-CRITICAL-001 closure: corrected 4 mis-anchored VP-PLUGIN-NNN named-alias rows per ADR-023 §E canonical definitions. VP-PLUGIN-001 (VP-146): was "SensorId open-newtype replaces SensorType" → now "No production hardcoded sensor references (FORBIDDEN-SYMBOLS-001 compile-fail perimeter)". VP-PLUGIN-004 (VP-149): was "TOML grammar accepts four new constructs" → now "Boot warning fires on unsigned plugin load (v1.0 scope)". VP-PLUGIN-006 (VP-151): was "Cross-sensor auth-composition rejection — DI-012 rules" → now "OCSF column mapping fixture catalog (6 representative cases, SpecDrivenMapper)". VP-PLUGIN-007 (VP-152): was "Zero hardcoded CustomAdapter Rust adapters" → now "Plugin manifest allowlist not-None after PREREQ-D". VP-PLUGIN-002/003/005 verified correct. Added total_vps: 152 to frontmatter for hook anchor. Sequential VP-146..VP-152 rows and verification-architecture.md/verification-coverage-matrix.md already carried correct descriptions — named-alias table was the sole drift location. |
 | 1.32 | prereq-b-fix-burst-6 | 2026-05-11 | state-manager | D-410 F-LP6-HIGH-001+HIGH-002 closure: VP-PLUGIN-002 numbered row (VP-INDEX:168) anchor corrected PLUGIN-MIGRATION-001-D→S-PLUGIN-PREREQ-B and description corrected to "PipelineExecutor::execute returns non-empty records against wiremock DTU clone"; VP-PLUGIN-005 numbered row (line 171) anchor corrected to S-PLUGIN-PREREQ-B; VP-PLUGIN-005 named-alias row (line 187) description rewritten to OAuth2 refresh-on-401 + anchor corrected to S-PLUGIN-PREREQ-B; internal contradiction between lines 171 and 187 eliminated (commits 1474a682 + 99a6b07a). |
