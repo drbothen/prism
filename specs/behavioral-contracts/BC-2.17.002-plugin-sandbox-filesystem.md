@@ -1,7 +1,7 @@
 ---
 document_type: behavioral-contract
 level: L3
-version: "1.6"
+version: "1.7"
 status: draft
 producer: product-owner
 timestamp: 2026-05-14T00:00:00
@@ -82,7 +82,7 @@ interfaces are deliberately NOT linked to plugin instances. This is INV-PLUGIN-0
 |----|-------------|-------------------|
 | EC-17-005 | Plugin binary compiled with WASI imports present | At `load_plugin` time, `wasmtime::component::Linker::instantiate_pre` fails because WASI imports are unsatisfied → `E-PLUGIN-001` rejection; plugin not registered |
 | EC-17-006 | Plugin calls `host::http_request` with URL in allowlist | Request executed via `HostState.http_client` (reqwest); response returned to plugin; audit log entry created |
-| EC-17-007 | Plugin calls `host::http_request` when allowed_urls is empty (`vec![]`) | Request denied; `PluginError::AllowlistRejected` returned; audit log entry created (default-deny per AC-7 of S-PLUGIN-PREREQ-D under `Vec<String>` field-type contract); host-only `==` comparison against allowlist entries; empty allowlist → no host matches → deny |
+| EC-17-007 | Plugin calls `host::http_request` when allowed_urls is empty (`vec![]`) | Request denied; `host_http_request` returns `HttpResponse { status: 403, ... }` synchronously (existing E-PLUGIN-005 SandboxViolation semantics per AC-7 of S-PLUGIN-PREREQ-D under `Vec<String>` field-type contract); audit log entry created via `tracing::warn!(event_type = "plugin_http_request_blocked", ...)`; host-only `==` comparison against allowlist entries; empty allowlist → no host matches → deny |
 | EC-17-008 | Plugin calls `host::kv_get` / `host::kv_set` | KV operations execute against `HostState.kv_store`, scoped to `"{plugin_id}:{key}"`. No cross-plugin KV access. |
 
 ## Canonical Test Vectors
@@ -136,6 +136,7 @@ Integration test: `tests/plugin_tests.rs` — "Verify `host::http_request` proxy
 
 | Version | Burst | Date | Author | Change |
 |---------|-------|------|--------|--------|
+| 1.7 | fix-burst-30-stage-1 | 2026-05-14 | product-owner | F-LP32-CRIT-001 closure (Path A: existing-semantics-alignment): EC-17-007 amended to remove fabricated `PluginError::AllowlistRejected` variant introduced in v1.6 fix-burst-29 (the variant does not exist in crates/prism-core/src/error.rs PluginError enum which has 8 real variants: Trapped/Timeout/MemoryExceeded/NotLoaded/InvalidInterface/SandboxViolation/CompilationFailed/EmptyPluginId; not in error-taxonomy.md; not in story §Error Taxonomy Additions; not in AC-7 prescription). Replaced with existing E-PLUGIN-005 SandboxViolation semantics: `host_http_request` returns `HttpResponse { status: 403, ... }` synchronously aligning with AC-7's "HTTP 403 returned" prescription and existing host_functions.rs:64-68 implementation. Audit-log mechanism documented via `tracing::warn!(event_type = "plugin_http_request_blocked", ...)`. Path A adjudication: zero new error variant + zero signature change + zero new scope per CLAUDE.md Canonical Principle Rule 2. fix-burst-30 stage-1 product-owner scope (parallel to story-writer line 419 + changelog + §BC Amendments Landed retrospective). |
 | 1.6 | fix-burst-29-stage-1 | 2026-05-14 | product-owner | F-LP31-HIGH-002 (cross-spec security-semantic alignment with S-PLUGIN-PREREQ-D AC-7 default-deny under `Vec<String>` field-type contract): EC-17-007 rewritten from pre-AC-7 "Request allowed to any URL (open by default)" to post-AC-7 "Request denied; `PluginError::AllowlistRejected` returned; audit log entry created (default-deny per AC-7); host-only `==` comparison; empty allowlist → no host matches → deny". Per CLAUDE.md Source-of-Truth Precedence Rule 1, BC text must align with contract semantics post-AC-7 to prevent security drift. fix-burst-29 stage-1 product-owner scope (parallel to story-writer §BC Amendments directive). |
 | 1.5 | fix-burst-7-stage-1A | 2026-05-13 | product-owner | F-LP8-HIGH-001 + F-LP8-LOW-001 closure (Path B): `lifecycle_status: active` → `lifecycle_status: draft`. BC-INDEX v4.68 rows confirm `draft` status; S-PLUGIN-PREREQ-D is pre-merge — no story PR has merged with this BC in its `behavioral_contracts:` array. `lifecycle_status: active` was set in Wave-6-pre-build-sweep v1.1 pre-POL-14 canonicalization (legacy artifact). Per POL-14 (`bc_vp_promotion_on_anchor_merge`), auto-promotion to `active` will occur at S-PLUGIN-PREREQ-D PR merge. |
 | 1.4 | fix-burst-6-stage-1 | 2026-05-13 | product-owner | F-LP7-MED-001 closure: E-PLUGIN-005 timeout corrected from "10s per request limit" → "30s per request limit" per ADR-023 §C4 canonical plugin HTTP defaults. The 30s value matches `PLUGIN_HTTP_CLIENT_TIMEOUT_SECS = 30` constant in story AC-9 (S-PLUGIN-PREREQ-D) and the operational value enforced by the production reqwest::Client. No 10s load-bearing assertion exists — the 10s value was a spec authoring error. |

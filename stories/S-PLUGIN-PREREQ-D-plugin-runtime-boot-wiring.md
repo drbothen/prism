@@ -53,10 +53,10 @@ target_module: prism-bin
 #   subsystems: [SS-16, SS-01], any story anchoring BC-2.16.002 must list SS-16.
 subsystems: [SS-22, SS-17, SS-16]
 capabilities: [CAP-029, CAP-032, CAP-034]
-version: "1.29"
+version: "1.30"
 level: "L4"
 producer: story-writer
-timestamp: "2026-05-14T10:00:00Z"
+timestamp: "2026-05-14T13:00:00Z"
 updated: "2026-05-14"
 input-hash: "6954524"
 traces_to: []
@@ -416,7 +416,7 @@ Integration tests that need HTTP mocking construct their own test-scoped client 
 directly into `PluginRuntime::new(...)` in the test setup (already done in PREREQ-B test
 conventions).
 
-> **Closed by BC-2.17.002 v1.4 amendment (fix-burst-6); current pinned version v1.5 (fix-burst-7 lifecycle_status-only sweep):** BC-2.17.002 E-PLUGIN-005 timeout
+> **Closed by BC-2.17.002 v1.4 amendment (fix-burst-6); current pinned version v1.7 (fix-burst-30 phantom-variant removal per F-LP32-CRIT-001):** BC-2.17.002 E-PLUGIN-005 timeout
 > updated from 10s to 30s by product-owner in fix-burst-6 stage 1, aligning with ADR-023 §C4
 > and `PLUGIN_HTTP_CLIENT_TIMEOUT_SECS = 30`. No cross-doc gap remains.
 
@@ -993,26 +993,17 @@ Extracted from architecture documents and ADRs:
 | Arc-DI for all constructor injection | ADR-022 | Code review |
 | prism-spec-engine MUST NOT depend on prism-storage or prism-audit | Forbidden dependency | cargo deny / code review |
 
-## BC Amendments In-Scope
+## BC Amendments Landed
 
-The following Behavioral Contract amendments MUST land in the same fix-burst as AC-7's default-deny semantics (i.e., the PR that merges this story):
+The following Behavioral Contract amendments landed alongside this story's pre-merge polish (fix-burst-29 + fix-burst-30):
 
-### BC-2.17.002 v1.5 → v1.6 — EC-17-007 default-deny alignment
+### BC-2.17.002 v1.5 → v1.6 → v1.7 — EC-17-007 default-deny alignment
 
-**Current EC-17-007 (BC-2.17.002 v1.5 line 85):**
-> Plugin calls `host::http_request` when no allowlist is configured | Request allowed to any URL (open by default); audit log entry created
+**v1.6 (fix-burst-29 stage-1, 2026-05-14):** EC-17-007 rewritten from pre-AC-7 allow-all semantics ("Request allowed to any URL (open by default)") to post-AC-7 default-deny semantics. AC-7 + AC-17 establish that `allowed_urls: Vec<String>` makes "no allowlist configured" representationally impossible — `vec![]` means "empty allowlist → deny all URLs" (default-deny).
 
-**Problem:** This describes pre-AC-7 allow-all semantics. After AC-7 lands, `allowed_urls: Vec<String>` makes "no allowlist configured" representationally impossible — `vec![]` means "empty allowlist → deny all URLs" (default-deny). Per CLAUDE.md Source-of-Truth Precedence Rule 1, BC text supersedes when conflict is contract semantics — leaving the stale EC-17-007 in BC-2.17.002 v1.5 creates security drift risk where future readers could argue allow-all default from the BC text.
+**v1.7 (fix-burst-30 stage-1, 2026-05-14, F-LP32-CRIT-001 closure):** EC-17-007 amended to remove fabricated `PluginError::AllowlistRejected` variant reference (the variant does not exist in `crates/prism-core/src/error.rs` PluginError enum, in error-taxonomy.md, or in AC-7's prescription). EC-17-007 now uses existing `E-PLUGIN-005 SandboxViolation` semantics aligned with AC-7's prescribed "HTTP 403 returned" behavior and existing `host_http_request` synchronous-return code path. Zero new error variant introduced.
 
-**Required amendment (BC-2.17.002 v1.6):**
-- Replace EC-17-007 with: `Plugin calls 'host::http_request' when allowed_urls is empty (vec![]) | Request denied; PluginError::AllowlistRejected returned; audit log entry created (default-deny per AC-7)`
-- Update BC-2.17.002 frontmatter: `version: "1.5"` → `version: "1.6"`
-- Add v1.6 changelog row noting EC-17-007 alignment with AC-7 default-deny + Source-of-Truth Precedence Rule 1
-- Update BC-INDEX BC-2.17.002 row from v1.5 to v1.6
-
-This amendment is routed to product-owner in the same fix-burst as this story-writer edit (per CLAUDE.md Agent Routing: BC content is product-owner-scope).
-
-**Routing per CLAUDE.md:** product-owner owns BC content amendments; story-writer owns this §BC Amendments directive in story body.
+**Routing per CLAUDE.md:** product-owner owns BC content amendments; story-writer owns this §BC Amendments Landed retrospective section in story body.
 
 ## Library and Framework Requirements
 
@@ -1053,9 +1044,10 @@ Do NOT invent version numbers. All versions above are confirmed from `crates/pri
 
 | Version | Burst | Date | Author | Change |
 |---------|-------|------|--------|--------|
-| 1.29 | 2026-05-14 | story-writer | F-LP31-HIGH-001 (POL-7 axis EXTENSION): §Error Taxonomy Additions table E-PLUGIN-013 + E-PLUGIN-014 message templates aligned to canonical (matching AC-5 body + error-taxonomy.md); E-PLUGIN-015/016 unchanged (already verbatim). F-LP31-HIGH-002 STORY SITE: new §BC Amendments In-Scope section added directing product-owner to amend BC-2.17.002 v1.5→v1.6 EC-17-007 to align with AC-7 default-deny semantics per Source-of-Truth Precedence Rule 1 (security-semantic cross-spec drift mitigation). F-LP31-MED-001: AC-15 §Credential Safety AuthToken Debug example aligned to existing code at auth_provider.rs:68 ('AuthToken(<redacted>)' angle-bracket form). fix-burst-29 stage-1 story-writer scope; product-owner BC amendment dispatched in parallel. |
-| 1.28 | 2026-05-14 | story-writer | F-LP30-MED-001 (POL-7, codification #13 sub-extension): §References section appended BC-2.16.002 entry (verbatim H1 "Multi-Step Fetch Pipeline Execution — Sequential Steps with Variable Interpolation") between ADR-023 §C4 and BC-2.17.001 in alphanumeric BC-ID order. Cross-table completeness gap: BC-2.16.002 was anchored in `behavioral_contracts:` since v1.2 (fix-burst-2) and appears verbatim in body BC table line 260, but never landed in §References. Total §References BC entries: 8 → 9 (8 `behavioral_contracts:` anchored + BC-2.17.005 exclusion-note per Codification #15). fix-burst-28 stage-1. |
-| 1.27 | 2026-05-13 | story-writer | F-LP29-MED-001 (POL-7, codification #13 extension): story line 269 BC-2.17.005 title appended ", In-Flight Calls Complete Against Old Version" to make verbatim BC H1 / BC-INDEX line 219 / §References line 1016. 5th POL-7 recurrence; fix-burst-26 §References sweep targeted anchored BCs only (behavioral_contracts: array), missed exclusion-note paragraph for non-anchored BC-2.17.005. Sibling-site sweep: "Atomic Module Swap" now appears at line 269 (verbatim, fixed) + line 1016 (verbatim, unchanged) + changelog rows (historical). Zero active-body paraphrase instances remain. fix-burst-27 stage-1. |
+| 1.30 | fix-burst-30 stage-1 | 2026-05-14 | story-writer | F-LP32-MED-001: AC-9 closure note line 419 stale BC-2.17.002 v1.5 pin updated to v1.7 (fix-burst-30 phantom-variant removal closure). F-LP32-MED-002: §Changelog rows 1.27/1.28/1.29 schema-corruption fix — added Burst column values (fix-burst-27/28/29 stage-1) restoring 5-cell schema parity with rows 1.26+. F-LP32-OBS-001: §BC Amendments In-Scope retrospectively reframed past-tense as §BC Amendments Landed documenting v1.6 (fix-burst-29) and v1.7 (fix-burst-30) amendments. Product-owner BC-2.17.002 v1.6→v1.7 EC-17-007 phantom-variant removal dispatched in parallel. fix-burst-30 stage-1 story-writer scope. |
+| 1.29 | fix-burst-29 stage-1 | 2026-05-14 | story-writer | F-LP31-HIGH-001 (POL-7 axis EXTENSION): §Error Taxonomy Additions table E-PLUGIN-013 + E-PLUGIN-014 message templates aligned to canonical (matching AC-5 body + error-taxonomy.md); E-PLUGIN-015/016 unchanged (already verbatim). F-LP31-HIGH-002 STORY SITE: new §BC Amendments In-Scope section added directing product-owner to amend BC-2.17.002 v1.5→v1.6 EC-17-007 to align with AC-7 default-deny semantics per Source-of-Truth Precedence Rule 1 (security-semantic cross-spec drift mitigation). F-LP31-MED-001: AC-15 §Credential Safety AuthToken Debug example aligned to existing code at auth_provider.rs:68 ('AuthToken(<redacted>)' angle-bracket form). fix-burst-29 stage-1 story-writer scope; product-owner BC amendment dispatched in parallel. |
+| 1.28 | fix-burst-28 stage-1 | 2026-05-14 | story-writer | F-LP30-MED-001 (POL-7, codification #13 sub-extension): §References section appended BC-2.16.002 entry (verbatim H1 "Multi-Step Fetch Pipeline Execution — Sequential Steps with Variable Interpolation") between ADR-023 §C4 and BC-2.17.001 in alphanumeric BC-ID order. Cross-table completeness gap: BC-2.16.002 was anchored in `behavioral_contracts:` since v1.2 (fix-burst-2) and appears verbatim in body BC table line 260, but never landed in §References. Total §References BC entries: 8 → 9 (8 `behavioral_contracts:` anchored + BC-2.17.005 exclusion-note per Codification #15). fix-burst-28 stage-1. |
+| 1.27 | fix-burst-27 stage-1 | 2026-05-13 | story-writer | F-LP29-MED-001 (POL-7, codification #13 extension): story line 269 BC-2.17.005 title appended ", In-Flight Calls Complete Against Old Version" to make verbatim BC H1 / BC-INDEX line 219 / §References line 1016. 5th POL-7 recurrence; fix-burst-26 §References sweep targeted anchored BCs only (behavioral_contracts: array), missed exclusion-note paragraph for non-anchored BC-2.17.005. Sibling-site sweep: "Atomic Module Swap" now appears at line 269 (verbatim, fixed) + line 1016 (verbatim, unchanged) + changelog rows (historical). Zero active-body paraphrase instances remain. fix-burst-27 stage-1. |
 | 1.26 | fix-burst-26 stage-1 | 2026-05-13 | story-writer | F-LP28-MED-001 (POL-4, story site): phantom §-section "BC-2.16.002 §S-PLUGIN-PREREQ-D AC-16" replaced with "BC-2.16.002 §Canonical Structured Event Catalog row pipeline_max_requests_exceeded (anchored by AC-16 of S-PLUGIN-PREREQ-D)" at line 918; product-owner handles error-taxonomy.md:464 sibling drift in parallel. F-LP28-MED-002 (POL-4): AC-16 trace header at line 466 "BC-2.16.002 preconditions" replaced with "BC-2.16.002 §Canonical Structured Event Catalog row pipeline_max_requests_exceeded" — preconditions doesn't contain MAX_REQUESTS_PER_PIPELINE; cap introduced by AC-16, emission documented in catalog. F-LP28-LOW-001: Token Budget BC count 8→9 (BC-2.17.005 in inputs since fix-burst-25 not propagated to Token Budget row); row recomputed ~12,000→~13,500; Total 40,900→42,400; percentage 16.0%→16.6%. F-LP28-LOW-003: inputs prepended ADR-022-production-runtime-wiring.md (cited ~17 times throughout story but missing from inputs). fix-burst-26 stage-1 story-writer scope. |
 | 1.25 | fix-burst-25 stage-1 | 2026-05-13 | story-writer | F-LP27-MED-001 (POL-4): subsystems: [SS-22, SS-17] → [SS-22, SS-17, SS-16] (SS-16 added per BC-2.16.002 subsystem: SS-16 + S-PLUGIN-PREREQ-B precedent + AC-16 MAX_REQUESTS_PER_PIPELINE in prism-spec-engine/src/pipeline.rs SS-16 territory); YAML comment block updated with SS-16 justification; anchor_subsystem updated symmetrically. F-LP27-MED-002 (CLAUDE.md production-grade): PluginError #[non_exhaustive] conditional MVP-hedge language replaced with direct prescription — PluginError MUST be marked #[non_exhaustive] same-commit as new variants (aligns PrismError at error.rs:15-17 sibling + 30+-type perimeter audit); §non_exhaustive Requirements section updated to include PluginError enum-level as explicit unconditional requirement. F-LP27-MED-003 (POL-7): §References section rewritten with verbatim BC H1 titles for all 8 BCs (was 7/8 paraphrased — sibling pattern to codification #12); BC-2.17.007 parenthetical annotation preserved. F-LP27-LOW-001: inputs: appended BC-2.17.005-plugin-hot-reload-atomic-swap.md (cited at body line 980 + §References but absent from inputs since fix-burst-23). fix-burst-25 stage-1. |
 | 1.24 | fix-burst-24 stage-1 | 2026-05-13 | story-writer | F-LP26-MED-001 BC-2.16.002 body BC table title (line 254) canonicalized: paraphrased sub-scope "Multi-Step Fetch Pipeline — Structured Event Catalog" → verbatim BC H1 + BC-INDEX "Multi-Step Fetch Pipeline Execution — Sequential Steps with Variable Interpolation" per POL-7. Primary Coverage cell unchanged (story-specific sub-scope label preserved there). 7 other BCs in same table already verbatim; only BC-2.16.002 had asymmetric deviation. fix-burst-24 stage-1. |

@@ -1,7 +1,7 @@
 ---
 document_type: behavioral-contract-index
 level: L3
-version: "4.72"
+version: "4.73"
 status: draft
 producer: product-owner
 timestamp: 2026-05-14T00:00:00
@@ -213,7 +213,7 @@ Phase 3-patch additions (2026-04-16): 22 new BCs added in Burst 1 to close trace
 | BC-2.16.009 | Spec File Validation — Schema Validation, Variable Reference Resolution, OCSF Field Validation | 16 - Spec Engine | CAP-029 | P0 | draft |
 | BC-2.16.010 | `list_sensor_specs` MCP Tool — List Loaded Sensor Specs with Table Schemas and Status | 16 - Spec Engine | CAP-029 | P0 | draft |
 | BC-2.17.001 | Plugin Panic Isolation — Crashed Plugin Does Not Terminate Host Process | 17 - WASM Plugin Runtime | CAP-032 | P0 | draft (lifecycle_status: draft — Path B: BC-INDEX draft; no POL-14 merge event; corrected fix-burst-7 stage 1A) | v1.3 |
-| BC-2.17.002 | Plugin Sandbox — No Direct Filesystem or Network Access | 17 - WASM Plugin Runtime | CAP-032 | P0 | draft (lifecycle_status: draft — Path B: BC-INDEX draft; no POL-14 merge event; corrected fix-burst-7 stage 1A) | v1.6 |
+| BC-2.17.002 | Plugin Sandbox — No Direct Filesystem or Network Access | 17 - WASM Plugin Runtime | CAP-032 | P0 | draft (lifecycle_status: draft — Path B: BC-INDEX draft; no POL-14 merge event; corrected fix-burst-7 stage 1A) | v1.7 |
 | BC-2.17.003 | Plugin Sandbox — Memory Limit Enforced Per Plugin Instance (default 64MB) | 17 - WASM Plugin Runtime | CAP-032 | P0 | draft (lifecycle_status: draft — Path B: BC-INDEX draft; no POL-14 merge event; corrected fix-burst-7 stage 1A) | v1.4 |
 | BC-2.17.004 | Plugin Sandbox — CPU Time Limit Enforced via Epoch Interruption (default 5s) | 17 - WASM Plugin Runtime | CAP-032 | P0 | draft (lifecycle_status: draft — Path B: BC-INDEX draft; no POL-14 merge event; corrected fix-burst-7 stage 1A) | v1.4 |
 | BC-2.17.005 | Plugin Hot Reload — Atomic Module Swap, In-Flight Calls Complete Against Old Version | 17 - WASM Plugin Runtime | CAP-030, CAP-032 | P0 | draft |
@@ -360,6 +360,8 @@ Phase 3-patch additions (2026-04-16): 22 new BCs added in Burst 1 to close trace
 - Subsystem 19: Infusion Enrichment Framework (AD-020, CAP-031)
 
 ### Change Log (Adversarial Review Fixes)
+
+**v4.73 (2026-05-14):** fix-burst-30 stage-1 product-owner — BC-2.17.002 v1.6→v1.7: EC-17-007 phantom variant removal (F-LP32-CRIT-001 closure, Path A: existing-semantics-alignment). Fabricated `PluginError::AllowlistRejected` introduced in v1.6 fix-burst-29 removed — variant does not exist in crates/prism-core/src/error.rs PluginError enum (8 real variants: Trapped/Timeout/MemoryExceeded/NotLoaded/InvalidInterface/SandboxViolation/CompilationFailed/EmptyPluginId), not in error-taxonomy.md, not in story §Error Taxonomy Additions, not in AC-7 prescription. Replaced with existing E-PLUGIN-005 SandboxViolation semantics: `host_http_request` returns `HttpResponse { status: 403, ... }` synchronously per AC-7 prescription and host_functions.rs:64-68. Audit-log mechanism documented via `tracing::warn!(event_type = "plugin_http_request_blocked", ...)`. Path A: zero new error variant, zero signature change, zero new scope. BC-INDEX row v1.6→v1.7. total_contracts=236 unchanged; active_contracts=229 unchanged.
 
 **v4.72 (2026-05-14):** fix-burst-29 stage-1 product-owner — BC-2.17.002 v1.5→v1.6: EC-17-007 default-deny alignment (F-LP31-HIGH-002). Pre-AC-7 "Request allowed to any URL (open by default)" semantics replaced with post-AC-7 default-deny semantics: "Request denied; `PluginError::AllowlistRejected` returned; audit log entry created; empty allowlist → no host matches → deny" per S-PLUGIN-PREREQ-D AC-7 + AC-17 `Vec<String>` field-type contract. BC-INDEX row v1.5→v1.6. total_contracts=236 unchanged; active_contracts=229 unchanged.
 
