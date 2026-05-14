@@ -1165,3 +1165,68 @@ The 5→2→1 pattern (passes 35→36→37) shows continued convergence-favorabl
 ### OBS-LP37-001 POL-25 Candidate HIGH-Priority
 
 The 4-burst cascade on the same anchor-string class (32→33→34→37) is the strongest evidence yet for POL-25 formalization. Proposed codification: when editing a BC whose AC text appears in VP-INDEX named-alias row descriptions, the SAME grep that finds BC body sites MUST also query VP-INDEX rows in the same burst. Dispatched to cycle-close session-reviewer as HIGH-priority (was MEDIUM from OBS-LP35-002; strengthened by 2 additional recurrences). **43rd consecutive single-commit (TD-VSDD-053 DECISIVELY STABLE).**
+
+---
+
+## §POST-PASS-38 COMBINED REIFY+CLOSE (D-539)
+
+### Summary
+
+Pass-38 BLOCKED (2 MED / 0 CRIT / 0 HIGH / 0 LOW / 1 OBS). Fix-burst-36 CLOSED both MED findings in the same commit (combined-burst variant, same pattern as D-538).
+
+### Root Cause: §Changelog Schema-Corruption META-class Recurrence
+
+Orchestrator dispatch prompt templates for D-533 (fix-burst-32) and D-538 (fix-burst-35) prescribed incorrect §Changelog row formats:
+- **VP-INDEX template defect:** Prescribed 4-cell rows omitting the Burst column; placed D-NNN as orphaned 6th cell after the Change cell. VP-INDEX header requires 5 columns: `| Version | Burst | Date | Author | Change |`.
+- **STORY-INDEX template defect:** Prescribed 4-cell rows placing D-NNN as orphaned 4th cell after the Summary cell. STORY-INDEX header requires 3 columns: `| Version | Date | Summary |`.
+
+State-manager correctly followed both templates, propagating the schema errors into v1.35 (D-533), v1.36 (D-538), and v2.102 (D-533) changelog rows.
+
+This is the 2nd cascade recurrence of the §Changelog schema-corruption META-class:
+- 1st recurrence: F-LP32-MED-002 (missing Burst column in rows 1.27/1.28/1.29) + F-LP34-HIGH-001 (merged rows without inter-row newlines) — both in PREREQ-D story §Changelog
+- 2nd recurrence: F-LP38-MED-001 (VP-INDEX v1.35/v1.36 Burst absent) + F-LP38-MED-002 (STORY-INDEX v2.102 orphan trailing cell)
+
+### Findings Closed
+
+| Finding | Severity | Artifact | Fix |
+|---------|----------|----------|-----|
+| F-LP38-MED-001 | MED | VP-INDEX §Changelog v1.35/v1.36 rows | Rewrote both rows to canonical 5-col schema; Burst column restored ("fix-burst-35"/"fix-burst-32"); D-NNN folded into Change cell as prefix |
+| F-LP38-MED-002 | MED | STORY-INDEX §Changelog v2.102 row | Removed trailing `| D-533 |` orphan cell; "(D-533)" folded into Summary cell as prefix |
+| OBS-LP38-001 | OBS | Process gap | POL-26 codification candidate (§Changelog schema-integrity validator) routed cycle-close; codification_candidates_active 24→25 |
+
+### META-NOTE for Future Dispatch Templates
+
+All future orchestrator dispatch prompt template examples for §Changelog row additions MUST specify:
+- **VP-INDEX:** 5-col schema `| Version | Burst | Date | Author | Change |` with D-NNN as prefix in Change cell
+- **STORY-INDEX:** 3-col schema `| Version | Date | Summary |` with D-NNN as prefix in Summary cell
+- D-NNN is NEVER a standalone trailing cell — always folded into the rightmost content cell as `(D-NNN)` prefix
+
+### Artifact State After D-539
+
+| Artifact | Version | Change | Path |
+|----------|---------|--------|------|
+| VP-INDEX | v1.37 | v1.36 → v1.37 | `.factory/specs/verification-properties/VP-INDEX.md` |
+| STORY-INDEX | v2.103 | v2.102 → v2.103 | `.factory/stories/STORY-INDEX.md` |
+| Story S-PLUGIN-PREREQ-D | v1.32 | UNCHANGED | `.factory/stories/S-PLUGIN-PREREQ-D-plugin-runtime-boot-wiring.md` |
+| BC-2.17.007 | v1.4 (draft) | UNCHANGED | `.factory/specs/behavioral-contracts/BC-2.17.007-plugin-manifest-schema-validation.md` |
+| error-taxonomy | v1.22 | UNCHANGED | `.factory/specs/prd-supplements/error-taxonomy.md` |
+| BC-INDEX | v4.75 | UNCHANGED | `.factory/specs/behavioral-contracts/BC-INDEX.md` |
+| STATE.md | v7.244 | v7.243 → v7.244 | `.factory/STATE.md` |
+| SESSION-HANDOFF.md | v7.244 | v7.243 → v7.244 | `.factory/SESSION-HANDOFF.md` |
+| pass-38 report | NEW | Created | `.factory/cycles/wave-4-operations/adversarial-reviews/S-PLUGIN-PREREQ-D-pass-38.md` |
+| fix-burst-36 report | NEW | Created | `.factory/cycles/wave-4-operations/adversarial-reviews/S-PLUGIN-PREREQ-D-fix-burst-36.md` |
+| factory-artifacts HEAD | D-539 | `git -C .factory log -1 --format='%H'` | — |
+| develop HEAD | unchanged | 95d46be2 | — |
+
+### Convergence Trajectory Note
+
+Trajectory through D-539: 4→1→4→5→1→1→3→4→5→5→5→2→1→2 (pass-25..pass-38).
+
+The 1→2 uptick (pass-37→38) is a §Changelog META-class recurrence, not a novel semantic finding. The AC-5 anchor closure from pass-37 held cleanly. Pass-39 adversary should:
+1. Verify VP-INDEX §Changelog v1.37/v1.36/v1.35 rows obey canonical 5-col schema
+2. Verify STORY-INDEX §Changelog v2.103/v2.102 rows obey canonical 3-col schema
+3. Sibling-sweep all other index documents for §Changelog schema deviations
+4. Confirm AC-5 anchor (pass-37 finding) still held
+5. Note POL-26 codification candidate for cycle-close queue
+
+Convergence zone maintained. 4 passes remaining per user directive minimum 10 (passes 35..38 = 6 of 10 done). **44th consecutive single-commit (TD-VSDD-053 DECISIVELY STABLE).**
