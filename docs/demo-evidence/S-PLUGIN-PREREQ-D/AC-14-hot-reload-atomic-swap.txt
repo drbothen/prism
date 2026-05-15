@@ -1,0 +1,33 @@
+AC-14 — Hot-reload atomic swap
+================================
+Story: S-PLUGIN-PREREQ-D (v1.37) | BC: BC-2.17.005 (API surface) | HEAD: 862e721a
+
+EVIDENCE TYPE: Test output (2 tests: success swap + failed-recompile retains old)
+
+This story delivers the programmatic hot_reload() API surface only. Boot notify
+watcher wiring is S-1.12-FOLLOWUP scope. The tests verify that:
+
+  1. Successful hot-reload atomically swaps the plugin registry (old components
+     replaced with new compiled versions; in-flight calls complete normally).
+  2. A failed recompile (e.g., corrupt .prx bytes) leaves the old registry
+     intact — the previous version continues serving calls.
+
+Both tests use ArcSwap-backed registry for lock-free atomic swap semantics.
+
+-------------------------------------------------------------------------------
+TEST OUTPUT: test_hot_reload_atomic_swap_success
+              test_hot_reload_failed_recompile_retains_old
+-------------------------------------------------------------------------------
+
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.27s
+────────────
+ Nextest run ID f36b77e6 with nextest profile: default
+    Starting 2 tests across 1 binary (32 tests skipped)
+        PASS [   0.022s] (1/2) prism-spec-engine::plugin_integration_tests test_hot_reload_failed_recompile_retains_old
+        PASS [   0.027s] (2/2) prism-spec-engine::plugin_integration_tests test_hot_reload_atomic_swap_success
+────────────
+     Summary [   0.027s] 2 tests run: 2 passed, 32 skipped
+
+RESULT: PASS — hot_reload() atomically replaces the plugin registry on success.
+        On recompile failure, the old registry is retained with no service
+        interruption. ArcSwap ensures lock-free reader access throughout.

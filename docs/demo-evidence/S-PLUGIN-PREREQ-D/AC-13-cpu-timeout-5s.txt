@@ -1,0 +1,34 @@
+AC-13 — CPU timeout 5s (epoch-based interruption)
+==================================================
+Story: S-PLUGIN-PREREQ-D (v1.37) | BC: BC-2.17.004 | INV: INV-PLUGIN-004 | HEAD: 862e721a
+
+EVIDENCE TYPE: Test output
+
+BC-2.17.004 / INV-PLUGIN-004: A plugin WASM component running an infinite loop
+must be interrupted within 5 seconds via Wasmtime epoch-based fuel/deadline
+interruption. The wasmtime Engine's epoch ticker is started once at
+PluginRuntime::new() and ticks at 1Hz. Each Store receives a deadline of 5 epochs.
+
+The test runs a component with an infinite loop and verifies it is interrupted
+within the timeout window (the test succeeds if the store returns a trap rather
+than hanging indefinitely).
+
+Note: The test runtime is 5.287s — this includes the full epoch wait time,
+which confirms the 5-second CPU timeout fires as specified.
+
+-------------------------------------------------------------------------------
+TEST OUTPUT: test_BC_2_17_004_cpu_timeout_enforced_infinite_loop
+-------------------------------------------------------------------------------
+
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.25s
+────────────
+ Nextest run ID ac4601e9 with nextest profile: default
+    Starting 1 test across 1 binary (33 tests skipped)
+        PASS [   5.287s] (1/1) prism-spec-engine::plugin_integration_tests test_BC_2_17_004_cpu_timeout_enforced_infinite_loop
+────────────
+     Summary [   5.287s] 1 test run: 1 passed, 33 skipped
+
+RESULT: PASS — Infinite-loop plugin component is interrupted after ~5s via
+        Wasmtime epoch interruption. The 5.287s test duration confirms the
+        5-second CPU timeout fires. INV-PLUGIN-004 satisfied: no plugin can
+        consume unbounded CPU time.

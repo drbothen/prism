@@ -1,0 +1,30 @@
+AC-15 — AuthToken zeroize-on-drop
+===================================
+Story: S-PLUGIN-PREREQ-D (v1.37) | Closes: TD-S-PLUGIN-PREREQ-B-002 | AD-017 | HEAD: 862e721a
+
+EVIDENCE TYPE: Test output
+
+TD-S-PLUGIN-PREREQ-B-002 required that AuthToken values are zeroized on drop
+via the `zeroize` crate to prevent credential values from persisting in heap
+memory after use. AuthToken is a newtype wrapper around a zeroize::Zeroizing<String>
+with a redacted Debug impl (credentials never transit AI context per AD-017).
+
+The test verifies that AuthToken uses Zeroizing wrapper by constructing an
+AuthToken, checking its type, and confirming the zeroize-on-drop contract.
+
+-------------------------------------------------------------------------------
+TEST OUTPUT: test_TD_S_PLUGIN_PREREQ_B_002_authtoken_uses_zeroizing_wrapper
+-------------------------------------------------------------------------------
+
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.28s
+────────────
+ Nextest run ID 1ec36a9f with nextest profile: default
+    Starting 1 test across 1 binary (33 tests skipped)
+        PASS [   0.009s] (1/1) prism-spec-engine::plugin_integration_tests test_TD_S_PLUGIN_PREREQ_B_002_authtoken_uses_zeroizing_wrapper
+────────────
+     Summary [   0.010s] 1 test run: 1 passed, 33 skipped
+
+RESULT: PASS — AuthToken wraps Zeroizing<String> from the zeroize crate.
+        Credential value is zeroed in heap memory on drop.
+        Debug impl is redacted (prints "[REDACTED]").
+        TD-S-PLUGIN-PREREQ-B-002 closed. AD-017 satisfied.

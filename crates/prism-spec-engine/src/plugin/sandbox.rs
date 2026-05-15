@@ -48,19 +48,25 @@ pub fn create_store(
     store
 }
 
-/// Lower-level helper used by VP-041 (proptest) to create a store with a specific memory limit.
-/// Uses the same `create_store` path as production code — both share the same limiter logic.
+/// Lower-level helper used by VP-041 (proptest) and Kani proofs to create a store with a
+/// specific memory limit. Uses the same `create_store` path as production code — both share
+/// the same limiter logic.
+///
+/// This is a test/proof helper; the HostState it constructs uses default-deny allowed_urls
+/// (empty Vec) which is appropriate for sandbox limit testing (no HTTP calls expected).
 pub fn create_store_with_limit(engine: &wasmtime::Engine, limit_mb: u64) -> Store<HostState> {
     use super::loader::{PluginConfigMap, PluginKvStore};
     use reqwest::Client;
     use std::sync::Arc;
 
+    // Construct directly (not via test_default) so this function is available outside
+    // #[cfg(test)] contexts (e.g., Kani proofs under #[cfg(kani)]).
     let host_state = HostState {
         http_client: Arc::new(Client::new()),
         config: Arc::new(PluginConfigMap::new()),
         kv_store: Arc::new(PluginKvStore::new()),
         plugin_id: "sandbox-test".to_string(),
-        allowed_urls: None,
+        allowed_urls: vec![], // default-deny: no HTTP calls needed for memory limit tests
         limits: wasmtime::StoreLimits::default(),
     };
 

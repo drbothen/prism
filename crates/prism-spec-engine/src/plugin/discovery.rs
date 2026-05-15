@@ -242,6 +242,9 @@ pub(crate) fn load_plugin_from_bytes(
         pre_instance,
         core_module,
         raw_bytes: bytes.to_vec(),
+        // Default-deny: discovery.rs does not parse manifests (that is load_all_plugins scope).
+        // Callers that need allowlist enforcement should use PluginRuntime::load_all_plugins.
+        allowed_urls: vec![],
     })
 }
 

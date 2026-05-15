@@ -1,0 +1,26 @@
+AC-08 — Linker import list validated (host functions registered)
+===============================================================
+Story: S-PLUGIN-PREREQ-D (v1.37) | BC: BC-2.17.002 | HEAD: 862e721a
+
+EVIDENCE TYPE: Test output
+
+BC-2.17.002 requires that all host function imports declared by the plugin WIT
+interface are registered in the Wasmtime linker. The test instantiates the
+Component Model and verifies the linker's import list matches the expected set
+of host functions (http_request, log, kv_get, kv_set, etc.).
+
+-------------------------------------------------------------------------------
+TEST OUTPUT: test_BC_2_17_002_linker_imports_match_host_functions
+-------------------------------------------------------------------------------
+
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.27s
+────────────
+ Nextest run ID 1d8da2ee with nextest profile: default
+    Starting 1 test across 1 binary (33 tests skipped)
+        PASS [   0.014s] (1/1) prism-spec-engine::plugin_integration_tests test_BC_2_17_002_linker_imports_match_host_functions
+────────────
+     Summary [   0.015s] 1 test run: 1 passed, 33 skipped
+
+RESULT: PASS — Linker imports match the expected host function set.
+        All declared WIT host functions are registered in the Wasmtime
+        Component Model linker per BC-2.17.002.

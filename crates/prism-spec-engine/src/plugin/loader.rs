@@ -91,6 +91,11 @@ pub struct LoadedPlugin {
     pub core_module: Option<wasmtime::Module>,
     /// Raw bytes of the original `.prx` file (used for core module re-instantiation).
     pub raw_bytes: Vec<u8>,
+    /// Per-plugin HTTP allowlist parsed from the manifest (AC-7 / VP-PLUGIN-007).
+    ///
+    /// Empty Vec = default-deny (no outbound HTTP). Stored here so `enrich_single`,
+    /// `enrich_batch`, and other callers can pass it to `make_host_state()`.
+    pub allowed_urls: Vec<String>,
 }
 
 /// Thread-safe host state passed to every plugin invocation via `wasmtime::Store`.
@@ -98,15 +103,96 @@ pub struct LoadedPlugin {
 /// The `limits` field is wired as the `ResourceLimiter` on the Store via
 /// `Store::limiter()` in `create_store()`, enforcing the 64 MiB memory cap
 /// (BC-2.17.003 / INV-PLUGIN-003) on every WASM linear memory grow operation.
+///
+/// Marked `#[non_exhaustive]` per project convention (CLAUDE.md) — external callers
+/// must use `HostState::test_default()` (test-gated) and functional update syntax.
+/// AC-17: `allowed_urls: Vec<String>` replaces `Option<Vec<String>>`; default-deny
+/// semantics: `vec![]` = deny all outbound HTTP (VP-PLUGIN-007).
+#[non_exhaustive]
 pub struct HostState {
     pub http_client: Arc<Client>,
     pub config: Arc<PluginConfigMap>,
     pub kv_store: Arc<PluginKvStore>,
     pub plugin_id: String,
-    pub allowed_urls: Option<Vec<String>>,
+    /// Per-plugin HTTP allowlist (AC-7 / AC-17 / VP-PLUGIN-007).
+    ///
+    /// REQUIRED field (Vec<String>, not Option). Default-deny semantics:
+    /// - `vec![]` (empty) → deny ALL outbound HTTP from this plugin (default).
+    /// - `vec!["api.example.com"]` → allow only `api.example.com`.
+    ///
+    /// Populated from the plugin manifest `allowed_urls` field by `make_host_state()`.
+    pub allowed_urls: Vec<String>,
     /// ResourceLimiter state — wired via `Store::limiter()` in `create_store()`.
     /// Default (no limit) until `create_store` configures it with `StoreLimitsBuilder`.
     pub limits: wasmtime::StoreLimits,
+}
+
+#[cfg(any(test, feature = "test-helpers"))]
+impl HostState {
+    /// Test-only constructor returning a `HostState` with safe defaults.
+    ///
+    /// Production callers use `make_host_state()` with explicit field values populated
+    /// from the plugin manifest. This constructor is ONLY for tests and test-helpers.
+    ///
+    /// Defaults:
+    /// - `http_client`: bare `reqwest::Client::new()` (no 30s timeout — tests own their client)
+    /// - `config`: empty `PluginConfigMap`
+    /// - `kv_store`: fresh `PluginKvStore`
+    /// - `plugin_id`: `"test-plugin"`
+    /// - `allowed_urls`: `vec![]` (empty list = default-deny under AC-7 Vec<String> contract;
+    ///   tests that need allowlist enforcement must use `test_with_allowed_urls`)
+    /// - `limits`: `StoreLimits::default()` (no limit, overwritten by `create_store`)
+    ///
+    /// Feature-gated: `#[cfg(any(test, feature = "test-helpers"))]` — same gate as
+    /// `auth_provider.rs` test helpers per project convention.
+    pub fn test_default() -> Self {
+        HostState {
+            http_client: Arc::new(Client::new()),
+            config: Arc::new(PluginConfigMap::new()),
+            kv_store: Arc::new(PluginKvStore::new()),
+            plugin_id: "test-plugin".to_string(),
+            allowed_urls: vec![], // empty list = default-deny under AC-7 Vec<String> contract
+            limits: wasmtime::StoreLimits::default(),
+        }
+    }
+
+    /// Test-only constructor with a specific `plugin_id` and default-deny `allowed_urls`.
+    ///
+    /// Use when the test needs to identify the plugin (e.g., for log assertions) but doesn't
+    /// need a specific allowlist (default-deny behavior).
+    pub fn test_with_plugin_id(plugin_id: &str) -> Self {
+        HostState {
+            plugin_id: plugin_id.to_string(),
+            ..HostState::test_default()
+        }
+    }
+
+    /// Test-only constructor with specific `plugin_id` and `allowed_urls`.
+    ///
+    /// Use when the test needs both a specific plugin identity and a non-empty allowlist.
+    pub fn test_with_allowed_urls(plugin_id: &str, allowed_urls: Vec<String>) -> Self {
+        HostState {
+            plugin_id: plugin_id.to_string(),
+            allowed_urls,
+            ..HostState::test_default()
+        }
+    }
+
+    /// Test-only constructor with a custom `http_client`, `plugin_id`, and `allowed_urls`.
+    ///
+    /// Use when the test needs to inject a mock HTTP client (e.g., wiremock).
+    pub fn test_with_client(
+        http_client: Arc<Client>,
+        plugin_id: &str,
+        allowed_urls: Vec<String>,
+    ) -> Self {
+        HostState {
+            http_client,
+            plugin_id: plugin_id.to_string(),
+            allowed_urls,
+            ..HostState::test_default()
+        }
+    }
 }
 
 /// Load a compiled `wasmtime::component::Component` from `.prx` bytes.

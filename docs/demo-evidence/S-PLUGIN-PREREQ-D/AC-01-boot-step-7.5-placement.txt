@@ -1,0 +1,81 @@
+AC-01 — Plugin-load step 7.5 between storage and query-engine
+=============================================================
+Story: S-PLUGIN-PREREQ-D (v1.37) | BC: BC-2.22.001 | HEAD: 862e721a
+
+EVIDENCE TYPE: Source excerpt (crates/prism-bin/src/boot.rs) + test output
+
+-------------------------------------------------------------------------------
+SOURCE EXCERPT: crates/prism-bin/src/boot.rs — Module doc comment (lines 1-26)
+-------------------------------------------------------------------------------
+
+//! Boot sequence orchestrator for `prism start`.
+//!
+//! Implements the 11-step boot sequence specified in ADR-022 §B and wired to
+//! BC-2.22.001 (orchestration contract).  Steps 1–6 are fully implemented per
+//! the story's AC numbering.  Steps 7–11 are annotated `todo!()` stubs for
+//! sibling stories. Step 7.5 (plugin-load) is implemented by S-PLUGIN-PREREQ-D.
+//!
+//! # Sequencing Invariant (BC-2.22.001)
+//!
+//! ```text
+//! Step 1   [BLOCKING] Tracing init
+//! Step 2   [BLOCKING] Config load          (BC-2.06.011)
+//! Step 3   [BLOCKING] OrgRegistry init     (BC-2.21.001)
+//! Step 4   [BLOCKING] Sensor TOML spec load
+//! Step 5   [BLOCKING] Credential store init (BC-2.03.013)
+//! Step 6   [BLOCKING] Audit subsystem init  (BC-2.05.012)
+//! Step 7   [BLOCKING] Storage + internal-tables provider init
+//! Step 7.5 [BLOCKING] Plugin-load step (S-PLUGIN-PREREQ-D)
+//! Step 8   [BLOCKING→BACKGROUND] QueryEngine + WriteExecutor
+//! Step 9   [BACKGROUND] MCP server start
+//! Step 10  [BACKGROUND] Hot-reload watcher install
+//! Step 11  [BACKGROUND] Signal handler install
+//! ```
+//!
+//! No step may begin concurrently with or before its predecessor completes
+//! successfully (ADR-022 §B — strict sequential dependency, not a DAG).
+
+-------------------------------------------------------------------------------
+SOURCE EXCERPT: run_boot_sequence() body (boot.rs lines 139–178)
+-------------------------------------------------------------------------------
+
+    // Step 7.5 [BLOCKING]: Plugin-load step — BC-2.22.001 §Sequencing Invariant.
+    // Positioned BEFORE step 7 (storage init) — plugin-load only requires the RocksDB
+    // audit backend from step 6 (ctx.rocksdb_backend), which boot_to_step_6 already
+    // provides.  This ordering makes plugin-load REACHABLE at runtime: step 7's todo!()
+    // panic fires AFTER plugin-load completes, not before.
+    //
+    // Pre-traffic gate (AC-2): MCP server (step 9) does NOT bind before this completes.
+    // ADR-023 §C4 + ADR-022 §B.
+    //
+    // HIGH-002 (F-IMPL-LP1-HIGH-002): wire RocksDbPluginAuditSink from step 6 backend
+    // so plugin load events are persisted durably to audit_buffer CF.
+    let plugin_audit_sink = Arc::new(crate::plugin_audit::RocksDbPluginAuditSink::new(
+        Arc::clone(&ctx.rocksdb_backend),
+    ));
+    let _plugin_result = plugin_load_step_with_audit(&config.plugin_dir, plugin_audit_sink).await?;
+
+    // Step 7 [BLOCKING]: Storage + internal-tables provider init.
+    // Positioned AFTER step 7.5 — plugin-load does not depend on storage tables.
+    step7_init_storage().await?;
+
+    // Steps 8–11 are todo!() stubs for sibling stories.
+    step8_init_query_engine().await?;
+    step9_start_mcp_server().await?;
+    step10_start_hot_reload().await?;
+
+-------------------------------------------------------------------------------
+TEST OUTPUT: test_BC_2_22_001_boot_step_plugin_load_placement
+-------------------------------------------------------------------------------
+
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.39s
+────────────
+ Nextest run ID ee32e0d7 with nextest profile: default
+    Starting 1 test across 1 binary (11 tests skipped)
+        PASS [   0.044s] (1/1) prism-bin::plugin_boot_tests test_BC_2_22_001_boot_step_plugin_load_placement
+────────────
+     Summary [   0.044s] 1 test run: 1 passed, 11 skipped
+
+RESULT: PASS — Step 7.5 is inserted between step 6 (RocksDB audit backend)
+and step 7 (storage init). The boot sequence comment in boot.rs documents the
+11-step ordering. BC-2.22.001 §Sequencing Invariant is satisfied.

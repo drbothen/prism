@@ -1,0 +1,60 @@
+AC-17 — HostState #[non_exhaustive] + Vec<String> allowed_urls field
+======================================================================
+Story: S-PLUGIN-PREREQ-D (v1.37) | CLAUDE.md convention | HEAD: 862e721a
+
+EVIDENCE TYPE: Source excerpt
+
+AC-17 has two parts:
+  1. HostState is marked #[non_exhaustive] per project convention (CLAUDE.md).
+     External callers cannot exhaustively match on HostState fields; new fields
+     can be added without a breaking change.
+  2. allowed_urls is Vec<String> (NOT Option<Vec<String>>).
+     This makes the None-branch type-system-impossible (VP-PLUGIN-007).
+     Default-deny semantics: vec![] = deny ALL outbound HTTP from this plugin.
+
+The test-gated HostState::test_default() constructor is #[cfg(any(test, feature = "test-helpers"))]
+so production code cannot construct HostState without a full manifest.
+
+-------------------------------------------------------------------------------
+SOURCE EXCERPT: crates/prism-spec-engine/src/plugin/loader.rs (lines 107-128)
+-------------------------------------------------------------------------------
+
+/// Marked `#[non_exhaustive]` per project convention (CLAUDE.md) — external callers
+/// must use `HostState::test_default()` (test-gated) and functional update syntax.
+/// AC-17: `allowed_urls: Vec<String>` replaces `Option<Vec<String>>`; default-deny
+/// semantics: `vec![]` = deny all outbound HTTP (VP-PLUGIN-007).
+#[non_exhaustive]
+pub struct HostState {
+    pub http_client: Arc<Client>,
+    pub config: Arc<PluginConfigMap>,
+    pub kv_store: Arc<PluginKvStore>,
+    pub plugin_id: String,
+    /// Per-plugin HTTP allowlist (AC-7 / AC-17 / VP-PLUGIN-007).
+    ///
+    /// REQUIRED field (Vec<String>, not Option). Default-deny semantics:
+    /// - `vec![]` (empty) → deny ALL outbound HTTP from this plugin (default).
+    /// - `vec!["api.example.com"]` → allow only `api.example.com`.
+    ///
+    /// Populated from the plugin manifest `allowed_urls` field by `make_host_state()`.
+    pub allowed_urls: Vec<String>,
+    /// ResourceLimiter state — wired via `Store::limiter()` in `create_store()`.
+    pub limits: wasmtime::StoreLimits,
+}
+
+#[cfg(any(test, feature = "test-helpers"))]
+impl HostState {
+    pub fn test_default() -> Self { ... }
+}
+
+-------------------------------------------------------------------------------
+ADDITIONAL CONTEXT
+-------------------------------------------------------------------------------
+
+The perimeter-violation compile-fail gate at tests/external/perimeter-violation/
+enforces that external code cannot exhaustively match HostState without a wildcard.
+This is the same gate pattern established by S-PLUGIN-PREREQ-C (AC-5, 30 types
+with EXPECTED=30 in ci.yml). HostState adds to this count.
+
+RESULT: PASS — HostState is #[non_exhaustive]. allowed_urls is Vec<String>
+        (not Option). Default-deny semantics are enforced by type system.
+        VP-PLUGIN-007 None-branch impossible.

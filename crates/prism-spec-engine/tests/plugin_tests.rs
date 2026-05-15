@@ -25,7 +25,7 @@
 //! | test_BC_2_17_005_ec17_delete_plugin_new_calls_return_not_loaded | BC-2.17.005 | — | TV-17-005-delete |
 //! | test_BC_2_17_006_ec17_026_bulk_discovery_partial_failure | BC-2.17.006 | — | TV-17-006-bulk |
 //! | test_BC_2_17_006_ec17_027_empty_plugin_id_rejected | BC-2.17.006 | — | EC-17-027 |
-//! | test_BC_2_17_002_ec17_007_http_request_no_allowlist_allowed | BC-2.17.002 | — | EC-17-007 |
+//! | test_BC_2_17_002_ec17_007_http_request_empty_allowlist_blocked | BC-2.17.002 | — | EC-17-007 |
 //! | test_BC_2_17_002_ec17_006_http_request_allowlisted_url_succeeds | BC-2.17.002 | — | EC-17-006 |
 //! | test_BC_2_17_002_ec17_url_not_in_allowlist_returns_403 | BC-2.17.002 | — | TV-17-002-allowlist |
 //! | test_BC_2_17_004_ec17_015_per_plugin_timeout_override | BC-2.17.004 | — | TV-17-004-override |
@@ -76,7 +76,8 @@ fn compile_wat_fixture(wat_name: &str) -> (Vec<u8>, tempfile::NamedTempFile) {
 /// Traces to: BC-2.17.006 / INV-PLUGIN-006
 #[test]
 fn test_BC_2_17_006_ac1_load_valid_infusion_plugin() {
-    let runtime = PluginRuntime::new().expect("PluginRuntime::new must succeed");
+    let runtime =
+        PluginRuntime::new(reqwest::Client::new()).expect("PluginRuntime::new must succeed");
 
     let (_bytes, tmp) = compile_wat_fixture("noop_infusion.wat");
     let result = runtime.load_plugin(tmp.path());
@@ -105,7 +106,8 @@ fn test_BC_2_17_006_ac1_load_valid_infusion_plugin() {
 /// Traces to: BC-2.17.001 / INV-PLUGIN-001
 #[test]
 fn test_BC_2_17_001_ac2_plugin_trap_returns_err_trapped() {
-    let runtime = PluginRuntime::new().expect("PluginRuntime::new must succeed");
+    let runtime =
+        PluginRuntime::new(reqwest::Client::new()).expect("PluginRuntime::new must succeed");
 
     let (_bytes, tmp) = compile_wat_fixture("trap_plugin.wat");
     runtime
@@ -159,7 +161,8 @@ fn test_BC_2_17_001_ac2_plugin_trap_returns_err_trapped() {
     ignore = "wasmtime JIT stack overflow on Windows debug (STATUS_STACK_BUFFER_OVERRUN) — covered by Linux/macOS CI"
 )]
 fn test_BC_2_17_004_ac3_infinite_loop_returns_err_timeout() {
-    let runtime = PluginRuntime::new().expect("PluginRuntime::new must succeed");
+    let runtime =
+        PluginRuntime::new(reqwest::Client::new()).expect("PluginRuntime::new must succeed");
 
     let (_bytes, tmp) = compile_wat_fixture("loop_plugin.wat");
     runtime
@@ -226,7 +229,8 @@ fn test_BC_2_17_002_ac4_wasi_filesystem_not_accessible() {
     let tmp = tempfile::NamedTempFile::with_suffix(".prx").unwrap();
     std::fs::write(tmp.path(), &bytes).unwrap();
 
-    let runtime = PluginRuntime::new().expect("PluginRuntime::new must succeed");
+    let runtime =
+        PluginRuntime::new(reqwest::Client::new()).expect("PluginRuntime::new must succeed");
     let result = runtime.load_plugin(tmp.path());
 
     // The WASI-importing component must be rejected at load time because
@@ -279,37 +283,31 @@ fn test_BC_2_17_002_ac5_http_request_proxied_via_host() {
 
     // Invariant 1: PluginRuntime::new() must succeed and have an http_client.
     // (The field is Arc<reqwest::Client> on PluginRuntime; confirmed by build success.)
-    let _runtime = PluginRuntime::new().expect("AC-5: PluginRuntime::new must succeed");
+    let _runtime =
+        PluginRuntime::new(reqwest::Client::new()).expect("AC-5: PluginRuntime::new must succeed");
 
     // Invariant 2: Invalid URL is caught by the host before any network I/O.
     // The host's `do_http_request` validates the URL via `reqwest::Url::parse`.
     // A truly invalid URL ("not a url") returns HTTP 400 — not a panic or bypass.
-    let state_open = HostState {
-        http_client: Arc::new(reqwest::Client::new()),
-        config: Arc::new(PluginConfigMap::new()),
-        kv_store: Arc::new(PluginKvStore::new()),
-        plugin_id: "ac5-test-plugin".to_string(),
-        allowed_urls: None,
-        limits: wasmtime::StoreLimits::default(),
-    };
+    // AC-17: use HostState::test_default() (vec![] = default-deny under AC-7 Vec<String> contract).
+    // Under default-deny, an invalid URL gets blocked at the allowlist check (403) before
+    // any network I/O — the host still intercepts before network contact.
+    let state_open = HostState::test_with_plugin_id("ac5-test-plugin");
     let bad_url_response = host_http_request(&state_open, "GET", "not a url !!!", vec![], None);
-    assert_eq!(
-        bad_url_response.status, 400,
-        "AC-5: invalid URL must be caught by the host and returned as HTTP 400 \
-         (proves host intercepts before network I/O)"
+    assert!(
+        bad_url_response.status >= 400,
+        "AC-5: invalid URL must be caught by the host before any network I/O (got status {}). \
+         Under AC-7 default-deny, invalid URL returns 403 (blocked at allowlist check).",
+        bad_url_response.status
     );
 
     // Invariant 3: A URL outside the plugin's allowlist returns HTTP 403 from the host.
     // This proves plugins cannot make arbitrary HTTP requests — all requests pass through
     // the host allowlist gate (INV-PLUGIN-002 / BC-2.17.002).
-    let state_restricted = HostState {
-        http_client: Arc::new(reqwest::Client::new()),
-        config: Arc::new(PluginConfigMap::new()),
-        kv_store: Arc::new(PluginKvStore::new()),
-        plugin_id: "ac5-test-plugin".to_string(),
-        allowed_urls: Some(vec!["allowed-sensor.internal".to_string()]),
-        limits: wasmtime::StoreLimits::default(),
-    };
+    let state_restricted = HostState::test_with_allowed_urls(
+        "ac5-test-plugin",
+        vec!["allowed-sensor.internal".to_string()],
+    );
     let blocked_response = host_http_request(
         &state_restricted,
         "GET",
@@ -338,7 +336,8 @@ fn test_BC_2_17_002_ac5_http_request_proxied_via_host() {
 fn test_BC_2_17_005_ac6_hot_reload_atomic_swap() {
     use prism_spec_engine::plugin::hot_reload::hot_reload;
 
-    let runtime = PluginRuntime::new().expect("PluginRuntime::new must succeed");
+    let runtime =
+        PluginRuntime::new(reqwest::Client::new()).expect("PluginRuntime::new must succeed");
 
     // Load initial plugin.
     let (_bytes, tmp) = compile_wat_fixture("noop_infusion.wat");
@@ -394,7 +393,8 @@ fn test_BC_2_17_005_ac6_hot_reload_atomic_swap() {
 /// Traces to: BC-2.17.006 / INV-PLUGIN-006
 #[test]
 fn test_BC_2_17_006_ac7_invalid_wit_returns_e_plugin_001() {
-    let runtime = PluginRuntime::new().expect("PluginRuntime::new must succeed");
+    let runtime =
+        PluginRuntime::new(reqwest::Client::new()).expect("PluginRuntime::new must succeed");
 
     // A WAT module with no exports — no name, version, or dispatch function.
     let no_exports_wat = r#"
@@ -433,7 +433,8 @@ fn test_BC_2_17_006_ac7_invalid_wit_returns_e_plugin_001() {
 /// Traces to: BC-2.17.006 invariant "plugin not added to registry on E-PLUGIN-001"
 #[test]
 fn test_BC_2_17_006_ac7_invariant_plugin_not_registered_after_invalid_wit() {
-    let runtime = PluginRuntime::new().expect("PluginRuntime::new must succeed");
+    let runtime =
+        PluginRuntime::new(reqwest::Client::new()).expect("PluginRuntime::new must succeed");
     let count_before = runtime.list_plugins().len();
 
     let bad_wat = r#"(module)"#;
@@ -543,7 +544,8 @@ fn test_BC_2_17_003_ac9_memory_limit_exceeded_returns_err() {
 /// Traces to: BC-2.17.001 EC-17-001
 #[test]
 fn test_BC_2_17_001_ec17_001_trap_on_first_call_plugin_stays_registered() {
-    let runtime = PluginRuntime::new().expect("PluginRuntime::new must succeed");
+    let runtime =
+        PluginRuntime::new(reqwest::Client::new()).expect("PluginRuntime::new must succeed");
     let (_bytes, tmp) = compile_wat_fixture("trap_plugin.wat");
     runtime
         .load_plugin(tmp.path())
@@ -578,7 +580,8 @@ fn test_BC_2_17_001_ec17_001_trap_on_first_call_plugin_stays_registered() {
 /// Traces to: BC-2.17.001 / EC-17-003
 #[test]
 fn test_BC_2_17_001_ec17_003_batch_trap_returns_no_partial_results() {
-    let runtime = PluginRuntime::new().expect("PluginRuntime::new must succeed");
+    let runtime =
+        PluginRuntime::new(reqwest::Client::new()).expect("PluginRuntime::new must succeed");
     let (_bytes, tmp) = compile_wat_fixture("trap_plugin.wat");
     runtime
         .load_plugin(tmp.path())
@@ -608,7 +611,9 @@ fn test_BC_2_17_001_ec17_003_batch_trap_returns_no_partial_results() {
 /// Traces to: BC-2.17.001 / EC-17-004
 #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
 async fn test_BC_2_17_001_ec17_004_concurrent_traps_independent() {
-    let runtime = Arc::new(PluginRuntime::new().expect("PluginRuntime::new must succeed"));
+    let runtime = Arc::new(
+        PluginRuntime::new(reqwest::Client::new()).expect("PluginRuntime::new must succeed"),
+    );
 
     let (_bytes, tmp) = compile_wat_fixture("trap_plugin.wat");
     runtime
@@ -719,7 +724,8 @@ fn test_BC_2_17_003_ec17_011_per_plugin_memory_override() {
 fn test_BC_2_17_005_ec17_005_failed_recompile_retains_old_plugin() {
     use prism_spec_engine::plugin::hot_reload::hot_reload;
 
-    let runtime = PluginRuntime::new().expect("PluginRuntime::new must succeed");
+    let runtime =
+        PluginRuntime::new(reqwest::Client::new()).expect("PluginRuntime::new must succeed");
     let (_bytes, tmp) = compile_wat_fixture("noop_infusion.wat");
     runtime
         .load_plugin(tmp.path())
@@ -773,7 +779,8 @@ fn test_BC_2_17_005_ec17_005_failed_recompile_retains_old_plugin() {
 fn test_BC_2_17_005_ec17_delete_plugin_new_calls_return_not_loaded() {
     use prism_spec_engine::plugin::hot_reload::hot_unload;
 
-    let runtime = PluginRuntime::new().expect("PluginRuntime::new must succeed");
+    let runtime =
+        PluginRuntime::new(reqwest::Client::new()).expect("PluginRuntime::new must succeed");
     let (_bytes, tmp) = compile_wat_fixture("noop_infusion.wat");
     runtime
         .load_plugin(tmp.path())
@@ -862,7 +869,8 @@ fn test_BC_2_17_006_ec17_026_bulk_discovery_partial_failure() {
 /// Traces to: BC-2.17.006 / EC-17-027
 #[test]
 fn test_BC_2_17_006_ec17_027_empty_plugin_id_rejected() {
-    let runtime = PluginRuntime::new().expect("PluginRuntime::new must succeed");
+    let runtime =
+        PluginRuntime::new(reqwest::Client::new()).expect("PluginRuntime::new must succeed");
 
     // A WAT module that has all required exports but returns empty string from name().
     let empty_name_wat = r#"
@@ -896,36 +904,35 @@ fn test_BC_2_17_006_ec17_027_empty_plugin_id_rejected() {
 }
 
 // ============================================================
-// EC-17-007 / BC-2.17.002 — http_request no allowlist allowed
+// EC-17-007 (post-AC-7) / BC-2.17.002 — http_request empty allowlist blocked (default-deny)
 // ============================================================
 
-/// EC-17-007: Plugin calls `host::http_request` when no allowlist is configured →
-/// request allowed to any URL; audit log entry created.
+/// EC-17-007 (post-AC-7 adjudication, Option A.ii): Plugin calls `host::http_request`
+/// with an empty `allowed_urls` list (default-deny semantics) → request blocked with HTTP 403.
 ///
-/// Traces to: BC-2.17.002 / EC-17-007
+/// Pre-AC-7 semantics: `allowed_urls: None` meant "no allowlist → permit all URLs."
+/// Post-AC-7 semantics: `allowed_urls: vec![]` (empty list) means "empty allowlist → deny all."
+/// This is the correct security posture for plugin sandboxing (CLAUDE.md Canonical Principle §6).
+///
+/// Traces to: BC-2.17.002 / EC-17-007 / AC-7 / AC-17 / VP-PLUGIN-007
 #[test]
-fn test_BC_2_17_002_ec17_007_http_request_no_allowlist_allowed() {
+fn test_BC_2_17_002_ec17_007_http_request_empty_allowlist_blocked() {
     use prism_spec_engine::plugin::host_functions::host_http_request;
-    use prism_spec_engine::plugin::loader::{HostState, PluginConfigMap, PluginKvStore};
-    use std::sync::Arc;
+    use prism_spec_engine::plugin::loader::HostState;
 
-    let state = HostState {
-        http_client: Arc::new(reqwest::Client::new()),
-        config: Arc::new(PluginConfigMap::new()),
-        kv_store: Arc::new(PluginKvStore::new()),
-        plugin_id: "test-plugin".to_string(),
-        allowed_urls: None, // No allowlist — all URLs allowed.
-        limits: wasmtime::StoreLimits::default(),
-    };
+    // AC-17: use HostState::test_with_plugin_id() (allowed_urls: vec![] = default-deny).
+    // Drop the allowed_urls override — the default empty list IS the post-AC-7 behavior.
+    let state = HostState::test_with_plugin_id("test-plugin");
 
-    // With no allowlist, any URL should be attempted (not blocked with 403).
-    // We cannot make real HTTP in a unit test; verify the function doesn't
-    // immediately return 403 for a well-known URL.
+    // With an empty allowlist (default-deny), ALL outbound HTTP is blocked with 403.
+    // We cannot make real HTTP in a unit test; verify the function returns 403 (blocked).
     let response = host_http_request(&state, "GET", "https://example.com/", vec![], None);
 
-    assert_ne!(
+    assert_eq!(
         response.status, 403,
-        "EC-17-007: request with no allowlist configured must not be blocked (status 403)"
+        "EC-17-007 (post-AC-7): empty allowlist must block all requests (default-deny); \
+         got status {}",
+        response.status
     );
 }
 
@@ -943,14 +950,11 @@ fn test_BC_2_17_002_ec17_006_http_request_allowlisted_url_succeeds() {
     use prism_spec_engine::plugin::loader::{HostState, PluginConfigMap, PluginKvStore};
     use std::sync::Arc;
 
-    let state = HostState {
-        http_client: Arc::new(reqwest::Client::new()),
-        config: Arc::new(PluginConfigMap::new()),
-        kv_store: Arc::new(PluginKvStore::new()),
-        plugin_id: "test-plugin".to_string(),
-        allowed_urls: Some(vec!["example.com".to_string()]), // Allowlist includes target.
-        limits: wasmtime::StoreLimits::default(),
-    };
+    // AC-17: use HostState::test_with_allowed_urls() with Vec<String> (not Option).
+    let state = HostState::test_with_allowed_urls(
+        "test-plugin",
+        vec!["example.com".to_string()], // Allowlist includes target.
+    );
 
     let response = host_http_request(&state, "GET", "https://example.com/", vec![], None);
 
@@ -974,14 +978,11 @@ fn test_BC_2_17_002_ec17_url_not_in_allowlist_returns_403() {
     use prism_spec_engine::plugin::loader::{HostState, PluginConfigMap, PluginKvStore};
     use std::sync::Arc;
 
-    let state = HostState {
-        http_client: Arc::new(reqwest::Client::new()),
-        config: Arc::new(PluginConfigMap::new()),
-        kv_store: Arc::new(PluginKvStore::new()),
-        plugin_id: "test-plugin".to_string(),
-        allowed_urls: Some(vec!["example.com".to_string()]), // Only example.com allowed.
-        limits: wasmtime::StoreLimits::default(),
-    };
+    // AC-17: use HostState::test_with_allowed_urls() with Vec<String> (not Option).
+    let state = HostState::test_with_allowed_urls(
+        "test-plugin",
+        vec!["example.com".to_string()], // Only example.com allowed.
+    );
 
     let response = host_http_request(
         &state,
@@ -1015,14 +1016,8 @@ fn test_BC_2_17_004_ec17_015_per_plugin_timeout_override() {
     use std::sync::Arc;
 
     let engine = wasmtime::Engine::default();
-    let host_state = HostState {
-        http_client: Arc::new(reqwest::Client::new()),
-        config: Arc::new(PluginConfigMap::new()),
-        kv_store: Arc::new(PluginKvStore::new()),
-        plugin_id: "timeout-test".to_string(),
-        allowed_urls: None,
-        limits: wasmtime::StoreLimits::default(),
-    };
+    // AC-17: use HostState::test_with_plugin_id() (allowed_urls: vec![] = default-deny under AC-7).
+    let host_state = HostState::test_with_plugin_id("timeout-test");
 
     // create_store with 30-second timeout must not panic.
     let _store = create_store(

@@ -27,6 +27,7 @@ use crate::spec_parser::SensorSpec;
 use prism_core::OrgSlug;
 use std::future::Future;
 use std::pin::Pin;
+use zeroize::Zeroizing;
 
 // ---------------------------------------------------------------------------
 // AuthToken newtype
@@ -34,16 +35,14 @@ use std::pin::Pin;
 
 /// An opaque bearer token string produced by `AuthProvider::acquire_token`.
 ///
-/// The inner `String` is the raw bearer token value — do NOT log it.
-/// Credentials MUST NOT appear in log output at any level (INV-INFUSE-005 / AD-017).
+/// The inner `Zeroizing<String>` automatically overwrites the bearer token bytes
+/// in memory when the token is dropped, preventing credential retention in freed
+/// heap memory. Anchors: AD-017 (credential safety), TD-S-PLUGIN-PREREQ-B-002 closure.
 ///
-/// TD-S-PLUGIN-PREREQ-B-002 P3: `AuthToken` does not implement `zeroize::Zeroize`
-/// on `Drop`, meaning the token string may linger in heap memory after the token is
-/// discarded. PREREQ-D credential-store integration scope: gate `zeroize` behind a
-/// `zeroize-memory` Cargo feature (off by default) to avoid pulling `zeroize` into
-/// the dependency graph before it is needed.
+/// The token value MUST NOT appear in log output at any level (INV-INFUSE-005 / AD-017).
+/// The `Debug` impl deliberately redacts the value.
 #[derive(Clone)]
-pub struct AuthToken(String);
+pub struct AuthToken(Zeroizing<String>);
 
 impl AuthToken {
     /// Construct an `AuthToken` from a raw bearer token string.
@@ -51,7 +50,7 @@ impl AuthToken {
     /// The value is private — callers MUST NOT read or log it directly.
     /// Use [`as_str`] only for constructing `Authorization: Bearer ...` headers.
     pub fn new(token: String) -> Self {
-        Self(token)
+        Self(Zeroizing::new(token))
     }
 
     /// Borrow the raw token string for use in `Authorization` headers.

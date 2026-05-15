@@ -1,0 +1,47 @@
+AC-05 — Manifest schema validation (name/version/format_version/allowed_urls)
+=============================================================================
+Story: S-PLUGIN-PREREQ-D (v1.37) | BC: BC-2.17.007 | HEAD: 862e721a
+
+EVIDENCE TYPE: Test output (9 rejection variants — all required fields)
+
+BC-2.17.007 requires manifest schema validation covering:
+  - name field present and non-empty → E-PLUGIN-012 if missing/empty
+  - version field present (valid semver) → E-PLUGIN-012 if missing/malformed
+  - format_version field present → E-PLUGIN-014 if missing (E-PLUGIN-019)
+  - format_version <= CURRENT_SUPPORTED_VERSION (1) → E-PLUGIN-014 if exceeded
+  - allowed_urls field present → E-PLUGIN-013 if missing
+  - allowed_urls entries non-empty → E-PLUGIN-013 if empty string present
+  - TOML parse-able → E-PLUGIN-017 if malformed
+  - Manifest file present → E-PLUGIN-018 if not found
+
+-------------------------------------------------------------------------------
+TEST OUTPUT: All 9 test_BC_2_17_007_* tests
+-------------------------------------------------------------------------------
+
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.28s
+────────────
+ Nextest run ID e44117d7 with nextest profile: default
+    Starting 9 tests across 1 binary (25 tests skipped)
+        PASS [   0.042s] (1/9) prism-spec-engine::plugin_integration_tests test_BC_2_17_007_manifest_name_empty_rejected
+        PASS [   0.043s] (2/9) prism-spec-engine::plugin_integration_tests test_BC_2_17_007_absent_format_version_is_rejected_e019
+        PASS [   0.043s] (3/9) prism-spec-engine::plugin_integration_tests test_BC_2_17_007_plugin_without_manifest_returns_not_found_e018
+        PASS [   0.043s] (4/9) prism-spec-engine::plugin_integration_tests test_BC_2_17_007_manifest_missing_allowed_urls_rejected
+        PASS [   0.044s] (5/9) prism-spec-engine::plugin_integration_tests test_BC_2_17_007_empty_allowed_url_entry_is_rejected
+        PASS [   0.044s] (6/9) prism-spec-engine::plugin_integration_tests test_BC_2_17_007_strict_semver_rejects_partial_versions
+        PASS [   0.044s] (7/9) prism-spec-engine::plugin_integration_tests test_BC_2_17_007_malformed_toml_manifest_returns_parse_error_e017
+        PASS [   0.044s] (8/9) prism-spec-engine::plugin_integration_tests test_BC_2_17_007_manifest_format_version_exceeded_rejected
+        PASS [   0.044s] (9/9) prism-spec-engine::plugin_integration_tests test_BC_2_17_007_manifest_version_malformed_rejected
+────────────
+     Summary [   0.044s] 9 tests run: 9 passed, 25 skipped
+
+RESULT: PASS — All 9 rejection variants pass. Manifest schema validation
+        correctly rejects malformed manifests with typed E-PLUGIN-NNN error
+        codes per BC-2.17.007.
+
+Error code mapping:
+  E-PLUGIN-012 = InvalidManifestField (name empty, version malformed)
+  E-PLUGIN-013 = MissingAllowedUrls (absent or empty-entry)
+  E-PLUGIN-014 = FormatVersionExceeded (format_version > 1)
+  E-PLUGIN-017 = ManifestParseError (malformed TOML)
+  E-PLUGIN-018 = ManifestNotFound (no manifest file)
+  E-PLUGIN-019 = FormatVersionMissing (absent format_version field)

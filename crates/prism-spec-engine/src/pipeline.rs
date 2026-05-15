@@ -44,9 +44,18 @@ const MAX_JSONPATH_DEPTH: usize = 32;
 ///
 /// F-LP2-HIGH-002 defense: if a step exceeds this page count, the pipeline
 /// aborts with `SpecEngineError::HttpRequestFailed` (detail includes step name
-/// and page limit). Full resource bound (MAX_REQUESTS_PER_PIPELINE) deferred to
-/// TD-S-PLUGIN-PREREQ-B-004 P3.
+/// and page limit).
 const MAX_PAGES_PER_STEP: usize = 1_000;
+
+/// Maximum cumulative HTTP requests across ALL steps of a single pipeline execution.
+///
+/// When the running total of HTTP requests across all steps in a pipeline reaches
+/// this cap, the executor returns `SpecEngineError::TooManyRequests { total }` immediately
+/// and emits `event_type = "pipeline_max_requests_exceeded"` per BC-2.16.002 v1.12 catalog.
+///
+/// This is a hard invariant — non-retryable. Partial results are discarded.
+/// Closes TD-S-PLUGIN-PREREQ-B-004 (AC-16 / BC-2.16.002 §Postconditions).
+pub const MAX_REQUESTS_PER_PIPELINE: usize = 10_000;
 
 /// Context provided to each pipeline execution.
 #[non_exhaustive]
@@ -104,10 +113,9 @@ impl PipelineExecutor {
     /// - `context` — Runtime context: client ID and query push-down filters.
     /// - `http_client` — Injected `reqwest::Client`; MUST NOT be a global singleton.
     ///   Tests inject a client whose traffic is directed at a wiremock mock server.
-    ///   **TD-S-PLUGIN-PREREQ-B-005 P2:** Production callers (boot.rs / chassis) MUST
-    ///   construct this client with a configurable timeout (default 30s) using
-    ///   `reqwest::Client::builder().timeout(Duration::from_secs(30)).build()`.
-    ///   Test fixtures already use this pattern (F-LP4-MED-001).
+    ///   Production callers (boot.rs / chassis) construct this client with a 30s timeout using
+    ///   `reqwest::Client::builder().timeout(Duration::from_secs(30)).build()` per AC-9
+    ///   (TD-S-PLUGIN-PREREQ-B-005 closure). Test fixtures already use this pattern (F-LP4-MED-001).
     /// - `auth_provider` — Injected `&dyn AuthProvider`; called to acquire/refresh
     ///   bearer tokens. Tests inject `MockAuthProvider`; production injects a
     ///   `CredentialStoreAuthProvider` (or `NullAuthProvider` placeholder).
@@ -131,6 +139,50 @@ impl PipelineExecutor {
         context: &FetchContext,
         http_client: &reqwest::Client,
         auth_provider: &dyn AuthProvider,
+    ) -> Result<PipelineResult, SpecEngineError> {
+        Self::execute_impl(
+            spec,
+            table,
+            context,
+            http_client,
+            auth_provider,
+            MAX_REQUESTS_PER_PIPELINE,
+        )
+        .await
+    }
+
+    /// Test-injectable variant of `execute` with a custom `max_requests` cap.
+    ///
+    /// **ONLY for testing** — allows exercising the cumulative-cap branch without
+    /// needing 10,001 HTTP requests (MED-004 / F-IMPL-LP1-MED-004 closure).
+    /// Production code MUST use `execute` (which uses `MAX_REQUESTS_PER_PIPELINE`).
+    #[cfg(any(test, feature = "test-helpers"))]
+    pub async fn execute_with_max_requests(
+        spec: &SensorSpec,
+        table: &TableSpec,
+        context: &FetchContext,
+        http_client: &reqwest::Client,
+        auth_provider: &dyn AuthProvider,
+        max_requests: usize,
+    ) -> Result<PipelineResult, SpecEngineError> {
+        Self::execute_impl(
+            spec,
+            table,
+            context,
+            http_client,
+            auth_provider,
+            max_requests,
+        )
+        .await
+    }
+
+    async fn execute_impl(
+        spec: &SensorSpec,
+        table: &TableSpec,
+        context: &FetchContext,
+        http_client: &reqwest::Client,
+        auth_provider: &dyn AuthProvider,
+        max_requests: usize,
     ) -> Result<PipelineResult, SpecEngineError> {
         let mut all_records: Vec<serde_json::Value> = Vec::new();
         let mut request_count: u32 = 0;
@@ -333,6 +385,23 @@ impl PipelineExecutor {
                     .await?;
                     bearer_token = new_token;
 
+                    // Cumulative cap check (AC-16 / BC-2.16.002).
+                    // After each request, check if we've reached the hard cap.
+                    // `max_requests` is MAX_REQUESTS_PER_PIPELINE in production;
+                    // tests may inject a smaller value via execute_with_max_requests.
+                    // Emits: event_type = "pipeline_max_requests_exceeded" (ERROR).
+                    if request_count as usize >= max_requests {
+                        let total = request_count as usize;
+                        tracing::error!(
+                            event_type = "pipeline_max_requests_exceeded",
+                            sensor_id = %spec.sensor_id,
+                            total_requests = total,
+                            max = max_requests,
+                            "Pipeline executor reached request cap; aborting"
+                        );
+                        return Err(SpecEngineError::TooManyRequests { total });
+                    }
+
                     // Extract records at `step.response_path`.
                     // HIGH-001 (S-PLUGIN-PREREQ-C): emit structured tracing event before
                     // mapping to SpecEngineError so operators have observability even when
@@ -458,9 +527,9 @@ impl PipelineExecutor {
     ///
     /// ## Testing
     ///
-    /// This helper is intentionally untested at the PREREQ-B integration test layer
-    /// because it has no PREREQ-B callers (per story §94-96 deferral to Wave 1).
-    /// PREREQ-D wiring will add the test vehicle. See TD-S-PLUGIN-PREREQ-B-012 P3.
+    /// Tested by `test_TD_S_PLUGIN_PREREQ_B_011_execute_step_eager_token_calls_auth_once`
+    /// in `plugin_integration_tests.rs`, which verifies that auth is acquired exactly once
+    /// per invocation regardless of sub-request count (TD-S-PLUGIN-PREREQ-B-011/012 closure).
     ///
     /// # Parameters
     ///

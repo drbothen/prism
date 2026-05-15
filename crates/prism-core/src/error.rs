@@ -973,13 +973,17 @@ pub enum InfusionError {
 // E-PLUGIN — WASM Plugin Runtime error types (S-1.15)
 // ---------------------------------------------------------------------------
 
-/// E-PLUGIN-* error codes from BC-2.17.001 through BC-2.17.006 (S-1.15).
+/// E-PLUGIN-* error codes from BC-2.17.001 through BC-2.17.007 (S-1.15, S-PLUGIN-PREREQ-D).
 ///
 /// These variants are returned at the `instance.call_*` boundary in `prism-spec-engine`
 /// and MUST NOT propagate as panics into the host tokio runtime. All `PluginError`
 /// variants correspond to sandbox isolation, resource enforcement, or contract
 /// validation failures — the host process continues executing normally after any
 /// `PluginError` is returned.
+///
+/// Marked `#[non_exhaustive]` per project convention (CLAUDE.md) — external match arms
+/// must include a wildcard `_ => {}` arm. New variants are added additively (POL-1).
+#[non_exhaustive]
 #[derive(Debug, Clone, PartialEq, Eq, Error)]
 pub enum PluginError {
     /// E-PLUGIN-004: WASM trap caught at host boundary (BC-2.17.001 / INV-PLUGIN-001).
@@ -1031,4 +1035,72 @@ pub enum PluginError {
     /// cannot be empty (BC-2.17.006 post-validation check).
     #[error("plugin '{path}' returned an empty plugin_id from name()")]
     EmptyPluginId { path: String },
+
+    // -------------------------------------------------------------------------
+    // S-PLUGIN-PREREQ-D: Manifest schema validation errors (BC-2.17.007)
+    // -------------------------------------------------------------------------
+    /// E-PLUGIN-013: Plugin manifest missing required `allowed_urls` field (BC-2.17.007 / VP-PLUGIN-007).
+    ///
+    /// `allowed_urls` must be explicitly present in the manifest; absent or null → rejection.
+    /// An explicitly empty list `[]` is accepted (default-deny semantics).
+    #[error(
+        "Plugin manifest at '{path}' missing required field 'allowed_urls'; \
+         field must be an explicit list (use `allowed_urls = []` for no URLs)"
+    )]
+    MissingAllowedUrls { path: String },
+
+    /// E-PLUGIN-014: Plugin manifest `format_version` exceeds `CURRENT_SUPPORTED_VERSION` (BC-2.17.007).
+    ///
+    /// Manifest `format_version` must be `<= CURRENT_SUPPORTED_VERSION`; higher versions are rejected.
+    #[error(
+        "Plugin manifest at '{path}' format_version {actual} exceeds maximum supported version {supported}"
+    )]
+    FormatVersionExceeded {
+        path: String,
+        actual: u32,
+        supported: u32,
+    },
+
+    /// E-PLUGIN-015: Plugin manifest `name` field is absent or an empty string (BC-2.17.007 / EC-D-012).
+    ///
+    /// The `name` field must be a non-empty UTF-8 string.
+    #[error("Plugin manifest at '{path}' missing or empty required field 'name'")]
+    ManifestNameMissing { path: String },
+
+    /// E-PLUGIN-016: Plugin manifest `version` field is not valid semver (BC-2.17.007 / EC-D-013).
+    ///
+    /// The `version` field must parse as a valid semver string (e.g., `"1.0.0"`).
+    #[error("Plugin manifest at '{path}' field 'version' is not a valid semver string: '{value}'")]
+    ManifestVersionMalformed { path: String, value: String },
+
+    /// E-PLUGIN-017: Plugin manifest TOML is present but fails to parse (BC-2.17.007).
+    ///
+    /// The companion `.manifest.toml` file exists but is structurally invalid TOML
+    /// (syntax error, invalid encoding). This is distinct from E-PLUGIN-015 (name absent)
+    /// which applies only when TOML parses correctly but a field is missing.
+    #[error("Plugin manifest at '{path}' failed TOML parse: {detail}")]
+    ManifestParseError { path: String, detail: String },
+
+    /// E-PLUGIN-018: Plugin manifest file is absent entirely (BC-2.17.007).
+    ///
+    /// The `.prx` plugin binary was found but no companion `.manifest.toml` exists at
+    /// the expected path. A manifest is required for all production plugins.
+    #[error(
+        "Plugin at '{plugin_path}' has no manifest file at '{expected_manifest_path}'; \
+         a companion .manifest.toml is required"
+    )]
+    ManifestNotFound {
+        plugin_path: String,
+        expected_manifest_path: String,
+    },
+
+    /// E-PLUGIN-019: Plugin manifest `format_version` field is absent (BC-2.17.007 / AC-5).
+    ///
+    /// `format_version` must be explicitly present; absent means the manifest predates the
+    /// versioning scheme or is malformed. Distinct from E-PLUGIN-014 (value exceeds max).
+    #[error(
+        "Plugin manifest at '{path}' missing required field 'format_version'; \
+         must be an integer <= {supported}"
+    )]
+    FormatVersionMissing { path: String, supported: u32 },
 }

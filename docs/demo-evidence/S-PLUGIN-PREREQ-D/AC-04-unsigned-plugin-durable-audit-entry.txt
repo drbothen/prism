@@ -1,0 +1,63 @@
+AC-04 — Unsigned plugin boot warning + per-plugin durable audit entry
+=====================================================================
+Story: S-PLUGIN-PREREQ-D (v1.37) | BC: BC-2.22.001 | VP: VP-PLUGIN-004 | HEAD: 862e721a
+
+EVIDENCE TYPE: Test output (2 tests: warn-path + RocksDB durable read)
+
+Each unsigned plugin load emits:
+  1. tracing::warn!(event_type = "plugin_load_unsigned", ...) — structured event
+  2. A DURABLE RocksDB audit entry in audit_buffer CF via RocksDbPluginAuditSink
+     (WAL fsync-confirmed, BC-2.05.012 postcondition 2)
+
+HIGH-002 (F-IMPL-LP1-HIGH-002) required wiring a RocksDbPluginAuditSink (in
+crates/prism-bin/src/plugin_audit.rs) to replace the previous tracing-only path.
+The durable-audit test reads back from RocksDB to confirm persistence.
+
+-------------------------------------------------------------------------------
+TEST OUTPUT (success path): test_VP_PLUGIN_004_unsigned_plugin_boot_warn_audit
+-------------------------------------------------------------------------------
+
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.36s
+────────────
+ Nextest run ID 25bbe822 with nextest profile: default
+    Starting 1 test across 1 binary (11 tests skipped)
+        PASS [   0.055s] (1/1) prism-bin::plugin_boot_tests test_VP_PLUGIN_004_unsigned_plugin_boot_warn_audit
+────────────
+     Summary [   0.056s] 1 test run: 1 passed, 11 skipped
+
+-------------------------------------------------------------------------------
+TEST OUTPUT (durable read-back): test_AC_4_VP_PLUGIN_004_unsigned_plugin_durable_audit_entry
+-------------------------------------------------------------------------------
+
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.38s
+────────────
+ Nextest run ID 18385ba1 with nextest profile: default
+    Starting 1 test across 1 binary (11 tests skipped)
+        PASS [   0.079s] (1/1) prism-bin::plugin_boot_tests test_AC_4_VP_PLUGIN_004_unsigned_plugin_durable_audit_entry
+────────────
+     Summary [   0.079s] 1 test run: 1 passed, 11 skipped
+
+-------------------------------------------------------------------------------
+SOURCE EXCERPT: crates/prism-bin/src/plugin_audit.rs (complete module)
+-------------------------------------------------------------------------------
+
+//! RocksDbPluginAuditSink — production implementation of PluginLoadAuditSink.
+//! Writes durable audit entries to `audit_buffer` CF via append_audit_entry_sync
+//! (WAL fsync) for each plugin load event.
+//! BC: BC-2.05.012 postcondition 2 ("confirmed durable")
+//! AC-4 of S-PLUGIN-PREREQ-D ("every unsigned plugin load must emit a DURABLE audit entry")
+
+impl PluginLoadAuditSink for RocksDbPluginAuditSink {
+    fn record_plugin_load_event(
+        &self, event_type: &str, plugin_path: &str, plugin_hash: &str,
+        extra_fields: Option<&str>,
+    ) -> Result<(), String> {
+        // ... builds AuditEntry with uuid v7 trace_id ...
+        append_audit_entry_sync(&self.backend, &entry)
+            .map_err(|e| format!("RocksDbPluginAuditSink write failed: {e}"))
+    }
+}
+
+RESULT: PASS — Unsigned plugin load emits both transient tracing::warn! and a
+        durable RocksDB audit entry. Durable read-back test confirms persistence.
+        VP-PLUGIN-004 satisfied.

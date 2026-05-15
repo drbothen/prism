@@ -1,0 +1,38 @@
+AC-18 — PRISM_DISABLE_PLUGIN_LOAD precedence over plugin_dir config
+====================================================================
+Story: S-PLUGIN-PREREQ-D (v1.37) | BC: BC-2.22.001 | HEAD: 862e721a
+
+EVIDENCE TYPE: Test output + source excerpt
+
+AC-18 requires that PRISM_DISABLE_PLUGIN_LOAD=1 takes ABSOLUTE precedence over
+any plugin_dir configuration — even if plugin_dir points to a directory full of
+valid .prx files, the environment variable wins and no plugins are loaded.
+
+Only the exact string "1" disables loading (EC-D-011). Values like "true", "yes",
+"false", "0", "TRUE" are treated as unset (normal loading proceeds).
+
+-------------------------------------------------------------------------------
+SOURCE EXCERPT: plugin_load_step_with_audit() — boot.rs (lines 905-908)
+-------------------------------------------------------------------------------
+
+    // AC-18: PRISM_DISABLE_PLUGIN_LOAD takes absolute precedence over plugin_dir config.
+    // Only the exact string "1" disables loading (EC-D-011). Values like "true", "yes", "0"
+    // are treated as unset.
+    if std::env::var("PRISM_DISABLE_PLUGIN_LOAD").as_deref() == Ok("1") {
+
+-------------------------------------------------------------------------------
+TEST OUTPUT: test_BC_2_22_001_disable_env_takes_precedence_over_plugin_dir_config
+-------------------------------------------------------------------------------
+
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.38s
+────────────
+ Nextest run ID f485f074 with nextest profile: default
+    Starting 1 test across 1 binary (11 tests skipped)
+        PASS [   0.045s] (1/1) prism-bin::plugin_boot_tests test_BC_2_22_001_disable_env_takes_precedence_over_plugin_dir_config
+────────────
+     Summary [   0.045s] 1 test run: 1 passed, 11 skipped
+
+RESULT: PASS — PRISM_DISABLE_PLUGIN_LOAD=1 overrides plugin_dir configuration.
+        Even a plugin_dir containing valid .prx files results in 0 plugins loaded.
+        Only exact string "1" triggers disable path (EC-D-011). BC-2.22.001
+        emergency escape valve invariant satisfied.

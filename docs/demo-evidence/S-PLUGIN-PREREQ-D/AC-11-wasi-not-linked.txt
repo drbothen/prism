@@ -1,0 +1,29 @@
+AC-11 — WASI not linked (filesystem sandbox enforced)
+======================================================
+Story: S-PLUGIN-PREREQ-D (v1.37) | BC: BC-2.17.002 | INV: INV-PLUGIN-002 | HEAD: 862e721a
+
+EVIDENCE TYPE: Test output
+
+BC-2.17.002 / INV-PLUGIN-002: WASI is NOT linked into the Prism plugin linker.
+A plugin WASM component that imports WASI functions (e.g., wasi:filesystem) must
+trap when instantiated — WASI calls are not available to guest plugins.
+
+The test uses a negative-coverage component that imports wasi:filesystem/types and
+verifies that instantiation traps (unresolved import → Wasmtime link error or trap).
+
+-------------------------------------------------------------------------------
+TEST OUTPUT: test_BC_2_17_002_wasi_not_linked_trap_on_fs_call
+-------------------------------------------------------------------------------
+
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.26s
+────────────
+ Nextest run ID 6b4b3d1e with nextest profile: default
+    Starting 1 test across 1 binary (33 tests skipped)
+        PASS [   0.011s] (1/1) prism-spec-engine::plugin_integration_tests test_BC_2_17_002_wasi_not_linked_trap_on_fs_call
+────────────
+     Summary [   0.012s] 1 test run: 1 passed, 33 skipped
+
+RESULT: PASS — A WASI-importing component traps on instantiation.
+        WASI filesystem, clock, and socket functions are not available
+        to guest plugins. INV-PLUGIN-002 satisfied: plugins have no direct
+        filesystem access.

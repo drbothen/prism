@@ -1,6 +1,6 @@
 [package]
 name = "prism-spec-engine"
-version = "0.7.0"
+version = "0.8.0"
 edition = "2024"
 license = "MIT"
 description = "Prism config-driven sensor adapter engine: TOML spec loading, pipeline execution, OCSF mapping, infusion enrichment framework, WASM plugin runtime (S-1.15), and hot reload + runtime management (S-1.12)"
@@ -19,6 +19,12 @@ serde_json = "1"
 regex = "1"
 arc-swap = "1"
 sha2 = "0.10"
+# S-PLUGIN-PREREQ-D AC-15: AuthToken zeroize-on-drop (TD-S-PLUGIN-PREREQ-B-002 / AD-017).
+# Wraps AuthToken inner field in Zeroizing<String> so credential bytes are overwritten on drop.
+zeroize = "1"
+# S-PLUGIN-PREREQ-D AC-7: host_http_request allowlist enforcement uses url::Url::parse
+# for host-only extraction (prevents substring bypass via query params).
+url = "2"
 hex = "0.4"
 # uuid v7 for time-ordered confirmation tokens (TD-S112-001)
 uuid = { version = "1", features = ["v7"] }
@@ -29,6 +35,7 @@ tracing = "0.1"
 # WASM Plugin Runtime (S-1.15 / SS-17 / AD-019)
 # wasmtime 44 resolves 17 RUSTSEC advisories (RUSTSEC-2024-0438 through RUSTSEC-2026-0096)
 wasmtime = { version = "44", features = ["component-model"] }
+semver = "1"
 # notify: cross-platform filesystem event watcher (AD-018 / S-1.12 / S-1.15)
 notify = "7"
 reqwest = { version = "0.12", features = ["json", "rustls-tls", "gzip", "deflate", "brotli"], default-features = false }
@@ -92,14 +99,18 @@ name = "hot_reload_tests"
 path = "tests/hot_reload_tests.rs"
 
 # S-PLUGIN-PREREQ-B: VP-PLUGIN-002 wiremock integration tests
+# required-features: uses MockAuthProvider / NullAuthProvider (test-helpers feature-gated)
 [[test]]
 name = "pipeline_http_integration"
 path = "tests/pipeline_http_integration.rs"
+required-features = ["test-helpers"]
 
 # S-PLUGIN-PREREQ-B: VP-PLUGIN-005 401-retry integration tests
+# required-features: uses MockAuthProvider (test-helpers feature-gated)
 [[test]]
 name = "pipeline_oauth_retry"
 path = "tests/pipeline_oauth_retry.rs"
+required-features = ["test-helpers"]
 
 # S-PLUGIN-PREREQ-C: AC-1 Red Gate — page_size on CursorToken first-call
 [[test]]
@@ -110,3 +121,17 @@ path = "tests/ac_1_cursor_page_size_test.rs"
 [[test]]
 name = "proptest_AC_3"
 path = "tests/proptest_AC_3.rs"
+
+# S-PLUGIN-PREREQ-D: existing plugin sandbox / host_function integration tests
+# required-features: uses HostState::test_with_allowed_urls (test-helpers feature-gated)
+[[test]]
+name = "plugin_tests"
+path = "tests/plugin_tests.rs"
+required-features = ["test-helpers"]
+
+# S-PLUGIN-PREREQ-D: new plugin integration tests (boot wiring, manifest validation, etc.)
+# required-features: uses HostState::test_with_allowed_urls / test_with_plugin_id (test-helpers)
+[[test]]
+name = "plugin_integration_tests"
+path = "tests/plugin_integration_tests.rs"
+required-features = ["test-helpers"]

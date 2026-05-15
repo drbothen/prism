@@ -1,0 +1,58 @@
+AC-07 — Allowlist enforcement via host-only == comparison
+=========================================================
+Story: S-PLUGIN-PREREQ-D (v1.37) | BC: BC-2.17.002 | VP: VP-PLUGIN-007 | HEAD: 862e721a
+
+EVIDENCE TYPE: Test output (3 tests: block non-allowlisted, allow listed, production linker dispatch)
+
+host_http_request enforces the allowlist by comparing the request URL's host
+against each entry in HostState::allowed_urls using exact == host-only comparison
+(no substring matching, no path matching). A URL not in the list returns HTTP 403
+to the plugin and emits event_type = "plugin_http_request_blocked".
+
+VP-PLUGIN-007: Vec<String> (not Option<Vec<String>>) makes the None-branch
+type-system-impossible. Default-deny: vec![] = deny ALL outbound HTTP.
+
+-------------------------------------------------------------------------------
+TEST OUTPUT: test_BC_2_17_002_allowlist_enforcement_blocks_non_allowlisted_url
+              test_BC_2_17_002_allowlist_enforcement_allows_listed_url
+-------------------------------------------------------------------------------
+
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.26s
+────────────
+ Nextest run ID 7045c5dc with nextest profile: default
+    Starting 2 tests across 1 binary (32 tests skipped)
+        PASS [   0.010s] (1/2) prism-spec-engine::plugin_integration_tests test_BC_2_17_002_allowlist_enforcement_blocks_non_allowlisted_url
+        PASS [   0.015s] (2/2) prism-spec-engine::plugin_integration_tests test_BC_2_17_002_allowlist_enforcement_allows_listed_url
+────────────
+     Summary [   0.016s] 2 tests run: 2 passed, 32 skipped
+
+-------------------------------------------------------------------------------
+TEST OUTPUT: test_F_PASS5_HIGH_001_production_linker_dispatch_via_build_linker_route_a
+(production linker route — verifies 403 from real callback path)
+-------------------------------------------------------------------------------
+
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.28s
+────────────
+ Nextest run ID 649311bd with nextest profile: default
+    Starting 1 test across 1 binary (33 tests skipped)
+        PASS [   0.017s] (1/1) prism-spec-engine::plugin_integration_tests test_F_PASS5_HIGH_001_production_linker_dispatch_via_build_linker_route_a
+────────────
+     Summary [   0.018s] 1 test run: 1 passed, 33 skipped
+
+-------------------------------------------------------------------------------
+TEST OUTPUT: test_F_PASS3_CRIT_003_component_model_dispatch_allowlist_gate
+(Component Model dispatch path — verifies allowlist gate in full stack)
+-------------------------------------------------------------------------------
+
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.28s
+────────────
+ Nextest run ID 5983634b with nextest profile: default
+    Starting 1 test across 1 binary (33 tests skipped)
+        PASS [   0.013s] (1/1) prism-spec-engine::plugin_integration_tests test_F_PASS3_CRIT_003_component_model_dispatch_allowlist_gate
+────────────
+     Summary [   0.013s] 1 test run: 1 passed, 33 skipped
+
+RESULT: PASS — Allowlist enforcement blocks unlisted hosts with HTTP 403.
+        Listed hosts pass. Production linker dispatch (Route A) exercises the
+        full callback path including the allowlist gate. VP-PLUGIN-007 satisfied:
+        Vec<String> field type makes None-branch impossible.

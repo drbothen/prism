@@ -26,6 +26,7 @@
 pub mod boot;
 pub mod cli;
 pub mod exit_codes;
+pub mod plugin_audit;
 pub mod signals;
 
 // Top-level re-exports for ergonomic import in integration tests.

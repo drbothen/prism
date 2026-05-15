@@ -1,0 +1,37 @@
+// component_model_dispatch.wit — WIT interface for F-PASS5-HIGH-001 dispatch fixture.
+//
+// World: prism:dispatch-test@0.1.0
+//   Imports: host interface with http-response record + http-request function
+//   Exports: call-blocked func() -> u16
+//
+// This fixture is used by test_F_PASS5_HIGH_001_production_linker_dispatch_via_build_linker_route_a
+// in crates/prism-spec-engine/tests/plugin_integration_tests.rs.
+//
+// The "host" interface mirrors the subset of the production host interface
+// (host_functions.rs:340-470) required by the dispatch test: http-request with
+// the full http-response record type. The canonical ABI for http-request uses
+// 10 i32 parameters (lowered) with a retptr for the http-response record.
+//
+// Build recipe: see tests/fixtures/src/component_model_dispatch.README.md
+// Built binary: tests/fixtures/component_model_dispatch.prx
+
+package prism:dispatch-test@0.1.0;
+
+world dispatch-test {
+    import host: interface {
+        record http-response {
+            status: u16,
+            headers: list<tuple<string, string>>,
+            body: list<u8>,
+        }
+
+        http-request: func(
+            method: string,
+            url: string,
+            headers: list<tuple<string, string>>,
+            body: option<list<u8>>,
+        ) -> http-response;
+    }
+
+    export call-blocked: func() -> u16;
+}

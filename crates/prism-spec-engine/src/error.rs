@@ -127,6 +127,24 @@ pub enum SpecEngineError {
         /// Descriptive extraction failure reason from the JSONPath engine.
         detail: String,
     },
+
+    // -------------------------------------------------------------------------
+    // S-PLUGIN-PREREQ-D — PipelineExecutor cumulative request cap (AC-16)
+    // -------------------------------------------------------------------------
+    /// E-PIPELINE-001: Cumulative HTTP request count across all pipeline steps reached
+    /// `MAX_REQUESTS_PER_PIPELINE` (10,000); pipeline aborts immediately.
+    ///
+    /// Non-retryable. Partial results are discarded. Anchors: BC-2.16.002 §Postconditions
+    /// (Canonical Structured Event Catalog bullet, v1.12) row `pipeline_max_requests_exceeded`;
+    /// TD-S-PLUGIN-PREREQ-B-004 closure.
+    #[error(
+        "E-PIPELINE-001: Pipeline executor reached MAX_REQUESTS_PER_PIPELINE cap of 10_000 \
+         ({total} requests attempted); aborting pipeline execution"
+    )]
+    TooManyRequests {
+        /// Total cumulative HTTP requests attempted (always >= MAX_REQUESTS_PER_PIPELINE).
+        total: usize,
+    },
 }
 
 // ---------------------------------------------------------------------------

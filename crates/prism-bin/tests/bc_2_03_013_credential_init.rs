@@ -430,15 +430,16 @@ fn make_config_with_spec_dir(
     spec_dir: &std::path::Path,
 ) -> (prism_bin::boot::PrismConfig, tempfile::TempDir) {
     let state_tmp = tempfile::TempDir::new().unwrap();
-    let config = prism_bin::boot::PrismConfig {
-        spec_dir: spec_dir.to_path_buf(),
-        state_dir: state_tmp.path().to_path_buf(),
-        orgs: vec![prism_bin::boot::OrgEntry {
-            org_id: "0196f000-0000-7000-8000-000000000001".to_string(),
-            org_slug: "acme".to_string(),
-        }],
-        credential_backend: prism_bin::boot::CredentialBackendConfig::Keyring,
-    };
+    let config = prism_bin::boot::PrismConfig::new_for_test(
+        spec_dir.to_path_buf(),
+        state_tmp.path().to_path_buf(),
+        "plugins",
+        vec![prism_bin::boot::OrgEntry::new(
+            "0196f000-0000-7000-8000-000000000001",
+            "acme",
+        )],
+        prism_bin::boot::CredentialBackendConfig::Keyring,
+    );
     (config, state_tmp)
 }
 

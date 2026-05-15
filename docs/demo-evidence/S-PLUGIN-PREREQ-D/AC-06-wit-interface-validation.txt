@@ -1,0 +1,38 @@
+AC-06 — WIT interface validation before registration
+====================================================
+Story: S-PLUGIN-PREREQ-D (v1.37) | BC: BC-2.17.006 | HEAD: 862e721a
+
+EVIDENCE TYPE: Test output (2 tests: missing-export rejection + duplicate-id first-wins)
+
+BC-2.17.006 requires WIT interface validation before a component is registered
+into the PluginRuntime registry. A component missing the required export interface
+must be rejected with PluginError::InvalidWitInterface. A duplicate plugin_id
+must retain the first-registered plugin (first-wins invariant).
+
+-------------------------------------------------------------------------------
+TEST OUTPUT (success path): test_BC_2_17_006_wit_validation_rejects_missing_export
+-------------------------------------------------------------------------------
+
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.27s
+────────────
+ Nextest run ID 4d18750c with nextest profile: default
+    Starting 1 test across 1 binary (33 tests skipped)
+        PASS [   0.011s] (1/1) prism-spec-engine::plugin_integration_tests test_BC_2_17_006_wit_validation_rejects_missing_export
+────────────
+     Summary [   0.012s] 1 test run: 1 passed, 33 skipped
+
+-------------------------------------------------------------------------------
+TEST OUTPUT (duplicate plugin_id): test_BC_2_17_006_duplicate_plugin_id_first_wins
+-------------------------------------------------------------------------------
+
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.54s
+────────────
+ Nextest run ID 0fc12887 with nextest profile: default
+    Starting 1 test across 1 binary (33 tests skipped)
+        PASS [   0.194s] (1/1) prism-spec-engine::plugin_integration_tests test_BC_2_17_006_duplicate_plugin_id_first_wins
+────────────
+     Summary [   0.207s] 1 test run: 1 passed, 33 skipped
+
+RESULT: PASS — WIT interface validation rejects components missing the required
+        export before registration. Duplicate plugin_id first-wins invariant
+        enforced per BC-2.17.006 §Invariants.

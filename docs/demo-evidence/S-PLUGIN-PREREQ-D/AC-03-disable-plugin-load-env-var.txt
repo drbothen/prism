@@ -1,0 +1,60 @@
+AC-03 — PRISM_DISABLE_PLUGIN_LOAD=1 skips loading + audit emitted
+==================================================================
+Story: S-PLUGIN-PREREQ-D (v1.37) | BC: BC-2.22.001 | HEAD: 862e721a
+
+EVIDENCE TYPE: Test output + source excerpt
+
+When PRISM_DISABLE_PLUGIN_LOAD=1 is set, the plugin-load step:
+  1. Emits a single structured tracing::warn!(event_type = "plugin_load_disabled_via_envvar", ...)
+  2. Returns Ok(PluginLoadResult { plugins_loaded: 0 }) immediately
+  3. MCP server STILL binds (emergency escape valve — zero plugins, not boot failure)
+
+-------------------------------------------------------------------------------
+SOURCE EXCERPT: plugin_load_step_with_audit() — boot.rs lines 905–934
+-------------------------------------------------------------------------------
+
+    // AC-18: PRISM_DISABLE_PLUGIN_LOAD takes absolute precedence over plugin_dir config.
+    // Only the exact string "1" disables loading (EC-D-011). Values like "true", "yes", "0"
+    // are treated as unset.
+    if std::env::var("PRISM_DISABLE_PLUGIN_LOAD").as_deref() == Ok("1") {
+        // Single structured emission per BC-2.16.002 v1.12 catalog row plugin_load_disabled_via_envvar.
+        tracing::warn!(
+            event_type = "plugin_load_disabled_via_envvar",
+            env_var = "PRISM_DISABLE_PLUGIN_LOAD",
+            "Plugin loading disabled via PRISM_DISABLE_PLUGIN_LOAD=1; \
+             no plugins loaded (emergency escape valve)"
+        );
+
+        // Construct runtime without loading plugins (MCP server still binds with zero plugins).
+        let http_client = reqwest::Client::builder()
+            .timeout(Duration::from_secs(PLUGIN_HTTP_CLIENT_TIMEOUT_SECS))
+            .build()
+            .map_err(|e| {
+                BootError::InternalError(format!(
+                    "PluginRuntime HTTP client construction failed (EC-D-009): {e}"
+                ))
+            })?;
+
+        let runtime = PluginRuntime::new_with_audit_sink(http_client, audit_sink)
+            .map_err(|e| BootError::InternalError(e.to_string()))?;
+
+        return Ok(PluginLoadResult {
+            runtime: Arc::new(runtime),
+            plugins_loaded: 0,
+        });
+    }
+
+-------------------------------------------------------------------------------
+TEST OUTPUT: test_BC_2_22_001_plugin_load_disabled_env
+-------------------------------------------------------------------------------
+
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.41s
+────────────
+ Nextest run ID 25929c1f with nextest profile: default
+    Starting 1 test across 1 binary (11 tests skipped)
+        PASS [   0.045s] (1/1) prism-bin::plugin_boot_tests test_BC_2_22_001_plugin_load_disabled_env
+────────────
+     Summary [   0.046s] 1 test run: 1 passed, 11 skipped
+
+RESULT: PASS — PRISM_DISABLE_PLUGIN_LOAD=1 triggers early return with 0 plugins
+        loaded; structured BC-2.16.002 audit event emitted; MCP server still binds.

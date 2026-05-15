@@ -160,3 +160,23 @@ check-non-exhaustive:
 # Install all development toolchain extensions (idempotent)
 setup:
     @bash scripts/dev-setup.sh
+
+# Build the component_model_dispatch.prx fixture from source (F-PASS6-MED-001).
+# Requires wasm-tools 1.248.0 (`cargo install wasm-tools --version 1.248.0`).
+# Source files:
+#   tests/fixtures/src/component_model_dispatch.wit
+#   tests/fixtures/src/component_model_dispatch.core.wat
+# Output:
+#   tests/fixtures/component_model_dispatch.prx
+# Full recipe documented in: tests/fixtures/src/component_model_dispatch.README.md
+build-fixture-component_model_dispatch:
+    wasm-tools component embed \
+        --world dispatch-test \
+        tests/fixtures/src/component_model_dispatch.wit \
+        tests/fixtures/src/component_model_dispatch.core.wat \
+        -o /tmp/component_model_dispatch.embedded.wasm
+    wasm-tools component new \
+        /tmp/component_model_dispatch.embedded.wasm \
+        -o tests/fixtures/component_model_dispatch.prx
+    @echo "Built tests/fixtures/component_model_dispatch.prx"
+    @wasm-tools component wit tests/fixtures/component_model_dispatch.prx
