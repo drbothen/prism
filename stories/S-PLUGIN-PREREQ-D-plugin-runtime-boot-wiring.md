@@ -663,7 +663,7 @@ Only the exact string `"1"` disables loading (EC-D-011: values like `"true"`, `"
 12. **[.github] Create `.github/PULL_REQUEST_TEMPLATE.md`** (ADR-023 §C4 F-PASS3-MED-001)
     - Three-item sensor-pattern checklist (content defined in Implementation Notes §PR Template)
 
-13. **[tests/fixtures] Commit all 4 `.prx` test fixtures** — `minimal.prx`, `trap_plugin.prx`, `infinite_loop.prx`, `bad_wit.prx` (pre-built binaries) plus WAT sources in `tests/fixtures/src/` — see Fixture Strategy
+13. **[tests/fixtures] Commit all 5 `.prx` test fixtures** — `minimal.prx`, `trap_plugin.prx`, `infinite_loop.prx`, `bad_wit.prx`, `component_model_dispatch.prx` (pre-built binaries) plus WAT sources in `tests/fixtures/src/` — see Fixture Strategy
 
 14. **[prism-spec-engine] Verify Structured Event Catalog wiring** — emit each event from the function-name anchor recorded in BC-2.16.002 catalog row; if implementation discovers ANY new event_type site beyond the 13 already cataloged, amend BC-2.16.002 in the same commit per PG-LP11-001; see §Structured Event Catalog Additions for the canonical 13-row list and BC source-of-truth for Level/Emitter/Fields/Trigger
 
@@ -673,17 +673,17 @@ Only the exact string `"1"` disables loading (EC-D-011: values like `"true"`, `"
 
 | Item | Estimated Tokens |
 |------|-----------------|
-| Story spec (this file) | ~8,100 |
+| Story spec (this file) | ~8,200 |
 | BC files (9 BCs × ~1,500) | ~13,500 |
 | ADR-023 §C4 (relevant sections) | ~4,000 |
 | crates/prism-spec-engine/src/plugin/ source (mod.rs, host_functions.rs) + src/pipeline.rs + src/auth_provider.rs | ~8,000 |
 | crates/prism-bin/src/boot.rs | ~3,000 |
 | Cargo.toml files (2) | ~1,000 |
-| tests/fixtures/src/*.wat (4 WAT source files × ~50 LOC each) | ~800 |
+| tests/fixtures/src/*.wat + *.wit + *.core.wat (5 fixture source files × ~50 LOC each) | ~1,000 |
 | Test output / error messages during TDD | ~4,000 |
-| **Total** | **~42,400** |
+| **Total** | **~42,700** |
 
-This is approximately 16.6% of a 256k-token context window — within the 20-30% limit.
+This is approximately 16.7% of a 256k-token context window — within the 20-30% limit.
 No splitting required.
 
 ## File Structure Requirements
@@ -816,7 +816,7 @@ BC-2.16.002 as a BC amendment in the same commit as the implementation, per SOP 
 
 ## Fixture Strategy
 
-**Decision: COMMIT all 4 `.prx` test fixtures as pre-built binary artifacts.**
+**Decision: COMMIT all 5 `.prx` test fixtures as pre-built binary artifacts.**
 
 Rationale: avoiding a `just plugin-build` or `cargo component build` bootstrap dependency in
 the test suite is critical. The integration test suite must run with `cargo nextest run` and
@@ -834,6 +834,7 @@ Multiple fixtures required:
 | `tests/fixtures/trap_plugin.prx` | repo root `tests/fixtures/` | WAT-compiled module with `unreachable`; used by AC-10 |
 | `tests/fixtures/infinite_loop.prx` | repo root `tests/fixtures/` | WAT-compiled module with `loop {}`; used by AC-13 |
 | `tests/fixtures/bad_wit.prx` | repo root `tests/fixtures/` | Component missing required WIT exports; used by AC-6 |
+| `tests/fixtures/component_model_dispatch.prx` | repo root `tests/fixtures/` | Component Model dispatch test fixture; used by `test_F_PASS5_HIGH_001` (Route A production-linker dispatch); WIT + core.wat + README in `tests/fixtures/src/component_model_dispatch.{wit,core.wat,README.md}`; built via `just build-fixture-component_model_dispatch` (wasm-tools 1.248.0 component embed+new); ~1314 bytes |
 
 Fixture authorship (WAT source → `.prx` binary compilation) is implementer responsibility. The
 WAT sources are committed alongside the binaries in `tests/fixtures/src/` for auditability.
@@ -1048,6 +1049,7 @@ Do NOT invent version numbers. All versions above are confirmed from `crates/pri
 
 | Version | Burst | Date | Author | Change |
 |---------|-------|------|--------|--------|
+| 1.37 | S-PLUGIN-PREREQ-D-fix-burst-impl-7 | 2026-05-15 | story-writer | F-PASS7-MED-001 closure: Fixture Strategy table extended for 5th fixture `component_model_dispatch.prx`. Updated Task 13 enumeration count (4→5; appended component_model_dispatch.prx), Strategy decision header count (4→5), and Strategy table (5th row with build recipe reference). Token Budget: story-spec row 8,100→8,200; WAT sources row updated to "5 fixture source files × ~50 LOC each" (~1,000); Total 42,400→42,700; pct 16.6%→16.7%. Closes the predicted scope gap from impl-pass-6 dispatch brief (story file was excluded from fix-burst-impl-6 implementer scope; fix-burst-impl-6 story-writer parallel dispatch didn't cover Strategy table extension either). Sibling-sweep: 0 active-body "all 4 .prx" / "4 fixtures" hits remaining after sweep (1 historical changelog hit in v1.1 row — acceptable). PG-IMPL-LP6-002 codification candidate (story-side sibling-sweep on cycle-introduced new fixture commits) directly addressed by this burst. v1.36→v1.37. |
 | 1.36 | S-PLUGIN-PREREQ-D-fix-burst-impl-6 | 2026-05-15 | story-writer | F-PASS6-LOW-003 closure + PG-IMPL-LP6-003 frontmatter sync. LOW-003: story v1.34 changelog Burst column corrected from "S-PLUGIN-PREREQ-D-fix-burst-impl-3" to "S-PLUGIN-PREREQ-D-fix-burst-impl-4" (the BC row 32 addition was D-552/fix-burst-impl-3; the story-body sweep 12→13 + 13th row append was D-554/fix-burst-impl-4 per actual commit history; body prose narrative is correct, only Burst attribution was inverted). Frontmatter `updated: "2026-05-14"` → `"2026-05-15"` syncing with v1.35 changelog row date (PG-IMPL-LP6-003 frontmatter-modified discipline). v1.35→v1.36. |
 | 1.35 | S-PLUGIN-PREREQ-D-fix-burst-impl-5 | 2026-05-15 | implementer | F-PASS5-LOW-001/002 closure (cosmetic spec alignment). LOW-001 (STORY-INDEX attribution): F-PASS4-MED-001 story-body sibling-sweep was performed by fix-burst-impl-4 (D-554, b788d53c), not fix-burst-impl-3; fix-burst-impl-3 (D-552, d8f51552) added BC-2.16.002 v1.17 row 32. STORY-INDEX row annotation corrected to attribute each burst. LOW-002 (catalog row field asymmetry): `plugin_log_level_unrecognized` §Structured Event Catalog Additions row had `event_type` in the Fields column; removed per Option A (event_type is the row key, not a payload field; 12 sibling rows omit it; BC-2.16.002 v1.17 row 32 source-of-truth lists only `plugin_id, received_name`). v1.34→v1.35. |
 | 1.34 | S-PLUGIN-PREREQ-D-fix-burst-impl-4 | 2026-05-14 | story-writer | F-PASS4-MED-001 closure: §Structured Event Catalog Additions count drift 12→13 (sibling-sweep TD-VSDD-060). fix-burst-impl-3 added BC-2.16.002 v1.17 row 32 (`plugin_log_level_unrecognized`) but story body remained at "12 events". Updated count 12→13 at 4 active-body sites: BC table intro (line 260 primary-coverage cell), Task 14 (12→13 in "beyond the N already cataloged" + "canonical N-row list"), §Structured Event Catalog Additions preamble ("The 12 events" → "The 13 events"; added fix-burst-impl-3 attribution), §Previous Story Intelligence item 1 (12→13 in narrative + per-burst breakdown). Appended 13th catalog row for `plugin_log_level_unrecognized` (WARN, register_host_functions → host::log callback, fields: plugin_id + received_name + event_type, observability — surface plugin schema-violation attempts) mirroring BC-2.16.002 v1.17 row 32 schema exactly. Sibling-sweep grep `"12 event\|12 new event\|12 structured\|12 catalog\|12 row\|12 already\|12-row"` — 0 active-body hits remaining; 1 historical hit in v1.33 changelog (correct). Traces to: F-PASS4-MED-001, BC-2.16.002 v1.17. v1.33→v1.34. |
