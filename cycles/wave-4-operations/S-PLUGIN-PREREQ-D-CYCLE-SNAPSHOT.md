@@ -3654,3 +3654,77 @@ After fix-burst-impl-8 closes F-PASS8-HIGH-001:
 | `error_taxonomy_v` | 1.24 (UNCHANGED) |
 | factory-artifacts HEAD | run `git -C .factory log -1 --format=%H` (D-561 is this commit) |
 | test baseline | 34/34 plugin_integration_tests PASS (UNCHANGED) |
+
+---
+
+## §FIX-BURST-IMPL-8 CLOSURE (D-562 — 2026-05-15)
+
+### Summary
+
+Fix-burst-impl-8 dispatched (story-writer single-scope). Outcome: CLOSED 1/1.
+
+**Factory commit:** `7fe913b7` — `fix(S-PLUGIN-PREREQ-D): F-PASS8-HIGH-001 — sync story frontmatter version: 1.36 → 1.37`
+
+- Single-line edit: `version: "1.36"` → `version: "1.37"` at line 56 of `.factory/stories/S-PLUGIN-PREREQ-D-plugin-runtime-boot-wiring.md`
+- 1 insertion / 1 deletion in 1 file (story file only)
+- All downstream artifacts (STORY-INDEX, STATE, SESSION-HANDOFF, story body, story changelog) were already at v1.37 from fix-burst-impl-7; only the frontmatter pointer was stale
+
+### Finding Closure (1/1)
+
+| Finding | Severity | Status | Resolution |
+|---------|----------|--------|------------|
+| F-PASS8-HIGH-001 | HIGH | CLOSED | Story frontmatter canonical machine-readable version pointer now matches all downstream artifact claims at v1.37 |
+
+### Process Discipline
+
+**PG-IMPL-LP6-003 RESTORED:** Frontmatter `version:` field now correctly synchronized with top changelog row Version cell. This is the 2nd consecutive recurrence of PG-IMPL-LP6-003 (first was frontmatter `updated:` date in fix-burst-impl-6; second is `version:` field in fix-burst-impl-8). PG-IMPL-LP7-001 hook-enforced regression-gate codification candidate remains queued for cycle-close session-reviewer adjudication (codification queue 31, unchanged).
+
+### 8-Pass Trajectory Table (UPDATED)
+
+| Pass | Verdict | CRIT | HIGH | MED | LOW | Net | Burst |
+|------|---------|------|------|-----|-----|-----|-------|
+| impl-pass-1 | BLOCKED | 5 | 6 | 4 | 3 | 18 | fix-burst-impl-1: CLOSED 18/18 (D-547/D-548) |
+| impl-pass-2 | BLOCKED | 2 | 3 | 4 | 3 | 12 | fix-burst-impl-2: CLOSED 12/12 (D-549/D-550) |
+| impl-pass-3 | BLOCKED | 2 | 1 | 2 | 1 | 6 | fix-burst-impl-3: CLOSED 6/6 (D-551/D-552) |
+| impl-pass-4 | BLOCKED | 0 | 1 | 1 | 0 | 2 | fix-burst-impl-4: CLOSED 2/2 (D-553/D-554) |
+| impl-pass-5 | BLOCKED | 0 | 1 | 0 | 2 | 3 | fix-burst-impl-5: CLOSED 3/3 (D-555/D-556; BREAKTHROUGH) |
+| impl-pass-6 | BLOCKED | 0 | 0 | 1 | 3 | 4 | fix-burst-impl-6: CLOSED 4/4 (D-557/D-558; ZERO CRIT+HIGH) |
+| impl-pass-7 | BLOCKED | 0 | 0 | 1 | 0 | 1 | fix-burst-impl-7: CLOSED 1/1 (D-559/D-560; LIGHTEST BURST) |
+| impl-pass-8 | BLOCKED | 0 | 1 | 0 | 0 | 1 | fix-burst-impl-8: CLOSED 1/1 (D-561/D-562; factory 7fe913b7; single-line frontmatter sync) |
+
+**Severity-weighted trajectory:** 18→12→6→2→3→4→1→1
+
+**Interpretation:** The 1→1 flat reading is a PG-IMPL-LP6-003 recurrence (frontmatter-sync class), NOT production implementation regression. All carry-forward closure verifications HOLD. Production layer fully converged (CRIT/HIGH findings closed 8+ passes ago).
+
+### impl-pass-9 Prerequisites
+
+| Prerequisite | Status |
+|-------------|--------|
+| Feature branch @ 862e721a | UNCHANGED — no source commits during fix-burst-impl-8 |
+| Story frontmatter `version:` | CORRECT at v1.37 (fixed this burst) |
+| All downstream artifacts at v1.37 | CONFIRMED (STORY-INDEX/STATE/SESSION-HANDOFF/changelog/body all correct) |
+| 42/42 prior carry-forwards | ALL HOLD |
+| Codification queue | 31 (PG-IMPL-LP7-001 queued for cycle-close; non-blocking) |
+
+**Adversary forecast: ~95% CLEAN probability for impl-pass-9**
+
+If impl-pass-9 CLEAN → streak advances 0/3 → 1/3 (FIRST ADVANCE after 8 consecutive BLOCKED passes). Then impl-pass-10 (2/3) and impl-pass-11 (3/3) complete 3-CLEAN convergence per BC-5.39.001.
+
+### Durable Pins (D-562)
+
+| Field | Value |
+|-------|-------|
+| `feature_branch_head` | `862e721a` (UNCHANGED) |
+| `impl_adversary_pass_count` | 8 (UNCHANGED — bursts do not increment pass count) |
+| `impl_adversary_streak` | 0/3 (PENDING impl-pass-9; advances only at CLEAN pass) |
+| `codification_queue` | 31 (UNCHANGED) |
+| `story_v` | 1.37 (frontmatter now matches downstream — FIXED this burst) |
+| `story_index_v` | v2.107 (UNCHANGED) |
+| `token_budget_total` | 42,700 (UNCHANGED) |
+| `develop_head` | 95d46be2 (UNCHANGED) |
+| `state_v` / `handoff_v` | 7.267 |
+| `bc_index_v` | 4.79 (UNCHANGED) |
+| `bc_2_16_002_v` | 1.17 (32 rows; UNCHANGED) |
+| `error_taxonomy_v` | 1.24 (UNCHANGED) |
+| factory-artifacts HEAD | run `git -C .factory log -1 --format=%H` (D-562 is this commit) |
+| test baseline | 34/34 plugin_integration_tests PASS (UNCHANGED) |
