@@ -3090,3 +3090,128 @@ wasmtime's `lower_result` traps when writing wrong `Val` type to a declared reco
 | factory-artifacts HEAD | run `git -C .factory log -1 --format=%H` (D-556 is this commit) |
 | plugin_integration_tests | 34/34 PASS (+1 new: test_F_PASS5_HIGH_001_production_linker_dispatch_via_build_linker_route_a) |
 | fixture_path | `crates/prism-spec-engine/fixtures/component_model_dispatch.prx` (1227 bytes) |
+
+---
+
+## §POST-IMPL-PASS-6 BLOCKED (D-557 — 2026-05-15)
+
+**Adversary impl-pass-6:** BLOCKED | **Streak:** 0/3 (reset; 6th consecutive)
+**Factory commit (D-557):** run `git -C .factory log -1 --format=%H`
+
+### MILESTONE: ZERO CRIT + ZERO HIGH — First Time Across 6 Passes
+
+Adversary impl-pass-6 dispatched against `feature/S-PLUGIN-PREREQ-D@0cc8ab14`.
+Verdict: **BLOCKED** with 4 in-perimeter findings (0 CRIT + 0 HIGH + 1 MED + 3 LOW)
+plus 3 process-gap OBS.
+
+**This is the first pass in the 6-pass implementation cascade with ZERO CRIT and
+ZERO HIGH findings.** The paper-fix class (which drove CRIT/HIGH findings in passes
+1-5) has been fully resolved by the Route A pre-built `.prx` fixture breakthrough
+in fix-burst-impl-5. Remaining findings are administrative (fixture source files,
+path placement, stale trace anchor, attribution wording conflict).
+
+### Finding Tally
+
+| Severity | Count | Finding IDs |
+|----------|-------|-------------|
+| CRIT | 0 | — |
+| HIGH | 0 | — |
+| MED | 1 | F-PASS6-MED-001 |
+| LOW | 3 | F-PASS6-LOW-001, F-PASS6-LOW-002, F-PASS6-LOW-003 |
+| OBS (process-gap) | 3 | PG-IMPL-LP6-001, PG-IMPL-LP6-002, PG-IMPL-LP6-003 |
+
+### 6-Pass Trajectory (Severity-Weighted)
+
+| Pass | CRIT | HIGH | MED | LOW | Trajectory note |
+|------|------|------|-----|-----|-----------------|
+| impl-pass-1 | 3 | 6 | 7 | 2 | 18 — initial implementation |
+| impl-pass-2 | 2 | 4 | 4 | 2 | 12 — paper-fix layer 2 |
+| impl-pass-3 | 3 | 1 | 2 | 0 | 6 — paper-fix layer 3 |
+| impl-pass-4 | 0 | 1 | 1 | 0 | 2 — paper-fix layer 4 |
+| impl-pass-5 | 0 | 1 | 0 | 2 | 3 — paper-fix layer 5 (test-local linker) |
+| impl-pass-6 | 0 | 0 | 1 | 3 | **4 — ZERO CRIT+HIGH; LOW-only** |
+
+Full arc: **18→12→6→2→3→4** (severity-weighted; qualitative convergence clear
+despite count uptick 3→4: all severity-weight now at MED+LOW tier).
+
+### Prior Closure Verifications (All HELD)
+
+- F-PASS5-HIGH-001 HELD: Route A pre-built `.prx` fixture; production-linker dispatch
+  test `test_F_PASS5_HIGH_001_production_linker_dispatch_via_build_linker_route_a`
+  confirmed exercising PRODUCTION `PluginRuntime::build_linker(&engine)`;
+  sanity-revert at `host_functions.rs:452` still causes wasmtime type-mismatch trap
+- host_functions.rs:452 confirmed `Val::U16(response.status)` — not regressed
+
+### Findings Detail
+
+**F-PASS6-MED-001 — Fixture source files not committed (reproducibility gap)**
+- `crates/prism-spec-engine/fixtures/component_model_dispatch.prx` (1227 bytes)
+  has no WIT/WAT source files at `tests/fixtures/src/`
+- Story Fixture Strategy (lines 838-839) mandates source files for auditability
+- All existing fixtures have WAT sources; this fixture violates convention
+- TD-VSDD-059 paper-fix vector: if wasmtime/wasm-tools ABI changes, no source to
+  rebuild from
+- Routing: implementer; Fix: commit WIT + WAT + build recipe
+
+**F-PASS6-LOW-001 — Fixture path placement diverges**
+- Fixture at `crates/prism-spec-engine/fixtures/` vs story-mandated `tests/fixtures/`
+- Routing: implementer; Fix: relocate or amend Fixture Strategy
+
+**F-PASS6-LOW-002 — Stale test header trace anchor**
+- `plugin_integration_tests.rs:3`: `//! Traces to: S-PLUGIN-PREREQ-D (v1.32)` (stale)
+- Story is v1.35; fix: bump to v1.35
+- Routing: implementer
+
+**F-PASS6-LOW-003 — STORY-INDEX attribution conflict (impl-3 vs impl-4)**
+- STORY-INDEX annotation says impl-3 did story body sweep (12→13)
+- Story changelog v1.34 (D-554 `b788d53c`) says impl-4 did body sweep
+- Adjudication: inspect D-552 + D-554 commit diffs to determine truth
+- Routing: story-writer or state-manager
+
+### Process-Gap OBS (Codification Queue 27→30)
+
+| ID | Axis | Queue |
+|----|------|-------|
+| PG-IMPL-LP6-001 | Closure attribution verification before application | 27→28 |
+| PG-IMPL-LP6-002 | Fixture source-of-truth discipline | 28→29 |
+| PG-IMPL-LP6-003 | Frontmatter `updated:` date sync on version bumps | 29→30 |
+
+### Fix-Burst-impl-6 Split-Routing Plan
+
+**Implementer (Route A):**
+1. F-PASS6-MED-001: Create `tests/fixtures/src/component_model_dispatch.wit` +
+   `component_model_dispatch.core.wat` + documented build recipe
+2. F-PASS6-LOW-001: Relocate fixture to `tests/fixtures/component_model_dispatch.prx`;
+   update `Component::from_file` path in test
+3. F-PASS6-LOW-002: Bump `plugin_integration_tests.rs:3` header to v1.35
+
+**Story-writer (Route B):**
+1. F-PASS6-LOW-003: Inspect D-552/D-554 commit diffs; correct STORY-INDEX attribution
+2. PG-IMPL-LP6-003: Sync story `updated:` frontmatter field to current ISO date
+
+### impl-pass-7 Outlook
+
+After fix-burst-impl-6 closes all 4 findings, impl-pass-7 has strong CLEAN potential:
+- The paper-fix class is resolved (passes 1-5 breakthrough)
+- Only administrative/process gaps remain
+- If impl-pass-7 is CLEAN: streak advances 0/3 → 1/3 (FIRST advance in cascade)
+- 3-CLEAN convergence then: impl-pass-8 (2/3) + impl-pass-9 (3/3) → demo-recorder
+
+### Durable Pins (D-557)
+
+| Field | Value |
+|-------|-------|
+| `feature_branch_head` | `0cc8ab14` (UNCHANGED — no worktree commits this pass) |
+| `impl_adversary_pass_count` | 6 |
+| `impl_adversary_streak` | 0/3 (reset; 6th consecutive BLOCKED) |
+| `codification_queue` | 30 (27 + 3 new: PG-IMPL-LP6-001/002/003) |
+| `story_v` | 1.35 (UNCHANGED) |
+| `story_index_v` | v2.105 (UNCHANGED) |
+| `develop_head` | 95d46be2 (UNCHANGED) |
+| `state_v` / `handoff_v` | 7.262 |
+| `bc_index_v` | 4.79 (UNCHANGED) |
+| `bc_2_16_002_v` | 1.17 (32 rows; UNCHANGED) |
+| `error_taxonomy_v` | 1.24 (UNCHANGED) |
+| factory-artifacts HEAD | run `git -C .factory log -1 --format=%H` (D-557 is this commit) |
+| test baseline | 34/34 plugin_integration_tests PASS (UNCHANGED) |
+| impl-pass-6 report | `cycles/wave-4-operations/adversarial-reviews/S-PLUGIN-PREREQ-D-impl-pass-6.md` |

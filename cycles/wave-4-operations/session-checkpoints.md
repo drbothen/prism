@@ -255,3 +255,11 @@ STATE v7.254. D-549 adversary impl-pass-2 BLOCKED. 12 in-perimeter findings: 2 C
 **Archived from STATE.md at D-551 transition (STATE v7.255→v7.256).**
 
 STATE v7.255. D-550 fix-burst-impl-2 CLOSED 12/12. All adversary impl-pass-2 findings remediated across 3 commits: c5d80016 (CRIT-001 main.rs::PrismCommand::Start → run_boot_sequence); 6ddcd155 (CRIT-002 Component Model callbacks delegate to host_* functions + HIGH-002 POL-18 + HIGH-003 kv_set Err + MED-001 escape hatch); b8fed147 (spec amendments: BC-2.16.002 v1.16 + BC-INDEX v4.78 + error-taxonomy v1.24 + story v1.33). 6 new load-bearing tests. just check 3637/3637 pass. CRIT-002 partial-coverage caveat (S-4.08-manifest-embedding deferral) — adversary impl-pass-3 adjudicating sufficiency. impl_adversary_streak: 0/3. feature_branch_head 6ddcd155. story v1.33. codification queue unchanged at 24. develop@95d46be2 UNCHANGED. NEXT: adversary impl-pass-3 dispatch (target 0/3→1/3 advance). 55th consecutive single-commit (TD-VSDD-053).
+
+---
+
+## Session Resume Checkpoint (2026-05-15-v7.261-d556-FIX-BURST-IMPL-5-CLOSED-BREAKTHROUGH) — ARCHIVED
+
+**Archived from STATE.md at D-557 transition (STATE v7.261→v7.262).**
+
+STATE v7.261. D-556 fix-burst-impl-5 CLOSED 3/3 — MAJOR BREAKTHROUGH. Route A pre-built `.prx` fixture via wasm-tools component embed+new; test `test_F_PASS5_HIGH_001_production_linker_dispatch_via_build_linker_route_a` exercises PRODUCTION `PluginRuntime::build_linker(&engine)`; sanity-revert at host_functions.rs:452 Val::U16→Val::U32 causes wasmtime `"type mismatch: expected u16, found u32"` trap — CONFIRMED LOAD-BEARING. Route B blocked by private wasmtime API + WAT record-type limitations. F-PASS5-LOW-001 CLOSED: STORY-INDEX v2.104→v2.105 (factory commit c666fcdb). F-PASS5-LOW-002 CLOSED: story v1.34→v1.35 (factory commit c666fcdb). 34/34 plugin_integration_tests pass (+1 new). 4 quality gates green. impl_adversary_streak 0/3 PENDING impl-pass-6. codification queue 27 (unchanged). 61st consecutive single-commit. feature_branch_head 0cc8ab14. develop@95d46be2 UNCHANGED. NEXT: adversary impl-pass-6 dispatch against `feature/S-PLUGIN-PREREQ-D@0cc8ab14` (target 1/3 — FIRST ADVANCE after 5 consecutive BLOCKED).
