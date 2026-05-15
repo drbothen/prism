@@ -2,11 +2,11 @@
 document_type: cycle-snapshot
 target_artifact: S-PLUGIN-PREREQ-D
 purpose: pre-compact-resume-durability
-snapshot_at: 2026-05-14
+snapshot_at: 2026-05-15
 factory_head: 18d34718
 factory_head_d529: TBD
-develop_head: 95d46be2
-story_version: v1.30
+develop_head: ec90fe8f
+story_version: v1.38
 story_content_sha: ebbf241c07295f785a464cdf7ba0eaf57c38a9f6
 bc_2_17_002_version: v1.7
 bc_2_17_002_content_sha: 898ad6282b8f514e5b378b483932ea40f3a05a2c
@@ -4271,3 +4271,154 @@ After Step 9 worktree cleanup + cycle-close session-reviewer: PREREQ-E (Un-seal 
 | `state_v` / `handoff_v` | **7.273** |
 | factory-artifacts HEAD | run `git -C .factory log -1 --format=%H` (D-568 is this commit) |
 | test baseline | 34/34 plugin_integration_tests PASS |
+
+---
+
+## §POST-MERGE RESUME SNAPSHOT (D-569 — 2026-05-15)
+
+> **Purpose:** Durable pre-/clear session-continuity anchor. This section is the authoritative resume anchor for a new session after /clear with NO prior context. Read STATE.md + SESSION-HANDOFF.md + this section for zero-ambiguity dispatch.
+
+---
+
+### §1 — Per-Story-Delivery Completion Summary (8/8 steps)
+
+| Step | Outcome | SHA / Decision |
+|------|---------|----------------|
+| 1 — devops worktree creation | COMPLETE | `.worktrees/S-PLUGIN-PREREQ-D/` on `feature/S-PLUGIN-PREREQ-D` from develop@95d46be2 |
+| 2 — test-writer Red Gate stubs | COMPLETE | 25 named tests, all FAIL @ `8ca17f3f` (D-546) |
+| 3 — implementer TDD green | COMPLETE | 25/25 pass + 4 implementation commits @ `08d084fa` (D-547) |
+| 4 — LOCAL adversary 3-CLEAN | COMPLETE | 11 passes + 8 fix-bursts + CONVERGED at impl-pass-11 (D-565) |
+| 5 — demo-recorder per-AC | COMPLETE | 18 AC evidence files + evidence-report.md @ `45ebc198` (D-566) |
+| 6 — devops push to remote | COMPLETE | `feature/S-PLUGIN-PREREQ-D@45ebc198` pushed; just check 3645/3645 (D-567) |
+| 7 — pr-manager 9-step PR | COMPLETE | PR #149 created, 4-cycle review APPROVE, 18 CI green, semver fix Option A @ `e57d0929`, PR description corrected (D-568) |
+| 8 — state-manager post-merge | COMPLETE | PR #149 squash-merged to develop@`ec90fe8f`; POL-14 BC promotions (6 BCs); STORY-INDEX flip; story v1.38 status merged (D-568) |
+
+---
+
+### §2 — Cumulative Cascade Stats
+
+| Metric | Value |
+|--------|-------|
+| Adversary passes (spec cascade) | 43 (passes 1-43; 3-CLEAN window at passes 41+42+43) |
+| Adversary passes (impl cascade) | 11 (passes 1-11; 3-CLEAN window at passes 9+10+11) |
+| Fix-bursts (spec cascade) | 37 |
+| Fix-bursts (impl cascade) | 8 (closed 47 cumulative in-perimeter findings) |
+| 3-CLEAN convergence at | impl-pass-11 (D-565; monotonic decay 18→12→6→2→3→4→1→1→0→0→0) |
+| Test paper-fix breakthrough | fix-burst-impl-5 D-556 (Route A `.prx` fixture; sanity-revert verified) |
+| Consecutive single-commits per TD-VSDD-053 | 75 (this burst D-569) |
+| Codification candidates generated | 31 (queued cycle-close session-reviewer) |
+| Phase-5 deferred findings carry-forward | 8 |
+
+---
+
+### §3 — Final State Pins
+
+| Artifact | Version | SHA / Status |
+|----------|---------|--------------|
+| develop HEAD | — | `ec90fe8f` (was 95d46be2 pre-merge) |
+| feature/S-PLUGIN-PREREQ-D (remote) | — | DELETED (post-merge) |
+| Worktree `.worktrees/S-PLUGIN-PREREQ-D/` | — | still mounted (Step 9 cleanup pending) |
+| Story S-PLUGIN-PREREQ-D | v1.38 | status: merged (POL-14 status flip applied at D-568) |
+| STORY-INDEX | v2.108 | PREREQ-D row merged |
+| BC-INDEX | v4.80 | 6 row status flips draft→active; active_contracts: 235 |
+| BC-2.16.002 | v1.17 | active (32 catalog rows) |
+| BC-2.17.001 | v1.4 | ACTIVE (POL-14 promotion at D-568) |
+| BC-2.17.002 | v1.8 | ACTIVE (POL-14 promotion at D-568) |
+| BC-2.17.003 | v1.5 | ACTIVE (POL-14 promotion at D-568) |
+| BC-2.17.004 | v1.5 | ACTIVE (POL-14 promotion at D-568) |
+| BC-2.17.006 | v1.5 | ACTIVE (POL-14 promotion at D-568) |
+| BC-2.17.007 | v1.5 | ACTIVE (POL-14 promotion at D-568) |
+| BC-2.22.001 | v1.5 | active (was active pre-merge) |
+| error-taxonomy | v1.24 | active |
+| prism-spec-engine | 0.8.0 | bumped 0.7.0→0.8.0 for semver discipline |
+| impl_adversary_streak | 3/3 CONVERGED | per BC-5.39.001; converged at 2026-05-15 |
+| impl_adversary_pass_count | 11 | |
+| STATE.md / SESSION-HANDOFF.md | v7.274 | |
+
+---
+
+### §4 — Next Dispatch Chain (post-/clear orchestrator action sequence)
+
+After the user clears context, the next orchestrator session should dispatch in this order:
+
+1. **devops-engineer Step 9 worktree cleanup** (FIRST):
+   - `git worktree remove .worktrees/S-PLUGIN-PREREQ-D --force` (force flag because branch is gone from remote)
+   - `git branch -D feature/S-PLUGIN-PREREQ-D` (delete local branch)
+   - `git worktree prune` (clean up stale worktree refs)
+   - Verify: `git worktree list` no longer shows S-PLUGIN-PREREQ-D
+   - Sibling worktrees (S-3.09, S-PLUGIN-PREREQ-B, S-PLUGIN-PREREQ-C, W3-FIX-S307-001) untouched
+
+2. **session-reviewer cycle-close** (AFTER Step 9):
+   - Adjudicate the 31 codification candidates:
+     - PG-IMPL-LP2-001 through 005 (5 candidates)
+     - PG-IMPL-LP3-001 (boot-step dependency-frontier walk)
+     - PG-IMPL-LP4-001 (test paper-fix detection)
+     - PG-IMPL-LP5-001 (production-linker vs test-linker boundary)
+     - PG-IMPL-LP6-001/002/003 (closure attribution + fixture sweep + frontmatter-modified)
+     - PG-IMPL-LP7-001 (hook-enforced frontmatter version sync)
+     - PG-IMPL-LP8-001/002/003 (semver gate / CI flake / PR-description-truth process gaps from merge gate)
+     - Plus 17 prior cycle-close candidates from spec cascade
+   - Optionally promote any candidates to formal POL entries in `.factory/policies.yaml`
+   - Optionally file follow-up stories targeting the self-improvement epic for the most impactful gaps
+   - Adjudicate OBS-LP41-001 carry-forward (BC-2.22.001 modified-field format heterogeneity; non-blocking)
+   - Adjudicate 8 phase-5 deferred findings (decide which carry to PREREQ-E vs go to Phase 5 adversarial refinement)
+
+3. **PREREQ-E planning** (AFTER cycle-close):
+   - Read `.factory/stories/S-PLUGIN-PREREQ-E-*.md` (or create from STORY-INDEX entry if not authored)
+   - PREREQ-E title: "Un-seal SensorAuth + Deprecate/Remove CustomAdapter Rust Trait + migrate spec_parser.rs call sites to PluginRegistry"
+   - PREREQ-E scope: prism-sensors, prism-spec-engine (per STORY-INDEX); 3 points
+   - PREREQ-E depends_on: PREREQ-F (factory-only — same precedent as PREREQ-A/B/C/D — proceeds without F), PREREQ-A (merged)
+   - After PREREQ-E lands, PLUGIN-MIGRATION-001-A/B/C/D become unblocked
+
+4. **PLUGIN-MIGRATION Wave 0 implementation** (AFTER PREREQ-E):
+   - PLUGIN-MIGRATION-001-A through -001-H per STORY-INDEX
+
+---
+
+### §5 — Standing Directives (PERSISTENT — read every session)
+
+1. **CLAUDE.md Canonical Principle** — production-grade default; no MVP-driven deferrals.
+2. **TD-VSDD-053** — single-commit-per-burst (75 consecutive; CRITICAL discipline).
+3. **TD-VSDD-059** — paper-fix detection (5 recurrences caught in S-PLUGIN-PREREQ-D cascade).
+4. **TD-VSDD-060** — sibling-site sweep on canonical value changes.
+5. **TD-VSDD-091** — anti-volatile-pin (no file:line citations in narrative spec content; exceptions for Red Gate tables / AC source-of-truth tables / pass-report changelogs).
+6. **BC-5.39.001** — 3-CLEAN convergence protocol (applies to BOTH spec AND implementation phases).
+7. **POL-3** — state-manager-last in each burst.
+8. **POL-11** — index-bump on mutations.
+9. **POL-12** — production stub residue blocks merge.
+10. **POL-14** — BC auto-promotion at merge (executed at D-568 for S-PLUGIN-PREREQ-D's 6 BCs).
+11. **POL-18** — test-helpers feature pairing (`required-features = ["test-helpers"]`).
+12. **POL-23** — frontmatter-modified-sweep on version bumps.
+13. **CRITICAL Standing Rule 3 §1** — implementer/closure self-disclosure is NOT authoritative; adversary independently verifies under fresh-context.
+14. **CRITICAL — User authorization required for merges to develop**.
+
+---
+
+### §6 — Do-NOT-Do List
+
+- Do NOT dispatch another adversary pass on S-PLUGIN-PREREQ-D — cascade COMPLETE (3-CLEAN at impl-pass-11).
+- Do NOT clean up worktrees other than `.worktrees/S-PLUGIN-PREREQ-D/` (sibling worktrees are active).
+- Do NOT add codification candidates directly to `.factory/policies.yaml` — session-reviewer-mediated at cycle close.
+- Do NOT push factory-artifacts to remote.
+- Do NOT use `--no-verify` on any commit.
+- Do NOT add Claude attribution to commits (project-explicit directive).
+- Do NOT skip Step 9 worktree cleanup before PREREQ-E planning.
+- Do NOT proceed to PLUGIN-MIGRATION Wave 0 until PREREQ-E + PREREQ-F land.
+
+---
+
+### Durable Pins (D-569)
+
+| Field | Value |
+|-------|-------|
+| `develop_head` | `ec90fe8f` |
+| `per_story_delivery_steps_complete` | **8/8 — ALL COMPLETE** |
+| `codification_queue` | 31 (queued cycle-close session-reviewer) |
+| `story_v` | 1.38 (status: merged) |
+| `story_index_v` | v2.108 |
+| `bc_index_v` | v4.80 |
+| `active_contracts` | 235 |
+| `state_v` / `handoff_v` | **7.274** |
+| `safe_to_compact` | **true** |
+| factory-artifacts HEAD | run `git -C .factory log -1 --format=%H` (D-569 is this commit) |
+| consecutive single-commit counter | **75 (TD-VSDD-053 DECISIVELY STABLE)** |
