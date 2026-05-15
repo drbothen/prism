@@ -27,7 +27,7 @@ regex = "1"
 tempfile = "3"
 proptest = "1"
 uuid = { version = "1", features = ["v7"] }
-prism-spec-engine = { path = "../prism-spec-engine", version = "0.7.0" }
+prism-spec-engine = { path = "../prism-spec-engine", version = "0.8.0" }
 
 [[test]]
 name = "ac_1_tenant_id_rejects_empty"
