@@ -239,3 +239,11 @@ STATE v7.65. D-315 — Multi-track closure burst. (a) PR #137 (CLAUDE.md TDD inn
 **Archived from STATE.md at D-545 transition (STATE v7.249→v7.250).**
 
 STATE v7.249. D-544 convergence burst COMPLETE. Pass-43 CLEAN (0/0/0/0/0-NEW-OBS; OBS-LP41-001 carry-forward non-blocking). Streak CONVERGED 2/3 → 3/3 per BC-5.39.001. Four consecutive zero-finding passes (39, 41, 42, 43). D-529 resume cascade COMPLETE (11 passes: 7 BLOCKED + 4 CLEAN; 8 fix-bursts; 17+ findings closed). Final trajectory: 4→1→4→5→1→1→3→4→5→5→5→2→1→2→0→1→0→0→0. Story S-PLUGIN-PREREQ-D v1.32 (unchanged). develop@95d46be2. NEXT: test-writer Red Gate stubs per per-story-delivery.md. POST-CONVERGENCE DISPATCH: DO NOT dispatch pass-44 — CONVERGED. (1) cycle-close session-reviewer adjudication of 17 codification candidates + OBS-LP41-001; (2) test-writer Red Gate stubs; (3) implementer TDD green; (4) LOCAL adversary 3-CLEAN; (5) demo-recorder per-AC; (6) pr-manager 9-step PR → squash-merge to develop; (7) post-merge state burst (PREREQ-D merged; BCs promote POL-14; PREREQ-E next).
+
+---
+
+## Session Resume Checkpoint (2026-05-14-v7.254-d549-ADVERSARY-IMPL-PASS-2-BLOCKED) — ARCHIVED
+
+**Archived from STATE.md at D-550 transition (STATE v7.254→v7.255).**
+
+STATE v7.254. D-549 adversary impl-pass-2 BLOCKED. 12 in-perimeter findings: 2 CRIT + 3 HIGH + 6 MED + 1 LOW. 2 paper-fix recurrences: CRIT-001 `run_boot_sequence` dead-code (main.rs::PrismCommand::Start bypasses via boot_to_step_6); CRIT-002 Component Model callbacks are no-op stubs (not delegated to host_* functions). Trajectory 18→12 (decreasing; convergence signal). Codification queue 19→24 (5 new PG-IMPL-LP2-001 through 005). impl_adversary_streak: 0/3. feature_branch_head c87592e8 UNCHANGED. story v1.32 UNCHANGED. develop@95d46be2 UNCHANGED. NEXT: fix-burst-impl-2 dispatch (implementer CRIT-001/002 + HIGH-002/003 code + MED-001 escape hatch; product-owner HIGH-001 BC prose + MED-004/005/006 error-taxonomy; story-writer MED-002/003 + LOW-001).

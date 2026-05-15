@@ -2279,3 +2279,137 @@ After fix-burst-impl-2 closes all 12 findings:
 
 **54th consecutive single-commit (TD-VSDD-053 DECISIVELY STABLE).**
 STATE.md v7.253 → v7.254 / SESSION-HANDOFF.md v7.253 → v7.254 / CYCLE-SNAPSHOT.md §POST-IMPL-PASS-2 BLOCKED (D-549) appended.
+
+---
+
+## §FIX-BURST-IMPL-2 CLOSURE (D-550 — 2026-05-14)
+
+**State:** fix-burst-impl-2 CLOSED — all 12 adversary impl-pass-2 in-perimeter findings remediated.
+**Date:** 2026-05-14
+**STATE.md version:** v7.254 → v7.255
+**feature_branch_head:** 6ddcd155
+**story_v:** v1.32 → v1.33
+**develop_head:** 95d46be2 (UNCHANGED)
+
+### 12-Finding Closure Table
+
+| ID | Severity | Description | Status | Fix Commit |
+|----|----------|-------------|--------|-----------|
+| F-PASS2-CRIT-001 | CRIT | `main.rs::PrismCommand::Start` bypasses `run_boot_sequence`; POL-15/ADR-023 §C4 dead-code | CLOSED | c5d80016 |
+| F-PASS2-CRIT-002 | CRIT | Component Model 5 callbacks are no-op stubs; no `host_*` delegation; TD-VSDD-059 recurrence | CLOSED (with caveat) | 6ddcd155 |
+| F-PASS2-HIGH-001 | HIGH | BC-2.16.002 prose intro cites stale `v1.12 / 25 events`; sibling-sweep gap TD-VSDD-060 | CLOSED | b8fed147 |
+| F-PASS2-HIGH-002 | HIGH | POL-18 violation: `[[test]]` blocks lack `required-features = ["test-helpers"]` | CLOSED | 6ddcd155 |
+| F-PASS2-HIGH-003 | HIGH | `host_kv_set` silently swallows errors via `let _ = ...`; SOUL.md #4 violation | CLOSED | 6ddcd155 |
+| F-PASS2-MED-001 | MED | `test_wasi_not_linked` early `return;` escape hatch before assertion | CLOSED | 6ddcd155 |
+| F-PASS2-MED-002 | MED | Story body has 12 stale `BC-2.16.002 v1.12` refs; BC is at v1.15 | CLOSED | b8fed147 |
+| F-PASS2-MED-003 | MED | Story §Structured Event Catalog Additions enumerates 9 events; should be 12 | CLOSED | b8fed147 |
+| F-PASS2-MED-004 | MED | BC-INDEX `timestamp:` lacks `Z` suffix (non-ISO-8601); POL-20 violation | CLOSED | b8fed147 |
+| F-PASS2-MED-005 | MED | error-taxonomy frontmatter stale timestamp + missing `modified:` field | CLOSED | b8fed147 |
+| F-PASS2-MED-006 | MED | error-taxonomy `status: draft` while referenced by active BC-2.16.002 | CLOSED | b8fed147 |
+| F-PASS2-LOW-001 | LOW | Story uses `updated:` not `modified:` — intent verification | CLOSED | b8fed147 |
+
+**Total:** 12/12 CLOSED
+
+### Commit Enumeration
+
+**c5d80016 — `fix(prism-bin): route PrismCommand::Start through run_boot_sequence (F-PASS2-CRIT-001)`**
+
+Files touched:
+- `crates/prism-bin/src/main.rs` — `PrismCommand::Start` match arm now calls `run_boot_sequence` instead of `boot_to_step_6 → step7_init_storage` directly
+- `crates/prism-bin/tests/plugin_boot_tests.rs` — `test_F_PASS2_CRIT_001_prism_command_start_routes_through_run_boot_sequence` added
+
+**6ddcd155 — `fix(prism-spec-engine): close F-PASS2-CRIT-002/HIGH-002/HIGH-003/MED-001`**
+
+Files touched:
+- `crates/prism-spec-engine/src/host_functions.rs` — All 5 Component Model callbacks now deserialize `Val` params and delegate to production `host_http_request` / `host_log` / `host_get_config` / `host_kv_get` / `host_kv_set`; `host_kv_set` callback propagates `Err` via `Val::Result(Err(...))`
+- `crates/prism-spec-engine/Cargo.toml` — `required-features = ["test-helpers"]` added to all `[[test]]` blocks (POL-18)
+- `crates/prism-spec-engine/tests/plugin_integration_tests.rs` — `test_F_PASS2_CRIT_002_http_request_callback_delegates_to_allowlist_gate` + `test_F_PASS2_CRIT_002_log_callback_delegates_to_host_log` + `test_F_PASS2_HIGH_003_kv_set_err_propagated_not_swallowed` + `test_F_PASS2_HIGH_003_kv_set_within_limit_returns_ok` + `test_wasi_not_linked` hardened (escape hatch removed; unconditional negative proof)
+
+**b8fed147 — `fix(factory): S-PLUGIN-PREREQ-D spec amendments — F-PASS2-HIGH-001/MED-002/003/004/005/006/LOW-001`** (Standing Rule 3 §6 in-burst)
+
+Files touched:
+- `.factory/specs/behavioral-contracts/BC-2.16.002.md` — v1.15 → v1.16 (prose intro `(v1.12)`→`(v1.16)` + `25 events`→`31 events`)
+- `.factory/specs/behavioral-contracts/BC-INDEX.md` — v4.77 → v4.78 (BC-2.16.002 row sync + `timestamp:` `Z` suffix added)
+- `.factory/specs/prd-supplements/error-taxonomy.md` — v1.23 → v1.24 (timestamp updated + `modified: 2026-05-14` field added + `status: draft` → `status: active`)
+- `.factory/stories/S-PLUGIN-PREREQ-D.md` — v1.32 → v1.33 (12 stale `v1.12` pin sweep → `v1.16` + §Structured Event Catalog Additions 9→12 + `updated:` convention codified as intentional)
+
+### Final Verification Gate
+
+```
+just check from worktree root (.worktrees/S-PLUGIN-PREREQ-D/):
+  3637/3637 pass; 17 skipped; 1 pre-existing leaky (storage test; not introduced by this burst)
+
+Pre-existing: 3632 (from fix-burst-impl-1 baseline)
+New load-bearing tests (net +6):
+  - test_F_PASS2_CRIT_001_prism_command_start_routes_through_run_boot_sequence (prism-bin)
+  - test_F_PASS2_CRIT_002_http_request_callback_delegates_to_allowlist_gate (prism-spec-engine)
+  - test_F_PASS2_CRIT_002_log_callback_delegates_to_host_log (prism-spec-engine)
+  - test_F_PASS2_HIGH_003_kv_set_err_propagated_not_swallowed (prism-spec-engine)
+  - test_F_PASS2_HIGH_003_kv_set_within_limit_returns_ok (prism-spec-engine)
+  - test_wasi_not_linked (hardened — escape-hatch pattern → unconditional negative proof)
+```
+
+### CRIT-002 Partial-Coverage Caveat
+
+**Self-disclosed by implementer:**
+
+> "Full end-to-end Component Model dispatch test requires a Component Model binary with WIT imports (scheduled for S-4.08-manifest-embedding); current tests exercise the production `host_http_request` function directly (same function the callback calls), which closes the behavioral coverage gap."
+
+**Wiring is now substantive:** All 5 callbacks are non-trivial — they deserialize `Val` params, call the corresponding `host_*` production function, and serialize the result back to `Val`. No longer no-op `trace!()` stubs.
+
+**End-to-end Component Model exercise** (a compiled Wasm component binary making actual WIT import calls) is deferred with concrete future-story anchor: **S-4.08-manifest-embedding**.
+
+**Adversary impl-pass-3 will adjudicate** whether production `host_*` direct-call coverage is sufficient for AC-7 closure, or whether end-to-end exercise is required before the 3-CLEAN streak can advance.
+
+### Spec Amendment Summary
+
+| Artifact | Version Change | Key Changes |
+|----------|---------------|-------------|
+| BC-2.16.002 | v1.15 → v1.16 | Prose intro: `(v1.12) / 25 events` → `(v1.16) / 31 events` |
+| BC-INDEX | v4.77 → v4.78 | BC-2.16.002 row sync + ISO-8601 `Z` suffix on timestamp |
+| error-taxonomy | v1.23 → v1.24 | timestamp updated + `modified: 2026-05-14` + `status: active` (POL-14) |
+| Story S-PLUGIN-PREREQ-D | v1.32 → v1.33 | 12 stale `v1.12` pins swept; §Catalog Additions 9→12; `updated:` codified |
+
+### Codification Queue
+
+**UNCHANGED at 24.** PG-IMPL-LP2-001 through 005 already queued at D-549. No new candidates emerged from fix-burst-impl-2.
+
+### Impl-Pass-3 Dispatch Prerequisites
+
+Before dispatching adversary impl-pass-3:
+
+1. Feature branch at `6ddcd155` (or later fix commits if any)
+2. Adversary carry-forward: verify all 12 fix-burst-impl-2 closures
+3. Key carry-forward checks:
+   - CRIT-001: `main.rs::PrismCommand::Start` routes through `run_boot_sequence` (grep `run_boot_sequence` in `prism-bin/src/main.rs`)
+   - CRIT-002: All 5 Component Model callbacks delegate to `host_*` functions (grep callback bodies in `host_functions.rs`; must NOT contain bare `Ok(())`)
+   - HIGH-002: `[[test]]` blocks have `required-features = ["test-helpers"]` (grep `prism-spec-engine/Cargo.toml`)
+   - HIGH-003: `host_kv_set` callback propagates `Err` via `Val::Result(Err(...))` (NOT `let _ = ...`)
+   - MED-001: `test_wasi_not_linked` has NO early `return;` before assertion
+   - BC-2.16.002 prose intro cites `v1.16 / 31 events` (not `v1.12 / 25 events`)
+   - Story §Structured Event Catalog Additions enumerates 12 events (not 9)
+   - error-taxonomy `status: active` + `modified:` field present
+   - BC-INDEX timestamp has `Z` suffix
+4. Adjudicate CRIT-002 partial-coverage caveat (end-to-end Component Model test deferred to S-4.08)
+5. 3-CLEAN protocol (BC-5.39.001): target streak advance 0/3 → 1/3
+
+### Durable Pins (D-550)
+
+| Field | Value |
+|-------|-------|
+| `feature_branch_head` | `6ddcd155` |
+| `worktree_status` | active (.worktrees/S-PLUGIN-PREREQ-D mounted at develop@95d46be2) |
+| `story_v` | 1.33 |
+| `develop_head` | 95d46be2 (UNCHANGED) |
+| `state_v` / `handoff_v` | 7.255 |
+| `impl_adversary_streak` | 0/3 (impl-pass-2 BLOCKED → fix-burst-impl-2 CLOSED 12/12; impl-pass-3 NEXT) |
+| `impl_adversary_pass_count` | 2 |
+| `codification_queue` | 24 (UNCHANGED) |
+| `bc_index_v` | 4.78 |
+| `bc_2_16_002_v` | 1.16 (31 rows; prose intro updated) |
+| `error_taxonomy_v` | 1.24 (active; modified: field added) |
+| `bc_2_17_002_v` | 1.7 (draft; promotes at PREREQ-D merge per POL-14) |
+| factory-artifacts HEAD | run `git -C .factory log -1 --format=%H` (D-550 is this commit) |
+
+**55th consecutive single-commit (TD-VSDD-053 DECISIVELY STABLE).**
+STATE.md v7.254 → v7.255 / SESSION-HANDOFF.md v7.254 → v7.255 / CYCLE-SNAPSHOT.md §FIX-BURST-IMPL-2 CLOSURE (D-550) appended.
