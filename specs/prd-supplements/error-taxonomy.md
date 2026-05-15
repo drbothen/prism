@@ -2,10 +2,11 @@
 document_type: prd-supplement
 level: L3
 section: "error-taxonomy"
-version: "1.23"
-status: draft
+version: "1.24"
+status: active
 producer: product-owner
-timestamp: 2026-05-11T02:00:00Z
+timestamp: 2026-05-14T00:00:00Z
+modified: 2026-05-14
 phase: 1a
 origin: greenfield
 inputs: [".factory/specs/prd.md", ".factory/specs/behavioral-contracts/**"]
