@@ -1474,6 +1474,7 @@ dependencies = [
  "prism-core",
  "regex",
  "reqwest",
+ "semver",
  "serde",
  "serde_json",
  "sha2",

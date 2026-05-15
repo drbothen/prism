@@ -140,6 +140,50 @@ impl PipelineExecutor {
         http_client: &reqwest::Client,
         auth_provider: &dyn AuthProvider,
     ) -> Result<PipelineResult, SpecEngineError> {
+        Self::execute_impl(
+            spec,
+            table,
+            context,
+            http_client,
+            auth_provider,
+            MAX_REQUESTS_PER_PIPELINE,
+        )
+        .await
+    }
+
+    /// Test-injectable variant of `execute` with a custom `max_requests` cap.
+    ///
+    /// **ONLY for testing** — allows exercising the cumulative-cap branch without
+    /// needing 10,001 HTTP requests (MED-004 / F-IMPL-LP1-MED-004 closure).
+    /// Production code MUST use `execute` (which uses `MAX_REQUESTS_PER_PIPELINE`).
+    #[cfg(any(test, feature = "test-helpers"))]
+    pub async fn execute_with_max_requests(
+        spec: &SensorSpec,
+        table: &TableSpec,
+        context: &FetchContext,
+        http_client: &reqwest::Client,
+        auth_provider: &dyn AuthProvider,
+        max_requests: usize,
+    ) -> Result<PipelineResult, SpecEngineError> {
+        Self::execute_impl(
+            spec,
+            table,
+            context,
+            http_client,
+            auth_provider,
+            max_requests,
+        )
+        .await
+    }
+
+    async fn execute_impl(
+        spec: &SensorSpec,
+        table: &TableSpec,
+        context: &FetchContext,
+        http_client: &reqwest::Client,
+        auth_provider: &dyn AuthProvider,
+        max_requests: usize,
+    ) -> Result<PipelineResult, SpecEngineError> {
         let mut all_records: Vec<serde_json::Value> = Vec::new();
         let mut request_count: u32 = 0;
         // step_vars: keyed as "step_name.field" -> JSON value
@@ -341,17 +385,19 @@ impl PipelineExecutor {
                     .await?;
                     bearer_token = new_token;
 
-                    // MAX_REQUESTS_PER_PIPELINE cumulative cap check (AC-16 / BC-2.16.002).
+                    // Cumulative cap check (AC-16 / BC-2.16.002).
                     // After each request, check if we've reached the hard cap.
+                    // `max_requests` is MAX_REQUESTS_PER_PIPELINE in production;
+                    // tests may inject a smaller value via execute_with_max_requests.
                     // Emits: event_type = "pipeline_max_requests_exceeded" (ERROR).
-                    if request_count as usize >= MAX_REQUESTS_PER_PIPELINE {
+                    if request_count as usize >= max_requests {
                         let total = request_count as usize;
                         tracing::error!(
                             event_type = "pipeline_max_requests_exceeded",
                             sensor_id = %spec.sensor_id,
                             total_requests = total,
-                            max = MAX_REQUESTS_PER_PIPELINE,
-                            "Pipeline executor reached MAX_REQUESTS_PER_PIPELINE cap; aborting"
+                            max = max_requests,
+                            "Pipeline executor reached request cap; aborting"
                         );
                         return Err(SpecEngineError::TooManyRequests { total });
                     }

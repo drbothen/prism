@@ -1636,6 +1636,113 @@ async fn test_BC_2_16_002_execute_decodes_gzipped_response() {
 }
 
 // ---------------------------------------------------------------------------
+// MED-004: pipeline cumulative request cap branch exercise (F-IMPL-LP1-MED-004)
+// ---------------------------------------------------------------------------
+
+/// MED-004 (F-IMPL-LP1-MED-004) — exercise the cumulative request cap branch in
+/// PipelineExecutor::execute_impl. Uses execute_with_max_requests(max_requests=2)
+/// so 3 pages with cursor pagination triggers TooManyRequests after the 2nd page.
+///
+/// The original test only verified MAX_REQUESTS_PER_PIPELINE == 10_000 and
+/// TooManyRequests variant construction — neither exercises the cap-check branch.
+/// This test is load-bearing because it drives the actual tracing::error! emission
+/// and the return Err(SpecEngineError::TooManyRequests { total }) branch.
+#[tokio::test]
+async fn test_BC_2_16_002_pipeline_cumulative_request_cap_exercised_via_wiremock() {
+    let mock_server = MockServer::start().await;
+
+    // Page 1: no cursor → returns cursor "c1"
+    Mock::given(method("GET"))
+        .and(path("/items"))
+        .and(|req: &wiremock::Request| !req.url.query().unwrap_or("").contains("cursor="))
+        .respond_with(ResponseTemplate::new(200).set_body_json(serde_json::json!({
+            "items": [{"id": "r1"}],
+            "pagination": {"cursor": "c1"}
+        })))
+        .up_to_n_times(1)
+        .mount(&mock_server)
+        .await;
+
+    // Page 2: cursor=c1 → returns cursor "c2"
+    Mock::given(method("GET"))
+        .and(path("/items"))
+        .and(query_param("cursor", "c1"))
+        .respond_with(ResponseTemplate::new(200).set_body_json(serde_json::json!({
+            "items": [{"id": "r2"}],
+            "pagination": {"cursor": "c2"}
+        })))
+        .up_to_n_times(1)
+        .mount(&mock_server)
+        .await;
+
+    // Page 3 (would be cursor=c2) — should NOT be reached because max_requests=2.
+
+    // Build spec with cursor pagination. Path is plain "/items"; build_paged_url
+    // appends "?cursor=..." automatically — do NOT use RFC 6570 "{?cursor}" syntax
+    // here since the pipeline executor does not expand UriTemplate expressions at
+    // pagination time (interpolation handles "${step.field}" syntax only).
+    let spec_with_pagination = SensorSpec::new(
+        "test-sensor",
+        "Test Sensor",
+        AuthType::BearerStatic,
+        &mock_server.uri(),
+        vec![TableSpec::new_point_in_time(
+            "items",
+            "security_finding",
+            vec![ColumnSpec::new("id", ColumnType::String, None, vec![])],
+            vec![FetchStep::new(
+                "fetch_items",
+                "GET",
+                "/items",
+                None,
+                "$.items",
+                None,
+                vec![],
+                None,
+                Some(PaginationConfig::CursorToken {
+                    cursor_response_path: "$.pagination.cursor".to_string(),
+                    page_size: None,
+                }),
+            )],
+        )],
+        None,
+        "1.0.0",
+        vec![],
+    );
+
+    let table = spec_with_pagination.tables[0].clone();
+    let context = default_context();
+    let http_client = reqwest::Client::builder()
+        .timeout(std::time::Duration::from_secs(5))
+        .build()
+        .expect("reqwest Client::build");
+    let auth_provider = NullAuthProvider;
+
+    // max_requests=2: after 2 requests (page 1 + page 2), the cap check fires.
+    // The 3rd page should NOT be requested.
+    let err = PipelineExecutor::execute_with_max_requests(
+        &spec_with_pagination,
+        &table,
+        &context,
+        &http_client,
+        &auth_provider,
+        2, // cap at 2 requests
+    )
+    .await
+    .expect_err("MED-004: execute_with_max_requests must return TooManyRequests after 2 pages");
+
+    match err {
+        SpecEngineError::TooManyRequests { total } => {
+            assert_eq!(
+                total, 2,
+                "MED-004: TooManyRequests must carry total=2 (the cap value); got {total}"
+            );
+        }
+        other => panic!("MED-004: expected TooManyRequests; got {:?}", other),
+    }
+}
+
+// ---------------------------------------------------------------------------
 // F-LP5-MED-002 (site c) regression: pipeline_truncated event emitted on 10K cap
 // ---------------------------------------------------------------------------
 
