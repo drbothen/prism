@@ -4422,3 +4422,23 @@ After the user clears context, the next orchestrator session should dispatch in 
 | `safe_to_compact` | **true** |
 | factory-artifacts HEAD | run `git -C .factory log -1 --format=%H` (D-569 is this commit) |
 | consecutive single-commit counter | **75 (TD-VSDD-053 DECISIVELY STABLE)** |
+
+
+---
+
+## §STEP-9-CLOSURE (D-570 — 2026-05-15)
+
+**Step 9 COMPLETE — S-PLUGIN-PREREQ-D per-story-delivery 9/9 DONE.**
+
+| Field | Value |
+|-------|-------|
+| Pre-removal HEAD | e57d0929 ("chore: bump version 0.7.0 → 0.8.0 — semver bump for S-PLUGIN-PREREQ-D breaking changes") |
+| Squash SHA on develop | ec90fe8f (PR #149, 2026-05-15T19:08:45Z) |
+| Removed | .worktrees/S-PLUGIN-PREREQ-D/ (no --force required) |
+| Local branch deleted | feature/S-PLUGIN-PREREQ-D at e57d0929 |
+| Final worktree count | 4 (S-3.09 + S-PLUGIN-PREREQ-B + S-PLUGIN-PREREQ-C + W3-FIX-S307-001) |
+| per-story-delivery | **9/9 DONE** (ALL steps complete for S-PLUGIN-PREREQ-D) |
+| Consecutive single-commit | 76 (TD-VSDD-053 stable) |
+| STATE+HANDOFF version | v7.274 → v7.275 |
+
+**Next dispatch:** session-reviewer cycle-close (31 codification candidates + 8 phase-5 deferred + OBS-LP41-001) → PREREQ-E planning (Un-seal SensorAuth + Deprecate CustomAdapter per PLUGIN-MIGRATION Wave 0 dep chain).

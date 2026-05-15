@@ -50,3 +50,21 @@ The SOP relies on FOUR enforcement layers. Current wiring status:
 - F-LP11-MED-001 (non-auth events drift, 2nd occurrence)
 - F-LP12-LOW-002 (codification-durability gap that surfaced this file's creation)
 - STATE.md D-419 (original codification, now superseded by this file)
+
+
+---
+
+## Step 9 Worktree Cleanup Discipline — Empirical Evidence Anchor [codified]
+
+**Pattern:** Step 9 (worktree cleanup) of the per-story-delivery workflow has now been demonstrated end-to-end across 4 consecutive stories:
+
+| Story | Step 9 Date | Worktree Removed | Branch Deleted At | Notes |
+|-------|------------|------------------|-------------------|-------|
+| S-3.07 | 2026-05-08 | .worktrees/S-3.07/ | post-squash | First Step 9 execution |
+| S-PLUGIN-PREREQ-B | 2026-05-12 | .worktrees/S-PLUGIN-PREREQ-B/ | post-squash | Archival state (worktree retained for reference) |
+| S-PLUGIN-PREREQ-C | 2026-05-12 | .worktrees/S-PLUGIN-PREREQ-C/ | post-squash | Archival state (worktree retained for reference) |
+| S-PLUGIN-PREREQ-D | 2026-05-15 | .worktrees/S-PLUGIN-PREREQ-D/ | e57d0929 (D-570) | Clean removal, no --force |
+
+**No new codification needed** — Step 9 discipline is already captured in per-story-delivery workflow (Step 9: post-merge worktree cleanup). This entry serves as an empirical-evidence anchor: Step 9 has been executed for 4 consecutive stories without incident, confirming the workflow is operationally stable.
+
+**Linked artifacts:** D-570 (STATE.md), SESSION-HANDOFF.md §POST-STEP-9 CLOSURE SUMMARY, CYCLE-SNAPSHOT §STEP-9-CLOSURE
