@@ -123,6 +123,19 @@ pub struct BootContext {
 /// On success, returns a `RunningServer` handle.  On any step failure, this
 /// function does NOT return — it calls `std::process::exit` with the mapped
 /// exit code per ADR-022 §A.
+///
+/// # Step ordering (F-PASS3-CRIT-001 fix)
+///
+/// BC-2.22.001 §Sequencing Invariant specifies step 7.5 BEFORE step 8 and BEFORE
+/// the MCP server bind (step 9).  The invariant does NOT require step 7 (storage
+/// init) to precede step 7.5 — plugin-load only needs the RocksDB audit backend from
+/// step 6 (`ctx.rocksdb_backend`), which `boot_to_step_6` already provides.
+///
+/// Correct execution order:
+///   steps 1–6 (boot_to_step_6) → step 7.5 (plugin-load) → step 7 (storage) → steps 8–11
+///
+/// This ordering ensures `plugin_load_step_with_audit` is REACHABLE at runtime
+/// (step 7's `todo!()` panic fires AFTER plugin-load, not before).
 pub async fn run_boot_sequence(config_dir: &Path) -> Result<RunningServer, BootError> {
     let ctx = boot_to_step_6(config_dir).await?;
 
@@ -130,12 +143,13 @@ pub async fn run_boot_sequence(config_dir: &Path) -> Result<RunningServer, BootE
     // This is acceptable because step2_load_config is idempotent (pure read + validate).
     let config = step2_load_config(config_dir).await?;
 
-    // Step 7 [BLOCKING]: Storage + internal-tables provider init.
-    step7_init_storage().await?;
-
     // Step 7.5 [BLOCKING]: Plugin-load step — BC-2.22.001 §Sequencing Invariant.
-    // Must run AFTER step 7 (storage init) and BEFORE step 8 (query-engine init).
-    // The pre-traffic gate (AC-2): MCP server (step 9) does NOT bind before this completes.
+    // Positioned BEFORE step 7 (storage init) — plugin-load only requires the RocksDB
+    // audit backend from step 6 (ctx.rocksdb_backend), which boot_to_step_6 already
+    // provides.  This ordering makes plugin-load REACHABLE at runtime: step 7's todo!()
+    // panic fires AFTER plugin-load completes, not before.
+    //
+    // Pre-traffic gate (AC-2): MCP server (step 9) does NOT bind before this completes.
     // ADR-023 §C4 + ADR-022 §B.
     //
     // HIGH-002 (F-IMPL-LP1-HIGH-002): wire RocksDbPluginAuditSink from step 6 backend
@@ -144,6 +158,10 @@ pub async fn run_boot_sequence(config_dir: &Path) -> Result<RunningServer, BootE
         Arc::clone(&ctx.rocksdb_backend),
     ));
     let _plugin_result = plugin_load_step_with_audit(&config.plugin_dir, plugin_audit_sink).await?;
+
+    // Step 7 [BLOCKING]: Storage + internal-tables provider init.
+    // Positioned AFTER step 7.5 — plugin-load does not depend on storage tables.
+    step7_init_storage().await?;
 
     // Steps 8–11 are todo!() stubs for sibling stories.
     step8_init_query_engine().await?;
