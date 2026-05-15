@@ -2632,3 +2632,131 @@ Before dispatching adversary impl-pass-4:
 | factory-artifacts HEAD | run `git -C .factory log -1 --format=%H` (D-552 is this commit) |
 | impl-pass-3 report | cycles/wave-4-operations/adversarial-reviews/S-PLUGIN-PREREQ-D-impl-pass-3.md |
 | worktree_test_count | 3643 (just check 3643/3643; +6 from fix-burst-impl-3 baseline 3637) |
+
+---
+
+## §POST-IMPL-PASS-4 BLOCKED (D-553 — 2026-05-14)
+
+### Summary
+
+Adversary impl-pass-4 dispatched against `feature/S-PLUGIN-PREREQ-D@51ee7ce5`. Verdict: **BLOCKED**. 2 in-perimeter findings (0 CRIT + 1 HIGH + 1 MED) + 1 process-gap OBS. 3-CLEAN streak remains 0/3 (no advance; reset).
+
+### Finding Tally
+
+| Severity | Count | Finding IDs |
+|----------|-------|-------------|
+| CRIT | 0 | — |
+| HIGH | 1 | F-PASS4-HIGH-001 |
+| MED | 1 | F-PASS4-MED-001 |
+| LOW | 0 | — |
+| OBS (process-gap) | 1 | PG-IMPL-LP4-001 |
+
+**Total in-perimeter: 2** (smallest count in the impl cascade to date)
+
+### Trajectory Magnitude (4 passes)
+
+| Pass | Total | CRIT | HIGH | MED | LOW |
+|------|-------|------|------|-----|-----|
+| impl-pass-1 | 18 | 3 | 6 | 7 | 2 |
+| impl-pass-2 | 12 | 2 | 3 | 6 | 1 |
+| impl-pass-3 | 6 | 3 | 1 | 2 | 0 |
+| impl-pass-4 | 2 | 0 | 1 | 1 | 0 |
+
+**Clean magnitude decay: 18→12→6→2. Zero CRIT for the first time in this impl cascade.** Convergence prognosis: positive.
+
+### Production Code Verification Summary
+
+Direct adversary inspection of `feature/S-PLUGIN-PREREQ-D@51ee7ce5` confirmed all prior fix-burst-impl-3 production code closures are genuine:
+
+- `run_boot_sequence` body: `plugin_load_step_with_audit` executes BEFORE `step7_init_storage` — **VERIFIED**
+- `host_functions.rs` http-response callback: returns `Val::U16(status_u16)` — **VERIFIED**
+- `host_functions.rs` log-level callback: matches `Val::Enum(ref s)` — **VERIFIED**
+- `host_functions.rs` http-response result slot: single `Val::Record(...)` writeback — **VERIFIED**
+- All 5 callback `_ =>` default arms: replaced with `Err(wasmtime::Error::msg("schema violation: ..."))` — **VERIFIED load-bearing**
+- No `S-4.08-manifest-embedding` references in source or tests — **VERIFIED**
+
+The remaining gap is exclusively in **TEST EVIDENCE**, not in production code.
+
+### F-PASS4-HIGH-001 — Test Paper-Fix Recurrence (TD-VSDD-059)
+
+**Pattern:** 5 inline-replica tests in `plugin_integration_tests.rs` (lines 1078, 1147, 1199, 1256, 1348) hand-construct `Val::U16`/`Val::Record`/match-logic copies and assert against the hand-built values rather than dispatching through the registered host callback.
+
+**Specific gap:** The Component Model dispatch test at line 1348-1455 calls `linker.instantiate_pre()` (proves linking succeeds; does not dispatch) and hand-constructs a `Val::Record(403)` (line 1434-1441; asserts shape, not actual dispatch). A regression of `Val::U16` → `Val::U32` in production would NOT be caught by any of these tests.
+
+**Implementer self-disclosure** (line 1342-1346): "calling the imported http-request through a Component Model function export ... is covered by the separate unit-level Val tests above" — but those "unit-level Val tests" ARE the inline-replica tests. Self-disclosure is not authoritative (Standing Rule 3 §1).
+
+**Fix prescription:** ADD ONE genuine end-to-end test that:
+1. Builds a WAT with a function export invoking `host::http-request` with concrete args
+2. Instantiates against the Prism linker with controlled `allowed_urls`
+3. Invokes the export via `linker.get_func(...)` + `.call()`
+4. Asserts the returned `Val::Record` status field equals the expected value (e.g., 200 for allowlisted URL, 403 for blocked)
+
+Inline-replica tests may remain as supplementary coverage but cannot be the only evidence.
+
+**Routing:** implementer.
+
+### F-PASS4-MED-001 — Story Body Sibling-Sweep Gap (TD-VSDD-060)
+
+Story §Structured Event Catalog Additions still says "12 events" / "12 new event types" at lines 790 and 954. Fix-burst-impl-3 added row 32 (`plugin_log_level_unrecognized`) to BC-2.16.002 v1.17 — making the count 13. Story body was not swept after the BC amendment.
+
+**Fix prescription:** Story v1.33 → v1.34:
+- Bump count 12→13 at lines 790 and 954
+- Append `plugin_log_level_unrecognized` row to §Structured Event Catalog Additions table
+- STORY-INDEX sibling sync (v2.103; story row updated)
+
+**Routing:** story-writer.
+
+### PG-IMPL-LP4-001 — Test Paper-Fix Detector (Codification Queue 25→26)
+
+**Pattern observed:** When adversary finding requires "test that exercises X end-to-end through registered Y," implementer often closes by writing test that exercises hand-built or inline-replicated copy of X's logic instead of dispatching through production registered callback.
+
+**Codification target:** Adversary dispatch prompt must include positive-coverage check: "Does the new test invoke `linker.get_func(...)` and `.call()` on a registered host function, or does it construct a copy of the logic and test the copy?" Implementer prompt must include paper-fix self-check: "Does my test invoke a registered host function via the Component Model linker, or am I asserting on a hand-built Val?"
+
+**Routing:** session-reviewer at cycle-close adjudication. NOT added to policies.yaml this burst.
+
+### Fix Prescription for fix-burst-impl-4
+
+**Scope: SMALL (2 items)**
+
+1. **ADD ONE genuine Component Model dispatch test** (implementer):
+   - Use `wat::parse_str` + `Component::from_binary` pattern (already used at line 184)
+   - WAT defines a function export that calls `host::http-request` with concrete args
+   - Instantiate against Prism linker with controlled `allowed_urls`
+   - Invoke export; assert returned `Val::Record` status field
+   - This is the "one load-bearing test" that closes F-PASS4-HIGH-001
+
+2. **Story body count sweep** (story-writer):
+   - Bump "12 events" → "13 events" at story lines 790 and 954
+   - Append `plugin_log_level_unrecognized` row to §Structured Event Catalog Additions table
+   - Story version v1.33 → v1.34
+   - Sync STORY-INDEX v2.103 row for S-PLUGIN-PREREQ-D
+
+### Impl-Pass-5 Prerequisites
+
+Before dispatching adversary impl-pass-5:
+
+1. Verify new Component Model dispatch test (genuine WAT + linker + invoke + assert) is present
+2. Verify story §Structured Event Catalog Additions says "13 events" not "12 events"
+3. Verify story v1.34 is committed
+4. `just check` 0 failures (baseline 3643 + 1 new = 3644)
+5. BC-5.39.001 3-CLEAN protocol: target streak advance 0/3 → 1/3
+
+### Durable Pins (D-553)
+
+| Field | Value |
+|-------|-------|
+| `feature_branch_head` | `51ee7ce5` (UNCHANGED — adversary-only pass; no worktree commits) |
+| `worktree_status` | active (.worktrees/S-PLUGIN-PREREQ-D mounted at develop@95d46be2) |
+| `story_v` | 1.33 (UNCHANGED — fix-burst-impl-4 will bump to v1.34) |
+| `develop_head` | 95d46be2 (UNCHANGED) |
+| `state_v` / `handoff_v` | 7.258 |
+| `impl_adversary_streak` | 0/3 (impl-pass-4 BLOCKED; fix-burst-impl-4 NEXT) |
+| `impl_adversary_pass_count` | 4 |
+| `codification_queue` | 26 (PG-IMPL-LP4-001 added D-553) |
+| `bc_index_v` | 4.79 (UNCHANGED) |
+| `bc_2_16_002_v` | 1.17 (32 rows; UNCHANGED) |
+| `error_taxonomy_v` | 1.24 (UNCHANGED) |
+| `bc_2_17_002_v` | 1.7 (draft; promotes at PREREQ-D merge per POL-14) |
+| factory-artifacts HEAD | run `git -C .factory log -1 --format=%H` (D-553 is this commit) |
+| impl-pass-4 report | cycles/wave-4-operations/adversarial-reviews/S-PLUGIN-PREREQ-D-impl-pass-4.md |
+| worktree_test_count | 3643 (just check 3643/3643; UNCHANGED — no worktree commits this burst) |
