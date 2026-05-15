@@ -1,7 +1,7 @@
 ---
 document_type: behavioral-contract-index
 level: L3
-version: "4.78"
+version: "4.79"
 status: draft
 producer: product-owner
 timestamp: 2026-05-14T00:00:00Z
@@ -203,7 +203,7 @@ Phase 3-patch additions (2026-04-16): 22 new BCs added in Burst 1 to close trace
 | BC-2.15.010 | Decorator Three-Phase Model — Config-Time, Query-Time, Periodic | 15 - Storage Layer | CAP-026 | P0 | draft |
 | BC-2.15.011 | Internal Table Registration — RocksDB Domains as DataFusion Tables | 15 - Storage Layer | CAP-028 | P0 | draft |
 | BC-2.16.001 | Sensor Spec File Loading — Parse TOML, Validate Schema, Register Tables | 16 - Spec Engine | CAP-029 | P0 | draft |
-| BC-2.16.002 | Multi-Step Fetch Pipeline Execution — Sequential Steps with Variable Interpolation | 16 - Spec Engine | CAP-029 | P0 | active (promoted draft→active D-427 per POL-14; anchor story S-PLUGIN-PREREQ-B merged PR #143 develop@ae7e26c8 2026-05-12) — v1.16 |
+| BC-2.16.002 | Multi-Step Fetch Pipeline Execution — Sequential Steps with Variable Interpolation | 16 - Spec Engine | CAP-029 | P0 | active (promoted draft→active D-427 per POL-14; anchor story S-PLUGIN-PREREQ-B merged PR #143 develop@ae7e26c8 2026-05-12) — v1.17 |
 | BC-2.16.003 | Column-to-OCSF Mapping at Query Time — Map Sensor Columns to OCSF Fields Per Spec | 16 - Spec Engine | CAP-029 | P0 | draft |
 | BC-2.16.004 | ~~Rust Escape Hatch for Custom Adapters — Trait-Based Override When Config Is Insufficient~~ | 16 - Spec Engine | CAP-029 | P0 | deprecated (ADR-023 PREREQ-F) |
 | BC-2.16.005 | `reload_config` MCP Tool — Re-Read All Config Files, Validate, Atomic Swap, Notify | 16 - Spec Engine | CAP-030 | P1 | draft |
@@ -361,6 +361,7 @@ Phase 3-patch additions (2026-04-16): 22 new BCs added in Burst 1 to close trace
 
 ### Change Log (Adversarial Review Fixes)
 
+**v4.79 (2026-05-14):** implementer | F-PASS3-HIGH-001 closure: BC-2.16.002 v1.16→v1.17 — add `plugin_log_level_unrecognized` catalog row (row 32; emitted by host::log callback on unrecognized WIT enum log-level name; fields: plugin_id, received_name; audit role: operational observability; forward-compat safe-default to Info after emission). Catalog intro updated v1.16→v1.17; count 31→32. BC-INDEX row annotation v1.16→v1.17. Closes F-PASS3-HIGH-001 (SOUL.md #4 observability; PG-LP11-001 SOP). | D-TBD
 **v4.78 (2026-05-14):** implementer | F-PASS2-HIGH-001 closure: BC-2.16.002 v1.15→v1.16 (prose intro catalog version label and count corrected: v1.12→v1.16, 25→31 events — TD-VSDD-060 sibling-sweep gap from 3 prior amendments missed the intro line). BC-INDEX `timestamp:` Z suffix added (POL-20 ISO-8601 compliance, MED-004 closure). BC-INDEX row v1.15→v1.16 annotation sync. | D-549
 **v4.77 (2026-05-14):** implementer | impl-pass-1 fix-burst — BC-2.16.002 v1.13→v1.15 (MED-001: add `message` field to `plugin_load_failed_compilation` row; MED-002: rename `plugin_id`→`sensor_id` in `pipeline_max_requests_exceeded` row + emission site; HIGH-003/005/006: add 3 new catalog rows for E-PLUGIN-017/018/019 new error variants; catalog total 28→31). BC-INDEX row v1.13→v1.15 annotation sync. | D-TBD
 **v4.76 (2026-05-14):** state-manager | BC-2.16.002 v1.12→v1.13 (fix-burst-37: F-LP40-MED-001 frontmatter sync — `modified` updated null→2026-05-14; `timestamp` updated 2026-04-13T12:00:00→2026-05-14T00:00:00Z; sibling-sweep gap from F-LP36-MED-001 / OBS-LP36-001 fix-burst-34 not propagated to BC-2.16.002 despite 12 prior amendments; pure metadata sync, no body change) | D-541
