@@ -164,9 +164,11 @@ async fn test_BC_2_22_001_plugin_load_disabled_env() {
     write_prx(&dir, "minimal", &bytes);
     write_manifest(&dir, "minimal", MINIMAL_MANIFEST_TOML);
 
-    std::env::set_var("PRISM_DISABLE_PLUGIN_LOAD", "1");
+    // SAFETY: single-threaded test; no other thread reads PRISM_DISABLE_PLUGIN_LOAD concurrently.
+    unsafe { std::env::set_var("PRISM_DISABLE_PLUGIN_LOAD", "1") };
     let result = plugin_load_step(dir.path()).await;
-    std::env::remove_var("PRISM_DISABLE_PLUGIN_LOAD");
+    // SAFETY: same guarantee as set_var above.
+    unsafe { std::env::remove_var("PRISM_DISABLE_PLUGIN_LOAD") };
 
     assert!(
         result.is_ok(),
@@ -187,9 +189,11 @@ async fn test_BC_2_22_001_disable_env_takes_precedence_over_plugin_dir_config() 
 
     // Non-"1" values must NOT disable loading (EC-D-011: only exact "1" disables).
     for val in &["true", "yes", "TRUE", "1.0", "0", "false"] {
-        std::env::set_var("PRISM_DISABLE_PLUGIN_LOAD", val);
+        // SAFETY: single-threaded test; no other thread reads PRISM_DISABLE_PLUGIN_LOAD concurrently.
+        unsafe { std::env::set_var("PRISM_DISABLE_PLUGIN_LOAD", val) };
         let result = plugin_load_step(dir.path()).await;
-        std::env::remove_var("PRISM_DISABLE_PLUGIN_LOAD");
+        // SAFETY: same guarantee as set_var above.
+        unsafe { std::env::remove_var("PRISM_DISABLE_PLUGIN_LOAD") };
         assert!(
             result.is_ok(),
             "AC-18: PRISM_DISABLE_PLUGIN_LOAD={val} must not cause boot failure (empty dir → Ok(0))"
@@ -203,9 +207,11 @@ async fn test_BC_2_22_001_disable_env_takes_precedence_over_plugin_dir_config() 
     write_prx(&dir2, "minimal", &bytes);
     write_manifest(&dir2, "minimal", MINIMAL_MANIFEST_TOML);
 
-    std::env::set_var("PRISM_DISABLE_PLUGIN_LOAD", "1");
+    // SAFETY: single-threaded test; no other thread reads PRISM_DISABLE_PLUGIN_LOAD concurrently.
+    unsafe { std::env::set_var("PRISM_DISABLE_PLUGIN_LOAD", "1") };
     let result_disabled = plugin_load_step(dir2.path()).await;
-    std::env::remove_var("PRISM_DISABLE_PLUGIN_LOAD");
+    // SAFETY: same guarantee as set_var above.
+    unsafe { std::env::remove_var("PRISM_DISABLE_PLUGIN_LOAD") };
 
     assert_eq!(
         result_disabled.unwrap().plugins_loaded,
@@ -480,9 +486,11 @@ async fn test_F_PASS2_CRIT_001_prism_command_start_routes_through_run_boot_seque
     write_manifest(&plugin_dir, "minimal", MINIMAL_MANIFEST_TOML);
 
     // With disable env var: returns Ok(0) immediately — escape valve works.
-    std::env::set_var("PRISM_DISABLE_PLUGIN_LOAD", "1");
+    // SAFETY: single-threaded test; no other thread reads PRISM_DISABLE_PLUGIN_LOAD concurrently.
+    unsafe { std::env::set_var("PRISM_DISABLE_PLUGIN_LOAD", "1") };
     let disabled_result = plugin_load_step(plugin_dir.path()).await;
-    std::env::remove_var("PRISM_DISABLE_PLUGIN_LOAD");
+    // SAFETY: same guarantee as set_var above.
+    unsafe { std::env::remove_var("PRISM_DISABLE_PLUGIN_LOAD") };
     assert!(
         disabled_result.is_ok(),
         "F-PASS2-CRIT-001: plugin_load_step (called by run_boot_sequence step-7.5) must return Ok with PRISM_DISABLE_PLUGIN_LOAD=1"

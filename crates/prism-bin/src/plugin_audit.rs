@@ -17,7 +17,7 @@ use std::collections::BTreeMap;
 use std::sync::Arc;
 
 use prism_spec_engine::plugin_audit_sink::PluginLoadAuditSink;
-use prism_storage::audit_buffer::{append_audit_entry_sync, AuditEntry};
+use prism_storage::audit_buffer::{AuditEntry, append_audit_entry_sync};
 use prism_storage::rocksdb_backend::RocksDbBackend;
 use uuid::Uuid;
 

@@ -448,7 +448,7 @@ fn make_config_manager_with_cred_refs(
     spec_tmp: &tempfile::TempDir,
 ) -> std::sync::Arc<arc_swap::ArcSwap<prism_spec_engine::config_manager::ConfigManager>> {
     use arc_swap::ArcSwap;
-    use prism_spec_engine::config_manager::{parse_spec_directory, ConfigManager};
+    use prism_spec_engine::config_manager::{ConfigManager, parse_spec_directory};
 
     // Write the fixture sensor TOML into spec_tmp.
     std::fs::write(
