@@ -298,13 +298,14 @@ impl PluginRuntime {
                 format!("{:x}", hasher.finalize())
             };
 
-            // Parse manifest — embedded as a `[manifest]` section in the WASM custom section
-            // or as a companion TOML file. For our WAT-compiled fixtures, we use a companion
-            // `.manifest.toml` file at the same path (e.g., `minimal.manifest.toml`).
+            // Parse manifest — companion TOML file approach.
             //
-            // Manifest parsing strategy:
-            //   1. Try to read `{path}.manifest.toml` (companion file) — used by fixtures.
-            //   2. TODO(S-4.08-manifest-embedding): parse WASM custom section for production .prx.
+            // Current manifest discovery strategy:
+            //   1. Read `{path}.manifest.toml` companion file — the canonical path for
+            //      production .prx files and WAT-compiled test fixtures alike.
+            //   2. Future: WASM custom section embedding (tracked in STORY-INDEX as a
+            //      Wave 4/5 enhancement; no story ID assigned yet — requires product-owner
+            //      authorship before implementation).
             let manifest_path = path.with_extension("manifest.toml");
             let manifest_toml = if manifest_path.exists() {
                 match std::fs::read_to_string(&manifest_path) {
