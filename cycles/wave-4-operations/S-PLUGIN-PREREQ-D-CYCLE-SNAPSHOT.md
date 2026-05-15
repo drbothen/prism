@@ -4103,3 +4103,70 @@ All 18 ACs covered: BC-2.22.001 + BC-2.17.001/002/003/004/005/006/007 + BC-2.16.
 | `state_v` / `handoff_v` | **7.271** |
 | factory-artifacts HEAD | run `git -C .factory log -1 --format=%H` (D-566 is this commit) |
 | test baseline | 34/34 plugin_integration_tests PASS (UNCHANGED — demo evidence files only, no code changes) |
+
+---
+
+## §STEP-6 PUSH COMPLETE (D-567 — 2026-05-15)
+
+### Push Summary
+
+Branch `feature/S-PLUGIN-PREREQ-D` pushed to remote `origin` at `45ebc198` (first push for this branch). HEAD matches local — no divergence. devops-engineer executed push per per-story-delivery Step 6 protocol.
+
+| Field | Value |
+|-------|-------|
+| Branch | `feature/S-PLUGIN-PREREQ-D` |
+| Remote | `origin` (GitHub) |
+| HEAD | `45ebc198` |
+| Push type | First push (branch created on remote) |
+| Force push | No |
+| `--no-verify` | No |
+| feature_branch_remote_status | `pushed (45ebc198 = remote tip)` |
+
+### Pre-Push Hook PASS Details
+
+| Check | Result |
+|-------|--------|
+| `just check` test suite | PASS — 3645/3645 tests |
+| `#[non_exhaustive]` violations gate | PASS — 30/30 expected violations |
+| Doctests | PASS — clean |
+| Wall time | 401s |
+
+No regressions introduced. Test baseline unchanged at 34/34 plugin_integration_tests.
+
+### 8-Step Per-Story-Delivery Checklist (6/8 done)
+
+| Step | Status | D-NNN |
+|------|--------|-------|
+| Step 1: stubs | ✅ COMPLETE | D-546 |
+| Step 2: failing tests | ✅ COMPLETE | D-546 |
+| Step 3: TDD green | ✅ COMPLETE | D-547..D-562 (8 BLOCKED + 8 fix-bursts) |
+| Step 4: LOCAL adversary 3-CLEAN | ✅ COMPLETE | D-565 (impl-pass-11; 3/3 CONVERGED) |
+| Step 5: demo-recorder per-AC | ✅ COMPLETE | D-566 (19 files; 18 ACs + evidence-report.md) |
+| **Step 6: devops-engineer push** | ✅ **COMPLETE** | **D-567 ← this burst** |
+| Step 7: pr-manager 9-step PR lifecycle | ⏳ NEXT | — |
+| Step 8: post-merge state burst | ⏳ AFTER | — |
+
+### Step 7 Dispatch Prerequisites (All Met)
+
+- Branch at remote: `origin/feature/S-PLUGIN-PREREQ-D@45ebc198` ✅
+- Pre-push hook PASS: 3645/3645 + 30/30 non_exhaustive gate ✅
+- BC-5.39.001 3-CLEAN convergence: D-565 impl-pass-11 ✅
+- Demo evidence: 18 ACs + evidence-report.md at `docs/demo-evidence/S-PLUGIN-PREREQ-D/` ✅
+- Story v1.37 (frontmatter matches downstream; all content correct) ✅
+
+pr-manager Step 7 dispatch ready. Expected PR lifecycle: create PR targeting develop → code-reviewer → security-reviewer → pr-reviewer → triage findings → fix-pr-delivery cascade if any HIGH+ findings → user-authorized squash-merge to develop.
+
+### Durable Pins (D-567)
+
+| Field | Value |
+|-------|-------|
+| `feature_branch_head` | `45ebc198` (unchanged — push does not change local HEAD) |
+| `feature_branch_remote_status` | `pushed (45ebc198 = remote tip)` |
+| `per_story_delivery_steps_complete` | **6/8** |
+| `codification_queue` | 31 (UNCHANGED) |
+| `story_v` | 1.37 (UNCHANGED) |
+| `story_index_v` | v2.107 (UNCHANGED) |
+| `develop_head` | 95d46be2 (UNCHANGED) |
+| `state_v` / `handoff_v` | **7.272** |
+| factory-artifacts HEAD | run `git -C .factory log -1 --format=%H` (D-567 is this commit) |
+| test baseline | 34/34 plugin_integration_tests PASS (UNCHANGED) |
