@@ -2539,3 +2539,96 @@ Routed session-reviewer at cycle-close per Standing Rule 3 §3. Do NOT add to po
 
 **56th consecutive single-commit (TD-VSDD-053 DECISIVELY STABLE).**
 STATE.md v7.255 → v7.256 / SESSION-HANDOFF.md v7.255 → v7.256 / CYCLE-SNAPSHOT.md §POST-IMPL-PASS-3 BLOCKED (D-551) appended.
+
+---
+
+## §FIX-BURST-IMPL-3 CLOSURE (D-552 — 2026-05-14)
+
+**Verdict: ALL 6 CLOSED.** Fix-burst-impl-3 dispatched to implementer to close 6 in-perimeter findings from adversary impl-pass-3 (3 CRIT + 1 HIGH + 2 MED). Outcome: all 6 CLOSED across 2 worktree commits + 1 factory commit (already landed at d8f51552 before this state burst).
+
+### Worktree Commits
+
+| SHA | Description |
+|-----|-------------|
+| `820005e5` | `fix(prism-bin): F-PASS3-CRIT-001 — reorder plugin-load before step7 todo!() in run_boot_sequence` |
+| `51ee7ce5` | `fix(prism-spec-engine): F-PASS3-CRIT-002/003 + HIGH-001 + MED-001/002 (Val-types + Component Model dispatch test + fabricated story-ID removal)` |
+
+### Factory-Artifacts Commit (Standing Rule 3 §6 — already in factory-artifacts before D-552 burst)
+
+| SHA | Description |
+|-----|-------------|
+| `d8f51552` | `bc(BC-2.16.002): v1.16→v1.17 — add plugin_log_level_unrecognized row (32 events); BC-INDEX v4.78→v4.79` |
+
+### Final Gate
+
+`just check` 3643/3643 pass, 17 skipped, 0 failures. +6 new load-bearing tests from baseline 3637 (including real Component Model dispatch via `wat::parse_str` + `Component::from_binary`).
+
+### 6-Finding Closure Table
+
+| Finding | Severity | Status | Closure Method |
+|---------|----------|--------|----------------|
+| F-PASS3-CRIT-001 | CRIT | **CLOSED** | `run_boot_sequence` reordered — `plugin_load_step_with_audit` now runs BEFORE `step7_init_storage()` (which remains `todo!()`); PG-IMPL-LP3-001 dependency-frontier walk satisfied; integration test added in `plugin_boot_tests.rs` exercising `run_boot_sequence` end-to-end |
+| F-PASS3-CRIT-002 Bug A | CRIT | **CLOSED** | WIT u16 status → `Val::U16(response.status)` (corrected from `Val::U32`); inline comment at host_functions.rs:319 corrected |
+| F-PASS3-CRIT-002 Bug B | CRIT | **CLOSED** | WIT enum log-level → `Val::Enum(String)` matching; unrecognized names emit `plugin_log_level_unrecognized` structured event + default to Info; non-Enum types trap with schema-violation Err |
+| F-PASS3-CRIT-002 Bug C | CRIT | **CLOSED** | WIT `-> http-response` single-slot writeback as `Val::Record(vec![("status", Val::U16(...)), ("headers", Val::List(...)), ("body", Val::List(...))])` (corrected from 3-slot writeback) |
+| F-PASS3-CRIT-003 | CRIT | **CLOSED** | Fabricated `S-4.08-manifest-embedding` references removed from `host_functions.rs:297-298` and `plugin_integration_tests.rs:927-929`; real Component Model dispatch test `test_F_PASS3_CRIT_003_component_model_dispatch_allowlist_gate` added using `wat::parse_str` + `Component::from_binary`; verifies `Val::Record` with `Val::U16(403)` for non-allowlisted URLs |
+| F-PASS3-HIGH-001 | HIGH | **CLOSED (subsumed)** | Silent log-level downgrade eliminated by CRIT-002 Bug B fix + BC-2.16.002 row 32 `plugin_log_level_unrecognized` |
+| F-PASS3-MED-001 | MED | **CLOSED (subsumed)** | Fabricated story-ID in doc-comment removed (subsumed by CRIT-003) |
+| F-PASS3-MED-002 | MED | **CLOSED** | All 5 callbacks (http-request method/url/headers/body, log message, get-config key, kv-get key, kv-set key/value) now trap with `wasmtime::Error::msg("schema violation: ...")` on type-mismatched Val params; Component Model surfaces as guest-visible traps |
+
+### Spec Amendments (factory commit d8f51552)
+
+| Artifact | Version Change | Change Summary |
+|----------|---------------|----------------|
+| BC-2.16.002 | v1.16 → v1.17 | Added `plugin_log_level_unrecognized` catalog row #32; prose intro updated: `(v1.16) ... 31 structured events` → `(v1.17) ... 32 structured events` |
+| BC-INDEX | v4.78 → v4.79 | BC-2.16.002 row sync |
+
+### PG-IMPL-LP3-001 Dependency-Frontier Walk (Applied In-Burst)
+
+Implementer self-audited the `run_boot_sequence` call chain in boot.rs. Result: `plugin_load_step_with_audit` is now the FIRST async step in the production call chain, appearing before the `step7_init_storage()` call that contains `todo!()`. The `todo!()` at step7 remains (unfilled) but is no longer reachable before plugin-load runs. PG-IMPL-LP3-001 walk applied; codification queue 25 (unchanged — PG-IMPL-LP3-001 was added at D-551 for session-reviewer adjudication; NOT added to policies.yaml this burst per D-551 codification routing).
+
+### Adversary Trajectory Summary
+
+| Pass | Findings | Severity | Fix-Burst |
+|------|----------|----------|-----------|
+| impl-pass-1 | 18 | 3 CRIT + 6 HIGH + 7 MED + 2 LOW | fix-burst-impl-1 CLOSED 18/18 (D-548) |
+| impl-pass-2 | 12 | 2 CRIT + 3 HIGH + 6 MED + 1 LOW | fix-burst-impl-2 CLOSED 12/12 (D-550) |
+| impl-pass-3 | 6 | 3 CRIT + 1 HIGH + 2 MED + 0 LOW | fix-burst-impl-3 CLOSED 6/6 (D-552) |
+| impl-pass-4 | NEXT | — | Target 0/3→1/3 streak advance |
+
+Total prior findings across passes 1-3: 18+12+6 = 36, all CLOSED. CRIT trajectory: 3→2→3 (regression then remediated). Fix-burst closures: 18→12→6 (decreasing). Convergence prognosis: positive (finding count halved each pass; next pass likely 0-3 findings).
+
+### Impl-Pass-4 Prerequisites
+
+Before dispatching adversary impl-pass-4:
+
+1. Verify `run_boot_sequence` body: `plugin_load_step_with_audit` executes BEFORE `step7_init_storage` — grep-verify with PG-IMPL-LP3-001 dependency-frontier walk
+2. Verify Component Model http-response callback: `results[0]` is `Val::U16(status_u16)` — grep-verify at host_functions.rs:395
+3. Verify Component Model log-level callback: matches `Val::Enum(ref s)` — grep-verify at host_functions.rs:434
+4. Verify Component Model http-response result slot: single `Val::Record(...)` writeback — grep-verify at host_functions.rs:405
+5. Verify no `S-4.08-manifest-embedding` references in source or tests — grep-verify
+6. Verify load-bearing Component Model dispatch test exists using `wat::parse_str` + `Component::from_binary`
+7. Verify all 5 callback `_ =>` default arms replaced with `Err(wasmtime::Error::msg(...))` — grep-verify
+8. Verify BC-2.16.002 v1.17 row 32 `plugin_log_level_unrecognized` wired to emission site
+9. `just check` 0 failures (baseline 3643)
+10. BC-5.39.001 3-CLEAN protocol: target streak advance 0/3 → 1/3
+
+### Durable Pins (D-552)
+
+| Field | Value |
+|-------|-------|
+| `feature_branch_head` | `51ee7ce5` (UPDATED — 2 fix commits 820005e5 + 51ee7ce5 from fix-burst-impl-3) |
+| `worktree_status` | active (.worktrees/S-PLUGIN-PREREQ-D mounted at develop@95d46be2) |
+| `story_v` | 1.33 (UNCHANGED) |
+| `develop_head` | 95d46be2 (UNCHANGED) |
+| `state_v` / `handoff_v` | 7.257 |
+| `impl_adversary_streak` | 0/3 (fix-burst-impl-3 CLOSED; impl-pass-4 NEXT) |
+| `impl_adversary_pass_count` | 3 |
+| `codification_queue` | 25 (UNCHANGED — PG-IMPL-LP3-001 already queued at D-551; not added to policies.yaml) |
+| `bc_index_v` | 4.79 (UPDATED from 4.78) |
+| `bc_2_16_002_v` | 1.17 (32 rows; UPDATED from 1.16 via d8f51552) |
+| `error_taxonomy_v` | 1.24 (UNCHANGED) |
+| `bc_2_17_002_v` | 1.7 (draft; promotes at PREREQ-D merge per POL-14) |
+| factory-artifacts HEAD | run `git -C .factory log -1 --format=%H` (D-552 is this commit) |
+| impl-pass-3 report | cycles/wave-4-operations/adversarial-reviews/S-PLUGIN-PREREQ-D-impl-pass-3.md |
+| worktree_test_count | 3643 (just check 3643/3643; +6 from fix-burst-impl-3 baseline 3637) |
