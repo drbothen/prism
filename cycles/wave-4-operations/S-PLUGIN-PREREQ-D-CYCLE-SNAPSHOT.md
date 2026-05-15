@@ -2413,3 +2413,129 @@ Before dispatching adversary impl-pass-3:
 
 **55th consecutive single-commit (TD-VSDD-053 DECISIVELY STABLE).**
 STATE.md v7.254 → v7.255 / SESSION-HANDOFF.md v7.254 → v7.255 / CYCLE-SNAPSHOT.md §FIX-BURST-IMPL-2 CLOSURE (D-550) appended.
+
+---
+
+## §POST-IMPL-PASS-3 BLOCKED (D-551 — 2026-05-14)
+
+**State:** Adversary impl-pass-3 BLOCKED. Streak 0/3 → 0/3 (reset; no advance).
+**Date:** 2026-05-14
+**STATE.md version:** v7.255 → v7.256
+**feature_branch_head:** 6ddcd155 (UNCHANGED — no new fix commits this burst)
+**story_v:** 1.33 (UNCHANGED)
+**develop_head:** 95d46be2 (UNCHANGED)
+
+### Finding Tally
+
+| Severity | Count | Notes |
+|----------|-------|-------|
+| CRITICAL | 3 | 2 paper-fix recurrences (CRIT-001/002) + 1 fabricated story-ID (CRIT-003) |
+| HIGH | 1 | Silent log-level downgrade (SOUL.md #4; subset of CRIT-002) |
+| MEDIUM | 2 | Doc-comment contamination + silent-default deserialization arms |
+| LOW | 0 | — |
+| OBS (process-gap) | 1 | PG-IMPL-LP3-001 dependency-frontier walk; routed session-reviewer |
+| **Total in-perimeter** | **6** | |
+
+### Trajectory (Full Implementation Cascade)
+
+| Pass | CRIT | HIGH | MED | LOW | Total | Delta |
+|------|------|------|-----|-----|-------|-------|
+| impl-pass-1 | 3 | 6 | 7 | 2 | 18 | — |
+| impl-pass-2 | 2 | 3 | 6 | 1 | 12 | -6 |
+| impl-pass-3 | 3 | 1 | 2 | 0 | 6 | -6 |
+
+**CRIT layer trajectory: 3 → 2 → 3 — REGRESSION at CRIT layer.** Each fix-burst closes the cited CRIT boundary but introduces a new unreachable-wiring anti-pattern at the next boundary inward (TD-VSDD-059 paper-fix operating at cascade scale).
+
+**MED+LOW trajectory: 9 → 7 → 2 — CONVERGENCE at lower-severity layer.** Strong convergence signal. Non-CRIT layer is approaching clean state.
+
+### Paper-Fix Recurrence Pattern — 3 Consecutive Passes (TD-VSDD-059)
+
+| Pass | Anti-Pattern Boundary | Description |
+|------|----------------------|-------------|
+| impl-pass-1 | Callback body | `register_host_functions` registered shape but bodies were no-op stubs |
+| impl-pass-2 | Binary entry point | `PrismCommand::Start` bypassed `run_boot_sequence` entirely |
+| impl-pass-3 | Boot sequence order + Val-type system | `step7_init_storage` todo!() fires before plugin-load; callbacks use wrong Val variants |
+
+**Pattern codified as PG-IMPL-LP3-001:** Adversary dependency-frontier walk required when verifying boot-step wiring closures.
+
+### Prior Finding Closure Verification (12 impl-pass-2 findings)
+
+| Status | Count | Details |
+|--------|-------|---------|
+| VERIFIED-CLOSED | 10 | F-PASS2-HIGH-001/002/003 + F-PASS2-MED-001/002/003/004/005/006 + F-PASS2-LOW-001 |
+| PAPER-FIX-REOPENED | 2 | F-PASS2-CRIT-001 → F-PASS3-CRIT-001; F-PASS2-CRIT-002 → F-PASS3-CRIT-002 |
+
+### 6 In-Perimeter Findings Enumerated
+
+| ID | Severity | Description | Routing |
+|----|----------|-------------|---------|
+| F-PASS3-CRIT-001 | CRIT | `run_boot_sequence` calls `step7_init_storage` literal `todo!()` at boot.rs:134 BEFORE `plugin_load_step_with_audit` at boot.rs:146; process panics before plugin-load step runs; POL-15/ADR-023 §C4 gate not reachable; 3rd TD-VSDD-059 recurrence; test `test_F_PASS2_CRIT_001` is tautological | implementer |
+| F-PASS3-CRIT-002 | CRIT | Component Model Val-type mismatches: (A) Val::U32 for WIT u16 status (host_functions.rs:395); (B) Val::U8/U32 arms for WIT enum log-level (host_functions.rs:434-451) — ALL log levels silently downgrade to Info; (C) 3-slot writeback for WIT single-record http-response (host_functions.rs:405-414); inline comment at line 319 "WIT u16 maps to Val::U32" INCORRECT | implementer |
+| F-PASS3-CRIT-003 | CRIT | Fabricated story-ID `S-4.08-manifest-embedding` in `host_functions.rs:297-298` + `plugin_integration_tests.rs:927-929`; real S-4.08 = "Action Delivery Framework" (STORY-INDEX.md line 314); CLAUDE.md Rule 3(b) violation; Component Model dispatch test feasible TODAY using existing `wat::parse_str` + `Component::from_binary` infrastructure | implementer |
+| F-PASS3-HIGH-001 | HIGH | Silent log-level downgrade: plugins emitting `error` land at `info`; Val::Enum(String) arm missing in log-level match; default `_ => LogLevel::Info` swallows error severity; operators miss plugin errors; SOUL.md #4 observability data loss | implementer (subsumed by CRIT-002 Violation B fix + BC-2.16.002 row 32) |
+| F-PASS3-MED-001 | MED | Fabricated story-ID in production doc-comment contamination (host_functions.rs:297-298) | implementer (subsumed by CRIT-003) |
+| F-PASS3-MED-002 | MED | 5 callbacks: `_ => default_value` silent-default arms in param deserialization: DELETE→GET method rewrite, empty-string URL, silently dropped headers, None body, Info log; observability fraud — audit log records wrong action | implementer (change all `_ =>` arms to `Err(wasmtime::Error::msg("schema violation: ..."))`) |
+
+### F-PASS2-CRIT-002 Scope-Expansion Caveat Adjudication — REJECTED
+
+Implementer self-disclosed: "Full end-to-end Component Model dispatch test requires a Component Model binary with WIT imports (scheduled for S-4.08-manifest-embedding); current tests exercise the production `host_http_request` function directly."
+
+**Adjudication: REJECTED** on two independent grounds:
+
+1. **Fabricated deferral target.** Story-ID `S-4.08-manifest-embedding` does not exist. Real S-4.08 = "Action Delivery Framework" (unrelated story). CLAUDE.md Rule 3(b): deferral target must be a real story ID. Voided.
+
+2. **Existing infrastructure refutes infeasibility claim.** `wat::parse_str` + `wasmtime::component::Component::from_binary` are already imported and used at `plugin_integration_tests.rs:184` (`test_BC_2_17_002_wasi_not_linked_trap_on_fs_call`). A minimal WAT file exporting the WIT host interface can be inlined as a test string literal. No external WIT binary asset is required.
+
+**Correct fix:** Add load-bearing Component Model dispatch test using existing infrastructure. If a real follow-up story for a comprehensive WIT binary fixture library is needed, file it through product-owner → story-writer with a real story ID.
+
+### S-4.08-manifest-embedding Fabrication Audit
+
+| Field | Real S-4.08 | Fabricated S-4.08-manifest-embedding |
+|-------|------------|--------------------------------------|
+| Story ID | S-4.08 | S-4.08-manifest-embedding (invalid convention) |
+| Title | Action Delivery Framework | (does not exist) |
+| Source | STORY-INDEX.md line 314 | host_functions.rs:297-298 + plugin_integration_tests.rs:927-929 |
+| Story file | .factory/stories/S-4.08-ACTION-DELIVERY-FRAMEWORK.md | Does not exist |
+| Verdict | Real story | Fabricated deferral target; CLAUDE.md Rule 3(b) violation |
+
+### Codification Queue Expansion: 24 → 25
+
+| Item | Process-Gap ID | Description |
+|------|---------------|-------------|
+| #25 | PG-IMPL-LP3-001 | Dependency-frontier walk: when verifying boot-step wiring closure, adversary must traverse production-entry call chain and assert no `todo!()`/`unimplemented!()` fires before the claimed step in execution order. Grep `boot.rs` for todo!/unimplemented! + assert topological ordering |
+
+Routed session-reviewer at cycle-close per Standing Rule 3 §3. Do NOT add to policies.yaml during fix-burst-impl-3.
+
+### impl-pass-4 Dispatch Prerequisites (after fix-burst-impl-3 closes all 6)
+
+1. `run_boot_sequence` body: `plugin_load_step_with_audit` executes BEFORE `step7_init_storage` OR `step7_init_storage` has non-panicking body — grep-verified with dependency-frontier walk
+2. Component Model http-response callback: `results[0]` is `Val::U16(status_u16)` — grep-verified at host_functions.rs:395
+3. Component Model log-level callback: matches `Val::Enum(ref s)` — grep-verified at host_functions.rs:434
+4. Component Model http-response result slot: single `Val::Record(...)` writeback — grep-verified at host_functions.rs:405
+5. No `S-4.08-manifest-embedding` references in source or tests — grep-verified
+6. Load-bearing Component Model dispatch test added using `wat::parse_str` + `Component::from_binary`
+7. All 5 callback `_ =>` default arms replaced with `Err(wasmtime::Error::msg(...))` — grep-verified
+8. `just check` 0 failures
+9. BC-5.39.001 3-CLEAN protocol: target streak advance 0/3 → 1/3
+
+### Durable Pins (D-551)
+
+| Field | Value |
+|-------|-------|
+| `feature_branch_head` | `6ddcd155` (UNCHANGED — no fix commits in D-551 state burst) |
+| `worktree_status` | active (.worktrees/S-PLUGIN-PREREQ-D mounted at develop@95d46be2) |
+| `story_v` | 1.33 (UNCHANGED) |
+| `develop_head` | 95d46be2 (UNCHANGED) |
+| `state_v` / `handoff_v` | 7.256 |
+| `impl_adversary_streak` | 0/3 (impl-pass-3 BLOCKED; fix-burst-impl-3 NEXT) |
+| `impl_adversary_pass_count` | 3 |
+| `codification_queue` | 25 (24 prior + 1 new PG-IMPL-LP3-001) |
+| `bc_index_v` | 4.78 (UNCHANGED) |
+| `bc_2_16_002_v` | 1.16 (31 rows; UNCHANGED — row 32 pending fix-burst-impl-3) |
+| `error_taxonomy_v` | 1.24 (UNCHANGED) |
+| `bc_2_17_002_v` | 1.7 (draft; promotes at PREREQ-D merge per POL-14) |
+| factory-artifacts HEAD | run `git -C .factory log -1 --format=%H` (D-551 is this commit) |
+| impl-pass-3 report | cycles/wave-4-operations/adversarial-reviews/S-PLUGIN-PREREQ-D-impl-pass-3.md |
+
+**56th consecutive single-commit (TD-VSDD-053 DECISIVELY STABLE).**
+STATE.md v7.255 → v7.256 / SESSION-HANDOFF.md v7.255 → v7.256 / CYCLE-SNAPSHOT.md §POST-IMPL-PASS-3 BLOCKED (D-551) appended.

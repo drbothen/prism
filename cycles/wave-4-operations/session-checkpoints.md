@@ -247,3 +247,11 @@ STATE v7.249. D-544 convergence burst COMPLETE. Pass-43 CLEAN (0/0/0/0/0-NEW-OBS
 **Archived from STATE.md at D-550 transition (STATE v7.254→v7.255).**
 
 STATE v7.254. D-549 adversary impl-pass-2 BLOCKED. 12 in-perimeter findings: 2 CRIT + 3 HIGH + 6 MED + 1 LOW. 2 paper-fix recurrences: CRIT-001 `run_boot_sequence` dead-code (main.rs::PrismCommand::Start bypasses via boot_to_step_6); CRIT-002 Component Model callbacks are no-op stubs (not delegated to host_* functions). Trajectory 18→12 (decreasing; convergence signal). Codification queue 19→24 (5 new PG-IMPL-LP2-001 through 005). impl_adversary_streak: 0/3. feature_branch_head c87592e8 UNCHANGED. story v1.32 UNCHANGED. develop@95d46be2 UNCHANGED. NEXT: fix-burst-impl-2 dispatch (implementer CRIT-001/002 + HIGH-002/003 code + MED-001 escape hatch; product-owner HIGH-001 BC prose + MED-004/005/006 error-taxonomy; story-writer MED-002/003 + LOW-001).
+
+---
+
+## Session Resume Checkpoint (2026-05-14-v7.255-d550-FIX-BURST-IMPL-2-CLOSED) — ARCHIVED
+
+**Archived from STATE.md at D-551 transition (STATE v7.255→v7.256).**
+
+STATE v7.255. D-550 fix-burst-impl-2 CLOSED 12/12. All adversary impl-pass-2 findings remediated across 3 commits: c5d80016 (CRIT-001 main.rs::PrismCommand::Start → run_boot_sequence); 6ddcd155 (CRIT-002 Component Model callbacks delegate to host_* functions + HIGH-002 POL-18 + HIGH-003 kv_set Err + MED-001 escape hatch); b8fed147 (spec amendments: BC-2.16.002 v1.16 + BC-INDEX v4.78 + error-taxonomy v1.24 + story v1.33). 6 new load-bearing tests. just check 3637/3637 pass. CRIT-002 partial-coverage caveat (S-4.08-manifest-embedding deferral) — adversary impl-pass-3 adjudicating sufficiency. impl_adversary_streak: 0/3. feature_branch_head 6ddcd155. story v1.33. codification queue unchanged at 24. develop@95d46be2 UNCHANGED. NEXT: adversary impl-pass-3 dispatch (target 0/3→1/3 advance). 55th consecutive single-commit (TD-VSDD-053).
