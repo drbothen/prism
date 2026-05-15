@@ -2967,3 +2967,126 @@ Before dispatching adversary impl-pass-6:
 | factory-artifacts HEAD | run `git -C .factory log -1 --format=%H` (D-555 is this commit) |
 | impl-pass-5 report | cycles/wave-4-operations/adversarial-reviews/S-PLUGIN-PREREQ-D-impl-pass-5.md |
 | worktree_test_count | 3644 (unchanged; just check 3644/3644; no worktree commits this burst) |
+
+---
+
+## §FIX-BURST-IMPL-5 CLOSURE (D-556 — 2026-05-15)
+
+### Summary
+
+3 findings CLOSED (0 CRIT + 1 HIGH + 2 LOW). **MAJOR BREAKTHROUGH** after 5 consecutive paper-fix recurrences: Route A pre-built `.prx` fixture finally produces a load-bearing test that exercises the PRODUCTION `PluginRuntime::build_linker(&engine)` callback path.
+
+| Finding | Verdict | Method |
+|---------|---------|--------|
+| F-PASS5-HIGH-001 | **CLOSED** (worktree 0cc8ab14) | Route A pre-built .prx fixture via wasm-tools; test exercises PRODUCTION linker |
+| F-PASS5-LOW-001 | CLOSED (factory c666fcdb) | STORY-INDEX v2.104→v2.105 attribution wording correction |
+| F-PASS5-LOW-002 | CLOSED (factory c666fcdb) | story v1.34→v1.35 event_type field alignment with BC-2.16.002 v1.17 row 32 |
+
+### Worktree Commit: 0cc8ab14
+
+**Commit:** `test(prism-spec-engine): F-PASS5-HIGH-001 — production-linker dispatch test via PluginRuntime::build_linker (Route A)`
+
+**Fixture:** `crates/prism-spec-engine/fixtures/component_model_dispatch.prx` (1227 bytes)
+- Generated via `wasm-tools component embed + component new` (wasm-tools 1.248.0)
+- WIT interface: `prism:dispatch-test@0.1.0` world
+- Exported function: `call-blocked` — invokes `host.http-request` with blocked URL, returns http-response record
+- Record type includes `status: u16` field (full record type, not simplified return)
+
+**New test:** `test_F_PASS5_HIGH_001_production_linker_dispatch_via_build_linker_route_a`
+- Loads fixture via `Component::from_file`
+- Instantiates against `PluginRuntime::build_linker(&engine)` — PRODUCTION builder at mod.rs:168
+- Invokes exported `call-blocked` function with synthesized Val params
+- Asserts returned status `Val::U16(403)` from production `register_host_functions` callback
+
+### Route A vs Route B Adjudication
+
+| Route | Status | Reason |
+|-------|--------|--------|
+| Route A (.prx fixture) | **CHOSEN** | wasm-tools component embed+new successfully embeds WIT with full record types; pre-built binary sidesteps WAT text format limitations |
+| Route B (Func extraction) | **BLOCKED** | `LinkerInstance::get()` is a private wasmtime method with no public API for extracting `Func` from a built linker; wasmtime's public surface does not expose per-function inspection post-build |
+
+wasm-tools tooling notes (1.248.0):
+- `wasm-tools component embed <wit-dir> <core-wasm> -o <embedded.wasm>` — embeds WIT interface into core Wasm module
+- `wasm-tools component new <embedded.wasm> -o <component.prx>` — wraps as Component Model component
+- Resulting `.prx` binary can be loaded via `Component::from_file` in wasmtime
+
+### Sanity-Revert Verification (CONFIRMED LOAD-BEARING)
+
+**Revert applied (2026-05-15):** Changed `host_functions.rs:452` from:
+```rust
+Val::U16(response.status)
+```
+to:
+```rust
+Val::U32(u32::from(response.status))
+```
+
+**Test result:** FAILED with:
+```
+"type mismatch: expected u16, found u32"
+```
+
+wasmtime's `lower_result` traps when writing wrong `Val` type to a declared record field slot. This proves the test exercises the PRODUCTION callback at `register_host_functions` — not a test-local copy.
+
+**Reverted back:** Test PASSES with correct production code. **Production regression detection CONFIRMED LOAD-BEARING.**
+
+### Quality Gate Results
+
+| Gate | Status |
+|------|--------|
+| `cargo nextest run -p prism-spec-engine` (34/34 plugin_integration_tests) | PASS (+1 new) |
+| `cargo clippy -p prism-spec-engine --all-features -- -D warnings` | PASS (exit 0) |
+| `cargo fmt --check` | PASS (exit 0) |
+| `scripts/check-crate-layout.sh` | PASS (exit 0) |
+| Pre-commit hooks | PASSED (both commits) |
+
+### Factory Commit: c666fcdb (already landed, parallel story-writer dispatch)
+
+**F-PASS5-LOW-001 CLOSED:** STORY-INDEX v2.104→v2.105
+- Wording correction: annotation now correctly attributes story body sweep (12→13 at 4 sites) to fix-burst-impl-4 (D-554 factory commit b788d53c); BC-2.16.002 row 32 addition correctly attributed to fix-burst-impl-3 (D-552 d8f51552)
+
+**F-PASS5-LOW-002 CLOSED:** Story v1.34→v1.35
+- `plugin_log_level_unrecognized` §Structured Event Catalog Additions row Fields column: removed `event_type`
+- Alignment with BC-2.16.002 v1.17 row 32 source-of-truth: Fields = `plugin_id, received_name`
+- Alignment with 12 sibling rows convention: `event_type` is the row key, not a payload field
+
+### Paper-Fix Recurrence Trajectory
+
+| Pass | Paper-fix layer | Gap resolved by fix-burst |
+|------|----------------|--------------------------|
+| impl-pass-1 | Callback bodies not wired to production host_* | Closed (all 18 findings) |
+| impl-pass-2 | run_boot_sequence routing | Closed (all 12 findings) |
+| impl-pass-3 | Val-type mismatches + step ordering | Closed (all 6 findings) |
+| impl-pass-4 | 5 inline-replica tests hand-construct Val copies | Closed (all 2 findings; WAT shim+fixup pattern) |
+| impl-pass-5 | test-local linker (Linker::new) bypasses production linker | **CLOSED — Route A pre-built .prx fixture; LOAD-BEARING BREAKTHROUGH** |
+
+**Severity-weighted trajectory:** 18→12→6→2→3 (paper-fix recurrences) → **0 OPEN after fix-burst-impl-5** (BREAKTHROUGH)
+
+### impl-pass-6 Prerequisites
+
+1. Adversary dispatches against `feature/S-PLUGIN-PREREQ-D@0cc8ab14`
+2. PG-IMPL-LP5-001 check: grep test body for `Linker::new(` / `Linker::<.*>::new(` — should NOT be present without production builder
+3. Verify `PluginRuntime::build_linker(&engine)` is the instantiation path
+4. Verify sanity-revert target is production code (host_functions.rs), not test-local closure
+5. BC-5.39.001 3-CLEAN protocol: if CLEAN → streak advances 0/3 → 1/3 (FIRST ADVANCE after 5 consecutive BLOCKED)
+
+### Durable Pins (D-556)
+
+| Field | Value |
+|-------|-------|
+| `feature_branch_head` | `0cc8ab14` (Route A fix commit) |
+| `worktree_status` | active (.worktrees/S-PLUGIN-PREREQ-D mounted at develop@95d46be2) |
+| `story_v` | 1.35 (bumped this burst — LOW-002 closed) |
+| `story_index_v` | v2.105 (bumped this burst — LOW-001 closed) |
+| `develop_head` | 95d46be2 (UNCHANGED) |
+| `state_v` / `handoff_v` | 7.261 |
+| `impl_adversary_streak` | 0/3 (fix-burst-impl-5 CLOSED all 3; impl-pass-6 NEXT — FIRST ADVANCE) |
+| `impl_adversary_pass_count` | 5 |
+| `codification_queue` | 27 (unchanged from D-555) |
+| `bc_index_v` | 4.79 (UNCHANGED) |
+| `bc_2_16_002_v` | 1.17 (32 rows; UNCHANGED) |
+| `error_taxonomy_v` | 1.24 (UNCHANGED) |
+| `bc_2_17_002_v` | 1.7 (draft; promotes at PREREQ-D merge per POL-14) |
+| factory-artifacts HEAD | run `git -C .factory log -1 --format=%H` (D-556 is this commit) |
+| plugin_integration_tests | 34/34 PASS (+1 new: test_F_PASS5_HIGH_001_production_linker_dispatch_via_build_linker_route_a) |
+| fixture_path | `crates/prism-spec-engine/fixtures/component_model_dispatch.prx` (1227 bytes) |
