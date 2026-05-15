@@ -53,7 +53,7 @@ target_module: prism-bin
 #   subsystems: [SS-16, SS-01], any story anchoring BC-2.16.002 must list SS-16.
 subsystems: [SS-22, SS-17, SS-16]
 capabilities: [CAP-029, CAP-032, CAP-034]
-version: "1.36"
+version: "1.37"
 level: "L4"
 producer: story-writer
 timestamp: "2026-05-14T13:00:00Z"
