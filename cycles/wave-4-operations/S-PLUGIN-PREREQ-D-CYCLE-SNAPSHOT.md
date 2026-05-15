@@ -2866,3 +2866,104 @@ Before dispatching adversary impl-pass-5:
 | factory-artifacts HEAD | run `git -C .factory log -1 --format=%H` (D-554 is this commit) |
 | impl-pass-4 report | cycles/wave-4-operations/adversarial-reviews/S-PLUGIN-PREREQ-D-impl-pass-4.md |
 | worktree_test_count | 3644 (just check 3644/3644; +1 test: F-PASS4-HIGH-001 Component Model dispatch) |
+
+
+## §POST-IMPL-PASS-5 BLOCKED (D-555 — 2026-05-15)
+═══════════════════════════════════════════════════════════════════════
+
+### Finding Tally
+
+**Verdict: BLOCKED**
+**3-CLEAN Streak: 0/3 → 0/3 (5th consecutive BLOCKED)**
+
+| Finding | Severity | Status | Summary |
+|---------|----------|--------|---------|
+| F-PASS5-HIGH-001 | HIGH | OPEN | Test-local `Linker::new` bypasses production `PluginRuntime::build_linker`; test registers own callback; production `register_host_functions` not exercised |
+| F-PASS5-LOW-001 | LOW | OPEN | STORY-INDEX annotation says "fix-burst-impl-3 sibling-sweep" but sweep was fix-burst-impl-4 (D-554) — cosmetic wording |
+| F-PASS5-LOW-002 | LOW | OPEN | Story `plugin_log_level_unrecognized` row Fields lists `event_type` but BC-2.16.002 v1.17 row 32 does not; 12 sibling rows also omit it — asymmetry |
+| PG-IMPL-LP5-001 | [process-gap] OBS | queued | Production-linker-vs-test-linker boundary detector for adversary dispatches |
+
+### Prior Finding Verification
+
+| Finding | Prior Status | Pass-5 Status | Notes |
+|---------|-------------|---------------|-------|
+| F-PASS4-HIGH-001 | CLOSED (e1d83fa4) | PAPER-FIX REOPENED → F-PASS5-HIGH-001 | New dispatch test uses test-local linker; production callback body not exercised |
+| F-PASS4-MED-001 | CLOSED (b788d53c) | VERIFIED | Story v1.34 confirmed; "13 events" at all sites; 13th catalog row present |
+
+### 5th Paper-Fix Recurrence Enumeration
+
+Each iteration satisfies more of the prior prescription's mechanics while maintaining the same fundamental gap:
+
+| Pass | Paper-fix layer | Adversary prescription satisfied | Gap that remained |
+|------|----------------|----------------------------------|-------------------|
+| impl-pass-1 | Callback bodies not wired to production host_* | — | Plain closures returning hardcoded values |
+| impl-pass-2 | run_boot_sequence called from PrismCommand::Start | Routing wired | step7_init_storage todo!() fires before plugin_load_step_with_audit |
+| impl-pass-3 | Val-type fixes applied | Routing + Val types | linker.instantiate_pre() verifies link; no .call() dispatch |
+| impl-pass-4 | Dispatch test uses .call() on exported function | Routing + Val types + .call() | Linker::new instead of production linker — production callback not exercised |
+| impl-pass-5 | Test uses genuine Component Model mechanics + .call() | Routing + Val types + .call() + WAT component | test-local callback at lines 1565-1618 registered on test-local Linker::new; sanity-revert at test-local line 1616, not production host_functions.rs:452 |
+
+### Trajectory — Severity-Weighted Decay Continues
+
+| Pass | Total | CRIT | HIGH | MED | LOW | Severity-Weighted |
+|------|-------|------|------|-----|-----|-------------------|
+| impl-pass-1 | 18 | 3 | 6 | 7 | 2 | 3×8 + 6×4 + 7×2 + 2×1 = 62 |
+| impl-pass-2 | 12 | 2 | 3 | 6 | 1 | 2×8 + 3×4 + 6×2 + 1×1 = 41 |
+| impl-pass-3 | 6 | 3 | 1 | 2 | 0 | 3×8 + 1×4 + 2×2 + 0×1 = 32 |
+| impl-pass-4 | 2 | 0 | 1 | 1 | 0 | 0×8 + 1×4 + 1×2 + 0×1 = 6 |
+| impl-pass-5 | 3 | 0 | 1 | 0 | 2 | 0×8 + 1×4 + 0×2 + 2×1 = 6 |
+
+Pass-5 severity-weighted score (6) equals pass-4 (6) — apparent plateau but MED converted to 2×LOW (decay in severity class, not count). Production code verified correct across all 5 passes.
+
+**Trajectory shorthand:** 18→12→6→2→3
+
+### Route B Prescription for fix-burst-impl-5
+
+**Route B (preferred — lower-cost):**
+1. Call `PluginRuntime::build_linker(&engine)` to get the production-built linker
+2. Extract the registered `host.http-request` function via `linker.get_func(...)` OR instantiate component against production linker and invoke exported function
+3. Synthesize `Val` params for method, url, headers, body
+4. Call `.call()` with synthesized params
+5. Assert returned `Val::U16(...)` or `Val::Record(...)` status field matches expected
+
+**MANDATORY sanity-revert for closure verification:**
+- Change `host_functions.rs:452`: `Val::U16(response.status)` → `Val::U32(u32::from(response.status))`
+- Run the test: MUST FAIL with wasmtime type-mismatch trap (proves production code is exercised)
+- Revert immediately — confirm fix is load-bearing
+- If test passes with the bad code, Route B was not wired to production — do not claim closure
+
+### Codification Queue 26 → 27
+
+PG-IMPL-LP5-001 (production-linker-vs-test-linker boundary detector) added. Codification queue: 27.
+
+**Escalation note:** 5th cascade recurrence indicates this anti-pattern is systemic enough to warrant explicit codification as standing dispatch language in the adversary agent prompt. Orchestrator should add: "When verifying closure of any 'test exercises host callback through Component Model dispatch' finding: (1) grep test body for `Linker::new` — if present without production builder, REOPEN; (2) verify sanity-revert targets production code, not test-local closure."
+
+### impl-pass-6 Prerequisites
+
+Before dispatching adversary impl-pass-6:
+
+1. Verify fix-burst-impl-5 HIGH-001 closure: does the test use `PluginRuntime::build_linker`? Does the sanity-revert at `host_functions.rs:452` cause the test to fail with a wasmtime trap?
+2. Verify LOW-001 closure: STORY-INDEX annotation accurately attributes story body sweep to fix-burst-impl-4
+3. Verify LOW-002 closure: `plugin_log_level_unrecognized` Fields = `plugin_id, received_name` (no `event_type`); story version bumped
+4. Apply PG-IMPL-LP5-001: grep test body for `Linker::new(` or `Linker::<.*>::new(` — if present without `PluginRuntime::build_linker`, REOPEN
+5. BC-5.39.001 3-CLEAN protocol: target streak advance 0/3 → 1/3 (first advance after 5 consecutive BLOCKED passes)
+
+### Durable Pins (D-555)
+
+| Field | Value |
+|-------|-------|
+| `feature_branch_head` | `e1d83fa4` (UNCHANGED — adversary pass only; no worktree commits) |
+| `worktree_status` | active (.worktrees/S-PLUGIN-PREREQ-D mounted at develop@95d46be2) |
+| `story_v` | 1.34 (UNCHANGED; fix-burst-impl-5 will bump to v1.35 for LOW-002) |
+| `develop_head` | 95d46be2 (UNCHANGED) |
+| `state_v` / `handoff_v` | 7.260 |
+| `impl_adversary_streak` | 0/3 (adversary impl-pass-5 BLOCKED; fix-burst-impl-5 NEXT) |
+| `impl_adversary_pass_count` | 5 |
+| `codification_queue` | 27 (PG-IMPL-LP5-001 added D-555) |
+| `bc_index_v` | 4.79 (UNCHANGED) |
+| `bc_2_16_002_v` | 1.17 (32 rows; UNCHANGED) |
+| `story_index_v` | v2.104 (UNCHANGED; LOW-001 is cosmetic wording fix, not version bump) |
+| `error_taxonomy_v` | 1.24 (UNCHANGED) |
+| `bc_2_17_002_v` | 1.7 (draft; promotes at PREREQ-D merge per POL-14) |
+| factory-artifacts HEAD | run `git -C .factory log -1 --format=%H` (D-555 is this commit) |
+| impl-pass-5 report | cycles/wave-4-operations/adversarial-reviews/S-PLUGIN-PREREQ-D-impl-pass-5.md |
+| worktree_test_count | 3644 (unchanged; just check 3644/3644; no worktree commits this burst) |
