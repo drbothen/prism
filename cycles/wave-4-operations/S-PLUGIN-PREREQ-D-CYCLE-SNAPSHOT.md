@@ -3902,3 +3902,121 @@ After impl-pass-11 CLEAN (3/3 per BC-5.39.001):
 | `error_taxonomy_v` | 1.24 (UNCHANGED) |
 | factory-artifacts HEAD | run `git -C .factory log -1 --format=%H` (D-564 is this commit) |
 | test baseline | 34/34 plugin_integration_tests PASS (UNCHANGED) |
+
+---
+
+## §3-CLEAN CONVERGENCE — STEP 4 COMPLETE (D-565 — 2026-05-15)
+
+> **MILESTONE CALLOUT:** BC-5.39.001 3-CLEAN LOCAL IMPLEMENTATION CASCADE CONVERGED. Step 4 of per-story-delivery is COMPLETE. This section is the authoritative convergence record for S-PLUGIN-PREREQ-D.
+
+### Convergence Verdict
+
+**CONVERGED** — BC-5.39.001 3-CLEAN protocol satisfied. Adversary impl-pass-11 returned CLEAN at unchanged HEAD `862e721a`. Three consecutive zero-finding passes (impl-pass-9, impl-pass-10, impl-pass-11) seal the cascade.
+
+### Full 11-Pass Trajectory
+
+| Pass | Findings | Verdict |
+|------|----------|---------|
+| 1 | 18 | BLOCKED → fix-burst-impl-1 CLOSED |
+| 2 | 12 | BLOCKED → fix-burst-impl-2 CLOSED |
+| 3 | 6 | BLOCKED → fix-burst-impl-3 CLOSED |
+| 4 | 2 | BLOCKED → fix-burst-impl-4 CLOSED |
+| 5 | 3 | BLOCKED → fix-burst-impl-5 CLOSED (test-paper-fix breakthrough) |
+| 6 | 4 | BLOCKED → fix-burst-impl-6 CLOSED (parallel split-routing) |
+| 7 | 1 | BLOCKED → fix-burst-impl-7 CLOSED |
+| 8 | 1 | BLOCKED → fix-burst-impl-8 CLOSED |
+| 9 | 0 | **CLEAN** (1/3 — FIRST ADVANCE; D-563) |
+| 10 | 0 | **CLEAN** (2/3 — SECOND CLEAN; D-564) |
+| **11** | **0** | **CLEAN (3/3 — CONVERGED; D-565)** |
+
+**Trajectory:** 18 → 12 → 6 → 2 → 3 → 4 → 1 → 1 → 0 → 0 → 0 (monotonic decay terminal at zero; durable 3-pass clean streak)
+
+### Cumulative Cascade Summary
+
+| Metric | Value |
+|--------|-------|
+| Total adversary passes | 11 |
+| Total BLOCKED passes | 8 (passes 1-8) |
+| Total CLEAN passes | 3 (passes 9, 10, 11) |
+| Total fix-bursts | 8 (fix-burst-impl-1 through fix-burst-impl-8) |
+| Cumulative findings | 47 (18+12+6+2+3+4+1+1) |
+| Carry-forward closures at convergence | 44 — ALL HOLD at impl-pass-11 |
+| Policies verified PASS at impl-pass-11 | 18/18 |
+| HEAD at convergence | `862e721a` (unchanged since fix-burst-impl-6) |
+| Consecutive single-commits (TD-VSDD-053) | **70** (D-565 is the 70th) |
+
+### Implementation State at Convergence
+
+| Field | Value |
+|-------|-------|
+| Feature branch | `feature/S-PLUGIN-PREREQ-D@862e721a` |
+| Worktree commits since Red Gate stubs | 8 (since `8ca17f3f`) |
+| Story version | v1.37 (status: draft) |
+| BC-2.16.002 | v1.17 (32 catalog rows; 16 plugin events) |
+| BC-INDEX | v4.79 |
+| error-taxonomy | v1.24 |
+| STORY-INDEX | v2.107 |
+| just check baseline | 3645/3645 PASS |
+| BCs anchored (all draft → active at merge per POL-14) | BC-2.17.001/002/003/004/006/007 |
+| Fixtures committed | 5 (minimal, trap_plugin, infinite_loop, bad_wit, component_model_dispatch) |
+
+### Codification Queue Summary
+
+31 candidates total queued for cycle-close session-reviewer adjudication:
+- PG-IMPL-LP2-001..005 (5 candidates from impl-pass-2)
+- PG-IMPL-LP3-001 (boot-step dependency-frontier walk)
+- PG-IMPL-LP4-001 (test paper-fix detection)
+- PG-IMPL-LP5-001 (production-linker vs test-linker boundary)
+- PG-IMPL-LP6-001/002/003 (closure attribution + fixture sweep + frontmatter-modified)
+- PG-IMPL-LP7-001 (hook-enforced frontmatter version sync)
+- Plus 17 prior cycle-close candidates from spec cascade (carried forward from D-545)
+
+### Post-Convergence Dispatch Path (Steps 5-8)
+
+**DO NOT dispatch adversary impl-pass-12 — the cascade is COMPLETE.**
+
+| Step | Action | Agent | Status |
+|------|--------|-------|--------|
+| 5 | demo-recorder per-AC evidence for 18 ACs | `vsdd-factory:demo-recorder` | ⏳ NEXT |
+| 6 | Push `feature/S-PLUGIN-PREREQ-D` to remote | `vsdd-factory:devops-engineer` | Pending |
+| 7 | pr-manager 9-step PR lifecycle | `vsdd-factory:pr-manager` | Pending |
+| 8 | Post-merge state burst (BC promotions POL-14 + cycle-close) | `vsdd-factory:state-manager` | Pending |
+
+Step 5 output: `docs/demo-evidence/S-PLUGIN-PREREQ-D/` (18 AC artifacts: AC-1 boot step 7.5 placement, AC-2 pre-traffic gate, AC-3 PRISM_DISABLE_PLUGIN_LOAD, AC-4 unsigned-plugin durable audit, AC-5 manifest schema rejection, AC-6 WIT validation, AC-7 allowlist enforcement Route A dispatch, AC-8 linker imports, AC-9 30s timeout, AC-10 panic isolation, AC-11 WASI not linked, AC-12 memory limit, AC-13 CPU timeout, AC-14 hot reload, AC-15 AuthToken zeroize, AC-16 MAX_REQUESTS, AC-17 HostState non_exhaustive, AC-18 envvar precedence).
+
+Step 7 PR: targets `develop`; must pass code-reviewer → security-reviewer → pr-reviewer → triage → user-authorized squash-merge.
+
+Step 8 post-merge: BC-2.17.001/002/003/004/006/007 promote draft→active per POL-14; wave_3_implementation_status updated; PREREQ-D merged; PREREQ-E next; cycle-close session-reviewer for 31 codification candidates + 8 phase-5 deferred + OBS-LP41-001 carry-forward.
+
+### Carry-Forward Verification at impl-pass-11
+
+All 44 prior closures HOLD at impl-pass-11. Key spot-checks consistent with passes 9 and 10:
+- F-PASS3-CRIT-001: `plugin_load_step_with_audit` at `boot.rs:160` precedes `step7_init_storage` at `:164` — HOLDS
+- F-PASS3-CRIT-002: `host_functions.rs:452` `Val::U16` — HOLDS
+- F-PASS3-CRIT-003: zero fabricated story-ID hits — HOLDS
+- F-PASS5-HIGH-001: Route A production-linker test loads `tests/fixtures/component_model_dispatch.prx` via `PluginRuntime::build_linker` — HOLDS
+- F-PASS6-MED-001: fixture sources WIT+WAT+README+Justfile present at `tests/fixtures/src/` — HOLDS
+- F-PASS7-MED-001: Fixture Strategy table 5 rows registered — HOLDS
+- F-PASS8-HIGH-001: story frontmatter `version: "1.37"` — HOLDS
+- PG-IMPL-LP6-003 frontmatter-modified discipline maintained — HOLDS
+
+### Durable Pins (D-565)
+
+| Field | Value |
+|-------|-------|
+| `feature_branch_head` | `862e721a` (UNCHANGED — no source commits since fix-burst-impl-6) |
+| `impl_adversary_pass_count` | **11** (final — **CONVERGED**) |
+| `impl_adversary_streak` | **3/3 — CONVERGED** per BC-5.39.001 |
+| `impl_adversary_converged` | **true** |
+| `impl_adversary_converged_at` | **2026-05-15** |
+| `codification_queue` | 31 (UNCHANGED) |
+| `story_v` | 1.37 (UNCHANGED — no story edits this burst) |
+| `story_index_v` | v2.107 (UNCHANGED) |
+| `token_budget_total` | 42,700 (UNCHANGED) |
+| `develop_head` | 95d46be2 (UNCHANGED) |
+| `state_v` / `handoff_v` | **7.270** |
+| `bc_index_v` | 4.79 (UNCHANGED) |
+| `bc_2_16_002_v` | 1.17 (32 rows; UNCHANGED) |
+| `error_taxonomy_v` | 1.24 (UNCHANGED) |
+| factory-artifacts HEAD | run `git -C .factory log -1 --format=%H` (D-565 is this commit) |
+| test baseline | 34/34 plugin_integration_tests PASS (UNCHANGED) |
