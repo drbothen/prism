@@ -23,8 +23,13 @@
 #                                   # here so the adversary knows HOW to verify them.
 
 metadata:
-  version: "1.10"
+  version: "1.11"
   changelog:
+    - version: "1.11"
+      date: 2026-05-15
+      burst: state(D-571)
+      findings: [Candidate-11-through-OBS-LP41-001]
+      change: "D-571 cycle-close batch: add POL-21 (phantom_section_anchor_prohibited) + POL-23 (bc_version_bump_sibling_grep_gate) + POL-24 (error_message_template_verbatim) + POL-25 (multi_cite_propagation_sweep_mandatory) + POL-26 (changelog_schema_integrity) + POL-27 (bc_modified_field_iso_date_format); amend POL-7 verification_steps (4 additions: body-BC-table verbatim, §References-section verbatim, Architecture-Compliance-Rules verbatim, prose-exclusion-note verbatim, §References completeness vs frontmatter); amend POL-22 Phase A (lexical-vs-semantic anchor-content verification extension) + new Phase C (named-entity-existence-verification). OBS-LP41-001 Path A canonized as POL-27. SOURCE: SESSION-REVIEW-D571.md §Lessons-Codified."
     - version: "1.10"
       date: 2026-05-13
       burst: state(D-469/470/471)
@@ -174,6 +179,10 @@ policies:
       - "Sample 10+ BCs — read H1 heading and compare to BC-INDEX title column"
       - "Check for downstream-only enrichment not present in H1"
       - "Verify H1 accurately describes what the BC's postconditions specify"
+      - "(D-571 amendment) For each row in the story's behavioral contracts body table, compare the Title cell to the BC file's H1 heading verbatim. Paraphrased or shortened titles are violations even when the intent is clear."
+      - "(D-571 amendment) Apply verbatim H1 check to all four citation surfaces: (1) body BC table Title column, (2) §References section entries, (3) Architecture Compliance Rules table rows, (4) prose exclusion-note paragraphs. All four must match BC H1 verbatim."
+      - "(D-571 amendment) Exclusion-note prose paragraphs constitute a fifth citation surface. BCs cited in exclusion-note paragraphs must also match their BC H1 verbatim, regardless of whether those BCs appear in `behavioral_contracts:` frontmatter."
+      - "(D-571 amendment) For each BC ID in story frontmatter `behavioral_contracts:` array, verify a corresponding entry exists in the story §References section. Missing entry = incompleteness violation. Format is necessary but not sufficient."
 
   - id: 8
     name: bc_array_changes_propagate_to_body_and_acs
@@ -377,3 +386,145 @@ policies:
       - "If the value does NOT match the anchored regex → VIOLATION. Report the BC ID, the full offending value, and the correct format based on whether the BC was authored in a greenfield cycle (use `cycle-N`) or a fix burst (use `YYYY-MM-DD` ISO date)."
       - "Cross-check: if a BC's `closes_finding:` frontmatter field is populated, it was introduced in a fix burst → must use date format, not `cycle-N`."
       - "Recommended shell one-liner for bulk verification: `grep '^introduced:' .factory/specs/behavioral-contracts/*.md | awk -F': ' '{print $2}' | sed 's/^\"//' | sed 's/\"$//' | grep -Ev '^(cycle-[0-9]+|[0-9]{4}-[0-9]{2}-[0-9]{2})$'` — empty output = PASS; any output = VIOLATION."
+
+  - id: 21
+    name: phantom_section_anchor_prohibited
+    description: |
+      Every §X section anchor cited in a story or BC must resolve to an actual `##` heading
+      in the referenced document. Bold-labeled bullets are NOT section headings and MUST NOT
+      be cited with the §-sigil. If the target is a bold-labeled bullet, cite it as
+      "§ParentHeading (BoldLabel bullet)" to make the ancestry explicit.
+    adopted: S-PLUGIN-PREREQ-D-pass-28-D-519-2026-05-13
+    severity: HIGH
+    enforced_by: [adversary-prompt, consistency-validator]
+    scope: [story, bc, architecture]
+    lint_hook: null
+    verification_steps:
+      - "For each §X citation in the story body, §References, and §Changelog: extract the document and section name."
+      - "Grep the cited document for '## <section_name>' (exact ## heading level). PASS if found. VIOLATION if not found."
+      - "If the cited target is a bold-labeled bullet (e.g., '**Canonical Structured Event Catalog**' inside a Postconditions section), the §-sigil form is FORBIDDEN. Correct form: '§Postconditions (Canonical Structured Event Catalog bullet)'. Bold-labeled bullets ARE citable with parent-section ancestry notation; they are NOT citable with bare §-sigil."
+      - "Exception: citations in §Changelog historical rows are immutable and exempt from this check (TD-VSDD-091)."
+
+  - id: 22
+    name: adversarial_citation_and_entity_verification
+    description: |
+      Two-phase adversarial verification discipline — Phase A: lexical-vs-semantic anchor
+      verification; Phase C: named-entity existence verification. Both phases must complete
+      before declaring CLEAN on any pass where spec content references external anchors or
+      introduces/cites named code entities.
+    adopted: S-PLUGIN-PREREQ-D-pass-25-D-513-2026-05-13
+    severity: HIGH
+    enforced_by: [adversary-prompt]
+    scope: [story, bc, architecture]
+    lint_hook: null
+    verification_steps:
+      - "Phase A — Lexical-vs-semantic anchor-content verification: For every cited document anchor (ARTIFACT §SectionName or ARTIFACT §Rule) in the story body, grep the cited document's text for the cited rule. Substring match in the story body = INSUFFICIENT. Target-document grep = REQUIRED. If the target document does not contain the cited rule at the cited anchor, it is a phantom-anchor violation."
+      - "Phase A extension (D-571): For claimed boot-step wiring closures, traverse the production call chain from the binary entry point (main.rs -> PrismCommand::Start) to the claimed wiring site. If any `todo!()` or `unimplemented!()` macro fires before the wired step, the closure is a paper-fix (TD-VSDD-059)."
+      - "Phase B — Verify the adversary does not confuse story-body confirmation (citation text exists in story) with target-document confirmation (rule exists at the cited location in the referenced doc). These are distinct checks."
+      - "Phase C — Named entity existence verification (D-571): Before declaring CLEAN on any pass where a fix-burst amended a BC body introducing or citing a named entity (enum variant, error code, type name): grep (1) the corresponding error.rs / Cargo.toml / canonical type definition location and (2) error-taxonomy.md. If the named entity does not exist in the canonical definition location, it is a phantom-entity violation (CRIT severity)."
+      - "Phase C extension: For each registered Component Model callback in a test claiming production-callback coverage: verify the callback body calls a named production function. Presence of `trace!()` + comment 'deferred' without a production function call = paper-fix. Adversary checks: grep callback body for actual host_* function call; absence = CRIT finding."
+
+  - id: 23
+    name: bc_version_bump_sibling_grep_gate
+    description: |
+      When a BC version is bumped in a fix-burst, the SAME atomic commit must update ALL
+      story body prose sites that pin the old version string. This includes: (1) inline
+      trace-header lines, (2) §References section version annotations, (3) Architecture
+      Compliance Rules table version cells. Additionally, BC frontmatter `modified:` and
+      `timestamp:` fields must be synced to the amendment date. Story version bumps must
+      also sync both `version:` and `updated:` frontmatter fields.
+    adopted: S-PLUGIN-PREREQ-D-pass-33-D-530-2026-05-14
+    severity: HIGH
+    enforced_by: [adversary-prompt, story-writer-self-check, product-owner-self-check]
+    scope: [story, bc]
+    lint_hook: null
+    verification_steps:
+      - "When a BC version bumps from vX.Y to vX.(Y+1): run grep -n 'BC-N.NN.NNN v<old_version>' across all story body files that reference this BC."
+      - "Every hit must be updated to the new version string in the same atomic commit."
+      - "Also verify BC frontmatter `modified:` field reflects the amendment date (ISO YYYY-MM-DD format)."
+      - "Also verify BC frontmatter `timestamp:` field reflects the amendment date (ISO YYYY-MM-DDTHH:MM:SSZ format)."
+      - "Sibling-sweep must include VP-INDEX named-alias row descriptions that reference AC anchors from the amended BC (see POL-25 for cross-document propagation rule)."
+      - "(D-571 PG-IMPL-LP6-003 extension) For every story version bump in a fix-burst: verify story frontmatter `version:` field matches the new version string in §Changelog top row. Verify story frontmatter `updated:` field is set to the fix-burst date (ISO YYYY-MM-DD). Both fields in the same atomic commit."
+
+  - id: 24
+    name: error_message_template_verbatim
+    description: |
+      Story §Error Taxonomy Additions rows and all prose references to error-taxonomy.md
+      entries must match the canonical error-taxonomy.md message template byte-for-byte —
+      including delimiter style (backtick vs single-quote), capitalization, and punctuation.
+      The canonical source is the `message_template:` field in error-taxonomy.md.
+    adopted: S-PLUGIN-PREREQ-D-pass-31-D-530-2026-05-14
+    severity: MEDIUM
+    enforced_by: [adversary-prompt, story-writer-self-check]
+    scope: [story, error-taxonomy]
+    lint_hook: null
+    verification_steps:
+      - "For each error code cited in story §Error Taxonomy Additions, grep error-taxonomy.md for the canonical message_template: field."
+      - "Compare the story table cell text to the canonical template character-by-character. Delimiter mismatch (backtick vs single-quote), capitalization differences, or punctuation changes are violations."
+      - "For prose references to error messages outside §Error Taxonomy Additions, apply the same comparison."
+      - "If the story introduces a NEW error code (not yet in error-taxonomy.md), both the story §Error Taxonomy Additions entry AND the new taxonomy entry must use identical formatting before the PR merges."
+
+  - id: 25
+    name: multi_cite_propagation_sweep_mandatory
+    description: |
+      When a fix-burst corrects a phrasing or anchor-string pattern across multiple artifact
+      sites, the grep must enumerate ALL documents that can carry the pattern — not just the
+      documents already known to be affected. Mandatory sweep expansion targets:
+      VP-INDEX named-alias row descriptions, error-taxonomy.md prose, §References in all
+      stories that trace to the same BC, and architecture documents (verification-architecture.md,
+      ADR-NNN.md). Closing 4 of 5 sites and missing the 5th constitutes an incomplete fix.
+    adopted: S-PLUGIN-PREREQ-D-pass-35-D-534-2026-05-14
+    severity: HIGH
+    enforced_by: [adversary-prompt, product-owner-self-check, story-writer-self-check]
+    scope: [story, bc, architecture, vp]
+    lint_hook: null
+    verification_steps:
+      - "After any fix-burst that updates a phrasing or anchor-string: run a workspace-wide grep for the OLD phrasing (before correction)."
+      - "The grep scope must include: .factory/stories/, .factory/specs/behavioral-contracts/, .factory/specs/verification-properties/, .factory/specs/prd-supplements/, .factory/specs/architecture/."
+      - "Any grep hit that was NOT corrected in the fix-burst = sibling-sweep gap violation."
+      - "Exception: §Changelog historical rows are immutable (TD-VSDD-091). Exclude those from the violation count."
+      - "If a hit is in an out-of-perimeter document (architecture layer, VP-INDEX when story-writer scope), route to the appropriate specialist; do NOT declare the fix complete while the out-of-perimeter hit remains open."
+
+  - id: 26
+    name: changelog_schema_integrity
+    description: |
+      Before committing any §Changelog row additions to index files (VP-INDEX, STORY-INDEX,
+      BC-INDEX, ARCH-INDEX), state-manager must count the cells in each new row and verify
+      they match the header row count. Each index file has a fixed schema:
+      VP-INDEX: 5 columns (Version | Burst | Date | Author | Change).
+      STORY-INDEX: 3 columns (Version | Date | Summary).
+      BC-INDEX: schema per BC-INDEX header.
+      D-NNN references are NEVER standalone trailing cells — always folded into the rightmost
+      content cell as a parenthetical prefix (e.g., "(D-539) Fixed VP-INDEX schema").
+      Lines >500 chars in a markdown table are suspicious-merge signals; >1000 chars with
+      multiple '| vN.M |' patterns = confirmed merged-row corruption.
+    adopted: S-PLUGIN-PREREQ-D-pass-38-D-539-2026-05-14
+    severity: MEDIUM
+    enforced_by: [state-manager, adversary-prompt]
+    scope: [story-index, bc-index, vp-index, arch-index]
+    lint_hook: null
+    verification_steps:
+      - "For every new §Changelog row being committed: count the pipe-delimited cells (excluding leading/trailing empty cells)."
+      - "Compare cell count to the header row for that index file. PASS only if counts match exactly."
+      - "Verify inter-row newlines: each '| Version |' row must start on its own physical line. A single physical line containing multiple '| v1.N |' patterns is a merged-row violation."
+      - "Verify D-NNN positioning: grep the row for a standalone '| D-[0-9]+ |' pattern. Any match = orphaned trailing cell violation; fold the D-NNN into the rightmost content cell."
+      - "Orchestrator dispatch prompt templates MUST specify the correct column schema for each index file they prescribe §Changelog row additions for."
+
+  - id: 27
+    name: bc_modified_field_iso_date_format
+    description: |
+      The `modified:` frontmatter field on BC files must use ISO 8601 date scalar format
+      (YYYY-MM-DD) matching the most recent §Changelog entry date. Burst-ID-list format
+      (e.g., `modified: [fix-burst-22, fix-burst-7]`) is prohibited for new BCs and for
+      BCs modified after this policy takes effect. Opaque burst-ID lists lose meaning
+      outside session context and cannot be parsed by date-aware tooling.
+    adopted: S-PLUGIN-PREREQ-D-cycle-close-2026-05-15
+    severity: MEDIUM
+    enforced_by: [adversary-prompt, consistency-validator]
+    scope: [bc]
+    lint_hook: null
+    verification_steps:
+      - "For each BC file, read the `modified:` frontmatter field."
+      - "The value must match the anchored regex `^[0-9]{4}-[0-9]{2}-[0-9]{2}$` (ISO YYYY-MM-DD). VIOLATION if it contains brackets, burst-ID tokens, or any non-date format."
+      - "Cross-check: the ISO date must match the date of the most recent §Changelog entry for that BC. Stale dates = violation of TD-VSDD-060 sibling-site discipline."
+      - "For the ~30 pre-existing BCs with burst-ID-list format: the sweep maintenance story will normalize all to ISO dates. Until that story merges, pre-existing burst-ID-list violations are tracked but non-blocking (grace period)."

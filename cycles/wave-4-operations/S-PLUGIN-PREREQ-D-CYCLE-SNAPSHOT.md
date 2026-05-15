@@ -4441,4 +4441,60 @@ After the user clears context, the next orchestrator session should dispatch in 
 | Consecutive single-commit | 76 (TD-VSDD-053 stable) |
 | STATE+HANDOFF version | v7.274 → v7.275 |
 
+---
+
+## §D571-CYCLE-CLOSE
+
+**S-PLUGIN-PREREQ-D CYCLE OFFICIALLY CLOSED at D-571 (2026-05-15).**
+
+Session-reviewer cycle-close complete. All 31 codification candidates adjudicated.
+
+### Final Disposition Table (31 Candidates)
+
+| Disposition | Count | Items |
+|-------------|-------|-------|
+| Codified (new POL or POL amendment) | 18 | Candidates #11/12/13/13-sub/14/16/17 + POL-23/24/25/26 candidates + PG-IMPL-LP2-001/002/005 + PG-IMPL-LP4-001 + PG-IMPL-LP6-001/002 + PG-IMPL-LP7-001 + OBS-LP41-001 |
+| Subsumed (codified under broader POL) | 9 | Candidate #15 (→POL-7), #24 (→POL-23), MD-int (→POL-26), PG-IMPL-LP2-003 (→POL-23), PG-IMPL-LP2-004 (→POL-18), PG-IMPL-LP3-001 (→POL-22), PG-IMPL-LP5-001 (→PG-IMPL-LP4-001), PG-IMPL-LP6-003 (→POL-23), POL-14-refinement (→POL-21) |
+| Phase-5 deferred (genuine arch gap) | 2 | F-LP12-OBS-001 (E-PLUGIN-008 dual-semantic) + F-LP25-OBS-001 (EC-17-007 vacuous-truth) |
+| Downgraded to immediate dispatch | 4 | F-LP16-OBS-001 (prism-bin edition) + F-LP22-OBS-001 (PluginError non_exhaustive) + OBS-LP35-001 (arch doc Option-semantics) + OBS-LP36-002 (BC-INDEX count drift) |
+| Stable-convention (no codification needed) | 1 | Lesson 15 (single-commit 77-consecutive) |
+| **Total** | **34** | (31 candidates + 3 bonus stable/subsumed items resolved) |
+
+### New POLs Registered at D-571
+
+| POL ID | Name | Severity | Source |
+|--------|------|----------|--------|
+| POL-21 | phantom_section_anchor_prohibited | HIGH | Candidate #14 |
+| POL-22 | adversarial_citation_and_entity_verification | HIGH | Candidates #11 + #17 |
+| POL-23 | bc_version_bump_sibling_grep_gate | HIGH | POL-23 candidate |
+| POL-24 | error_message_template_verbatim | MEDIUM | Candidate #16 |
+| POL-25 | multi_cite_propagation_sweep_mandatory | HIGH | POL-25 candidate |
+| POL-26 | changelog_schema_integrity | MEDIUM | POL-26 candidate |
+| POL-27 | bc_modified_field_iso_date_format | MEDIUM | OBS-LP41-001 Path A |
+
+### POL Amendments
+
+| POL | Amendment |
+|-----|-----------|
+| POL-7 | +4 verification_steps: body-BC-table verbatim, §References completeness, cross-table scope (all 5 surfaces), exclusion-note prose |
+| POL-22 | Phase A extended: lexical-vs-semantic anchor verification; new Phase C: named-entity-existence-verification |
+
+### Session Review Pointer
+
+Full disposition rationale: `.factory/cycles/wave-4-operations/SESSION-REVIEW-D571.md`
+
+### Post-Close Dispatch Plan
+
+4 parallel immediate-fix dispatches (see SESSION-HANDOFF.md §POST-D571 CYCLE-CLOSE SUMMARY for full routing). Then PREREQ-E planning kickoff.
+
+PLUGIN-MIGRATION-001-A/B/C/D remain BLOCKED on PREREQ-E.
+
+| Artifact | Change |
+|----------|--------|
+| STATE+HANDOFF version | v7.275 → v7.276 |
+| Consecutive single-commit | 77 (TD-VSDD-053 stable) |
+| policies.yaml version | v1.10 → v1.11 |
+| codification_candidates_active | 19 (stale) → 0 |
+| phase_5_deferred_findings | 2 (F-LP12-OBS-001 + F-LP25-OBS-001) |
+
 **Next dispatch:** session-reviewer cycle-close (31 codification candidates + 8 phase-5 deferred + OBS-LP41-001) → PREREQ-E planning (Un-seal SensorAuth + Deprecate CustomAdapter per PLUGIN-MIGRATION Wave 0 dep chain).
