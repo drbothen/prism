@@ -2146,3 +2146,136 @@ Before dispatching adversary impl-pass-2:
 
 **53rd consecutive single-commit (TD-VSDD-053 DECISIVELY STABLE).**
 STATE.md v7.251 → v7.252 / SESSION-HANDOFF.md v7.251 → v7.252 / CYCLE-SNAPSHOT.md §POST-IMPL-GREEN UPDATE (D-547) appended.
+
+---
+
+## §POST-IMPL-PASS-2 BLOCKED (D-549 — 2026-05-14)
+
+**State:** Adversary impl-pass-2 BLOCKED. Streak 0/3 → 0/3 (reset; no advance).
+**Date:** 2026-05-14
+**STATE.md version:** v7.253 → v7.254
+**feature_branch_head:** c87592e8 (UNCHANGED — no new fix commits this burst)
+**story_v:** 1.32 (UNCHANGED)
+**develop_head:** 95d46be2 (UNCHANGED)
+
+### Finding Tally
+
+| Severity | Count | Notes |
+|----------|-------|-------|
+| CRITICAL | 2 | 2 paper-fix recurrences from fix-burst-impl-1 |
+| HIGH | 3 | 1 BC prose drift + 1 POL-18 + 1 silent error swallow |
+| MEDIUM | 6 | Test escape hatch + story stale pins + catalog count + index timestamps + error-taxonomy lifecycle |
+| LOW | 1 | Story frontmatter field-name intent verification |
+| OBS (process-gap) | 5 | PG-IMPL-LP2-001 through 005; routed session-reviewer |
+| **Total in-perimeter** | **12** | |
+
+### Trajectory Note
+
+| Pass | Findings | Delta |
+|------|----------|-------|
+| impl-pass-1 | 18 | — |
+| impl-pass-2 | 12 | -6 (decreasing — convergence signal) |
+
+Decreasing trajectory is consistent with convergence. The 2 paper-fix recurrences (CRIT-001/002) are structural problems that require load-bearing fixes. Expect further decrease after fix-burst-impl-2.
+
+### Paper-Fix Recurrence Details (2 CRIT — Standing Rule 3 §1 working as designed)
+
+**F-PASS2-CRIT-001 — run_boot_sequence dead-code at binary entry point**
+
+- Anti-pattern class: F-IMPL-LP1-CRIT-001 recurrence at different boundary
+- What happened: fix-burst-impl-1 correctly wired `plugin_load_step` inside `run_boot_sequence`. But `main.rs::PrismCommand::Start` (lines ~107-133) calls `boot_to_step_6 → step7_init_storage` directly, bypassing `run_boot_sequence` entirely.
+- Result: plugin-load wiring exists in dead code. POL-15/ADR-023 §C4 pre-traffic gate NOT in production boot path.
+- Routing: implementer
+- Fix: Route `PrismCommand::Start` through `run_boot_sequence` (Option A) or add explicit `plugin_load_step` call in Start branch (Option B)
+
+**F-PASS2-CRIT-002 — Component Model callbacks are no-op stubs (TD-VSDD-059 paper-fix)**
+
+- Anti-pattern class: TD-VSDD-059 paper-fix; same class as F-IMPL-LP1-CRIT-003 (register-shape-not-substance)
+- What happened: fix-burst-impl-1 closed F-IMPL-LP1-CRIT-003 by registering 5 host functions via `func_new`. Structural shape: verified CLOSED. Substance: each callback body is `trace!("stub called"); Ok(())` with comment "deferred to S-4.08".
+- Result: AC-7 / VP-PLUGIN-007 NOT end-to-end verified through Component Model entry point. The 5 registered functions do nothing.
+- Routing: implementer
+- Fix: Each callback must deserialize `Val` params and delegate to corresponding `host_*` production function. Related: F-PASS2-HIGH-003 (silent kv_set error swallow)
+
+### All 12 In-Perimeter Findings Enumerated
+
+| ID | Severity | Description | Routing |
+|----|----------|-------------|---------|
+| F-PASS2-CRIT-001 | CRIT | `run_boot_sequence` dead-code — `main.rs::PrismCommand::Start` bypasses it; POL-15/ADR-023 §C4 violation | implementer |
+| F-PASS2-CRIT-002 | CRIT | Component Model 5 callbacks are no-op stubs; no `host_*` delegation; TD-VSDD-059 paper-fix | implementer |
+| F-PASS2-HIGH-001 | HIGH | BC-2.16.002 prose intro line cites stale `v1.12 / 25 events` after 3 amendments (actual v1.15/31 rows); sibling-sweep gap TD-VSDD-060 | product-owner |
+| F-PASS2-HIGH-002 | HIGH | POL-18 violation: `prism-spec-engine/Cargo.toml` `[[test]]` blocks lack `required-features = ["test-helpers"]` | implementer |
+| F-PASS2-HIGH-003 | HIGH | `host_kv_set` callback silently swallows errors via `let _ = ...`; SOUL.md #4 + Standing Rule 3 §2 violation | implementer |
+| F-PASS2-MED-001 | MED | `test_wasi_not_linked` has early `return;` before assertion — test escape hatch; negative-coverage gap | implementer |
+| F-PASS2-MED-002 | MED | Story body has 12 stale `BC-2.16.002 v1.12` references; BC is at v1.15; POL-23 sibling-site grep gap | story-writer |
+| F-PASS2-MED-003 | MED | Story §Structured Event Catalog Additions enumerates 9 events; should be 12 (3 new fix-burst rows: parse_error/not_found/format_version_missing) | story-writer |
+| F-PASS2-MED-004 | MED | BC-INDEX `timestamp:` lacks `Z` suffix (non-ISO-8601); POL-20 violation | product-owner |
+| F-PASS2-MED-005 | MED | error-taxonomy frontmatter stale timestamp + missing `modified:` field | product-owner |
+| F-PASS2-MED-006 | MED | error-taxonomy `status: draft` while referenced by active BC-2.16.002 | product-owner |
+| F-PASS2-LOW-001 | LOW | Story uses `updated:` not `modified:` in frontmatter — intent verification pending | story-writer |
+
+### Fix Prescription Summary for fix-burst-impl-2
+
+**Implementer fixes (code — may commit to feature branch):**
+1. CRIT-001: Wire `PrismCommand::Start` through `run_boot_sequence` or add explicit `plugin_load_step` call
+2. CRIT-002: Implement `Val` param deserialization + `host_*` delegation in all 5 Component Model callbacks
+3. HIGH-002: Add `required-features = ["test-helpers"]` to `[[test]]` blocks in `prism-spec-engine/Cargo.toml`
+4. HIGH-003: Replace `let _ = host_kv_set(...)` with error propagation
+5. MED-001: Remove early `return;` escape hatch from `test_wasi_not_linked`
+
+**Product-owner fixes (factory artifacts — via orchestrator dispatch):**
+6. HIGH-001: Update BC-2.16.002 prose intro line to `v1.15 / 31 events`
+7. MED-004: Add `Z` suffix to BC-INDEX `timestamp:` field
+8. MED-005: Update error-taxonomy `timestamp:` + add `modified: 2026-05-14`
+9. MED-006: Update error-taxonomy `status: draft` → `status: active`
+
+**Story-writer fixes (factory artifacts — via orchestrator dispatch):**
+10. MED-002: Update 12 stale `BC-2.16.002 v1.12` pins → `v1.15`
+11. MED-003: Add 3 rows to story §Structured Event Catalog Additions
+12. LOW-001: Verify intent of `updated:` vs `modified:` in story frontmatter
+
+### Codification Queue Expansion: 19 → 24
+
+5 new process-gap candidates (PG-IMPL-LP2-001 through 005); routed session-reviewer at cycle-close per Standing Rule 3 §3. Do NOT add to policies.yaml during fix-burst-impl-2.
+
+| Item | Process-Gap ID | Description |
+|------|---------------|-------------|
+| #20 | PG-IMPL-LP2-001 | Binary entry-point coverage check: after wiring a boot helper, adversary must verify caller path in `main.rs` |
+| #21 | PG-IMPL-LP2-002 | Component Model callback delegation check: `func_new` registration is insufficient; inspect callback bodies for `host_*` delegation |
+| #22 | PG-IMPL-LP2-003 | Prose-version-label drift: BC sibling-sweep must include prose intro lines citing version/count, not only frontmatter fields |
+| #23 | PG-IMPL-LP2-004 | POL-18 required-features audit: mandatory scan of `[[test]]` blocks when test-helpers symbols are consumed |
+| #24 | PG-IMPL-LP2-005 | Test escape-hatch detection: adversary must scan for early `return;` without prior assertion in negative-coverage tests |
+
+### impl-pass-3 Dispatch Prerequisites
+
+After fix-burst-impl-2 closes all 12 findings:
+1. `PrismCommand::Start` routes through `run_boot_sequence` or equivalent — grep-verified
+2. All 5 Component Model callbacks delegate to `host_*` production functions — grep-verified in callback bodies
+3. `test_wasi_not_linked` has no early `return;` escape hatch — grep-verified
+4. BC-2.16.002 prose intro updated to `v1.15 / 31 events` — confirmed
+5. Story BC-2.16.002 version pins updated to v1.15 (12 occurrences) — confirmed
+6. Story §Structured Event Catalog Additions now enumerates 12 events — confirmed
+7. error-taxonomy: timestamp current + modified field present + status active — confirmed
+8. BC-INDEX timestamp has `Z` suffix — confirmed
+9. BC-5.39.001 3-CLEAN protocol: target streak advance 0/3 → 1/3
+
+### Durable Pins (D-549)
+
+| Field | Value |
+|-------|-------|
+| `feature_branch_head` | `c87592e8` (unchanged — no fix commits in D-549 burst) |
+| `worktree_status` | active (.worktrees/S-PLUGIN-PREREQ-D mounted at develop@95d46be2) |
+| `story_v` | 1.32 (UNCHANGED) |
+| `develop_head` | 95d46be2 (UNCHANGED) |
+| `state_v` / `handoff_v` | 7.254 |
+| `impl_adversary_streak` | 0/3 (impl-pass-2 BLOCKED; fix-burst-impl-2 NEXT) |
+| `impl_adversary_pass_count` | 2 |
+| `codification_queue` | 24 (19 prior + 5 new PG-IMPL-LP2-001 through 005) |
+| `bc_index_v` | 4.77 |
+| `bc_2_16_002_v` | 1.15 (31 rows; prose intro stale — fix-burst-impl-2 target) |
+| `error_taxonomy_v` | 1.23 (status: draft — fix-burst-impl-2 will set active) |
+| `bc_2_17_002_v` | 1.7 (draft; promotes at PREREQ-D merge per POL-14) |
+| factory-artifacts HEAD | run `git -C .factory log -1 --format=%H` (D-549 is this commit) |
+| impl-pass-2 report | cycles/wave-4-operations/adversarial-reviews/S-PLUGIN-PREREQ-D-impl-pass-2.md |
+
+**54th consecutive single-commit (TD-VSDD-053 DECISIVELY STABLE).**
+STATE.md v7.253 → v7.254 / SESSION-HANDOFF.md v7.253 → v7.254 / CYCLE-SNAPSHOT.md §POST-IMPL-PASS-2 BLOCKED (D-549) appended.
