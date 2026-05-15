@@ -1,0 +1,58 @@
+AC-09 — 30s reqwest timeout (single shared client)
+===================================================
+Story: S-PLUGIN-PREREQ-D (v1.37) | BC: BC-2.17.002 | HEAD: 862e721a
+Closes: TD-S-PLUGIN-PREREQ-B-005 (P2 — production reqwest::Client timeout gap)
+
+EVIDENCE TYPE: Source excerpt (constant declaration + boot wiring)
+
+A single reqwest::Client is constructed once at plugin-load step 7.5 with a
+30-second timeout. The constant PLUGIN_HTTP_CLIENT_TIMEOUT_SECS = 30 is defined
+in crates/prism-spec-engine/src/plugin/mod.rs so boot.rs can import it without
+a circular dependency. The client is injected into PluginRuntime via Arc, then
+shared across all plugin HTTP calls (host_http_request).
+
+-------------------------------------------------------------------------------
+SOURCE EXCERPT: crates/prism-spec-engine/src/plugin/mod.rs (lines 35-40)
+-------------------------------------------------------------------------------
+
+/// Per-request HTTP timeout for plugin outbound HTTP calls.
+///
+/// This constant defines the timeout configured at `reqwest::Client::builder()` level
+/// in `boot.rs`. It is 30 seconds — NOT 10 seconds (TD-S-PLUGIN-PREREQ-B-005 closure).
+/// The constant lives here so boot.rs can import it without a circular dep.
+pub const PLUGIN_HTTP_CLIENT_TIMEOUT_SECS: u64 = 30;
+
+-------------------------------------------------------------------------------
+SOURCE EXCERPT: plugin_load_step_with_audit() — boot.rs (normal path, ~line 936-948)
+-------------------------------------------------------------------------------
+
+    // AC-9: Construct ONE shared reqwest::Client with 30-second timeout.
+    // Construction is fallible (OS resource exhaustion per EC-D-009).
+    // On failure: return Err → boot exits with code 4 (ADR-022 §A internal-error class).
+    // Using .expect() is FORBIDDEN here — it would panic instead of returning the structured
+    // error that EC-D-009 requires (expect_used = "deny" in workspace clippy config).
+    let http_client = reqwest::Client::builder()
+        .timeout(Duration::from_secs(PLUGIN_HTTP_CLIENT_TIMEOUT_SECS))
+        .build()
+        .map_err(|e| {
+            BootError::InternalError(format!(
+                "PluginRuntime HTTP client construction failed (EC-D-009): {e}"
+            ))
+        })?;
+
+    // AC-9: Inject the single shared client + audit sink into PluginRuntime::new_with_audit_sink.
+    let runtime = PluginRuntime::new_with_audit_sink(http_client, audit_sink)
+        .map_err(|e| BootError::InternalError(e.to_string()))?;
+
+-------------------------------------------------------------------------------
+ADDITIONAL CONTEXT
+-------------------------------------------------------------------------------
+
+The same 30s timeout construction also appears in the PRISM_DISABLE_PLUGIN_LOAD=1
+early-return path (AC-3), ensuring timeout is always set even when skipping plugin load.
+reqwest::Client::new() (no timeout) is FORBIDDEN in production code per CLAUDE.md.
+
+RESULT: PASS — PLUGIN_HTTP_CLIENT_TIMEOUT_SECS = 30 constant is declared in
+        prism-spec-engine and imported in boot.rs. Single shared reqwest::Client
+        with .timeout(Duration::from_secs(30)) is constructed once per boot.
+        TD-S-PLUGIN-PREREQ-B-005 is closed.

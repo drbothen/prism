@@ -1,0 +1,35 @@
+AC-02 — Pre-traffic gate: MCP does not bind on plugin-load failure
+==================================================================
+Story: S-PLUGIN-PREREQ-D (v1.37) | BC: BC-2.22.001 | HEAD: 862e721a
+
+EVIDENCE TYPE: Test output (prism-bin::plugin_boot_tests)
+
+The pre-traffic gate invariant requires that plugin-load failure (step 7.5)
+causes boot to abort with exit code 4 before MCP server bind (step 9).
+The test verifies that an injected PluginRuntime construction failure propagates
+as a BootError that terminates the boot sequence.
+
+-------------------------------------------------------------------------------
+TEST OUTPUT: test_BC_2_22_001_plugin_load_failure_exits_code_4
+-------------------------------------------------------------------------------
+
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.38s
+────────────
+ Nextest run ID 21f265d4 with nextest profile: default
+    Starting 1 test across 1 binary (11 tests skipped)
+        PASS [   0.043s] (1/1) prism-bin::plugin_boot_tests test_BC_2_22_001_plugin_load_failure_exits_code_4
+────────────
+     Summary [   0.044s] 1 test run: 1 passed, 11 skipped
+
+-------------------------------------------------------------------------------
+ADDITIONAL CONTEXT: run_boot_sequence() propagation path
+-------------------------------------------------------------------------------
+
+plugin_load_step_with_audit() returns Err(BootError::InternalError(_))
+  → propagated via `?` in run_boot_sequence()
+  → boot exits with code 4 (ADR-022 §A internal-error class)
+  → step9_start_mcp_server() is NEVER reached
+
+RESULT: PASS — MCP server does not bind when plugin-load fails.
+        Boot exits with code 4 per ADR-022 §A and BC-2.22.001 §Pre-Traffic
+        Gate Invariant condition 6.

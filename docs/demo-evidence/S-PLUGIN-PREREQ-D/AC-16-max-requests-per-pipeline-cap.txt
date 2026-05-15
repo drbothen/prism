@@ -1,0 +1,39 @@
+AC-16 — MAX_REQUESTS_PER_PIPELINE cap (10,000)
+================================================
+Story: S-PLUGIN-PREREQ-D (v1.37) | Closes: TD-S-PLUGIN-PREREQ-B-004 | HEAD: 862e721a
+
+EVIDENCE TYPE: Source excerpt + test output
+
+TD-S-PLUGIN-PREREQ-B-004 required a hard cap on the number of HTTP requests
+a single pipeline execution can make. The cap prevents unbounded plugin HTTP
+calls in a multi-step pipeline scenario.
+
+MAX_REQUESTS_PER_PIPELINE = 10,000 is declared as a pub const in pipeline.rs.
+When the cumulative request count reaches the cap, the pipeline emits
+event_type = "pipeline_max_requests_exceeded" (ERROR, BC-2.16.002 catalog)
+and returns an error to the caller.
+
+-------------------------------------------------------------------------------
+SOURCE EXCERPT: crates/prism-spec-engine/src/pipeline.rs (lines 54-58)
+-------------------------------------------------------------------------------
+
+/// Maximum number of HTTP requests allowed per pipeline execution.
+/// ... emits `event_type = "pipeline_max_requests_exceeded"` per BC-2.16.002 v1.12 catalog.
+pub const MAX_REQUESTS_PER_PIPELINE: usize = 10_000;
+
+-------------------------------------------------------------------------------
+TEST OUTPUT: test_BC_2_16_002_pipeline_max_requests_exceeded
+(exercises the cap via execute_with_max_requests with a small test cap)
+-------------------------------------------------------------------------------
+
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.28s
+────────────
+ Nextest run ID d4d5869a with nextest profile: default
+    Starting 1 test across 19 binaries (361 tests skipped)
+        PASS [   0.009s] (1/1) prism-spec-engine::plugin_integration_tests test_BC_2_16_002_pipeline_max_requests_exceeded
+────────────
+     Summary [   0.010s] 1 test run: 1 passed, 361 skipped
+
+RESULT: PASS — MAX_REQUESTS_PER_PIPELINE = 10_000 is declared and enforced.
+        Pipeline execution exceeding the cap emits pipeline_max_requests_exceeded
+        event and returns an error. TD-S-PLUGIN-PREREQ-B-004 closed.
