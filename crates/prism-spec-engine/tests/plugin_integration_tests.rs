@@ -1898,3 +1898,210 @@ async fn test_BC_2_17_007_empty_allowed_url_entry_is_rejected() {
         "MED-007: plugin with empty allowed_urls entry must NOT be registered"
     );
 }
+
+/// F-PASS5-HIGH-001 — Production-linker dispatch test via `PluginRuntime::build_linker` (Route A).
+///
+/// ## What this tests
+///
+/// This test exercises the PRODUCTION `register_host_functions` callback
+/// (host_functions.rs:340-470) through the Component Model dispatch path.
+///
+/// ## Why this is load-bearing (Route A — pre-built fixture component)
+///
+/// The fixture `fixtures/component_model_dispatch.prx` was built from a WIT-annotated
+/// core module using `wasm-tools component embed + component new`. It imports from the `"host"`
+/// instance namespace — the exact namespace that `PluginRuntime::build_linker` registers into.
+/// The component's `http-request` import declares the FULL `http-response` record return type
+/// (`record { status: u16, headers: list<tuple<string,string>>, body: list<u8> }`), which is
+/// enforced by wasmtime's canonical ABI type-checking at runtime.
+///
+/// When the component calls `http-request`, the execution chain is:
+///   call-blocked (component export)
+///   → core wasm `call-blocked` (reads URL/method from memory, calls lowered import)
+///   → canonical ABI lower → PRODUCTION `register_host_functions` callback (host_functions.rs:340-470)
+///   → `host_http_request` (allowlist check: "blocked.test" NOT in [] → 403)
+///   → callback writes `Val::Record(vec![("status", Val::U16(403)), ("headers", ...), ("body", ...)])`
+///   → canonical ABI lift → component sees `http-response { status: 403, ... }`
+///   → `call-blocked` reads status u16 from memory at retptr
+///   → component export returns `Val::U16(403)`
+///
+/// ## Regression detection (load-bearing assertion)
+///
+/// If `host_functions.rs:452` changes from `Val::U16(response.status)` to
+/// `Val::U32(u32::from(response.status))`, wasmtime's `lower_result` will attempt to store
+/// `Val::U32(403)` into the `status: u16` slot of the `http-response` record. This calls
+/// `unexpected(InterfaceType::U16, Val::U32(...))` → returns `Err(...)` → wasmtime trap →
+/// `call` fails → `.expect()` panics → **test FAILS**.
+///
+/// ## Fixture construction
+///
+/// `fixtures/component_model_dispatch.prx` was built with:
+///   1. WIT: `prism:dispatch-test@0.1.0` world importing `host` interface inline with
+///      the full `http-response` record type and `http-request` function.
+///   2. Core WAT: imports `host::http-request` (canonical ABI: 10 i32 params, retptr last),
+///      exports `call-blocked` which calls it with "GET" to "https://blocked.test/path" and
+///      returns the status u16 from memory at retptr+0.
+///   3. Built with: `wasm-tools component embed` + `wasm-tools component new`.
+///
+/// ## Sanity-revert verification (2026-05-15)
+///
+/// Manual verification performed:
+/// - Temporarily changed `host_functions.rs:452` from `Val::U16(response.status)` to
+///   `Val::U32(u32::from(response.status))`.
+/// - Ran this test: FAILED with trap error "type mismatch" — wasmtime's `lower_result`
+///   rejected `Val::U32(403)` as incompatible with the declared `u16` status field.
+/// - Reverted `host_functions.rs:452` back to `Val::U16(response.status)`.
+/// - Ran this test: PASSES with `Val::U16(403)` result assertion satisfied.
+///
+/// This test invokes the PRODUCTION linker built by `PluginRuntime::build_linker`.
+/// The production `register_host_functions` callback at host_functions.rs:340-470 is the
+/// load-bearing surface. The prior F-PASS4-HIGH-001 test used a test-local
+/// `Linker::new(&engine)` — this test uses `PluginRuntime::build_linker(&engine)` instead.
+#[test]
+fn test_F_PASS5_HIGH_001_production_linker_dispatch_via_build_linker_route_a() {
+    use wasmtime::component::Val;
+    use wasmtime::{Config, Engine, Store};
+
+    // Build a wasmtime Engine with the same config as PluginRuntime::new_with_audit_sink:
+    // Component Model enabled + epoch interruption enabled.
+    let mut config = Config::new();
+    config.wasm_component_model(true);
+    config.epoch_interruption(true);
+    let engine = Engine::new(&config).expect(
+        "F-PASS5-HIGH-001: Engine construction must succeed with component-model + epoch config.",
+    );
+
+    // Build the PRODUCTION linker via PluginRuntime::build_linker.
+    // This calls register_host_functions (host_functions.rs:307-470) which registers:
+    //   - host::http-request  ← THE LOAD-BEARING REGISTRATION
+    //   - host::log
+    //   - host::get-config
+    //   - host::kv-get
+    //   - host::kv-set
+    // This is the linker that production plugins use at runtime.
+    let linker = PluginRuntime::build_linker(&engine).expect(
+        "F-PASS5-HIGH-001: PluginRuntime::build_linker must succeed. \
+         If this fails, register_host_functions is broken.",
+    );
+
+    // Load the pre-built component fixture.
+    //
+    // This fixture was built from a WIT-annotated core module using:
+    //   wasm-tools component embed + wasm-tools component new
+    //
+    // The component imports from the "host" instance (matching the production linker's
+    // registration namespace) with the FULL http-response record type. The component exports
+    // "call-blocked: func() -> u16" which calls host::http-request with:
+    //   method = "GET", url = "https://blocked.test/path"
+    //   headers = empty list, body = None
+    // then reads the status u16 from memory at the retptr location.
+    let fixture_path = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+        .join("fixtures/component_model_dispatch.prx");
+    let fixture_bytes = std::fs::read(&fixture_path).expect(
+        "F-PASS5-HIGH-001: fixtures/component_model_dispatch.prx must be readable. \
+         This pre-built fixture was committed as part of fix-burst-impl-5. \
+         If missing, check git history for the fixture commit.",
+    );
+
+    let component = wasmtime::component::Component::from_binary(&engine, &fixture_bytes).expect(
+        "F-PASS5-HIGH-001: component_model_dispatch.prx must compile as a valid Component Model \
+         binary. If this fails, the fixture was corrupted or was built with an incompatible \
+         wasmtime version. Rebuild the fixture using wasm-tools 1.248.0.",
+    );
+
+    // Build HostState with default-deny allowed_urls (empty Vec).
+    // "blocked.test" is NOT in the allowlist → host_http_request returns 403 immediately
+    // (no actual HTTP request is made for blocked URLs — AC-7 / VP-PLUGIN-007).
+    let host_state = HostState::test_with_allowed_urls(
+        "f-pass5-high-001-production-linker-test",
+        vec![], // empty = default-deny all outbound HTTP
+    );
+
+    // Create a Store with the HostState.
+    // Set epoch deadline to 10 (plenty for a sync test; epoch ticker increments every 10ms).
+    let mut store = Store::new(&engine, host_state);
+    store.set_epoch_deadline(10);
+
+    // Instantiate the component against the PRODUCTION linker.
+    // This wires the canonical ABI lowering for http-request to the PRODUCTION callback
+    // registered by register_host_functions at host_functions.rs:340-470.
+    //
+    // The typecheck at instantiate_pre verifies that the linker provides an "http-request"
+    // function in the "host" namespace. Since func_new is dynamically-typed, the typecheck
+    // only verifies presence (not param/result types). The Val type correctness is enforced
+    // at CALL TIME via lower_result (host_functions.rs:452 must write Val::U16, not Val::U32).
+    let instance = linker.instantiate(&mut store, &component).expect(
+        "F-PASS5-HIGH-001: Component instantiation against production linker must succeed. \
+         The production linker provides all 5 host functions. The component only requires \
+         http-request from the host instance. Failure here means the production linker's \
+         host instance doesn't match the component's import type.",
+    );
+
+    // Get the exported 'call-blocked' function.
+    // This export calls host::http-request internally with URL "https://blocked.test/path".
+    let call_blocked = instance
+        .get_func(&mut store, "call-blocked")
+        .expect("F-PASS5-HIGH-001: 'call-blocked' export must exist in the fixture component.");
+
+    // Invoke the exported function.
+    //
+    // Full dispatch chain:
+    //   call-blocked (component export, canon lift of core u16 result)
+    //   → core call-blocked: pushes params from memory, calls lowered http-request
+    //   → canonical ABI lower → PRODUCTION register_host_functions callback
+    //   → host_http_request: "blocked.test" NOT in allowed_urls [] → returns status=403
+    //   → callback writes Val::Record([("status", Val::U16(403)), ("headers", Val::List([])),
+    //                                  ("body", Val::List([]))])
+    //   → lower_result: stores record fields to retptr in memory:
+    //       - status: Val::U16(403) stored as u16 at offset 0   ← REGRESSION-DETECTION POINT
+    //         (if Val::U32(403) is written instead, lower_result traps → test FAILS)
+    //       - headers: Val::List([]) stored as (ptr=_, len=0) at offset 4
+    //       - body: Val::List([]) stored as (ptr=_, len=0) at offset 12
+    //   → core call-blocked: loads u16 at retptr+0 = 403
+    //   → canon lift: u16 403 → Val::U16(403)
+    //   → Func::call returns [Val::U16(403)]
+    //
+    // REGRESSION PATH: If host_functions.rs:452 changed to Val::U32(u32::from(response.status)):
+    //   → lower_result tries to store Val::U32(403) into status: u16 slot
+    //   → unexpected(InterfaceType::U16, Val::U32(403)) → Err("type mismatch")
+    //   → wasmtime trap → Func::call returns Err → .expect() panics → TEST FAILS
+    let mut results = vec![Val::U16(0)];
+    call_blocked.call(&mut store, &[], &mut results).expect(
+        "F-PASS5-HIGH-001: call-blocked invocation must not trap. \
+         If this traps, the PRODUCTION register_host_functions callback wrote a wrong Val type \
+         to the 'status' field. Val::U16 is required by the fixture's declared http-response \
+         record type. Val::U32 would cause a wasmtime type-mismatch trap here — \
+         proving that host_functions.rs:452 must write Val::U16(response.status). \
+         Regression: change host_functions.rs:452 to Val::U32 → this test fails with trap.",
+    );
+
+    // THE LOAD-BEARING ASSERTION:
+    // Val::U16(403) confirms:
+    //   1. PluginRuntime::build_linker was used (PRODUCTION linker, not test-local Linker::new).
+    //   2. The PRODUCTION register_host_functions callback executed (not a test-local callback).
+    //   3. host_http_request fired (allowlist gate: 403 for non-allowlisted URL).
+    //   4. Val::U16 is the correct Val variant for the status field (not Val::U32 — would trap).
+    //   5. The canonical ABI roundtrip worked: record written to retptr, u16 read back.
+    match &results[0] {
+        Val::U16(status) => {
+            assert_eq!(
+                *status, 403u16,
+                "F-PASS5-HIGH-001: blocked URL 'https://blocked.test/path' must produce HTTP 403 \
+                 through the production linker's register_host_functions callback. \
+                 Allowlist is empty (default-deny), so all URLs are blocked. \
+                 Got status: {}",
+                status
+            );
+        }
+        other => {
+            panic!(
+                "F-PASS5-HIGH-001 (REGRESSION DETECTED): call-blocked returned {:?} \
+                 instead of Val::U16(403). \
+                 Expected Val::U16(403) — the canonical lift of the core u16 result. \
+                 If Val::Record is returned here, the component export type may have changed. \
+                 If something else is returned, investigate the canonical ABI lift/lower path.",
+                other
+            );
+        }
+    }
+}
