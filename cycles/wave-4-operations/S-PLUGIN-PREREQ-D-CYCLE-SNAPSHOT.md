@@ -3433,3 +3433,110 @@ after fix-burst-impl-7 closes F-PASS7-MED-001. The 20% residual accounts for:
 | `error_taxonomy_v` | 1.24 (UNCHANGED) |
 | factory-artifacts HEAD | run `git -C .factory log -1 --format=%H` (D-559 is this commit) |
 | test baseline | 34/34 plugin_integration_tests PASS (UNCHANGED) |
+
+
+## §FIX-BURST-IMPL-7 CLOSURE (D-560 — 2026-05-15)
+
+### Result
+
+**Fix-burst-impl-7:** CLOSED | **Findings remediated:** 1/1 | **Consecutive single-commit:** 65th (TD-VSDD-053)
+
+**Factory commit:** `f656c3f8` — `fix(S-PLUGIN-PREREQ-D): F-PASS7-MED-001 — Fixture Strategy table extended for 5th fixture (story v1.36→v1.37)`
+
+**Routing:** story-writer (single-scope dispatch — story-body only; LIGHTEST BURST IN CASCADE)
+
+### Closure Summary (1 / 1)
+
+| Finding | Severity | Status | Action |
+|---------|----------|--------|--------|
+| F-PASS7-MED-001 | MED | CLOSED | Fixture Strategy table extended at 3 sites for 5th fixture |
+
+### Finding Detail: F-PASS7-MED-001
+
+**Root cause:** `tests/fixtures/component_model_dispatch.prx` committed in fix-burst-impl-6 (worktree commit `862e721a`) was the 5th fixture but the story's Fixture Strategy section was NOT updated: (a) Task 13 said "Commit all 4 .prx test fixtures" — still 4; (b) Strategy decision header said "all 4" — still 4; (c) Strategy table had 4 rows. Predicted by impl-pass-6 dispatch brief ("minor scope gap: Fixture Strategy table 5th-entry not extended"); explicitly excluded from fix-burst-impl-6 implementer scope.
+
+**Fix applied (3 sites):**
+1. Task 13 enumeration count: 4 → 5; `component_model_dispatch.prx` appended to list
+2. Strategy decision header count: 4 → 5
+3. Strategy table 5th row added: `tests/fixtures/component_model_dispatch.prx` with WIT world `prism:dispatch-test@0.1.0`, wasm-tools 1.248.0, Route A pre-built via component embed+new, build recipe reference
+
+### Sibling-Sweep (S-7.02)
+
+Corpus-wide grep for "all 4" / "4 fixtures" / "4 .prx":
+- Active-body hits: **0** (all 3 story sites updated)
+- Historical changelog hits: 1 (D-558 prose — acceptable; immutable audit trail)
+
+### Token Budget Recompute
+
+Crossing the 50-token threshold during Fixture Strategy table extension:
+
+| Row | Before | After | Delta |
+|-----|--------|-------|-------|
+| Story spec (S-PLUGIN-PREREQ-D) | 8,100 | 8,200 | +100 |
+| WAT sources (tests/fixtures/src/) | 800 | 1,000 | +200 |
+| **Total** | **42,400** | **42,700** | **+300** |
+| **Pct of 256K** | **16.6%** | **16.7%** | **+0.1%** |
+
+### Artifact Versions
+
+| Artifact | Before | After | Changed By |
+|----------|--------|-------|------------|
+| Story S-PLUGIN-PREREQ-D | v1.36 | v1.37 | f656c3f8 |
+| STORY-INDEX | v2.106 | v2.107 | f656c3f8 |
+| STATE.md / SESSION-HANDOFF.md | v7.264 | v7.265 | D-560 burst |
+| BC-2.16.002 | v1.17 | v1.17 | UNCHANGED |
+| BC-INDEX | v4.79 | v4.79 | UNCHANGED |
+| feature_branch_head | 862e721a | 862e721a | UNCHANGED |
+
+### PG-IMPL-LP6-002 Codification Addressed
+
+This burst directly addressed the materialized process-gap OBS from impl-pass-7:
+- **PG-IMPL-LP6-002:** When implementer needs new fixture type not covered by story Fixture Strategy, MUST follow existing strategy or amend it in-scope — cannot silently diverge.
+- Fixture Strategy table was the predicted scope gap from impl-pass-6 dispatch brief, confirmed by impl-pass-7, and now closed by fix-burst-impl-7.
+- Codification candidate remains in queue (30 unchanged) for formal codification at cycle-close.
+
+### 7-Pass Arc Trajectory
+
+| Pass | Verdict | CRIT | HIGH | MED | LOW | Net | Burst |
+|------|---------|------|------|-----|-----|-----|-------|
+| impl-pass-1 | BLOCKED | 5 | 6 | 4 | 3 | 18 | fix-burst-impl-1: CLOSED 18/18 |
+| impl-pass-2 | BLOCKED | 2 | 3 | 4 | 3 | 12 | fix-burst-impl-2: CLOSED 12/12 |
+| impl-pass-3 | BLOCKED | 2 | 1 | 2 | 1 | 6 | fix-burst-impl-3: CLOSED 6/6 |
+| impl-pass-4 | BLOCKED | 0 | 1 | 1 | 0 | 2 | fix-burst-impl-4: CLOSED 2/2 |
+| impl-pass-5 | BLOCKED | 0 | 1 | 0 | 2 | 3 | fix-burst-impl-5: CLOSED 3/3 (BREAKTHROUGH) |
+| impl-pass-6 | BLOCKED | 0 | 0 | 1 | 3 | 4 | fix-burst-impl-6: CLOSED 4/4 (ZERO CRIT+HIGH) |
+| impl-pass-7 | BLOCKED | 0 | 0 | 1 | 0 | 1 | fix-burst-impl-7: CLOSED 1/1 (LIGHTEST BURST) |
+| impl-pass-8 | ⏳ NEXT | — | — | — | — | — | — |
+
+**Severity decay trajectory:** 18→12→6→2→3→4→1 — terminal (production layer fully converged; only story-body spec drift remained)
+
+### impl-pass-8 Prerequisites + FIRST ADVANCE Opportunity
+
+1. Factory commit `f656c3f8` landed — Fixture Strategy table extended for 5th fixture
+2. feature_branch_head `862e721a` — unchanged (no new worktree commits this burst)
+3. Story v1.37 is current truth
+4. All carry-forward spot-checks HOLD: F-PASS5-HIGH-001 (production linker test), F-PASS3-CRIT-001 (boot.rs:160 before :164), F-PASS3-CRIT-002 (host_functions.rs:452 Val::U16)
+5. BC-5.39.001 3-CLEAN protocol: if CLEAN → streak advances 0/3 → 1/3 (FIRST ADVANCE after 7 consecutive BLOCKED)
+
+If impl-pass-8 CLEAN: streak advances 0/3 → 1/3 (FIRST advance in cascade after 7 consecutive BLOCKED passes). 3-CLEAN convergence then requires impl-pass-9 (2/3) + impl-pass-10 (3/3) → demo-recorder Step 5 dispatch.
+
+Adversary forecast: **~80% CLEAN probability** — production layer fully converged; severity decay terminal; only story-body spec drift class remaining; previous spec drift now resolved.
+
+### Durable Pins (D-560)
+
+| Field | Value |
+|-------|-------|
+| `feature_branch_head` | `862e721a` (UNCHANGED from D-558/D-559) |
+| `impl_adversary_pass_count` | 7 |
+| `impl_adversary_streak` | 0/3 (PENDING impl-pass-8; advances only at CLEAN pass) |
+| `codification_queue` | 30 (unchanged; PG-IMPL-LP6-002 addressed, formal codification at cycle-close) |
+| `story_v` | 1.37 (v1.36→v1.37 this burst via f656c3f8) |
+| `story_index_v` | v2.107 (v2.106→v2.107 this burst via f656c3f8) |
+| `token_budget_total` | 42,700 (42,400→42,700 this burst; 16.7% of 256K) |
+| `develop_head` | 95d46be2 (UNCHANGED) |
+| `state_v` / `handoff_v` | 7.265 |
+| `bc_index_v` | 4.79 (UNCHANGED) |
+| `bc_2_16_002_v` | 1.17 (32 rows; UNCHANGED) |
+| `error_taxonomy_v` | 1.24 (UNCHANGED) |
+| factory-artifacts HEAD | run `git -C .factory log -1 --format=%H` (D-560 is this commit) |
+| test baseline | 34/34 plugin_integration_tests PASS (UNCHANGED) |
