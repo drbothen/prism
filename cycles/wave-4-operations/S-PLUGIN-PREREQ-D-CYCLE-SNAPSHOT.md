@@ -2005,4 +2005,144 @@ Dispatch `vsdd-factory:adversary` against implementation code in worktree `.work
 - 3 consecutive CLEAN passes required before declaring implementation done
 
 **52nd consecutive single-commit (TD-VSDD-053 DECISIVELY STABLE).**
+
+---
+
+## §FIX-BURST-IMPL-1 CLOSURE (D-548 — 2026-05-14)
+
+> **Status:** CLOSED — 18/18 findings from adversary impl-pass-1 remediated. impl_adversary_streak remains 0/3. Next: adversary impl-pass-2.
+
+### Adversary impl-pass-1 Outcome
+
+| Field | Value |
+|-------|-------|
+| Pass ID | impl-pass-1 |
+| Date | 2026-05-14 |
+| Base develop | 95d46be2 |
+| Feature HEAD at pass time | 08d084fa (impl TDD green) |
+| Verdict | BLOCKED |
+| 3-CLEAN streak | 0/3 → 0/3 (BLOCKED resets not applicable — was 0/3 entering) |
+| Policies applied | 18 (POL-1 through POL-15 + POL-20 + POL-22 + BC-5.39.001) |
+| Total findings | 3 CRIT + 6 HIGH + 7 MED + 2 LOW + 3 OBS + 2 KUDO |
+| Report file | cycles/wave-4-operations/adversarial-reviews/S-PLUGIN-PREREQ-D-impl-pass-1.md |
+
+### Finding Closure Table (18/18 in-perimeter)
+
+| Finding | Severity | Status | Closure SHA(s) |
+|---------|----------|--------|----------------|
+| F-IMPL-LP1-CRIT-001 | CRIT | CLOSED | `0e0c85d0` (run_boot_sequence wiring + integration test) |
+| F-IMPL-LP1-CRIT-002 | CRIT | CLOSED | `0e0c85d0` (PrismConfig.plugin_dir + #[non_exhaustive] on PrismConfig family) |
+| F-IMPL-LP1-CRIT-003 | CRIT | CLOSED | `30a7a304` (register_host_functions registers 5 host functions; WASI negative-proof test) |
+| F-IMPL-LP1-HIGH-001 | HIGH | CLOSED | `9b2b4823` (factory BC-INDEX bump v4.76→v4.77; BC-2.16.002 row→v1.15) |
+| F-IMPL-LP1-HIGH-002 | HIGH | CLOSED | `73d72f03` (PluginLoadAuditSink + RocksDbPluginAuditSink + durable audit test) |
+| F-IMPL-LP1-HIGH-003 | HIGH | CLOSED | `1d620e63` + `9b2b4823` (E-PLUGIN-017 ManifestParseError + catalog row + taxonomy) |
+| F-IMPL-LP1-HIGH-004 | HIGH | CLOSED | `1d620e63` (semver::Version::parse replaces is_valid_semver) |
+| F-IMPL-LP1-HIGH-005 | HIGH | CLOSED | `1d620e63` + `9b2b4823` (E-PLUGIN-018 ManifestNotFound + catalog row + taxonomy) |
+| F-IMPL-LP1-HIGH-006 | HIGH | CLOSED | `1d620e63` + `9b2b4823` (E-PLUGIN-019 FormatVersionMissing + catalog row + taxonomy) |
+| F-IMPL-LP1-MED-001 | MED | CLOSED | `9b2b4823` (catalog row `message` field added to BC-2.16.002 v1.15) |
+| F-IMPL-LP1-MED-002 | MED | CLOSED | `1d620e63` + `9b2b4823` (sensor_id correction in code + catalog) |
+| F-IMPL-LP1-MED-003 | MED | CLOSED-by-cascade | Closed by HIGH-002 (durable audit test verifies emission durably) |
+| F-IMPL-LP1-MED-004 | MED | CLOSED | `c87592e8` (execute_with_max_requests + wiremock cap test) |
+| F-IMPL-LP1-MED-005 | MED | CLOSED | `1d620e63` (test renamed + Option A docstring) |
+| F-IMPL-LP1-MED-006 | MED | CLOSED-by-cascade | Closed by CRIT-003 (WASI negative-proof) |
+| F-IMPL-LP1-MED-007 | MED | CLOSED | `1d620e63` (empty allowlist entry guard at parse + host_http_request) |
+| F-IMPL-LP1-LOW-001 | LOW | CLOSED-by-cascade | Closed by CRIT-002 (#[non_exhaustive] on PrismConfig family) |
+| F-IMPL-LP1-LOW-002 | LOW | CLOSED | `1d620e63` (tracing field-name cosmetic fix) |
+
+### Out-of-Perimeter (OBS — routed session-reviewer at cycle-close)
+
+| Finding | Type | Routing |
+|---------|------|---------|
+| F-IMPL-LP1-OBS-001 | process-gap: no CI gate verifying BC-INDEX row version matches BC file version | Codification queue item #18; session-reviewer at cycle-close |
+| F-IMPL-LP1-OBS-002 | process-gap: boot-step "registered but not called" anti-pattern needs lint | Codification queue item #19; session-reviewer at cycle-close |
+| F-IMPL-LP1-OBS-003 | scope-expansion adjudications (3 recorded): REJECTED iter_module substitution + ACCEPTED HostState test helpers (§AC-17 amendment candidate) + PARTIALLY ACCEPTED 3 event_type emissions | Routed session-reviewer at cycle-close |
+
+### Fix Commits on feature/S-PLUGIN-PREREQ-D
+
+| SHA | Scope | Findings Closed |
+|-----|-------|-----------------|
+| `0e0c85d0` | fix(prism-bin): CRIT-001/002 + LOW-001 — plugin_dir + #[non_exhaustive] + run_boot_sequence wiring | CRIT-001, CRIT-002, LOW-001 |
+| `30a7a304` | fix(prism-spec-engine): CRIT-003 — register_host_functions 5 host functions; WASI negative-proof test | CRIT-003, MED-006 (cascade) |
+| `1d620e63` | fix(prism-spec-engine,prism-core): HIGH-003/004/005/006 + MED-001/002/005/007 + LOW-002 | HIGH-003, HIGH-004, HIGH-005, HIGH-006, MED-001 (partial), MED-002 (partial), MED-005, MED-007, LOW-002 |
+| `73d72f03` | fix(prism-spec-engine,prism-bin): HIGH-002 — PluginLoadAuditSink + RocksDbPluginAuditSink + durable RocksDB audit test | HIGH-002, MED-003 (cascade) |
+| `c87592e8` | fix(prism-spec-engine): MED-004 — execute_with_max_requests + wiremock-driven test | MED-004 |
+
+### Factory In-Burst Spec Amendments (commit `9b2b4823`)
+
+Per Standing Rule 3 §6 — implementer authored in-burst, successor to D-547 (175f00cb), predecessor to D-548 (this burst).
+
+| Artifact | Version | Change |
+|----------|---------|--------|
+| BC-INDEX | v4.76 → v4.77 | BC-2.16.002 row updated (v1.14→v1.15) |
+| BC-2.16.002 | v1.14 → v1.15 | 3 new catalog rows + `message` field added + `sensor_id` correction; total catalog 28 → 31 rows |
+| error-taxonomy | v1.22 → v1.23 | 3 new E-PLUGIN error codes added |
+
+### New Error Codes (error-taxonomy v1.23)
+
+| Code | Name | Description |
+|------|------|-------------|
+| E-PLUGIN-017 | ManifestParseError | Plugin manifest failed TOML parsing at load time |
+| E-PLUGIN-018 | ManifestNotFound | Plugin manifest file not found in plugin directory |
+| E-PLUGIN-019 | FormatVersionMissing | Plugin manifest missing required `format_version` field |
+
+### BC-2.16.002 v1.15 Catalog Summary
+
+- Total catalog rows: 28 → 31 (3 new E-PLUGIN event_type entries)
+- `message` field added to all rows (previously absent)
+- `sensor_id` field corrected (was `plugin_id` in some rows)
+
+### Final Verification Gate
+
+```
+just check from worktree root (.worktrees/S-PLUGIN-PREREQ-D/):
+  3632/3632 pass; 17 skipped; 0 failures
+  
+Pre-existing: 3623 (unchanged)
+New load-bearing tests: 9
+  - 8 finding-closures (CRIT-001 integration test + CRIT-003 WASI negative-proof + HIGH-002 durable audit + etc.)
+  - 1 MED-004 exercise (execute_with_max_requests + wiremock cap test)
+```
+
+### Codification Queue Expansion: 17 → 19
+
+| Item | ID | Description | Routing |
+|------|----|-------------|---------|
+| #18 | OBS-001 | No CI gate verifying BC-INDEX row version matches BC file version | session-reviewer at cycle-close |
+| #19 | OBS-002 | Boot-step "registered but not called" anti-pattern needs lint | session-reviewer at cycle-close |
+
+Prior 17 codification candidates unchanged.
+
+### Durable Pins (D-548)
+
+| Field | Value |
+|-------|-------|
+| `feature_branch_head` | `c87592e8` |
+| `worktree_status` | active (.worktrees/S-PLUGIN-PREREQ-D mounted at develop@95d46be2) |
+| `story_v` | 1.32 (UNCHANGED) |
+| `develop_head` | 95d46be2 (UNCHANGED) |
+| `state_v` / `handoff_v` | 7.253 |
+| `impl_adversary_streak` | 0/3 (impl-pass-1 BLOCKED; fix-burst-impl-1 CLOSED 18/18) |
+| `impl_adversary_pass_count` | 1 |
+| `bc_index_v` | 4.77 |
+| `bc_2_16_002_v` | 1.15 (31 rows) |
+| `error_taxonomy_v` | 1.23 (E-PLUGIN-017/018/019 added) |
+| `bc_2_17_002_v` | 1.7 (draft; promotes at PREREQ-D merge per POL-14) |
+| factory-artifacts HEAD | run `git -C .factory log -1 --format=%H` (D-548 is this commit) |
+
+### impl-pass-2 Dispatch Prerequisites
+
+Before dispatching adversary impl-pass-2:
+
+1. Verify feature branch is at `c87592e8` (or any subsequent fix commits)
+2. Adversary must carry forward verification of all 18 fix-burst-impl-1 closures
+3. Key carry-forward checks:
+   - CRIT-001: `run_boot_sequence` calls `plugin_load_step` (grep `plugin_load_step` in prism-bin)
+   - CRIT-002: `PrismConfig` has `plugin_dir: PathBuf` field + `#[non_exhaustive]`
+   - CRIT-003: `register_host_functions` registers 5 non-stub host functions (NOT a no-op)
+   - HIGH-002: `PluginRuntime::new_with_audit_sink` constructor wires `PluginLoadAuditSink`
+   - E-PLUGIN-017/018/019: present in `error-taxonomy.md` + `BC-2.16.002` catalog
+4. 3-CLEAN protocol (BC-5.39.001): 3 consecutive CLEAN passes required for convergence
+5. Target: streak advance 0/3 → 1/3
+
+**53rd consecutive single-commit (TD-VSDD-053 DECISIVELY STABLE).**
 STATE.md v7.251 → v7.252 / SESSION-HANDOFF.md v7.251 → v7.252 / CYCLE-SNAPSHOT.md §POST-IMPL-GREEN UPDATE (D-547) appended.
