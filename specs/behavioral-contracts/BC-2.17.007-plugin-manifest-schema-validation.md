@@ -1,17 +1,21 @@
 ---
 document_type: behavioral-contract
 level: L3
-version: "1.4"
-status: draft
+version: "1.5"
+status: active
 producer: product-owner
 timestamp: 2026-05-14T00:00:00Z
 phase: 3.A
 origin: greenfield
 subsystem: "SS-17"
 capability: "CAP-032"
-lifecycle_status: draft
+lifecycle_status: active
 introduced: 2026-05-13
-modified: 2026-05-14
+modified: 2026-05-15
+promoted_to_active_at: 2026-05-15
+promoted_via_story: S-PLUGIN-PREREQ-D
+promoted_via_pr: '#149'
+promoted_via_merge_sha: ec90fe8f
 deprecated: ~
 deprecated_by: ~
 replacement: ~
@@ -176,6 +180,7 @@ VP-PLUGIN-007 (VP-152): `PluginRuntime` allowlist explicit `Vec<String>` post-bo
 
 | Version | Burst | Date | Author | Change |
 |---------|-------|------|--------|--------|
+| 1.5 | state(D-568) | 2026-05-15 | state-manager | POL-14 auto-promotion at S-PLUGIN-PREREQ-D merge (PR #149, ec90fe8f, 2026-05-15): `status: draft` → `status: active`; `lifecycle_status: draft` → `lifecycle_status: active`; `promoted_to_active_at: 2026-05-15`; `promoted_via_story: S-PLUGIN-PREREQ-D`; `promoted_via_pr: '#149'`; `promoted_via_merge_sha: ec90fe8f`. BC-INDEX v4.79→v4.80 row status flip (6 BCs total). |
 | 1.4 | fix-burst-34 | 2026-05-14 | product-owner | F-LP36-MED-001 closure: frontmatter timestamp+modified bumped to 2026-05-14 sync (fix-burst-33-introduced staleness; TD-VSDD-060 frontmatter axis sibling-sweep gap; 2nd recurrence of frontmatter-modified-field-stale pattern in cascade). F-LP36-LOW-001 closure: VP-PLUGIN-007 row line 138 rewritten from `per AC-7 default-deny` to `per AC-5 manifest gate; default-deny consumer is AC-7` — restores canonical anchor to story AC-5 per BC §Story Anchor at line 157; preserves downstream-consumer rationale citing AC-7. Sibling-site sweep (TD-VSDD-060) on AC-7 references: line 161 (VP Anchors narrative) carried same mis-anchor — rewritten to match line 138 correction. Line 179 (§Changelog 1.3 historical record) retained as-is — accurate factual record of fix-burst-33 changes. |
 | 1.3 | fix-burst-33 | 2026-05-14 | product-owner | F-LP35-MED-001 closure: VP-PLUGIN-007 description sweep — line 138 + line 161 rewritten from pre-AC-7 "allowed_urls = None" / "allowlist not-None" Option-semantics to post-AC-7 "explicit allowed_urls: Vec<String>" / "explicit list under AC-7 default-deny" framing. Sibling-document propagation gap from F-LP34-LOW-001 closure (D-533) — fix-burst-32 propagated to VP-INDEX + story §References but missed these 2 in-perimeter BC sites. Cross-document propagation: VP-INDEX v1.35 + story §References:1034 corrected in D-533 fix-burst-32; this BC update closes the in-perimeter remainder. OBS-LP35-001 (verification-architecture.md:282 + ADR-023:732-733 architecture-layer siblings) deferred phase-5 architect adjudication. |
 | 1.2 | fix-burst-7-stage-1A | 2026-05-13 | product-owner | F-LP8-HIGH-001 closure (Path B): `lifecycle_status: active` → `lifecycle_status: draft`. S-PLUGIN-PREREQ-D is pre-merge — this BC was introduced during fix-burst and has never been part of a merged story PR. `lifecycle_status: active` was set at initial authorship before POL-14 canonicalization applied to new BCs authored in-burst. Per POL-14 (`bc_vp_promotion_on_anchor_merge`), auto-promotion to `active` will occur at S-PLUGIN-PREREQ-D PR merge. |

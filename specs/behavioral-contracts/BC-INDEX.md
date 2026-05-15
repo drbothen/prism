@@ -1,20 +1,20 @@
 ---
 document_type: behavioral-contract-index
 level: L3
-version: "4.79"
+version: "4.80"
 status: draft
 producer: product-owner
-timestamp: 2026-05-14T00:00:00Z
+timestamp: 2026-05-15T00:00:00Z
 phase: 3.A
 total_contracts: 236
-active_contracts: 229
+active_contracts: 235
 removed_contracts: 6
 retired_contracts: 3
 ---
 
 # Behavioral Contract Index
 
-Flat index of all 235 behavioral contracts for Prism (235 total files, 227 active, 6 removed, 2 retired), organized by BC ID. Note: 5 prior index-only reserved entries (BC-2.07.007/008/009/010, BC-2.14.011) were dropped — they never had corresponding files.
+Flat index of all 236 behavioral contracts for Prism (236 total files, 235 active, 6 removed, 3 retired), organized by BC ID. Note: 5 prior index-only reserved entries (BC-2.07.007/008/009/010, BC-2.14.011) were dropped — they never had corresponding files.
 
 **Note on `total_contracts`:** This count represents unique BC identifiers ever filed
 (active + removed + retired = 235). Five prior index-only reserved entries
@@ -212,13 +212,13 @@ Phase 3-patch additions (2026-04-16): 22 new BCs added in Burst 1 to close trace
 | BC-2.16.008 | `add_sensor_spec` MCP Tool — Upload a New Sensor Spec at Runtime | 16 - Spec Engine | CAP-029, CAP-030 | P0 | draft |
 | BC-2.16.009 | Spec File Validation — Schema Validation, Variable Reference Resolution, OCSF Field Validation | 16 - Spec Engine | CAP-029 | P0 | draft |
 | BC-2.16.010 | `list_sensor_specs` MCP Tool — List Loaded Sensor Specs with Table Schemas and Status | 16 - Spec Engine | CAP-029 | P0 | draft |
-| BC-2.17.001 | Plugin Panic Isolation — Crashed Plugin Does Not Terminate Host Process | 17 - WASM Plugin Runtime | CAP-032 | P0 | draft (lifecycle_status: draft — Path B: BC-INDEX draft; no POL-14 merge event; corrected fix-burst-7 stage 1A) | v1.3 |
-| BC-2.17.002 | Plugin Sandbox — No Direct Filesystem or Network Access | 17 - WASM Plugin Runtime | CAP-032 | P0 | draft (lifecycle_status: draft — Path B: BC-INDEX draft; no POL-14 merge event; corrected fix-burst-7 stage 1A) | v1.7 |
-| BC-2.17.003 | Plugin Sandbox — Memory Limit Enforced Per Plugin Instance (default 64MB) | 17 - WASM Plugin Runtime | CAP-032 | P0 | draft (lifecycle_status: draft — Path B: BC-INDEX draft; no POL-14 merge event; corrected fix-burst-7 stage 1A) | v1.4 |
-| BC-2.17.004 | Plugin Sandbox — CPU Time Limit Enforced via Epoch Interruption (default 5s) | 17 - WASM Plugin Runtime | CAP-032 | P0 | draft (lifecycle_status: draft — Path B: BC-INDEX draft; no POL-14 merge event; corrected fix-burst-7 stage 1A) | v1.4 |
+| BC-2.17.001 | Plugin Panic Isolation — Crashed Plugin Does Not Terminate Host Process | 17 - WASM Plugin Runtime | CAP-032 | P0 | active (POL-14 auto-promotion D-568 S-PLUGIN-PREREQ-D merge PR #149 ec90fe8f 2026-05-15) | v1.4 |
+| BC-2.17.002 | Plugin Sandbox — No Direct Filesystem or Network Access | 17 - WASM Plugin Runtime | CAP-032 | P0 | active (POL-14 auto-promotion D-568 S-PLUGIN-PREREQ-D merge PR #149 ec90fe8f 2026-05-15) | v1.8 |
+| BC-2.17.003 | Plugin Sandbox — Memory Limit Enforced Per Plugin Instance (default 64MB) | 17 - WASM Plugin Runtime | CAP-032 | P0 | active (POL-14 auto-promotion D-568 S-PLUGIN-PREREQ-D merge PR #149 ec90fe8f 2026-05-15) | v1.5 |
+| BC-2.17.004 | Plugin Sandbox — CPU Time Limit Enforced via Epoch Interruption (default 5s) | 17 - WASM Plugin Runtime | CAP-032 | P0 | active (POL-14 auto-promotion D-568 S-PLUGIN-PREREQ-D merge PR #149 ec90fe8f 2026-05-15) | v1.5 |
 | BC-2.17.005 | Plugin Hot Reload — Atomic Module Swap, In-Flight Calls Complete Against Old Version | 17 - WASM Plugin Runtime | CAP-030, CAP-032 | P0 | draft |
-| BC-2.17.006 | WIT Interface Validation Before Plugin Registration | 17 - WASM Plugin Runtime | CAP-032 | P0 | draft (lifecycle_status: draft — Path B: BC-INDEX draft; no POL-14 merge event; corrected fix-burst-7 stage 1A) | v1.4 |
-| BC-2.17.007 | Plugin Manifest Schema Validation Before WIT Validation | 17 - WASM Plugin Runtime | CAP-032 | P0 | draft (lifecycle_status: draft — Path B: BC-INDEX draft; no POL-14 merge event; corrected fix-burst-7 stage 1A) | v1.4 |
+| BC-2.17.006 | WIT Interface Validation Before Plugin Registration | 17 - WASM Plugin Runtime | CAP-032 | P0 | active (POL-14 auto-promotion D-568 S-PLUGIN-PREREQ-D merge PR #149 ec90fe8f 2026-05-15) | v1.5 |
+| BC-2.17.007 | Plugin Manifest Schema Validation Before WIT Validation | 17 - WASM Plugin Runtime | CAP-032 | P0 | active (POL-14 auto-promotion D-568 S-PLUGIN-PREREQ-D merge PR #149 ec90fe8f 2026-05-15) | v1.5 |
 | BC-2.18.001 | Alert and Case Action Triggers — At-Least-Once Delivery with Exponential Backoff Retry | 18 - Action Delivery Engine | CAP-033 | P0 | draft |
 | BC-2.18.002 | Schedule Action Triggers — Best-Effort, Retry on Next Cron Tick | 18 - Action Delivery Engine | CAP-033 | P0 | draft |
 | BC-2.18.003 | Manual Action Triggers — Fire-and-Forget, Result Returned Immediately to AI Caller | 18 - Action Delivery Engine | CAP-033 | P0 | draft |
@@ -360,6 +360,8 @@ Phase 3-patch additions (2026-04-16): 22 new BCs added in Burst 1 to close trace
 - Subsystem 19: Infusion Enrichment Framework (AD-020, CAP-031)
 
 ### Change Log (Adversarial Review Fixes)
+
+**v4.80 (2026-05-15):** state-manager | D-568 POL-14 BC promotions for S-PLUGIN-PREREQ-D merge (PR #149, squash ec90fe8f, 2026-05-15T19:08:45Z): BC-2.17.001 v1.3→v1.4 (draft→active); BC-2.17.002 v1.7→v1.8 (draft→active); BC-2.17.003 v1.4→v1.5 (draft→active); BC-2.17.004 v1.4→v1.5 (draft→active); BC-2.17.006 v1.4→v1.5 (draft→active); BC-2.17.007 v1.4→v1.5 (draft→active). 6 BCs promoted draft→active. active_contracts 229→235. total_contracts=236 unchanged.
 
 **v4.79 (2026-05-14):** implementer | F-PASS3-HIGH-001 closure: BC-2.16.002 v1.16→v1.17 — add `plugin_log_level_unrecognized` catalog row (row 32; emitted by host::log callback on unrecognized WIT enum log-level name; fields: plugin_id, received_name; audit role: operational observability; forward-compat safe-default to Info after emission). Catalog intro updated v1.16→v1.17; count 31→32. BC-INDEX row annotation v1.16→v1.17. Closes F-PASS3-HIGH-001 (SOUL.md #4 observability; PG-LP11-001 SOP). | D-TBD
 **v4.78 (2026-05-14):** implementer | F-PASS2-HIGH-001 closure: BC-2.16.002 v1.15→v1.16 (prose intro catalog version label and count corrected: v1.12→v1.16, 25→31 events — TD-VSDD-060 sibling-sweep gap from 3 prior amendments missed the intro line). BC-INDEX `timestamp:` Z suffix added (POL-20 ISO-8601 compliance, MED-004 closure). BC-INDEX row v1.15→v1.16 annotation sync. | D-549

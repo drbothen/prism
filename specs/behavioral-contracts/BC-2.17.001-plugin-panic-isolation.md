@@ -1,17 +1,21 @@
 ---
 document_type: behavioral-contract
 level: L3
-version: "1.3"
-status: draft
+version: "1.4"
+status: active
 producer: product-owner
 timestamp: 2026-04-16T12:00:00
 phase: 2-patch
 origin: greenfield
 subsystem: "SS-17"
 capability: "CAP-032"
-lifecycle_status: draft
+lifecycle_status: active
 introduced: cycle-1
-modified: 2026-05-13
+modified: 2026-05-15
+promoted_to_active_at: 2026-05-15
+promoted_via_story: S-PLUGIN-PREREQ-D
+promoted_via_pr: '#149'
+promoted_via_merge_sha: ec90fe8f
 deprecated: ~
 deprecated_by: ~
 replacement: ~
@@ -127,6 +131,7 @@ Integration test: `tests/plugin_tests.rs` — "Simulate plugin trap → verify E
 
 | Version | Burst | Date | Author | Change |
 |---------|-------|------|--------|--------|
+| 1.4 | state(D-568) | 2026-05-15 | state-manager | POL-14 auto-promotion at S-PLUGIN-PREREQ-D merge (PR #149, ec90fe8f, 2026-05-15): `status: draft` → `status: active`; `lifecycle_status: draft` → `lifecycle_status: active`; `promoted_to_active_at: 2026-05-15`; `promoted_via_story: S-PLUGIN-PREREQ-D`; `promoted_via_pr: '#149'`; `promoted_via_merge_sha: ec90fe8f`. BC-INDEX v4.79→v4.80 row status flip (6 BCs total). |
 | 1.3 | fix-burst-7-stage-1A | 2026-05-13 | product-owner | F-LP8-HIGH-001 closure (Path B): `lifecycle_status: active` → `lifecycle_status: draft`. BC-INDEX v4.68 rows confirm `draft` status for this BC; S-PLUGIN-PREREQ-D is pre-merge — no story PR has merged with this BC in its `behavioral_contracts:` array. `lifecycle_status: active` was set in Wave-6-pre-build-sweep v1.1 pre-POL-14 canonicalization (legacy artifact). Per POL-14 (`bc_vp_promotion_on_anchor_merge`), auto-promotion to `active` will occur at S-PLUGIN-PREREQ-D PR merge. |
 | 1.2 | pass-69-housekeeping | 2026-04-20 | product-owner | Resolved VP-TBD placeholder per decision matrix (MARK-NONE); normalized changelog schema to canonical 5-col form. |
 | 1.1 | Wave-6-pre-build-sweep | 2026-04-20 | product-owner | Added frontmatter (inputs, input-hash, traces_to, extracted_from, lifecycle fields); renamed Error Cases → Error Conditions; added Canonical Test Vectors, Verification Properties, Changelog |

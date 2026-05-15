@@ -4170,3 +4170,104 @@ pr-manager Step 7 dispatch ready. Expected PR lifecycle: create PR targeting dev
 | `state_v` / `handoff_v` | **7.272** |
 | factory-artifacts HEAD | run `git -C .factory log -1 --format=%H` (D-567 is this commit) |
 | test baseline | 34/34 plugin_integration_tests PASS (UNCHANGED) |
+
+---
+
+## §S-PLUGIN-PREREQ-D MERGED — STORY COMPLETE (D-568 — 2026-05-15)
+
+### MILESTONE: Story Merged to develop at ec90fe8f
+
+**PR #149 squash-merged to develop at `ec90fe8f` on 2026-05-15T19:08:45Z.** Remote branch `feature/S-PLUGIN-PREREQ-D` deleted. All 8 steps of per-story-delivery COMPLETE.
+
+### PR Final Disposition
+
+| Field | Value |
+|-------|-------|
+| PR | #149 |
+| Title | `feat(S-PLUGIN-PREREQ-D): plugin runtime boot wiring (18 ACs; 25 Red Gate tests; 3-CLEAN converged) (#149)` |
+| Squash-merge SHA | `ec90fe8f397610d9ce9bd8564ac55123d7dbfdd1` |
+| Merged at | 2026-05-15T19:08:45Z |
+| develop HEAD before | 95d46be2 |
+| develop HEAD after | ec90fe8f |
+| Remote branch | DELETED (feature/S-PLUGIN-PREREQ-D — 404 post-merge) |
+| Local worktree | `.worktrees/S-PLUGIN-PREREQ-D/` — still mounted (Step 9 cleanup pending) |
+| CI checks green | 18/18 at e57d0929 (Fuzz smoke + 5 test platforms + semver + audit + deny + clippy + fmt + perimeter gates + workspace layout + workflow structure) |
+| pr-reviewer | APPROVE (4 cycles) |
+| code-reviewer | APPROVE |
+| security-reviewer | PASSED |
+
+### Full Per-Story-Delivery 8-Step Summary
+
+| Step | Status | D-NNN |
+|------|--------|-------|
+| Step 1: devops-engineer worktree | ✅ COMPLETE | D-546 |
+| Step 2: test-writer Red Gate stubs | ✅ COMPLETE | D-546 |
+| Step 3: implementer TDD green | ✅ COMPLETE | D-547..D-562 (8 BLOCKED + 8 fix-bursts) |
+| Step 4: LOCAL adversary 3-CLEAN | ✅ COMPLETE | D-565 (impl-pass-11; 3/3 CONVERGED) |
+| Step 5: demo-recorder per-AC | ✅ COMPLETE | D-566 (19 files; 18 ACs + evidence-report.md) |
+| Step 6: devops-engineer push | ✅ COMPLETE | D-567 (45ebc198; pre-push hook PASS 3645/3645) |
+| Step 7: pr-manager 9-step PR lifecycle | ✅ COMPLETE | PR #149; 4-cycle pr-reviewer APPROVE; squash-merge ec90fe8f |
+| Step 8: post-merge state burst | ✅ COMPLETE | D-568 ← THIS BURST |
+
+### Cumulative Cascade Summary
+
+| Metric | Value |
+|--------|-------|
+| Adversary passes (LOCAL spec cascade) | 43 (passes 1-43; 3-CLEAN window at passes 41+42+43) |
+| Adversary passes (impl cascade) | 11 (passes 1-11; 3-CLEAN window at passes 9+10+11) |
+| Fix-bursts (spec cascade) | 37 (fix-burst-1 through fix-burst-37) |
+| Fix-bursts (impl cascade) | 8 (fix-burst-impl-1 through fix-burst-impl-8) |
+| Total findings closed (impl cascade) | 47 |
+| 3-CLEAN convergence at | impl-pass-11 (D-565) |
+| ACs satisfied | 18 of 18 |
+| Red Gate tests | 25 (7 prism-bin + 18 prism-spec-engine) |
+| Demo evidence | 19 files at docs/demo-evidence/S-PLUGIN-PREREQ-D/ (18 AC-NN-*.* + evidence-report.md) |
+
+### POL-14 BC Promotions (D-568 Burst)
+
+| BC | Title | Version | Promoted from | Promoted to |
+|----|-------|---------|---------------|-------------|
+| BC-2.17.001 | Plugin Panic Isolation | v1.3 → v1.4 | draft | active |
+| BC-2.17.002 | Plugin Sandbox — No Direct Filesystem or Network Access | v1.7 → v1.8 | draft | active |
+| BC-2.17.003 | Plugin Sandbox — Memory Limit (64MB) | v1.4 → v1.5 | draft | active |
+| BC-2.17.004 | Plugin Sandbox — CPU Time Limit (5s epoch) | v1.4 → v1.5 | draft | active |
+| BC-2.17.006 | WIT Interface Validation Before Plugin Registration | v1.4 → v1.5 | draft | active |
+| BC-2.17.007 | Plugin Manifest Schema Validation Before WIT Validation | v1.4 → v1.5 | draft | active |
+
+BC-INDEX v4.79→v4.80 (active_contracts 229→235).
+
+### 31 Codification Candidates Queued Cycle-Close Session-Reviewer
+
+PG-IMPL-LP2-001..005 + PG-IMPL-LP3/4/5/6/7-001 + 17 prior spec cascade codification candidates. Session-reviewer adjudicates at cycle-close: codify / stable-convention / close.
+
+### 8 Phase-5 Deferred Findings Carry-Forward
+
+| Finding | Routing |
+|---------|---------|
+| OBS-LP35-001 | verification-architecture.md + ADR-023 pre-AC-7 sites |
+| OBS-LP36-002 | BC-INDEX prose vs frontmatter count drift (system-level) |
+| F-LP12-OBS-001 | pre-D-529 deferred |
+| F-LP16-OBS-001 | pre-D-529 deferred |
+| F-LP19-LOW-002 | pre-D-529 deferred |
+| F-LP22-OBS-001 | pre-D-529 deferred |
+| F-LP25-OBS-001 | pre-D-529 deferred |
+| F-LP28-OBS-001 | pre-D-529 deferred |
+
+### PREREQ-E Next per Wave 0 Dependency Chain
+
+After Step 9 worktree cleanup + cycle-close session-reviewer: PREREQ-E (Un-seal SensorAuth + Deprecate/Remove CustomAdapter Rust Trait + migrate spec_parser.rs call sites to PluginRegistry). After PREREQ-E lands: PLUGIN-MIGRATION-001-A/B/C/D unblocked.
+
+### Durable Pins (D-568)
+
+| Field | Value |
+|-------|-------|
+| `develop_head` | `ec90fe8f` |
+| `per_story_delivery_steps_complete` | **8/8 — ALL COMPLETE** |
+| `codification_queue` | 31 (queued cycle-close session-reviewer) |
+| `story_v` | 1.38 (status: merged) |
+| `story_index_v` | v2.108 |
+| `bc_index_v` | v4.80 |
+| `active_contracts` | 235 |
+| `state_v` / `handoff_v` | **7.273** |
+| factory-artifacts HEAD | run `git -C .factory log -1 --format=%H` (D-568 is this commit) |
+| test baseline | 34/34 plugin_integration_tests PASS |

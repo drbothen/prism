@@ -5,7 +5,10 @@ title: "prism-bin/prism-spec-engine: Wire PluginRuntime into Boot Sequence; .prx
 wave: 0
 epic_id: PLUGIN-MIGRATION-001
 priority: P0
-status: draft
+status: merged
+merged_at: 2026-05-15
+merged_via_pr: '#149'
+merged_via_sha: ec90fe8f
 # BC status: behavioral_contracts populated — BC-2.16.002 (Structured Event Catalog /
 #            PipelineExecutor multi-step fetch — active since PREREQ-B merge; PREREQ-D
 #            adds 9 new event_type rows and enforces MAX_REQUESTS_PER_PIPELINE cap),
@@ -53,11 +56,12 @@ target_module: prism-bin
 #   subsystems: [SS-16, SS-01], any story anchoring BC-2.16.002 must list SS-16.
 subsystems: [SS-22, SS-17, SS-16]
 capabilities: [CAP-029, CAP-032, CAP-034]
-version: "1.37"
+version: "1.38"
 level: "L4"
 producer: story-writer
 timestamp: "2026-05-14T13:00:00Z"
 updated: "2026-05-15"
+# POST-MERGE: v1.38 — status: draft → merged; develop HEAD 95d46be2→ec90fe8f; PR #149 squash-merged 2026-05-15T19:08:45Z
 input-hash: "6954524"
 traces_to: []
 cycle: "v1.0.0-greenfield"
@@ -1049,6 +1053,7 @@ Do NOT invent version numbers. All versions above are confirmed from `crates/pri
 
 | Version | Burst | Date | Author | Change |
 |---------|-------|------|--------|--------|
+| 1.38 | state(D-568) | 2026-05-15 | state-manager | POST-MERGE status flip: `status: draft` → `status: merged`; `merged_at: 2026-05-15`; `merged_via_pr: '#149'`; `merged_via_sha: ec90fe8f`. develop HEAD 95d46be2→ec90fe8f. PR #149 squash-merged 2026-05-15T19:08:45Z; remote branch `feature/S-PLUGIN-PREREQ-D` deleted. POL-14 BC promotions in same burst: BC-2.17.001 v1.3→v1.4 (draft→active); BC-2.17.002 v1.7→v1.8 (draft→active); BC-2.17.003 v1.4→v1.5 (draft→active); BC-2.17.004 v1.4→v1.5 (draft→active); BC-2.17.006 v1.4→v1.5 (draft→active); BC-2.17.007 v1.4→v1.5 (draft→active). BC-INDEX v4.79→v4.80 (6 row status flips; active_contracts 229→235). STORY-INDEX v2.107→v2.108 (PREREQ-D row merged status). Cumulative cascade: 11 adversary passes + 8 fix-bursts + 47 findings closed + 3-CLEAN convergence at impl-pass-11; 18 ACs satisfied; 25 Red Gate tests pass; 18 AC demo evidence; 4-cycle pr-reviewer APPROVE; 18 CI checks green at e57d0929. v1.37→v1.38. |
 | 1.37 | S-PLUGIN-PREREQ-D-fix-burst-impl-7 | 2026-05-15 | story-writer | F-PASS7-MED-001 closure: Fixture Strategy table extended for 5th fixture `component_model_dispatch.prx`. Updated Task 13 enumeration count (4→5; appended component_model_dispatch.prx), Strategy decision header count (4→5), and Strategy table (5th row with build recipe reference). Token Budget: story-spec row 8,100→8,200; WAT sources row updated to "5 fixture source files × ~50 LOC each" (~1,000); Total 42,400→42,700; pct 16.6%→16.7%. Closes the predicted scope gap from impl-pass-6 dispatch brief (story file was excluded from fix-burst-impl-6 implementer scope; fix-burst-impl-6 story-writer parallel dispatch didn't cover Strategy table extension either). Sibling-sweep: 0 active-body "all 4 .prx" / "4 fixtures" hits remaining after sweep (1 historical changelog hit in v1.1 row — acceptable). PG-IMPL-LP6-002 codification candidate (story-side sibling-sweep on cycle-introduced new fixture commits) directly addressed by this burst. v1.36→v1.37. |
 | 1.36 | S-PLUGIN-PREREQ-D-fix-burst-impl-6 | 2026-05-15 | story-writer | F-PASS6-LOW-003 closure + PG-IMPL-LP6-003 frontmatter sync. LOW-003: story v1.34 changelog Burst column corrected from "S-PLUGIN-PREREQ-D-fix-burst-impl-3" to "S-PLUGIN-PREREQ-D-fix-burst-impl-4" (the BC row 32 addition was D-552/fix-burst-impl-3; the story-body sweep 12→13 + 13th row append was D-554/fix-burst-impl-4 per actual commit history; body prose narrative is correct, only Burst attribution was inverted). Frontmatter `updated: "2026-05-14"` → `"2026-05-15"` syncing with v1.35 changelog row date (PG-IMPL-LP6-003 frontmatter-modified discipline). v1.35→v1.36. |
 | 1.35 | S-PLUGIN-PREREQ-D-fix-burst-impl-5 | 2026-05-15 | implementer | F-PASS5-LOW-001/002 closure (cosmetic spec alignment). LOW-001 (STORY-INDEX attribution): F-PASS4-MED-001 story-body sibling-sweep was performed by fix-burst-impl-4 (D-554, b788d53c), not fix-burst-impl-3; fix-burst-impl-3 (D-552, d8f51552) added BC-2.16.002 v1.17 row 32. STORY-INDEX row annotation corrected to attribute each burst. LOW-002 (catalog row field asymmetry): `plugin_log_level_unrecognized` §Structured Event Catalog Additions row had `event_type` in the Fields column; removed per Option A (event_type is the row key, not a payload field; 12 sibling rows omit it; BC-2.16.002 v1.17 row 32 source-of-truth lists only `plugin_id, received_name`). v1.34→v1.35. |
