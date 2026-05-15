@@ -53,7 +53,7 @@ target_module: prism-bin
 #   subsystems: [SS-16, SS-01], any story anchoring BC-2.16.002 must list SS-16.
 subsystems: [SS-22, SS-17, SS-16]
 capabilities: [CAP-029, CAP-032, CAP-034]
-version: "1.33"
+version: "1.34"
 level: "L4"
 producer: story-writer
 timestamp: "2026-05-14T13:00:00Z"
@@ -257,7 +257,7 @@ this story being merged first.
 
 | BC | Title | Primary Coverage |
 |----|-------|-----------------|
-| BC-2.16.002 | Multi-Step Fetch Pipeline Execution — Sequential Steps with Variable Interpolation | AC-16 (MAX_REQUESTS_PER_PIPELINE cap; traces to BC-2.16.002 §Postconditions (Canonical Structured Event Catalog bullet) row pipeline_max_requests_exceeded); Structured Event Catalog Additions §intro (12 new event_type rows) |
+| BC-2.16.002 | Multi-Step Fetch Pipeline Execution — Sequential Steps with Variable Interpolation | AC-16 (MAX_REQUESTS_PER_PIPELINE cap; traces to BC-2.16.002 §Postconditions (Canonical Structured Event Catalog bullet) row pipeline_max_requests_exceeded); Structured Event Catalog Additions §intro (13 new event_type rows) |
 | BC-2.17.001 | Plugin Panic Isolation — Crashed Plugin Does Not Terminate Host Process | AC-10 (panic isolation via fresh Store per call) |
 | BC-2.17.002 | Plugin Sandbox — No Direct Filesystem or Network Access | AC-11 (WASI not linked; allowlist enforcement via host_http_request) |
 | BC-2.17.003 | Plugin Sandbox — Memory Limit Enforced Per Plugin Instance (default 64MB) | AC-12 (StoreLimits 64MB; configurable per manifest) |
@@ -665,7 +665,7 @@ Only the exact string `"1"` disables loading (EC-D-011: values like `"true"`, `"
 
 13. **[tests/fixtures] Commit all 4 `.prx` test fixtures** — `minimal.prx`, `trap_plugin.prx`, `infinite_loop.prx`, `bad_wit.prx` (pre-built binaries) plus WAT sources in `tests/fixtures/src/` — see Fixture Strategy
 
-14. **[prism-spec-engine] Verify Structured Event Catalog wiring** — emit each event from the function-name anchor recorded in BC-2.16.002 catalog row; if implementation discovers ANY new event_type site beyond the 12 already cataloged, amend BC-2.16.002 in the same commit per PG-LP11-001; see §Structured Event Catalog Additions for the canonical 12-row list and BC source-of-truth for Level/Emitter/Fields/Trigger
+14. **[prism-spec-engine] Verify Structured Event Catalog wiring** — emit each event from the function-name anchor recorded in BC-2.16.002 catalog row; if implementation discovers ANY new event_type site beyond the 13 already cataloged, amend BC-2.16.002 in the same commit per PG-LP11-001; see §Structured Event Catalog Additions for the canonical 13-row list and BC source-of-truth for Level/Emitter/Fields/Trigger
 
 15. **[tech-debt-register] Mark TD-S-PLUGIN-PREREQ-B-002/004/005/011/012 RESOLVED** (state-manager responsibility in same commit)
 
@@ -787,8 +787,8 @@ Red Gate density target: >= 15 failing tests before first implementation commit.
 
 Per BC-2.16.002 §Postconditions (Canonical Structured Event Catalog) and PG-LP11-001: every new
 `tracing::*!(event_type=…)` site introduced by this story is enumerated as a row in the
-BC-2.16.002 Canonical Structured Event Catalog. The 12 events below have already been
-added to BC-2.16.002 (7 in fix-burst-8; 2 in fix-burst-17; 3 in fix-burst-impl-1); the implementer's responsibility is
+BC-2.16.002 Canonical Structured Event Catalog. The 13 events below have already been
+added to BC-2.16.002 (7 in fix-burst-8; 2 in fix-burst-17; 3 in fix-burst-impl-1; 1 in fix-burst-impl-3); the implementer's responsibility is
 to ensure each emission site is wired correctly during S-PLUGIN-PREREQ-D implementation,
 with the BC-2.16.002 row as the source of truth for Level / Emitter / Fields / Trigger.
 
@@ -806,6 +806,7 @@ with the BC-2.16.002 row as the source of truth for Level / Emitter / Fields / T
 | `plugin_load_failed_manifest_parse_error` | ERROR | `PluginRuntime::load_all_plugins` | `plugin_path`, `error: E-PLUGIN-017`, `detail` | Companion `.manifest.toml` is present but fails TOML parse; plugin rejected (n-1 survivor) |
 | `plugin_load_failed_manifest_not_found` | ERROR | `PluginRuntime::load_all_plugins` | `plugin_path`, `expected_manifest_path`, `error: E-PLUGIN-018` | Plugin `.prx` found but no companion `.manifest.toml` exists; plugin rejected (n-1 survivor) |
 | `plugin_load_failed_format_version_missing` | ERROR | `PluginRuntime::load_all_plugins` | `plugin_path`, `supported`, `error: E-PLUGIN-019` | Manifest `format_version` field absent entirely; plugin rejected (n-1 survivor); distinct from exceeded (014) |
+| `plugin_log_level_unrecognized` | WARN | `register_host_functions` → host::log callback (Component Model) | `plugin_id`, `received_name` (the unrecognized enum string), `event_type` | Plugin passed an unrecognized log-level enum discriminant through the Component Model host::log callback; observability — surfaces plugin schema-violation attempts; first introduced in fix-burst-impl-3 (BC-2.16.002 v1.17 row 32) |
 
 The BC-2.16.002 catalog row is the authoritative source for each event's field schema,
 audit role, and recurrence policy. PG-LP11-001 requires that any new `event_type` sites added
@@ -951,12 +952,13 @@ In `crates/prism-bin/src/boot.rs`, the plugin-load step must be annotated with:
 Previous stories in this epic (PREREQ-A/B/C) established the following lessons that apply here:
 
 1. **PG-LP11-001: New structured event type sites MUST amend BC-2.16.002 in the same burst.**
-   This story introduced 12 new event types (see §Structured Event Catalog Additions). All 12 rows
+   This story introduced 13 new event types (see §Structured Event Catalog Additions). All 13 rows
    exist in BC-2.16.002 (Path B Canonical Structured Event Catalog: 7 rows added in
-   fix-burst-8; 2 for E-PLUGIN-015/016 in fix-burst-17; 3 for E-PLUGIN-017/018/019 in fix-burst-impl-1).
+   fix-burst-8; 2 for E-PLUGIN-015/016 in fix-burst-17; 3 for E-PLUGIN-017/018/019 in fix-burst-impl-1;
+   1 for plugin_log_level_unrecognized in fix-burst-impl-3).
    The implementer's responsibility is to wire each emission site to match the BC row metadata
    (Level/Emitter/Fields/Trigger). If implementation discovers ANY new event_type site beyond the
-   12 cataloged, amend BC-2.16.002 in the same commit per PG-LP11-001 invariant.
+   13 cataloged, amend BC-2.16.002 in the same commit per PG-LP11-001 invariant.
 
 2. **Volatile pin discipline:** Do not add `# volatile pin` comments to wasmtime or any other
    dep without explicit architect approval. The wasmtime 44 pin has an explicit RUSTSEC rationale
@@ -1046,6 +1048,7 @@ Do NOT invent version numbers. All versions above are confirmed from `crates/pri
 
 | Version | Burst | Date | Author | Change |
 |---------|-------|------|--------|--------|
+| 1.34 | S-PLUGIN-PREREQ-D-fix-burst-impl-3 | 2026-05-14 | story-writer | F-PASS4-MED-001 closure: §Structured Event Catalog Additions count drift 12→13 (sibling-sweep TD-VSDD-060). fix-burst-impl-3 added BC-2.16.002 v1.17 row 32 (`plugin_log_level_unrecognized`) but story body remained at "12 events". Updated count 12→13 at 4 active-body sites: BC table intro (line 260 primary-coverage cell), Task 14 (12→13 in "beyond the N already cataloged" + "canonical N-row list"), §Structured Event Catalog Additions preamble ("The 12 events" → "The 13 events"; added fix-burst-impl-3 attribution), §Previous Story Intelligence item 1 (12→13 in narrative + per-burst breakdown). Appended 13th catalog row for `plugin_log_level_unrecognized` (WARN, register_host_functions → host::log callback, fields: plugin_id + received_name + event_type, observability — surface plugin schema-violation attempts) mirroring BC-2.16.002 v1.17 row 32 schema exactly. Sibling-sweep grep `"12 event\|12 new event\|12 structured\|12 catalog\|12 row\|12 already\|12-row"` — 0 active-body hits remaining; 1 historical hit in v1.33 changelog (correct). Traces to: F-PASS4-MED-001, BC-2.16.002 v1.17. v1.33→v1.34. |
 | 1.33 | S-PLUGIN-PREREQ-D-fix-burst-impl-2 | 2026-05-14 | implementer | F-PASS2-MED-002 closure: 12 active-body occurrences of `BC-2.16.002 v1.12` version pin replaced with `BC-2.16.002 v1.16` per TD-VSDD-091 anti-volatile-pin (de-pinned to version-neutral anchors where appropriate; updated to current v1.16 in source-of-truth table citations). F-PASS2-MED-003 closure: §Structured Event Catalog Additions updated — count 9→12; added 3 rows for `plugin_load_failed_manifest_parse_error` (E-PLUGIN-017), `plugin_load_failed_manifest_not_found` (E-PLUGIN-018), `plugin_load_failed_format_version_missing` (E-PLUGIN-019) added in fix-burst-impl-1. Preamble updated to reflect 12 events from 3 fix-bursts. Task 14 count 9→12. Previous Story Intelligence item 1 count 9→12, version pin de-pinned. BC table intro count 9→12. F-PASS2-LOW-001 closure: story frontmatter uses `updated:` not `modified:` — this is intentional schema distinction (stories use `updated:`, BCs use `modified:`) confirmed by checking sibling stories S-PLUGIN-PREREQ-C; `updated:` field left unchanged; distinction codified in this changelog row. v1.32→v1.33. |
 | 1.32 | fix-burst-32 | 2026-05-14 | story-writer | F-LP34-HIGH-001: §Changelog table row-delimiter corruption fixed — lines 1055 (4 rows: v1.22+v1.21+v1.20+v1.19) and 1056 (3 rows: v1.18+v1.17+v1.16) had multiple changelog rows concatenated without inter-row newlines; each row now occupies its own physical line per markdown-table integrity convention. F-LP34-MED-001: 3rd fix-burst-closure-introduced drift instance — fix-burst-31 introduced `§Canonical Structured Event Catalog` as anchor; pass-34 found this is a bold-labeled bullet within BC-2.16.002 §Postconditions (line 74), not a `##` section heading. 4 active-body sites (lines 260, 300, 466, 918) replaced with `§Postconditions (Canonical Structured Event Catalog bullet)` anchor making the actual ## ancestry visible. F-LP34-OBS-001 (Codification #14 refinement re: bold-labeled bullets) and F-LP34-OBS-002 (markdown-table integrity sweep) routed cycle-close. F-LP34-LOW-001 (VP-INDEX "not-None" Option-semantics drift) handled by state-manager in Burst S closure. Closure justification: production-grade default; zero scope expansion (story-only edits). |
 | 1.31 | fix-burst-31 | 2026-05-14 | story-writer | F-LP33-MED-001: AC-9 trace header line 373 stale BC-2.17.002 v1.6 pin updated to v1.7 (8th instance of version-pin sibling-prose drift in cascade; pass-33 surfacing). F-LP33-MED-002: E-PLUGIN-013 message template aligned to canonical backtick form: story line 906 (single-quoted → double-backtick-fenced backticks) + story line 323 (no-delim → backtick-fenced inline). F-LP33-LOW-001: "catalog discipline" 2 active-body sites (lines 300–301, 357) replaced with resolvable anchors per Codification #14 (phantom-section-anchor sweep): line 300–301 uses precise form `§Canonical Structured Event Catalog (row plugin_load_unsigned Trigger cell)` (first occurrence, anchor established); line 357 uses lighter form `catalog routing convention` (back-reference in AC-7, anchor already established upstream). Sibling-site sweep results: (1) `BC-2.17.002 v1.[0-6]` active body — ZERO stale pins (lines 418/999 are legitimate historical references within §BC Amendments Landed and versioned narrative prose); (2) `catalog discipline` active body — ZERO hits (changelog rows 1.22/1.13/1.11 are historical); (3) `use allowed_urls = []` without backticks active body — ZERO hits (lines 322, 905 both use canonical backtick form). Closure justification: production-grade default (no LOW deferral); zero scope expansion (story-only edits). |
