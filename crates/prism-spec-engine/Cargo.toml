@@ -99,14 +99,18 @@ name = "hot_reload_tests"
 path = "tests/hot_reload_tests.rs"
 
 # S-PLUGIN-PREREQ-B: VP-PLUGIN-002 wiremock integration tests
+# required-features: uses MockAuthProvider / NullAuthProvider (test-helpers feature-gated)
 [[test]]
 name = "pipeline_http_integration"
 path = "tests/pipeline_http_integration.rs"
+required-features = ["test-helpers"]
 
 # S-PLUGIN-PREREQ-B: VP-PLUGIN-005 401-retry integration tests
+# required-features: uses MockAuthProvider (test-helpers feature-gated)
 [[test]]
 name = "pipeline_oauth_retry"
 path = "tests/pipeline_oauth_retry.rs"
+required-features = ["test-helpers"]
 
 # S-PLUGIN-PREREQ-C: AC-1 Red Gate — page_size on CursorToken first-call
 [[test]]
@@ -119,11 +123,15 @@ name = "proptest_AC_3"
 path = "tests/proptest_AC_3.rs"
 
 # S-PLUGIN-PREREQ-D: existing plugin sandbox / host_function integration tests
+# required-features: uses HostState::test_with_allowed_urls (test-helpers feature-gated)
 [[test]]
 name = "plugin_tests"
 path = "tests/plugin_tests.rs"
+required-features = ["test-helpers"]
 
 # S-PLUGIN-PREREQ-D: new plugin integration tests (boot wiring, manifest validation, etc.)
+# required-features: uses HostState::test_with_allowed_urls / test_with_plugin_id (test-helpers)
 [[test]]
 name = "plugin_integration_tests"
 path = "tests/plugin_integration_tests.rs"
+required-features = ["test-helpers"]

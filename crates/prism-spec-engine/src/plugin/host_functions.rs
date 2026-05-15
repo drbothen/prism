@@ -314,25 +314,105 @@ pub fn register_host_functions(
     // ------ host::http-request ------
     // Signature (WIT-compatible):
     //   (method: string, url: string, headers: list<tuple<string,string>>, body: option<list<u8>>)
-    //   -> (status: u16, headers: list<tuple<string,string>>, body: list<u8>)
+    //   -> (status: u32, response_headers: list<tuple<string,string>>, body: list<u8>)
     //
-    // The Val-based implementation delegates to `host_http_request`.
-    // Full parameter deserialization (Val → typed args) is completed in S-4.08-manifest-embedding
-    // when WIT bindgen is wired. This registration satisfies the Component Model Linker so
-    // that production `.prx` files with `import host: {http-request: func(...)}` can be
-    // pre-instantiated without "unsatisfied import" errors (AC-8 / INV-PLUGIN-002).
+    // Note: WIT `u16` maps to Val::U32 in wasmtime's Component Model Val representation.
+    // Note: WIT `list<u8>` maps to Val::List(Vec<Val::U8(_)>).
+    // Note: WIT `tuple<string,string>` maps to Val::Tuple(vec![Val::String, Val::String]).
+    //
+    // Delegates to `host_http_request` — the allowlist gate (AC-7 / VP-PLUGIN-007) and
+    // 30-second timeout enforcement (AC-9) are exercised through this call path.
     host.func_new(
         "http-request",
         |ctx: StoreContextMut<'_, HostState>,
          _func_type: ComponentFunc,
-         _params: &[Val],
-         _results: &mut [Val]| {
+         params: &[Val],
+         results: &mut [Val]| {
+            // Deserialize params: (method: string, url: string,
+            //   headers: list<tuple<string,string>>, body: option<list<u8>>)
+            let method = match params.first() {
+                Some(Val::String(s)) => s.as_str().to_string(),
+                _ => "GET".to_string(),
+            };
+            let url = match params.get(1) {
+                Some(Val::String(s)) => s.as_str().to_string(),
+                _ => String::new(),
+            };
+            // headers: list<tuple<string,string>>
+            let headers: Vec<(String, String)> = match params.get(2) {
+                Some(Val::List(items)) => items
+                    .iter()
+                    .filter_map(|item| match item {
+                        Val::Tuple(fields)
+                            if matches!(
+                                (fields.first(), fields.get(1)),
+                                (Some(Val::String(_)), Some(Val::String(_)))
+                            ) =>
+                        {
+                            match (fields.first(), fields.get(1)) {
+                                (Some(Val::String(k)), Some(Val::String(v))) => {
+                                    Some((k.as_str().to_string(), v.as_str().to_string()))
+                                }
+                                _ => None,
+                            }
+                        }
+                        _ => None,
+                    })
+                    .collect(),
+                _ => vec![],
+            };
+            // body: option<list<u8>>
+            let body: Option<Vec<u8>> = match params.get(3) {
+                Some(Val::Option(Some(inner))) => {
+                    if let Val::List(bytes) = inner.as_ref() {
+                        Some(
+                            bytes
+                                .iter()
+                                .filter_map(|b| {
+                                    if let Val::U8(byte) = b {
+                                        Some(*byte)
+                                    } else {
+                                        None
+                                    }
+                                })
+                                .collect(),
+                        )
+                    } else {
+                        None
+                    }
+                }
+                _ => None,
+            };
+
+            // Delegate to production allowlist gate + HTTP execution.
+            // AC-7: allowlist check runs here, not in a stub.
+            // AC-9: 30-second timeout is enforced by the shared reqwest::Client.
             let state = ctx.data();
-            trace!(
-                plugin_id = %state.plugin_id,
-                "host::http-request called (WIT binding; full Val dispatch in S-4.08)"
+            let response = host_http_request(state, &method, &url, headers, body);
+
+            // Serialize results: (status: u32, headers: list<tuple<string,string>>, body: list<u8>)
+            // Note: WIT u16 → Val::U32 in wasmtime 44 component model Val enum.
+            let status_val = Val::U32(u32::from(response.status));
+            let headers_val = Val::List(
+                response
+                    .headers
+                    .into_iter()
+                    .map(|(k, v)| Val::Tuple(vec![Val::String(k), Val::String(v)]))
+                    .collect(),
             );
-            // Results left as default — full response construction deferred to S-4.08.
+            let body_val = Val::List(response.body.into_iter().map(Val::U8).collect());
+
+            if results.len() >= 3 {
+                results[0] = status_val;
+                results[1] = headers_val;
+                results[2] = body_val;
+            } else if !results.is_empty() {
+                // Fallback: if the Component Model result type doesn't match the full
+                // tuple (e.g., simplified WIT with different binding), at minimum set
+                // the status code so the plugin can check for 403 allowlist rejection.
+                results[0] = status_val;
+            }
+
             Ok(())
         },
     )
@@ -340,6 +420,8 @@ pub fn register_host_functions(
 
     // ------ host::log ------
     // Signature: (level: u8, message: string) -> ()
+    //
+    // Delegates to `host_log` — the tracing-level dispatch (AC-8) runs through this call path.
     host.func_new(
         "log",
         |ctx: StoreContextMut<'_, HostState>,
@@ -347,11 +429,33 @@ pub fn register_host_functions(
          params: &[Val],
          _results: &mut [Val]| {
             let state = ctx.data();
+            // Deserialize level: u8 (mapped to WIT log-level enum ordinal)
+            // 0=Trace, 1=Debug, 2=Info, 3=Warn, 4=Error
+            let level = match params.first() {
+                Some(Val::U8(n)) => match n {
+                    0 => LogLevel::Trace,
+                    1 => LogLevel::Debug,
+                    2 => LogLevel::Info,
+                    3 => LogLevel::Warn,
+                    4 => LogLevel::Error,
+                    _ => LogLevel::Info,
+                },
+                Some(Val::U32(n)) => match n {
+                    0 => LogLevel::Trace,
+                    1 => LogLevel::Debug,
+                    2 => LogLevel::Info,
+                    3 => LogLevel::Warn,
+                    4 => LogLevel::Error,
+                    _ => LogLevel::Info,
+                },
+                _ => LogLevel::Info,
+            };
             let msg = match params.get(1) {
-                Some(Val::String(s)) => s.clone(),
+                Some(Val::String(s)) => s.as_str().to_string(),
                 _ => "<non-string log message>".to_string(),
             };
-            debug!(plugin_id = %state.plugin_id, message = %msg, "host::log called");
+            // Delegate to production host_log — tracing-level dispatch runs here.
+            host_log(state, level, &msg);
             Ok(())
         },
     )
@@ -405,12 +509,16 @@ pub fn register_host_functions(
 
     // ------ host::kv-set ------
     // Signature: (key: string, value: string) -> result<(), string>
+    //
+    // Delegates to `host_kv_set`. Errors are propagated via Val::Result — NOT silently
+    // discarded via `let _ = ...` (fixes F-PASS2-HIGH-003: Standing Rule 3 §2 violation).
+    // A plugin that attempts a >1MB write through host::kv-set sees an Err result.
     host.func_new(
         "kv-set",
         |ctx: StoreContextMut<'_, HostState>,
          _func_type: ComponentFunc,
          params: &[Val],
-         _results: &mut [Val]| {
+         results: &mut [Val]| {
             let state = ctx.data();
             let key = match params.first() {
                 Some(Val::String(s)) => s.as_str().to_string(),
@@ -420,7 +528,23 @@ pub fn register_host_functions(
                 Some(Val::String(s)) => s.as_str().to_string(),
                 _ => String::new(),
             };
-            let _ = host_kv_set(state, &key, &value);
+            // Delegate to production host_kv_set. Propagate Err as Val::Result(Err(..)).
+            // F-PASS2-HIGH-003: the prior `let _ = host_kv_set(...)` was a Standing Rule 3 §2
+            // violation — partial-failure data (KV limit exceeded) must propagate to the plugin.
+            match host_kv_set(state, &key, &value) {
+                Ok(()) => {
+                    if !results.is_empty() {
+                        // result<(), string>::Ok(()) — empty ok payload
+                        results[0] = Val::Result(Ok(None));
+                    }
+                }
+                Err(e) => {
+                    if !results.is_empty() {
+                        // result<(), string>::Err(error_message)
+                        results[0] = Val::Result(Err(Some(Box::new(Val::String(e.to_string())))));
+                    }
+                }
+            }
             Ok(())
         },
     )
