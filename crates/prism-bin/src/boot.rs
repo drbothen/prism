@@ -105,6 +105,10 @@ pub struct RunningServer {
 /// the blocking portion of the boot sequence.
 pub struct BootContext {
     pub config_dir: PathBuf,
+    /// RocksDB backend opened in step 6 (all CFs, including `audit_buffer`).
+    /// Threaded into step 7.5 (`plugin_load_step`) so the `RocksDbPluginAuditSink`
+    /// can write durable audit entries for each unsigned plugin load (HIGH-002 / AC-4).
+    pub rocksdb_backend: Arc<prism_storage::rocksdb_backend::RocksDbBackend>,
 }
 
 // ---------------------------------------------------------------------------
@@ -120,7 +124,7 @@ pub struct BootContext {
 /// function does NOT return — it calls `std::process::exit` with the mapped
 /// exit code per ADR-022 §A.
 pub async fn run_boot_sequence(config_dir: &Path) -> Result<RunningServer, BootError> {
-    let _ctx = boot_to_step_6(config_dir).await?;
+    let ctx = boot_to_step_6(config_dir).await?;
 
     // Step 2 re-loads config to obtain plugin_dir for step 7.5.
     // This is acceptable because step2_load_config is idempotent (pure read + validate).
@@ -133,7 +137,13 @@ pub async fn run_boot_sequence(config_dir: &Path) -> Result<RunningServer, BootE
     // Must run AFTER step 7 (storage init) and BEFORE step 8 (query-engine init).
     // The pre-traffic gate (AC-2): MCP server (step 9) does NOT bind before this completes.
     // ADR-023 §C4 + ADR-022 §B.
-    let _plugin_result = plugin_load_step(&config.plugin_dir).await?;
+    //
+    // HIGH-002 (F-IMPL-LP1-HIGH-002): wire RocksDbPluginAuditSink from step 6 backend
+    // so plugin load events are persisted durably to audit_buffer CF (not just tracing::warn!).
+    let plugin_audit_sink = Arc::new(crate::plugin_audit::RocksDbPluginAuditSink::new(
+        Arc::clone(&ctx.rocksdb_backend),
+    ));
+    let _plugin_result = plugin_load_step_with_audit(&config.plugin_dir, plugin_audit_sink).await?;
 
     // Steps 8–11 are todo!() stubs for sibling stories.
     step8_init_query_engine().await?;
@@ -244,7 +254,9 @@ pub async fn boot_to_step_6(config_dir: &Path) -> Result<BootContext, BootError>
 
     // Step 6: Init audit subsystem (full implementation per BC-2.05.012).
     // Opens RocksDB, confirms audit_buffer CF writable, writes sentinel durably.
-    let _audit_backend = step6_init_audit(&config)?;
+    // HIGH-002 (F-IMPL-LP1-HIGH-002): retain the backend in BootContext so step 7.5
+    // can wire it into RocksDbPluginAuditSink for durable plugin load audit entries.
+    let audit_backend = step6_init_audit(&config)?;
 
     // -------------------------------------------------------------------------
     // Test gate: PRISM_TEST_STOP_AFTER_STEP=6
@@ -297,6 +309,7 @@ pub async fn boot_to_step_6(config_dir: &Path) -> Result<BootContext, BootError>
 
     Ok(BootContext {
         config_dir: config_dir.to_path_buf(),
+        rocksdb_backend: audit_backend,
     })
 }
 
@@ -849,6 +862,25 @@ pub struct PluginLoadResult {
 /// Per-plugin load failures do NOT cause this function to fail — the n-1 survivor rule
 /// applies inside `load_all_plugins`.
 pub async fn plugin_load_step(plugin_dir: &Path) -> Result<PluginLoadResult, BootError> {
+    plugin_load_step_with_audit(
+        plugin_dir,
+        prism_spec_engine::plugin_audit_sink::noop_sink(),
+    )
+    .await
+}
+
+/// Core implementation of the plugin-load step with injectable audit sink.
+///
+/// The production boot path (run_boot_sequence) calls this with a
+/// `RocksDbPluginAuditSink` wired from the step 6 `Arc<RocksDbBackend>`.
+/// Integration tests call `plugin_load_step` which passes a `NoOpPluginAuditSink`.
+///
+/// This separation closes HIGH-002 (F-IMPL-LP1-HIGH-002) without breaking
+/// existing tests that don't have RocksDB available.
+pub async fn plugin_load_step_with_audit(
+    plugin_dir: &Path,
+    audit_sink: Arc<dyn prism_spec_engine::plugin_audit_sink::PluginLoadAuditSink>,
+) -> Result<PluginLoadResult, BootError> {
     use prism_spec_engine::plugin::{PluginRuntime, PLUGIN_HTTP_CLIENT_TIMEOUT_SECS};
     use std::time::Duration;
 
@@ -874,8 +906,8 @@ pub async fn plugin_load_step(plugin_dir: &Path) -> Result<PluginLoadResult, Boo
                 ))
             })?;
 
-        let runtime =
-            PluginRuntime::new(http_client).map_err(|e| BootError::InternalError(e.to_string()))?;
+        let runtime = PluginRuntime::new_with_audit_sink(http_client, audit_sink)
+            .map_err(|e| BootError::InternalError(e.to_string()))?;
 
         return Ok(PluginLoadResult {
             runtime: Arc::new(runtime),
@@ -897,9 +929,10 @@ pub async fn plugin_load_step(plugin_dir: &Path) -> Result<PluginLoadResult, Boo
             ))
         })?;
 
-    // AC-9: Inject the single shared client into PluginRuntime::new().
-    let runtime =
-        PluginRuntime::new(http_client).map_err(|e| BootError::InternalError(e.to_string()))?;
+    // AC-9: Inject the single shared client + audit sink into PluginRuntime::new_with_audit_sink.
+    // HIGH-002 (F-IMPL-LP1-HIGH-002): production boot path wires RocksDbPluginAuditSink here.
+    let runtime = PluginRuntime::new_with_audit_sink(http_client, audit_sink)
+        .map_err(|e| BootError::InternalError(e.to_string()))?;
 
     // AC-1: Scan plugin_dir for .prx files and load each one.
     let plugins_loaded = runtime

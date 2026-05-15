@@ -26,6 +26,8 @@ use sandbox::{
     create_store,
 };
 
+use crate::plugin_audit_sink::{NoOpPluginAuditSink, PluginLoadAuditSink};
+
 // ---------------------------------------------------------------------------
 // Constants (AC-9 / AC-5 / S-PLUGIN-PREREQ-D)
 // ---------------------------------------------------------------------------
@@ -94,21 +96,49 @@ pub struct PluginRuntime {
     pub linker: wasmtime::component::Linker<HostState>,
     pub registry: ArcSwap<HashMap<String, Arc<LoadedPlugin>>>,
     http_client: Arc<reqwest::Client>,
+    /// Durable audit sink for plugin load events (HIGH-002 / AC-4 / BC-2.05.012).
+    ///
+    /// Production: `Arc<RocksDbPluginAuditSink>` wired from boot.rs step 6 result.
+    /// Tests: `Arc<NoOpPluginAuditSink>` (no I/O).
+    /// Default (PluginRuntime::new): `Arc<NoOpPluginAuditSink>` — callers that need
+    /// durable audit MUST use `PluginRuntime::new_with_audit_sink`.
+    audit_sink: Arc<dyn PluginLoadAuditSink>,
     /// Epoch ticker handle — kept alive to keep background thread running.
     _epoch_ticker: EpochTickerHandle,
 }
 
 impl PluginRuntime {
-    /// Create a new `PluginRuntime` with the given `http_client`.
+    /// Create a new `PluginRuntime` with the given `http_client` and a `NoOpPluginAuditSink`.
     ///
     /// The `http_client` MUST be constructed at boot with `.timeout(Duration::from_secs(PLUGIN_HTTP_CLIENT_TIMEOUT_SECS))`
     /// (TD-S-PLUGIN-PREREQ-B-005 closure; AC-9). `boot.rs` constructs the single shared client
     /// and passes it here via owned value; `PluginRuntime` wraps it in `Arc<reqwest::Client>`.
     ///
+    /// **Tests** use this constructor — the `NoOpPluginAuditSink` produces no I/O.
+    /// **Production boot** MUST use `new_with_audit_sink` to wire the RocksDB audit channel
+    /// (HIGH-002 / AC-4 / BC-2.05.012).
+    ///
     /// # Errors
     ///
     /// Returns `Err(PrismError::Internal)` if the wasmtime `Engine` cannot be constructed.
     pub fn new(http_client: reqwest::Client) -> Result<Self, prism_core::PrismError> {
+        Self::new_with_audit_sink(http_client, Arc::new(NoOpPluginAuditSink))
+    }
+
+    /// Create a new `PluginRuntime` with the given `http_client` and a custom `audit_sink`.
+    ///
+    /// Production boot path MUST use this constructor and pass a `RocksDbPluginAuditSink`
+    /// (defined in `prism-bin`) wired from the step 6 `Arc<RocksDbBackend>` result.
+    /// The audit sink records durable, fsync-confirmed entries in the `audit_buffer` CF
+    /// for each plugin load event (AC-4 / BC-2.05.012 / HIGH-002).
+    ///
+    /// # Errors
+    ///
+    /// Returns `Err(PrismError::Internal)` if the wasmtime `Engine` cannot be constructed.
+    pub fn new_with_audit_sink(
+        http_client: reqwest::Client,
+        audit_sink: Arc<dyn PluginLoadAuditSink>,
+    ) -> Result<Self, prism_core::PrismError> {
         let mut config = wasmtime::Config::new();
         config.wasm_component_model(true);
         config.epoch_interruption(true);
@@ -129,6 +159,7 @@ impl PluginRuntime {
             linker,
             registry: ArcSwap::new(Arc::new(HashMap::new())),
             http_client: Arc::new(http_client),
+            audit_sink,
             _epoch_ticker: epoch_ticker,
         })
     }
@@ -466,13 +497,32 @@ impl PluginRuntime {
             });
 
             // Per-plugin audit entry: plugin_load_unsigned (AC-4 / VP-PLUGIN-004 / BC-2.16.002).
-            // Single structured emission per BC-2.16.002 v1.12 catalog row.
+            // HIGH-002 (F-IMPL-LP1-HIGH-002): emit DURABLE audit entry via audit_sink
+            // (not just tracing::warn!) per BC-2.05.012 "synchronous and confirmed durable".
+            // The audit_sink persists to audit_buffer CF via append_audit_entry_sync (fsync).
+            // In tests, NoOpPluginAuditSink is a no-op; production uses RocksDbPluginAuditSink.
             warn!(
                 event_type = "plugin_load_unsigned",
                 plugin_path = %path_str,
                 plugin_hash = %plugin_hash,
                 "Plugin loaded (unsigned — TD-PLUGIN-SIGNING-001)"
             );
+            if let Err(audit_err) = self.audit_sink.record_plugin_load_event(
+                "plugin_load_unsigned",
+                &path_str,
+                &plugin_hash,
+                None,
+            ) {
+                // Audit sink failure is non-fatal per n-1 survivor rule.
+                // Log at ERROR so operators are alerted — this indicates an audit gap.
+                error!(
+                    plugin_path = %path_str,
+                    audit_error = %audit_err,
+                    "AUDIT SINK FAILURE: plugin_load_unsigned entry could not be persisted \
+                     (RocksDB write error). Audit gap for this plugin load. \
+                     (BC-2.05.012 durable audit channel degraded)"
+                );
+            }
 
             info!(
                 plugin_id = %plugin_id,

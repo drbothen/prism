@@ -426,3 +426,111 @@ async fn test_BC_2_22_001_plugin_load_step_is_registered_between_step7_and_step8
         "CRIT-001: valid plugin dir must load 1 plugin before MCP bind"
     );
 }
+
+// ---------------------------------------------------------------------------
+// HIGH-002 — durable audit entry test (F-IMPL-LP1-HIGH-002)
+// ---------------------------------------------------------------------------
+
+/// HIGH-002 (F-IMPL-LP1-HIGH-002) — plugin_load_step_with_audit writes a durable
+/// `plugin_load_unsigned` entry to the `audit_buffer` RocksDB CF for each
+/// successfully loaded plugin. Verifies the entry has `event_type`, `plugin_path`,
+/// and `plugin_hash` fields (AC-4 / BC-2.05.012 durable audit channel).
+#[tokio::test]
+#[allow(non_snake_case)]
+async fn test_AC_4_VP_PLUGIN_004_unsigned_plugin_durable_audit_entry() {
+    use prism_bin::plugin_audit::RocksDbPluginAuditSink;
+    use prism_core::StorageDomain;
+    use prism_storage::audit_buffer::AuditEntry as StorageAuditEntry;
+    use prism_storage::backend::RocksStorageBackend;
+    use prism_storage::rocksdb_backend::RocksDbBackend;
+
+    // Open a temp RocksDB for the audit_buffer CF.
+    let state_dir = tempfile::tempdir().expect("create temp state dir");
+    let backend = Arc::new(
+        RocksDbBackend::open(state_dir.path().to_path_buf())
+            .expect("RocksDbBackend::open must succeed"),
+    );
+
+    // Wire RocksDbPluginAuditSink (production implementation).
+    let audit_sink: Arc<dyn prism_spec_engine::plugin_audit_sink::PluginLoadAuditSink> =
+        Arc::new(RocksDbPluginAuditSink::new(Arc::clone(&backend)));
+
+    // Prepare a valid plugin.
+    let plugin_dir = tempfile::tempdir().expect("create temp plugin dir");
+    let bytes = compile_wat(MINIMAL_INFUSION_WAT);
+    write_prx(&plugin_dir, "minimal", &bytes);
+    write_manifest(&plugin_dir, "minimal", MINIMAL_MANIFEST_TOML);
+
+    // Run plugin_load_step with the durable audit sink.
+    let result = prism_bin::boot::plugin_load_step_with_audit(plugin_dir.path(), audit_sink).await;
+    assert!(
+        result.is_ok(),
+        "HIGH-002: plugin_load_step_with_audit must succeed; got {:?}",
+        result.err()
+    );
+    assert_eq!(
+        result.unwrap().plugins_loaded,
+        1,
+        "HIGH-002: exactly 1 plugin must be loaded"
+    );
+
+    // Read back from audit_buffer CF and find the plugin_load_unsigned entry.
+    let entries = backend
+        .scan(StorageDomain::AuditBuffer, b"audit:")
+        .expect("scan of audit_buffer CF must succeed");
+
+    assert!(
+        !entries.is_empty(),
+        "HIGH-002 (AC-4): audit_buffer CF must contain at least one entry after plugin load"
+    );
+
+    let mut found_plugin_audit: Option<StorageAuditEntry> = None;
+    for (_key, value) in &entries {
+        let decoded: Result<(StorageAuditEntry, _), _> =
+            bincode::serde::decode_from_slice(value, bincode::config::standard());
+        if let Ok((entry, _)) = decoded {
+            if entry
+                .payload
+                .get("event_type")
+                .map(|v| v == "plugin_load_unsigned")
+                .unwrap_or(false)
+            {
+                found_plugin_audit = Some(entry);
+                break;
+            }
+        }
+    }
+
+    let audit_entry = found_plugin_audit.expect(
+        "HIGH-002 (AC-4): plugin_load_unsigned entry must be present in audit_buffer CF \
+         (durable audit channel, not just tracing::warn!)",
+    );
+
+    let payload = &audit_entry.payload;
+
+    assert_eq!(
+        payload.get("event_type").map(String::as_str),
+        Some("plugin_load_unsigned"),
+        "HIGH-002: audit entry must have event_type='plugin_load_unsigned'"
+    );
+    assert!(
+        payload.contains_key("plugin_path"),
+        "HIGH-002 (AC-4): audit entry must have 'plugin_path' field; got: {:?}",
+        payload.keys().collect::<Vec<_>>()
+    );
+    assert!(
+        payload.contains_key("plugin_hash"),
+        "HIGH-002 (AC-4): audit entry must have 'plugin_hash' field; got: {:?}",
+        payload.keys().collect::<Vec<_>>()
+    );
+
+    // plugin_hash must be a 64-char SHA-256 hex string.
+    let hash = payload.get("plugin_hash").unwrap();
+    assert_eq!(
+        hash.len(),
+        64,
+        "HIGH-002: plugin_hash must be 64-char SHA-256 hex; got len={} val={}",
+        hash.len(),
+        hash
+    );
+}
