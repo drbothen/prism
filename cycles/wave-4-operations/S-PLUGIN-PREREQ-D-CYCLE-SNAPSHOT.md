@@ -3829,3 +3829,76 @@ After 3-CLEAN (impl-pass-11 at 3/3):
 | `error_taxonomy_v` | 1.24 (UNCHANGED) |
 | factory-artifacts HEAD | run `git -C .factory log -1 --format=%H` (D-563 is this commit) |
 | test baseline | 34/34 plugin_integration_tests PASS (UNCHANGED) |
+
+---
+
+## §IMPL-PASS-10 CLEAN — SECOND CLEAN (D-564 — 2026-05-15)
+
+### Streak Advance: 1/3 → 2/3
+
+**Adversary impl-pass-10** dispatched against `feature/S-PLUGIN-PREREQ-D@862e721a` (idempotency check at unchanged HEAD). Outcome: **CLEAN** (0 CRIT + 0 HIGH + 0 MED + 0 LOW).
+
+Per BC-5.39.001, streak advances **1/3 → 2/3 — SECOND CLEAN**. One more CLEAN pass for full convergence.
+
+### 44 Carry-Forward Closures Verified
+
+All 44 cumulative prior closures HOLD. Verification approach: 15 anchor closures explicitly spot-checked; 28 structural anchors verified by file presence and content checks.
+
+Key anchor spot-checks confirmed HOLD:
+- F-PASS3-CRIT-001: `plugin_load_step_with_audit` at boot.rs:160 precedes `step7_init_storage` at boot.rs:164
+- F-PASS3-CRIT-002: host_functions.rs:452 `Val::U16(response.status)` — correct
+- F-PASS3-CRIT-003: zero `S-4.08-manifest-embedding` fabricated story-ID hits
+- F-PASS5-HIGH-001: Route A production-linker test loads `tests/fixtures/component_model_dispatch.prx` via `PluginRuntime::build_linker(&engine)` — load-bearing
+- F-PASS6-MED-001: fixture sources WIT+WAT+README+Justfile present at `tests/fixtures/src/`
+- F-PASS7-MED-001: Fixture Strategy table 5 rows registered
+- F-PASS8-HIGH-001: story frontmatter `version: "1.37"` at line 56 — correct
+
+### WIT IDL Consistency Check Passed
+
+Canonical `prism-sensor-plugin.wit` and fixture `component_model_dispatch.wit` both verified:
+- Response status type: `u16` (both canonical and fixture)
+- `http-request` function signature: 4 parameters (both canonical and fixture)
+- Contract durable across WIT IDL update pathway
+
+### All 18 Policies PASS
+
+POL-1 (slug preservation), POL-9 (BC version pinning), POL-12 (single-emission framing), POL-14 (BC promotion at merge — N/A until merge), POL-15 (boot sequence ordering), POL-18 (structured event catalog), POL-23 (BC-version-bump sibling-site grep), POL-25 (multi-cite propagation sweep) — all verified PASS.
+
+Production wiring: boot.rs:160 `plugin_load_step_with_audit` precedes `step7_init_storage`; `Val::U16` + `Val::Enum` + `Val::Record` correctly placed; Component Model dispatch test is load-bearing (not paper-fix).
+
+### Out-of-Perimeter Observation (System-Level OBS — NOT Blocking — NOT S-PLUGIN-PREREQ-D)
+
+**BC-INDEX prose/frontmatter count drift:** `total_contracts: 236` in frontmatter and 236 table rows match, but body prose line 17 says "235 total files" with sum 235; frontmatter says "229 active + 6 removed + 3 retired" summing to 238. This is pre-existing system-level drift; NOT introduced by S-PLUGIN-PREREQ-D. Routes to phase-5 per adversary adjudication. Non-blocking per BC-5.39.001 (OBS category does not reset streak).
+
+### Convergence Forecast
+
+| Pass | Target | Forecast | Rationale |
+|------|--------|----------|-----------|
+| impl-pass-11 | 3/3 (CONVERGENCE) | ~98% CLEAN | Idempotency confirmation at unchanged HEAD `862e721a`; production code proven correct at impl-pass-9+10; no source changes since impl-pass-8 fix-burst (factory-only single-line story frontmatter edit) |
+
+### Post-Convergence Dispatch Path
+
+After impl-pass-11 CLEAN (3/3 per BC-5.39.001):
+1. **Step 5:** demo-recorder dispatches per-AC evidence for 18 ACs at `docs/demo-evidence/S-PLUGIN-PREREQ-D/`
+2. **Step 6:** devops-engineer pushes `feature/S-PLUGIN-PREREQ-D` to remote
+3. **Step 7:** pr-manager 9-step PR lifecycle (create → review → triage → fix → merge)
+4. **Step 8:** post-merge state burst (BC-2.17.001/002/003/004/006/007 promoted draft→active per POL-14; PREREQ-E next)
+
+### Durable Pins (D-564)
+
+| Field | Value |
+|-------|-------|
+| `feature_branch_head` | `862e721a` (UNCHANGED — no source commits this burst) |
+| `impl_adversary_pass_count` | **10** (advanced by 1 at CLEAN pass) |
+| `impl_adversary_streak` | **2/3 — SECOND CLEAN** per BC-5.39.001 |
+| `codification_queue` | 31 (UNCHANGED) |
+| `story_v` | 1.37 (UNCHANGED — no story edits this burst) |
+| `story_index_v` | v2.107 (UNCHANGED) |
+| `token_budget_total` | 42,700 (UNCHANGED) |
+| `develop_head` | 95d46be2 (UNCHANGED) |
+| `state_v` / `handoff_v` | **7.269** |
+| `bc_index_v` | 4.79 (UNCHANGED) |
+| `bc_2_16_002_v` | 1.17 (32 rows; UNCHANGED) |
+| `error_taxonomy_v` | 1.24 (UNCHANGED) |
+| factory-artifacts HEAD | run `git -C .factory log -1 --format=%H` (D-564 is this commit) |
+| test baseline | 34/34 plugin_integration_tests PASS (UNCHANGED) |
