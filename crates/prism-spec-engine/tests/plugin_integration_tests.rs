@@ -1,6 +1,6 @@
 //! S-PLUGIN-PREREQ-D integration tests — prism-spec-engine plugin runtime.
 //!
-//! Traces to: S-PLUGIN-PREREQ-D (v1.32)
+//! Traces to: S-PLUGIN-PREREQ-D (v1.35)
 //! BCs: BC-2.16.002, BC-2.17.001..004, BC-2.17.006, BC-2.17.007
 //! TDs: TD-S-PLUGIN-PREREQ-B-002, TD-S-PLUGIN-PREREQ-B-011
 
@@ -1908,7 +1908,7 @@ async fn test_BC_2_17_007_empty_allowed_url_entry_is_rejected() {
 ///
 /// ## Why this is load-bearing (Route A — pre-built fixture component)
 ///
-/// The fixture `fixtures/component_model_dispatch.prx` was built from a WIT-annotated
+/// The fixture `tests/fixtures/component_model_dispatch.prx` was built from a WIT-annotated
 /// core module using `wasm-tools component embed + component new`. It imports from the `"host"`
 /// instance namespace — the exact namespace that `PluginRuntime::build_linker` registers into.
 /// The component's `http-request` import declares the FULL `http-response` record return type
@@ -1935,13 +1935,16 @@ async fn test_BC_2_17_007_empty_allowed_url_entry_is_rejected() {
 ///
 /// ## Fixture construction
 ///
-/// `fixtures/component_model_dispatch.prx` was built with:
-///   1. WIT: `prism:dispatch-test@0.1.0` world importing `host` interface inline with
-///      the full `http-response` record type and `http-request` function.
-///   2. Core WAT: imports `host::http-request` (canonical ABI: 10 i32 params, retptr last),
-///      exports `call-blocked` which calls it with "GET" to "https://blocked.test/path" and
+/// `tests/fixtures/component_model_dispatch.prx` was built with:
+///   1. WIT: `tests/fixtures/src/component_model_dispatch.wit` — `prism:dispatch-test@0.1.0`
+///      world importing `host` interface with the full `http-response` record type and
+///      `http-request` function.
+///   2. Core WAT: `tests/fixtures/src/component_model_dispatch.core.wat` — imports
+///      `host::http-request` (canonical ABI: 10 i32 params, retptr last), exports
+///      `call-blocked` which calls it with "GET" to "https://blocked.test/path" and
 ///      returns the status u16 from memory at retptr+0.
-///   3. Built with: `wasm-tools component embed` + `wasm-tools component new`.
+///   3. Built with: `just build-fixture-component_model_dispatch` (wasm-tools 1.248.0).
+///      Full recipe documented in `tests/fixtures/src/component_model_dispatch.README.md`.
 ///
 /// ## Sanity-revert verification (2026-05-15)
 ///
@@ -1996,11 +1999,12 @@ fn test_F_PASS5_HIGH_001_production_linker_dispatch_via_build_linker_route_a() {
     //   headers = empty list, body = None
     // then reads the status u16 from memory at the retptr location.
     let fixture_path = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
-        .join("fixtures/component_model_dispatch.prx");
+        .join("../../tests/fixtures/component_model_dispatch.prx");
     let fixture_bytes = std::fs::read(&fixture_path).expect(
-        "F-PASS5-HIGH-001: fixtures/component_model_dispatch.prx must be readable. \
-         This pre-built fixture was committed as part of fix-burst-impl-5. \
-         If missing, check git history for the fixture commit.",
+        "F-PASS5-HIGH-001: tests/fixtures/component_model_dispatch.prx must be readable. \
+         This pre-built fixture was committed as part of fix-burst-impl-5 and relocated \
+         to tests/fixtures/ by fix-burst-impl-6 (F-PASS6-LOW-001). \
+         If missing, rebuild with: just build-fixture-component_model_dispatch",
     );
 
     let component = wasmtime::component::Component::from_binary(&engine, &fixture_bytes).expect(
