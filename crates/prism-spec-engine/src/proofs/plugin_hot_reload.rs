@@ -56,7 +56,7 @@ mod tests {
             rt.block_on(async {
                 use crate::plugin::PluginRuntime;
 
-                let runtime = PluginRuntime::new()
+                let runtime = PluginRuntime::new(reqwest::Client::new())
                     .expect("PluginRuntime should construct");
 
                 // Load a valid plugin to establish the initial registry entry.
@@ -120,7 +120,8 @@ mod tests {
         use crate::plugin::PluginRuntime;
         let rt = tokio::runtime::Runtime::new().unwrap();
         rt.block_on(async {
-            let runtime = PluginRuntime::new().expect("PluginRuntime should construct");
+            let runtime =
+                PluginRuntime::new(reqwest::Client::new()).expect("PluginRuntime should construct");
 
             // Set up initial valid plugin (uses fixture from fixtures/).
             let fixture_path = std::path::Path::new(concat!(

@@ -3,22 +3,23 @@
 //! Implements the 11-step boot sequence specified in ADR-022 §B and wired to
 //! BC-2.22.001 (orchestration contract).  Steps 1–6 are fully implemented per
 //! the story's AC numbering.  Steps 7–11 are annotated `todo!()` stubs for
-//! sibling stories.
+//! sibling stories. Step 7.5 (plugin-load) is implemented by S-PLUGIN-PREREQ-D.
 //!
 //! # Sequencing Invariant (BC-2.22.001)
 //!
 //! ```text
-//! Step 1  [BLOCKING] Tracing init
-//! Step 2  [BLOCKING] Config load          (BC-2.06.011)
-//! Step 3  [BLOCKING] OrgRegistry init     (BC-2.21.001)
-//! Step 4  [BLOCKING] Sensor TOML spec load
-//! Step 5  [BLOCKING] Credential store init (BC-2.03.013)
-//! Step 6  [BLOCKING] Audit subsystem init  (BC-2.05.012)
-//! Step 7  [BLOCKING] Storage + internal-tables provider init
-//! Step 8  [BLOCKING→BACKGROUND] QueryEngine + WriteExecutor
-//! Step 9  [BACKGROUND] MCP server start
-//! Step 10 [BACKGROUND] Hot-reload watcher install
-//! Step 11 [BACKGROUND] Signal handler install
+//! Step 1   [BLOCKING] Tracing init
+//! Step 2   [BLOCKING] Config load          (BC-2.06.011)
+//! Step 3   [BLOCKING] OrgRegistry init     (BC-2.21.001)
+//! Step 4   [BLOCKING] Sensor TOML spec load
+//! Step 5   [BLOCKING] Credential store init (BC-2.03.013)
+//! Step 6   [BLOCKING] Audit subsystem init  (BC-2.05.012)
+//! Step 7   [BLOCKING] Storage + internal-tables provider init
+//! Step 7.5 [BLOCKING] Plugin-load step (S-PLUGIN-PREREQ-D)
+//! Step 8   [BLOCKING→BACKGROUND] QueryEngine + WriteExecutor
+//! Step 9   [BACKGROUND] MCP server start
+//! Step 10  [BACKGROUND] Hot-reload watcher install
+//! Step 11  [BACKGROUND] Signal handler install
 //! ```
 //!
 //! No step may begin concurrently with or before its predecessor completes
@@ -104,6 +105,10 @@ pub struct RunningServer {
 /// the blocking portion of the boot sequence.
 pub struct BootContext {
     pub config_dir: PathBuf,
+    /// RocksDB backend opened in step 6 (all CFs, including `audit_buffer`).
+    /// Threaded into step 7.5 (`plugin_load_step`) so the `RocksDbPluginAuditSink`
+    /// can write durable audit entries for each unsigned plugin load (HIGH-002 / AC-4).
+    pub rocksdb_backend: Arc<prism_storage::rocksdb_backend::RocksDbBackend>,
 }
 
 // ---------------------------------------------------------------------------
@@ -118,11 +123,47 @@ pub struct BootContext {
 /// On success, returns a `RunningServer` handle.  On any step failure, this
 /// function does NOT return — it calls `std::process::exit` with the mapped
 /// exit code per ADR-022 §A.
+///
+/// # Step ordering (F-PASS3-CRIT-001 fix)
+///
+/// BC-2.22.001 §Sequencing Invariant specifies step 7.5 BEFORE step 8 and BEFORE
+/// the MCP server bind (step 9).  The invariant does NOT require step 7 (storage
+/// init) to precede step 7.5 — plugin-load only needs the RocksDB audit backend from
+/// step 6 (`ctx.rocksdb_backend`), which `boot_to_step_6` already provides.
+///
+/// Correct execution order:
+///   steps 1–6 (boot_to_step_6) → step 7.5 (plugin-load) → step 7 (storage) → steps 8–11
+///
+/// This ordering ensures `plugin_load_step_with_audit` is REACHABLE at runtime
+/// (step 7's `todo!()` panic fires AFTER plugin-load, not before).
 pub async fn run_boot_sequence(config_dir: &Path) -> Result<RunningServer, BootError> {
-    let _ctx = boot_to_step_6(config_dir).await?;
+    let ctx = boot_to_step_6(config_dir).await?;
 
-    // Steps 7–11 are todo!() stubs for sibling stories.
+    // Step 2 re-loads config to obtain plugin_dir for step 7.5.
+    // This is acceptable because step2_load_config is idempotent (pure read + validate).
+    let config = step2_load_config(config_dir).await?;
+
+    // Step 7.5 [BLOCKING]: Plugin-load step — BC-2.22.001 §Sequencing Invariant.
+    // Positioned BEFORE step 7 (storage init) — plugin-load only requires the RocksDB
+    // audit backend from step 6 (ctx.rocksdb_backend), which boot_to_step_6 already
+    // provides.  This ordering makes plugin-load REACHABLE at runtime: step 7's todo!()
+    // panic fires AFTER plugin-load completes, not before.
+    //
+    // Pre-traffic gate (AC-2): MCP server (step 9) does NOT bind before this completes.
+    // ADR-023 §C4 + ADR-022 §B.
+    //
+    // HIGH-002 (F-IMPL-LP1-HIGH-002): wire RocksDbPluginAuditSink from step 6 backend
+    // so plugin load events are persisted durably to audit_buffer CF (not just tracing::warn!).
+    let plugin_audit_sink = Arc::new(crate::plugin_audit::RocksDbPluginAuditSink::new(
+        Arc::clone(&ctx.rocksdb_backend),
+    ));
+    let _plugin_result = plugin_load_step_with_audit(&config.plugin_dir, plugin_audit_sink).await?;
+
+    // Step 7 [BLOCKING]: Storage + internal-tables provider init.
+    // Positioned AFTER step 7.5 — plugin-load does not depend on storage tables.
     step7_init_storage().await?;
+
+    // Steps 8–11 are todo!() stubs for sibling stories.
     step8_init_query_engine().await?;
     step9_start_mcp_server().await?;
     step10_start_hot_reload().await?;
@@ -231,7 +272,9 @@ pub async fn boot_to_step_6(config_dir: &Path) -> Result<BootContext, BootError>
 
     // Step 6: Init audit subsystem (full implementation per BC-2.05.012).
     // Opens RocksDB, confirms audit_buffer CF writable, writes sentinel durably.
-    let _audit_backend = step6_init_audit(&config)?;
+    // HIGH-002 (F-IMPL-LP1-HIGH-002): retain the backend in BootContext so step 7.5
+    // can wire it into RocksDbPluginAuditSink for durable plugin load audit entries.
+    let audit_backend = step6_init_audit(&config)?;
 
     // -------------------------------------------------------------------------
     // Test gate: PRISM_TEST_STOP_AFTER_STEP=6
@@ -284,6 +327,7 @@ pub async fn boot_to_step_6(config_dir: &Path) -> Result<BootContext, BootError>
 
     Ok(BootContext {
         config_dir: config_dir.to_path_buf(),
+        rocksdb_backend: audit_backend,
     })
 }
 
@@ -794,6 +838,139 @@ fn step6_init_audit(
 }
 
 // ---------------------------------------------------------------------------
+// Step 7.5 — Plugin-load step (S-PLUGIN-PREREQ-D / BC-2.22.001)
+// ---------------------------------------------------------------------------
+
+/// Result of the plugin-load step 7.5.
+///
+/// Holds the constructed `PluginRuntime` (zero plugins registered if
+/// `PRISM_DISABLE_PLUGIN_LOAD=1` was set) so callers can pass it to the
+/// query-engine and MCP server steps.
+pub struct PluginLoadResult {
+    /// The initialized plugin runtime (always `Some` — never None).
+    pub runtime: Arc<prism_spec_engine::plugin::PluginRuntime>,
+    /// Number of plugins successfully loaded (0 if disabled or none found).
+    pub plugins_loaded: usize,
+}
+
+/// Step 7.5 [BLOCKING]: Plugin-load step — scan plugin directory and load `.prx` plugins.
+///
+/// BC-2.22.001: plugin-load step — positioned after step 7 (storage init) and before
+/// query-engine init per ADR-023 §C4 + ADR-022 §B sequencing invariant.
+/// PRISM_DISABLE_PLUGIN_LOAD=1 skips this step (emergency escape valve).
+///
+/// # Behavior
+///
+/// 1. Check `PRISM_DISABLE_PLUGIN_LOAD` env var; if set to exact string `"1"`, emit
+///    a single `tracing::warn!(event_type = "plugin_load_disabled_via_envvar", ...)` and
+///    return `Ok(PluginLoadResult { runtime, plugins_loaded: 0 })` immediately (AC-3/AC-18).
+/// 2. Construct a single `reqwest::Client` with 30-second timeout (AC-9).
+/// 3. Construct `PluginRuntime::new(http_client)`.
+/// 4. Call `runtime.load_all_plugins(&plugin_dir)` (AC-1).
+/// 5. Return the runtime for injection into downstream boot steps.
+///
+/// # Errors
+///
+/// Returns `Err(BootError::InternalError)` if:
+/// - `reqwest::Client` construction fails (OS resource exhaustion, EC-D-009)
+/// - `PluginRuntime::new` fails (wasmtime Engine construction)
+///
+/// These failures exit with code 4 per ADR-022 §A (AC-2).
+///
+/// Per-plugin load failures do NOT cause this function to fail — the n-1 survivor rule
+/// applies inside `load_all_plugins`.
+pub async fn plugin_load_step(plugin_dir: &Path) -> Result<PluginLoadResult, BootError> {
+    plugin_load_step_with_audit(
+        plugin_dir,
+        prism_spec_engine::plugin_audit_sink::noop_sink(),
+    )
+    .await
+}
+
+/// Core implementation of the plugin-load step with injectable audit sink.
+///
+/// The production boot path (run_boot_sequence) calls this with a
+/// `RocksDbPluginAuditSink` wired from the step 6 `Arc<RocksDbBackend>`.
+/// Integration tests call `plugin_load_step` which passes a `NoOpPluginAuditSink`.
+///
+/// This separation closes HIGH-002 (F-IMPL-LP1-HIGH-002) without breaking
+/// existing tests that don't have RocksDB available.
+pub async fn plugin_load_step_with_audit(
+    plugin_dir: &Path,
+    audit_sink: Arc<dyn prism_spec_engine::plugin_audit_sink::PluginLoadAuditSink>,
+) -> Result<PluginLoadResult, BootError> {
+    use prism_spec_engine::plugin::{PluginRuntime, PLUGIN_HTTP_CLIENT_TIMEOUT_SECS};
+    use std::time::Duration;
+
+    // AC-18: PRISM_DISABLE_PLUGIN_LOAD takes absolute precedence over plugin_dir config.
+    // Only the exact string "1" disables loading (EC-D-011). Values like "true", "yes", "0"
+    // are treated as unset.
+    if std::env::var("PRISM_DISABLE_PLUGIN_LOAD").as_deref() == Ok("1") {
+        // Single structured emission per BC-2.16.002 v1.12 catalog row plugin_load_disabled_via_envvar.
+        tracing::warn!(
+            event_type = "plugin_load_disabled_via_envvar",
+            env_var = "PRISM_DISABLE_PLUGIN_LOAD",
+            "Plugin loading disabled via PRISM_DISABLE_PLUGIN_LOAD=1; \
+             no plugins loaded (emergency escape valve)"
+        );
+
+        // Construct runtime without loading plugins (MCP server still binds with zero plugins).
+        let http_client = reqwest::Client::builder()
+            .timeout(Duration::from_secs(PLUGIN_HTTP_CLIENT_TIMEOUT_SECS))
+            .build()
+            .map_err(|e| {
+                BootError::InternalError(format!(
+                    "PluginRuntime HTTP client construction failed (EC-D-009): {e}"
+                ))
+            })?;
+
+        let runtime = PluginRuntime::new_with_audit_sink(http_client, audit_sink)
+            .map_err(|e| BootError::InternalError(e.to_string()))?;
+
+        return Ok(PluginLoadResult {
+            runtime: Arc::new(runtime),
+            plugins_loaded: 0,
+        });
+    }
+
+    // AC-9: Construct ONE shared reqwest::Client with 30-second timeout.
+    // Construction is fallible (OS resource exhaustion per EC-D-009).
+    // On failure: return Err → boot exits with code 4 (ADR-022 §A internal-error class).
+    // Using .expect() is FORBIDDEN here — it would panic instead of returning the structured
+    // error that EC-D-009 requires (expect_used = "deny" in workspace clippy config).
+    let http_client = reqwest::Client::builder()
+        .timeout(Duration::from_secs(PLUGIN_HTTP_CLIENT_TIMEOUT_SECS))
+        .build()
+        .map_err(|e| {
+            BootError::InternalError(format!(
+                "PluginRuntime HTTP client construction failed (EC-D-009): {e}"
+            ))
+        })?;
+
+    // AC-9: Inject the single shared client + audit sink into PluginRuntime::new_with_audit_sink.
+    // HIGH-002 (F-IMPL-LP1-HIGH-002): production boot path wires RocksDbPluginAuditSink here.
+    let runtime = PluginRuntime::new_with_audit_sink(http_client, audit_sink)
+        .map_err(|e| BootError::InternalError(e.to_string()))?;
+
+    // AC-1: Scan plugin_dir for .prx files and load each one.
+    let plugins_loaded = runtime
+        .load_all_plugins(plugin_dir)
+        .await
+        .map_err(|e| BootError::InternalError(e.to_string()))?;
+
+    tracing::info!(
+        n_loaded = plugins_loaded,
+        plugin_dir = %plugin_dir.display(),
+        "boot: plugin-load step complete ({plugins_loaded} plugins loaded)"
+    );
+
+    Ok(PluginLoadResult {
+        runtime: Arc::new(runtime),
+        plugins_loaded,
+    })
+}
+
+// ---------------------------------------------------------------------------
 // Steps 7–11 annotated stubs for sibling stories
 // ---------------------------------------------------------------------------
 
@@ -943,6 +1120,7 @@ mod tests {
         let config = PrismConfig {
             spec_dir: PathBuf::from("/tmp/specs"),
             state_dir: PathBuf::from("/tmp/state"),
+            plugin_dir: PathBuf::from("plugins"),
             orgs: vec![OrgEntry {
                 org_id: "0196f000-0000-7000-8000-000000000001".to_string(),
                 org_slug: "acme".to_string(),
@@ -1017,13 +1195,27 @@ mod tests {
 
 /// Deserialized `prism.toml` config struct.
 ///
-/// Fields match the schema required by boot steps 2–6.
+/// Fields match the schema required by boot steps 2–6 and step 7.5 (plugin-load).
+///
+/// Marked `#[non_exhaustive]` — new fields may be added in future releases without
+/// breaking external code that constructs or matches on this type (CLAUDE.md convention).
+#[non_exhaustive]
 #[derive(Debug, serde::Deserialize)]
 pub struct PrismConfig {
     /// Path to the sensor spec directory (required; boot step 4 uses this).
     pub spec_dir: PathBuf,
     /// Path to the state directory (RocksDB data; required; boot step 6 uses this).
     pub state_dir: PathBuf,
+    /// Path to the plugin directory (optional; boot step 7.5 uses this).
+    ///
+    /// Default is `"plugins"` relative to the config file's directory when absent from
+    /// `prism.toml`. The directory is scanned for `*.prx` plugin files at boot step 7.5
+    /// (BC-2.22.001 §Sequencing Invariant / S-PLUGIN-PREREQ-D AC-1).
+    ///
+    /// Set `PRISM_DISABLE_PLUGIN_LOAD=1` to skip plugin loading regardless of this path
+    /// (emergency escape valve — AC-18).
+    #[serde(default = "default_plugin_dir")]
+    pub plugin_dir: PathBuf,
     /// List of configured orgs (required; boot step 3 uses this).
     #[serde(default)]
     pub orgs: Vec<OrgEntry>,
@@ -1032,7 +1224,41 @@ pub struct PrismConfig {
     pub credential_backend: CredentialBackendConfig,
 }
 
+impl PrismConfig {
+    /// Construct a `PrismConfig` for use in tests.
+    ///
+    /// The `#[non_exhaustive]` attribute prevents external struct literal construction;
+    /// use this factory for tests in external crates (e.g., `prism-bin` integration tests).
+    ///
+    /// `plugin_dir` defaults to `"plugins"` (the TOML default); callers may override it.
+    pub fn new_for_test(
+        spec_dir: impl Into<PathBuf>,
+        state_dir: impl Into<PathBuf>,
+        plugin_dir: impl Into<PathBuf>,
+        orgs: Vec<OrgEntry>,
+        credential_backend: CredentialBackendConfig,
+    ) -> Self {
+        Self {
+            spec_dir: spec_dir.into(),
+            state_dir: state_dir.into(),
+            plugin_dir: plugin_dir.into(),
+            orgs,
+            credential_backend,
+        }
+    }
+}
+
+/// Default `plugin_dir` when absent from `prism.toml`: `"plugins"` relative to config
+/// file location (AC-1 line 282-283 of S-PLUGIN-PREREQ-D story spec v1.32).
+fn default_plugin_dir() -> PathBuf {
+    PathBuf::from("plugins")
+}
+
 /// A single org entry from `prism.toml`.
+///
+/// Marked `#[non_exhaustive]` per project convention (CLAUDE.md) — new fields may be
+/// added to `prism.toml` without breaking external code.
+#[non_exhaustive]
 #[derive(Debug, Clone, serde::Deserialize)]
 pub struct OrgEntry {
     /// UUID v7 org identifier.
@@ -1041,7 +1267,24 @@ pub struct OrgEntry {
     pub org_slug: String,
 }
 
+impl OrgEntry {
+    /// Construct a new `OrgEntry` with the given org_id and org_slug strings.
+    ///
+    /// Prefer this over struct literal syntax (which is forbidden externally due to
+    /// `#[non_exhaustive]`).
+    pub fn new(org_id: impl Into<String>, org_slug: impl Into<String>) -> Self {
+        Self {
+            org_id: org_id.into(),
+            org_slug: org_slug.into(),
+        }
+    }
+}
+
 /// Credential backend selector from `prism.toml`.
+///
+/// Marked `#[non_exhaustive]` per project convention (CLAUDE.md) — new backend variants
+/// may be added in future releases.
+#[non_exhaustive]
 #[derive(Debug, Default, serde::Deserialize)]
 #[serde(tag = "type", rename_all = "snake_case")]
 pub enum CredentialBackendConfig {

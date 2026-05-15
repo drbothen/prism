@@ -1462,7 +1462,7 @@ dependencies = [
 
 [[package]]
 name = "prism-spec-engine"
-version = "0.7.0"
+version = "0.8.0"
 dependencies = [
  "anyhow",
  "arc-swap",
@@ -1474,6 +1474,7 @@ dependencies = [
  "prism-core",
  "regex",
  "reqwest",
+ "semver",
  "serde",
  "serde_json",
  "sha2",
@@ -1481,8 +1482,10 @@ dependencies = [
  "tokio",
  "toml 0.8.23",
  "tracing",
+ "url",
  "uuid",
  "wasmtime",
+ "zeroize",
 ]
 
 [[package]]

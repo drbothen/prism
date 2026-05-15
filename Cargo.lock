@@ -4354,6 +4354,7 @@ dependencies = [
  "prism-query",
  "prism-spec-engine",
  "prism-storage",
+ "reqwest",
  "serde",
  "serde_json",
  "tempfile",
@@ -4363,6 +4364,7 @@ dependencies = [
  "tracing",
  "tracing-subscriber",
  "uuid",
+ "wat",
 ]
 
 [[package]]
@@ -4837,7 +4839,7 @@ dependencies = [
 
 [[package]]
 name = "prism-spec-engine"
-version = "0.7.0"
+version = "0.8.0"
 dependencies = [
  "anyhow",
  "arc-swap",
@@ -4852,6 +4854,7 @@ dependencies = [
  "proptest",
  "regex",
  "reqwest",
+ "semver",
  "serde",
  "serde_json",
  "sha2",
@@ -4861,10 +4864,12 @@ dependencies = [
  "toml 0.8.23",
  "tracing",
  "tracing-subscriber",
+ "url",
  "uuid",
  "wasmtime",
  "wat",
  "wiremock",
+ "zeroize",
 ]
 
 [[package]]

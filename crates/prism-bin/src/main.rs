@@ -105,25 +105,22 @@ async fn dispatch(args: CliArgs) -> i32 {
         }
 
         PrismCommand::Start => {
-            // Run boot steps 1-6 (blocking); then attempt steps 7-11.
-            // Steps 7-11 are todo!() stubs — the process will panic (caught by hook → exit 1)
-            // until sibling stories fill them in.
-            match boot::boot_to_step_6(&config_dir).await {
-                Ok(_ctx) => {
-                    // Step 6 complete: emit partial-merge warning per story dev notes.
-                    tracing::warn!(
-                        "Steps 7-11 are not yet implemented — exiting \
-                         (prism-bin chassis only; S-3.02-FOLLOWUP-RUNTIME, \
-                         S-5.01-FOLLOWUP-MCP-BOOT, S-1.12-FOLLOWUP resolve these)"
-                    );
-                    // Attempt step 7 — will panic on todo!() (caught by hook → exit 1).
-                    // This is the intentional partial-merge state: steps 1-6 work, 7+ panic.
-                    boot::step7_init_storage().await.unwrap_or_else(|e| {
-                        eprintln!("Step 7 failed: {e}");
-                        process::exit(EXIT_INTERNAL_ERROR);
-                    });
-                    EXIT_SUCCESS
-                }
+            // Run the canonical full boot sequence (steps 1-11).
+            //
+            // `run_boot_sequence` executes steps in this order (F-PASS3-CRIT-001 fix):
+            //   steps 1-6 (boot_to_step_6) → step 7.5 plugin-load → step 7 storage init →
+            //   steps 8-11
+            //
+            // Step 7.5 (plugin-load) runs BEFORE step 7 (storage) because plugin-load
+            // only needs the RocksDB audit backend from step 6.  This ordering ensures
+            // plugin-load is reachable at runtime: step 7's todo!() panic fires AFTER
+            // plugin-load completes (ADR-023 §C4 pre-traffic gate, POL-15 enforcement).
+            //
+            // Steps 7-11 are todo!() stubs for sibling stories (S-3.02-FOLLOWUP-RUNTIME,
+            // S-5.01-FOLLOWUP-MCP-BOOT, S-1.12-FOLLOWUP). The process will panic at
+            // step 7's todo!() — caught by the panic hook → exit 1.
+            match boot::run_boot_sequence(&config_dir).await {
+                Ok(_server) => EXIT_SUCCESS,
                 Err(e) => {
                     let code = e.exit_code();
                     eprintln!("prism start failed: {e}");

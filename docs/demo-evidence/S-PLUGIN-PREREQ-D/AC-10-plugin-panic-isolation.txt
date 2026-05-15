@@ -1,0 +1,28 @@
+AC-10 — Plugin panic isolation
+===============================
+Story: S-PLUGIN-PREREQ-D (v1.37) | BC: BC-2.17.001 | INV: INV-PLUGIN-001 | HEAD: 862e721a
+
+EVIDENCE TYPE: Test output
+
+BC-2.17.001 / INV-PLUGIN-001: A guest WASM component that panics or traps must
+NOT crash the host process. The Wasmtime runtime catches the trap and returns
+PluginError::Trapped to the caller. The host continues running.
+
+PluginRuntime creates a fresh Store per plugin invocation — no cross-call WASM
+state leakage possible. A panicking plugin's trap does not affect other plugins.
+
+-------------------------------------------------------------------------------
+TEST OUTPUT: test_BC_2_17_001_plugin_panic_isolation
+-------------------------------------------------------------------------------
+
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.55s
+────────────
+ Nextest run ID 05afbf94 with nextest profile: default
+    Starting 1 test across 1 binary (33 tests skipped)
+        PASS [   0.085s] (1/1) prism-spec-engine::plugin_integration_tests test_BC_2_17_001_plugin_panic_isolation
+────────────
+     Summary [   0.088s] 1 test run: 1 passed, 33 skipped
+
+RESULT: PASS — Guest WASM trap is caught by Wasmtime Store; PluginError::Trapped
+        is returned to the caller; host process continues. INV-PLUGIN-001
+        satisfied: a panicking plugin cannot crash the Prism host process.

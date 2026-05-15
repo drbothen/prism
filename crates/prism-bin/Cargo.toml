@@ -32,7 +32,7 @@ prism-core = { path = "../prism-core", version = "0.2.0" }
 prism-credentials = { path = "../prism-credentials", version = "0.1.0" }
 prism-audit = { path = "../prism-audit", version = "0.1.0" }
 prism-storage = { path = "../prism-storage", version = "0.1.0" }
-prism-spec-engine = { path = "../prism-spec-engine", version = "0.7.0" }
+prism-spec-engine = { path = "../prism-spec-engine", version = "0.8.0" }
 prism-query = { path = "../prism-query", version = "0.1.0" }
 prism-mcp = { path = "../prism-mcp", version = "0.1.0" }
 clap = { version = "4", features = ["derive", "env"] }
@@ -52,6 +52,10 @@ dirs = "5"
 # Only referenced from cfg(unix) + cfg(feature = "test-injection") code paths;
 # kept as a direct dep to satisfy rustc's E0433 (transitive deps not in scope).
 libc = { version = "0.2", optional = true }
+# S-PLUGIN-PREREQ-D AC-9: boot.rs constructs the single shared reqwest::Client with 30s timeout
+# and injects it into PluginRuntime::new(). reqwest is a transitive dep via prism-spec-engine
+# but must be declared here for boot.rs to call reqwest::Client::builder() directly.
+reqwest = { version = "0.12", features = ["rustls-tls"], default-features = false }
 
 # ---------------------------------------------------------------------------
 # Integration test targets — explicit declarations required for required-features
@@ -105,15 +109,21 @@ path = "tests/cli_subcommands.rs"
 name = "exit_code_contract"
 path = "tests/exit_code_contract.rs"
 
+# S-PLUGIN-PREREQ-D: Plugin boot wiring integration tests (BC-2.22.001, VP-PLUGIN-004/007)
+[[test]]
+name = "plugin_boot_tests"
+path = "tests/plugin_boot_tests.rs"
+
 [dev-dependencies]
 tempfile = "3"
 libc = "0.2"
 serde_json = "1"
 chrono = { version = "0.4", features = ["serde"] }
-prism-spec-engine = { path = "../prism-spec-engine", version = "0.7.0" }
+prism-spec-engine = { path = "../prism-spec-engine", version = "0.8.0", features = ["test-helpers"] }
 prism-storage = { path = "../prism-storage", version = "0.1.0" }
 prism-core = { path = "../prism-core", version = "0.2.0" }
 bincode = "2"
+wat = "1"
 
 [lints.clippy]
 # Inherited from workspace: workspace lint inheritance is not yet available

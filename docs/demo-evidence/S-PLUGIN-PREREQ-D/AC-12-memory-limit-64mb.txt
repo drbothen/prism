@@ -1,0 +1,29 @@
+AC-12 — Memory limit 64MB enforced
+====================================
+Story: S-PLUGIN-PREREQ-D (v1.37) | BC: BC-2.17.003 | INV: INV-PLUGIN-003 | HEAD: 862e721a
+
+EVIDENCE TYPE: Test output
+
+BC-2.17.003 / INV-PLUGIN-003: Each plugin WASM Store is configured with a
+64MB memory limit via StoreLimitsBuilder. A plugin that attempts to grow linear
+memory beyond 64MB must be killed with a Wasmtime resource limit trap rather
+than consuming unbounded host memory.
+
+The test instantiates a component that requests more than 64MB of WASM linear
+memory and verifies the store limit fires.
+
+-------------------------------------------------------------------------------
+TEST OUTPUT: test_BC_2_17_003_memory_limit_enforced_default_64mb
+-------------------------------------------------------------------------------
+
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.27s
+────────────
+ Nextest run ID 954f53b5 with nextest profile: default
+    Starting 1 test across 1 binary (33 tests skipped)
+        PASS [   0.015s] (1/1) prism-spec-engine::plugin_integration_tests test_BC_2_17_003_memory_limit_enforced_default_64mb
+────────────
+     Summary [   0.015s] 1 test run: 1 passed, 33 skipped
+
+RESULT: PASS — Plugin WASM Store memory limit of 64MB is enforced.
+        Memory growth beyond the limit triggers a Wasmtime resource limit trap.
+        INV-PLUGIN-003 satisfied: no plugin can exhaust host memory.
