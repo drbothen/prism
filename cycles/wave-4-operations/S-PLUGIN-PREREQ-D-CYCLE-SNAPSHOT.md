@@ -2760,3 +2760,109 @@ Before dispatching adversary impl-pass-5:
 | factory-artifacts HEAD | run `git -C .factory log -1 --format=%H` (D-553 is this commit) |
 | impl-pass-4 report | cycles/wave-4-operations/adversarial-reviews/S-PLUGIN-PREREQ-D-impl-pass-4.md |
 | worktree_test_count | 3643 (just check 3643/3643; UNCHANGED — no worktree commits this burst) |
+
+
+## §FIX-BURST-IMPL-4 CLOSURE (D-554 — 2026-05-14)
+═══════════════════════════════════════════════════════════════════════
+
+### 2-Finding Closure Summary
+
+**Total findings closed: 2/2 (all impl-pass-4 in-perimeter findings remediated)**
+
+| Finding | Severity | Status | Closure Method |
+|---------|----------|--------|----------------|
+| F-PASS4-HIGH-001 | HIGH | CLOSED | Genuine Component Model dispatch test added via WAT shim+fixup pattern |
+| F-PASS4-MED-001 | MED | CLOSED | Story §Structured Event Catalog Additions 12→13 swept at 4 sites + 13th catalog row appended |
+
+**Trajectory:** pass-1 18 → pass-2 12 → pass-3 6 → pass-4 2 (clean exponential decay)
+**Fix-burst closures:** 18/18 → 12/12 → 6/6 → 2/2 (100% close rate maintained across all 4 fix-bursts)
+
+### Commits
+
+**Worktree commit (feature/S-PLUGIN-PREREQ-D):**
+- SHA: `e1d83fa4`
+- Subject: `test(prism-spec-engine): F-PASS4-HIGH-001 — add end-to-end Component Model dispatch test for host::http-request`
+- Content: New test `test_F_PASS4_HIGH_001_component_model_dispatch_invokes_host_http_request_through_registered_callback`; +407 lines in `plugin_integration_tests.rs`
+- Pattern: WAT shim+fixup (see §WAT Shim+Fixup Pattern Documentation below)
+- Assertion: `Val::U16(403)` return from registered linker callback
+- Test count: 3643 → 3644
+
+**Factory commit (factory-artifacts branch, parallel story-writer dispatch, already landed before this burst):**
+- SHA: `b788d53c`
+- Subject: `fix(S-PLUGIN-PREREQ-D): F-PASS4-MED-001 — story §Structured Event Catalog Additions sibling-sweep 12→13 (story v1.33→v1.34)`
+- Content: Story v1.33 → v1.34 + §Changelog row; STORY-INDEX v2.103 → v2.104; 4 active-body count-drift sites swept; 13th catalog row appended (`plugin_log_level_unrecognized` mirroring BC-2.16.002 v1.17 row 32 schema)
+
+### WAT Shim+Fixup Pattern Documentation
+
+**Problem:** wasm-tools 1.248 WAT parser cannot express `record` or `enum` types in instance import sections. This means a WAT module cannot directly declare its host import `host::http-request` with the full WIT record return type.
+
+**Workaround (WAT shim+fixup pattern):**
+1. Write WAT with simplified `(result u16)` return for the host import — just enough for the linker to wire up
+2. Register the linker callback using the same simplified signature
+3. In the callback, return `Val::U16(403)` (matches the simplified signature)
+4. The test verifies the dispatch path is real: the registered callback is actually invoked when the export function calls the host function
+
+**Sanity-check revert confirmation:**
+- Changed `Val::U16(403)` → `Val::U32(403)` in the linker callback registration
+- Ran the test: wasmtime trapped with `"type mismatch: expected u16, found u32"`
+- Reverted immediately — confirmed the production `Val::U16` type is load-bearing (not a typo or no-op)
+
+**Why the 5 prior inline-replica tests are RETAINED:**
+- The 5 tests from fix-burst-impl-3 test the component model infrastructure at a unit level (type matching, Val encoding, schema-violation traps)
+- The new dispatch test (F-PASS4-HIGH-001) tests the end-to-end path through the registered linker callback
+- Both layers are complementary; neither replaces the other
+- Per task description: "The 5 prior inline-replica tests REMAIN as supplementary unit assertions (not deleted; the dispatch test is additive)"
+
+### Verification Gate
+
+- `just check 3644/3644 pass` ✓
+- F-PASS4-HIGH-001: load-bearing confirmed via sanity-check revert (Val::U16→Val::U32 wasmtime trap) ✓
+- F-PASS4-MED-001: post-sweep grep returning 0 active-body count hits for "12 events" / "12 event" ✓
+- 59th consecutive single-commit per TD-VSDD-053 ✓
+
+### Story and Index Versions
+
+| Artifact | Before | After |
+|----------|--------|-------|
+| Story S-PLUGIN-PREREQ-D | v1.33 | v1.34 |
+| STORY-INDEX | v2.103 | v2.104 |
+| BC-INDEX | v4.79 | v4.79 (unchanged) |
+| BC-2.16.002 | v1.17 (32 rows) | v1.17 (unchanged) |
+| STATE.md / SESSION-HANDOFF.md | v7.258 | v7.259 |
+| workspace test count | 3643 | 3644 |
+
+### Codification Queue
+
+Unchanged at 26 candidates. PG-IMPL-LP4-001 (test paper-fix detector) remains queued for cycle-close session-reviewer.
+
+### Impl-Pass-5 Prerequisites
+
+Before dispatching adversary impl-pass-5:
+
+1. Verify `test_F_PASS4_HIGH_001_component_model_dispatch_invokes_host_http_request_through_registered_callback` is present in `plugin_integration_tests.rs`
+2. Verify story §Structured Event Catalog Additions says "13 events" not "12 events" (v1.34 committed)
+3. Verify story v1.34 is committed (factory commit b788d53c)
+4. `just check` 0 failures (baseline 3644/3644)
+5. BC-5.39.001 3-CLEAN protocol: target streak advance 0/3 → 1/3 (FIRST ADVANCE after 4 consecutive BLOCKED passes)
+6. Trajectory context: 18→12→6→2 (pass-1→4 magnitudes; clean exponential decay); if pass-5 CLEAN, plan for pass-6 (2/3) + pass-7 (3/3) → CONVERGENCE
+
+### Durable Pins (D-554)
+
+| Field | Value |
+|-------|-------|
+| `feature_branch_head` | `e1d83fa4` (UPDATED — WAT shim+fixup dispatch test added) |
+| `worktree_status` | active (.worktrees/S-PLUGIN-PREREQ-D mounted at develop@95d46be2) |
+| `story_v` | 1.34 (UPDATED — fix-burst-impl-4 bumped via factory commit b788d53c) |
+| `develop_head` | 95d46be2 (UNCHANGED) |
+| `state_v` / `handoff_v` | 7.259 |
+| `impl_adversary_streak` | 0/3 (fix-burst does not advance streak; impl-pass-5 NEXT) |
+| `impl_adversary_pass_count` | 4 |
+| `codification_queue` | 26 (PG-IMPL-LP4-001 added D-553; unchanged this burst) |
+| `bc_index_v` | 4.79 (UNCHANGED) |
+| `bc_2_16_002_v` | 1.17 (32 rows; UNCHANGED) |
+| `story_index_v` | v2.104 (UPDATED from v2.103) |
+| `error_taxonomy_v` | 1.24 (UNCHANGED) |
+| `bc_2_17_002_v` | 1.7 (draft; promotes at PREREQ-D merge per POL-14) |
+| factory-artifacts HEAD | run `git -C .factory log -1 --format=%H` (D-554 is this commit) |
+| impl-pass-4 report | cycles/wave-4-operations/adversarial-reviews/S-PLUGIN-PREREQ-D-impl-pass-4.md |
+| worktree_test_count | 3644 (just check 3644/3644; +1 test: F-PASS4-HIGH-001 Component Model dispatch) |
