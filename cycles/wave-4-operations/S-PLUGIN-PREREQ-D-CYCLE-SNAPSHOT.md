@@ -4020,3 +4020,86 @@ All 44 prior closures HOLD at impl-pass-11. Key spot-checks consistent with pass
 | `error_taxonomy_v` | 1.24 (UNCHANGED) |
 | factory-artifacts HEAD | run `git -C .factory log -1 --format=%H` (D-565 is this commit) |
 | test baseline | 34/34 plugin_integration_tests PASS (UNCHANGED) |
+
+---
+
+## §STEP-5 DEMO-RECORDER COMPLETE (D-566 — 2026-05-15)
+
+### Summary
+
+Step 5 of the per-story-delivery 8-step checklist is COMPLETE. The demo-recorder dispatch produced 19 files at `docs/demo-evidence/S-PLUGIN-PREREQ-D/` covering all 18 ACs for S-PLUGIN-PREREQ-D.
+
+### 8-Step Checklist Progress (5/8 Complete)
+
+| Step | Status | Detail |
+|------|--------|--------|
+| Step 1: Worktree creation | ✅ COMPLETE | |
+| Step 2: Red Gate stubs | ✅ COMPLETE | |
+| Step 3: TDD green | ✅ COMPLETE | |
+| Step 4: 3-CLEAN convergence (BC-5.39.001) | ✅ COMPLETE | D-565 — 3/3 CONVERGED; impl-pass-11 CLEAN |
+| **Step 5: demo-recorder per-AC** | ✅ **COMPLETE** | **D-566** — worktree commit `45ebc198` |
+| Step 6: devops-engineer push to remote | ⏳ NEXT | First push for this story; pre-push hook runs `just check` (last verified 3645/3645) |
+| Step 7: pr-manager 9-step PR lifecycle | ⏳ AFTER | create → code-reviewer → security-reviewer → pr-reviewer → triage → fix-pr-delivery cascade → user-authorized squash-merge |
+| Step 8: post-merge state burst | ⏳ AFTER | BC promotions POL-14 (BC-2.17.001/002/003/004/006/007 draft→active); cycle-close |
+
+### Worktree Commit
+
+- Commit: `45ebc198` (`feat(demo-evidence): S-PLUGIN-PREREQ-D per-AC evidence (18 ACs)`)
+- Files: 19 total (`docs/demo-evidence/S-PLUGIN-PREREQ-D/`)
+
+### Evidence File Inventory (19 files)
+
+| AC | File(s) | Evidence Type |
+|----|---------|---------------|
+| AC-1: boot step 7.5 | `AC-01-boot-step-7.5-source.txt` + `AC-01-boot-step-7.5-test-output.txt` | source excerpt + test output |
+| AC-2: pre-traffic gate | `AC-02-pre-traffic-gate-test-output.txt` | test output (test_BC_2_22_001_plugin_load_failure_exits_code_4) |
+| AC-3: envvar disable | `AC-03-envvar-disable-source.txt` + `AC-03-envvar-disable-test-output.txt` | source excerpt + test output |
+| AC-4: unsigned-plugin durable audit | `AC-04-unsigned-plugin-audit-warn-path-test.txt` + `AC-04-unsigned-plugin-audit-rocksdb-readback-test.txt` + `AC-04-plugin-audit-source.txt` | dual-test output + source excerpt |
+| AC-5: manifest schema validation | `AC-05-manifest-schema-9-variant-test-output.txt` | 9-variant test batch output |
+| AC-6: WIT validation | `AC-06-wit-validation-test-1.txt` + `AC-06-wit-validation-test-2.txt` | 2 test outputs |
+| AC-7: allowlist enforcement | `AC-07-allowlist-block-test.txt` + `AC-07-allowlist-allow-test.txt` + `AC-07-production-linker-test.txt` + `AC-07-component-model-test.txt` | 4 test outputs |
+| AC-8: linker imports | `AC-08-linker-imports-test-output.txt` | test_BC_2_17_002_linker_imports_match_host_functions |
+| AC-9: 30s timeout | `AC-09-http-timeout-constant-source.txt` | source excerpt (PLUGIN_HTTP_CLIENT_TIMEOUT_SECS) |
+| AC-10: panic isolation | `AC-10-panic-isolation-test-output.txt` | test_BC_2_17_001_plugin_panic_isolation |
+| AC-11: WASI not linked | `AC-11-wasi-not-linked-test-output.txt` | test_BC_2_17_002_wasi_not_linked_trap_on_fs_call |
+| AC-12: memory limit | `AC-12-memory-limit-test-output.txt` | test_BC_2_17_003_memory_limit_enforced_default_64mb |
+| AC-13: CPU timeout | `AC-13-cpu-timeout-test-output.txt` | test output with 5.287s duration confirming 5s timeout |
+| AC-14: hot reload | `AC-14-hot-reload-atomic-swap-test.txt` + `AC-14-hot-reload-retain-old-test.txt` | 2 test outputs (atomic swap + failed-recompile retains old) |
+| AC-15: AuthToken zeroize | `AC-15-authtoken-zeroize-test-output.txt` | test_TD_S_PLUGIN_PREREQ_B_002_authtoken_uses_zeroizing_wrapper |
+| AC-16: MAX_REQUESTS cap | `AC-16-max-requests-source.txt` + `AC-16-max-requests-test-output.txt` | source excerpt + test output |
+| AC-17: HostState non_exhaustive | `AC-17-hoststate-non-exhaustive-source.txt` | source excerpt (type-system guarantee; VP-PLUGIN-004/007 + INV-PLUGIN-001-004) |
+| AC-18: envvar precedence | `AC-18-envvar-precedence-source.txt` + `AC-18-envvar-precedence-test-output.txt` | source excerpt + test output |
+| Coverage matrix | `evidence-report.md` | per-AC BC/VP anchor traceability matrix |
+
+### Evidence Type Breakdown
+
+- 14 test outputs
+- 4 source excerpts
+- 1 evidence-report.md (coverage matrix)
+- **Total: 19 files**
+
+### POL-10 Compliance Verification
+
+- Story-scoped subfolder: `docs/demo-evidence/S-PLUGIN-PREREQ-D/` ✅
+- No flat `docs/demo-evidence/*.md` files ✅
+- All evidence scoped to this story only ✅
+
+### BC/VP Anchor Traceability
+
+All 18 ACs covered: BC-2.22.001 + BC-2.17.001/002/003/004/005/006/007 + BC-2.16.002 + VP-PLUGIN-004 + VP-PLUGIN-007 + INV-PLUGIN-001/002/003/004.
+
+### Durable Pins (D-566)
+
+| Field | Value |
+|-------|-------|
+| `feature_branch_head` | `45ebc198` (demo evidence commit; 9 total worktree commits since Red Gate stubs 8ca17f3f) |
+| `demo_evidence_complete` | **true** |
+| `demo_evidence_path` | `docs/demo-evidence/S-PLUGIN-PREREQ-D/` |
+| `per_story_delivery_steps_complete` | **5/8** |
+| `codification_queue` | 31 (UNCHANGED) |
+| `story_v` | 1.37 (UNCHANGED) |
+| `story_index_v` | v2.107 (UNCHANGED) |
+| `develop_head` | 95d46be2 (UNCHANGED) |
+| `state_v` / `handoff_v` | **7.271** |
+| factory-artifacts HEAD | run `git -C .factory log -1 --format=%H` (D-566 is this commit) |
+| test baseline | 34/34 plugin_integration_tests PASS (UNCHANGED — demo evidence files only, no code changes) |
