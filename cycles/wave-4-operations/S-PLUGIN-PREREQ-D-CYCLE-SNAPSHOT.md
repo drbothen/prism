@@ -3321,3 +3321,115 @@ If impl-pass-7 CLEAN: streak advances 0/3 → 1/3 (FIRST advance in cascade afte
 | `error_taxonomy_v` | 1.24 (UNCHANGED) |
 | factory-artifacts HEAD | run `git -C .factory log -1 --format=%H` (D-558 is this commit) |
 | test baseline | 34/34 plugin_integration_tests PASS (fixture path updated; same binary) |
+
+
+---
+
+## §POST-IMPL-PASS-7 BLOCKED (D-559 — 2026-05-15)
+
+### Adversary Impl-Pass-7 Result
+
+**Target:** `feature/S-PLUGIN-PREREQ-D@862e721a`
+**Verdict:** BLOCKED — 1 finding (0 CRIT + 0 HIGH + 1 MED + 0 LOW)
+**Decision burst:** D-559
+**Streak status:** 0/3 (reset — 7th consecutive BLOCKED)
+**Signal:** LIGHTEST PASS YET in 7-pass arc
+
+### Single Finding: F-PASS7-MED-001
+
+**Fixture Strategy table stale — 5th fixture unregistered**
+
+`tests/fixtures/component_model_dispatch.prx` was committed in fix-burst-impl-6
+(worktree commits b1752cb5 + 862e721a) as the 5th fixture, but the story's
+Fixture Strategy section was NOT updated:
+
+- Task 13 line 666: "Commit all **4** .prx test fixtures" (should be 5)
+- Line 819 Strategy decision header: "all **4**" (should be 5)
+- Lines 831-836 Strategy table: 4 rows only (missing `component_model_dispatch.prx`)
+
+**Predicted:** Yes — noted in impl-pass-6 dispatch brief as "minor scope gap:
+Fixture Strategy table not extended" and explicitly excluded from fix-burst-impl-6
+implementer scope per dispatch brief.
+
+**Routing:** story-writer
+**Fix:** 3 single-line story edits + v1.37 changelog row + STORY-INDEX v2.107 row
+
+### Process-Gap OBS
+
+**PG-IMPL-LP6-002 materialized (already in codification queue; count 30 unchanged):**
+When a fix-burst commits a new `.prx` to `tests/fixtures/`, story Fixture Strategy
+table + Task 13 enumeration MUST be updated in the same burst (or next burst if
+explicitly excluded from scope). Prediction-to-materialization pipeline confirmed.
+
+### Prior Closure Verification (4 impl-pass-6 findings)
+
+| Finding | Status |
+|---------|--------|
+| F-PASS6-MED-001 (fixture sources WIT+WAT+README+Justfile) | CLOSED — HELD |
+| F-PASS6-LOW-001 (fixture relocated to tests/fixtures/) | CLOSED — HELD |
+| F-PASS6-LOW-002 (trace anchor v1.32→v1.35) | CLOSED — HELD |
+| F-PASS6-LOW-003 (Burst column impl-3→impl-4) | CLOSED — HELD |
+
+### Carry-Forward Spot-Checks (all HOLD)
+
+| Check | Evidence |
+|-------|----------|
+| F-PASS5-HIGH-001 production-linker test | plugin_integration_tests.rs:2001-2014 loads tests/fixtures/component_model_dispatch.prx via PluginRuntime::build_linker — load-bearing CONFIRMED |
+| F-PASS3-CRIT-001 boot sequence ordering | boot.rs:160 plugin_load_step_with_audit BEFORE boot.rs:164 step7_init_storage — CONFIRMED |
+| F-PASS3-CRIT-002 Val::U16 writeback | host_functions.rs:452 Val::U16(response.status) — CONFIRMED |
+
+### 7-Pass Trajectory
+
+| Pass | CRIT | HIGH | MED | LOW | Net |
+|------|------|------|-----|-----|-----|
+| 1 | 5 | 6 | 4 | 3 | 18 |
+| 2 | 2 | 3 | 4 | 3 | 12 |
+| 3 | 2 | 1 | 2 | 1 | 6 |
+| 4 | 0 | 0 | 2 | 0 | 2 |
+| 5 | 0 | 1 | 1 | 1 | 3 |
+| 6 | 0 | 0 | 1 | 3 | 4 |
+| **7** | **0** | **0** | **1** | **0** | **1** |
+
+Severity decay terminal. Production code layer fully converged (0 CRIT/HIGH/LOW
+for 3+ consecutive passes). Single MED is spec documentation gap only.
+
+### Convergence Forecast
+
+**impl-pass-8 STRONG CLEAN CANDIDATE:** Adversary forecasts ~80% CLEAN probability
+after fix-burst-impl-7 closes F-PASS7-MED-001. The 20% residual accounts for:
+- Story-spec sibling-sweep gaps introduced by the v1.37 changelog row
+- Previously undetected carry-forward becoming visible at lower noise floor
+- Any story-structural inconsistency not visible at current noise level
+
+### Fix Prescription for fix-burst-impl-7
+
+**Scope:** story-writer only (no implementer dispatch required; no code changes)
+
+1. Task 13, story line ~666: "4 .prx test fixtures" → "5 .prx test fixtures"
+2. Strategy decision header, story line ~819: "all 4" → "all 5"
+3. Strategy table append (5th row):
+   - Fixture: `tests/fixtures/component_model_dispatch.prx`
+   - WIT world: `prism:dispatch-test@0.1.0`
+   - Build: wasm-tools 1.248.0 (component embed + component new)
+   - Purpose: Route A pre-built fixture; production-linker dispatch test (F-PASS5-HIGH-001 closure)
+   - Source: `tests/fixtures/src/component_model_dispatch.{wit,core.wat}` + Justfile
+4. Story v1.36 → v1.37 changelog row
+5. STORY-INDEX v2.106 → v2.107 row sync
+
+### Durable Pins (D-559)
+
+| Field | Value |
+|-------|-------|
+| `feature_branch_head` | `862e721a` (UNCHANGED from D-558) |
+| `impl_adversary_pass_count` | 7 |
+| `impl_adversary_streak` | 0/3 (7th consecutive BLOCKED; advances only at CLEAN pass) |
+| `codification_queue` | 30 (unchanged; PG-IMPL-LP6-002 already counted) |
+| `story_v` | 1.36 (UNCHANGED; v1.37 pending fix-burst-impl-7) |
+| `story_index_v` | v2.106 (UNCHANGED; v2.107 pending fix-burst-impl-7) |
+| `develop_head` | 95d46be2 (UNCHANGED) |
+| `state_v` / `handoff_v` | 7.264 |
+| `bc_index_v` | 4.79 (UNCHANGED) |
+| `bc_2_16_002_v` | 1.17 (32 rows; UNCHANGED) |
+| `error_taxonomy_v` | 1.24 (UNCHANGED) |
+| factory-artifacts HEAD | run `git -C .factory log -1 --format=%H` (D-559 is this commit) |
+| test baseline | 34/34 plugin_integration_tests PASS (UNCHANGED) |
