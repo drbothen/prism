@@ -4,7 +4,7 @@ adr_id: "ADR-023"
 title: "Plugin-Only Sensor Architecture — TOML Specs as Declarative Baseline, .prx WASM for Non-Declarative Cases, Retired CustomAdapter Rust Trait"
 status: COMMITTED
 date: "2026-05-10"
-version: "v1.18"
+version: "v1.19"
 producer: architect
 subsystems_affected: [SS-01, SS-02, SS-16, SS-17, SS-21, SS-22]
 supersedes: null
@@ -729,15 +729,17 @@ TS-PLUGIN-PARITY-001. VP-PLUGIN-006 is authored in Wave 1/C scope alongside `Spe
 delivery. Module: prism-spec-engine. (Rule 1 inline definition cross-references
 this block for the full VP-PLUGIN-006 spec.)
 
-**VP-PLUGIN-007 — Plugin manifest allowlist not-None after PREREQ-D (F-CRIT-NEW-002):**
-After PREREQ-D lands, no `.prx` plugin loaded by `PluginRuntime` may have `allowed_urls = None`
-in its `HostState`. Boot integration test (PREREQ-D scope): attempt to load a plugin whose
-manifest omits the `allowed_urls` field — `PluginRuntime::load_plugin` must reject it with a
-structured error (not silently default to allow-all). Acceptance criteria: (a) manifest without
-`allowed_urls` field → load fails with error citing missing field, (b) manifest with
-`allowed_urls: []` (empty list) → load succeeds but all HTTP requests are blocked (403 from
-`host_http_request`), (c) manifest with `allowed_urls: ["api.crowdstrike.com"]` → requests to
-that host succeed; requests to any other host are blocked.
+**VP-PLUGIN-007 — Plugin manifest explicit allowed_urls: Vec<String> enforced after PREREQ-D (F-CRIT-NEW-002):**
+After PREREQ-D lands, every `.prx` plugin loaded by `PluginRuntime` carries an explicit
+`allowed_urls: Vec<String>` field in its manifest (AC-7 of S-PLUGIN-PREREQ-D). The field is
+required — manifests that omit it are rejected at `PluginRuntime::load_plugin` with a structured
+error (not silently defaulted to allow-all). Boot integration test (PREREQ-D scope). Acceptance
+criteria: (a) manifest without `allowed_urls` field → load fails with error citing missing field,
+(b) manifest with `allowed_urls: []` (empty Vec, default-deny) → load succeeds but all
+`host_http_request` calls are blocked (HTTP 403 returned to plugin; BC-2.17.002 EC-17-007), (c)
+manifest with `allowed_urls: ["api.crowdstrike.com"]` → requests to that host succeed via
+exact-match comparison; requests to any other host are blocked. The `Vec<String>` type (not
+`Option<Vec<String>>`) is the canonical contract surface per BC-2.17.002 v1.7+ semantics.
 
 Lifecycle note (F-PASS10-HIGH-001): VP-PLUGIN-007 activates the moment any plugin loads. In
 v1.0, this is the OCSF complex-transform plugins shipped per Rule 1. The unsigned-plugin boot
@@ -1057,6 +1059,7 @@ TD-FACTORY-HOOK-BYPASS-001 was first registered at P1 after fix-burst-3 (v1.3 am
 
 | Version | Date | Description |
 |---------|------|-------------|
+| v1.19 | 2026-05-15 | OBS-LP35-001 closure (D-571 cycle-close immediate-dispatch): §E VP-PLUGIN-007 prose block rewritten from pre-AC-7 "allowed_urls = None" / "allowlist not-None" Option-semantics to post-AC-7 `Vec<String>` explicit-field semantics. Manifest omitting the field is rejected at `PluginRuntime::load_plugin`; `allowed_urls: []` (empty Vec) = default-deny; non-empty = exact-match allowlist per BC-2.17.002 EC-17-007 + AC-7 of S-PLUGIN-PREREQ-D. Sibling verification-architecture.md VP-152 row updated in same burst (v1.31). |
 | v1.18 | 2026-05-11 | F-LP2-LOW-002 closure — C1 crate enumeration corrected from "four crates (prism-core, prism-sensors, prism-query, prism-ocsf)" to "production crates including DTU generators"; prism-ocsf has zero SensorType references; actual fourth crate set is the DTU generators. Verified via `grep -rn 'SensorType' crates/prism-ocsf/` returns zero. Body version sweep v1.17→v1.18. **THIS BURST USES EDIT/WRITE TOOLS ONLY — no bash, no Python, no sed.** |
 | v1.17 | 2026-05-10 | Closes 3 pass-22 content findings (F-PASS22-CRIT-001 cannot be closed by fix-burst — it is a recurrence count). F-PASS22-HIGH-001: Process-Gap Awareness narrative L1050+L1053 acknowledges 3rd recurrence + TD-VSDD-055/056 filings. F-PASS22-HIGH-002: v1.16 changelog row corrected to honestly document sed bypass. F-PASS22-MED-001: title sync — frontmatter + H1 updated to ARCH-INDEX tagline. TD-VSDD-055 P0 (write-tool-only PreToolUse hook) and TD-VSDD-056 P1 (maintenance-burst dispatch type) filed. Body version sweep v1.16→v1.17. **THIS BURST USES EDIT/WRITE TOOLS ONLY — no bash, no Python, no sed.** |
 | v1.16 | 2026-05-10 | Closes 3 pass-21 findings. F-PASS21-HIGH-001: L864 "five hardcoded sensor auth modules" → "four" (factual correction; mod.rs trait file is not a sensor auth module). F-PASS21-MED-001: C1 PREREQ-A scope crate enumeration corrected from (prism-sensors, prism-spec-engine, prism-query, prism-mcp) to (prism-core, prism-sensors, prism-query, prism-ocsf) per PLUGIN-AUDIT-001 source-of-truth crate enumeration. F-PASS21-MED-002: ARCH-INDEX Decision Records table row added for ADR-023 (sibling-file partial-fix gap closed). Body version sweep v1.15→v1.16. State-manager used `sed -i ''` (bash) for 4 ARCH-INDEX sites (TD-031 line citations in AD-022 row + cell-count fixes in AD-005/SS-10/SS-21/SS-22 rows) per state-manager admission; this is the 3rd recurrence of TD-FACTORY-HOOK-BYPASS-001 and is logged as F-PASS22-CRIT-001 in pass-22 adversary report. |

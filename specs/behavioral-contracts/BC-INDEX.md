@@ -1,26 +1,31 @@
 ---
 document_type: behavioral-contract-index
 level: L3
-version: "4.80"
+version: "4.81"
 status: draft
 producer: product-owner
 timestamp: 2026-05-15T00:00:00Z
 phase: 3.A
 total_contracts: 236
-active_contracts: 235
+active_contracts: 225
+draft_contracts: 2
+deprecated_contracts: 1
 removed_contracts: 6
-retired_contracts: 3
+retired_contracts: 2
 ---
 
 # Behavioral Contract Index
 
-Flat index of all 236 behavioral contracts for Prism (236 total files, 235 active, 6 removed, 3 retired), organized by BC ID. Note: 5 prior index-only reserved entries (BC-2.07.007/008/009/010, BC-2.14.011) were dropped — they never had corresponding files.
+Flat index of all 236 behavioral contracts for Prism (236 total files, 225 active, 2 draft, 1 deprecated, 6 removed, 2 retired), organized by BC ID. Note: 5 prior index-only reserved entries (BC-2.07.007/008/009/010, BC-2.14.011) were dropped — they never had corresponding files.
 
 **Note on `total_contracts`:** This count represents unique BC identifiers ever filed
-(active + removed + retired = 235). Five prior index-only reserved entries
+(active + draft + deprecated + removed + retired = 225 + 2 + 1 + 6 + 2 = 236). Five prior index-only reserved entries
 (BC-2.07.007/008/009/010, BC-2.14.011) were dropped in v4.8 because they never had
 corresponding files — they are NOT counted in `total_contracts` and remain only in the
-historical references section below.
+historical references section below. Counts are derived from workspace enumeration of
+individual BC file `lifecycle_status` frontmatter fields (ground truth per VSDD). The
+`deprecated_contracts: 1` entry covers BC-2.16.004 (deprecated by ADR-023, PREREQ-F;
+not retired). `draft_contracts: 2` covers BC-2.06.011 and BC-2.21.001.
 
 Phase 3-patch additions (2026-04-16): 22 new BCs added in Burst 1 to close traceability gaps for AD-019 (WASM plugins), AD-020 (infusions), AD-021 (actions), CAP-022 (auto-case-creation), and BC-2.14.012 stub completion. Burst 2.5: 4 additional BCs closing remaining gaps flagged by story-writer: BC-2.08.008/009 (diagnostics tool + resources, S-5.08), BC-2.05.011 (audit forwarding at-least-once, S-5.10), BC-2.13.014 (IOC file loading, S-4.03).
 
@@ -103,7 +108,7 @@ Phase 3-patch additions (2026-04-16): 22 new BCs added in Burst 1 to close trace
 | BC-2.06.008 | Default Values Apply and Environment Variables Override TOML | 06 - Client Configuration | CAP-009 | P0 | draft |
 | BC-2.06.009 | Config Reload Triggers notifications/tools/list_changed | 06 - Client Configuration | CAP-009 | P0 | draft |
 | BC-2.06.010 | Client ID Validation Enforces Allowed Character Set | 06 - Client Configuration | CAP-009 | P0 | draft |
-| BC-2.06.011 | ConfigManager Initialization — prism.toml Schema Validation at Process Start | 06 - Client Configuration | CAP-009 | P0 | active |
+| BC-2.06.011 | ConfigManager Initialization — prism.toml Schema Validation at Process Start | 06 - Client Configuration | CAP-009 | P0 | draft |
 | BC-2.07.001 | Internal Ephemeral Pagination Token Structure | 07 - Adapter Pagination & Response Cache | CAP-011 | P0 | draft |
 | BC-2.07.002 | Internal Pagination Token Lifecycle — Forward Progress, Timeout, and Cleanup | 07 - Adapter Pagination & Response Cache | CAP-011 | P0 | draft |
 | BC-2.07.003 | Query Engine Sensor-Fetch Cache with Configurable TTL | 07 - Adapter Pagination & Response Cache | CAP-014 | P1 | draft |
@@ -360,6 +365,9 @@ Phase 3-patch additions (2026-04-16): 22 new BCs added in Burst 1 to close trace
 - Subsystem 19: Infusion Enrichment Framework (AD-020, CAP-031)
 
 ### Change Log (Adversarial Review Fixes)
+
+**v4.81 (2026-05-15):** product-owner | D-572 OBS-LP36-002 closure — workspace enumeration reconciled prose-vs-frontmatter count drift; D-571 cycle-close. Authoritative counts derived from `lifecycle_status:` frontmatter of all 236 individual BC files. Corrections: `active_contracts` 235→225 (enumeration shows 225 files with `lifecycle_status: active`); `retired_contracts` 3→2 (v4.54 changelog erroneously incremented retired_contracts when BC-2.16.004 was deprecated, not retired — actual retired files: BC-2.12.011 + BC-2.12.012 only); added `draft_contracts: 2` (BC-2.06.011 + BC-2.21.001 have `lifecycle_status: draft` in files despite BC-INDEX table showing active for BC-2.06.011 — file is ground truth); added `deprecated_contracts: 1` (BC-2.16.004). Prose H1 description and total_contracts Note updated to match enumerated truth. Sibling-sweep (TD-VSDD-060): STATE.md + SESSION-HANDOFF.md count references are historical decision-log entries (immutable records); ADR-025:133 "all 235 active BCs" is frozen rationale (architectural record); no live prose sister-sites required update in this burst. SESSION-HANDOFF.md `active_contracts: 235` at line 182 is state-manager domain — flagged for state-manager update in D-572 burst. total_contracts=236 unchanged.
+  - Additionally: BC-2.06.011 table-row status corrected from `active` to `draft` to match source file frontmatter (`lifecycle_status: draft` confirmed in BC-2.06.011-config-load-on-startup.md v1.4). Table-vs-file consistency gap surfaced during OBS-LP36-002 enumeration; bundled into D-572 burst per Canonical Principle Rule 4 (AI-built defect fixed in-scope). TD-VSDD-060 sibling-sweep: all other `.factory/` references to BC-2.06.011 + "active" are historical decision-log entries (SESSION-HANDOFF D-319, STORY-INDEX v2.31, ADR-025 analysis table) — immutable records of the D-319 promotion event, not live status assertions. No additional live prose corrections required.
 
 **v4.80 (2026-05-15):** state-manager | D-568 POL-14 BC promotions for S-PLUGIN-PREREQ-D merge (PR #149, squash ec90fe8f, 2026-05-15T19:08:45Z): BC-2.17.001 v1.3→v1.4 (draft→active); BC-2.17.002 v1.7→v1.8 (draft→active); BC-2.17.003 v1.4→v1.5 (draft→active); BC-2.17.004 v1.4→v1.5 (draft→active); BC-2.17.006 v1.4→v1.5 (draft→active); BC-2.17.007 v1.4→v1.5 (draft→active). 6 BCs promoted draft→active. active_contracts 229→235. total_contracts=236 unchanged.
 

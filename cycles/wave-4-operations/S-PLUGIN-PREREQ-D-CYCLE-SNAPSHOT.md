@@ -4497,4 +4497,51 @@ PLUGIN-MIGRATION-001-A/B/C/D remain BLOCKED on PREREQ-E.
 | codification_candidates_active | 19 (stale) → 0 |
 | phase_5_deferred_findings | 2 (F-LP12-OBS-001 + F-LP25-OBS-001) |
 
+═══════════════════════════════════════════════════════════════════════
+§D572-COMBINED-FIX-BURST (D-572 — 2026-05-15)
+═══════════════════════════════════════════════════════════════════════
+
+**D-572 combined fix-burst: 3 closures from D-571 downgraded immediate-dispatch list. 78th consecutive single-commit (TD-VSDD-053 stable).**
+
+### Closures
+
+**1. OBS-LP35-001 — CLOSED (architect)**
+- verification-architecture.md v1.30→v1.31: line 282 VP-152 table row "not-None allowlist" → "explicit Vec<String> per AC-7 default-deny per BC-2.17.002 v1.8"
+- ADR-023 v1.18→v1.19: §E VP-PLUGIN-007 prose at lines 732-749 rewritten from pre-AC-7 Option-semantics ("allowed_urls = None"/"not-None allowlist") to post-AC-7 Vec<String>-semantics ("explicit Vec<String>"/"explicit list under AC-7 default-deny")
+- Completes 7-site propagation footprint: 5 prior-burst closures (D-535: BC-2.17.007 body + story, D-533: VP-INDEX + story §References, D-537: BC-INDEX) + 2 arch-layer sites now closed.
+
+**2. OBS-LP36-002 — CLOSED (product-owner + state-manager)**
+- BC-INDEX v4.80→v4.81 frontmatter corrected: active_contracts 235→225 (CORRECTNESS FIX), retired_contracts 3→2, draft_contracts 2 (new field), deprecated_contracts 1 (new field)
+- **SURPRISE:** 10-count discrepancy (235 vs 225 active) was a real error accumulating since v4.54. Root cause: deprecated/retired misclassification. workspace enumeration of individual file lifecycle_status fields is the authoritative source per VSDD.
+- total_contracts: 236 unchanged. Formula reconciled: 225 + 2 + 1 + 6 + 2 = 236
+- SESSION-HANDOFF.md line 182 sister-site synced: active_contracts 235→225
+
+**3. BC-2.06.011 table-row sub-fix — CLOSED (product-owner)**
+- BC-INDEX §Active Contracts table row for BC-2.06.011 status column corrected: active→draft
+- BC-2.06.011 file carries lifecycle_status: draft (established via ADR-025 BC sweep D-454); index row was inconsistent
+
+**ARCH-INDEX v2.43→v2.44:** verification-architecture.md row annotation + ADR-023 Registry row version sync
+
+### Remaining from D-571 Downgraded-Immediate List
+
+| Item | Status | Route |
+|------|--------|-------|
+| OBS-LP35-001 | CLOSED (D-572) | — |
+| OBS-LP36-002 | CLOSED (D-572) | — |
+| BC-2.06.011 sub-fix | CLOSED (D-572) | — |
+| F-LP16-OBS-001 prism-bin edition 2021→2024 | OPEN | maintenance fix-PR |
+| F-LP22-OBS-001 PluginError non_exhaustive + ci.yml EXPECTED=31 | OPEN | maintenance fix-PR |
+
+### Artifact State at D-572
+
+| Artifact | Change |
+|----------|--------|
+| STATE+HANDOFF version | v7.276 → v7.277 |
+| BC-INDEX version | v4.80 → v4.81 |
+| verification-architecture.md | v1.30 → v1.31 |
+| ADR-023 | v1.18 → v1.19 |
+| ARCH-INDEX version | v2.43 → v2.44 |
+| active_contracts | 235 → 225 (correctness fix) |
+| Consecutive single-commit | 78 (TD-VSDD-053 stable) |
+
 **Next dispatch:** session-reviewer cycle-close (31 codification candidates + 8 phase-5 deferred + OBS-LP41-001) → PREREQ-E planning (Un-seal SensorAuth + Deprecate CustomAdapter per PLUGIN-MIGRATION Wave 0 dep chain).

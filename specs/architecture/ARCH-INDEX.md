@@ -1,7 +1,7 @@
 ---
 document_type: architecture-index
 level: L3
-version: "2.43"
+version: "2.44"
 status: draft
 producer: architect
 timestamp: 2026-05-04T00:00:00
@@ -32,7 +32,7 @@ deployment_topology: single-service  # planned — no service binary exists yet 
 | Operational Pipeline | operational-pipeline.md | ~1,000 | implementer, test-writer | Scheduler, differential results, detection, alerts, cases — v1.2 (D-209 8/8 + 60s tick + ActionDeliveryEngine per F-P23-H-001) |
 | Concurrency Architecture | concurrency-architecture.md | ~800 | implementer, formal-verifier | Tokio runtime, arc-swap, shared state protection — v1.1 (Mermaid diagram + 6 edits; 16-permit→8/8 split per D-209) |
 | Purity Boundary Map | purity-boundary-map.md | ~800 | implementer, formal-verifier | Pure core / effectful shell classification per crate |
-| Verification Architecture | verification-architecture.md | ~1,000 | formal-verifier, architect | Provable Properties Catalog, proof strategy — v1.30 (pass4 sister-line bump: VP-014/VP-015 property-text corrected to actual ParseError struct API) |
+| Verification Architecture | verification-architecture.md | ~1,000 | formal-verifier, architect | Provable Properties Catalog, proof strategy — v1.31 (D-572 OBS-LP35-001: VP-152 table row Option-semantics → Vec<String> canonical per BC-2.17.002 v1.8 AC-7) |
 | Tooling Selection | tooling-selection.md | ~400 | formal-verifier, devops-engineer | Kani, proptest, fuzz tool versions and config |
 | Detection Rule Format | detection-rule-format.md | ~1,200 | implementer, test-writer | .detect rule structure, condition modes, rule-to-SQL compilation |
 | Infusions | infusions.md | ~1,500 | implementer, test-writer | Enrichment framework — GeoIP, threat intel, asset inventory, CVSS. TOML specs + .prx plugins. |
@@ -88,7 +88,7 @@ deployment_topology: single-service  # planned — no service binary exists yet 
 | ADR-020 | Story Status Taxonomy Reform — Closed Enum, Partial-Merge Semantics, and Graduation Contract | ACCEPTED v1.1 | 2026-05-08 | decisions/ADR-020-story-status-taxonomy-reform.md |
 | ADR-021 | BC/VP Promotion Lifecycle — Draft → Active → Verified Transitions, Audit Cadence, and BC-INDEX Count Authority | ACCEPTED v1.1 | 2026-05-08 | decisions/ADR-021-bc-vp-promotion-lifecycle.md |
 | ADR-022 | Production Runtime Wiring — prism-bin Chassis, Boot Sequence, Wiring Contracts, Infusion Fate, Hot-Reload Watcher, MCP Topology | ACCEPTED v1.3 | 2026-05-08 | decisions/ADR-022-production-runtime-wiring.md |
-| ADR-023 | Plugin-Only Sensor Architecture — TOML Specs as Declarative Baseline, .prx WASM for Non-Declarative Cases, Retired CustomAdapter Rust Trait | COMMITTED v1.18 | 2026-05-10 | decisions/ADR-023-plugin-only-sensor-architecture.md |
+| ADR-023 | Plugin-Only Sensor Architecture — TOML Specs as Declarative Baseline, .prx WASM for Non-Declarative Cases, Retired CustomAdapter Rust Trait | COMMITTED v1.19 | 2026-05-15 | decisions/ADR-023-plugin-only-sensor-architecture.md |
 | ADR-024 | ColumnType Canonical Naming — Domain-Level Variant Names for Sensor Schema API; prism-spec-engine Shadow Enum Retirement | ACCEPTED v1.0 | 2026-05-12 | decisions/ADR-024-column-type-canonical-naming.md |
 | ADR-025 | BC Lifecycle Field Canonical Scheme — Single status Field Governs; lifecycle Field Retired | ACCEPTED v1.0 | 2026-05-12 | decisions/ADR-025-bc-lifecycle-field-canonical-scheme.md |
 
@@ -150,6 +150,7 @@ deployment_topology: single-service  # planned — no service binary exists yet 
 
 | Version | Pass | Date | Author | Change |
 |---------|------|------|--------|--------|
+| 2.44 | D-572 | 2026-05-15 | state-manager | D-572 OBS-LP35-001 closure: verification-architecture.md row annotation v1.30→v1.31 (VP-152 table row Option-semantics → Vec<String> canonical); ADR-023 Registry row version sync COMMITTED v1.18→v1.19 (§E VP-PLUGIN-007 prose Option-semantics → Vec<String>). ARCH-INDEX v2.43→v2.44. |
 | 2.43 | D-478/D-479-fix-burst-7-stage-1B | 2026-05-13 | state-manager | ADR-022 v1.2→v1.3 (fix-burst-7 stage 1B by architect): §B Boot Sequence Spec amended with Step 7.5 cross-reference to ADR-023 §C4 (plugin-load intercalation; discoverability gap F-LP8-OBS-001 closed in-scope per Canonical Principle Rule 6); new Related ADRs section added before Changelog (includes ADR-023 §C4 row with supersession statement). ADR Registry row updated ACCEPTED v1.2 → ACCEPTED v1.3. ARCH-INDEX v2.42→v2.43. |
 | 2.42 | D-450-D-451-D-452-architect-cascade | 2026-05-12 | architect | ADR-024 (ColumnType canonical naming — domain-level wins; prism-spec-engine shadow enum retired) + ADR-025 (BC lifecycle field canonical scheme — status sole field; lifecycle retired per ADR-021 amendment) registered. ARCH-INDEX v2.41→v2.42. |
 | 2.41 | D-447-volatile-pin-strip | 2026-05-12 | state-manager | ADR-022 row version sync v1.1→v1.2 per TD-VSDD-091 volatile-pin strip (18 line-number citations removed across §Context/§B/§C/§D/§G; function-name pivots applied; HISTORICAL markers for S-3.02-FOLLOWUP-RUNTIME sites). Template compliance sections added. ARCH-INDEX v2.40→v2.41. |

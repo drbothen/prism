@@ -2,7 +2,7 @@
 cycle: wave-4-operations
 last_updated: 2026-05-15
 maintainer: orchestrator + state-manager
-lessons_codified: 15
+lessons_codified: 16
 ---
 
 # Wave-4 Operations — Cycle Lessons
@@ -224,5 +224,26 @@ BC `modified:` frontmatter field must use ISO 8601 date scalar format (YYYY-MM-D
 **Source cascade:** TD-VSDD-053 single-commit protocol; 77th consecutive single-commit at D-571
 **Codified-as:** Stable-convention confirmation (no new POL required)
 **Target-anchor:** SESSION-REVIEW-D571.md §Lesson 15
+
+The single-commit-per-burst protocol (TD-VSDD-053) has demonstrated sustained stability across 77 consecutive bursts with zero multi-commit-chain violations. The protocol is self-reinforcing: each burst's compliance is itself evidence that the anti-patterns (Stage 1 + Stage 2 backfill chains, in-progress narrative voice, SHA placeholders) remain suppressed. No further codification required.
+
+---
+
+### Lesson 16: BC-INDEX prose-vs-frontmatter drift can mask real count errors [codified]
+
+**Codified:** 2026-05-15 (D-572 combined fix-burst)
+**Source cascade:** OBS-LP36-002 (first surfaced pass-36 D-536 as "deferred phase-5 system-level issue"); resolved at D-572 via product-owner workspace enumeration
+**Codified-as:** Operational discipline for BC-INDEX counter validation; session-reviewer codification candidate for formal POL
+
+BC-INDEX carries count fields in two places: (1) YAML frontmatter (`active_contracts:`, `total_contracts:`, etc.) and (2) H1 prose line. These two sources can silently diverge. The D-572 workspace enumeration revealed a 10-count discrepancy in `active_contracts` (235 frontmatter vs 225 actual) that had been silently accumulating since v4.54 due to deprecated/retired misclassification when POL-14 BC promotions added entries without re-enumerating the full set. The frontmatter aggregate is NOT authoritative; individual BC file `lifecycle_status` fields are the ground truth per VSDD.
+
+**Mandatory validation discipline for BC-INDEX count changes:**
+1. Run `find .factory/specs/behavioral-contracts -name "BC-*.md" | wc -l` to get total file count (= `total_contracts`).
+2. Run `grep -l "lifecycle_status: active"` (and `draft`, `deprecated`, `removed`, `retired`) to get authoritative subcounts.
+3. Verify frontmatter subcounts sum to total: `active + draft + deprecated + removed + retired = total_contracts`.
+4. Verify H1 prose is consistent with frontmatter.
+5. S-7.02 defensive sweep: grep STATE.md + SESSION-HANDOFF.md for the old count value and update sister-sites before committing.
+
+This discipline closes the failure mode where drift between BC file lifecycle_status values and BC-INDEX aggregate counts goes undetected for multiple version bumps. The canonical check is workspace enumeration, not arithmetic from the last known state.
 
 77 consecutive single-commits (TD-VSDD-053) with zero MULTI_COMMIT_CHAIN_NOT_ALLOWED violations. The Single-Commit Burst Protocol is operationally stable at this project's scale. No additional codification needed. Reconfirming stable-convention status per §Candidate #4 pre-compact snapshot verdict.

@@ -2,7 +2,7 @@
 document_type: architecture-section
 level: L3
 section: "verification-architecture"
-version: "1.30"
+version: "1.31"
 status: draft
 producer: architect
 timestamp: 2026-05-03T00:00:00
@@ -279,7 +279,7 @@ Properties are organized by the domain invariant or BC postcondition they verify
 | VP-149 | Boot warning fires on unsigned plugin load (v1.0 scope) | prism-spec-engine | integration_test | feasible | P0 | ADR-023 §E |
 | VP-150 | OAuth2 refresh-on-401 via declarative TOML retry policy (PipelineExecutor) | prism-spec-engine | integration_test | feasible | P0 | ADR-023 §E |
 | VP-151 | OCSF column mapping fixture catalog (6 representative cases, SpecDrivenMapper) | prism-spec-engine | integration_test | feasible | P1 | ADR-023 §E |
-| VP-152 | Plugin manifest allowlist not-None after PREREQ-D (allowed_urls enforcement) | prism-spec-engine | integration_test | feasible | P0 | ADR-023 §E |
+| VP-152 | Plugin manifest explicit allowed_urls: Vec<String> enforced after PREREQ-D (empty-vec = deny-all; non-empty = exact-match allowlist; manifest omitting field rejected at load time) | prism-spec-engine | integration_test | feasible | P0 | ADR-023 §E |
 
 ## Verification Priority
 
@@ -308,6 +308,7 @@ Proptest strategies generate complex inputs (alias graphs, detection rules, OCSF
 
 | Version | Pass | Date | Author | Notes |
 |---------|------|------|--------|-------|
+| 1.31 | OBS-LP35-001 | 2026-05-15 | architect | OBS-LP35-001 closure (D-571 cycle-close immediate-dispatch): VP-152 Provable Properties Catalog row rewritten from pre-AC-7 "allowlist not-None" Option-semantics to post-AC-7 `Vec<String>` explicit-field semantics — empty-vec = deny-all; non-empty = exact-match allowlist; manifest omitting field rejected at load time. Canonical contract anchor: BC-2.17.002 v1.7+ EC-17-007 + AC-7 of S-PLUGIN-PREREQ-D. Sibling ADR-023 §E VP-PLUGIN-007 block updated in same burst (ADR-023 v1.19). |
 | 1.30 | pr-127-pass4-remediation | 2026-05-05 | architect | Sister-line discipline version bump. VP-014 (v1.6) and VP-015 (v1.7) property statements corrected to match actual `ParseError` struct API — non-existent enum variants `ParseError::QueryTooLarge` / `ParseError::NestingTooDeep` replaced with `Err(Vec<ParseError>)` returning message containing `E-QUERY-003`. Provable Properties Catalog rows for VP-014 and VP-015 do not embed property text; no catalog table changes required. Cross-ref: VP-INDEX v1.29, vp-014 v1.6, vp-015 v1.7, ARCH-INDEX v2.31. |
 | 1.29 | pr-127-formal-verify | 2026-05-05 | architect | VP-014 and VP-015 promoted to `verified` in Provable Properties Catalog following successful Kani proof runs at commit f5212641 (PR #127). VP-014: `proof_check_query_size_rejects_oversize`, 0/4371 failed (285 unreachable). VP-015: 4 harnesses including new `proof_sql_query_depth_limit`, 0/5664 failed (397 unreachable). Cross-ref: VP-INDEX v1.28, vp-014 v1.5, vp-015 v1.6, ARCH-INDEX v2.30. |
 | 1.28 | F-PreP21-H-001 | 2026-05-03 | architect | F-PreP21-H-001: Mermaid node P13 label corrected "Schedule semaphore try_acquire" → "Action delivery semaphore try_acquire" (VP-045) — sister-fix gap from Pass-20 F-P20-H-001 which updated VP catalog row but missed Mermaid node. |
