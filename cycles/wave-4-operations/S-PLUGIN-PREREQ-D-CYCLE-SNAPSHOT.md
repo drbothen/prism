@@ -3215,3 +3215,109 @@ After fix-burst-impl-6 closes all 4 findings, impl-pass-7 has strong CLEAN poten
 | factory-artifacts HEAD | run `git -C .factory log -1 --format=%H` (D-557 is this commit) |
 | test baseline | 34/34 plugin_integration_tests PASS (UNCHANGED) |
 | impl-pass-6 report | `cycles/wave-4-operations/adversarial-reviews/S-PLUGIN-PREREQ-D-impl-pass-6.md` |
+
+## §FIX-BURST-IMPL-6 CLOSURE (D-558 — 2026-05-15)
+
+**Fix-burst-impl-6:** CLOSED 4/4 | **Streak:** 0/3 (unchanged; fix-burst does not advance streak)
+**Factory commit (D-558):** run `git -C .factory log -1 --format=%H`
+
+### Parallel Split-Routing Pattern
+
+Fix-burst-impl-6 executed as parallel split-routing — two independent dispatch lanes:
+- **Implementer lane** (worktree commits): F-PASS6-MED-001 + F-PASS6-LOW-001 + F-PASS6-LOW-002
+- **Story-writer lane** (factory commit 62ca7655, landed as D-557 parallel): F-PASS6-LOW-003 + PG-IMPL-LP6-003
+
+All 4 in-perimeter findings CLOSED. ZERO CRIT + ZERO HIGH milestone preserved across 6 passes.
+
+### Finding Closure Summary
+
+| Finding | Severity | Commit | Closure |
+|---------|----------|--------|---------|
+| F-PASS6-MED-001 | MED | b1752cb5 (worktree) | Fixture sources WIT+WAT+README+Justfile committed to `tests/fixtures/src/`; rebuild verified; TD-VSDD-059 paper-fix vector resolved |
+| F-PASS6-LOW-001 | LOW | 862e721a (worktree) | Fixture relocated via `git mv` from `crates/prism-spec-engine/fixtures/` to `tests/fixtures/component_model_dispatch.prx`; test path updated |
+| F-PASS6-LOW-002 | LOW | 862e721a (worktree) | `plugin_integration_tests.rs:3` trace anchor bumped v1.32→v1.35 |
+| F-PASS6-LOW-003 | LOW | 62ca7655 (factory) | Story v1.34 Burst column corrected `fix-burst-impl-3` → `fix-burst-impl-4` |
+| PG-IMPL-LP6-003 | OBS | 62ca7655 (factory) | Story frontmatter `updated:` 2026-05-14 → 2026-05-15; story v1.35→v1.36 |
+
+### Worktree Commits (feature/S-PLUGIN-PREREQ-D)
+
+**b1752cb5** — `test(prism-spec-engine): F-PASS6-MED-001 — commit component_model_dispatch fixture sources (WIT + WAT + README + Justfile recipe)`
+
+Files added:
+- `tests/fixtures/src/component_model_dispatch.wit` — full WIT IDL (`prism:dispatch-test@0.1.0` world with http-response record type)
+- `tests/fixtures/src/component_model_dispatch.core.wat` — core module WAT (canonical ABI: 10 i32 params, retptr offset 512)
+- `tests/fixtures/src/component_model_dispatch.README.md` — version-pinned build recipe (wasm-tools 1.248.0)
+- `Justfile` — `build-fixture-component_model_dispatch` recipe
+
+Rebuild verification: `just build-fixture-component_model_dispatch` produces 1314-byte binary with identical WIT contract. Both byte-variants (1227-byte prior + 1314-byte rebuild) pass `test_F_PASS5_HIGH_001_production_linker_dispatch_via_build_linker_route_a` — WIT contract is durable across wasm-tools minor version variance. TD-VSDD-059 paper-fix vector CLOSED.
+
+**862e721a** — `test(prism-spec-engine): F-PASS6-LOW-001/002 — relocate fixture to tests/fixtures/ + bump trace anchor v1.32→v1.35`
+
+Changes:
+- `git mv crates/prism-spec-engine/fixtures/component_model_dispatch.prx tests/fixtures/component_model_dispatch.prx`
+- `plugin_integration_tests.rs` `Component::from_file` path updated to `tests/fixtures/component_model_dispatch.prx`
+- `plugin_integration_tests.rs:3` `//! Traces to: S-PLUGIN-PREREQ-D (v1.32)` → `//! Traces to: S-PLUGIN-PREREQ-D (v1.35)`
+
+### Factory Commit (parallel story-writer dispatch — landed pre-D-558)
+
+**62ca7655** — `fix(S-PLUGIN-PREREQ-D): F-PASS6-LOW-003 + PG-IMPL-LP6-003 — story v1.34 Burst column reconciliation + frontmatter date sync (story v1.35→v1.36)`
+
+Changes:
+- Story v1.34 §Changelog Burst column: `S-PLUGIN-PREREQ-D-fix-burst-impl-3` → `S-PLUGIN-PREREQ-D-fix-burst-impl-4` (adjudicated: BC row 32 addition was D-552/impl-3; story-body sweep 12→13 + 13th row append was D-554/impl-4)
+- Story frontmatter `updated:`: 2026-05-14 → 2026-05-15
+- Story version: v1.35 → v1.36
+- STORY-INDEX: v2.105 → v2.106
+
+### Final Verification
+
+```
+just check: 3645/3645 pass, 17 skipped, 0 failures
+```
+
+### 7-Pass Trajectory (Severity-Weighted)
+
+| Pass | CRIT | HIGH | MED | LOW | Total | Note |
+|------|------|------|-----|-----|-------|------|
+| impl-pass-1 | 3 | 6 | 7 | 2 | 18 | Initial implementation |
+| impl-pass-2 | 2 | 4 | 4 | 2 | 12 | Paper-fix layer 2 |
+| impl-pass-3 | 3 | 1 | 2 | 0 | 6 | Paper-fix layer 3 |
+| impl-pass-4 | 0 | 1 | 1 | 0 | 2 | Paper-fix layer 4 |
+| impl-pass-5 | 0 | 1 | 0 | 2 | 3 | Paper-fix layer 5 (test-local linker) |
+| impl-pass-6 | 0 | 0 | 1 | 3 | 4 | **ZERO CRIT+HIGH; LOW-only** |
+| fix-burst-impl-6 | — | — | — | — | **0** | ALL 4 CLOSED |
+
+Full arc: **18→12→6→2→3→4** (severity-weighted); fix-burst-impl-6 closes all 4.
+
+### Minor Scope Gap (State-Manager Note)
+
+Implementer's dispatch brief specified "DO NOT touch story file" so the Fixture Strategy table (story §lines 829-836) was NOT extended to register `component_model_dispatch.prx` as the 5th fixture entry. Impl-pass-7 will adjudicate whether this constitutes a LOW finding or is acceptable given the story already references fixture via test code. This is routing-clarity, not a defer-to-story — no future-story anchor needed; impl-pass-7 adjudication happens in the next burst.
+
+### impl-pass-7 Prerequisites + FIRST ADVANCE Opportunity
+
+All fix-burst-impl-6 findings remediated. impl-pass-7 prerequisites:
+- fixture sources committed with build recipe (WIT + WAT + README + Justfile) ✓
+- fixture relocated to `tests/fixtures/` per story Fixture Strategy ✓
+- trace anchor bumped to v1.35 ✓
+- STORY-INDEX v1.34 Burst column corrected impl-3→impl-4 ✓
+- story frontmatter date synced ✓
+- just check 3645/3645 pass ✓
+
+If impl-pass-7 CLEAN: streak advances 0/3 → 1/3 (FIRST advance in cascade after 6 consecutive BLOCKED passes). 3-CLEAN convergence then requires impl-pass-8 (2/3) + impl-pass-9 (3/3) → Step 5 demo-recorder dispatch.
+
+### Durable Pins (D-558)
+
+| Field | Value |
+|-------|-------|
+| `feature_branch_head` | `862e721a` (F-PASS6-LOW-001 fixture relocate + F-PASS6-LOW-002 trace anchor) |
+| `impl_adversary_pass_count` | 6 |
+| `impl_adversary_streak` | 0/3 (fix-burst; streak advances only at CLEAN adversary pass) |
+| `codification_queue` | 30 (unchanged; PG-IMPL-LP6-001/002/003 still queue; PG-IMPL-LP6-003 addressed but still in queue) |
+| `story_v` | 1.36 |
+| `story_index_v` | v2.106 |
+| `develop_head` | 95d46be2 (UNCHANGED) |
+| `state_v` / `handoff_v` | 7.263 |
+| `bc_index_v` | 4.79 (UNCHANGED) |
+| `bc_2_16_002_v` | 1.17 (32 rows; UNCHANGED) |
+| `error_taxonomy_v` | 1.24 (UNCHANGED) |
+| factory-artifacts HEAD | run `git -C .factory log -1 --format=%H` (D-558 is this commit) |
+| test baseline | 34/34 plugin_integration_tests PASS (fixture path updated; same binary) |
