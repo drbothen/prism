@@ -1310,4 +1310,58 @@ POL-29 proposed text (cycle-close):
 
 Priority: HIGHEST for cycle-close governance action.
 
+---
+
+## §D-611 FIX-BURST-14 CLOSURE (D-610 + D-611 — 2026-05-16) — 3/3 IN-SCOPE CLOSED; 6TH RECURRENCE POL-23 CLASS CLOSED; PASS-16 NEXT
+
+**2-agent burst (PO D-610 + state-manager D-611) — PREREQ-E FIX-BURST-14 CLOSED — 3/3 in-scope findings — streak stays 0/3 — 117th consecutive single-commit (TD-VSDD-053 DECISIVELY STABLE)**
+
+### FB14 Finding Closure Verification
+
+| Finding | Agent | Closure Burst | Verification |
+|---------|-------|--------------|-------------|
+| F-LP15-HIGH-001 BC-2.16.002 bullet label sync | PO D-610 + state-manager D-611 | D-611 completes D-610 | `grep "Canonical Structured Event Catalog (v1.20)" BC-2.16.002*.md` — line 74; BC-2.16.002 frontmatter `version: "1.20"` |
+| F-LP15-HIGH-002 error-taxonomy BC anchor correction | PO D-610 | D-610 `b55869bb` | `grep "BC-2.16.002 §Postconditions.*v1.20.*row 33" error-taxonomy.md` — line 467 |
+| F-LP15-MED-001 BC-2.16.012 §Changelog renumber-repair-redo | state-manager D-611 | D-611 | BC-2.16.012 §Changelog rows v1.0→v1.14 strictly monotonic; no duplicate version cells |
+
+### 6th Recurrence Summary
+
+| Occurrence | Burst | Source Artifact | Swept? | Outcome |
+|---|---|---|---|---|
+| 1 | FB5→pass-6 | Unclear | No | BLOCKED |
+| 2 | FB6→pass-7 | ADR-026 D7 v1.7 | No | BLOCKED |
+| 3 | FB7→pass-8 | ADR-026 D7 v1.8 | No | BLOCKED |
+| 4 | FB8 (explicit discipline) | ADR-026 D7 v1.9 | YES | pass-9 CLEAN★ |
+| 5 | FB12→pass-14 | ADR-026 D7 v1.9→v1.10 | No (VP-156+BC-2.16.012 missed) | BLOCKED |
+| **6** | **FB14→pass-15 (BC-2.16.002 bullet label)** | **BC-2.16.002 v1.18→v1.19** | **No (bullet label not synced)** | **BLOCKED** |
+| **FB14 CLOSED** | **D-610+D-611** | **BC-2.16.002 bullet label `(v1.19)`→`(v1.20)` + error-taxonomy BC anchor + BC-2.16.012 §Changelog renumber** | **YES (all 3 findings)** | **CLOSED — pass-16 NEXT** |
+
+### Artifact Version Summary Post-FB14
+
+- ADR-026: v1.10 (UNCHANGED — single-bump discipline)
+- ADR-027: v1.5 (UNCHANGED)
+- BC-2.01.016: v1.3 (UNCHANGED)
+- BC-2.16.011: v1.4 (UNCHANGED)
+- BC-2.16.002: **v1.20** (bullet label `(v1.20)` synced; 33 catalog rows)
+- BC-2.16.012: **v1.14** (§Changelog renumber-repair-redo; monotonic v1.0→v1.14)
+- error-taxonomy: **v1.29** (E-PLUGIN-020 BC anchor corrected to BC-2.16.002)
+- VP-155: v0.5 (UNCHANGED)
+- VP-156: v0.8 (UNCHANGED)
+- VP-INDEX: v1.46 (UNCHANGED)
+- BC-INDEX: **v4.90** (BC-2.16.002 row v1.19→v1.20; BC-2.16.012 row v1.11→v1.14)
+- STORY-INDEX: v2.113 (UNCHANGED)
+- ARCH-INDEX: v2.52 (UNCHANGED)
+
+### Updated Trajectory Shorthand (Post-FB14)
+
+**14→9→8→9→10→10→FB6-CLOSED(10/10)→8→FB7-CLOSED(8/8)→4→FB8-CLOSED(3/3)→pass-9:CLEAN★(1/3)→pass-10:BLOCKED(1H+1M+1L; RESET 0/3; 3-CLEAN PROTOCOL VALIDATED)→FIX-BURST-9-CLOSED(3/3)→pass-11:BLOCKED(1M; RECURRING VP traceability; 0/3)→FIX-BURST-10-CLOSED(1/1)→pass-12:BLOCKED(1M; HIGH-NOVELTY tracing-emission ↔ catalog axis; 0/3)→FIX-BURST-11-CLOSED(1/1 in-scope; BC-2.16.002 catalog row+cross-ref+event-name; BUT 3 defects introduced by FB11)→pass-13:BLOCKED(0C+3H+0M+0L+0OBS; ALL FB11-introduced; POL-21 RECURRING + POL-23/27 frontmatter drift + plugin_name unresolvable; FB-introduces-new-defects PATTERN; POL-29 codification candidate; streak 0/3 unchanged)→FIX-BURST-12-CLOSED(3/3 in-scope HIGH; POL-21 swept + frontmatter synced + plugin_name resolved via Option A)→pass-14:BLOCKED(0C+1H+0M+0L+3OBS; F-LP14-HIGH-001 ADR-026 v1.9→v1.10 sibling-sweep miss; 5th RECURRENCE; streak 0/3 unchanged)→FIX-BURST-13-CLOSED(1/1 in-scope; 5 sites swept; single-bump discipline applied; 5th RECURRENCE class closure)→pass-15:BLOCKED(0C+2H+1M+0L+3OBS; 6TH OCCURRENCE POL-23 RECURRING class — BC-2.16.002 bullet-label v1.18 stale vs v1.19 frontmatter + error-taxonomy mis-routed anchor + BC-2.16.012 duplicate v1.2 changelog rows pre-existing FB1; streak 0/3 unchanged)→FIX-BURST-14-CLOSED(3/3 in-scope: bullet-label sync + BC anchor correction + renumber-repair-redo; 6th RECURRENCE class closed; single-bump discipline maintained)**
+
+Streak: **0/3** — pass-16 NEXT.
+
+### POL-29 Codification: ROUTING CONFIRMED
+
+6th occurrence CLOSED. POL-29 codification candidate is HIGHEST-PRIORITY action at PREREQ-E cycle-close. Routing: session-reviewer at cycle-close. FB14 closes the defect pattern; it does NOT codify the policy (that requires cycle-close session-reviewer dispatch with human review of proposed POL-29 text).
+
+STATE.md v7.304; SESSION-HANDOFF.md v7.304; 117th consecutive single-commit (TD-VSDD-053 DECISIVELY STABLE).
+
 STATE.md v7.302; SESSION-HANDOFF.md v7.302; BC-INDEX v4.89; VP-INDEX v1.46; 114th consecutive single-commit (TD-VSDD-053 DECISIVELY STABLE).
