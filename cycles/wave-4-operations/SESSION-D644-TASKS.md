@@ -1,11 +1,11 @@
 ---
 document_type: session-tasks
-version: "1.3"
+version: "1.4"
 status: active
 related_burst: D-644
-predecessor_state: D-646
+predecessor_state: D-648
 predecessor_session_tasks: SESSION-D580-TASKS.md (cascade pass-1 through pass-5 era)
-timestamp: 2026-05-16T23:59:00Z
+timestamp: 2026-05-16T23:59:30Z
 ---
 
 # Session Task List — D-644 Durable Pre-/Clear Snapshot
@@ -41,7 +41,8 @@ This file persists the task list and full cascade state from the session coverin
 | 82 | **DONE** | **PREREQ-E fix-burst-28 CLOSED** — D-645 combined-burst closed all 3 MED findings; story v1.13; STORY-INDEX v2.117; 151st consecutive single-commit |
 | 83 | **DONE** | **PREREQ-E pass-37 BLOCKED + FB29 CLOSED** — D-646 combined-burst closed all 3 MED findings; story v1.14; VP-153 v0.6; VP-INDEX v1.48; STORY-INDEX v2.118; 152nd consecutive single-commit |
 | 84 | **DONE** | **PREREQ-E pass-38 BLOCKED + FB30 CLOSED** — D-647 combined-burst closed 2/2 in-scope findings; story v1.15; STORY-INDEX v2.119; 153rd consecutive single-commit |
-| 85 | **PENDING** | PREREQ-E pass-39 (3rd of 9th 3-CLEAN sequence — streak 0/3; pass-39 NEXT) |
+| 85 | **DONE** | **PREREQ-E pass-39 CLEAN★** — D-648; zero in-scope findings; streak 0/3 → **1/3** FIRST ADVANCE OF 9TH ATTEMPT; all defect-class families RESOLVED; novelty LOW; 154th consecutive single-commit |
+| 86 | **PENDING** | PREREQ-E pass-40 (2nd of 9th 3-CLEAN sequence — streak 1/3; pass-40 NEXT; 2 more CLEAN passes for BC-5.39.001 convergence) |
 
 ## §FB28 Closure Note (D-645 COMPLETE)
 
@@ -139,6 +140,40 @@ Single combined-burst (D-629/D-631/D-639/D-640/D-641 precedent):
 
 Story v1.12 → v1.13 expected. STORY-INDEX v2.116 → v2.117 expected.
 
+## §Pass-39 CLEAN Note (D-648 COMPLETE)
+
+**Pass-39 CLEAN★ — zero in-scope findings — streak 0/3 → 1/3 — FIRST ADVANCE OF 9TH 3-CLEAN ATTEMPT (2026-05-16)**
+
+### Streak Advance Significance
+
+This is the first streak advance of the 9th 3-CLEAN attempt. The 8 prior passes in this attempt reset before reaching 1/3. Historical context:
+- Attempt 1 (pass-9): 1/3, reset at pass-10
+- Attempt 2 (pass-19): 1/3, reset at pass-20
+- Attempt 3 (pass-23): 1/3, reset at pass-24
+- Attempt 4 (pass-25 → pass-26): 1/3 → 2/3, reset at pass-27
+- Attempt 5 (pass-29 → pass-30): 1/3 → 2/3, reset at pass-31
+- Attempt 6 (pass-32..38 era): multiple resets at 0/3 (HIGH findings from FB26/27/28 closures; then FB29/FB30 closures caused resets within pass-38)
+- Attempt 7 (pass-35): 1/3, reset at pass-36
+- Attempt 8 (passes 37-38): 0/3 (BLOCKED both)
+- **Attempt 9 (pass-39): 1/3 — FIRST ADVANCE ★**
+
+### Zero New Findings
+
+No CRIT/HIGH/MED/LOW raised. Pass-39 is the cleanest pass in the cascade relative to the current spec state. All major defect-class families exhausted.
+
+### OBS-LP38-001 Still Queued for Cycle-Close
+
+VP-INDEX v1.48 row narrative asymmetry (missing POL-11 citation vs sibling docs) confirmed non-blocking. Deferred to session-reviewer cycle-close adjudication per S-7.02. Do NOT close before cycle-close workflow.
+
+### Pass-40 Dispatch Readiness
+
+- Streak: 1/3
+- No fix-burst required (CLEAN pass)
+- Perimeter unchanged — all 19 artifacts at D-647 version pins
+- Adversary can dispatch immediately: 2nd of 9th 3-CLEAN attempt
+- If pass-40 CLEAN: streak 1/3 → 2/3 (penultimate)
+- If pass-40 BLOCKED: streak resets to 0/3 (would be 10th attempt); fix-burst required before pass-41
+
 ## Strategic Options for Next Session
 
 The cascade has demonstrated 5 prior "first CLEAN → reset" patterns (passes 9, 19, 23, 26, 30, 35 all reset). Only pass-25→pass-26 advanced 1/3 → 2/3. After FB28 closure, the next pass (pass-37) starts the 9th attempt at 3-CLEAN sequence. Strategic options:
@@ -207,7 +242,7 @@ Accept current spec quality (8 CLEAN passes is unusual statistical evidence of q
 3. **`.factory/cycles/wave-4-operations/SESSION-D644-TASKS.md`** — this file (task list + FB30 closure + strategic options)
 4. **`.factory/cycles/wave-4-operations/S-PLUGIN-PREREQ-E-CYCLE-SNAPSHOT.md`** — full cascade history through D-647
 5. **`.factory/cycles/wave-4-operations/SESSION-D580-TASKS.md`** — prior session task list (pass-1 through pass-5 era; D-580 precedent)
-6. **`.factory/cycles/wave-4-operations/adversarial-reviews/S-PLUGIN-PREREQ-E-spec-pass-{1..38}.md`** — per-pass finding context if needed (38 files total)
+6. **`.factory/cycles/wave-4-operations/adversarial-reviews/S-PLUGIN-PREREQ-E-spec-pass-{1..39}.md`** — per-pass finding context if needed (39 files total)
 
 ## Session Continuation Behavior
 

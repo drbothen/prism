@@ -2729,3 +2729,56 @@ Shorthand append: →pass-38:BLOCKED(0C+0H+1M+1L+1OBS; F-LP38-MED-001 FB29-intro
 Story v1.15 | BC-2.01.016 v1.5 | BC-2.16.011 v1.6 | BC-2.16.012 v1.15 | BC-2.16.002 v1.20 | ADR-026 v1.12 | ADR-027 v1.6 | VP-153 v0.6 | VP-154 v0.6 | VP-155 v0.5 | VP-156 v0.8 | HS-PREREQ-E-001 v1.3 | HS-PREREQ-E-002 v1.1 | HS-PREREQ-E-003 v1.5 | error-taxonomy v1.30 | ARCH-INDEX v2.55 | VP-INDEX v1.48 | STORY-INDEX v2.119 | BC-INDEX v4.93 | verification-architecture v1.38 | verification-coverage-matrix v1.35
 
 STATE.md v7.334; SESSION-HANDOFF.md v7.334; prereq_e_adversary_streak 0/3 (ready for pass-39 — 3rd of 9th 3-CLEAN attempt); 153rd consecutive single-commit (TD-VSDD-053 DECISIVELY STABLE).
+
+---
+
+## §D-648 PASS-39 CLEAN★ (2026-05-16) — STREAK 0/3 → 1/3; FIRST ADVANCE OF 9TH 3-CLEAN ATTEMPT; ZERO IN-SCOPE FINDINGS; NOVELTY LOW; 154TH SINGLE-COMMIT; PASS-40 NEXT
+
+**154th consecutive single-commit (TD-VSDD-053 DECISIVELY STABLE). Pass-39 CLEAN — first advance of 9th 3-CLEAN attempt.**
+
+### Pass-39 Summary
+
+Pass-39 adversary verdict: CLEAN★. Zero in-scope findings (0C+0H+0M+0L+0OBS). Streak 0/3 → **1/3** — FIRST ADVANCE OF 9TH 3-CLEAN ATTEMPT.
+
+Significance: 8 prior 9th-attempt passes reset before reaching 1/3. This pass breaks the recent reset trend. One earlier attempt reached 2/3 at pass-26 then reset at pass-27; one reached 2/3 at pass-30 then reset at pass-31. The current 1/3 advance is the first streak advance since pass-35 (which reset at pass-36). Two more CLEAN passes complete BC-5.39.001 convergence.
+
+**Novelty: LOW** — perimeter has reached substantive content convergence. All major defect-class families resolved. FB30 closures verified load-bearing under fresh-context re-verification.
+
+### FB30 Closure Verification (Pass-39 Re-Verification)
+
+| Closure | Verification Result |
+|---------|-------------------|
+| F-LP38-MED-001 "explicitly forbidden" overstrong claim | VERIFIED LOAD-BEARING — ADR-026 `forbid`/`forbidden` grep=0; Task 7 rationale-language claims map to ADR-026 §D7 lines 246-259 semantically |
+| F-LP38-LOW-001 volatile line-range citation | VERIFIED LOAD-BEARING — §D7 H3 heading confirmed at ADR-026:242; no line-range citation remains |
+| FB29 closures (AC-8 4-test enumeration; Task 7 §D7 citation; VP-153 byte-verbatim sync) | STILL LOAD-BEARING — all three re-verified under fresh-context |
+
+### Observations Carry-Forward (non-blocking)
+
+| OBS | Description | Status |
+|-----|-------------|--------|
+| OBS-LP38-001 [process-gap] | VP-INDEX v1.48 row narrative omits POL-11 citation present in sibling propagation rows (verification-architecture v1.38 + verification-coverage-matrix v1.35). Non-blocking: substantive content intact. | Confirmed still present; deferred to cycle-close per Cycle-Closing Checklist S-7.02 |
+
+### Cascade Pointer Update
+
+| Metric | Before D-648 | After D-648 |
+|--------|-------------|-------------|
+| Adversary passes | 38 (pass-1..38) | 39 (pass-1..39) |
+| Fix-bursts closed | 30 (FB1-FB30) | 30 (FB1-FB30) — CLEAN pass; no fix-burst needed |
+| Fix-bursts pending | 0 | 0 |
+| Pending findings | 0 + 2 OBS carry-forward | 0 + 2 OBS carry-forward (pass-39 added zero new OBS) |
+| Streak | 0/3 | **1/3** (FIRST ADVANCE OF 9TH ATTEMPT) |
+| Consecutive single-commits | 153 | 154 |
+
+Shorthand append: →pass-39:CLEAN★(0 findings; FB30 closures load-bearing; FB29 closures still hold under re-verification; all defect-class families RESOLVED; novelty LOW; streak 0/3 → **1/3** first advance of 9th 3-CLEAN attempt — breaks recent reset trend; 154th consecutive single-commit; D-648)
+
+### SHA Chain Anchor (D-648)
+
+- D-648 SHA: (this commit — check `git -C .factory log -1 --format='%H'`)
+- Predecessor D-647: (check `git -C .factory log -2 --format='%H' | tail -1`)
+- TD-VSDD-053: no backfill/Stage-1/Stage-2 in chain; 154 consecutive single-commit bursts
+
+### Pinned Artifact Versions (PREREQ-E 19-artifact set — post-D-648; UNCHANGED from D-647)
+
+Story v1.15 | BC-2.01.016 v1.5 | BC-2.16.011 v1.6 | BC-2.16.012 v1.15 | BC-2.16.002 v1.20 | ADR-026 v1.12 | ADR-027 v1.6 | VP-153 v0.6 | VP-154 v0.6 | VP-155 v0.5 | VP-156 v0.8 | HS-PREREQ-E-001 v1.3 | HS-PREREQ-E-002 v1.1 | HS-PREREQ-E-003 v1.5 | error-taxonomy v1.30 | ARCH-INDEX v2.55 | VP-INDEX v1.48 | STORY-INDEX v2.119 | BC-INDEX v4.93 | verification-architecture v1.38 | verification-coverage-matrix v1.35
+
+STATE.md v7.335; SESSION-HANDOFF.md v7.335; prereq_e_adversary_streak **1/3** (FIRST ADVANCE OF 9TH 3-CLEAN ATTEMPT; pass-40 NEXT — 2nd of 9th attempt; 2 more CLEAN passes for BC-5.39.001 convergence); 154th consecutive single-commit (TD-VSDD-053 DECISIVELY STABLE).
