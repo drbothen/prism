@@ -1170,3 +1170,44 @@ STATE.md version 7.300 reached at D-605. Milestones: v7.000 (Wave 3 start), v7.1
 Streak: **0/3** — pass-14 NEXT (first fresh-context test after FB12; if CLEAN streak advances 0/3 → 1/3).
 
 STATE.md v7.300; SESSION-HANDOFF.md v7.300; 111th consecutive single-commit (TD-VSDD-053 DECISIVELY STABLE).
+
+---
+
+## §D-606 PASS-14 BLOCKED ENTRY (D-606 — 2026-05-16) — 5TH OCCURRENCE RECURRING within-FB SIBLING-SWEEP ASYMMETRY
+
+**Burst D-606 — PREREQ-E ADVERSARY PASS-14 BLOCKED — 1 in-scope HIGH F-LP14-HIGH-001 — streak stays 0/3 — 5TH OCCURRENCE RECURRING within-FB sibling-sweep asymmetry class — POL-29 codification candidate STRONGLY REINFORCED — 112th consecutive single-commit (TD-VSDD-053 DECISIVELY STABLE)**
+
+### Pattern History: Within-FB Sibling-Sweep Asymmetry (All 5 Occurrences)
+
+| Occurrence | Fix-Burst | ADR-026 bump | What was swept | What was missed | Pass verdict |
+|------------|-----------|-------------|----------------|-----------------|--------------|
+| 1st | FB5 | v1.6→v1.7 | VP-156 (correct) | — | Pass-6: other findings (different class) |
+| 2nd | FB6 | v1.7→v1.8 | BC-2.16.012 §VP row v1.7→v1.8 (correct) | VP-156 sweep targeted intermediate v1.7, not final v1.8 | Pass-7: F-LP7-HIGH-001 |
+| 3rd | FB7 | v1.8→v1.9 | VP-156 pins v1.7→v1.8 (intermediate) | VP-156 final v1.9 missed; BC-2.16.012 NOT swept | Pass-8: F-LP8-HIGH-001/002 |
+| **BREAK** | **FB8** | **ADR-026 NOT touched** | **N/A — single-bump discipline applied** | **N/A** | **Pass-9: CLEAN ★ (1/3)** |
+| 4th | FB12 | v1.9→v1.10 | Nothing — no sweep performed | VP-156 ×4 + BC-2.16.012 ×1 all still at v1.9 | Pass-14: F-LP14-HIGH-001 (THIS PASS) |
+
+**Key insight:** FB8's single-bump discipline (do not bump ADR-026 at all) BROKE the pattern and produced pass-9 CLEAN. FB12 reintroduced the pattern because it DID bump ADR-026 (for legitimate Option A reasons) but applied no sweep discipline.
+
+### Option A Adjudication Outcome Note
+
+FB12 D-603 correctly adjudicated Option A for F-LP13-HIGH-003 (WriteToolInvalidationMap struct extension with `plugin_name: String` field). This was the right architectural decision. The defect is not in the Option A choice — it is in the missing sibling-sweep after the ADR-026 version bump that accompanied the Option A decision.
+
+### POL-29 Codification Candidate — STRONGLY REINFORCED
+
+5th occurrence confirms that the sibling-sweep discipline is NOT being systematically applied. The pattern root cause is structural: fix-burst dispatch instructions specify WHAT to change but do not specify the MANDATORY SWEEP that must follow. POL-29 codification must make the sweep explicit, not a best-practice.
+
+**Proposed dispatch instruction template (architect fix-bursts that touch versioned source artifacts):**
+1. Make the content change to the source artifact
+2. Bump the source artifact version
+3. **MANDATORY SWEEP:** `grep -r "ADR-026 D7 v<OLD_VERSION>" .factory/specs/` — update ALL hits before committing
+4. Bump VP-156 and any other downstream artifact that had live-narrative pins
+5. SINGLE COMMIT — all changes in one atomic commit
+
+### Updated Trajectory Shorthand
+
+**14→9→8→9→10→10→FB6-CLOSED(10/10)→8→FB7-CLOSED(8/8)→4→FB8-CLOSED(3/3)→pass-9:CLEAN★(1/3)→pass-10:BLOCKED(1H+1M+1L; RESET 0/3; 3-CLEAN PROTOCOL VALIDATED)→FIX-BURST-9-CLOSED(3/3)→pass-11:BLOCKED(1M; RECURRING VP traceability; 0/3)→FIX-BURST-10-CLOSED(1/1)→pass-12:BLOCKED(1M; HIGH-NOVELTY tracing-emission ↔ catalog axis; 0/3)→FIX-BURST-11-CLOSED(1/1 in-scope; BC-2.16.002 catalog row+cross-ref+event-name; BUT 3 defects introduced by FB11)→pass-13:BLOCKED(0C+3H+0M+0L+0OBS; ALL FB11-introduced; POL-21 RECURRING + POL-23/27 frontmatter drift + plugin_name unresolvable; FB-introduces-new-defects PATTERN; POL-29 codification candidate; streak 0/3 unchanged)→FIX-BURST-12-CLOSED(3/3 in-scope HIGH; POL-21 swept + frontmatter synced + plugin_name resolved via Option A)→pass-14:BLOCKED(0C+1H+0M+0L+3OBS; F-LP14-HIGH-001 ADR-026 v1.9→v1.10 sibling-sweep miss; 5th RECURRENCE; POL-29 codification reinforced; streak 0/3 unchanged)**
+
+Streak: **0/3** — FB13 NEXT (architect single burst with EXPLICIT sibling-sweep; state-manager closes with BC-INDEX + VP-INDEX bumps); then pass-15.
+
+STATE.md v7.301; SESSION-HANDOFF.md v7.301; 112th consecutive single-commit (TD-VSDD-053 DECISIVELY STABLE).
