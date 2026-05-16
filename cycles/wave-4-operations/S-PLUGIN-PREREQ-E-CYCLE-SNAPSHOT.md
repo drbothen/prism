@@ -875,3 +875,53 @@ The ★ 100th consecutive single-commit (TD-VSDD-053) was reached at D-594 archi
 Streak: **0/3** — pass-11 NEXT (first fresh-context test after FB9 closure).
 
 STATE.md v7.294; SESSION-HANDOFF.md v7.294; 101st consecutive single-commit (TD-VSDD-053 DECISIVELY STABLE).
+
+---
+
+## §D-596 PASS-11 BLOCKED ENTRY (D-596 — 2026-05-16)
+
+**D-596 COMPLETE — PREREQ-E ADVERSARY PASS-11 BLOCKED. 1 in-scope MEDIUM finding. Streak stays 0/3. RECURRING defect class. Novel-finding trajectory DECREASING (14→9→8→9→10→10→8→4→0→3→1). 102nd consecutive single-commit. FB10 NEXT.**
+
+### FB9 Closure Verification (Pass-11 Perspective) — ALL PASS
+
+| Target | Verification | Result |
+|--------|--------------|--------|
+| F-LP10-HIGH-001 (POL-21 phantom-anchor) | Zero live-narrative `§VP-PLUGIN-001` in VP-155 + ADR-027 body | PASS |
+| F-LP10-MED-001 (STORY-INDEX Depends On) | PREREQ-E row Depends On = `S-PLUGIN-PREREQ-F,S-PLUGIN-PREREQ-A,S-PLUGIN-PREREQ-D` | PASS |
+| F-LP10-LOW-001 (BC-INDEX BC-2.01.016 row) | 7-cell row format; trailing `v1.3` matches BC-2.16.011 (v1.4) + BC-2.16.012 (v1.8) | PASS |
+| Single-bump discipline | ADR-023 untouched; each affected artifact bumped exactly once | PASS |
+| Index changelog monotonicity | All 4 index changelog tables descending convention preserved | PASS |
+| ADR-026 D7 v1.9 pin propagation | All 5 active pins at v1.9 | PASS (re-verified) |
+
+### Pass-11 Finding: F-LP11-MED-001
+
+**MEDIUM — HS-PREREQ-E-003 frontmatter + body missing VP-156 traceability annotations**
+
+RECURRING defect class — 3rd instance:
+- F-LP1-CRIT-001 (FB1): HS-PREREQ-E-002/HS-PREREQ-E-003 missing VP-154 traceability — CLOSED
+- F-LP6-HIGH-001 (FB6): VP-155 source_bc = null — CLOSED
+- F-LP11-MED-001 (this pass): HS-PREREQ-E-003 missing `verification_properties: [VP-156]` frontmatter field AND missing `**VP Traced:** VP-156` annotations at HS-003-04 + HS-003-05 footers
+
+Root cause: Each new VP added to PREREQ-E creates an obligation to back-annotate the relevant holdout scenarios. HS-003-04 and HS-003-05 cover VP-156's assertion surfaces but lack the traceability annotations that sibling scenarios (HS-001-04, HS-002-04, HS-002-05) all have.
+
+FB10 routing: product-owner (holdout-scenario file ownership per Agent Routing Table).
+
+Fix scope (tight — 1 finding):
+1. HS-PREREQ-E-003 frontmatter: add `verification_properties: [VP-156]`
+2. HS-003-04 footer: append `**VP Traced:** VP-156 (Case 2 — duplicate name returns Err(DuplicateWriteToolRegistration))`
+3. HS-003-05 footer: append `**VP Traced:** VP-156 (related — register_write_tool contract surface per ADR-026 D7 v1.9)`
+4. HS-PREREQ-E-003 v1.3 → v1.4 + §Changelog row citing F-LP11-MED-001 closure
+
+### Novel-Finding Count Trajectory (Through Pass-11)
+
+14 → 9 → 8 → 9 → 10 → 10 → **FB6-CLOSED** → 8 → **FB7-CLOSED** → 4 → **FB8-CLOSED** → 0 (★CLEAN) → 3 (RESET) → **FB9-CLOSED** → **1 (LOWEST in-scope ever)**
+
+Clear DECREASING trend from peak-10 to 1. Cascade is convergent in count.
+
+### Trajectory Shorthand (Updated)
+
+**14→9→8→9→10→10→FB6-CLOSED(10/10 in-scope; 3 OBS deferred cycle-close)→8→FB7-CLOSED(8/8 in-scope; 4 OBS deferred cycle-close)→pass-8:BLOCKED(0C+2H+1M+0L+1OBS; LOWEST; recurring-asymmetry-class)→FIX-BURST-8-CLOSED(3/3 in-scope; single-bump-per-source-artifact discipline applied)→pass-9:CLEAN★(0/0/0/0/0; FIRST CLEAN OF CASCADE; single-bump-discipline BROKE recurring-asymmetry-class; streak 0/3 → 1/3)→pass-10:BLOCKED(0C+1H+1M+1L+0OBS; POL-21-§VP-PLUGIN-001-phantom-3-sites + STORY-INDEX-Depends-On-drift + BC-INDEX-BC-2.01.016-sibling-asymmetry; 3-CLEAN PROTOCOL VALIDATED; streak RESET 1/3→0/3)→FIX-BURST-9-CLOSED(3/3 in-scope; POL-21-cross-perimeter-sweep-complete + STORY-INDEX-Depends-On + BC-INDEX-sibling-symmetry restored)→pass-11:BLOCKED(0C+0H+1M+0L+0OBS; HS-PREREQ-E-003 VP-156 holdout-traceability symmetry — RECURRING class 3rd instance; streak 0/3 unchanged; novel-finding count 1 = LOWEST ever)**
+
+Streak: **0/3** — FB10 NEXT then pass-12.
+
+STATE.md v7.295; SESSION-HANDOFF.md v7.295; 102nd consecutive single-commit (TD-VSDD-053 DECISIVELY STABLE).

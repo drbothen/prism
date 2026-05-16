@@ -46,8 +46,10 @@ Intended audience: orchestrator at next session start. Read alongside STATE.md +
 | 30 | PENDING | PREREQ-E pass-11 (fresh-context, post-FB9; streak 0/3 → if CLEAN advances to 1/3) | Blocked on Task #32 FB9 |
 | 31 | PENDING | If 3-CLEAN reached: Phase 1d → Phase 2 transition + per-story-delivery cycle dispatch for S-PLUGIN-PREREQ-E | Blocked on pass-11+12+13 (or later) all CLEAN |
 | 32 | DONE | PREREQ-E fix-burst-9 CLOSED 3/3 in-scope: D-594 architect `c2567812` (F-LP10-HIGH-001 VP-155+ADR-027 §VP-PLUGIN-001 phantom-anchor ×3 sites; ★ 100th single-commit milestone; VP-155 v0.5; ADR-027 v1.5; ARCH-INDEX v2.51; VP-INDEX v1.45) + D-595 state-manager (F-LP10-MED-001 STORY-INDEX Depends On add S-PLUGIN-PREREQ-D v2.111→v2.112 + F-LP10-LOW-001 BC-INDEX BC-2.01.016 row v1.3 tag v4.85→v4.86; 101st consecutive single-commit). STATE+HANDOFF v7.293→v7.294. | — |
-| 33 | PENDING | PREREQ-E pass-11 (fresh-context, streak 0/3 → if CLEAN advances to 1/3) | Blocked on Task #32 FB9 complete |
-| 34 | PENDING | If pass-11 CLEAN: streak 0/3 → 1/3 → continue cascade for pass-12 + pass-13 (3-CLEAN target) | Blocked on Task #33 pass-11 CLEAN verdict |
+| 33 | DONE — BLOCKED | PREREQ-E pass-11 dispatched + report persisted (D-596; BLOCKED 1 in-scope MEDIUM F-LP11-MED-001; HS-PREREQ-E-003 VP-156 holdout-traceability symmetry — RECURRING class (3rd instance); streak stays 0/3; novel-finding trajectory 14→9→8→9→10→10→8→4→0→3→1 DECREASING; report at cycles/wave-4-operations/adversarial-reviews/S-PLUGIN-PREREQ-E-spec-pass-11.md; 102nd consecutive single-commit) | — |
+| 34 | PENDING | If pass-12 CLEAN: streak 0/3 → 1/3 → continue cascade for pass-13 (3-CLEAN target) | Blocked on Task #35 FB10 complete |
+| 35 | BLOCKED | PREREQ-E fix-burst-10 (1 finding: F-LP11-MED-001 HS-PREREQ-E-003 VP-156 traceability symmetry) | Awaiting FB10 dispatch — product-owner routing |
+| 36 | PENDING | PREREQ-E pass-12 (fresh-context; if CLEAN streak 0/3 → 1/3) | Blocked on Task #35 FB10 complete |
 
 ## Strategic Options — RESOLVED (D-581)
 
