@@ -1985,3 +1985,38 @@ Streak: **0/3** — Pass-23 NEXT (first of NEW 3-CLEAN sequence; passes 23/24/25
 STATE.md v7.316; SESSION-HANDOFF.md v7.316; BC-INDEX v4.93; STORY-INDEX v2.115 (unchanged); ARCH-INDEX v2.53 (unchanged); VP-INDEX v1.46 (unchanged); error-taxonomy v1.30 (unchanged); 135th consecutive single-commit (TD-VSDD-053 stable).
 
 STATE.md v7.315; SESSION-HANDOFF.md v7.315; BC-INDEX v4.92 (BC-2.01.016 row v1.3→v1.5 + BC-2.16.011 row v1.4→v1.6); STORY-INDEX v2.115 (unchanged); ARCH-INDEX v2.53 (unchanged); VP-INDEX v1.46 (unchanged); error-taxonomy v1.30 (unchanged); 134th consecutive single-commit (TD-VSDD-053 stable).
+
+---
+
+## §D-630 PASS-23 CLEAN ENTRY (2026-05-16) — 3RD CLEAN PASS OF CASCADE; D-629 COMBINED-BURST MODIFIED-FIELD SYNC LOAD-BEARING; STREAK ADVANCES 0/3 → 1/3; FIRST OF NEW 3-CLEAN SEQUENCE; 136TH SINGLE-COMMIT
+
+**Pass-23 CLEAN — 0 findings — 3RD CLEAN PASS OF CASCADE — streak ADVANCES 0/3 → 1/3.**
+
+**136th consecutive single-commit (TD-VSDD-053 stable).**
+
+### 3 CLEAN Passes — Full Cascade History
+
+| Pass | Burst | Streak After | Context |
+|------|-------|--------------|---------|
+| 9 ★ | D-592 | 1/3 (RESET by pass-10) | 1st CLEAN — single-bump discipline broke recurring-asymmetry class |
+| 19 ★ | D-622 | 1/3 (RESET by pass-20) | 2nd CLEAN — FB17 comprehensive 5-sub-dim sweep broke 9-manifestation citation defect family |
+| **23 ★** | **D-630** | **1/3** (NEW 3-CLEAN sequence) | **3RD CLEAN — D-629 modified-field sync load-bearing** |
+
+### D-629 Verification (All PASS)
+
+| Target | Result |
+|--------|--------|
+| F-LP22-MED-001 closure (BC-2.01.016 `modified:` 2026-05-15→2026-05-16) | PASS |
+| BC-INDEX v4.93 monotonic prose row | PASS |
+| 3 PREREQ-E NEW BCs `modified:` consistency (all 2026-05-16) | PASS |
+| POL-27 + POL-23 + POL-26 across NEW BCs | PASS |
+
+### Updated Trajectory Shorthand
+
+**→pass-22:BLOCKED(0C+0H+1M+0L+0OBS; FB19-introduced modified-field sibling-sweep asymmetry; closed combined-burst D-629; streak 0/3 unchanged)→FB20-CLOSED-COMBINED(1/1 in-scope MED; D-629 combined burst; single-line fix)→pass-23:CLEAN★(0 findings; D-629 combined-burst modified-field sync load-bearing; streak 0/3 → 1/3 first of NEW 3-CLEAN sequence)**
+
+Novel-finding count: 14→9→8→9→10→10→8→4→0→3→1→1→3→1→3→1→1→1→1→0→2→1→1(FB19)→**0** → pass-24 NEXT.
+
+Streak: **1/3** ★ — Pass-24 NEXT (2nd of NEW 3-CLEAN sequence; passes 24+25 remaining for BC-5.39.001 convergence).
+
+STATE.md v7.317; SESSION-HANDOFF.md v7.317; BC-INDEX v4.93 (unchanged); STORY-INDEX v2.115 (unchanged); ARCH-INDEX v2.53 (unchanged); VP-INDEX v1.46 (unchanged); error-taxonomy v1.30 (unchanged); 136th consecutive single-commit (TD-VSDD-053 stable).
