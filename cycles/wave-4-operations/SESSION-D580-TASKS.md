@@ -1,11 +1,16 @@
 ---
 document_type: session-tasks
 version: "1.5"
-status: active
+status: superseded
 related_burst: D-592
 predecessor_state: D-588
 timestamp: 2026-05-16T02:00:00Z
+superseded_by: SESSION-D644-TASKS.md
+superseded_at: 2026-05-16T22:30:00Z
 ---
+
+> **SUPERSEDED BY SESSION-D644-TASKS.md (D-644 burst, 2026-05-16T22:30:00Z)**
+> This file covers cascade pass-1 through pass-5 era (D-570..D-592). For next-session resume, read SESSION-D644-TASKS.md which covers pass-6 through pass-36 (27 fix-bursts closed; FB28 pending; 150th consecutive single-commit). This file is preserved as historical record of the pass-1..5 era and early cascade state.
 
 # Session Task List — D-580 Durable Snapshot
 

@@ -2522,3 +2522,57 @@ Novel-finding count: ...→1(pass-34 BLOCKED TIER2 sub-node missing)→0(pass-35
 Streak: **0/3 (RESET)** — FB28 NEXT (product-owner × 2 + state-manager × 1 combined burst); pass-37 NEXT after FB28 (9th attempt at 3-CLEAN — first of new sequence).
 
 STATE.md v7.330; SESSION-HANDOFF.md v7.330; prereq_e_adversary_streak 1/3→0/3 (6th reset); 149th consecutive single-commit (TD-VSDD-053 stable).
+
+---
+
+## §D-644 DURABLE PRE-/CLEAR RESUME SNAPSHOT (2026-05-16) — CASCADE PASS-6..36 + FB6..27 CLOSED; FB28 PENDING; 150TH SINGLE-COMMIT MILESTONE; STATE v7.331
+
+**150th consecutive single-commit (TD-VSDD-053 DECISIVELY STABLE). SAFE_TO_COMPACT.**
+
+### Cascade State Summary
+
+| Metric | Value |
+|--------|-------|
+| Total adversary passes | 36 (pass-1 through pass-36) |
+| Fix-bursts closed | 27 (FB1 through FB27) |
+| Fix-bursts pending | 1 (FB28 — 3 MED findings from pass-36) |
+| CLEAN passes | 8 (pass-9, 19, 23, 25, 26, 29, 30, 35) |
+| Streak resets | 6 |
+| Current streak | 0/3 (reset by pass-36) |
+| Token consumption (pass-6..36 cycle) | ~12.5M |
+| Consecutive single-commit bursts | 150 (TD-VSDD-053 stable) |
+
+### Trajectory
+
+Full count trajectory: 14→9→8→9→10→10→8→4→**0★**→3→1→1→3→1→3→1→1→1→1→**0★**→2→1→1→**0★**→**0★**→2→1→1→1→**0★**→1→1→1→1→**0★**→3
+
+Shorthand: →D-644:DURABLE-PRE-CLEAR-SNAPSHOT(36 passes + 27 fix-bursts done; FB28 PENDING; 150th consecutive single-commit; SAFE_TO_COMPACT)
+
+### FB28 Pending Closure Specification
+
+3 in-scope MEDIUM findings from pass-36:
+
+- **F-LP36-MED-001** (product-owner): AC-9 test name `test_BC_2_16_012_write_tool_invalidation_runtime_register` vs Red Gate Test 8 `test_BC_2_16_012_003_write_tool_invalidation_runtime_register` — canonicalize AC-9 to `_003_` convention. Story v1.12 → v1.13.
+- **F-LP36-MED-002** (product-owner): AC-8 4-sensor scope not covered by Red Gate Tests 6+7 — Option A: expand Red Gate to cover all 4 built-in sensors (recommended). Option B: decompose AC-8.
+- **F-LP36-MED-003** (state-manager): STORY-INDEX line 395 column 3 missing `prism-query` — add + STORY-INDEX v2.116 → v2.117.
+
+### Strategic Options for Next Session
+
+1. **Option 1 — Continue Cascade (default):** FB28 + pass-37. Per BC-5.39.001.
+2. **Option 2 — Codify POL-29 then continue:** POL-29 (FB-introduces-new-defects discipline) before FB28 dispatch.
+3. **Option 3 — Human Architect Review:** Pause cascade; architect judgment on residual MED findings.
+4. **Option 4 — Graduate to Phase 3 Implementation:** Accept 8 CLEAN pass quality; begin per-story-delivery.
+
+See SESSION-D644-TASKS.md for full specification of each option.
+
+### SHA Chain Anchor
+
+- D-644 SHA: (this commit)
+- Predecessor D-643: `1f205b69`
+- TD-VSDD-053: no backfill/Stage-1/Stage-2 in chain; 150 consecutive single-commit bursts
+
+### Pinned Artifact Versions (PREREQ-E 19-artifact set)
+
+Story v1.12 | BC-2.01.016 v1.5 | BC-2.16.011 v1.6 | BC-2.16.012 v1.15 | BC-2.16.002 v1.20 | ADR-026 v1.12 | ADR-027 v1.6 | VP-153 v0.5 | VP-154 v0.6 | VP-155 v0.5 | VP-156 v0.8 | HS-PREREQ-E-001 v1.3 | HS-PREREQ-E-002 v1.1 | HS-PREREQ-E-003 v1.5 | error-taxonomy v1.30 | ARCH-INDEX v2.55 | VP-INDEX v1.47 | STORY-INDEX v2.116 | BC-INDEX v4.93 | verification-architecture v1.37 | verification-coverage-matrix v1.34
+
+STATE.md v7.331; SESSION-HANDOFF.md v7.331; prereq_e_adversary_streak 0/3 (DURABLE SNAPSHOT D-644); 150th consecutive single-commit (TD-VSDD-053 MILESTONE STABLE).
