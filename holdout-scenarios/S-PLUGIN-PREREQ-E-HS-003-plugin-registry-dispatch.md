@@ -8,7 +8,7 @@ must_pass: true
 priority: P0
 epic_id: "PLUGIN-MIGRATION-001"
 story_source: "S-PLUGIN-PREREQ-E"
-version: "1.3"
+version: "1.4"
 status: draft
 producer: product-owner
 timestamp: 2026-05-15T00:00:00
@@ -19,6 +19,8 @@ traces_to: "BC-2.16.012"
 behavioral_contracts:
   - BC-2.16.012
   - BC-2.16.001
+verification_properties:
+  - VP-156
 lifecycle_status: active
 introduced: S-PLUGIN-PREREQ-E
 last_evaluated: null
@@ -166,6 +168,8 @@ new write-tool entries (closing TD-S-PLUGIN-PREREQ-A-003).
 
 **BC Anchor:** BC-2.16.012 EC-016-012-004
 
+**VP Traced:** VP-156 (Case 2 — duplicate name returns Err(DuplicateWriteToolRegistration))
+
 ---
 
 ## HS-PREREQ-E-003-05: Post-Boot Write Tool Registration — Rejected with E-PLUGIN-020
@@ -199,6 +203,8 @@ new write-tool entries (closing TD-S-PLUGIN-PREREQ-A-003).
 
 **BC Anchor:** BC-2.16.012 EC-016-012-005
 
+**VP Traced:** VP-156 (related — register_write_tool contract surface per ADR-026 D7 v1.9)
+
 ---
 
 **Note on VP-155 and HS-PREREQ-E-003:** VP-155 (CustomAdapter Absent from prism-spec-engine Public API — compile-fail perimeter) is a compile-time property, not a runtime scenario. HS-PREREQ-E-003 covers runtime dispatch behavior and WriteToolInvalidationMap extensibility. VP-155's runtime-equivalent coverage (confirming CustomAdapter types produce E0432 at compile time) is covered in HS-PREREQ-E-002-05. No additional VP-155 sub-scenario is needed in HS-PREREQ-E-003 — the compile-fail check is a CI gate, not a holdout runtime scenario.
@@ -218,6 +224,7 @@ When this holdout scenario is evaluated, the evaluator must produce:
 
 | Version | Burst | Date | Author | Change |
 |---------|-------|------|--------|--------|
+| 1.4 | prereq-e-fix-burst-10 | 2026-05-16 | product-owner | F-LP11-MED-001 — VP-156 bidirectional traceability symmetry restored: frontmatter `verification_properties: [VP-156]` added; HS-003-04 footer `**VP Traced:** VP-156 (Case 2 — duplicate name returns Err(DuplicateWriteToolRegistration))` added; HS-003-05 footer `**VP Traced:** VP-156 (related — register_write_tool contract surface per ADR-026 D7 v1.9)` added. RECURRING class — VP-154 closed FB1 (F-LP1-CRIT-001), VP-155 closed FB6 (F-LP6-HIGH-001), VP-156 third instance missed by passes 1-10; surfaced by pass-11 fresh-context. Sibling-class with HS-001/002 frontmatter+footer convention. |
 | 1.3 | prereq-e-fix-burst-3 | 2026-05-15 | product-owner | F-LP3-LOW-001 closure: Added HS-PREREQ-E-003-04 (EC-016-012-004 duplicate-name: two plugins register same tool_name → second returns E-PLUGIN-012) and HS-PREREQ-E-003-05 (EC-016-012-005 after-boot: register_write_tool called after step 8 → returns E-PLUGIN-020 + WARN log). Both sub-scenarios include scenario description, preconditions, steps, expected outcome, validation evidence reference, and BC anchor. |
 | 1.2 | prereq-e-fix-burst-2 | 2026-05-15 | product-owner | F-LP2-HIGH-002 closure (PO perimeter — 2 sites): Scenario Description body line ("closing TD-A-003") and HS-PREREQ-E-003-03 heading ("TD-A-003 Closure") both canonicalized to TD-S-PLUGIN-PREREQ-A-003. Changelog entry for v1.0 retains original TD-A-003 text as historical record (TD-VSDD-091 anti-volatile-pin; changelog is append-only). |
 | 1.1 | S-PLUGIN-PREREQ-E-reconciliation | 2026-05-15 | product-owner | Q4 note: VP-155 is a compile-time property not a runtime scenario — confirmed HS-PREREQ-E-003 correctly does not cover it (VP-155 coverage added to HS-PREREQ-E-002-05 instead). Added VP-155 non-coverage rationale note in body. |
