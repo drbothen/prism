@@ -1,7 +1,7 @@
 ---
 document_type: verification-property
 level: L4
-version: "0.7"
+version: "0.8"
 status: draft
 producer: architect
 timestamp: 2026-05-15T00:00:00Z
@@ -39,7 +39,7 @@ removal_reason: null
 
 ## Property Statement
 
-`register_write_tool` in `crates/prism-query/src/invalidation.rs` (ADR-026 D7 v1.9,
+`register_write_tool` in `crates/prism-query/src/invalidation.rs` (ADR-026 D7 v1.10,
 INV-INVALIDATION-EXT-001, TD-S-PLUGIN-PREREQ-A-003 closure) MUST enforce the uniqueness
 invariant under all sequential registration patterns:
 
@@ -83,11 +83,11 @@ The proptest harness asserts:
 ## Source Contract
 
 - **BC:** BC-2.16.012 — EC-016-012-004 (duplicate `register_write_tool` call behavior, resolved
-  to error-on-duplicate by ADR-026 D7 v1.9). INV-INVALIDATION-EXT-001 (runtime extensibility
+  to error-on-duplicate by ADR-026 D7 v1.10). INV-INVALIDATION-EXT-001 (runtime extensibility
   postcondition). VP-156 provides proptest coverage for the uniqueness semantics that
   BC-2.16.012 §Verification Properties previously described as "(none in this story)".
   This VP closes that coverage gap per F-LP1-MED-003 resolution (option a: author VP-156).
-- **ADR:** ADR-026 D7 v1.9 — specifies the error-on-duplicate API contract (`register_write_tool`
+- **ADR:** ADR-026 D7 v1.10 — specifies the error-on-duplicate API contract (`register_write_tool`
   returns `Result<(), SpecEngineError>`); `SpecEngineError::DuplicateWriteToolRegistration(String)`
   variant defined there. VP-156 is anchored in ADR-026 D7 as the proptest verification mechanism.
 - **Invariant:** INV-INVALIDATION-EXT-001 — `WriteToolInvalidationMap` is runtime-extensible
@@ -121,7 +121,7 @@ does not require any test infrastructure beyond what is already in prism-query's
 // VP-156: WriteToolInvalidationMap registration uniqueness
 // Method: proptest
 // Target: prism_query::invalidation::register_write_tool
-// ADR: ADR-026 D7 v1.9; BC: BC-2.16.012 INV-INVALIDATION-EXT-001
+// ADR: ADR-026 D7 v1.10; BC: BC-2.16.012 INV-INVALIDATION-EXT-001
 //
 // use proptest::prelude::*;
 // use prism_query::invalidation::{WriteToolInvalidationMap, register_write_tool, invalidation_map};
@@ -199,3 +199,4 @@ The implementer adds this function in `crates/prism-query/src/invalidation.rs` u
 | 0.5 | prereq-e-fix-burst-6 | 2026-05-16 | architect | F-LP6-MED-001 + F-LP6-LOW-002 — All live-narrative ADR-026 D7 version pins updated from stale v1.2 to current v1.7: §Source Contract BC row ("D7 v1.2" → "D7 v1.7"), §ADR row ("D7" → "D7 v1.7"), §Property Statement ("ADR-026 D7" → "ADR-026 D7 v1.7"), proof harness skeleton comment ("ADR-026 D7" → "ADR-026 D7 v1.7"). Consistent with BC-2.16.012 §Verification Properties VP-156 row pin of v1.7. TD-VSDD-091 exception confirmed: changelog rows citing historical D7 versions (v1.2, v1.5, v1.6, v1.7) are immutable records and are unchanged. |
 | 0.6 | prereq-e-fix-burst-7 | 2026-05-16 | architect | F-LP7-HIGH-001 — within-FB6 sibling-sweep asymmetry catch: all 4 live-narrative ADR-026 D7 pins advanced v1.7 → v1.8 (FB6 architect bumped ADR-026 v1.7→v1.8 in same burst as the v1.2→v1.7 sweep; the sweep targeted the in-progress-version snapshot, leaving VP-156 behind by one version). POL-23 within-burst version-pin-order-gap defect class. |
 | 0.7 | prereq-e-fix-burst-8 | 2026-05-16 | architect | F-LP8-HIGH-001 — within-FB7 sibling-sweep asymmetry final close: all 4 live-narrative ADR-026 D7 pins advanced v1.8 → v1.9 (FB7 D-586 bumped ADR-026 v1.8→v1.9 in same burst as the v1.7→v1.8 sweep; sweep targeted intermediate snapshot). POL-23 within-burst-version-pin-order-gap RECURRING-class defect; single-bump-per-source-artifact discipline applied this burst (ADR-026 stays at v1.9). |
+| 0.8 | prereq-e-fix-burst-13 | 2026-05-16 | architect | F-LP14-HIGH-001 — within-FB12 sibling-sweep asymmetry close (5th RECURRENCE of POL-23 class): all 4 live-narrative ADR-026 D7 pins advanced v1.9 → v1.10 (FB12 architect D-603 bumped ADR-026 v1.9→v1.10 for Option A adjudication but did not sibling-sweep). Single-bump-per-source-artifact discipline applied this burst (ADR-026 stays at v1.10; only downstream pin sweep). POL-29 codification candidate strongly reinforced. |

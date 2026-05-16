@@ -1,7 +1,7 @@
 ---
 document_type: verification-property-index
 level: L4
-version: "1.45"
+version: "1.46"
 status: draft
 producer: product-owner
 timestamp: 2026-05-11T00:00:00
@@ -243,6 +243,7 @@ S-1.02 frontmatter has been updated to `subsystems: [SS-03, SS-07, SS-11, SS-12,
 
 | Version | Burst | Date | Author | Change |
 |---------|-------|------|--------|--------|
+| 1.46 | prereq-e-fix-burst-13 | 2026-05-16 | architect | F-LP14-HIGH-001 — VP-156 sibling-sweep reflection: VP-156 advanced v0.7→v0.8 (all 4 live-narrative ADR-026 D7 v1.9 pins → v1.10; BC-2.16.012 §VPs VP-156 row pin v1.9→v1.10). VP-INDEX row for VP-156 is description-stable — no row text change required. VP-INDEX v1.45→v1.46. 5th RECURRENCE of POL-23 within-FB asymmetry CLOSED; single-bump-per-source-artifact discipline applied (ADR-026 stays at v1.10). |
 | 1.45 | prereq-e-fix-burst-9 | 2026-05-16 | architect | F-LP10-HIGH-001 — POL-21 phantom-anchor closure: VP-155 §Property Statement + §Source Contract `ADR-023 §VP-PLUGIN-001` → `ADR-023 §Verification Properties (VP-PLUGIN-001 bullet)` (VP-155 v0.4→v0.5). VP-INDEX row for VP-155 is description-stable — no row text change required (module/method/priority/status unchanged). VP-INDEX v1.44→v1.45. |
 | 1.44 | prereq-e-fix-burst-8 | 2026-05-16 | architect | F-LP8-HIGH-001 final close: VP-156 ADR-026 D7 version pins advanced v1.8→v1.9 across 4 live-narrative sites (§Property Statement, §Source Contract BC row, §Source Contract ADR row, proof harness skeleton comment) (v0.6→v0.7). VP-INDEX row for VP-156 is description-stable — no row text change required. VP-INDEX v1.43→v1.44. |
 | 1.43 | prereq-e-fix-burst-7 | 2026-05-16 | architect | F-LP7-HIGH-001 sibling sweep: VP-156 ADR-026 D7 version pins advanced v1.7→v1.8 across 4 live-narrative sites (§Property Statement, §Source Contract BC row, §Source Contract ADR row, proof harness skeleton comment) (v0.5→v0.6). VP-INDEX row for VP-156 is description-stable — no row text change required. VP-INDEX v1.42→v1.43. |

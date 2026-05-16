@@ -1,7 +1,7 @@
 ---
 document_type: behavioral-contract
 level: L3
-version: "1.10"
+version: "1.11"
 status: draft
 producer: product-owner
 timestamp: 2026-05-15T00:00:00
@@ -121,7 +121,7 @@ sensors; the change is structural (open dispatch replaces closed match).
 
 | VP ID | Description |
 |-------|-------------|
-| VP-156 | WriteToolInvalidationMap registration uniqueness (proptest P1). Verifies EC-016-012-004 resolved behavior (error-on-duplicate, per ADR-026 D7 v1.9). Visibility guarantee is structural (RwLock contract + ADR-022 boot ordering) not proptest-verified — see VP-156 §Property Statement. Authored in prereq-e-fix-burst-1 (F-LP1-MED-003). Behavioral equivalence and open-dispatch invariants remain verified by integration test (TV-003) and grep gate (TV-001). |
+| VP-156 | WriteToolInvalidationMap registration uniqueness (proptest P1). Verifies EC-016-012-004 resolved behavior (error-on-duplicate, per ADR-026 D7 v1.10). Visibility guarantee is structural (RwLock contract + ADR-022 boot ordering) not proptest-verified — see VP-156 §Property Statement. Authored in prereq-e-fix-burst-1 (F-LP1-MED-003). Behavioral equivalence and open-dispatch invariants remain verified by integration test (TV-003) and grep gate (TV-001). |
 
 ## Related BCs
 
@@ -158,6 +158,7 @@ S-PLUGIN-PREREQ-E
 
 | Version | Burst | Date | Author | Change |
 |---------|-------|------|--------|--------|
+| 1.11 | prereq-e-fix-burst-13 | 2026-05-16 | architect | F-LP14-HIGH-001 companion site (5th RECURRENCE of POL-23 sibling-sweep asymmetry): §Verification Properties VP-156 row pin advanced ADR-026 D7 v1.9 → v1.10. FB12 architect bumped ADR-026 v1.9→v1.10 but did not sibling-sweep BC-2.16.012 §VPs row. Single-bump discipline applied this burst. |
 | 1.10 | prereq-e-fix-burst-12 | 2026-05-16 | product-owner | F-LP13-HIGH-001 + F-LP13-HIGH-003 propagation — (1) POL-21 phantom-anchor sweep: 3 BC-2.16.002 `§Canonical Structured Event Catalog` cites → `§Postconditions (Canonical Structured Event Catalog bullet, v1.19)` form (RECURRING-class with PREREQ-D F-LP34-MED-001 closure precedent at error-taxonomy.md E-PIPELINE-001); (2) Option A propagation: §Postconditions tracing event field-source citation — plugin_name/tool_name sourced from WriteToolInvalidationMap struct fields per ADR-026 D7 v1.10. BC-2.16.002 pin advanced v1.18 → v1.19 per architect D-603 row 33 source spec clarification. |
 | 1.9 | prereq-e-fix-burst-11 | 2026-05-16 | product-owner | F-LP12-MED-001 — §Postconditions: add explicit tracing-emission contract for `write_tool_registration_after_boot` WARN event with full field schema (`plugin_name`, `tool_name`, `error: "E-PLUGIN-020"`) and cross-reference to BC-2.16.002 §Canonical Structured Event Catalog v1.18 (row 33). EC-016-012-005 updated to name the event explicitly as `write_tool_registration_after_boot` per BC-2.16.002 §Canonical Structured Event Catalog (v1.18 row). Per PG-LP11-001 structured event catalog discipline. Closes F-LP12-MED-001 (PREREQ-E pass-12 MEDIUM finding: tracing-emission-site ↔ BC-2.16.002 catalog axis). |
 | 1.8 | prereq-e-fix-burst-8 | 2026-05-16 | architect | F-LP8-HIGH-002 — within-FB7 sibling-sweep asymmetry final close (companion site of F-LP8-HIGH-001): §Verification Properties VP-156 row pin advanced ADR-026 D7 v1.8 → v1.9. FB7 D-586 bumped ADR-026 v1.8→v1.9 but did not sibling-sweep BC-2.16.012 (FB6's correct-at-time pin became stale). POL-23 RECURRING-class defect. |
