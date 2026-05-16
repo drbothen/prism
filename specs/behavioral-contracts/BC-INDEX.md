@@ -1,10 +1,10 @@
 ---
 document_type: behavioral-contract-index
 level: L3
-version: "4.90"
+version: "4.91"
 status: draft
 producer: product-owner
-timestamp: 2026-05-15T00:00:00Z
+timestamp: 2026-05-16T12:00:00Z
 phase: 3.A
 total_contracts: 239
 active_contracts: 225
@@ -219,7 +219,7 @@ Phase 3-patch additions (2026-04-16): 22 new BCs added in Burst 1 to close trace
 | BC-2.16.009 | Spec File Validation — Schema Validation, Variable Reference Resolution, OCSF Field Validation | 16 - Spec Engine | CAP-029 | P0 | draft |
 | BC-2.16.010 | `list_sensor_specs` MCP Tool — List Loaded Sensor Specs with Table Schemas and Status | 16 - Spec Engine | CAP-029 | P0 | draft |
 | BC-2.16.011 | CustomAdapter Rust Trait Retirement — Removal of Trait, Registry, and All Call Sites | 16 - Spec Engine | CAP-029 | P0 | draft | v1.4 |
-| BC-2.16.012 | PluginRegistry Dispatch in spec_parser.rs — Hardcoded Sensor Names Replaced with Registry Lookup | 16 - Spec Engine | CAP-029 | P0 | draft | v1.14 |
+| BC-2.16.012 | PluginRegistry Dispatch in spec_parser.rs — Hardcoded Sensor Names Replaced with Registry Lookup | 16 - Spec Engine | CAP-029 | P0 | draft | v1.15 |
 | BC-2.17.001 | Plugin Panic Isolation — Crashed Plugin Does Not Terminate Host Process | 17 - WASM Plugin Runtime | CAP-032 | P0 | active (POL-14 auto-promotion D-568 S-PLUGIN-PREREQ-D merge PR #149 ec90fe8f 2026-05-15) | v1.4 |
 | BC-2.17.002 | Plugin Sandbox — No Direct Filesystem or Network Access | 17 - WASM Plugin Runtime | CAP-032 | P0 | active (POL-14 auto-promotion D-568 S-PLUGIN-PREREQ-D merge PR #149 ec90fe8f 2026-05-15) | v1.8 |
 | BC-2.17.003 | Plugin Sandbox — Memory Limit Enforced Per Plugin Instance (default 64MB) | 17 - WASM Plugin Runtime | CAP-032 | P0 | active (POL-14 auto-promotion D-568 S-PLUGIN-PREREQ-D merge PR #149 ec90fe8f 2026-05-15) | v1.5 |
@@ -368,6 +368,8 @@ Phase 3-patch additions (2026-04-16): 22 new BCs added in Burst 1 to close trace
 - Subsystem 19: Infusion Enrichment Framework (AD-020, CAP-031)
 
 ### Change Log (Adversarial Review Fixes)
+
+**v4.91 (2026-05-16):** state-manager | D-621 PREREQ-E fix-burst-17 closure (F-LP18-HIGH-001 9TH MANIFESTATION BC-2.16.002 citation defect family at NEW close-paren placement sub-dimension): BC-2.16.012 row v1.14→v1.15 (PO D-620 close-paren placement fix at EC-016-012-005 line 109 + COMPREHENSIVE 5-sub-dimension workspace POL-25 sweep verifying ALL PASS).
 
 **v4.90 (2026-05-16):** state-manager | D-611 PREREQ-E fix-burst-14 closure: BC-2.16.002 row v1.19→v1.20 (D-610 PO bullet label sync F-LP15-HIGH-001 + D-611 state-manager BC-2.16.002 internal §Postconditions Canonical Structured Event Catalog bullet label `(v1.19)`→`(v1.20)` sync — actual F-LP15-HIGH-001 closure completing the work D-610 initiated); BC-2.16.012 row v1.11→v1.14 (D-610 PO v1.11→v1.12 sibling-sweep on BC-2.16.002 v1.20 + D-611 state-manager §Changelog renumber-repair-redo F-LP15-MED-001: state-manager catch row v1.2→v1.3 + cascade shift v1.3→v1.4 through v1.12→v1.13 + new v1.14 repair row; frontmatter v1.12→v1.14 because v1.13 consumed by shifted PO row).
 

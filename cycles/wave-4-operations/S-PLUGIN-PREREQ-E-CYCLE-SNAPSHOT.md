@@ -1661,3 +1661,44 @@ Full trajectory from §D-618:
 Streak: **0/3** — FB17 NEXT (PO BC-2.16.012:109 close-paren fix + COMPREHENSIVE 5-sub-dimension workspace sweep).
 
 STATE.md v7.309; SESSION-HANDOFF.md v7.309; STORY-INDEX v2.115; BC-INDEX v4.90 (unchanged); ARCH-INDEX v2.52 (unchanged); VP-INDEX v1.46 (unchanged); 125th consecutive single-commit (TD-VSDD-053 DECISIVELY STABLE).
+
+---
+
+## §D-621 FIX-BURST-17 CLOSURE (2026-05-16)
+
+**FIX-BURST-17 CLOSED — 1/1 in-scope HIGH F-LP18-HIGH-001 (9TH MANIFESTATION BC-2.16.002 citation defect family at close-paren placement sub-dimension) CLOSED across D-620+D-621. COMPREHENSIVE 5-sub-dimension workspace POL-25 sweep ALL PASS. STATE.md v7.310 milestone. 127th consecutive single-commit.**
+
+### FB17 Verification Table — All 5 Sub-Dimensions PASS
+
+| Sub-dim | Description | Result |
+|---------|-------------|--------|
+| 1 | Version-pin staleness (no live v1.[1-9] stale pins) | **PASS** |
+| 2 | Bullet label internal sync (frontmatter bump matches body label) | **PASS** |
+| 3 | Anchor BC routing (zero BC-2.16.002 cites routed to BC-2.16.012) | **PASS** |
+| 4 | Phrasing form (zero no-parens form remaining) | **PASS** |
+| 5 | Close-paren placement (zero `vX.XX row NN)` form) | **PASS** |
+
+### 9th Manifestation Closure
+
+BC-2.16.012:109 EC-016-012-005: changed from `(Canonical Structured Event Catalog bullet, v1.20 row 33).` to `(Canonical Structured Event Catalog bullet, v1.20) row 33.` — close-paren now correctly terminates after version only, "row 33" outside parens. BC-2.16.012 v1.14→v1.15 + §Changelog row (D-620 PO `23ed5600`). BC-INDEX v4.90→v4.91 BC-2.16.012 row tag v1.14→v1.15 (D-621 state-manager).
+
+### COMPREHENSIVE Sweep Methodology Note
+
+FB17 is the first fix-burst in the cascade to apply a COMPREHENSIVE 5-sub-dimension sweep rather than a single-sub-dimension sweep. The prior 8 manifestations were each perpetuated by single-sub-dimension sweeps that addressed the current known dimension but left other dimensions undetected. The COMPREHENSIVE approach verifies ALL 5 known sub-dimensions simultaneously. Pass-19 is the first fresh-context test of this methodology.
+
+### STATE.md v7.310 Milestone
+
+This milestone marks the operational transition from single-sub-dimension to comprehensive-enumeration sweep methodology. Combined with the 9-manifestation complete discovery of all 5 sub-dimensions, the cascade now has the complete evidence base needed for POL-29 cycle-close codification.
+
+### Pass-19 Critical Test Framing
+
+- If CLEAN: streak 0/3 → 1/3 (possible 2nd CLEAN in cascade; 1st CLEAN was pass-9★)
+- If BLOCKED: 10th manifestation at a NEW sub-dimension would indicate family has more than 5 known sub-dimensions — POL-29 scope would expand further
+
+### Updated Trajectory Shorthand
+
+**→pass-18:BLOCKED(0C+1H+0M+0L+0OBS; 9TH MANIFESTATION BC-2.16.002 citation defect family at NEW close-paren placement sub-dimension; streak 0/3 unchanged)→FIX-BURST-17-CLOSED(1/1 HIGH; COMPREHENSIVE 5-sub-dim sweep ALL PASS; possible 2nd CLEAN target pass-19)**
+
+Streak: **0/3** — pass-19 NEXT (first fresh-context test of comprehensive sub-dimension coverage).
+
+STATE.md v7.310; SESSION-HANDOFF.md v7.310; STORY-INDEX v2.115 (unchanged); BC-INDEX v4.91; ARCH-INDEX v2.52 (unchanged); VP-INDEX v1.46 (unchanged); 127th consecutive single-commit (TD-VSDD-053 DECISIVELY STABLE).
