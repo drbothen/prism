@@ -2,7 +2,7 @@
 document_type: architecture-section
 level: L3
 section: "verification-architecture"
-version: "1.36"
+version: "1.37"
 status: draft
 producer: architect
 timestamp: 2026-05-03T00:00:00
@@ -83,6 +83,7 @@ graph TB
         P30["Wave 4 Phase 1 ADR proptest (VP-137, VP-138)"]
         P31["Wave 4 Phase 2 ADR proptest (VP-139, VP-140, VP-141, VP-142)"]
         P32["Wave 4 Phase 3 ADR proptest (VP-143, VP-144); Phase 1 fix proptest (VP-145)"]
+        P33["PREREQ-E ADR-026 proptest<br/>VP-153 SensorAuth runtime cross-composition prevention (P0)<br/>VP-156 WriteToolInvalidationMap registration uniqueness (P1)"]
     end
 
     subgraph TIER3["Tier 3: Fuzz — Coverage-Guided Mutation (6 targets)"]
@@ -313,6 +314,7 @@ Proptest strategies generate complex inputs (alias graphs, detection rules, OCSF
 
 | Version | Pass | Date | Author | Notes |
 |---------|------|------|--------|-------|
+| 1.37 | prereq-e-fix-burst-27-combined-D-641 | 2026-05-16 | state-manager | F-LP34-HIGH-001 closure — TIER2 Mermaid sub-node P33 added enumerating PREREQ-E ADR-026 proptest VPs (VP-153 SensorAuth runtime cross-composition prevention P0; VP-156 WriteToolInvalidationMap registration uniqueness P1). 7th consecutive within-FB sibling-sweep asymmetry recurrence closed (FB26 added I4 integration sub-node but missed TIER2 proptest sibling). POL-25 multi-cite propagation discipline applied. |
 | 1.36 | prereq-e-fix-burst-26-combined-D-640 | 2026-05-16 | state-manager | F-LP33-HIGH-001 closure — Mermaid block 3-site arithmetic sweep: Tier 2 Proptest `(86 properties)`→`(88)`; Integration Test VPs subgraph `(19)`→`(28)`; SAFE node `145 Verified Properties`→`156`. Added I4 subgraph node enumerating Wave-4/PREREQ-D/PREREQ-E plugin-migration integration VPs (VP-146..VP-152, VP-154, VP-155). Closes FB25 same-file sibling-sweep gap; 6th recurrence of within-FB sibling-sweep asymmetry pattern. POL-25 multi-cite propagation discipline applied workspace-wide post-correction. |
 | 1.35 | prereq-e-fix-burst-25-combined-D-639 | 2026-05-16 | state-manager | F-LP32-HIGH-001 closure — §Verification Priority closing parenthetical `123 total P0` → `122 total P0` matching VP-INDEX v1.47 + VCM v1.34 Total P0 (FB24 sibling-sweep miss — same arithmetic class as F-LP31-HIGH-001 at 3rd workspace site). POL-25 multi-cite propagation closure. |
 | 1.34 | prereq-e-fix-burst-3 | 2026-05-15 | architect | F-LP3-HIGH-001 sibling-sweep: VP-156 Provable Properties Catalog row description updated from "uniqueness + happens-before" to "uniqueness only" — aligns with VP-156 v0.2 body rewrite (fix-burst-2). P1 enumeration and grand totals unchanged (156 total, 123 P0, 34 P1). |

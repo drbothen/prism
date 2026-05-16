@@ -2423,3 +2423,34 @@ Novel-finding count: ...→1(pass-31 BLOCKED VP-INDEX arithmetic)→1(pass-32 BL
 Streak: **0/3** — Pass-34 NEXT (7th attempt at 3-CLEAN; pass-33 = first of new 3-CLEAN sequence).
 
 STATE.md v7.327; SESSION-HANDOFF.md v7.327; prereq_e_adversary_streak 0/3 unchanged; verification_architecture_version 1.35→1.36; 146th consecutive single-commit (TD-VSDD-053 stable).
+
+---
+
+## §D-641 PASS-34 BLOCKED+FB27-CLOSED-COMBINED (2026-05-16) — STREAK 0/3 UNCHANGED; TIER2 MERMAID P33 SUB-NODE ADDED (VP-153+VP-156 PROPTEST); 7TH WITHIN-FB SIBLING-SWEEP ASYMMETRY RECURRENCE; 147TH SINGLE-COMMIT; STATE v7.328
+
+**Pass-34 BLOCKED — 1 HIGH F-LP34-HIGH-001 + 4 OBS. Streak 0/3 unchanged (no reset; already 0/3 from pass-33).**
+
+### F-LP34-HIGH-001 — verification-architecture.md TIER2 Mermaid sub-node enumeration missing VP-153 + VP-156 [CLOSED FB27]
+
+FB26 (combined burst D-640) corrected three Mermaid arithmetic sites and added I4 integration sub-node but missed the TIER2 proptest sub-node enumeration gap. P-node count in TIER2 summed to 86 proptest VPs; VP-INDEX Proptest = 88. The delta (VP-153 + VP-156) are both proptest VPs from PREREQ-E that were added in fix-burst-1 and the PREREQ-E ADR burst:
+
+- VP-153: SensorAuth runtime cross-composition prevention (prism-spec-engine, proptest, P0, ADR-026 D3)
+- VP-156: WriteToolInvalidationMap registration uniqueness (prism-query, proptest, P1, ADR-026 D7)
+
+The I4 sub-node (FB26 precedent) enumerated integration VPs for the same wave cycle. The TIER2 sibling was missed — 7th consecutive recurrence of within-FB sibling-sweep asymmetry pattern (FB22 through FB27, each introducing a sibling-sweep gap at a different sub-axis of the same file).
+
+**FB27 fix (P33 sub-node addition, combined burst D-641):**
+- Added `P33["PREREQ-E ADR-026 proptest<br/>VP-153 SensorAuth runtime cross-composition prevention (P0)<br/>VP-156 WriteToolInvalidationMap registration uniqueness (P1)"]` to TIER2 subgraph
+- verification-architecture.md v1.36→v1.37 (§Changelog v1.37 row added)
+
+**Workspace-wide POL-25 sweep:** No additional TIER2 proptest VP enumeration omissions found.
+
+### Updated Trajectory Shorthand
+
+→pass-32:BLOCKED(0C+1H+0M+0L+0OBS; F-LP32-HIGH-001 FB24 sibling-sweep miss; RECURSIVE meta-class; streak 0/3 unchanged)→FB25-CLOSED-COMBINED(1/1 HIGH; single-cell correction)→pass-33:BLOCKED(0C+1H+0M+0L+2OBS; F-LP33-HIGH-001 Mermaid block 3-site arithmetic + I3 enumeration; 6th within-FB sibling-sweep asymmetry recurrence; streak 0/3 unchanged)→FB26-CLOSED-COMBINED(1/1 HIGH; 3-site arithmetic + I4 enumeration)→**pass-34:BLOCKED(0C+1H+0M+0L+4OBS; F-LP34-HIGH-001 TIER2 sub-node missing VP-153+VP-156; 7th within-FB sibling-sweep asymmetry recurrence; streak 0/3 unchanged)**→FB27-CLOSED-COMBINED(1/1 HIGH; P33 proptest sub-node)
+
+Novel-finding count: ...→1(pass-32 BLOCKED verification-architecture.md stale)→1(pass-33 BLOCKED Mermaid block stale)→**1(pass-34 BLOCKED TIER2 sub-node missing — FB26 integration-node sibling miss)**
+
+Streak: **0/3** — Pass-35 NEXT (8th attempt at 3-CLEAN; pass-34 = first of new 3-CLEAN sequence).
+
+STATE.md v7.328; SESSION-HANDOFF.md v7.328; prereq_e_adversary_streak 0/3 unchanged; verification_architecture_version 1.36→1.37; 147th consecutive single-commit (TD-VSDD-053 stable).
