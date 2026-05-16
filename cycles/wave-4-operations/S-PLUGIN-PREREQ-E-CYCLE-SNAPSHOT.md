@@ -1064,3 +1064,44 @@ All `tracing::warn!(event_type="write_tool_registration_after_boot", ...)` emiss
 | All other PREREQ-E artifacts | unchanged | unchanged |
 
 STATE.md v7.296; SESSION-HANDOFF.md v7.296; 104th consecutive single-commit (TD-VSDD-053 DECISIVELY STABLE).
+
+---
+
+## §D-602 PASS-13 BLOCKED ENTRY (D-602 — 2026-05-16) — FB-INTRODUCES-NEW-DEFECTS PATTERN; 3 HIGH ALL INTRODUCED BY FB11
+
+**Burst D-602 — PREREQ-E ADVERSARY PASS-13 BLOCKED — 3 in-scope HIGH — streak 0/3 — FB-introduces-new-defects PATTERN (2nd instance) — POL-29 codification candidate — 108th consecutive single-commit (TD-VSDD-053 DECISIVELY STABLE)**
+
+Pass-13 fresh-context adversary surfaced 3 HIGH-severity defects ALL introduced by the FB11 burst (D-600+D-601). This is the second instance of the **FB-introduces-new-defects pattern**.
+
+### Pass-13 Findings (All FB11-Introduced)
+
+| Finding | Severity | Root | Fix Routing |
+|---------|----------|------|------------|
+| F-LP13-HIGH-001 | HIGH | BC-2.16.012 line 84/109: bare §-sigil "BC-2.16.002 §Canonical Structured Event Catalog v1.18" at 3 sites — POL-21 RECURRING class; correct form: `§Postconditions (Canonical Structured Event Catalog bullet, v1.18)` | PO: BC-2.16.012 v1.9→v1.10 |
+| F-LP13-HIGH-002 | HIGH | BC-2.16.002 frontmatter timestamp/modified stale (2026-05-14 vs v1.18 changelog 2026-05-16) — POL-23+POL-27 | state-manager: date sync only; no version bump |
+| F-LP13-HIGH-003 | HIGH | BC-2.16.002 row 33 `plugin_name` field mandated but no source in ADR-026 D7 API surface (register_write_tool sig + WriteToolInvalidationMap + Story Task 7 + HS-003-03/04 all lack plugin_name) | architect adjudicates Option A (extend struct) / B (add param) / C (remove field from catalog) |
+
+### FB-Introduces-New-Defects Pattern (2nd Instance)
+
+**Instance 1:** FB6 → pass-7 (within-burst sibling-sweep asymmetry). Closed by single-bump discipline FB8.
+**Instance 2:** FB11 → pass-13 (POL-21 §-sigil + frontmatter staleness + plugin_name unresolvable). Root cause: no fix-burst checklist.
+**POL-29 candidate:** Fix-burst commit checklist (POL-21 sweep + POL-23 frontmatter sync + POL-22 Phase C field-source coherence on any new file/structure). Queued cycle-close.
+
+### Expected FB12 Routing
+
+3-agent burst:
+1. **architect** — F-LP13-HIGH-003 plugin_name adjudication (Option A/B/C); produces ADR-026 D7 amendment + downstream artifact changes per chosen option
+2. **PO** — F-LP13-HIGH-001 POL-21 BC-2.16.012 3-site fix (§-sigil → §Postconditions bullet form); BC-2.16.012 v1.9→v1.10; applies body changes per architect's option
+3. **state-manager** — F-LP13-HIGH-002 BC-2.16.002 frontmatter date sync + propagation sweep per option
+
+Then adversary pass-14.
+
+### Post-Pass-13 Trajectory
+
+**14→9→8→9→10→10→FB6-CLOSED(10/10)→8→FB7-CLOSED(8/8)→4→FB8-CLOSED(3/3)→pass-9:CLEAN★(1/3)→pass-10:BLOCKED(1H+1M+1L; RESET 0/3; 3-CLEAN PROTOCOL VALIDATED)→FIX-BURST-9-CLOSED(3/3)→pass-11:BLOCKED(1M; RECURRING VP traceability; 0/3)→FIX-BURST-10-CLOSED(1/1)→pass-12:BLOCKED(1M; HIGH-NOVELTY tracing-emission ↔ catalog axis; 0/3)→FIX-BURST-11-CLOSED(1/1 in-scope; BC-2.16.002 catalog row+cross-ref+event-name; BUT 3 defects introduced by FB11)→pass-13:BLOCKED(0C+3H+0M+0L+0OBS; ALL FB11-introduced; POL-21 RECURRING + POL-23/27 frontmatter drift + plugin_name unresolvable; FB-introduces-new-defects PATTERN; POL-29 codification candidate; streak 0/3 unchanged)**
+
+Novel-finding count: 14→9→8→9→10→10→8→4→0→3→1→1→**3** — re-elevation (FB11 quality, not new spec defects).
+
+Streak: **0/3** — FB12 NEXT (3-agent burst per routing above); then pass-14.
+
+STATE.md v7.299; SESSION-HANDOFF.md v7.299; 108th consecutive single-commit (TD-VSDD-053 DECISIVELY STABLE).
