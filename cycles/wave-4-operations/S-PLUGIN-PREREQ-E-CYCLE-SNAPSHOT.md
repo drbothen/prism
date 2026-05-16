@@ -1896,3 +1896,40 @@ Novel-finding count: 14→9→8→9→10→10→8→4→0→3→1→1→3→1→
 Streak: **0/3** — FB19 NEXT, then pass-22 (first of NEW 3-CLEAN sequence after FB19 closure).
 
 STATE.md v7.314; SESSION-HANDOFF.md v7.314; BC-INDEX v4.91 (UNCHANGED this burst — FB19 will bump to v4.92); STORY-INDEX v2.115 (unchanged); ARCH-INDEX v2.53 (unchanged); VP-INDEX v1.46 (unchanged); error-taxonomy v1.30 (unchanged); 133rd consecutive single-commit (TD-VSDD-053 stable).
+
+## §D-628 FIX-BURST-19 CLOSURE (2026-05-16) — F-LP21-HIGH-001 D-611-EQUIVALENT RENUMBER-REPAIR-REDO APPLIED TO BC-2.01.016 + BC-2.16.011; POL-26 RESOLVED ACROSS ALL 3 PREREQ-E NEW BCs; 134TH SINGLE-COMMIT
+
+**Fix-burst-19 CLOSED — 1/1 in-scope HIGH — state-manager single-burst only — 134th consecutive single-commit (TD-VSDD-053 stable).**
+
+### FB19 Verification Table
+
+| Finding | Severity | Status | Files Modified |
+|---------|----------|--------|---------------|
+| F-LP21-HIGH-001 (BC-2.01.016 duplicate v1.2 rows) | HIGH | **CLOSED** | BC-2.01.016: frontmatter v1.3→v1.5 + §Changelog catch v1.2→v1.3 + cascade shift v1.3→v1.4 + new repair row v1.5 |
+| F-LP21-HIGH-001 (BC-2.16.011 duplicate v1.2 rows) | HIGH | **CLOSED** | BC-2.16.011: frontmatter v1.4→v1.6 + §Changelog catch v1.2→v1.3 + cascade shift v1.3→v1.4 + v1.4→v1.5 + new repair row v1.6 |
+
+### Renumber-Repair-Redo Summary
+
+**D-611-equivalent pattern applied to 2 sibling BCs missed in FB14.**
+
+All three PREREQ-E NEW BCs were registered in BC-INDEX v4.82 (D-574, 2026-05-15). All three received the identical FB1 state-manager catch pattern (catch row v1.2 colliding with architect/PO fix row v1.2). D-611 at FB14 repaired only BC-2.16.012. FB19 closes the remaining two:
+
+| BC | FB14 D-611 Action | FB19 D-628 Action | Post-FB19 State |
+|----|------------------|-------------------|-----------------|
+| BC-2.16.012 | REPAIRED (renumber-repair-redo) | — (already clean) | strictly monotonic |
+| BC-2.01.016 | MISSED | REPAIRED: catch v1.2→v1.3; cascade v1.3→v1.4; new repair v1.5 | strictly monotonic 1.5→1.4→1.3→1.2→1.1→1.0 |
+| BC-2.16.011 | MISSED | REPAIRED: catch v1.2→v1.3; cascade v1.3→v1.4→v1.5; new repair v1.6 | strictly monotonic 1.6→1.5→1.4→1.3→1.2→1.1→1.0 |
+
+### POL-26 Resolution Status — All 3 PREREQ-E NEW BCs
+
+POL-26 monotonic strict-ordering violations pre-existing since FB1 (2026-05-15), invisible to adversary passes 1-20, now FULLY RESOLVED across all three PREREQ-E NEW BCs.
+
+### Updated Trajectory Shorthand
+
+**→pass-21:BLOCKED(0C+1H+0M+0L+0OBS; F-LP21-HIGH-001 D-611 sibling-sweep gap BC-2.01.016+BC-2.16.011 duplicate v1.2; streak 0/3 unchanged)→FIX-BURST-19-CLOSED(1/1 in-scope HIGH; D-611-equivalent renumber-repair-redo applied to BC-2.01.016 + BC-2.16.011 sibling BCs)**
+
+Novel-finding count: 14→9→8→9→10→10→8→4→0→3→1→1→3→1→3→1→1→1→1→0→2→1→**0(FB19-CLOSED)** (decreasing — convergence signal confirmed; pre-existing FB1-era defect closed; no new defect classes since pass-17).
+
+Streak: **0/3** — Pass-22 NEXT (first of NEW 3-CLEAN sequence; passes 22/23/24 required for BC-5.39.001 convergence).
+
+STATE.md v7.315; SESSION-HANDOFF.md v7.315; BC-INDEX v4.92 (BC-2.01.016 row v1.3→v1.5 + BC-2.16.011 row v1.4→v1.6); STORY-INDEX v2.115 (unchanged); ARCH-INDEX v2.53 (unchanged); VP-INDEX v1.46 (unchanged); error-taxonomy v1.30 (unchanged); 134th consecutive single-commit (TD-VSDD-053 stable).

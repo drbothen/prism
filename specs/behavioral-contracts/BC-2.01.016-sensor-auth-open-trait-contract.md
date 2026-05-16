@@ -1,7 +1,7 @@
 ---
 document_type: behavioral-contract
 level: L3
-version: "1.3"
+version: "1.5"
 status: draft
 producer: product-owner
 timestamp: 2026-05-15T00:00:00
@@ -165,8 +165,9 @@ S-PLUGIN-PREREQ-E
 
 | Version | Burst | Date | Author | Change |
 |---------|-------|------|--------|--------|
-| 1.3 | prereq-e-fix-burst-3 | 2026-05-15 | product-owner | F-LP3-HIGH-002 closure (joint with architect): §Postconditions "without change" rewritten to "with one new method body per impl (`fn auth_type_name(&self) -> &'static str { \"...\" }`)"; INV-AUTH-OPEN-002 rewritten to match — 4 impls require exactly ONE new method body (auth_type_name) per ADR-026 D1 2-method trait surface. Preconditions already listed 2-method surface correctly (fix-burst-1); this is Postconditions/Invariants alignment only. |
+| 1.5 | prereq-e-fix-burst-19 | 2026-05-16 | state-manager | F-LP21-HIGH-001 closure — §Changelog renumber-repair-redo (D-611-equivalent pattern applied to sibling BC that was missed in FB14): state-manager catch row v1.2 → v1.3, cascade shift v1.3 → v1.4 (and v1.4 → v1.5 via new repair row insertion). POL-26 monotonic strict-ordering violation pre-existing FB1 (invisible to passes 1-20) now resolved. |
+| 1.4 | prereq-e-fix-burst-3 | 2026-05-15 | product-owner | F-LP3-HIGH-002 closure (joint with architect): §Postconditions "without change" rewritten to "with one new method body per impl (`fn auth_type_name(&self) -> &'static str { \"...\" }`)"; INV-AUTH-OPEN-002 rewritten to match — 4 impls require exactly ONE new method body (auth_type_name) per ADR-026 D1 2-method trait surface. Preconditions already listed 2-method surface correctly (fix-burst-1); this is Postconditions/Invariants alignment only. |
+| 1.3 | fix-burst-1 state-manager catch | 2026-05-15 | state-manager | (state-manager catch in fix-burst-1) F-LP1-HIGH-004 POL-20: introduced field canonicalized to ISO date 2026-05-15. Prior value `S-PLUGIN-PREREQ-E` was story-ID format; POL-20 requires `YYYY-MM-DD` for artifacts created outside greenfield cycles. |
 | 1.2 | S-PLUGIN-PREREQ-E-fix-burst-1 | 2026-05-15 | product-owner | F-LP1-HIGH-001 closure: §Preconditions method surface aligned to ADR-026 D1 (2-method trait: `as_any()` + `auth_type_name()`). Removed incorrect 3-method list (`sensor_id`, `auth_type`, `build_request_auth`) which imported methods from a different trait surface. F-LP1-HIGH-003 closure: §C5 phantom-heading citations corrected — `ADR-023 §C5 Rule 2` → `ADR-023 §Architectural Constraints (C5 bullet, Rule 2)` per POL-21; ADR-023 has no `## C5` heading. |
-| 1.2 | fix-burst-1 state-manager catch | 2026-05-15 | state-manager | (state-manager catch in fix-burst-1) F-LP1-HIGH-004 POL-20: introduced field canonicalized to ISO date 2026-05-15. Prior value `S-PLUGIN-PREREQ-E` was story-ID format; POL-20 requires `YYYY-MM-DD` for artifacts created outside greenfield cycles. |
 | 1.1 | S-PLUGIN-PREREQ-E-reconciliation | 2026-05-15 | product-owner | Q1 fix: corrected error codes for ADR-023 Rule 2 rejections — E-SPEC-010/011/012 → E-SPEC-012/013/014 (E-SPEC-010 = variable interpolation field-path miss; E-SPEC-011 = pipe_verb reserved keyword; these pre-existing codes were incorrectly cited). New codes authored in error-taxonomy.md v1.25. VP-153 anchor added (cross-composition proptest). ADR-026/027 architecture anchors confirmed. |
 | 1.0 | S-PLUGIN-PREREQ-E-authoring | 2026-05-15 | product-owner | Initial draft. Authored for S-PLUGIN-PREREQ-E; operationalizes ADR-023 §Architectural Constraints (C5 bullet, Rule 2) SensorAuth un-sealing. |
