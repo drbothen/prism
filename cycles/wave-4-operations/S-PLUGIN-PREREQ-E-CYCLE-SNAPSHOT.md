@@ -3278,3 +3278,20 @@ Shorthand append: →pass-53:BLOCKED(0C+0H+2M+0L+1OBS-adjudicated; F-LP53-HIGH-0
 Story v1.22 | BC-2.01.016 v1.7 | BC-2.16.011 v1.6 | BC-2.16.012 v1.16 | BC-2.16.002 v1.22 | ADR-026 v1.14 | ADR-027 v1.7 | VP-153 v0.9 | VP-154 v0.6 | VP-155 v0.5 | VP-156 v0.8 | HS-PREREQ-E-001 v1.4 | HS-PREREQ-E-002 v1.4 | HS-PREREQ-E-003 v1.6 | error-taxonomy v1.31 | ARCH-INDEX v2.58 | VP-INDEX v1.51 | STORY-INDEX v2.126 | BC-INDEX v4.97 | verification-architecture v1.41 | verification-coverage-matrix v1.38
 
 STATE.md v7.349; SESSION-HANDOFF.md v7.349; prereq_e_adversary_streak **0/3** (pass-53 BLOCKED — F-LP53-HIGH-001 REJECTED via Fork B canonical rule; F-LP53-MED-001/002 cycle-snapshot integrity fixes; FB42 CLOSED; POL-30 canonical rule established — bullet-version-label tracks catalog-content-version independent of BC frontmatter; streak 0/3 unchanged; pass-54 begins 8th 3-CLEAN sequence attempt); 168th consecutive single-commit (TD-VSDD-053 STABLE).
+
+## §D-663 — FB43 Single-Commit Closure
+
+| Metric | Post-D-662 | Post-D-663 |
+|--------|------------|------------|
+| Pass count | 53 | 54 |
+| Streak | 0/3 | 0/3 |
+| Last verdict | BLOCKED (FB42) | BLOCKED (pass-54) → FB43 CLOSED |
+| Consecutive single-commits | 168 | 169 |
+
+Shorthand append: →pass-54:BLOCKED(0C+1H+0M+0L+2OBS; F-LP54-HIGH-001 BC-2.16.002 v1.22 + BC-INDEX v4.97 retired Fork-A phrasings contradicting Fork B canonical rule POL-30 FB42-established; first pass under Fork B surfaced Fork-A residual via POL-25 sweep; novelty HIGH; streak 0/3 unchanged)→FB43-CLOSED(1/1 in-scope HIGH; PO BC-2.16.002 v1.23 corrective append + state-manager BC-INDEX v4.98 corrective append; POL-26 immutability of v1.22/v4.97 preserved; 169th consecutive single-commit)
+
+### Pinned Artifact Versions (PREREQ-E 19-artifact set — post-D-663)
+
+Story v1.22 | BC-2.01.016 v1.7 | BC-2.16.011 v1.6 | BC-2.16.012 v1.16 | BC-2.16.002 v1.23 | ADR-026 v1.14 | ADR-027 v1.7 | VP-153 v0.9 | VP-154 v0.6 | VP-155 v0.5 | VP-156 v0.8 | HS-PREREQ-E-001 v1.4 | HS-PREREQ-E-002 v1.4 | HS-PREREQ-E-003 v1.6 | error-taxonomy v1.31 | ARCH-INDEX v2.58 | VP-INDEX v1.51 | STORY-INDEX v2.126 | BC-INDEX v4.98 | verification-architecture v1.41 | verification-coverage-matrix v1.38
+
+STATE.md v7.350; SESSION-HANDOFF.md v7.350; prereq_e_adversary_streak **0/3** (pass-54 BLOCKED — F-LP54-HIGH-001 BC-2.16.002 v1.22 + BC-INDEX v4.97 retired Fork-A phrasings contradicting Fork B canonical rule POL-30; first pass under Fork B; FB43 CLOSED via 2-site corrective append; BC-2.16.002 v1.23 + BC-INDEX v4.98; POL-26 immutability preserved; streak 0/3 unchanged; pass-55 begins 9th 3-CLEAN sequence attempt); 169th consecutive single-commit (TD-VSDD-053 STABLE).

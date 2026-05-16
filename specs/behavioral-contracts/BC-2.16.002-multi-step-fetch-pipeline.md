@@ -1,10 +1,10 @@
 ---
 document_type: behavioral-contract
 level: L3
-version: "1.22"
+version: "1.23"
 status: active
 producer: product-owner
-timestamp: 2026-05-16T12:00:00Z
+timestamp: 2026-05-16T14:00:00Z
 phase: 1a
 origin: greenfield
 subsystem: "SS-16"
@@ -170,6 +170,7 @@ See `.factory/specs/prd-supplements/test-vectors.md` for full canonical vectors.
 
 | Version | Burst | Date | Author | Change |
 |---------|-------|------|--------|--------|
+| 1.23 | FB43 | 2026-05-16 | product-owner | F-LP54-HIGH-001 — v1.22 row narrative retroactively reframed under Fork B canonical rule (POL-30 established by FB42 D-662). The v1.22 closure correctly closed a legitimate FB37-introduced catalog-content-version sync gap (catalog row 33 was added at FB37 but bullet header (v1.20) was not bumped at that time; FB41 closed that legitimate gap by advancing bullet to (v1.21)). The v1.22 row's "syncing with frontmatter v1.21" framing was Fork-A-aligned; Fork B canonical rule (POL-30) instead recognizes that bullet-version-label tracks catalog-content-version INDEPENDENT of BC frontmatter. Under Fork B, FB41 fix remains correct (bullet (v1.21) reflects catalog state after FB37 row 33 addition), and post-FB41 state is internally consistent: bullet (v1.21) ↔ 8 cite-pin sites at (v1.21) ↔ frontmatter (v1.22) reflecting independent BC-narrative-cite-pin-update version-bump. The v1.22 row's "POL-30 codification candidate (BC frontmatter version bumps must include in-body canonical-anchor bullet label updates)" text is retired Fork-A phrasing; Fork B POL-30 instead canonicalizes independent versioning per SESSION-HANDOFF §POST-FB42-CLOSURE / SESSION-D644-TASKS §Fork B Canonical Rule. |
 | 1.22 | FB41 | 2026-05-16 | product-owner | F-LP52-HIGH-001 §Postconditions Canonical Structured Event Catalog bullet header label advanced (v1.20)→(v1.21) syncing with frontmatter v1.21 + 8 PREREQ-E cite-pin sites. 9th manifestation of POL-23 within-FB sibling-sweep asymmetry closed; POL-30 codification candidate (BC frontmatter version bumps must include in-body canonical-anchor bullet label updates) for cycle-close. |
 | 1.21 | FB37 | 2026-05-16 | product-owner | F-LP47-HIGH-001 row 33 trigger condition corrected from "after query engine init completes (step 8+)" to canonical "query-engine init starts (step 8+, ADR-026 D7); the AtomicBool query-phase flag is set at step 8 start (first act of step 8, before QueryEngine construction proceeds)"; semantic match with BC-2.16.012 EC-016-012-005 v1.16 + HS-PREREQ-E-003-05 v1.6. |
 | 1.20 | prereq-e-fix-burst-14 | 2026-05-16 | product-owner | F-LP15-HIGH-001 — within-FB12 sibling-sweep asymmetry close (6th RECURRENCE of POL-23 class): §Postconditions Canonical Structured Event Catalog bullet header label advanced (v1.18) → (v1.19) matching frontmatter version (FB12 D-603 bumped frontmatter v1.18→v1.19 for row 33 source spec clarification but did not sync internal bullet label; downstream BC-2.16.012 + error-taxonomy cites of (v1.19) were phantom until this sync). Bump v1.19→v1.20 per POL-11 index-mutation-version-bump discipline + POL-23 sibling-sweep gate. |

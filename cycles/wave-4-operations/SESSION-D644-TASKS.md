@@ -1,6 +1,6 @@
 ---
 document_type: session-tasks
-version: "1.18"
+version: "1.19"
 status: active
 related_burst: D-644
 predecessor_state: D-652
@@ -66,7 +66,8 @@ This file persists the task list and full cascade state from the session coverin
 | 107 | **DONE** | FB41 CLOSED — 1/1 HIGH in-scope (F-LP52-HIGH-001: PO-only single-line; BC-2.16.002 v1.22; BC-INDEX v4.97; 167th consecutive single-commit) |
 | 108 | **DONE/BLOCKED** | PREREQ-E pass-53 BLOCKED (F-LP53-HIGH-001 REJECTED via Fork B canonical rule; F-LP53-MED-001 cycle-snapshot heading depth ### → ##; F-LP53-MED-002 cycle-snapshot duplicate line 3247; F-LP53-LOW-001 ACCEPTED non-defect; POL-30 canonical rule established — Fork B independent-versioning; 9-recurrence catalog-bullet sub-class closed as misdiagnosis-induced; novelty HIGH; streak 0/3 unchanged; FB42 dispatched) |
 | 109 | **DONE** | FB42 CLOSED — 2/2 MED cycle-snapshot integrity fixes (F-LP53-MED-001: D-659/660/661 heading depth ### → ## per convention; F-LP53-MED-002: duplicate line 3247 removed; state-manager-only; 168th consecutive single-commit) |
-| 110 | **PENDING** | PREREQ-E pass-54 (8th 3-CLEAN sequence attempt; Fork B canonical rule now established; BC-2.16.002 bullet-label audit under Fork B as mandatory vector; pass-55 + pass-56 = potential BC-5.39.001 CONVERGENCE) |
+| 110 | **DONE** | PREREQ-E pass-54 BLOCKED (1 HIGH F-LP54-HIGH-001: BC-2.16.002 v1.22 + BC-INDEX v4.97 retired Fork-A phrasings contradicting Fork B canonical rule POL-30; novelty HIGH; streak 0/3 unchanged; FB43 CLOSED via 2-site corrective append) |
+| 111 | **PENDING** | PREREQ-E pass-55 (9th 3-CLEAN sequence attempt; Fork B canonical rule fully operational; BC-2.16.002 v1.23 + BC-INDEX v4.98 corrective rows now canonical; pass-56 + pass-57 = potential BC-5.39.001 CONVERGENCE) |
 
 ## §Pass-51 CLEAN Note (D-660)
 
@@ -136,6 +137,27 @@ This file persists the task list and full cascade state from the session coverin
 | pass-53 | BLOCKED | 0/3 | F-LP53-HIGH-001 REJECTED Fork B; F-LP53-MED-001/002 cycle-snapshot bookkeeping |
 
 **Next dispatch:** Pass-54 = 8th 3-CLEAN sequence attempt. Mandatory vector: BC-2.16.002 §Postconditions bullet-label audit UNDER Fork B canonical rule (confirm catalog-content-version semantics; no frontmatter sync expected). All other 10 rotated vectors preserved. POL-30 canonical rule documentation is the codification target before pass-54.
+
+---
+
+## §FB43 Closure Note (D-663 COMPLETE)
+
+**All 1 in-scope HIGH finding closed in single-commit D-663 (2026-05-16). 169th consecutive single-commit. PO (BC-2.16.002 v1.23) + state-manager (BC-INDEX v4.98) parallel corrective appends.**
+
+| Finding | Agent | Status | Notes |
+|---------|-------|--------|-------|
+| F-LP54-HIGH-001 | PO + state-manager | CLOSED | BC-2.16.002 v1.23 corrective append + BC-INDEX v4.98 corrective append; v1.22/v4.97 preserved per POL-26 |
+| OBS-LP54-001 | — | QUEUED non-blocking | SESSION-D644-TASKS.md:129 "misdiagnosis-induced" recharacterization debatable under Fork B |
+| OBS-LP54-002 | — | QUEUED non-blocking | Story §risk_mitigations does not literally enumerate AC-3b/3c/10/11 |
+
+### §Pass-54 Streak Table (9th cascade attempt)
+
+| Pass | Verdict | Streak | Notes |
+|------|---------|--------|-------|
+| pass-53 | BLOCKED | 0/3 | F-LP53-HIGH-001 REJECTED Fork B; 2 MED bookkeeping; FB42 |
+| pass-54 | BLOCKED | 0/3 | F-LP54-HIGH-001 Fork-A changelog residual; first pass under Fork B; FB43 |
+
+**Next dispatch:** Pass-55 = 9th 3-CLEAN sequence attempt. Fork B canonical rule fully operational. BC-2.16.002 v1.23 + BC-INDEX v4.98 corrective rows are now canonical ground truth. No frontmatter sync expected. Standard 10-vector rotation applies.
 
 ---
 
