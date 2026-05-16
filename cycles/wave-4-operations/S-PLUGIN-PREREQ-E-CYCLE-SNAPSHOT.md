@@ -1850,3 +1850,49 @@ Novel-finding count: 14→9→8→9→10→10→8→4→0→3→1→1→3→1→
 Streak: **0/3** — Pass-21 NEXT (first of NEW 3-CLEAN sequence; passes 21+22+23 required for BC-5.39.001 convergence).
 
 STATE.md v7.313; SESSION-HANDOFF.md v7.313; STORY-INDEX v2.115 (unchanged); BC-INDEX v4.91 (unchanged); ARCH-INDEX v2.53 (ADR-027 row v1.5→v1.6); VP-INDEX v1.46 (unchanged); error-taxonomy v1.30 (E-PIPELINE-001 v1.12→v1.20); 132nd consecutive single-commit (TD-VSDD-053 stable).
+
+## §D-627 PASS-21 BLOCKED ENTRY — F-LP21-HIGH-001 D-611 FB14 SIBLING-SWEEP GAP (2026-05-16)
+
+**Pass-21 BLOCKED — 1 HIGH F-LP21-HIGH-001 — streak stays 0/3 — 133rd consecutive single-commit.**
+
+### Finding Detail: F-LP21-HIGH-001
+
+**Defect class:** POL-26 monotonic-ordering violation + TD-VSDD-060 sibling-sweep gap  
+**Severity:** HIGH (blast radius = 2 sibling BC files)  
+**Routing:** state-manager (FB19 — D-611-equivalent renumber-repair-redo)
+
+BC-2.01.016 §Changelog: two rows sharing version `1.2` (rows 169-170 — architect FB1 closure row + state-manager catch row from FB1).  
+BC-2.16.011 §Changelog: two rows sharing version `1.2` (rows 205-206 — same pattern).
+
+**Defect class precedent:** F-LP15-MED-001 (FB14 D-611) — identical defect in BC-2.16.012. D-611 applied renumber-repair-redo to BC-2.16.012 only. All three PREREQ-E NEW BCs registered at D-574 BC-INDEX v4.82 received the identical FB1 state-manager catch pattern (catch row v1.2 colliding with architect row v1.2). D-611 sibling-sweep incomplete.
+
+**FB18 verification (load-bearing — all PASS):**
+- ADR-027 §D3 dual-file enumeration: PASS
+- error-taxonomy E-PIPELINE-001 v1.20 workspace-wide grep ZERO remaining v1.12 pins: PASS
+- FB18 introduced NO new defects
+
+### D-611 Sibling-Sweep Gap Pattern
+
+| BC | D-611 Action | Pass-21 Verdict |
+|----|-------------|-----------------|
+| BC-2.16.012 | SWEPT (renumber-repair-redo applied) | PASS (no duplicate rows) |
+| BC-2.01.016 | MISSED | BLOCKED (duplicate v1.2 rows persist) |
+| BC-2.16.011 | MISSED | BLOCKED (duplicate v1.2 rows persist) |
+
+### FB19 Routing Plan
+
+State-manager single-burst (no specialist dispatch required):
+- BC-2.01.016: catch row v1.2→v1.3; cascade shift subsequent rows; frontmatter v1.3→v1.4
+- BC-2.16.011: catch row v1.2→v1.3; cascade shift subsequent rows; frontmatter v1.4→v1.5
+- BC-INDEX v4.91→v4.92: row tag updates + §Changelog row
+- Single-commit per TD-VSDD-053
+
+### Updated Trajectory Shorthand
+
+**→pass-21:BLOCKED(0C+1H+0M+0L+0OBS; F-LP21-HIGH-001 D-611 sibling-sweep gap BC-2.01.016+BC-2.16.011 duplicate v1.2; streak 0/3 unchanged)**
+
+Novel-finding count: 14→9→8→9→10→10→8→4→0→3→1→1→3→1→3→1→1→1→1→0→2→0→**1** (decreasing — convergence signal; post-FB18 no new defect classes, pre-existing FB1-era gap only).
+
+Streak: **0/3** — FB19 NEXT, then pass-22 (first of NEW 3-CLEAN sequence after FB19 closure).
+
+STATE.md v7.314; SESSION-HANDOFF.md v7.314; BC-INDEX v4.91 (UNCHANGED this burst — FB19 will bump to v4.92); STORY-INDEX v2.115 (unchanged); ARCH-INDEX v2.53 (unchanged); VP-INDEX v1.46 (unchanged); error-taxonomy v1.30 (unchanged); 133rd consecutive single-commit (TD-VSDD-053 stable).
