@@ -3080,3 +3080,59 @@ Shorthand append: →pass-46:BLOCKED(0C+1H+1M+0L+0OBS; F-LP46-HIGH-001 HS-002 li
 Story v1.18 | BC-2.01.016 v1.7 | BC-2.16.011 v1.6 | BC-2.16.012 v1.15 | BC-2.16.002 v1.20 | ADR-026 v1.12 | ADR-027 v1.7 | VP-153 v0.7 | VP-154 v0.6 | VP-155 v0.5 | VP-156 v0.8 | HS-PREREQ-E-001 v1.3 | HS-PREREQ-E-002 v1.4 | HS-PREREQ-E-003 v1.5 | error-taxonomy v1.30 | ARCH-INDEX v2.56 | VP-INDEX v1.49 | STORY-INDEX v2.122 | BC-INDEX v4.95 | verification-architecture v1.39 | verification-coverage-matrix v1.36
 
 STATE.md v7.342; SESSION-HANDOFF.md v7.342; prereq_e_adversary_streak **0/3** (pass-46 BLOCKED; FB36 CLOSED; pass-47 NEXT — next 3-CLEAN attempt); 161st consecutive single-commit (TD-VSDD-053 STABLE).
+
+## §D-656 FB37 SINGLE-COMMIT CLOSURE (2026-05-16) — 1 HIGH + 3 MED + 1 LOW FROM PASS-47 CLOSED; STORY V1.19; BC-2.16.012 V1.16; BC-2.16.002 V1.21; HS-003 V1.6; POL-23 CASCADE 7 SITES; BC-INDEX V4.96; STORY-INDEX V2.123; 15TH+ WITHIN-FB MANIFESTATION; 162ND SINGLE-COMMIT; PASS-48 NEXT
+
+### Pass-47 Summary
+
+BLOCKED. 1 HIGH + 3 MED + 1 LOW. Streak 0/3 stays 0/3. F-LP47-HIGH-001 is a semantic temporal contradiction across 4 artifacts about AtomicBool set-time — a NEW defect class (semantic-temporal-claim) not previously cataloged in 47-pass cascade history. F-LP47-MED-001 through MED-004 are Task 7b/7c defects introduced by FB36. F-LP47-LOW-001 is a frontmatter gap. All introduced by FB36 fix-burst — 15th+ within-FB-introduces-defect manifestation.
+
+### Findings Closed (FB37)
+
+**F-LP47-HIGH-001** (architect adjudication + PO 4-site): AtomicBool set-time semantic temporal contradiction. Story Task 7b said "first act after plugin registrations complete"; BC-2.16.012 EC-016-012-005, BC-2.16.002 row 33, HS-003-05 all said "when init completes at step 8". Architect adjudicated Option A: canonical = "set at step 8 START — as the first act of step 8, before QueryEngine construction proceeds, per ADR-026 §D7". 4-site sibling-sweep: story Task 7b tightened, BC-2.16.012 v1.16, BC-2.16.002 v1.21, HS-003 v1.6.
+
+**F-LP47-MED-001** (PO): TD-VSDD-091 volatile line-pin cites "error-taxonomy.md line 467" and "BC-2.16.012 line 109" in Task 7b/7c removed; replaced with durable semantic anchors (error-taxonomy.md E-PLUGIN-020 entry; BC-2.16.012 EC-016-012-005). Story v1.19.
+
+**F-LP47-MED-002** (PO): BC-2.16.012 §Architecture Anchors — 46-pass-surviving omission of ADR-026 §D7 and ADR-027 §D5 (both causally load-bearing; sibling BCs BC-2.01.016 + BC-2.16.011 each anchor 2 ADRs; BC-2.16.012 had only ADR-023). Both ADR rows added. BC-2.16.012 v1.16.
+
+**F-LP47-MED-003** (PO): §FSR invalidation.rs row not swept for Task 7b additions — expanded to enumerate `QUERY_PHASE_STARTED: AtomicBool` + `pub fn mark_query_phase_started()`. error.rs row updated for `WriteToolRegistrationAfterBoot` variant. Token Budget: invalidation.rs 600→700, error.rs +50, total +150. Story v1.19.
+
+**F-LP47-MED-004** (PO): Task 7b tracing emission form corrected from `tracing::warn!(plugin_name = ..., tool_name = ..., error = "E-PLUGIN-020")` to canonical `tracing::warn!(event_type = "write_tool_registration_after_boot", plugin_name = ..., tool_name = ..., error = "E-PLUGIN-020")` per BC-2.16.012:84 + CLAUDE.md Conventions PG-LP11-001. Story v1.19.
+
+**F-LP47-LOW-001** (architect adjudication + PO): Story frontmatter `architectural_decisions` missing `ADR-022`; `subsystems` missing `SS-17`. Architect adjudicated ADD both. PO added. Story v1.19.
+
+### POL-23 BC-2.16.002 v1.20→v1.21 Cascade (MANDATORY per POL-23)
+
+BC-2.16.002 bumped v1.20→v1.21 by HIGH-001 closure at row 33. POL-23 mandates same-burst propagation. State-manager sweep:
+
+- **Story S-PLUGIN-PREREQ-E** — 3 live-narrative sites updated (Task 7 §179, AC-9 §262, §FSR §375). All updated v1.20→v1.21.
+- **BC-2.16.012** — 2 live-narrative sites updated (§Postconditions line ~84, EC-016-012-005 line ~109). Both updated v1.20→v1.21.
+- **error-taxonomy.md** — 2 live-narrative sites updated (E-PLUGIN-020 row line ~467, E-PIPELINE-001 row line ~473). Both updated v1.20→v1.21.
+- **VP-156** — 0 live-narrative v1.20 cites found. No update needed.
+- **HS-PREREQ-E-003** — already corrected by PO as part of HIGH-001 4-site sweep (HS-003-05 corrected to v1.21 form as part of the AtomicBool set-time correction).
+- **Historical changelog rows** — EXEMPT per TD-VSDD-091 (past-tense audit trail; intentionally preserved).
+
+Total propagation: 7 live-narrative sites updated.
+
+### Pattern-Breaking Assessment (POL-29 Candidate — 15th+ Manifestation)
+
+FB36 introduced HIGH-001 (AtomicBool set-time temporal precision gap in Task 7b prose) and MED-001 (TD-VSDD-091 line cites in Task 7b/7c). Both within-burst new-content defects. Semantic-temporal-claim class is NEW (first 47-pass instance). POL-29 codification candidate continues to accumulate evidence across successive sessions.
+
+### Cascade Pointer Update
+
+| Metric | Before D-656 | After D-656 |
+|--------|-------------|-------------|
+| Adversary passes | 46 (pass-1..46) | 47 (pass-1..47) |
+| Fix-bursts closed | 36 (FB1-FB36) | 37 (FB1-FB37) |
+| Fix-bursts pending | 0 | 0 |
+| Pending findings | 0 + 10 cycle-close carry-forward | 0 + 10 cycle-close carry-forward (unchanged) |
+| Streak | 0/3 (pass-46 BLOCKED; FB36) | **0/3** (pass-47 BLOCKED; streak unchanged) |
+| Consecutive single-commits | 161 | 162 |
+
+Shorthand append: →pass-47:BLOCKED(0C+1H+3M+0L+1LOW+0OBS; F-LP47-HIGH-001 AtomicBool set-time semantic temporal contradiction 4-site sibling-sweep + F-LP47-MED-001 TD-VSDD-091 reintroduced by FB36 + F-LP47-MED-002 BC-2.16.012 §Architecture Anchors 46-pass-surviving asymmetry + F-LP47-MED-003 §FSR/Token Budget not swept + F-LP47-MED-004 emission missing event_type + F-LP47-LOW-001 frontmatter ADR-022/SS-17 missing; novelty HIGH semantic-temporal-claim class; streak 0/3 unchanged)→FB37-CLOSED-COMBINED(5/5 in-scope; architect adjudication doc + PO 4-file edits + POL-23 BC-2.16.002 cascade propagation 7 live-narrative sites; state-manager last; 15th+ within-FB-introduces-defect manifestation)
+
+### Pinned Artifact Versions (PREREQ-E 19-artifact set — post-D-656)
+
+Story v1.19 | BC-2.01.016 v1.7 | BC-2.16.011 v1.6 | BC-2.16.012 v1.16 | BC-2.16.002 v1.21 | ADR-026 v1.12 | ADR-027 v1.7 | VP-153 v0.7 | VP-154 v0.6 | VP-155 v0.5 | VP-156 v0.8 | HS-PREREQ-E-001 v1.3 | HS-PREREQ-E-002 v1.4 | HS-PREREQ-E-003 v1.6 | error-taxonomy v1.30 | ARCH-INDEX v2.56 | VP-INDEX v1.49 | STORY-INDEX v2.123 | BC-INDEX v4.96 | verification-architecture v1.39 | verification-coverage-matrix v1.36
+
+STATE.md v7.343; SESSION-HANDOFF.md v7.343; prereq_e_adversary_streak **0/3** (pass-47 BLOCKED; FB37 CLOSED; pass-48 NEXT — next 3-CLEAN attempt); 162nd consecutive single-commit (TD-VSDD-053 STABLE).

@@ -8,10 +8,10 @@ must_pass: true
 priority: P0
 epic_id: "PLUGIN-MIGRATION-001"
 story_source: "S-PLUGIN-PREREQ-E"
-version: "1.5"
+version: "1.6"
 status: draft
 producer: product-owner
-timestamp: 2026-05-15T00:00:00
+timestamp: 2026-05-16T00:00:00Z
 phase: 4
 inputs: []
 input-hash: null
@@ -180,12 +180,12 @@ new write-tool entries (closing TD-S-PLUGIN-PREREQ-A-003).
 
 - S-PLUGIN-PREREQ-E is merged to `develop`
 - `register_write_tool` API exists with signature `-> Result<(), SpecEngineError>`
-- The `AtomicBool` query-phase flag (set when query engine init completes at step 8) is set to `true` in the test fixture, simulating post-boot context
+- The `AtomicBool` query-phase flag (set at step 8 start — as the first act of step 8, before QueryEngine construction proceeds, per ADR-026 D7) is set to `true` in the test fixture, simulating post-step-8-start context
 - A `WriteToolInvalidationMap` entry is prepared for registration
 
 **Steps:**
 
-1. Set the query-phase `AtomicBool` flag to `true` (simulating step 8 completion)
+1. Set the query-phase `AtomicBool` flag to `true` (simulating post-step-8-start context — `mark_query_phase_started()` called)
 2. Call `register_write_tool(entry)` after the flag is set
 3. Assert the call returns `.is_err()`
 4. Assert the error variant is `SpecEngineError::WriteToolRegistrationAfterBoot` (E-PLUGIN-020)
@@ -224,6 +224,7 @@ When this holdout scenario is evaluated, the evaluator must produce:
 
 | Version | Burst | Date | Author | Change |
 |---------|-------|------|--------|--------|
+| 1.6 | FB37 | 2026-05-16 | product-owner | F-LP47-HIGH-001 HS-003-05 Preconditions AtomicBool set-time corrected from "set when query engine init completes at step 8" to canonical "set at step 8 start — as the first act of step 8, before QueryEngine construction proceeds, per ADR-026 D7"; simulating context updated from "post-boot context" to "post-step-8-start context". HS-003-05 Step 1 "simulating step 8 completion" corrected to "simulating post-step-8-start context (mark_query_phase_started() called)" per architect adjudication §1 note. Sibling-sweep with BC-2.16.012 EC-016-012-005 v1.16 + BC-2.16.002 row 33 v1.21. |
 | 1.5 | prereq-e-fix-burst-12 | 2026-05-16 | product-owner | F-LP13-HIGH-003 Option A propagation — HS-003-03 fixture: `WriteToolInvalidationMap` entry gains `plugin_name: "plugin_a"` field. HS-003-04 fixture: entry_1 gains `plugin_name: "plugin_a"`, entry_2 gains `plugin_name: "plugin_b"` (exercises E-PLUGIN-012 `{plugin}`/`{conflicting_plugin}` placeholders per ADR-026 D7 v1.10); preconditions updated to name the two plugin values. HS-003-05 VP Traced footer: pin advanced ADR-026 D7 v1.9 → v1.10 per architect D-603. |
 | 1.4 | prereq-e-fix-burst-10 | 2026-05-16 | product-owner | F-LP11-MED-001 — VP-156 bidirectional traceability symmetry restored: frontmatter `verification_properties: [VP-156]` added; HS-003-04 footer `**VP Traced:** VP-156 (Case 2 — duplicate name returns Err(DuplicateWriteToolRegistration))` added; HS-003-05 footer `**VP Traced:** VP-156 (related — register_write_tool contract surface per ADR-026 D7 v1.9)` added. RECURRING class — VP-154 closed FB1 (F-LP1-CRIT-001), VP-155 closed FB6 (F-LP6-HIGH-001), VP-156 third instance missed by passes 1-10; surfaced by pass-11 fresh-context. Sibling-class with HS-001/002 frontmatter+footer convention. |
 | 1.3 | prereq-e-fix-burst-3 | 2026-05-15 | product-owner | F-LP3-LOW-001 closure: Added HS-PREREQ-E-003-04 (EC-016-012-004 duplicate-name: two plugins register same tool_name → second returns E-PLUGIN-012) and HS-PREREQ-E-003-05 (EC-016-012-005 after-boot: register_write_tool called after step 8 → returns E-PLUGIN-020 + WARN log). Both sub-scenarios include scenario description, preconditions, steps, expected outcome, validation evidence reference, and BC anchor. |

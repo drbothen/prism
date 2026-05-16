@@ -21,9 +21,9 @@ risk: MEDIUM
 tdd_mode: strict
 crates_touched: [prism-sensors, prism-spec-engine, prism-query]
 target_module: prism-sensors
-subsystems: [SS-01, SS-07, SS-16]
+subsystems: [SS-01, SS-07, SS-16, SS-17]
 capabilities: [CAP-001, CAP-029]
-version: "1.18"
+version: "1.19"
 updated: "2026-05-16"
 level: "L4"
 producer: product-owner
@@ -49,6 +49,7 @@ architectural_decisions:
   - ADR-026  # SensorAuth unsealing decision — defines runtime enforcement rules (E-SPEC-012/013/014) and VP-153
   - ADR-027  # CustomAdapter deprecation/removal — defines compile-fail perimeter (VP-155) and WASM equivalence (VP-154)
   - ADR-023  # Plugin-only sensor architecture — §Architectural Constraints (C5 bullet) rules authoritative for this story's scope
+  - ADR-022  # Production runtime wiring — §B step 7.5/8 ordering authoritative for Task 7b AtomicBool flag set-time
 holdout_scenarios:
   - HS-PREREQ-E-001  # SensorAuth Open Trait — External Implementation Compiles and Loads (+ VP-153 cross-composition)
   - HS-PREREQ-E-002  # CustomAdapter Retirement — No Behavioral Regression (+ VP-154/VP-155 coverage)
@@ -56,7 +57,7 @@ holdout_scenarios:
 anchor_bcs: [BC-2.01.016, BC-2.16.011, BC-2.16.012, BC-2.01.013, BC-2.16.004]
 anchor_vps: [VP-153, VP-154, VP-155, VP-156, VP-PLUGIN-001, VP-PLUGIN-007]
 anchor_capabilities: [CAP-001, CAP-029]
-anchor_subsystem: [SS-01, SS-07, SS-16]
+anchor_subsystem: [SS-01, SS-07, SS-16, SS-17]
 assumption_validations:
   - "prism-spec-engine has never been published to crates.io with CustomAdapter exposed (PLUGIN-AUDIT-001 HIGH-3 confirmed — no deprecation window required)"
   - "spec_parser.rs contains zero CustomAdapter/CustomAdapterRegistry references (ADR-023 §Architectural Constraints (C5 bullet) F-CRIT-NEW-001-PASS2-RESIDUAL verified by grep)"
@@ -128,11 +129,12 @@ invalidation — completing the Wave 0 plugin-only sensor architecture foundatio
 | `crates/prism-spec-engine/examples/demo_spec_loading.rs` (cleanup/delete) | ~200 |
 | `crates/prism-spec-engine/tests/bc_2_16_004_test.rs` (deletion) | ~0 (deleted) |
 | `crates/prism-spec-engine/src/spec_parser.rs` (open dispatch migration) | ~800 |
-| `crates/prism-query/src/invalidation.rs` (WriteToolInvalidationMap RwLock migration) | ~600 |
+| `crates/prism-query/src/invalidation.rs` (WriteToolInvalidationMap RwLock migration + AtomicBool flag + mark_query_phase_started helper) | ~700 |
+| `crates/prism-spec-engine/src/error.rs` (WriteToolRegistrationAfterBoot variant) | ~50 |
 | `BC-2.16.004-rust-escape-hatch.md` (frontmatter: deprecated → removed) | ~200 |
 | `error-taxonomy.md` (E-SPEC-008 retired annotation) | ~100 |
 | Test files (Red Gate set + behavioral equivalence) | ~2,000 |
-| Total | ~17,300 |
+| Total | ~17,450 |
 
 Well within the 30% context window budget (~40k tokens).
 
@@ -178,19 +180,19 @@ Well within the 30% context window budget (~40k tokens).
 
 7. **Migrate `WriteToolInvalidationMap` to runtime-extensible container (TD-S-PLUGIN-PREREQ-A-003)**
    - In `crates/prism-query/src/invalidation.rs`, change the `LazyLock<Vec<WriteToolInvalidationMap>>` container to `std::sync::RwLock<Vec<WriteToolInvalidationMap>>` (eager init per ADR-026 §D7 — `OnceLock<RwLock<...>>` wrapper is not needed because no initialization-race risk exists under the boot-step 7.5/8 ordering, and eager `RwLock::new(Vec::new())` is simpler than the `OnceLock::get_or_init` pattern that can panic in test contexts)
-   - The `WriteToolInvalidationMap` struct carries a `plugin_name: String` field (set by PluginRuntime from the plugin manifest `name` field per ADR-026 D7 v1.10; cited in BC-2.16.002 §Postconditions (Canonical Structured Event Catalog bullet, v1.20) row 33). The struct fields are: `sensor_id: SensorId`, `tool_name: String`, `plugin_name: String` (at minimum; other fields per implementation).
+   - The `WriteToolInvalidationMap` struct carries a `plugin_name: String` field (set by PluginRuntime from the plugin manifest `name` field per ADR-026 D7 v1.10; cited in BC-2.16.002 §Postconditions (Canonical Structured Event Catalog bullet, v1.21) row 33). The struct fields are: `sensor_id: SensorId`, `tool_name: String`, `plugin_name: String` (at minimum; other fields per implementation).
    - Add a `pub fn register_write_tool(entry: WriteToolInvalidationMap) -> Result<(), SpecEngineError>` API that acquires a write guard, checks for a duplicate `tool_name`, and either returns `Err(SpecEngineError::DuplicateWriteToolRegistration(tool_name))` on duplicate or pushes the entry on success
    - Update all read-side callers (the invalidation check function) to acquire a read guard instead of dereferencing the `LazyLock`
    - Wire `PluginRuntime` (already available via PREREQ-D boot wiring) to call `register_write_tool` for each plugin that declares write-tool capabilities in its manifest
 
 7b. **Add `AtomicBool` query-phase flag for post-boot registration detection (ADR-026 D7)**
    - In `crates/prism-query/src/invalidation.rs`, declare a `static QUERY_PHASE_STARTED: std::sync::atomic::AtomicBool = std::sync::atomic::AtomicBool::new(false);` module-level static (per ADR-026 §D7 runtime_deliverables item "AtomicBool query-phase flag for after-boot detection in crates/prism-query/src/invalidation.rs (D7)")
-   - The flag is set to `true` by the query-engine init (boot step 8, ADR-022 §B) as its first act after all plugin registrations complete — this closes the write window permanently. Add a `pub fn mark_query_phase_started()` function that calls `QUERY_PHASE_STARTED.store(true, std::sync::atomic::Ordering::Release)`.
-   - In `register_write_tool`, before acquiring the write guard, check `QUERY_PHASE_STARTED.load(std::sync::atomic::Ordering::Acquire)`: if `true`, emit a `tracing::warn!(plugin_name = %entry.plugin_name, tool_name = %entry.tool_name, error = "E-PLUGIN-020", "write_tool_registration_after_boot")` structured event and return `Err(SpecEngineError::WriteToolRegistrationAfterBoot)` without touching the `RwLock` (per ADR-026 §D7 fail-closed post-boot path; BC-2.16.012 EC-016-012-005; error-taxonomy.md E-PLUGIN-020 line 467)
+   - The flag is set to `true` as the first act of step 8 (query-engine init, ADR-022 §B) — immediately when step 8 begins, before any QueryEngine construction proceeds. All plugin registrations at step 7.5 are already complete when step 8 starts; setting the flag here closes the write window permanently at the step-8 boundary. Add a `pub fn mark_query_phase_started()` function that calls `QUERY_PHASE_STARTED.store(true, std::sync::atomic::Ordering::Release)`.
+   - In `register_write_tool`, before acquiring the write guard, check `QUERY_PHASE_STARTED.load(std::sync::atomic::Ordering::Acquire)`: if `true`, emit a `tracing::warn!(event_type = "write_tool_registration_after_boot", plugin_name = %entry.plugin_name, tool_name = %entry.tool_name, error = "E-PLUGIN-020")` structured event and return `Err(SpecEngineError::WriteToolRegistrationAfterBoot)` without touching the `RwLock` (per ADR-026 §D7 fail-closed post-boot path; BC-2.16.012 EC-016-012-005; error-taxonomy.md E-PLUGIN-020)
    - The three structured event fields (`plugin_name`, `tool_name`, `error`) match the ADR-026 §D7 field source specification exactly
 
 7c. **Add `SpecEngineError::WriteToolRegistrationAfterBoot` enum variant (ADR-026 D7)**
-   - In the `SpecEngineError` enum (locate via `crates/prism-spec-engine/src/error.rs` or equivalent per current crate layout), add a unit variant: `WriteToolRegistrationAfterBoot` (per ADR-026 §D7 runtime_deliverables item "SpecEngineError::WriteToolRegistrationAfterBoot enum variant added (D7)"; cited in error-taxonomy.md E-PLUGIN-020 line 467 and BC-2.16.012 EC-016-012-005 line 109)
+   - In the `SpecEngineError` enum (locate via `crates/prism-spec-engine/src/error.rs` or equivalent per current crate layout), add a unit variant: `WriteToolRegistrationAfterBoot` (per ADR-026 §D7 runtime_deliverables item "SpecEngineError::WriteToolRegistrationAfterBoot enum variant added (D7)"; cited in error-taxonomy.md E-PLUGIN-020 and BC-2.16.012 EC-016-012-005)
    - This is a unit variant (no fields) — the dynamic context is carried by the structured tracing event fields, not the error variant (E-PLUGIN-020 category: runtime, severity: broken)
    - Verify `cargo check -p prism-spec-engine` and `cargo check -p prism-query` both succeed with the new variant wired into `register_write_tool` return path
 
@@ -257,7 +259,7 @@ Four integration tests (`test_BC_2_16_012_002_spec_parser_behavioral_equivalence
 (traces to BC-2.16.012 invariant INV-SPEC-PARSER-OPEN-002 + INV-SPEC-PARSER-OPEN-003)
 
 **AC-9 (WriteToolInvalidationMap Runtime Extensibility — TD-S-PLUGIN-PREREQ-A-003 Closed):**
-`crates/prism-query/src/invalidation.rs` `WriteToolInvalidationMap` container is `RwLock<Vec<WriteToolInvalidationMap>>` (or equivalent). The `WriteToolInvalidationMap` struct includes a `plugin_name: String` field sourced from the plugin manifest `name` field (set by PluginRuntime per ADR-026 D7 v1.10); this field is the source for the `plugin_name` structured event field in the `write_tool_registration_after_boot` WARN tracing event (BC-2.16.002 §Postconditions (Canonical Structured Event Catalog bullet, v1.20) row 33). A `pub fn register_write_tool(entry: WriteToolInvalidationMap) -> Result<(), SpecEngineError>` API exists and is callable after startup. A unit test (`test_BC_2_16_012_003_write_tool_invalidation_runtime_register`) registers a custom write tool entry and asserts `.is_ok()` on the happy path and that the entry is present in the map on the next read-guard acquisition. A second test invocation with the same `tool_name` asserts `.is_err()` (E-PLUGIN-012). A third test simulates post-boot registration and asserts `.is_err()` (E-PLUGIN-020).
+`crates/prism-query/src/invalidation.rs` `WriteToolInvalidationMap` container is `RwLock<Vec<WriteToolInvalidationMap>>` (or equivalent). The `WriteToolInvalidationMap` struct includes a `plugin_name: String` field sourced from the plugin manifest `name` field (set by PluginRuntime per ADR-026 D7 v1.10); this field is the source for the `plugin_name` structured event field in the `write_tool_registration_after_boot` WARN tracing event (BC-2.16.002 §Postconditions (Canonical Structured Event Catalog bullet, v1.21) row 33). A `pub fn register_write_tool(entry: WriteToolInvalidationMap) -> Result<(), SpecEngineError>` API exists and is callable after startup. A unit test (`test_BC_2_16_012_003_write_tool_invalidation_runtime_register`) registers a custom write tool entry and asserts `.is_ok()` on the happy path and that the entry is present in the map on the next read-guard acquisition. A second test invocation with the same `tool_name` asserts `.is_err()` (E-PLUGIN-012). A third test simulates post-boot registration and asserts `.is_err()` (E-PLUGIN-020).
 (traces to BC-2.16.012 postcondition — TD-S-PLUGIN-PREREQ-A-003 WriteToolInvalidationMap; INV-INVALIDATION-EXT-001; EC-016-012-004; EC-016-012-005)
 
 **AC-10 (Full Build and Pre-Push Gate):**
@@ -370,7 +372,8 @@ Note: E-SPEC-010 (variable interpolation field-path miss) and E-SPEC-011 (pipe_v
 | `crates/prism-spec-engine/examples/demo_spec_loading.rs` | DELETE or Modify | Remove `CustomAdapter`-using sections; delete file if nothing meaningful remains |
 | `crates/prism-spec-engine/tests/bc_2_16_004_test.rs` | DELETE | BC-2.16.004 is removed; this test file is deleted with it |
 | `crates/prism-spec-engine/src/spec_parser.rs` | Modify | Replace hardcoded sensor-name match arms with PluginRegistry lookup or generic path |
-| `crates/prism-query/src/invalidation.rs` | Modify | Migrate `WriteToolInvalidationMap` from `LazyLock<Vec<...>>` to `RwLock<Vec<...>>`; add `register_write_tool` API; struct gains `plugin_name: String` field (set by PluginRuntime from manifest `name` per ADR-026 D7 v1.10; BC-2.16.002 §Postconditions (Canonical Structured Event Catalog bullet, v1.20) row 33) |
+| `crates/prism-query/src/invalidation.rs` | Modify | Migrate `WriteToolInvalidationMap` from `LazyLock<Vec<...>>` to `RwLock<Vec<...>>`; add `register_write_tool` API; struct gains `plugin_name: String` field (set by PluginRuntime from manifest `name` per ADR-026 D7 v1.10; BC-2.16.002 §Postconditions (Canonical Structured Event Catalog bullet, v1.21) row 33); add `static QUERY_PHASE_STARTED: AtomicBool` module-level static; add `pub fn mark_query_phase_started()` helper that stores `true` with `Release` ordering (called by query-engine init at step 8 start per ADR-026 D7) |
+| `crates/prism-spec-engine/src/error.rs` | Modify | Add `WriteToolRegistrationAfterBoot` unit variant to `SpecEngineError` enum (ADR-026 D7; error-taxonomy.md E-PLUGIN-020) |
 | `.factory/specs/behavioral-contracts/BC-2.16.004-rust-escape-hatch.md` | Modify | Update frontmatter: `lifecycle_status: deprecated → removed`; add `removed:` + `removal_reason:` |
 | `.factory/specs/prd-supplements/error-taxonomy.md` | Modify | Add `retired:` annotation to E-SPEC-008 row |
 
@@ -465,6 +468,7 @@ Tech debt closed:
 
 | Version | Burst | Date | Author | Change |
 |---------|-------|------|--------|--------|
+| 1.19 | FB37 | 2026-05-16 | product-owner | F-LP47-LOW-001 frontmatter: ADR-022 added to `architectural_decisions` (§B step 7.5/8 ordering authoritative for Task 7b AtomicBool flag set-time); SS-17 added to `subsystems` and `anchor_subsystem` (both fields) per architect adjudication. F-LP47-MED-001 Task 7b/7c TD-VSDD-091 volatile line-number cites replaced with durable semantic anchors ("error-taxonomy.md E-PLUGIN-020" without line 467; "BC-2.16.012 EC-016-012-005" without line 109). F-LP47-MED-003 §FSR + §Token Budget swept for Task 7b/7c new content: invalidation.rs row expanded to enumerate AtomicBool flag + `mark_query_phase_started()` function; `error.rs` row added for `WriteToolRegistrationAfterBoot` variant (~50 tokens); invalidation.rs budget updated ~600 → ~700; total updated ~17,300 → ~17,450. F-LP47-MED-004 Task 7b emission form corrected to canonical `event_type` idiom per BC-2.16.012:84 + CLAUDE.md Conventions (`event_type` as first structured field, not trailing static message). |
 | 1.18 | FB36 | 2026-05-16 | product-owner | F-LP46-MED-001 §Tasks expanded to enumerate ADR-026 D7 runtime_deliverables not previously covered: new Task 7b adds AtomicBool query-phase flag (`QUERY_PHASE_STARTED`) + `mark_query_phase_started()` + fail-closed post-boot check in `register_write_tool`; new Task 7c adds `SpecEngineError::WriteToolRegistrationAfterBoot` unit variant. Mirrors FB34 Task 1b coverage discipline for D7 dimension. Anchors: ADR-026 §D7 runtime_deliverables items 6+5, error-taxonomy.md E-PLUGIN-020, BC-2.16.012 EC-016-012-005. |
 | 1.17 | FB35 | 2026-05-16 | product-owner | F-LP45-MED-001 Task 1b epilogue volatile + factually-wrong line-range cite "(rows 343–346)" replaced with durable semantic anchor enumerating 4 file names (crowdstrike.rs / cyberint.rs / claroty.rs / armis.rs). TD-VSDD-091 compliance + factual correction. F-LP45-LOW-001 changelog cite "runtime_deliverables 22-23" adjudicated ACCEPTABLE per TD-VSDD-091 §Changelog exception (no fix dispatched). |
 | 1.16 | FB34 | 2026-05-16 | product-owner | F-LP44-MED-001 §Tasks expanded to enumerate ADR-026 D1/D2 Path B auth_type_name trait surface gain + 4 impl method body additions (new Task 1b inserted between Task 1 and Task 2); Task 1 Step 3 verification claim "compile without modification" corrected — impls WILL be modified per ADR-026 D2 Path B runtime_deliverables 22-23. |

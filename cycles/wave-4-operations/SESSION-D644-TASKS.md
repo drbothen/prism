@@ -1,6 +1,6 @@
 ---
 document_type: session-tasks
-version: "1.11"
+version: "1.12"
 status: active
 related_burst: D-644
 predecessor_state: D-652
@@ -53,7 +53,9 @@ This file persists the task list and full cascade state from the session coverin
 | 94 | **DONE** | FB35 CLOSED — 1/1 MED in-scope (F-LP45-MED-001: PO-only single-line edit; story v1.17; STORY-INDEX v2.121; 160th consecutive single-commit) |
 | 95 | **DONE/BLOCKED** | PREREQ-E pass-46 BLOCKED (1 HIGH + 1 MED; F-LP46-HIGH-001 HS-002 line 223 ADR-026/ADR-027 identity inversion — 45-pass-surviving SEMANTIC-CORRECTNESS defect class first surfacing; F-LP46-MED-001 story §Tasks ADR-026 D7 runtime_deliverables gap Task 7b+7c; 15th within-FB manifestation; streak 0/3 unchanged; FB36 dispatched) |
 | 96 | **DONE** | FB36 CLOSED — 2/2 in-scope (F-LP46-HIGH-001: HS-PREREQ-E-002 v1.4; F-LP46-MED-001: story v1.18; STORY-INDEX v2.122; 161st consecutive single-commit) |
-| 97 | **PENDING** | PREREQ-E pass-47 (next 3-CLEAN attempt; BC-5.39.001 requires 3 consecutive CLEAN) |
+| 97 | **DONE/BLOCKED** | PREREQ-E pass-47 BLOCKED (1 HIGH + 3 MED + 1 LOW; F-LP47-HIGH-001 AtomicBool set-time semantic temporal contradiction 4-artifact — NEW semantic-temporal-claim defect class; F-LP47-MED-001/002/003/004 Task 7b/7c defects introduced by FB36; F-LP47-LOW-001 frontmatter gap; 15th+ within-FB manifestation; streak 0/3 unchanged; FB37 dispatched) |
+| 98 | **DONE** | FB37 CLOSED — 5/5 in-scope (F-LP47-HIGH-001: story v1.19 + BC-2.16.012 v1.16 + BC-2.16.002 v1.21 + HS-003 v1.6; F-LP47-MED-001/002/003/004 + F-LP47-LOW-001 closed; POL-23 cascade 7 live-narrative sites; BC-INDEX v4.96; STORY-INDEX v2.123; 162nd consecutive single-commit) |
+| 99 | **PENDING** | PREREQ-E pass-48 (next 3-CLEAN attempt; BC-5.39.001 requires 3 consecutive CLEAN) |
 
 ## §FB28 Closure Note (D-645 COMPLETE)
 
@@ -291,6 +293,33 @@ All 19 artifacts at D-651 version pins — no spec edits in D-652 (state-manager
 
 ---
 
+## §FB37 Closure Note (D-656 COMPLETE)
+
+**FB37 multi-agent single-commit closure. Architect adjudication doc + PO 4-file sibling-sweep + state-manager last. 4 artifacts bumped (story v1.19 + BC-2.16.012 v1.16 + BC-2.16.002 v1.21 + HS-003 v1.6). 2 indexes bumped (BC-INDEX v4.96 + STORY-INDEX v2.123). POL-23 cascade: 7 live-narrative sites propagated. 162nd consecutive single-commit.**
+
+### Findings Closed
+- **F-LP47-HIGH-001** (architect adjudication + PO): AtomicBool set-time semantic temporal contradiction — 4-artifact cross-document. Architect adjudicated Option A: "set at step 8 START — as the first act of step 8, before QueryEngine construction proceeds, per ADR-026 §D7." 4-site sibling-sweep complete. Story Task 7b tightened; BC-2.16.012 v1.16; BC-2.16.002 v1.21; HS-003 v1.6.
+- **F-LP47-MED-001** (PO): TD-VSDD-091 volatile line-pin cites in Task 7b/7c removed; durable semantic anchors used. Story v1.19.
+- **F-LP47-MED-002** (PO): BC-2.16.012 §Architecture Anchors expanded — ADR-026 §D7 + ADR-027 §D5 rows added. 46-pass-surviving asymmetry vs sibling BCs closed. BC-2.16.012 v1.16.
+- **F-LP47-MED-003** (PO): §FSR invalidation.rs + error.rs rows updated; Token Budget reconciled (+150 total). Story v1.19.
+- **F-LP47-MED-004** (PO): Task 7b tracing form corrected to canonical `event_type = "write_tool_registration_after_boot"` as first field per CLAUDE.md Conventions. Story v1.19.
+- **F-LP47-LOW-001** (architect adjudication + PO): Frontmatter ADR-022 + SS-17 added per architect adjudication. Story v1.19.
+
+### POL-23 Cascade (7 live-narrative sites)
+- Story 3 sites (v1.20→v1.21): Task 7 §179, AC-9 §262, §FSR §375.
+- BC-2.16.012 2 sites (v1.20→v1.21): §Postconditions, EC-016-012-005.
+- error-taxonomy 2 sites (v1.20→v1.21): E-PLUGIN-020, E-PIPELINE-001.
+- VP-156: 0 live-narrative v1.20 cites found — no update needed.
+- Historical changelog rows: EXEMPT per TD-VSDD-091.
+
+### Pass-48 Dispatch Readiness
+- Streak: 0/3 (next 3-CLEAN attempt begins at pass-48)
+- All artifacts at D-656 version pins (see Pinned Artifact Versions below)
+- Adversary can dispatch immediately for pass-48
+- Primary attack vectors for pass-48: (1) AtomicBool set-time consistency post-FB37 across 4 artifacts; (2) Task 7b tracing form matches BC-2.16.012:84; (3) §FSR + Token Budget arithmetic; (4) POL-23 propagation completeness; (5) no new TD-VSDD-091 in FB37 edits; (6) BC-2.16.012 §Architecture Anchors symmetry with siblings
+
+---
+
 ## §FB36 Closure Note (D-655 COMPLETE)
 
 **FB36 PO-only single-commit closure. 2 artifacts bumped (HS-PREREQ-E-002 v1.4 + story v1.18). 1 index bumped (STORY-INDEX v2.122). 161st consecutive single-commit.**
@@ -420,11 +449,11 @@ Accept current spec quality (8 CLEAN passes is unusual statistical evidence of q
 
 | Artifact | Version |
 |----------|---------|
-| Story | v1.18 (F-LP46-MED-001 Task 7b AtomicBool + Task 7c WriteToolRegistrationAfterBoot added for ADR-026 D7 runtime_deliverables at D-655) |
+| Story | v1.19 (FB37-D-656: Task 7b AtomicBool set-time tightened to "step 8 START" per architect adjudication Option A; TD-VSDD-091 line cites removed from Task 7b/7c; §FSR+Token Budget updated; event_type field canonicalized; frontmatter ADR-022+SS-17 added; 3 BC-2.16.002 v1.20→v1.21 live-narrative sites updated) |
 | BC-2.01.016 | v1.7 (EC-016-003 "impl block is unchanged" corrected to explicit method body requirement per ADR-026 §D2 Path B at D-653) |
 | BC-2.16.011 | v1.6 (modified 2026-05-16) |
-| BC-2.16.012 | v1.15 (modified 2026-05-16) |
-| BC-2.16.002 | v1.20 (catalog row 33 + bullet `(v1.20)`) |
+| BC-2.16.012 | v1.16 (FB37-D-656: EC-016-012-005 AtomicBool set-time corrected + §Architecture Anchors expanded with ADR-026 §D7 + ADR-027 §D5; §Postconditions + EC-016-012-005 BC-2.16.002 cite advanced v1.20→v1.21) |
+| BC-2.16.002 | v1.21 (FB37-D-656: row 33 AtomicBool set-time corrected per architect adjudication Option A; POL-23 cascade: 7 live-narrative sites advanced v1.20→v1.21) |
 | ADR-026 | v1.12 (D7 pin propagation v1.10 throughout downstream) |
 | ADR-027 | v1.7 (F-LP42-MED-001 §D3 crate-naming contradiction + F-LP42-LOW-001 line 118 volatile-line-pin resolved at D-651) |
 | VP-153 | v0.7 (F-LP44-MED-002 §Proof Harness Skeleton Rules A+B scaffolded at D-653) |
@@ -433,23 +462,23 @@ Accept current spec quality (8 CLEAN passes is unusual statistical evidence of q
 | VP-156 | v0.8 (4 D7 pins at v1.10) |
 | HS-PREREQ-E-001 | v1.3 (frontmatter verification_properties: [VP-153]) |
 | HS-PREREQ-E-002 | v1.4 (line 223 ADR-026/ADR-027 identity inversion corrected at D-655; F-LP46-HIGH-001 closed) |
-| HS-PREREQ-E-003 | v1.5 (verification_properties: [VP-156]; HS-003-04/05 footers cite VP-156) |
+| HS-PREREQ-E-003 | v1.6 (FB37-D-656: HS-003-05 Preconditions + Step 1 AtomicBool set-time corrected from "step 8 completion" to "post-step-8-start context" per architect adjudication Option A) |
 | error-taxonomy | v1.30 (E-PIPELINE-001 row at v1.20 pin; E-SPEC-008 RETIRED; E-SPEC-012/013/014 + E-PLUGIN-012/020 active) |
 | ARCH-INDEX | v2.56 (ADR-027 row bumped v1.6→v1.7 + §Changelog row FB33-D-651 added at D-651) |
 | VP-INDEX | v1.49 (Total 156, P0=122, P1=34; VP-153 row note v0.6→v0.7 at D-653) |
-| STORY-INDEX | v2.122 (FB36 D-655; PREREQ-E row v1.17 to v1.18) |
-| BC-INDEX | v4.95 (BC-2.01.016 row bumped v1.6→v1.7 at D-653) |
+| STORY-INDEX | v2.123 (FB37 D-656; PREREQ-E row v1.18→v1.19; ADR-022 added to row ADRs) |
+| BC-INDEX | v4.96 (BC-2.16.002 row v1.20→v1.21; BC-2.16.012 row v1.15→v1.16; POL-23 cascade) |
 | verification-architecture | v1.39 (POL-9 propagation row; VP-153 ID-only; D-653) |
 | verification-coverage-matrix | v1.36 (POL-9 propagation row; VP-153 ID-only; D-653) |
 
 ## Resume Reading Order (Next Session After /Clear)
 
-1. **`.factory/STATE.md`** (v7.342) — current_step + prereq_e_adversary_streak + RESUME PROTOCOL section
-2. **`.factory/SESSION-HANDOFF.md`** (v7.342) — §POST-FB36-CLOSURE DURABLE PIN BLOCK section
-3. **`.factory/cycles/wave-4-operations/SESSION-D644-TASKS.md`** — this file (task list + FB36 closure + strategic options)
-4. **`.factory/cycles/wave-4-operations/S-PLUGIN-PREREQ-E-CYCLE-SNAPSHOT.md`** — full cascade history through D-655
+1. **`.factory/STATE.md`** (v7.343) — current_step + prereq_e_adversary_streak + RESUME PROTOCOL section
+2. **`.factory/SESSION-HANDOFF.md`** (v7.343) — §POST-FB37-CLOSURE DURABLE PIN BLOCK section
+3. **`.factory/cycles/wave-4-operations/SESSION-D644-TASKS.md`** — this file (task list + FB37 closure + strategic options)
+4. **`.factory/cycles/wave-4-operations/S-PLUGIN-PREREQ-E-CYCLE-SNAPSHOT.md`** — full cascade history through D-656
 5. **`.factory/cycles/wave-4-operations/SESSION-D580-TASKS.md`** — prior session task list (pass-1 through pass-5 era; D-580 precedent)
-6. **`.factory/cycles/wave-4-operations/adversarial-reviews/S-PLUGIN-PREREQ-E-spec-pass-{1..46}.md`** — per-pass finding context if needed (46 files total)
+6. **`.factory/cycles/wave-4-operations/adversarial-reviews/S-PLUGIN-PREREQ-E-spec-pass-{1..47}.md`** — per-pass finding context if needed (47 files total)
 
 ## Session Continuation Behavior
 
