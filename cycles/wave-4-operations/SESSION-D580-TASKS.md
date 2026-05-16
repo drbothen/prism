@@ -1,10 +1,10 @@
 ---
 document_type: session-tasks
-version: "1.2"
+version: "1.3"
 status: active
-related_burst: D-584
-predecessor_state: D-581
-timestamp: 2026-05-16T00:45:00Z
+related_burst: D-585
+predecessor_state: D-584
+timestamp: 2026-05-16T01:00:00Z
 ---
 
 # Session Task List — D-580 Durable Snapshot
@@ -34,9 +34,10 @@ Intended audience: orchestrator at next session start. Read alongside STATE.md +
 | 16 | DONE | PREREQ-E pass-5 + fix-burst-5 (D-579): 10 findings; trajectory regression 9→10 (bookkeeping class); 85th single-commit | — |
 | 17 | DONE | PREREQ-E pass-6 dispatched + report persisted (D-581; pass-6 BLOCKED 10 findings; report at cycles/wave-4-operations/adversarial-reviews/S-PLUGIN-PREREQ-E-spec-pass-6.md; 87th single-commit) | — |
 | 18 | DONE | PREREQ-E fix-burst-6 (10 findings closed): architect D-582 `bae9c46f` (8 closures: CRIT-001+HIGH-001/003+MED-001/002/003/004+LOW-002) + story-writer D-583 `422b7dec` (CRIT-001 propagation) + state-manager D-584 (HIGH-002 STORY-INDEX v2.109→v2.110). 3 OBS queued cycle-close. | — |
-| 19 | PENDING | PREREQ-E pass-7 (fresh-context dispatch) | Blocked on task 18 — now UNBLOCKED; pass-7 NEXT |
-| 20 | PENDING | If pass-7 CLEAN: PREREQ-E pass-8 (streak 1/3 → 2/3) | Blocked on Task #19 verdict |
-| 21 | PENDING | If pass-7 BLOCKED: PREREQ-E fix-burst-7 (architect + state-manager) | Blocked on Task #19 verdict |
+| 19 | DONE | PREREQ-E pass-7 dispatched + report persisted (D-585; pass-7 BLOCKED 8 in-scope (4H+4M) + 4 OBS; trajectory DECREASE to 8; report at cycles/wave-4-operations/adversarial-reviews/S-PLUGIN-PREREQ-E-spec-pass-7.md; 91st single-commit) | — |
+| 22 | BLOCKED | PREREQ-E fix-burst-7 (8 findings: F-LP7-HIGH-001/002/003/004 + F-LP7-MED-001/002/003/004) — architect (HIGH-001/004+MED-002/003) + product-owner (HIGH-002+MED-004) parallel; state-manager (HIGH-003+MED-001) | Awaiting fix-burst-7 dispatch |
+| 23 | PENDING | PREREQ-E pass-8 (fresh-context) | Blocked on Task #22 (fix-burst-7 completion) |
+| 24 | PENDING | If pass-8 CLEAN: streak 1/3 → continue cascade toward 3-CLEAN convergence | Blocked on Task #23 verdict |
 
 ## Strategic Options — RESOLVED (D-581)
 
@@ -89,7 +90,7 @@ Intended audience: orchestrator at next session start. Read alongside STATE.md +
 2. `.factory/SESSION-HANDOFF.md` — §POST-D580 DURABLE RESUME SNAPSHOT
 3. `.factory/cycles/wave-4-operations/SESSION-D580-TASKS.md` — this file (task list + strategic options)
 4. `.factory/cycles/wave-4-operations/S-PLUGIN-PREREQ-E-CYCLE-SNAPSHOT.md` — full cascade history + §D580 DURABLE SNAPSHOT section
-5. `.factory/cycles/wave-4-operations/adversarial-reviews/S-PLUGIN-PREREQ-E-spec-pass-{1..6}.md` — per-pass finding context if needed (pass-7 report will be at `spec-pass-7.md`)
+5. `.factory/cycles/wave-4-operations/adversarial-reviews/S-PLUGIN-PREREQ-E-spec-pass-{1..7}.md` — per-pass finding context if needed
 
 ## Standing DO-NOT Directives (carry-forward, all intact)
 

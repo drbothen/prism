@@ -523,15 +523,78 @@ Per TD-VSDD-059 paper-fix detection: each finding verified via load-bearing grep
 | 4 | 9 | 9 (FB4) | 0/3 |
 | 5 | 10 | 7 (FB5; 3 OBS queued) | 0/3 |
 | 6 | 10 | 10 (FB6; 3 OBS queued) | 0/3 |
-| **7** | **PENDING** | — | **0/3 — pass-7 NEXT** |
+| **7** | **BLOCKED** | **8 (4H+4M; 4 OBS queued)** | **0/3 — FB7 NEXT** |
 
 ### Next Step
 
-Adversary pass-7 (fresh-context dispatch). BC-5.39.001 3-CLEAN protocol — streak 0/3.
-If CLEAN: streak 1/3, pass-8 NEXT.
-If BLOCKED: fix-burst-7 (architect + state-manager), then pass-8.
+Fix-burst-7 dispatch. Then adversary pass-8. BC-5.39.001 3-CLEAN protocol — streak 0/3.
+Pass-7 report: `adversarial-reviews/S-PLUGIN-PREREQ-E-spec-pass-7.md` (D-585).
 
 STATE.md v7.287; SESSION-HANDOFF.md v7.287; STORY-INDEX v2.110; 90th consecutive single-commit.
-Factory-artifacts predecessor bursts: D-581 (`86e39435`), D-582 (`bae9c46f`), D-583 (`422b7dec`), D-584 (this commit).
+Factory-artifacts predecessor bursts: D-581 (`86e39435`), D-582 (`bae9c46f`), D-583 (`422b7dec`), D-584 (`ec507c54`).
+
+---
+
+## §D-585 PASS-7 ENTRY (2026-05-16)
+
+**Burst D-585 — PREREQ-E ADVERSARY PASS-7 BLOCKED — 91st consecutive single-commit (TD-VSDD-053 DECISIVELY STABLE)**
+
+### Pass-7 Verdict Summary
+
+| Field | Value |
+|-------|-------|
+| Verdict | BLOCKED |
+| In-scope findings | 8 (4 HIGH + 4 MEDIUM) |
+| Observations queued | 4 (OBS-LP7-001/002/003/004) |
+| Streak after pass | 0/3 |
+| Total findings (incl. OBS) | 12 |
+
+### Novel Finding Classes (Pass-7)
+
+| Class | Finding | Description |
+|-------|---------|-------------|
+| POL-23 within-burst version-pin-order gap | F-LP7-HIGH-001 | ADR-026 bumped v1.7→v1.8 in FB6; VP-156 4 live-narrative cites remain pinned to v1.7 |
+| TD-VSDD-059 paper-fix detection | F-LP7-HIGH-002 | F-LP6-MED-004 only edited EC table cell; 3 implementer-facing sites (BC §Postconditions + story Task 8 + AC-6) retain stale removal_reason |
+| POL-20 3-file changelog monotonic-order regression | F-LP7-HIGH-003 | ADR-026/ADR-027/VP-155 latest changelog rows appear BEFORE their predecessors (3-site within-burst) |
+| POL-22 Phase C phantom-prune-but-not-add | F-LP7-HIGH-004 | F-LP6-HIGH-003 pruned phantom re-export; did not add genuinely-missing deliverables (trait method + 4 impl bodies) to `runtime_deliverables:` |
+
+### Pass-7 Trajectory Entry
+
+| Pass | Findings | In-Scope | OBS Queued | Delta | Note |
+|------|----------|----------|------------|-------|------|
+| 7 | 12 | 8 | 4 | -2 from pass-6 in-scope | DECREASING — lowest in-scope count since pass-3 |
+
+**Trajectory shorthand (updated):** 14→9→8→9→10→10→FB6-CLOSED→**8** (DECREASING)
+
+### Fix-Burst-7 Routing Summary
+
+| Agent | Findings Assigned |
+|-------|------------------|
+| architect | F-LP7-HIGH-001 (VP-156 D7 pin v1.7→v1.8) + F-LP7-HIGH-004 (ADR-026 runtime_deliverables append) + F-LP7-MED-002 (ADR-026 D5 validation→delivery) + F-LP7-MED-003 (ARCH-INDEX H1 verbatim) |
+| product-owner | F-LP7-HIGH-002 (BC §Postconditions + story Task 8 + AC-6 removal_reason) + F-LP7-MED-004 (BC + story §Arch Anchors ADR-027 §D5→§VP Anchors) |
+| state-manager | F-LP7-HIGH-003 (3-file changelog reorder) + F-LP7-MED-001 (4-artifact frontmatter modified: date) |
+
+### Expected Post-FB7 Version Bumps
+
+| Artifact | Pre-FB7 | Expected Post-FB7 |
+|----------|---------|------------------|
+| ADR-026 | v1.8 | v1.9 (F-LP7-HIGH-004 + MED-002) |
+| ADR-027 | v1.4 | unchanged (changelog reorder only) |
+| BC-2.16.011 | v1.3 | v1.4 (F-LP7-HIGH-002 + MED-004) |
+| VP-155 | v0.4 | unchanged (changelog reorder only) |
+| VP-156 | v0.5 | v0.6 (F-LP7-HIGH-001 D7 pin v1.7→v1.8) |
+| Story S-PLUGIN-PREREQ-E | v1.7 | v1.8 (F-LP7-HIGH-002 + MED-004) |
+| ARCH-INDEX | v2.49 | v2.50 (F-LP7-MED-003) |
+| BC-INDEX | v4.83 | v4.84 (BC-2.16.011 v1.4 sibling) |
+| VP-INDEX | v1.42 | v1.43 (VP-156 v0.6 sibling) |
+| STORY-INDEX | v2.110 | v2.111 (story v1.7→v1.8 row tag) |
+
+### Next Step
+
+Fix-burst-7 dispatch (architect + product-owner parallel; state-manager). Then adversary pass-8.
+BC-5.39.001 3-CLEAN protocol — streak stays 0/3 until 3 consecutive CLEAN passes.
+
+STATE.md v7.288; SESSION-HANDOFF.md v7.288; 91st consecutive single-commit (TD-VSDD-053 DECISIVELY STABLE).
+Factory-artifacts predecessor bursts: D-582 (`bae9c46f`), D-583 (`422b7dec`), D-584 (`ec507c54`), D-585 (this commit).
 
 Factory-artifacts predecessor: 94dfce02 (D-579). D-580 is the 86th consecutive single-commit.
