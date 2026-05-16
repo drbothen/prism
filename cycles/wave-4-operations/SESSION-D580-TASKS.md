@@ -35,9 +35,10 @@ Intended audience: orchestrator at next session start. Read alongside STATE.md +
 | 17 | DONE | PREREQ-E pass-6 dispatched + report persisted (D-581; pass-6 BLOCKED 10 findings; report at cycles/wave-4-operations/adversarial-reviews/S-PLUGIN-PREREQ-E-spec-pass-6.md; 87th single-commit) | — |
 | 18 | DONE | PREREQ-E fix-burst-6 (10 findings closed): architect D-582 `bae9c46f` (8 closures: CRIT-001+HIGH-001/003+MED-001/002/003/004+LOW-002) + story-writer D-583 `422b7dec` (CRIT-001 propagation) + state-manager D-584 (HIGH-002 STORY-INDEX v2.109→v2.110). 3 OBS queued cycle-close. | — |
 | 19 | DONE | PREREQ-E pass-7 dispatched + report persisted (D-585; pass-7 BLOCKED 8 in-scope (4H+4M) + 4 OBS; trajectory DECREASE to 8; report at cycles/wave-4-operations/adversarial-reviews/S-PLUGIN-PREREQ-E-spec-pass-7.md; 91st single-commit) | — |
-| 22 | BLOCKED | PREREQ-E fix-burst-7 (8 findings: F-LP7-HIGH-001/002/003/004 + F-LP7-MED-001/002/003/004) — architect (HIGH-001/004+MED-002/003) + product-owner (HIGH-002+MED-004) parallel; state-manager (HIGH-003+MED-001) | Awaiting fix-burst-7 dispatch |
-| 23 | PENDING | PREREQ-E pass-8 (fresh-context) | Blocked on Task #22 (fix-burst-7 completion) |
+| 22 | DONE | PREREQ-E fix-burst-7 (8/8 in-scope closed): architect D-586 `33a3fdda` (4: HIGH-001/004+MED-002/003) + PO D-587 `bf8e207e` (2: HIGH-002+MED-004) + state-manager D-588 (2: HIGH-003+MED-001). 4 OBS deferred cycle-close. BC-INDEX v4.84; STORY-INDEX v2.111; STATE+HANDOFF v7.289. | — |
+| 23 | PENDING | PREREQ-E pass-8 (fresh-context) | Unblocked — fix-burst-7 CLOSED (Task #22 DONE) |
 | 24 | PENDING | If pass-8 CLEAN: streak 1/3 → continue cascade toward 3-CLEAN convergence | Blocked on Task #23 verdict |
+| 25 | PENDING | If pass-8 CLEAN: streak 1/3 — continue cascade toward pass-9 | Blocked on Task #23 verdict (streak advance) |
 
 ## Strategic Options — RESOLVED (D-581)
 

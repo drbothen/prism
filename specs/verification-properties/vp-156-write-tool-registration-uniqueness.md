@@ -24,7 +24,7 @@ proof_completed_date: null
 proof_file_hash: null
 lifecycle_status: draft
 introduced: "2026-05-15"
-modified: "2026-05-15"
+modified: "2026-05-16"
 deprecated: null
 deprecated_by: null
 replacement: null

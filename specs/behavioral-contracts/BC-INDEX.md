@@ -1,7 +1,7 @@
 ---
 document_type: behavioral-contract-index
 level: L3
-version: "4.83"
+version: "4.84"
 status: draft
 producer: product-owner
 timestamp: 2026-05-15T00:00:00Z
@@ -218,7 +218,7 @@ Phase 3-patch additions (2026-04-16): 22 new BCs added in Burst 1 to close trace
 | BC-2.16.008 | `add_sensor_spec` MCP Tool — Upload a New Sensor Spec at Runtime | 16 - Spec Engine | CAP-029, CAP-030 | P0 | draft |
 | BC-2.16.009 | Spec File Validation — Schema Validation, Variable Reference Resolution, OCSF Field Validation | 16 - Spec Engine | CAP-029 | P0 | draft |
 | BC-2.16.010 | `list_sensor_specs` MCP Tool — List Loaded Sensor Specs with Table Schemas and Status | 16 - Spec Engine | CAP-029 | P0 | draft |
-| BC-2.16.011 | CustomAdapter Rust Trait Retirement — Removal of Trait, Registry, and All Call Sites | 16 - Spec Engine | CAP-029 | P0 | draft |
+| BC-2.16.011 | CustomAdapter Rust Trait Retirement — Removal of Trait, Registry, and All Call Sites | 16 - Spec Engine | CAP-029 | P0 | draft | v1.4 |
 | BC-2.16.012 | PluginRegistry Dispatch in spec_parser.rs — Hardcoded Sensor Names Replaced with Registry Lookup | 16 - Spec Engine | CAP-029 | P0 | draft |
 | BC-2.17.001 | Plugin Panic Isolation — Crashed Plugin Does Not Terminate Host Process | 17 - WASM Plugin Runtime | CAP-032 | P0 | active (POL-14 auto-promotion D-568 S-PLUGIN-PREREQ-D merge PR #149 ec90fe8f 2026-05-15) | v1.4 |
 | BC-2.17.002 | Plugin Sandbox — No Direct Filesystem or Network Access | 17 - WASM Plugin Runtime | CAP-032 | P0 | active (POL-14 auto-promotion D-568 S-PLUGIN-PREREQ-D merge PR #149 ec90fe8f 2026-05-15) | v1.8 |
@@ -368,6 +368,8 @@ Phase 3-patch additions (2026-04-16): 22 new BCs added in Burst 1 to close trace
 - Subsystem 19: Infusion Enrichment Framework (AD-020, CAP-031)
 
 ### Change Log (Adversarial Review Fixes)
+
+**v4.84 (2026-05-16):** state-manager | D-588 — BC-2.16.011 v1.3→v1.4 (PO fix-burst-7 F-LP7-HIGH-002 + F-LP7-MED-004: §Postconditions removal_reason advanced + all 4 BC-2.16.004 frontmatter mutations enumerated; §Architecture Anchors VP-154 anchor corrected ADR-027 §D5 → §Verification Property Anchors). BC-INDEX BC-2.16.011 row tag updated v1.3→v1.4. BC-INDEX v4.83→v4.84. F-LP7-MED-001 modified-date drift: BC-2.16.011 + BC-2.16.012 `modified:` updated 2026-05-15 → 2026-05-16 (POL-27 sibling-sweep close).
 
 **v4.83 (2026-05-16):** architect | prereq-e-fix-burst-6 — BC-2.16.011 v1.2→v1.3: EC-016-011-005 `deprecated_by` adjudicated from ADR-023 → ADR-027 (ADR-027 §Decision is the operational deletion mandate; ADR-023 Rule 5 is the deprecation philosophy ADR-027 operationalizes); `removed: "<PREREQ-E merge date>"`, `removal_reason: "PREREQ-E retirement per ADR-027 §Decision + ADR-023 Rule 5"`, `lifecycle_status: deprecated → removed` added per F-LP6-MED-004 architect adjudication. BC-2.16.012 v1.6→v1.7: §Verification Properties VP-156 row ADR-026 D7 pin updated v1.7→v1.8 per POL-23 sibling sweep (ADR-026 bumped to v1.8 in this burst). BC-INDEX v4.82→v4.83.
 

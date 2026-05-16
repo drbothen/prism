@@ -598,3 +598,61 @@ STATE.md v7.288; SESSION-HANDOFF.md v7.288; 91st consecutive single-commit (TD-V
 Factory-artifacts predecessor bursts: D-582 (`bae9c46f`), D-583 (`422b7dec`), D-584 (`ec507c54`), D-585 (this commit).
 
 Factory-artifacts predecessor: 94dfce02 (D-579). D-580 is the 86th consecutive single-commit.
+
+---
+
+## §D-588 FIX-BURST-7 CLOSURE (2026-05-16)
+
+**Burst D-588 — state-manager — PREREQ-E FIX-BURST-7 CLOSED — 8/8 in-scope findings closed — 94th consecutive single-commit (TD-VSDD-053 DECISIVELY STABLE)**
+
+### Closure Verification Table
+
+| Finding | Severity | Closure Burst | SHA | Grep Evidence Anchor |
+|---------|----------|---------------|-----|---------------------|
+| F-LP7-HIGH-001 | HIGH | D-586 | 33a3fdda | VP-156: 4 sites `ADR-026 D7 v1.8` PASS; zero live-narrative `v1.7` |
+| F-LP7-HIGH-002 | HIGH | D-587 | bf8e207e | BC-2.16.011 §Postconditions: all 4 mutations enumerated + `deprecated_by: ADR-027` PASS; story Task 8 + AC-6 updated PASS |
+| F-LP7-HIGH-003 | HIGH | D-588 | this commit | ADR-026: 1.0..1.6,1.7,1.8,1.9 ascending; ADR-027: 1.0,1.1,1.2,1.3,1.4 ascending; VP-155: 0.1,0.2,0.3,0.4 ascending |
+| F-LP7-HIGH-004 | HIGH | D-586 | 33a3fdda | ADR-026 runtime_deliverables: `auth_type_name` trait + 4 impl bodies present; `Validate PluginRuntime` absent |
+| F-LP7-MED-001 | MEDIUM | D-588 | this commit | BC-2.16.011/012 + VP-155/VP-156 `modified: "2026-05-16"` PASS |
+| F-LP7-MED-002 | MEDIUM | D-586 | 33a3fdda | Phantom `Validate PluginRuntime::load_plugin` entry pruned; bundled with HIGH-004 |
+| F-LP7-MED-003 | MEDIUM | D-586 | 33a3fdda | ARCH-INDEX ADR-026 row: "SensorAuth Trait Un-Sealing — Remove private::Sealed, Enable Plugin Auth Implementations" verbatim PASS; ADR-027: "CustomAdapter Rust Trait Deprecation and Wave 1/A Removal" verbatim PASS |
+| F-LP7-MED-004 | MEDIUM | D-587 | bf8e207e | BC-2.16.011 §Architecture Anchors VP-154: `§Verification Property Anchors` PASS; story §References ADR-027: `§Verification Property Anchors` PASS |
+
+### Index Version Table (Post-FB7)
+
+| Index | Pre-FB7 | Post-FB7 | Updated By |
+|-------|---------|----------|------------|
+| BC-INDEX | v4.83 | v4.84 | D-588 state-manager |
+| VP-INDEX | v1.42 | v1.43 | D-586 architect |
+| ARCH-INDEX | v2.49 | v2.50 | D-586 architect |
+| STORY-INDEX | v2.110 | v2.111 | D-588 state-manager |
+
+### Artifact Version Table (Post-FB7)
+
+| Artifact | Pre-FB7 | Post-FB7 | Updated By |
+|----------|---------|----------|------------|
+| ADR-026 | v1.8 | v1.9 | D-586 architect |
+| ADR-027 | v1.4 | v1.4 (changelog reorder only) | D-588 state-manager |
+| BC-2.16.011 | v1.3 | v1.4 | D-587 product-owner |
+| BC-2.16.012 | v1.7 | v1.7 (modified-date only) | D-588 state-manager |
+| VP-155 | v0.4 | v0.4 (changelog reorder + modified-date only) | D-588 state-manager |
+| VP-156 | v0.5 | v0.6 | D-586 architect |
+| Story S-PLUGIN-PREREQ-E | v1.7 | v1.8 | D-587 product-owner |
+
+### OBS Deferred (Cycle-Close Target)
+
+| Finding | Status | Deferred Reason |
+|---------|--------|----------------|
+| OBS-LP7-001 | QUEUED cycle-close | POL-7 surface-6 cycle-close priority elevated to HIGH |
+| OBS-LP7-002 | N/A | §Token Budget descriptive only |
+| OBS-LP7-003 | N/A | RwLock unwrap() established exception |
+| OBS-LP7-004 | N/A | BC-2.16.012 changelog attribution correct |
+
+### Trajectory Shorthand (Updated)
+
+**14→9→8→9→10→10→FB6-CLOSED(10/10 in-scope; 3 OBS deferred cycle-close)→8→FB7-CLOSED(8/8 in-scope; 4 OBS deferred cycle-close)**
+
+Streak: 0/3 — pass-8 NEXT.
+
+STATE.md v7.289; SESSION-HANDOFF.md v7.289; 94th consecutive single-commit (TD-VSDD-053 DECISIVELY STABLE).
+Factory-artifacts predecessor bursts: D-586 (`33a3fdda`), D-587 (`bf8e207e`), D-588 (this commit).
