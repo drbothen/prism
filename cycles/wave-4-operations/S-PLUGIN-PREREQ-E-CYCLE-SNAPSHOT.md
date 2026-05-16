@@ -2260,4 +2260,37 @@ Novel-finding count: ...→0(pass-25 CLEAN)→0(pass-26 CLEAN★★)→1(pass-27
 
 Streak: **0/3** — Pass-29 NEXT (first of NEW 3-CLEAN sequence, 5th attempt).
 
+---
+
+## §D-636 PASS-29 CLEAN★ ENTRY (2026-05-16) — 6TH CLEAN PASS OF CASCADE; FB23 ADR-026 ROW-SWAP CLOSURE VERIFIED; ALL 19 ARTIFACT §CHANGELOGS MONOTONIC; STREAK 0/3 → 1/3; FIRST OF NEW 3-CLEAN SEQUENCE (5TH ATTEMPT); 142ND SINGLE-COMMIT
+
+**Pass-29 CLEAN — 0 findings — streak ADVANCES 0/3 → 1/3 — 6TH CLEAN PASS OF CASCADE.**
+
+**142nd consecutive single-commit (TD-VSDD-053 stable).**
+
+### FB23 Verification
+
+| Target | Result |
+|---|---|
+| ADR-026 §Changelog ascending v1.0→v1.12 | PASS |
+| ADR-026 v1.12 row at file tail | PASS |
+| ARCH-INDEX v2.55 reflects ADR-026 v1.12 | PASS |
+| All 19 in-scope artifact §Changelogs monotonic | PASS |
+
+### Comprehensive POL Audit — ALL PASS
+
+27 policies × 19 artifacts — zero violations. Workspace-wide POL-26 clean.
+
+### Updated Trajectory Shorthand
+
+→pass-25:CLEAN★(0 findings; FB21 updated: field load-bearing; streak 0/3 → 1/3 first of new 3-CLEAN sequence 3rd attempt)→pass-26:CLEAN★★(0 findings; BREAKS 3-time reset pattern; streak 1/3 → 2/3 penultimate; pass-27 = potential CONVERGENCE)→pass-27:BLOCKED(0C+0H+1M+0L+0OBS; F-LP27-MED-001 5 stale error-taxonomy v1.27 pins; 11th manifestation version-pin-drift family at NEW target; streak RESET 2/3→0/3 4th time; pass-26→pass-27 reset BROKE convergence pattern)→FB22-CLOSED-COMBINED(1/1 MED)→pass-28:BLOCKED(0C+0H+1M+0L+0OBS; F-LP28-MED-001 ADR-026 changelog non-monotonic; 12th manifestation POL-26 family at NEW ADR layer; streak 0/3 unchanged)→FB23-CLOSED-COMBINED(1/1 MED)→**pass-29:CLEAN★(0 findings; FB23 ADR-026 row-swap verified; all 19 artifact §Changelogs monotonic; streak 0/3 → 1/3 first of new 3-CLEAN 5th attempt)**
+
+Novel-finding count: ...→0(pass-25 CLEAN)→0(pass-26 CLEAN★★)→1(pass-27 BLOCKED; 11th manifestation; FB22 combined closed)→1(pass-28 BLOCKED; 12th manifestation; FB23 combined closed)→**0(pass-29 CLEAN★; 6TH CLEAN PASS OF CASCADE)**
+
+Streak: **1/3** — Pass-30 NEXT (5th attempt, 2nd of 3 clean passes required).
+
+History: 4 prior first-CLEAN passes (pass-9/19/23/25) — 3 reset by next pass, 1 (pass-25→pass-26) did NOT. Pass-30 is the critical test.
+
+STATE.md v7.323; SESSION-HANDOFF.md v7.323; prereq_e_adversary_streak 0/3→1/3; 142nd consecutive single-commit (TD-VSDD-053 stable).
+
 STATE.md v7.322; SESSION-HANDOFF.md v7.322; prereq_e_adversary_streak 0/3 unchanged; arch_index_version 2.55; 141st consecutive single-commit (TD-VSDD-053 stable).
