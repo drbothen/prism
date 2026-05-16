@@ -23,7 +23,7 @@ crates_touched: [prism-sensors, prism-spec-engine, prism-query]
 target_module: prism-sensors
 subsystems: [SS-01, SS-07, SS-16]
 capabilities: [CAP-001, CAP-029]
-version: "1.8"
+version: "1.9"
 level: "L4"
 producer: product-owner
 timestamp: "2026-05-15T00:00:00Z"
@@ -167,6 +167,7 @@ Well within the 30% context window budget (~40k tokens).
 
 7. **Migrate `WriteToolInvalidationMap` to runtime-extensible container (TD-S-PLUGIN-PREREQ-A-003)**
    - In `crates/prism-query/src/invalidation.rs`, change the `LazyLock<Vec<WriteToolInvalidationMap>>` container to `std::sync::RwLock<Vec<WriteToolInvalidationMap>>` (or `OnceLock<RwLock<Vec<...>>>` if lazy initialization is needed)
+   - The `WriteToolInvalidationMap` struct carries a `plugin_name: String` field (set by PluginRuntime from the plugin manifest `name` field per ADR-026 D7 v1.10; cited in BC-2.16.002 §Postconditions Canonical Structured Event Catalog v1.19 row 33). The struct fields are: `sensor_id: SensorId`, `tool_name: String`, `plugin_name: String` (at minimum; other fields per implementation).
    - Add a `pub fn register_write_tool(entry: WriteToolInvalidationMap) -> Result<(), SpecEngineError>` API that acquires a write guard, checks for a duplicate `tool_name`, and either returns `Err(SpecEngineError::DuplicateWriteToolRegistration(tool_name))` on duplicate or pushes the entry on success
    - Update all read-side callers (the invalidation check function) to acquire a read guard instead of dereferencing the `LazyLock`
    - Wire `PluginRuntime` (already available via PREREQ-D boot wiring) to call `register_write_tool` for each plugin that declares write-tool capabilities in its manifest
@@ -234,7 +235,7 @@ An integration test (`test_BC_2_16_012_spec_parser_behavioral_equivalence`) pars
 (traces to BC-2.16.012 invariant INV-SPEC-PARSER-OPEN-002 + INV-SPEC-PARSER-OPEN-003)
 
 **AC-9 (WriteToolInvalidationMap Runtime Extensibility — TD-S-PLUGIN-PREREQ-A-003 Closed):**
-`crates/prism-query/src/invalidation.rs` `WriteToolInvalidationMap` container is `RwLock<Vec<WriteToolInvalidationMap>>` (or equivalent). A `pub fn register_write_tool(entry: WriteToolInvalidationMap) -> Result<(), SpecEngineError>` API exists and is callable after startup. A unit test (`test_BC_2_16_012_write_tool_invalidation_runtime_register`) registers a custom write tool entry and asserts `.is_ok()` on the happy path and that the entry is present in the map on the next read-guard acquisition. A second test invocation with the same `tool_name` asserts `.is_err()` (E-PLUGIN-012). A third test simulates post-boot registration and asserts `.is_err()` (E-PLUGIN-020).
+`crates/prism-query/src/invalidation.rs` `WriteToolInvalidationMap` container is `RwLock<Vec<WriteToolInvalidationMap>>` (or equivalent). The `WriteToolInvalidationMap` struct includes a `plugin_name: String` field sourced from the plugin manifest `name` field (set by PluginRuntime per ADR-026 D7 v1.10); this field is the source for the `plugin_name` structured event field in the `write_tool_registration_after_boot` WARN tracing event (BC-2.16.002 §Postconditions Canonical Structured Event Catalog v1.19 row 33). A `pub fn register_write_tool(entry: WriteToolInvalidationMap) -> Result<(), SpecEngineError>` API exists and is callable after startup. A unit test (`test_BC_2_16_012_write_tool_invalidation_runtime_register`) registers a custom write tool entry and asserts `.is_ok()` on the happy path and that the entry is present in the map on the next read-guard acquisition. A second test invocation with the same `tool_name` asserts `.is_err()` (E-PLUGIN-012). A third test simulates post-boot registration and asserts `.is_err()` (E-PLUGIN-020).
 (traces to BC-2.16.012 postcondition — TD-S-PLUGIN-PREREQ-A-003 WriteToolInvalidationMap; INV-INVALIDATION-EXT-001; EC-016-012-004; EC-016-012-005)
 
 **AC-10 (Full Build and Pre-Push Gate):**
@@ -341,7 +342,7 @@ Note: E-SPEC-010 (variable interpolation field-path miss) and E-SPEC-011 (pipe_v
 | `crates/prism-spec-engine/examples/demo_spec_loading.rs` | DELETE or Modify | Remove `CustomAdapter`-using sections; delete file if nothing meaningful remains |
 | `crates/prism-spec-engine/tests/bc_2_16_004_test.rs` | DELETE | BC-2.16.004 is removed; this test file is deleted with it |
 | `crates/prism-spec-engine/src/spec_parser.rs` | Modify | Replace hardcoded sensor-name match arms with PluginRegistry lookup or generic path |
-| `crates/prism-query/src/invalidation.rs` | Modify | Migrate `WriteToolInvalidationMap` from `LazyLock<Vec<...>>` to `RwLock<Vec<...>>`; add `register_write_tool` API |
+| `crates/prism-query/src/invalidation.rs` | Modify | Migrate `WriteToolInvalidationMap` from `LazyLock<Vec<...>>` to `RwLock<Vec<...>>`; add `register_write_tool` API; struct gains `plugin_name: String` field (set by PluginRuntime from manifest `name` per ADR-026 D7 v1.10; BC-2.16.002 §Postconditions Canonical Structured Event Catalog v1.19 row 33) |
 | `.factory/specs/behavioral-contracts/BC-2.16.004-rust-escape-hatch.md` | Modify | Update frontmatter: `lifecycle_status: deprecated → removed`; add `removed:` + `removal_reason:` |
 | `.factory/specs/prd-supplements/error-taxonomy.md` | Modify | Add `retired:` annotation to E-SPEC-008 row |
 
@@ -436,6 +437,7 @@ Tech debt closed:
 
 | Version | Burst | Date | Author | Change |
 |---------|-------|------|--------|--------|
+| 1.9 | prereq-e-fix-burst-12 | 2026-05-16 | product-owner | F-LP13-HIGH-003 Option A propagation — Task 7 updated: WriteToolInvalidationMap struct field enumeration gains `plugin_name: String` field (set by PluginRuntime from plugin manifest `name` per ADR-026 D7 v1.10; BC-2.16.002 §Postconditions Canonical Structured Event Catalog v1.19 row 33). AC-9 updated: struct plugin_name field and its role as the structured event field source documented. §File Structure Requirements invalidation.rs row updated with plugin_name field enumeration. |
 | 1.8 | prereq-e-fix-burst-7 | 2026-05-16 | product-owner | F-LP7-HIGH-002 + F-LP7-MED-004 — implementer-facing sibling-sweep: (1) Task 8 expanded to enumerate all four BC-2.16.004 frontmatter mutations (deprecated_by: ADR-023 → ADR-027; removed date; removal_reason advanced; lifecycle_status: deprecated → removed); (2) AC-6 acceptance criteria updated to verify all four field states; (3) §References ADR-027 VP-154 anchor §D5 → §Verification Property Anchors (FB4 D5 scope expansion sibling-sweep miss). TD-VSDD-059 paper-fix detection. |
 | 1.7 | prereq-e-fix-burst-6 | 2026-05-16 | story-writer | F-LP6-CRIT-001 propagation: §File Structure Requirements + §AC-2 example chain — Claroty auth_type_name() return value `cookie` → `cookie_roundtrip` to match ADR-026 v1.8 D2 corrected value + D3 canonical enumerated set + E-SPEC-012 + VP-153 Rule A. Sibling sweep verified all four built-in auth_type_name() values match D3 enumerated set. |
 | 1.6 | prereq-e-fix-burst-5 | 2026-05-15 | product-owner | F-LP5-HIGH-001: `subsystems:` updated from `[SS-01, SS-16]` to `[SS-01, SS-07, SS-16]`; `anchor_subsystem:` updated identically (prism-query → SS-07 Adapter Pagination & Response Cache per ARCH-INDEX). F-LP5-HIGH-002: §References 5 BC entries corrected to H1-verbatim titles (POL-7 D-571 sweep); lifecycle/status annotations moved outside link text to description suffix. POL-7 5-surface sweep: surface 1 BC table — BC-2.01.016 Role cell "four built-in auth impls unchanged" corrected to "each add one new method body (`auth_type_name`)" (stale from pre-v1.4). Surfaces 3/4/5 verified clean. F-LP5-MED-001: File Structure Requirements table gains 4 auth impl files (crowdstrike/cyberint/claroty/armis `.rs`), each with `auth_type_name` method action + ADR-026 D1 Path B source; Token Budget Estimate table gains 4 impl file rows (~50 tokens each); Total updated ~17,100 → ~17,300. F-LP5-MED-002: Architecture Compliance Rules table — hardcoded-sensor-string dispatch rule Source column gains `ADR-027 D5` (canonical anchor post-FB4 expansion). F-LP5-MED-003 (Path B chosen): AC-1 trace-line extended with BC-2.01.013 justification (mechanical un-sealing delivery of PREREQ-F amendment); AC-6 trace-line extended with BC-2.16.004 justification (lifecycle-close execution per DF-030). Both BCs in `behavioral_contracts:` frontmatter now have AC traces. |

@@ -8,7 +8,7 @@ must_pass: true
 priority: P0
 epic_id: "PLUGIN-MIGRATION-001"
 story_source: "S-PLUGIN-PREREQ-E"
-version: "1.4"
+version: "1.5"
 status: draft
 producer: product-owner
 timestamp: 2026-05-15T00:00:00
@@ -122,7 +122,7 @@ new write-tool entries (closing TD-S-PLUGIN-PREREQ-A-003).
 
 **Steps:**
 
-1. Construct a `WriteToolInvalidationMap` entry: `{ sensor_id: SensorId::from("custom_sensor"), tool_name: "write_custom_sensor_record", ... }`
+1. Construct a `WriteToolInvalidationMap` entry: `{ sensor_id: SensorId::from("custom_sensor"), tool_name: "write_custom_sensor_record", plugin_name: "plugin_a", ... }` (`plugin_name` sourced from plugin manifest `name` field per ADR-026 D7 v1.10)
 2. Call `register_write_tool(entry)` after initial boot
 3. Trigger a write via `write_custom_sensor_record` MCP tool (or a test stub that mimics the write dispatch)
 4. Observe whether cache invalidation fires for `custom_sensor` tables
@@ -146,13 +146,13 @@ new write-tool entries (closing TD-S-PLUGIN-PREREQ-A-003).
 
 - S-PLUGIN-PREREQ-E is merged to `develop`
 - `register_write_tool` API exists with signature `-> Result<(), SpecEngineError>`
-- A test fixture prepares two `WriteToolInvalidationMap` entries sharing the same `tool_name` value (e.g., `"write_custom_sensor_record"`) but from different notional plugins
+- A test fixture prepares two `WriteToolInvalidationMap` entries sharing the same `tool_name` value (e.g., `"write_custom_sensor_record"`) but from different notional plugins (`plugin_name: "plugin_a"` for the first entry, `plugin_name: "plugin_b"` for the second, representing the two conflicting plugins — exercises E-PLUGIN-012 `{plugin}` and `{conflicting_plugin}` placeholders per ADR-026 D7 v1.10)
 
 **Steps:**
 
-1. Call `register_write_tool(entry_1)` where `entry_1.tool_name = "write_custom_sensor_record"` — first registration
+1. Call `register_write_tool(entry_1)` where `entry_1.tool_name = "write_custom_sensor_record"` and `entry_1.plugin_name = "plugin_a"` — first registration
 2. Assert the first call returns `.is_ok()`
-3. Call `register_write_tool(entry_2)` where `entry_2.tool_name = "write_custom_sensor_record"` (same name, different entry)
+3. Call `register_write_tool(entry_2)` where `entry_2.tool_name = "write_custom_sensor_record"` (same name) and `entry_2.plugin_name = "plugin_b"` — conflicting plugin
 4. Assert the second call returns `.is_err()`
 5. Assert the error variant is `SpecEngineError::DuplicateWriteToolRegistration("write_custom_sensor_record")` (E-PLUGIN-012)
 6. Confirm the invalidation map still contains only the first entry (second was not written)
@@ -203,7 +203,7 @@ new write-tool entries (closing TD-S-PLUGIN-PREREQ-A-003).
 
 **BC Anchor:** BC-2.16.012 EC-016-012-005
 
-**VP Traced:** VP-156 (related — register_write_tool contract surface per ADR-026 D7 v1.9)
+**VP Traced:** VP-156 (related — register_write_tool contract surface per ADR-026 D7 v1.10)
 
 ---
 
@@ -224,6 +224,7 @@ When this holdout scenario is evaluated, the evaluator must produce:
 
 | Version | Burst | Date | Author | Change |
 |---------|-------|------|--------|--------|
+| 1.5 | prereq-e-fix-burst-12 | 2026-05-16 | product-owner | F-LP13-HIGH-003 Option A propagation — HS-003-03 fixture: `WriteToolInvalidationMap` entry gains `plugin_name: "plugin_a"` field. HS-003-04 fixture: entry_1 gains `plugin_name: "plugin_a"`, entry_2 gains `plugin_name: "plugin_b"` (exercises E-PLUGIN-012 `{plugin}`/`{conflicting_plugin}` placeholders per ADR-026 D7 v1.10); preconditions updated to name the two plugin values. HS-003-05 VP Traced footer: pin advanced ADR-026 D7 v1.9 → v1.10 per architect D-603. |
 | 1.4 | prereq-e-fix-burst-10 | 2026-05-16 | product-owner | F-LP11-MED-001 — VP-156 bidirectional traceability symmetry restored: frontmatter `verification_properties: [VP-156]` added; HS-003-04 footer `**VP Traced:** VP-156 (Case 2 — duplicate name returns Err(DuplicateWriteToolRegistration))` added; HS-003-05 footer `**VP Traced:** VP-156 (related — register_write_tool contract surface per ADR-026 D7 v1.9)` added. RECURRING class — VP-154 closed FB1 (F-LP1-CRIT-001), VP-155 closed FB6 (F-LP6-HIGH-001), VP-156 third instance missed by passes 1-10; surfaced by pass-11 fresh-context. Sibling-class with HS-001/002 frontmatter+footer convention. |
 | 1.3 | prereq-e-fix-burst-3 | 2026-05-15 | product-owner | F-LP3-LOW-001 closure: Added HS-PREREQ-E-003-04 (EC-016-012-004 duplicate-name: two plugins register same tool_name → second returns E-PLUGIN-012) and HS-PREREQ-E-003-05 (EC-016-012-005 after-boot: register_write_tool called after step 8 → returns E-PLUGIN-020 + WARN log). Both sub-scenarios include scenario description, preconditions, steps, expected outcome, validation evidence reference, and BC anchor. |
 | 1.2 | prereq-e-fix-burst-2 | 2026-05-15 | product-owner | F-LP2-HIGH-002 closure (PO perimeter — 2 sites): Scenario Description body line ("closing TD-A-003") and HS-PREREQ-E-003-03 heading ("TD-A-003 Closure") both canonicalized to TD-S-PLUGIN-PREREQ-A-003. Changelog entry for v1.0 retains original TD-A-003 text as historical record (TD-VSDD-091 anti-volatile-pin; changelog is append-only). |
