@@ -10,7 +10,7 @@ verdict: BLOCKED
 finding_count: { CRIT: 0, HIGH: 0, MED: 1, LOW: 1, OBS: 2 }
 streak_status: "0/3 stays 0/3 (BLOCKED holds; 6th cascade attempt continues)"
 fix_burst: FB35
-fix_burst_committed: pending
+fix_burst_committed: see-git-log
 novelty: HIGH
 orchestrator_adjudications:
   - "F-LP45-LOW-001 ACCEPTED non-defect per TD-VSDD-091 §Changelog exception (story v1.16 changelog cite to ADR-026 frontmatter line offsets is within the 'pass-report changelogs' exception scope)"

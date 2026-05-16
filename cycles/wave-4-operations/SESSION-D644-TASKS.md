@@ -1,6 +1,6 @@
 ---
 document_type: session-tasks
-version: "1.10"
+version: "1.11"
 status: active
 related_burst: D-644
 predecessor_state: D-652
@@ -51,7 +51,9 @@ This file persists the task list and full cascade state from the session coverin
 | 92 | **DONE** | FB34 CLOSED — 2/2 in-scope + 1 BC sibling-site (story v1.16, VP-153 v0.7, BC-2.01.016 v1.7; pattern-breaking discipline demonstrated; 159th consecutive single-commit) |
 | 93 | **DONE/BLOCKED** | PREREQ-E pass-45 BLOCKED (1 MED + 1 LOW + 2 OBS; F-LP45-MED-001 FB34-introduced volatile+wrong line-range cite Task 1b epilogue; F-LP45-LOW-001 ACCEPTED non-defect; OBS-LP45-001/002 non-blocking; 14th within-FB manifestation; streak 0/3 unchanged; FB35 dispatched) |
 | 94 | **DONE** | FB35 CLOSED — 1/1 MED in-scope (F-LP45-MED-001: PO-only single-line edit; story v1.17; STORY-INDEX v2.121; 160th consecutive single-commit) |
-| 95 | **PENDING** | PREREQ-E pass-46 (next 3-CLEAN attempt; BC-5.39.001 requires 3 consecutive CLEAN) |
+| 95 | **DONE/BLOCKED** | PREREQ-E pass-46 BLOCKED (1 HIGH + 1 MED; F-LP46-HIGH-001 HS-002 line 223 ADR-026/ADR-027 identity inversion — 45-pass-surviving SEMANTIC-CORRECTNESS defect class first surfacing; F-LP46-MED-001 story §Tasks ADR-026 D7 runtime_deliverables gap Task 7b+7c; 15th within-FB manifestation; streak 0/3 unchanged; FB36 dispatched) |
+| 96 | **DONE** | FB36 CLOSED — 2/2 in-scope (F-LP46-HIGH-001: HS-PREREQ-E-002 v1.4; F-LP46-MED-001: story v1.18; STORY-INDEX v2.122; 161st consecutive single-commit) |
+| 97 | **PENDING** | PREREQ-E pass-47 (next 3-CLEAN attempt; BC-5.39.001 requires 3 consecutive CLEAN) |
 
 ## §FB28 Closure Note (D-645 COMPLETE)
 
@@ -289,6 +291,26 @@ All 19 artifacts at D-651 version pins — no spec edits in D-652 (state-manager
 
 ---
 
+## §FB36 Closure Note (D-655 COMPLETE)
+
+**FB36 PO-only single-commit closure. 2 artifacts bumped (HS-PREREQ-E-002 v1.4 + story v1.18). 1 index bumped (STORY-INDEX v2.122). 161st consecutive single-commit.**
+
+### Findings Closed
+- **F-LP46-HIGH-001** (PO): HS-PREREQ-E-002 line 223 parenthetical rewritten — ADR-026 (unsealing) and ADR-027 (CustomAdapter deprecation) identities were inverted. Corrected to "ADR-027 is the CustomAdapter deprecation and removal decision per ADR-027 §Decision; ADR-026 is the SensorAuth unsealing decision; ADR-023 is the plugin-only architecture parent ADR". HS-PREREQ-E-002 v1.3 → v1.4. 45-pass-surviving defect. First surfacing of semantic-correctness-of-justification-prose defect class via vector #9.
+- **F-LP46-MED-001** (PO): Story §Tasks Task 7 expanded — new Task 7b: `BOOT_COMPLETE: AtomicBool` flag (transitions to `true` at boot completion; post-boot fail-closed check on write-tool registration attempts) + new Task 7c: `SpecEngineError::WriteToolRegistrationAfterBoot` variant per ADR-026 D7 runtime_deliverables. Story v1.17 → v1.18.
+
+### Pattern-Breaking Assessment (POL-29 Candidate — 15th Manifestation)
+- HIGH-001 introduced by FB31's HS-002-06 authoring (new sub-scenario text with incorrect ADR identity in justification prose)
+- MED-001 gap left by FB34's partial D1/D2-only coverage sweep (D7 dimension not swept at that time)
+- Semantic-correctness-of-justification-prose is a NEW defect class — first time surfaced in cascade history; POL-29 candidate strengthened
+
+### Pass-47 Dispatch Readiness
+- Streak: 0/3 (next 3-CLEAN attempt begins at pass-47)
+- All artifacts at D-655 version pins (see Pinned Artifact Versions below)
+- Adversary can dispatch immediately for pass-47
+
+---
+
 ## §FB35 Closure Note (D-654 COMPLETE)
 
 **FB35 PO-only single-commit closure. 1 artifact bumped (story v1.17). 1 index bumped (STORY-INDEX v2.121). 160th consecutive single-commit.**
@@ -398,7 +420,7 @@ Accept current spec quality (8 CLEAN passes is unusual statistical evidence of q
 
 | Artifact | Version |
 |----------|---------|
-| Story | v1.17 (F-LP45-MED-001 Task 1b epilogue volatile+wrong line-range cite replaced with durable file-name semantic anchor at D-654) |
+| Story | v1.18 (F-LP46-MED-001 Task 7b AtomicBool + Task 7c WriteToolRegistrationAfterBoot added for ADR-026 D7 runtime_deliverables at D-655) |
 | BC-2.01.016 | v1.7 (EC-016-003 "impl block is unchanged" corrected to explicit method body requirement per ADR-026 §D2 Path B at D-653) |
 | BC-2.16.011 | v1.6 (modified 2026-05-16) |
 | BC-2.16.012 | v1.15 (modified 2026-05-16) |
@@ -410,24 +432,24 @@ Accept current spec quality (8 CLEAN passes is unusual statistical evidence of q
 | VP-155 | v0.5 |
 | VP-156 | v0.8 (4 D7 pins at v1.10) |
 | HS-PREREQ-E-001 | v1.3 (frontmatter verification_properties: [VP-153]) |
-| HS-PREREQ-E-002 | v1.3 (§Source of Truth 002-06 rewritten to durable AC-6+section-anchor form at D-650; F-LP41-LOW-001 closed) |
+| HS-PREREQ-E-002 | v1.4 (line 223 ADR-026/ADR-027 identity inversion corrected at D-655; F-LP46-HIGH-001 closed) |
 | HS-PREREQ-E-003 | v1.5 (verification_properties: [VP-156]; HS-003-04/05 footers cite VP-156) |
 | error-taxonomy | v1.30 (E-PIPELINE-001 row at v1.20 pin; E-SPEC-008 RETIRED; E-SPEC-012/013/014 + E-PLUGIN-012/020 active) |
 | ARCH-INDEX | v2.56 (ADR-027 row bumped v1.6→v1.7 + §Changelog row FB33-D-651 added at D-651) |
 | VP-INDEX | v1.49 (Total 156, P0=122, P1=34; VP-153 row note v0.6→v0.7 at D-653) |
-| STORY-INDEX | v2.121 (FB35 D-654; PREREQ-E row v1.16 to v1.17) |
+| STORY-INDEX | v2.122 (FB36 D-655; PREREQ-E row v1.17 to v1.18) |
 | BC-INDEX | v4.95 (BC-2.01.016 row bumped v1.6→v1.7 at D-653) |
 | verification-architecture | v1.39 (POL-9 propagation row; VP-153 ID-only; D-653) |
 | verification-coverage-matrix | v1.36 (POL-9 propagation row; VP-153 ID-only; D-653) |
 
 ## Resume Reading Order (Next Session After /Clear)
 
-1. **`.factory/STATE.md`** (v7.341) — current_step + prereq_e_adversary_streak + RESUME PROTOCOL section
-2. **`.factory/SESSION-HANDOFF.md`** (v7.341) — §POST-FB35-CLOSURE DURABLE PIN BLOCK section
-3. **`.factory/cycles/wave-4-operations/SESSION-D644-TASKS.md`** — this file (task list + FB30 closure + strategic options)
-4. **`.factory/cycles/wave-4-operations/S-PLUGIN-PREREQ-E-CYCLE-SNAPSHOT.md`** — full cascade history through D-647
+1. **`.factory/STATE.md`** (v7.342) — current_step + prereq_e_adversary_streak + RESUME PROTOCOL section
+2. **`.factory/SESSION-HANDOFF.md`** (v7.342) — §POST-FB36-CLOSURE DURABLE PIN BLOCK section
+3. **`.factory/cycles/wave-4-operations/SESSION-D644-TASKS.md`** — this file (task list + FB36 closure + strategic options)
+4. **`.factory/cycles/wave-4-operations/S-PLUGIN-PREREQ-E-CYCLE-SNAPSHOT.md`** — full cascade history through D-655
 5. **`.factory/cycles/wave-4-operations/SESSION-D580-TASKS.md`** — prior session task list (pass-1 through pass-5 era; D-580 precedent)
-6. **`.factory/cycles/wave-4-operations/adversarial-reviews/S-PLUGIN-PREREQ-E-spec-pass-{1..45}.md`** — per-pass finding context if needed (45 files total)
+6. **`.factory/cycles/wave-4-operations/adversarial-reviews/S-PLUGIN-PREREQ-E-spec-pass-{1..46}.md`** — per-pass finding context if needed (46 files total)
 
 ## Session Continuation Behavior
 

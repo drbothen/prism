@@ -23,7 +23,7 @@ crates_touched: [prism-sensors, prism-spec-engine, prism-query]
 target_module: prism-sensors
 subsystems: [SS-01, SS-07, SS-16]
 capabilities: [CAP-001, CAP-029]
-version: "1.17"
+version: "1.18"
 updated: "2026-05-16"
 level: "L4"
 producer: product-owner
@@ -182,6 +182,17 @@ Well within the 30% context window budget (~40k tokens).
    - Add a `pub fn register_write_tool(entry: WriteToolInvalidationMap) -> Result<(), SpecEngineError>` API that acquires a write guard, checks for a duplicate `tool_name`, and either returns `Err(SpecEngineError::DuplicateWriteToolRegistration(tool_name))` on duplicate or pushes the entry on success
    - Update all read-side callers (the invalidation check function) to acquire a read guard instead of dereferencing the `LazyLock`
    - Wire `PluginRuntime` (already available via PREREQ-D boot wiring) to call `register_write_tool` for each plugin that declares write-tool capabilities in its manifest
+
+7b. **Add `AtomicBool` query-phase flag for post-boot registration detection (ADR-026 D7)**
+   - In `crates/prism-query/src/invalidation.rs`, declare a `static QUERY_PHASE_STARTED: std::sync::atomic::AtomicBool = std::sync::atomic::AtomicBool::new(false);` module-level static (per ADR-026 §D7 runtime_deliverables item "AtomicBool query-phase flag for after-boot detection in crates/prism-query/src/invalidation.rs (D7)")
+   - The flag is set to `true` by the query-engine init (boot step 8, ADR-022 §B) as its first act after all plugin registrations complete — this closes the write window permanently. Add a `pub fn mark_query_phase_started()` function that calls `QUERY_PHASE_STARTED.store(true, std::sync::atomic::Ordering::Release)`.
+   - In `register_write_tool`, before acquiring the write guard, check `QUERY_PHASE_STARTED.load(std::sync::atomic::Ordering::Acquire)`: if `true`, emit a `tracing::warn!(plugin_name = %entry.plugin_name, tool_name = %entry.tool_name, error = "E-PLUGIN-020", "write_tool_registration_after_boot")` structured event and return `Err(SpecEngineError::WriteToolRegistrationAfterBoot)` without touching the `RwLock` (per ADR-026 §D7 fail-closed post-boot path; BC-2.16.012 EC-016-012-005; error-taxonomy.md E-PLUGIN-020 line 467)
+   - The three structured event fields (`plugin_name`, `tool_name`, `error`) match the ADR-026 §D7 field source specification exactly
+
+7c. **Add `SpecEngineError::WriteToolRegistrationAfterBoot` enum variant (ADR-026 D7)**
+   - In the `SpecEngineError` enum (locate via `crates/prism-spec-engine/src/error.rs` or equivalent per current crate layout), add a unit variant: `WriteToolRegistrationAfterBoot` (per ADR-026 §D7 runtime_deliverables item "SpecEngineError::WriteToolRegistrationAfterBoot enum variant added (D7)"; cited in error-taxonomy.md E-PLUGIN-020 line 467 and BC-2.16.012 EC-016-012-005 line 109)
+   - This is a unit variant (no fields) — the dynamic context is carried by the structured tracing event fields, not the error variant (E-PLUGIN-020 category: runtime, severity: broken)
+   - Verify `cargo check -p prism-spec-engine` and `cargo check -p prism-query` both succeed with the new variant wired into `register_write_tool` return path
 
 8. **Update BC-2.16.004 frontmatter to `removed`**
    - Open `BC-2.16.004-rust-escape-hatch.md` and perform all four field mutations in one cohesive edit:
@@ -454,6 +465,7 @@ Tech debt closed:
 
 | Version | Burst | Date | Author | Change |
 |---------|-------|------|--------|--------|
+| 1.18 | FB36 | 2026-05-16 | product-owner | F-LP46-MED-001 §Tasks expanded to enumerate ADR-026 D7 runtime_deliverables not previously covered: new Task 7b adds AtomicBool query-phase flag (`QUERY_PHASE_STARTED`) + `mark_query_phase_started()` + fail-closed post-boot check in `register_write_tool`; new Task 7c adds `SpecEngineError::WriteToolRegistrationAfterBoot` unit variant. Mirrors FB34 Task 1b coverage discipline for D7 dimension. Anchors: ADR-026 §D7 runtime_deliverables items 6+5, error-taxonomy.md E-PLUGIN-020, BC-2.16.012 EC-016-012-005. |
 | 1.17 | FB35 | 2026-05-16 | product-owner | F-LP45-MED-001 Task 1b epilogue volatile + factually-wrong line-range cite "(rows 343–346)" replaced with durable semantic anchor enumerating 4 file names (crowdstrike.rs / cyberint.rs / claroty.rs / armis.rs). TD-VSDD-091 compliance + factual correction. F-LP45-LOW-001 changelog cite "runtime_deliverables 22-23" adjudicated ACCEPTABLE per TD-VSDD-091 §Changelog exception (no fix dispatched). |
 | 1.16 | FB34 | 2026-05-16 | product-owner | F-LP44-MED-001 §Tasks expanded to enumerate ADR-026 D1/D2 Path B auth_type_name trait surface gain + 4 impl method body additions (new Task 1b inserted between Task 1 and Task 2); Task 1 Step 3 verification claim "compile without modification" corrected — impls WILL be modified per ADR-026 D2 Path B runtime_deliverables 22-23. |
 | 1.15 | FB30 | 2026-05-16 | product-owner | F-LP38-MED-001 Task 7 "explicitly forbidden" overstrong claim replaced with rationale-based language matching ADR-026 §D7 actual text (POL-22 Phase C named-entity verification; CLAUDE.md precedence rule #2 — ADR supersedes story on contract semantics); F-LP38-LOW-001 volatile line-range citation removed (TD-VSDD-091 — §D7 semantic anchor durable, line numbers decay). |

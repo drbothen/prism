@@ -3047,3 +3047,36 @@ Shorthand append: →pass-45:BLOCKED(0C+0H+1M+1L+2OBS; F-LP45-MED-001 FB34-intro
 Story v1.17 | BC-2.01.016 v1.7 | BC-2.16.011 v1.6 | BC-2.16.012 v1.15 | BC-2.16.002 v1.20 | ADR-026 v1.12 | ADR-027 v1.7 | VP-153 v0.7 | VP-154 v0.6 | VP-155 v0.5 | VP-156 v0.8 | HS-PREREQ-E-001 v1.3 | HS-PREREQ-E-002 v1.3 | HS-PREREQ-E-003 v1.5 | error-taxonomy v1.30 | ARCH-INDEX v2.56 | VP-INDEX v1.49 | STORY-INDEX v2.121 | BC-INDEX v4.95 | verification-architecture v1.39 | verification-coverage-matrix v1.36
 
 STATE.md v7.341; SESSION-HANDOFF.md v7.341; prereq_e_adversary_streak **0/3** (pass-45 BLOCKED; FB35 CLOSED; pass-46 NEXT — next 3-CLEAN attempt); 160th consecutive single-commit (TD-VSDD-053 STABLE).
+
+## §D-655 FB36 SINGLE-COMMIT CLOSURE (2026-05-16) — 1 HIGH + 1 MED FROM PASS-46 CLOSED; HS-PREREQ-E-002 V1.4; STORY V1.18; STORY-INDEX V2.122; 45-PASS-SURVIVING SEMANTIC-CORRECTNESS DEFECT CLASS FIRST SURFACING; 15TH WITHIN-FB MANIFESTATION; 161ST SINGLE-COMMIT; PASS-47 NEXT
+
+### Pass-46 Summary
+BLOCKED. 1 HIGH + 1 MED. Streak 0/3 stays 0/3. F-LP46-HIGH-001 is a 45-pass-surviving defect surfaced by vector #9 (HS Expected Outcome assertion specificity — semantic-correctness-of-justification-prose defect class, first time in cascade history). F-LP46-MED-001 is an ADR-026 D7 runtime_deliverables coverage gap in §Tasks, same pattern class as FB34 F-LP44-MED-001 (D1/D2 dimension) but at D7 dimension not previously swept. Both are 15th within-FB manifestation.
+
+### Findings Closed (FB36)
+
+**F-LP46-HIGH-001** (PO stage): HS-PREREQ-E-002 line 223 parenthetical rewritten — "ADR-027 is the unsealing decision; ADR-023 is the plugin-only architecture parent ADR" corrected to "ADR-027 is the CustomAdapter deprecation and removal decision per ADR-027 §Decision; ADR-026 is the SensorAuth unsealing decision; ADR-023 is the plugin-only architecture parent ADR". Prior text had ADR-026 and ADR-027 identities inverted. HS-PREREQ-E-002 v1.3 → v1.4.
+
+**F-LP46-MED-001** (PO stage): Story §Tasks expanded — new Task 7b: implement `BOOT_COMPLETE: AtomicBool` flag (or equivalent) that transitions to `true` at boot completion, with post-boot fail-closed check on write-tool registration attempts; new Task 7c: add `SpecEngineError::WriteToolRegistrationAfterBoot` variant per ADR-026 D7 runtime_deliverables. Task 7 previously covered only the LazyLock→RwLock container change. Story v1.17 → v1.18.
+
+### Pattern-Breaking Assessment (POL-29 Candidate — 15th Manifestation)
+HIGH-001 was introduced by FB31's HS-002-06 authoring (new sub-scenario text; incorrect ADR identity in justification prose). MED-001 was a gap left by FB34's partial D1/D2-only coverage sweep (D7 dimension not checked). Both follow the within-FB-introduces-new-defect pattern. Semantic-correctness-of-justification-prose is a NEW defect class not previously codified — POL-29 candidate strengthened.
+
+### Cascade Pointer Update
+
+| Metric | Before D-655 | After D-655 |
+|--------|-------------|-------------|
+| Adversary passes | 45 (pass-1..45) | 46 (pass-1..46) |
+| Fix-bursts closed | 35 (FB1-FB35) | 36 (FB1-FB36) |
+| Fix-bursts pending | 0 | 0 |
+| Pending findings | 0 + 10 cycle-close carry-forward | 0 + 10 cycle-close carry-forward (unchanged) |
+| Streak | 0/3 (pass-45 BLOCKED; FB35) | **0/3** (pass-46 BLOCKED; streak unchanged) |
+| Consecutive single-commits | 160 | 161 |
+
+Shorthand append: →pass-46:BLOCKED(0C+1H+1M+0L+0OBS; F-LP46-HIGH-001 HS-002 line 223 ADR-026↔ADR-027 identity inversion — 45-pass-surviving SEMANTIC-CORRECTNESS defect class first surfacing via vector #9 HS assertion specificity + F-LP46-MED-001 story §Tasks ADR-026 D7 runtime_deliverables coverage gap Task 7b AtomicBool + Task 7c WriteToolRegistrationAfterBoot; novelty HIGH; streak 0/3 unchanged)→FB36-CLOSED(2/2 in-scope; PO-only burst; HS-PREREQ-E-002 v1.4; story v1.18; STORY-INDEX v2.122; 161st single-commit)
+
+### Pinned Artifact Versions (PREREQ-E 19-artifact set — post-D-655)
+
+Story v1.18 | BC-2.01.016 v1.7 | BC-2.16.011 v1.6 | BC-2.16.012 v1.15 | BC-2.16.002 v1.20 | ADR-026 v1.12 | ADR-027 v1.7 | VP-153 v0.7 | VP-154 v0.6 | VP-155 v0.5 | VP-156 v0.8 | HS-PREREQ-E-001 v1.3 | HS-PREREQ-E-002 v1.4 | HS-PREREQ-E-003 v1.5 | error-taxonomy v1.30 | ARCH-INDEX v2.56 | VP-INDEX v1.49 | STORY-INDEX v2.122 | BC-INDEX v4.95 | verification-architecture v1.39 | verification-coverage-matrix v1.36
+
+STATE.md v7.342; SESSION-HANDOFF.md v7.342; prereq_e_adversary_streak **0/3** (pass-46 BLOCKED; FB36 CLOSED; pass-47 NEXT — next 3-CLEAN attempt); 161st consecutive single-commit (TD-VSDD-053 STABLE).
