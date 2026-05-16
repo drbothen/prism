@@ -2489,3 +2489,36 @@ Novel-finding count: ...→1(pass-33 BLOCKED Mermaid block stale)→1(pass-34 BL
 Streak: **1/3** — Pass-36 NEXT (8th attempt at 3-CLEAN; pass-36 CLEAN = 2/3 penultimate; pass-37 CLEAN = CONVERGENCE).
 
 STATE.md v7.329; SESSION-HANDOFF.md v7.329; prereq_e_adversary_streak 0/3→1/3; 148th consecutive single-commit (TD-VSDD-053 stable).
+
+---
+
+## §D-643 PASS-36 BLOCKED (2026-05-16) — 3 MED FINDINGS AT 3 NEW DEFECT AXES; STREAK RESET 1/3 → 0/3 (6TH RESET); FB28 PENDING; 149TH SINGLE-COMMIT; STATE v7.330
+
+**Pass-36 BLOCKED — 3 in-scope MEDIUM findings. Streak RESETS 1/3 → 0/3 (6th reset of cascade).**
+
+**149th consecutive single-commit (TD-VSDD-053 stable).**
+
+### Findings Summary
+
+| Finding | Severity | Description | Fix Route |
+|---------|----------|-------------|----------|
+| F-LP36-MED-001 | MEDIUM | AC-9 test name `test_BC_2_16_012_write_tool_invalidation_runtime_register` vs Red Gate Test 8 `test_BC_2_16_012_003_write_tool_invalidation_runtime_register` — 2 distinct Rust identifiers | product-owner: canonicalize AC-9 to `_003_` convention |
+| F-LP36-MED-002 | MEDIUM | AC-8 4-sensor scope not covered by Red Gate Tests 6+7 (novel-name only + CrowdStrike only) — "tests MUST fail" rule violated | product-owner: expand RG 6+7 or decompose AC-8 |
+| F-LP36-MED-003 | MEDIUM | story `crates_touched: [prism-sensors, prism-spec-engine, prism-query]` but STORY-INDEX line 395 col 3 missing `prism-query` | state-manager: add prism-query + STORY-INDEX version bump |
+
+### Novelty Assessment
+
+HIGH — 3 NEW defect axes surviving 35 prior passes including 8 CLEAN passes. None of these axes were probed by any prior adversary pass:
+- Test-naming drift between AC-N body and Red Gate table (axis never probed)
+- Red Gate test scope vs AC scope coverage completeness (axis never probed)
+- crates_touched frontmatter vs STORY-INDEX column propagation (axis never probed)
+
+### Updated Trajectory Shorthand
+
+→pass-33:BLOCKED(0C+1H+0M+0L+2OBS; F-LP33-HIGH-001 Mermaid block 3-site arithmetic + I3 enumeration; 6th within-FB sibling-sweep asymmetry recurrence; streak 0/3 unchanged)→FB26-CLOSED-COMBINED(1/1 HIGH; 3-site arithmetic + I4 enumeration)→pass-34:BLOCKED(0C+1H+0M+0L+4OBS; F-LP34-HIGH-001 TIER2 sub-node missing VP-153+VP-156; 7th within-FB sibling-sweep asymmetry recurrence; streak 0/3 unchanged)→FB27-CLOSED-COMBINED(1/1 HIGH; P33 proptest sub-node)→pass-35:CLEAN★(0 findings; FB27 P33 sub-node load-bearing; arithmetic coherence verified; streak 0/3 → **1/3** 8th attempt)→**pass-36:BLOCKED(0C+0H+3M+0L+0OBS; F-LP36-MED-001 AC-9/RG8 test-name drift + F-LP36-MED-002 AC-8/RG6+7 coverage gap + F-LP36-MED-003 crates_touched/STORY-INDEX column drift; 3 NEW defect axes; streak RESET 1/3→0/3 6th)**
+
+Novel-finding count: ...→1(pass-34 BLOCKED TIER2 sub-node missing)→0(pass-35 CLEAN — 8TH CLEAN PASS)→**3(pass-36 BLOCKED — 3 NEW DEFECT AXES)**
+
+Streak: **0/3 (RESET)** — FB28 NEXT (product-owner × 2 + state-manager × 1 combined burst); pass-37 NEXT after FB28 (9th attempt at 3-CLEAN — first of new sequence).
+
+STATE.md v7.330; SESSION-HANDOFF.md v7.330; prereq_e_adversary_streak 1/3→0/3 (6th reset); 149th consecutive single-commit (TD-VSDD-053 stable).
