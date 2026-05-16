@@ -1,8 +1,8 @@
 ---
 document_type: session-tasks
-version: "1.4"
+version: "1.5"
 status: active
-related_burst: D-589
+related_burst: D-592
 predecessor_state: D-588
 timestamp: 2026-05-16T02:00:00Z
 ---
@@ -40,9 +40,11 @@ Intended audience: orchestrator at next session start. Read alongside STATE.md +
 | 24 | PENDING | If pass-9 CLEAN: streak 1/3 → continue cascade toward 3-CLEAN convergence | Blocked on Task #27 verdict |
 | 25 | PENDING | If pass-9 CLEAN: streak 1/3 — continue cascade toward pass-10 | Blocked on Task #27 verdict (streak advance) |
 | 26 | DONE | PREREQ-E fix-burst-8 CLOSED (3/3 in-scope): D-590 architect `42a387b5` (F-LP8-HIGH-001 VP-156 D7 pins v1.8→v1.9 + F-LP8-HIGH-002 BC-2.16.012 VP-156 row pin v1.8→v1.9; VP-156 v0.7; BC-2.16.012 v1.8) + D-591 state-manager (F-LP8-MED-001 VP-156 §Changelog v0.4 repositioned to correct monotonic position between v0.3 and v0.5). Single-bump-per-source-artifact discipline applied: ADR-026 stays at v1.9. 97th consecutive single-commit. | — |
-| 27 | PENDING | PREREQ-E pass-9 (fresh-context) | Unblocked — pass-9 NEXT |
-| 28 | PENDING | If pass-9 CLEAN: streak 1/3 → continue cascade toward pass-10 | Blocked on Task #27 verdict |
-| 29 | PENDING | If pass-9 BLOCKED with new recurring-class instance: validate single-bump discipline insufficient + escalate to POL-23 mid-cycle codification (Option 3) | Blocked on Task #27 verdict |
+| 27 | DONE ★ CLEAN | PREREQ-E pass-9 (fresh-context) — **CLEAN** — 0 findings; streak 0/3 → 1/3; FIRST CLEAN PASS OF CASCADE; single-bump discipline BROKE recurring asymmetry; D-592 burst; 98th consecutive single-commit | — |
+| 28 | IN-PROGRESS | PREREQ-E pass-10 (fresh-context) — streak 1/3 → target 2/3 | Unblocked — pass-10 NEXT |
+| 29 | PENDING | If pass-10 BLOCKED: validate single-bump discipline insufficient + escalate to POL-23 mid-cycle codification (Option 3) | Blocked on Task #28 verdict |
+| 30 | PENDING | PREREQ-E pass-11 (3-CLEAN convergence target) | Blocked on pass-10 CLEAN |
+| 31 | PENDING | If 3-CLEAN reached: Phase 1d → Phase 2 transition + per-story-delivery cycle dispatch for S-PLUGIN-PREREQ-E | Blocked on Task #30 CLEAN |
 
 ## Strategic Options — RESOLVED (D-581)
 

@@ -746,4 +746,41 @@ FB5→FB6→FB7 each exhibited the within-FB sibling-sweep asymmetry: architect 
 ### OBS-LP8-001 Cycle-Close Deferred Entry
 
 OBS-LP8-001 remains queued for cycle-close retrospective: POL-23 should be amended to require that sweep targets are verified against the FINAL post-burst version of all source artifacts, not the intermediate version at the time of the sweep. This is the root cause documented in D-589.
+
+---
+
+## §D-592 PASS-9 CLEAN ENTRY (2026-05-16) ★ HISTORIC FIRST CLEAN PASS
+
+**Burst D-592 — state-manager — 98th consecutive single-commit — PASS-9 CLEAN ★**
+
+Pass-9 is the FIRST CLEAN PASS of the 9-pass S-PLUGIN-PREREQ-E spec adversarial cascade. Streak advances 0/3 → 1/3. The single-bump-per-source-artifact discipline applied in FB8 successfully broke the recurring within-FB sibling-sweep asymmetry pattern.
+
+### Pass-9 10-Vector Audit Summary
+
+| Vector | Outcome |
+|--------|---------|
+| 1. Single-bump discipline test (PRIMARY) | PASS — no stale ADR-026 D7 v1.[1-8] in live narrative of any artifact |
+| 2. VP-156 §Changelog reorder integrity | PASS — v0.5/v0.6/v0.7 distinctly describe FB6/FB7/FB8 work; no drift |
+| 3. BC-2.16.012 v1.8 changelog row position | PASS — top (newest); descending pattern consistent |
+| 4. VP-156 v0.7 position | PASS — bottom row (newest); correctly anchored |
+| 5. VP-INDEX / BC-INDEX sibling rows | PASS — both explicitly cite FB8 closures |
+| 6. STORY-INDEX v2.111 (unchanged) | PASS — FB8 didn't touch story; correct |
+| 7. Holdout scenarios HS-001/002/003 consistency | PASS — all bidirectional refs intact |
+| 8. error-taxonomy.md v1.27 E-codes | PASS — all E-SPEC-012/013/014 + E-PLUGIN-012/020 resolve |
+| 9. ADR runtime_deliverables sweep | PASS — ADR-026 9 entries + ADR-027 6 entries; no phantoms |
+| 10. Cross-document narrative reconciliation | PASS — all 18 artifacts tell ONE consistent story |
+
+### Trajectory Shorthand (Updated)
+
+**14→9→8→9→10→10→FB6-CLOSED(10/10 in-scope; 3 OBS deferred cycle-close)→8→FB7-CLOSED(8/8 in-scope; 4 OBS deferred cycle-close)→pass-8:BLOCKED(0C+2H+1M+0L+1OBS; LOWEST; recurring-asymmetry-class)→FIX-BURST-8-CLOSED(3/3 in-scope; single-bump-per-source-artifact discipline applied)→pass-9:CLEAN★(0/0/0/0/0; FIRST CLEAN OF CASCADE; single-bump-discipline BROKE recurring-asymmetry-class; streak 0/3 → 1/3)**
+
+Streak: **1/3** — pass-10 NEXT (second test of discipline).
+
+### Discipline Outcome Confirmation
+
+The FB5→FB6→FB7 recurrence pattern (within-FB sibling-sweep asymmetry producing findings in each subsequent pass) has been BROKEN. FB8 pre-applied the single-bump constraint: ADR-026 was already at v1.9 and was NOT bumped again. Only downstream propagation artifacts (VP-156 pin updates + BC-2.16.012 pin update) were swept. Pass-9 confirms the discipline is sufficient.
+
+OBS-LP8-001 (POL-23 amendment candidate) remains queued for cycle-close.
+
+STATE.md v7.292; SESSION-HANDOFF.md v7.292; 98th consecutive single-commit (TD-VSDD-053 DECISIVELY STABLE).
 Factory-artifacts D-589 burst SHA: TBD (this entry written pre-commit).
