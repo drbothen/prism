@@ -4,7 +4,7 @@ adr_id: "ADR-026"
 title: "SensorAuth Trait Un-Sealing — Remove private::Sealed, Enable Plugin Auth Implementations"
 status: Proposed
 date: "2026-05-15"
-version: "1.9"
+version: "1.10"
 producer: architect
 subsystems_affected: [SS-01, SS-07, SS-16, SS-17]
 supersedes: null
@@ -297,6 +297,29 @@ A `WARN`-level tracing event is emitted if `register_write_tool` is called after
 (detected via an `AtomicBool` query-phase flag set by the query engine init) — this path returns
 `Err(SpecEngineError::WriteToolRegistrationAfterBoot)` instead of attempting the write.
 
+**Structured event field source specification (PG-LP11-001 + BC-2.16.002 v1.19 row 33):** The
+`WARN`-level `write_tool_registration_after_boot` tracing event carries three fields. Field
+source provenance:
+
+- `plugin_name` — `entry.plugin_name` (`WriteToolInvalidationMap` struct field; set by
+  `PluginRuntime` when constructing `WriteToolInvalidationMap` entries on behalf of plugins,
+  using the plugin manifest `name` field value). This is the canonical structured identifier
+  for the offending plugin in the forensic-trace audit record. The same value also populates
+  the `{plugin}` placeholder in the E-PLUGIN-012 `DuplicateWriteToolRegistration` error message
+  template and the `{conflicting_plugin}` companion placeholder (error-taxonomy v1.27) — both
+  share the same manifest `name` field as their source via the `WriteToolInvalidationMap` entry.
+- `tool_name` — `entry.tool_name` (`WriteToolInvalidationMap` struct field; the write-tool
+  capability name declared in the plugin manifest, as registered during step 7.5 plugin-load).
+- `error` — literal string `"E-PLUGIN-020"` (the assigned error code for post-boot registration
+  rejection per D7 error code routing above).
+
+The `WriteToolInvalidationMap` struct MUST include a `plugin_name: String` field in addition
+to `tool_name`. `PluginRuntime` is responsible for populating this field from the plugin manifest
+`name` when constructing `WriteToolInvalidationMap` entries during step 7.5 plugin-load.
+This is Option A of the F-LP13-HIGH-003 adjudication (fix-burst-12): struct extension preferred
+over parameter addition (Option B) for reusability across E-PLUGIN-012 and E-PLUGIN-020 error
+paths, and over field removal (Option C) for forensic-trace audit completeness.
+
 Anchor: ADR-022 §B step 7.5 (plugin-load before query-engine init). BC-2.16.012 postcondition
 INV-INVALIDATION-EXT-001 (TD-S-PLUGIN-PREREQ-A-003 closure). S-PLUGIN-PREREQ-E AC-9. VP-156 (proptest coverage
 for uniqueness semantics; visibility guarantee derives from RwLock contract + ADR-022 boot ordering).
@@ -439,3 +462,4 @@ modes and security implications. The open trait approach reuses the existing typ
 | 1.7 | 2026-05-15 | architect | prereq-e-fix-burst-5: F-LP5-MED-004: SS-07 (Adapter Pagination & Response Cache; prism-query) added to `subsystems_affected` — D7's runtime_deliverables (`register_write_tool` API, `RwLock<Vec<WriteToolInvalidationMap>>` container, `DuplicateWriteToolRegistration` variant, `WriteToolRegistrationAfterBoot` variant, `AtomicBool` query-phase flag) all land in `crates/prism-query/src/invalidation.rs`, which is owned by prism-query (SS-07 per ARCH-INDEX Subsystem Registry). `subsystems_affected` updated from `[SS-01, SS-17, SS-16]` to `[SS-01, SS-07, SS-16, SS-17]` (sorted ascending). POL-23 sibling sweep: ARCH-INDEX ADR Registry row updated to PROPOSED v1.7; BC-2.16.012 §Verification Properties VP-156 row version pin updated to v1.7. |
 | 1.8 | 2026-05-16 | architect | prereq-e-fix-burst-6: F-LP6-CRIT-001 — D2 ClarotyAuth.auth_type_name() value `cookie` → `cookie_roundtrip` to match D3 canonical enumerated set + E-SPEC-012 + VP-153 Rule A. Implementer following stale `cookie` would have introspected a value outside the enumerated set, triggering E-SPEC-014 structural-match failure on every Claroty spec-load. F-LP6-HIGH-003 — Pruned phantom runtime_deliverable: "Add SensorAuth re-export to prism-sensors public API surface" removed; SensorAuth re-export is pre-existing in prism-sensors lib.rs (verified at HEAD ec90fe8f); not a PREREQ-E delivery item. F-LP6-MED-003 — Semver-stance scope clarification paragraph appended to D2 §Path B rationale: 'no default impl' stance applies ONLY to the four built-in impls authored in this PREREQ-E commit; post-ABI-surface additions must follow D6 (default impl or new ADR + semver bump). |
 | 1.9 | 2026-05-16 | architect | prereq-e-fix-burst-7: F-LP7-HIGH-004 + F-LP7-MED-002 — runtime_deliverables completeness fix. APPEND trait method (`fn auth_type_name() -> &'static str;` to SensorAuth trait in mod.rs per D1 Path B) + 4 impl bodies (in crowdstrike.rs/cyberint.rs/claroty.rs/armis.rs per D2 returning canonical D3 enumerated values). PRUNE phantom validation entry `Validate PluginRuntime::load_plugin wiring path calls SensorAuth-implementing types` (verification activity, not code delivery; covered by VP-154 proptest). POL-22 Phase C semantic-of-deliverable verification. |
+| 1.10 | 2026-05-16 | architect | prereq-e-fix-burst-12: F-LP13-HIGH-003 — Option A adjudication: clarify `WriteToolInvalidationMap` `plugin_name` field source as `PluginRuntime`-supplied from plugin manifest `name` field. New structured-event field-source specification paragraph added to D7 narrative, specifying provenance of all three `write_tool_registration_after_boot` WARN event fields (`plugin_name`, `tool_name`, `error`). Establishes that `WriteToolInvalidationMap` struct MUST include `plugin_name: String` field (Option A: struct extension over Option B parameter addition or Option C field removal). Also resolves companion gap: E-PLUGIN-012 `{plugin}` and `{conflicting_plugin}` placeholder source shares the same manifest `name` field via the `WriteToolInvalidationMap` entry. Resolves spec-implementation coherence gap (BC-2.16.002 v1.19 row 33 mandated `plugin_name` field; ADR-026 D7 narrative had not specified source). PG-LP11-001 catalog field-schema enforcement. PO follows in burst 2 for POL-21 sweep + story/HS/error-taxonomy propagation per Option A. |
