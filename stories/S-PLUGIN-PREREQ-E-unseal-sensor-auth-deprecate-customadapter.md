@@ -23,7 +23,7 @@ crates_touched: [prism-sensors, prism-spec-engine, prism-query]
 target_module: prism-sensors
 subsystems: [SS-01, SS-07, SS-16]
 capabilities: [CAP-001, CAP-029]
-version: "1.6"
+version: "1.7"
 level: "L4"
 producer: product-owner
 timestamp: "2026-05-15T00:00:00Z"
@@ -332,7 +332,7 @@ Note: E-SPEC-010 (variable interpolation field-path miss) and E-SPEC-011 (pipe_v
 | `crates/prism-sensors/src/auth/mod.rs` | Modify | Remove `private::Sealed` module, remove `: Sealed` supertrait from `SensorAuth` trait |
 | `crates/prism-sensors/src/auth/crowdstrike.rs` | Modify | Add `fn auth_type_name(&self) -> &'static str { "oauth2_client_credentials" }` per ADR-026 D1 Path B |
 | `crates/prism-sensors/src/auth/cyberint.rs` | Modify | Add `fn auth_type_name(&self) -> &'static str { "bearer_static" }` per ADR-026 D1 Path B |
-| `crates/prism-sensors/src/auth/claroty.rs` | Modify | Add `fn auth_type_name(&self) -> &'static str { "cookie" }` per ADR-026 D1 Path B |
+| `crates/prism-sensors/src/auth/claroty.rs` | Modify | Add `fn auth_type_name(&self) -> &'static str { "cookie_roundtrip" }` per ADR-026 D1 Path B |
 | `crates/prism-sensors/src/auth/armis.rs` | Modify | Add `fn auth_type_name(&self) -> &'static str { "api_key" }` per ADR-026 D1 Path B |
 | `crates/prism-spec-engine/src/custom_adapter.rs` | DELETE | Primary retirement target per ADR-023 Rule 5 |
 | `crates/prism-spec-engine/src/lib.rs` | Modify | Remove `mod custom_adapter;` + all `CustomAdapter`/`CustomAdapterRegistry`/`CustomAuth` re-exports |
@@ -434,6 +434,7 @@ Tech debt closed:
 
 | Version | Burst | Date | Author | Change |
 |---------|-------|------|--------|--------|
+| 1.7 | prereq-e-fix-burst-6 | 2026-05-16 | story-writer | F-LP6-CRIT-001 propagation: §File Structure Requirements + §AC-2 example chain — Claroty auth_type_name() return value `cookie` → `cookie_roundtrip` to match ADR-026 v1.8 D2 corrected value + D3 canonical enumerated set + E-SPEC-012 + VP-153 Rule A. Sibling sweep verified all four built-in auth_type_name() values match D3 enumerated set. |
 | 1.6 | prereq-e-fix-burst-5 | 2026-05-15 | product-owner | F-LP5-HIGH-001: `subsystems:` updated from `[SS-01, SS-16]` to `[SS-01, SS-07, SS-16]`; `anchor_subsystem:` updated identically (prism-query → SS-07 Adapter Pagination & Response Cache per ARCH-INDEX). F-LP5-HIGH-002: §References 5 BC entries corrected to H1-verbatim titles (POL-7 D-571 sweep); lifecycle/status annotations moved outside link text to description suffix. POL-7 5-surface sweep: surface 1 BC table — BC-2.01.016 Role cell "four built-in auth impls unchanged" corrected to "each add one new method body (`auth_type_name`)" (stale from pre-v1.4). Surfaces 3/4/5 verified clean. F-LP5-MED-001: File Structure Requirements table gains 4 auth impl files (crowdstrike/cyberint/claroty/armis `.rs`), each with `auth_type_name` method action + ADR-026 D1 Path B source; Token Budget Estimate table gains 4 impl file rows (~50 tokens each); Total updated ~17,100 → ~17,300. F-LP5-MED-002: Architecture Compliance Rules table — hardcoded-sensor-string dispatch rule Source column gains `ADR-027 D5` (canonical anchor post-FB4 expansion). F-LP5-MED-003 (Path B chosen): AC-1 trace-line extended with BC-2.01.013 justification (mechanical un-sealing delivery of PREREQ-F amendment); AC-6 trace-line extended with BC-2.16.004 justification (lifecycle-close execution per DF-030). Both BCs in `behavioral_contracts:` frontmatter now have AC traces. |
 | 1.5 | prereq-e-fix-burst-4 | 2026-05-15 | product-owner | F-LP4-HIGH-001: VP-156 added to `verification_properties:` frontmatter array (after VP-155, before VP-PLUGIN-001). F-LP4-HIGH-002: VP-156 added to §References Architecture Compliance section with markdown link + description matching "uniqueness only" framing. F-LP4-HIGH-003: BC-2.16.004 BC table Title cell updated to H1-verbatim ("Rust Escape Hatch for Custom Adapters — Trait-Based Override When Config Is Insufficient"); lifecycle annotation "(deprecated → removed)" moved inline to Role column. `anchor_vps:` frontmatter updated to include VP-156. |
 | 1.4 | prereq-e-fix-burst-3 | 2026-05-15 | product-owner | F-LP3-HIGH-002 (joint with architect): AC-2 rewritten — "ZERO changes" → "ONE NEW METHOD BODY per impl (fn auth_type_name returning static auth-type name); no other changes"; Red Gate Test 3 renamed `_unchanged_` → `_minimal_diff_` + updated to assert one new method body. F-LP3-HIGH-003: Task 7 register_write_tool signature updated to `-> Result<(), SpecEngineError>`; AC-9 updated with error-path assertions (E-PLUGIN-012 duplicate, E-PLUGIN-020 after-boot); Red Gate Test 8 updated to assert all three paths. F-LP3-MED-002: Error Taxonomy Additions table expanded — E-PLUGIN-012 + E-PLUGIN-020 rows added (taxonomy v1.27); v1.25 version pins in AC-3 body updated to v1.27 (2 sites in story body). Sub-fix (same burst, D-577): `risk_mitigations:` AC-1..3 entry synced to Path B — "four built-in auth impls are unchanged" → "four built-in auth impls require ONE NEW METHOD BODY each (one-line `fn auth_type_name` returning the static auth-type name string); no other changes". |
