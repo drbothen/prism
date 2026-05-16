@@ -2071,3 +2071,59 @@ Novel-finding count: 14→9→8→9→10→10→8→4→0→3→1→1→3→1→
 Streak: **0/3** — Pass-25 NEXT (first of NEW 3-CLEAN sequence — 3rd attempt; passes 25/26/27 required for BC-5.39.001 convergence).
 
 STATE.md v7.318; SESSION-HANDOFF.md v7.318; story `updated: "2026-05-16"` added (single-line frontmatter fix); BC-INDEX v4.93 (unchanged); STORY-INDEX v2.115 (unchanged); ARCH-INDEX v2.53 (unchanged); VP-INDEX v1.46 (unchanged); error-taxonomy v1.30 (unchanged); 137th consecutive single-commit (TD-VSDD-053 stable).
+
+---
+
+## §D-632 PASS-25 CLEAN ENTRY (2026-05-16) — 4TH CLEAN PASS OF CASCADE; FB21 `updated:` FIELD ADDITION VERIFIED LOAD-BEARING; STREAK ADVANCES 0/3 → 1/3; FIRST OF NEW 3-CLEAN SEQUENCE (3RD ATTEMPT); 138TH SINGLE-COMMIT
+
+**Pass-25 CLEAN — 0 findings — streak ADVANCES 0/3 → 1/3 — 4TH CLEAN PASS OF CASCADE.**
+
+**138th consecutive single-commit (TD-VSDD-053 stable).**
+
+### 4TH CLEAN MILESTONE — Historic Significance
+
+This is the 4th clean pass in the PREREQ-E spec cascade, and the 1st clean pass of the 3rd attempt at reaching BC-5.39.001 3-CLEAN convergence. All 3 prior "first CLEAN" passes (9/19/23) were reset within 1 pass by fresh-context:
+
+| Pass | Burst | Streak After | Context |
+|------|-------|--------------|---------|
+| 9 ★ | D-592 | 1/3 → RESET (pass-10) | 1st CLEAN — cross-cascade carryover reset |
+| 19 ★ | D-622 | 1/3 → RESET (pass-20) | 2nd CLEAN — ADR-027 D3 novel file-count defect reset |
+| 23 ★ | D-630 | 1/3 → RESET (pass-24) | 3rd CLEAN — POL-23 D-571 `updated:` blind spot reset |
+| **25 ★** | **D-632** | **1/3 → ? (pass-26)** | **4TH CLEAN — FB21 `updated:` fix verified; 3rd attempt at 3-CLEAN** |
+
+**Pass-26 is the decisive test.** If CLEAN: streak 1/3→2/3 (unprecedented in this cascade). If BLOCKED: 4th reset, streak returns to 0/3.
+
+### FB21 Verification Table
+
+| Target | Result |
+|---|---|
+| Story `updated: "2026-05-16"` (POL-23 D-571) | PASS — matches v1.11 §Changelog row |
+| Story version unchanged at v1.11 | PASS (cosmetic sync, no bump) |
+| STORY-INDEX row tag unchanged | PASS (FB21 didn't mutate STORY-INDEX) |
+| No new defects introduced | PASS |
+
+### Comprehensive POL Audit — 27 × 19 ALL PASS
+
+Pass-25 is the first fresh-context adversary pass after the FB21 `updated:` field addition. The comprehensive audit confirms:
+- POL-23 D-571 gate now satisfied (story `updated:` field present and matches fix-burst date)
+- All 27 policies applied to all 19 artifacts — zero violations
+- No new defect surface introduced by the single-line frontmatter addition
+
+### Updated 4 CLEAN Passes + Streak History
+
+| Pass | Findings | Streak Before | Streak After | Cascade Position |
+|------|----------|---------------|--------------|-----------------|
+| 9 | 0 | 0/3 | 1/3 ★ | 1st CLEAN — RESET by pass-10 |
+| 19 | 0 | 0/3 | 1/3 ★ | 2nd CLEAN — RESET by pass-20 |
+| 23 | 0 | 0/3 | 1/3 ★ | 3rd CLEAN — RESET by pass-24 |
+| **25** | **0** | **0/3** | **1/3** ★ | **4TH CLEAN — 3rd attempt at 3-CLEAN** |
+
+### Updated Trajectory Shorthand
+
+**→pass-22:BLOCKED(0C+0H+1M+0L+0OBS; FB19-introduced modified-field sibling-sweep asymmetry; closed combined-burst D-629; streak 0/3 unchanged)→FB20-CLOSED-COMBINED(1/1 in-scope MED)→pass-23:CLEAN★(0 findings; D-629 combined-burst modified-field sync load-bearing; streak 0/3 → 1/3 first of NEW 3-CLEAN sequence)→pass-24:BLOCKED(0C+0H+1M+0L+1OBS; F-LP24-MED-001 story updated: field gap pending intent verification — POL-23 D-571 missed by 22 prior passes; closed combined-burst D-631; streak RESET 1/3 → 0/3 — 3rd time 3-CLEAN protocol validation)→FB21-CLOSED-COMBINED(1/1 in-scope MED)→pass-25:CLEAN★(0 findings; FB21 updated: field load-bearing; streak 0/3 → **1/3** first of new 3-CLEAN sequence 3rd attempt)**
+
+Novel-finding count: 14→9→8→9→10→10→8→4→0→3→1→1→3→1→3→1→1→1→1→0→2→1→1(FB19)→0→1(pass-24; closed combined D-631)→**0(pass-25 CLEAN)**
+
+Streak: **1/3** — Pass-26 NEXT (2nd of 3 consecutive CLEAN passes required for BC-5.39.001 convergence; 3rd attempt).
+
+STATE.md v7.319; SESSION-HANDOFF.md v7.319; prereq_e_adversary_streak 0/3→1/3; 138th consecutive single-commit (TD-VSDD-053 stable).
