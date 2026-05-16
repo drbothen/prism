@@ -1,7 +1,7 @@
 ---
 document_type: behavioral-contract
 level: L3
-version: "1.1"
+version: "1.2"
 status: draft
 producer: product-owner
 timestamp: 2026-05-15T00:00:00
@@ -10,7 +10,7 @@ origin: greenfield
 subsystem: "SS-01"
 capability: "CAP-001"
 lifecycle_status: draft
-introduced: S-PLUGIN-PREREQ-E
+introduced: "2026-05-15"
 modified: "2026-05-15"
 deprecated: ~
 deprecated_by: ~
@@ -53,10 +53,9 @@ restriction.
 - No external Rust crate has been published from this workspace with `SensorAuth` as a
   sealed public trait (confirmed by PLUGIN-AUDIT-001 HIGH-3 finding: no in-tree callers;
   `prism-spec-engine` has never been published to crates.io with `CustomAdapter` exposed).
-- The `SensorAuth` trait has at least the following object-safe method surface:
-  - `fn sensor_id(&self) -> &SensorId` — identity of the sensor this auth serves
-  - `fn auth_type(&self) -> &str` — declares `auth_type` variant (e.g., `"oauth2_client_credentials"`)
-  - `fn build_request_auth(&self, builder: RequestBuilder) -> Pin<Box<dyn Future<Output = Result<RequestBuilder, AuthError>> + Send + '_>>` — applies auth headers/cookies to an outbound HTTP request builder
+- The `SensorAuth` trait has exactly the following two object-safe methods per ADR-026 D1:
+  - `fn as_any(&self) -> &dyn std::any::Any` — enables concrete-type recovery via downcast; impls that return an incorrect type produce a failed downcast (`None`), not undefined behavior
+  - `fn auth_type_name(&self) -> &'static str` — declares the `auth_type` variant string (e.g., `"oauth2_client_credentials"`); `&'static str` ensures zero-cost vtable dispatch without allocation
 
 ## Postconditions
 
@@ -139,7 +138,7 @@ restriction.
 
 - `crates/prism-sensors/src/auth/mod.rs` — sealed marker removal site
 - `crates/prism-spec-engine/src/custom_adapter.rs` — `CustomAuth` deletion site (coordinated with BC-2.16.011)
-- ADR-023 §C5 Rule 2 — authoritative SensorAuth un-sealing specification
+- ADR-023 §Architectural Constraints (C5 bullet, Rule 2) — authoritative SensorAuth un-sealing specification
 - ADR-026 — SensorAuth unsealing architectural decision; §D3 defines the three runtime enforcement rules that map to E-SPEC-012/013/014
 
 ## Story Anchor
@@ -164,5 +163,7 @@ S-PLUGIN-PREREQ-E
 
 | Version | Burst | Date | Author | Change |
 |---------|-------|------|--------|--------|
+| 1.2 | S-PLUGIN-PREREQ-E-fix-burst-1 | 2026-05-15 | product-owner | F-LP1-HIGH-001 closure: §Preconditions method surface aligned to ADR-026 D1 (2-method trait: `as_any()` + `auth_type_name()`). Removed incorrect 3-method list (`sensor_id`, `auth_type`, `build_request_auth`) which imported methods from a different trait surface. F-LP1-HIGH-003 closure: §C5 phantom-heading citations corrected — `ADR-023 §C5 Rule 2` → `ADR-023 §Architectural Constraints (C5 bullet, Rule 2)` per POL-21; ADR-023 has no `## C5` heading. |
+| 1.2 | fix-burst-1 state-manager catch | 2026-05-15 | state-manager | (state-manager catch in fix-burst-1) F-LP1-HIGH-004 POL-20: introduced field canonicalized to ISO date 2026-05-15. Prior value `S-PLUGIN-PREREQ-E` was story-ID format; POL-20 requires `YYYY-MM-DD` for artifacts created outside greenfield cycles. |
 | 1.1 | S-PLUGIN-PREREQ-E-reconciliation | 2026-05-15 | product-owner | Q1 fix: corrected error codes for ADR-023 Rule 2 rejections — E-SPEC-010/011/012 → E-SPEC-012/013/014 (E-SPEC-010 = variable interpolation field-path miss; E-SPEC-011 = pipe_verb reserved keyword; these pre-existing codes were incorrectly cited). New codes authored in error-taxonomy.md v1.25. VP-153 anchor added (cross-composition proptest). ADR-026/027 architecture anchors confirmed. |
-| 1.0 | S-PLUGIN-PREREQ-E-authoring | 2026-05-15 | product-owner | Initial draft. Authored for S-PLUGIN-PREREQ-E; operationalizes ADR-023 §C5 Rule 2 SensorAuth un-sealing. |
+| 1.0 | S-PLUGIN-PREREQ-E-authoring | 2026-05-15 | product-owner | Initial draft. Authored for S-PLUGIN-PREREQ-E; operationalizes ADR-023 §Architectural Constraints (C5 bullet, Rule 2) SensorAuth un-sealing. |

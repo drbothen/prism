@@ -2,7 +2,7 @@
 document_type: prd-supplement
 level: L3
 section: "error-taxonomy"
-version: "1.25"
+version: "1.26"
 status: active
 producer: product-owner
 timestamp: 2026-05-14T00:00:00Z
@@ -377,7 +377,7 @@ Additional state errors beyond E-STATE-001 and E-STATE-002 (defined in the STATE
 | E-SPEC-005 | broken | validation | "Invalid auth_type '{auth_type}' for sensor '{sensor}'" | No | Auth type must be one of: oauth2, bearer, cookie, api_key. |
 | E-SPEC-006 | broken | validation | "Circular step dependency in '{sensor}.{table}': {cycle}" | No | Steps reference each other in a cycle. |
 | E-SPEC-007 | degraded | validation | "Invalid OCSF field mapping '{ocsf_field}' for column '{column}'" | No | OCSF field path does not match any known OCSF schema field. Column will use raw_extensions. |
-| E-SPEC-008 | broken | transient | "Custom adapter panic in '{sensor}': {message}" | No | A CustomAdapter (BC-2.16.004) panicked during execution. Caught via catch_unwind. Review the adapter implementation. |
+| E-SPEC-008 | broken | transient | "Custom adapter panic in '{sensor}': {message}" | No | **RETIRED in S-PLUGIN-PREREQ-E (error-taxonomy.md v1.26).** A CustomAdapter (BC-2.16.004) panicked during execution. Caught via catch_unwind. No live code path triggers this code after CustomAdapter removal in S-PLUGIN-PREREQ-E. Plugin execution panics now surface via E-PLUGIN-001. ID preserved per append_only_numbering (DF-030). |
 | E-SPEC-009 | broken | validation | "Duplicate sensor_id '{sensor_id}' across spec files '{file1}' and '{file2}'" | No | Two spec files declare the same sensor_id. First file wins, second is rejected. |
 | E-SPEC-010 | degraded | transient | "Variable interpolation failed: '${{{var}}}' resolved but field path '{path}' not found in response from step '{step}'" | Yes | Runtime variable resolution succeeded but the expected field path does not exist in the API response. Check API response structure. |
 | E-SPEC-011 | broken | validation | "Reserved keyword '{verb}' cannot be used as a write endpoint pipe_verb. Reserved: where, sort, limit, join, enrich, head" | No | Write endpoint pipe_verb collides with a PrismQL reserved keyword |
@@ -484,6 +484,7 @@ Additional state errors beyond E-STATE-001 and E-STATE-002 (defined in the STATE
 
 | Version | Burst | Date | Author | Change |
 |---------|-------|------|--------|--------|
+| 1.26 | S-PLUGIN-PREREQ-E-fix-burst-1 | 2026-05-15 | product-owner | F-LP1-MED-001 closure (path a — PO spec-burst delivery): E-SPEC-008 row annotated as RETIRED in S-PLUGIN-PREREQ-E. No live code path triggers this code post-CustomAdapter removal; plugin execution panics surface via E-PLUGIN-001. ID preserved per append_only_numbering (DF-030). Row description updated with RETIRED notice. |
 | 1.25 | S-PLUGIN-PREREQ-E-reconciliation | 2026-05-15 | product-owner | Q1 resolution: Authored E-SPEC-012 (ADR-023 Rule 2, Rule A — auth_type must be single value from enumerated set), E-SPEC-013 (Rule B — exactly one credential_ref per auth method), E-SPEC-014 (Rule C — credential structural type must match auth_type). All three cite BC-2.01.016. Introduced in S-PLUGIN-PREREQ-E. Replaces erroneous E-SPEC-010/011/012 references in BC-2.01.016 (E-SPEC-010 and E-SPEC-011 are pre-existing codes with different semantics). |
 | 1.24 | S-PLUGIN-PREREQ-D-fix-burst-impl-1 | 2026-05-14 | implementer | F-IMPL-LP1 fix-burst closures: Add E-PLUGIN-017 (ManifestParseError — TOML parse failure, HIGH-003), E-PLUGIN-018 (ManifestNotFound — absent companion manifest file, HIGH-005), E-PLUGIN-019 (FormatVersionMissing — format_version field absent, HIGH-006). Update E-PLUGIN-014 description to clarify it no longer covers absent format_version (now E-PLUGIN-019). Update E-PLUGIN-016 to document strict semver via semver::Version::parse (HIGH-004 closure). |
 | 1.22 | fix-burst-33 | 2026-05-14 | product-owner | F-LP35-MED-002 closure: E-PIPELINE-001 trace anchor line 464 rewritten from `BC-2.16.002 §Canonical Structured Event Catalog row pipeline_max_requests_exceeded` (Codification #14 phantom-section-anchor: BC-2.16.002 has no such `##` heading; phrase is bold-labeled bullet at BC line 74 within `## Postconditions`) to `BC-2.16.002 §Postconditions (Canonical Structured Event Catalog bullet, v1.12) row pipeline_max_requests_exceeded` — making actual BC `##` heading ancestry explicit per fix-burst-32 canonical form. Sibling-document propagation gap from F-LP34-MED-001 closure (D-533) — fix-burst-32 propagated to 4 story sites but missed this error-taxonomy.md parallel cite. |

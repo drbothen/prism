@@ -2,7 +2,7 @@
 document_type: architecture-section
 level: L3
 section: "verification-coverage-matrix"
-version: "1.32"
+version: "1.33"
 status: draft
 producer: architect
 timestamp: 2026-04-20T18:00:00
@@ -24,7 +24,7 @@ See detailed tables below.
 |--------|------------|-------------|----------|------------|-------------|-------------------|----------------|-----|
 | prism-core | CRITICAL | 12 | 8 | 0 | 0 | 0 | 95% | VP-001, VP-002, VP-003, VP-004, VP-005, VP-006, VP-011, VP-029, VP-051, VP-065, VP-070, VP-071 (kani); VP-063, VP-064, VP-069, VP-072, VP-073, VP-074, VP-075, VP-076 (proptest) |
 | prism-security | CRITICAL | 5 | 1 | 0 | 1 | 0 | 90% | VP-007, VP-008, VP-009, VP-010, VP-020 (kani); VP-024 (proptest); VP-038 (fuzz) |
-| prism-query | CRITICAL | 4 | 2 | 0 | 2 | 0 | 90% | VP-012, VP-014, VP-015, VP-025 (kani); VP-013, VP-031 (proptest); VP-021, VP-037 (fuzz) |
+| prism-query | CRITICAL | 4 | 3 | 0 | 2 | 0 | 90% | VP-012, VP-014, VP-015, VP-025 (kani); VP-013, VP-031, VP-156 (proptest); VP-021, VP-037 (fuzz) |
 | prism-ocsf | CRITICAL | 0 | 2 | 0 | 1 | 0 | 90% | VP-016, VP-017 (proptest); VP-022 (fuzz) |
 | prism-operations | HIGH | 4 | 17 | 0 | 1 | 0 | 85% | VP-026, VP-030, VP-044, VP-053 (kani); VP-018, VP-019, VP-027, VP-045, VP-046, VP-047, VP-052, VP-054, VP-060, VP-137, VP-138, VP-139, VP-140, VP-141, VP-142, VP-143, VP-145 (proptest); VP-028 (fuzz) |
 | prism-spec-engine | HIGH | 2 | 15 | 4 | 1 | 10 | 85% | VP-040, VP-048 (kani); VP-032, VP-041, VP-042, VP-043, VP-049, VP-059, VP-099, VP-100, VP-101, VP-102, VP-103, VP-104, VP-105, VP-106, VP-153 (proptest); VP-095, VP-096, VP-097, VP-098 (unit_test); VP-023 (fuzz); VP-107, VP-146, VP-147, VP-148, VP-149, VP-150, VP-151, VP-152, VP-154, VP-155 (integration_test) |
@@ -38,18 +38,18 @@ See detailed tables below.
 | prism-dtu-harness | HIGH | 0 | 4 | 0 | 0 | 8 | 80% | VP-122, VP-123, VP-125, VP-128 (proptest); VP-124, VP-126, VP-127, VP-129, VP-130, VP-131, VP-132, VP-133 (integration_test) |
 | prism-bin | LOW | 0 | 1 | 0 | 0 | 2 | 60% | VP-135 (proptest); VP-134, VP-136 (integration_test) |
 | prism-siem-formats | HIGH | 0 | 1 | 0 | 0 | 0 | 80% | VP-144 (proptest) *(new in Wave 4 per ADR-019)* |
-| **Totals** | | **30** | **87** | **4** | **6** | **28** | | **155** |
+| **Totals** | | **30** | **88** | **4** | **6** | **28** | | **156** |
 
 ## Totals
 
 | Method | Planned Count | P0 | P1 |
 |--------|--------------|----|----|
 | Kani proofs | 30 | 23 | 7 |
-| Proptest properties | 87 | 66 | 21 |
+| Proptest properties | 88 | 66 | 22 |
 | Unit test VPs | 4 | 4 | 0 |
 | Fuzz targets | 6 | 5 | 1 |
 | Integration test VPs | 28 | 25 | 4 |
-| **Total VPs** | **155** | **123** | **33** |
+| **Total VPs** | **156** | **123** | **34** |
 
 <!-- P0/P1 per-method breakdown from VP-INDEX v1.22 recount (Wave 4 Phase 3 ADR burst):
      Kani: 23 P0 / 7 P1; Proptest: 64 P0 / 21 P1; Unit test: 4 P0 / 0 P1;
@@ -143,6 +143,7 @@ See detailed tables below.
 
 | Version | Author | Date | Description |
 |---------|--------|------|-------------|
+| 1.33 | architect | 2026-05-15 | prereq-e-fix-burst-1: VP-156 (proptest, P1, prism-query) added. prism-query row updated: Proptest 2→3. Totals row: Proptest 87→88, Total VPs 155→156. P1 33→34 (P0 unchanged 123). VP-156 traces ADR-026 D7 WriteToolInvalidationMap uniqueness + happens-before. |
 | 1.32 | architect | 2026-05-15 | PREREQ-E ADR burst: VP-153 (proptest, P0), VP-154 (integration_test, P1), VP-155 (integration_test, P0) added for S-PLUGIN-PREREQ-E. prism-spec-engine row updated: Proptest 14→15, Integration 8→10, total row 29→32. Totals row: Proptest 86→87, Integration 26→28, Total VPs 152→155. P0 120→123, P1 unchanged 32. VP-153 traces ADR-026 D3 / DI-012 runtime replacement; VP-154/155 trace ADR-027 D3 CustomAdapter deletion enforcement. |
 | 1.31 | state-manager | 2026-05-03 | F-P20-H-001: BC-2.18.004 row parenthetical updated "(Schedule semaphore non-blocking)" → "(Action delivery semaphore non-blocking)" (Pass-6 BC-H1 rename to "Action Delivery Semaphore" failed to propagate). |
 | 1.30 | state-manager | 2026-05-03 | P9 fix (F-P9-M-001): VP-145 added to BC-level invariant table — BC-2.14.xxx (INV-CASE-006, case reopen_count monotonic, prism-operations proptest, P1). |

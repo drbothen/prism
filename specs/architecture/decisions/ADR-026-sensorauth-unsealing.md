@@ -4,7 +4,7 @@ adr_id: "ADR-026"
 title: "SensorAuth Trait Un-Sealing — Remove private::Sealed, Enable Plugin Auth Implementations"
 status: Proposed
 date: "2026-05-15"
-version: "1.1"
+version: "1.2"
 producer: architect
 subsystems_affected: [SS-01, SS-17, SS-16]
 supersedes: null
@@ -13,7 +13,6 @@ amends: ADR-023
 anchor_stories: [S-PLUGIN-PREREQ-E]
 runtime_deliverables:
   - "Remove private::Sealed and mod private from crates/prism-sensors/src/auth/mod.rs"
-  - "Remove #[non_exhaustive] seal-workaround doc comments from SensorAuth"
   - "Add SensorAuth re-export to prism-sensors public API surface"
   - "Delete CustomAuth placeholder duplicate from crates/prism-spec-engine/src/custom_adapter.rs"
   - "Validate PluginRuntime::load_plugin wiring path calls SensorAuth-implementing types"
@@ -79,7 +78,7 @@ The `mod private` block and `private::Sealed` supertrait bound are removed from
 `crates/prism-sensors/src/auth/mod.rs`. The revised `SensorAuth` definition is:
 
 ```rust
-/// Sealed authentication credential for a sensor adapter.
+/// Authentication credential for a sensor adapter (open trait — plugin-implementable per ADR-026).
 ///
 /// Implementors may be defined in any crate — plugin authors implement this trait
 /// to provide custom auth flows. Runtime cross-sensor composition is prevented by
@@ -87,6 +86,9 @@ The `mod private` block and `private::Sealed` supertrait bound are removed from
 ///
 /// Credentials MUST NOT appear in `Debug` output or log output at any level
 /// (AI-opaque credential model per AD-017).
+///
+/// Adding required methods to this trait is a semver-breaking change for plugin consumers.
+/// Future method additions must provide a default impl or be gated by a new ADR + semver bump.
 ///
 /// Story: S-PLUGIN-PREREQ-E | BC-2.01.016 (primary) | BC-2.01.013 (parent pattern) | ADR-026
 pub trait SensorAuth: Send + Sync + 'static {
@@ -97,6 +99,17 @@ pub trait SensorAuth: Send + Sync + 'static {
 
 This makes `SensorAuth` a standard open trait with no crate-private supertrait. Any crate —
 including `.prx` WASM plugin host shim crates — may implement it.
+
+**Trait method surface trilemma resolution (F-LP1-HIGH-001):** Three candidate shapes were
+evaluated against live code, ADR-026 v1.1, and BC-2.01.016:
+
+| Option | Methods | Assessment |
+|--------|---------|------------|
+| (a) `as_any()` + `auth_type_name()` — 2 methods | Chosen | Adds minimal introspection over the as-built 1-method surface; `auth_type_name()` satisfies BC-2.01.016's `auth_type()` semantic via a more idiomatic Rust name (returns `&'static str`, not a closed enum value, keeping the trait open to novel auth types). `as_any()` is already in live code and is required for downcasting in plugin dispatch. Net delta from as-built code: add one method. |
+| (b) `as_any()` only — 1 method | Rejected | Satisfies current code but leaves BC-2.01.016 §Preconditions without a matching introspection method. Auth-type information would live only on the concrete type, not on the trait object — making dynamic dispatch unable to log or validate auth type without an unchecked downcast. |
+| (c) `sensor_id()` + `auth_type()` + `build_request_auth()` — 3 methods | Rejected | BC-2.01.016 names these methods, but `sensor_id()` on a credential type conflates identity and auth — a credential should not know which sensor it belongs to (the sensor spec owns that binding). `build_request_auth()` implies the trait is responsible for HTTP request construction, which belongs to the adapter layer, not the credential. This surface would embed adapter-layer logic in the credential type. |
+
+**Decision: 2-method trait (option a).** `auth_type_name()` bridges BC-2.01.016's introspection requirement with correct Rust idiom. PO aligns BC-2.01.016 §Preconditions to name `auth_type_name()` (not `auth_type()`) as the required method — this is a naming alignment, not a semantic change.
 
 ### D2 — Keep existing internal impls unchanged
 
@@ -165,35 +178,6 @@ returns `&dyn SensorAuth`. No generics-based monomorphization is required or des
 - `Box<dyn SensorAuth>` matches the existing `Box<dyn CustomAdapter>` dispatch pattern
   already in the codebase; no new patterns introduced.
 
-### D7 — WriteToolInvalidationMap container type: RwLock<Vec<...>> (no OnceLock)
-
-`WriteToolInvalidationMap` in `crates/prism-query/src/invalidation.rs` (TD-A-003 closure) uses
-`std::sync::RwLock<Vec<WriteToolInvalidationMap>>` initialized at program start as
-`RwLock::new(Vec::new())`. **No `OnceLock<RwLock<...>>` wrapper is needed.**
-
-Boot-step rationale (ADR-022 §B, step table): plugin-load is step 7.5 (BLOCKING); query-engine
-init is step 8 (BLOCKING); MCP traffic is gated until step 8 completes. Write calls
-(`register_write_tool`) happen exclusively during step 7.5 plugin-load. Read calls (invalidation
-check on the query hot path) happen only during step 8+ query execution. The write window is
-fully closed before any reader can acquire a read guard — the ADR-022 boot ordering enforces
-this at the structural level. There is no initialization-race risk that `OnceLock` would
-resolve: the `RwLock` is fully initialized at binary start before any thread acquires it.
-
-`OnceLock<RwLock<...>>` would be warranted only if lazy initialization were needed (e.g., the
-container must not allocate until first use). For a boot-time-written, query-time-read structure,
-eager initialization with `RwLock::new(Vec::new())` is simpler, more readable, and avoids the
-`OnceLock::get_or_init` unwrap pattern that can panic if called before init in test contexts.
-
-**API:** `pub fn register_write_tool(entry: WriteToolInvalidationMap)` acquires `RwLock::write()`,
-pushes the entry, and releases the guard. All read-side callers use `RwLock::read().unwrap()`
-(infallible if no writer panics while holding the lock; boot-phase write calls are synchronous
-and non-panicking by production-grade default). A `WARN`-level tracing event is emitted if
-`register_write_tool` is called after step 8 starts (detected via an `AtomicBool` query-phase
-flag set by the query engine init).
-
-Anchor: ADR-022 §B step 7.5 (plugin-load before query-engine init). BC-2.16.012 postcondition
-INV-INVALIDATION-EXT-001 (TD-A-003 closure). S-PLUGIN-PREREQ-E AC-9.
-
 ### D6 — #[non_exhaustive] and pub visibility
 
 `SensorAuth` is `pub` in `prism-sensors`, accessible from any crate in the workspace and
@@ -210,6 +194,61 @@ This constraint is documented in the `SensorAuth` trait doc comment.
   an incorrect concrete type from `as_any()` produce a failed downcast (`None`), not UB.
 - `SensorAuth: 'static` is required because auth credentials are stored in `Arc<dyn SensorAuth>`
   and must outlive the token-acquisition call stack.
+
+### D7 — WriteToolInvalidationMap container type: RwLock<Vec<...>> (no OnceLock); error-on-duplicate registration
+
+`WriteToolInvalidationMap` in `crates/prism-query/src/invalidation.rs` (TD-S-PLUGIN-PREREQ-A-003 closure) uses
+`std::sync::RwLock<Vec<WriteToolInvalidationMap>>` initialized at program start as
+`RwLock::new(Vec::new())`. **No `OnceLock<RwLock<...>>` wrapper is needed.**
+
+Boot-step rationale (ADR-022 §B, step table): plugin-load is step 7.5 (BLOCKING); query-engine
+init is step 8 (BLOCKING); MCP traffic is gated until step 8 completes. Write calls
+(`register_write_tool`) happen exclusively during step 7.5 plugin-load. Read calls (invalidation
+check on the query hot path) happen only during step 8+ query execution. The write window is
+fully closed before any reader can acquire a read guard — the ADR-022 boot ordering enforces
+this at the structural level. There is no initialization-race risk that `OnceLock` would
+resolve: the `RwLock` is fully initialized at binary start before any thread acquires it.
+
+`OnceLock<RwLock<...>>` would be warranted only if lazy initialization were needed (e.g., the
+container must not allocate until first use). For a boot-time-written, query-time-read structure,
+eager initialization with `RwLock::new(Vec::new())` is simpler, more readable, and avoids the
+`OnceLock::get_or_init` unwrap pattern that can panic if called before init in test contexts.
+
+**API:**
+
+```rust
+pub fn register_write_tool(entry: WriteToolInvalidationMap) -> Result<(), SpecEngineError>
+```
+
+Acquires `RwLock::write()`, checks for an existing entry with the same `tool_name`, and either:
+- Returns `Err(SpecEngineError::DuplicateWriteToolRegistration(tool_name))` if a duplicate
+  is found (F-LP1-MED-002 resolution — error-on-duplicate, not last-writer-wins).
+- Pushes the entry and releases the guard on success.
+
+**Rationale for error-on-duplicate (not last-writer-wins):** A duplicate `tool_name` at
+boot-load time indicates two plugins declaring the same write-tool capability — this is a plugin
+manifest authoring error, not a valid runtime condition. Silent last-writer-wins would mask
+the conflict and result in one plugin's invalidation entries never firing. Failing loudly at
+plugin-load (step 7.5, before MCP traffic) is the correct production-grade default: the
+operator sees the error before any query is served. A `tool_name`-keyed uniqueness invariant
+is also simpler to reason about in VP-156 proptest coverage.
+
+**Error code routing:** `SpecEngineError::DuplicateWriteToolRegistration` is a new variant in
+the `SpecEngineError` enum (prism-spec-engine). The corresponding `E-PLUGIN-001` error code
+(namespace: E-PLUGIN-NNN) MUST be added to `.factory/specs/prd-supplements/error-taxonomy.md`
+by the product-owner. Semantics: "Plugin declared a write tool name that is already registered
+by another plugin; registration rejected." This is a PO-domain handoff: PO authors the taxonomy
+row; implementer adds the `SpecEngineError::DuplicateWriteToolRegistration(String)` variant.
+
+All read-side callers use `RwLock::read().unwrap()` (infallible if no writer panics while holding
+the lock; boot-phase write calls are synchronous and non-panicking by production-grade default).
+A `WARN`-level tracing event is emitted if `register_write_tool` is called after step 8 starts
+(detected via an `AtomicBool` query-phase flag set by the query engine init) — this path returns
+`Err(SpecEngineError::WriteToolRegistrationAfterBoot)` instead of attempting the write.
+
+Anchor: ADR-022 §B step 7.5 (plugin-load before query-engine init). BC-2.16.012 postcondition
+INV-INVALIDATION-EXT-001 (TD-S-PLUGIN-PREREQ-A-003 closure). S-PLUGIN-PREREQ-E AC-9. VP-156 (proptest coverage
+for uniqueness semantics and happens-before invariant).
 
 ---
 
@@ -300,7 +339,7 @@ modes and security implications. The open trait approach reuses the existing typ
 ## Source / Origin
 
 - ADR-023 Rule 2 — SensorAuth Trait Un-Sealing (mandate for this decision)
-- ADR-023 §C5 — PLUGIN-PREREQ-E scope (three dead-code call sites)
+- ADR-023 §Architectural Constraints (C5 bullet) — PLUGIN-PREREQ-E scope (three dead-code call sites)
 - `crates/prism-sensors/src/auth/mod.rs` — sealed trait current implementation
 - `crates/prism-spec-engine/src/custom_adapter.rs` — `CustomAuth` placeholder duplicate
 - PLUGIN-AUDIT-001 (2026-05-10) — surfaced the sealed-trait / CustomAuth duplication
@@ -319,7 +358,7 @@ modes and security implications. The open trait approach reuses the existing typ
 
 | ADR | Relationship |
 |-----|-------------|
-| **ADR-023** | This ADR is the detailed specification of ADR-023 Rule 2 / Constraint C5 for SensorAuth unsealing |
+| **ADR-023** | This ADR is the detailed specification of ADR-023 Rule 2 / Architectural Constraints (C5 bullet) for SensorAuth unsealing |
 | **ADR-022** | Boot sequence — SensorAuth-implementing types are wired via PluginRuntime at boot step 7.5 |
 | **ADR-027** | CustomAdapter retirement — complements this ADR by specifying the deprecation/deletion pathway |
 
@@ -331,3 +370,4 @@ modes and security implications. The open trait approach reuses the existing typ
 |---------|------|--------|--------|
 | 1.0 | 2026-05-15 | architect | Initial proposal — SensorAuth unsealing design for S-PLUGIN-PREREQ-E |
 | 1.1 | 2026-05-15 | architect | Q1 resolution: add D7 (WriteToolInvalidationMap RwLock<Vec<...>> — no OnceLock; boot-step 7.5 contract cited). Q2 resolution: add BC-2.01.016 as primary VP-153 BC anchor; BC-2.01.013 noted as parent pattern; no amendment to BC-2.01.013 in PREREQ-E. Q3 resolution: D3 revised to assign E-SPEC-012/013/014 for auth-type rejection rules; E-SPEC-010 collision documented; error-taxonomy amendment routed to PO. §Source/Origin amended to reference BC-2.01.016. |
+| 1.2 | 2026-05-15 | architect | prereq-e-fix-burst-1: F-LP1-HIGH-001: D1 trait method trilemma resolved — 2-method surface (as_any + auth_type_name) chosen over 1-method (as-built) and 3-method (BC suggestion); explicit trilemma table added to D1. D1 doc comment rewritten — "Sealed authentication credential" replaced with "Authentication credential for a sensor adapter (open trait — plugin-implementable per ADR-026)" (F-LP1-LOW-001). F-LP1-HIGH-002: phantom runtime_deliverable "Remove #[non_exhaustive] seal-workaround doc comments" deleted (grep confirms zero non_exhaustive refs in auth/mod.rs). F-LP1-MED-002: D7 expanded with error-on-duplicate register_write_tool semantics — returns Err(SpecEngineError::DuplicateWriteToolRegistration(tool_name)); E-PLUGIN-001 code routed to PO error-taxonomy; WriteToolRegistrationAfterBoot variant documented. F-LP1-LOW-002: D7 (added in v1.1) reordered to appear after D6, restoring D1..D7 sequential file order. VP-156 (proptest, P1) added as anchor for D7 uniqueness coverage. PO co-changes (same burst): F-LP1-MED-004 closure — two TD-A-003 alias citations in D7 corrected to TD-S-PLUGIN-PREREQ-A-003; F-LP1-HIGH-003 — two §C5 phantom-heading citations corrected to §Architectural Constraints (C5 bullet) in §Source/Origin and §Related ADRs table. |

@@ -1,7 +1,7 @@
 ---
 document_type: behavioral-contract
 level: L3
-version: "1.1"
+version: "1.2"
 status: draft
 producer: product-owner
 timestamp: 2026-05-15T00:00:00
@@ -10,7 +10,7 @@ origin: greenfield
 subsystem: "SS-16"
 capability: "CAP-029"
 lifecycle_status: draft
-introduced: S-PLUGIN-PREREQ-E
+introduced: "2026-05-15"
 modified: "2026-05-15"
 deprecated: ~
 deprecated_by: ~
@@ -53,7 +53,7 @@ re-export or exercise `CustomAdapter` in `lib.rs`, `examples/demo_spec_loading.r
 - `S-PLUGIN-PREREQ-F` has confirmed that `prism-spec-engine` has never been published to
   crates.io with `CustomAdapter` in its public API surface (PLUGIN-AUDIT-001 HIGH-3). No
   external deprecation period is required before removal.
-- The three confirmed live call sites (verified by grep in ADR-023 §C5) are:
+- The three confirmed live call sites (verified by grep in ADR-023 §Architectural Constraints (C5 bullet)) are:
   1. `crates/prism-spec-engine/src/lib.rs` — `pub use custom_adapter::*` re-export
   2. `crates/prism-spec-engine/examples/demo_spec_loading.rs` — demo file that exercises the registry
   3. `crates/prism-spec-engine/tests/bc_2_16_004_test.rs` — BC test for the deprecated behavior
@@ -171,7 +171,7 @@ Byte-identical comparison would create timestamp-driven flakiness in CI. Semanti
 - `crates/prism-spec-engine/src/lib.rs` — re-export removal site
 - `crates/prism-spec-engine/examples/demo_spec_loading.rs` — example cleanup site
 - `crates/prism-spec-engine/tests/bc_2_16_004_test.rs` — test deletion site
-- ADR-023 §C5 Rule 5 — authoritative CustomAdapter retirement specification
+- ADR-023 §Architectural Constraints (C5 bullet, Rule 5) — authoritative CustomAdapter retirement specification
 - ADR-027 — CustomAdapter deprecation/removal architectural decision; §D3 defines compile-fail perimeter (VP-155) and §D5 defines PluginRuntime behavioral equivalence requirement (VP-154)
 
 ## Story Anchor
@@ -197,5 +197,7 @@ S-PLUGIN-PREREQ-E
 
 | Version | Burst | Date | Author | Change |
 |---------|-------|------|--------|--------|
+| 1.2 | S-PLUGIN-PREREQ-E-fix-burst-1 | 2026-05-15 | product-owner | F-LP1-HIGH-003 closure: Three §C5 phantom-heading citations corrected per POL-21 — `ADR-023 §C5` → `ADR-023 §Architectural Constraints (C5 bullet)` and `ADR-023 §C5 Rule 5` → `ADR-023 §Architectural Constraints (C5 bullet, Rule 5)`. ADR-023 has no `## C5` heading; C5 is a bold-labeled bullet inside `## Architectural Constraints`. |
+| 1.2 | fix-burst-1 state-manager catch | 2026-05-15 | state-manager | (state-manager catch in fix-burst-1) F-LP1-HIGH-004 POL-20: introduced field canonicalized to ISO date 2026-05-15. Prior value `S-PLUGIN-PREREQ-E` was story-ID format; POL-20 requires `YYYY-MM-DD` for artifacts created outside greenfield cycles. |
 | 1.1 | S-PLUGIN-PREREQ-E-reconciliation | 2026-05-15 | product-owner | Q3 resolution: Added §VP-154 Fixture Acceptance Criterion with canonical OCSF Detection Finding 2004 schema (required fields: type_uid/class_uid/category_uid/severity_id/severity/time/message/finding_info.uid/raw_data), count threshold (>= 1 record), and behavioral equivalence definition (semantic equality on stable fields — not byte-identical, to avoid timestamp-driven flakiness). VP-154 and VP-155 added to §Verification Properties and §VP Anchors. ADR-027 architecture anchor added. |
-| 1.0 | S-PLUGIN-PREREQ-E-authoring | 2026-05-15 | product-owner | Initial draft. Operationalizes ADR-023 §C5 Rule 5 CustomAdapter Rust trait retirement. Supersedes BC-2.16.004 (deprecated in PREREQ-F, now removed). |
+| 1.0 | S-PLUGIN-PREREQ-E-authoring | 2026-05-15 | product-owner | Initial draft. Operationalizes ADR-023 §Architectural Constraints (C5 bullet, Rule 5) CustomAdapter Rust trait retirement. Supersedes BC-2.16.004 (deprecated in PREREQ-F, now removed). |

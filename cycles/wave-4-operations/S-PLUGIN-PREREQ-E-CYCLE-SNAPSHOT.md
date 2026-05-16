@@ -80,3 +80,49 @@ Phase 1d adversarial spec review dispatch:
 - Protocol: BC-5.39.001 3-CLEAN (minimum 3 consecutive clean adversary passes)
 - Rubric: policies.yaml 25-POL + production-grade default
 - Precedent: PREREQ-D used 43 passes + 11 impl-passes; PREREQ-E spec package is smaller scope
+
+---
+
+## §D575 FIX-BURST-1 CLOSURE (D-575)
+
+**D-575 COMPLETE — PREREQ-E ADVERSARY PASS-1 FIX-BURST-1 CLOSED.**
+
+**Trajectory:** pass-1: 14 (1C+4H+5M+2L+2OBS) → FIX-BURST-1 CLOSED 12/12 in-scope + 1 state-manager catch (F-LP1-HIGH-004 POL-20 on 7 files) + 2 OBS queued cycle-close. **Streak 0/3.**
+
+### Finding Disposition
+
+| ID | Severity | Closed By | Summary |
+|----|----------|-----------|---------|
+| F-LP1-CRIT-001 | CRITICAL | architect | VP-154 schema: 3-field → 9-field OCSF 2004 Detection Finding canonical |
+| F-LP1-HIGH-001 | HIGH | product-owner | D1 trait surface: 3-method → 2-method (as_any + auth_type_name) per ADR-026 |
+| F-LP1-HIGH-002 | HIGH | architect | ADR-026 phantom runtime_deliverable entity removed |
+| F-LP1-HIGH-003 | HIGH | PO+architect | 18 §C5 phantom-heading citations → §Architectural Constraints (C5 bullet) per POL-21 |
+| F-LP1-HIGH-004 | HIGH | state-manager | POL-20: 7 files introduced field → "2026-05-15" ISO date |
+| F-LP1-MED-001 | MEDIUM | product-owner | E-SPEC-008 retirement annotation path-a; error-taxonomy v1.25→v1.26 |
+| F-LP1-MED-002 | MEDIUM | architect | ADR-026 D7: error-on-duplicate semantics; ADR-026 v1.1→v1.2 |
+| F-LP1-MED-003 | MEDIUM | architect | VP-156 authored (proptest P1); VP-INDEX v1.38→v1.39 |
+| F-LP1-MED-004 | MEDIUM | product-owner | 11 TD-A-003 → TD-S-PLUGIN-PREREQ-A-003 alias sweep |
+| F-LP1-MED-005 | MEDIUM | product-owner | Red Gate test 2 phrasing clarified |
+| F-LP1-LOW-001 | LOW | product-owner | as_any() doc comment behavioral purpose added |
+| F-LP1-LOW-002 | LOW | architect | ADR-026 D6/D7 reordered by dependency hierarchy |
+| F-LP1-OBS-001 | OBS | — | [QUEUED-CYCLE-CLOSE] POL-22 Phase C named-entity-existence gap |
+| F-LP1-OBS-002 | OBS | — | [QUEUED-CYCLE-CLOSE] POL-25 VP↔BC bidirectional sweep gap |
+
+### Artifact Versions After Fix-Burst-1
+
+| Artifact | Version |
+|----------|---------|
+| ADR-026 | v1.2 |
+| BC-2.01.016 | v1.2 |
+| BC-2.16.011 | v1.2 |
+| BC-2.16.012 | v1.2 |
+| VP-154 | v0.4 |
+| VP-156 (NEW) | v0.1 |
+| VP-INDEX | v1.39 (156 VPs) |
+| error-taxonomy | v1.26 |
+| STATE + HANDOFF | v7.280 |
+
+### Next Step
+
+Adversary pass-2 dispatch (fresh-context). BC-5.39.001 3-CLEAN protocol — streak 0/3.
+Pass-1 report: `cycles/wave-4-operations/adversarial-reviews/S-PLUGIN-PREREQ-E-spec-pass-1.md`

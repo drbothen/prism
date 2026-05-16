@@ -22,7 +22,7 @@ verification_lock: false
 proof_completed_date: null
 proof_file_hash: null
 lifecycle_status: draft
-introduced: plugin-prereq-e
+introduced: "2026-05-15"
 modified: []
 deprecated: null
 deprecated_by: null
@@ -136,3 +136,4 @@ adds the compile-fail files → CI count assertion is updated in the same commit
 | Version | Burst | Date | Author | Notes |
 |---------|-------|------|--------|-------|
 | 0.1 | plugin-prereq-e-adr-burst | 2026-05-15 | architect | Initial stub. Traces to ADR-027 D3. Two compile-fail files required (CustomAdapter + CustomAdapterRegistry). Catalog grows from 9 to 11. Authoring in PLUGIN-MIGRATION-001-A scope; MUST sequence after PREREQ-E merge. Priority P0. |
+| 0.1 | fix-burst-1 state-manager catch | 2026-05-15 | state-manager | (state-manager catch in fix-burst-1) F-LP1-HIGH-004 POL-20: introduced field canonicalized to ISO date 2026-05-15. Prior value `plugin-prereq-e` was informal slug; POL-20 requires `YYYY-MM-DD` for artifacts created outside greenfield cycles. |

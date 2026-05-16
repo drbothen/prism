@@ -1,7 +1,7 @@
 ---
 document_type: verification-property
 level: L4
-version: "0.3"
+version: "0.4"
 status: draft
 producer: architect
 timestamp: 2026-05-15T00:00:00Z
@@ -9,6 +9,7 @@ phase: prereq-e
 inputs:
   - .factory/specs/architecture/decisions/ADR-027-custom-adapter-deprecation-removal.md
   - .factory/specs/architecture/decisions/ADR-023-plugin-only-sensor-architecture.md
+  - .factory/specs/behavioral-contracts/BC-2.16.011-customadapter-rust-trait-retirement.md
 input-hash: "[pending-recompute]"
 traces_to: .factory/specs/architecture/decisions/ADR-027-custom-adapter-deprecation-removal.md
 source_bc: BC-2.16.011
@@ -23,7 +24,7 @@ verification_lock: false
 proof_completed_date: null
 proof_file_hash: null
 lifecycle_status: draft
-introduced: plugin-prereq-e
+introduced: "2026-05-15"
 modified: []
 deprecated: null
 deprecated_by: null
@@ -60,45 +61,54 @@ for the non-declarative escape hatch use case.
 
 ## Acceptance Criteria
 
-BC-2.16.011 does not specify a record schema for behavioral equivalence — it specifies grep gates
-and build gates only. This VP defines the minimal acceptance schema for the WASM override path:
+**Authoritative schema source: BC-2.16.011 §VP-154 Fixture Acceptance Criterion (imported verbatim).**
 
-**Minimum record schema (OCSF-normalized, one event per record):**
+BC-2.16.011 v1.1 (S-PLUGIN-PREREQ-E-reconciliation, 2026-05-15) defines the canonical schema
+that the integration test fixture MUST produce. That criterion is the single source of truth;
+this VP imports it here to prevent drift (F-LP1-CRIT-001 resolution).
 
-```json
-{
-  "id": "<string — unique event ID from the fixture plugin>",
-  "occurred_at": "<RFC 3339 timestamp string — e.g. '2026-01-01T00:00:00Z'>",
-  "raw": "<JSON object — arbitrary plugin-returned fields, may be empty {}>"
-}
-```
-
-The behavioral-equivalence integration test (`VP-154 harness`) asserts:
-- `records.len() >= 1` (non-empty; WASM override returned at least one record)
-- `records[0]["id"]` is a non-empty string
-- `records[0]["occurred_at"]` is parseable as RFC 3339
-- `records[0]["raw"]` is a JSON object (not null, not string)
-
-These three fields (`id`, `occurred_at`, `raw`) are the OCSF base-event fields that all sensor
-adapters normalize to (per OCSF + protobuf shapes per project core architecture). The fixture
-WASM plugin MUST return at least this shape. Additional OCSF fields (e.g., `class_uid`,
-`severity_id`, `type_uid`) are welcome but not required for the equivalence test.
-
-**Proposed fixture record (canonical test vector):**
+**Canonical OCSF Detection Finding (class 2004) record schema — fixture MUST conform to:**
 
 ```json
 {
-  "id": "vp154-test-001",
-  "occurred_at": "2026-01-01T00:00:00Z",
-  "raw": {"source": "minimal_sensor_fetch_fixture", "event": "mock_event"}
+  "type_uid":        2004001,
+  "class_uid":       2004,
+  "category_uid":    2,
+  "severity_id":     3,
+  "severity":        "Medium",
+  "time":            "<RFC 3339 timestamp, e.g., 2026-05-15T00:00:00Z>",
+  "message":         "Mock sensor fetch result from WASM plugin fixture",
+  "finding_info": {
+    "uid": "test-001",
+    "title": "mock_event"
+  },
+  "raw_data":        "{\"source\": \"minimal_sensor_fetch.prx\", \"id\": \"test-001\"}"
 }
 ```
 
-**Routing note:** This schema is proposed by the architect (VP owner). The product-owner should
-confirm or amend the three-field minimum before the test-writer authors the fixture WASM. If no
-amendment arrives before test-writer dispatch, the three-field schema above is the binding
-acceptance criterion per production-grade default (the architect's proposal holds; PO
-confirmation is courteous, not blocking).
+**Required fields (9):** `type_uid`, `class_uid`, `category_uid`, `severity_id`, `severity`,
+`time`, `message`, `finding_info.uid`, `raw_data`. The `raw_data` field carries the
+fixture-specific payload as a JSON-encoded string per the OCSF `raw_data` convention.
+
+**Count threshold:** The integration test asserts `records.len() >= 1` (at least one record per
+plugin-hook invocation when the `.prx` fixture is loaded and `PipelineExecutor::execute` is
+issued for the mock sensor).
+
+**Behavioral equivalence definition (semantic, not byte-identical):**
+The `time` field varies per invocation; byte-identical comparison would produce flaky CI.
+The harness asserts semantic equality on stable fields:
+1. `records[0]["finding_info"]["uid"]` == `"test-001"` (fixture-controlled stable ID)
+2. `records[0]["class_uid"]` == `2004` (Detection Finding class)
+3. `records[0]["severity_id"]` is a valid OCSF integer (1–5 or 99)
+4. `records.len() >= 1`
+
+The fixture SHOULD emit a hardcoded timestamp (`"2026-01-01T00:00:00Z"`) to allow an optional
+byte-identical CI mode. This is consistent with BC-2.16.011 §VP-154 Fixture Acceptance
+Criterion (count threshold + behavioral equivalence definition subsections).
+
+**Relationship to HS-PREREQ-E-002-04:** The holdout scenario HS-PREREQ-E-002-04 already follows
+the BC-2.16.011 9-field schema. This VP is now aligned with both BC-2.16.011 and the holdout
+scenario. No field-set contradiction remains.
 
 ## Source Contract
 
@@ -159,11 +169,17 @@ Its priority is P1 (not blocking PREREQ-E delivery) but it MUST pass before Wave
 //     let executor = PipelineExecutor::new_for_test(Arc::new(runtime));
 //     let result = executor.execute(&spec, &FetchContext::default()).await;
 //
-//     // 5. Assert behavioral equivalence to CustomAdapter::override_fetch returning Some(records)
+//     // 5. Assert behavioral equivalence: semantic equality on stable fields (BC-2.16.011 §VP-154)
 //     let records = result.expect("execution must succeed");
 //     assert!(!records.is_empty(), "WASM override path must return non-empty records (VP-154)");
-//     assert_eq!(records[0]["id"], "test-001",
-//         "WASM override must return the fixture plugin's records (VP-154)");
+//     // Required OCSF 2004 Detection Finding fields (BC-2.16.011 §VP-154 Fixture Acceptance Criterion)
+//     assert_eq!(records[0]["class_uid"], 2004,
+//         "WASM override must return OCSF class_uid=2004 Detection Finding (VP-154)");
+//     assert_eq!(records[0]["finding_info"]["uid"], "test-001",
+//         "WASM override must return fixture-controlled stable ID (VP-154)");
+//     let severity_id = records[0]["severity_id"].as_i64().expect("severity_id must be integer");
+//     assert!((1..=5).contains(&severity_id) || severity_id == 99,
+//         "severity_id must be valid OCSF integer 1-5 or 99 (VP-154)");
 // }
 //
 // #[tokio::test]
@@ -210,3 +226,5 @@ owns the fixture authoring.
 | 0.1 | plugin-prereq-e-adr-burst | 2026-05-15 | architect | Initial stub. Traces to ADR-027 D3/D5 and ADR-023 Rule 5. Harness skeleton provided; full authoring deferred to PLUGIN-MIGRATION-001-A (requires PREREQ-B + PREREQ-D merged). Priority P1 — does not block PREREQ-E gate but must pass before Wave 1/A closes. |
 | 0.2 | plugin-prereq-e-cross-review | 2026-05-15 | architect | Q4 resolution: BC-2.16.011 does not specify a record schema for behavioral equivalence (grep/build gates only). Architect proposes minimal three-field OCSF schema (id, occurred_at, raw) as the acceptance criterion per production-grade default. §Acceptance Criteria section added. Routing note to PO for confirmation before test-writer dispatch. |
 | 0.3 | plugin-prereq-e-spec-gate | 2026-05-15 | architect | source_bc anchor set to BC-2.16.011 (bidirectional traceability fix; consistency-validator D-574 invariant 10). §Source Contract rewritten to lead with BC-2.16.011 as the owning contract; ADR-027/ADR-023 and companion VP-147 remain as supporting references. |
+| 0.4 | prereq-e-fix-burst-1 | 2026-05-15 | architect | F-LP1-CRIT-001 resolution: §Acceptance Criteria completely rewritten to import BC-2.16.011 §VP-154 Fixture Acceptance Criterion verbatim. Old 3-field schema (id/occurred_at/raw) replaced by the canonical OCSF 2004 Detection Finding 9-field schema (type_uid/class_uid/category_uid/severity_id/severity/time/message/finding_info.uid/raw_data). Proof harness skeleton updated to assert class_uid=2004, finding_info.uid="test-001", and valid severity_id range — aligning with BC-2.16.011 behavioral equivalence definition (semantic not byte-identical). BC-2.16.011 added to inputs frontmatter. |
+| 0.4 | fix-burst-1 state-manager catch | 2026-05-15 | state-manager | (state-manager catch in fix-burst-1) F-LP1-HIGH-004 POL-20: introduced field canonicalized to ISO date 2026-05-15. Prior value `plugin-prereq-e` was informal slug; POL-20 requires `YYYY-MM-DD` for artifacts created outside greenfield cycles. |

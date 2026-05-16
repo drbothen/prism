@@ -1,14 +1,14 @@
 ---
 document_type: verification-property-index
 level: L4
-version: "1.38"
+version: "1.39"
 status: draft
 producer: product-owner
 timestamp: 2026-05-11T00:00:00
 phase: 2-patch
 inputs: [architecture/verification-architecture.md]
 traces_to: architecture/ARCH-INDEX.md
-total_vps: 155
+total_vps: 156
 ---
 
 # Verification Property Index: Prism
@@ -175,6 +175,7 @@ total_vps: 155
 | VP-153 | SensorAuth runtime cross-composition prevention (DI-012 runtime replacement): all invalid (auth_type, credential_type) pairs rejected at spec-load time; error messages redact credential values | prism-spec-engine | proptest | P0 | draft | S-PLUGIN-PREREQ-E |
 | VP-154 | CustomAdapter behavioral equivalence: PluginRuntime WASM dispatch produces non-empty records matching plugin fixture output; TOML fallthrough when no plugin registered | prism-spec-engine | integration_test | P1 | draft | PLUGIN-MIGRATION-001-A |
 | VP-155 | CustomAdapter absent from prism-spec-engine public API: compile-fail perimeter asserts CustomAdapter and CustomAdapterRegistry are unimportable post-PREREQ-E | prism-spec-engine | integration_test | P0 | draft | PLUGIN-MIGRATION-001-A |
+| VP-156 | WriteToolInvalidationMap registration uniqueness + happens-before: duplicate tool_name returns Err(DuplicateWriteToolRegistration); successful registration always visible on next RwLock read | prism-query | proptest | P1 | draft | S-PLUGIN-PREREQ-E |
 
 ## VP-PLUGIN-001..007 Named Series (PREREQ-F Registration, ADR-023 §Architectural Constraints)
 
@@ -197,13 +198,13 @@ F-PASS3-HIGH-001. The numeric VP-146..VP-152 entries above are the sequential in
 | Method | Count | P0 | P1 |
 |--------|-------|----|----|
 | Kani | 30 | 23 | 7 |
-| Proptest | 87 | 66 | 21 |
+| Proptest | 88 | 66 | 22 |
 | Unit test | 4 | 4 | 0 |
 | Fuzz | 6 | 5 | 1 |
 | Integration test | 28 | 25 | 4 |
-| **Total** | **155** | **123** | **33** |
+| **Total** | **156** | **123** | **34** |
 
-> Note: VP-PLUGIN-001..007 are named aliases for VP-146..VP-152; they do not add to the sequential count. Total sequential VPs is 155 (VP-153, VP-154, VP-155 added for S-PLUGIN-PREREQ-E in burst 2026-05-15).
+> Note: VP-PLUGIN-001..007 are named aliases for VP-146..VP-152; they do not add to the sequential count. Total sequential VPs is 156 (VP-153, VP-154, VP-155 added for S-PLUGIN-PREREQ-E in burst 2026-05-15; VP-156 added in prereq-e-fix-burst-1 2026-05-15).
 
 ### Phase 3-Patch Addition (2026-04-16, Burst 2.5)
 
@@ -234,6 +235,8 @@ S-1.02 frontmatter has been updated to `subsystems: [SS-03, SS-07, SS-11, SS-12,
 
 | Version | Burst | Date | Author | Change |
 |---------|-------|------|--------|--------|
+| 1.39 | prereq-e-fix-burst-1 | 2026-05-15 | architect | F-LP1-MED-003 resolution: VP-156 (WriteToolInvalidationMap registration uniqueness + happens-before, proptest P1, module: prism-query, anchor: S-PLUGIN-PREREQ-E) added to main Properties table. BC-2.16.012 §VP Anchors "(none in this story)" coverage gap closed. Summary table: Proptest 87→88, Total VPs 155→156, P1 33→34. Sequential count note updated to 156. total_vps frontmatter updated 155→156. |
+| 1.38 | PREREQ-E-ADR-burst | 2026-05-15 | state-manager | Frontmatter version bumped 1.37→1.38 to record PREREQ-E ADR burst: VP-153 (proptest P0), VP-154 (integration_test P1), VP-155 (integration_test P0) added. Changelog row was missing from v1.38 — backfilled here at v1.39 to maintain contiguous history. Corresponding content changes were applied in that burst (main table rows 175-177, summary table 152→155 total, P0 120→123, P1 32→33, named-alias note updated). |
 | 1.37 | fix-burst-36 | 2026-05-14 | state-manager | (D-539) F-LP38-MED-001 closure: v1.36 + v1.35 changelog rows rewritten to canonical 5-col schema (Burst column restored; D-NNN folded into Change cell). 2nd cascade recurrence of §Changelog schema-corruption META-class (1st: F-LP34-HIGH-001 story rows). Root cause: orchestrator dispatch prompt templates prescribed incorrect row format. OBS-LP38-001 POL-26 codification candidate (§Changelog schema-integrity validator) routed cycle-close. |
 | 1.36 | fix-burst-35 | 2026-05-14 | state-manager | (D-538) F-LP37-MED-001 closure: VP-PLUGIN-007 row line 190 description rewritten from "rejected at load time per AC-7 default-deny" to "rejected at load time per AC-5 manifest gate (default-deny consumer is AC-7)" — 4th-cascade sibling-document propagation sweep (bursts 32→33→34→37); restores canonical AC-5 manifest gate anchor matching BC-2.17.007:138/161 (post fix-burst-34). OBS-LP37-001 strengthens POL-25 candidate to HIGH-priority cycle-close codification. |
 | 1.35 | fix-burst-32 | 2026-05-14 | state-manager | (D-533) F-LP34-LOW-001 closure: VP-152 + VP-PLUGIN-007 descriptions rewritten from pre-AC-7 "not-None" Option-semantics to post-AC-7 "explicit Vec<String> under default-deny" semantic; reflects AC-7 + AC-17 type-system contract change (Option<Vec<String>> → Vec<String>). Cross-document propagation: story §References:1034 mirror updated same-burst per POL-9. |

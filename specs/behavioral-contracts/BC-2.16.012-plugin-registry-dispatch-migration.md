@@ -1,7 +1,7 @@
 ---
 document_type: behavioral-contract
 level: L3
-version: "1.0"
+version: "1.2"
 status: draft
 producer: product-owner
 timestamp: 2026-05-15T00:00:00
@@ -10,7 +10,7 @@ origin: greenfield
 subsystem: "SS-16"
 capability: "CAP-029"
 lifecycle_status: draft
-introduced: S-PLUGIN-PREREQ-E
+introduced: "2026-05-15"
 modified: "2026-05-15"
 deprecated: ~
 deprecated_by: ~
@@ -50,7 +50,7 @@ sensors; the change is structural (open dispatch replaces closed match).
   `match sensor_type { SensorType::X => ... }` dispatch arms at these sites have already
   been converted to `match sensor_id.as_ref() { "x" => ... }` string-match arms.
 - The spec_parser call sites are confirmed to be ZERO `CustomAdapter`/`CustomAdapterRegistry`
-  references (verified by grep in ADR-023 §C5 F-CRIT-NEW-001-PASS2-RESIDUAL): no
+  references (verified by grep in ADR-023 §Architectural Constraints (C5 bullet) F-CRIT-NEW-001-PASS2-RESIDUAL): no
   `CustomAdapter` removal is needed from `spec_parser.rs` itself — only registry dispatch
   migration applies here.
 - The `PluginRegistry` (or `AdapterRegistry`) provides a `lookup(sensor_id: &SensorId)`
@@ -77,7 +77,7 @@ sensors; the change is structural (open dispatch replaces closed match).
   prohibited.
 - The `WriteToolInvalidationMap` in `crates/prism-query/src/invalidation.rs` is migrated from
   a static `LazyLock<Vec<...>>` to a `RwLock<Vec<WriteToolInvalidationMap>>` (or equivalent
-  runtime-extensible container) with a `register_write_tool(entry)` API, closing TD-A-003.
+  runtime-extensible container) with a `register_write_tool(entry)` API, closing TD-S-PLUGIN-PREREQ-A-003.
   This enables plugin-registered write tools to participate in cache invalidation at runtime
   rather than requiring a compile-time list update. The registration API is called by
   `PluginRuntime` when a plugin declares write-tool capabilities in its manifest.
@@ -87,7 +87,7 @@ sensors; the change is structural (open dispatch replaces closed match).
 - **INV-SPEC-PARSER-OPEN-001:** After this story merges, `grep -rn "match.*sensor_id.*\"crowdstrike\"\|match.*sensor_id.*\"cyberint\"" crates/prism-spec-engine/src/spec_parser.rs` returns ZERO matches. The dispatch is open (registry or generic) not closed (hardcoded match).
 - **INV-SPEC-PARSER-OPEN-002:** Behavioral equivalence for the four initial sensors: parsing `crowdstrike.sensor.toml`, `cyberint.sensor.toml`, `claroty.sensor.toml`, and `armis.sensor.toml` produces `SensorSpec` structs byte-identical to those produced by the pre-migration code. Verified by the behavioral-equivalence integration test (TV-BC-2.16.012-003).
 - **INV-SPEC-PARSER-OPEN-003:** An unrecognized sensor name (not in the registry and not one of the four built-in names) is parsed generically: the spec file is parsed into a `SensorSpec` with whatever auth_type, tables, and columns the TOML declares. No hardcoded name-check gate rejects it.
-- **INV-INVALIDATION-EXT-001 (TD-A-003 closure):** After this story merges, `crates/prism-query/src/invalidation.rs` `WriteToolInvalidationMap` container is runtime-extensible: `register_write_tool(entry: WriteToolInvalidationMap)` is callable after startup. Plugins that register write tools in their manifest can invoke this API during boot-time plugin loading.
+- **INV-INVALIDATION-EXT-001 (TD-S-PLUGIN-PREREQ-A-003 closure):** After this story merges, `crates/prism-query/src/invalidation.rs` `WriteToolInvalidationMap` container is runtime-extensible: `register_write_tool(entry: WriteToolInvalidationMap)` is callable after startup. Plugins that register write tools in their manifest can invoke this API during boot-time plugin loading.
 
 ## Error Cases
 
@@ -120,7 +120,7 @@ sensors; the change is structural (open dispatch replaces closed match).
 
 | VP ID | Description |
 |-------|-------------|
-| (none in this story) | Behavioral equivalence is verified by integration test (TV-003). Open-dispatch is verified by grep gate (TV-001). Runtime-extensibility is verified by unit test (TV-004). No formal VP is required for this structural migration. |
+| VP-156 | WriteToolInvalidationMap registration uniqueness + happens-before (proptest P1). Verifies EC-016-012-004 resolved behavior (error-on-duplicate, per ADR-026 D7 v1.2) and INV-INVALIDATION-EXT-001 happens-before correctness. Authored in prereq-e-fix-burst-1 (F-LP1-MED-003). Behavioral equivalence and open-dispatch invariants remain verified by integration test (TV-003) and grep gate (TV-001). |
 
 ## Related BCs
 
@@ -132,8 +132,8 @@ sensors; the change is structural (open dispatch replaces closed match).
 ## Architecture Anchors
 
 - `crates/prism-spec-engine/src/spec_parser.rs` — primary migration target
-- `crates/prism-query/src/invalidation.rs` — `WriteToolInvalidationMap` runtime-extensibility target (TD-A-003)
-- ADR-023 §C5 Rule 5 scope note — confirms `spec_parser.rs` has zero `CustomAdapter` references; only open-dispatch migration applies
+- `crates/prism-query/src/invalidation.rs` — `WriteToolInvalidationMap` runtime-extensibility target (TD-S-PLUGIN-PREREQ-A-003)
+- ADR-023 §Architectural Constraints (C5 bullet, Rule 5) scope note — confirms `spec_parser.rs` has zero `CustomAdapter` references; only open-dispatch migration applies
 
 ## Story Anchor
 
@@ -141,7 +141,7 @@ S-PLUGIN-PREREQ-E
 
 ## VP Anchors
 
-(none in this story)
+- VP-156 (WriteToolInvalidationMap registration uniqueness + happens-before: duplicate tool_name returns Err(DuplicateWriteToolRegistration); successful registration always visible on next RwLock read; proptest P1; anchor: S-PLUGIN-PREREQ-E; authored in prereq-e-fix-burst-1 per F-LP1-MED-003 resolution)
 
 ## Traceability
 
@@ -157,4 +157,7 @@ S-PLUGIN-PREREQ-E
 
 | Version | Burst | Date | Author | Change |
 |---------|-------|------|--------|--------|
-| 1.0 | S-PLUGIN-PREREQ-E-authoring | 2026-05-15 | product-owner | Initial draft. Operationalizes ADR-023 §C5 spec_parser.rs call-site migration + closes TD-A-003 WriteToolInvalidationMap extensibility. |
+| 1.2 | prereq-e-fix-burst-1 | 2026-05-15 | architect | F-LP1-MED-003 resolution: §Verification Properties table updated from "(none in this story)" to VP-156; §VP Anchors updated to list VP-156. EC-016-012-004 duplicate-registration behavior now resolved to error-on-duplicate per ADR-026 D7 v1.2 (previously "implementer chooses"). BC-2.16.012 §Verification Properties coverage gap closed. |
+| 1.2 | fix-burst-1 state-manager catch | 2026-05-15 | state-manager | (state-manager catch in fix-burst-1) F-LP1-HIGH-004 POL-20: introduced field canonicalized to ISO date 2026-05-15. Prior value `S-PLUGIN-PREREQ-E` was story-ID format; POL-20 requires `YYYY-MM-DD` for artifacts created outside greenfield cycles. |
+| 1.1 | S-PLUGIN-PREREQ-E-fix-burst-1 | 2026-05-15 | product-owner | F-LP1-HIGH-003 closure: Three §C5 phantom-heading citations corrected per POL-21. F-LP1-MED-004 closure: Four TD-A-003 alias occurrences replaced with canonical TD-S-PLUGIN-PREREQ-A-003 (INV-INVALIDATION-EXT-001 label, §Postconditions, §Architecture Anchors, changelog). |
+| 1.0 | S-PLUGIN-PREREQ-E-authoring | 2026-05-15 | product-owner | Initial draft. Operationalizes ADR-023 §Architectural Constraints (C5 bullet) spec_parser.rs call-site migration + closes TD-S-PLUGIN-PREREQ-A-003 WriteToolInvalidationMap extensibility. |
