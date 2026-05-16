@@ -1812,3 +1812,41 @@ Novel-finding count: 14→9→8→9→10→10→8→4→0→3→1→1→3→1→
 Streak: **0/3** — FB18 NEXT (architect + PO + state-manager; explicit cross-document verification mandate).
 
 STATE.md v7.312; SESSION-HANDOFF.md v7.312; STORY-INDEX v2.115 (unchanged); BC-INDEX v4.91 (unchanged); ARCH-INDEX v2.52 (unchanged); VP-INDEX v1.46 (unchanged); error-taxonomy v1.29 (unchanged — awaiting FB18); 129th consecutive single-commit (TD-VSDD-053 DECISIVELY STABLE).
+
+---
+
+## §D-626 FIX-BURST-18 CLOSURE (2026-05-16) — 2/2 IN-SCOPE CLOSED; F-LP20-LOW-001 DEFERRED; ADR-027 D3 TWO-FILE ENUMERATION + ERROR-TAXONOMY E-PIPELINE-001 SWEEP; PASS-21 NEXT
+
+### FB18 Verification Table
+
+| Finding | Severity | Closure Burst | Verification |
+|---------|----------|---------------|-------------|
+| F-LP20-HIGH-001 | HIGH | D-624 architect `972b5a0f` | ADR-027 §D3 enumerates both files + "two entries: CustomAdapter and CustomAdapterRegistry"; CATALOG_SIZE 9→11; alignment with VP-155 line 74 + HS-PREREQ-E-002-05 line 187 CONFIRMED |
+| F-LP20-MED-001 | MEDIUM | D-625 PO `fda9ee4b` | error-taxonomy line 473 both v1.12 pins → v1.20; error-taxonomy v1.29→v1.30; workspace-wide grep zero remaining live-narrative v1.12 BC-2.16.002 citations CONFIRMED |
+| F-LP20-LOW-001 | LOW | DEFERRED | BC-INDEX 7-col schema drift; pass-10 Intent B precedent at v4.86; known adjudicated choice; pending intent verification or cycle-close adjudication |
+
+### ADR-027 §D3 Amendment Summary (F-LP20-HIGH-001)
+
+NOVEL defect class — first cross-document file-count anchor contradiction in this cascade. Not a BC-2.16.002 citation family manifestation.
+
+Before D-624: ADR-027 §D3 cited "1 file" and "catalog grows by one entry: CustomAdapter".
+
+After D-624 (`972b5a0f`): ADR-027 §D3 enumerates BOTH `import_custom_adapter.rs` AND `import_custom_adapter_registry.rs`; corrected to "catalog grows by two entries: `CustomAdapter` and `CustomAdapterRegistry`"; CATALOG_SIZE specified as 9→11 per VP-155 line 74 + HS-PREREQ-E-002-05 line 187. ADR-027 v1.5→v1.6. ARCH-INDEX ADR-027 row advanced to PROPOSED v1.6 (D-626 state-manager).
+
+### F-LP20-MED-001 Closure Note (10th Manifestation BC-2.16.002 Citation Defect Family)
+
+10th manifestation closed at NEW dimension: catalog-version sibling-sweep across rows within same file. PO D-625 `fda9ee4b` corrected error-taxonomy line 473 E-PIPELINE-001 — both stale `v1.12` pins updated to `v1.20`. error-taxonomy v1.29→v1.30. This sub-dimension (within-file sibling-row coherence) must be enumerated in POL-29 cycle-close codification as a NEW sub-dimension of the BC-2.16.002 citation defect family.
+
+### F-LP20-LOW-001 Deferral Rationale (BC-INDEX Schema Drift)
+
+BC-2.01.016, BC-2.16.011, BC-2.16.012 rows use 7-cell format (trailing version cell); workspace canonical is 6-cell. This is NOT silent drift — it was explicitly adjudicated at pass-10 (Intent B) in BC-INDEX v4.86 changelog, choosing 7-col for PREREQ-E sibling consistency. Deferred pending architect/human intent verification that the original adjudication was correct and intentional. Routing: cycle-close session-reviewer or explicit architect override.
+
+### Updated Trajectory Shorthand
+
+**→pass-20:BLOCKED(0C+1H+1M+1L+0OBS; F-LP20-HIGH-001 ADR-027 D3 vs VP-155 file-count contradiction NOVEL + F-LP20-MED-001 10th manifestation BC-2.16.002 citation defect family at NEW dimension; streak RESET 1/3 → 0/3; 3-CLEAN protocol validation 2nd time)→FIX-BURST-18-CLOSED(2/2 in-scope; F-LP20-LOW-001 deferred; ADR-027 D3 two-file enumeration + error-taxonomy E-PIPELINE-001 sweep)**
+
+Novel-finding count: 14→9→8→9→10→10→8→4→0→3→1→1→3→1→3→1→1→1→1→0→2→**0(FB18-CLOSED)**.
+
+Streak: **0/3** — Pass-21 NEXT (first of NEW 3-CLEAN sequence; passes 21+22+23 required for BC-5.39.001 convergence).
+
+STATE.md v7.313; SESSION-HANDOFF.md v7.313; STORY-INDEX v2.115 (unchanged); BC-INDEX v4.91 (unchanged); ARCH-INDEX v2.53 (ADR-027 row v1.5→v1.6); VP-INDEX v1.46 (unchanged); error-taxonomy v1.30 (E-PIPELINE-001 v1.12→v1.20); 132nd consecutive single-commit (TD-VSDD-053 stable).
