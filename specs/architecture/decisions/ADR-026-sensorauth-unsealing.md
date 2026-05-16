@@ -4,7 +4,7 @@ adr_id: "ADR-026"
 title: "SensorAuth Trait Un-Sealing — Remove private::Sealed, Enable Plugin Auth Implementations"
 status: Proposed
 date: "2026-05-15"
-version: "1.8"
+version: "1.9"
 producer: architect
 subsystems_affected: [SS-01, SS-07, SS-16, SS-17]
 supersedes: null
@@ -14,12 +14,13 @@ anchor_stories: [S-PLUGIN-PREREQ-E]
 runtime_deliverables:
   - "Remove private::Sealed and mod private from crates/prism-sensors/src/auth/mod.rs"
   - "Delete CustomAuth placeholder duplicate from crates/prism-spec-engine/src/custom_adapter.rs"
-  - "Validate PluginRuntime::load_plugin wiring path calls SensorAuth-implementing types"
   - "register_write_tool(entry: WriteToolInvalidationMap) -> Result<(), SpecEngineError> API in crates/prism-query/src/invalidation.rs (D7)"
   - "WriteToolInvalidationMap container migrated from LazyLock<Vec<...>> to RwLock<Vec<WriteToolInvalidationMap>> in crates/prism-query/src/invalidation.rs (D7)"
   - "SpecEngineError::DuplicateWriteToolRegistration(String) enum variant added (D7)"
   - "SpecEngineError::WriteToolRegistrationAfterBoot enum variant added (D7)"
   - "AtomicBool query-phase flag for after-boot detection in crates/prism-query/src/invalidation.rs (D7)"
+  - "Add fn auth_type_name(&self) -> &'static str; method to SensorAuth trait in crates/prism-sensors/src/auth/mod.rs (per D1 Path B)"
+  - "Add auth_type_name() impl body to each of CrowdStrikeAuth / CyberintAuth / ClarotyAuth / ArmisAuth in crates/prism-sensors/src/auth/{crowdstrike,cyberint,claroty,armis}.rs returning the canonical D3 enumerated value (per D2: 'oauth2_client_credentials' / 'bearer_static' / 'cookie_roundtrip' / 'api_key')"
 wiring_deferred_to: null
 ---
 
@@ -436,4 +437,5 @@ modes and security implications. The open trait approach reuses the existing typ
 | 1.5 | 2026-05-15 | architect | prereq-e-fix-burst-3: F-LP3-HIGH-002: D2 amended — Path B chosen (required body per impl, no default); four built-in impls must add one-line `fn auth_type_name()` bodies returning `"oauth2_client_credentials"`, `"bearer_static"`, `"cookie"`, `"api_key"` respectively. Path A (default `"unknown"`) rejected — silent incorrectness in audit logs. PO handoff: AC-2 + BC-2.01.016 §Postconditions alignment required. F-LP3-MED-001: E-PLUGIN-012 category corrected `validation` → `boot` per error-taxonomy.md canonical category. F-LP3-MED-003: Five D7 runtime_deliverables added to frontmatter (register_write_tool API, RwLock container migration, DuplicateWriteToolRegistration variant, WriteToolRegistrationAfterBoot variant, AtomicBool query-phase flag). |
 | 1.6 | 2026-05-15 | architect | prereq-e-fix-burst-4: F-LP4-HIGH-004: VP-156 entry added to §Verification Property Anchors — was absent despite being cited in D7 narrative (line 293), D7 rationale (line 270), and v1.5 changelog (D7 deliverables). Entry matches VP-153 format: ID + title + verification method + status + BC anchor. VP-156 is proptest/P1 for `register_write_tool` uniqueness semantics (BC-2.16.012 EC-016-012-004; INV-INVALIDATION-EXT-001). |
 | 1.8 | 2026-05-16 | architect | prereq-e-fix-burst-6: F-LP6-CRIT-001 — D2 ClarotyAuth.auth_type_name() value `cookie` → `cookie_roundtrip` to match D3 canonical enumerated set + E-SPEC-012 + VP-153 Rule A. Implementer following stale `cookie` would have introspected a value outside the enumerated set, triggering E-SPEC-014 structural-match failure on every Claroty spec-load. F-LP6-HIGH-003 — Pruned phantom runtime_deliverable: "Add SensorAuth re-export to prism-sensors public API surface" removed; SensorAuth re-export is pre-existing in prism-sensors lib.rs (verified at HEAD ec90fe8f); not a PREREQ-E delivery item. F-LP6-MED-003 — Semver-stance scope clarification paragraph appended to D2 §Path B rationale: 'no default impl' stance applies ONLY to the four built-in impls authored in this PREREQ-E commit; post-ABI-surface additions must follow D6 (default impl or new ADR + semver bump). |
+| 1.9 | 2026-05-16 | architect | prereq-e-fix-burst-7: F-LP7-HIGH-004 + F-LP7-MED-002 — runtime_deliverables completeness fix. APPEND trait method (`fn auth_type_name() -> &'static str;` to SensorAuth trait in mod.rs per D1 Path B) + 4 impl bodies (in crowdstrike.rs/cyberint.rs/claroty.rs/armis.rs per D2 returning canonical D3 enumerated values). PRUNE phantom validation entry `Validate PluginRuntime::load_plugin wiring path calls SensorAuth-implementing types` (verification activity, not code delivery; covered by VP-154 proptest). POL-22 Phase C semantic-of-deliverable verification. |
 | 1.7 | 2026-05-15 | architect | prereq-e-fix-burst-5: F-LP5-MED-004: SS-07 (Adapter Pagination & Response Cache; prism-query) added to `subsystems_affected` — D7's runtime_deliverables (`register_write_tool` API, `RwLock<Vec<WriteToolInvalidationMap>>` container, `DuplicateWriteToolRegistration` variant, `WriteToolRegistrationAfterBoot` variant, `AtomicBool` query-phase flag) all land in `crates/prism-query/src/invalidation.rs`, which is owned by prism-query (SS-07 per ARCH-INDEX Subsystem Registry). `subsystems_affected` updated from `[SS-01, SS-17, SS-16]` to `[SS-01, SS-07, SS-16, SS-17]` (sorted ascending). POL-23 sibling sweep: ARCH-INDEX ADR Registry row updated to PROPOSED v1.7; BC-2.16.012 §Verification Properties VP-156 row version pin updated to v1.7. |

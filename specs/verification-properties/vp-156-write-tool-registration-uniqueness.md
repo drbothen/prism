@@ -1,7 +1,7 @@
 ---
 document_type: verification-property
 level: L4
-version: "0.5"
+version: "0.6"
 status: draft
 producer: architect
 timestamp: 2026-05-15T00:00:00Z
@@ -39,7 +39,7 @@ removal_reason: null
 
 ## Property Statement
 
-`register_write_tool` in `crates/prism-query/src/invalidation.rs` (ADR-026 D7 v1.7,
+`register_write_tool` in `crates/prism-query/src/invalidation.rs` (ADR-026 D7 v1.8,
 INV-INVALIDATION-EXT-001, TD-S-PLUGIN-PREREQ-A-003 closure) MUST enforce the uniqueness
 invariant under all sequential registration patterns:
 
@@ -83,11 +83,11 @@ The proptest harness asserts:
 ## Source Contract
 
 - **BC:** BC-2.16.012 — EC-016-012-004 (duplicate `register_write_tool` call behavior, resolved
-  to error-on-duplicate by ADR-026 D7 v1.7). INV-INVALIDATION-EXT-001 (runtime extensibility
+  to error-on-duplicate by ADR-026 D7 v1.8). INV-INVALIDATION-EXT-001 (runtime extensibility
   postcondition). VP-156 provides proptest coverage for the uniqueness semantics that
   BC-2.16.012 §Verification Properties previously described as "(none in this story)".
   This VP closes that coverage gap per F-LP1-MED-003 resolution (option a: author VP-156).
-- **ADR:** ADR-026 D7 v1.7 — specifies the error-on-duplicate API contract (`register_write_tool`
+- **ADR:** ADR-026 D7 v1.8 — specifies the error-on-duplicate API contract (`register_write_tool`
   returns `Result<(), SpecEngineError>`); `SpecEngineError::DuplicateWriteToolRegistration(String)`
   variant defined there. VP-156 is anchored in ADR-026 D7 as the proptest verification mechanism.
 - **Invariant:** INV-INVALIDATION-EXT-001 — `WriteToolInvalidationMap` is runtime-extensible
@@ -121,7 +121,7 @@ does not require any test infrastructure beyond what is already in prism-query's
 // VP-156: WriteToolInvalidationMap registration uniqueness
 // Method: proptest
 // Target: prism_query::invalidation::register_write_tool
-// ADR: ADR-026 D7 v1.7; BC: BC-2.16.012 INV-INVALIDATION-EXT-001
+// ADR: ADR-026 D7 v1.8; BC: BC-2.16.012 INV-INVALIDATION-EXT-001
 //
 // use proptest::prelude::*;
 // use prism_query::invalidation::{WriteToolInvalidationMap, register_write_tool, invalidation_map};
@@ -196,4 +196,5 @@ The implementer adds this function in `crates/prism-query/src/invalidation.rs` u
 | 0.2 | fix-burst-1 state-manager catch | 2026-05-15 | state-manager | (state-manager catch in fix-burst-1) F-LP1-HIGH-004 POL-20: introduced field canonicalized to ISO date 2026-05-15. Prior value `prereq-e-fix-burst-1` was informal slug; POL-20 requires `YYYY-MM-DD` for artifacts created outside greenfield cycles. |
 | 0.3 | prereq-e-fix-burst-2 | 2026-05-15 | architect | F-LP2-MED-002 (option b): happens-before claim removed from §Property Statement title and body; §Property Statement rewritten to cover uniqueness only; §Acceptance Criteria Case 1 updated to clarify sequential-only scope; §Proof Method coverage cell updated; proof harness skeleton comment updated. Visibility guarantee now documented as structural (RwLock contract + ADR-022 boot ordering) not proptest-verified. F-LP2-MED-003: source_invariant changed from INV-INVALIDATION-EXT-001 to null; invariant trace preserved in §Source Contract body via existing BC-2.16.012 INV-INVALIDATION-EXT-001 cite. F-LP2-HIGH-002: TD-A-003 alias canonicalized to TD-S-PLUGIN-PREREQ-A-003 in §Property Statement. |
 | 0.5 | prereq-e-fix-burst-6 | 2026-05-16 | architect | F-LP6-MED-001 + F-LP6-LOW-002 — All live-narrative ADR-026 D7 version pins updated from stale v1.2 to current v1.7: §Source Contract BC row ("D7 v1.2" → "D7 v1.7"), §ADR row ("D7" → "D7 v1.7"), §Property Statement ("ADR-026 D7" → "ADR-026 D7 v1.7"), proof harness skeleton comment ("ADR-026 D7" → "ADR-026 D7 v1.7"). Consistent with BC-2.16.012 §Verification Properties VP-156 row pin of v1.7. TD-VSDD-091 exception confirmed: changelog rows citing historical D7 versions (v1.2, v1.5, v1.6, v1.7) are immutable records and are unchanged. |
+| 0.6 | prereq-e-fix-burst-7 | 2026-05-16 | architect | F-LP7-HIGH-001 — within-FB6 sibling-sweep asymmetry catch: all 4 live-narrative ADR-026 D7 pins advanced v1.7 → v1.8 (FB6 architect bumped ADR-026 v1.7→v1.8 in same burst as the v1.2→v1.7 sweep; the sweep targeted the in-progress-version snapshot, leaving VP-156 behind by one version). POL-23 within-burst version-pin-order-gap defect class. |
 | 0.4 | fix-burst-5 renumber-repair-redo | 2026-05-15 | state-manager | F-LP5-HIGH-003 renumber-repair-redo. FB4 assigned both the changelog-repair row and the modified-field-sync row to v0.3, producing two rows at the same version and violating monotonic strict order. Repair row renumbered 0.3→0.4. Absorbs FB4 modified-field-sync content: `modified:` field confirmed synced to ISO date "2026-05-15" per F-LP4-LOW-002 / POL-27 (most recent change: fix-burst-1 authoring + fix-burst-2 uniqueness-only reframe). Content summary retained: prior changelog had duplicate 0.1 entries (architect prereq-e-fix-burst-1 + state-manager catch both labeled 0.1); corrected to monotonic 0.1 → 0.2 (state-manager catch) → 0.3 (fix-burst-2 architect) → 0.4 (this row). Each distinct content change now holds a unique version. Frontmatter version updated to 0.4. Monotonic sequence verified: 0.1 → 0.2 → 0.3 → 0.4. |
