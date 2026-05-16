@@ -2127,3 +2127,57 @@ Novel-finding count: 14→9→8→9→10→10→8→4→0→3→1→1→3→1→
 Streak: **1/3** — Pass-26 NEXT (2nd of 3 consecutive CLEAN passes required for BC-5.39.001 convergence; 3rd attempt).
 
 STATE.md v7.319; SESSION-HANDOFF.md v7.319; prereq_e_adversary_streak 0/3→1/3; 138th consecutive single-commit (TD-VSDD-053 stable).
+
+---
+
+## §D-633 PASS-26 CLEAN ENTRY (2026-05-16) — 5TH CLEAN PASS OF CASCADE; BREAKS 3-TIME RESET PATTERN; STREAK ADVANCES 1/3 → 2/3; PENULTIMATE; PASS-27 = CONVERGENCE TARGET; 139TH SINGLE-COMMIT
+
+**Pass-26 CLEAN — 0 findings — streak ADVANCES 1/3 → 2/3 — 5TH CLEAN PASS OF CASCADE.**
+
+**139th consecutive single-commit (TD-VSDD-053 stable).**
+
+### 5TH CLEAN MILESTONE — RESET PATTERN BROKEN
+
+This is the most significant milestone in the PREREQ-E cascade. The 3-time reset pattern (pass-9/19/23 all reset within 1 fresh-context pass) is now definitively BROKEN:
+
+| Pass | Burst | Streak Before | Streak After | Context |
+|------|-------|---------------|--------------|---------|
+| 9 ★ | D-592 | 0/3 | 1/3 → RESET (pass-10) | 1st CLEAN — cross-cascade carryover reset |
+| 19 ★ | D-622 | 0/3 | 1/3 → RESET (pass-20) | 2nd CLEAN — ADR-027 D3 novel file-count defect reset |
+| 23 ★ | D-630 | 0/3 | 1/3 → RESET (pass-24) | 3rd CLEAN — POL-23 D-571 `updated:` blind spot reset |
+| 25 ★ | D-632 | 0/3 | 1/3 | 4TH CLEAN — FB21 `updated:` fix verified; 3rd attempt |
+| **26 ★★** | **D-633** | **1/3** | **2/3 — PENULTIMATE** | **5TH CLEAN — BREAKS 3-TIME RESET PATTERN** |
+
+**Pass-25 → pass-26 STAYED CLEAN.** The 3-time "first CLEAN always resets" pattern which held at passes 9/19/23 did NOT hold at pass-25. The defect supply appears genuinely exhausted after 26 passes + 21 fix-bursts.
+
+### Reset Pattern Analysis
+
+The pattern broke because:
+1. Pass-9 reset by cross-cascade carryover (external contamination — structural issue since resolved)
+2. Pass-19 reset by novel ADR-027 D3 file-count defect (blind spot since patched by FB18)
+3. Pass-23 reset by POL-23 `updated:` field blind spot (new policy axis, verification coverage gap since patched by FB21)
+4. Pass-25→26 CLEAN: All 3 prior blind spots are now actively verified. No new axis exists.
+
+### Comprehensive POL Audit — 27 × 19 ALL PASS
+
+Zero violations across all 27 policies applied to all 19 artifacts.
+
+### Updated Cascade Trajectory
+
+| Pass | In-Scope | Streak Before | Streak After |
+|------|----------|---------------|--------------|
+| 9 | 0 | 0/3 | 1/3 ★ |
+| 19 | 0 | 0/3 | 1/3 ★ |
+| 23 | 0 | 0/3 | 1/3 ★ |
+| 25 | 0 | 0/3 | 1/3 ★ |
+| **26** | **0** | **1/3** | **2/3 ★★** |
+
+### Updated Trajectory Shorthand
+
+**→pass-22:BLOCKED(0C+0H+1M+0L+0OBS; FB19-introduced modified-field sibling-sweep asymmetry; closed combined-burst D-629; streak 0/3 unchanged)→FB20-CLOSED-COMBINED(1/1 in-scope MED)→pass-23:CLEAN★(0 findings; D-629 combined-burst modified-field sync load-bearing; streak 0/3 → 1/3 first of NEW 3-CLEAN sequence)→pass-24:BLOCKED(0C+0H+1M+0L+1OBS; F-LP24-MED-001 story updated: field gap pending intent verification — POL-23 D-571 missed by 22 prior passes; closed combined-burst D-631; streak RESET 1/3 → 0/3 — 3rd time 3-CLEAN protocol validation)→FB21-CLOSED-COMBINED(1/1 in-scope MED)→pass-25:CLEAN★(0 findings; FB21 updated: field load-bearing; streak 0/3 → 1/3 first of new 3-CLEAN sequence 3rd attempt)→pass-26:CLEAN★★(0 findings; BREAKS 3-time reset pattern; streak 1/3 → 2/3 penultimate; pass-27 = CONVERGENCE TARGET)**
+
+Novel-finding count: 14→9→8→9→10→10→8→4→0→3→1→1→3→1→3→1→1→1→1→0→2→1→1(FB19)→0→1(pass-24; closed combined D-631)→0(pass-25 CLEAN)→**0(pass-26 CLEAN★★ — BREAKS RESET PATTERN)**
+
+Streak: **2/3** — Pass-27 NEXT (3rd of 3 consecutive CLEAN passes required for BC-5.39.001 convergence — **CONVERGENCE TARGET**).
+
+STATE.md v7.320; SESSION-HANDOFF.md v7.320; prereq_e_adversary_streak 1/3→2/3; 139th consecutive single-commit (TD-VSDD-053 stable).
