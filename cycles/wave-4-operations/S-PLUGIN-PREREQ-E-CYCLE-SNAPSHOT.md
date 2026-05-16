@@ -1208,6 +1208,58 @@ FB12 D-603 correctly adjudicated Option A for F-LP13-HIGH-003 (WriteToolInvalida
 
 **14→9→8→9→10→10→FB6-CLOSED(10/10)→8→FB7-CLOSED(8/8)→4→FB8-CLOSED(3/3)→pass-9:CLEAN★(1/3)→pass-10:BLOCKED(1H+1M+1L; RESET 0/3; 3-CLEAN PROTOCOL VALIDATED)→FIX-BURST-9-CLOSED(3/3)→pass-11:BLOCKED(1M; RECURRING VP traceability; 0/3)→FIX-BURST-10-CLOSED(1/1)→pass-12:BLOCKED(1M; HIGH-NOVELTY tracing-emission ↔ catalog axis; 0/3)→FIX-BURST-11-CLOSED(1/1 in-scope; BC-2.16.002 catalog row+cross-ref+event-name; BUT 3 defects introduced by FB11)→pass-13:BLOCKED(0C+3H+0M+0L+0OBS; ALL FB11-introduced; POL-21 RECURRING + POL-23/27 frontmatter drift + plugin_name unresolvable; FB-introduces-new-defects PATTERN; POL-29 codification candidate; streak 0/3 unchanged)→FIX-BURST-12-CLOSED(3/3 in-scope HIGH; POL-21 swept + frontmatter synced + plugin_name resolved via Option A)→pass-14:BLOCKED(0C+1H+0M+0L+3OBS; F-LP14-HIGH-001 ADR-026 v1.9→v1.10 sibling-sweep miss; 5th RECURRENCE; POL-29 codification reinforced; streak 0/3 unchanged)**
 
-Streak: **0/3** — FB13 NEXT (architect single burst with EXPLICIT sibling-sweep; state-manager closes with BC-INDEX + VP-INDEX bumps); then pass-15.
+Streak: **0/3** — FB13 CLOSED (D-607+D-608; see §D-608 section below); pass-15 NEXT.
 
 STATE.md v7.301; SESSION-HANDOFF.md v7.301; 112th consecutive single-commit (TD-VSDD-053 DECISIVELY STABLE).
+
+---
+
+## §D-608 FIX-BURST-13 CLOSURE (D-607 + D-608 — 2026-05-16) — F-LP14-HIGH-001 CLOSED; 5TH RECURRENCE CLASS CLOSED; SINGLE-BUMP DISCIPLINE HELD
+
+**Burst D-608 — PREREQ-E FIX-BURST-13 CLOSED — 1/1 in-scope HIGH — architect single burst (explicit sibling-sweep) + state-manager closure — 114th consecutive single-commit (TD-VSDD-053 DECISIVELY STABLE)**
+
+### FB13 Closure Verification
+
+| Target | Result |
+|--------|--------|
+| VP-156 live-narrative: 4 × `ADR-026 D7 v1.10` | PASS |
+| VP-156 live-narrative: ZERO `ADR-026 D7 v1.[1-9]` (outside changelog) | PASS |
+| BC-2.16.012 §Verification Properties VP-156 row: `ADR-026 D7 v1.10` | PASS |
+| Workspace-wide: ZERO live-narrative `ADR-026 D7 v1.[1-9]` | PASS |
+| BC-2.16.012 v1.11 (+ changelog row) | PASS |
+| VP-156 v0.8 (+ changelog row) | PASS |
+| VP-INDEX v1.46 | PASS |
+| BC-INDEX v4.89 | PASS |
+| ADR-026 stays v1.10 (UNTOUCHED — single-bump discipline) | PASS |
+
+### 5-Site Sweep Summary
+
+D-607 architect `53d2cafc` swept and updated all 5 stale `ADR-026 D7 v1.9` pins:
+
+1. VP-156 §Property Statement — v1.9 → v1.10
+2. VP-156 §Source Contract BC row — v1.9 → v1.10
+3. VP-156 §Source Contract ADR row — v1.9 → v1.10
+4. VP-156 proof harness skeleton comment — v1.9 → v1.10
+5. BC-2.16.012 §Verification Properties VP-156 row — v1.9 → v1.10
+
+### Single-Bump Discipline Outcome
+
+ADR-026 remains at v1.10. The architect correctly identified that the source artifact (ADR-026) was already at v1.10 from D-603 (FB12). The FB13 task was to sweep the DOWNSTREAM consumers (VP-156 and BC-2.16.012) to match the already-bumped source. This is the correct single-bump-per-source-artifact discipline — same discipline that produced pass-9 CLEAN★ after FB8.
+
+### POL-29 Strong Reinforcement Note
+
+With FB13 closing the 5th occurrence of the same RECURRING within-FB sibling-sweep asymmetry class, the POL-29 codification candidate is strongly reinforced as the highest-priority cycle-close governance policy. The 5-occurrence evidence base is now complete:
+
+- 4 occurrences where the discipline was absent → BLOCKED
+- 1 occurrence (FB8) where explicit single-bump discipline was applied → CLEAN★
+- 1 occurrence (FB13) where explicit sibling-sweep was baked into dispatch instruction → pass-15 PENDING
+
+Pattern conclusion: making the discipline explicit in dispatch instructions reliably breaks the recurrence. POL-29 codification will institutionalize this for all future bursts.
+
+### Updated Trajectory Shorthand (Post-FB13)
+
+**14→9→8→9→10→10→FB6-CLOSED(10/10)→8→FB7-CLOSED(8/8)→4→FB8-CLOSED(3/3)→pass-9:CLEAN★(1/3)→pass-10:BLOCKED(1H+1M+1L; RESET 0/3; 3-CLEAN PROTOCOL VALIDATED)→FIX-BURST-9-CLOSED(3/3)→pass-11:BLOCKED(1M; RECURRING VP traceability; 0/3)→FIX-BURST-10-CLOSED(1/1)→pass-12:BLOCKED(1M; HIGH-NOVELTY tracing-emission ↔ catalog axis; 0/3)→FIX-BURST-11-CLOSED(1/1 in-scope; BC-2.16.002 catalog row+cross-ref+event-name; BUT 3 defects introduced by FB11)→pass-13:BLOCKED(0C+3H+0M+0L+0OBS; ALL FB11-introduced; POL-21 RECURRING + POL-23/27 frontmatter drift + plugin_name unresolvable; FB-introduces-new-defects PATTERN; POL-29 codification candidate; streak 0/3 unchanged)→FIX-BURST-12-CLOSED(3/3 in-scope HIGH; POL-21 swept + frontmatter synced + plugin_name resolved via Option A)→pass-14:BLOCKED(0C+1H+0M+0L+3OBS; F-LP14-HIGH-001 ADR-026 v1.9→v1.10 sibling-sweep miss; 5th RECURRENCE; POL-29 codification reinforced; streak 0/3 unchanged)→FIX-BURST-13-CLOSED(1/1 in-scope; 5 sites swept; single-bump discipline applied; 5th RECURRENCE class closure)**
+
+Streak: **0/3** — pass-15 NEXT (critical test whether FB13 explicit sibling-sweep + single-bump discipline broke the 5th-recurrence pattern).
+
+STATE.md v7.302; SESSION-HANDOFF.md v7.302; BC-INDEX v4.89; VP-INDEX v1.46; 114th consecutive single-commit (TD-VSDD-053 DECISIVELY STABLE).
