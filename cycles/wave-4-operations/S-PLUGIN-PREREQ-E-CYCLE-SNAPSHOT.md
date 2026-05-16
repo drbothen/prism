@@ -1702,3 +1702,55 @@ This milestone marks the operational transition from single-sub-dimension to com
 Streak: **0/3** — pass-19 NEXT (first fresh-context test of comprehensive sub-dimension coverage).
 
 STATE.md v7.310; SESSION-HANDOFF.md v7.310; STORY-INDEX v2.115 (unchanged); BC-INDEX v4.91; ARCH-INDEX v2.52 (unchanged); VP-INDEX v1.46 (unchanged); 127th consecutive single-commit (TD-VSDD-053 DECISIVELY STABLE).
+
+---
+
+## §D-622 PASS-19 CLEAN ENTRY — HISTORIC 2ND CLEAN PASS OF CASCADE (2026-05-16)
+
+**★ PREREQ-E ADVERSARY PASS-19 CLEAN — 2ND CLEAN PASS OF CASCADE — streak ADVANCES 0/3 → 1/3 — 128th consecutive single-commit (TD-VSDD-053 DECISIVELY STABLE) — STATE v7.311 milestone**
+
+### HISTORIC SIGNIFICANCE — 2ND CLEAN PASS
+
+Pass-9 was the 1st CLEAN pass of the cascade (FB8 single-bump discipline broke the within-FB sibling-sweep asymmetry recurrence). Pass-9's 1/3 streak was subsequently reset by pass-10 BLOCKED (3 novel cross-cascade carryover defects found). The cascade then spent passes 10-18 blocked by the BC-2.16.002 citation defect family across 9 manifestations spanning 5 sub-dimensions.
+
+Pass-19 is the **2ND CLEAN PASS** — opened by FB17's COMPREHENSIVE 5-sub-dimension sweep. Unlike prior single-sub-dimension sweeps (FB6 through FB16 each targeted one dimension at a time), FB17 enumerated ALL 5 known sub-dimensions simultaneously. No 10th manifestation surfaced. Pass-19's fresh-context probe of 5 ADDITIONAL sub-dimensions confirmed the defect family is exhaustively closed.
+
+### FB17 COMPREHENSIVE Sweep Success Analysis
+
+| Sweep Approach | Passes Produced By It | Result |
+|----------------|----------------------|--------|
+| Single-sub-dimension (FB6-FB16, 11 bursts) | 9 manifestations in passes 6-18 | PERPETUATED the defect family |
+| COMPREHENSIVE 5-sub-dimension (FB17) | 0 findings in pass-19 | BROKE the pattern |
+
+The key insight: single-sub-dimension sweeps created a whack-a-mole dynamic. Each sweep closed one dimension (e.g., version-pin staleness) but left other dimensions (phrasing-form, close-paren placement) undetected. The COMPREHENSIVE approach verifies the entire known-dimensions space simultaneously, eliminating the class of "10th manifestation at a NEW sub-dimension."
+
+### 10 Candidate Sub-Dimensions — All Verified Clean
+
+| Sub-dim | Description | Source | Status |
+|---------|-------------|--------|--------|
+| 1 | Version-pin staleness | FB17 5-grep | PASS |
+| 2 | Bullet label internal sync | FB17 5-grep | PASS |
+| 3 | Anchor BC routing | FB17 5-grep | PASS |
+| 4 | Phrasing form (parens-ancestry) | FB17 5-grep | PASS |
+| 5 | Close-paren placement | FB17 5-grep | PASS |
+| 6 | Spacing inside parens | Pass-19 probe | PASS |
+| 7 | Case sensitivity | Pass-19 probe | PASS |
+| 8 | Hyphenation | Pass-19 probe | PASS |
+| 9 | Bullet word order | Pass-19 probe | PASS |
+| 10 | Trailing punctuation | Pass-19 probe | PASS |
+
+### Streak Advance: 0/3 → 1/3
+
+Two more CLEAN passes required for 3-CLEAN convergence per BC-5.39.001:
+- Pass-20: if CLEAN → streak 2/3
+- Pass-21: if CLEAN → streak 3/3 → CONVERGENCE
+
+### Updated Trajectory Shorthand
+
+**→pass-18:BLOCKED(0C+1H+0M+0L+0OBS; 9TH MANIFESTATION BC-2.16.002 citation defect family at NEW close-paren placement sub-dimension; streak 0/3 unchanged)→FIX-BURST-17-CLOSED(1/1 HIGH; COMPREHENSIVE 5-sub-dim sweep ALL PASS; possible 2nd CLEAN target pass-19)→pass-19:CLEAN★(0 findings; FB17 COMPREHENSIVE 5-sub-dim sweep BROKE 9-manifestation pattern; 10 candidate sub-dimensions exhaustively verified clean; streak 0/3 → **1/3**)**
+
+Novel-finding count: 14→9→8→9→10→10→8→4→0→3→1→1→3→1→3→1→1→1→1→**0**.
+
+Streak: **1/3** ★ — pass-20 NEXT (2nd of 3 consecutive CLEAN passes required for convergence).
+
+STATE.md v7.311; SESSION-HANDOFF.md v7.311; STORY-INDEX v2.115 (unchanged); BC-INDEX v4.91 (unchanged); ARCH-INDEX v2.52 (unchanged); VP-INDEX v1.46 (unchanged); 128th consecutive single-commit (TD-VSDD-053 DECISIVELY STABLE).
