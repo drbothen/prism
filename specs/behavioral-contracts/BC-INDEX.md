@@ -1,7 +1,7 @@
 ---
 document_type: behavioral-contract-index
 level: L3
-version: "4.96"
+version: "4.97"
 status: draft
 producer: product-owner
 timestamp: 2026-05-16T23:59:45Z
@@ -209,7 +209,7 @@ Phase 3-patch additions (2026-04-16): 22 new BCs added in Burst 1 to close trace
 | BC-2.15.010 | Decorator Three-Phase Model — Config-Time, Query-Time, Periodic | 15 - Storage Layer | CAP-026 | P0 | draft |
 | BC-2.15.011 | Internal Table Registration — RocksDB Domains as DataFusion Tables | 15 - Storage Layer | CAP-028 | P0 | draft |
 | BC-2.16.001 | Sensor Spec File Loading — Parse TOML, Validate Schema, Register Tables | 16 - Spec Engine | CAP-029 | P0 | draft |
-| BC-2.16.002 | Multi-Step Fetch Pipeline Execution — Sequential Steps with Variable Interpolation | 16 - Spec Engine | CAP-029 | P0 | active (promoted draft→active D-427 per POL-14; anchor story S-PLUGIN-PREREQ-B merged PR #143 develop@ae7e26c8 2026-05-12) — v1.21 |
+| BC-2.16.002 | Multi-Step Fetch Pipeline Execution — Sequential Steps with Variable Interpolation | 16 - Spec Engine | CAP-029 | P0 | active (promoted draft→active D-427 per POL-14; anchor story S-PLUGIN-PREREQ-B merged PR #143 develop@ae7e26c8 2026-05-12) — v1.22 |
 | BC-2.16.003 | Column-to-OCSF Mapping at Query Time — Map Sensor Columns to OCSF Fields Per Spec | 16 - Spec Engine | CAP-029 | P0 | draft |
 | BC-2.16.004 | ~~Rust Escape Hatch for Custom Adapters — Trait-Based Override When Config Is Insufficient~~ | 16 - Spec Engine | CAP-029 | P0 | deprecated (ADR-023 PREREQ-F) |
 | BC-2.16.005 | `reload_config` MCP Tool — Re-Read All Config Files, Validate, Atomic Swap, Notify | 16 - Spec Engine | CAP-030 | P1 | draft |
@@ -368,6 +368,8 @@ Phase 3-patch additions (2026-04-16): 22 new BCs added in Burst 1 to close trace
 - Subsystem 19: Infusion Enrichment Framework (AD-020, CAP-031)
 
 ### Change Log (Adversarial Review Fixes)
+
+**v4.97 (2026-05-16):** state-manager | FB41 D-661: BC-2.16.002 row v1.21→v1.22 (F-LP52-HIGH-001 in-body §Postconditions Canonical Structured Event Catalog bullet header `(v1.20)` → `(v1.21)` synced with frontmatter v1.21; 9th POL-23 catalog-bullet-label sub-class manifestation; PO single-line fix; BC-2.16.002 v1.22).
 
 **v4.96 (2026-05-16):** state-manager | FB37 D-656: BC-2.16.002 row v1.20→v1.21 (F-LP47-HIGH-001 AtomicBool set-time semantic temporal contradiction closed; BC-2.16.002 row 33 corrected); BC-2.16.012 row v1.15→v1.16 (F-LP47-HIGH-001 EC-016-012-005 AtomicBool set-time corrected + F-LP47-MED-002 §Architecture Anchors expanded with ADR-026 §D7 + ADR-027 §D5); POL-23 BC-2.16.002 v1.20→v1.21 cascade propagated across all citing artifacts (story 3 sites + BC-2.16.012 2 sites + error-taxonomy 2 sites = 7 live-narrative sites updated).
 

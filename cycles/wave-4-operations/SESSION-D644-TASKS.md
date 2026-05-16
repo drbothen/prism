@@ -1,6 +1,6 @@
 ---
 document_type: session-tasks
-version: "1.16"
+version: "1.17"
 status: active
 related_burst: D-644
 predecessor_state: D-652
@@ -62,7 +62,9 @@ This file persists the task list and full cascade state from the session coverin
 | 103 | **DONE/BLOCKED** | PREREQ-E pass-50 BLOCKED (0 HIGH + 2 MED + 1 LOW; F-LP50-MED-001 FB39-introduced phantom-anchor §Postconditions P-NN in 5 story sites; F-LP50-MED-002 VP-153 §Changelog non-monotonic 49-pass-surviving; F-LP50-LOW-001 ACCEPTED; novelty MEDIUM; streak 0/3 unchanged; FB40 dispatched) |
 | 104 | **DONE** | FB40 CLOSED — 2/2 MED in-scope (story v1.22: 5 phantom-anchor sites §Error Cases E-SPEC-NNN; VP-153 v0.9: §Changelog monotonic ascending 0.1→0.9; VP-INDEX v1.51; STORY-INDEX v2.126; verification-architecture v1.41; verification-coverage-matrix v1.38; 165th consecutive single-commit) |
 | 105 | **DONE** | PREREQ-E pass-51 CLEAN★ — D-660; zero in-scope findings; streak 0/3 → **1/3** (3rd CLEAN advance of session — passes 39, 43, 51); 10 rotated vectors all PASS; FB40 closures verified load-bearing; sibling VP §Changelog ordering verified monotonic VP-154/155/156; novelty ZERO; state-manager-only burst; 166th consecutive single-commit |
-| 106 | **PENDING** | PREREQ-E pass-52 (penultimate 2/3 attempt; pass-53 = potential BC-5.39.001 CONVERGENCE) |
+| 106 | **DONE/BLOCKED** | PREREQ-E pass-52 BLOCKED (1 HIGH; F-LP52-HIGH-001 BC-2.16.002 line 74 bullet header (v1.20) vs frontmatter v1.21 — 9th POL-23 catalog-bullet-label sub-class; streak 1/3 → 0/3 RESET; FB41 dispatched) |
+| 107 | **DONE** | FB41 CLOSED — 1/1 HIGH in-scope (F-LP52-HIGH-001: PO-only single-line; BC-2.16.002 v1.22; BC-INDEX v4.97; 167th consecutive single-commit) |
+| 108 | **PENDING** | PREREQ-E pass-53 (7th 3-CLEAN sequence attempt; pass-54 + pass-55 = potential BC-5.39.001 CONVERGENCE) |
 
 ## §Pass-51 CLEAN Note (D-660)
 
@@ -83,6 +85,27 @@ This file persists the task list and full cascade state from the session coverin
 ### Next Dispatch
 
 **Pass-52 = penultimate 2/3 attempt.** Vector rotation recommended: BC INV-* coherence, E-PLUGIN-012 vs E-SPEC-012 namespace audit, AC trace pointer reachability, HS scenario steps vs AC commands, TV ↔ Red Gate naming convergence. Pass-53 = potential BC-5.39.001 CONVERGENCE.
+
+---
+
+## §FB41 Closure Note (D-661 COMPLETE)
+
+**All 1 in-scope finding closed in single-commit D-661 (2026-05-16). 167th consecutive single-commit.**
+
+| Finding | Agent | Status | Notes |
+|---------|-------|--------|-------|
+| F-LP52-HIGH-001 | product-owner | CLOSED | BC-2.16.002 line 74 bullet header `(v1.20)` → `(v1.21)` synced with frontmatter v1.21 |
+
+**Pass-52 observation:** 9th POL-23 within-FB sibling-sweep asymmetry manifestation on catalog-bullet-label sub-class. Pattern: PO bumps BC frontmatter version without syncing in-body `**(vN.MM)**` bullet header label. POL-30 codification candidate now has 9 evidence instances across the PREREQ-E cascade.
+
+**Streak trajectory (6th cascade attempt, continued):**
+
+| Pass | Verdict | Streak | Notes |
+|------|---------|--------|-------|
+| pass-51 | CLEAN ★ | 0/3 → 1/3 | 3rd CLEAN advance of session |
+| pass-52 | BLOCKED | 1/3 → 0/3 | F-LP52-HIGH-001 (9th POL-23 catalog-bullet-label; penultimate broken) |
+
+**Next dispatch:** Pass-53 = 7th 3-CLEAN sequence attempt. Vector rotation: BC-2.16.002 §Postconditions full bullet-label audit as mandatory vector; all other 10 rotated vectors from pass-52 preserved.
 
 ---
 

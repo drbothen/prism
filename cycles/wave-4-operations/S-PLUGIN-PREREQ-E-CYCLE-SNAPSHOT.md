@@ -3244,3 +3244,21 @@ Shorthand append: →pass-51:CLEAN★(0 findings; 10 rotated vectors all PASS; F
 Story v1.22 | BC-2.01.016 v1.7 | BC-2.16.011 v1.6 | BC-2.16.012 v1.16 | BC-2.16.002 v1.21 | ADR-026 v1.14 | ADR-027 v1.7 | VP-153 v0.9 | VP-154 v0.6 | VP-155 v0.5 | VP-156 v0.8 | HS-PREREQ-E-001 v1.4 | HS-PREREQ-E-002 v1.4 | HS-PREREQ-E-003 v1.6 | error-taxonomy v1.31 | ARCH-INDEX v2.58 | VP-INDEX v1.51 | STORY-INDEX v2.126 | BC-INDEX v4.96 | verification-architecture v1.41 | verification-coverage-matrix v1.38
 
 STATE.md v7.347; SESSION-HANDOFF.md v7.347; prereq_e_adversary_streak **1/3** (pass-51 CLEAN★; 3rd CLEAN advance of session — passes 39, 43, 51; pass-52 NEXT — penultimate 2/3 attempt; pass-53 = potential BC-5.39.001 CONVERGENCE); 166th consecutive single-commit (TD-VSDD-053 STABLE).
+STATE.md v7.347; SESSION-HANDOFF.md v7.347; prereq_e_adversary_streak **1/3** (pass-51 CLEAN★; 3rd CLEAN advance of session — passes 39, 43, 51; pass-52 NEXT — penultimate 2/3 attempt; pass-53 = potential BC-5.39.001 CONVERGENCE); 166th consecutive single-commit (TD-VSDD-053 STABLE).
+
+### §D-661 — FB41 Single-Commit Closure
+
+| Metric | Post-D-660 | Post-D-661 |
+|--------|------------|------------|
+| Pass count | 51 | 52 |
+| Streak | 1/3 | 0/3 |
+| Last verdict | CLEAN★ (pass-51) | BLOCKED (pass-52) → FB41 CLOSED |
+| Consecutive single-commits | 166 | 167 |
+
+Shorthand append: →pass-52:BLOCKED(0C+1H+0M+0L+0OBS; F-LP52-HIGH-001 BC-2.16.002 line 74 bullet header (v1.20) vs frontmatter v1.21 — 9th POL-23 catalog-bullet-label sub-class manifestation; novelty HIGH; streak 1/3 → 0/3 RESET 6th attempt penultimate broken)→FB41-CLOSED(1/1 HIGH; BC-2.16.002 v1.22; BC-INDEX v4.97; PO single-line + state-manager last; 167th consecutive single-commit)
+
+### Pinned Artifact Versions (PREREQ-E 19-artifact set — post-D-661)
+
+Story v1.22 | BC-2.01.016 v1.7 | BC-2.16.011 v1.6 | BC-2.16.012 v1.16 | BC-2.16.002 v1.22 | ADR-026 v1.14 | ADR-027 v1.7 | VP-153 v0.9 | VP-154 v0.6 | VP-155 v0.5 | VP-156 v0.8 | HS-PREREQ-E-001 v1.4 | HS-PREREQ-E-002 v1.4 | HS-PREREQ-E-003 v1.6 | error-taxonomy v1.31 | ARCH-INDEX v2.58 | VP-INDEX v1.51 | STORY-INDEX v2.126 | BC-INDEX v4.97 | verification-architecture v1.41 | verification-coverage-matrix v1.38
+
+STATE.md v7.348; SESSION-HANDOFF.md v7.348; prereq_e_adversary_streak **0/3** (pass-52 BLOCKED — F-LP52-HIGH-001 BC-2.16.002 line 74 bullet header (v1.20) vs frontmatter v1.21; FB41 CLOSED; BC-2.16.002 v1.22; BC-INDEX v4.97; streak 1/3 → 0/3 RESET; pass-53 NEXT — 7th 3-CLEAN sequence attempt); 167th consecutive single-commit (TD-VSDD-053 STABLE).
