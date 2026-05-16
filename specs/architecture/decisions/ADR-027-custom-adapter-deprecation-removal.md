@@ -4,7 +4,7 @@ adr_id: "ADR-027"
 title: "CustomAdapter Rust Trait Deprecation and Wave 1/A Removal — Sole Escape Hatch is .prx WASM"
 status: Proposed
 date: "2026-05-15"
-version: "1.5"
+version: "1.6"
 producer: architect
 subsystems_affected: [SS-07, SS-16, SS-17]
 supersedes: null
@@ -87,22 +87,35 @@ deleted atomically in PREREQ-E. The perimeter enforcement (D3) prevents re-intro
 ### D3 — Compile-fail perimeter enforcement (Wave 1/A scope)
 
 PLUGIN-MIGRATION-001-A (the story that closes the forbidden-symbols perimeter gate per
-ADR-023 §Verification Properties (VP-PLUGIN-001 bullet)) will add `tests/external/no-hardcoded-sensors/import_custom_adapter.rs`
+ADR-023 §Verification Properties (VP-PLUGIN-001 bullet)) will add TWO compile-fail files
 to the perimeter-violation compile-fail test crate:
 
+**File 1:** `tests/external/no-hardcoded-sensors/import_custom_adapter.rs`
 ```rust
 // tests/external/no-hardcoded-sensors/import_custom_adapter.rs
-// DO NOT REMOVE — compile-fail gate for ADR-027
+// DO NOT REMOVE — compile-fail gate for ADR-027 (VP-155 P0)
 // Asserts that CustomAdapter is not re-introduced to the prism-spec-engine public API.
 use prism_spec_engine::CustomAdapter; //~ ERROR unresolved import
 ```
 
-This file becomes a permanent part of the FORBIDDEN-SYMBOLS-001 compile-fail catalog. It
-ensures that any future attempt to re-export `CustomAdapter` from `prism-spec-engine` fails CI.
+**File 2:** `tests/external/no-hardcoded-sensors/import_custom_adapter_registry.rs`
+```rust
+// tests/external/no-hardcoded-sensors/import_custom_adapter_registry.rs
+// DO NOT REMOVE — compile-fail gate for ADR-027 (VP-155 P0)
+// Asserts that CustomAdapterRegistry is not re-introduced to the prism-spec-engine public API.
+use prism_spec_engine::CustomAdapterRegistry; //~ ERROR unresolved import
+```
+
+Both files become permanent parts of the FORBIDDEN-SYMBOLS-001 compile-fail catalog. They
+ensure that any future attempt to re-export `CustomAdapter` or `CustomAdapterRegistry` from
+`prism-spec-engine` fails CI. Both types were exported together via `pub use custom_adapter::*`
+(D1 §2); both must be independently gated to prevent partial re-introduction.
 
 The count enforcement in ADR-023 (CI asserts that file count in
 `tests/external/no-hardcoded-sensors/` equals FORBIDDEN-SYMBOLS-001 catalog size) must be
-updated when this file is added. The catalog grows by one entry: `CustomAdapter`.
+updated when these two files are added. The catalog grows by **two entries**: `CustomAdapter`
+and `CustomAdapterRegistry`, advancing the total catalog size from 9 to 11
+(matching VP-155 line 74 and HS-PREREQ-E-002-05 line 187 `CATALOG_SIZE=11` assertion).
 
 ### D4 — Wave 1/A unblock criteria
 
@@ -276,3 +289,4 @@ instead. This convention is intentional and consistent across ADR-026 and ADR-02
 | 1.3 | 2026-05-15 | architect | prereq-e-fix-burst-4: F-LP4-LOW-001: D5 scope expanded from "verify clean only" to two-part: (a) mechanical CustomAdapter clean-pass (satisfied by existing grep verification) AND (b) hardcoded-sensor-string dispatch audit per BC-2.16.012 INV-SPEC-PARSER-OPEN-001 + Story Task 6 + AC-7. Original narrow framing predated BC-2.16.012 and story AC-7; story's broader scope is correct per production-grade default. D5 narrative rewritten to enumerate both parts explicitly. No changes to D1–D4 or §Verification Property Anchors. |
 | 1.4 | 2026-05-16 | architect | prereq-e-fix-burst-6: F-LP6-MED-002 — SS-07 (Adapter Pagination & Response Cache; prism-query) added to `subsystems_affected`: ADR-027 scope includes prism-query (SS-07) call-site migration per BC-2.16.012 INV-INVALIDATION-EXT-001 (WriteToolInvalidationMap container migration + register_write_tool API via TD-S-PLUGIN-PREREQ-A-003). §Consequences "prism-query is also touched in parallel" hedging rephrased to a statement of ownership: ADR-027 scope includes SS-07; D4 Wave 1/A unblock criteria scoped to prism-spec-engine clean-pass confirmation. `subsystems_affected` updated [SS-16, SS-17] → [SS-07, SS-16, SS-17]. |
 | 1.5 | 2026-05-16 | architect | prereq-e-fix-burst-9: F-LP10-HIGH-001 — POL-21 phantom-anchor closure: §D3 live-narrative `ADR-023 §VP-PLUGIN-001` → `ADR-023 §Verification Properties (VP-PLUGIN-001 bullet)`. Sibling-sweep companion site of VP-155 v0.5. |
+| 1.6 | 2026-05-16 | architect | prereq-e-fix-burst-18: F-LP20-HIGH-001 — ADR-027 §D3 amended: enumerate BOTH compile-fail files (`import_custom_adapter.rs` + `import_custom_adapter_registry.rs`) matching VP-155 spec; correct "catalog grows by one entry" → "by two entries: `CustomAdapter` and `CustomAdapterRegistry`" matching VP-155 line 74 + HS-002-05 line 187 `CATALOG_SIZE=11` assertion; catalog total 9→11. Closes cross-document semantic anchor contradiction with VP-155 + BC-2.16.011 §VPs + HS-PREREQ-E-002-05. |
