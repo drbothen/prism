@@ -8,10 +8,10 @@ must_pass: true
 priority: P0
 epic_id: "PLUGIN-MIGRATION-001"
 story_source: "S-PLUGIN-PREREQ-E"
-version: "1.1"
+version: "1.2"
 status: draft
 producer: product-owner
-timestamp: 2026-05-15T00:00:00
+timestamp: 2026-05-16T00:00:00Z
 phase: 4
 inputs: []
 input-hash: null
@@ -198,6 +198,46 @@ does not cause build failures.
 
 ---
 
+## HS-PREREQ-E-002-06: AC-6 Explicit Frontmatter Verification — BC-2.16.004 Retirement Fields
+
+**Title:** BC-2.16.004 frontmatter reflects all four AC-6 mandated retirement field values
+
+**Note:** AC-6 of S-PLUGIN-PREREQ-E prescribes four specific frontmatter field mutations on BC-2.16.004 that must be verified as part of the CustomAdapter retirement. This sub-scenario provides explicit holdout coverage for those field values.
+
+**Preconditions:**
+
+- S-PLUGIN-PREREQ-E is merged to `develop`
+- BC-2.16.004 (`BC-2.16.004-rust-escape-hatch.md`) exists in `.factory/specs/behavioral-contracts/`
+- The evaluator has read-only access to the merged `.factory/` state
+
+**Steps:**
+
+1. Read the frontmatter of `.factory/specs/behavioral-contracts/BC-2.16.004-rust-escape-hatch.md`
+2. Check the `deprecated_by` field value
+3. Check the `removed` field value
+4. Check the `removal_reason` field value
+5. Check the `lifecycle_status` field value
+
+**Expected Outcome:**
+
+- `deprecated_by: ADR-027` — the value is exactly `ADR-027` (NOT `ADR-023`; ADR-027 is the unsealing decision; ADR-023 is the plugin-only architecture parent ADR)
+- `removed:` is an ISO 8601 date string matching the pattern `^\d{4}-\d{2}-\d{2}$` (e.g., `2026-05-16`; value must be a valid calendar date equal to or after S-PLUGIN-PREREQ-E's PR-create date)
+- `removal_reason: "PREREQ-E retirement per ADR-027 §Decision + ADR-023 Rule 5"` — exact match of this string (modulo outer quote style in YAML)
+- `lifecycle_status: removed` — the field is present and equals `removed`
+
+**Failure conditions:**
+
+- `deprecated_by: ADR-023` (wrong ADR — ADR-023 is not the unsealing decision)
+- `removed:` field absent or not a date string
+- `removal_reason:` field absent, or present with a different string (paraphrase is insufficient; the exact AC-6 string must be used)
+- `lifecycle_status:` not equal to `removed` (e.g., `deprecated` or `retired`)
+
+**Source of Truth:** AC-6 of S-PLUGIN-PREREQ-E, lines 221-228
+
+**Repos Tested:** `.factory/specs/behavioral-contracts/` (factory state post-merge)
+
+---
+
 ## Validation Evidence Required
 
 When this holdout scenario is evaluated, the evaluator must produce:
@@ -213,5 +253,6 @@ When this holdout scenario is evaluated, the evaluator must produce:
 
 | Version | Burst | Date | Author | Change |
 |---------|-------|------|--------|--------|
+| 1.2 | FB31 | 2026-05-16 | product-owner | F-LP40-LOW-001 — added HS-PREREQ-E-002-06 sub-scenario explicitly verifying BC-2.16.004 frontmatter mutations (deprecated_by, removed, removal_reason, lifecycle_status) per AC-6 production-grade-default lens. |
 | 1.1 | S-PLUGIN-PREREQ-E-reconciliation | 2026-05-15 | product-owner | Q4 alignment: Added HS-PREREQ-E-002-04 (VP-154 WASM behavioral equivalence coverage — P1, PLUGIN-MIGRATION-001-A scope) and HS-PREREQ-E-002-05 (VP-155 compile-fail perimeter confirmation — P0, PLUGIN-MIGRATION-001-A scope). Both reference the BC-2.16.011 §VP-154 Fixture Acceptance Criterion for canonical OCSF record schema. Updated Validation Evidence to include VP-154 and VP-155 evidence items. Added `verification_properties: [VP-154, VP-155]` to frontmatter. |
 | 1.0 | S-PLUGIN-PREREQ-E-authoring | 2026-05-15 | product-owner | Initial draft. Three sub-scenarios covering build regression, test-file deletion confirmation, and behavioral parity guard for CrowdStrike. |

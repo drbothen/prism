@@ -1,10 +1,10 @@
 ---
 document_type: behavioral-contract
 level: L3
-version: "1.5"
+version: "1.6"
 status: draft
 producer: product-owner
-timestamp: 2026-05-15T00:00:00
+timestamp: 2026-05-16T00:00:00Z
 phase: 1a
 origin: greenfield
 subsystem: "SS-01"
@@ -156,7 +156,7 @@ S-PLUGIN-PREREQ-E
 | Field | Value |
 |-------|-------|
 | L2 Capability | CAP-001 |
-| Capability Anchor Justification | CAP-001 ("Enumerate and fetch data from sensor APIs") per capabilities.md §CAP-001. Un-sealing `SensorAuth` directly enables plugin authors to implement new sensor auth strategies that plug into the data-fetch adapter layer — the core mechanism by which sensors enumerate and fetch data. |
+| Capability Anchor Justification | CAP-001 ("Sensor Adapter Layer (Internal)") per capabilities.md §CAP-001. Un-sealing `SensorAuth` directly enables plugin authors to implement new sensor auth strategies that plug into the data-fetch adapter layer — the core mechanism by which sensors enumerate and fetch data. |
 | L2 Invariants | DI-012 (amended: compile-time sealed-trait → runtime spec-validation per ADR-023 Rule 2; this BC implements the runtime-enforcement side) |
 | Related BCs | BC-2.01.013 (parent adapter contract), BC-2.16.011 (CustomAdapter retirement), BC-2.16.012 (spec_parser migration) |
 | Priority | P0 |
@@ -165,6 +165,7 @@ S-PLUGIN-PREREQ-E
 
 | Version | Burst | Date | Author | Change |
 |---------|-------|------|--------|--------|
+| 1.6 | FB31 | 2026-05-16 | product-owner | F-LP40-MED-001 §Traceability "Capability Anchor Justification" — replaced fabricated quoted-attribution "Enumerate and fetch data from sensor APIs" with verbatim CAP-001 title "Sensor Adapter Layer (Internal)" per capabilities.md (POL-22 Phase A; POL-7 5-citation-surface verbatim discipline; aligns with sibling BC-2.16.011/2.16.012 verbatim CAP-029 citation form). |
 | 1.5 | prereq-e-fix-burst-19 | 2026-05-16 | state-manager | F-LP21-HIGH-001 closure — §Changelog renumber-repair-redo (D-611-equivalent pattern applied to sibling BC that was missed in FB14): state-manager catch row v1.2 → v1.3, cascade shift v1.3 → v1.4 (and v1.4 → v1.5 via new repair row insertion). POL-26 monotonic strict-ordering violation pre-existing FB1 (invisible to passes 1-20) now resolved. |
 | 1.4 | prereq-e-fix-burst-3 | 2026-05-15 | product-owner | F-LP3-HIGH-002 closure (joint with architect): §Postconditions "without change" rewritten to "with one new method body per impl (`fn auth_type_name(&self) -> &'static str { \"...\" }`)"; INV-AUTH-OPEN-002 rewritten to match — 4 impls require exactly ONE new method body (auth_type_name) per ADR-026 D1 2-method trait surface. Preconditions already listed 2-method surface correctly (fix-burst-1); this is Postconditions/Invariants alignment only. |
 | 1.3 | fix-burst-1 state-manager catch | 2026-05-15 | state-manager | (state-manager catch in fix-burst-1) F-LP1-HIGH-004 POL-20: introduced field canonicalized to ISO date 2026-05-15. Prior value `S-PLUGIN-PREREQ-E` was story-ID format; POL-20 requires `YYYY-MM-DD` for artifacts created outside greenfield cycles. |

@@ -1,11 +1,11 @@
 ---
 document_type: session-tasks
-version: "1.4"
+version: "1.5"
 status: active
 related_burst: D-644
-predecessor_state: D-648
+predecessor_state: D-649
 predecessor_session_tasks: SESSION-D580-TASKS.md (cascade pass-1 through pass-5 era)
-timestamp: 2026-05-16T23:59:30Z
+timestamp: 2026-05-16T23:59:45Z
 ---
 
 # Session Task List — D-644 Durable Pre-/Clear Snapshot
@@ -42,7 +42,8 @@ This file persists the task list and full cascade state from the session coverin
 | 83 | **DONE** | **PREREQ-E pass-37 BLOCKED + FB29 CLOSED** — D-646 combined-burst closed all 3 MED findings; story v1.14; VP-153 v0.6; VP-INDEX v1.48; STORY-INDEX v2.118; 152nd consecutive single-commit |
 | 84 | **DONE** | **PREREQ-E pass-38 BLOCKED + FB30 CLOSED** — D-647 combined-burst closed 2/2 in-scope findings; story v1.15; STORY-INDEX v2.119; 153rd consecutive single-commit |
 | 85 | **DONE** | **PREREQ-E pass-39 CLEAN★** — D-648; zero in-scope findings; streak 0/3 → **1/3** FIRST ADVANCE OF 9TH ATTEMPT; all defect-class families RESOLVED; novelty LOW; 154th consecutive single-commit |
-| 86 | **PENDING** | PREREQ-E pass-40 (2nd of 9th 3-CLEAN sequence — streak 1/3; pass-40 NEXT; 2 more CLEAN passes for BC-5.39.001 convergence) |
+| 86 | **DONE** | **PREREQ-E pass-40 BLOCKED + FB31 CLOSED** — D-649 combined-burst closed 2/2 in-scope findings (F-LP40-MED-001 fabricated CAP-001 quoted-attribution + F-LP40-LOW-001 AC-6 holdout coverage gap); BC-2.01.016 v1.6; HS-PREREQ-E-002 v1.2; BC-INDEX v4.94; streak 1/3 → 0/3 5th reset; 155th consecutive single-commit |
+| 87 | **PENDING** | PREREQ-E pass-41 (6th streak attempt of 9th cascade — streak 0/3; 3 consecutive CLEAN passes required for BC-5.39.001 convergence) |
 
 ## §FB28 Closure Note (D-645 COMPLETE)
 
@@ -174,6 +175,33 @@ VP-INDEX v1.48 row narrative asymmetry (missing POL-11 citation vs sibling docs)
 - If pass-40 CLEAN: streak 1/3 → 2/3 (penultimate)
 - If pass-40 BLOCKED: streak resets to 0/3 (would be 10th attempt); fix-burst required before pass-41
 
+---
+
+## §FB31 Closure Note (D-649 COMPLETE)
+
+**2/2 in-scope findings closed in combined-burst D-649 (2026-05-16). 155th consecutive single-commit.**
+
+| Finding | Severity | Agent | Status | Notes |
+|---------|----------|-------|--------|-------|
+| F-LP40-MED-001 | MED | product-owner | CLOSED | BC-2.01.016 v1.5→v1.6: fabricated CAP-001 quoted-attribution corrected to verbatim `"Sensor Adapter Layer (Internal)"` per POL-22 Phase A + POL-7 |
+| F-LP40-LOW-001 | LOW | product-owner | CLOSED | HS-PREREQ-E-002 v1.1→v1.2: new sub-scenario 002-06 explicitly verifying all 4 BC-2.16.004 frontmatter mutation fields per production-grade default |
+
+**Dispatch pattern:** PO-only burst. State-manager last per POL-3.
+
+**Lateral-attack-vector value-add VALIDATED:**
+F-LP40-MED-001 is a 39-pass-surviving PRE-EXISTING defect. The defect persisted through 39 fresh-context passes because prior passes focused on BC body content and §Changelog ordering; none explicitly applied POL-22 Phase A (verbatim lexical grep of quoted-attribution against the capabilities.md source-of-truth). Pass-40 deliberately rotated to this under-exercised vector, surfacing the defect. This validates the "fresh-context compounding value with rotated attack vectors" principle codified in the cascade methodology.
+
+**Pass-41 Dispatch Readiness:**
+- Streak: 0/3 (5th reset of 9th attempt)
+- Fix-burst FB31 complete — no additional remediation required
+- Pass-41 is 6th streak attempt of 9th cascade
+- All 19 artifacts at D-649 version pins (BC-2.01.016 v1.6; HS-PREREQ-E-002 v1.2; BC-INDEX v4.94)
+- Adversary can dispatch immediately
+
+**Next action:** Dispatch adversary spec pass-41 (task 87 PENDING — 6th streak attempt of 9th cascade).
+
+---
+
 ## Strategic Options for Next Session
 
 The cascade has demonstrated 5 prior "first CLEAN → reset" patterns (passes 9, 19, 23, 26, 30, 35 all reset). Only pass-25→pass-26 advanced 1/3 → 2/3. After FB28 closure, the next pass (pass-37) starts the 9th attempt at 3-CLEAN sequence. Strategic options:
@@ -214,7 +242,7 @@ Accept current spec quality (8 CLEAN passes is unusual statistical evidence of q
 | Artifact | Version |
 |----------|---------|
 | Story | v1.15 (F-LP38-MED-001+LOW-001 closed D-647) |
-| BC-2.01.016 | v1.5 (modified 2026-05-16) |
+| BC-2.01.016 | v1.6 (modified 2026-05-16 — F-LP40-MED-001 CAP-001 quoted-attribution corrected at D-649) |
 | BC-2.16.011 | v1.6 (modified 2026-05-16) |
 | BC-2.16.012 | v1.15 (modified 2026-05-16) |
 | BC-2.16.002 | v1.20 (catalog row 33 + bullet `(v1.20)`) |
@@ -225,13 +253,13 @@ Accept current spec quality (8 CLEAN passes is unusual statistical evidence of q
 | VP-155 | v0.5 |
 | VP-156 | v0.8 (4 D7 pins at v1.10) |
 | HS-PREREQ-E-001 | v1.3 (frontmatter verification_properties: [VP-153]) |
-| HS-PREREQ-E-002 | v1.1 (verification_properties: [VP-154, VP-155]) |
+| HS-PREREQ-E-002 | v1.2 (verification_properties: [VP-154, VP-155]; sub-scenario 002-06 added at D-649) |
 | HS-PREREQ-E-003 | v1.5 (verification_properties: [VP-156]; HS-003-04/05 footers cite VP-156) |
 | error-taxonomy | v1.30 (E-PIPELINE-001 row at v1.20 pin; E-SPEC-008 RETIRED; E-SPEC-012/013/014 + E-PLUGIN-012/020 active) |
 | ARCH-INDEX | v2.55 |
 | VP-INDEX | v1.48 (Total 156, P0=122, P1=34) |
 | STORY-INDEX | v2.119 (FB30 D-647; PREREQ-E row v1.14 to v1.15) |
-| BC-INDEX | v4.93 |
+| BC-INDEX | v4.94 (BC-2.01.016 row bumped v1.5→v1.6 at D-649) |
 | verification-architecture | v1.38 (POL-9 propagation row; VP-153 ID-only) |
 | verification-coverage-matrix | v1.35 (POL-9 propagation row; VP-153 ID-only) |
 

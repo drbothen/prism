@@ -1,10 +1,10 @@
 ---
 document_type: behavioral-contract-index
 level: L3
-version: "4.93"
+version: "4.94"
 status: draft
 producer: product-owner
-timestamp: 2026-05-16T12:00:00Z
+timestamp: 2026-05-16T23:59:45Z
 phase: 3.A
 total_contracts: 239
 active_contracts: 225
@@ -46,7 +46,7 @@ Phase 3-patch additions (2026-04-16): 22 new BCs added in Burst 1 to close trace
 | BC-2.01.013 | DataSource Trait Eliminates Per-Sensor Code Duplication | 01 - Sensor Adapters | CAP-001 | P0 | active (promoted draft→active D-398 per POL-14; anchor story S-PLUGIN-PREREQ-A merged PR #142 develop@90d7c80f) |
 | BC-2.01.014 | Exponential Backoff and Retry for Transient Sensor API Errors | 01 - Sensor Adapters | CAP-001 | P0 | draft |
 | BC-2.01.015 | ~~MCP Tool Response Envelope Structure~~ | 01 - Sensor Adapters | CAP-001 | P0 | removed |
-| BC-2.01.016 | SensorAuth Open Trait — Plugin-Implementable Auth Contract (No Sealed Marker) | 01 - Sensor Adapters | CAP-001 | P0 | draft | v1.5 |
+| BC-2.01.016 | SensorAuth Open Trait — Plugin-Implementable Auth Contract (No Sealed Marker) | 01 - Sensor Adapters | CAP-001 | P0 | draft | v1.6 |
 | BC-2.02.001 | OCSF Schema Loading at Build Time via ocsf-proto-gen | 02 - OCSF Normalization | CAP-003 | P0 | draft |
 | BC-2.02.002 | DynamicMessage Creation from Sensor Records | 02 - OCSF Normalization | CAP-003 | P0 | draft |
 | BC-2.02.003 | CrowdStrike Alert Field Mapping to OCSF | 02 - OCSF Normalization | CAP-003 | P0 | draft (amendment_lifecycle: pending — ADR-023) |
@@ -368,6 +368,8 @@ Phase 3-patch additions (2026-04-16): 22 new BCs added in Burst 1 to close trace
 - Subsystem 19: Infusion Enrichment Framework (AD-020, CAP-031)
 
 ### Change Log (Adversarial Review Fixes)
+
+**v4.94 (2026-05-16):** state-manager | D-649 FB31 single-commit closure (F-LP40-MED-001): BC-2.01.016 row bumped v1.5→v1.6 (fabricated CAP-001 quoted-attribution at §Traceability "Capability Anchor Justification" corrected to verbatim title `"Sensor Adapter Layer (Internal)"` per POL-22 Phase A + POL-7; 39-pass-surviving defect surfaced by lateral attack vector; PO stage complete).
 
 **v4.93 (2026-05-16):** state-manager | D-629 PREREQ-E pass-22+FB20 closure (F-LP22-MED-001): BC-2.01.016 `modified:` field follow-up sync 2026-05-15 → 2026-05-16 (POL-27 cross-check with v1.5 §Changelog row); FB19 within-burst sibling-sweep asymmetry at `modified:` field closed (BC-2.16.011 was correctly synced FB19; BC-2.01.016 was missed; now both consistent).
 

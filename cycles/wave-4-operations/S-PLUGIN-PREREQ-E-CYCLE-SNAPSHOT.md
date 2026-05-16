@@ -2782,3 +2782,62 @@ Shorthand append: →pass-39:CLEAN★(0 findings; FB30 closures load-bearing; FB
 Story v1.15 | BC-2.01.016 v1.5 | BC-2.16.011 v1.6 | BC-2.16.012 v1.15 | BC-2.16.002 v1.20 | ADR-026 v1.12 | ADR-027 v1.6 | VP-153 v0.6 | VP-154 v0.6 | VP-155 v0.5 | VP-156 v0.8 | HS-PREREQ-E-001 v1.3 | HS-PREREQ-E-002 v1.1 | HS-PREREQ-E-003 v1.5 | error-taxonomy v1.30 | ARCH-INDEX v2.55 | VP-INDEX v1.48 | STORY-INDEX v2.119 | BC-INDEX v4.93 | verification-architecture v1.38 | verification-coverage-matrix v1.35
 
 STATE.md v7.335; SESSION-HANDOFF.md v7.335; prereq_e_adversary_streak **1/3** (FIRST ADVANCE OF 9TH 3-CLEAN ATTEMPT; pass-40 NEXT — 2nd of 9th attempt; 2 more CLEAN passes for BC-5.39.001 convergence); 154th consecutive single-commit (TD-VSDD-053 DECISIVELY STABLE).
+
+---
+
+## §D-649 FB31 SINGLE-COMMIT CLOSURE (2026-05-16) — 1 MED + 1 LOW FROM PASS-40 CLOSED; BC-2.01.016 V1.6; HS-PREREQ-E-002 V1.2; BC-INDEX V4.94; STREAK 1/3 → 0/3 5TH RESET; 155TH SINGLE-COMMIT; PASS-41 NEXT
+
+**155th consecutive single-commit (TD-VSDD-053 DECISIVELY STABLE). FB31 CLOSED — 2/2 in-scope findings from pass-40.**
+
+### Pass-40 Summary
+
+Pass-40 adversary verdict: BLOCKED. 1 MED + 1 LOW. Streak 1/3 → 0/3 (5th reset of 9th attempt; novelty HIGH).
+
+**F-LP40-MED-001 — 39-pass-surviving fabricated CAP-001 quoted-attribution at BC-2.01.016 §Traceability:**
+BC-2.01.016 §Traceability "Capability Anchor Justification" row read `CAP-001 ("Enumerate and fetch data from sensor APIs")`. Zero matches in capabilities.md. Actual CAP-001 title: `"Sensor Adapter Layer (Internal)"` (capabilities.md line 21). Defect survived 39 fresh-context passes because prior passes did not apply POL-22 Phase A (verbatim lexical grep against capabilities.md) at the BC-2.01.016 §Traceability cite surface. Surfaced by lateral attack vector rotation in pass-40.
+
+**F-LP40-LOW-001 — AC-6 holdout coverage gap:**
+HS-PREREQ-E-002 had 5 sub-scenarios (002-01 through 002-05) but none explicitly verified the 4 BC-2.16.004 frontmatter mutation fields prescribed by AC-6. Closed by new sub-scenario HS-PREREQ-E-002-06.
+
+**Lateral-attack-vector value-add VALIDATED:** F-LP40-MED-001 demonstrates that rotating to under-exercised attack vectors (POL-22 Phase A on capability-anchor quoted-attribution, explicitly flagged in pass-39 analysis as under-exercised) surfaces PRE-EXISTING defects that dense repeated application of familiar vectors misses.
+
+### FB31 Closure Summary
+
+| Finding | Severity | Agent | Status | Version Bump |
+|---------|----------|-------|--------|--------------|
+| F-LP40-MED-001 | MED | product-owner | CLOSED | BC-2.01.016 v1.5 → v1.6 |
+| F-LP40-LOW-001 | LOW | product-owner | CLOSED | HS-PREREQ-E-002 v1.1 → v1.2 |
+
+**Dispatch pattern:** PO-only burst. State-manager last per POL-3.
+
+### Observations Carry-Forward (non-blocking)
+
+| OBS | Description | Status |
+|-----|-------------|--------|
+| OBS-LP38-001 [process-gap] | VP-INDEX v1.48 changelog narrative asymmetry (missing POL-11 citation vs sibling docs) | Deferred to cycle-close per S-7.02 |
+| OBS-LP41-001 | BC-2.22.001 modified-field format heterogeneity | Cycle-close intent-pending |
+
+### Cascade Pointer Update
+
+| Metric | Before D-649 | After D-649 |
+|--------|-------------|-------------|
+| Adversary passes | 39 (pass-1..39) | 40 (pass-1..40) |
+| Fix-bursts closed | 30 (FB1-FB30) | 31 (FB1-FB31) |
+| Fix-bursts pending | 0 | 0 |
+| Pending findings | 0 + 2 OBS carry-forward | 0 + 2 OBS carry-forward |
+| Streak | 1/3 | 0/3 (5th reset of 9th attempt) |
+| Consecutive single-commits | 154 | 155 |
+
+Shorthand append: →pass-40:BLOCKED(0C+0H+1M+1L+0OBS; F-LP40-MED-001 39-pass-surviving fabricated CAP-001 quoted-attribution at BC-2.01.016 §Traceability surfaced by lateral POL-22 Phase A attack vector + F-LP40-LOW-001 AC-6 holdout coverage gap; novelty HIGH; streak 1/3 → 0/3 5th reset of 9th attempt)→FB31-CLOSED-COMBINED(2/2 in-scope; PO-only; state-manager last; BC-2.01.016 v1.6; HS-PREREQ-E-002 v1.2; BC-INDEX v4.94; 155th consecutive single-commit)
+
+### SHA Chain Anchor (D-649)
+
+- D-649 SHA: (this commit — check `git -C .factory log -1 --format='%H'`)
+- Predecessor D-648: (check `git -C .factory log -2 --format='%H' | tail -1`)
+- TD-VSDD-053: no backfill/Stage-1/Stage-2 in chain; 155 consecutive single-commit bursts
+
+### Pinned Artifact Versions (PREREQ-E 19-artifact set — post-D-649)
+
+Story v1.15 | BC-2.01.016 v1.6 | BC-2.16.011 v1.6 | BC-2.16.012 v1.15 | BC-2.16.002 v1.20 | ADR-026 v1.12 | ADR-027 v1.6 | VP-153 v0.6 | VP-154 v0.6 | VP-155 v0.5 | VP-156 v0.8 | HS-PREREQ-E-001 v1.3 | HS-PREREQ-E-002 v1.2 | HS-PREREQ-E-003 v1.5 | error-taxonomy v1.30 | ARCH-INDEX v2.55 | VP-INDEX v1.48 | STORY-INDEX v2.119 | BC-INDEX v4.94 | verification-architecture v1.38 | verification-coverage-matrix v1.35
+
+STATE.md v7.336; SESSION-HANDOFF.md v7.336; prereq_e_adversary_streak **0/3** (5th reset of 9th attempt; pass-41 NEXT — 6th streak attempt; 3 consecutive CLEAN passes required for BC-5.39.001 convergence); 155th consecutive single-commit (TD-VSDD-053 DECISIVELY STABLE).
