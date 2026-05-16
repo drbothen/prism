@@ -373,7 +373,65 @@ Pass-5 report: `cycles/wave-4-operations/adversarial-reviews/S-PLUGIN-PREREQ-E-s
 | Pass-2 | 9 | 8 | 1 | 5 of 8 were FB2 sibling-sweep gaps |
 | Pass-3 | 8 | 8 | 0 | VP-156 anchor-back (FB1 residue) |
 | Pass-4 | 9 | 9 | 0 | Subsystems gap (FB4 ADR origin exposed story) |
-| Pass-5 | 10 | 7 | 3 | TBD (pass-6 NEXT — STRATEGIC DECISION PENDING) |
+| Pass-5 | 10 | 7 | 3 | Fix-burst-5 closed 7 in-scope; 3 OBS queued cycle-close |
+| Pass-6 | 10 | 10 | 3 | FLAT count; NOVEL classes — intra-ADR contradiction + phantom deliverable + STORY-INDEX staleness + VP source_bc asymmetry |
+
+---
+
+## §D581 PASS-6 ENTRY (D-581 — 2026-05-16)
+
+**D-581 COMPLETE — PREREQ-E ADVERSARY PASS-6 REPORT PERSISTED — 87th consecutive single-commit (TD-VSDD-053 DECISIVELY STABLE)**
+
+### Pass-6 Verdict
+
+**BLOCKED — 10 findings (1C+3H+4M+2L+3OBS). Streak 0/3 reset. Trajectory 14→9→8→9→10→10 FLAT count, NOVEL finding classes.**
+
+### Novel Finding Classes at Pass-6
+
+| Class | Finding | Description |
+|-------|---------|-------------|
+| Intra-ADR semantic contradiction | F-LP6-CRIT-001 | ADR-026 D2 `"cookie"` vs D3/E-SPEC-012/VP-153 `"cookie_roundtrip"` for ClarotyAuth |
+| Phantom runtime deliverable | F-LP6-HIGH-003 | ADR-026 lists "Add SensorAuth re-export" as TODO; already live in codebase |
+| Index row staleness (sibling-sweep gap) | F-LP6-HIGH-002 | STORY-INDEX shows story v1.5/FB4; actual story v1.6/FB5 (fix-bursts 4+5 missed STORY-INDEX) |
+| VP source_bc/BC VP-anchor asymmetry | F-LP6-HIGH-001 | VP-155 `source_bc: null`; BC-2.16.011 claims VP-155 as INV-ADAPTER-RETIRE-002 enforcer (2nd instance — first was VP-154 in FB1) |
+
+### Fix-Burst-6 Routing Summary
+
+- **architect:** F-LP6-CRIT-001 (ADR-026 D2/D3 reconcile; `"cookie"`→`"cookie_roundtrip"` + story propagation); F-LP6-HIGH-001 (VP-155 source_bc→BC-2.16.011 + §Source Contract rewrite); F-LP6-HIGH-003 (remove phantom ADR-026 runtime_deliverable); F-LP6-MED-001 (VP-156 §Source Contract ADR-026 D7 v1.2→v1.7); F-LP6-MED-002 (ADR-027 SS-07 subsystems_affected adjudication); F-LP6-MED-003 (ADR-026 D2/D6 clarifying paragraph); F-LP6-MED-004 (BC-2.16.011 deprecated_by adjudication); F-LP6-LOW-002 (VP-156 version-pin consistency)
+- **state-manager:** F-LP6-HIGH-002 (STORY-INDEX PREREQ-E row v1.5/FB4 → v1.6/FB5; STORY-INDEX v2.109→v2.110)
+- **OBS queued cycle-close:** OBS-LP6-001 (POL-22 Phase A → ADR runtime_deliverables); OBS-LP6-002 (VP-156↔BC-2.16.012 symmetry note); OBS-LP6-003 (story subsystems: SS-17 intent-pending)
+
+### Expected Artifact Versions After Fix-Burst-6
+
+| Artifact | Pre-FB6 | Post-FB6 (expected) |
+|----------|---------|---------------------|
+| ADR-026 | v1.7 | v1.8 |
+| ADR-027 | v1.3 | v1.3 or v1.4 (architect choice per F-LP6-MED-002) |
+| BC-2.16.011 | v1.2 | v1.2 or v1.3 (architect choice per F-LP6-MED-004) |
+| VP-155 | v0.3 | v0.4 |
+| VP-156 | v0.4 | v0.5 |
+| Story S-PLUGIN-PREREQ-E | v1.6 | v1.7 |
+| STORY-INDEX | v2.109 | v2.110 |
+| ARCH-INDEX | v2.48 | v2.49 (ADR-026 v1.8 sibling-sweep) |
+
+### Trajectory (Updated)
+
+| Pass | Findings | In-Scope | Streak |
+|------|----------|----------|--------|
+| 1 | 14 | 12 | 0/3 |
+| 2 | 9 | 8 | 0/3 |
+| 3 | 8 | 8 | 0/3 |
+| 4 | 9 | 9 | 0/3 |
+| 5 | 10 | 7 | 0/3 |
+| 6 | 10 | 10 | 0/3 |
+
+**Trajectory shorthand:** 14→9→8→9→10→10
+
+### Next Step
+
+Fix-burst-6 dispatch: architect (multi-finding) + state-manager (STORY-INDEX F-LP6-HIGH-002). All 10 in-scope findings must close before pass-7 dispatch. BC-5.39.001 3-CLEAN protocol — pass-7 streak resets 0/3.
+
+Pass-6 report: `cycles/wave-4-operations/adversarial-reviews/S-PLUGIN-PREREQ-E-spec-pass-6.md`
 
 ### POL Coverage Observations (Most Frequent)
 

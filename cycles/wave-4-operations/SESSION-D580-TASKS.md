@@ -1,10 +1,10 @@
 ---
 document_type: session-tasks
-version: "1.0"
+version: "1.1"
 status: active
-related_burst: D-580
-predecessor_state: D-579
-timestamp: 2026-05-16T00:00:00Z
+related_burst: D-581
+predecessor_state: D-580
+timestamp: 2026-05-16T00:30:00Z
 ---
 
 # Session Task List — D-580 Durable Snapshot
@@ -27,16 +27,18 @@ Intended audience: orchestrator at next session start. Read alongside STATE.md +
 | 9 | DONE | F-LP22 PluginError #[non_exhaustive] + ci.yml EXPECTED 30→31 maintenance fix-PR (D-573; same PR #150) | — |
 | 10 | DONE | D-573 Step 9 cleanup MAINT-F-LP16-F-LP22 + post-merge burst (STATE+HANDOFF v7.277→v7.278; develop 95d46be2→a5ab742c; 79th single-commit) | — |
 | 11 | DONE | D-574 PREREQ-E spec draft burst committed (STATE+HANDOFF v7.278→v7.279; 80th single-commit) | — |
-| 12 | IN-PROGRESS | PREREQ-E Phase 1d adversarial cascade (passes 1–5 DONE + fix-bursts 1–5 DONE; pass-6 NEXT; streak 0/3) | **AWAITING USER STRATEGIC DECISION** (see §Strategic Options below) |
+| 12 | IN-PROGRESS | PREREQ-E Phase 1d adversarial cascade (passes 1–6 DONE + fix-bursts 1–5 DONE; fix-burst-6 NEXT; streak 0/3; trajectory 14→9→8→9→10→10) | Blocked on tasks 18+19 (fix-burst-6 + pass-7) |
 | 13 | PENDING | PREREQ-E human approval gate (Phase 1d → Phase 2 transition) | Blocked on task 12 (3-CLEAN convergence) |
 | 14 | PENDING | PREREQ-E per-story-delivery 8-step cycle (test-writer → implementer → LOCAL adversary 3-CLEAN → demo-recorder → push → pr-manager → squash-merge → post-merge state burst) | Blocked on tasks 12+13 |
 | 15 | DONE | PREREQ-E fix-burst-3 (D-577): 8 findings; Path B chosen for auth_type_name(); 83rd single-commit | — |
 | 16 | DONE | PREREQ-E pass-5 + fix-burst-5 (D-579): 10 findings; trajectory regression 9→10 (bookkeeping class); 85th single-commit | — |
-| 17 | PENDING | PREREQ-E pass-6 (fresh-context adversary dispatch) — **AWAITING USER STRATEGIC GUIDANCE** | See §Strategic Options |
+| 17 | DONE | PREREQ-E pass-6 dispatched + report persisted (D-581; pass-6 BLOCKED 10 findings; report at cycles/wave-4-operations/adversarial-reviews/S-PLUGIN-PREREQ-E-spec-pass-6.md; 87th single-commit) | — |
+| 18 | BLOCKED | PREREQ-E fix-burst-6 (10 findings: F-LP6-CRIT-001 + F-LP6-HIGH-001/002/003 + F-LP6-MED-001/002/003/004 + F-LP6-LOW-002) | Awaiting fix-burst-6 dispatch (architect + state-manager parallel) |
+| 19 | PENDING | PREREQ-E pass-7 (fresh-context dispatch) | Blocked on task 18 (fix-burst-6 must close all 10 in-scope findings first) |
 
-## Strategic Options — PENDING USER DECISION
+## Strategic Options — RESOLVED (D-581)
 
-Three options were presented to the user by the orchestrator after pass-5. The user has NOT yet chosen.
+**User chose Option 1 — Continue Cascade (Production-Grade Default).** Pass-6 dispatched and BLOCKED (10 findings). Fix-burst-6 is NEXT. The three original options are recorded below for historical completeness.
 
 ### Option 1 — Continue Cascade (Production-Grade Default)
 **Action:** Dispatch adversary pass-6 with fresh context, policies.yaml 27-POL rubric, and extended sweep template.
@@ -85,7 +87,7 @@ Three options were presented to the user by the orchestrator after pass-5. The u
 2. `.factory/SESSION-HANDOFF.md` — §POST-D580 DURABLE RESUME SNAPSHOT
 3. `.factory/cycles/wave-4-operations/SESSION-D580-TASKS.md` — this file (task list + strategic options)
 4. `.factory/cycles/wave-4-operations/S-PLUGIN-PREREQ-E-CYCLE-SNAPSHOT.md` — full cascade history + §D580 DURABLE SNAPSHOT section
-5. `.factory/cycles/wave-4-operations/adversarial-reviews/S-PLUGIN-PREREQ-E-spec-pass-{1..5}.md` — per-pass finding context if needed
+5. `.factory/cycles/wave-4-operations/adversarial-reviews/S-PLUGIN-PREREQ-E-spec-pass-{1..6}.md` — per-pass finding context if needed
 
 ## Standing DO-NOT Directives (carry-forward, all intact)
 
