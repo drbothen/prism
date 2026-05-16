@@ -1,14 +1,14 @@
 ---
 document_type: verification-property-index
 level: L4
-version: "1.37"
+version: "1.38"
 status: draft
 producer: product-owner
 timestamp: 2026-05-11T00:00:00
 phase: 2-patch
 inputs: [architecture/verification-architecture.md]
 traces_to: architecture/ARCH-INDEX.md
-total_vps: 152
+total_vps: 155
 ---
 
 # Verification Property Index: Prism
@@ -172,6 +172,9 @@ total_vps: 152
 | VP-150 | OAuth2 refresh-on-401 via declarative TOML retry policy (PipelineExecutor) — VP-PLUGIN-005 alias | prism-spec-engine | integration_test | P0 | draft | S-PLUGIN-PREREQ-B |
 | VP-151 | OCSF column mapping fixture catalog (6 representative cases, SpecDrivenMapper) — VP-PLUGIN-006 alias | prism-spec-engine | integration_test | P1 | draft | PLUGIN-MIGRATION-001-C |
 | VP-152 | Plugin manifest allowlist explicit Vec<String> after PREREQ-D (allowed_urls enforcement under default-deny semantics) — VP-PLUGIN-007 alias | prism-spec-engine | integration_test | P0 | draft | PLUGIN-PREREQ-D |
+| VP-153 | SensorAuth runtime cross-composition prevention (DI-012 runtime replacement): all invalid (auth_type, credential_type) pairs rejected at spec-load time; error messages redact credential values | prism-spec-engine | proptest | P0 | draft | S-PLUGIN-PREREQ-E |
+| VP-154 | CustomAdapter behavioral equivalence: PluginRuntime WASM dispatch produces non-empty records matching plugin fixture output; TOML fallthrough when no plugin registered | prism-spec-engine | integration_test | P1 | draft | PLUGIN-MIGRATION-001-A |
+| VP-155 | CustomAdapter absent from prism-spec-engine public API: compile-fail perimeter asserts CustomAdapter and CustomAdapterRegistry are unimportable post-PREREQ-E | prism-spec-engine | integration_test | P0 | draft | PLUGIN-MIGRATION-001-A |
 
 ## VP-PLUGIN-001..007 Named Series (PREREQ-F Registration, ADR-023 §Architectural Constraints)
 
@@ -194,13 +197,13 @@ F-PASS3-HIGH-001. The numeric VP-146..VP-152 entries above are the sequential in
 | Method | Count | P0 | P1 |
 |--------|-------|----|----|
 | Kani | 30 | 23 | 7 |
-| Proptest | 86 | 65 | 21 |
+| Proptest | 87 | 66 | 21 |
 | Unit test | 4 | 4 | 0 |
 | Fuzz | 6 | 5 | 1 |
-| Integration test | 26 | 23 | 3 |
-| **Total** | **152** | **120** | **32** |
+| Integration test | 28 | 25 | 4 |
+| **Total** | **155** | **123** | **33** |
 
-> Note: VP-PLUGIN-001..007 are named aliases for VP-146..VP-152; they do not add to the sequential count. Total sequential VPs remains 152.
+> Note: VP-PLUGIN-001..007 are named aliases for VP-146..VP-152; they do not add to the sequential count. Total sequential VPs is 155 (VP-153, VP-154, VP-155 added for S-PLUGIN-PREREQ-E in burst 2026-05-15).
 
 ### Phase 3-Patch Addition (2026-04-16, Burst 2.5)
 

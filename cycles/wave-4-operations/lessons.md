@@ -2,7 +2,7 @@
 cycle: wave-4-operations
 last_updated: 2026-05-15
 maintainer: orchestrator + state-manager
-lessons_codified: 16
+lessons_codified: 18
 ---
 
 # Wave-4 Operations — Cycle Lessons
@@ -247,6 +247,31 @@ BC-INDEX carries count fields in two places: (1) YAML frontmatter (`active_contr
 This discipline closes the failure mode where drift between BC file lifecycle_status values and BC-INDEX aggregate counts goes undetected for multiple version bumps. The canonical check is workspace enumeration, not arithmetic from the last known state.
 
 77 consecutive single-commits (TD-VSDD-053) with zero MULTI_COMMIT_CHAIN_NOT_ALLOWED violations. The Single-Commit Burst Protocol is operationally stable at this project's scale. No additional codification needed. Reconfirming stable-convention status per §Candidate #4 pre-compact snapshot verdict.
+
+---
+
+### Lesson 18: Parallel PO+architect dispatch pattern with in-round reconciliation [codified]
+
+**Codified:** 2026-05-15 (D-574 PREREQ-E spec draft package)
+**Source cascade:** PO+architect parallel dispatch for PREREQ-E spec authoring; 2-round cross-reconciliation; 5/5 architectural questions resolved
+**Codified-as:** Operational discipline for parallel spec authoring + reconciliation
+
+**Pattern:** When a spec package requires both product-owner (BCs, HS, error-taxonomy) and architect (ADRs, VPs, arch docs) work in the same burst, dispatch in parallel then apply a cross-review-reconcile round before consistency-validate. This produces zero deferrals and higher quality than sequential dispatch.
+
+**Key mechanics:**
+1. PO authors BCs + HS + story frontmatter + error taxonomy in parallel with architect authoring ADRs + VPs + arch docs
+2. After both complete first drafts, exchange artifacts for a cross-review round (architect reads BCs; PO reads ADRs)
+3. Each agent applies in-scope fixes from the cross-review (no routing to orchestrator for within-domain fixes)
+4. Consistency-validator runs against the reconciled package
+5. State-manager fixes any index/state-domain gaps surfaced by consistency-validator in the same single-commit burst
+
+**Why production-grade default matters here:** All 4 downgraded items from D-571 were resolved in-scope (zero "we'll fix it later" shortcuts). All 5 architectural questions were answered in-round rather than deferred. The result is a Phase 1d adversarial review starting from a fully coherent package, not a partially-complete draft.
+
+**Linked artifacts:**
+- STATE.md D-574 decision row
+- BC-INDEX v4.82 (3 new draft rows)
+- ARCH-INDEX v2.45 (2 new ADR rows)
+- S-PLUGIN-PREREQ-E-CYCLE-SNAPSHOT.md §D574
 
 ---
 

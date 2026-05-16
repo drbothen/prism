@@ -2,7 +2,7 @@
 document_type: architecture-section
 level: L3
 section: "sensor-adapters"
-version: "1.0"
+version: "1.1"
 status: draft
 producer: architect
 timestamp: 2026-04-15T12:00:00
@@ -15,6 +15,11 @@ traces_to: ARCH-INDEX.md
 
 ## Two-Tier Architecture Overview
 
+> **ADR-023 / ADR-027 Amendment (2026-05-15):** The `CustomAdapter` Rust trait (former Tier 2)
+> is retired and deleted in S-PLUGIN-PREREQ-E. The `.prx` WASM plugin is the sole escape
+> hatch for non-declarative sensor behavior. The diagram below reflects the target architecture.
+> The previous Tier 2 label ("CustomAdapter") is replaced by "WASM Plugin".
+
 ```mermaid
 graph TB
     subgraph TIER1["Tier 1: No-Code (TOML Spec Files) — ~80% of sensors"]
@@ -24,11 +29,11 @@ graph TB
         TOML --> SP --> PE
     end
 
-    subgraph TIER2["Tier 2: High-Code (CustomAdapter) — ~20% of sensors"]
-        CA["CustomAdapter trait<br/><i>Surgical overrides only:<br/>override_auth, override_fetch,<br/>transform_response</i>"]
+    subgraph TIER2["Tier 2: WASM Plugin (.prx) — ~20% of sensors"]
+        WP[".prx WASM plugin<br/><i>sensor_fetch / override_auth /<br/>transform_response hooks<br/>Sandboxed, hot-reloadable</i>"]
     end
 
-    subgraph SENSORS["Built-in Sensors (all ship as TOML specs)"]
+    subgraph SENSORS["Built-in Sensors (all ship as TOML specs — no .prx plugins)"]
         CS["crowdstrike.sensor.toml<br/><i>OAuth2, two-step fetch,<br/>cursor pagination</i>"]
         CY["cyberint.sensor.toml<br/><i>Cookie auth, multi-format<br/>timestamps</i>"]
         CL["claroty.sensor.toml<br/><i>Bearer token, 9 data sources,<br/>polymorphic IDs</i>"]
@@ -36,8 +41,8 @@ graph TB
     end
 
     PE -- "Default path" --> API["Sensor APIs"]
-    CA -- "Override path<br/>(Option::Some)" --> API
-    CA -. "Fallback<br/>(Option::None)" .-> PE
+    WP -- "Override path<br/>(hook returns Some)" --> API
+    WP -. "Fallback<br/>(hook returns None)" .-> PE
 
     CS --> SP
     CY --> SP
@@ -81,20 +86,21 @@ sequenceDiagram
 
 ```mermaid
 graph LR
-    subgraph AUTH["SensorAuth (sealed trait)"]
+    subgraph AUTH["SensorAuth (open trait — ADR-026)"]
         direction TB
         O2["OAuth2ClientCredentials<br/><i>CrowdStrike</i><br/>client_id + secret → bearer"]
         CK["CookieRoundtrip<br/><i>Cyberint</i><br/>POST login → session cookie"]
         BS["BearerStatic<br/><i>Claroty, Armis</i><br/>pre-provisioned token"]
         AK["ApiKey<br/><i>(future sensors)</i><br/>header or query param"]
+        PL["CustomViaPlugin<br/><i>(WASM plugin-provided)</i><br/>plugin implements SensorAuth"]
     end
 
-    SEALED["Sealed trait<br/><i>Cannot be implemented<br/>outside prism-sensors.<br/>Prevents cross-sensor<br/>auth composition.</i>"]
+    RUNTIME["Runtime enforcement<br/><i>ADR-026 D3: auth_type coherence<br/>validated at spec-load time.<br/>Replaces compile-time sealed trait.</i>"]
 
-    AUTH --- SEALED
+    AUTH --- RUNTIME
 
     style AUTH fill:#0f3460,stroke:#533483,color:#e0e0e0
-    style SEALED fill:#e94560,stroke:#ff6b6b,color:#fff
+    style RUNTIME fill:#27ae60,stroke:#2ecc71,color:#fff
 ```
 
 ## Two-Tier Adapter Architecture
@@ -484,22 +490,32 @@ If a future version of a built-in sensor's API requires exotic behavior (binary 
 | **No-Code** | TOML spec file interpreted at runtime | `{sensor}.sensor.toml` | ~80% of REST API sensors — standard auth, JSON responses, pagination |
 | **Plugin** | TOML spec + WASM plugin for overrides | `{sensor}.sensor.toml` + `{sensor}.prx` | ~20% with exotic behavior — binary protocols, streaming, XML, complex transforms |
 
-`prism-sensors` provides: auth trait (`SensorAuth` sealed), adapter registry (`AdapterRegistry`). Uses: spec engine and plugin runtime from `prism-spec-engine` (AD-019). **Zero sensor-specific code.**
+`prism-sensors` provides: auth trait (`SensorAuth` open, ADR-026), adapter registry (`AdapterRegistry` keyed by `SensorId(Arc<str>)`, ADR-023 C1). Uses: spec engine and plugin runtime from `prism-spec-engine` (AD-019). **Zero sensor-specific code.** `CustomAdapter` Rust trait is deleted (ADR-027, S-PLUGIN-PREREQ-E).
 
-## Authentication Sealed Trait
+## Authentication Trait (Un-Sealed — ADR-026)
 
-### Decision: Sealed SensorAuth Trait (AD-009)
+### Decision: Un-Sealed SensorAuth Trait (ADR-026, 2026-05-15)
 
-**Status:** accepted
-**Context:** Four auth patterns across sensors. Cross-sensor auth composition must be prevented.
-**Decision:** `SensorAuth` trait is sealed — only implementable within `prism-sensors`.
-**Rationale:** Prevents routing CrowdStrike OAuth2 tokens through Cyberint cookie middleware. Reference: recovered from security posture analysis.
+> **ADR-026 Amendment (2026-05-15):** `SensorAuth` was previously sealed via `private::Sealed`
+> (original AD-009 decision). ADR-023 Rule 2 mandated un-sealing to enable plugin auth
+> implementations; ADR-026 specifies the design. As of S-PLUGIN-PREREQ-E, `private::Sealed`
+> is removed and cross-sensor auth-composition prevention is enforced at runtime (spec-load time).
+
+**Status:** amended (ADR-026 supersedes AD-009 for this surface)
+**Context:** Four auth patterns across sensors. Plugin authors need to implement `SensorAuth`
+for custom auth flows. Cross-sensor auth composition must still be prevented.
+**Decision:** `SensorAuth` trait is open — implementable by any crate including `.prx` WASM
+plugin host shim crates. Runtime validation enforces the three ADR-026 D3 rules.
+**Rationale:** Sealed trait is architecturally incompatible with the plugin model. Runtime
+enforcement provides the same threat model (preventing cross-sensor credential routing) at
+spec-load time rather than compile time.
 
 ```rust
-// Sealed trait — cannot be implemented outside prism-sensors
-pub trait SensorAuth: sealed::Sealed + Send + Sync {
-    async fn authenticate(&self, client: &reqwest::Client) -> Result<AuthToken>;
-    async fn refresh(&self, client: &reqwest::Client, token: &AuthToken) -> Result<AuthToken>;
+// Open trait — implementable from any crate (ADR-026)
+// Runtime cross-composition prevention: ADR-026 D3 / ADR-023 Rule 2 (spec-load validation)
+pub trait SensorAuth: Send + Sync + 'static {
+    fn as_any(&self) -> &dyn std::any::Any;
+    fn auth_type_name(&self) -> &'static str;
 }
 ```
 
@@ -509,9 +525,17 @@ pub trait SensorAuth: sealed::Sealed + Send + Sync {
 | CookieRoundtrip | Cyberint | POST login → session cookie |
 | BearerStatic | Claroty, Armis | Pre-provisioned bearer token |
 | ApiKey | (future sensors) | API key in header or query param |
+| CustomViaPlugin | (WASM plugins) | Plugin implements SensorAuth; loaded by PluginRuntime |
 
 ## Adapter Registry
 
 At startup, `prism-sensors` builds an `AdapterRegistry` mapping `(sensor_id, client_id)` → `SensorAdapter`. Each adapter owns a `reqwest::Client` instance (connection pool + cookie jar for Cyberint). Adapters are instantiated from loaded spec files + credential source configuration. Credentials are resolved lazily at first query — the adapter calls `prism-credentials::resolve(client_id, sensor_id, credential_name)` which walks the resolution order (in-memory cache → TOML source reference → keyring → encrypted file → env var). The secret value never leaves `prism-credentials` except as a `SecretString` passed directly to the auth handler — it is never serialized, logged, or returned via MCP. Sensors with no configured credential source are registered but marked unavailable (tables excluded from query schema).
 
 **Config reload lifecycle:** The registry is rebuilt on config reload. The old `Arc<AdapterRegistry>` is released when all in-flight tasks holding references complete (CI-007). When the last reference is dropped, the old `reqwest::Client` instances are dropped, gracefully closing idle connections. In-flight HTTP requests on the old client complete normally — `reqwest` does not abort outstanding requests on client drop, it waits for them. For Cyberint cookie auth specifically, the session cookie is bound to the old client's cookie jar — the new registry creates a fresh client with a new auth flow. The old client's in-flight request completes with the old session cookie (DEC-039).
+
+## Changelog
+
+| Version | Date | Author | Change |
+|---------|------|--------|--------|
+| 1.1 | 2026-05-15 | architect | ADR-026/ADR-027 amendment: (1) Two-Tier diagram updated — Tier 2 relabeled from CustomAdapter to WASM Plugin (.prx); (2) Authentication Sealed Trait section replaced with Un-Sealed SensorAuth section per ADR-026; (3) CustomViaPlugin auth type added to auth table; (4) Authentication mermaid diagram updated to open trait + runtime enforcement; (5) Two-Tier Model table updated — CustomAdapter row replaced with WASM Plugin row; (6) AdapterRegistry sentence updated — SensorId(Arc<str>) keying per ADR-023 C1, CustomAdapter deletion noted per ADR-027. |
+| 1.0 | 2026-04-15 | architect | Initial authorship — Phase 1b architecture section |

@@ -1,7 +1,7 @@
 ---
 document_type: pipeline-state
 level: ops
-version: "7.278"
+version: "7.279"
 producer: state-manager
 timestamp: 2026-05-15T21:00:00Z
 inputs: []
@@ -24,7 +24,7 @@ repos:
   - mcp-claroty-xdome
 codification_candidates_active: 0
 phase_5_deferred_findings: 2
-current_step: "D-573 (**F-LP16 + F-LP22 MAINTENANCE FIX-PR MERGED — 4-of-4 D-571 downgraded items CLOSED**; PR #150 squash-merged develop@ec90fe8f→a5ab742c at 2026-05-15; F-LP16 closure: prism-bin/Cargo.toml edition 2021→2024 + 4 rustfmt import reorders in prism-bin source files; F-LP22 closure: PluginError #[non_exhaustive] + ci.yml perimeter gate EXPECTED 30→31 + non-exhaustive-violation test crate gets v31_plugin_error_match row; sibling-sweep clean (no PluginError exhaustive matchers needed catch-all addition); 36/36 CI checks green; pr-reviewer 3-of-3 APPROVE 1 cycle; rebase recovery: amended fmt + force-with-lease per CLAUDE.md maintenance-branch policy; local develop fast-forwarded 95d46be2→a5ab742c absorbing PREREQ-D + maintenance squash; MAINT-F-LP16-F-LP22 worktree removed + local branch deleted; **79th consecutive single-commit (TD-VSDD-053 stable)**; **D-571 cycle-close 4-of-4 downgraded immediate-dispatch items NOW CLOSED**; NEXT: PREREQ-E planning (Un-seal SensorAuth + Deprecate CustomAdapter + migrate spec_parser.rs call sites; 3pts; deps PREREQ-F+A) — product-owner+architect+story-writer parallel dispatch; PLUGIN-MIGRATION-001-A/B/C/D STILL BLOCKED on PREREQ-E)"
+current_step: "D-574 (**PREREQ-E SPEC DRAFT PACKAGE COMMITTED — Phase 1d adversarial spec review NEXT**; 3 new draft BCs + 2 Proposed ADRs + 3 new VPs + 3 HS scenarios + 1 story spec authored under production-grade default by PO+architect parallel dispatch then 2-round cross-reconciliation; consistency-validator 8/10 invariants PASS + 2 state-manager-domain gaps fixed in THIS burst (BC-INDEX v4.81→v4.82 +3 draft rows; ARCH-INDEX +2 ADR rows) + 1 architect VP-154 source_bc fix; 5/5 open architectural questions resolved (RwLock<Vec<...>> for WriteToolInvalidationMap per ADR-026 D7; Framing A — new BC-2.01.016 + BC-2.01.013 unchanged; E-SPEC-012/013/014 authored replacing incorrect E-SPEC-010 citation; OCSF 2004 Detection Finding schema for VP-154 fixture; prism-query scope added to ADR-027); story v1.1 frontmatter complete with BC/VP/ADR/HS arrays; **80th consecutive single-commit (TD-VSDD-053 stable)**; NEXT: Phase 1d adversarial spec review cascade per BC-5.39.001 3-CLEAN — fresh-context adversary with policies.yaml 25-POL rubric)"
 feature_branch_head: "merged to a5ab742c at 2026-05-15 (maintenance D-572 fix-PR)"
 feature_branch_remote_status: "deleted (squash-merged to develop@ec90fe8f; remote branch feature/S-PLUGIN-PREREQ-D removed)"
 worktree_status: "all post-merge cleanups complete — only S-3.09 + S-PLUGIN-PREREQ-B + S-PLUGIN-PREREQ-C + W3-FIX-S307-001 remain"
@@ -146,20 +146,20 @@ subsystem_count: 20
 story_count: 113
 bc_count_corrected: 236
 cap_count: 40  # active; highest_cap_id: CAP-040 (CAP-038 Multi-Tenant Identity, CAP-039 Multi-Tenant Fixture Gen, CAP-040 Multi-Tenant Adapter Dispatch — Wave 3 Phase 3.A Step 2)
-bc_index_version: "4.81"
-vp_index_version: "1.37"
-story_index_version: "v2.108"
+bc_index_version: "4.82"
+vp_index_version: "1.38"
+story_index_version: "v2.109"
 policies_version: "1.11"
 total_stories: 150
 red_gate_wave_0a_complete: 2026-04-21
 test_vectors_version: "2.7"
 prd_version: "1.10"
-error_taxonomy_version: "1.24"
+error_taxonomy_version: "1.25"
 holdout_index_version: "1.3"
 capabilities_version: "1.14"
 l2_index_version: "1.13"
 module_decomposition_version: "1.16"
-arch_index_version: "2.43"
+arch_index_version: "2.45"
 security_architecture_version: "1.1"
 verification_coverage_matrix_version: "1.31"
 verification_architecture_version: "1.31"
@@ -250,6 +250,7 @@ _D-001..D-046 archived: [cycles/phase-3-dtu-wave-2/decisions-archive-d001-d032.m
 
 | ID | Decision | Rationale | Phase | Date |
 |----|----------|-----------|-------|------|
+| D-574 | 2026-05-15 | state-manager | **PREREQ-E SPEC DRAFT PACKAGE COMMITTED — Phase 1d adversarial spec review NEXT.** PO+architect parallel dispatch + 2-round cross-reconciliation. Package: 3 new draft BCs (BC-2.01.016 SensorAuth open trait + BC-2.16.011 CustomAdapter retirement + BC-2.16.012 PluginRegistry dispatch migration); 2 Proposed ADRs (ADR-026 SensorAuth un-sealing + ADR-027 CustomAdapter deprecation/removal); 3 new VPs (VP-153 cross-composition prevention + VP-154 behavioral equivalence + VP-155 no public API); 3 HS files (HS-PREREQ-E-001/002/003 v1.1); 1 story spec (S-PLUGIN-PREREQ-E v1.1 10 ACs 3 pts); error-taxonomy v1.24→v1.25 (E-SPEC-012/013/014 authored). Arch doc deltas: sensor-adapters v1.1, verification-coverage-matrix v1.32, verification-architecture v1.32, VP-INDEX v1.38. Index updates: BC-INDEX v4.81→v4.82 (+3 draft rows; draft 2→5; total 236→239); ARCH-INDEX v2.44→v2.45 (+2 ADR rows); STORY-INDEX v2.108→v2.109 (PREREQ-E planned→draft); VP-INDEX v1.38 verified. Consistency-validator: 8/10 PASS + 2 state-manager gaps fixed in burst + 1 VP-154 source_bc fix. 5/5 open architectural questions resolved. STATE+HANDOFF v7.278→v7.279. **80th consecutive single-commit (TD-VSDD-053 stable). NEXT: Phase 1d adversarial spec review cascade (BC-5.39.001 3-CLEAN).** | plugin-migration | 2026-05-15 |
 | D-573 | 2026-05-15 | state-manager | **F-LP16 + F-LP22 MAINTENANCE FIX-PR MERGED — 4-of-4 D-571 downgraded items CLOSED.** PR #150 squash-merged develop@ec90fe8f→a5ab742c at 2026-05-15. Pre-merge develop HEAD: ec90fe8f (PREREQ-D merge D-568). Post-merge develop HEAD: a5ab742c. F-LP16-OBS-001 CLOSED: prism-bin/Cargo.toml edition 2021→2024 + 4 rustfmt import reorders in prism-bin source files (cosmetic-only; no behavior change). F-LP22-OBS-001 CLOSED: PluginError `#[non_exhaustive]` added in prism-core/src/error.rs + ci.yml perimeter gate EXPECTED 30→31 + non-exhaustive-violation test crate gets v31_plugin_error_match row. Sibling-sweep clean (no PluginError exhaustive matchers needed wildcard addition). 36/36 CI checks green; pr-reviewer 3-of-3 APPROVE 1 cycle. Rebase recovery: amended fmt + --force-with-lease per CLAUDE.md maintenance-branch policy (develop advanced mid-cycle absorbing PREREQ-D squash). Local develop fast-forwarded 95d46be2→a5ab742c (absorbed PREREQ-D + maintenance squash). MAINT-F-LP16-F-LP22 worktree removed; local maintenance/d572-edition-non-exhaustive branch deleted. develop_head narrative reconciled: stale `ec90fe8f` updated to `a5ab742c`. SESSION-HANDOFF DURABLE PIN BLOCK updated to D-573. STATE+HANDOFF v7.277→v7.278. **79th consecutive single-commit (TD-VSDD-053 stable). D-571 cycle-close 4-of-4 downgraded immediate-dispatch items NOW CLOSED. NEXT: PREREQ-E planning (Un-seal SensorAuth + Deprecate CustomAdapter + migrate spec_parser.rs call sites; 3pts; deps PREREQ-F+A) — product-owner+architect+story-writer parallel dispatch; PLUGIN-MIGRATION-001-A/B/C/D STILL BLOCKED on PREREQ-E.** | plugin-migration | 2026-05-15 |
 | D-572 | 2026-05-15 | state-manager | **COMBINED FIX-BURST — OBS-LP35-001 + OBS-LP36-002 + BC-2.06.011 sub-fix — 3 closures in one atomic commit.** OBS-LP35-001 CLOSED: verification-architecture.md v1.30→v1.31 (line 282 VP-152 table row Option-semantics rewritten to Vec<String> canonical per BC-2.17.002 v1.8 AC-7) + ADR-023 v1.18→v1.19 (§E VP-PLUGIN-007 prose at lines 732-749 rewritten from pre-AC-7 Option-semantics to post-AC-7 Vec<String>-semantics). 2 architect-authored sites closed; propagation footprint complete (BC-2.17.007 body + story + VP-INDEX + BC-INDEX closed prior bursts D-535/D-537; 2 arch-layer sites were the only remaining open items). OBS-LP36-002 CLOSED: BC-INDEX v4.80→v4.81 — product-owner ran workspace enumeration (`find .factory/specs/behavioral-contracts -name "BC-*.md" | wc -l` → 236 total files; lifecycle_status breakdown 225 active + 2 draft + 1 deprecated + 6 removed + 2 retired). **SURPRISE correctness fix:** active count was 235 in v4.80 (post-D-568 POL-14 promotions: 229→235) but workspace enumeration shows 225 active — 10-count discrepancy traced to deprecated/retired misclassification accumulating since v4.54. BC-INDEX frontmatter corrected: active_contracts: 235→225 + retired_contracts: 3→2 + added draft_contracts: 2 + deprecated_contracts: 1. Total_contracts: 236 unchanged (correct). SESSION-HANDOFF.md line 182 sister-site synced: `active_contracts: 235` → `active_contracts: 225`. BC-2.06.011 sub-fix CLOSED: BC-2.06.011 table-row status corrected active→draft (lifecycle_status in file is `draft`; row was incorrectly showing `active`). ARCH-INDEX v2.43→v2.44 (verification-architecture.md row annotation + ADR-023 row version bump). BC-INDEX v4.81. STATE+HANDOFF v7.276→v7.277. **78th consecutive single-commit (TD-VSDD-053 stable). 2-of-4 downgraded immediate-fix items remain: F-LP16 + F-LP22 — routing maintenance fix-PR cycle. NEXT: dispatch single bundled maintenance fix-PR (F-LP16 prism-bin edition 2021→2024 + F-LP22 PluginError non_exhaustive + EXPECTED=31), then PREREQ-E planning kickoff.** | plugin-migration | 2026-05-15 |
 | D-571 | 2026-05-15 | state-manager | **S-PLUGIN-PREREQ-D CYCLE CLOSED — session-reviewer cycle-close complete. 31 codification candidates adjudicated: 18 codified (new/amended POLs + adversary rubric extensions) + 9 subsumed (under broader POLs already codified) + 2 confirmed Phase-5 deferred (F-LP12-OBS-001 E-PLUGIN-008 dual-semantic = Phase-5 product-owner error namespace adjudication; F-LP25-OBS-001 EC-17-007 vacuously-true-under-Vec<String> = Phase-5 product-owner BC-2.17.002 review) + 4 downgraded to immediate dispatch (F-LP16-OBS-001 prism-bin edition 2021→2024 single-file fix = maintenance PR; F-LP22-OBS-001 PluginError non_exhaustive + EXPECTED=30→31 = maintenance PR; OBS-LP35-001 verification-architecture.md:282 + ADR-023:732-733 Vec<String> rewrite = architect 2-site fix; OBS-LP36-002 BC-INDEX count drift = state-manager+PO workspace enumeration + fix). 6 new POLs registered: POL-21 (phantom_section_anchor_prohibited HIGH) + POL-23 (bc_version_bump_sibling_grep_gate HIGH) + POL-24 (error_message_template_verbatim MEDIUM) + POL-25 (multi_cite_propagation_sweep_mandatory HIGH) + POL-26 (changelog_schema_integrity MEDIUM) + POL-27 (bc_modified_field_iso_date_format MEDIUM). POL-7 amended (4 new verification_steps: body-BC-table verbatim, §References completeness vs frontmatter, cross-table scope, exclusion-note prose). POL-22 added (Phase A lexical-vs-semantic anchor-content + Phase C named-entity-existence-verification). OBS-LP41-001 Path A canonized as POL-27. policies.yaml v1.10→v1.11. codification_candidates_active: 19 (stale) → 0 (all adjudicated). phase_5_deferred_findings: 2 (F-LP12-OBS-001 + F-LP25-OBS-001 only; 4 others downgraded). SESSION-REVIEW-D571.md committed; lessons.md 14 new entries (Lessons 2–15); S-PLUGIN-PREREQ-D-CYCLE-SNAPSHOT §D571-CYCLE-CLOSE appended. STATE+HANDOFF v7.275→v7.276. **77th consecutive single-commit (TD-VSDD-053 stable). NEXT: 4 parallel immediate-fix dispatches (architect OBS-LP35-001 + state-manager+PO OBS-LP36-002 + maintenance F-LP16 + maintenance F-LP22) then PREREQ-E planning kickoff.** | plugin-migration | 2026-05-15 |
@@ -397,19 +398,19 @@ Cycle files: [burst-log](cycles/phase-2-patch/burst-log.md) | [convergence-traje
 
 ---
 
-## Session Resume Checkpoint (2026-05-15-v7.278-d573-MAINTENANCE-MERGE-CLOSURE)
+## Session Resume Checkpoint (2026-05-15-v7.279-d574-PREREQ-E-SPEC-DRAFT-COMMITTED)
 
-_Previous checkpoint (v7.277/D-572 COMBINED-FIX-BURST) archived: [cycles/wave-4-operations/session-checkpoints.md](cycles/wave-4-operations/session-checkpoints.md)_
+_Previous checkpoint (v7.278/D-573 MAINTENANCE-MERGE-CLOSURE) archived: [cycles/wave-4-operations/session-checkpoints.md](cycles/wave-4-operations/session-checkpoints.md)_
 
-**STATE v7.278. D-573 MAINTENANCE FIX-PR MERGED — F-LP16 + F-LP22 CLOSED — 4-of-4 D-571 downgraded items DONE. NEXT ACTION: PREREQ-E planning (Un-seal SensorAuth + Deprecate CustomAdapter + migrate spec_parser.rs call sites; 3pts; deps PREREQ-F+A).**
+**STATE v7.279. D-574 PREREQ-E SPEC DRAFT PACKAGE COMMITTED — 3 BCs + 2 ADRs + 3 VPs + 3 HS + 1 story spec. NEXT ACTION: Phase 1d adversarial spec review cascade (BC-5.39.001 3-CLEAN — fresh-context adversary with policies.yaml 25-POL rubric).**
 
-D-573 merged PR #150 (maintenance/d572-edition-non-exhaustive) into develop@a5ab742c. F-LP16-OBS-001 CLOSED: prism-bin/Cargo.toml edition 2021→2024 + 4 rustfmt import reorders. F-LP22-OBS-001 CLOSED: PluginError `#[non_exhaustive]` + ci.yml EXPECTED 30→31 + test crate row. 36/36 CI green; pr-reviewer 3-of-3 APPROVE 1 cycle. Local develop fast-forwarded 95d46be2→a5ab742c. develop_head narrative reconciled from stale `ec90fe8f` to `a5ab742c`. MAINT-F-LP16-F-LP22 worktree removed; local branch deleted. **79th consecutive single-commit (TD-VSDD-053 stable).**
+D-574 committed PREREQ-E spec draft package: BC-2.01.016 (SensorAuth open trait) + BC-2.16.011 (CustomAdapter retirement) + BC-2.16.012 (PluginRegistry dispatch migration) + ADR-026 (SensorAuth un-sealing) + ADR-027 (CustomAdapter deprecation) + VP-153/154/155 + HS-PREREQ-E-001/002/003 + S-PLUGIN-PREREQ-E v1.1 + error-taxonomy v1.24→v1.25. Consistency-validator 8/10 PASS; 2 state-manager gaps fixed in burst (BC-INDEX +3 draft rows; ARCH-INDEX +2 ADR rows). **80th consecutive single-commit (TD-VSDD-053 stable).**
 
 **Next dispatch chain:**
-- **PREREQ-E planning (NEXT):** product-owner + architect + story-writer parallel dispatch. Un-seal SensorAuth + Deprecate/Remove CustomAdapter Rust Trait + migrate spec_parser.rs call sites to PluginRegistry. prism-sensors + prism-spec-engine scope; 3 points; depends_on PREREQ-F+A (both merged).
-- DO NOT dispatch PLUGIN-MIGRATION-001-A/B/C/D before PREREQ-E lands.
+- **Phase 1d adversarial spec review (NEXT):** fresh-context adversary with policies.yaml 25-POL rubric; BC-5.39.001 3-CLEAN protocol; target: PREREQ-E spec package (story + 3 BCs + 2 ADRs + 3 VPs + 3 HS + error-taxonomy).
+- DO NOT dispatch PLUGIN-MIGRATION-001-A/B/C/D before PREREQ-E Phase 1d converges and implementation begins.
 
-**Current spec versions:** BC-INDEX v4.81 (active 225), STORY-INDEX v2.108, VP-INDEX v1.37, ARCH-INDEX v2.44, policies v1.11, verification-architecture v1.31, ADR-023 v1.19, error-taxonomy v1.24, develop@a5ab742c; STATE v7.278, SESSION-HANDOFF v7.278. **Key files:** [SESSION-HANDOFF.md](SESSION-HANDOFF.md) | [cycles/wave-4-operations/S-PLUGIN-PREREQ-D-CYCLE-SNAPSHOT.md](cycles/wave-4-operations/S-PLUGIN-PREREQ-D-CYCLE-SNAPSHOT.md)
+**Current spec versions:** BC-INDEX v4.82 (active 225, draft 5, total 239), STORY-INDEX v2.109, VP-INDEX v1.38, ARCH-INDEX v2.45, policies v1.11, verification-architecture v1.32, ADR-023 v1.19, error-taxonomy v1.25, develop@a5ab742c; STATE v7.279, SESSION-HANDOFF v7.279. **Key files:** [SESSION-HANDOFF.md](SESSION-HANDOFF.md) | [cycles/wave-4-operations/S-PLUGIN-PREREQ-E-CYCLE-SNAPSHOT.md](cycles/wave-4-operations/S-PLUGIN-PREREQ-E-CYCLE-SNAPSHOT.md)
 
 ## Agent Routing Quick Reference
 

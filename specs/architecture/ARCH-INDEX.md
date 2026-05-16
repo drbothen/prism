@@ -1,7 +1,7 @@
 ---
 document_type: architecture-index
 level: L3
-version: "2.44"
+version: "2.45"
 status: draft
 producer: architect
 timestamp: 2026-05-04T00:00:00
@@ -91,6 +91,8 @@ deployment_topology: single-service  # planned — no service binary exists yet 
 | ADR-023 | Plugin-Only Sensor Architecture — TOML Specs as Declarative Baseline, .prx WASM for Non-Declarative Cases, Retired CustomAdapter Rust Trait | COMMITTED v1.19 | 2026-05-15 | decisions/ADR-023-plugin-only-sensor-architecture.md |
 | ADR-024 | ColumnType Canonical Naming — Domain-Level Variant Names for Sensor Schema API; prism-spec-engine Shadow Enum Retirement | ACCEPTED v1.0 | 2026-05-12 | decisions/ADR-024-column-type-canonical-naming.md |
 | ADR-025 | BC Lifecycle Field Canonical Scheme — Single status Field Governs; lifecycle Field Retired | ACCEPTED v1.0 | 2026-05-12 | decisions/ADR-025-bc-lifecycle-field-canonical-scheme.md |
+| ADR-026 | SensorAuth Un-Sealing — Open Trait for Plugin-Implementable Auth; RwLock WriteToolInvalidationMap | PROPOSED v1.1 | 2026-05-15 | decisions/ADR-026-sensorauth-unsealing.md |
+| ADR-027 | CustomAdapter Deprecation and Removal — Trait Retirement, Registry Cleanup, prism-query Scope | PROPOSED v1.1 | 2026-05-15 | decisions/ADR-027-custom-adapter-deprecation-removal.md |
 
 ## Architecture Decisions
 
@@ -150,6 +152,7 @@ deployment_topology: single-service  # planned — no service binary exists yet 
 
 | Version | Pass | Date | Author | Change |
 |---------|------|------|--------|--------|
+| 2.45 | D-574 | 2026-05-15 | state-manager | D-574 PREREQ-E spec draft package: ADR-026 (SensorAuth Un-Sealing — Open Trait for Plugin-Implementable Auth; RwLock WriteToolInvalidationMap; PROPOSED v1.1) + ADR-027 (CustomAdapter Deprecation and Removal — Trait Retirement, Registry Cleanup, prism-query Scope; PROPOSED v1.1) registered in ADR Registry. ARCH-INDEX v2.44→v2.45. |
 | 2.44 | D-572 | 2026-05-15 | state-manager | D-572 OBS-LP35-001 closure: verification-architecture.md row annotation v1.30→v1.31 (VP-152 table row Option-semantics → Vec<String> canonical); ADR-023 Registry row version sync COMMITTED v1.18→v1.19 (§E VP-PLUGIN-007 prose Option-semantics → Vec<String>). ARCH-INDEX v2.43→v2.44. |
 | 2.43 | D-478/D-479-fix-burst-7-stage-1B | 2026-05-13 | state-manager | ADR-022 v1.2→v1.3 (fix-burst-7 stage 1B by architect): §B Boot Sequence Spec amended with Step 7.5 cross-reference to ADR-023 §C4 (plugin-load intercalation; discoverability gap F-LP8-OBS-001 closed in-scope per Canonical Principle Rule 6); new Related ADRs section added before Changelog (includes ADR-023 §C4 row with supersession statement). ADR Registry row updated ACCEPTED v1.2 → ACCEPTED v1.3. ARCH-INDEX v2.42→v2.43. |
 | 2.42 | D-450-D-451-D-452-architect-cascade | 2026-05-12 | architect | ADR-024 (ColumnType canonical naming — domain-level wins; prism-spec-engine shadow enum retired) + ADR-025 (BC lifecycle field canonical scheme — status sole field; lifecycle retired per ADR-021 amendment) registered. ARCH-INDEX v2.41→v2.42. |

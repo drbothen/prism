@@ -1,0 +1,138 @@
+---
+document_type: verification-property
+level: L4
+version: "0.1"
+status: draft
+producer: architect
+timestamp: 2026-05-15T00:00:00Z
+phase: prereq-e
+inputs:
+  - .factory/specs/architecture/decisions/ADR-027-custom-adapter-deprecation-removal.md
+input-hash: "[pending-recompute]"
+traces_to: .factory/specs/architecture/decisions/ADR-027-custom-adapter-deprecation-removal.md
+source_bc: null
+source_adr: ADR-027
+source_invariant: null
+module: prism-spec-engine
+priority: P0
+proof_method: integration_test
+verification_method: integration_test
+feasibility: feasible
+verification_lock: false
+proof_completed_date: null
+proof_file_hash: null
+lifecycle_status: draft
+introduced: plugin-prereq-e
+modified: []
+deprecated: null
+deprecated_by: null
+replacement: null
+retired: null
+withdrawn: null
+withdrawal_reason: null
+removed: null
+removal_reason: null
+---
+
+# VP-155: CustomAdapter Absent from prism-spec-engine Public API (Compile-Fail Perimeter)
+
+## Property Statement
+
+After S-PLUGIN-PREREQ-E merges, the symbol `CustomAdapter` MUST NOT be accessible via
+`prism_spec_engine::CustomAdapter` or any re-export path from the `prism-spec-engine` crate.
+Any attempt to import `CustomAdapter` from `prism_spec_engine` MUST produce a compile error
+(`error[E0432]: unresolved import`).
+
+This property is enforced by a compile-fail test file in the `tests/external/no-hardcoded-sensors/`
+perimeter crate (ADR-023 §VP-PLUGIN-001 enforcement mechanism 1). The compile-fail test joins
+the FORBIDDEN-SYMBOLS-001 catalog and is counted by the CI file-count assertion.
+
+Similarly, `CustomAdapterRegistry` MUST NOT be importable from `prism_spec_engine`. One
+compile-fail file per symbol is required (two files total: `import_custom_adapter.rs` and
+`import_custom_adapter_registry.rs`).
+
+## Source Contract
+
+- **ADR:** ADR-027 D3 — compile-fail perimeter enforcement for CustomAdapter absence
+- **ADR:** ADR-023 §VP-PLUGIN-001 — FORBIDDEN-SYMBOLS-001 catalog and perimeter enforcement
+- **BC:** None (pure enforcement property; no behavioral contract)
+- **Module:** prism-spec-engine (the crate whose public API is under test)
+- **Category:** API Surface Enforcement / Perimeter
+
+## Proof Method
+
+| Method | Tool | Bounded? | Coverage |
+|--------|------|----------|----------|
+| integration_test | compile-fail test (trybuild or compiletest) | Yes — binary compile outcome | Absence of CustomAdapter and CustomAdapterRegistry from prism-spec-engine public API |
+
+**Feasibility:** Compile-fail tests are the canonical mechanism for enforcing "type X is not
+importable." The existing perimeter at `tests/external/perimeter-violation/` demonstrates this
+pattern works in the Prism workspace. Extending it with two new files is mechanical.
+
+**Relationship to VP-PLUGIN-001 (VP-146):** VP-146 asserts that the 9 FORBIDDEN-SYMBOLS-001
+sensor-named types (CrowdStrikeAdapter, etc.) are absent from production code. VP-155 asserts
+that `CustomAdapter` and `CustomAdapterRegistry` are absent from the `prism-spec-engine` public
+API specifically. VP-155 is a new FORBIDDEN-SYMBOLS-001 catalog entry (catalog grows from 9 to
+11 entries — `CustomAdapter` and `CustomAdapterRegistry`). The CI file-count assertion must be
+updated to reflect 11 entries when VP-155's files are added.
+
+## Proof Harness Skeleton
+
+```rust
+// File 1:
+// tests/external/no-hardcoded-sensors/import_custom_adapter.rs
+//
+// VP-155: CustomAdapter must not be importable from prism-spec-engine public API.
+// DO NOT REMOVE — compile-fail gate for ADR-027.
+//
+// Asserting that `use prism_spec_engine::CustomAdapter` produces E0432.
+// This file must remain in this perimeter crate permanently.
+//
+use prism_spec_engine::CustomAdapter; //~ ERROR unresolved import
+
+// File 2:
+// tests/external/no-hardcoded-sensors/import_custom_adapter_registry.rs
+//
+// VP-155: CustomAdapterRegistry must not be importable from prism-spec-engine public API.
+// DO NOT REMOVE — compile-fail gate for ADR-027.
+//
+use prism_spec_engine::CustomAdapterRegistry; //~ ERROR unresolved import
+```
+
+**CI count-assertion update (required in PLUGIN-MIGRATION-001-A scope):**
+
+The CI step that asserts `file_count(tests/external/no-hardcoded-sensors/) == CATALOG_SIZE`
+must be updated from 9 to 11. The two new files are:
+- `import_custom_adapter.rs`
+- `import_custom_adapter_registry.rs`
+
+If the CI assertion uses a hardcoded constant, update that constant. If it reads from a manifest
+file (e.g., `.factory/forbidden-symbols-catalog.toml`), add the two new entries there.
+
+## Feasibility Assessment
+
+| Factor | Assessment | Notes |
+|--------|-----------|-------|
+| Input space size | Binary | Compile: yes or no |
+| Proof complexity | Very low | Two compile-fail files, zero runtime logic |
+| Tool support | Full | compiletest or trybuild; same tooling as existing perimeter-violation tests |
+| Harness dependencies | Low | Requires PREREQ-E to have deleted custom_adapter.rs first; otherwise the test would fail with "expected to fail but compiled successfully" |
+| Estimated proof time | <5 seconds (compile only) | Fast — no test execution overhead |
+
+**Sequencing note:** VP-155's compile-fail files must NOT be added to the perimeter crate
+until PREREQ-E merges and deletes `custom_adapter.rs`. Adding them before the deletion would
+cause CI to fail with "expected compilation failure but compilation succeeded" on the current
+codebase. The correct sequencing is: PREREQ-E merges (deletes the type) → PLUGIN-MIGRATION-001-A
+adds the compile-fail files → CI count assertion is updated in the same commit.
+
+## Lifecycle
+
+| Event | Date | Actor |
+|-------|------|-------|
+| introduced | 2026-05-15 | architect (PREREQ-E ADR burst) |
+
+## Changelog
+
+| Version | Burst | Date | Author | Notes |
+|---------|-------|------|--------|-------|
+| 0.1 | plugin-prereq-e-adr-burst | 2026-05-15 | architect | Initial stub. Traces to ADR-027 D3. Two compile-fail files required (CustomAdapter + CustomAdapterRegistry). Catalog grows from 9 to 11. Authoring in PLUGIN-MIGRATION-001-A scope; MUST sequence after PREREQ-E merge. Priority P0. |

@@ -1,14 +1,14 @@
 ---
 document_type: behavioral-contract-index
 level: L3
-version: "4.81"
+version: "4.82"
 status: draft
 producer: product-owner
 timestamp: 2026-05-15T00:00:00Z
 phase: 3.A
-total_contracts: 236
+total_contracts: 239
 active_contracts: 225
-draft_contracts: 2
+draft_contracts: 5
 deprecated_contracts: 1
 removed_contracts: 6
 retired_contracts: 2
@@ -16,16 +16,16 @@ retired_contracts: 2
 
 # Behavioral Contract Index
 
-Flat index of all 236 behavioral contracts for Prism (236 total files, 225 active, 2 draft, 1 deprecated, 6 removed, 2 retired), organized by BC ID. Note: 5 prior index-only reserved entries (BC-2.07.007/008/009/010, BC-2.14.011) were dropped — they never had corresponding files.
+Flat index of all 239 behavioral contracts for Prism (239 total files, 225 active, 5 draft, 1 deprecated, 6 removed, 2 retired), organized by BC ID. Note: 5 prior index-only reserved entries (BC-2.07.007/008/009/010, BC-2.14.011) were dropped — they never had corresponding files.
 
 **Note on `total_contracts`:** This count represents unique BC identifiers ever filed
-(active + draft + deprecated + removed + retired = 225 + 2 + 1 + 6 + 2 = 236). Five prior index-only reserved entries
+(active + draft + deprecated + removed + retired = 225 + 5 + 1 + 6 + 2 = 239). Five prior index-only reserved entries
 (BC-2.07.007/008/009/010, BC-2.14.011) were dropped in v4.8 because they never had
 corresponding files — they are NOT counted in `total_contracts` and remain only in the
 historical references section below. Counts are derived from workspace enumeration of
 individual BC file `lifecycle_status` frontmatter fields (ground truth per VSDD). The
 `deprecated_contracts: 1` entry covers BC-2.16.004 (deprecated by ADR-023, PREREQ-F;
-not retired). `draft_contracts: 2` covers BC-2.06.011 and BC-2.21.001.
+not retired). `draft_contracts: 5` covers BC-2.06.011, BC-2.21.001, BC-2.01.016, BC-2.16.011, and BC-2.16.012.
 
 Phase 3-patch additions (2026-04-16): 22 new BCs added in Burst 1 to close traceability gaps for AD-019 (WASM plugins), AD-020 (infusions), AD-021 (actions), CAP-022 (auto-case-creation), and BC-2.14.012 stub completion. Burst 2.5: 4 additional BCs closing remaining gaps flagged by story-writer: BC-2.08.008/009 (diagnostics tool + resources, S-5.08), BC-2.05.011 (audit forwarding at-least-once, S-5.10), BC-2.13.014 (IOC file loading, S-4.03).
 
@@ -46,6 +46,7 @@ Phase 3-patch additions (2026-04-16): 22 new BCs added in Burst 1 to close trace
 | BC-2.01.013 | DataSource Trait Eliminates Per-Sensor Code Duplication | 01 - Sensor Adapters | CAP-001 | P0 | active (promoted draft→active D-398 per POL-14; anchor story S-PLUGIN-PREREQ-A merged PR #142 develop@90d7c80f) |
 | BC-2.01.014 | Exponential Backoff and Retry for Transient Sensor API Errors | 01 - Sensor Adapters | CAP-001 | P0 | draft |
 | BC-2.01.015 | ~~MCP Tool Response Envelope Structure~~ | 01 - Sensor Adapters | CAP-001 | P0 | removed |
+| BC-2.01.016 | SensorAuth Open Trait — Plugin-Implementable Auth Contract (No Sealed Marker) | 01 - Sensor Adapters | CAP-001 | P0 | draft |
 | BC-2.02.001 | OCSF Schema Loading at Build Time via ocsf-proto-gen | 02 - OCSF Normalization | CAP-003 | P0 | draft |
 | BC-2.02.002 | DynamicMessage Creation from Sensor Records | 02 - OCSF Normalization | CAP-003 | P0 | draft |
 | BC-2.02.003 | CrowdStrike Alert Field Mapping to OCSF | 02 - OCSF Normalization | CAP-003 | P0 | draft (amendment_lifecycle: pending — ADR-023) |
@@ -217,6 +218,8 @@ Phase 3-patch additions (2026-04-16): 22 new BCs added in Burst 1 to close trace
 | BC-2.16.008 | `add_sensor_spec` MCP Tool — Upload a New Sensor Spec at Runtime | 16 - Spec Engine | CAP-029, CAP-030 | P0 | draft |
 | BC-2.16.009 | Spec File Validation — Schema Validation, Variable Reference Resolution, OCSF Field Validation | 16 - Spec Engine | CAP-029 | P0 | draft |
 | BC-2.16.010 | `list_sensor_specs` MCP Tool — List Loaded Sensor Specs with Table Schemas and Status | 16 - Spec Engine | CAP-029 | P0 | draft |
+| BC-2.16.011 | CustomAdapter Rust Trait Retirement — Removal of Trait, Registry, and All Call Sites | 16 - Spec Engine | CAP-029 | P0 | draft |
+| BC-2.16.012 | PluginRegistry Dispatch in spec_parser.rs — Hardcoded Sensor Names Replaced with Registry Lookup | 16 - Spec Engine | CAP-029 | P0 | draft |
 | BC-2.17.001 | Plugin Panic Isolation — Crashed Plugin Does Not Terminate Host Process | 17 - WASM Plugin Runtime | CAP-032 | P0 | active (POL-14 auto-promotion D-568 S-PLUGIN-PREREQ-D merge PR #149 ec90fe8f 2026-05-15) | v1.4 |
 | BC-2.17.002 | Plugin Sandbox — No Direct Filesystem or Network Access | 17 - WASM Plugin Runtime | CAP-032 | P0 | active (POL-14 auto-promotion D-568 S-PLUGIN-PREREQ-D merge PR #149 ec90fe8f 2026-05-15) | v1.8 |
 | BC-2.17.003 | Plugin Sandbox — Memory Limit Enforced Per Plugin Instance (default 64MB) | 17 - WASM Plugin Runtime | CAP-032 | P0 | active (POL-14 auto-promotion D-568 S-PLUGIN-PREREQ-D merge PR #149 ec90fe8f 2026-05-15) | v1.5 |
@@ -365,6 +368,8 @@ Phase 3-patch additions (2026-04-16): 22 new BCs added in Burst 1 to close trace
 - Subsystem 19: Infusion Enrichment Framework (AD-020, CAP-031)
 
 ### Change Log (Adversarial Review Fixes)
+
+**v4.82 (2026-05-15):** state-manager | D-574 — 3 new draft BCs registered (BC-2.01.016 + BC-2.16.011 + BC-2.16.012) for S-PLUGIN-PREREQ-E spec draft package. draft_contracts 2→5; total_contracts 236→239. Subsystem / CAP confirmed from BC file frontmatter: BC-2.01.016 (SS-01/CAP-001/P0), BC-2.16.011 (SS-16/CAP-029/P0), BC-2.16.012 (SS-16/CAP-029/P0). Prose H1 description + total_contracts Note updated. active_contracts: 225 unchanged.
 
 **v4.81 (2026-05-15):** product-owner | D-572 OBS-LP36-002 closure — workspace enumeration reconciled prose-vs-frontmatter count drift; D-571 cycle-close. Authoritative counts derived from `lifecycle_status:` frontmatter of all 236 individual BC files. Corrections: `active_contracts` 235→225 (enumeration shows 225 files with `lifecycle_status: active`); `retired_contracts` 3→2 (v4.54 changelog erroneously incremented retired_contracts when BC-2.16.004 was deprecated, not retired — actual retired files: BC-2.12.011 + BC-2.12.012 only); added `draft_contracts: 2` (BC-2.06.011 + BC-2.21.001 have `lifecycle_status: draft` in files despite BC-INDEX table showing active for BC-2.06.011 — file is ground truth); added `deprecated_contracts: 1` (BC-2.16.004). Prose H1 description and total_contracts Note updated to match enumerated truth. Sibling-sweep (TD-VSDD-060): STATE.md + SESSION-HANDOFF.md count references are historical decision-log entries (immutable records); ADR-025:133 "all 235 active BCs" is frozen rationale (architectural record); no live prose sister-sites required update in this burst. SESSION-HANDOFF.md `active_contracts: 235` at line 182 is state-manager domain — flagged for state-manager update in D-572 burst. total_contracts=236 unchanged.
   - Additionally: BC-2.06.011 table-row status corrected from `active` to `draft` to match source file frontmatter (`lifecycle_status: draft` confirmed in BC-2.06.011-config-load-on-startup.md v1.4). Table-vs-file consistency gap surfaced during OBS-LP36-002 enumeration; bundled into D-572 burst per Canonical Principle Rule 4 (AI-built defect fixed in-scope). TD-VSDD-060 sibling-sweep: all other `.factory/` references to BC-2.06.011 + "active" are historical decision-log entries (SESSION-HANDOFF D-319, STORY-INDEX v2.31, ADR-025 analysis table) — immutable records of the D-319 promotion event, not live status assertions. No additional live prose corrections required.
