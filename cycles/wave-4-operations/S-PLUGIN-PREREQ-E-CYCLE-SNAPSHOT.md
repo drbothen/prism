@@ -295,3 +295,54 @@ Pass-3 report: `cycles/wave-4-operations/adversarial-reviews/S-PLUGIN-PREREQ-E-s
 
 Adversary pass-5 dispatch (fresh-context). BC-5.39.001 3-CLEAN protocol — streak 0/3.
 Pass-4 report: `cycles/wave-4-operations/adversarial-reviews/S-PLUGIN-PREREQ-E-spec-pass-4.md`
+
+---
+
+## §D579 FIX-BURST-5 (D-579)
+
+**D-579 COMPLETE — PREREQ-E ADVERSARY PASS-5 FIX-BURST-5 CLOSED.**
+
+**Trajectory: pass-1: 14 → FB1 + pass-2: 9 → FB2 + pass-3: 8 → FB3 + pass-4: 9 → FB4 + pass-5: 10 (0C+2H+3M+2L+3OBS) → FB5 CLOSED 7/7 in-scope + 3 OBS queued cycle-close. Streak 0/3. REGRESSION at pass-5 driven by FB4 bookkeeping gap (subsystems SS-07 omission) + fresh-context POL-7 surface 2 + sibling-sweep catch.**
+
+Trajectory note: The pass-5 regression (10 > 9) is a bookkeeping regression, not a semantic regression. The highest-severity
+findings (2H) were: (1) story `subsystems:` missing SS-07 — a state-manager renumber REDO in FB4 triggered no story-subsystem
+sweep; (2) §References POL-7 surface 2 — fresh-context adversary caught a different paraphrase class than pass-4. The
+sibling-sweep following F-LP5-HIGH-001 identified both ADR-026 (origin) and BC-2.16.012 (secondary) as additional SS-07 gap
+sites, closing 3 findings from a single root cause. OBS-LP5-001 (token budget 85%), OBS-LP5-002 (ADR-027 modified: drift),
+and OBS-LP5-003 (HS-003 article form) queued cycle-close as non-blocking.
+
+### Finding Disposition
+
+| ID | Severity | Type | Closed By | Summary |
+|----|----------|------|-----------|---------|
+| F-LP5-HIGH-001 | HIGH | FB4 regression | product-owner | story `subsystems:` +SS-07 (prism-query omitted) |
+| F-LP5-HIGH-002 | HIGH | POL-7 surface 2 (fresh-context) | product-owner | §References 5 BC entries verbatim H1 |
+| F-LP5-MED-001 | MEDIUM | Completeness gap | product-owner | File Structure +4 auth impl files (Path B) |
+| F-LP5-MED-002 | MEDIUM | Compliance citation gap | product-owner | Compliance Rules +ADR-027 D5 anchor |
+| F-LP5-MED-003 | MEDIUM | POL-8 AC trace gap | product-owner | BC-2.01.013/2.16.004 Path B AC traces |
+| F-LP5-MED-004 | MEDIUM | Metadata completeness | architect | ADR-026 `subsystems_affected:` +SS-07 (origin) |
+| F-LP5-LOW-001 | LOW | Convention undocumented | architect | VP-INDEX source_invariant DI-NNN-only convention |
+| F-LP5-LOW-002 | LOW | Metadata completeness | architect | BC-2.16.012 `subsystems:` +SS-07 (sibling sweep) |
+| OBS-LP5-001 | OBS | Token budget | — | [QUEUED-CYCLE-CLOSE] Story v1.6 at ~85% token budget |
+| OBS-LP5-002 | OBS | POL-27 date drift | — | [QUEUED-CYCLE-CLOSE] ADR-027 modified: not updated after FB4 |
+| OBS-LP5-003 | OBS | Terminology precision | — | [QUEUED-CYCLE-CLOSE] HS-003 "Rust trait" article form |
+
+### Artifact Versions After Fix-Burst-5
+
+| Artifact | After FB4 | After FB5 |
+|----------|-----------|-----------|
+| ADR-026 | v1.6 | v1.7 |
+| ARCH-INDEX | v2.47 | v2.48 |
+| BC-2.16.012 | v1.5 | v1.6 |
+| S-PLUGIN-PREREQ-E story | v1.5 | v1.6 |
+| VP-INDEX | v1.40 | v1.41 |
+| VP-153 | v0.4 | v0.5 |
+| VP-154 | v0.5 | v0.6 |
+| VP-155 | v0.2 | v0.3 |
+| VP-156 | v0.3 | v0.4 |
+| STATE + HANDOFF | v7.283 | v7.284 |
+
+### Next Step
+
+Adversary pass-6 dispatch (fresh-context). BC-5.39.001 3-CLEAN protocol — streak 0/3.
+Pass-5 report: `cycles/wave-4-operations/adversarial-reviews/S-PLUGIN-PREREQ-E-spec-pass-5.md`

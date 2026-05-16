@@ -21,9 +21,9 @@ risk: MEDIUM
 tdd_mode: strict
 crates_touched: [prism-sensors, prism-spec-engine, prism-query]
 target_module: prism-sensors
-subsystems: [SS-01, SS-16]
+subsystems: [SS-01, SS-07, SS-16]
 capabilities: [CAP-001, CAP-029]
-version: "1.5"
+version: "1.6"
 level: "L4"
 producer: product-owner
 timestamp: "2026-05-15T00:00:00Z"
@@ -55,7 +55,7 @@ holdout_scenarios:
 anchor_bcs: [BC-2.01.016, BC-2.16.011, BC-2.16.012, BC-2.01.013, BC-2.16.004]
 anchor_vps: [VP-153, VP-154, VP-155, VP-156, VP-PLUGIN-001, VP-PLUGIN-007]
 anchor_capabilities: [CAP-001, CAP-029]
-anchor_subsystem: [SS-01, SS-16]
+anchor_subsystem: [SS-01, SS-07, SS-16]
 assumption_validations:
   - "prism-spec-engine has never been published to crates.io with CustomAdapter exposed (PLUGIN-AUDIT-001 HIGH-3 confirmed — no deprecation window required)"
   - "spec_parser.rs contains zero CustomAdapter/CustomAdapterRegistry references (ADR-023 §Architectural Constraints (C5 bullet) F-CRIT-NEW-001-PASS2-RESIDUAL verified by grep)"
@@ -101,7 +101,7 @@ invalidation — completing the Wave 0 plugin-only sensor architecture foundatio
 
 | BC ID | Title | Subsystem | Role in This Story |
 |-------|-------|-----------|-------------------|
-| BC-2.01.016 | SensorAuth Open Trait — Plugin-Implementable Auth Contract (No Sealed Marker) | SS-01 | Primary delivery — sealed marker removed; four built-in auth impls unchanged; runtime Rule 2 enforcement confirmed |
+| BC-2.01.016 | SensorAuth Open Trait — Plugin-Implementable Auth Contract (No Sealed Marker) | SS-01 | Primary delivery — sealed marker removed; four built-in auth impls each add one new method body (`auth_type_name`); runtime Rule 2 enforcement confirmed |
 | BC-2.16.011 | CustomAdapter Rust Trait Retirement — Removal of Trait, Registry, and All Call Sites | SS-16 | Primary delivery — `custom_adapter.rs` deleted; three call sites cleaned; BC-2.16.004 transitions to removed |
 | BC-2.16.012 | PluginRegistry Dispatch in spec_parser.rs — Hardcoded Sensor Names Replaced with Registry Lookup | SS-16 | Primary delivery — open dispatch migration; behavioral equivalence test; TD-S-PLUGIN-PREREQ-A-003 WriteToolInvalidationMap closure |
 | BC-2.01.013 | DataSource Trait Eliminates Per-Sensor Code Duplication | SS-01 | Awareness — PREREQ-F established that SensorAuth is NOT sealed; this story is the mechanical implementation of that amendment |
@@ -118,6 +118,10 @@ invalidation — completing the Wave 0 plugin-only sensor architecture foundatio
 | BC-2.16.011 (CustomAdapter retirement) | ~2,500 |
 | BC-2.16.012 (PluginRegistry migration) | ~2,500 |
 | `crates/prism-sensors/src/auth/mod.rs` (sealed marker removal) | ~400 |
+| `crates/prism-sensors/src/auth/crowdstrike.rs` (add `auth_type_name` method) | ~50 |
+| `crates/prism-sensors/src/auth/cyberint.rs` (add `auth_type_name` method) | ~50 |
+| `crates/prism-sensors/src/auth/claroty.rs` (add `auth_type_name` method) | ~50 |
+| `crates/prism-sensors/src/auth/armis.rs` (add `auth_type_name` method) | ~50 |
 | `crates/prism-spec-engine/src/custom_adapter.rs` (deletion) | ~0 (deleted) |
 | `crates/prism-spec-engine/src/lib.rs` (re-export removal) | ~300 |
 | `crates/prism-spec-engine/examples/demo_spec_loading.rs` (cleanup/delete) | ~200 |
@@ -127,7 +131,7 @@ invalidation — completing the Wave 0 plugin-only sensor architecture foundatio
 | `BC-2.16.004-rust-escape-hatch.md` (frontmatter: deprecated → removed) | ~200 |
 | `error-taxonomy.md` (E-SPEC-008 retired annotation) | ~100 |
 | Test files (Red Gate set + behavioral equivalence) | ~2,000 |
-| Total | ~17,100 |
+| Total | ~17,300 |
 
 Well within the 30% context window budget (~40k tokens).
 
@@ -189,7 +193,7 @@ Well within the 30% context window budget (~40k tokens).
 **AC-1 (SensorAuth Sealed Marker Removed):**
 `grep -rn "private::Sealed\|: Sealed\|impl Sealed for" crates/prism-sensors/src/auth/` returns ZERO matches after merge.
 The `SensorAuth` trait definition in `crates/prism-sensors/src/auth/mod.rs` has no supertrait bound referencing a `Sealed` marker. The trait is `pub` and externally implementable.
-(traces to BC-2.01.016 postcondition — sealed marker removed; trait is publicly implementable)
+(traces to BC-2.01.016 postcondition — sealed marker removed; trait is publicly implementable; BC-2.01.013 — this story is the mechanical delivery of the un-sealing amendment that PREREQ-F made to BC-2.01.013)
 
 **AC-2 (Four Built-In Auth Impls Minimal Diff Post-Unsealing):**
 The four concrete auth implementations (`CrowdStrikeAuth`, `CyberintAuth`, `ClarotyAuth`, `ArmisAuth`) require ONE NEW METHOD BODY each and no other changes to their `impl SensorAuth for X` blocks. Each impl adds exactly one line: `fn auth_type_name(&self) -> &'static str { "<auth_type_string>" }` returning the static auth-type name for that implementation (e.g., `"oauth2_client_credentials"` for `CrowdStrikeAuth`). No other changes are made to these impl blocks. If any impl referenced the `Sealed` marker via `impl private::Sealed for X`, that block is also removed; all other impl content is preserved verbatim.
@@ -217,7 +221,7 @@ The three confirmed call sites are cleaned:
 - `removed: "2026-05-15"` (or the actual merge date)
 - `removal_reason: "PREREQ-E retirement per ADR-023 Rule 5"`
 The file is NOT deleted (historical record preservation per DF-030 append_only_numbering).
-(traces to BC-2.16.011 postcondition; DF-030 BC deprecation protocol)
+(traces to BC-2.16.011 postcondition; BC-2.16.004 — this AC executes the lifecycle close (deprecated → removed) for BC-2.16.004 per DF-030 BC deprecation protocol)
 
 **AC-7 (spec_parser.rs Open Dispatch — No Hardcoded Sensor Name Match Arms in Dispatch Context):**
 `grep -rn '"crowdstrike"\|"cyberint"\|"claroty"\|"armis"' crates/prism-spec-engine/src/spec_parser.rs` returns ZERO matches in production dispatch match-arm contexts. Sensor name strings may still appear in doc comments or test fixture values (those are acceptable).
@@ -297,7 +301,7 @@ Architecture layer: `prism-sensors` is Layer 1 (auth surface); `prism-spec-engin
 |------|--------|-------------|
 | `SensorAuth` MUST NOT have a `Sealed` supertrait after PREREQ-E | ADR-023 §Architectural Constraints (C5 bullet, Rule 2); BC-2.01.016 | `grep -rn "private::Sealed\|: Sealed\|impl Sealed" crates/prism-sensors/src/auth/` = 0 hits |
 | `CustomAdapter`, `CustomAdapterRegistry`, `CustomAuth` MUST NOT exist in `src/` after PREREQ-E | ADR-023 §Architectural Constraints (C5 bullet, Rule 5); BC-2.16.011 | `grep -rn "CustomAdapter\|CustomAdapterRegistry\|CustomAuth" crates/` = 0 hits in `src/` |
-| Hardcoded sensor name dispatch in `spec_parser.rs` MUST be replaced with open path | ADR-023 §Architectural Constraints (C5 bullet); BC-2.16.012 | `grep -rn '"crowdstrike"\|"cyberint"\|"claroty"\|"armis"' crates/prism-spec-engine/src/spec_parser.rs` = 0 hits in dispatch contexts |
+| Hardcoded sensor name dispatch in `spec_parser.rs` MUST be replaced with open path | ADR-023 §Architectural Constraints (C5 bullet); ADR-027 D5; BC-2.16.012 | `grep -rn '"crowdstrike"\|"cyberint"\|"claroty"\|"armis"' crates/prism-spec-engine/src/spec_parser.rs` = 0 hits in dispatch contexts |
 | `boot.rs` MUST NOT be modified in this story | ADR-023 §Architectural Constraints (C5 bullet) scope + F-MED-NEW-005 | Code review; `git diff develop...HEAD -- crates/prism-bin/src/boot.rs` = empty |
 | VP-PLUGIN-001 perimeter test MUST remain green after sealed-trait removal | VP-PLUGIN-001 (FORBIDDEN-SYMBOLS-001) | CI grep gate; perimeter compile-fail test must still pass (no new forbidden symbols introduced) |
 | Atomic commit: all file changes land in ONE squash commit | CLAUDE.md commit conventions; AC-10 | CI; `git log --oneline develop..HEAD` = 1 commit on `develop` |
@@ -326,6 +330,10 @@ Note: E-SPEC-010 (variable interpolation field-path miss) and E-SPEC-011 (pipe_v
 | File | Action | Purpose |
 |------|--------|---------|
 | `crates/prism-sensors/src/auth/mod.rs` | Modify | Remove `private::Sealed` module, remove `: Sealed` supertrait from `SensorAuth` trait |
+| `crates/prism-sensors/src/auth/crowdstrike.rs` | Modify | Add `fn auth_type_name(&self) -> &'static str { "oauth2_client_credentials" }` per ADR-026 D1 Path B |
+| `crates/prism-sensors/src/auth/cyberint.rs` | Modify | Add `fn auth_type_name(&self) -> &'static str { "bearer_static" }` per ADR-026 D1 Path B |
+| `crates/prism-sensors/src/auth/claroty.rs` | Modify | Add `fn auth_type_name(&self) -> &'static str { "cookie" }` per ADR-026 D1 Path B |
+| `crates/prism-sensors/src/auth/armis.rs` | Modify | Add `fn auth_type_name(&self) -> &'static str { "api_key" }` per ADR-026 D1 Path B |
 | `crates/prism-spec-engine/src/custom_adapter.rs` | DELETE | Primary retirement target per ADR-023 Rule 5 |
 | `crates/prism-spec-engine/src/lib.rs` | Modify | Remove `mod custom_adapter;` + all `CustomAdapter`/`CustomAdapterRegistry`/`CustomAuth` re-exports |
 | `crates/prism-spec-engine/examples/demo_spec_loading.rs` | DELETE or Modify | Remove `CustomAdapter`-using sections; delete file if nothing meaningful remains |
@@ -397,11 +405,11 @@ The story is shipped when ALL of the following are true:
 
 All BCs cited in this story (frontmatter `behavioral_contracts` array and body table):
 
-- [BC-2.01.013](../specs/behavioral-contracts/BC-2.01.013-datasource-trait-adapter-pattern.md) — DataSource Trait
-- [BC-2.01.016](../specs/behavioral-contracts/BC-2.01.016-sensor-auth-open-trait-contract.md) — SensorAuth Open Trait (NEW)
-- [BC-2.16.004](../specs/behavioral-contracts/BC-2.16.004-rust-escape-hatch.md) — CustomAdapter Escape Hatch (DEPRECATED → REMOVED)
-- [BC-2.16.011](../specs/behavioral-contracts/BC-2.16.011-customadapter-rust-trait-retirement.md) — CustomAdapter Retirement (NEW)
-- [BC-2.16.012](../specs/behavioral-contracts/BC-2.16.012-plugin-registry-dispatch-migration.md) — PluginRegistry Dispatch Migration (NEW)
+- [BC-2.01.013](../specs/behavioral-contracts/BC-2.01.013-datasource-trait-adapter-pattern.md) — DataSource Trait Eliminates Per-Sensor Code Duplication
+- [BC-2.01.016](../specs/behavioral-contracts/BC-2.01.016-sensor-auth-open-trait-contract.md) — SensorAuth Open Trait — Plugin-Implementable Auth Contract (No Sealed Marker) (NEW — this story)
+- [BC-2.16.004](../specs/behavioral-contracts/BC-2.16.004-rust-escape-hatch.md) — Rust Escape Hatch for Custom Adapters — Trait-Based Override When Config Is Insufficient (lifecycle: deprecated → removed by this story)
+- [BC-2.16.011](../specs/behavioral-contracts/BC-2.16.011-customadapter-rust-trait-retirement.md) — CustomAdapter Rust Trait Retirement — Removal of Trait, Registry, and All Call Sites (NEW — this story)
+- [BC-2.16.012](../specs/behavioral-contracts/BC-2.16.012-plugin-registry-dispatch-migration.md) — PluginRegistry Dispatch in spec_parser.rs — Hardcoded Sensor Names Replaced with Registry Lookup (NEW — this story)
 
 Architecture Compliance:
 - [ADR-023](../specs/architecture/decisions/ADR-023-plugin-only-sensor-architecture.md) §Architectural Constraints (C5 bullet) — SensorAuth un-sealing + CustomAdapter removal + spec_parser migration
@@ -426,6 +434,7 @@ Tech debt closed:
 
 | Version | Burst | Date | Author | Change |
 |---------|-------|------|--------|--------|
+| 1.6 | prereq-e-fix-burst-5 | 2026-05-15 | product-owner | F-LP5-HIGH-001: `subsystems:` updated from `[SS-01, SS-16]` to `[SS-01, SS-07, SS-16]`; `anchor_subsystem:` updated identically (prism-query → SS-07 Adapter Pagination & Response Cache per ARCH-INDEX). F-LP5-HIGH-002: §References 5 BC entries corrected to H1-verbatim titles (POL-7 D-571 sweep); lifecycle/status annotations moved outside link text to description suffix. POL-7 5-surface sweep: surface 1 BC table — BC-2.01.016 Role cell "four built-in auth impls unchanged" corrected to "each add one new method body (`auth_type_name`)" (stale from pre-v1.4). Surfaces 3/4/5 verified clean. F-LP5-MED-001: File Structure Requirements table gains 4 auth impl files (crowdstrike/cyberint/claroty/armis `.rs`), each with `auth_type_name` method action + ADR-026 D1 Path B source; Token Budget Estimate table gains 4 impl file rows (~50 tokens each); Total updated ~17,100 → ~17,300. F-LP5-MED-002: Architecture Compliance Rules table — hardcoded-sensor-string dispatch rule Source column gains `ADR-027 D5` (canonical anchor post-FB4 expansion). F-LP5-MED-003 (Path B chosen): AC-1 trace-line extended with BC-2.01.013 justification (mechanical un-sealing delivery of PREREQ-F amendment); AC-6 trace-line extended with BC-2.16.004 justification (lifecycle-close execution per DF-030). Both BCs in `behavioral_contracts:` frontmatter now have AC traces. |
 | 1.5 | prereq-e-fix-burst-4 | 2026-05-15 | product-owner | F-LP4-HIGH-001: VP-156 added to `verification_properties:` frontmatter array (after VP-155, before VP-PLUGIN-001). F-LP4-HIGH-002: VP-156 added to §References Architecture Compliance section with markdown link + description matching "uniqueness only" framing. F-LP4-HIGH-003: BC-2.16.004 BC table Title cell updated to H1-verbatim ("Rust Escape Hatch for Custom Adapters — Trait-Based Override When Config Is Insufficient"); lifecycle annotation "(deprecated → removed)" moved inline to Role column. `anchor_vps:` frontmatter updated to include VP-156. |
 | 1.4 | prereq-e-fix-burst-3 | 2026-05-15 | product-owner | F-LP3-HIGH-002 (joint with architect): AC-2 rewritten — "ZERO changes" → "ONE NEW METHOD BODY per impl (fn auth_type_name returning static auth-type name); no other changes"; Red Gate Test 3 renamed `_unchanged_` → `_minimal_diff_` + updated to assert one new method body. F-LP3-HIGH-003: Task 7 register_write_tool signature updated to `-> Result<(), SpecEngineError>`; AC-9 updated with error-path assertions (E-PLUGIN-012 duplicate, E-PLUGIN-020 after-boot); Red Gate Test 8 updated to assert all three paths. F-LP3-MED-002: Error Taxonomy Additions table expanded — E-PLUGIN-012 + E-PLUGIN-020 rows added (taxonomy v1.27); v1.25 version pins in AC-3 body updated to v1.27 (2 sites in story body). Sub-fix (same burst, D-577): `risk_mitigations:` AC-1..3 entry synced to Path B — "four built-in auth impls are unchanged" → "four built-in auth impls require ONE NEW METHOD BODY each (one-line `fn auth_type_name` returning the static auth-type name string); no other changes". |
 | 1.3 | prereq-e-fix-burst-2 | 2026-05-15 | product-owner | F-LP2-MED-004 closure: Red Gate Test Set reordered so tests are grouped contiguously by BC (BC-2.01.016: tests 1–3; BC-2.16.011: tests 4–5; BC-2.16.012: tests 6–8). No test name changes — `_NNN` suffixes within each BC group were already sequential. Added BC-labeled subheadings for navigability. Former interleaved order (tests 1,2,7 then 3,8 then 4,5,6 across BCs) broke the BC-grouped reading pattern. |

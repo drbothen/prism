@@ -4,9 +4,9 @@ adr_id: "ADR-026"
 title: "SensorAuth Trait Un-Sealing — Remove private::Sealed, Enable Plugin Auth Implementations"
 status: Proposed
 date: "2026-05-15"
-version: "1.6"
+version: "1.7"
 producer: architect
-subsystems_affected: [SS-01, SS-17, SS-16]
+subsystems_affected: [SS-01, SS-07, SS-16, SS-17]
 supersedes: null
 superseded_by: null
 amends: ADR-023
@@ -428,3 +428,4 @@ modes and security implications. The open trait approach reuses the existing typ
 | 1.4 | 2026-05-15 | architect | F-LP2-MED-001 sub-fix: E-PLUGIN-013 → E-PLUGIN-020 reassignment per PO error-taxonomy v1.27 allocation. E-PLUGIN-013 was already occupied by `allowed_urls` manifest validation (taxonomy v1.19, BC-2.17.007); PO allocated E-PLUGIN-020 (next free after E-PLUGIN-019/FormatVersionMissing) for `WriteToolRegistrationAfterBoot`. D7 error code routing bullet updated; category corrected from `validation` to `runtime` to match taxonomy v1.27 row. E-PLUGIN-012 (DuplicateWriteToolRegistration) unchanged — confirmed free. |
 | 1.5 | 2026-05-15 | architect | prereq-e-fix-burst-3: F-LP3-HIGH-002: D2 amended — Path B chosen (required body per impl, no default); four built-in impls must add one-line `fn auth_type_name()` bodies returning `"oauth2_client_credentials"`, `"bearer_static"`, `"cookie"`, `"api_key"` respectively. Path A (default `"unknown"`) rejected — silent incorrectness in audit logs. PO handoff: AC-2 + BC-2.01.016 §Postconditions alignment required. F-LP3-MED-001: E-PLUGIN-012 category corrected `validation` → `boot` per error-taxonomy.md canonical category. F-LP3-MED-003: Five D7 runtime_deliverables added to frontmatter (register_write_tool API, RwLock container migration, DuplicateWriteToolRegistration variant, WriteToolRegistrationAfterBoot variant, AtomicBool query-phase flag). |
 | 1.6 | 2026-05-15 | architect | prereq-e-fix-burst-4: F-LP4-HIGH-004: VP-156 entry added to §Verification Property Anchors — was absent despite being cited in D7 narrative (line 293), D7 rationale (line 270), and v1.5 changelog (D7 deliverables). Entry matches VP-153 format: ID + title + verification method + status + BC anchor. VP-156 is proptest/P1 for `register_write_tool` uniqueness semantics (BC-2.16.012 EC-016-012-004; INV-INVALIDATION-EXT-001). |
+| 1.7 | 2026-05-15 | architect | prereq-e-fix-burst-5: F-LP5-MED-004: SS-07 (Adapter Pagination & Response Cache; prism-query) added to `subsystems_affected` — D7's runtime_deliverables (`register_write_tool` API, `RwLock<Vec<WriteToolInvalidationMap>>` container, `DuplicateWriteToolRegistration` variant, `WriteToolRegistrationAfterBoot` variant, `AtomicBool` query-phase flag) all land in `crates/prism-query/src/invalidation.rs`, which is owned by prism-query (SS-07 per ARCH-INDEX Subsystem Registry). `subsystems_affected` updated from `[SS-01, SS-17, SS-16]` to `[SS-01, SS-07, SS-16, SS-17]` (sorted ascending). POL-23 sibling sweep: ARCH-INDEX ADR Registry row updated to PROPOSED v1.7; BC-2.16.012 §Verification Properties VP-156 row version pin updated to v1.7. |

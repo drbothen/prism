@@ -1,7 +1,7 @@
 ---
 document_type: verification-property
 level: L4
-version: "0.5"
+version: "0.6"
 status: draft
 producer: architect
 timestamp: 2026-05-15T00:00:00Z
@@ -228,5 +228,4 @@ owns the fixture authoring.
 | 0.3 | plugin-prereq-e-spec-gate | 2026-05-15 | architect | source_bc anchor set to BC-2.16.011 (bidirectional traceability fix; consistency-validator D-574 invariant 10). §Source Contract rewritten to lead with BC-2.16.011 as the owning contract; ADR-027/ADR-023 and companion VP-147 remain as supporting references. |
 | 0.4 | prereq-e-fix-burst-1 | 2026-05-15 | architect | F-LP1-CRIT-001 resolution: §Acceptance Criteria completely rewritten to import BC-2.16.011 §VP-154 Fixture Acceptance Criterion verbatim. Old 3-field schema (id/occurred_at/raw) replaced by the canonical OCSF 2004 Detection Finding 9-field schema (type_uid/class_uid/category_uid/severity_id/severity/time/message/finding_info.uid/raw_data). Proof harness skeleton updated to assert class_uid=2004, finding_info.uid="test-001", and valid severity_id range — aligning with BC-2.16.011 behavioral equivalence definition (semantic not byte-identical). BC-2.16.011 added to inputs frontmatter. |
 | 0.5 | fix-burst-1 state-manager catch | 2026-05-15 | state-manager | (state-manager catch in fix-burst-1) F-LP1-HIGH-004 POL-20: introduced field canonicalized to ISO date 2026-05-15. Prior value `plugin-prereq-e` was informal slug; POL-20 requires `YYYY-MM-DD` for artifacts created outside greenfield cycles. |
-| 0.5 | fix-burst-4 changelog repair | 2026-05-15 | state-manager | Renumbering correction per F-LP4-MED-001/002 process-gap-driven repair. Prior changelog had duplicate 0.4 entries (architect prereq-e-fix-burst-1 + state-manager catch both labeled 0.4). State-manager catch renumbered to 0.5. Frontmatter version updated from 0.4 to 0.5. |
-| 0.5 | prereq-e-fix-burst-4 | 2026-05-15 | architect | F-LP4-LOW-002: `modified:` field synced to ISO date "2026-05-15" (most recent change from fix-burst-1 schema rewrite + fix-burst-3 happens-before retract). Prior value was empty array `[]`; POL-27 VP-template schema gap codified for cycle-close session-reviewer extension. No version bump (frontmatter field correction only). |
+| 0.6 | fix-burst-5 renumber-repair-redo | 2026-05-15 | state-manager | F-LP5-HIGH-003 renumber-repair-redo. FB4 assigned both the changelog-repair row and the modified-field-sync row to v0.5, producing two rows at the same version and violating monotonic strict order. Repair row renumbered 0.5→0.6. Absorbs FB4 modified-field-sync content: `modified:` field confirmed synced to ISO date "2026-05-15" per F-LP4-LOW-002 / POL-27 (most recent change: fix-burst-1 schema rewrite + fix-burst-3 happens-before retract). Content summary retained: prior changelog had duplicate 0.4 entries (architect prereq-e-fix-burst-1 + state-manager catch both labeled 0.4); state-manager catch correctly renumbered to 0.5. Each distinct content change now holds a unique version. Frontmatter version updated to 0.6. Monotonic sequence verified: 0.1 → 0.2 → 0.3 → 0.4 → 0.5 → 0.6. |

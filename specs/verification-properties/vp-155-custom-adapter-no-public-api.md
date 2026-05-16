@@ -1,7 +1,7 @@
 ---
 document_type: verification-property
 level: L4
-version: "0.2"
+version: "0.3"
 status: draft
 producer: architect
 timestamp: 2026-05-15T00:00:00Z
@@ -137,5 +137,4 @@ adds the compile-fail files → CI count assertion is updated in the same commit
 |---------|-------|------|--------|-------|
 | 0.1 | plugin-prereq-e-adr-burst | 2026-05-15 | architect | Initial stub. Traces to ADR-027 D3. Two compile-fail files required (CustomAdapter + CustomAdapterRegistry). Catalog grows from 9 to 11. Authoring in PLUGIN-MIGRATION-001-A scope; MUST sequence after PREREQ-E merge. Priority P0. |
 | 0.2 | fix-burst-1 state-manager catch | 2026-05-15 | state-manager | (state-manager catch in fix-burst-1) F-LP1-HIGH-004 POL-20: introduced field canonicalized to ISO date 2026-05-15. Prior value `plugin-prereq-e` was informal slug; POL-20 requires `YYYY-MM-DD` for artifacts created outside greenfield cycles. |
-| 0.2 | fix-burst-4 changelog repair | 2026-05-15 | state-manager | Renumbering correction per F-LP4-MED-001/002 process-gap-driven repair. Prior changelog had duplicate 0.1 entries (architect adr-burst + state-manager catch both labeled 0.1). State-manager catch renumbered to 0.2. Frontmatter version updated from 0.1 to 0.2. |
-| 0.2 | prereq-e-fix-burst-4 | 2026-05-15 | architect | F-LP4-LOW-002: `modified:` field synced to ISO date "2026-05-15" (most recent change: state-manager POL-20 catch in fix-burst-1). Prior value was empty array `[]`; POL-27 VP-template schema gap codified for cycle-close session-reviewer extension. No version bump (frontmatter field correction only). |
+| 0.3 | fix-burst-5 renumber-repair-redo | 2026-05-15 | state-manager | F-LP5-HIGH-003 renumber-repair-redo. FB4 assigned both the changelog-repair row and the modified-field-sync row to v0.2, producing two rows at the same version and violating monotonic strict order. Repair row renumbered 0.2→0.3. Absorbs FB4 modified-field-sync content: `modified:` field confirmed synced to ISO date "2026-05-15" per F-LP4-LOW-002 / POL-27 (most recent change: state-manager POL-20 catch in fix-burst-1). Content summary retained: prior changelog had duplicate 0.1 entries (architect adr-burst + state-manager catch both labeled 0.1); state-manager catch correctly renumbered to 0.2. Each distinct content change now holds a unique version. Frontmatter version updated to 0.3. Monotonic sequence verified: 0.1 → 0.2 → 0.3. |

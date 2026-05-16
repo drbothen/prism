@@ -1,7 +1,7 @@
 ---
 document_type: pipeline-state
 level: ops
-version: "7.283"
+version: "7.284"
 producer: state-manager
 timestamp: 2026-05-15T23:30:00Z
 inputs: []
@@ -24,7 +24,7 @@ repos:
   - mcp-claroty-xdome
 codification_candidates_active: 0
 phase_5_deferred_findings: 2
-current_step: "D-578 (**PREREQ-E ADVERSARY PASS-4 FIX-BURST-4 CLOSED — 9 findings adjudicated**; trajectory 14→9→8→9 FLAT/not converging; 3 of 4 HIGH were systemic VP-156 anchor-back gap (FB1 residue): F-LP4-HIGH-001 (story `verification_properties:`/`anchor_vps:`) + F-LP4-HIGH-002 (story §References) + F-LP4-HIGH-004 (ADR-026 §VP Anchors); 1 fresh-context HIGH: F-LP4-HIGH-003 (BC-2.16.004 title paraphrased not POL-7 verbatim — caught on pass-4, undetected by passes 1-3); 2 MEDIUM changelog version-collision (F-LP4-MED-001/002) repaired via state-manager renumber: VP-153 v0.3→v0.4 + VP-154 v0.4→v0.5 + VP-155 v0.1→v0.2 + VP-156 v0.2→v0.3; 1 MED error-taxonomy modified date sync; 2 LOW (ADR-027 D5 scope expansion + VP template modified: ISO normalization); **84th consecutive single-commit (TD-VSDD-053 stable)**; codification candidates for cycle-close: (a) POL-25 extension to enumerate VP→story anchor-back sweep targets + (b) POL-27 extension from BC to VPs + PRD-supplements; **CASCADE LENGTH WARNING: 4 passes deep, novelty curve FLAT** — PREREQ-D took 17+ passes; user may want to assess cascade strategy or accept that production-grade default cascade is finding genuine quality issues each pass; NEXT: adversary pass-5 fresh-context — streak 0/3)"
+current_step: "D-579 (**PREREQ-E ADVERSARY PASS-5 FIX-BURST-5 CLOSED — 10 findings (7 in-scope + 3 OBS queued)**; trajectory 14→9→8→9→10 REGRESSION at pass-5; FB4 regression remediated: F-LP5-HIGH-001 story `subsystems:` +SS-07 (prism-query omitted from story frontmatter despite ADR-026 D7 naming it); F-LP5-HIGH-002 §References 5 BC entries verbatim H1 POL-7 surface 2 (fresh-context catch — different paraphrase class from pass-4); F-LP5-MED-001 File Structure +4 auth impl files (Path B decision D-577 scope not enumerated); F-LP5-MED-002 Compliance Rules +ADR-027 D5 anchor (2 sub-actions); F-LP5-MED-003 POL-8 BC-2.01.013/2.16.004 AC traces Path B entries; F-LP5-MED-004 ADR-026 subsystems_affected +SS-07 (origin of story gap); F-LP5-LOW-001 VP-INDEX source_invariant DI-NNN-only convention documented (Path A silent convention codified); F-LP5-LOW-002 BC-2.16.012 subsystems: +SS-07 (sibling sweep catch); 3 OBS queued cycle-close (token budget 85%, ADR-027 modified: drift, HS-003 article form); ADR-026 v1.6→v1.7; ARCH-INDEX v2.47→v2.48; BC-2.16.012 v1.5→v1.6; VP-INDEX v1.40→v1.41; Story v1.5→v1.6; VP-153 v0.4→v0.5; VP-154 v0.5→v0.6; VP-155 v0.2→v0.3; VP-156 v0.3→v0.4; **85th consecutive single-commit (TD-VSDD-053 stable)**; Streak 0/3 — pass-6 NEXT)"
 feature_branch_head: "merged to a5ab742c at 2026-05-15 (maintenance D-572 fix-PR)"
 feature_branch_remote_status: "deleted (squash-merged to develop@ec90fe8f; remote branch feature/S-PLUGIN-PREREQ-D removed)"
 worktree_status: "all post-merge cleanups complete — only S-3.09 + S-PLUGIN-PREREQ-B + S-PLUGIN-PREREQ-C + W3-FIX-S307-001 remain"
@@ -147,7 +147,7 @@ story_count: 113
 bc_count_corrected: 236
 cap_count: 40  # active; highest_cap_id: CAP-040 (CAP-038 Multi-Tenant Identity, CAP-039 Multi-Tenant Fixture Gen, CAP-040 Multi-Tenant Adapter Dispatch — Wave 3 Phase 3.A Step 2)
 bc_index_version: "4.82"
-vp_index_version: "1.40"
+vp_index_version: "1.41"
 story_index_version: "v2.109"
 policies_version: "1.11"
 total_stories: 150
@@ -159,7 +159,7 @@ holdout_index_version: "1.3"
 capabilities_version: "1.14"
 l2_index_version: "1.13"
 module_decomposition_version: "1.16"
-arch_index_version: "2.47"
+arch_index_version: "2.48"
 security_architecture_version: "1.1"
 verification_coverage_matrix_version: "1.33"
 verification_architecture_version: "1.34"
@@ -402,21 +402,19 @@ Cycle files: [burst-log](cycles/phase-2-patch/burst-log.md) | [convergence-traje
 
 ---
 
-## Session Resume Checkpoint (2026-05-15-v7.283-d578-PREREQ-E-PASS4-FIX-BURST-4-CLOSED)
+## Session Resume Checkpoint (2026-05-15-v7.284-d579-PREREQ-E-PASS5-FIX-BURST-5-CLOSED)
 
-_Previous checkpoint (v7.282/D-577 PREREQ-E-PASS3-FIX-BURST-3-CLOSED) archived: [cycles/wave-4-operations/session-checkpoints.md](cycles/wave-4-operations/session-checkpoints.md)_
+_Previous checkpoint (v7.283/D-578 PREREQ-E-PASS4-FIX-BURST-4-CLOSED) archived: [cycles/wave-4-operations/session-checkpoints.md](cycles/wave-4-operations/session-checkpoints.md)_
 
-**STATE v7.283. D-578 PREREQ-E ADVERSARY PASS-4 FIX-BURST-4 CLOSED — 9 findings adjudicated (all 9 in-scope closed + 0 OBS). Trajectory 14→9→8→9 FLAT — not converging. Streak 0/3. NEXT ACTION: adversary pass-5 fresh-context dispatch (BC-5.39.001 3-CLEAN protocol).**
+**STATE v7.284. D-579 PREREQ-E ADVERSARY PASS-5 FIX-BURST-5 CLOSED — 10 findings (7 in-scope closed + 3 OBS queued cycle-close). Trajectory 14→9→8→9→10 REGRESSION at pass-5 (FB4 bookkeeping gap + POL-7 surface 2 + sibling-sweep catch). Streak 0/3. NEXT ACTION: adversary pass-6 fresh-context dispatch (BC-5.39.001 3-CLEAN protocol).**
 
-D-578 closed fix-burst-4 for PREREQ-E adversary pass-4 (9 findings: 0C+4H+3M+2L+0OBS). 3 of 4 HIGH were systemic VP-156 anchor-back gaps (FB1 residue undetected by passes 1–3): story `verification_properties:`/`anchor_vps:` arrays + story §References + ADR-026 §VP Anchors. 1 fresh-context HIGH: BC-2.16.004 row Title was paraphrased not POL-7 verbatim H1 (undetected by passes 1–3 — cognitive diversity value confirmed). VP-153/154/155/156 changelog version-collisions repaired (state-manager renumber). error-taxonomy modified: date synced. ADR-027 D5 scope expanded. 4 VP modified: fields ISO-normalized. ADR-026 v1.5→v1.6; ADR-027 v1.2→v1.3; ARCH-INDEX v2.46→v2.47. **84th consecutive single-commit (TD-VSDD-053 stable).**
-
-**CASCADE LENGTH WARNING:** 4 passes deep, novelty curve FLAT (14→9→8→9). PREREQ-D took 17+ passes. Production-grade default cascade is finding genuine quality issues each pass. User may want to assess cascade strategy or accept that each fresh-context pass is warranted.
+D-579 closed fix-burst-5 for PREREQ-E adversary pass-5. FB4 regression remediated: story `subsystems:` +SS-07 (F-LP5-HIGH-001; prism-query omitted after state-manager renumber REDO triggered no subsystem sweep). §References 5 BC entries verbatim H1 POL-7 surface 2 (F-LP5-HIGH-002; different paraphrase class from pass-4 catch — fresh-context cognitive diversity confirmed). File Structure +4 auth impl files Path B (F-LP5-MED-001). Compliance Rules +ADR-027 D5 (F-LP5-MED-002). BC-2.01.013/2.16.004 Path B AC traces (F-LP5-MED-003). ADR-026 subsystems_affected +SS-07 (F-LP5-MED-004; origin of story gap). VP-INDEX source_invariant DI-NNN-only convention documented (F-LP5-LOW-001). BC-2.16.012 subsystems: +SS-07 (F-LP5-LOW-002; sibling sweep). ADR-026 v1.6→v1.7; ARCH-INDEX v2.47→v2.48; BC-2.16.012 v1.5→v1.6; VP-INDEX v1.40→v1.41; Story v1.5→v1.6; VP-153/154/155/156 +1 version each. **85th consecutive single-commit (TD-VSDD-053 stable).**
 
 **Next dispatch chain:**
-- **Adversary pass-5 (IMMEDIATE NEXT):** fresh-context adversary with policies.yaml 27-POL rubric + extended sweep template; BC-5.39.001 3-CLEAN protocol. Streak 0/3 — need 3 consecutive CLEAN passes to converge.
+- **Adversary pass-6 (IMMEDIATE NEXT):** fresh-context adversary with policies.yaml 27-POL rubric; BC-5.39.001 3-CLEAN protocol. Streak 0/3 — need 3 consecutive CLEAN passes to converge.
 - DO NOT dispatch PLUGIN-MIGRATION-001-A/B/C/D before PREREQ-E Phase 1d converges (3-CLEAN) and implementation begins.
 
-**Current spec versions:** BC-INDEX v4.82 (active 225, draft 5, total 239), STORY-INDEX v2.109, VP-INDEX v1.40 (156 total), ARCH-INDEX v2.47, policies v1.11, verification-architecture v1.34, ADR-026 v1.6, ADR-027 v1.3, ADR-023 v1.19, error-taxonomy v1.27, develop@a5ab742c; STATE v7.283, SESSION-HANDOFF v7.283. **Key files:** [SESSION-HANDOFF.md](SESSION-HANDOFF.md) | [cycles/wave-4-operations/S-PLUGIN-PREREQ-E-CYCLE-SNAPSHOT.md](cycles/wave-4-operations/S-PLUGIN-PREREQ-E-CYCLE-SNAPSHOT.md)
+**Current spec versions:** BC-INDEX v4.82 (active 225, draft 5, total 239), STORY-INDEX v2.109, VP-INDEX v1.41 (156 total), ARCH-INDEX v2.48, policies v1.11, verification-architecture v1.34, ADR-026 v1.7, ADR-027 v1.3, ADR-023 v1.19, error-taxonomy v1.27, develop@a5ab742c; STATE v7.284, SESSION-HANDOFF v7.284. **Key files:** [SESSION-HANDOFF.md](SESSION-HANDOFF.md) | [cycles/wave-4-operations/S-PLUGIN-PREREQ-E-CYCLE-SNAPSHOT.md](cycles/wave-4-operations/S-PLUGIN-PREREQ-E-CYCLE-SNAPSHOT.md)
 
 ## Agent Routing Quick Reference
 

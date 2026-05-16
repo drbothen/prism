@@ -1,7 +1,7 @@
 ---
 document_type: verification-property-index
 level: L4
-version: "1.40"
+version: "1.41"
 status: draft
 producer: product-owner
 timestamp: 2026-05-11T00:00:00
@@ -15,6 +15,14 @@ total_vps: 156
 
 > **Context Engineering:** This index lists all verification properties with their
 > status and method. Load individual VP files only when working on that specific property.
+
+> **`source_invariant:` schema convention (F-LP5-LOW-001, fix-burst-5):** The `source_invariant:`
+> frontmatter field in VP files accepts only workspace-canonical DI-NNN identifiers from
+> `domain-spec/invariants.md`. BC-local invariants (INV-* identifiers scoped to a single BC,
+> valid only within that BC's body) MUST NOT populate `source_invariant:`; they are traced via
+> `source_bc:` and cited in the VP's §Source Contract body prose. A VP with no DI-NNN invariant
+> traces to `source_invariant: null`. Example: VP-153 `source_invariant: DI-012` (workspace
+> invariant); VP-156 `source_invariant: null` with INV-INVALIDATION-EXT-001 cited in body only.
 
 ## Properties
 
@@ -235,6 +243,7 @@ S-1.02 frontmatter has been updated to `subsystems: [SS-03, SS-07, SS-11, SS-12,
 
 | Version | Burst | Date | Author | Change |
 |---------|-------|------|--------|--------|
+| 1.41 | prereq-e-fix-burst-5 | 2026-05-15 | architect | F-LP5-LOW-001 Path A: `source_invariant:` schema convention documented — field accepts DI-NNN workspace-canonical identifiers only; BC-local INV-* identifiers belong in `source_bc:` + body prose, not `source_invariant:`. Convention note added as blockquote above §Properties table. Confirms VP-153 (`source_invariant: DI-012`) and VP-156 (`source_invariant: null`) are both correct; no individual VP frontmatter changes needed. VP-INDEX v1.40→v1.41. |
 | 1.40 | prereq-e-fix-burst-3 | 2026-05-15 | architect | F-LP3-HIGH-001 sibling-sweep: VP-156 description updated from "uniqueness + happens-before" to "uniqueness only" — aligns VP-INDEX row with VP-156 v0.2 body (happens-before claim removed in fix-burst-2). Propagated to verification-architecture.md (v1.34), BC-2.16.012 §VP Anchors and §Verification Properties (v1.4). Stale "ADR-026 D7 v1.2" pin in BC-2.16.012 §Verification Properties updated to v1.5. |
 | 1.39 | prereq-e-fix-burst-1 | 2026-05-15 | architect | F-LP1-MED-003 resolution: VP-156 (WriteToolInvalidationMap registration uniqueness + happens-before, proptest P1, module: prism-query, anchor: S-PLUGIN-PREREQ-E) added to main Properties table. BC-2.16.012 §VP Anchors "(none in this story)" coverage gap closed. Summary table: Proptest 87→88, Total VPs 155→156, P1 33→34. Sequential count note updated to 156. total_vps frontmatter updated 155→156. |
 | 1.38 | PREREQ-E-ADR-burst | 2026-05-15 | state-manager | Frontmatter version bumped 1.37→1.38 to record PREREQ-E ADR burst: VP-153 (proptest P0), VP-154 (integration_test P1), VP-155 (integration_test P0) added. Changelog row was missing from v1.38 — backfilled here at v1.39 to maintain contiguous history. Corresponding content changes were applied in that burst (main table rows 175-177, summary table 152→155 total, P0 120→123, P1 32→33, named-alias note updated). |
