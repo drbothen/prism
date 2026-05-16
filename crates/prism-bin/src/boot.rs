@@ -343,7 +343,7 @@ pub async fn boot_to_step_6(config_dir: &Path) -> Result<BootContext, BootError>
 /// Format: JSON if `PRISM_LOG_FORMAT=json`; pretty otherwise.
 /// First log line: `tracing::info!("Prism v{}", env!("CARGO_PKG_VERSION"))`.
 pub fn step1_init_tracing(log_format: &crate::cli::LogFormat) {
-    use tracing_subscriber::{fmt, prelude::*, EnvFilter};
+    use tracing_subscriber::{EnvFilter, fmt, prelude::*};
 
     let env_filter = EnvFilter::try_from_default_env().unwrap_or_else(|_| EnvFilter::new("info"));
 
@@ -540,7 +540,7 @@ pub async fn step4_load_sensor_specs(
     config: &PrismConfig,
 ) -> Result<Arc<arc_swap::ArcSwap<prism_spec_engine::config_manager::ConfigManager>>, BootError> {
     use arc_swap::ArcSwap;
-    use prism_spec_engine::config_manager::{parse_spec_directory, ConfigManager};
+    use prism_spec_engine::config_manager::{ConfigManager, parse_spec_directory};
 
     let spec_dir = &config.spec_dir;
 
@@ -899,7 +899,7 @@ pub async fn plugin_load_step_with_audit(
     plugin_dir: &Path,
     audit_sink: Arc<dyn prism_spec_engine::plugin_audit_sink::PluginLoadAuditSink>,
 ) -> Result<PluginLoadResult, BootError> {
-    use prism_spec_engine::plugin::{PluginRuntime, PLUGIN_HTTP_CLIENT_TIMEOUT_SECS};
+    use prism_spec_engine::plugin::{PLUGIN_HTTP_CLIENT_TIMEOUT_SECS, PluginRuntime};
     use std::time::Duration;
 
     // AC-18: PRISM_DISABLE_PLUGIN_LOAD takes absolute precedence over plugin_dir config.

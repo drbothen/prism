@@ -1,7 +1,7 @@
 [package]
 name = "prism-bin"
 version = "0.1.0"
-edition = "2021"
+edition = "2024"
 description = "Prism binary — CLI entry point, boot sequence, signal handlers (SS-22)"
 license = "MIT"
 publish = false

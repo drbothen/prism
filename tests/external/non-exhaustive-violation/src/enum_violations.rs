@@ -4,9 +4,9 @@
 //! without a wildcard arm. After `#[non_exhaustive]` is applied, each match MUST fail
 //! with E0004 (non-exhaustive patterns).
 //!
-//! Violations 7-8, 13-15, 18-19, 25, 27-29 (11 total E0004 expected).
+//! Violations 7-8, 13-15, 18-19, 25, 27-29, 31 (12 total E0004 expected).
 
-use prism_core::{ColumnOptions, ColumnType};
+use prism_core::{ColumnOptions, ColumnType, PluginError};
 use prism_spec_engine::infusion::{BuiltInSourceType, InfusionType};
 use prism_spec_engine::spec_parser::{AuthType, PaginationConfig};
 use prism_spec_engine::types::{
@@ -141,5 +141,25 @@ pub fn v29_client_status_match() {
         ClientStatus::Configured => {}
         ClientStatus::NotConfigured => {}
         // After fix-burst-2: E0004 — `_` arm required for #[non_exhaustive] enum
+    }
+}
+
+/// Violation 31: prism_core::PluginError exhaustive match (E0004).
+/// F-LP22 closure (D-572): PluginError is a pub API in prism-core and requires
+/// #[non_exhaustive] per the project's non-exhaustive discipline (CLAUDE.md).
+pub fn v31_plugin_error_match() {
+    let plugin_err: PluginError = PluginError::NotLoaded {
+        plugin_id: "test".to_string(),
+    };
+    match plugin_err {
+        PluginError::Trapped { .. } => {}
+        PluginError::Timeout { .. } => {}
+        PluginError::MemoryExceeded { .. } => {}
+        PluginError::NotLoaded { .. } => {}
+        PluginError::InvalidInterface { .. } => {}
+        PluginError::SandboxViolation { .. } => {}
+        PluginError::CompilationFailed { .. } => {}
+        PluginError::EmptyPluginId { .. } => {}
+        // After F-LP22: E0004 — `_` arm required for #[non_exhaustive] enum
     }
 }

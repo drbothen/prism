@@ -40,7 +40,7 @@ use tokio::sync::{broadcast, mpsc};
 pub async fn install_sigterm_handler(shutdown_tx: broadcast::Sender<()>) {
     #[cfg(unix)]
     {
-        use tokio::signal::unix::{signal, SignalKind};
+        use tokio::signal::unix::{SignalKind, signal};
 
         let mut sigterm = match signal(SignalKind::terminate()) {
             Ok(s) => s,
@@ -91,8 +91,8 @@ pub async fn install_sigterm_handler(shutdown_tx: broadcast::Sender<()>) {
             tracing::info!("Received SIGTERM — shutting down");
             let _ = shutdown_tx.send(());
             tracing::info!(
-                    "Audit buffer flush deferred to S-3.02-FOLLOWUP-RUNTIME (chassis only) — exiting cleanly"
-                );
+                "Audit buffer flush deferred to S-3.02-FOLLOWUP-RUNTIME (chassis only) — exiting cleanly"
+            );
             std::process::exit(0);
         } else {
             tracing::error!("Ctrl-C signal handler failed; continuing without SIGTERM handler");
@@ -121,7 +121,7 @@ pub async fn install_sigterm_handler(shutdown_tx: broadcast::Sender<()>) {
 pub fn create_sigterm_future(
     shutdown_tx: broadcast::Sender<()>,
 ) -> impl std::future::Future<Output = ()> {
-    use tokio::signal::unix::{signal, SignalKind};
+    use tokio::signal::unix::{SignalKind, signal};
 
     // Register the OS-level SIGTERM handler here, synchronously, before
     // returning the future.  Any SIGTERM delivered after this point will be
@@ -172,7 +172,7 @@ pub fn create_sigterm_future(
 pub async fn install_sighup_handler(reload_tx: mpsc::Sender<()>) {
     #[cfg(unix)]
     {
-        use tokio::signal::unix::{signal, SignalKind};
+        use tokio::signal::unix::{SignalKind, signal};
 
         let mut sighup = match signal(SignalKind::hangup()) {
             Ok(s) => s,
