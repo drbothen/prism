@@ -8,7 +8,7 @@ must_pass: true
 priority: P0
 epic_id: "PLUGIN-MIGRATION-001"
 story_source: "S-PLUGIN-PREREQ-E"
-version: "1.1"
+version: "1.2"
 status: draft
 producer: product-owner
 timestamp: 2026-05-15T00:00:00
@@ -43,7 +43,7 @@ After PREREQ-E, `spec_parser.rs` no longer contains hardcoded match arms keyed o
 strings for dispatch. This scenario verifies that (a) the open-dispatch path produces
 byte-identical `SensorSpec` output for the four initial sensors, (b) a novel sensor name parses
 generically without error, and (c) `WriteToolInvalidationMap` accepts runtime registration of
-new write-tool entries (closing TD-A-003).
+new write-tool entries (closing TD-S-PLUGIN-PREREQ-A-003).
 
 ---
 
@@ -107,7 +107,7 @@ new write-tool entries (closing TD-A-003).
 
 ---
 
-## HS-PREREQ-E-003-03: WriteToolInvalidationMap Runtime Extensibility (TD-A-003 Closure)
+## HS-PREREQ-E-003-03: WriteToolInvalidationMap Runtime Extensibility (TD-S-PLUGIN-PREREQ-A-003 Closure)
 
 **Title:** Plugin-registered write tool participates in cache invalidation after `register_write_tool` call
 
@@ -155,5 +155,6 @@ When this holdout scenario is evaluated, the evaluator must produce:
 
 | Version | Burst | Date | Author | Change |
 |---------|-------|------|--------|--------|
+| 1.2 | prereq-e-fix-burst-2 | 2026-05-15 | product-owner | F-LP2-HIGH-002 closure (PO perimeter — 2 sites): Scenario Description body line ("closing TD-A-003") and HS-PREREQ-E-003-03 heading ("TD-A-003 Closure") both canonicalized to TD-S-PLUGIN-PREREQ-A-003. Changelog entry for v1.0 retains original TD-A-003 text as historical record (TD-VSDD-091 anti-volatile-pin; changelog is append-only). |
 | 1.1 | S-PLUGIN-PREREQ-E-reconciliation | 2026-05-15 | product-owner | Q4 note: VP-155 is a compile-time property not a runtime scenario — confirmed HS-PREREQ-E-003 correctly does not cover it (VP-155 coverage added to HS-PREREQ-E-002-05 instead). Added VP-155 non-coverage rationale note in body. |
 | 1.0 | S-PLUGIN-PREREQ-E-authoring | 2026-05-15 | product-owner | Initial draft. Three sub-scenarios: known-good SensorSpec parity, known-problematic novel sensor open-parse, and WriteToolInvalidationMap runtime extensibility (TD-A-003 closure). |

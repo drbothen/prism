@@ -4,7 +4,7 @@ adr_id: "ADR-026"
 title: "SensorAuth Trait Un-Sealing — Remove private::Sealed, Enable Plugin Auth Implementations"
 status: Proposed
 date: "2026-05-15"
-version: "1.2"
+version: "1.4"
 producer: architect
 subsystems_affected: [SS-01, SS-17, SS-16]
 supersedes: null
@@ -233,12 +233,19 @@ plugin-load (step 7.5, before MCP traffic) is the correct production-grade defau
 operator sees the error before any query is served. A `tool_name`-keyed uniqueness invariant
 is also simpler to reason about in VP-156 proptest coverage.
 
-**Error code routing:** `SpecEngineError::DuplicateWriteToolRegistration` is a new variant in
-the `SpecEngineError` enum (prism-spec-engine). The corresponding `E-PLUGIN-001` error code
-(namespace: E-PLUGIN-NNN) MUST be added to `.factory/specs/prd-supplements/error-taxonomy.md`
-by the product-owner. Semantics: "Plugin declared a write tool name that is already registered
-by another plugin; registration rejected." This is a PO-domain handoff: PO authors the taxonomy
-row; implementer adds the `SpecEngineError::DuplicateWriteToolRegistration(String)` variant.
+**Error code routing:** Two new error codes apply to this registration path (E-PLUGIN-001 is the
+umbrella runtime-execution code and MUST NOT be reused for boot-load registration errors):
+
+- **`E-PLUGIN-012`** — `SpecEngineError::DuplicateWriteToolRegistration(String)`: Plugin declared
+  a write tool name that is already registered by another plugin; boot-load registration rejected.
+  Severity: broken. Category: validation.
+- **`E-PLUGIN-020`** — `SpecEngineError::WriteToolRegistrationAfterBoot`: `register_write_tool`
+  was called after step 8 (query-engine init) started; registration attempt rejected and a
+  `WARN`-level tracing event is emitted. Severity: broken. Category: runtime.
+
+Both codes (`E-PLUGIN-012` and `E-PLUGIN-020`) MUST be added to `.factory/specs/prd-supplements/error-taxonomy.md` by the
+product-owner in S-PLUGIN-PREREQ-E scope (PO-domain handoff; PO owns error-taxonomy.md per
+Agent Routing Table). The implementer adds both `SpecEngineError` enum variants.
 
 All read-side callers use `RwLock::read().unwrap()` (infallible if no writer panics while holding
 the lock; boot-phase write calls are synchronous and non-panicking by production-grade default).
@@ -248,7 +255,7 @@ A `WARN`-level tracing event is emitted if `register_write_tool` is called after
 
 Anchor: ADR-022 §B step 7.5 (plugin-load before query-engine init). BC-2.16.012 postcondition
 INV-INVALIDATION-EXT-001 (TD-S-PLUGIN-PREREQ-A-003 closure). S-PLUGIN-PREREQ-E AC-9. VP-156 (proptest coverage
-for uniqueness semantics and happens-before invariant).
+for uniqueness semantics; visibility guarantee derives from RwLock contract + ADR-022 boot ordering).
 
 ---
 
@@ -371,3 +378,5 @@ modes and security implications. The open trait approach reuses the existing typ
 | 1.0 | 2026-05-15 | architect | Initial proposal — SensorAuth unsealing design for S-PLUGIN-PREREQ-E |
 | 1.1 | 2026-05-15 | architect | Q1 resolution: add D7 (WriteToolInvalidationMap RwLock<Vec<...>> — no OnceLock; boot-step 7.5 contract cited). Q2 resolution: add BC-2.01.016 as primary VP-153 BC anchor; BC-2.01.013 noted as parent pattern; no amendment to BC-2.01.013 in PREREQ-E. Q3 resolution: D3 revised to assign E-SPEC-012/013/014 for auth-type rejection rules; E-SPEC-010 collision documented; error-taxonomy amendment routed to PO. §Source/Origin amended to reference BC-2.01.016. |
 | 1.2 | 2026-05-15 | architect | prereq-e-fix-burst-1: F-LP1-HIGH-001: D1 trait method trilemma resolved — 2-method surface (as_any + auth_type_name) chosen over 1-method (as-built) and 3-method (BC suggestion); explicit trilemma table added to D1. D1 doc comment rewritten — "Sealed authentication credential" replaced with "Authentication credential for a sensor adapter (open trait — plugin-implementable per ADR-026)" (F-LP1-LOW-001). F-LP1-HIGH-002: phantom runtime_deliverable "Remove #[non_exhaustive] seal-workaround doc comments" deleted (grep confirms zero non_exhaustive refs in auth/mod.rs). F-LP1-MED-002: D7 expanded with error-on-duplicate register_write_tool semantics — returns Err(SpecEngineError::DuplicateWriteToolRegistration(tool_name)); E-PLUGIN-001 code routed to PO error-taxonomy; WriteToolRegistrationAfterBoot variant documented. F-LP1-LOW-002: D7 (added in v1.1) reordered to appear after D6, restoring D1..D7 sequential file order. VP-156 (proptest, P1) added as anchor for D7 uniqueness coverage. PO co-changes (same burst): F-LP1-MED-004 closure — two TD-A-003 alias citations in D7 corrected to TD-S-PLUGIN-PREREQ-A-003; F-LP1-HIGH-003 — two §C5 phantom-heading citations corrected to §Architectural Constraints (C5 bullet) in §Source/Origin and §Related ADRs table. |
+| 1.3 | 2026-05-15 | architect | prereq-e-fix-burst-2: F-LP2-MED-001: D7 error code routing corrected — E-PLUGIN-001 collision with existing umbrella runtime-panic code resolved; new codes E-PLUGIN-012 (DuplicateWriteToolRegistration, boot-load duplicate) and E-PLUGIN-013 (WriteToolRegistrationAfterBoot, post-step-8 registration attempt) assigned in D7 narrative; both codes routed to PO for error-taxonomy.md authoring. VP-156 anchor sentence updated to remove "happens-before invariant" framing (aligned to VP-156 v0.2 rework). |
+| 1.4 | 2026-05-15 | architect | F-LP2-MED-001 sub-fix: E-PLUGIN-013 → E-PLUGIN-020 reassignment per PO error-taxonomy v1.27 allocation. E-PLUGIN-013 was already occupied by `allowed_urls` manifest validation (taxonomy v1.19, BC-2.17.007); PO allocated E-PLUGIN-020 (next free after E-PLUGIN-019/FormatVersionMissing) for `WriteToolRegistrationAfterBoot`. D7 error code routing bullet updated; category corrected from `validation` to `runtime` to match taxonomy v1.27 row. E-PLUGIN-012 (DuplicateWriteToolRegistration) unchanged — confirmed free. |

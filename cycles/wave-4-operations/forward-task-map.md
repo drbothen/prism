@@ -23,7 +23,7 @@ User's locked-in B → C → A sequence. See SESSION-HANDOFF.md `successor_focus
 | Story | Scope | depends_on | Notes |
 |-------|-------|------------|-------|
 | S-PLUGIN-PREREQ-D | prism-bin/prism-spec-engine: Wire PluginRuntime into boot step 7; .prx Build/Sign/Load Pipeline (unsigned v1.0; boot warning + audit log; signing deferred TD-PLUGIN-SIGNING-001) | PREREQ-F + PREREQ-A — READY | TD-B-002/005/011/012 routed here from carry-forward matrix |
-| S-PLUGIN-PREREQ-E | prism-sensors/prism-spec-engine: Un-seal SensorAuth + Deprecate/Remove CustomAdapter Rust Trait + migrate spec_parser.rs call sites to PluginRegistry | PREREQ-F + PREREQ-A — READY | TD-A-003 (WriteToolInvalidationMap extensibility) routed here |
+| S-PLUGIN-PREREQ-E | prism-sensors/prism-spec-engine: Un-seal SensorAuth + Deprecate/Remove CustomAdapter Rust Trait + migrate spec_parser.rs call sites to PluginRegistry | PREREQ-F + PREREQ-A — READY | TD-S-PLUGIN-PREREQ-A-003 (WriteToolInvalidationMap extensibility) routed here |
 
 ---
 
@@ -184,6 +184,14 @@ Tier 8: End-product convergence (production MSSP MCP, prism-mcp crate, Wave 5)
 4. Confirm PREREQ-D and PREREQ-E status before dispatching PLUGIN-MIGRATION-001-D (they gate it).
 5. Re-read TIER 5 unblock conditions after each Wave 1 merge — S-3.09 worktree thaw particularly depends on 001-A.
 6. Wave 4 work begins only after Wave 2 closure; refer to tech-debt-register v2.15 for TD IDs.
+
+---
+
+## Canonicalization note (prereq-e-fix-burst-2)
+
+TD-A-003 alias canonicalized to TD-S-PLUGIN-PREREQ-A-003 in TIER 2 table row for S-PLUGIN-PREREQ-E
+(F-LP2-HIGH-002 closure, 2026-05-15). This file is a cycle artifact; the canonical alias is now
+TD-S-PLUGIN-PREREQ-A-003 across all live spec files.
 
 ---
 

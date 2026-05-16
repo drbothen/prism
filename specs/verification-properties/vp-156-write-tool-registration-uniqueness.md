@@ -1,7 +1,7 @@
 ---
 document_type: verification-property
 level: L4
-version: "0.1"
+version: "0.2"
 status: draft
 producer: architect
 timestamp: 2026-05-15T00:00:00Z
@@ -13,7 +13,7 @@ input-hash: "[pending-recompute]"
 traces_to: .factory/specs/architecture/decisions/ADR-026-sensorauth-unsealing.md
 source_bc: BC-2.16.012
 source_adr: ADR-026
-source_invariant: INV-INVALIDATION-EXT-001
+source_invariant: null
 module: prism-query
 priority: P1
 proof_method: proptest
@@ -35,31 +35,32 @@ removed: null
 removal_reason: null
 ---
 
-# VP-156: WriteToolInvalidationMap — Registration Uniqueness and Happens-Before Semantics
+# VP-156: WriteToolInvalidationMap — Registration Uniqueness
 
 ## Property Statement
 
 `register_write_tool` in `crates/prism-query/src/invalidation.rs` (ADR-026 D7,
-INV-INVALIDATION-EXT-001, TD-A-003 closure) MUST enforce two invariants under all
-concurrent and sequential registration patterns:
+INV-INVALIDATION-EXT-001, TD-S-PLUGIN-PREREQ-A-003 closure) MUST enforce the uniqueness
+invariant under all sequential registration patterns:
 
-1. **Uniqueness invariant:** For any sequence of `register_write_tool(entry)` calls,
-   if two calls carry the same `tool_name`, the second call MUST return
-   `Err(SpecEngineError::DuplicateWriteToolRegistration(tool_name))`.
-   The first registration persists unchanged in the map; the second is rejected.
-   No silent last-writer-wins override is permitted.
+**Uniqueness invariant:** For any sequence of `register_write_tool(entry)` calls,
+if two calls carry the same `tool_name`, the second call MUST return
+`Err(SpecEngineError::DuplicateWriteToolRegistration(tool_name))`.
+The first registration persists unchanged in the map; the second is rejected.
+No silent last-writer-wins override is permitted.
 
-2. **Happens-before invariant:** For any successful `register_write_tool(entry)` call
-   that returns `Ok(())`, a subsequent `RwLock::read()` acquisition on the same container
-   MUST observe `entry` in the map (i.e., `map.iter().any(|e| e.tool_name == entry.tool_name)`
-   is `true` after the write lock is released). This is the forward-progress guarantee:
-   a successfully registered tool is always visible to read-side callers.
+This is a safety property — violating it produces a silent incorrectness that the
+production-grade default forbids (Canonical Principle Rule 1). This VP is the primary
+property resolved by F-LP1-MED-002.
 
-Both invariants are safety properties — violating either produces a silent incorrectness
-that the production-grade default forbids (Canonical Principle Rule 1). The uniqueness
-invariant is the primary property resolved by F-LP1-MED-002; the happens-before invariant
-proves the structural correctness of the `RwLock<Vec<...>>` container choice (D7 rationale
-validation).
+**Visibility guarantee (structural, not proptest-verified):** The happens-before guarantee
+that a successfully registered tool is always visible to subsequent read-side callers is
+structurally provided by `std::sync::RwLock`'s documented `Release`/`Acquire` memory-model
+contract combined with ADR-022 boot-step ordering (writes in step 7.5, reads only from step
+8+). The single-threaded proptest harness cannot verify cross-thread `Release`/`Acquire`
+semantics — and does not need to, because the guarantee derives from the container choice
+(D7 rationale) and the boot-step ordering invariant, not from the call sequence covered by
+proptest. Concurrent test cases would add CI variance without adding contract coverage.
 
 ## Acceptance Criteria
 
@@ -67,7 +68,10 @@ The proptest harness asserts:
 
 - **Case 1 — unique registrations:** For any sequence of N entries with distinct `tool_name`
   values, all N calls to `register_write_tool` return `Ok(())`, and all N entries are
-  observable in the map (read-guard `len() == N`).
+  observable in the map immediately after the final sequential registration
+  (read-guard `len() == N`). This verifies uniqueness + sequential visibility within a
+  single thread; cross-thread `Release`/`Acquire` visibility is guaranteed by `RwLock`
+  contract (see §Property Statement).
 - **Case 2 — duplicate name:** Given an initial successful registration of entry A
   (`tool_name = "tool_X"`), a subsequent call with any entry B where
   `B.tool_name == "tool_X"` returns `Err(SpecEngineError::DuplicateWriteToolRegistration("tool_X"))`.
@@ -95,7 +99,7 @@ The proptest harness asserts:
 
 | Method | Tool | Bounded? | Coverage |
 |--------|------|----------|----------|
-| proptest | proptest (with `prop::collection::vec`) | Bounded — proptest default cases (256) | Arbitrary sequences of WriteToolInvalidationMap entries; uniqueness violation always returns Err; successful writes always visible on next read |
+| proptest | proptest (with `prop::collection::vec`) | Bounded — proptest default cases (256) | Arbitrary sequences of WriteToolInvalidationMap entries; uniqueness violation always returns Err; sequential write visibility verified in single-threaded context |
 
 **Why not Kani:** Kani excels at bounded model-checking over numeric state spaces. The
 `register_write_tool` invariant is primarily a `String`-keyed uniqueness property; Kani's
@@ -114,7 +118,7 @@ does not require any test infrastructure beyond what is already in prism-query's
 ```rust
 // crates/prism-query/tests/vp156_write_tool_registration_uniqueness.rs
 //
-// VP-156: WriteToolInvalidationMap registration uniqueness + happens-before
+// VP-156: WriteToolInvalidationMap registration uniqueness
 // Method: proptest
 // Target: prism_query::invalidation::register_write_tool
 // ADR: ADR-026 D7; BC: BC-2.16.012 INV-INVALIDATION-EXT-001
@@ -190,3 +194,4 @@ The implementer adds this function in `crates/prism-query/src/invalidation.rs` u
 |---------|-------|------|--------|-------|
 | 0.1 | prereq-e-fix-burst-1 | 2026-05-15 | architect | F-LP1-MED-003 resolution (option a). VP-156 authored to provide proptest coverage for `register_write_tool` uniqueness semantics (error-on-duplicate, ADR-026 D7) and happens-before correctness of the `RwLock<Vec<...>>` container (INV-INVALIDATION-EXT-001). Closes BC-2.16.012 §VP Anchors "(none in this story)" gap. Proptest chosen over Kani — String-keyed uniqueness is proptest territory, not Kani bounded model-checking. Harness skeleton provided; full authoring in S-PLUGIN-PREREQ-E scope. |
 | 0.1 | fix-burst-1 state-manager catch | 2026-05-15 | state-manager | (state-manager catch in fix-burst-1) F-LP1-HIGH-004 POL-20: introduced field canonicalized to ISO date 2026-05-15. Prior value `prereq-e-fix-burst-1` was informal slug; POL-20 requires `YYYY-MM-DD` for artifacts created outside greenfield cycles. |
+| 0.2 | prereq-e-fix-burst-2 | 2026-05-15 | architect | F-LP2-MED-002 (option b): happens-before claim removed from §Property Statement title and body; §Property Statement rewritten to cover uniqueness only; §Acceptance Criteria Case 1 updated to clarify sequential-only scope; §Proof Method coverage cell updated; proof harness skeleton comment updated. Visibility guarantee now documented as structural (RwLock contract + ADR-022 boot ordering) not proptest-verified. F-LP2-MED-003: source_invariant changed from INV-INVALIDATION-EXT-001 to null; invariant trace preserved in §Source Contract body via existing BC-2.16.012 INV-INVALIDATION-EXT-001 cite. F-LP2-HIGH-002: TD-A-003 alias canonicalized to TD-S-PLUGIN-PREREQ-A-003 in §Property Statement. |

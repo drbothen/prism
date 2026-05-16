@@ -126,3 +126,65 @@ Phase 1d adversarial spec review dispatch:
 
 Adversary pass-2 dispatch (fresh-context). BC-5.39.001 3-CLEAN protocol — streak 0/3.
 Pass-1 report: `cycles/wave-4-operations/adversarial-reviews/S-PLUGIN-PREREQ-E-spec-pass-1.md`
+
+---
+
+## §D576 FIX-BURST-2 CLOSURE (D-576)
+
+**D-576 COMPLETE — PREREQ-E ADVERSARY PASS-2 FIX-BURST-2 CLOSED.**
+
+**Trajectory: pass-1: 14 (1C+4H+5M+2L+2OBS) → FB1 CLOSED 12/12 in-scope → pass-2: 9 (0C+3H+4M+1L+1OBS) → FB2 CLOSED 8/9 in-scope + 1 OBS queued. Streak 0/3 (FB2 found 3 FB1 regressions; pass-3 must converge).**
+
+### 3 FB1 Closure Regressions Caught by Pass-2
+
+| Finding | Type | FB1 Claim | Pass-2 Discovery |
+|---------|------|-----------|-----------------|
+| F-LP2-HIGH-001 | Paper-fix (TD-VSDD-059) | EC-016-012-004 closed | Body still read "Implementer chooses; last-writer-wins" — direct ADR-026 D7 contradiction |
+| F-LP2-HIGH-002 | Sibling-sweep gap (TD-VSDD-060) | 11 TD-A-003 sites closed | 5 additional sites: HS-003 ×2 + VP-156 + ADR-027 + forward-task-map |
+| F-LP2-HIGH-003 | Sibling-sweep gap (TD-VSDD-060) | 18 §C5 sites in BCs + story | 2 additional sites in ADR-027 (D5 + §Source/Origin) |
+
+### E-PLUGIN Error Code Resolution Chain (F-LP2-MED-001)
+
+```
+FB1 (v1.2)    → E-PLUGIN-001 (OCCUPIED: umbrella runtime-panic boot code)
+               ↓ architect re-routes in v1.3
+ADR-026 v1.3  → E-PLUGIN-012 (DuplicateWriteToolRegistration — free) ✓
+               + E-PLUGIN-013 (WriteToolRegistrationAfterBoot — OCCUPIED: allowed_urls v1.19)
+               ↓ PO discovers collision; allocates next free
+error-taxonomy v1.27  → E-PLUGIN-012 (DuplicateWriteToolRegistration) ✓
+ADR-026 v1.4         + E-PLUGIN-020 (WriteToolRegistrationAfterBoot) ✓
+```
+
+2-collision discovery chain demonstrates POL-25 grep-before-write discipline working end-to-end.
+
+### Finding Disposition
+
+| ID | Severity | Closed By | Summary |
+|----|----------|-----------|---------|
+| F-LP2-HIGH-001 | HIGH | product-owner | EC-016-012-004 paper-fix + EC-016-012-005 E-PLUGIN-020 companion update |
+| F-LP2-HIGH-002 | HIGH | PO + architect | 5 TD-A-003 alias sites canonicalized |
+| F-LP2-HIGH-003 | HIGH | architect | 2 §C5 phantom-heading sites in ADR-027 corrected |
+| F-LP2-MED-001 | MEDIUM | PO + architect | E-PLUGIN-012 + E-PLUGIN-020 finalized (2-collision chain) |
+| F-LP2-MED-002 | MEDIUM | architect | VP-156 uniqueness-only (option b; structural happens-before) |
+| F-LP2-MED-003 | MEDIUM | architect | VP-156 source_invariant → null + body cite |
+| F-LP2-MED-004 | MEDIUM | product-owner | Story Red Gate grouped by BC |
+| F-LP2-LOW-001 | LOW | architect | ADR-027 §Source/Origin convention note |
+| OBS-LP2-001 | OBS | — | [QUEUED-CYCLE-CLOSE] POL-25 sweep enforcement gap |
+
+### Artifact Versions After Fix-Burst-2
+
+| Artifact | After FB1 | After FB2 |
+|----------|-----------|-----------|
+| ADR-026 | v1.2 | v1.4 |
+| ADR-027 | v1.1 | v1.2 |
+| BC-2.16.012 | v1.2 | v1.3 |
+| VP-156 | v0.1 | v0.2 |
+| HS-PREREQ-E-003 | v1.1 | v1.2 |
+| S-PLUGIN-PREREQ-E story | v1.2 | v1.3 |
+| error-taxonomy | v1.26 | v1.27 |
+| STATE + HANDOFF | v7.280 | v7.281 |
+
+### Next Step
+
+Adversary pass-3 dispatch (fresh-context). BC-5.39.001 3-CLEAN protocol — streak 0/3.
+Pass-2 report: `cycles/wave-4-operations/adversarial-reviews/S-PLUGIN-PREREQ-E-spec-pass-2.md`

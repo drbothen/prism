@@ -1,7 +1,7 @@
 ---
 document_type: behavioral-contract
 level: L3
-version: "1.2"
+version: "1.3"
 status: draft
 producer: product-owner
 timestamp: 2026-05-15T00:00:00
@@ -104,8 +104,8 @@ sensors; the change is structural (open dispatch replaces closed match).
 | EC-016-012-001 | `spec_parser.rs` has a match arm `"crowdstrike" => <crowdstrike-specific-logic>` that is actually behavioral, not just naming | That logic is generalized into the `SensorSpec` field model (e.g., added as a TOML field) or moved into the CrowdStrike sensor TOML spec. No sensor-specific Rust branch survives. |
 | EC-016-012-002 | A new sensor TOML spec is added post-PREREQ-E (e.g., `hypothetical.sensor.toml`) | Parsed generically; tables registered; no hardcoded name check blocks it |
 | EC-016-012-003 | PluginRegistry returns `Some(plugin)` for a sensor that also has a TOML spec | The registry-provided plugin adapter takes precedence for fetch behavior; the TOML spec provides table schema and column definitions (ADR-023 Rule 1 TOML as declarative baseline) |
-| EC-016-012-004 | `register_write_tool` called by two plugins registering the same write tool name | Second registration wins (last-writer-wins), OR an error is returned if uniqueness is enforced. Implementer chooses; behavior must be documented in the registration API. |
-| EC-016-012-005 | `register_write_tool` called from a non-boot context (after server is live) | Allowed if the `RwLock` write guard is held only briefly; query reads hold the read guard and see the new entry on the next acquisition |
+| EC-016-012-004 | `register_write_tool` called by two plugins registering the same write tool name | Second registration is rejected with `Err(SpecEngineError::DuplicateWriteToolRegistration(tool_name))` per ADR-026 D7. Last-writer-wins is explicitly forbidden — see ADR-026 D7 rationale for production-grade default enforcement. |
+| EC-016-012-005 | `register_write_tool` called from a non-boot context (after server is live, step 8+) | Rejected with `Err(SpecEngineError::WriteToolRegistrationAfterBoot)` per ADR-026 D7. An `AtomicBool` query-phase flag (set when query engine init completes at step 8) gates the write. A WARN-level tracing event is emitted. Plugin lifecycle must register write tools during boot step 7.5 only. Error code: E-PLUGIN-020. |
 
 ## Canonical Test Vectors
 
@@ -157,6 +157,7 @@ S-PLUGIN-PREREQ-E
 
 | Version | Burst | Date | Author | Change |
 |---------|-------|------|--------|--------|
+| 1.3 | prereq-e-fix-burst-2 | 2026-05-15 | product-owner | F-LP2-HIGH-001 paper-fix correction: EC-016-012-004 body rewritten to specify `Err(SpecEngineError::DuplicateWriteToolRegistration(tool_name))` per ADR-026 D7. Prior v1.2 changelog claimed F-LP1-MED-002 closure but EC-016-012-004 body still read "Implementer chooses; last-writer-wins, OR an error is returned" — directly contradicting ADR-026 D7 v1.2 mandate. Body now reflects the production-grade default (error-on-duplicate; last-writer-wins explicitly forbidden). |
 | 1.2 | prereq-e-fix-burst-1 | 2026-05-15 | architect | F-LP1-MED-003 resolution: §Verification Properties table updated from "(none in this story)" to VP-156; §VP Anchors updated to list VP-156. EC-016-012-004 duplicate-registration behavior now resolved to error-on-duplicate per ADR-026 D7 v1.2 (previously "implementer chooses"). BC-2.16.012 §Verification Properties coverage gap closed. |
 | 1.2 | fix-burst-1 state-manager catch | 2026-05-15 | state-manager | (state-manager catch in fix-burst-1) F-LP1-HIGH-004 POL-20: introduced field canonicalized to ISO date 2026-05-15. Prior value `S-PLUGIN-PREREQ-E` was story-ID format; POL-20 requires `YYYY-MM-DD` for artifacts created outside greenfield cycles. |
 | 1.1 | S-PLUGIN-PREREQ-E-fix-burst-1 | 2026-05-15 | product-owner | F-LP1-HIGH-003 closure: Three §C5 phantom-heading citations corrected per POL-21. F-LP1-MED-004 closure: Four TD-A-003 alias occurrences replaced with canonical TD-S-PLUGIN-PREREQ-A-003 (INV-INVALIDATION-EXT-001 label, §Postconditions, §Architecture Anchors, changelog). |

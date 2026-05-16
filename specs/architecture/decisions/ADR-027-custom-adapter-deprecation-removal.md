@@ -4,7 +4,7 @@ adr_id: "ADR-027"
 title: "CustomAdapter Rust Trait Deprecation and Wave 1/A Removal — Sole Escape Hatch is .prx WASM"
 status: Proposed
 date: "2026-05-15"
-version: "1.1"
+version: "1.2"
 producer: architect
 subsystems_affected: [SS-16, SS-17]
 supersedes: null
@@ -121,7 +121,7 @@ reads before starting Wave 1 work.
 
 ### D5 — Spec_parser.rs call-site migration to PluginRuntime
 
-ADR-023 §C5 originally listed `spec_parser.rs` as a site to check for `CustomAdapter` or
+ADR-023 §Architectural Constraints (C5 bullet) originally listed `spec_parser.rs` as a site to check for `CustomAdapter` or
 `CustomAdapterRegistry` references. GREP VERIFICATION (2026-05-15): `spec_parser.rs` contains
 zero `CustomAdapter` or `CustomAdapterRegistry` references. The "spec_parser.rs migration to
 PluginRegistry" scope in the story brief refers instead to the broader plugin dispatch pathway
@@ -175,7 +175,7 @@ at `tests/external/perimeter-violation/` enforcing the sensor-named type bans.
 - Any external consumer who DID import `CustomAdapter` from a published crate (not found by
   audit, but possible in theory) will encounter a compile error after upgrading. This is
   accepted risk per Rule 5 and the pre-condition check in that rule.
-- **`prism-query` is also touched in S-PLUGIN-PREREQ-E scope (TD-A-003).** The story's
+- **`prism-query` is also touched in S-PLUGIN-PREREQ-E scope (TD-S-PLUGIN-PREREQ-A-003).** The story's
   crate scope includes `prism-query` (see story frontmatter `crates_touched`). The
   `crates/prism-query/src/invalidation.rs` `WriteToolInvalidationMap` container is migrated
   from `LazyLock<Vec<...>>` to `RwLock<Vec<...>>` with a `register_write_tool` API, enabling
@@ -224,8 +224,13 @@ Renaming and narrowing scope is scope-creep on dead code — delete it.
 
 ## Source / Origin
 
+**Convention:** This section lists upstream artifacts that mandated or directly informed this
+decision (policy rules, audits, code sites, behavioral contracts). Sibling ADRs addressing the
+same epic are coordination artifacts, not upstream sources — they are tracked in §Related ADRs
+instead. This convention is intentional and consistent across ADR-026 and ADR-027.
+
 - ADR-023 Rule 5 — CustomAdapter Rust Trait Retirement (mandate for this decision)
-- ADR-023 §C5 — three call sites that must be retired (lib.rs re-export, example, BC test)
+- ADR-023 §Architectural Constraints (C5 bullet) — three call sites that must be retired (lib.rs re-export, example, BC test)
 - PLUGIN-AUDIT-001 (2026-05-10) — confirmed no in-tree production callers
 - `crates/prism-spec-engine/src/lib.rs` — `pub mod custom_adapter;` and `pub use` re-export
 - `crates/prism-spec-engine/examples/demo_spec_loading.rs` — only non-test caller
@@ -249,4 +254,5 @@ Renaming and narrowing scope is scope-creep on dead code — delete it.
 | Version | Date | Author | Change |
 |---------|------|--------|--------|
 | 1.0 | 2026-05-15 | architect | Initial proposal — CustomAdapter deprecation/deletion design for S-PLUGIN-PREREQ-E and PLUGIN-MIGRATION-001-A |
-| 1.1 | 2026-05-15 | architect | Q5 resolution: add prism-query WriteToolInvalidationMap scope note to §Consequences. The story crates_touched includes prism-query; this ADR was silent on that. Added negative trade-off row explaining the prism-query touch is parallel scope (TD-A-003 / ADR-026 D7 / BC-2.16.012 INV-INVALIDATION-EXT-001) and does not affect D4 Wave 1/A unblock criteria (prism-spec-engine only). |
+| 1.1 | 2026-05-15 | architect | Q5 resolution: add prism-query WriteToolInvalidationMap scope note to §Consequences. The story crates_touched includes prism-query; this ADR was silent on that. Added negative trade-off row explaining the prism-query touch is parallel scope (TD-S-PLUGIN-PREREQ-A-003 / ADR-026 D7 / BC-2.16.012 INV-INVALIDATION-EXT-001) and does not affect D4 Wave 1/A unblock criteria (prism-spec-engine only). |
+| 1.2 | 2026-05-15 | architect | prereq-e-fix-burst-2: F-LP2-HIGH-002: TD-A-003 alias canonicalized to TD-S-PLUGIN-PREREQ-A-003 at §Consequences trade-off row (live narrative) and changelog row for v1.1. F-LP2-HIGH-003: Two ADR-023 §C5 phantom-heading citations replaced with §Architectural Constraints (C5 bullet) per POL-21: D5 narrative (line 124) and §Source/Origin (line 228). TD-VSDD-060 workspace-wide greps confirm no further sibling sites in live spec files beyond this ADR. |
