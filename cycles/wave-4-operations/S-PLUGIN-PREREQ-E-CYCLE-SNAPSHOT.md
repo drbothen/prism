@@ -2894,3 +2894,50 @@ Shorthand append: →pass-41:BLOCKED(0C+0H+0M+1L+0OBS; F-LP41-LOW-001 FB31-intro
 Story v1.15 | BC-2.01.016 v1.6 | BC-2.16.011 v1.6 | BC-2.16.012 v1.15 | BC-2.16.002 v1.20 | ADR-026 v1.12 | ADR-027 v1.6 | VP-153 v0.6 | VP-154 v0.6 | VP-155 v0.5 | VP-156 v0.8 | HS-PREREQ-E-001 v1.3 | **HS-PREREQ-E-002 v1.3** | HS-PREREQ-E-003 v1.5 | error-taxonomy v1.30 | ARCH-INDEX v2.55 | VP-INDEX v1.48 | STORY-INDEX v2.119 | BC-INDEX v4.94 | verification-architecture v1.38 | verification-coverage-matrix v1.35
 
 STATE.md v7.337; SESSION-HANDOFF.md v7.337; prereq_e_adversary_streak **0/3** unchanged (pass-41 BLOCKED 1L; pass-42 NEXT — NEW 3-CLEAN attempt within 6th cascade attempt; 3 consecutive CLEAN passes required for BC-5.39.001 convergence); 156th consecutive single-commit (TD-VSDD-053 DECISIVELY STABLE).
+
+---
+
+## §D-651 — FB33 Closure (2026-05-16)
+
+### Pass-42 Summary
+BLOCKED. 1 MED + 1 LOW, both in ADR-027. Streak 0/3 unchanged (6th cascade attempt continues).
+
+### Findings Closed
+
+**F-LP42-MED-001 — ADR-027 §D3 internal crate-naming contradiction (NOVEL)**
+- Evidence: §D3 used "the perimeter-violation compile-fail test crate" (line 91) but file paths at lines 93/101 point to `tests/external/no-hardcoded-sensors/`. Two distinct crates conflated: BC-2.11.006 prism-query security perimeter vs ADR-023 FORBIDDEN-SYMBOLS-001 forbidden-symbols perimeter.
+- Fix: Replaced with "the FORBIDDEN-SYMBOLS-001 compile-fail test crate at `tests/external/no-hardcoded-sensors/`". ADR-027 v1.6 → v1.7.
+
+**F-LP42-LOW-001 — ADR-027 line 118 TD-VSDD-091 volatile-line-pin (sibling-class of F-LP41-LOW-001)**
+- Evidence: "(matching VP-155 line 74 and HS-PREREQ-E-002-05 line 187 'CATALOG_SIZE=11' assertion)" — volatile file:line citations. FB32 swept HS layer but not ADR layer (13th within-FB sibling-sweep asymmetry recurrence).
+- Fix: Replaced with semantic anchors "VP-155 §Proof Method (Relationship to VP-PLUGIN-001 paragraph) and HS-PREREQ-E-002-05 §Steps" per Option A (FB32 precedent). ADR-027 v1.7.
+
+### Architect Comprehensive Sweep (Sweep A + B) — Out-of-Perimeter Candidates (cycle-close-deferred)
+
+| ID | Location | Issue | Status |
+|----|----------|-------|--------|
+| F-LP42-WORKSPACE-001 | ADR-023:87-88 | §Status narrative cites ADR-022 line 65 + §G Story 3 line 613 (volatile line-pins) | Cycle-close queue |
+| F-LP42-WORKSPACE-002 | ADR-023:375 | §D5-era body cites BC-2.16.004 lines 36-42 (volatile line-pins) | Cycle-close queue |
+| F-LP42-WORKSPACE-003 | ADR-023:978-979 | §Migration Plan bullet cites ADR-022 line 65 + §G Story 3 line 613 | Cycle-close queue |
+| F-LP42-WORKSPACE-004 | ADR-023:1030-1031 | §Migration Plan bullet cites ADR-022 line 65 + §G Story 3 line 613 | Cycle-close queue |
+
+These are workspace-wide hygiene items. Not PREREQ-E convergence blockers. Not modified in this burst.
+
+### Cascade Pointer Update
+
+| Metric | Before D-651 | After D-651 |
+|--------|-------------|-------------|
+| Adversary passes | 41 (pass-1..41) | 42 (pass-1..42) |
+| Fix-bursts closed | 32 (FB1-FB32) | 33 (FB1-FB33) |
+| Fix-bursts pending | 0 | 0 |
+| Pending findings | 0 + 4 cycle-close carry-forward | 0 + 8 cycle-close carry-forward |
+| Streak | 0/3 (pass-42 BLOCKED) | 0/3 unchanged (pass-43 NEXT; 1/3 attempt) |
+| Consecutive single-commits | 156 | 157 |
+
+Shorthand append: →pass-42:BLOCKED(0C+0H+1M+1L+0OBS; F-LP42-MED-001 ADR-027 §D3 internal crate-naming contradiction novel + F-LP42-LOW-001 ADR-027:118 TD-VSDD-091 sibling-class of F-LP41 at ADR layer; 13th recurrence within-FB sibling-sweep asymmetry; streak 0/3 unchanged; novelty HIGH)→FB33-CLOSED-COMBINED(2/2 in-scope; architect-only; state-manager last; ADR-027 v1.7; ARCH-INDEX v2.56; 4 ADR-023 sibling-sites surfaced cycle-close-deferred; pattern partially broken; 157th consecutive single-commit)
+
+### Pinned Artifact Versions (PREREQ-E 19-artifact set — post-D-651)
+
+Story v1.15 | BC-2.01.016 v1.6 | BC-2.16.011 v1.6 | BC-2.16.012 v1.15 | BC-2.16.002 v1.20 | ADR-026 v1.12 | **ADR-027 v1.7** | VP-153 v0.6 | VP-154 v0.6 | VP-155 v0.5 | VP-156 v0.8 | HS-PREREQ-E-001 v1.3 | HS-PREREQ-E-002 v1.3 | HS-PREREQ-E-003 v1.5 | error-taxonomy v1.30 | **ARCH-INDEX v2.56** | VP-INDEX v1.48 | STORY-INDEX v2.119 | BC-INDEX v4.94 | verification-architecture v1.38 | verification-coverage-matrix v1.35
+
+STATE.md v7.338; SESSION-HANDOFF.md v7.338; prereq_e_adversary_streak **0/3** unchanged (pass-42 BLOCKED 1M+1L; pass-43 NEXT — 1/3 attempt within 6th cascade attempt; 3 consecutive CLEAN passes required for BC-5.39.001 convergence); 157th consecutive single-commit (TD-VSDD-053 DECISIVELY STABLE).

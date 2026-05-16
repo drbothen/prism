@@ -1,11 +1,11 @@
 ---
 document_type: session-tasks
-version: "1.6"
+version: "1.7"
 status: active
 related_burst: D-644
-predecessor_state: D-650
+predecessor_state: D-651
 predecessor_session_tasks: SESSION-D580-TASKS.md (cascade pass-1 through pass-5 era)
-timestamp: 2026-05-16T23:59:45Z
+timestamp: 2026-05-17T00:30:00Z
 ---
 
 # Session Task List — D-644 Durable Pre-/Clear Snapshot
@@ -44,7 +44,9 @@ This file persists the task list and full cascade state from the session coverin
 | 85 | **DONE** | **PREREQ-E pass-39 CLEAN★** — D-648; zero in-scope findings; streak 0/3 → **1/3** FIRST ADVANCE OF 9TH ATTEMPT; all defect-class families RESOLVED; novelty LOW; 154th consecutive single-commit |
 | 86 | **DONE** | **PREREQ-E pass-40 BLOCKED + FB31 CLOSED** — D-649 combined-burst closed 2/2 in-scope findings (F-LP40-MED-001 fabricated CAP-001 quoted-attribution + F-LP40-LOW-001 AC-6 holdout coverage gap); BC-2.01.016 v1.6; HS-PREREQ-E-002 v1.2; BC-INDEX v4.94; streak 1/3 → 0/3 5th reset; 155th consecutive single-commit |
 | 87 | **DONE** | **PREREQ-E pass-41 BLOCKED + FB32 CLOSED** — D-650 combined-burst closed 1/1 LOW finding; HS-PREREQ-E-002 v1.3; severity decay HIGH→MED→LOW; 2 out-of-perimeter TD-VSDD-091 candidates cycle-close-deferred; 156th consecutive single-commit |
-| 88 | **PENDING** | PREREQ-E pass-42 (NEW 3-CLEAN attempt within 6th cascade — streak 0/3; 3 consecutive CLEAN passes required for BC-5.39.001 convergence) |
+| 88 | **DONE** | **PREREQ-E pass-42 BLOCKED** — D-651 pass-42 BLOCKED (1 MED + 1 LOW, both in ADR-027); F-LP42-MED-001 §D3 internal crate-naming contradiction novel; F-LP42-LOW-001 ADR-027:118 TD-VSDD-091 sibling-class of F-LP41 at ADR layer; streak 0/3 unchanged |
+| 89 | **DONE** | **FB33 CLOSED** — D-651 architect-only; ADR-027 v1.7; ARCH-INDEX v2.56; 157th consecutive single-commit; 4 ADR-023 sibling-sites surfaced cycle-close-deferred; pattern partially broken |
+| 90 | **PENDING** | PREREQ-E pass-43 (1/3 attempt within 6th cascade — streak 0/3; 3 consecutive CLEAN passes required for BC-5.39.001 convergence) |
 
 ## §FB28 Closure Note (D-645 COMPLETE)
 
@@ -226,7 +228,32 @@ F-LP40-MED-001 is a 39-pass-surviving PRE-EXISTING defect. The defect persisted 
 
 ---
 
-## §Cycle-Close Codification Queue (as of D-650)
+## §FB33 Closure Note (D-651 COMPLETE)
+
+**2/2 in-scope findings closed in combined-burst D-651 (2026-05-16). 157th consecutive single-commit.**
+
+| Finding | Severity | Agent | Status | Notes |
+|---------|----------|-------|--------|-------|
+| F-LP42-MED-001 | MED | architect | CLOSED | ADR-027 v1.6→v1.7: §D3 line 91 "perimeter-violation compile-fail test crate" replaced with "FORBIDDEN-SYMBOLS-001 compile-fail test crate at `tests/external/no-hardcoded-sensors/`" — internal contradiction with lines 93/101 file paths resolved |
+| F-LP42-LOW-001 | LOW | architect | CLOSED | ADR-027 v1.7: line 118 volatile "VP-155 line 74 + HS-PREREQ-E-002-05 line 187" replaced with semantic anchors "VP-155 §Proof Method (Relationship to VP-PLUGIN-001 paragraph) + HS-PREREQ-E-002-05 §Steps" per TD-VSDD-091 + FB32 Option A precedent |
+
+**Dispatch pattern:** Architect-only burst (both findings in ADR-027 body). State-manager last per POL-3.
+
+**Pattern-breaking result:** 13th-recurrence sibling-sweep asymmetry PARTIALLY BROKEN. Architect's comprehensive sweep (Sweep A: "perimeter-violation" literal across workspace; Sweep B: line-pin patterns in ADR layer) surfaced 4 ADR-023 sibling-sites that all 42 prior passes had missed. This validates the cross-document-layer sweep methodology. POL-29 codification candidate strongly reinforced (13+ manifestations; comprehensive same-file/cross-file/cross-document-layer sweep on every fix-burst).
+
+**Out-of-perimeter routing:** 4 ADR-023 hits are workspace-wide foundational ADR; bumping ADR-023 triggers POL-23 sweep with large blast radius. Orchestrator routing: DEFER to cycle-close. These do NOT block PREREQ-E convergence.
+
+**Severity decay validation:** pass-36/37: 3 MED → pass-38: 1M+1L → pass-39: CLEAN ★ → pass-40: 1M+1L → pass-41: 1L → **pass-42: 1M+1L**. Pattern: HIGH→MED→LOW dominant; severity oscillation at LOW/MED boundary consistent with convergence-near state.
+
+**Pass-43 Dispatch Readiness:**
+- Streak: 0/3 (1/3 attempt within 6th cascade; if CLEAN, streak 0/3 → 1/3)
+- Fix-burst FB33 complete — no additional remediation required
+- All 19 artifacts at D-651 version pins (ADR-027 v1.7 + ARCH-INDEX v2.56 changed from D-650)
+- Adversary can dispatch immediately
+
+---
+
+## §Cycle-Close Codification Queue (as of D-651)
 
 Items deferred to session-reviewer cycle-close workflow per S-7.02. DO NOT close before cycle-close.
 
@@ -236,7 +263,11 @@ Items deferred to session-reviewer cycle-close workflow per S-7.02. DO NOT close
 | OBS-LP38-001 | VP-INDEX v1.48 changelog narrative asymmetry — missing POL-11 citation vs sibling docs | pass-38 | cycle-close |
 | F-LP41-OUT-OF-PERIMETER-001 | test-vectors.md:94 cites "error-taxonomy.md line 270" — TD-VSDD-091 volatile line-pin; workspace-wide | pass-41 §5 sibling-sweep | cycle-close |
 | F-LP41-OUT-OF-PERIMETER-002 | error-taxonomy.md:456,458 Source column cites "line 67"/"line 54 and 70" — TD-VSDD-091 volatile line-pins | pass-41 §5 sibling-sweep | cycle-close |
-| POL-29 candidate | within-FB-introduces-new-defect pattern — 12+ manifestations across cascade; comprehensive same-file/cross-file sweep on every fix-burst | recurring | cycle-close codification |
+| F-LP42-WORKSPACE-001 | ADR-023:87-88 §Status narrative cites ADR-022 line 65 + §G Story 3 line 613 — TD-VSDD-091 volatile line-pins; workspace-wide; out-of-PREREQ-E-perimeter | pass-42 §5 architect sweep | cycle-close |
+| F-LP42-WORKSPACE-002 | ADR-023:375 §D5-era body cites BC-2.16.004 lines 36-42 — TD-VSDD-091 volatile line-pins; workspace-wide | pass-42 §5 architect sweep | cycle-close |
+| F-LP42-WORKSPACE-003 | ADR-023:978-979 §Migration Plan bullet cites ADR-022 line 65 + §G Story 3 line 613 — TD-VSDD-091 volatile line-pins; workspace-wide | pass-42 §5 architect sweep | cycle-close |
+| F-LP42-WORKSPACE-004 | ADR-023:1030-1031 §Migration Plan bullet cites ADR-022 line 65 + §G Story 3 line 613 — TD-VSDD-091 volatile line-pins; workspace-wide | pass-42 §5 architect sweep | cycle-close |
+| POL-29 candidate | within-FB-introduces-new-defect pattern — 13+ manifestations across cascade; comprehensive same-file/cross-file/cross-document-layer sweep on every fix-burst; FB33 architect sweep partially broke pattern by surfacing ADR layer | recurring | cycle-close codification |
 
 ---
 
@@ -285,7 +316,7 @@ Accept current spec quality (8 CLEAN passes is unusual statistical evidence of q
 | BC-2.16.012 | v1.15 (modified 2026-05-16) |
 | BC-2.16.002 | v1.20 (catalog row 33 + bullet `(v1.20)`) |
 | ADR-026 | v1.12 (D7 pin propagation v1.10 throughout downstream) |
-| ADR-027 | v1.6 (D3 dual-file enumeration + SS-07 in subsystems_affected) |
+| ADR-027 | v1.7 (F-LP42-MED-001 §D3 crate-naming contradiction + F-LP42-LOW-001 line 118 volatile-line-pin resolved at D-651) |
 | VP-153 | v0.6 (F-LP37-MED-003 closed D-646 by architect — byte-verbatim E-SPEC-012/013/014 sync) |
 | VP-154 | v0.6 |
 | VP-155 | v0.5 |
@@ -294,7 +325,7 @@ Accept current spec quality (8 CLEAN passes is unusual statistical evidence of q
 | HS-PREREQ-E-002 | v1.3 (§Source of Truth 002-06 rewritten to durable AC-6+section-anchor form at D-650; F-LP41-LOW-001 closed) |
 | HS-PREREQ-E-003 | v1.5 (verification_properties: [VP-156]; HS-003-04/05 footers cite VP-156) |
 | error-taxonomy | v1.30 (E-PIPELINE-001 row at v1.20 pin; E-SPEC-008 RETIRED; E-SPEC-012/013/014 + E-PLUGIN-012/020 active) |
-| ARCH-INDEX | v2.55 |
+| ARCH-INDEX | v2.56 (ADR-027 row bumped v1.6→v1.7 + §Changelog row FB33-D-651 added at D-651) |
 | VP-INDEX | v1.48 (Total 156, P0=122, P1=34) |
 | STORY-INDEX | v2.119 (FB30 D-647; PREREQ-E row v1.14 to v1.15) |
 | BC-INDEX | v4.94 (BC-2.01.016 row bumped v1.5→v1.6 at D-649) |

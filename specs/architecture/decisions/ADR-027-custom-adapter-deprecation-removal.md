@@ -3,8 +3,8 @@ document_type: adr
 adr_id: "ADR-027"
 title: "CustomAdapter Rust Trait Deprecation and Wave 1/A Removal — Sole Escape Hatch is .prx WASM"
 status: Proposed
-date: "2026-05-15"
-version: "1.6"
+date: "2026-05-16"
+version: "1.7"
 producer: architect
 subsystems_affected: [SS-07, SS-16, SS-17]
 supersedes: null
@@ -88,7 +88,7 @@ deleted atomically in PREREQ-E. The perimeter enforcement (D3) prevents re-intro
 
 PLUGIN-MIGRATION-001-A (the story that closes the forbidden-symbols perimeter gate per
 ADR-023 §Verification Properties (VP-PLUGIN-001 bullet)) will add TWO compile-fail files
-to the perimeter-violation compile-fail test crate:
+to the FORBIDDEN-SYMBOLS-001 compile-fail test crate at `tests/external/no-hardcoded-sensors/`:
 
 **File 1:** `tests/external/no-hardcoded-sensors/import_custom_adapter.rs`
 ```rust
@@ -115,7 +115,7 @@ The count enforcement in ADR-023 (CI asserts that file count in
 `tests/external/no-hardcoded-sensors/` equals FORBIDDEN-SYMBOLS-001 catalog size) must be
 updated when these two files are added. The catalog grows by **two entries**: `CustomAdapter`
 and `CustomAdapterRegistry`, advancing the total catalog size from 9 to 11
-(matching VP-155 line 74 and HS-PREREQ-E-002-05 line 187 `CATALOG_SIZE=11` assertion).
+(matching VP-155 §Proof Method (Relationship to VP-PLUGIN-001 paragraph) and HS-PREREQ-E-002-05 §Steps `CATALOG_SIZE=11` assertion).
 
 ### D4 — Wave 1/A unblock criteria
 
@@ -290,3 +290,4 @@ instead. This convention is intentional and consistent across ADR-026 and ADR-02
 | 1.4 | 2026-05-16 | architect | prereq-e-fix-burst-6: F-LP6-MED-002 — SS-07 (Adapter Pagination & Response Cache; prism-query) added to `subsystems_affected`: ADR-027 scope includes prism-query (SS-07) call-site migration per BC-2.16.012 INV-INVALIDATION-EXT-001 (WriteToolInvalidationMap container migration + register_write_tool API via TD-S-PLUGIN-PREREQ-A-003). §Consequences "prism-query is also touched in parallel" hedging rephrased to a statement of ownership: ADR-027 scope includes SS-07; D4 Wave 1/A unblock criteria scoped to prism-spec-engine clean-pass confirmation. `subsystems_affected` updated [SS-16, SS-17] → [SS-07, SS-16, SS-17]. |
 | 1.5 | 2026-05-16 | architect | prereq-e-fix-burst-9: F-LP10-HIGH-001 — POL-21 phantom-anchor closure: §D3 live-narrative `ADR-023 §VP-PLUGIN-001` → `ADR-023 §Verification Properties (VP-PLUGIN-001 bullet)`. Sibling-sweep companion site of VP-155 v0.5. |
 | 1.6 | 2026-05-16 | architect | prereq-e-fix-burst-18: F-LP20-HIGH-001 — ADR-027 §D3 amended: enumerate BOTH compile-fail files (`import_custom_adapter.rs` + `import_custom_adapter_registry.rs`) matching VP-155 spec; correct "catalog grows by one entry" → "by two entries: `CustomAdapter` and `CustomAdapterRegistry`" matching VP-155 line 74 + HS-002-05 line 187 `CATALOG_SIZE=11` assertion; catalog total 9→11. Closes cross-document semantic anchor contradiction with VP-155 + BC-2.16.011 §VPs + HS-PREREQ-E-002-05. |
+| 1.7 | 2026-05-16 | architect | prereq-e-fix-burst-33 (FB33): F-LP42-MED-001 — §D3 line 91 internal crate-naming contradiction resolved: replaced "perimeter-violation compile-fail test crate" with "FORBIDDEN-SYMBOLS-001 compile-fail test crate at `tests/external/no-hardcoded-sensors/`" — aligns with §D3 file paths (lines 93/101), §D3 narrative (lines 114-115), and ADR-023 canonical naming (FORBIDDEN-SYMBOLS-001 perimeter path). The two distinct compile-fail crates are: `tests/external/perimeter-violation/` (existing; BC-2.11.006 prism-query security perimeter) and `tests/external/no-hardcoded-sensors/` (FORBIDDEN-SYMBOLS-001; CustomAdapter + sensor-named type bans). F-LP42-LOW-001 — line 118 TD-VSDD-091 volatile-line-pin resolved: replaced "VP-155 line 74 and HS-PREREQ-E-002-05 line 187" with semantic-anchor form "VP-155 §Proof Method (Relationship to VP-PLUGIN-001 paragraph) and HS-PREREQ-E-002-05 §Steps" per FB32 HS-002-06 Option A precedent. |
