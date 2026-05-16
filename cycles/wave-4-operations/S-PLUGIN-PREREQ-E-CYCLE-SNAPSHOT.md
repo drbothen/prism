@@ -2576,3 +2576,44 @@ See SESSION-D644-TASKS.md for full specification of each option.
 Story v1.12 | BC-2.01.016 v1.5 | BC-2.16.011 v1.6 | BC-2.16.012 v1.15 | BC-2.16.002 v1.20 | ADR-026 v1.12 | ADR-027 v1.6 | VP-153 v0.5 | VP-154 v0.6 | VP-155 v0.5 | VP-156 v0.8 | HS-PREREQ-E-001 v1.3 | HS-PREREQ-E-002 v1.1 | HS-PREREQ-E-003 v1.5 | error-taxonomy v1.30 | ARCH-INDEX v2.55 | VP-INDEX v1.47 | STORY-INDEX v2.116 | BC-INDEX v4.93 | verification-architecture v1.37 | verification-coverage-matrix v1.34
 
 STATE.md v7.331; SESSION-HANDOFF.md v7.331; prereq_e_adversary_streak 0/3 (DURABLE SNAPSHOT D-644); 150th consecutive single-commit (TD-VSDD-053 MILESTONE STABLE).
+
+---
+
+## §D-645 FB28 COMBINED-BURST CLOSED (2026-05-16) — 3/3 MED FINDINGS CLOSED; STORY v1.13; STORY-INDEX v2.117; 151ST SINGLE-COMMIT; STREAK 0/3 READY FOR PASS-37 (9TH ATTEMPT)
+
+**151st consecutive single-commit (TD-VSDD-053 DECISIVELY STABLE). FB28 fully closed.**
+
+### Finding Closure Record
+
+| Finding | Severity | Agent | Closure Action |
+|---------|----------|-------|----------------|
+| F-LP36-MED-001 | MEDIUM | product-owner | AC-9 test name canonicalized to `test_BC_2_16_012_003_write_tool_invalidation_runtime_register` (added `_003_` segment matching Red Gate Test 8). |
+| F-LP36-MED-002 | MEDIUM | product-owner | Red Gate Tests 6+7 expanded to cover all 4 built-in sensors per Option A (Cyberint/Claroty/Armis rows added). `red_gate_tests:` frontmatter count 8→11. |
+| F-LP36-MED-003 | MEDIUM | state-manager | STORY-INDEX line 395 column 3 updated: `prism-sensors,prism-spec-engine` → `prism-sensors,prism-spec-engine,prism-query`. |
+
+### PO-Caught Observations (not new findings)
+
+- **Task-spec namespace error:** SESSION-D644-TASKS.md §F-LP36-MED-001 referenced `_003_` naming for the new Cyberint/Claroty/Armis rows in Test 7; correct namespace is `_002_` per Test 7 convention. PO deferred to file authority (story is canonical; task-spec was an editorial error in the task description).
+- **Sibling-catch `red_gate_tests:` count:** PO caught that the `red_gate_tests:` frontmatter count needed bumping 8→11 alongside the Red Gate table expansion. Applied in same burst.
+
+### TD-VSDD-060 Sibling-Site Sweep
+
+State-manager sweep result: ADR-027 already has SS-07 (prism-query) in `subsystems_affected: [SS-07, SS-16, SS-17]` (added at v1.4 D-591). No other files enumerate PREREQ-E crates_touched as a forward-canonical list. All hits in adversarial reviews + SESSION-HANDOFF are historical narrative — no update required.
+
+### Cascade Pointer Update
+
+| Metric | Before D-645 | After D-645 |
+|--------|-------------|-------------|
+| Fix-bursts closed | 27 (FB1-FB27) | 28 (FB1-FB28) |
+| Fix-bursts pending | 1 (FB28) | 0 |
+| Pending findings | 3 MED | 0 |
+| Streak | 0/3 | 0/3 ready for pass-37 |
+| Consecutive single-commits | 150 | 151 |
+
+Shorthand append: →FB28-CLOSED-COMBINED(3/3 in-scope; F-LP36-MED-001 test-name canonicalization + F-LP36-MED-002 4-sensor Red Gate expansion Option A + F-LP36-MED-003 STORY-INDEX column drift; PO-caught task-spec _003_/_002_ namespace + sibling-catch red_gate_tests: 8→11; story v1.13; STORY-INDEX v2.117; 151st consecutive single-commit)
+
+### Pinned Artifact Versions (PREREQ-E 19-artifact set — post-D-645)
+
+Story v1.13 | BC-2.01.016 v1.5 | BC-2.16.011 v1.6 | BC-2.16.012 v1.15 | BC-2.16.002 v1.20 | ADR-026 v1.12 | ADR-027 v1.6 | VP-153 v0.5 | VP-154 v0.6 | VP-155 v0.5 | VP-156 v0.8 | HS-PREREQ-E-001 v1.3 | HS-PREREQ-E-002 v1.1 | HS-PREREQ-E-003 v1.5 | error-taxonomy v1.30 | ARCH-INDEX v2.55 | VP-INDEX v1.47 | STORY-INDEX v2.117 | BC-INDEX v4.93 | verification-architecture v1.37 | verification-coverage-matrix v1.34
+
+STATE.md v7.332; SESSION-HANDOFF.md v7.332; prereq_e_adversary_streak 0/3 (ready for pass-37 — 9th attempt at 3-CLEAN); 151st consecutive single-commit (TD-VSDD-053 DECISIVELY STABLE).

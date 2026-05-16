@@ -23,7 +23,7 @@ crates_touched: [prism-sensors, prism-spec-engine, prism-query]
 target_module: prism-sensors
 subsystems: [SS-01, SS-07, SS-16]
 capabilities: [CAP-001, CAP-029]
-version: "1.12"
+version: "1.13"
 updated: "2026-05-16"
 level: "L4"
 producer: product-owner
@@ -68,7 +68,7 @@ risk_mitigations:
   - "AC-7..8: spec_parser.rs migration verified by behavioral-equivalence integration test (TV-BC-2.16.012-003)"
   - "AC-9: TD-S-PLUGIN-PREREQ-A-003 closure via RwLock<Vec<WriteToolInvalidationMap>> — write lock held only during registration; read-side is zero-copy"
 acceptance_criteria_count: 10
-red_gate_tests: 8
+red_gate_tests: 11
 estimated_passes: "4-6 LOCAL adversary passes"
 td_resolves:
   - TD-S-PLUGIN-PREREQ-A-003  # WriteToolInvalidationMap runtime extensibility (PREREQ-E scope)
@@ -236,7 +236,7 @@ An integration test (`test_BC_2_16_012_spec_parser_behavioral_equivalence`) pars
 (traces to BC-2.16.012 invariant INV-SPEC-PARSER-OPEN-002 + INV-SPEC-PARSER-OPEN-003)
 
 **AC-9 (WriteToolInvalidationMap Runtime Extensibility — TD-S-PLUGIN-PREREQ-A-003 Closed):**
-`crates/prism-query/src/invalidation.rs` `WriteToolInvalidationMap` container is `RwLock<Vec<WriteToolInvalidationMap>>` (or equivalent). The `WriteToolInvalidationMap` struct includes a `plugin_name: String` field sourced from the plugin manifest `name` field (set by PluginRuntime per ADR-026 D7 v1.10); this field is the source for the `plugin_name` structured event field in the `write_tool_registration_after_boot` WARN tracing event (BC-2.16.002 §Postconditions (Canonical Structured Event Catalog bullet, v1.20) row 33). A `pub fn register_write_tool(entry: WriteToolInvalidationMap) -> Result<(), SpecEngineError>` API exists and is callable after startup. A unit test (`test_BC_2_16_012_write_tool_invalidation_runtime_register`) registers a custom write tool entry and asserts `.is_ok()` on the happy path and that the entry is present in the map on the next read-guard acquisition. A second test invocation with the same `tool_name` asserts `.is_err()` (E-PLUGIN-012). A third test simulates post-boot registration and asserts `.is_err()` (E-PLUGIN-020).
+`crates/prism-query/src/invalidation.rs` `WriteToolInvalidationMap` container is `RwLock<Vec<WriteToolInvalidationMap>>` (or equivalent). The `WriteToolInvalidationMap` struct includes a `plugin_name: String` field sourced from the plugin manifest `name` field (set by PluginRuntime per ADR-026 D7 v1.10); this field is the source for the `plugin_name` structured event field in the `write_tool_registration_after_boot` WARN tracing event (BC-2.16.002 §Postconditions (Canonical Structured Event Catalog bullet, v1.20) row 33). A `pub fn register_write_tool(entry: WriteToolInvalidationMap) -> Result<(), SpecEngineError>` API exists and is callable after startup. A unit test (`test_BC_2_16_012_003_write_tool_invalidation_runtime_register`) registers a custom write tool entry and asserts `.is_ok()` on the happy path and that the entry is present in the map on the next read-guard acquisition. A second test invocation with the same `tool_name` asserts `.is_err()` (E-PLUGIN-012). A third test simulates post-boot registration and asserts `.is_err()` (E-PLUGIN-020).
 (traces to BC-2.16.012 postcondition — TD-S-PLUGIN-PREREQ-A-003 WriteToolInvalidationMap; INV-INVALIDATION-EXT-001; EC-016-012-004; EC-016-012-005)
 
 **AC-10 (Full Build and Pre-Push Gate):**
@@ -270,7 +270,13 @@ Tests are grouped by BC for readability (F-LP2-MED-004 correction).
 
 7. **`test_BC_2_16_012_002_spec_parser_behavioral_equivalence_crowdstrike`** (prism-spec-engine) — parses `crowdstrike.sensor.toml` and compares against a snapshot; fails RED initially because the snapshot must be captured post-migration (the test infrastructure is set up in the Red Gate phase; snapshot is populated during implementation).
 
-8. **`test_BC_2_16_012_003_write_tool_invalidation_runtime_register`** (prism-query) — calls `register_write_tool(entry) -> Result<(), SpecEngineError>` where `entry` is a new `WriteToolInvalidationMap` struct; asserts `.is_ok()` for the happy path (entry visible on next read-guard); asserts `.is_err()` with `E-PLUGIN-012` for a duplicate `tool_name`; asserts `.is_err()` with `E-PLUGIN-020` for a post-boot registration attempt; fails RED because `register_write_tool` does not exist yet (the container is a `LazyLock<Vec<...>>` not an `RwLock`) and neither error variant exists.
+8. **`test_BC_2_16_012_002_spec_parser_behavioral_equivalence_cyberint`** (prism-spec-engine) — parses `cyberint.sensor.toml` and compares against a snapshot; fails RED initially because the snapshot must be captured post-migration (the test infrastructure is set up in the Red Gate phase; snapshot is populated during implementation). Covers the Cyberint built-in sensor leg of AC-8's four-sensor breadth requirement.
+
+9. **`test_BC_2_16_012_002_spec_parser_behavioral_equivalence_claroty`** (prism-spec-engine) — parses `claroty.sensor.toml` and compares against a snapshot; fails RED initially because the snapshot must be captured post-migration (the test infrastructure is set up in the Red Gate phase; snapshot is populated during implementation). Covers the Claroty built-in sensor leg of AC-8's four-sensor breadth requirement.
+
+10. **`test_BC_2_16_012_002_spec_parser_behavioral_equivalence_armis`** (prism-spec-engine) — parses `armis.sensor.toml` and compares against a snapshot; fails RED initially because the snapshot must be captured post-migration (the test infrastructure is set up in the Red Gate phase; snapshot is populated during implementation). Covers the Armis built-in sensor leg of AC-8's four-sensor breadth requirement.
+
+11. **`test_BC_2_16_012_003_write_tool_invalidation_runtime_register`** (prism-query) — calls `register_write_tool(entry) -> Result<(), SpecEngineError>` where `entry` is a new `WriteToolInvalidationMap` struct; asserts `.is_ok()` for the happy path (entry visible on next read-guard); asserts `.is_err()` with `E-PLUGIN-012` for a duplicate `tool_name`; asserts `.is_err()` with `E-PLUGIN-020` for a post-boot registration attempt; fails RED because `register_write_tool` does not exist yet (the container is a `LazyLock<Vec<...>>` not an `RwLock`) and neither error variant exists.
 
 ---
 
@@ -438,6 +444,7 @@ Tech debt closed:
 
 | Version | Burst | Date | Author | Change |
 |---------|-------|------|--------|--------|
+| 1.13 | FB28 | 2026-05-16 | product-owner | F-LP36-MED-001 — AC-9 test-name canonicalized: added `_003_` segment to match Red Gate Test 11 convention (`test_BC_2_16_012_write_tool_invalidation_runtime_register` → `test_BC_2_16_012_003_write_tool_invalidation_runtime_register`). F-LP36-MED-002 — Red Gate Tests expanded to cover 4-sensor breadth per AC-8 Option A: added Cyberint (Test 8), Claroty (Test 9), Armis (Test 10) behavioral-equivalence rows (all `_002_` group, mirroring Test 7); former Test 8 renumbered to Test 11; `red_gate_tests: 8 → 11`. State-manager closes F-LP36-MED-003 + bookkeeping in same burst. |
 | 1.12 | fix-burst-22-combined-D-634 | 2026-05-16 | state-manager | F-LP27-MED-001 — 11th manifestation version-pin-drift family at NEW target (error-taxonomy.md itself): 3 story sites swept `v1.27` → `v1.30` (AC-3 narrative line 207, AC-3 trace line 208, §Error Taxonomy Additions intro line 317). 4-bump window (v1.27→v1.28→v1.29→v1.30) where these sites were not swept during FB2..FB21. Pass-27 BLOCKED 1 MED; streak RESET 2/3 → 0/3 (4th reset). Pass-26→pass-27 reset BROKE the convergence pattern. Pass-28 NEXT — first of NEW 3-CLEAN sequence (4th attempt). |
 | 1.11 | prereq-e-fix-burst-16 | 2026-05-16 | product-owner | F-LP17-MED-001 — 8th manifestation BC-2.16.002 citation defect family closed at NEW dimension (phrasing-form canonicalization): 3 story sites converted from no-parens form `§Postconditions Canonical Structured Event Catalog v1.20 row 33` to canonical parens-ancestry form `§Postconditions (Canonical Structured Event Catalog bullet, v1.20) row 33` (matching workspace pattern at BC-2.16.012:84/109 + error-taxonomy:467/473). FB12-era inherited inconsistency closed (4 successive bursts FB12/FB14/FB15 addressed only pin dimension; pass-17 fresh-context surfaced phrasing-form dimension). POL-25 multi-cite propagation discipline applied with explicit grep enumeration. |
 | 1.10 | prereq-e-fix-burst-15 | 2026-05-16 | product-owner | F-LP16-HIGH-001 (7th OCCURRENCE POL-23 RECURRING class) — 3 variant-phrasing sites swept v1.19→v1.20: Task 7 + AC-9 + §File Structure Requirements (all using no-parens form `Canonical Structured Event Catalog v1.19 row 33`). FB14 canonical-form sweep missed these. POL-25 explicit variant-phrasing grep mandate applied this burst to prevent 8th occurrence. |

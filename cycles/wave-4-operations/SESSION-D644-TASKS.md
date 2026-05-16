@@ -1,6 +1,6 @@
 ---
 document_type: session-tasks
-version: "1.0"
+version: "1.1"
 status: active
 related_burst: D-644
 predecessor_state: D-643
@@ -38,10 +38,30 @@ This file persists the task list and full cascade state from the session coverin
 | # | Status | Description |
 |---|--------|-------------|
 | Prior | DONE | All FB6 through FB27 closures (see SESSION-D580-TASKS.md for FB1-FB5 era) |
-| 82 | **BLOCKED-PENDING-DISPATCH** | **PREREQ-E fix-burst-28** — 3 MED findings from pass-36 |
-| 83 | PENDING | PREREQ-E pass-37 (after FB28; first of NEW 3-CLEAN sequence — 9th attempt) |
+| 82 | **DONE** | **PREREQ-E fix-burst-28 CLOSED** — D-645 combined-burst closed all 3 MED findings; story v1.13; STORY-INDEX v2.117; 151st consecutive single-commit |
+| 83 | **READY-FOR-DISPATCH** | PREREQ-E pass-37 (first of NEW 3-CLEAN sequence — 9th attempt; streak 0/3) |
 
-## FB28 Detailed Closure Specification (pending dispatch)
+## §FB28 Closure Note (D-645 COMPLETE)
+
+**All 3 in-scope findings closed in combined-burst D-645 (2026-05-16). 151st consecutive single-commit.**
+
+| Finding | Agent | Status | Notes |
+|---------|-------|--------|-------|
+| F-LP36-MED-001 | product-owner | CLOSED | AC-9 test name canonicalized to `_003_` convention |
+| F-LP36-MED-002 | product-owner | CLOSED | Red Gate Tests 6+7 expanded 4-sensor scope Option A; `red_gate_tests:` count 8→11 |
+| F-LP36-MED-003 | state-manager | CLOSED | STORY-INDEX col 3 updated; STORY-INDEX v2.116→v2.117 |
+
+**PO-caught observations (not new findings):**
+- Task-spec in this file referenced `_003_` naming for the Cyberint/Claroty/Armis rows under Test 7 (`F-LP36-MED-001` specification). Correct namespace is `_002_` per Test 7 convention in the story. PO deferred to file authority (story is canonical).
+- `red_gate_tests:` frontmatter count needed sibling-bump 8→11 alongside Red Gate table expansion. Applied in same burst (PO TD-VSDD-060 sibling-catch).
+
+**TD-VSDD-060 sweep (state-manager):** ADR-027 already has SS-07 (prism-query) in `subsystems_affected`. No other forward-prop sites found. All other hits are historical narrative.
+
+**Next action:** Dispatch adversary spec pass-37 (task 83 READY-FOR-DISPATCH).
+
+---
+
+## FB28 Detailed Closure Specification (archived — DONE)
 
 **3 in-scope MEDIUM findings from pass-36 awaiting closure:**
 
@@ -115,7 +135,7 @@ Accept current spec quality (8 CLEAN passes is unusual statistical evidence of q
 
 | Artifact | Version |
 |----------|---------|
-| Story | v1.12 |
+| Story | v1.13 (F-LP36-MED-001+002 closed D-645) |
 | BC-2.01.016 | v1.5 (modified 2026-05-16) |
 | BC-2.16.011 | v1.6 (modified 2026-05-16) |
 | BC-2.16.012 | v1.15 (modified 2026-05-16) |
@@ -132,7 +152,7 @@ Accept current spec quality (8 CLEAN passes is unusual statistical evidence of q
 | error-taxonomy | v1.30 (E-PIPELINE-001 row at v1.20 pin; E-SPEC-008 RETIRED; E-SPEC-012/013/014 + E-PLUGIN-012/020 active) |
 | ARCH-INDEX | v2.55 |
 | VP-INDEX | v1.47 (Total 156, P0=122, P1=34) |
-| STORY-INDEX | v2.116 (PREREQ-E row v1.12; column 3 PENDING FB28 prism-query addition) |
+| STORY-INDEX | v2.117 (F-LP36-MED-003 CLOSED D-645; prism-query added to PREREQ-E col 3) |
 | BC-INDEX | v4.93 |
 | verification-architecture | v1.37 (P33 sub-node added; arithmetic synced 156/122/34) |
 | verification-coverage-matrix | v1.34 (totals synced 156/122/34) |
