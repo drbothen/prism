@@ -346,3 +346,55 @@ and OBS-LP5-003 (HS-003 article form) queued cycle-close as non-blocking.
 
 Adversary pass-6 dispatch (fresh-context). BC-5.39.001 3-CLEAN protocol — streak 0/3.
 Pass-5 report: `cycles/wave-4-operations/adversarial-reviews/S-PLUGIN-PREREQ-E-spec-pass-5.md`
+
+---
+
+## §D580 DURABLE SNAPSHOT (2026-05-16)
+
+**Burst D-580 — DURABLE PRE-/CLEAR RESUME SNAPSHOT — user clearing context — 86th consecutive single-commit**
+
+### Cascade Summary (5 passes + 5 fix-bursts)
+
+| Pass | Findings | Fix-Burst | Key Theme | Streak After |
+|------|----------|-----------|-----------|-------------|
+| Pass-1 | 14 | FB1 (12 in-scope + 2 OBS) | VP-154 OCSF reconcile; phantom §C5 + POL-20 ISO dates | 0/3 |
+| Pass-2 | 9 | FB2 (paper-fix + 2 sibling-sweep regressions) | E-PLUGIN-012/020 collision chain; VP-156 reframe; Red Gate regrouped | 0/3 |
+| Pass-3 | 8 | FB3 (5 of 8 FB2 regressions) | Path B auth_type_name(); register_write_tool → Result<>; ARCH-INDEX ADR registry stale | 0/3 |
+| Pass-4 | 9 (FLAT) | FB4 (VP-156 anchor-back system gap) | 3H VP-156 anchor-back (story + §References + ADR); BC-2.16.004 POL-7 verbatim fresh-context | 0/3 |
+| Pass-5 | 10 (REGRESSION) | FB5 (subsystem +SS-07 chain) | F-LP5-HIGH-001 subsystems: +SS-07 (FB4 origin); §References POL-7 surface 2 | 0/3 |
+
+**Cumulative:** ~50 findings closed across FB1-FB5. Trajectory 14→9→8→9→10 FLAT with regression at pass-5 (bookkeeping class, not semantic). Adversary estimate: 3–5 more passes to 3-CLEAN.
+
+### Per-Pass FB Closure Rate
+
+| Pass | Total Findings | In-Scope Closed | OBS Queued | Regressions in Next Pass |
+|------|---------------|-----------------|------------|--------------------------|
+| Pass-1 | 14 | 12 | 2 | 3 (paper-fix + 2 sibling gaps) |
+| Pass-2 | 9 | 8 | 1 | 5 of 8 were FB2 sibling-sweep gaps |
+| Pass-3 | 8 | 8 | 0 | VP-156 anchor-back (FB1 residue) |
+| Pass-4 | 9 | 9 | 0 | Subsystems gap (FB4 ADR origin exposed story) |
+| Pass-5 | 10 | 7 | 3 | TBD (pass-6 NEXT — STRATEGIC DECISION PENDING) |
+
+### POL Coverage Observations (Most Frequent)
+
+| POL | Recurrences Across Passes 1-5 | Notes |
+|-----|------------------------------|-------|
+| POL-7 | 4 (pass-1 phantom §C5 + pass-2 Red Gate titles + pass-4 BC-2.16.004 + pass-5 §References) | verbatim H1 discipline; fresh-context most reliable detector |
+| POL-25 | 5+ (sibling-sweep gaps in every fix-burst) | Multi-cite propagation sweep; POL-25 sweep target list incomplete (codification candidate: POL-28) |
+| POL-21 | 1 (pass-1 §C5 phantom heading) | phantom section anchor discipline |
+| POL-23 | 1 (pass-3 ARCH-INDEX ADR registry row stale) | BC-version-bump triggers ARCH-INDEX registry sweep |
+| POL-27 | 2 (pass-4 error-taxonomy modified: + pass-5 ADR-027 modified:) | ISO date sync after any file edit |
+| POL-8 | 1 (pass-5 BC-2.01.013/2.16.004 AC traces) | AC trace discipline for Path B decisions |
+
+### Convergence Outlook Quote (Pass-5 Adversary)
+
+"Trajectory 14→9→8→9→10 is FLAT with a regression at pass-5. The regression is bookkeeping class — subsystems: +SS-07 chain originated from the ADR-026 fix in FB5 (F-LP5-MED-004) that was NOT sibling-swept to the story. This is a POL-25 enforcement gap at the story subsystems: axis, not yet enumerated in POL-25's sweep target list. Codifying POL-28 (enumerate all citation surfaces: story subsystems: + verification_properties: + anchor_vps: + index registry rows + ADR frontmatter) before pass-6 would close this gap category. Alternatively, 3–5 more passes under the current rubric will reach 3-CLEAN as the adversary methodically surfaces each unswept axis class."
+
+### Strategic Decision State
+
+USER DECISION PENDING — orchestrator awaiting strategic guidance before pass-6.
+Options: (1) continue cascade, (2) human review checkpoint, (3) POL-28 codification first.
+Full options documented in: `.factory/cycles/wave-4-operations/SESSION-D580-TASKS.md` §Strategic Options
+State persisted: STATE.md v7.285; SESSION-HANDOFF.md v7.285; SESSION-D580-TASKS.md (new).
+
+Factory-artifacts predecessor: 94dfce02 (D-579). D-580 is the 86th consecutive single-commit.
