@@ -1105,3 +1105,68 @@ Novel-finding count: 14→9→8→9→10→10→8→4→0→3→1→1→**3** �
 Streak: **0/3** — FB12 NEXT (3-agent burst per routing above); then pass-14.
 
 STATE.md v7.299; SESSION-HANDOFF.md v7.299; 108th consecutive single-commit (TD-VSDD-053 DECISIVELY STABLE).
+
+---
+
+## §D-605 FIX-BURST-12 CLOSURE (2026-05-16) — 3/3 IN-SCOPE HIGH CLOSED; STATE.md v7.300 MILESTONE
+
+### FB12 Closure Verification
+
+| Finding | Closure Burst | Verification Result |
+|---------|---------------|---------------------|
+| F-LP13-HIGH-001 (POL-21 RECURRING-class BC-2.16.012 3-site §-sigil) | D-604 PO `18366bba` | PASS — 0 bare `§Canonical Structured Event Catalog` hits in live narrative; 3 versioned `§Postconditions (Canonical Structured Event Catalog bullet, v1.19)` hits at lines 84/109/161 |
+| F-LP13-HIGH-002 (BC-2.16.002 frontmatter modified/timestamp drift) | D-605 state-manager (this burst) | PASS — `timestamp: 2026-05-16T00:00:00Z`; `modified: 2026-05-16` |
+| F-LP13-HIGH-003 (plugin_name field unresolvable) | D-603 architect `7c2f94cb` + D-604 PO `18366bba` propagation | PASS — plugin_name consistently `entry.plugin_name` (WriteToolInvalidationMap struct field, set by PluginRuntime from manifest `name` per ADR-026 D7 v1.10) in ADR-026 + BC-2.16.002 + BC-2.16.012 + story + HS-003 + error-taxonomy |
+
+### Index Version Table (Post-FB12)
+
+| Index | Version | Change |
+|-------|---------|--------|
+| BC-INDEX | v4.88 | BC-2.16.002 row v1.18→v1.19; BC-2.16.012 row v1.9→v1.10 |
+| VP-INDEX | v1.45 | Unchanged |
+| ARCH-INDEX | v2.52 | ADR-026 row v1.9→v1.10 |
+| STORY-INDEX | v2.113 | PREREQ-E row v1.8→v1.9 |
+
+### Artifact Version Table (Post-FB12)
+
+| Artifact | Version | Last Changed |
+|----------|---------|-------------|
+| S-PLUGIN-PREREQ-E story | v1.9 | D-604 PO (Task 7 + AC-9 + §File Structure Requirements plugin_name) |
+| BC-2.16.011 | v1.4 | D-588 state-manager (prior burst) |
+| BC-2.16.012 | v1.10 | D-604 PO (POL-21 3-site sweep + Option A propagation) |
+| BC-2.16.002 | v1.19 | D-603 architect (catalog row 33 field-source clarification) |
+| ADR-026 | v1.10 | D-603 architect (Option A struct extension; D7 §Field-source paragraph) |
+| ADR-027 | v1.5 | D-594 architect (prior burst) |
+| VP-156 | v0.7 | D-590 architect (prior burst) |
+| HS-PREREQ-E-003 | v1.5 | D-604 PO (HS-003-03/04 plugin_name field addition) |
+| error-taxonomy | v1.28 | D-604 PO (E-PLUGIN-012/020 field-source annotations) |
+
+### 3-Agent Burst Structure Note
+
+FB12 is the first PREREQ-E fix-burst requiring three separate specialist agents (architect + product-owner + state-manager) each contributing one commit. This is consistent with the single-commit-per-agent-per-burst protocol — three agents = three commits = one logical burst. The multi-commit-chain detector does NOT fire because none of the three commit subjects contain `backfill`/`Stage 1`/`Stage 2`. This 3-agent burst structure establishes a precedent for findings that span all three spec-authoring + bookkeeping roles simultaneously.
+
+### Option A Architectural Decision Summary
+
+**F-LP13-HIGH-003 Resolution — Option A (WriteToolInvalidationMap struct extension):**
+
+- `WriteToolInvalidationMap` struct in `crates/prism-query/src/invalidation.rs` gains `plugin_name: String` field
+- Set by `PluginRuntime` from plugin manifest `name` field at boot step 7.5 plugin-load
+- This is the source of the `plugin_name` structured event field in `write_tool_registration_after_boot` WARN tracing event (BC-2.16.002 §Postconditions Canonical Structured Event Catalog v1.19 row 33)
+- ADR-026 D7 §Field-source specification paragraph added per v1.10
+- Downstream propagation: story Task 7 + AC-9 + §File Structure Requirements; HS-003-03/04 fixtures; error-taxonomy E-PLUGIN-012/020 field-source annotations
+
+Options B and C were considered but rejected:
+- Option B (add `plugin_name` param to `register_write_tool` signature): more API surface noise; struct already carries tool_name so adding plugin_name is natural structural parallel
+- Option C (remove plugin_name from catalog row): downgrades observability quality; POL-29 production-grade default forbids silently removing audit fields
+
+### STATE.md v7.300 Milestone
+
+STATE.md version 7.300 reached at D-605. Milestones: v7.000 (Wave 3 start), v7.100 (PREREQ-D start), v7.200 (PREREQ-D impl pass-9), v7.274 (PREREQ-D post-merge), v7.300 (PREREQ-E FB12 closure).
+
+### Post-FB12 Trajectory
+
+**14→9→8→9→10→10→FB6-CLOSED(10/10)→8→FB7-CLOSED(8/8)→4→FB8-CLOSED(3/3)→pass-9:CLEAN★(1/3)→pass-10:BLOCKED(1H+1M+1L; RESET 0/3; 3-CLEAN PROTOCOL VALIDATED)→FIX-BURST-9-CLOSED(3/3)→pass-11:BLOCKED(1M; RECURRING VP traceability; 0/3)→FIX-BURST-10-CLOSED(1/1)→pass-12:BLOCKED(1M; HIGH-NOVELTY tracing-emission ↔ catalog axis; 0/3)→FIX-BURST-11-CLOSED(1/1 in-scope; BC-2.16.002 catalog row+cross-ref+event-name; BUT 3 defects introduced by FB11)→pass-13:BLOCKED(0C+3H+0M+0L+0OBS; ALL FB11-introduced; POL-21 RECURRING + POL-23/27 frontmatter drift + plugin_name unresolvable; FB-introduces-new-defects PATTERN; POL-29 codification candidate; streak 0/3 unchanged)→FIX-BURST-12-CLOSED(3/3 in-scope HIGH; POL-21 swept + frontmatter synced + plugin_name resolved via Option A)**
+
+Streak: **0/3** — pass-14 NEXT (first fresh-context test after FB12; if CLEAN streak advances 0/3 → 1/3).
+
+STATE.md v7.300; SESSION-HANDOFF.md v7.300; 111th consecutive single-commit (TD-VSDD-053 DECISIVELY STABLE).

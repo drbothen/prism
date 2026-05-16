@@ -1,7 +1,7 @@
 ---
 document_type: architecture-index
 level: L3
-version: "2.51"
+version: "2.52"
 status: draft
 producer: architect
 timestamp: 2026-05-04T00:00:00
@@ -91,7 +91,7 @@ deployment_topology: single-service  # planned — no service binary exists yet 
 | ADR-023 | Plugin-Only Sensor Architecture — TOML Specs as Declarative Baseline, .prx WASM for Non-Declarative Cases, Retired CustomAdapter Rust Trait | COMMITTED v1.19 | 2026-05-15 | decisions/ADR-023-plugin-only-sensor-architecture.md |
 | ADR-024 | ColumnType Canonical Naming — Domain-Level Variant Names for Sensor Schema API; prism-spec-engine Shadow Enum Retirement | ACCEPTED v1.0 | 2026-05-12 | decisions/ADR-024-column-type-canonical-naming.md |
 | ADR-025 | BC Lifecycle Field Canonical Scheme — Single status Field Governs; lifecycle Field Retired | ACCEPTED v1.0 | 2026-05-12 | decisions/ADR-025-bc-lifecycle-field-canonical-scheme.md |
-| ADR-026 | SensorAuth Trait Un-Sealing — Remove private::Sealed, Enable Plugin Auth Implementations | PROPOSED v1.9 | 2026-05-16 | decisions/ADR-026-sensorauth-unsealing.md |
+| ADR-026 | SensorAuth Trait Un-Sealing — Remove private::Sealed, Enable Plugin Auth Implementations | PROPOSED v1.10 | 2026-05-16 | decisions/ADR-026-sensorauth-unsealing.md |
 | ADR-027 | CustomAdapter Rust Trait Deprecation and Wave 1/A Removal | PROPOSED v1.5 | 2026-05-16 | decisions/ADR-027-custom-adapter-deprecation-removal.md |
 
 ## Architecture Decisions
@@ -152,6 +152,7 @@ deployment_topology: single-service  # planned — no service binary exists yet 
 
 | Version | Pass | Date | Author | Change |
 |---------|------|------|--------|--------|
+| 2.52 | prereq-e-fix-burst-12 | 2026-05-16 | state-manager | D-605 PREREQ-E fix-burst-12 closure (F-LP13-HIGH-003 architect D-603): ADR-026 row v1.9→v1.10 (Option A adjudication: WriteToolInvalidationMap struct extended with plugin_name field set by PluginRuntime from plugin manifest `name`; D7 narrative §Field-source specification paragraph added). ARCH-INDEX v2.51→v2.52. |
 | 2.51 | prereq-e-fix-burst-9 | 2026-05-16 | architect | F-LP10-HIGH-001 — POL-21 phantom-anchor closure: ADR-027 §D3 live-narrative `ADR-023 §VP-PLUGIN-001` → `ADR-023 §Verification Properties (VP-PLUGIN-001 bullet)` (ADR-027 v1.4→v1.5). VP-155 §Property Statement + §Source Contract same correction (VP-155 v0.4→v0.5). ADR-027 registry row advanced PROPOSED v1.4→v1.5. Cross-perimeter sibling-sweep confirmed: zero remaining `§VP-PLUGIN-NNN` phantom anchors in live narrative across .factory/specs/, .factory/stories/, .factory/holdout-scenarios/. ★ 100th consecutive single-commit (TD-VSDD-053). ARCH-INDEX v2.50→v2.51. |
 | 2.50 | prereq-e-fix-burst-7 | 2026-05-16 | architect (D-586) | F-LP7-MED-003 — ARCH-INDEX ADR registry row Title cells aligned to verbatim H1: ADR-026 "SensorAuth Trait Un-Sealing — Remove private::Sealed, Enable Plugin Auth Implementations" (was: "SensorAuth Un-Sealing — Open Trait for Plugin-Implementable Auth; RwLock WriteToolInvalidationMap"); ADR-027 "CustomAdapter Rust Trait Deprecation and Wave 1/A Removal" (was: "CustomAdapter Deprecation and Removal — Trait Retirement, Registry Cleanup, prism-query Scope"). ADR-026 version column advanced v1.8→v1.9 (runtime_deliverables completeness fix). POL-7 D-571 sweep convention (H1 is canonical; downstream rows verbatim-quote). Closes 2-site sibling pattern; OBS-LP6-001 POL-7 surface-6 codification still queued cycle-close. |
 | 2.49 | prereq-e-fix-burst-6 | 2026-05-16 | architect | F-LP6-CRIT-001+HIGH-003+MED-002+MED-003 POL-23 ADR-version-bump sibling sweep: ADR-026 registry row updated PROPOSED v1.7 → PROPOSED v1.8 (cookie→cookie_roundtrip fix; phantom runtime_deliverable pruned; semver-stance scope paragraph added). ADR-027 registry row updated PROPOSED v1.3 → PROPOSED v1.4 (SS-07 added to subsystems_affected; §Consequences prism-query ownership statement). ARCH-INDEX v2.48→v2.49. |
