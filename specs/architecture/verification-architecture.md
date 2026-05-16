@@ -2,7 +2,7 @@
 document_type: architecture-section
 level: L3
 section: "verification-architecture"
-version: "1.35"
+version: "1.36"
 status: draft
 producer: architect
 timestamp: 2026-05-03T00:00:00
@@ -48,7 +48,7 @@ graph TB
         K19["Generator idempotent (VP-108)"]
     end
 
-    subgraph TIER2["Tier 2: Proptest — Property-Based Testing (86 properties) + Unit Tests (4 properties — VP-095..VP-098)"]
+    subgraph TIER2["Tier 2: Proptest — Property-Based Testing (88 properties) + Unit Tests (4 properties — VP-095..VP-098)"]
         P1["OCSF normalization validity (VP-016/017)"]
         P2["Detection rule validation (VP-018)"]
         P3["Diff computation determinism (VP-019)"]
@@ -94,13 +94,14 @@ graph TB
         F6["Alias expansion (VP-037)"]
     end
 
-    subgraph INTEG["Integration Test VPs (19)"]
+    subgraph INTEG["Integration Test VPs (28)"]
         I1["Audit buffer ordering (VP-033)"]
         I2["SessionContext drop on error (VP-036)"]
         I3["Wave 3 integration VPs (VP-068, VP-083, VP-090, VP-094, VP-107, VP-112, VP-115, VP-124, VP-126, VP-127, VP-129, VP-130, VP-131, VP-132, VP-133, VP-134, VP-136)"]
+        I4["Wave-4 / PREREQ-D / PREREQ-E Plugin-Migration Integration VPs<br/>VP-146 (FORBIDDEN-SYMBOLS-001 perimeter)<br/>VP-147..VP-152 (plugin runtime + auth)<br/>VP-154 (CustomAdapter behavioral equivalence)<br/>VP-155 (CustomAdapter perimeter)"]
     end
 
-    TIER1 -->|"Proves correctness<br/>for ALL inputs"| SAFE["145 Verified Properties"]
+    TIER1 -->|"Proves correctness<br/>for ALL inputs"| SAFE["156 Verified Properties"]
     TIER2 -->|"Explores complex<br/>input spaces"| SAFE
     TIER3 -->|"Finds crashes in<br/>untrusted input paths"| SAFE
     INTEG -->|"Verifies I/O ordering<br/>and lifecycle"| SAFE
@@ -312,6 +313,7 @@ Proptest strategies generate complex inputs (alias graphs, detection rules, OCSF
 
 | Version | Pass | Date | Author | Notes |
 |---------|------|------|--------|-------|
+| 1.36 | prereq-e-fix-burst-26-combined-D-640 | 2026-05-16 | state-manager | F-LP33-HIGH-001 closure — Mermaid block 3-site arithmetic sweep: Tier 2 Proptest `(86 properties)`→`(88)`; Integration Test VPs subgraph `(19)`→`(28)`; SAFE node `145 Verified Properties`→`156`. Added I4 subgraph node enumerating Wave-4/PREREQ-D/PREREQ-E plugin-migration integration VPs (VP-146..VP-152, VP-154, VP-155). Closes FB25 same-file sibling-sweep gap; 6th recurrence of within-FB sibling-sweep asymmetry pattern. POL-25 multi-cite propagation discipline applied workspace-wide post-correction. |
 | 1.35 | prereq-e-fix-burst-25-combined-D-639 | 2026-05-16 | state-manager | F-LP32-HIGH-001 closure — §Verification Priority closing parenthetical `123 total P0` → `122 total P0` matching VP-INDEX v1.47 + VCM v1.34 Total P0 (FB24 sibling-sweep miss — same arithmetic class as F-LP31-HIGH-001 at 3rd workspace site). POL-25 multi-cite propagation closure. |
 | 1.34 | prereq-e-fix-burst-3 | 2026-05-15 | architect | F-LP3-HIGH-001 sibling-sweep: VP-156 Provable Properties Catalog row description updated from "uniqueness + happens-before" to "uniqueness only" — aligns with VP-156 v0.2 body rewrite (fix-burst-2). P1 enumeration and grand totals unchanged (156 total, 123 P0, 34 P1). |
 | 1.33 | prereq-e-fix-burst-1 | 2026-05-15 | architect | F-LP1-MED-003 resolution: VP-156 (prism-query proptest P1, WriteToolInvalidationMap registration uniqueness + happens-before, ADR-026 D7) added to Provable Properties Catalog. P1 enumeration updated: added VP-156. Grand totals: 155→156 VPs, P0 unchanged 123, P1 33→34. |

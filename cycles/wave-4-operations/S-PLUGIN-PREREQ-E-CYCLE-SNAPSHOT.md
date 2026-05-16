@@ -2387,3 +2387,39 @@ Novel-finding count: ...→0(pass-30 CLEAN★★)→1(pass-31 BLOCKED; 1 HIGH VP
 Streak: **0/3** — Pass-33 NEXT (6th attempt at 3-CLEAN; 7th pass-33 = first of new 3-CLEAN sequence).
 
 STATE.md v7.326; SESSION-HANDOFF.md v7.326; prereq_e_adversary_streak 0/3 unchanged; verification_architecture_version 1.34→1.35; 145th consecutive single-commit (TD-VSDD-053 stable).
+
+---
+
+## §D-640 PASS-33 BLOCKED+FB26-CLOSED-COMBINED (2026-05-16) — STREAK 0/3 UNCHANGED; MERMAID BLOCK 3-SITE ARITHMETIC CORRECTION + I4 ENUMERATION NODE; 6TH WITHIN-FB SIBLING-SWEEP ASYMMETRY RECURRENCE; 146TH SINGLE-COMMIT; STATE v7.327
+
+**Pass-33 BLOCKED — 1 HIGH F-LP33-HIGH-001 + 2 process-gap OBS. Streak 0/3 unchanged (no reset; already 0/3 from pass-32).**
+
+### F-LP33-HIGH-001 — verification-architecture.md Mermaid block 3 stale arithmetic sites + I3 enumeration incomplete [CLOSED FB26]
+
+FB25 (combined burst D-639) corrected §Verification Priority closing parenthetical at line 290 but missed the Mermaid block in the same file. Three arithmetic claim surfaces remained stale after FB25:
+
+- Line 51 `Tier 2: Proptest — Property-Based Testing (86 properties)` stale — VP-INDEX Proptest = 88 → corrected to `(88 properties)`
+- Line 97 `subgraph INTEG["Integration Test VPs (19)"]` stale — VP-INDEX Integration test = 28 → corrected to `(28)`
+- Line 103 `SAFE["145 Verified Properties"]` stale — VP-INDEX Total = 156 → corrected to `156 Verified Properties`
+- I3 enumeration at line 100 listed 17 Wave-3 integration VPs; 9 Wave-4/PREREQ-D/PREREQ-E integration VPs missing (VP-146..VP-152, VP-154, VP-155)
+
+6th recurrence of within-FB sibling-sweep asymmetry pattern (prior 5: pass-8/FB7→pass-8; pass-12/FB11→pass-13; pass-14/FB13→pass-14; pass-15/FB14→pass-15; pass-31/FB24→pass-32).
+
+**FB26 fix (combined burst D-640):**
+- Line 51 `(86 properties)` → `(88 properties)`
+- Line 97 `Integration Test VPs (19)` → `Integration Test VPs (28)`
+- Line 103 `SAFE["145 Verified Properties"]` → `SAFE["156 Verified Properties"]`
+- Added I4 subgraph node: `"Wave-4 / PREREQ-D / PREREQ-E Plugin-Migration Integration VPs<br/>VP-146 (FORBIDDEN-SYMBOLS-001 perimeter)<br/>VP-147..VP-152 (plugin runtime + auth)<br/>VP-154 (CustomAdapter behavioral equivalence)<br/>VP-155 (CustomAdapter perimeter)"`
+- verification-architecture.md v1.35→v1.36 (§Changelog row added)
+
+**Workspace-wide POL-25 sweep:** All remaining hits for stale numerics are in historical changelog rows or pass-report evidence quotes — all historical-exempt. No live-narrative stale sites remain.
+
+### Updated Trajectory Shorthand
+
+→pass-31:BLOCKED(0C+1H+0M+0L+1OBS; F-LP31-HIGH-001 VP-INDEX arithmetic self-consistency violation v1.32-era; streak RESET 2/3→0/3 5th time)→FB24-CLOSED-COMBINED(1/1 in-scope HIGH; 4-cell correction)→pass-32:BLOCKED(0C+1H+0M+0L+0OBS; F-LP32-HIGH-001 FB24 sibling-sweep miss at 3rd site verification-architecture.md; RECURSIVE meta-class; streak 0/3 unchanged)→FB25-CLOSED-COMBINED(1/1 HIGH; single-cell correction)→**pass-33:BLOCKED(0C+1H+0M+0L+2OBS; F-LP33-HIGH-001 Mermaid block 3-site arithmetic + I3 enumeration; 6th within-FB sibling-sweep asymmetry recurrence; streak 0/3 unchanged)**→FB26-CLOSED-COMBINED(1/1 HIGH; 3-site arithmetic + I4 enumeration)
+
+Novel-finding count: ...→1(pass-31 BLOCKED VP-INDEX arithmetic)→1(pass-32 BLOCKED verification-architecture.md stale)→**1(pass-33 BLOCKED Mermaid block stale — FB25 same-file miss)**
+
+Streak: **0/3** — Pass-34 NEXT (7th attempt at 3-CLEAN; pass-33 = first of new 3-CLEAN sequence).
+
+STATE.md v7.327; SESSION-HANDOFF.md v7.327; prereq_e_adversary_streak 0/3 unchanged; verification_architecture_version 1.35→1.36; 146th consecutive single-commit (TD-VSDD-053 stable).
