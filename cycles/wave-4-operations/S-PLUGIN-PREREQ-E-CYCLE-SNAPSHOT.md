@@ -3010,3 +3010,40 @@ Shorthand append: →pass-44:BLOCKED(0C+0H+2M+0L+0OBS; F-LP44-MED-001 story §Ta
 Story v1.16 | BC-2.01.016 v1.7 | BC-2.16.011 v1.6 | BC-2.16.012 v1.15 | BC-2.16.002 v1.20 | ADR-026 v1.12 | ADR-027 v1.7 | VP-153 v0.7 | VP-154 v0.6 | VP-155 v0.5 | VP-156 v0.8 | HS-PREREQ-E-001 v1.3 | HS-PREREQ-E-002 v1.3 | HS-PREREQ-E-003 v1.5 | error-taxonomy v1.30 | ARCH-INDEX v2.56 | VP-INDEX v1.49 | STORY-INDEX v2.120 | BC-INDEX v4.95 | verification-architecture v1.39 | verification-coverage-matrix v1.36
 
 STATE.md v7.340; SESSION-HANDOFF.md v7.340; prereq_e_adversary_streak **0/3** (pass-44 BLOCKED; FB34 CLOSED; pass-45 NEXT — new 3-CLEAN attempt); 159th consecutive single-commit (TD-VSDD-053 STABLE).
+
+## §D-654 FB35 SINGLE-COMMIT CLOSURE (2026-05-16) — 1 MED FROM PASS-45 CLOSED; STORY V1.17; STORY-INDEX V2.121; F-LP45-LOW-001 ACCEPTED NON-DEFECT; OBS-LP45-001/002 NON-BLOCKING; 14TH WITHIN-FB MANIFESTATION; 160TH SINGLE-COMMIT; PASS-46 NEXT
+
+### Pass-45 Summary
+BLOCKED. 1 MED + 1 LOW + 2 OBS. Streak 0/3 stays 0/3. F-LP45-MED-001 is FB34-introduced (Task 1b epilogue line 156 volatile+factually-wrong line-range cite). F-LP45-LOW-001 ACCEPTED non-defect per TD-VSDD-091 §Changelog exception. OBS-LP45-001/002 non-blocking observations. 14th within-FB-introduces-defect manifestation.
+
+### Findings Closed (FB35)
+
+**F-LP45-MED-001** (PO stage): Story Task 1b epilogue single-line rewrite — volatile+factually-wrong "(rows 343–346)" citation removed; replaced with durable file-name semantic anchor "the four auth impl rows in §File Structure Requirements (`crowdstrike.rs`, `cyberint.rs`, `claroty.rs`, `armis.rs`)". Two defects resolved: (1) TD-VSDD-091 volatile line-pin; (2) factually wrong (actual §FSR rows at lines 353-356, not 343-346). Story v1.16 → v1.17.
+
+**F-LP45-LOW-001** (orchestrator adjudication): ACCEPTED non-defect. Story v1.16 §Changelog row "runtime_deliverables 22-23" cites ADR-026 frontmatter list line offsets — within TD-VSDD-091 "pass-report changelogs" exception scope. No fix dispatched.
+
+**OBS-LP45-001** (non-blocking): E-SPEC-012/013 variant naming asymmetry in new Task 1b prose — test-writer-deferred per orchestrator adjudication.
+
+**OBS-LP45-002** (non-blocking): VP-153 §Proof Harness Skeleton file-name pre-dates Rule A/B expansion — pre-existing convention, no regression.
+
+### Pattern-Breaking Assessment (POL-29 Candidate — 14th Manifestation)
+FB34 introduced F-LP45-MED-001 despite demonstrating successful in-burst sibling-sweep (first successful PO addendum pattern). Pattern: comprehensive in-burst sibling-sweep helps (closes existing gaps) but does not eliminate introduction of new defects in FB-authored prose. POL-29 codification candidate strengthened.
+
+### Cascade Pointer Update
+
+| Metric | Before D-654 | After D-654 |
+|--------|-------------|-------------|
+| Adversary passes | 44 (pass-1..44) | 45 (pass-1..45) |
+| Fix-bursts closed | 34 (FB1-FB34) | 35 (FB1-FB35) |
+| Fix-bursts pending | 0 | 0 |
+| Pending findings | 0 + 8 cycle-close carry-forward | 0 + 8 cycle-close carry-forward + 2 new OBS (non-blocking) |
+| Streak | 0/3 (pass-44 BLOCKED; FB34 RESET) | **0/3** (pass-45 BLOCKED; streak unchanged) |
+| Consecutive single-commits | 159 | 160 |
+
+Shorthand append: →pass-45:BLOCKED(0C+0H+1M+1L+2OBS; F-LP45-MED-001 FB34-introduced volatile+wrong row-range cite Task 1b epilogue + F-LP45-LOW-001 ACCEPTED §Changelog exception + OBS-LP45-001 E-SPEC-012/013 + OBS-LP45-002 harness filename; 14th within-FB manifestation; streak 0/3 unchanged)→FB35-CLOSED(1/1 MED in-scope; PO-only single-line; story v1.17; STORY-INDEX v2.121; 160th single-commit)
+
+### Pinned Artifact Versions (PREREQ-E 19-artifact set — post-D-654)
+
+Story v1.17 | BC-2.01.016 v1.7 | BC-2.16.011 v1.6 | BC-2.16.012 v1.15 | BC-2.16.002 v1.20 | ADR-026 v1.12 | ADR-027 v1.7 | VP-153 v0.7 | VP-154 v0.6 | VP-155 v0.5 | VP-156 v0.8 | HS-PREREQ-E-001 v1.3 | HS-PREREQ-E-002 v1.3 | HS-PREREQ-E-003 v1.5 | error-taxonomy v1.30 | ARCH-INDEX v2.56 | VP-INDEX v1.49 | STORY-INDEX v2.121 | BC-INDEX v4.95 | verification-architecture v1.39 | verification-coverage-matrix v1.36
+
+STATE.md v7.341; SESSION-HANDOFF.md v7.341; prereq_e_adversary_streak **0/3** (pass-45 BLOCKED; FB35 CLOSED; pass-46 NEXT — next 3-CLEAN attempt); 160th consecutive single-commit (TD-VSDD-053 STABLE).

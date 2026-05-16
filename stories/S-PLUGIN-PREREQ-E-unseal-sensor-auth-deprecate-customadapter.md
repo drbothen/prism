@@ -23,7 +23,7 @@ crates_touched: [prism-sensors, prism-spec-engine, prism-query]
 target_module: prism-sensors
 subsystems: [SS-01, SS-07, SS-16]
 capabilities: [CAP-001, CAP-029]
-version: "1.16"
+version: "1.17"
 updated: "2026-05-16"
 level: "L4"
 producer: product-owner
@@ -153,7 +153,7 @@ Well within the 30% context window budget (~40k tokens).
    - Step 5: In `crates/prism-sensors/src/auth/armis.rs`, add `fn auth_type_name(&self) -> &'static str { "api_key" }`.
    - Step 6: Verify `cargo check -p prism-sensors` succeeds with the new trait method declaration + 4 impl bodies wired.
 
-   File paths above match §File Structure Requirements (rows 343–346). Auth-type name strings match ADR-026 §D3 canonical enumerated set (also enforced by AC-2, VP-153 Rule A, and E-SPEC-012).
+   File paths above match the four auth impl rows in §File Structure Requirements (`crowdstrike.rs`, `cyberint.rs`, `claroty.rs`, `armis.rs`). Auth-type name strings match ADR-026 §D3 canonical enumerated set (also enforced by AC-2, VP-153 Rule A, and E-SPEC-012).
 
 2. **Delete `crates/prism-spec-engine/src/custom_adapter.rs`**
    - The file contains: `trait CustomAdapter`, `struct CustomAdapterRegistry`, `struct CustomAuth` (sealed-trait workaround), all impls and registrations
@@ -454,6 +454,7 @@ Tech debt closed:
 
 | Version | Burst | Date | Author | Change |
 |---------|-------|------|--------|--------|
+| 1.17 | FB35 | 2026-05-16 | product-owner | F-LP45-MED-001 Task 1b epilogue volatile + factually-wrong line-range cite "(rows 343–346)" replaced with durable semantic anchor enumerating 4 file names (crowdstrike.rs / cyberint.rs / claroty.rs / armis.rs). TD-VSDD-091 compliance + factual correction. F-LP45-LOW-001 changelog cite "runtime_deliverables 22-23" adjudicated ACCEPTABLE per TD-VSDD-091 §Changelog exception (no fix dispatched). |
 | 1.16 | FB34 | 2026-05-16 | product-owner | F-LP44-MED-001 §Tasks expanded to enumerate ADR-026 D1/D2 Path B auth_type_name trait surface gain + 4 impl method body additions (new Task 1b inserted between Task 1 and Task 2); Task 1 Step 3 verification claim "compile without modification" corrected — impls WILL be modified per ADR-026 D2 Path B runtime_deliverables 22-23. |
 | 1.15 | FB30 | 2026-05-16 | product-owner | F-LP38-MED-001 Task 7 "explicitly forbidden" overstrong claim replaced with rationale-based language matching ADR-026 §D7 actual text (POL-22 Phase C named-entity verification; CLAUDE.md precedence rule #2 — ADR supersedes story on contract semantics); F-LP38-LOW-001 volatile line-range citation removed (TD-VSDD-091 — §D7 semantic anchor durable, line numbers decay). |
 | 1.14 | FB29 | 2026-05-16 | product-owner | F-LP37-MED-001 — AC-8 test-name reference updated: singular non-existent name replaced with explicit enumeration of 4 canonical Red Gate test names (`test_BC_2_16_012_002_spec_parser_behavioral_equivalence_{crowdstrike,cyberint,claroty,armis}`), closing within-FB28 sibling-sweep gap. F-LP37-MED-002 — Task 7 OnceLock<RwLock<...>> alternative stricken; ADR-026 §D7 explicit forbiddance cited with line range (246-259); precedence rule #2 (ADR supersedes story on contract semantics) applied. Note: `_NNN_` segments in Red Gate test names (e.g., `_002_`, `_003_`) are intra-story Red Gate test-set grouping numbers — NOT identifiers in BC-2.16.012's Canonical Test Vectors (TV-001..004), Edge Cases, or Invariants body sections. |

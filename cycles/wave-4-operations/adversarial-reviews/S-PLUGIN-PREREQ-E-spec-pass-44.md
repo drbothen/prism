@@ -10,7 +10,7 @@ verdict: BLOCKED
 finding_count: { CRIT: 0, HIGH: 0, MED: 2, LOW: 0, OBS: 0 }
 streak_status: "1/3 → 0/3 (RESET; penultimate attempt broken)"
 fix_burst: FB34
-fix_burst_committed: d9f147db
+fix_burst_committed: see-git-log
 fix_burst_pattern_breaking: "TRUE — FB34 closed 2 MED in-scope + 1 BC sibling-sweep finding (BC-2.01.016 EC-016-003) within same atomic burst per POL-29 candidate discipline"
 novelty: HIGH
 ---
