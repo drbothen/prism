@@ -2677,3 +2677,55 @@ Shorthand append: →pass-37:BLOCKED(0C+0H+3M+0L+2OBS; F-LP37-MED-001 AC-8 withi
 Story v1.14 | BC-2.01.016 v1.5 | BC-2.16.011 v1.6 | BC-2.16.012 v1.15 | BC-2.16.002 v1.20 | ADR-026 v1.12 | ADR-027 v1.6 | VP-153 v0.6 | VP-154 v0.6 | VP-155 v0.5 | VP-156 v0.8 | HS-PREREQ-E-001 v1.3 | HS-PREREQ-E-002 v1.1 | HS-PREREQ-E-003 v1.5 | error-taxonomy v1.30 | ARCH-INDEX v2.55 | VP-INDEX v1.48 | STORY-INDEX v2.118 | BC-INDEX v4.93 | verification-architecture v1.38 | verification-coverage-matrix v1.35
 
 STATE.md v7.333; SESSION-HANDOFF.md v7.333; prereq_e_adversary_streak 0/3 (ready for pass-38 — 2nd of 9th 3-CLEAN attempt); 152nd consecutive single-commit (TD-VSDD-053 DECISIVELY STABLE).
+
+---
+
+## §D-647 FB30 COMBINED-BURST CLOSED (2026-05-16) — 2/2 FINDINGS CLOSED; STORY v1.15; STORY-INDEX v2.119; 153RD SINGLE-COMMIT; STREAK 0/3 READY FOR PASS-39 (3RD OF 9TH ATTEMPT)
+
+**153rd consecutive single-commit (TD-VSDD-053 DECISIVELY STABLE). FB30 fully closed.**
+
+### Pass-38 Summary
+
+Pass-38 adversary verdict: BLOCKED. 1 MED + 1 LOW + 1 OBS (non-blocking carry-forward). Streak 0/3 → 0/3 (BLOCKED holds). 9th attempt at 3-CLEAN sequence; 3rd pass reset in this attempt.
+
+Key lesson: F-LP38-MED-001 was INTRODUCED BY FB29 Closure 2 itself — the canonical "fix-burst introduces new defect" recurrence. FB29 dispatch added §D7 citation but did not run POL-22 Phase C (named-entity lexical sweep) on the new normative claim "explicitly forbidden". The phrase was borrowed from the DuplicateWriteToolRegistration context (where ADR-026 D7 IS strict) and misapplied to the OnceLock context (where ADR-026 §D7 has only preference + rationale). Grep sweep `forbid|forbidden` on ADR-026 = 0 matches confirmed the phantom-authority status.
+
+### Finding Closure Record
+
+| Finding | Severity | Agent | Closure Action |
+|---------|----------|-------|----------------|
+| F-LP38-MED-001 | MEDIUM | product-owner | Task 7 parenthetical rewritten: overstrong "OnceLock wrapper is explicitly forbidden by that ADR" replaced with rationale-based language referencing boot-step 7.5/8 ordering and panic-pattern avoidance — matching ADR-026 §D7 actual stance. Story v1.14 to v1.15. |
+| F-LP38-LOW-001 | LOW | product-owner | Volatile "ADR-026 lines 246-259" line-range citation dropped per TD-VSDD-091. Absorbed by the same Task 7 rephrase that closed F-LP38-MED-001. Semantic anchor §D7 is sufficient (ADR-026 §D7 heading exists at line 242; line numbers decay). |
+
+### Observations Carry-Forward (non-blocking)
+
+| OBS | Description | Status |
+|-----|-------------|--------|
+| OBS-LP38-001 [process-gap] | VP-INDEX v1.48 changelog row narrative omits POL-11 citation present in sibling propagation rows (verification-architecture + verification-coverage-matrix). Recurrence pattern: 6+ prior manifestations (F-LP15-HIGH-001, F-LP21-HIGH-001, F-LP31-HIGH-001, F-LP32-HIGH-001, F-LP33-HIGH-001, F-LP34-HIGH-001). | Deferred to cycle-close per Cycle-Closing Checklist S-7.02 |
+| OBS-LP37-001 | HS-PREREQ-E-001-03 "behaviorally unchanged" loose phrasing carry-forward | Non-blocking carry-forward from pass-37 |
+
+### Cascade Pointer Update
+
+| Metric | Before D-647 | After D-647 |
+|--------|-------------|-------------|
+| Adversary passes | 37 (pass-1..37) | 38 (pass-1..38) |
+| Fix-bursts closed | 29 (FB1-FB29) | 30 (FB1-FB30) |
+| Fix-bursts pending | 0 | 0 |
+| Pending findings | 0 + 2 OBS carry-forward | 0 + 2 OBS carry-forward |
+| Streak | 0/3 | 0/3 (BLOCKED holds) |
+| Consecutive single-commits | 152 | 153 |
+
+Shorthand append: →pass-38:BLOCKED(0C+0H+1M+1L+1OBS; F-LP38-MED-001 FB29-introduced overstrong "explicitly forbidden" claim vs ADR-026 §D7 actual stance + F-LP38-LOW-001 ADR-026 volatile line-range citation TD-VSDD-091; OBS-LP38-001 [process-gap] VP-INDEX narrative asymmetry; streak 0/3 unchanged)→FB30-CLOSED-COMBINED(2/2 in-scope; PO-only; state-manager last; MED+LOW absorbed by single rephrase; story v1.15; STORY-INDEX v2.119; 153rd consecutive single-commit)
+
+### SHA Chain Anchor (D-647)
+
+- D-647 SHA: (this commit — check `git -C .factory log -1 --format='%H'`)
+- Predecessor D-646: (check `git -C .factory log -2 --format='%H' | tail -1`)
+- Predecessor D-645: (check `git -C .factory log -3 --format='%H' | tail -1`)
+- TD-VSDD-053: no backfill/Stage-1/Stage-2 in chain; 153 consecutive single-commit bursts
+
+### Pinned Artifact Versions (PREREQ-E 19-artifact set — post-D-647)
+
+Story v1.15 | BC-2.01.016 v1.5 | BC-2.16.011 v1.6 | BC-2.16.012 v1.15 | BC-2.16.002 v1.20 | ADR-026 v1.12 | ADR-027 v1.6 | VP-153 v0.6 | VP-154 v0.6 | VP-155 v0.5 | VP-156 v0.8 | HS-PREREQ-E-001 v1.3 | HS-PREREQ-E-002 v1.1 | HS-PREREQ-E-003 v1.5 | error-taxonomy v1.30 | ARCH-INDEX v2.55 | VP-INDEX v1.48 | STORY-INDEX v2.119 | BC-INDEX v4.93 | verification-architecture v1.38 | verification-coverage-matrix v1.35
+
+STATE.md v7.334; SESSION-HANDOFF.md v7.334; prereq_e_adversary_streak 0/3 (ready for pass-39 — 3rd of 9th 3-CLEAN attempt); 153rd consecutive single-commit (TD-VSDD-053 DECISIVELY STABLE).

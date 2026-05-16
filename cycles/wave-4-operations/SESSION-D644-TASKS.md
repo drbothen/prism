@@ -1,11 +1,11 @@
 ---
 document_type: session-tasks
-version: "1.2"
+version: "1.3"
 status: active
 related_burst: D-644
 predecessor_state: D-646
 predecessor_session_tasks: SESSION-D580-TASKS.md (cascade pass-1 through pass-5 era)
-timestamp: 2026-05-16T23:30:00Z
+timestamp: 2026-05-16T23:59:00Z
 ---
 
 # Session Task List — D-644 Durable Pre-/Clear Snapshot
@@ -40,7 +40,8 @@ This file persists the task list and full cascade state from the session coverin
 | Prior | DONE | All FB6 through FB27 closures (see SESSION-D580-TASKS.md for FB1-FB5 era) |
 | 82 | **DONE** | **PREREQ-E fix-burst-28 CLOSED** — D-645 combined-burst closed all 3 MED findings; story v1.13; STORY-INDEX v2.117; 151st consecutive single-commit |
 | 83 | **DONE** | **PREREQ-E pass-37 BLOCKED + FB29 CLOSED** — D-646 combined-burst closed all 3 MED findings; story v1.14; VP-153 v0.6; VP-INDEX v1.48; STORY-INDEX v2.118; 152nd consecutive single-commit |
-| 84 | **PENDING** | PREREQ-E pass-38 (2nd of 9th 3-CLEAN sequence — streak 0/3; pass-38 NEXT) |
+| 84 | **DONE** | **PREREQ-E pass-38 BLOCKED + FB30 CLOSED** — D-647 combined-burst closed 2/2 in-scope findings; story v1.15; STORY-INDEX v2.119; 153rd consecutive single-commit |
+| 85 | **PENDING** | PREREQ-E pass-39 (3rd of 9th 3-CLEAN sequence — streak 0/3; pass-39 NEXT) |
 
 ## §FB28 Closure Note (D-645 COMPLETE)
 
@@ -78,7 +79,28 @@ This file persists the task list and full cascade state from the session coverin
 - OBS-LP37-001: HS-PREREQ-E-001-03 "behaviorally unchanged" loose phrasing vs AC-2 + INV-AUTH-OPEN-002.
 - OBS-LP37-002 [process-gap]: Story changelog "BC-2.16.012 row 003" misnomer — _NNN_ segments are test-set grouping numbers, not BC TV/EC/INV identifiers. Codification candidate.
 
-**Next action:** Dispatch adversary spec pass-38 (task 84 PENDING — 2nd of 9th 3-CLEAN attempt).
+**Next action:** Dispatch adversary spec pass-39 (task 85 PENDING — 3rd of 9th 3-CLEAN attempt).
+
+---
+
+## §FB30 Closure Note (D-647 COMPLETE)
+
+**2/2 in-scope findings closed in combined-burst D-647 (2026-05-16). 153rd consecutive single-commit.**
+
+| Finding | Agent | Status | Notes |
+|---------|-------|--------|-------|
+| F-LP38-MED-001 | product-owner | CLOSED | Task 7 parenthetical rewritten — "explicitly forbidden" phantom-authority claim replaced with rationale-based language matching ADR-026 §D7 actual stance (boot-step ordering + panic-pattern avoidance) |
+| F-LP38-LOW-001 | product-owner | CLOSED | Volatile "ADR-026 lines 246-259" line-range citation dropped per TD-VSDD-091; absorbed by same rephrase that closed MED-001 |
+
+**Dispatch pattern:** PO-only burst (single rephrase absorbed both findings). State-manager last per POL-3.
+
+**FB29-introduced-defect lesson (POL-22 Phase C gap):**
+FB29 Closure 2 added §D7 citation + "explicitly forbidden" phrasing. The phrase is correct in the DuplicateWriteToolRegistration context (where ADR-026 D7 IS a strict reject contract via `DuplicateWriteToolRegistration` error). FB29 dispatch borrowed it from that context and misapplied it to OnceLock where §D7 uses only "not needed" + positive rationale. POL-22 Phase C (named-entity lexical verification: grep for claimed terms in cited source) would have caught this — `grep -E "forbid|forbidden" .factory/specs/architecture/adr/ADR-026*.md` returns 0 matches. Missing check in FB29 dispatch prompt.
+
+**OBS-LP38-001 deferred to cycle-close:**
+VP-INDEX changelog row cites POL-9 only; sibling docs (verification-architecture + verification-coverage-matrix) cite POL-9 + POL-11. Non-blocking. Codification candidate for state-manager dispatch template at cycle-close.
+
+**Next action:** Dispatch adversary spec pass-39 (task 85 PENDING — 3rd of 9th 3-CLEAN attempt).
 
 ---
 
@@ -156,7 +178,7 @@ Accept current spec quality (8 CLEAN passes is unusual statistical evidence of q
 
 | Artifact | Version |
 |----------|---------|
-| Story | v1.14 (F-LP37-MED-001+002 closed D-646) |
+| Story | v1.15 (F-LP38-MED-001+LOW-001 closed D-647) |
 | BC-2.01.016 | v1.5 (modified 2026-05-16) |
 | BC-2.16.011 | v1.6 (modified 2026-05-16) |
 | BC-2.16.012 | v1.15 (modified 2026-05-16) |
@@ -173,19 +195,19 @@ Accept current spec quality (8 CLEAN passes is unusual statistical evidence of q
 | error-taxonomy | v1.30 (E-PIPELINE-001 row at v1.20 pin; E-SPEC-008 RETIRED; E-SPEC-012/013/014 + E-PLUGIN-012/020 active) |
 | ARCH-INDEX | v2.55 |
 | VP-INDEX | v1.48 (Total 156, P0=122, P1=34) |
-| STORY-INDEX | v2.118 (FB29 D-646; PREREQ-E row v1.13→v1.14) |
+| STORY-INDEX | v2.119 (FB30 D-647; PREREQ-E row v1.14 to v1.15) |
 | BC-INDEX | v4.93 |
 | verification-architecture | v1.38 (POL-9 propagation row; VP-153 ID-only) |
 | verification-coverage-matrix | v1.35 (POL-9 propagation row; VP-153 ID-only) |
 
 ## Resume Reading Order (Next Session After /Clear)
 
-1. **`.factory/STATE.md`** (v7.333) — current_step + prereq_e_adversary_streak + RESUME PROTOCOL section
-2. **`.factory/SESSION-HANDOFF.md`** (v7.333) — §POST-FB29-CLOSURE DURABLE PIN BLOCK section
-3. **`.factory/cycles/wave-4-operations/SESSION-D644-TASKS.md`** — this file (task list + FB28 spec + strategic options)
-4. **`.factory/cycles/wave-4-operations/S-PLUGIN-PREREQ-E-CYCLE-SNAPSHOT.md`** — full cascade history through D-643
+1. **`.factory/STATE.md`** (v7.334) — current_step + prereq_e_adversary_streak + RESUME PROTOCOL section
+2. **`.factory/SESSION-HANDOFF.md`** (v7.334) — §POST-FB30-CLOSURE DURABLE PIN BLOCK section
+3. **`.factory/cycles/wave-4-operations/SESSION-D644-TASKS.md`** — this file (task list + FB30 closure + strategic options)
+4. **`.factory/cycles/wave-4-operations/S-PLUGIN-PREREQ-E-CYCLE-SNAPSHOT.md`** — full cascade history through D-647
 5. **`.factory/cycles/wave-4-operations/SESSION-D580-TASKS.md`** — prior session task list (pass-1 through pass-5 era; D-580 precedent)
-6. **`.factory/cycles/wave-4-operations/adversarial-reviews/S-PLUGIN-PREREQ-E-spec-pass-{1..36}.md`** — per-pass finding context if needed (36 files total)
+6. **`.factory/cycles/wave-4-operations/adversarial-reviews/S-PLUGIN-PREREQ-E-spec-pass-{1..38}.md`** — per-pass finding context if needed (38 files total)
 
 ## Session Continuation Behavior
 
