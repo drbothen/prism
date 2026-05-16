@@ -4,7 +4,7 @@ adr_id: "ADR-027"
 title: "CustomAdapter Rust Trait Deprecation and Wave 1/A Removal — Sole Escape Hatch is .prx WASM"
 status: Proposed
 date: "2026-05-15"
-version: "1.4"
+version: "1.5"
 producer: architect
 subsystems_affected: [SS-07, SS-16, SS-17]
 supersedes: null
@@ -87,7 +87,7 @@ deleted atomically in PREREQ-E. The perimeter enforcement (D3) prevents re-intro
 ### D3 — Compile-fail perimeter enforcement (Wave 1/A scope)
 
 PLUGIN-MIGRATION-001-A (the story that closes the forbidden-symbols perimeter gate per
-ADR-023 §VP-PLUGIN-001) will add `tests/external/no-hardcoded-sensors/import_custom_adapter.rs`
+ADR-023 §Verification Properties (VP-PLUGIN-001 bullet)) will add `tests/external/no-hardcoded-sensors/import_custom_adapter.rs`
 to the perimeter-violation compile-fail test crate:
 
 ```rust
@@ -275,3 +275,4 @@ instead. This convention is intentional and consistent across ADR-026 and ADR-02
 | 1.2 | 2026-05-15 | architect | prereq-e-fix-burst-2: F-LP2-HIGH-002: TD-A-003 alias canonicalized to TD-S-PLUGIN-PREREQ-A-003 at §Consequences trade-off row (live narrative) and changelog row for v1.1. F-LP2-HIGH-003: Two ADR-023 §C5 phantom-heading citations replaced with §Architectural Constraints (C5 bullet) per POL-21: D5 narrative (line 124) and §Source/Origin (line 228). TD-VSDD-060 workspace-wide greps confirm no further sibling sites in live spec files beyond this ADR. |
 | 1.3 | 2026-05-15 | architect | prereq-e-fix-burst-4: F-LP4-LOW-001: D5 scope expanded from "verify clean only" to two-part: (a) mechanical CustomAdapter clean-pass (satisfied by existing grep verification) AND (b) hardcoded-sensor-string dispatch audit per BC-2.16.012 INV-SPEC-PARSER-OPEN-001 + Story Task 6 + AC-7. Original narrow framing predated BC-2.16.012 and story AC-7; story's broader scope is correct per production-grade default. D5 narrative rewritten to enumerate both parts explicitly. No changes to D1–D4 or §Verification Property Anchors. |
 | 1.4 | 2026-05-16 | architect | prereq-e-fix-burst-6: F-LP6-MED-002 — SS-07 (Adapter Pagination & Response Cache; prism-query) added to `subsystems_affected`: ADR-027 scope includes prism-query (SS-07) call-site migration per BC-2.16.012 INV-INVALIDATION-EXT-001 (WriteToolInvalidationMap container migration + register_write_tool API via TD-S-PLUGIN-PREREQ-A-003). §Consequences "prism-query is also touched in parallel" hedging rephrased to a statement of ownership: ADR-027 scope includes SS-07; D4 Wave 1/A unblock criteria scoped to prism-spec-engine clean-pass confirmation. `subsystems_affected` updated [SS-16, SS-17] → [SS-07, SS-16, SS-17]. |
+| 1.5 | 2026-05-16 | architect | prereq-e-fix-burst-9: F-LP10-HIGH-001 — POL-21 phantom-anchor closure: §D3 live-narrative `ADR-023 §VP-PLUGIN-001` → `ADR-023 §Verification Properties (VP-PLUGIN-001 bullet)`. Sibling-sweep companion site of VP-155 v0.5. |
