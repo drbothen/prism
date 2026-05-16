@@ -1,7 +1,7 @@
 ---
 document_type: behavioral-contract
 level: L3
-version: "1.8"
+version: "1.9"
 status: draft
 producer: product-owner
 timestamp: 2026-05-15T00:00:00
@@ -81,6 +81,7 @@ sensors; the change is structural (open dispatch replaces closed match).
   This enables plugin-registered write tools to participate in cache invalidation at runtime
   rather than requiring a compile-time list update. The registration API is called by
   `PluginRuntime` when a plugin declares write-tool capabilities in its manifest.
+- Post-boot `register_write_tool` rejection path MUST emit `tracing::warn!(event_type = "write_tool_registration_after_boot", plugin_name, tool_name, error = "E-PLUGIN-020")` per **BC-2.16.002 §Canonical Structured Event Catalog v1.18** (`write_tool_registration_after_boot` row). One emission per post-boot registration attempt; not retried. Full field schema, audit role, and recurrence policy are defined in BC-2.16.002 §Canonical Structured Event Catalog v1.18 (row 33).
 
 ## Invariants
 
@@ -105,7 +106,7 @@ sensors; the change is structural (open dispatch replaces closed match).
 | EC-016-012-002 | A new sensor TOML spec is added post-PREREQ-E (e.g., `hypothetical.sensor.toml`) | Parsed generically; tables registered; no hardcoded name check blocks it |
 | EC-016-012-003 | PluginRegistry returns `Some(plugin)` for a sensor that also has a TOML spec | The registry-provided plugin adapter takes precedence for fetch behavior; the TOML spec provides table schema and column definitions (ADR-023 Rule 1 TOML as declarative baseline) |
 | EC-016-012-004 | `register_write_tool` called by two plugins registering the same write tool name | Second registration is rejected with `Err(SpecEngineError::DuplicateWriteToolRegistration(tool_name))` per ADR-026 D7. Last-writer-wins is explicitly forbidden — see ADR-026 D7 rationale for production-grade default enforcement. |
-| EC-016-012-005 | `register_write_tool` called from a non-boot context (after server is live, step 8+) | Rejected with `Err(SpecEngineError::WriteToolRegistrationAfterBoot)` per ADR-026 D7. An `AtomicBool` query-phase flag (set when query engine init completes at step 8) gates the write. A WARN-level tracing event is emitted. Plugin lifecycle must register write tools during boot step 7.5 only. Error code: E-PLUGIN-020. |
+| EC-016-012-005 | `register_write_tool` called from a non-boot context (after server is live, step 8+) | Rejected with `Err(SpecEngineError::WriteToolRegistrationAfterBoot)` per ADR-026 D7. An `AtomicBool` query-phase flag (set when query engine init completes at step 8) gates the write. A WARN-level tracing event `write_tool_registration_after_boot` is emitted per BC-2.16.002 §Canonical Structured Event Catalog (v1.18 row). Plugin lifecycle must register write tools during boot step 7.5 only. Error code: E-PLUGIN-020. |
 
 ## Canonical Test Vectors
 
@@ -157,6 +158,7 @@ S-PLUGIN-PREREQ-E
 
 | Version | Burst | Date | Author | Change |
 |---------|-------|------|--------|--------|
+| 1.9 | prereq-e-fix-burst-11 | 2026-05-16 | product-owner | F-LP12-MED-001 — §Postconditions: add explicit tracing-emission contract for `write_tool_registration_after_boot` WARN event with full field schema (`plugin_name`, `tool_name`, `error: "E-PLUGIN-020"`) and cross-reference to BC-2.16.002 §Canonical Structured Event Catalog v1.18 (row 33). EC-016-012-005 updated to name the event explicitly as `write_tool_registration_after_boot` per BC-2.16.002 §Canonical Structured Event Catalog (v1.18 row). Per PG-LP11-001 structured event catalog discipline. Closes F-LP12-MED-001 (PREREQ-E pass-12 MEDIUM finding: tracing-emission-site ↔ BC-2.16.002 catalog axis). |
 | 1.8 | prereq-e-fix-burst-8 | 2026-05-16 | architect | F-LP8-HIGH-002 — within-FB7 sibling-sweep asymmetry final close (companion site of F-LP8-HIGH-001): §Verification Properties VP-156 row pin advanced ADR-026 D7 v1.8 → v1.9. FB7 D-586 bumped ADR-026 v1.8→v1.9 but did not sibling-sweep BC-2.16.012 (FB6's correct-at-time pin became stale). POL-23 RECURRING-class defect. |
 | 1.7 | prereq-e-fix-burst-6 | 2026-05-16 | architect | F-LP6-CRIT-001+HIGH-003+MED-003 POL-23 sibling sweep: §Verification Properties VP-156 row — "ADR-026 D7 v1.7" pin updated to "ADR-026 D7 v1.8" (ADR-026 bumped to v1.8 for cookie→cookie_roundtrip fix, phantom runtime_deliverable prune, semver-stance paragraph). BC-2.16.012 v1.6→v1.7. |
 | 1.6 | prereq-e-fix-burst-5 | 2026-05-15 | architect | F-LP5-MED-004 POL-23 sibling sweep: §Verification Properties VP-156 row — "ADR-026 D7 v1.6" pin updated to "ADR-026 D7 v1.7" (ADR-026 bumped to v1.7 to add SS-07 to subsystems_affected). BC-2.16.012 v1.5→v1.6. |
