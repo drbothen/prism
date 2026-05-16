@@ -1,7 +1,7 @@
 ---
 document_type: verification-property-index
 level: L4
-version: "1.46"
+version: "1.47"
 status: draft
 producer: product-owner
 timestamp: 2026-05-11T00:00:00
@@ -209,8 +209,8 @@ F-PASS3-HIGH-001. The numeric VP-146..VP-152 entries above are the sequential in
 | Proptest | 88 | 66 | 22 |
 | Unit test | 4 | 4 | 0 |
 | Fuzz | 6 | 5 | 1 |
-| Integration test | 28 | 25 | 4 |
-| **Total** | **156** | **123** | **34** |
+| Integration test | 28 | 24 | 4 |
+| **Total** | **156** | **122** | **34** |
 
 > Note: VP-PLUGIN-001..007 are named aliases for VP-146..VP-152; they do not add to the sequential count. Total sequential VPs is 156 (VP-153, VP-154, VP-155 added for S-PLUGIN-PREREQ-E in burst 2026-05-15; VP-156 added in prereq-e-fix-burst-1 2026-05-15).
 
@@ -243,6 +243,7 @@ S-1.02 frontmatter has been updated to `subsystems: [SS-03, SS-07, SS-11, SS-12,
 
 | Version | Burst | Date | Author | Change |
 |---------|-------|------|--------|--------|
+| 1.47 | fix-burst-24-combined-D-638 | 2026-05-16 | state-manager | F-LP31-HIGH-001 — Summary table arithmetic correction: Integration test P0 25→24 (independent row count = 24 sequential P0 integration_test VPs); Total P0 123→122 (cascade from integration row). v1.32 changelog row historical narrative "P0 120→123" was incorrect (actual increment was +2: VP-153 P0 + VP-155 P0; VP-154 was P1). Survived 30 prior passes incl. 7 CLEAN until pass-31 fresh-context arithmetic re-derivation surfaced violation. VP-INDEX v1.46→v1.47. |
 | 1.46 | prereq-e-fix-burst-13 | 2026-05-16 | architect | F-LP14-HIGH-001 — VP-156 sibling-sweep reflection: VP-156 advanced v0.7→v0.8 (all 4 live-narrative ADR-026 D7 v1.9 pins → v1.10; BC-2.16.012 §VPs VP-156 row pin v1.9→v1.10). VP-INDEX row for VP-156 is description-stable — no row text change required. VP-INDEX v1.45→v1.46. 5th RECURRENCE of POL-23 within-FB asymmetry CLOSED; single-bump-per-source-artifact discipline applied (ADR-026 stays at v1.10). |
 | 1.45 | prereq-e-fix-burst-9 | 2026-05-16 | architect | F-LP10-HIGH-001 — POL-21 phantom-anchor closure: VP-155 §Property Statement + §Source Contract `ADR-023 §VP-PLUGIN-001` → `ADR-023 §Verification Properties (VP-PLUGIN-001 bullet)` (VP-155 v0.4→v0.5). VP-INDEX row for VP-155 is description-stable — no row text change required (module/method/priority/status unchanged). VP-INDEX v1.44→v1.45. |
 | 1.44 | prereq-e-fix-burst-8 | 2026-05-16 | architect | F-LP8-HIGH-001 final close: VP-156 ADR-026 D7 version pins advanced v1.8→v1.9 across 4 live-narrative sites (§Property Statement, §Source Contract BC row, §Source Contract ADR row, proof harness skeleton comment) (v0.6→v0.7). VP-INDEX row for VP-156 is description-stable — no row text change required. VP-INDEX v1.43→v1.44. |

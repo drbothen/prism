@@ -2330,3 +2330,34 @@ Novel-finding count: ...→1(pass-28 BLOCKED)→0(pass-29 CLEAN★)→**0(pass-3
 Streak: **2/3** ★★ — Pass-31 NEXT (CONVERGENCE TARGET — pass-31 CLEAN = 3-CLEAN CONVERGENCE per BC-5.39.001).
 
 STATE.md v7.324; SESSION-HANDOFF.md v7.324; prereq_e_adversary_streak 1/3→2/3; 143rd consecutive single-commit (TD-VSDD-053 stable).
+
+---
+
+## §D-638 PASS-31 BLOCKED+FB24-CLOSED-COMBINED (2026-05-16) — 5TH STREAK RESET; VP-INDEX ARITHMETIC CORRECTION; STREAK 2/3 → 0/3; 144TH SINGLE-COMMIT; STATE v7.325
+
+**Pass-31 BLOCKED — 1 HIGH F-LP31-HIGH-001 + 1 OBS. Streak RESET 2/3 → 0/3 (5th reset of cascade).**
+
+### F-LP31-HIGH-001 — VP-INDEX Summary Arithmetic Self-Consistency Violation [CLOSED FB24]
+
+VP-INDEX Summary table arithmetic error traced to v1.32 changelog (PREREQ-E ADR burst, FB1-era): "P0 120→123" was incorrect — actual increment was +2 (VP-153 P0 + VP-155 P0; VP-154 was P1). This left Integration test P0=25 (should be 24) and Total P0=123 (should be 122). Arithmetic check P0+P1=29≠28 and 157≠156 fails.
+
+Survived 30 prior passes including 7 CLEAN until pass-31 fresh-context independent arithmetic re-derivation surfaced it.
+
+**FB24 4-cell correction:**
+- VP-INDEX Integration test P0: 25 → 24 | Total P0: 123 → 122
+- verification-coverage-matrix.md Integration test P0: 25 → 24 | Total P0: 123 → 122
+- VP-INDEX v1.46→v1.47 (Changelog row added) | verification-coverage-matrix.md v1.33→v1.34
+
+### O-PASS31-001 — SS-17 story subsystems exclusion INTENTIONAL [non-blocking]
+
+Re-evaluation of O-PASS30-001. Defensible convention split confirmed. No action.
+
+### Updated Trajectory Shorthand
+
+→pass-29:CLEAN★(0 findings; streak 0/3 → 1/3; 6TH CLEAN)→pass-30:CLEAN★★(0 findings + 1 OBS; PENULTIMATE; streak 1/3 → 2/3; 5TH ATTEMPT)→**pass-31:BLOCKED(0C+1H+0M+0L+1OBS; F-LP31-HIGH-001 VP-INDEX arithmetic self-consistency violation v1.32-era; streak RESET 2/3→0/3 5th time)**→FB24-CLOSED-COMBINED(1/1 in-scope HIGH; 4-cell correction)
+
+Novel-finding count: ...→0(pass-29 CLEAN★)→0(pass-30 CLEAN★★)→**1(pass-31 BLOCKED; 1 HIGH VP-INDEX arithmetic)**
+
+Streak: **0/3** — Pass-32 NEXT (6th attempt at 3-CLEAN).
+
+STATE.md v7.325; SESSION-HANDOFF.md v7.325; prereq_e_adversary_streak 2/3→0/3 (5th reset); vp_index_version 1.46→1.47; verification_coverage_matrix_version 1.33→1.34; 144th consecutive single-commit (TD-VSDD-053 stable).
