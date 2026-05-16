@@ -829,3 +829,49 @@ The 3-CLEAN protocol is not bureaucracy — it is quality assurance against syst
 
 STATE.md v7.293; SESSION-HANDOFF.md v7.293; 99th consecutive single-commit (TD-VSDD-053 DECISIVELY STABLE).
 Factory-artifacts D-593 burst SHA: TBD (this entry written pre-commit).
+
+---
+
+## §D-595 FIX-BURST-9 CLOSURE (2026-05-16) — FB9 3/3 IN-SCOPE CLOSED
+
+**Burst D-595 — state-manager — 101st consecutive single-commit — FIX-BURST-9 CLOSED — F-LP10-MED-001 + F-LP10-LOW-001**
+
+Fix-burst-9 closed all 3 in-scope pass-10 findings across 2 specialist agents. The 100-commit single-commit milestone (TD-VSDD-053) was reached at D-594 (architect burst `c2567812`).
+
+### FB9 Closure Verification Table
+
+| Finding | Severity | Closure Burst | Closure SHA | Verification |
+|---------|----------|--------------|-------------|-------------|
+| F-LP10-HIGH-001 | HIGH | D-594 architect | `c2567812` | `grep -rn "§VP-PLUGIN-001"` in VP-155 + ADR-027 body: ZERO live-narrative hits; all occurrences read `§Verification Properties (VP-PLUGIN-001 bullet)` (correct anchor form) |
+| F-LP10-MED-001 | MEDIUM | D-595 state-manager | (this commit) | STORY-INDEX line 395 Depends On cell: `S-PLUGIN-PREREQ-F,S-PLUGIN-PREREQ-A,S-PLUGIN-PREREQ-D` (3 entries) |
+| F-LP10-LOW-001 | LOW | D-595 state-manager | (this commit) | BC-INDEX line 49 BC-2.01.016 row: 7 cells including trailing `| v1.3 |` — matches BC-2.16.011 (v1.4) + BC-2.16.012 (v1.8) row format |
+
+### Index Version Table (Post-FB9)
+
+| Index | Pre-FB9 | Post-FB9 | Changed By |
+|-------|---------|---------|-----------|
+| BC-INDEX | v4.85 | v4.86 | D-595 state-manager |
+| VP-INDEX | v1.44 | v1.45 | D-594 architect |
+| ARCH-INDEX | v2.50 | v2.51 | D-594 architect |
+| STORY-INDEX | v2.111 | v2.112 | D-595 state-manager |
+
+### Artifact Version Table (Post-FB9)
+
+| Artifact | Pre-FB9 | Post-FB9 | Changed By |
+|----------|---------|---------|-----------|
+| VP-155 | v0.4 | v0.5 | D-594 architect |
+| ADR-027 | v1.4 | v1.5 | D-594 architect |
+| ADR-023 | v1.9 (UNCHANGED) | v1.9 (UNCHANGED) | — (untouched per D-594 constraint) |
+| BC-2.01.016 | row had no version tag | row `| v1.3 |` added | D-595 state-manager |
+
+### 100-Commit Milestone Note
+
+The ★ 100th consecutive single-commit (TD-VSDD-053) was reached at D-594 architect burst (`c2567812`). This is the 101st consecutive single-commit. TD-VSDD-053 single-commit-per-burst protocol has been maintained across the entire PREREQ-E cascade (passes 1-10 + fix-bursts 1-9) and the full PREREQ-D cascade before it.
+
+### Trajectory Shorthand (Updated)
+
+**14→9→8→9→10→10→FB6-CLOSED(10/10 in-scope; 3 OBS deferred cycle-close)→8→FB7-CLOSED(8/8 in-scope; 4 OBS deferred cycle-close)→pass-8:BLOCKED(0C+2H+1M+0L+1OBS; LOWEST; recurring-asymmetry-class)→FIX-BURST-8-CLOSED(3/3 in-scope; single-bump-per-source-artifact discipline applied)→pass-9:CLEAN★(0/0/0/0/0; FIRST CLEAN OF CASCADE; single-bump-discipline BROKE recurring-asymmetry-class; streak 0/3 → 1/3)→pass-10:BLOCKED(0C+1H+1M+1L+0OBS; POL-21-§VP-PLUGIN-001-phantom-3-sites + STORY-INDEX-Depends-On-drift + BC-INDEX-BC-2.01.016-sibling-asymmetry; 3-CLEAN PROTOCOL VALIDATED; streak RESET 1/3→0/3)→FIX-BURST-9-CLOSED(3/3 in-scope; POL-21-cross-perimeter-sweep-complete + STORY-INDEX-Depends-On + BC-INDEX-sibling-symmetry restored)**
+
+Streak: **0/3** — pass-11 NEXT (first fresh-context test after FB9 closure).
+
+STATE.md v7.294; SESSION-HANDOFF.md v7.294; 101st consecutive single-commit (TD-VSDD-053 DECISIVELY STABLE).

@@ -1,9 +1,9 @@
 ---
 document_type: pipeline-state
 level: ops
-version: "7.293"
+version: "7.294"
 producer: state-manager
-timestamp: 2026-05-16T03:30:00Z
+timestamp: 2026-05-16T04:00:00Z
 inputs: []
 input-hash: "[live-state]"
 traces_to: ""
@@ -24,7 +24,7 @@ repos:
   - mcp-claroty-xdome
 codification_candidates_active: 0
 phase_5_deferred_findings: 2
-current_step: "D-593 pass-10 BLOCKED 3 in-scope (1H+1M+1L); streak RESET 1/3 → 0/3; **3-CLEAN PROTOCOL VALIDATED** — pass-9 first-clean was reviewer blind-spots; pass-10 fresh-context surfaced 3 cross-cascade carryover defects (POL-21 §VP-PLUGIN-001 phantom-anchor at 3 sites + STORY-INDEX Depends On drift + BC-INDEX BC-2.01.016 sibling asymmetry); novelty HIGH; trajectory **14→9→8→9→10→10→FB6→8→FB7→4→FB8→CLEAN★(1/3)→BLOCKED(0/3)**; FB9 NEXT; 99th consecutive single-commit (TD-VSDD-053 stable)"
+current_step: "D-595 fix-burst-9 CLOSED 3/3 in-scope findings across D-594+D-595 (1 architect + 2 state-manager); F-LP10-HIGH-001 POL-21 §VP-PLUGIN-001 phantom-anchor 3-site sweep (cross-perimeter FB1 carryover) + F-LP10-MED-001 STORY-INDEX Depends On + F-LP10-LOW-001 BC-INDEX sibling-asymmetry (production-grade Intent B); trajectory 14→9→8→9→10→10→FB6→8→FB7→4→FB8→CLEAN★(1/3)→BLOCKED(0/3)→FB9-CLOSED; streak still 0/3; pass-11 NEXT — first fresh-context test after FB9 closure; 101st consecutive single-commit (TD-VSDD-053 stable; 100-commit milestone reached at D-594)"
 feature_branch_head: "merged to a5ab742c at 2026-05-15 (maintenance D-572 fix-PR)"
 feature_branch_remote_status: "deleted (squash-merged to develop@ec90fe8f; remote branch feature/S-PLUGIN-PREREQ-D removed)"
 worktree_status: "all post-merge cleanups complete — only S-3.09 + S-PLUGIN-PREREQ-B + S-PLUGIN-PREREQ-C + W3-FIX-S307-001 remain"
@@ -146,9 +146,9 @@ subsystem_count: 20
 story_count: 113
 bc_count_corrected: 236
 cap_count: 40  # active; highest_cap_id: CAP-040 (CAP-038 Multi-Tenant Identity, CAP-039 Multi-Tenant Fixture Gen, CAP-040 Multi-Tenant Adapter Dispatch — Wave 3 Phase 3.A Step 2)
-bc_index_version: "4.85"
-vp_index_version: "1.44"
-story_index_version: "v2.111"
+bc_index_version: "4.86"
+vp_index_version: "1.45"
+story_index_version: "v2.112"
 policies_version: "1.11"
 total_stories: 150
 red_gate_wave_0a_complete: 2026-04-21
@@ -159,7 +159,7 @@ holdout_index_version: "1.3"
 capabilities_version: "1.14"
 l2_index_version: "1.13"
 module_decomposition_version: "1.16"
-arch_index_version: "2.50"
+arch_index_version: "2.51"
 security_architecture_version: "1.1"
 verification_coverage_matrix_version: "1.33"
 verification_architecture_version: "1.34"
@@ -190,7 +190,7 @@ safe_to_compact: true
 pass_24_status: "COMPLETE_CLEAN_FIRST_STREAK_ADVANCE"
 pass_25_status: "COMPLETE_BLOCKED_IDEMPOTENCY_CAUGHT_4_FINDINGS_STREAK_RESET"
 cycle_snapshot_factory_head: "TBD"
-prereq_e_adversary_streak: "0/3 (pass-10 BLOCKED — RESET; 3-CLEAN protocol validated: pass-9 first-clean was blind-spots, pass-10 fresh-context found 3 cross-cascade carryover defects)"
+prereq_e_adversary_streak: "0/3 (pass-10 BLOCKED — RESET; FB9 CLOSED 3/3; pass-11 NEXT — streak still 0/3 pending first post-FB9 CLEAN pass)"
 ---
 # VSDD Pipeline State — Prism
 
@@ -204,7 +204,7 @@ prereq_e_adversary_streak: "0/3 (pass-10 BLOCKED — RESET; 3-CLEAN protocol val
 | **Language** | Rust |
 | **Target Workspace** | per-analyst stdio (MCP server) |
 | **Started** | 2026-04-13 |
-| **Last Updated** | 2026-05-16 (D-593 — **PREREQ-E pass-10 BLOCKED 3 in-scope (1H+1M+1L); streak RESET 1/3 → 0/3; 3-CLEAN PROTOCOL VALIDATED — pass-9 first-clean was blind-spots, pass-10 fresh-context found 3 cross-cascade carryover defects; trajectory 14→9→8→9→10→10→FB6→8→FB7→4→FB8→CLEAN★(1/3)→BLOCKED(0/3); 99th consecutive single-commit (TD-VSDD-053 stable)**) |
+| **Last Updated** | 2026-05-16 (D-595 — **PREREQ-E fix-burst-9 CLOSED 3/3 in-scope; F-LP10-MED-001 STORY-INDEX Depends On + F-LP10-LOW-001 BC-INDEX sibling-symmetry (Intent B); combined with D-594 architect FB9 complete; trajectory →FB9-CLOSED; streak 0/3; pass-11 NEXT; 101st consecutive single-commit (TD-VSDD-053 stable; 100-commit milestone D-594)**) |
 | **Current Phase** | Wave 3 Tier-3 COMPLETE — **Wave 3-A 4 of 4 SHIPPED**; plugin migration: PREREQ-F + PREREQ-A + PREREQ-B + PREREQ-C + **PREREQ-D MERGED** (PR #149 ec90fe8f 2026-05-15T19:08:45Z); PREREQ-E next per Wave 0 dependency chain |
 | **Current Step** | D-570 (**STEP 9 WORKTREE CLEANUP COMPLETE — per-story-delivery 9/9 DONE for S-PLUGIN-PREREQ-D**). `.worktrees/S-PLUGIN-PREREQ-D/` removed; local `feature/S-PLUGIN-PREREQ-D` branch deleted at e57d0929. 4 worktrees remain (S-3.09 + S-PLUGIN-PREREQ-B + S-PLUGIN-PREREQ-C + W3-FIX-S307-001). STATE+HANDOFF v7.274→v7.275. **76th consecutive single-commit (TD-VSDD-053 stable).** NEXT: **session-reviewer cycle-close** (31 codification candidates + 8 phase-5 deferred + OBS-LP41-001) → **PREREQ-E planning** (Un-seal SensorAuth + Deprecate CustomAdapter) → **PLUGIN-MIGRATION Wave 0**. |
 
@@ -238,6 +238,7 @@ prereq_e_adversary_streak: "0/3 (pass-10 BLOCKED — RESET; 3-CLEAN protocol val
 
 | Step | Agent | Status | Output |
 |------|-------|--------|--------|
+| D-595 — **PREREQ-E FIX-BURST-9 CLOSED (state-manager) — F-LP10-MED-001 + F-LP10-LOW-001; STORY-INDEX v2.111→v2.112 (Depends On add S-PLUGIN-PREREQ-D) + BC-INDEX v4.85→v4.86 (BC-2.01.016 row add v1.3 tag, Intent B production-grade); FB9 3/3 in-scope CLOSED across D-594+D-595; trajectory →FIX-BURST-9-CLOSED(3/3 in-scope; POL-21-cross-perimeter-sweep-complete + STORY-INDEX-Depends-On + BC-INDEX-sibling-symmetry restored); streak still 0/3; pass-11 NEXT; 101st consecutive single-commit (TD-VSDD-053 stable; 100-commit milestone reached D-594).** | state-manager | **CLOSED — FB9 COMPLETE** | F-LP10-MED-001: STORY-INDEX Depends On cell updated — S-PLUGIN-PREREQ-D added (story frontmatter had it since v1.0; STORY-INDEX reconciliation propagation gap from D-574 through v2.111). F-LP10-LOW-001: BC-INDEX BC-2.01.016 row `| v1.3 |` cell added — sibling-asymmetry resolved with BC-2.16.011 (v1.4) + BC-2.16.012 (v1.8). Combined with D-594 architect (F-LP10-HIGH-001 VP-155+ADR-027 §VP-PLUGIN-001 phantom-anchor 3-site closure), FB9 is 3/3 in-scope CLOSED. STATE+HANDOFF v7.293→v7.294. Pass-11 NEXT. |
 | D-593 — **PREREQ-E ADVERSARY PASS-10 BLOCKED — 3 in-scope (1H+1M+1L); streak RESET 1/3 → 0/3; 3-CLEAN PROTOCOL VALIDATED — pass-9 first-clean was reviewer blind-spots; pass-10 fresh-context surfaced 3 NOVEL cross-cascade carryover defects (F-LP10-HIGH-001 POL-21 §VP-PLUGIN-001 phantom-anchor at 3 sites [vp-155+ADR-027]; F-LP10-MED-001 STORY-INDEX Depends On missing S-PLUGIN-PREREQ-D; F-LP10-LOW-001 BC-INDEX BC-2.01.016 sibling-sweep asymmetry no version tag); novelty HIGH; 99th consecutive single-commit (TD-VSDD-053 stable); FB9 NEXT.** | state-manager | **RECORDED — PASS-10 BLOCKED** | Pass-10 report persisted at cycles/wave-4-operations/adversarial-reviews/S-PLUGIN-PREREQ-E-spec-pass-10.md. STATE+HANDOFF v7.292→v7.293. Streak RESET 1/3 → 0/3. 3-CLEAN protocol validated: BC-5.39.001 requires independent re-derivation across fresh-context reviewers. FB9 routing: architect (F-LP10-HIGH-001 VP-155+ADR-027 phantom-anchor fix); state-manager (F-LP10-MED-001 STORY-INDEX Depends On + F-LP10-LOW-001 BC-INDEX row tag). NEXT: fix-burst-9 dispatch. |
 | D-592 — **★ PREREQ-E ADVERSARY PASS-9 CLEAN — FIRST CLEAN PASS OF CASCADE; streak ADVANCES 0/3 → 1/3; single-bump-per-source-artifact discipline (applied FB8) successfully BROKE recurring within-FB sibling-sweep asymmetry pattern (which produced findings in passes 5/6/7/8); trajectory 14→9→8→9→10→10→FB6→8→FB7→4→FB8→CLEAN★; novelty ZERO; 98th consecutive single-commit (TD-VSDD-053 stable).** | state-manager | **RECORDED — PASS-9 CLEAN** | Pass-9 ran 10 investigation vectors: all PASS. FB8 verification (4 targets): all PASS. Standing-rule checks (9): all PASS. Pass-9 report persisted at cycles/wave-4-operations/adversarial-reviews/S-PLUGIN-PREREQ-E-spec-pass-9.md. STATE+HANDOFF v7.291→v7.292. prereq_e_adversary_streak field ADDED. Streak 1/3. Pass-10 NEXT. |
 | D-591 — **PREREQ-E FIX-BURST-8 CLOSED — 3/3 in-scope findings across D-590+D-591 (2 architect + 1 state-manager); VP-156 §Changelog reordered to monotonic ascending v0.1→v0.7; single-bump-per-source-artifact discipline applied (ADR-026 stays v1.9); 97th consecutive single-commit (TD-VSDD-053 stable); streak 0/3; pass-9 NEXT.** | state-manager | **RECORDED — FB8 CLOSED** | F-LP8-MED-001 CLOSED: VP-156 §Changelog v0.4 row repositioned to correct monotonic position between v0.3 and v0.5. BC-INDEX v4.85; VP-INDEX v1.44. STATE+HANDOFF v7.290→v7.291. Trajectory: 14→9→8→9→10→10→FB6-CLOSED→8→FB7-CLOSED→4→FB8-CLOSED. OBS-LP8-001 queued cycle-close. NEXT: adversary pass-9 (fresh-context). |
@@ -261,6 +262,7 @@ _D-001..D-046 archived: [cycles/phase-3-dtu-wave-2/decisions-archive-d001-d032.m
 
 | ID | Decision | Rationale | Phase | Date |
 |----|----------|-----------|-------|------|
+| D-595 | 2026-05-16 | state-manager | **PREREQ-E FIX-BURST-9 CLOSED (state-manager portion) — F-LP10-MED-001 + F-LP10-LOW-001.** STORY-INDEX v2.111→v2.112: S-PLUGIN-PREREQ-E Depends On cell updated — `S-PLUGIN-PREREQ-D` added (PluginRuntime wiring prerequisite for register_write_tool Task 7/AC-9; story frontmatter had this dependency since v1.0; STORY-INDEX reconciliation propagation gap from D-574 through v2.111). BC-INDEX v4.85→v4.86: BC-2.01.016 row `| v1.3 |` trailing version cell added (production-grade Intent B — matches sibling rows BC-2.16.011 `v1.4` + BC-2.16.012 `v1.8`; all three PREREQ-E NEW BCs from same creation burst v4.82/D-574 now have consistent row format). Combined with D-594 architect (F-LP10-HIGH-001 VP-155+ADR-027 §VP-PLUGIN-001 phantom-anchor 3-site closure; commit `c2567812`; 100th single-commit milestone), **FB9 is 3/3 in-scope CLOSED.** STATE+HANDOFF v7.293→v7.294. Streak remains **0/3** — pass-11 NEXT (first fresh-context test after FB9 closure). **101st consecutive single-commit (TD-VSDD-053 stable; 100-commit milestone reached at D-594).** Trajectory shorthand append: `→FIX-BURST-9-CLOSED(3/3 in-scope; POL-21-cross-perimeter-sweep-complete + STORY-INDEX-Depends-On + BC-INDEX-sibling-symmetry restored)`. | plugin-migration | 2026-05-16 |
 | D-593 | 2026-05-16 | state-manager | **PREREQ-E ADVERSARY PASS-10 BLOCKED — 3 in-scope findings (1H+1M+1L); streak RESET 1/3 → 0/3; 3-CLEAN PROTOCOL VALIDATED — pass-9 first-clean was reviewer blind-spots, pass-10 fresh-context independently re-derived the spec and found 3 NOVEL cross-cascade carryover defects.** F-LP10-HIGH-001: POL-21 phantom-anchor `§VP-PLUGIN-001` survives at 3 live-body sites (vp-155 §Property Statement + §Source Contract Supporting ADR bullet; ADR-027 §D3); FB1 swept `§C5` pattern but did NOT sweep VP files or ADR-027 for `§VP-PLUGIN-001`; architect routing. F-LP10-MED-001: STORY-INDEX Depends On cell missing `S-PLUGIN-PREREQ-D` (story frontmatter `depends_on:` includes it; STORY-INDEX v2.111 changelog reconciled BCs but not Depends On); state-manager routing. F-LP10-LOW-001: BC-INDEX BC-2.01.016 row lacks version tag (sibling asymmetry within 3-BC burst — BC-2.16.011 has `v1.4`, BC-2.16.012 has `v1.8`, BC-2.01.016 has none; Intent B production-grade default = add `v1.3`); state-manager routing. Novelty HIGH. Pass-10 report persisted at `cycles/wave-4-operations/adversarial-reviews/S-PLUGIN-PREREQ-E-spec-pass-10.md`. STATE+HANDOFF v7.292→v7.293. **99th consecutive single-commit (TD-VSDD-053 stable). Streak 0/3 — FB9 NEXT then pass-11.** Trajectory shorthand append: `→pass-10:BLOCKED(0C+1H+1M+1L+0OBS; POL-21-§VP-PLUGIN-001-phantom-3-sites + STORY-INDEX-Depends-On-drift + BC-INDEX-BC-2.01.016-sibling-asymmetry; 3-CLEAN PROTOCOL VALIDATED; streak RESET 1/3→0/3)`. | plugin-migration | 2026-05-16 |
 | D-592 | 2026-05-16 | state-manager | **★ PREREQ-E ADVERSARY PASS-9 CLEAN — FIRST CLEAN PASS OF CASCADE; streak ADVANCES 0/3 → 1/3; novelty ZERO; trajectory 14→9→8→9→10→10→FB6→8→FB7→4→FB8→CLEAN★; 98th consecutive single-commit (TD-VSDD-053 stable).** Single-bump-per-source-artifact discipline (applied in FB8 — ADR-026 NOT touched by D-590, only downstream VP-156/BC-2.16.012 propagation pins updated) successfully BROKE the recurring within-FB sibling-sweep asymmetry pattern that produced findings in passes 5/6/7/8. Pass-9 ran 10 investigation vectors: all PASS. FB8 verification (4 targets): all PASS. Standing-rule checks (9): all PASS. 0 in-scope findings; 0 OBS. Pass-9 report persisted at `cycles/wave-4-operations/adversarial-reviews/S-PLUGIN-PREREQ-E-spec-pass-9.md`. STATE+HANDOFF v7.291→v7.292. `prereq_e_adversary_streak` field ADDED to STATE.md frontmatter (new — was not present before D-592; `adversary_streak` field remains unchanged — that field tracks S-PLUGIN-PREREQ-D 3/3 CONVERGED at pass-43). **BC-5.39.001 3-CLEAN: 1/3. Two more CLEAN passes (pass-10, pass-11) required for convergence. Pass-10 NEXT — second test of single-bump discipline.** | plugin-migration | 2026-05-16 |
 | D-591 | 2026-05-16 | state-manager | **PREREQ-E FIX-BURST-8 CLOSED — 3/3 in-scope findings across D-590+D-591 (2 architect + 1 state-manager); VP-156 §Changelog monotonic order restored (v0.4 row repositioned between v0.3 and v0.5; F-LP8-MED-001); single-bump-per-source-artifact discipline APPLIED (ADR-026 stays at v1.9 throughout FB8 — no bump in D-590 or D-591); VP-156 v0.7 all 4 live-narrative D7 pins at v1.9; BC-2.16.012 §Verification Properties VP-156 row pin at v1.9; BC-INDEX v4.85; VP-INDEX v1.44.** OBS-LP8-001 queued cycle-close (POL-23 amendment candidate — within-FB sibling-sweep asymmetry = 3 consecutive bursts; FB8 is FIRST BURST where single-bump discipline was pre-applied). Trajectory: **14→9→8→9→10→10→FB6-CLOSED(10/10)→8→FB7-CLOSED(8/8)→4→FB8-CLOSED(3/3 in-scope)→FIX-BURST-8-CLOSED(3/3 in-scope; OBS-LP8-001 queued cycle-close; single-bump-per-source-artifact discipline applied)**. STATE+HANDOFF v7.290→v7.291. **97th consecutive single-commit (TD-VSDD-053 stable). Streak 0/3 — pass-9 NEXT.** | plugin-migration | 2026-05-16 |
@@ -437,7 +439,7 @@ D-584 closes fix-burst-6 for PREREQ-E Phase 1d adversarial cascade. All 10 in-sc
 - If pass-7 CLEAN: streak 1/3, pass-8 NEXT. If pass-7 BLOCKED: fix-burst-7 (architect + state-manager), then pass-8.
 - DO NOT dispatch PLUGIN-MIGRATION-001-A/B/C/D before PREREQ-E Phase 1d converges (3-CLEAN) and implementation begins.
 
-**Current spec versions:** BC-INDEX v4.85 (active 225, draft 5, total 239), STORY-INDEX v2.111, VP-INDEX v1.44 (156 total), ARCH-INDEX v2.50, policies v1.11, verification-architecture v1.34, ADR-026 v1.9, ADR-027 v1.4, ADR-023 v1.19, error-taxonomy v1.27, develop@a5ab742c; STATE v7.291, SESSION-HANDOFF v7.291. **Key files:** [SESSION-HANDOFF.md](SESSION-HANDOFF.md) | [cycles/wave-4-operations/S-PLUGIN-PREREQ-E-CYCLE-SNAPSHOT.md](cycles/wave-4-operations/S-PLUGIN-PREREQ-E-CYCLE-SNAPSHOT.md)
+**Current spec versions:** BC-INDEX v4.86 (active 225, draft 5, total 239), STORY-INDEX v2.112, VP-INDEX v1.45 (156 total), ARCH-INDEX v2.51, policies v1.11, verification-architecture v1.34, ADR-026 v1.9, ADR-027 v1.5, ADR-023 v1.19, error-taxonomy v1.27, develop@a5ab742c; STATE v7.294, SESSION-HANDOFF v7.294. **Key files:** [SESSION-HANDOFF.md](SESSION-HANDOFF.md) | [cycles/wave-4-operations/S-PLUGIN-PREREQ-E-CYCLE-SNAPSHOT.md](cycles/wave-4-operations/S-PLUGIN-PREREQ-E-CYCLE-SNAPSHOT.md)
 
 ## Agent Routing Quick Reference
 
