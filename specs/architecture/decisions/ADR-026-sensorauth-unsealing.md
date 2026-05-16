@@ -4,7 +4,7 @@ adr_id: "ADR-026"
 title: "SensorAuth Trait Un-Sealing — Remove private::Sealed, Enable Plugin Auth Implementations"
 status: Proposed
 date: "2026-05-15"
-version: "1.7"
+version: "1.8"
 producer: architect
 subsystems_affected: [SS-01, SS-07, SS-16, SS-17]
 supersedes: null
@@ -13,7 +13,6 @@ amends: ADR-023
 anchor_stories: [S-PLUGIN-PREREQ-E]
 runtime_deliverables:
   - "Remove private::Sealed and mod private from crates/prism-sensors/src/auth/mod.rs"
-  - "Add SensorAuth re-export to prism-sensors public API surface"
   - "Delete CustomAuth placeholder duplicate from crates/prism-spec-engine/src/custom_adapter.rs"
   - "Validate PluginRuntime::load_plugin wiring path calls SensorAuth-implementing types"
   - "register_write_tool(entry: WriteToolInvalidationMap) -> Result<(), SpecEngineError> API in crates/prism-query/src/invalidation.rs (D7)"
@@ -132,7 +131,7 @@ fn auth_type_name(&self) -> &'static str { "oauth2_client_credentials" }
 fn auth_type_name(&self) -> &'static str { "bearer_static" }
 
 // ClarotyAuth
-fn auth_type_name(&self) -> &'static str { "cookie" }
+fn auth_type_name(&self) -> &'static str { "cookie_roundtrip" }
 
 // ArmisAuth
 fn auth_type_name(&self) -> &'static str { "api_key" }
@@ -149,6 +148,14 @@ Principle Rule 1.
 No other changes to impl blocks are required. The four concrete types are scheduled for
 deletion in Wave 1/A (PLUGIN-MIGRATION-001-A) but must remain functional through the Wave 0
 prereq window. The unsealing operation does NOT delete the internal impls.
+
+**Semver-stance scope:** This 'no default impl' stance applies ONLY to the four built-in
+`auth_type_name()` and `as_any()` implementations authored in this same PREREQ-E commit
+(CrowdStrike, Cyberint, Claroty, Armis). At PREREQ-E merge, the `SensorAuth` trait becomes
+public ABI. Per D6, any future method addition to `SensorAuth` that lacks a default impl IS
+a semver-breaking change requiring a new ADR and a major version bump of `prism-sensors`.
+Future methods MUST either (a) provide a default impl returning a meaningful conservative
+value, or (b) be gated by a new ADR explicitly authorizing the breaking change.
 
 **Timing model:** internal impls exist and compile → sealed trait removed + `auth_type_name()`
 added to all four impls → external impls now possible → internal impls deleted at Wave 1/A.
@@ -428,4 +435,5 @@ modes and security implications. The open trait approach reuses the existing typ
 | 1.4 | 2026-05-15 | architect | F-LP2-MED-001 sub-fix: E-PLUGIN-013 → E-PLUGIN-020 reassignment per PO error-taxonomy v1.27 allocation. E-PLUGIN-013 was already occupied by `allowed_urls` manifest validation (taxonomy v1.19, BC-2.17.007); PO allocated E-PLUGIN-020 (next free after E-PLUGIN-019/FormatVersionMissing) for `WriteToolRegistrationAfterBoot`. D7 error code routing bullet updated; category corrected from `validation` to `runtime` to match taxonomy v1.27 row. E-PLUGIN-012 (DuplicateWriteToolRegistration) unchanged — confirmed free. |
 | 1.5 | 2026-05-15 | architect | prereq-e-fix-burst-3: F-LP3-HIGH-002: D2 amended — Path B chosen (required body per impl, no default); four built-in impls must add one-line `fn auth_type_name()` bodies returning `"oauth2_client_credentials"`, `"bearer_static"`, `"cookie"`, `"api_key"` respectively. Path A (default `"unknown"`) rejected — silent incorrectness in audit logs. PO handoff: AC-2 + BC-2.01.016 §Postconditions alignment required. F-LP3-MED-001: E-PLUGIN-012 category corrected `validation` → `boot` per error-taxonomy.md canonical category. F-LP3-MED-003: Five D7 runtime_deliverables added to frontmatter (register_write_tool API, RwLock container migration, DuplicateWriteToolRegistration variant, WriteToolRegistrationAfterBoot variant, AtomicBool query-phase flag). |
 | 1.6 | 2026-05-15 | architect | prereq-e-fix-burst-4: F-LP4-HIGH-004: VP-156 entry added to §Verification Property Anchors — was absent despite being cited in D7 narrative (line 293), D7 rationale (line 270), and v1.5 changelog (D7 deliverables). Entry matches VP-153 format: ID + title + verification method + status + BC anchor. VP-156 is proptest/P1 for `register_write_tool` uniqueness semantics (BC-2.16.012 EC-016-012-004; INV-INVALIDATION-EXT-001). |
+| 1.8 | 2026-05-16 | architect | prereq-e-fix-burst-6: F-LP6-CRIT-001 — D2 ClarotyAuth.auth_type_name() value `cookie` → `cookie_roundtrip` to match D3 canonical enumerated set + E-SPEC-012 + VP-153 Rule A. Implementer following stale `cookie` would have introspected a value outside the enumerated set, triggering E-SPEC-014 structural-match failure on every Claroty spec-load. F-LP6-HIGH-003 — Pruned phantom runtime_deliverable: "Add SensorAuth re-export to prism-sensors public API surface" removed; SensorAuth re-export is pre-existing in prism-sensors lib.rs (verified at HEAD ec90fe8f); not a PREREQ-E delivery item. F-LP6-MED-003 — Semver-stance scope clarification paragraph appended to D2 §Path B rationale: 'no default impl' stance applies ONLY to the four built-in impls authored in this PREREQ-E commit; post-ABI-surface additions must follow D6 (default impl or new ADR + semver bump). |
 | 1.7 | 2026-05-15 | architect | prereq-e-fix-burst-5: F-LP5-MED-004: SS-07 (Adapter Pagination & Response Cache; prism-query) added to `subsystems_affected` — D7's runtime_deliverables (`register_write_tool` API, `RwLock<Vec<WriteToolInvalidationMap>>` container, `DuplicateWriteToolRegistration` variant, `WriteToolRegistrationAfterBoot` variant, `AtomicBool` query-phase flag) all land in `crates/prism-query/src/invalidation.rs`, which is owned by prism-query (SS-07 per ARCH-INDEX Subsystem Registry). `subsystems_affected` updated from `[SS-01, SS-17, SS-16]` to `[SS-01, SS-07, SS-16, SS-17]` (sorted ascending). POL-23 sibling sweep: ARCH-INDEX ADR Registry row updated to PROPOSED v1.7; BC-2.16.012 §Verification Properties VP-156 row version pin updated to v1.7. |

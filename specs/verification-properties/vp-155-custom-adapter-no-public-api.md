@@ -1,7 +1,7 @@
 ---
 document_type: verification-property
 level: L4
-version: "0.3"
+version: "0.4"
 status: draft
 producer: architect
 timestamp: 2026-05-15T00:00:00Z
@@ -10,7 +10,7 @@ inputs:
   - .factory/specs/architecture/decisions/ADR-027-custom-adapter-deprecation-removal.md
 input-hash: "[pending-recompute]"
 traces_to: .factory/specs/architecture/decisions/ADR-027-custom-adapter-deprecation-removal.md
-source_bc: null
+source_bc: BC-2.16.011
 source_adr: ADR-027
 source_invariant: null
 module: prism-spec-engine
@@ -53,9 +53,8 @@ compile-fail file per symbol is required (two files total: `import_custom_adapte
 
 ## Source Contract
 
-- **ADR:** ADR-027 D3 — compile-fail perimeter enforcement for CustomAdapter absence
-- **ADR:** ADR-023 §VP-PLUGIN-001 — FORBIDDEN-SYMBOLS-001 catalog and perimeter enforcement
-- **BC:** None (pure enforcement property; no behavioral contract)
+- **BC:** BC-2.16.011 (CustomAdapter Rust Trait Retirement) — INV-ADAPTER-RETIRE-002 (`prism-spec-engine` crate public API does NOT expose any type, trait, or function from the retired `custom_adapter` module). BC-2.16.011 §VP Anchors explicitly lists VP-155 as the verification mechanism for INV-ADAPTER-RETIRE-002.
+- **Supporting ADR:** ADR-027 §Decision (CustomAdapter deletion mandate) — D3 specifies the compile-fail perimeter enforcement mechanism that VP-155 implements. ADR-023 §VP-PLUGIN-001 establishes the FORBIDDEN-SYMBOLS-001 catalog and perimeter pattern.
 - **Module:** prism-spec-engine (the crate whose public API is under test)
 - **Category:** API Surface Enforcement / Perimeter
 
@@ -137,4 +136,5 @@ adds the compile-fail files → CI count assertion is updated in the same commit
 |---------|-------|------|--------|-------|
 | 0.1 | plugin-prereq-e-adr-burst | 2026-05-15 | architect | Initial stub. Traces to ADR-027 D3. Two compile-fail files required (CustomAdapter + CustomAdapterRegistry). Catalog grows from 9 to 11. Authoring in PLUGIN-MIGRATION-001-A scope; MUST sequence after PREREQ-E merge. Priority P0. |
 | 0.2 | fix-burst-1 state-manager catch | 2026-05-15 | state-manager | (state-manager catch in fix-burst-1) F-LP1-HIGH-004 POL-20: introduced field canonicalized to ISO date 2026-05-15. Prior value `plugin-prereq-e` was informal slug; POL-20 requires `YYYY-MM-DD` for artifacts created outside greenfield cycles. |
+| 0.4 | prereq-e-fix-burst-6 | 2026-05-16 | architect | F-LP6-HIGH-001 — `source_bc` set to BC-2.16.011 (was null; BC-2.16.011 §VP Anchors explicitly lists VP-155 as enforcing INV-ADAPTER-RETIRE-002; same defect class as F-LP1-CRIT-001 VP-154 source_bc fix in FB1; sibling-sweep miss). §Source Contract rewritten: leads with BC-2.16.011 INV-ADAPTER-RETIRE-002 ownership; ADR-027 §Decision demoted to supporting reference. Bidirectional traceability symmetry restored (BC-2.16.011 claims VP-155 ↔ VP-155 now claims BC-2.16.011). |
 | 0.3 | fix-burst-5 renumber-repair-redo | 2026-05-15 | state-manager | F-LP5-HIGH-003 renumber-repair-redo. FB4 assigned both the changelog-repair row and the modified-field-sync row to v0.2, producing two rows at the same version and violating monotonic strict order. Repair row renumbered 0.2→0.3. Absorbs FB4 modified-field-sync content: `modified:` field confirmed synced to ISO date "2026-05-15" per F-LP4-LOW-002 / POL-27 (most recent change: state-manager POL-20 catch in fix-burst-1). Content summary retained: prior changelog had duplicate 0.1 entries (architect adr-burst + state-manager catch both labeled 0.1); state-manager catch correctly renumbered to 0.2. Each distinct content change now holds a unique version. Frontmatter version updated to 0.3. Monotonic sequence verified: 0.1 → 0.2 → 0.3. |

@@ -1,7 +1,7 @@
 ---
 document_type: behavioral-contract
 level: L3
-version: "1.2"
+version: "1.3"
 status: draft
 producer: product-owner
 timestamp: 2026-05-15T00:00:00
@@ -106,7 +106,7 @@ re-export or exercise `CustomAdapter` in `lib.rs`, `examples/demo_spec_loading.r
 | EC-016-011-002 | `demo_spec_loading.rs` contains non-`CustomAdapter` spec loading code | That code is preserved; only `CustomAdapter` / `CustomAdapterRegistry` usage sections are removed. If the file becomes empty or a trivial stub, it is deleted |
 | EC-016-011-003 | A future story (PLUGIN-MIGRATION-001-C) needs to test the WASM plugin escape hatch | That story writes NEW test files targeting `PluginRuntime`. The deleted `bc_2_16_004_test.rs` is NOT resurrected; a fresh test file under a new name is authored |
 | EC-016-011-004 | `E-SPEC-008` appears in error-handling match arms in other crates | None currently exist (PLUGIN-AUDIT-001 confirms no in-tree callers). If any are found during implementation, they are removed in the same atomic commit |
-| EC-016-011-005 | `BC-2.16.004-rust-escape-hatch.md` frontmatter update conflicts with deprecation metadata | `deprecated_by` remains `ADR-023`; add `removed: "2026-05-15"`, `removal_reason: "PREREQ-E retirement per ADR-023 Rule 5"`, change `lifecycle_status: deprecated → removed` |
+| EC-016-011-005 | `BC-2.16.004-rust-escape-hatch.md` frontmatter update conflicts with deprecation metadata | `deprecated_by` bumps `ADR-023` → `ADR-027` (ADR-027 §Decision is the operational deletion mandate; ADR-023 Rule 5 was the deprecation philosophy that ADR-027 operationalizes); add `removed: "<PREREQ-E merge date>"`, `removal_reason: "PREREQ-E retirement per ADR-027 §Decision + ADR-023 Rule 5"`, change `lifecycle_status: deprecated → removed` |
 
 ## Canonical Test Vectors
 
@@ -197,6 +197,7 @@ S-PLUGIN-PREREQ-E
 
 | Version | Burst | Date | Author | Change |
 |---------|-------|------|--------|--------|
+| 1.3 | prereq-e-fix-burst-6 | 2026-05-16 | architect | F-LP6-MED-004 — EC-016-011-005 `deprecated_by` adjudicated: bumps `ADR-023` → `ADR-027`. ADR-027 §Decision is the operational deletion mandate (timeline + perimeter + removal mechanism); ADR-023 Rule 5 introduced the deprecation philosophy which ADR-027 operationalizes. EC-016-011-005 Resolution cell updated: `deprecated_by: ADR-027`, `removed: "<PREREQ-E merge date>"` (placeholder for actual merge date when PREREQ-E ships), `removal_reason: "PREREQ-E retirement per ADR-027 §Decision + ADR-023 Rule 5"`, `lifecycle_status: deprecated → removed`. |
 | 1.2 | S-PLUGIN-PREREQ-E-fix-burst-1 | 2026-05-15 | product-owner | F-LP1-HIGH-003 closure: Three §C5 phantom-heading citations corrected per POL-21 — `ADR-023 §C5` → `ADR-023 §Architectural Constraints (C5 bullet)` and `ADR-023 §C5 Rule 5` → `ADR-023 §Architectural Constraints (C5 bullet, Rule 5)`. ADR-023 has no `## C5` heading; C5 is a bold-labeled bullet inside `## Architectural Constraints`. |
 | 1.2 | fix-burst-1 state-manager catch | 2026-05-15 | state-manager | (state-manager catch in fix-burst-1) F-LP1-HIGH-004 POL-20: introduced field canonicalized to ISO date 2026-05-15. Prior value `S-PLUGIN-PREREQ-E` was story-ID format; POL-20 requires `YYYY-MM-DD` for artifacts created outside greenfield cycles. |
 | 1.1 | S-PLUGIN-PREREQ-E-reconciliation | 2026-05-15 | product-owner | Q3 resolution: Added §VP-154 Fixture Acceptance Criterion with canonical OCSF Detection Finding 2004 schema (required fields: type_uid/class_uid/category_uid/severity_id/severity/time/message/finding_info.uid/raw_data), count threshold (>= 1 record), and behavioral equivalence definition (semantic equality on stable fields — not byte-identical, to avoid timestamp-driven flakiness). VP-154 and VP-155 added to §Verification Properties and §VP Anchors. ADR-027 architecture anchor added. |

@@ -1,7 +1,7 @@
 ---
 document_type: behavioral-contract-index
 level: L3
-version: "4.82"
+version: "4.83"
 status: draft
 producer: product-owner
 timestamp: 2026-05-15T00:00:00Z
@@ -368,6 +368,8 @@ Phase 3-patch additions (2026-04-16): 22 new BCs added in Burst 1 to close trace
 - Subsystem 19: Infusion Enrichment Framework (AD-020, CAP-031)
 
 ### Change Log (Adversarial Review Fixes)
+
+**v4.83 (2026-05-16):** architect | prereq-e-fix-burst-6 — BC-2.16.011 v1.2→v1.3: EC-016-011-005 `deprecated_by` adjudicated from ADR-023 → ADR-027 (ADR-027 §Decision is the operational deletion mandate; ADR-023 Rule 5 is the deprecation philosophy ADR-027 operationalizes); `removed: "<PREREQ-E merge date>"`, `removal_reason: "PREREQ-E retirement per ADR-027 §Decision + ADR-023 Rule 5"`, `lifecycle_status: deprecated → removed` added per F-LP6-MED-004 architect adjudication. BC-2.16.012 v1.6→v1.7: §Verification Properties VP-156 row ADR-026 D7 pin updated v1.7→v1.8 per POL-23 sibling sweep (ADR-026 bumped to v1.8 in this burst). BC-INDEX v4.82→v4.83.
 
 **v4.82 (2026-05-15):** state-manager | D-574 — 3 new draft BCs registered (BC-2.01.016 + BC-2.16.011 + BC-2.16.012) for S-PLUGIN-PREREQ-E spec draft package. draft_contracts 2→5; total_contracts 236→239. Subsystem / CAP confirmed from BC file frontmatter: BC-2.01.016 (SS-01/CAP-001/P0), BC-2.16.011 (SS-16/CAP-029/P0), BC-2.16.012 (SS-16/CAP-029/P0). Prose H1 description + total_contracts Note updated. active_contracts: 225 unchanged.
 

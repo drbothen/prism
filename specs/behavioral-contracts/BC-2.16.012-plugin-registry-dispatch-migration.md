@@ -1,7 +1,7 @@
 ---
 document_type: behavioral-contract
 level: L3
-version: "1.6"
+version: "1.7"
 status: draft
 producer: product-owner
 timestamp: 2026-05-15T00:00:00
@@ -120,7 +120,7 @@ sensors; the change is structural (open dispatch replaces closed match).
 
 | VP ID | Description |
 |-------|-------------|
-| VP-156 | WriteToolInvalidationMap registration uniqueness (proptest P1). Verifies EC-016-012-004 resolved behavior (error-on-duplicate, per ADR-026 D7 v1.7). Visibility guarantee is structural (RwLock contract + ADR-022 boot ordering) not proptest-verified — see VP-156 §Property Statement. Authored in prereq-e-fix-burst-1 (F-LP1-MED-003). Behavioral equivalence and open-dispatch invariants remain verified by integration test (TV-003) and grep gate (TV-001). |
+| VP-156 | WriteToolInvalidationMap registration uniqueness (proptest P1). Verifies EC-016-012-004 resolved behavior (error-on-duplicate, per ADR-026 D7 v1.8). Visibility guarantee is structural (RwLock contract + ADR-022 boot ordering) not proptest-verified — see VP-156 §Property Statement. Authored in prereq-e-fix-burst-1 (F-LP1-MED-003). Behavioral equivalence and open-dispatch invariants remain verified by integration test (TV-003) and grep gate (TV-001). |
 
 ## Related BCs
 
@@ -157,6 +157,7 @@ S-PLUGIN-PREREQ-E
 
 | Version | Burst | Date | Author | Change |
 |---------|-------|------|--------|--------|
+| 1.7 | prereq-e-fix-burst-6 | 2026-05-16 | architect | F-LP6-CRIT-001+HIGH-003+MED-003 POL-23 sibling sweep: §Verification Properties VP-156 row — "ADR-026 D7 v1.7" pin updated to "ADR-026 D7 v1.8" (ADR-026 bumped to v1.8 for cookie→cookie_roundtrip fix, phantom runtime_deliverable prune, semver-stance paragraph). BC-2.16.012 v1.6→v1.7. |
 | 1.6 | prereq-e-fix-burst-5 | 2026-05-15 | architect | F-LP5-MED-004 POL-23 sibling sweep: §Verification Properties VP-156 row — "ADR-026 D7 v1.6" pin updated to "ADR-026 D7 v1.7" (ADR-026 bumped to v1.7 to add SS-07 to subsystems_affected). BC-2.16.012 v1.5→v1.6. |
 | 1.5 | prereq-e-fix-burst-4 | 2026-05-15 | architect | F-LP4-HIGH-004 POL-23 sibling sweep: §Verification Properties VP-156 row — "ADR-026 D7 v1.5" pin updated to "ADR-026 D7 v1.6" (ADR-026 bumped in fix-burst-4 to add VP-156 to §VP Anchors). BC-2.16.012 v1.4→v1.5. |
 | 1.4 | prereq-e-fix-burst-3 | 2026-05-15 | architect | F-LP3-HIGH-001 sibling-sweep (architect domain): §Verification Properties VP-156 row updated — "uniqueness + happens-before" → "uniqueness only"; stale "ADR-026 D7 v1.2" pin updated to v1.5. §VP Anchors VP-156 bullet updated — "uniqueness + happens-before" framing removed; structural visibility guarantee noted (RwLock contract + ADR-022 boot ordering). Aligns BC-2.16.012 with VP-156 v0.2 body (fix-burst-2) and ADR-026 current v1.5. |

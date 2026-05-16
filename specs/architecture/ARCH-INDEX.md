@@ -1,7 +1,7 @@
 ---
 document_type: architecture-index
 level: L3
-version: "2.48"
+version: "2.49"
 status: draft
 producer: architect
 timestamp: 2026-05-04T00:00:00
@@ -91,8 +91,8 @@ deployment_topology: single-service  # planned — no service binary exists yet 
 | ADR-023 | Plugin-Only Sensor Architecture — TOML Specs as Declarative Baseline, .prx WASM for Non-Declarative Cases, Retired CustomAdapter Rust Trait | COMMITTED v1.19 | 2026-05-15 | decisions/ADR-023-plugin-only-sensor-architecture.md |
 | ADR-024 | ColumnType Canonical Naming — Domain-Level Variant Names for Sensor Schema API; prism-spec-engine Shadow Enum Retirement | ACCEPTED v1.0 | 2026-05-12 | decisions/ADR-024-column-type-canonical-naming.md |
 | ADR-025 | BC Lifecycle Field Canonical Scheme — Single status Field Governs; lifecycle Field Retired | ACCEPTED v1.0 | 2026-05-12 | decisions/ADR-025-bc-lifecycle-field-canonical-scheme.md |
-| ADR-026 | SensorAuth Un-Sealing — Open Trait for Plugin-Implementable Auth; RwLock WriteToolInvalidationMap | PROPOSED v1.7 | 2026-05-15 | decisions/ADR-026-sensorauth-unsealing.md |
-| ADR-027 | CustomAdapter Deprecation and Removal — Trait Retirement, Registry Cleanup, prism-query Scope | PROPOSED v1.3 | 2026-05-15 | decisions/ADR-027-custom-adapter-deprecation-removal.md |
+| ADR-026 | SensorAuth Un-Sealing — Open Trait for Plugin-Implementable Auth; RwLock WriteToolInvalidationMap | PROPOSED v1.8 | 2026-05-16 | decisions/ADR-026-sensorauth-unsealing.md |
+| ADR-027 | CustomAdapter Deprecation and Removal — Trait Retirement, Registry Cleanup, prism-query Scope | PROPOSED v1.4 | 2026-05-16 | decisions/ADR-027-custom-adapter-deprecation-removal.md |
 
 ## Architecture Decisions
 
@@ -152,6 +152,7 @@ deployment_topology: single-service  # planned — no service binary exists yet 
 
 | Version | Pass | Date | Author | Change |
 |---------|------|------|--------|--------|
+| 2.49 | prereq-e-fix-burst-6 | 2026-05-16 | architect | F-LP6-CRIT-001+HIGH-003+MED-002+MED-003 POL-23 ADR-version-bump sibling sweep: ADR-026 registry row updated PROPOSED v1.7 → PROPOSED v1.8 (cookie→cookie_roundtrip fix; phantom runtime_deliverable pruned; semver-stance scope paragraph added). ADR-027 registry row updated PROPOSED v1.3 → PROPOSED v1.4 (SS-07 added to subsystems_affected; §Consequences prism-query ownership statement). ARCH-INDEX v2.48→v2.49. |
 | 2.48 | prereq-e-fix-burst-5 | 2026-05-15 | architect | F-LP5-MED-004 POL-23 ADR-version-bump sibling sweep: ADR-026 registry row updated PROPOSED v1.6 → PROPOSED v1.7 (SS-07 added to subsystems_affected; D7 runtime_deliverables all land in prism-query which is SS-07). ARCH-INDEX v2.47→v2.48. |
 | 2.47 | prereq-e-fix-burst-4 | 2026-05-15 | architect | F-LP4-HIGH-004 POL-23 ADR-version-bump sibling sweep: ADR-026 registry row updated PROPOSED v1.5 → PROPOSED v1.6 (VP-156 entry added to §VP Anchors). ADR-027 registry row updated PROPOSED v1.2 → PROPOSED v1.3 (D5 scope expanded to two-part: CustomAdapter clean-pass + hardcoded-sensor-string audit per BC-2.16.012 INV-SPEC-PARSER-OPEN-001). ARCH-INDEX v2.46→v2.47. |
 | 2.46 | prereq-e-fix-burst-3 | 2026-05-15 | architect | F-LP3-HIGH-004 POL-23 ADR-version-bump sibling sweep: ADR-026 registry row updated PROPOSED v1.1 → PROPOSED v1.5 (reflects D2 Path B amendment, D7 category fix, 5 runtime_deliverables added). ADR-027 registry row updated PROPOSED v1.1 → PROPOSED v1.2 (current actual version). ARCH-INDEX v2.45→v2.46. |

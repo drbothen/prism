@@ -1,7 +1,7 @@
 ---
 document_type: verification-property-index
 level: L4
-version: "1.41"
+version: "1.42"
 status: draft
 producer: product-owner
 timestamp: 2026-05-11T00:00:00
@@ -243,6 +243,7 @@ S-1.02 frontmatter has been updated to `subsystems: [SS-03, SS-07, SS-11, SS-12,
 
 | Version | Burst | Date | Author | Change |
 |---------|-------|------|--------|--------|
+| 1.42 | prereq-e-fix-burst-6 | 2026-05-16 | architect | F-LP6-HIGH-001 + F-LP6-MED-001 + F-LP6-LOW-002 sibling sweep: VP-155 source_bc set to BC-2.16.011 (v0.3→v0.4); VP-156 ADR-026 D7 version pins updated from stale v1.2 to v1.7 across §Property Statement, §Source Contract, and proof harness skeleton (v0.4→v0.5). VP-INDEX rows for VP-155 and VP-156 are description-stable — no row text changes required (module/method/priority/status unchanged). VP-INDEX v1.41→v1.42. |
 | 1.41 | prereq-e-fix-burst-5 | 2026-05-15 | architect | F-LP5-LOW-001 Path A: `source_invariant:` schema convention documented — field accepts DI-NNN workspace-canonical identifiers only; BC-local INV-* identifiers belong in `source_bc:` + body prose, not `source_invariant:`. Convention note added as blockquote above §Properties table. Confirms VP-153 (`source_invariant: DI-012`) and VP-156 (`source_invariant: null`) are both correct; no individual VP frontmatter changes needed. VP-INDEX v1.40→v1.41. |
 | 1.40 | prereq-e-fix-burst-3 | 2026-05-15 | architect | F-LP3-HIGH-001 sibling-sweep: VP-156 description updated from "uniqueness + happens-before" to "uniqueness only" — aligns VP-INDEX row with VP-156 v0.2 body (happens-before claim removed in fix-burst-2). Propagated to verification-architecture.md (v1.34), BC-2.16.012 §VP Anchors and §Verification Properties (v1.4). Stale "ADR-026 D7 v1.2" pin in BC-2.16.012 §Verification Properties updated to v1.5. |
 | 1.39 | prereq-e-fix-burst-1 | 2026-05-15 | architect | F-LP1-MED-003 resolution: VP-156 (WriteToolInvalidationMap registration uniqueness + happens-before, proptest P1, module: prism-query, anchor: S-PLUGIN-PREREQ-E) added to main Properties table. BC-2.16.012 §VP Anchors "(none in this story)" coverage gap closed. Summary table: Proptest 87→88, Total VPs 155→156, P1 33→34. Sequential count note updated to 156. total_vps frontmatter updated 155→156. |

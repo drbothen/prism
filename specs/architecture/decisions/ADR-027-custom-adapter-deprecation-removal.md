@@ -4,9 +4,9 @@ adr_id: "ADR-027"
 title: "CustomAdapter Rust Trait Deprecation and Wave 1/A Removal — Sole Escape Hatch is .prx WASM"
 status: Proposed
 date: "2026-05-15"
-version: "1.3"
+version: "1.4"
 producer: architect
-subsystems_affected: [SS-16, SS-17]
+subsystems_affected: [SS-07, SS-16, SS-17]
 supersedes: null
 superseded_by: null
 amends: ADR-023
@@ -193,17 +193,16 @@ at `tests/external/perimeter-violation/` enforcing the sensor-named type bans.
 - Any external consumer who DID import `CustomAdapter` from a published crate (not found by
   audit, but possible in theory) will encounter a compile error after upgrading. This is
   accepted risk per Rule 5 and the pre-condition check in that rule.
-- **`prism-query` is also touched in S-PLUGIN-PREREQ-E scope (TD-S-PLUGIN-PREREQ-A-003).** The story's
-  crate scope includes `prism-query` (see story frontmatter `crates_touched`). The
-  `crates/prism-query/src/invalidation.rs` `WriteToolInvalidationMap` container is migrated
-  from `LazyLock<Vec<...>>` to `RwLock<Vec<...>>` with a `register_write_tool` API, enabling
-  plugin-registered write tools to participate in cache invalidation at runtime. This is not a
-  `CustomAdapter` call-site migration (no `CustomAdapter` references exist in `prism-query`),
-  but it is a consequence of the same PLUGIN-PREREQ-E story that also removes `CustomAdapter`:
-  the PluginRuntime wired by PREREQ-D calls `register_write_tool` for each plugin that declares
-  write-tool capabilities. The D4 Wave 1/A unblock criteria should be read as confirming
-  `prism-spec-engine` is clean; `prism-query` changes are parallel to this ADR's scope
-  (governed by ADR-026 D7 and BC-2.16.012 INV-INVALIDATION-EXT-001).
+- **ADR-027 scope includes `prism-query` (SS-07) call-site migration to `PluginRegistry::dispatch`
+  per BC-2.16.012 INV-INVALIDATION-EXT-001.** The story's crate scope includes `prism-query` (see
+  story frontmatter `crates_touched`). The `crates/prism-query/src/invalidation.rs`
+  `WriteToolInvalidationMap` container is migrated from `LazyLock<Vec<...>>` to
+  `RwLock<Vec<...>>` with a `register_write_tool` API (TD-S-PLUGIN-PREREQ-A-003), enabling
+  plugin-registered write tools to participate in cache invalidation at runtime. SS-07 is
+  explicitly included in `subsystems_affected` because this ADR's PREREQ-E delivery lands
+  concrete code changes in `prism-query`. The D4 Wave 1/A unblock criteria are scoped to
+  `prism-spec-engine` clean-pass confirmation; the `prism-query` changes are governed by
+  ADR-026 D7 and BC-2.16.012 INV-INVALIDATION-EXT-001.
 
 ---
 
@@ -274,4 +273,5 @@ instead. This convention is intentional and consistent across ADR-026 and ADR-02
 | 1.0 | 2026-05-15 | architect | Initial proposal — CustomAdapter deprecation/deletion design for S-PLUGIN-PREREQ-E and PLUGIN-MIGRATION-001-A |
 | 1.1 | 2026-05-15 | architect | Q5 resolution: add prism-query WriteToolInvalidationMap scope note to §Consequences. The story crates_touched includes prism-query; this ADR was silent on that. Added negative trade-off row explaining the prism-query touch is parallel scope (TD-S-PLUGIN-PREREQ-A-003 / ADR-026 D7 / BC-2.16.012 INV-INVALIDATION-EXT-001) and does not affect D4 Wave 1/A unblock criteria (prism-spec-engine only). |
 | 1.2 | 2026-05-15 | architect | prereq-e-fix-burst-2: F-LP2-HIGH-002: TD-A-003 alias canonicalized to TD-S-PLUGIN-PREREQ-A-003 at §Consequences trade-off row (live narrative) and changelog row for v1.1. F-LP2-HIGH-003: Two ADR-023 §C5 phantom-heading citations replaced with §Architectural Constraints (C5 bullet) per POL-21: D5 narrative (line 124) and §Source/Origin (line 228). TD-VSDD-060 workspace-wide greps confirm no further sibling sites in live spec files beyond this ADR. |
+| 1.4 | 2026-05-16 | architect | prereq-e-fix-burst-6: F-LP6-MED-002 — SS-07 (Adapter Pagination & Response Cache; prism-query) added to `subsystems_affected`: ADR-027 scope includes prism-query (SS-07) call-site migration per BC-2.16.012 INV-INVALIDATION-EXT-001 (WriteToolInvalidationMap container migration + register_write_tool API via TD-S-PLUGIN-PREREQ-A-003). §Consequences "prism-query is also touched in parallel" hedging rephrased to a statement of ownership: ADR-027 scope includes SS-07; D4 Wave 1/A unblock criteria scoped to prism-spec-engine clean-pass confirmation. `subsystems_affected` updated [SS-16, SS-17] → [SS-07, SS-16, SS-17]. |
 | 1.3 | 2026-05-15 | architect | prereq-e-fix-burst-4: F-LP4-LOW-001: D5 scope expanded from "verify clean only" to two-part: (a) mechanical CustomAdapter clean-pass (satisfied by existing grep verification) AND (b) hardcoded-sensor-string dispatch audit per BC-2.16.012 INV-SPEC-PARSER-OPEN-001 + Story Task 6 + AC-7. Original narrow framing predated BC-2.16.012 and story AC-7; story's broader scope is correct per production-grade default. D5 narrative rewritten to enumerate both parts explicitly. No changes to D1–D4 or §Verification Property Anchors. |
