@@ -450,9 +450,88 @@ Pass-6 report: `cycles/wave-4-operations/adversarial-reviews/S-PLUGIN-PREREQ-E-s
 
 ### Strategic Decision State
 
-USER DECISION PENDING — orchestrator awaiting strategic guidance before pass-6.
-Options: (1) continue cascade, (2) human review checkpoint, (3) POL-28 codification first.
-Full options documented in: `.factory/cycles/wave-4-operations/SESSION-D580-TASKS.md` §Strategic Options
-State persisted: STATE.md v7.285; SESSION-HANDOFF.md v7.285; SESSION-D580-TASKS.md (new).
+~~USER DECISION PENDING~~ **RESOLVED: User chose Option 1 (continue cascade). Pass-6 dispatched BLOCKED. Fix-burst-6 closed 10/10 in-scope findings. Pass-7 NEXT.**
+Options resolved in SESSION-D580-TASKS.md §Strategic Options — RESOLVED (D-581).
+
+---
+
+## §D-584 FIX-BURST-6 CLOSURE (2026-05-16)
+
+**Burst D-584 — state-manager — PREREQ-E FIX-BURST-6 CLOSED — 10/10 in-scope findings closed — 90th consecutive single-commit (TD-VSDD-053 DECISIVELY STABLE)**
+
+### Finding Closure Verification Table
+
+Per TD-VSDD-059 paper-fix detection: each finding verified via load-bearing grep token, not self-disclosure.
+
+| Finding | Severity | Closure Burst | Grep Anchor | Verification |
+|---------|----------|--------------|-------------|--------------|
+| F-LP6-CRIT-001 | CRITICAL | D-582 `bae9c46f` (ADR-026) + D-583 `422b7dec` (story) | `"cookie_roundtrip"` in ADR-026 §D2 + story §File Structure Requirements claroty row | PASS |
+| F-LP6-HIGH-001 | HIGH | D-582 `bae9c46f` (VP-155) | `source_bc: BC-2.16.011` in VP-155 frontmatter | PASS |
+| F-LP6-HIGH-002 | HIGH | D-584 (this burst) | STORY-INDEX row tag `v1.7 prereq-e-fix-burst-6` + `5 (BC-2.01.013, BC-2.01.016, BC-2.16.004, BC-2.16.011, BC-2.16.012)` | PASS |
+| F-LP6-HIGH-003 | HIGH | D-582 `bae9c46f` (ADR-026) | `runtime_deliverables:` in ADR-026 changelog v1.8 row: "Pruned phantom runtime_deliverable: Add SensorAuth re-export" | PASS |
+| F-LP6-MED-001 | MEDIUM | D-582 `bae9c46f` (VP-156) | `ADR-026 D7 v1.7` in VP-156 §Source Contract + §Property Statement | PASS |
+| F-LP6-MED-002 | MEDIUM | D-582 `bae9c46f` (ADR-027) | `subsystems_affected: [SS-07, SS-16, SS-17]` in ADR-027 frontmatter | PASS |
+| F-LP6-MED-003 | MEDIUM | D-582 `bae9c46f` (ADR-026) | `Semver-stance scope:` paragraph in ADR-026 §D2 §Path B | PASS |
+| F-LP6-MED-004 | MEDIUM | D-582 `bae9c46f` (BC-2.16.011) | `deprecated_by: ADR-027` in BC-2.16.011 EC-016-011-005 Resolution cell | PASS |
+| F-LP6-LOW-001 | LOW | — (no action) | Path resolves cleanly; no edit required | N/A |
+| F-LP6-LOW-002 | LOW | D-582 `bae9c46f` (VP-156) | bundled with MED-001: `ADR-026 D7 v1.7` in VP-156 §Property Statement | PASS |
+
+**All 10 in-scope findings: VERIFIED CLOSED.**
+
+### Index Version Table (Post-FB6)
+
+| Index | Pre-FB6 | Post-FB6 | Updated By |
+|-------|---------|---------|-----------|
+| BC-INDEX | v4.82 | v4.83 | D-582 |
+| VP-INDEX | v1.41 | v1.42 | D-582 |
+| ARCH-INDEX | v2.48 | v2.49 | D-582 |
+| STORY-INDEX | v2.109 | v2.110 | D-584 (this burst) |
+
+### Artifact Version Table (Post-FB6)
+
+| Artifact | Pre-FB6 | Post-FB6 | Updated By |
+|----------|---------|---------|-----------|
+| Story S-PLUGIN-PREREQ-E | v1.6 | v1.7 | D-583 |
+| ADR-026 | v1.7 | v1.8 | D-582 |
+| ADR-027 | v1.3 | v1.4 | D-582 |
+| BC-2.16.011 | v1.2 | v1.3 | D-582 |
+| BC-2.16.012 | v1.6 | v1.6 (unchanged) | — |
+| VP-155 | v0.3 | v0.4 | D-582 |
+| VP-156 | v0.4 | v0.5 | D-582 |
+| VP-153 | v0.5 | v0.5 (unchanged) | — |
+| VP-154 | v0.6 | v0.6 (unchanged) | — |
+
+### 3 OBS Deferred (Cycle-Close Target)
+
+| OBS | Description | Cycle-Close Target |
+|-----|-------------|-------------------|
+| OBS-LP6-001 | POL-22 Phase A extension to ADR `runtime_deliverables:` verification | PREREQ-E cycle-close (post-3-CLEAN convergence + implementation + merge) |
+| OBS-LP6-002 | VP-156↔BC-2.16.012 symmetry holds; VP-155↔BC-2.16.011 closed by F-LP6-HIGH-001 | PREREQ-E cycle-close |
+| OBS-LP6-003 | Story `subsystems:` excludes SS-17 intent-pending (SS-17 in ADR-026 `subsystems_affected:`) | PREREQ-E cycle-close |
+
+### Trajectory Shorthand (Updated)
+
+**14→9→8→9→10→10→FB6-CLOSED(10/10 in-scope; 3 OBS deferred cycle-close)**
+
+### Updated Trajectory Table
+
+| Pass | Findings | In-Scope Closed | Streak |
+|------|----------|----------------|--------|
+| 1 | 14 | 12 (FB1) | 0/3 |
+| 2 | 9 | 8 (FB2) | 0/3 |
+| 3 | 8 | 8 (FB3) | 0/3 |
+| 4 | 9 | 9 (FB4) | 0/3 |
+| 5 | 10 | 7 (FB5; 3 OBS queued) | 0/3 |
+| 6 | 10 | 10 (FB6; 3 OBS queued) | 0/3 |
+| **7** | **PENDING** | — | **0/3 — pass-7 NEXT** |
+
+### Next Step
+
+Adversary pass-7 (fresh-context dispatch). BC-5.39.001 3-CLEAN protocol — streak 0/3.
+If CLEAN: streak 1/3, pass-8 NEXT.
+If BLOCKED: fix-burst-7 (architect + state-manager), then pass-8.
+
+STATE.md v7.287; SESSION-HANDOFF.md v7.287; STORY-INDEX v2.110; 90th consecutive single-commit.
+Factory-artifacts predecessor bursts: D-581 (`86e39435`), D-582 (`bae9c46f`), D-583 (`422b7dec`), D-584 (this commit).
 
 Factory-artifacts predecessor: 94dfce02 (D-579). D-580 is the 86th consecutive single-commit.

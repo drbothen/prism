@@ -1,10 +1,10 @@
 ---
 document_type: session-tasks
-version: "1.1"
+version: "1.2"
 status: active
-related_burst: D-581
-predecessor_state: D-580
-timestamp: 2026-05-16T00:30:00Z
+related_burst: D-584
+predecessor_state: D-581
+timestamp: 2026-05-16T00:45:00Z
 ---
 
 # Session Task List — D-580 Durable Snapshot
@@ -33,8 +33,10 @@ Intended audience: orchestrator at next session start. Read alongside STATE.md +
 | 15 | DONE | PREREQ-E fix-burst-3 (D-577): 8 findings; Path B chosen for auth_type_name(); 83rd single-commit | — |
 | 16 | DONE | PREREQ-E pass-5 + fix-burst-5 (D-579): 10 findings; trajectory regression 9→10 (bookkeeping class); 85th single-commit | — |
 | 17 | DONE | PREREQ-E pass-6 dispatched + report persisted (D-581; pass-6 BLOCKED 10 findings; report at cycles/wave-4-operations/adversarial-reviews/S-PLUGIN-PREREQ-E-spec-pass-6.md; 87th single-commit) | — |
-| 18 | BLOCKED | PREREQ-E fix-burst-6 (10 findings: F-LP6-CRIT-001 + F-LP6-HIGH-001/002/003 + F-LP6-MED-001/002/003/004 + F-LP6-LOW-002) | Awaiting fix-burst-6 dispatch (architect + state-manager parallel) |
-| 19 | PENDING | PREREQ-E pass-7 (fresh-context dispatch) | Blocked on task 18 (fix-burst-6 must close all 10 in-scope findings first) |
+| 18 | DONE | PREREQ-E fix-burst-6 (10 findings closed): architect D-582 `bae9c46f` (8 closures: CRIT-001+HIGH-001/003+MED-001/002/003/004+LOW-002) + story-writer D-583 `422b7dec` (CRIT-001 propagation) + state-manager D-584 (HIGH-002 STORY-INDEX v2.109→v2.110). 3 OBS queued cycle-close. | — |
+| 19 | PENDING | PREREQ-E pass-7 (fresh-context dispatch) | Blocked on task 18 — now UNBLOCKED; pass-7 NEXT |
+| 20 | PENDING | If pass-7 CLEAN: PREREQ-E pass-8 (streak 1/3 → 2/3) | Blocked on Task #19 verdict |
+| 21 | PENDING | If pass-7 BLOCKED: PREREQ-E fix-burst-7 (architect + state-manager) | Blocked on Task #19 verdict |
 
 ## Strategic Options — RESOLVED (D-581)
 
@@ -62,24 +64,24 @@ Intended audience: orchestrator at next session start. Read alongside STATE.md +
 
 | Artifact | Current Version | Type |
 |----------|----------------|------|
-| S-PLUGIN-PREREQ-E story | v1.6 | story (draft; 10 ACs; 3 pts; deps PREREQ-F+A) |
+| S-PLUGIN-PREREQ-E story | v1.7 | story (draft; 10 ACs; 3 pts; deps PREREQ-F+A) — updated at D-583 FB6 |
 | BC-2.01.016 | v1.3 | BC draft (SensorAuth open trait) |
-| BC-2.16.011 | v1.2 | BC draft (CustomAdapter retirement) |
+| BC-2.16.011 | v1.3 | BC draft (CustomAdapter retirement) — updated at D-582 FB6 |
 | BC-2.16.012 | v1.6 | BC draft (PluginRegistry dispatch migration) |
-| ADR-026 | v1.7 PROPOSED | ADR (SensorAuth un-sealing) |
-| ADR-027 | v1.3 PROPOSED | ADR (CustomAdapter deprecation/removal) |
+| ADR-026 | v1.8 PROPOSED | ADR (SensorAuth un-sealing) — updated at D-582 FB6 |
+| ADR-027 | v1.4 PROPOSED | ADR (CustomAdapter deprecation/removal) — updated at D-582 FB6 |
 | VP-153 | v0.5 draft | VP (proptest P0; cross-composition prevention) |
 | VP-154 | v0.6 draft | VP (integration_test P1; behavioral equivalence) |
-| VP-155 | v0.3 draft | VP (integration_test P0; no public API) |
-| VP-156 | v0.4 draft | VP (proptest P1; register_write_tool uniqueness) |
+| VP-155 | v0.4 draft | VP (integration_test P0; no public API) — updated at D-582 FB6 |
+| VP-156 | v0.5 draft | VP (proptest P1; register_write_tool uniqueness) — updated at D-582 FB6 |
 | HS-001 (PREREQ-E) | v1.2 | Holdout scenario |
 | HS-002 (PREREQ-E) | v1.1 | Holdout scenario |
 | HS-003 (PREREQ-E) | v1.3 | Holdout scenario |
 | error-taxonomy | v1.27 | PRD supplement (E-SPEC-012/013/014 + E-PLUGIN-012/020 authored; E-SPEC-008 RETIRED annotated) |
-| ARCH-INDEX | v2.48 | Architecture index |
-| VP-INDEX | v1.41 | VP index |
-| STORY-INDEX | v2.109 | Story index (PREREQ-E draft row) |
-| BC-INDEX | v4.82 | BC index (active 225, draft 5, total 239) |
+| ARCH-INDEX | v2.49 | Architecture index — updated at D-582 FB6 |
+| VP-INDEX | v1.42 | VP index — updated at D-582 FB6 |
+| STORY-INDEX | v2.110 | Story index (PREREQ-E draft row v1.7, 5 BCs) — updated at D-584 FB6 |
+| BC-INDEX | v4.83 | BC index (active 225, draft 5, total 239) — updated at D-582 FB6 |
 
 ## Resume Reading Order (Next Session)
 
@@ -87,7 +89,7 @@ Intended audience: orchestrator at next session start. Read alongside STATE.md +
 2. `.factory/SESSION-HANDOFF.md` — §POST-D580 DURABLE RESUME SNAPSHOT
 3. `.factory/cycles/wave-4-operations/SESSION-D580-TASKS.md` — this file (task list + strategic options)
 4. `.factory/cycles/wave-4-operations/S-PLUGIN-PREREQ-E-CYCLE-SNAPSHOT.md` — full cascade history + §D580 DURABLE SNAPSHOT section
-5. `.factory/cycles/wave-4-operations/adversarial-reviews/S-PLUGIN-PREREQ-E-spec-pass-{1..6}.md` — per-pass finding context if needed
+5. `.factory/cycles/wave-4-operations/adversarial-reviews/S-PLUGIN-PREREQ-E-spec-pass-{1..6}.md` — per-pass finding context if needed (pass-7 report will be at `spec-pass-7.md`)
 
 ## Standing DO-NOT Directives (carry-forward, all intact)
 
