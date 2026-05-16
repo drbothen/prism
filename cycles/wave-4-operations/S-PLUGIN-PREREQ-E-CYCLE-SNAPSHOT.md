@@ -1548,3 +1548,65 @@ POL-29 cycle-close text MUST enumerate BOTH dimensions explicitly:
 Streak: **0/3** — FB16 NEXT (PO phrasing canonicalization + state-manager STORY-INDEX sync).
 
 STATE.md v7.307; SESSION-HANDOFF.md v7.307; STORY-INDEX v2.114; BC-INDEX v4.90 (unchanged); ARCH-INDEX v2.52 (unchanged); VP-INDEX v1.46 (unchanged); 122nd consecutive single-commit (TD-VSDD-053 DECISIVELY STABLE).
+
+---
+
+## §D-618 FIX-BURST-16 CLOSURE (D-617 + D-618 — 2026-05-16) — F-LP17-MED-001 8TH MANIFESTATION BC-2.16.002 CITATION DEFECT FAMILY CLOSED AT NEW PHRASING-FORM DIMENSION; FB12-ERA INHERITED INCONSISTENCY RESOLVED; PASS-18 NEXT
+
+**Burst D-617 (PO `bf786f6f`) + D-618 (state-manager) — PREREQ-E FIX-BURST-16 CLOSED — 1/1 in-scope MEDIUM (F-LP17-MED-001) — streak stays 0/3 — 8TH MANIFESTATION of BC-2.16.002 citation defect family CLOSED at NEW phrasing-form dimension — 124th consecutive single-commit (TD-VSDD-053 DECISIVELY STABLE)**
+
+### FB16 Verification Table (TD-VSDD-059)
+
+| Finding | Closure Burst | Verification |
+|---------|--------------|-------------|
+| F-LP17-MED-001 (story Task 7 line 170) | D-617 PO `bf786f6f` | `grep "(Canonical Structured Event Catalog bullet, v1.20)" story` returns canonical parens-ancestry form — **PASS** |
+| F-LP17-MED-001 (story AC-9 line 238) | D-617 PO `bf786f6f` | Same canonical form — **PASS** |
+| F-LP17-MED-001 (story §File Structure Requirements line 345) | D-617 PO `bf786f6f` | Same canonical form — **PASS** |
+| Workspace POL-25 sweep | D-617 pre-commit | `grep "Postconditions Canonical Structured Event Catalog" live-narrative` returns ZERO non-canonical phrasings — **PASS** |
+| STORY-INDEX PREREQ-E row tag | D-618 state-manager | `v1.11 prereq-e-fix-burst-16` — **PASS** |
+| STORY-INDEX version | D-618 state-manager | `v2.115` — **PASS** |
+
+### F-LP17-MED-001 Closure Summary
+
+**3 story sites converted from no-parens form to canonical parens-ancestry form:**
+- Story Task 7 line 170: `BC-2.16.002 §Postconditions Canonical Structured Event Catalog v1.20 row 33` → `BC-2.16.002 §Postconditions (Canonical Structured Event Catalog bullet, v1.20) row 33`
+- Story AC-9 line 238: same conversion
+- Story §File Structure Requirements line 345: same conversion
+
+Canonical workspace form source of truth: BC-2.16.012 line 84 + error-taxonomy lines 467+473.
+
+### 8-Manifestation Defect Family Resolution Summary
+
+| Burst | Defect Dimension | Status |
+|-------|-----------------|--------|
+| FB5 → pass-6 | pin-staleness (1st) | CLOSED by FB6 |
+| FB6 → pass-7 | pin-staleness (2nd) | CLOSED by FB7 |
+| FB7 → pass-8 | pin-staleness (3rd) | CLOSED by FB8 |
+| FB8 (single-bump explicit) → pass-9 CLEAN★ | — | BROKE pattern |
+| FB12 → pass-14 | pin-staleness (5th) | CLOSED by FB13 |
+| FB13 (canonical-form-only) → pass-15 | pin-staleness (6th) | CLOSED by FB14 |
+| FB14 (canonical-form-only) → pass-16 | pin-staleness (7th) | CLOSED by FB15 |
+| FB15 (POL-25 dispatch mandate) → pass-17 | phrasing-form (8th — NEW) | **CLOSED by FB16 (D-617+D-618)** |
+
+**All 8 manifestations of BC-2.16.002 citation defect family are now CLOSED.**
+
+### Workspace POL-25 Sweep Verification
+
+Post-D-617 workspace sweep confirms ZERO live-narrative non-canonical phrasings in PREREQ-E story. Historical changelog entries (lines 440+442) cite old phrasing forms in describing what was changed — these are immutable audit trail entries, intentionally exempt from sweep scope.
+
+### FB12-Era Inherited Inconsistency — ROOT CAUSE FULLY RESOLVED
+
+The root cause chain is now fully closed:
+1. FB12 PO POL-21 sweep canonicalized BC-2.16.012 + error-taxonomy to `(Canonical Structured Event Catalog bullet, vX.XX)` form
+2. SAME FB12 burst added 3 NEW story sites using pre-canonicalization no-parens form `Canonical Structured Event Catalog vX.XX row 33`
+3. FB14/FB15 each targeted pin-staleness dimension only; phrasing-form dimension inherited undetected for 4 bursts (passes 13-17 minus pass 9 CLEAN)
+4. Pass-17 fresh-context adversary detected the phrasing-form dimension as F-LP17-MED-001
+5. **FB16 D-617 PO converted all 3 sites to canonical form — dimension CLOSED**
+
+### Updated Trajectory Shorthand (Post-FB16)
+
+**14→9→8→9→10→10→FB6-CLOSED(10/10)→8→FB7-CLOSED(8/8)→4→FB8-CLOSED(3/3)→pass-9:CLEAN★(1/3)→pass-10:BLOCKED(1H+1M+1L; RESET 0/3; 3-CLEAN PROTOCOL VALIDATED)→FIX-BURST-9-CLOSED(3/3)→pass-11:BLOCKED(1M; RECURRING VP traceability; 0/3)→FIX-BURST-10-CLOSED(1/1)→pass-12:BLOCKED(1M; HIGH-NOVELTY tracing-emission ↔ catalog axis; 0/3)→FIX-BURST-11-CLOSED(1/1 in-scope; BC-2.16.002 catalog row+cross-ref+event-name; BUT 3 defects introduced by FB11)→pass-13:BLOCKED(0C+3H+0M+0L+0OBS; ALL FB11-introduced; POL-21 RECURRING + POL-23/27 frontmatter drift + plugin_name unresolvable; FB-introduces-new-defects PATTERN; POL-29 codification candidate; streak 0/3 unchanged)→FIX-BURST-12-CLOSED(3/3 in-scope HIGH; POL-21 swept + frontmatter synced + plugin_name resolved via Option A)→pass-14:BLOCKED(0C+1H+0M+0L+3OBS; F-LP14-HIGH-001 ADR-026 v1.9→v1.10 sibling-sweep miss; 5th RECURRENCE; streak 0/3 unchanged)→FIX-BURST-13-CLOSED(1/1 in-scope; 5 sites swept; single-bump discipline applied; 5th RECURRENCE class closure)→pass-15:BLOCKED(0C+2H+1M+0L+3OBS; 6TH OCCURRENCE POL-23 RECURRING class — BC-2.16.002 bullet-label v1.18 stale vs v1.19 frontmatter + error-taxonomy mis-routed anchor + BC-2.16.012 duplicate v1.2 changelog rows pre-existing FB1; streak 0/3 unchanged)→FIX-BURST-14-CLOSED(3/3 in-scope: bullet-label sync + BC anchor correction + renumber-repair-redo; 6th RECURRENCE class closed; single-bump discipline maintained)→pass-16:BLOCKED(0C+1H+0M+0L+0OBS; 7TH OCCURRENCE POL-23 RECURRING — 4 variant-phrasing sites missed by FB14 canonical-form sweep; POL-29 codification urgency CRITICAL; streak 0/3 unchanged)→FIX-BURST-15-CLOSED(1/1 in-scope; POL-25 variant-phrasing grep applied at dispatch level — ORCHESTRATOR INNOVATION; 7th-occurrence pin-staleness class closed; story v1.10; ADR-026 stays v1.10; streak 0/3)→pass-17:BLOCKED(0C+0H+1M+0L+2OBS; 8TH MANIFESTATION BC-2.16.002 citation defect family at NEW phrasing-form dimension; FB15 pin-dimension ALL PASS; 3 story sites no-parens vs canonical parens-ancestry; FB12-era inherited; streak 0/3 unchanged)→FIX-BURST-16-CLOSED(1/1 in-scope MED; 3 story sites canonicalized to parens-ancestry form; workspace POL-25 sweep ZERO non-canonical; FB12-era inherited inconsistency FULLY RESOLVED; 8 manifestations ALL CLOSED; story v1.10→v1.11; STORY-INDEX v2.114→v2.115; streak 0/3)**
+
+Streak: **0/3** — pass-18 NEXT (first fresh-context test of phrasing-form canonicalization completeness).
+
+STATE.md v7.308; SESSION-HANDOFF.md v7.308; STORY-INDEX v2.115; BC-INDEX v4.90 (unchanged); ARCH-INDEX v2.52 (unchanged); VP-INDEX v1.46 (unchanged); 124th consecutive single-commit (TD-VSDD-053 DECISIVELY STABLE).
