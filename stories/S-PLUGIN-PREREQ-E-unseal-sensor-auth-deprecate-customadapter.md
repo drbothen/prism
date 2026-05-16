@@ -23,7 +23,7 @@ crates_touched: [prism-sensors, prism-spec-engine, prism-query]
 target_module: prism-sensors
 subsystems: [SS-01, SS-07, SS-16]
 capabilities: [CAP-001, CAP-029]
-version: "1.11"
+version: "1.12"
 updated: "2026-05-16"
 level: "L4"
 producer: product-owner
@@ -204,8 +204,8 @@ The four concrete auth implementations (`CrowdStrikeAuth`, `CyberintAuth`, `Clar
 (traces to BC-2.01.016 postcondition — four built-in auth impls require only one new method body each (auth_type_name); INV-AUTH-OPEN-002)
 
 **AC-3 (Runtime Auth-Composition Rejection Active):**
-A unit test confirms that a `SensorSpec` with `auth_type = ["oauth2_client_credentials", "bearer_static"]` is rejected at spec-load with `E-SPEC-012`. This verifies that the sealed-trait removal does NOT weaken the threat model — rejection moves from compile time to runtime. Note: E-SPEC-012 (not E-SPEC-010; E-SPEC-010 is reserved for variable interpolation field-path misses per error-taxonomy v1.27).
-(traces to BC-2.01.016 invariant INV-AUTH-OPEN-003; ADR-023 Rule 2, Rule A; error-taxonomy v1.27)
+A unit test confirms that a `SensorSpec` with `auth_type = ["oauth2_client_credentials", "bearer_static"]` is rejected at spec-load with `E-SPEC-012`. This verifies that the sealed-trait removal does NOT weaken the threat model — rejection moves from compile time to runtime. Note: E-SPEC-012 (not E-SPEC-010; E-SPEC-010 is reserved for variable interpolation field-path misses per error-taxonomy v1.30).
+(traces to BC-2.01.016 invariant INV-AUTH-OPEN-003; ADR-023 Rule 2, Rule A; error-taxonomy v1.30)
 
 **AC-4 (custom_adapter.rs Deleted):**
 `crates/prism-spec-engine/src/custom_adapter.rs` does not exist after merge. `grep -rn "CustomAdapter\|CustomAdapterRegistry\|CustomAuth" crates/prism-spec-engine/src/` returns ZERO matches.
@@ -314,7 +314,7 @@ Architecture layer: `prism-sensors` is Layer 1 (auth surface); `prism-spec-engin
 
 ## Error Taxonomy Additions
 
-Five error codes are introduced or annotated in this story (see `error-taxonomy.md` v1.27 §SPEC and §PLUGIN); one existing code is annotated as retired:
+Five error codes are introduced or annotated in this story (see `error-taxonomy.md` v1.30 §SPEC and §PLUGIN); one existing code is annotated as retired:
 
 | Code | Action | Purpose |
 |------|--------|---------|
@@ -438,6 +438,7 @@ Tech debt closed:
 
 | Version | Burst | Date | Author | Change |
 |---------|-------|------|--------|--------|
+| 1.12 | fix-burst-22-combined-D-634 | 2026-05-16 | state-manager | F-LP27-MED-001 — 11th manifestation version-pin-drift family at NEW target (error-taxonomy.md itself): 3 story sites swept `v1.27` → `v1.30` (AC-3 narrative line 207, AC-3 trace line 208, §Error Taxonomy Additions intro line 317). 4-bump window (v1.27→v1.28→v1.29→v1.30) where these sites were not swept during FB2..FB21. Pass-27 BLOCKED 1 MED; streak RESET 2/3 → 0/3 (4th reset). Pass-26→pass-27 reset BROKE the convergence pattern. Pass-28 NEXT — first of NEW 3-CLEAN sequence (4th attempt). |
 | 1.11 | prereq-e-fix-burst-16 | 2026-05-16 | product-owner | F-LP17-MED-001 — 8th manifestation BC-2.16.002 citation defect family closed at NEW dimension (phrasing-form canonicalization): 3 story sites converted from no-parens form `§Postconditions Canonical Structured Event Catalog v1.20 row 33` to canonical parens-ancestry form `§Postconditions (Canonical Structured Event Catalog bullet, v1.20) row 33` (matching workspace pattern at BC-2.16.012:84/109 + error-taxonomy:467/473). FB12-era inherited inconsistency closed (4 successive bursts FB12/FB14/FB15 addressed only pin dimension; pass-17 fresh-context surfaced phrasing-form dimension). POL-25 multi-cite propagation discipline applied with explicit grep enumeration. |
 | 1.10 | prereq-e-fix-burst-15 | 2026-05-16 | product-owner | F-LP16-HIGH-001 (7th OCCURRENCE POL-23 RECURRING class) — 3 variant-phrasing sites swept v1.19→v1.20: Task 7 + AC-9 + §File Structure Requirements (all using no-parens form `Canonical Structured Event Catalog v1.19 row 33`). FB14 canonical-form sweep missed these. POL-25 explicit variant-phrasing grep mandate applied this burst to prevent 8th occurrence. |
 | 1.9 | prereq-e-fix-burst-12 | 2026-05-16 | product-owner | F-LP13-HIGH-003 Option A propagation — Task 7 updated: WriteToolInvalidationMap struct field enumeration gains `plugin_name: String` field (set by PluginRuntime from plugin manifest `name` per ADR-026 D7 v1.10; BC-2.16.002 §Postconditions Canonical Structured Event Catalog v1.19 row 33). AC-9 updated: struct plugin_name field and its role as the structured event field source documented. §File Structure Requirements invalidation.rs row updated with plugin_name field enumeration. |

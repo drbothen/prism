@@ -2181,3 +2181,56 @@ Novel-finding count: 14→9→8→9→10→10→8→4→0→3→1→1→3→1→
 Streak: **2/3** — Pass-27 NEXT (3rd of 3 consecutive CLEAN passes required for BC-5.39.001 convergence — **CONVERGENCE TARGET**).
 
 STATE.md v7.320; SESSION-HANDOFF.md v7.320; prereq_e_adversary_streak 1/3→2/3; 139th consecutive single-commit (TD-VSDD-053 stable).
+
+---
+
+## §D-634 PASS-27 BLOCKED+FB22-CLOSED-COMBINED ENTRY (2026-05-16) — 11TH VERSION-PIN-DRIFT MANIFESTATION AT NEW TARGET; STREAK RESET 2/3 → 0/3 (4TH RESET); PASS-26→PASS-27 BROKE CONVERGENCE PATTERN; 5-SITE SWEEP CLOSED; 140TH SINGLE-COMMIT
+
+**Pass-27 BLOCKED — 1 in-scope MED — streak RESETS 2/3 → 0/3 (4th reset of cascade).**
+
+**140th consecutive single-commit (TD-VSDD-053 stable).**
+
+### 11th Manifestation — Version-Pin-Drift at NEW Target
+
+F-LP27-MED-001 is the 11th manifestation of the version-pin-drift defect family in the PREREQ-E cascade. The first 10 manifestations involved documents citing error-taxonomy.md with stale version pins. This 11th manifestation targets error-taxonomy.md itself — the version pin appeared in narrative prose ABOUT error-taxonomy.md (error-taxonomy v1.27 cited as the source for E-PLUGIN-012/E-PLUGIN-020 context), not in a separate document.
+
+5 stale `v1.27` pins:
+1. Story AC-3 narrative (line 207)
+2. Story AC-3 trace (line 208)
+3. Story §Error Taxonomy Additions intro (line 317)
+4. ADR-026 D7 narrative (line 309) — `{conflicting_plugin}` companion placeholder context
+5. HS-PREREQ-E-001-02 Expected Outcome (line 98)
+
+4-bump window: v1.27 was the version at FB3/FB4 authoring. FB18 (D-625) bumped error-taxonomy to v1.30 for F-LP20-MED-001 (E-PIPELINE-001 E-PLUGIN-012/020 v1.12→v1.20 sweep). The 5 stale v1.27 pins survived FB18 because the FB18 sweep targeted the E-PIPELINE-001 row context only; the narrative `(error-taxonomy v1.27)` parenthetical prose at story:207/208/317, ADR-026:309, HS-001:98 were not identified as POL-25 sweep targets.
+
+### 4th Reset — Convergence Pattern Analysis
+
+| Reset # | Pass | Caused By | Streak Before → After |
+|---------|------|-----------|----------------------|
+| 1st | 10 (post pass-9) | Cross-cascade carryover | 1/3 → 0/3 |
+| 2nd | 20 (post pass-19) | Novel ADR-027 D3 file-count defect | 1/3 → 0/3 |
+| 3rd | 24 (post pass-23) | POL-23 `updated:` blind spot | 1/3 → 0/3 |
+| **4th** | **27 (post pass-26)** | **5 stale error-taxonomy v1.27 pins** | **2/3 → 0/3** |
+
+Pass-26→pass-27 broke the convergence pattern that had appeared at pass-25→pass-26. The D-633 "BREAKS 3-TIME RESET PATTERN" milestone was premature — the 3-time pattern was disrupted but not eliminated. A new hypothesis: the reset pattern is not 3-time but N-time, where N depends on the specific defect-class exhaustion trajectory.
+
+### Updated Cascade Trajectory
+
+| Pass | In-Scope | Streak Before | Streak After |
+|------|----------|---------------|--------------|
+| 9 | 0 | 0/3 | 1/3 ★ |
+| 19 | 0 | 0/3 | 1/3 ★ |
+| 23 | 0 | 0/3 | 1/3 ★ |
+| 25 | 0 | 0/3 | 1/3 ★ |
+| 26 | 0 | 1/3 | 2/3 ★★ |
+| **27** | **1 MED** | **2/3** | **0/3 RESET (4TH)** |
+
+### Updated Trajectory Shorthand
+
+→pass-25:CLEAN★(0 findings; FB21 updated: field load-bearing; streak 0/3 → 1/3 first of new 3-CLEAN sequence 3rd attempt)→pass-26:CLEAN★★(0 findings; BREAKS 3-time reset pattern; streak 1/3 → 2/3 penultimate; pass-27 = potential CONVERGENCE)→pass-27:BLOCKED(0C+0H+1M+0L+0OBS; F-LP27-MED-001 5 stale error-taxonomy v1.27 pins; 11th manifestation version-pin-drift family at NEW target; streak RESET 2/3→0/3 4th time; pass-26→pass-27 reset BROKE convergence pattern)→FB22-CLOSED-COMBINED(1/1 MED)
+
+Novel-finding count: ...→0(pass-25 CLEAN)→0(pass-26 CLEAN★★)→**1(pass-27 BLOCKED; 11th manifestation; FB22 combined closed)**
+
+Streak: **0/3** — Pass-28 NEXT (first of NEW 3-CLEAN sequence, 4th attempt).
+
+STATE.md v7.321; SESSION-HANDOFF.md v7.321; prereq_e_adversary_streak 2/3→0/3 (RESET 4th time); story_index_version v2.116; arch_index_version 2.54; 140th consecutive single-commit (TD-VSDD-053 stable).
