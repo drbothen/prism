@@ -2,7 +2,7 @@
 document_type: architecture-section
 level: L3
 section: "verification-architecture"
-version: "1.34"
+version: "1.35"
 status: draft
 producer: architect
 timestamp: 2026-05-03T00:00:00
@@ -287,7 +287,7 @@ Properties are organized by the domain invariant or BC postcondition they verify
 
 ## Verification Priority
 
-**P0 (must-verify before release):** VP-001 through VP-024, VP-027, VP-028, VP-031, VP-033, VP-034, VP-036, VP-038, VP-039, VP-044, VP-045, VP-046, VP-047, VP-050, VP-051, VP-052, VP-053, VP-057, VP-058, VP-060 (Phase 1-2 baseline, 43); plus Wave 3 P0: VP-063, VP-064, VP-066, VP-067, VP-068, VP-069, VP-070, VP-071, VP-072, VP-073, VP-074, VP-075, VP-076, VP-077, VP-078, VP-079, VP-080, VP-081, VP-082, VP-083, VP-084, VP-085, VP-086, VP-087, VP-088, VP-089, VP-090, VP-091, VP-092, VP-093, VP-094, VP-095, VP-096, VP-097, VP-098, VP-099, VP-100, VP-101, VP-102, VP-103, VP-104, VP-105, VP-106, VP-107, VP-108, VP-109, VP-110, VP-111, VP-112, VP-113, VP-114, VP-115, VP-116, VP-117, VP-118, VP-119, VP-120, VP-121, VP-122, VP-123, VP-124, VP-125, VP-126, VP-127, VP-128, VP-129, VP-130, VP-131, VP-132, VP-133 (70); plus Wave 4 Phase 4.A pass-4 P0 elevation: VP-138 (1); plus ADR-023 plugin migration P0: VP-146, VP-147, VP-148, VP-149, VP-150, VP-152 (6); plus PREREQ-E ADR-026/ADR-027 P0: VP-153, VP-155 (2) — all safety-critical invariants and security properties. (**123 total P0**)
+**P0 (must-verify before release):** VP-001 through VP-024, VP-027, VP-028, VP-031, VP-033, VP-034, VP-036, VP-038, VP-039, VP-044, VP-045, VP-046, VP-047, VP-050, VP-051, VP-052, VP-053, VP-057, VP-058, VP-060 (Phase 1-2 baseline, 43); plus Wave 3 P0: VP-063, VP-064, VP-066, VP-067, VP-068, VP-069, VP-070, VP-071, VP-072, VP-073, VP-074, VP-075, VP-076, VP-077, VP-078, VP-079, VP-080, VP-081, VP-082, VP-083, VP-084, VP-085, VP-086, VP-087, VP-088, VP-089, VP-090, VP-091, VP-092, VP-093, VP-094, VP-095, VP-096, VP-097, VP-098, VP-099, VP-100, VP-101, VP-102, VP-103, VP-104, VP-105, VP-106, VP-107, VP-108, VP-109, VP-110, VP-111, VP-112, VP-113, VP-114, VP-115, VP-116, VP-117, VP-118, VP-119, VP-120, VP-121, VP-122, VP-123, VP-124, VP-125, VP-126, VP-127, VP-128, VP-129, VP-130, VP-131, VP-132, VP-133 (70); plus Wave 4 Phase 4.A pass-4 P0 elevation: VP-138 (1); plus ADR-023 plugin migration P0: VP-146, VP-147, VP-148, VP-149, VP-150, VP-152 (6); plus PREREQ-E ADR-026/ADR-027 P0: VP-153, VP-155 (2) — all safety-critical invariants and security properties. (**122 total P0**)
 
 **P1 (verify during hardening):** VP-025, VP-026, VP-029, VP-030, VP-032, VP-035, VP-037, VP-040, VP-041, VP-042, VP-043, VP-048, VP-049, VP-054, VP-055, VP-056, VP-059, VP-061, VP-062 (Phase 1-2 baseline, 19); plus Wave 3 P1: VP-065, VP-134, VP-135, VP-136 (4); plus Wave 4 Phase 1 ADR P1: VP-137 (1); plus Wave 4 ADR P1: VP-139, VP-140, VP-141, VP-142, VP-143, VP-144, VP-145 (7); plus ADR-023 plugin migration P1: VP-151 (1); plus PREREQ-E ADR-027 P1: VP-154 (1); plus PREREQ-E fix-burst-1 P1: VP-156 (1) — correctness properties that are important but not safety-critical. (**34 total P1**)
 
@@ -312,6 +312,7 @@ Proptest strategies generate complex inputs (alias graphs, detection rules, OCSF
 
 | Version | Pass | Date | Author | Notes |
 |---------|------|------|--------|-------|
+| 1.35 | prereq-e-fix-burst-25-combined-D-639 | 2026-05-16 | state-manager | F-LP32-HIGH-001 closure — §Verification Priority closing parenthetical `123 total P0` → `122 total P0` matching VP-INDEX v1.47 + VCM v1.34 Total P0 (FB24 sibling-sweep miss — same arithmetic class as F-LP31-HIGH-001 at 3rd workspace site). POL-25 multi-cite propagation closure. |
 | 1.34 | prereq-e-fix-burst-3 | 2026-05-15 | architect | F-LP3-HIGH-001 sibling-sweep: VP-156 Provable Properties Catalog row description updated from "uniqueness + happens-before" to "uniqueness only" — aligns with VP-156 v0.2 body rewrite (fix-burst-2). P1 enumeration and grand totals unchanged (156 total, 123 P0, 34 P1). |
 | 1.33 | prereq-e-fix-burst-1 | 2026-05-15 | architect | F-LP1-MED-003 resolution: VP-156 (prism-query proptest P1, WriteToolInvalidationMap registration uniqueness + happens-before, ADR-026 D7) added to Provable Properties Catalog. P1 enumeration updated: added VP-156. Grand totals: 155→156 VPs, P0 unchanged 123, P1 33→34. |
 | 1.32 | PREREQ-E-ADR-burst | 2026-05-15 | architect | PREREQ-E ADR burst: VP-153 (prism-spec-engine proptest P0, DI-012 runtime replacement / ADR-026 D3), VP-154 (prism-spec-engine integration_test P1, CustomAdapter behavioral equivalence / ADR-027 D3), VP-155 (prism-spec-engine integration_test P0, CustomAdapter public-API compile-fail perimeter / ADR-027 D3) added to Provable Properties Catalog. P0 enumeration updated: added VP-153, VP-155. P1 enumeration updated: added VP-154. Grand totals: 152→155 VPs, P0 120→123, P1 32→33. |

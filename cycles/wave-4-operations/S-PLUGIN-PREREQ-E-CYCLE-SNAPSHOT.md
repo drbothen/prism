@@ -2361,3 +2361,29 @@ Novel-finding count: ...→0(pass-29 CLEAN★)→0(pass-30 CLEAN★★)→**1(pa
 Streak: **0/3** — Pass-32 NEXT (6th attempt at 3-CLEAN).
 
 STATE.md v7.325; SESSION-HANDOFF.md v7.325; prereq_e_adversary_streak 2/3→0/3 (5th reset); vp_index_version 1.46→1.47; verification_coverage_matrix_version 1.33→1.34; 144th consecutive single-commit (TD-VSDD-053 stable).
+
+---
+
+## §D-639 PASS-32 BLOCKED+FB25-CLOSED-COMBINED (2026-05-16) — STREAK 0/3 UNCHANGED; FB24 SIBLING-SWEEP RECURSIVE MISS; VERIFICATION-ARCHITECTURE.MD SINGLE-CELL CORRECTION; 145TH SINGLE-COMMIT; STATE v7.326
+
+**Pass-32 BLOCKED — 1 HIGH F-LP32-HIGH-001. Streak 0/3 unchanged (no reset; already 0/3 from pass-31).**
+
+### F-LP32-HIGH-001 — verification-architecture.md `(**123 total P0**)` stale [CLOSED FB25]
+
+FB24 (combined burst D-638) corrected VP-INDEX line 213 (Total P0 123→122) and VCM line 52 (Total P0 123→122) but missed the third workspace sibling site: verification-architecture.md line 290 §Verification Priority closing parenthetical. Recursive meta-pattern: FB24 was itself a sibling-sweep closure for F-LP31-HIGH-001 that had its own sibling-sweep gap.
+
+**FB25 fix (single-cell mechanical, combined burst D-639):**
+- verification-architecture.md line 290: `(**123 total P0**)` → `(**122 total P0**)`
+- verification-architecture.md v1.34→v1.35 (§Changelog row added)
+
+**Workspace-wide POL-25 sweep:** Only live-narrative hit was line 290 (corrected). v1.34 changelog row referencing "123 P0" is historical-exempt. No other stale sites found.
+
+### Updated Trajectory Shorthand
+
+→pass-30:CLEAN★★(0 findings + 1 OBS; PENULTIMATE; streak 1/3 → 2/3; 5TH ATTEMPT)→pass-31:BLOCKED(0C+1H+0M+0L+1OBS; F-LP31-HIGH-001 VP-INDEX arithmetic self-consistency violation v1.32-era; streak RESET 2/3→0/3 5th time)→FB24-CLOSED-COMBINED(1/1 in-scope HIGH; 4-cell correction)→**pass-32:BLOCKED(0C+1H+0M+0L+0OBS; F-LP32-HIGH-001 FB24 sibling-sweep miss at 3rd site verification-architecture.md; RECURSIVE meta-class; streak 0/3 unchanged)**→FB25-CLOSED-COMBINED(1/1 HIGH; single-cell correction)
+
+Novel-finding count: ...→0(pass-30 CLEAN★★)→1(pass-31 BLOCKED; 1 HIGH VP-INDEX arithmetic)→**1(pass-32 BLOCKED; 1 HIGH verification-architecture.md stale — FB24 recursive sibling-sweep miss)**
+
+Streak: **0/3** — Pass-33 NEXT (6th attempt at 3-CLEAN; 7th pass-33 = first of new 3-CLEAN sequence).
+
+STATE.md v7.326; SESSION-HANDOFF.md v7.326; prereq_e_adversary_streak 0/3 unchanged; verification_architecture_version 1.34→1.35; 145th consecutive single-commit (TD-VSDD-053 stable).
