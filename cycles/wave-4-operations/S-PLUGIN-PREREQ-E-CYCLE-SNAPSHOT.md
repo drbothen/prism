@@ -3227,3 +3227,20 @@ Shorthand append: →pass-50:BLOCKED(0C+0H+2M+1L+0OBS; F-LP50-MED-001 FB39-intro
 Story v1.22 | BC-2.01.016 v1.7 | BC-2.16.011 v1.6 | BC-2.16.012 v1.16 | BC-2.16.002 v1.21 | ADR-026 v1.14 | ADR-027 v1.7 | VP-153 v0.9 | VP-154 v0.6 | VP-155 v0.5 | VP-156 v0.8 | HS-PREREQ-E-001 v1.4 | HS-PREREQ-E-002 v1.4 | HS-PREREQ-E-003 v1.6 | error-taxonomy v1.31 | ARCH-INDEX v2.58 | VP-INDEX v1.51 | STORY-INDEX v2.126 | BC-INDEX v4.96 | verification-architecture v1.41 | verification-coverage-matrix v1.38
 
 STATE.md v7.346; SESSION-HANDOFF.md v7.346; prereq_e_adversary_streak **0/3** (pass-50 BLOCKED; FB40 CLOSED; pass-51 NEXT — next 3-CLEAN attempt); 165th consecutive single-commit (TD-VSDD-053 STABLE).
+
+### §D-660 — Pass-51 CLEAN Bookkeeping
+
+| Metric | Post-D-659 | Post-D-660 |
+|--------|------------|------------|
+| Pass count | 50 | 51 |
+| Streak | 0/3 | 1/3 |
+| Last verdict | BLOCKED (FB40) | CLEAN★ (pass-51) |
+| Consecutive single-commits | 165 | 166 |
+
+Shorthand append: →pass-51:CLEAN★(0 findings; 10 rotated vectors all PASS; FB40 closures load-bearing; sibling VP §Changelog ordering verified monotonic VP-154/155/156; spec at convergence-equilibrium; novelty ZERO; streak 0/3 → **1/3** — 3rd CLEAN advance of session — passes 39, 43, 51; state-manager-only burst)
+
+### Pinned Artifact Versions (PREREQ-E 19-artifact set — post-D-660)
+
+Story v1.22 | BC-2.01.016 v1.7 | BC-2.16.011 v1.6 | BC-2.16.012 v1.16 | BC-2.16.002 v1.21 | ADR-026 v1.14 | ADR-027 v1.7 | VP-153 v0.9 | VP-154 v0.6 | VP-155 v0.5 | VP-156 v0.8 | HS-PREREQ-E-001 v1.4 | HS-PREREQ-E-002 v1.4 | HS-PREREQ-E-003 v1.6 | error-taxonomy v1.31 | ARCH-INDEX v2.58 | VP-INDEX v1.51 | STORY-INDEX v2.126 | BC-INDEX v4.96 | verification-architecture v1.41 | verification-coverage-matrix v1.38
+
+STATE.md v7.347; SESSION-HANDOFF.md v7.347; prereq_e_adversary_streak **1/3** (pass-51 CLEAN★; 3rd CLEAN advance of session — passes 39, 43, 51; pass-52 NEXT — penultimate 2/3 attempt; pass-53 = potential BC-5.39.001 CONVERGENCE); 166th consecutive single-commit (TD-VSDD-053 STABLE).

@@ -10,7 +10,7 @@ verdict: BLOCKED
 finding_count: { CRIT: 0, HIGH: 0, MED: 2, LOW: 1, OBS: 0 }
 streak_status: "0/3 stays 0/3"
 fix_burst: FB40
-fix_burst_committed: TBD
+fix_burst_committed: 504c4203
 orchestrator_adjudications:
   - "F-LP50-LOW-001 ACCEPTED — Red Gate Test 14 BC-grouping placement is editorial preference, not contract requirement; renumber risks after 50 passes outweigh marginal benefit"
 novelty: MEDIUM

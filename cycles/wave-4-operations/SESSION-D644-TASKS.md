@@ -1,6 +1,6 @@
 ---
 document_type: session-tasks
-version: "1.15"
+version: "1.16"
 status: active
 related_burst: D-644
 predecessor_state: D-652
@@ -61,7 +61,30 @@ This file persists the task list and full cascade state from the session coverin
 | 102 | **DONE** | FB39 CLOSED — 6/6 in-scope (ADR-026 v1.14; VP-153 v0.8; story v1.21; HS-001 v1.4; +3 ACs AC-3b+AC-3c+AC-11; +3 Red Gate tests 11→14; ARCH-INDEX v2.58; VP-INDEX v1.50; STORY-INDEX v2.125; verification-architecture v1.40; verification-coverage-matrix v1.37; 164th consecutive single-commit) |
 | 103 | **DONE/BLOCKED** | PREREQ-E pass-50 BLOCKED (0 HIGH + 2 MED + 1 LOW; F-LP50-MED-001 FB39-introduced phantom-anchor §Postconditions P-NN in 5 story sites; F-LP50-MED-002 VP-153 §Changelog non-monotonic 49-pass-surviving; F-LP50-LOW-001 ACCEPTED; novelty MEDIUM; streak 0/3 unchanged; FB40 dispatched) |
 | 104 | **DONE** | FB40 CLOSED — 2/2 MED in-scope (story v1.22: 5 phantom-anchor sites §Error Cases E-SPEC-NNN; VP-153 v0.9: §Changelog monotonic ascending 0.1→0.9; VP-INDEX v1.51; STORY-INDEX v2.126; verification-architecture v1.41; verification-coverage-matrix v1.38; 165th consecutive single-commit) |
-| 105 | **PENDING** | PREREQ-E pass-51 (next 3-CLEAN attempt; BC-5.39.001 requires 3 consecutive CLEAN) |
+| 105 | **DONE** | PREREQ-E pass-51 CLEAN★ — D-660; zero in-scope findings; streak 0/3 → **1/3** (3rd CLEAN advance of session — passes 39, 43, 51); 10 rotated vectors all PASS; FB40 closures verified load-bearing; sibling VP §Changelog ordering verified monotonic VP-154/155/156; novelty ZERO; state-manager-only burst; 166th consecutive single-commit |
+| 106 | **PENDING** | PREREQ-E pass-52 (penultimate 2/3 attempt; pass-53 = potential BC-5.39.001 CONVERGENCE) |
+
+## §Pass-51 CLEAN Note (D-660)
+
+**Pass-51 CLEAN — 3rd CLEAN advance of this session. Streak 0/3 → 1/3. State-manager-only burst. 166th consecutive single-commit.**
+
+### Streak Trajectory Observations (6th cascade attempt)
+
+| Pass | Verdict | Streak | Notes |
+|------|---------|--------|-------|
+| pass-39 | CLEAN ★ | 0/3 → 1/3 | 1st CLEAN advance of session |
+| pass-40 | BLOCKED | 1/3 → 0/3 | F-LP40-MED-001 (39-pass-surviving fabricated CAP-001) |
+| pass-41..42 | BLOCKED | 0/3 | F-LP41-LOW-001 + F-LP42-MED/LOW |
+| pass-43 | CLEAN ★ | 0/3 → 1/3 | 2nd CLEAN advance of session |
+| pass-44 | BLOCKED | 1/3 → 0/3 | F-LP44-MED-001/002 (fresh vectors #2+#4) |
+| pass-45..50 | BLOCKED | 0/3 | F-LP45 through F-LP50 |
+| **pass-51** | **CLEAN ★** | **0/3 → 1/3** | **3rd CLEAN advance of session** |
+
+### Next Dispatch
+
+**Pass-52 = penultimate 2/3 attempt.** Vector rotation recommended: BC INV-* coherence, E-PLUGIN-012 vs E-SPEC-012 namespace audit, AC trace pointer reachability, HS scenario steps vs AC commands, TV ↔ Red Gate naming convergence. Pass-53 = potential BC-5.39.001 CONVERGENCE.
+
+---
 
 ## §FB28 Closure Note (D-645 COMPLETE)
 
@@ -567,12 +590,12 @@ Accept current spec quality (8 CLEAN passes is unusual statistical evidence of q
 
 ## Resume Reading Order (Next Session After /Clear)
 
-1. **`.factory/STATE.md`** (v7.346) — current_step + prereq_e_adversary_streak + RESUME PROTOCOL section
-2. **`.factory/SESSION-HANDOFF.md`** (v7.346) — §POST-FB40-CLOSURE DURABLE PIN BLOCK section
+1. **`.factory/STATE.md`** (v7.347) — current_step + prereq_e_adversary_streak + RESUME PROTOCOL section
+2. **`.factory/SESSION-HANDOFF.md`** (v7.347) — §POST-PASS-51-CLEAN DURABLE PIN BLOCK section
 3. **`.factory/cycles/wave-4-operations/SESSION-D644-TASKS.md`** — this file (task list + FB40 closure + strategic options)
 4. **`.factory/cycles/wave-4-operations/S-PLUGIN-PREREQ-E-CYCLE-SNAPSHOT.md`** — full cascade history through D-659
 5. **`.factory/cycles/wave-4-operations/SESSION-D580-TASKS.md`** — prior session task list (pass-1 through pass-5 era; D-580 precedent)
-6. **`.factory/cycles/wave-4-operations/adversarial-reviews/S-PLUGIN-PREREQ-E-spec-pass-{1..50}.md`** — per-pass finding context if needed (50 files total)
+6. **`.factory/cycles/wave-4-operations/adversarial-reviews/S-PLUGIN-PREREQ-E-spec-pass-{1..51}.md`** — per-pass finding context if needed (51 files total)
 
 ## Session Continuation Behavior
 
