@@ -1932,4 +1932,56 @@ Novel-finding count: 14→9→8→9→10→10→8→4→0→3→1→1→3→1→
 
 Streak: **0/3** — Pass-22 NEXT (first of NEW 3-CLEAN sequence; passes 22/23/24 required for BC-5.39.001 convergence).
 
+---
+
+## §D-629 PASS-22 BLOCKED+FB20-CLOSED-COMBINED (2026-05-16) — F-LP22-MED-001 BC-2.01.016 MODIFIED FIELD STALE; COMBINED BURST; 135TH SINGLE-COMMIT
+
+**Pass-22 BLOCKED — 1 in-scope MED — FB20 closed in combined atomic burst D-629 — 135th consecutive single-commit (TD-VSDD-053 stable).**
+
+### F-LP22-MED-001 — BC-2.01.016 `modified:` Field Stale After FB19
+
+**Severity:** MEDIUM (single-file blast radius; POL-27 + POL-23 within-burst sibling-sweep asymmetry)
+
+FB19 (D-628) repaired BC-2.01.016 and BC-2.16.011 §Changelog monotonic-ordering violations (D-611-equivalent renumber-repair-redo). Both BCs' versions were bumped to v1.5 and v1.6 respectively with new §Changelog rows dated 2026-05-16. However:
+
+- BC-2.16.011 `modified:` correctly updated to `"2026-05-16"` in FB19
+- BC-2.01.016 `modified:` left at `"2026-05-15"` (original authoring date) — STALE
+
+POL-27 violation: `modified:` ISO date must match most recent §Changelog row date.
+POL-23 violation: within-burst sibling-sweep asymmetry — FB19 bumped both BCs' versions but only synced one BC's modified field.
+
+### Root Cause Analysis
+
+| BC | FB19 Version Bump | FB19 `modified:` Update | Post-FB19 State |
+|----|-----------------|------------------------|-----------------|
+| BC-2.16.011 | v1.4→v1.6 ✓ | Updated to 2026-05-16 ✓ | CORRECT |
+| BC-2.01.016 | v1.3→v1.5 ✓ | NOT updated (stayed at 2026-05-15) ✗ | STALE |
+
+The asymmetry is identical in class to the POL-23 within-burst sibling-sweep asymmetry pattern that appeared throughout this cascade (multiple manifestations at BC-2.16.002 citation family). Here it manifests at the `modified:` field synchronization axis.
+
+### Combined-Burst Rationale (D-629)
+
+Single-line fix (one frontmatter field in one file). Bundling pass persistence + fix application + BC-INDEX bump in ONE atomic commit per TD-VSDD-053 is the correct pattern for this fix complexity class — one logical unit ("close pass-22 cycle"). More efficient than separate bursts; no specialist dispatch required.
+
+### Fix Summary
+
+| Action | Target | Change |
+|--------|--------|--------|
+| Single-line fix | BC-2.01.016 line 14 | `modified: "2026-05-15"` → `modified: "2026-05-16"` |
+| BC-INDEX bump | BC-INDEX §Changelog | v4.92 → v4.93: POL-27 follow-up sync documented |
+| STATE.md update | Frontmatter + body | v7.315→v7.316; D-629 decision row; trajectory append |
+| SESSION-HANDOFF.md | Frontmatter + §PASS-22 section | v7.315→v7.316; Phase 1d Cascade Status table updated |
+| SESSION-D580-TASKS.md | Task #62 + new #63 + #64 | Task #62 PENDING→DONE-BLOCKED-COMBINED; Task #64 added |
+| Pass-22 report | cycles/wave-4-operations/adversarial-reviews/ | S-PLUGIN-PREREQ-E-spec-pass-22.md created |
+
+### Updated Trajectory Shorthand
+
+**→pass-21:BLOCKED(0C+1H+0M+0L+0OBS; F-LP21-HIGH-001 D-611 sibling-sweep gap BC-2.01.016+BC-2.16.011 duplicate v1.2; streak 0/3 unchanged)→FIX-BURST-19-CLOSED(1/1 in-scope HIGH; D-611-equivalent renumber-repair-redo applied to BC-2.01.016 + BC-2.16.011 sibling BCs)→pass-22:BLOCKED(0C+0H+1M+0L+0OBS; FB19-introduced modified-field sibling-sweep asymmetry at BC-2.01.016; streak 0/3 unchanged)→FB20-CLOSED-COMBINED(1/1 in-scope MED; D-629 combined burst; single-line fix)**
+
+Novel-finding count: 14→9→8→9→10→10→8→4→0→3→1→1→3→1→3→1→1→1→1→0→2→1→0(FB19)→**1(pass-22; closed combined D-629)** → pass-23 NEXT.
+
+Streak: **0/3** — Pass-23 NEXT (first of NEW 3-CLEAN sequence; passes 23/24/25 required for BC-5.39.001 convergence).
+
+STATE.md v7.316; SESSION-HANDOFF.md v7.316; BC-INDEX v4.93; STORY-INDEX v2.115 (unchanged); ARCH-INDEX v2.53 (unchanged); VP-INDEX v1.46 (unchanged); error-taxonomy v1.30 (unchanged); 135th consecutive single-commit (TD-VSDD-053 stable).
+
 STATE.md v7.315; SESSION-HANDOFF.md v7.315; BC-INDEX v4.92 (BC-2.01.016 row v1.3→v1.5 + BC-2.16.011 row v1.4→v1.6); STORY-INDEX v2.115 (unchanged); ARCH-INDEX v2.53 (unchanged); VP-INDEX v1.46 (unchanged); error-taxonomy v1.30 (unchanged); 134th consecutive single-commit (TD-VSDD-053 stable).

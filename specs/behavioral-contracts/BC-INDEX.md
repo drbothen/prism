@@ -1,7 +1,7 @@
 ---
 document_type: behavioral-contract-index
 level: L3
-version: "4.92"
+version: "4.93"
 status: draft
 producer: product-owner
 timestamp: 2026-05-16T12:00:00Z
@@ -368,6 +368,8 @@ Phase 3-patch additions (2026-04-16): 22 new BCs added in Burst 1 to close trace
 - Subsystem 19: Infusion Enrichment Framework (AD-020, CAP-031)
 
 ### Change Log (Adversarial Review Fixes)
+
+**v4.93 (2026-05-16):** state-manager | D-629 PREREQ-E pass-22+FB20 closure (F-LP22-MED-001): BC-2.01.016 `modified:` field follow-up sync 2026-05-15 → 2026-05-16 (POL-27 cross-check with v1.5 §Changelog row); FB19 within-burst sibling-sweep asymmetry at `modified:` field closed (BC-2.16.011 was correctly synced FB19; BC-2.01.016 was missed; now both consistent).
 
 **v4.92 (2026-05-16):** state-manager | D-628 PREREQ-E fix-burst-19 closure (F-LP21-HIGH-001): BC-2.01.016 row v1.3→v1.5 + BC-2.16.011 row v1.4→v1.6 (D-611-equivalent renumber-repair-redo applied to 2 sibling BCs missed in FB14 D-611 BC-2.16.012 closure; POL-26 monotonic-ordering violations pre-existing FB1 now resolved across all 3 PREREQ-E NEW BCs).
 

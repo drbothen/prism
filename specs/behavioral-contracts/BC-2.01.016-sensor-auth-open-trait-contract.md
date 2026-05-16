@@ -11,7 +11,7 @@ subsystem: "SS-01"
 capability: "CAP-001"
 lifecycle_status: draft
 introduced: "2026-05-15"
-modified: "2026-05-15"
+modified: "2026-05-16"
 deprecated: ~
 deprecated_by: ~
 replacement: ~
