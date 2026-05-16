@@ -2454,3 +2454,38 @@ Novel-finding count: ...→1(pass-32 BLOCKED verification-architecture.md stale)
 Streak: **0/3** — Pass-35 NEXT (8th attempt at 3-CLEAN; pass-34 = first of new 3-CLEAN sequence).
 
 STATE.md v7.328; SESSION-HANDOFF.md v7.328; prereq_e_adversary_streak 0/3 unchanged; verification_architecture_version 1.36→1.37; 147th consecutive single-commit (TD-VSDD-053 stable).
+
+---
+
+## §D-642 PASS-35 CLEAN★ (2026-05-16) — 8TH CLEAN PASS OF CASCADE; STREAK 0/3 → 1/3; FIRST OF NEW 3-CLEAN SEQUENCE (8TH ATTEMPT); FB27 P33 SUB-NODE VERIFIED LOAD-BEARING; ARITHMETIC COHERENCE VERIFIED; 148TH SINGLE-COMMIT; STATE v7.329
+
+**Pass-35 CLEAN — 0 findings. Streak ADVANCES 0/3 → 1/3 (8th attempt at 3-CLEAN sequence).**
+
+**148th consecutive single-commit (TD-VSDD-053 stable).**
+
+### FB27 Verification — ALL PASS
+
+Pass-35 adversary probed all fix components of FB27 (combined burst D-641, P33 proptest sub-node addition):
+
+| Target | Result |
+|---|---|
+| P33 sub-node exists in TIER2 Mermaid | PASS |
+| VP-153 + VP-156 correctly classified (proptest) | PASS |
+| P33 monotonic placement after P32 | PASS |
+| v1.37 §Changelog row monotonic + schema-clean | PASS |
+| No new within-FB sibling-sweep gaps introduced | PASS |
+| Arithmetic cross-document coherence (122 P0 + 34 P1 = 156) | PASS |
+
+### Comprehensive POL Audit — ALL PASS
+
+27-policy audit across all 19 in-scope artifacts: zero violations.
+
+### Updated Trajectory Shorthand
+
+→pass-33:BLOCKED(0C+1H+0M+0L+2OBS; F-LP33-HIGH-001 Mermaid block 3-site arithmetic + I3 enumeration; 6th within-FB sibling-sweep asymmetry recurrence; streak 0/3 unchanged)→FB26-CLOSED-COMBINED(1/1 HIGH; 3-site arithmetic + I4 enumeration)→pass-34:BLOCKED(0C+1H+0M+0L+4OBS; F-LP34-HIGH-001 TIER2 sub-node missing VP-153+VP-156; 7th within-FB sibling-sweep asymmetry recurrence; streak 0/3 unchanged)→FB27-CLOSED-COMBINED(1/1 HIGH; P33 proptest sub-node)→**pass-35:CLEAN★(0 findings; FB27 P33 sub-node load-bearing; arithmetic coherence verified; streak 0/3 → **1/3** 8th attempt)**
+
+Novel-finding count: ...→1(pass-33 BLOCKED Mermaid block stale)→1(pass-34 BLOCKED TIER2 sub-node missing)→**0(pass-35 CLEAN — 8TH CLEAN PASS)**
+
+Streak: **1/3** — Pass-36 NEXT (8th attempt at 3-CLEAN; pass-36 CLEAN = 2/3 penultimate; pass-37 CLEAN = CONVERGENCE).
+
+STATE.md v7.329; SESSION-HANDOFF.md v7.329; prereq_e_adversary_streak 0/3→1/3; 148th consecutive single-commit (TD-VSDD-053 stable).
