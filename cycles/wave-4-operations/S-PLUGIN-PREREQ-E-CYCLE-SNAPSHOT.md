@@ -1262,4 +1262,52 @@ Pattern conclusion: making the discipline explicit in dispatch instructions reli
 
 Streak: **0/3** — pass-15 NEXT (critical test whether FB13 explicit sibling-sweep + single-bump discipline broke the 5th-recurrence pattern).
 
+---
+
+## §D-609 PASS-15 BLOCKED (D-609 — 2026-05-16) — 6TH OCCURRENCE POL-23 RECURRING CLASS; POL-29 CODIFICATION STRONGLY WARRANTED
+
+**Burst D-609 — PREREQ-E ADVERSARY PASS-15 BLOCKED — 3 in-scope findings (2H+1M) — 115th consecutive single-commit (TD-VSDD-053 DECISIVELY STABLE)**
+
+Pass-15 fresh-context adversary confirmed FB13 correct within its scope and surfaced 3 new findings across 2 distinct defect axes, neither of which was FB13's assigned scope.
+
+### 6TH Occurrence Pattern Observation
+
+The POL-23 within-FB sibling-sweep asymmetry class has now occurred 6 times across the PREREQ-E cascade. This occurrence differs from the prior 5 in that the asymmetry is at the **internal label sync axis** rather than the version-pin propagation axis:
+
+- FB12 bumped BC-2.16.002 frontmatter `version: "1.18"` → `"1.19"` to sync the `modified:` timestamp
+- FB12 did NOT update the §Postconditions internal bullet label `**Canonical Structured Event Catalog (v1.18)**` → `(v1.19)`
+- Downstream documents (BC-2.16.012 ×3, error-taxonomy ×1) all cite the `(v1.19)` form established by FB11 — making those cites phantom after FB12's label-freeze
+
+This is structurally identical to the v-pin propagation pattern (miss the downstream consumers), just at a different citation surface. The evidence base is now DECISIVE: every frontmatter version bump without explicit internal-label sync produces a phantom-anchor class defect.
+
+### Finding Summary
+
+| ID | Severity | Type | Routing |
+|---|---|---|---|
+| F-LP15-HIGH-001 | HIGH | POL-23 (6th) + POL-21 phantom-anchor | product-owner (BC-2.16.002 + BC-2.16.012) |
+| F-LP15-HIGH-002 | HIGH | POL-4 semantic mis-anchor + POL-21 | product-owner (error-taxonomy.md) |
+| F-LP15-MED-001 | MEDIUM | POL-26 monotonic ordering (pre-existing FB1) | state-manager (BC-2.16.012 §Changelog renumber) |
+
+### FB14 Routing Plan
+
+- **PO burst:** F-LP15-HIGH-001 (BC-2.16.002 line 74 bullet label `(v1.18)` → `(v1.19)`; adjudicate v1.19→v1.20 bump; sweep BC-2.16.012 + error-taxonomy for remaining phantom `(v1.18)` cites) + F-LP15-HIGH-002 (error-taxonomy line 467: `BC-2.16.012 §Postconditions` → `BC-2.16.002 §Postconditions`; error-taxonomy v1.27→v1.28)
+- **State-manager burst:** F-LP15-MED-001 (BC-2.16.012 §Changelog renumber-repair: v1.2 state-manager catch row → v1.3; shift v1.3→v1.12 monotonic) + closure bookkeeping
+
+### Updated Trajectory Shorthand (Post-Pass-15)
+
+**14→9→8→9→10→10→FB6-CLOSED(10/10)→8→FB7-CLOSED(8/8)→4→FB8-CLOSED(3/3)→pass-9:CLEAN★(1/3)→pass-10:BLOCKED(1H+1M+1L; RESET 0/3; 3-CLEAN PROTOCOL VALIDATED)→FIX-BURST-9-CLOSED(3/3)→pass-11:BLOCKED(1M; RECURRING VP traceability; 0/3)→FIX-BURST-10-CLOSED(1/1)→pass-12:BLOCKED(1M; HIGH-NOVELTY tracing-emission ↔ catalog axis; 0/3)→FIX-BURST-11-CLOSED(1/1 in-scope; BC-2.16.002 catalog row+cross-ref+event-name; BUT 3 defects introduced by FB11)→pass-13:BLOCKED(0C+3H+0M+0L+0OBS; ALL FB11-introduced; POL-21 RECURRING + POL-23/27 frontmatter drift + plugin_name unresolvable; FB-introduces-new-defects PATTERN; POL-29 codification candidate; streak 0/3 unchanged)→FIX-BURST-12-CLOSED(3/3 in-scope HIGH; POL-21 swept + frontmatter synced + plugin_name resolved via Option A)→pass-14:BLOCKED(0C+1H+0M+0L+3OBS; F-LP14-HIGH-001 ADR-026 v1.9→v1.10 sibling-sweep miss; 5th RECURRENCE; streak 0/3 unchanged)→FIX-BURST-13-CLOSED(1/1 in-scope; 5 sites swept; single-bump discipline applied; 5th RECURRENCE class closure)→pass-15:BLOCKED(0C+2H+1M+0L+3OBS; 6TH OCCURRENCE POL-23 RECURRING class — BC-2.16.002 bullet-label v1.18 stale vs v1.19 frontmatter + error-taxonomy mis-routed anchor + BC-2.16.012 duplicate v1.2 changelog rows pre-existing FB1; streak 0/3 unchanged)**
+
+Streak: **0/3** — FB14 NEXT.
+
+STATE.md v7.303; SESSION-HANDOFF.md v7.303; 115th consecutive single-commit (TD-VSDD-053 DECISIVELY STABLE).
+
+### POL-29 Codification: STRONGLY WARRANTED
+
+6-occurrence evidence base is COMPLETE and DECISIVE. Every frontmatter version bump that does NOT explicitly enumerate ALL sync targets (version pins in downstream consumers AND internal §-label headings in the source artifact) produces a phantom-anchor defect on the next fresh-context adversary pass.
+
+POL-29 proposed text (cycle-close):
+> **Before closing any fix-burst that bumps a versioned source artifact (ADR, BC, VP), dispatch instructions MUST explicitly enumerate:** (a) all downstream VP + BC + error-taxonomy live-narrative pins to update; (b) all internal §-label headings within the source artifact that cite the old version; (c) single-bump-per-source-artifact constraint (do not re-bump the source in the same burst unless its content changed). All enumerated targets must be updated in ONE atomic commit.
+
+Priority: HIGHEST for cycle-close governance action.
+
 STATE.md v7.302; SESSION-HANDOFF.md v7.302; BC-INDEX v4.89; VP-INDEX v1.46; 114th consecutive single-commit (TD-VSDD-053 DECISIVELY STABLE).
