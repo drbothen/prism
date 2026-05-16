@@ -1,7 +1,7 @@
 ---
 document_type: architecture-index
 level: L3
-version: "2.57"
+version: "2.58"
 status: draft
 producer: architect
 timestamp: 2026-05-04T00:00:00
@@ -32,7 +32,7 @@ deployment_topology: single-service  # planned — no service binary exists yet 
 | Operational Pipeline | operational-pipeline.md | ~1,000 | implementer, test-writer | Scheduler, differential results, detection, alerts, cases — v1.2 (D-209 8/8 + 60s tick + ActionDeliveryEngine per F-P23-H-001) |
 | Concurrency Architecture | concurrency-architecture.md | ~800 | implementer, formal-verifier | Tokio runtime, arc-swap, shared state protection — v1.1 (Mermaid diagram + 6 edits; 16-permit→8/8 split per D-209) |
 | Purity Boundary Map | purity-boundary-map.md | ~800 | implementer, formal-verifier | Pure core / effectful shell classification per crate |
-| Verification Architecture | verification-architecture.md | ~1,000 | formal-verifier, architect | Provable Properties Catalog, proof strategy — v1.31 (D-572 OBS-LP35-001: VP-152 table row Option-semantics → Vec<String> canonical per BC-2.17.002 v1.8 AC-7) |
+| Verification Architecture | verification-architecture.md | ~1,000 | formal-verifier, architect | Provable Properties Catalog, proof strategy — v1.40 (FB39 D-658 POL-9 propagation: VP-153 v0.7→v0.8 cascade) |
 | Tooling Selection | tooling-selection.md | ~400 | formal-verifier, devops-engineer | Kani, proptest, fuzz tool versions and config |
 | Detection Rule Format | detection-rule-format.md | ~1,200 | implementer, test-writer | .detect rule structure, condition modes, rule-to-SQL compilation |
 | Infusions | infusions.md | ~1,500 | implementer, test-writer | Enrichment framework — GeoIP, threat intel, asset inventory, CVSS. TOML specs + .prx plugins. |
@@ -91,7 +91,7 @@ deployment_topology: single-service  # planned — no service binary exists yet 
 | ADR-023 | Plugin-Only Sensor Architecture — TOML Specs as Declarative Baseline, .prx WASM for Non-Declarative Cases, Retired CustomAdapter Rust Trait | COMMITTED v1.19 | 2026-05-15 | decisions/ADR-023-plugin-only-sensor-architecture.md |
 | ADR-024 | ColumnType Canonical Naming — Domain-Level Variant Names for Sensor Schema API; prism-spec-engine Shadow Enum Retirement | ACCEPTED v1.0 | 2026-05-12 | decisions/ADR-024-column-type-canonical-naming.md |
 | ADR-025 | BC Lifecycle Field Canonical Scheme — Single status Field Governs; lifecycle Field Retired | ACCEPTED v1.0 | 2026-05-12 | decisions/ADR-025-bc-lifecycle-field-canonical-scheme.md |
-| ADR-026 | SensorAuth Trait Un-Sealing — Remove private::Sealed, Enable Plugin Auth Implementations | PROPOSED v1.13 | 2026-05-16 | decisions/ADR-026-sensorauth-unsealing.md |
+| ADR-026 | SensorAuth Trait Un-Sealing — Remove private::Sealed, Enable Plugin Auth Implementations | PROPOSED v1.14 | 2026-05-16 | decisions/ADR-026-sensorauth-unsealing.md |
 | ADR-027 | CustomAdapter Rust Trait Deprecation and Wave 1/A Removal | PROPOSED v1.7 | 2026-05-16 | decisions/ADR-027-custom-adapter-deprecation-removal.md |
 
 ## Architecture Decisions
@@ -152,6 +152,7 @@ deployment_topology: single-service  # planned — no service binary exists yet 
 
 | Version | Pass | Date | Author | Change |
 |---------|------|------|--------|--------|
+| 2.58 | FB39-D-658 | 2026-05-16 | state-manager | FB39 D-658: ADR-026 row bumped v1.13→v1.14 (F-LP49-HIGH-001 5-site error-taxonomy v1.30→v1.31 cascade gap — 13th+ POL-23 recurrence; ADR-026 line 309 stale cite closed by architect). ARCH-INDEX v2.57→v2.58. |
 | 2.57 | FB38-D-657 | 2026-05-16 | state-manager | FB38 D-657: ADR-026 row bumped v1.12→v1.13 (F-LP48-HIGH-001 line 300 BC-2.16.002 v1.20 cite advanced to v1.21 per FB37 D-656 cascade; 12th+ POL-23 recurrence — ADR-026 was missed by FB37 architect-adjudication sibling-sweep scope). ARCH-INDEX v2.56→v2.57. |
 | 2.56 | FB33-D-651 | 2026-05-16 | state-manager | FB33 D-651: ADR-027 row bumped v1.6→v1.7 (F-LP42-MED-001 §D3 internal crate-naming contradiction resolved; F-LP42-LOW-001 line 118 TD-VSDD-091 volatile-line-pin closed per FB32 Option A precedent). ARCH-INDEX v2.55→v2.56. |
 | 2.55 | prereq-e-fix-burst-23-combined-D-635 | 2026-05-16 | state-manager | D-635 PREREQ-E fix-burst-23 closure (F-LP28-MED-001): ADR-026 row v1.11→v1.12 (state-manager §Changelog row swap restoring ascending-monotonic convention; FB22 v1.11 inserted above pre-existing v1.10 — corrected; 12th manifestation POL-26 monotonic-ordering family closure). ARCH-INDEX v2.54→v2.55. |

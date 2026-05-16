@@ -4,7 +4,7 @@ adr_id: "ADR-026"
 title: "SensorAuth Trait Un-Sealing — Remove private::Sealed, Enable Plugin Auth Implementations"
 status: Proposed
 date: "2026-05-16"
-version: "1.13"
+version: "1.14"
 producer: architect
 subsystems_affected: [SS-01, SS-07, SS-16, SS-17]
 supersedes: null
@@ -306,7 +306,7 @@ source provenance:
   using the plugin manifest `name` field value). This is the canonical structured identifier
   for the offending plugin in the forensic-trace audit record. The same value also populates
   the `{plugin}` placeholder in the E-PLUGIN-012 `DuplicateWriteToolRegistration` error message
-  template and the `{conflicting_plugin}` companion placeholder (error-taxonomy v1.30) — both
+  template and the `{conflicting_plugin}` companion placeholder (error-taxonomy v1.31) — both
   share the same manifest `name` field as their source via the `WriteToolInvalidationMap` entry.
 - `tool_name` — `entry.tool_name` (`WriteToolInvalidationMap` struct field; the write-tool
   capability name declared in the plugin manifest, as registered during step 7.5 plugin-load).
@@ -466,3 +466,4 @@ modes and security implications. The open trait approach reuses the existing typ
 | 1.11 | 2026-05-16 | state-manager | fix-burst-22-combined-D-634: F-LP27-MED-001 — 11th manifestation version-pin-drift family at NEW target (error-taxonomy.md itself): D7 narrative `{conflicting_plugin}` companion placeholder pin swept `error-taxonomy v1.27` → `error-taxonomy v1.30` (line 309). 4-bump window (v1.27→v1.28→v1.29→v1.30) where this site was not swept. Pass-27 BLOCKED 1 MED; combined-burst D-634. |
 | 1.12 | 2026-05-16 | state-manager | prereq-e-fix-burst-23: F-LP28-MED-001 closure — POL-26 monotonic-ordering: §Changelog rows v1.10 and v1.11 swapped to restore ascending-monotonic convention (FB22 D-634 inserted v1.11 above pre-existing v1.10 row at file tail; corrected this burst). 12th manifestation of POL-26 monotonic-ordering defect family closure. |
 | 1.13 | 2026-05-16 | architect | FB38: F-LP48-HIGH-001 POL-23 cascade-propagation gap closed — line 300 BC-2.16.002 v1.20 cite advanced to v1.21 per FB37 D-656 v1.20→v1.21 cascade. 12th+ POL-23 recurrence; ADR-026 was missed by FB37 architect-adjudication sibling-sweep scope declaration. Reinforces POL-29 candidate (within-FB-burst directive must invoke POL-25 workspace-wide grep). |
+| 1.14 | 2026-05-16 | architect | FB39: F-LP49-HIGH-001 site 1 closure — line 309 (error-taxonomy v1.30) cite advanced to v1.31 per FB38 D-657 cascade. 13th+ POL-23 recurrence — META-PATTERN repeats from F-LP48-HIGH-001. |

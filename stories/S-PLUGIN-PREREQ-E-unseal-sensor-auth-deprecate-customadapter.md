@@ -23,7 +23,7 @@ crates_touched: [prism-sensors, prism-spec-engine, prism-query]
 target_module: prism-sensors
 subsystems: [SS-01, SS-07, SS-16, SS-17]
 capabilities: [CAP-001, CAP-029]
-version: "1.20"
+version: "1.21"
 updated: "2026-05-16"
 level: "L4"
 producer: product-owner
@@ -68,8 +68,8 @@ risk_mitigations:
   - "AC-4..6: CustomAdapter deletion confirmed safe by PLUGIN-AUDIT-001: three call sites are isolated to lib.rs re-export + one example + one test file"
   - "AC-7..8: spec_parser.rs migration verified by behavioral-equivalence integration test (TV-BC-2.16.012-003)"
   - "AC-9: TD-S-PLUGIN-PREREQ-A-003 closure via RwLock<Vec<WriteToolInvalidationMap>> — write lock held only during registration; read-side is zero-copy"
-acceptance_criteria_count: 10
-red_gate_tests: 11
+acceptance_criteria_count: 13
+red_gate_tests: 14
 estimated_passes: "4-6 LOCAL adversary passes"
 td_resolves:
   - TD-S-PLUGIN-PREREQ-A-003  # WriteToolInvalidationMap runtime extensibility (PREREQ-E scope)
@@ -228,8 +228,16 @@ The four concrete auth implementations (`CrowdStrikeAuth`, `CyberintAuth`, `Clar
 (traces to BC-2.01.016 postcondition — four built-in auth impls require only one new method body each (auth_type_name); INV-AUTH-OPEN-002)
 
 **AC-3 (Runtime Auth-Composition Rejection Active):**
-A unit test confirms that a `SensorSpec` with `auth_type = ["oauth2_client_credentials", "bearer_static"]` is rejected at spec-load with `E-SPEC-012`. This verifies that the sealed-trait removal does NOT weaken the threat model — rejection moves from compile time to runtime. Note: E-SPEC-012 (not E-SPEC-010; E-SPEC-010 is reserved for variable interpolation field-path misses per error-taxonomy v1.30).
-(traces to BC-2.01.016 invariant INV-AUTH-OPEN-003; ADR-023 Rule 2, Rule A; error-taxonomy v1.30)
+A unit test confirms that a `SensorSpec` with `auth_type = ["oauth2_client_credentials", "bearer_static"]` is rejected at spec-load with `E-SPEC-012`. This verifies that the sealed-trait removal does NOT weaken the threat model — rejection moves from compile time to runtime. Note: E-SPEC-012 (not E-SPEC-010; E-SPEC-010 is reserved for variable interpolation field-path misses per error-taxonomy v1.31).
+(traces to BC-2.01.016 invariant INV-AUTH-OPEN-003; ADR-023 Rule 2, Rule A; error-taxonomy v1.31)
+
+**AC-3b (Runtime Auth-Composition Rejection — Multiple credential_refs Rejected, E-SPEC-013):**
+A unit test confirms that a `SensorSpec` with multiple `credential_refs` per auth method (e.g., `[[sensor.credential_refs]]` declared twice for the same auth method) is rejected at spec-load with `E-SPEC-013`. Test name: `test_BC_2_01_016_e_spec_013_multiple_credential_refs_rejected`.
+(traces to BC-2.01.016 §Postconditions P4 Rule 2/B; ADR-023 Rule 2; error-taxonomy v1.31)
+
+**AC-3c (Runtime Auth-Composition Rejection — Credential Type Mismatch Rejected, E-SPEC-014):**
+A unit test confirms that a `SensorSpec` with structural mismatch between `auth_type` and resolved credential type (e.g., `auth_type = "oauth2_client_credentials"` paired with an API-key-shaped credential) is rejected with `E-SPEC-014`. Test name: `test_BC_2_01_016_e_spec_014_credential_type_mismatch_rejected`.
+(traces to BC-2.01.016 §Postconditions P4 Rule 2/C; ADR-023 Rule 2; error-taxonomy v1.31)
 
 **AC-4 (custom_adapter.rs Deleted):**
 `crates/prism-spec-engine/src/custom_adapter.rs` does not exist after merge. `grep -rn "CustomAdapter\|CustomAdapterRegistry\|CustomAuth" crates/prism-spec-engine/src/` returns ZERO matches.
@@ -260,12 +268,16 @@ Four integration tests (`test_BC_2_16_012_002_spec_parser_behavioral_equivalence
 (traces to BC-2.16.012 invariant INV-SPEC-PARSER-OPEN-002 + INV-SPEC-PARSER-OPEN-003)
 
 **AC-9 (WriteToolInvalidationMap Runtime Extensibility — TD-S-PLUGIN-PREREQ-A-003 Closed):**
-`crates/prism-query/src/invalidation.rs` `WriteToolInvalidationMap` container is `RwLock<Vec<WriteToolInvalidationMap>>` (or equivalent). The `WriteToolInvalidationMap` struct includes a `plugin_name: String` field sourced from the plugin manifest `name` field (set by PluginRuntime per ADR-026 D7 v1.10); this field is the source for the `plugin_name` structured event field in the `write_tool_registration_after_boot` WARN tracing event (BC-2.16.002 §Postconditions (Canonical Structured Event Catalog bullet, v1.21) row 33). A `pub fn register_write_tool(entry: WriteToolInvalidationMap) -> Result<(), SpecEngineError>` API exists and is callable after startup. A unit test (`test_BC_2_16_012_003_write_tool_invalidation_runtime_register`) registers a custom write tool entry and asserts `.is_ok()` on the happy path and that the entry is present in the map on the next read-guard acquisition. A second test invocation with the same `tool_name` asserts `.is_err()` (E-PLUGIN-012). A third test simulates post-boot registration and asserts `.is_err()` (E-PLUGIN-020).
+`crates/prism-query/src/invalidation.rs` `WriteToolInvalidationMap` container is `RwLock<Vec<WriteToolInvalidationMap>>` (or equivalent). The `WriteToolInvalidationMap` struct includes a `plugin_name: String` field sourced from the plugin manifest `name` field (set by PluginRuntime per ADR-026 D7 v1.10); this field is the source for the `plugin_name` structured event field in the `write_tool_registration_after_boot` WARN tracing event (BC-2.16.002 §Postconditions (Canonical Structured Event Catalog bullet, v1.21) row 33). A `pub fn register_write_tool(entry: WriteToolInvalidationMap) -> Result<(), SpecEngineError>` API exists and is callable after startup. A unit test (`test_BC_2_16_012_003_write_tool_invalidation_runtime_register`) registers a custom write tool entry and asserts `.is_ok()` on the happy path and that the entry is present in the map on the next read-guard acquisition. A second test invocation with the same `tool_name` asserts `.is_err()` (E-PLUGIN-012). A third test simulates post-boot registration and asserts `.is_err()` (E-PLUGIN-020). Additionally, the third test captures the WARN tracing event emission (via `tracing-test` or equivalent fixture) and asserts the event carries exactly the following fields: `event_type = "write_tool_registration_after_boot"`, `plugin_name = <plugin>`, `tool_name = <tool>`, `error = "E-PLUGIN-020"` per BC-2.16.002 §Postconditions (Canonical Structured Event Catalog bullet, v1.21) row 33.
 (traces to BC-2.16.012 postcondition — TD-S-PLUGIN-PREREQ-A-003 WriteToolInvalidationMap; INV-INVALIDATION-EXT-001; EC-016-012-004; EC-016-012-005)
 
 **AC-10 (Full Build and Pre-Push Gate):**
 `cargo build --workspace --all-features` exits 0. `just check` (fmt + clippy + nextest + doctests + crate-layout) exits 0 with zero warnings. The PR contains exactly ONE squash-merge commit on `develop`.
 (production-grade default — CLAUDE.md Canonical Principle Rule 1)
+
+**AC-11 (E-SPEC-008 Retirement Annotation Verified in error-taxonomy.md):**
+The `E-SPEC-008` row in `error-taxonomy.md` carries a `retired:` annotation (or equivalent in-row retirement notation) referencing PREREQ-E and ADR-027. The description text reads: "Retired in S-PLUGIN-PREREQ-E. No live code path triggers this code post-CustomAdapter removal. Plugin execution panics surface via E-PLUGIN-001." A test confirms no production `src/` path constructs or returns `E-SPEC-008`. Test name: `test_BC_2_16_011_e_spec_008_retired_annotation`.
+(traces to BC-2.16.011 §Postconditions P7; Task 9; ADR-027)
 
 ---
 
@@ -282,25 +294,31 @@ Tests are grouped by BC for readability (F-LP2-MED-004 correction).
 
 3. **`test_BC_2_01_016_003_four_auth_impls_minimal_diff_post_unsealing`** (prism-sensors) — constructs all four concrete auth types, calls their `SensorAuth` methods, and asserts each impl has exactly one new method body (`auth_type_name`) plus zero other changes vs pre-unsealing baseline; fails RED until `SensorAuth` is unsealed and each impl adds the `auth_type_name` body (because the sealed bound currently blocks external test construction, and the new method does not yet exist).
 
+4. **`test_BC_2_01_016_e_spec_013_multiple_credential_refs_rejected`** (prism-spec-engine) — constructs a `SensorSpec` with `[[sensor.credential_refs]]` declared twice for the same auth method and attempts to load it via `SensorSpec::load`. Asserts `result.is_err() && err.code() == "E-SPEC-013"`. Pre-implementation: fails RED because no Rule 2/B enforcement exists. Post-implementation: assertion passes (validator returns E-SPEC-013 per BC-2.01.016 §Postconditions P4 Rule 2/B; ADR-023 Rule 2, Rule B; error-taxonomy v1.31).
+
+5. **`test_BC_2_01_016_e_spec_014_credential_type_mismatch_rejected`** (prism-spec-engine) — constructs a `SensorSpec` with `auth_type = "oauth2_client_credentials"` paired with an API-key-shaped credential and attempts to load it via `SensorSpec::load`. Asserts `result.is_err() && err.code() == "E-SPEC-014"`. Pre-implementation: fails RED because no Rule 2/C structural-mismatch check exists. Post-implementation: assertion passes (validator returns E-SPEC-014 per BC-2.01.016 §Postconditions P4 Rule 2/C; ADR-023 Rule 2, Rule C; error-taxonomy v1.31).
+
 **BC-2.16.011 (CustomAdapter Rust Trait Retirement):**
 
-4. **`test_BC_2_16_011_001_custom_adapter_absent_post_deletion`** (prism-spec-engine) — attempts to import `prism_spec_engine::CustomAdapter`; fails RED at compile time because the type exists pre-migration. This is a compile-fail test in the style of `tests/external/perimeter-violation/`.
+6. **`test_BC_2_16_011_001_custom_adapter_absent_post_deletion`** (prism-spec-engine) — attempts to import `prism_spec_engine::CustomAdapter`; fails RED at compile time because the type exists pre-migration. This is a compile-fail test in the style of `tests/external/perimeter-violation/`.
 
-5. **`test_BC_2_16_011_002_e_spec_008_not_triggered_by_live_code`** (prism-spec-engine) — searches the workspace `src/` tree for any match arm or handler that constructs `E-SPEC-008`; fails RED if any live code path still produces that error code (all live paths must be absent post-deletion; the error taxonomy entry remains but is retired).
+7. **`test_BC_2_16_011_002_e_spec_008_not_triggered_by_live_code`** (prism-spec-engine) — searches the workspace `src/` tree for any match arm or handler that constructs `E-SPEC-008`; fails RED if any live code path still produces that error code (all live paths must be absent post-deletion; the error taxonomy entry remains but is retired).
 
 **BC-2.16.012 (PluginRegistry Dispatch Migration):**
 
-6. **`test_BC_2_16_012_001_spec_parser_no_hardcoded_sensor_dispatch`** (prism-spec-engine) — calls the `SpecParser` with a novel `SensorSpec` TOML for `"hypothetical_sensor"` and asserts it parses without error; fails RED if `spec_parser.rs` still has a hardcoded match arm that rejects unknown sensors.
+8. **`test_BC_2_16_012_001_spec_parser_no_hardcoded_sensor_dispatch`** (prism-spec-engine) — calls the `SpecParser` with a novel `SensorSpec` TOML for `"hypothetical_sensor"` and asserts it parses without error; fails RED if `spec_parser.rs` still has a hardcoded match arm that rejects unknown sensors.
 
-7. **`test_BC_2_16_012_002_spec_parser_behavioral_equivalence_crowdstrike`** (prism-spec-engine) — parses `crowdstrike.sensor.toml` and compares against a snapshot; fails RED initially because the snapshot must be captured post-migration (the test infrastructure is set up in the Red Gate phase; snapshot is populated during implementation).
+9. **`test_BC_2_16_012_002_spec_parser_behavioral_equivalence_crowdstrike`** (prism-spec-engine) — parses `crowdstrike.sensor.toml` and compares against a snapshot; fails RED initially because the snapshot must be captured post-migration (the test infrastructure is set up in the Red Gate phase; snapshot is populated during implementation).
 
-8. **`test_BC_2_16_012_002_spec_parser_behavioral_equivalence_cyberint`** (prism-spec-engine) — parses `cyberint.sensor.toml` and compares against a snapshot; fails RED initially because the snapshot must be captured post-migration (the test infrastructure is set up in the Red Gate phase; snapshot is populated during implementation). Covers the Cyberint built-in sensor leg of AC-8's four-sensor breadth requirement.
+10. **`test_BC_2_16_012_002_spec_parser_behavioral_equivalence_cyberint`** (prism-spec-engine) — parses `cyberint.sensor.toml` and compares against a snapshot; fails RED initially because the snapshot must be captured post-migration (the test infrastructure is set up in the Red Gate phase; snapshot is populated during implementation). Covers the Cyberint built-in sensor leg of AC-8's four-sensor breadth requirement.
 
-9. **`test_BC_2_16_012_002_spec_parser_behavioral_equivalence_claroty`** (prism-spec-engine) — parses `claroty.sensor.toml` and compares against a snapshot; fails RED initially because the snapshot must be captured post-migration (the test infrastructure is set up in the Red Gate phase; snapshot is populated during implementation). Covers the Claroty built-in sensor leg of AC-8's four-sensor breadth requirement.
+11. **`test_BC_2_16_012_002_spec_parser_behavioral_equivalence_claroty`** (prism-spec-engine) — parses `claroty.sensor.toml` and compares against a snapshot; fails RED initially because the snapshot must be captured post-migration (the test infrastructure is set up in the Red Gate phase; snapshot is populated during implementation). Covers the Claroty built-in sensor leg of AC-8's four-sensor breadth requirement.
 
-10. **`test_BC_2_16_012_002_spec_parser_behavioral_equivalence_armis`** (prism-spec-engine) — parses `armis.sensor.toml` and compares against a snapshot; fails RED initially because the snapshot must be captured post-migration (the test infrastructure is set up in the Red Gate phase; snapshot is populated during implementation). Covers the Armis built-in sensor leg of AC-8's four-sensor breadth requirement.
+12. **`test_BC_2_16_012_002_spec_parser_behavioral_equivalence_armis`** (prism-spec-engine) — parses `armis.sensor.toml` and compares against a snapshot; fails RED initially because the snapshot must be captured post-migration (the test infrastructure is set up in the Red Gate phase; snapshot is populated during implementation). Covers the Armis built-in sensor leg of AC-8's four-sensor breadth requirement.
 
-11. **`test_BC_2_16_012_003_write_tool_invalidation_runtime_register`** (prism-query) — calls `register_write_tool(entry) -> Result<(), SpecEngineError>` where `entry` is a new `WriteToolInvalidationMap` struct; asserts `.is_ok()` for the happy path (entry visible on next read-guard); asserts `.is_err()` with `E-PLUGIN-012` for a duplicate `tool_name`; asserts `.is_err()` with `E-PLUGIN-020` for a post-boot registration attempt; fails RED because `register_write_tool` does not exist yet (the container is a `LazyLock<Vec<...>>` not an `RwLock`) and neither error variant exists.
+13. **`test_BC_2_16_012_003_write_tool_invalidation_runtime_register`** (prism-query) — calls `register_write_tool(entry) -> Result<(), SpecEngineError>` where `entry` is a new `WriteToolInvalidationMap` struct; asserts `.is_ok()` for the happy path (entry visible on next read-guard); asserts `.is_err()` with `E-PLUGIN-012` for a duplicate `tool_name`; asserts `.is_err()` with `E-PLUGIN-020` for a post-boot registration attempt and captures the WARN tracing event with fields `event_type = "write_tool_registration_after_boot"`, `plugin_name = <plugin>`, `tool_name = <tool>`, `error = "E-PLUGIN-020"` per BC-2.16.002 §Postconditions (Canonical Structured Event Catalog bullet, v1.21) row 33; fails RED because `register_write_tool` does not exist yet (the container is a `LazyLock<Vec<...>>` not an `RwLock`) and neither error variant exists.
+
+14. **`test_BC_2_16_011_e_spec_008_retired_annotation`** (prism-spec-engine) — asserts that the `E-SPEC-008` row in `error-taxonomy.md` carries a retirement annotation referencing PREREQ-E + ADR-027, and that a grep of `crates/` `src/` paths for `E-SPEC-008` construction sites returns zero matches; fails RED if the annotation is absent or any live `src/` path constructs that error code.
 
 ---
 
@@ -428,7 +446,7 @@ The story is shipped when ALL of the following are true:
 2. `just check` exits 0 (fmt + clippy + nextest + doctests + crate-layout)
 3. `grep -rn "CustomAdapter\|CustomAdapterRegistry\|CustomAuth" crates/` returns ZERO hits in `src/` paths
 4. `grep -rn "private::Sealed\|: Sealed\|impl Sealed for" crates/prism-sensors/src/auth/` returns ZERO hits
-5. All 10 ACs are verifiable with explicit grep/test evidence recorded in the PR description
+5. All 13 ACs are verifiable with explicit grep/test evidence recorded in the PR description
 6. `BC-2.16.004` frontmatter shows `lifecycle_status: removed`
 7. `E-SPEC-008` in `error-taxonomy.md` has a `retired:` annotation
 8. TD-S-PLUGIN-PREREQ-A-003 is closed in `tech-debt-register.md` with a pointer to this story's PR
@@ -448,6 +466,7 @@ All BCs cited in this story (frontmatter `behavioral_contracts` array and body t
 - [BC-2.16.012](../specs/behavioral-contracts/BC-2.16.012-plugin-registry-dispatch-migration.md) — PluginRegistry Dispatch in spec_parser.rs — Hardcoded Sensor Names Replaced with Registry Lookup (NEW — this story)
 
 Architecture Compliance:
+- [ADR-022](../specs/architecture/decisions/ADR-022-production-runtime-wiring.md) — Production runtime wiring; §B step 7.5/8 ordering authoritative for Task 7b AtomicBool flag set-time
 - [ADR-023](../specs/architecture/decisions/ADR-023-plugin-only-sensor-architecture.md) §Architectural Constraints (C5 bullet) — SensorAuth un-sealing + CustomAdapter removal + spec_parser migration
 - [ADR-026](../specs/architecture/decisions/ADR-026-sensorauth-unsealing.md) — SensorAuth unsealing architectural decision; §D3 runtime enforcement rules map to E-SPEC-012/013/014
 - [ADR-027](../specs/architecture/decisions/ADR-027-custom-adapter-deprecation-removal.md) — CustomAdapter deprecation/removal; §D3 compile-fail perimeter (VP-155) + §Verification Property Anchors WASM equivalence (VP-154)
@@ -461,6 +480,11 @@ Prior PREREQ stories:
 - [S-PLUGIN-PREREQ-A](S-PLUGIN-PREREQ-A-sensorid-newtype.md) — SensorId open newtype (merged PR #142)
 - [S-PLUGIN-PREREQ-D](S-PLUGIN-PREREQ-D-plugin-runtime-boot-wiring.md) — PluginRuntime boot wiring (merged PR #149)
 
+Holdout Scenarios:
+- [HS-PREREQ-E-001](../holdout-scenarios/S-PLUGIN-PREREQ-E-HS-001-sensorauth-open-trait.md) — SensorAuth Open Trait external-implementation behavioral compile + load
+- [HS-PREREQ-E-002](../holdout-scenarios/S-PLUGIN-PREREQ-E-HS-002-customadapter-retirement.md) — CustomAdapter retirement (no behavioral regression)
+- [HS-PREREQ-E-003](../holdout-scenarios/S-PLUGIN-PREREQ-E-HS-003-plugin-registry-dispatch.md) — Plugin registry dispatch + WriteToolInvalidationMap extensibility
+
 Tech debt closed:
 - [TD-S-PLUGIN-PREREQ-A-003](../tech-debt-register.md) — WriteToolInvalidationMap extensibility
 
@@ -470,6 +494,7 @@ Tech debt closed:
 
 | Version | Burst | Date | Author | Change |
 |---------|-------|------|--------|--------|
+| 1.21 | FB39 | 2026-05-16 | product-owner | F-LP49-HIGH-001 PO-domain sites — AC-3 narrative + trace lines updated error-taxonomy v1.30→v1.31 (13th+ POL-23 recurrence closure). F-LP49-MED-001 BC-2.01.016 Rule 2/B+2/C AC coverage gap closed via new AC-3b (E-SPEC-013; test `test_BC_2_01_016_e_spec_013_multiple_credential_refs_rejected`) + AC-3c (E-SPEC-014; test `test_BC_2_01_016_e_spec_014_credential_type_mismatch_rejected`) + 2 new Red Gate tests (tests 4+5; former BC-2.16.011 tests 4+5 renumbered to 6+7; BC-2.16.012 tests 6–11 renumbered to 8–13); `acceptance_criteria_count: 10→13`; `red_gate_tests: 11→14`. F-LP49-MED-002 BC-2.16.011 P7 E-SPEC-008 retirement annotation AC gap closed via new AC-11 + Red Gate test 14 (`test_BC_2_16_011_e_spec_008_retired_annotation`). F-LP49-MED-003 BC-2.16.012 P6 tracing event field schema AC gap closed via AC-9 extension asserting tracing-test capture of `write_tool_registration_after_boot` WARN event fields; Red Gate test 13 (renumbered from 11) updated to assert tracing-event field capture. F-LP49-MED-004 ADR-022 added to §References Architecture Compliance subsection (`§B step 7.5/8 ordering authoritative for Task 7b AtomicBool flag set-time`). F-LP49-LOW-001 §References gains new Holdout Scenarios subsection enumerating HS-PREREQ-E-001/002/003 with relative links. Green Gate DoD item 5 updated: 10→13 ACs. |
 | 1.20 | FB38 | 2026-05-16 | product-owner | F-LP48-MED-001: §Error Taxonomy Additions E-PLUGIN-020 description corrected from retired "called after boot step 8 completes" to canonical "called after query-engine init starts at step 8 (per ADR-026 §D7); window closes at step 8 start (first act of step 8, before QueryEngine construction proceeds)" per FB37 architect adjudication. F-LP48-MED-003: §File Structure Requirements gains new row for `crates/prism-spec-engine/src/plugin/mod.rs` (or `loader.rs`) wiring PluginRuntime per-plugin write-tool registration during step 7.5 per ADR-026 §D7 + ADR-022 §B step 7.5. §Token Budget gains matching row (~150 tokens); total updated ~17,450 → ~17,600. POL-23 pin bump: §Error Taxonomy Additions intro cite `error-taxonomy.md v1.30` → `v1.31` (E-PLUGIN-020 was amended in v1.31). |
 | 1.19 | FB37 | 2026-05-16 | product-owner | F-LP47-LOW-001 frontmatter: ADR-022 added to `architectural_decisions` (§B step 7.5/8 ordering authoritative for Task 7b AtomicBool flag set-time); SS-17 added to `subsystems` and `anchor_subsystem` (both fields) per architect adjudication. F-LP47-MED-001 Task 7b/7c TD-VSDD-091 volatile line-number cites replaced with durable semantic anchors ("error-taxonomy.md E-PLUGIN-020" without line 467; "BC-2.16.012 EC-016-012-005" without line 109). F-LP47-MED-003 §FSR + §Token Budget swept for Task 7b/7c new content: invalidation.rs row expanded to enumerate AtomicBool flag + `mark_query_phase_started()` function; `error.rs` row added for `WriteToolRegistrationAfterBoot` variant (~50 tokens); invalidation.rs budget updated ~600 → ~700; total updated ~17,300 → ~17,450. F-LP47-MED-004 Task 7b emission form corrected to canonical `event_type` idiom per BC-2.16.012:84 + CLAUDE.md Conventions (`event_type` as first structured field, not trailing static message). |
 | 1.18 | FB36 | 2026-05-16 | product-owner | F-LP46-MED-001 §Tasks expanded to enumerate ADR-026 D7 runtime_deliverables not previously covered: new Task 7b adds AtomicBool query-phase flag (`QUERY_PHASE_STARTED`) + `mark_query_phase_started()` + fail-closed post-boot check in `register_write_tool`; new Task 7c adds `SpecEngineError::WriteToolRegistrationAfterBoot` unit variant. Mirrors FB34 Task 1b coverage discipline for D7 dimension. Anchors: ADR-026 §D7 runtime_deliverables items 6+5, error-taxonomy.md E-PLUGIN-020, BC-2.16.012 EC-016-012-005. |

@@ -8,10 +8,10 @@ must_pass: true
 priority: P0
 epic_id: "PLUGIN-MIGRATION-001"
 story_source: "S-PLUGIN-PREREQ-E"
-version: "1.3"
+version: "1.4"
 status: draft
 producer: product-owner
-timestamp: 2026-05-15T00:00:00
+timestamp: 2026-05-16T00:00:00Z
 phase: 4
 inputs: []
 input-hash: null
@@ -95,7 +95,7 @@ malformed specs.
 
 **Expected Outcome:**
 
-- Spec load is rejected with `E-SPEC-012` (ADR-023 Rule 2, Rule A — auth_type must be single value; see error-taxonomy.md v1.30)
+- Spec load is rejected with `E-SPEC-012` (ADR-023 Rule 2, Rule A — auth_type must be single value; see error-taxonomy.md v1.31)
 - Error message cites "auth_type must be a single value" or equivalent
 - Process does NOT fail to compile (no compile-time sealed-trait error — the rejection is runtime)
 - Other valid specs in the same directory continue to load (N-1 survivor rule)
@@ -180,6 +180,7 @@ When this holdout scenario is evaluated, the evaluator must produce:
 
 | Version | Burst | Date | Author | Change |
 |---------|-------|------|--------|--------|
+| 1.4 | FB39 | 2026-05-16 | product-owner | F-LP49-HIGH-001 — HS-PREREQ-E-001-02 Expected Outcome cite updated `error-taxonomy.md v1.30` → `error-taxonomy.md v1.31` (line 98). POL-23 cascade gap closure from FB38 D-657. |
 | 1.3 | fix-burst-22-combined-D-634 | 2026-05-16 | state-manager | F-LP27-MED-001 — 11th manifestation version-pin-drift family: HS-PREREQ-E-001-02 Expected Outcome pin swept `error-taxonomy.md v1.27` → `error-taxonomy.md v1.30` (line 98). 4-bump window (v1.27→v1.28→v1.29→v1.30) where this site was not swept. Pass-27 BLOCKED 1 MED; combined-burst D-634. |
 | 1.2 | prereq-e-fix-burst-3 | 2026-05-15 | product-owner | F-LP3-MED-002 (POL-25 propagation): stale error-taxonomy.md v1.25 reference in HS-PREREQ-E-001-02 expected outcome updated to v1.27. Changelog reference to v1.25 in v1.1 row preserved as historical record per TD-VSDD-091 anti-volatile-pin. |
 | 1.1 | S-PLUGIN-PREREQ-E-reconciliation | 2026-05-15 | product-owner | Q4 alignment: Added HS-PREREQ-E-001-04 sub-scenario covering VP-153 proptest coverage (cross-composition prevention). Updated sub-scenario HS-PREREQ-E-001-02 validation evidence item 3 to cite E-SPEC-012 (not E-SPEC-010 — correct code per error-taxonomy v1.25). Added `verification_properties: [VP-153]` to frontmatter. |

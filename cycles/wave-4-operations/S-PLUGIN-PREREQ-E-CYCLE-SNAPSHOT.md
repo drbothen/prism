@@ -3172,3 +3172,41 @@ Shorthand append: →pass-48:BLOCKED(0C+1H+3M+0L+0OBS; F-LP48-HIGH-001 ADR-026:3
 Story v1.20 | BC-2.01.016 v1.7 | BC-2.16.011 v1.6 | BC-2.16.012 v1.16 | BC-2.16.002 v1.21 | ADR-026 v1.13 | ADR-027 v1.7 | VP-153 v0.7 | VP-154 v0.6 | VP-155 v0.5 | VP-156 v0.8 | HS-PREREQ-E-001 v1.3 | HS-PREREQ-E-002 v1.4 | HS-PREREQ-E-003 v1.6 | error-taxonomy v1.31 | ARCH-INDEX v2.57 | VP-INDEX v1.49 | STORY-INDEX v2.124 | BC-INDEX v4.96 | verification-architecture v1.39 | verification-coverage-matrix v1.36
 
 STATE.md v7.344; SESSION-HANDOFF.md v7.344; prereq_e_adversary_streak **0/3** (pass-48 BLOCKED; FB38 CLOSED; pass-49 NEXT — next 3-CLEAN attempt); 163rd consecutive single-commit (TD-VSDD-053 STABLE).
+
+## §D-658 FB39 SINGLE-COMMIT CLOSURE (2026-05-16) — 1 HIGH + 4 MED + 1 LOW FROM PASS-49 CLOSED; ADR-026 V1.14; VP-153 V0.8; STORY V1.21; HS-001 V1.4; AC 10→13; RED GATE 11→14; ARCH-INDEX V2.58; VP-INDEX V1.50; STORY-INDEX V2.125; 13TH+ POL-23 RECURRENCE; 164TH SINGLE-COMMIT; PASS-50 NEXT
+
+### Pass-49 Summary
+
+BLOCKED. 1 HIGH + 4 MED + 1 LOW. F-LP49-HIGH-001 is the 13th+ POL-23 cascade-propagation recurrence — META-PATTERN match to F-LP48-HIGH-001. FB38 closed 4 declared sites but missed 5 lateral sites still pinning `error-taxonomy v1.30`. AC-coverage axis (MED-001/002/003) surfaces for the first time in 49 passes.
+
+### Findings Closed (FB39)
+
+- **F-LP49-HIGH-001** (architect + PO): 5-site error-taxonomy v1.30→v1.31 cascade gap — 13th+ POL-23 recurrence. ADR-026 line 309 (architect: ADR-026 v1.13→v1.14); VP-153 lines 167+210 (architect: VP-153 v0.7→v0.8); HS-PREREQ-E-001 line 98 (PO: HS-001 v1.3→v1.4); story lines 231+232 (PO: story v1.20→v1.21).
+- **F-LP49-MED-001** (PO): BC-2.01.016 Rule 2/B + 2/C lack AC traces — new AC-3b (E-SPEC-013) + AC-3c (E-SPEC-014). Red Gate tests +2. Story v1.20→v1.21.
+- **F-LP49-MED-002** (PO): E-SPEC-008 retirement annotation lacks AC verification — new AC-11. Red Gate test 14 assigned. Story v1.20→v1.21.
+- **F-LP49-MED-003** (PO): BC-2.16.012 P6 tracing event field schema not AC-asserted — AC-9 extended to assert field schema (event_type, plugin_name, tool_name) per BC-2.16.002 row 33 v1.21.
+- **F-LP49-MED-004** (PO): ADR-022 in frontmatter but missing from §References Architecture Compliance — entry added.
+- **F-LP49-LOW-001** (PO): HSs in frontmatter but no §References Holdout Scenarios subsection — subsection added for HS-PREREQ-E-001/002/003.
+
+### Pattern-Breaking Assessment (POL-29 Candidate — 13th+ POL-23 Recurrence)
+
+- FB38 closed 4 declared error-taxonomy v1.30→v1.31 sites; 5 lateral sites escaped (ADR-026 + VP-153 ×2 + HS-001 + story)
+- POL-25 workspace grep across full 19-artifact set after each version pin bump would have caught all 5
+- POL-29 codification: mandatory POL-25 grep after every version bump, run by architect before completing dispatch
+
+### Cascade Pointer Update
+
+| Metric | Before D-658 | After D-658 |
+|--------|-------------|-------------|
+| Pass count | 48 | 49 |
+| Streak | 0/3 | 0/3 |
+| Last verdict | BLOCKED (FB38) | BLOCKED (FB39) |
+| Consecutive single-commits | 163 | 164 |
+
+Shorthand append: →pass-49:BLOCKED(0C+1H+4M+0L+1LOW+0OBS; F-LP49-HIGH-001 5-site error-taxonomy v1.30→v1.31 cascade gap 13th+ POL-23 recurrence META-PATTERN match F-LP48-HIGH-001; F-LP49-MED-001/002/003 AC↔Postcondition coverage gaps; F-LP49-MED-004 ADR-022 §References missing; F-LP49-LOW-001 §References Holdout Scenarios subsection missing; novelty HIGH; streak 0/3 unchanged)→FB39-CLOSED-COMBINED(6/6 in-scope; architect+PO parallel 4-file edits; state-manager 164th commit; +3 ACs +3 Red Gate tests)
+
+### Pinned Artifact Versions (PREREQ-E 19-artifact set — post-D-658)
+
+Story v1.21 | BC-2.01.016 v1.7 | BC-2.16.011 v1.6 | BC-2.16.012 v1.16 | BC-2.16.002 v1.21 | ADR-026 v1.14 | ADR-027 v1.7 | VP-153 v0.8 | VP-154 v0.6 | VP-155 v0.5 | VP-156 v0.8 | HS-PREREQ-E-001 v1.4 | HS-PREREQ-E-002 v1.4 | HS-PREREQ-E-003 v1.6 | error-taxonomy v1.31 | ARCH-INDEX v2.58 | VP-INDEX v1.50 | STORY-INDEX v2.125 | BC-INDEX v4.96 | verification-architecture v1.40 | verification-coverage-matrix v1.37
+
+STATE.md v7.345; SESSION-HANDOFF.md v7.345; prereq_e_adversary_streak **0/3** (pass-49 BLOCKED; FB39 CLOSED; pass-50 NEXT — next 3-CLEAN attempt); 164th consecutive single-commit (TD-VSDD-053 STABLE).

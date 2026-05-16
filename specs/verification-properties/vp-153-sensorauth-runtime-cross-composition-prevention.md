@@ -1,10 +1,10 @@
 ---
 document_type: verification-property
 level: L4
-version: "0.7"
+version: "0.8"
 status: draft
 producer: architect
-timestamp: 2026-05-16T12:00:00Z
+timestamp: 2026-05-16T13:00:00Z
 phase: prereq-e
 inputs:
   - .factory/specs/architecture/decisions/ADR-026-sensorauth-unsealing.md
@@ -164,7 +164,7 @@ deterministically with a small strategy and provide regression coverage for the 
 //         prop_assert!(result.is_err(), "invalid auth_type {:?} was accepted", raw_auth_value);
 //         let err = result.unwrap_err();
 //         // Assertion: error must be AuthTypeInvalid variant with E-SPEC-012 message_template
-//         // byte-verbatim per error-taxonomy.md v1.30:
+//         // byte-verbatim per error-taxonomy.md v1.31:
 //         //   "auth_type for sensor '{sensor_id}' must be a single value; got: {value}.
 //         //    Valid values: oauth2_client_credentials, bearer_static, cookie_roundtrip,
 //         //    api_key, custom_via_plugin"
@@ -207,7 +207,7 @@ deterministically with a small strategy and provide regression coverage for the 
 //             "spec with {} credential_refs was accepted (Rule B violation)", extra_ref_count + 1);
 //         let err = result.unwrap_err();
 //         // Assertion: error must be MultipleCredentialRefs variant with E-SPEC-013 message_template
-//         // byte-verbatim per error-taxonomy.md v1.30:
+//         // byte-verbatim per error-taxonomy.md v1.31:
 //         //   "auth method for sensor '{sensor_id}' declares {count} credential_refs;
 //         //    exactly one is required"
 //         prop_assert!(matches!(err, SpecEngineError::MultipleCredentialRefs { .. }),
@@ -285,6 +285,7 @@ mode against a temp dir). Either approach is feasible.
 | Version | Burst | Date | Author | Notes |
 |---------|-------|------|--------|-------|
 | 0.7 | FB34 | 2026-05-16 | architect | F-LP44-MED-002 — §Proof Harness Skeleton expanded: Rule A (E-SPEC-012 multi-valued/out-of-set auth_type) proptest `multi_valued_or_out_of_set_auth_type_rejected_with_e_spec_012` + Rule B (E-SPEC-013 multiple credential_refs) proptest `multiple_credential_refs_per_method_rejected_with_e_spec_013` scaffolded. Previously only Rule C was scaffolded (2 proptests); skeleton now covers all 3 Rules (4 proptests total). Eliminates under-coverage risk for security-critical spec-load rejection layer. Harness file name kept as `vp153_sensorauth_cross_composition.rs` with scope note; test-writer may rename to match VP slug. |
+| 0.8 | FB39 | 2026-05-16 | architect | FB39: F-LP49-HIGH-001 sites 2+3 closure — §Proof Harness Skeleton inline comments lines 167 (Rule A E-SPEC-012 byte-verbatim provenance) + 210 (Rule B E-SPEC-013 byte-verbatim provenance) advanced from v1.30 to v1.31 per FB38 D-657 cascade. |
 | 0.6 | FB29 | 2026-05-16 | architect | F-LP37-MED-003 — Rule A/B/C message-format quotations updated to match canonical error-taxonomy.md v1.30 byte-for-byte (Option A: verbatim sync). Prior divergent strings were: Rule A `"Auth type cross-composition rejected for sensor '{sensor}': auth_type must be a single value from the enumerated set; got '{values}'"`, Rule B `"Multiple credential_refs for auth method '{method}' in sensor '{sensor}': exactly one credential_ref is required"`, Rule C `"Credential type mismatch for sensor '{sensor}': auth_type '{auth_type}' requires credential type '{expected}', got '{actual}'"`. Closes POL-24 (error_message_template_verbatim) violation surviving since pre-pass-37 era. TD-VSDD-060 sibling-site sweep: old divergent strings found only in VP-153 itself — no other spec artifact affected. POL-25 multi-cite sweep: E-SPEC-012/013/014 cited in 12+ artifacts; none misquote the canonical template. Future amendment discipline: POL-23/POL-25 sibling-sweep must include VP-153 Rule A/B/C whenever error-taxonomy.md E-SPEC-012/013/014 message_template fields are amended. |
 | 0.1 | plugin-prereq-e-adr-burst | 2026-05-15 | architect | Initial stub. Traces to ADR-026 D3 / ADR-023 Rule 2 / DI-012 runtime enforcement replacement. Harness skeleton provided; full authoring in S-PLUGIN-PREREQ-E test-writer dispatch. |
 | 0.2 | plugin-prereq-e-cross-review | 2026-05-15 | architect | Q3 resolution: remove "error code to be assigned" placeholder. Assign E-SPEC-012 (Rule A), E-SPEC-013 (Rule B), E-SPEC-014 (Rule C). Document E-SPEC-010 collision (already taken). Update source_bc to BC-2.01.016 (primary auth-surface BC). Route E-SPEC-012/013/014 authoring to PO via VP153-OPEN-001. |

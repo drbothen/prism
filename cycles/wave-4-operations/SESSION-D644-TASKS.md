@@ -1,6 +1,6 @@
 ---
 document_type: session-tasks
-version: "1.13"
+version: "1.14"
 status: active
 related_burst: D-644
 predecessor_state: D-652
@@ -57,7 +57,9 @@ This file persists the task list and full cascade state from the session coverin
 | 98 | **DONE** | FB37 CLOSED — 5/5 in-scope (F-LP47-HIGH-001: story v1.19 + BC-2.16.012 v1.16 + BC-2.16.002 v1.21 + HS-003 v1.6; F-LP47-MED-001/002/003/004 + F-LP47-LOW-001 closed; POL-23 cascade 7 live-narrative sites; BC-INDEX v4.96; STORY-INDEX v2.123; 162nd consecutive single-commit) |
 | 99 | **DONE/BLOCKED** | PREREQ-E pass-48 BLOCKED (1 HIGH + 3 MED; F-LP48-HIGH-001 ADR-026:300 BC-2.16.002 v1.20 stale cite POL-23 cascade gap 12th+ recurrence; F-LP48-MED-001/002/003 FB37 lateral gaps; novelty HIGH FB37-scope-under-declared; streak 0/3 unchanged; FB38 dispatched) |
 | 100 | **DONE** | FB38 CLOSED — 4/4 in-scope (F-LP48-HIGH-001: ADR-026 v1.13; F-LP48-MED-001: story v1.20; F-LP48-MED-002: error-taxonomy v1.31; F-LP48-MED-003: §FSR row added + Token Budget reconciled; ARCH-INDEX v2.57; STORY-INDEX v2.124; 163rd consecutive single-commit) |
-| 101 | **PENDING** | PREREQ-E pass-49 (next 3-CLEAN attempt; BC-5.39.001 requires 3 consecutive CLEAN) |
+| 101 | **DONE/BLOCKED** | PREREQ-E pass-49 BLOCKED (1 HIGH + 4 MED + 1 LOW; F-LP49-HIGH-001 5-site error-taxonomy v1.30→v1.31 cascade gap 13th+ POL-23 recurrence; F-LP49-MED-001/002/003 AC coverage gaps; F-LP49-MED-004 ADR-022 §References; F-LP49-LOW-001 §References Holdout Scenarios; novelty HIGH; streak 0/3 unchanged; FB39 dispatched) |
+| 102 | **DONE** | FB39 CLOSED — 6/6 in-scope (ADR-026 v1.14; VP-153 v0.8; story v1.21; HS-001 v1.4; +3 ACs AC-3b+AC-3c+AC-11; +3 Red Gate tests 11→14; ARCH-INDEX v2.58; VP-INDEX v1.50; STORY-INDEX v2.125; verification-architecture v1.40; verification-coverage-matrix v1.37; 164th consecutive single-commit) |
+| 103 | **PENDING** | PREREQ-E pass-50 (next 3-CLEAN attempt; BC-5.39.001 requires 3 consecutive CLEAN) |
 
 ## §FB28 Closure Note (D-645 COMPLETE)
 
@@ -295,6 +297,33 @@ All 19 artifacts at D-651 version pins — no spec edits in D-652 (state-manager
 
 ---
 
+## §FB39 Closure Note (D-658 COMPLETE)
+
+**FB39 multi-agent single-commit closure. Architect (ADR-026 v1.14 + VP-153 v0.8) + PO (story v1.21 + HS-PREREQ-E-001 v1.4) parallel. State-manager last. 4 artifacts bumped. 5 indexes/arch files bumped (ARCH-INDEX v2.58 + VP-INDEX v1.50 + STORY-INDEX v2.125 + verification-architecture v1.40 + verification-coverage-matrix v1.37). +3 ACs (AC-3b, AC-3c, AC-11); +3 Red Gate tests (11→14). 164th consecutive single-commit.**
+
+### Findings Closed
+
+| Finding | Agent | Status | Notes |
+|---------|-------|--------|-------|
+| F-LP49-HIGH-001 | architect + PO | CLOSED | 5-site error-taxonomy v1.30→v1.31 cascade — 13th+ POL-23 recurrence. ADR-026 line 309 (ADR-026 v1.13→v1.14); VP-153 lines 167+210 (VP-153 v0.7→v0.8); HS-001 line 98 (HS-001 v1.3→v1.4); story lines 231+232 (story v1.20→v1.21). |
+| F-LP49-MED-001 | product-owner | CLOSED | BC-2.01.016 Rule 2/B+2/C: new AC-3b (E-SPEC-013) + AC-3c (E-SPEC-014). Red Gate tests +2. Story v1.21. |
+| F-LP49-MED-002 | product-owner | CLOSED | E-SPEC-008 retirement verification: new AC-11. Red Gate test 14. Story v1.21. |
+| F-LP49-MED-003 | product-owner | CLOSED | BC-2.16.012 P6 tracing event field schema: AC-9 extended to assert event_type/plugin_name/tool_name fields per BC-2.16.002 row 33 v1.21. |
+| F-LP49-MED-004 | product-owner | CLOSED | ADR-022 entry added to §References Architecture Compliance subsection. |
+| F-LP49-LOW-001 | product-owner | CLOSED | §References Holdout Scenarios subsection added for HS-PREREQ-E-001/002/003. |
+
+### POL-29 Candidate — 13th+ POL-23 Recurrence
+
+- FB38 closed 4 declared sites; 5 lateral sites escaped (ADR-026 + VP-153 ×2 + HS-001 + story)
+- FB39 ran POL-25 workspace grep across full 19-artifact set to identify all stale v1.30 pins
+- POL-29 codification: mandatory POL-25 grep after every version bump by architect before completing dispatch
+
+### Pinned Artifact Versions (post-D-658)
+
+Story v1.21 | ADR-026 v1.14 | VP-153 v0.8 | HS-PREREQ-E-001 v1.4 | ARCH-INDEX v2.58 | VP-INDEX v1.50 | STORY-INDEX v2.125 | verification-architecture v1.40 | verification-coverage-matrix v1.37 | BC-INDEX v4.96 (UNCHANGED) | BC-2.16.012 v1.16 (UNCHANGED) | BC-2.16.002 v1.21 (UNCHANGED) | error-taxonomy v1.31 (UNCHANGED)
+
+---
+
 ## §FB38 Closure Note (D-657 COMPLETE)
 
 **FB38 multi-agent single-commit closure. Architect (ADR-026 v1.13) + PO (story v1.20 + error-taxonomy v1.31) parallel. State-manager last. 3 artifacts bumped. 2 indexes bumped (ARCH-INDEX v2.57 + STORY-INDEX v2.124). 163rd consecutive single-commit.**
@@ -482,36 +511,36 @@ Accept current spec quality (8 CLEAN passes is unusual statistical evidence of q
 
 | Artifact | Version |
 |----------|---------|
-| Story | v1.19 (FB37-D-656: Task 7b AtomicBool set-time tightened to "step 8 START" per architect adjudication Option A; TD-VSDD-091 line cites removed from Task 7b/7c; §FSR+Token Budget updated; event_type field canonicalized; frontmatter ADR-022+SS-17 added; 3 BC-2.16.002 v1.20→v1.21 live-narrative sites updated) |
+| Story | v1.21 (FB39-D-658: lines 231+232 error-taxonomy v1.30→v1.31 cite; new AC-3b+AC-3c+AC-11; AC-9 extended; ADR-022 §References entry; §References Holdout Scenarios subsection; story AC 10→13; Red Gate 11→14) |
 | BC-2.01.016 | v1.7 (EC-016-003 "impl block is unchanged" corrected to explicit method body requirement per ADR-026 §D2 Path B at D-653) |
 | BC-2.16.011 | v1.6 (modified 2026-05-16) |
 | BC-2.16.012 | v1.16 (FB37-D-656: EC-016-012-005 AtomicBool set-time corrected + §Architecture Anchors expanded with ADR-026 §D7 + ADR-027 §D5; §Postconditions + EC-016-012-005 BC-2.16.002 cite advanced v1.20→v1.21) |
 | BC-2.16.002 | v1.21 (FB37-D-656: row 33 AtomicBool set-time corrected per architect adjudication Option A; POL-23 cascade: 7 live-narrative sites advanced v1.20→v1.21) |
-| ADR-026 | v1.12 (D7 pin propagation v1.10 throughout downstream) |
+| ADR-026 | v1.14 (FB39-D-658: line 309 error-taxonomy v1.30→v1.31 cite closed; 13th+ POL-23 recurrence) |
 | ADR-027 | v1.7 (F-LP42-MED-001 §D3 crate-naming contradiction + F-LP42-LOW-001 line 118 volatile-line-pin resolved at D-651) |
-| VP-153 | v0.7 (F-LP44-MED-002 §Proof Harness Skeleton Rules A+B scaffolded at D-653) |
+| VP-153 | v0.8 (FB39-D-658: lines 167+210 inline-comment error-taxonomy v1.30→v1.31 cite closed by architect) |
 | VP-154 | v0.6 |
 | VP-155 | v0.5 |
 | VP-156 | v0.8 (4 D7 pins at v1.10) |
-| HS-PREREQ-E-001 | v1.3 (frontmatter verification_properties: [VP-153]) |
+| HS-PREREQ-E-001 | v1.4 (FB39-D-658: line 98 error-taxonomy v1.30→v1.31 cite closed by PO) |
 | HS-PREREQ-E-002 | v1.4 (line 223 ADR-026/ADR-027 identity inversion corrected at D-655; F-LP46-HIGH-001 closed) |
 | HS-PREREQ-E-003 | v1.6 (FB37-D-656: HS-003-05 Preconditions + Step 1 AtomicBool set-time corrected from "step 8 completion" to "post-step-8-start context" per architect adjudication Option A) |
-| error-taxonomy | v1.30 (E-PIPELINE-001 row at v1.20 pin; E-SPEC-008 RETIRED; E-SPEC-012/013/014 + E-PLUGIN-012/020 active) |
-| ARCH-INDEX | v2.56 (ADR-027 row bumped v1.6→v1.7 + §Changelog row FB33-D-651 added at D-651) |
-| VP-INDEX | v1.49 (Total 156, P0=122, P1=34; VP-153 row note v0.6→v0.7 at D-653) |
-| STORY-INDEX | v2.123 (FB37 D-656; PREREQ-E row v1.18→v1.19; ADR-022 added to row ADRs) |
+| error-taxonomy | v1.31 (FB38-D-657: E-PLUGIN-020 message + description rewritten — UNCHANGED at D-658) |
+| ARCH-INDEX | v2.58 (FB39-D-658: ADR-026 row bumped v1.13→v1.14) |
+| VP-INDEX | v1.50 (FB39-D-658: VP-153 tracking v0.7→v0.8; Total 156, P0=122, P1=34) |
+| STORY-INDEX | v2.125 (FB39-D-658: PREREQ-E row v1.20→v1.21; AC 10→13; Red Gate 11→14) |
 | BC-INDEX | v4.96 (BC-2.16.002 row v1.20→v1.21; BC-2.16.012 row v1.15→v1.16; POL-23 cascade) |
-| verification-architecture | v1.39 (POL-9 propagation row; VP-153 ID-only; D-653) |
-| verification-coverage-matrix | v1.36 (POL-9 propagation row; VP-153 ID-only; D-653) |
+| verification-architecture | v1.40 (FB39-D-658: POL-9 propagation row VP-153 v0.7→v0.8) |
+| verification-coverage-matrix | v1.37 (FB39-D-658: POL-9 propagation row VP-153 v0.7→v0.8) |
 
 ## Resume Reading Order (Next Session After /Clear)
 
-1. **`.factory/STATE.md`** (v7.343) — current_step + prereq_e_adversary_streak + RESUME PROTOCOL section
-2. **`.factory/SESSION-HANDOFF.md`** (v7.343) — §POST-FB37-CLOSURE DURABLE PIN BLOCK section
-3. **`.factory/cycles/wave-4-operations/SESSION-D644-TASKS.md`** — this file (task list + FB37 closure + strategic options)
-4. **`.factory/cycles/wave-4-operations/S-PLUGIN-PREREQ-E-CYCLE-SNAPSHOT.md`** — full cascade history through D-656
+1. **`.factory/STATE.md`** (v7.345) — current_step + prereq_e_adversary_streak + RESUME PROTOCOL section
+2. **`.factory/SESSION-HANDOFF.md`** (v7.345) — §POST-FB39-CLOSURE DURABLE PIN BLOCK section
+3. **`.factory/cycles/wave-4-operations/SESSION-D644-TASKS.md`** — this file (task list + FB39 closure + strategic options)
+4. **`.factory/cycles/wave-4-operations/S-PLUGIN-PREREQ-E-CYCLE-SNAPSHOT.md`** — full cascade history through D-658
 5. **`.factory/cycles/wave-4-operations/SESSION-D580-TASKS.md`** — prior session task list (pass-1 through pass-5 era; D-580 precedent)
-6. **`.factory/cycles/wave-4-operations/adversarial-reviews/S-PLUGIN-PREREQ-E-spec-pass-{1..47}.md`** — per-pass finding context if needed (47 files total)
+6. **`.factory/cycles/wave-4-operations/adversarial-reviews/S-PLUGIN-PREREQ-E-spec-pass-{1..49}.md`** — per-pass finding context if needed (49 files total)
 
 ## Session Continuation Behavior
 
