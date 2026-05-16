@@ -10,7 +10,7 @@ verdict: BLOCKED
 finding_count: { CRIT: 0, HIGH: 1, MED: 0, LOW: 0, OBS: 2 }
 streak_status: "0/3 stays 0/3"
 fix_burst: FB43
-fix_burst_committed: pending
+fix_burst_committed: 19512ddc
 novelty: HIGH (first pass under Fork B canonical rule; surfaced Fork-A residual in FB41-authored v1.22 changelog)
 ---
 
