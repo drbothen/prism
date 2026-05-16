@@ -656,3 +656,52 @@ Streak: 0/3 — pass-8 NEXT.
 
 STATE.md v7.289; SESSION-HANDOFF.md v7.289; 94th consecutive single-commit (TD-VSDD-053 DECISIVELY STABLE).
 Factory-artifacts predecessor bursts: D-586 (`33a3fdda`), D-587 (`bf8e207e`), D-588 (this commit).
+
+---
+
+## §D-589 PASS-8 ENTRY (2026-05-16)
+
+**Burst D-589 — PREREQ-E ADVERSARY PASS-8 BLOCKED — 3 in-scope (2H+1M) + 1 OBS — 95th consecutive single-commit (TD-VSDD-053 DECISIVELY STABLE)**
+
+Pass-8 result: BLOCKED. Trajectory LOWEST count of entire cascade (4 total findings, 3 in-scope). All 3 findings are RECURRING within-FB sibling-sweep asymmetry instances — same defect class as F-LP7-HIGH-001 but at a new junction. Defect-class novelty has DECAYED (pass-8 found NO new class, only recurrence). Positive convergence signal.
+
+### Pass-8 Verdict
+
+| Item | Value |
+|------|-------|
+| Verdict | BLOCKED |
+| In-scope findings | 3 (2 HIGH + 1 MEDIUM) |
+| OBS queued | 1 (POL-23 amendment candidate) |
+| Total count | 4 |
+| Streak | 0/3 (reset) |
+| Trajectory delta | -5 from pass-7 (DECREASE — LOWEST of cascade) |
+| Novelty | DECAYED — recurring class only, no new classes |
+
+### Pass-8 Finding Summary
+
+| Finding | Severity | Root Cause | FB8 Routing |
+|---------|----------|-----------|-------------|
+| F-LP8-HIGH-001 | HIGH | VP-156 4 live-narrative ADR-026 D7 pins swept to v1.8 (intermediate) not v1.9 (final) in FB7 D-586 | architect: advance pins v1.8→v1.9; VP-156 v0.6→v0.7 |
+| F-LP8-HIGH-002 | HIGH | BC-2.16.012 §Verification Properties VP-156 row pin "ADR-026 D7 v1.8" stale vs ADR-026 v1.9 (companion site of F-LP8-HIGH-001) | architect: advance pin v1.8→v1.9; BC-2.16.012 v1.7→v1.8 |
+| F-LP8-MED-001 | MEDIUM | VP-156 §Changelog v0.4 row at bottom (after v0.5/v0.6); FB7 D-588 monotonic repair covered ADR-026/ADR-027/VP-155 but not VP-156 | state-manager: reorder v0.4 row between v0.3 and v0.5; no version bump |
+| OBS-LP8-001 | OBS | RECURRING process-gap: within-FB sibling-sweep asymmetry = 3 consecutive bursts (FB5/FB6/FB7) | cycle-close: POL-23 amendment requiring sweep targets = final post-burst version |
+
+### Expected FB8 Version Table
+
+| Artifact | Pre-FB8 (pass-8 snapshot) | Expected FB8 Bump | By |
+|----------|--------------------------|-------------------|----|
+| ADR-026 | v1.9 | **MUST NOT BUMP** | — |
+| VP-156 | v0.6 | v0.7 | architect |
+| BC-2.16.012 | v1.7 | v1.8 | architect |
+| VP-INDEX | v1.43 | v1.44 | architect |
+| BC-INDEX | v4.84 | v4.85 | architect |
+| VP-156 §Changelog order | v0.4 misplaced | v0.4 repositioned (no version bump) | state-manager |
+
+### Trajectory Shorthand (Updated)
+
+**14→9→8→9→10→10→FB6-CLOSED(10/10 in-scope; 3 OBS deferred cycle-close)→8→FB7-CLOSED(8/8 in-scope; 4 OBS deferred cycle-close)→pass-8:BLOCKED(0C+2H+1M+0L+1OBS; within-FB7-sibling-sweep-asymmetry-recurrence + VP-156-changelog-monotonic-miss + POL-23-amendment-candidate; trajectory DECREASE to 3 in-scope; LOWEST; streak still 0/3)**
+
+Streak: 0/3 — fix-burst-8 NEXT then pass-9.
+
+STATE.md v7.290; SESSION-HANDOFF.md v7.290; 95th consecutive single-commit (TD-VSDD-053 DECISIVELY STABLE).
+Factory-artifacts D-589 burst SHA: TBD (this entry written pre-commit).

@@ -1,10 +1,10 @@
 ---
 document_type: session-tasks
-version: "1.3"
+version: "1.4"
 status: active
-related_burst: D-585
-predecessor_state: D-584
-timestamp: 2026-05-16T01:00:00Z
+related_burst: D-589
+predecessor_state: D-588
+timestamp: 2026-05-16T02:00:00Z
 ---
 
 # Session Task List — D-580 Durable Snapshot
@@ -36,9 +36,11 @@ Intended audience: orchestrator at next session start. Read alongside STATE.md +
 | 18 | DONE | PREREQ-E fix-burst-6 (10 findings closed): architect D-582 `bae9c46f` (8 closures: CRIT-001+HIGH-001/003+MED-001/002/003/004+LOW-002) + story-writer D-583 `422b7dec` (CRIT-001 propagation) + state-manager D-584 (HIGH-002 STORY-INDEX v2.109→v2.110). 3 OBS queued cycle-close. | — |
 | 19 | DONE | PREREQ-E pass-7 dispatched + report persisted (D-585; pass-7 BLOCKED 8 in-scope (4H+4M) + 4 OBS; trajectory DECREASE to 8; report at cycles/wave-4-operations/adversarial-reviews/S-PLUGIN-PREREQ-E-spec-pass-7.md; 91st single-commit) | — |
 | 22 | DONE | PREREQ-E fix-burst-7 (8/8 in-scope closed): architect D-586 `33a3fdda` (4: HIGH-001/004+MED-002/003) + PO D-587 `bf8e207e` (2: HIGH-002+MED-004) + state-manager D-588 (2: HIGH-003+MED-001). 4 OBS deferred cycle-close. BC-INDEX v4.84; STORY-INDEX v2.111; STATE+HANDOFF v7.289. | — |
-| 23 | PENDING | PREREQ-E pass-8 (fresh-context) | Unblocked — fix-burst-7 CLOSED (Task #22 DONE) |
-| 24 | PENDING | If pass-8 CLEAN: streak 1/3 → continue cascade toward 3-CLEAN convergence | Blocked on Task #23 verdict |
-| 25 | PENDING | If pass-8 CLEAN: streak 1/3 — continue cascade toward pass-9 | Blocked on Task #23 verdict (streak advance) |
+| 23 | DONE | PREREQ-E pass-8 dispatched + report persisted (D-589; pass-8 BLOCKED 3 in-scope (2H+1M) + 1 OBS process-gap; trajectory LOWEST 4 total / 3 in-scope; RECURRING within-FB sibling-sweep asymmetry; defect-class novelty DECAYED; positive convergence signal; report at cycles/wave-4-operations/adversarial-reviews/S-PLUGIN-PREREQ-E-spec-pass-8.md; 95th single-commit) | — |
+| 24 | PENDING | If pass-9 CLEAN: streak 1/3 → continue cascade toward 3-CLEAN convergence | Blocked on Task #27 verdict |
+| 25 | PENDING | If pass-9 CLEAN: streak 1/3 — continue cascade toward pass-10 | Blocked on Task #27 verdict (streak advance) |
+| 26 | BLOCKED | PREREQ-E fix-burst-8 (3 findings: F-LP8-HIGH-001 VP-156 D7 pins v1.8→v1.9 + F-LP8-HIGH-002 BC-2.16.012 VP-156 row pin v1.8→v1.9 + F-LP8-MED-001 VP-156 §Changelog v0.4 reorder; OBS-LP8-001 queued cycle-close; CRITICAL: ADR-026 MUST NOT bump in FB8) | Awaiting fix-burst-8 dispatch with single-bump-per-source-artifact discipline |
+| 27 | PENDING | PREREQ-E pass-9 (fresh-context) | Blocked on Task #26 (fix-burst-8 completion) |
 
 ## Strategic Options — RESOLVED (D-581)
 
