@@ -1471,6 +1471,80 @@ The orchestrator-injected dispatch-level mandate (POL-25) is a mid-cycle operati
 
 **14→9→8→9→10→10→FB6-CLOSED(10/10)→8→FB7-CLOSED(8/8)→4→FB8-CLOSED(3/3)→pass-9:CLEAN★(1/3)→pass-10:BLOCKED(1H+1M+1L; RESET 0/3; 3-CLEAN PROTOCOL VALIDATED)→FIX-BURST-9-CLOSED(3/3)→pass-11:BLOCKED(1M; RECURRING VP traceability; 0/3)→FIX-BURST-10-CLOSED(1/1)→pass-12:BLOCKED(1M; HIGH-NOVELTY tracing-emission ↔ catalog axis; 0/3)→FIX-BURST-11-CLOSED(1/1 in-scope; BC-2.16.002 catalog row+cross-ref+event-name; BUT 3 defects introduced by FB11)→pass-13:BLOCKED(0C+3H+0M+0L+0OBS; ALL FB11-introduced; POL-21 RECURRING + POL-23/27 frontmatter drift + plugin_name unresolvable; FB-introduces-new-defects PATTERN; POL-29 codification candidate; streak 0/3 unchanged)→FIX-BURST-12-CLOSED(3/3 in-scope HIGH; POL-21 swept + frontmatter synced + plugin_name resolved via Option A)→pass-14:BLOCKED(0C+1H+0M+0L+3OBS; F-LP14-HIGH-001 ADR-026 v1.9→v1.10 sibling-sweep miss; 5th RECURRENCE; streak 0/3 unchanged)→FIX-BURST-13-CLOSED(1/1 in-scope; 5 sites swept; single-bump discipline applied; 5th RECURRENCE class closure)→pass-15:BLOCKED(0C+2H+1M+0L+3OBS; 6TH OCCURRENCE POL-23 RECURRING class — BC-2.16.002 bullet-label v1.18 stale vs v1.19 frontmatter + error-taxonomy mis-routed anchor + BC-2.16.012 duplicate v1.2 changelog rows pre-existing FB1; streak 0/3 unchanged)→FIX-BURST-14-CLOSED(3/3 in-scope: bullet-label sync + BC anchor correction + renumber-repair-redo; 6th RECURRENCE class closed; single-bump discipline maintained)→pass-16:BLOCKED(0C+1H+0M+0L+0OBS; 7TH OCCURRENCE POL-23 RECURRING — 4 variant-phrasing sites missed by FB14 canonical-form sweep; POL-29 codification urgency CRITICAL; streak 0/3 unchanged)→FIX-BURST-15-CLOSED(1/1 in-scope; POL-25 variant-phrasing grep applied at dispatch level — ORCHESTRATOR INNOVATION; 7th-occurrence class closed; story v1.10; ADR-026 stays v1.10; streak 0/3)**
 
-Streak: **0/3** — pass-17 NEXT (CRITICAL TEST: first fresh-context test whether POL-25 dispatch-level mandate broke 7-occurrence variant-phrasing recurrence pattern; analogous to pass-9 testing FB8 single-bump discipline).
+Streak: **0/3** — pass-17 BLOCKED (D-616; see §D-616 PASS-17 BLOCKED ENTRY below).
 
 STATE.md v7.306; SESSION-HANDOFF.md v7.306; STORY-INDEX v2.114; BC-INDEX v4.90 (unchanged); ARCH-INDEX v2.52 (unchanged); VP-INDEX v1.46 (unchanged); 121st consecutive single-commit (TD-VSDD-053 DECISIVELY STABLE).
+
+---
+
+## §D-616 PASS-17 BLOCKED ENTRY (2026-05-16) — 8TH MANIFESTATION BC-2.16.002 CITATION DEFECT FAMILY AT NEW PHRASING-FORM DIMENSION; POL-29 SCOPE EXPANSION CRITICAL; FB16 NEXT
+
+**D-616 — PREREQ-E ADVERSARY PASS-17 BLOCKED — 1 MED F-LP17-MED-001 — 8th manifestation of BC-2.16.002 catalog citation defect family at a NEW dimension: phrasing-form inconsistency. 122nd consecutive single-commit (TD-VSDD-053 DECISIVELY STABLE). Streak stays 0/3.**
+
+### Pass-17 Result
+
+| Dimension | Target | Result |
+|-----------|--------|--------|
+| Pin-staleness (FB15 targets) | Story 3 sites at `v1.20` | **PASS** |
+| Pin-staleness (FB15 targets) | ADR-026 §D7 at `v1.20` | **PASS** |
+| Pin-staleness (FB15 targets) | ADR-026 stays v1.10 (single-bump) | **PASS** |
+| Pin-staleness (FB15 targets) | STORY-INDEX v2.114 + PREREQ-E row v1.10 | **PASS** |
+| Pin-staleness (FB15 targets) | Workspace zero stale v1.[1-9].x pins | **PASS** |
+| **Phrasing-form (NEW)** | **3 story sites parens-ancestry form** | **BLOCKED — no-parens form found** |
+
+### F-LP17-MED-001 — Phrasing-Form Inconsistency at 3 Story Sites
+
+**Severity:** MEDIUM
+
+Sites using non-canonical no-parens form:
+1. Story Task 7 line 170: `BC-2.16.002 §Postconditions Canonical Structured Event Catalog v1.20 row 33`
+2. Story AC-9 line 238: same no-parens pattern
+3. Story §File Structure Requirements line 345: same no-parens pattern
+
+Workspace canonical parens-ancestry form (established at BC-2.16.012 line 84 + error-taxonomy lines 467+473):
+`BC-2.16.002 §Postconditions (Canonical Structured Event Catalog bullet, v1.20) row 33`
+
+### Root Cause Inheritance Chain
+
+FB12 PO POL-21 sweep → canonicalized BC-2.16.012 + error-taxonomy to parens-ancestry form → SAME burst added 3 NEW story sites using pre-canonicalization no-parens phrasing → FB14/FB15 each closed only pin-staleness dimension → phrasing-form dimension inherited undetected for 4 bursts (12 passes: 13-17 minus 9 CLEAN).
+
+### POL-29 Codification Scope Expansion
+
+Evidence from passes 14-17 establishes TWO dimensions of the same root cause:
+- **Pin-staleness dimension** (passes 14+15+16 evidence) — partially addressed by FB13/FB14/FB15
+- **Phrasing-form dimension** (pass-17 NEW evidence) — not yet addressed by any fix-burst
+
+POL-29 cycle-close text MUST enumerate BOTH dimensions explicitly:
+1. Version-pin-propagation: when bumping a source artifact, grep ALL variant phrasings for the prior version across ALL downstream cites (canonical AND variant forms)
+2. Phrasing-form-canonicalization-on-introduction: when adding new citation sites for an existing artifact, grep the canonical workspace form from existing sites and match it EXACTLY
+
+### 8th Manifestation Summary Table
+
+| Burst | Defect Dimension | Status |
+|-------|-----------------|--------|
+| FB5 → pass-6 | pin-staleness (1st) | CLOSED by FB6 |
+| FB6 → pass-7 | pin-staleness (2nd) | CLOSED by FB7 |
+| FB7 → pass-8 | pin-staleness (3rd) | CLOSED by FB8 |
+| FB8 (single-bump explicit) → pass-9 CLEAN★ | — | BROKE pattern |
+| FB12 → pass-14 | pin-staleness (5th) | CLOSED by FB13 |
+| FB13 (canonical-form-only) → pass-15 | pin-staleness (6th) | CLOSED by FB14 |
+| FB14 (canonical-form-only) → pass-16 | pin-staleness (7th) | CLOSED by FB15 |
+| FB15 (POL-25 dispatch mandate) → pass-17 | **phrasing-form (8th — NEW)** | **OPEN — FB16 NEXT** |
+
+### Observations Queued (OBS-LP17)
+
+- **OBS-LP17-001** [process-gap]: POL-29 codification scope expanded — must add phrasing-form-canonicalization-on-introduction to cycle-close POL-29 text
+- **OBS-LP17-002**: Pass-17 audit confirms FB15 pin-dimension closure correct — all 5 pin-dimension verification targets PASS
+
+### FB16 Routing
+
+- **Product-owner**: 3 story sites — Task 7 + AC-9 + §File Structure Requirements: convert to canonical parens-ancestry form; story v1.10→v1.11 + §Changelog row
+- **State-manager**: STORY-INDEX PREREQ-E row tag v1.10→v1.11 sync; closure bookkeeping; STATE+HANDOFF v7.307→v7.308
+
+### Updated Trajectory Shorthand (Post-Pass-17)
+
+**14→9→8→9→10→10→FB6-CLOSED(10/10)→8→FB7-CLOSED(8/8)→4→FB8-CLOSED(3/3)→pass-9:CLEAN★(1/3)→pass-10:BLOCKED(1H+1M+1L; RESET 0/3; 3-CLEAN PROTOCOL VALIDATED)→FIX-BURST-9-CLOSED(3/3)→pass-11:BLOCKED(1M; RECURRING VP traceability; 0/3)→FIX-BURST-10-CLOSED(1/1)→pass-12:BLOCKED(1M; HIGH-NOVELTY tracing-emission ↔ catalog axis; 0/3)→FIX-BURST-11-CLOSED(1/1 in-scope; BC-2.16.002 catalog row+cross-ref+event-name; BUT 3 defects introduced by FB11)→pass-13:BLOCKED(0C+3H+0M+0L+0OBS; ALL FB11-introduced; POL-21 RECURRING + POL-23/27 frontmatter drift + plugin_name unresolvable; FB-introduces-new-defects PATTERN; POL-29 codification candidate; streak 0/3 unchanged)→FIX-BURST-12-CLOSED(3/3 in-scope HIGH; POL-21 swept + frontmatter synced + plugin_name resolved via Option A)→pass-14:BLOCKED(0C+1H+0M+0L+3OBS; F-LP14-HIGH-001 ADR-026 v1.9→v1.10 sibling-sweep miss; 5th RECURRENCE; streak 0/3 unchanged)→FIX-BURST-13-CLOSED(1/1 in-scope; 5 sites swept; single-bump discipline applied; 5th RECURRENCE class closure)→pass-15:BLOCKED(0C+2H+1M+0L+3OBS; 6TH OCCURRENCE POL-23 RECURRING class — BC-2.16.002 bullet-label v1.18 stale vs v1.19 frontmatter + error-taxonomy mis-routed anchor + BC-2.16.012 duplicate v1.2 changelog rows pre-existing FB1; streak 0/3 unchanged)→FIX-BURST-14-CLOSED(3/3 in-scope: bullet-label sync + BC anchor correction + renumber-repair-redo; 6th RECURRENCE class closed; single-bump discipline maintained)→pass-16:BLOCKED(0C+1H+0M+0L+0OBS; 7TH OCCURRENCE POL-23 RECURRING — 4 variant-phrasing sites missed by FB14 canonical-form sweep; POL-29 codification urgency CRITICAL; streak 0/3 unchanged)→FIX-BURST-15-CLOSED(1/1 in-scope; POL-25 variant-phrasing grep applied at dispatch level — ORCHESTRATOR INNOVATION; 7th-occurrence pin-staleness class closed; story v1.10; ADR-026 stays v1.10; streak 0/3)→pass-17:BLOCKED(0C+0H+1M+0L+2OBS; 8TH MANIFESTATION BC-2.16.002 citation defect family at NEW phrasing-form dimension; FB15 pin-dimension ALL PASS; 3 story sites no-parens vs canonical parens-ancestry; FB12-era inherited; streak 0/3 unchanged)**
+
+Streak: **0/3** — FB16 NEXT (PO phrasing canonicalization + state-manager STORY-INDEX sync).
+
+STATE.md v7.307; SESSION-HANDOFF.md v7.307; STORY-INDEX v2.114; BC-INDEX v4.90 (unchanged); ARCH-INDEX v2.52 (unchanged); VP-INDEX v1.46 (unchanged); 122nd consecutive single-commit (TD-VSDD-053 DECISIVELY STABLE).
