@@ -1365,3 +1365,72 @@ Streak: **0/3** — pass-16 NEXT.
 STATE.md v7.304; SESSION-HANDOFF.md v7.304; 117th consecutive single-commit (TD-VSDD-053 DECISIVELY STABLE).
 
 STATE.md v7.302; SESSION-HANDOFF.md v7.302; BC-INDEX v4.89; VP-INDEX v1.46; 114th consecutive single-commit (TD-VSDD-053 DECISIVELY STABLE).
+
+---
+
+## §D-612 PASS-16 BLOCKED ENTRY (2026-05-16) — 7TH OCCURRENCE POL-23 RECURRING CLASS; POL-29 CODIFICATION URGENCY CRITICAL; FB15 NEXT
+
+**Burst D-612 — PREREQ-E ADVERSARY PASS-16 BLOCKED — 1 HIGH F-LP16-HIGH-001 — streak stays 0/3 — 7TH OCCURRENCE of RECURRING POL-23 within-FB sibling-sweep asymmetry — 118th consecutive single-commit (TD-VSDD-053 DECISIVELY STABLE)**
+
+### Pass-16 Finding Summary
+
+| Finding | Severity | Type | Sites | Root Cause |
+|---------|----------|------|-------|------------|
+| F-LP16-HIGH-001 | HIGH | POL-23 RECURRING (7th) + POL-25 variant-phrasing | 4 sites | FB14 PO grep targeted canonical phrasing only; variant phrasings (no-parens, bare-version) not enumerated |
+
+### FB14 Root Cause Analysis — Why the 7th Occurrence Manifested
+
+FB14 PO correctly swept `§Postconditions (Canonical Structured Event Catalog bullet, v1.19)` — the canonical citation form. This form appears in BC-2.16.012 and error-taxonomy. But the story and ADR-026 used different phrasing forms:
+
+- Story (Task 7, AC-9, §File Structure Requirements): `BC-2.16.002 §Postconditions Canonical Structured Event Catalog v1.19 row 33` — no parentheses around version/label
+- ADR-026 §D7 narrative: `BC-2.16.002 v1.19 row 33` — bare version, no section label
+
+The grep pattern `(Canonical Structured Event Catalog bullet, v1.19)` matches ONLY the canonical parenthesized form. POL-25 requires enumerating ALL citation surfaces — but the FB14 dispatch instructions listed only the canonical form (because that was the form surfaced by pass-15).
+
+This is the structural defect: each pass surfaces ONE form of the citation; each fix-burst sweeps THAT form; the next pass finds a DIFFERENT form at a different site. Without explicit dispatch-level instruction to enumerate ALL variant phrasings, the cycle repeats indefinitely.
+
+### 7th Occurrence Pattern Table
+
+| Occurrence | Source Artifact Bumped | Sweep Form Used | Sites Missed | Outcome |
+|---|---|---|---|---|
+| 1 (FB5→pass-6) | Various | Unknown | Unknown | BLOCKED |
+| 2 (FB6→pass-7) | ADR-026 D7 v1.7 | None explicit | VP+BC pins | BLOCKED |
+| 3 (FB7→pass-8) | ADR-026 D7 v1.8 | None explicit | VP+BC pins | BLOCKED |
+| 4 (FB8→pass-9★) | ADR-026 D7 v1.9 | EXPLICIT single-bump instruction | None | CLEAN★ |
+| 5 (FB12→pass-14) | ADR-026 v1.9→v1.10 | None explicit | VP-156 ×4 + BC-2.16.012 ×1 | BLOCKED |
+| 6 (FB13→pass-15) | BC-2.16.002 v1.18→v1.19 | Explicit sibling-sweep target list | Bullet label not in list | BLOCKED |
+| **7 (FB14→pass-16)** | **BC-2.16.002 v1.19→v1.20** | **Canonical phrasing only** | **4 variant-phrasing sites** | **BLOCKED** |
+
+**Pattern:** Only once (FB8) was the dispatch instruction explicit enough to enumerate ALL target forms → CLEAN. Every other burst with partial sweep → BLOCKED.
+
+### POL-29 Codification: URGENCY NOW CRITICAL
+
+7-occurrence evidence base exceeds the threshold for codification to be "strongly warranted." It is now CRITICAL. The pattern is decisively structural: without codified policy mandating variant-phrasing enumeration in dispatch instructions, the cascade will reproduce this class at every fix-burst that bumps a source-of-truth artifact.
+
+Proposed POL-29 text (cycle-close codification):
+> **POL-29 — fix_burst_variant_phrasing_enumeration_required:** When a fix-burst bumps a source-of-truth artifact's version (ADR frontmatter, BC frontmatter, VP frontmatter, bullet label, table cell), the sibling-sweep MUST grep ALL phrasing variants of the version pin in that artifact: (a) parenthesized form `(label, vX.Y)`, (b) no-parens form `label vX.Y row N`, (c) bare-version form `BC-ID vX.Y row N`, (d) alternate-prefix forms. Single-form grep is INSUFFICIENT and is the 7-occurrence defect class. Dispatch instructions MUST enumerate every variant explicitly before the fix-burst closes.
+
+### FB15 Dispatch Plan
+
+**3-agent burst (PO + architect + state-manager):**
+
+- **PO (3 story sites):** S-PLUGIN-PREREQ-E story: Task 7 line 170 `v1.19` → `v1.20`; AC-9 line 238 `v1.19` → `v1.20`; §File Structure Requirements line 345 `v1.19` → `v1.20`. Story version v1.9 → v1.10. Add §Changelog row.
+- **Architect (1 ADR site):** ADR-026 §D7 line 300 narrative pin `v1.19 row 33` → `v1.20 row 33`. ADR-026 STAYS at v1.10 (pin-sweep-without-bump; single-bump discipline; mechanical metadata correction only, not semantic change).
+- **State-manager:** STORY-INDEX row story version tag v1.9 → v1.10 sync; STATE+HANDOFF v7.305→v7.306; closure bookkeeping.
+
+**MANDATORY for FB15 dispatch instructions:** Enumerate ALL phrasing variants of `BC-2.16.002 ... v1.19`:
+1. `§Postconditions (Canonical Structured Event Catalog bullet, v1.19)` — canonical
+2. `§Postconditions Canonical Structured Event Catalog v1.19 row` — no-parens
+3. `BC-2.16.002 v1.19 row` — bare
+4. `BC-2.16.002 §Postconditions v1.19` — alternate prefix
+5. Any other variation grep can surface
+
+Workspace-wide grep against ALL PREREQ-E artifact files before declaring FB15 closed.
+
+### Updated Trajectory Shorthand (Post-Pass-16)
+
+**14→9→8→9→10→10→FB6-CLOSED(10/10)→8→FB7-CLOSED(8/8)→4→FB8-CLOSED(3/3)→pass-9:CLEAN★(1/3)→pass-10:BLOCKED(1H+1M+1L; RESET 0/3; 3-CLEAN PROTOCOL VALIDATED)→FIX-BURST-9-CLOSED(3/3)→pass-11:BLOCKED(1M; RECURRING VP traceability; 0/3)→FIX-BURST-10-CLOSED(1/1)→pass-12:BLOCKED(1M; HIGH-NOVELTY tracing-emission ↔ catalog axis; 0/3)→FIX-BURST-11-CLOSED(1/1 in-scope; BC-2.16.002 catalog row+cross-ref+event-name; BUT 3 defects introduced by FB11)→pass-13:BLOCKED(0C+3H+0M+0L+0OBS; ALL FB11-introduced; POL-21 RECURRING + POL-23/27 frontmatter drift + plugin_name unresolvable; FB-introduces-new-defects PATTERN; POL-29 codification candidate; streak 0/3 unchanged)→FIX-BURST-12-CLOSED(3/3 in-scope HIGH; POL-21 swept + frontmatter synced + plugin_name resolved via Option A)→pass-14:BLOCKED(0C+1H+0M+0L+3OBS; F-LP14-HIGH-001 ADR-026 v1.9→v1.10 sibling-sweep miss; 5th RECURRENCE; streak 0/3 unchanged)→FIX-BURST-13-CLOSED(1/1 in-scope; 5 sites swept; single-bump discipline applied; 5th RECURRENCE class closure)→pass-15:BLOCKED(0C+2H+1M+0L+3OBS; 6TH OCCURRENCE POL-23 RECURRING class — BC-2.16.002 bullet-label v1.18 stale vs v1.19 frontmatter + error-taxonomy mis-routed anchor + BC-2.16.012 duplicate v1.2 changelog rows pre-existing FB1; streak 0/3 unchanged)→FIX-BURST-14-CLOSED(3/3 in-scope: bullet-label sync + BC anchor correction + renumber-repair-redo; 6th RECURRENCE class closed; single-bump discipline maintained)→pass-16:BLOCKED(0C+1H+0M+0L+0OBS; 7TH OCCURRENCE POL-23 RECURRING — 4 variant-phrasing sites missed by FB14 canonical-form sweep; POL-29 codification urgency CRITICAL; streak 0/3 unchanged)**
+
+Streak: **0/3** — FB15 NEXT.
+
+STATE.md v7.305; SESSION-HANDOFF.md v7.305; BC-INDEX v4.90 (unchanged); VP-INDEX v1.46 (unchanged); 118th consecutive single-commit (TD-VSDD-053 DECISIVELY STABLE).
