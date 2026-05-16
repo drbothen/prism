@@ -1754,3 +1754,61 @@ Novel-finding count: 14→9→8→9→10→10→8→4→0→3→1→1→3→1→
 Streak: **1/3** ★ — pass-20 NEXT (2nd of 3 consecutive CLEAN passes required for convergence).
 
 STATE.md v7.311; SESSION-HANDOFF.md v7.311; STORY-INDEX v2.115 (unchanged); BC-INDEX v4.91 (unchanged); ARCH-INDEX v2.52 (unchanged); VP-INDEX v1.46 (unchanged); 128th consecutive single-commit (TD-VSDD-053 DECISIVELY STABLE).
+
+---
+
+## §D-623 PASS-20 BLOCKED — STREAK RESET 1/3 → 0/3; 3-CLEAN PROTOCOL VALIDATION 2ND TIME (2026-05-16)
+
+**PREREQ-E ADVERSARY PASS-20 BLOCKED — 2 in-scope findings (1H+1M) + 1 LOW pending intent verification — streak RESETS 1/3 → 0/3 — 129th consecutive single-commit (TD-VSDD-053 DECISIVELY STABLE) — STATE v7.312 milestone**
+
+### 3-CLEAN Protocol Validation — 2nd Time
+
+This is the second time the cascade has validated BC-5.39.001 protocol value:
+
+| Milestone | Pass | Outcome | Diagnostic |
+|-----------|------|---------|------------|
+| 1st validation | Pass-9 CLEAN★ → Pass-10 BLOCKED | Streak RESET 1/3→0/3 | Pass-9 had reviewer blind-spots; pass-10 surfaced cross-cascade carryover defects |
+| **2nd validation** | **Pass-19 CLEAN★ → Pass-20 BLOCKED** | **Streak RESET 1/3→0/3** | **Pass-19 had reviewer blind-spots; pass-20 surfaced NOVEL cross-document anchor defect + 10th manifestation BC-2.16.002 family** |
+
+The 3-CLEAN protocol provides exactly this guarantee: a single CLEAN pass is insufficient to declare convergence. Consecutive CLEAN passes catch reviewer blind-spots that a single fresh-context pass misses.
+
+### F-LP20-HIGH-001 — ADR-027 D3 File-Count Contradiction (NOVEL Defect Class)
+
+**NOVEL — not a BC-2.16.002 citation family manifestation.** First cross-document file-count anchor contradiction in this cascade.
+
+ADR-027 §D3: "1 file" + "grows by one entry: CustomAdapter"
+vs VP-155 + BC-2.16.011 §VPs + HS-PREREQ-E-002-05: "2 files" + "CATALOG_SIZE=11" (2 new entries: CustomAdapter AND CustomAdapterRegistry)
+
+If implementer follows ADR-027 D3: only 1 file added → CATALOG_SIZE=10 → HS-002-05 assertion fails; OR implementer silently drops second file → CustomAdapterRegistry silently re-introducible with no CI detection.
+
+**Fix routing:** Architect amends ADR-027 §D3 to enumerate BOTH files and correct "by one entry" → "by two entries: `CustomAdapter` and `CustomAdapterRegistry`". ADR-027 v1.5→v1.6.
+
+### F-LP20-MED-001 — error-taxonomy E-PIPELINE-001 Stale v1.12 Pin (10th Manifestation)
+
+The **10th manifestation** of the BC-2.16.002 citation defect family appears at a NEW dimension: catalog-version sibling-sweep across rows within the same file.
+
+| Dimension | Discovery Pass | Status |
+|-----------|---------------|--------|
+| 1. Version-pin staleness | Passes 6-8, 10, 14-16 | Closed by FB8/FB13/FB14 |
+| 2. Bullet label internal sync | Pass 15 | Closed by FB14 |
+| 3. Anchor BC routing | Pass 15 | Closed by FB14 |
+| 4. Phrasing form (no-parens vs parens-ancestry) | Pass 17 | Closed by FB16 |
+| 5. Close-paren placement | Pass 18 | Closed by FB17 |
+| 6-10. Spacing/case/hyphenation/word-order/trailing-punct | Pass 19 probe | PASS (all clean) |
+| **NEW: Sibling-row catalog-version coherence within same file** | **Pass 20** | **OPEN — FB18** |
+
+error-taxonomy line 473 (E-PIPELINE-001): cites `BC-2.16.002 v1.12 catalog row`. Sibling line 467 (E-PLUGIN-020): correctly pins `v1.20`. FB14 swept E-PLUGIN-020 but not E-PIPELINE-001. **Fix routing:** PO — error-taxonomy line 473 both v1.12→v1.20; v1.29→v1.30.
+
+### F-LP20-LOW-001 — BC-INDEX 7-col Schema Drift (Pending Intent Verification)
+
+3 PREREQ-E BCs (BC-2.01.016, BC-2.16.011, BC-2.16.012) use 7-cell rows; workspace canonical is 6-cell. Pass-10 Intent B adjudication chose 7-col for PREREQ-E sibling consistency. Known adjudicated choice. No FB action — defer to cycle-close or human adjudication.
+
+### Updated Trajectory Shorthand
+
+**→pass-19:CLEAN★(0 findings; FB17 COMPREHENSIVE 5-sub-dim sweep BROKE 9-manifestation pattern; 10 candidate sub-dimensions exhaustively verified clean; streak 0/3 → **1/3**)→pass-20:BLOCKED(0C+1H+1M+1L+0OBS; F-LP20-HIGH-001 ADR-027 D3 vs VP-155 file-count contradiction NOVEL + F-LP20-MED-001 10th manifestation BC-2.16.002 citation defect family at NEW dimension; streak RESET 1/3 → 0/3; 3-CLEAN protocol validation 2nd time)**
+
+Novel-finding count: 14→9→8→9→10→10→8→4→0→3→1→1→3→1→3→1→1→1→1→0→**2**.
+
+Streak: **0/3** — FB18 NEXT (architect + PO + state-manager; explicit cross-document verification mandate).
+
+STATE.md v7.312; SESSION-HANDOFF.md v7.312; STORY-INDEX v2.115 (unchanged); BC-INDEX v4.91 (unchanged); ARCH-INDEX v2.52 (unchanged); VP-INDEX v1.46 (unchanged); error-taxonomy v1.29 (unchanged — awaiting FB18); 129th consecutive single-commit (TD-VSDD-053 DECISIVELY STABLE).
