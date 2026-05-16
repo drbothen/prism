@@ -4545,3 +4545,43 @@ PLUGIN-MIGRATION-001-A/B/C/D remain BLOCKED on PREREQ-E.
 | Consecutive single-commit | 78 (TD-VSDD-053 stable) |
 
 **Next dispatch:** session-reviewer cycle-close (31 codification candidates + 8 phase-5 deferred + OBS-LP41-001) → PREREQ-E planning (Un-seal SensorAuth + Deprecate CustomAdapter per PLUGIN-MIGRATION Wave 0 dep chain).
+
+═══════════════════════════════════════════════════════════════════════
+§D573-MAINTENANCE-MERGE-CLOSURE (2026-05-15)
+═══════════════════════════════════════════════════════════════════════
+
+**D-573 COMPLETE — PR #150 squash-merged develop@a5ab742c. F-LP16 + F-LP22 CLOSED. 4-of-4 D-571 downgraded immediate-dispatch items NOW CLOSED.**
+
+### Closure Summary
+
+PR #150 (`maintenance/d572-edition-non-exhaustive`) squash-merged to develop@a5ab742c at 2026-05-15.
+
+This completes the 4-of-4 downgraded-immediate-dispatch items routed by session-reviewer D-571 (IP-4/IP-5):
+
+| Item | Source Finding | Burst | Status |
+|------|---------------|-------|--------|
+| OBS-LP35-001 arch doc Option-semantics rewrite | D-571 IP-1 | D-572 | CLOSED |
+| OBS-LP36-002 BC-INDEX count drift | D-571 IP-2 | D-572 | CLOSED |
+| BC-2.06.011 sub-fix | D-571 IP-3 (bonus) | D-572 | CLOSED |
+| F-LP16-OBS-001 prism-bin edition 2021→2024 | D-571 IP-4 | D-573 (PR #150) | CLOSED |
+| F-LP22-OBS-001 PluginError non_exhaustive + EXPECTED=31 | D-571 IP-5 | D-573 (PR #150) | CLOSED |
+
+### develop_head Reconciliation
+
+- Pre-D-573 STATE.md narrative: `develop_head: "ec90fe8f"` (stale — pointed to PREREQ-D merge only)
+- Post-D-573: `develop_head: "a5ab742c"` (maintenance PR #150 squash)
+- Local develop fast-forwarded: 95d46be2 → a5ab742c (absorbed PREREQ-D squash at ec90fe8f + maintenance squash at a5ab742c)
+
+### PR Cycle Details
+
+- 36/36 CI checks green
+- pr-reviewer 3-of-3 APPROVE in 1 cycle
+- Rebase recovery: develop advanced mid-cycle absorbing PREREQ-D; resolved via fmt-amend + --force-with-lease per CLAUDE.md maintenance-branch policy
+- MAINT-F-LP16-F-LP22 worktree removed post-merge
+- Local maintenance/d572-edition-non-exhaustive branch deleted
+
+### Next State
+
+STATE.md + SESSION-HANDOFF.md v7.277 → v7.278. develop_head: a5ab742c. 79th consecutive single-commit (TD-VSDD-053 stable).
+
+**NEXT: PREREQ-E planning — product-owner + architect + story-writer parallel dispatch.**

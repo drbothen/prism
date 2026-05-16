@@ -247,3 +247,22 @@ BC-INDEX carries count fields in two places: (1) YAML frontmatter (`active_contr
 This discipline closes the failure mode where drift between BC file lifecycle_status values and BC-INDEX aggregate counts goes undetected for multiple version bumps. The canonical check is workspace enumeration, not arithmetic from the last known state.
 
 77 consecutive single-commits (TD-VSDD-053) with zero MULTI_COMMIT_CHAIN_NOT_ALLOWED violations. The Single-Commit Burst Protocol is operationally stable at this project's scale. No additional codification needed. Reconfirming stable-convention status per §Candidate #4 pre-compact snapshot verdict.
+
+---
+
+### Lesson 17: Bundled maintenance PR pattern is efficient for co-located mechanical fixes [codified]
+
+**Codified:** 2026-05-15 (D-573 maintenance merge closure)
+**Source cascade:** F-LP16-OBS-001 (prism-bin edition 2021→2024) + F-LP22-OBS-001 (PluginError non_exhaustive + EXPECTED=31), both downgraded-immediate from D-571 cycle-close
+**Codified-as:** Operational discipline for maintenance fix-PR bundling
+
+**Pattern:** When multiple mechanical code fixes are co-located in time and scope (both are single-file Cargo.toml/source edits, no spec changes, no architectural decisions), bundle them in a single maintenance worktree + PR. This produces one PR cycle, one CI run, one code review, and one pr-reviewer APPROVE chain instead of two.
+
+**Key mechanics:**
+1. Bundle only fixes that are truly independent (no sequencing dependency between them)
+2. Use the `maintenance/<scope>` branch pattern per git workflow conventions
+3. When develop advances mid-cycle (e.g., another PR merges), use `git rebase` + `git commit --amend` (for fmt-triggered changes) + `git push --force-with-lease` per CLAUDE.md maintenance-branch policy
+4. Edition-2024 migration triggers `rustfmt` import reorders that are cosmetic-only — these are expected and not a sign of behavioral change
+5. Sibling-sweep for `#[non_exhaustive]` additions must check ALL match arms on the type — in prism's case, wildcard `_ => {}` arms were already present per CLAUDE.md conventions, so no call sites needed updating
+
+**Outcome:** D-573 closed both F-LP16 + F-LP22 in a single PR (#150) with 36/36 CI green + pr-reviewer 3-of-3 APPROVE in 1 cycle. 79th consecutive single-commit (TD-VSDD-053 stable). Total elapsed: ~1 PR cycle.
