@@ -2020,3 +2020,54 @@ Novel-finding count: 14→9→8→9→10→10→8→4→0→3→1→1→3→1→
 Streak: **1/3** ★ — Pass-24 NEXT (2nd of NEW 3-CLEAN sequence; passes 24+25 remaining for BC-5.39.001 convergence).
 
 STATE.md v7.317; SESSION-HANDOFF.md v7.317; BC-INDEX v4.93 (unchanged); STORY-INDEX v2.115 (unchanged); ARCH-INDEX v2.53 (unchanged); VP-INDEX v1.46 (unchanged); error-taxonomy v1.30 (unchanged); 136th consecutive single-commit (TD-VSDD-053 stable).
+
+---
+
+## §D-631 PASS-24 BLOCKED+FB21-CLOSED-COMBINED ENTRY (2026-05-16) — 3RD TIME 3-CLEAN PROTOCOL VALIDATION; POL-23 D-571 VERIFICATION AXIS BLIND SPOT; STREAK RESET 1/3 → 0/3; 137TH SINGLE-COMMIT
+
+**Pass-24 BLOCKED — 1 MED (pending intent verification) + 1 OBS — FB21 closed in combined burst D-631 — streak RESETS 1/3 → 0/3.**
+
+**137th consecutive single-commit (TD-VSDD-053 stable).**
+
+### 3RD TIME 3-CLEAN PROTOCOL VALIDATION
+
+The cascade has now reset three times after reaching a first-CLEAN streak advance:
+
+| Transition | Reset Cause | Passes to Previous CLEAN |
+|------------|-------------|--------------------------|
+| Pass-9 CLEAN → pass-10 BLOCKED | Cross-cascade carryover (3H) | 1 pass |
+| Pass-19 CLEAN → pass-20 BLOCKED | ADR-027 D3 file-count novel defect (1H+1M) | 1 pass |
+| **Pass-23 CLEAN → pass-24 BLOCKED** | **POL-23 D-571 `updated:` field (1M pending intent)** | **1 pass** |
+
+BC-5.39.001 3-CLEAN protocol value: reconfirmed 3 consecutive times. Fresh-context surfaces gaps that prior CLEANs miss.
+
+### Root Cause Analysis — Verification Axis Blind Spot
+
+**22 prior passes all missed grepping for story `updated:` field.** The `updated:` field was introduced by POL-23 D-571 extension (2026-05-15) — before PREREQ-E fix-bursts began. PREREQ-D has the precedent (`updated: "2026-05-15"`). The verification axis (grep for story frontmatter fields beyond `version:` + `timestamp:`) was not in any adversary's check protocol.
+
+This is a structural blind spot: the adversary verifies BC/spec content completeness, structural invariants, POL compliance across body content — but frontmatter field enumeration was not an explicit axis. Pass-24's fresh-context triggered the check.
+
+**Intent verification note:** PREREQ-A merged without `updated:`; PREREQ-D got it at post-merge cleanup, not during fix-burst. Application is inconsistent. Fix applied regardless — if intent-verification resolves as "not required," the field is harmless.
+
+### Combined-Burst Rationale (D-631)
+
+Single-line fix bundled with pass persistence + closure per TD-VSDD-053 (D-629 combined-burst pattern precedent). One logical unit.
+
+### Updated 3 CLEAN Passes History
+
+| Pass | Burst | Streak After | Context |
+|------|-------|--------------|---------|
+| 9 ★ | D-592 | 1/3 → RESET (pass-10) | 1st CLEAN |
+| 19 ★ | D-622 | 1/3 → RESET (pass-20) | 2nd CLEAN |
+| 23 ★ | D-630 | 1/3 → RESET (pass-24) | 3rd CLEAN |
+| **pass-25** | **D-631+next** | **0/3 → target 1/3** | **1st of NEW 3-CLEAN sequence (3rd attempt)** |
+
+### Updated Trajectory Shorthand
+
+**→pass-22:BLOCKED(0C+0H+1M+0L+0OBS; FB19-introduced modified-field sibling-sweep asymmetry; closed combined-burst D-629; streak 0/3 unchanged)→FB20-CLOSED-COMBINED(1/1 in-scope MED)→pass-23:CLEAN★(0 findings; D-629 combined-burst modified-field sync load-bearing; streak 0/3 → 1/3 first of NEW 3-CLEAN sequence)→pass-24:BLOCKED(0C+0H+1M+0L+1OBS; F-LP24-MED-001 story updated: field gap pending intent verification — POL-23 D-571 missed by 22 prior passes; closed combined-burst D-631; streak RESET 1/3 → 0/3 — 3rd time 3-CLEAN protocol validation)→FB21-CLOSED-COMBINED(1/1 in-scope MED)**
+
+Novel-finding count: 14→9→8→9→10→10→8→4→0→3→1→1→3→1→3→1→1→1→1→0→2→1→1(FB19)→0→**1(pass-24; closed combined D-631)** → pass-25 NEXT.
+
+Streak: **0/3** — Pass-25 NEXT (first of NEW 3-CLEAN sequence — 3rd attempt; passes 25/26/27 required for BC-5.39.001 convergence).
+
+STATE.md v7.318; SESSION-HANDOFF.md v7.318; story `updated: "2026-05-16"` added (single-line frontmatter fix); BC-INDEX v4.93 (unchanged); STORY-INDEX v2.115 (unchanged); ARCH-INDEX v2.53 (unchanged); VP-INDEX v1.46 (unchanged); error-taxonomy v1.30 (unchanged); 137th consecutive single-commit (TD-VSDD-053 stable).

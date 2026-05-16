@@ -24,6 +24,7 @@ target_module: prism-sensors
 subsystems: [SS-01, SS-07, SS-16]
 capabilities: [CAP-001, CAP-029]
 version: "1.11"
+updated: "2026-05-16"
 level: "L4"
 producer: product-owner
 timestamp: "2026-05-15T00:00:00Z"
