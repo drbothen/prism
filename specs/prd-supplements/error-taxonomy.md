@@ -2,11 +2,11 @@
 document_type: prd-supplement
 level: L3
 section: "error-taxonomy"
-version: "1.29"
+version: "1.30"
 status: active
 producer: product-owner
 timestamp: 2026-05-14T00:00:00Z
-modified: 2026-05-15
+modified: 2026-05-16
 phase: 1a
 origin: greenfield
 inputs: [".factory/specs/prd.md", ".factory/specs/behavioral-contracts/**"]
@@ -470,7 +470,7 @@ Additional state errors beyond E-STATE-001 and E-STATE-002 (defined in the STATE
 
 | Code | Severity | Category | Message Format | Retryable | Description |
 |------|----------|----------|---------------|-----------|-------------|
-| E-PIPELINE-001 | broken | resource | "Pipeline executor reached MAX_REQUESTS_PER_PIPELINE cap of 10_000 ({total} requests attempted); aborting pipeline execution" | No | `SpecEngineError::TooManyRequests { total: usize }` — emitted by `PipelineExecutor::execute` when the cumulative HTTP request counter across all steps reaches the 10,000-request hard cap (AC-16 of S-PLUGIN-PREREQ-D). Pipeline aborts immediately; partial results are discarded. Fail-closed: no partial data is returned to the caller. Structured event `pipeline_max_requests_exceeded` is emitted per BC-2.16.002 v1.12 catalog row. Non-retryable: the cap is a hard invariant, not a transient condition; operators must narrow the pipeline spec to reduce request volume. Traces to BC-2.16.002 §Postconditions (Canonical Structured Event Catalog bullet, v1.12) row pipeline_max_requests_exceeded (anchored by AC-16 of S-PLUGIN-PREREQ-D). |
+| E-PIPELINE-001 | broken | resource | "Pipeline executor reached MAX_REQUESTS_PER_PIPELINE cap of 10_000 ({total} requests attempted); aborting pipeline execution" | No | `SpecEngineError::TooManyRequests { total: usize }` — emitted by `PipelineExecutor::execute` when the cumulative HTTP request counter across all steps reaches the 10,000-request hard cap (AC-16 of S-PLUGIN-PREREQ-D). Pipeline aborts immediately; partial results are discarded. Fail-closed: no partial data is returned to the caller. Structured event `pipeline_max_requests_exceeded` is emitted per BC-2.16.002 v1.20 catalog row. Non-retryable: the cap is a hard invariant, not a transient condition; operators must narrow the pipeline spec to reduce request volume. Traces to BC-2.16.002 §Postconditions (Canonical Structured Event Catalog bullet, v1.20) row pipeline_max_requests_exceeded (anchored by AC-16 of S-PLUGIN-PREREQ-D). |
 
 ## FWD: Log Forwarder Errors
 
@@ -486,6 +486,7 @@ Additional state errors beyond E-STATE-001 and E-STATE-002 (defined in the STATE
 
 | Version | Burst | Date | Author | Change |
 |---------|-------|------|--------|--------|
+| 1.30 | prereq-e-fix-burst-18 | 2026-05-16 | product-owner | F-LP20-MED-001 — E-PIPELINE-001 row stale BC-2.16.002 v1.12 pins advanced to v1.20 (2 cites: catalog row reference + §Postconditions Canonical Structured Event Catalog bullet anchor). FB14 swept E-PLUGIN-020 v1.19→v1.20 but missed sibling row E-PIPELINE-001 — POL-25 catalog-version sibling-sweep across error-taxonomy rows gap (10th manifestation BC-2.16.002 citation defect family at NEW dimension). POL-25 workspace-wide grep applied this burst. |
 | 1.29 | prereq-e-fix-burst-14 | 2026-05-16 | product-owner | F-LP15-HIGH-002 — E-PLUGIN-020 BC anchor correction: BC ID `BC-2.16.012` → `BC-2.16.002` (canonical bullet owner; matches E-PIPELINE-001 precedent at line 473); version pin (v1.19) → (v1.20) per BC-2.16.002 bullet header sync in same burst (F-LP15-HIGH-001). PO FB12 D-604 mis-routed the BC anchor; pass-15 fresh-context surfaced. |
 | 1.28 | prereq-e-fix-burst-12 | 2026-05-16 | product-owner | F-LP13-HIGH-003 Option A propagation — E-PLUGIN-012 description: added field-source annotations (`{plugin}` = `entry.plugin_name` from conflicting WriteToolInvalidationMap; `{conflicting_plugin}` = first-registered entry's `plugin_name`; `{tool}` = `entry.tool_name`; `plugin_name` set by PluginRuntime from manifest `name` per ADR-026 D7 v1.10). E-PLUGIN-020 description: added field-source annotation (`{plugin}` = `entry.plugin_name`; structured event field `plugin_name` maps to same source); BC-2.16.012 cite advanced to `§Postconditions (Canonical Structured Event Catalog bullet, v1.19)` form per F-LP13-HIGH-001 POL-21 sweep. |
 | 1.27 | prereq-e-fix-burst-2 | 2026-05-15 | product-owner | F-LP2-MED-001 closure: Authored E-PLUGIN-012 (DuplicateWriteToolRegistration — boot-phase rejection when two plugins register the same write tool name; `SpecEngineError::DuplicateWriteToolRegistration(String)`; ADR-026 D7; BC-2.16.012 EC-016-012-004) and E-PLUGIN-020 (WriteToolRegistrationAfterBoot — runtime rejection when register_write_tool called after boot step 8 completes; `SpecEngineError::WriteToolRegistrationAfterBoot`; ADR-026 D7). ANOMALY FLAGGED FOR ORCHESTRATOR: task briefing specified E-PLUGIN-012 + E-PLUGIN-013, but E-PLUGIN-013 is ALREADY OCCUPIED as the allowed_urls manifest validation error (added v1.19). Correct allocation is E-PLUGIN-012 (fills genuine gap between 011 and 013) + E-PLUGIN-020 (next free code after 019). Architect must update ADR-026 D7 §Error code routing to cite E-PLUGIN-012 + E-PLUGIN-020 (not E-PLUGIN-013) in ADR-026 v1.3. |
