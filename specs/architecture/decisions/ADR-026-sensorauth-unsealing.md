@@ -297,7 +297,7 @@ A `WARN`-level tracing event is emitted if `register_write_tool` is called after
 (detected via an `AtomicBool` query-phase flag set by the query engine init) — this path returns
 `Err(SpecEngineError::WriteToolRegistrationAfterBoot)` instead of attempting the write.
 
-**Structured event field source specification (PG-LP11-001 + BC-2.16.002 v1.19 row 33):** The
+**Structured event field source specification (PG-LP11-001 + BC-2.16.002 v1.20 row 33):** The
 `WARN`-level `write_tool_registration_after_boot` tracing event carries three fields. Field
 source provenance:
 
