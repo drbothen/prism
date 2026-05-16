@@ -783,4 +783,49 @@ The FB5→FB6→FB7 recurrence pattern (within-FB sibling-sweep asymmetry produc
 OBS-LP8-001 (POL-23 amendment candidate) remains queued for cycle-close.
 
 STATE.md v7.292; SESSION-HANDOFF.md v7.292; 98th consecutive single-commit (TD-VSDD-053 DECISIVELY STABLE).
-Factory-artifacts D-589 burst SHA: TBD (this entry written pre-commit).
+Factory-artifacts D-592 burst SHA: 03d2057c.
+
+---
+
+## §D-593 PASS-10 BLOCKED ENTRY (2026-05-16) — 3-CLEAN PROTOCOL VALIDATED
+
+**Burst D-593 — state-manager — 99th consecutive single-commit — PASS-10 BLOCKED — STREAK RESET 1/3 → 0/3**
+
+Pass-10 fresh-context adversary independently re-derived the entire PREREQ-E spec surface and found 3 NOVEL cross-cascade carryover defects. **HISTORIC SIGNIFICANCE: Pass-10 validates BC-5.39.001 3-CLEAN protocol.** Pass-9 was a single reviewer's blind-spots, not actual spec quality. The protocol's requirement for multiple independent fresh-context reviewers is proven necessary, not theoretical.
+
+### Pass-10 Finding Summary
+
+| Finding | Severity | Root Cause | FB9 Routing |
+|---------|----------|-----------|-------------|
+| F-LP10-HIGH-001 | HIGH | POL-21 phantom `§VP-PLUGIN-001` at 3 live-body sites: vp-155 §Property Statement, vp-155 §Source Contract Supporting ADR bullet, ADR-027 §D3; cross-cascade carryover — FB1 swept `§C5` class but did not sweep VP files or ADR-027 for analogous `§VP-PLUGIN-001` | architect: replace with `§Verification Properties (VP-PLUGIN-001 bullet)` at all 3 sites; VP-155 v0.4→v0.5; ADR-027 v1.4→v1.5; ARCH-INDEX v2.50→v2.51; VP-INDEX v1.44→v1.45 |
+| F-LP10-MED-001 | MEDIUM | STORY-INDEX Depends On cell missing `S-PLUGIN-PREREQ-D`; story frontmatter `depends_on:` has it; STORY-INDEX v2.111 Depends On column was never explicitly reconciled | state-manager: add `S-PLUGIN-PREREQ-D`; STORY-INDEX v2.111→v2.112 |
+| F-LP10-LOW-001 | LOW | BC-INDEX BC-2.01.016 row lacks version tag; sibling BCs BC-2.16.011 (`v1.4`) and BC-2.16.012 (`v1.8`) from same creation burst have version tags; Intent B (production-grade default): add `v1.3` | state-manager: add `| v1.3 |` cell; BC-INDEX v4.85→v4.86 |
+
+### Expected Post-FB9 Version Table
+
+| Artifact | Pre-FB9 (pass-10 snapshot) | Expected FB9 Bump | By |
+|----------|---------------------------|-------------------|----|
+| VP-155 | v0.4 | v0.5 | architect |
+| ADR-027 | v1.4 | v1.5 | architect |
+| ARCH-INDEX | v2.50 | v2.51 | architect |
+| VP-INDEX | v1.44 | v1.45 | architect |
+| STORY-INDEX | v2.111 | v2.112 | state-manager |
+| BC-INDEX | v4.85 | v4.86 | state-manager |
+
+### Trajectory Shorthand (Updated)
+
+**14→9→8→9→10→10→FB6-CLOSED(10/10 in-scope; 3 OBS deferred cycle-close)→8→FB7-CLOSED(8/8 in-scope; 4 OBS deferred cycle-close)→pass-8:BLOCKED(0C+2H+1M+0L+1OBS; LOWEST; recurring-asymmetry-class)→FIX-BURST-8-CLOSED(3/3 in-scope; single-bump-per-source-artifact discipline applied)→pass-9:CLEAN★(0/0/0/0/0; FIRST CLEAN OF CASCADE; single-bump-discipline BROKE recurring-asymmetry-class; streak 0/3 → 1/3)→pass-10:BLOCKED(0C+1H+1M+1L+0OBS; POL-21-§VP-PLUGIN-001-phantom-3-sites + STORY-INDEX-Depends-On-drift + BC-INDEX-BC-2.01.016-sibling-asymmetry; 3-CLEAN PROTOCOL VALIDATED; streak RESET 1/3→0/3)**
+
+Streak: **0/3** — FB9 NEXT (architect + state-manager dispatch).
+
+### 3-CLEAN Protocol Validation Note
+
+Pass-9 CLEAN + Pass-10 BLOCKED is exactly the scenario BC-5.39.001 was designed to prevent. A single clean pass is insufficient because:
+1. Each adversary reviewer brings different assumptions and sweep patterns.
+2. Cross-cascade carryover defects (like phantom anchor forms from pre-PREREQ-E content) are invisible to reviewers anchored to the PREREQ-E authoring context.
+3. Three consecutive clean passes by independent reviewers = strong evidence that no reviewer-blind-spot class of defects remains.
+
+The 3-CLEAN protocol is not bureaucracy — it is quality assurance against systematic blind-spots.
+
+STATE.md v7.293; SESSION-HANDOFF.md v7.293; 99th consecutive single-commit (TD-VSDD-053 DECISIVELY STABLE).
+Factory-artifacts D-593 burst SHA: TBD (this entry written pre-commit).

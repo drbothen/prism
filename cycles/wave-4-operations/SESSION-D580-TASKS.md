@@ -41,10 +41,12 @@ Intended audience: orchestrator at next session start. Read alongside STATE.md +
 | 25 | PENDING | If pass-9 CLEAN: streak 1/3 — continue cascade toward pass-10 | Blocked on Task #27 verdict (streak advance) |
 | 26 | DONE | PREREQ-E fix-burst-8 CLOSED (3/3 in-scope): D-590 architect `42a387b5` (F-LP8-HIGH-001 VP-156 D7 pins v1.8→v1.9 + F-LP8-HIGH-002 BC-2.16.012 VP-156 row pin v1.8→v1.9; VP-156 v0.7; BC-2.16.012 v1.8) + D-591 state-manager (F-LP8-MED-001 VP-156 §Changelog v0.4 repositioned to correct monotonic position between v0.3 and v0.5). Single-bump-per-source-artifact discipline applied: ADR-026 stays at v1.9. 97th consecutive single-commit. | — |
 | 27 | DONE ★ CLEAN | PREREQ-E pass-9 (fresh-context) — **CLEAN** — 0 findings; streak 0/3 → 1/3; FIRST CLEAN PASS OF CASCADE; single-bump discipline BROKE recurring asymmetry; D-592 burst; 98th consecutive single-commit | — |
-| 28 | IN-PROGRESS | PREREQ-E pass-10 (fresh-context) — streak 1/3 → target 2/3 | Unblocked — pass-10 NEXT |
-| 29 | PENDING | If pass-10 BLOCKED: validate single-bump discipline insufficient + escalate to POL-23 mid-cycle codification (Option 3) | Blocked on Task #28 verdict |
-| 30 | PENDING | PREREQ-E pass-11 (3-CLEAN convergence target) | Blocked on pass-10 CLEAN |
-| 31 | PENDING | If 3-CLEAN reached: Phase 1d → Phase 2 transition + per-story-delivery cycle dispatch for S-PLUGIN-PREREQ-E | Blocked on Task #30 CLEAN |
+| 28 | DONE — BLOCKED | PREREQ-E pass-10 dispatched + report persisted (D-593; BLOCKED 3 in-scope 1H+1M+1L; 3-CLEAN PROTOCOL VALIDATED — pass-9 was blind-spots; streak RESET 1/3→0/3; novelty HIGH; report at cycles/wave-4-operations/adversarial-reviews/S-PLUGIN-PREREQ-E-spec-pass-10.md; 99th single-commit) | — |
+| 29 | DONE — N/A | Pass-10 BLOCKED confirmed 3-CLEAN protocol necessity; single-bump discipline is necessary but insufficient for convergence; POL-23 codification not applicable here | — |
+| 30 | PENDING | PREREQ-E pass-11 (fresh-context, post-FB9; streak 0/3 → if CLEAN advances to 1/3) | Blocked on Task #32 FB9 |
+| 31 | PENDING | If 3-CLEAN reached: Phase 1d → Phase 2 transition + per-story-delivery cycle dispatch for S-PLUGIN-PREREQ-E | Blocked on pass-11+12+13 (or later) all CLEAN |
+| 32 | BLOCKED | PREREQ-E fix-burst-9 (3 findings: F-LP10-HIGH-001 architect [VP-155+ADR-027 §VP-PLUGIN-001 phantom-anchor ×3 sites] + F-LP10-MED-001 state-manager [STORY-INDEX Depends On add S-PLUGIN-PREREQ-D] + F-LP10-LOW-001 state-manager [BC-INDEX BC-2.01.016 row add v1.3 tag]) | Awaiting FB9 dispatch — architect + state-manager parallel |
+| 33 | PENDING | PREREQ-E pass-11 (fresh-context, streak 0/3 → if CLEAN advances to 1/3) | Blocked on Task #32 FB9 complete |
 
 ## Strategic Options — RESOLVED (D-581)
 
