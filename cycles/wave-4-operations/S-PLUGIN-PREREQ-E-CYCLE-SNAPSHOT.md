@@ -925,3 +925,49 @@ Clear DECREASING trend from peak-10 to 1. Cascade is convergent in count.
 Streak: **0/3** — FB10 NEXT then pass-12.
 
 STATE.md v7.295; SESSION-HANDOFF.md v7.295; 102nd consecutive single-commit (TD-VSDD-053 DECISIVELY STABLE).
+
+---
+
+## §D-598 FIX-BURST-10 CLOSURE (2026-05-16) — FB10 1/1 IN-SCOPE CLOSED; HS-012 CROSS-CYCLE SIBLING LOGGED WAVE 4 FOLLOW-UP
+
+**D-598 COMPLETE — PREREQ-E FIX-BURST-10 CLOSED. 1/1 in-scope finding closed (F-LP11-MED-001 HS-PREREQ-E-003 VP-156 traceability symmetry). RECURRING-class trio complete (VP-154/VP-155/VP-156). HS-012 cross-cycle sibling logged as Wave 4 follow-up (OUT OF SCOPE). Streak 0/3. 104th consecutive single-commit. Pass-12 NEXT.**
+
+### FB10 Closure Verification — ALL PASS
+
+| Finding | Closure Burst | Verification Target | Result |
+|---------|--------------|---------------------|--------|
+| F-LP11-MED-001 | D-597 `80f892f1` | `verification_properties:` in HS-PREREQ-E-003 frontmatter | PASS (line 22) |
+| F-LP11-MED-001 | D-597 `80f892f1` | `**VP Traced:** VP-156` at HS-003-04 footer | PASS (line 171) |
+| F-LP11-MED-001 | D-597 `80f892f1` | `**VP Traced:** VP-156` at HS-003-05 footer | PASS (line 206) |
+| HS-012 scope check | D-598 state-manager | HS-012-action-delivery.md confirmed OUT OF SCOPE (not in 18-artifact pin list) | CONFIRMED — logged Task #37 |
+
+### RECURRING-Class Trio — VP-154/VP-155/VP-156 ALL CLOSED
+
+| Instance | Finding | Burst | VP | Defect Class | Status |
+|----------|---------|-------|-----|-------------|--------|
+| 1st | F-LP1-CRIT-001 | FB1 | VP-154 | HS holdout VP traceability frontmatter + footer missing | CLOSED |
+| 2nd | F-LP6-HIGH-001 | FB6 | VP-155 | VP-155 `source_bc: null` — missing BC backlink | CLOSED |
+| 3rd | F-LP11-MED-001 | FB10 | VP-156 | HS-PREREQ-E-003 missing `verification_properties: [VP-156]` + 2 footer annotations | CLOSED |
+
+Root cause codification: Each new VP addition in PREREQ-E creates an obligation to back-annotate the relevant holdout scenarios. Pattern repeated 3× because no prior pass swept holdout frontmatter when a VP was added. COMPLETE for this cascade — no VP-157+ expected in PREREQ-E scope.
+
+### HS-012 Cross-Cycle Sibling — Scope Boundary Respected
+
+PO's TD-VSDD-060 sweep (during FB10 fix work) surfaced:
+- File: `HS-012-action-delivery.md`
+- Defect: 12 VP-045 body references, zero `verification_properties:` frontmatter key
+- Same defect class as F-LP11-MED-001
+- Scope: S-4.08 Wave 4 Action Delivery — NOT in PREREQ-E 18-artifact pin list
+
+Routing decision per CLAUDE.md Companion Principle: OUT OF SCOPE for PREREQ-E cascade. Logged as Task #37 FOLLOW-UP-DEFERRED in SESSION-D580-TASKS.md per Canonical Principle Rule 3:
+- Concrete future story anchor: S-4.08 (Wave 4 Action Delivery)
+- Concrete future dependency: S-4.08 implementation cycle needs traceability symmetry for holdout-evaluator routing
+- NOT added to tech-debt-register (no human-directed deferral)
+
+### Trajectory Shorthand (Updated — Post FB10)
+
+**14→9→8→9→10→10→FB6-CLOSED(10/10 in-scope; 3 OBS deferred cycle-close)→8→FB7-CLOSED(8/8 in-scope; 4 OBS deferred cycle-close)→pass-8:BLOCKED(0C+2H+1M+0L+1OBS; LOWEST; recurring-asymmetry-class)→FIX-BURST-8-CLOSED(3/3 in-scope; single-bump-per-source-artifact discipline applied)→pass-9:CLEAN★(0/0/0/0/0; FIRST CLEAN OF CASCADE; single-bump-discipline BROKE recurring-asymmetry-class; streak 0/3 → 1/3)→pass-10:BLOCKED(0C+1H+1M+1L+0OBS; POL-21-§VP-PLUGIN-001-phantom-3-sites + STORY-INDEX-Depends-On-drift + BC-INDEX-BC-2.01.016-sibling-asymmetry; 3-CLEAN PROTOCOL VALIDATED; streak RESET 1/3→0/3)→FIX-BURST-9-CLOSED(3/3 in-scope; POL-21-cross-perimeter-sweep-complete + STORY-INDEX-Depends-On + BC-INDEX-sibling-symmetry restored)→pass-11:BLOCKED(0C+0H+1M+0L+0OBS; HS-PREREQ-E-003 VP-156 holdout-traceability symmetry — RECURRING class 3rd instance; streak 0/3 unchanged; novel-finding count 1 = LOWEST ever)→FIX-BURST-10-CLOSED(1/1 in-scope; HS-012 cross-cycle sibling logged Wave 4 follow-up)**
+
+Streak: **0/3** — pass-12 NEXT (fresh-context; if CLEAN advances to 1/3).
+
+STATE.md v7.296; SESSION-HANDOFF.md v7.296; 104th consecutive single-commit (TD-VSDD-053 DECISIVELY STABLE).
