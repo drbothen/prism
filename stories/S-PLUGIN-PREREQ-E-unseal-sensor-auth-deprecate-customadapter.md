@@ -23,7 +23,7 @@ crates_touched: [prism-sensors, prism-spec-engine, prism-query]
 target_module: prism-sensors
 subsystems: [SS-01, SS-07, SS-16, SS-17]
 capabilities: [CAP-001, CAP-029]
-version: "1.21"
+version: "1.22"
 updated: "2026-05-16"
 level: "L4"
 producer: product-owner
@@ -233,11 +233,11 @@ A unit test confirms that a `SensorSpec` with `auth_type = ["oauth2_client_crede
 
 **AC-3b (Runtime Auth-Composition Rejection — Multiple credential_refs Rejected, E-SPEC-013):**
 A unit test confirms that a `SensorSpec` with multiple `credential_refs` per auth method (e.g., `[[sensor.credential_refs]]` declared twice for the same auth method) is rejected at spec-load with `E-SPEC-013`. Test name: `test_BC_2_01_016_e_spec_013_multiple_credential_refs_rejected`.
-(traces to BC-2.01.016 §Postconditions P4 Rule 2/B; ADR-023 Rule 2; error-taxonomy v1.31)
+(traces to BC-2.01.016 §Error Cases E-SPEC-013; ADR-023 §Architectural Constraints Rule 2, Rule B (multiple credential_refs); error-taxonomy v1.31)
 
 **AC-3c (Runtime Auth-Composition Rejection — Credential Type Mismatch Rejected, E-SPEC-014):**
 A unit test confirms that a `SensorSpec` with structural mismatch between `auth_type` and resolved credential type (e.g., `auth_type = "oauth2_client_credentials"` paired with an API-key-shaped credential) is rejected with `E-SPEC-014`. Test name: `test_BC_2_01_016_e_spec_014_credential_type_mismatch_rejected`.
-(traces to BC-2.01.016 §Postconditions P4 Rule 2/C; ADR-023 Rule 2; error-taxonomy v1.31)
+(traces to BC-2.01.016 §Error Cases E-SPEC-014; ADR-023 §Architectural Constraints Rule 2, Rule C (credential type mismatch); error-taxonomy v1.31)
 
 **AC-4 (custom_adapter.rs Deleted):**
 `crates/prism-spec-engine/src/custom_adapter.rs` does not exist after merge. `grep -rn "CustomAdapter\|CustomAdapterRegistry\|CustomAuth" crates/prism-spec-engine/src/` returns ZERO matches.
@@ -277,7 +277,7 @@ Four integration tests (`test_BC_2_16_012_002_spec_parser_behavioral_equivalence
 
 **AC-11 (E-SPEC-008 Retirement Annotation Verified in error-taxonomy.md):**
 The `E-SPEC-008` row in `error-taxonomy.md` carries a `retired:` annotation (or equivalent in-row retirement notation) referencing PREREQ-E and ADR-027. The description text reads: "Retired in S-PLUGIN-PREREQ-E. No live code path triggers this code post-CustomAdapter removal. Plugin execution panics surface via E-PLUGIN-001." A test confirms no production `src/` path constructs or returns `E-SPEC-008`. Test name: `test_BC_2_16_011_e_spec_008_retired_annotation`.
-(traces to BC-2.16.011 §Postconditions P7; Task 9; ADR-027)
+(traces to BC-2.16.011 §Error Cases E-SPEC-008 (retired); Task 9; ADR-027 §Decision)
 
 ---
 
@@ -294,9 +294,9 @@ Tests are grouped by BC for readability (F-LP2-MED-004 correction).
 
 3. **`test_BC_2_01_016_003_four_auth_impls_minimal_diff_post_unsealing`** (prism-sensors) — constructs all four concrete auth types, calls their `SensorAuth` methods, and asserts each impl has exactly one new method body (`auth_type_name`) plus zero other changes vs pre-unsealing baseline; fails RED until `SensorAuth` is unsealed and each impl adds the `auth_type_name` body (because the sealed bound currently blocks external test construction, and the new method does not yet exist).
 
-4. **`test_BC_2_01_016_e_spec_013_multiple_credential_refs_rejected`** (prism-spec-engine) — constructs a `SensorSpec` with `[[sensor.credential_refs]]` declared twice for the same auth method and attempts to load it via `SensorSpec::load`. Asserts `result.is_err() && err.code() == "E-SPEC-013"`. Pre-implementation: fails RED because no Rule 2/B enforcement exists. Post-implementation: assertion passes (validator returns E-SPEC-013 per BC-2.01.016 §Postconditions P4 Rule 2/B; ADR-023 Rule 2, Rule B; error-taxonomy v1.31).
+4. **`test_BC_2_01_016_e_spec_013_multiple_credential_refs_rejected`** (prism-spec-engine) — constructs a `SensorSpec` with `[[sensor.credential_refs]]` declared twice for the same auth method and attempts to load it via `SensorSpec::load`. Asserts `result.is_err() && err.code() == "E-SPEC-013"`. Pre-implementation: fails RED because no Rule 2/B enforcement exists. Post-implementation: assertion passes (validator returns E-SPEC-013 per BC-2.01.016 §Error Cases E-SPEC-013; ADR-023 §Architectural Constraints Rule 2, Rule B; error-taxonomy v1.31).
 
-5. **`test_BC_2_01_016_e_spec_014_credential_type_mismatch_rejected`** (prism-spec-engine) — constructs a `SensorSpec` with `auth_type = "oauth2_client_credentials"` paired with an API-key-shaped credential and attempts to load it via `SensorSpec::load`. Asserts `result.is_err() && err.code() == "E-SPEC-014"`. Pre-implementation: fails RED because no Rule 2/C structural-mismatch check exists. Post-implementation: assertion passes (validator returns E-SPEC-014 per BC-2.01.016 §Postconditions P4 Rule 2/C; ADR-023 Rule 2, Rule C; error-taxonomy v1.31).
+5. **`test_BC_2_01_016_e_spec_014_credential_type_mismatch_rejected`** (prism-spec-engine) — constructs a `SensorSpec` with `auth_type = "oauth2_client_credentials"` paired with an API-key-shaped credential and attempts to load it via `SensorSpec::load`. Asserts `result.is_err() && err.code() == "E-SPEC-014"`. Pre-implementation: fails RED because no Rule 2/C structural-mismatch check exists. Post-implementation: assertion passes (validator returns E-SPEC-014 per BC-2.01.016 §Error Cases E-SPEC-014; ADR-023 §Architectural Constraints Rule 2, Rule C; error-taxonomy v1.31).
 
 **BC-2.16.011 (CustomAdapter Rust Trait Retirement):**
 
@@ -494,6 +494,7 @@ Tech debt closed:
 
 | Version | Burst | Date | Author | Change |
 |---------|-------|------|--------|--------|
+| 1.22 | FB40 | 2026-05-16 | product-owner | F-LP50-MED-001 AC-3b/AC-3c/AC-11 trace anchors corrected from phantom-anchor "§Postconditions P-NN" syntax to canonical "§Error Cases E-SPEC-NNN" form per POL-21 + POL-22 Phase A. AC-3b: `§Postconditions P4 Rule 2/B` → `§Error Cases E-SPEC-013`; AC-3c: `§Postconditions P4 Rule 2/C` → `§Error Cases E-SPEC-014`; AC-11: `§Postconditions P7` → `§Error Cases E-SPEC-008 (retired)`. Same correction applied to Red Gate test 4 + test 5 post-implementation assertion text (same phantom-anchor pattern). ADR-023 cite form aligned: `ADR-023 Rule 2` → `ADR-023 §Architectural Constraints Rule 2, Rule B/C` (full heading anchor). AC-11 ADR-027 cite appended with `§Decision`. FB39-introduced defect closed. |
 | 1.21 | FB39 | 2026-05-16 | product-owner | F-LP49-HIGH-001 PO-domain sites — AC-3 narrative + trace lines updated error-taxonomy v1.30→v1.31 (13th+ POL-23 recurrence closure). F-LP49-MED-001 BC-2.01.016 Rule 2/B+2/C AC coverage gap closed via new AC-3b (E-SPEC-013; test `test_BC_2_01_016_e_spec_013_multiple_credential_refs_rejected`) + AC-3c (E-SPEC-014; test `test_BC_2_01_016_e_spec_014_credential_type_mismatch_rejected`) + 2 new Red Gate tests (tests 4+5; former BC-2.16.011 tests 4+5 renumbered to 6+7; BC-2.16.012 tests 6–11 renumbered to 8–13); `acceptance_criteria_count: 10→13`; `red_gate_tests: 11→14`. F-LP49-MED-002 BC-2.16.011 P7 E-SPEC-008 retirement annotation AC gap closed via new AC-11 + Red Gate test 14 (`test_BC_2_16_011_e_spec_008_retired_annotation`). F-LP49-MED-003 BC-2.16.012 P6 tracing event field schema AC gap closed via AC-9 extension asserting tracing-test capture of `write_tool_registration_after_boot` WARN event fields; Red Gate test 13 (renumbered from 11) updated to assert tracing-event field capture. F-LP49-MED-004 ADR-022 added to §References Architecture Compliance subsection (`§B step 7.5/8 ordering authoritative for Task 7b AtomicBool flag set-time`). F-LP49-LOW-001 §References gains new Holdout Scenarios subsection enumerating HS-PREREQ-E-001/002/003 with relative links. Green Gate DoD item 5 updated: 10→13 ACs. |
 | 1.20 | FB38 | 2026-05-16 | product-owner | F-LP48-MED-001: §Error Taxonomy Additions E-PLUGIN-020 description corrected from retired "called after boot step 8 completes" to canonical "called after query-engine init starts at step 8 (per ADR-026 §D7); window closes at step 8 start (first act of step 8, before QueryEngine construction proceeds)" per FB37 architect adjudication. F-LP48-MED-003: §File Structure Requirements gains new row for `crates/prism-spec-engine/src/plugin/mod.rs` (or `loader.rs`) wiring PluginRuntime per-plugin write-tool registration during step 7.5 per ADR-026 §D7 + ADR-022 §B step 7.5. §Token Budget gains matching row (~150 tokens); total updated ~17,450 → ~17,600. POL-23 pin bump: §Error Taxonomy Additions intro cite `error-taxonomy.md v1.30` → `v1.31` (E-PLUGIN-020 was amended in v1.31). |
 | 1.19 | FB37 | 2026-05-16 | product-owner | F-LP47-LOW-001 frontmatter: ADR-022 added to `architectural_decisions` (§B step 7.5/8 ordering authoritative for Task 7b AtomicBool flag set-time); SS-17 added to `subsystems` and `anchor_subsystem` (both fields) per architect adjudication. F-LP47-MED-001 Task 7b/7c TD-VSDD-091 volatile line-number cites replaced with durable semantic anchors ("error-taxonomy.md E-PLUGIN-020" without line 467; "BC-2.16.012 EC-016-012-005" without line 109). F-LP47-MED-003 §FSR + §Token Budget swept for Task 7b/7c new content: invalidation.rs row expanded to enumerate AtomicBool flag + `mark_query_phase_started()` function; `error.rs` row added for `WriteToolRegistrationAfterBoot` variant (~50 tokens); invalidation.rs budget updated ~600 → ~700; total updated ~17,300 → ~17,450. F-LP47-MED-004 Task 7b emission form corrected to canonical `event_type` idiom per BC-2.16.012:84 + CLAUDE.md Conventions (`event_type` as first structured field, not trailing static message). |

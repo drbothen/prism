@@ -1,7 +1,7 @@
 ---
 document_type: verification-property-index
 level: L4
-version: "1.50"
+version: "1.51"
 status: draft
 producer: product-owner
 timestamp: 2026-05-16T00:00:00
@@ -243,6 +243,7 @@ S-1.02 frontmatter has been updated to `subsystems: [SS-03, SS-07, SS-11, SS-12,
 
 | Version | Burst | Date | Author | Change |
 |---------|-------|------|--------|--------|
+| 1.51 | state(D-659) | 2026-05-16 | state-manager | FB40 D-659: VP-153 row tracking v0.8→v0.9 (F-LP50-MED-002 §Changelog row ordering corrected to monotonic ascending per POL-26 — 49-pass-surviving defect). POL-9 same-burst propagation; POL-11 bump. |
 | 1.50 | state(D-658) | 2026-05-16 | state-manager | FB39 D-658: VP-153 row tracking v0.7→v0.8 (F-LP49-HIGH-001 5-site error-taxonomy v1.30→v1.31 cascade closure — 13th+ POL-23 recurrence; VP-153 inline-comment cites at lines 167+210 updated by architect). POL-9 same-burst propagation; POL-11 bump. |
 | 1.49 | state(D-653) | 2026-05-16 | state-manager | FB34 D-653: VP-153 row bumped v0.6→v0.7 (F-LP44-MED-002 §Proof Harness Skeleton expanded — Rules A+B proptests scaffolded). POL-9 same-burst propagation; POL-11 bump. |
 | 1.48 | state(D-646) | 2026-05-16 | state-manager | FB29 D-646: VP-153 row bumped v0.5→v0.6 propagating architect's Option A byte-verbatim sync of Rule A/B/C message-format quotations to canonical error-taxonomy.md v1.30 E-SPEC-012/013/014. POL-9 same-burst propagation. |

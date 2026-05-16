@@ -2,7 +2,7 @@
 document_type: architecture-section
 level: L3
 section: "verification-architecture"
-version: "1.40"
+version: "1.41"
 status: draft
 producer: architect
 timestamp: 2026-05-16T00:00:00
@@ -314,6 +314,7 @@ Proptest strategies generate complex inputs (alias graphs, detection rules, OCSF
 
 | Version | Pass | Date | Author | Notes |
 |---------|------|------|--------|-------|
+| 1.41 | state(D-659) | 2026-05-16 | state-manager | FB40 D-659 POL-9 same-burst propagation: VP-153 file advanced v0.8→v0.9 (F-LP50-MED-002 §Changelog row ordering corrected to monotonic ascending per POL-26 — 49-pass-surviving defect). This document carries VP-153 by ID only (no version pin in Provable Properties Catalog table); POL-11 changelog row recorded to maintain contiguous version history. |
 | 1.40 | state(D-658) | 2026-05-16 | state-manager | FB39 D-658 POL-9 same-burst propagation: VP-153 file advanced v0.7→v0.8 (F-LP49-HIGH-001 5-site error-taxonomy v1.30→v1.31 cascade closure — inline-comment cites at lines 167+210 updated by architect). This document carries VP-153 by ID only (no version pin in Provable Properties Catalog table); POL-11 changelog row recorded to maintain contiguous version history. |
 | 1.39 | state(D-653) | 2026-05-16 | state-manager | FB34 D-653 POL-9 same-burst propagation: VP-153 file advanced v0.6→v0.7 (§Proof Harness Skeleton expanded — Rules A+B proptests scaffolded for E-SPEC-012/013). This document carries VP-153 by ID only (no version pin in Provable Properties Catalog table); POL-11 changelog row recorded to maintain contiguous version history. |
 | 1.38 | state(D-646) | 2026-05-16 | state-manager | FB29 D-646 POL-9 same-burst propagation: VP-153 file advanced v0.5→v0.6 (architect Option A byte-verbatim sync of Rule A/B/C message-format quotations to canonical error-taxonomy.md v1.30 E-SPEC-012/013/014). This document carries VP-153 by ID only (no version pin in Provable Properties Catalog table); POL-11 changelog row recorded to maintain contiguous version history. |

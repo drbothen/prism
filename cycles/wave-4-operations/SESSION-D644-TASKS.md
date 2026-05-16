@@ -1,6 +1,6 @@
 ---
 document_type: session-tasks
-version: "1.14"
+version: "1.15"
 status: active
 related_burst: D-644
 predecessor_state: D-652
@@ -59,7 +59,9 @@ This file persists the task list and full cascade state from the session coverin
 | 100 | **DONE** | FB38 CLOSED — 4/4 in-scope (F-LP48-HIGH-001: ADR-026 v1.13; F-LP48-MED-001: story v1.20; F-LP48-MED-002: error-taxonomy v1.31; F-LP48-MED-003: §FSR row added + Token Budget reconciled; ARCH-INDEX v2.57; STORY-INDEX v2.124; 163rd consecutive single-commit) |
 | 101 | **DONE/BLOCKED** | PREREQ-E pass-49 BLOCKED (1 HIGH + 4 MED + 1 LOW; F-LP49-HIGH-001 5-site error-taxonomy v1.30→v1.31 cascade gap 13th+ POL-23 recurrence; F-LP49-MED-001/002/003 AC coverage gaps; F-LP49-MED-004 ADR-022 §References; F-LP49-LOW-001 §References Holdout Scenarios; novelty HIGH; streak 0/3 unchanged; FB39 dispatched) |
 | 102 | **DONE** | FB39 CLOSED — 6/6 in-scope (ADR-026 v1.14; VP-153 v0.8; story v1.21; HS-001 v1.4; +3 ACs AC-3b+AC-3c+AC-11; +3 Red Gate tests 11→14; ARCH-INDEX v2.58; VP-INDEX v1.50; STORY-INDEX v2.125; verification-architecture v1.40; verification-coverage-matrix v1.37; 164th consecutive single-commit) |
-| 103 | **PENDING** | PREREQ-E pass-50 (next 3-CLEAN attempt; BC-5.39.001 requires 3 consecutive CLEAN) |
+| 103 | **DONE/BLOCKED** | PREREQ-E pass-50 BLOCKED (0 HIGH + 2 MED + 1 LOW; F-LP50-MED-001 FB39-introduced phantom-anchor §Postconditions P-NN in 5 story sites; F-LP50-MED-002 VP-153 §Changelog non-monotonic 49-pass-surviving; F-LP50-LOW-001 ACCEPTED; novelty MEDIUM; streak 0/3 unchanged; FB40 dispatched) |
+| 104 | **DONE** | FB40 CLOSED — 2/2 MED in-scope (story v1.22: 5 phantom-anchor sites §Error Cases E-SPEC-NNN; VP-153 v0.9: §Changelog monotonic ascending 0.1→0.9; VP-INDEX v1.51; STORY-INDEX v2.126; verification-architecture v1.41; verification-coverage-matrix v1.38; 165th consecutive single-commit) |
+| 105 | **PENDING** | PREREQ-E pass-51 (next 3-CLEAN attempt; BC-5.39.001 requires 3 consecutive CLEAN) |
 
 ## §FB28 Closure Note (D-645 COMPLETE)
 
@@ -297,6 +299,36 @@ All 19 artifacts at D-651 version pins — no spec edits in D-652 (state-manager
 
 ---
 
+## §FB40 Closure Note (D-659 COMPLETE)
+
+**FB40 single-commit closure. PO (story v1.22) + state-manager (VP-153 v0.9) parallel. State-manager last. 2 artifact bumps. 4 indexes/arch files bumped (VP-INDEX v1.51 + STORY-INDEX v2.126 + verification-architecture v1.41 + verification-coverage-matrix v1.38). 165th consecutive single-commit.**
+
+### Findings Closed
+
+| Finding | Agent | Status | Notes |
+|---------|-------|--------|-------|
+| F-LP50-MED-001 | product-owner | CLOSED | FB39-introduced phantom-anchor §Postconditions P-NN → canonical §Error Cases E-SPEC-NNN. 5 sites in story: AC-3b trace, AC-3c trace, AC-11 trace, Red Gate test 4 post-impl note, Red Gate test 5 post-impl note. Story v1.21→v1.22. |
+| F-LP50-MED-002 | state-manager | CLOSED | VP-153 §Changelog row ordering non-monotonic (49-pass-surviving). Prior order: 0.7→0.8→0.6→0.1→0.2→0.3→0.4→0.5. Corrected to ascending: 0.1→0.2→0.3→0.4→0.5→0.6→0.7→0.8→0.9. VP-153 v0.8→v0.9. |
+
+### Orchestrator Adjudications
+
+| Finding | Verdict | Rationale |
+|---------|---------|-----------|
+| F-LP50-LOW-001 | ACCEPTED | Red Gate Test 14 BC-grouping is editorial preference; renumber risks after 50 passes outweigh marginal benefit. No fix dispatched. |
+
+### POL-29 Candidate — 16th+ Manifestation
+
+- F-LP50-MED-001 is the 16th+ instance of within-FB-introduces-defect pattern
+- FB39 closed 6/6 declared findings but introduced phantom-anchor §Postconditions P-NN syntax in newly-authored AC-3b/AC-3c/AC-11 and Red Gate test 4/5 notes
+- F-LP50-MED-002 (49-pass-surviving VP-153 §Changelog non-monotonic ordering) demonstrates that lateral vector rotation (systematic per-file §Changelog ordering audit) continues to surface new defect classes after extended cascade
+- POL-29 codification evidence overwhelming: mandatory post-burst anchor syntax sweep on all newly-authored prose + mandatory §Changelog ordering audit on all modified VP files
+
+### Pinned Artifact Versions (post-D-659)
+
+Story v1.22 | VP-153 v0.9 | VP-INDEX v1.51 | STORY-INDEX v2.126 | verification-architecture v1.41 | verification-coverage-matrix v1.38 | ADR-026 v1.14 (UNCHANGED) | BC-INDEX v4.96 (UNCHANGED) | error-taxonomy v1.31 (UNCHANGED) | ARCH-INDEX v2.58 (UNCHANGED)
+
+---
+
 ## §FB39 Closure Note (D-658 COMPLETE)
 
 **FB39 multi-agent single-commit closure. Architect (ADR-026 v1.14 + VP-153 v0.8) + PO (story v1.21 + HS-PREREQ-E-001 v1.4) parallel. State-manager last. 4 artifacts bumped. 5 indexes/arch files bumped (ARCH-INDEX v2.58 + VP-INDEX v1.50 + STORY-INDEX v2.125 + verification-architecture v1.40 + verification-coverage-matrix v1.37). +3 ACs (AC-3b, AC-3c, AC-11); +3 Red Gate tests (11→14). 164th consecutive single-commit.**
@@ -511,14 +543,14 @@ Accept current spec quality (8 CLEAN passes is unusual statistical evidence of q
 
 | Artifact | Version |
 |----------|---------|
-| Story | v1.21 (FB39-D-658: lines 231+232 error-taxonomy v1.30→v1.31 cite; new AC-3b+AC-3c+AC-11; AC-9 extended; ADR-022 §References entry; §References Holdout Scenarios subsection; story AC 10→13; Red Gate 11→14) |
+| Story | v1.22 (FB40-D-659: AC-3b/AC-3c/AC-11 trace anchors + Red Gate test 4+5 post-impl notes §Postconditions P-NN → §Error Cases E-SPEC-NNN; PO) |
 | BC-2.01.016 | v1.7 (EC-016-003 "impl block is unchanged" corrected to explicit method body requirement per ADR-026 §D2 Path B at D-653) |
 | BC-2.16.011 | v1.6 (modified 2026-05-16) |
 | BC-2.16.012 | v1.16 (FB37-D-656: EC-016-012-005 AtomicBool set-time corrected + §Architecture Anchors expanded with ADR-026 §D7 + ADR-027 §D5; §Postconditions + EC-016-012-005 BC-2.16.002 cite advanced v1.20→v1.21) |
 | BC-2.16.002 | v1.21 (FB37-D-656: row 33 AtomicBool set-time corrected per architect adjudication Option A; POL-23 cascade: 7 live-narrative sites advanced v1.20→v1.21) |
 | ADR-026 | v1.14 (FB39-D-658: line 309 error-taxonomy v1.30→v1.31 cite closed; 13th+ POL-23 recurrence) |
 | ADR-027 | v1.7 (F-LP42-MED-001 §D3 crate-naming contradiction + F-LP42-LOW-001 line 118 volatile-line-pin resolved at D-651) |
-| VP-153 | v0.8 (FB39-D-658: lines 167+210 inline-comment error-taxonomy v1.30→v1.31 cite closed by architect) |
+| VP-153 | v0.9 (FB40-D-659: §Changelog rows reordered monotonic ascending 0.1→0.9; 49-pass-surviving non-monotonic defect corrected per POL-26) |
 | VP-154 | v0.6 |
 | VP-155 | v0.5 |
 | VP-156 | v0.8 (4 D7 pins at v1.10) |
@@ -527,20 +559,20 @@ Accept current spec quality (8 CLEAN passes is unusual statistical evidence of q
 | HS-PREREQ-E-003 | v1.6 (FB37-D-656: HS-003-05 Preconditions + Step 1 AtomicBool set-time corrected from "step 8 completion" to "post-step-8-start context" per architect adjudication Option A) |
 | error-taxonomy | v1.31 (FB38-D-657: E-PLUGIN-020 message + description rewritten — UNCHANGED at D-658) |
 | ARCH-INDEX | v2.58 (FB39-D-658: ADR-026 row bumped v1.13→v1.14) |
-| VP-INDEX | v1.50 (FB39-D-658: VP-153 tracking v0.7→v0.8; Total 156, P0=122, P1=34) |
-| STORY-INDEX | v2.125 (FB39-D-658: PREREQ-E row v1.20→v1.21; AC 10→13; Red Gate 11→14) |
+| VP-INDEX | v1.51 (FB40-D-659: VP-153 tracking v0.8→v0.9; Total 156, P0=122, P1=34 UNCHANGED) |
+| STORY-INDEX | v2.126 (FB40-D-659: PREREQ-E row v1.21→v1.22) |
 | BC-INDEX | v4.96 (BC-2.16.002 row v1.20→v1.21; BC-2.16.012 row v1.15→v1.16; POL-23 cascade) |
-| verification-architecture | v1.40 (FB39-D-658: POL-9 propagation row VP-153 v0.7→v0.8) |
-| verification-coverage-matrix | v1.37 (FB39-D-658: POL-9 propagation row VP-153 v0.7→v0.8) |
+| verification-architecture | v1.41 (FB40-D-659: POL-9 propagation row VP-153 v0.8→v0.9) |
+| verification-coverage-matrix | v1.38 (FB40-D-659: POL-9 propagation row VP-153 v0.8→v0.9) |
 
 ## Resume Reading Order (Next Session After /Clear)
 
-1. **`.factory/STATE.md`** (v7.345) — current_step + prereq_e_adversary_streak + RESUME PROTOCOL section
-2. **`.factory/SESSION-HANDOFF.md`** (v7.345) — §POST-FB39-CLOSURE DURABLE PIN BLOCK section
-3. **`.factory/cycles/wave-4-operations/SESSION-D644-TASKS.md`** — this file (task list + FB39 closure + strategic options)
-4. **`.factory/cycles/wave-4-operations/S-PLUGIN-PREREQ-E-CYCLE-SNAPSHOT.md`** — full cascade history through D-658
+1. **`.factory/STATE.md`** (v7.346) — current_step + prereq_e_adversary_streak + RESUME PROTOCOL section
+2. **`.factory/SESSION-HANDOFF.md`** (v7.346) — §POST-FB40-CLOSURE DURABLE PIN BLOCK section
+3. **`.factory/cycles/wave-4-operations/SESSION-D644-TASKS.md`** — this file (task list + FB40 closure + strategic options)
+4. **`.factory/cycles/wave-4-operations/S-PLUGIN-PREREQ-E-CYCLE-SNAPSHOT.md`** — full cascade history through D-659
 5. **`.factory/cycles/wave-4-operations/SESSION-D580-TASKS.md`** — prior session task list (pass-1 through pass-5 era; D-580 precedent)
-6. **`.factory/cycles/wave-4-operations/adversarial-reviews/S-PLUGIN-PREREQ-E-spec-pass-{1..49}.md`** — per-pass finding context if needed (49 files total)
+6. **`.factory/cycles/wave-4-operations/adversarial-reviews/S-PLUGIN-PREREQ-E-spec-pass-{1..50}.md`** — per-pass finding context if needed (50 files total)
 
 ## Session Continuation Behavior
 

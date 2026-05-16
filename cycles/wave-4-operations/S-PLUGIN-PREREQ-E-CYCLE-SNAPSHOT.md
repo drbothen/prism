@@ -3210,3 +3210,20 @@ Shorthand append: →pass-49:BLOCKED(0C+1H+4M+0L+1LOW+0OBS; F-LP49-HIGH-001 5-si
 Story v1.21 | BC-2.01.016 v1.7 | BC-2.16.011 v1.6 | BC-2.16.012 v1.16 | BC-2.16.002 v1.21 | ADR-026 v1.14 | ADR-027 v1.7 | VP-153 v0.8 | VP-154 v0.6 | VP-155 v0.5 | VP-156 v0.8 | HS-PREREQ-E-001 v1.4 | HS-PREREQ-E-002 v1.4 | HS-PREREQ-E-003 v1.6 | error-taxonomy v1.31 | ARCH-INDEX v2.58 | VP-INDEX v1.50 | STORY-INDEX v2.125 | BC-INDEX v4.96 | verification-architecture v1.40 | verification-coverage-matrix v1.37
 
 STATE.md v7.345; SESSION-HANDOFF.md v7.345; prereq_e_adversary_streak **0/3** (pass-49 BLOCKED; FB39 CLOSED; pass-50 NEXT — next 3-CLEAN attempt); 164th consecutive single-commit (TD-VSDD-053 STABLE).
+
+### §D-659 — FB40 Single-Commit Closure
+
+| Metric | Post-D-658 | Post-D-659 |
+|--------|------------|------------|
+| Pass count | 49 | 50 |
+| Streak | 0/3 | 0/3 |
+| Last verdict | BLOCKED (FB39) | BLOCKED (FB40) |
+| Consecutive single-commits | 164 | 165 |
+
+Shorthand append: →pass-50:BLOCKED(0C+0H+2M+1L+0OBS; F-LP50-MED-001 FB39-introduced phantom-anchor §Postconditions P-NN in 5 story sites; F-LP50-MED-002 VP-153 §Changelog non-monotonic 49-pass-surviving; F-LP50-LOW-001 ACCEPTED editorial preference orchestrator adjudicated; novelty MEDIUM; streak 0/3 unchanged)→FB40-CLOSED(2/2 MED in-scope; PO story v1.22 + state-manager VP-153 v0.9; 165th single-commit)
+
+### Pinned Artifact Versions (PREREQ-E 19-artifact set — post-D-659)
+
+Story v1.22 | BC-2.01.016 v1.7 | BC-2.16.011 v1.6 | BC-2.16.012 v1.16 | BC-2.16.002 v1.21 | ADR-026 v1.14 | ADR-027 v1.7 | VP-153 v0.9 | VP-154 v0.6 | VP-155 v0.5 | VP-156 v0.8 | HS-PREREQ-E-001 v1.4 | HS-PREREQ-E-002 v1.4 | HS-PREREQ-E-003 v1.6 | error-taxonomy v1.31 | ARCH-INDEX v2.58 | VP-INDEX v1.51 | STORY-INDEX v2.126 | BC-INDEX v4.96 | verification-architecture v1.41 | verification-coverage-matrix v1.38
+
+STATE.md v7.346; SESSION-HANDOFF.md v7.346; prereq_e_adversary_streak **0/3** (pass-50 BLOCKED; FB40 CLOSED; pass-51 NEXT — next 3-CLEAN attempt); 165th consecutive single-commit (TD-VSDD-053 STABLE).
