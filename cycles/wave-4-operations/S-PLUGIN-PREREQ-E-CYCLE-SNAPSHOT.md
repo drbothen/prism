@@ -1610,3 +1610,54 @@ The root cause chain is now fully closed:
 Streak: **0/3** — pass-18 NEXT (first fresh-context test of phrasing-form canonicalization completeness).
 
 STATE.md v7.308; SESSION-HANDOFF.md v7.308; STORY-INDEX v2.115; BC-INDEX v4.90 (unchanged); ARCH-INDEX v2.52 (unchanged); VP-INDEX v1.46 (unchanged); 124th consecutive single-commit (TD-VSDD-053 DECISIVELY STABLE).
+
+---
+
+## §D-619 PASS-18 BLOCKED ENTRY (2026-05-16)
+
+**Pass-18 BLOCKED — 1 HIGH F-LP18-HIGH-001 — 9th manifestation BC-2.16.002 citation defect family at NEW close-paren placement sub-dimension. Streak stays 0/3. 125th consecutive single-commit.**
+
+### Finding: F-LP18-HIGH-001
+
+BC-2.16.012 line 109 EC-016-012-005: `(Canonical Structured Event Catalog bullet, v1.20 row 33).` — close-paren wraps version AND row identifier.
+
+Canonical workspace form at 6 sister sites (BC-2.16.012:84 + error-taxonomy:467+473 + Story:170+238+345): `(Canonical Structured Event Catalog bullet, v1.20) row 33` — close-paren after version only, "row 33" outside parens.
+
+INTERNAL INCONSISTENCY within BC-2.16.012: line 84 uses canonical form; line 109 uses non-canonical form. Same BC file, same citation family, different close-paren placement.
+
+### 5-Sub-Dimension Discovery Table
+
+| # | Sub-Dimension | First Surfaced | Closed By | Status |
+|---|--------------|---------------|-----------|--------|
+| 1 | Version-pin staleness | FB6→pass-7 | FB7/FB8/FB13/FB14/FB15 | CLOSED |
+| 2 | Bullet label internal sync | FB12→pass-15 | FB14 | CLOSED |
+| 3 | Anchor BC routing | FB12→pass-15 | FB14 | CLOSED |
+| 4 | Phrasing form (no-parens vs parens-ancestry) | FB12-era-inherited→pass-17 | FB16 | CLOSED |
+| 5 | Close-paren placement scope | FB16→pass-18 | **FB17 PENDING** | OPEN |
+
+### POL-29 Critical Scope Expansion Proposal
+
+POL-29 cycle-close codification MUST enumerate all 5 sub-dimensions explicitly. The pattern of each fresh-context pass discovering a new sub-dimension that the prior fix-burst's POL-25 sweep didn't enumerate demonstrates that ad-hoc single-sub-dimension sweeps are structurally insufficient. The POL-29 deliverable must be a comprehensive canonical-form enumeration checklist covering all 5 known variants.
+
+### FB17 Dispatch Plan
+
+1. PO: BC-2.16.012:109 — move close-paren: `bullet, v1.20 row 33).` → `bullet, v1.20) row 33.`
+2. PO: BC-2.16.012 v1.14 → v1.15 + §Changelog row
+3. PO: COMPREHENSIVE 5-sub-dimension workspace POL-25 sweep verifying:
+   - Sub-dimension 1: no live v1.[1-9] stale pins in BC-2.16.002 citation family
+   - Sub-dimension 2: all frontmatter version bumps have matching body label updates
+   - Sub-dimension 3: all BC-2.16.002 anchor references route to correct BC (BC-2.16.002, not BC-2.16.012)
+   - Sub-dimension 4: all sites use parens-ancestry form (no no-parens form remaining)
+   - Sub-dimension 5: all sites use `vX.XX) row NN` form (no `vX.XX row NN)` close-paren-wraps-row form)
+4. State-manager: BC-INDEX row BC-2.16.012 sync + closure burst
+
+### Updated Trajectory Shorthand (Post-Pass-18)
+
+**→pass-18:BLOCKED(0C+1H+0M+0L+0OBS; 9TH MANIFESTATION BC-2.16.002 citation defect family at NEW close-paren placement sub-dimension; BC-2.16.012:109 internal inconsistency vs line 84; 5 distinct sub-dimensions discovered total; FB16 ALL PASS; streak 0/3 unchanged)**
+
+Full trajectory from §D-618:
+**14→9→8→9→10→10→FB6-CLOSED(10/10)→8→FB7-CLOSED(8/8)→4→FB8-CLOSED(3/3)→pass-9:CLEAN★(1/3)→pass-10:BLOCKED(1H+1M+1L; RESET 0/3; 3-CLEAN PROTOCOL VALIDATED)→FIX-BURST-9-CLOSED(3/3)→pass-11:BLOCKED(1M; RECURRING VP traceability; 0/3)→FIX-BURST-10-CLOSED(1/1)→pass-12:BLOCKED(1M; HIGH-NOVELTY tracing-emission ↔ catalog axis; 0/3)→FIX-BURST-11-CLOSED(1/1 in-scope; BC-2.16.002 catalog row+cross-ref+event-name; BUT 3 defects introduced by FB11)→pass-13:BLOCKED(0C+3H+0M+0L+0OBS; ALL FB11-introduced; POL-21 RECURRING + POL-23/27 frontmatter drift + plugin_name unresolvable; FB-introduces-new-defects PATTERN; POL-29 codification candidate; streak 0/3 unchanged)→FIX-BURST-12-CLOSED(3/3 in-scope HIGH; POL-21 swept + frontmatter synced + plugin_name resolved via Option A)→pass-14:BLOCKED(0C+1H+0M+0L+3OBS; F-LP14-HIGH-001 ADR-026 v1.9→v1.10 sibling-sweep miss; 5th RECURRENCE; streak 0/3 unchanged)→FIX-BURST-13-CLOSED(1/1 in-scope; 5 sites swept; single-bump discipline applied; 5th RECURRENCE class closure)→pass-15:BLOCKED(0C+2H+1M+0L+3OBS; 6TH OCCURRENCE POL-23 RECURRING class — BC-2.16.002 bullet-label v1.18 stale vs v1.19 frontmatter + error-taxonomy mis-routed anchor + BC-2.16.012 duplicate v1.2 changelog rows pre-existing FB1; streak 0/3 unchanged)→FIX-BURST-14-CLOSED(3/3 in-scope: bullet-label sync + BC anchor correction + renumber-repair-redo; 6th RECURRENCE class closed; single-bump discipline maintained)→pass-16:BLOCKED(0C+1H+0M+0L+0OBS; 7TH OCCURRENCE POL-23 RECURRING — 4 variant-phrasing sites missed by FB14 canonical-form sweep; POL-29 codification urgency CRITICAL; streak 0/3 unchanged)→FIX-BURST-15-CLOSED(1/1 in-scope; POL-25 variant-phrasing grep applied at dispatch level — ORCHESTRATOR INNOVATION; 7th-occurrence pin-staleness class closed; story v1.10; ADR-026 stays v1.10; streak 0/3)→pass-17:BLOCKED(0C+0H+1M+0L+2OBS; 8TH MANIFESTATION BC-2.16.002 citation defect family at NEW phrasing-form dimension; FB15 pin-dimension ALL PASS; 3 story sites no-parens vs canonical parens-ancestry; FB12-era inherited; streak 0/3 unchanged)→FIX-BURST-16-CLOSED(1/1 in-scope MED; 3 story sites canonicalized to parens-ancestry form; workspace POL-25 sweep ZERO non-canonical; FB12-era inherited inconsistency FULLY RESOLVED; 8 manifestations ALL CLOSED; story v1.10→v1.11; STORY-INDEX v2.114→v2.115; streak 0/3)→pass-18:BLOCKED(0C+1H+0M+0L+0OBS; 9TH MANIFESTATION BC-2.16.002 citation defect family at NEW close-paren placement sub-dimension; 5 distinct sub-dimensions; streak 0/3 unchanged)**
+
+Streak: **0/3** — FB17 NEXT (PO BC-2.16.012:109 close-paren fix + COMPREHENSIVE 5-sub-dimension workspace sweep).
+
+STATE.md v7.309; SESSION-HANDOFF.md v7.309; STORY-INDEX v2.115; BC-INDEX v4.90 (unchanged); ARCH-INDEX v2.52 (unchanged); VP-INDEX v1.46 (unchanged); 125th consecutive single-commit (TD-VSDD-053 DECISIVELY STABLE).
