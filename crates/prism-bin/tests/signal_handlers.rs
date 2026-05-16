@@ -224,7 +224,10 @@ fn test_AC_12_red_gate_dispatch_todo_panics_without_hook() {
     // This assertion will FLIP to assert_eq!(code, Some(1)) after implementation.
     // For now it just verifies non-zero.
     let code = output.status.code();
-    eprintln!("Red Gate: prism start currently exits {:?} (expected 101 without hook, 1 after AC-12 implementation)", code);
+    eprintln!(
+        "Red Gate: prism start currently exits {:?} (expected 101 without hook, 1 after AC-12 implementation)",
+        code
+    );
 }
 
 // ---------------------------------------------------------------------------
