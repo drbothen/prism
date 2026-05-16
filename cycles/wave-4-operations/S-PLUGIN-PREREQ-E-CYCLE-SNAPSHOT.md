@@ -2234,3 +2234,30 @@ Novel-finding count: ...→0(pass-25 CLEAN)→0(pass-26 CLEAN★★)→**1(pass-
 Streak: **0/3** — Pass-28 NEXT (first of NEW 3-CLEAN sequence, 4th attempt).
 
 STATE.md v7.321; SESSION-HANDOFF.md v7.321; prereq_e_adversary_streak 2/3→0/3 (RESET 4th time); story_index_version v2.116; arch_index_version 2.54; 140th consecutive single-commit (TD-VSDD-053 stable).
+
+---
+
+## §D-635 PASS-28 BLOCKED+FB23-CLOSED-COMBINED ENTRY (2026-05-16) — 12TH MANIFESTATION POL-26 MONOTONIC-ORDERING AT NEW ADR LAYER; ADR-026 v1.11→v1.12 + ARCH-INDEX v2.54→v2.55; 141ST SINGLE-COMMIT
+
+**Pass-28 BLOCKED — 1 MED F-LP28-MED-001. Streak stays 0/3. Combined burst D-635.**
+
+### Finding
+
+F-LP28-MED-001: ADR-026 §Changelog non-monotonic ordering. FB22 (D-634) appended the v1.11 row after the v1.9 row rather than after the v1.10 row at the file tail. The pre-existing v1.10 row (FB12 D-605) was at line 466; FB22 inserted v1.11 at line 465 (above it). POL-26 ascending-monotonic convention requires newest row at file tail.
+
+This is the 12th manifestation of the POL-26 monotonic-ordering defect family, and the FIRST at an ADR §Changelog layer (all prior 11 were in BC §Changelog sections).
+
+### Fix Applied (FB23)
+
+- ADR-026 §Changelog: rows 465/466 swapped (v1.10 now precedes v1.11); new §Changelog v1.12 row appended at file tail; frontmatter v1.11→v1.12 (POL-11 index-mutation-bump for body change).
+- ARCH-INDEX: ADR-026 registry row PROPOSED v1.11→v1.12; ARCH-INDEX version v2.54→v2.55; v2.55 §Changelog row added.
+
+### Trajectory Update
+
+→pass-25:CLEAN★(0 findings; FB21 updated: field load-bearing; streak 0/3 → 1/3 first of new 3-CLEAN sequence 3rd attempt)→pass-26:CLEAN★★(0 findings; BREAKS 3-time reset pattern; streak 1/3 → 2/3 penultimate; pass-27 = potential CONVERGENCE)→pass-27:BLOCKED(0C+0H+1M+0L+0OBS; F-LP27-MED-001 5 stale error-taxonomy v1.27 pins; 11th manifestation version-pin-drift family at NEW target; streak RESET 2/3→0/3 4th time; pass-26→pass-27 reset BROKE convergence pattern)→FB22-CLOSED-COMBINED(1/1 MED)→pass-28:BLOCKED(0C+0H+1M+0L+0OBS; F-LP28-MED-001 ADR-026 changelog non-monotonic; 12th manifestation POL-26 family at NEW ADR layer; streak 0/3 unchanged)→FB23-CLOSED-COMBINED(1/1 MED)
+
+Novel-finding count: ...→0(pass-25 CLEAN)→0(pass-26 CLEAN★★)→1(pass-27 BLOCKED; 11th manifestation; FB22 combined closed)→**1(pass-28 BLOCKED; 12th manifestation; FB23 combined closed)**
+
+Streak: **0/3** — Pass-29 NEXT (first of NEW 3-CLEAN sequence, 5th attempt).
+
+STATE.md v7.322; SESSION-HANDOFF.md v7.322; prereq_e_adversary_streak 0/3 unchanged; arch_index_version 2.55; 141st consecutive single-commit (TD-VSDD-053 stable).
