@@ -3136,3 +3136,39 @@ Shorthand append: →pass-47:BLOCKED(0C+1H+3M+0L+1LOW+0OBS; F-LP47-HIGH-001 Atom
 Story v1.19 | BC-2.01.016 v1.7 | BC-2.16.011 v1.6 | BC-2.16.012 v1.16 | BC-2.16.002 v1.21 | ADR-026 v1.12 | ADR-027 v1.7 | VP-153 v0.7 | VP-154 v0.6 | VP-155 v0.5 | VP-156 v0.8 | HS-PREREQ-E-001 v1.3 | HS-PREREQ-E-002 v1.4 | HS-PREREQ-E-003 v1.6 | error-taxonomy v1.30 | ARCH-INDEX v2.56 | VP-INDEX v1.49 | STORY-INDEX v2.123 | BC-INDEX v4.96 | verification-architecture v1.39 | verification-coverage-matrix v1.36
 
 STATE.md v7.343; SESSION-HANDOFF.md v7.343; prereq_e_adversary_streak **0/3** (pass-47 BLOCKED; FB37 CLOSED; pass-48 NEXT — next 3-CLEAN attempt); 162nd consecutive single-commit (TD-VSDD-053 STABLE).
+
+## §D-657 FB38 SINGLE-COMMIT CLOSURE (2026-05-16) — 1 HIGH + 3 MED FROM PASS-48 CLOSED; ADR-026 V1.13; STORY V1.20; ERROR-TAXONOMY V1.31; ARCH-INDEX V2.57; STORY-INDEX V2.124; F-LP47 7-SITE MANDATE FINALLY COMPLETE; 16TH+ WITHIN-FB MANIFESTATION; 163RD SINGLE-COMMIT; PASS-49 NEXT
+
+### Pass-48 Summary
+
+BLOCKED. 1 HIGH + 3 MED. All findings are FB37 sibling-sweep gaps — architect adjudication declared 4 sites but 7 needed correction (3 missed lateral sites surfaced this pass).
+
+### Findings Closed (FB38)
+
+- **F-LP48-HIGH-001** (architect): ADR-026 line 300 BC-2.16.002 v1.20 stale cite — 12th+ POL-23 cascade recurrence. ADR-026 v1.12→v1.13.
+- **F-LP48-MED-001** (PO): Story line 354 §Error Taxonomy Additions E-PLUGIN-020 row retired "step 8 completes" phrasing → canonical "step 8 START". Story v1.19→v1.20.
+- **F-LP48-MED-002** (PO): error-taxonomy.md E-PLUGIN-020 message + description "after boot completion" retired phrasing → canonical "step 8 start / step 7.5 only". error-taxonomy v1.30→v1.31.
+- **F-LP48-MED-003** (PO): Story §FSR PluginRuntime wiring file row added (crates/prism-spec-engine/src/plugin/mod.rs). Token Budget 17,450→17,600. Story v1.19→v1.20.
+
+### Pattern-Breaking Assessment (POL-29 Candidate — 16th+ Manifestation)
+
+- FB37 declared a 4-site sibling-sweep (story Task 7b + BC-2.16.012 EC-016-012-005 + BC-2.16.002 row 33 + HS-003-05)
+- 3 lateral sites escaped: ADR-026 line 300 (document-layer gap) + story §Error Taxonomy Additions line 354 (section-level gap) + error-taxonomy.md body text (phrasing-level gap)
+- POL-25 workspace grep within FB37 architect-adjudication dispatch would have caught all 3; POL-29 codification candidate evidence is now overwhelming
+
+### Cascade Pointer Update
+
+| Metric | Before D-657 | After D-657 |
+|--------|-------------|-------------|
+| Pass count | 47 | 48 |
+| Streak | 0/3 | 0/3 |
+| Last verdict | BLOCKED (FB37) | BLOCKED (FB38) |
+| Consecutive single-commits | 162 | 163 |
+
+Shorthand append: →pass-48:BLOCKED(0C+1H+3M+0L+0OBS; F-LP48-HIGH-001 ADR-026:300 BC-2.16.002 v1.20 stale cite POL-23 cascade gap 12th+ recurrence + F-LP48-MED-001 story:354 §Error Taxonomy Additions 5th unswept site + F-LP48-MED-002 error-taxonomy E-PLUGIN-020 message/description retired phrasing + F-LP48-MED-003 §FSR PluginRuntime wiring file omitted; novelty HIGH FB37-scope-under-declared; streak 0/3 unchanged)→FB38-CLOSED-COMBINED(4/4 in-scope; architect+PO parallel; state-manager last; 16th+ within-FB-introduces-defect manifestation; F-LP47 7-site mandate finally complete 4-declared+3-lateral)
+
+### Pinned Artifact Versions (PREREQ-E 19-artifact set — post-D-657)
+
+Story v1.20 | BC-2.01.016 v1.7 | BC-2.16.011 v1.6 | BC-2.16.012 v1.16 | BC-2.16.002 v1.21 | ADR-026 v1.13 | ADR-027 v1.7 | VP-153 v0.7 | VP-154 v0.6 | VP-155 v0.5 | VP-156 v0.8 | HS-PREREQ-E-001 v1.3 | HS-PREREQ-E-002 v1.4 | HS-PREREQ-E-003 v1.6 | error-taxonomy v1.31 | ARCH-INDEX v2.57 | VP-INDEX v1.49 | STORY-INDEX v2.124 | BC-INDEX v4.96 | verification-architecture v1.39 | verification-coverage-matrix v1.36
+
+STATE.md v7.344; SESSION-HANDOFF.md v7.344; prereq_e_adversary_streak **0/3** (pass-48 BLOCKED; FB38 CLOSED; pass-49 NEXT — next 3-CLEAN attempt); 163rd consecutive single-commit (TD-VSDD-053 STABLE).

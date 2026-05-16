@@ -23,11 +23,11 @@ crates_touched: [prism-sensors, prism-spec-engine, prism-query]
 target_module: prism-sensors
 subsystems: [SS-01, SS-07, SS-16, SS-17]
 capabilities: [CAP-001, CAP-029]
-version: "1.19"
+version: "1.20"
 updated: "2026-05-16"
 level: "L4"
 producer: product-owner
-timestamp: "2026-05-15T00:00:00Z"
+timestamp: "2026-05-16T00:00:00Z"
 input-hash: null
 traces_to: []
 cycle: "v1.0.0-greenfield"
@@ -131,10 +131,11 @@ invalidation — completing the Wave 0 plugin-only sensor architecture foundatio
 | `crates/prism-spec-engine/src/spec_parser.rs` (open dispatch migration) | ~800 |
 | `crates/prism-query/src/invalidation.rs` (WriteToolInvalidationMap RwLock migration + AtomicBool flag + mark_query_phase_started helper) | ~700 |
 | `crates/prism-spec-engine/src/error.rs` (WriteToolRegistrationAfterBoot variant) | ~50 |
+| `crates/prism-spec-engine/src/plugin/mod.rs` (or `loader.rs`) (PluginRuntime write-tool registration wiring) | ~150 |
 | `BC-2.16.004-rust-escape-hatch.md` (frontmatter: deprecated → removed) | ~200 |
 | `error-taxonomy.md` (E-SPEC-008 retired annotation) | ~100 |
 | Test files (Red Gate set + behavioral equivalence) | ~2,000 |
-| Total | ~17,450 |
+| Total | ~17,600 |
 
 Well within the 30% context window budget (~40k tokens).
 
@@ -343,7 +344,7 @@ Architecture layer: `prism-sensors` is Layer 1 (auth surface); `prism-spec-engin
 
 ## Error Taxonomy Additions
 
-Five error codes are introduced or annotated in this story (see `error-taxonomy.md` v1.30 §SPEC and §PLUGIN); one existing code is annotated as retired:
+Five error codes are introduced or annotated in this story (see `error-taxonomy.md` v1.31 §SPEC and §PLUGIN); one existing code is annotated as retired:
 
 | Code | Action | Purpose |
 |------|--------|---------|
@@ -351,7 +352,7 @@ Five error codes are introduced or annotated in this story (see `error-taxonomy.
 | `E-SPEC-013` | NEW (taxonomy v1.25) | ADR-023 Rule 2, Rule B — exactly one credential_ref per auth method; multiple bindings rejected at spec-load. |
 | `E-SPEC-014` | NEW (taxonomy v1.25) | ADR-023 Rule 2, Rule C — credential structural type must match declared auth_type; mismatches rejected at credential-resolution time, before any HTTP request. Credential values must not appear in error message (AD-017). |
 | `E-PLUGIN-012` | NEW (taxonomy v1.27) | `SpecEngineError::DuplicateWriteToolRegistration(String)` — Two plugins declared the same write tool name; second registration rejected at boot-step 7.5. Severity: broken. Category: boot. ADR-026 D7; BC-2.16.012 EC-016-012-004. |
-| `E-PLUGIN-020` | NEW (taxonomy v1.27) | `SpecEngineError::WriteToolRegistrationAfterBoot` — `register_write_tool` called after boot step 8 completes; rejected with WARN-level tracing event. Severity: broken. Category: runtime. ADR-026 D7; BC-2.16.012 EC-016-012-005. |
+| `E-PLUGIN-020` | NEW (taxonomy v1.27) | `SpecEngineError::WriteToolRegistrationAfterBoot` — `register_write_tool` called after query-engine init starts at step 8 (per ADR-026 §D7); the write-registration window closes at step 8 start (first act of step 8, before QueryEngine construction proceeds); rejected with WARN-level tracing event. Severity: broken. Category: runtime. ADR-026 D7; BC-2.16.012 EC-016-012-005. |
 | `E-SPEC-008` | RETIRED (annotate only, do NOT delete) — error-taxonomy.md v1.26 | Annotate with `retired:` note: "Retired in S-PLUGIN-PREREQ-E. No live code path triggers this code post-CustomAdapter removal. Plugin execution panics surface via E-PLUGIN-001." |
 
 Note: E-SPEC-010 (variable interpolation field-path miss) and E-SPEC-011 (pipe_verb reserved keyword) are pre-existing codes that are NOT related to auth-composition rejection. The erroneous reference to E-SPEC-010/011/012 in prior PREREQ-E authoring has been corrected to E-SPEC-012/013/014.
@@ -376,6 +377,7 @@ Note: E-SPEC-010 (variable interpolation field-path miss) and E-SPEC-011 (pipe_v
 | `crates/prism-spec-engine/src/error.rs` | Modify | Add `WriteToolRegistrationAfterBoot` unit variant to `SpecEngineError` enum (ADR-026 D7; error-taxonomy.md E-PLUGIN-020) |
 | `.factory/specs/behavioral-contracts/BC-2.16.004-rust-escape-hatch.md` | Modify | Update frontmatter: `lifecycle_status: deprecated → removed`; add `removed:` + `removal_reason:` |
 | `.factory/specs/prd-supplements/error-taxonomy.md` | Modify | Add `retired:` annotation to E-SPEC-008 row |
+| `crates/prism-spec-engine/src/plugin/mod.rs` (or `loader.rs` per current layout) | Modify | Wire PluginRuntime per-plugin write-tool registration: for each loaded plugin, iterate manifest write-tool entries and call `prism_query::invalidation::register_write_tool(entry)` during step 7.5 plugin-load (per ADR-026 §D7; ADR-022 §B step 7.5) |
 
 Implementer note: run `grep -rn "CustomAdapter\|CustomAdapterRegistry\|CustomAuth" crates/` before committing. Expected: zero `src/` matches. Run `grep -rn "private::Sealed\|: Sealed\|impl Sealed" crates/prism-sensors/src/auth/` — expected: zero matches.
 
@@ -468,6 +470,7 @@ Tech debt closed:
 
 | Version | Burst | Date | Author | Change |
 |---------|-------|------|--------|--------|
+| 1.20 | FB38 | 2026-05-16 | product-owner | F-LP48-MED-001: §Error Taxonomy Additions E-PLUGIN-020 description corrected from retired "called after boot step 8 completes" to canonical "called after query-engine init starts at step 8 (per ADR-026 §D7); window closes at step 8 start (first act of step 8, before QueryEngine construction proceeds)" per FB37 architect adjudication. F-LP48-MED-003: §File Structure Requirements gains new row for `crates/prism-spec-engine/src/plugin/mod.rs` (or `loader.rs`) wiring PluginRuntime per-plugin write-tool registration during step 7.5 per ADR-026 §D7 + ADR-022 §B step 7.5. §Token Budget gains matching row (~150 tokens); total updated ~17,450 → ~17,600. POL-23 pin bump: §Error Taxonomy Additions intro cite `error-taxonomy.md v1.30` → `v1.31` (E-PLUGIN-020 was amended in v1.31). |
 | 1.19 | FB37 | 2026-05-16 | product-owner | F-LP47-LOW-001 frontmatter: ADR-022 added to `architectural_decisions` (§B step 7.5/8 ordering authoritative for Task 7b AtomicBool flag set-time); SS-17 added to `subsystems` and `anchor_subsystem` (both fields) per architect adjudication. F-LP47-MED-001 Task 7b/7c TD-VSDD-091 volatile line-number cites replaced with durable semantic anchors ("error-taxonomy.md E-PLUGIN-020" without line 467; "BC-2.16.012 EC-016-012-005" without line 109). F-LP47-MED-003 §FSR + §Token Budget swept for Task 7b/7c new content: invalidation.rs row expanded to enumerate AtomicBool flag + `mark_query_phase_started()` function; `error.rs` row added for `WriteToolRegistrationAfterBoot` variant (~50 tokens); invalidation.rs budget updated ~600 → ~700; total updated ~17,300 → ~17,450. F-LP47-MED-004 Task 7b emission form corrected to canonical `event_type` idiom per BC-2.16.012:84 + CLAUDE.md Conventions (`event_type` as first structured field, not trailing static message). |
 | 1.18 | FB36 | 2026-05-16 | product-owner | F-LP46-MED-001 §Tasks expanded to enumerate ADR-026 D7 runtime_deliverables not previously covered: new Task 7b adds AtomicBool query-phase flag (`QUERY_PHASE_STARTED`) + `mark_query_phase_started()` + fail-closed post-boot check in `register_write_tool`; new Task 7c adds `SpecEngineError::WriteToolRegistrationAfterBoot` unit variant. Mirrors FB34 Task 1b coverage discipline for D7 dimension. Anchors: ADR-026 §D7 runtime_deliverables items 6+5, error-taxonomy.md E-PLUGIN-020, BC-2.16.012 EC-016-012-005. |
 | 1.17 | FB35 | 2026-05-16 | product-owner | F-LP45-MED-001 Task 1b epilogue volatile + factually-wrong line-range cite "(rows 343–346)" replaced with durable semantic anchor enumerating 4 file names (crowdstrike.rs / cyberint.rs / claroty.rs / armis.rs). TD-VSDD-091 compliance + factual correction. F-LP45-LOW-001 changelog cite "runtime_deliverables 22-23" adjudicated ACCEPTABLE per TD-VSDD-091 §Changelog exception (no fix dispatched). |

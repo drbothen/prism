@@ -1,7 +1,7 @@
 ---
 document_type: architecture-index
 level: L3
-version: "2.56"
+version: "2.57"
 status: draft
 producer: architect
 timestamp: 2026-05-04T00:00:00
@@ -91,7 +91,7 @@ deployment_topology: single-service  # planned — no service binary exists yet 
 | ADR-023 | Plugin-Only Sensor Architecture — TOML Specs as Declarative Baseline, .prx WASM for Non-Declarative Cases, Retired CustomAdapter Rust Trait | COMMITTED v1.19 | 2026-05-15 | decisions/ADR-023-plugin-only-sensor-architecture.md |
 | ADR-024 | ColumnType Canonical Naming — Domain-Level Variant Names for Sensor Schema API; prism-spec-engine Shadow Enum Retirement | ACCEPTED v1.0 | 2026-05-12 | decisions/ADR-024-column-type-canonical-naming.md |
 | ADR-025 | BC Lifecycle Field Canonical Scheme — Single status Field Governs; lifecycle Field Retired | ACCEPTED v1.0 | 2026-05-12 | decisions/ADR-025-bc-lifecycle-field-canonical-scheme.md |
-| ADR-026 | SensorAuth Trait Un-Sealing — Remove private::Sealed, Enable Plugin Auth Implementations | PROPOSED v1.12 | 2026-05-16 | decisions/ADR-026-sensorauth-unsealing.md |
+| ADR-026 | SensorAuth Trait Un-Sealing — Remove private::Sealed, Enable Plugin Auth Implementations | PROPOSED v1.13 | 2026-05-16 | decisions/ADR-026-sensorauth-unsealing.md |
 | ADR-027 | CustomAdapter Rust Trait Deprecation and Wave 1/A Removal | PROPOSED v1.7 | 2026-05-16 | decisions/ADR-027-custom-adapter-deprecation-removal.md |
 
 ## Architecture Decisions
@@ -152,6 +152,7 @@ deployment_topology: single-service  # planned — no service binary exists yet 
 
 | Version | Pass | Date | Author | Change |
 |---------|------|------|--------|--------|
+| 2.57 | FB38-D-657 | 2026-05-16 | state-manager | FB38 D-657: ADR-026 row bumped v1.12→v1.13 (F-LP48-HIGH-001 line 300 BC-2.16.002 v1.20 cite advanced to v1.21 per FB37 D-656 cascade; 12th+ POL-23 recurrence — ADR-026 was missed by FB37 architect-adjudication sibling-sweep scope). ARCH-INDEX v2.56→v2.57. |
 | 2.56 | FB33-D-651 | 2026-05-16 | state-manager | FB33 D-651: ADR-027 row bumped v1.6→v1.7 (F-LP42-MED-001 §D3 internal crate-naming contradiction resolved; F-LP42-LOW-001 line 118 TD-VSDD-091 volatile-line-pin closed per FB32 Option A precedent). ARCH-INDEX v2.55→v2.56. |
 | 2.55 | prereq-e-fix-burst-23-combined-D-635 | 2026-05-16 | state-manager | D-635 PREREQ-E fix-burst-23 closure (F-LP28-MED-001): ADR-026 row v1.11→v1.12 (state-manager §Changelog row swap restoring ascending-monotonic convention; FB22 v1.11 inserted above pre-existing v1.10 — corrected; 12th manifestation POL-26 monotonic-ordering family closure). ARCH-INDEX v2.54→v2.55. |
 | 2.54 | fix-burst-22-combined-D-634 | 2026-05-16 | state-manager | D-634 PREREQ-E fix-burst-22-combined closure (F-LP27-MED-001 11th manifestation version-pin-drift family at NEW target): ADR-026 row v1.10→v1.11 (state-manager D-634 swept ADR-026 D7 narrative `error-taxonomy v1.27` → `v1.30`; 4-bump window; pass-27 BLOCKED 1 MED; streak RESET 2/3→0/3 4th time; pass-28 NEXT). ARCH-INDEX v2.53→v2.54. |

@@ -1,6 +1,6 @@
 ---
 document_type: session-tasks
-version: "1.12"
+version: "1.13"
 status: active
 related_burst: D-644
 predecessor_state: D-652
@@ -55,7 +55,9 @@ This file persists the task list and full cascade state from the session coverin
 | 96 | **DONE** | FB36 CLOSED — 2/2 in-scope (F-LP46-HIGH-001: HS-PREREQ-E-002 v1.4; F-LP46-MED-001: story v1.18; STORY-INDEX v2.122; 161st consecutive single-commit) |
 | 97 | **DONE/BLOCKED** | PREREQ-E pass-47 BLOCKED (1 HIGH + 3 MED + 1 LOW; F-LP47-HIGH-001 AtomicBool set-time semantic temporal contradiction 4-artifact — NEW semantic-temporal-claim defect class; F-LP47-MED-001/002/003/004 Task 7b/7c defects introduced by FB36; F-LP47-LOW-001 frontmatter gap; 15th+ within-FB manifestation; streak 0/3 unchanged; FB37 dispatched) |
 | 98 | **DONE** | FB37 CLOSED — 5/5 in-scope (F-LP47-HIGH-001: story v1.19 + BC-2.16.012 v1.16 + BC-2.16.002 v1.21 + HS-003 v1.6; F-LP47-MED-001/002/003/004 + F-LP47-LOW-001 closed; POL-23 cascade 7 live-narrative sites; BC-INDEX v4.96; STORY-INDEX v2.123; 162nd consecutive single-commit) |
-| 99 | **PENDING** | PREREQ-E pass-48 (next 3-CLEAN attempt; BC-5.39.001 requires 3 consecutive CLEAN) |
+| 99 | **DONE/BLOCKED** | PREREQ-E pass-48 BLOCKED (1 HIGH + 3 MED; F-LP48-HIGH-001 ADR-026:300 BC-2.16.002 v1.20 stale cite POL-23 cascade gap 12th+ recurrence; F-LP48-MED-001/002/003 FB37 lateral gaps; novelty HIGH FB37-scope-under-declared; streak 0/3 unchanged; FB38 dispatched) |
+| 100 | **DONE** | FB38 CLOSED — 4/4 in-scope (F-LP48-HIGH-001: ADR-026 v1.13; F-LP48-MED-001: story v1.20; F-LP48-MED-002: error-taxonomy v1.31; F-LP48-MED-003: §FSR row added + Token Budget reconciled; ARCH-INDEX v2.57; STORY-INDEX v2.124; 163rd consecutive single-commit) |
+| 101 | **PENDING** | PREREQ-E pass-49 (next 3-CLEAN attempt; BC-5.39.001 requires 3 consecutive CLEAN) |
 
 ## §FB28 Closure Note (D-645 COMPLETE)
 
@@ -290,6 +292,37 @@ All 19 artifacts at D-651 version pins — no spec edits in D-652 (state-manager
 ### Pass-44 Outcome
 - Pass-44 BLOCKED (2 MED; novelty HIGH; streak 1/3 → 0/3 RESET; FB34 dispatched)
 - Pass-45 dispatch-ready after FB34 commit
+
+---
+
+## §FB38 Closure Note (D-657 COMPLETE)
+
+**FB38 multi-agent single-commit closure. Architect (ADR-026 v1.13) + PO (story v1.20 + error-taxonomy v1.31) parallel. State-manager last. 3 artifacts bumped. 2 indexes bumped (ARCH-INDEX v2.57 + STORY-INDEX v2.124). 163rd consecutive single-commit.**
+
+### Findings Closed
+
+| Finding | Agent | Status | Notes |
+|---------|-------|--------|-------|
+| F-LP48-HIGH-001 | architect | CLOSED | ADR-026 line 300 BC-2.16.002 v1.20→v1.21; ADR-026 v1.12→v1.13. 12th+ POL-23 recurrence. |
+| F-LP48-MED-001 | product-owner | CLOSED | Story line 354 §Error Taxonomy Additions E-PLUGIN-020 row "step 8 completes"→"step 8 START". Story v1.19→v1.20. |
+| F-LP48-MED-002 | product-owner | CLOSED | error-taxonomy.md E-PLUGIN-020 message + description rewritten with canonical "step 8 start / step 7.5 only" semantics. error-taxonomy v1.30→v1.31. |
+| F-LP48-MED-003 | product-owner | CLOSED | Story §FSR row added for crates/prism-spec-engine/src/plugin/mod.rs. Token Budget 17,450→17,600. Story v1.19→v1.20. |
+
+### F-LP47 Sibling-Sweep Mandate — FINALLY COMPLETE
+
+- FB37 declared 4 sites: story Task 7b + BC-2.16.012 EC-016-012-005 + BC-2.16.002 row 33 + HS-003-05. All CLOSED (FB37).
+- FB38 lateral sites: ADR-026 line 300 (document-layer) + story §Error Taxonomy Additions line 354 (section-level) + error-taxonomy.md body text (phrasing-level). All CLOSED (FB38).
+- Total: 7 sites closed across 2 fix-bursts. 4-declared + 3-lateral = complete sweep.
+
+### POL-29 Candidate — 16th+ Manifestation
+
+- FB37 architect-adjudication scope was under-scoped: declared 4 sites, missed 3 lateral sites
+- POL-25 workspace-wide grep within architect-adjudication dispatch would have caught all lateral sites pre-burst
+- Evidence for POL-29 codification is now overwhelming
+
+### Pinned Artifact Versions (post-D-657)
+
+Story v1.20 | ADR-026 v1.13 | error-taxonomy v1.31 | ARCH-INDEX v2.57 | STORY-INDEX v2.124 | BC-INDEX v4.96 (UNCHANGED) | BC-2.16.012 v1.16 (UNCHANGED) | BC-2.16.002 v1.21 (UNCHANGED)
 
 ---
 

@@ -3,8 +3,8 @@ document_type: adr
 adr_id: "ADR-026"
 title: "SensorAuth Trait Un-Sealing — Remove private::Sealed, Enable Plugin Auth Implementations"
 status: Proposed
-date: "2026-05-15"
-version: "1.12"
+date: "2026-05-16"
+version: "1.13"
 producer: architect
 subsystems_affected: [SS-01, SS-07, SS-16, SS-17]
 supersedes: null
@@ -297,7 +297,7 @@ A `WARN`-level tracing event is emitted if `register_write_tool` is called after
 (detected via an `AtomicBool` query-phase flag set by the query engine init) — this path returns
 `Err(SpecEngineError::WriteToolRegistrationAfterBoot)` instead of attempting the write.
 
-**Structured event field source specification (PG-LP11-001 + BC-2.16.002 v1.20 row 33):** The
+**Structured event field source specification (PG-LP11-001 + BC-2.16.002 v1.21 row 33):** The
 `WARN`-level `write_tool_registration_after_boot` tracing event carries three fields. Field
 source provenance:
 
@@ -465,3 +465,4 @@ modes and security implications. The open trait approach reuses the existing typ
 | 1.10 | 2026-05-16 | architect | prereq-e-fix-burst-12: F-LP13-HIGH-003 — Option A adjudication: clarify `WriteToolInvalidationMap` `plugin_name` field source as `PluginRuntime`-supplied from plugin manifest `name` field. New structured-event field-source specification paragraph added to D7 narrative, specifying provenance of all three `write_tool_registration_after_boot` WARN event fields (`plugin_name`, `tool_name`, `error`). Establishes that `WriteToolInvalidationMap` struct MUST include `plugin_name: String` field (Option A: struct extension over Option B parameter addition or Option C field removal). Also resolves companion gap: E-PLUGIN-012 `{plugin}` and `{conflicting_plugin}` placeholder source shares the same manifest `name` field via the `WriteToolInvalidationMap` entry. Resolves spec-implementation coherence gap (BC-2.16.002 v1.19 row 33 mandated `plugin_name` field; ADR-026 D7 narrative had not specified source). PG-LP11-001 catalog field-schema enforcement. PO follows in burst 2 for POL-21 sweep + story/HS/error-taxonomy propagation per Option A. |
 | 1.11 | 2026-05-16 | state-manager | fix-burst-22-combined-D-634: F-LP27-MED-001 — 11th manifestation version-pin-drift family at NEW target (error-taxonomy.md itself): D7 narrative `{conflicting_plugin}` companion placeholder pin swept `error-taxonomy v1.27` → `error-taxonomy v1.30` (line 309). 4-bump window (v1.27→v1.28→v1.29→v1.30) where this site was not swept. Pass-27 BLOCKED 1 MED; combined-burst D-634. |
 | 1.12 | 2026-05-16 | state-manager | prereq-e-fix-burst-23: F-LP28-MED-001 closure — POL-26 monotonic-ordering: §Changelog rows v1.10 and v1.11 swapped to restore ascending-monotonic convention (FB22 D-634 inserted v1.11 above pre-existing v1.10 row at file tail; corrected this burst). 12th manifestation of POL-26 monotonic-ordering defect family closure. |
+| 1.13 | 2026-05-16 | architect | FB38: F-LP48-HIGH-001 POL-23 cascade-propagation gap closed — line 300 BC-2.16.002 v1.20 cite advanced to v1.21 per FB37 D-656 v1.20→v1.21 cascade. 12th+ POL-23 recurrence; ADR-026 was missed by FB37 architect-adjudication sibling-sweep scope declaration. Reinforces POL-29 candidate (within-FB-burst directive must invoke POL-25 workspace-wide grep). |
