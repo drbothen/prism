@@ -39,8 +39,10 @@ Intended audience: orchestrator at next session start. Read alongside STATE.md +
 | 23 | DONE | PREREQ-E pass-8 dispatched + report persisted (D-589; pass-8 BLOCKED 3 in-scope (2H+1M) + 1 OBS process-gap; trajectory LOWEST 4 total / 3 in-scope; RECURRING within-FB sibling-sweep asymmetry; defect-class novelty DECAYED; positive convergence signal; report at cycles/wave-4-operations/adversarial-reviews/S-PLUGIN-PREREQ-E-spec-pass-8.md; 95th single-commit) | — |
 | 24 | PENDING | If pass-9 CLEAN: streak 1/3 → continue cascade toward 3-CLEAN convergence | Blocked on Task #27 verdict |
 | 25 | PENDING | If pass-9 CLEAN: streak 1/3 — continue cascade toward pass-10 | Blocked on Task #27 verdict (streak advance) |
-| 26 | BLOCKED | PREREQ-E fix-burst-8 (3 findings: F-LP8-HIGH-001 VP-156 D7 pins v1.8→v1.9 + F-LP8-HIGH-002 BC-2.16.012 VP-156 row pin v1.8→v1.9 + F-LP8-MED-001 VP-156 §Changelog v0.4 reorder; OBS-LP8-001 queued cycle-close; CRITICAL: ADR-026 MUST NOT bump in FB8) | Awaiting fix-burst-8 dispatch with single-bump-per-source-artifact discipline |
-| 27 | PENDING | PREREQ-E pass-9 (fresh-context) | Blocked on Task #26 (fix-burst-8 completion) |
+| 26 | DONE | PREREQ-E fix-burst-8 CLOSED (3/3 in-scope): D-590 architect `42a387b5` (F-LP8-HIGH-001 VP-156 D7 pins v1.8→v1.9 + F-LP8-HIGH-002 BC-2.16.012 VP-156 row pin v1.8→v1.9; VP-156 v0.7; BC-2.16.012 v1.8) + D-591 state-manager (F-LP8-MED-001 VP-156 §Changelog v0.4 repositioned to correct monotonic position between v0.3 and v0.5). Single-bump-per-source-artifact discipline applied: ADR-026 stays at v1.9. 97th consecutive single-commit. | — |
+| 27 | PENDING | PREREQ-E pass-9 (fresh-context) | Unblocked — pass-9 NEXT |
+| 28 | PENDING | If pass-9 CLEAN: streak 1/3 → continue cascade toward pass-10 | Blocked on Task #27 verdict |
+| 29 | PENDING | If pass-9 BLOCKED with new recurring-class instance: validate single-bump discipline insufficient + escalate to POL-23 mid-cycle codification (Option 3) | Blocked on Task #27 verdict |
 
 ## Strategic Options — RESOLVED (D-581)
 

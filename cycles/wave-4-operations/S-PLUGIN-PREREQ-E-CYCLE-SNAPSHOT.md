@@ -699,9 +699,51 @@ Pass-8 result: BLOCKED. Trajectory LOWEST count of entire cascade (4 total findi
 
 ### Trajectory Shorthand (Updated)
 
-**14→9→8→9→10→10→FB6-CLOSED(10/10 in-scope; 3 OBS deferred cycle-close)→8→FB7-CLOSED(8/8 in-scope; 4 OBS deferred cycle-close)→pass-8:BLOCKED(0C+2H+1M+0L+1OBS; within-FB7-sibling-sweep-asymmetry-recurrence + VP-156-changelog-monotonic-miss + POL-23-amendment-candidate; trajectory DECREASE to 3 in-scope; LOWEST; streak still 0/3)**
+**14→9→8→9→10→10→FB6-CLOSED(10/10 in-scope; 3 OBS deferred cycle-close)→8→FB7-CLOSED(8/8 in-scope; 4 OBS deferred cycle-close)→pass-8:BLOCKED(0C+2H+1M+0L+1OBS; within-FB7-sibling-sweep-asymmetry-recurrence + VP-156-changelog-monotonic-miss + POL-23-amendment-candidate; trajectory DECREASE to 3 in-scope; LOWEST; streak still 0/3)→FIX-BURST-8-CLOSED(3/3 in-scope; OBS-LP8-001 queued cycle-close; single-bump-per-source-artifact discipline applied)**
 
-Streak: 0/3 — fix-burst-8 NEXT then pass-9.
+Streak: 0/3 — pass-9 NEXT (first test of single-bump discipline).
 
-STATE.md v7.290; SESSION-HANDOFF.md v7.290; 95th consecutive single-commit (TD-VSDD-053 DECISIVELY STABLE).
+STATE.md v7.291; SESSION-HANDOFF.md v7.291; 97th consecutive single-commit (TD-VSDD-053 DECISIVELY STABLE).
+
+---
+
+## §D-591 FIX-BURST-8 CLOSURE (2026-05-16)
+
+**Burst D-591 — state-manager — 97th consecutive single-commit — FB8 CLOSED**
+
+Fix-burst-8 closed all 3 in-scope pass-8 findings across 2 specialist agents. Single-bump-per-source-artifact discipline was explicitly pre-applied for the first time in this cascade.
+
+### Finding Verification Table
+
+| Finding | Severity | Closure Burst | Closure SHA | Grep Evidence |
+|---------|----------|--------------|-------------|---------------|
+| F-LP8-HIGH-001 | HIGH | D-590 architect | `42a387b5` | grep "ADR-026 D7 v1.9" vp-156-*.md → 4 sites; zero "D7 v1.8" live-narrative |
+| F-LP8-HIGH-002 | HIGH | D-590 architect | `42a387b5` | grep "VP-156" BC-2.16.012-*.md §Verification Properties → "ADR-026 D7 v1.9" |
+| F-LP8-MED-001 | MEDIUM | D-591 state-manager | (this commit) | VP-156 §Changelog row order: v0.1→v0.2→v0.3→v0.4→v0.5→v0.6→v0.7 monotonic ascending verified |
+| OBS-LP8-001 | OBS | cycle-close | — | POL-23 amendment candidate; queued for cycle-close retrospective |
+
+### Index Version Table (Post-FB8)
+
+| Index | Version |
+|-------|---------|
+| BC-INDEX | v4.85 |
+| VP-INDEX | v1.44 |
+| STORY-INDEX | v2.111 (unchanged) |
+| ARCH-INDEX | v2.50 (unchanged) |
+
+### Artifact Version Table (Post-FB8)
+
+| Artifact | Version | Notes |
+|---------|---------|-------|
+| VP-156 | v0.7 | D7 pins all at v1.9; §Changelog monotonic ascending |
+| BC-2.16.012 | v1.8 | §Verification Properties VP-156 row pin at v1.9 |
+| ADR-026 | v1.9 | **UNCHANGED** — single-bump-per-source-artifact discipline applied; no ADR-026 body edits in FB8 |
+
+### Single-Bump Discipline Outcome Note
+
+FB5→FB6→FB7 each exhibited the within-FB sibling-sweep asymmetry: architect bumped ADR-026 AND left VP-156/BC-2.16.012 behind by one version, producing a finding in the subsequent pass. FB8 broke this pattern by treating the discipline as a pre-condition: ADR-026 was already at v1.9 (bumped in FB7 D-586) and was NOT bumped again. Only downstream propagation artifacts (VP-156 + BC-2.16.012) were updated. Pass-9 will determine whether the pattern recurs.
+
+### OBS-LP8-001 Cycle-Close Deferred Entry
+
+OBS-LP8-001 remains queued for cycle-close retrospective: POL-23 should be amended to require that sweep targets are verified against the FINAL post-burst version of all source artifacts, not the intermediate version at the time of the sweep. This is the root cause documented in D-589.
 Factory-artifacts D-589 burst SHA: TBD (this entry written pre-commit).
