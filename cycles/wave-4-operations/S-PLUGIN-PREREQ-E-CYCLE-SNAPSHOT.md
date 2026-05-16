@@ -2941,3 +2941,37 @@ Shorthand append: →pass-42:BLOCKED(0C+0H+1M+1L+0OBS; F-LP42-MED-001 ADR-027 §
 Story v1.15 | BC-2.01.016 v1.6 | BC-2.16.011 v1.6 | BC-2.16.012 v1.15 | BC-2.16.002 v1.20 | ADR-026 v1.12 | **ADR-027 v1.7** | VP-153 v0.6 | VP-154 v0.6 | VP-155 v0.5 | VP-156 v0.8 | HS-PREREQ-E-001 v1.3 | HS-PREREQ-E-002 v1.3 | HS-PREREQ-E-003 v1.5 | error-taxonomy v1.30 | **ARCH-INDEX v2.56** | VP-INDEX v1.48 | STORY-INDEX v2.119 | BC-INDEX v4.94 | verification-architecture v1.38 | verification-coverage-matrix v1.35
 
 STATE.md v7.338; SESSION-HANDOFF.md v7.338; prereq_e_adversary_streak **0/3** unchanged (pass-42 BLOCKED 1M+1L; pass-43 NEXT — 1/3 attempt within 6th cascade attempt; 3 consecutive CLEAN passes required for BC-5.39.001 convergence); 157th consecutive single-commit (TD-VSDD-053 DECISIVELY STABLE).
+
+---
+
+## §D-652 — Pass-43 CLEAN★ (2026-05-16)
+
+### Pass-43 Summary
+CLEAN. Zero in-scope findings under 10 rotated attack vectors. Streak 0/3 → 1/3 (2nd CLEAN advance of this cascade; pass-39 was the 1st). 6th cascade attempt at 3-CLEAN underway. State-manager-only burst — no spec/BC/VP/ADR/story edits.
+
+### Streak Advance Significance
+This is the 2nd consecutive CLEAN advance of the cascade. Pass-39 broke the prior reset pattern (8 resets across 9th-cascade attempts). Pass-43 confirms the trend is holding. Severity decay trajectory: HIGH → MED → LOW → CLEAN — consistent with convergence theory.
+
+### FB33 Paper-Fix Audit (verified CLEAN)
+Both FB33 closures verified load-bearing:
+- F-LP42-MED-001: ADR-027 §D3 anchor-realignment eliminates cross-crate semantic contradiction (NOT a paper rename)
+- F-LP42-LOW-001: volatile line-pins replaced with durable semantic anchors per Option A (NOT a doc-comment workaround)
+
+### Cascade Pointer Update
+
+| Metric | Before D-652 | After D-652 |
+|--------|-------------|-------------|
+| Adversary passes | 42 (pass-1..42) | 43 (pass-1..43) |
+| Fix-bursts closed | 33 (FB1-FB33) | 33 (no FB this burst — CLEAN) |
+| Fix-bursts pending | 0 | 0 |
+| Pending findings | 0 + 8 cycle-close carry-forward | 0 + 8 cycle-close carry-forward (unchanged) |
+| Streak | 0/3 (pass-42 BLOCKED) | **1/3** (pass-43 CLEAN★ 2nd advance) |
+| Consecutive single-commits | 157 | 158 |
+
+Shorthand append: →pass-43:CLEAN★(0 findings; 10 rotated vectors all PASS; FB33 closures verified load-bearing; streak 0/3 → **1/3** 2nd CLEAN advance; novelty LOW; spec at convergence-equilibrium; 158th consecutive single-commit)
+
+### Pinned Artifact Versions (PREREQ-E 19-artifact set — post-D-652, UNCHANGED from D-651)
+
+Story v1.15 | BC-2.01.016 v1.6 | BC-2.16.011 v1.6 | BC-2.16.012 v1.15 | BC-2.16.002 v1.20 | ADR-026 v1.12 | ADR-027 v1.7 | VP-153 v0.6 | VP-154 v0.6 | VP-155 v0.5 | VP-156 v0.8 | HS-PREREQ-E-001 v1.3 | HS-PREREQ-E-002 v1.3 | HS-PREREQ-E-003 v1.5 | error-taxonomy v1.30 | ARCH-INDEX v2.56 | VP-INDEX v1.48 | STORY-INDEX v2.119 | BC-INDEX v4.94 | verification-architecture v1.38 | verification-coverage-matrix v1.35
+
+STATE.md v7.339; SESSION-HANDOFF.md v7.339; prereq_e_adversary_streak **1/3** (pass-43 CLEAN★; pass-44 NEXT — 2/3 penultimate; pass-45 = potential BC-5.39.001 CONVERGENCE); 158th consecutive single-commit (TD-VSDD-053 DECISIVELY STABLE).

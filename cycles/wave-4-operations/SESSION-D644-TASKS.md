@@ -1,11 +1,11 @@
 ---
 document_type: session-tasks
-version: "1.7"
+version: "1.8"
 status: active
 related_burst: D-644
-predecessor_state: D-651
+predecessor_state: D-652
 predecessor_session_tasks: SESSION-D580-TASKS.md (cascade pass-1 through pass-5 era)
-timestamp: 2026-05-17T00:30:00Z
+timestamp: 2026-05-16T08:00:00Z
 ---
 
 # Session Task List — D-644 Durable Pre-/Clear Snapshot
@@ -46,7 +46,8 @@ This file persists the task list and full cascade state from the session coverin
 | 87 | **DONE** | **PREREQ-E pass-41 BLOCKED + FB32 CLOSED** — D-650 combined-burst closed 1/1 LOW finding; HS-PREREQ-E-002 v1.3; severity decay HIGH→MED→LOW; 2 out-of-perimeter TD-VSDD-091 candidates cycle-close-deferred; 156th consecutive single-commit |
 | 88 | **DONE** | **PREREQ-E pass-42 BLOCKED** — D-651 pass-42 BLOCKED (1 MED + 1 LOW, both in ADR-027); F-LP42-MED-001 §D3 internal crate-naming contradiction novel; F-LP42-LOW-001 ADR-027:118 TD-VSDD-091 sibling-class of F-LP41 at ADR layer; streak 0/3 unchanged |
 | 89 | **DONE** | **FB33 CLOSED** — D-651 architect-only; ADR-027 v1.7; ARCH-INDEX v2.56; 157th consecutive single-commit; 4 ADR-023 sibling-sites surfaced cycle-close-deferred; pattern partially broken |
-| 90 | **PENDING** | PREREQ-E pass-43 (1/3 attempt within 6th cascade — streak 0/3; 3 consecutive CLEAN passes required for BC-5.39.001 convergence) |
+| 90 | **DONE** | **PREREQ-E pass-43 CLEAN★** — D-652; zero in-scope findings under 10 rotated attack vectors; streak 0/3 → **1/3** (2nd CLEAN advance of cascade); novelty LOW; state-manager-only burst; 158th consecutive single-commit |
+| 91 | **PENDING** | PREREQ-E pass-44 (2/3 penultimate — streak 1/3; pass-45 = potential BC-5.39.001 CONVERGENCE; 3 consecutive CLEAN passes required) |
 
 ## §FB28 Closure Note (D-645 COMPLETE)
 
@@ -253,7 +254,40 @@ F-LP40-MED-001 is a 39-pass-surviving PRE-EXISTING defect. The defect persisted 
 
 ---
 
-## §Cycle-Close Codification Queue (as of D-651)
+## §Pass-43 CLEAN Note (D-652 COMPLETE)
+
+**Zero in-scope findings. 2nd CLEAN advance of cascade. Streak 0/3 → 1/3. 158th consecutive single-commit.**
+
+### Streak Advance Significance
+- pass-39 (D-648): 1st CLEAN advance of cascade — streak 0/3 → 1/3 (broke 8-reset pattern of 9th attempt)
+- **pass-43 (D-652): 2nd CLEAN advance** — streak 0/3 → 1/3 (after pass-40 BLOCKED reset streak back to 0/3)
+- 6th cascade attempt; severity decay HIGH→MED→LOW→CLEAN holding
+- Spec package at convergence-equilibrium under all 10 rotated axes
+
+### Zero Findings Summary (10 rotated attack vectors, all PASS)
+1. FB33 close-watch Phase A on new content — ADR-027 §D3 + line 118 verified semantically correct
+2. POL-15 lifecycle revisited — Proposed ADRs, wiring_deferred_to null, anchor_stories consistent
+3. POL-9 named-alias semantic sync — VP-146 ↔ VP-PLUGIN-001 aligned
+4. HS frontmatter ↔ body footer VP traced markers — all 3 HSs consistent
+5. POL-25 multi-cite "register_write_tool" sweep — 6 spec sites consistent
+6. Cross-ADR contract semantic coherence — ADR-026/027 jointly coherent
+7. error-taxonomy v1.30 ↔ BC postcondition error code citations — bidirectional traceability complete
+8. POL-6 ARCH-INDEX ↔ BC subsystem verbatim sync — 4 BCs all PASS
+9. POL-13 STORY-INDEX cell-content consistency — crates_touched, BCs, version all match story frontmatter
+10. POL-22 Phase C workspace-resolution on NEW ADR-027 v1.7 content — validated
+
+### Pinned Artifact Versions (UNCHANGED from D-651)
+All 19 artifacts at D-651 version pins — no spec edits in D-652 (state-manager-only burst per CLEAN pass discipline).
+
+### Pass-44 Dispatch Readiness
+- Streak: 1/3 (2/3 penultimate attempt if CLEAN; pass-45 = potential CONVERGENCE)
+- No fix-burst required — CLEAN pass
+- All 19 artifacts at D-651/D-652 version pins (unchanged from D-652)
+- Adversary can dispatch immediately for pass-44
+
+---
+
+## §Cycle-Close Codification Queue (as of D-652)
 
 Items deferred to session-reviewer cycle-close workflow per S-7.02. DO NOT close before cycle-close.
 
