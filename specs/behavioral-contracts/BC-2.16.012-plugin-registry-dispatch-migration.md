@@ -1,7 +1,7 @@
 ---
 document_type: behavioral-contract
 level: L3
-version: "1.7"
+version: "1.8"
 status: draft
 producer: product-owner
 timestamp: 2026-05-15T00:00:00
@@ -120,7 +120,7 @@ sensors; the change is structural (open dispatch replaces closed match).
 
 | VP ID | Description |
 |-------|-------------|
-| VP-156 | WriteToolInvalidationMap registration uniqueness (proptest P1). Verifies EC-016-012-004 resolved behavior (error-on-duplicate, per ADR-026 D7 v1.8). Visibility guarantee is structural (RwLock contract + ADR-022 boot ordering) not proptest-verified — see VP-156 §Property Statement. Authored in prereq-e-fix-burst-1 (F-LP1-MED-003). Behavioral equivalence and open-dispatch invariants remain verified by integration test (TV-003) and grep gate (TV-001). |
+| VP-156 | WriteToolInvalidationMap registration uniqueness (proptest P1). Verifies EC-016-012-004 resolved behavior (error-on-duplicate, per ADR-026 D7 v1.9). Visibility guarantee is structural (RwLock contract + ADR-022 boot ordering) not proptest-verified — see VP-156 §Property Statement. Authored in prereq-e-fix-burst-1 (F-LP1-MED-003). Behavioral equivalence and open-dispatch invariants remain verified by integration test (TV-003) and grep gate (TV-001). |
 
 ## Related BCs
 
@@ -157,6 +157,7 @@ S-PLUGIN-PREREQ-E
 
 | Version | Burst | Date | Author | Change |
 |---------|-------|------|--------|--------|
+| 1.8 | prereq-e-fix-burst-8 | 2026-05-16 | architect | F-LP8-HIGH-002 — within-FB7 sibling-sweep asymmetry final close (companion site of F-LP8-HIGH-001): §Verification Properties VP-156 row pin advanced ADR-026 D7 v1.8 → v1.9. FB7 D-586 bumped ADR-026 v1.8→v1.9 but did not sibling-sweep BC-2.16.012 (FB6's correct-at-time pin became stale). POL-23 RECURRING-class defect. |
 | 1.7 | prereq-e-fix-burst-6 | 2026-05-16 | architect | F-LP6-CRIT-001+HIGH-003+MED-003 POL-23 sibling sweep: §Verification Properties VP-156 row — "ADR-026 D7 v1.7" pin updated to "ADR-026 D7 v1.8" (ADR-026 bumped to v1.8 for cookie→cookie_roundtrip fix, phantom runtime_deliverable prune, semver-stance paragraph). BC-2.16.012 v1.6→v1.7. |
 | 1.6 | prereq-e-fix-burst-5 | 2026-05-15 | architect | F-LP5-MED-004 POL-23 sibling sweep: §Verification Properties VP-156 row — "ADR-026 D7 v1.6" pin updated to "ADR-026 D7 v1.7" (ADR-026 bumped to v1.7 to add SS-07 to subsystems_affected). BC-2.16.012 v1.5→v1.6. |
 | 1.5 | prereq-e-fix-burst-4 | 2026-05-15 | architect | F-LP4-HIGH-004 POL-23 sibling sweep: §Verification Properties VP-156 row — "ADR-026 D7 v1.5" pin updated to "ADR-026 D7 v1.6" (ADR-026 bumped in fix-burst-4 to add VP-156 to §VP Anchors). BC-2.16.012 v1.4→v1.5. |

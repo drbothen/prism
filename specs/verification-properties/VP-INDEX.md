@@ -1,7 +1,7 @@
 ---
 document_type: verification-property-index
 level: L4
-version: "1.43"
+version: "1.44"
 status: draft
 producer: product-owner
 timestamp: 2026-05-11T00:00:00
@@ -243,6 +243,7 @@ S-1.02 frontmatter has been updated to `subsystems: [SS-03, SS-07, SS-11, SS-12,
 
 | Version | Burst | Date | Author | Change |
 |---------|-------|------|--------|--------|
+| 1.44 | prereq-e-fix-burst-8 | 2026-05-16 | architect | F-LP8-HIGH-001 final close: VP-156 ADR-026 D7 version pins advanced v1.8→v1.9 across 4 live-narrative sites (§Property Statement, §Source Contract BC row, §Source Contract ADR row, proof harness skeleton comment) (v0.6→v0.7). VP-INDEX row for VP-156 is description-stable — no row text change required. VP-INDEX v1.43→v1.44. |
 | 1.43 | prereq-e-fix-burst-7 | 2026-05-16 | architect | F-LP7-HIGH-001 sibling sweep: VP-156 ADR-026 D7 version pins advanced v1.7→v1.8 across 4 live-narrative sites (§Property Statement, §Source Contract BC row, §Source Contract ADR row, proof harness skeleton comment) (v0.5→v0.6). VP-INDEX row for VP-156 is description-stable — no row text change required. VP-INDEX v1.42→v1.43. |
 | 1.42 | prereq-e-fix-burst-6 | 2026-05-16 | architect | F-LP6-HIGH-001 + F-LP6-MED-001 + F-LP6-LOW-002 sibling sweep: VP-155 source_bc set to BC-2.16.011 (v0.3→v0.4); VP-156 ADR-026 D7 version pins updated from stale v1.2 to v1.7 across §Property Statement, §Source Contract, and proof harness skeleton (v0.4→v0.5). VP-INDEX rows for VP-155 and VP-156 are description-stable — no row text changes required (module/method/priority/status unchanged). VP-INDEX v1.41→v1.42. |
 | 1.41 | prereq-e-fix-burst-5 | 2026-05-15 | architect | F-LP5-LOW-001 Path A: `source_invariant:` schema convention documented — field accepts DI-NNN workspace-canonical identifiers only; BC-local INV-* identifiers belong in `source_bc:` + body prose, not `source_invariant:`. Convention note added as blockquote above §Properties table. Confirms VP-153 (`source_invariant: DI-012`) and VP-156 (`source_invariant: null`) are both correct; no individual VP frontmatter changes needed. VP-INDEX v1.40→v1.41. |
