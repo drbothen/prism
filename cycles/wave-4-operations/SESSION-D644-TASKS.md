@@ -1,11 +1,11 @@
 ---
 document_type: session-tasks
-version: "1.1"
+version: "1.2"
 status: active
 related_burst: D-644
-predecessor_state: D-643
+predecessor_state: D-646
 predecessor_session_tasks: SESSION-D580-TASKS.md (cascade pass-1 through pass-5 era)
-timestamp: 2026-05-16T22:30:00Z
+timestamp: 2026-05-16T23:30:00Z
 ---
 
 # Session Task List — D-644 Durable Pre-/Clear Snapshot
@@ -39,7 +39,8 @@ This file persists the task list and full cascade state from the session coverin
 |---|--------|-------------|
 | Prior | DONE | All FB6 through FB27 closures (see SESSION-D580-TASKS.md for FB1-FB5 era) |
 | 82 | **DONE** | **PREREQ-E fix-burst-28 CLOSED** — D-645 combined-burst closed all 3 MED findings; story v1.13; STORY-INDEX v2.117; 151st consecutive single-commit |
-| 83 | **READY-FOR-DISPATCH** | PREREQ-E pass-37 (first of NEW 3-CLEAN sequence — 9th attempt; streak 0/3) |
+| 83 | **DONE** | **PREREQ-E pass-37 BLOCKED + FB29 CLOSED** — D-646 combined-burst closed all 3 MED findings; story v1.14; VP-153 v0.6; VP-INDEX v1.48; STORY-INDEX v2.118; 152nd consecutive single-commit |
+| 84 | **PENDING** | PREREQ-E pass-38 (2nd of 9th 3-CLEAN sequence — streak 0/3; pass-38 NEXT) |
 
 ## §FB28 Closure Note (D-645 COMPLETE)
 
@@ -57,7 +58,27 @@ This file persists the task list and full cascade state from the session coverin
 
 **TD-VSDD-060 sweep (state-manager):** ADR-027 already has SS-07 (prism-query) in `subsystems_affected`. No other forward-prop sites found. All other hits are historical narrative.
 
-**Next action:** Dispatch adversary spec pass-37 (task 83 READY-FOR-DISPATCH).
+**Next action:** Dispatch adversary spec pass-38 (task 84 PENDING — 2nd of 9th 3-CLEAN attempt).
+
+---
+
+## §FB29 Closure Note (D-646 COMPLETE)
+
+**All 3 in-scope findings closed in combined-burst D-646 (2026-05-16). 152nd consecutive single-commit.**
+
+| Finding | Agent | Status | Notes |
+|---------|-------|--------|-------|
+| F-LP37-MED-001 | product-owner | CLOSED | AC-8 rewritten with explicit enumeration of 4 canonical test names (within-FB28 sibling-sweep gap) |
+| F-LP37-MED-002 | product-owner | CLOSED | Task 7 OnceLock parenthetical stricken + ADR-026 §D7 citation added |
+| F-LP37-MED-003 | architect | CLOSED | VP-153 Rule A/B/C byte-verbatim sync to error-taxonomy.md v1.30 E-SPEC-012/013/014 (Option A); VP-153 v0.5→v0.6 |
+
+**Dispatch pattern:** PO (MED-001+002) + architect (MED-003) dispatched in parallel. State-manager last per POL-3.
+
+**2 OBS surfaced (non-blocking):**
+- OBS-LP37-001: HS-PREREQ-E-001-03 "behaviorally unchanged" loose phrasing vs AC-2 + INV-AUTH-OPEN-002.
+- OBS-LP37-002 [process-gap]: Story changelog "BC-2.16.012 row 003" misnomer — _NNN_ segments are test-set grouping numbers, not BC TV/EC/INV identifiers. Codification candidate.
+
+**Next action:** Dispatch adversary spec pass-38 (task 84 PENDING — 2nd of 9th 3-CLEAN attempt).
 
 ---
 
@@ -135,14 +156,14 @@ Accept current spec quality (8 CLEAN passes is unusual statistical evidence of q
 
 | Artifact | Version |
 |----------|---------|
-| Story | v1.13 (F-LP36-MED-001+002 closed D-645) |
+| Story | v1.14 (F-LP37-MED-001+002 closed D-646) |
 | BC-2.01.016 | v1.5 (modified 2026-05-16) |
 | BC-2.16.011 | v1.6 (modified 2026-05-16) |
 | BC-2.16.012 | v1.15 (modified 2026-05-16) |
 | BC-2.16.002 | v1.20 (catalog row 33 + bullet `(v1.20)`) |
 | ADR-026 | v1.12 (D7 pin propagation v1.10 throughout downstream) |
 | ADR-027 | v1.6 (D3 dual-file enumeration + SS-07 in subsystems_affected) |
-| VP-153 | v0.5 |
+| VP-153 | v0.6 (F-LP37-MED-003 closed D-646 by architect — byte-verbatim E-SPEC-012/013/014 sync) |
 | VP-154 | v0.6 |
 | VP-155 | v0.5 |
 | VP-156 | v0.8 (4 D7 pins at v1.10) |
@@ -151,16 +172,16 @@ Accept current spec quality (8 CLEAN passes is unusual statistical evidence of q
 | HS-PREREQ-E-003 | v1.5 (verification_properties: [VP-156]; HS-003-04/05 footers cite VP-156) |
 | error-taxonomy | v1.30 (E-PIPELINE-001 row at v1.20 pin; E-SPEC-008 RETIRED; E-SPEC-012/013/014 + E-PLUGIN-012/020 active) |
 | ARCH-INDEX | v2.55 |
-| VP-INDEX | v1.47 (Total 156, P0=122, P1=34) |
-| STORY-INDEX | v2.117 (F-LP36-MED-003 CLOSED D-645; prism-query added to PREREQ-E col 3) |
+| VP-INDEX | v1.48 (Total 156, P0=122, P1=34) |
+| STORY-INDEX | v2.118 (FB29 D-646; PREREQ-E row v1.13→v1.14) |
 | BC-INDEX | v4.93 |
-| verification-architecture | v1.37 (P33 sub-node added; arithmetic synced 156/122/34) |
-| verification-coverage-matrix | v1.34 (totals synced 156/122/34) |
+| verification-architecture | v1.38 (POL-9 propagation row; VP-153 ID-only) |
+| verification-coverage-matrix | v1.35 (POL-9 propagation row; VP-153 ID-only) |
 
 ## Resume Reading Order (Next Session After /Clear)
 
-1. **`.factory/STATE.md`** (v7.331) — current_step + prereq_e_adversary_streak + RESUME PROTOCOL section
-2. **`.factory/SESSION-HANDOFF.md`** (v7.331) — §POST-D644 DURABLE RESUME SNAPSHOT section
+1. **`.factory/STATE.md`** (v7.333) — current_step + prereq_e_adversary_streak + RESUME PROTOCOL section
+2. **`.factory/SESSION-HANDOFF.md`** (v7.333) — §POST-FB29-CLOSURE DURABLE PIN BLOCK section
 3. **`.factory/cycles/wave-4-operations/SESSION-D644-TASKS.md`** — this file (task list + FB28 spec + strategic options)
 4. **`.factory/cycles/wave-4-operations/S-PLUGIN-PREREQ-E-CYCLE-SNAPSHOT.md`** — full cascade history through D-643
 5. **`.factory/cycles/wave-4-operations/SESSION-D580-TASKS.md`** — prior session task list (pass-1 through pass-5 era; D-580 precedent)

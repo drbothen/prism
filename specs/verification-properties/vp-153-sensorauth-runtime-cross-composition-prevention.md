@@ -1,10 +1,10 @@
 ---
 document_type: verification-property
 level: L4
-version: "0.5"
+version: "0.6"
 status: draft
 producer: architect
-timestamp: 2026-05-15T00:00:00Z
+timestamp: 2026-05-16T00:00:00Z
 phase: prereq-e
 inputs:
   - .factory/specs/architecture/decisions/ADR-026-sensorauth-unsealing.md
@@ -24,7 +24,7 @@ proof_completed_date: null
 proof_file_hash: null
 lifecycle_status: draft
 introduced: "2026-05-15"
-modified: "2026-05-15"
+modified: "2026-05-16"
 deprecated: null
 deprecated_by: null
 replacement: null
@@ -46,22 +46,20 @@ prevention transitions from compile-time to runtime enforcement. The spec-valida
 1. **Rule A — Single auth_type:** A sensor spec with more than one `auth_type` value, or with
    an `auth_type` value not in the enumerated set `{oauth2_client_credentials, bearer_static,
    cookie_roundtrip, api_key, custom_via_plugin}`, MUST be rejected at spec-load time with
-   structured error **E-SPEC-012** ("Auth type cross-composition rejected for sensor '{sensor}':
-   auth_type must be a single value from the enumerated set; got '{values}'").
-   NOTE: E-SPEC-010 is already allocated to "Variable interpolation failed" in error-taxonomy.md.
-   E-SPEC-012 is the correct new code. PO must add E-SPEC-012/013/014 to error-taxonomy.md as
-   an in-scope amendment to S-PLUGIN-PREREQ-E before the test-writer authors AC-3 tests.
+   structured error **E-SPEC-012** ("auth_type for sensor '{sensor_id}' must be a single value;
+   got: {value}. Valid values: oauth2_client_credentials, bearer_static, cookie_roundtrip,
+   api_key, custom_via_plugin").
 
 2. **Rule B — One credential per method:** A sensor spec where `credential_refs` references
    more than one credential per auth method MUST be rejected at spec-load time with
-   structured error **E-SPEC-013** ("Multiple credential_refs for auth method '{method}' in
-   sensor '{sensor}': exactly one credential_ref is required").
+   structured error **E-SPEC-013** ("auth method for sensor '{sensor_id}' declares {count}
+   credential_refs; exactly one is required").
 
 3. **Rule C — Auth type / credential type coherence:** A sensor spec where the resolved
    credential type does not structurally match the spec's `auth_type` variant MUST be rejected
    at credential-resolution time, before any HTTP request is issued, with structured error
-   **E-SPEC-014** ("Credential type mismatch for sensor '{sensor}': auth_type '{auth_type}'
-   requires credential type '{expected}', got '{actual}'").
+   **E-SPEC-014** ("credential type '{credential_type}' is incompatible with auth_type
+   '{auth_type}' for sensor '{sensor_id}'").
 
 A proptest strategy generates arbitrary `(auth_type, credential_type)` pairs across the valid
 and invalid space. For all invalid combinations, the validator must return `Err`. For all valid
@@ -187,6 +185,7 @@ mode against a temp dir). Either approach is feasible.
 
 | Version | Burst | Date | Author | Notes |
 |---------|-------|------|--------|-------|
+| 0.6 | FB29 | 2026-05-16 | architect | F-LP37-MED-003 — Rule A/B/C message-format quotations updated to match canonical error-taxonomy.md v1.30 byte-for-byte (Option A: verbatim sync). Prior divergent strings were: Rule A `"Auth type cross-composition rejected for sensor '{sensor}': auth_type must be a single value from the enumerated set; got '{values}'"`, Rule B `"Multiple credential_refs for auth method '{method}' in sensor '{sensor}': exactly one credential_ref is required"`, Rule C `"Credential type mismatch for sensor '{sensor}': auth_type '{auth_type}' requires credential type '{expected}', got '{actual}'"`. Closes POL-24 (error_message_template_verbatim) violation surviving since pre-pass-37 era. TD-VSDD-060 sibling-site sweep: old divergent strings found only in VP-153 itself — no other spec artifact affected. POL-25 multi-cite sweep: E-SPEC-012/013/014 cited in 12+ artifacts; none misquote the canonical template. Future amendment discipline: POL-23/POL-25 sibling-sweep must include VP-153 Rule A/B/C whenever error-taxonomy.md E-SPEC-012/013/014 message_template fields are amended. |
 | 0.1 | plugin-prereq-e-adr-burst | 2026-05-15 | architect | Initial stub. Traces to ADR-026 D3 / ADR-023 Rule 2 / DI-012 runtime enforcement replacement. Harness skeleton provided; full authoring in S-PLUGIN-PREREQ-E test-writer dispatch. |
 | 0.2 | plugin-prereq-e-cross-review | 2026-05-15 | architect | Q3 resolution: remove "error code to be assigned" placeholder. Assign E-SPEC-012 (Rule A), E-SPEC-013 (Rule B), E-SPEC-014 (Rule C). Document E-SPEC-010 collision (already taken). Update source_bc to BC-2.01.016 (primary auth-surface BC). Route E-SPEC-012/013/014 authoring to PO via VP153-OPEN-001. |
 | 0.3 | S-PLUGIN-PREREQ-E-reconciliation | 2026-05-15 | product-owner | VP153-OPEN-001 closed — E-SPEC-012/013/014 authored in error-taxonomy.md v1.25. BC-2.01.016 error references updated. Harness skeleton uses correct error code labels. Open Issues table updated with closure record. |

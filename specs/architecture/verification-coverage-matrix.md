@@ -2,10 +2,10 @@
 document_type: architecture-section
 level: L3
 section: "verification-coverage-matrix"
-version: "1.34"
+version: "1.35"
 status: draft
 producer: architect
-timestamp: 2026-04-20T18:00:00
+timestamp: 2026-05-16T00:00:00
 phase: 1b
 inputs: [prd.md, domain-spec/invariants.md]
 input-hash: "962624a"
@@ -143,6 +143,7 @@ See detailed tables below.
 
 | Version | Author | Date | Description |
 |---------|--------|------|-------------|
+| 1.35 | state-manager | 2026-05-16 | FB29 D-646 POL-9 same-burst propagation: VP-153 file advanced v0.5→v0.6 (architect Option A byte-verbatim sync of Rule A/B/C to canonical error-taxonomy.md v1.30). This document carries VP-153 by ID only (no version pin in Coverage by Module table); POL-11 changelog row recorded to maintain contiguous version history. |
 | 1.34 | state-manager | 2026-05-16 | F-LP31-HIGH-001 (fix-burst-24-combined-D-638): Summary table arithmetic correction — Integration test P0 25→24; Total P0 123→122. Cascade from VP-INDEX v1.32 changelog row that incorrectly recorded "P0 120→123" (actual was +2: VP-153 P0 + VP-155 P0; VP-154 was P1). Survived 30 prior passes incl. 7 CLEAN. |
 | 1.33 | architect | 2026-05-15 | prereq-e-fix-burst-1: VP-156 (proptest, P1, prism-query) added. prism-query row updated: Proptest 2→3. Totals row: Proptest 87→88, Total VPs 155→156. P1 33→34 (P0 unchanged 123). VP-156 traces ADR-026 D7 WriteToolInvalidationMap uniqueness + happens-before. |
 | 1.32 | architect | 2026-05-15 | PREREQ-E ADR burst: VP-153 (proptest, P0), VP-154 (integration_test, P1), VP-155 (integration_test, P0) added for S-PLUGIN-PREREQ-E. prism-spec-engine row updated: Proptest 14→15, Integration 8→10, total row 29→32. Totals row: Proptest 86→87, Integration 26→28, Total VPs 152→155. P0 120→123, P1 unchanged 32. VP-153 traces ADR-026 D3 / DI-012 runtime replacement; VP-154/155 trace ADR-027 D3 CustomAdapter deletion enforcement. |

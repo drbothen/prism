@@ -23,7 +23,7 @@ crates_touched: [prism-sensors, prism-spec-engine, prism-query]
 target_module: prism-sensors
 subsystems: [SS-01, SS-07, SS-16]
 capabilities: [CAP-001, CAP-029]
-version: "1.13"
+version: "1.14"
 updated: "2026-05-16"
 level: "L4"
 producer: product-owner
@@ -167,7 +167,7 @@ Well within the 30% context window budget (~40k tokens).
    - Behavioral output for the four initial sensors must remain identical (verified by behavioral-equivalence test in the Red Gate set)
 
 7. **Migrate `WriteToolInvalidationMap` to runtime-extensible container (TD-S-PLUGIN-PREREQ-A-003)**
-   - In `crates/prism-query/src/invalidation.rs`, change the `LazyLock<Vec<WriteToolInvalidationMap>>` container to `std::sync::RwLock<Vec<WriteToolInvalidationMap>>` (or `OnceLock<RwLock<Vec<...>>>` if lazy initialization is needed)
+   - In `crates/prism-query/src/invalidation.rs`, change the `LazyLock<Vec<WriteToolInvalidationMap>>` container to `std::sync::RwLock<Vec<WriteToolInvalidationMap>>` (eager init per ADR-026 §D7; OnceLock wrapper is explicitly forbidden by that ADR — see ADR-026 lines 246-259 for rationale)
    - The `WriteToolInvalidationMap` struct carries a `plugin_name: String` field (set by PluginRuntime from the plugin manifest `name` field per ADR-026 D7 v1.10; cited in BC-2.16.002 §Postconditions (Canonical Structured Event Catalog bullet, v1.20) row 33). The struct fields are: `sensor_id: SensorId`, `tool_name: String`, `plugin_name: String` (at minimum; other fields per implementation).
    - Add a `pub fn register_write_tool(entry: WriteToolInvalidationMap) -> Result<(), SpecEngineError>` API that acquires a write guard, checks for a duplicate `tool_name`, and either returns `Err(SpecEngineError::DuplicateWriteToolRegistration(tool_name))` on duplicate or pushes the entry on success
    - Update all read-side callers (the invalidation check function) to acquire a read guard instead of dereferencing the `LazyLock`
@@ -232,7 +232,7 @@ The file is NOT deleted (historical record preservation per DF-030 append_only_n
 (traces to BC-2.16.012 postcondition — open dispatch; INV-SPEC-PARSER-OPEN-001)
 
 **AC-8 (Behavioral Equivalence for Four Initial Sensors):**
-An integration test (`test_BC_2_16_012_spec_parser_behavioral_equivalence`) parses each of the four built-in TOML sensor specs via the migrated `SpecParser` and asserts that the resulting `SensorSpec` struct is identical to the pre-migration baseline. A novel sensor name (`"hypothetical_sensor"`) parses without error via the generic path, producing a valid `SensorSpec`.
+Four integration tests (`test_BC_2_16_012_002_spec_parser_behavioral_equivalence_crowdstrike`, `test_BC_2_16_012_002_spec_parser_behavioral_equivalence_cyberint`, `test_BC_2_16_012_002_spec_parser_behavioral_equivalence_claroty`, `test_BC_2_16_012_002_spec_parser_behavioral_equivalence_armis`) parse each of the four built-in TOML sensor specs via the migrated `SpecParser` and assert that the resulting `SensorSpec` struct is identical to the pre-migration baseline. A novel sensor name (`"hypothetical_sensor"`) parses without error via the generic path, producing a valid `SensorSpec`.
 (traces to BC-2.16.012 invariant INV-SPEC-PARSER-OPEN-002 + INV-SPEC-PARSER-OPEN-003)
 
 **AC-9 (WriteToolInvalidationMap Runtime Extensibility — TD-S-PLUGIN-PREREQ-A-003 Closed):**
@@ -444,6 +444,7 @@ Tech debt closed:
 
 | Version | Burst | Date | Author | Change |
 |---------|-------|------|--------|--------|
+| 1.14 | FB29 | 2026-05-16 | product-owner | F-LP37-MED-001 — AC-8 test-name reference updated: singular non-existent name replaced with explicit enumeration of 4 canonical Red Gate test names (`test_BC_2_16_012_002_spec_parser_behavioral_equivalence_{crowdstrike,cyberint,claroty,armis}`), closing within-FB28 sibling-sweep gap. F-LP37-MED-002 — Task 7 OnceLock<RwLock<...>> alternative stricken; ADR-026 §D7 explicit forbiddance cited with line range (246-259); precedence rule #2 (ADR supersedes story on contract semantics) applied. Note: `_NNN_` segments in Red Gate test names (e.g., `_002_`, `_003_`) are intra-story Red Gate test-set grouping numbers — NOT identifiers in BC-2.16.012's Canonical Test Vectors (TV-001..004), Edge Cases, or Invariants body sections. |
 | 1.13 | FB28 | 2026-05-16 | product-owner | F-LP36-MED-001 — AC-9 test-name canonicalized: added `_003_` segment to match Red Gate Test 11 convention (`test_BC_2_16_012_write_tool_invalidation_runtime_register` → `test_BC_2_16_012_003_write_tool_invalidation_runtime_register`). F-LP36-MED-002 — Red Gate Tests expanded to cover 4-sensor breadth per AC-8 Option A: added Cyberint (Test 8), Claroty (Test 9), Armis (Test 10) behavioral-equivalence rows (all `_002_` group, mirroring Test 7); former Test 8 renumbered to Test 11; `red_gate_tests: 8 → 11`. State-manager closes F-LP36-MED-003 + bookkeeping in same burst. |
 | 1.12 | fix-burst-22-combined-D-634 | 2026-05-16 | state-manager | F-LP27-MED-001 — 11th manifestation version-pin-drift family at NEW target (error-taxonomy.md itself): 3 story sites swept `v1.27` → `v1.30` (AC-3 narrative line 207, AC-3 trace line 208, §Error Taxonomy Additions intro line 317). 4-bump window (v1.27→v1.28→v1.29→v1.30) where these sites were not swept during FB2..FB21. Pass-27 BLOCKED 1 MED; streak RESET 2/3 → 0/3 (4th reset). Pass-26→pass-27 reset BROKE the convergence pattern. Pass-28 NEXT — first of NEW 3-CLEAN sequence (4th attempt). |
 | 1.11 | prereq-e-fix-burst-16 | 2026-05-16 | product-owner | F-LP17-MED-001 — 8th manifestation BC-2.16.002 citation defect family closed at NEW dimension (phrasing-form canonicalization): 3 story sites converted from no-parens form `§Postconditions Canonical Structured Event Catalog v1.20 row 33` to canonical parens-ancestry form `§Postconditions (Canonical Structured Event Catalog bullet, v1.20) row 33` (matching workspace pattern at BC-2.16.012:84/109 + error-taxonomy:467/473). FB12-era inherited inconsistency closed (4 successive bursts FB12/FB14/FB15 addressed only pin dimension; pass-17 fresh-context surfaced phrasing-form dimension). POL-25 multi-cite propagation discipline applied with explicit grep enumeration. |

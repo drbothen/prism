@@ -2617,3 +2617,63 @@ Shorthand append: →FB28-CLOSED-COMBINED(3/3 in-scope; F-LP36-MED-001 test-name
 Story v1.13 | BC-2.01.016 v1.5 | BC-2.16.011 v1.6 | BC-2.16.012 v1.15 | BC-2.16.002 v1.20 | ADR-026 v1.12 | ADR-027 v1.6 | VP-153 v0.5 | VP-154 v0.6 | VP-155 v0.5 | VP-156 v0.8 | HS-PREREQ-E-001 v1.3 | HS-PREREQ-E-002 v1.1 | HS-PREREQ-E-003 v1.5 | error-taxonomy v1.30 | ARCH-INDEX v2.55 | VP-INDEX v1.47 | STORY-INDEX v2.117 | BC-INDEX v4.93 | verification-architecture v1.37 | verification-coverage-matrix v1.34
 
 STATE.md v7.332; SESSION-HANDOFF.md v7.332; prereq_e_adversary_streak 0/3 (ready for pass-37 — 9th attempt at 3-CLEAN); 151st consecutive single-commit (TD-VSDD-053 DECISIVELY STABLE).
+
+---
+
+## §D-646 FB29 COMBINED-BURST CLOSED (2026-05-16) — 3/3 MED FINDINGS CLOSED; STORY v1.14; VP-153 v0.6; VP-INDEX v1.48; STORY-INDEX v2.118; 152ND SINGLE-COMMIT; STREAK 0/3 READY FOR PASS-38 (2ND OF 9TH ATTEMPT)
+
+**152nd consecutive single-commit (TD-VSDD-053 DECISIVELY STABLE). FB29 fully closed.**
+
+### Pass-37 Summary
+
+Pass-37 adversary verdict: BLOCKED. 3 MED findings + 2 OBS observations. Streak 0/3 → 0/3 (BLOCKED holds at zero). 9th attempt at 3-CLEAN sequence.
+
+### Finding Closure Record
+
+| Finding | Severity | Agent | Closure Action |
+|---------|----------|-------|----------------|
+| F-LP37-MED-001 | MEDIUM | product-owner | AC-8 prose replaced: singular `test_BC_2_16_012_spec_parser_behavioral_equivalence` (non-existent in Red Gate) → explicit enumeration of 4 canonical test names matching FB28-expanded Red Gate Tests 7-10. Story v1.13 → v1.14. |
+| F-LP37-MED-002 | MEDIUM | product-owner | Task 7 OnceLock parenthetical stricken + ADR-026 §D7 citation added. ADR-026 D7 explicitly forbids OnceLock<RwLock<...>> alternative. Story v1.13 → v1.14 (same bump). |
+| F-LP37-MED-003 | MEDIUM | architect | VP-153 Rule A/B/C message-format quotations replaced byte-verbatim with canonical error-taxonomy.md v1.30 E-SPEC-012/013/014 message_templates (Option A). Pre-existing defect surviving 36 prior passes. VP-153 v0.5 → v0.6. |
+
+### Observations Surfaced (non-blocking)
+
+| OBS | Description | Action |
+|-----|-------------|--------|
+| OBS-LP37-001 | HS-PREREQ-E-001-03 line 128 "behaviorally unchanged" loose phrasing vs AC-2 + INV-AUTH-OPEN-002 (each impl gains auth_type_name() method body) | Non-blocking carry-forward |
+| OBS-LP37-002 [process-gap] | Story v1.13 changelog "BC-2.16.012 row 003" misnomer — _NNN_ segments are intra-test-set grouping numbers, NOT BC TV/EC/INV identifiers | Codification candidate |
+
+### POL-9 Propagation Record
+
+| Document | Pre-D-646 Version | Post-D-646 Version | Change |
+|----------|------------------|-------------------|--------|
+| VP-153 (file) | v0.5 | v0.6 | Architect byte-verbatim sync F-LP37-MED-003 |
+| VP-INDEX | v1.47 | v1.48 | POL-11 bump; VP-153 row ID-only (no version pin in Properties table) |
+| verification-architecture.md | v1.37 | v1.38 | POL-11 bump; VP-153 ID-only (no version pin in Catalog table) |
+| verification-coverage-matrix.md | v1.34 | v1.35 | POL-11 bump; VP-153 ID-only (no version pin in Coverage table) |
+
+### Cascade Pointer Update
+
+| Metric | Before D-646 | After D-646 |
+|--------|-------------|-------------|
+| Adversary passes | 36 (pass-1..36) | 37 (pass-1..37) |
+| Fix-bursts closed | 28 (FB1-FB28) | 29 (FB1-FB29) |
+| Fix-bursts pending | 0 | 0 |
+| Pending findings | 0 + 1 OBS carry-forward | 0 + 3 OBS carry-forward |
+| Streak | 0/3 | 0/3 (BLOCKED holds) |
+| Consecutive single-commits | 151 | 152 |
+
+Shorthand append: →pass-37:BLOCKED(0C+0H+3M+0L+2OBS; F-LP37-MED-001 AC-8 within-FB28 sibling-sweep gap + F-LP37-MED-002 Task 7 OnceLock vs ADR-026 D7 + F-LP37-MED-003 VP-153 message-template byte-divergence; streak 0/3 unchanged)→FB29-CLOSED-COMBINED(3/3 in-scope; PO+architect parallel; state-manager last; story v1.14; VP-153 v0.6; VP-INDEX v1.48; STORY-INDEX v2.118; arch propagated per POL-9; 152nd consecutive single-commit)
+
+### SHA Chain Anchor (D-646)
+
+- D-646 SHA: (this commit — check `git -C .factory log -1 --format='%H'`)
+- Predecessor D-645: (check `git -C .factory log -2 --format='%H' | tail -1`)
+- Predecessor D-643: `1f205b69`
+- TD-VSDD-053: no backfill/Stage-1/Stage-2 in chain; 152 consecutive single-commit bursts
+
+### Pinned Artifact Versions (PREREQ-E 19-artifact set — post-D-646)
+
+Story v1.14 | BC-2.01.016 v1.5 | BC-2.16.011 v1.6 | BC-2.16.012 v1.15 | BC-2.16.002 v1.20 | ADR-026 v1.12 | ADR-027 v1.6 | VP-153 v0.6 | VP-154 v0.6 | VP-155 v0.5 | VP-156 v0.8 | HS-PREREQ-E-001 v1.3 | HS-PREREQ-E-002 v1.1 | HS-PREREQ-E-003 v1.5 | error-taxonomy v1.30 | ARCH-INDEX v2.55 | VP-INDEX v1.48 | STORY-INDEX v2.118 | BC-INDEX v4.93 | verification-architecture v1.38 | verification-coverage-matrix v1.35
+
+STATE.md v7.333; SESSION-HANDOFF.md v7.333; prereq_e_adversary_streak 0/3 (ready for pass-38 — 2nd of 9th 3-CLEAN attempt); 152nd consecutive single-commit (TD-VSDD-053 DECISIVELY STABLE).
