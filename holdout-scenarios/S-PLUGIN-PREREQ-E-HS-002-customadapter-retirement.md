@@ -8,10 +8,10 @@ must_pass: true
 priority: P0
 epic_id: "PLUGIN-MIGRATION-001"
 story_source: "S-PLUGIN-PREREQ-E"
-version: "1.2"
+version: "1.3"
 status: draft
 producer: product-owner
-timestamp: 2026-05-16T00:00:00Z
+timestamp: 2026-05-16T01:00:00Z
 phase: 4
 inputs: []
 input-hash: null
@@ -232,7 +232,7 @@ does not cause build failures.
 - `removal_reason:` field absent, or present with a different string (paraphrase is insufficient; the exact AC-6 string must be used)
 - `lifecycle_status:` not equal to `removed` (e.g., `deprecated` or `retired`)
 
-**Source of Truth:** AC-6 of S-PLUGIN-PREREQ-E, lines 221-228
+**Source of Truth:** AC-6 of S-PLUGIN-PREREQ-E (§Acceptance Criteria, "BC-2.16.004 Lifecycle Updated to Removed")
 
 **Repos Tested:** `.factory/specs/behavioral-contracts/` (factory state post-merge)
 
@@ -253,6 +253,7 @@ When this holdout scenario is evaluated, the evaluator must produce:
 
 | Version | Burst | Date | Author | Change |
 |---------|-------|------|--------|--------|
+| 1.3 | FB32 | 2026-05-16 | product-owner | F-LP41-LOW-001 — HS-PREREQ-E-002-06 §Source of Truth: replaced volatile "lines 221-228" line-range citation with durable AC-6 + section anchor form per TD-VSDD-091. Aligns with sibling HS-002-04/HS-003-04 entity-ID convention. |
 | 1.2 | FB31 | 2026-05-16 | product-owner | F-LP40-LOW-001 — added HS-PREREQ-E-002-06 sub-scenario explicitly verifying BC-2.16.004 frontmatter mutations (deprecated_by, removed, removal_reason, lifecycle_status) per AC-6 production-grade-default lens. |
 | 1.1 | S-PLUGIN-PREREQ-E-reconciliation | 2026-05-15 | product-owner | Q4 alignment: Added HS-PREREQ-E-002-04 (VP-154 WASM behavioral equivalence coverage — P1, PLUGIN-MIGRATION-001-A scope) and HS-PREREQ-E-002-05 (VP-155 compile-fail perimeter confirmation — P0, PLUGIN-MIGRATION-001-A scope). Both reference the BC-2.16.011 §VP-154 Fixture Acceptance Criterion for canonical OCSF record schema. Updated Validation Evidence to include VP-154 and VP-155 evidence items. Added `verification_properties: [VP-154, VP-155]` to frontmatter. |
 | 1.0 | S-PLUGIN-PREREQ-E-authoring | 2026-05-15 | product-owner | Initial draft. Three sub-scenarios covering build regression, test-file deletion confirmation, and behavioral parity guard for CrowdStrike. |

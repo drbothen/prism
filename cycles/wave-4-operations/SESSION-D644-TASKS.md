@@ -1,9 +1,9 @@
 ---
 document_type: session-tasks
-version: "1.5"
+version: "1.6"
 status: active
 related_burst: D-644
-predecessor_state: D-649
+predecessor_state: D-650
 predecessor_session_tasks: SESSION-D580-TASKS.md (cascade pass-1 through pass-5 era)
 timestamp: 2026-05-16T23:59:45Z
 ---
@@ -43,7 +43,8 @@ This file persists the task list and full cascade state from the session coverin
 | 84 | **DONE** | **PREREQ-E pass-38 BLOCKED + FB30 CLOSED** — D-647 combined-burst closed 2/2 in-scope findings; story v1.15; STORY-INDEX v2.119; 153rd consecutive single-commit |
 | 85 | **DONE** | **PREREQ-E pass-39 CLEAN★** — D-648; zero in-scope findings; streak 0/3 → **1/3** FIRST ADVANCE OF 9TH ATTEMPT; all defect-class families RESOLVED; novelty LOW; 154th consecutive single-commit |
 | 86 | **DONE** | **PREREQ-E pass-40 BLOCKED + FB31 CLOSED** — D-649 combined-burst closed 2/2 in-scope findings (F-LP40-MED-001 fabricated CAP-001 quoted-attribution + F-LP40-LOW-001 AC-6 holdout coverage gap); BC-2.01.016 v1.6; HS-PREREQ-E-002 v1.2; BC-INDEX v4.94; streak 1/3 → 0/3 5th reset; 155th consecutive single-commit |
-| 87 | **PENDING** | PREREQ-E pass-41 (6th streak attempt of 9th cascade — streak 0/3; 3 consecutive CLEAN passes required for BC-5.39.001 convergence) |
+| 87 | **DONE** | **PREREQ-E pass-41 BLOCKED + FB32 CLOSED** — D-650 combined-burst closed 1/1 LOW finding; HS-PREREQ-E-002 v1.3; severity decay HIGH→MED→LOW; 2 out-of-perimeter TD-VSDD-091 candidates cycle-close-deferred; 156th consecutive single-commit |
+| 88 | **PENDING** | PREREQ-E pass-42 (NEW 3-CLEAN attempt within 6th cascade — streak 0/3; 3 consecutive CLEAN passes required for BC-5.39.001 convergence) |
 
 ## §FB28 Closure Note (D-645 COMPLETE)
 
@@ -198,7 +199,44 @@ F-LP40-MED-001 is a 39-pass-surviving PRE-EXISTING defect. The defect persisted 
 - All 19 artifacts at D-649 version pins (BC-2.01.016 v1.6; HS-PREREQ-E-002 v1.2; BC-INDEX v4.94)
 - Adversary can dispatch immediately
 
-**Next action:** Dispatch adversary spec pass-41 (task 87 PENDING — 6th streak attempt of 9th cascade).
+**Next action:** Dispatch adversary spec pass-42 (task 88 PENDING — NEW 3-CLEAN attempt within 6th cascade attempt).
+
+---
+
+## §FB32 Closure Note (D-650 COMPLETE)
+
+**1/1 in-scope finding closed in combined-burst D-650 (2026-05-16). 156th consecutive single-commit.**
+
+| Finding | Severity | Agent | Status | Notes |
+|---------|----------|-------|--------|-------|
+| F-LP41-LOW-001 | LOW | product-owner | CLOSED | HS-PREREQ-E-002 v1.2→v1.3: §Source of Truth single-line rewrite — volatile "lines 221-228" line-range citation replaced with durable AC-6+section-anchor form per TD-VSDD-091 |
+
+**Dispatch pattern:** PO-only burst (single-line fix). State-manager last per POL-3.
+
+**500-error recovery context:** This burst is a resume of a crashed dispatch. The prior dispatch had partially written STATE.md (version/current_step bumped) but had not committed. The pass-41 report was complete. This burst completed all remaining edits and committed atomically per TD-VSDD-053 single-commit-per-burst protocol.
+
+**Severity decay validation:** pass-36/37: 3 MED → pass-38: 1M+1L → pass-39: CLEAN ★ → pass-40: 1M+1L → pass-41: 1L. Expected convergence at pass-42 or near if the within-FB-introduces-new-defect pattern has been broken.
+
+**Pass-42 Dispatch Readiness:**
+- Streak: 0/3 (NEW 3-CLEAN attempt within 6th cascade)
+- Fix-burst FB32 complete — no additional remediation required
+- Pass-42 is the 1st of a new 3-CLEAN sequence; if CLEAN, streak 0/3 → 1/3
+- All 19 artifacts at D-650 version pins (HS-PREREQ-E-002 v1.3 only change from D-649)
+- Adversary can dispatch immediately
+
+---
+
+## §Cycle-Close Codification Queue (as of D-650)
+
+Items deferred to session-reviewer cycle-close workflow per S-7.02. DO NOT close before cycle-close.
+
+| ID | Description | Origin | Priority |
+|----|-------------|--------|----------|
+| OBS-LP41-001 | BC-2.22.001 modified-field format heterogeneity — cycle-close intent-pending | pass-41 | cycle-close |
+| OBS-LP38-001 | VP-INDEX v1.48 changelog narrative asymmetry — missing POL-11 citation vs sibling docs | pass-38 | cycle-close |
+| F-LP41-OUT-OF-PERIMETER-001 | test-vectors.md:94 cites "error-taxonomy.md line 270" — TD-VSDD-091 volatile line-pin; workspace-wide | pass-41 §5 sibling-sweep | cycle-close |
+| F-LP41-OUT-OF-PERIMETER-002 | error-taxonomy.md:456,458 Source column cites "line 67"/"line 54 and 70" — TD-VSDD-091 volatile line-pins | pass-41 §5 sibling-sweep | cycle-close |
+| POL-29 candidate | within-FB-introduces-new-defect pattern — 12+ manifestations across cascade; comprehensive same-file/cross-file sweep on every fix-burst | recurring | cycle-close codification |
 
 ---
 
@@ -253,7 +291,7 @@ Accept current spec quality (8 CLEAN passes is unusual statistical evidence of q
 | VP-155 | v0.5 |
 | VP-156 | v0.8 (4 D7 pins at v1.10) |
 | HS-PREREQ-E-001 | v1.3 (frontmatter verification_properties: [VP-153]) |
-| HS-PREREQ-E-002 | v1.2 (verification_properties: [VP-154, VP-155]; sub-scenario 002-06 added at D-649) |
+| HS-PREREQ-E-002 | v1.3 (§Source of Truth 002-06 rewritten to durable AC-6+section-anchor form at D-650; F-LP41-LOW-001 closed) |
 | HS-PREREQ-E-003 | v1.5 (verification_properties: [VP-156]; HS-003-04/05 footers cite VP-156) |
 | error-taxonomy | v1.30 (E-PIPELINE-001 row at v1.20 pin; E-SPEC-008 RETIRED; E-SPEC-012/013/014 + E-PLUGIN-012/020 active) |
 | ARCH-INDEX | v2.55 |
@@ -265,8 +303,8 @@ Accept current spec quality (8 CLEAN passes is unusual statistical evidence of q
 
 ## Resume Reading Order (Next Session After /Clear)
 
-1. **`.factory/STATE.md`** (v7.334) — current_step + prereq_e_adversary_streak + RESUME PROTOCOL section
-2. **`.factory/SESSION-HANDOFF.md`** (v7.334) — §POST-FB30-CLOSURE DURABLE PIN BLOCK section
+1. **`.factory/STATE.md`** (v7.337) — current_step + prereq_e_adversary_streak + RESUME PROTOCOL section
+2. **`.factory/SESSION-HANDOFF.md`** (v7.337) — §POST-FB32-CLOSURE DURABLE PIN BLOCK section
 3. **`.factory/cycles/wave-4-operations/SESSION-D644-TASKS.md`** — this file (task list + FB30 closure + strategic options)
 4. **`.factory/cycles/wave-4-operations/S-PLUGIN-PREREQ-E-CYCLE-SNAPSHOT.md`** — full cascade history through D-647
 5. **`.factory/cycles/wave-4-operations/SESSION-D580-TASKS.md`** — prior session task list (pass-1 through pass-5 era; D-580 precedent)

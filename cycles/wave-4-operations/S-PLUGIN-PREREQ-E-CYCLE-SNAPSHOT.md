@@ -2841,3 +2841,56 @@ Shorthand append: →pass-40:BLOCKED(0C+0H+1M+1L+0OBS; F-LP40-MED-001 39-pass-su
 Story v1.15 | BC-2.01.016 v1.6 | BC-2.16.011 v1.6 | BC-2.16.012 v1.15 | BC-2.16.002 v1.20 | ADR-026 v1.12 | ADR-027 v1.6 | VP-153 v0.6 | VP-154 v0.6 | VP-155 v0.5 | VP-156 v0.8 | HS-PREREQ-E-001 v1.3 | HS-PREREQ-E-002 v1.2 | HS-PREREQ-E-003 v1.5 | error-taxonomy v1.30 | ARCH-INDEX v2.55 | VP-INDEX v1.48 | STORY-INDEX v2.119 | BC-INDEX v4.94 | verification-architecture v1.38 | verification-coverage-matrix v1.35
 
 STATE.md v7.336; SESSION-HANDOFF.md v7.336; prereq_e_adversary_streak **0/3** (5th reset of 9th attempt; pass-41 NEXT — 6th streak attempt; 3 consecutive CLEAN passes required for BC-5.39.001 convergence); 155th consecutive single-commit (TD-VSDD-053 DECISIVELY STABLE).
+
+---
+
+## §D-650 FB32 SINGLE-COMMIT CLOSURE (2026-05-16) — 1 LOW FROM PASS-41 CLOSED; HS-PREREQ-E-002 V1.3; SEVERITY DECAY HIGH→MED→LOW; STREAK 0/3 UNCHANGED; 156TH SINGLE-COMMIT; PASS-42 NEXT
+
+**156th consecutive single-commit (TD-VSDD-053 DECISIVELY STABLE). FB32 CLOSED — 1/1 in-scope finding from pass-41. This commit consolidates work from a partial-state 500-error recovery; no Stage-1/Stage-2/backfill chain (TD-VSDD-053 verified).**
+
+### Pass-41 Summary
+
+Pass-41 adversary verdict: BLOCKED. 1 LOW. Streak 0/3 unchanged. Novelty HIGH (within-FB-introduces-new-defect pattern; 12th manifestation).
+
+**F-LP41-LOW-001 — TD-VSDD-091 anti-volatile-pin in HS-PREREQ-E-002-06 §Source of Truth:**
+HS-PREREQ-E-002-06 §Source of Truth read `AC-6 of S-PLUGIN-PREREQ-E, lines 221-228`. The line range is a volatile citation that will decay on next story edit. AC-6 entity ID is the durable anchor. Sibling convention: HS-002-04:151 + HS-003-04:169 use entity-ID + section-anchor form (no line numbers). Defect introduced BY FB31 Closure 2 (within-FB-introduces-new-defect pattern; 12th cataloged manifestation). Severity: LOW. Confidence: HIGH.
+
+**Severity decay trajectory:** pass-36/37: 3 MED each → pass-38: 1M+1L → pass-39: CLEAN ★ → pass-40: 1M+1L → pass-41: 1L. Consistent with adversarial-convergence theory; convergence near.
+
+### FB32 Closure Summary
+
+| Finding | Severity | Agent | Status | Version Bump |
+|---------|----------|-------|--------|--------------|
+| F-LP41-LOW-001 | LOW | product-owner | CLOSED | HS-PREREQ-E-002 v1.2 → v1.3 |
+
+**Dispatch pattern:** PO-only burst (single-line Option A fix). State-manager last per POL-3.
+
+**Option A applied:** `**Source of Truth:** AC-6 of S-PLUGIN-PREREQ-E (§Acceptance Criteria, "BC-2.16.004 Lifecycle Updated to Removed")` — entity-ID + section-anchor + sub-heading-title form; durable across story edits.
+
+### Out-of-Perimeter Candidates (cycle-close-deferred per S-7.02)
+
+| ID | Location | Issue | Status |
+|----|----------|-------|--------|
+| F-LP41-OUT-OF-PERIMETER-001 | test-vectors.md:94 | Cites "error-taxonomy.md line 270" — TD-VSDD-091 volatile line-pin | Cycle-close queue |
+| F-LP41-OUT-OF-PERIMETER-002 | error-taxonomy.md:456,458 | Source column cites "line 67"/"line 54 and 70" — TD-VSDD-091 volatile line-pins | Cycle-close queue |
+
+These are workspace-wide hygiene items. Not PREREQ-E convergence blockers. Not modified in this burst.
+
+### Cascade Pointer Update
+
+| Metric | Before D-650 | After D-650 |
+|--------|-------------|-------------|
+| Adversary passes | 40 (pass-1..40) | 41 (pass-1..41) |
+| Fix-bursts closed | 31 (FB1-FB31) | 32 (FB1-FB32) |
+| Fix-bursts pending | 0 | 0 |
+| Pending findings | 0 + 2 OBS carry-forward | 0 + 4 cycle-close carry-forward |
+| Streak | 0/3 (5th reset of 9th attempt) | 0/3 unchanged (pass-41 BLOCKED; pass-42 starts NEW attempt) |
+| Consecutive single-commits | 155 | 156 |
+
+Shorthand append: →pass-41:BLOCKED(0C+0H+0M+1L+0OBS; F-LP41-LOW-001 FB31-introduced TD-VSDD-091 volatile-line-pin in HS-PREREQ-E-002-06 §Source of Truth; severity decay HIGH→MED→LOW; streak 0/3 unchanged; novelty HIGH)→FB32-CLOSED-COMBINED(1/1 in-scope; PO-only single-line; state-manager last; HS-PREREQ-E-002 v1.3; 2 out-of-perimeter TD-VSDD-091 candidates cycle-close-deferred; 156th consecutive single-commit)
+
+### Pinned Artifact Versions (PREREQ-E 19-artifact set — post-D-650)
+
+Story v1.15 | BC-2.01.016 v1.6 | BC-2.16.011 v1.6 | BC-2.16.012 v1.15 | BC-2.16.002 v1.20 | ADR-026 v1.12 | ADR-027 v1.6 | VP-153 v0.6 | VP-154 v0.6 | VP-155 v0.5 | VP-156 v0.8 | HS-PREREQ-E-001 v1.3 | **HS-PREREQ-E-002 v1.3** | HS-PREREQ-E-003 v1.5 | error-taxonomy v1.30 | ARCH-INDEX v2.55 | VP-INDEX v1.48 | STORY-INDEX v2.119 | BC-INDEX v4.94 | verification-architecture v1.38 | verification-coverage-matrix v1.35
+
+STATE.md v7.337; SESSION-HANDOFF.md v7.337; prereq_e_adversary_streak **0/3** unchanged (pass-41 BLOCKED 1L; pass-42 NEXT — NEW 3-CLEAN attempt within 6th cascade attempt; 3 consecutive CLEAN passes required for BC-5.39.001 convergence); 156th consecutive single-commit (TD-VSDD-053 DECISIVELY STABLE).
