@@ -1,6 +1,6 @@
 ---
 document_type: session-tasks
-version: "1.17"
+version: "1.18"
 status: active
 related_burst: D-644
 predecessor_state: D-652
@@ -64,7 +64,9 @@ This file persists the task list and full cascade state from the session coverin
 | 105 | **DONE** | PREREQ-E pass-51 CLEAN★ — D-660; zero in-scope findings; streak 0/3 → **1/3** (3rd CLEAN advance of session — passes 39, 43, 51); 10 rotated vectors all PASS; FB40 closures verified load-bearing; sibling VP §Changelog ordering verified monotonic VP-154/155/156; novelty ZERO; state-manager-only burst; 166th consecutive single-commit |
 | 106 | **DONE/BLOCKED** | PREREQ-E pass-52 BLOCKED (1 HIGH; F-LP52-HIGH-001 BC-2.16.002 line 74 bullet header (v1.20) vs frontmatter v1.21 — 9th POL-23 catalog-bullet-label sub-class; streak 1/3 → 0/3 RESET; FB41 dispatched) |
 | 107 | **DONE** | FB41 CLOSED — 1/1 HIGH in-scope (F-LP52-HIGH-001: PO-only single-line; BC-2.16.002 v1.22; BC-INDEX v4.97; 167th consecutive single-commit) |
-| 108 | **PENDING** | PREREQ-E pass-53 (7th 3-CLEAN sequence attempt; pass-54 + pass-55 = potential BC-5.39.001 CONVERGENCE) |
+| 108 | **DONE/BLOCKED** | PREREQ-E pass-53 BLOCKED (F-LP53-HIGH-001 REJECTED via Fork B canonical rule; F-LP53-MED-001 cycle-snapshot heading depth ### → ##; F-LP53-MED-002 cycle-snapshot duplicate line 3247; F-LP53-LOW-001 ACCEPTED non-defect; POL-30 canonical rule established — Fork B independent-versioning; 9-recurrence catalog-bullet sub-class closed as misdiagnosis-induced; novelty HIGH; streak 0/3 unchanged; FB42 dispatched) |
+| 109 | **DONE** | FB42 CLOSED — 2/2 MED cycle-snapshot integrity fixes (F-LP53-MED-001: D-659/660/661 heading depth ### → ## per convention; F-LP53-MED-002: duplicate line 3247 removed; state-manager-only; 168th consecutive single-commit) |
+| 110 | **PENDING** | PREREQ-E pass-54 (8th 3-CLEAN sequence attempt; Fork B canonical rule now established; BC-2.16.002 bullet-label audit under Fork B as mandatory vector; pass-55 + pass-56 = potential BC-5.39.001 CONVERGENCE) |
 
 ## §Pass-51 CLEAN Note (D-660)
 
@@ -106,6 +108,34 @@ This file persists the task list and full cascade state from the session coverin
 | pass-52 | BLOCKED | 1/3 → 0/3 | F-LP52-HIGH-001 (9th POL-23 catalog-bullet-label; penultimate broken) |
 
 **Next dispatch:** Pass-53 = 7th 3-CLEAN sequence attempt. Vector rotation: BC-2.16.002 §Postconditions full bullet-label audit as mandatory vector; all other 10 rotated vectors from pass-52 preserved.
+
+---
+
+## §FB42 Closure Note (D-662 COMPLETE)
+
+**All 2 in-scope MED findings closed in single-commit D-662 (2026-05-16). 168th consecutive single-commit. State-manager-only burst — no spec artifacts touched.**
+
+| Finding | Agent | Status | Notes |
+|---------|-------|--------|-------|
+| F-LP53-HIGH-001 | orchestrator | REJECTED via Fork B | Bullet-version-label tracks catalog-content-version INDEPENDENT of BC frontmatter; post-FB41 state internally consistent under Fork B canonical rule |
+| F-LP53-MED-001 | state-manager | CLOSED | D-659/D-660/D-661 heading depth ### → ## matching all prior D-NNN sections |
+| F-LP53-MED-002 | state-manager | CLOSED | Duplicate line 3247 in D-660 pin block removed |
+| F-LP53-LOW-001 | orchestrator | ACCEPTED non-defect | HS-001 body BC-2.16.001 is precondition reference; precondition-reference BCs not in frontmatter array per project convention |
+
+### §Fork B Canonical Rule (POL-30 Candidate — Established D-662)
+
+**Rule:** The §Postconditions Canonical Structured Event Catalog bullet-version-label `(vN.MM)` tracks **catalog-content-version** — the version at which the events table CONTENT last changed. BC frontmatter `version:` tracks **BC document version** — bumped on ANY BC change including narrative cite-pin updates, §Changelog row additions, and structural edits that do not change catalog content. These two version counters bump **independently** per their respective change-trigger semantics and MUST NOT be synchronized to each other.
+
+**Retroactive impact:** 9-recurrence catalog-bullet sub-class (F-LP32 through F-LP52 sub-class instances) retrospectively closed as misdiagnosis-induced. Adversary was applying frontmatter-version rule to catalog-content-version label. F-LP52-HIGH-001 (FB41 intervention) was a misdiagnosis-induced fix; result was harmless because the sync happened to produce a correct catalog-content-version label by coincidence.
+
+**Streak trajectory (7th cascade attempt):**
+
+| Pass | Verdict | Streak | Notes |
+|------|---------|--------|-------|
+| pass-52 | BLOCKED | 1/3 → 0/3 | F-LP52-HIGH-001 (9th catalog-bullet sub-class — retrospectively misdiagnosis-induced) |
+| pass-53 | BLOCKED | 0/3 | F-LP53-HIGH-001 REJECTED Fork B; F-LP53-MED-001/002 cycle-snapshot bookkeeping |
+
+**Next dispatch:** Pass-54 = 8th 3-CLEAN sequence attempt. Mandatory vector: BC-2.16.002 §Postconditions bullet-label audit UNDER Fork B canonical rule (confirm catalog-content-version semantics; no frontmatter sync expected). All other 10 rotated vectors preserved. POL-30 canonical rule documentation is the codification target before pass-54.
 
 ---
 

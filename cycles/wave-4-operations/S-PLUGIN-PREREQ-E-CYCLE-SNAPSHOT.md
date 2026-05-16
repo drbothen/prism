@@ -3211,7 +3211,7 @@ Story v1.21 | BC-2.01.016 v1.7 | BC-2.16.011 v1.6 | BC-2.16.012 v1.16 | BC-2.16.
 
 STATE.md v7.345; SESSION-HANDOFF.md v7.345; prereq_e_adversary_streak **0/3** (pass-49 BLOCKED; FB39 CLOSED; pass-50 NEXT — next 3-CLEAN attempt); 164th consecutive single-commit (TD-VSDD-053 STABLE).
 
-### §D-659 — FB40 Single-Commit Closure
+## §D-659 — FB40 Single-Commit Closure
 
 | Metric | Post-D-658 | Post-D-659 |
 |--------|------------|------------|
@@ -3228,7 +3228,7 @@ Story v1.22 | BC-2.01.016 v1.7 | BC-2.16.011 v1.6 | BC-2.16.012 v1.16 | BC-2.16.
 
 STATE.md v7.346; SESSION-HANDOFF.md v7.346; prereq_e_adversary_streak **0/3** (pass-50 BLOCKED; FB40 CLOSED; pass-51 NEXT — next 3-CLEAN attempt); 165th consecutive single-commit (TD-VSDD-053 STABLE).
 
-### §D-660 — Pass-51 CLEAN Bookkeeping
+## §D-660 — Pass-51 CLEAN Bookkeeping
 
 | Metric | Post-D-659 | Post-D-660 |
 |--------|------------|------------|
@@ -3244,9 +3244,8 @@ Shorthand append: →pass-51:CLEAN★(0 findings; 10 rotated vectors all PASS; F
 Story v1.22 | BC-2.01.016 v1.7 | BC-2.16.011 v1.6 | BC-2.16.012 v1.16 | BC-2.16.002 v1.21 | ADR-026 v1.14 | ADR-027 v1.7 | VP-153 v0.9 | VP-154 v0.6 | VP-155 v0.5 | VP-156 v0.8 | HS-PREREQ-E-001 v1.4 | HS-PREREQ-E-002 v1.4 | HS-PREREQ-E-003 v1.6 | error-taxonomy v1.31 | ARCH-INDEX v2.58 | VP-INDEX v1.51 | STORY-INDEX v2.126 | BC-INDEX v4.96 | verification-architecture v1.41 | verification-coverage-matrix v1.38
 
 STATE.md v7.347; SESSION-HANDOFF.md v7.347; prereq_e_adversary_streak **1/3** (pass-51 CLEAN★; 3rd CLEAN advance of session — passes 39, 43, 51; pass-52 NEXT — penultimate 2/3 attempt; pass-53 = potential BC-5.39.001 CONVERGENCE); 166th consecutive single-commit (TD-VSDD-053 STABLE).
-STATE.md v7.347; SESSION-HANDOFF.md v7.347; prereq_e_adversary_streak **1/3** (pass-51 CLEAN★; 3rd CLEAN advance of session — passes 39, 43, 51; pass-52 NEXT — penultimate 2/3 attempt; pass-53 = potential BC-5.39.001 CONVERGENCE); 166th consecutive single-commit (TD-VSDD-053 STABLE).
 
-### §D-661 — FB41 Single-Commit Closure
+## §D-661 — FB41 Single-Commit Closure
 
 | Metric | Post-D-660 | Post-D-661 |
 |--------|------------|------------|
@@ -3262,3 +3261,20 @@ Shorthand append: →pass-52:BLOCKED(0C+1H+0M+0L+0OBS; F-LP52-HIGH-001 BC-2.16.0
 Story v1.22 | BC-2.01.016 v1.7 | BC-2.16.011 v1.6 | BC-2.16.012 v1.16 | BC-2.16.002 v1.22 | ADR-026 v1.14 | ADR-027 v1.7 | VP-153 v0.9 | VP-154 v0.6 | VP-155 v0.5 | VP-156 v0.8 | HS-PREREQ-E-001 v1.4 | HS-PREREQ-E-002 v1.4 | HS-PREREQ-E-003 v1.6 | error-taxonomy v1.31 | ARCH-INDEX v2.58 | VP-INDEX v1.51 | STORY-INDEX v2.126 | BC-INDEX v4.97 | verification-architecture v1.41 | verification-coverage-matrix v1.38
 
 STATE.md v7.348; SESSION-HANDOFF.md v7.348; prereq_e_adversary_streak **0/3** (pass-52 BLOCKED — F-LP52-HIGH-001 BC-2.16.002 line 74 bullet header (v1.20) vs frontmatter v1.21; FB41 CLOSED; BC-2.16.002 v1.22; BC-INDEX v4.97; streak 1/3 → 0/3 RESET; pass-53 NEXT — 7th 3-CLEAN sequence attempt); 167th consecutive single-commit (TD-VSDD-053 STABLE).
+
+## §D-662 — FB42 State-Manager-Only Single-Commit Closure
+
+| Metric | Post-D-661 | Post-D-662 |
+|--------|------------|------------|
+| Pass count | 52 | 53 |
+| Streak | 0/3 | 0/3 |
+| Last verdict | BLOCKED (FB41) | BLOCKED (pass-53) → FB42 CLOSED |
+| Consecutive single-commits | 167 | 168 |
+
+Shorthand append: →pass-53:BLOCKED(0C+0H+2M+0L+1OBS-adjudicated; F-LP53-HIGH-001 REJECTED Fork B clarification — bullet-version-label tracks catalog-content-version INDEPENDENT of BC frontmatter; F-LP53-MED-001 cycle-snapshot heading depth ### → ## for D-659/660/661; F-LP53-MED-002 cycle-snapshot duplicate line 3247 removed; F-LP53-LOW-001 ACCEPTED non-defect HS-001 precondition-reference BC-2.16.001; POL-30 canonical rule established — Fork B retroactively closes 9-recurrence catalog-bullet sub-class as misdiagnosis-induced; novelty HIGH — Fork B independent-versioning rule; streak 0/3 unchanged)→FB42-CLOSED(2/2 MED cycle-snapshot integrity fixes; state-manager only; 168th consecutive single-commit)
+
+### Pinned Artifact Versions (PREREQ-E 19-artifact set — post-D-662)
+
+Story v1.22 | BC-2.01.016 v1.7 | BC-2.16.011 v1.6 | BC-2.16.012 v1.16 | BC-2.16.002 v1.22 | ADR-026 v1.14 | ADR-027 v1.7 | VP-153 v0.9 | VP-154 v0.6 | VP-155 v0.5 | VP-156 v0.8 | HS-PREREQ-E-001 v1.4 | HS-PREREQ-E-002 v1.4 | HS-PREREQ-E-003 v1.6 | error-taxonomy v1.31 | ARCH-INDEX v2.58 | VP-INDEX v1.51 | STORY-INDEX v2.126 | BC-INDEX v4.97 | verification-architecture v1.41 | verification-coverage-matrix v1.38
+
+STATE.md v7.349; SESSION-HANDOFF.md v7.349; prereq_e_adversary_streak **0/3** (pass-53 BLOCKED — F-LP53-HIGH-001 REJECTED via Fork B canonical rule; F-LP53-MED-001/002 cycle-snapshot integrity fixes; FB42 CLOSED; POL-30 canonical rule established — bullet-version-label tracks catalog-content-version independent of BC frontmatter; streak 0/3 unchanged; pass-54 begins 8th 3-CLEAN sequence attempt); 168th consecutive single-commit (TD-VSDD-053 STABLE).
