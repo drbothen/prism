@@ -1,7 +1,7 @@
 ---
 document_type: behavioral-contract
 level: L3
-version: "1.3"
+version: "1.4"
 status: draft
 producer: product-owner
 timestamp: 2026-05-15T00:00:00
@@ -120,7 +120,7 @@ sensors; the change is structural (open dispatch replaces closed match).
 
 | VP ID | Description |
 |-------|-------------|
-| VP-156 | WriteToolInvalidationMap registration uniqueness + happens-before (proptest P1). Verifies EC-016-012-004 resolved behavior (error-on-duplicate, per ADR-026 D7 v1.2) and INV-INVALIDATION-EXT-001 happens-before correctness. Authored in prereq-e-fix-burst-1 (F-LP1-MED-003). Behavioral equivalence and open-dispatch invariants remain verified by integration test (TV-003) and grep gate (TV-001). |
+| VP-156 | WriteToolInvalidationMap registration uniqueness (proptest P1). Verifies EC-016-012-004 resolved behavior (error-on-duplicate, per ADR-026 D7 v1.5). Visibility guarantee is structural (RwLock contract + ADR-022 boot ordering) not proptest-verified — see VP-156 §Property Statement. Authored in prereq-e-fix-burst-1 (F-LP1-MED-003). Behavioral equivalence and open-dispatch invariants remain verified by integration test (TV-003) and grep gate (TV-001). |
 
 ## Related BCs
 
@@ -141,7 +141,7 @@ S-PLUGIN-PREREQ-E
 
 ## VP Anchors
 
-- VP-156 (WriteToolInvalidationMap registration uniqueness + happens-before: duplicate tool_name returns Err(DuplicateWriteToolRegistration); successful registration always visible on next RwLock read; proptest P1; anchor: S-PLUGIN-PREREQ-E; authored in prereq-e-fix-burst-1 per F-LP1-MED-003 resolution)
+- VP-156 (WriteToolInvalidationMap registration uniqueness: duplicate tool_name returns Err(DuplicateWriteToolRegistration); first registration persists unchanged; proptest P1; anchor: S-PLUGIN-PREREQ-E; authored in prereq-e-fix-burst-1 per F-LP1-MED-003 resolution; happens-before visibility is structural per RwLock contract + ADR-022 boot ordering, not proptest-verified)
 
 ## Traceability
 
@@ -157,6 +157,7 @@ S-PLUGIN-PREREQ-E
 
 | Version | Burst | Date | Author | Change |
 |---------|-------|------|--------|--------|
+| 1.4 | prereq-e-fix-burst-3 | 2026-05-15 | architect | F-LP3-HIGH-001 sibling-sweep (architect domain): §Verification Properties VP-156 row updated — "uniqueness + happens-before" → "uniqueness only"; stale "ADR-026 D7 v1.2" pin updated to v1.5. §VP Anchors VP-156 bullet updated — "uniqueness + happens-before" framing removed; structural visibility guarantee noted (RwLock contract + ADR-022 boot ordering). Aligns BC-2.16.012 with VP-156 v0.2 body (fix-burst-2) and ADR-026 current v1.5. |
 | 1.3 | prereq-e-fix-burst-2 | 2026-05-15 | product-owner | F-LP2-HIGH-001 paper-fix correction: EC-016-012-004 body rewritten to specify `Err(SpecEngineError::DuplicateWriteToolRegistration(tool_name))` per ADR-026 D7. Prior v1.2 changelog claimed F-LP1-MED-002 closure but EC-016-012-004 body still read "Implementer chooses; last-writer-wins, OR an error is returned" — directly contradicting ADR-026 D7 v1.2 mandate. Body now reflects the production-grade default (error-on-duplicate; last-writer-wins explicitly forbidden). |
 | 1.2 | prereq-e-fix-burst-1 | 2026-05-15 | architect | F-LP1-MED-003 resolution: §Verification Properties table updated from "(none in this story)" to VP-156; §VP Anchors updated to list VP-156. EC-016-012-004 duplicate-registration behavior now resolved to error-on-duplicate per ADR-026 D7 v1.2 (previously "implementer chooses"). BC-2.16.012 §Verification Properties coverage gap closed. |
 | 1.2 | fix-burst-1 state-manager catch | 2026-05-15 | state-manager | (state-manager catch in fix-burst-1) F-LP1-HIGH-004 POL-20: introduced field canonicalized to ISO date 2026-05-15. Prior value `S-PLUGIN-PREREQ-E` was story-ID format; POL-20 requires `YYYY-MM-DD` for artifacts created outside greenfield cycles. |

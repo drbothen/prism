@@ -1,7 +1,7 @@
 ---
 document_type: behavioral-contract
 level: L3
-version: "1.2"
+version: "1.3"
 status: draft
 producer: product-owner
 timestamp: 2026-05-15T00:00:00
@@ -77,8 +77,10 @@ restriction.
      are rejected at credential-resolution time (E-SPEC-014).
 - The four built-in sensor auth implementations (`CrowdStrikeAuth`, `CyberintAuth`,
   `ClarotyAuth`, `ArmisAuth`) in `crates/prism-sensors/src/auth/` continue to implement
-  `SensorAuth` without change. Their impl blocks do not reference the `Sealed` marker;
-  removing the marker requires zero changes to these impls.
+  `SensorAuth` with one new method body per impl (`fn auth_type_name(&self) -> &'static str { "..." }`
+  returning the static auth-type name for that implementation) and no other changes to their impl
+  blocks. The `auth_type_name()` body is required because the 2-method trait surface (ADR-026 D1)
+  mandates it; the sealed-trait supertrait removal otherwise requires zero changes to these impls.
 - A compile-fail perimeter test (or updated grep gate) confirms that `private::Sealed` or
   equivalent sealed-marker import does NOT appear in `crates/prism-sensors/src/auth/mod.rs`
   after this change. If a perimeter test crate enforces sealed-trait invariants, it is updated
@@ -91,7 +93,7 @@ restriction.
 ## Invariants
 
 - **INV-AUTH-OPEN-001:** After this story merges, `grep -rn "private::Sealed\|impl Sealed\|trait Sealed" crates/prism-sensors/src/auth/` returns ZERO matches in production source.
-- **INV-AUTH-OPEN-002:** The four built-in auth impls (`CrowdStrikeAuth`, `CyberintAuth`, `ClarotyAuth`, `ArmisAuth`) MUST NOT require modification to implement the now-unsealed `SensorAuth` trait. If any impl references a `Sealed` supertrait, the removal is a pure deletion — no new bound is substituted.
+- **INV-AUTH-OPEN-002:** The four built-in auth impls (`CrowdStrikeAuth`, `CyberintAuth`, `ClarotyAuth`, `ArmisAuth`) require exactly ONE new method body each — `fn auth_type_name(&self) -> &'static str { "..." }` — to satisfy the 2-method `SensorAuth` trait surface (ADR-026 D1). No other changes are made to these impl blocks. If any impl references a `Sealed` supertrait, that block is also removed — that removal is a pure deletion with no substitute.
 - **INV-AUTH-OPEN-003:** Cross-sensor auth-composition prevention is fully preserved via ADR-023 Rule 2 runtime rules. The absence of compile-time sealing does NOT weaken the threat model. The three spec-load-time and credential-resolution-time rejection rules (E-SPEC-012/013/014) are the sole enforcement mechanism.
 - **INV-AUTH-OPEN-004:** `dyn SensorAuth` remains a valid object-safe trait bound. No change to the trait method signatures is made in this story unless required by object-safety (i.e., no associated types are added without boxing).
 
@@ -163,6 +165,7 @@ S-PLUGIN-PREREQ-E
 
 | Version | Burst | Date | Author | Change |
 |---------|-------|------|--------|--------|
+| 1.3 | prereq-e-fix-burst-3 | 2026-05-15 | product-owner | F-LP3-HIGH-002 closure (joint with architect): §Postconditions "without change" rewritten to "with one new method body per impl (`fn auth_type_name(&self) -> &'static str { \"...\" }`)"; INV-AUTH-OPEN-002 rewritten to match — 4 impls require exactly ONE new method body (auth_type_name) per ADR-026 D1 2-method trait surface. Preconditions already listed 2-method surface correctly (fix-burst-1); this is Postconditions/Invariants alignment only. |
 | 1.2 | S-PLUGIN-PREREQ-E-fix-burst-1 | 2026-05-15 | product-owner | F-LP1-HIGH-001 closure: §Preconditions method surface aligned to ADR-026 D1 (2-method trait: `as_any()` + `auth_type_name()`). Removed incorrect 3-method list (`sensor_id`, `auth_type`, `build_request_auth`) which imported methods from a different trait surface. F-LP1-HIGH-003 closure: §C5 phantom-heading citations corrected — `ADR-023 §C5 Rule 2` → `ADR-023 §Architectural Constraints (C5 bullet, Rule 2)` per POL-21; ADR-023 has no `## C5` heading. |
 | 1.2 | fix-burst-1 state-manager catch | 2026-05-15 | state-manager | (state-manager catch in fix-burst-1) F-LP1-HIGH-004 POL-20: introduced field canonicalized to ISO date 2026-05-15. Prior value `S-PLUGIN-PREREQ-E` was story-ID format; POL-20 requires `YYYY-MM-DD` for artifacts created outside greenfield cycles. |
 | 1.1 | S-PLUGIN-PREREQ-E-reconciliation | 2026-05-15 | product-owner | Q1 fix: corrected error codes for ADR-023 Rule 2 rejections — E-SPEC-010/011/012 → E-SPEC-012/013/014 (E-SPEC-010 = variable interpolation field-path miss; E-SPEC-011 = pipe_verb reserved keyword; these pre-existing codes were incorrectly cited). New codes authored in error-taxonomy.md v1.25. VP-153 anchor added (cross-composition proptest). ADR-026/027 architecture anchors confirmed. |

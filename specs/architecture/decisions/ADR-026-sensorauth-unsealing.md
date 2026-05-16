@@ -4,7 +4,7 @@ adr_id: "ADR-026"
 title: "SensorAuth Trait Un-Sealing — Remove private::Sealed, Enable Plugin Auth Implementations"
 status: Proposed
 date: "2026-05-15"
-version: "1.4"
+version: "1.5"
 producer: architect
 subsystems_affected: [SS-01, SS-17, SS-16]
 supersedes: null
@@ -16,6 +16,11 @@ runtime_deliverables:
   - "Add SensorAuth re-export to prism-sensors public API surface"
   - "Delete CustomAuth placeholder duplicate from crates/prism-spec-engine/src/custom_adapter.rs"
   - "Validate PluginRuntime::load_plugin wiring path calls SensorAuth-implementing types"
+  - "register_write_tool(entry: WriteToolInvalidationMap) -> Result<(), SpecEngineError> API in crates/prism-query/src/invalidation.rs (D7)"
+  - "WriteToolInvalidationMap container migrated from LazyLock<Vec<...>> to RwLock<Vec<WriteToolInvalidationMap>> in crates/prism-query/src/invalidation.rs (D7)"
+  - "SpecEngineError::DuplicateWriteToolRegistration(String) enum variant added (D7)"
+  - "SpecEngineError::WriteToolRegistrationAfterBoot enum variant added (D7)"
+  - "AtomicBool query-phase flag for after-boot detection in crates/prism-query/src/invalidation.rs (D7)"
 wiring_deferred_to: null
 ---
 
@@ -111,17 +116,48 @@ evaluated against live code, ADR-026 v1.1, and BC-2.01.016:
 
 **Decision: 2-method trait (option a).** `auth_type_name()` bridges BC-2.01.016's introspection requirement with correct Rust idiom. PO aligns BC-2.01.016 §Preconditions to name `auth_type_name()` (not `auth_type()`) as the required method — this is a naming alignment, not a semantic change.
 
-### D2 — Keep existing internal impls unchanged
+### D2 — Update existing internal impls with one new method body each
 
 `CrowdStrikeAuth`, `CyberintAuth`, `ClarotyAuth`, and `ArmisAuth` in
 `crates/prism-sensors/src/auth/{crowdstrike,cyberint,claroty,armis}.rs` implement `SensorAuth`
-and continue to do so. Their `impl SensorAuth` bodies are unaffected by the unsealing.
-The four concrete types are scheduled for deletion in Wave 1/A (PLUGIN-MIGRATION-001-A), but
-they must remain functional through the Wave 0 prereq window. The unsealing operation does NOT
-delete the internal impls.
+and continue to do so. The unsealing operation (D1) adds `auth_type_name()` as a required
+method with no default impl (Path B — chosen for production-grade introspection). Each of the
+four built-in impls must add exactly ONE new method body returning a static auth-type name string:
 
-**Timing model:** internal impls exist and compile → sealed trait removed → external impls
-now possible → internal impls deleted at Wave 1/A. No intermediate broken state.
+```rust
+// CrowdStrikeAuth
+fn auth_type_name(&self) -> &'static str { "oauth2_client_credentials" }
+
+// CyberintAuth
+fn auth_type_name(&self) -> &'static str { "bearer_static" }
+
+// ClarotyAuth
+fn auth_type_name(&self) -> &'static str { "cookie" }
+
+// ArmisAuth
+fn auth_type_name(&self) -> &'static str { "api_key" }
+```
+
+**Path B rationale (F-LP3-HIGH-002):** Production-grade introspection requires accurate,
+per-impl auth-type names. A default impl returning `"unknown"` (Path A) would be silently
+incorrect for all four built-in types — `"unknown"` would appear in audit logs, error messages,
+and dynamic dispatch diagnostics, hiding the actual auth type. Each impl MUST declare its
+static name explicitly. The method body is one line per impl; the cost is trivial; the benefit
+(accurate introspection) is permanent. This is the production-grade default under Canonical
+Principle Rule 1.
+
+No other changes to impl blocks are required. The four concrete types are scheduled for
+deletion in Wave 1/A (PLUGIN-MIGRATION-001-A) but must remain functional through the Wave 0
+prereq window. The unsealing operation does NOT delete the internal impls.
+
+**Timing model:** internal impls exist and compile → sealed trait removed + `auth_type_name()`
+added to all four impls → external impls now possible → internal impls deleted at Wave 1/A.
+No intermediate broken state.
+
+**PO alignment:** D2's amendment requires PO to align Story AC-2 and BC-2.01.016 §Postconditions
+to specify "ONE NEW METHOD BODY each (one-line `fn auth_type_name` returning the static name
+string)" rather than "ZERO changes to impl blocks." This is a named handoff (F-LP3-HIGH-002
+joint finding); PO handles AC-2 + BC-2.01.016 §Postconditions in the parallel PO dispatch.
 
 ### D3 — Runtime cross-sensor auth-composition prevention (DI-012 replacement enforcement)
 
@@ -238,7 +274,7 @@ umbrella runtime-execution code and MUST NOT be reused for boot-load registratio
 
 - **`E-PLUGIN-012`** — `SpecEngineError::DuplicateWriteToolRegistration(String)`: Plugin declared
   a write tool name that is already registered by another plugin; boot-load registration rejected.
-  Severity: broken. Category: validation.
+  Severity: broken. Category: boot.
 - **`E-PLUGIN-020`** — `SpecEngineError::WriteToolRegistrationAfterBoot`: `register_write_tool`
   was called after step 8 (query-engine init) started; registration attempt rejected and a
   `WARN`-level tracing event is emitted. Severity: broken. Category: runtime.
@@ -380,3 +416,4 @@ modes and security implications. The open trait approach reuses the existing typ
 | 1.2 | 2026-05-15 | architect | prereq-e-fix-burst-1: F-LP1-HIGH-001: D1 trait method trilemma resolved — 2-method surface (as_any + auth_type_name) chosen over 1-method (as-built) and 3-method (BC suggestion); explicit trilemma table added to D1. D1 doc comment rewritten — "Sealed authentication credential" replaced with "Authentication credential for a sensor adapter (open trait — plugin-implementable per ADR-026)" (F-LP1-LOW-001). F-LP1-HIGH-002: phantom runtime_deliverable "Remove #[non_exhaustive] seal-workaround doc comments" deleted (grep confirms zero non_exhaustive refs in auth/mod.rs). F-LP1-MED-002: D7 expanded with error-on-duplicate register_write_tool semantics — returns Err(SpecEngineError::DuplicateWriteToolRegistration(tool_name)); E-PLUGIN-001 code routed to PO error-taxonomy; WriteToolRegistrationAfterBoot variant documented. F-LP1-LOW-002: D7 (added in v1.1) reordered to appear after D6, restoring D1..D7 sequential file order. VP-156 (proptest, P1) added as anchor for D7 uniqueness coverage. PO co-changes (same burst): F-LP1-MED-004 closure — two TD-A-003 alias citations in D7 corrected to TD-S-PLUGIN-PREREQ-A-003; F-LP1-HIGH-003 — two §C5 phantom-heading citations corrected to §Architectural Constraints (C5 bullet) in §Source/Origin and §Related ADRs table. |
 | 1.3 | 2026-05-15 | architect | prereq-e-fix-burst-2: F-LP2-MED-001: D7 error code routing corrected — E-PLUGIN-001 collision with existing umbrella runtime-panic code resolved; new codes E-PLUGIN-012 (DuplicateWriteToolRegistration, boot-load duplicate) and E-PLUGIN-013 (WriteToolRegistrationAfterBoot, post-step-8 registration attempt) assigned in D7 narrative; both codes routed to PO for error-taxonomy.md authoring. VP-156 anchor sentence updated to remove "happens-before invariant" framing (aligned to VP-156 v0.2 rework). |
 | 1.4 | 2026-05-15 | architect | F-LP2-MED-001 sub-fix: E-PLUGIN-013 → E-PLUGIN-020 reassignment per PO error-taxonomy v1.27 allocation. E-PLUGIN-013 was already occupied by `allowed_urls` manifest validation (taxonomy v1.19, BC-2.17.007); PO allocated E-PLUGIN-020 (next free after E-PLUGIN-019/FormatVersionMissing) for `WriteToolRegistrationAfterBoot`. D7 error code routing bullet updated; category corrected from `validation` to `runtime` to match taxonomy v1.27 row. E-PLUGIN-012 (DuplicateWriteToolRegistration) unchanged — confirmed free. |
+| 1.5 | 2026-05-15 | architect | prereq-e-fix-burst-3: F-LP3-HIGH-002: D2 amended — Path B chosen (required body per impl, no default); four built-in impls must add one-line `fn auth_type_name()` bodies returning `"oauth2_client_credentials"`, `"bearer_static"`, `"cookie"`, `"api_key"` respectively. Path A (default `"unknown"`) rejected — silent incorrectness in audit logs. PO handoff: AC-2 + BC-2.01.016 §Postconditions alignment required. F-LP3-MED-001: E-PLUGIN-012 category corrected `validation` → `boot` per error-taxonomy.md canonical category. F-LP3-MED-003: Five D7 runtime_deliverables added to frontmatter (register_write_tool API, RwLock container migration, DuplicateWriteToolRegistration variant, WriteToolRegistrationAfterBoot variant, AtomicBool query-phase flag). |

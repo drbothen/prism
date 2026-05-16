@@ -188,3 +188,54 @@ ADR-026 v1.4         + E-PLUGIN-020 (WriteToolRegistrationAfterBoot) ✓
 
 Adversary pass-3 dispatch (fresh-context). BC-5.39.001 3-CLEAN protocol — streak 0/3.
 Pass-2 report: `cycles/wave-4-operations/adversarial-reviews/S-PLUGIN-PREREQ-E-spec-pass-2.md`
+
+---
+
+## §D577 FIX-BURST-3 (D-577)
+
+**D-577 COMPLETE — PREREQ-E ADVERSARY PASS-3 FIX-BURST-3 CLOSED.**
+
+**Trajectory: pass-1: 14 → FB1 + pass-2: 9 → FB2 + pass-3: 8 (0C+4H+3M+1L+0OBS) → FB3 CLOSED 8/8 in-scope. Streak 0/3. NOT CONVERGING — sibling-sweep regression pattern recurring (5 of 8 pass-3 findings were FB2 sibling-sweep regressions exposing systemic POL-25 enforcement gap; cycle-close codification candidate).**
+
+### Key Decisions
+
+- **Path B chosen (D1/D2/AC-2):** Per-impl one-line `fn auth_type_name()` body for 4 built-in auth impls. Rejected Path A ("unknown" silent fallback) as non-production.
+- **E-PLUGIN-012 category = boot:** Category corrected "validation"→"boot" across ADR-026 D7 + story Error Taxonomy table.
+- **ARCH-INDEX v2.46:** ADR-026 registry row updated v1.1→v1.5; ADR-027 registry row updated v1.1→v1.2. POL-23 gap codification candidate queued.
+- **HS-003 +2 sub-scenarios:** HS-003-04 (duplicate during boot, E-PLUGIN-012) + HS-003-05 (after-boot, E-PLUGIN-020).
+- **Red Gate Test 3 renamed:** `unchanged` → `minimal_diff` (accurate: one new method body, not zero changes).
+
+### Finding Disposition
+
+| ID | Severity | Type | Closed By | Summary |
+|----|----------|------|-----------|---------|
+| F-LP3-HIGH-001 | HIGH | FB2 regression | architect | VP-156 description stale at 4 sibling sites + stale ADR-026 D7 v1.2 pin fixed |
+| F-LP3-HIGH-002 | HIGH | NOVEL | PO + architect | D1/D2/AC-2 Path B alignment: auth_type_name() one-line body required |
+| F-LP3-HIGH-003 | HIGH | NOVEL | product-owner | register_write_tool signature unit→Result<(),SpecEngineError>; Task 7 + AC-9 + Red Gate Test 8 |
+| F-LP3-HIGH-004 | HIGH | NOVEL | architect | ARCH-INDEX ADR-026 v1.1→v1.5 + ADR-027 v1.1→v1.2 registry rows |
+| F-LP3-MED-001 | MEDIUM | FB2 regression | product-owner | E-PLUGIN-012 category "validation"→"boot" in story table |
+| F-LP3-MED-002 | MEDIUM | FB2 regression | product-owner | 2 E-PLUGIN rows added to story table; v1.25→v1.27 in AC-3 + HS-001 |
+| F-LP3-MED-003 | MEDIUM | FB2 regression | architect | ADR-026 runtime_deliverables +5 entries; D7 category fix |
+| F-LP3-LOW-001 | LOW | NOVEL | product-owner | HS-003 +2 error-path sub-scenarios (HS-003-04/005) |
+
+### Artifact Versions After Fix-Burst-3
+
+| Artifact | After FB2 | After FB3 |
+|----------|-----------|-----------|
+| ADR-026 | v1.4 | v1.5 |
+| ADR-027 | v1.2 | v1.2 (unchanged) |
+| BC-2.01.016 | v1.2 | v1.3 |
+| BC-2.16.012 | v1.3 | v1.4 |
+| VP-INDEX | v1.39 | v1.40 |
+| verification-architecture | v1.33 | v1.34 |
+| ARCH-INDEX | v2.45 | v2.46 |
+| HS-PREREQ-E-001 | v1.1 | v1.2 |
+| HS-PREREQ-E-003 | v1.2 | v1.3 |
+| S-PLUGIN-PREREQ-E story | v1.3 | v1.4 |
+| error-taxonomy | v1.27 | v1.27 (unchanged) |
+| STATE + HANDOFF | v7.281 | v7.282 |
+
+### Next Step
+
+Adversary pass-4 dispatch (fresh-context). BC-5.39.001 3-CLEAN protocol — streak 0/3.
+Pass-3 report: `cycles/wave-4-operations/adversarial-reviews/S-PLUGIN-PREREQ-E-spec-pass-3.md`

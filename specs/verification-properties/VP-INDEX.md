@@ -1,7 +1,7 @@
 ---
 document_type: verification-property-index
 level: L4
-version: "1.39"
+version: "1.40"
 status: draft
 producer: product-owner
 timestamp: 2026-05-11T00:00:00
@@ -175,7 +175,7 @@ total_vps: 156
 | VP-153 | SensorAuth runtime cross-composition prevention (DI-012 runtime replacement): all invalid (auth_type, credential_type) pairs rejected at spec-load time; error messages redact credential values | prism-spec-engine | proptest | P0 | draft | S-PLUGIN-PREREQ-E |
 | VP-154 | CustomAdapter behavioral equivalence: PluginRuntime WASM dispatch produces non-empty records matching plugin fixture output; TOML fallthrough when no plugin registered | prism-spec-engine | integration_test | P1 | draft | PLUGIN-MIGRATION-001-A |
 | VP-155 | CustomAdapter absent from prism-spec-engine public API: compile-fail perimeter asserts CustomAdapter and CustomAdapterRegistry are unimportable post-PREREQ-E | prism-spec-engine | integration_test | P0 | draft | PLUGIN-MIGRATION-001-A |
-| VP-156 | WriteToolInvalidationMap registration uniqueness + happens-before: duplicate tool_name returns Err(DuplicateWriteToolRegistration); successful registration always visible on next RwLock read | prism-query | proptest | P1 | draft | S-PLUGIN-PREREQ-E |
+| VP-156 | WriteToolInvalidationMap registration uniqueness: duplicate tool_name returns Err(DuplicateWriteToolRegistration); first registration persists unchanged | prism-query | proptest | P1 | draft | S-PLUGIN-PREREQ-E |
 
 ## VP-PLUGIN-001..007 Named Series (PREREQ-F Registration, ADR-023 §Architectural Constraints)
 
@@ -235,6 +235,7 @@ S-1.02 frontmatter has been updated to `subsystems: [SS-03, SS-07, SS-11, SS-12,
 
 | Version | Burst | Date | Author | Change |
 |---------|-------|------|--------|--------|
+| 1.40 | prereq-e-fix-burst-3 | 2026-05-15 | architect | F-LP3-HIGH-001 sibling-sweep: VP-156 description updated from "uniqueness + happens-before" to "uniqueness only" — aligns VP-INDEX row with VP-156 v0.2 body (happens-before claim removed in fix-burst-2). Propagated to verification-architecture.md (v1.34), BC-2.16.012 §VP Anchors and §Verification Properties (v1.4). Stale "ADR-026 D7 v1.2" pin in BC-2.16.012 §Verification Properties updated to v1.5. |
 | 1.39 | prereq-e-fix-burst-1 | 2026-05-15 | architect | F-LP1-MED-003 resolution: VP-156 (WriteToolInvalidationMap registration uniqueness + happens-before, proptest P1, module: prism-query, anchor: S-PLUGIN-PREREQ-E) added to main Properties table. BC-2.16.012 §VP Anchors "(none in this story)" coverage gap closed. Summary table: Proptest 87→88, Total VPs 155→156, P1 33→34. Sequential count note updated to 156. total_vps frontmatter updated 155→156. |
 | 1.38 | PREREQ-E-ADR-burst | 2026-05-15 | state-manager | Frontmatter version bumped 1.37→1.38 to record PREREQ-E ADR burst: VP-153 (proptest P0), VP-154 (integration_test P1), VP-155 (integration_test P0) added. Changelog row was missing from v1.38 — backfilled here at v1.39 to maintain contiguous history. Corresponding content changes were applied in that burst (main table rows 175-177, summary table 152→155 total, P0 120→123, P1 32→33, named-alias note updated). |
 | 1.37 | fix-burst-36 | 2026-05-14 | state-manager | (D-539) F-LP38-MED-001 closure: v1.36 + v1.35 changelog rows rewritten to canonical 5-col schema (Burst column restored; D-NNN folded into Change cell). 2nd cascade recurrence of §Changelog schema-corruption META-class (1st: F-LP34-HIGH-001 story rows). Root cause: orchestrator dispatch prompt templates prescribed incorrect row format. OBS-LP38-001 POL-26 codification candidate (§Changelog schema-integrity validator) routed cycle-close. |

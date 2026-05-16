@@ -2,7 +2,7 @@
 document_type: architecture-section
 level: L3
 section: "verification-architecture"
-version: "1.33"
+version: "1.34"
 status: draft
 producer: architect
 timestamp: 2026-05-03T00:00:00
@@ -283,7 +283,7 @@ Properties are organized by the domain invariant or BC postcondition they verify
 | VP-153 | SensorAuth runtime cross-composition prevention (DI-012 runtime replacement): all invalid (auth_type, credential_type) pairs rejected at spec-load time; error messages redact credential values | prism-spec-engine | proptest | feasible | P0 | ADR-026 D3 |
 | VP-154 | CustomAdapter behavioral equivalence: PluginRuntime WASM dispatch produces non-empty records matching plugin fixture output; TOML fallthrough when no plugin registered | prism-spec-engine | integration_test | feasible | P1 | ADR-027 D3 |
 | VP-155 | CustomAdapter absent from prism-spec-engine public API: compile-fail perimeter asserts CustomAdapter and CustomAdapterRegistry are unimportable post-PREREQ-E | prism-spec-engine | integration_test | feasible | P0 | ADR-027 D3 |
-| VP-156 | WriteToolInvalidationMap registration uniqueness + happens-before: duplicate tool_name returns Err(DuplicateWriteToolRegistration); successful registration always visible on next RwLock read | prism-query | proptest | feasible | P1 | ADR-026 D7 |
+| VP-156 | WriteToolInvalidationMap registration uniqueness: duplicate tool_name returns Err(DuplicateWriteToolRegistration); first registration persists unchanged | prism-query | proptest | feasible | P1 | ADR-026 D7 |
 
 ## Verification Priority
 
@@ -312,6 +312,7 @@ Proptest strategies generate complex inputs (alias graphs, detection rules, OCSF
 
 | Version | Pass | Date | Author | Notes |
 |---------|------|------|--------|-------|
+| 1.34 | prereq-e-fix-burst-3 | 2026-05-15 | architect | F-LP3-HIGH-001 sibling-sweep: VP-156 Provable Properties Catalog row description updated from "uniqueness + happens-before" to "uniqueness only" — aligns with VP-156 v0.2 body rewrite (fix-burst-2). P1 enumeration and grand totals unchanged (156 total, 123 P0, 34 P1). |
 | 1.33 | prereq-e-fix-burst-1 | 2026-05-15 | architect | F-LP1-MED-003 resolution: VP-156 (prism-query proptest P1, WriteToolInvalidationMap registration uniqueness + happens-before, ADR-026 D7) added to Provable Properties Catalog. P1 enumeration updated: added VP-156. Grand totals: 155→156 VPs, P0 unchanged 123, P1 33→34. |
 | 1.32 | PREREQ-E-ADR-burst | 2026-05-15 | architect | PREREQ-E ADR burst: VP-153 (prism-spec-engine proptest P0, DI-012 runtime replacement / ADR-026 D3), VP-154 (prism-spec-engine integration_test P1, CustomAdapter behavioral equivalence / ADR-027 D3), VP-155 (prism-spec-engine integration_test P0, CustomAdapter public-API compile-fail perimeter / ADR-027 D3) added to Provable Properties Catalog. P0 enumeration updated: added VP-153, VP-155. P1 enumeration updated: added VP-154. Grand totals: 152→155 VPs, P0 120→123, P1 32→33. |
 | 1.31 | OBS-LP35-001 | 2026-05-15 | architect | OBS-LP35-001 closure (D-571 cycle-close immediate-dispatch): VP-152 Provable Properties Catalog row rewritten from pre-AC-7 "allowlist not-None" Option-semantics to post-AC-7 `Vec<String>` explicit-field semantics — empty-vec = deny-all; non-empty = exact-match allowlist; manifest omitting field rejected at load time. Canonical contract anchor: BC-2.17.002 v1.7+ EC-17-007 + AC-7 of S-PLUGIN-PREREQ-D. Sibling ADR-023 §E VP-PLUGIN-007 block updated in same burst (ADR-023 v1.19). |

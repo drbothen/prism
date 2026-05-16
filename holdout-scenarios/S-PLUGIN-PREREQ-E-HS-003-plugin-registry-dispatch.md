@@ -8,7 +8,7 @@ must_pass: true
 priority: P0
 epic_id: "PLUGIN-MIGRATION-001"
 story_source: "S-PLUGIN-PREREQ-E"
-version: "1.2"
+version: "1.3"
 status: draft
 producer: product-owner
 timestamp: 2026-05-15T00:00:00
@@ -136,6 +136,69 @@ new write-tool entries (closing TD-S-PLUGIN-PREREQ-A-003).
 
 ---
 
+## HS-PREREQ-E-003-04: Duplicate Write Tool Name — Second Registration Rejected with E-PLUGIN-012
+
+**Title:** Two plugins registering the same write tool name — second call returns Err(E-PLUGIN-012)
+
+**Preconditions:**
+
+- S-PLUGIN-PREREQ-E is merged to `develop`
+- `register_write_tool` API exists with signature `-> Result<(), SpecEngineError>`
+- A test fixture prepares two `WriteToolInvalidationMap` entries sharing the same `tool_name` value (e.g., `"write_custom_sensor_record"`) but from different notional plugins
+
+**Steps:**
+
+1. Call `register_write_tool(entry_1)` where `entry_1.tool_name = "write_custom_sensor_record"` — first registration
+2. Assert the first call returns `.is_ok()`
+3. Call `register_write_tool(entry_2)` where `entry_2.tool_name = "write_custom_sensor_record"` (same name, different entry)
+4. Assert the second call returns `.is_err()`
+5. Assert the error variant is `SpecEngineError::DuplicateWriteToolRegistration("write_custom_sensor_record")` (E-PLUGIN-012)
+6. Confirm the invalidation map still contains only the first entry (second was not written)
+
+**Expected Outcome:**
+
+- First registration: `Ok(())`
+- Second registration: `Err(SpecEngineError::DuplicateWriteToolRegistration("write_custom_sensor_record"))` (E-PLUGIN-012)
+- Invalidation map has one entry, not two
+- No last-writer-wins behavior (ADR-026 D7 explicitly forbids it)
+
+**Repos Tested:** prism-query (invalidation.rs register_write_tool path)
+
+**BC Anchor:** BC-2.16.012 EC-016-012-004
+
+---
+
+## HS-PREREQ-E-003-05: Post-Boot Write Tool Registration — Rejected with E-PLUGIN-020
+
+**Title:** `register_write_tool` called after step 8 (query engine init) returns Err(E-PLUGIN-020) and emits WARN log
+
+**Preconditions:**
+
+- S-PLUGIN-PREREQ-E is merged to `develop`
+- `register_write_tool` API exists with signature `-> Result<(), SpecEngineError>`
+- The `AtomicBool` query-phase flag (set when query engine init completes at step 8) is set to `true` in the test fixture, simulating post-boot context
+- A `WriteToolInvalidationMap` entry is prepared for registration
+
+**Steps:**
+
+1. Set the query-phase `AtomicBool` flag to `true` (simulating step 8 completion)
+2. Call `register_write_tool(entry)` after the flag is set
+3. Assert the call returns `.is_err()`
+4. Assert the error variant is `SpecEngineError::WriteToolRegistrationAfterBoot` (E-PLUGIN-020)
+5. Confirm a `WARN`-level tracing event `write_tool_registration_after_boot` was emitted (check tracing subscriber capture or log output)
+6. Confirm the invalidation map does NOT contain the entry (no write occurred)
+
+**Expected Outcome:**
+
+- `Err(SpecEngineError::WriteToolRegistrationAfterBoot)` (E-PLUGIN-020) returned
+- WARN tracing event `write_tool_registration_after_boot` emitted
+- Invalidation map unchanged (entry rejected, not written)
+- Boot-step 7.5 is the only valid registration window (ADR-026 D7)
+
+**Repos Tested:** prism-query (invalidation.rs register_write_tool + AtomicBool query-phase gate)
+
+**BC Anchor:** BC-2.16.012 EC-016-012-005
+
 ---
 
 **Note on VP-155 and HS-PREREQ-E-003:** VP-155 (CustomAdapter Absent from prism-spec-engine Public API — compile-fail perimeter) is a compile-time property, not a runtime scenario. HS-PREREQ-E-003 covers runtime dispatch behavior and WriteToolInvalidationMap extensibility. VP-155's runtime-equivalent coverage (confirming CustomAdapter types produce E0432 at compile time) is covered in HS-PREREQ-E-002-05. No additional VP-155 sub-scenario is needed in HS-PREREQ-E-003 — the compile-fail check is a CI gate, not a holdout runtime scenario.
@@ -155,6 +218,7 @@ When this holdout scenario is evaluated, the evaluator must produce:
 
 | Version | Burst | Date | Author | Change |
 |---------|-------|------|--------|--------|
+| 1.3 | prereq-e-fix-burst-3 | 2026-05-15 | product-owner | F-LP3-LOW-001 closure: Added HS-PREREQ-E-003-04 (EC-016-012-004 duplicate-name: two plugins register same tool_name → second returns E-PLUGIN-012) and HS-PREREQ-E-003-05 (EC-016-012-005 after-boot: register_write_tool called after step 8 → returns E-PLUGIN-020 + WARN log). Both sub-scenarios include scenario description, preconditions, steps, expected outcome, validation evidence reference, and BC anchor. |
 | 1.2 | prereq-e-fix-burst-2 | 2026-05-15 | product-owner | F-LP2-HIGH-002 closure (PO perimeter — 2 sites): Scenario Description body line ("closing TD-A-003") and HS-PREREQ-E-003-03 heading ("TD-A-003 Closure") both canonicalized to TD-S-PLUGIN-PREREQ-A-003. Changelog entry for v1.0 retains original TD-A-003 text as historical record (TD-VSDD-091 anti-volatile-pin; changelog is append-only). |
 | 1.1 | S-PLUGIN-PREREQ-E-reconciliation | 2026-05-15 | product-owner | Q4 note: VP-155 is a compile-time property not a runtime scenario — confirmed HS-PREREQ-E-003 correctly does not cover it (VP-155 coverage added to HS-PREREQ-E-002-05 instead). Added VP-155 non-coverage rationale note in body. |
 | 1.0 | S-PLUGIN-PREREQ-E-authoring | 2026-05-15 | product-owner | Initial draft. Three sub-scenarios: known-good SensorSpec parity, known-problematic novel sensor open-parse, and WriteToolInvalidationMap runtime extensibility (TD-A-003 closure). |
