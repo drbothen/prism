@@ -1,7 +1,7 @@
 ---
 document_type: verification-property-index
 level: L4
-version: "1.48"
+version: "1.49"
 status: draft
 producer: product-owner
 timestamp: 2026-05-16T00:00:00
@@ -243,6 +243,7 @@ S-1.02 frontmatter has been updated to `subsystems: [SS-03, SS-07, SS-11, SS-12,
 
 | Version | Burst | Date | Author | Change |
 |---------|-------|------|--------|--------|
+| 1.49 | state(D-653) | 2026-05-16 | state-manager | FB34 D-653: VP-153 row bumped v0.6→v0.7 (F-LP44-MED-002 §Proof Harness Skeleton expanded — Rules A+B proptests scaffolded). POL-9 same-burst propagation; POL-11 bump. |
 | 1.48 | state(D-646) | 2026-05-16 | state-manager | FB29 D-646: VP-153 row bumped v0.5→v0.6 propagating architect's Option A byte-verbatim sync of Rule A/B/C message-format quotations to canonical error-taxonomy.md v1.30 E-SPEC-012/013/014. POL-9 same-burst propagation. |
 | 1.47 | fix-burst-24-combined-D-638 | 2026-05-16 | state-manager | F-LP31-HIGH-001 — Summary table arithmetic correction: Integration test P0 25→24 (independent row count = 24 sequential P0 integration_test VPs); Total P0 123→122 (cascade from integration row). v1.32 changelog row historical narrative "P0 120→123" was incorrect (actual increment was +2: VP-153 P0 + VP-155 P0; VP-154 was P1). Survived 30 prior passes incl. 7 CLEAN until pass-31 fresh-context arithmetic re-derivation surfaced violation. VP-INDEX v1.46→v1.47. |
 | 1.46 | prereq-e-fix-burst-13 | 2026-05-16 | architect | F-LP14-HIGH-001 — VP-156 sibling-sweep reflection: VP-156 advanced v0.7→v0.8 (all 4 live-narrative ADR-026 D7 v1.9 pins → v1.10; BC-2.16.012 §VPs VP-156 row pin v1.9→v1.10). VP-INDEX row for VP-156 is description-stable — no row text change required. VP-INDEX v1.45→v1.46. 5th RECURRENCE of POL-23 within-FB asymmetry CLOSED; single-bump-per-source-artifact discipline applied (ADR-026 stays at v1.10). |

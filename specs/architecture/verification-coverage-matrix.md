@@ -2,7 +2,7 @@
 document_type: architecture-section
 level: L3
 section: "verification-coverage-matrix"
-version: "1.35"
+version: "1.36"
 status: draft
 producer: architect
 timestamp: 2026-05-16T00:00:00
@@ -143,6 +143,7 @@ See detailed tables below.
 
 | Version | Author | Date | Description |
 |---------|--------|------|-------------|
+| 1.36 | state-manager | 2026-05-16 | FB34 D-653 POL-9 same-burst propagation: VP-153 file advanced v0.6→v0.7 (§Proof Harness Skeleton expanded — Rules A+B proptests scaffolded for E-SPEC-012/013). This document carries VP-153 by ID only (no version pin in Coverage by Module table); POL-11 changelog row recorded to maintain contiguous version history. |
 | 1.35 | state-manager | 2026-05-16 | FB29 D-646 POL-9 same-burst propagation: VP-153 file advanced v0.5→v0.6 (architect Option A byte-verbatim sync of Rule A/B/C to canonical error-taxonomy.md v1.30). This document carries VP-153 by ID only (no version pin in Coverage by Module table); POL-11 changelog row recorded to maintain contiguous version history. |
 | 1.34 | state-manager | 2026-05-16 | F-LP31-HIGH-001 (fix-burst-24-combined-D-638): Summary table arithmetic correction — Integration test P0 25→24; Total P0 123→122. Cascade from VP-INDEX v1.32 changelog row that incorrectly recorded "P0 120→123" (actual was +2: VP-153 P0 + VP-155 P0; VP-154 was P1). Survived 30 prior passes incl. 7 CLEAN. |
 | 1.33 | architect | 2026-05-15 | prereq-e-fix-burst-1: VP-156 (proptest, P1, prism-query) added. prism-query row updated: Proptest 2→3. Totals row: Proptest 87→88, Total VPs 155→156. P1 33→34 (P0 unchanged 123). VP-156 traces ADR-026 D7 WriteToolInvalidationMap uniqueness + happens-before. |

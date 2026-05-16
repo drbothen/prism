@@ -23,7 +23,7 @@ crates_touched: [prism-sensors, prism-spec-engine, prism-query]
 target_module: prism-sensors
 subsystems: [SS-01, SS-07, SS-16]
 capabilities: [CAP-001, CAP-029]
-version: "1.15"
+version: "1.16"
 updated: "2026-05-16"
 level: "L4"
 producer: product-owner
@@ -143,7 +143,17 @@ Well within the 30% context window budget (~40k tokens).
 1. **Remove `private::Sealed` marker from `crates/prism-sensors/src/auth/mod.rs`**
    - Delete the `mod private { pub trait Sealed {} }` block (or equivalent sealed-marker pattern)
    - Remove `private::Sealed` from the `SensorAuth` trait's supertrait bounds (`trait SensorAuth: Sealed` → `trait SensorAuth`)
-   - Verify that the four concrete auth impls (`CrowdStrikeAuth`, `CyberintAuth`, `ClarotyAuth`, `ArmisAuth`) compile without modification after removing the supertrait
+   - Verify that after Task 1 (sealed-marker removal) AND Task 1b (auth_type_name addition per ADR-026 D1/D2 Path B), the four concrete auth impls compile cleanly. The "without modification" claim from prior drafts was incorrect — ADR-026 D2 Path B mandates a new method body per impl.
+
+1b. **Expand `SensorAuth` trait surface per ADR-026 D1/D2 Path B**
+   - Step 1: In `crates/prism-sensors/src/auth/mod.rs`, add `fn auth_type_name(&self) -> &'static str;` method declaration to the `pub trait SensorAuth` body (per ADR-026 §D1 — 2-method trait surface; per §D2 Path B — no default impl).
+   - Step 2: In `crates/prism-sensors/src/auth/crowdstrike.rs` (or wherever `impl SensorAuth for CrowdStrikeAuth` lives), add method body `fn auth_type_name(&self) -> &'static str { "oauth2_client_credentials" }`.
+   - Step 3: In `crates/prism-sensors/src/auth/cyberint.rs`, add `fn auth_type_name(&self) -> &'static str { "bearer_static" }`.
+   - Step 4: In `crates/prism-sensors/src/auth/claroty.rs`, add `fn auth_type_name(&self) -> &'static str { "cookie_roundtrip" }`.
+   - Step 5: In `crates/prism-sensors/src/auth/armis.rs`, add `fn auth_type_name(&self) -> &'static str { "api_key" }`.
+   - Step 6: Verify `cargo check -p prism-sensors` succeeds with the new trait method declaration + 4 impl bodies wired.
+
+   File paths above match §File Structure Requirements (rows 343–346). Auth-type name strings match ADR-026 §D3 canonical enumerated set (also enforced by AC-2, VP-153 Rule A, and E-SPEC-012).
 
 2. **Delete `crates/prism-spec-engine/src/custom_adapter.rs`**
    - The file contains: `trait CustomAdapter`, `struct CustomAdapterRegistry`, `struct CustomAuth` (sealed-trait workaround), all impls and registrations
@@ -444,6 +454,7 @@ Tech debt closed:
 
 | Version | Burst | Date | Author | Change |
 |---------|-------|------|--------|--------|
+| 1.16 | FB34 | 2026-05-16 | product-owner | F-LP44-MED-001 §Tasks expanded to enumerate ADR-026 D1/D2 Path B auth_type_name trait surface gain + 4 impl method body additions (new Task 1b inserted between Task 1 and Task 2); Task 1 Step 3 verification claim "compile without modification" corrected — impls WILL be modified per ADR-026 D2 Path B runtime_deliverables 22-23. |
 | 1.15 | FB30 | 2026-05-16 | product-owner | F-LP38-MED-001 Task 7 "explicitly forbidden" overstrong claim replaced with rationale-based language matching ADR-026 §D7 actual text (POL-22 Phase C named-entity verification; CLAUDE.md precedence rule #2 — ADR supersedes story on contract semantics); F-LP38-LOW-001 volatile line-range citation removed (TD-VSDD-091 — §D7 semantic anchor durable, line numbers decay). |
 | 1.14 | FB29 | 2026-05-16 | product-owner | F-LP37-MED-001 — AC-8 test-name reference updated: singular non-existent name replaced with explicit enumeration of 4 canonical Red Gate test names (`test_BC_2_16_012_002_spec_parser_behavioral_equivalence_{crowdstrike,cyberint,claroty,armis}`), closing within-FB28 sibling-sweep gap. F-LP37-MED-002 — Task 7 OnceLock<RwLock<...>> alternative stricken; ADR-026 §D7 explicit forbiddance cited with line range (246-259); precedence rule #2 (ADR supersedes story on contract semantics) applied. Note: `_NNN_` segments in Red Gate test names (e.g., `_002_`, `_003_`) are intra-story Red Gate test-set grouping numbers — NOT identifiers in BC-2.16.012's Canonical Test Vectors (TV-001..004), Edge Cases, or Invariants body sections. |
 | 1.13 | FB28 | 2026-05-16 | product-owner | F-LP36-MED-001 — AC-9 test-name canonicalized: added `_003_` segment to match Red Gate Test 11 convention (`test_BC_2_16_012_write_tool_invalidation_runtime_register` → `test_BC_2_16_012_003_write_tool_invalidation_runtime_register`). F-LP36-MED-002 — Red Gate Tests expanded to cover 4-sensor breadth per AC-8 Option A: added Cyberint (Test 8), Claroty (Test 9), Armis (Test 10) behavioral-equivalence rows (all `_002_` group, mirroring Test 7); former Test 8 renumbered to Test 11; `red_gate_tests: 8 → 11`. State-manager closes F-LP36-MED-003 + bookkeeping in same burst. |

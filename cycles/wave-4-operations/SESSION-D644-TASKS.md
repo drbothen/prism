@@ -1,6 +1,6 @@
 ---
 document_type: session-tasks
-version: "1.8"
+version: "1.9"
 status: active
 related_burst: D-644
 predecessor_state: D-652
@@ -47,7 +47,9 @@ This file persists the task list and full cascade state from the session coverin
 | 88 | **DONE** | **PREREQ-E pass-42 BLOCKED** — D-651 pass-42 BLOCKED (1 MED + 1 LOW, both in ADR-027); F-LP42-MED-001 §D3 internal crate-naming contradiction novel; F-LP42-LOW-001 ADR-027:118 TD-VSDD-091 sibling-class of F-LP41 at ADR layer; streak 0/3 unchanged |
 | 89 | **DONE** | **FB33 CLOSED** — D-651 architect-only; ADR-027 v1.7; ARCH-INDEX v2.56; 157th consecutive single-commit; 4 ADR-023 sibling-sites surfaced cycle-close-deferred; pattern partially broken |
 | 90 | **DONE** | **PREREQ-E pass-43 CLEAN★** — D-652; zero in-scope findings under 10 rotated attack vectors; streak 0/3 → **1/3** (2nd CLEAN advance of cascade); novelty LOW; state-manager-only burst; 158th consecutive single-commit |
-| 91 | **PENDING** | PREREQ-E pass-44 (2/3 penultimate — streak 1/3; pass-45 = potential BC-5.39.001 CONVERGENCE; 3 consecutive CLEAN passes required) |
+| 91 | **DONE/BLOCKED** | PREREQ-E pass-44 BLOCKED (2 MED; F-LP44-MED-001 story §Tasks workflow gap + F-LP44-MED-002 VP-153 §Proof Harness Skeleton under-coverage Rules A/B; streak 1/3 → 0/3 RESET; FB34 dispatched) |
+| 92 | **DONE** | FB34 CLOSED — 2/2 in-scope + 1 BC sibling-site (story v1.16, VP-153 v0.7, BC-2.01.016 v1.7; pattern-breaking discipline demonstrated; 159th consecutive single-commit) |
+| 93 | **PENDING** | PREREQ-E pass-45 (1/3 start of new 3-CLEAN attempt; BC-5.39.001 requires 3 consecutive CLEAN) |
 
 ## §FB28 Closure Note (D-645 COMPLETE)
 
@@ -279,11 +281,38 @@ F-LP40-MED-001 is a 39-pass-surviving PRE-EXISTING defect. The defect persisted 
 ### Pinned Artifact Versions (UNCHANGED from D-651)
 All 19 artifacts at D-651 version pins — no spec edits in D-652 (state-manager-only burst per CLEAN pass discipline).
 
-### Pass-44 Dispatch Readiness
-- Streak: 1/3 (2/3 penultimate attempt if CLEAN; pass-45 = potential CONVERGENCE)
-- No fix-burst required — CLEAN pass
-- All 19 artifacts at D-651/D-652 version pins (unchanged from D-652)
-- Adversary can dispatch immediately for pass-44
+### Pass-44 Outcome
+- Pass-44 BLOCKED (2 MED; novelty HIGH; streak 1/3 → 0/3 RESET; FB34 dispatched)
+- Pass-45 dispatch-ready after FB34 commit
+
+---
+
+## §FB34 Closure Note (D-653 COMPLETE)
+
+**FB34 multi-artifact single-commit closure. 3 artifacts bumped + 5 indexes cascaded. Pattern-breaking discipline demonstrated. 159th consecutive single-commit.**
+
+### Findings Closed
+- **F-LP44-MED-001** (PO): Story §Tasks Task 1b inserted enumerating `auth_type_name` trait method + 4 impl bodies per ADR-026 D1/D2 Path B. Task 1 Step 3 verification claim corrected. Story v1.15 → v1.16.
+- **F-LP44-MED-002** (architect): VP-153 §Proof Harness Skeleton expanded — Rule A + Rule B proptests scaffolded. VP-153 v0.6 → v0.7.
+- **Within-FB sibling-site** (PO addendum): BC-2.01.016 EC-016-003 "impl block is unchanged" corrected to explicit ONE new method body per ADR-026 §D2 Path B. BC-2.01.016 v1.6 → v1.7.
+
+### Pattern-Breaking Assessment (POL-29 Candidate Strengthening — 14th Manifestation)
+- **Result: SUCCESSFUL IN-BURST SIBLING-FIX** — PO addendum surfaced+fixed BC sibling-site within same burst, before state-manager commit
+- No separate fix-burst required for the within-FB sibling-site
+- POL-29 codification candidate strengthened: this is now the 14th manifestation of the within-FB-introduces-new-defect pattern, and the first where the PO addendum proactively closed the BC-level contradiction in-burst
+- Demonstrates the TARGET behavior the POL-29 codification aims to mandate
+
+### Index/Arch Propagation (POL-9/POL-11)
+- STORY-INDEX: v2.119 → v2.120 (PREREQ-E row v1.15→v1.16)
+- BC-INDEX: v4.94 → v4.95 (BC-2.01.016 row v1.6→v1.7)
+- VP-INDEX: v1.48 → v1.49 (VP-153 row note v0.6→v0.7)
+- verification-architecture: v1.38 → v1.39 (POL-9 propagation row)
+- verification-coverage-matrix: v1.35 → v1.36 (POL-9 propagation row)
+
+### Pass-45 Dispatch Readiness
+- Streak: 0/3 (new 3-CLEAN attempt begins at pass-45)
+- All 19 artifacts at D-653 version pins (see Pinned Artifact Versions below)
+- Adversary can dispatch immediately for pass-45
 
 ---
 
@@ -344,14 +373,14 @@ Accept current spec quality (8 CLEAN passes is unusual statistical evidence of q
 
 | Artifact | Version |
 |----------|---------|
-| Story | v1.15 (F-LP38-MED-001+LOW-001 closed D-647) |
-| BC-2.01.016 | v1.6 (modified 2026-05-16 — F-LP40-MED-001 CAP-001 quoted-attribution corrected at D-649) |
+| Story | v1.16 (F-LP44-MED-001 §Tasks Task 1b inserted for ADR-026 D1/D2 Path B at D-653) |
+| BC-2.01.016 | v1.7 (EC-016-003 "impl block is unchanged" corrected to explicit method body requirement per ADR-026 §D2 Path B at D-653) |
 | BC-2.16.011 | v1.6 (modified 2026-05-16) |
 | BC-2.16.012 | v1.15 (modified 2026-05-16) |
 | BC-2.16.002 | v1.20 (catalog row 33 + bullet `(v1.20)`) |
 | ADR-026 | v1.12 (D7 pin propagation v1.10 throughout downstream) |
 | ADR-027 | v1.7 (F-LP42-MED-001 §D3 crate-naming contradiction + F-LP42-LOW-001 line 118 volatile-line-pin resolved at D-651) |
-| VP-153 | v0.6 (F-LP37-MED-003 closed D-646 by architect — byte-verbatim E-SPEC-012/013/014 sync) |
+| VP-153 | v0.7 (F-LP44-MED-002 §Proof Harness Skeleton Rules A+B scaffolded at D-653) |
 | VP-154 | v0.6 |
 | VP-155 | v0.5 |
 | VP-156 | v0.8 (4 D7 pins at v1.10) |
@@ -360,16 +389,16 @@ Accept current spec quality (8 CLEAN passes is unusual statistical evidence of q
 | HS-PREREQ-E-003 | v1.5 (verification_properties: [VP-156]; HS-003-04/05 footers cite VP-156) |
 | error-taxonomy | v1.30 (E-PIPELINE-001 row at v1.20 pin; E-SPEC-008 RETIRED; E-SPEC-012/013/014 + E-PLUGIN-012/020 active) |
 | ARCH-INDEX | v2.56 (ADR-027 row bumped v1.6→v1.7 + §Changelog row FB33-D-651 added at D-651) |
-| VP-INDEX | v1.48 (Total 156, P0=122, P1=34) |
-| STORY-INDEX | v2.119 (FB30 D-647; PREREQ-E row v1.14 to v1.15) |
-| BC-INDEX | v4.94 (BC-2.01.016 row bumped v1.5→v1.6 at D-649) |
-| verification-architecture | v1.38 (POL-9 propagation row; VP-153 ID-only) |
-| verification-coverage-matrix | v1.35 (POL-9 propagation row; VP-153 ID-only) |
+| VP-INDEX | v1.49 (Total 156, P0=122, P1=34; VP-153 row note v0.6→v0.7 at D-653) |
+| STORY-INDEX | v2.120 (FB34 D-653; PREREQ-E row v1.15 to v1.16) |
+| BC-INDEX | v4.95 (BC-2.01.016 row bumped v1.6→v1.7 at D-653) |
+| verification-architecture | v1.39 (POL-9 propagation row; VP-153 ID-only; D-653) |
+| verification-coverage-matrix | v1.36 (POL-9 propagation row; VP-153 ID-only; D-653) |
 
 ## Resume Reading Order (Next Session After /Clear)
 
-1. **`.factory/STATE.md`** (v7.337) — current_step + prereq_e_adversary_streak + RESUME PROTOCOL section
-2. **`.factory/SESSION-HANDOFF.md`** (v7.337) — §POST-FB32-CLOSURE DURABLE PIN BLOCK section
+1. **`.factory/STATE.md`** (v7.340) — current_step + prereq_e_adversary_streak + RESUME PROTOCOL section
+2. **`.factory/SESSION-HANDOFF.md`** (v7.340) — §POST-FB34-CLOSURE DURABLE PIN BLOCK section
 3. **`.factory/cycles/wave-4-operations/SESSION-D644-TASKS.md`** — this file (task list + FB30 closure + strategic options)
 4. **`.factory/cycles/wave-4-operations/S-PLUGIN-PREREQ-E-CYCLE-SNAPSHOT.md`** — full cascade history through D-647
 5. **`.factory/cycles/wave-4-operations/SESSION-D580-TASKS.md`** — prior session task list (pass-1 through pass-5 era; D-580 precedent)

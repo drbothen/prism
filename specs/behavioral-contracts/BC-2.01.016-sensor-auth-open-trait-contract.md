@@ -1,10 +1,10 @@
 ---
 document_type: behavioral-contract
 level: L3
-version: "1.6"
+version: "1.7"
 status: draft
 producer: product-owner
-timestamp: 2026-05-16T00:00:00Z
+timestamp: 2026-05-16T12:00:00Z
 phase: 1a
 origin: greenfield
 subsystem: "SS-01"
@@ -111,7 +111,7 @@ restriction.
 |----|-------------|-------------------|
 | EC-016-001 | External Rust code in `prism-spec-engine` implements `SensorAuth` for a custom plugin prototype | Compiles without error; runtime cross-sensor checks still apply via spec-validation |
 | EC-016-002 | A `.prx` WASM plugin exports an `auth_type = "custom_via_plugin"` sensor spec | Plugin-provided `SensorAuth`-equivalent is resolved via `PluginRuntime`; falls under Rule 2 enforcement |
-| EC-016-003 | `CrowdStrikeAuth` is compiled without any `Sealed` bound after removal | Still compiles; impl block is unchanged — only the sealed supertrait is removed from the trait definition |
+| EC-016-003 | `CrowdStrikeAuth` is compiled without any `Sealed` bound after removal | Still compiles; impl block requires exactly ONE new method body (`auth_type_name` returning a `&'static str` per ADR-026 §D2 Path B); no other changes to the impl block — the existing `as_any()` body and any inherent methods stay as-is. Only the sealed supertrait is removed from the trait definition. |
 | EC-016-004 | `dyn SensorAuth + Send + Sync` bound used at a call site | Compiles; `SensorAuth` methods must remain object-safe; no change to method signatures in this story breaks object safety |
 | EC-016-005 | A spec declares `auth_type = "custom_via_plugin"` for a sensor that has no loaded `.prx` plugin | Rejected at spec-load with an error indicating the custom plugin is not registered; tables are not made available |
 
@@ -165,6 +165,7 @@ S-PLUGIN-PREREQ-E
 
 | Version | Burst | Date | Author | Change |
 |---------|-------|------|--------|--------|
+| 1.7 | FB34 | 2026-05-16 | product-owner | FB34 ADDENDUM: EC-016-003 Expected Behavior cell corrected — "impl block is unchanged" replaced with explicit "ONE new method body (`auth_type_name`) per ADR-026 §D2 Path B" phrasing. Resolves internal contradiction with §Postconditions + AC-2 (story) + INV-AUTH-OPEN-002 + ADR-026 D1/D2. Within-FB34 sibling-sweep extension per pattern-breaking discipline (POL-29 candidate codification candidate). |
 | 1.6 | FB31 | 2026-05-16 | product-owner | F-LP40-MED-001 §Traceability "Capability Anchor Justification" — replaced fabricated quoted-attribution "Enumerate and fetch data from sensor APIs" with verbatim CAP-001 title "Sensor Adapter Layer (Internal)" per capabilities.md (POL-22 Phase A; POL-7 5-citation-surface verbatim discipline; aligns with sibling BC-2.16.011/2.16.012 verbatim CAP-029 citation form). |
 | 1.5 | prereq-e-fix-burst-19 | 2026-05-16 | state-manager | F-LP21-HIGH-001 closure — §Changelog renumber-repair-redo (D-611-equivalent pattern applied to sibling BC that was missed in FB14): state-manager catch row v1.2 → v1.3, cascade shift v1.3 → v1.4 (and v1.4 → v1.5 via new repair row insertion). POL-26 monotonic strict-ordering violation pre-existing FB1 (invisible to passes 1-20) now resolved. |
 | 1.4 | prereq-e-fix-burst-3 | 2026-05-15 | product-owner | F-LP3-HIGH-002 closure (joint with architect): §Postconditions "without change" rewritten to "with one new method body per impl (`fn auth_type_name(&self) -> &'static str { \"...\" }`)"; INV-AUTH-OPEN-002 rewritten to match — 4 impls require exactly ONE new method body (auth_type_name) per ADR-026 D1 2-method trait surface. Preconditions already listed 2-method surface correctly (fix-burst-1); this is Postconditions/Invariants alignment only. |

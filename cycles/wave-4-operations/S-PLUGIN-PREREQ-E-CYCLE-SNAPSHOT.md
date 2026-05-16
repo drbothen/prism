@@ -2975,3 +2975,38 @@ Shorthand append: →pass-43:CLEAN★(0 findings; 10 rotated vectors all PASS; F
 Story v1.15 | BC-2.01.016 v1.6 | BC-2.16.011 v1.6 | BC-2.16.012 v1.15 | BC-2.16.002 v1.20 | ADR-026 v1.12 | ADR-027 v1.7 | VP-153 v0.6 | VP-154 v0.6 | VP-155 v0.5 | VP-156 v0.8 | HS-PREREQ-E-001 v1.3 | HS-PREREQ-E-002 v1.3 | HS-PREREQ-E-003 v1.5 | error-taxonomy v1.30 | ARCH-INDEX v2.56 | VP-INDEX v1.48 | STORY-INDEX v2.119 | BC-INDEX v4.94 | verification-architecture v1.38 | verification-coverage-matrix v1.35
 
 STATE.md v7.339; SESSION-HANDOFF.md v7.339; prereq_e_adversary_streak **1/3** (pass-43 CLEAN★; pass-44 NEXT — 2/3 penultimate; pass-45 = potential BC-5.39.001 CONVERGENCE); 158th consecutive single-commit (TD-VSDD-053 DECISIVELY STABLE).
+
+## §D-653 FB34 MULTI-ARTIFACT SINGLE-COMMIT CLOSURE (2026-05-16) — 2 MED FROM PASS-44 CLOSED; BC-2.01.016 WITHIN-FB SIBLING-SITE CLOSED; 3 ARTIFACT BUMPS; 5 INDEX/ARCH BUMPS; 159TH SINGLE-COMMIT; PATTERN-BREAKING DEMONSTRATED; STREAK 1/3 → 0/3 RESET; PASS-45 NEXT
+
+### Pass-44 Summary
+BLOCKED. 2 MED — both via vectors not exercised by prior passes. Streak 1/3 → 0/3 (penultimate attempt reset; 6th cascade attempt continues). Novelty HIGH.
+
+### Findings Closed (FB34)
+
+**F-LP44-MED-001** (PO stage): Story §Tasks Task 1b inserted enumerating `auth_type_name` trait method declaration + 4 impl body additions per ADR-026 D1/D2 Path B + runtime_deliverables 22-23. Task 1 Step 3 verification claim corrected (removed misleading "compile without modification"). Story v1.15 → v1.16.
+
+**F-LP44-MED-002** (architect stage): VP-153 §Proof Harness Skeleton expanded — Rule A proptest (`multi_valued_or_out_of_set_auth_type_rejected_with_e_spec_012`) + Rule B proptest (`multiple_credential_refs_per_method_rejected_with_e_spec_013`) scaffolded. Existing Rule C proptests preserved. VP-153 v0.6 → v0.7.
+
+**Within-FB sibling-site** (PO addendum): BC-2.01.016 EC-016-003 "impl block is unchanged" cell rewritten — corrected to "Still compiles; impl block requires exactly ONE new method body (`auth_type_name` returning a `&'static str` per ADR-026 §D2 Path B); no other changes to the impl block — the existing `as_any()` body and any inherent methods stay as-is. Only the sealed supertrait is removed from the trait definition." Resolved internal contradiction with BC §Postconditions + AC-2 + INV-AUTH-OPEN-002 + ADR-026 D1/D2. BC-2.01.016 v1.6 → v1.7.
+
+### Pattern-Breaking Discipline (POL-29 Candidate)
+FB34 demonstrates the target pattern: PO addendum surfaced+fixed the BC sibling-site within the same atomic burst. This is the 14th manifestation of the within-FB-introduces-new-defect class, and the first where the within-FB sibling-site was proactively caught and fixed by the PO addendum before the state-manager commit — no separate fix-burst required.
+
+### Cascade Pointer Update
+
+| Metric | Before D-653 | After D-653 |
+|--------|-------------|-------------|
+| Adversary passes | 43 (pass-1..43) | 44 (pass-1..44) |
+| Fix-bursts closed | 33 (FB1-FB33) | 34 (FB1-FB34) |
+| Fix-bursts pending | 0 | 0 |
+| Pending findings | 0 + 8 cycle-close carry-forward | 0 + 8 cycle-close carry-forward (unchanged) |
+| Streak | 1/3 (pass-43 CLEAN★) | **0/3** (pass-44 BLOCKED; streak RESET) |
+| Consecutive single-commits | 158 | 159 |
+
+Shorthand append: →pass-44:BLOCKED(0C+0H+2M+0L+0OBS; F-LP44-MED-001 story §Tasks workflow gap + F-LP44-MED-002 VP-153 §Proof Harness Skeleton under-coverage Rules A/B; novelty HIGH; streak 1/3→0/3 RESET 6th)→FB34-CLOSED(2/2 in-scope + 1 BC sibling-site PO addendum; story v1.16; VP-153 v0.7; BC-2.01.016 v1.7; pattern-breaking demonstrated; 159th single-commit)
+
+### Pinned Artifact Versions (PREREQ-E 19-artifact set — post-D-653)
+
+Story v1.16 | BC-2.01.016 v1.7 | BC-2.16.011 v1.6 | BC-2.16.012 v1.15 | BC-2.16.002 v1.20 | ADR-026 v1.12 | ADR-027 v1.7 | VP-153 v0.7 | VP-154 v0.6 | VP-155 v0.5 | VP-156 v0.8 | HS-PREREQ-E-001 v1.3 | HS-PREREQ-E-002 v1.3 | HS-PREREQ-E-003 v1.5 | error-taxonomy v1.30 | ARCH-INDEX v2.56 | VP-INDEX v1.49 | STORY-INDEX v2.120 | BC-INDEX v4.95 | verification-architecture v1.39 | verification-coverage-matrix v1.36
+
+STATE.md v7.340; SESSION-HANDOFF.md v7.340; prereq_e_adversary_streak **0/3** (pass-44 BLOCKED; FB34 CLOSED; pass-45 NEXT — new 3-CLEAN attempt); 159th consecutive single-commit (TD-VSDD-053 STABLE).
