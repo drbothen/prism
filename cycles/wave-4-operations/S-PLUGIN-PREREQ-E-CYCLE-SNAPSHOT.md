@@ -1018,10 +1018,49 @@ Plateau at 1 for 2 passes (pass-11 RECURRING-class, pass-12 NOVEL-axis). Novel-f
 
 ### Trajectory Shorthand (Updated)
 
-**14→9→8→9→10→10→FB6-CLOSED(10/10 in-scope; 3 OBS deferred cycle-close)→8→FB7-CLOSED(8/8 in-scope; 4 OBS deferred cycle-close)→pass-8:BLOCKED(0C+2H+1M+0L+1OBS; LOWEST; recurring-asymmetry-class)→FIX-BURST-8-CLOSED(3/3 in-scope; single-bump-per-source-artifact discipline applied)→pass-9:CLEAN★(0/0/0/0/0; FIRST CLEAN OF CASCADE; single-bump-discipline BROKE recurring-asymmetry-class; streak 0/3 → 1/3)→pass-10:BLOCKED(0C+1H+1M+1L+0OBS; POL-21-§VP-PLUGIN-001-phantom-3-sites + STORY-INDEX-Depends-On-drift + BC-INDEX-BC-2.01.016-sibling-asymmetry; 3-CLEAN PROTOCOL VALIDATED; streak RESET 1/3→0/3)→FIX-BURST-9-CLOSED(3/3 in-scope; POL-21-cross-perimeter-sweep-complete + STORY-INDEX-Depends-On + BC-INDEX-sibling-symmetry restored)→pass-11:BLOCKED(0C+0H+1M+0L+0OBS; HS-PREREQ-E-003 VP-156 holdout-traceability symmetry — RECURRING class 3rd instance; streak 0/3 unchanged; novel-finding count 1 = LOWEST ever)→FIX-BURST-10-CLOSED(1/1 in-scope; HS-012 cross-cycle sibling logged Wave 4 follow-up)→pass-12:BLOCKED(0C+0H+1M+0L+0OBS; BC-2.16.002 catalog row missing for write_tool_registration_after_boot — HIGH-NOVELTY NEW AXIS: tracing-emission ↔ catalog; PG-LP11-001 not enforced in PREREQ-E; streak 0/3 unchanged; novel-finding count 1 = PLATEAU)**
+**14→9→8→9→10→10→FB6-CLOSED(10/10 in-scope; 3 OBS deferred cycle-close)→8→FB7-CLOSED(8/8 in-scope; 4 OBS deferred cycle-close)→pass-8:BLOCKED(0C+2H+1M+0L+1OBS; LOWEST; recurring-asymmetry-class)→FIX-BURST-8-CLOSED(3/3 in-scope; single-bump-per-source-artifact discipline applied)→pass-9:CLEAN★(0/0/0/0/0; FIRST CLEAN OF CASCADE; single-bump-discipline BROKE recurring-asymmetry-class; streak 0/3 → 1/3)→pass-10:BLOCKED(0C+1H+1M+1L+0OBS; POL-21-§VP-PLUGIN-001-phantom-3-sites + STORY-INDEX-Depends-On-drift + BC-INDEX-BC-2.01.016-sibling-asymmetry; 3-CLEAN PROTOCOL VALIDATED; streak RESET 1/3→0/3)→FIX-BURST-9-CLOSED(3/3 in-scope; POL-21-cross-perimeter-sweep-complete + STORY-INDEX-Depends-On + BC-INDEX-sibling-symmetry restored)→pass-11:BLOCKED(0C+0H+1M+0L+0OBS; HS-PREREQ-E-003 VP-156 holdout-traceability symmetry — RECURRING class 3rd instance; streak 0/3 unchanged; novel-finding count 1 = LOWEST ever)→FIX-BURST-10-CLOSED(1/1 in-scope; HS-012 cross-cycle sibling logged Wave 4 follow-up)→pass-12:BLOCKED(0C+0H+1M+0L+0OBS; BC-2.16.002 catalog row missing for write_tool_registration_after_boot — HIGH-NOVELTY NEW AXIS: tracing-emission ↔ catalog; PG-LP11-001 not enforced in PREREQ-E; streak 0/3 unchanged; novel-finding count 1 = PLATEAU)→FIX-BURST-11-CLOSED(1/1 in-scope; BC-2.16.002 catalog row+cross-ref+event-name; PG-LP11-001 axis coverage complete; cycle scope expanded to BC-2.16.002)**
 
-Streak: **0/3** — FB11 NEXT (product-owner Option A; scope expansion to BC-2.16.002 per Canonical Principle Rule 4), then pass-13.
+Streak: **0/3** — pass-13 NEXT (first fresh-context test after FB11 axis-coverage closure; if CLEAN, streak advances to 1/3).
+
+STATE.md v7.298; SESSION-HANDOFF.md v7.298; BC-INDEX v4.87; 107th consecutive single-commit (TD-VSDD-053 DECISIVELY STABLE).
 
 STATE.md v7.297; SESSION-HANDOFF.md v7.297; 105th consecutive single-commit (TD-VSDD-053 DECISIVELY STABLE).
+
+---
+
+## §D-601 FIX-BURST-11 CLOSURE (D-600 + D-601 — 2026-05-16) — F-LP12-MED-001 CLOSED; PG-LP11-001 AXIS COVERAGE COMPLETE FOR PREREQ-E
+
+**Burst D-601 — state-manager bookkeeping for PREREQ-E fix-burst-11 closure. F-LP12-MED-001 closed by product-owner D-600 (`208131bf`) + state-manager D-601 (this commit). 107th consecutive single-commit (TD-VSDD-053 DECISIVELY STABLE).**
+
+### FB11 Closure Verification
+
+| Finding | Closure Burst | Verification |
+|---------|-------------|-------------|
+| F-LP12-MED-001 (BC-2.16.002 catalog row) | D-600 `208131bf` | grep BC-2.16.002 for `write_tool_registration_after_boot`: line 110 (catalog row) + line 173 (changelog) — **PASS** |
+| F-LP12-MED-001 (BC-2.16.012 cross-ref) | D-600 `208131bf` | grep BC-2.16.012 for `BC-2.16.002.*v1.18`: line 84 `§Canonical Structured Event Catalog v1.18` — **PASS** |
+| F-LP12-MED-001 (EC-016-012-005 explicit event name) | D-600 `208131bf` | grep BC-2.16.012 for `EC-016-012-005`: line 109 names `write_tool_registration_after_boot` — **PASS** |
+
+### Cycle Scope Expansion Note (Canonical Principle Rule 4)
+
+BC-2.16.002 was NOT in the 18-artifact PREREQ-E pin list at D-580. F-LP12-MED-001 required adding a catalog row to BC-2.16.002. Canonical Principle Rule 4 states: "AI-built defects are the AI's responsibility to fix in-scope, even if that means expanding scope." The product-owner correctly expanded cycle scope to include BC-2.16.002. BC-2.16.002 is now part of the PREREQ-E touched-artifact list.
+
+### D-600 Milestone
+
+The product-owner commit D-600 (`208131bf`) is the ★ D-600 decision-log milestone in the PREREQ-E cascade — the 106th consecutive single-commit. This follows D-594 (`c2567812`) as the ★ 100th single-commit milestone (FB9 architect). The consecutive-single-commit streak (TD-VSDD-053) is DECISIVELY STABLE at 107 after D-601.
+
+### PG-LP11-001 Axis Coverage Status (Post-FB11)
+
+All `tracing::warn!(event_type="write_tool_registration_after_boot", ...)` emission sites in PREREQ-E scope now resolve to BC-2.16.002 catalog row 33. PG-LP11-001 (CLAUDE.md Conventions §Structured event catalog discipline) FULLY ENFORCED for PREREQ-E. Novel defect axis discovered in pass-12 is CLOSED.
+
+### Post-FB11 Artifact Versions
+
+| Artifact | Pre-FB11 | Post-FB11 |
+|----------|---------|----------|
+| BC-2.16.002 | v1.17 | **v1.18** |
+| BC-2.16.012 | v1.8 | **v1.9** |
+| BC-INDEX | v4.86 | **v4.87** |
+| STATE.md | v7.297 | **v7.298** |
+| SESSION-HANDOFF.md | v7.297 | **v7.298** |
+| All other PREREQ-E artifacts | unchanged | unchanged |
 
 STATE.md v7.296; SESSION-HANDOFF.md v7.296; 104th consecutive single-commit (TD-VSDD-053 DECISIVELY STABLE).
