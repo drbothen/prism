@@ -1,7 +1,7 @@
 ---
 document_type: verification-property
 level: L4
-version: "0.3"
+version: "0.4"
 status: draft
 producer: architect
 timestamp: 2026-05-15T00:00:00Z
@@ -24,7 +24,7 @@ proof_completed_date: null
 proof_file_hash: null
 lifecycle_status: draft
 introduced: "2026-05-15"
-modified: []
+modified: "2026-05-15"
 deprecated: null
 deprecated_by: null
 replacement: null
@@ -188,6 +188,8 @@ mode against a temp dir). Either approach is feasible.
 | Version | Burst | Date | Author | Notes |
 |---------|-------|------|--------|-------|
 | 0.1 | plugin-prereq-e-adr-burst | 2026-05-15 | architect | Initial stub. Traces to ADR-026 D3 / ADR-023 Rule 2 / DI-012 runtime enforcement replacement. Harness skeleton provided; full authoring in S-PLUGIN-PREREQ-E test-writer dispatch. |
-| 0.3 | S-PLUGIN-PREREQ-E-reconciliation | 2026-05-15 | product-owner | VP153-OPEN-001 closed — E-SPEC-012/013/014 authored in error-taxonomy.md v1.25. BC-2.01.016 error references updated. Harness skeleton uses correct error code labels. Open Issues table updated with closure record. |
-| 0.3 | fix-burst-1 state-manager catch | 2026-05-15 | state-manager | (state-manager catch in fix-burst-1) F-LP1-HIGH-004 POL-20: introduced field canonicalized to ISO date 2026-05-15. Prior value `plugin-prereq-e` was informal slug; POL-20 requires `YYYY-MM-DD` for artifacts created outside greenfield cycles. |
 | 0.2 | plugin-prereq-e-cross-review | 2026-05-15 | architect | Q3 resolution: remove "error code to be assigned" placeholder. Assign E-SPEC-012 (Rule A), E-SPEC-013 (Rule B), E-SPEC-014 (Rule C). Document E-SPEC-010 collision (already taken). Update source_bc to BC-2.01.016 (primary auth-surface BC). Route E-SPEC-012/013/014 authoring to PO via VP153-OPEN-001. |
+| 0.3 | S-PLUGIN-PREREQ-E-reconciliation | 2026-05-15 | product-owner | VP153-OPEN-001 closed — E-SPEC-012/013/014 authored in error-taxonomy.md v1.25. BC-2.01.016 error references updated. Harness skeleton uses correct error code labels. Open Issues table updated with closure record. |
+| 0.4 | fix-burst-1 state-manager catch | 2026-05-15 | state-manager | (state-manager catch in fix-burst-1) F-LP1-HIGH-004 POL-20: introduced field canonicalized to ISO date 2026-05-15. Prior value `plugin-prereq-e` was informal slug; POL-20 requires `YYYY-MM-DD` for artifacts created outside greenfield cycles. |
+| 0.4 | fix-burst-4 changelog repair | 2026-05-15 | state-manager | Renumbering correction per F-LP4-MED-001/002 process-gap-driven repair. Prior changelog had non-monotonic sequence (0.1 → 0.3 → 0.3 → 0.2): cross-review row was mis-labeled 0.3 and out of order; state-manager catch row duplicated the reconciliation 0.3 label. Corrected to monotonic 0.1 → 0.2 → 0.3 → 0.4. Frontmatter version updated from 0.3 to 0.4. |
+| 0.4 | prereq-e-fix-burst-4 | 2026-05-15 | architect | F-LP4-LOW-002: `modified:` field synced to ISO date "2026-05-15" (most recent change date from fix-burst-3 state-manager catch). Prior value was empty array `[]`; POL-27 VP-template schema gap codified for cycle-close session-reviewer extension. No version bump (frontmatter field correction only). |

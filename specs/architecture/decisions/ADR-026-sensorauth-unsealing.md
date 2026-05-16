@@ -4,7 +4,7 @@ adr_id: "ADR-026"
 title: "SensorAuth Trait Un-Sealing — Remove private::Sealed, Enable Plugin Auth Implementations"
 status: Proposed
 date: "2026-05-15"
-version: "1.5"
+version: "1.6"
 producer: architect
 subsystems_affected: [SS-01, SS-17, SS-16]
 supersedes: null
@@ -358,6 +358,16 @@ are safe in a single burst.
   sealed-trait language — not amended further in PREREQ-E; BC-2.01.016 is the new open-auth-trait
   contract that operationalizes the ADR-023 amendment).
 
+- **VP-156** — `WriteToolInvalidationMap` registration uniqueness: proptest over arbitrary
+  sequences of `register_write_tool(entry)` calls verifies that (a) all unique `tool_name`
+  registrations return `Ok(())` and are observable in the map, and (b) any duplicate
+  `tool_name` returns `Err(SpecEngineError::DuplicateWriteToolRegistration(tool_name))` with
+  the original entry preserved and the duplicate rejected. Module: prism-query.
+  Method: proptest. Priority: P1. Anchor story: S-PLUGIN-PREREQ-E.
+  Primary BC anchor: **BC-2.16.012** (EC-016-012-004 duplicate registration semantics;
+  INV-INVALIDATION-EXT-001 runtime extensibility postcondition). Derived from D7 uniqueness
+  contract (error-on-duplicate; no last-writer-wins).
+
 ---
 
 ## Alternatives Considered
@@ -417,3 +427,4 @@ modes and security implications. The open trait approach reuses the existing typ
 | 1.3 | 2026-05-15 | architect | prereq-e-fix-burst-2: F-LP2-MED-001: D7 error code routing corrected — E-PLUGIN-001 collision with existing umbrella runtime-panic code resolved; new codes E-PLUGIN-012 (DuplicateWriteToolRegistration, boot-load duplicate) and E-PLUGIN-013 (WriteToolRegistrationAfterBoot, post-step-8 registration attempt) assigned in D7 narrative; both codes routed to PO for error-taxonomy.md authoring. VP-156 anchor sentence updated to remove "happens-before invariant" framing (aligned to VP-156 v0.2 rework). |
 | 1.4 | 2026-05-15 | architect | F-LP2-MED-001 sub-fix: E-PLUGIN-013 → E-PLUGIN-020 reassignment per PO error-taxonomy v1.27 allocation. E-PLUGIN-013 was already occupied by `allowed_urls` manifest validation (taxonomy v1.19, BC-2.17.007); PO allocated E-PLUGIN-020 (next free after E-PLUGIN-019/FormatVersionMissing) for `WriteToolRegistrationAfterBoot`. D7 error code routing bullet updated; category corrected from `validation` to `runtime` to match taxonomy v1.27 row. E-PLUGIN-012 (DuplicateWriteToolRegistration) unchanged — confirmed free. |
 | 1.5 | 2026-05-15 | architect | prereq-e-fix-burst-3: F-LP3-HIGH-002: D2 amended — Path B chosen (required body per impl, no default); four built-in impls must add one-line `fn auth_type_name()` bodies returning `"oauth2_client_credentials"`, `"bearer_static"`, `"cookie"`, `"api_key"` respectively. Path A (default `"unknown"`) rejected — silent incorrectness in audit logs. PO handoff: AC-2 + BC-2.01.016 §Postconditions alignment required. F-LP3-MED-001: E-PLUGIN-012 category corrected `validation` → `boot` per error-taxonomy.md canonical category. F-LP3-MED-003: Five D7 runtime_deliverables added to frontmatter (register_write_tool API, RwLock container migration, DuplicateWriteToolRegistration variant, WriteToolRegistrationAfterBoot variant, AtomicBool query-phase flag). |
+| 1.6 | 2026-05-15 | architect | prereq-e-fix-burst-4: F-LP4-HIGH-004: VP-156 entry added to §Verification Property Anchors — was absent despite being cited in D7 narrative (line 293), D7 rationale (line 270), and v1.5 changelog (D7 deliverables). Entry matches VP-153 format: ID + title + verification method + status + BC anchor. VP-156 is proptest/P1 for `register_write_tool` uniqueness semantics (BC-2.16.012 EC-016-012-004; INV-INVALIDATION-EXT-001). |

@@ -239,3 +239,59 @@ Pass-2 report: `cycles/wave-4-operations/adversarial-reviews/S-PLUGIN-PREREQ-E-s
 
 Adversary pass-4 dispatch (fresh-context). BC-5.39.001 3-CLEAN protocol — streak 0/3.
 Pass-3 report: `cycles/wave-4-operations/adversarial-reviews/S-PLUGIN-PREREQ-E-spec-pass-3.md`
+
+---
+
+## §D578 FIX-BURST-4 (D-578)
+
+**D-578 COMPLETE — PREREQ-E ADVERSARY PASS-4 FIX-BURST-4 CLOSED.**
+
+**Trajectory: pass-1: 14 → FB1 + pass-2: 9 → FB2 + pass-3: 8 → FB3 + pass-4: 9 (0C+4H+3M+2L+0OBS) → FB4 CLOSED 9/9 in-scope. Streak 0/3. Novelty curve FLAT — fresh-context catches each pass.**
+
+### Key Findings
+
+- **3 of 4 HIGH were systemic VP-156 anchor-back gaps (FB1 residue):** VP-156 was authored in fix-burst-1 but its anchor-back chain across story `verification_properties:`/`anchor_vps:`, story §References, and ADR-026 §Verification Property Anchors was never swept. All 3 sites were undetected by passes 1, 2, and 3.
+- **1 fresh-context HIGH (F-LP4-HIGH-003):** BC-2.16.004 row Title in story was paraphrased, not POL-7 verbatim H1. Undetected by 3 prior passes — confirms fresh-context cognitive diversity value.
+- **2 MEDIUM changelog version-collisions:** VP-153/154/155/156 fix-burst-1 backfill introduced duplicate version rows; state-manager renumbered to restore monotonic sequences.
+- **1 MEDIUM error-taxonomy `modified:` drift:** POL-27 class; date-only correction.
+- **2 LOW:** ADR-027 D5 scope expanded + 4 VP modified: ISO scalar normalization.
+
+### Finding Disposition
+
+| ID | Severity | Type | Closed By | Summary |
+|----|----------|------|-----------|---------|
+| F-LP4-HIGH-001 | HIGH | VP-156 anchor-back (FB1 residue) | product-owner | VP-156 added to story `verification_properties:` + `anchor_vps:` |
+| F-LP4-HIGH-002 | HIGH | VP-156 anchor-back (FB1 residue) | product-owner | VP-156 added to story §References |
+| F-LP4-HIGH-003 | HIGH | POL-7 verbatim (fresh-context; undetected passes 1-3) | product-owner | BC-2.16.004 Title → verbatim H1 |
+| F-LP4-HIGH-004 | HIGH | VP-156 anchor-back (FB1 residue) | architect | VP-156 entry added to ADR-026 §Verification Property Anchors |
+| F-LP4-MED-001 | MEDIUM | Changelog version-collision | state-manager | VP-153 v0.3→v0.4 renumber |
+| F-LP4-MED-002 | MEDIUM | Changelog version-collision | state-manager | VP-154 v0.4→v0.5; VP-155 v0.1→v0.2; VP-156 v0.2→v0.3 |
+| F-LP4-MED-003 | MEDIUM | POL-27 modified: drift | product-owner | error-taxonomy modified: synced |
+| F-LP4-LOW-001 | LOW | Scope under-specified | architect | ADR-027 D5 expanded (audit + migrate) |
+| F-LP4-LOW-002 | LOW | POL-27 ISO format | architect / state-manager | 4 VP modified: → bare ISO scalar |
+
+### Artifact Versions After Fix-Burst-4
+
+| Artifact | After FB3 | After FB4 |
+|----------|-----------|-----------|
+| ADR-026 | v1.5 | v1.6 |
+| ADR-027 | v1.2 | v1.3 |
+| ARCH-INDEX | v2.46 | v2.47 |
+| BC-2.16.012 | v1.4 | v1.5 |
+| S-PLUGIN-PREREQ-E story | v1.4 | v1.5 |
+| VP-153 | v0.3 | v0.4 |
+| VP-154 | v0.4 | v0.5 |
+| VP-155 | v0.1 | v0.2 |
+| VP-156 | v0.2 | v0.3 |
+| error-taxonomy | v1.27 | v1.27 (modified: sync) |
+| STATE + HANDOFF | v7.282 | v7.283 |
+
+### Codification Candidates (Queued Cycle-Close)
+
+- POL-25 extension: enumerate VP→story anchor-back sweep targets explicitly
+- POL-27 extension: expand scope from BC files to VPs + PRD-supplements
+
+### Next Step
+
+Adversary pass-5 dispatch (fresh-context). BC-5.39.001 3-CLEAN protocol — streak 0/3.
+Pass-4 report: `cycles/wave-4-operations/adversarial-reviews/S-PLUGIN-PREREQ-E-spec-pass-4.md`

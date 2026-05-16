@@ -23,7 +23,7 @@ crates_touched: [prism-sensors, prism-spec-engine, prism-query]
 target_module: prism-sensors
 subsystems: [SS-01, SS-16]
 capabilities: [CAP-001, CAP-029]
-version: "1.4"
+version: "1.5"
 level: "L4"
 producer: product-owner
 timestamp: "2026-05-15T00:00:00Z"
@@ -41,6 +41,7 @@ verification_properties:
   - VP-153  # SensorAuth Runtime Cross-Composition Prevention (proptest) — anchors BC-2.01.016 Rule 2 rejection
   - VP-154  # CustomAdapter Behavioral Equivalence integration test — P1, authored PLUGIN-MIGRATION-001-A scope
   - VP-155  # CustomAdapter Absent from prism-spec-engine Public API (compile-fail) — P0, authored PLUGIN-MIGRATION-001-A scope
+  - VP-156  # WriteToolInvalidationMap Registration Uniqueness (proptest P1) — anchors BC-2.16.012 TD-S-PLUGIN-PREREQ-A-003 closure
   - VP-PLUGIN-001  # No production hardcoded sensor references — perimeter check must remain green
   - VP-PLUGIN-007  # Plugin manifest allowlist enforcement — must remain unaffected
 architectural_decisions:
@@ -52,7 +53,7 @@ holdout_scenarios:
   - HS-PREREQ-E-002  # CustomAdapter Retirement — No Behavioral Regression (+ VP-154/VP-155 coverage)
   - HS-PREREQ-E-003  # PluginRegistry Dispatch — Behavioral Equivalence + WriteToolInvalidationMap extensibility
 anchor_bcs: [BC-2.01.016, BC-2.16.011, BC-2.16.012, BC-2.01.013, BC-2.16.004]
-anchor_vps: [VP-153, VP-154, VP-155, VP-PLUGIN-001, VP-PLUGIN-007]
+anchor_vps: [VP-153, VP-154, VP-155, VP-156, VP-PLUGIN-001, VP-PLUGIN-007]
 anchor_capabilities: [CAP-001, CAP-029]
 anchor_subsystem: [SS-01, SS-16]
 assumption_validations:
@@ -104,7 +105,7 @@ invalidation — completing the Wave 0 plugin-only sensor architecture foundatio
 | BC-2.16.011 | CustomAdapter Rust Trait Retirement — Removal of Trait, Registry, and All Call Sites | SS-16 | Primary delivery — `custom_adapter.rs` deleted; three call sites cleaned; BC-2.16.004 transitions to removed |
 | BC-2.16.012 | PluginRegistry Dispatch in spec_parser.rs — Hardcoded Sensor Names Replaced with Registry Lookup | SS-16 | Primary delivery — open dispatch migration; behavioral equivalence test; TD-S-PLUGIN-PREREQ-A-003 WriteToolInvalidationMap closure |
 | BC-2.01.013 | DataSource Trait Eliminates Per-Sensor Code Duplication | SS-01 | Awareness — PREREQ-F established that SensorAuth is NOT sealed; this story is the mechanical implementation of that amendment |
-| BC-2.16.004 | Rust Escape Hatch for Custom Adapters (DEPRECATED → REMOVED) | SS-16 | Lifecycle close — `lifecycle_status: deprecated → removed`; this story is the execution of the retirement planned in PREREQ-F |
+| BC-2.16.004 | Rust Escape Hatch for Custom Adapters — Trait-Based Override When Config Is Insufficient | SS-16 | Lifecycle close (`deprecated → removed`) — `lifecycle_status: deprecated → removed`; this story is the execution of the retirement planned in PREREQ-F |
 
 ---
 
@@ -409,6 +410,7 @@ Architecture Compliance:
 - [VP-153](../specs/verification-properties/vp-153-sensorauth-runtime-cross-composition-prevention.md) — SensorAuth Runtime Cross-Composition Prevention proptest (anchors BC-2.01.016 E-SPEC-012/013/014)
 - [VP-154](../specs/verification-properties/vp-154-custom-adapter-behavioral-equivalence.md) — CustomAdapter Behavioral Equivalence integration test (P1; PLUGIN-MIGRATION-001-A scope)
 - [VP-155](../specs/verification-properties/vp-155-custom-adapter-no-public-api.md) — CustomAdapter Absent from prism-spec-engine Public API compile-fail perimeter (P0; PLUGIN-MIGRATION-001-A scope)
+- [VP-156](../specs/verification-properties/vp-156-write-tool-registration-uniqueness.md) — WriteToolInvalidationMap Registration Uniqueness proptest (P1; uniqueness-only; anchors BC-2.16.012 TD-S-PLUGIN-PREREQ-A-003 closure)
 - [VP-INDEX](../specs/verification-properties/VP-INDEX.md) — VP-PLUGIN-001 (perimeter test must remain green), VP-PLUGIN-007 (allowlist enforcement unaffected)
 
 Prior PREREQ stories:
@@ -424,6 +426,7 @@ Tech debt closed:
 
 | Version | Burst | Date | Author | Change |
 |---------|-------|------|--------|--------|
+| 1.5 | prereq-e-fix-burst-4 | 2026-05-15 | product-owner | F-LP4-HIGH-001: VP-156 added to `verification_properties:` frontmatter array (after VP-155, before VP-PLUGIN-001). F-LP4-HIGH-002: VP-156 added to §References Architecture Compliance section with markdown link + description matching "uniqueness only" framing. F-LP4-HIGH-003: BC-2.16.004 BC table Title cell updated to H1-verbatim ("Rust Escape Hatch for Custom Adapters — Trait-Based Override When Config Is Insufficient"); lifecycle annotation "(deprecated → removed)" moved inline to Role column. `anchor_vps:` frontmatter updated to include VP-156. |
 | 1.4 | prereq-e-fix-burst-3 | 2026-05-15 | product-owner | F-LP3-HIGH-002 (joint with architect): AC-2 rewritten — "ZERO changes" → "ONE NEW METHOD BODY per impl (fn auth_type_name returning static auth-type name); no other changes"; Red Gate Test 3 renamed `_unchanged_` → `_minimal_diff_` + updated to assert one new method body. F-LP3-HIGH-003: Task 7 register_write_tool signature updated to `-> Result<(), SpecEngineError>`; AC-9 updated with error-path assertions (E-PLUGIN-012 duplicate, E-PLUGIN-020 after-boot); Red Gate Test 8 updated to assert all three paths. F-LP3-MED-002: Error Taxonomy Additions table expanded — E-PLUGIN-012 + E-PLUGIN-020 rows added (taxonomy v1.27); v1.25 version pins in AC-3 body updated to v1.27 (2 sites in story body). Sub-fix (same burst, D-577): `risk_mitigations:` AC-1..3 entry synced to Path B — "four built-in auth impls are unchanged" → "four built-in auth impls require ONE NEW METHOD BODY each (one-line `fn auth_type_name` returning the static auth-type name string); no other changes". |
 | 1.3 | prereq-e-fix-burst-2 | 2026-05-15 | product-owner | F-LP2-MED-004 closure: Red Gate Test Set reordered so tests are grouped contiguously by BC (BC-2.01.016: tests 1–3; BC-2.16.011: tests 4–5; BC-2.16.012: tests 6–8). No test name changes — `_NNN` suffixes within each BC group were already sequential. Added BC-labeled subheadings for navigability. Former interleaved order (tests 1,2,7 then 3,8 then 4,5,6 across BCs) broke the BC-grouped reading pattern. |
 | 1.2 | S-PLUGIN-PREREQ-E-fix-burst-1 | 2026-05-15 | product-owner | F-LP1-HIGH-001: BC-2.01.016 §Preconditions method surface updated per ADR-026 D1 (2-method trait: `as_any()` + `auth_type_name()`). F-LP1-HIGH-003: All 8 §C5 phantom-heading citations in story body corrected to `§Architectural Constraints (C5 bullet[, Rule N])` per POL-21. F-LP1-MED-001: E-SPEC-008 retirement framing updated — action now `RETIRED … error-taxonomy.md v1.26` (path (a) chosen: PO delivers retirement annotation in v1.26 spec-burst, not deferred to implementer). F-LP1-MED-004: All ~9 `TD-A-003` alias occurrences replaced with canonical `TD-S-PLUGIN-PREREQ-A-003` (frontmatter comment, assumption_validations, risk_mitigations, BC table, Task 7, AC-9, Green Gate DoD 8, Previous Story Intelligence, References). F-LP1-MED-005: Red Gate test 2 rewritten to standard Red Gate semantics (pre/post-implementation assertion states explicit). |

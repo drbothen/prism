@@ -1,7 +1,7 @@
 ---
 document_type: verification-property
 level: L4
-version: "0.2"
+version: "0.3"
 status: draft
 producer: architect
 timestamp: 2026-05-15T00:00:00Z
@@ -24,7 +24,7 @@ proof_completed_date: null
 proof_file_hash: null
 lifecycle_status: draft
 introduced: "2026-05-15"
-modified: []
+modified: "2026-05-15"
 deprecated: null
 deprecated_by: null
 replacement: null
@@ -193,5 +193,7 @@ The implementer adds this function in `crates/prism-query/src/invalidation.rs` u
 | Version | Burst | Date | Author | Notes |
 |---------|-------|------|--------|-------|
 | 0.1 | prereq-e-fix-burst-1 | 2026-05-15 | architect | F-LP1-MED-003 resolution (option a). VP-156 authored to provide proptest coverage for `register_write_tool` uniqueness semantics (error-on-duplicate, ADR-026 D7) and happens-before correctness of the `RwLock<Vec<...>>` container (INV-INVALIDATION-EXT-001). Closes BC-2.16.012 §VP Anchors "(none in this story)" gap. Proptest chosen over Kani — String-keyed uniqueness is proptest territory, not Kani bounded model-checking. Harness skeleton provided; full authoring in S-PLUGIN-PREREQ-E scope. |
-| 0.1 | fix-burst-1 state-manager catch | 2026-05-15 | state-manager | (state-manager catch in fix-burst-1) F-LP1-HIGH-004 POL-20: introduced field canonicalized to ISO date 2026-05-15. Prior value `prereq-e-fix-burst-1` was informal slug; POL-20 requires `YYYY-MM-DD` for artifacts created outside greenfield cycles. |
-| 0.2 | prereq-e-fix-burst-2 | 2026-05-15 | architect | F-LP2-MED-002 (option b): happens-before claim removed from §Property Statement title and body; §Property Statement rewritten to cover uniqueness only; §Acceptance Criteria Case 1 updated to clarify sequential-only scope; §Proof Method coverage cell updated; proof harness skeleton comment updated. Visibility guarantee now documented as structural (RwLock contract + ADR-022 boot ordering) not proptest-verified. F-LP2-MED-003: source_invariant changed from INV-INVALIDATION-EXT-001 to null; invariant trace preserved in §Source Contract body via existing BC-2.16.012 INV-INVALIDATION-EXT-001 cite. F-LP2-HIGH-002: TD-A-003 alias canonicalized to TD-S-PLUGIN-PREREQ-A-003 in §Property Statement. |
+| 0.2 | fix-burst-1 state-manager catch | 2026-05-15 | state-manager | (state-manager catch in fix-burst-1) F-LP1-HIGH-004 POL-20: introduced field canonicalized to ISO date 2026-05-15. Prior value `prereq-e-fix-burst-1` was informal slug; POL-20 requires `YYYY-MM-DD` for artifacts created outside greenfield cycles. |
+| 0.3 | prereq-e-fix-burst-2 | 2026-05-15 | architect | F-LP2-MED-002 (option b): happens-before claim removed from §Property Statement title and body; §Property Statement rewritten to cover uniqueness only; §Acceptance Criteria Case 1 updated to clarify sequential-only scope; §Proof Method coverage cell updated; proof harness skeleton comment updated. Visibility guarantee now documented as structural (RwLock contract + ADR-022 boot ordering) not proptest-verified. F-LP2-MED-003: source_invariant changed from INV-INVALIDATION-EXT-001 to null; invariant trace preserved in §Source Contract body via existing BC-2.16.012 INV-INVALIDATION-EXT-001 cite. F-LP2-HIGH-002: TD-A-003 alias canonicalized to TD-S-PLUGIN-PREREQ-A-003 in §Property Statement. |
+| 0.3 | fix-burst-4 changelog repair | 2026-05-15 | state-manager | Renumbering correction per F-LP4-MED-001/002 process-gap-driven repair. Prior changelog had duplicate 0.1 entries (architect prereq-e-fix-burst-1 + state-manager catch both labeled 0.1); fix-burst-2 architect row was consequently at 0.2. Corrected to monotonic 0.1 → 0.2 → 0.3 by renumbering state-manager catch 0.1→0.2 and fix-burst-2 0.2→0.3. Frontmatter version updated from 0.2 to 0.3. |
+| 0.3 | prereq-e-fix-burst-4 | 2026-05-15 | architect | F-LP4-LOW-002: `modified:` field synced to ISO date "2026-05-15" (most recent change: fix-burst-1 authoring + fix-burst-2 uniqueness-only reframe). Prior value was empty array `[]`; POL-27 VP-template schema gap codified for cycle-close session-reviewer extension. No version bump (frontmatter field correction only). |

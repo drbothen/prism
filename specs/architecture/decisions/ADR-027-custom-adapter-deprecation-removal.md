@@ -4,7 +4,7 @@ adr_id: "ADR-027"
 title: "CustomAdapter Rust Trait Deprecation and Wave 1/A Removal — Sole Escape Hatch is .prx WASM"
 status: Proposed
 date: "2026-05-15"
-version: "1.2"
+version: "1.3"
 producer: architect
 subsystems_affected: [SS-16, SS-17]
 supersedes: null
@@ -119,16 +119,34 @@ For PLUGIN-MIGRATION-001-A to proceed, the following must be true at PREREQ-E me
 These five conditions are the acceptance gate that the PLUGIN-MIGRATION-001-A story-writer
 reads before starting Wave 1 work.
 
-### D5 — Spec_parser.rs call-site migration to PluginRuntime
+### D5 — Spec_parser.rs scope: verification clean-pass AND hardcoded-sensor-string dispatch audit
 
 ADR-023 §Architectural Constraints (C5 bullet) originally listed `spec_parser.rs` as a site to check for `CustomAdapter` or
 `CustomAdapterRegistry` references. GREP VERIFICATION (2026-05-15): `spec_parser.rs` contains
-zero `CustomAdapter` or `CustomAdapterRegistry` references. The "spec_parser.rs migration to
-PluginRegistry" scope in the story brief refers instead to the broader plugin dispatch pathway
-where `spec_parser.rs`-parsed sensor specs flow into `PipelineExecutor`, which in PREREQ-B
-scope gains a PluginRuntime hook dispatch. This is not a `CustomAdapter` call-site migration;
-it is the PREREQ-B work (C2). PREREQ-E's scope at `spec_parser.rs` is: verify no `CustomAdapter`
-references exist, confirm the file is clean, and document that finding in the PR.
+zero `CustomAdapter` or `CustomAdapterRegistry` references — the `CustomAdapter` clean-pass
+for this file is satisfied mechanically.
+
+**Expanded scope (F-LP4-LOW-001, prereq-e-fix-burst-4):** BC-2.16.012 INV-SPEC-PARSER-OPEN-001
+establishes the broader invariant that `spec_parser.rs` MUST NOT contain hardcoded sensor-string
+dispatch arms (e.g., `match sensor_type { "crowdstrike" => ..., "cyberint" => ... }`). Story
+Task 6 and AC-7 both mandate an audit for this pattern, not just a `CustomAdapter` grep.
+
+PREREQ-E's scope at `spec_parser.rs` is therefore two-part:
+
+1. **Mechanical clean-pass (CustomAdapter):** Verify zero `CustomAdapter` or
+   `CustomAdapterRegistry` references exist. Document the grep result in the PR. (Satisfied
+   by GREP VERIFICATION above — this part requires no code changes.)
+2. **Hardcoded-sensor-string audit (INV-SPEC-PARSER-OPEN-001):** Audit `spec_parser.rs`
+   for hardcoded sensor-string dispatch arms. If any are found, migrate them to
+   `PluginRegistry` lookup per BC-2.16.012 INV-SPEC-PARSER-OPEN-001 before the story closes.
+   If none are found, document the clean result in the PR.
+
+**Alignment rationale:** The original D5 framing ("verify clean only") was an early-pass
+narrow scope that predated BC-2.16.012 INV-SPEC-PARSER-OPEN-001 and Story Task 6/AC-7.
+The story's broader scope IS correct per the production-grade default (Canonical Principle
+Rule 1) and BC-2.16.012 INV-SPEC-PARSER-OPEN-001 alignment. This D5 expansion matches the
+story spec without contradicting D1–D4; `spec_parser.rs` cleanup and `custom_adapter.rs`
+deletion are orthogonal operations in the same atomic commit.
 
 ---
 
@@ -256,3 +274,4 @@ instead. This convention is intentional and consistent across ADR-026 and ADR-02
 | 1.0 | 2026-05-15 | architect | Initial proposal — CustomAdapter deprecation/deletion design for S-PLUGIN-PREREQ-E and PLUGIN-MIGRATION-001-A |
 | 1.1 | 2026-05-15 | architect | Q5 resolution: add prism-query WriteToolInvalidationMap scope note to §Consequences. The story crates_touched includes prism-query; this ADR was silent on that. Added negative trade-off row explaining the prism-query touch is parallel scope (TD-S-PLUGIN-PREREQ-A-003 / ADR-026 D7 / BC-2.16.012 INV-INVALIDATION-EXT-001) and does not affect D4 Wave 1/A unblock criteria (prism-spec-engine only). |
 | 1.2 | 2026-05-15 | architect | prereq-e-fix-burst-2: F-LP2-HIGH-002: TD-A-003 alias canonicalized to TD-S-PLUGIN-PREREQ-A-003 at §Consequences trade-off row (live narrative) and changelog row for v1.1. F-LP2-HIGH-003: Two ADR-023 §C5 phantom-heading citations replaced with §Architectural Constraints (C5 bullet) per POL-21: D5 narrative (line 124) and §Source/Origin (line 228). TD-VSDD-060 workspace-wide greps confirm no further sibling sites in live spec files beyond this ADR. |
+| 1.3 | 2026-05-15 | architect | prereq-e-fix-burst-4: F-LP4-LOW-001: D5 scope expanded from "verify clean only" to two-part: (a) mechanical CustomAdapter clean-pass (satisfied by existing grep verification) AND (b) hardcoded-sensor-string dispatch audit per BC-2.16.012 INV-SPEC-PARSER-OPEN-001 + Story Task 6 + AC-7. Original narrow framing predated BC-2.16.012 and story AC-7; story's broader scope is correct per production-grade default. D5 narrative rewritten to enumerate both parts explicitly. No changes to D1–D4 or §Verification Property Anchors. |
