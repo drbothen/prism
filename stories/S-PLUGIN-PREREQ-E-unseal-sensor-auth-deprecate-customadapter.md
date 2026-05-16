@@ -23,7 +23,7 @@ crates_touched: [prism-sensors, prism-spec-engine, prism-query]
 target_module: prism-sensors
 subsystems: [SS-01, SS-07, SS-16]
 capabilities: [CAP-001, CAP-029]
-version: "1.7"
+version: "1.8"
 level: "L4"
 producer: product-owner
 timestamp: "2026-05-15T00:00:00Z"
@@ -172,10 +172,11 @@ Well within the 30% context window budget (~40k tokens).
    - Wire `PluginRuntime` (already available via PREREQ-D boot wiring) to call `register_write_tool` for each plugin that declares write-tool capabilities in its manifest
 
 8. **Update BC-2.16.004 frontmatter to `removed`**
-   - Open `BC-2.16.004-rust-escape-hatch.md` and update:
-     - `lifecycle_status: deprecated` → `lifecycle_status: removed`
-     - Add `removed: "2026-05-15"`
-     - Add `removal_reason: "PREREQ-E retirement per ADR-023 Rule 5"`
+   - Open `BC-2.16.004-rust-escape-hatch.md` and perform all four field mutations in one cohesive edit:
+     - Update `deprecated_by: ADR-023` → `deprecated_by: ADR-027` (ADR-027 §Decision is the operational deletion mandate; ADR-023 Rule 5 is the deprecation philosophy that ADR-027 operationalizes)
+     - Add `removed: "<PREREQ-E merge date>"` (substitute the actual PREREQ-E merge date at PR-create time; use ISO 8601 format YYYY-MM-DD)
+     - Add `removal_reason: "PREREQ-E retirement per ADR-027 §Decision + ADR-023 Rule 5"`
+     - Update `lifecycle_status: deprecated` → `lifecycle_status: removed`
    - Do NOT delete the file — it remains as a historical record per DF-030 protocol
 
 9. **Update E-SPEC-008 in error-taxonomy.md**
@@ -216,10 +217,11 @@ The three confirmed call sites are cleaned:
 (traces to BC-2.16.011 postconditions; ADR-023 §Architectural Constraints (C5 bullet) confirmed three sites)
 
 **AC-6 (BC-2.16.004 Lifecycle Updated to Removed):**
-`BC-2.16.004-rust-escape-hatch.md` frontmatter contains:
+`BC-2.16.004-rust-escape-hatch.md` frontmatter contains all four expected field states:
+- `deprecated_by: ADR-027` (NOT `ADR-023` — ADR-027 §Decision is the operational deletion mandate)
+- `removed:` is set to a valid ISO 8601 date matching the actual PREREQ-E merge date (format: `YYYY-MM-DD`)
+- `removal_reason: "PREREQ-E retirement per ADR-027 §Decision + ADR-023 Rule 5"`
 - `lifecycle_status: removed`
-- `removed: "2026-05-15"` (or the actual merge date)
-- `removal_reason: "PREREQ-E retirement per ADR-023 Rule 5"`
 The file is NOT deleted (historical record preservation per DF-030 append_only_numbering).
 (traces to BC-2.16.011 postcondition; BC-2.16.004 — this AC executes the lifecycle close (deprecated → removed) for BC-2.16.004 per DF-030 BC deprecation protocol)
 
@@ -414,7 +416,7 @@ All BCs cited in this story (frontmatter `behavioral_contracts` array and body t
 Architecture Compliance:
 - [ADR-023](../specs/architecture/decisions/ADR-023-plugin-only-sensor-architecture.md) §Architectural Constraints (C5 bullet) — SensorAuth un-sealing + CustomAdapter removal + spec_parser migration
 - [ADR-026](../specs/architecture/decisions/ADR-026-sensorauth-unsealing.md) — SensorAuth unsealing architectural decision; §D3 runtime enforcement rules map to E-SPEC-012/013/014
-- [ADR-027](../specs/architecture/decisions/ADR-027-custom-adapter-deprecation-removal.md) — CustomAdapter deprecation/removal; §D3 compile-fail perimeter (VP-155) + §D5 WASM equivalence (VP-154)
+- [ADR-027](../specs/architecture/decisions/ADR-027-custom-adapter-deprecation-removal.md) — CustomAdapter deprecation/removal; §D3 compile-fail perimeter (VP-155) + §Verification Property Anchors WASM equivalence (VP-154)
 - [VP-153](../specs/verification-properties/vp-153-sensorauth-runtime-cross-composition-prevention.md) — SensorAuth Runtime Cross-Composition Prevention proptest (anchors BC-2.01.016 E-SPEC-012/013/014)
 - [VP-154](../specs/verification-properties/vp-154-custom-adapter-behavioral-equivalence.md) — CustomAdapter Behavioral Equivalence integration test (P1; PLUGIN-MIGRATION-001-A scope)
 - [VP-155](../specs/verification-properties/vp-155-custom-adapter-no-public-api.md) — CustomAdapter Absent from prism-spec-engine Public API compile-fail perimeter (P0; PLUGIN-MIGRATION-001-A scope)
@@ -434,6 +436,7 @@ Tech debt closed:
 
 | Version | Burst | Date | Author | Change |
 |---------|-------|------|--------|--------|
+| 1.8 | prereq-e-fix-burst-7 | 2026-05-16 | product-owner | F-LP7-HIGH-002 + F-LP7-MED-004 — implementer-facing sibling-sweep: (1) Task 8 expanded to enumerate all four BC-2.16.004 frontmatter mutations (deprecated_by: ADR-023 → ADR-027; removed date; removal_reason advanced; lifecycle_status: deprecated → removed); (2) AC-6 acceptance criteria updated to verify all four field states; (3) §References ADR-027 VP-154 anchor §D5 → §Verification Property Anchors (FB4 D5 scope expansion sibling-sweep miss). TD-VSDD-059 paper-fix detection. |
 | 1.7 | prereq-e-fix-burst-6 | 2026-05-16 | story-writer | F-LP6-CRIT-001 propagation: §File Structure Requirements + §AC-2 example chain — Claroty auth_type_name() return value `cookie` → `cookie_roundtrip` to match ADR-026 v1.8 D2 corrected value + D3 canonical enumerated set + E-SPEC-012 + VP-153 Rule A. Sibling sweep verified all four built-in auth_type_name() values match D3 enumerated set. |
 | 1.6 | prereq-e-fix-burst-5 | 2026-05-15 | product-owner | F-LP5-HIGH-001: `subsystems:` updated from `[SS-01, SS-16]` to `[SS-01, SS-07, SS-16]`; `anchor_subsystem:` updated identically (prism-query → SS-07 Adapter Pagination & Response Cache per ARCH-INDEX). F-LP5-HIGH-002: §References 5 BC entries corrected to H1-verbatim titles (POL-7 D-571 sweep); lifecycle/status annotations moved outside link text to description suffix. POL-7 5-surface sweep: surface 1 BC table — BC-2.01.016 Role cell "four built-in auth impls unchanged" corrected to "each add one new method body (`auth_type_name`)" (stale from pre-v1.4). Surfaces 3/4/5 verified clean. F-LP5-MED-001: File Structure Requirements table gains 4 auth impl files (crowdstrike/cyberint/claroty/armis `.rs`), each with `auth_type_name` method action + ADR-026 D1 Path B source; Token Budget Estimate table gains 4 impl file rows (~50 tokens each); Total updated ~17,100 → ~17,300. F-LP5-MED-002: Architecture Compliance Rules table — hardcoded-sensor-string dispatch rule Source column gains `ADR-027 D5` (canonical anchor post-FB4 expansion). F-LP5-MED-003 (Path B chosen): AC-1 trace-line extended with BC-2.01.013 justification (mechanical un-sealing delivery of PREREQ-F amendment); AC-6 trace-line extended with BC-2.16.004 justification (lifecycle-close execution per DF-030). Both BCs in `behavioral_contracts:` frontmatter now have AC traces. |
 | 1.5 | prereq-e-fix-burst-4 | 2026-05-15 | product-owner | F-LP4-HIGH-001: VP-156 added to `verification_properties:` frontmatter array (after VP-155, before VP-PLUGIN-001). F-LP4-HIGH-002: VP-156 added to §References Architecture Compliance section with markdown link + description matching "uniqueness only" framing. F-LP4-HIGH-003: BC-2.16.004 BC table Title cell updated to H1-verbatim ("Rust Escape Hatch for Custom Adapters — Trait-Based Override When Config Is Insufficient"); lifecycle annotation "(deprecated → removed)" moved inline to Role column. `anchor_vps:` frontmatter updated to include VP-156. |

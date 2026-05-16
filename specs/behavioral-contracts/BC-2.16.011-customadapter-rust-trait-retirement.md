@@ -1,7 +1,7 @@
 ---
 document_type: behavioral-contract
 level: L3
-version: "1.3"
+version: "1.4"
 status: draft
 producer: product-owner
 timestamp: 2026-05-15T00:00:00
@@ -78,8 +78,11 @@ re-export or exercise `CustomAdapter` in `lib.rs`, `examples/demo_spec_loading.r
   removed in this story). The E-SPEC-008 error code entry in `error-taxonomy.md` citing
   `CustomAdapter` is updated to reflect retirement.
 - BC-2.16.004 `lifecycle_status` is updated from `deprecated` to `removed` (the file
-  `BC-2.16.004-rust-escape-hatch.md` frontmatter is amended: `lifecycle_status: removed`,
-  `removed: "2026-05-15"`, `removal_reason: "PREREQ-E retirement per ADR-023 Rule 5"`).
+  `BC-2.16.004-rust-escape-hatch.md` frontmatter is amended with all four field mutations):
+  - `deprecated_by` field: `ADR-023` → `ADR-027` (ADR-027 §Decision is the operational deletion mandate; ADR-023 Rule 5 is the deprecation philosophy that ADR-027 operationalizes)
+  - `removal_reason` field: `"PREREQ-E retirement per ADR-027 §Decision + ADR-023 Rule 5"`
+  - `removed` field: `"<PREREQ-E merge date>"` (implementer substitutes actual PREREQ-E merge date at PR-create time)
+  - `lifecycle_status` field: `deprecated` → `removed`
 - The `E-SPEC-008` error taxonomy entry is updated: its description is changed from
   "A CustomAdapter (BC-2.16.004) panicked during execution" to a retired/removed note, or
   the entry is preserved with a `retired: true` annotation and a note that the code is no
@@ -172,7 +175,7 @@ Byte-identical comparison would create timestamp-driven flakiness in CI. Semanti
 - `crates/prism-spec-engine/examples/demo_spec_loading.rs` — example cleanup site
 - `crates/prism-spec-engine/tests/bc_2_16_004_test.rs` — test deletion site
 - ADR-023 §Architectural Constraints (C5 bullet, Rule 5) — authoritative CustomAdapter retirement specification
-- ADR-027 — CustomAdapter deprecation/removal architectural decision; §D3 defines compile-fail perimeter (VP-155) and §D5 defines PluginRuntime behavioral equivalence requirement (VP-154)
+- ADR-027 — CustomAdapter deprecation/removal architectural decision; §D3 defines compile-fail perimeter (VP-155) and §Verification Property Anchors defines PluginRuntime behavioral equivalence requirement (VP-154)
 
 ## Story Anchor
 
@@ -197,6 +200,7 @@ S-PLUGIN-PREREQ-E
 
 | Version | Burst | Date | Author | Change |
 |---------|-------|------|--------|--------|
+| 1.4 | prereq-e-fix-burst-7 | 2026-05-16 | product-owner | F-LP7-HIGH-002 + F-LP7-MED-004 — sibling-sweep close: (1) §Postconditions removal_reason advanced "ADR-023 Rule 5" → "ADR-027 §Decision + ADR-023 Rule 5" + explicit enumeration of all four BC-2.16.004 frontmatter mutations (deprecated_by/removed/removal_reason/lifecycle_status); (2) §Architecture Anchors VP-154 anchor corrected ADR-027 §D5 → §Verification Property Anchors (FB4 D5 scope expansion sibling-sweep miss). TD-VSDD-059 paper-fix detection. |
 | 1.3 | prereq-e-fix-burst-6 | 2026-05-16 | architect | F-LP6-MED-004 — EC-016-011-005 `deprecated_by` adjudicated: bumps `ADR-023` → `ADR-027`. ADR-027 §Decision is the operational deletion mandate (timeline + perimeter + removal mechanism); ADR-023 Rule 5 introduced the deprecation philosophy which ADR-027 operationalizes. EC-016-011-005 Resolution cell updated: `deprecated_by: ADR-027`, `removed: "<PREREQ-E merge date>"` (placeholder for actual merge date when PREREQ-E ships), `removal_reason: "PREREQ-E retirement per ADR-027 §Decision + ADR-023 Rule 5"`, `lifecycle_status: deprecated → removed`. |
 | 1.2 | S-PLUGIN-PREREQ-E-fix-burst-1 | 2026-05-15 | product-owner | F-LP1-HIGH-003 closure: Three §C5 phantom-heading citations corrected per POL-21 — `ADR-023 §C5` → `ADR-023 §Architectural Constraints (C5 bullet)` and `ADR-023 §C5 Rule 5` → `ADR-023 §Architectural Constraints (C5 bullet, Rule 5)`. ADR-023 has no `## C5` heading; C5 is a bold-labeled bullet inside `## Architectural Constraints`. |
 | 1.2 | fix-burst-1 state-manager catch | 2026-05-15 | state-manager | (state-manager catch in fix-burst-1) F-LP1-HIGH-004 POL-20: introduced field canonicalized to ISO date 2026-05-15. Prior value `S-PLUGIN-PREREQ-E` was story-ID format; POL-20 requires `YYYY-MM-DD` for artifacts created outside greenfield cycles. |
