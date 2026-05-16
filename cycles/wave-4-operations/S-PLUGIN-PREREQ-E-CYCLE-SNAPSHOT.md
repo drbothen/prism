@@ -1434,3 +1434,43 @@ Workspace-wide grep against ALL PREREQ-E artifact files before declaring FB15 cl
 Streak: **0/3** — FB15 NEXT.
 
 STATE.md v7.305; SESSION-HANDOFF.md v7.305; BC-INDEX v4.90 (unchanged); VP-INDEX v1.46 (unchanged); 118th consecutive single-commit (TD-VSDD-053 DECISIVELY STABLE).
+
+---
+
+## §D-615 FIX-BURST-15 CLOSURE (D-613 + D-614 + D-615 — 2026-05-16) — 1/1 IN-SCOPE HIGH CLOSED; POL-25 VARIANT-PHRASING GREP MANDATE; PASS-17 NEXT
+
+### FB15 Closure Verification (TD-VSDD-059)
+
+| Finding | Closure Burst | Verification |
+|---------|--------------|-------------|
+| F-LP16-HIGH-001 story Task 7 (site 1) | D-613 `a0ffa63f` | `BC-2.16.002 §Postconditions Canonical Structured Event Catalog v1.20 row 33` at line 170 — PASS |
+| F-LP16-HIGH-001 story AC-9 (site 2) | D-613 `a0ffa63f` | Same v1.20 cite at line 238 — PASS |
+| F-LP16-HIGH-001 story §File Structure Requirements (site 3) | D-613 `a0ffa63f` | Same v1.20 cite at line 345 — PASS |
+| F-LP16-HIGH-001 ADR-026 §D7 line 300 (site 4) | D-614 `604827ed` | `BC-2.16.002 v1.20 row 33` at ADR-026 line 300 — PASS |
+| Workspace-wide stale v1.19 variant-phrasing sweep | D-613+D-614 | ZERO stale v1.19 variant-phrasing cites in live narrative across PREREQ-E artifacts — PASS |
+
+### 4-Site Closure Summary
+
+- 3 story sites (variant phrasing: no-parens form): D-613 PO — Task 7 + AC-9 + §File Structure Requirements
+- 1 ADR-026 §D7 site (variant phrasing: bare form): D-614 architect — line 300
+- All 4 sites used variant phrasings missed by FB14 canonical-form-only sweep
+
+### POL-25 Dispatch-Level Variant-Phrasing Mandate (Orchestrator Innovation)
+
+For the first time in the PREREQ-E cascade, the orchestrator injected an EXPLICIT variant-phrasing grep mandate at dispatch time (POL-25) — BEFORE sending PO and architect dispatches. The mandate required: grep ALL variant forms (`parenthesized`, `no-parens`, `bare-version`) workspace-wide before declaring closed. This is the operational analog of the FB8 single-bump explicit instruction that produced pass-9 CLEAN★. Pass-17 is the critical first test of whether this approach broke the 7-occurrence recurrence pattern.
+
+### Single-Bump Discipline Maintained
+
+ADR-026 v1.10 UNCHANGED — site 4 fix is a pin-sweep-only edit (v1.19→v1.20 in narrative text), not a semantic content change; ADR-026 document version does not increment for citation-correction-only edits. Precedent: FB13 (ADR-026 stayed v1.10 for the same reason). All BC/VP index versions UNCHANGED.
+
+### POL-29 Cycle-Close Codification Still Critical
+
+The orchestrator-injected dispatch-level mandate (POL-25) is a mid-cycle operational fix. It addresses recurrence in this cascade by making the instruction explicit at each dispatch. It does NOT replace permanent codification of the policy in `policies.yaml`. Without POL-29 codification, new sessions beginning a cascade without this explicit instruction will reproduce the pattern. POL-29 remains HIGHEST-PRIORITY at cycle-close.
+
+### Updated Trajectory Shorthand (Post-FB15)
+
+**14→9→8→9→10→10→FB6-CLOSED(10/10)→8→FB7-CLOSED(8/8)→4→FB8-CLOSED(3/3)→pass-9:CLEAN★(1/3)→pass-10:BLOCKED(1H+1M+1L; RESET 0/3; 3-CLEAN PROTOCOL VALIDATED)→FIX-BURST-9-CLOSED(3/3)→pass-11:BLOCKED(1M; RECURRING VP traceability; 0/3)→FIX-BURST-10-CLOSED(1/1)→pass-12:BLOCKED(1M; HIGH-NOVELTY tracing-emission ↔ catalog axis; 0/3)→FIX-BURST-11-CLOSED(1/1 in-scope; BC-2.16.002 catalog row+cross-ref+event-name; BUT 3 defects introduced by FB11)→pass-13:BLOCKED(0C+3H+0M+0L+0OBS; ALL FB11-introduced; POL-21 RECURRING + POL-23/27 frontmatter drift + plugin_name unresolvable; FB-introduces-new-defects PATTERN; POL-29 codification candidate; streak 0/3 unchanged)→FIX-BURST-12-CLOSED(3/3 in-scope HIGH; POL-21 swept + frontmatter synced + plugin_name resolved via Option A)→pass-14:BLOCKED(0C+1H+0M+0L+3OBS; F-LP14-HIGH-001 ADR-026 v1.9→v1.10 sibling-sweep miss; 5th RECURRENCE; streak 0/3 unchanged)→FIX-BURST-13-CLOSED(1/1 in-scope; 5 sites swept; single-bump discipline applied; 5th RECURRENCE class closure)→pass-15:BLOCKED(0C+2H+1M+0L+3OBS; 6TH OCCURRENCE POL-23 RECURRING class — BC-2.16.002 bullet-label v1.18 stale vs v1.19 frontmatter + error-taxonomy mis-routed anchor + BC-2.16.012 duplicate v1.2 changelog rows pre-existing FB1; streak 0/3 unchanged)→FIX-BURST-14-CLOSED(3/3 in-scope: bullet-label sync + BC anchor correction + renumber-repair-redo; 6th RECURRENCE class closed; single-bump discipline maintained)→pass-16:BLOCKED(0C+1H+0M+0L+0OBS; 7TH OCCURRENCE POL-23 RECURRING — 4 variant-phrasing sites missed by FB14 canonical-form sweep; POL-29 codification urgency CRITICAL; streak 0/3 unchanged)→FIX-BURST-15-CLOSED(1/1 in-scope; POL-25 variant-phrasing grep applied at dispatch level — ORCHESTRATOR INNOVATION; 7th-occurrence class closed; story v1.10; ADR-026 stays v1.10; streak 0/3)**
+
+Streak: **0/3** — pass-17 NEXT (CRITICAL TEST: first fresh-context test whether POL-25 dispatch-level mandate broke 7-occurrence variant-phrasing recurrence pattern; analogous to pass-9 testing FB8 single-bump discipline).
+
+STATE.md v7.306; SESSION-HANDOFF.md v7.306; STORY-INDEX v2.114; BC-INDEX v4.90 (unchanged); ARCH-INDEX v2.52 (unchanged); VP-INDEX v1.46 (unchanged); 121st consecutive single-commit (TD-VSDD-053 DECISIVELY STABLE).
