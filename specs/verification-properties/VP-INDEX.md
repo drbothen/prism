@@ -1,7 +1,7 @@
 ---
 document_type: verification-property-index
 level: L4
-version: "1.61"
+version: "1.62"
 status: draft
 producer: product-owner
 timestamp: 2026-05-16T00:00:00
@@ -180,7 +180,7 @@ total_vps: 156
 | VP-150 | OAuth2 refresh-on-401 via declarative TOML retry policy (PipelineExecutor) — VP-PLUGIN-005 alias | prism-spec-engine | integration_test | P0 | draft | S-PLUGIN-PREREQ-B |
 | VP-151 | OCSF column mapping fixture catalog (6 representative cases, SpecDrivenMapper) — VP-PLUGIN-006 alias | prism-spec-engine | integration_test | P1 | draft | PLUGIN-MIGRATION-001-C |
 | VP-152 | Plugin manifest allowlist explicit Vec<String> after PREREQ-D (allowed_urls enforcement under default-deny semantics) — VP-PLUGIN-007 alias | prism-spec-engine | integration_test | P0 | draft | PLUGIN-PREREQ-D |
-| VP-153 | SensorAuth runtime cross-composition prevention (DI-012 runtime replacement): all invalid (auth_type, credential_type) pairs rejected at spec-load time; error messages redact credential values [v0.13 FB57 POL-26 §Changelog row swap] | prism-spec-engine | proptest | P0 | draft | S-PLUGIN-PREREQ-E |
+| VP-153 | SensorAuth runtime cross-composition prevention (DI-012 runtime replacement): all invalid (auth_type, credential_type) pairs rejected at spec-load time; error messages redact credential values | prism-spec-engine | proptest | P0 | draft | S-PLUGIN-PREREQ-E |
 | VP-154 | CustomAdapter behavioral equivalence: PluginRuntime WASM dispatch produces non-empty records matching plugin fixture output; TOML fallthrough when no plugin registered | prism-spec-engine | integration_test | P1 | draft | PLUGIN-MIGRATION-001-A |
 | VP-155 | CustomAdapter absent from prism-spec-engine public API: compile-fail perimeter asserts CustomAdapter and CustomAdapterRegistry are unimportable post-PREREQ-E | prism-spec-engine | integration_test | P0 | draft | PLUGIN-MIGRATION-001-A |
 | VP-156 | WriteToolInvalidationMap registration uniqueness: duplicate tool_name returns Err(DuplicateWriteToolRegistration); first registration persists unchanged | prism-query | proptest | P1 | draft | S-PLUGIN-PREREQ-E |
@@ -243,6 +243,7 @@ S-1.02 frontmatter has been updated to `subsystems: [SS-03, SS-07, SS-11, SS-12,
 
 | Version | Burst | Date | Author | Change |
 |---------|-------|------|--------|--------|
+| 1.62 | FB58 | 2026-05-17 | state-manager | F-LP70-HIGH-001 closure (state-manager scope): VP-INDEX line 183 Property cell bookkeeping marker `[v0.13 FB57 POL-26 §Changelog row swap]` removed; restored verbatim VP-153 property description per FB54 v1.57 convention ("Version-tracking lives in §Changelog rows per existing convention for all 154 catalog rows"). Within-FB57 regression of F-LP66-MED-001 closed. POL-26 + POL-4 + POL-23 restoration. Sibling-sweep across BC-INDEX + ARCH-INDEX + STORY-INDEX: 0 additional sites found. VP-INDEX v1.61→v1.62. |
 | 1.61 | FB57 | 2026-05-17 | state-manager | D-679 FB57 closure: VP-153 v0.12→v0.13 (POL-26-COROLLARY bookkeeping repair: §Changelog rows v0.11 + v0.12 swapped to restore ascending convention; FB56 PO row inserted above pre-existing v0.10 row and SM catch row both misordered during LARGEST-burst; F-LP69-MED-001 closure). VP-INDEX v1.60→v1.61. |
 | 1.60 | FB56+FB56b+SM-step8a | 2026-05-17 | state-manager | D-678 FB56+FB56b combined + SM step 8a catch: VP-153 v0.11→v0.12 (SM step 8a catch: error-taxonomy v1.33→v1.34 propagation at VP-153 code-comment lines 167, 210 — FB56b bumped error-taxonomy to v1.34 creating new stale cites; state-manager step 8a final verification caught and closed) + VP-156 v0.13→v0.14 (FB56b architect cascade: ADR-026 D7 v1.18→v1.19 sweep at 4 live-narrative sites). VP-INDEX v1.59→v1.60. |
 | 1.59 | FB56 | 2026-05-17 | state-manager | D-678 FB56: VP-153 v0.10→v0.11 (F-LP68-HIGH-001 closure PO scope: error-taxonomy v1.32→v1.33 propagation at VP-153 lines 167, 210 — 2 live-narrative backtick-quoted sites; POL-29 v1.16 class (a) recurrence #20 closed). |
