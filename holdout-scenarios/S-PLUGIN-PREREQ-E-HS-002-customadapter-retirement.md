@@ -8,7 +8,7 @@ must_pass: true
 priority: P0
 epic_id: "PLUGIN-MIGRATION-001"
 story_source: "S-PLUGIN-PREREQ-E"
-version: "1.4"
+version: "1.5"
 status: draft
 producer: product-owner
 timestamp: 2026-05-16T12:00:00Z
@@ -220,7 +220,7 @@ does not cause build failures.
 
 **Expected Outcome:**
 
-- `deprecated_by: ADR-027` — the value is exactly `ADR-027` (NOT `ADR-023`; ADR-027 is the CustomAdapter deprecation and removal decision per ADR-027 §Decision; ADR-026 is the SensorAuth unsealing decision; ADR-023 is the plugin-only architecture parent ADR)
+- `deprecated_by: ADR-027` — the value is exactly `ADR-027` (NOT `ADR-023`; ADR-027 is the CustomAdapter same-burst removal + perimeter enforcement decision per ADR-027 §Decision; ADR-026 is the SensorAuth unsealing decision; ADR-023 is the plugin-only architecture parent ADR)
 - `removed:` is an ISO 8601 date string matching the pattern `^\d{4}-\d{2}-\d{2}$` (e.g., `2026-05-16`; value must be a valid calendar date equal to or after S-PLUGIN-PREREQ-E's PR-create date)
 - `removal_reason: "PREREQ-E retirement per ADR-027 §Decision + ADR-023 Rule 5"` — exact match of this string (modulo outer quote style in YAML)
 - `lifecycle_status: removed` — the field is present and equals `removed`
@@ -253,6 +253,7 @@ When this holdout scenario is evaluated, the evaluator must produce:
 
 | Version | Burst | Date | Author | Change |
 |---------|-------|------|--------|--------|
+| 1.5 | FB47 | 2026-05-16 | product-owner | §Expected Outcome line 223 parenthetical: ADR-027 framing label updated from "deprecation and removal" to "same-burst removal + perimeter enforcement" per ADR-027 v1.8 title (FB46 F-LP58-HIGH-001 closure downstream propagation). |
 | 1.4 | FB36 | 2026-05-16 | product-owner | F-LP46-HIGH-001 — HS-002-06 §Expected Outcome parenthetical justification corrected: "ADR-027 is the unsealing decision" was factually wrong — ADR-027 governs CustomAdapter deprecation and removal; ADR-026 governs SensorAuth unsealing. Parenthetical now accurately distinguishes all three ADR identities (ADR-026 unsealing / ADR-027 CustomAdapter removal / ADR-023 plugin-only architecture parent). POL-22 Phase A semantic-correctness; 45-pass-surviving defect surfaced by lateral attack vector. |
 | 1.3 | FB32 | 2026-05-16 | product-owner | F-LP41-LOW-001 — HS-PREREQ-E-002-06 §Source of Truth: replaced volatile "lines 221-228" line-range citation with durable AC-6 + section anchor form per TD-VSDD-091. Aligns with sibling HS-002-04/HS-003-04 entity-ID convention. |
 | 1.2 | FB31 | 2026-05-16 | product-owner | F-LP40-LOW-001 — added HS-PREREQ-E-002-06 sub-scenario explicitly verifying BC-2.16.004 frontmatter mutations (deprecated_by, removed, removal_reason, lifecycle_status) per AC-6 production-grade-default lens. |

@@ -1,7 +1,7 @@
 ---
 document_type: behavioral-contract
 level: L3
-version: "1.6"
+version: "1.7"
 status: draft
 producer: product-owner
 timestamp: 2026-05-15T00:00:00
@@ -175,7 +175,7 @@ Byte-identical comparison would create timestamp-driven flakiness in CI. Semanti
 - `crates/prism-spec-engine/examples/demo_spec_loading.rs` — example cleanup site
 - `crates/prism-spec-engine/tests/bc_2_16_004_test.rs` — test deletion site
 - ADR-023 §Architectural Constraints (C5 bullet, Rule 5) — authoritative CustomAdapter retirement specification
-- ADR-027 — CustomAdapter deprecation/removal architectural decision; §D3 defines compile-fail perimeter (VP-155) and §Verification Property Anchors defines PluginRuntime behavioral equivalence requirement (VP-154)
+- ADR-027 — CustomAdapter Rust Trait Same-Burst Removal — Perimeter Enforcement in Wave 1/A; §D3 defines compile-fail perimeter (VP-155) and §Verification Property Anchors defines PluginRuntime behavioral equivalence requirement (VP-154)
 
 ## Story Anchor
 
@@ -200,6 +200,7 @@ S-PLUGIN-PREREQ-E
 
 | Version | Burst | Date | Author | Change |
 |---------|-------|------|--------|--------|
+| 1.7 | FB47 | 2026-05-16 | product-owner | §Architecture Anchors line 178: ADR-027 framing label updated from "deprecation/removal" to "Same-Burst Removal — Perimeter Enforcement in Wave 1/A" per ADR-027 v1.8 title (FB46 F-LP58-HIGH-001 closure downstream propagation). |
 | 1.6 | prereq-e-fix-burst-19 | 2026-05-16 | state-manager | F-LP21-HIGH-001 closure — §Changelog renumber-repair-redo (D-611-equivalent pattern applied to sibling BC that was missed in FB14): state-manager catch row v1.2 → v1.3, cascade shift v1.3 → v1.4 → v1.5 → v1.6 (via new repair row insertion at top). POL-26 monotonic strict-ordering violation pre-existing FB1 (invisible to passes 1-20) now resolved. |
 | 1.5 | prereq-e-fix-burst-7 | 2026-05-16 | product-owner | F-LP7-HIGH-002 + F-LP7-MED-004 — sibling-sweep close: (1) §Postconditions removal_reason advanced "ADR-023 Rule 5" → "ADR-027 §Decision + ADR-023 Rule 5" + explicit enumeration of all four BC-2.16.004 frontmatter mutations (deprecated_by/removed/removal_reason/lifecycle_status); (2) §Architecture Anchors VP-154 anchor corrected ADR-027 §D5 → §Verification Property Anchors (FB4 D5 scope expansion sibling-sweep miss). TD-VSDD-059 paper-fix detection. |
 | 1.4 | prereq-e-fix-burst-6 | 2026-05-16 | architect | F-LP6-MED-004 — EC-016-011-005 `deprecated_by` adjudicated: bumps `ADR-023` → `ADR-027`. ADR-027 §Decision is the operational deletion mandate (timeline + perimeter + removal mechanism); ADR-023 Rule 5 introduced the deprecation philosophy which ADR-027 operationalizes. EC-016-011-005 Resolution cell updated: `deprecated_by: ADR-027`, `removed: "<PREREQ-E merge date>"` (placeholder for actual merge date when PREREQ-E ships), `removal_reason: "PREREQ-E retirement per ADR-027 §Decision + ADR-023 Rule 5"`, `lifecycle_status: deprecated → removed`. |

@@ -4,7 +4,7 @@ adr_id: "ADR-026"
 title: "SensorAuth Trait Un-Sealing — Remove private::Sealed, Enable Plugin Auth Implementations"
 status: Proposed
 date: "2026-05-16"
-version: "1.16"
+version: "1.17"
 producer: architect
 subsystems_affected: [SS-01, SS-07, SS-16, SS-17, SS-22]
 supersedes: null
@@ -447,7 +447,7 @@ modes and security implications. The open trait approach reuses the existing typ
 |-----|-------------|
 | **ADR-023** | This ADR is the detailed specification of ADR-023 Rule 2 / Architectural Constraints (C5 bullet) for SensorAuth unsealing |
 | **ADR-022** | Boot sequence — SensorAuth-implementing types are wired via PluginRuntime at boot step 7.5 |
-| **ADR-027** | CustomAdapter retirement — complements this ADR by specifying the deprecation/deletion pathway |
+| **ADR-027** | CustomAdapter retirement — complements this ADR by specifying the same-burst removal + perimeter enforcement pathway |
 
 ---
 
@@ -472,3 +472,4 @@ modes and security implications. The open trait approach reuses the existing typ
 | 1.14 | 2026-05-16 | architect | FB39: F-LP49-HIGH-001 site 1 closure — line 309 (error-taxonomy v1.30) cite advanced to v1.31 per FB38 D-657 cascade. 13th+ POL-23 recurrence — META-PATTERN repeats from F-LP48-HIGH-001. |
 | 1.15 | 2026-05-16 | architect | FB44: F-LP56-HIGH-001 adjudication — Option A chosen. §D7 narrative updated: AtomicBool query-phase flag is set by `prism_query::invalidation::mark_query_phase_started()`, invoked as the first statement of the step-8 function in `crates/prism-bin/src/boot.rs` immediately before `QueryEngine::new()` is constructed. Resolves production call-site ambiguity — boot.rs is the designated and only correct call site; the Architecture Compliance Rule in S-PLUGIN-PREREQ-E line 357 forbidding boot.rs modification predates Task 7b and must be revised by PO to designate this single permitted insertion point. |
 | 1.16 | 2026-05-16 | architect | FB45: F-LP57-HIGH-001 (runtime_deliverables: append boot.rs invocation deliverable — insert mark_query_phase_started() as first statement of step-8 function in boot.rs immediately before QueryEngine::new()) + F-LP57-HIGH-002 (subsystems_affected: add SS-22 Process Lifecycle — owns prism-bin, canonical SS-22 crate per ARCH-INDEX line 149). POL-23 sibling-sweep gap from FB44 corrected. |
+| 1.17 | 2026-05-16 | architect | FB47: F-LP59-MED-001 closure — §Related ADRs row 450 (ADR-027 description): updated from "deprecation/deletion pathway" to "same-burst removal + perimeter enforcement pathway" per ADR-027 v1.8 title (FB46 F-LP58-HIGH-001 closure downstream propagation; F-LP59-MED-001 architect-domain site). POL-23 sibling-sweep CLEAN beyond declared scope — ADR-027 Changelog row exempt; BC-2.16.011:178 is PO domain (handled in parallel). |

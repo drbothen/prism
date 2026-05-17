@@ -3499,3 +3499,56 @@ Streak: 0/3 unchanged (2 HIGH + 3 MED block convergence). Pass-59 dispatch-ready
 Story v1.25 | BC-2.01.016 v1.7 | BC-2.16.011 v1.6 | BC-2.16.012 v1.18 | BC-2.16.002 v1.23 | ADR-026 v1.16 | ADR-022 v1.4 | ADR-027 v1.8 | VP-153 v0.9 | VP-154 v0.6 | VP-155 v0.5 | VP-156 v0.10 | HS-PREREQ-E-001 v1.4 | HS-PREREQ-E-002 v1.4 | HS-PREREQ-E-003 v1.7 | error-taxonomy v1.31 | ARCH-INDEX v2.61 | VP-INDEX v1.53 | STORY-INDEX v2.129 | BC-INDEX v5.00 | verification-architecture v1.41 | verification-coverage-matrix v1.38
 
 STATE.md v7.354; SESSION-HANDOFF.md v7.354; prereq_e_adversary_streak **0/3** (pass-57 BLOCKED — 2 HIGH F-LP57-HIGH-001+002 frontmatter sibling-sweep gaps + 1 MED F-LP57-MED-001 tracing-test + 1 OBS Path A; novelty HIGH; FB45 architect+PO+SM multi-agent closure; streak 0/3 unchanged; 173rd consecutive single-commit TD-VSDD-053 STABLE; pass-58 dispatch-ready; ADR-027 deprecation-path vector pending exercise).
+
+---
+
+## §D-669 PASS-59 BLOCKED → FB47 MULTI-AGENT CORRECTIVE CLOSURE (D-669)
+
+**D-669 — 2026-05-16 — STATE v7.356 — 175th consecutive single-commit**
+
+### Pass-59 Verdict
+
+BLOCKED — 2 HIGH + 1 MED + 1 OBS. 3 of 4 findings self-introduced by FB46 (PO §References + risk_mitigations expansion + architect ADR-027 title rewrite that did not sibling-sweep downstream cites). 1 sibling-sweep miss (ADR-027 framing residue at 5 sites). Novelty HIGH — CAP audit + test-number cross-check vectors exercised for first time.
+
+POL-29 codification candidate evidence #16+: 3 self-introduced FB46 defects in a single pass — most concentrated within-FB-introduces-defect cluster to date.
+
+### Findings Closed by FB47
+
+- F-LP59-HIGH-001: Story §References CAP-029 labeled "Plugin Registry Dispatch" vs canonical "Config-Driven Sensor Adapters" — FB46 self-introduced §References expansion label error
+- F-LP59-HIGH-002: risk_mitigations AC-10 cited phantom "Red Gate Test 10 just check" + AC-11 cited Test 11 instead of Test 14 — FB39 renumbering drift exposed by FB46 risk_mitigations expansion
+- F-LP59-MED-001: ADR-027 "deprecation" framing residue at 5 sibling sites (BC-2.16.011:178, story:50, story:487, ADR-026:450, HS-002:223) — FB46 F-LP58-HIGH-001 partial-fix that rewrote ADR-027 title but did not sweep downstream cross-cites
+- OBS-LP59-001: risk_mitigations AC-9 omits Red Gate Test 13 number (stylistic) — bundled with F-LP59-HIGH-002 closure
+
+### FB47 Architect Burst
+
+- ADR-026 v1.16 → v1.17: §Related ADRs ADR-027 description "deprecation/deletion pathway" → "same-burst removal + perimeter enforcement pathway"; §Changelog row appended
+
+### FB47 PO Burst
+
+- Story v1.25 → v1.26: F-LP59-HIGH-001 §References CAP-029 label corrected; F-LP59-HIGH-002 risk_mitigations AC-10 rewritten to process-gate phrasing + AC-11 corrected to Test 14; OBS-LP59-001 AC-9 Test 13 cite added; F-LP59-MED-001 ADR-027 framing residue at frontmatter:50 + §References:487 corrected; §Changelog row appended
+- BC-2.16.011 v1.6 → v1.7: F-LP59-MED-001 §Architecture Anchors line 178 ADR-027 framing label corrected; §Changelog row appended
+- HS-PREREQ-E-002 v1.4 → v1.5: F-LP59-MED-001 §Expected Outcome line 223 ADR-027 framing label corrected; §Changelog row appended
+- STORY-INDEX v2.129 → v2.130: story row v1.25 → v1.26; §Changelog row appended
+
+### FB47 State-Manager Burst
+
+- Pass-59 report persisted: cycles/wave-4-operations/adversarial-reviews/S-PLUGIN-PREREQ-E-spec-pass-59.md
+- BC-INDEX v5.00 → v5.01: BC-2.16.011 row v1.6 → v1.7; §Changelog row appended
+- ARCH-INDEX v2.61 → v2.62: ADR-026 row v1.16 → v1.17; §Changelog row appended
+- STATE.md v7.355 → v7.356; SESSION-HANDOFF.md v7.355 → v7.356; SESSION-D664-TASKS.md v1.4 → v1.5
+- VP-INDEX v1.53 unchanged (no VP bumped this burst)
+- verification-architecture + verification-coverage-matrix: no stale ADR-026/ADR-027/BC-2.16.011 version pins for bumped versions found — no update required
+
+### POL-29 Codification Evidence (#16+)
+
+3 self-introduced FB46 defects in pass-59 is the most concentrated within-FB-introduces-defect cluster to date. All trace to FB46 PO §References + risk_mitigations expansion + FB46 architect ADR-027 title rewrite that did not sibling-sweep downstream cross-cites. Cycle-close codification queue item 9 (POL-29 candidate) continues to accumulate evidence; formal codification deferred to cycle-close per S-7.02.
+
+### Streak Status + Next Action
+
+Streak: 0/3 unchanged (2 HIGH + 1 MED block convergence). Pass-60 dispatch-ready. Vector rotation continues; CAP audit + test-number cross-check vectors exhausted — do not re-use.
+
+### Pinned Artifact Versions (PREREQ-E 22-artifact set — post-D-669)
+
+Story v1.26 | BC-2.01.016 v1.7 | BC-2.16.011 v1.7 | BC-2.16.012 v1.18 | BC-2.16.002 v1.23 | ADR-026 v1.17 | ADR-022 v1.4 | ADR-027 v1.8 | VP-153 v0.9 | VP-154 v0.6 | VP-155 v0.5 | VP-156 v0.10 | HS-PREREQ-E-001 v1.4 | HS-PREREQ-E-002 v1.5 | HS-PREREQ-E-003 v1.7 | error-taxonomy v1.31 | ARCH-INDEX v2.62 | VP-INDEX v1.53 | STORY-INDEX v2.130 | BC-INDEX v5.01 | verification-architecture v1.41 | verification-coverage-matrix v1.38
+
+STATE.md v7.356; SESSION-HANDOFF.md v7.356; prereq_e_adversary_streak **0/3** (pass-59 BLOCKED — 2 HIGH F-LP59-HIGH-001 CAP-029 mis-anchor + F-LP59-HIGH-002 risk_mitigations renumbering drift + 1 MED F-LP59-MED-001 ADR-027 "deprecation" framing 5-site sibling-sweep + 1 OBS; novelty HIGH; POL-29 #16+; FB47 architect+PO+SM multi-agent closure; streak 0/3 unchanged; 175th consecutive single-commit TD-VSDD-053 STABLE; pass-60 dispatch-ready).
