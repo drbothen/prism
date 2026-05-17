@@ -23,8 +23,8 @@ crates_touched: [prism-sensors, prism-spec-engine, prism-query, prism-bin]
 target_module: prism-sensors
 subsystems: [SS-01, SS-07, SS-16, SS-17, SS-22]
 capabilities: [CAP-001, CAP-029]
-version: "1.26"
-modified: "2026-05-16"
+version: "1.27"
+modified: "2026-05-17"
 level: "L4"
 producer: product-owner
 timestamp: "2026-05-16T00:00:00Z"
@@ -66,7 +66,7 @@ assumption_validations:
 risk_mitigations:
   - "AC-1..3c: SensorAuth unsealing is pure deletion + per-test-fixture credential-validation coverage. Risk: E-SPEC-012/013/014 regression at credential-validation pass. Mitigation: AC-3 + AC-3b + AC-3c Red Gate tests assert error-on-invalid (Test 3, 4, 5)."
   - "AC-4..6: CustomAdapter deletion confirmed safe by PLUGIN-AUDIT-001 (zero external consumers); behavioral-equivalence between CrowdStrikeSession registry-dispatch vs legacy CustomAdapter::call_action verified via VP-154 + Red Gate Tests 6-7. Risk: registry-dispatch hot-path regression. Mitigation: VP-154 + AC-6 holdout HS-PREREQ-E-002-06 frontmatter verification."
-  - "AC-7..8: spec_parser.rs migration verified by behavioral-equivalence integration test; lib.rs re-export removal verified by perimeter-violation compile-fail tests/external/perimeter-violation. Risk: type-name collision with shadow enum or stale callsite. Mitigation: AC-7 Red Gate Test 8 + AC-8 Red Gate Test 9 sibling-sweep checks."
+  - "AC-7..8: spec_parser.rs migration verified by behavioral-equivalence integration test; lib.rs re-export removal verified by perimeter-violation compile-fail style pattern (style reference: existing `tests/external/perimeter-violation/` crate; VP-155 CustomAdapter perimeter authored at `tests/external/no-hardcoded-sensors/` in PLUGIN-MIGRATION-001-A scope per ADR-027 D3). Risk: type-name collision with shadow enum or stale callsite. Mitigation: AC-7 Red Gate Test 8 + AC-8 Red Gate Test 9 sibling-sweep checks."
   - "AC-9: TD-S-PLUGIN-PREREQ-A-003 closure via RwLock<Vec<WriteToolInvalidationMap>> + AtomicBool query-phase flag. Risk: post-boot register_write_tool() leaks past production call-site gate. Mitigation: AC-9 third-test asserts public-API `mark_query_phase_started()` invocation (FB45 hardening) + WARN tracing event field schema per BC-2.16.002 row 33 (Red Gate Test 13)."
   - "AC-10: full build and pre-push gate, single squash-merge commit. Risk: partial commits in feature branch before final squash; lefthook hook bypass. Mitigation: AC-10 production-grade gate asserts `just check` clean pre-push (process gate, not a Red Gate test); pre-commit hook enforces fmt+clippy+layout per lefthook.yml."
   - "AC-11: E-SPEC-008 retirement annotation in error-taxonomy.md. Risk: annotation may regress if E-SPEC-008 is reintroduced post-merge via new code path. Mitigation: AC-11 Red Gate Test 14 (`test_BC_2_16_011_e_spec_008_retired_annotation`) asserts `retired_in: S-PLUGIN-PREREQ-E (error-taxonomy.md v1.31)` and grep-gate for `E-SPEC-008` outside the retired entry. ID preserved per append_only_numbering (POL-1)."
@@ -509,6 +509,7 @@ Tech debt closed:
 
 | Version | Burst | Date | Author | Change |
 |---------|-------|------|--------|--------|
+| 1.27 | FB48 | 2026-05-17 | product-owner | F-LP60-LOW-001 closure: §risk_mitigations AC-7..8 prose disambiguated — "lib.rs re-export removal verified by perimeter-violation compile-fail tests/external/perimeter-violation" rewritten to "...style pattern (style reference: existing `tests/external/perimeter-violation/` crate; VP-155 CustomAdapter perimeter authored at `tests/external/no-hardcoded-sensors/` in PLUGIN-MIGRATION-001-A scope per ADR-027 D3)" — production-grade default Rule 4 Option (a) chosen by orchestrator. |
 | 1.26 | FB47 | 2026-05-16 | product-owner | F-LP59-HIGH-001 closure: CAP-029 label corrected to "Config-Driven Sensor Adapters" per capabilities.md canonical source (FB46 §References expansion had wrong label). F-LP59-HIGH-002 closure: risk_mitigations AC-10 entry rewritten to remove phantom Red Gate Test 10 citation (just check is process gate, not Red Gate test); AC-11 entry Red Gate Test 11 → Test 14 (test_BC_2_16_011_e_spec_008_retired_annotation per FB39 renumbering). OBS-LP59-001 closure: AC-9 mitigation appends Red Gate Test 13 citation for stylistic consistency. F-LP59-MED-001 closure (story sites): frontmatter:50 + §References:487 ADR-027 framing label updated to "Same-Burst Removal — Perimeter Enforcement" per ADR-027 v1.8 title. |
 | 1.23 | FB44 | 2026-05-16 | product-owner | Architecture Compliance Rule + Task 7b + AC-9 third-test + crates_touched updated per F-LP56-HIGH-001 architect Option A adjudication (ADR-026 D7 v1.15 + BC-2.16.012 v1.17 + VP-156 v0.9). prism-bin added to crates_touched. Single designated boot.rs insertion point: `prism_query::invalidation::mark_query_phase_started();` first statement of step-8 before `QueryEngine::new()`. |
 | 1.25 | FB46 | 2026-05-16 | product-owner | F-LP58-HIGH-002 closure: HS-003-05 Step 1 + Preconditions canonicalized to public-API call site per AC-9 third-test gate (FB45 hardening). F-LP58-MED-002 closure: §References expansion (BC-2.16.002 + error-taxonomy.md + capabilities). F-LP58-MED-003 closure: risk_mitigations expanded to AC-3b/3c/10/11 (recurrence of OBS-LP54-002). OBS-LP58-001 closure: Task 7d reformatted to numbered convention. POL-23 sibling-sweep ADR-027 v1.7→v1.8 (and BC-2.16.011/VP-154/VP-155 architect-parallel pins) live-narrative updates. |

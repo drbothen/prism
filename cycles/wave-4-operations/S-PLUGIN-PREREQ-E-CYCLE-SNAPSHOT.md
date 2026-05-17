@@ -3551,4 +3551,59 @@ Streak: 0/3 unchanged (2 HIGH + 1 MED block convergence). Pass-60 dispatch-ready
 
 Story v1.26 | BC-2.01.016 v1.7 | BC-2.16.011 v1.7 | BC-2.16.012 v1.18 | BC-2.16.002 v1.23 | ADR-026 v1.17 | ADR-022 v1.4 | ADR-027 v1.8 | VP-153 v0.9 | VP-154 v0.6 | VP-155 v0.5 | VP-156 v0.10 | HS-PREREQ-E-001 v1.4 | HS-PREREQ-E-002 v1.5 | HS-PREREQ-E-003 v1.7 | error-taxonomy v1.31 | ARCH-INDEX v2.62 | VP-INDEX v1.53 | STORY-INDEX v2.130 | BC-INDEX v5.01 | verification-architecture v1.41 | verification-coverage-matrix v1.38
 
+---
+
+## §D-670 FB48 SINGLE-COMMIT CLOSURE — PASS-60 BLOCKED → REMEDIATED (2026-05-17)
+
+**D-670 — 2026-05-17 — STATE v7.357 — 176th consecutive single-commit (TD-VSDD-053 STABLE)**
+
+Pass-60 BLOCKED: 1 HIGH (F-LP60-HIGH-001 BC-2.16.012 §Changelog row ordering violation — 4th recurrence of POL-26 monotonic-ordering defect class) + 1 LOW (F-LP60-LOW-001 story §risk_mitigations AC-7..8 path-citation ambiguity) + 1 OBS (OBS-LP60-001 BC-INDEX header/row schema asymmetry). Streak unchanged 0/3. FB48 PO+state-manager multi-agent closed 2 findings in-scope; OBS queued cycle-close. POL-29 codification candidate evidence #17+.
+
+### F-LP60-HIGH-001 Closure — BC-2.16.012 §Changelog Row Reorder (State-Manager Bookkeeping)
+
+BC-2.16.012 §Changelog had rows v1.16 (FB37) / v1.17 (FB44) / v1.18 (FB45) in ASCENDING order at top — violating the DESCENDING (newest-on-top) convention used by sibling BCs (BC-2.01.016, BC-2.16.011). 3-burst-cumulative gap: FB37 appended v1.16 (correct position at time), FB44 appended v1.17 below v1.16 (wrong), FB45 appended v1.18 below v1.17 (wrong). 4th recurrence of POL-26 monotonic-ordering defect class.
+
+State-manager repair (per D-611/D-628/D-635/D-659 precedent, POL-26 corollary):
+- Rows v1.16/v1.17/v1.18 moved to descending position (newest-on-top)
+- Row TEXT preserved per POL-26 corollary (rows immutable; position is bookkeeping)
+- BC-2.16.012 v1.18 → v1.19 bookkeeping bump; new §Changelog row v1.19 added at top
+- §Changelog final order: v1.19 → v1.18 → v1.17 → v1.16 → v1.15 → ... → v1.0 (strictly descending)
+
+### F-LP60-LOW-001 Closure — Story §risk_mitigations AC-7..8 Path-Citation Disambiguation (PO)
+
+Story v1.26 §risk_mitigations ambiguously cited "perimeter-violation compile-fail tests/external/perimeter-violation" as a path designation for AC-7..8. VP-155 / ADR-027 D3 designate `tests/external/no-hardcoded-sensors/` (PLUGIN-MIGRATION-001-A scope) for CustomAdapter compile-fail enforcement.
+
+PO closure Option (a): added "(style reference: existing tests/external/perimeter-violation/ crate; VP-155 CustomAdapter perimeter authored at tests/external/no-hardcoded-sensors/ in PLUGIN-MIGRATION-001-A scope per ADR-027 D3)" prefix. Story v1.26 → v1.27.
+
+### OBS-LP60-001 Cycle-Close Queued
+
+BC-INDEX header declares 6 columns; 10 of 217 rows carry a 7th "Version" column. Pre-existing 59-pass-surviving pattern across non-PREREQ-E BCs. Queued as Codification Queue item 12; non-blocking for pass-61.
+
+### POL-29 Codification Candidate Evidence (#17+)
+
+F-LP60-HIGH-001 is the 17th+ within-FB sibling-sweep or post-FB cumulative-ordering defect in this cascade. F-LP60-HIGH-001 traces directly to FB37+FB44+FB45 each appending a §Changelog row without verifying the resulting table's sort order — an ordering-discipline gap orthogonal to the cite-pin/phrasing-form family. Cycle-close codification of POL-29 overwhelmingly justified.
+
+### FB48 Artifact Changes
+
+**State-Manager burst:**
+- BC-2.16.012 v1.18 → v1.19: §Changelog rows v1.16/v1.17/v1.18 moved to descending top; v1.19 row added; frontmatter version + modified bumped
+- BC-INDEX v5.01 → v5.02: BC-2.16.012 row v1.18 → v1.19; Last Modified 2026-05-17; §Changelog row v5.02 added
+- Pass-60 report persisted: cycles/wave-4-operations/adversarial-reviews/S-PLUGIN-PREREQ-E-spec-pass-60.md
+
+**PO burst (pre-staged):**
+- Story S-PLUGIN-PREREQ-E v1.26 → v1.27: §risk_mitigations AC-7..8 "(style reference)" prefix disambiguation
+- STORY-INDEX v2.130 → v2.131: story row v1.26 → v1.27
+
+**State-manager bookkeeping:**
+- STATE.md v7.356 → v7.357; SESSION-HANDOFF.md v7.356 → v7.357; SESSION-D664-TASKS.md v1.5 → v1.6
+- CYCLE-SNAPSHOT §D-670 appended (this section)
+
+### Streak Status + Next Action
+
+Streak: 0/3 unchanged (1 HIGH + 1 LOW block convergence; novelty MEDIUM-HIGH). Pass-61 dispatch-ready (5th pass of restart-9 sequence). Vector rotation continues; §Changelog ordering + AC-7..8 path-citation vectors now exhausted — do not re-use.
+
+### Pinned Artifact Versions (PREREQ-E 22-artifact set — post-D-670)
+
+Story v1.27 | BC-2.01.016 v1.7 | BC-2.16.011 v1.7 | BC-2.16.012 v1.19 | BC-2.16.002 v1.23 | ADR-026 v1.17 | ADR-022 v1.4 | ADR-027 v1.8 | VP-153 v0.9 | VP-154 v0.6 | VP-155 v0.5 | VP-156 v0.10 | HS-PREREQ-E-001 v1.4 | HS-PREREQ-E-002 v1.5 | HS-PREREQ-E-003 v1.7 | error-taxonomy v1.31 | ARCH-INDEX v2.62 | VP-INDEX v1.53 | STORY-INDEX v2.131 | BC-INDEX v5.02 | verification-architecture v1.41 | verification-coverage-matrix v1.38
+
 STATE.md v7.356; SESSION-HANDOFF.md v7.356; prereq_e_adversary_streak **0/3** (pass-59 BLOCKED — 2 HIGH F-LP59-HIGH-001 CAP-029 mis-anchor + F-LP59-HIGH-002 risk_mitigations renumbering drift + 1 MED F-LP59-MED-001 ADR-027 "deprecation" framing 5-site sibling-sweep + 1 OBS; novelty HIGH; POL-29 #16+; FB47 architect+PO+SM multi-agent closure; streak 0/3 unchanged; 175th consecutive single-commit TD-VSDD-053 STABLE; pass-60 dispatch-ready).

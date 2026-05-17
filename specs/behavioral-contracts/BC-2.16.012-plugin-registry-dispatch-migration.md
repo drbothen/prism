@@ -1,7 +1,7 @@
 ---
 document_type: behavioral-contract
 level: L3
-version: "1.18"
+version: "1.19"
 status: draft
 producer: product-owner
 timestamp: 2026-05-16T00:00:00Z
@@ -11,7 +11,7 @@ subsystem: "SS-16"
 capability: "CAP-029"
 lifecycle_status: draft
 introduced: "2026-05-15"
-modified: "2026-05-16"
+modified: "2026-05-17"
 deprecated: ~
 deprecated_by: ~
 replacement: ~
@@ -160,9 +160,10 @@ S-PLUGIN-PREREQ-E
 
 | Version | Burst | Date | Author | Change |
 |---------|-------|------|--------|--------|
-| 1.16 | FB37 | 2026-05-16 | product-owner | F-LP47-HIGH-001 EC-016-012-005 AtomicBool set-time corrected from "set when query engine init completes at step 8" to canonical "set when query engine init starts at step 8 — as the first act of step 8, before QueryEngine construction proceeds, per ADR-026 §D7"; semantic match with BC-2.16.002 row 33 v1.21 + HS-PREREQ-E-003-05 v1.6. F-LP47-MED-002 §Architecture Anchors expanded: ADR-026 §D7 (write-tool runtime extensibility / RwLock / register_write_tool / AtomicBool / E-PLUGIN-012/020) and ADR-027 §D5 (hardcoded-sensor-string dispatch audit) added; was ADR-023 only; restores cross-cite symmetry with sibling BC-2.01.016/2.16.011 which both anchor 2 ADRs. |
-| 1.17 | FB44 | 2026-05-16 | architect | EC-016-012-005: F-LP56-HIGH-001 designation — AtomicBool flag is set by `prism_query::invalidation::mark_query_phase_started()` invoked as the first statement of step-8 in `crates/prism-bin/src/boot.rs` immediately before `QueryEngine::new()` (mirrors ADR-026 v1.15). §Architecture Anchors: ADR-026 §D7 cite advanced to v1.15 with explicit boot.rs call-site designation (F-LP56-HIGH-001 Option A). |
+| 1.19 | FB48 | 2026-05-17 | state-manager | F-LP60-HIGH-001 closure: §Changelog row ORDERING repair — v1.16/v1.17/v1.18 rows moved to descending position (newest-on-top); content unchanged per POL-26 corollary (rows immutable; position is bookkeeping per D-611/D-628/D-635/D-659 precedent). |
 | 1.18 | FB45 | 2026-05-16 | architect | FB45 sibling-sweep: ADR-026 v1.15→v1.16 pin sweep — §Postconditions field-source cite, EC-016-012-005 body cite, §Verification Properties VP-156 row cite, §Architecture Anchors ADR-026 §D7 cite all advanced from v1.15 to v1.16. Closes POL-23 recurrence triggered by FB45 ADR-026 v1.16 bump. |
+| 1.17 | FB44 | 2026-05-16 | architect | EC-016-012-005: F-LP56-HIGH-001 designation — AtomicBool flag is set by `prism_query::invalidation::mark_query_phase_started()` invoked as the first statement of step-8 in `crates/prism-bin/src/boot.rs` immediately before `QueryEngine::new()` (mirrors ADR-026 v1.15). §Architecture Anchors: ADR-026 §D7 cite advanced to v1.15 with explicit boot.rs call-site designation (F-LP56-HIGH-001 Option A). |
+| 1.16 | FB37 | 2026-05-16 | product-owner | F-LP47-HIGH-001 EC-016-012-005 AtomicBool set-time corrected from "set when query engine init completes at step 8" to canonical "set when query engine init starts at step 8 — as the first act of step 8, before QueryEngine construction proceeds, per ADR-026 §D7"; semantic match with BC-2.16.002 row 33 v1.21 + HS-PREREQ-E-003-05 v1.6. F-LP47-MED-002 §Architecture Anchors expanded: ADR-026 §D7 (write-tool runtime extensibility / RwLock / register_write_tool / AtomicBool / E-PLUGIN-012/020) and ADR-027 §D5 (hardcoded-sensor-string dispatch audit) added; was ADR-023 only; restores cross-cite symmetry with sibling BC-2.01.016/2.16.011 which both anchor 2 ADRs. |
 | 1.15 | prereq-e-fix-burst-17 | 2026-05-16 | product-owner | F-LP18-HIGH-001 9TH MANIFESTATION BC-2.16.002 citation defect family at NEW close-paren placement sub-dimension: §Edge Cases EC-016-012-005 line 109 close-paren moved from `bullet, v1.20 row 33)` to `bullet, v1.20) row 33` matching canonical workspace pattern at line 84 of same BC + error-taxonomy:467/473 + story:170/238/345. COMPREHENSIVE 5-sub-dimension workspace POL-25 grep applied (version-pin + bullet-label + anchor-BC + phrasing-form + close-paren) to enumerate all known defect dimensions. |
 | 1.14 | prereq-e-fix-burst-14 | 2026-05-16 | state-manager | F-LP15-MED-001 — Changelog renumber-repair-redo: state-manager catch row (FB1 F-LP1-HIGH-004 POL-20 sibling) advances v1.2 → v1.3; all subsequent rows shifted monotonically (v1.3→v1.4 through v1.12→v1.13 through v1.13→v1.14 total). POL-26 monotonic strict-ordering violation pre-existing FB1 (invisible to passes 1-14) now resolved. Identical defect class to VP-156 F-LP5-HIGH-003 FB5 closure (BC-2.16.012 sibling missed in that sweep). BC-2.16.012 frontmatter v1.12→v1.14 (v1.13 consumed by shifted PO D-610 prereq-e-fix-burst-14 row; v1.14 is next non-colliding version). |
 | 1.13 | prereq-e-fix-burst-14 | 2026-05-16 | product-owner | F-LP15-HIGH-001 sibling-sweep companion: §Postconditions + EC-016-012-005 cites of BC-2.16.002 §Postconditions Canonical Structured Event Catalog bullet advance (v1.19)→(v1.20) per BC-2.16.002 internal label sync in same burst. (Originally authored as v1.12 at D-610; renumbered to v1.13 by D-611 renumber-repair cascade shift.) |
