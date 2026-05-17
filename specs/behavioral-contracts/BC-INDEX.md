@@ -1,7 +1,7 @@
 ---
 document_type: behavioral-contract-index
 level: L3
-version: "4.98"
+version: "4.99"
 status: draft
 producer: product-owner
 timestamp: 2026-05-16T23:59:45Z
@@ -219,7 +219,7 @@ Phase 3-patch additions (2026-04-16): 22 new BCs added in Burst 1 to close trace
 | BC-2.16.009 | Spec File Validation — Schema Validation, Variable Reference Resolution, OCSF Field Validation | 16 - Spec Engine | CAP-029 | P0 | draft |
 | BC-2.16.010 | `list_sensor_specs` MCP Tool — List Loaded Sensor Specs with Table Schemas and Status | 16 - Spec Engine | CAP-029 | P0 | draft |
 | BC-2.16.011 | CustomAdapter Rust Trait Retirement — Removal of Trait, Registry, and All Call Sites | 16 - Spec Engine | CAP-029 | P0 | draft | v1.6 |
-| BC-2.16.012 | PluginRegistry Dispatch in spec_parser.rs — Hardcoded Sensor Names Replaced with Registry Lookup | 16 - Spec Engine | CAP-029 | P0 | draft | v1.16 |
+| BC-2.16.012 | PluginRegistry Dispatch in spec_parser.rs — Hardcoded Sensor Names Replaced with Registry Lookup | 16 - Spec Engine | CAP-029 | P0 | draft | v1.17 |
 | BC-2.17.001 | Plugin Panic Isolation — Crashed Plugin Does Not Terminate Host Process | 17 - WASM Plugin Runtime | CAP-032 | P0 | active (POL-14 auto-promotion D-568 S-PLUGIN-PREREQ-D merge PR #149 ec90fe8f 2026-05-15) | v1.4 |
 | BC-2.17.002 | Plugin Sandbox — No Direct Filesystem or Network Access | 17 - WASM Plugin Runtime | CAP-032 | P0 | active (POL-14 auto-promotion D-568 S-PLUGIN-PREREQ-D merge PR #149 ec90fe8f 2026-05-15) | v1.8 |
 | BC-2.17.003 | Plugin Sandbox — Memory Limit Enforced Per Plugin Instance (default 64MB) | 17 - WASM Plugin Runtime | CAP-032 | P0 | active (POL-14 auto-promotion D-568 S-PLUGIN-PREREQ-D merge PR #149 ec90fe8f 2026-05-15) | v1.5 |
@@ -368,6 +368,8 @@ Phase 3-patch additions (2026-04-16): 22 new BCs added in Burst 1 to close trace
 - Subsystem 19: Infusion Enrichment Framework (AD-020, CAP-031)
 
 ### Change Log (Adversarial Review Fixes)
+
+**v4.99 (2026-05-16):** state-manager | FB44 | BC-2.16.012 v1.16→v1.17 (F-LP56-HIGH-001 EC-016-012-005 production call-site designation; ADR-026 D7 pin v1.10→v1.15 sibling-sweep)
 
 **v4.98 (2026-05-16):** state-manager | FB43 D-663: F-LP54-HIGH-001 sibling-sweep — BC-2.16.002 row bumped v1.22→v1.23 reflecting Fork B canonical rule clarification (POL-30 established FB42 D-662). v4.97 row's "synced with frontmatter v1.21; 9th POL-23 catalog-bullet-label sub-class manifestation" framing was Fork-A-aligned; Fork B canonical rule recognizes bullet-version-label tracks catalog-content-version INDEPENDENT of BC frontmatter. Under Fork B, FB41 fix remains correct (bullet (v1.21) reflects catalog state after FB37 row 33 addition); the "9-recurrence catalog-bullet sub-class" is retrospectively closed as not-a-real-defect-class under Fork B. v4.97 row preserved per POL-26 immutability; v4.98 corrective row supersedes.
 

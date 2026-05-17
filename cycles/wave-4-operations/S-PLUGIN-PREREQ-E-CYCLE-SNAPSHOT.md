@@ -3354,3 +3354,51 @@ Shorthand append: →pass-55:CLEAN★(0 findings; 2 non-blocking OBS — OBS-LP5
 Story v1.22 | BC-2.01.016 v1.7 | BC-2.16.011 v1.6 | BC-2.16.012 v1.16 | BC-2.16.002 v1.23 | ADR-026 v1.14 | ADR-027 v1.7 | VP-153 v0.9 | VP-154 v0.6 | VP-155 v0.5 | VP-156 v0.8 | HS-PREREQ-E-001 v1.4 | HS-PREREQ-E-002 v1.4 | HS-PREREQ-E-003 v1.6 | error-taxonomy v1.31 | ARCH-INDEX v2.58 | VP-INDEX v1.51 | STORY-INDEX v2.126 | BC-INDEX v4.98 | verification-architecture v1.41 | verification-coverage-matrix v1.38
 
 STATE.md v7.352; SESSION-HANDOFF.md v7.352; prereq_e_adversary_streak **1/3** (pass-55 CLEAN★; streak 0/3→1/3; 4th CLEAN of cascade; OBS-LP55-001 dispatch-table fix applied; OBS-LP55-002 [process-gap] cycle-close-deferred; 171st consecutive single-commit TD-VSDD-053 STABLE; pass-56 dispatch-ready).
+
+## §D-666 — FB44 Single-Commit Closure (172nd Consecutive Single-Commit)
+
+**Verdict:** BLOCKED — 1 HIGH (F-LP56-HIGH-001)
+**Streak:** 1/3 → **0/3** (10th recurrence of the streak-reset pattern; pass-57 begins fresh 9th-attempt-restart sequence)
+**Sequence attempt:** 9th (within 7th cascade cycle)
+**Date:** 2026-05-16
+**Burst type:** FB44 multi-file spec fix (architect + PO staged; state-manager derivative indexes + pass report + state bookkeeping)
+
+### Finding: F-LP56-HIGH-001
+
+Production call site for `mark_query_phase_started()` was unspecified. Task 7b required the flag to be set "as the first act of step 8, before any QueryEngine construction proceeds" — which maps to `crates/prism-bin/src/boot.rs`. However, the story's Architecture Compliance Rule explicitly forbade boot.rs modification AND `crates_touched` did not enumerate prism-bin. The rule was self-defeating: it simultaneously required a temporal guarantee ("before QueryEngine construction") AND prohibited the only code location that executes before QueryEngine construction. Consequence: `QUERY_PHASE_STARTED` AtomicBool remains `false` for the lifetime of every production process; E-PLUGIN-020 post-boot registration rejection is unreachable in production; AC-9 third test passes via in-test direct invocation only (TD-VSDD-059 paper-fix territory).
+
+**Novelty:** HIGH — structural call-graph defect orthogonal to the cite-pin / phrasing-form / bullet-label / changelog-cell defect family that dominated passes 27–55. Required call-graph reasoning not deployed in prior passes.
+
+### Architect Option A Adjudication
+
+Architect chose Option A: designate boot.rs as the permitted single-line modification site. Rationale: the Architecture Compliance Rule was authored in FB36 to prevent scope creep; Task 7b was added subsequently and introduced a boot-sequence obligation the rule did not anticipate. Option A treats the call as a wiring obligation belonging in boot.rs per CLAUDE.md "wiring not redesign" Standing Rule 3 §4 — adding a single designated insertion point is wiring, not redesign.
+
+### PO Propagation Summary
+
+- **Architecture Compliance Rule replaced** — boot.rs MAY have ONE designated insertion for `mark_query_phase_started()` call (replaces blanket prohibition)
+- **Task 7b appended** — production-caller spec: invoked as first statement of boot.rs step-8 before `QueryEngine::new()`
+- **AC-9 third test rewritten** — requires invocation via public `mark_query_phase_started()` + WARN event emission assertion (not in-test direct invocation)
+- **crates_touched adds prism-bin**
+
+### Derivative Index Bumps (State-Manager Same-Burst per POL-9)
+
+- **BC-INDEX v4.98 → v4.99** — BC-2.16.012 row v1.16 → v1.17 + §Changelog row
+- **ARCH-INDEX v2.58 → v2.59** — ADR-026 row v1.14 → v1.15 + §Changelog row
+- **VP-INDEX v1.51 → v1.52** — VP-156 row v0.8 → v0.9 + §Changelog row
+- **verification-architecture.md** — no versioned pins found for VP-156 v0.8 or ADR-026 v1.14; no update required
+- **verification-coverage-matrix.md** — no versioned pins found; no update required
+
+| Metric | Post-D-665 | Post-D-666 |
+|--------|------------|------------|
+| Pass count | 55 | 56 |
+| Streak | 1/3 | 0/3 (10th reset) |
+| Last verdict | CLEAN★ pass-55 | BLOCKED pass-56 → FB44 CLOSED |
+| Consecutive single-commits | 171 | 172 |
+
+Shorthand append: →pass-56:BLOCKED(0C+1H+0M+0L+0OBS; F-LP56-HIGH-001 production call-graph defect production call-site unspecified + Architecture Compliance Rule self-defeating; novelty HIGH; streak 1/3→0/3 10th reset; architect Option A: boot.rs MAY ONE designated insertion)→FB44-CLOSED(1/1 in-scope HIGH; ADR-026 v1.15 + BC-2.16.012 v1.17 + VP-156 v0.9 + story v1.23 + STORY-INDEX v2.127 + 3 derivative indexes; 172nd consecutive single-commit)
+
+### Pinned Artifact Versions (PREREQ-E 21-artifact set — post-D-666)
+
+Story v1.23 | BC-2.01.016 v1.7 | BC-2.16.011 v1.6 | BC-2.16.012 v1.17 | BC-2.16.002 v1.23 | ADR-026 v1.15 | ADR-027 v1.7 | VP-153 v0.9 | VP-154 v0.6 | VP-155 v0.5 | VP-156 v0.9 | HS-PREREQ-E-001 v1.4 | HS-PREREQ-E-002 v1.4 | HS-PREREQ-E-003 v1.6 | error-taxonomy v1.31 | ARCH-INDEX v2.59 | VP-INDEX v1.52 | STORY-INDEX v2.127 | BC-INDEX v4.99 | verification-architecture v1.41 | verification-coverage-matrix v1.38
+
+STATE.md v7.353; SESSION-HANDOFF.md v7.353; prereq_e_adversary_streak **0/3** (pass-56 BLOCKED — F-LP56-HIGH-001 production call-graph defect; FB44 CLOSED via architect Option A; boot.rs designated insertion site; ADR-026 v1.15 + BC-2.16.012 v1.17 + VP-156 v0.9 + story v1.23; streak 1/3→0/3 10th recurrence; 172nd consecutive single-commit TD-VSDD-053 STABLE; pass-57 dispatch-ready; fresh 9th-attempt-restart sequence begins).
