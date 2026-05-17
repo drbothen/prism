@@ -3656,4 +3656,80 @@ Streak: 0/3 unchanged (1 HIGH + 1 MED block convergence; novelty MEDIUM). Pass-6
 
 Story v1.28 | BC-2.01.016 v1.7 | BC-2.16.011 v1.7 | BC-2.16.012 v1.19 | BC-2.16.002 v1.23 | ADR-026 v1.17 | ADR-022 v1.4 | ADR-027 v1.8 | VP-153 v0.9 | VP-154 v0.6 | VP-155 v0.5 | VP-156 v0.10 | HS-PREREQ-E-001 v1.4 | HS-PREREQ-E-002 v1.5 | HS-PREREQ-E-003 v1.7 | error-taxonomy v1.31 | ARCH-INDEX v2.62 | VP-INDEX v1.53 | STORY-INDEX v2.132 | BC-INDEX v5.02 | verification-architecture v1.41 | verification-coverage-matrix v1.38
 
+---
+
+## §D-672 FB50 MULTI-AGENT CLOSURE + POL-29 CODIFICATION — PASS-62 BLOCKED → REMEDIATED
+
+**D-672 — 2026-05-17 — STATE v7.359 — 178th consecutive single-commit (TD-VSDD-053 STABLE)**
+
+### Pass-62 Verdict
+
+BLOCKED. 0 HIGH + 1 MED + 2 LOW. Streak 0/3 unchanged. Trend signal: 0 HIGH — first pass without a HIGH finding since pass-55.
+
+### F-LP62-MED-001 Closure — Story §risk_mitigations AC-5 Mechanism Orphan (PO)
+
+Story v1.28 §risk_mitigations AC-7..8 entry contained a lib.rs re-export removal sentence belonging to AC-5 (Three Call Sites Cleaned). AC-5 was named in AC-4..6 range label but had no mechanism cited there. FB48/FB49 successive edits of §risk_mitigations did not detect the AC-5 orphan — POL-29 codification evidence #19 (within-burst sweep gap: fixing AC-4..6 content in FB49 did not audit neighboring AC ranges for orphaned mechanisms).
+
+PO closed: AC-5 mechanism repositioned from AC-7..8 entry to AC-4..6 entry; AC-7..8 entry refocused to spec_parser.rs path citation + behavioral-equivalence verification context (VP-153 + Tests 12-13).
+
+### OBS-LP62-001 Closure — HS-002 §Failure Conditions Parenthetical Stale Reasoning (PO)
+
+HS-002 line 230 §Failure conditions parenthetical stated "ADR-023 is not the unsealing decision" — incoherent framing (ADR-026 is the unsealing decision; ADR-023 Rule 5 is the deprecation philosophy parent that ADR-026 operationalizes). FB36 corrected the §Expected Outcome sibling parenthetical at line 223 but not the §Failure conditions parenthetical — POL-29 codification evidence #20 (within-burst sibling-class sweep gap: §Expected Outcome and §Failure conditions are sibling sections of the same HS step; fixing one without sweeping the other is a within-burst gap).
+
+PO closed: parenthetical at line 230 rewritten to canonical "ADR-027 is operational deletion mandate; ADR-023 Rule 5 is parent deprecation philosophy".
+
+### OBS-LP62-002 Closure — D7 Pin Split (Architect + PO per Interpretation #2)
+
+Story body D7 pins inconsistent: 5 sites at v1.10 (FB12 era) or v1.16 (FB44 era); ADR-026 now v1.17 (FB47 row-edit). Two interpretation paths evaluated:
+
+- Interpretation #1: citation captures the revision-version at which the rule was authored — pins remain at their historical version
+- Interpretation #2: citation follows latest ADR — all pins advance to current v1.17
+
+Orchestrator chose Interpretation #2 per production-grade default Rule 4 (do not default to the cheaper path). 17-site sweep across 6 artifacts:
+- Architect: BC-2.16.012 v1.19→v1.20 (3 pins), VP-156 v0.10→v0.11 (4 pins), ADR-022 v1.4→v1.5 (1 pin), BC-2.16.002 v1.23→v1.24 (1 pin) = 9 architect-domain sites
+- PO: story v1.28→v1.29 (5 pins), HS-003 v1.7→v1.8 (3 pins) = 8 PO-domain sites
+
+### POL-29 Codification — Structural Intervention
+
+**POL-29 (within_fb_sibling_sweep_discipline) codified into .factory/policies.yaml v1.12 at this burst per user direction at D-671 checkpoint.**
+
+Cycle-close queue item 9 (POL-29 candidate, 19+ recurrences across passes 37-62) promoted to active policy. Key attributes:
+- Severity: HIGH
+- Scope: 14 artifact-type-tags
+- Enforcement: adversary-prompt, product-owner-self-check, architect-self-check, state-manager
+- Verification: workspace-wide grep for old value required; sweep count must be reported in §Changelog narrative; state-manager blocks commit if no sweep report present
+
+Evidence base finalized: 19+ recurrences across passes 37-62, each consuming a full pass + fix-burst cycle and resetting the 3-CLEAN streak. Estimated effect: 70-80% reduction in within-FB sibling-sweep finding recurrence going forward.
+
+### FB50 Artifact Changes
+
+**Architect burst (pre-staged):**
+- BC-2.16.012 v1.19 → v1.20: 3 D7 v1.16/v1.10 → v1.17 sweep + §Changelog row
+- VP-156 v0.10 → v0.11: 4 D7 v1.16/v1.10 → v1.17 sweep + §Changelog row
+- ADR-022 v1.4 → v1.5: 1 D7 v1.16 → v1.17 sweep + §Changelog row
+- BC-2.16.002 v1.23 → v1.24: 1 D7 v1.10 → v1.17 sweep + §Changelog row
+
+**PO burst (pre-staged):**
+- Story S-PLUGIN-PREREQ-E v1.28 → v1.29: F-LP62-MED-001 AC-5 mechanism reposition + 5 D7 pins v1.10/v1.16 → v1.17 + §Changelog row
+- HS-PREREQ-E-002 v1.5 → v1.6: OBS-LP62-001 §Failure conditions parenthetical correction + §Changelog row
+- HS-PREREQ-E-003 v1.7 → v1.8: 3 D7 v1.10/v1.16 → v1.17 sweep + §Changelog row
+- STORY-INDEX v2.132 → v2.133: story row v1.28→v1.29 + §Changelog row
+
+**State-manager burst:**
+- policies.yaml v1.11 → v1.12: POL-29 entry added + metadata.changelog row
+- Pass-62 report persisted: cycles/wave-4-operations/adversarial-reviews/S-PLUGIN-PREREQ-E-spec-pass-62.md
+- BC-INDEX v5.02 → v5.03: BC-2.16.012 row v1.19→v1.20 + BC-2.16.002 row v1.23→v1.24 + §Changelog row
+- VP-INDEX v1.53 → v1.54: VP-156 row v0.10→v0.11 + §Changelog row
+- ARCH-INDEX v2.62 → v2.63: ADR-022 row v1.4→v1.5 + §Changelog row
+- STATE.md v7.358 → v7.359; SESSION-HANDOFF.md v7.358 → v7.359; SESSION-D664-TASKS.md v1.7 → v1.8
+- CYCLE-SNAPSHOT §D-672 appended (this section)
+
+### Streak Status + Next Action
+
+Streak: 0/3 unchanged (1 MED + 2 LOW block convergence; novelty MEDIUM; trend 0 HIGH first since pass-55). Pass-63 dispatch-ready (7th pass of restart-9 sequence). Vector rotation continues under POL-29 active discipline. §risk_mitigations AC-range orphan + HS §Failure-conditions vectors now exhausted — do not re-use.
+
+### Pinned Artifact Versions (PREREQ-E 23-artifact set — post-D-672)
+
+Story v1.29 | BC-2.01.016 v1.7 | BC-2.16.011 v1.7 | BC-2.16.012 v1.20 | BC-2.16.002 v1.24 | ADR-026 v1.17 | ADR-022 v1.5 | ADR-027 v1.8 | VP-153 v0.9 | VP-154 v0.6 | VP-155 v0.5 | VP-156 v0.11 | HS-PREREQ-E-001 v1.4 | HS-PREREQ-E-002 v1.6 | HS-PREREQ-E-003 v1.8 | error-taxonomy v1.31 | ARCH-INDEX v2.63 | VP-INDEX v1.54 | STORY-INDEX v2.133 | BC-INDEX v5.03 | policies.yaml v1.12 | verification-architecture v1.41 | verification-coverage-matrix v1.38
+
 STATE.md v7.356; SESSION-HANDOFF.md v7.356; prereq_e_adversary_streak **0/3** (pass-59 BLOCKED — 2 HIGH F-LP59-HIGH-001 CAP-029 mis-anchor + F-LP59-HIGH-002 risk_mitigations renumbering drift + 1 MED F-LP59-MED-001 ADR-027 "deprecation" framing 5-site sibling-sweep + 1 OBS; novelty HIGH; POL-29 #16+; FB47 architect+PO+SM multi-agent closure; streak 0/3 unchanged; 175th consecutive single-commit TD-VSDD-053 STABLE; pass-60 dispatch-ready).

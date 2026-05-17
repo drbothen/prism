@@ -8,10 +8,10 @@ must_pass: true
 priority: P0
 epic_id: "PLUGIN-MIGRATION-001"
 story_source: "S-PLUGIN-PREREQ-E"
-version: "1.5"
+version: "1.6"
 status: draft
 producer: product-owner
-timestamp: 2026-05-16T12:00:00Z
+timestamp: 2026-05-17T00:00:00Z
 phase: 4
 inputs: []
 input-hash: null
@@ -227,7 +227,7 @@ does not cause build failures.
 
 **Failure conditions:**
 
-- `deprecated_by: ADR-023` (wrong ADR — ADR-023 is not the unsealing decision)
+- `deprecated_by: ADR-023` (wrong ADR — ADR-027 is the operational deletion mandate per ADR-027 §Decision; ADR-023 Rule 5 is the parent deprecation philosophy that ADR-027 operationalizes)
 - `removed:` field absent or not a date string
 - `removal_reason:` field absent, or present with a different string (paraphrase is insufficient; the exact AC-6 string must be used)
 - `lifecycle_status:` not equal to `removed` (e.g., `deprecated` or `retired`)
@@ -253,6 +253,7 @@ When this holdout scenario is evaluated, the evaluator must produce:
 
 | Version | Burst | Date | Author | Change |
 |---------|-------|------|--------|--------|
+| 1.6 | FB50 | 2026-05-17 | product-owner | OBS-LP62-001 closure: §Failure conditions line 230 parenthetical justification corrected from "ADR-023 is not the unsealing decision" (incoherent — ADR-026 is the unsealing decision) to canonical "ADR-027 is the operational deletion mandate; ADR-023 Rule 5 is the parent deprecation philosophy" (sibling-sweep gap of FB36 §Expected Outcome correction). |
 | 1.5 | FB47 | 2026-05-16 | product-owner | §Expected Outcome line 223 parenthetical: ADR-027 framing label updated from "deprecation and removal" to "same-burst removal + perimeter enforcement" per ADR-027 v1.8 title (FB46 F-LP58-HIGH-001 closure downstream propagation). |
 | 1.4 | FB36 | 2026-05-16 | product-owner | F-LP46-HIGH-001 — HS-002-06 §Expected Outcome parenthetical justification corrected: "ADR-027 is the unsealing decision" was factually wrong — ADR-027 governs CustomAdapter deprecation and removal; ADR-026 governs SensorAuth unsealing. Parenthetical now accurately distinguishes all three ADR identities (ADR-026 unsealing / ADR-027 CustomAdapter removal / ADR-023 plugin-only architecture parent). POL-22 Phase A semantic-correctness; 45-pass-surviving defect surfaced by lateral attack vector. |
 | 1.3 | FB32 | 2026-05-16 | product-owner | F-LP41-LOW-001 — HS-PREREQ-E-002-06 §Source of Truth: replaced volatile "lines 221-228" line-range citation with durable AC-6 + section anchor form per TD-VSDD-091. Aligns with sibling HS-002-04/HS-003-04 entity-ID convention. |

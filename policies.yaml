@@ -23,8 +23,13 @@
 #                                   # here so the adversary knows HOW to verify them.
 
 metadata:
-  version: "1.11"
+  version: "1.12"
   changelog:
+    - version: "1.12"
+      date: 2026-05-17
+      burst: FB50
+      findings: [D-672-cycle-close-queue-item-9]
+      change: "Add POL-29 (within_fb_sibling_sweep_discipline): codified per user direction at D-672 checkpoint; cycle-close queue item 9 promoted to active policy. Severity HIGH. Scope: 14 artifact-type-tags. Structural intervention against 19+ recurrence pattern across passes 37-62."
     - version: "1.11"
       date: 2026-05-15
       burst: state(D-571)
@@ -528,3 +533,43 @@ policies:
       - "The value must match the anchored regex `^[0-9]{4}-[0-9]{2}-[0-9]{2}$` (ISO YYYY-MM-DD). VIOLATION if it contains brackets, burst-ID tokens, or any non-date format."
       - "Cross-check: the ISO date must match the date of the most recent §Changelog entry for that BC. Stale dates = violation of TD-VSDD-060 sibling-site discipline."
       - "For the ~30 pre-existing BCs with burst-ID-list format: the sweep maintenance story will normalize all to ISO dates. Until that story merges, pre-existing burst-ID-list violations are tracked but non-blocking (grace period)."
+
+  - id: 29
+    name: within_fb_sibling_sweep_discipline
+    description: |
+      When a fix-burst (FB) modifies a value, structure, or claim in one document,
+      the same burst MUST sweep ALL sibling sites in the workspace that reference
+      that value/structure/claim and update them to the post-fix canonical form.
+
+      Sibling sites include: (a) live-narrative citations in other artifacts that
+      pin the changed value or version; (b) sibling-class artifacts of the same
+      kind that share the same change-pattern (e.g., when fixing one BC's
+      §Changelog ordering, sweep all sibling BCs' §Changelogs in the same
+      subsystem); (c) frontmatter fields that mirror body changes (e.g.,
+      `subsystems_affected` mirroring boot.rs touch-surface; `runtime_deliverables`
+      mirroring §Decision implementation surface).
+
+      The fix-burst is NOT considered complete until sibling-sweep is performed
+      and documented in the §Changelog narrative or PO/architect handoff note.
+
+      Enforcement: architect and product-owner agents MUST grep the workspace for
+      the changed value at every fix-burst, count the live-narrative hits, sweep
+      them, and report the sweep count. State-manager verifies before commit.
+
+      Codification basis: 19+ recurrences across S-PLUGIN-PREREQ-E cascade
+      (passes 37-62) where a fix-burst closed one site but the next adversarial
+      pass surfaced the same defect-class at a sibling site. Each recurrence
+      consumed a full pass + fix-burst cycle to close plus reset the 3-CLEAN
+      streak. POL-29 codification is the structural intervention.
+    adopted: FB50-D-672-2026-05-17
+    severity: HIGH
+    enforced_by: [adversary-prompt, product-owner-self-check, architect-self-check, state-manager]
+    scope: [bc, vp, story, hs, adr, architecture, prd, error-taxonomy, capabilities, invariants, story-index, bc-index, vp-index, arch-index]
+    lint_hook: null
+    verification_steps:
+      - "After any fix-burst that updates a value, version-pin, structure, or claim in a document: enumerate ALL document types in scope (bc, vp, story, hs, adr, architecture, prd, error-taxonomy, capabilities, invariants, story-index, bc-index, vp-index, arch-index)."
+      - "For each in-scope document type, run a workspace-wide grep for the OLD value/claim (before correction). Sweep scope: .factory/stories/, .factory/specs/behavioral-contracts/, .factory/specs/verification-properties/, .factory/specs/prd-supplements/, .factory/specs/architecture/, .factory/holdout-scenarios/."
+      - "Any grep hit NOT corrected in the same fix-burst = sibling-sweep gap violation. §Changelog historical rows are immutable (TD-VSDD-091); exclude those from violation count."
+      - "Report the grep hit count and sweep count in the §Changelog narrative or handoff note: 'Sibling sweep: N sites found, N updated, N exempt (§Changelog historical).' Zero-hit sweeps must also be reported ('Sibling sweep: 0 sites found — no propagation needed')."
+      - "Sibling-CLASS sweep: when fixing an ordering violation (POL-26) or phrasing violation in one artifact, sweep ALL sibling-class artifacts of the same kind (e.g., all BCs in the same subsystem, all story §Changelogs for the same story, all HS files for the same story). Do not limit sweep to the directly-named artifact."
+      - "State-manager verifies the sweep report is present in the §Changelog narrative before staging the commit. If no sweep report is present → block the commit."

@@ -1,7 +1,7 @@
 ---
 document_type: architecture-index
 level: L3
-version: "2.62"
+version: "2.63"
 status: draft
 producer: architect
 timestamp: 2026-05-04T00:00:00
@@ -87,7 +87,7 @@ deployment_topology: single-service  # planned — no service binary exists yet 
 | ADR-019 | SIEM Output Formats | PROPOSED v0.4 | 2026-05-03 | decisions/ADR-019-siem-output-formats.md |
 | ADR-020 | Story Status Taxonomy Reform — Closed Enum, Partial-Merge Semantics, and Graduation Contract | ACCEPTED v1.1 | 2026-05-08 | decisions/ADR-020-story-status-taxonomy-reform.md |
 | ADR-021 | BC/VP Promotion Lifecycle — Draft → Active → Verified Transitions, Audit Cadence, and BC-INDEX Count Authority | ACCEPTED v1.1 | 2026-05-08 | decisions/ADR-021-bc-vp-promotion-lifecycle.md |
-| ADR-022 | Production Runtime Wiring — prism-bin Chassis, Boot Sequence, Wiring Contracts, Infusion Fate, Hot-Reload Watcher, MCP Topology | ACCEPTED v1.4 | 2026-05-16 | decisions/ADR-022-production-runtime-wiring.md |
+| ADR-022 | Production Runtime Wiring — prism-bin Chassis, Boot Sequence, Wiring Contracts, Infusion Fate, Hot-Reload Watcher, MCP Topology | ACCEPTED v1.5 | 2026-05-17 | decisions/ADR-022-production-runtime-wiring.md |
 | ADR-023 | Plugin-Only Sensor Architecture — TOML Specs as Declarative Baseline, .prx WASM for Non-Declarative Cases, Retired CustomAdapter Rust Trait | COMMITTED v1.19 | 2026-05-15 | decisions/ADR-023-plugin-only-sensor-architecture.md |
 | ADR-024 | ColumnType Canonical Naming — Domain-Level Variant Names for Sensor Schema API; prism-spec-engine Shadow Enum Retirement | ACCEPTED v1.0 | 2026-05-12 | decisions/ADR-024-column-type-canonical-naming.md |
 | ADR-025 | BC Lifecycle Field Canonical Scheme — Single status Field Governs; lifecycle Field Retired | ACCEPTED v1.0 | 2026-05-12 | decisions/ADR-025-bc-lifecycle-field-canonical-scheme.md |
@@ -152,6 +152,7 @@ deployment_topology: single-service  # planned — no service binary exists yet 
 
 | Version | Pass | Date | Author | Change |
 |---------|------|------|--------|--------|
+| 2.63 | FB50 | 2026-05-17 | state-manager | ADR-022 v1.4→v1.5 (POL-29 sibling-sweep for OBS-LP62-002 D7 v1.16 → v1.17 at 1 live-narrative pin; 17-site total D7 sweep Interpretation #2 per D-672). ARCH-INDEX v2.62→v2.63. |
 | 2.62 | FB47 | 2026-05-16 | state-manager | ADR-026 v1.16→v1.17 (F-LP59-MED-001 §Related ADRs row 450 ADR-027 description "deprecation/deletion pathway" → "same-burst removal + perimeter enforcement pathway" per ADR-027 v1.8 title). ARCH-INDEX v2.61→v2.62. |
 | 2.61 | FB46 | 2026-05-16 | architect | ADR-027 row title + version bumped v1.7→v1.8 (F-LP58-HIGH-001 title/H1/D2-heading "deprecation" framing eliminated; F-LP58-MED-001 §Source/Origin BC-2.16.011 bullet added). ARCH-INDEX v2.60→v2.61. |
 | 2.60 | FB45 | 2026-05-16 | state-manager | ADR-026 v1.15→v1.16 (F-LP57-HIGH-001 runtime_deliverables boot.rs + F-LP57-HIGH-002 subsystems_affected SS-22 sibling-sweep) + ADR-022 v1.3→v1.4 (OBS-LP57-001 §B Step 8 first-statement note Path A) |

@@ -1,7 +1,7 @@
 ---
 document_type: verification-property-index
 level: L4
-version: "1.53"
+version: "1.54"
 status: draft
 producer: product-owner
 timestamp: 2026-05-16T00:00:00
@@ -183,7 +183,7 @@ total_vps: 156
 | VP-153 | SensorAuth runtime cross-composition prevention (DI-012 runtime replacement): all invalid (auth_type, credential_type) pairs rejected at spec-load time; error messages redact credential values | prism-spec-engine | proptest | P0 | draft | S-PLUGIN-PREREQ-E |
 | VP-154 | CustomAdapter behavioral equivalence: PluginRuntime WASM dispatch produces non-empty records matching plugin fixture output; TOML fallthrough when no plugin registered | prism-spec-engine | integration_test | P1 | draft | PLUGIN-MIGRATION-001-A |
 | VP-155 | CustomAdapter absent from prism-spec-engine public API: compile-fail perimeter asserts CustomAdapter and CustomAdapterRegistry are unimportable post-PREREQ-E | prism-spec-engine | integration_test | P0 | draft | PLUGIN-MIGRATION-001-A |
-| VP-156 | WriteToolInvalidationMap registration uniqueness: duplicate tool_name returns Err(DuplicateWriteToolRegistration); first registration persists unchanged | prism-query | proptest | P1 | draft | S-PLUGIN-PREREQ-E |
+| VP-156 | WriteToolInvalidationMap registration uniqueness: duplicate tool_name returns Err(DuplicateWriteToolRegistration); first registration persists unchanged | prism-query | proptest | P1 | draft | S-PLUGIN-PREREQ-E | v0.11 |
 
 ## VP-PLUGIN-001..007 Named Series (PREREQ-F Registration, ADR-023 §Architectural Constraints)
 
@@ -243,6 +243,7 @@ S-1.02 frontmatter has been updated to `subsystems: [SS-03, SS-07, SS-11, SS-12,
 
 | Version | Burst | Date | Author | Change |
 |---------|-------|------|--------|--------|
+| 1.54 | FB50 | 2026-05-17 | state-manager | VP-156 v0.10→v0.11 (POL-29 sibling-sweep for OBS-LP62-002 D7 v1.16 → v1.17 across 4 live-narrative pins; 17-site total D7 sweep Interpretation #2 per D-672) |
 | 1.53 | FB45 | 2026-05-16 | state-manager | VP-156 v0.9→v0.10 (POL-23 sibling-sweep: 4 ADR-026 D7 live-narrative pins v1.15→v1.16) |
 | 1.52 | FB44 | 2026-05-16 | state-manager | VP-156 v0.8→v0.9 (POL-23 sibling-sweep: 4 ADR-026 D7 live-narrative pins v1.10→v1.15) |
 | 1.51 | state(D-659) | 2026-05-16 | state-manager | FB40 D-659: VP-153 row tracking v0.8→v0.9 (F-LP50-MED-002 §Changelog row ordering corrected to monotonic ascending per POL-26 — 49-pass-surviving defect). POL-9 same-burst propagation; POL-11 bump. |
