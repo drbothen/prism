@@ -23,7 +23,7 @@ crates_touched: [prism-sensors, prism-spec-engine, prism-query, prism-bin]
 target_module: prism-sensors
 subsystems: [SS-01, SS-07, SS-16, SS-17, SS-22]
 capabilities: [CAP-001, CAP-029]
-version: "1.38"
+version: "1.39"
 modified: "2026-05-17"
 level: "L4"
 producer: product-owner
@@ -370,7 +370,7 @@ Architecture layer: `prism-sensors` is Layer 1 (auth surface); `prism-spec-engin
 
 ## Error Taxonomy Additions
 
-Five error codes are introduced or annotated in this story (see `error-taxonomy.md` v1.34 §SPEC and §PLUGIN); one existing code is annotated as retired:
+Five error codes are introduced or annotated in this story (see `error-taxonomy.md` v1.35 §SPEC and §PLUGIN); one existing code is annotated as retired:
 
 | Code | Action | Purpose |
 |------|--------|---------|
@@ -509,6 +509,7 @@ Tech debt closed:
 
 | Version | Burst | Date | Author | Change |
 |---------|-------|------|--------|--------|
+| v1.39 | FB63 | 2026-05-17 | product-owner | F-LP75-HIGH-001 closure (PO scope): story line 373 backtick-quoted `error-taxonomy.md` v1.34 → v1.35 (single-line fix; FB62 POL-29 v1.18 step 8b first-application missed this variant — caught 11 other sites but state-manager's execution ran canonical/combined grep without explicit per-variant enumeration). Recurrence #21 of META-PATTERN at SAME line 373 site that F-LP65-HIGH-001 first surfaced 10 passes ago. POL-29 v1.18 step 8b execution discipline gap — addressed by state-manager via POL-29 v1.19 amendment (explicit per-variant grep enumeration mandate in step 8b iteration loop). POL-29 v1.18 step 8b per-variant grep evidence: variant-1-bare pre/post=0/0; variant-2-with-md pre/post=0/0; variant-3-backtick pre/post=1/0. |
 | v1.38 | FB74 | 2026-05-17 | product-owner | F-LP74-HIGH-001 closure (PO scope): ADR-026 D7 pin v1.19→v1.21 propagation at story lines 187, 194, 279, 365×2, 402 (5 sites; 6 occurrences). Recurrence #20 of POL-29 step 3a registry class (b). Provenance: FB56b swept to v1.19 but ADR-026 bumped v1.19→v1.20 in same atomic commit (SM step 8a catch error-taxonomy propagation at §D7 line 312) + FB57 v1.20→v1.21 (POL-26 bookkeeping) — both bumps did NOT cascade pins. POL-29 v1.17 step 8a META-gap revealed: single-pass enforcement misses transitively-introduced staleness within own application cycle. POL-29 v1.17→v1.18 step 8b transitive closure amendment by state-manager (in-burst META-gap closure per user strategic direction). Sibling files BC-2.16.012 v1.23 + BC-2.16.002 v1.27 + error-taxonomy v1.35 + VP-156 v0.15 + HS-003 v1.12 swept in same burst; ADR-022 by architect. POL-29 step 8a grep evidence (PO-domain): pre-grep 19 → post-grep 0. |
 | v1.37 | FB57 | 2026-05-17 | product-owner | F-LP69-MED-002 closure (PO scope): AC-11 description text updated to byte-match canonical error-taxonomy.md line 380 verbatim (preserving markdown bold + `(error-taxonomy.md v1.26)` historical-origin marker). Latent since FB51 (v1.32 enriched taxonomy per AC-11 directive but AC-11 itself was not back-synced). POL-24 (error_message_template_verbatim) closure. CLAUDE.md Source-of-Truth Precedence Rule 3 honored (PRD supplements supersede PRD prose for the same surface area). |
 | v1.36 | FB56+FB56b combined SM step 8a catch | 2026-05-17 | state-manager | POL-29 v1.17 step 8a FINAL EMPIRICAL VERIFICATION CATCH: error-taxonomy v1.33→v1.34 propagation incomplete in FB56+FB56b — 9 live-narrative `error-taxonomy v1.33` cites survived in story (lines 72, 239, 240, 244, 248, 305, 307, 373 in body + frontmatter AC-11 risk_mitigation). FB56b PO v1.35 §Changelog claimed error-taxonomy sweep but actual body sites were not updated. State-manager step 8a catch closes the gap in same atomic commit. POL-29 v1.17 step 8a grep evidence: pre-grep 9 story sites → post-grep 0 live-narrative. |
