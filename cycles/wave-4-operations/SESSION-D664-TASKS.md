@@ -1,11 +1,11 @@
 ---
 document_type: session-tasks
-version: "1.0"
+version: "1.1"
 status: active
-related_burst: D-664
-predecessor_state: D-663
+related_burst: D-665
+predecessor_state: D-664
 predecessor_session_tasks: SESSION-D644-TASKS.md
-timestamp: 2026-05-16T18:00:00Z
+timestamp: 2026-05-16T20:30:00Z
 ---
 
 # Session Task List — D-664 Durable Pre-/Clear Snapshot
@@ -28,9 +28,9 @@ This file persists the cascade state from the session covering D-645 through D-6
 - **170 consecutive single-commit bursts** (D-664 is the 170th; restoring TD-VSDD-053 discipline after FB43 two-commit deviation — see Known Issue below)
 - **3 CLEAN passes this session**: pass-39 (1st), pass-43 (2nd), pass-51 (3rd)
 - **8 CLEAN passes total** across all sessions: pass-9, pass-19, pass-23, pass-25, pass-26, pass-29, pass-30, pass-35 (prior sessions) + pass-39, pass-43, pass-51 (this session)
-- **Current streak:** 0/3 (last reset by F-LP54-HIGH-001; closed by FB43; pass-55 begins 9th 3-CLEAN sequence attempt within 7th cascade cycle)
+- **Current streak:** 1/3 (pass-55 CLEAN★ at D-665 advances 0/3→1/3 — 4th CLEAN of cascade; pass-56 = potential 2/3; pass-57 = potential CONVERGENCE under BC-5.39.001)
 
-**Trajectory novel-finding count (this session):** 3(pass-36 carry-forward)→pass-37:BLOCKED(3M)→pass-38:BLOCKED(1M+1L)→pass-39:CLEAN★→pass-40:BLOCKED(1M+1L)→pass-41:BLOCKED(1L)→pass-42:BLOCKED(1M+1L)→pass-43:CLEAN★→pass-44:BLOCKED(2M)→pass-45:BLOCKED(1M+1L+2OBS)→pass-46:BLOCKED(1H+1M)→pass-47:BLOCKED(1H+3M+1L)→pass-48:BLOCKED(1H+3M)→pass-49:BLOCKED(1H+4M+1L)→pass-50:BLOCKED(2M+1L)→pass-51:CLEAN★→pass-52:BLOCKED(1H)→pass-53:BLOCKED(2M)→pass-54:BLOCKED(1H+2OBS)
+**Trajectory novel-finding count (this session):** 3(pass-36 carry-forward)→pass-37:BLOCKED(3M)→pass-38:BLOCKED(1M+1L)→pass-39:CLEAN★→pass-40:BLOCKED(1M+1L)→pass-41:BLOCKED(1L)→pass-42:BLOCKED(1M+1L)→pass-43:CLEAN★→pass-44:BLOCKED(2M)→pass-45:BLOCKED(1M+1L+2OBS)→pass-46:BLOCKED(1H+1M)→pass-47:BLOCKED(1H+3M+1L)→pass-48:BLOCKED(1H+3M)→pass-49:BLOCKED(1H+4M+1L)→pass-50:BLOCKED(2M+1L)→pass-51:CLEAN★→pass-52:BLOCKED(1H)→pass-53:BLOCKED(2M)→pass-54:BLOCKED(1H+2OBS)→pass-55:CLEAN★(0 findings; 2 non-blocking OBS; novelty ZERO)
 
 **User directive:** Option 1 (continue cascade) chosen at D-664 checkpoint. Pass-55 begins next session.
 
@@ -58,13 +58,15 @@ This file persists the cascade state from the session covering D-645 through D-6
 | 108-109 | **DONE** | **PREREQ-E pass-53 BLOCKED + FB42 CLOSED** — D-662; F-LP53-HIGH-001 REJECTED Fork B; 2 MED cycle-snapshot fixes; POL-30 established; 168th single-commit |
 | 110 | **DONE** | **PREREQ-E pass-54 BLOCKED + FB43 CLOSED** — D-663; BC-2.16.002 v1.23; BC-INDEX v4.98; first pass under Fork B surfaced Fork-A residual; 169th single-commit |
 | 111 | **DONE** | **D-664 DURABLE PRE-/CLEAR RESUME SNAPSHOT** — this burst; STATE.md v7.350→v7.351; SESSION-HANDOFF.md v7.350→v7.351; SESSION-D664-TASKS.md created; CYCLE-SNAPSHOT §D-664 appended; SESSION-D644-TASKS.md v1.19→v1.20 close-out; 170th consecutive single-commit (restoring TD-VSDD-053 discipline) |
-| 112 | **PENDING** | PREREQ-E pass-55 (9th 3-CLEAN sequence attempt; Fork B canonical rule fully operational; BC-2.16.002 v1.23 + BC-INDEX v4.98 corrective rows canonical; pass-56 + pass-57 = potential BC-5.39.001 CONVERGENCE) |
+| 112 | **DONE** | **PREREQ-E pass-55 CLEAN★** — D-665; streak 0/3 → 1/3 (4th CLEAN advance); 2 non-blocking OBS; novelty ZERO; 9th 3-CLEAN sequence attempt begins |
+| 113 | **DONE** | **D-665 state-manager bookkeeping burst** — 171st consecutive single-commit; OBS-LP55-001 dispatch-table fix (line 67 v1.23→v1.22); OBS-LP55-002 [process-gap] queued as Codification Queue item 11; STATE+HANDOFF v7.351→v7.352; SESSION-D664-TASKS.md v1.20→v1.21; pass-55 report persisted; CYCLE-SNAPSHOT §D-665 appended |
+| 114 | **PENDING** | PREREQ-E pass-56 (2nd of 9th 3-CLEAN sequence; pass-57 = potential CONVERGENCE under BC-5.39.001; refresh dispatch-prompt pinned-versions table to reflect story v1.22 per OBS-LP55-001 correction) |
 
 ## Pinned Artifact Versions (post-FB43, as of D-664)
 
 | Artifact | Version |
 |----------|---------|
-| Story S-PLUGIN-PREREQ-E | v1.23 |
+| Story S-PLUGIN-PREREQ-E | v1.22 |
 | BC-2.01.016 | v1.7 |
 | BC-2.16.011 | v1.6 |
 | BC-2.16.012 | v1.16 |
@@ -137,6 +139,7 @@ These items are non-blocking for pass-55 dispatch. All deferred to cycle-close p
 8. F-LP42-WORKSPACE-004 — ADR-023:1030-1031 TD-VSDD-091 workspace candidate
 9. POL-29 candidate — within-FB cross-document-layer sweep discipline (17+ manifestations; codification overwhelmingly justified)
 10. POL-30 candidate — Fork B independent-versioning rule (operational FB42 onward; needs formal codification in .factory/policies.yaml)
+11. **OBS-LP55-002 [process-gap]** — VP-template `proof_method:` + `verification_method:` field-duplication (benign template artifact; cycle-close VP-template review — either consolidate to single field or document intent of duplication; affects VP-153/154/155/156)
 
 **Plus non-blocking observations (queued from this session):**
 - OBS-LP45-001: E-SPEC-012/013 variant non-canonicalized (test-writer-deferred)
