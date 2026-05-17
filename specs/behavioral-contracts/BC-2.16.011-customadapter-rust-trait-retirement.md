@@ -1,7 +1,7 @@
 ---
 document_type: behavioral-contract
 level: L3
-version: "1.7"
+version: "1.8"
 status: draft
 producer: product-owner
 timestamp: 2026-05-15T00:00:00
@@ -11,7 +11,7 @@ subsystem: "SS-16"
 capability: "CAP-029"
 lifecycle_status: draft
 introduced: "2026-05-15"
-modified: "2026-05-16"
+modified: "2026-05-17"
 deprecated: ~
 deprecated_by: ~
 replacement: ~
@@ -50,8 +50,11 @@ re-export or exercise `CustomAdapter` in `lib.rs`, `examples/demo_spec_loading.r
   PREREQ-A) must have already been migrated or is confirmed to use `&str` / `String`.
 - `S-WAVE5-PREP-01` has already removed dead `custom_adapter_registry` references from
   `crates/prism-bin/src/boot.rs`. No `boot.rs` changes are required in this story.
-- `S-PLUGIN-PREREQ-F` has confirmed that `prism-spec-engine` has never been published to
-  crates.io with `CustomAdapter` in its public API surface (PLUGIN-AUDIT-001 HIGH-3). No
+- `S-PLUGIN-PREREQ-F` has confirmed (per ADR-023 Rule 5 publication-history determination —
+  "since `prism-spec-engine` has never been published to crates.io with CustomAdapter
+  exposed, no deprecation grace period is required" — and PLUGIN-AUDIT-001 HIGH-3
+  dead-code confirmation — "CustomAdapterRegistry and CustomAdapter Rust trait are RETIRED;
+  locals are created and immediately dropped at the end of the boot function scope") that no
   external deprecation period is required before removal.
 - The three confirmed live call sites (verified by grep in ADR-023 §Architectural Constraints (C5 bullet)) are:
   1. `crates/prism-spec-engine/src/lib.rs` — `pub use custom_adapter::*` re-export
@@ -200,6 +203,7 @@ S-PLUGIN-PREREQ-E
 
 | Version | Burst | Date | Author | Change |
 |---------|-------|------|--------|--------|
+| 1.8 | FB51 | 2026-05-17 | product-owner | POL-23 sibling-sweep (F-LP63-MED-001 family): §Preconditions PLUGIN-AUDIT-001 HIGH-3 mis-anchored citation corrected to Option (a) split provenance — publication-history routed to ADR-023 Rule 5 (correct source); dead-code claim routed to PLUGIN-AUDIT-001 HIGH-3 (correct source). Restores bidirectional traceability. Parallel fix to BC-2.01.016 v1.8 in same burst. |
 | 1.7 | FB47 | 2026-05-16 | product-owner | §Architecture Anchors line 178: ADR-027 framing label updated from "deprecation/removal" to "Same-Burst Removal — Perimeter Enforcement in Wave 1/A" per ADR-027 v1.8 title (FB46 F-LP58-HIGH-001 closure downstream propagation). |
 | 1.6 | prereq-e-fix-burst-19 | 2026-05-16 | state-manager | F-LP21-HIGH-001 closure — §Changelog renumber-repair-redo (D-611-equivalent pattern applied to sibling BC that was missed in FB14): state-manager catch row v1.2 → v1.3, cascade shift v1.3 → v1.4 → v1.5 → v1.6 (via new repair row insertion at top). POL-26 monotonic strict-ordering violation pre-existing FB1 (invisible to passes 1-20) now resolved. |
 | 1.5 | prereq-e-fix-burst-7 | 2026-05-16 | product-owner | F-LP7-HIGH-002 + F-LP7-MED-004 — sibling-sweep close: (1) §Postconditions removal_reason advanced "ADR-023 Rule 5" → "ADR-027 §Decision + ADR-023 Rule 5" + explicit enumeration of all four BC-2.16.004 frontmatter mutations (deprecated_by/removed/removal_reason/lifecycle_status); (2) §Architecture Anchors VP-154 anchor corrected ADR-027 §D5 → §Verification Property Anchors (FB4 D5 scope expansion sibling-sweep miss). TD-VSDD-059 paper-fix detection. |

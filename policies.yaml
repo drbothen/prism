@@ -23,8 +23,13 @@
 #                                   # here so the adversary knows HOW to verify them.
 
 metadata:
-  version: "1.12"
+  version: "1.13"
   changelog:
+    - version: "1.13"
+      date: 2026-05-17
+      burst: FB51
+      findings: [D-673-F-LP63-HIGH-001-root-cause-closure]
+      change: "POL-29 enforcement enhancement: lint_hook spec added (workspace-grep-witness, manual-state-manager-check status), verification_steps tightened to 7 deterministic steps including mandatory pre/post grep counts and state-manager pre-commit verification. F-LP63-HIGH-001 root-cause closure: codification alone was insufficient; enforcement scaffolding now requires grep evidence in commit narrative."
     - version: "1.12"
       date: 2026-05-17
       burst: FB50
@@ -565,11 +570,28 @@ policies:
     severity: HIGH
     enforced_by: [adversary-prompt, product-owner-self-check, architect-self-check, state-manager]
     scope: [bc, vp, story, hs, adr, architecture, prd, error-taxonomy, capabilities, invariants, story-index, bc-index, vp-index, arch-index]
-    lint_hook: null
+    lint_hook:
+      kind: workspace-grep-witness
+      description: |
+        For every fix-burst commit to .factory/, state-manager MUST embed
+        explicit grep evidence in the commit message body or §Changelog row
+        narrative showing:
+        (a) the OLD value/pattern that was changed
+        (b) the pre-edit grep command and hit count
+        (c) the post-edit grep command and hit count (must be 0 in live-narrative)
+        (d) the list of swept artifact paths with line numbers
+
+        Until automated lint hook is implemented, state-manager performs this
+        check manually before staging each FB commit. If sweep evidence is
+        absent from the commit narrative, state-manager MUST request the
+        evidence from architect/PO before commit-stage.
+      implementation_status: manual-state-manager-check (placeholder until automated lint hook)
+      escalation_on_violation: HIGH adversarial finding (per POL-29 §severity HIGH)
     verification_steps:
-      - "After any fix-burst that updates a value, version-pin, structure, or claim in a document: enumerate ALL document types in scope (bc, vp, story, hs, adr, architecture, prd, error-taxonomy, capabilities, invariants, story-index, bc-index, vp-index, arch-index)."
-      - "For each in-scope document type, run a workspace-wide grep for the OLD value/claim (before correction). Sweep scope: .factory/stories/, .factory/specs/behavioral-contracts/, .factory/specs/verification-properties/, .factory/specs/prd-supplements/, .factory/specs/architecture/, .factory/holdout-scenarios/."
-      - "Any grep hit NOT corrected in the same fix-burst = sibling-sweep gap violation. §Changelog historical rows are immutable (TD-VSDD-091); exclude those from violation count."
-      - "Report the grep hit count and sweep count in the §Changelog narrative or handoff note: 'Sibling sweep: N sites found, N updated, N exempt (§Changelog historical).' Zero-hit sweeps must also be reported ('Sibling sweep: 0 sites found — no propagation needed')."
-      - "Sibling-CLASS sweep: when fixing an ordering violation (POL-26) or phrasing violation in one artifact, sweep ALL sibling-class artifacts of the same kind (e.g., all BCs in the same subsystem, all story §Changelogs for the same story, all HS files for the same story). Do not limit sweep to the directly-named artifact."
-      - "State-manager verifies the sweep report is present in the §Changelog narrative before staging the commit. If no sweep report is present → block the commit."
+      1: "Identify the value/structure/claim being changed; record its OLD canonical form."
+      2: "Run workspace grep for the OLD form across .factory/stories/, .factory/specs/behavioral-contracts/, .factory/specs/verification-properties/, .factory/specs/prd-supplements/, .factory/specs/architecture/, .factory/holdout-scenarios/, .factory/specs/domain-spec/. Record pre-edit hit count."
+      3: "For each live-narrative hit (excluding §Changelog rows per POL-26), apply the canonical update to the post-fix form."
+      4: "Run the same workspace grep post-edit. Pre-edit hit count must equal sum of (updates applied + §Changelog row exemptions). Live-narrative post-edit hit count MUST be 0."
+      5: "Sibling-CLASS sweep: when fixing an ordering violation (POL-26) or phrasing violation in one artifact, ALSO sweep ALL sibling-class artifacts of the same kind."
+      6: "Sweep report MUST be present in the FB commit message body OR §Changelog row narrative, enumerating: pre-grep count, sites updated with line numbers, post-grep count = 0."
+      7: "State-manager pre-commit verification: confirm sweep report is present BEFORE staging. If absent, REQUEST from architect/PO and DO NOT commit until present."

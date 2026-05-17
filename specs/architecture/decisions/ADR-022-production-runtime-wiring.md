@@ -4,7 +4,7 @@ adr_id: "ADR-022"
 title: "Production Runtime Wiring — prism-bin Chassis, Boot Sequence, Wiring Contracts, Infusion Fate, Hot-Reload Watcher, MCP Topology"
 status: ACCEPTED
 date: "2026-05-08"
-version: "1.5"
+version: "1.6"
 producer: architect
 subsystems_affected: [SS-06, SS-10, SS-11, SS-16, SS-17, SS-19]
 supersedes: null
@@ -786,9 +786,10 @@ Bundle B Phase B-0 architecture output. Authored at D-302 from workspace audit D
 
 | Version | Date | Author | Change |
 |---------|------|--------|--------|
-| 1.3 | 2026-05-13 | architect | Closes F-LP8-OBS-001 (PREREQ-D fix-burst-7 stage 1B): add step 7.5 plugin-load cross-reference to §B boot sequence table and Related ADRs section; update traffic-gate note to include step 7.5; bump version. ADR-023 §C4 is cited as the authoritative placement spec; Source-of-Truth Precedence Rule 2 noted inline. No architectural content changed — editorial discoverability amendment only. |
+| 1.6 | 2026-05-17 | state-manager | FB51 F-LP63-HIGH-002 closure: §Changelog row positions repaired to strict descending (v1.3 moved below v1.4; v1.5 moved above v1.4); 6th POL-26 monotonic-ordering recurrence repair per D-611/D-628/D-635/D-659/D-670/D-671 precedent. POL-26 corollary: row content immutable; position is bookkeeping. |
 | 1.5 | 2026-05-17 | architect | FB50 POL-23 sibling-sweep OBS-LP62-002 interpretation #2: §B Step 8 live-narrative ADR-026 §D7 v1.16 pin bumped to v1.17 (current ADR-026 version per FB47 §Related ADRs row edit; D7 content unchanged since v1.16). |
 | 1.4 | 2026-05-16 | architect | FB45: §B Step 8 description: append first-statement note — `prism_query::invalidation::mark_query_phase_started()` is the first statement of step-8, closing the write-registration window before `QueryEngine::new()`. Cross-references ADR-026 §D7 v1.16. Closes OBS-LP57-001 Path A per Canonical Principle Rule 4. |
+| 1.3 | 2026-05-13 | architect | Closes F-LP8-OBS-001 (PREREQ-D fix-burst-7 stage 1B): add step 7.5 plugin-load cross-reference to §B boot sequence table and Related ADRs section; update traffic-gate note to include step 7.5; bump version. ADR-023 §C4 is cited as the authoritative placement spec; Source-of-Truth Precedence Rule 2 noted inline. No architectural content changed — editorial discoverability amendment only. |
 | 1.2 | 2026-05-12 | state-manager | TD-VSDD-091 volatile-pin strip per audit at cycles/wave-4-operations/sprint-review-PREREQ-trio.md §7. No architectural content change. 18 line-number citations stripped across §Context/§B/§C/§D/§G; function-name pivots applied for InfusionLoader::{parse,load_all,validate_credentials}, InfusionLruCache::{get,insert}, MmdbSource::{load,enrich_single,enrich_batch}, plugin_bridge::enrich_via_plugin, QueryEngine::execute and execute_scheduled, RocksDbTableProvider::{schema,scan,...}, register_internal_tables. engine.rs/materialization.rs/internal_tables.rs references marked HISTORICAL post S-3.02-FOLLOWUP-RUNTIME merge c6dd6602. Added missing template H2 sections (Decision, Rationale, Consequences, Source / Origin) per template compliance. |
 | 1.1 | 2026-05-09 | product-owner | §B step 2: replace stale `~/.prism/` literal with platform-aware default to match BC-2.06.011 v1.2 phrasing. Closes F-P6-MED-1 from PR #139 PR-LEVEL adversary pass-6. |
 | 1.0 | 2026-05-08 | architect | Initial authorship — Bundle B Phase B-0 architecture output |

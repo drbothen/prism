@@ -1,7 +1,7 @@
 ---
 document_type: verification-property
 level: L4
-version: "0.11"
+version: "0.12"
 status: draft
 producer: architect
 timestamp: 2026-05-15T00:00:00Z
@@ -201,5 +201,6 @@ The implementer adds this function in `crates/prism-query/src/invalidation.rs` u
 | 0.7 | prereq-e-fix-burst-8 | 2026-05-16 | architect | F-LP8-HIGH-001 — within-FB7 sibling-sweep asymmetry final close: all 4 live-narrative ADR-026 D7 pins advanced v1.8 → v1.9 (FB7 D-586 bumped ADR-026 v1.8→v1.9 in same burst as the v1.7→v1.8 sweep; sweep targeted intermediate snapshot). POL-23 within-burst-version-pin-order-gap RECURRING-class defect; single-bump-per-source-artifact discipline applied this burst (ADR-026 stays at v1.9). |
 | 0.8 | prereq-e-fix-burst-13 | 2026-05-16 | architect | F-LP14-HIGH-001 — within-FB12 sibling-sweep asymmetry close (5th RECURRENCE of POL-23 class): all 4 live-narrative ADR-026 D7 pins advanced v1.9 → v1.10 (FB12 architect D-603 bumped ADR-026 v1.9→v1.10 for Option A adjudication but did not sibling-sweep). Single-bump-per-source-artifact discipline applied this burst (ADR-026 stays at v1.10; only downstream pin sweep). POL-29 codification candidate strongly reinforced. |
 | 0.9 | FB44 | 2026-05-16 | architect | F-LP56-HIGH-001 POL-23 sibling-sweep: all 4 live-narrative ADR-026 D7 pins advanced v1.10 → v1.15 (FB44 architect bumped ADR-026 v1.14→v1.15 for boot.rs call-site designation; VP-156 swept in same burst). |
-| 0.11 | FB50 | 2026-05-17 | architect | POL-23 sibling-sweep OBS-LP62-002 interpretation #2: ADR-026 D7 v1.16 live-narrative pins bumped to v1.17 (current ADR-026 version per FB47 §Related ADRs row edit; D7 content unchanged since v1.16). |
 | 0.10 | FB45 | 2026-05-16 | architect | FB45 sibling-sweep: all 4 live-narrative ADR-026 D7 pins advanced v1.15 → v1.16 (FB45 architect bumped ADR-026 v1.15→v1.16 for SS-22 + runtime_deliverables boot.rs entry; VP-156 swept in same burst). |
+| 0.11 | FB50 | 2026-05-17 | architect | POL-23 sibling-sweep OBS-LP62-002 interpretation #2: ADR-026 D7 v1.16 live-narrative pins bumped to v1.17 (current ADR-026 version per FB47 §Related ADRs row edit; D7 content unchanged since v1.16). |
+| 0.12 | FB51 | 2026-05-17 | state-manager | F-LP63-HIGH-003 closure: §Changelog v0.10/v0.11 row positions swapped to ascending order (v0.10 FB45 2026-05-16 BEFORE v0.11 FB50 2026-05-17); 7th POL-26 recurrence within FB50 sibling-sweep itself; POL-26 corollary bookkeeping repair. |

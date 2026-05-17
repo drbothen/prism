@@ -3733,3 +3733,49 @@ Streak: 0/3 unchanged (1 MED + 2 LOW block convergence; novelty MEDIUM; trend 0 
 Story v1.29 | BC-2.01.016 v1.7 | BC-2.16.011 v1.7 | BC-2.16.012 v1.20 | BC-2.16.002 v1.24 | ADR-026 v1.17 | ADR-022 v1.5 | ADR-027 v1.8 | VP-153 v0.9 | VP-154 v0.6 | VP-155 v0.5 | VP-156 v0.11 | HS-PREREQ-E-001 v1.4 | HS-PREREQ-E-002 v1.6 | HS-PREREQ-E-003 v1.8 | error-taxonomy v1.31 | ARCH-INDEX v2.63 | VP-INDEX v1.54 | STORY-INDEX v2.133 | BC-INDEX v5.03 | policies.yaml v1.12 | verification-architecture v1.41 | verification-coverage-matrix v1.38
 
 STATE.md v7.356; SESSION-HANDOFF.md v7.356; prereq_e_adversary_streak **0/3** (pass-59 BLOCKED — 2 HIGH F-LP59-HIGH-001 CAP-029 mis-anchor + F-LP59-HIGH-002 risk_mitigations renumbering drift + 1 MED F-LP59-MED-001 ADR-027 "deprecation" framing 5-site sibling-sweep + 1 OBS; novelty HIGH; POL-29 #16+; FB47 architect+PO+SM multi-agent closure; streak 0/3 unchanged; 175th consecutive single-commit TD-VSDD-053 STABLE; pass-60 dispatch-ready).
+
+---
+
+## §D-673 — FB51 MULTI-AGENT CLOSURE + POL-29 ENFORCEMENT ENHANCEMENT (2026-05-17)
+
+**D-673 — FB51 — STATE v7.360 — 179th consecutive single-commit (TD-VSDD-053 STABLE)**
+
+### Pass-63 Finding Summary
+
+Pass-63 BLOCKED (3 HIGH + 2 MED + 2 OBS). First pass under POL-29 active discipline FAILED — codification alone insufficient. Novelty HIGH.
+
+- **F-LP63-HIGH-001** POL-29 enforcement gap: FB50 missed error-taxonomy.md 2 D7 v1.10 live-narrative pins
+- **F-LP63-HIGH-002** ADR-022 §Changelog non-monotonic: 6th POL-26 recurrence (sequence v1.3/v1.5/v1.4 non-monotonic)
+- **F-LP63-HIGH-003** VP-156 §Changelog v0.10/v0.11 swap: 7th POL-26 recurrence (within FB50 burst itself)
+- **F-LP63-MED-001** BC-2.01.016 mis-anchored PLUGIN-AUDIT-001 HIGH-3 cite; POL-23 sibling: BC-2.16.011 same
+- **F-LP63-MED-002** E-SPEC-008 row missing BC-2.16.011 + ADR-027 back-pointers
+- **OBS-LP63-001** POL-29 needs lint_hook — closed by FB51 enhancement
+- **OBS-LP63-002** VP-156 ascending vs canonical descending — cycle-close queue
+
+### FB51 Burst Contents
+
+**PO burst (pre-staged from D-673 orchestrator direction):**
+- error-taxonomy v1.31 → v1.32: 2 D7 v1.10→v1.17 live-narrative pins + E-SPEC-008 BC-2.16.011+ADR-027 back-pointers
+- BC-2.01.016 v1.7 → v1.8: F-LP63-MED-001 split provenance (PLUGIN-AUDIT-001 HIGH-3 → dead-code cite; ADR-023 Rule 5 → publication-history cite)
+- BC-2.16.011 v1.7 → v1.8: POL-23 sibling-sweep — same mis-anchor pattern as BC-2.01.016
+
+**State-manager burst:**
+- ADR-022 v1.5 → v1.6: F-LP63-HIGH-002 §Changelog rows reordered to strict descending (v1.6 bookkeeping bump; row content immutable)
+- VP-156 v0.11 → v0.12: F-LP63-HIGH-003 v0.10/v0.11 swapped to ascending order (v0.12 bookkeeping bump; row content immutable)
+- policies.yaml v1.12 → v1.13: POL-29 ENHANCED — lint_hook spec (workspace-grep-witness kind, manual-state-manager-check status) + verification_steps tightened to 7 deterministic steps mandating pre/post grep evidence in commit narrative
+- Pass-63 report persisted: cycles/wave-4-operations/adversarial-reviews/S-PLUGIN-PREREQ-E-spec-pass-63.md
+- BC-INDEX v5.03 → v5.04: BC-2.01.016 row v1.7→v1.8 + BC-2.16.011 row v1.7→v1.8 + §Changelog row
+- VP-INDEX v1.54 → v1.55: VP-156 row v0.11→v0.12 + §Changelog row
+- ARCH-INDEX v2.63 → v2.64: ADR-022 row v1.5→v1.6 + §Changelog row
+- STATE.md v7.359 → v7.360; SESSION-HANDOFF.md v7.359 → v7.360; SESSION-D664-TASKS.md v1.8 → v1.9
+- CYCLE-SNAPSHOT §D-673 appended (this section)
+
+### Streak Status + Next Action
+
+Streak: 0/3 unchanged (3 HIGH + 2 MED block convergence; novelty HIGH; first POL-29 enforcement test FAILED). Pass-64 dispatch-ready (8th pass of restart-9 sequence). Vector rotation continues under POL-29 ENHANCED discipline (grep evidence mandatory in commit narrative). OBS-LP63-002 VP-156 convention question queued cycle-close.
+
+### Pinned Artifact Versions (PREREQ-E 23-artifact set — post-D-673)
+
+Story v1.29 | BC-2.01.016 v1.8 | BC-2.16.011 v1.8 | BC-2.16.012 v1.20 | BC-2.16.002 v1.24 | ADR-026 v1.17 | ADR-022 v1.6 | ADR-027 v1.8 | VP-153 v0.9 | VP-154 v0.6 | VP-155 v0.5 | VP-156 v0.12 | HS-PREREQ-E-001 v1.4 | HS-PREREQ-E-002 v1.6 | HS-PREREQ-E-003 v1.8 | error-taxonomy v1.32 | ARCH-INDEX v2.64 | VP-INDEX v1.55 | STORY-INDEX v2.133 | BC-INDEX v5.04 | policies.yaml v1.13 | verification-architecture v1.41 | verification-coverage-matrix v1.38
+
+STATE.md v7.360; SESSION-HANDOFF.md v7.360; prereq_e_adversary_streak **0/3** (pass-63 BLOCKED — 3 HIGH F-LP63-HIGH-001/002/003 + 2 MED F-LP63-MED-001/002; FIRST POL-29 test FAILED; POL-29 ENHANCED at FB51 lint_hook + 7-step verification_steps; novelty HIGH; FB51 PO+SM multi-agent closure; streak 0/3 unchanged; 179th consecutive single-commit TD-VSDD-053 STABLE; pass-64 dispatch-ready).
