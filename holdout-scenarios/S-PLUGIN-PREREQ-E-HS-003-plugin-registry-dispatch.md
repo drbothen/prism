@@ -8,7 +8,7 @@ must_pass: true
 priority: P0
 epic_id: "PLUGIN-MIGRATION-001"
 story_source: "S-PLUGIN-PREREQ-E"
-version: "1.11"
+version: "1.12"
 status: draft
 producer: product-owner
 timestamp: 2026-05-17T00:00:00Z
@@ -122,7 +122,7 @@ new write-tool entries (closing TD-S-PLUGIN-PREREQ-A-003).
 
 **Steps:**
 
-1. Construct a `WriteToolInvalidationMap` entry: `{ sensor_id: SensorId::from("custom_sensor"), tool_name: "write_custom_sensor_record", plugin_name: "plugin_a", ... }` (`plugin_name` sourced from plugin manifest `name` field per ADR-026 D7 v1.19)
+1. Construct a `WriteToolInvalidationMap` entry: `{ sensor_id: SensorId::from("custom_sensor"), tool_name: "write_custom_sensor_record", plugin_name: "plugin_a", ... }` (`plugin_name` sourced from plugin manifest `name` field per ADR-026 D7 v1.21)
 2. Call `register_write_tool(entry)` after initial boot
 3. Trigger a write via `write_custom_sensor_record` MCP tool (or a test stub that mimics the write dispatch)
 4. Observe whether cache invalidation fires for `custom_sensor` tables
@@ -146,7 +146,7 @@ new write-tool entries (closing TD-S-PLUGIN-PREREQ-A-003).
 
 - S-PLUGIN-PREREQ-E is merged to `develop`
 - `register_write_tool` API exists with signature `-> Result<(), SpecEngineError>`
-- A test fixture prepares two `WriteToolInvalidationMap` entries sharing the same `tool_name` value (e.g., `"write_custom_sensor_record"`) but from different notional plugins (`plugin_name: "plugin_a"` for the first entry, `plugin_name: "plugin_b"` for the second, representing the two conflicting plugins — exercises E-PLUGIN-012 `{plugin}` and `{conflicting_plugin}` placeholders per ADR-026 D7 v1.19)
+- A test fixture prepares two `WriteToolInvalidationMap` entries sharing the same `tool_name` value (e.g., `"write_custom_sensor_record"`) but from different notional plugins (`plugin_name: "plugin_a"` for the first entry, `plugin_name: "plugin_b"` for the second, representing the two conflicting plugins — exercises E-PLUGIN-012 `{plugin}` and `{conflicting_plugin}` placeholders per ADR-026 D7 v1.21)
 
 **Steps:**
 
@@ -203,7 +203,7 @@ new write-tool entries (closing TD-S-PLUGIN-PREREQ-A-003).
 
 **BC Anchor:** BC-2.16.012 EC-016-012-005
 
-**VP Traced:** VP-156 (related — register_write_tool contract surface per ADR-026 D7 v1.19)
+**VP Traced:** VP-156 (related — register_write_tool contract surface per ADR-026 D7 v1.21)
 
 ---
 
@@ -224,6 +224,7 @@ When this holdout scenario is evaluated, the evaluator must produce:
 
 | Version | Burst | Date | Author | Change |
 |---------|-------|------|--------|--------|
+| 1.12 | FB74 | 2026-05-17 | product-owner | F-LP74-HIGH-001 closure (PO scope): ADR-026 D7 pin v1.19→v1.21 at lines 125, 149, 206 (3 sites). |
 | 1.11 | FB59 | 2026-05-17 | product-owner | F-LP71-HIGH-002 closure (PO scope): frontmatter `title:` byte-synced to H1 — was `"...Open Dispatch Behavioral Equivalence"` now `"...Open Dispatch and WriteToolInvalidationMap Extensibility"`. Silent drift with no prior §Changelog row justifying; HS-001 + HS-002 sibling-conformant. POL-7 + TD-VSDD-060 closure. |
 | 1.10 | FB56b | 2026-05-17 | product-owner | F-LP68-HIGH-001 closure cascade (FB56b PO scope): ADR-026 D7 pin v1.18→v1.19 propagation at HS-003 lines 125, 149, 206 (3 sites). POL-29 v1.17 step 8a FIRST APPLICATION cascade closure. |
 | 1.9 | FB55 | 2026-05-17 | product-owner | F-LP67-HIGH-001 closure (PO scope): ADR-026 D7 pin v1.17→v1.18 propagation at HS-003 lines 125, 149, 206 (3 live-narrative sites). POL-29 v1.16 step 3a (b) recurrence #18 within-burst closure. |

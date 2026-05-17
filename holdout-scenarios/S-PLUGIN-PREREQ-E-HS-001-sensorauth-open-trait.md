@@ -8,7 +8,7 @@ must_pass: true
 priority: P0
 epic_id: "PLUGIN-MIGRATION-001"
 story_source: "S-PLUGIN-PREREQ-E"
-version: "1.8"
+version: "1.9"
 status: draft
 producer: product-owner
 timestamp: 2026-05-17T00:00:00Z
@@ -95,7 +95,7 @@ malformed specs.
 
 **Expected Outcome:**
 
-- Spec load is rejected with `E-SPEC-012` (ADR-023 Rule 2, Rule A — auth_type must be single value; see error-taxonomy.md v1.34)
+- Spec load is rejected with `E-SPEC-012` (ADR-023 Rule 2, Rule A — auth_type must be single value; see error-taxonomy.md v1.35)
 - Error message cites "auth_type must be a single value" or equivalent
 - Process does NOT fail to compile (no compile-time sealed-trait error — the rejection is runtime)
 - Other valid specs in the same directory continue to load (N-1 survivor rule)
@@ -180,6 +180,7 @@ When this holdout scenario is evaluated, the evaluator must produce:
 
 | Version | Burst | Date | Author | Change |
 |---------|-------|------|--------|--------|
+| 1.9 | FB62 | 2026-05-17 | state-manager | POL-29 v1.18 step 8b TRANSITIVE CLOSURE CATCH: error-taxonomy v1.34→v1.35 propagation at HS-001 §Expected Outcome line (1 live-narrative site; "error-taxonomy.md v1.34" → "error-taxonomy.md v1.35"). FB62 error-taxonomy bumped v1.34→v1.35 in PO dispatch; step 8b transitive closure detected this HS-001 site as missed by PO sweep. State-manager applies pin advancement in-scope per Canonical Principle Rule 4. post-grep: 0 live-narrative. |
 | 1.8 | FB57 | 2026-05-17 | product-owner | F-LP69-LOW-001 closure (PO scope): HS-001-04 Precondition 3 phrasing updated to accurately reflect VP-153 §Proof Harness Skeleton coverage (3 ADR-023 Rule 2 rejection rules: E-SPEC-012 + E-SPEC-013 + E-SPEC-014; the latter Cartesian-product). Was previously imprecise ("5×5 pairs" implies single proptest; actually 4 proptests across 3 Rules). POL-22 Phase C semantic-accuracy closure. |
 | 1.7 | FB56+FB56b SM step 8a catch | 2026-05-17 | state-manager | POL-29 v1.17 step 8a FINAL EMPIRICAL VERIFICATION CATCH: error-taxonomy v1.33→v1.34 propagation incomplete — FB56b bumped error-taxonomy to v1.34 but HS-001 line 98 was not updated from v1.33. State-manager step 8a catch closes gap in same atomic commit. post-grep: 0 live-narrative. |
 | 1.6 | FB56 | 2026-05-17 | product-owner | F-LP68-HIGH-001 closure (PO scope): error-taxonomy.md v1.32→v1.33 propagation at HS-001 line 98 §Expected Outcome (1 live-narrative site). POL-29 v1.16 step 3a (a) recurrence #20 within-burst closure. |

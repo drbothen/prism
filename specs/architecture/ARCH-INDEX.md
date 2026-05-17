@@ -1,7 +1,7 @@
 ---
 document_type: architecture-index
 level: L3
-version: "2.72"
+version: "2.74"
 status: draft
 producer: architect
 timestamp: 2026-05-17T06:30:00
@@ -87,11 +87,11 @@ deployment_topology: single-service  # planned — no service binary exists yet 
 | ADR-019 | SIEM Output Formats | PROPOSED v0.4 | 2026-05-03 | decisions/ADR-019-siem-output-formats.md |
 | ADR-020 | Story Status Taxonomy Reform — Closed Enum, Partial-Merge Semantics, and Graduation Contract | ACCEPTED v1.1 | 2026-05-08 | decisions/ADR-020-story-status-taxonomy-reform.md |
 | ADR-021 | BC/VP Promotion Lifecycle — Draft → Active → Verified Transitions, Audit Cadence, and BC-INDEX Count Authority | ACCEPTED v1.1 | 2026-05-08 | decisions/ADR-021-bc-vp-promotion-lifecycle.md |
-| ADR-022 | Production Runtime Wiring — prism-bin Chassis, Boot Sequence, Wiring Contracts, Infusion Fate, Hot-Reload Watcher, MCP Topology | ACCEPTED v1.9 | 2026-05-17 | decisions/ADR-022-production-runtime-wiring.md |
+| ADR-022 | Production Runtime Wiring — prism-bin Chassis, Boot Sequence, Wiring Contracts, Infusion Fate, Hot-Reload Watcher, MCP Topology | ACCEPTED v1.10 | 2026-05-17 | decisions/ADR-022-production-runtime-wiring.md |
 | ADR-023 | Plugin-Only Sensor Architecture — TOML Specs as Declarative Baseline, .prx WASM for Non-Declarative Cases, Retired CustomAdapter Rust Trait | COMMITTED v1.19 | 2026-05-15 | decisions/ADR-023-plugin-only-sensor-architecture.md |
 | ADR-024 | ColumnType Canonical Naming — Domain-Level Variant Names for Sensor Schema API; prism-spec-engine Shadow Enum Retirement | ACCEPTED v1.0 | 2026-05-12 | decisions/ADR-024-column-type-canonical-naming.md |
 | ADR-025 | BC Lifecycle Field Canonical Scheme — Single status Field Governs; lifecycle Field Retired | ACCEPTED v1.0 | 2026-05-12 | decisions/ADR-025-bc-lifecycle-field-canonical-scheme.md |
-| ADR-026 | SensorAuth Trait Un-Sealing — Remove private::Sealed, Enable Plugin Auth Implementations | PROPOSED v1.21 | 2026-05-17 | decisions/ADR-026-sensorauth-unsealing.md |
+| ADR-026 | SensorAuth Trait Un-Sealing — Remove private::Sealed, Enable Plugin Auth Implementations | PROPOSED v1.22 | 2026-05-17 | decisions/ADR-026-sensorauth-unsealing.md |
 | ADR-027 | CustomAdapter Rust Trait Same-Burst Removal — Perimeter Enforcement in Wave 1/A | PROPOSED v1.9 | 2026-05-17 | decisions/ADR-027-custom-adapter-deprecation-removal.md |
 
 ## Architecture Decisions
@@ -152,6 +152,8 @@ deployment_topology: single-service  # planned — no service binary exists yet 
 
 | Version | Pass | Date | Author | Change |
 |---------|------|------|--------|--------|
+| 2.73 | FB62 | 2026-05-17 | state-manager | D-684 FB62 closure: ADR-022 row updated ACCEPTED v1.9→v1.10 (architect cascade: ADR-026 D7 v1.19→v1.21 sweep at line 243; F-LP74-HIGH-001 closure). ARCH-INDEX v2.72→v2.73. |
+| 2.74 | FB62 | 2026-05-17 | state-manager | POL-29 v1.18 step 8b TRANSITIVE CLOSURE CATCH: ADR-026 v1.21→v1.22 (error-taxonomy v1.34→v1.35 propagation at §D7 line 312 — 1 live-narrative site). Same FB62 burst. ARCH-INDEX v2.73→v2.74. |
 | 2.72 | FB61 | 2026-05-17 | state-manager | FB61 D-683 propagation cascade: verification-coverage-matrix.md row v1.38→v1.42 (F-LP73-HIGH-001 closure DI-012 v1.6 6-day propagation gap closed by architect); architect 26-row DI sweep 0 additional catches confirmed. |
 | 2.71 | FB60 | 2026-05-17 | state-manager | F-LP72-HIGH-001 closure (state-manager scope): ADR-001 row title "DTU Rate Limit Pattern" → "DTU Rate-Limit Pattern" (hyphen restored to byte-match ADR-001 H1 + frontmatter title v1.2). FB59 within-FB sibling-sweep gap closed (architect noted "ARCH-INDEX row propagation owned by state-manager" but propagation was missed). POL-7 + POL-29 closure. |
 | 2.70 | FB59 | 2026-05-17 | state-manager | D-681 FB59 closure: F-LP71-HIGH-001 ADR-027 v1.9 frontmatter title byte-sync (drop "— Sole Escape Hatch is .prx WASM" trailing FB46 paper-fix surviving 24 passes); architect sibling-sweep expansion 3 additional drift catches: ADR-001 v1.2 (title subtitle dropped) + ADR-004 v0.2 (title field was MISSING) + ADR-022 v1.9 (H1 extended to match canonical title/ARCH-INDEX). POL-7 + TD-VSDD-060 within-file frontmatter↔H1 dimension closed across PREREQ-E + sibling-swept ADRs. ADR-012 evaluated CLEAN (backtick presentation-only). |

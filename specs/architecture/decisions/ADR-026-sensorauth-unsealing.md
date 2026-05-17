@@ -4,7 +4,7 @@ adr_id: "ADR-026"
 title: "SensorAuth Trait Un-Sealing — Remove private::Sealed, Enable Plugin Auth Implementations"
 status: Proposed
 date: "2026-05-17"
-version: "1.21"
+version: "1.22"
 producer: architect
 subsystems_affected: [SS-01, SS-07, SS-16, SS-17, SS-22]
 supersedes: null
@@ -309,7 +309,7 @@ source provenance:
   using the plugin manifest `name` field value). This is the canonical structured identifier
   for the offending plugin in the forensic-trace audit record. The same value also populates
   the `{plugin}` placeholder in the E-PLUGIN-012 `DuplicateWriteToolRegistration` error message
-  template and the `{conflicting_plugin}` companion placeholder (error-taxonomy v1.34) — both
+  template and the `{conflicting_plugin}` companion placeholder (error-taxonomy v1.35) — both
   share the same manifest `name` field as their source via the `WriteToolInvalidationMap` entry.
 - `tool_name` — `entry.tool_name` (`WriteToolInvalidationMap` struct field; the write-tool
   capability name declared in the plugin manifest, as registered during step 7.5 plugin-load).
@@ -477,3 +477,4 @@ modes and security implications. The open trait approach reuses the existing typ
 | 1.19 | 2026-05-17 | architect | F-LP68-HIGH-001 closure (architect scope): error-taxonomy v1.32→v1.33 propagation at ADR-026 §D7 narrative body line 312 (1 live-narrative site within `{conflicting_plugin}` companion-placeholder paragraph). FB55 multi-value-class enforcement gap closure — FB55 bumped error-taxonomy as side-effect of D7 cite edits at error-taxonomy lines 459/467 but did not enumerate (a) as value class for sweep across ADR-026. PO swept story v1.34 + HS-001 v1.6 + VP-153 v0.11 in same burst. POL-29 v1.16 step 8 STRENGTHENED grep evidence (architect-domain): pre-grep 1 → post-grep 0 in `.factory/specs/architecture/`. Sibling-sweep across other ADRs: 0 additional found and swept. |
 | 1.20 | 2026-05-17 | state-manager | POL-29 v1.17 step 8a FINAL EMPIRICAL VERIFICATION CATCH: error-taxonomy v1.33→v1.34 propagation incomplete — ADR-026 §D7 line 312 was updated to `error-taxonomy v1.33` by v1.19 but FB56b bumped error-taxonomy to v1.34 creating a new stale cite. State-manager step 8a catch: line 312 `{conflicting_plugin}` companion-placeholder cite updated to `error-taxonomy v1.34`. post-grep: 0 live-narrative. |
 | 1.21 | 2026-05-17 | state-manager | POL-26-COROLLARY bookkeeping repair: rows v1.18/v1.19/v1.20 (added by FB52/FB56/FB56+FB56b-SM-catch in descending order) reordered to ascending position per file convention (rows v1.0→v1.17 ascending). 7th POL-26 recurrence closed (F-LP69-HIGH-001). No content edits; row content preserved verbatim. |
+| 1.22 | 2026-05-17 | state-manager | POL-29 v1.18 step 8b TRANSITIVE CLOSURE CATCH: error-taxonomy v1.34→v1.35 propagation at §D7 line 312 (1 live-narrative site; "error-taxonomy v1.34" → "error-taxonomy v1.35"). FB62 error-taxonomy bumped v1.34→v1.35 in PO dispatch; step 8b transitive closure detected this site as missed by FB62 PO/architect sweep. State-manager applies pin advancement in-scope per Canonical Principle Rule 4. post-grep: 0 live-narrative. |

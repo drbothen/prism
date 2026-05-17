@@ -1,7 +1,7 @@
 ---
 document_type: verification-property-index
 level: L4
-version: "1.62"
+version: "1.64"
 status: draft
 producer: product-owner
 timestamp: 2026-05-16T00:00:00
@@ -243,6 +243,8 @@ S-1.02 frontmatter has been updated to `subsystems: [SS-03, SS-07, SS-11, SS-12,
 
 | Version | Burst | Date | Author | Change |
 |---------|-------|------|--------|--------|
+| 1.63 | FB62 | 2026-05-17 | state-manager | D-684 FB62 closure: VP-156 v0.14→v0.15 (PO cascade: ADR-026 D7 v1.19→v1.21 sweep at 4 live-narrative sites; F-LP74-HIGH-001 closure). VP-INDEX v1.62→v1.63. |
+| 1.64 | FB62 | 2026-05-17 | state-manager | POL-29 v1.18 step 8b TRANSITIVE CLOSURE CATCH: VP-153 v0.13→v0.14 (error-taxonomy v1.34→v1.35 propagation at proof-harness comment lines 167 + 210 — 2 live-narrative sites). Same FB62 burst. VP-INDEX v1.63→v1.64. |
 | 1.62 | FB58 | 2026-05-17 | state-manager | F-LP70-HIGH-001 closure (state-manager scope): VP-INDEX line 183 Property cell bookkeeping marker `[v0.13 FB57 POL-26 §Changelog row swap]` removed; restored verbatim VP-153 property description per FB54 v1.57 convention ("Version-tracking lives in §Changelog rows per existing convention for all 154 catalog rows"). Within-FB57 regression of F-LP66-MED-001 closed. POL-26 + POL-4 + POL-23 restoration. Sibling-sweep across BC-INDEX + ARCH-INDEX + STORY-INDEX: 0 additional sites found. VP-INDEX v1.61→v1.62. |
 | 1.61 | FB57 | 2026-05-17 | state-manager | D-679 FB57 closure: VP-153 v0.12→v0.13 (POL-26-COROLLARY bookkeeping repair: §Changelog rows v0.11 + v0.12 swapped to restore ascending convention; FB56 PO row inserted above pre-existing v0.10 row and SM catch row both misordered during LARGEST-burst; F-LP69-MED-001 closure). VP-INDEX v1.60→v1.61. |
 | 1.60 | FB56+FB56b+SM-step8a | 2026-05-17 | state-manager | D-678 FB56+FB56b combined + SM step 8a catch: VP-153 v0.11→v0.12 (SM step 8a catch: error-taxonomy v1.33→v1.34 propagation at VP-153 code-comment lines 167, 210 — FB56b bumped error-taxonomy to v1.34 creating new stale cites; state-manager step 8a final verification caught and closed) + VP-156 v0.13→v0.14 (FB56b architect cascade: ADR-026 D7 v1.18→v1.19 sweep at 4 live-narrative sites). VP-INDEX v1.59→v1.60. |

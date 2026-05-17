@@ -1,7 +1,7 @@
 ---
 document_type: behavioral-contract-index
 level: L3
-version: "5.08"
+version: "5.09"
 status: draft
 producer: product-owner
 timestamp: 2026-05-17T06:30:00Z
@@ -209,7 +209,7 @@ Phase 3-patch additions (2026-04-16): 22 new BCs added in Burst 1 to close trace
 | BC-2.15.010 | Decorator Three-Phase Model — Config-Time, Query-Time, Periodic | 15 - Storage Layer | CAP-026 | P0 | draft |
 | BC-2.15.011 | Internal Table Registration — RocksDB Domains as DataFusion Tables | 15 - Storage Layer | CAP-028 | P0 | draft |
 | BC-2.16.001 | Sensor Spec File Loading — Parse TOML, Validate Schema, Register Tables | 16 - Spec Engine | CAP-029 | P0 | draft |
-| BC-2.16.002 | Multi-Step Fetch Pipeline Execution — Sequential Steps with Variable Interpolation | 16 - Spec Engine | CAP-029 | P0 | active (promoted draft→active D-427 per POL-14; anchor story S-PLUGIN-PREREQ-B merged PR #143 develop@ae7e26c8 2026-05-12) — v1.26 |
+| BC-2.16.002 | Multi-Step Fetch Pipeline Execution — Sequential Steps with Variable Interpolation | 16 - Spec Engine | CAP-029 | P0 | active (promoted draft→active D-427 per POL-14; anchor story S-PLUGIN-PREREQ-B merged PR #143 develop@ae7e26c8 2026-05-12) — v1.27 |
 | BC-2.16.003 | Column-to-OCSF Mapping at Query Time — Map Sensor Columns to OCSF Fields Per Spec | 16 - Spec Engine | CAP-029 | P0 | draft |
 | BC-2.16.004 | ~~Rust Escape Hatch for Custom Adapters — Trait-Based Override When Config Is Insufficient~~ | 16 - Spec Engine | CAP-029 | P0 | deprecated (ADR-023 PREREQ-F) |
 | BC-2.16.005 | `reload_config` MCP Tool — Re-Read All Config Files, Validate, Atomic Swap, Notify | 16 - Spec Engine | CAP-030 | P1 | draft |
@@ -371,6 +371,8 @@ Phase 3-patch additions (2026-04-16): 22 new BCs added in Burst 1 to close trace
 - Subsystem 19: Infusion Enrichment Framework (AD-020, CAP-031)
 
 ### Change Log (Adversarial Review Fixes)
+
+**v5.09 (2026-05-17):** state-manager | FB62 D-684 | F-LP74-HIGH-001 closure (state-manager scope): BC-2.16.012 v1.22→v1.23 (PO cascade: ADR-026 D7 v1.19→v1.21 sweep at 4 live-narrative sites) + BC-2.16.002 v1.26→v1.27 (PO cascade: ADR-026 D7 v1.19→v1.21 sweep at 1 live-narrative site; POL-30 Fork B catalog bullet (v1.21) UNCHANGED). BC-INDEX v5.08→v5.09.
 
 **v5.08 (2026-05-17):** state-manager | FB61 D-683 | F-LP73-MED-001 closure (state-manager scope): BC count reconciliation — empirical lifecycle_status enumeration of all 239 BC files yielded active=225, draft=5, deprecated=1, removed=6, retired=2, total=239; frontmatter `active_contracts` was 225 (correct per v4.81 D-572 enumeration); Summary table §Total BC Count was 222 (stale from v4.19, never updated after D-319 v4.51 promotions + D-398 v4.55 + D-427 v4.60 + D-568 v4.80 + D-572 v4.81 corrections); per-row reconciliation: SS-03 12→13 (BC-2.03.013 promoted active at v4.55), SS-05 11→12 (BC-2.05.012 promoted active at v4.51), SS-16 10→9 (BC-2.16.004 deprecated at v4.54 + BC-2.16.011/012 added as draft not active), SS-17 6→7 (BC-2.17.007 added at v4.64 as 7th active P0), SS-22 (new row) 0→1 (BC-2.22.001 active); Summary table Total row 222→225 BC Count, P0 192→195; SS-22 row added (1 BC Count / 1 P0); Note v4.51 "active_contracts 222→227" is historically accurate (Summary table value at that moment was 222; v4.81 corrected the frontmatter discrepancy; BC-2.06.011 + BC-2.21.001 remained draft per file frontmatter despite being listed in v4.51 promotions). POL-11 + POL-14 + POL-26 consistency restored. BC-INDEX v5.07→v5.08.
 

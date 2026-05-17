@@ -4,7 +4,7 @@ adr_id: "ADR-022"
 title: "Production Runtime Wiring — prism-bin Chassis, Boot Sequence, Wiring Contracts, Infusion Fate, Hot-Reload Watcher, MCP Topology"
 status: ACCEPTED
 date: "2026-05-17"
-version: "1.9"
+version: "1.10"
 producer: architect
 subsystems_affected: [SS-06, SS-10, SS-11, SS-16, SS-17, SS-19]
 supersedes: null
@@ -240,7 +240,7 @@ Step 7.5 [BLOCKING] Plugin runtime load  ← see ADR-023 §C4 (authoritative pla
 
 Step 8   [BLOCKING → BACKGROUND] QueryEngine + WriteExecutor construction
          First statement: prism_query::invalidation::mark_query_phase_started() — closes the
-               write-registration window before QueryEngine::new(). See ADR-026 §D7 v1.19.
+               write-registration window before QueryEngine::new(). See ADR-026 §D7 v1.21.
          Action: construct QueryEngine (prism-query); bind AdapterRegistry + StorageBackend
          Action: construct WriteExecutor (prism-query); bind feature-flag check + capability check
          Note: QueryEngine::execute in engine.rs was todo!() — resolved by S-3.02-FOLLOWUP-RUNTIME
@@ -786,6 +786,7 @@ Bundle B Phase B-0 architecture output. Authored at D-302 from workspace audit D
 
 | Version | Date | Author | Change |
 |---------|------|--------|--------|
+| 1.10 | 2026-05-17 | architect | F-LP74-HIGH-001 closure (architect scope): ADR-026 §D7 pin v1.19→v1.21 at line 243 §B Step 8 first-statement note (1 site). Recurrence #20 of POL-29 step 3a registry class (b); META-gap revealed by pass-74 — POL-29 v1.17 step 8a single-pass enforcement misses transitively-introduced staleness within own application cycle. PO swept 6 spec files (story v1.38 + BC-2.16.012 v1.23 + BC-2.16.002 v1.27 + error-taxonomy v1.35 + VP-156 v0.15 + HS-003 v1.12) in same burst. POL-29 v1.17→v1.18 step 8b transitive closure amendment by state-manager (in-burst META-gap closure per user strategic direction). POL-29 step 8a grep evidence (architecture-domain): pre-grep 1 → post-grep 0. Sibling-sweep across other ADRs: 0 additional sites found. |
 | 1.9 | 2026-05-17 | architect | F-LP71-HIGH-001 sibling-sweep catch: H1 extended to byte-match frontmatter `title:` — `# ADR-022: Production Runtime Wiring` → `# ADR-022: Production Runtime Wiring — prism-bin Chassis, Boot Sequence, Wiring Contracts, Infusion Fate, Hot-Reload Watcher, MCP Topology`. ARCH-INDEX row already has the long form (canonical); H1 was the truncated outlier. POL-7 + TD-VSDD-060 within-file frontmatter↔H1 dimension. ARCH-INDEX row propagation (version bump v1.8→v1.9) owned by state-manager. |
 | 1.8 | 2026-05-17 | architect | F-LP68-HIGH-001 closure cascade (FB56b architect scope): ADR-026 §D7 pin v1.18→v1.19 propagation at ADR-022 §B Step 8 first-statement note (line 243; 1 site). Triggered by FB56 architect bump of ADR-026 v1.18→v1.19 to close 1 error-taxonomy cite at line 312; POL-29 v1.17 step 8a FIRST APPLICATION CATCH — diff-derived value-class enumeration detected the side-effect D7 v1.18 staleness BEFORE commit. PO swept story v1.35 + BC-2.16.012 v1.22 + VP-156 v0.14 + HS-003 v1.10 + error-taxonomy v1.34 + BC-2.16.002 v1.26 in same burst. POL-29 v1.17 step 8a grep evidence (architecture-domain): pre-grep 1 → post-grep 0. Sibling-sweep across other ADRs: 0 found. |
 | 1.7 | 2026-05-17 | architect | F-LP67-HIGH-001 closure (architect scope): ADR-026 §D7 pin v1.17→v1.18 propagation at ADR-022 §B Step 8 first-statement note (line 243; 1 live-narrative site). POL-29 v1.16 step 3a (b) ADR-026 D7 pin registry first-test surfaced recurrence #18 of class (b); PO swept BC-2.16.012 v1.21 + VP-156 v0.13 + HS-003 v1.9 + error-taxonomy v1.33 + story v1.33 in same burst. POL-29 step 8 STRENGTHENED grep evidence (architect-domain): pre-grep 1 → post-grep 0 in `.factory/specs/architecture/`. Sibling-sweep across other ADRs: 0 additional sites found. |
