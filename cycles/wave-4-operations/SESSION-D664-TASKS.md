@@ -1,11 +1,11 @@
 ---
 document_type: session-tasks
-version: "1.9"
+version: "1.10"
 status: active
-related_burst: D-673
+related_burst: D-674
 predecessor_state: D-664
 predecessor_session_tasks: SESSION-D644-TASKS.md
-timestamp: 2026-05-17T04:30:00Z
+timestamp: 2026-05-17T05:30:00Z
 ---
 
 # Session Task List — D-664 Durable Pre-/Clear Snapshot
@@ -28,9 +28,9 @@ This file persists the cascade state from the session covering D-645 through D-6
 - **170 consecutive single-commit bursts** (D-664 is the 170th; restoring TD-VSDD-053 discipline after FB43 two-commit deviation — see Known Issue below)
 - **3 CLEAN passes this session**: pass-39 (1st), pass-43 (2nd), pass-51 (3rd)
 - **8 CLEAN passes total** across all sessions: pass-9, pass-19, pass-23, pass-25, pass-26, pass-29, pass-30, pass-35 (prior sessions) + pass-39, pass-43, pass-51 (this session)
-- **Current streak:** 0/3 (pass-63 BLOCKED at D-673; streak unchanged; 27 passes consumed in restart-9 sequence; F-LP63-HIGH-001/002/003 + F-LP63-MED-001/002; FIRST POL-29 enforcement test FAILED — codification alone insufficient; **POL-29 ENHANCED at FB51** — lint_hook spec + 7-step verification_steps mandating grep evidence; pass-64 begins under POL-29 ENHANCED discipline)
+- **Current streak:** 0/3 (pass-64 BLOCKED at D-674; streak unchanged; 28 passes consumed in restart-9 sequence; F-LP64-HIGH-001 multi-value-class enforcement gap + F-LP64-MED-001 POL-29 schema violation + 2 OBS; POL-29 v1.13 enforcement test FAILED predictably; **POL-29 v1.14 amended at FB52** — schema standardized (lint_hook=null, verification_steps as list) + multi-value-class enumeration step; pass-65 begins under POL-29 v1.14)
 
-**Trajectory novel-finding count (this session):** 3(pass-36 carry-forward)→pass-37:BLOCKED(3M)→pass-38:BLOCKED(1M+1L)→pass-39:CLEAN★→pass-40:BLOCKED(1M+1L)→pass-41:BLOCKED(1L)→pass-42:BLOCKED(1M+1L)→pass-43:CLEAN★→pass-44:BLOCKED(2M)→pass-45:BLOCKED(1M+1L+2OBS)→pass-46:BLOCKED(1H+1M)→pass-47:BLOCKED(1H+3M+1L)→pass-48:BLOCKED(1H+3M)→pass-49:BLOCKED(1H+4M+1L)→pass-50:BLOCKED(2M+1L)→pass-51:CLEAN★→pass-52:BLOCKED(1H)→pass-53:BLOCKED(2M)→pass-54:BLOCKED(1H+2OBS)→pass-55:CLEAN★(0 findings; 2 non-blocking OBS; novelty ZERO)→pass-56:BLOCKED(1H; F-LP56-HIGH-001 production call-graph defect; novelty HIGH; architect Option A)→pass-57:BLOCKED(2H+1M+1OBS; F-LP57-HIGH-001 runtime_deliverables + F-LP57-HIGH-002 SS-22 + F-LP57-MED-001 tracing-test + OBS-LP57-001 Path A; novelty HIGH; FB45 architect+PO+SM multi-agent)→pass-58:BLOCKED(2H+3M+1OBS; F-LP58-HIGH-001 ADR-027 title-vs-§D1 contradiction + F-LP58-HIGH-002 HS-003-05 Step 1 vs AC-9 gate FB45-sibling-sweep + F-LP58-MED-001/002/003 + OBS-LP58-001; novelty HIGH; FB46 multi-agent closure) →pass-59:BLOCKED(2H+1M+1OBS; F-LP59-HIGH-001 CAP-029 mis-anchor + F-LP59-HIGH-002 risk_mitigations renumbering drift + F-LP59-MED-001 deprecation framing 5-site sibling-sweep + OBS-LP59-001; novelty HIGH; POL-29 #16+; FB47 corrective multi-agent) →pass-60:BLOCKED(1H+1L+1OBS; F-LP60-HIGH-001 BC-2.16.012 §Changelog ASCENDING-at-top 4th POL-26 recurrence + F-LP60-LOW-001 §risk_mitigations AC-7..8 path-citation ambiguity Option (a) + OBS-LP60-001 BC-INDEX schema cycle-close; POL-29 #17+; FB48 multi-agent) →pass-61:BLOCKED(1H+1M; F-LP61-HIGH-001 story §Changelog 5th POL-26 monotonic-ordering recurrence sibling-class-missed-by-FB48 + F-LP61-MED-001 §risk_mitigations AC-4..6 behavioral-equivalence misattribution Tests-6-7-verify-absence; POL-29 #18+; FB49 multi-agent) →pass-62:BLOCKED(0H+1M+2L; F-LP62-MED-001 AC-5 mechanism orphan to AC-7..8 entry + OBS-LP62-001 HS-002 §Failure-conditions parenthetical stale + OBS-LP62-002 17-site D7 pin sweep Interpretation #2 chosen; **POL-29 CODIFIED at FB50 D-672**; trend signal 0 HIGH first since pass-55; FB50 architect+PO+SM multi-agent; 178th single-commit) →pass-63:BLOCKED(3H+2M+2OBS; F-LP63-HIGH-001 POL-29 enforcement gap error-taxonomy 2 D7 v1.10 + F-LP63-HIGH-002 ADR-022 §Changelog non-monotonic 6th POL-26 + F-LP63-HIGH-003 VP-156 v0.10/v0.11 swap 7th POL-26 within-FB50 + F-LP63-MED-001 BC-2.01.016 mis-anchor + F-LP63-MED-002 E-SPEC-008 back-pointers; FIRST POL-29 test FAILED; POL-29 enhanced at FB51 lint_hook + verification_steps; novelty HIGH; FB51 PO+SM multi-agent 179th single-commit)
+**Trajectory novel-finding count (this session):** 3(pass-36 carry-forward)→pass-37:BLOCKED(3M)→pass-38:BLOCKED(1M+1L)→pass-39:CLEAN★→pass-40:BLOCKED(1M+1L)→pass-41:BLOCKED(1L)→pass-42:BLOCKED(1M+1L)→pass-43:CLEAN★→pass-44:BLOCKED(2M)→pass-45:BLOCKED(1M+1L+2OBS)→pass-46:BLOCKED(1H+1M)→pass-47:BLOCKED(1H+3M+1L)→pass-48:BLOCKED(1H+3M)→pass-49:BLOCKED(1H+4M+1L)→pass-50:BLOCKED(2M+1L)→pass-51:CLEAN★→pass-52:BLOCKED(1H)→pass-53:BLOCKED(2M)→pass-54:BLOCKED(1H+2OBS)→pass-55:CLEAN★(0 findings; 2 non-blocking OBS; novelty ZERO)→pass-56:BLOCKED(1H; F-LP56-HIGH-001 production call-graph defect; novelty HIGH; architect Option A)→pass-57:BLOCKED(2H+1M+1OBS; F-LP57-HIGH-001 runtime_deliverables + F-LP57-HIGH-002 SS-22 + F-LP57-MED-001 tracing-test + OBS-LP57-001 Path A; novelty HIGH; FB45 architect+PO+SM multi-agent)→pass-58:BLOCKED(2H+3M+1OBS; F-LP58-HIGH-001 ADR-027 title-vs-§D1 contradiction + F-LP58-HIGH-002 HS-003-05 Step 1 vs AC-9 gate FB45-sibling-sweep + F-LP58-MED-001/002/003 + OBS-LP58-001; novelty HIGH; FB46 multi-agent closure) →pass-59:BLOCKED(2H+1M+1OBS; F-LP59-HIGH-001 CAP-029 mis-anchor + F-LP59-HIGH-002 risk_mitigations renumbering drift + F-LP59-MED-001 deprecation framing 5-site sibling-sweep + OBS-LP59-001; novelty HIGH; POL-29 #16+; FB47 corrective multi-agent) →pass-60:BLOCKED(1H+1L+1OBS; F-LP60-HIGH-001 BC-2.16.012 §Changelog ASCENDING-at-top 4th POL-26 recurrence + F-LP60-LOW-001 §risk_mitigations AC-7..8 path-citation ambiguity Option (a) + OBS-LP60-001 BC-INDEX schema cycle-close; POL-29 #17+; FB48 multi-agent) →pass-61:BLOCKED(1H+1M; F-LP61-HIGH-001 story §Changelog 5th POL-26 monotonic-ordering recurrence sibling-class-missed-by-FB48 + F-LP61-MED-001 §risk_mitigations AC-4..6 behavioral-equivalence misattribution Tests-6-7-verify-absence; POL-29 #18+; FB49 multi-agent) →pass-62:BLOCKED(0H+1M+2L; F-LP62-MED-001 AC-5 mechanism orphan to AC-7..8 entry + OBS-LP62-001 HS-002 §Failure-conditions parenthetical stale + OBS-LP62-002 17-site D7 pin sweep Interpretation #2 chosen; **POL-29 CODIFIED at FB50 D-672**; trend signal 0 HIGH first since pass-55; FB50 architect+PO+SM multi-agent; 178th single-commit) →pass-63:BLOCKED(3H+2M+2OBS; F-LP63-HIGH-001 POL-29 enforcement gap error-taxonomy 2 D7 v1.10 + F-LP63-HIGH-002 ADR-022 §Changelog non-monotonic 6th POL-26 + F-LP63-HIGH-003 VP-156 v0.10/v0.11 swap 7th POL-26 within-FB50 + F-LP63-MED-001 BC-2.01.016 mis-anchor + F-LP63-MED-002 E-SPEC-008 back-pointers; FIRST POL-29 test FAILED; POL-29 enhanced at FB51 lint_hook + verification_steps; novelty HIGH; FB51 PO+SM multi-agent 179th single-commit) →pass-64:BLOCKED(1H+1M+2OBS; F-LP64-HIGH-001 multi-value-class enforcement gap + F-LP64-MED-001 POL-29 schema violation + OBS-LP64-001 VP-154 anchor + OBS-LP64-002 [process-gap] singular framing; POL-29 v1.13→v1.14; FB52 multi-agent 180th single-commit)
 
 **User directive:** Option 1 (continue cascade) chosen at D-664 checkpoint. Pass-55 begins next session.
 
@@ -76,33 +76,35 @@ This file persists the cascade state from the session covering D-645 through D-6
 | 127 | **DONE** | D-672 FB50 MULTI-AGENT CLOSURE + POL-29 CODIFICATION — architect 4 files (BC-2.16.012 v1.20 + VP-156 v0.11 + ADR-022 v1.5 + BC-2.16.002 v1.24; 9 D7 pin sweep) + PO 3 files (story v1.29 + HS-002 v1.6 + HS-003 v1.8; 8 D7 pin sweep) + SM INDEX cascade (BC-INDEX v5.03 + VP-INDEX v1.54 + ARCH-INDEX v2.63 + STORY-INDEX v2.133) + policies.yaml v1.12 (POL-29 ACTIVE); 17-site total D7 pin sweep Interpretation #2; 178th consecutive single-commit (TD-VSDD-053 STABLE); cycle-close queue item 9 retired |
 | 128 | **DONE-BLOCKED** | PREREQ-E pass-63 (7th pass of restart-9; BLOCKED: 3 HIGH F-LP63-HIGH-001/002/003 + 2 MED F-LP63-MED-001/002 + 2 OBS; FIRST POL-29 test FAILED — codification alone insufficient; novelty HIGH; all 5 findings closed via FB51 PO+SM multi-agent; POL-29 ENHANCED at FB51; streak 0/3 unchanged) |
 | 129 | **DONE** | D-673 FB51 MULTI-AGENT CLOSURE + POL-29 ENFORCEMENT ENHANCEMENT — error-taxonomy v1.32 + BC-2.01.016 v1.8 + BC-2.16.011 v1.8 (PO) + ADR-022 v1.6 + VP-156 v0.12 + policies.yaml v1.13 (SM) + INDEX cascade BC-INDEX v5.04 + VP-INDEX v1.55 + ARCH-INDEX v2.64; POL-29 enhanced lint_hook spec + 7-step verification_steps; 179th consecutive single-commit (TD-VSDD-053 STABLE) |
-| 130 | **PENDING** | PREREQ-E pass-64 (8th pass of restart-9 sequence; under POL-29 ENHANCED discipline — grep evidence mandatory in commit narrative) |
+| 130 | **DONE-BLOCKED** | PREREQ-E pass-64 (8th pass of restart-9; BLOCKED 1 HIGH F-LP64-HIGH-001 + 1 MED F-LP64-MED-001 + 2 OBS; multi-value-class enforcement gap + POL-29 schema violation + VP-154 anchor + [process-gap] singular framing; POL-29 v1.13 enforcement test FAILED predictably; novelty HIGH-MEDIUM; FB52 multi-agent closed all in-scope D-674) |
+| 131 | **DONE** | D-674 FB52 MULTI-AGENT CLOSURE + POL-29 v1.14 AMENDMENT — PO: story v1.30 (8 sites error-taxonomy v1.31→v1.32 + OBS-LP64-001 VP-154 anchor fix) + HS-001 v1.5 (1 site) + STORY-INDEX v2.134; architect: ADR-026 v1.18 (1 site) + VP-153 v0.10 (2 sites); SM: policies.yaml v1.13→v1.14 (schema standardization + multi-value-class enumeration) + VP-INDEX v1.56 + ARCH-INDEX v2.65 + pass-64 report; 180th consecutive single-commit (TD-VSDD-053 STABLE) |
+| 132 | **PENDING** | PREREQ-E pass-65 (9th pass of restart-9 sequence; under POL-29 v1.14 ENHANCED — EACH-value-class enumeration + canonical list verification_steps; third POL-29 enforcement test overall) |
 
-## Pinned Artifact Versions (post-FB51, as of D-673)
+## Pinned Artifact Versions (post-FB52, as of D-674)
 
 | Artifact | Version |
 |----------|---------|
-| Story S-PLUGIN-PREREQ-E | v1.29 |
+| Story S-PLUGIN-PREREQ-E | v1.30 |
 | BC-2.01.016 | v1.8 |
 | BC-2.16.011 | v1.8 |
 | BC-2.16.012 | v1.20 |
 | BC-2.16.002 | v1.24 |
-| ADR-026 | v1.17 |
+| ADR-026 | v1.18 |
 | ADR-022 | v1.6 |
 | ADR-027 | v1.8 |
-| VP-153 | v0.9 |
+| VP-153 | v0.10 |
 | VP-154 | v0.6 |
 | VP-155 | v0.5 |
 | VP-156 | v0.12 |
-| HS-PREREQ-E-001 | v1.4 |
+| HS-PREREQ-E-001 | v1.5 |
 | HS-PREREQ-E-002 | v1.6 |
 | HS-PREREQ-E-003 | v1.8 |
 | error-taxonomy | v1.32 |
-| ARCH-INDEX | v2.64 |
-| VP-INDEX | v1.55 |
-| STORY-INDEX | v2.133 |
+| ARCH-INDEX | v2.65 |
+| VP-INDEX | v1.56 |
+| STORY-INDEX | v2.134 |
 | BC-INDEX | v5.04 |
-| policies.yaml | v1.13 |
+| policies.yaml | v1.14 |
 | verification-architecture | v1.41 |
 | verification-coverage-matrix | v1.38 |
 

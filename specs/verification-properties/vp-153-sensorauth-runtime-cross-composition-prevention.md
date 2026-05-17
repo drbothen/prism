@@ -1,7 +1,7 @@
 ---
 document_type: verification-property
 level: L4
-version: "0.9"
+version: "0.10"
 status: draft
 producer: architect
 timestamp: 2026-05-16T16:00:00Z
@@ -24,7 +24,7 @@ proof_completed_date: null
 proof_file_hash: null
 lifecycle_status: draft
 introduced: "2026-05-15"
-modified: "2026-05-16"
+modified: "2026-05-17"
 deprecated: null
 deprecated_by: null
 replacement: null
@@ -164,7 +164,7 @@ deterministically with a small strategy and provide regression coverage for the 
 //         prop_assert!(result.is_err(), "invalid auth_type {:?} was accepted", raw_auth_value);
 //         let err = result.unwrap_err();
 //         // Assertion: error must be AuthTypeInvalid variant with E-SPEC-012 message_template
-//         // byte-verbatim per error-taxonomy.md v1.31:
+//         // byte-verbatim per error-taxonomy.md v1.32:
 //         //   "auth_type for sensor '{sensor_id}' must be a single value; got: {value}.
 //         //    Valid values: oauth2_client_credentials, bearer_static, cookie_roundtrip,
 //         //    api_key, custom_via_plugin"
@@ -207,7 +207,7 @@ deterministically with a small strategy and provide regression coverage for the 
 //             "spec with {} credential_refs was accepted (Rule B violation)", extra_ref_count + 1);
 //         let err = result.unwrap_err();
 //         // Assertion: error must be MultipleCredentialRefs variant with E-SPEC-013 message_template
-//         // byte-verbatim per error-taxonomy.md v1.31:
+//         // byte-verbatim per error-taxonomy.md v1.32:
 //         //   "auth method for sensor '{sensor_id}' declares {count} credential_refs;
 //         //    exactly one is required"
 //         prop_assert!(matches!(err, SpecEngineError::MultipleCredentialRefs { .. }),
@@ -293,3 +293,4 @@ mode against a temp dir). Either approach is feasible.
 | 0.7 | FB34 | 2026-05-16 | architect | F-LP44-MED-002 — §Proof Harness Skeleton expanded: Rule A (E-SPEC-012 multi-valued/out-of-set auth_type) proptest `multi_valued_or_out_of_set_auth_type_rejected_with_e_spec_012` + Rule B (E-SPEC-013 multiple credential_refs) proptest `multiple_credential_refs_per_method_rejected_with_e_spec_013` scaffolded. Previously only Rule C was scaffolded (2 proptests); skeleton now covers all 3 Rules (4 proptests total). Eliminates under-coverage risk for security-critical spec-load rejection layer. Harness file name kept as `vp153_sensorauth_cross_composition.rs` with scope note; test-writer may rename to match VP slug. |
 | 0.8 | FB39 | 2026-05-16 | architect | FB39: F-LP49-HIGH-001 sites 2+3 closure — §Proof Harness Skeleton inline comments lines 167 (Rule A E-SPEC-012 byte-verbatim provenance) + 210 (Rule B E-SPEC-013 byte-verbatim provenance) advanced from v1.30 to v1.31 per FB38 D-657 cascade. |
 | 0.9 | FB40 | 2026-05-16 | state-manager | FB40 D-659: F-LP50-MED-002 §Changelog row ordering corrected to monotonic ascending (oldest first) per POL-26. Prior order was 0.7 → 0.8 → 0.6 → 0.1 → 0.2 → 0.3 → 0.4 → 0.5 (non-monotonic; rows 0.6 through 0.5 appended after 0.7+0.8 in the wrong sequence). Corrected order: 0.1 → 0.2 → 0.3 → 0.4 → 0.5 → 0.6 → 0.7 → 0.8 → 0.9. Pre-existing defect surviving 49 prior passes — fresh-context catch via vector rotation (lateral vector: VP-153 §Changelog row ordering audit). |
+| 0.10 | FB52 | 2026-05-17 | architect | F-LP64-HIGH-001 closure: error-taxonomy.md v1.31→v1.32 sibling-sweep at 2 proof harness skeleton comments (lines 167, 210). POL-29 v1.13 grep evidence: 2 pre → 0 post. |

@@ -3779,3 +3779,57 @@ Streak: 0/3 unchanged (3 HIGH + 2 MED block convergence; novelty HIGH; first POL
 Story v1.29 | BC-2.01.016 v1.8 | BC-2.16.011 v1.8 | BC-2.16.012 v1.20 | BC-2.16.002 v1.24 | ADR-026 v1.17 | ADR-022 v1.6 | ADR-027 v1.8 | VP-153 v0.9 | VP-154 v0.6 | VP-155 v0.5 | VP-156 v0.12 | HS-PREREQ-E-001 v1.4 | HS-PREREQ-E-002 v1.6 | HS-PREREQ-E-003 v1.8 | error-taxonomy v1.32 | ARCH-INDEX v2.64 | VP-INDEX v1.55 | STORY-INDEX v2.133 | BC-INDEX v5.04 | policies.yaml v1.13 | verification-architecture v1.41 | verification-coverage-matrix v1.38
 
 STATE.md v7.360; SESSION-HANDOFF.md v7.360; prereq_e_adversary_streak **0/3** (pass-63 BLOCKED — 3 HIGH F-LP63-HIGH-001/002/003 + 2 MED F-LP63-MED-001/002; FIRST POL-29 test FAILED; POL-29 ENHANCED at FB51 lint_hook + 7-step verification_steps; novelty HIGH; FB51 PO+SM multi-agent closure; streak 0/3 unchanged; 179th consecutive single-commit TD-VSDD-053 STABLE; pass-64 dispatch-ready).
+
+## §D-674 — FB52 MULTI-AGENT CLOSURE + POL-29 v1.14 AMENDMENT (2026-05-17)
+
+**D-674 — FB52 — STATE v7.361 — 180th consecutive single-commit (TD-VSDD-053 STABLE)**
+
+### Pass-64 Finding Summary
+
+Pass-64 BLOCKED (1 HIGH + 1 MED + 2 OBS). POL-29 v1.13 first enforcement test FAILED predictably — singular framing leaks under multi-value-class FBs. Novelty HIGH-MEDIUM.
+
+- **F-LP64-HIGH-001** Multi-value-class enforcement gap in POL-29 v1.13: FB51 swept D7 class but not error-taxonomy class; 9 live-narrative error-taxonomy v1.31 cites survived
+- **F-LP64-MED-001** POL-29 schema violation: lint_hook inline mapping (vs `<string|null>`) + verification_steps YAML map (vs `[<string>]`)
+- **OBS-LP64-001** VP-154 anchor mis-cited "ADR-027 D4" vs canonical "ADR-027 §Verification Property Anchors" — closed by PO inline with HIGH-001
+- **OBS-LP64-002** [process-gap] POL-29 singular framing root cause — closed by v1.14 amendment
+
+### FB52 Burst Contents
+
+**PO burst:**
+- story v1.29 → v1.30: 8 sites error-taxonomy v1.31→v1.32 (5 original + 2 extra found by FB52 sweep + OBS-LP64-001 VP-154 anchor fix)
+- HS-PREREQ-E-001 v1.4 → v1.5: 1 site error-taxonomy v1.31→v1.32
+- STORY-INDEX v2.133 → v2.134: story row v1.29→v1.30 + HS-001 row v1.4→v1.5
+
+**Architect burst:**
+- ADR-026 v1.17 → v1.18: 1 site error-taxonomy v1.31→v1.32
+- VP-153 v0.9 → v0.10: 2 sites error-taxonomy v1.31→v1.32
+
+**State-manager burst:**
+- policies.yaml v1.13 → v1.14: F-LP64-MED-001 + OBS-LP64-002 closure — Option (c) schema standardization (lint_hook=null; verification_steps as 8-item canonical list with EACH-value-class enumeration mandate)
+- Pass-64 report persisted: cycles/wave-4-operations/adversarial-reviews/S-PLUGIN-PREREQ-E-spec-pass-64.md
+- VP-INDEX v1.55 → v1.56: VP-153 row v0.9→v0.10 + §Changelog row
+- ARCH-INDEX v2.64 → v2.65: ADR-026 row v1.17→v1.18 + §Changelog row
+- STATE.md v7.360 → v7.361; SESSION-HANDOFF.md v7.360 → v7.361; SESSION-D664-TASKS.md v1.9 → v1.10
+- CYCLE-SNAPSHOT §D-674 appended (this section)
+
+### POL-29 v1.14 Sweep Evidence (FB52)
+
+Value class 1 — error-taxonomy v1.31 (changed to v1.32 in FB51):
+- Pre-grep: 11 live-narrative hits (story 5+2=7, HS-001 1, ADR-026 1, VP-153 2)
+- Updates applied: 11 (story 8 total incl. anchor fix, HS-001 1, ADR-026 1, VP-153 2)
+- Post-grep: 0 live-narrative hits
+
+Value class 2 — POL-29 schema (lint_hook + verification_steps):
+- Pre: inline mapping + integer-keyed map in policies.yaml
+- Fix: Option (c) revert lint_hook→null + rewrite verification_steps as list
+- Post: compliant with declared `<string|null>` and `[<string>]` schemas
+
+### Streak Status + Next Action
+
+Streak: 0/3 unchanged (1 HIGH + 1 MED block convergence; novelty HIGH-MEDIUM; POL-29 v1.13 enforcement test 1 FAILED). Pass-65 dispatch-ready (9th pass of restart-9 sequence; third POL-29 enforcement test overall under v1.14).
+
+### Pinned Artifact Versions (PREREQ-E 23-artifact set — post-D-674)
+
+Story v1.30 | BC-2.01.016 v1.8 | BC-2.16.011 v1.8 | BC-2.16.012 v1.20 | BC-2.16.002 v1.24 | ADR-026 v1.18 | ADR-022 v1.6 | ADR-027 v1.8 | VP-153 v0.10 | VP-154 v0.6 | VP-155 v0.5 | VP-156 v0.12 | HS-PREREQ-E-001 v1.5 | HS-PREREQ-E-002 v1.6 | HS-PREREQ-E-003 v1.8 | error-taxonomy v1.32 | ARCH-INDEX v2.65 | VP-INDEX v1.56 | STORY-INDEX v2.134 | BC-INDEX v5.04 | policies.yaml v1.14 | verification-architecture v1.41 | verification-coverage-matrix v1.38
+
+STATE.md v7.361; SESSION-HANDOFF.md v7.361; prereq_e_adversary_streak **0/3** (pass-64 BLOCKED — 1 HIGH F-LP64-HIGH-001 + 1 MED F-LP64-MED-001 + 2 OBS; POL-29 v1.13 enforcement test FAILED predictably; **POL-29 → v1.14 amended (schema + multi-class)**; novelty HIGH-MEDIUM; FB52 PO+architect+SM multi-agent closure; streak 0/3 unchanged; 180th consecutive single-commit TD-VSDD-053 STABLE; pass-65 dispatch-ready under POL-29 v1.14).

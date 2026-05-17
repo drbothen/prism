@@ -23,8 +23,13 @@
 #                                   # here so the adversary knows HOW to verify them.
 
 metadata:
-  version: "1.13"
+  version: "1.14"
   changelog:
+    - version: "1.14"
+      date: 2026-05-17
+      burst: FB52
+      findings: [F-LP64-MED-001, OBS-LP64-002]
+      change: "POL-29 amended: (a) F-LP64-MED-001 closure — schema standardized per Option (c): lint_hook reverted to null (matches file's declared <string|null> schema); verification_steps rewritten as canonical list form (matches declared [<string>] schema); enforcement detail moved into the verification_steps narrative. (b) OBS-LP64-002 [process-gap] closure — added EACH-value-class enumeration mandate (step 1) and per-class iteration (steps 2-7) for multi-value-class FB enforcement; addresses F-LP64-HIGH-001 root cause (FB51 swept one of two value classes)."
     - version: "1.13"
       date: 2026-05-17
       burst: FB51
@@ -546,52 +551,35 @@ policies:
       the same burst MUST sweep ALL sibling sites in the workspace that reference
       that value/structure/claim and update them to the post-fix canonical form.
 
-      Sibling sites include: (a) live-narrative citations in other artifacts that
-      pin the changed value or version; (b) sibling-class artifacts of the same
-      kind that share the same change-pattern (e.g., when fixing one BC's
-      §Changelog ordering, sweep all sibling BCs' §Changelogs in the same
-      subsystem); (c) frontmatter fields that mirror body changes (e.g.,
-      `subsystems_affected` mirroring boot.rs touch-surface; `runtime_deliverables`
-      mirroring §Decision implementation surface).
+      For multi-value-class FBs (bursts that bump multiple artifact versions or
+      change multiple distinct canonical values), the sibling-sweep procedure
+      MUST be applied INDEPENDENTLY for EACH value class. Grep evidence MUST be
+      provided per class, not aggregated.
+
+      Sibling sites include: (a) live-narrative citations in other artifacts
+      that pin the changed value or version; (b) sibling-class artifacts of
+      the same kind that share the same change-pattern; (c) frontmatter fields
+      that mirror body changes.
 
       The fix-burst is NOT considered complete until sibling-sweep is performed
-      and documented in the §Changelog narrative or PO/architect handoff note.
-
-      Enforcement: architect and product-owner agents MUST grep the workspace for
-      the changed value at every fix-burst, count the live-narrative hits, sweep
-      them, and report the sweep count. State-manager verifies before commit.
+      and documented in the §Changelog narrative or PO/architect handoff note
+      for EACH value class changed.
 
       Codification basis: 19+ recurrences across S-PLUGIN-PREREQ-E cascade
-      (passes 37-62) where a fix-burst closed one site but the next adversarial
-      pass surfaced the same defect-class at a sibling site. Each recurrence
-      consumed a full pass + fix-burst cycle to close plus reset the 3-CLEAN
-      streak. POL-29 codification is the structural intervention.
+      (passes 37-62) of single-value-class sweep gaps; F-LP64-HIGH-001 at
+      pass-64 demonstrated multi-value-class enforcement gap (FB51 swept
+      D7 pins but did not sweep error-taxonomy pins from same burst).
     adopted: FB50-D-672-2026-05-17
     severity: HIGH
     enforced_by: [adversary-prompt, product-owner-self-check, architect-self-check, state-manager]
     scope: [bc, vp, story, hs, adr, architecture, prd, error-taxonomy, capabilities, invariants, story-index, bc-index, vp-index, arch-index]
-    lint_hook:
-      kind: workspace-grep-witness
-      description: |
-        For every fix-burst commit to .factory/, state-manager MUST embed
-        explicit grep evidence in the commit message body or §Changelog row
-        narrative showing:
-        (a) the OLD value/pattern that was changed
-        (b) the pre-edit grep command and hit count
-        (c) the post-edit grep command and hit count (must be 0 in live-narrative)
-        (d) the list of swept artifact paths with line numbers
-
-        Until automated lint hook is implemented, state-manager performs this
-        check manually before staging each FB commit. If sweep evidence is
-        absent from the commit narrative, state-manager MUST request the
-        evidence from architect/PO before commit-stage.
-      implementation_status: manual-state-manager-check (placeholder until automated lint hook)
-      escalation_on_violation: HIGH adversarial finding (per POL-29 §severity HIGH)
+    lint_hook: null
     verification_steps:
-      1: "Identify the value/structure/claim being changed; record its OLD canonical form."
-      2: "Run workspace grep for the OLD form across .factory/stories/, .factory/specs/behavioral-contracts/, .factory/specs/verification-properties/, .factory/specs/prd-supplements/, .factory/specs/architecture/, .factory/holdout-scenarios/, .factory/specs/domain-spec/. Record pre-edit hit count."
-      3: "For each live-narrative hit (excluding §Changelog rows per POL-26), apply the canonical update to the post-fix form."
-      4: "Run the same workspace grep post-edit. Pre-edit hit count must equal sum of (updates applied + §Changelog row exemptions). Live-narrative post-edit hit count MUST be 0."
-      5: "Sibling-CLASS sweep: when fixing an ordering violation (POL-26) or phrasing violation in one artifact, ALSO sweep ALL sibling-class artifacts of the same kind."
-      6: "Sweep report MUST be present in the FB commit message body OR §Changelog row narrative, enumerating: pre-grep count, sites updated with line numbers, post-grep count = 0."
-      7: "State-manager pre-commit verification: confirm sweep report is present BEFORE staging. If absent, REQUEST from architect/PO and DO NOT commit until present."
+      - "Enumerate EVERY value/structure/claim being changed in this FB (e.g., every frontmatter version bump corresponds to a value class requiring sweep)."
+      - "For EACH value class identified in step 1, record the OLD canonical form."
+      - "For EACH value class, run workspace grep across .factory/stories/, .factory/specs/behavioral-contracts/, .factory/specs/verification-properties/, .factory/specs/prd-supplements/, .factory/specs/architecture/, .factory/holdout-scenarios/, .factory/specs/domain-spec/. Record pre-edit hit count."
+      - "For each live-narrative hit (excluding §Changelog rows per POL-26), apply the canonical update to the post-fix form."
+      - "Re-run the workspace grep post-edit. Live-narrative hit count must be 0 for each value class."
+      - "Sibling-CLASS sweep: when fixing an ordering violation (POL-26) or phrasing violation in one artifact, also sweep all sibling-class artifacts of the same kind."
+      - "Embed sweep report in the FB commit message body or §Changelog row narrative for EACH value class, enumerating: value class, pre-grep count, sites updated with line numbers, post-grep count = 0."
+      - "State-manager pre-commit verification: confirm sweep reports are present for EACH value class changed in the FB. If any class lacks evidence, REQUEST from architect/PO and DO NOT commit until present."

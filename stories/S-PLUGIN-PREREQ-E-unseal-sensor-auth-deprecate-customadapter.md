@@ -23,7 +23,7 @@ crates_touched: [prism-sensors, prism-spec-engine, prism-query, prism-bin]
 target_module: prism-sensors
 subsystems: [SS-01, SS-07, SS-16, SS-17, SS-22]
 capabilities: [CAP-001, CAP-029]
-version: "1.29"
+version: "1.30"
 modified: "2026-05-17"
 level: "L4"
 producer: product-owner
@@ -65,11 +65,11 @@ assumption_validations:
   - "TD-S-PLUGIN-PREREQ-A-003 (WriteToolInvalidationMap extensibility) is routed to PREREQ-E per S-PLUGIN-PREREQ-A fix-burst-2 decision"
 risk_mitigations:
   - "AC-1..3c: SensorAuth unsealing is pure deletion + per-test-fixture credential-validation coverage. Risk: E-SPEC-012/013/014 regression at credential-validation pass. Mitigation: AC-3 + AC-3b + AC-3c Red Gate tests assert error-on-invalid (Test 3, 4, 5)."
-  - "AC-4..6: CustomAdapter deletion confirmed safe by PLUGIN-AUDIT-001 (zero external consumers). Risk: registry-dispatch hot-path regression vs legacy CustomAdapter::call_action behavior. Mitigation: CustomAdapter retirement verified via Red Gate Tests 6 (type absence: test_BC_2_16_011_001_custom_adapter_absent_post_deletion) + 7 (E-SPEC-008 not constructed by live code: test_BC_2_16_011_002_e_spec_008_not_triggered_by_live_code); AC-6 holdout HS-PREREQ-E-002-06 frontmatter verification. AC-5 mechanism: lib.rs re-export removal verified by perimeter-violation compile-fail style pattern (style reference: existing `tests/external/perimeter-violation/` crate; VP-155 CustomAdapter perimeter authored at `tests/external/no-hardcoded-sensors/` in PLUGIN-MIGRATION-001-A scope per ADR-027 D3). Behavioral-equivalence verification (CrowdStrikeSession registry-dispatch vs legacy CustomAdapter::call_action) is deferred to VP-154 (P1, PLUGIN-MIGRATION-001-A scope per ADR-027 D4)."
+  - "AC-4..6: CustomAdapter deletion confirmed safe by PLUGIN-AUDIT-001 (zero external consumers). Risk: registry-dispatch hot-path regression vs legacy CustomAdapter::call_action behavior. Mitigation: CustomAdapter retirement verified via Red Gate Tests 6 (type absence: test_BC_2_16_011_001_custom_adapter_absent_post_deletion) + 7 (E-SPEC-008 not constructed by live code: test_BC_2_16_011_002_e_spec_008_not_triggered_by_live_code); AC-6 holdout HS-PREREQ-E-002-06 frontmatter verification. AC-5 mechanism: lib.rs re-export removal verified by perimeter-violation compile-fail style pattern (style reference: existing `tests/external/perimeter-violation/` crate; VP-155 CustomAdapter perimeter authored at `tests/external/no-hardcoded-sensors/` in PLUGIN-MIGRATION-001-A scope per ADR-027 D3). Behavioral-equivalence verification (CrowdStrikeSession registry-dispatch vs legacy CustomAdapter::call_action) is deferred to VP-154 (P1, PLUGIN-MIGRATION-001-A scope per ADR-027 §Verification Property Anchors)."
   - "AC-7..8: spec_parser.rs migration verified by behavioral-equivalence integration test. Risk: type-name collision with shadow enum or stale callsite. Mitigation: AC-7 Red Gate Test 8 + AC-8 Red Gate Test 9 sibling-sweep checks."
   - "AC-9: TD-S-PLUGIN-PREREQ-A-003 closure via RwLock<Vec<WriteToolInvalidationMap>> + AtomicBool query-phase flag. Risk: post-boot register_write_tool() leaks past production call-site gate. Mitigation: AC-9 third-test asserts public-API `mark_query_phase_started()` invocation (FB45 hardening) + WARN tracing event field schema per BC-2.16.002 row 33 (Red Gate Test 13)."
   - "AC-10: full build and pre-push gate, single squash-merge commit. Risk: partial commits in feature branch before final squash; lefthook hook bypass. Mitigation: AC-10 production-grade gate asserts `just check` clean pre-push (process gate, not a Red Gate test); pre-commit hook enforces fmt+clippy+layout per lefthook.yml."
-  - "AC-11: E-SPEC-008 retirement annotation in error-taxonomy.md. Risk: annotation may regress if E-SPEC-008 is reintroduced post-merge via new code path. Mitigation: AC-11 Red Gate Test 14 (`test_BC_2_16_011_e_spec_008_retired_annotation`) asserts `retired_in: S-PLUGIN-PREREQ-E (error-taxonomy.md v1.31)` and grep-gate for `E-SPEC-008` outside the retired entry. ID preserved per append_only_numbering (POL-1)."
+  - "AC-11: E-SPEC-008 retirement annotation in error-taxonomy.md. Risk: annotation may regress if E-SPEC-008 is reintroduced post-merge via new code path. Mitigation: AC-11 Red Gate Test 14 (`test_BC_2_16_011_e_spec_008_retired_annotation`) asserts `retired_in: S-PLUGIN-PREREQ-E (error-taxonomy.md v1.32)` and grep-gate for `E-SPEC-008` outside the retired entry. ID preserved per append_only_numbering (POL-1)."
 acceptance_criteria_count: 13
 red_gate_tests: 14
 estimated_passes: "4-6 LOCAL adversary passes"
@@ -236,16 +236,16 @@ The four concrete auth implementations (`CrowdStrikeAuth`, `CyberintAuth`, `Clar
 (traces to BC-2.01.016 postcondition — four built-in auth impls require only one new method body each (auth_type_name); INV-AUTH-OPEN-002)
 
 **AC-3 (Runtime Auth-Composition Rejection Active):**
-A unit test confirms that a `SensorSpec` with `auth_type = ["oauth2_client_credentials", "bearer_static"]` is rejected at spec-load with `E-SPEC-012`. This verifies that the sealed-trait removal does NOT weaken the threat model — rejection moves from compile time to runtime. Note: E-SPEC-012 (not E-SPEC-010; E-SPEC-010 is reserved for variable interpolation field-path misses per error-taxonomy v1.31).
-(traces to BC-2.01.016 invariant INV-AUTH-OPEN-003; ADR-023 Rule 2, Rule A; error-taxonomy v1.31)
+A unit test confirms that a `SensorSpec` with `auth_type = ["oauth2_client_credentials", "bearer_static"]` is rejected at spec-load with `E-SPEC-012`. This verifies that the sealed-trait removal does NOT weaken the threat model — rejection moves from compile time to runtime. Note: E-SPEC-012 (not E-SPEC-010; E-SPEC-010 is reserved for variable interpolation field-path misses per error-taxonomy v1.32).
+(traces to BC-2.01.016 invariant INV-AUTH-OPEN-003; ADR-023 Rule 2, Rule A; error-taxonomy v1.32)
 
 **AC-3b (Runtime Auth-Composition Rejection — Multiple credential_refs Rejected, E-SPEC-013):**
 A unit test confirms that a `SensorSpec` with multiple `credential_refs` per auth method (e.g., `[[sensor.credential_refs]]` declared twice for the same auth method) is rejected at spec-load with `E-SPEC-013`. Test name: `test_BC_2_01_016_e_spec_013_multiple_credential_refs_rejected`.
-(traces to BC-2.01.016 §Error Cases E-SPEC-013; ADR-023 §Architectural Constraints Rule 2, Rule B (multiple credential_refs); error-taxonomy v1.31)
+(traces to BC-2.01.016 §Error Cases E-SPEC-013; ADR-023 §Architectural Constraints Rule 2, Rule B (multiple credential_refs); error-taxonomy v1.32)
 
 **AC-3c (Runtime Auth-Composition Rejection — Credential Type Mismatch Rejected, E-SPEC-014):**
 A unit test confirms that a `SensorSpec` with structural mismatch between `auth_type` and resolved credential type (e.g., `auth_type = "oauth2_client_credentials"` paired with an API-key-shaped credential) is rejected with `E-SPEC-014`. Test name: `test_BC_2_01_016_e_spec_014_credential_type_mismatch_rejected`.
-(traces to BC-2.01.016 §Error Cases E-SPEC-014; ADR-023 §Architectural Constraints Rule 2, Rule C (credential type mismatch); error-taxonomy v1.31)
+(traces to BC-2.01.016 §Error Cases E-SPEC-014; ADR-023 §Architectural Constraints Rule 2, Rule C (credential type mismatch); error-taxonomy v1.32)
 
 **AC-4 (custom_adapter.rs Deleted):**
 `crates/prism-spec-engine/src/custom_adapter.rs` does not exist after merge. `grep -rn "CustomAdapter\|CustomAdapterRegistry\|CustomAuth" crates/prism-spec-engine/src/` returns ZERO matches.
@@ -302,9 +302,9 @@ Tests are grouped by BC for readability (F-LP2-MED-004 correction).
 
 3. **`test_BC_2_01_016_003_four_auth_impls_minimal_diff_post_unsealing`** (prism-sensors) — constructs all four concrete auth types, calls their `SensorAuth` methods, and asserts each impl has exactly one new method body (`auth_type_name`) plus zero other changes vs pre-unsealing baseline; fails RED until `SensorAuth` is unsealed and each impl adds the `auth_type_name` body (because the sealed bound currently blocks external test construction, and the new method does not yet exist).
 
-4. **`test_BC_2_01_016_e_spec_013_multiple_credential_refs_rejected`** (prism-spec-engine) — constructs a `SensorSpec` with `[[sensor.credential_refs]]` declared twice for the same auth method and attempts to load it via `SensorSpec::load`. Asserts `result.is_err() && err.code() == "E-SPEC-013"`. Pre-implementation: fails RED because no Rule 2/B enforcement exists. Post-implementation: assertion passes (validator returns E-SPEC-013 per BC-2.01.016 §Error Cases E-SPEC-013; ADR-023 §Architectural Constraints Rule 2, Rule B; error-taxonomy v1.31).
+4. **`test_BC_2_01_016_e_spec_013_multiple_credential_refs_rejected`** (prism-spec-engine) — constructs a `SensorSpec` with `[[sensor.credential_refs]]` declared twice for the same auth method and attempts to load it via `SensorSpec::load`. Asserts `result.is_err() && err.code() == "E-SPEC-013"`. Pre-implementation: fails RED because no Rule 2/B enforcement exists. Post-implementation: assertion passes (validator returns E-SPEC-013 per BC-2.01.016 §Error Cases E-SPEC-013; ADR-023 §Architectural Constraints Rule 2, Rule B; error-taxonomy v1.32).
 
-5. **`test_BC_2_01_016_e_spec_014_credential_type_mismatch_rejected`** (prism-spec-engine) — constructs a `SensorSpec` with `auth_type = "oauth2_client_credentials"` paired with an API-key-shaped credential and attempts to load it via `SensorSpec::load`. Asserts `result.is_err() && err.code() == "E-SPEC-014"`. Pre-implementation: fails RED because no Rule 2/C structural-mismatch check exists. Post-implementation: assertion passes (validator returns E-SPEC-014 per BC-2.01.016 §Error Cases E-SPEC-014; ADR-023 §Architectural Constraints Rule 2, Rule C; error-taxonomy v1.31).
+5. **`test_BC_2_01_016_e_spec_014_credential_type_mismatch_rejected`** (prism-spec-engine) — constructs a `SensorSpec` with `auth_type = "oauth2_client_credentials"` paired with an API-key-shaped credential and attempts to load it via `SensorSpec::load`. Asserts `result.is_err() && err.code() == "E-SPEC-014"`. Pre-implementation: fails RED because no Rule 2/C structural-mismatch check exists. Post-implementation: assertion passes (validator returns E-SPEC-014 per BC-2.01.016 §Error Cases E-SPEC-014; ADR-023 §Architectural Constraints Rule 2, Rule C; error-taxonomy v1.32).
 
 **BC-2.16.011 (CustomAdapter Rust Trait Retirement):**
 
@@ -509,6 +509,7 @@ Tech debt closed:
 
 | Version | Burst | Date | Author | Change |
 |---------|-------|------|--------|--------|
+| 1.30 | FB52 | 2026-05-17 | product-owner | F-LP64-HIGH-001 closure (PO scope): error-taxonomy v1.31→v1.32 sibling-sweep at 5 story sites (lines 72, 239, 240, 244, 248); POL-29 v1.13 grep evidence: pre-grep 5 → post-grep 0 in PO-domain. OBS-LP64-001 closure: VP-154 anchor at line 68 corrected from "ADR-027 D4" to "ADR-027 §Verification Property Anchors" (canonical source). |
 | 1.29 | FB50 | 2026-05-17 | product-owner | F-LP62-MED-001 closure: §risk_mitigations AC-5 lib.rs re-export removal mechanism repositioned from misplaced AC-7..8 entry to correct AC-4..6 entry. OBS-LP62-002 (PO-domain) closure: 5 story body live-narrative ADR-026 D7 pins (v1.10×3 + v1.16×2) bumped to v1.17 per Interpretation #2 (citations follow latest ADR-026 version per FB6/FB44/FB45 precedent). |
 | 1.28 | FB49 | 2026-05-17 | state-manager+product-owner | F-LP61-HIGH-001 closure (state-manager): §Changelog v1.23 row repositioned to strict-descending order per POL-26-COROLLARY bookkeeping repair (6th POL-26 monotonic-ordering recurrence; D-611/D-628/D-635/D-659/D-670 precedent). F-LP61-MED-001 closure (product-owner): §risk_mitigations AC-4..6 entry rewritten Option (a) — Tests 6-7 correctly scoped to retirement absence (type absent + E-SPEC-008 not-constructed-by-live-code); behavioral-equivalence verification deferred to VP-154 (P1, PLUGIN-MIGRATION-001-A scope per ADR-027 D4). |
 | 1.27 | FB48 | 2026-05-17 | product-owner | F-LP60-LOW-001 closure: §risk_mitigations AC-7..8 prose disambiguated — "lib.rs re-export removal verified by perimeter-violation compile-fail tests/external/perimeter-violation" rewritten to "...style pattern (style reference: existing `tests/external/perimeter-violation/` crate; VP-155 CustomAdapter perimeter authored at `tests/external/no-hardcoded-sensors/` in PLUGIN-MIGRATION-001-A scope per ADR-027 D3)" — production-grade default Rule 4 Option (a) chosen by orchestrator. |
