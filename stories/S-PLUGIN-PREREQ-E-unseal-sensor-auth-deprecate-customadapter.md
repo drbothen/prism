@@ -23,7 +23,7 @@ crates_touched: [prism-sensors, prism-spec-engine, prism-query, prism-bin]
 target_module: prism-sensors
 subsystems: [SS-01, SS-07, SS-16, SS-17, SS-22]
 capabilities: [CAP-001, CAP-029]
-version: "1.30"
+version: "1.31"
 modified: "2026-05-17"
 level: "L4"
 producer: product-owner
@@ -370,7 +370,7 @@ Architecture layer: `prism-sensors` is Layer 1 (auth surface); `prism-spec-engin
 
 ## Error Taxonomy Additions
 
-Five error codes are introduced or annotated in this story (see `error-taxonomy.md` v1.31 §SPEC and §PLUGIN); one existing code is annotated as retired:
+Five error codes are introduced or annotated in this story (see `error-taxonomy.md` v1.32 §SPEC and §PLUGIN); one existing code is annotated as retired:
 
 | Code | Action | Purpose |
 |------|--------|---------|
@@ -472,7 +472,7 @@ All BCs cited in this story (frontmatter `behavioral_contracts` array and body t
 - [BC-2.16.004](../specs/behavioral-contracts/BC-2.16.004-rust-escape-hatch.md) — Rust Escape Hatch for Custom Adapters — Trait-Based Override When Config Is Insufficient (lifecycle: deprecated → removed by this story)
 - [BC-2.16.011](../specs/behavioral-contracts/BC-2.16.011-customadapter-rust-trait-retirement.md) — CustomAdapter Rust Trait Retirement — Removal of Trait, Registry, and All Call Sites (NEW — this story)
 - [BC-2.16.012](../specs/behavioral-contracts/BC-2.16.012-plugin-registry-dispatch-migration.md) — PluginRegistry Dispatch in spec_parser.rs — Hardcoded Sensor Names Replaced with Registry Lookup (NEW — this story)
-- [BC-2.16.002 — Multi-Step Fetch Pipeline](../specs/behavioral-contracts/BC-2.16.002-multi-step-fetch-pipeline.md) — Structured event catalog (row 33: `write_tool_registration_after_boot`); anchors AC-9 third-test event field schema (event_type, plugin_name, tool_name, error).
+- [BC-2.16.002 — Multi-Step Fetch Pipeline Execution — Sequential Steps with Variable Interpolation](../specs/behavioral-contracts/BC-2.16.002-multi-step-fetch-pipeline.md) — Structured event catalog (row 33: `write_tool_registration_after_boot`); anchors AC-9 third-test event field schema (event_type, plugin_name, tool_name, error).
 
 PRD Supplements:
 - [error-taxonomy.md](../specs/prd-supplements/error-taxonomy.md) — Error taxonomy: E-SPEC-008 (retired in PREREQ-E), E-SPEC-012, E-SPEC-013, E-SPEC-014, E-PLUGIN-012, E-PLUGIN-020.
@@ -509,6 +509,7 @@ Tech debt closed:
 
 | Version | Burst | Date | Author | Change |
 |---------|-------|------|--------|--------|
+| v1.31 | FB53 | 2026-05-17 | product-owner | F-LP65-HIGH-001 closure: story line 373 `error-taxonomy.md` v1.31 → v1.32 (markdown-backtick-quoted variant form missed by FB52 5-site sweep — sub-dimension recurrence of F-LP64-HIGH-001 class). F-LP65-MED-001 closure: story §References line 475 BC-2.16.002 citation updated to verbatim H1 "Multi-Step Fetch Pipeline Execution — Sequential Steps with Variable Interpolation" (POL-7 D-571 amendment 2 + 6). POL-29 v1.14 sibling-sweep grep evidence per value class: (1) error-taxonomy variant forms — pre-grep 1 (backtick form at line 373 live-narrative) → post-grep 0 in PO-domain across .factory/stories/ + .factory/specs/ + .factory/holdout-scenarios/ (live-narrative; §Changelog rows TD-VSDD-091 exempt); (2) §References BC H1 verbatim — 6 BCs verified verbatim-conformant (BC-2.01.013, BC-2.01.016, BC-2.16.002 [fixed], BC-2.16.004, BC-2.16.011, BC-2.16.012). Note: FB52 v1.30 row reported "post-grep 0" but actual post-grep was 1 (line 373 backtick-quoted form survived); FB53 corrects this residual. OBS-LP65-001 [process-gap] POL-29 v1.15 amendment + variant-form registry routed to state-manager. |
 | 1.30 | FB52 | 2026-05-17 | product-owner | F-LP64-HIGH-001 closure (PO scope): error-taxonomy v1.31→v1.32 sibling-sweep at 5 story sites (lines 72, 239, 240, 244, 248); POL-29 v1.13 grep evidence: pre-grep 5 → post-grep 0 in PO-domain. OBS-LP64-001 closure: VP-154 anchor at line 68 corrected from "ADR-027 D4" to "ADR-027 §Verification Property Anchors" (canonical source). |
 | 1.29 | FB50 | 2026-05-17 | product-owner | F-LP62-MED-001 closure: §risk_mitigations AC-5 lib.rs re-export removal mechanism repositioned from misplaced AC-7..8 entry to correct AC-4..6 entry. OBS-LP62-002 (PO-domain) closure: 5 story body live-narrative ADR-026 D7 pins (v1.10×3 + v1.16×2) bumped to v1.17 per Interpretation #2 (citations follow latest ADR-026 version per FB6/FB44/FB45 precedent). |
 | 1.28 | FB49 | 2026-05-17 | state-manager+product-owner | F-LP61-HIGH-001 closure (state-manager): §Changelog v1.23 row repositioned to strict-descending order per POL-26-COROLLARY bookkeeping repair (6th POL-26 monotonic-ordering recurrence; D-611/D-628/D-635/D-659/D-670 precedent). F-LP61-MED-001 closure (product-owner): §risk_mitigations AC-4..6 entry rewritten Option (a) — Tests 6-7 correctly scoped to retirement absence (type absent + E-SPEC-008 not-constructed-by-live-code); behavioral-equivalence verification deferred to VP-154 (P1, PLUGIN-MIGRATION-001-A scope per ADR-027 D4). |

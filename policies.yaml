@@ -23,8 +23,13 @@
 #                                   # here so the adversary knows HOW to verify them.
 
 metadata:
-  version: "1.14"
+  version: "1.15"
   changelog:
+    - version: "1.15"
+      date: 2026-05-17
+      burst: FB53
+      findings: [F-LP65-HIGH-001, OBS-LP65-001, OBS-LP65-002]
+      change: "POL-29 amended: (a) F-LP65-HIGH-001 + OBS-LP65-001 closure — added step 3a (per-value-class variant-form enumeration mandate) with a variant-form registry for recidivist value classes (3+ cascade recurrences). Known variant-form registries: (i) error-taxonomy version pin — bare, with-.md, and backtick-quoted forms; (ii) ADR-026 D7 pin and BC-2.16.002 catalog cite — TBD on next recurrence. (b) OBS-LP65-002 / TD-VSDD-059 closure — step 8 STRENGTHENED: state-manager must now empirically re-execute per-variant greps and validate that reported post-grep counts match actual workspace state before committing; self-reported 'post-grep 0' claims are insufficient."
     - version: "1.14"
       date: 2026-05-17
       burst: FB52
@@ -578,8 +583,9 @@ policies:
       - "Enumerate EVERY value/structure/claim being changed in this FB (e.g., every frontmatter version bump corresponds to a value class requiring sweep)."
       - "For EACH value class identified in step 1, record the OLD canonical form."
       - "For EACH value class, run workspace grep across .factory/stories/, .factory/specs/behavioral-contracts/, .factory/specs/verification-properties/, .factory/specs/prd-supplements/, .factory/specs/architecture/, .factory/holdout-scenarios/, .factory/specs/domain-spec/. Record pre-edit hit count."
+      - "Step 3a (per-value-class variant-form enumeration): For each value class with 3+ prior cascade recurrences, enumerate ALL known variant forms and apply per-variant grep. Known recidivist classes and their variant-form registries: (a) `error-taxonomy` version pin — variant forms: bare `error-taxonomy v[0-9]+\\.[0-9]+`, with-md `error-taxonomy\\.md v[0-9]+\\.[0-9]+`, backtick-quoted `\\`error-taxonomy(\\.md)?\\` v[0-9]+\\.[0-9]+`; recommended canonical grep: `rg \"error-taxonomy(\\.md)? v[0-9]+\\.[0-9]+\"` AND `rg \"\\`error-taxonomy(\\.md)?\\` v[0-9]+\\.[0-9]+\"`. (b) ADR-026 D7 pin and (c) BC-2.16.002 catalog cite — variant-form registries TBD on next recurrence. Variant-form registry maintained in policies.yaml POL-29 step 3a; new recidivist classes added on 3rd recurrence."
       - "For each live-narrative hit (excluding §Changelog rows per POL-26), apply the canonical update to the post-fix form."
       - "Re-run the workspace grep post-edit. Live-narrative hit count must be 0 for each value class."
       - "Sibling-CLASS sweep: when fixing an ordering violation (POL-26) or phrasing violation in one artifact, also sweep all sibling-class artifacts of the same kind."
       - "Embed sweep report in the FB commit message body or §Changelog row narrative for EACH value class, enumerating: value class, pre-grep count, sites updated with line numbers, post-grep count = 0."
-      - "State-manager pre-commit verification: confirm sweep reports are present for EACH value class changed in the FB. If any class lacks evidence, REQUEST from architect/PO and DO NOT commit until present."
+      - "Step 8 (STRENGTHENED): State-manager pre-commit verification — confirm sweep reports are present AND empirically validate post-grep counts against actual workspace state for each value class changed in the FB. Re-execute the per-variant greps from step 3/3a and verify reported `post-grep N` counts match actual workspace state. If reported counts diverge from actual, REJECT the burst and request PO/architect re-sweep before committing. (Addresses OBS-LP65-002 TD-VSDD-059 paper-fix detection signal: FB52 reported post-grep 0 but actual was 1 — variant-form gap.)"
