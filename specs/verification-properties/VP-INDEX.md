@@ -1,7 +1,7 @@
 ---
 document_type: verification-property-index
 level: L4
-version: "1.56"
+version: "1.57"
 status: draft
 producer: product-owner
 timestamp: 2026-05-16T00:00:00
@@ -180,10 +180,10 @@ total_vps: 156
 | VP-150 | OAuth2 refresh-on-401 via declarative TOML retry policy (PipelineExecutor) — VP-PLUGIN-005 alias | prism-spec-engine | integration_test | P0 | draft | S-PLUGIN-PREREQ-B |
 | VP-151 | OCSF column mapping fixture catalog (6 representative cases, SpecDrivenMapper) — VP-PLUGIN-006 alias | prism-spec-engine | integration_test | P1 | draft | PLUGIN-MIGRATION-001-C |
 | VP-152 | Plugin manifest allowlist explicit Vec<String> after PREREQ-D (allowed_urls enforcement under default-deny semantics) — VP-PLUGIN-007 alias | prism-spec-engine | integration_test | P0 | draft | PLUGIN-PREREQ-D |
-| VP-153 | SensorAuth runtime cross-composition prevention (DI-012 runtime replacement): all invalid (auth_type, credential_type) pairs rejected at spec-load time; error messages redact credential values | prism-spec-engine | proptest | P0 | draft | S-PLUGIN-PREREQ-E | v0.10 |
+| VP-153 | SensorAuth runtime cross-composition prevention (DI-012 runtime replacement): all invalid (auth_type, credential_type) pairs rejected at spec-load time; error messages redact credential values | prism-spec-engine | proptest | P0 | draft | S-PLUGIN-PREREQ-E |
 | VP-154 | CustomAdapter behavioral equivalence: PluginRuntime WASM dispatch produces non-empty records matching plugin fixture output; TOML fallthrough when no plugin registered | prism-spec-engine | integration_test | P1 | draft | PLUGIN-MIGRATION-001-A |
 | VP-155 | CustomAdapter absent from prism-spec-engine public API: compile-fail perimeter asserts CustomAdapter and CustomAdapterRegistry are unimportable post-PREREQ-E | prism-spec-engine | integration_test | P0 | draft | PLUGIN-MIGRATION-001-A |
-| VP-156 | WriteToolInvalidationMap registration uniqueness: duplicate tool_name returns Err(DuplicateWriteToolRegistration); first registration persists unchanged | prism-query | proptest | P1 | draft | S-PLUGIN-PREREQ-E | v0.12 |
+| VP-156 | WriteToolInvalidationMap registration uniqueness: duplicate tool_name returns Err(DuplicateWriteToolRegistration); first registration persists unchanged | prism-query | proptest | P1 | draft | S-PLUGIN-PREREQ-E |
 
 ## VP-PLUGIN-001..007 Named Series (PREREQ-F Registration, ADR-023 §Architectural Constraints)
 
@@ -243,6 +243,7 @@ S-1.02 frontmatter has been updated to `subsystems: [SS-03, SS-07, SS-11, SS-12,
 
 | Version | Burst | Date | Author | Change |
 |---------|-------|------|--------|--------|
+| 1.57 | FB54 | 2026-05-17 | state-manager | F-LP66-MED-001 closure: VP-153 (line 183) + VP-156 (line 186) catalog rows had 8 cells in 7-column table; trailing `| v0.10 |` and `| v0.12 |` cells removed to restore canonical 7-cell schema. Version-tracking lives in §Changelog rows per existing convention for all other 154 catalog rows. Latent since FB52 (same-day 2026-05-17). POL-26 schema_integrity + POL-4 semantic_anchoring_integrity restoration. |
 | 1.56 | FB52 | 2026-05-17 | state-manager | VP-153 v0.9→v0.10 (F-LP64-HIGH-001 closure: error-taxonomy v1.31→v1.32 — 2 live-narrative pins updated; multi-value-class sibling-sweep for FB51 error-taxonomy value class). POL-9 same-burst propagation; POL-11 bump. |
 | 1.55 | FB51 | 2026-05-17 | state-manager | VP-156 v0.11→v0.12 (F-LP63-HIGH-003 closure: §Changelog v0.10/v0.11 row positions swapped to ascending order — 7th POL-26 recurrence; bookkeeping repair; row content immutable per POL-26 corollary) |
 | 1.54 | FB50 | 2026-05-17 | state-manager | VP-156 v0.10→v0.11 (POL-29 sibling-sweep for OBS-LP62-002 D7 v1.16 → v1.17 across 4 live-narrative pins; 17-site total D7 sweep Interpretation #2 per D-672) |

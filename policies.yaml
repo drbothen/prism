@@ -23,8 +23,13 @@
 #                                   # here so the adversary knows HOW to verify them.
 
 metadata:
-  version: "1.15"
+  version: "1.16"
   changelog:
+    - version: "1.16"
+      date: 2026-05-17
+      burst: FB54
+      findings: [OBS-LP66-001]
+      change: "POL-29 step 3a variant-form registries populated for (b) ADR-026 D7 pin and (c) BC-2.16.002 catalog cite per the policy's own 3+-recurrence threshold criterion (17+ and 9+ recurrences respectively). Closes OBS-LP66-001 [process-gap] internal-consistency defect introduced by FB53 v1.15 amendment. No new policy added; v1.15 step structure preserved."
     - version: "1.15"
       date: 2026-05-17
       burst: FB53
@@ -583,7 +588,7 @@ policies:
       - "Enumerate EVERY value/structure/claim being changed in this FB (e.g., every frontmatter version bump corresponds to a value class requiring sweep)."
       - "For EACH value class identified in step 1, record the OLD canonical form."
       - "For EACH value class, run workspace grep across .factory/stories/, .factory/specs/behavioral-contracts/, .factory/specs/verification-properties/, .factory/specs/prd-supplements/, .factory/specs/architecture/, .factory/holdout-scenarios/, .factory/specs/domain-spec/. Record pre-edit hit count."
-      - "Step 3a (per-value-class variant-form enumeration): For each value class with 3+ prior cascade recurrences, enumerate ALL known variant forms and apply per-variant grep. Known recidivist classes and their variant-form registries: (a) `error-taxonomy` version pin — variant forms: bare `error-taxonomy v[0-9]+\\.[0-9]+`, with-md `error-taxonomy\\.md v[0-9]+\\.[0-9]+`, backtick-quoted `\\`error-taxonomy(\\.md)?\\` v[0-9]+\\.[0-9]+`; recommended canonical grep: `rg \"error-taxonomy(\\.md)? v[0-9]+\\.[0-9]+\"` AND `rg \"\\`error-taxonomy(\\.md)?\\` v[0-9]+\\.[0-9]+\"`. (b) ADR-026 D7 pin and (c) BC-2.16.002 catalog cite — variant-form registries TBD on next recurrence. Variant-form registry maintained in policies.yaml POL-29 step 3a; new recidivist classes added on 3rd recurrence."
+      - "Step 3a (per-value-class variant-form enumeration): For each value class with 3+ prior cascade recurrences, enumerate ALL known variant forms and apply per-variant grep. Known recidivist classes and their variant-form registries: (a) `error-taxonomy` version pin — variant forms: bare `error-taxonomy v[0-9]+\\.[0-9]+`, with-md `error-taxonomy\\.md v[0-9]+\\.[0-9]+`, backtick-quoted `\\`error-taxonomy(\\.md)?\\` v[0-9]+\\.[0-9]+`; recommended canonical grep: `rg \"error-taxonomy(\\.md)? v[0-9]+\\.[0-9]+\"` AND `rg \"\\`error-taxonomy(\\.md)?\\` v[0-9]+\\.[0-9]+\"`. (b) ADR-026 D7 pin — variant forms: bare `ADR-026 D7 v[0-9]+\\.[0-9]+`, embedded-section `ADR-026 §D7 v[0-9]+\\.[0-9]+`, parenthesized `(ADR-026 D7 v[0-9]+\\.[0-9]+)`, prose-prefixed `per ADR-026 D7 v[0-9]+\\.[0-9]+`; recommended canonical grep: `rg \"ADR-026 (§)?D7 v[0-9]+\\.[0-9]+\"`; 17+ cascade recurrences (FB44/FB45/FB50; F-LP14/F-LP56; OBS-LP62-002 17-site sweep). (c) BC-2.16.002 catalog cite — variant forms: canonical `BC-2.16.002 §Postconditions (Canonical Structured Event Catalog bullet, v[0-9]+\\.[0-9]+) row [0-9]+`, no-parens `BC-2.16.002 §Postconditions Canonical Structured Event Catalog v[0-9]+\\.[0-9]+ row [0-9]+`, bare `BC-2.16.002 v[0-9]+\\.[0-9]+ row [0-9]+`, close-paren-mid-row `bullet, v[0-9]+\\.[0-9]+ row [0-9]+)`; recommended canonical grep: `rg \"BC-2\\.16\\.002.*v[0-9]+\\.[0-9]+.*row [0-9]+\"`; 9+ cascade recurrences (FB12/FB14/FB15/FB16/FB17; F-LP13/F-LP15/F-LP16/F-LP17/F-LP18). New recidivist classes added on 3rd recurrence per the policy's own threshold criterion (NOT deferred to 'next recurrence'). Variant-form registry maintained in policies.yaml POL-29 step 3a."
       - "For each live-narrative hit (excluding §Changelog rows per POL-26), apply the canonical update to the post-fix form."
       - "Re-run the workspace grep post-edit. Live-narrative hit count must be 0 for each value class."
       - "Sibling-CLASS sweep: when fixing an ordering violation (POL-26) or phrasing violation in one artifact, also sweep all sibling-class artifacts of the same kind."
