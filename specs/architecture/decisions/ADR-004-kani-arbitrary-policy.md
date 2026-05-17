@@ -1,9 +1,10 @@
 ---
 document_type: adr
 adr_id: ADR-004
+title: "Kani Arbitrary Policy — Which Types Carry kani::Arbitrary"
 status: proposed
-date: 2026-04-26
-version: "0.1"
+date: 2026-05-17
+version: "0.2"
 subsystems_affected: [SS-07]
 supersedes: null
 superseded_by: null
@@ -81,3 +82,4 @@ Proposed. The CaseStatus derive (PR #45, `7903da15`) is in effect and KEPT per A
 | Version | Date | Author | Change |
 |---------|------|--------|--------|
 | 0.1 | 2026-04-26 | architect (via state-manager burst) | Initial stub — retroactive documentation of PR #45 kani::Arbitrary addition + W2-P2-A-003 architect KEEP decision |
+| 0.2 | 2026-05-17 | architect | F-LP71-HIGH-001 sibling-sweep catch: frontmatter `title:` field was missing entirely — added `title: "Kani Arbitrary Policy — Which Types Carry kani::Arbitrary"` to byte-match H1. POL-7 + TD-VSDD-060 within-file frontmatter↔H1 dimension. ARCH-INDEX row propagation owned by state-manager. |

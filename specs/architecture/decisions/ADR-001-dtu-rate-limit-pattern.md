@@ -1,10 +1,10 @@
 ---
 adr_id: ADR-001
-title: "DTU Rate-Limit Pattern — Per-Clone Semantics vs FailureLayer"
+title: "DTU Rate-Limit Pattern"
 document_type: architecture-section
 level: ADR
 section: decisions/ADR-001-dtu-rate-limit-pattern
-version: "1.1"
+version: "1.2"
 status: accepted
 producer: state-manager
 timestamp: 2026-04-22T00:00:00
@@ -69,3 +69,10 @@ fidelity-validator tests that just need to exercise the 429 response path).
 - F-WV0-003 (wave 0 retrospective adversary)
 - Story: S-6.06 prism-dtu-common scope
 - Future: each L2+ clone story's ACs should reference this ADR
+
+## Changelog
+
+| Version | Date | Author | Change |
+|---------|------|--------|--------|
+| 1.2 | 2026-05-17 | architect | F-LP71-HIGH-001 sibling-sweep catch: frontmatter `title:` byte-synced to H1 — drop subtitle `"— Per-Clone Semantics vs FailureLayer"` that was not present in H1. POL-7 + TD-VSDD-060 within-file frontmatter↔H1 dimension. ARCH-INDEX row propagation owned by state-manager. |
+| 1.1 | 2026-04-22 | state-manager | (initial version captured without explicit changelog — retroactive row) |
