@@ -1,7 +1,7 @@
 ---
 document_type: architecture-index
 level: L3
-version: "2.65"
+version: "2.66"
 status: draft
 producer: architect
 timestamp: 2026-05-04T00:00:00
@@ -87,7 +87,7 @@ deployment_topology: single-service  # planned — no service binary exists yet 
 | ADR-019 | SIEM Output Formats | PROPOSED v0.4 | 2026-05-03 | decisions/ADR-019-siem-output-formats.md |
 | ADR-020 | Story Status Taxonomy Reform — Closed Enum, Partial-Merge Semantics, and Graduation Contract | ACCEPTED v1.1 | 2026-05-08 | decisions/ADR-020-story-status-taxonomy-reform.md |
 | ADR-021 | BC/VP Promotion Lifecycle — Draft → Active → Verified Transitions, Audit Cadence, and BC-INDEX Count Authority | ACCEPTED v1.1 | 2026-05-08 | decisions/ADR-021-bc-vp-promotion-lifecycle.md |
-| ADR-022 | Production Runtime Wiring — prism-bin Chassis, Boot Sequence, Wiring Contracts, Infusion Fate, Hot-Reload Watcher, MCP Topology | ACCEPTED v1.6 | 2026-05-17 | decisions/ADR-022-production-runtime-wiring.md |
+| ADR-022 | Production Runtime Wiring — prism-bin Chassis, Boot Sequence, Wiring Contracts, Infusion Fate, Hot-Reload Watcher, MCP Topology | ACCEPTED v1.7 | 2026-05-17 | decisions/ADR-022-production-runtime-wiring.md |
 | ADR-023 | Plugin-Only Sensor Architecture — TOML Specs as Declarative Baseline, .prx WASM for Non-Declarative Cases, Retired CustomAdapter Rust Trait | COMMITTED v1.19 | 2026-05-15 | decisions/ADR-023-plugin-only-sensor-architecture.md |
 | ADR-024 | ColumnType Canonical Naming — Domain-Level Variant Names for Sensor Schema API; prism-spec-engine Shadow Enum Retirement | ACCEPTED v1.0 | 2026-05-12 | decisions/ADR-024-column-type-canonical-naming.md |
 | ADR-025 | BC Lifecycle Field Canonical Scheme — Single status Field Governs; lifecycle Field Retired | ACCEPTED v1.0 | 2026-05-12 | decisions/ADR-025-bc-lifecycle-field-canonical-scheme.md |
@@ -152,6 +152,7 @@ deployment_topology: single-service  # planned — no service binary exists yet 
 
 | Version | Pass | Date | Author | Change |
 |---------|------|------|--------|--------|
+| 2.66 | FB55 | 2026-05-17 | state-manager | D-677 FB55: ADR-022 v1.6→v1.7 (F-LP67-HIGH-001 closure: ADR-026 §D7 pin v1.17→v1.18 at §B Step 8 first-statement note; 1 live-narrative site; architect scope; POL-29 v1.16 class (b) recurrence #18 closed). ARCH-INDEX v2.65→v2.66. |
 | 2.65 | FB52 | 2026-05-17 | state-manager | ADR-026 v1.17→v1.18 (F-LP64-HIGH-001 closure: error-taxonomy v1.31→v1.32 — 1 live-narrative pin updated; multi-value-class sibling-sweep for FB51 error-taxonomy value class). ARCH-INDEX v2.64→v2.65. |
 | 2.64 | FB51 | 2026-05-17 | state-manager | ADR-022 v1.5→v1.6 (F-LP63-HIGH-002 closure: §Changelog rows reordered to strict descending — 6th POL-26 recurrence; bookkeeping repair; row content immutable per POL-26 corollary). ARCH-INDEX v2.63→v2.64. |
 | 2.63 | FB50 | 2026-05-17 | state-manager | ADR-022 v1.4→v1.5 (POL-29 sibling-sweep for OBS-LP62-002 D7 v1.16 → v1.17 at 1 live-narrative pin; 17-site total D7 sweep Interpretation #2 per D-672). ARCH-INDEX v2.62→v2.63. |

@@ -8,7 +8,7 @@ must_pass: true
 priority: P0
 epic_id: "PLUGIN-MIGRATION-001"
 story_source: "S-PLUGIN-PREREQ-E"
-version: "1.8"
+version: "1.9"
 status: draft
 producer: product-owner
 timestamp: 2026-05-17T00:00:00Z
@@ -122,7 +122,7 @@ new write-tool entries (closing TD-S-PLUGIN-PREREQ-A-003).
 
 **Steps:**
 
-1. Construct a `WriteToolInvalidationMap` entry: `{ sensor_id: SensorId::from("custom_sensor"), tool_name: "write_custom_sensor_record", plugin_name: "plugin_a", ... }` (`plugin_name` sourced from plugin manifest `name` field per ADR-026 D7 v1.17)
+1. Construct a `WriteToolInvalidationMap` entry: `{ sensor_id: SensorId::from("custom_sensor"), tool_name: "write_custom_sensor_record", plugin_name: "plugin_a", ... }` (`plugin_name` sourced from plugin manifest `name` field per ADR-026 D7 v1.18)
 2. Call `register_write_tool(entry)` after initial boot
 3. Trigger a write via `write_custom_sensor_record` MCP tool (or a test stub that mimics the write dispatch)
 4. Observe whether cache invalidation fires for `custom_sensor` tables
@@ -146,7 +146,7 @@ new write-tool entries (closing TD-S-PLUGIN-PREREQ-A-003).
 
 - S-PLUGIN-PREREQ-E is merged to `develop`
 - `register_write_tool` API exists with signature `-> Result<(), SpecEngineError>`
-- A test fixture prepares two `WriteToolInvalidationMap` entries sharing the same `tool_name` value (e.g., `"write_custom_sensor_record"`) but from different notional plugins (`plugin_name: "plugin_a"` for the first entry, `plugin_name: "plugin_b"` for the second, representing the two conflicting plugins — exercises E-PLUGIN-012 `{plugin}` and `{conflicting_plugin}` placeholders per ADR-026 D7 v1.17)
+- A test fixture prepares two `WriteToolInvalidationMap` entries sharing the same `tool_name` value (e.g., `"write_custom_sensor_record"`) but from different notional plugins (`plugin_name: "plugin_a"` for the first entry, `plugin_name: "plugin_b"` for the second, representing the two conflicting plugins — exercises E-PLUGIN-012 `{plugin}` and `{conflicting_plugin}` placeholders per ADR-026 D7 v1.18)
 
 **Steps:**
 
@@ -203,7 +203,7 @@ new write-tool entries (closing TD-S-PLUGIN-PREREQ-A-003).
 
 **BC Anchor:** BC-2.16.012 EC-016-012-005
 
-**VP Traced:** VP-156 (related — register_write_tool contract surface per ADR-026 D7 v1.17)
+**VP Traced:** VP-156 (related — register_write_tool contract surface per ADR-026 D7 v1.18)
 
 ---
 
@@ -224,6 +224,7 @@ When this holdout scenario is evaluated, the evaluator must produce:
 
 | Version | Burst | Date | Author | Change |
 |---------|-------|------|--------|--------|
+| 1.9 | FB55 | 2026-05-17 | product-owner | F-LP67-HIGH-001 closure (PO scope): ADR-026 D7 pin v1.17→v1.18 propagation at HS-003 lines 125, 149, 206 (3 live-narrative sites). POL-29 v1.16 step 3a (b) recurrence #18 within-burst closure. |
 | 1.8 | FB50 | 2026-05-17 | product-owner | OBS-LP62-002 closure: 3 live-narrative ADR-026 D7 v1.10 pins bumped to v1.17 per Interpretation #2 (citations follow latest ADR-026 version). |
 | 1.7 | FB46 | 2026-05-16 | product-owner | F-LP58-HIGH-002 closure: HS-003-05 Step 1 + Preconditions language canonicalized to require public-API `mark_query_phase_started()` invocation per AC-9 third-test gate (FB45 hardening); direct AtomicBool .store() explicitly forbidden. |
 | 1.6 | FB37 | 2026-05-16 | product-owner | F-LP47-HIGH-001 HS-003-05 Preconditions AtomicBool set-time corrected from "set when query engine init completes at step 8" to canonical "set at step 8 start — as the first act of step 8, before QueryEngine construction proceeds, per ADR-026 D7"; simulating context updated from "post-boot context" to "post-step-8-start context". HS-003-05 Step 1 "simulating step 8 completion" corrected to "simulating post-step-8-start context (mark_query_phase_started() called)" per architect adjudication §1 note. Sibling-sweep with BC-2.16.012 EC-016-012-005 v1.16 + BC-2.16.002 row 33 v1.21. |

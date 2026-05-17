@@ -1,7 +1,7 @@
 ---
 document_type: behavioral-contract
 level: L3
-version: "1.20"
+version: "1.21"
 status: draft
 producer: product-owner
 timestamp: 2026-05-16T00:00:00Z
@@ -81,7 +81,7 @@ sensors; the change is structural (open dispatch replaces closed match).
   This enables plugin-registered write tools to participate in cache invalidation at runtime
   rather than requiring a compile-time list update. The registration API is called by
   `PluginRuntime` when a plugin declares write-tool capabilities in its manifest.
-- Post-boot `register_write_tool` rejection path MUST emit `tracing::warn!(event_type = "write_tool_registration_after_boot", plugin_name, tool_name, error = "E-PLUGIN-020")` per **BC-2.16.002 §Postconditions (Canonical Structured Event Catalog bullet, v1.21)** (`write_tool_registration_after_boot` row 33). One emission per post-boot registration attempt; not retried. Full field schema, audit role, and recurrence policy are defined in BC-2.16.002 §Postconditions (Canonical Structured Event Catalog bullet, v1.21) row 33. Field sources: `plugin_name` = `entry.plugin_name` (WriteToolInvalidationMap struct field, set by PluginRuntime from plugin manifest `name` per ADR-026 D7 v1.17); `tool_name` = `entry.tool_name` (WriteToolInvalidationMap struct field); `error` = literal `"E-PLUGIN-020"`.
+- Post-boot `register_write_tool` rejection path MUST emit `tracing::warn!(event_type = "write_tool_registration_after_boot", plugin_name, tool_name, error = "E-PLUGIN-020")` per **BC-2.16.002 §Postconditions (Canonical Structured Event Catalog bullet, v1.21)** (`write_tool_registration_after_boot` row 33). One emission per post-boot registration attempt; not retried. Full field schema, audit role, and recurrence policy are defined in BC-2.16.002 §Postconditions (Canonical Structured Event Catalog bullet, v1.21) row 33. Field sources: `plugin_name` = `entry.plugin_name` (WriteToolInvalidationMap struct field, set by PluginRuntime from plugin manifest `name` per ADR-026 D7 v1.18); `tool_name` = `entry.tool_name` (WriteToolInvalidationMap struct field); `error` = literal `"E-PLUGIN-020"`.
 
 ## Invariants
 
@@ -106,7 +106,7 @@ sensors; the change is structural (open dispatch replaces closed match).
 | EC-016-012-002 | A new sensor TOML spec is added post-PREREQ-E (e.g., `hypothetical.sensor.toml`) | Parsed generically; tables registered; no hardcoded name check blocks it |
 | EC-016-012-003 | PluginRegistry returns `Some(plugin)` for a sensor that also has a TOML spec | The registry-provided plugin adapter takes precedence for fetch behavior; the TOML spec provides table schema and column definitions (ADR-023 Rule 1 TOML as declarative baseline) |
 | EC-016-012-004 | `register_write_tool` called by two plugins registering the same write tool name | Second registration is rejected with `Err(SpecEngineError::DuplicateWriteToolRegistration(tool_name))` per ADR-026 D7. Last-writer-wins is explicitly forbidden — see ADR-026 D7 rationale for production-grade default enforcement. |
-| EC-016-012-005 | `register_write_tool` called from a non-boot context (after server is live, step 8+) | Rejected with `Err(SpecEngineError::WriteToolRegistrationAfterBoot)` per ADR-026 D7. An `AtomicBool` query-phase flag gates the write; the flag is set by `prism_query::invalidation::mark_query_phase_started()`, invoked as the **first statement** of the step-8 function in `crates/prism-bin/src/boot.rs` immediately before `QueryEngine::new()` is constructed (F-LP56-HIGH-001 adjudication; ADR-026 D7 v1.17). A WARN-level tracing event `write_tool_registration_after_boot` is emitted per BC-2.16.002 §Postconditions (Canonical Structured Event Catalog bullet, v1.21) row 33. Plugin lifecycle must register write tools during boot step 7.5 only. Error code: E-PLUGIN-020. |
+| EC-016-012-005 | `register_write_tool` called from a non-boot context (after server is live, step 8+) | Rejected with `Err(SpecEngineError::WriteToolRegistrationAfterBoot)` per ADR-026 D7. An `AtomicBool` query-phase flag gates the write; the flag is set by `prism_query::invalidation::mark_query_phase_started()`, invoked as the **first statement** of the step-8 function in `crates/prism-bin/src/boot.rs` immediately before `QueryEngine::new()` is constructed (F-LP56-HIGH-001 adjudication; ADR-026 D7 v1.18). A WARN-level tracing event `write_tool_registration_after_boot` is emitted per BC-2.16.002 §Postconditions (Canonical Structured Event Catalog bullet, v1.21) row 33. Plugin lifecycle must register write tools during boot step 7.5 only. Error code: E-PLUGIN-020. |
 
 ## Canonical Test Vectors
 
@@ -121,7 +121,7 @@ sensors; the change is structural (open dispatch replaces closed match).
 
 | VP ID | Description |
 |-------|-------------|
-| VP-156 | WriteToolInvalidationMap registration uniqueness (proptest P1). Verifies EC-016-012-004 resolved behavior (error-on-duplicate, per ADR-026 D7 v1.17). Visibility guarantee is structural (RwLock contract + ADR-022 boot ordering) not proptest-verified — see VP-156 §Property Statement. Authored in prereq-e-fix-burst-1 (F-LP1-MED-003). Behavioral equivalence and open-dispatch invariants remain verified by integration test (TV-003) and grep gate (TV-001). |
+| VP-156 | WriteToolInvalidationMap registration uniqueness (proptest P1). Verifies EC-016-012-004 resolved behavior (error-on-duplicate, per ADR-026 D7 v1.18). Visibility guarantee is structural (RwLock contract + ADR-022 boot ordering) not proptest-verified — see VP-156 §Property Statement. Authored in prereq-e-fix-burst-1 (F-LP1-MED-003). Behavioral equivalence and open-dispatch invariants remain verified by integration test (TV-003) and grep gate (TV-001). |
 
 ## Related BCs
 
@@ -135,7 +135,7 @@ sensors; the change is structural (open dispatch replaces closed match).
 - `crates/prism-spec-engine/src/spec_parser.rs` — primary migration target
 - `crates/prism-query/src/invalidation.rs` — `WriteToolInvalidationMap` runtime-extensibility target (TD-S-PLUGIN-PREREQ-A-003)
 - ADR-023 §Architectural Constraints (C5 bullet, Rule 5) scope note — confirms `spec_parser.rs` has zero `CustomAdapter` references; only open-dispatch migration applies
-- ADR-026 §D7 v1.17 — write-tool runtime extensibility: `register_write_tool` API, `RwLock<Vec<WriteToolInvalidationMap>>`, `DuplicateWriteToolRegistration` variant, `WriteToolRegistrationAfterBoot` variant, `AtomicBool` query-phase flag (set by `prism_query::invalidation::mark_query_phase_started()` as the first statement of step-8 in `crates/prism-bin/src/boot.rs` immediately before `QueryEngine::new()`; F-LP56-HIGH-001 Option A), E-PLUGIN-012/020 error codes
+- ADR-026 §D7 v1.18 — write-tool runtime extensibility: `register_write_tool` API, `RwLock<Vec<WriteToolInvalidationMap>>`, `DuplicateWriteToolRegistration` variant, `WriteToolRegistrationAfterBoot` variant, `AtomicBool` query-phase flag (set by `prism_query::invalidation::mark_query_phase_started()` as the first statement of step-8 in `crates/prism-bin/src/boot.rs` immediately before `QueryEngine::new()`; F-LP56-HIGH-001 Option A), E-PLUGIN-012/020 error codes
 - ADR-027 §D5 — hardcoded-sensor-string dispatch audit: authoritative for the open-dispatch migration requirement in `spec_parser.rs`
 
 ## Story Anchor
@@ -160,6 +160,7 @@ S-PLUGIN-PREREQ-E
 
 | Version | Burst | Date | Author | Change |
 |---------|-------|------|--------|--------|
+| 1.21 | FB55 | 2026-05-17 | product-owner | F-LP67-HIGH-001 closure (PO scope): ADR-026 D7 pin v1.17→v1.18 propagation at BC-2.16.012 lines 84, 109, 138 (3 live-narrative sites). POL-29 v1.16 step 3a (b) recurrence #18 within-burst closure. |
 | 1.20 | FB50 | 2026-05-17 | architect | POL-23 sibling-sweep OBS-LP62-002 interpretation #2: ADR-026 D7 v1.16 (+ any residual v1.10) live-narrative pins bumped to v1.17 (current ADR-026 version per FB47 §Related ADRs row edit; D7 content unchanged since v1.16). |
 | 1.19 | FB48 | 2026-05-17 | state-manager | F-LP60-HIGH-001 closure: §Changelog row ORDERING repair — v1.16/v1.17/v1.18 rows moved to descending position (newest-on-top); content unchanged per POL-26 corollary (rows immutable; position is bookkeeping per D-611/D-628/D-635/D-659 precedent). |
 | 1.18 | FB45 | 2026-05-16 | architect | FB45 sibling-sweep: ADR-026 v1.15→v1.16 pin sweep — §Postconditions field-source cite, EC-016-012-005 body cite, §Verification Properties VP-156 row cite, §Architecture Anchors ADR-026 §D7 cite all advanced from v1.15 to v1.16. Closes POL-23 recurrence triggered by FB45 ADR-026 v1.16 bump. |

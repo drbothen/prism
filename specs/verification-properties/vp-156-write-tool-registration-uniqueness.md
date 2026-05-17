@@ -1,7 +1,7 @@
 ---
 document_type: verification-property
 level: L4
-version: "0.12"
+version: "0.13"
 status: draft
 producer: architect
 timestamp: 2026-05-15T00:00:00Z
@@ -39,7 +39,7 @@ removal_reason: null
 
 ## Property Statement
 
-`register_write_tool` in `crates/prism-query/src/invalidation.rs` (ADR-026 D7 v1.17,
+`register_write_tool` in `crates/prism-query/src/invalidation.rs` (ADR-026 D7 v1.18,
 INV-INVALIDATION-EXT-001, TD-S-PLUGIN-PREREQ-A-003 closure) MUST enforce the uniqueness
 invariant under all sequential registration patterns:
 
@@ -83,11 +83,11 @@ The proptest harness asserts:
 ## Source Contract
 
 - **BC:** BC-2.16.012 — EC-016-012-004 (duplicate `register_write_tool` call behavior, resolved
-  to error-on-duplicate by ADR-026 D7 v1.17). INV-INVALIDATION-EXT-001 (runtime extensibility
+  to error-on-duplicate by ADR-026 D7 v1.18). INV-INVALIDATION-EXT-001 (runtime extensibility
   postcondition). VP-156 provides proptest coverage for the uniqueness semantics that
   BC-2.16.012 §Verification Properties previously described as "(none in this story)".
   This VP closes that coverage gap per F-LP1-MED-003 resolution (option a: author VP-156).
-- **ADR:** ADR-026 D7 v1.17 — specifies the error-on-duplicate API contract (`register_write_tool`
+- **ADR:** ADR-026 D7 v1.18 — specifies the error-on-duplicate API contract (`register_write_tool`
   returns `Result<(), SpecEngineError>`); `SpecEngineError::DuplicateWriteToolRegistration(String)`
   variant defined there. VP-156 is anchored in ADR-026 D7 as the proptest verification mechanism.
 - **Invariant:** INV-INVALIDATION-EXT-001 — `WriteToolInvalidationMap` is runtime-extensible
@@ -121,7 +121,7 @@ does not require any test infrastructure beyond what is already in prism-query's
 // VP-156: WriteToolInvalidationMap registration uniqueness
 // Method: proptest
 // Target: prism_query::invalidation::register_write_tool
-// ADR: ADR-026 D7 v1.17; BC: BC-2.16.012 INV-INVALIDATION-EXT-001
+// ADR: ADR-026 D7 v1.18; BC: BC-2.16.012 INV-INVALIDATION-EXT-001
 //
 // use proptest::prelude::*;
 // use prism_query::invalidation::{WriteToolInvalidationMap, register_write_tool, invalidation_map};
@@ -204,3 +204,4 @@ The implementer adds this function in `crates/prism-query/src/invalidation.rs` u
 | 0.10 | FB45 | 2026-05-16 | architect | FB45 sibling-sweep: all 4 live-narrative ADR-026 D7 pins advanced v1.15 → v1.16 (FB45 architect bumped ADR-026 v1.15→v1.16 for SS-22 + runtime_deliverables boot.rs entry; VP-156 swept in same burst). |
 | 0.11 | FB50 | 2026-05-17 | architect | POL-23 sibling-sweep OBS-LP62-002 interpretation #2: ADR-026 D7 v1.16 live-narrative pins bumped to v1.17 (current ADR-026 version per FB47 §Related ADRs row edit; D7 content unchanged since v1.16). |
 | 0.12 | FB51 | 2026-05-17 | state-manager | F-LP63-HIGH-003 closure: §Changelog v0.10/v0.11 row positions swapped to ascending order (v0.10 FB45 2026-05-16 BEFORE v0.11 FB50 2026-05-17); 7th POL-26 recurrence within FB50 sibling-sweep itself; POL-26 corollary bookkeeping repair. |
+| 0.13 | FB55 | 2026-05-17 | product-owner | F-LP67-HIGH-001 closure (PO scope): ADR-026 D7 pin v1.17→v1.18 propagation at VP-156 lines 42, 86, 90, 124 (4 live-narrative sites). POL-29 v1.16 step 3a (b) recurrence #18 within-burst closure. |

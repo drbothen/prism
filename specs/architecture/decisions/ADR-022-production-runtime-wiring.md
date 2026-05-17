@@ -3,8 +3,8 @@ document_type: adr
 adr_id: "ADR-022"
 title: "Production Runtime Wiring — prism-bin Chassis, Boot Sequence, Wiring Contracts, Infusion Fate, Hot-Reload Watcher, MCP Topology"
 status: ACCEPTED
-date: "2026-05-08"
-version: "1.6"
+date: "2026-05-17"
+version: "1.7"
 producer: architect
 subsystems_affected: [SS-06, SS-10, SS-11, SS-16, SS-17, SS-19]
 supersedes: null
@@ -240,7 +240,7 @@ Step 7.5 [BLOCKING] Plugin runtime load  ← see ADR-023 §C4 (authoritative pla
 
 Step 8   [BLOCKING → BACKGROUND] QueryEngine + WriteExecutor construction
          First statement: prism_query::invalidation::mark_query_phase_started() — closes the
-               write-registration window before QueryEngine::new(). See ADR-026 §D7 v1.17.
+               write-registration window before QueryEngine::new(). See ADR-026 §D7 v1.18.
          Action: construct QueryEngine (prism-query); bind AdapterRegistry + StorageBackend
          Action: construct WriteExecutor (prism-query); bind feature-flag check + capability check
          Note: QueryEngine::execute in engine.rs was todo!() — resolved by S-3.02-FOLLOWUP-RUNTIME
@@ -786,6 +786,7 @@ Bundle B Phase B-0 architecture output. Authored at D-302 from workspace audit D
 
 | Version | Date | Author | Change |
 |---------|------|--------|--------|
+| 1.7 | 2026-05-17 | architect | F-LP67-HIGH-001 closure (architect scope): ADR-026 §D7 pin v1.17→v1.18 propagation at ADR-022 §B Step 8 first-statement note (line 243; 1 live-narrative site). POL-29 v1.16 step 3a (b) ADR-026 D7 pin registry first-test surfaced recurrence #18 of class (b); PO swept BC-2.16.012 v1.21 + VP-156 v0.13 + HS-003 v1.9 + error-taxonomy v1.33 + story v1.33 in same burst. POL-29 step 8 STRENGTHENED grep evidence (architect-domain): pre-grep 1 → post-grep 0 in `.factory/specs/architecture/`. Sibling-sweep across other ADRs: 0 additional sites found. |
 | 1.6 | 2026-05-17 | state-manager | FB51 F-LP63-HIGH-002 closure: §Changelog row positions repaired to strict descending (v1.3 moved below v1.4; v1.5 moved above v1.4); 6th POL-26 monotonic-ordering recurrence repair per D-611/D-628/D-635/D-659/D-670/D-671 precedent. POL-26 corollary: row content immutable; position is bookkeeping. |
 | 1.5 | 2026-05-17 | architect | FB50 POL-23 sibling-sweep OBS-LP62-002 interpretation #2: §B Step 8 live-narrative ADR-026 §D7 v1.16 pin bumped to v1.17 (current ADR-026 version per FB47 §Related ADRs row edit; D7 content unchanged since v1.16). |
 | 1.4 | 2026-05-16 | architect | FB45: §B Step 8 description: append first-statement note — `prism_query::invalidation::mark_query_phase_started()` is the first statement of step-8, closing the write-registration window before `QueryEngine::new()`. Cross-references ADR-026 §D7 v1.16. Closes OBS-LP57-001 Path A per Canonical Principle Rule 4. |
