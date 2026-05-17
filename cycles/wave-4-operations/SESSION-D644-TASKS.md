@@ -1,7 +1,7 @@
 ---
 document_type: session-tasks
-version: "1.19"
-status: active
+version: "1.20"
+status: superseded
 related_burst: D-644
 predecessor_state: D-652
 predecessor_session_tasks: SESSION-D580-TASKS.md (cascade pass-1 through pass-5 era)
@@ -680,3 +680,16 @@ At next session start after /clear:
 3. Orchestrator MUST verify TD-VSDD-053 stable (150+ consecutive single-commit bursts; no backfill/Stage-1/2 in chain)
 4. Orchestrator MUST present Strategic Options 1-4 to user and await explicit choice before dispatching FB28 or pass-37
 5. Per user_directive_persistent "No pragmatic convergence. Fix all issues before build." — Option 1 is the default if user does not signal otherwise
+
+---
+
+## §SESSION-D644-CLOSE (D-664 — v1.20 FINAL)
+
+**This file is SUPERSEDED by `SESSION-D664-TASKS.md` as of D-664 (2026-05-16).**
+
+All tasks through task 111 (D-664 DURABLE SNAPSHOT) are DONE. Successor file:
+`.factory/cycles/wave-4-operations/SESSION-D664-TASKS.md`
+
+Successor covers: cascade passes 37-54 + FB28-FB43 done; pass-55 PENDING; Fork B canonical rule POL-30; TD-VSDD-053 FB43 deviation documented; see-git-log convention established; 10 cycle-close items; 21 pinned artifact versions; user Option 1 continue-cascade; 170th consecutive single-commit restoring TD-VSDD-053 discipline.
+
+All Strategic Options from this file are resolved: **Option 1 (continue cascade) selected by user at D-664 checkpoint.**

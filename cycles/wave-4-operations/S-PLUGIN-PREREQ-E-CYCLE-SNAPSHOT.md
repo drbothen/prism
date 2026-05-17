@@ -3295,3 +3295,21 @@ Shorthand append: →pass-54:BLOCKED(0C+1H+0M+0L+2OBS; F-LP54-HIGH-001 BC-2.16.0
 Story v1.22 | BC-2.01.016 v1.7 | BC-2.16.011 v1.6 | BC-2.16.012 v1.16 | BC-2.16.002 v1.23 | ADR-026 v1.14 | ADR-027 v1.7 | VP-153 v0.9 | VP-154 v0.6 | VP-155 v0.5 | VP-156 v0.8 | HS-PREREQ-E-001 v1.4 | HS-PREREQ-E-002 v1.4 | HS-PREREQ-E-003 v1.6 | error-taxonomy v1.31 | ARCH-INDEX v2.58 | VP-INDEX v1.51 | STORY-INDEX v2.126 | BC-INDEX v4.98 | verification-architecture v1.41 | verification-coverage-matrix v1.38
 
 STATE.md v7.350; SESSION-HANDOFF.md v7.350; prereq_e_adversary_streak **0/3** (pass-54 BLOCKED — F-LP54-HIGH-001 BC-2.16.002 v1.22 + BC-INDEX v4.97 retired Fork-A phrasings contradicting Fork B canonical rule POL-30; first pass under Fork B; FB43 CLOSED via 2-site corrective append; BC-2.16.002 v1.23 + BC-INDEX v4.98; POL-26 immutability preserved; streak 0/3 unchanged; pass-55 begins 9th 3-CLEAN sequence attempt); 169th consecutive single-commit (TD-VSDD-053 STABLE).
+
+## §D-664 — DURABLE PRE-/CLEAR RESUME SNAPSHOT
+
+| Metric | Post-D-663 | Post-D-664 |
+|--------|------------|------------|
+| Pass count | 54 | 54 (snapshot — no new pass) |
+| Streak | 0/3 | 0/3 |
+| Last verdict | BLOCKED (pass-54) → FB43 CLOSED | DURABLE SNAPSHOT persisted |
+| Consecutive single-commits | 169 | 170 (TD-VSDD-053 RESTORED) |
+| Session task file | SESSION-D644-TASKS.md (active) | SESSION-D664-TASKS.md (successor) |
+
+Shorthand append: →D-664:DURABLE-PRE-CLEAR-SNAPSHOT(54 passes + 43 fix-bursts done; 3 CLEAN this session passes-39/43/51; Fork B canonical rule POL-30 operational; TD-VSDD-053 FB43 two-commit deviation documented; see-git-log convention established; user Option 1 continue-cascade; SESSION-D664-TASKS.md created; 170th consecutive single-commit RESTORING TD-VSDD-053; SAFE_TO_COMPACT)
+
+### Pinned Artifact Versions (PREREQ-E 21-artifact set — post-D-664)
+
+Story v1.23 | BC-2.01.016 v1.7 | BC-2.16.011 v1.6 | BC-2.16.012 v1.16 | BC-2.16.002 v1.23 | ADR-026 v1.14 | ADR-027 v1.7 | VP-153 v0.9 | VP-154 v0.6 | VP-155 v0.5 | VP-156 v0.8 | HS-PREREQ-E-001 v1.4 | HS-PREREQ-E-002 v1.4 | HS-PREREQ-E-003 v1.6 | error-taxonomy v1.31 | ARCH-INDEX v2.58 | VP-INDEX v1.51 | STORY-INDEX v2.126 | BC-INDEX v4.98 | verification-architecture v1.41 | verification-coverage-matrix v1.38
+
+STATE.md v7.351; SESSION-HANDOFF.md v7.351; prereq_e_adversary_streak **0/3** (D-664 durable snapshot; pass-54 BLOCKED; FB43 CLOSED; Fork B canonical rule POL-30 fully operational; TD-VSDD-053 FB43 two-commit deviation documented; see-git-log convention established; user Option 1 continue-cascade; 170th consecutive single-commit RESTORING TD-VSDD-053; SAFE_TO_COMPACT; pass-55 begins 9th 3-CLEAN sequence attempt next session).

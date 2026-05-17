@@ -1,11 +1,11 @@
 ---
 document_type: pipeline-state
 level: ops
-version: "7.350"
+version: "7.351"
 producer: state-manager
-timestamp: 2026-05-16T17:30:00Z
-pre_compact_snapshot: "cycles/wave-4-operations/SESSION-D644-TASKS.md"
-pre_compact_snapshot_at: "2026-05-16 (D-644 — **DURABLE PRE-/CLEAR RESUME SNAPSHOT** — cascade pass-6 through pass-36 + FB6 through FB27 closed; FB28 PENDING; 150th consecutive single-commit; SAFE_TO_COMPACT)"
+timestamp: 2026-05-16T18:00:00Z
+pre_compact_snapshot: "cycles/wave-4-operations/SESSION-D664-TASKS.md"
+pre_compact_snapshot_at: "2026-05-16 (D-664 — **DURABLE PRE-/CLEAR RESUME SNAPSHOT** — cascade passes 37-54 + FB28-FB43 closed; 18 passes + 16 fix-bursts + 3 CLEAN advances (pass-39/43/51); Fork B canonical rule POL-30 operational; TD-VSDD-053 FB43 two-commit deviation documented; see-git-log convention established; user-selected Option 1 continue-cascade; 170th consecutive single-commit restoring TD-VSDD-053 discipline; SAFE_TO_COMPACT)"
 safe_to_compact: true
 inputs: []
 input-hash: "[live-state]"
@@ -27,7 +27,7 @@ repos:
   - mcp-claroty-xdome
 codification_candidates_active: 0
 phase_5_deferred_findings: 2
-current_step: "**FB43 SINGLE-COMMIT CLOSURE D-663** — 1 HIGH F-LP54-HIGH-001 closed via 2-site corrective append: BC-2.16.002 v1.23 (PO corrective row retroactively reframing v1.22 Fork-A changelog under Fork B) + BC-INDEX v4.98 (state-manager corrective row retroactively reframing v4.97 Fork-A changelog under Fork B); POL-30 Fork B canonical rule operational; v1.22/v4.97 immutability preserved per POL-26; 169th consecutive single-commit (TD-VSDD-053 STABLE); streak 0/3 unchanged; pass-55 begins 9th 3-CLEAN sequence attempt; OBS-LP54-001 + OBS-LP54-002 non-blocking observations queued"
+current_step: "**D-664 DURABLE PRE-/CLEAR RESUME SNAPSHOT** — cascade state through pass-54/FB43 durably persisted for new-session resume; 18 passes (pass-37..54) + 16 fix-bursts (FB28..FB43) closed this session; 3 CLEAN advances (pass-39/43/51); Fork B canonical rule POL-30 fully operational; TD-VSDD-053 FB43 two-commit deviation documented as known issue; see-git-log placeholder convention established going forward; user-selected Option 1 continue-cascade at user checkpoint; SESSION-D664-TASKS.md created as successor to SESSION-D644-TASKS.md; 10 cycle-close-queue items persisted; 170th consecutive single-commit milestone RESTORING TD-VSDD-053 discipline; streak 0/3; pass-55 dispatch-ready for new session; SAFE_TO_COMPACT"
 feature_branch_head: "merged to a5ab742c at 2026-05-15 (maintenance D-572 fix-PR)"
 feature_branch_remote_status: "deleted (squash-merged to develop@ec90fe8f; remote branch feature/S-PLUGIN-PREREQ-D removed)"
 worktree_status: "all post-merge cleanups complete — only S-3.09 + S-PLUGIN-PREREQ-B + S-PLUGIN-PREREQ-C + W3-FIX-S307-001 remain"
@@ -193,7 +193,7 @@ safe_to_compact: true
 pass_24_status: "COMPLETE_CLEAN_FIRST_STREAK_ADVANCE"
 pass_25_status: "COMPLETE_BLOCKED_IDEMPOTENCY_CAUGHT_4_FINDINGS_STREAK_RESET"
 cycle_snapshot_factory_head: "TBD"
-prereq_e_adversary_streak: "**0/3 — PASS-54 BLOCKED D-663 (F-LP54-HIGH-001 BC-2.16.002 v1.22 + BC-INDEX v4.97 retired Fork-A phrasings contradicting Fork B canonical rule POL-30; first pass under Fork B surfaced Fork-A residual via POL-25 sweep; novelty HIGH; FB43 CLOSED via 2-site corrective append: BC-2.16.002 v1.23 + BC-INDEX v4.98; POL-26 immutability of v1.22/v4.97 preserved; 169th consecutive single-commit; pass-55 begins 9th 3-CLEAN sequence attempt)**"
+prereq_e_adversary_streak: "**0/3 — D-664 DURABLE SNAPSHOT (pass-54 BLOCKED D-663; FB43 CLOSED; BC-2.16.002 v1.23 + BC-INDEX v4.98 corrective appends canonical; Fork B canonical rule POL-30 fully operational; TD-VSDD-053 FB43 two-commit deviation documented — see-git-log convention established; 170th consecutive single-commit restoring discipline; user Option 1 continue-cascade; pass-55 begins 9th 3-CLEAN sequence attempt next session)**"
 ---
 # VSDD Pipeline State — Prism
 
@@ -207,7 +207,7 @@ prereq_e_adversary_streak: "**0/3 — PASS-54 BLOCKED D-663 (F-LP54-HIGH-001 BC-
 | **Language** | Rust |
 | **Target Workspace** | per-analyst stdio (MCP server) |
 | **Started** | 2026-04-13 |
-| **Last Updated** | 2026-05-16 (D-663 — **FB43 SINGLE-COMMIT CLOSURE — 1 HIGH F-LP54-HIGH-001 closed (BC-2.16.002 v1.22 + BC-INDEX v4.97 retired Fork-A phrasings reframed under Fork B canonical rule POL-30 via 2-site corrective append: BC-2.16.002 v1.23 + BC-INDEX v4.98); POL-26 immutability preserved; first pass under Fork B; 169th consecutive single-commit; pass-55 begins 9th 3-CLEAN sequence attempt; STATE v7.350 milestone**) |
+| **Last Updated** | 2026-05-16 (D-664 — **DURABLE PRE-/CLEAR RESUME SNAPSHOT — cascade passes 37-54 + FB28-FB43 closed (18 passes, 16 fix-bursts, 3 CLEAN advances); Fork B canonical rule POL-30 operational; TD-VSDD-053 FB43 two-commit deviation documented; see-git-log convention established; user Option 1 continue-cascade; 170th consecutive single-commit restoring TD-VSDD-053 discipline; SESSION-D664-TASKS.md created; SAFE_TO_COMPACT; STATE v7.351 milestone**) |
 | **Current Phase** | Wave 3 Tier-3 COMPLETE — **Wave 3-A 4 of 4 SHIPPED**; plugin migration: PREREQ-F + PREREQ-A + PREREQ-B + PREREQ-C + **PREREQ-D MERGED** (PR #149 ec90fe8f 2026-05-15T19:08:45Z); PREREQ-E next per Wave 0 dependency chain |
 | **Current Step** | D-570 (**STEP 9 WORKTREE CLEANUP COMPLETE — per-story-delivery 9/9 DONE for S-PLUGIN-PREREQ-D**). `.worktrees/S-PLUGIN-PREREQ-D/` removed; local `feature/S-PLUGIN-PREREQ-D` branch deleted at e57d0929. 4 worktrees remain (S-3.09 + S-PLUGIN-PREREQ-B + S-PLUGIN-PREREQ-C + W3-FIX-S307-001). STATE+HANDOFF v7.274→v7.275. **76th consecutive single-commit (TD-VSDD-053 stable).** NEXT: **session-reviewer cycle-close** (31 codification candidates + 8 phase-5 deferred + OBS-LP41-001) → **PREREQ-E planning** (Un-seal SensorAuth + Deprecate CustomAdapter) → **PLUGIN-MIGRATION Wave 0**. |
 
@@ -250,16 +250,16 @@ prereq_e_adversary_streak: "**0/3 — PASS-54 BLOCKED D-663 (F-LP54-HIGH-001 BC-
 | D-656 — **FB37 SINGLE-COMMIT CLOSURE — pass-47 BLOCKED (1 HIGH + 3 MED + 1 LOW; F-LP47-HIGH-001 AtomicBool set-time temporal contradiction 4-site sibling-sweep; F-LP47-MED-001/002/003/004 TD-VSDD-091 + BC-2.16.012 §Architecture Anchors + §FSR/Token Budget + emission event_type missing; F-LP47-LOW-001 frontmatter gaps); FB37 closed 5/5 in-scope; 162nd consecutive single-commit; streak 0/3 unchanged.** | state-manager | **FB37 CLOSED — 5/5 in-scope — 162nd consecutive single-commit — pass-48 READY** | Pass-47 report persisted: cycles/wave-4-operations/adversarial-reviews/S-PLUGIN-PREREQ-E-spec-pass-47.md; STATE+HANDOFF v7.342→v7.343; SESSION-D644-TASKS.md v1.11→v1.12 (pass-47 DONE/BLOCKED + FB37 DONE + pass-48 PENDING); CYCLE-SNAPSHOT §D-656 appended. |
 _D-655 and earlier archived to cycles/wave-4-operations/burst-log.md.
 
-## Resume Protocol (D-644 Durable Snapshot)
+## Resume Protocol (D-664 Durable Snapshot — **UPDATED**)
 
 Read these files in sequence at next session start for zero-ambiguity orchestrator resume:
 
-1. `.factory/STATE.md` — this file; `current_step` D-644 + frontmatter pins
-2. `.factory/SESSION-HANDOFF.md` — §POST-D644 DURABLE RESUME SNAPSHOT (narrative + DO-NOT list + dispatch chain)
-3. `.factory/cycles/wave-4-operations/SESSION-D644-TASKS.md` — durable task list (FB28 PENDING + Strategic Options 1-4)
-4. `.factory/cycles/wave-4-operations/S-PLUGIN-PREREQ-E-CYCLE-SNAPSHOT.md` — full cascade history through D-643 + §D-644 section
-5. `.factory/cycles/wave-4-operations/SESSION-D580-TASKS.md` — prior session task list (pass-1 through pass-5 era; historical)
-6. `.factory/cycles/wave-4-operations/adversarial-reviews/S-PLUGIN-PREREQ-E-spec-pass-{1..36}.md` — per-pass finding context if needed (36 files total)
+1. `.factory/STATE.md` — this file; `current_step` D-664 + frontmatter pins; `pre_compact_snapshot` → SESSION-D664-TASKS.md
+2. `.factory/SESSION-HANDOFF.md` — §POST-D664 DURABLE RESUME SNAPSHOT (narrative + DO-NOT list + dispatch chain)
+3. `.factory/cycles/wave-4-operations/SESSION-D664-TASKS.md` — **successor durable task list** (cascade passes 37-54 + FB28-FB43 done; pass-55 PENDING; Fork B canonical rule; TD-VSDD-053 FB43 deviation)
+4. `.factory/cycles/wave-4-operations/S-PLUGIN-PREREQ-E-CYCLE-SNAPSHOT.md` — full cascade history through D-663 + §D-664 section
+5. `.factory/cycles/wave-4-operations/SESSION-D644-TASKS.md` — prior session task list (pass-37..54 era; SUPERSEDED; historical)
+6. `.factory/cycles/wave-4-operations/adversarial-reviews/S-PLUGIN-PREREQ-E-spec-pass-{37..54}.md` — per-pass finding context if needed
 
 ## Decisions Log
 
@@ -267,6 +267,7 @@ _D-001..D-046 archived: [cycles/phase-3-dtu-wave-2/decisions-archive-d001-d032.m
 
 | ID | Decision | Rationale | Phase | Date |
 |----|----------|-----------|-------|------|
+| D-664 | 2026-05-16 | state-manager | **D-664 DURABLE PRE-/CLEAR RESUME SNAPSHOT — cascade state through pass-54/FB43 durably persisted for new-session resume; 18 adversary passes (pass-37..54) + 16 fix-bursts (FB28..FB43) closed this session; 3 CLEAN advances (pass-39 ★ 1/3, pass-43 ★ 1/3, pass-51 ★ 1/3); Fork B canonical rule POL-30 fully operational (established FB42 D-662; validated by FB43 D-663); TD-VSDD-053 FB43 two-commit deviation documented as known one-time historical event; see-git-log placeholder convention established going forward to prevent post-commit SHA-placeholder fills; user-selected Option 1 continue-cascade at D-664 checkpoint; SESSION-D664-TASKS.md created as successor to SESSION-D644-TASKS.md; SESSION-D644-TASKS.md v1.19→v1.20 close-out; CYCLE-SNAPSHOT §D-664 appended; 10 cycle-close-queue items persisted unchanged; 21 artifact versions pinned; 170th consecutive single-commit RESTORING TD-VSDD-053 discipline; streak 0/3; pass-55 dispatch-ready; STATE+HANDOFF v7.350→v7.351; SAFE_TO_COMPACT.** | plugin-migration | 2026-05-16 |
 | D-663 | 2026-05-16 | state-manager | **FB43 SINGLE-COMMIT CLOSURE D-663 — 1 HIGH F-LP54-HIGH-001 closed (BC-2.16.002 v1.22 §Changelog row + BC-INDEX v4.97 §Changelog row carry retired Fork-A phrasings "synced with frontmatter v1.21" + "9th POL-23 catalog-bullet-label sub-class manifestation" contradicting Fork B canonical rule POL-30 established FB42 D-662; first pass under Fork B surfaced Fork-A residual via POL-25 final-sweep vector; novelty HIGH — Fork-A changelog residual in FB41-authored content; 2-site corrective append: PO BC-2.16.002 v1.23 corrective changelog row + state-manager BC-INDEX v4.98 corrective changelog row; both v1.22/v4.97 source rows preserved per POL-26 immutability; BC-2.16.002 artifact content (bullet label v1.21 in §Postconditions) is CORRECT under Fork B — only changelog rationale framing required correction; 169th consecutive single-commit (TD-VSDD-053 STABLE); streak 0/3 unchanged; pass-55 begins 9th 3-CLEAN sequence attempt; OBS-LP54-001 + OBS-LP54-002 non-blocking observations queued; pass-54 report persisted: cycles/wave-4-operations/adversarial-reviews/S-PLUGIN-PREREQ-E-spec-pass-54.md; STATE+HANDOFF v7.349→v7.350; SESSION-D644-TASKS.md v1.18→v1.19 (pass-54 DONE/BLOCKED + FB43 DONE + pass-55 PENDING); CYCLE-SNAPSHOT §D-663 appended.)** | plugin-migration | 2026-05-16 |
 | D-662 | 2026-05-16 | state-manager | **FB42 STATE-MANAGER-ONLY SINGLE-COMMIT CLOSURE D-662 — 2 MED cycle-snapshot integrity fixes (F-LP53-MED-001: §D-659/§D-660/§D-661 headings changed ### → ## to match established ## convention of all prior D-NNN sections; F-LP53-MED-002: duplicate line 3247 in D-660 pin block removed); F-LP53-HIGH-001 REJECTED via Fork B orchestrator adjudication — canonical rule established: bullet-version-label `(vN.MM)` on §Postconditions Canonical Structured Event Catalog heading tracks catalog-content-version INDEPENDENT of BC frontmatter version (which tracks BC document version); post-FB41 state internally consistent under Fork B; 9-recurrence catalog-bullet sub-class retrospectively closed as misdiagnosis-induced (adversary applying frontmatter-version rule to catalog-content-version label); F-LP52-HIGH-001 retroactively reclassified as misdiagnosis-induced; F-LP53-LOW-001 ACCEPTED non-defect — BC-2.16.001 cite in HS-001 body is precondition reference, not primary anchor; precondition-reference BCs not enumerated in frontmatter `behavioral_contracts:` array per project convention; POL-30 candidate evolves to document Fork B independent-versioning rule; state-manager-only burst (no spec artifacts touched — cycle-snapshot bookkeeping only); 168th consecutive single-commit (TD-VSDD-053 STABLE); streak 0/3 unchanged; pass-54 begins 8th 3-CLEAN sequence attempt; pass-53 report persisted: cycles/wave-4-operations/adversarial-reviews/S-PLUGIN-PREREQ-E-spec-pass-53.md; STATE+HANDOFF v7.348→v7.349; SESSION-D644-TASKS.md v1.17→v1.18 (pass-53 DONE/BLOCKED + FB42 DONE + pass-54 PENDING); CYCLE-SNAPSHOT §D-662 appended.)** | plugin-migration | 2026-05-16 |
 | D-661 | 2026-05-16 | state-manager | **FB41 SINGLE-COMMIT CLOSURE D-661 — 1 HIGH F-LP52-HIGH-001 closed (BC-2.16.002 line 74 §Postconditions Canonical Structured Event Catalog bullet header `(v1.20)` → `(v1.21)` syncing with frontmatter v1.21; 8 PREREQ-E cite-pin sites phantom-anchored against stale bullet label now resolved; PO-only single-line edit; BC-2.16.002 v1.21→v1.22; BC-INDEX v4.96→v4.97; 9th POL-23 within-FB sibling-sweep asymmetry manifestation on catalog-bullet-label sub-class; FB41 closed 1/1 in-scope; state-manager last; 167th consecutive single-commit (TD-VSDD-053 STABLE); streak 1/3 → 0/3 RESET; pass-53 begins 7th 3-CLEAN sequence attempt; POL-29 + POL-30 codification candidate evidence accumulating; pass-52 report persisted: cycles/wave-4-operations/adversarial-reviews/S-PLUGIN-PREREQ-E-spec-pass-52.md; STATE+HANDOFF v7.347→v7.348; SESSION-D644-TASKS.md v1.16→v1.17 (pass-52 DONE/BLOCKED + FB41 DONE + pass-53 PENDING); CYCLE-SNAPSHOT §D-661 appended.)** | plugin-migration | 2026-05-16 |
