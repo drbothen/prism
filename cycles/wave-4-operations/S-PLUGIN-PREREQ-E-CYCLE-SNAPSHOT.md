@@ -3606,4 +3606,54 @@ Streak: 0/3 unchanged (1 HIGH + 1 LOW block convergence; novelty MEDIUM-HIGH). P
 
 Story v1.27 | BC-2.01.016 v1.7 | BC-2.16.011 v1.7 | BC-2.16.012 v1.19 | BC-2.16.002 v1.23 | ADR-026 v1.17 | ADR-022 v1.4 | ADR-027 v1.8 | VP-153 v0.9 | VP-154 v0.6 | VP-155 v0.5 | VP-156 v0.10 | HS-PREREQ-E-001 v1.4 | HS-PREREQ-E-002 v1.5 | HS-PREREQ-E-003 v1.7 | error-taxonomy v1.31 | ARCH-INDEX v2.62 | VP-INDEX v1.53 | STORY-INDEX v2.131 | BC-INDEX v5.02 | verification-architecture v1.41 | verification-coverage-matrix v1.38
 
+---
+
+## §D-671 FB49 MULTI-AGENT CLOSURE — PASS-61 BLOCKED → REMEDIATED
+
+**D-671 — 2026-05-17 — STATE v7.358 — 177th consecutive single-commit (TD-VSDD-053 STABLE)**
+
+### Pass-61 Verdict
+
+BLOCKED. 2 findings: 1 HIGH + 1 MEDIUM. Streak 0/3 unchanged. Pass-61 is the 5th pass of restart-9 sequence (passes 57-onward).
+
+### F-LP61-HIGH-001 Closure — Story §Changelog Row Position (State-Manager)
+
+FB48 closed BC-2.16.012 §Changelog descending ordering via bookkeeping reorder; STORY §Changelog was sibling-class-missed. Story v1.27 §Changelog had v1.23 row (FB44, 2026-05-16) positioned between v1.26 and v1.25 rows — violating strict-descending convention. 5th POL-26 monotonic-ordering recurrence (D-611 / D-628 / D-635 / D-659 / D-670 precedent chain for BC artifacts; now STORY artifact also exhibits the defect class).
+
+State-manager closed: v1.23 row repositioned to strict-descending order (after v1.24, before v1.22); v1.28 top row added with full burst attribution. Row CONTENT preserved per POL-26-COROLLARY (bookkeeping repair). Story v1.27 → v1.28 frontmatter bookkeeping bump.
+
+§Changelog final order (top 7): v1.28 → v1.27 → v1.26 → v1.25 → v1.24 → v1.23 → v1.22 → ... (strictly descending to v1.0).
+
+### F-LP61-MED-001 Closure — Story §risk_mitigations AC-4..6 Claim-vs-Evidence Mismatch (PO)
+
+Story v1.27 §risk_mitigations AC-4..6 entry conjoined "VP-154 + Red Gate Tests 6-7" as behavioral-equivalence verifiers. Defect: Tests 6-7 verify ABSENCE (type absent compile-fail + E-SPEC-008 not-constructed-by-live-code), not behavioral equivalence. VP-154 is P1 PLUGIN-MIGRATION-001-A scope per ADR-027 D4 — not PREREQ-E scope.
+
+PO closed Option (a): atomic disambiguation rewriting §risk_mitigations AC-4..6 to correctly scope Tests 6-7 to retirement absence and VP-154 to behavioral-equivalence (deferred to PLUGIN-MIGRATION-001-A). 60-pass-surviving misattribution closed.
+
+### POL-29 Codification Candidate Evidence (#18+)
+
+F-LP61-HIGH-001 is the 18th+ within-FB sibling-sweep gap manifestation: FB48 swept BC-2.16.012 §Changelog for POL-26 ordering but did not sweep the STORY §Changelog in the same burst. The sweep gap is orthogonal to the cite-pin/phrasing-form family — it is an ordering-discipline gap. Cycle-close codification of POL-29 (within-burst sibling-sweep mandate) overwhelmingly justified at #18+ evidence count.
+
+### FB49 Artifact Changes
+
+**State-Manager burst:**
+- Story S-PLUGIN-PREREQ-E v1.27 → v1.28: §Changelog v1.23 row repositioned to descending order; v1.28 row added at top; frontmatter version + modified bumped
+- Pass-61 report persisted: cycles/wave-4-operations/adversarial-reviews/S-PLUGIN-PREREQ-E-spec-pass-61.md
+
+**PO burst (pre-staged AC-4..6 rewrite from orchestrator):**
+- Story S-PLUGIN-PREREQ-E: §risk_mitigations AC-4..6 entry rewritten Option (a) — Tests 6-7 scoped to retirement absence; VP-154 deferred to PLUGIN-MIGRATION-001-A per ADR-027 D4
+
+**State-manager bookkeeping:**
+- STORY-INDEX v2.131 → v2.132: frontmatter version + timestamp + story row v1.27→v1.28 + §Changelog row v2.132 added
+- STATE.md v7.357 → v7.358; SESSION-HANDOFF.md v7.357 → v7.358; SESSION-D664-TASKS.md v1.6 → v1.7
+- CYCLE-SNAPSHOT §D-671 appended (this section)
+
+### Streak Status + Next Action
+
+Streak: 0/3 unchanged (1 HIGH + 1 MED block convergence; novelty MEDIUM). Pass-62 dispatch-ready (6th pass of restart-9 sequence). Vector rotation continues; §Changelog ordering + AC-4..6 claim-vs-evidence vectors now exhausted — do not re-use.
+
+### Pinned Artifact Versions (PREREQ-E 22-artifact set — post-D-671)
+
+Story v1.28 | BC-2.01.016 v1.7 | BC-2.16.011 v1.7 | BC-2.16.012 v1.19 | BC-2.16.002 v1.23 | ADR-026 v1.17 | ADR-022 v1.4 | ADR-027 v1.8 | VP-153 v0.9 | VP-154 v0.6 | VP-155 v0.5 | VP-156 v0.10 | HS-PREREQ-E-001 v1.4 | HS-PREREQ-E-002 v1.5 | HS-PREREQ-E-003 v1.7 | error-taxonomy v1.31 | ARCH-INDEX v2.62 | VP-INDEX v1.53 | STORY-INDEX v2.132 | BC-INDEX v5.02 | verification-architecture v1.41 | verification-coverage-matrix v1.38
+
 STATE.md v7.356; SESSION-HANDOFF.md v7.356; prereq_e_adversary_streak **0/3** (pass-59 BLOCKED — 2 HIGH F-LP59-HIGH-001 CAP-029 mis-anchor + F-LP59-HIGH-002 risk_mitigations renumbering drift + 1 MED F-LP59-MED-001 ADR-027 "deprecation" framing 5-site sibling-sweep + 1 OBS; novelty HIGH; POL-29 #16+; FB47 architect+PO+SM multi-agent closure; streak 0/3 unchanged; 175th consecutive single-commit TD-VSDD-053 STABLE; pass-60 dispatch-ready).

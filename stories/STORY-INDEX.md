@@ -1,10 +1,10 @@
 ---
 document_type: story-index
 level: "L4"
-version: "v2.131"
+version: "v2.132"
 status: draft
 producer: state-manager
-timestamp: 2026-05-16T00:00:00Z
+timestamp: 2026-05-17T00:00:00Z
 phase: 3
 total_stories: 150
 total_active_bcs: 222
@@ -392,7 +392,7 @@ pursuing maximum parallelism should schedule by topological layer, not wave numb
 | S-PLUGIN-PREREQ-B | prism-spec-engine: Real PipelineExecutor — HTTP Client, JSONPath, Fan-out, Paginate, Retry, Declarative [PLUGIN-MIGRATION Wave 0] [**merged** v1.23 2026-05-12 D-427; PR #143 ae7e26c8; 16 LOCAL passes + 13 fix-bursts + PR-LEVEL 1/1 CLEAN + 34/34 CI + pr-reviewer APPROVE; BC-2.16.002 draft→active (POL-14)] | prism-spec-engine | 2 (BC-2.16.002, BC-2.01.013) | S-PLUGIN-PREREQ-F,S-PLUGIN-PREREQ-A | 13 | S-PLUGIN-PREREQ-F,S-PLUGIN-PREREQ-A |
 | S-PLUGIN-PREREQ-C | prism-spec-engine+prism-core: TOML Grammar Extensions + Pub-API Hardening — page_size, JSONPath bracket/wildcard, proptest, escape mechanism, #[non_exhaustive] audit, cross-newtype audit, SensorIdValidationError re-export [PLUGIN-MIGRATION Wave 0] [**merged** v1.4 2026-05-12 D-442; 7 ACs; 8 pts; resolves TD-B-001/003/006/008/016 + TD-A-006/008; F-LP4-MED-001+MED-002+LOW-002 closed; MERGED via PR #144 at develop@ea958a4d 2026-05-12] | prism-spec-engine,prism-core | 2 (BC-2.16.002, BC-2.01.013) | -- | 8 | S-PLUGIN-PREREQ-A,S-PLUGIN-PREREQ-B |
 | S-PLUGIN-PREREQ-D | prism-bin/prism-spec-engine: Wire PluginRuntime into Boot Sequence; .prx Load Pipeline (Unsigned v1.0; Boot Warning + Audit Log; Allowlist Enforcement; PR Template) [PLUGIN-MIGRATION Wave 0] [**merged** v1.38 PR #149 ec90fe8f 2026-05-15 D-568 POL-14: BC-2.17.001/002/003/004/006/007 draft→active; 18 ACs; 13 pts; 11 adversary passes + 8 fix-bursts + 47 findings closed + 3-CLEAN at impl-pass-11; 18 AC demo evidence; 4-cycle pr-reviewer APPROVE; 18 CI checks green] | prism-bin,prism-spec-engine | 8 (BC-2.16.002, BC-2.17.001, BC-2.17.002, BC-2.17.003, BC-2.17.004, BC-2.17.006, BC-2.17.007, BC-2.22.001) | -- | 13 | S-PLUGIN-PREREQ-F,S-PLUGIN-PREREQ-A,S-PLUGIN-PREREQ-B,S-PLUGIN-PREREQ-C |
-| S-PLUGIN-PREREQ-E | prism-sensors/prism-spec-engine: Un-seal SensorAuth + Deprecate/Remove CustomAdapter Rust Trait + migrate spec_parser.rs call sites to PluginRegistry [PLUGIN-MIGRATION Wave 0] [**draft** v1.27 FB48; 13 ACs; 3 pts; BCs: BC-2.01.013+BC-2.01.016+BC-2.16.004+BC-2.16.011+BC-2.16.012; VPs: VP-153+VP-154+VP-155+VP-156; ADRs: ADR-022+ADR-026+ADR-027; HS: HS-PREREQ-E-001/002/003; Red Gate tests: 14; subsystems: SS-01+SS-07+SS-16+SS-17+SS-22] | prism-sensors,prism-spec-engine,prism-query,prism-bin | 5 (BC-2.01.013, BC-2.01.016, BC-2.16.004, BC-2.16.011, BC-2.16.012) | -- | 3 | S-PLUGIN-PREREQ-F,S-PLUGIN-PREREQ-A,S-PLUGIN-PREREQ-D |
+| S-PLUGIN-PREREQ-E | prism-sensors/prism-spec-engine: Un-seal SensorAuth + Deprecate/Remove CustomAdapter Rust Trait + migrate spec_parser.rs call sites to PluginRegistry [PLUGIN-MIGRATION Wave 0] [**draft** v1.28 FB49; 13 ACs; 3 pts; BCs: BC-2.01.013+BC-2.01.016+BC-2.16.004+BC-2.16.011+BC-2.16.012; VPs: VP-153+VP-154+VP-155+VP-156; ADRs: ADR-022+ADR-026+ADR-027; HS: HS-PREREQ-E-001/002/003; Red Gate tests: 14; subsystems: SS-01+SS-07+SS-16+SS-17+SS-22] | prism-sensors,prism-spec-engine,prism-query,prism-bin | 5 (BC-2.01.013, BC-2.01.016, BC-2.16.004, BC-2.16.011, BC-2.16.012) | -- | 3 | S-PLUGIN-PREREQ-F,S-PLUGIN-PREREQ-A,S-PLUGIN-PREREQ-D |
 | PLUGIN-MIGRATION-001-A | prism-sensors: Delete 4 Named Auth Modules + Re-exports + Replace init_registry_for_org [PLUGIN-MIGRATION Wave 1] [planned — gated on VP-PLUGIN-003 parity test pass for all 4 sensors] | prism-sensors,prism-bin | 0 (TBD) | -- | 3 | S-PLUGIN-PREREQ-A,S-PLUGIN-PREREQ-B,S-PLUGIN-PREREQ-C,S-PLUGIN-PREREQ-E,PLUGIN-MIGRATION-001-D,PLUGIN-MIGRATION-001-E |
 | PLUGIN-MIGRATION-001-B | prism-query: Convert 5 Sensor-Name Dispatch Sites to Spec-Catalog Lookup [PLUGIN-MIGRATION Wave 1] [planned] | prism-query | 0 (TBD) | -- | 3 | S-PLUGIN-PREREQ-A,S-PLUGIN-PREREQ-C,PLUGIN-MIGRATION-001-A |
 | PLUGIN-MIGRATION-001-C | prism-ocsf: Merge 4 Hardcoded Mappers → SpecDrivenMapper + .prx WASM Transformers [PLUGIN-MIGRATION Wave 1] [planned] | prism-ocsf,prism-spec-engine | 0 (TBD) | -- | 3 | S-PLUGIN-PREREQ-C,S-PLUGIN-PREREQ-D,PLUGIN-MIGRATION-001-A |
@@ -929,6 +929,7 @@ All 13 new DTU clones: Wave 0, 0 BCs, priority P0, depends_on: [S-6.06].
 
 | Version | Date | Summary |
 |---------|------|---------|
+| v2.132 | 2026-05-17 | FB49: S-PLUGIN-PREREQ-E v1.27→v1.28 (F-LP61-HIGH-001 §Changelog bookkeeping reorder + F-LP61-MED-001 §risk_mitigations Option (a) disambiguation) |
 | v2.131 | 2026-05-17 | FB48: S-PLUGIN-PREREQ-E v1.26→v1.27 (F-LP60-LOW-001 §risk_mitigations AC-7..8 disambiguation) |
 | v2.130 | 2026-05-16 | FB47: S-PLUGIN-PREREQ-E v1.25→v1.26 (F-LP59-HIGH-001 CAP-029 label + F-LP59-HIGH-002 risk_mitigations renumbering + F-LP59-MED-001 story sites + OBS-LP59-001 AC-9 cite) |
 | v2.129 | 2026-05-16 | FB46: S-PLUGIN-PREREQ-E v1.24→v1.25 (F-LP58-HIGH-002 HS-003-05 + F-LP58-MED-002 References + F-LP58-MED-003 risk_mitigations + OBS-LP58-001 Task 7d cosmetic) |

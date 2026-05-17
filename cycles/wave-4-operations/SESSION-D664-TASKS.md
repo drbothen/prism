@@ -1,11 +1,11 @@
 ---
 document_type: session-tasks
-version: "1.6"
+version: "1.7"
 status: active
-related_burst: D-670
+related_burst: D-671
 predecessor_state: D-664
 predecessor_session_tasks: SESSION-D644-TASKS.md
-timestamp: 2026-05-17T01:30:00Z
+timestamp: 2026-05-17T02:30:00Z
 ---
 
 # Session Task List — D-664 Durable Pre-/Clear Snapshot
@@ -28,9 +28,9 @@ This file persists the cascade state from the session covering D-645 through D-6
 - **170 consecutive single-commit bursts** (D-664 is the 170th; restoring TD-VSDD-053 discipline after FB43 two-commit deviation — see Known Issue below)
 - **3 CLEAN passes this session**: pass-39 (1st), pass-43 (2nd), pass-51 (3rd)
 - **8 CLEAN passes total** across all sessions: pass-9, pass-19, pass-23, pass-25, pass-26, pass-29, pass-30, pass-35 (prior sessions) + pass-39, pass-43, pass-51 (this session)
-- **Current streak:** 0/3 (pass-60 BLOCKED at D-670; streak unchanged; 24 passes consumed in restart-9 sequence; F-LP60-HIGH-001 BC-2.16.012 §Changelog 4th POL-26 recurrence; POL-29 codification candidate #17+; pass-61 begins)
+- **Current streak:** 0/3 (pass-61 BLOCKED at D-671; streak unchanged; 25 passes consumed in restart-9 sequence; F-LP61-HIGH-001 story §Changelog 5th POL-26 recurrence + F-LP61-MED-001 §risk_mitigations behavioral-equivalence misattribution; POL-29 codification evidence #18+; pass-62 begins)
 
-**Trajectory novel-finding count (this session):** 3(pass-36 carry-forward)→pass-37:BLOCKED(3M)→pass-38:BLOCKED(1M+1L)→pass-39:CLEAN★→pass-40:BLOCKED(1M+1L)→pass-41:BLOCKED(1L)→pass-42:BLOCKED(1M+1L)→pass-43:CLEAN★→pass-44:BLOCKED(2M)→pass-45:BLOCKED(1M+1L+2OBS)→pass-46:BLOCKED(1H+1M)→pass-47:BLOCKED(1H+3M+1L)→pass-48:BLOCKED(1H+3M)→pass-49:BLOCKED(1H+4M+1L)→pass-50:BLOCKED(2M+1L)→pass-51:CLEAN★→pass-52:BLOCKED(1H)→pass-53:BLOCKED(2M)→pass-54:BLOCKED(1H+2OBS)→pass-55:CLEAN★(0 findings; 2 non-blocking OBS; novelty ZERO)→pass-56:BLOCKED(1H; F-LP56-HIGH-001 production call-graph defect; novelty HIGH; architect Option A)→pass-57:BLOCKED(2H+1M+1OBS; F-LP57-HIGH-001 runtime_deliverables + F-LP57-HIGH-002 SS-22 + F-LP57-MED-001 tracing-test + OBS-LP57-001 Path A; novelty HIGH; FB45 architect+PO+SM multi-agent)→pass-58:BLOCKED(2H+3M+1OBS; F-LP58-HIGH-001 ADR-027 title-vs-§D1 contradiction + F-LP58-HIGH-002 HS-003-05 Step 1 vs AC-9 gate FB45-sibling-sweep + F-LP58-MED-001/002/003 + OBS-LP58-001; novelty HIGH; FB46 multi-agent closure) →pass-59:BLOCKED(2H+1M+1OBS; F-LP59-HIGH-001 CAP-029 mis-anchor + F-LP59-HIGH-002 risk_mitigations renumbering drift + F-LP59-MED-001 deprecation framing 5-site sibling-sweep + OBS-LP59-001; novelty HIGH; POL-29 #16+; FB47 corrective multi-agent) →pass-60:BLOCKED(1H+1L+1OBS; F-LP60-HIGH-001 BC-2.16.012 §Changelog ASCENDING-at-top 4th POL-26 recurrence + F-LP60-LOW-001 §risk_mitigations AC-7..8 path-citation ambiguity Option (a) + OBS-LP60-001 BC-INDEX schema cycle-close; POL-29 #17+; FB48 multi-agent)
+**Trajectory novel-finding count (this session):** 3(pass-36 carry-forward)→pass-37:BLOCKED(3M)→pass-38:BLOCKED(1M+1L)→pass-39:CLEAN★→pass-40:BLOCKED(1M+1L)→pass-41:BLOCKED(1L)→pass-42:BLOCKED(1M+1L)→pass-43:CLEAN★→pass-44:BLOCKED(2M)→pass-45:BLOCKED(1M+1L+2OBS)→pass-46:BLOCKED(1H+1M)→pass-47:BLOCKED(1H+3M+1L)→pass-48:BLOCKED(1H+3M)→pass-49:BLOCKED(1H+4M+1L)→pass-50:BLOCKED(2M+1L)→pass-51:CLEAN★→pass-52:BLOCKED(1H)→pass-53:BLOCKED(2M)→pass-54:BLOCKED(1H+2OBS)→pass-55:CLEAN★(0 findings; 2 non-blocking OBS; novelty ZERO)→pass-56:BLOCKED(1H; F-LP56-HIGH-001 production call-graph defect; novelty HIGH; architect Option A)→pass-57:BLOCKED(2H+1M+1OBS; F-LP57-HIGH-001 runtime_deliverables + F-LP57-HIGH-002 SS-22 + F-LP57-MED-001 tracing-test + OBS-LP57-001 Path A; novelty HIGH; FB45 architect+PO+SM multi-agent)→pass-58:BLOCKED(2H+3M+1OBS; F-LP58-HIGH-001 ADR-027 title-vs-§D1 contradiction + F-LP58-HIGH-002 HS-003-05 Step 1 vs AC-9 gate FB45-sibling-sweep + F-LP58-MED-001/002/003 + OBS-LP58-001; novelty HIGH; FB46 multi-agent closure) →pass-59:BLOCKED(2H+1M+1OBS; F-LP59-HIGH-001 CAP-029 mis-anchor + F-LP59-HIGH-002 risk_mitigations renumbering drift + F-LP59-MED-001 deprecation framing 5-site sibling-sweep + OBS-LP59-001; novelty HIGH; POL-29 #16+; FB47 corrective multi-agent) →pass-60:BLOCKED(1H+1L+1OBS; F-LP60-HIGH-001 BC-2.16.012 §Changelog ASCENDING-at-top 4th POL-26 recurrence + F-LP60-LOW-001 §risk_mitigations AC-7..8 path-citation ambiguity Option (a) + OBS-LP60-001 BC-INDEX schema cycle-close; POL-29 #17+; FB48 multi-agent) →pass-61:BLOCKED(1H+1M; F-LP61-HIGH-001 story §Changelog 5th POL-26 monotonic-ordering recurrence sibling-class-missed-by-FB48 + F-LP61-MED-001 §risk_mitigations AC-4..6 behavioral-equivalence misattribution Tests-6-7-verify-absence; POL-29 #18+; FB49 multi-agent)
 
 **User directive:** Option 1 (continue cascade) chosen at D-664 checkpoint. Pass-55 begins next session.
 
@@ -70,13 +70,15 @@ This file persists the cascade state from the session covering D-645 through D-6
 | 121 | **DONE** | D-669 FB47 MULTI-AGENT CORRECTIVE CLOSURE — 175th consecutive single-commit; architect ADR-026 v1.17 + ARCH-INDEX v2.62; PO story v1.26 + BC-2.16.011 v1.7 + HS-PREREQ-E-002 v1.5 + STORY-INDEX v2.130; state-manager pass-59 report + BC-INDEX v5.01 + STATE+HANDOFF v7.355→v7.356 + SESSION-D664-TASKS.md v1.4→v1.5 + CYCLE-SNAPSHOT §D-669 appended |
 | 122 | **DONE — BLOCKED** | PREREQ-E pass-60 (4th pass of restart-9 sequence; BLOCKED 1 HIGH F-LP60-HIGH-001 BC-2.16.012 §Changelog ASCENDING-at-top 4th POL-26 recurrence + 1 LOW F-LP60-LOW-001 §risk_mitigations AC-7..8 path-citation ambiguity + 1 OBS-LP60-001 BC-INDEX schema asymmetry; novelty MEDIUM-HIGH; FB48 closed in-scope D-670) |
 | 123 | **DONE** | D-670 FB48 SINGLE-COMMIT CLOSURE — 176th consecutive single-commit; state-manager BC-2.16.012 v1.19 §Changelog row reorder (POL-26 bookkeeping) + BC-INDEX v5.02; PO story v1.27 §risk_mitigations AC-7..8 disambiguation + STORY-INDEX v2.131; pass-60 report persisted; STATE+HANDOFF v7.356→v7.357; SESSION-D664-TASKS.md v1.5→v1.6; CYCLE-SNAPSHOT §D-670 appended; OBS-LP60-001 cycle-close queue item 12 added |
-| 124 | **PENDING** | PREREQ-E pass-61 (5th pass of restart-9 sequence; vector rotation continues) |
+| 124 | **DONE — BLOCKED** | PREREQ-E pass-61 (5th pass of restart-9 sequence; BLOCKED 1 HIGH F-LP61-HIGH-001 story §Changelog v1.23 out-of-position 5th POL-26 recurrence + 1 MED F-LP61-MED-001 §risk_mitigations AC-4..6 behavioral-equivalence misattribution; novelty MEDIUM; POL-29 #18+; FB49 closed in-scope D-671) |
+| 125 | **DONE** | D-671 FB49 MULTI-AGENT CLOSURE — state-manager story §Changelog v1.23 row reorder (POL-26-COROLLARY bookkeeping) + story v1.27→v1.28 + STORY-INDEX v2.131→v2.132; PO §risk_mitigations AC-4..6 Option (a) disambiguation; pass-61 report persisted; STATE+HANDOFF v7.357→v7.358; SESSION-D664-TASKS.md v1.6→v1.7; CYCLE-SNAPSHOT §D-671 appended; 177th consecutive single-commit (TD-VSDD-053 STABLE) |
+| 126 | **PENDING** | PREREQ-E pass-62 (6th pass of restart-9 sequence; vector rotation continues) |
 
 ## Pinned Artifact Versions (post-FB43, as of D-664)
 
 | Artifact | Version |
 |----------|---------|
-| Story S-PLUGIN-PREREQ-E | v1.27 |
+| Story S-PLUGIN-PREREQ-E | v1.28 |
 | BC-2.01.016 | v1.7 |
 | BC-2.16.011 | v1.7 |
 | BC-2.16.012 | v1.19 |
@@ -94,7 +96,7 @@ This file persists the cascade state from the session covering D-645 through D-6
 | error-taxonomy | v1.31 |
 | ARCH-INDEX | v2.62 |
 | VP-INDEX | v1.53 |
-| STORY-INDEX | v2.131 |
+| STORY-INDEX | v2.132 |
 | BC-INDEX | v5.02 |
 | verification-architecture | v1.41 |
 | verification-coverage-matrix | v1.38 |
