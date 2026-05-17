@@ -1,10 +1,10 @@
 ---
 document_type: adr
 adr_id: "ADR-027"
-title: "CustomAdapter Rust Trait Deprecation and Wave 1/A Removal — Sole Escape Hatch is .prx WASM"
+title: "CustomAdapter Rust Trait Same-Burst Removal — Perimeter Enforcement in Wave 1/A — Sole Escape Hatch is .prx WASM"
 status: Proposed
 date: "2026-05-16"
-version: "1.7"
+version: "1.8"
 producer: architect
 subsystems_affected: [SS-07, SS-16, SS-17]
 supersedes: null
@@ -21,7 +21,7 @@ runtime_deliverables:
 wiring_deferred_to: null
 ---
 
-# ADR-027: CustomAdapter Rust Trait Deprecation and Wave 1/A Removal
+# ADR-027: CustomAdapter Rust Trait Same-Burst Removal — Perimeter Enforcement in Wave 1/A
 
 ## Status
 
@@ -48,9 +48,9 @@ confirmed no in-tree production callers exist — only three non-production site
 ADR-023 Rule 5 determined that since `prism-spec-engine` has never been published to crates.io
 with `CustomAdapter` exposed, no deprecation grace period is required. Same-burst removal is safe.
 
-This ADR details the deprecation mechanism, the timeline, the Wave 1/A unblock criteria, and the
-perimeter enforcement strategy that prevents new `CustomAdapter` callers from being introduced
-during the migration window.
+This ADR details the atomic-deletion scope in PREREQ-E, the Wave 1/A unblock criteria, and the
+perimeter enforcement strategy that prevents `CustomAdapter` from being re-introduced after
+deletion.
 
 ---
 
@@ -78,7 +78,7 @@ If a future audit discovers a published version of `prism-spec-engine` with `Cus
 exposed, this decision is amended to introduce a one-cycle deprecation window (this ADR would
 be updated to v1.1 with a `#[deprecated]` annotation phase added before deletion).
 
-### D2 — Deprecation mechanism during the migration window (PREREQ-E through Wave 1/A)
+### D2 — Atomic-deletion semantics and perimeter-window scope (PREREQ-E through Wave 1/A)
 
 Between PREREQ-E merge and Wave 1/A gate, `CustomAdapter` no longer exists in the codebase.
 There is no migration window where new callers could be introduced, because the type is
@@ -266,6 +266,7 @@ instead. This convention is intentional and consistent across ADR-026 and ADR-02
 - `crates/prism-spec-engine/examples/demo_spec_loading.rs` — only non-test caller
 - `crates/prism-spec-engine/tests/bc_2_16_004_test.rs` — only test exercising the registry
 - BC-2.16.004 — rust-escape-hatch behavioral contract (retired by ADR-023)
+- **BC-2.16.011** — CustomAdapter Rust Trait Retirement (NEW; authored in S-PLUGIN-PREREQ-E by product-owner; primary behavioral contract for the retirement operationalized by this ADR)
 
 ---
 
@@ -291,3 +292,4 @@ instead. This convention is intentional and consistent across ADR-026 and ADR-02
 | 1.5 | 2026-05-16 | architect | prereq-e-fix-burst-9: F-LP10-HIGH-001 — POL-21 phantom-anchor closure: §D3 live-narrative `ADR-023 §VP-PLUGIN-001` → `ADR-023 §Verification Properties (VP-PLUGIN-001 bullet)`. Sibling-sweep companion site of VP-155 v0.5. |
 | 1.6 | 2026-05-16 | architect | prereq-e-fix-burst-18: F-LP20-HIGH-001 — ADR-027 §D3 amended: enumerate BOTH compile-fail files (`import_custom_adapter.rs` + `import_custom_adapter_registry.rs`) matching VP-155 spec; correct "catalog grows by one entry" → "by two entries: `CustomAdapter` and `CustomAdapterRegistry`" matching VP-155 line 74 + HS-002-05 line 187 `CATALOG_SIZE=11` assertion; catalog total 9→11. Closes cross-document semantic anchor contradiction with VP-155 + BC-2.16.011 §VPs + HS-PREREQ-E-002-05. |
 | 1.7 | 2026-05-16 | architect | prereq-e-fix-burst-33 (FB33): F-LP42-MED-001 — §D3 line 91 internal crate-naming contradiction resolved: replaced "perimeter-violation compile-fail test crate" with "FORBIDDEN-SYMBOLS-001 compile-fail test crate at `tests/external/no-hardcoded-sensors/`" — aligns with §D3 file paths (lines 93/101), §D3 narrative (lines 114-115), and ADR-023 canonical naming (FORBIDDEN-SYMBOLS-001 perimeter path). The two distinct compile-fail crates are: `tests/external/perimeter-violation/` (existing; BC-2.11.006 prism-query security perimeter) and `tests/external/no-hardcoded-sensors/` (FORBIDDEN-SYMBOLS-001; CustomAdapter + sensor-named type bans). F-LP42-LOW-001 — line 118 TD-VSDD-091 volatile-line-pin resolved: replaced "VP-155 line 74 and HS-PREREQ-E-002-05 line 187" with semantic-anchor form "VP-155 §Proof Method (Relationship to VP-PLUGIN-001 paragraph) and HS-PREREQ-E-002-05 §Steps" per FB32 HS-002-06 Option A precedent. |
+| 1.8 | 2026-05-16 | architect | FB46: F-LP58-HIGH-001 closure: title + H1 + D2 heading rewritten to eliminate "deprecation" framing that contradicted §D1 atomic-deletion stance. §Context lead paragraph revised (1 body-prose change beyond heading rewrites) to replace "deprecation mechanism" with "atomic-deletion scope." F-LP58-MED-001 closure: §Source/Origin BC-2.16.011 bullet added for sibling-symmetry with ADR-026 v1.16 §Source/Origin BC-2.01.016 pattern. Body sweep for residual "deprecation" prose: 4 headings/title fixed; remaining occurrences are contextual (#[deprecated] rejection rationale in §D1, §Rationale, §Alternatives Considered) or BC lifecycle-field values — all left as is. |

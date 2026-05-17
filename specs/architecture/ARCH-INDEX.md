@@ -1,7 +1,7 @@
 ---
 document_type: architecture-index
 level: L3
-version: "2.60"
+version: "2.61"
 status: draft
 producer: architect
 timestamp: 2026-05-04T00:00:00
@@ -92,7 +92,7 @@ deployment_topology: single-service  # planned — no service binary exists yet 
 | ADR-024 | ColumnType Canonical Naming — Domain-Level Variant Names for Sensor Schema API; prism-spec-engine Shadow Enum Retirement | ACCEPTED v1.0 | 2026-05-12 | decisions/ADR-024-column-type-canonical-naming.md |
 | ADR-025 | BC Lifecycle Field Canonical Scheme — Single status Field Governs; lifecycle Field Retired | ACCEPTED v1.0 | 2026-05-12 | decisions/ADR-025-bc-lifecycle-field-canonical-scheme.md |
 | ADR-026 | SensorAuth Trait Un-Sealing — Remove private::Sealed, Enable Plugin Auth Implementations | PROPOSED v1.16 | 2026-05-16 | decisions/ADR-026-sensorauth-unsealing.md |
-| ADR-027 | CustomAdapter Rust Trait Deprecation and Wave 1/A Removal | PROPOSED v1.7 | 2026-05-16 | decisions/ADR-027-custom-adapter-deprecation-removal.md |
+| ADR-027 | CustomAdapter Rust Trait Same-Burst Removal — Perimeter Enforcement in Wave 1/A | PROPOSED v1.8 | 2026-05-16 | decisions/ADR-027-custom-adapter-deprecation-removal.md |
 
 ## Architecture Decisions
 
@@ -152,6 +152,7 @@ deployment_topology: single-service  # planned — no service binary exists yet 
 
 | Version | Pass | Date | Author | Change |
 |---------|------|------|--------|--------|
+| 2.61 | FB46 | 2026-05-16 | architect | ADR-027 row title + version bumped v1.7→v1.8 (F-LP58-HIGH-001 title/H1/D2-heading "deprecation" framing eliminated; F-LP58-MED-001 §Source/Origin BC-2.16.011 bullet added). ARCH-INDEX v2.60→v2.61. |
 | 2.60 | FB45 | 2026-05-16 | state-manager | ADR-026 v1.15→v1.16 (F-LP57-HIGH-001 runtime_deliverables boot.rs + F-LP57-HIGH-002 subsystems_affected SS-22 sibling-sweep) + ADR-022 v1.3→v1.4 (OBS-LP57-001 §B Step 8 first-statement note Path A) |
 | 2.59 | FB44 | 2026-05-16 | state-manager | ADR-026 v1.14→v1.15 (F-LP56-HIGH-001 architect Option A: §D7 designates prism_query::invalidation::mark_query_phase_started() as production call site at boot.rs step-8 first statement) |
 | 2.58 | FB39-D-658 | 2026-05-16 | state-manager | FB39 D-658: ADR-026 row bumped v1.13→v1.14 (F-LP49-HIGH-001 5-site error-taxonomy v1.30→v1.31 cascade gap — 13th+ POL-23 recurrence; ADR-026 line 309 stale cite closed by architect). ARCH-INDEX v2.57→v2.58. |

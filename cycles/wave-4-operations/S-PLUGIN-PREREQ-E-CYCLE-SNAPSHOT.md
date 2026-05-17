@@ -3448,4 +3448,54 @@ Streak: 0/3 unchanged (pass-57 BLOCKED; no advance). Pass-58 dispatch-ready. ADR
 
 Story v1.24 | BC-2.01.016 v1.7 | BC-2.16.011 v1.6 | BC-2.16.012 v1.18 | BC-2.16.002 v1.23 | ADR-026 v1.16 | ADR-022 v1.4 | ADR-027 v1.7 | VP-153 v0.9 | VP-154 v0.6 | VP-155 v0.5 | VP-156 v0.10 | HS-PREREQ-E-001 v1.4 | HS-PREREQ-E-002 v1.4 | HS-PREREQ-E-003 v1.6 | error-taxonomy v1.31 | ARCH-INDEX v2.60 | VP-INDEX v1.53 | STORY-INDEX v2.128 | BC-INDEX v5.00 | verification-architecture v1.41 | verification-coverage-matrix v1.38
 
+---
+
+## §D-668 PASS-58 BLOCKED → FB46 MULTI-AGENT CLOSURE (D-668)
+
+**D-668 — 2026-05-16 — STATE v7.355 — 174th consecutive single-commit**
+
+### Pass-58 Verdict
+
+BLOCKED — 2 HIGH + 3 MED + 1 OBS. Priority vector (ADR-027 deprecation-path completeness, deferred from pass-57) surfaced 1 HIGH + 1 MEDIUM. Rotated vectors surfaced 1 additional HIGH (HS-003-05 ambiguity) + 2 MEDIUM (story §References + risk_mitigations) + 1 cosmetic OBS (Task 7d format). All findings novel.
+
+### Findings Closed by FB46
+
+- F-LP58-HIGH-001: ADR-027 title "Deprecation and Wave 1/A Removal" contradicted §D1 atomic-deletion stance — 58-pass-surviving
+- F-LP58-HIGH-002: HS-003-05 Step 1 ambiguous as direct .store() vs AC-9 third-test gate — FB45 sibling-sweep gap #15+
+- F-LP58-MED-001: ADR-027 §Source/Origin missing BC-2.16.011 cite (ADR-026 sibling-asymmetric) — 58-pass-surviving
+- F-LP58-MED-002: Story §References missing BC-2.16.002+error-taxonomy.md+capabilities.md despite body citations — 58-pass-surviving
+- F-LP58-MED-003: risk_mitigations 4-entry enumeration missing AC-3b/3c/10/11 coverage — OBS-LP54-002 recurrence
+- OBS-LP58-001: Task 7d checkbox-list format vs numbered-list convention — FB45 cosmetic gap
+
+### FB46 Architect Burst
+
+- ADR-027 v1.7 → v1.8: title + H1 + D2 heading rewritten to "Same-Burst Removal — Perimeter Enforcement in Wave 1/A"; §Context lead-paragraph atomic-deletion framing; §Source/Origin BC-2.16.011 bullet added; §Changelog row appended
+- ARCH-INDEX v2.60 → v2.61: ADR-027 row v1.7 → v1.8; architect handled directly (state-manager absorbed — no double-bump)
+
+### FB46 PO Burst
+
+- Story v1.24 → v1.25: HS-003-05 canonicalization references at v1.25; §References expansion +BC-2.16.002+error-taxonomy+capabilities (3 new entries); risk_mitigations expanded 4→6 entries covering AC-1..3c/4..6/7..8/9/10/11; Task 7d reformatted to numbered convention; §Changelog row appended
+- HS-PREREQ-E-003 v1.6 → v1.7: Step 1 + Preconditions canonicalized to require public-API mark_query_phase_started() invocation; direct .store() in test body forbidden; §Changelog row appended
+- STORY-INDEX v2.128 → v2.129: story row v1.24 → v1.25; §Changelog row appended
+
+### FB46 State-Manager Burst
+
+- Pass-58 report persisted: cycles/wave-4-operations/adversarial-reviews/S-PLUGIN-PREREQ-E-spec-pass-58.md
+- STATE.md v7.354 → v7.355; SESSION-HANDOFF.md v7.354 → v7.355; SESSION-D664-TASKS.md v1.3 → v1.4
+- BC-INDEX v5.00 unchanged (BC-2.16.011 not bumped this burst)
+- VP-INDEX v1.53 unchanged (VP-154/155 not bumped this burst)
+- verification-architecture + verification-coverage-matrix: no ADR-027 v1.7 versioned pins found — no update required
+
+### POL-29 Codification Evidence (#15+)
+
+Within-FB cross-document-layer sibling-sweep asymmetry: FB45 canonicalized AC-9 third-test gate in story but missed HS-003-05 Step 1 ambiguity at the corresponding holdout scenario. This is the 15th+ manifestation of the within-FB-introduces-defect pattern. Cycle-close codification queue item 9 (POL-29 candidate) continues to accumulate evidence; formal codification deferred to cycle-close per S-7.02.
+
+### Streak Status + Next Action
+
+Streak: 0/3 unchanged (2 HIGH + 3 MED block convergence). Pass-59 dispatch-ready. Vector rotation continues.
+
+### Pinned Artifact Versions (PREREQ-E 22-artifact set — post-D-668)
+
+Story v1.25 | BC-2.01.016 v1.7 | BC-2.16.011 v1.6 | BC-2.16.012 v1.18 | BC-2.16.002 v1.23 | ADR-026 v1.16 | ADR-022 v1.4 | ADR-027 v1.8 | VP-153 v0.9 | VP-154 v0.6 | VP-155 v0.5 | VP-156 v0.10 | HS-PREREQ-E-001 v1.4 | HS-PREREQ-E-002 v1.4 | HS-PREREQ-E-003 v1.7 | error-taxonomy v1.31 | ARCH-INDEX v2.61 | VP-INDEX v1.53 | STORY-INDEX v2.129 | BC-INDEX v5.00 | verification-architecture v1.41 | verification-coverage-matrix v1.38
+
 STATE.md v7.354; SESSION-HANDOFF.md v7.354; prereq_e_adversary_streak **0/3** (pass-57 BLOCKED — 2 HIGH F-LP57-HIGH-001+002 frontmatter sibling-sweep gaps + 1 MED F-LP57-MED-001 tracing-test + 1 OBS Path A; novelty HIGH; FB45 architect+PO+SM multi-agent closure; streak 0/3 unchanged; 173rd consecutive single-commit TD-VSDD-053 STABLE; pass-58 dispatch-ready; ADR-027 deprecation-path vector pending exercise).

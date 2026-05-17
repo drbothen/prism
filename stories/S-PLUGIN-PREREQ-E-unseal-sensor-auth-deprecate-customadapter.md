@@ -23,7 +23,7 @@ crates_touched: [prism-sensors, prism-spec-engine, prism-query, prism-bin]
 target_module: prism-sensors
 subsystems: [SS-01, SS-07, SS-16, SS-17, SS-22]
 capabilities: [CAP-001, CAP-029]
-version: "1.24"
+version: "1.25"
 modified: "2026-05-16"
 level: "L4"
 producer: product-owner
@@ -64,10 +64,12 @@ assumption_validations:
   - "S-WAVE5-PREP-01 already removed custom_adapter_registry references from boot.rs — no boot.rs changes required in PREREQ-E"
   - "TD-S-PLUGIN-PREREQ-A-003 (WriteToolInvalidationMap extensibility) is routed to PREREQ-E per S-PLUGIN-PREREQ-A fix-burst-2 decision"
 risk_mitigations:
-  - "AC-1..3: SensorAuth unsealing is pure deletion — no new code paths; four built-in auth impls require ONE NEW METHOD BODY each (one-line `fn auth_type_name` returning the static auth-type name string); no other changes"
-  - "AC-4..6: CustomAdapter deletion confirmed safe by PLUGIN-AUDIT-001: three call sites are isolated to lib.rs re-export + one example + one test file"
-  - "AC-7..8: spec_parser.rs migration verified by behavioral-equivalence integration test (TV-BC-2.16.012-003)"
-  - "AC-9: TD-S-PLUGIN-PREREQ-A-003 closure via RwLock<Vec<WriteToolInvalidationMap>> — write lock held only during registration; read-side is zero-copy"
+  - "AC-1..3c: SensorAuth unsealing is pure deletion + per-test-fixture credential-validation coverage. Risk: E-SPEC-012/013/014 regression at credential-validation pass. Mitigation: AC-3 + AC-3b + AC-3c Red Gate tests assert error-on-invalid (Test 3, 4, 5)."
+  - "AC-4..6: CustomAdapter deletion confirmed safe by PLUGIN-AUDIT-001 (zero external consumers); behavioral-equivalence between CrowdStrikeSession registry-dispatch vs legacy CustomAdapter::call_action verified via VP-154 + Red Gate Tests 6-7. Risk: registry-dispatch hot-path regression. Mitigation: VP-154 + AC-6 holdout HS-PREREQ-E-002-06 frontmatter verification."
+  - "AC-7..8: spec_parser.rs migration verified by behavioral-equivalence integration test; lib.rs re-export removal verified by perimeter-violation compile-fail tests/external/perimeter-violation. Risk: type-name collision with shadow enum or stale callsite. Mitigation: AC-7 Red Gate Test 8 + AC-8 Red Gate Test 9 sibling-sweep checks."
+  - "AC-9: TD-S-PLUGIN-PREREQ-A-003 closure via RwLock<Vec<WriteToolInvalidationMap>> + AtomicBool query-phase flag. Risk: post-boot register_write_tool() leaks past production call-site gate. Mitigation: AC-9 third-test asserts public-API `mark_query_phase_started()` invocation (FB45 hardening) + WARN tracing event field schema per BC-2.16.002 row 33."
+  - "AC-10: full build and pre-push gate, single squash-merge commit. Risk: partial commits in feature branch before final squash; lefthook hook bypass. Mitigation: AC-10 Red Gate Test 10 asserts `just check` clean state pre-push; pre-commit hook enforces fmt+clippy+layout per lefthook.yml."
+  - "AC-11: E-SPEC-008 retirement annotation in error-taxonomy.md. Risk: annotation may regress if E-SPEC-008 is reintroduced post-merge via new code path. Mitigation: AC-11 Red Gate Test 11 asserts `retired_in: S-PLUGIN-PREREQ-E (error-taxonomy.md v1.31)` and grep-gate for `E-SPEC-008` outside the retired entry. ID preserved per append_only_numbering (POL-1)."
 acceptance_criteria_count: 13
 red_gate_tests: 14
 estimated_passes: "4-6 LOCAL adversary passes"
@@ -198,7 +200,10 @@ Well within the 30% context window budget (~40k tokens).
    - This is a unit variant (no fields) — the dynamic context is carried by the structured tracing event fields, not the error variant (E-PLUGIN-020 category: runtime, severity: broken)
    - Verify `cargo check -p prism-spec-engine` and `cargo check -p prism-query` both succeed with the new variant wired into `register_write_tool` return path
 
-- [ ] Task 7d: Add `tracing-test = "0.2"` to `crates/prism-query/Cargo.toml` `[dev-dependencies]` (required for AC-9 third-test tracing assertion fixture). Token budget: 5 minutes.
+7d. **Add `tracing-test` dev-dependency**
+   - In `crates/prism-query/Cargo.toml` `[dev-dependencies]`, add `tracing-test = "0.2"` (minor-band pinning per prism conservative-pinning convention).
+   - Required for AC-9 third-test tracing assertion fixture (per Task 7b production call-site gate + AC-9 event field schema verification).
+   - Token budget: 5 minutes / ~30 tokens.
 
 8. **Update BC-2.16.004 frontmatter to `removed`**
    - Open `BC-2.16.004-rust-escape-hatch.md` and perform all four field mutations in one cohesive edit:
@@ -467,6 +472,13 @@ All BCs cited in this story (frontmatter `behavioral_contracts` array and body t
 - [BC-2.16.004](../specs/behavioral-contracts/BC-2.16.004-rust-escape-hatch.md) — Rust Escape Hatch for Custom Adapters — Trait-Based Override When Config Is Insufficient (lifecycle: deprecated → removed by this story)
 - [BC-2.16.011](../specs/behavioral-contracts/BC-2.16.011-customadapter-rust-trait-retirement.md) — CustomAdapter Rust Trait Retirement — Removal of Trait, Registry, and All Call Sites (NEW — this story)
 - [BC-2.16.012](../specs/behavioral-contracts/BC-2.16.012-plugin-registry-dispatch-migration.md) — PluginRegistry Dispatch in spec_parser.rs — Hardcoded Sensor Names Replaced with Registry Lookup (NEW — this story)
+- [BC-2.16.002 — Multi-Step Fetch Pipeline](../specs/behavioral-contracts/BC-2.16.002-multi-step-fetch-pipeline.md) — Structured event catalog (row 33: `write_tool_registration_after_boot`); anchors AC-9 third-test event field schema (event_type, plugin_name, tool_name, error).
+
+PRD Supplements:
+- [error-taxonomy.md](../specs/prd-supplements/error-taxonomy.md) — Error taxonomy: E-SPEC-008 (retired in PREREQ-E), E-SPEC-012, E-SPEC-013, E-SPEC-014, E-PLUGIN-012, E-PLUGIN-020.
+
+Capabilities:
+- [capabilities.md](../specs/domain-spec/capabilities.md) — CAP-001 Sensor Adapter Layer (Internal); CAP-029 Plugin Registry Dispatch (per frontmatter `capabilities:` + `anchor_capabilities:`).
 
 Architecture Compliance:
 - [ADR-022](../specs/architecture/decisions/ADR-022-production-runtime-wiring.md) — Production runtime wiring; §B step 7.5/8 ordering authoritative for Task 7b AtomicBool flag set-time
@@ -498,6 +510,7 @@ Tech debt closed:
 | Version | Burst | Date | Author | Change |
 |---------|-------|------|--------|--------|
 | 1.23 | FB44 | 2026-05-16 | product-owner | Architecture Compliance Rule + Task 7b + AC-9 third-test + crates_touched updated per F-LP56-HIGH-001 architect Option A adjudication (ADR-026 D7 v1.15 + BC-2.16.012 v1.17 + VP-156 v0.9). prism-bin added to crates_touched. Single designated boot.rs insertion point: `prism_query::invalidation::mark_query_phase_started();` first statement of step-8 before `QueryEngine::new()`. |
+| 1.25 | FB46 | 2026-05-16 | product-owner | F-LP58-HIGH-002 closure: HS-003-05 Step 1 + Preconditions canonicalized to public-API call site per AC-9 third-test gate (FB45 hardening). F-LP58-MED-002 closure: §References expansion (BC-2.16.002 + error-taxonomy.md + capabilities). F-LP58-MED-003 closure: risk_mitigations expanded to AC-3b/3c/10/11 (recurrence of OBS-LP54-002). OBS-LP58-001 closure: Task 7d reformatted to numbered convention. POL-23 sibling-sweep ADR-027 v1.7→v1.8 (and BC-2.16.011/VP-154/VP-155 architect-parallel pins) live-narrative updates. |
 | 1.24 | FB45 | 2026-05-16 | product-owner | F-LP57-MED-001 closure: append Task 7d (Cargo.toml `tracing-test = "0.2"` dev-dep wiring per architect Option α); AC-9 third-test "or equivalent fixture" replaced with verbatim "tracing-test = \"0.2\" subscriber fixture" spec. F-LP57-HIGH-002 sibling-sweep: subsystems frontmatter [+SS-22 Process Lifecycle] mirrors ADR-026 v1.16 subsystems_affected. POL-23 sibling-sweep version-pin updates: ADR-026 v1.15→v1.16; BC-2.16.012 v1.17→v1.18; VP-156 v0.9→v0.10; ADR-022 v1.3→v1.4. |
 | 1.22 | FB40 | 2026-05-16 | product-owner | F-LP50-MED-001 AC-3b/AC-3c/AC-11 trace anchors corrected from phantom-anchor "§Postconditions P-NN" syntax to canonical "§Error Cases E-SPEC-NNN" form per POL-21 + POL-22 Phase A. AC-3b: `§Postconditions P4 Rule 2/B` → `§Error Cases E-SPEC-013`; AC-3c: `§Postconditions P4 Rule 2/C` → `§Error Cases E-SPEC-014`; AC-11: `§Postconditions P7` → `§Error Cases E-SPEC-008 (retired)`. Same correction applied to Red Gate test 4 + test 5 post-implementation assertion text (same phantom-anchor pattern). ADR-023 cite form aligned: `ADR-023 Rule 2` → `ADR-023 §Architectural Constraints Rule 2, Rule B/C` (full heading anchor). AC-11 ADR-027 cite appended with `§Decision`. FB39-introduced defect closed. |
 | 1.21 | FB39 | 2026-05-16 | product-owner | F-LP49-HIGH-001 PO-domain sites — AC-3 narrative + trace lines updated error-taxonomy v1.30→v1.31 (13th+ POL-23 recurrence closure). F-LP49-MED-001 BC-2.01.016 Rule 2/B+2/C AC coverage gap closed via new AC-3b (E-SPEC-013; test `test_BC_2_01_016_e_spec_013_multiple_credential_refs_rejected`) + AC-3c (E-SPEC-014; test `test_BC_2_01_016_e_spec_014_credential_type_mismatch_rejected`) + 2 new Red Gate tests (tests 4+5; former BC-2.16.011 tests 4+5 renumbered to 6+7; BC-2.16.012 tests 6–11 renumbered to 8–13); `acceptance_criteria_count: 10→13`; `red_gate_tests: 11→14`. F-LP49-MED-002 BC-2.16.011 P7 E-SPEC-008 retirement annotation AC gap closed via new AC-11 + Red Gate test 14 (`test_BC_2_16_011_e_spec_008_retired_annotation`). F-LP49-MED-003 BC-2.16.012 P6 tracing event field schema AC gap closed via AC-9 extension asserting tracing-test capture of `write_tool_registration_after_boot` WARN event fields; Red Gate test 13 (renumbered from 11) updated to assert tracing-event field capture. F-LP49-MED-004 ADR-022 added to §References Architecture Compliance subsection (`§B step 7.5/8 ordering authoritative for Task 7b AtomicBool flag set-time`). F-LP49-LOW-001 §References gains new Holdout Scenarios subsection enumerating HS-PREREQ-E-001/002/003 with relative links. Green Gate DoD item 5 updated: 10→13 ACs. |

@@ -8,7 +8,7 @@ must_pass: true
 priority: P0
 epic_id: "PLUGIN-MIGRATION-001"
 story_source: "S-PLUGIN-PREREQ-E"
-version: "1.6"
+version: "1.7"
 status: draft
 producer: product-owner
 timestamp: 2026-05-16T00:00:00Z
@@ -180,12 +180,12 @@ new write-tool entries (closing TD-S-PLUGIN-PREREQ-A-003).
 
 - S-PLUGIN-PREREQ-E is merged to `develop`
 - `register_write_tool` API exists with signature `-> Result<(), SpecEngineError>`
-- The `AtomicBool` query-phase flag (set at step 8 start — as the first act of step 8, before QueryEngine construction proceeds, per ADR-026 D7) is set to `true` in the test fixture, simulating post-step-8-start context
+- The public `prism_query::invalidation::mark_query_phase_started()` function has been invoked (as boot.rs will call it at step 8 start — as the first act of step 8, before QueryEngine construction proceeds, per ADR-026 D7), simulating post-step-8-start context. Per AC-9 (story v1.25), a direct `QUERY_PHASE_STARTED.store(true, ...)` in the test body is explicitly forbidden — the test must verify the production call site works via the public API.
 - A `WriteToolInvalidationMap` entry is prepared for registration
 
 **Steps:**
 
-1. Set the query-phase `AtomicBool` flag to `true` (simulating post-step-8-start context — `mark_query_phase_started()` called)
+1. Invoke the public `prism_query::invalidation::mark_query_phase_started()` function (as boot.rs will call it). Per AC-9 (story v1.25), a direct `QUERY_PHASE_STARTED.store(true, ...)` in the test body is explicitly forbidden — the test must verify the production call site works via the public API. This step simulates post-step-8-start context (boot.rs step-8 first statement has executed).
 2. Call `register_write_tool(entry)` after the flag is set
 3. Assert the call returns `.is_err()`
 4. Assert the error variant is `SpecEngineError::WriteToolRegistrationAfterBoot` (E-PLUGIN-020)
@@ -224,6 +224,7 @@ When this holdout scenario is evaluated, the evaluator must produce:
 
 | Version | Burst | Date | Author | Change |
 |---------|-------|------|--------|--------|
+| 1.7 | FB46 | 2026-05-16 | product-owner | F-LP58-HIGH-002 closure: HS-003-05 Step 1 + Preconditions language canonicalized to require public-API `mark_query_phase_started()` invocation per AC-9 third-test gate (FB45 hardening); direct AtomicBool .store() explicitly forbidden. |
 | 1.6 | FB37 | 2026-05-16 | product-owner | F-LP47-HIGH-001 HS-003-05 Preconditions AtomicBool set-time corrected from "set when query engine init completes at step 8" to canonical "set at step 8 start — as the first act of step 8, before QueryEngine construction proceeds, per ADR-026 D7"; simulating context updated from "post-boot context" to "post-step-8-start context". HS-003-05 Step 1 "simulating step 8 completion" corrected to "simulating post-step-8-start context (mark_query_phase_started() called)" per architect adjudication §1 note. Sibling-sweep with BC-2.16.012 EC-016-012-005 v1.16 + BC-2.16.002 row 33 v1.21. |
 | 1.5 | prereq-e-fix-burst-12 | 2026-05-16 | product-owner | F-LP13-HIGH-003 Option A propagation — HS-003-03 fixture: `WriteToolInvalidationMap` entry gains `plugin_name: "plugin_a"` field. HS-003-04 fixture: entry_1 gains `plugin_name: "plugin_a"`, entry_2 gains `plugin_name: "plugin_b"` (exercises E-PLUGIN-012 `{plugin}`/`{conflicting_plugin}` placeholders per ADR-026 D7 v1.10); preconditions updated to name the two plugin values. HS-003-05 VP Traced footer: pin advanced ADR-026 D7 v1.9 → v1.10 per architect D-603. |
 | 1.4 | prereq-e-fix-burst-10 | 2026-05-16 | product-owner | F-LP11-MED-001 — VP-156 bidirectional traceability symmetry restored: frontmatter `verification_properties: [VP-156]` added; HS-003-04 footer `**VP Traced:** VP-156 (Case 2 — duplicate name returns Err(DuplicateWriteToolRegistration))` added; HS-003-05 footer `**VP Traced:** VP-156 (related — register_write_tool contract surface per ADR-026 D7 v1.9)` added. RECURRING class — VP-154 closed FB1 (F-LP1-CRIT-001), VP-155 closed FB6 (F-LP6-HIGH-001), VP-156 third instance missed by passes 1-10; surfaced by pass-11 fresh-context. Sibling-class with HS-001/002 frontmatter+footer convention. |
