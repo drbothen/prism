@@ -1,7 +1,7 @@
 ---
 document_type: architecture-index
 level: L3
-version: "2.66"
+version: "2.68"
 status: draft
 producer: architect
 timestamp: 2026-05-04T00:00:00
@@ -87,11 +87,11 @@ deployment_topology: single-service  # planned — no service binary exists yet 
 | ADR-019 | SIEM Output Formats | PROPOSED v0.4 | 2026-05-03 | decisions/ADR-019-siem-output-formats.md |
 | ADR-020 | Story Status Taxonomy Reform — Closed Enum, Partial-Merge Semantics, and Graduation Contract | ACCEPTED v1.1 | 2026-05-08 | decisions/ADR-020-story-status-taxonomy-reform.md |
 | ADR-021 | BC/VP Promotion Lifecycle — Draft → Active → Verified Transitions, Audit Cadence, and BC-INDEX Count Authority | ACCEPTED v1.1 | 2026-05-08 | decisions/ADR-021-bc-vp-promotion-lifecycle.md |
-| ADR-022 | Production Runtime Wiring — prism-bin Chassis, Boot Sequence, Wiring Contracts, Infusion Fate, Hot-Reload Watcher, MCP Topology | ACCEPTED v1.7 | 2026-05-17 | decisions/ADR-022-production-runtime-wiring.md |
+| ADR-022 | Production Runtime Wiring — prism-bin Chassis, Boot Sequence, Wiring Contracts, Infusion Fate, Hot-Reload Watcher, MCP Topology | ACCEPTED v1.8 | 2026-05-17 | decisions/ADR-022-production-runtime-wiring.md |
 | ADR-023 | Plugin-Only Sensor Architecture — TOML Specs as Declarative Baseline, .prx WASM for Non-Declarative Cases, Retired CustomAdapter Rust Trait | COMMITTED v1.19 | 2026-05-15 | decisions/ADR-023-plugin-only-sensor-architecture.md |
 | ADR-024 | ColumnType Canonical Naming — Domain-Level Variant Names for Sensor Schema API; prism-spec-engine Shadow Enum Retirement | ACCEPTED v1.0 | 2026-05-12 | decisions/ADR-024-column-type-canonical-naming.md |
 | ADR-025 | BC Lifecycle Field Canonical Scheme — Single status Field Governs; lifecycle Field Retired | ACCEPTED v1.0 | 2026-05-12 | decisions/ADR-025-bc-lifecycle-field-canonical-scheme.md |
-| ADR-026 | SensorAuth Trait Un-Sealing — Remove private::Sealed, Enable Plugin Auth Implementations | PROPOSED v1.18 | 2026-05-17 | decisions/ADR-026-sensorauth-unsealing.md |
+| ADR-026 | SensorAuth Trait Un-Sealing — Remove private::Sealed, Enable Plugin Auth Implementations | PROPOSED v1.20 | 2026-05-17 | decisions/ADR-026-sensorauth-unsealing.md |
 | ADR-027 | CustomAdapter Rust Trait Same-Burst Removal — Perimeter Enforcement in Wave 1/A | PROPOSED v1.8 | 2026-05-16 | decisions/ADR-027-custom-adapter-deprecation-removal.md |
 
 ## Architecture Decisions
@@ -152,6 +152,8 @@ deployment_topology: single-service  # planned — no service binary exists yet 
 
 | Version | Pass | Date | Author | Change |
 |---------|------|------|--------|--------|
+| 2.68 | FB56+FB56b+SM-step8a | 2026-05-17 | state-manager | D-678 FB56+FB56b combined + SM step 8a catch: ADR-022 v1.7→v1.8 (FB56b architect: ADR-026 D7 v1.18→v1.19 cascade at §B Step 8 first-statement note) + ADR-026 v1.19→v1.20 (SM step 8a catch: error-taxonomy v1.33→v1.34 propagation at §D7 line 312 — FB56b bumped error-taxonomy to v1.34 creating new stale cite at ADR-026 line 312). ARCH-INDEX v2.67→v2.68. |
+| 2.67 | FB56 | 2026-05-17 | state-manager | D-678 FB56: ADR-026 v1.18→v1.19 (F-LP68-HIGH-001 closure architect scope: error-taxonomy v1.32→v1.33 propagation at ADR-026 §D7 narrative body line 312; 1 live-narrative site). ARCH-INDEX v2.66→v2.67. |
 | 2.66 | FB55 | 2026-05-17 | state-manager | D-677 FB55: ADR-022 v1.6→v1.7 (F-LP67-HIGH-001 closure: ADR-026 §D7 pin v1.17→v1.18 at §B Step 8 first-statement note; 1 live-narrative site; architect scope; POL-29 v1.16 class (b) recurrence #18 closed). ARCH-INDEX v2.65→v2.66. |
 | 2.65 | FB52 | 2026-05-17 | state-manager | ADR-026 v1.17→v1.18 (F-LP64-HIGH-001 closure: error-taxonomy v1.31→v1.32 — 1 live-narrative pin updated; multi-value-class sibling-sweep for FB51 error-taxonomy value class). ARCH-INDEX v2.64→v2.65. |
 | 2.64 | FB51 | 2026-05-17 | state-manager | ADR-022 v1.5→v1.6 (F-LP63-HIGH-002 closure: §Changelog rows reordered to strict descending — 6th POL-26 recurrence; bookkeeping repair; row content immutable per POL-26 corollary). ARCH-INDEX v2.63→v2.64. |

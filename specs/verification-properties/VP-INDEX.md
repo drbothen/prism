@@ -1,7 +1,7 @@
 ---
 document_type: verification-property-index
 level: L4
-version: "1.58"
+version: "1.60"
 status: draft
 producer: product-owner
 timestamp: 2026-05-16T00:00:00
@@ -243,6 +243,8 @@ S-1.02 frontmatter has been updated to `subsystems: [SS-03, SS-07, SS-11, SS-12,
 
 | Version | Burst | Date | Author | Change |
 |---------|-------|------|--------|--------|
+| 1.60 | FB56+FB56b+SM-step8a | 2026-05-17 | state-manager | D-678 FB56+FB56b combined + SM step 8a catch: VP-153 v0.11→v0.12 (SM step 8a catch: error-taxonomy v1.33→v1.34 propagation at VP-153 code-comment lines 167, 210 — FB56b bumped error-taxonomy to v1.34 creating new stale cites; state-manager step 8a final verification caught and closed) + VP-156 v0.13→v0.14 (FB56b architect cascade: ADR-026 D7 v1.18→v1.19 sweep at 4 live-narrative sites). VP-INDEX v1.59→v1.60. |
+| 1.59 | FB56 | 2026-05-17 | state-manager | D-678 FB56: VP-153 v0.10→v0.11 (F-LP68-HIGH-001 closure PO scope: error-taxonomy v1.32→v1.33 propagation at VP-153 lines 167, 210 — 2 live-narrative backtick-quoted sites; POL-29 v1.16 class (a) recurrence #20 closed). |
 | 1.58 | FB55 | 2026-05-17 | state-manager | D-677 FB55: VP-156 v0.12→v0.13 (F-LP67-HIGH-001 closure: ADR-026 D7 pin v1.17→v1.18 at 4 live-narrative sites — lines 42, 86, 90, 124; POL-29 v1.16 class (b) recurrence #18 closed). |
 | 1.57 | FB54 | 2026-05-17 | state-manager | F-LP66-MED-001 closure: VP-153 (line 183) + VP-156 (line 186) catalog rows had 8 cells in 7-column table; trailing `| v0.10 |` and `| v0.12 |` cells removed to restore canonical 7-cell schema. Version-tracking lives in §Changelog rows per existing convention for all other 154 catalog rows. Latent since FB52 (same-day 2026-05-17). POL-26 schema_integrity + POL-4 semantic_anchoring_integrity restoration. |
 | 1.56 | FB52 | 2026-05-17 | state-manager | VP-153 v0.9→v0.10 (F-LP64-HIGH-001 closure: error-taxonomy v1.31→v1.32 — 2 live-narrative pins updated; multi-value-class sibling-sweep for FB51 error-taxonomy value class). POL-9 same-burst propagation; POL-11 bump. |

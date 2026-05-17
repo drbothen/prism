@@ -8,7 +8,7 @@ must_pass: true
 priority: P0
 epic_id: "PLUGIN-MIGRATION-001"
 story_source: "S-PLUGIN-PREREQ-E"
-version: "1.5"
+version: "1.7"
 status: draft
 producer: product-owner
 timestamp: 2026-05-17T00:00:00Z
@@ -95,7 +95,7 @@ malformed specs.
 
 **Expected Outcome:**
 
-- Spec load is rejected with `E-SPEC-012` (ADR-023 Rule 2, Rule A — auth_type must be single value; see error-taxonomy.md v1.32)
+- Spec load is rejected with `E-SPEC-012` (ADR-023 Rule 2, Rule A — auth_type must be single value; see error-taxonomy.md v1.34)
 - Error message cites "auth_type must be a single value" or equivalent
 - Process does NOT fail to compile (no compile-time sealed-trait error — the rejection is runtime)
 - Other valid specs in the same directory continue to load (N-1 survivor rule)
@@ -180,6 +180,8 @@ When this holdout scenario is evaluated, the evaluator must produce:
 
 | Version | Burst | Date | Author | Change |
 |---------|-------|------|--------|--------|
+| 1.7 | FB56+FB56b SM step 8a catch | 2026-05-17 | state-manager | POL-29 v1.17 step 8a FINAL EMPIRICAL VERIFICATION CATCH: error-taxonomy v1.33→v1.34 propagation incomplete — FB56b bumped error-taxonomy to v1.34 but HS-001 line 98 was not updated from v1.33. State-manager step 8a catch closes gap in same atomic commit. post-grep: 0 live-narrative. |
+| 1.6 | FB56 | 2026-05-17 | product-owner | F-LP68-HIGH-001 closure (PO scope): error-taxonomy.md v1.32→v1.33 propagation at HS-001 line 98 §Expected Outcome (1 live-narrative site). POL-29 v1.16 step 3a (a) recurrence #20 within-burst closure. |
 | 1.5 | FB52 | 2026-05-17 | product-owner | F-LP64-HIGH-001 closure: error-taxonomy v1.31→v1.32 sibling-sweep at line 98 (HS-001-02 Expected Outcome); POL-29 v1.13 grep evidence: 1 pre → 0 post. |
 | 1.4 | FB39 | 2026-05-16 | product-owner | F-LP49-HIGH-001 — HS-PREREQ-E-001-02 Expected Outcome cite updated `error-taxonomy.md v1.30` → `error-taxonomy.md v1.31` (line 98). POL-23 cascade gap closure from FB38 D-657. |
 | 1.3 | fix-burst-22-combined-D-634 | 2026-05-16 | state-manager | F-LP27-MED-001 — 11th manifestation version-pin-drift family: HS-PREREQ-E-001-02 Expected Outcome pin swept `error-taxonomy.md v1.27` → `error-taxonomy.md v1.30` (line 98). 4-bump window (v1.27→v1.28→v1.29→v1.30) where this site was not swept. Pass-27 BLOCKED 1 MED; combined-burst D-634. |

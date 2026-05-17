@@ -23,8 +23,13 @@
 #                                   # here so the adversary knows HOW to verify them.
 
 metadata:
-  version: "1.16"
+  version: "1.17"
   changelog:
+    - version: "1.17"
+      date: 2026-05-17
+      burst: FB56
+      findings: [F-LP68-HIGH-001]
+      change: "POL-29 step 8 STRENGTHENED + amended with step 8a — diff-derived value-class enumeration mandate. Eliminates reliance on FB author declaration; state-manager now runs `git diff --staged --name-only` + per-file frontmatter version comparison + per-value-class canonical grep for any changed version. Closes F-LP68-HIGH-001 META-pattern of side-effect frontmatter bumps escaping FB-author-declared enumeration. D-678."
     - version: "1.16"
       date: 2026-05-17
       burst: FB54
@@ -594,3 +599,4 @@ policies:
       - "Sibling-CLASS sweep: when fixing an ordering violation (POL-26) or phrasing violation in one artifact, also sweep all sibling-class artifacts of the same kind."
       - "Embed sweep report in the FB commit message body or §Changelog row narrative for EACH value class, enumerating: value class, pre-grep count, sites updated with line numbers, post-grep count = 0."
       - "Step 8 (STRENGTHENED): State-manager pre-commit verification — confirm sweep reports are present AND empirically validate post-grep counts against actual workspace state for each value class changed in the FB. Re-execute the per-variant greps from step 3/3a and verify reported `post-grep N` counts match actual workspace state. If reported counts diverge from actual, REJECT the burst and request PO/architect re-sweep before committing. (Addresses OBS-LP65-002 TD-VSDD-059 paper-fix detection signal: FB52 reported post-grep 0 but actual was 1 — variant-form gap.)"
+      - "Step 8a (v1.17 amendment — diff-derived enumeration): Before applying step 8's empirical post-grep validation, run `git diff --staged --name-only` to enumerate ALL touched files in this burst. For each touched file with a `version:` or `lifecycle_status:` frontmatter field, extract pre-edit AND post-edit frontmatter versions via `git show :0:<path>` vs `git show HEAD:<path>`. For any version that CHANGED (including changes introduced as side-effect of body edits, not just declared frontmatter bumps), enumerate the corresponding value class per POL-29 step 3a registry and run the canonical grep. If the canonical grep returns ANY live-narrative hit (excluding §Changelog rows TD-VSDD-091-exempt), REJECT the commit and request sibling-sweep before re-attempting. This eliminates reliance on FB author declaration and detects side-effect bumps automatically. Closes F-LP68-HIGH-001 META-pattern: state-manager can no longer miss side-effect value-class bumps that the FB author did not declare."
