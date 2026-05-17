@@ -1,10 +1,10 @@
 ---
 document_type: architecture-index
 level: L3
-version: "2.71"
+version: "2.72"
 status: draft
 producer: architect
-timestamp: 2026-05-04T00:00:00
+timestamp: 2026-05-17T06:30:00
 phase: 1b
 inputs: [domain-spec/L2-INDEX.md, prd.md, prd-supplements/interface-definitions.md, prd-supplements/nfr-catalog.md, prd-supplements/error-taxonomy.md]
 traces_to: prd.md
@@ -40,7 +40,7 @@ deployment_topology: single-service  # planned — no service binary exists yet 
 | Installation | installation.md | ~1,500 | devops-engineer, implementer | Distribution channels, CLI commands, secops-factory integration, first-run UX |
 | Config Schema | config-schema.md | ~1,500 | implementer, devops-engineer | Full prism.toml schema, aliases.toml, env var overrides, validation tiers, config diff tool |
 | Observability | observability.md | ~2,000 | implementer, devops-engineer | 18 diagnostic log targets, per-subsystem levels, trace IDs, `prism logs` CLI, `get_diagnostics` tool, external log forwarding (Datadog/Splunk/Elastic/OTLP/plugin) — v1.1 (debug log + JSON examples updated with 8/8 split per D-209) |
-| Verification Coverage | verification-coverage-matrix.md | ~600 | consistency-validator | VP-to-module coverage mapping |
+| Verification Coverage | verification-coverage-matrix.md | ~600 | consistency-validator | VP-to-module coverage mapping — v1.42 (FB61 D-683 F-LP73-HIGH-001 closure: DI-012 row updated to canonical "Spec-Driven Auth With Runtime Composition Guards" + VP-153 runtime enforcement column; 26-row DI sweep 0 additional catches) |
 | Write Operations | write-operations.md | ~2,000 | implementer, test-writer, security-reviewer | AD-022: PrismQL write extensions — pipe verbs, SQL DML, safety integration, sensor spec schema, error codes |
 | DTU Assessment | dtu-assessment.md | ~2,000 | story-writer, test-writer, devops-engineer | Behavioral clone assessment: per-sensor scope matrix, fidelity levels, delivery model, VP-033/VP-036 integration |
 
@@ -152,6 +152,7 @@ deployment_topology: single-service  # planned — no service binary exists yet 
 
 | Version | Pass | Date | Author | Change |
 |---------|------|------|--------|--------|
+| 2.72 | FB61 | 2026-05-17 | state-manager | FB61 D-683 propagation cascade: verification-coverage-matrix.md row v1.38→v1.42 (F-LP73-HIGH-001 closure DI-012 v1.6 6-day propagation gap closed by architect); architect 26-row DI sweep 0 additional catches confirmed. |
 | 2.71 | FB60 | 2026-05-17 | state-manager | F-LP72-HIGH-001 closure (state-manager scope): ADR-001 row title "DTU Rate Limit Pattern" → "DTU Rate-Limit Pattern" (hyphen restored to byte-match ADR-001 H1 + frontmatter title v1.2). FB59 within-FB sibling-sweep gap closed (architect noted "ARCH-INDEX row propagation owned by state-manager" but propagation was missed). POL-7 + POL-29 closure. |
 | 2.70 | FB59 | 2026-05-17 | state-manager | D-681 FB59 closure: F-LP71-HIGH-001 ADR-027 v1.9 frontmatter title byte-sync (drop "— Sole Escape Hatch is .prx WASM" trailing FB46 paper-fix surviving 24 passes); architect sibling-sweep expansion 3 additional drift catches: ADR-001 v1.2 (title subtitle dropped) + ADR-004 v0.2 (title field was MISSING) + ADR-022 v1.9 (H1 extended to match canonical title/ARCH-INDEX). POL-7 + TD-VSDD-060 within-file frontmatter↔H1 dimension closed across PREREQ-E + sibling-swept ADRs. ADR-012 evaluated CLEAN (backtick presentation-only). |
 | 2.69 | FB57 | 2026-05-17 | state-manager | D-679 FB57 closure (state-manager scope): verification-architecture.md row updated v1.40→v1.41 (POL-9/POL-11 propagation gap latent since FB40 D-659; v1.41 bump was VP-153 §Changelog row ordering correction per pass-50 F-LP50-MED-002 closure). ADR-026 v1.20→v1.21 (POL-26-COROLLARY bookkeeping repair: §Changelog rows v1.18/v1.19/v1.20 reordered to ascending position; F-LP69-HIGH-001 closure). Other ARCH-INDEX catalog rows verified in-sync with source files. ARCH-INDEX v2.68→v2.69. |

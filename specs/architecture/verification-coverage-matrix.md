@@ -2,10 +2,10 @@
 document_type: architecture-section
 level: L3
 section: "verification-coverage-matrix"
-version: "1.38"
+version: "1.42"
 status: draft
 producer: architect
-timestamp: 2026-05-16T00:00:00
+timestamp: 2026-05-17T00:00:00
 phase: 1b
 inputs: [prd.md, domain-spec/invariants.md]
 input-hash: "962624a"
@@ -93,7 +93,7 @@ See detailed tables below.
 | DI-023 (Diff exactly-once) | VP-019 | P0 |
 | DI-024 (Rule validation) | VP-018 | P0 |
 | DI-025 (Case transitions) | VP-005, VP-006, VP-051 | P0 |
-| DI-012 (Sealed auth trait) | Compile-time enforcement by type system | P0 (no runtime VP needed) |
+| DI-012 (Spec-Driven Auth With Runtime Composition Guards) | VP-153 (runtime enforcement via spec-load validation per ADR-026 D3 / ADR-023 Rule 2; amendment from prior compile-time sealed-supertrait enforcement) | P0 |
 | DI-017 (Single-process LOCK) | Integration test: verify RocksDB LOCK prevents concurrent open | P1 |
 | DI-026 (Audit buffer durability) | VP-033 (module: prism-dtu-crowdstrike) | P0 |
 | DI-027 (Watchdog) | VP-058 (proptest, watchdog memory grace period) + Integration tests | P0 |
@@ -143,6 +143,7 @@ See detailed tables below.
 
 | Version | Author | Date | Description |
 |---------|--------|------|-------------|
+| 1.42 | architect | 2026-05-17 | FB61 D-682 F-LP73-HIGH-001 closure (architect scope): DI-012 row updated v1.0→v1.6 amendment (line 96: "Sealed auth trait" → "Spec-Driven Auth With Runtime Composition Guards"; "Compile-time enforcement by type system" → "VP-153 runtime enforcement via spec-load validation per ADR-026 D3 / ADR-023 Rule 2"; "(no runtime VP needed)" removed — VP-153 IS the runtime VP). Survived 6 days + 73 adversarial passes since DI-012 v1.6 PREREQ-F amendment (2026-05-11). POL-25 multi-cite propagation closure. Sibling-sweep across DI-NNN rows: 0 additional catches (DI-026/027/028 all verified current; full 26-row DI sweep clean). New axis surfaced by pass-73: DI→VP→arch-doc reverse-traceability — cycle-close DRIFT candidate to add to POL-2 verification_steps. |
 | 1.38 | state-manager | 2026-05-16 | FB40 D-659 POL-9 same-burst propagation: VP-153 file advanced v0.8→v0.9 (F-LP50-MED-002 §Changelog row ordering corrected to monotonic ascending per POL-26 — 49-pass-surviving defect). This document carries VP-153 by ID only (no version pin in Coverage by Module table); POL-11 changelog row recorded to maintain contiguous version history. |
 | 1.37 | state-manager | 2026-05-16 | FB39 D-658 POL-9 same-burst propagation: VP-153 file advanced v0.7→v0.8 (F-LP49-HIGH-001 5-site error-taxonomy v1.30→v1.31 cascade closure — inline-comment cites updated by architect). This document carries VP-153 by ID only (no version pin in Coverage by Module table); POL-11 changelog row recorded to maintain contiguous version history. |
 | 1.36 | state-manager | 2026-05-16 | FB34 D-653 POL-9 same-burst propagation: VP-153 file advanced v0.6→v0.7 (§Proof Harness Skeleton expanded — Rules A+B proptests scaffolded for E-SPEC-012/013). This document carries VP-153 by ID only (no version pin in Coverage by Module table); POL-11 changelog row recorded to maintain contiguous version history. |

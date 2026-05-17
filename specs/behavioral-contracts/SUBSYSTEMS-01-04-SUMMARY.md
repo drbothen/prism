@@ -1,10 +1,11 @@
 ---
 document_type: behavioral-contract-summary
 level: L3
-version: "1.0"
+version: "1.1"
 status: draft
 producer: product-owner
 timestamp: 2026-04-14T05:00:00
+modified: 2026-05-17
 phase: 1a
 subsystems: ["01-Sensor Adapters", "02-OCSF Normalization", "03-Credential Management", "04-Feature Flags"]
 ---
@@ -117,7 +118,7 @@ Capabilities: CAP-005, CAP-006
 | DI-007 (Confirmation Token Expiry) | BC-2.04.009 through BC-2.04.012 |
 | DI-015 (Confirmation Token 100 Active Cap) | BC-2.04.009 |
 | DI-008 (Client Data Separation) | BC-2.01.002 |
-| DI-012 (Sealed Auth Trait) | BC-2.01.005, BC-2.01.006, BC-2.01.007, BC-2.01.008, BC-2.01.013 |
+| DI-012 (Spec-Driven Auth With Runtime Composition Guards) | BC-2.01.005, BC-2.01.006, BC-2.01.007, BC-2.01.008, BC-2.01.013, BC-2.01.016 |
 | DI-014 (Credential Name Sanitization) | BC-2.03.008 |
 
 ## Edge Case Coverage from Domain Spec
@@ -135,3 +136,9 @@ Capabilities: CAP-005, CAP-006
 | DEC-011 (OS keyring locked) | BC-2.03.002, BC-2.03.011 |
 | DEC-013 (Armis missing timestamps) | BC-2.01.008, BC-2.02.006 |
 | DEC-015 (Cyberint 5th timestamp format) | BC-2.01.006, BC-2.02.004 |
+
+## Changelog
+
+| Version | Date | Change |
+|---------|------|--------|
+| v1.1 | 2026-05-17 | F-LP73-HIGH-002 closure (PO scope): DI-012 row updated — "Sealed Auth Trait" → "Spec-Driven Auth With Runtime Composition Guards" (per DI-012 v1.6 amendment 2026-05-11) + BC-2.01.016 added to enforcer list (PREREQ-E primary auth BC, per its §Traceability L2 Invariants). Survived 73 adversarial passes; POL-2 bidirectional DI↔BC traceability restored. Sibling-sweep across SUBSYSTEMS summaries: 0 additional stale DI labels found in SUBSYSTEMS-05-07-SUMMARY.md and SUBSYSTEMS-08-10-SUMMARY.md; DI-015 embellishment "(Confirmation Token 100 Active Cap)" vs invariants.md canonical "Confirmation Token Cap" noted as summary-label shorthand (not a stale label, since invariants.md uses the base name and the 100-cap detail is in BC-2.04.009 title). |

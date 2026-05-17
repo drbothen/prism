@@ -1,10 +1,10 @@
 ---
 document_type: behavioral-contract-index
 level: L3
-version: "5.07"
+version: "5.08"
 status: draft
 producer: product-owner
-timestamp: 2026-05-16T23:59:45Z
+timestamp: 2026-05-17T06:30:00Z
 phase: 3.A
 total_contracts: 239
 active_contracts: 225
@@ -316,9 +316,9 @@ Phase 3-patch additions (2026-04-16): 22 new BCs added in Burst 1 to close trace
 |-----------|----------|----|----|---------|---------|
 | 01 - Sensor Adapters | 9 | 9 | 0 | 6 | 0 |
 | 02 - OCSF Normalization | 12 | 12 | 0 | 0 | 0 |
-| 03 - Credential Management | 12 | 12 | 0 | 0 | 0 |
+| 03 - Credential Management | 13 | 13 | 0 | 0 | 0 |
 | 04 - Feature Flags | 15 | 9 | 6 | 0 | 0 |
-| 05 - Audit Trail | 11 | 11 | 0 | 0 | 0 |
+| 05 - Audit Trail | 12 | 12 | 0 | 0 | 0 |
 | 06 - Client Configuration | 10 | 10 | 0 | 0 | 0 |
 | 07 - Adapter Pagination & Response Cache | 6 | 2 | 4 | 0 | 0 |
 | 08 - Sensor Health | 9 | 0 | 9 | 0 | 0 |
@@ -329,8 +329,8 @@ Phase 3-patch additions (2026-04-16): 22 new BCs added in Burst 1 to close trace
 | 13 - Detection Engine | 14 | 14 | 0 | 0 | 0 |
 | 14 - Alert & Case Management | 12 | 11 | 1 | 0 | 0 |
 | 15 - Storage Layer | 11 | 11 | 0 | 0 | 0 |
-| 16 - Spec Engine | 10 | 7 | 3 | 0 | 0 |
-| 17 - WASM Plugin Runtime | 6 | 6 | 0 | 0 | 0 |
+| 16 - Spec Engine | 9 | 6 | 3 | 0 | 0 |
+| 17 - WASM Plugin Runtime | 7 | 7 | 0 | 0 | 0 |
 | 18 - Action Delivery Engine | 9 | 9 | 0 | 0 | 0 |
 | 19 - Infusion Enrichment Framework | 5 | 5 | 0 | 0 | 0 |
 | 20 - Observability / Log Forwarding | 5 | 5 | 0 | 0 | 0 |
@@ -341,9 +341,12 @@ Phase 3-patch additions (2026-04-16): 22 new BCs added in Burst 1 to close trace
 | Wave 3 BC Family: 3.5 - DTU Test Harness Isolation | 2 | 2 | 0 | 0 | 0 |
 | Wave 3 BC Family: 3.6 - Harness Fault Injection | 2 | 2 | 0 | 0 | 0 |
 | Wave 3 BC Family: 3.7 - Workspace Conventions | 1 | 0 | 1 | 0 | 0 |
-| **Total** | **222** | **192** | **30** | **6** | **2** |
+| 22 - Process Lifecycle | 1 | 1 | 0 | 0 | 0 |
+| **Total** | **225** | **195** | **30** | **6** | **2** |
 
 **Note (v4.51):** 5 BCs promoted draft→active per D-319 (S-WAVE5-PREP-01 merged at develop@53b87961 2026-05-10T00:55:49Z): BC-2.03.013, BC-2.05.012, BC-2.06.011, BC-2.21.001, BC-2.22.001. active_contracts 222→227. total_contracts=235 (227 active + 6 removed + 2 retired).
+
+**Note (v5.08 reconciliation):** The "222" in the v4.51 note refers to the Summary table Total BC Count at that moment (set at v4.19 when Wave 3 BCs were added). The Summary table was never updated after v4.19 promotions. v4.81 D-572 corrected the frontmatter `active_contracts` to 225 via empirical enumeration; the Summary table Total row was corrected to 225 in v5.08. BC-2.06.011 and BC-2.21.001 were listed as v4.51 promotions but file frontmatter shows `lifecycle_status: draft` for both (confirmed v4.81 + v5.08 enumeration) — they were NOT actually promoted; the v4.51 list was aspirational. POL-14 promotion for BC-2.06.011 + BC-2.21.001 requires a future merge event.
 
 ### Phase 3-Patch Additions (2026-04-16)
 
@@ -368,6 +371,8 @@ Phase 3-patch additions (2026-04-16): 22 new BCs added in Burst 1 to close trace
 - Subsystem 19: Infusion Enrichment Framework (AD-020, CAP-031)
 
 ### Change Log (Adversarial Review Fixes)
+
+**v5.08 (2026-05-17):** state-manager | FB61 D-683 | F-LP73-MED-001 closure (state-manager scope): BC count reconciliation — empirical lifecycle_status enumeration of all 239 BC files yielded active=225, draft=5, deprecated=1, removed=6, retired=2, total=239; frontmatter `active_contracts` was 225 (correct per v4.81 D-572 enumeration); Summary table §Total BC Count was 222 (stale from v4.19, never updated after D-319 v4.51 promotions + D-398 v4.55 + D-427 v4.60 + D-568 v4.80 + D-572 v4.81 corrections); per-row reconciliation: SS-03 12→13 (BC-2.03.013 promoted active at v4.55), SS-05 11→12 (BC-2.05.012 promoted active at v4.51), SS-16 10→9 (BC-2.16.004 deprecated at v4.54 + BC-2.16.011/012 added as draft not active), SS-17 6→7 (BC-2.17.007 added at v4.64 as 7th active P0), SS-22 (new row) 0→1 (BC-2.22.001 active); Summary table Total row 222→225 BC Count, P0 192→195; SS-22 row added (1 BC Count / 1 P0); Note v4.51 "active_contracts 222→227" is historically accurate (Summary table value at that moment was 222; v4.81 corrected the frontmatter discrepancy; BC-2.06.011 + BC-2.21.001 remained draft per file frontmatter despite being listed in v4.51 promotions). POL-11 + POL-14 + POL-26 consistency restored. BC-INDEX v5.07→v5.08.
 
 **v5.07 (2026-05-17):** state-manager | FB60 D-682 | F-LP72-HIGH-002 closure (state-manager scope; production-grade sibling-CLASS sweep per CLAUDE.md Canonical Principle Rule 4): trailing `| v1.x |` cells removed from 10 catalog rows (PREREQ-E targets BC-2.01.016 + BC-2.16.011 + BC-2.16.012 + sibling-class catches BC-2.17.001 + BC-2.17.002 + BC-2.17.003 + BC-2.17.004 + BC-2.17.006 + BC-2.17.007 + BC-2.22.001). FB54 v1.57 canonical precedent ("Version-tracking lives in §Changelog rows per existing convention for all 154 catalog rows") propagated to BC-INDEX after 18-pass-surviving gap. POL-26 schema_integrity + POL-4 semantic_anchoring_integrity + POL-29 sibling-CLASS sweep restored across BC-INDEX. BC-INDEX v5.06→v5.07.
 
