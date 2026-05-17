@@ -8,7 +8,7 @@ must_pass: true
 priority: P0
 epic_id: "PLUGIN-MIGRATION-001"
 story_source: "S-PLUGIN-PREREQ-E"
-version: "1.7"
+version: "1.8"
 status: draft
 producer: product-owner
 timestamp: 2026-05-17T00:00:00Z
@@ -143,7 +143,7 @@ malformed specs.
 
 - S-PLUGIN-PREREQ-E is merged
 - VP-153 proptest harness has been authored by test-writer and passes in CI
-- The proptest covers all 5 × 5 (auth_type, credential_type) pairs
+- The proptest covers all 3 ADR-023 Rule 2 rejection rules per VP-153 §Proof Harness Skeleton: E-SPEC-012 (multi-valued or out-of-set auth_type), E-SPEC-013 (multiple credential_refs counts), and E-SPEC-014 (auth_type/credential mismatch — the latter exercising the 5×5 (auth_type, credential_type) Cartesian product).
 
 **Steps:**
 
@@ -180,6 +180,7 @@ When this holdout scenario is evaluated, the evaluator must produce:
 
 | Version | Burst | Date | Author | Change |
 |---------|-------|------|--------|--------|
+| 1.8 | FB57 | 2026-05-17 | product-owner | F-LP69-LOW-001 closure (PO scope): HS-001-04 Precondition 3 phrasing updated to accurately reflect VP-153 §Proof Harness Skeleton coverage (3 ADR-023 Rule 2 rejection rules: E-SPEC-012 + E-SPEC-013 + E-SPEC-014; the latter Cartesian-product). Was previously imprecise ("5×5 pairs" implies single proptest; actually 4 proptests across 3 Rules). POL-22 Phase C semantic-accuracy closure. |
 | 1.7 | FB56+FB56b SM step 8a catch | 2026-05-17 | state-manager | POL-29 v1.17 step 8a FINAL EMPIRICAL VERIFICATION CATCH: error-taxonomy v1.33→v1.34 propagation incomplete — FB56b bumped error-taxonomy to v1.34 but HS-001 line 98 was not updated from v1.33. State-manager step 8a catch closes gap in same atomic commit. post-grep: 0 live-narrative. |
 | 1.6 | FB56 | 2026-05-17 | product-owner | F-LP68-HIGH-001 closure (PO scope): error-taxonomy.md v1.32→v1.33 propagation at HS-001 line 98 §Expected Outcome (1 live-narrative site). POL-29 v1.16 step 3a (a) recurrence #20 within-burst closure. |
 | 1.5 | FB52 | 2026-05-17 | product-owner | F-LP64-HIGH-001 closure: error-taxonomy v1.31→v1.32 sibling-sweep at line 98 (HS-001-02 Expected Outcome); POL-29 v1.13 grep evidence: 1 pre → 0 post. |

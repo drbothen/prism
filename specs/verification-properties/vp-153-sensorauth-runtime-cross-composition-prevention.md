@@ -1,7 +1,7 @@
 ---
 document_type: verification-property
 level: L4
-version: "0.12"
+version: "0.13"
 status: draft
 producer: architect
 timestamp: 2026-05-16T16:00:00Z
@@ -294,5 +294,6 @@ mode against a temp dir). Either approach is feasible.
 | 0.8 | FB39 | 2026-05-16 | architect | FB39: F-LP49-HIGH-001 sites 2+3 closure — §Proof Harness Skeleton inline comments lines 167 (Rule A E-SPEC-012 byte-verbatim provenance) + 210 (Rule B E-SPEC-013 byte-verbatim provenance) advanced from v1.30 to v1.31 per FB38 D-657 cascade. |
 | 0.9 | FB40 | 2026-05-16 | state-manager | FB40 D-659: F-LP50-MED-002 §Changelog row ordering corrected to monotonic ascending (oldest first) per POL-26. Prior order was 0.7 → 0.8 → 0.6 → 0.1 → 0.2 → 0.3 → 0.4 → 0.5 (non-monotonic; rows 0.6 through 0.5 appended after 0.7+0.8 in the wrong sequence). Corrected order: 0.1 → 0.2 → 0.3 → 0.4 → 0.5 → 0.6 → 0.7 → 0.8 → 0.9. Pre-existing defect surviving 49 prior passes — fresh-context catch via vector rotation (lateral vector: VP-153 §Changelog row ordering audit). |
 | 0.10 | FB52 | 2026-05-17 | architect | F-LP64-HIGH-001 closure: error-taxonomy.md v1.31→v1.32 sibling-sweep at 2 proof harness skeleton comments (lines 167, 210). POL-29 v1.13 grep evidence: 2 pre → 0 post. |
-| 0.12 | FB56+FB56b SM step 8a catch | 2026-05-17 | state-manager | POL-29 v1.17 step 8a FINAL EMPIRICAL VERIFICATION CATCH: error-taxonomy v1.33→v1.34 propagation incomplete — VP-153 proof-harness comment lines 167 + 210 were not updated by FB56b. State-manager step 8a catch: both code-comment sites updated to `error-taxonomy.md v1.34`. post-grep: 0 live-narrative. |
 | 0.11 | FB56 | 2026-05-17 | product-owner | F-LP68-HIGH-001 closure (PO scope): error-taxonomy.md v1.32→v1.33 propagation at VP-153 lines 167, 210 §Proof Harness comments (2 live-narrative sites; backtick-quoted variant form). POL-29 v1.16 step 3a (a) recurrence #20 within-burst closure. |
+| 0.12 | FB56+FB56b SM step 8a catch | 2026-05-17 | state-manager | POL-29 v1.17 step 8a FINAL EMPIRICAL VERIFICATION CATCH: error-taxonomy v1.33→v1.34 propagation incomplete — VP-153 proof-harness comment lines 167 + 210 were not updated by FB56b. State-manager step 8a catch: both code-comment sites updated to `error-taxonomy.md v1.34`. post-grep: 0 live-narrative. |
+| 0.13 | FB57 | 2026-05-17 | state-manager | POL-26-COROLLARY bookkeeping repair: rows v0.11 + v0.12 swapped (FB56 PO row + FB56+FB56b SM catch row inserted in wrong order during 17-file LARGEST-burst). 8th POL-26 recurrence closed (F-LP69-MED-001). No content edits; row content preserved verbatim. |

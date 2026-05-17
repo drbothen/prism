@@ -23,7 +23,7 @@ crates_touched: [prism-sensors, prism-spec-engine, prism-query, prism-bin]
 target_module: prism-sensors
 subsystems: [SS-01, SS-07, SS-16, SS-17, SS-22]
 capabilities: [CAP-001, CAP-029]
-version: "1.36"
+version: "1.37"
 modified: "2026-05-17"
 level: "L4"
 producer: product-owner
@@ -284,7 +284,7 @@ Four integration tests (`test_BC_2_16_012_002_spec_parser_behavioral_equivalence
 (production-grade default — CLAUDE.md Canonical Principle Rule 1)
 
 **AC-11 (E-SPEC-008 Retirement Annotation Verified in error-taxonomy.md):**
-The `E-SPEC-008` row in `error-taxonomy.md` carries a `retired:` annotation (or equivalent in-row retirement notation) referencing PREREQ-E and ADR-027. The description text reads: "Retired in S-PLUGIN-PREREQ-E. No live code path triggers this code post-CustomAdapter removal. Plugin execution panics surface via E-PLUGIN-001." A test confirms no production `src/` path constructs or returns `E-SPEC-008`. Test name: `test_BC_2_16_011_e_spec_008_retired_annotation`.
+The `E-SPEC-008` row in `error-taxonomy.md` carries a `retired:` annotation (or equivalent in-row retirement notation) referencing PREREQ-E and ADR-027. The description text reads: "**RETIRED in S-PLUGIN-PREREQ-E (error-taxonomy.md v1.26).** A CustomAdapter (BC-2.16.004) panicked during execution. Caught via catch_unwind. **No live code path triggers this code after CustomAdapter removal in S-PLUGIN-PREREQ-E per BC-2.16.011 §Error Cases + ADR-027 §Decision (operational deletion mandate). Plugin execution panics now surface via E-PLUGIN-001. ID preserved per append_only_numbering (DF-030).**" A test confirms no production `src/` path constructs or returns `E-SPEC-008`. Test name: `test_BC_2_16_011_e_spec_008_retired_annotation`.
 (traces to BC-2.16.011 §Error Cases E-SPEC-008 (retired); Task 9; ADR-027 §Decision)
 
 ---
@@ -509,6 +509,7 @@ Tech debt closed:
 
 | Version | Burst | Date | Author | Change |
 |---------|-------|------|--------|--------|
+| v1.37 | FB57 | 2026-05-17 | product-owner | F-LP69-MED-002 closure (PO scope): AC-11 description text updated to byte-match canonical error-taxonomy.md line 380 verbatim (preserving markdown bold + `(error-taxonomy.md v1.26)` historical-origin marker). Latent since FB51 (v1.32 enriched taxonomy per AC-11 directive but AC-11 itself was not back-synced). POL-24 (error_message_template_verbatim) closure. CLAUDE.md Source-of-Truth Precedence Rule 3 honored (PRD supplements supersede PRD prose for the same surface area). |
 | v1.36 | FB56+FB56b combined SM step 8a catch | 2026-05-17 | state-manager | POL-29 v1.17 step 8a FINAL EMPIRICAL VERIFICATION CATCH: error-taxonomy v1.33→v1.34 propagation incomplete in FB56+FB56b — 9 live-narrative `error-taxonomy v1.33` cites survived in story (lines 72, 239, 240, 244, 248, 305, 307, 373 in body + frontmatter AC-11 risk_mitigation). FB56b PO v1.35 §Changelog claimed error-taxonomy sweep but actual body sites were not updated. State-manager step 8a catch closes the gap in same atomic commit. POL-29 v1.17 step 8a grep evidence: pre-grep 9 story sites → post-grep 0 live-narrative. |
 | v1.35 | FB56b | 2026-05-17 | product-owner | F-LP68-HIGH-001 closure cascade (FB56b PO scope expansion): ADR-026 D7 pin v1.18→v1.19 propagation at story lines 187, 194, 279, 365×2, 402 (5 sites; 6 occurrences). Triggered by FB56 architect bump of ADR-026 v1.18→v1.19 to close 1 error-taxonomy cite at line 312; POL-29 v1.17 step 8a FIRST APPLICATION CATCH — diff-derived value-class enumeration detected the side-effect D7 v1.18 staleness BEFORE commit. Sibling files BC-2.16.012 v1.22 + VP-156 v0.14 + HS-003 v1.10 + error-taxonomy v1.34 + BC-2.16.002 v1.26 swept in same burst per POL-23. ADR-022 + ADR-026 body swept by architect. POL-29 v1.17 step 8a grep evidence (combined canonical `rg "ADR-026 (§)?D7 v1\.18"`): pre-grep 19 → post-grep 0 in PO-domain. |
 | v1.34 | FB56 | 2026-05-17 | product-owner | F-LP68-HIGH-001 closure (PO scope): error-taxonomy.md v1.32→v1.33 propagation sweep at story lines 72, 239, 240, 244, 248, 305, 307, 373 (8 live-narrative sites; lines 72 + 373 are backtick-quoted variant form per POL-29 v1.16 step 3a (a) registry). FB55 multi-value-class enforcement gap closure (FB55 bumped error-taxonomy as side-effect of D7 cite edits at lines 459/467 but did not enumerate (a) as value class for sweep). POL-29 v1.16 step 8 STRENGTHENED grep evidence (combined canonical `rg "(\`)?error-taxonomy(\.md)?(\`)? v1\.32"`): pre-grep 11 → post-grep 0 in PO-domain. Sibling files HS-001 v1.6 + VP-153 v0.11 swept in same burst per POL-23. ADR-026 swept by architect. POL-29 v1.17 amendment by state-manager: diff-derived value-class enumeration mandate. |
