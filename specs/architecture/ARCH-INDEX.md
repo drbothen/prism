@@ -1,7 +1,7 @@
 ---
 document_type: architecture-index
 level: L3
-version: "2.70"
+version: "2.71"
 status: draft
 producer: architect
 timestamp: 2026-05-04T00:00:00
@@ -66,7 +66,7 @@ deployment_topology: single-service  # planned — no service binary exists yet 
 
 | ID | Title | Status | Date | File |
 |----|-------|--------|------|------|
-| ADR-001 | DTU Rate Limit Pattern | ACCEPTED v1.2 | 2026-04-22 | decisions/ADR-001-dtu-rate-limit-pattern.md |
+| ADR-001 | DTU Rate-Limit Pattern | ACCEPTED v1.2 | 2026-04-22 | decisions/ADR-001-dtu-rate-limit-pattern.md |
 | ADR-002 | L2 DTU Clone Template | ACCEPTED v1.1 | 2026-04-22 | decisions/ADR-002-l2-dtu-clone-template.md |
 | ADR-003 | DTU Reset Lookup and Fidelity Auth | ACCEPTED v1.4 | 2026-04-22 | decisions/ADR-003-dtu-reset-lookup-and-fidelity-auth.md |
 | ADR-004 | Kani Arbitrary Policy — Which Types Carry kani::Arbitrary | PROPOSED v0.2 | 2026-04-26 | decisions/ADR-004-kani-arbitrary-policy.md |
@@ -152,6 +152,7 @@ deployment_topology: single-service  # planned — no service binary exists yet 
 
 | Version | Pass | Date | Author | Change |
 |---------|------|------|--------|--------|
+| 2.71 | FB60 | 2026-05-17 | state-manager | F-LP72-HIGH-001 closure (state-manager scope): ADR-001 row title "DTU Rate Limit Pattern" → "DTU Rate-Limit Pattern" (hyphen restored to byte-match ADR-001 H1 + frontmatter title v1.2). FB59 within-FB sibling-sweep gap closed (architect noted "ARCH-INDEX row propagation owned by state-manager" but propagation was missed). POL-7 + POL-29 closure. |
 | 2.70 | FB59 | 2026-05-17 | state-manager | D-681 FB59 closure: F-LP71-HIGH-001 ADR-027 v1.9 frontmatter title byte-sync (drop "— Sole Escape Hatch is .prx WASM" trailing FB46 paper-fix surviving 24 passes); architect sibling-sweep expansion 3 additional drift catches: ADR-001 v1.2 (title subtitle dropped) + ADR-004 v0.2 (title field was MISSING) + ADR-022 v1.9 (H1 extended to match canonical title/ARCH-INDEX). POL-7 + TD-VSDD-060 within-file frontmatter↔H1 dimension closed across PREREQ-E + sibling-swept ADRs. ADR-012 evaluated CLEAN (backtick presentation-only). |
 | 2.69 | FB57 | 2026-05-17 | state-manager | D-679 FB57 closure (state-manager scope): verification-architecture.md row updated v1.40→v1.41 (POL-9/POL-11 propagation gap latent since FB40 D-659; v1.41 bump was VP-153 §Changelog row ordering correction per pass-50 F-LP50-MED-002 closure). ADR-026 v1.20→v1.21 (POL-26-COROLLARY bookkeeping repair: §Changelog rows v1.18/v1.19/v1.20 reordered to ascending position; F-LP69-HIGH-001 closure). Other ARCH-INDEX catalog rows verified in-sync with source files. ARCH-INDEX v2.68→v2.69. |
 | 2.68 | FB56+FB56b+SM-step8a | 2026-05-17 | state-manager | D-678 FB56+FB56b combined + SM step 8a catch: ADR-022 v1.7→v1.8 (FB56b architect: ADR-026 D7 v1.18→v1.19 cascade at §B Step 8 first-statement note) + ADR-026 v1.19→v1.20 (SM step 8a catch: error-taxonomy v1.33→v1.34 propagation at §D7 line 312 — FB56b bumped error-taxonomy to v1.34 creating new stale cite at ADR-026 line 312). ARCH-INDEX v2.67→v2.68. |

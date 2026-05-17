@@ -1,7 +1,7 @@
 ---
 document_type: behavioral-contract-index
 level: L3
-version: "5.06"
+version: "5.07"
 status: draft
 producer: product-owner
 timestamp: 2026-05-16T23:59:45Z
@@ -46,7 +46,7 @@ Phase 3-patch additions (2026-04-16): 22 new BCs added in Burst 1 to close trace
 | BC-2.01.013 | DataSource Trait Eliminates Per-Sensor Code Duplication | 01 - Sensor Adapters | CAP-001 | P0 | active (promoted draft→active D-398 per POL-14; anchor story S-PLUGIN-PREREQ-A merged PR #142 develop@90d7c80f) |
 | BC-2.01.014 | Exponential Backoff and Retry for Transient Sensor API Errors | 01 - Sensor Adapters | CAP-001 | P0 | draft |
 | BC-2.01.015 | ~~MCP Tool Response Envelope Structure~~ | 01 - Sensor Adapters | CAP-001 | P0 | removed |
-| BC-2.01.016 | SensorAuth Open Trait — Plugin-Implementable Auth Contract (No Sealed Marker) | 01 - Sensor Adapters | CAP-001 | P0 | draft | v1.8 |
+| BC-2.01.016 | SensorAuth Open Trait — Plugin-Implementable Auth Contract (No Sealed Marker) | 01 - Sensor Adapters | CAP-001 | P0 | draft |
 | BC-2.02.001 | OCSF Schema Loading at Build Time via ocsf-proto-gen | 02 - OCSF Normalization | CAP-003 | P0 | draft |
 | BC-2.02.002 | DynamicMessage Creation from Sensor Records | 02 - OCSF Normalization | CAP-003 | P0 | draft |
 | BC-2.02.003 | CrowdStrike Alert Field Mapping to OCSF | 02 - OCSF Normalization | CAP-003 | P0 | draft (amendment_lifecycle: pending — ADR-023) |
@@ -218,15 +218,15 @@ Phase 3-patch additions (2026-04-16): 22 new BCs added in Burst 1 to close trace
 | BC-2.16.008 | `add_sensor_spec` MCP Tool — Upload a New Sensor Spec at Runtime | 16 - Spec Engine | CAP-029, CAP-030 | P0 | draft |
 | BC-2.16.009 | Spec File Validation — Schema Validation, Variable Reference Resolution, OCSF Field Validation | 16 - Spec Engine | CAP-029 | P0 | draft |
 | BC-2.16.010 | `list_sensor_specs` MCP Tool — List Loaded Sensor Specs with Table Schemas and Status | 16 - Spec Engine | CAP-029 | P0 | draft |
-| BC-2.16.011 | CustomAdapter Rust Trait Retirement — Removal of Trait, Registry, and All Call Sites | 16 - Spec Engine | CAP-029 | P0 | draft | v1.8 |
-| BC-2.16.012 | PluginRegistry Dispatch in spec_parser.rs — Hardcoded Sensor Names Replaced with Registry Lookup | 16 - Spec Engine | CAP-029 | P0 | draft | v1.22 |
-| BC-2.17.001 | Plugin Panic Isolation — Crashed Plugin Does Not Terminate Host Process | 17 - WASM Plugin Runtime | CAP-032 | P0 | active (POL-14 auto-promotion D-568 S-PLUGIN-PREREQ-D merge PR #149 ec90fe8f 2026-05-15) | v1.4 |
-| BC-2.17.002 | Plugin Sandbox — No Direct Filesystem or Network Access | 17 - WASM Plugin Runtime | CAP-032 | P0 | active (POL-14 auto-promotion D-568 S-PLUGIN-PREREQ-D merge PR #149 ec90fe8f 2026-05-15) | v1.8 |
-| BC-2.17.003 | Plugin Sandbox — Memory Limit Enforced Per Plugin Instance (default 64MB) | 17 - WASM Plugin Runtime | CAP-032 | P0 | active (POL-14 auto-promotion D-568 S-PLUGIN-PREREQ-D merge PR #149 ec90fe8f 2026-05-15) | v1.5 |
-| BC-2.17.004 | Plugin Sandbox — CPU Time Limit Enforced via Epoch Interruption (default 5s) | 17 - WASM Plugin Runtime | CAP-032 | P0 | active (POL-14 auto-promotion D-568 S-PLUGIN-PREREQ-D merge PR #149 ec90fe8f 2026-05-15) | v1.5 |
+| BC-2.16.011 | CustomAdapter Rust Trait Retirement — Removal of Trait, Registry, and All Call Sites | 16 - Spec Engine | CAP-029 | P0 | draft |
+| BC-2.16.012 | PluginRegistry Dispatch in spec_parser.rs — Hardcoded Sensor Names Replaced with Registry Lookup | 16 - Spec Engine | CAP-029 | P0 | draft |
+| BC-2.17.001 | Plugin Panic Isolation — Crashed Plugin Does Not Terminate Host Process | 17 - WASM Plugin Runtime | CAP-032 | P0 | active (POL-14 auto-promotion D-568 S-PLUGIN-PREREQ-D merge PR #149 ec90fe8f 2026-05-15) |
+| BC-2.17.002 | Plugin Sandbox — No Direct Filesystem or Network Access | 17 - WASM Plugin Runtime | CAP-032 | P0 | active (POL-14 auto-promotion D-568 S-PLUGIN-PREREQ-D merge PR #149 ec90fe8f 2026-05-15) |
+| BC-2.17.003 | Plugin Sandbox — Memory Limit Enforced Per Plugin Instance (default 64MB) | 17 - WASM Plugin Runtime | CAP-032 | P0 | active (POL-14 auto-promotion D-568 S-PLUGIN-PREREQ-D merge PR #149 ec90fe8f 2026-05-15) |
+| BC-2.17.004 | Plugin Sandbox — CPU Time Limit Enforced via Epoch Interruption (default 5s) | 17 - WASM Plugin Runtime | CAP-032 | P0 | active (POL-14 auto-promotion D-568 S-PLUGIN-PREREQ-D merge PR #149 ec90fe8f 2026-05-15) |
 | BC-2.17.005 | Plugin Hot Reload — Atomic Module Swap, In-Flight Calls Complete Against Old Version | 17 - WASM Plugin Runtime | CAP-030, CAP-032 | P0 | draft |
-| BC-2.17.006 | WIT Interface Validation Before Plugin Registration | 17 - WASM Plugin Runtime | CAP-032 | P0 | active (POL-14 auto-promotion D-568 S-PLUGIN-PREREQ-D merge PR #149 ec90fe8f 2026-05-15) | v1.5 |
-| BC-2.17.007 | Plugin Manifest Schema Validation Before WIT Validation | 17 - WASM Plugin Runtime | CAP-032 | P0 | active (POL-14 auto-promotion D-568 S-PLUGIN-PREREQ-D merge PR #149 ec90fe8f 2026-05-15) | v1.5 |
+| BC-2.17.006 | WIT Interface Validation Before Plugin Registration | 17 - WASM Plugin Runtime | CAP-032 | P0 | active (POL-14 auto-promotion D-568 S-PLUGIN-PREREQ-D merge PR #149 ec90fe8f 2026-05-15) |
+| BC-2.17.007 | Plugin Manifest Schema Validation Before WIT Validation | 17 - WASM Plugin Runtime | CAP-032 | P0 | active (POL-14 auto-promotion D-568 S-PLUGIN-PREREQ-D merge PR #149 ec90fe8f 2026-05-15) |
 | BC-2.18.001 | Alert and Case Action Triggers — At-Least-Once Delivery with Exponential Backoff Retry | 18 - Action Delivery Engine | CAP-033 | P0 | draft |
 | BC-2.18.002 | Schedule Action Triggers — Best-Effort, Retry on Next Cron Tick | 18 - Action Delivery Engine | CAP-033 | P0 | draft |
 | BC-2.18.003 | Manual Action Triggers — Fire-and-Forget, Result Returned Immediately to AI Caller | 18 - Action Delivery Engine | CAP-033 | P0 | draft |
@@ -247,7 +247,7 @@ Phase 3-patch additions (2026-04-16): 22 new BCs added in Burst 1 to close trace
 | BC-2.20.004 | Log Forwarder Credential Resolution — AD-017 Opaque Reference Model at Forward Time | 20 - Observability / Log Forwarding | CAP-035 | P0 | draft |
 | BC-2.20.005 | Log Forwarder Destination Isolation — Single Failed Destination Must Not Block Others | 20 - Observability / Log Forwarding | CAP-035 | P0 | draft |
 | BC-2.21.001 | OrgRegistry Initialization — Bijective Resolution Verified at Process Start | 21 - Identity & Core Types | CAP-038 | P0 | draft |
-| BC-2.22.001 | Boot Orchestration — Sequencing, Exit-Code Map, and Pre-Traffic Gate | 22 - Binary Entrypoint | CAP-034 | P0 | active | v1.5 |
+| BC-2.22.001 | Boot Orchestration — Sequencing, Exit-Code Map, and Pre-Traffic Gate | 22 - Binary Entrypoint | CAP-034 | P0 | active |
 
 ## Wave 3 — Phase 3.A Behavioral Contracts (2026-04-27)
 
@@ -368,6 +368,8 @@ Phase 3-patch additions (2026-04-16): 22 new BCs added in Burst 1 to close trace
 - Subsystem 19: Infusion Enrichment Framework (AD-020, CAP-031)
 
 ### Change Log (Adversarial Review Fixes)
+
+**v5.07 (2026-05-17):** state-manager | FB60 D-682 | F-LP72-HIGH-002 closure (state-manager scope; production-grade sibling-CLASS sweep per CLAUDE.md Canonical Principle Rule 4): trailing `| v1.x |` cells removed from 10 catalog rows (PREREQ-E targets BC-2.01.016 + BC-2.16.011 + BC-2.16.012 + sibling-class catches BC-2.17.001 + BC-2.17.002 + BC-2.17.003 + BC-2.17.004 + BC-2.17.006 + BC-2.17.007 + BC-2.22.001). FB54 v1.57 canonical precedent ("Version-tracking lives in §Changelog rows per existing convention for all 154 catalog rows") propagated to BC-INDEX after 18-pass-surviving gap. POL-26 schema_integrity + POL-4 semantic_anchoring_integrity + POL-29 sibling-CLASS sweep restored across BC-INDEX. BC-INDEX v5.06→v5.07.
 
 **v5.06 (2026-05-17):** state-manager | FB56b D-678 combined | BC-2.16.012 v1.21→v1.22 (FB56b architect/PO cascade: ADR-026 D7 v1.18→v1.19 sweep at 4 live-narrative sites) + BC-2.16.002 v1.25→v1.26 (FB56b PO cascade: ADR-026 D7 v1.18→v1.19 sweep at 1 catalog-row live-narrative site). POL-29 v1.17 step 8a FIRST APPLICATION META-cascade catch. BC-INDEX v5.05→v5.06.
 
