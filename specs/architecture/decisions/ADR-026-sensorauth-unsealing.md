@@ -4,9 +4,9 @@ adr_id: "ADR-026"
 title: "SensorAuth Trait Un-Sealing — Remove private::Sealed, Enable Plugin Auth Implementations"
 status: Proposed
 date: "2026-05-16"
-version: "1.15"
+version: "1.16"
 producer: architect
-subsystems_affected: [SS-01, SS-07, SS-16, SS-17]
+subsystems_affected: [SS-01, SS-07, SS-16, SS-17, SS-22]
 supersedes: null
 superseded_by: null
 amends: ADR-023
@@ -21,6 +21,7 @@ runtime_deliverables:
   - "AtomicBool query-phase flag for after-boot detection in crates/prism-query/src/invalidation.rs (D7)"
   - "Add fn auth_type_name(&self) -> &'static str; method to SensorAuth trait in crates/prism-sensors/src/auth/mod.rs (per D1 Path B)"
   - "Add auth_type_name() impl body to each of CrowdStrikeAuth / CyberintAuth / ClarotyAuth / ArmisAuth in crates/prism-sensors/src/auth/{crowdstrike,cyberint,claroty,armis}.rs returning the canonical D3 enumerated value (per D2: 'oauth2_client_credentials' / 'bearer_static' / 'cookie_roundtrip' / 'api_key')"
+  - "Insert prism_query::invalidation::mark_query_phase_started(); as first statement of step-8 function in crates/prism-bin/src/boot.rs immediately before QueryEngine::new() (per D7 v1.16)"
 wiring_deferred_to: null
 ---
 
@@ -470,3 +471,4 @@ modes and security implications. The open trait approach reuses the existing typ
 | 1.13 | 2026-05-16 | architect | FB38: F-LP48-HIGH-001 POL-23 cascade-propagation gap closed — line 300 BC-2.16.002 v1.20 cite advanced to v1.21 per FB37 D-656 v1.20→v1.21 cascade. 12th+ POL-23 recurrence; ADR-026 was missed by FB37 architect-adjudication sibling-sweep scope declaration. Reinforces POL-29 candidate (within-FB-burst directive must invoke POL-25 workspace-wide grep). |
 | 1.14 | 2026-05-16 | architect | FB39: F-LP49-HIGH-001 site 1 closure — line 309 (error-taxonomy v1.30) cite advanced to v1.31 per FB38 D-657 cascade. 13th+ POL-23 recurrence — META-PATTERN repeats from F-LP48-HIGH-001. |
 | 1.15 | 2026-05-16 | architect | FB44: F-LP56-HIGH-001 adjudication — Option A chosen. §D7 narrative updated: AtomicBool query-phase flag is set by `prism_query::invalidation::mark_query_phase_started()`, invoked as the first statement of the step-8 function in `crates/prism-bin/src/boot.rs` immediately before `QueryEngine::new()` is constructed. Resolves production call-site ambiguity — boot.rs is the designated and only correct call site; the Architecture Compliance Rule in S-PLUGIN-PREREQ-E line 357 forbidding boot.rs modification predates Task 7b and must be revised by PO to designate this single permitted insertion point. |
+| 1.16 | 2026-05-16 | architect | FB45: F-LP57-HIGH-001 (runtime_deliverables: append boot.rs invocation deliverable — insert mark_query_phase_started() as first statement of step-8 function in boot.rs immediately before QueryEngine::new()) + F-LP57-HIGH-002 (subsystems_affected: add SS-22 Process Lifecycle — owns prism-bin, canonical SS-22 crate per ARCH-INDEX line 149). POL-23 sibling-sweep gap from FB44 corrected. |

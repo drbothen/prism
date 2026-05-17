@@ -3402,3 +3402,50 @@ Shorthand append: →pass-56:BLOCKED(0C+1H+0M+0L+0OBS; F-LP56-HIGH-001 productio
 Story v1.23 | BC-2.01.016 v1.7 | BC-2.16.011 v1.6 | BC-2.16.012 v1.17 | BC-2.16.002 v1.23 | ADR-026 v1.15 | ADR-027 v1.7 | VP-153 v0.9 | VP-154 v0.6 | VP-155 v0.5 | VP-156 v0.9 | HS-PREREQ-E-001 v1.4 | HS-PREREQ-E-002 v1.4 | HS-PREREQ-E-003 v1.6 | error-taxonomy v1.31 | ARCH-INDEX v2.59 | VP-INDEX v1.52 | STORY-INDEX v2.127 | BC-INDEX v4.99 | verification-architecture v1.41 | verification-coverage-matrix v1.38
 
 STATE.md v7.353; SESSION-HANDOFF.md v7.353; prereq_e_adversary_streak **0/3** (pass-56 BLOCKED — F-LP56-HIGH-001 production call-graph defect; FB44 CLOSED via architect Option A; boot.rs designated insertion site; ADR-026 v1.15 + BC-2.16.012 v1.17 + VP-156 v0.9 + story v1.23; streak 1/3→0/3 10th recurrence; 172nd consecutive single-commit TD-VSDD-053 STABLE; pass-57 dispatch-ready; fresh 9th-attempt-restart sequence begins).
+
+## §D-667 — FB45 MULTI-AGENT CLOSURE — PASS-57 BLOCKED → REMEDIATED
+
+**Date:** 2026-05-16 | **State:** v7.354 | **Commit:** 173rd consecutive single-commit (TD-VSDD-053 STABLE)
+
+### Pass-57 Verdict: BLOCKED — 2 HIGH + 1 MED + 1 OBS
+
+All 3 findings are FB44 sibling-sweep propagation gaps. Novelty: HIGH (all introduced by FB44 call-site designation; could not surface pre-FB44).
+
+- **F-LP57-HIGH-001** — ADR-026 frontmatter `runtime_deliverables:` array missing boot.rs `mark_query_phase_started()` insertion entry. An implementer reading frontmatter as deliverables-of-record would miss the boot.rs edit.
+- **F-LP57-HIGH-002** — ADR-026 frontmatter `subsystems_affected:` missing SS-22 (Process Lifecycle / prism-bin). POL-23 within-FB sibling-sweep asymmetry recurrence #14+.
+- **F-LP57-MED-001** — AC-9 third-test required `tracing-test` subscriber fixture; no Cargo.toml dev-dep task existed. Workspace grep confirmed zero `tracing-test` presence in all `*.toml` files.
+- **OBS-LP57-001** [process-gap] — ADR-022 §B Step 8 prose silent on FB44 first-statement insertion. Path A in-scope amendment per Canonical Principle Rule 4.
+
+### FB45 Architect Adjudication (single burst)
+
+- ADR-026 v1.15 → v1.16: frontmatter `subsystems_affected:` adds SS-22; `runtime_deliverables:` appends 10th entry — "boot.rs: invoke `prism_query::invalidation::mark_query_phase_started()` as first statement of step 8 before QueryEngine construction" — closes F-LP57-HIGH-001 + F-LP57-HIGH-002
+- ADR-022 v1.3 → v1.4: §B Step 8 first-statement note crosslinking ADR-026 §D7 v1.16 — closes OBS-LP57-001 Path A
+- BC-2.16.012 v1.17 → v1.18: POL-23 sibling-sweep on 4 ADR-026 D7 live-narrative pins v1.15 → v1.16
+- VP-156 v0.9 → v0.10: POL-23 sibling-sweep on 4 ADR-026 D7 live-narrative pins v1.15 → v1.16
+
+### FB45 PO Adjudication (single burst, parallel)
+
+- Option α selected for tracing-test wiring: `tracing-test = "0.2"` in prism-query/Cargo.toml dev-deps
+- Story v1.23 → v1.24: Task 7d appended (Cargo.toml dev-dep addition); AC-9 third-test "or equivalent fixture" → verbatim `tracing-test = "0.2"` subscriber fixture spec; subsystems +SS-22 sibling-sweep; Token Budget +1 row; 2 ADR-026 D7 live-narrative pins v1.15 → v1.16; §Changelog row
+- STORY-INDEX v2.127 → v2.128: story row v1.23 → v1.24; subsystems column +SS-22; §Changelog row
+
+### FB45 State-Manager INDEX Cascade
+
+- BC-INDEX v4.99 → v5.00: BC-2.16.012 row v1.17 → v1.18; §Changelog row
+- ARCH-INDEX v2.59 → v2.60: ADR-026 row v1.15 → v1.16; ADR-022 row v1.3 → v1.4; §Changelog row
+- VP-INDEX v1.52 → v1.53: VP-156 row v0.9 → v0.10; §Changelog row
+- verification-architecture + verification-coverage-matrix: no versioned pins found for ADR-026 D7 v1.15 / VP-156 v0.9 / ADR-022 v1.3 / BC-2.16.012 v1.17 — no update required
+
+### POL-29 Evidence (#14+)
+
+Within-FB cross-document-layer sibling-sweep asymmetry: FB44 swept ADR-026 body (D7 designation) but missed frontmatter fields `runtime_deliverables` and `subsystems_affected`. This is the 14th+ manifestation of the within-FB-introduces-defect pattern. Cycle-close codification queue item 9 (POL-29 candidate) continues to accumulate evidence; formal codification in policies.yaml deferred to cycle-close per S-7.02.
+
+### Streak Status + Next Action
+
+Streak: 0/3 unchanged (pass-57 BLOCKED; no advance). Pass-58 dispatch-ready. ADR-027 deprecation-path completeness vector NOT EXERCISED in pass-57 (adversary deferred) — must be exercised in pass-58 or pass-59.
+
+### Pinned Artifact Versions (PREREQ-E 22-artifact set — post-D-667)
+
+Story v1.24 | BC-2.01.016 v1.7 | BC-2.16.011 v1.6 | BC-2.16.012 v1.18 | BC-2.16.002 v1.23 | ADR-026 v1.16 | ADR-022 v1.4 | ADR-027 v1.7 | VP-153 v0.9 | VP-154 v0.6 | VP-155 v0.5 | VP-156 v0.10 | HS-PREREQ-E-001 v1.4 | HS-PREREQ-E-002 v1.4 | HS-PREREQ-E-003 v1.6 | error-taxonomy v1.31 | ARCH-INDEX v2.60 | VP-INDEX v1.53 | STORY-INDEX v2.128 | BC-INDEX v5.00 | verification-architecture v1.41 | verification-coverage-matrix v1.38
+
+STATE.md v7.354; SESSION-HANDOFF.md v7.354; prereq_e_adversary_streak **0/3** (pass-57 BLOCKED — 2 HIGH F-LP57-HIGH-001+002 frontmatter sibling-sweep gaps + 1 MED F-LP57-MED-001 tracing-test + 1 OBS Path A; novelty HIGH; FB45 architect+PO+SM multi-agent closure; streak 0/3 unchanged; 173rd consecutive single-commit TD-VSDD-053 STABLE; pass-58 dispatch-ready; ADR-027 deprecation-path vector pending exercise).

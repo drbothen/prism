@@ -4,7 +4,7 @@ adr_id: "ADR-022"
 title: "Production Runtime Wiring — prism-bin Chassis, Boot Sequence, Wiring Contracts, Infusion Fate, Hot-Reload Watcher, MCP Topology"
 status: ACCEPTED
 date: "2026-05-08"
-version: "1.3"
+version: "1.4"
 producer: architect
 subsystems_affected: [SS-06, SS-10, SS-11, SS-16, SS-17, SS-19]
 supersedes: null
@@ -239,6 +239,8 @@ Step 7.5 [BLOCKING] Plugin runtime load  ← see ADR-023 §C4 (authoritative pla
          Delivered by: PLUGIN-PREREQ-D (depends on PLUGIN-PREREQ-F for PluginRuntime infra)
 
 Step 8   [BLOCKING → BACKGROUND] QueryEngine + WriteExecutor construction
+         First statement: prism_query::invalidation::mark_query_phase_started() — closes the
+               write-registration window before QueryEngine::new(). See ADR-026 §D7 v1.16.
          Action: construct QueryEngine (prism-query); bind AdapterRegistry + StorageBackend
          Action: construct WriteExecutor (prism-query); bind feature-flag check + capability check
          Note: QueryEngine::execute in engine.rs was todo!() — resolved by S-3.02-FOLLOWUP-RUNTIME
@@ -785,6 +787,7 @@ Bundle B Phase B-0 architecture output. Authored at D-302 from workspace audit D
 | Version | Date | Author | Change |
 |---------|------|--------|--------|
 | 1.3 | 2026-05-13 | architect | Closes F-LP8-OBS-001 (PREREQ-D fix-burst-7 stage 1B): add step 7.5 plugin-load cross-reference to §B boot sequence table and Related ADRs section; update traffic-gate note to include step 7.5; bump version. ADR-023 §C4 is cited as the authoritative placement spec; Source-of-Truth Precedence Rule 2 noted inline. No architectural content changed — editorial discoverability amendment only. |
+| 1.4 | 2026-05-16 | architect | FB45: §B Step 8 description: append first-statement note — `prism_query::invalidation::mark_query_phase_started()` is the first statement of step-8, closing the write-registration window before `QueryEngine::new()`. Cross-references ADR-026 §D7 v1.16. Closes OBS-LP57-001 Path A per Canonical Principle Rule 4. |
 | 1.2 | 2026-05-12 | state-manager | TD-VSDD-091 volatile-pin strip per audit at cycles/wave-4-operations/sprint-review-PREREQ-trio.md §7. No architectural content change. 18 line-number citations stripped across §Context/§B/§C/§D/§G; function-name pivots applied for InfusionLoader::{parse,load_all,validate_credentials}, InfusionLruCache::{get,insert}, MmdbSource::{load,enrich_single,enrich_batch}, plugin_bridge::enrich_via_plugin, QueryEngine::execute and execute_scheduled, RocksDbTableProvider::{schema,scan,...}, register_internal_tables. engine.rs/materialization.rs/internal_tables.rs references marked HISTORICAL post S-3.02-FOLLOWUP-RUNTIME merge c6dd6602. Added missing template H2 sections (Decision, Rationale, Consequences, Source / Origin) per template compliance. |
 | 1.1 | 2026-05-09 | product-owner | §B step 2: replace stale `~/.prism/` literal with platform-aware default to match BC-2.06.011 v1.2 phrasing. Closes F-P6-MED-1 from PR #139 PR-LEVEL adversary pass-6. |
 | 1.0 | 2026-05-08 | architect | Initial authorship — Bundle B Phase B-0 architecture output |
