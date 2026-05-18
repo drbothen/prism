@@ -231,8 +231,9 @@ fn test_BC_2_03_013_sensor_spec_credential_refs_parsed_from_toml() {
     let spec = result.unwrap();
     assert_eq!(
         spec.credential_refs.len(),
-        2,
-        "Fixture declares 2 [[credential_refs]] sections; \
+        1,
+        "Fixture declares 1 [[credential_refs]] section (updated from 2 to comply with \
+         BC-2.01.016 Rule B / E-SPEC-013); \
          got {} refs: {:?}",
         spec.credential_refs.len(),
         spec.credential_refs
@@ -241,7 +242,7 @@ fn test_BC_2_03_013_sensor_spec_credential_refs_parsed_from_toml() {
             .collect::<Vec<_>>()
     );
 
-    // Verify the exact ref names match the fixture.
+    // Verify the ref name matches the fixture.
     let ref_names: Vec<&str> = spec
         .credential_refs
         .iter()
@@ -249,11 +250,7 @@ fn test_BC_2_03_013_sensor_spec_credential_refs_parsed_from_toml() {
         .collect();
     assert!(
         ref_names.contains(&"api_key"),
-        "First credential ref must be 'api_key'; got: {ref_names:?}"
-    );
-    assert!(
-        ref_names.contains(&"client_secret"),
-        "Second credential ref must be 'client_secret'; got: {ref_names:?}"
+        "Credential ref must be 'api_key'; got: {ref_names:?}"
     );
 
     // Verify sensor_id is correct (ensures parse was on the right fixture).
@@ -407,8 +404,13 @@ fn test_BC_2_03_013_OQ1_non_leak_invariant_approach_a_type_level() {
 // Unhappy path: one ref missing → CredentialRefInvalid (exit 2).
 // ---------------------------------------------------------------------------
 
-/// Inline fixture sensor TOML with 2 credential_refs — mirrors
+/// Inline fixture sensor TOML with 1 credential_ref — mirrors
 /// fixtures/sensors/test-sensor-with-cred-refs.sensor.toml.
+///
+/// Updated from 2 → 1 ref when parse_and_validate_spec_toml was wired to enforce
+/// BC-2.01.016 Rule B (exactly 1 credential_ref per auth method; E-SPEC-013).
+/// A fixture with 2 refs would be rejected at parse time. N=1 satisfies the
+/// "N>0 refs iterated" behavioral coverage requirement for step5 tests.
 const CRED_REF_FIXTURE_TOML: &str = r#"
 [sensor]
 sensor_id = "test-sensor"
@@ -419,9 +421,6 @@ base_url = "https://test-sensor.example.com"
 
 [[credential_refs]]
 name = "api_key"
-
-[[credential_refs]]
-name = "client_secret"
 "#;
 
 /// Build a PrismConfig pointing at the given spec_dir and a temporary state_dir.
@@ -513,8 +512,9 @@ async fn test_BC_2_03_013_credential_ref_iteration_happy_path_all_refs_resolvabl
     let spec_tmp = tempfile::TempDir::new().unwrap();
     let config_manager = make_config_manager_with_cred_refs(&spec_tmp);
 
-    // Regression guard: verify spec was loaded with N=2 credential_refs.
+    // Regression guard: verify spec was loaded with N=1 credential_ref (N>0).
     // If 0 refs, the iteration loop would still be vacuous (test setup failure).
+    // Updated from N=2 to N=1 per BC-2.01.016 Rule B (E-SPEC-013): exactly 1 ref allowed.
     {
         let cm_guard = config_manager.load();
         let cm = &**cm_guard;
@@ -525,8 +525,8 @@ async fn test_BC_2_03_013_credential_ref_iteration_happy_path_all_refs_resolvabl
                 .sensor_specs
                 .get("test-sensor")
                 .map(|s| s.credential_refs.len()),
-            Some(2),
-            "Fixture TOML must be parsed with 2 credential_refs; \
+            Some(1),
+            "Fixture TOML must be parsed with 1 credential_ref (N>0 for iteration coverage); \
              got wrong count (test setup failure, not production bug)"
         );
     }
@@ -567,9 +567,10 @@ async fn test_BC_2_03_013_credential_ref_iteration_unhappy_path_missing_ref_exit
 
     let (config, _state_tmp) = make_config_with_spec_dir(spec_tmp.path());
 
-    // Inject MissingOneProbe — client_secret returns CredentialRefInvalid.
+    // Inject MissingOneProbe — api_key returns CredentialRefInvalid.
+    // (Updated from "client_secret" to "api_key" per fixture update from 2→1 ref.)
     let probe = MissingOneProbe {
-        missing_ref: "client_secret",
+        missing_ref: "api_key",
     };
     let result =
         prism_bin::boot::step5_init_credential_store_with_probe(&config, &config_manager, &probe)
