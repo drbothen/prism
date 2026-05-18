@@ -2,11 +2,11 @@
 document_type: prd-supplement
 level: L3
 section: "error-taxonomy"
-version: "1.38"
+version: "1.39"
 status: active
 producer: product-owner
 timestamp: 2026-05-16T00:00:00Z
-modified: 2026-05-17
+modified: 2026-05-18
 phase: 1a
 origin: greenfield
 inputs: [".factory/specs/prd.md", ".factory/specs/behavioral-contracts/**"]
@@ -465,6 +465,7 @@ Additional state errors beyond E-STATE-001 and E-STATE-002 (defined in the STATE
 | E-PLUGIN-018 | broken | not_found | "Plugin at '{plugin_path}' has no manifest file at '{expected_manifest_path}'; a companion .manifest.toml is required" | No | The `.prx` plugin binary was found but no companion `.manifest.toml` exists. A manifest is required for all production plugins. Plugin is rejected; remaining plugins continue loading (n-1 survivor rule). | BC-2.17.007 (F-IMPL-LP1-HIGH-005) |
 | E-PLUGIN-019 | broken | validation | "Plugin manifest at '{path}' missing required field 'format_version'; must be an integer <= {supported}" | No | The `.manifest.toml` is valid TOML but the `format_version` field is entirely absent. Per AC-5, `format_version` must be explicitly present; absent is a hard rejection, not silently treated as 0. Distinct from E-PLUGIN-014 (field present but exceeds max). | BC-2.17.007 (F-IMPL-LP1-HIGH-006) |
 | E-PLUGIN-020 | broken | runtime | "Plugin '{plugin}' attempted register_write_tool after query-engine init started (step 8+, ADR-026 D7); registrations must occur during step 7.5 only; request rejected" | No | `register_write_tool` was called outside the permitted boot window (step 7.5 plugin-load). The write-registration window closes at step 8 start (first act of step 8, before QueryEngine construction proceeds, per ADR-026 §D7); registrations are permitted only during step 7.5 plugin-load. The call returns `Err(SpecEngineError::WriteToolRegistrationAfterBoot)`. Plugin must register write tools during boot step 7.5 only; verify plugin lifecycle hook ordering. A WARN-level tracing event `write_tool_registration_after_boot` is emitted per BC-2.16.002 §Postconditions (Canonical Structured Event Catalog bullet, v1.21) row 33. Field source: `{plugin}` = `entry.plugin_name` from the `WriteToolInvalidationMap` struct, set by PluginRuntime from plugin manifest `name` per ADR-026 D7 v1.23. The structured tracing event field `plugin_name` maps to the same `entry.plugin_name` source. | ADR-026 D7; BC-2.16.012; `SpecEngineError::WriteToolRegistrationAfterBoot` |
+| E-PLUGIN-021 | broken | runtime | "E-PLUGIN-021: write tool registry RwLock is poisoned — a prior panic in a write-guard holder has corrupted the registry; process restart required" | No | `DYNAMIC_WRITE_TOOLS` RwLock is poisoned — a previous write-guard holder panicked while holding the lock, leaving the registry in an unrecoverable state. Every subsequent call to `register_write_tool` returns `Err(SpecEngineError::WriteToolRegistryPoisoned)` for the lifetime of the process (SINGLE_PER_PROCESS_LIFETIME recurrence). Distinct from E-PLUGIN-020 (lifecycle ordering violation): E-PLUGIN-021 indicates a programming error (panic in a guard holder), not a registration-after-boot ordering fault. Operator must restart the process; no in-process recovery is possible. Production construction site: `crates/prism-query/src/invalidation.rs:138-145` (`register_write_tool` maps `RwLock::write().map_err(|_| ...)` to this variant). | `SpecEngineError::WriteToolRegistryPoisoned`; ADR-026 §D7; S-PLUGIN-PREREQ-E F-LP-IMPL-P1-004 |
 
 ## PIPELINE: Pipeline Executor Errors
 
@@ -487,6 +488,7 @@ Additional state errors beyond E-STATE-001 and E-STATE-002 (defined in the STATE
 | Version | Burst | Date | Author | Change |
 |---------|-------|------|--------|--------|
 | 1.38 | FB73 | 2026-05-17 | product-owner | F-LP85-HIGH-001 closure (PO scope): ADR-026 D7 pin v1.22→v1.23 propagation at error-taxonomy lines 459 (E-PLUGIN-012), 467 (E-PLUGIN-020) (2 sites). Sibling files story v1.46 + BC-2.16.011 v1.10 + BC-2.16.012 v1.26 + BC-2.16.002 v1.31 (POL-30 Fork B preserved) + VP-156 v0.18 + HS-003 v1.15 swept in same burst. |
+| 1.39 | FB74 | 2026-05-18 | product-owner | Added E-PLUGIN-021 (WriteToolRegistryPoisoned) — S-PLUGIN-PREREQ-E F-LP-IMPL-P2-002 POL-29 transitive closure. New row inserted after E-PLUGIN-020 in PLUGIN section. Production construction site: invalidation.rs:138-145; recurrence SINGLE_PER_PROCESS_LIFETIME. |
 | 1.37 | FB69 | 2026-05-17 | product-owner | F-LP81-HIGH-002 closure (PO scope): ADR-026 D7 pin v1.21→v1.22 propagation at lines 459 (E-PLUGIN-012), 467 (E-PLUGIN-020) (2 sites). Recurrence #22+ of POL-29 step 3a class (b). Sibling files story v1.44 + BC-2.16.012 v1.25 + BC-2.16.002 v1.29 + VP-156 v0.17 + HS-003 v1.14 swept in same burst. |
 | 1.36 | FB64 | 2026-05-17 | product-owner | F-LP76-HIGH-001 closure (PO scope): burst-label cell corrected FB74→FB62 in §Changelog row for v1.35. Original FB62 closure of F-LP74-HIGH-001 was labeled "FB74" derived from finding ID; canonical FB sequential counter was FB62 per state-manager records. POL-26 schema integrity + POL-29 cross-domain sibling consistency restored. |
 | 1.35 | FB62 | 2026-05-17 | product-owner | F-LP74-HIGH-001 closure (PO scope): ADR-026 D7 pin v1.19→v1.21 at lines 459 (E-PLUGIN-012), 467 (E-PLUGIN-020) (2 sites). |
