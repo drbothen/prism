@@ -60,7 +60,7 @@ impl SensorAuth for CrowdStrikeAuth {
     }
 
     fn auth_type_name(&self) -> &'static str {
-        todo!("S-PLUGIN-PREREQ-E AC-2: return \"oauth2_client_credentials\" for CrowdStrikeAuth per ADR-026 §D3")
+        "oauth2_client_credentials"
     }
 }
 

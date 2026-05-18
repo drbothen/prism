@@ -61,7 +61,7 @@ impl SensorAuth for ClarotyAuth {
     }
 
     fn auth_type_name(&self) -> &'static str {
-        todo!("S-PLUGIN-PREREQ-E AC-2: return \"cookie_roundtrip\" for ClarotyAuth per ADR-026 §D3")
+        "cookie_roundtrip"
     }
 }
 

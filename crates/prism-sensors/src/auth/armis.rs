@@ -57,7 +57,7 @@ impl SensorAuth for ArmisAuth {
     }
 
     fn auth_type_name(&self) -> &'static str {
-        todo!("S-PLUGIN-PREREQ-E AC-2: return \"api_key\" for ArmisAuth per ADR-026 §D3")
+        "api_key"
     }
 }
 

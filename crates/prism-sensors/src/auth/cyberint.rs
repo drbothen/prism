@@ -55,7 +55,7 @@ impl SensorAuth for CyberintAuth {
     }
 
     fn auth_type_name(&self) -> &'static str {
-        todo!("S-PLUGIN-PREREQ-E AC-2: return \"bearer_static\" for CyberintAuth per ADR-026 §D3")
+        "bearer_static"
     }
 }
 
