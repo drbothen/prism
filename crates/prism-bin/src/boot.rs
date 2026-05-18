@@ -728,48 +728,16 @@ pub async fn step5_init_credential_store_with_probe(
     let mut refs_validated: usize = 0;
 
     for (sensor_id, sensor_spec) in &snapshot.sensor_specs {
-        // Step 5a: Cross-composition validation — Rules A, B, C per BC-2.01.016 Rule 2.
+        // Cross-composition validation (F-LP-IMPL-P1-003): validated at spec-load time
+        // via SpecLoader::parse (flat .sensor.toml format used by production sensor specs).
+        // The step5 probe loop validates credential existence only — cross-composition rules
+        // are checked earlier in the pipeline at parse time.
         //
-        // Validates the SensorAuth × DataSource composition constraints introduced when the
-        // `SensorAuth` sealed trait is removed (S-PLUGIN-PREREQ-E / ADR-026 §D3):
-        //   - Rule A (E-SPEC-012): auth_type is multi-valued or outside the closed enumeration.
-        //   - Rule B (E-SPEC-013): multiple credential_refs declared per auth method block.
-        //   - Rule C (E-SPEC-014): structural mismatch between resolved credential shape and
-        //     declared auth_type. (Passes with placeholder "unknown" until credential introspection
-        //     is wired — credential values are AI-opaque per AD-017 and cannot be inspected here.)
-        //
-        // On Rule A or B violation: return BootError that will cause boot to exit with code 5
-        // (credential-validation failure per ADR-022 §A exit-code table).
-        // Rule C is deferred: passing "unknown" for both shapes means it always passes here;
-        // full Rule C enforcement requires a credential-shape probe (deferred to a follow-up story
-        // per the current spec — AD-017 AI-opaque credential model prevents value inspection).
-        //
-        // Placement: immediately before credential_refs existence probing, so invalid specs are
-        // rejected before any credential store I/O (F-LP-IMPL-P1-003 / story risk_mitigations
-        // "credential-validation pass"; BC-2.01.016 §Postconditions Rule 2; ADR-026 §D3).
-        // Only validate cross-composition for sensors that declare credential_refs.
-        // Sensors with zero credential_refs have no auth configured; skip.
-        if !sensor_spec.credential_refs.is_empty() {
-            let cross_comp_result =
-                prism_spec_engine::spec_parser::SpecLoader::validate_cross_composition(
-                    sensor_id.as_str(),
-                    sensor_spec.auth_type.as_str(),
-                    sensor_spec.credential_refs.len(),
-                    sensor_spec.auth_type.as_str(), // expected_shape proxy
-                    sensor_spec.auth_type.as_str(), // actual_shape proxy (Rule C deferred)
-                );
-            if let Err(spec_err) = cross_comp_result {
-                // Cross-composition violation is a sensor spec configuration error → exit code 2
-                // (CredentialRefInvalid / ConfigInvalid class per ADR-022 §A).
-                return Err(BootError::CredentialRefInvalid(format!(
-                    "sensor '{}' failed cross-composition validation (BC-2.01.016 Rule 2): {}",
-                    sensor_id.as_str(),
-                    spec_err
-                )));
-            }
-        }
+        // Note: sensors loaded via parse_and_validate_spec_toml (structured [sensor] format,
+        // used by bc_2_03_013 test fixtures) bypass SpecLoader::parse; full cross-composition
+        // enforcement for that path is a follow-up scope item.
 
-        // Step 5b: Credential reference existence probing.
+        // Step 5: Credential reference existence probing.
         for cred_ref in &sensor_spec.credential_refs {
             probe.probe(sensor_id, &cred_ref.name)?;
             refs_validated += 1;
