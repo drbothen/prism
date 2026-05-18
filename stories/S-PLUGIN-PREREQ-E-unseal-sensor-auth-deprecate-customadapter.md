@@ -23,7 +23,7 @@ crates_touched: [prism-sensors, prism-spec-engine, prism-query, prism-bin]
 target_module: prism-sensors
 subsystems: [SS-01, SS-07, SS-16, SS-17, SS-22]
 capabilities: [CAP-001, CAP-029]
-version: "1.40"
+version: "1.41"
 modified: "2026-05-17"
 level: "L4"
 producer: product-owner
@@ -134,11 +134,12 @@ invalidation — completing the Wave 0 plugin-only sensor architecture foundatio
 | `crates/prism-query/src/invalidation.rs` (WriteToolInvalidationMap RwLock migration + AtomicBool flag + mark_query_phase_started helper) | ~700 |
 | `crates/prism-spec-engine/src/error.rs` (WriteToolRegistrationAfterBoot variant) | ~50 |
 | `crates/prism-spec-engine/src/plugin/mod.rs` (or `loader.rs`) (PluginRuntime write-tool registration wiring) | ~150 |
+| `crates/prism-bin/src/boot.rs` (Task 7b: 1-line `mark_query_phase_started()` insertion) | ~30 |
 | `BC-2.16.004-rust-escape-hatch.md` (frontmatter: deprecated → removed) | ~200 |
 | `error-taxonomy.md` (E-SPEC-008 retired annotation) | ~100 |
 | Test files (Red Gate set + behavioral equivalence) | ~2,000 |
 | `crates/prism-query/Cargo.toml` (Task 7d: add `tracing-test = "0.2"` to `[dev-dependencies]`) | ~30 |
-| Total | ~17,630 |
+| Total | ~17,660 |
 
 Well within the 30% context window budget (~40k tokens).
 
@@ -404,6 +405,7 @@ Note: E-SPEC-010 (variable interpolation field-path miss) and E-SPEC-011 (pipe_v
 | `.factory/specs/behavioral-contracts/BC-2.16.004-rust-escape-hatch.md` | Modify | Update frontmatter: `lifecycle_status: deprecated → removed`; add `removed:` + `removal_reason:` |
 | `.factory/specs/prd-supplements/error-taxonomy.md` | Modify | Add `retired:` annotation to E-SPEC-008 row |
 | `crates/prism-spec-engine/src/plugin/mod.rs` (or `loader.rs` per current layout) | Modify | Wire PluginRuntime per-plugin write-tool registration: for each loaded plugin, iterate manifest write-tool entries and call `prism_query::invalidation::register_write_tool(entry)` during step 7.5 plugin-load (per ADR-026 §D7; ADR-022 §B step 7.5) |
+| `crates/prism-bin/src/boot.rs` | Modify (1-line insertion) | Add `prism_query::invalidation::mark_query_phase_started();` as first statement of step-8 init function, immediately before `QueryEngine::new()` call (F-LP56-HIGH-001 adjudication; ADR-026 D7 v1.21; this is the SOLE permitted boot.rs modification per Architecture Compliance Rule line 365) |
 
 Implementer note: run `grep -rn "CustomAdapter\|CustomAdapterRegistry\|CustomAuth" crates/` before committing. Expected: zero `src/` matches. Run `grep -rn "private::Sealed\|: Sealed\|impl Sealed" crates/prism-sensors/src/auth/` — expected: zero matches.
 
@@ -509,6 +511,7 @@ Tech debt closed:
 
 | Version | Burst | Date | Author | Change |
 |---------|-------|------|--------|--------|
+| v1.41 | FB66 | 2026-05-17 | product-owner | F-LP78-MED-001 closure: §File Structure Requirements + §Token Budget Estimate tables augmented with `crates/prism-bin/src/boot.rs` row (sibling-sweep gap from FB44 D-666 surviving 33+ passes — when crates_touched gained prism-bin per F-LP56-HIGH-001 Option A adjudication, both structural tables were not updated). POL-23 sibling-sweep discipline + POL-2 bidirectional traceability closure. Cycle-close DRIFT-OBS-LP78-001 candidate: POL-29 step 3a class (d) structural-table-completeness sibling-sweep mandate when crates_touched is amended. |
 | v1.40 | FB64 | 2026-05-17 | product-owner | F-LP76-HIGH-001 closure (PO scope): burst-label cell corrected FB74→FB62 in §Changelog row for v1.38. Original FB62 closure of F-LP74-HIGH-001 was labeled "FB74" derived from finding ID; canonical FB sequential counter was FB62 per state-manager records. POL-26 schema integrity + POL-29 cross-domain sibling consistency restored. |
 | v1.39 | FB63 | 2026-05-17 | product-owner | F-LP75-HIGH-001 closure (PO scope): story line 373 backtick-quoted `error-taxonomy.md` v1.34 → v1.35 (single-line fix; FB62 POL-29 v1.18 step 8b first-application missed this variant — caught 11 other sites but state-manager's execution ran canonical/combined grep without explicit per-variant enumeration). Recurrence #21 of META-PATTERN at SAME line 373 site that F-LP65-HIGH-001 first surfaced 10 passes ago. POL-29 v1.18 step 8b execution discipline gap — addressed by state-manager via POL-29 v1.19 amendment (explicit per-variant grep enumeration mandate in step 8b iteration loop). POL-29 v1.18 step 8b per-variant grep evidence: variant-1-bare pre/post=0/0; variant-2-with-md pre/post=0/0; variant-3-backtick pre/post=1/0. |
 | v1.38 | FB62 | 2026-05-17 | product-owner | F-LP74-HIGH-001 closure (PO scope): ADR-026 D7 pin v1.19→v1.21 propagation at story lines 187, 194, 279, 365×2, 402 (5 sites; 6 occurrences). Recurrence #20 of POL-29 step 3a registry class (b). Provenance: FB56b swept to v1.19 but ADR-026 bumped v1.19→v1.20 in same atomic commit (SM step 8a catch error-taxonomy propagation at §D7 line 312) + FB57 v1.20→v1.21 (POL-26 bookkeeping) — both bumps did NOT cascade pins. POL-29 v1.17 step 8a META-gap revealed: single-pass enforcement misses transitively-introduced staleness within own application cycle. POL-29 v1.17→v1.18 step 8b transitive closure amendment by state-manager (in-burst META-gap closure per user strategic direction). Sibling files BC-2.16.012 v1.23 + BC-2.16.002 v1.27 + error-taxonomy v1.35 + VP-156 v0.15 + HS-003 v1.12 swept in same burst; ADR-022 by architect. POL-29 step 8a grep evidence (PO-domain): pre-grep 19 → post-grep 0. |
