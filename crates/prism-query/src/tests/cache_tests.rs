@@ -23,7 +23,10 @@ use crate::cache::{
     DEFAULT_MAX_ENTRIES_PER_SENSOR,
 };
 use crate::cache_key::{CacheKey, PushDownParams};
-use crate::invalidation::{CacheInvalidator, WRITE_TOOL_INVALIDATION_MAP};
+use crate::invalidation::{
+    reset_dynamic_registry_global, reset_query_phase_global, CacheInvalidator,
+    WRITE_TOOL_INVALIDATION_MAP,
+};
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -119,6 +122,10 @@ fn test_ac6_configure_credential_source_does_not_invalidate_cache() {
 /// affected sensor are evicted synchronously.
 #[test]
 fn test_ac6_cache_entry_evicted_synchronously_after_write() {
+    // Reset global state for test isolation (handles post-poisoning recovery, F-LP-IMPL-P1-005).
+    reset_query_phase_global();
+    reset_dynamic_registry_global();
+
     let cache = Arc::new(QueryCache::with_defaults());
     let key = make_key("acme", "crowdstrike", "crowdstrike_detections");
     let rows = vec![json!({"id": "det-1"})];
@@ -494,6 +501,9 @@ fn test_BC_2_07_003_cross_client_partitions_are_independent() {
 /// write tool's source_ids (e.g., crowdstrike_acknowledge_alert → alerts + detections).
 #[test]
 fn test_BC_2_07_004_invalidate_for_write_tool_crowdstrike_acknowledge_alert() {
+    reset_query_phase_global();
+    reset_dynamic_registry_global();
+
     let cache = Arc::new(QueryCache::with_defaults());
     let invalidator = CacheInvalidator::new(Arc::clone(&cache));
     let client = OrgSlug::new("acme");
@@ -529,6 +539,9 @@ fn test_BC_2_07_004_invalidate_for_write_tool_crowdstrike_acknowledge_alert() {
 /// must invalidate armis_alerts.
 #[test]
 fn test_BC_2_07_004_invalidate_for_write_tool_armis_update_alert_status() {
+    reset_query_phase_global();
+    reset_dynamic_registry_global();
+
     let cache = Arc::new(QueryCache::with_defaults());
     let invalidator = CacheInvalidator::new(Arc::clone(&cache));
     let client = OrgSlug::new("acme");
@@ -552,6 +565,9 @@ fn test_BC_2_07_004_invalidate_for_write_tool_armis_update_alert_status() {
 /// must invalidate claroty_devices.
 #[test]
 fn test_BC_2_07_004_invalidate_for_write_tool_claroty_device_action() {
+    reset_query_phase_global();
+    reset_dynamic_registry_global();
+
     let cache = Arc::new(QueryCache::with_defaults());
     let invalidator = CacheInvalidator::new(Arc::clone(&cache));
     let client = OrgSlug::new("acme");
@@ -575,6 +591,9 @@ fn test_BC_2_07_004_invalidate_for_write_tool_claroty_device_action() {
 /// (missing mapping = bug, per BC-2.07.004 description).
 #[test]
 fn test_BC_2_07_004_unknown_write_tool_returns_internal_error() {
+    reset_query_phase_global();
+    reset_dynamic_registry_global();
+
     let cache = Arc::new(QueryCache::with_defaults());
     let invalidator = CacheInvalidator::new(Arc::clone(&cache));
     let client = OrgSlug::new("acme");
@@ -592,6 +611,9 @@ fn test_BC_2_07_004_unknown_write_tool_returns_internal_error() {
 /// This is the core write-then-read consistency invariant.
 #[test]
 fn test_BC_2_07_004_dec018_write_then_read_sees_fresh_data_not_cached() {
+    reset_query_phase_global();
+    reset_dynamic_registry_global();
+
     let cache = Arc::new(QueryCache::with_defaults());
     let invalidator = CacheInvalidator::new(Arc::clone(&cache));
     let client = OrgSlug::new("acme");
