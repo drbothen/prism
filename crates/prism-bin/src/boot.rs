@@ -728,14 +728,18 @@ pub async fn step5_init_credential_store_with_probe(
     let mut refs_validated: usize = 0;
 
     for (sensor_id, sensor_spec) in &snapshot.sensor_specs {
-        // Cross-composition validation (F-LP-IMPL-P1-003): validated at spec-load time
-        // via SpecLoader::parse (flat .sensor.toml format used by production sensor specs).
-        // The step5 probe loop validates credential existence only — cross-composition rules
-        // are checked earlier in the pipeline at parse time.
+        // Cross-composition validation (BC-2.01.016 Rule A/B, F-LP-IMPL-P2-001):
+        // All production spec-load paths route through `parse_and_validate_spec_toml`
+        // in `prism-spec-engine/src/add_sensor_spec.rs`, which enforces
+        // `SpecLoader::validate_cross_composition` before returning Ok(SensorSpec).
         //
-        // Note: sensors loaded via parse_and_validate_spec_toml (structured [sensor] format,
-        // used by bc_2_03_013 test fixtures) bypass SpecLoader::parse; full cross-composition
-        // enforcement for that path is a follow-up scope item.
+        // Production paths that call `parse_and_validate_spec_toml`:
+        //   - `config_manager::parse_spec_directory` (boot step 4 loading)
+        //   - `add_sensor_spec::add_sensor_spec` (MCP add_sensor_spec tool)
+        //   - `hot_reload::process_spec_changes` (hot_reload.rs:121, :206)
+        //
+        // This step5 probe loop validates credential *existence* only — cross-composition
+        // structural rules (Rule A/B) have already been enforced at parse time.
 
         // Step 5: Credential reference existence probing.
         for cred_ref in &sensor_spec.credential_refs {
