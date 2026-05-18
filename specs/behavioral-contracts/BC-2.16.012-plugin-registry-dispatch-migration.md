@@ -1,17 +1,17 @@
 ---
 document_type: behavioral-contract
 level: L3
-version: "1.26"
+version: "1.27"
 status: draft
 producer: product-owner
-timestamp: 2026-05-16T00:00:00Z
+timestamp: 2026-05-18T06:00:00Z
 phase: 1a
 origin: greenfield
 subsystem: "SS-16"
 capability: "CAP-029"
 lifecycle_status: draft
 introduced: "2026-05-15"
-modified: "2026-05-17"
+modified: "2026-05-18"
 deprecated: ~
 deprecated_by: ~
 replacement: ~
@@ -105,7 +105,7 @@ sensors; the change is structural (open dispatch replaces closed match).
 | EC-016-012-001 | `spec_parser.rs` has a match arm `"crowdstrike" => <crowdstrike-specific-logic>` that is actually behavioral, not just naming | That logic is generalized into the `SensorSpec` field model (e.g., added as a TOML field) or moved into the CrowdStrike sensor TOML spec. No sensor-specific Rust branch survives. |
 | EC-016-012-002 | A new sensor TOML spec is added post-PREREQ-E (e.g., `hypothetical.sensor.toml`) | Parsed generically; tables registered; no hardcoded name check blocks it |
 | EC-016-012-003 | PluginRegistry returns `Some(plugin)` for a sensor that also has a TOML spec | The registry-provided plugin adapter takes precedence for fetch behavior; the TOML spec provides table schema and column definitions (ADR-023 Rule 1 TOML as declarative baseline) |
-| EC-016-012-004 | `register_write_tool` called by two plugins registering the same write tool name | Second registration is rejected with `Err(SpecEngineError::DuplicateWriteToolRegistration(tool_name))` per ADR-026 D7. Last-writer-wins is explicitly forbidden — see ADR-026 D7 rationale for production-grade default enforcement. |
+| EC-016-012-004 | `register_write_tool` called by two plugins registering the same write tool name | Second registration is rejected with `Err(SpecEngineError::DuplicateWriteToolRegistration(tool_name))` per ADR-026 D7. Last-writer-wins is explicitly forbidden. **Post-rejection fail-closed semantics (F-LP-IMPL-P4-002):** the plugin whose registration failed is rolled back in full — all of its write tools are deregistered from `DYNAMIC_WRITE_TOOLS` and the plugin is removed from `PluginRuntime`. This prevents stale reads after writes (BC-2.07.004 §write-then-read consistency). An ERROR-level `plugin_registration_rolled_back` event is emitted (BC-2.16.002 row 34). The surviving plugin whose original tool_name was first registered is unaffected. |
 | EC-016-012-005 | `register_write_tool` called from a non-boot context (after server is live, step 8+) | Rejected with `Err(SpecEngineError::WriteToolRegistrationAfterBoot)` per ADR-026 D7. An `AtomicBool` query-phase flag gates the write; the flag is set by `prism_query::invalidation::mark_query_phase_started()`, invoked as the **first statement** of the step-8 function in `crates/prism-bin/src/boot.rs` immediately before `QueryEngine::new()` is constructed (F-LP56-HIGH-001 adjudication; ADR-026 D7 v1.23). A WARN-level tracing event `write_tool_registration_after_boot` is emitted per BC-2.16.002 §Postconditions (Canonical Structured Event Catalog bullet, v1.21) row 33. Plugin lifecycle must register write tools during boot step 7.5 only. Error code: E-PLUGIN-020. |
 
 ## Canonical Test Vectors
@@ -160,6 +160,7 @@ S-PLUGIN-PREREQ-E
 
 | Version | Burst | Date | Author | Change |
 |---------|-------|------|--------|--------|
+| 1.27 | FB-IMPL-3 | 2026-05-18 | implementer+state-manager | F-LP-IMPL-P4-002 Route A closure (implementer scope): EC-016-012-004 body updated with explicit fail-closed semantics — second registration rejected with `Err(SpecEngineError::DuplicateWriteToolRegistration(tool_name))`; failed plugin rolled back in full via `deregister_write_tools_for_plugin` + `PluginRuntime::unregister_plugin`; ERROR-level `plugin_registration_rolled_back` event emitted (BC-2.16.002 row 34). Prevents stale reads after writes per BC-2.07.004 §write-then-read consistency. Companion BC-2.16.002 v1.32 catalogs the new event. state-manager performed frontmatter sync (version + modified + timestamp) per routing table bookkeeping scope. |
 | 1.26 | FB73 | 2026-05-17 | product-owner | F-LP85-HIGH-001 closure (PO scope): ADR-026 D7 pin v1.22→v1.23 propagation at BC-2.16.012 lines 84, 109, 124, 138 (4 sites; §D7 form). Sibling files story v1.46 + BC-2.16.011 v1.10 + BC-2.16.002 v1.31 (POL-30 Fork B preserved) + VP-156 v0.18 + HS-003 v1.15 + error-taxonomy v1.38 swept in same burst. |
 | 1.25 | FB69 | 2026-05-17 | product-owner | F-LP81-HIGH-002 closure (PO scope): ADR-026 D7 pin v1.21→v1.22 propagation at lines 84, 109, 124, 138 (4 sites; §D7 form). Recurrence #22+ of POL-29 step 3a class (b). Sibling files story v1.44 + BC-2.16.002 v1.29 + error-taxonomy v1.37 + VP-156 v0.17 + HS-003 v1.14 swept in same burst. |
 | 1.24 | FB64 | 2026-05-17 | product-owner | F-LP76-HIGH-001 closure (PO scope): burst-label cell corrected FB74→FB62 in §Changelog row for v1.23. Original FB62 closure of F-LP74-HIGH-001 was labeled "FB74" derived from finding ID; canonical FB sequential counter was FB62 per state-manager records. POL-26 schema integrity + POL-29 cross-domain sibling consistency restored. |

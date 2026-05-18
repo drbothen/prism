@@ -1,17 +1,17 @@
 ---
 document_type: behavioral-contract
 level: L3
-version: "1.31"
+version: "1.32"
 status: active
 producer: product-owner
-timestamp: 2026-05-16T14:00:00Z
+timestamp: 2026-05-18T06:00:00Z
 phase: 1a
 origin: greenfield
 subsystem: "SS-16"
 capability: "CAP-029"
 lifecycle_status: active
 introduced: cycle-1
-modified: 2026-05-17
+modified: 2026-05-18
 deprecated: null
 deprecated_by: null
 replacement: null
@@ -108,6 +108,7 @@ final collected records, not intermediate step results. Rate limit hints from th
 | `plugin_load_failed_format_version_missing` | error | `PluginRuntime::load_all_plugins` | `plugin_path`, `supported`, `error: E-PLUGIN-019` | Manifest `format_version` field is absent entirely; plugin rejected (n-1 survivor); AC-5: absent `format_version` is a hard rejection, not silently treated as 0 |
 | `plugin_log_level_unrecognized` | warn | `register_host_functions` → `host::log` callback (`host_functions.rs`) | `plugin_id`, `received_name` | Plugin sent a `log-level` enum variant name not recognized by the current host implementation (e.g., a future log-level added to a newer WIT IDL); host defaults to `LogLevel::Info` to preserve forward-compatibility. Emitted BEFORE the default so the downgrade is always observable in tracing. Not a trap — trapping on unrecognized future enum names would break forward-compat. Audit role: operational observability (not security). Recurrence: once per unrecognized log call from the plugin. |
 | `write_tool_registration_after_boot` | warn | `register_write_tool` (`crates/prism-query/src/invalidation.rs`) | `plugin_name: String` (source: `entry.plugin_name` — `WriteToolInvalidationMap` struct field; set by `PluginRuntime` from plugin manifest `name` field at step 7.5 plugin-load per ADR-026 D7 v1.23), `tool_name: String` (source: `entry.tool_name` — `WriteToolInvalidationMap` struct field), `error: "E-PLUGIN-020"` (source: literal string constant) | `register_write_tool` called after query-engine init starts (step 8+, ADR-026 D7); the `AtomicBool` query-phase flag is set at step 8 start (first act of step 8, before QueryEngine construction proceeds), gating the write; registration rejected with `Err(SpecEngineError::WriteToolRegistrationAfterBoot)`. Audit role: forensic-trace (error event tied to E-PLUGIN-020; matches audit role of sibling WARN-level post-boot rejection events). Recurrence: one emission per post-boot registration attempt; not retried. Retention: per organization audit policy. |
+| `plugin_registration_rolled_back` | error | `plugin_load_step_with_audit` step 7.6 (`crates/prism-bin/src/boot.rs`) | `plugin_name: String` (source: plugin manifest `name` field), `tool_name: String` (source: failing `WriteToolInvalidationMap.tool_name`), `registration_error: String` (source: `reg_err` Display), `rolled_back_tools: usize` (source: `deregister_write_tools_for_plugin` return value), `plugin_unregistered: bool` (source: `PluginRuntime::unregister_plugin` return value) | A plugin's write-tool registration failed (e.g., `DuplicateWriteToolRegistration`). All write tools previously registered for this plugin are removed from `DYNAMIC_WRITE_TOOLS` and the plugin is unregistered from `PluginRuntime` (fail-closed per BC-2.07.004 §write-then-read consistency — partial write-tool state would allow stale reads after writes). Emitted at ERROR severity per F-LP-IMPL-P4-002. Audit role: operational incident (plugin partially loaded then rolled back; operator action may be required to inspect duplicate tool_name in manifest). Recurrence: one emission per failed write-tool registration at boot step 7.6. Retention: per organization audit policy. |
 
 ## Variable Scope and Lifetime
 - Variables produced by a step are available to all subsequent steps but not to prior steps
@@ -170,6 +171,7 @@ See `.factory/specs/prd-supplements/test-vectors.md` for full canonical vectors.
 
 | Version | Burst | Date | Author | Change |
 |---------|-------|------|--------|--------|
+| 1.32 | FB-IMPL-3 | 2026-05-18 | implementer+state-manager | F-LP-IMPL-P4-002 Route A closure (implementer scope): added `plugin_registration_rolled_back` ERROR event as row 34 to Canonical Structured Event Catalog. Function: `plugin_load_step_with_audit` step 7.6 (`crates/prism-bin/src/boot.rs`). Fields: `plugin_name: String` (plugin manifest `name`), `tool_name: String` (failing `WriteToolInvalidationMap.tool_name`), `registration_error: String` (`reg_err` Display), `rolled_back_tools: usize` (`deregister_write_tools_for_plugin` return), `plugin_unregistered: bool` (`PluginRuntime::unregister_plugin` return). Trigger: write-tool registration failure; fail-closed rollback per BC-2.07.004 §write-then-read consistency. Audit role: operational incident. Catalog count 33→34; intro updated v1.21→v1.22. state-manager performed frontmatter sync (version + modified + timestamp) per routing table bookkeeping scope. |
 | 1.31 | FB73 | 2026-05-17 | product-owner | F-LP85-HIGH-001 closure (PO scope): ADR-026 D7 pin v1.22→v1.23 propagation at BC-2.16.002 line 110 row 33 body cite (1 site). POL-30 Fork B preserved: catalog bullet label `(v1.21)` at line 74 UNCHANGED. Sibling files story v1.46 + BC-2.16.011 v1.10 + BC-2.16.012 v1.26 + VP-156 v0.18 + HS-003 v1.15 + error-taxonomy v1.38 swept in same burst. |
 | 1.30 | FB70 | 2026-05-17 | product-owner | F-LP82-HIGH-001 closure (PO scope): line 110 row 33 body cite-pin `per ADR-026 D7 v1.21` → `per ADR-026 D7 v1.22` (single 5-char fix). **RETRACTS FB69 v1.29 row narrative** which incorrectly framed line 110 cite-pin as POL-30 Fork B frozen — Fork B freezes ONLY the catalog bullet-version-label at line 74 (`(v1.21)`, tracking catalog-content-version when event table content last changed); row-body ADR-pin citations are governed by POL-29 class (b) cite-pin propagation and MUST advance when ADR-026 bumps. FB55/FB56b/FB62 3-burst precedent (v1.17→v1.18, v1.18→v1.19, v1.19→v1.21 at this exact site) all correctly advanced under proper POL-30 scope. Line 74 catalog bullet label `(v1.21)` correctly preserved unchanged per Fork B canonical rule. |
 | 1.29 | FB69 | 2026-05-17 | product-owner | F-LP81-HIGH-002 closure (PO scope): frontmatter version bump only (1 site — line 110 catalog bullet). POL-30 Fork B preserved: catalog bullet label `(v1.21)` UNCHANGED per POL-30 Fork B freeze. Body line 110 ADR-026 D7 v1.21 citation is the POL-30 Fork B frozen value and must not be incremented. Sibling files story v1.44 + BC-2.16.012 v1.25 + error-taxonomy v1.37 + VP-156 v0.17 + HS-003 v1.14 swept in same burst. |
