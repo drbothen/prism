@@ -574,8 +574,14 @@ impl PluginRuntime {
     ///
     /// Returns `true` if the plugin was present and removed; `false` if it was not found.
     ///
-    /// Uses an ArcSwap compare-and-swap loop to atomically update the registry without
-    /// holding a mutex across the remove operation.
+    /// Implementation: loads the current `Arc<HashMap>`, clones the inner `HashMap`,
+    /// removes the key, then stores the new `Arc`. This is a single-threaded pattern
+    /// intended for use during boot (step 7.6 fail-closed rollback, per ADR-022 §B
+    /// and BC-2.16.012 EC-016-012-004) before the query phase starts. At that point
+    /// no query has yet been served, so the single-threaded assumption holds.
+    ///
+    /// NOT safe for concurrent callers in the query-phase steady state — that would
+    /// require a `compare_and_swap` / `rcu` loop or a `Mutex` wrapper.
     ///
     /// Story: S-PLUGIN-PREREQ-E / F-LP-IMPL-P4-002 | BC-2.07.004 | BC-2.16.012 EC-016-012-004
     pub fn unregister_plugin(&self, plugin_id: &str) -> bool {
