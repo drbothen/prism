@@ -154,6 +154,25 @@ pub fn register_write_tool(entry: WriteToolInvalidationMap) -> Result<(), SpecEn
     Ok(())
 }
 
+/// Remove all dynamically-registered write tools for a given plugin from `DYNAMIC_WRITE_TOOLS`.
+///
+/// Used by boot step 7.6 to roll back all write-tool registrations for a plugin when any one
+/// of that plugin's write tools fails to register (fail-closed per BC-2.07.004 §write-then-read
+/// consistency: a plugin with partial write-tool registration would produce stale reads).
+///
+/// Returns the count of removed entries (0 if plugin had no registered tools or on lock poison).
+///
+/// Story: S-PLUGIN-PREREQ-E / F-LP-IMPL-P4-002 | BC-2.07.004 | BC-2.16.012 EC-016-012-004
+pub fn deregister_write_tools_for_plugin(plugin_name: &str) -> usize {
+    let mut guard = match DYNAMIC_WRITE_TOOLS.write() {
+        Ok(g) => g,
+        Err(_) => return 0, // poisoned — nothing to rollback
+    };
+    let before = guard.len();
+    guard.retain(|e| e.plugin_name != plugin_name);
+    before - guard.len()
+}
+
 /// Return the number of dynamically-registered write tools in `DYNAMIC_WRITE_TOOLS`.
 ///
 /// Used by integration tests (in `prism-bin`) to assert that plugin write tool

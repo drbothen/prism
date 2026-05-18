@@ -1029,9 +1029,26 @@ pub async fn plugin_load_step_with_audit(
     //
     // Must execute AFTER step 7.5 plugin-load AND BEFORE step 8 mark_query_phase_started().
     // Ordering invariant: ADR-022 §B step 7.5/8 (plugin-load → register_write_tool → query-phase).
-    // Duplicate or post-boot registration failures are non-fatal (n-1 survivor rule applies
-    // to plugins; the plugin that loaded successfully stays in the registry).
-    for (plugin_name, manifest_tool) in pending_write_tools {
+    //
+    // Fail-closed semantics (F-LP-IMPL-P4-002 / BC-2.07.004):
+    // If ANY write-tool registration for a plugin fails, the entire plugin is rolled back:
+    // - All previously-registered write tools for that plugin are removed from DYNAMIC_WRITE_TOOLS
+    // - The plugin is unregistered from PluginRuntime
+    // - ERROR-level tracing event `plugin_registration_rolled_back` is emitted
+    // (BC-2.16.002 row 34)
+    //
+    // Rationale: a plugin with partial write-tool registration is in an inconsistent state —
+    // its read queries succeed but its write paths are silently broken, violating BC-2.07.004
+    // §write-then-read consistency. The "n-1 survivor rule" applies to plugin LOAD failures
+    // (step 7.5), NOT to write-tool registration failures (step 7.6) which leave the plugin
+    // in an undefined write state.
+
+    // Group pending write tools by plugin_name to enable per-plugin rollback.
+    let mut plugins_to_rollback: Vec<String> = Vec::new();
+
+    // Process tools in order (preserving original deterministic order from load_all_plugins).
+    // Track the last plugin whose tool failed; rollback happens immediately on failure.
+    for (plugin_name, manifest_tool) in &pending_write_tools {
         let entry = prism_query::invalidation::WriteToolInvalidationMap {
             tool_name: manifest_tool.tool_name.clone(),
             source_ids: manifest_tool.source_ids.clone(),
@@ -1039,15 +1056,43 @@ pub async fn plugin_load_step_with_audit(
             plugin_name: plugin_name.clone(),
         };
         if let Err(reg_err) = prism_query::invalidation::register_write_tool(entry) {
-            // Non-fatal: the plugin loaded successfully. Log at WARN so operators can diagnose
-            // duplicate tool_name conflicts or post-boot registration attempts.
-            tracing::warn!(
+            // Fail-closed: rollback all write tools registered for this plugin + unregister
+            // the plugin from PluginRuntime.
+            let rolled_back_tools =
+                prism_query::invalidation::deregister_write_tools_for_plugin(plugin_name);
+            let plugin_unregistered = runtime.unregister_plugin(plugin_name);
+            tracing::error!(
+                event_type = "plugin_registration_rolled_back",
                 plugin_name = %plugin_name,
                 tool_name = %manifest_tool.tool_name,
-                error = %reg_err,
-                "write tool registration failed for plugin (non-fatal per n-1 survivor rule)"
+                registration_error = %reg_err,
+                rolled_back_tools = rolled_back_tools,
+                plugin_unregistered = plugin_unregistered,
+                "write tool registration failed; plugin rolled back (BC-2.07.004 fail-closed — \
+                 partial write-tool state would violate write-then-read consistency)"
             );
+            plugins_to_rollback.push(plugin_name.clone());
         }
+    }
+
+    // Log summary: how many plugins were rolled back vs survived.
+    let n_rolled_back = {
+        let mut seen = std::collections::HashSet::new();
+        plugins_to_rollback
+            .iter()
+            .filter(|p| seen.insert((*p).clone()))
+            .count()
+    };
+    if n_rolled_back > 0 {
+        let survivors = plugins_loaded.saturating_sub(n_rolled_back);
+        tracing::error!(
+            n_rolled_back = n_rolled_back,
+            n_surviving = survivors,
+            "boot: {} plugin(s) rolled back due to write-tool registration failure \
+             (BC-2.07.004 fail-closed; {} plugin(s) operational)",
+            n_rolled_back,
+            survivors
+        );
     }
 
     tracing::info!(

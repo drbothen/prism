@@ -833,3 +833,189 @@ async fn test_BC_2_16_012_plugin_runtime_registers_write_tools_pre_query_phase()
     reset_query_phase_global();
     reset_dynamic_registry_global();
 }
+
+// ---------------------------------------------------------------------------
+// F-LP-IMPL-P4-002 — Fail-closed plugin rollback on write-tool registration failure
+//
+// Scenario: two plugins are loaded. Plugin A registers its write tool successfully.
+// Plugin B declares two write tools with the SAME tool_name as each other — the
+// second registration triggers DuplicateWriteToolRegistration. Plugin B must be
+// fully rolled back: its successfully-registered first tool removed AND the plugin
+// unregistered from PluginRuntime.
+//
+// Plugin A must be unaffected — n-1 survivor rule for plugins that loaded cleanly.
+//
+// Pre-fix failure mode: the step7.6 loop logged WARN and continued — plugin B
+// stayed in PluginRuntime as fully loaded even with a broken write path.
+// Post-fix: plugin B is unregistered; plugin A is intact.
+// ---------------------------------------------------------------------------
+
+/// Manifest TOML for plugin B: declares TWO write tools with duplicate tool_names.
+/// The second registration triggers DuplicateWriteToolRegistration.
+const MANIFEST_DUPLICATE_WRITE_TOOL_TOML: &str = r#"
+name = "dup-write-tool-plugin"
+version = "1.0.0"
+format_version = 1
+allowed_urls = []
+
+[[write_tools]]
+tool_name = "dup_tool_alpha"
+sensor_id = "dup_sensor"
+source_ids = ["dup_source_one"]
+
+[[write_tools]]
+tool_name = "dup_tool_alpha"
+sensor_id = "dup_sensor"
+source_ids = ["dup_source_two"]
+"#;
+
+/// Manifest TOML for a clean plugin that loads alongside the dup-tool plugin.
+const MANIFEST_CLEAN_SIBLING_TOML: &str = r#"
+name = "clean-sibling-plugin"
+version = "1.0.0"
+format_version = 1
+allowed_urls = []
+
+[[write_tools]]
+tool_name = "clean_sibling_tool"
+sensor_id = "clean_sensor"
+source_ids = ["clean_source"]
+"#;
+
+/// F-LP-IMPL-P4-002 (IMPORTANT) — plugin_load_step must roll back a plugin when any of its
+/// write tools fails to register (fail-closed per BC-2.07.004 §write-then-read consistency).
+///
+/// Scenario:
+/// - Plugin "clean-sibling-plugin": 1 write tool, loads cleanly
+/// - Plugin "dup-write-tool-plugin": 2 write tools with SAME tool_name → 2nd causes
+///   DuplicateWriteToolRegistration
+///
+/// Post-fix assertions:
+/// 1. "dup-write-tool-plugin" is NOT in PluginRuntime (unregistered on rollback)
+/// 2. "clean-sibling-plugin" IS in PluginRuntime (unaffected by sibling rollback)
+/// 3. "dup_tool_alpha" is NOT in DYNAMIC_WRITE_TOOLS (rolled back)
+/// 4. "clean_sibling_tool" IS in DYNAMIC_WRITE_TOOLS (clean plugin unaffected)
+///
+/// Pre-fix failure mode: "dup-write-tool-plugin" stays in PluginRuntime at partial
+/// write state; only WARN log, no rollback. Assertions 1 and 3 fail.
+///
+/// Story: S-PLUGIN-PREREQ-E / F-LP-IMPL-P4-002 | BC-2.07.004 | BC-2.16.012 EC-016-012-004
+#[tokio::test]
+#[allow(non_snake_case)]
+async fn test_BC_2_16_012_write_tool_reg_failure_rolls_back_plugin() {
+    use prism_query::invalidation::{
+        dynamic_write_tool_count, reset_dynamic_registry_global, reset_query_phase_global,
+    };
+    use prism_spec_engine::plugin::PluginRuntime;
+
+    // Reset global state for test isolation.
+    reset_query_phase_global();
+    reset_dynamic_registry_global();
+
+    let dir = tempfile::tempdir().expect("create temp dir");
+    let bytes = compile_wat(MINIMAL_INFUSION_WAT);
+
+    // Write both plugins.
+    write_prx(&dir, "clean-sibling-plugin", &bytes);
+    write_manifest(&dir, "clean-sibling-plugin", MANIFEST_CLEAN_SIBLING_TOML);
+
+    write_prx(&dir, "dup-write-tool-plugin", &bytes);
+    write_manifest(
+        &dir,
+        "dup-write-tool-plugin",
+        MANIFEST_DUPLICATE_WRITE_TOOL_TOML,
+    );
+
+    let count_before = dynamic_write_tool_count();
+
+    let result = plugin_load_step(dir.path()).await;
+    assert!(
+        result.is_ok(),
+        "F-LP-IMPL-P4-002: plugin_load_step must return Ok even when a plugin rolls back \
+         (rollback is internal; boot continues with surviving plugins); got: {:?}",
+        result.err()
+    );
+
+    let load_result = result.unwrap();
+
+    // Both plugins loaded at step 7.5; dup-tool rolls back at step 7.6.
+    // plugins_loaded reflects step 7.5 count (both loaded before rollback).
+    assert!(
+        load_result.plugins_loaded >= 1,
+        "F-LP-IMPL-P4-002: at least 1 plugin must have been loaded at step 7.5; \
+         got plugins_loaded={}",
+        load_result.plugins_loaded
+    );
+
+    // Assertion 1: "dup-write-tool-plugin" must be unregistered from PluginRuntime.
+    let dup_plugin_present = load_result
+        .runtime
+        .get_plugin("dup-write-tool-plugin")
+        .is_ok();
+    assert!(
+        !dup_plugin_present,
+        "F-LP-IMPL-P4-002: 'dup-write-tool-plugin' must be unregistered from PluginRuntime \
+         after write-tool registration failure (fail-closed rollback); \
+         plugin is still present — step7.6 did not call unregister_plugin"
+    );
+
+    // Assertion 2: "clean-sibling-plugin" must remain in PluginRuntime.
+    let clean_plugin_present = load_result
+        .runtime
+        .get_plugin("clean-sibling-plugin")
+        .is_ok();
+    assert!(
+        clean_plugin_present,
+        "F-LP-IMPL-P4-002: 'clean-sibling-plugin' must remain in PluginRuntime \
+         (rollback of sibling plugin must not affect clean plugins)"
+    );
+
+    // Assertion 3: DYNAMIC_WRITE_TOOLS count must reflect exactly +1 (clean sibling's tool).
+    // dup plugin's 2 write tools must be rolled back, so net change is +1 not +2.
+    let dynamic_count_after = dynamic_write_tool_count();
+    // clean-sibling-plugin registers 1 tool cleanly; dup plugin's tools are rolled back.
+    // Net: +1 (clean) from count_before.
+    assert_eq!(
+        dynamic_count_after,
+        count_before + 1,
+        "F-LP-IMPL-P4-002: DYNAMIC_WRITE_TOOLS must contain exactly +1 entry after load \
+         (clean sibling's tool) — dup plugin's tools must be rolled back; \
+         before={count_before}, after={dynamic_count_after}. \
+         If count = +2, step7.6 did not roll back the dup plugin's first tool."
+    );
+
+    // Assertion 4: "clean_sibling_tool" must be registerable with DuplicateWriteToolRegistration
+    // (proving it IS in the registry). Attempting to re-register it must fail with Duplicate.
+    use prism_query::invalidation::{WriteToolInvalidationMap, register_write_tool};
+    let re_register = register_write_tool(WriteToolInvalidationMap {
+        tool_name: "clean_sibling_tool".to_string(),
+        source_ids: vec!["clean_source".to_string()],
+        sensor_id: prism_core::SensorId::from("clean_sensor"),
+        plugin_name: "clean-sibling-plugin".to_string(),
+    });
+    assert!(
+        re_register.is_err(),
+        "F-LP-IMPL-P4-002: re-registering 'clean_sibling_tool' must fail with \
+         DuplicateWriteToolRegistration (proving the tool IS in the registry after load); \
+         got Ok — clean sibling tool was incorrectly deregistered or never registered"
+    );
+
+    // Assertion 5: "dup_tool_alpha" must NOT be in the registry.
+    // Attempting to register it must SUCCEED (not DuplicateWriteToolRegistration).
+    let register_dup = register_write_tool(WriteToolInvalidationMap {
+        tool_name: "dup_tool_alpha".to_string(),
+        source_ids: vec!["dup_source_probe".to_string()],
+        sensor_id: prism_core::SensorId::from("dup_sensor"),
+        plugin_name: "probe-plugin".to_string(),
+    });
+    assert!(
+        register_dup.is_ok(),
+        "F-LP-IMPL-P4-002: registering 'dup_tool_alpha' (post-rollback) must succeed — \
+         the tool must have been deregistered by the rollback; got: {:?}",
+        register_dup.err()
+    );
+
+    // Cleanup.
+    reset_query_phase_global();
+    reset_dynamic_registry_global();
+}

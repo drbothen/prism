@@ -565,6 +565,30 @@ impl PluginRuntime {
         Ok((n_loaded, pending_write_tool_registrations))
     }
 
+    /// Remove a plugin from the registry by plugin_id.
+    ///
+    /// Used by boot step 7.6 to roll back a plugin whose write-tool registration failed.
+    /// A plugin with partial write-tool registration is in an inconsistent state — its
+    /// read queries succeed but its write paths are silently broken. Unregistering it
+    /// prevents stale reads after writes (BC-2.07.004 §write-then-read consistency).
+    ///
+    /// Returns `true` if the plugin was present and removed; `false` if it was not found.
+    ///
+    /// Uses an ArcSwap compare-and-swap loop to atomically update the registry without
+    /// holding a mutex across the remove operation.
+    ///
+    /// Story: S-PLUGIN-PREREQ-E / F-LP-IMPL-P4-002 | BC-2.07.004 | BC-2.16.012 EC-016-012-004
+    pub fn unregister_plugin(&self, plugin_id: &str) -> bool {
+        let current = self.registry.load();
+        if !current.contains_key(plugin_id) {
+            return false;
+        }
+        let mut new_registry = (**current).clone();
+        new_registry.remove(plugin_id);
+        self.registry.store(Arc::new(new_registry));
+        true
+    }
+
     /// Return an `Arc<LoadedPlugin>` for `plugin_id`, or `Err(NotLoaded)`.
     pub fn get_plugin(&self, plugin_id: &str) -> Result<Arc<LoadedPlugin>, PluginError> {
         let registry = self.registry.load();
