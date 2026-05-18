@@ -207,6 +207,17 @@ pub enum SpecEngineError {
         actual_shape: String,
     },
 
+    /// E-PLUGIN-012: A second `register_write_tool()` call with the same `tool_name`
+    /// was rejected. First-registration always persists; last-writer-wins is explicitly
+    /// forbidden (ADR-026 §D7; BC-2.16.012 EC-016-012-004).
+    ///
+    /// The `tool_name` field carries the duplicate tool name for diagnostics.
+    /// It is NOT a credential value — `Debug` derive is safe.
+    #[error(
+        "E-PLUGIN-012: duplicate write tool registration rejected — tool '{0}' is already registered (ADR-026 §D7)"
+    )]
+    DuplicateWriteToolRegistration(String),
+
     /// E-PLUGIN-020: `register_write_tool()` called after query-phase flag was set
     /// (i.e., after boot step 8 has started per ADR-022 §B step 7.5/8 ordering).
     ///

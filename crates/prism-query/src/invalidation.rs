@@ -18,14 +18,27 @@
 //!
 //! Story: S-3.05
 
-use std::sync::atomic::AtomicBool;
-use std::sync::{Arc, LazyLock};
+use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::{Arc, LazyLock, RwLock};
 
 use prism_core::error::PrismError;
 use prism_core::{OrgSlug, SensorId};
 use prism_spec_engine::error::SpecEngineError;
 
 use crate::cache::QueryCache;
+
+// ---------------------------------------------------------------------------
+// Dynamic write-tool registry (S-PLUGIN-PREREQ-E AC-9 / Task 7)
+// ---------------------------------------------------------------------------
+
+/// Runtime-extensible container for plugin-registered write tools.
+///
+/// Separate from `WRITE_TOOL_INVALIDATION_MAP` (the static built-in list) so
+/// that plugin registrations during boot step 7.5 do not mutate the static list.
+/// Read path combines both sources (static + dynamic).
+///
+/// Story: S-PLUGIN-PREREQ-E AC-9 / Task 7 | BC-2.16.012 | ADR-026 §D7
+static DYNAMIC_WRITE_TOOLS: RwLock<Vec<WriteToolInvalidationMap>> = RwLock::new(Vec::new());
 
 // ---------------------------------------------------------------------------
 // WriteToolInvalidationMap
@@ -72,7 +85,6 @@ pub struct WriteToolInvalidationMap {
 ///
 /// Set via `mark_query_phase_started()`. Read via `Ordering::Acquire` in
 /// `register_write_tool()`.
-#[allow(dead_code)] // referenced by mark_query_phase_started() todo!() — implementer will use this
 static QUERY_PHASE_STARTED: AtomicBool = AtomicBool::new(false);
 
 /// Marks the query phase as started, permanently closing the write-tool
@@ -89,7 +101,7 @@ static QUERY_PHASE_STARTED: AtomicBool = AtomicBool::new(false);
 ///
 /// Story: S-PLUGIN-PREREQ-E AC-9 / Task 7b | ADR-026 §D7 | ADR-022 §B step 7.5/8
 pub fn mark_query_phase_started() {
-    todo!("S-PLUGIN-PREREQ-E AC-9: store true to QUERY_PHASE_STARTED with Ordering::Release (ADR-026 §D7; production caller is boot.rs step-8 init function)")
+    QUERY_PHASE_STARTED.store(true, Ordering::Release);
 }
 
 /// Register a plugin-provided write tool in the runtime-extensible invalidation map.
@@ -102,8 +114,34 @@ pub fn mark_query_phase_started() {
 /// - Otherwise pushes `entry` and returns `Ok(())`.
 ///
 /// Story: S-PLUGIN-PREREQ-E AC-9 / Task 7 | BC-2.16.012 EC-016-012-004/005 | ADR-026 §D7
-pub fn register_write_tool(_entry: WriteToolInvalidationMap) -> Result<(), SpecEngineError> {
-    todo!("S-PLUGIN-PREREQ-E AC-9: check QUERY_PHASE_STARTED flag, check duplicate tool_name, push entry into RwLock<Vec<WriteToolInvalidationMap>>; see Task 7 for RwLock migration details")
+pub fn register_write_tool(entry: WriteToolInvalidationMap) -> Result<(), SpecEngineError> {
+    // Check query-phase flag before acquiring the write guard (ADR-026 §D7 fail-closed).
+    if QUERY_PHASE_STARTED.load(Ordering::Acquire) {
+        tracing::warn!(
+            event_type = "write_tool_registration_after_boot",
+            plugin_name = %entry.plugin_name,
+            tool_name = %entry.tool_name,
+            error = "E-PLUGIN-020",
+            "write tool registration rejected — query phase already started"
+        );
+        return Err(SpecEngineError::WriteToolRegistrationAfterBoot);
+    }
+
+    // Acquire write guard and check for duplicate tool_name.
+    // RwLock poisoning is theoretically possible but indicates a prior panic in
+    // a write guard holder, which is a bug in the caller. Propagate as error.
+    let mut guard = DYNAMIC_WRITE_TOOLS
+        .write()
+        .map_err(|_| SpecEngineError::WriteToolRegistrationAfterBoot)?;
+
+    if guard.iter().any(|e| e.tool_name == entry.tool_name) {
+        return Err(SpecEngineError::DuplicateWriteToolRegistration(
+            entry.tool_name.to_string(),
+        ));
+    }
+
+    guard.push(entry);
+    Ok(())
 }
 
 /// Lazily-initialized mapping of all write tools to their invalidation targets.
