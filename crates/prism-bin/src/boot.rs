@@ -1010,6 +1010,10 @@ pub async fn step7_init_storage() -> Result<(), BootError> {
 /// Defense-in-depth: `materialization.rs:653` retains `is_empty()` short-circuit
 /// (test-mode aware) until this assertion is enforced.
 pub async fn step8_init_query_engine() -> Result<(), BootError> {
+    // Mark query phase started as the FIRST act of step 8, before QueryEngine construction.
+    // This permanently closes the write-tool registration window (ADR-026 §D7; ADR-022 §B step 7.5/8).
+    // F-LP56-HIGH-001 adjudication: this is the sole permitted boot.rs change in S-PLUGIN-PREREQ-E.
+    prism_query::invalidation::mark_query_phase_started();
     todo!(
         "S-WAVE5-PREP-01 step 8 — QueryEngine/WriteExecutor — resolved by S-3.02-FOLLOWUP-RUNTIME"
     )
