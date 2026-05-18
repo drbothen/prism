@@ -23,7 +23,7 @@ crates_touched: [prism-sensors, prism-spec-engine, prism-query, prism-bin]
 target_module: prism-sensors
 subsystems: [SS-01, SS-07, SS-16, SS-17, SS-22]
 capabilities: [CAP-001, CAP-029]
-version: "1.42"
+version: "1.43"
 modified: "2026-05-17"
 level: "L4"
 producer: product-owner
@@ -131,16 +131,16 @@ invalidation — completing the Wave 0 plugin-only sensor architecture foundatio
 | `crates/prism-spec-engine/examples/demo_spec_loading.rs` (cleanup/delete) | ~200 |
 | `crates/prism-spec-engine/tests/bc_2_16_004_test.rs` (deletion) | ~0 (deleted) |
 | `crates/prism-spec-engine/src/spec_parser.rs` (open dispatch migration) | ~800 |
-| `crates/prism-spec-engine/src/spec_parser.rs` (Task 6b: 3-validator E-SPEC-012/013/014 implementation + AuthTypeCrossComposition / MultipleCredentialRefs / AuthTypeCredentialMismatch error variants with redacted Debug per AD-017) | ~250 |
+| `crates/prism-spec-engine/src/spec_parser.rs` (Task 6b: 3-validator E-SPEC-012/013/014 implementation calling the 3 new SpecEngineError variants per ADR-026 D3 + BC-2.01.016 Rule 2 / ADR-023 Rule 2) | ~250 |
 | `crates/prism-query/src/invalidation.rs` (WriteToolInvalidationMap RwLock migration + AtomicBool flag + mark_query_phase_started helper) | ~700 |
-| `crates/prism-spec-engine/src/error.rs` (WriteToolRegistrationAfterBoot variant) | ~50 |
+| `crates/prism-spec-engine/src/error.rs` (Task 7c: WriteToolRegistrationAfterBoot variant + Task 6c: AuthTypeCrossComposition + MultipleCredentialRefs + AuthTypeCredentialMismatch variants — all with redacted Debug impls per AD-017) | ~150 |
 | `crates/prism-spec-engine/src/plugin/mod.rs` (or `loader.rs`) (PluginRuntime write-tool registration wiring) | ~150 |
 | `crates/prism-bin/src/boot.rs` (Task 7b: 1-line `mark_query_phase_started()` insertion) | ~30 |
 | `BC-2.16.004-rust-escape-hatch.md` (frontmatter: deprecated → removed) | ~200 |
 | `error-taxonomy.md` (E-SPEC-008 retired annotation) | ~100 |
 | Test files (Red Gate set + behavioral equivalence) | ~2,000 |
 | `crates/prism-query/Cargo.toml` (Task 7d: add `tracing-test = "0.2"` to `[dev-dependencies]`) | ~30 |
-| Total | ~17,910 |
+| Total | ~18,010 |
 
 Well within the 30% context window budget (~40k tokens).
 
@@ -199,6 +199,20 @@ In `crates/prism-spec-engine/src/spec_parser.rs` (or `pipeline.rs` per ADR-026 D
 **Verification (post-implementation):** Red Gate Tests 2 (E-SPEC-012), 4 (E-SPEC-013), 5 (E-SPEC-014) all transition pre-implementation (assertion fails — no Rule 2 enforcement exists) → post-implementation (assertion passes — validator returns the correct error variant). Each test uses a `SensorSpec` fixture that violates exactly one rule and asserts `result.is_err()` AND the error variant matches.
 
 Estimated effort: ~3 hours implementation + ~1 hour test fixtures + ~30 min verification.
+
+**Task 6c** (prism-spec-engine: add 3 new SpecEngineError variants in error.rs — definition site for Task 6b validators)
+
+In `crates/prism-spec-engine/src/error.rs`, add 3 new variants to the `SpecEngineError` enum (sibling to Task 7c's `WriteToolRegistrationAfterBoot` addition):
+
+1. `AuthTypeCrossComposition { sensor_id: String, provided_value: String }` — returned by Task 6b validator for E-SPEC-012 (Rule A multi-valued or out-of-set auth_type)
+2. `MultipleCredentialRefs { sensor_id: String, credential_count: usize }` — returned by Task 6b validator for E-SPEC-013 (Rule B multiple credential_refs)
+3. `AuthTypeCredentialMismatch { sensor_id: String, expected_shape: String, actual_shape: String }` — returned by Task 6b validator for E-SPEC-014 (Rule C auth_type/credential structural mismatch)
+
+All three variants MUST implement custom `Debug` that redacts credential values per AD-017 (use the existing `RedactedDebug` derive macro pattern OR manually implement `impl Debug for SpecEngineError::AuthTypeCredentialMismatch { ... actual_shape: "<redacted>" ... }`).
+
+**Verification (post-implementation):** Codebase grep `rg "AuthTypeCrossComposition|MultipleCredentialRefs|AuthTypeCredentialMismatch" crates/prism-spec-engine/src/error.rs` returns 3 hits (variant declarations); `rg "fmt::Debug for SpecEngineError" crates/prism-spec-engine/src/error.rs` includes redacted-format branches for the 3 new variants.
+
+Estimated effort: ~1 hour implementation + ~15 min Debug-impl tests.
 
 7. **Migrate `WriteToolInvalidationMap` to runtime-extensible container (TD-S-PLUGIN-PREREQ-A-003)**
    - In `crates/prism-query/src/invalidation.rs`, change the `LazyLock<Vec<WriteToolInvalidationMap>>` container to `std::sync::RwLock<Vec<WriteToolInvalidationMap>>` (eager init per ADR-026 §D7 — `OnceLock<RwLock<...>>` wrapper is not needed because no initialization-race risk exists under the boot-step 7.5/8 ordering, and eager `RwLock::new(Vec::new())` is simpler than the `OnceLock::get_or_init` pattern that can panic in test contexts)
@@ -418,6 +432,7 @@ Note: E-SPEC-010 (variable interpolation field-path miss) and E-SPEC-011 (pipe_v
 | `crates/prism-spec-engine/tests/bc_2_16_004_test.rs` | DELETE | BC-2.16.004 is removed; this test file is deleted with it |
 | `crates/prism-spec-engine/src/spec_parser.rs` | Modify | Add E-SPEC-012/013/014 validator logic (Task 6b): three runtime rejection rules for SensorAuth spec-load validation returning `AuthTypeCrossComposition`, `MultipleCredentialRefs`, `AuthTypeCredentialMismatch` variants per ADR-026 D3 + BC-2.01.016 Rule 2; replace hardcoded sensor-name match arms with PluginRegistry dispatch (Task 6) |
 | `crates/prism-query/src/invalidation.rs` | Modify | Migrate `WriteToolInvalidationMap` from `LazyLock<Vec<...>>` to `RwLock<Vec<...>>`; add `register_write_tool` API; struct gains `plugin_name: String` field (set by PluginRuntime from manifest `name` per ADR-026 D7 v1.21; BC-2.16.002 §Postconditions (Canonical Structured Event Catalog bullet, v1.21) row 33); add `static QUERY_PHASE_STARTED: AtomicBool` module-level static; add `pub fn mark_query_phase_started()` helper that stores `true` with `Release` ordering (called by query-engine init at step 8 start per ADR-026 D7) |
+| `crates/prism-query/Cargo.toml` | Modify | Add `tracing-test = "0.2"` to `[dev-dependencies]` (Task 7d; required for AC-9 third-test tracing fixture per BC-2.16.002 §Postconditions (Canonical Structured Event Catalog bullet, v1.21) row 33 capture assertion) |
 | `crates/prism-spec-engine/src/error.rs` | Modify | Add `SpecEngineError` variants: `WriteToolRegistrationAfterBoot` (Task 7c; ADR-026 D7; error-taxonomy.md E-PLUGIN-020) + `AuthTypeCrossComposition { sensor_id, provided_value }` (Task 6b; E-SPEC-012) + `MultipleCredentialRefs { sensor_id, credential_count }` (Task 6b; E-SPEC-013) + `AuthTypeCredentialMismatch { sensor_id, expected_shape, actual_shape }` (Task 6b; E-SPEC-014) — all three Task 6b variants implement redacted `Debug` per AD-017 |
 | `.factory/specs/behavioral-contracts/BC-2.16.004-rust-escape-hatch.md` | Modify | Update frontmatter: `lifecycle_status: deprecated → removed`; add `removed:` + `removal_reason:` |
 | `.factory/specs/prd-supplements/error-taxonomy.md` | Modify | Add `retired:` annotation to E-SPEC-008 row |
@@ -528,6 +543,7 @@ Tech debt closed:
 
 | Version | Burst | Date | Author | Change |
 |---------|-------|------|--------|--------|
+| v1.43 | FB68 | 2026-05-17 | product-owner | F-LP80-MED-001 + MED-002 + LOW-001 closure (PO scope): Task 6c added for 3 SpecEngineError variant definitions in error.rs (sibling-class to F-LP79 — variant DEFINITION site vs Task 6b validator LOGIC site; POL-29 v1.21 step 3e first-application missed definition-site discrimination) + Cargo.toml row added to §FSR (sub-dimension of F-LP78 step 3d per-file consistency between §FSR and §Token Budget) + §Token Budget vs §FSR variant-placement contradiction resolved per Option A per-FILE accounting (error.rs ~50→~150 tokens for 4 variants + redacted Debug). Sibling-sweep: all Tasks 1-10 + 6b/6c/7b/7c/7d have §FSR + §Token Budget coverage; all 4 crates_touched have rows in both tables. POL-22 + POL-23 + POL-29 v1.20 step 3d + v1.21 step 3e all closed. |
 | v1.42 | FB67 | 2026-05-17 | product-owner | F-LP79-MED-001 closure (PO scope): added Task 6b instructing implementer to write E-SPEC-012/013/014 runtime validators in spec_parser.rs (3 SpecEngineError variants with redacted-Debug per AD-017: AuthTypeCrossComposition + MultipleCredentialRefs + AuthTypeCredentialMismatch; AC-3/3b/3c gates closed via Red Gate Tests 2/4/5; ADR-026 D3 + BC-2.01.016 Rule 2 + ADR-023 Rule 2 honored). §FSR error.rs row updated with 3 new error variants; spec_parser.rs row updated to enumerate Task 6b validator logic + Task 6 dispatch migration. §Token Budget gained Task 6b row (~250 tokens; total ~17,660 → ~17,910). Closes AC↔Task implementation-instruction coverage gap surviving 33+ passes; sibling-class to F-LP78 structural-table-completeness. |
 | v1.41 | FB66 | 2026-05-17 | product-owner | F-LP78-MED-001 closure: §File Structure Requirements + §Token Budget Estimate tables augmented with `crates/prism-bin/src/boot.rs` row (sibling-sweep gap from FB44 D-666 surviving 33+ passes — when crates_touched gained prism-bin per F-LP56-HIGH-001 Option A adjudication, both structural tables were not updated). POL-23 sibling-sweep discipline + POL-2 bidirectional traceability closure. Cycle-close DRIFT-OBS-LP78-001 candidate: POL-29 step 3a class (d) structural-table-completeness sibling-sweep mandate when crates_touched is amended. |
 | v1.40 | FB64 | 2026-05-17 | product-owner | F-LP76-HIGH-001 closure (PO scope): burst-label cell corrected FB74→FB62 in §Changelog row for v1.38. Original FB62 closure of F-LP74-HIGH-001 was labeled "FB74" derived from finding ID; canonical FB sequential counter was FB62 per state-manager records. POL-26 schema integrity + POL-29 cross-domain sibling consistency restored. |
