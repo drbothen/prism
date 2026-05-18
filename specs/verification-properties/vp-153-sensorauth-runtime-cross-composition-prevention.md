@@ -1,7 +1,7 @@
 ---
 document_type: verification-property
 level: L4
-version: "0.15"
+version: "0.16"
 status: draft
 producer: architect
 timestamp: 2026-05-16T16:00:00Z
@@ -164,7 +164,7 @@ deterministically with a small strategy and provide regression coverage for the 
 //         prop_assert!(result.is_err(), "invalid auth_type {:?} was accepted", raw_auth_value);
 //         let err = result.unwrap_err();
 //         // Assertion: error must be AuthTypeInvalid variant with E-SPEC-012 message_template
-//         // byte-verbatim per error-taxonomy.md v1.37:
+//         // byte-verbatim per error-taxonomy.md v1.38:
 //         //   "auth_type for sensor '{sensor_id}' must be a single value; got: {value}.
 //         //    Valid values: oauth2_client_credentials, bearer_static, cookie_roundtrip,
 //         //    api_key, custom_via_plugin"
@@ -207,7 +207,7 @@ deterministically with a small strategy and provide regression coverage for the 
 //             "spec with {} credential_refs was accepted (Rule B violation)", extra_ref_count + 1);
 //         let err = result.unwrap_err();
 //         // Assertion: error must be MultipleCredentialRefs variant with E-SPEC-013 message_template
-//         // byte-verbatim per error-taxonomy.md v1.37:
+//         // byte-verbatim per error-taxonomy.md v1.38:
 //         //   "auth method for sensor '{sensor_id}' declares {count} credential_refs;
 //         //    exactly one is required"
 //         prop_assert!(matches!(err, SpecEngineError::MultipleCredentialRefs { .. }),
@@ -298,4 +298,5 @@ mode against a temp dir). Either approach is feasible.
 | 0.12 | FB56+FB56b SM step 8a catch | 2026-05-17 | state-manager | POL-29 v1.17 step 8a FINAL EMPIRICAL VERIFICATION CATCH: error-taxonomy v1.33→v1.34 propagation incomplete — VP-153 proof-harness comment lines 167 + 210 were not updated by FB56b. State-manager step 8a catch: both code-comment sites updated to `error-taxonomy.md v1.34`. post-grep: 0 live-narrative. |
 | 0.13 | FB57 | 2026-05-17 | state-manager | POL-26-COROLLARY bookkeeping repair: rows v0.11 + v0.12 swapped (FB56 PO row + FB56+FB56b SM catch row inserted in wrong order during 17-file LARGEST-burst). 8th POL-26 recurrence closed (F-LP69-MED-001). No content edits; row content preserved verbatim. |
 | 0.14 | FB62 | 2026-05-17 | state-manager | POL-29 v1.18 step 8b TRANSITIVE CLOSURE CATCH: error-taxonomy v1.34→v1.35 propagation at VP-153 proof-harness comment lines 167 + 210 (2 live-narrative sites; "error-taxonomy.md v1.34" → "error-taxonomy.md v1.35"). FB62 error-taxonomy bumped v1.34→v1.35 in PO dispatch; step 8b transitive closure detected these 2 sites as missed by PO sweep. State-manager applies pin advancement in-scope per Canonical Principle Rule 4. post-grep: 0 live-narrative. |
+| 0.16 | FB75 | 2026-05-17 | product-owner | F-LP87-HIGH-001 closure (PO scope): error-taxonomy v1.37→v1.38 propagation at VP-153 proof-harness comments lines 167 + 210 (2 sites). Sibling: story v1.48 + HS-001 v1.11 + ADR-026 v1.24 swept in same burst. |
 | 0.15 | FB71 | 2026-05-17 | product-owner | F-LP83-HIGH-001 closure (PO scope): error-taxonomy v1.35→v1.37 propagation at VP-153 proof-harness comment lines 167 + 210 (2 live-narrative sites; "error-taxonomy.md v1.35" → "error-taxonomy.md v1.37"). Recurrence #23+ class (a) — FB69 step 8d transitive closure gap. Sibling: story v1.45 + HS-001 v1.10 (PO) + ADR-026 v1.23 (architect). |
