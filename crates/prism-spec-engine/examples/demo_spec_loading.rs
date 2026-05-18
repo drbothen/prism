@@ -10,20 +10,16 @@
 //!   ac2e  — BC-2.16.002 (error path): dangling variable → InterpolationError
 //!   ac3   — BC-2.16.003: column-to-OCSF mapping (created_timestamp → time)
 //!   ac3e  — BC-2.16.003 (error path): unmapped column goes to raw_extensions
-//!   ac4   — BC-2.16.004: CustomAdapter registered → overrides pipeline
-//!   ac4e  — BC-2.16.004 (error path): duplicate adapter_id → startup error
 //!   ac5   — BC-2.16.009: dangling ${nonexistent.field} → validation error with path
 //!   ac5e  — BC-2.16.009 (error path): multi-error collected in single pass
 //!   vp059 — VP-059: proptest proof that validate_sensor_spec collects all errors
 
 use std::collections::HashMap;
 
-use prism_core::{ColumnType, OrgSlug};
+use prism_core::ColumnType;
 use prism_spec_engine::{
     column_mapping::ColumnMapper,
-    custom_adapter::{CustomAdapter, CustomAdapterRegistry, SensorAuth},
     interpolation::{InterpolationContext, Interpolator},
-    pipeline::FetchContext,
     spec_parser::{AuthType, ColumnSpec, FetchStep, SensorSpec, SpecLoader, TableSpec},
     validation::validate_sensor_spec,
 };
@@ -77,39 +73,6 @@ ocsf_class = "device_inventory"
   response_path = "$.resources"
   variables_produced = []
 "#;
-
-// ---------------------------------------------------------------------------
-// Simple test CustomAdapter
-// ---------------------------------------------------------------------------
-
-struct MockCrowdStrikeAdapter;
-
-impl CustomAdapter for MockCrowdStrikeAdapter {
-    fn sensor_id(&self) -> &str {
-        "crowdstrike"
-    }
-    fn override_auth(&self, _client_id: &OrgSlug) -> Option<Box<dyn SensorAuth>> {
-        None
-    }
-    fn override_fetch(
-        &self,
-        _table: &str,
-        _step: &FetchStep,
-        _context: &FetchContext,
-    ) -> Option<Vec<serde_json::Value>> {
-        // Override: return synthetic records instead of making real HTTP calls
-        Some(vec![
-            json!({"detection_id": "ldt:abc:001", "created_timestamp": "2026-04-22T10:00:00Z"}),
-        ])
-    }
-    fn transform_response(
-        &self,
-        _table: &str,
-        _raw: &serde_json::Value,
-    ) -> Option<serde_json::Value> {
-        None
-    }
-}
 
 // ---------------------------------------------------------------------------
 // AC helpers
@@ -222,49 +185,6 @@ fn run_ac3_error() {
     println!("ocsf mapped  : {} fields", result.mapped_fields.len());
     println!("raw_extensions: {:?}", result.raw_extensions);
     println!("PASS: unmapped column placed in raw_extensions (record not dropped)");
-}
-
-fn run_ac4() {
-    println!("=== AC-4: BC-2.16.004 — CustomAdapter Override ===");
-    let mut registry = CustomAdapterRegistry::new();
-    registry
-        .register(Box::new(MockCrowdStrikeAdapter))
-        .expect("first registration must succeed");
-    let adapter = registry.get("crowdstrike").expect("adapter must be found");
-    let step = FetchStep::new(
-        "fetch",
-        "GET",
-        "/detections",
-        None,
-        "$.resources",
-        None,
-        vec![],
-        None,
-        None,
-    );
-    let ctx = FetchContext::new(OrgSlug::new("tenant-001").unwrap(), HashMap::new());
-    let records = adapter.override_fetch("detections", &step, &ctx);
-    println!("adapter id : {}", adapter.sensor_id());
-    println!(
-        "override returned {} record(s)",
-        records.as_ref().map(|v| v.len()).unwrap_or(0)
-    );
-    if let Some(recs) = &records {
-        println!("  record[0] : {}", recs[0]);
-    }
-    println!("PASS: CustomAdapter registered and overrides TOML spec pipeline");
-}
-
-fn run_ac4_error() {
-    println!("=== AC-4 (error): duplicate adapter_id → startup error ===");
-    let mut registry = CustomAdapterRegistry::new();
-    registry
-        .register(Box::new(MockCrowdStrikeAdapter))
-        .expect("first registration must succeed");
-    match registry.register(Box::new(MockCrowdStrikeAdapter)) {
-        Err(e) => println!("PASS (expected): duplicate registration error: {e}"),
-        Ok(_) => println!("FAIL: expected error for duplicate adapter_id"),
-    }
 }
 
 fn run_ac5() {
@@ -418,15 +338,11 @@ fn main() {
         "ac2e" => run_ac2_error(),
         "ac3" => run_ac3(),
         "ac3e" => run_ac3_error(),
-        "ac4" => run_ac4(),
-        "ac4e" => run_ac4_error(),
         "ac5" => run_ac5(),
         "ac5e" => run_ac5_error(),
         "vp059" => run_vp059(),
         _ => {
-            eprintln!(
-                "Usage: demo_spec_loading <ac1|ac1e|ac2|ac2e|ac3|ac3e|ac4|ac4e|ac5|ac5e|vp059>"
-            );
+            eprintln!("Usage: demo_spec_loading <ac1|ac1e|ac2|ac2e|ac3|ac3e|ac5|ac5e|vp059>");
             std::process::exit(1);
         }
     }
