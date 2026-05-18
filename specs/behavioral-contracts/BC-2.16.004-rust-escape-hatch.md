@@ -9,16 +9,16 @@ phase: 1a
 origin: greenfield
 subsystem: "SS-16"
 capability: "CAP-029"
-lifecycle_status: deprecated
+lifecycle_status: removed
 introduced: cycle-1
-modified: "2026-05-11"
+modified: "2026-05-18"
 deprecated: "2026-05-11"
-deprecated_by: ADR-023
+deprecated_by: ADR-027
 deprecated_in_version: "1.4"
 replacement: null
 retired: null
-removed: null
-removal_reason: null
+removed: "2026-05-18"
+removal_reason: "PREREQ-E retirement per ADR-027 §Decision + ADR-023 Rule 5"
 inputs:
   - ".factory/specs/prd.md"
   - ".factory/specs/domain-spec/capabilities.md"
