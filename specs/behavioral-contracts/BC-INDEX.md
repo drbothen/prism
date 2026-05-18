@@ -1,7 +1,7 @@
 ---
 document_type: behavioral-contract-index
 level: L3
-version: "5.13"
+version: "5.14"
 status: draft
 producer: state-manager
 timestamp: 2026-05-17T07:00:00Z
@@ -209,7 +209,7 @@ Phase 3-patch additions (2026-04-16): 22 new BCs added in Burst 1 to close trace
 | BC-2.15.010 | Decorator Three-Phase Model — Config-Time, Query-Time, Periodic | 15 - Storage Layer | CAP-026 | P0 | draft |
 | BC-2.15.011 | Internal Table Registration — RocksDB Domains as DataFusion Tables | 15 - Storage Layer | CAP-028 | P0 | draft |
 | BC-2.16.001 | Sensor Spec File Loading — Parse TOML, Validate Schema, Register Tables | 16 - Spec Engine | CAP-029 | P0 | draft |
-| BC-2.16.002 | Multi-Step Fetch Pipeline Execution — Sequential Steps with Variable Interpolation | 16 - Spec Engine | CAP-029 | P0 | active (promoted draft→active D-427 per POL-14; anchor story S-PLUGIN-PREREQ-B merged PR #143 develop@ae7e26c8 2026-05-12) — v1.30 |
+| BC-2.16.002 | Multi-Step Fetch Pipeline Execution — Sequential Steps with Variable Interpolation | 16 - Spec Engine | CAP-029 | P0 | active (promoted draft→active D-427 per POL-14; anchor story S-PLUGIN-PREREQ-B merged PR #143 develop@ae7e26c8 2026-05-12) — v1.31 |
 | BC-2.16.003 | Column-to-OCSF Mapping at Query Time — Map Sensor Columns to OCSF Fields Per Spec | 16 - Spec Engine | CAP-029 | P0 | draft |
 | BC-2.16.004 | ~~Rust Escape Hatch for Custom Adapters — Trait-Based Override When Config Is Insufficient~~ | 16 - Spec Engine | CAP-029 | P0 | deprecated (ADR-023 PREREQ-F) |
 | BC-2.16.005 | `reload_config` MCP Tool — Re-Read All Config Files, Validate, Atomic Swap, Notify | 16 - Spec Engine | CAP-030 | P1 | draft |
@@ -372,7 +372,9 @@ Phase 3-patch additions (2026-04-16): 22 new BCs added in Burst 1 to close trace
 
 ### Change Log (Adversarial Review Fixes)
 
-**v5.13 (2026-05-17, FB73 D-695):** state-manager | BC-2.16.011 v1.9→v1.10 (PO F-LP85-HIGH-001 closure: ADR-026 D7 v1.22→v1.23 sweep — cross-value-class side-effect bump; step 8g first-application) + BC-2.16.012 v1.25→v1.26 (PO F-LP85-HIGH-001 closure: ADR-026 D7 v1.22→v1.23 sweep at 4 live-narrative sites — same cross-value-class META-class) + BC-2.16.002 v1.30→v1.31 (PO F-LP85-HIGH-001 closure: ADR-026 D7 v1.22→v1.23 sweep at catalog-row live-narrative site; POL-30 Fork B catalog bullet (v1.22) UNCHANGED per POL-30). BC-INDEX v5.12→v5.13.
+**v5.14 (2026-05-17, FB74 D-696):** state-manager | BC-2.16.002 in-line row 212 v1.30→v1.31 (F-LP86-HIGH-001 closure: step 8f sibling-INDEX gap — BC-INDEX in-line table row summary cell was stale at v1.30; §Changelog v5.13 declared v1.30→v1.31 but did NOT update in-line row 212) + §Changelog v5.13 narrative correction (F-LP86-MED-001 closure: catalog bullet factual error — "POL-30 Fork B catalog bullet (v1.22) UNCHANGED" corrected to "(v1.21) UNCHANGED" per BC-2.16.002 line 74). BC-INDEX v5.13→v5.14.
+
+**v5.13 (2026-05-17, FB73 D-695):** state-manager | BC-2.16.011 v1.9→v1.10 (PO F-LP85-HIGH-001 closure: ADR-026 D7 v1.22→v1.23 sweep — cross-value-class side-effect bump; step 8g first-application) + BC-2.16.012 v1.25→v1.26 (PO F-LP85-HIGH-001 closure: ADR-026 D7 v1.22→v1.23 sweep at 4 live-narrative sites — same cross-value-class META-class) + BC-2.16.002 v1.30→v1.31 (PO F-LP85-HIGH-001 closure: ADR-026 D7 v1.22→v1.23 sweep at catalog-row live-narrative site; POL-30 Fork B catalog bullet (v1.21) UNCHANGED per POL-30). BC-INDEX v5.12→v5.13.
 
 **v5.12 (2026-05-17, FB70 D-692):** state-manager | BC-2.16.002 v1.29→v1.30 (F-LP82-HIGH-001 closure — line 110 row 33 body cite-pin advanced ADR-026 D7 v1.21→v1.22; FB69 misapplied POL-30 Fork B framing retracted per FB55/FB56b/FB62 3-burst precedent; line 74 catalog bullet (v1.21) correctly preserved per Fork B canonical rule). BC-INDEX v5.11→v5.12.
 

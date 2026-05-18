@@ -1,7 +1,7 @@
 ---
 document_type: architecture-index
 level: L3
-version: "2.78"
+version: "2.79"
 status: draft
 producer: state-manager
 timestamp: 2026-05-17T07:00:00
@@ -87,7 +87,7 @@ deployment_topology: single-service  # planned — no service binary exists yet 
 | ADR-019 | SIEM Output Formats | PROPOSED v0.4 | 2026-05-03 | decisions/ADR-019-siem-output-formats.md |
 | ADR-020 | Story Status Taxonomy Reform — Closed Enum, Partial-Merge Semantics, and Graduation Contract | ACCEPTED v1.1 | 2026-05-08 | decisions/ADR-020-story-status-taxonomy-reform.md |
 | ADR-021 | BC/VP Promotion Lifecycle — Draft → Active → Verified Transitions, Audit Cadence, and BC-INDEX Count Authority | ACCEPTED v1.1 | 2026-05-08 | decisions/ADR-021-bc-vp-promotion-lifecycle.md |
-| ADR-022 | Production Runtime Wiring — prism-bin Chassis, Boot Sequence, Wiring Contracts, Infusion Fate, Hot-Reload Watcher, MCP Topology | ACCEPTED v1.11 | 2026-05-17 | decisions/ADR-022-production-runtime-wiring.md |
+| ADR-022 | Production Runtime Wiring — prism-bin Chassis, Boot Sequence, Wiring Contracts, Infusion Fate, Hot-Reload Watcher, MCP Topology | ACCEPTED v1.12 | 2026-05-17 | decisions/ADR-022-production-runtime-wiring.md |
 | ADR-023 | Plugin-Only Sensor Architecture — TOML Specs as Declarative Baseline, .prx WASM for Non-Declarative Cases, Retired CustomAdapter Rust Trait | COMMITTED v1.19 | 2026-05-15 | decisions/ADR-023-plugin-only-sensor-architecture.md |
 | ADR-024 | ColumnType Canonical Naming — Domain-Level Variant Names for Sensor Schema API; prism-spec-engine Shadow Enum Retirement | ACCEPTED v1.0 | 2026-05-12 | decisions/ADR-024-column-type-canonical-naming.md |
 | ADR-025 | BC Lifecycle Field Canonical Scheme — Single status Field Governs; lifecycle Field Retired | ACCEPTED v1.0 | 2026-05-12 | decisions/ADR-025-bc-lifecycle-field-canonical-scheme.md |
@@ -152,6 +152,7 @@ deployment_topology: single-service  # planned — no service binary exists yet 
 
 | Version | Pass | Date | Author | Change |
 |---------|------|------|--------|--------|
+| 2.79 | FB74 | 2026-05-17 | state-manager | (D-696) FB74 INDEX cascade: ADR-022 in-line row 90 summary cell v1.11→v1.12 (F-LP86-HIGH-002 closure: step 8f sibling-INDEX gap — ARCH-INDEX in-line table row was stale at ACCEPTED v1.11; §Changelog v2.78 declared the update but did NOT propagate to in-line row 90). ARCH-INDEX v2.78→v2.79. |
 | 2.78 | FB73 | 2026-05-17 | state-manager | (D-695) FB73 INDEX cascade: ADR-022 row updated ACCEPTED v1.11→v1.12 (architect F-LP85-HIGH-001 closure: ADR-026 D7 v1.22→v1.23 sweep at line 243 — cross-value-class side-effect bump detection; step 8g first-application). ARCH-INDEX v2.77→v2.78. |
 | 2.77 | FB71 | 2026-05-17 | state-manager | (D-693) FB71 INDEX cascade: ADR-026 row updated ACCEPTED v1.22→v1.23 (architect body edit at line 312: error-taxonomy v1.37 cite-pin in §D7; F-LP83-HIGH-001 closure). ARCH-INDEX v2.76→v2.77. |
 | 2.76 | FB69 | 2026-05-17 | state-manager | (D-691) FB69 INDEX cascade: ADR-022 row updated ACCEPTED v1.10→v1.11 (architect F-LP81-HIGH-001/002 closure: BC-2.16.011 INV-ADAPTER-RETIRE-003 amendment + ADR-026 D7 v1.21→v1.22 cascade). ARCH-INDEX v2.75→v2.76. |
