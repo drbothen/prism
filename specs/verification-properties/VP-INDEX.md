@@ -1,7 +1,7 @@
 ---
 document_type: verification-property-index
 level: L4
-version: "1.66"
+version: "1.67"
 status: draft
 producer: state-manager
 timestamp: 2026-05-17T00:00:00
@@ -243,6 +243,7 @@ S-1.02 frontmatter has been updated to `subsystems: [SS-03, SS-07, SS-11, SS-12,
 
 | Version | Burst | Date | Author | Change |
 |---------|-------|------|--------|--------|
+| 1.67 | FB71 | 2026-05-17 | state-manager | (D-693) FB71 INDEX cascade: VP-153 v0.14→v0.15 (PO F-LP83-HIGH-001 closure: error-taxonomy v1.35→v1.37 sweep — 11-site sweep across 4 files; META-META-META-META recursion; POL-29 v1.23→v1.24 step 8e fixed-point iteration mandate codified in-burst). VP-INDEX v1.66→v1.67. |
 | 1.66 | FB69 | 2026-05-17 | state-manager | (D-691) FB69 INDEX cascade: VP-156 v0.16→v0.17 (PO F-LP81-HIGH-002 closure: ADR-026 D7 v1.21→v1.22 sweep at live-narrative sites — META-META step 8b self-induced bump gap closed via POL-29 v1.22→v1.23 step 8d). VP-INDEX v1.65→v1.66. |
 | 1.65 | FB64 | 2026-05-17 | state-manager | F-LP76-HIGH-002 closure + INDEX cascade: VP-INDEX §Changelog row order repair — v1.63 row (D-684 FB62 closure VP-156 v0.14→v0.15) was prepended ABOVE v1.64 row (POL-29 v1.18 step 8b TRANSITIVE CLOSURE CATCH VP-153 v0.13→v0.14) in same FB62 dispatch; descending convention violated. Swap restores monotonic descending. POL-26 9th cascade recurrence at state-manager bookkeeping scope. Plus VP-156 v0.15→v0.16 INDEX cascade for FB64 PO bump. |
 | 1.64 | FB62 | 2026-05-17 | state-manager | POL-29 v1.18 step 8b TRANSITIVE CLOSURE CATCH: VP-153 v0.13→v0.14 (error-taxonomy v1.34→v1.35 propagation at proof-harness comment lines 167 + 210 — 2 live-narrative sites). Same FB62 burst. VP-INDEX v1.63→v1.64. |
