@@ -676,17 +676,25 @@ impl SpecLoader {
             })
         })?;
 
-        // Cross-composition Rule B check at parse time (F-LP-IMPL-P1-003):
-        // Only applies when credential_refs are declared (> 0). Multiple credential_refs
-        // is a hard error regardless of auth_type; sensors with 0 credential_refs are
-        // valid (no auth credentials declared — auth will fail at runtime if needed).
+        // Cross-composition Rules A+B check at parse time (F-LP-IMPL-P1-003):
+        //
+        // Rule A (E-SPEC-012): auth_type must be a scalar from the closed enumeration.
+        // Rule B (E-SPEC-013): exactly 1 credential_ref per auth method.
+        //
+        // Only applies when credential_refs are declared (> 0). Sensors with 0 credential_refs
+        // are valid (no auth credentials declared — auth will fail at runtime if needed).
+        //
+        // Rule C (E-SPEC-014) is enforced at step5 credential-introspection time via
+        // CredentialRefProbe::probe() returning Some(actual_shape), NOT at parse time.
+        // Parse time has no access to the resolved credential type — Rule C requires
+        // the credential store to report the auth_type the credential was configured for.
         if spec.credential_refs.len() > 1
             && let Err(spec_err) = Self::validate_cross_composition(
                 spec.sensor_id.as_str(),
                 spec.auth_type.as_str(),
                 spec.credential_refs.len(),
-                spec.auth_type.as_str(), // expected_shape proxy — Rule C deferred
-                spec.auth_type.as_str(), // actual_shape proxy — Rule C deferred
+                spec.auth_type.as_str(), // expected_shape: same as auth_type — Rule A+B only
+                spec.auth_type.as_str(), // actual_shape: same as auth_type — Rule C skipped (no credential access at parse time)
             )
         {
             return Err(PrismError::Internal {

@@ -61,6 +61,25 @@ pub enum BootError {
     #[error("credential-permission-denied: {0}")]
     CredentialPermissionDenied(String),
 
+    /// Credential auth_type/shape mismatch (Rule C / E-SPEC-014).
+    ///
+    /// The sensor spec declares `auth_type = expected_shape` but the credential
+    /// store reports the credential was configured for `actual_shape`. This is a
+    /// config-invalid condition (exit 2) — the spec and the credential disagree.
+    ///
+    /// Credential values MUST NOT appear in this error message (AD-017 AI-opaque model).
+    /// Maps to exit code 2. Anchors: BC-2.01.016 §Error Cases E-SPEC-014, ADR-023 Rule 2 Rule C.
+    #[error(
+        "E-SPEC-014: sensor '{sensor_id}' auth_type/credential shape mismatch — \
+             spec declares '{expected_shape}' but credential ref reports '{actual_shape}' \
+             (BC-2.01.016 §Error Cases E-SPEC-014; ADR-023 Rule 2 Rule C)"
+    )]
+    AuthTypeCredentialMismatch {
+        sensor_id: String,
+        expected_shape: String,
+        actual_shape: String,
+    },
+
     /// Audit subsystem init failed (RocksDB CF open, WAL, sentinel write).
     /// Maps to exit code 4. Anchors: BC-2.05.012.
     #[error("audit-init-failed: {0}")]
@@ -83,7 +102,8 @@ impl BootError {
         match self {
             BootError::ConfigInvalid(_)
             | BootError::OrgRegistryFailed(_)
-            | BootError::CredentialRefInvalid(_) => EXIT_CONFIG_INVALID,
+            | BootError::CredentialRefInvalid(_)
+            | BootError::AuthTypeCredentialMismatch { .. } => EXIT_CONFIG_INVALID,
             BootError::CredentialPermissionDenied(_) => EXIT_PERMISSION_DENIED,
             BootError::AuditInitFailed(_) | BootError::InternalError(_) => EXIT_INTERNAL_ERROR,
             BootError::SensorFail(_) => crate::exit_codes::EXIT_SENSOR_FAIL,
@@ -586,16 +606,29 @@ pub async fn step4_load_sensor_specs(
 ///
 /// Contract (BC-2.03.013 §Critical Invariant):
 /// - Implementations MUST NOT store or return credential values.
-/// - `probe()` performs an existence check only — it checks if the ref is
-///   registered in the backend and returns Ok(()) or an appropriate `BootError`.
+/// - `probe()` performs an existence check AND returns available `auth_type` metadata.
+///
+/// # Rule C (E-SPEC-014) enforcement
+///
+/// The `Ok(Some(auth_type))` return enables Rule C enforcement in step5:
+/// when the probe returns `Some(actual_shape)`, step5 compares it against
+/// `sensor_spec.auth_type` (the `expected_shape`). A mismatch produces
+/// `BootError::AuthTypeCredentialMismatch` (exit 2) per BC-2.01.016 §Error Cases
+/// E-SPEC-014 and ADR-023 Rule 2 Rule C.
+///
+/// Probes that cannot determine the auth_type (e.g., keyring-only backends with
+/// no metadata store) return `Ok(None)` — Rule C is skipped for that ref.
 pub trait CredentialRefProbe: Send + Sync {
     /// Check whether `ref_name` for `sensor_id` is registered in the backend.
     ///
     /// Returns:
-    /// - `Ok(())` — ref exists (credential is registered)
+    /// - `Ok(Some(auth_type))` — ref exists AND auth_type metadata is available;
+    ///   step5 uses this to enforce Rule C (E-SPEC-014)
+    /// - `Ok(None)` — ref exists BUT no auth_type metadata is available;
+    ///   Rule C check is skipped for this ref
     /// - `Err(BootError::CredentialRefInvalid)` — ref not found (exit 2)
     /// - `Err(BootError::CredentialPermissionDenied)` — backend unavailable (exit 5)
-    fn probe(&self, sensor_id: &str, ref_name: &str) -> Result<(), BootError>;
+    fn probe(&self, sensor_id: &str, ref_name: &str) -> Result<Option<String>, BootError>;
 }
 
 /// Production credential ref probe — uses the `keyring` crate.
@@ -603,10 +636,16 @@ pub trait CredentialRefProbe: Send + Sync {
 /// Constructs a namespaced `keyring::Entry("prism", "{sensor_id}/{ref_name}")` and
 /// calls `get_password()` to check existence. The value is immediately discarded
 /// (AD-017 AI-opaque model: credential values MUST NOT be retained).
+///
+/// Returns `Ok(None)` on success — the keyring backend stores raw credential values
+/// only; no `auth_type` metadata is stored alongside the value in the keyring entry.
+/// Rule C (E-SPEC-014) enforcement via shape comparison is therefore not performed
+/// by this probe. A future credential metadata store (e.g., an extended
+/// `CredentialMetadata` registry with `auth_type_hint`) would enable Rule C here.
 pub struct KeyringCredentialProbe;
 
 impl CredentialRefProbe for KeyringCredentialProbe {
-    fn probe(&self, sensor_id: &str, ref_name: &str) -> Result<(), BootError> {
+    fn probe(&self, sensor_id: &str, ref_name: &str) -> Result<Option<String>, BootError> {
         let account = format!("{sensor_id}/{ref_name}");
         let entry = keyring::Entry::new("prism", &account).map_err(|e| {
             BootError::CredentialPermissionDenied(format!(
@@ -618,12 +657,13 @@ impl CredentialRefProbe for KeyringCredentialProbe {
         match entry.get_password() {
             Ok(_secret) => {
                 // Secret value discarded immediately — AD-017 AI-opaque model.
+                // No auth_type metadata in keyring — Rule C skipped for this ref.
                 tracing::trace!(
                     sensor_id = %sensor_id,
                     ref_name = %ref_name,
-                    "Credential ref validated (exists in backend)"
+                    "Credential ref validated (exists in backend; no auth_type metadata available)"
                 );
-                Ok(())
+                Ok(None)
             }
             Err(keyring::Error::NoEntry) => Err(BootError::CredentialRefInvalid(format!(
                 "Unresolvable credential ref: '{ref_name}' for sensor '{sensor_id}' not found in \
@@ -728,22 +768,32 @@ pub async fn step5_init_credential_store_with_probe(
     let mut refs_validated: usize = 0;
 
     for (sensor_id, sensor_spec) in &snapshot.sensor_specs {
-        // Cross-composition validation (BC-2.01.016 Rule A/B, F-LP-IMPL-P2-001):
-        // All production spec-load paths route through `parse_and_validate_spec_toml`
-        // in `prism-spec-engine/src/add_sensor_spec.rs`, which enforces
-        // `SpecLoader::validate_cross_composition` before returning Ok(SensorSpec).
+        // Cross-composition validation (BC-2.01.016):
+        // Rules A+B (E-SPEC-012/013): enforced at parse time by parse_and_validate_spec_toml
+        // via validate_cross_composition (all three production spec-load paths):
+        //   - config_manager::parse_spec_directory (boot step 4)
+        //   - add_sensor_spec::add_sensor_spec (MCP tool)
+        //   - hot_reload::process_spec_changes
         //
-        // Production paths that call `parse_and_validate_spec_toml`:
-        //   - `config_manager::parse_spec_directory` (boot step 4 loading)
-        //   - `add_sensor_spec::add_sensor_spec` (MCP add_sensor_spec tool)
-        //   - `hot_reload::process_spec_changes` (hot_reload.rs:121, :206)
-        //
-        // This step5 probe loop validates credential *existence* only — cross-composition
-        // structural rules (Rule A/B) have already been enforced at parse time.
+        // Rule C (E-SPEC-014): enforced HERE at step5 credential-introspection time.
+        // When the probe returns Some(actual_shape), compare against sensor_spec.auth_type.
+        // A mismatch means the credential was configured for a different auth method than
+        // the spec declares — fail-closed per BC-2.01.016 §Error Cases E-SPEC-014 and
+        // ADR-023 Rule 2 Rule C. Credential values MUST NOT appear in the error (AD-017).
 
-        // Step 5: Credential reference existence probing.
+        // Step 5: Credential reference existence probing + Rule C shape check.
         for cred_ref in &sensor_spec.credential_refs {
-            probe.probe(sensor_id, &cred_ref.name)?;
+            let actual_shape_opt = probe.probe(sensor_id, &cred_ref.name)?;
+            if let Some(actual_shape) = actual_shape_opt {
+                let expected_shape = &sensor_spec.auth_type;
+                if &actual_shape != expected_shape {
+                    return Err(BootError::AuthTypeCredentialMismatch {
+                        sensor_id: sensor_id.clone(),
+                        expected_shape: expected_shape.clone(),
+                        actual_shape,
+                    });
+                }
+            }
             refs_validated += 1;
         }
     }
@@ -1105,7 +1155,7 @@ mod tests {
     use super::*;
     use std::path::PathBuf;
 
-    /// Story: S-WAVE5-PREP-01
+    /// Story: S-WAVE5-PREP-01 + S-PLUGIN-PREREQ-E F-LP-IMPL-P4-001
     /// BC: BC-2.22.001 — BootError::exit_code() maps all variants correctly
     ///
     /// Unit test of the already-implemented exit_code() method.
@@ -1117,6 +1167,18 @@ mod tests {
         assert_eq!(BootError::ConfigInvalid("x".into()).exit_code(), 2);
         assert_eq!(BootError::OrgRegistryFailed("x".into()).exit_code(), 2);
         assert_eq!(BootError::CredentialRefInvalid("x".into()).exit_code(), 2);
+        // AuthTypeCredentialMismatch → 2 (config-invalid: spec and credential disagree on auth_type)
+        assert_eq!(
+            BootError::AuthTypeCredentialMismatch {
+                sensor_id: "test".into(),
+                expected_shape: "oauth2_client_credentials".into(),
+                actual_shape: "api_key".into(),
+            }
+            .exit_code(),
+            2,
+            "AuthTypeCredentialMismatch must map to exit 2 \
+             (config-invalid: spec and credential disagree on auth_type — E-SPEC-014)"
+        );
         // Permission-denied → 5
         assert_eq!(
             BootError::CredentialPermissionDenied("x".into()).exit_code(),

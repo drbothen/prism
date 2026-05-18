@@ -177,19 +177,21 @@ pub fn parse_and_validate_spec_toml(
     // Applies to sensors with credential_refs declared. Sensors with 0 credential_refs
     // are auth-unconfigured and pass without validation (auth fails at runtime if needed).
     // Sensors with ≥ 1 credential_ref must satisfy Rule A (valid auth_type) and
-    // Rule B (exactly 1 credential_ref).
+    // Rule B (exactly 1 credential_ref per auth method).
     //
-    // Rule C (auth_type/credential structural mismatch) is deferred to
-    // `step5_init_credential_store_with_probe` where credential introspection is
-    // available (AD-017 AI-opaque credential model). We pass auth_type as a proxy
-    // for both shapes, ensuring Rule C never fires here.
+    // Rule C (E-SPEC-014, auth_type/credential structural mismatch) is enforced at
+    // step5_init_credential_store_with_probe (boot time) via CredentialRefProbe::probe()
+    // returning Some(actual_shape). Parse time has no access to the resolved credential
+    // type (AD-017 AI-opaque credential model). Both shape args are auth_type here so
+    // that Rule A+B fire correctly; Rule C equality check is intentionally trivially
+    // satisfied (actual == expected) because shape resolution requires the credential store.
     if !credential_refs.is_empty()
         && let Err(spec_err) = crate::spec_parser::SpecLoader::validate_cross_composition(
             &sensor_id,
             &auth_type,
             credential_refs.len(),
-            &auth_type, // expected_shape proxy — Rule C deferred
-            &auth_type, // actual_shape proxy — Rule C deferred
+            &auth_type, // expected_shape: Rule A+B only at parse time
+            &auth_type, // actual_shape: same — Rule C not enforced at parse time (no credential access)
         )
     {
         return Err(vec![ValidationError {
