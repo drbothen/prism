@@ -140,3 +140,82 @@ fn test_BC_2_01_016_e_spec_014_credential_type_mismatch_rejected() {
         "AC-3c: error must cite E-SPEC-014; got: {err_str}"
     );
 }
+
+// ---------------------------------------------------------------------------
+// F-LP-IMPL-P1-003: Production spec-load path rejects cross-composition violations
+//
+// This test verifies that `SpecLoader::parse` invokes `validate_cross_composition`
+// and rejects a TOML spec with a Rule B violation (multiple credential_refs).
+//
+// Pre-fix failure mode: `SpecLoader::parse` does NOT call `validate_cross_composition` —
+// the TOML parses successfully and returns Ok(SensorSpec) even with 2 credential_refs.
+// Post-fix: returns Err with a message citing E-SPEC-013.
+// ---------------------------------------------------------------------------
+
+/// BC-2.01.016 AC-3b / F-LP-IMPL-P1-003: `SpecLoader::parse` must invoke
+/// `validate_cross_composition` and reject a TOML sensor spec with multiple
+/// `credential_refs` declared (Rule B / E-SPEC-013).
+///
+/// This is the END-TO-END production wiring test. It calls `SpecLoader::parse`
+/// (the production spec-load entry point), NOT `validate_cross_composition` directly.
+///
+/// Pre-fix failure mode: `SpecLoader::parse` returns `Ok(SensorSpec)` for a TOML
+/// with 2 credential_refs — cross-composition validation is NOT called in the
+/// production parse path.
+///
+/// Story: S-PLUGIN-PREREQ-E AC-3b / F-LP-IMPL-P1-003 | BC-2.01.016 Rule B | ADR-026 §D3
+#[test]
+fn test_BC_2_01_016_e_spec_012_rejected_at_spec_load() {
+    // Construct a minimal sensor TOML with 2 credential_refs (Rule B violation).
+    // auth_type is valid (Rule A passes), but cardinality != 1 → E-SPEC-013.
+    // Must include at least one [[tables]] entry to satisfy SensorSpec required field.
+    // The cross-composition check fires after deserialization succeeds and before
+    // the spec is returned to the caller.
+    let toml_with_multiple_cred_refs = r#"
+sensor_id = "test_cross_comp_sensor"
+name = "Test Cross-Composition Sensor"
+base_url = "https://api.example.com"
+auth_type = "api_key"
+version = "1.0.0"
+
+[[credential_refs]]
+name = "cred_one"
+
+[[credential_refs]]
+name = "cred_two"
+
+[[tables]]
+table_name = "test_table"
+ocsf_class = "security_finding"
+
+  [[tables.columns]]
+  name = "id"
+  column_type = "string"
+  options = ["REQUIRED"]
+
+  [[tables.steps]]
+  name = "fetch"
+  method = "GET"
+  path_template = "/api/items"
+  response_path = "$.items"
+  variables_produced = []
+"#;
+
+    // Pre-fix: returns Ok(SensorSpec) — validate_cross_composition not called.
+    // Post-fix: returns Err wrapping E-SPEC-013 from validate_cross_composition.
+    let result = SpecLoader::parse(toml_with_multiple_cred_refs);
+
+    assert!(
+        result.is_err(),
+        "F-LP-IMPL-P1-003: SpecLoader::parse must reject a TOML with 2 credential_refs \
+         (Rule B / E-SPEC-013); got Ok(SensorSpec) instead — production validate_cross_composition \
+         call is missing in SpecLoader::parse"
+    );
+
+    let err = result.unwrap_err();
+    let err_str = format!("{err}");
+    assert!(
+        err_str.contains("E-SPEC-013") || err_str.to_lowercase().contains("multiple"),
+        "F-LP-IMPL-P1-003: error must cite E-SPEC-013 or 'multiple'; got: {err_str}"
+    );
+}

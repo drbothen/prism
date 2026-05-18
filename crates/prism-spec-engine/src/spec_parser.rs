@@ -404,6 +404,24 @@ impl Default for SensorSpec {
     }
 }
 
+impl AuthType {
+    /// Return the canonical snake_case string name for this auth type.
+    ///
+    /// Matches the serde `rename_all = "snake_case"` serialization and the
+    /// `VALID_AUTH_TYPES` list in `SpecLoader::validate_cross_composition`.
+    ///
+    /// Used by `step5_init_credential_store_with_probe` to pass the auth type string
+    /// to `validate_cross_composition` (F-LP-IMPL-P1-003 / BC-2.01.016 Rule A).
+    pub fn as_str(&self) -> &'static str {
+        match self {
+            AuthType::Oauth2ClientCredentials => "oauth2_client_credentials",
+            AuthType::BearerStatic => "bearer_static",
+            AuthType::CookieRoundtrip => "cookie_roundtrip",
+            AuthType::ApiKey => "api_key",
+        }
+    }
+}
+
 impl SensorSpec {
     /// Construct a `SensorSpec` with all fields.
     ///
@@ -620,9 +638,22 @@ impl SpecLoader {
 
     /// Parse a single TOML string into a `SensorSpec`.
     ///
+    /// After successful TOML deserialization, validates SensorAuth × DataSource
+    /// cross-composition rules for sensors that declare credential_refs (BC-2.01.016
+    /// Rule 2 / ADR-026 §D3; F-LP-IMPL-P1-003):
+    ///
+    /// - **Rule B (E-SPEC-013):** multiple `credential_refs` declared (cardinality must be ≤ 1
+    ///   OR exactly 1 when a credential is declared). Sensors with zero credential_refs
+    ///   (no auth configured) are not validated here — they are allowed to parse successfully.
+    ///   Sensors with ≥ 2 credential_refs are rejected immediately.
+    ///
+    /// Rule A (E-SPEC-012) is implicitly enforced by serde deserialization of `AuthType`.
+    /// Rule C (E-SPEC-014) is deferred to `step5_init_credential_store_with_probe` where
+    /// credential introspection is available (AD-017 AI-opaque credential model).
+    ///
     /// Returns `Ok(SensorSpec)` or `Err(PrismError)` — never panics (VP-023).
     pub fn parse(toml_input: &str) -> Result<SensorSpec, PrismError> {
-        toml::from_str::<SensorSpec>(toml_input).map_err(|e| {
+        let spec = toml::from_str::<SensorSpec>(toml_input).map_err(|e| {
             let line_number = e.span().map(|span| {
                 // Count newlines before the error span start.
                 // F-LP10-MED-001 (defensive): `span.start` is a byte offset from the toml crate.
@@ -643,7 +674,30 @@ impl SpecLoader {
                 file_path: None,
                 line_number,
             })
-        })
+        })?;
+
+        // Cross-composition Rule B check at parse time (F-LP-IMPL-P1-003):
+        // Only applies when credential_refs are declared (> 0). Multiple credential_refs
+        // is a hard error regardless of auth_type; sensors with 0 credential_refs are
+        // valid (no auth credentials declared — auth will fail at runtime if needed).
+        if spec.credential_refs.len() > 1
+            && let Err(spec_err) = Self::validate_cross_composition(
+                spec.sensor_id.as_str(),
+                spec.auth_type.as_str(),
+                spec.credential_refs.len(),
+                spec.auth_type.as_str(), // expected_shape proxy — Rule C deferred
+                spec.auth_type.as_str(), // actual_shape proxy — Rule C deferred
+            )
+        {
+            return Err(PrismError::Internal {
+                detail: format!(
+                    "cross-composition validation failed for sensor '{}': {}",
+                    spec.sensor_id, spec_err
+                ),
+            });
+        }
+
+        Ok(spec)
     }
 
     /// Load all `*.sensor.toml` files from `sensor_specs_dir`.
