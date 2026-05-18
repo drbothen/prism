@@ -713,3 +713,123 @@ async fn test_F_PASS3_CRIT_001_plugin_load_runs_before_step7_todo() {
     // If downcast fails (panic with non-&str payload), the is_panic() assertion above
     // is sufficient to confirm step 7 panicked after plugin-load succeeded.
 }
+
+// ---------------------------------------------------------------------------
+// F-LP-IMPL-P1-002: PluginRuntime registers write tools pre-query-phase
+// ---------------------------------------------------------------------------
+
+/// Manifest TOML with 2 write tool declarations (F-LP-IMPL-P1-002 / S-PLUGIN-PREREQ-E AC-9 / ADR-026 §D7).
+const MANIFEST_WITH_WRITE_TOOLS_TOML: &str = r#"
+name = "write-tool-plugin"
+version = "1.0.0"
+format_version = 1
+allowed_urls = []
+
+[[write_tools]]
+tool_name = "wt_plugin_action_one"
+sensor_id = "wt_sensor"
+source_ids = ["wt_source_alpha"]
+
+[[write_tools]]
+tool_name = "wt_plugin_action_two"
+sensor_id = "wt_sensor"
+source_ids = ["wt_source_beta", "wt_source_gamma"]
+"#;
+
+/// F-LP-IMPL-P1-002 (CRITICAL) — PluginRuntime calls register_write_tool for each
+/// write tool declared in the plugin manifest, BEFORE mark_query_phase_started().
+///
+/// Verifies:
+/// 1. After `plugin_load_step` with a plugin declaring 2 write tools, `DYNAMIC_WRITE_TOOLS`
+///    contains at least 2 more entries than before the load (net +2).
+/// 2. Trying to re-register the same tool names returns `DuplicateWriteToolRegistration`,
+///    proving the tools are present in the registry.
+/// 3. `QUERY_PHASE_STARTED` is still `false` at this point (registration happened BEFORE
+///    mark_query_phase_started(), satisfying the ADR-022 §B step 7.5/8 ordering invariant).
+///
+/// Pre-fix failure mode: `load_all_plugins` returns `Ok((n, Vec::new()))` for the pending
+/// write tools list but the caller never wires `register_write_tool` — so `dynamic_write_tool_count()`
+/// does not increase and the re-registration probe succeeds (no DuplicateWriteToolRegistration).
+///
+/// Story: S-PLUGIN-PREREQ-E / F-LP-IMPL-P1-002 | BC-2.16.012 AC-9 | ADR-026 §D7
+#[tokio::test]
+#[allow(non_snake_case)]
+async fn test_BC_2_16_012_plugin_runtime_registers_write_tools_pre_query_phase() {
+    use prism_query::invalidation::{
+        WriteToolInvalidationMap, dynamic_write_tool_count, register_write_tool,
+        reset_dynamic_registry_global, reset_query_phase_global,
+    };
+
+    // Reset global state for test isolation (F-LP-IMPL-P1-005).
+    reset_query_phase_global();
+    reset_dynamic_registry_global();
+
+    let count_before = dynamic_write_tool_count();
+
+    // Create temp dir with a valid plugin + manifest declaring 2 write tools.
+    let dir = tempfile::tempdir().expect("create temp dir");
+    let bytes = compile_wat(MINIMAL_INFUSION_WAT);
+    write_prx(&dir, "write-tool-plugin", &bytes);
+    write_manifest(&dir, "write-tool-plugin", MANIFEST_WITH_WRITE_TOOLS_TOML);
+
+    let result = plugin_load_step(dir.path()).await;
+    assert!(
+        result.is_ok(),
+        "F-LP-IMPL-P1-002: plugin_load_step with write-tool manifest must succeed; got {:?}",
+        result.err()
+    );
+    let load_result = result.unwrap();
+    assert_eq!(
+        load_result.plugins_loaded, 1,
+        "F-LP-IMPL-P1-002: exactly 1 plugin must be loaded; got {}",
+        load_result.plugins_loaded
+    );
+
+    // Assert that DYNAMIC_WRITE_TOOLS gained exactly 2 entries.
+    let count_after = dynamic_write_tool_count();
+    assert_eq!(
+        count_after,
+        count_before + 2,
+        "F-LP-IMPL-P1-002: DYNAMIC_WRITE_TOOLS must contain +2 entries after loading a plugin \
+         with 2 declared write tools; before={count_before}, after={count_after}"
+    );
+
+    // Probe: re-registering the same tool names must return DuplicateWriteToolRegistration.
+    // This proves the tools are present in the registry, not just counted.
+    let dup_result = register_write_tool(WriteToolInvalidationMap {
+        tool_name: "wt_plugin_action_one".to_string(),
+        source_ids: vec!["wt_source_alpha".to_string()],
+        sensor_id: prism_core::SensorId::from("wt_sensor"),
+        plugin_name: "write-tool-plugin".to_string(),
+    });
+    assert!(
+        dup_result.is_err(),
+        "F-LP-IMPL-P1-002: re-registering a loaded write tool must fail with \
+         DuplicateWriteToolRegistration; got Ok(())"
+    );
+    let err_str = format!("{:?}", dup_result.unwrap_err());
+    assert!(
+        err_str.to_lowercase().contains("duplicate"),
+        "F-LP-IMPL-P1-002: error must cite DuplicateWriteToolRegistration; got: {err_str}"
+    );
+
+    // Assert that QUERY_PHASE_STARTED is still false — registration happened pre-query-phase.
+    // We verify this indirectly: register_write_tool on a NEW entry must succeed (not return
+    // WriteToolRegistrationAfterBoot), proving the query phase flag was not flipped yet.
+    let new_entry_result = register_write_tool(WriteToolInvalidationMap {
+        tool_name: "wt_pre_phase_check_probe".to_string(),
+        source_ids: vec!["wt_probe_source".to_string()],
+        sensor_id: prism_core::SensorId::from("wt_probe_sensor"),
+        plugin_name: "test_probe".to_string(),
+    });
+    assert!(
+        new_entry_result.is_ok(),
+        "F-LP-IMPL-P1-002: registering a new write tool after plugin_load_step must succeed \
+         (query phase not started); got: {:?}",
+        new_entry_result.err()
+    );
+
+    // Cleanup: reset for subsequent tests.
+    reset_query_phase_global();
+    reset_dynamic_registry_global();
+}

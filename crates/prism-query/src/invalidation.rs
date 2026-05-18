@@ -154,6 +154,46 @@ pub fn register_write_tool(entry: WriteToolInvalidationMap) -> Result<(), SpecEn
     Ok(())
 }
 
+/// Return the number of dynamically-registered write tools in `DYNAMIC_WRITE_TOOLS`.
+///
+/// Used by integration tests (in `prism-bin`) to assert that plugin write tool
+/// registrations succeeded without needing direct access to the private static
+/// (F-LP-IMPL-P1-002 test verification; S-PLUGIN-PREREQ-E AC-9 / ADR-026 §D7).
+///
+/// Returns `0` if the registry is poisoned (mirrors fail-safe semantics).
+pub fn dynamic_write_tool_count() -> usize {
+    match DYNAMIC_WRITE_TOOLS.read() {
+        Ok(guard) => guard.len(),
+        Err(_) => 0,
+    }
+}
+
+/// Reset the `DYNAMIC_WRITE_TOOLS` registry to empty.
+///
+/// ONLY for use in integration tests that need to reset cross-binary global state.
+/// Gated on `#[cfg(any(test, feature = "test-helpers"))]` to prevent production use.
+/// Production code never calls this function.
+///
+/// Story: S-PLUGIN-PREREQ-E / F-LP-IMPL-P1-005 cross-crate isolation
+#[cfg(any(test, feature = "test-helpers"))]
+pub fn reset_dynamic_registry_global() {
+    // Recover from poisoning by calling into_inner() on PoisonError.
+    match DYNAMIC_WRITE_TOOLS.write() {
+        Ok(mut guard) => guard.clear(),
+        Err(poisoned) => poisoned.into_inner().clear(),
+    }
+}
+
+/// Reset the `QUERY_PHASE_STARTED` flag to `false`.
+///
+/// ONLY for use in integration tests. Gated on test/test-helpers cfg.
+///
+/// Story: S-PLUGIN-PREREQ-E / F-LP-IMPL-P1-005 cross-crate isolation
+#[cfg(any(test, feature = "test-helpers"))]
+pub fn reset_query_phase_global() {
+    QUERY_PHASE_STARTED.store(false, Ordering::Release);
+}
+
 /// Lazily-initialized mapping of all write tools to their invalidation targets.
 ///
 /// Currently populated with the four built-in sensors (crowdstrike, cyberint,

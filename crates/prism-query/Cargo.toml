@@ -123,9 +123,12 @@ cyberint-write = ["prism-security/cyberint-write", "prism-sensors/cyberint-write
 claroty-write = ["prism-security/claroty-write", "prism-sensors/claroty-write"]
 armis-write = ["prism-security/armis-write", "prism-sensors/armis-write"]
 all-write = ["crowdstrike-write", "cyberint-write", "claroty-write", "armis-write"]
+# Exposes global reset helpers (reset_dynamic_registry_global, reset_query_phase_global)
+# for cross-crate integration tests. NEVER enable in production deps.
+test-helpers = []
 
 [lints.rust]
-unexpected_cfgs = { level = "warn", check-cfg = ['cfg(kani)', 'cfg(feature, values("alias-write", "crowdstrike-write", "cyberint-write", "claroty-write", "armis-write", "all-write"))'] }
+unexpected_cfgs = { level = "warn", check-cfg = ['cfg(kani)', 'cfg(feature, values("alias-write", "crowdstrike-write", "cyberint-write", "claroty-write", "armis-write", "all-write", "test-helpers"))'] }
 non_snake_case = "allow"
 
 [lints.clippy]

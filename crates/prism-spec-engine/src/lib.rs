@@ -68,7 +68,8 @@ pub use infusion::{
 pub use interpolation::{InterpolationContext, InterpolationError};
 pub use pipeline::{FetchContext, PipelineExecutor, PipelineResult};
 pub use plugin::{
-    ActionResult, AlertContext, CaseContext, LoadedPlugin, PluginRuntime, PluginType, ReportContext,
+    ActionResult, AlertContext, CaseContext, LoadedPlugin, ManifestWriteTool, PluginRuntime,
+    PluginType, ReportContext,
 };
 pub use spec_parser::{
     AuthType, ColumnSpec, FetchStep, PaginationConfig, RateLimitHints, SensorSpec,

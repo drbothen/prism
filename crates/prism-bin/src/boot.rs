@@ -953,10 +953,38 @@ pub async fn plugin_load_step_with_audit(
         .map_err(|e| BootError::InternalError(e.to_string()))?;
 
     // AC-1: Scan plugin_dir for .prx files and load each one.
-    let plugins_loaded = runtime
+    // load_all_plugins returns (n_loaded, pending_write_tool_registrations) — the latter
+    // must be registered with prism_query::invalidation::register_write_tool before
+    // mark_query_phase_started() is called at step 8 (F-LP-IMPL-P1-002 / ADR-026 §D7 step 7.5).
+    let (plugins_loaded, pending_write_tools) = runtime
         .load_all_plugins(plugin_dir)
         .await
         .map_err(|e| BootError::InternalError(e.to_string()))?;
+
+    // Step 7.6 (new): Register plugin write tools with the invalidation map.
+    //
+    // Must execute AFTER step 7.5 plugin-load AND BEFORE step 8 mark_query_phase_started().
+    // Ordering invariant: ADR-022 §B step 7.5/8 (plugin-load → register_write_tool → query-phase).
+    // Duplicate or post-boot registration failures are non-fatal (n-1 survivor rule applies
+    // to plugins; the plugin that loaded successfully stays in the registry).
+    for (plugin_name, manifest_tool) in pending_write_tools {
+        let entry = prism_query::invalidation::WriteToolInvalidationMap {
+            tool_name: manifest_tool.tool_name.clone(),
+            source_ids: manifest_tool.source_ids.clone(),
+            sensor_id: prism_core::SensorId::from(manifest_tool.sensor_id.as_str()),
+            plugin_name: plugin_name.clone(),
+        };
+        if let Err(reg_err) = prism_query::invalidation::register_write_tool(entry) {
+            // Non-fatal: the plugin loaded successfully. Log at WARN so operators can diagnose
+            // duplicate tool_name conflicts or post-boot registration attempts.
+            tracing::warn!(
+                plugin_name = %plugin_name,
+                tool_name = %manifest_tool.tool_name,
+                error = %reg_err,
+                "write tool registration failed for plugin (non-fatal per n-1 survivor rule)"
+            );
+        }
+    }
 
     tracing::info!(
         n_loaded = plugins_loaded,

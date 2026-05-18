@@ -122,6 +122,9 @@ chrono = { version = "0.4", features = ["serde"] }
 prism-spec-engine = { path = "../prism-spec-engine", version = "0.8.0", features = ["test-helpers"] }
 prism-storage = { path = "../prism-storage", version = "0.1.0" }
 prism-core = { path = "../prism-core", version = "0.2.0" }
+# test-helpers: exposes reset_dynamic_registry_global / reset_query_phase_global for
+# F-LP-IMPL-P1-002 cross-crate integration test isolation (F-LP-IMPL-P1-005).
+prism-query = { path = "../prism-query", version = "0.1.0", features = ["test-helpers"] }
 bincode = "2"
 wat = "1"
 
