@@ -1,7 +1,7 @@
 ---
 document_type: behavioral-contract-index
 level: L3
-version: "5.11"
+version: "5.12"
 status: draft
 producer: state-manager
 timestamp: 2026-05-17T07:00:00Z
@@ -209,7 +209,7 @@ Phase 3-patch additions (2026-04-16): 22 new BCs added in Burst 1 to close trace
 | BC-2.15.010 | Decorator Three-Phase Model — Config-Time, Query-Time, Periodic | 15 - Storage Layer | CAP-026 | P0 | draft |
 | BC-2.15.011 | Internal Table Registration — RocksDB Domains as DataFusion Tables | 15 - Storage Layer | CAP-028 | P0 | draft |
 | BC-2.16.001 | Sensor Spec File Loading — Parse TOML, Validate Schema, Register Tables | 16 - Spec Engine | CAP-029 | P0 | draft |
-| BC-2.16.002 | Multi-Step Fetch Pipeline Execution — Sequential Steps with Variable Interpolation | 16 - Spec Engine | CAP-029 | P0 | active (promoted draft→active D-427 per POL-14; anchor story S-PLUGIN-PREREQ-B merged PR #143 develop@ae7e26c8 2026-05-12) — v1.29 |
+| BC-2.16.002 | Multi-Step Fetch Pipeline Execution — Sequential Steps with Variable Interpolation | 16 - Spec Engine | CAP-029 | P0 | active (promoted draft→active D-427 per POL-14; anchor story S-PLUGIN-PREREQ-B merged PR #143 develop@ae7e26c8 2026-05-12) — v1.30 |
 | BC-2.16.003 | Column-to-OCSF Mapping at Query Time — Map Sensor Columns to OCSF Fields Per Spec | 16 - Spec Engine | CAP-029 | P0 | draft |
 | BC-2.16.004 | ~~Rust Escape Hatch for Custom Adapters — Trait-Based Override When Config Is Insufficient~~ | 16 - Spec Engine | CAP-029 | P0 | deprecated (ADR-023 PREREQ-F) |
 | BC-2.16.005 | `reload_config` MCP Tool — Re-Read All Config Files, Validate, Atomic Swap, Notify | 16 - Spec Engine | CAP-030 | P1 | draft |
@@ -371,6 +371,8 @@ Phase 3-patch additions (2026-04-16): 22 new BCs added in Burst 1 to close trace
 - Subsystem 19: Infusion Enrichment Framework (AD-020, CAP-031)
 
 ### Change Log (Adversarial Review Fixes)
+
+**v5.12 (2026-05-17, FB70 D-692):** state-manager | BC-2.16.002 v1.29→v1.30 (F-LP82-HIGH-001 closure — line 110 row 33 body cite-pin advanced ADR-026 D7 v1.21→v1.22; FB69 misapplied POL-30 Fork B framing retracted per FB55/FB56b/FB62 3-burst precedent; line 74 catalog bullet (v1.21) correctly preserved per Fork B canonical rule). BC-INDEX v5.11→v5.12.
 
 **v5.11 (2026-05-17, FB69 D-691):** state-manager | BC-2.16.011 v1.8→v1.9 (PO F-LP81-HIGH-001 closure: INV-ADAPTER-RETIRE-003 + Precondition rewrite preserving CustomAdapter-cleanup intent while reflecting BC-2.16.012 sibling-scope 1-line insertion truth — 37-pass-surviving BC↔story semantic contradiction) + BC-2.16.012 v1.24→v1.25 (PO F-LP81-HIGH-002 closure: ADR-026 D7 v1.21→v1.22 sweep at 4 live-narrative sites — META-META step 8b self-induced bump gap) + BC-2.16.002 v1.28→v1.29 (PO F-LP81-HIGH-002 closure: frontmatter-only bump — POL-30 Fork B catalog bullet (v1.21) UNCHANGED per POL-30). BC-INDEX v5.10→v5.11.
 
