@@ -838,4 +838,33 @@ impl SpecLoader {
 
         errors
     }
+
+    /// Validate SensorAuth × DataSource cross-composition rules at credential-validation pass.
+    ///
+    /// Enforces the three runtime rejection rules introduced when the `SensorAuth` sealed
+    /// trait is removed (S-PLUGIN-PREREQ-E / BC-2.01.016 Rule 2 / ADR-023 Rule 2):
+    ///
+    /// - **Rule A / E-SPEC-012:** `auth_type` is multi-valued or outside the closed
+    ///   enumeration `{oauth2_client_credentials, bearer_static, cookie_roundtrip, api_key,
+    ///   custom_via_plugin}`.
+    /// - **Rule B / E-SPEC-013:** Multiple `credential_refs` declared per auth method block
+    ///   (cardinality must be exactly 1).
+    /// - **Rule C / E-SPEC-014:** Structural mismatch between resolved credential shape and
+    ///   declared `auth_type`.
+    ///
+    /// Returns `Ok(())` if all three rules pass, or the first `Err(SpecEngineError::Auth*)` on
+    /// violation (fail-fast per ADR-026 D3).
+    ///
+    /// Story: S-PLUGIN-PREREQ-E AC-3 / AC-3b / AC-3c / Task 6b | ADR-026 §D3 | ADR-023 Rule 2
+    pub fn validate_cross_composition(
+        _sensor_id: &str,
+        _auth_type: &str,
+        _credential_refs_count: usize,
+        _expected_shape: &str,
+        _actual_shape: &str,
+    ) -> Result<(), crate::error::SpecEngineError> {
+        todo!(
+            "S-PLUGIN-PREREQ-E AC-3/3b/3c: implement three E-SPEC-012/013/014 validators; see Task 6b for Rule A (closed-enum check), Rule B (credential_refs cardinality), Rule C (structural-shape match)"
+        )
+    }
 }

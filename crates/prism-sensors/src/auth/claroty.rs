@@ -26,7 +26,7 @@ use secrecy::{ExposeSecret, SecretString};
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
-use super::{private::Sealed, SensorAuth};
+use super::SensorAuth;
 use crate::adapter::{QueryParams, SensorAdapter, SensorError, SensorSpec};
 
 // ---------------------------------------------------------------------------
@@ -55,10 +55,13 @@ impl std::fmt::Debug for ClarotyAuth {
     }
 }
 
-impl Sealed for ClarotyAuth {}
 impl SensorAuth for ClarotyAuth {
     fn as_any(&self) -> &dyn std::any::Any {
         self
+    }
+
+    fn auth_type_name(&self) -> &'static str {
+        todo!("S-PLUGIN-PREREQ-E AC-2: return \"cookie_roundtrip\" for ClarotyAuth per ADR-026 §D3")
     }
 }
 

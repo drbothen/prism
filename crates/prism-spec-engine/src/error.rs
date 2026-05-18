@@ -145,6 +145,79 @@ pub enum SpecEngineError {
         /// Total cumulative HTTP requests attempted (always >= MAX_REQUESTS_PER_PIPELINE).
         total: usize,
     },
+
+    // -------------------------------------------------------------------------
+    // S-PLUGIN-PREREQ-E — SensorAuth runtime cross-composition rejection variants
+    // (BC-2.01.016 Rule 2 / ADR-023 Rule 2 / ADR-026 D3 / Task 6c)
+    // -------------------------------------------------------------------------
+    /// E-SPEC-012 (Rule A): `auth_type` field is multi-valued or contains a value
+    /// outside the closed enumeration `{oauth2_client_credentials, bearer_static,
+    /// cookie_roundtrip, api_key, custom_via_plugin}`.
+    ///
+    /// Sealed-trait compile-time enforcement is replaced by this runtime validator
+    /// (BC-2.01.016 Rule 2 / ADR-023 §Architectural Constraints Rule 2, Rule A).
+    ///
+    /// `provided_value` carries the raw TOML field value that failed validation.
+    /// Implementer note (AD-017): `provided_value` is the TOML `auth_type` string,
+    /// NOT a credential secret — `Debug` derive is safe for this field.
+    #[error(
+        "E-SPEC-012: sensor '{sensor_id}' auth_type value '{provided_value}' is invalid — \
+         must be a scalar from the closed enumeration per ADR-026 §D3"
+    )]
+    AuthTypeCrossComposition {
+        /// Sensor identity for diagnostics.
+        sensor_id: String,
+        /// The raw `auth_type` TOML value that failed validation (NOT a credential secret).
+        provided_value: String,
+    },
+
+    /// E-SPEC-013 (Rule B): Multiple `credential_refs` declared for a single auth method
+    /// block (cardinality must be exactly 1 per BC-2.01.016 §Error Cases / ADR-023 Rule B).
+    #[error(
+        "E-SPEC-013: sensor '{sensor_id}' declares {credential_count} credential_refs — \
+         exactly 1 is required per BC-2.01.016 §Error Cases"
+    )]
+    MultipleCredentialRefs {
+        /// Sensor identity for diagnostics.
+        sensor_id: String,
+        /// Actual number of `credential_refs` entries declared (always > 1 when this error fires).
+        credential_count: usize,
+    },
+
+    /// E-SPEC-014 (Rule C): Structural mismatch between the resolved credential's shape and
+    /// the declared `auth_type` variant (e.g., `auth_type = "bearer_static"` with an
+    /// `oauth2_client_credentials`-shaped credential containing `client_id+client_secret`).
+    ///
+    /// Implementer note (AD-017): `expected_shape` and `actual_shape` are STRUCTURAL
+    /// DESCRIPTOR STRINGS (e.g., `"api_key"`, `"client_id+client_secret"`) — NOT raw
+    /// credential values. However, the implementer MUST verify at implementation time
+    /// that no credential data propagates into these fields (see Task 6c credential
+    /// redaction discipline note). `Debug` derive is used for the stub; the implementer
+    /// should confirm or replace with a custom `Debug` impl if shapes ever contain secrets.
+    #[error(
+        "E-SPEC-014: sensor '{sensor_id}' auth_type/credential shape mismatch — \
+         expected shape '{expected_shape}', got '{actual_shape}'"
+    )]
+    AuthTypeCredentialMismatch {
+        /// Sensor identity for diagnostics.
+        sensor_id: String,
+        /// Structural shape expected by the declared `auth_type`.
+        expected_shape: String,
+        /// Structural shape of the resolved credential (MUST NOT contain raw secret values).
+        actual_shape: String,
+    },
+
+    /// E-PLUGIN-020: `register_write_tool()` called after query-phase flag was set
+    /// (i.e., after boot step 8 has started per ADR-022 §B step 7.5/8 ordering).
+    ///
+    /// Unit variant — dynamic context is carried by the accompanying structured
+    /// tracing event fields (`plugin_name`, `tool_name`, `error = "E-PLUGIN-020"`)
+    /// per BC-2.16.002 §Postconditions (Canonical Structured Event Catalog) row 33
+    /// and ADR-026 §D7. Story: S-PLUGIN-PREREQ-E AC-9 / Task 7c.
+    #[error(
+        "E-PLUGIN-020: write tool registration rejected — query phase already started (ADR-026 §D7)"
+    )]
+    WriteToolRegistrationAfterBoot,
 }
 
 // ---------------------------------------------------------------------------

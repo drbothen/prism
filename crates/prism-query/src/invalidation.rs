@@ -18,10 +18,12 @@
 //!
 //! Story: S-3.05
 
+use std::sync::atomic::AtomicBool;
 use std::sync::{Arc, LazyLock};
 
 use prism_core::error::PrismError;
 use prism_core::{OrgSlug, SensorId};
+use prism_spec_engine::error::SpecEngineError;
 
 use crate::cache::QueryCache;
 
@@ -29,13 +31,19 @@ use crate::cache::QueryCache;
 // WriteToolInvalidationMap
 // ---------------------------------------------------------------------------
 
-/// Static mapping from a write tool name to the `source_id` values it
-/// invalidates, per BC-2.07.004 §Write Tool to source_id Mapping.
+/// Mapping from a write tool name to the `source_id` values it invalidates,
+/// per BC-2.07.004 §Write Tool to source_id Mapping.
 ///
 /// Each adapter MUST register its write tools here — omitting a mapping is a bug.
 ///
 /// `sensor_id` is a `SensorId` (open newtype) — replaces the previous
 /// `sensor_name: &'static str` field (S-PLUGIN-PREREQ-A / F-LP1-MED-003).
+///
+/// `plugin_name` is set by `PluginRuntime` from the plugin manifest `name` field
+/// (S-PLUGIN-PREREQ-E / ADR-026 D7 v1.23; AC-9). For built-in sensors registered
+/// in the static `WRITE_TOOL_INVALIDATION_MAP`, this field is empty (`""`).
+/// This field is the source for the `plugin_name` structured event field in the
+/// `write_tool_registration_after_boot` WARN event (BC-2.16.002 row 33).
 #[derive(Debug, Clone)]
 pub struct WriteToolInvalidationMap {
     /// Tool name (e.g., `"crowdstrike_contain_host"`).
@@ -45,6 +53,57 @@ pub struct WriteToolInvalidationMap {
     /// Sensor identity — the owning sensor for this write tool.
     /// Use `entry.sensor_id == *probe_sensor_id` for lookup comparisons.
     pub sensor_id: SensorId,
+    /// Plugin that registered this write tool; empty for built-in static entries.
+    /// Set from plugin manifest `name` field by `PluginRuntime` at registration time
+    /// (ADR-026 D7 v1.23; S-PLUGIN-PREREQ-E AC-9).
+    pub plugin_name: String,
+}
+
+// ---------------------------------------------------------------------------
+// AtomicBool query-phase flag (ADR-026 §D7; S-PLUGIN-PREREQ-E Task 7b / AC-9)
+// ---------------------------------------------------------------------------
+
+/// Flag set to `true` when the query phase begins (ADR-022 §B step 8 boundary).
+///
+/// Once set, no further `register_write_tool()` calls are accepted — the
+/// write-tool registration window is permanently closed. Callers after this
+/// point receive `SpecEngineError::WriteToolRegistrationAfterBoot` with an
+/// accompanying structured WARN tracing event (BC-2.16.002 row 33).
+///
+/// Set via `mark_query_phase_started()`. Read via `Ordering::Acquire` in
+/// `register_write_tool()`.
+#[allow(dead_code)] // referenced by mark_query_phase_started() todo!() — implementer will use this
+static QUERY_PHASE_STARTED: AtomicBool = AtomicBool::new(false);
+
+/// Marks the query phase as started, permanently closing the write-tool
+/// registration window.
+///
+/// Called as the FIRST statement of the step-8 init function in
+/// `crates/prism-bin/src/boot.rs` — immediately before `QueryEngine::new()` —
+/// to close the registration window before any queries can be dispatched.
+/// All plugin registrations at step 7.5 are already complete when step 8 starts.
+///
+/// After this call, any `register_write_tool()` invocation returns
+/// `Err(SpecEngineError::WriteToolRegistrationAfterBoot)` and emits a WARN
+/// structured tracing event (BC-2.16.002 §Postconditions row 33; ADR-026 §D7).
+///
+/// Story: S-PLUGIN-PREREQ-E AC-9 / Task 7b | ADR-026 §D7 | ADR-022 §B step 7.5/8
+pub fn mark_query_phase_started() {
+    todo!("S-PLUGIN-PREREQ-E AC-9: store true to QUERY_PHASE_STARTED with Ordering::Release (ADR-026 §D7; production caller is boot.rs step-8 init function)")
+}
+
+/// Register a plugin-provided write tool in the runtime-extensible invalidation map.
+///
+/// Checks the `QUERY_PHASE_STARTED` flag before acquiring the write guard:
+/// - If the query phase has already started, emits a WARN tracing event and
+///   returns `Err(SpecEngineError::WriteToolRegistrationAfterBoot)` (ADR-026 §D7 fail-closed).
+/// - If a duplicate `tool_name` already exists, returns
+///   `Err(SpecEngineError::DuplicateWriteToolRegistration(tool_name))`.
+/// - Otherwise pushes `entry` and returns `Ok(())`.
+///
+/// Story: S-PLUGIN-PREREQ-E AC-9 / Task 7 | BC-2.16.012 EC-016-012-004/005 | ADR-026 §D7
+pub fn register_write_tool(_entry: WriteToolInvalidationMap) -> Result<(), SpecEngineError> {
+    todo!("S-PLUGIN-PREREQ-E AC-9: check QUERY_PHASE_STARTED flag, check duplicate tool_name, push entry into RwLock<Vec<WriteToolInvalidationMap>>; see Task 7 for RwLock migration details")
 }
 
 /// Lazily-initialized mapping of all write tools to their invalidation targets.
@@ -61,41 +120,49 @@ pub static WRITE_TOOL_INVALIDATION_MAP: LazyLock<Vec<WriteToolInvalidationMap>> 
                 tool_name: "crowdstrike_contain_host",
                 source_ids: &["crowdstrike_hosts", "crowdstrike_detections"],
                 sensor_id: SensorId::from("crowdstrike"),
+                plugin_name: String::new(), // built-in; no plugin origin
             },
             WriteToolInvalidationMap {
                 tool_name: "crowdstrike_acknowledge_alert",
                 source_ids: &["crowdstrike_alerts", "crowdstrike_detections"],
                 sensor_id: SensorId::from("crowdstrike"),
+                plugin_name: String::new(), // built-in; no plugin origin
             },
             WriteToolInvalidationMap {
                 tool_name: "cyberint_acknowledge_alert",
                 source_ids: &["cyberint_alerts"],
                 sensor_id: SensorId::from("cyberint"),
+                plugin_name: String::new(), // built-in; no plugin origin
             },
             WriteToolInvalidationMap {
                 tool_name: "cyberint_close_alert",
                 source_ids: &["cyberint_alerts"],
                 sensor_id: SensorId::from("cyberint"),
+                plugin_name: String::new(), // built-in; no plugin origin
             },
             WriteToolInvalidationMap {
                 tool_name: "claroty_resolve_alert",
                 source_ids: &["claroty_alerts"],
                 sensor_id: SensorId::from("claroty"),
+                plugin_name: String::new(), // built-in; no plugin origin
             },
             WriteToolInvalidationMap {
                 tool_name: "claroty_device_action",
                 source_ids: &["claroty_devices"],
                 sensor_id: SensorId::from("claroty"),
+                plugin_name: String::new(), // built-in; no plugin origin
             },
             WriteToolInvalidationMap {
                 tool_name: "armis_update_alert_status",
                 source_ids: &["armis_alerts"],
                 sensor_id: SensorId::from("armis"),
+                plugin_name: String::new(), // built-in; no plugin origin
             },
             WriteToolInvalidationMap {
                 tool_name: "armis_device_action",
                 source_ids: &["armis_devices"],
                 sensor_id: SensorId::from("armis"),
+                plugin_name: String::new(), // built-in; no plugin origin
             },
         ]
     });
