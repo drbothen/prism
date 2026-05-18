@@ -2,7 +2,7 @@
 document_type: prd-supplement
 level: L3
 section: "error-taxonomy"
-version: "1.35"
+version: "1.36"
 status: active
 producer: product-owner
 timestamp: 2026-05-16T00:00:00Z
@@ -486,7 +486,8 @@ Additional state errors beyond E-STATE-001 and E-STATE-002 (defined in the STATE
 
 | Version | Burst | Date | Author | Change |
 |---------|-------|------|--------|--------|
-| 1.35 | FB74 | 2026-05-17 | product-owner | F-LP74-HIGH-001 closure (PO scope): ADR-026 D7 pin v1.19→v1.21 at lines 459 (E-PLUGIN-012), 467 (E-PLUGIN-020) (2 sites). |
+| 1.36 | FB64 | 2026-05-17 | product-owner | F-LP76-HIGH-001 closure (PO scope): burst-label cell corrected FB74→FB62 in §Changelog row for v1.35. Original FB62 closure of F-LP74-HIGH-001 was labeled "FB74" derived from finding ID; canonical FB sequential counter was FB62 per state-manager records. POL-26 schema integrity + POL-29 cross-domain sibling consistency restored. |
+| 1.35 | FB62 | 2026-05-17 | product-owner | F-LP74-HIGH-001 closure (PO scope): ADR-026 D7 pin v1.19→v1.21 at lines 459 (E-PLUGIN-012), 467 (E-PLUGIN-020) (2 sites). |
 | 1.34 | FB56b | 2026-05-17 | product-owner | F-LP68-HIGH-001 closure cascade (FB56b PO scope): ADR-026 D7 pin v1.18→v1.19 propagation at error-taxonomy lines 459 (E-PLUGIN-012) and 467 (E-PLUGIN-020) (2 sites). POL-29 v1.17 step 8a FIRST APPLICATION cascade closure. |
 | 1.33 | FB55 | 2026-05-17 | product-owner | F-LP67-HIGH-001 closure (PO scope): ADR-026 D7 pin v1.17→v1.18 propagation at error-taxonomy lines 459 (E-PLUGIN-012) and 467 (E-PLUGIN-020) (2 live-narrative sites). POL-29 v1.16 step 3a (b) recurrence #18 within-burst closure. |
 | 1.32 | FB51 | 2026-05-17 | product-owner | F-LP63-HIGH-001 closure: 2 ADR-026 D7 v1.10 live-narrative pins (E-PLUGIN-012 row + E-PLUGIN-020 row) bumped to v1.17 (POL-29 enforcement gap from FB50 closed). F-LP63-MED-002 closure: E-SPEC-008 retired row description gains BC-2.16.011 + ADR-027 §Decision back-pointers per story AC-11. |

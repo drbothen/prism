@@ -1,7 +1,7 @@
 ---
 document_type: verification-property
 level: L4
-version: "0.15"
+version: "0.16"
 status: draft
 producer: architect
 timestamp: 2026-05-15T00:00:00Z
@@ -206,4 +206,5 @@ The implementer adds this function in `crates/prism-query/src/invalidation.rs` u
 | 0.12 | FB51 | 2026-05-17 | state-manager | F-LP63-HIGH-003 closure: §Changelog v0.10/v0.11 row positions swapped to ascending order (v0.10 FB45 2026-05-16 BEFORE v0.11 FB50 2026-05-17); 7th POL-26 recurrence within FB50 sibling-sweep itself; POL-26 corollary bookkeeping repair. |
 | 0.13 | FB55 | 2026-05-17 | product-owner | F-LP67-HIGH-001 closure (PO scope): ADR-026 D7 pin v1.17→v1.18 propagation at VP-156 lines 42, 86, 90, 124 (4 live-narrative sites). POL-29 v1.16 step 3a (b) recurrence #18 within-burst closure. |
 | 0.14 | FB56b | 2026-05-17 | product-owner | F-LP68-HIGH-001 closure cascade (FB56b PO scope): ADR-026 D7 pin v1.18→v1.19 propagation at VP-156 lines 42, 86, 90, 124 (4 sites). POL-29 v1.17 step 8a FIRST APPLICATION cascade closure. |
-| 0.15 | FB74 | 2026-05-17 | product-owner | F-LP74-HIGH-001 closure (PO scope): ADR-026 D7 pin v1.19→v1.21 at lines 42, 86, 90, 124 (4 sites). |
+| 0.15 | FB62 | 2026-05-17 | product-owner | F-LP74-HIGH-001 closure (PO scope): ADR-026 D7 pin v1.19→v1.21 at lines 42, 86, 90, 124 (4 sites). |
+| 0.16 | FB64 | 2026-05-17 | product-owner | F-LP76-HIGH-001 closure (PO scope): burst-label cell corrected FB74→FB62 in §Changelog row for v0.15. Original FB62 closure of F-LP74-HIGH-001 was labeled "FB74" derived from finding ID; canonical FB sequential counter was FB62 per state-manager records. POL-26 schema integrity + POL-29 cross-domain sibling consistency restored. |

@@ -1,7 +1,7 @@
 ---
 document_type: behavioral-contract
 level: L3
-version: "1.23"
+version: "1.24"
 status: draft
 producer: product-owner
 timestamp: 2026-05-16T00:00:00Z
@@ -160,7 +160,8 @@ S-PLUGIN-PREREQ-E
 
 | Version | Burst | Date | Author | Change |
 |---------|-------|------|--------|--------|
-| 1.23 | FB74 | 2026-05-17 | product-owner | F-LP74-HIGH-001 closure (PO scope): ADR-026 D7 pin v1.19→v1.21 propagation at lines 84, 109, 124, 138 (4 sites). POL-29 step 3a (b) recurrence #20 within-burst cascade closure. |
+| 1.24 | FB64 | 2026-05-17 | product-owner | F-LP76-HIGH-001 closure (PO scope): burst-label cell corrected FB74→FB62 in §Changelog row for v1.23. Original FB62 closure of F-LP74-HIGH-001 was labeled "FB74" derived from finding ID; canonical FB sequential counter was FB62 per state-manager records. POL-26 schema integrity + POL-29 cross-domain sibling consistency restored. |
+| 1.23 | FB62 | 2026-05-17 | product-owner | F-LP74-HIGH-001 closure (PO scope): ADR-026 D7 pin v1.19→v1.21 propagation at lines 84, 109, 124, 138 (4 sites). POL-29 step 3a (b) recurrence #20 within-burst cascade closure. |
 | 1.22 | FB56b | 2026-05-17 | product-owner | F-LP68-HIGH-001 closure cascade (FB56b PO scope): ADR-026 D7 pin v1.18→v1.19 propagation at BC-2.16.012 lines 84, 109, 124, 138 (4 sites). POL-29 v1.17 step 8a FIRST APPLICATION cascade closure. |
 | 1.21 | FB55 | 2026-05-17 | product-owner | F-LP67-HIGH-001 closure (PO scope): ADR-026 D7 pin v1.17→v1.18 propagation at BC-2.16.012 lines 84, 109, 138 (3 live-narrative sites). POL-29 v1.16 step 3a (b) recurrence #18 within-burst closure. |
 | 1.20 | FB50 | 2026-05-17 | architect | POL-23 sibling-sweep OBS-LP62-002 interpretation #2: ADR-026 D7 v1.16 (+ any residual v1.10) live-narrative pins bumped to v1.17 (current ADR-026 version per FB47 §Related ADRs row edit; D7 content unchanged since v1.16). |

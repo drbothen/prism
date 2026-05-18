@@ -8,7 +8,7 @@ must_pass: true
 priority: P0
 epic_id: "PLUGIN-MIGRATION-001"
 story_source: "S-PLUGIN-PREREQ-E"
-version: "1.12"
+version: "1.13"
 status: draft
 producer: product-owner
 timestamp: 2026-05-17T00:00:00Z
@@ -224,7 +224,8 @@ When this holdout scenario is evaluated, the evaluator must produce:
 
 | Version | Burst | Date | Author | Change |
 |---------|-------|------|--------|--------|
-| 1.12 | FB74 | 2026-05-17 | product-owner | F-LP74-HIGH-001 closure (PO scope): ADR-026 D7 pin v1.19→v1.21 at lines 125, 149, 206 (3 sites). |
+| 1.13 | FB64 | 2026-05-17 | product-owner | F-LP76-HIGH-001 closure (PO scope): burst-label cell corrected FB74→FB62 in §Changelog row for v1.12. Original FB62 closure of F-LP74-HIGH-001 was labeled "FB74" derived from finding ID; canonical FB sequential counter was FB62 per state-manager records. POL-26 schema integrity + POL-29 cross-domain sibling consistency restored. |
+| 1.12 | FB62 | 2026-05-17 | product-owner | F-LP74-HIGH-001 closure (PO scope): ADR-026 D7 pin v1.19→v1.21 at lines 125, 149, 206 (3 sites). |
 | 1.11 | FB59 | 2026-05-17 | product-owner | F-LP71-HIGH-002 closure (PO scope): frontmatter `title:` byte-synced to H1 — was `"...Open Dispatch Behavioral Equivalence"` now `"...Open Dispatch and WriteToolInvalidationMap Extensibility"`. Silent drift with no prior §Changelog row justifying; HS-001 + HS-002 sibling-conformant. POL-7 + TD-VSDD-060 closure. |
 | 1.10 | FB56b | 2026-05-17 | product-owner | F-LP68-HIGH-001 closure cascade (FB56b PO scope): ADR-026 D7 pin v1.18→v1.19 propagation at HS-003 lines 125, 149, 206 (3 sites). POL-29 v1.17 step 8a FIRST APPLICATION cascade closure. |
 | 1.9 | FB55 | 2026-05-17 | product-owner | F-LP67-HIGH-001 closure (PO scope): ADR-026 D7 pin v1.17→v1.18 propagation at HS-003 lines 125, 149, 206 (3 live-narrative sites). POL-29 v1.16 step 3a (b) recurrence #18 within-burst closure. |
