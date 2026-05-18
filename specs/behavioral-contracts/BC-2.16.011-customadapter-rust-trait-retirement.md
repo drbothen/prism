@@ -1,7 +1,7 @@
 ---
 document_type: behavioral-contract
 level: L3
-version: "1.9"
+version: "1.10"
 status: draft
 producer: product-owner
 timestamp: 2026-05-15T00:00:00
@@ -51,7 +51,7 @@ re-export or exercise `CustomAdapter` in `lib.rs`, `examples/demo_spec_loading.r
 - `S-WAVE5-PREP-01` has already removed dead `custom_adapter_registry` references from
   `crates/prism-bin/src/boot.rs`. `boot.rs` receives exactly ONE 1-line insertion in this
   story (`prism_query::invalidation::mark_query_phase_started();` per F-LP56-HIGH-001
-  adjudication / ADR-026 D7 v1.22); this serves the WriteToolInvalidationMap query-phase flag
+  adjudication / ADR-026 D7 v1.23); this serves the WriteToolInvalidationMap query-phase flag
   (BC-2.16.012 scope), NOT CustomAdapter removal. No other `boot.rs` changes are made.
 - `S-PLUGIN-PREREQ-F` has confirmed (per ADR-023 Rule 5 publication-history determination —
   "since `prism-spec-engine` has never been published to crates.io with CustomAdapter
@@ -98,7 +98,7 @@ re-export or exercise `CustomAdapter` in `lib.rs`, `examples/demo_spec_loading.r
 
 - **INV-ADAPTER-RETIRE-001:** After this story merges, `grep -rn "CustomAdapter\|CustomAdapterRegistry\|CustomAuth" crates/` returns ZERO matches in all non-comment, non-doc-string Rust source lines.
 - **INV-ADAPTER-RETIRE-002:** The `prism-spec-engine` crate public API (as reflected in `src/lib.rs` re-exports) does NOT expose any type, trait, or function from the retired `custom_adapter` module.
-- **INV-ADAPTER-RETIRE-003:** `boot.rs` receives exactly ONE 1-line insertion in this story (`prism_query::invalidation::mark_query_phase_started();` per F-LP56-HIGH-001 adjudication; ADR-026 D7 v1.22) which serves the BC-2.16.012 WriteToolInvalidationMap query-phase flag — NOT CustomAdapter removal. No CustomAdapter-related `boot.rs` changes are made. The boot sequence was cleaned of `CustomAdapterRegistry` references by `S-WAVE5-PREP-01`; PREREQ-E confirms that state for CustomAdapter cleanup, while the BC-2.16.012-scoped query-phase flag insertion is the sole new `boot.rs` change.
+- **INV-ADAPTER-RETIRE-003:** `boot.rs` receives exactly ONE 1-line insertion in this story (`prism_query::invalidation::mark_query_phase_started();` per F-LP56-HIGH-001 adjudication; ADR-026 D7 v1.23) which serves the BC-2.16.012 WriteToolInvalidationMap query-phase flag — NOT CustomAdapter removal. No CustomAdapter-related `boot.rs` changes are made. The boot sequence was cleaned of `CustomAdapterRegistry` references by `S-WAVE5-PREP-01`; PREREQ-E confirms that state for CustomAdapter cleanup, while the BC-2.16.012-scoped query-phase flag insertion is the sole new `boot.rs` change.
 - **INV-ADAPTER-RETIRE-004:** The `.prx` WASM plugin model is the sole surviving escape hatch for non-declarative sensor behavior. No parallel Rust-trait escape hatch is introduced. ADR-023 Rule 5 is now fully implemented.
 
 ## Error Cases
@@ -206,6 +206,7 @@ S-PLUGIN-PREREQ-E
 
 | Version | Burst | Date | Author | Change |
 |---------|-------|------|--------|--------|
+| 1.10 | FB73 | 2026-05-17 | product-owner | F-LP85-HIGH-001 closure (PO scope): ADR-026 D7 pin v1.22→v1.23 propagation at BC-2.16.011 Preconditions line 54 and INV-ADAPTER-RETIRE-003 line 101 (2 sites). Sibling files story v1.46 + BC-2.16.012 v1.26 + BC-2.16.002 v1.31 (POL-30 Fork B preserved) + VP-156 v0.18 + HS-003 v1.15 + error-taxonomy v1.38 swept in same burst. |
 | 1.9 | FB69 | 2026-05-17 | product-owner | F-LP81-HIGH-001 closure: INV-ADAPTER-RETIRE-003 + Preconditions amended to reflect F-LP56-HIGH-001 adjudication (FB44 D-666) — boot.rs receives 1-line insertion for BC-2.16.012 WriteToolInvalidationMap query-phase flag (sibling scope), NOT CustomAdapter removal. 37-pass-surviving BC↔story semantic contradiction closed per CLAUDE.md Source-of-Truth Precedence Rule 1. POL-23 within-FB sibling-sweep + POL-22 named-entity-semantics restored. |
 | 1.8 | FB51 | 2026-05-17 | product-owner | POL-23 sibling-sweep (F-LP63-MED-001 family): §Preconditions PLUGIN-AUDIT-001 HIGH-3 mis-anchored citation corrected to Option (a) split provenance — publication-history routed to ADR-023 Rule 5 (correct source); dead-code claim routed to PLUGIN-AUDIT-001 HIGH-3 (correct source). Restores bidirectional traceability. Parallel fix to BC-2.01.016 v1.8 in same burst. |
 | 1.7 | FB47 | 2026-05-16 | product-owner | §Architecture Anchors line 178: ADR-027 framing label updated from "deprecation/removal" to "Same-Burst Removal — Perimeter Enforcement in Wave 1/A" per ADR-027 v1.8 title (FB46 F-LP58-HIGH-001 closure downstream propagation). |

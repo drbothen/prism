@@ -1,7 +1,7 @@
 ---
 document_type: architecture-index
 level: L3
-version: "2.77"
+version: "2.78"
 status: draft
 producer: state-manager
 timestamp: 2026-05-17T07:00:00
@@ -152,6 +152,7 @@ deployment_topology: single-service  # planned — no service binary exists yet 
 
 | Version | Pass | Date | Author | Change |
 |---------|------|------|--------|--------|
+| 2.78 | FB73 | 2026-05-17 | state-manager | (D-695) FB73 INDEX cascade: ADR-022 row updated ACCEPTED v1.11→v1.12 (architect F-LP85-HIGH-001 closure: ADR-026 D7 v1.22→v1.23 sweep at line 243 — cross-value-class side-effect bump detection; step 8g first-application). ARCH-INDEX v2.77→v2.78. |
 | 2.77 | FB71 | 2026-05-17 | state-manager | (D-693) FB71 INDEX cascade: ADR-026 row updated ACCEPTED v1.22→v1.23 (architect body edit at line 312: error-taxonomy v1.37 cite-pin in §D7; F-LP83-HIGH-001 closure). ARCH-INDEX v2.76→v2.77. |
 | 2.76 | FB69 | 2026-05-17 | state-manager | (D-691) FB69 INDEX cascade: ADR-022 row updated ACCEPTED v1.10→v1.11 (architect F-LP81-HIGH-001/002 closure: BC-2.16.011 INV-ADAPTER-RETIRE-003 amendment + ADR-026 D7 v1.21→v1.22 cascade). ARCH-INDEX v2.75→v2.76. |
 | 2.75 | FB64 | 2026-05-17 | state-manager | F-LP76-HIGH-002 closure: ARCH-INDEX §Changelog row order repair — v2.73 row (D-684 FB62 closure ADR-022 row) was prepended ABOVE v2.74 row (POL-29 v1.18 step 8b TRANSITIVE CLOSURE CATCH ADR-026 v1.22) in same FB62 dispatch; descending convention violated. Swap restores monotonic descending. POL-26 8th cascade recurrence at state-manager bookkeeping scope. Plus INDEX cascade for FB64 PO bumps: ADR-026 v1.22 unchanged; no ADR row updates this burst. |

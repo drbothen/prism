@@ -1,7 +1,7 @@
 ---
 document_type: behavioral-contract-index
 level: L3
-version: "5.12"
+version: "5.13"
 status: draft
 producer: state-manager
 timestamp: 2026-05-17T07:00:00Z
@@ -371,6 +371,8 @@ Phase 3-patch additions (2026-04-16): 22 new BCs added in Burst 1 to close trace
 - Subsystem 19: Infusion Enrichment Framework (AD-020, CAP-031)
 
 ### Change Log (Adversarial Review Fixes)
+
+**v5.13 (2026-05-17, FB73 D-695):** state-manager | BC-2.16.011 v1.9→v1.10 (PO F-LP85-HIGH-001 closure: ADR-026 D7 v1.22→v1.23 sweep — cross-value-class side-effect bump; step 8g first-application) + BC-2.16.012 v1.25→v1.26 (PO F-LP85-HIGH-001 closure: ADR-026 D7 v1.22→v1.23 sweep at 4 live-narrative sites — same cross-value-class META-class) + BC-2.16.002 v1.30→v1.31 (PO F-LP85-HIGH-001 closure: ADR-026 D7 v1.22→v1.23 sweep at catalog-row live-narrative site; POL-30 Fork B catalog bullet (v1.22) UNCHANGED per POL-30). BC-INDEX v5.12→v5.13.
 
 **v5.12 (2026-05-17, FB70 D-692):** state-manager | BC-2.16.002 v1.29→v1.30 (F-LP82-HIGH-001 closure — line 110 row 33 body cite-pin advanced ADR-026 D7 v1.21→v1.22; FB69 misapplied POL-30 Fork B framing retracted per FB55/FB56b/FB62 3-burst precedent; line 74 catalog bullet (v1.21) correctly preserved per Fork B canonical rule). BC-INDEX v5.11→v5.12.
 
