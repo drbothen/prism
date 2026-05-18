@@ -857,14 +857,47 @@ impl SpecLoader {
     ///
     /// Story: S-PLUGIN-PREREQ-E AC-3 / AC-3b / AC-3c / Task 6b | ADR-026 §D3 | ADR-023 Rule 2
     pub fn validate_cross_composition(
-        _sensor_id: &str,
-        _auth_type: &str,
-        _credential_refs_count: usize,
-        _expected_shape: &str,
-        _actual_shape: &str,
+        sensor_id: &str,
+        auth_type: &str,
+        credential_refs_count: usize,
+        expected_shape: &str,
+        actual_shape: &str,
     ) -> Result<(), crate::error::SpecEngineError> {
-        todo!(
-            "S-PLUGIN-PREREQ-E AC-3/3b/3c: implement three E-SPEC-012/013/014 validators; see Task 6b for Rule A (closed-enum check), Rule B (credential_refs cardinality), Rule C (structural-shape match)"
-        )
+        use crate::error::SpecEngineError;
+
+        // Rule A (E-SPEC-012): auth_type must be a scalar from the closed enumeration.
+        // {oauth2_client_credentials, bearer_static, cookie_roundtrip, api_key, custom_via_plugin}
+        const VALID_AUTH_TYPES: &[&str] = &[
+            "oauth2_client_credentials",
+            "bearer_static",
+            "cookie_roundtrip",
+            "api_key",
+            "custom_via_plugin",
+        ];
+        if !VALID_AUTH_TYPES.contains(&auth_type) {
+            return Err(SpecEngineError::AuthTypeCrossComposition {
+                sensor_id: sensor_id.to_string(),
+                provided_value: auth_type.to_string(),
+            });
+        }
+
+        // Rule B (E-SPEC-013): exactly 1 credential_ref per auth method.
+        if credential_refs_count != 1 {
+            return Err(SpecEngineError::MultipleCredentialRefs {
+                sensor_id: sensor_id.to_string(),
+                credential_count: credential_refs_count,
+            });
+        }
+
+        // Rule C (E-SPEC-014): resolved credential structural shape must match auth_type.
+        if expected_shape != actual_shape {
+            return Err(SpecEngineError::AuthTypeCredentialMismatch {
+                sensor_id: sensor_id.to_string(),
+                expected_shape: expected_shape.to_string(),
+                actual_shape: actual_shape.to_string(),
+            });
+        }
+
+        Ok(())
     }
 }
