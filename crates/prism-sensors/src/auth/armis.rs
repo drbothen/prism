@@ -1,7 +1,7 @@
 //! Armis Centrix API authentication credentials and adapter.
 //!
 //! # Auth credential (S-2.06)
-//! [`ArmisAuth`] — static API secret key (bearer token); sealed via `SensorAuth`.
+//! [`ArmisAuth`] — static API secret key (bearer token); implements open trait `SensorAuth` (post S-PLUGIN-PREREQ-E).
 //!
 //! # Adapter (S-2.07)
 //! [`ArmisAdapter`] — implements [`SensorAdapter`] with:

@@ -1,7 +1,7 @@
 //! Claroty xDome API authentication credentials and adapter.
 //!
 //! # Auth credential (S-2.06)
-//! [`ClarotyAuth`] — username/password; sealed via `SensorAuth`.
+//! [`ClarotyAuth`] — username/password; implements open trait `SensorAuth` (post S-PLUGIN-PREREQ-E).
 //!
 //! # Adapter (S-2.07)
 //! [`ClarotyAdapter`] — implements [`SensorAdapter`] with:

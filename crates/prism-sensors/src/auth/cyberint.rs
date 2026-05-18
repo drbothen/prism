@@ -1,7 +1,7 @@
 //! Cyberint portal API authentication credentials and adapter.
 //!
 //! # Auth credential (S-2.06)
-//! [`CyberintAuth`] — API key used as cookie credential; sealed via `SensorAuth`.
+//! [`CyberintAuth`] — API key used as cookie credential; implements open trait `SensorAuth` (post S-PLUGIN-PREREQ-E).
 //!
 //! # Adapter (S-2.07)
 //! [`CyberintAdapter`] — implements [`SensorAdapter`] with:

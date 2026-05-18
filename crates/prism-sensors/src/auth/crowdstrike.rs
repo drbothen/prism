@@ -1,7 +1,7 @@
 //! CrowdStrike Falcon API authentication credentials and adapter.
 //!
 //! # Auth credential (S-2.06)
-//! [`CrowdStrikeAuth`] — OAuth2 client credentials; sealed via `SensorAuth`.
+//! [`CrowdStrikeAuth`] — OAuth2 client credentials; implements open trait `SensorAuth` (post S-PLUGIN-PREREQ-E).
 //!
 //! # Adapter (S-2.07)
 //! [`CrowdStrikeAdapter`] — implements [`SensorAdapter`] with:
