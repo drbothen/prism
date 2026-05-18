@@ -4,11 +4,16 @@
 //! and MUST run in their own process. As integration tests (in tests/ not src/), cargo test
 //! and nextest both run them in separate processes from unit tests.
 //!
+//! Tests in this file MUST NOT call `mark_query_phase_started()` — doing so would
+//! contaminate `QUERY_PHASE_STARTED` for other tests in this binary. Tests that need
+//! to exercise post-boot behavior are in `invalidation_post_boot_test.rs` (separate binary).
+//! This is the structural fix for F-LP-IMPL-P2-003.
+//!
 //! Tests in this file:
 //! - `test_BC_2_07_004_dynamic_write_tool_triggers_cache_invalidation` (F-LP-IMPL-P1-001)
-//! - `test_BC_2_07_004_rwlock_poisoning_returns_registry_poisoned_error` (F-LP-IMPL-P1-004)
+//! - `test_BC_2_07_004_rwlock_poisoning_error_variant_is_distinct` (F-LP-IMPL-P1-004)
 //!
-//! Story: S-PLUGIN-PREREQ-E | F-LP-IMPL-P1-001 | F-LP-IMPL-P1-004
+//! Story: S-PLUGIN-PREREQ-E | F-LP-IMPL-P1-001 | F-LP-IMPL-P1-004 | F-LP-IMPL-P2-003
 
 #![allow(clippy::unwrap_used, clippy::expect_used, non_snake_case)]
 
@@ -18,9 +23,7 @@ use prism_core::tenant::OrgSlug;
 use prism_core::SensorId;
 use prism_query::cache::QueryCache;
 use prism_query::cache_key::CacheKey;
-use prism_query::invalidation::{
-    mark_query_phase_started, register_write_tool, CacheInvalidator, WriteToolInvalidationMap,
-};
+use prism_query::invalidation::{register_write_tool, CacheInvalidator, WriteToolInvalidationMap};
 use prism_spec_engine::error::SpecEngineError;
 
 // ---------------------------------------------------------------------------
@@ -126,35 +129,7 @@ fn test_BC_2_07_004_rwlock_poisoning_error_variant_is_distinct() {
     );
 }
 
-/// F-LP-IMPL-P1-004 (post-boot registration): After `mark_query_phase_started()`,
-/// `register_write_tool` must return `WriteToolRegistrationAfterBoot` (E-PLUGIN-020),
-/// NOT `WriteToolRegistryPoisoned` (E-PLUGIN-021). This confirms the two variants
-/// have DISTINCT semantics — timing violation vs. state corruption.
-///
-/// Story: S-PLUGIN-PREREQ-E / F-LP-IMPL-P1-004 | ADR-026 §D7
-#[test]
-#[tracing_test::traced_test]
-fn test_BC_2_07_004_post_boot_registration_returns_after_boot_not_poisoned() {
-    mark_query_phase_started();
-
-    let entry = WriteToolInvalidationMap {
-        tool_name: "post_boot_integration_tool".to_string(),
-        source_ids: vec!["some_data".to_string()],
-        sensor_id: SensorId::from("late_plugin"),
-        plugin_name: "late_registrar".to_string(),
-    };
-
-    let result = register_write_tool(entry);
-    assert!(
-        result.is_err(),
-        "must return Err after mark_query_phase_started()"
-    );
-
-    let err = result.unwrap_err();
-    let err_str = format!("{err}");
-    assert!(
-        err_str.contains("E-PLUGIN-020"),
-        "F-LP-IMPL-P1-004: post-boot error must be E-PLUGIN-020 (WriteToolRegistrationAfterBoot), \
-         NOT E-PLUGIN-021 (WriteToolRegistryPoisoned); got: {err_str}"
-    );
-}
+// NOTE: test_BC_2_07_004_post_boot_registration_returns_after_boot_not_poisoned has been
+// moved to `tests/invalidation_post_boot_test.rs` (separate binary) to prevent
+// `mark_query_phase_started()` from contaminating QUERY_PHASE_STARTED global state
+// for other tests in this binary. See F-LP-IMPL-P2-003 structural fix.

@@ -869,14 +869,13 @@ mod tests {
     /// for dynamically-registered tools (DYNAMIC_WRITE_TOOLS never read).
     ///
     /// Story: S-PLUGIN-PREREQ-E / F-LP-IMPL-P1-001 | BC-2.07.004 | BC-2.16.012 AC-9
-    // NOTE: This test is moved to `tests/invalidation_integration_test.rs` for
-    // process isolation. The inline version below is kept as documentation but marked
-    // #[ignore] because it is fundamentally racy under cargo test shared-process mode:
-    // concurrent reset calls from other tests can clear DYNAMIC_WRITE_TOOLS between
-    // registration and invalidation in this test. Under nextest (one-process-per-test),
-    // it always passes. The behavioral requirement (F-001) is verified by the integration test.
+    // NOTE: This test is duplicated in `tests/invalidation_integration_test.rs` for
+    // additional process isolation coverage. The inline unit test below runs under
+    // nextest (one-process-per-test, no shared-process race) and is the canonical
+    // red-gate verification. F-LP-IMPL-P2-003: removed #[ignore] — nextest provides
+    // the process isolation that makes this test reliable. `cargo test` shared-process
+    // mode is NOT the canonical test runner for this codebase (just iter / just check).
     #[test]
-    #[ignore = "racy under cargo test shared-process: use nextest or tests/invalidation_integration_test.rs"]
     fn test_BC_2_07_004_dynamic_write_tool_triggers_cache_invalidation() {
         use prism_core::tenant::OrgSlug;
 
