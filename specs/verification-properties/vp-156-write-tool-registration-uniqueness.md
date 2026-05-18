@@ -1,7 +1,7 @@
 ---
 document_type: verification-property
 level: L4
-version: "0.16"
+version: "0.17"
 status: draft
 producer: architect
 timestamp: 2026-05-15T00:00:00Z
@@ -39,7 +39,7 @@ removal_reason: null
 
 ## Property Statement
 
-`register_write_tool` in `crates/prism-query/src/invalidation.rs` (ADR-026 D7 v1.21,
+`register_write_tool` in `crates/prism-query/src/invalidation.rs` (ADR-026 D7 v1.22,
 INV-INVALIDATION-EXT-001, TD-S-PLUGIN-PREREQ-A-003 closure) MUST enforce the uniqueness
 invariant under all sequential registration patterns:
 
@@ -83,11 +83,11 @@ The proptest harness asserts:
 ## Source Contract
 
 - **BC:** BC-2.16.012 — EC-016-012-004 (duplicate `register_write_tool` call behavior, resolved
-  to error-on-duplicate by ADR-026 D7 v1.21). INV-INVALIDATION-EXT-001 (runtime extensibility
+  to error-on-duplicate by ADR-026 D7 v1.22). INV-INVALIDATION-EXT-001 (runtime extensibility
   postcondition). VP-156 provides proptest coverage for the uniqueness semantics that
   BC-2.16.012 §Verification Properties previously described as "(none in this story)".
   This VP closes that coverage gap per F-LP1-MED-003 resolution (option a: author VP-156).
-- **ADR:** ADR-026 D7 v1.21 — specifies the error-on-duplicate API contract (`register_write_tool`
+- **ADR:** ADR-026 D7 v1.22 — specifies the error-on-duplicate API contract (`register_write_tool`
   returns `Result<(), SpecEngineError>`); `SpecEngineError::DuplicateWriteToolRegistration(String)`
   variant defined there. VP-156 is anchored in ADR-026 D7 as the proptest verification mechanism.
 - **Invariant:** INV-INVALIDATION-EXT-001 — `WriteToolInvalidationMap` is runtime-extensible
@@ -121,7 +121,7 @@ does not require any test infrastructure beyond what is already in prism-query's
 // VP-156: WriteToolInvalidationMap registration uniqueness
 // Method: proptest
 // Target: prism_query::invalidation::register_write_tool
-// ADR: ADR-026 D7 v1.21; BC: BC-2.16.012 INV-INVALIDATION-EXT-001
+// ADR: ADR-026 D7 v1.22; BC: BC-2.16.012 INV-INVALIDATION-EXT-001
 //
 // use proptest::prelude::*;
 // use prism_query::invalidation::{WriteToolInvalidationMap, register_write_tool, invalidation_map};
@@ -208,3 +208,4 @@ The implementer adds this function in `crates/prism-query/src/invalidation.rs` u
 | 0.14 | FB56b | 2026-05-17 | product-owner | F-LP68-HIGH-001 closure cascade (FB56b PO scope): ADR-026 D7 pin v1.18→v1.19 propagation at VP-156 lines 42, 86, 90, 124 (4 sites). POL-29 v1.17 step 8a FIRST APPLICATION cascade closure. |
 | 0.15 | FB62 | 2026-05-17 | product-owner | F-LP74-HIGH-001 closure (PO scope): ADR-026 D7 pin v1.19→v1.21 at lines 42, 86, 90, 124 (4 sites). |
 | 0.16 | FB64 | 2026-05-17 | product-owner | F-LP76-HIGH-001 closure (PO scope): burst-label cell corrected FB74→FB62 in §Changelog row for v0.15. Original FB62 closure of F-LP74-HIGH-001 was labeled "FB74" derived from finding ID; canonical FB sequential counter was FB62 per state-manager records. POL-26 schema integrity + POL-29 cross-domain sibling consistency restored. |
+| 0.17 | FB69 | 2026-05-17 | product-owner | F-LP81-HIGH-002 closure (PO scope): ADR-026 D7 pin v1.21→v1.22 propagation at lines 42, 86, 90, 124 (4 sites; ascending changelog). Recurrence #22+ of POL-29 step 3a class (b). Sibling files story v1.44 + BC-2.16.012 v1.25 + BC-2.16.002 v1.29 + error-taxonomy v1.37 + HS-003 v1.14 swept in same burst. |

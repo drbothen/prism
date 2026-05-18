@@ -1,7 +1,7 @@
 ---
 document_type: behavioral-contract
 level: L3
-version: "1.28"
+version: "1.29"
 status: active
 producer: product-owner
 timestamp: 2026-05-16T14:00:00Z
@@ -170,6 +170,7 @@ See `.factory/specs/prd-supplements/test-vectors.md` for full canonical vectors.
 
 | Version | Burst | Date | Author | Change |
 |---------|-------|------|--------|--------|
+| 1.29 | FB69 | 2026-05-17 | product-owner | F-LP81-HIGH-002 closure (PO scope): frontmatter version bump only (1 site — line 110 catalog bullet). POL-30 Fork B preserved: catalog bullet label `(v1.21)` UNCHANGED per POL-30 Fork B freeze. Body line 110 ADR-026 D7 v1.21 citation is the POL-30 Fork B frozen value and must not be incremented. Sibling files story v1.44 + BC-2.16.012 v1.25 + error-taxonomy v1.37 + VP-156 v0.17 + HS-003 v1.14 swept in same burst. |
 | 1.28 | FB64 | 2026-05-17 | product-owner | F-LP76-HIGH-001 closure (PO scope): burst-label cell corrected FB74→FB62 in §Changelog row for v1.27. Original FB62 closure of F-LP74-HIGH-001 was labeled "FB74" derived from finding ID; canonical FB sequential counter was FB62 per state-manager records. POL-26 schema integrity + POL-29 cross-domain sibling consistency restored. POL-30 Fork B catalog bullet (v1.21) UNCHANGED. |
 | 1.27 | FB62 | 2026-05-17 | product-owner | F-LP74-HIGH-001 closure (PO scope): ADR-026 D7 pin v1.19→v1.21 at line 110 catalog row 33 cite (1 site). POL-30 Fork B preserved — catalog bullet label `(v1.21)` UNCHANGED, frontmatter-only bump. |
 | 1.26 | FB56b | 2026-05-17 | product-owner | F-LP68-HIGH-001 closure cascade (FB56b PO scope): ADR-026 D7 pin v1.18→v1.19 propagation at BC-2.16.002 Structured Event Catalog row line 110 (1 site; POL-30 Fork B catalog bullet `(v1.21)` UNCHANGED — frontmatter-only bump). POL-29 v1.17 step 8a FIRST APPLICATION cascade closure. |
