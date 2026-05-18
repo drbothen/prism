@@ -135,11 +135,14 @@ pub fn register_write_tool(entry: WriteToolInvalidationMap) -> Result<(), SpecEn
     }
 
     // Acquire write guard and check for duplicate tool_name.
-    // RwLock poisoning is theoretically possible but indicates a prior panic in
-    // a write guard holder, which is a bug in the caller. Propagate as error.
+    // RwLock poisoning indicates a prior panic in a write guard holder — an
+    // unrecoverable state. Map to distinct WriteToolRegistryPoisoned variant
+    // (E-PLUGIN-021) so operators receive a diagnostic that names the actual cause
+    // rather than the misleading "query phase already started" (E-PLUGIN-020)
+    // message from WriteToolRegistrationAfterBoot (F-LP-IMPL-P1-004).
     let mut guard = DYNAMIC_WRITE_TOOLS
         .write()
-        .map_err(|_| SpecEngineError::WriteToolRegistrationAfterBoot)?;
+        .map_err(|_| SpecEngineError::WriteToolRegistryPoisoned)?;
 
     if guard.iter().any(|e| e.tool_name == entry.tool_name) {
         return Err(SpecEngineError::DuplicateWriteToolRegistration(
@@ -261,8 +264,12 @@ impl CacheInvalidator {
         let sensor_name = sensor_id.as_ref();
         let client_str = client_id.as_str();
 
-        // Collect all unique source_ids for this sensor from the map.
+        // Collect all unique source_ids for this sensor from BOTH the static map
+        // and the dynamic registry (F-LP-IMPL-P1-001: DYNAMIC_WRITE_TOOLS was
+        // previously never read; both sources must be consulted per BC-2.07.004).
         let mut sources_to_invalidate: Vec<String> = Vec::new();
+
+        // Static built-in write tools.
         for entry in WRITE_TOOL_INVALIDATION_MAP.iter() {
             if entry.sensor_id == *sensor_id {
                 for source_id in &entry.source_ids {
@@ -272,6 +279,25 @@ impl CacheInvalidator {
                 }
             }
         }
+
+        // Dynamic plugin-registered write tools (held for the scan then released).
+        // RwLock poisoning on the read guard is highly unlikely (write-guard panics
+        // would have to have occurred during boot registration); propagate as Internal.
+        let dynamic_guard = DYNAMIC_WRITE_TOOLS
+            .read()
+            .map_err(|_| PrismError::Internal {
+                detail: "E-INT-002: DYNAMIC_WRITE_TOOLS RwLock is poisoned".to_string(),
+            })?;
+        for entry in dynamic_guard.iter() {
+            if entry.sensor_id == *sensor_id {
+                for source_id in &entry.source_ids {
+                    if !sources_to_invalidate.contains(source_id) {
+                        sources_to_invalidate.push(source_id.clone());
+                    }
+                }
+            }
+        }
+        drop(dynamic_guard); // Release before cache I/O.
 
         // Prefix-scan invalidation for each source_id; sum evicted counts.
         let mut total_evicted: usize = 0;
@@ -287,9 +313,15 @@ impl CacheInvalidator {
 
     /// Invalidate all cache entries for a specific write tool operation.
     ///
-    /// `tool_name` is looked up in `WRITE_TOOL_INVALIDATION_MAP`; each matching
-    /// `source_id` is evicted for `client_id`. If `tool_name` is not in the map,
+    /// `tool_name` is looked up in BOTH `WRITE_TOOL_INVALIDATION_MAP` (static built-ins)
+    /// AND `DYNAMIC_WRITE_TOOLS` (plugin-registered, held under read guard); each matching
+    /// `source_id` is evicted for `client_id`. If `tool_name` is not in either map,
     /// a `PrismError::Internal` is returned (missing mapping = bug).
+    ///
+    /// Read guard over `DYNAMIC_WRITE_TOOLS` is acquired FIRST, held for the lookup scan,
+    /// then released before cache I/O (F-LP-IMPL-P1-001: per story Task 7 "acquire a read
+    /// guard instead of dereferencing the LazyLock"; BC-2.07.004 §Write-then-read
+    /// consistency invariant for plugin tools).
     ///
     /// Returns `Ok(n)` where `n` is the total number of entries evicted (I-2:
     /// BC-2.07.004 §Postconditions (audit count)).
@@ -298,17 +330,35 @@ impl CacheInvalidator {
         client_id: &OrgSlug,
         tool_name: &str,
     ) -> Result<usize, PrismError> {
-        let mapping = WRITE_TOOL_INVALIDATION_MAP
-            .iter()
-            .find(|e| e.tool_name == tool_name);
+        // Acquire the dynamic registry read guard FIRST (per F-LP-IMPL-P1-001 ordering).
+        let dynamic_guard = DYNAMIC_WRITE_TOOLS
+            .read()
+            .map_err(|_| PrismError::Internal {
+                detail: "E-INT-002: DYNAMIC_WRITE_TOOLS RwLock is poisoned".to_string(),
+            })?;
 
-        let entry = mapping.ok_or_else(|| PrismError::Internal {
+        // Search static map first (common case for built-in sensors), then dynamic.
+        let entry: Option<std::borrow::Cow<WriteToolInvalidationMap>> = WRITE_TOOL_INVALIDATION_MAP
+            .iter()
+            .find(|e| e.tool_name == tool_name)
+            .map(std::borrow::Cow::Borrowed)
+            .or_else(|| {
+                dynamic_guard
+                    .iter()
+                    .find(|e| e.tool_name == tool_name)
+                    .map(|e| std::borrow::Cow::Owned(e.clone()))
+            });
+
+        let entry = entry.ok_or_else(|| PrismError::Internal {
             detail: format!(
                 "E-INT-001: write tool '{}' has no invalidation mapping — this is a bug; \
-                 add it to WRITE_TOOL_INVALIDATION_MAP",
+                 add it to WRITE_TOOL_INVALIDATION_MAP or register it via register_write_tool()",
                 tool_name
             ),
         })?;
+
+        // Release the read guard before performing cache I/O.
+        drop(dynamic_guard);
 
         let client_str = client_id.as_str();
         let sensor_name = entry.sensor_id.as_ref();
@@ -547,6 +597,10 @@ mod tests {
     /// Story: S-PLUGIN-PREREQ-E AC-9a | BC: BC-2.16.012 | ADR-026 §D7
     #[test]
     fn test_BC_2_16_012_003_write_tool_invalidation_runtime_register_happy_path() {
+        // Reset global state for test isolation (F-LP-IMPL-P1-005).
+        reset_query_phase_for_test();
+        reset_dynamic_registry_for_test();
+
         let entry = WriteToolInvalidationMap {
             tool_name: "plugin_write_custom_alert".to_string(),
             source_ids: vec!["custom_alerts".to_string()],
@@ -577,6 +631,10 @@ mod tests {
     /// Story: S-PLUGIN-PREREQ-E AC-9b | BC: BC-2.16.012 | EC-016-012-004 | ADR-026 §D7
     #[test]
     fn test_BC_2_16_012_003_write_tool_invalidation_duplicate_rejected() {
+        // Reset global state for test isolation (F-LP-IMPL-P1-005).
+        reset_query_phase_for_test();
+        reset_dynamic_registry_for_test();
+
         // First registration — must succeed.
         let entry_a = WriteToolInvalidationMap {
             tool_name: "plugin_write_dup_tool".to_string(),
@@ -677,6 +735,190 @@ mod tests {
             logs_contain("post_boot_tool"),
             "BC-2.16.012 AC-9d / BC-2.16.002 row 33: WARN event must carry \
              tool_name = \"post_boot_tool\""
+        );
+    }
+
+    // -----------------------------------------------------------------------
+    // Test isolation helpers (F-LP-IMPL-P1-005)
+    //
+    // `QUERY_PHASE_STARTED` is a module-level AtomicBool. Under `cargo nextest`
+    // (one process per test) tests are isolated. Under `cargo test --workspace`
+    // (shared binary per test file) tests share the same module-level state.
+    //
+    // The reset hook below resets QUERY_PHASE_STARTED to false so that tests
+    // expecting the initial false state are not affected by the
+    // `test_BC_2_16_012_003_write_tool_invalidation_post_boot_rejected_with_warn_event`
+    // test, which permanently flips the flag via `mark_query_phase_started()`.
+    //
+    // `reset_query_phase_for_test()` MUST be called at the start of any test that
+    // requires QUERY_PHASE_STARTED == false (happy path and duplicate rejection tests).
+    //
+    // `reset_dynamic_registry_for_test()` similarly clears DYNAMIC_WRITE_TOOLS to
+    // prevent cross-test contamination in the happy-path and duplicate-rejection tests.
+    // -----------------------------------------------------------------------
+
+    /// Reset the global `QUERY_PHASE_STARTED` flag to `false` for test isolation.
+    ///
+    /// MUST be called at the start of any test that requires the initial
+    /// `QUERY_PHASE_STARTED == false` state (F-LP-IMPL-P1-005).
+    #[cfg(test)]
+    pub(crate) fn reset_query_phase_for_test() {
+        QUERY_PHASE_STARTED.store(false, Ordering::Release);
+    }
+
+    /// Reset the `DYNAMIC_WRITE_TOOLS` registry to empty for test isolation.
+    ///
+    /// MUST be called alongside `reset_query_phase_for_test()` in tests that
+    /// register write tools to prevent state leak into subsequent tests
+    /// (F-LP-IMPL-P1-005).
+    #[cfg(test)]
+    pub(crate) fn reset_dynamic_registry_for_test() {
+        // Unwrap is intentional in test context — panic on poisoning is the
+        // right test behavior here; production code uses `?` propagation.
+        DYNAMIC_WRITE_TOOLS
+            .write()
+            .expect("reset_dynamic_registry_for_test: RwLock must not be poisoned")
+            .clear();
+    }
+
+    // -----------------------------------------------------------------------
+    // F-LP-IMPL-P1-004: RwLock poisoning test
+    // -----------------------------------------------------------------------
+
+    /// F-LP-IMPL-P1-004: RwLock poisoning returns WriteToolRegistryPoisoned
+    /// (E-PLUGIN-021), NOT WriteToolRegistrationAfterBoot (E-PLUGIN-020).
+    ///
+    /// Intentionally poisons the `DYNAMIC_WRITE_TOOLS` RwLock by spawning a
+    /// thread that panics while holding the write guard, then asserts that
+    /// `register_write_tool` returns `Err(WriteToolRegistryPoisoned)`.
+    ///
+    /// Story: S-PLUGIN-PREREQ-E / F-LP-IMPL-P1-004 | ADR-026 §D7
+    #[test]
+    fn test_BC_2_07_004_rwlock_poisoning_returns_registry_poisoned_error() {
+        // Reset state before poisoning test to ensure we start clean.
+        reset_query_phase_for_test();
+        reset_dynamic_registry_for_test();
+
+        // Spawn a thread that acquires the write guard and panics to poison the lock.
+        let poison_thread = std::thread::spawn(|| {
+            let _guard = DYNAMIC_WRITE_TOOLS
+                .write()
+                .expect("initial write must succeed");
+            // Panic while holding the guard — this poisons the RwLock.
+            panic!("intentional panic to poison DYNAMIC_WRITE_TOOLS RwLock");
+        });
+
+        // Catch the panic from the spawned thread (expected — we caused it).
+        let _ = poison_thread.join(); // Result::Err expected; lock is now poisoned.
+
+        // Now register_write_tool must return WriteToolRegistryPoisoned, NOT
+        // WriteToolRegistrationAfterBoot (E-PLUGIN-020).
+        let entry = WriteToolInvalidationMap {
+            tool_name: "poison_test_tool".to_string(),
+            source_ids: vec!["poison_data".to_string()],
+            sensor_id: prism_core::SensorId::from("poison_sensor"),
+            plugin_name: "poison_test_plugin".to_string(),
+        };
+
+        let result = register_write_tool(entry);
+        assert!(
+            result.is_err(),
+            "F-LP-IMPL-P1-004: register_write_tool on poisoned RwLock must return Err; got Ok(())"
+        );
+
+        let err = result.unwrap_err();
+        let err_str = format!("{err}");
+        assert!(
+            err_str.contains("E-PLUGIN-021"),
+            "F-LP-IMPL-P1-004: poisoning error must cite E-PLUGIN-021 (WriteToolRegistryPoisoned); \
+             got: {err_str}"
+        );
+
+        // Cleanup: the RwLock remains poisoned — reset the registry by recreating
+        // it via our reset helper which uses into_inner to recover the poisoned lock.
+        // Since the RwLock is a module-level static, we rely on nextest process isolation
+        // to clean up; for cargo test --workspace runs, subsequent tests that call
+        // reset_dynamic_registry_for_test() must handle PoisonError. The reset helper
+        // uses expect() which panics on poison — that is intentional (test infrastructure
+        // signals the issue loudly). Production code never calls reset helpers.
+        //
+        // For test robustness under cargo test --workspace, recover from poisoning:
+        if let Err(poisoned) = DYNAMIC_WRITE_TOOLS.write() {
+            poisoned.into_inner().clear();
+        }
+    }
+
+    // -----------------------------------------------------------------------
+    // F-LP-IMPL-P1-001: RED GATE — dynamic write tool triggers cache invalidation
+    //
+    // This test is the RED gate for F-LP-IMPL-P1-001. It registers a write tool
+    // via register_write_tool(), then calls CacheInvalidator::invalidate_for_write_tool()
+    // with that tool's name, and asserts the corresponding cache entries are invalidated.
+    //
+    // Pre-fix failure mode: DYNAMIC_WRITE_TOOLS is never read by invalidate_for_write_tool;
+    // the lookup in WRITE_TOOL_INVALIDATION_MAP fails to find the dynamically-registered
+    // tool and returns PrismError::Internal (missing mapping = bug).
+    // -----------------------------------------------------------------------
+
+    /// BC-2.07.004 / BC-2.16.012 AC-9 / F-LP-IMPL-P1-001:
+    /// A write tool registered via `register_write_tool` must trigger cache
+    /// invalidation when `invalidate_for_write_tool` is called with that tool's name.
+    ///
+    /// Pre-fix failure mode: `invalidate_for_write_tool` only scans the static
+    /// `WRITE_TOOL_INVALIDATION_MAP` and returns `Err(PrismError::Internal)`
+    /// for dynamically-registered tools (DYNAMIC_WRITE_TOOLS never read).
+    ///
+    /// Story: S-PLUGIN-PREREQ-E / F-LP-IMPL-P1-001 | BC-2.07.004 | BC-2.16.012 AC-9
+    #[test]
+    fn test_BC_2_07_004_dynamic_write_tool_triggers_cache_invalidation() {
+        use prism_core::tenant::OrgSlug;
+
+        reset_query_phase_for_test();
+        reset_dynamic_registry_for_test();
+
+        // Register a dynamic write tool (simulates plugin registration at boot step 7.5).
+        let dyn_entry = WriteToolInvalidationMap {
+            tool_name: "dyn_plugin_write_tool".to_string(),
+            source_ids: vec!["dyn_data_source".to_string()],
+            sensor_id: prism_core::SensorId::from("dyn_sensor"),
+            plugin_name: "dyn_test_plugin".to_string(),
+        };
+        register_write_tool(dyn_entry).expect("dynamic write tool registration must succeed");
+
+        // Populate the cache with an entry for the dynamic tool's source_id.
+        let cache = Arc::new(QueryCache::with_defaults());
+        let key = crate::cache_key::CacheKey {
+            client_id: "acme".to_string(),
+            sensor_id: prism_core::SensorId::from("dyn_sensor"),
+            source_id: "dyn_data_source".to_string(),
+            push_down_hash: "e".repeat(64),
+        };
+        let rows = vec![serde_json::json!({"id": "dyn-1"})];
+        cache.put(key.clone(), rows).expect("put must succeed");
+
+        // Verify the cache entry exists before invalidation.
+        assert!(
+            cache.get(&key).expect("get must not fail").is_some(),
+            "cache entry must exist before invalidation"
+        );
+
+        // Invalidate using the dynamically-registered write tool name.
+        let invalidator = CacheInvalidator::new(Arc::clone(&cache));
+        let client_id = OrgSlug::new("acme");
+        let result = invalidator.invalidate_for_write_tool(&client_id, "dyn_plugin_write_tool");
+
+        assert!(
+            result.is_ok(),
+            "BC-2.07.004 / F-LP-IMPL-P1-001: invalidate_for_write_tool on dynamic tool \
+             must return Ok; got: {:?}",
+            result.err()
+        );
+
+        // The cache entry must be evicted.
+        assert!(
+            cache.get(&key).expect("get must not fail").is_none(),
+            "BC-2.07.004 / F-LP-IMPL-P1-001: cache entry must be evicted after \
+             invalidate_for_write_tool for dynamically-registered write tool"
         );
     }
 }

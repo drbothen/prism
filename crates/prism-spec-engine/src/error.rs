@@ -229,6 +229,24 @@ pub enum SpecEngineError {
         "E-PLUGIN-020: write tool registration rejected — query phase already started (ADR-026 §D7)"
     )]
     WriteToolRegistrationAfterBoot,
+
+    /// E-PLUGIN-021: `DYNAMIC_WRITE_TOOLS` RwLock is poisoned (a previous write-guard
+    /// holder panicked while holding the lock). This is an unrecoverable state indicating
+    /// a prior bug in the calling code — the registry is permanently corrupted.
+    ///
+    /// Distinct from `WriteToolRegistrationAfterBoot` (E-PLUGIN-020): poisoning indicates
+    /// a programming error (panic in a guard holder), NOT a lifecycle ordering violation.
+    ///
+    /// Unit variant — no additional context needed; poisoning is self-evident and
+    /// the operator should restart the process.
+    ///
+    /// Story: S-PLUGIN-PREREQ-E / F-LP-IMPL-P1-004 | ADR-026 §D7
+    #[error(
+        "E-PLUGIN-021: write tool registry RwLock is poisoned — \
+         a prior panic in a write-guard holder has corrupted the registry; \
+         process restart required"
+    )]
+    WriteToolRegistryPoisoned,
 }
 
 // ---------------------------------------------------------------------------
