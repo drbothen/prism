@@ -637,11 +637,20 @@ pub trait CredentialRefProbe: Send + Sync {
 /// calls `get_password()` to check existence. The value is immediately discarded
 /// (AD-017 AI-opaque model: credential values MUST NOT be retained).
 ///
-/// Returns `Ok(None)` on success — the keyring backend stores raw credential values
-/// only; no `auth_type` metadata is stored alongside the value in the keyring entry.
-/// Rule C (E-SPEC-014) enforcement via shape comparison is therefore not performed
-/// by this probe. A future credential metadata store (e.g., an extended
-/// `CredentialMetadata` registry with `auth_type_hint`) would enable Rule C here.
+/// Returns `Ok(None)` on the success path — the keyring backend (ADR-007 / AD-017)
+/// stores credential names only; no `auth_type` shape metadata is stored alongside
+/// the credential value in the keyring entry. Per [ADR-026 §D3 Rule C Backend Scope
+/// (D-706 amendment)]: Rule C (E-SPEC-014 credential structural shape mismatch)
+/// enforcement is conditional on the credential backend exposing shape metadata.
+/// Shape introspection requires a separate metadata sidecar or plugin-manifest
+/// declaration; that capability is deferred to PLUGIN-MIGRATION-001-A.
+///
+/// The `if let Some(actual_shape)` gate in step5 is structurally correct for when a
+/// future backend (e.g., a keyring metadata sidecar or plugin-manifest probe) returns
+/// the activating variant. It is intentionally a no-op with the current keyring backend.
+///
+/// Rules A and B (E-SPEC-012, E-SPEC-013) DO fire in production via
+/// `validate_cross_composition` at spec-load time. Only Rule C is backend-conditional.
 pub struct KeyringCredentialProbe;
 
 impl CredentialRefProbe for KeyringCredentialProbe {
