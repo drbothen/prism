@@ -23,7 +23,7 @@ crates_touched: [prism-sensors, prism-spec-engine, prism-query, prism-bin]
 target_module: prism-sensors
 subsystems: [SS-01, SS-07, SS-16, SS-17, SS-22]
 capabilities: [CAP-001, CAP-029]
-version: "1.41"
+version: "1.42"
 modified: "2026-05-17"
 level: "L4"
 producer: product-owner
@@ -131,6 +131,7 @@ invalidation — completing the Wave 0 plugin-only sensor architecture foundatio
 | `crates/prism-spec-engine/examples/demo_spec_loading.rs` (cleanup/delete) | ~200 |
 | `crates/prism-spec-engine/tests/bc_2_16_004_test.rs` (deletion) | ~0 (deleted) |
 | `crates/prism-spec-engine/src/spec_parser.rs` (open dispatch migration) | ~800 |
+| `crates/prism-spec-engine/src/spec_parser.rs` (Task 6b: 3-validator E-SPEC-012/013/014 implementation + AuthTypeCrossComposition / MultipleCredentialRefs / AuthTypeCredentialMismatch error variants with redacted Debug per AD-017) | ~250 |
 | `crates/prism-query/src/invalidation.rs` (WriteToolInvalidationMap RwLock migration + AtomicBool flag + mark_query_phase_started helper) | ~700 |
 | `crates/prism-spec-engine/src/error.rs` (WriteToolRegistrationAfterBoot variant) | ~50 |
 | `crates/prism-spec-engine/src/plugin/mod.rs` (or `loader.rs`) (PluginRuntime write-tool registration wiring) | ~150 |
@@ -139,7 +140,7 @@ invalidation — completing the Wave 0 plugin-only sensor architecture foundatio
 | `error-taxonomy.md` (E-SPEC-008 retired annotation) | ~100 |
 | Test files (Red Gate set + behavioral equivalence) | ~2,000 |
 | `crates/prism-query/Cargo.toml` (Task 7d: add `tracing-test = "0.2"` to `[dev-dependencies]`) | ~30 |
-| Total | ~17,660 |
+| Total | ~17,910 |
 
 Well within the 30% context window budget (~40k tokens).
 
@@ -182,6 +183,22 @@ Well within the 30% context window budget (~40k tokens).
    - Audit `crates/prism-spec-engine/src/spec_parser.rs` for any `match sensor_id.as_ref() { "crowdstrike" => ..., "cyberint" => ..., ... }` dispatch arms that encode sensor-specific parsing logic
    - Replace each such arm with a PluginRegistry lookup call or a generic parsing path that applies to all sensor strings
    - Behavioral output for the four initial sensors must remain identical (verified by behavioral-equivalence test in the Red Gate set)
+
+**Task 6b** (prism-spec-engine: E-SPEC-012/013/014 runtime validators per ADR-026 D3 + BC-2.01.016 Rule 2)
+
+In `crates/prism-spec-engine/src/spec_parser.rs` (or `pipeline.rs` per ADR-026 D3 location flexibility), implement the three runtime rejection rules for SensorAuth spec-load validation:
+
+1. **E-SPEC-012 (Rule A — multi-valued or out-of-set auth_type):** At TOML `auth_type` parse, reject (a) array values for the auth_type field (must be scalar) AND (b) values outside the closed enumeration `{oauth2_client_credentials, bearer_static, cookie_roundtrip, api_key, custom_via_plugin}`. Error variant: `SpecEngineError::AuthTypeCrossComposition { sensor_id, provided_value }`. Per BC-2.01.016 §Error Cases + ADR-023 §Architectural Constraints Rule 2 Rule A.
+
+2. **E-SPEC-013 (Rule B — multiple credential_refs):** At spec-load, reject any auth method block declaring multiple `credential_refs` entries (cardinality must be exactly 1 credential reference per auth method). Error variant: `SpecEngineError::MultipleCredentialRefs { sensor_id, credential_count }`. Per BC-2.01.016 §Error Cases + ADR-023 Rule 2 Rule B.
+
+3. **E-SPEC-014 (Rule C — auth_type/credential structural mismatch):** At credential-resolution time, reject when the resolved credential's structural shape does not match the declared `auth_type` variant (e.g., `auth_type = bearer_static` with a credential containing `client_id` + `client_secret` — wrong shape). Error variant: `SpecEngineError::AuthTypeCredentialMismatch { sensor_id, expected_shape, actual_shape }`. Per BC-2.01.016 §Error Cases + ADR-023 Rule 2 Rule C.
+
+**Credential redaction discipline (AD-017):** All three new error variants MUST implement custom `Debug` that redacts credential values. Use the existing `RedactedDebug` derive macro pattern or manually implement `impl Debug for ... { ... credential: "<redacted>" ... }`.
+
+**Verification (post-implementation):** Red Gate Tests 2 (E-SPEC-012), 4 (E-SPEC-013), 5 (E-SPEC-014) all transition pre-implementation (assertion fails — no Rule 2 enforcement exists) → post-implementation (assertion passes — validator returns the correct error variant). Each test uses a `SensorSpec` fixture that violates exactly one rule and asserts `result.is_err()` AND the error variant matches.
+
+Estimated effort: ~3 hours implementation + ~1 hour test fixtures + ~30 min verification.
 
 7. **Migrate `WriteToolInvalidationMap` to runtime-extensible container (TD-S-PLUGIN-PREREQ-A-003)**
    - In `crates/prism-query/src/invalidation.rs`, change the `LazyLock<Vec<WriteToolInvalidationMap>>` container to `std::sync::RwLock<Vec<WriteToolInvalidationMap>>` (eager init per ADR-026 §D7 — `OnceLock<RwLock<...>>` wrapper is not needed because no initialization-race risk exists under the boot-step 7.5/8 ordering, and eager `RwLock::new(Vec::new())` is simpler than the `OnceLock::get_or_init` pattern that can panic in test contexts)
@@ -399,9 +416,9 @@ Note: E-SPEC-010 (variable interpolation field-path miss) and E-SPEC-011 (pipe_v
 | `crates/prism-spec-engine/src/lib.rs` | Modify | Remove `mod custom_adapter;` + all `CustomAdapter`/`CustomAdapterRegistry`/`CustomAuth` re-exports |
 | `crates/prism-spec-engine/examples/demo_spec_loading.rs` | DELETE or Modify | Remove `CustomAdapter`-using sections; delete file if nothing meaningful remains |
 | `crates/prism-spec-engine/tests/bc_2_16_004_test.rs` | DELETE | BC-2.16.004 is removed; this test file is deleted with it |
-| `crates/prism-spec-engine/src/spec_parser.rs` | Modify | Replace hardcoded sensor-name match arms with PluginRegistry lookup or generic path |
+| `crates/prism-spec-engine/src/spec_parser.rs` | Modify | Add E-SPEC-012/013/014 validator logic (Task 6b): three runtime rejection rules for SensorAuth spec-load validation returning `AuthTypeCrossComposition`, `MultipleCredentialRefs`, `AuthTypeCredentialMismatch` variants per ADR-026 D3 + BC-2.01.016 Rule 2; replace hardcoded sensor-name match arms with PluginRegistry dispatch (Task 6) |
 | `crates/prism-query/src/invalidation.rs` | Modify | Migrate `WriteToolInvalidationMap` from `LazyLock<Vec<...>>` to `RwLock<Vec<...>>`; add `register_write_tool` API; struct gains `plugin_name: String` field (set by PluginRuntime from manifest `name` per ADR-026 D7 v1.21; BC-2.16.002 §Postconditions (Canonical Structured Event Catalog bullet, v1.21) row 33); add `static QUERY_PHASE_STARTED: AtomicBool` module-level static; add `pub fn mark_query_phase_started()` helper that stores `true` with `Release` ordering (called by query-engine init at step 8 start per ADR-026 D7) |
-| `crates/prism-spec-engine/src/error.rs` | Modify | Add `WriteToolRegistrationAfterBoot` unit variant to `SpecEngineError` enum (ADR-026 D7; error-taxonomy.md E-PLUGIN-020) |
+| `crates/prism-spec-engine/src/error.rs` | Modify | Add `SpecEngineError` variants: `WriteToolRegistrationAfterBoot` (Task 7c; ADR-026 D7; error-taxonomy.md E-PLUGIN-020) + `AuthTypeCrossComposition { sensor_id, provided_value }` (Task 6b; E-SPEC-012) + `MultipleCredentialRefs { sensor_id, credential_count }` (Task 6b; E-SPEC-013) + `AuthTypeCredentialMismatch { sensor_id, expected_shape, actual_shape }` (Task 6b; E-SPEC-014) — all three Task 6b variants implement redacted `Debug` per AD-017 |
 | `.factory/specs/behavioral-contracts/BC-2.16.004-rust-escape-hatch.md` | Modify | Update frontmatter: `lifecycle_status: deprecated → removed`; add `removed:` + `removal_reason:` |
 | `.factory/specs/prd-supplements/error-taxonomy.md` | Modify | Add `retired:` annotation to E-SPEC-008 row |
 | `crates/prism-spec-engine/src/plugin/mod.rs` (or `loader.rs` per current layout) | Modify | Wire PluginRuntime per-plugin write-tool registration: for each loaded plugin, iterate manifest write-tool entries and call `prism_query::invalidation::register_write_tool(entry)` during step 7.5 plugin-load (per ADR-026 §D7; ADR-022 §B step 7.5) |
@@ -511,6 +528,7 @@ Tech debt closed:
 
 | Version | Burst | Date | Author | Change |
 |---------|-------|------|--------|--------|
+| v1.42 | FB67 | 2026-05-17 | product-owner | F-LP79-MED-001 closure (PO scope): added Task 6b instructing implementer to write E-SPEC-012/013/014 runtime validators in spec_parser.rs (3 SpecEngineError variants with redacted-Debug per AD-017: AuthTypeCrossComposition + MultipleCredentialRefs + AuthTypeCredentialMismatch; AC-3/3b/3c gates closed via Red Gate Tests 2/4/5; ADR-026 D3 + BC-2.01.016 Rule 2 + ADR-023 Rule 2 honored). §FSR error.rs row updated with 3 new error variants; spec_parser.rs row updated to enumerate Task 6b validator logic + Task 6 dispatch migration. §Token Budget gained Task 6b row (~250 tokens; total ~17,660 → ~17,910). Closes AC↔Task implementation-instruction coverage gap surviving 33+ passes; sibling-class to F-LP78 structural-table-completeness. |
 | v1.41 | FB66 | 2026-05-17 | product-owner | F-LP78-MED-001 closure: §File Structure Requirements + §Token Budget Estimate tables augmented with `crates/prism-bin/src/boot.rs` row (sibling-sweep gap from FB44 D-666 surviving 33+ passes — when crates_touched gained prism-bin per F-LP56-HIGH-001 Option A adjudication, both structural tables were not updated). POL-23 sibling-sweep discipline + POL-2 bidirectional traceability closure. Cycle-close DRIFT-OBS-LP78-001 candidate: POL-29 step 3a class (d) structural-table-completeness sibling-sweep mandate when crates_touched is amended. |
 | v1.40 | FB64 | 2026-05-17 | product-owner | F-LP76-HIGH-001 closure (PO scope): burst-label cell corrected FB74→FB62 in §Changelog row for v1.38. Original FB62 closure of F-LP74-HIGH-001 was labeled "FB74" derived from finding ID; canonical FB sequential counter was FB62 per state-manager records. POL-26 schema integrity + POL-29 cross-domain sibling consistency restored. |
 | v1.39 | FB63 | 2026-05-17 | product-owner | F-LP75-HIGH-001 closure (PO scope): story line 373 backtick-quoted `error-taxonomy.md` v1.34 → v1.35 (single-line fix; FB62 POL-29 v1.18 step 8b first-application missed this variant — caught 11 other sites but state-manager's execution ran canonical/combined grep without explicit per-variant enumeration). Recurrence #21 of META-PATTERN at SAME line 373 site that F-LP65-HIGH-001 first surfaced 10 passes ago. POL-29 v1.18 step 8b execution discipline gap — addressed by state-manager via POL-29 v1.19 amendment (explicit per-variant grep enumeration mandate in step 8b iteration loop). POL-29 v1.18 step 8b per-variant grep evidence: variant-1-bare pre/post=0/0; variant-2-with-md pre/post=0/0; variant-3-backtick pre/post=1/0. |
