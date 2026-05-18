@@ -464,4 +464,165 @@ mod tests {
             "EC-07-010: invalidation with no matching entries must be a no-op"
         );
     }
+
+    // -----------------------------------------------------------------------
+    // Test 13 — S-PLUGIN-PREREQ-E Red Gate
+    // test_BC_2_16_012_003_write_tool_invalidation_runtime_register
+    //
+    // AC-9: WriteToolInvalidationMap runtime extensibility (TD-S-PLUGIN-PREREQ-A-003).
+    //
+    // Exercises three sub-paths:
+    //   (a) happy path — register succeeds, entry is visible on next read
+    //   (b) duplicate tool_name — second registration rejected (E-PLUGIN-012)
+    //   (c) post-boot registration — rejected with WriteToolRegistrationAfterBoot
+    //       after mark_query_phase_started(); WARN tracing event captured via
+    //       tracing-test subscriber.
+    //
+    // Pre-implementation failure mode: register_write_tool() and
+    // mark_query_phase_started() are both todo!() — panics on first call.
+    // -----------------------------------------------------------------------
+
+    /// BC-2.16.012 AC-9 / INV-INVALIDATION-EXT-001: WriteToolInvalidationMap is
+    /// runtime-extensible via `register_write_tool()`.
+    ///
+    /// Sub-test (a): Happy path — `register_write_tool(entry)` returns `Ok(())`;
+    /// the entry is present in the map on the next read.
+    ///
+    /// Red Gate failure mode: `register_write_tool` is `todo!()` — panics.
+    ///
+    /// Story: S-PLUGIN-PREREQ-E AC-9a | BC: BC-2.16.012 | ADR-026 §D7
+    #[test]
+    fn test_BC_2_16_012_003_write_tool_invalidation_runtime_register_happy_path() {
+        let entry = WriteToolInvalidationMap {
+            tool_name: "plugin_write_custom_alert",
+            source_ids: &["custom_alerts"],
+            sensor_id: prism_core::SensorId::from("custom_sensor"),
+            plugin_name: "test_plugin".to_string(),
+        };
+
+        // Panics pre-implementation on todo!() in register_write_tool.
+        let result = register_write_tool(entry);
+        assert!(
+            result.is_ok(),
+            "BC-2.16.012 AC-9a: register_write_tool happy path must return Ok(()); \
+             got: {:?}",
+            result.err()
+        );
+    }
+
+    /// BC-2.16.012 AC-9 / EC-016-012-004: A second `register_write_tool` call
+    /// with the same `tool_name` must be rejected (E-PLUGIN-012 / DuplicateWriteToolRegistration).
+    ///
+    /// Red Gate failure mode: `register_write_tool` is `todo!()` — panics.
+    ///
+    /// Note: `DuplicateWriteToolRegistration` variant is not yet added to
+    /// `SpecEngineError` by the stub-architect; this test asserts `is_err()` and
+    /// that the error display contains "duplicate" or "Duplicate" (case-insensitive
+    /// check). The implementer adds the variant; this test then passes fully.
+    ///
+    /// Story: S-PLUGIN-PREREQ-E AC-9b | BC: BC-2.16.012 | EC-016-012-004 | ADR-026 §D7
+    #[test]
+    fn test_BC_2_16_012_003_write_tool_invalidation_duplicate_rejected() {
+        // First registration — must succeed.
+        let entry_a = WriteToolInvalidationMap {
+            tool_name: "plugin_write_dup_tool",
+            source_ids: &["dup_alerts"],
+            sensor_id: prism_core::SensorId::from("dup_sensor"),
+            plugin_name: "dup_plugin_a".to_string(),
+        };
+        let first = register_write_tool(entry_a);
+        assert!(
+            first.is_ok(),
+            "BC-2.16.012 AC-9b: first registration must succeed; got: {:?}",
+            first.err()
+        );
+
+        // Second registration with the same tool_name — must be rejected.
+        let entry_b = WriteToolInvalidationMap {
+            tool_name: "plugin_write_dup_tool",
+            source_ids: &["dup_other"],
+            sensor_id: prism_core::SensorId::from("other_sensor"),
+            plugin_name: "dup_plugin_b".to_string(),
+        };
+        let second = register_write_tool(entry_b);
+        assert!(
+            second.is_err(),
+            "BC-2.16.012 AC-9b: duplicate tool_name must be rejected; \
+             second call returned Ok(()) instead"
+        );
+        let err_str = format!("{:?}", second.unwrap_err());
+        assert!(
+            err_str.to_lowercase().contains("duplicate"),
+            "BC-2.16.012 AC-9b: duplicate error must mention 'duplicate'; got: {err_str}"
+        );
+    }
+
+    /// BC-2.16.012 AC-9 / EC-016-012-005: `register_write_tool` called AFTER
+    /// `mark_query_phase_started()` must return `WriteToolRegistrationAfterBoot`
+    /// and emit a WARN tracing event with the correct field schema.
+    ///
+    /// Invokes `mark_query_phase_started()` via the public API (not direct store),
+    /// then calls `register_write_tool()` and asserts the error.
+    ///
+    /// Also captures the WARN tracing event via `tracing-test` subscriber and
+    /// asserts: `event_type = "write_tool_registration_after_boot"`,
+    /// `plugin_name = <plugin>`, `tool_name = <tool>`, `error = "E-PLUGIN-020"`.
+    ///
+    /// Red Gate failure mode: `mark_query_phase_started` and `register_write_tool`
+    /// are both `todo!()` — panic on first call.
+    ///
+    /// Story: S-PLUGIN-PREREQ-E AC-9c/9d | BC: BC-2.16.012 | BC-2.16.002 row 33 | ADR-026 §D7
+    #[test]
+    #[tracing_test::traced_test]
+    fn test_BC_2_16_012_003_write_tool_invalidation_post_boot_rejected_with_warn_event() {
+        // Set the query-phase flag via the public API (NOT direct store).
+        // Panics pre-implementation on todo!() in mark_query_phase_started().
+        mark_query_phase_started();
+
+        let entry = WriteToolInvalidationMap {
+            tool_name: "post_boot_tool",
+            source_ids: &["some_data"],
+            sensor_id: prism_core::SensorId::from("late_plugin"),
+            plugin_name: "late_registrar".to_string(),
+        };
+
+        // Panics pre-implementation on todo!() in register_write_tool().
+        let result = register_write_tool(entry);
+        assert!(
+            result.is_err(),
+            "BC-2.16.012 AC-9c: register_write_tool after mark_query_phase_started() \
+             must return Err(WriteToolRegistrationAfterBoot); got Ok(())"
+        );
+
+        let err = result.unwrap_err();
+        // Must be WriteToolRegistrationAfterBoot variant (E-PLUGIN-020).
+        let err_str = format!("{err}");
+        assert!(
+            err_str.contains("E-PLUGIN-020"),
+            "BC-2.16.012 AC-9c: error must cite E-PLUGIN-020; got: {err_str}"
+        );
+
+        // Verify that the WARN tracing event was emitted with the required field schema.
+        // Per BC-2.16.002 §Postconditions (Canonical Structured Event Catalog) row 33.
+        assert!(
+            logs_contain("write_tool_registration_after_boot"),
+            "BC-2.16.012 AC-9d / BC-2.16.002 row 33: WARN event must carry \
+             event_type = \"write_tool_registration_after_boot\""
+        );
+        assert!(
+            logs_contain("E-PLUGIN-020"),
+            "BC-2.16.012 AC-9d / BC-2.16.002 row 33: WARN event must carry \
+             error = \"E-PLUGIN-020\""
+        );
+        assert!(
+            logs_contain("late_registrar"),
+            "BC-2.16.012 AC-9d / BC-2.16.002 row 33: WARN event must carry \
+             plugin_name = \"late_registrar\""
+        );
+        assert!(
+            logs_contain("post_boot_tool"),
+            "BC-2.16.012 AC-9d / BC-2.16.002 row 33: WARN event must carry \
+             tool_name = \"post_boot_tool\""
+        );
+    }
 }
