@@ -60,9 +60,16 @@ static DYNAMIC_WRITE_TOOLS: RwLock<Vec<WriteToolInvalidationMap>> = RwLock::new(
 #[derive(Debug, Clone)]
 pub struct WriteToolInvalidationMap {
     /// Tool name (e.g., `"crowdstrike_contain_host"`).
-    pub tool_name: &'static str,
-    /// source_id values to invalidate (e.g., `&["crowdstrike_hosts", "crowdstrike_detections"]`).
-    pub source_ids: &'static [&'static str],
+    ///
+    /// `String` (not `&'static str`) to support plugin-registered write tools where
+    /// the name is allocated at runtime from the plugin manifest. Built-in static entries
+    /// use `.to_string()` / string literal conversion at init time (F-LP-IMPL-P1-007).
+    pub tool_name: String,
+    /// source_id values to invalidate (e.g., `["crowdstrike_hosts", "crowdstrike_detections"]`).
+    ///
+    /// `Vec<String>` (not `&'static [&'static str]`) for the same runtime allocation reason
+    /// as `tool_name` — plugin-provided source_ids are not `'static` (F-LP-IMPL-P1-007).
+    pub source_ids: Vec<String>,
     /// Sensor identity — the owning sensor for this write tool.
     /// Use `entry.sensor_id == *probe_sensor_id` for lookup comparisons.
     pub sensor_id: SensorId,
@@ -155,50 +162,56 @@ pub static WRITE_TOOL_INVALIDATION_MAP: LazyLock<Vec<WriteToolInvalidationMap>> 
     LazyLock::new(|| {
         vec![
             WriteToolInvalidationMap {
-                tool_name: "crowdstrike_contain_host",
-                source_ids: &["crowdstrike_hosts", "crowdstrike_detections"],
+                tool_name: "crowdstrike_contain_host".to_string(),
+                source_ids: vec![
+                    "crowdstrike_hosts".to_string(),
+                    "crowdstrike_detections".to_string(),
+                ],
                 sensor_id: SensorId::from("crowdstrike"),
                 plugin_name: String::new(), // built-in; no plugin origin
             },
             WriteToolInvalidationMap {
-                tool_name: "crowdstrike_acknowledge_alert",
-                source_ids: &["crowdstrike_alerts", "crowdstrike_detections"],
+                tool_name: "crowdstrike_acknowledge_alert".to_string(),
+                source_ids: vec![
+                    "crowdstrike_alerts".to_string(),
+                    "crowdstrike_detections".to_string(),
+                ],
                 sensor_id: SensorId::from("crowdstrike"),
                 plugin_name: String::new(), // built-in; no plugin origin
             },
             WriteToolInvalidationMap {
-                tool_name: "cyberint_acknowledge_alert",
-                source_ids: &["cyberint_alerts"],
+                tool_name: "cyberint_acknowledge_alert".to_string(),
+                source_ids: vec!["cyberint_alerts".to_string()],
                 sensor_id: SensorId::from("cyberint"),
                 plugin_name: String::new(), // built-in; no plugin origin
             },
             WriteToolInvalidationMap {
-                tool_name: "cyberint_close_alert",
-                source_ids: &["cyberint_alerts"],
+                tool_name: "cyberint_close_alert".to_string(),
+                source_ids: vec!["cyberint_alerts".to_string()],
                 sensor_id: SensorId::from("cyberint"),
                 plugin_name: String::new(), // built-in; no plugin origin
             },
             WriteToolInvalidationMap {
-                tool_name: "claroty_resolve_alert",
-                source_ids: &["claroty_alerts"],
+                tool_name: "claroty_resolve_alert".to_string(),
+                source_ids: vec!["claroty_alerts".to_string()],
                 sensor_id: SensorId::from("claroty"),
                 plugin_name: String::new(), // built-in; no plugin origin
             },
             WriteToolInvalidationMap {
-                tool_name: "claroty_device_action",
-                source_ids: &["claroty_devices"],
+                tool_name: "claroty_device_action".to_string(),
+                source_ids: vec!["claroty_devices".to_string()],
                 sensor_id: SensorId::from("claroty"),
                 plugin_name: String::new(), // built-in; no plugin origin
             },
             WriteToolInvalidationMap {
-                tool_name: "armis_update_alert_status",
-                source_ids: &["armis_alerts"],
+                tool_name: "armis_update_alert_status".to_string(),
+                source_ids: vec!["armis_alerts".to_string()],
                 sensor_id: SensorId::from("armis"),
                 plugin_name: String::new(), // built-in; no plugin origin
             },
             WriteToolInvalidationMap {
-                tool_name: "armis_device_action",
-                source_ids: &["armis_devices"],
+                tool_name: "armis_device_action".to_string(),
+                source_ids: vec!["armis_devices".to_string()],
                 sensor_id: SensorId::from("armis"),
                 plugin_name: String::new(), // built-in; no plugin origin
             },
@@ -249,12 +262,12 @@ impl CacheInvalidator {
         let client_str = client_id.as_str();
 
         // Collect all unique source_ids for this sensor from the map.
-        let mut sources_to_invalidate: Vec<&'static str> = Vec::new();
+        let mut sources_to_invalidate: Vec<String> = Vec::new();
         for entry in WRITE_TOOL_INVALIDATION_MAP.iter() {
             if entry.sensor_id == *sensor_id {
-                for &source_id in entry.source_ids {
-                    if !sources_to_invalidate.contains(&source_id) {
-                        sources_to_invalidate.push(source_id);
+                for source_id in &entry.source_ids {
+                    if !sources_to_invalidate.contains(source_id) {
+                        sources_to_invalidate.push(source_id.clone());
                     }
                 }
             }
@@ -262,10 +275,10 @@ impl CacheInvalidator {
 
         // Prefix-scan invalidation for each source_id; sum evicted counts.
         let mut total_evicted: usize = 0;
-        for source_id in sources_to_invalidate {
+        for source_id in &sources_to_invalidate {
             let n = self
                 .cache
-                .invalidate_by_prefix(client_str, sensor_name, source_id)?;
+                .invalidate_by_prefix(client_str, sensor_name, source_id.as_str())?;
             total_evicted = total_evicted.saturating_add(n);
         }
 
@@ -301,10 +314,10 @@ impl CacheInvalidator {
         let sensor_name = entry.sensor_id.as_ref();
 
         let mut total_evicted: usize = 0;
-        for &source_id in entry.source_ids {
+        for source_id in &entry.source_ids {
             let n = self
                 .cache
-                .invalidate_by_prefix(client_str, sensor_name, source_id)?;
+                .invalidate_by_prefix(client_str, sensor_name, source_id.as_str())?;
             total_evicted = total_evicted.saturating_add(n);
         }
 
@@ -384,11 +397,14 @@ mod tests {
             .expect("crowdstrike_contain_host must be in the invalidation map");
 
         assert!(
-            entry.source_ids.contains(&"crowdstrike_hosts"),
+            entry.source_ids.iter().any(|s| s == "crowdstrike_hosts"),
             "must invalidate crowdstrike_hosts"
         );
         assert!(
-            entry.source_ids.contains(&"crowdstrike_detections"),
+            entry
+                .source_ids
+                .iter()
+                .any(|s| s == "crowdstrike_detections"),
             "must invalidate crowdstrike_detections"
         );
     }
@@ -532,8 +548,8 @@ mod tests {
     #[test]
     fn test_BC_2_16_012_003_write_tool_invalidation_runtime_register_happy_path() {
         let entry = WriteToolInvalidationMap {
-            tool_name: "plugin_write_custom_alert",
-            source_ids: &["custom_alerts"],
+            tool_name: "plugin_write_custom_alert".to_string(),
+            source_ids: vec!["custom_alerts".to_string()],
             sensor_id: prism_core::SensorId::from("custom_sensor"),
             plugin_name: "test_plugin".to_string(),
         };
@@ -563,8 +579,8 @@ mod tests {
     fn test_BC_2_16_012_003_write_tool_invalidation_duplicate_rejected() {
         // First registration — must succeed.
         let entry_a = WriteToolInvalidationMap {
-            tool_name: "plugin_write_dup_tool",
-            source_ids: &["dup_alerts"],
+            tool_name: "plugin_write_dup_tool".to_string(),
+            source_ids: vec!["dup_alerts".to_string()],
             sensor_id: prism_core::SensorId::from("dup_sensor"),
             plugin_name: "dup_plugin_a".to_string(),
         };
@@ -577,8 +593,8 @@ mod tests {
 
         // Second registration with the same tool_name — must be rejected.
         let entry_b = WriteToolInvalidationMap {
-            tool_name: "plugin_write_dup_tool",
-            source_ids: &["dup_other"],
+            tool_name: "plugin_write_dup_tool".to_string(),
+            source_ids: vec!["dup_other".to_string()],
             sensor_id: prism_core::SensorId::from("other_sensor"),
             plugin_name: "dup_plugin_b".to_string(),
         };
@@ -618,8 +634,8 @@ mod tests {
         mark_query_phase_started();
 
         let entry = WriteToolInvalidationMap {
-            tool_name: "post_boot_tool",
-            source_ids: &["some_data"],
+            tool_name: "post_boot_tool".to_string(),
+            source_ids: vec!["some_data".to_string()],
             sensor_id: prism_core::SensorId::from("late_plugin"),
             plugin_name: "late_registrar".to_string(),
         };
