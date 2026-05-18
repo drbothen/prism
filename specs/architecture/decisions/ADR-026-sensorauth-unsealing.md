@@ -3,8 +3,8 @@ document_type: adr
 adr_id: "ADR-026"
 title: "SensorAuth Trait Un-Sealing — Remove private::Sealed, Enable Plugin Auth Implementations"
 status: Proposed
-date: "2026-05-17"
-version: "1.24"
+date: "2026-05-18"
+version: "1.25"
 producer: architect
 subsystems_affected: [SS-01, SS-07, SS-16, SS-17, SS-22]
 supersedes: null
@@ -183,6 +183,26 @@ The three runtime rules that replace compile-time sealing (ADR-023 Rule 2) are e
 3. The resolved credential type must structurally match the spec's `auth_type` variant.
    Mismatches are rejected at credential-resolution time, before any HTTP request.
    Error code: **E-SPEC-014** (auth_type / credential structural mismatch).
+
+> **Rule C Backend Scope (D-706 amendment):** Rule C enforcement is conditional on
+> the credential backend providing shape metadata alongside the credential value. The
+> current production keyring backend (`KeyringCredentialProbe`) stores raw credential
+> values only; no auth_type metadata is stored in the keyring entry or the
+> credential_index.json sidecar. `KeyringCredentialProbe::probe()` therefore returns
+> `Ok(None)` — no shape is available for comparison, and the Rule C gate is skipped
+> for this backend. Rule C enforcement in the production keyring path is deferred to
+> **PLUGIN-MIGRATION-001-A**, which introduces plugin-manifest-declared auth_type
+> fields. At that story's scope, the credential metadata sidecar (or equivalent
+> mechanism) that enables `probe()` to return `Some(actual_shape)` SHALL be
+> introduced. Until PLUGIN-MIGRATION-001-A ships, Rule C is enforced via:
+> (a) test-fixture `ShapedProbe` covering all invalid (auth_type, shape) pairs
+>     (VP-153 proptest harness), and
+> (b) spec-load-time Rules A+B (E-SPEC-012/013) via `validate_cross_composition`
+>     in `prism-spec-engine`, which fire in production for all three spec-load paths.
+> The production-deployment risk of the keyring-no-op path is LOW: a wrong-shape
+> credential produces a 401/403 from the sensor API, not an auth bypass (AD-017
+> AI-opaque credential model is unaffected). Architecture adjudication: D-706
+> (2026-05-18).
 
 These three checks happen in `spec_parser.rs` or `pipeline.rs` validation pass, before any
 HTTP request. They are the load-time gates that prevent the same cross-composition attacks the
@@ -480,3 +500,4 @@ modes and security implications. The open trait approach reuses the existing typ
 | 1.22 | 2026-05-17 | state-manager | POL-29 v1.18 step 8b TRANSITIVE CLOSURE CATCH: error-taxonomy v1.34→v1.35 propagation at §D7 line 312 (1 live-narrative site; "error-taxonomy v1.34" → "error-taxonomy v1.35"). FB62 error-taxonomy bumped v1.34→v1.35 in PO dispatch; step 8b transitive closure detected this site as missed by FB62 PO/architect sweep. State-manager applies pin advancement in-scope per Canonical Principle Rule 4. post-grep: 0 live-narrative. |
 | 1.23 | 2026-05-17 | architect | FB71 burst label: F-LP83-HIGH-001 closure (architect scope): ADR-026 §D7 body line 312 cite-pin `(error-taxonomy v1.35)` → `(error-taxonomy v1.37)` (1 site). META-META-META-META recurrence — FB69 self-induced error-taxonomy v1.36→v1.37 within F-LP81 closure but step 8d didn't recursively iterate. PO swept story v1.45 + HS-001 v1.10 + VP-153 v0.15 in same burst. POL-29 v1.24 fixed-point iteration amendment by state-manager. POL-29 step 8c grep evidence (architecture-domain): pre-grep 1 → post-grep 0. |
 | 1.24 | 2026-05-17 | architect | FB75: F-LP87-HIGH-001 architect portion (line 312 §D7 body `(error-taxonomy v1.37)` → `(error-taxonomy v1.38)`) + F-LP87-HIGH-002 within-file self-cite closure (line 24 runtime_deliverables `(per D7 v1.16)` → `(per D7 v1.23)` per Interpretation #2 7-burst precedent — external cites follow latest ADR-026 version). NEW META-class within-file self-cite enumeration codified by SM in POL-29 v1.28 step 8i. PO swept story v1.48 + HS-001 v1.11 + VP-153 v0.16 in same burst. |
+| 1.25 | 2026-05-18 | state-manager | D-707 FB-IMPL-4: §D3 Rule C Backend Scope qualification paragraph appended (D-706 amendment text mechanically applied; architect-authored in ADR-026-AMENDMENT-rule-c-keyring-scope.md). Rule C enforcement scoped to backends with shape metadata; keyring backend deferred to PLUGIN-MIGRATION-001-A. ADR-026 v1.24→v1.25; modified 2026-05-18. |

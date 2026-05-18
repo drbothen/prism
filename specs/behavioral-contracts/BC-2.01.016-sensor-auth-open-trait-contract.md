@@ -1,7 +1,7 @@
 ---
 document_type: behavioral-contract
 level: L3
-version: "1.8"
+version: "1.9"
 status: draft
 producer: product-owner
 timestamp: 2026-05-16T12:00:00Z
@@ -11,7 +11,7 @@ subsystem: "SS-01"
 capability: "CAP-001"
 lifecycle_status: draft
 introduced: "2026-05-15"
-modified: "2026-05-17"
+modified: "2026-05-18"
 deprecated: ~
 deprecated_by: ~
 replacement: ~
@@ -106,7 +106,7 @@ restriction.
 |-------|-----------|----------|
 | `E-SPEC-012` | SensorSpec declares multiple auth types in the `auth_type` field, or declares a value outside the canonical enumerated set | Rejected at spec-load time; error cites ADR-023 Rule 2, Rule A. Credential value must not appear in error message (AD-017). |
 | `E-SPEC-013` | Auth method has more than one `credential_ref` binding | Rejected at spec-load time; error cites ADR-023 Rule 2, Rule B |
-| `E-SPEC-014` | Resolved credential structural type does not match declared `auth_type` | Rejected at credential-resolution time, before any HTTP request; error cites ADR-023 Rule 2, Rule C. Credential value must not appear in error message (AD-017). |
+| `E-SPEC-014` | Resolved credential structural type does not match declared `auth_type` | Rejected at credential-resolution time, before any HTTP request; error cites ADR-023 Rule 2, Rule C. Credential value must not appear in error message (AD-017). Backend qualification (D-706): Rule C fires when the credential backend exposes shape metadata via `CredentialRefProbe::probe()` returning `Some(shape)`. The current keyring backend returns `Ok(None)` (no shape metadata stored). Production enforcement is deferred to PLUGIN-MIGRATION-001-A; test-fixture enforcement (`ShapedProbe`) and VP-153 proptest provide regression coverage in PREREQ-E scope. |
 
 ## Edge Cases
 
@@ -168,6 +168,7 @@ S-PLUGIN-PREREQ-E
 
 | Version | Burst | Date | Author | Change |
 |---------|-------|------|--------|--------|
+| 1.9 | FB-IMPL-4 | 2026-05-18 | state-manager | D-707: §Error Cases E-SPEC-014 Behavior cell: backend qualification appended (D-706 architect adjudication text mechanically applied) — Rule C fires only when credential backend exposes shape metadata via `CredentialRefProbe::probe()` returning `Some(shape)`; current keyring backend returns `Ok(None)`; production enforcement deferred to PLUGIN-MIGRATION-001-A; test-fixture `ShapedProbe` + VP-153 proptest provide regression coverage in PREREQ-E scope. Closes F-LP-IMPL-P5-001 spec-amendment route. |
 | 1.8 | FB51 | 2026-05-17 | product-owner | F-LP63-MED-001 closure: §Preconditions lines 54-55 PLUGIN-AUDIT-001 HIGH-3 mis-anchored citation corrected to Option (a) split provenance — publication-history routed to ADR-023 Rule 5 (correct source per ADR-027 Context lines 48-49); dead-code claim routed to PLUGIN-AUDIT-001 HIGH-3 (correct source); restores bidirectional traceability. |
 | 1.7 | FB34 | 2026-05-16 | product-owner | FB34 ADDENDUM: EC-016-003 Expected Behavior cell corrected — "impl block is unchanged" replaced with explicit "ONE new method body (`auth_type_name`) per ADR-026 §D2 Path B" phrasing. Resolves internal contradiction with §Postconditions + AC-2 (story) + INV-AUTH-OPEN-002 + ADR-026 D1/D2. Within-FB34 sibling-sweep extension per pattern-breaking discipline (POL-29 candidate codification candidate). |
 | 1.6 | FB31 | 2026-05-16 | product-owner | F-LP40-MED-001 §Traceability "Capability Anchor Justification" — replaced fabricated quoted-attribution "Enumerate and fetch data from sensor APIs" with verbatim CAP-001 title "Sensor Adapter Layer (Internal)" per capabilities.md (POL-22 Phase A; POL-7 5-citation-surface verbatim discipline; aligns with sibling BC-2.16.011/2.16.012 verbatim CAP-029 citation form). |

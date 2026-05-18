@@ -1,10 +1,10 @@
 ---
 document_type: architecture-index
 level: L3
-version: "2.79"
+version: "2.81"
 status: draft
 producer: state-manager
-timestamp: 2026-05-17T07:00:00
+timestamp: 2026-05-18T07:00:00
 phase: 1b
 inputs: [domain-spec/L2-INDEX.md, prd.md, prd-supplements/interface-definitions.md, prd-supplements/nfr-catalog.md, prd-supplements/error-taxonomy.md]
 traces_to: prd.md
@@ -91,7 +91,8 @@ deployment_topology: single-service  # planned — no service binary exists yet 
 | ADR-023 | Plugin-Only Sensor Architecture — TOML Specs as Declarative Baseline, .prx WASM for Non-Declarative Cases, Retired CustomAdapter Rust Trait | COMMITTED v1.19 | 2026-05-15 | decisions/ADR-023-plugin-only-sensor-architecture.md |
 | ADR-024 | ColumnType Canonical Naming — Domain-Level Variant Names for Sensor Schema API; prism-spec-engine Shadow Enum Retirement | ACCEPTED v1.0 | 2026-05-12 | decisions/ADR-024-column-type-canonical-naming.md |
 | ADR-025 | BC Lifecycle Field Canonical Scheme — Single status Field Governs; lifecycle Field Retired | ACCEPTED v1.0 | 2026-05-12 | decisions/ADR-025-bc-lifecycle-field-canonical-scheme.md |
-| ADR-026 | SensorAuth Trait Un-Sealing — Remove private::Sealed, Enable Plugin Auth Implementations | PROPOSED v1.23 | 2026-05-17 | decisions/ADR-026-sensorauth-unsealing.md |
+| ADR-026 | SensorAuth Trait Un-Sealing — Remove private::Sealed, Enable Plugin Auth Implementations | PROPOSED v1.25 | 2026-05-18 | decisions/ADR-026-sensorauth-unsealing.md |
+| ADR-026-AMENDMENT | ADR-026 Amendment: Rule C (E-SPEC-014) — Keyring Backend Scope Qualification (D-706) | APPROVED v1.0 | 2026-05-18 | decisions/ADR-026-AMENDMENT-rule-c-keyring-scope.md |
 | ADR-027 | CustomAdapter Rust Trait Same-Burst Removal — Perimeter Enforcement in Wave 1/A | PROPOSED v1.9 | 2026-05-17 | decisions/ADR-027-custom-adapter-deprecation-removal.md |
 
 ## Architecture Decisions
@@ -152,6 +153,8 @@ deployment_topology: single-service  # planned — no service binary exists yet 
 
 | Version | Pass | Date | Author | Change |
 |---------|------|------|--------|--------|
+| 2.81 | FB-IMPL-4 | 2026-05-18 | state-manager | D-707: ADR-026 in-line row v1.24→v1.25 (§D3 Rule C Backend Scope qualification appended; D-706 amendment applied) + ADR-026-AMENDMENT new row registered (D-706 adjudication doc; APPROVED v1.0; already committed at SHA 4dd97f14). ARCH-INDEX v2.80→v2.81. |
+| 2.80 | FB75 | 2026-05-17 | state-manager | D-697 FB75 INDEX cascade: ADR-026 v1.23→v1.24 (architect F-LP87-HIGH-001/002 closure: error-taxonomy v1.37→v1.38 + within-file self-cite D7 v1.16→v1.23). STORY-INDEX v2.151→v2.152; VP-INDEX v1.68→v1.69; STATE.md v7.384→v7.385 also bumped in same burst. ARCH-INDEX v2.79→v2.80. |
 | 2.79 | FB74 | 2026-05-17 | state-manager | (D-696) FB74 INDEX cascade: ADR-022 in-line row 90 summary cell v1.11→v1.12 (F-LP86-HIGH-002 closure: step 8f sibling-INDEX gap — ARCH-INDEX in-line table row was stale at ACCEPTED v1.11; §Changelog v2.78 declared the update but did NOT propagate to in-line row 90). ARCH-INDEX v2.78→v2.79. |
 | 2.78 | FB73 | 2026-05-17 | state-manager | (D-695) FB73 INDEX cascade: ADR-022 row updated ACCEPTED v1.11→v1.12 (architect F-LP85-HIGH-001 closure: ADR-026 D7 v1.22→v1.23 sweep at line 243 — cross-value-class side-effect bump detection; step 8g first-application). ARCH-INDEX v2.77→v2.78. |
 | 2.77 | FB71 | 2026-05-17 | state-manager | (D-693) FB71 INDEX cascade: ADR-026 row updated ACCEPTED v1.22→v1.23 (architect body edit at line 312: error-taxonomy v1.37 cite-pin in §D7; F-LP83-HIGH-001 closure). ARCH-INDEX v2.76→v2.77. |
