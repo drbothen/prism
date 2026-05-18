@@ -1052,46 +1052,75 @@ pub async fn plugin_load_step_with_audit(
     // (step 7.5), NOT to write-tool registration failures (step 7.6) which leave the plugin
     // in an undefined write state.
 
-    // Group pending write tools by plugin_name to enable per-plugin rollback.
-    let mut plugins_to_rollback: Vec<String> = Vec::new();
+    // Option B — per-plugin atomic write-tool registration (F-LP-IMPL-P6-001).
+    //
+    // Group `pending_write_tools` by plugin_name FIRST, preserving the original
+    // per-plugin tool insertion order from `load_all_plugins`. Then iterate once
+    // per plugin: attempt all of that plugin's tool registrations atomically.
+    // If ANY tool fails, immediately:
+    //   1. Deregister all tools already registered for this plugin.
+    //   2. Unregister the plugin from PluginRuntime.
+    //   3. Emit `plugin_registration_rolled_back` (exactly ONCE per plugin, not per tool).
+    //   4. Break out of the inner tool loop — do NOT attempt remaining tools for this plugin.
+    //
+    // This eliminates the loop-continuation orphan bug: in the flat-loop design (pre-fix),
+    // after rolling back good_t1 and unregistering plugin P, the loop continued to good_t3,
+    // successfully registering it and leaving an orphaned DYNAMIC_WRITE_TOOLS entry for a
+    // plugin no longer present in PluginRuntime (BC-2.07.004 §write-then-read consistency
+    // violation — a query referencing good_t3's invalidation entry hits a missing plugin).
+    //
+    // Per-plugin grouping: use IndexMap-like stable ordering via a Vec of (plugin_name, tools).
+    // We cannot use HashMap because it drops insertion order. Use a Vec of (name, Vec<tool>)
+    // accumulated in encounter order.
 
-    // Process tools in order (preserving original deterministic order from load_all_plugins).
-    // Track the last plugin whose tool failed; rollback happens immediately on failure.
+    // Build an ordered list of (plugin_name, tools) grouping while preserving order.
+    let mut plugin_tool_groups: Vec<(String, Vec<_>)> = Vec::new();
     for (plugin_name, manifest_tool) in &pending_write_tools {
-        let entry = prism_query::invalidation::WriteToolInvalidationMap {
-            tool_name: manifest_tool.tool_name.clone(),
-            source_ids: manifest_tool.source_ids.clone(),
-            sensor_id: prism_core::SensorId::from(manifest_tool.sensor_id.as_str()),
-            plugin_name: plugin_name.clone(),
-        };
-        if let Err(reg_err) = prism_query::invalidation::register_write_tool(entry) {
-            // Fail-closed: rollback all write tools registered for this plugin + unregister
-            // the plugin from PluginRuntime.
-            let rolled_back_tools =
-                prism_query::invalidation::deregister_write_tools_for_plugin(plugin_name);
-            let plugin_unregistered = runtime.unregister_plugin(plugin_name);
-            tracing::error!(
-                event_type = "plugin_registration_rolled_back",
-                plugin_name = %plugin_name,
-                tool_name = %manifest_tool.tool_name,
-                registration_error = %reg_err,
-                rolled_back_tools = rolled_back_tools,
-                plugin_unregistered = plugin_unregistered,
-                "write tool registration failed; plugin rolled back (BC-2.07.004 fail-closed — \
-                 partial write-tool state would violate write-then-read consistency)"
-            );
-            plugins_to_rollback.push(plugin_name.clone());
+        match plugin_tool_groups
+            .iter_mut()
+            .find(|(n, _)| n == plugin_name)
+        {
+            Some((_, tools)) => tools.push(manifest_tool),
+            None => plugin_tool_groups.push((plugin_name.clone(), vec![manifest_tool])),
         }
     }
 
-    // Log summary: how many plugins were rolled back vs survived.
-    let n_rolled_back = {
-        let mut seen = std::collections::HashSet::new();
-        plugins_to_rollback
-            .iter()
-            .filter(|p| seen.insert((*p).clone()))
-            .count()
-    };
+    let mut n_rolled_back: usize = 0;
+
+    // Per-plugin atomic loop: register all tools or roll back entirely.
+    'plugin_loop: for (plugin_name, tools) in &plugin_tool_groups {
+        for manifest_tool in tools {
+            let entry = prism_query::invalidation::WriteToolInvalidationMap {
+                tool_name: manifest_tool.tool_name.clone(),
+                source_ids: manifest_tool.source_ids.clone(),
+                sensor_id: prism_core::SensorId::from(manifest_tool.sensor_id.as_str()),
+                plugin_name: plugin_name.clone(),
+            };
+            if let Err(reg_err) = prism_query::invalidation::register_write_tool(entry) {
+                // Fail-closed: rollback all write tools registered so far for this plugin
+                // (including those successfully registered in earlier iterations of this
+                // inner loop) + unregister the plugin from PluginRuntime.
+                let rolled_back_tools =
+                    prism_query::invalidation::deregister_write_tools_for_plugin(plugin_name);
+                let plugin_unregistered = runtime.unregister_plugin(plugin_name);
+                // Emit exactly ONE rollback event per plugin (not one per remaining tool).
+                tracing::error!(
+                    event_type = "plugin_registration_rolled_back",
+                    plugin_name = %plugin_name,
+                    tool_name = %manifest_tool.tool_name,
+                    registration_error = %reg_err,
+                    rolled_back_tools = rolled_back_tools,
+                    plugin_unregistered = plugin_unregistered,
+                    "write tool registration failed; plugin rolled back (BC-2.07.004 fail-closed — \
+                     partial write-tool state would violate write-then-read consistency)"
+                );
+                n_rolled_back += 1;
+                // Break out of the inner tool loop — do NOT attempt remaining tools for
+                // this plugin. Continue to the next plugin in the outer loop.
+                continue 'plugin_loop;
+            }
+        }
+    }
     if n_rolled_back > 0 {
         let survivors = plugins_loaded.saturating_sub(n_rolled_back);
         tracing::error!(
