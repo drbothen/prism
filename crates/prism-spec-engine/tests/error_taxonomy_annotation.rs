@@ -91,22 +91,47 @@ fn test_BC_2_16_011_e_spec_008_retired_annotation() {
     );
 
     // -----------------------------------------------------------------------
-    // Sub-assertion B: no E-SPEC-008 construction sites in src/.
+    // Sub-assertion B: no E-SPEC-008 construction sites in ANY crate's src/.
+    //
+    // F-LP-IMPL-P1-008: Expanded to workspace-wide scan (all crates/*/src/).
+    // The variant DECLARATION in prism-core/src/error.rs is excluded (POL-1
+    // append-only numbering; the variant must stay). Construction sites in
+    // crate src/ are what we gate against.
     // -----------------------------------------------------------------------
-    let src_dir = workspace
-        .join("crates")
-        .join("prism-spec-engine")
-        .join("src");
-
+    let crates_dir = workspace.join("crates");
     let mut construction_hits: Vec<String> = Vec::new();
 
-    collect_e_spec_008_hits(&src_dir, &mut construction_hits);
+    // Walk all crates/*/src/ paths.
+    if let Ok(crate_entries) = std::fs::read_dir(&crates_dir) {
+        for crate_entry in crate_entries.flatten() {
+            let crate_path = crate_entry.path();
+            if !crate_path.is_dir() {
+                continue;
+            }
+            let src_dir = crate_path.join("src");
+            if src_dir.exists() {
+                collect_e_spec_008_hits(&src_dir, &mut construction_hits);
+            }
+        }
+    }
+
+    // Remove the variant DECLARATION from prism-core/src/error.rs (POL-1 exemption).
+    // The hit format is "{relative_path_from_src}:{trimmed_line_content}".
+    // The enum variant declaration line is just `ESpec008,` (trimmed).
+    // It is only exempt if the hit also contains "error.rs" (the canonical declaration file).
+    construction_hits.retain(|hit| {
+        // Keep hits that are NOT the variant declaration in error.rs.
+        // Pattern: the hit path contains "error.rs" AND the content is just the variant name.
+        let is_declaration = hit.contains("error.rs") && hit.ends_with("ESpec008,");
+        !is_declaration
+    });
 
     assert!(
         construction_hits.is_empty(),
-        "BC-2.16.011 AC-11: found {} E-SPEC-008 / ESpec008 construction sites in \
-         prism-spec-engine src/. Task 2 (delete custom_adapter.rs) must eliminate \
-         all construction sites before this sub-assertion passes.\n\
+        "BC-2.16.011 AC-11 (F-LP-IMPL-P1-008 workspace-wide): found {} E-SPEC-008 / \
+         ESpec008 construction sites in workspace crates/*/src/. \
+         The variant DECLARATION in prism-core/src/error.rs is exempt (POL-1). \
+         All other construction sites must be removed.\n\
          Hits:\n{}",
         construction_hits.len(),
         construction_hits.join("\n")
