@@ -5474,3 +5474,202 @@ All directives from prior §RESUME SNAPSHOT carry forward. Additional directives
 - DO NOT dispatch pass-88 without confirming adversary dispatch-prompt includes POL-29 v1.28 full text (all 9 step-8 substeps + all 5 step-3 classes)
 - DO NOT declare spec unconverged on bookkeeping-META-only findings (passes 82-87 precedent — zero substantive findings)
 - DO NOT add entries to tech-debt-register for pure bookkeeping findings without explicit human direction
+
+---
+
+## §RESUME SNAPSHOT 2026-05-19 (Session FB-IMPL-1..10 + PR #151 In Flight)
+
+**Purpose:** Durable resume context for /clear and fresh-session restart. Covers the FULL S-PLUGIN-PREREQ-E per-story-delivery sub-flow from D-699 pivot through PR #151 in-flight merge gate. Written at D-723 (231st consecutive single-commit under TD-VSDD-053).
+
+---
+
+### §1. Session Arc Summary
+
+| Burst / Decision | Scope | Key Outcome | SHA (feature / factory) |
+|------------------|-------|-------------|------------------------|
+| D-699 | Cascade-pause pivot | Session-reviewer asymptote assessment authorized Phase 3 TDD begin; pass-88 deferred | factory: 5bfeaa16 (pre-pivot) |
+| Worktree create | devops-engineer | feature/S-PLUGIN-PREREQ-E worktree created at `.worktrees/S-PLUGIN-PREREQ-E/` | — |
+| Step 2 stubs | implementer | Stubs committed; story interface skeleton | feature: 6827cb70 |
+| Step 3 Red Gate | test-writer | 16 failing Red Gate tests authored (16 FAIL gate confirmed) | feature: 5808d2f8 |
+| Implementer TDD | implementer | 5 micro-commits to green; all 16 Red Gate tests PASS | feature: f1a37357 (first TDD green) |
+| D-700 / impl-pass-1 | adversary | BLOCKED 3C+4I — F-001/002/003 end-to-end wiring gaps | feature: f1a37357 |
+| FB-IMPL-1 | implementer | Closed 9 findings (F-P1-001..009); BC-2.03.013 cascade | feature: c0480f18 |
+| D-701 / impl-pass-2 | adversary | BLOCKED 2C+3I — paper-fix of F-003 detected + E-PLUGIN-021 missing | feature: c0480f18 |
+| FB-IMPL-2 | implementer + PO | Closed F-P2-001..006; binary split test isolation; E-PLUGIN-021 row added | feature: 8e4df5bf / factory: 2497074f |
+| D-703 / impl-pass-3 | adversary | CLEAN 1/3 — first advance | feature: 8e4df5bf |
+| D-704 / impl-pass-4 | adversary | BLOCKED 1C+1I — Rule C structurally dead; RESET 1/3→0/3 | feature: 8e4df5bf |
+| FB-IMPL-3 | implementer + PO | Rule C wired Route A via CredentialRefProbe; fail-closed rollback; 3 RED-GATE tests | feature: 9e7c3d8e / factory: see-git-log |
+| D-706 | architect | ADR-026-AMENDMENT Option B: Rule C backend-conditional; PLUGIN-MIGRATION-001-A deferral | factory: 4dd97f14 |
+| FB-IMPL-4 | implementer + state-manager | D-706 amendment applied; doc reconciled; catalog count 33→34 | feature: db16f906 / factory: see-git-log |
+| D-707 factory | state-manager | FB-IMPL-4 closure burst: ADR-026 v1.25 + BC-2.01.016 v1.9 + BC-2.16.002 v1.33 + BC-INDEX v5.16 | factory: b8a527fc |
+| D-708 / impl-pass-5 | adversary | BLOCKED 1C+1I — Rule C keyring path dead; ADR-026 amended_by missing | feature: db16f906 |
+| FB-IMPL-5 | implementer + architect | Per-plugin atomic rollback loop; ADR-026 v1.26 amended_by back-ref | feature: e6b47f3e / factory: see-git-log |
+| D-709 / impl-pass-6 | adversary | BLOCKED 0C+1H — rollback loop-continuation bug F-P6-001 | feature: e6b47f3e |
+| FB-IMPL-5 (pass-6 fix) | implementer | Option B per-plugin atomic + 3-tool RED-GATE test | feature: e6b47f3e |
+| D-710 / impl-pass-7 | adversary | CLEAN 1/3 — flake-claim Outcome (a) verified | feature: e6b47f3e |
+| D-711 / impl-pass-8 | adversary | BLOCKED 0C+1H — VP-153 P0 proptest landing gap (novel blind spot); RESET 1/3→0/3 | feature: e6b47f3e |
+| FB-IMPL-6 | test-writer | VP-153 8 proptests + VP-156 5 proptests landed; both status draft→active | feature: 051eab95 / factory: see-git-log |
+| D-712 / impl-pass-9 | adversary | CLEAN 1/3 — PERFECT ZERO-FINDING PASS; first advance post-pass-8 RESET | feature: 051eab95 |
+| D-713 / impl-pass-10 | adversary | BLOCKED 0C+2H — VP §Proof Harness Skeleton drift + E-PLUGIN-021 transitive closure; RESET | feature: 051eab95 |
+| FB-IMPL-7 | PO + state-manager | 11-file spec bundle: VP-153/156 skeleton corrections; E-PLUGIN-021 transitive closure; BC-2.16.002 bullet Option B | factory: 4b1503b3 |
+| D-714 / impl-pass-11 | adversary | BLOCKED 0C+1H+1M — BC-2.16.002 YAML defect + VP-156 §Feasibility sibling-sweep miss | factory: 4b1503b3 |
+| FB-IMPL-8 | PO + state-manager | BC-2.16.002 YAML fix; VP-156 §Feasibility row synced | factory: 8066bb26 |
+| D-715 | orchestrator | ASYMPTOTE SIGNAL — adversary explicitly recommends user adjudication | factory: e6a32d2d |
+| D-716 | user (Option A) | STRICT BC-5.39.001 3-CLEAN authorized regardless of asymptote signal | — |
+| D-716 / impl-pass-12 | adversary | BLOCKED 0C+3H — ALL self-induced by FB-IMPL-7/8 (ADR-026 §Changelog POL-26 + §D7 "Two→Three" count + §D7 redundancy) | feature: 051eab95 |
+| FB-IMPL-9 | architect + state-manager | ADR-026 §D7 + §Changelog repair; VP-156 description fix; ZERO-DRIFT discipline | factory: a1924866 |
+| D-717 | orchestrator | FB-IMPL-9 ZERO-DRIFT verified; architect surfaced VP-156 §Changelog second-order POL-26 recurrence; state-manager closed | — |
+| D-718 / impl-pass-13 | adversary | BLOCKED 0C+0H+2M — VP-156 sibling-paragraph drift + story modified field POL-27; HIGH→MED transition FIRST | factory: a1924866 |
+| FB-IMPL-10 | PO | VP-156 v0.23→v0.24 + story v1.49→v1.50 + VP-INDEX v1.76 + STORY-INDEX v2.153; ZERO-DRIFT | factory: 5030d4ab |
+| D-719 / impl-pass-14 | adversary | CLEAN 1/3 — first advance under sustained ZERO-DRIFT regime | factory: 5030d4ab |
+| D-720 / impl-pass-15 | adversary | CLEAN 2/3 — PENULTIMATE; ZERO-DRIFT empirically validated | factory: 1151747a |
+| D-721 / impl-pass-16 | adversary | CLEAN 3/3 — **BC-5.39.001 3-CLEAN LOCAL IMPLEMENTATION CASCADE CONVERGED** | factory: 0f15eda4 |
+| D-722 / Step 5 | demo-recorder | 14 files committed; 13 ACs all evidenced; feature HEAD advanced to dca98e4a | feature: dca98e4a / factory: 87db6043 |
+| PR #151 created | pr-manager | PR #151 OPEN + MERGEABLE on develop@a5ab742c; CI started | — |
+| D-723 (this burst) | state-manager | SESSION-HANDOFF.md §RESUME SNAPSHOT 2026-05-19 written | factory: this commit |
+
+**Session totals:** 16 adversary passes + 10 fix-bursts + 2 architect amendments + 23 STATE.md decisions D-699..D-722 + Step 5 demo-recorder + Step 6 PR creation. 231 consecutive single-commits under TD-VSDD-053.
+
+---
+
+### §2. Cascade Trajectory + Convergence Analysis
+
+**Per-pass severity trajectory:**
+
+| Pass | Severity | Delta | Notes |
+|------|----------|-------|-------|
+| pass-1 | 3C + 4I | — | Peak severity; real end-to-end wiring gaps |
+| pass-2 | 2C + 3I | -2 | Paper-fix of F-003 detected; new F-P2 defects |
+| pass-3 | CLEAN 1/3 | — | First advance; 6 FB-IMPL-2 closures verified |
+| pass-4 | 1C + 1I | RESET | Argument-semantic-aliasing class; new class |
+| pass-5 | 1C + 1I | — | Rule C keyring path dead; architect escalation |
+| pass-6 | 0C + 1H | -1 | Rollback loop-continuation bug |
+| pass-7 | CLEAN 1/3 | — | Post-FB-IMPL-5; flake-claim Outcome (a) |
+| pass-8 | 0C + 1H | RESET | VP-153 P0 proptest landing gap — novel blind spot |
+| pass-9 | CLEAN 1/3 | — | PERFECT ZERO-FINDING; post-FB-IMPL-6 advance |
+| pass-10 | 0C + 2H | RESET | VP §Proof Harness Skeleton drift + E-PLUGIN-021 transitive closure |
+| pass-11 | 0C + 1H + 1M | — | BC-2.16.002 YAML defect + VP-156 §Feasibility miss; ASYMPTOTE SIGNAL |
+| pass-12 | 0C + 3H | RESET | ALL self-induced by FB-IMPL-7/8; user Option A |
+| pass-13 | 0C + 0H + 2M | — | HIGH→MED transition FIRST; ZERO-DRIFT validated |
+| pass-14 | CLEAN 1/3 | — | First advance under sustained ZERO-DRIFT regime |
+| pass-15 | CLEAN 2/3 | — | PENULTIMATE; ZERO-DRIFT empirically validated |
+| pass-16 | CLEAN 3/3 | — | **BC-5.39.001 3-CLEAN CONVERGED** |
+
+**Severity decay:** 3C+4I (peak) → HIGH-only → MED-only → ZERO. ZERO-DRIFT discipline established as engineering practice at FB-IMPL-9 (architect) and maintained through passes 14/15/16. Replicable pattern for future story cascades.
+
+**Key inflection points:**
+- pass-3 CLEAN: first FB-IMPL-2 binary-split test isolation fix verified
+- pass-7 CLEAN: ZERO-DRIFT pre-condition; flake-claim methodology established
+- pass-8 RESET (VP proptest): novel blind spot — pass-1..7 audited validator logic, never grep-checked VP artifact existence
+- pass-9 CLEAN: post VP-landing; strongest single-pass in cascade (0 findings all severity tiers)
+- pass-12 RESET: all 3 HIGH were FB-IMPL-7/8 self-induced — "fix-burst introduces new class" anti-pattern
+- pass-13 HIGH→MED: first HIGH→MED post-fix-burst severity transition in 6 passes — strong convergence signal
+- pass-16 CLEAN 3/3: convergence at 231st consecutive single-commit
+
+---
+
+### §3. Current State (Resume-Ready)
+
+| Field | Value |
+|-------|-------|
+| Feature branch | feature/S-PLUGIN-PREREQ-E |
+| Feature HEAD | dca98e4a (on origin/feature/S-PLUGIN-PREREQ-E) |
+| Pre-demo-recorder HEAD | 051eab95 (LOCAL convergence baseline; code unchanged since pass-9) |
+| Factory HEAD | 87db6043 (D-722; post-demo-recorder) |
+| develop HEAD | a5ab742c (unchanged this session; PR #151 base) |
+| PR | #151 OPEN + MERGEABLE |
+| LOCAL cascade | CONVERGED (BC-5.39.001 3-CLEAN at pass-16; D-721) |
+| Demo evidence | docs/demo-evidence/S-PLUGIN-PREREQ-E/INDEX.md + 13 per-AC files |
+| User decision | Option A strict BC-5.39.001 3-CLEAN (D-716) |
+| Story | S-PLUGIN-PREREQ-E v1.50 |
+| BC-2.01.016 | v1.9 (auto-promote draft→active at merge per POL-14) |
+| BC-2.16.011 | v1.10 (auto-promote per POL-14) |
+| BC-2.16.012 | v1.28 (auto-promote per POL-14) |
+| BC-2.16.002 | v1.35 (catalog 34 events) |
+| BC-2.16.004 | deprecated → removed pending merge |
+| ADR-026 | v1.29 (D-706 Rule C backend conditional amendment applied) |
+| ADR-026-AMENDMENT | v1.0 (D-706) |
+| VP-153 | v0.18 (status: active; 8 proptests landed) |
+| VP-156 | v0.24 (status: active; 5 proptests landed) |
+| error-taxonomy | v1.40 (E-SPEC-012/013/014 + E-PLUGIN-012/020/021) |
+| BC-INDEX | v5.18 |
+| VP-INDEX | v1.76 |
+| ARCH-INDEX | v2.85 |
+| STORY-INDEX | v2.153 |
+| STATE.md | v7.410 (637+ lines — needs compact-state) |
+| Consecutive single-commits | 231 (under TD-VSDD-053) |
+| Just check status | exit 0 single-sequential authoritative (3668+ tests pass) |
+
+---
+
+### §4. Open Items (Pending at /clear time)
+
+**Critical pending work:**
+
+- **PR #151 lifecycle Steps 3-9 NOT COMPLETE.** Need: pr-reviewer + code-reviewer dispatched + pr-review-triage + any fix-bursts + wait CI green + final pr-reviewer APPROVE + squash-merge.
+- **Step 7: Post-merge state-manager burst.** Need: BC auto-promotion sync per POL-14 (BC-2.01.016 + BC-2.16.011 + BC-2.16.012 draft→active) + STATE.md develop_head update (a5ab742c → post-merge SHA) + worktree cleanup (`.worktrees/S-PLUGIN-PREREQ-E/` removal + local branch deletion) + `/vsdd-factory:compact-state` for STATE.md bloat (637+ lines).
+
+**Known observations carry-forward (NOT BLOCKING):**
+
+- **F-P16-LOW-001** BC-INDEX row 221 BC-2.16.011 trailing version cell asymmetry — pending intent verification (consistent with dominant convention; defer or pre-PR sync)
+- **F-P12-OBS-002** BC-2.16.012 TV-BC-2.16.012-004 plugin_name shorthand — pending intent verification
+- **Cross-package nextest leak** QUERY_PHASE_STARTED AtomicBool — surfaces under concurrent cross-package test invocation; authoritative single-sequential `just check` passes; track for post-merge cleanup
+- **F-P7-OBS-001** SIGTERM flake attribution-discipline — TD entry missing for known load-induced flake mechanism (no TD in tech-debt-register.md; fix at post-merge cleanup)
+- **VP §Proof Harness Skeleton enforcement gate** codification target — adversary skill enhancement OR pre-commit hook
+
+---
+
+### §5. Tasks State (Resume-Ready)
+
+```
+#1 [completed] Session-reviewer asymptote assessment (authorized D-699 pivot)
+#2 [completed] Record D-699 cascade-pause pivot in STATE.md
+#3 [completed] Create feature/S-PLUGIN-PREREQ-E worktree
+#4 [completed] Test-writer: 14+ Red Gate tests authored (all FAIL gate confirmed)
+#5 [completed] Implementer: TDD green (5 micro-commits to f1a37357)
+#6 [completed] LOCAL adversary 3-CLEAN cascade (BC-5.39.001 Step 4.5) — CONVERGED at pass-16
+#7 [completed] Demo-recorder: per-AC evidence (13 ACs at dca98e4a)
+#8 [in_progress] PR lifecycle: push + pr-manager 9-step process — PR #151 OPEN + MERGEABLE; CI in progress; security-reviewer NO findings; pr-reviewer + code-reviewer + triage + merge PENDING
+#9 [pending] State-manager: post-merge burst + worktree cleanup + STATE.md compact-state
+```
+
+---
+
+### §6. Resume Protocol for Fresh Session
+
+1. Read `.factory/STATE.md` top 60 lines (frontmatter + current_step + prereq_e_impl_* fields). DO NOT read full 637-line file.
+2. Read this §RESUME SNAPSHOT 2026-05-19 section.
+3. Run `gh pr view 151 --json state,mergeable,statusCheckRollup --jq '.statusCheckRollup[] | {name, conclusion, status}' | head -30` to check current CI state.
+4. If PR #151 still OPEN + CI green: dispatch pr-manager to continue Steps 3-9 (pr-reviewer + code-reviewer + triage + merge).
+5. If PR #151 still OPEN + CI failing: investigate failure cause; route to implementer if real defect, OR adjudicate as known flake.
+6. If PR #151 MERGED: skip to Task #9 — dispatch state-manager for post-merge burst (BC auto-promotion + STATE.md update + worktree cleanup + compact-state).
+7. **User authorization standing: Option A strict BC-5.39.001 3-CLEAN convergence (D-716).** PR-LEVEL cascade follows same protocol (BC-5.39.001 applies at PR-LEVEL per per-story-delivery sub-flow Step 4.5 / pr-manager 9-step process).
+
+---
+
+### §7. Critical Context for Fresh Session
+
+- **User persistent directive:** "No pragmatic convergence. Fix all issues before build." Carries through PR-LEVEL cascade.
+- **TD-VSDD-053 single-commit-per-burst discipline:** 231 consecutive single-commits maintained. DO NOT break this in resume.
+- **NEVER push factory-artifacts.** Local-only per CLAUDE.md.
+- **NEVER use --no-verify.** Hooks must pass.
+- **NEVER add Co-Authored-By / AI attribution to commits.**
+- **STATE.md is at 637+ lines.** compact-state burst is Task #9 (post-merge).
+- **ZERO-DRIFT discipline:** FB-IMPL-9 + FB-IMPL-10 + pass-14/15/16 demonstrate the engineering approach. Replicate for PR-LEVEL cascade fix-bursts.
+- **DO NOT modify SpecLoader::parse production path** — deferred dead-code per current architecture; production uses parse_and_validate_spec_toml.
+- **DO NOT silently re-introduce CustomAdapter trait** — BC-2.16.011 retirement is fully complete.
+- **POL-30 Fork B invariant** carries forward — BC-2.16.002 catalog bullet versioning independent of frontmatter; DO NOT sync them.
+
+---
+
+### §8. Standing DO-NOT Directives (Updated 2026-05-19)
+
+All directives from §RESUME SNAPSHOT 2026-05-17 carry forward. Additional from this session:
+
+- DO NOT introduce new POL-26 §Changelog ordering violations (12+ recurrences this story; FB-IMPL-9 ZERO-DRIFT discipline is the antidote)
+- DO NOT silently sweep sibling-paragraph defects in fix-bursts without surfacing to adversary first (architect FB-IMPL-9 ZERO-DRIFT pattern: surface for adversary)
+- DO NOT claim "pre-existing flake" without TD entry citation (F-P2-004 precedent; F-P7-OBS-001 observation carry-forward)
+- DO NOT modify SpecLoader::parse production path (deferred dead-code per current architecture; production uses parse_and_validate_spec_toml)
+- DO NOT silently re-introduce CustomAdapter trait (BC-2.16.011 retirement is fully complete)
+- DO NOT skip VP artifact existence grep-check in adversary dispatch (pass-8 novel blind spot; VP-INDEX rows must have matching .rs file in codebase)
+- DO NOT invoke Rule C in production keyring path until PLUGIN-MIGRATION-001-A (structurally enforced via D-706 ADR-026 amendment backend-conditional scope; S-PLUGIN-PREREQ-E `blocks:` frontmatter attachment)
