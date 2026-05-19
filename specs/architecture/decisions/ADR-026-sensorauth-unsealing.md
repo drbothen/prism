@@ -4,12 +4,14 @@ adr_id: "ADR-026"
 title: "SensorAuth Trait Un-Sealing — Remove private::Sealed, Enable Plugin Auth Implementations"
 status: Proposed
 date: "2026-05-18"
-version: "1.25"
+modified: "2026-05-18"
+version: "1.26"
 producer: architect
 subsystems_affected: [SS-01, SS-07, SS-16, SS-17, SS-22]
 supersedes: null
 superseded_by: null
 amends: ADR-023
+amended_by: ADR-026-AMENDMENT-rule-c-keyring-scope.md
 anchor_stories: [S-PLUGIN-PREREQ-E]
 runtime_deliverables:
   - "Remove private::Sealed and mod private from crates/prism-sensors/src/auth/mod.rs"
@@ -32,6 +34,8 @@ wiring_deferred_to: null
 Proposed 2026-05-15, v1.0. Governs the PLUGIN-PREREQ-E delivery of the SensorAuth unsealing
 (Constraint C5 per ADR-023 §Architectural Constraints). Implementation is tracked by
 S-PLUGIN-PREREQ-E.
+
+**Amended by:** [ADR-026-AMENDMENT-rule-c-keyring-scope.md](ADR-026-AMENDMENT-rule-c-keyring-scope.md) (D-706, 2026-05-18) — see §D3 Rule C Backend Scope qualification.
 
 ---
 
@@ -501,3 +505,4 @@ modes and security implications. The open trait approach reuses the existing typ
 | 1.23 | 2026-05-17 | architect | FB71 burst label: F-LP83-HIGH-001 closure (architect scope): ADR-026 §D7 body line 312 cite-pin `(error-taxonomy v1.35)` → `(error-taxonomy v1.37)` (1 site). META-META-META-META recurrence — FB69 self-induced error-taxonomy v1.36→v1.37 within F-LP81 closure but step 8d didn't recursively iterate. PO swept story v1.45 + HS-001 v1.10 + VP-153 v0.15 in same burst. POL-29 v1.24 fixed-point iteration amendment by state-manager. POL-29 step 8c grep evidence (architecture-domain): pre-grep 1 → post-grep 0. |
 | 1.24 | 2026-05-17 | architect | FB75: F-LP87-HIGH-001 architect portion (line 312 §D7 body `(error-taxonomy v1.37)` → `(error-taxonomy v1.38)`) + F-LP87-HIGH-002 within-file self-cite closure (line 24 runtime_deliverables `(per D7 v1.16)` → `(per D7 v1.23)` per Interpretation #2 7-burst precedent — external cites follow latest ADR-026 version). NEW META-class within-file self-cite enumeration codified by SM in POL-29 v1.28 step 8i. PO swept story v1.48 + HS-001 v1.11 + VP-153 v0.16 in same burst. |
 | 1.25 | 2026-05-18 | state-manager | D-707 FB-IMPL-4: §D3 Rule C Backend Scope qualification paragraph appended (D-706 amendment text mechanically applied; architect-authored in ADR-026-AMENDMENT-rule-c-keyring-scope.md). Rule C enforcement scoped to backends with shape metadata; keyring backend deferred to PLUGIN-MIGRATION-001-A. ADR-026 v1.24→v1.25; modified 2026-05-18. |
+| 1.26 | 2026-05-18 | architect | amended_by back-ref + §Status amendment note (closes F-LP-IMPL-P6-OBS-001 discoverability gap). Added `amended_by: ADR-026-AMENDMENT-rule-c-keyring-scope.md` to frontmatter; §Status note pointing to amendment doc + D-706 + §D3. |
