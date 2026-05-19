@@ -1,10 +1,10 @@
 ---
 document_type: verification-property-index
 level: L4
-version: "1.74"
+version: "1.75"
 status: draft
 producer: state-manager
-timestamp: 2026-05-17T00:00:00
+timestamp: 2026-05-18T22:00:00Z
 phase: 2-patch
 inputs: [architecture/verification-architecture.md]
 traces_to: architecture/ARCH-INDEX.md
@@ -183,7 +183,7 @@ total_vps: 156
 | VP-153 | SensorAuth runtime cross-composition prevention (DI-012 runtime replacement): all invalid (auth_type, credential_type) pairs rejected at spec-load time; error messages redact credential values | prism-spec-engine | proptest | P0 | active | S-PLUGIN-PREREQ-E |
 | VP-154 | CustomAdapter behavioral equivalence: PluginRuntime WASM dispatch produces non-empty records matching plugin fixture output; TOML fallthrough when no plugin registered | prism-spec-engine | integration_test | P1 | draft | PLUGIN-MIGRATION-001-A |
 | VP-155 | CustomAdapter absent from prism-spec-engine public API: compile-fail perimeter asserts CustomAdapter and CustomAdapterRegistry are unimportable post-PREREQ-E | prism-spec-engine | integration_test | P0 | draft | PLUGIN-MIGRATION-001-A |
-| VP-156 | WriteToolInvalidationMap registration uniqueness: duplicate tool_name returns Err(DuplicateWriteToolRegistration); first registration persists unchanged | prism-query | proptest | P1 | active — v0.22 | S-PLUGIN-PREREQ-E |
+| VP-156 | WriteToolInvalidationMap registration uniqueness: duplicate tool_name returns Err(DuplicateWriteToolRegistration); first registration persists unchanged | prism-query | proptest | P1 | active — v0.23 | S-PLUGIN-PREREQ-E |
 
 ## VP-PLUGIN-001..007 Named Series (PREREQ-F Registration, ADR-023 §Architectural Constraints)
 
@@ -243,6 +243,7 @@ S-1.02 frontmatter has been updated to `subsystems: [SS-03, SS-07, SS-11, SS-12,
 
 | Version | Burst | Date | Author | Change |
 |---------|-------|------|--------|--------|
+| 1.75 | D-717-state-mgr | 2026-05-18 | state-manager | D-717 state-manager closure: VP-156 v0.22→v0.23 (§Changelog v0.20/v0.21 monotonic ordering repair — second-order POL-26 recurrence surfaced by architect FB-IMPL-9 ZERO-DRIFT discipline; closed in same burst). VP-INDEX v1.74→v1.75. |
 | 1.74 | pass-12-spec-hygiene | 2026-05-18 | architect | D-717 pass-12 INDEX cascade: VP-156 v0.21→v0.22 (F-LP-IMPL-P12-OBS-001 closure: §Test-only reset hooks line 175 — `dynamic_write_tool_count()` corrected from "`#[cfg(test)]`-gated" to "unconditional `pub fn`"). VP-INDEX v1.73→v1.74. |
 | 1.73 | pass-11-spec-hygiene | 2026-05-18 | product-owner | pass-11-spec-hygiene INDEX cascade: VP-156 v0.20→v0.21 (F-LP-IMPL-P11-MED-001 closure: §Feasibility Assessment row 184 symbol corrections — `reset_for_test()` → two-function pattern `reset_query_phase_global()` + `reset_dynamic_registry_global()`; `invalidation_map()` → `dynamic_write_tool_count()`). VP-INDEX v1.72→v1.73. |
 | 1.72 | pass-10-spec-hygiene | 2026-05-18 | product-owner | pass-10-spec-hygiene INDEX cascade: VP-156 v0.19→v0.20 (F-LP-IMPL-P10-OBS-002 closure: §Proof Harness Skeleton stale symbol corrections — `reset_for_test` → two-function pattern; `invalidation_map()` → `dynamic_write_tool_count()`; POL-26 row-order repair 0.19/0.18 swapped). VP-INDEX v1.71→v1.72. |
