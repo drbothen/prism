@@ -5,7 +5,7 @@ title: "SensorAuth Trait Un-Sealing — Remove private::Sealed, Enable Plugin Au
 status: Proposed
 date: "2026-05-18"
 modified: "2026-05-18"
-version: "1.28"
+version: "1.29"
 producer: architect
 subsystems_affected: [SS-01, SS-07, SS-16, SS-17, SS-22]
 supersedes: null
@@ -302,7 +302,7 @@ plugin-load (step 7.5, before MCP traffic) is the correct production-grade defau
 operator sees the error before any query is served. A `tool_name`-keyed uniqueness invariant
 is also simpler to reason about in VP-156 proptest coverage.
 
-**Error code routing:** Two new error codes apply to this registration path (E-PLUGIN-001 is the
+**Error code routing:** Three new error codes apply to this registration path (E-PLUGIN-001 is the
 umbrella runtime-execution code and MUST NOT be reused for boot-load registration errors):
 
 - **`E-PLUGIN-012`** — `SpecEngineError::DuplicateWriteToolRegistration(String)`: Plugin declared
@@ -313,14 +313,13 @@ umbrella runtime-execution code and MUST NOT be reused for boot-load registratio
   `WARN`-level tracing event is emitted. Severity: broken. Category: runtime.
 - **`E-PLUGIN-021`** — `SpecEngineError::WriteToolRegistryPoisoned`: `register_write_tool`
   attempted to acquire the `DYNAMIC_WRITE_TOOLS` `RwLock` write guard, but the lock is
-  poisoned (a prior panic occurred inside a write-guard critical section). Additionally,
-  E-PLUGIN-021 (`WriteToolRegistryPoisoned`) is constructed if the `RwLock` guarding
-  `DYNAMIC_WRITE_TOOLS` is poisoned by a prior panic — operators should restart the process.
+  poisoned (a prior panic occurred inside a write-guard critical section). The registry
+  is unrecoverable; operators must restart the process.
   Severity: broken (unrecoverable). Category: runtime. Recurrence: SINGLE_PER_PROCESS_LIFETIME.
 
-Both codes (`E-PLUGIN-012` and `E-PLUGIN-020`) MUST be added to `.factory/specs/prd-supplements/error-taxonomy.md` by the
+Each of `E-PLUGIN-012`, `E-PLUGIN-020`, and `E-PLUGIN-021` MUST be added to `.factory/specs/prd-supplements/error-taxonomy.md` by the
 product-owner in S-PLUGIN-PREREQ-E scope (PO-domain handoff; PO owns error-taxonomy.md per
-Agent Routing Table). The implementer adds both `SpecEngineError` enum variants.
+Agent Routing Table). The implementer adds all three `SpecEngineError` enum variants.
 
 All read-side callers use `RwLock::read().unwrap()` (infallible if no writer panics while holding
 the lock; boot-phase write calls are synchronous and non-panicking by production-grade default).
@@ -512,5 +511,6 @@ modes and security implications. The open trait approach reuses the existing typ
 | 1.24 | 2026-05-17 | architect | FB75: F-LP87-HIGH-001 architect portion (line 312 §D7 body `(error-taxonomy v1.37)` → `(error-taxonomy v1.38)`) + F-LP87-HIGH-002 within-file self-cite closure (line 24 runtime_deliverables `(per D7 v1.16)` → `(per D7 v1.23)` per Interpretation #2 7-burst precedent — external cites follow latest ADR-026 version). NEW META-class within-file self-cite enumeration codified by SM in POL-29 v1.28 step 8i. PO swept story v1.48 + HS-001 v1.11 + VP-153 v0.16 in same burst. |
 | 1.25 | 2026-05-18 | state-manager | D-707 FB-IMPL-4: §D3 Rule C Backend Scope qualification paragraph appended (D-706 amendment text mechanically applied; architect-authored in ADR-026-AMENDMENT-rule-c-keyring-scope.md). Rule C enforcement scoped to backends with shape metadata; keyring backend deferred to PLUGIN-MIGRATION-001-A. ADR-026 v1.24→v1.25; modified 2026-05-18. |
 | 1.26 | 2026-05-18 | architect | amended_by back-ref + §Status amendment note (closes F-LP-IMPL-P6-OBS-001 discoverability gap). Added `amended_by: ADR-026-AMENDMENT-rule-c-keyring-scope.md` to frontmatter; §Status note pointing to amendment doc + D-706 + §D3. |
-| 1.28 | 2026-05-18 | product-owner | POL-29 pass-11-spec-hygiene sibling-sweep: BC-2.16.002 cite-pin v1.34→v1.35 at §D7 line 333 (F-LP-IMPL-P11-HIGH-001 closure propagated BC-2.16.002 frontmatter defect fix; cite-pin must advance per POL-29 class (b)). |
 | 1.27 | 2026-05-18 | product-owner | F-LP-IMPL-P10-IMP-002 closure (PO scope): §D7 error code routing: added E-PLUGIN-021 (`SpecEngineError::WriteToolRegistryPoisoned`) alongside E-PLUGIN-020 (registration-after-boot). Both are fail-closed safety rails in the boot-time write-tool-registration path. E-PLUGIN-021 is constructed if the `RwLock` guarding `DYNAMIC_WRITE_TOOLS` is poisoned by a prior panic — operators should restart the process. Severity: broken (unrecoverable); recurrence: SINGLE_PER_PROCESS_LIFETIME. Sibling: BC-2.16.012 v1.28 (E-PLUGIN-021 row in §Error Cases + EC-016-012-006 in §Edge Cases) swept in same burst. |
+| 1.28 | 2026-05-18 | product-owner | POL-29 pass-11-spec-hygiene sibling-sweep: BC-2.16.002 cite-pin v1.34→v1.35 at §D7 line 333 (F-LP-IMPL-P11-HIGH-001 closure propagated BC-2.16.002 frontmatter defect fix; cite-pin must advance per POL-29 class (b)). |
+| 1.29 | 2026-05-18 | architect | D-717 pass-12 spec-hygiene burst: (1) §Changelog rows v1.27/v1.28 reordered to ascending (F-LP-IMPL-P12-HIGH-001; POL-26 recurrence); (2) §D7 "Two new error codes" → "Three new error codes" + line 321 "Both codes (E-PLUGIN-012, E-PLUGIN-020)" → "Each of E-PLUGIN-012, E-PLUGIN-020, and E-PLUGIN-021" (F-LP-IMPL-P12-HIGH-002); (3) E-PLUGIN-021 bullet self-redundancy removed — "Additionally, E-PLUGIN-021..." sentence deleted, "operators should restart the process" incorporated into primary description (F-LP-IMPL-P12-HIGH-003). ZERO-NEW-DRIFT discipline. |

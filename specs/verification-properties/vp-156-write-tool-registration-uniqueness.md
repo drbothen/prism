@@ -1,7 +1,7 @@
 ---
 document_type: verification-property
 level: L4
-version: "0.21"
+version: "0.22"
 status: active
 producer: architect
 timestamp: 2026-05-15T00:00:00Z
@@ -172,7 +172,7 @@ does not require any test infrastructure beyond what is already in prism-query's
 - `reset_dynamic_registry_global()` — clears the `DYNAMIC_WRITE_TOOLS` `RwLock<Vec<...>>` global (sets the vector to empty).
 - `reset_query_phase_global()` — resets the `QUERY_PHASE_STARTED` `AtomicBool` to `false`.
 
-Both must be called before each proptest run to guarantee process-global isolation. The `dynamic_write_tool_count()` helper (also `#[cfg(test)]`-gated) provides the count observable from tests without requiring direct access to the RwLock guard.
+Both must be called before each proptest run to guarantee process-global isolation. The `dynamic_write_tool_count()` helper (unconditional `pub fn` in production code; used by tests for invariant assertion) provides the count observable from tests without requiring direct access to the RwLock guard.
 
 ## Feasibility Assessment
 
@@ -215,3 +215,4 @@ Both must be called before each proptest run to guarantee process-global isolati
 | 0.19 | FB-IMPL-6 | 2026-05-18 | test-writer | Proptest landed. Authors 5 proptests in two integration test binaries: (1) `vp156_write_tool_registration_uniqueness.rs` — 4 proptests covering VP-156 AC Cases 1/2/3 and full-key idempotency; (2) `vp156_write_tool_post_boot_proptest.rs` — 1 proptest covering EC-016-012-005 post-boot rejection (separate binary per mark_query_phase_started global-state isolation pattern). Uniqueness invariant: `tool_name` alone (VP-156 §Property Statement; ADR-026 D7 v1.23). All 5 proptests pass (PROPTEST_CASES=32; 908 total prism-query tests pass; cargo check --workspace --tests exit 0). lifecycle_status: draft → active; proof_completed_date: 2026-05-18. Sibling-sweep of F-LP-IMPL-P8-IMP-001 (VP-153 landing) — same VP-artifact-existence blind-spot class. Anchored: BC-2.16.012 EC-016-012-004/005 + TD-S-PLUGIN-PREREQ-A-003 closure semantic. |
 | 0.21 | pass-11-spec-hygiene | 2026-05-18 | product-owner | §Feasibility Assessment row 184 symbol corrections — sibling-sweep completion of F-LP-IMPL-P10-OBS-002 (closes F-LP-IMPL-P11-MED-001). `reset_for_test()` → two-function pattern `reset_query_phase_global()` + `reset_dynamic_registry_global()`; `invalidation_map()` → `dynamic_write_tool_count()`. As-built API names per §Test-only reset hooks paragraph (lines 171-175). |
 | 0.20 | pass-10-spec-hygiene | 2026-05-18 | product-owner | F-LP-IMPL-P10-OBS-002 closure: §Proof Harness Skeleton stale symbol corrections. (1) `reset_for_test()` → two-function pattern: `reset_query_phase_global()` + `reset_dynamic_registry_global()` (2 skeleton sites, lines 141+156). (2) `invalidation_map().read().unwrap()` + `.len()` → `dynamic_write_tool_count()` (first site, line 147). (3) `invalidation_map().read().unwrap()` + `.iter().filter(...).count()` → `dynamic_write_tool_count()` (second site, line 163). (4) Test-only reset hook paragraph updated to describe the two-function as-built API and `dynamic_write_tool_count()` helper. (5) POL-26 monotonic-order repair: rows v0.19 (FB-IMPL-6 2026-05-18) and v0.18 (FB73 2026-05-17) were out of ascending order — swapped to restore v0.18 → v0.19 → v0.20. Spec brought into alignment with as-built code per CLAUDE.md Source-of-Truth Precedence Rule 7. |
+| 0.22 | pass-12-spec-hygiene | 2026-05-18 | architect | D-717 F-LP-IMPL-P12-OBS-001 closure: §Test-only reset hooks paragraph line 175 corrected — `dynamic_write_tool_count()` description updated from "`#[cfg(test)]`-gated" to "unconditional `pub fn` in production code; used by tests for invariant assertion". As-built: `invalidation.rs` lines 183-188 have no `#[cfg]` gate. ZERO-NEW-DRIFT discipline. |

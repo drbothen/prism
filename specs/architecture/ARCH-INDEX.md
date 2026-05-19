@@ -1,7 +1,7 @@
 ---
 document_type: architecture-index
 level: L3
-version: "2.84"
+version: "2.85"
 status: draft
 producer: state-manager
 timestamp: 2026-05-18T07:00:00
@@ -91,7 +91,7 @@ deployment_topology: single-service  # planned — no service binary exists yet 
 | ADR-023 | Plugin-Only Sensor Architecture — TOML Specs as Declarative Baseline, .prx WASM for Non-Declarative Cases, Retired CustomAdapter Rust Trait | COMMITTED v1.19 | 2026-05-15 | decisions/ADR-023-plugin-only-sensor-architecture.md |
 | ADR-024 | ColumnType Canonical Naming — Domain-Level Variant Names for Sensor Schema API; prism-spec-engine Shadow Enum Retirement | ACCEPTED v1.0 | 2026-05-12 | decisions/ADR-024-column-type-canonical-naming.md |
 | ADR-025 | BC Lifecycle Field Canonical Scheme — Single status Field Governs; lifecycle Field Retired | ACCEPTED v1.0 | 2026-05-12 | decisions/ADR-025-bc-lifecycle-field-canonical-scheme.md |
-| ADR-026 | SensorAuth Trait Un-Sealing — Remove private::Sealed, Enable Plugin Auth Implementations | PROPOSED v1.28 | 2026-05-18 | decisions/ADR-026-sensorauth-unsealing.md |
+| ADR-026 | SensorAuth Trait Un-Sealing — Remove private::Sealed, Enable Plugin Auth Implementations | PROPOSED v1.29 | 2026-05-18 | decisions/ADR-026-sensorauth-unsealing.md |
 | ADR-026-AMENDMENT | ADR-026 Amendment: Rule C (E-SPEC-014) — Keyring Backend Scope Qualification (D-706) | APPROVED v1.0 | 2026-05-18 | decisions/ADR-026-AMENDMENT-rule-c-keyring-scope.md |
 | ADR-027 | CustomAdapter Rust Trait Same-Burst Removal — Perimeter Enforcement in Wave 1/A | PROPOSED v1.9 | 2026-05-17 | decisions/ADR-027-custom-adapter-deprecation-removal.md |
 
@@ -153,6 +153,7 @@ deployment_topology: single-service  # planned — no service binary exists yet 
 
 | Version | Pass | Date | Author | Change |
 |---------|------|------|--------|--------|
+| 2.85 | pass-12-spec-hygiene | 2026-05-18 | architect | D-717 pass-12 INDEX cascade: ADR-026 in-line row v1.28→v1.29 (F-LP-IMPL-P12-HIGH-001/002/003 closure: §Changelog monotonic repair + §D7 Three-codes + E-PLUGIN-021 bullet consolidation). ARCH-INDEX v2.84→v2.85. |
 | 2.84 | pass-11-spec-hygiene | 2026-05-18 | product-owner | pass-11-spec-hygiene INDEX cascade: ADR-026 in-line row v1.27→v1.28 (POL-29 BC-2.16.002 cite-pin v1.34→v1.35 sibling-sweep; F-LP-IMPL-P11-HIGH-001 transitive propagation). ARCH-INDEX v2.83→v2.84. |
 | 2.83 | pass-10-spec-hygiene | 2026-05-18 | product-owner | pass-10-spec-hygiene INDEX cascade: ADR-026 in-line row v1.26→v1.27 (F-LP-IMPL-P10-IMP-002 closure: E-PLUGIN-021 added to §D7 error code routing alongside E-PLUGIN-020). ARCH-INDEX v2.82→v2.83. |
 | 2.82 | FB-IMPL-5 | 2026-05-18 | state-manager | D-708: ADR-026 in-line row v1.25→v1.26 (amended_by back-ref added; F-P6-OBS-001 closure by architect SHA 8aa52b2d). ARCH-INDEX v2.81→v2.82. |
