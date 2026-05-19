@@ -23,8 +23,8 @@ crates_touched: [prism-sensors, prism-spec-engine, prism-query, prism-bin]
 target_module: prism-sensors
 subsystems: [SS-01, SS-07, SS-16, SS-17, SS-22]
 capabilities: [CAP-001, CAP-029]
-version: "1.49"
-modified: "2026-05-17"
+version: "1.50"
+modified: "2026-05-18"
 level: "L4"
 producer: product-owner
 timestamp: "2026-05-16T00:00:00Z"
@@ -543,6 +543,7 @@ Tech debt closed:
 
 | Version | Burst | Date | Author | Change |
 |---------|-------|------|--------|--------|
+| v1.50 | FB-IMPL-10 | 2026-05-18 | product-owner | F-LP-IMPL-P13-MED-002 closure: frontmatter `modified:` field synced "2026-05-17" → "2026-05-18" per POL-27 (most-recent-change date tracking). Pre-existing since FB-IMPL-7 / pass-10-spec-hygiene (v1.49 authored 2026-05-18 but modified field not updated). ZERO-NEW-DRIFT discipline. |
 | v1.49 | pass-10-spec-hygiene | 2026-05-18 | product-owner | F-LP-IMPL-P10-SUG-001 closure (POL-29 step 8h/8i sibling propagation): catalog bullet cite-pins `(v1.21)` → `(v1.22)` at 5 live-narrative sites — lines 219, 311, 359, 434, 435 (all `BC-2.16.002 §Postconditions (Canonical Structured Event Catalog bullet, v1.21) row 33`). BC-2.16.002 catalog bullet label advanced from `(v1.21)` to `(v1.22)` per Option B adjudication; story cites must track the new canonical label per POL-29 step 8h. |
 | v1.48 | FB75 | 2026-05-17 | product-owner | F-LP87-HIGH-001 closure (PO scope): error-taxonomy v1.37→v1.38 propagation at story lines 72 (backtick variant frontmatter), 271, 272, 276, 280, 337, 339 (7 sites). NEW META-class — same-burst dependent-artifact self-bump: FB73 ADR-026 D7 v1.22→v1.23 sweep at error-taxonomy lines 459+467 caused error-taxonomy.md to bump v1.37→v1.38 as §Changelog event within same atomic burst; POL-29 v1.26 step 8g cross-value-class enumeration covered external value classes but did NOT enumerate the DEPENDENT-ARTIFACT-SELF-BUMP class. POL-29 v1.27→v1.28 step 8h amendment by state-manager. Sibling files HS-001 v1.11 + VP-153 v0.16 + ADR-026 v1.24 swept in same burst. |
 | v1.47 | FB74 | 2026-05-17 | product-owner | F-LP86-MED-002 closure (PO scope): §Changelog rows v1.0-v1.30 swept to uniform `v` prefix format matching v1.31+ convention (introduced FB53). 86-pass-surviving within-table schema integrity defect — POL-26 corollary class within-table column-format uniformity. 31 rows reformatted; cell content preserved verbatim per TD-VSDD-091 (only Version-cell prefix added). |

@@ -1,7 +1,7 @@
 ---
 document_type: verification-property
 level: L4
-version: "0.23"
+version: "0.24"
 status: active
 producer: architect
 timestamp: 2026-05-15T00:00:00Z
@@ -168,7 +168,7 @@ does not require any test infrastructure beyond what is already in prism-query's
 // }
 ```
 
-**Test-only reset hooks (as-built, proof-completed-date 2026-05-18):** The harness uses two `#[cfg(test)]`-gated reset helpers exported from `crates/prism-query/src/invalidation.rs`:
+**Test-only reset hooks (as-built, proof-completed-date 2026-05-18):** The harness uses two `#[cfg(any(test, feature = "test-helpers"))]`-gated reset helpers exported from `crates/prism-query/src/invalidation.rs`:
 - `reset_dynamic_registry_global()` — clears the `DYNAMIC_WRITE_TOOLS` `RwLock<Vec<...>>` global (sets the vector to empty).
 - `reset_query_phase_global()` — resets the `QUERY_PHASE_STARTED` `AtomicBool` to `false`.
 
@@ -217,3 +217,4 @@ Both must be called before each proptest run to guarantee process-global isolati
 | 0.21 | pass-11-spec-hygiene | 2026-05-18 | product-owner | §Feasibility Assessment row 184 symbol corrections — sibling-sweep completion of F-LP-IMPL-P10-OBS-002 (closes F-LP-IMPL-P11-MED-001). `reset_for_test()` → two-function pattern `reset_query_phase_global()` + `reset_dynamic_registry_global()`; `invalidation_map()` → `dynamic_write_tool_count()`. As-built API names per §Test-only reset hooks paragraph (lines 171-175). |
 | 0.22 | pass-12-spec-hygiene | 2026-05-18 | architect | D-717 F-LP-IMPL-P12-OBS-001 closure: §Test-only reset hooks paragraph line 175 corrected — `dynamic_write_tool_count()` description updated from "`#[cfg(test)]`-gated" to "unconditional `pub fn` in production code; used by tests for invariant assertion". As-built: `invalidation.rs` lines 183-188 have no `#[cfg]` gate. ZERO-NEW-DRIFT discipline. |
 | 0.23 | D-717-state-mgr | 2026-05-18 | state-manager | §Changelog monotonic ordering repair (v0.20/v0.21 swap) — closes second-order POL-26 recurrence surfaced by architect FB-IMPL-9 ZERO-DRIFT discipline. |
+| 0.24 | FB-IMPL-10 | 2026-05-18 | product-owner | F-LP-IMPL-P13-MED-001 closure: line 171 cfg-gate sibling-sweep — `#[cfg(test)]`-gated → `#[cfg(any(test, feature = "test-helpers"))]`-gated. Accurate description matches `invalidation.rs` lines 197 + 211 as-built gate. Pass-12 fix (v0.22) corrected sibling line 175 but missed this sibling within the same 5-line paragraph. ZERO-NEW-DRIFT discipline. |
