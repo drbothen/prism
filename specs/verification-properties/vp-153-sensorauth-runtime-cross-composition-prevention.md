@@ -1,8 +1,8 @@
 ---
 document_type: verification-property
 level: L4
-version: "0.16"
-status: draft
+version: "0.17"
+status: active
 producer: architect
 timestamp: 2026-05-16T16:00:00Z
 phase: prereq-e
@@ -20,11 +20,11 @@ proof_method: proptest
 verification_method: proptest
 feasibility: feasible
 verification_lock: false
-proof_completed_date: null
+proof_completed_date: "2026-05-18"
 proof_file_hash: null
-lifecycle_status: draft
+lifecycle_status: active
 introduced: "2026-05-15"
-modified: "2026-05-17"
+modified: "2026-05-18"
 deprecated: null
 deprecated_by: null
 replacement: null
@@ -300,3 +300,4 @@ mode against a temp dir). Either approach is feasible.
 | 0.14 | FB62 | 2026-05-17 | state-manager | POL-29 v1.18 step 8b TRANSITIVE CLOSURE CATCH: error-taxonomy v1.34→v1.35 propagation at VP-153 proof-harness comment lines 167 + 210 (2 live-narrative sites; "error-taxonomy.md v1.34" → "error-taxonomy.md v1.35"). FB62 error-taxonomy bumped v1.34→v1.35 in PO dispatch; step 8b transitive closure detected these 2 sites as missed by PO sweep. State-manager applies pin advancement in-scope per Canonical Principle Rule 4. post-grep: 0 live-narrative. |
 | 0.16 | FB75 | 2026-05-17 | product-owner | F-LP87-HIGH-001 closure (PO scope): error-taxonomy v1.37→v1.38 propagation at VP-153 proof-harness comments lines 167 + 210 (2 sites). Sibling: story v1.48 + HS-001 v1.11 + ADR-026 v1.24 swept in same burst. |
 | 0.15 | FB71 | 2026-05-17 | product-owner | F-LP83-HIGH-001 closure (PO scope): error-taxonomy v1.35→v1.37 propagation at VP-153 proof-harness comment lines 167 + 210 (2 live-narrative sites; "error-taxonomy.md v1.35" → "error-taxonomy.md v1.37"). Recurrence #23+ class (a) — FB69 step 8d transitive closure gap. Sibling: story v1.45 + HS-001 v1.10 (PO) + ADR-026 v1.23 (architect). |
+| 0.17 | FB-IMPL-6 | 2026-05-18 | test-writer | F-LP-IMPL-P8-IMP-001 closure: proptest harness authored and passing. Rules A+B (E-SPEC-012/013) in `crates/prism-spec-engine/tests/vp153_sensorauth_cross_composition.rs` (6 proptests via `SpecLoader::validate_cross_composition`). Rule C (E-SPEC-014) via ShapedProbe in `crates/prism-bin/tests/vp153_rule_c_shaped_probe.rs` (2 proptests via `step5_init_credential_store_with_probe`). Rule C lives in prism-bin due to dependency direction — prism-bin depends on prism-spec-engine; adding prism-bin as prism-spec-engine dev-dep would create a workspace cycle. Per ADR-026 §D3 Rule C Backend Scope (D-706): Rule C exercises the ShapedProbe injection path (architecturally-sanctioned test fixture; keyring backend returns Ok(None) in production until PLUGIN-MIGRATION-001-A). `lifecycle_status: draft → active`. `proof_completed_date: "2026-05-18"`. All 8 proptests PASS. Pass-8 adversary caught this blind spot; passes 1-7 audited validator logic but never verified the P0 artifact existed. |
