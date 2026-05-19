@@ -1,7 +1,7 @@
 ---
 document_type: verification-property-index
 level: L4
-version: "1.68"
+version: "1.70"
 status: draft
 producer: state-manager
 timestamp: 2026-05-17T00:00:00
@@ -180,10 +180,10 @@ total_vps: 156
 | VP-150 | OAuth2 refresh-on-401 via declarative TOML retry policy (PipelineExecutor) — VP-PLUGIN-005 alias | prism-spec-engine | integration_test | P0 | draft | S-PLUGIN-PREREQ-B |
 | VP-151 | OCSF column mapping fixture catalog (6 representative cases, SpecDrivenMapper) — VP-PLUGIN-006 alias | prism-spec-engine | integration_test | P1 | draft | PLUGIN-MIGRATION-001-C |
 | VP-152 | Plugin manifest allowlist explicit Vec<String> after PREREQ-D (allowed_urls enforcement under default-deny semantics) — VP-PLUGIN-007 alias | prism-spec-engine | integration_test | P0 | draft | PLUGIN-PREREQ-D |
-| VP-153 | SensorAuth runtime cross-composition prevention (DI-012 runtime replacement): all invalid (auth_type, credential_type) pairs rejected at spec-load time; error messages redact credential values | prism-spec-engine | proptest | P0 | draft | S-PLUGIN-PREREQ-E |
+| VP-153 | SensorAuth runtime cross-composition prevention (DI-012 runtime replacement): all invalid (auth_type, credential_type) pairs rejected at spec-load time; error messages redact credential values | prism-spec-engine | proptest | P0 | active | S-PLUGIN-PREREQ-E |
 | VP-154 | CustomAdapter behavioral equivalence: PluginRuntime WASM dispatch produces non-empty records matching plugin fixture output; TOML fallthrough when no plugin registered | prism-spec-engine | integration_test | P1 | draft | PLUGIN-MIGRATION-001-A |
 | VP-155 | CustomAdapter absent from prism-spec-engine public API: compile-fail perimeter asserts CustomAdapter and CustomAdapterRegistry are unimportable post-PREREQ-E | prism-spec-engine | integration_test | P0 | draft | PLUGIN-MIGRATION-001-A |
-| VP-156 | WriteToolInvalidationMap registration uniqueness: duplicate tool_name returns Err(DuplicateWriteToolRegistration); first registration persists unchanged | prism-query | proptest | P1 | draft | S-PLUGIN-PREREQ-E |
+| VP-156 | WriteToolInvalidationMap registration uniqueness: duplicate tool_name returns Err(DuplicateWriteToolRegistration); first registration persists unchanged | prism-query | proptest | P1 | active | S-PLUGIN-PREREQ-E |
 
 ## VP-PLUGIN-001..007 Named Series (PREREQ-F Registration, ADR-023 §Architectural Constraints)
 
@@ -243,6 +243,8 @@ S-1.02 frontmatter has been updated to `subsystems: [SS-03, SS-07, SS-11, SS-12,
 
 | Version | Burst | Date | Author | Change |
 |---------|-------|------|--------|--------|
+| 1.70 | FB-IMPL-6 | 2026-05-18 | state-manager | (D-711) FB-IMPL-6 INDEX cascade: VP-156 v0.18→v0.19 status:draft→active (sibling-sweep VP-156 P1 proptest PROACTIVELY LANDED — 5 proptests across 2 binaries; tool_name-only uniqueness keying confirmed per BC-2.16.012). VP-INDEX v1.69→v1.70. |
+| 1.69 | FB-IMPL-6 | 2026-05-18 | state-manager | (D-711) FB-IMPL-6 INDEX cascade: VP-153 v0.16→v0.17 status:draft→active (F-P8-IMP-001 VP-153 P0 proptest LANDED — 8 proptests across 2 crates per cross-crate dep direction; Rule C uses ShapedProbe injection per D-706 amendment; 6 in prism-spec-engine Rules A+B; 2 in prism-bin Rule C ShapedProbe). VP-INDEX v1.68→v1.69. |
 | 1.68 | FB73 | 2026-05-17 | state-manager | (D-695) FB73 INDEX cascade: VP-156 v0.17→v0.18 (PO F-LP85-HIGH-001 closure: ADR-026 D7 v1.22→v1.23 sweep at 4 live-narrative sites — cross-value-class side-effect bump detection; step 8g first-application). VP-INDEX v1.67→v1.68. |
 | 1.67 | FB71 | 2026-05-17 | state-manager | (D-693) FB71 INDEX cascade: VP-153 v0.14→v0.15 (PO F-LP83-HIGH-001 closure: error-taxonomy v1.35→v1.37 sweep — 11-site sweep across 4 files; META-META-META-META recursion; POL-29 v1.23→v1.24 step 8e fixed-point iteration mandate codified in-burst). VP-INDEX v1.66→v1.67. |
 | 1.66 | FB69 | 2026-05-17 | state-manager | (D-691) FB69 INDEX cascade: VP-156 v0.16→v0.17 (PO F-LP81-HIGH-002 closure: ADR-026 D7 v1.21→v1.22 sweep at live-narrative sites — META-META step 8b self-induced bump gap closed via POL-29 v1.22→v1.23 step 8d). VP-INDEX v1.65→v1.66. |
