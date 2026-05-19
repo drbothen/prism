@@ -5637,13 +5637,33 @@ All directives from prior §RESUME SNAPSHOT carry forward. Additional directives
 
 ### §6. Resume Protocol for Fresh Session
 
-1. Read `.factory/STATE.md` top 60 lines (frontmatter + current_step + prereq_e_impl_* fields). DO NOT read full 637-line file.
-2. Read this §RESUME SNAPSHOT 2026-05-19 section.
-3. Run `gh pr view 151 --json state,mergeable,statusCheckRollup --jq '.statusCheckRollup[] | {name, conclusion, status}' | head -30` to check current CI state.
-4. If PR #151 still OPEN + CI green: dispatch pr-manager to continue Steps 3-9 (pr-reviewer + code-reviewer + triage + merge).
-5. If PR #151 still OPEN + CI failing: investigate failure cause; route to implementer if real defect, OR adjudicate as known flake.
-6. If PR #151 MERGED: skip to Task #9 — dispatch state-manager for post-merge burst (BC auto-promotion + STATE.md update + worktree cleanup + compact-state).
-7. **User authorization standing: Option A strict BC-5.39.001 3-CLEAN convergence (D-716).** PR-LEVEL cascade follows same protocol (BC-5.39.001 applies at PR-LEVEL per per-story-delivery sub-flow Step 4.5 / pr-manager 9-step process).
+**USER DIRECTIVE (D-724, 2026-05-19): On fresh-session resume, LEAD WITH PR-MANAGER DISPATCH for PR #151 lifecycle continuation. This is the FIRST action after reading the resume snapshot. User explicitly canceled the prior pr-manager dispatch attempt in the previous session to make this resume ordering explicit.**
+
+**Step 1 (LEAD ACTION): Dispatch `vsdd-factory:pr-manager`** to continue PR #151 lifecycle Steps 3-9. Before dispatch:
+- Run `gh pr view 151 --json state,mergeable,statusCheckRollup --jq '{state, mergeable, checks: [.statusCheckRollup[] | {name, conclusion, status}]}' | head -50` to capture current PR + CI state.
+- If PR #151 is MERGED already (unlikely in fresh session): skip Step 1 → go to Step 5.
+- If PR #151 is OPEN: dispatch pr-manager with explicit scope: pr-reviewer + code-reviewer + pr-review-triage + fix-bursts (if any) + final-eyes + squash-merge per the 9-step lifecycle. Reference the squash-merge commit template in the prior §RESUME SNAPSHOT 2026-05-19 §6.
+
+**Step 2: Read `.factory/STATE.md` top 60 lines** (frontmatter + current_step + prereq_e_impl_* fields). DO NOT read full 638-line file.
+
+**Step 3: Verify task list state** — should be #1-7 completed, #8 in_progress (PR lifecycle), #9 pending (post-merge state-manager).
+
+**Step 4: Monitor pr-manager progress** through Steps 3-9. The dispatch is long-running (30-90 min wall-clock for full lifecycle through merge + CI wait).
+
+**Step 5 (post-merge): Dispatch `vsdd-factory:state-manager`** for the post-merge burst (Task #9):
+- BC auto-promotion per POL-14: BC-2.01.016 + BC-2.16.011 + BC-2.16.012 draft → active
+- STATE.md update: develop_head, merged_at, merged_via_pr, merged_via_sha
+- Record D-NNN merge decision
+- Worktree cleanup at .worktrees/S-PLUGIN-PREREQ-E
+- `/vsdd-factory:compact-state` skill to address STATE.md 638-line bloat
+
+**Step 6 (cycle-close cleanup, optional pre-PR or post-merge):**
+- F-P16-LOW-001 BC-INDEX row 221 BC-2.16.011 trailing version cell asymmetry — adjudicate (defer OR sync)
+- F-P12-OBS-002 BC-2.16.012 TV-BC-2.16.012-004 plugin_name shorthand — verify intent
+- Cross-package nextest leak (QUERY_PHASE_STARTED) — file TD entry OR fix
+- F-P7-OBS-001 SIGTERM flake attribution-discipline TD entry
+
+**Step 7: User authorization standing — Option A strict BC-5.39.001 3-CLEAN convergence (D-716).** PR-LEVEL cascade follows same protocol (BC-5.39.001 applies at PR-LEVEL per per-story-delivery sub-flow Step 4.5 / pr-manager 9-step process). If PR-LEVEL adversary surfaces findings, dispatch fix-bursts with ZERO-DRIFT discipline (per FB-IMPL-9 + FB-IMPL-10 pattern).
 
 ---
 
