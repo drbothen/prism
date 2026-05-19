@@ -3,26 +3,26 @@
 //!
 //! | Test | Name                                        | AC    | Red Gate failure mode                               |
 //! |------|---------------------------------------------|-------|-----------------------------------------------------|
-//! | 14   | test_BC_2_16_011_e_spec_008_retired_annotation | AC-11 | Annotation absent OR E-SPEC-008 construction in src/ |
+//! | 14   | test_BC_2_16_011_e_spec_008_retired_annotation | AC-11 | E-SPEC-008 construction site found in crates/*/src/ |
 //!
 //! Story: S-PLUGIN-PREREQ-E | BC: BC-2.16.011 §Error Cases | AC-11
+//!
+//! NOTE: The spec-governance annotation invariant (E-SPEC-008 row in
+//! error-taxonomy.md must carry "RETIRED in S-PLUGIN-PREREQ-E" + "ADR-027")
+//! is now enforced by `.factory/hooks/validate-error-taxonomy-retirement-annotations.sh`
+//! (FB-PR-1 architect adjudication; see
+//! `.factory/cycles/wave-0-plugin-prereqs/architect-adjudications/FB-PR-1-error-taxonomy-test-relocation.md`).
 
 use std::path::PathBuf;
 
 // ---------------------------------------------------------------------------
 // Test 14 — test_BC_2_16_011_e_spec_008_retired_annotation
-// AC-11: E-SPEC-008 row in error-taxonomy.md must carry a retirement annotation
-//        referencing S-PLUGIN-PREREQ-E + ADR-027.
-//        AND: no `src/` path constructs E-SPEC-008 (ESpec008) post-deletion.
+// AC-11: no `src/` path in any workspace crate constructs E-SPEC-008 (ESpec008)
+//        post-deletion of custom_adapter.rs.
 //
-// Pre-implementation failure mode (currently, both conditions fail):
-//   (a) annotation present but E-SPEC-008 constructed in custom_adapter.rs
-//   (b) test asserts NO construction sites — fails because custom_adapter.rs exists
-//
-// NOTE: The error-taxonomy.md already has the retirement annotation as of
-// v1.26 (S-PLUGIN-PREREQ-E-fix-burst-1). However, the E-SPEC-008 construction
-// site in custom_adapter.rs still exists pre-deletion, so the grep-gate
-// sub-assertion fails RED until Task 2 deletes custom_adapter.rs.
+// Pre-implementation failure mode:
+//   custom_adapter.rs constructs ESpec008 in safe_override_fetch.
+//   Deleting custom_adapter.rs (Task 2) satisfies this assertion.
 // ---------------------------------------------------------------------------
 
 /// Returns the workspace root by walking up from CARGO_MANIFEST_DIR.
@@ -35,23 +35,18 @@ fn workspace_root() -> PathBuf {
         .to_path_buf()
 }
 
-/// BC-2.16.011 AC-11: The `E-SPEC-008` row in `error-taxonomy.md` must carry a
-/// retirement annotation referencing S-PLUGIN-PREREQ-E, AND no `src/` path in
-/// `prism-spec-engine` must construct or return `E-SPEC-008` / `ESpec008`.
+/// BC-2.16.011 AC-11: No `src/` path in any workspace crate must construct
+/// or return `E-SPEC-008` / `ESpec008` after `custom_adapter.rs` is deleted.
 ///
-/// This test has two sub-assertions:
+/// Reads all `.rs` files under `crates/*/src/` (workspace-wide scan,
+/// F-LP-IMPL-P1-008) and asserts zero lines reference `ESpec008` or
+/// `E-SPEC-008` in non-comment code. The variant DECLARATION in
+/// `prism-core/src/error.rs` is exempt (POL-1 append-only numbering;
+/// the variant must stay as a tombstone).
 ///
-/// **Sub-assertion A (annotation present):**
-/// Reads `.factory/specs/prd-supplements/error-taxonomy.md` and asserts it
-/// contains "RETIRED in S-PLUGIN-PREREQ-E" in the E-SPEC-008 row.
-///
-/// **Sub-assertion B (no construction sites):**
-/// Reads all `.rs` files under `crates/prism-spec-engine/src/` and asserts
-/// zero lines reference `ESpec008` or `E-SPEC-008` in non-comment code.
-///
-/// Red Gate failure mode: sub-assertion B fails because `src/custom_adapter.rs`
+/// Red Gate failure mode: fails if `custom_adapter.rs` still exists and
 /// constructs `ESpec008` in `safe_override_fetch`. Deleting `custom_adapter.rs`
-/// (Task 2) satisfies both sub-assertions.
+/// (Task 2) satisfies this assertion.
 ///
 /// Story: S-PLUGIN-PREREQ-E AC-11 | BC: BC-2.16.011 §Error Cases | Task 9
 #[test]
@@ -59,39 +54,7 @@ fn test_BC_2_16_011_e_spec_008_retired_annotation() {
     let workspace = workspace_root();
 
     // -----------------------------------------------------------------------
-    // Sub-assertion A: retirement annotation present in error-taxonomy.md.
-    // -----------------------------------------------------------------------
-    let taxonomy_path = workspace
-        .join(".factory")
-        .join("specs")
-        .join("prd-supplements")
-        .join("error-taxonomy.md");
-
-    let taxonomy_content = std::fs::read_to_string(&taxonomy_path).unwrap_or_else(|e| {
-        panic!(
-            "error-taxonomy.md must be readable at {}: {e}",
-            taxonomy_path.display()
-        )
-    });
-
-    // The retirement annotation must be present in the E-SPEC-008 row.
-    // Per AC-11 description: "RETIRED in S-PLUGIN-PREREQ-E" must appear.
-    assert!(
-        taxonomy_content.contains("RETIRED in S-PLUGIN-PREREQ-E"),
-        "BC-2.16.011 AC-11: error-taxonomy.md must contain retirement annotation \
-         'RETIRED in S-PLUGIN-PREREQ-E' in the E-SPEC-008 row. \
-         Task 9 must annotate this row before this sub-assertion passes."
-    );
-
-    // The ADR-027 back-pointer must also be present (per AC-11 description).
-    assert!(
-        taxonomy_content.contains("ADR-027"),
-        "BC-2.16.011 AC-11: E-SPEC-008 retirement annotation must reference ADR-027 \
-         (operational deletion mandate). Check error-taxonomy.md E-SPEC-008 row."
-    );
-
-    // -----------------------------------------------------------------------
-    // Sub-assertion B: no E-SPEC-008 construction sites in ANY crate's src/.
+    // No E-SPEC-008 construction sites in ANY crate's src/.
     //
     // F-LP-IMPL-P1-008: Expanded to workspace-wide scan (all crates/*/src/).
     // The variant DECLARATION in prism-core/src/error.rs is excluded (POL-1
