@@ -1,17 +1,17 @@
 ---
 document_type: behavioral-contract
 level: L3
-version: "1.9"
-status: draft
+version: "1.10"
+status: active
 producer: product-owner
 timestamp: 2026-05-16T12:00:00Z
 phase: 1a
 origin: greenfield
 subsystem: "SS-01"
 capability: "CAP-001"
-lifecycle_status: draft
+lifecycle_status: active
 introduced: "2026-05-15"
-modified: "2026-05-18"
+modified: "2026-05-19"
 deprecated: ~
 deprecated_by: ~
 replacement: ~
@@ -168,6 +168,7 @@ S-PLUGIN-PREREQ-E
 
 | Version | Burst | Date | Author | Change |
 |---------|-------|------|--------|--------|
+| 1.10 | D-726-post-merge | 2026-05-19 | state-manager | POL-14 auto-promotion at merge: PR #151 (S-PLUGIN-PREREQ-E) squash-merged to develop@80ebe794 at 2026-05-19T18:06:44Z; PR-LEVEL adversary cascade BC-5.39.001 3-CLEAN CONVERGED; status draft→active, lifecycle_status draft→active. |
 | 1.9 | FB-IMPL-4 | 2026-05-18 | state-manager | D-707: §Error Cases E-SPEC-014 Behavior cell: backend qualification appended (D-706 architect adjudication text mechanically applied) — Rule C fires only when credential backend exposes shape metadata via `CredentialRefProbe::probe()` returning `Some(shape)`; current keyring backend returns `Ok(None)`; production enforcement deferred to PLUGIN-MIGRATION-001-A; test-fixture `ShapedProbe` + VP-153 proptest provide regression coverage in PREREQ-E scope. Closes F-LP-IMPL-P5-001 spec-amendment route. |
 | 1.8 | FB51 | 2026-05-17 | product-owner | F-LP63-MED-001 closure: §Preconditions lines 54-55 PLUGIN-AUDIT-001 HIGH-3 mis-anchored citation corrected to Option (a) split provenance — publication-history routed to ADR-023 Rule 5 (correct source per ADR-027 Context lines 48-49); dead-code claim routed to PLUGIN-AUDIT-001 HIGH-3 (correct source); restores bidirectional traceability. |
 | 1.7 | FB34 | 2026-05-16 | product-owner | FB34 ADDENDUM: EC-016-003 Expected Behavior cell corrected — "impl block is unchanged" replaced with explicit "ONE new method body (`auth_type_name`) per ADR-026 §D2 Path B" phrasing. Resolves internal contradiction with §Postconditions + AC-2 (story) + INV-AUTH-OPEN-002 + ADR-026 D1/D2. Within-FB34 sibling-sweep extension per pattern-breaking discipline (POL-29 candidate codification candidate). |

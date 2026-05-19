@@ -1,17 +1,17 @@
 ---
 document_type: behavioral-contract
 level: L3
-version: "1.28"
-status: draft
+version: "1.29"
+status: active
 producer: product-owner
 timestamp: 2026-05-18T06:00:00Z
 phase: 1a
 origin: greenfield
 subsystem: "SS-16"
 capability: "CAP-029"
-lifecycle_status: draft
+lifecycle_status: active
 introduced: "2026-05-15"
-modified: "2026-05-18"
+modified: "2026-05-19"
 deprecated: ~
 deprecated_by: ~
 replacement: ~
@@ -162,6 +162,7 @@ S-PLUGIN-PREREQ-E
 
 | Version | Burst | Date | Author | Change |
 |---------|-------|------|--------|--------|
+| 1.29 | D-726-post-merge | 2026-05-19 | state-manager | POL-14 auto-promotion at merge: PR #151 (S-PLUGIN-PREREQ-E) squash-merged to develop@80ebe794 at 2026-05-19T18:06:44Z; PR-LEVEL adversary cascade BC-5.39.001 3-CLEAN CONVERGED; status draft→active, lifecycle_status draft→active. |
 | 1.27 | FB-IMPL-3 | 2026-05-18 | implementer+state-manager | F-LP-IMPL-P4-002 Route A closure (implementer scope): EC-016-012-004 body updated with explicit fail-closed semantics — second registration rejected with `Err(SpecEngineError::DuplicateWriteToolRegistration(tool_name))`; failed plugin rolled back in full via `deregister_write_tools_for_plugin` + `PluginRuntime::unregister_plugin`; ERROR-level `plugin_registration_rolled_back` event emitted (BC-2.16.002 row 34). Prevents stale reads after writes per BC-2.07.004 §write-then-read consistency. Companion BC-2.16.002 v1.32 catalogs the new event. state-manager performed frontmatter sync (version + modified + timestamp) per routing table bookkeeping scope. |
 | 1.28 | pass-10-spec-hygiene | 2026-05-18 | product-owner | F-LP-IMPL-P10-IMP-002 closure (PO scope): (1) §Error Cases: new row for E-PLUGIN-021 (`WriteToolRegistryPoisoned`) — `register_write_tool` returns this error if `DYNAMIC_WRITE_TOOLS` RwLock is poisoned by a prior panic in a write-guard holder; process restart required; construction site: `crates/prism-query/src/invalidation.rs` `map_err` on `RwLock::write()`; recurrence policy SINGLE_PER_PROCESS_LIFETIME; severity ERROR (unrecoverable). (2) §Edge Cases: EC-016-012-006 added for the same RwLock-poisoning failure mode with fail-closed semantics and ADR-026 §D7 reference. (3) EC-016-012-005 catalog bullet cite advanced from `(v1.21)` to `(v1.22)` per F-LP-IMPL-P10-SUG-001 adjudication (Option B). |
 | 1.26 | FB73 | 2026-05-17 | product-owner | F-LP85-HIGH-001 closure (PO scope): ADR-026 D7 pin v1.22→v1.23 propagation at BC-2.16.012 lines 84, 109, 124, 138 (4 sites; §D7 form). Sibling files story v1.46 + BC-2.16.011 v1.10 + BC-2.16.002 v1.31 (POL-30 Fork B preserved) + VP-156 v0.18 + HS-003 v1.15 + error-taxonomy v1.38 swept in same burst. |

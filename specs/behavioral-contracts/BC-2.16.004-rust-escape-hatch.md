@@ -1,8 +1,8 @@
 ---
 document_type: behavioral-contract
 level: L3
-version: "1.4"
-status: draft
+version: "1.5"
+status: removed
 producer: product-owner
 timestamp: 2026-04-13T12:00:00
 phase: 1a
@@ -11,7 +11,7 @@ subsystem: "SS-16"
 capability: "CAP-029"
 lifecycle_status: removed
 introduced: cycle-1
-modified: "2026-05-18"
+modified: "2026-05-19"
 deprecated: "2026-05-11"
 deprecated_by: ADR-027
 deprecated_in_version: "1.4"
@@ -135,6 +135,7 @@ See `.factory/specs/prd-supplements/test-vectors.md` for full canonical vectors.
 
 | Version | Burst | Date | Author | Change |
 |---------|-------|------|--------|--------|
+| 1.5 | D-726-post-merge | 2026-05-19 | state-manager | POL-14 auto-promotion at merge: PR #151 (S-PLUGIN-PREREQ-E) squash-merged to develop@80ebe794 at 2026-05-19T18:06:44Z; status draft→removed to align with lifecycle_status: removed (set at PREREQ-E impl; removed: 2026-05-18 per ADR-027 §Decision). |
 | 1.4 | prereq-f | 2026-05-11 | product-owner | PREREQ-F: Deprecated by ADR-023 v1.17 (Plugin-Only Sensor Architecture, substantive convergence). lifecycle_status active → deprecated; deprecated_by ADR-023; deprecated_in_version 1.4; added Deprecation Notice body block. The CustomAdapter Rust trait escape hatch is superseded by .prx WASM plugin escape hatch (deferred to v1.0+1 per TD-PLUGIN-SIGNING-001). |
 | 1.3 | pass-74-fix | 2026-04-20 | product-owner | Resolved (placeholder) row in ## Verification Properties per pass-74 VP-TBD decision matrix extension. |
 | 1.2 | pass-73-fix | 2026-04-20 | state-manager | Deterministic changelog reorder: sorted all rows to descending version order (pass-73 bash script). |

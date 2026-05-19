@@ -1,15 +1,15 @@
 ---
 document_type: behavioral-contract
 level: L3
-version: "1.11"
-status: draft
+version: "1.12"
+status: active
 producer: product-owner
 timestamp: 2026-05-15T00:00:00
 phase: 1a
 origin: greenfield
 subsystem: "SS-16"
 capability: "CAP-029"
-lifecycle_status: draft
+lifecycle_status: active
 introduced: "2026-05-15"
 modified: "2026-05-19"
 deprecated: ~
@@ -206,6 +206,7 @@ S-PLUGIN-PREREQ-E
 
 | Version | Burst | Date | Author | Change |
 |---------|-------|------|--------|--------|
+| 1.12 | D-726-post-merge | 2026-05-19 | state-manager | POL-14 auto-promotion at merge: PR #151 (S-PLUGIN-PREREQ-E) squash-merged to develop@80ebe794 at 2026-05-19T18:06:44Z; PR-LEVEL adversary cascade BC-5.39.001 3-CLEAN CONVERGED; status draft→active, lifecycle_status draft→active. |
 | 1.11 | FB-PR-1 | 2026-05-19 | product-owner | FB-PR-1 AC-11 relocation: spec-governance annotation invariant moved from Rust test sub-assertion A to `.factory/hooks/validate-error-taxonomy-retirement-annotations.sh` per architect adjudication `FB-PR-1-error-taxonomy-test-relocation.md` (Option 1). §Error Cases E-SPEC-008 row updated to describe two-layer enforcement model: (1) code-side Rust test `test_BC_2_16_011_e_spec_008_retired_annotation` asserts zero `ESpec008`/`E-SPEC-008` construction sites in `crates/*/src/` (POL-1 exemption for variant declaration); (2) `.factory/hooks/validate-error-taxonomy-retirement-annotations.sh` asserts `"RETIRED in S-PLUGIN-PREREQ-E"` + `"ADR-027"` present in E-SPEC-008 row. |
 | 1.10 | FB73 | 2026-05-17 | product-owner | F-LP85-HIGH-001 closure (PO scope): ADR-026 D7 pin v1.22→v1.23 propagation at BC-2.16.011 Preconditions line 54 and INV-ADAPTER-RETIRE-003 line 101 (2 sites). Sibling files story v1.46 + BC-2.16.012 v1.26 + BC-2.16.002 v1.31 (POL-30 Fork B preserved) + VP-156 v0.18 + HS-003 v1.15 + error-taxonomy v1.38 swept in same burst. |
 | 1.9 | FB69 | 2026-05-17 | product-owner | F-LP81-HIGH-001 closure: INV-ADAPTER-RETIRE-003 + Preconditions amended to reflect F-LP56-HIGH-001 adjudication (FB44 D-666) — boot.rs receives 1-line insertion for BC-2.16.012 WriteToolInvalidationMap query-phase flag (sibling scope), NOT CustomAdapter removal. 37-pass-surviving BC↔story semantic contradiction closed per CLAUDE.md Source-of-Truth Precedence Rule 1. POL-23 within-FB sibling-sweep + POL-22 named-entity-semantics restored. |
