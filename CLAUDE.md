@@ -206,7 +206,7 @@ Prism-specific coding patterns enforced by CI and/or adversarial review. These a
 
 ### Highlights
 
-- **`#[non_exhaustive]` discipline.** All public TOML-deserialized types and pub-API surface types require `#[non_exhaustive]`. 30+ types currently enforced via the compile-fail gate at `tests/external/perimeter-violation/` (AC-5 of S-PLUGIN-PREREQ-C; `ci.yml EXPECTED=30` is the authority). External match arms must include a wildcard `_ => {}` arm. New public types added to `prism-core` or `prism-spec-engine` need `#[non_exhaustive]` added before the PR can merge.
+- **`#[non_exhaustive]` discipline.** All public TOML-deserialized types and pub-API surface types require `#[non_exhaustive]`. 31+ types currently enforced via the compile-fail gate at `tests/external/perimeter-violation/` (AC-5 of S-PLUGIN-PREREQ-C; `ci.yml EXPECTED=31` is the authority). External match arms must include a wildcard `_ => {}` arm. New public types added to `prism-core` or `prism-spec-engine` need `#[non_exhaustive]` added before the PR can merge.
 
 - **Arc-DI plumbing.** Production runtime wires dependencies via `Arc<dyn ...>` constructors per ADR-022. The placeholder-construct anti-pattern (constructing a type without wiring real Arc dependencies "for now") is explicitly forbidden (Standing Rule 3 §4 in SESSION-HANDOFF.md). Adding `Arc<dyn Foo>` to a constructor that lacked it is "wiring, not redesign" and must be done in-scope.
 

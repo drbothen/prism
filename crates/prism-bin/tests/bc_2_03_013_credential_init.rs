@@ -231,8 +231,9 @@ fn test_BC_2_03_013_sensor_spec_credential_refs_parsed_from_toml() {
     let spec = result.unwrap();
     assert_eq!(
         spec.credential_refs.len(),
-        2,
-        "Fixture declares 2 [[credential_refs]] sections; \
+        1,
+        "Fixture declares 1 [[credential_refs]] section (updated from 2 to comply with \
+         BC-2.01.016 Rule B / E-SPEC-013); \
          got {} refs: {:?}",
         spec.credential_refs.len(),
         spec.credential_refs
@@ -241,7 +242,7 @@ fn test_BC_2_03_013_sensor_spec_credential_refs_parsed_from_toml() {
             .collect::<Vec<_>>()
     );
 
-    // Verify the exact ref names match the fixture.
+    // Verify the ref name matches the fixture.
     let ref_names: Vec<&str> = spec
         .credential_refs
         .iter()
@@ -249,11 +250,7 @@ fn test_BC_2_03_013_sensor_spec_credential_refs_parsed_from_toml() {
         .collect();
     assert!(
         ref_names.contains(&"api_key"),
-        "First credential ref must be 'api_key'; got: {ref_names:?}"
-    );
-    assert!(
-        ref_names.contains(&"client_secret"),
-        "Second credential ref must be 'client_secret'; got: {ref_names:?}"
+        "Credential ref must be 'api_key'; got: {ref_names:?}"
     );
 
     // Verify sensor_id is correct (ensures parse was on the right fixture).
@@ -407,8 +404,13 @@ fn test_BC_2_03_013_OQ1_non_leak_invariant_approach_a_type_level() {
 // Unhappy path: one ref missing → CredentialRefInvalid (exit 2).
 // ---------------------------------------------------------------------------
 
-/// Inline fixture sensor TOML with 2 credential_refs — mirrors
+/// Inline fixture sensor TOML with 1 credential_ref — mirrors
 /// fixtures/sensors/test-sensor-with-cred-refs.sensor.toml.
+///
+/// Updated from 2 → 1 ref when parse_and_validate_spec_toml was wired to enforce
+/// BC-2.01.016 Rule B (exactly 1 credential_ref per auth method; E-SPEC-013).
+/// A fixture with 2 refs would be rejected at parse time. N=1 satisfies the
+/// "N>0 refs iterated" behavioral coverage requirement for step5 tests.
 const CRED_REF_FIXTURE_TOML: &str = r#"
 [sensor]
 sensor_id = "test-sensor"
@@ -419,9 +421,6 @@ base_url = "https://test-sensor.example.com"
 
 [[credential_refs]]
 name = "api_key"
-
-[[credential_refs]]
-name = "client_secret"
 "#;
 
 /// Build a PrismConfig pointing at the given spec_dir and a temporary state_dir.
@@ -472,8 +471,13 @@ fn make_config_manager_with_cred_refs(
 struct AlwaysOkProbe;
 
 impl prism_bin::boot::CredentialRefProbe for AlwaysOkProbe {
-    fn probe(&self, _sensor_id: &str, _ref_name: &str) -> Result<(), prism_bin::BootError> {
-        Ok(())
+    fn probe(
+        &self,
+        _sensor_id: &str,
+        _ref_name: &str,
+    ) -> Result<Option<String>, prism_bin::BootError> {
+        // No auth_type metadata — Rule C not enforced by this probe.
+        Ok(None)
     }
 }
 
@@ -483,7 +487,11 @@ struct MissingOneProbe {
 }
 
 impl prism_bin::boot::CredentialRefProbe for MissingOneProbe {
-    fn probe(&self, sensor_id: &str, ref_name: &str) -> Result<(), prism_bin::BootError> {
+    fn probe(
+        &self,
+        sensor_id: &str,
+        ref_name: &str,
+    ) -> Result<Option<String>, prism_bin::BootError> {
         if ref_name == self.missing_ref {
             Err(prism_bin::BootError::CredentialRefInvalid(format!(
                 "Unresolvable credential ref: '{}' for sensor '{}' not found \
@@ -491,7 +499,7 @@ impl prism_bin::boot::CredentialRefProbe for MissingOneProbe {
                 ref_name, sensor_id
             )))
         } else {
-            Ok(())
+            Ok(None)
         }
     }
 }
@@ -513,8 +521,9 @@ async fn test_BC_2_03_013_credential_ref_iteration_happy_path_all_refs_resolvabl
     let spec_tmp = tempfile::TempDir::new().unwrap();
     let config_manager = make_config_manager_with_cred_refs(&spec_tmp);
 
-    // Regression guard: verify spec was loaded with N=2 credential_refs.
+    // Regression guard: verify spec was loaded with N=1 credential_ref (N>0).
     // If 0 refs, the iteration loop would still be vacuous (test setup failure).
+    // Updated from N=2 to N=1 per BC-2.01.016 Rule B (E-SPEC-013): exactly 1 ref allowed.
     {
         let cm_guard = config_manager.load();
         let cm = &**cm_guard;
@@ -525,8 +534,8 @@ async fn test_BC_2_03_013_credential_ref_iteration_happy_path_all_refs_resolvabl
                 .sensor_specs
                 .get("test-sensor")
                 .map(|s| s.credential_refs.len()),
-            Some(2),
-            "Fixture TOML must be parsed with 2 credential_refs; \
+            Some(1),
+            "Fixture TOML must be parsed with 1 credential_ref (N>0 for iteration coverage); \
              got wrong count (test setup failure, not production bug)"
         );
     }
@@ -567,9 +576,10 @@ async fn test_BC_2_03_013_credential_ref_iteration_unhappy_path_missing_ref_exit
 
     let (config, _state_tmp) = make_config_with_spec_dir(spec_tmp.path());
 
-    // Inject MissingOneProbe — client_secret returns CredentialRefInvalid.
+    // Inject MissingOneProbe — api_key returns CredentialRefInvalid.
+    // (Updated from "client_secret" to "api_key" per fixture update from 2→1 ref.)
     let probe = MissingOneProbe {
-        missing_ref: "client_secret",
+        missing_ref: "api_key",
     };
     let result =
         prism_bin::boot::step5_init_credential_store_with_probe(&config, &config_manager, &probe)
@@ -598,5 +608,203 @@ async fn test_BC_2_03_013_credential_ref_iteration_unhappy_path_missing_ref_exit
         "BC-2.03.013 TV-03-013-003: error variant must be CredentialRefInvalid; \
          got: {:?}",
         err
+    );
+}
+
+// ---------------------------------------------------------------------------
+// F-LP-IMPL-P4-001 — Rule C (E-SPEC-014) enforcement at step5
+//
+// The production callsites (spec_parser.rs and add_sensor_spec.rs) correctly
+// pass the same auth_type string as both expected_shape and actual_shape so that
+// Rule C never fires at parse time (no credential introspection available there).
+//
+// Rule C is enforced HERE at step5 via CredentialRefProbe::probe() returning
+// Some(actual_shape) when the credential was configured for a different auth_type
+// than the sensor spec declares.
+//
+// Pre-fix failure mode: probe() returned Ok(()) regardless — Rule C never fired
+// because the step5 loop never compared the probe return value against auth_type.
+// ---------------------------------------------------------------------------
+
+/// A probe test double that returns a specific auth_type for all refs.
+/// Used to simulate a credential configured for `actual_shape` auth type.
+struct ShapedProbe {
+    /// The auth_type this probe reports for all refs.
+    reported_auth_type: &'static str,
+}
+
+impl prism_bin::boot::CredentialRefProbe for ShapedProbe {
+    fn probe(
+        &self,
+        _sensor_id: &str,
+        _ref_name: &str,
+    ) -> Result<Option<String>, prism_bin::BootError> {
+        Ok(Some(self.reported_auth_type.to_string()))
+    }
+}
+
+/// BC-2.01.016 AC-3c / F-LP-IMPL-P4-001:
+/// step5_init_credential_store_with_probe must enforce Rule C (E-SPEC-014)
+/// when the probe reports an auth_type that differs from the sensor spec's
+/// declared auth_type.
+///
+/// Scenario: sensor spec declares `auth_type = "oauth2_client_credentials"`
+/// but the credential probe reports `actual_shape = "api_key"` — shape mismatch.
+/// step5 must return `Err(BootError::AuthTypeCredentialMismatch)` with exit code 2.
+///
+/// This test exercises the PRODUCTION STEP5 CONTROL FLOW (not validate_cross_composition
+/// directly) — the full path from parse_spec_directory → step5 probe loop Rule C check.
+///
+/// Pre-fix failure mode: step5 loop called probe.probe() and discarded the return value
+/// (treated as Ok(())), so Rule C never fired even when the probe returned a shape.
+///
+/// Story: S-PLUGIN-PREREQ-E AC-3c / F-LP-IMPL-P4-001 | BC-2.01.016 §Error Cases E-SPEC-014
+/// ADR-023 §Architectural Constraints Rule 2 Rule C
+#[tokio::test]
+#[allow(non_snake_case)]
+async fn test_BC_2_01_016_rule_c_credential_shape_mismatch_via_step5() {
+    use arc_swap::ArcSwap;
+    use prism_spec_engine::config_manager::{ConfigManager, parse_spec_directory};
+
+    // Write a fixture sensor TOML declaring auth_type = "oauth2_client_credentials"
+    // with 1 credential_ref. The credential probe will report "api_key" — a mismatch.
+    let spec_tmp = tempfile::TempDir::new().unwrap();
+    let oauth2_sensor_toml = r#"
+[sensor]
+sensor_id = "oauth2-sensor"
+name = "OAuth2 Sensor (Rule C test)"
+version = "0.1.0"
+auth_type = "oauth2_client_credentials"
+base_url = "https://oauth2-sensor.example.com"
+
+[[credential_refs]]
+name = "client_secret"
+"#;
+
+    std::fs::write(
+        spec_tmp.path().join("oauth2-sensor.sensor.toml"),
+        oauth2_sensor_toml,
+    )
+    .unwrap();
+
+    // Parse the spec directory — spec must load successfully (Rule A+B pass).
+    let snapshot =
+        parse_spec_directory(spec_tmp.path()).expect("parse_spec_directory must not fail");
+
+    // Confirm the spec loaded with the expected auth_type.
+    assert_eq!(
+        snapshot
+            .sensor_specs
+            .get("oauth2-sensor")
+            .map(|s| s.auth_type.as_str()),
+        Some("oauth2_client_credentials"),
+        "Rule C test setup: oauth2-sensor must be in sensor_specs with auth_type=oauth2_client_credentials"
+    );
+
+    let config_manager = std::sync::Arc::new(ArcSwap::from_pointee(ConfigManager::new(snapshot)));
+    let (config, _state_tmp) = make_config_with_spec_dir(spec_tmp.path());
+
+    // Inject ShapedProbe that reports "api_key" — mismatches spec's "oauth2_client_credentials".
+    // Pre-fix: step5 calls probe.probe() and ignores the Some("api_key") return → Ok(store).
+    // Post-fix: step5 compares "api_key" != "oauth2_client_credentials" → Err(AuthTypeCredentialMismatch).
+    let probe = ShapedProbe {
+        reported_auth_type: "api_key",
+    };
+    let result =
+        prism_bin::boot::step5_init_credential_store_with_probe(&config, &config_manager, &probe)
+            .await;
+
+    assert!(
+        result.is_err(),
+        "F-LP-IMPL-P4-001: step5 must return Err when probe reports auth_type mismatch \
+         (expected=oauth2_client_credentials, actual=api_key); got Ok — \
+         Rule C step5 enforcement not wired (probe return value discarded)"
+    );
+
+    let err = result.map(|_| ()).unwrap_err();
+
+    assert_eq!(
+        err.exit_code(),
+        2,
+        "F-LP-IMPL-P4-001: AuthTypeCredentialMismatch must map to exit 2; got {}",
+        err.exit_code()
+    );
+
+    let err_str = format!("{err}");
+    assert!(
+        err_str.contains("E-SPEC-014"),
+        "F-LP-IMPL-P4-001: error must cite E-SPEC-014; got: {err_str}"
+    );
+    assert!(
+        err_str.contains("oauth2_client_credentials"),
+        "F-LP-IMPL-P4-001: error must cite expected_shape; got: {err_str}"
+    );
+    assert!(
+        err_str.contains("api_key"),
+        "F-LP-IMPL-P4-001: error must cite actual_shape; got: {err_str}"
+    );
+
+    // Verify it is specifically AuthTypeCredentialMismatch.
+    assert!(
+        matches!(
+            err,
+            prism_bin::BootError::AuthTypeCredentialMismatch {
+                sensor_id: _,
+                expected_shape: _,
+                actual_shape: _,
+            }
+        ),
+        "F-LP-IMPL-P4-001: error variant must be AuthTypeCredentialMismatch; got: {:?}",
+        err
+    );
+}
+
+/// BC-2.01.016 AC-3c / F-LP-IMPL-P4-001:
+/// step5 must NOT error when probe reports auth_type matching the spec's declared auth_type.
+///
+/// Regression guard: Rule C check must not produce false positives when shapes match.
+#[tokio::test]
+#[allow(non_snake_case)]
+async fn test_BC_2_01_016_rule_c_matching_shape_via_step5_succeeds() {
+    use arc_swap::ArcSwap;
+    use prism_spec_engine::config_manager::{ConfigManager, parse_spec_directory};
+
+    let spec_tmp = tempfile::TempDir::new().unwrap();
+    let api_key_sensor_toml = r#"
+[sensor]
+sensor_id = "api-key-sensor"
+name = "API Key Sensor (Rule C match test)"
+version = "0.1.0"
+auth_type = "api_key"
+base_url = "https://api-key-sensor.example.com"
+
+[[credential_refs]]
+name = "api_key"
+"#;
+
+    std::fs::write(
+        spec_tmp.path().join("api-key-sensor.sensor.toml"),
+        api_key_sensor_toml,
+    )
+    .unwrap();
+
+    let snapshot =
+        parse_spec_directory(spec_tmp.path()).expect("parse_spec_directory must not fail");
+    let config_manager = std::sync::Arc::new(ArcSwap::from_pointee(ConfigManager::new(snapshot)));
+    let (config, _state_tmp) = make_config_with_spec_dir(spec_tmp.path());
+
+    // Probe reports "api_key" — matches spec's "api_key" → no Rule C error.
+    let probe = ShapedProbe {
+        reported_auth_type: "api_key",
+    };
+    let result =
+        prism_bin::boot::step5_init_credential_store_with_probe(&config, &config_manager, &probe)
+            .await;
+
+    assert!(
+        result.is_ok(),
+        "F-LP-IMPL-P4-001 (regression guard): step5 must return Ok when probe auth_type \
+         matches spec auth_type (both 'api_key'); got: {:?}",
+        result.err()
     );
 }

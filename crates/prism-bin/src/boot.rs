@@ -61,6 +61,25 @@ pub enum BootError {
     #[error("credential-permission-denied: {0}")]
     CredentialPermissionDenied(String),
 
+    /// Credential auth_type/shape mismatch (Rule C / E-SPEC-014).
+    ///
+    /// The sensor spec declares `auth_type = expected_shape` but the credential
+    /// store reports the credential was configured for `actual_shape`. This is a
+    /// config-invalid condition (exit 2) — the spec and the credential disagree.
+    ///
+    /// Credential values MUST NOT appear in this error message (AD-017 AI-opaque model).
+    /// Maps to exit code 2. Anchors: BC-2.01.016 §Error Cases E-SPEC-014, ADR-023 Rule 2 Rule C.
+    #[error(
+        "E-SPEC-014: sensor '{sensor_id}' auth_type/credential shape mismatch — \
+             spec declares '{expected_shape}' but credential ref reports '{actual_shape}' \
+             (BC-2.01.016 §Error Cases E-SPEC-014; ADR-023 Rule 2 Rule C)"
+    )]
+    AuthTypeCredentialMismatch {
+        sensor_id: String,
+        expected_shape: String,
+        actual_shape: String,
+    },
+
     /// Audit subsystem init failed (RocksDB CF open, WAL, sentinel write).
     /// Maps to exit code 4. Anchors: BC-2.05.012.
     #[error("audit-init-failed: {0}")]
@@ -83,7 +102,8 @@ impl BootError {
         match self {
             BootError::ConfigInvalid(_)
             | BootError::OrgRegistryFailed(_)
-            | BootError::CredentialRefInvalid(_) => EXIT_CONFIG_INVALID,
+            | BootError::CredentialRefInvalid(_)
+            | BootError::AuthTypeCredentialMismatch { .. } => EXIT_CONFIG_INVALID,
             BootError::CredentialPermissionDenied(_) => EXIT_PERMISSION_DENIED,
             BootError::AuditInitFailed(_) | BootError::InternalError(_) => EXIT_INTERNAL_ERROR,
             BootError::SensorFail(_) => crate::exit_codes::EXIT_SENSOR_FAIL,
@@ -586,16 +606,29 @@ pub async fn step4_load_sensor_specs(
 ///
 /// Contract (BC-2.03.013 §Critical Invariant):
 /// - Implementations MUST NOT store or return credential values.
-/// - `probe()` performs an existence check only — it checks if the ref is
-///   registered in the backend and returns Ok(()) or an appropriate `BootError`.
+/// - `probe()` performs an existence check AND returns available `auth_type` metadata.
+///
+/// # Rule C (E-SPEC-014) enforcement
+///
+/// The `Ok(Some(auth_type))` return enables Rule C enforcement in step5:
+/// when the probe returns `Some(actual_shape)`, step5 compares it against
+/// `sensor_spec.auth_type` (the `expected_shape`). A mismatch produces
+/// `BootError::AuthTypeCredentialMismatch` (exit 2) per BC-2.01.016 §Error Cases
+/// E-SPEC-014 and ADR-023 Rule 2 Rule C.
+///
+/// Probes that cannot determine the auth_type (e.g., keyring-only backends with
+/// no metadata store) return `Ok(None)` — Rule C is skipped for that ref.
 pub trait CredentialRefProbe: Send + Sync {
     /// Check whether `ref_name` for `sensor_id` is registered in the backend.
     ///
     /// Returns:
-    /// - `Ok(())` — ref exists (credential is registered)
+    /// - `Ok(Some(auth_type))` — ref exists AND auth_type metadata is available;
+    ///   step5 uses this to enforce Rule C (E-SPEC-014)
+    /// - `Ok(None)` — ref exists BUT no auth_type metadata is available;
+    ///   Rule C check is skipped for this ref
     /// - `Err(BootError::CredentialRefInvalid)` — ref not found (exit 2)
     /// - `Err(BootError::CredentialPermissionDenied)` — backend unavailable (exit 5)
-    fn probe(&self, sensor_id: &str, ref_name: &str) -> Result<(), BootError>;
+    fn probe(&self, sensor_id: &str, ref_name: &str) -> Result<Option<String>, BootError>;
 }
 
 /// Production credential ref probe — uses the `keyring` crate.
@@ -603,10 +636,25 @@ pub trait CredentialRefProbe: Send + Sync {
 /// Constructs a namespaced `keyring::Entry("prism", "{sensor_id}/{ref_name}")` and
 /// calls `get_password()` to check existence. The value is immediately discarded
 /// (AD-017 AI-opaque model: credential values MUST NOT be retained).
+///
+/// Returns `Ok(None)` on the success path — the keyring backend (ADR-007 / AD-017)
+/// stores credential names only; no `auth_type` shape metadata is stored alongside
+/// the credential value in the keyring entry. Per [ADR-026 §D3 Rule C Backend Scope
+/// (D-706 amendment)]: Rule C (E-SPEC-014 credential structural shape mismatch)
+/// enforcement is conditional on the credential backend exposing shape metadata.
+/// Shape introspection requires a separate metadata sidecar or plugin-manifest
+/// declaration; that capability is deferred to PLUGIN-MIGRATION-001-A.
+///
+/// The `if let Some(actual_shape)` gate in step5 is structurally correct for when a
+/// future backend (e.g., a keyring metadata sidecar or plugin-manifest probe) returns
+/// the activating variant. It is intentionally a no-op with the current keyring backend.
+///
+/// Rules A and B (E-SPEC-012, E-SPEC-013) DO fire in production via
+/// `validate_cross_composition` at spec-load time. Only Rule C is backend-conditional.
 pub struct KeyringCredentialProbe;
 
 impl CredentialRefProbe for KeyringCredentialProbe {
-    fn probe(&self, sensor_id: &str, ref_name: &str) -> Result<(), BootError> {
+    fn probe(&self, sensor_id: &str, ref_name: &str) -> Result<Option<String>, BootError> {
         let account = format!("{sensor_id}/{ref_name}");
         let entry = keyring::Entry::new("prism", &account).map_err(|e| {
             BootError::CredentialPermissionDenied(format!(
@@ -618,12 +666,13 @@ impl CredentialRefProbe for KeyringCredentialProbe {
         match entry.get_password() {
             Ok(_secret) => {
                 // Secret value discarded immediately — AD-017 AI-opaque model.
+                // No auth_type metadata in keyring — Rule C skipped for this ref.
                 tracing::trace!(
                     sensor_id = %sensor_id,
                     ref_name = %ref_name,
-                    "Credential ref validated (exists in backend)"
+                    "Credential ref validated (exists in backend; no auth_type metadata available)"
                 );
-                Ok(())
+                Ok(None)
             }
             Err(keyring::Error::NoEntry) => Err(BootError::CredentialRefInvalid(format!(
                 "Unresolvable credential ref: '{ref_name}' for sensor '{sensor_id}' not found in \
@@ -728,8 +777,32 @@ pub async fn step5_init_credential_store_with_probe(
     let mut refs_validated: usize = 0;
 
     for (sensor_id, sensor_spec) in &snapshot.sensor_specs {
+        // Cross-composition validation (BC-2.01.016):
+        // Rules A+B (E-SPEC-012/013): enforced at parse time by parse_and_validate_spec_toml
+        // via validate_cross_composition (all three production spec-load paths):
+        //   - config_manager::parse_spec_directory (boot step 4)
+        //   - add_sensor_spec::add_sensor_spec (MCP tool)
+        //   - hot_reload::process_spec_changes
+        //
+        // Rule C (E-SPEC-014): enforced HERE at step5 credential-introspection time.
+        // When the probe returns Some(actual_shape), compare against sensor_spec.auth_type.
+        // A mismatch means the credential was configured for a different auth method than
+        // the spec declares — fail-closed per BC-2.01.016 §Error Cases E-SPEC-014 and
+        // ADR-023 Rule 2 Rule C. Credential values MUST NOT appear in the error (AD-017).
+
+        // Step 5: Credential reference existence probing + Rule C shape check.
         for cred_ref in &sensor_spec.credential_refs {
-            probe.probe(sensor_id, &cred_ref.name)?;
+            let actual_shape_opt = probe.probe(sensor_id, &cred_ref.name)?;
+            if let Some(actual_shape) = actual_shape_opt {
+                let expected_shape = &sensor_spec.auth_type;
+                if &actual_shape != expected_shape {
+                    return Err(BootError::AuthTypeCredentialMismatch {
+                        sensor_id: sensor_id.clone(),
+                        expected_shape: expected_shape.clone(),
+                        actual_shape,
+                    });
+                }
+            }
             refs_validated += 1;
         }
     }
@@ -953,10 +1026,112 @@ pub async fn plugin_load_step_with_audit(
         .map_err(|e| BootError::InternalError(e.to_string()))?;
 
     // AC-1: Scan plugin_dir for .prx files and load each one.
-    let plugins_loaded = runtime
+    // load_all_plugins returns (n_loaded, pending_write_tool_registrations) — the latter
+    // must be registered with prism_query::invalidation::register_write_tool before
+    // mark_query_phase_started() is called at step 8 (F-LP-IMPL-P1-002 / ADR-026 §D7 step 7.5).
+    let (plugins_loaded, pending_write_tools) = runtime
         .load_all_plugins(plugin_dir)
         .await
         .map_err(|e| BootError::InternalError(e.to_string()))?;
+
+    // Step 7.6 (new): Register plugin write tools with the invalidation map.
+    //
+    // Must execute AFTER step 7.5 plugin-load AND BEFORE step 8 mark_query_phase_started().
+    // Ordering invariant: ADR-022 §B step 7.5/8 (plugin-load → register_write_tool → query-phase).
+    //
+    // Fail-closed semantics (F-LP-IMPL-P4-002 / BC-2.07.004):
+    // If ANY write-tool registration for a plugin fails, the entire plugin is rolled back:
+    // - All previously-registered write tools for that plugin are removed from DYNAMIC_WRITE_TOOLS
+    // - The plugin is unregistered from PluginRuntime
+    // - ERROR-level tracing event `plugin_registration_rolled_back` is emitted
+    // (BC-2.16.002 row 34)
+    //
+    // Rationale: a plugin with partial write-tool registration is in an inconsistent state —
+    // its read queries succeed but its write paths are silently broken, violating BC-2.07.004
+    // §write-then-read consistency. The "n-1 survivor rule" applies to plugin LOAD failures
+    // (step 7.5), NOT to write-tool registration failures (step 7.6) which leave the plugin
+    // in an undefined write state.
+
+    // Option B — per-plugin atomic write-tool registration (F-LP-IMPL-P6-001).
+    //
+    // Group `pending_write_tools` by plugin_name FIRST, preserving the original
+    // per-plugin tool insertion order from `load_all_plugins`. Then iterate once
+    // per plugin: attempt all of that plugin's tool registrations atomically.
+    // If ANY tool fails, immediately:
+    //   1. Deregister all tools already registered for this plugin.
+    //   2. Unregister the plugin from PluginRuntime.
+    //   3. Emit `plugin_registration_rolled_back` (exactly ONCE per plugin, not per tool).
+    //   4. Break out of the inner tool loop — do NOT attempt remaining tools for this plugin.
+    //
+    // This eliminates the loop-continuation orphan bug: in the flat-loop design (pre-fix),
+    // after rolling back good_t1 and unregistering plugin P, the loop continued to good_t3,
+    // successfully registering it and leaving an orphaned DYNAMIC_WRITE_TOOLS entry for a
+    // plugin no longer present in PluginRuntime (BC-2.07.004 §write-then-read consistency
+    // violation — a query referencing good_t3's invalidation entry hits a missing plugin).
+    //
+    // Per-plugin grouping: use IndexMap-like stable ordering via a Vec of (plugin_name, tools).
+    // We cannot use HashMap because it drops insertion order. Use a Vec of (name, Vec<tool>)
+    // accumulated in encounter order.
+
+    // Build an ordered list of (plugin_name, tools) grouping while preserving order.
+    let mut plugin_tool_groups: Vec<(String, Vec<_>)> = Vec::new();
+    for (plugin_name, manifest_tool) in &pending_write_tools {
+        match plugin_tool_groups
+            .iter_mut()
+            .find(|(n, _)| n == plugin_name)
+        {
+            Some((_, tools)) => tools.push(manifest_tool),
+            None => plugin_tool_groups.push((plugin_name.clone(), vec![manifest_tool])),
+        }
+    }
+
+    let mut n_rolled_back: usize = 0;
+
+    // Per-plugin atomic loop: register all tools or roll back entirely.
+    'plugin_loop: for (plugin_name, tools) in &plugin_tool_groups {
+        for manifest_tool in tools {
+            let entry = prism_query::invalidation::WriteToolInvalidationMap {
+                tool_name: manifest_tool.tool_name.clone(),
+                source_ids: manifest_tool.source_ids.clone(),
+                sensor_id: prism_core::SensorId::from(manifest_tool.sensor_id.as_str()),
+                plugin_name: plugin_name.clone(),
+            };
+            if let Err(reg_err) = prism_query::invalidation::register_write_tool(entry) {
+                // Fail-closed: rollback all write tools registered so far for this plugin
+                // (including those successfully registered in earlier iterations of this
+                // inner loop) + unregister the plugin from PluginRuntime.
+                let rolled_back_tools =
+                    prism_query::invalidation::deregister_write_tools_for_plugin(plugin_name);
+                let plugin_unregistered = runtime.unregister_plugin(plugin_name);
+                // Emit exactly ONE rollback event per plugin (not one per remaining tool).
+                tracing::error!(
+                    event_type = "plugin_registration_rolled_back",
+                    plugin_name = %plugin_name,
+                    tool_name = %manifest_tool.tool_name,
+                    registration_error = %reg_err,
+                    rolled_back_tools = rolled_back_tools,
+                    plugin_unregistered = plugin_unregistered,
+                    "write tool registration failed; plugin rolled back (BC-2.07.004 fail-closed — \
+                     partial write-tool state would violate write-then-read consistency)"
+                );
+                n_rolled_back += 1;
+                // Break out of the inner tool loop — do NOT attempt remaining tools for
+                // this plugin. Continue to the next plugin in the outer loop.
+                continue 'plugin_loop;
+            }
+        }
+    }
+    if n_rolled_back > 0 {
+        let survivors = plugins_loaded.saturating_sub(n_rolled_back);
+        tracing::error!(
+            n_rolled_back = n_rolled_back,
+            n_surviving = survivors,
+            "boot: {} plugin(s) rolled back due to write-tool registration failure \
+             (BC-2.07.004 fail-closed; {} plugin(s) operational)",
+            n_rolled_back,
+            survivors
+        );
+    }
 
     tracing::info!(
         n_loaded = plugins_loaded,
@@ -1010,6 +1185,10 @@ pub async fn step7_init_storage() -> Result<(), BootError> {
 /// Defense-in-depth: `materialization.rs:653` retains `is_empty()` short-circuit
 /// (test-mode aware) until this assertion is enforced.
 pub async fn step8_init_query_engine() -> Result<(), BootError> {
+    // Mark query phase started as the FIRST act of step 8, before QueryEngine construction.
+    // This permanently closes the write-tool registration window (ADR-026 §D7; ADR-022 §B step 7.5/8).
+    // F-LP56-HIGH-001 adjudication: this is the sole permitted boot.rs change in S-PLUGIN-PREREQ-E.
+    prism_query::invalidation::mark_query_phase_started();
     todo!(
         "S-WAVE5-PREP-01 step 8 — QueryEngine/WriteExecutor — resolved by S-3.02-FOLLOWUP-RUNTIME"
     )
@@ -1059,7 +1238,7 @@ mod tests {
     use super::*;
     use std::path::PathBuf;
 
-    /// Story: S-WAVE5-PREP-01
+    /// Story: S-WAVE5-PREP-01 + S-PLUGIN-PREREQ-E F-LP-IMPL-P4-001
     /// BC: BC-2.22.001 — BootError::exit_code() maps all variants correctly
     ///
     /// Unit test of the already-implemented exit_code() method.
@@ -1071,6 +1250,18 @@ mod tests {
         assert_eq!(BootError::ConfigInvalid("x".into()).exit_code(), 2);
         assert_eq!(BootError::OrgRegistryFailed("x".into()).exit_code(), 2);
         assert_eq!(BootError::CredentialRefInvalid("x".into()).exit_code(), 2);
+        // AuthTypeCredentialMismatch → 2 (config-invalid: spec and credential disagree on auth_type)
+        assert_eq!(
+            BootError::AuthTypeCredentialMismatch {
+                sensor_id: "test".into(),
+                expected_shape: "oauth2_client_credentials".into(),
+                actual_shape: "api_key".into(),
+            }
+            .exit_code(),
+            2,
+            "AuthTypeCredentialMismatch must map to exit 2 \
+             (config-invalid: spec and credential disagree on auth_type — E-SPEC-014)"
+        );
         // Permission-denied → 5
         assert_eq!(
             BootError::CredentialPermissionDenied("x".into()).exit_code(),

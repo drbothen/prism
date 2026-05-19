@@ -89,6 +89,9 @@ proptest = "1.11"
 # and SecretString (for NullCredentialStore in test helpers).
 prism-storage = { path = "../prism-storage", features = ["test-utils"] }
 secrecy = { version = "0.8", features = ["serde"] }
+# S-PLUGIN-PREREQ-E Task 7d — tracing event field schema capture for AC-9 third-test (BC-2.16.002 row 33).
+# Minor-band pin per prism conservative-pinning convention.
+tracing-test = "0.2"
 
 # S-3.01 VP-014/VP-015 — bounded model checking proofs (exact pin; out-of-band nightly
 # toolchain; does not affect workspace MSRV of Rust 1.85).
@@ -120,9 +123,26 @@ cyberint-write = ["prism-security/cyberint-write", "prism-sensors/cyberint-write
 claroty-write = ["prism-security/claroty-write", "prism-sensors/claroty-write"]
 armis-write = ["prism-security/armis-write", "prism-sensors/armis-write"]
 all-write = ["crowdstrike-write", "cyberint-write", "claroty-write", "armis-write"]
+# Exposes global reset helpers (reset_dynamic_registry_global, reset_query_phase_global)
+# for cross-crate integration tests. NEVER enable in production deps.
+test-helpers = []
+
+# VP-156 proptest integration test binaries — require test-helpers feature to access
+# reset_dynamic_registry_global / reset_query_phase_global (process-global state reset
+# between proptest cases). S-PLUGIN-PREREQ-E | ADR-026 §D7 v1.23.
+[[test]]
+name = "vp156_write_tool_registration_uniqueness"
+required-features = ["test-helpers"]
+
+# Post-boot proptest is in a SEPARATE binary to prevent mark_query_phase_started()
+# from contaminating QUERY_PHASE_STARTED global state for the uniqueness tests.
+# See invalidation_post_boot_test.rs for the established binary-isolation pattern.
+[[test]]
+name = "vp156_write_tool_post_boot_proptest"
+required-features = ["test-helpers"]
 
 [lints.rust]
-unexpected_cfgs = { level = "warn", check-cfg = ['cfg(kani)', 'cfg(feature, values("alias-write", "crowdstrike-write", "cyberint-write", "claroty-write", "armis-write", "all-write"))'] }
+unexpected_cfgs = { level = "warn", check-cfg = ['cfg(kani)', 'cfg(feature, values("alias-write", "crowdstrike-write", "cyberint-write", "claroty-write", "armis-write", "all-write", "test-helpers"))'] }
 non_snake_case = "allow"
 
 [lints.clippy]
