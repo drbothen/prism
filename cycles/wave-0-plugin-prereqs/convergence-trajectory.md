@@ -1,0 +1,342 @@
+---
+document_type: convergence-trajectory
+level: ops
+version: "1.0"
+status: converged
+producer: state-manager
+timestamp: 2026-05-19T21:00:00Z
+cycle: "wave-0-plugin-prereqs"
+inputs: [adversarial-reviews/, STATE.md]
+input-hash: "[extracted-2026-05-19-compact]"
+traces_to: STATE.md
+---
+
+# Convergence Trajectory — wave-0-plugin-prereqs
+
+## S-PLUGIN-PREREQ-E Spec Cascade (87 Passes)
+
+### Finding Progression — Spec Cascade
+
+| Pass Range | Date Range | Streak | Verdict |
+|-----------|------------|--------|---------|
+| Passes 1–43 | 2026-05-15..16 | 0/3→1/3 at pass-43 | CONVERGED pass-43 (spec cascade restart 1 of 9) |
+| Pass 44 | 2026-05-16 | 1/3→0/3 RESET | BLOCKED (2M new vectors) |
+| Passes 55 | 2026-05-16 | 0/3→1/3 | CLEAN (9th attempt advance) |
+| Pass 56 | 2026-05-16 | 1/3→0/3 RESET | BLOCKED (structural call-graph defect) |
+| Pass 77 | 2026-05-17 | 0/3→1/3 | CLEAN (restart-9 first advance after 22 consecutive BLOCKED) |
+| Pass 78 | 2026-05-17 | 1/3→0/3 RESET | BLOCKED (structural table completeness new axis) |
+| Passes 79–87 | 2026-05-17 | 0/3 | BLOCKED each pass, cascade restart 4 |
+| Cascade PAUSED D-699 | 2026-05-18 | n/a | Session-reviewer asymptote assessment; Phase 3 TDD begin |
+
+### Spec Cascade Trajectory Shorthand
+
+`14→9→8→9→10→10→...→4→1→4→5→1→1→3→4→5→5→5→2→1→2→0→1→0→0→0[p43-CONV]→RESET(p44)→...→p55-CLEAN→RESET(p56)→...→p77-CLEAN→RESET(p78)→p79-87-BLOCKED→CASCADE-PAUSED`
+
+### Key Spec Cascade Statistics
+
+- Total spec passes: 87 (passes 1–87; cascade paused at D-699)
+- Total spec fix-bursts: 75 (FB1–FB75)
+- POL-29 versions: v1.1→v1.28 (28 versions; 14 amendments this PREREQ-E session)
+- Longest BLOCKED streak: 22 consecutive passes (passes 55–76)
+- First advance of final restart (restart-9): pass-77 (CLEAN)
+- Cascade paused by: session-reviewer asymptote assessment (D-699) — passes 82–87 all ZERO implementation defects; only bookkeeping META remaining
+
+---
+
+## S-PLUGIN-PREREQ-E Implementation Cascade (16 Passes)
+
+### Finding Progression — Implementation Cascade
+
+| Pass | Date | Total | CRIT | IMP/HIGH | MED | LOW | SUG | Novelty | Counter | Verdict |
+|------|------|-------|------|----------|-----|-----|-----|---------|---------|---------|
+| impl-pass-1 | 2026-05-18 | 10 | 3 | 4 | 0 | 0 | 1 | HIGH | 0/3 | BLOCKED |
+| impl-pass-2 | 2026-05-18 | 6 | 2 | 3 | 0 | 0 | 1 | HIGH | 0/3 | BLOCKED |
+| impl-pass-3 | 2026-05-18 | 3 | 0 | 0 | 0 | 0 | 1 | LOW | 1/3 | CLEAN★ |
+| impl-pass-4 | 2026-05-18 | 4 | 1 | 1 | 0 | 0 | 0 | HIGH | 0/3 | BLOCKED (RESET 1/3→0/3) |
+| impl-pass-5 | 2026-05-18 | 5 | 1 | 1 | 0 | 0 | 0 | HIGH | 0/3 | BLOCKED |
+| impl-pass-6 | 2026-05-18 | 3 | 0 | 1 | 0 | 0 | 0 | HIGH | 0/3 | BLOCKED |
+| impl-pass-7 | 2026-05-18 | 1 | 0 | 0 | 0 | 0 | 0 | MED | 1/3 | CLEAN★ |
+| impl-pass-8 | 2026-05-18 | 4 | 0 | 1 | 0 | 0 | 1 | HIGH | 0/3 | BLOCKED (RESET 1/3→0/3) |
+| impl-pass-9 | 2026-05-18 | 0 | 0 | 0 | 0 | 0 | 0 | ZERO | 1/3 | CLEAN★ |
+| impl-pass-10 | 2026-05-18 | 5 | 0 | 2 | 0 | 0 | 1 | HIGH | 0/3 | BLOCKED (RESET 1/3→0/3) |
+| impl-pass-11 | 2026-05-18 | 3 | 0 | 1 | 1 | 0 | 0 | HIGH | 0/3 | BLOCKED |
+| impl-pass-12 | 2026-05-18 | 5 | 0 | 3 | 0 | 0 | 0 | HIGH | 0/3 | BLOCKED |
+| impl-pass-13 | 2026-05-18 | 2 | 0 | 0 | 2 | 0 | 0 | MED | 0/3 | BLOCKED |
+| impl-pass-14 | 2026-05-19 | 0 | 0 | 0 | 0 | 0 | 0 | ZERO | 1/3 | CLEAN★ |
+| impl-pass-15 | 2026-05-19 | 0 | 0 | 0 | 0 | 0 | 0 | ZERO | 2/3 | CLEAN★★ |
+| impl-pass-16 | 2026-05-19 | 1 | 0 | 0 | 0 | 1 | 0 | ZERO | 3/3 | CLEAN★★★ CONVERGED |
+
+### Implementation Cascade Trajectory Shorthand
+
+`10→6→0(1/3)→4(RESET)→5→3→0(1/3)→4(RESET)→0(1/3)→5(RESET)→3→5→2→0(1/3)→0(2/3)→1-LOW(3/3 CONVERGED)`
+
+### Key Implementation Cascade Statistics
+
+- Total impl passes: 16
+- Total impl fix-bursts: 10 (FB-IMPL-1..10)
+- Converged at: impl-pass-16 (2026-05-19)
+- Feature HEAD at convergence: `051eab95`
+- Total findings closed: 47 cumulative (passes 1–13)
+- Key architectural amendment: ADR-026 §D3 Option B (D-706 architect adjudication — Rule C backend-scope conditional)
+- VP-153 + VP-156 proptests landed: FB-IMPL-6 (13 proptests total across cross-crate split)
+
+### Per-Pass Details — Implementation Cascade
+
+#### impl-pass-1 (2026-05-18) — BLOCKED 3C+4I+1S+2Obs+1[process-gap]
+
+**Findings:** 10 (3 CRIT, 4 IMPORTANT, 1 SUG, 2 OBS, 1 process-gap)
+**Novelty:** HIGH — end-to-end wiring gaps
+**Key findings:**
+- F-001: DYNAMIC_WRITE_TOOLS registered but never read (invalidate functions bypass it)
+- F-002: PluginRuntime never calls register_write_tool (zero production hits)
+- F-003: validate_cross_composition never invoked by production spec-load path (test-only)
+**Fix-burst:** FB-IMPL-1 dispatched (implementer)
+
+---
+
+#### impl-pass-2 (2026-05-18) — BLOCKED 2C+3I+1S+1Obs+1[process-gap]
+
+**Findings:** 6 (2 CRIT, 3 IMPORTANT, 1 SUG, 1 OBS)
+**Novelty:** HIGH — paper-fix of pass-1 closures
+**Key findings:**
+- F-P2-001 CRIT: validate_cross_composition wired to dead-code SpecLoader::parse (paper-fix F-P1-003)
+- F-P2-002: E-PLUGIN-021 row missing from error-taxonomy.md
+- F-P2-003: Integration test race not fixed (F-P1-005 paper-fix)
+- F-P2-004 [process-gap]: implementer pre-existing-flake claim unverifiable (F-P1-005)
+**Fix-burst:** FB-IMPL-2 dispatched (implementer + product-owner parallel)
+
+---
+
+#### impl-pass-3 (2026-05-18) — CLEAN★ 0C+0H+0M+0L+1S+2Obs
+
+**Findings:** 3 (all non-blocking: 1 SUG changelog descending drift + 2 OBS)
+**Novelty:** LOW
+**Streak:** 0/3 → 1/3 (FIRST ADVANCE)
+**Verified:** All 6 FB-IMPL-2 closures load-bearing. validate_cross_composition wired to parse_and_validate_spec_toml production path. Integration test race resolved via Cargo separate-binary isolation.
+
+---
+
+#### impl-pass-4 (2026-05-18) — BLOCKED 1C+1I+2Obs+1[process-gap] — RESET 1/3→0/3
+
+**Findings:** 4 (1 CRIT, 1 IMPORTANT) + OBS
+**Novelty:** HIGH — argument-semantic-aliasing class (NEW)
+**Key findings:**
+- F-P4-001 CRIT: Rule C structurally dead — both callsites alias auth_type for both expected_shape AND actual_shape; equality check tautologically passes
+- F-P4-002: step 7.6 silent partial-failure on register_write_tool — plugin stays loaded; BC-2.07.004 violated
+**Fix-burst:** FB-IMPL-3 dispatched (implementer)
+
+---
+
+#### impl-pass-5 (2026-05-18) — BLOCKED 1C+1I+1S+2Obs
+
+**Findings:** 5 (1 CRIT, 1 IMPORTANT)
+**Novelty:** HIGH — 3rd iteration paper-fix of Rule C
+**Key findings:**
+- F-P5-001 CRIT: Rule C dead in production keyring path — KeyringCredentialProbe::probe() returns Ok(None) unconditionally; Rule C gate unreachable; ADR-026 §D3 + BC-2.01.016 E-SPEC-014 unconditioned
+- F-P5-002: unregister_plugin doc "CAS semantics" vs actual RwLock removal — doc-vs-code reconciliation
+**Escalation:** Architect adjudication required for F-P5-001 scope determination
+**Fix-burst:** FB-IMPL-4 dispatched (architect D-706 adjudication Option B; backend-scope conditional)
+
+---
+
+#### impl-pass-6 (2026-05-18) — BLOCKED 0C+1H+0M+0L+2Obs
+
+**Findings:** 3 (1 IMPORTANT, 2 OBS)
+**Novelty:** HIGH — rollback loop-continuation bug
+**Key findings:**
+- F-P6-001: step 7.6 rollback loop-continuation bug — plugin P with [t1,t2,t3] where t2 fails leaves orphaned P/t3 entry in DYNAMIC_WRITE_TOOLS post-rollback; BC-2.07.004 violation surface
+**Fix-burst:** FB-IMPL-5 dispatched (Option B per-plugin atomic loop + 3-tool RED-GATE test)
+
+---
+
+#### impl-pass-7 (2026-05-18) — CLEAN★ 0C+0H+0M+0L+0S+1Obs
+
+**Findings:** 1 (OBS only, non-blocking)
+**Novelty:** LOW
+**Streak:** 0/3 → 1/3 (FIRST ADVANCE post-FB-IMPL-5)
+**Verified:** FB-IMPL-5 closures all verified. Flake-claim adjudication Outcome (a) — test_BC_2_10_010_sigterm is documented pre-existing load-induced flake per signal_handlers.rs:102 comment. F-P7-OBS-001 attribution-discipline gap noted as carry-forward.
+
+---
+
+#### impl-pass-8 (2026-05-18) — BLOCKED 0C+1H+1S+2Obs — RESET 1/3→0/3
+
+**Findings:** 4 (1 IMPORTANT, 1 SUG, 2 OBS)
+**Novelty:** HIGH — novel blind spot (VP artifact existence)
+**Key findings:**
+- F-P8-IMP-001 NOVEL: VP-153 P0 proptest declared in story frontmatter + VP-INDEX but proptest TEST FILE missing; passes 1–7 audited validator LOGIC but never grep-checked declared verification artifact existence
+- F-P8-SUG-001: RwLock vs ArcSwap AD-007 canonical pattern divergence
+**Fix-burst:** FB-IMPL-6 dispatched (test-writer VP-153 proptest landing + VP-156 P1 sibling-sweep)
+
+---
+
+#### impl-pass-9 (2026-05-18) — CLEAN★ PERFECT ZERO-FINDING PASS
+
+**Findings:** 0 (zero across all severity tiers)
+**Novelty:** ZERO
+**Streak:** 0/3 → 1/3 (FIRST ADVANCE post-pass-8 RESET)
+**Verified:** VP-153 8 proptests load-bearing (cross-crate split). VP-156 5 proptests with proper test isolation. All novel vectors A-M CLEAN. Global-state isolation via reset hooks correct.
+
+---
+
+#### impl-pass-10 (2026-05-18) — BLOCKED 0C+2H+1S+2Obs+1[process-gap] — RESET 1/3→0/3
+
+**Findings:** 5 (2 IMPORTANT, 1 SUG)
+**Novelty:** HIGH — spec-hygiene drift (skeleton drift)
+**Key findings:**
+- F-P10-IMP-001: VP-153 §Proof Harness Skeleton stale symbol drift (SpecEngineError::AuthTypeInvalid + validate_auth_coherence neither exist)
+- F-P10-IMP-002: E-PLUGIN-021 transitive-closure gap — BC-2.16.012 §Error Cases + ADR-026 §D7 not enumerated
+**Fix-burst:** FB-IMPL-7 dispatched (PO + state-manager spec hygiene)
+
+---
+
+#### impl-pass-11 (2026-05-18) — BLOCKED 0C+1H+1M+5Obs+1[process-gap]
+
+**Findings:** 3 (1 HIGH, 1 MED — spec hygiene only)
+**Novelty:** HIGH (for spec-hygiene tier)
+**Key signal:** ASYMPTOTE SIGNAL STRONG — passes 10+11 both ZERO implementation defects; remaining is finer-grained sibling-sweep completeness
+**Key findings:**
+- F-P11-HIGH-001: BC-2.16.002 frontmatter YAML concatenation defect pre-existing
+- F-P11-MED-001: VP-156 §Feasibility Assessment row 184 sibling-sweep miss
+**Fix-burst:** FB-IMPL-8 dispatched (PO 6 files)
+
+---
+
+#### impl-pass-12 (2026-05-18) — BLOCKED 0C+3H+0M+0L+2Obs — RESET 0/3→0/3
+
+**Findings:** 5 (3 HIGH — ALL SELF-INDUCED BY FB-IMPL-7/8)
+**Novelty:** HIGH (cascade shifted: now discovering self-induced drift, not novel implementation gaps)
+**Key findings:**
+- F-P12-HIGH-001: ADR-026 §Changelog v1.27/v1.28 reversed order (POL-26 13th+ recurrence)
+- F-P12-HIGH-002: §D7 "Two new error codes" intro contradicts 3-bullet enumeration
+- F-P12-HIGH-003: §D7 E-PLUGIN-021 bullet self-redundancy
+**User Decision:** D-716 Option A — strict BC-5.39.001 3-CLEAN regardless of asymptote signal
+**Fix-burst:** FB-IMPL-9 dispatched (architect with ZERO-DRIFT discipline)
+
+---
+
+#### impl-pass-13 (2026-05-18) — BLOCKED 0C+0H+2M+0L+2Obs
+
+**Findings:** 2 (2 MEDIUM — spec hygiene only)
+**Novelty:** MEDIUM — FIRST HIGH→MED SEVERITY TRANSITION post-fix-burst
+**Key findings:**
+- F-P13-MED-001: VP-156 line 171 sibling-paragraph cfg-gate drift (FB-IMPL-9 paragraph-internal sibling-sweep miss)
+- F-P13-MED-002: story modified field POL-27 sync gap (pre-existing 4-pass survival)
+**Verified:** FB-IMPL-9 ZERO-DRIFT confirmed — architect+state-mgr introduced zero new defects
+**Fix-burst:** FB-IMPL-10 dispatched (PO with ZERO-DRIFT discipline)
+
+---
+
+#### impl-pass-14 (2026-05-19) — CLEAN★ ZERO FINDINGS
+
+**Findings:** 0 (zero across all severity tiers)
+**Novelty:** ZERO
+**Streak:** 0/3 → 1/3 (FIRST CLEAN under sustained ZERO-DRIFT regime)
+**Verified:** All 7 FB-IMPL-10 PO closures verified load-bearing. VP-156 line 171/175 sibling-paragraph coherent. story modified 2026-05-18. Cascade trajectory: pass-1 3C+4I → pass-12 3H → pass-13 2M → pass-14 ZERO.
+
+---
+
+#### impl-pass-15 (2026-05-19) — CLEAN★★ PENULTIMATE
+
+**Findings:** 0 (zero across all severity tiers)
+**Novelty:** ZERO
+**Streak:** 1/3 → 2/3 (PENULTIMATE)
+**Verified:** All FB-IMPL-9/10 closures verified durable under second consecutive adversarial re-verification. Cumulative closures from passes 1–13 all hold. Sustained ZERO-DRIFT regime empirically validated across 4 consecutive dispatches.
+
+---
+
+#### impl-pass-16 (2026-05-19) — CLEAN★★★ BC-5.39.001 3-CLEAN LOCAL IMPLEMENTATION CASCADE CONVERGED
+
+**Findings:** 1 LOW (pending-intent observation, NOT BLOCKING — BC-INDEX row 221 trailing-version-cell asymmetry)
+**Novelty:** ZERO
+**Streak:** 2/3 → **3/3 CONVERGED**
+**Verified:** pass-14 + pass-15 + pass-16 three consecutive CLEAN passes against unchanged feature HEAD `051eab95` with sustained ZERO-DRIFT discipline. All 8 audit dimensions clean. All 47 cumulative closures from passes 1–13 verified durable.
+**Convergence date:** 2026-05-19
+**Declared at:** D-721
+
+---
+
+## S-PLUGIN-PREREQ-E PR-LEVEL Cascade (4 Passes)
+
+### Finding Progression — PR-LEVEL Cascade
+
+| Pass | Date | Total | CRIT | HIGH | MED | LOW | Counter | Verdict |
+|------|------|-------|------|------|-----|-----|---------|---------|
+| pr-pass-1 | 2026-05-19 | 2 | 0 | 2 | 0 | 0 | 0/3 | BLOCKED — CI-only defects |
+| pr-pass-2 | 2026-05-19 | 0 | 0 | 0 | 0 | 0 | 1/3 | CLEAN★ |
+| pr-pass-3 | 2026-05-19 | 0 | 0 | 0 | 0 | 0 | 2/3 | CLEAN★★ |
+| pr-pass-4 | 2026-05-19 | 0 | 0 | 0 | 0 | 0 | 3/3 | CLEAN★★★ CONVERGED |
+
+### PR-LEVEL Cascade Trajectory Shorthand
+
+`2→0(1/3)→0(2/3)→0(3/3 CONVERGED)`
+
+### PR-LEVEL Cascade Key Details
+
+**pr-pass-1 BLOCKED findings (2 HIGH — CI-only defects LOCAL cascade couldn't catch):**
+- F-PR-1-001 HIGH ci-test-portability: `test_BC_2_16_011_e_spec_008_retired_annotation` sub-assertion A reads `.factory/specs/prd-supplements/error-taxonomy.md` at runtime — `.factory/` is an orphan-branch worktree mount never shipped to CI; test panicked file-not-found on all 6 CI platforms (3680/3681 pass)
+- F-PR-1-002 HIGH semver-version-pin: cargo-semver-checks reported 3 `*_missing` failures on prism-spec-engine v0.8.0 baseline (CustomAdapter + CustomAdapterRegistry + SensorAuth removal intended retirements per BC-2.16.011 AC-11); pre-1.0 SemVer convention requires minor bump for breaking changes: 0.8.0 → 0.9.0
+
+**FB-PR-1 closure:**
+- Architect Option 1: code-side ESpec008 grep gate stays in Rust test (sub-assertion B unchanged); spec-side annotation invariant relocated to new `.factory/hooks/validate-error-taxonomy-retirement-annotations.sh` hook
+- Implementer: prism-spec-engine 0.8.0→0.9.0 + 3 sibling-sweep pin updates + 2 Cargo.lock updates; just check 3681/3681 PASS
+- PO: BC-2.16.011 v1.10→v1.11 (AC-11 two-layer enforcement model) + story v1.50→v1.51
+
+**pr-passes-2/3/4:** All CLEAN (zero findings) — BC-5.39.001 3-CLEAN CONVERGED per D-716 Option A standing.
+
+**PR merged:** 2026-05-19T18:06:44Z at develop@80ebe794 (PR #151)
+
+---
+
+## SHA Tracking — PREREQ-E Implementation Fix-Bursts
+
+Extracted from STATE.md frontmatter (pass/burst SHA history):
+
+| Fix-Burst | Feature HEAD | Factory HEAD |
+|-----------|-------------|-------------|
+| FB-IMPL-1 | (not recorded) | (not recorded) |
+| FB-IMPL-2 | 8e4df5bf | 2497074f |
+| FB-IMPL-3 | 9e7c3d8e | (see git log) |
+| FB-IMPL-4 | db16f906 | (see git log) |
+| FB-IMPL-5 | e6b47f3e | (see git log) |
+| FB-IMPL-6 | 051eab95 | (see git log) |
+| FB-IMPL-7 | 051eab95 (spec-only) | 4b1503b3 |
+| FB-IMPL-8 | 051eab95 (spec-only) | 8066bb26 |
+| FB-IMPL-9 | 051eab95 (spec-only) | a1924866 |
+| FB-IMPL-10 | 051eab95 (spec-only) | 5030d4ab |
+| FB-PR-1 | a4c048ce | (see git log) |
+
+| Pass | SHA (approximate) |
+|------|-------------------|
+| impl-pass-1 | 65e361d7 |
+| impl-pass-2 | 396a8b5e |
+| impl-pass-3 | bc961365 |
+| impl-pass-4 | d4e066ef |
+| impl-pass-5 | b8a527fc (D-707: 3dfc3dca) |
+| impl-pass-6 | f42d5d9e |
+| impl-pass-7 | 443ac6bd |
+| impl-pass-8 | 97ecd6fd |
+| impl-pass-9 | 48b504a0 |
+| impl-pass-10 | d19cff13 |
+| impl-pass-11–16 | see-git-log |
+| impl-pass-12 | 229adc9d |
+
+---
+
+## Summary Statistics — PREREQ-E Complete
+
+| Metric | Value |
+|--------|-------|
+| Total spec cascade passes | 87 (paused) |
+| Total spec fix-bursts | 75 (FB1–FB75) |
+| Total impl cascade passes | 16 |
+| Total impl fix-bursts | 10 (FB-IMPL-1..10) |
+| Total PR-LEVEL passes | 4 |
+| Total PR-LEVEL fix-bursts | 1 (FB-PR-1) |
+| Total adversarial passes (all cascades) | ~107 (87 spec + 16 impl + 4 PR) |
+| Cumulative impl findings closed | 47 |
+| Proptests landed | 13 (VP-153: 8, VP-156: 5) |
+| Test count at convergence | 3681/3681 |
+| Local convergence date | 2026-05-19 |
+| PR merged | 2026-05-19 (PR #151 → develop@80ebe794) |
+| Feature HEAD at final merge | a4c048ce (squash-merged) |
+| POL-14 BC auto-promotions | BC-2.01.016 + BC-2.16.011 + BC-2.16.012 + BC-2.16.004 |
