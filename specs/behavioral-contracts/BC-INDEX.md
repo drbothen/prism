@@ -1,7 +1,7 @@
 ---
 document_type: behavioral-contract-index
 level: L3
-version: "5.18"
+version: "5.19"
 status: draft
 producer: state-manager
 timestamp: 2026-05-18T07:00:00Z
@@ -371,6 +371,8 @@ Phase 3-patch additions (2026-04-16): 22 new BCs added in Burst 1 to close trace
 - Subsystem 19: Infusion Enrichment Framework (AD-020, CAP-031)
 
 ### Change Log (Adversarial Review Fixes)
+
+**v5.19 (2026-05-19, FB-PR-1):** product-owner | BC-2.16.011 v1.10→v1.11 (FB-PR-1 AC-11 relocation: §Error Cases E-SPEC-008 row updated to two-layer enforcement model per architect adjudication FB-PR-1-error-taxonomy-test-relocation.md Option 1; code-side Rust test gate + spec-side hook gate). BC-INDEX v5.18→v5.19.
 
 **v5.18 (2026-05-18, pass-11-spec-hygiene):** product-owner | BC-2.16.002 in-line row 212 v1.34→v1.35 (F-LP-IMPL-P11-HIGH-001: frontmatter `deprecated/deprecated_by` YAML concatenation defect fixed). BC-INDEX v5.17→v5.18.
 

@@ -23,8 +23,8 @@ crates_touched: [prism-sensors, prism-spec-engine, prism-query, prism-bin]
 target_module: prism-sensors
 subsystems: [SS-01, SS-07, SS-16, SS-17, SS-22]
 capabilities: [CAP-001, CAP-029]
-version: "1.50"
-modified: "2026-05-18"
+version: "1.51"
+modified: "2026-05-19"
 level: "L4"
 producer: product-owner
 timestamp: "2026-05-16T00:00:00Z"
@@ -69,7 +69,7 @@ risk_mitigations:
   - "AC-7..8: spec_parser.rs migration verified by behavioral-equivalence integration test. Risk: type-name collision with shadow enum or stale callsite. Mitigation: AC-7 Red Gate Test 8 + AC-8 Red Gate Test 9 sibling-sweep checks."
   - "AC-9: TD-S-PLUGIN-PREREQ-A-003 closure via RwLock<Vec<WriteToolInvalidationMap>> + AtomicBool query-phase flag. Risk: post-boot register_write_tool() leaks past production call-site gate. Mitigation: AC-9 third-test asserts public-API `mark_query_phase_started()` invocation (FB45 hardening) + WARN tracing event field schema per BC-2.16.002 row 33 (Red Gate Test 13)."
   - "AC-10: full build and pre-push gate, single squash-merge commit. Risk: partial commits in feature branch before final squash; lefthook hook bypass. Mitigation: AC-10 production-grade gate asserts `just check` clean pre-push (process gate, not a Red Gate test); pre-commit hook enforces fmt+clippy+layout per lefthook.yml."
-  - "AC-11: E-SPEC-008 retirement annotation in error-taxonomy.md. Risk: annotation may regress if E-SPEC-008 is reintroduced post-merge via new code path. Mitigation: AC-11 Red Gate Test 14 (`test_BC_2_16_011_e_spec_008_retired_annotation`) asserts `retired_in: S-PLUGIN-PREREQ-E (error-taxonomy.md v1.38)` and grep-gate for `E-SPEC-008` outside the retired entry. ID preserved per append_only_numbering (POL-1)."
+  - "AC-11: E-SPEC-008 retirement annotation — two-layer enforcement model per architect adjudication FB-PR-1-error-taxonomy-test-relocation.md (Option 1). Risk: (a) E-SPEC-008 construction site reintroduced in code, (b) error-taxonomy.md annotation regresses. Mitigation: (a) Red Gate Test 14 (`test_BC_2_16_011_e_spec_008_retired_annotation`) greps `crates/*/src/` for `ESpec008`/`E-SPEC-008` construction sites — zero allowed; POL-1 exempts the variant declaration in `prism-core/src/error.rs`. (b) `.factory/hooks/validate-error-taxonomy-retirement-annotations.sh` asserts `'RETIRED in S-PLUGIN-PREREQ-E'` + `'ADR-027'` present in E-SPEC-008 row; runs in `.factory/` pre-commit chain and wave-gate check. ID preserved per append_only_numbering (POL-1). (traces to BC-2.16.011 AC-11)"
 acceptance_criteria_count: 13
 red_gate_tests: 14
 estimated_passes: "4-6 LOCAL adversary passes"
@@ -315,8 +315,12 @@ Four integration tests (`test_BC_2_16_012_002_spec_parser_behavioral_equivalence
 `cargo build --workspace --all-features` exits 0. `just check` (fmt + clippy + nextest + doctests + crate-layout) exits 0 with zero warnings. The PR contains exactly ONE squash-merge commit on `develop`.
 (production-grade default — CLAUDE.md Canonical Principle Rule 1)
 
-**AC-11 (E-SPEC-008 Retirement Annotation Verified in error-taxonomy.md):**
-The `E-SPEC-008` row in `error-taxonomy.md` carries a `retired:` annotation (or equivalent in-row retirement notation) referencing PREREQ-E and ADR-027. The description text reads: "**RETIRED in S-PLUGIN-PREREQ-E (error-taxonomy.md v1.26).** A CustomAdapter (BC-2.16.004) panicked during execution. Caught via catch_unwind. **No live code path triggers this code after CustomAdapter removal in S-PLUGIN-PREREQ-E per BC-2.16.011 §Error Cases + ADR-027 §Decision (operational deletion mandate). Plugin execution panics now surface via E-PLUGIN-001. ID preserved per append_only_numbering (DF-030).**" A test confirms no production `src/` path constructs or returns `E-SPEC-008`. Test name: `test_BC_2_16_011_e_spec_008_retired_annotation`.
+**AC-11 (E-SPEC-008 Retirement Annotation — Two-Layer Enforcement):**
+AC-11 is enforced by two complementary layers per architect adjudication `FB-PR-1-error-taxonomy-test-relocation.md` (Option 1):
+
+**Layer 1 — Code-side (Rust test):** `test_BC_2_16_011_e_spec_008_retired_annotation` (prism-spec-engine) greps `crates/*/src/` and asserts zero `ESpec008` / `E-SPEC-008` construction sites exist. POL-1 (append-only numbering) exempts the variant declaration in `prism-core/src/error.rs` itself. This test fails RED if any live `src/` path constructs or returns `E-SPEC-008`.
+
+**Layer 2 — Spec-side (factory hook):** `.factory/hooks/validate-error-taxonomy-retirement-annotations.sh` asserts that the `E-SPEC-008` row in `error-taxonomy.md` contains both `"RETIRED in S-PLUGIN-PREREQ-E"` and `"ADR-027"` markers. The hook runs in the `.factory/` pre-commit chain (triggered by changes to `specs/prd-supplements/error-taxonomy.md`) and unconditionally as a wave-gate hygiene check for wave-0-plugin-prereqs. The annotation text in `error-taxonomy.md` reads: "**RETIRED in S-PLUGIN-PREREQ-E (error-taxonomy.md v1.26).** A CustomAdapter (BC-2.16.004) panicked during execution. Caught via catch_unwind. **No live code path triggers this code after CustomAdapter removal in S-PLUGIN-PREREQ-E per BC-2.16.011 §Error Cases + ADR-027 §Decision (operational deletion mandate). Plugin execution panics now surface via E-PLUGIN-001. ID preserved per append_only_numbering (DF-030).**"
 (traces to BC-2.16.011 §Error Cases E-SPEC-008 (retired); Task 9; ADR-027 §Decision)
 
 ---
@@ -358,7 +362,7 @@ Tests are grouped by BC for readability (F-LP2-MED-004 correction).
 
 13. **`test_BC_2_16_012_003_write_tool_invalidation_runtime_register`** (prism-query) — calls `register_write_tool(entry) -> Result<(), SpecEngineError>` where `entry` is a new `WriteToolInvalidationMap` struct; asserts `.is_ok()` for the happy path (entry visible on next read-guard); asserts `.is_err()` with `E-PLUGIN-012` for a duplicate `tool_name`; asserts `.is_err()` with `WriteToolRegistrationAfterBoot` (E-PLUGIN-020) for a post-boot registration attempt invoked via the public `mark_query_phase_started()` function (not direct `QUERY_PHASE_STARTED.store(true, ...)` in test body) and captures the WARN tracing event (via `tracing-test = "0.2"` subscriber fixture per Task 7d) with fields `event_type = "write_tool_registration_after_boot"`, `plugin_name = <plugin>`, `tool_name = <tool>`, `error = "E-PLUGIN-020"` per BC-2.16.002 §Postconditions (Canonical Structured Event Catalog bullet, v1.22) row 33; fails RED because `register_write_tool` does not exist yet (the container is a `LazyLock<Vec<...>>` not an `RwLock`) and neither error variant exists.
 
-14. **`test_BC_2_16_011_e_spec_008_retired_annotation`** (prism-spec-engine) — asserts that the `E-SPEC-008` row in `error-taxonomy.md` carries a retirement annotation referencing PREREQ-E + ADR-027, and that a grep of `crates/` `src/` paths for `E-SPEC-008` construction sites returns zero matches; fails RED if the annotation is absent or any live `src/` path constructs that error code.
+14. **`test_BC_2_16_011_e_spec_008_retired_annotation`** (prism-spec-engine) — asserts that a grep of `crates/*/src/` paths for `ESpec008` / `E-SPEC-008` construction sites returns zero matches (code-side gate — Layer 1 of AC-11 two-layer enforcement model per architect adjudication FB-PR-1-error-taxonomy-test-relocation.md); fails RED if any live `src/` path constructs that error code. Note: the spec-governance annotation invariant (Layer 2 — `"RETIRED in S-PLUGIN-PREREQ-E"` + `"ADR-027"` present in error-taxonomy.md E-SPEC-008 row) is enforced separately by `.factory/hooks/validate-error-taxonomy-retirement-annotations.sh`, not by this Rust test.
 
 ---
 
@@ -543,6 +547,7 @@ Tech debt closed:
 
 | Version | Burst | Date | Author | Change |
 |---------|-------|------|--------|--------|
+| v1.51 | FB-PR-1 | 2026-05-19 | product-owner | FB-PR-1 AC-11 relocation: Rust test `test_BC_2_16_011_e_spec_008_retired_annotation` scoped to code-side `ESpec008`/`E-SPEC-008` construction-site grep gate only (Layer 1); spec-governance annotation invariant (`"RETIRED in S-PLUGIN-PREREQ-E"` + `"ADR-027"` in E-SPEC-008 row) moved to `.factory/hooks/validate-error-taxonomy-retirement-annotations.sh` (Layer 2) per architect adjudication FB-PR-1-error-taxonomy-test-relocation.md (Option 1). Sites updated: frontmatter risk_mitigations AC-11 entry; §Acceptance Criteria AC-11 body (two-layer enforcement model); §Red Gate Tests Test 14 description. `modified:` synced to 2026-05-19. |
 | v1.50 | FB-IMPL-10 | 2026-05-18 | product-owner | F-LP-IMPL-P13-MED-002 closure: frontmatter `modified:` field synced "2026-05-17" → "2026-05-18" per POL-27 (most-recent-change date tracking). Pre-existing since FB-IMPL-7 / pass-10-spec-hygiene (v1.49 authored 2026-05-18 but modified field not updated). ZERO-NEW-DRIFT discipline. |
 | v1.49 | pass-10-spec-hygiene | 2026-05-18 | product-owner | F-LP-IMPL-P10-SUG-001 closure (POL-29 step 8h/8i sibling propagation): catalog bullet cite-pins `(v1.21)` → `(v1.22)` at 5 live-narrative sites — lines 219, 311, 359, 434, 435 (all `BC-2.16.002 §Postconditions (Canonical Structured Event Catalog bullet, v1.21) row 33`). BC-2.16.002 catalog bullet label advanced from `(v1.21)` to `(v1.22)` per Option B adjudication; story cites must track the new canonical label per POL-29 step 8h. |
 | v1.48 | FB75 | 2026-05-17 | product-owner | F-LP87-HIGH-001 closure (PO scope): error-taxonomy v1.37→v1.38 propagation at story lines 72 (backtick variant frontmatter), 271, 272, 276, 280, 337, 339 (7 sites). NEW META-class — same-burst dependent-artifact self-bump: FB73 ADR-026 D7 v1.22→v1.23 sweep at error-taxonomy lines 459+467 caused error-taxonomy.md to bump v1.37→v1.38 as §Changelog event within same atomic burst; POL-29 v1.26 step 8g cross-value-class enumeration covered external value classes but did NOT enumerate the DEPENDENT-ARTIFACT-SELF-BUMP class. POL-29 v1.27→v1.28 step 8h amendment by state-manager. Sibling files HS-001 v1.11 + VP-153 v0.16 + ADR-026 v1.24 swept in same burst. |
