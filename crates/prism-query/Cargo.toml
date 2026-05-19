@@ -127,6 +127,20 @@ all-write = ["crowdstrike-write", "cyberint-write", "claroty-write", "armis-writ
 # for cross-crate integration tests. NEVER enable in production deps.
 test-helpers = []
 
+# VP-156 proptest integration test binaries — require test-helpers feature to access
+# reset_dynamic_registry_global / reset_query_phase_global (process-global state reset
+# between proptest cases). S-PLUGIN-PREREQ-E | ADR-026 §D7 v1.23.
+[[test]]
+name = "vp156_write_tool_registration_uniqueness"
+required-features = ["test-helpers"]
+
+# Post-boot proptest is in a SEPARATE binary to prevent mark_query_phase_started()
+# from contaminating QUERY_PHASE_STARTED global state for the uniqueness tests.
+# See invalidation_post_boot_test.rs for the established binary-isolation pattern.
+[[test]]
+name = "vp156_write_tool_post_boot_proptest"
+required-features = ["test-helpers"]
+
 [lints.rust]
 unexpected_cfgs = { level = "warn", check-cfg = ['cfg(kani)', 'cfg(feature, values("alias-write", "crowdstrike-write", "cyberint-write", "claroty-write", "armis-write", "all-write", "test-helpers"))'] }
 non_snake_case = "allow"
