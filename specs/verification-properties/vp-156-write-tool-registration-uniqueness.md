@@ -1,7 +1,7 @@
 ---
 document_type: verification-property
 level: L4
-version: "0.20"
+version: "0.21"
 status: active
 producer: architect
 timestamp: 2026-05-15T00:00:00Z
@@ -181,7 +181,7 @@ Both must be called before each proptest run to guarantee process-global isolati
 | Input space size | Bounded | proptest default 256 cases; name strings bounded to 32 chars |
 | Proof complexity | Low | Synchronous RwLock + Vec — no async, no I/O, no WASM dependency |
 | Tool support | Full | proptest is already in prism-query's dev-dependencies |
-| Harness dependencies | Low | Requires `reset_for_test()` hook and `invalidation_map()` accessor in prism-query; no external services |
+| Harness dependencies | Low | Requires `reset_query_phase_global()` + `reset_dynamic_registry_global()` (two-function reset pattern) and `dynamic_write_tool_count()` accessor in prism-query; no external services |
 | Estimated proof time | < 5 seconds | Tight inner loop; 256 cases × synchronous Vec-push |
 
 ## Lifecycle
@@ -213,4 +213,5 @@ Both must be called before each proptest run to guarantee process-global isolati
 | 0.17 | FB69 | 2026-05-17 | product-owner | F-LP81-HIGH-002 closure (PO scope): ADR-026 D7 pin v1.21→v1.22 propagation at lines 42, 86, 90, 124 (4 sites; ascending changelog). Recurrence #22+ of POL-29 step 3a class (b). Sibling files story v1.44 + BC-2.16.012 v1.25 + BC-2.16.002 v1.29 + error-taxonomy v1.37 + HS-003 v1.14 swept in same burst. |
 | 0.18 | FB73 | 2026-05-17 | product-owner | F-LP85-HIGH-001 closure (PO scope): ADR-026 D7 pin v1.22→v1.23 propagation at VP-156 lines 42, 86, 90, 124 (4 sites; ascending changelog). Sibling files story v1.46 + BC-2.16.011 v1.10 + BC-2.16.012 v1.26 + BC-2.16.002 v1.31 (POL-30 Fork B preserved) + HS-003 v1.15 + error-taxonomy v1.38 swept in same burst. |
 | 0.19 | FB-IMPL-6 | 2026-05-18 | test-writer | Proptest landed. Authors 5 proptests in two integration test binaries: (1) `vp156_write_tool_registration_uniqueness.rs` — 4 proptests covering VP-156 AC Cases 1/2/3 and full-key idempotency; (2) `vp156_write_tool_post_boot_proptest.rs` — 1 proptest covering EC-016-012-005 post-boot rejection (separate binary per mark_query_phase_started global-state isolation pattern). Uniqueness invariant: `tool_name` alone (VP-156 §Property Statement; ADR-026 D7 v1.23). All 5 proptests pass (PROPTEST_CASES=32; 908 total prism-query tests pass; cargo check --workspace --tests exit 0). lifecycle_status: draft → active; proof_completed_date: 2026-05-18. Sibling-sweep of F-LP-IMPL-P8-IMP-001 (VP-153 landing) — same VP-artifact-existence blind-spot class. Anchored: BC-2.16.012 EC-016-012-004/005 + TD-S-PLUGIN-PREREQ-A-003 closure semantic. |
+| 0.21 | pass-11-spec-hygiene | 2026-05-18 | product-owner | §Feasibility Assessment row 184 symbol corrections — sibling-sweep completion of F-LP-IMPL-P10-OBS-002 (closes F-LP-IMPL-P11-MED-001). `reset_for_test()` → two-function pattern `reset_query_phase_global()` + `reset_dynamic_registry_global()`; `invalidation_map()` → `dynamic_write_tool_count()`. As-built API names per §Test-only reset hooks paragraph (lines 171-175). |
 | 0.20 | pass-10-spec-hygiene | 2026-05-18 | product-owner | F-LP-IMPL-P10-OBS-002 closure: §Proof Harness Skeleton stale symbol corrections. (1) `reset_for_test()` → two-function pattern: `reset_query_phase_global()` + `reset_dynamic_registry_global()` (2 skeleton sites, lines 141+156). (2) `invalidation_map().read().unwrap()` + `.len()` → `dynamic_write_tool_count()` (first site, line 147). (3) `invalidation_map().read().unwrap()` + `.iter().filter(...).count()` → `dynamic_write_tool_count()` (second site, line 163). (4) Test-only reset hook paragraph updated to describe the two-function as-built API and `dynamic_write_tool_count()` helper. (5) POL-26 monotonic-order repair: rows v0.19 (FB-IMPL-6 2026-05-18) and v0.18 (FB73 2026-05-17) were out of ascending order — swapped to restore v0.18 → v0.19 → v0.20. Spec brought into alignment with as-built code per CLAUDE.md Source-of-Truth Precedence Rule 7. |

@@ -1,7 +1,7 @@
 ---
 document_type: behavioral-contract
 level: L3
-version: "1.34"
+version: "1.35"
 status: active
 producer: product-owner
 timestamp: 2026-05-18T06:00:00Z
@@ -12,7 +12,8 @@ capability: "CAP-029"
 lifecycle_status: active
 introduced: cycle-1
 modified: 2026-05-18
-deprecated: nulldeprecated_by: null
+deprecated: ~
+deprecated_by: ~
 replacement: null
 retired: null
 removed: null
@@ -170,6 +171,7 @@ See `.factory/specs/prd-supplements/test-vectors.md` for full canonical vectors.
 
 | Version | Burst | Date | Author | Change |
 |---------|-------|------|--------|--------|
+| 1.35 | pass-11-spec-hygiene | 2026-05-18 | product-owner | frontmatter `deprecated/deprecated_by` concatenation defect fix (closes F-LP-IMPL-P11-HIGH-001; YAML-parse-breaking pre-existing defect). `deprecated: nulldeprecated_by: null` split into two separate lines `deprecated: ~` / `deprecated_by: ~` per sibling BC convention (BC-2.16.012). |
 | 1.34 | pass-10-spec-hygiene | 2026-05-18 | product-owner | F-LP-IMPL-P10-SUG-001 closure (Option B adjudication): catalog bullet label advanced `(v1.21)` → `(v1.22)` at line 73 per POL-30 Fork B canonical rule. The v1.32 §Changelog row correctly recorded "intro updated v1.21→v1.22" — that description was the intended state; the actual bullet label at line 73 was not updated in the same v1.32 burst (split between implementing the row-34 content change and syncing the bullet-version label). Adding row 34 (`plugin_registration_rolled_back`) in v1.32 IS a catalog-content change, so the bullet MUST advance per Fork B. Sibling propagation per POL-29 step 8h/8i: BC-2.16.012 v1.28 (2 sites: line 84 §Postconditions + EC-016-012-005), error-taxonomy v1.38 (2 sites: E-PLUGIN-020 + E-PIPELINE-001 Canonical Structured Event Catalog bullet refs), S-PLUGIN-PREREQ-E story v1.49+ (5 sites: lines 219, 311, 359, 434, 435) updated in same burst. |
 | 1.33 | FB-IMPL-4 | 2026-05-18 | state-manager | D-707 F-LP-IMPL-P5-003 closure: §Postconditions Canonical Structured Event Catalog intro count 33→34 sync (FB-IMPL-3 added row 34 `plugin_registration_rolled_back` but intro count was not updated in same burst; sibling-drift caught at pass-5). |
 | 1.32 | FB-IMPL-3 | 2026-05-18 | implementer+state-manager | F-LP-IMPL-P4-002 Route A closure (implementer scope): added `plugin_registration_rolled_back` ERROR event as row 34 to Canonical Structured Event Catalog. Function: `plugin_load_step_with_audit` step 7.6 (`crates/prism-bin/src/boot.rs`). Fields: `plugin_name: String` (plugin manifest `name`), `tool_name: String` (failing `WriteToolInvalidationMap.tool_name`), `registration_error: String` (`reg_err` Display), `rolled_back_tools: usize` (`deregister_write_tools_for_plugin` return), `plugin_unregistered: bool` (`PluginRuntime::unregister_plugin` return). Trigger: write-tool registration failure; fail-closed rollback per BC-2.07.004 §write-then-read consistency. Audit role: operational incident. Catalog count 33→34; intro updated v1.21→v1.22. state-manager performed frontmatter sync (version + modified + timestamp) per routing table bookkeeping scope. |
