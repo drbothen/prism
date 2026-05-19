@@ -1,7 +1,7 @@
 //! Cyberint portal API authentication credentials and adapter.
 //!
 //! # Auth credential (S-2.06)
-//! [`CyberintAuth`] — API key used as cookie credential; sealed via `SensorAuth`.
+//! [`CyberintAuth`] — API key used as cookie credential; implements open trait `SensorAuth` (post S-PLUGIN-PREREQ-E).
 //!
 //! # Adapter (S-2.07)
 //! [`CyberintAdapter`] — implements [`SensorAdapter`] with:
@@ -23,7 +23,7 @@ use prism_core::SensorId;
 use reqwest::Client;
 use secrecy::{ExposeSecret, SecretString};
 
-use super::{private::Sealed, SensorAuth};
+use super::SensorAuth;
 use crate::adapter::{QueryParams, SensorAdapter, SensorError, SensorSpec};
 
 // ---------------------------------------------------------------------------
@@ -49,10 +49,13 @@ impl std::fmt::Debug for CyberintAuth {
     }
 }
 
-impl Sealed for CyberintAuth {}
 impl SensorAuth for CyberintAuth {
     fn as_any(&self) -> &dyn std::any::Any {
         self
+    }
+
+    fn auth_type_name(&self) -> &'static str {
+        "bearer_static"
     }
 }
 

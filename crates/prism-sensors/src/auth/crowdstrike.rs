@@ -1,7 +1,7 @@
 //! CrowdStrike Falcon API authentication credentials and adapter.
 //!
 //! # Auth credential (S-2.06)
-//! [`CrowdStrikeAuth`] — OAuth2 client credentials; sealed via `SensorAuth`.
+//! [`CrowdStrikeAuth`] — OAuth2 client credentials; implements open trait `SensorAuth` (post S-PLUGIN-PREREQ-E).
 //!
 //! # Adapter (S-2.07)
 //! [`CrowdStrikeAdapter`] — implements [`SensorAdapter`] with:
@@ -24,7 +24,7 @@ use reqwest::Client;
 use secrecy::{ExposeSecret, SecretString};
 use tokio::sync::RwLock;
 
-use super::{private::Sealed, SensorAuth};
+use super::SensorAuth;
 use crate::adapter::{QueryParams, SensorAdapter, SensorError, SensorSpec};
 
 // ---------------------------------------------------------------------------
@@ -54,10 +54,13 @@ impl std::fmt::Debug for CrowdStrikeAuth {
     }
 }
 
-impl Sealed for CrowdStrikeAuth {}
 impl SensorAuth for CrowdStrikeAuth {
     fn as_any(&self) -> &dyn std::any::Any {
         self
+    }
+
+    fn auth_type_name(&self) -> &'static str {
+        "oauth2_client_credentials"
     }
 }
 

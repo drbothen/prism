@@ -1,7 +1,7 @@
 //! Armis Centrix API authentication credentials and adapter.
 //!
 //! # Auth credential (S-2.06)
-//! [`ArmisAuth`] — static API secret key (bearer token); sealed via `SensorAuth`.
+//! [`ArmisAuth`] — static API secret key (bearer token); implements open trait `SensorAuth` (post S-PLUGIN-PREREQ-E).
 //!
 //! # Adapter (S-2.07)
 //! [`ArmisAdapter`] — implements [`SensorAdapter`] with:
@@ -25,7 +25,7 @@ use prism_core::SensorId;
 use reqwest::Client;
 use secrecy::{ExposeSecret, SecretString};
 
-use super::{private::Sealed, SensorAuth};
+use super::SensorAuth;
 use crate::adapter::{QueryParams, SensorAdapter, SensorError, SensorSpec};
 
 // ---------------------------------------------------------------------------
@@ -51,10 +51,13 @@ impl std::fmt::Debug for ArmisAuth {
     }
 }
 
-impl Sealed for ArmisAuth {}
 impl SensorAuth for ArmisAuth {
     fn as_any(&self) -> &dyn std::any::Any {
         self
+    }
+
+    fn auth_type_name(&self) -> &'static str {
+        "api_key"
     }
 }
 

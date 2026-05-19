@@ -219,10 +219,16 @@ impl PluginRuntime {
     ///
     /// This method does NOT return `Err` for per-plugin failures — those are logged at ERROR
     /// and the n-1 survivor rule applies. Only `Err` cases: filesystem errors reading the directory.
+    /// Returns `(n_loaded, pending_write_tool_registrations)` on success.
+    ///
+    /// `pending_write_tool_registrations` is `Vec<(plugin_name, ManifestWriteTool)>` — each
+    /// entry must be registered with `prism_query::invalidation::register_write_tool` by the
+    /// caller (boot.rs step 7.5). Cannot be done here because prism-spec-engine cannot depend
+    /// on prism-query (circular dependency; F-LP-IMPL-P1-002 / ADR-026 §D7).
     pub async fn load_all_plugins(
         &self,
         plugin_dir: &Path,
-    ) -> Result<usize, prism_core::PrismError> {
+    ) -> Result<(usize, Vec<(String, ManifestWriteTool)>), prism_core::PrismError> {
         // EC-D-001: plugin directory does not exist → Ok(0), INFO log.
         if !plugin_dir.exists() {
             info!(
@@ -230,7 +236,7 @@ impl PluginRuntime {
                 event_type = "plugin_directory_not_found",
                 "plugin directory not found, skipping plugin load"
             );
-            return Ok(0);
+            return Ok((0, Vec::new()));
         }
 
         let entries = match std::fs::read_dir(plugin_dir) {
@@ -261,7 +267,7 @@ impl PluginRuntime {
                 plugin_dir = %plugin_dir.display(),
                 "no .prx plugin files found in plugin directory"
             );
-            return Ok(0);
+            return Ok((0, Vec::new()));
         }
 
         // One-time unsigned-plugin boot warning (emitted once per boot, not per plugin).
@@ -271,6 +277,10 @@ impl PluginRuntime {
         );
 
         let mut n_loaded = 0usize;
+        // Accumulates write tool declarations from each loaded plugin's manifest.
+        // Returned to the caller (boot.rs) for registration with prism-query's invalidation map.
+        // Cannot be registered here due to prism-spec-engine ↛ prism-query (circular dep avoidance).
+        let mut pending_write_tool_registrations: Vec<(String, ManifestWriteTool)> = Vec::new();
         let engine = self.engine.clone();
         let linker = self.linker.clone();
 
@@ -324,95 +334,94 @@ impl PluginRuntime {
             };
 
             // Parse manifest fields (BC-2.17.007 validation order: name → version → format_version → allowed_urls).
-            let (plugin_name, plugin_version, _format_version, allowed_urls) = match parse_manifest(
-                manifest_toml.as_deref(),
-                &path_str,
-            ) {
-                Ok(fields) => fields,
-                Err(err) => {
-                    // Emit appropriate structured event and log at ERROR.
-                    match &err {
-                        PluginError::ManifestNotFound {
-                            expected_manifest_path,
-                            ..
-                        } => {
-                            // HIGH-005 (F-IMPL-LP1-HIGH-005): E-PLUGIN-018 manifest not found.
-                            error!(
-                                plugin_path = %path_str,
-                                expected_manifest_path = %expected_manifest_path,
-                                error = "E-PLUGIN-018",
-                                event_type = "plugin_load_failed_manifest_not_found",
-                                "Plugin missing companion manifest file"
-                            );
+            // Returns write_tools as the 5th element (F-LP-IMPL-P1-002 / S-PLUGIN-PREREQ-E AC-9 / ADR-026 §D7).
+            let (plugin_name, plugin_version, _format_version, allowed_urls, write_tools) =
+                match parse_manifest(manifest_toml.as_deref(), &path_str) {
+                    Ok(fields) => fields,
+                    Err(err) => {
+                        // Emit appropriate structured event and log at ERROR.
+                        match &err {
+                            PluginError::ManifestNotFound {
+                                expected_manifest_path,
+                                ..
+                            } => {
+                                // HIGH-005 (F-IMPL-LP1-HIGH-005): E-PLUGIN-018 manifest not found.
+                                error!(
+                                    plugin_path = %path_str,
+                                    expected_manifest_path = %expected_manifest_path,
+                                    error = "E-PLUGIN-018",
+                                    event_type = "plugin_load_failed_manifest_not_found",
+                                    "Plugin missing companion manifest file"
+                                );
+                            }
+                            PluginError::ManifestParseError { detail, .. } => {
+                                // HIGH-003 (F-IMPL-LP1-HIGH-003): E-PLUGIN-017 TOML parse error.
+                                error!(
+                                    plugin_path = %path_str,
+                                    error = "E-PLUGIN-017",
+                                    detail = %detail,
+                                    event_type = "plugin_load_failed_manifest_parse_error",
+                                    "Plugin manifest TOML parse failed"
+                                );
+                            }
+                            PluginError::ManifestNameMissing { .. } => {
+                                error!(
+                                    plugin_path = %path_str,
+                                    error = "E-PLUGIN-015",
+                                    event_type = "plugin_load_failed_manifest_name_missing",
+                                    "Plugin manifest missing or empty required field 'name'"
+                                );
+                            }
+                            PluginError::ManifestVersionMalformed { value, .. } => {
+                                error!(
+                                    plugin_path = %path_str,
+                                    version_value = %value,
+                                    error = "E-PLUGIN-016",
+                                    event_type = "plugin_load_failed_manifest_version_malformed",
+                                    "Plugin manifest 'version' field is not valid semver"
+                                );
+                            }
+                            PluginError::FormatVersionMissing { supported, .. } => {
+                                // HIGH-006 (F-IMPL-LP1-HIGH-006): E-PLUGIN-019 absent format_version.
+                                error!(
+                                    plugin_path = %path_str,
+                                    supported = supported,
+                                    error = "E-PLUGIN-019",
+                                    event_type = "plugin_load_failed_format_version_missing",
+                                    "Plugin manifest missing required field 'format_version'"
+                                );
+                            }
+                            PluginError::FormatVersionExceeded {
+                                actual, supported, ..
+                            } => {
+                                error!(
+                                    plugin_path = %path_str,
+                                    format_version = actual,
+                                    max_supported = supported,
+                                    error = "E-PLUGIN-014",
+                                    event_type = "plugin_load_failed_format_version_exceeded",
+                                    "Plugin manifest format_version exceeds maximum supported version"
+                                );
+                            }
+                            PluginError::MissingAllowedUrls { .. } => {
+                                error!(
+                                    plugin_path = %path_str,
+                                    error = "E-PLUGIN-013",
+                                    event_type = "plugin_load_failed_manifest_no_allowed_urls",
+                                    "Plugin manifest missing required field 'allowed_urls'"
+                                );
+                            }
+                            _ => {
+                                error!(
+                                    plugin_path = %path_str,
+                                    error = %err,
+                                    "Plugin manifest validation failed"
+                                );
+                            }
                         }
-                        PluginError::ManifestParseError { detail, .. } => {
-                            // HIGH-003 (F-IMPL-LP1-HIGH-003): E-PLUGIN-017 TOML parse error.
-                            error!(
-                                plugin_path = %path_str,
-                                error = "E-PLUGIN-017",
-                                detail = %detail,
-                                event_type = "plugin_load_failed_manifest_parse_error",
-                                "Plugin manifest TOML parse failed"
-                            );
-                        }
-                        PluginError::ManifestNameMissing { .. } => {
-                            error!(
-                                plugin_path = %path_str,
-                                error = "E-PLUGIN-015",
-                                event_type = "plugin_load_failed_manifest_name_missing",
-                                "Plugin manifest missing or empty required field 'name'"
-                            );
-                        }
-                        PluginError::ManifestVersionMalformed { value, .. } => {
-                            error!(
-                                plugin_path = %path_str,
-                                version_value = %value,
-                                error = "E-PLUGIN-016",
-                                event_type = "plugin_load_failed_manifest_version_malformed",
-                                "Plugin manifest 'version' field is not valid semver"
-                            );
-                        }
-                        PluginError::FormatVersionMissing { supported, .. } => {
-                            // HIGH-006 (F-IMPL-LP1-HIGH-006): E-PLUGIN-019 absent format_version.
-                            error!(
-                                plugin_path = %path_str,
-                                supported = supported,
-                                error = "E-PLUGIN-019",
-                                event_type = "plugin_load_failed_format_version_missing",
-                                "Plugin manifest missing required field 'format_version'"
-                            );
-                        }
-                        PluginError::FormatVersionExceeded {
-                            actual, supported, ..
-                        } => {
-                            error!(
-                                plugin_path = %path_str,
-                                format_version = actual,
-                                max_supported = supported,
-                                error = "E-PLUGIN-014",
-                                event_type = "plugin_load_failed_format_version_exceeded",
-                                "Plugin manifest format_version exceeds maximum supported version"
-                            );
-                        }
-                        PluginError::MissingAllowedUrls { .. } => {
-                            error!(
-                                plugin_path = %path_str,
-                                error = "E-PLUGIN-013",
-                                event_type = "plugin_load_failed_manifest_no_allowed_urls",
-                                "Plugin manifest missing required field 'allowed_urls'"
-                            );
-                        }
-                        _ => {
-                            error!(
-                                plugin_path = %path_str,
-                                error = %err,
-                                "Plugin manifest validation failed"
-                            );
-                        }
+                        continue; // n-1 survivor rule
                     }
-                    continue; // n-1 survivor rule
-                }
-            };
+                };
 
             // Spawn blocking WASM compilation (CPU-intensive).
             let bytes_clone = bytes.clone();
@@ -533,16 +542,57 @@ impl PluginRuntime {
             );
 
             n_loaded += 1;
+
+            // Collect write tool declarations for the caller to register with the invalidation map.
+            // prism-spec-engine CANNOT call prism_query::invalidation::register_write_tool
+            // directly (circular dependency: prism-query -> prism-spec-engine).
+            // The registration is performed by prism-bin/src/boot.rs::plugin_load_step_with_audit
+            // which has access to both crates (F-LP-IMPL-P1-002 / ADR-026 §D7 step 7.5).
+            for manifest_tool in write_tools {
+                pending_write_tool_registrations.push((plugin_name.clone(), manifest_tool));
+            }
         }
 
         info!(
             n_loaded = n_loaded,
+            pending_write_tool_registrations = pending_write_tool_registrations.len(),
             plugin_dir = %plugin_dir.display(),
-            "boot: plugin-load step complete ({} plugins loaded)",
-            n_loaded
+            "boot: plugin-load step complete ({} plugins loaded, {} write tools pending registration)",
+            n_loaded,
+            pending_write_tool_registrations.len()
         );
 
-        Ok(n_loaded)
+        Ok((n_loaded, pending_write_tool_registrations))
+    }
+
+    /// Remove a plugin from the registry by plugin_id.
+    ///
+    /// Used by boot step 7.6 to roll back a plugin whose write-tool registration failed.
+    /// A plugin with partial write-tool registration is in an inconsistent state — its
+    /// read queries succeed but its write paths are silently broken. Unregistering it
+    /// prevents stale reads after writes (BC-2.07.004 §write-then-read consistency).
+    ///
+    /// Returns `true` if the plugin was present and removed; `false` if it was not found.
+    ///
+    /// Implementation: loads the current `Arc<HashMap>`, clones the inner `HashMap`,
+    /// removes the key, then stores the new `Arc`. This is a single-threaded pattern
+    /// intended for use during boot (step 7.6 fail-closed rollback, per ADR-022 §B
+    /// and BC-2.16.012 EC-016-012-004) before the query phase starts. At that point
+    /// no query has yet been served, so the single-threaded assumption holds.
+    ///
+    /// NOT safe for concurrent callers in the query-phase steady state — that would
+    /// require a `compare_and_swap` / `rcu` loop or a `Mutex` wrapper.
+    ///
+    /// Story: S-PLUGIN-PREREQ-E / F-LP-IMPL-P4-002 | BC-2.07.004 | BC-2.16.012 EC-016-012-004
+    pub fn unregister_plugin(&self, plugin_id: &str) -> bool {
+        let current = self.registry.load();
+        if !current.contains_key(plugin_id) {
+            return false;
+        }
+        let mut new_registry = (**current).clone();
+        new_registry.remove(plugin_id);
+        self.registry.store(Arc::new(new_registry));
+        true
     }
 
     /// Return an `Arc<LoadedPlugin>` for `plugin_id`, or `Err(NotLoaded)`.
@@ -876,6 +926,38 @@ impl PluginRuntime {
 // Manifest parsing helpers (BC-2.17.007)
 // ---------------------------------------------------------------------------
 
+/// A single write tool entry declared in a plugin manifest.
+///
+/// Plugin authors declare write tools in their `.manifest.toml` under the
+/// `[[write_tools]]` array; each entry maps a tool name to the sensor source_ids
+/// it invalidates and the sensor_id it belongs to.
+///
+/// Example TOML:
+/// ```toml
+/// [[write_tools]]
+/// tool_name = "my_plugin_close_alert"
+/// sensor_id = "my_sensor"
+/// source_ids = ["my_sensor_alerts"]
+/// ```
+///
+/// `sensor_id` is optional — if omitted, defaults to an empty string, meaning
+/// "sensor-unscoped"; the `invalidate_for_sensor` lookup will not fire for that
+/// sensor but `invalidate_for_write_tool` by tool_name still works.
+///
+/// Story: S-PLUGIN-PREREQ-E AC-9 / F-LP-IMPL-P1-002 | ADR-026 §D7 | BC-2.16.012
+#[derive(Debug, serde::Deserialize, Clone)]
+pub struct ManifestWriteTool {
+    /// Write tool name (e.g., `"my_plugin_close_alert"`).
+    pub tool_name: String,
+    /// Sensor ID that owns this write tool (e.g., `"my_sensor"`).
+    /// Defaults to empty string if omitted.
+    #[serde(default)]
+    pub sensor_id: String,
+    /// source_id values to invalidate when this write tool fires.
+    #[serde(default)]
+    pub source_ids: Vec<String>,
+}
+
 /// TOML manifest structure for a `.prx` plugin.
 ///
 /// Validated by `parse_manifest()` before WIT compilation per BC-2.17.007.
@@ -891,6 +973,13 @@ struct PluginManifest {
     format_version: Option<u32>,
     /// Outbound HTTP allowlist (required field; empty list `[]` accepted; E-PLUGIN-013).
     allowed_urls: Option<Vec<String>>,
+    /// Optional write tool declarations for cache invalidation wiring.
+    ///
+    /// Absent or empty = no write tool registrations for this plugin.
+    /// Each entry is registered via `prism_query::invalidation::register_write_tool`
+    /// during boot step 7.5 (F-LP-IMPL-P1-002; S-PLUGIN-PREREQ-E AC-9; ADR-026 §D7).
+    #[serde(default)]
+    write_tools: Vec<ManifestWriteTool>,
 }
 
 /// Parse and validate a plugin manifest TOML string.
@@ -901,13 +990,16 @@ struct PluginManifest {
 /// 3. `format_version` — `<= CURRENT_SUPPORTED_VERSION` (E-PLUGIN-014)
 /// 4. `allowed_urls` — explicitly present (E-PLUGIN-013)
 ///
-/// Returns `(name, version, format_version, allowed_urls)` on success.
+/// Parsed manifest fields: (name, version, format_version, allowed_urls, write_tools).
+type ParsedManifestFields = (String, String, u32, Vec<String>, Vec<ManifestWriteTool>);
+
+/// Returns `(name, version, format_version, allowed_urls, write_tools)` on success.
 ///
 /// Returns appropriate `PluginError` variant on the first failing field.
 fn parse_manifest(
     manifest_toml: Option<&str>,
     path: &str,
-) -> Result<(String, String, u32, Vec<String>), PluginError> {
+) -> Result<ParsedManifestFields, PluginError> {
     let manifest: PluginManifest = if let Some(toml_str) = manifest_toml {
         // HIGH-003 (F-IMPL-LP1-HIGH-003): TOML parse failures map to E-PLUGIN-017
         // (ManifestParseError), NOT E-PLUGIN-015 (ManifestNameMissing).
@@ -1004,5 +1096,11 @@ fn parse_manifest(
         }
     };
 
-    Ok((name, version_str, format_version, allowed_urls))
+    Ok((
+        name,
+        version_str,
+        format_version,
+        allowed_urls,
+        manifest.write_tools,
+    ))
 }

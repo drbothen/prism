@@ -445,7 +445,7 @@ async fn test_BC_2_17_006_duplicate_plugin_id_first_wins() {
     write_manifest(&dir, "plugin_b", MINIMAL_MANIFEST_TOML); // same name → same plugin_id
 
     let runtime = build_test_runtime();
-    let n = runtime
+    let (n, _) = runtime
         .load_all_plugins(dir.path())
         .await
         .expect("load_all_plugins must return Ok");
@@ -476,7 +476,7 @@ async fn test_BC_2_17_007_manifest_format_version_exceeded_rejected() {
     write_manifest(&dir, "valid-plugin", MINIMAL_MANIFEST_TOML);
 
     let runtime = build_test_runtime();
-    let n = runtime
+    let (n, _) = runtime
         .load_all_plugins(dir.path())
         .await
         .expect("load_all_plugins must return Ok");
@@ -511,7 +511,7 @@ async fn test_BC_2_17_007_manifest_missing_allowed_urls_rejected() {
     write_manifest(&dir, "valid-plugin", MINIMAL_MANIFEST_TOML);
 
     let runtime = build_test_runtime();
-    let n = runtime
+    let (n, _) = runtime
         .load_all_plugins(dir.path())
         .await
         .expect("load_all_plugins must return Ok");
@@ -539,7 +539,7 @@ async fn test_BC_2_17_007_manifest_name_empty_rejected() {
     write_manifest(&dir, "valid-plugin", MINIMAL_MANIFEST_TOML);
 
     let runtime = build_test_runtime();
-    let n = runtime
+    let (n, _) = runtime
         .load_all_plugins(dir.path())
         .await
         .expect("load_all_plugins must return Ok");
@@ -567,7 +567,7 @@ async fn test_BC_2_17_007_manifest_version_malformed_rejected() {
     write_manifest(&dir, "valid-plugin", MINIMAL_MANIFEST_TOML);
 
     let runtime = build_test_runtime();
-    let n = runtime
+    let (n, _) = runtime
         .load_all_plugins(dir.path())
         .await
         .expect("load_all_plugins must return Ok");
@@ -768,7 +768,7 @@ async fn test_BC_2_17_007_malformed_toml_manifest_returns_parse_error_e017() {
     write_manifest(&dir, "valid-plugin", MINIMAL_MANIFEST_TOML);
 
     let runtime = build_test_runtime();
-    let n = runtime
+    let (n, _) = runtime
         .load_all_plugins(dir.path())
         .await
         .expect("load_all_plugins must return Ok even with malformed manifest");
@@ -819,7 +819,7 @@ async fn test_BC_2_17_007_strict_semver_rejects_partial_versions() {
     );
 
     let runtime = build_test_runtime();
-    let n = runtime
+    let (n, _) = runtime
         .load_all_plugins(dir.path())
         .await
         .expect("load_all_plugins must return Ok");
@@ -852,7 +852,7 @@ async fn test_BC_2_17_007_plugin_without_manifest_returns_not_found_e018() {
     write_manifest(&dir, "valid-plugin", MINIMAL_MANIFEST_TOML);
 
     let runtime = build_test_runtime();
-    let n = runtime
+    let (n, _) = runtime
         .load_all_plugins(dir.path())
         .await
         .expect("load_all_plugins must return Ok");
@@ -889,7 +889,7 @@ async fn test_BC_2_17_007_absent_format_version_is_rejected_e019() {
     write_manifest(&dir, "valid-plugin", MINIMAL_MANIFEST_TOML);
 
     let runtime = build_test_runtime();
-    let n = runtime
+    let (n, _) = runtime
         .load_all_plugins(dir.path())
         .await
         .expect("load_all_plugins must return Ok");
@@ -1881,7 +1881,7 @@ async fn test_BC_2_17_007_empty_allowed_url_entry_is_rejected() {
     write_manifest(&dir, "valid-plugin", MINIMAL_MANIFEST_TOML);
 
     let runtime = build_test_runtime();
-    let n = runtime
+    let (n, _) = runtime
         .load_all_plugins(dir.path())
         .await
         .expect("load_all_plugins must return Ok");

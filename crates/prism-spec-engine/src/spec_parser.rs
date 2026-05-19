@@ -404,6 +404,24 @@ impl Default for SensorSpec {
     }
 }
 
+impl AuthType {
+    /// Return the canonical snake_case string name for this auth type.
+    ///
+    /// Matches the serde `rename_all = "snake_case"` serialization and the
+    /// `VALID_AUTH_TYPES` list in `SpecLoader::validate_cross_composition`.
+    ///
+    /// Used by `step5_init_credential_store_with_probe` to pass the auth type string
+    /// to `validate_cross_composition` (F-LP-IMPL-P1-003 / BC-2.01.016 Rule A).
+    pub fn as_str(&self) -> &'static str {
+        match self {
+            AuthType::Oauth2ClientCredentials => "oauth2_client_credentials",
+            AuthType::BearerStatic => "bearer_static",
+            AuthType::CookieRoundtrip => "cookie_roundtrip",
+            AuthType::ApiKey => "api_key",
+        }
+    }
+}
+
 impl SensorSpec {
     /// Construct a `SensorSpec` with all fields.
     ///
@@ -620,9 +638,22 @@ impl SpecLoader {
 
     /// Parse a single TOML string into a `SensorSpec`.
     ///
+    /// After successful TOML deserialization, validates SensorAuth × DataSource
+    /// cross-composition rules for sensors that declare credential_refs (BC-2.01.016
+    /// Rule 2 / ADR-026 §D3; F-LP-IMPL-P1-003):
+    ///
+    /// - **Rule B (E-SPEC-013):** multiple `credential_refs` declared (cardinality must be ≤ 1
+    ///   OR exactly 1 when a credential is declared). Sensors with zero credential_refs
+    ///   (no auth configured) are not validated here — they are allowed to parse successfully.
+    ///   Sensors with ≥ 2 credential_refs are rejected immediately.
+    ///
+    /// Rule A (E-SPEC-012) is implicitly enforced by serde deserialization of `AuthType`.
+    /// Rule C (E-SPEC-014) is deferred to `step5_init_credential_store_with_probe` where
+    /// credential introspection is available (AD-017 AI-opaque credential model).
+    ///
     /// Returns `Ok(SensorSpec)` or `Err(PrismError)` — never panics (VP-023).
     pub fn parse(toml_input: &str) -> Result<SensorSpec, PrismError> {
-        toml::from_str::<SensorSpec>(toml_input).map_err(|e| {
+        let spec = toml::from_str::<SensorSpec>(toml_input).map_err(|e| {
             let line_number = e.span().map(|span| {
                 // Count newlines before the error span start.
                 // F-LP10-MED-001 (defensive): `span.start` is a byte offset from the toml crate.
@@ -643,7 +674,38 @@ impl SpecLoader {
                 file_path: None,
                 line_number,
             })
-        })
+        })?;
+
+        // Cross-composition Rules A+B check at parse time (F-LP-IMPL-P1-003):
+        //
+        // Rule A (E-SPEC-012): auth_type must be a scalar from the closed enumeration.
+        // Rule B (E-SPEC-013): exactly 1 credential_ref per auth method.
+        //
+        // Only applies when credential_refs are declared (> 0). Sensors with 0 credential_refs
+        // are valid (no auth credentials declared — auth will fail at runtime if needed).
+        //
+        // Rule C (E-SPEC-014) is enforced at step5 credential-introspection time via
+        // CredentialRefProbe::probe() returning Some(actual_shape), NOT at parse time.
+        // Parse time has no access to the resolved credential type — Rule C requires
+        // the credential store to report the auth_type the credential was configured for.
+        if spec.credential_refs.len() > 1
+            && let Err(spec_err) = Self::validate_cross_composition(
+                spec.sensor_id.as_str(),
+                spec.auth_type.as_str(),
+                spec.credential_refs.len(),
+                spec.auth_type.as_str(), // expected_shape: same as auth_type — Rule A+B only
+                spec.auth_type.as_str(), // actual_shape: same as auth_type — Rule C skipped (no credential access at parse time)
+            )
+        {
+            return Err(PrismError::Internal {
+                detail: format!(
+                    "cross-composition validation failed for sensor '{}': {}",
+                    spec.sensor_id, spec_err
+                ),
+            });
+        }
+
+        Ok(spec)
     }
 
     /// Load all `*.sensor.toml` files from `sensor_specs_dir`.
@@ -837,5 +899,67 @@ impl SpecLoader {
         }
 
         errors
+    }
+
+    /// Validate SensorAuth × DataSource cross-composition rules at credential-validation pass.
+    ///
+    /// Enforces the three runtime rejection rules introduced when the `SensorAuth` sealed
+    /// trait is removed (S-PLUGIN-PREREQ-E / BC-2.01.016 Rule 2 / ADR-023 Rule 2):
+    ///
+    /// - **Rule A / E-SPEC-012:** `auth_type` is multi-valued or outside the closed
+    ///   enumeration `{oauth2_client_credentials, bearer_static, cookie_roundtrip, api_key,
+    ///   custom_via_plugin}`.
+    /// - **Rule B / E-SPEC-013:** Multiple `credential_refs` declared per auth method block
+    ///   (cardinality must be exactly 1).
+    /// - **Rule C / E-SPEC-014:** Structural mismatch between resolved credential shape and
+    ///   declared `auth_type`.
+    ///
+    /// Returns `Ok(())` if all three rules pass, or the first `Err(SpecEngineError::Auth*)` on
+    /// violation (fail-fast per ADR-026 D3).
+    ///
+    /// Story: S-PLUGIN-PREREQ-E AC-3 / AC-3b / AC-3c / Task 6b | ADR-026 §D3 | ADR-023 Rule 2
+    pub fn validate_cross_composition(
+        sensor_id: &str,
+        auth_type: &str,
+        credential_refs_count: usize,
+        expected_shape: &str,
+        actual_shape: &str,
+    ) -> Result<(), crate::error::SpecEngineError> {
+        use crate::error::SpecEngineError;
+
+        // Rule A (E-SPEC-012): auth_type must be a scalar from the closed enumeration.
+        // {oauth2_client_credentials, bearer_static, cookie_roundtrip, api_key, custom_via_plugin}
+        const VALID_AUTH_TYPES: &[&str] = &[
+            "oauth2_client_credentials",
+            "bearer_static",
+            "cookie_roundtrip",
+            "api_key",
+            "custom_via_plugin",
+        ];
+        if !VALID_AUTH_TYPES.contains(&auth_type) {
+            return Err(SpecEngineError::AuthTypeCrossComposition {
+                sensor_id: sensor_id.to_string(),
+                provided_value: auth_type.to_string(),
+            });
+        }
+
+        // Rule B (E-SPEC-013): exactly 1 credential_ref per auth method.
+        if credential_refs_count != 1 {
+            return Err(SpecEngineError::MultipleCredentialRefs {
+                sensor_id: sensor_id.to_string(),
+                credential_count: credential_refs_count,
+            });
+        }
+
+        // Rule C (E-SPEC-014): resolved credential structural shape must match auth_type.
+        if expected_shape != actual_shape {
+            return Err(SpecEngineError::AuthTypeCredentialMismatch {
+                sensor_id: sensor_id.to_string(),
+                expected_shape: expected_shape.to_string(),
+                actual_shape: actual_shape.to_string(),
+            });
+        }
+
+        Ok(())
     }
 }

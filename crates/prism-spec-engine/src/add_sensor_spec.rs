@@ -171,6 +171,36 @@ pub fn parse_and_validate_spec_toml(
         .map(|r| crate::types::CredentialRef::new(r.name))
         .collect();
 
+    // F-LP-IMPL-P2-001: cross-composition Rule A+B validation at parse time
+    // (BC-2.01.016 Rule A/B, ADR-026 §D3, ADR-023 Rule 2).
+    //
+    // Applies to sensors with credential_refs declared. Sensors with 0 credential_refs
+    // are auth-unconfigured and pass without validation (auth fails at runtime if needed).
+    // Sensors with ≥ 1 credential_ref must satisfy Rule A (valid auth_type) and
+    // Rule B (exactly 1 credential_ref per auth method).
+    //
+    // Rule C (E-SPEC-014, auth_type/credential structural mismatch) is enforced at
+    // step5_init_credential_store_with_probe (boot time) via CredentialRefProbe::probe()
+    // returning Some(actual_shape). Parse time has no access to the resolved credential
+    // type (AD-017 AI-opaque credential model). Both shape args are auth_type here so
+    // that Rule A+B fire correctly; Rule C equality check is intentionally trivially
+    // satisfied (actual == expected) because shape resolution requires the credential store.
+    if !credential_refs.is_empty()
+        && let Err(spec_err) = crate::spec_parser::SpecLoader::validate_cross_composition(
+            &sensor_id,
+            &auth_type,
+            credential_refs.len(),
+            &auth_type, // expected_shape: Rule A+B only at parse time
+            &auth_type, // actual_shape: same — Rule C not enforced at parse time (no credential access)
+        )
+    {
+        return Err(vec![ValidationError {
+            sensor_id: Some(sensor_id),
+            source_path: source_path.to_string(),
+            errors: vec![format!("{spec_err}")],
+        }]);
+    }
+
     Ok(SensorSpec {
         sensor_id,
         name,

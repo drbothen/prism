@@ -25,7 +25,6 @@
 //! SS-19 — Infusion Enrichment Framework (Layer 2: Business Logic)
 
 pub mod column_mapping;
-pub mod custom_adapter;
 // SS-19 — Infusion Enrichment Framework (S-1.14)
 pub mod infusion;
 pub mod interpolation;
@@ -57,7 +56,6 @@ pub mod plugin_audit_sink;
 
 // S-1.11 re-exports
 pub use column_mapping::{ColumnMapping, MappingResult};
-pub use custom_adapter::{CustomAdapter, CustomAdapterRegistry};
 // S-1.14 infusion exports
 pub use infusion::cache::QueryScopedInfusionCache;
 pub use infusion::enrich_descriptor::EnrichStageDescriptor;
@@ -70,7 +68,8 @@ pub use infusion::{
 pub use interpolation::{InterpolationContext, InterpolationError};
 pub use pipeline::{FetchContext, PipelineExecutor, PipelineResult};
 pub use plugin::{
-    ActionResult, AlertContext, CaseContext, LoadedPlugin, PluginRuntime, PluginType, ReportContext,
+    ActionResult, AlertContext, CaseContext, LoadedPlugin, ManifestWriteTool, PluginRuntime,
+    PluginType, ReportContext,
 };
 pub use spec_parser::{
     AuthType, ColumnSpec, FetchStep, PaginationConfig, RateLimitHints, SensorSpec,

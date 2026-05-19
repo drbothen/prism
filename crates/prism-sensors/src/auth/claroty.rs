@@ -1,7 +1,7 @@
 //! Claroty xDome API authentication credentials and adapter.
 //!
 //! # Auth credential (S-2.06)
-//! [`ClarotyAuth`] — username/password; sealed via `SensorAuth`.
+//! [`ClarotyAuth`] — username/password; implements open trait `SensorAuth` (post S-PLUGIN-PREREQ-E).
 //!
 //! # Adapter (S-2.07)
 //! [`ClarotyAdapter`] — implements [`SensorAdapter`] with:
@@ -26,7 +26,7 @@ use secrecy::{ExposeSecret, SecretString};
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
-use super::{private::Sealed, SensorAuth};
+use super::SensorAuth;
 use crate::adapter::{QueryParams, SensorAdapter, SensorError, SensorSpec};
 
 // ---------------------------------------------------------------------------
@@ -55,10 +55,13 @@ impl std::fmt::Debug for ClarotyAuth {
     }
 }
 
-impl Sealed for ClarotyAuth {}
 impl SensorAuth for ClarotyAuth {
     fn as_any(&self) -> &dyn std::any::Any {
         self
+    }
+
+    fn auth_type_name(&self) -> &'static str {
+        "cookie_roundtrip"
     }
 }
 
