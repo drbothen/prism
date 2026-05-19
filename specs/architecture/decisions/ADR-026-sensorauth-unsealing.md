@@ -5,7 +5,7 @@ title: "SensorAuth Trait Un-Sealing — Remove private::Sealed, Enable Plugin Au
 status: Proposed
 date: "2026-05-18"
 modified: "2026-05-18"
-version: "1.26"
+version: "1.27"
 producer: architect
 subsystems_affected: [SS-01, SS-07, SS-16, SS-17, SS-22]
 supersedes: null
@@ -311,6 +311,12 @@ umbrella runtime-execution code and MUST NOT be reused for boot-load registratio
 - **`E-PLUGIN-020`** — `SpecEngineError::WriteToolRegistrationAfterBoot`: `register_write_tool`
   was called after step 8 (query-engine init) started; registration attempt rejected and a
   `WARN`-level tracing event is emitted. Severity: broken. Category: runtime.
+- **`E-PLUGIN-021`** — `SpecEngineError::WriteToolRegistryPoisoned`: `register_write_tool`
+  attempted to acquire the `DYNAMIC_WRITE_TOOLS` `RwLock` write guard, but the lock is
+  poisoned (a prior panic occurred inside a write-guard critical section). Additionally,
+  E-PLUGIN-021 (`WriteToolRegistryPoisoned`) is constructed if the `RwLock` guarding
+  `DYNAMIC_WRITE_TOOLS` is poisoned by a prior panic — operators should restart the process.
+  Severity: broken (unrecoverable). Category: runtime. Recurrence: SINGLE_PER_PROCESS_LIFETIME.
 
 Both codes (`E-PLUGIN-012` and `E-PLUGIN-020`) MUST be added to `.factory/specs/prd-supplements/error-taxonomy.md` by the
 product-owner in S-PLUGIN-PREREQ-E scope (PO-domain handoff; PO owns error-taxonomy.md per
@@ -324,7 +330,7 @@ invoked as the **first statement** of the step-8 function in `crates/prism-bin/s
 immediately before `QueryEngine::new()` is constructed) — this path returns
 `Err(SpecEngineError::WriteToolRegistrationAfterBoot)` instead of attempting the write.
 
-**Structured event field source specification (PG-LP11-001 + BC-2.16.002 v1.21 row 33):** The
+**Structured event field source specification (PG-LP11-001 + BC-2.16.002 v1.34 row 33):** The
 `WARN`-level `write_tool_registration_after_boot` tracing event carries three fields. Field
 source provenance:
 
@@ -506,3 +512,4 @@ modes and security implications. The open trait approach reuses the existing typ
 | 1.24 | 2026-05-17 | architect | FB75: F-LP87-HIGH-001 architect portion (line 312 §D7 body `(error-taxonomy v1.37)` → `(error-taxonomy v1.38)`) + F-LP87-HIGH-002 within-file self-cite closure (line 24 runtime_deliverables `(per D7 v1.16)` → `(per D7 v1.23)` per Interpretation #2 7-burst precedent — external cites follow latest ADR-026 version). NEW META-class within-file self-cite enumeration codified by SM in POL-29 v1.28 step 8i. PO swept story v1.48 + HS-001 v1.11 + VP-153 v0.16 in same burst. |
 | 1.25 | 2026-05-18 | state-manager | D-707 FB-IMPL-4: §D3 Rule C Backend Scope qualification paragraph appended (D-706 amendment text mechanically applied; architect-authored in ADR-026-AMENDMENT-rule-c-keyring-scope.md). Rule C enforcement scoped to backends with shape metadata; keyring backend deferred to PLUGIN-MIGRATION-001-A. ADR-026 v1.24→v1.25; modified 2026-05-18. |
 | 1.26 | 2026-05-18 | architect | amended_by back-ref + §Status amendment note (closes F-LP-IMPL-P6-OBS-001 discoverability gap). Added `amended_by: ADR-026-AMENDMENT-rule-c-keyring-scope.md` to frontmatter; §Status note pointing to amendment doc + D-706 + §D3. |
+| 1.27 | 2026-05-18 | product-owner | F-LP-IMPL-P10-IMP-002 closure (PO scope): §D7 error code routing: added E-PLUGIN-021 (`SpecEngineError::WriteToolRegistryPoisoned`) alongside E-PLUGIN-020 (registration-after-boot). Both are fail-closed safety rails in the boot-time write-tool-registration path. E-PLUGIN-021 is constructed if the `RwLock` guarding `DYNAMIC_WRITE_TOOLS` is poisoned by a prior panic — operators should restart the process. Severity: broken (unrecoverable); recurrence: SINGLE_PER_PROCESS_LIFETIME. Sibling: BC-2.16.012 v1.28 (E-PLUGIN-021 row in §Error Cases + EC-016-012-006 in §Edge Cases) swept in same burst. |

@@ -1,7 +1,7 @@
 ---
 document_type: verification-property
 level: L4
-version: "0.17"
+version: "0.18"
 status: active
 producer: architect
 timestamp: 2026-05-16T16:00:00Z
@@ -168,7 +168,7 @@ deterministically with a small strategy and provide regression coverage for the 
 //         //   "auth_type for sensor '{sensor_id}' must be a single value; got: {value}.
 //         //    Valid values: oauth2_client_credentials, bearer_static, cookie_roundtrip,
 //         //    api_key, custom_via_plugin"
-//         prop_assert!(matches!(err, SpecEngineError::AuthTypeInvalid { .. }),
+//         prop_assert!(matches!(err, SpecEngineError::AuthTypeCrossComposition { .. }),
 //             "wrong error variant for Rule A: {:?}", err);
 //         let err_msg = err.to_string();
 //         prop_assert!(err_msg.contains("must be a single value"),
@@ -227,7 +227,7 @@ deterministically with a small strategy and provide regression coverage for the 
 //     ) {
 //         let matching_credential = matching_credential_for(&auth_type);
 //         let spec = build_spec_with(auth_type.clone(), matching_credential);
-//         let result = validate_auth_coherence(&spec);
+//         let result = SpecLoader::validate_cross_composition(&spec);
 //         prop_assert!(result.is_ok(),
 //             "valid (auth_type={:?}, credential=matching) was rejected: {:?}",
 //             auth_type, result);
@@ -240,7 +240,7 @@ deterministically with a small strategy and provide regression coverage for the 
 //     ) {
 //         prop_assume!(!is_coherent_pair(&auth_type, &credential_type));
 //         let spec = build_spec_with(auth_type.clone(), credential_type.clone());
-//         let result = validate_auth_coherence(&spec);
+//         let result = SpecLoader::validate_cross_composition(&spec);
 //         prop_assert!(result.is_err(),
 //             "invalid (auth_type={:?}, credential={:?}) was accepted",
 //             auth_type, credential_type);
@@ -259,14 +259,10 @@ deterministically with a small strategy and provide regression coverage for the 
 | Input space size | Small and finite | 5 auth_type variants × 5 credential structural shapes = 25 pairs; all enumerable |
 | Proof complexity | Low–medium | Boolean accept/reject plus error-message redaction check |
 | Tool support | Full | proptest 1.x; no special infrastructure needed |
-| Harness dependencies | Moderate | Requires a `validate_auth_coherence` extraction point in spec_parser.rs or pipeline.rs validation pass |
+| Harness dependencies | Moderate | Requires `SpecLoader::validate_cross_composition` — as-built in `crates/prism-spec-engine/src/spec_loader.rs` (callable as pure function per proof-completed-date 2026-05-18) |
 | Estimated proof time | <5 seconds | Small finite space; no I/O or async |
 
-**Harness authoring note:** The test-writer must confirm whether `validate_auth_coherence` is
-callable as a pure function or requires constructing a full `ConfigSnapshot`. If it requires
-the full snapshot, the harness uses a fixture TOML approach (proptest generates the
-auth_type/credential_type fields into a TOML string, then calls `parse_spec_directory` in dry-run
-mode against a temp dir). Either approach is feasible.
+**Harness authoring note (as-built, proof-completed-date 2026-05-18):** `SpecLoader::validate_cross_composition` is callable as a pure function — the test-writer authored 6 proptests in `crates/prism-spec-engine/tests/vp153_sensorauth_cross_composition.rs` (Rules A+B) and 2 proptests in `crates/prism-bin/tests/vp153_rule_c_shaped_probe.rs` (Rule C via ShapedProbe injection path). Rule C lives in prism-bin due to dependency direction (prism-bin depends on prism-spec-engine; reverse dep would create workspace cycle). All 8 proptests PASS.
 
 ## Open Issues
 
@@ -301,3 +297,4 @@ mode against a temp dir). Either approach is feasible.
 | 0.16 | FB75 | 2026-05-17 | product-owner | F-LP87-HIGH-001 closure (PO scope): error-taxonomy v1.37→v1.38 propagation at VP-153 proof-harness comments lines 167 + 210 (2 sites). Sibling: story v1.48 + HS-001 v1.11 + ADR-026 v1.24 swept in same burst. |
 | 0.15 | FB71 | 2026-05-17 | product-owner | F-LP83-HIGH-001 closure (PO scope): error-taxonomy v1.35→v1.37 propagation at VP-153 proof-harness comment lines 167 + 210 (2 live-narrative sites; "error-taxonomy.md v1.35" → "error-taxonomy.md v1.37"). Recurrence #23+ class (a) — FB69 step 8d transitive closure gap. Sibling: story v1.45 + HS-001 v1.10 (PO) + ADR-026 v1.23 (architect). |
 | 0.17 | FB-IMPL-6 | 2026-05-18 | test-writer | F-LP-IMPL-P8-IMP-001 closure: proptest harness authored and passing. Rules A+B (E-SPEC-012/013) in `crates/prism-spec-engine/tests/vp153_sensorauth_cross_composition.rs` (6 proptests via `SpecLoader::validate_cross_composition`). Rule C (E-SPEC-014) via ShapedProbe in `crates/prism-bin/tests/vp153_rule_c_shaped_probe.rs` (2 proptests via `step5_init_credential_store_with_probe`). Rule C lives in prism-bin due to dependency direction — prism-bin depends on prism-spec-engine; adding prism-bin as prism-spec-engine dev-dep would create a workspace cycle. Per ADR-026 §D3 Rule C Backend Scope (D-706): Rule C exercises the ShapedProbe injection path (architecturally-sanctioned test fixture; keyring backend returns Ok(None) in production until PLUGIN-MIGRATION-001-A). `lifecycle_status: draft → active`. `proof_completed_date: "2026-05-18"`. All 8 proptests PASS. Pass-8 adversary caught this blind spot; passes 1-7 audited validator logic but never verified the P0 artifact existed. |
+| 0.18 | pass-10-spec-hygiene | 2026-05-18 | product-owner | F-LP-IMPL-P10-IMP-001 closure: §Proof Harness Skeleton stale symbol corrections. (1) Rule A assertion line: `SpecEngineError::AuthTypeInvalid { .. }` → `SpecEngineError::AuthTypeCrossComposition { .. }` (as-built enum variant name in `crates/prism-spec-engine/src/error.rs`). (2) Rule C skeleton: `validate_auth_coherence(&spec)` → `SpecLoader::validate_cross_composition(&spec)` (2 occurrences; as-built API callable as pure function). (3) Feasibility Assessment harness-dependencies row and Harness authoring note updated to reflect as-built proof state (proof-completed-date 2026-05-18; 8 proptests PASS across 2 crates). Spec brought into alignment with code per CLAUDE.md Source-of-Truth Precedence Rule 7. |

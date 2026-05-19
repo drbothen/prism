@@ -1,7 +1,7 @@
 ---
 document_type: verification-property
 level: L4
-version: "0.19"
+version: "0.20"
 status: active
 producer: architect
 timestamp: 2026-05-15T00:00:00Z
@@ -137,15 +137,16 @@ does not require any test infrastructure beyond what is already in prism-query's
 //             names.into_iter().filter(|n| seen.insert(n.clone())).collect()
 //         };
 //         let n = unique_names.len();
-//         // Reset state (test-only reset hook required in invalidation.rs)
-//         prism_query::invalidation::reset_for_test();
+//         // Reset process-global state for isolation (test-only hooks in invalidation.rs).
+//         prism_query::invalidation::reset_query_phase_global();
+//         prism_query::invalidation::reset_dynamic_registry_global();
 //         for name in &unique_names {
 //             let entry = WriteToolInvalidationMap { tool_name: name.clone(), ..Default::default() };
 //             prop_assert!(register_write_tool(entry).is_ok(),
 //                 "unique registration must succeed (VP-156)");
 //         }
-//         let guard = invalidation_map().read().unwrap();
-//         prop_assert_eq!(guard.len(), n, "all unique registrations visible (VP-156)");
+//         let count = dynamic_write_tool_count();
+//         prop_assert_eq!(count, n, "all unique registrations visible (VP-156)");
 //     }
 //
 //     #[test]
@@ -153,24 +154,25 @@ does not require any test infrastructure beyond what is already in prism-query's
 //         first_name in r"[a-zA-Z][a-zA-Z0-9_]{0,31}",
 //         second_name in r"[a-zA-Z][a-zA-Z0-9_]{0,31}",
 //     ) {
-//         prism_query::invalidation::reset_for_test();
+//         prism_query::invalidation::reset_query_phase_global();
+//         prism_query::invalidation::reset_dynamic_registry_global();
 //         let a = WriteToolInvalidationMap { tool_name: first_name.clone(), ..Default::default() };
 //         let b = WriteToolInvalidationMap { tool_name: first_name.clone(), ..Default::default() };
 //         prop_assume!(register_write_tool(a).is_ok());
 //         let result = register_write_tool(b);
 //         prop_assert!(result.is_err(),
 //             "duplicate tool_name must return Err(DuplicateWriteToolRegistration) (VP-156)");
-//         let guard = invalidation_map().read().unwrap();
-//         let count = guard.iter().filter(|e| e.tool_name == first_name).count();
+//         let count = dynamic_write_tool_count();
 //         prop_assert_eq!(count, 1usize, "exactly one entry for duplicate name (VP-156)");
 //     }
 // }
 ```
 
-**Test-only reset hook:** The harness requires `prism_query::invalidation::reset_for_test()`
-(gated behind `#[cfg(test)]`) to clear the global `RwLock<Vec<...>>` between proptest cases.
-The implementer adds this function in `crates/prism-query/src/invalidation.rs` under
-`#[cfg(test)]`.
+**Test-only reset hooks (as-built, proof-completed-date 2026-05-18):** The harness uses two `#[cfg(test)]`-gated reset helpers exported from `crates/prism-query/src/invalidation.rs`:
+- `reset_dynamic_registry_global()` — clears the `DYNAMIC_WRITE_TOOLS` `RwLock<Vec<...>>` global (sets the vector to empty).
+- `reset_query_phase_global()` — resets the `QUERY_PHASE_STARTED` `AtomicBool` to `false`.
+
+Both must be called before each proptest run to guarantee process-global isolation. The `dynamic_write_tool_count()` helper (also `#[cfg(test)]`-gated) provides the count observable from tests without requiring direct access to the RwLock guard.
 
 ## Feasibility Assessment
 
@@ -209,5 +211,6 @@ The implementer adds this function in `crates/prism-query/src/invalidation.rs` u
 | 0.15 | FB62 | 2026-05-17 | product-owner | F-LP74-HIGH-001 closure (PO scope): ADR-026 D7 pin v1.19→v1.21 at lines 42, 86, 90, 124 (4 sites). |
 | 0.16 | FB64 | 2026-05-17 | product-owner | F-LP76-HIGH-001 closure (PO scope): burst-label cell corrected FB74→FB62 in §Changelog row for v0.15. Original FB62 closure of F-LP74-HIGH-001 was labeled "FB74" derived from finding ID; canonical FB sequential counter was FB62 per state-manager records. POL-26 schema integrity + POL-29 cross-domain sibling consistency restored. |
 | 0.17 | FB69 | 2026-05-17 | product-owner | F-LP81-HIGH-002 closure (PO scope): ADR-026 D7 pin v1.21→v1.22 propagation at lines 42, 86, 90, 124 (4 sites; ascending changelog). Recurrence #22+ of POL-29 step 3a class (b). Sibling files story v1.44 + BC-2.16.012 v1.25 + BC-2.16.002 v1.29 + error-taxonomy v1.37 + HS-003 v1.14 swept in same burst. |
-| 0.19 | FB-IMPL-6 | 2026-05-18 | test-writer | Proptest landed. Authors 5 proptests in two integration test binaries: (1) `vp156_write_tool_registration_uniqueness.rs` — 4 proptests covering VP-156 AC Cases 1/2/3 and full-key idempotency; (2) `vp156_write_tool_post_boot_proptest.rs` — 1 proptest covering EC-016-012-005 post-boot rejection (separate binary per mark_query_phase_started global-state isolation pattern). Uniqueness invariant: `tool_name` alone (VP-156 §Property Statement; ADR-026 D7 v1.23). All 5 proptests pass (PROPTEST_CASES=32; 908 total prism-query tests pass; cargo check --workspace --tests exit 0). lifecycle_status: draft → active; proof_completed_date: 2026-05-18. Sibling-sweep of F-LP-IMPL-P8-IMP-001 (VP-153 landing) — same VP-artifact-existence blind-spot class. Anchored: BC-2.16.012 EC-016-012-004/005 + TD-S-PLUGIN-PREREQ-A-003 closure semantic. |
 | 0.18 | FB73 | 2026-05-17 | product-owner | F-LP85-HIGH-001 closure (PO scope): ADR-026 D7 pin v1.22→v1.23 propagation at VP-156 lines 42, 86, 90, 124 (4 sites; ascending changelog). Sibling files story v1.46 + BC-2.16.011 v1.10 + BC-2.16.012 v1.26 + BC-2.16.002 v1.31 (POL-30 Fork B preserved) + HS-003 v1.15 + error-taxonomy v1.38 swept in same burst. |
+| 0.19 | FB-IMPL-6 | 2026-05-18 | test-writer | Proptest landed. Authors 5 proptests in two integration test binaries: (1) `vp156_write_tool_registration_uniqueness.rs` — 4 proptests covering VP-156 AC Cases 1/2/3 and full-key idempotency; (2) `vp156_write_tool_post_boot_proptest.rs` — 1 proptest covering EC-016-012-005 post-boot rejection (separate binary per mark_query_phase_started global-state isolation pattern). Uniqueness invariant: `tool_name` alone (VP-156 §Property Statement; ADR-026 D7 v1.23). All 5 proptests pass (PROPTEST_CASES=32; 908 total prism-query tests pass; cargo check --workspace --tests exit 0). lifecycle_status: draft → active; proof_completed_date: 2026-05-18. Sibling-sweep of F-LP-IMPL-P8-IMP-001 (VP-153 landing) — same VP-artifact-existence blind-spot class. Anchored: BC-2.16.012 EC-016-012-004/005 + TD-S-PLUGIN-PREREQ-A-003 closure semantic. |
+| 0.20 | pass-10-spec-hygiene | 2026-05-18 | product-owner | F-LP-IMPL-P10-OBS-002 closure: §Proof Harness Skeleton stale symbol corrections. (1) `reset_for_test()` → two-function pattern: `reset_query_phase_global()` + `reset_dynamic_registry_global()` (2 skeleton sites, lines 141+156). (2) `invalidation_map().read().unwrap()` + `.len()` → `dynamic_write_tool_count()` (first site, line 147). (3) `invalidation_map().read().unwrap()` + `.iter().filter(...).count()` → `dynamic_write_tool_count()` (second site, line 163). (4) Test-only reset hook paragraph updated to describe the two-function as-built API and `dynamic_write_tool_count()` helper. (5) POL-26 monotonic-order repair: rows v0.19 (FB-IMPL-6 2026-05-18) and v0.18 (FB73 2026-05-17) were out of ascending order — swapped to restore v0.18 → v0.19 → v0.20. Spec brought into alignment with as-built code per CLAUDE.md Source-of-Truth Precedence Rule 7. |

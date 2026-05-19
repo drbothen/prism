@@ -1,7 +1,7 @@
 ---
 document_type: verification-property-index
 level: L4
-version: "1.70"
+version: "1.72"
 status: draft
 producer: state-manager
 timestamp: 2026-05-17T00:00:00
@@ -243,6 +243,8 @@ S-1.02 frontmatter has been updated to `subsystems: [SS-03, SS-07, SS-11, SS-12,
 
 | Version | Burst | Date | Author | Change |
 |---------|-------|------|--------|--------|
+| 1.72 | pass-10-spec-hygiene | 2026-05-18 | product-owner | pass-10-spec-hygiene INDEX cascade: VP-156 v0.19→v0.20 (F-LP-IMPL-P10-OBS-002 closure: §Proof Harness Skeleton stale symbol corrections — `reset_for_test` → two-function pattern; `invalidation_map()` → `dynamic_write_tool_count()`; POL-26 row-order repair 0.19/0.18 swapped). VP-INDEX v1.71→v1.72. |
+| 1.71 | pass-10-spec-hygiene | 2026-05-18 | product-owner | pass-10-spec-hygiene INDEX cascade: VP-153 v0.17→v0.18 (F-LP-IMPL-P10-IMP-001 closure: §Proof Harness Skeleton stale symbol corrections — `AuthTypeInvalid` → `AuthTypeCrossComposition`; `validate_auth_coherence` → `SpecLoader::validate_cross_composition` at 2 sites; Feasibility + Harness authoring note updated to as-built state). VP-INDEX v1.70→v1.71. |
 | 1.70 | FB-IMPL-6 | 2026-05-18 | state-manager | (D-711) FB-IMPL-6 INDEX cascade: VP-156 v0.18→v0.19 status:draft→active (sibling-sweep VP-156 P1 proptest PROACTIVELY LANDED — 5 proptests across 2 binaries; tool_name-only uniqueness keying confirmed per BC-2.16.012). VP-INDEX v1.69→v1.70. |
 | 1.69 | FB-IMPL-6 | 2026-05-18 | state-manager | (D-711) FB-IMPL-6 INDEX cascade: VP-153 v0.16→v0.17 status:draft→active (F-P8-IMP-001 VP-153 P0 proptest LANDED — 8 proptests across 2 crates per cross-crate dep direction; Rule C uses ShapedProbe injection per D-706 amendment; 6 in prism-spec-engine Rules A+B; 2 in prism-bin Rule C ShapedProbe). VP-INDEX v1.68→v1.69. |
 | 1.68 | FB73 | 2026-05-17 | state-manager | (D-695) FB73 INDEX cascade: VP-156 v0.17→v0.18 (PO F-LP85-HIGH-001 closure: ADR-026 D7 v1.22→v1.23 sweep at 4 live-narrative sites — cross-value-class side-effect bump detection; step 8g first-application). VP-INDEX v1.67→v1.68. |
