@@ -4354,6 +4354,7 @@ dependencies = [
  "prism-query",
  "prism-spec-engine",
  "prism-storage",
+ "proptest",
  "reqwest",
  "serde",
  "serde_json",

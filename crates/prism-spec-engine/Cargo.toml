@@ -135,3 +135,10 @@ required-features = ["test-helpers"]
 name = "plugin_integration_tests"
 path = "tests/plugin_integration_tests.rs"
 required-features = ["test-helpers"]
+
+# VP-153: SensorAuth Runtime Cross-Composition Prevention — Rules A+B proptest
+# (Rule C via ShapedProbe lives in prism-bin/tests/vp153_rule_c_shaped_probe.rs —
+# prism-bin depends on prism-spec-engine, so prism-bin cannot be a dev-dep here)
+[[test]]
+name = "vp153_sensorauth_cross_composition"
+path = "tests/vp153_sensorauth_cross_composition.rs"

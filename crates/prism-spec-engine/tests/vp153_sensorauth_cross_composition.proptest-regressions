@@ -1,0 +1,7 @@
+# Seeds for failure cases proptest has generated in the past. It is
+# automatically read and these particular cases re-run before any
+# novel cases are generated.
+#
+# It is recommended to check this file in to source control so that
+# everyone who runs the test benefits from these saved cases.
+cc 165251ce59f176e5eb178d948011d8f06b46cd3d5400a28e93b8c8374b649e64 # shrinks to valid_type = "oauth2_client_credentials", count = 0

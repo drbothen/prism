@@ -114,6 +114,18 @@ path = "tests/exit_code_contract.rs"
 name = "plugin_boot_tests"
 path = "tests/plugin_boot_tests.rs"
 
+# VP-153: SensorAuth Runtime Cross-Composition Prevention — Rule C proptest via ShapedProbe.
+# Rule C (E-SPEC-014): auth_type/credential structural shape mismatch rejected at
+# credential-resolution time via step5_init_credential_store_with_probe.
+# Per ADR-026 §D3 Rule C Backend Scope (D-706 amendment): Rule C fires only when the
+# credential backend exposes shape metadata via CredentialRefProbe::probe() returning
+# Some(shape). ShapedProbe is the architecturally-sanctioned test-fixture path.
+# Lives in prism-bin (not prism-spec-engine) because prism-bin depends on prism-spec-engine
+# — adding prism-bin as a dev-dep to prism-spec-engine would create a workspace cycle.
+[[test]]
+name = "vp153_rule_c_shaped_probe"
+path = "tests/vp153_rule_c_shaped_probe.rs"
+
 [dev-dependencies]
 tempfile = "3"
 libc = "0.2"
@@ -127,6 +139,8 @@ prism-core = { path = "../prism-core", version = "0.2.0" }
 prism-query = { path = "../prism-query", version = "0.1.0", features = ["test-helpers"] }
 bincode = "2"
 wat = "1"
+# VP-153 Rule C proptest (ShapedProbe injection via step5_init_credential_store_with_probe)
+proptest = "1"
 
 [lints.clippy]
 # Inherited from workspace: workspace lint inheritance is not yet available
