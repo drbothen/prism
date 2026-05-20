@@ -5693,3 +5693,228 @@ All directives from §RESUME SNAPSHOT 2026-05-17 carry forward. Additional from 
 - DO NOT silently re-introduce CustomAdapter trait (BC-2.16.011 retirement is fully complete)
 - DO NOT skip VP artifact existence grep-check in adversary dispatch (pass-8 novel blind spot; VP-INDEX rows must have matching .rs file in codebase)
 - DO NOT invoke Rule C in production keyring path until PLUGIN-MIGRATION-001-A (structurally enforced via D-706 ADR-026 amendment backend-conditional scope; S-PLUGIN-PREREQ-E `blocks:` frontmatter attachment)
+
+---
+
+## §RESUME SNAPSHOT 2026-05-20 (PR #151 Merge + PR #152 Maintenance + PREREQ-E Consolidation Sweep)
+
+**Purpose:** Durable resume context for /clear and fresh-session restart. Covers the FULL 2026-05-19/20 session from the §RESUME SNAPSHOT 2026-05-19 handoff through PR #151 merge, PR #152 (3-part maintenance), and the PREREQ-E consolidation sweep. Written at D-730 (237th consecutive single-commit under TD-VSDD-053).
+
+---
+
+### §1. Session Arc Summary
+
+| Burst / Decision | Scope | Key Outcome | SHA (feature / factory) |
+|------------------|-------|-------------|------------------------|
+| D-724 | user direction | Resume protocol clarified — lead with pr-manager on /clear; recorded in STATE.md | factory: 5bfeaa16 (pre-session) |
+| 2026-05-19 resume | orchestrator | Read STATE.md + SESSION-HANDOFF §RESUME SNAPSHOT 2026-05-19; dispatch pr-manager Steps 3-9 | — |
+| pr-manager Steps 3-4 triage | pr-manager | CI failures triaged: test_BC_2_16_011 reads .factory/ (orphan worktree not present in CI) + cargo-semver-checks 3 `*_missing` failures on prism-spec-engine v0.8.0; routing surfaced to orchestrator | — |
+| FB-PR-1 architect Option 1 | architect | Adjudication: drop sub-assertion A from Rust test; relocate to `.factory/hooks/validate-error-taxonomy-retirement-annotations.sh` | (bundled in factory@7fc27d09) |
+| FB-PR-1 implementer | implementer | Test scoped to code-side ESpec008 grep gate; prism-spec-engine 0.8.0→0.9.0; 3-pin sibling-sweep (prism-core + prism-bin); just check 3681/3681 PASS | feature: a4c048ce |
+| FB-PR-1 PO | product-owner | BC-2.16.011 v1.10→v1.11 (AC-11 two-layer enforcement updated) + story v1.50→v1.51 + BC-INDEX v5.18→v5.19 + STORY-INDEX v2.153→v2.154; POL-29 v1.20 transitive closure clean; ZERO-DRIFT | (bundled in factory@7fc27d09) |
+| FB-PR-1 state-manager | state-manager | Single commit: new hook script + adjudication doc + specs + INDEXes + PR-LEVEL pass-1 cycle report + STATE.md v7.412 + D-725; 232nd consecutive | factory: 7fc27d09 |
+| Push + CI re-run | orchestrator | feature@a4c048ce pushed; CI 36/36 PASS (was 35/36 with test failures) | — |
+| pr-manager Steps 5-9 | pr-manager | Pass-2/3/4 CLEAN → BC-5.39.001 PR-LEVEL 3/3 CONVERGED; squash-merge | develop: 80ebe794 |
+| Post-merge burst | state-manager | POL-14 BC auto-promotions: BC-2.01.016 + BC-2.16.011 + BC-2.16.012 draft→active; BC-2.16.004 status removed; BC-INDEX v5.20 with counts; STATE.md v7.413 + D-726; cycle reports + PR description finalized | factory: 07c4c6b4 |
+| Worktree cleanup | orchestrator | .worktrees/S-PLUGIN-PREREQ-E force-removed (vp156 seeds preserved offsite at /tmp/prism-vp156-regression-seeds-FOLLOWUP.txt); local feature branch deleted; develop pulled to 80ebe794 | — |
+| Compact-state burst | state-manager | STATE.md 644→202 lines; extracted to cycles/wave-0-plugin-prereqs/: burst-log + convergence-trajectory + session-checkpoints + lessons + blocking-issues-resolved; STATE.md v7.414 + D-727; safe_to_compact: true→false; 234th consecutive | factory: a5d3ba0f |
+| User direction | user | "What's next?" → Consolidation sweep first (stale worktrees + STORY-INDEX flip + vp156 seeds + cycle-close items) | — |
+| Phase 1: stale worktree cleanup | orchestrator | .worktrees/S-PLUGIN-PREREQ-B + .worktrees/S-PLUGIN-PREREQ-C removed; local branches deleted; W3-FIX-S307-001 scaffolding (1091 lines) preserved at /tmp/prism-W3-FIX-S307-001-scaffolding-diff.patch for PLUGIN-MIGRATION-001-A reference; W3-FIX-S307-001 worktree retained as reference | — |
+| Phase 2: maintenance worktree create | orchestrator | .worktrees/maintenance-post-PREREQ-E on branch maintenance/post-PREREQ-E-cleanup from develop@80ebe794 | — |
+| Phase 2 (1st impl) | implementer | Made 11-file changes; dispatch interrupted before commit; changes preserved in working tree | — |
+| Phase 2 (2nd impl) — fresh-context verify + finish | implementer | Caught 8 ADDITIONAL callsites in crates/prism-query/tests/ missed by 1st impl (integration tests compile as external crates → subject to E0639); total 10 sites swept; just check 3681/3681 PASS; commit + push + PR #152 | feature: 7d6203d1 |
+| Phase 3 state-manager burst | state-manager | STORY-INDEX PREREQ-E flip draft→merged (missed in D-726); F-P16-LOW-001 BC-INDEX asymmetry SKIPPED (already consistent); F-P12-OBS-002 BC-2.16.012 TV shorthand SKIPPED (already canonical); 2 TD entries added (TD-S-PLUGIN-PREREQ-E-001 QUERY_PHASE_STARTED P3; TD-S-PLUGIN-PREREQ-E-002 SIGTERM P3); POL-31 codified; STATE.md v7.415 + D-728; 235th consecutive | factory: 7e81a376 |
+| PR #152 CI initial | orchestrator | 35 PASS / 1 FAIL — test_p8_007_ec07030 race on x86_64-unknown-linux-musl; same SHA PASSED 1st run, FAILED 2nd — real concurrency race confirmed | — |
+| User direction | user | Investigate race; in-scope fix if simple, otherwise block PR #152 | — |
+| Cache race investigation | implementer | Root cause: Cache::put_with_ttl total_bytes accounting OUTSIDE partition Mutex → two concurrent puts to same key both saturating_sub(0)→0, both fetch_add(512)→1024 instead of 512; fix: move byte accounting inside the Mutex | feature: 71bcaf5d |
+| PR #152 CI rerun | orchestrator | 36/36 PASS after race fix | — |
+| pr-manager Pass-1 | pr-manager | F8 BLOCKING (PR body doesn't cover commit-2 race fix); F9 SUG (title omits); F1-F7 CLEAN | — |
+| FB-PR-2 | orchestrator | `gh pr edit` title + body update to cover all 3 commit themes; saved at /tmp/prism-pr152-body.md | — |
+| pr-manager Pass-2/3/4 | pr-manager | All CLEAN → BC-5.39.001 PR-LEVEL 3-CLEAN CONVERGED per D-716 Option A; squash-merge | develop: 1bc56e3c |
+| PR #152 worktree cleanup | orchestrator | .worktrees/maintenance-post-PREREQ-E removed; local branch deleted; local develop pulled to 1bc56e3c | — |
+| Post-PR-#152 burst | state-manager | STATE.md v7.415→v7.416 + develop_head + D-729; TD-PRISM-QUERY-CACHE-001 P2 (SEC-NEW-002 LRU eviction residual); tech-debt-register v2.21; 236th consecutive | factory: 5ad0451c |
+| D-730 (this burst) | state-manager | SESSION-HANDOFF.md §RESUME SNAPSHOT 2026-05-20 written + STATE.md v7.417 | factory: this commit |
+
+**Session totals:** PR #151 merge (FB-PR-1 + 4 PR-LEVEL passes) + PR #152 (3-part maintenance, FB-PR-2, 4 PR-LEVEL passes) + consolidation sweep (stale worktree cleanup + STORY-INDEX flip + 2 obs closures + 2 TD entries + POL-31 + cache race fix). 237 consecutive single-commits under TD-VSDD-053.
+
+---
+
+### §2. Cascade Trajectory + Convergence Analysis
+
+**PR #151 PR-LEVEL cascade summary:**
+
+| Pass | Result | Findings | Notes |
+|------|--------|----------|-------|
+| Pass-1 (CI gate) | BLOCKED | 2 HIGH | F-PR-1-001 test reads .factory/ (CI gap); F-PR-1-002 semver 3 `*_missing` failures on prism-spec-engine v0.8.0 |
+| FB-PR-1 | CLOSED | — | Architect Option 1 applied; hook relocation; 0.8.0→0.9.0; 3-pin sibling-sweep; ZERO-DRIFT |
+| Pass-2 | CLEAN 1/3 | 0 | — |
+| Pass-3 | CLEAN 2/3 | 0 | — |
+| Pass-4 | CLEAN 3/3 | 0 | **BC-5.39.001 PR-LEVEL 3-CLEAN CONVERGED** |
+
+**PR #151 cumulative totals:** 16 LOCAL passes + 4 PR-LEVEL passes = 20 total adversary passes; 10 LOCAL fix-bursts + 1 PR-LEVEL fix-burst (FB-PR-1) = 11 total fix-bursts. ZERO-DRIFT discipline maintained across FB-IMPL-9/10 + FB-PR-1 closure bursts.
+
+**PR #152 PR-LEVEL cascade summary:**
+
+| Pass | Result | Findings | Notes |
+|------|--------|----------|-------|
+| Pass-1 | BLOCKED | 1 HIGH + 1 SUG | F8 PR body missing race fix coverage; F9 title omits scope |
+| FB-PR-2 | CLOSED | — | Orchestrator-applied: `gh pr edit` title + body update; covered all 3 commit themes |
+| Pass-2 | CLEAN 1/3 | 0 | — |
+| Pass-3 | CLEAN 2/3 | 0 | — |
+| Pass-4 | CLEAN 3/3 | 0 | **BC-5.39.001 PR-LEVEL 3-CLEAN CONVERGED** |
+
+**PR #152 notable:** CI surfaced a real cache concurrency race (test_p8_007_ec07030) that LOCAL `just check` could not detect (scheduler-timing-sensitive on x86_64-unknown-linux-musl). Root cause: total_bytes accounting outside the partition Mutex critical section. Fix applied in-scope per user direction and Standing Rule 3 §1. This establishes the "CI catches what LOCAL misses" pattern for future story cascades.
+
+**18-callsite sibling-sweep precedent (TD-VSDD-060):** Fresh-context implementer dispatch caught 8 additional callsites in `crates/prism-query/tests/` that the first dispatch missed. Integration tests under `tests/` compile as external crates and ARE subject to `#[non_exhaustive]` E0639. Total swept: 10 sites (3 prism-bin + 7 prism-query/tests). Replicable pattern: sibling-sweep MUST include `crates/<crate>/tests/` directories, not just `src/`.
+
+**Key inflection points:**
+- PR #151: CI gap exposed by remote CI job (test reads .factory/ orphan mount, absent in CI environment); fix-burst FB-PR-1 applied architect Option 1 relocation pattern
+- PR #152: race fix demonstrates "CI catches what LOCAL misses" pattern; ZERO-DRIFT in FB-PR-2 description fix
+- Consolidation sweep demonstrated "verify before fixing" anti-paper-fix discipline: F-P16-LOW-001 and F-P12-OBS-002 both SKIPPED after verification confirmed already-consistent state
+
+---
+
+### §3. Current State (Resume-Ready)
+
+| Field | Value |
+|-------|-------|
+| Feature branch | none active — last merged: maintenance/post-PREREQ-E-cleanup → 1bc56e3c |
+| Develop HEAD | 1bc56e3c |
+| Factory HEAD | this commit (D-730) |
+| Open PRs | 0 |
+| Active worktrees | main (.factory) + .worktrees/S-3.09 (FROZEN BUG-S309-PLUGIN) + .worktrees/W3-FIX-S307-001 (BLOCKED — scaffolding preserved offsite) |
+| STATE.md | v7.417 (~210 lines; safe_to_compact: false post-D-727 compact) |
+| Consecutive single-commits | 237 (this burst) |
+| Latest BCs auto-promoted (POL-14) | BC-2.01.016 v1.10 active; BC-2.16.011 v1.12 active; BC-2.16.012 v1.29 active; BC-2.16.004 v1.5 status removed |
+| BC-INDEX version | v5.20 (active: 228; draft: 2; deprecated: 0; removed: 7) |
+| VP-INDEX version | v1.76 (156 VPs) |
+| STORY-INDEX version | v2.155 (PREREQ-E flipped to merged at D-728) |
+| error-taxonomy version | v1.40 |
+| tech-debt-register | v2.21 (TD-S-PLUGIN-PREREQ-E-001 P3; TD-S-PLUGIN-PREREQ-E-002 P3; TD-PRISM-QUERY-CACHE-001 P2) |
+| policies.yaml | v1.29 (POL-31 codified at D-728) |
+| workspace_test_count | 3681 |
+| just check status | 3681/3681 PASS (last verified at PR #152 merge) |
+
+---
+
+### §4. Open Items (Pending at /clear time)
+
+**Forward work (in priority order):**
+
+1. **PLUGIN-MIGRATION-001-D — Author 4 Production TOML Sensor Specs** (Wave 1; FIRST UNBLOCKED story per dependency graph after PREREQ-A/B/C/D all merged)
+   - Status: planned (BCs TBD; needs PO authoring → ready status before Phase 3 TDD dispatch)
+   - Deps satisfied: PREREQ-A merged (PR #143); PREREQ-B merged (PR #144); PREREQ-C merged (PR #146); PREREQ-D merged (PR #149); PREREQ-E merged (PR #151)
+   - Story file: `.factory/stories/` — check for S-PLUGIN-MIGRATION-001-D-*.md exact filename
+   - Unblocks: 001-A, 001-B, 001-C, 001-E (all blocked on 001-D + other predecessors)
+
+2. **PLUGIN-MIGRATION-001-E — CrowdStrike OAuth2 Refresh-on-401 as in-repo .prx WASM Plugin** (Wave 1; blocked on 001-D)
+
+3. **PLUGIN-MIGRATION-001-A — Delete 4 Named Auth Modules + Re-exports + Replace init_registry_for_org** (Wave 1; blocked on 001-D + 001-E)
+   - Note: W3-FIX-S307-001 was superseded by 001-A per D-333; scaffolding preserved at /tmp/prism-W3-FIX-S307-001-scaffolding-diff.patch (1091 lines) for reference when 001-A is dispatched
+
+**Tech debt items (open):**
+
+- **TD-PRISM-QUERY-CACHE-001 P2** — SEC-NEW-002 LRU eviction outside-the-lock race; eviction-path total_bytes decrement still outside partition Mutex (NOT closed by PR #152 race fix, which addressed only the put_with_ttl path); anchor: PLUGIN-MIGRATION-Wave-2 cleanup story TBD
+- **TD-S-PLUGIN-PREREQ-E-001 P3** — QUERY_PHASE_STARTED cross-package nextest AtomicBool leak; single-sequential `just check` passes; surfaces only under concurrent cross-package invocation
+- **TD-S-PLUGIN-PREREQ-E-002 P3** — SIGTERM RocksDB-init-under-load flake; F-P7-OBS-001 closure; load-induced timing race on test infrastructure
+
+**Policy items:**
+
+- **POL-31 codified** (id: 31; VP-Proof-Harness-Skeleton-Symbol-Validation) but enforcement hook `.factory/hooks/validate-vp-proof-harness-skeleton-symbols.sh` NOT YET implemented — deferred to tooling sprint
+
+**Drift items (S-7.02 cycle-close):** See STATE.md Drift Items table (9 open items with `v1.0.0-greenfield` due dates; not blocking current wave work).
+
+**Phase-5 deferred findings:** See STATE.md Phase-5 Deferred Findings table (F-LP12-OBS-001 E-PLUGIN-008 dual-semantic reuse; F-LP25-OBS-001 BC-2.17.002 vacuously-true contract — both Phase-5 scope).
+
+**Worktrees pending cleanup (lower priority):**
+
+- **.worktrees/S-3.09 (FROZEN)** — BUG-S309-PLUGIN superseded by plugin-migration P0; resume only when plugin migration absorbs the design OR explicitly unfrozen by user
+- **.worktrees/W3-FIX-S307-001 (BLOCKED)** — superseded by PLUGIN-MIGRATION-001-A; remove when 001-A absorbs the scaffolding work; scaffolding at /tmp/prism-W3-FIX-S307-001-scaffolding-diff.patch
+
+---
+
+### §5. Tasks State (Resume-Ready)
+
+```
+#1  [completed] Read resume snapshot + orient state
+#2  [completed] pr-manager Steps 3-4 CI triage for PR #151
+#3  [completed] FB-PR-1: architect adjudication + implementer fix + PO spec update + state-manager burst
+#4  [completed] PR #151 CI re-run → 36/36 PASS
+#5  [completed] pr-manager Steps 5-9: PR-LEVEL 3-CLEAN → squash-merge (develop@80ebe794)
+#6  [completed] Post-merge burst: POL-14 BC auto-promotions + STATE.md compact-state (D-727)
+#7  [completed] Phase 1 consolidation: stale worktree cleanup (PREREQ-B + PREREQ-C)
+#8  [completed] Phase 2 consolidation: PR #152 (vp156 seeds + #[non_exhaustive] + cache race fix)
+#9  [completed] Phase 3 consolidation: STORY-INDEX flip + obs closures + TD entries + POL-31
+#10 [completed] PR #152 cache race fix + CI green + PR-LEVEL 3-CLEAN → merge (develop@1bc56e3c)
+#11 [completed] Post-PR-#152 burst: STATE.md v7.416 + D-729 + TD-PRISM-QUERY-CACHE-001
+
+#12 [in_progress] D-730 durable session state — THIS BURST writes the snapshot
+
+(forward work after /clear:)
+#13 [pending] PO authoring for PLUGIN-MIGRATION-001-D (story planned → ready)
+#14 [pending] Phase 3 TDD dispatch for PLUGIN-MIGRATION-001-D (after #13 ready gate)
+#15 [pending] PLUGIN-MIGRATION-001-E story authoring + TDD (after 001-D merge)
+#16 [pending] PLUGIN-MIGRATION-001-A story authoring + TDD (after 001-D + 001-E merge)
+#17 [pending] POL-31 enforcement hook implementation (tooling sprint, lower priority)
+#18 [pending] TD-PRISM-QUERY-CACHE-001 P2 LRU eviction race fix (PLUGIN-MIGRATION-Wave-2 anchor)
+```
+
+---
+
+### §6. Resume Protocol for Fresh Session
+
+**USER DIRECTION (2026-05-20):** On fresh-session resume, dispatch the appropriate next-step agent. Most likely path: product-owner for PLUGIN-MIGRATION-001-D story authoring (first unblocked Wave 1 story after all 5 PREREQ stories merged).
+
+**Step 1:** Run the following orientation commands:
+```bash
+git -C /Users/jmagady/Dev/prism worktree list
+git -C /Users/jmagady/Dev/prism log --oneline develop -3
+git -C /Users/jmagady/Dev/prism/.factory log --oneline -3
+```
+Verify: develop@1bc56e3c, factory@(D-730 commit), worktrees = main + .factory + S-3.09 + W3-FIX-S307-001 only.
+
+**Step 2:** Read `.factory/STATE.md` top 60 lines (frontmatter + current_step + D-730 + D-729 rows). DO NOT read full file unless needed.
+
+**Step 3:** Confirm `safe_to_compact: false` (was already compacted at D-727; compact again only when STATE.md exceeds ~400 lines).
+
+**Step 4:** Verify open PRs are 0 via `gh pr list --state open`.
+
+**Step 5:** Read this §RESUME SNAPSHOT 2026-05-20 for full session context.
+
+**Step 6:** Determine forward work with user confirmation, then dispatch the appropriate specialist:
+- Most likely path A: `vsdd-factory:product-owner` for PLUGIN-MIGRATION-001-D story authoring (story file → ready status → Phase 3 TDD)
+- Path B: Address TD-PRISM-QUERY-CACHE-001 P2 LRU eviction race (requires implementer dispatch on new maintenance branch)
+- Path C: Implement POL-31 enforcement hook `.factory/hooks/validate-vp-proof-harness-skeleton-symbols.sh` (state-manager or tooling sprint)
+
+**Step 7:** User authorization standing — D-716 Option A strict BC-5.39.001 3-CLEAN applies to all new story cascades. PR-LEVEL cascade follows same protocol. ZERO-DRIFT discipline (FB-IMPL-9/10 + FB-PR-1/2 pattern) is the engineering standard.
+
+---
+
+### §7. Critical Context for Fresh Session
+
+- **User persistent directive:** "No pragmatic convergence. Fix all issues before build."
+- **TD-VSDD-053 single-commit-per-burst:** 237 consecutive single-commits maintained.
+- **NEVER push factory-artifacts.** Local-only per CLAUDE.md.
+- **NEVER use --no-verify.** Hooks must pass.
+- **NEVER add Co-Authored-By / AI attribution to commits.**
+- **STATE.md is at ~210 lines.** safe_to_compact: false (compacted at D-727; do not re-compact until ~400 lines).
+- **ZERO-DRIFT discipline** is the engineering standard: FB-IMPL-9, FB-IMPL-10, FB-PR-1, FB-PR-2 all demonstrate the pattern. Replicate for every future fix-burst.
+- **CI catches what LOCAL doesn't:** PR #152 cache race surfaced ONLY on CI x86_64-unknown-linux-musl (scheduler-timing-sensitive). LOCAL `just check` 3681/3681 PASS is necessary but not sufficient for scheduler-dependent concurrency correctness. The gate is CI green on all platforms.
+- **18-callsite sibling-sweep precedent:** TD-VSDD-060 MUST include `crates/<crate>/tests/` directories (they compile as external crates and ARE subject to `#[non_exhaustive]` E0639). Fresh-context implementer dispatch caught 8 additional sites that first-pass missed.
+- **PLUGIN-MIGRATION-001-D is the next unblocked story.** All 5 PREREQ dependencies merged. Wave 1 dependency graph unblocked at 001-D. Confirm story file path before PO dispatch.
+- **W3-FIX-S307-001 scaffolding** preserved at /tmp/prism-W3-FIX-S307-001-scaffolding-diff.patch (1091 lines) — reference this for PLUGIN-MIGRATION-001-A; do NOT close worktree until 001-A absorbs the design.
+- **vp156 regression seeds** were restored in PR #152 at `crates/prism-query/tests/vp156_write_tool_registration_uniqueness.proptest-regressions`. The /tmp offsite copy (/tmp/prism-vp156-regression-seeds-FOLLOWUP.txt) is stale after PR #152 merge.
+
+---
+
+### §8. Standing DO-NOT Directives (Updated 2026-05-20)
+
+All directives from §RESUME SNAPSHOT 2026-05-19 carry forward. Additional from this session:
+
+- DO NOT skip integration tests under `crates/<crate>/tests/` when doing TD-VSDD-060 sibling-sweep on `#[non_exhaustive]` additions — they compile as external crates and are subject to E0639 (PR #152 pattern: 8 sites found only by fresh-context dispatch).
+- DO NOT trust LOCAL `just check` to detect concurrency races on scheduler-dependent code; CI surfacing on all platforms is the gate (PR #152 pattern: test_p8_007_ec07030 race visible ONLY on CI x86_64-unknown-linux-musl).
+- DO NOT force-fix unverified "obs" findings: F-P16-LOW-001 + F-P12-OBS-002 were both verified already-consistent and skipped per anti-paper-fix discipline. Verify first, fix only if genuinely broken.
+- DO NOT add tech-debt-register entries without user direction OR explicit cycle-close context (the 3 TD entries added at D-728/D-729 were user-directed).
+- DO NOT close W3-FIX-S307-001 worktree without preserving the 1091-line scaffolding — saved at /tmp/prism-W3-FIX-S307-001-scaffolding-diff.patch; this is reference material for PLUGIN-MIGRATION-001-A.
+- DO NOT assume vp156 regression seeds need restoration — they were restored in PR #152; the file at `crates/prism-query/tests/vp156_write_tool_registration_uniqueness.proptest-regressions` is current.
+- DO NOT apply SEC-NEW-002 LRU eviction fix as part of current PLUGIN-MIGRATION wave without explicit story anchor — tracked as TD-PRISM-QUERY-CACHE-001 P2; anchor is PLUGIN-MIGRATION-Wave-2 cleanup story TBD.

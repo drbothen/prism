@@ -1,7 +1,7 @@
 ---
 document_type: pipeline-state
 level: ops
-version: "7.416"
+version: "7.417"
 producer: state-manager
 timestamp: 2026-05-19T21:00:00Z
 inputs: []
@@ -14,9 +14,9 @@ status: in_progress
 started: 2026-04-13
 repos: [poller-cobra, poller-express, poller-bear, poller-coaster, serveMyAPI, tally, axiathon, ocsf-proto-gen, mcp-claroty-xdome]
 safe_to_compact: false
-pre_compact_snapshot: "SESSION-HANDOFF.md §RESUME SNAPSHOT 2026-05-19"
-pre_compact_snapshot_at: "2026-05-19 (D-723 SESSION-HANDOFF.md §RESUME SNAPSHOT for /clear and fresh-session resume; BC-5.39.001 3-CLEAN LOCAL CONVERGENCE achieved at pass-16; PR #151 MERGED develop@80ebe794 2026-05-19)"
-current_step: "PR #152 maintenance MERGED at develop@1bc56e3c (3-part: vp156 proptest seeds restored + WriteToolInvalidationMap #[non_exhaustive] perimeter gate enforcement + cache.rs put_with_ttl race fix inside-the-Mutex byte accounting); BC-5.39.001 PR-LEVEL 3-CLEAN per D-716 Option A; PR-LEVEL adversary cascade: pass-1 BLOCKED FB-PR-2 description gap → pass-2/3/4 CLEAN; worktree cleanup complete (.worktrees/maintenance-post-PREREQ-E removed); local develop pulled; 236th consecutive single-commit per TD-VSDD-053. PREREQ-E consolidation sweep COMPLETE per user direction 2026-05-19. NEXT: PREREQ-F+ continuation or PLUGIN-MIGRATION-001 Wave 1 dispatch (001-D is the first unblocked story per dependency graph)."
+pre_compact_snapshot: "SESSION-HANDOFF.md §RESUME SNAPSHOT 2026-05-20"
+pre_compact_snapshot_at: "2026-05-20 (D-730 SESSION-HANDOFF.md §RESUME SNAPSHOT for /clear and fresh-session resume; PR #151 + PR #152 merge cycle complete; consolidation sweep COMPLETE; safe_to_compact: false post-D-727 compact)"
+current_step: "D-730 SESSION-HANDOFF.md §RESUME SNAPSHOT 2026-05-20 written — durable resume state for /clear and fresh-session restart. PR #151 (S-PLUGIN-PREREQ-E) + PR #152 (post-PREREQ-E maintenance + cache race fix) both merged to develop@1bc56e3c. PREREQ-E consolidation sweep COMPLETE. STATE.md v7.417. 237th consecutive single-commit per TD-VSDD-053. NEXT: PLUGIN-MIGRATION-001-D PO authoring (Wave 1 first unblocked story per dependency graph after PREREQ-A/B/C/D/E merge)."
 current_cycle: wave-0-plugin-prereqs
 feature_branch_head: "merged to 80ebe794 at 2026-05-19 (PR #151) — a4c048ce was final feature HEAD before squash-merge"
 pr_level_adversary_streak: "3/3 CONVERGED per BC-5.39.001 — passes 2/3/4 all CLEAN; PR #151 merged 2026-05-19; D-716 Option A standing satisfied"
@@ -79,9 +79,9 @@ historical_cycles: [phase-1-convergence, wave-3-multi-tenant, wave-4-operations]
 | **Language** | Rust |
 | **Target Workspace** | per-analyst stdio (MCP server) |
 | **Started** | 2026-04-13 |
-| **Last Updated** | 2026-05-20 (D-729 PR #152 maintenance merged — vp156 seeds + WriteToolInvalidationMap #[non_exhaustive] + cache race fix; STATE.md 7.415→7.416; 236th consecutive single-commit) |
+| **Last Updated** | 2026-05-20 (D-730 SESSION-HANDOFF.md §RESUME SNAPSHOT 2026-05-20 written; STATE.md 7.416→7.417; 237th consecutive single-commit) |
 | **Current Phase** | Wave 3 Tier-3 COMPLETE — **Wave 3-A 4 of 4 SHIPPED**; plugin migration: PREREQ-F + PREREQ-A + PREREQ-B + PREREQ-C + PREREQ-D + **PREREQ-E MERGED** (PR #151 80ebe794 2026-05-19T18:06:44Z); PREREQ-F next per Wave 0 dependency chain |
-| **Current Step** | D-727 STATE.md COMPACT COMPLETE. NEXT: restore vp156 proptest seeds + PREREQ-F. |
+| **Current Step** | D-730 SESSION-HANDOFF.md §RESUME SNAPSHOT 2026-05-20 written. NEXT: PLUGIN-MIGRATION-001-D PO authoring (Wave 1 first unblocked). |
 
 ## Phase Progress
 
@@ -121,6 +121,7 @@ _D-001..D-046 archived: [cycles/phase-3-dtu-wave-2/decisions-archive-d001-d032.m
 
 | ID | Decision | Rationale | Phase | Date |
 |----|----------|-----------|-------|------|
+| D-730 | 2026-05-20 | state-manager | **SESSION-HANDOFF.md §RESUME SNAPSHOT 2026-05-20 — durable resume state for /clear.** Appended §RESUME SNAPSHOT 2026-05-20 to SESSION-HANDOFF.md covering full 2026-05-19/20 session: PR #151 (S-PLUGIN-PREREQ-E) merged to develop@80ebe794 + FB-PR-1 (CI gap + version bump) + PR-LEVEL 4 passes 3-CLEAN CONVERGED per BC-5.39.001 D-716 Option A; PR #152 (3-part maintenance: vp156 seeds + WriteToolInvalidationMap #[non_exhaustive] 10-callsite sweep + cache.rs put_with_ttl race fix) merged to develop@1bc56e3c + FB-PR-2 (description gap) + PR-LEVEL 4 passes 3-CLEAN CONVERGED; PREREQ-E consolidation sweep COMPLETE (stale worktrees cleaned, STORY-INDEX flipped, 2 obs closures, 2 TD entries, POL-31 codified); cache race root cause documented (total_bytes outside-Mutex); 18-callsite sibling-sweep precedent established for TD-VSDD-060 integration-test coverage; STATE.md v7.416→v7.417. pre_compact_snapshot pointer updated to §RESUME SNAPSHOT 2026-05-20. 237th consecutive single-commit per TD-VSDD-053. | plugin-migration | 2026-05-20 | Decided by: state-manager (durable resume snapshot burst). Status: APPROVED |
 | D-729 | 2026-05-20 | state-manager | **PR #152 maintenance squash-merge — vp156 seeds + WriteToolInvalidationMap #[non_exhaustive] + cache race fix.** PR #152 squash-merged to develop@1bc56e3c at 2026-05-20T14:10:02Z; PR-LEVEL adversary cascade BC-5.39.001 3-CLEAN converged across passes 2-3-4 per D-716 Option A standing; FB-PR-2 (orchestrator-applied) closed pass-1 BLOCKING F8 PR description gap via `gh pr edit` title + body update covering all 3 commit themes; 3-part maintenance scope: (i) vp156 proptest regression seeds restored at crates/prism-query/tests/vp156_write_tool_registration_uniqueness.proptest-regressions (4 shrinking cases accumulated during PREREQ-E cascade); (ii) WriteToolInvalidationMap `#[non_exhaustive]` + new `::new()` constructor + 10-callsite sibling-sweep (prism-bin: 3 sites; prism-query/tests/: 7 sites — 8 prior-discovered + 1 additional during fresh-context implementer dispatch revealed integration-test external-crate compilation requirement) + perimeter-violation compile-fail gate EXPECTED 31 → 32; (iii) cache race fix `Cache::put_with_ttl` `total_bytes` accounting moved inside the partition Mutex critical section closing OBS-007 same-key-concurrent-puts over-count race (test_p8_007_ec07030_concurrent_miss_final_state_consistent surfaced on PR #152 CI x86_64-unknown-linux-musl 1/2 runs same SHA); CI: 36/36 PASS across all platforms + semver + clippy + perimeter + fuzz + deny + audit; SEC-NEW-002 LRU eviction outside-the-lock race remains separately tracked as TD-PRISM-QUERY-CACHE-001 P2 (not closed by this PR); 236th consecutive single-commit per TD-VSDD-053. | plugin-migration | 2026-05-20 | Decided by: state-manager (post-PR-#152 bookkeeping burst). Status: APPROVED |
 | D-728 | 2026-05-19 | state-manager | **POST-PREREQ-E CYCLE CLOSE BURST — STORY-INDEX flip + 2 obs closures + 2 TD entries + POL-31 codification.** Closes carry-forward items from PREREQ-E cycle (LOCAL + PR-LEVEL cascade): (a) STORY-INDEX row PREREQ-E draft→merged (missed in D-726); (b) F-P16-LOW-001 BC-INDEX row 221 asymmetry [verdict: SKIPPED — already consistent; v5.07 FB60 trailing-cell removal closed the class; BC-2.16.011 row follows dominant convention]; (c) F-P12-OBS-002 BC-2.16.012 TV plugin_name shorthand [verdict: SKIPPED — plugin_name IS the canonical ADR-026 D7 v1.23 field name; TV-BC-2.16.012-004 uses WriteToolInvalidationMap fields sensor_id + tool_name with no ambiguity]; (d) new TD-S-PLUGIN-PREREQ-E-001 cross-package nextest QUERY_PHASE_STARTED leak (P3); (e) new TD-S-PLUGIN-PREREQ-E-002 SIGTERM load-induced flake (P3, F-P7-OBS-001 closure); (f) POL-31 VP-Proof-Harness-Skeleton-Symbol-Validation codification proposed (id: 31; policies.yaml v1.28→v1.29). STATE.md v7.414→v7.415. 235th consecutive single-commit per TD-VSDD-053. | plugin-migration | 2026-05-19 | Decided by: state-manager (post-PREREQ-E cycle close consolidation burst). Status: APPROVED |
 | D-727 | 2026-05-19 | state-manager | **STATE.md COMPACT D-727 — safe_to_compact=true since D-723 + pre_compact_snapshot recorded; STATE.md slimmed from 644 lines to <200 lines per compact-state skill. Extractions to cycles/wave-0-plugin-prereqs/: adversary_streak + prereq_e_impl_adversary_streak frontmatter narratives → convergence-trajectory.md (87 spec passes + 16 impl passes + 4 PR-LEVEL passes); FB-IMPL-1..10 + FB-PR-1 burst details from Decisions Log D-700..D-726 → burst-log.md; stale session checkpoint (D-584 era) → session-checkpoints.md; lessons → lessons.md; blocking-issues-resolved.md (TD-VSDD-005 remains OPEN in STATE.md). Frontmatter cleaned: removed adversary_streak, prereq_e_impl_adversary_streak, prereq_e_adversary_streak blobs; removed prereq_e_impl_pass_*_sha and prereq_e_impl_fb_*_sha tracking fields; removed wave_4_phase_4_a_preflight YAML block (archived in git history). current_cycle updated wave-3-multi-tenant→wave-0-plugin-prereqs. safe_to_compact: true→false. version 7.413→7.414. 234th consecutive single-commit per TD-VSDD-053.** | plugin-migration | 2026-05-19 | Decided by: state-manager (compact-state skill D-727). Status: APPROVED |
@@ -186,22 +187,24 @@ Prior cycle history:
 
 ---
 
-## Session Resume Checkpoint (2026-05-20 — POST-PR-152-MERGE-D-729)
+## Session Resume Checkpoint (2026-05-20 — D-730-DURABLE-SNAPSHOT-FOR-CLEAR)
 
-_Previous checkpoint (2026-05-19-POST-PREREQ-E-CYCLE-CLOSE-D-728) archived: [cycles/wave-0-plugin-prereqs/session-checkpoints.md](cycles/wave-0-plugin-prereqs/session-checkpoints.md)_
+_Previous checkpoint (2026-05-20-POST-PR-152-MERGE-D-729) archived: [cycles/wave-0-plugin-prereqs/session-checkpoints.md](cycles/wave-0-plugin-prereqs/session-checkpoints.md)_
 
-**STATE v7.416. D-729 PR #152 MERGED.** PR #152 (post-PREREQ-E maintenance: vp156 seeds + WriteToolInvalidationMap #[non_exhaustive] + cache race fix) squash-merged to develop@1bc56e3c at 2026-05-20T14:10:02Z. BC-5.39.001 PR-LEVEL 3-CLEAN converged passes 2-3-4. FB-PR-2 closed pass-1 description gap. TD-PRISM-QUERY-CACHE-001 P2 filed (SEC-NEW-002 LRU eviction residual). tech-debt-register v2.21. PREREQ-E consolidation sweep COMPLETE per user direction 2026-05-19.
+**STATE v7.417. D-730 DURABLE SNAPSHOT WRITTEN.** SESSION-HANDOFF.md §RESUME SNAPSHOT 2026-05-20 appended covering full 2026-05-19/20 session. PR #151 (S-PLUGIN-PREREQ-E) merged develop@80ebe794 + PR #152 (3-part maintenance) merged develop@1bc56e3c. PREREQ-E consolidation sweep COMPLETE. pre_compact_snapshot pointer updated. 237th consecutive single-commit per TD-VSDD-053.
 
 **Open follow-ups:**
-1. SEC-NEW-002 LRU eviction race tracked as TD-PRISM-QUERY-CACHE-001 P2 — eviction-path total_bytes decrement outside partition Mutex; anchor: PLUGIN-MIGRATION-Wave-2 cleanup story TBD
-2. Drift items table above — cycle-close items per S-7.02 before convergence declared
-3. PREREQ-F is next per Wave 0 dependency chain OR PLUGIN-MIGRATION-001 Wave 1 dispatch (001-D first unblocked per dependency graph)
-4. POL-31 enforcement hook (validate-vp-proof-harness-skeleton-symbols.sh) implementation deferred to tooling sprint
+1. TD-PRISM-QUERY-CACHE-001 P2 — SEC-NEW-002 LRU eviction outside-Mutex race; anchor: PLUGIN-MIGRATION-Wave-2
+2. TD-S-PLUGIN-PREREQ-E-001 P3 — QUERY_PHASE_STARTED cross-package nextest leak
+3. TD-S-PLUGIN-PREREQ-E-002 P3 — SIGTERM load-induced flake
+4. POL-31 enforcement hook (validate-vp-proof-harness-skeleton-symbols.sh) — implementation deferred to tooling sprint
+5. Drift items table — S-7.02 cycle-close; all v1.0.0-greenfield due dates
 
 **Resume Protocol:**
-1. Read `.factory/SESSION-HANDOFF.md` §RESUME SNAPSHOT 2026-05-19 for full prior-session context
-2. Read `.factory/STATE.md` (this file) — current_step D-729 + frontmatter pins
-3. Check `develop_head: 1bc56e3c` — that is current develop after PR #152
-4. Begin PREREQ-F planning OR PLUGIN-MIGRATION-001-D dispatch
+1. Read `.factory/SESSION-HANDOFF.md` §RESUME SNAPSHOT 2026-05-20 for full session context
+2. Read `.factory/STATE.md` (this file) — current_step D-730 + frontmatter pins
+3. Check `develop_head: 1bc56e3c` — current develop after PR #152
+4. Verify 0 open PRs: `gh pr list --state open`
+5. Dispatch product-owner for PLUGIN-MIGRATION-001-D story authoring (Wave 1 first unblocked)
 
 _Agent routing: see CLAUDE.md §Agent Routing Table._
