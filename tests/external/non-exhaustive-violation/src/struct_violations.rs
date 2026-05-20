@@ -4,9 +4,10 @@
 //! struct-literal construction. After `#[non_exhaustive]` is applied, each
 //! literal MUST fail with E0639 (cannot create non-exhaustive struct expression).
 //!
-//! Violations 1-6, 9-12, 16-17, 20-24, 26, 30 (19 total E0639 expected).
+//! Violations 1-6, 9-12, 16-17, 20-24, 26, 30, 32 (20 total E0639 expected).
 
-use prism_core::{ColumnType, RiskTier, TableType};
+use prism_core::{ColumnType, RiskTier, SensorId, TableType};
+use prism_query::invalidation::WriteToolInvalidationMap;
 use prism_spec_engine::infusion::{
     BuiltInSourceType, CredentialRef as InfusionCredentialRef, InfusionField, InfusionSourceConfig,
     InfusionSpec, InfusionType, PipeStageConfig, PluginConfig,
@@ -250,4 +251,24 @@ pub fn v30_types_sensor_spec() {
         // of whether all fields are supplied.
     };
     let _ = _spec;
+}
+
+/// Violation 32: WriteToolInvalidationMap (prism_query::invalidation) struct literal (E0639).
+///
+/// `WriteToolInvalidationMap` is a pub-API surface type used by plugins to register write
+/// tools at boot time (BC-2.16.012 / ADR-026 §D7). `#[non_exhaustive]` ensures external
+/// crates cannot struct-literal-construct it — future fields (e.g., priority, rate_limit)
+/// can be added without breaking downstream callers. External callers MUST use
+/// `WriteToolInvalidationMap::new(...)`.
+///
+/// Added: post-PREREQ-E cleanup (pr-pass-4 OBS). Closes the perimeter-gate gap.
+#[allow(dead_code)]
+pub fn v32_write_tool_invalidation_map() {
+    let _entry = WriteToolInvalidationMap {
+        tool_name: "crowdstrike_contain_host".to_string(),
+        source_ids: vec!["crowdstrike_hosts".to_string()],
+        sensor_id: SensorId::from("crowdstrike"),
+        plugin_name: "".to_string(),
+    };
+    let _ = _entry;
 }

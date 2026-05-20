@@ -57,6 +57,7 @@ static DYNAMIC_WRITE_TOOLS: RwLock<Vec<WriteToolInvalidationMap>> = RwLock::new(
 /// in the static `WRITE_TOOL_INVALIDATION_MAP`, this field is empty (`""`).
 /// This field is the source for the `plugin_name` structured event field in the
 /// `write_tool_registration_after_boot` WARN event (BC-2.16.002 row 33).
+#[non_exhaustive]
 #[derive(Debug, Clone)]
 pub struct WriteToolInvalidationMap {
     /// Tool name (e.g., `"crowdstrike_contain_host"`).
@@ -77,6 +78,34 @@ pub struct WriteToolInvalidationMap {
     /// Set from plugin manifest `name` field by `PluginRuntime` at registration time
     /// (ADR-026 D7 v1.23; S-PLUGIN-PREREQ-E AC-9).
     pub plugin_name: String,
+}
+
+impl WriteToolInvalidationMap {
+    /// Construct a new `WriteToolInvalidationMap` entry.
+    ///
+    /// Provided for external callers — `#[non_exhaustive]` prevents struct-literal
+    /// construction from outside the crate (forward-compat: future fields will not
+    /// silently become required). Internal initialisation in `WRITE_TOOL_INVALIDATION_MAP`
+    /// uses struct-literal syntax directly (same crate, no restriction applies).
+    ///
+    /// # Parameters
+    /// - `tool_name` — MCP tool name (e.g., `"crowdstrike_contain_host"`).
+    /// - `source_ids` — source-id values to invalidate on write success.
+    /// - `sensor_id` — owning sensor identity.
+    /// - `plugin_name` — plugin manifest name; pass `""` for built-in entries.
+    pub fn new(
+        tool_name: impl Into<String>,
+        source_ids: Vec<String>,
+        sensor_id: SensorId,
+        plugin_name: impl Into<String>,
+    ) -> Self {
+        Self {
+            tool_name: tool_name.into(),
+            source_ids,
+            sensor_id,
+            plugin_name: plugin_name.into(),
+        }
+    }
 }
 
 // ---------------------------------------------------------------------------
