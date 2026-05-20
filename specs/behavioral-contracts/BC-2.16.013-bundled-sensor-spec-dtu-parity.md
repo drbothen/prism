@@ -1,7 +1,7 @@
 ---
 document_type: behavioral-contract
 level: L3
-version: "1.0"
+version: "1.1"
 status: draft
 producer: product-owner
 timestamp: 2026-05-20T00:00:00Z
@@ -11,7 +11,7 @@ subsystem: "SS-16"
 capability: "CAP-029"
 lifecycle_status: draft
 introduced: "2026-05-20"
-modified: null
+modified: "2026-05-20"
 deprecated: null
 deprecated_by: null
 replacement: null
@@ -59,6 +59,39 @@ MUST NOT proceed until VP-PLUGIN-003 is verified (green parity tests) for all 4 
   extensibility are all in production code.
 - `PluginRegistry` dispatch is wired in `spec_parser.rs` (BC-2.16.012 active).
 - The `CustomAdapter` Rust trait has been removed (BC-2.16.011 active; `lifecycle_status: removed`).
+
+### O-001 TOML Grammar Verification (FB-IMPL-P1-PO, 2026-05-20)
+
+The following four TOML grammar features were verified against the canonical implementation at
+`crates/prism-spec-engine/src/spec_parser.rs` and `crates/prism-spec-engine/src/pipeline.rs`:
+
+| Field | Status | Evidence |
+|-------|--------|---------|
+| `fan_out_batch_size` on `FetchStep` | **SUPPORTED** | Present as `pub fan_out_batch_size: Option<u32>` in `FetchStep` struct (`spec_parser.rs:128`); handled by `fan_out_batches` in `pipeline.rs` |
+| `${query.filter.KEY}` interpolation | **SUPPORTED** | `FetchContext::query_filters: HashMap<String, String>` seeded into `step_vars` as `query.filter.{k}` (`pipeline.rs:246-250`); Armis AQL must use `${query.filter.aql}`, not the non-existent `${query.aql}` shorthand |
+| `timestamp_format = "multi"` | **NOT SUPPORTED — Grammar Extension Required** | No such field exists in `FetchStep`, `TableSpec`, `ColumnSpec`, or `SensorSpec` in `spec_parser.rs`. This extension is NOT declaratively expressible in the current TOML grammar. |
+| `timestamp_fallback_chain = [...]` | **NOT SUPPORTED — Grammar Extension Required** | No such field exists anywhere in `spec_parser.rs`. This extension is NOT declaratively expressible in the current TOML grammar. |
+
+**Consequence:** The `cyberint.sensor.toml` multi-format timestamp behavior and `armis.sensor.toml`
+timestamp fallback chain behavior CANNOT be expressed declaratively in the current TOML grammar.
+Two prerequisite options exist:
+
+**Option A (Grammar Extension):** Add `timestamp_format` and `timestamp_fallback_chain` fields to
+`ColumnSpec` or `TableSpec` in `spec_parser.rs` as part of PLUGIN-MIGRATION-001-D or a dedicated
+sub-story `PLUGIN-MIGRATION-001-D.1`. If implemented in the main story, these fields must be
+deserialized via `#[serde(default)]` and handled in the pipeline executor.
+
+**Option B (WASM Plugin):** Implement the timestamp parsing and fallback logic as an in-repo
+`.prx` WASM transformer plugin per ADR-023 §Decision Rules Rule 1 (complex transforms). The spec
+would reference the plugin via `(sensor_id, table)` dispatch in the SpecDrivenMapper.
+
+The implementer MUST choose Option A or Option B and implement it before authoring the Cyberint
+and Armis TOML specs. This BC treats both as valid — the postcondition is that the spec produces
+parity output, not that it uses a specific grammar mechanism. **This is not a deferral —
+implementing the grammar extension or WASM plugin is in scope for PLUGIN-MIGRATION-001-D.**
+If the implementer discovers that the scope cannot be completed in one story, the orchestrator
+must be notified for sub-story creation.
+
 - DTU clones for all 4 sensors are built and available in the test harness:
   - `prism-dtu-crowdstrike` (S-6.07): OAuth2 token endpoint + two-step Falcon API (QueryV2 + PostEntities)
   - `prism-dtu-claroty` (S-6.08): Bearer token auth + POST-for-read + offset pagination
@@ -102,16 +135,22 @@ Four production TOML sensor spec files are created at `crates/prism-sensors/spec
     TS-PLUGIN-PARITY-001 Cyberint DTU Gap Note until DTU coverage of `incidents` pagination
     behavior is verified)
   Multi-format timestamp parsing (`parse_timestamp()`) is expressed via column `type: "datetime"`
-  with the spec's `timestamp_format: "multi"` extension. Version: `"1.0.0"`.
+  with a WASM transformer plugin for multi-format parsing (see O-001 Grammar Verification note
+  in §Preconditions — `timestamp_format: "multi"` is NOT present in the current TOML grammar
+  and requires a grammar extension or WASM plugin as a prerequisite). Version: `"1.0.0"`.
 
 - `armis.sensor.toml` — `sensor_id: "armis"`, `auth_type: "api_key"`,
   base URL from instance_url, tables:
-  - `devices` — GET `/api/v1/search/` with AQL passthrough (`${query.aql}` variable) and
-    page-based pagination
+  - `devices` — GET `/api/v1/search/` with AQL passthrough via the `${query.filter.aql}`
+    interpolation variable (NOTE: the grammar uses `${query.filter.KEY}` not `${query.aql}`;
+    the AQL expression must be push-down filtered as `query_filters["aql"]` in `FetchContext`)
+    and page-based pagination
   - `alerts` — GET `/api/v1/alerts/` with AQL forwarding and page pagination
-  Timestamp fallback chain: `firstSeen` → `lastSeen` → `DateTime::now()` expressed via
-  `timestamp_fallback_chain: ["firstSeen", "lastSeen"]` spec extension with WARN emission
-  when falling back to `now()` (preserving the existing `tracing::warn!` audit signal).
+  Timestamp fallback chain: `firstSeen` → `lastSeen` → `DateTime::now()` expressed via a
+  WASM transformer plugin (see O-001 Grammar Verification note in §Preconditions —
+  `timestamp_fallback_chain` is NOT present in the current TOML grammar and requires a grammar
+  extension or WASM plugin as a prerequisite). WARN emission when falling back to `now()`
+  preserves the existing `tracing::warn!` audit signal.
   Version: `"1.0.0"`.
 
 All four specs pass BC-2.16.009 validation (no schema errors, no variable reference errors)
@@ -123,11 +162,34 @@ For each `(sensor_id, table)` pair with non-SKIP status:
 
 - A parity integration test in `crates/prism-spec-engine/tests/` or
   `crates/prism-sensors/tests/parity/` exercises the spec-driven path against the DTU clone:
-  1. Start DTU clone server (`prism_dtu_{sensor}::server::spawn()` returning a `DtuHandle`)
+  1. Start DTU clone server by constructing the clone struct and calling
+     `BehavioralClone::start_on(bind, shutdown, tls)` (from `prism_dtu_common::BehavioralClone`
+     trait, implemented by `CrowdstrikeClone`, `ClarotyClone`, `CyberintClone`, `ArmisClone`):
+     ```rust
+     // Signature (all 4 clones — identical via BehavioralClone trait):
+     async fn start_on(
+         &mut self,
+         bind: SocketAddr,                              // typically "127.0.0.1:0" for ephemeral
+         shutdown: Option<broadcast::Receiver<()>>,
+         #[cfg(feature = "tls")] tls: Option<Arc<axum_server::tls_rustls::RustlsConfig>>,
+         #[cfg(not(feature = "tls"))] tls: Option<()>,
+     ) -> anyhow::Result<SocketAddr>
+     ```
+     The returned `SocketAddr` is used to construct the test-override base URL.
   2. Load the bundled TOML spec via `spec_parser::parse_spec_file()` pointing to the fixture
      DTU base URL (overriding `base_url` via test-only config injection)
   3. Execute `PipelineExecutor::execute()` with a `NullAuthProvider` (DTU does not validate tokens)
-     or the DTU's mock auth provider
+     or the DTU's mock auth provider:
+     ```rust
+     // Actual signature (crates/prism-spec-engine/src/pipeline.rs):
+     pub async fn execute(
+         spec: &SensorSpec,
+         table: &TableSpec,
+         context: &FetchContext,
+         http_client: &reqwest::Client,
+         auth_provider: &dyn AuthProvider,
+     ) -> Result<PipelineResult, SpecEngineError>
+     ```
   4. Execute the reference path: load the fixture payload from `prism-dtu-{sensor}/fixtures/parity/`
      and apply the prior Rust adapter's normalization function to produce the reference OCSF output
   5. Apply TS-PLUGIN-PARITY-001 Rules A–I canonicalization and compare
@@ -191,8 +253,15 @@ adapter path for all test cases:
 | Error | Condition | Behavior |
 |-------|-----------|----------|
 | `E-SPEC-001` | Bundled spec file fails BC-2.16.009 validation at CI time | CI fails; spec file must be corrected before merge; this is a pre-merge gate |
-| `E-SPEC-015` | Parity test records a FAIL verdict (not WARN or SKIP) | Integration test fails; pipeline executor output does not match reference; the TOML spec's field mapping or step pipeline must be corrected |
-| `E-SPEC-016` | Spec `sensor_id` does not match file name (e.g., `crowdstrike.sensor.toml` with `sensor_id: "falcon"`) | BC-2.16.001 rejects the file with `E-SPEC-009`-equivalent; bundled spec file naming must be `{sensor_id}.sensor.toml` |
+| `E-SPEC-009` | Spec `sensor_id` does not match file name (e.g., `crowdstrike.sensor.toml` with `sensor_id: "falcon"`), OR duplicate `sensor_id` across two spec files | BC-2.16.001 rejects the offending file with `E-SPEC-009` per error-taxonomy.md. Bundled spec file naming convention is `{sensor_id}.sensor.toml`; `sensor_id` in the TOML must case-sensitively match the filename stem. (Previously cited as fabricated code `E-SPEC-016` — corrected to `E-SPEC-009` per F-004 fix-burst-1 FB-IMPL-P1-PO 2026-05-20.) |
+
+**Note on parity FAIL verdict (test verdict, not runtime error):** A parity test FAIL verdict
+(where `PipelineExecutor` output does not match the reference OCSF output for a test case) is
+a **test verdict**, not a runtime error code. When a parity test fails, the integration test
+itself `assert!`s false — no runtime error code is emitted. The fix is to correct the TOML spec's
+field mapping or step pipeline until the parity test passes. (The previously cited fabricated code
+`E-SPEC-015` has been removed per F-004 fix-burst-1 FB-IMPL-P1-PO 2026-05-20; `E-SPEC-015` was
+never registered in error-taxonomy.md and does not exist as a runtime error.)
 
 ## Canonical Test Vectors
 
@@ -228,10 +297,10 @@ adapter path for all test cases:
 
 ## Architecture Anchors
 
-- ADR-023 §Rule 3 (VP-PLUGIN-003 parity gate — replacement-before-deletion prerequisite)
-- ADR-023 §Rule 1 (four initial sensors ship as pure TOML specs; no in-repo .prx plugin required)
+- ADR-023 §Decision Rules — Rule 3 (VP-PLUGIN-003 parity gate — replacement-before-deletion prerequisite)
+- ADR-023 §Decision Rules — Rule 1 (four initial sensors ship as pure TOML specs; no in-repo .prx plugin required for the four initial sensors; OCSF complex-transform plugins are a separate concern per Rule 1)
 - TS-PLUGIN-PARITY-001 (canonicalization rules for parity comparison: Rules A–I, Rule I fixture minimum, Cyberint DTU Gap Note)
-- ADR-022 §C2 (PipelineExecutor as the spec-driven execution engine, wired via Arc-DI)
+- ADR-023 §Architectural Constraints — C2 (PipelineExecutor as the spec-driven execution engine, replacing the `Ok(Vec::new())` stub; real implementation in PLUGIN-PREREQ-B)
 
 ## Story Anchor
 
@@ -250,11 +319,12 @@ PLUGIN-MIGRATION-001-D (implementing story; planned → draft after PO authoring
 | L2 Invariants | DI-008 (client scoping — specs do not cross client boundaries), DI-030 (partial-failure isolation — one spec failure does not block others), DI-012 (auth composition prevention — each spec declares exactly one auth_type) |
 | L2 Entities | SensorSpec, TableSpec, ColumnSpec, PipelineResult |
 | Priority | P0 |
-| ADR anchors | ADR-023 §Rule 1, §Rule 3; TS-PLUGIN-PARITY-001 Rules A–I |
+| ADR anchors | ADR-023 §Decision Rules — Rule 1, §Decision Rules — Rule 3; ADR-023 §Architectural Constraints — C2; TS-PLUGIN-PARITY-001 Rules A–I |
 | Subsystem | SS-16 (Spec Engine) |
 
 ## Changelog
 
 | Version | Burst | Date | Author | Change |
 |---------|-------|------|--------|--------|
+| 1.1 | FB-IMPL-P1-PO fix-burst-1 | 2026-05-20 | product-owner | Closes pass-1 adversarial findings F-001/F-002/F-004/F-006/F-007/O-001. F-001: replaced fabricated `prism_dtu_{sensor}::server::spawn()` / `DtuHandle` API with actual `BehavioralClone::start_on(bind, shutdown, tls) -> anyhow::Result<SocketAddr>` trait (all 4 clones share via `prism_dtu_common::BehavioralClone`). F-002: replaced fabricated `PipelineExecutor::execute(spec, "<table_name>", &NullAuthProvider, ...)` with actual 5-arg signature `(spec: &SensorSpec, table: &TableSpec, context: &FetchContext, http_client: &reqwest::Client, auth_provider: &dyn AuthProvider) -> Result<PipelineResult, SpecEngineError>`. F-004: retired fabricated `E-SPEC-015` (parity FAIL is a test verdict, not a runtime error code) and replaced fabricated `E-SPEC-016` with `E-SPEC-009` (existing code already covers sensor_id/filename mismatch). F-006: corrected `ADR-023 §Rule 1` / `§Rule 3` phantom anchors to `ADR-023 §Decision Rules — Rule 1` / `§Decision Rules — Rule 3`. F-007: corrected `ADR-022 §C2` phantom anchor (C2 is in ADR-023, not ADR-022) to `ADR-023 §Architectural Constraints — C2`. O-001: added grammar verification table in §Preconditions confirming `fan_out_batch_size` SUPPORTED, `${query.filter.aql}` SUPPORTED (not `${query.aql}`), `timestamp_format = "multi"` NOT SUPPORTED, `timestamp_fallback_chain` NOT SUPPORTED — grammar extension or WASM plugin required as implementer prerequisite. Postconditions updated to reflect grammar gaps. |
 | 1.0 | D-731 PLUGIN-MIGRATION-001-D PO authoring | 2026-05-20 | product-owner | Initial draft — BC anchor for PLUGIN-MIGRATION-001-D; DTU-parity contract for VP-PLUGIN-003; authored from ADR-023 §Rule 3 + TS-PLUGIN-PARITY-001 + 4 sensor adapter source surveys |

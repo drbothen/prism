@@ -92,3 +92,23 @@ The authoritative post-merge resume checkpoint is SESSION-HANDOFF.md §RESUME SN
 **Next workflow items at D-731:**
 1. Dispatch story-writer for PLUGIN-MIGRATION-001-D story body materialization (planned → draft) using 7 anchored BCs + VP-148
 2. After materialization: LOCAL adversarial cascade per BC-5.39.001 3-CLEAN
+
+---
+
+## Session Resume Checkpoint (2026-05-20 — D-732-PLUGIN-MIGRATION-001-D-STORY-MATERIALIZED)
+
+**Archived from STATE.md at D-733 FB-IMPL-P1 closure burst.**
+
+**STATE v7.419. D-732 PLUGIN-MIGRATION-001-D STORY-WRITER MATERIALIZATION COMPLETE.** Story-writer authored 819-line story spec `PLUGIN-MIGRATION-001-D-author-4-production-toml-sensor-specs.md` (13 ACs / 9 Red Gate tests / 6 holdout scenarios; bidirectionally traced to 7 BCs + VP-148). STORY-INDEX v2.157 (row 399 planned→draft, points 3→5). 239th consecutive single-commit per TD-VSDD-053. BC-INDEX v5.21 (total 240, draft 3). Observation non-blocking: BC-2.16.013 references TS-PLUGIN-PARITY-001 — existence unconfirmed; adversarial cascade will resolve.
+
+**Open follow-ups at D-732:**
+1. TD-PRISM-QUERY-CACHE-001 P2 — SEC-NEW-002 LRU eviction outside-Mutex race; anchor: PLUGIN-MIGRATION-Wave-2
+2. TD-S-PLUGIN-PREREQ-E-001 P3 — QUERY_PHASE_STARTED cross-package nextest leak
+3. TD-S-PLUGIN-PREREQ-E-002 P3 — SIGTERM load-induced flake
+4. POL-31 enforcement hook (validate-vp-proof-harness-skeleton-symbols.sh) — implementation deferred to tooling sprint
+5. Drift items table — S-7.02 cycle-close; all v1.0.0-greenfield due dates
+6. TS-PLUGIN-PARITY-001 existence check — adversarial cascade target (BC-2.16.013 reference; non-blocking for draft status)
+
+**Next workflow items at D-732:**
+1. Dispatch LOCAL adversarial cascade for PLUGIN-MIGRATION-001-D per BC-5.39.001 3-CLEAN (streak 0/3)
+2. Pass-1 resulted in 14 findings (5H+3M+4L+2O); FB-IMPL-P1 fix-burst dispatched (PO + story-writer)

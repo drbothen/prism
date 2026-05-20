@@ -6,7 +6,7 @@ wave: 1
 epic_id: PLUGIN-MIGRATION-001
 priority: P0
 status: draft
-version: "v1.0"
+version: "v1.1"
 level: "L4"
 producer: story-writer
 timestamp: "2026-05-20T00:00:00Z"
@@ -21,7 +21,7 @@ subsystems: [SS-01, SS-16]
 #   SS-16 (Spec Engine, prism-spec-engine) owns BC-2.16.001/002/009/012/013 — all spec-loading,
 #   pipeline-execution, spec-validation, and spec-catalog dispatch contracts. The 4 bundled TOML
 #   files are the primary artifacts; they are loaded, validated, and dispatched via SS-16 machinery.
-#   SS-01 (Sensor Adapter Layer, prism-sensors) owns BC-2.01.013 (DataSource trait) and
+#   SS-01 (Sensor Adapters, prism-sensors) owns BC-2.01.013 (DataSource trait) and
 #   BC-2.01.016 (SensorAuth open trait). The 4 bundled TOML specs declare auth_type values that
 #   resolve through the SS-01 SensorAuth hierarchy and feed the DataSource dispatch chain.
 crates_touched: [prism-sensors, prism-spec-engine]
@@ -44,7 +44,7 @@ behavioral_contracts:
   - BC-2.16.012  # PluginRegistry Dispatch — the spec_parser.rs open dispatch path (INV-SPEC-PARSER-OPEN-001)
                  #   must handle the 4 new specs without hardcoded sensor name match arms; parity
                  #   AC asserts no dispatch regression vs the pre-TOML path
-  - BC-2.16.013  # Bundled Sensor Spec Authoring and DTU-Parity Verification (NEW v1.0 D-731) —
+  - BC-2.16.013  # Bundled Sensor Spec Authoring and DTU-Parity Verification (v1.1 FB-IMPL-P1-PO) —
                  #   primary contract: 4 TOML files authored at crates/prism-sensors/specs/,
                  #   validated, DTU-parity tests authored per TS-PLUGIN-PARITY-001 Rules A–I,
                  #   INV-PARITY-001 replacement-before-deletion enforced
@@ -84,12 +84,12 @@ acceptance_criteria_count: 13
 red_gate_tests: 9
 estimated_passes: "3-5 LOCAL adversary passes"
 holdout_scenarios:
-  - HS-MIGRATION-D-001  # CrowdStrike two-step parity — TOML+PipelineExecutor vs Rust adapter output (DTU)
-  - HS-MIGRATION-D-002  # Claroty POST-for-read parity — polymorphic ID normalisation (DTU)
-  - HS-MIGRATION-D-003  # Cyberint alerts cursor pagination parity (DTU; incidents in SKIP)
-  - HS-MIGRATION-D-004  # Armis AQL forwarding + timestamp fallback parity (DTU)
-  - HS-MIGRATION-D-005  # Negative: bundled spec fails BC-2.16.009 validation at CI (must block merge)
-  - HS-MIGRATION-D-006  # Negative: spec sensor_id/filename mismatch rejected at load time (E-SPEC-009)
+  - HS-013  # CrowdStrike two-step parity — TOML+PipelineExecutor vs Rust adapter output (DTU)
+  - HS-014  # Claroty POST-for-read parity — polymorphic ID normalisation (DTU)
+  - HS-015  # Cyberint alerts cursor pagination parity (DTU; incidents in SKIP)
+  - HS-016  # Armis AQL forwarding + timestamp fallback parity (DTU)
+  - HS-017  # Negative: bundled spec fails BC-2.16.009 validation at CI (must block merge)
+  - HS-018  # Negative: spec sensor_id/filename mismatch rejected at load time (E-SPEC-009)
 assumption_validations: []
 risk_mitigations:
   - "INV-PARITY-001 enforced structurally: PLUGIN-MIGRATION-001-A depends_on PLUGIN-MIGRATION-001-D in
@@ -181,13 +181,13 @@ behavioral continuity and without risk of silent OCSF regression.
 
 | BC ID | Version | Title | Subsystem | Role in This Story |
 |-------|---------|-------|-----------|-------------------|
-| BC-2.16.013 | 1.0 | Bundled Sensor Spec Authoring and DTU-Parity Verification | SS-16 | **Primary delivery** — defines the 4 spec files, their content, the parity test structure, and INV-PARITY-001 replacement-before-deletion gate |
-| BC-2.16.001 | 1.3 | Sensor Spec File Loading | SS-16 | **Required** — specifies that `*.sensor.toml` files in `sensor_specs_dir` (here: `crates/prism-sensors/specs/`) are discovered, parsed, and registered at startup; virtual fields injected |
-| BC-2.16.009 | 1.3 | Spec File Validation | SS-16 | **Required** — all 4 bundled specs must pass all 5 validation rule categories; CI gate via dedicated integration test |
-| BC-2.16.002 | 1.35 | Multi-Step Fetch Pipeline Execution | SS-16 | **Required** — CrowdStrike QueryV2→PostEntities two-step pipeline exercised in parity test; PipelineExecutor drives the parity test harness |
-| BC-2.16.012 | 1.29 | PluginRegistry Dispatch in spec_parser.rs | SS-16 | **Awareness + anti-regression** — the 4 new specs must flow through the open dispatch path (INV-SPEC-PARSER-OPEN-001); no new hardcoded sensor match arms introduced |
+| BC-2.16.013 | 1.1 | Bundled Sensor Spec Authoring and DTU-Parity Verification — 4 Initial Sensors | SS-16 | **Primary delivery** — defines the 4 spec files, their content, the parity test structure, and INV-PARITY-001 replacement-before-deletion gate |
+| BC-2.16.001 | 1.3 | Sensor Spec File Loading — Parse TOML, Validate Schema, Register Tables | SS-16 | **Required** — specifies that `*.sensor.toml` files in `sensor_specs_dir` (here: `crates/prism-sensors/specs/`) are discovered, parsed, and registered at startup; virtual fields injected |
+| BC-2.16.009 | 1.3 | Spec File Validation — Schema Validation, Variable Reference Resolution, OCSF Field Validation | SS-16 | **Required** — all 4 bundled specs must pass all 5 validation rule categories; CI gate via dedicated integration test |
+| BC-2.16.002 | 1.35 | Multi-Step Fetch Pipeline Execution — Sequential Steps with Variable Interpolation | SS-16 | **Required** — CrowdStrike QueryV2→PostEntities two-step pipeline exercised in parity test; PipelineExecutor drives the parity test harness |
+| BC-2.16.012 | 1.29 | PluginRegistry Dispatch in spec_parser.rs — Hardcoded Sensor Names Replaced with Registry Lookup | SS-16 | **Awareness + anti-regression** — the 4 new specs must flow through the open dispatch path (INV-SPEC-PARSER-OPEN-001); no new hardcoded sensor match arms introduced |
 | BC-2.01.013 | 1.6 | DataSource Trait Eliminates Per-Sensor Code Duplication | SS-01 | **Awareness** — the 4 TOML specs are the adapter implementations produced at runtime per the postconditions of this BC; no hand-written adapter code for TOML-expressible sensors |
-| BC-2.01.016 | 1.10 | SensorAuth Open Trait | SS-01 | **Required** — each spec's `auth_type` value resolves through the open SensorAuth hierarchy; runtime INV-AUTH-OPEN-003 Rule 2 enforcement applies at spec-load for each spec |
+| BC-2.01.016 | 1.10 | SensorAuth Open Trait — Plugin-Implementable Auth Contract (No Sealed Marker) | SS-01 | **Required** — each spec's `auth_type` value resolves through the open SensorAuth hierarchy; runtime INV-AUTH-OPEN-003 Rule 2 enforcement applies at spec-load for each spec |
 
 ---
 
@@ -221,7 +221,7 @@ them off as each Red Gate test passes.
 ### AC-001: `crowdstrike.sensor.toml` Exists and Parses (traces to BC-2.16.013 postcondition 1)
 
 `crates/prism-sensors/specs/crowdstrike.sensor.toml` exists with:
-- `sensor_id = "crowdstrike"` (matches filename per E-SPEC-016 / BC-2.16.013 §Error Conditions)
+- `sensor_id = "crowdstrike"` (matches filename per E-SPEC-009 / BC-2.16.013 §Error Conditions)
 - `auth_type = "oauth2_client_credentials"`
 - `base_url` placeholder using `${env.CROWDSTRIKE_BASE_URL}` or parameterized via
   `cloud_region` template variable (implementer must verify the spec grammar supports this;
@@ -269,8 +269,8 @@ with `sensor_id == "cyberint"`, `auth_type == CookieRoundtrip`, `tables.len() ==
 
 `crates/prism-sensors/specs/armis.sensor.toml` exists with:
 - `sensor_id = "armis"`, `auth_type = "api_key"`
-- Tables: `devices` (AQL forwarding via `${query.aql}` template variable; page pagination),
-  `alerts` (AQL forwarding; page pagination)
+- Tables: `devices` (AQL forwarding via `${query.filter.aql}` template variable, seeded from
+  `FetchContext::query_filters["aql"]`; page pagination), `alerts` (AQL forwarding; page pagination)
 - Timestamp fallback chain expressed via `timestamp_fallback_chain = ["firstSeen", "lastSeen"]`
   extension field with WARN emission semantic preserved
 - `version = "1.0.0"`
@@ -307,18 +307,49 @@ pointing `sensor_specs_dir` to `crates/prism-sensors/specs/` and asserts:
 - An empty-credential scenario (no client credentials configured) results in tables marked
   unavailable per DEC-036 — not an error
 
-(traces to BC-2.16.001 postconditions 1, 2, 3, 6, 8)
+(traces to BC-2.16.001 §Postconditions + §Table Registration with DataFusion + §Auth Type Resolution)
 
 ### AC-007: CrowdStrike DTU Parity Test — Two-Step Pipeline (traces to BC-2.16.013 postcondition 2 + BC-2.16.002)
 
 `test_BC_2_16_013_dtu_parity_crowdstrike` in `crates/prism-spec-engine/tests/parity/crowdstrike.rs`:
 
-1. `CrowdstrikeClone::new().start().await` — starts DTU stub on a random local port
-2. Load `crowdstrike.sensor.toml` via `spec_parser::parse_spec_file`, override `base_url` with DTU base URL via test-only config injection
-3. Execute `PipelineExecutor::execute(spec, "detections", &NullAuthProvider, ...)` against the DTU clone
-4. Load the reference fixture payload from the DTU's existing `fixtures/` directory and apply
-   the prior Rust adapter's normalization logic to produce reference OCSF output
-5. Apply TS-PLUGIN-PARITY-001 Rules A–I canonicalization and assert `parity_verdict != FAIL`
+1. Instantiate `CrowdstrikeClone` (via `CrowdstrikeClone::new()` or equivalent constructor per the
+   crate's public API) and start the DTU server using the `BehavioralClone` trait method:
+   ```rust
+   let bound_addr = clone.start_on(
+       "127.0.0.1:0".parse().unwrap(),
+       None,    // no graceful-shutdown receiver needed in test
+       None,    // tls: None — plain HTTP in test
+   ).await.expect("CrowdStrike DTU clone failed to start");
+   let dtu_base_url = format!("http://{}", bound_addr);
+   ```
+2. Load `crowdstrike.sensor.toml` via `spec_parser::parse_spec_file()`; override `base_url` in the
+   loaded `SensorSpec` with `dtu_base_url` via test-only config injection (or read the spec with a
+   test config that sets `base_url` to the DTU address).
+3. Resolve the `detections` table spec: `spec.tables.iter().find(|t| t.table_name == "detections").unwrap()`.
+4. Construct `FetchContext` with a test org slug and empty query filters:
+   ```rust
+   let ctx = FetchContext::new(
+       OrgSlug::new_unchecked("test-org"),  // test-helpers feature; NOT in production code
+       std::collections::HashMap::new(),
+   );
+   ```
+5. Build a `reqwest::Client` with the required 30-second timeout per CLAUDE.md §Conventions:
+   ```rust
+   let http_client = reqwest::Client::builder()
+       .timeout(std::time::Duration::from_secs(30))
+       .build()
+       .unwrap();
+   ```
+6. Execute the pipeline:
+   ```rust
+   let result = PipelineExecutor::execute(&spec, &table, &ctx, &http_client, &NullAuthProvider)
+       .await
+       .expect("PipelineExecutor::execute failed");
+   ```
+7. Load the reference fixture payload from `crates/prism-dtu-crowdstrike/fixtures/parity/` and
+   apply the prior Rust adapter's normalization logic to produce reference OCSF output.
+8. Apply TS-PLUGIN-PARITY-001 Rules A–I canonicalization and assert `parity_verdict != FAIL`.
 
 The test is tagged `#[ignore = "requires prism-dtu-crowdstrike DTU clone"]` until S-6.07 merges.
 When enabled, the test specifically exercises the batch boundary (EC-016-013-003): a fixture case
@@ -330,12 +361,20 @@ with exactly 100 detection IDs asserts the spec produces one PostEntities batch 
 
 `test_BC_2_16_013_dtu_parity_claroty` in `crates/prism-spec-engine/tests/parity/claroty.rs`:
 
-1. Start Claroty DTU clone; override `base_url`
-2. Execute `PipelineExecutor::execute(spec, "assets", &NullAuthProvider, ...)`
-3. Include two fixture cases per EC-016-013-004:
+1. Instantiate `ClarotyClone` and start the DTU server via `BehavioralClone::start_on`:
+   ```rust
+   let bound_addr = clone.start_on("127.0.0.1:0".parse().unwrap(), None, None)
+       .await.expect("Claroty DTU clone failed to start");
+   let dtu_base_url = format!("http://{}", bound_addr);
+   ```
+2. Load `claroty.sensor.toml` via `spec_parser::parse_spec_file()` with `base_url` overridden to `dtu_base_url`.
+3. Resolve the `assets` table: `spec.tables.iter().find(|t| t.table_name == "assets").unwrap()`.
+4. Construct `FetchContext` and `reqwest::Client` with 30-second timeout (same pattern as AC-007 steps 4–5).
+5. Execute `PipelineExecutor::execute(&spec, &table, &ctx, &http_client, &NullAuthProvider).await`.
+6. Include two fixture cases per EC-016-013-004:
    - Integer ID fixture: asset with `"id": 12345`; assert `id` column value is `"12345"` (string-normalized)
    - UUID string ID fixture: asset with `"id": "550e8400-..."` ; assert `id` column value matches reference
-4. Assert parity verdict PASS or WARN (zero FAILs) for all non-SKIP cases
+7. Assert parity verdict PASS or WARN (zero FAILs) for all non-SKIP cases.
 
 Tagged `#[ignore = "requires prism-dtu-claroty DTU clone"]` until S-6.08 merges.
 
@@ -345,10 +384,18 @@ Tagged `#[ignore = "requires prism-dtu-claroty DTU clone"]` until S-6.08 merges.
 
 `test_BC_2_16_013_dtu_parity_cyberint` in `crates/prism-spec-engine/tests/parity/cyberint.rs`:
 
-1. Start Cyberint DTU clone; override `base_url`
-2. Execute `PipelineExecutor::execute(spec, "alerts", &NullAuthProvider, ...)`
-3. Fixture cases: ISO-8601 timestamps normalized to UTC (Rule C); multi-format timestamp handling
-4. Assert parity verdict PASS or WARN for `alerts` table
+1. Instantiate `CyberintClone` and start the DTU server via `BehavioralClone::start_on`:
+   ```rust
+   let bound_addr = clone.start_on("127.0.0.1:0".parse().unwrap(), None, None)
+       .await.expect("Cyberint DTU clone failed to start");
+   let dtu_base_url = format!("http://{}", bound_addr);
+   ```
+2. Load `cyberint.sensor.toml` via `spec_parser::parse_spec_file()` with `base_url` overridden to `dtu_base_url`.
+3. Resolve the `alerts` table: `spec.tables.iter().find(|t| t.table_name == "alerts").unwrap()`.
+4. Construct `FetchContext` and `reqwest::Client` with 30-second timeout (same pattern as AC-007 steps 4–5).
+5. Execute `PipelineExecutor::execute(&spec, &table, &ctx, &http_client, &NullAuthProvider).await`.
+6. Fixture cases: ISO-8601 timestamps normalized to UTC (Rule C); multi-format timestamp handling.
+7. Assert parity verdict PASS or WARN for `alerts` table.
 
 The `incidents` table parity test is a separate test function that immediately returns SKIP with
 the standard message: `"cyberint incidents DTU gap — see TS-PLUGIN-PARITY-001 Cyberint DTU Gap Note"`.
@@ -362,12 +409,27 @@ Tagged `#[ignore = "requires prism-dtu-cyberint DTU clone"]` (alerts test only) 
 
 `test_BC_2_16_013_dtu_parity_armis` in `crates/prism-spec-engine/tests/parity/armis.rs`:
 
-1. Start Armis DTU clone; override `base_url`
-2. Execute `PipelineExecutor::execute(spec, "devices", &NullAuthProvider, ...)` with a custom
-   AQL expression passed via `${query.aql}` variable; assert DTU receives verbatim AQL
-3. Execute `PipelineExecutor::execute(spec, "devices", ...)` with a fixture where both
-   `firstSeen` and `lastSeen` are absent; assert parity PASS by convention (both sides take
-   fetch-time timestamp fallback) and that a WARN tracing event is emitted per Rust adapter precedent
+1. Instantiate `ArmisClone` and start the DTU server via `BehavioralClone::start_on`:
+   ```rust
+   let bound_addr = clone.start_on("127.0.0.1:0".parse().unwrap(), None, None)
+       .await.expect("Armis DTU clone failed to start");
+   let dtu_base_url = format!("http://{}", bound_addr);
+   ```
+2. Load `armis.sensor.toml` via `spec_parser::parse_spec_file()` with `base_url` overridden to `dtu_base_url`.
+3. Resolve the `devices` table: `spec.tables.iter().find(|t| t.table_name == "devices").unwrap()`.
+4. AQL forwarding sub-case: Construct a `FetchContext` with `query_filters` seeded with the AQL
+   expression under the `"aql"` key (which the pipeline interpolates as `${query.filter.aql}`):
+   ```rust
+   let mut filters = std::collections::HashMap::new();
+   filters.insert("aql".to_string(), "in:devices timeFrame:\"Last 3 Hours\"".to_string());
+   let ctx = FetchContext::new(OrgSlug::new_unchecked("test-org"), filters);
+   ```
+5. Build a `reqwest::Client` with the required 30-second timeout (same pattern as AC-007 step 5).
+6. Execute `PipelineExecutor::execute(&spec, &table, &ctx, &http_client, &NullAuthProvider).await`;
+   assert the DTU receives the verbatim AQL expression in the HTTP request's `aql` query parameter.
+7. Timestamp fallback sub-case: Re-execute with a fixture where both `firstSeen` and `lastSeen`
+   are absent; assert parity PASS by convention (both sides take fetch-time timestamp fallback)
+   and that a WARN tracing event is emitted per Rust adapter precedent.
 
 Tagged `#[ignore = "requires prism-dtu-armis DTU clone"]` until S-6.10 merges.
 
@@ -451,19 +513,32 @@ test listing. This is the standard pattern established by the DTU story framewor
 
 ## Task Breakdown
 
-### Task 1: Verify Spec Grammar Supports All Required Fields (0.5 point)
+### Task 1: TOML Grammar Verification — Already Completed by PO (0.5 point)
 
-Before authoring any TOML file, read `crates/prism-spec-engine/src/spec_parser.rs` to confirm
-the TOML grammar supports:
-- `timestamp_format = "multi"` extension field (Cyberint multi-format timestamps)
-- `timestamp_fallback_chain = [...]` extension field (Armis fallback chain)
-- `fan_out_batch_size` per-step override (CrowdStrike 100-item cap)
-- Variable `${query.aql}` injection into path/body templates (Armis AQL forwarding)
-- `sensor_config` key-value map (used by Armis adapter for `aql_query` key)
+The PO completed grammar verification during FB-IMPL-P1-PO (O-001, 2026-05-20) against
+`crates/prism-spec-engine/src/spec_parser.rs` and `crates/prism-spec-engine/src/pipeline.rs`.
+Verified status (authoritative — do NOT re-verify from memory):
 
-If any field is NOT yet in the grammar, author the TOML spec to use the nearest equivalent
-that the grammar supports and document the gap in the Red Gate test as a known limitation.
-Do NOT invent fields silently — flag the gap in the story comments for PO review.
+| Field | Status | Action for Implementer |
+|-------|--------|------------------------|
+| `fan_out_batch_size` on `FetchStep` | **SUPPORTED** — `pub fan_out_batch_size: Option<u32>` in `FetchStep` (`spec_parser.rs:128`) | Use directly in `crowdstrike.sensor.toml` |
+| `${query.filter.aql}` interpolation | **SUPPORTED** — `FetchContext::query_filters: HashMap<String, String>` seeded as `query.filter.{k}` in step_vars (`pipeline.rs:246-250`) | Use `${query.filter.aql}` in `armis.sensor.toml` path/body templates; caller must pass `query_filters["aql"]` in `FetchContext` |
+| `timestamp_format = "multi"` | **NOT SUPPORTED** — no such field in `FetchStep`, `TableSpec`, `ColumnSpec`, or `SensorSpec` | Choose **Option A** (add `timestamp_format: Option<String>` to `ColumnSpec` via `#[serde(default)]`) OR **Option B** (WASM transformer plugin) before authoring `cyberint.sensor.toml`; document chosen option in a task comment |
+| `timestamp_fallback_chain = [...]` | **NOT SUPPORTED** — no such field in `spec_parser.rs` | Choose **Option A** (add `timestamp_fallback_chain: Option<Vec<String>>` to `TableSpec` or `ColumnSpec` via `#[serde(default)]`) OR **Option B** (WASM transformer plugin) before authoring `armis.sensor.toml`; document chosen option in a task comment |
+
+**Implementer decision for Options A/B:**
+- **Option A (Grammar Extension):** Preferred when the transform is simple (threshold: if the Rust
+  implementation in `pipeline.rs` is ≤ ~20 lines for the handler). Add the new field via
+  `#[serde(default)]` to avoid breaking existing spec files. Handle in `pipeline.rs` execute_impl.
+- **Option B (WASM Plugin):** Preferred when the transform requires complex parsing logic (e.g.,
+  multi-format datetime parsing with fallback chains). The spec references the plugin via
+  `(sensor_id, table)` dispatch in the SpecDrivenMapper.
+- **Both options are in scope for PLUGIN-MIGRATION-001-D.** If scope is genuinely uncompletable
+  in one story, notify the orchestrator for sub-story creation before beginning implementation.
+
+Note: `sensor_config` key-value map was not evaluated in O-001; read `spec_parser.rs` to confirm
+support if the Armis adapter's `aql_query` key requires it; otherwise use `${query.filter.aql}`
+which is confirmed supported per O-001.
 
 ### Task 2: Create `crates/prism-sensors/specs/` Directory (0 points — housekeeping)
 
@@ -509,8 +584,9 @@ Reverse-engineer from `crates/prism-sensors/src/auth/cyberint.rs` (read in full)
 
 Reverse-engineer from `crates/prism-sensors/src/auth/armis.rs` (read in full):
 - `auth_type = "api_key"`; base URL from `${env.ARMIS_INSTANCE_URL}`
-- `devices`: GET `/api/v1/search/`; AQL in `${query.aql}`; page pagination
-- `alerts`: GET `/api/v1/alerts/`; AQL forwarding; page pagination
+- `devices`: GET `/api/v1/search/`; AQL in `${query.filter.aql}` (interpolated from
+  `FetchContext::query_filters["aql"]`); page pagination
+- `alerts`: GET `/api/v1/alerts/`; AQL forwarding via `${query.filter.aql}`; page pagination
 - `timestamp_fallback_chain = ["firstSeen", "lastSeen"]` extension
 
 ### Task 7: Author Red Gate Tests — Non-DTU (0.5 point)
@@ -533,7 +609,9 @@ Write RG-04, RG-05, RG-06, RG-07. These tests have `#[ignore]` so they compile a
 "SKIP" mode. The test body MUST be a complete behavioral assertion (not `todo!()`) — the
 `#[ignore]` tag is the mechanism that prevents CI failure, not an incomplete test body.
 
-Use the `CrowdstrikeClone::new().start().await` pattern confirmed from the existing DTU tests.
+Use the `BehavioralClone::start_on("127.0.0.1:0".parse().unwrap(), None, None).await` pattern
+documented in BC-2.16.013 v1.1 §Postconditions §2 and confirmed from `prism-dtu-common/src/clone.rs`.
+The returned `SocketAddr` is used to construct the DTU base URL for spec override.
 The `NullAuthProvider` must be imported or defined in the parity test harness (it exists in
 `prism-spec-engine` under `test-helpers` feature per the existing test suite convention).
 
@@ -587,10 +665,12 @@ Key lessons applicable to this story:
    error code (unlikely — specs should not need new codes), run TD-VSDD-060 sibling-sweep to
    update error-taxonomy.md in the same commit.
 
-6. **E-SPEC-016 (spec_id/filename mismatch) was confirmed during BC-2.16.013 authoring.** The
-   PO noted `E-SPEC-016` in BC-2.16.013 §Error Conditions maps to `E-SPEC-009`-equivalent at
-   load time. Implementer: confirm the exact error code the spec-loader returns for this case
-   by reading `spec_parser.rs` — use the actual code emitted, not the BC-2.16.013 label.
+6. **`sensor_id`/filename mismatch uses `E-SPEC-009` (confirmed during BC-2.16.013 v1.1 authoring).**
+   The previously cited `E-SPEC-016` was a fabricated code that does not exist in error-taxonomy.md.
+   BC-2.16.013 v1.1 §Error Conditions now correctly documents that `E-SPEC-009` (existing canonical
+   code for sensor_id/filename-stem mismatch) is emitted by BC-2.16.001 at spec-load time. The
+   implementer should verify the exact call site in `spec_parser.rs` and confirm `E-SPEC-009` is
+   the error variant returned — the BC is the authority, not any internal label.
 
 ---
 
@@ -602,7 +682,7 @@ The implementer MUST NOT violate any of these — violations are P0 findings in 
 | Rule | Source | Constraint |
 |------|--------|-----------|
 | Spec files at `crates/prism-sensors/specs/` | BC-2.16.013 postcondition 1 + ADR-023 §Rule 1 | Bundled spec canonical path. Do NOT place at `sensor-specs/`, `specs/`, or any other root-level directory. The path `crates/prism-sensors/specs/` is the canonical location per BC-2.16.013. |
-| File naming: `{sensor_id}.sensor.toml` | BC-2.16.013 §Error Conditions E-SPEC-016 | filename stem MUST match `sensor_id` field. `crowdstrike.sensor.toml` → `sensor_id = "crowdstrike"`. |
+| File naming: `{sensor_id}.sensor.toml` | BC-2.16.013 §Error Conditions E-SPEC-009 | filename stem MUST match `sensor_id` field. `crowdstrike.sensor.toml` → `sensor_id = "crowdstrike"`. |
 | No new hardcoded sensor dispatch arms | BC-2.16.012 INV-SPEC-PARSER-OPEN-001 | After this story, `grep -rn '"crowdstrike"\|"cyberint"' crates/prism-spec-engine/src/spec_parser.rs` in dispatch-context code returns ZERO. |
 | `prism-spec-engine` MUST NOT depend on `arrow` or `datafusion` in production | `crates/prism-spec-engine/Cargo.toml` line 8 | DTU crates are `[dev-dependencies]` only. Arrow types visible in test code must be imported via `#[cfg(test)]` or test module guards. |
 | `NullAuthProvider` is test-helpers-gated | Existing convention in `prism-spec-engine` | Use `#[cfg(feature = "test-helpers")]` guard on `NullAuthProvider` usage in parity tests; the `prism-spec-engine = { path = ".", features = ["test-helpers"] }` dev-dep in `prism-spec-engine/Cargo.toml` (line 50) already enables this. |
@@ -620,7 +700,7 @@ The implementer MUST NOT violate any of these — violations are P0 findings in 
 | `toml` | `"0.8"` | TOML spec file parsing in `spec_parser.rs` | `crates/prism-spec-engine/Cargo.toml` line 15 |
 | `serde` / `serde_json` | `"1"` | Response deserialization in parity test harness | `crates/prism-spec-engine/Cargo.toml` line 14 / 18 |
 | `arrow` | `"58"` | Arrow RecordBatch comparison in parity assertion (dev-dep only; do NOT add to `[dependencies]`) | `crates/prism-sensors/Cargo.toml` line 29 — use same `"58"` pin if added to `prism-spec-engine` dev-deps |
-| `prism-dtu-crowdstrike` | `0.1.0` | CrowdStrike DTU clone; `CrowdstrikeClone::new().start().await` | `crates/prism-dtu-crowdstrike/Cargo.toml` |
+| `prism-dtu-crowdstrike` | `0.1.0` | CrowdStrike DTU clone; `BehavioralClone::start_on(bind, shutdown, tls)` via `prism_dtu_common::BehavioralClone` trait | `crates/prism-dtu-crowdstrike/Cargo.toml` |
 | `prism-dtu-claroty` | `0.1.0` | Claroty DTU clone | `crates/prism-dtu-claroty/Cargo.toml` |
 | `prism-dtu-cyberint` | `0.1.0` | Cyberint DTU clone | `crates/prism-dtu-cyberint/Cargo.toml` |
 | `prism-dtu-armis` | `0.1.0` | Armis DTU clone | `crates/prism-dtu-armis/Cargo.toml` |
@@ -680,7 +760,7 @@ miss them:
 | INV-PARITY-001 | PLUGIN-MIGRATION-001-A MUST NOT proceed until VP-PLUGIN-003 is verified GREEN (or all SKIP justified). This story is the prerequisite gate. AC-012 + the STORY-INDEX `depends_on` edge enforce this structurally. | Replacement-before-deletion invariant violated; potential OCSF regression in production |
 | BC-2.16.013 INV-PARITY-002 | Once committed, `sensor_id` in each spec is IMMUTABLE. Do not change it post-merge without a new BC. | Breaking change in DataFusion table namespace |
 | BC-2.16.013 INV-PARITY-003 | After this story merges, TOML spec files (not Rust adapter source) are the source of truth for the 4 sensor table schemas. | Architecture drift if Rust adapter code is modified without updating the spec |
-| PG-LP11-001 | New `event_type` tracing sites in the parity harness (if any) must be enumerated in BC-2.16.002 §Canonical Structured Event Catalog in the same commit. | P1 adversarial finding (BC↔impl catalog drift) |
+| PG-LP11-001 | New `event_type` tracing sites in the parity harness (if any) must be enumerated in BC-2.16.002 §Postconditions Canonical Structured Event Catalog in the same commit. | P1 adversarial finding (BC↔impl catalog drift) |
 
 ---
 
@@ -720,13 +800,26 @@ story, the build MUST fail the architecture compliance check.
 
 **Risks:**
 
-1. **TOML grammar may not support all required extension fields.** The fields `timestamp_format = "multi"`,
-   `timestamp_fallback_chain`, and `${query.aql}` variable injection are spec-extension semantics
-   that may not be implemented in the current `spec_parser.rs` grammar. The implementer MUST
-   read `spec_parser.rs` before authoring the TOML files (Task 1). If a field is unsupported,
-   author the spec with the closest supported equivalent and flag the gap in the AC comments.
-   This does NOT block the story — the parity test can still pass by exercising the supported
-   path, with the unsupported semantic documented as a follow-up.
+1. **Two TOML grammar extension fields require implementer action before spec authoring.** The PO
+   completed grammar verification in O-001 (FB-IMPL-P1-PO, 2026-05-20):
+
+   - `fan_out_batch_size` — **SUPPORTED** (no action required; use directly in `crowdstrike.sensor.toml`)
+   - `${query.filter.aql}` — **SUPPORTED** (no action required; use in `armis.sensor.toml` with
+     `FetchContext::query_filters["aql"]` caller semantics)
+   - `timestamp_format = "multi"` — **NOT SUPPORTED** — requires either:
+     - **Option A:** Grammar extension — add `timestamp_format: Option<String>` to `ColumnSpec` in
+       `spec_parser.rs` with `#[serde(default)]` and handle in `pipeline.rs::execute_impl`
+     - **Option B:** WASM transformer plugin — reference via `(sensor_id, table)` dispatch
+   - `timestamp_fallback_chain = [...]` — **NOT SUPPORTED** — requires either:
+     - **Option A:** Grammar extension — add `timestamp_fallback_chain: Option<Vec<String>>` to
+       `TableSpec` or `ColumnSpec` with `#[serde(default)]` and handle in `pipeline.rs::execute_impl`
+     - **Option B:** WASM transformer plugin
+
+   Both Option A and Option B are in scope for PLUGIN-MIGRATION-001-D. The implementer MUST
+   choose one option for each unsupported field and implement it before authoring the Cyberint
+   and Armis TOML specs. This is NOT a deferral — it is an implementation prerequisite with
+   clear options. If scope cannot be completed in one story, notify the orchestrator immediately
+   for sub-story creation before beginning TOML authoring.
 
 2. **DTU parity fixture coverage.** BC-2.16.013 postcondition 2 requires minimum 3 real-sensor
    recordings AND 3 synthesized cases per `(sensor_id, table)` pair in `crates/prism-dtu-*/fixtures/parity/`.
@@ -816,4 +909,5 @@ This story is DONE when ALL of the following are simultaneously true — no exce
 
 | Version | Date | Author | Change |
 |---------|------|--------|--------|
+| v1.1 | 2026-05-20 | story-writer | FB-IMPL-P1-SW (fix-burst-1, D-733-pending): closes pass-1 adversarial findings F-001/F-002 (AC-007..010 rewritten with real `BehavioralClone::start_on` API + 5-arg `PipelineExecutor::execute` signature from `pipeline.rs`), F-005 (BC table titles corrected to full H1 per POL-7; BC-2.16.013 pin 1.0→1.1), F-008 (frontmatter comment "Sensor Adapter Layer" → "Sensor Adapters" per POL-6), F-009 (PG-LP11-001 anchor corrected to §Postconditions Canonical Structured Event Catalog), F-011 (AC-006 positional postcondition cite replaced with named-section cite). Cascade from PO: S-001 (BC-2.16.013 v-pin 1.0→1.1 throughout), S-002 (holdout scenarios HS-MIGRATION-D-001..006 → HS-013..HS-018 in frontmatter), S-003 (E-SPEC-015 references removed; E-SPEC-016 → E-SPEC-009 throughout; Previous Story Intelligence item 6 and AC-001 and Architecture Compliance table updated), S-004 (Task 1 rewritten with O-001 verified grammar status; Risk #1 rewritten with verified field statuses, no deferral language), S-005 (`${query.aql}` → `${query.filter.aql}` in AC-004, Task 6, and AC-010). Library table DTU clone API cite corrected. Task 9 start_on pattern corrected. |
 | v1.0 | 2026-05-20 | story-writer | Initial materialization at D-732. Authored from 7 BC anchors (BC-2.16.013 v1.0 NEW + 6 existing), VP-148, ADR-023, and 4 Rust adapter source surveys. 13 ACs, 9 Red Gate tests, 5 points, 6 holdout scenarios. |

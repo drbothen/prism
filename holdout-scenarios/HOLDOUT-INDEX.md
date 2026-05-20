@@ -1,24 +1,24 @@
 ---
 document_type: holdout-scenario-index
 level: L3
-version: "1.3"
+version: "1.4"
 status: draft
 producer: product-owner
-timestamp: 2026-05-04T00:00:00Z
-phase: 1b
+timestamp: 2026-05-20T00:00:00Z
+phase: 3
 inputs: []
 input-hash: null
 traces_to: prd.md
-total_scenarios: 75
+total_scenarios: 81
 ---
 
 # Holdout Scenario Index -- Prism
 
-**Date:** 2026-05-04
-**Phase:** 0 (Multi-Repo Synthesis -- Step 5) / Phase 4.B (Wave 4 Holdout Coverage)
-**Total Scenarios:** 75
-**Total Groups:** 12
-**Input Sources:** 9 pass-8 deep synthesis files, cross-repo-dependencies.md, unified-security-posture.md; Wave 4 stories S-4.01–S-4.08, BC-INDEX v4.32, ADR-013 §2.1, D-209, ADR-016 §2.5, ADR-008
+**Date:** 2026-05-20 (updated)
+**Phase:** 0 (Multi-Repo Synthesis -- Step 5) / Phase 4.B (Wave 4 Holdout Coverage) / Phase 3 Wave 0 Plugin Migration
+**Total Scenarios:** 81 (75 prior + 6 new HS-013..HS-018 for PLUGIN-MIGRATION-001-D)
+**Total Groups:** 13
+**Input Sources:** 9 pass-8 deep synthesis files, cross-repo-dependencies.md, unified-security-posture.md; Wave 4 stories S-4.01–S-4.08, BC-INDEX v4.32, ADR-013 §2.1, D-209, ADR-016 §2.5, ADR-008; FB-IMPL-P1-PO fix-burst-1 2026-05-20 (HS-013..HS-018 authored)
 
 ---
 
@@ -38,6 +38,12 @@ total_scenarios: 75
 | HS-010 | [HS-010-detection-alert-pipeline.md](HS-010-detection-alert-pipeline.md) | Detection & Alert Pipeline | 6 | P0 | alert_id UUID v7 idempotency, dedup correctness, three-scope rule isolation |
 | HS-011 | [HS-011-case-management.md](HS-011-case-management.md) | Case Management | 5 | P0 | 5-state machine enforcement, timeline_entry_id idempotency, MTTR accuracy |
 | HS-012 | [HS-012-action-delivery.md](HS-012-action-delivery.md) | Action Delivery | 6 | P0 | D-209 semaphore independence, VP-045 non-blocking, ADR-016 §2.5 discriminator FSM |
+| HS-013 | [HS-013-crowdstrike-dtu-parity.md](HS-013-crowdstrike-dtu-parity.md) | CrowdStrike DTU Parity | 2 | P0 | Two-step pipeline spec parity; batch cap at CROWDSTRIKE_BATCH_SIZE (100) |
+| HS-014 | [HS-014-claroty-post-for-read-parity.md](HS-014-claroty-post-for-read-parity.md) | Claroty POST-for-Read Parity | 2 | P0 | POST-for-read pattern; polymorphic ID (integer vs UUID string) normalization |
+| HS-015 | [HS-015-cyberint-alerts-cursor-parity.md](HS-015-cyberint-alerts-cursor-parity.md) | Cyberint Alerts Cursor Parity | 3 | P0 | Multi-format timestamp parsing; SKIP verdict for incidents table |
+| HS-016 | [HS-016-armis-aql-timestamp-fallback-parity.md](HS-016-armis-aql-timestamp-fallback-parity.md) | Armis AQL + Timestamp Fallback Parity | 3 | P0 | AQL forwarding via `${query.filter.aql}`; fallback chain; WARN audit signal |
+| HS-017 | [HS-017-bundled-spec-validation-gate.md](HS-017-bundled-spec-validation-gate.md) | Bundled Spec Validation CI Gate | 2 | P0 | Negative: malformed specs rejected by BC-2.16.009 (E-SPEC-002, E-SPEC-003) |
+| HS-018 | [HS-018-spec-id-filename-mismatch-rejection.md](HS-018-spec-id-filename-mismatch-rejection.md) | Spec sensor_id / Filename Mismatch | 3 | P0 | Negative: sensor_id ≠ filename stem rejected at load time (E-SPEC-009) |
 
 ---
 
@@ -178,6 +184,51 @@ total_scenarios: 75
 | HS-012-04 | action_state CF Discriminator Transitions — Success and Failure Paths per ADR-016 §2.5 | prism-operations, prism-storage |
 | HS-012-05 | DELIVERY_TERMINAL State — No Further Transitions | prism-operations, prism-storage |
 | HS-012-06 | Multi-Tenant Action Delivery Isolation — Org A's Actions Invisible to Org B | prism-operations, prism-storage |
+
+### HS-013: CrowdStrike DTU Parity (P0) — PLUGIN-MIGRATION-001-D
+
+| ID | Title | Crates Tested |
+|----|-------|--------------|
+| HS-013-01 | CrowdStrike Detections Happy Path — 3 Detection Records, 2 HTTP Calls | prism-spec-engine, prism-dtu-crowdstrike |
+| HS-013-02 | CrowdStrike Batch Cap at CROWDSTRIKE_BATCH_SIZE (100 IDs, 1 PostEntities Batch) | prism-spec-engine, prism-dtu-crowdstrike |
+
+### HS-014: Claroty POST-for-Read Parity (P0) — PLUGIN-MIGRATION-001-D
+
+| ID | Title | Crates Tested |
+|----|-------|--------------|
+| HS-014-01 | Claroty Assets POST-for-Read — Integer ID Polymorphic Normalization | prism-spec-engine, prism-dtu-claroty |
+| HS-014-02 | Claroty Assets POST-for-Read — UUID String ID Polymorphic Normalization | prism-spec-engine, prism-dtu-claroty |
+
+### HS-015: Cyberint Alerts Cursor Parity (P0) — PLUGIN-MIGRATION-001-D
+
+| ID | Title | Crates Tested |
+|----|-------|--------------|
+| HS-015-01 | Cyberint Alerts Happy Path — ISO-8601 Timestamps, Cursor Pagination | prism-spec-engine, prism-dtu-cyberint |
+| HS-015-02 | Cyberint Alerts — Multi-Format Timestamp Edge Cases (RFC3339, no-TZ, microseconds, null) | prism-spec-engine, prism-dtu-cyberint |
+| HS-015-03 | Cyberint Incidents Table — SKIP Verdict per TS-PLUGIN-PARITY-001 Cyberint DTU Gap Note | prism-spec-engine, prism-dtu-cyberint |
+
+### HS-016: Armis AQL + Timestamp Fallback Parity (P0) — PLUGIN-MIGRATION-001-D
+
+| ID | Title | Crates Tested |
+|----|-------|--------------|
+| HS-016-01 | Armis Devices — AQL Expression Forwarding via ${query.filter.aql} Verified at DTU | prism-spec-engine, prism-dtu-armis |
+| HS-016-02 | Armis Devices — Timestamp Resolved from firstSeen (No Fallback) | prism-spec-engine, prism-dtu-armis |
+| HS-016-03 | Armis Devices — Timestamp Fallback to now() with tracing::warn! Audit Signal | prism-spec-engine, prism-dtu-armis |
+
+### HS-017: Bundled Spec Validation CI Gate (P0) — PLUGIN-MIGRATION-001-D
+
+| ID | Title | Crates Tested |
+|----|-------|--------------|
+| HS-017-01 | Malformed Spec — Invalid Column Type Rejected with E-SPEC-002 | prism-spec-engine |
+| HS-017-02 | Malformed Spec — Undefined Variable Reference Rejected with E-SPEC-003 | prism-spec-engine |
+
+### HS-018: Spec sensor_id / Filename Mismatch Rejection (P0) — PLUGIN-MIGRATION-001-D
+
+| ID | Title | Crates Tested |
+|----|-------|--------------|
+| HS-018-01 | Filename Stem Mismatch (crowdstrike.sensor.toml + sensor_id: "falcon") — E-SPEC-009 | prism-spec-engine |
+| HS-018-02 | Case Mismatch (crowdstrike.sensor.toml + sensor_id: "CrowdStrike") — E-SPEC-009 | prism-spec-engine |
+| HS-018-03 | Valid Convention (crowdstrike.sensor.toml + sensor_id: "crowdstrike") — Loads OK | prism-spec-engine |
 
 ---
 

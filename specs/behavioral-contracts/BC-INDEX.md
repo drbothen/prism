@@ -1,7 +1,7 @@
 ---
 document_type: behavioral-contract-index
 level: L3
-version: "5.21"
+version: "5.22"
 status: draft
 producer: product-owner
 timestamp: 2026-05-20T00:00:00Z
@@ -218,7 +218,7 @@ Phase 3-patch additions (2026-04-16): 22 new BCs added in Burst 1 to close trace
 | BC-2.16.010 | `list_sensor_specs` MCP Tool — List Loaded Sensor Specs with Table Schemas and Status | 16 - Spec Engine | CAP-029 | P0 | draft |
 | BC-2.16.011 | CustomAdapter Rust Trait Retirement — Removal of Trait, Registry, and All Call Sites | 16 - Spec Engine | CAP-029 | P0 | active (promoted draft→active D-726 per POL-14; anchor story S-PLUGIN-PREREQ-E merged PR #151 develop@80ebe794 2026-05-19) — v1.12 |
 | BC-2.16.012 | PluginRegistry Dispatch in spec_parser.rs — Hardcoded Sensor Names Replaced with Registry Lookup | 16 - Spec Engine | CAP-029 | P0 | active (promoted draft→active D-726 per POL-14; anchor story S-PLUGIN-PREREQ-E merged PR #151 develop@80ebe794 2026-05-19) — v1.29 |
-| BC-2.16.013 | Bundled Sensor Spec Authoring and DTU-Parity Verification — 4 Initial Sensors | 16 - Spec Engine | CAP-029 | P0 | draft (D-731 PLUGIN-MIGRATION-001-D PO authoring 2026-05-20) — v1.0 |
+| BC-2.16.013 | Bundled Sensor Spec Authoring and DTU-Parity Verification — 4 Initial Sensors | 16 - Spec Engine | CAP-029 | P0 | draft (D-731 PLUGIN-MIGRATION-001-D PO authoring 2026-05-20; v1.1 FB-IMPL-P1-PO 2026-05-20 — API signatures corrected, phantom error codes retired, anchor citations fixed, grammar gaps documented) — v1.1 |
 | BC-2.17.001 | Plugin Panic Isolation — Crashed Plugin Does Not Terminate Host Process | 17 - WASM Plugin Runtime | CAP-032 | P0 | active (POL-14 auto-promotion D-568 S-PLUGIN-PREREQ-D merge PR #149 ec90fe8f 2026-05-15) |
 | BC-2.17.002 | Plugin Sandbox — No Direct Filesystem or Network Access | 17 - WASM Plugin Runtime | CAP-032 | P0 | active (POL-14 auto-promotion D-568 S-PLUGIN-PREREQ-D merge PR #149 ec90fe8f 2026-05-15) |
 | BC-2.17.003 | Plugin Sandbox — Memory Limit Enforced Per Plugin Instance (default 64MB) | 17 - WASM Plugin Runtime | CAP-032 | P0 | active (POL-14 auto-promotion D-568 S-PLUGIN-PREREQ-D merge PR #149 ec90fe8f 2026-05-15) |
@@ -370,6 +370,8 @@ Phase 3-patch additions (2026-04-16): 22 new BCs added in Burst 1 to close trace
 - Subsystem 19: Infusion Enrichment Framework (AD-020, CAP-031)
 
 ### Change Log (Adversarial Review Fixes)
+
+**v5.22 (2026-05-20, FB-IMPL-P1-PO fix-burst-1):** product-owner | BC-2.16.013 v1.0→v1.1 — closes pass-1 adversarial findings F-001 (DTU API signature corrected: `BehavioralClone::start_on(bind, shutdown, tls)`), F-002 (PipelineExecutor::execute 5-arg signature corrected), F-004 (E-SPEC-015 retired as test verdict; E-SPEC-016 replaced with existing E-SPEC-009), F-006 (ADR-023 §Decision Rules — Rule 1/3 anchor fix), F-007 (ADR-023 §Architectural Constraints — C2 anchor fix replacing phantom ADR-022 §C2), O-001 (grammar verification table added: `fan_out_batch_size` confirmed supported; `${query.filter.aql}` corrected from non-existent `${query.aql}`; `timestamp_format`/`timestamp_fallback_chain` confirmed NOT supported in current grammar — prerequisite documented). BC-INDEX v5.21→v5.22.
 
 **v5.21 (2026-05-20, D-731 PLUGIN-MIGRATION-001-D PO authoring):** product-owner | BC-2.16.013 registered — new draft BC "Bundled Sensor Spec Authoring and DTU-Parity Verification — 4 Initial Sensors" (SS-16/CAP-029/P0; origin: brownfield; anchor story PLUGIN-MIGRATION-001-D; VP-148/VP-PLUGIN-003 primary contract). total_contracts 239→240, draft_contracts 2→3. BC-INDEX v5.20→v5.21.
 
