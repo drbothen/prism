@@ -482,3 +482,5 @@ Key decision milestones in this range:
 - D-654: FB35 — pass-45 1 MED volatile+wrong cite
 - D-653: FB34 — pass-44 2 MED VP-153 skeleton + Tasks workflow gap
 - D-460..D-432: S-PLUGIN-PREREQ-D adversary cascade (passes 1–11)
+- D-722: demo-recorder Step 5 complete for S-PLUGIN-PREREQ-E — 14 files; 13 ACs all evidenced; feature SHA dca98e4a; docs/demo-evidence/S-PLUGIN-PREREQ-E/INDEX.md + 13 AC files
+- D-725: FB-PR-1 fix-burst closure — CI gap exposure (test-portability + semver-version-pin); architect Option 1 relocation; prism-spec-engine 0.8.0→0.9.0; just check 3681/3681 PASS; 232nd consecutive single-commit; STATE v7.412; feature@a4c048ce

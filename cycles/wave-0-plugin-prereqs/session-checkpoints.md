@@ -73,3 +73,22 @@ The authoritative post-merge resume checkpoint is SESSION-HANDOFF.md §RESUME SN
 1. Restore vp156 proptest seeds via small maintenance PR or merge into next PREREQ-F+ work
 2. Begin S-PLUGIN-PREREQ-F implementation (next Wave 0 story per dependency chain)
 3. Cycle-close items from DRIFT items table (DRIFT-OBS-LP69-001, DRIFT-OBS-LP67-001, etc.)
+
+---
+
+## Session Resume Checkpoint (2026-05-20 — D-731-PLUGIN-MIGRATION-001-D-BC-ANCHORING)
+
+**Archived from STATE.md at D-732 story-writer materialization burst.**
+
+**STATE v7.418. D-731 PLUGIN-MIGRATION-001-D BC ANCHORING COMPLETE.** Product-owner authored BC-2.16.013 v1.0 draft (265 lines; primary contract for VP-PLUGIN-003 DTU parity) + anchored 6 existing BCs to PLUGIN-MIGRATION-001-D. BC-INDEX v5.21 (total 240, draft 3). STORY-INDEX v2.156 (PLUGIN-MIGRATION-001-D BC count 7; PO authoring complete). 238th consecutive single-commit per TD-VSDD-053.
+
+**Open follow-ups at D-731:**
+1. TD-PRISM-QUERY-CACHE-001 P2 — SEC-NEW-002 LRU eviction outside-Mutex race; anchor: PLUGIN-MIGRATION-Wave-2
+2. TD-S-PLUGIN-PREREQ-E-001 P3 — QUERY_PHASE_STARTED cross-package nextest leak
+3. TD-S-PLUGIN-PREREQ-E-002 P3 — SIGTERM load-induced flake
+4. POL-31 enforcement hook — implementation deferred to tooling sprint
+5. Drift items table — S-7.02 cycle-close; all v1.0.0-greenfield due dates
+
+**Next workflow items at D-731:**
+1. Dispatch story-writer for PLUGIN-MIGRATION-001-D story body materialization (planned → draft) using 7 anchored BCs + VP-148
+2. After materialization: LOCAL adversarial cascade per BC-5.39.001 3-CLEAN
