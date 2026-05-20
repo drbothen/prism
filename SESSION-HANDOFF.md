@@ -5917,4 +5917,237 @@ All directives from §RESUME SNAPSHOT 2026-05-19 carry forward. Additional from 
 - DO NOT add tech-debt-register entries without user direction OR explicit cycle-close context (the 3 TD entries added at D-728/D-729 were user-directed).
 - DO NOT close W3-FIX-S307-001 worktree without preserving the 1091-line scaffolding — saved at /tmp/prism-W3-FIX-S307-001-scaffolding-diff.patch; this is reference material for PLUGIN-MIGRATION-001-A.
 - DO NOT assume vp156 regression seeds need restoration — they were restored in PR #152; the file at `crates/prism-query/tests/vp156_write_tool_registration_uniqueness.proptest-regressions` is current.
+
+---
+
+## §RESUME SNAPSHOT 2026-05-20-EVE (PLUGIN-MIGRATION-001-D Cascade Pass-4 Decisions Locked)
+
+**Purpose:** Durable resume context for /clear and fresh-session restart. Picks up from PLUGIN-MIGRATION-001-D pass-4 ARCHITECTURAL CHECKPOINT (D-736) after user adjudicated 4 decisions (D-737). Next session dispatches FB-IMPL-P4 starting with architect.
+
+---
+
+### §1. Session-2 Arc Summary (D-731 through D-737)
+
+| Burst | Scope | Outcome | Factory SHA |
+|---|---|---|---|
+| D-731 | PO BC anchoring | New BC-2.16.013 v1.0 + 6 BCs anchored to PLUGIN-MIGRATION-001-D | b1ca26a8 |
+| D-732 | Story-writer materialization | Story PLUGIN-MIGRATION-001-D v1.0 planned→draft; 13 ACs, 9 RG, 6 HS | db96a6ae |
+| D-733 | FB-IMPL-P1 closure (pass-1 14 findings: 5H+3M+4L+2O) | BC-2.16.013 v1.1, 6 HS files HS-013..018 created, error-taxonomy untouched (E-SPEC-015 retired, E-SPEC-016→E-SPEC-009 reuse), story v1.1 | 8f8a50cc |
+| D-734 | FB-IMPL-P2 closure (pass-2 10 findings: 3H+3M+2L+2O) | BC-2.16.013 v1.2 + BC-2.16.001 v1.4 + BC-2.16.009 v1.4 + error-taxonomy v1.41 (E-SPEC-017 registered, E-SPEC-015/016 tombstones), HS files updated for auth-type swap correction, story v1.2 | a67e8148 |
+| D-735 | FB-IMPL-P3 closure (pass-3 12 findings: 3C+2H+1M+6O) | BC-2.16.013 v1.3 URL corrections per Rust adapter code (later revealed as WRONG grounding by pass-4), `parse_spec_file` phantom → `SpecLoader::parse`, HS-013/014/017 updated, story v1.3 | d7da111a |
+| D-736 | Pass-4 BLOCKED-soft + ARCHITECTURAL-CHECKPOINT | Pass-4 fresh-context revealed systemic regression: pass-3 URL fixes grounded against Rust adapter code, NOT DTU clone routes (which model real APIs). All 4 sensors mis-aligned vs DTUs. Plus 3 other HIGH findings requiring architectural decisions. Cascade paused. | eee55f05 |
+| D-737 (this burst) | Decisions locked + durable resume snapshot | User adjudicated 4 decisions; durability commit | (this commit) |
+
+**Session totals:** 244 consecutive single-commits per TD-VSDD-053. 4 adversary passes + 3 fix-bursts. Cascade streak: 0/3 (pass-4 BLOCKED-soft). Story PLUGIN-MIGRATION-001-D currently at v1.3 draft.
+
+---
+
+### §2. LOCKED Architectural Decisions (D-737)
+
+User intent (CRITICAL framing for resume): **The whole point of PLUGIN-MIGRATION-001 is to delete the hardcoded Rust adapters and replace with plugin-driven TOML specs.** Legacy adapters in `crates/prism-sensors/src/auth/{crowdstrike,claroty,cyberint,armis}.rs` are temporary scaffolding for parity testing. PLUGIN-MIGRATION-001-A (next after D) DELETES them. The TOML spec drives sensors via the plugin runtime against real third-party APIs (modeled by DTU clones).
+
+**Decision 1 — LOCKED: Option A (DTU routes / real-API canonical)**
+- TOML spec URLs ground against the DTU clone route registrations (e.g., CrowdStrike detections = `/detects/queries/detects/v1` + `/detects/entities/summaries/GET/v1` per `prism-dtu-crowdstrike/src/routes/mod.rs:189,193`)
+- Production Rust adapter URLs (e.g., `crowdstrike.rs:262` produces `/queries/{resource}`) are wrong and surface a latent adapter bug
+- Latent adapter bug becomes moot when PLUGIN-MIGRATION-001-A deletes the adapter code
+- Rationale: per ADR-003 DTU fidelity, DTU clones model real third-party APIs; spec must work against real APIs; the parity test against DTU will SHOW that legacy adapter is buggy (good — proves plugin-driven path is correct, justifying deletion in 001-A)
+
+**Decision 2 — LOCKED: Option B (committed fixture JSON for parity reference)**
+- Parity test loads reference OCSF output from committed fixture JSON files at `crates/prism-dtu-{sensor}/fixtures/parity/reference-ocsf/<table>.json`
+- Fixtures recorded ONCE from running legacy adapter against DTU clone (capturing real-API-shaped responses, not bug-shaped)
+- No `prism-sensors` dev-dep on `prism-spec-engine` needed
+- Story §Forbidden Dependencies remains intact
+- After PLUGIN-MIGRATION-001-A deletes adapters, fixture JSON still works as parity reference
+
+**Decision 3 — LOCKED: Option A (expand scope ~half day; add E-SPEC-017 code)**
+- Add `SpecErrorCode::ESpec017` variant in `prism-core` (likely `crates/prism-core/src/error.rs` or wherever `SpecErrorCode` lives — verify)
+- Add filename-stem-vs-sensor_id validation in `crates/prism-spec-engine/src/spec_parser.rs::load_all`
+- Add new tasks to story §Task Breakdown for these code changes
+- Update §File Structure Requirements §Files to MODIFY with `prism-core/src/error.rs` + `prism-spec-engine/src/spec_parser.rs` additions
+- RG-09 + HS-018 remain in-scope; will pass after code is added
+- Points may increase from 5 → 6 or 7
+
+**Decision 4 — LOCKED: Option A (TOML auth_type matches real behavior)**
+- `cyberint.sensor.toml`: `auth_type = "cookie_roundtrip"` (matches actual HTTP flow: POST /login → Set-Cookie → cookie-store)
+- `claroty.sensor.toml`: `auth_type = "bearer_static"` (matches actual HTTP flow: Authorization: Bearer header)
+- Legacy `auth_type_name()` strings (cyberint returns "bearer_static"; claroty returns "cookie_roundtrip") are bugs in code 001-A deletes — no follow-up tech-debt needed
+- Per CLAUDE.md Source-of-Truth Precedence #7: spec wins on code-vs-spec conflict
+- Removes the architecture/tech-debt overhead surfaced in earlier passes
+
+---
+
+### §3. Pre-Resume State (Resume-Ready)
+
+| Field | Value |
+|---|---|
+| Feature branch | none (no feature branch for PLUGIN-MIGRATION-001-D yet — story still draft in spec cascade) |
+| Develop HEAD | 1bc56e3c (unchanged this session) |
+| Factory HEAD | (D-737 commit — run `git -C .factory log -1 --format='%h %s'`) |
+| Open PRs | 0 |
+| Active worktrees | main + .factory + .worktrees/S-3.09 (FROZEN) + .worktrees/W3-FIX-S307-001 (BLOCKED) |
+| STATE.md | v7.424 |
+| Consecutive single-commits | 244 (this burst) |
+| Story PLUGIN-MIGRATION-001-D | draft v1.3 (revising to v1.4 in FB-IMPL-P4) |
+| BC-2.16.013 | draft v1.3 (revising to v1.4 in FB-IMPL-P4) |
+| BC-2.16.001 | draft v1.4 |
+| BC-2.16.009 | draft v1.4 |
+| error-taxonomy.md | v1.41 (E-SPEC-017 registered; code-side not implemented yet) |
+| BC-INDEX | v5.24 |
+| STORY-INDEX | v2.160 |
+| HOLDOUT-INDEX | latest |
+| Cascade passes | 4 (LOCAL spec-level) |
+| Cascade fix-bursts | 3 (FB-IMPL-P1, P2, P3) |
+| Streak | 0/3 (pass-4 BLOCKED-soft) |
+| Next adversary pass | 5 (after FB-IMPL-P4 closure) |
+
+---
+
+### §4. FB-IMPL-P4 Dispatch Plan (Execute in Order on Resume)
+
+The next session must execute the following burst sequence to close pass-4 findings with the locked decisions:
+
+#### Step 1: ARCHITECT Dispatch (NEW — Decision 1 is architectural)
+
+**Agent:** `vsdd-factory:architect`
+
+**Mission:** Author a new ADR documenting the spec-URL-grounding principle. Suggested ADR ID: next available (verify ARCH-INDEX for next slot — likely ADR-027). Title: "TOML spec URLs and auth_type ground against DTU clone routes (real-API canonical), not production Rust adapter URLs."
+
+**Rationale:** Decision 1 + Decision 4 are both load-bearing architectural principles. Future PLUGIN-MIGRATION stories (001-B, 001-C, 001-E, etc.) will reference this ADR. Locking it as a numbered ADR provides durable traceability.
+
+**Output:** New ADR file at `.factory/specs/architecture/decisions/ADR-NNN-toml-spec-grounding-vs-dtu-routes.md`. Updates to ARCH-INDEX with new row + version bump. ADR §Decision should explicitly enumerate:
+- TOML spec URL paths derived from DTU clone routes
+- TOML spec auth_type values derived from DTU clone enforcement behavior
+- Production Rust adapter is NOT a grounding reference (adapter has latent bugs being addressed by PLUGIN-MIGRATION-001-A deletion)
+- Parity reference OCSF loaded from committed fixture JSON (Decision 2)
+
+#### Step 2: PRODUCT-OWNER Dispatch (FB-IMPL-P4-PO)
+
+**Agent:** `vsdd-factory:product-owner`
+
+**Mission:** Apply Decisions 1, 2, 3, 4 to BCs + HS files + TS-PLUGIN-PARITY-001 + error-taxonomy notes.
+
+**Closure targets (from pass-4 findings):**
+- F-LP4-HIGH-001 (URL grounding) — re-write BC-2.16.013 §Postcondition 1 URLs per DTU routes (CrowdStrike: `/detects/queries/detects/v1` + `/detects/entities/summaries/GET/v1`, etc.); add missing routes notes (CrowdStrike has no `incidents` route in DTU; Claroty has `/api/v1/devices` not `/api/v1/assets`; Armis has `/api/v1/devices` + `/api/v1/alerts` not `/api/v1/search`) — surface to architect/orchestrator if these missing DTU routes need to be added to DTU clones first
+- F-LP4-HIGH-002 (prism-sensors dev-dep) — re-write BC-2.16.013 §Postcondition 2 step 4 to load reference OCSF from committed fixture JSON path (`crates/prism-dtu-{sensor}/fixtures/parity/reference-ocsf/<table>.json`). Update TS-PLUGIN-PARITY-001 with fixture mechanism. Update HS-013..016 to reflect fixture-based comparison.
+- F-LP4-HIGH-003 (E-SPEC-017 enforcement) — confirm BC-2.16.001 v1.4 §Error Conditions is already correct. Add a new BC if needed for `SpecErrorCode::ESpec017` variant contract; OR amend BC-2.16.001 to spell out the enforcement requirement explicitly.
+- F-LP4-HIGH-004 (auth_type) — re-write BC-2.16.013 §Postcondition 1 cyberint.sensor.toml `auth_type = "cookie_roundtrip"` (matching DTU enforcement), claroty.sensor.toml `auth_type = "bearer_static"` (matching DTU/file header). Update HS-014 (Claroty bearer auth corpus) + HS-015 (Cyberint cookie auth corpus).
+- F-LP4-MED-002 (RG-09 test driver) — clarify in BC-2.16.001 or BC-2.16.013 that filename-stem validation requires `SpecLoader::load_all()` or `parse_spec_directory()`, NOT `SpecLoader::parse(toml_input)` (which has no filename context).
+- F-LP4-MED-003 (request_count==2 fragility) — relax BC-2.16.013 §Canonical Test Vectors assertion to `>= 2` OR explicitly document single-page QueryV2 assumption.
+
+Surface to orchestrator (do NOT fix in PO scope): Missing DTU routes (CrowdStrike incidents, Claroty `/api/v1/assets`, Armis `/api/v1/search`). These may be DTU clone gaps that need separate fixing OR may indicate that the BC's per-table mapping is wrong (e.g., Claroty `assets` table should be reverse-engineered against the real Claroty API's `/api/v1/devices` endpoint — TABLE NAME and ENDPOINT may need to align). Architect adjudication.
+
+Bump BC-2.16.013 v1.3 → v1.4. Bump BC-INDEX v5.24 → v5.25.
+
+#### Step 3: STORY-WRITER Dispatch (FB-IMPL-P4-SW)
+
+**Agent:** `vsdd-factory:story-writer`
+
+**Mission:** Propagate PO changes into story body + add new Tasks for E-SPEC-017 code work.
+
+**Closure targets:**
+- F-LP4-HIGH-001 — propagate new URLs into AC-007..010 + Task 3-6 sensor-spec authoring sections
+- F-LP4-HIGH-002 — re-write AC-007..010 step 7 to load reference OCSF from fixture JSON, NOT call legacy adapter. Update Task 10 to NOT require `prism-sensors` dev-dep. Update §Forbidden Dependencies to keep `prism-sensors` blocked (still forbidden — fixture is the canonical reference).
+- F-LP4-HIGH-003 — ADD new tasks to §Task Breakdown:
+  - Task NN: Add `SpecErrorCode::ESpec017` variant in `prism-core` (file: `crates/prism-core/src/error.rs` — verify exact path)
+  - Task NN+1: Add filename-stem-vs-sensor_id check in `crates/prism-spec-engine/src/spec_parser.rs::load_all`
+  - Update §File Structure Requirements §Files to MODIFY: add `crates/prism-core/src/error.rs` + ensure `crates/prism-spec-engine/src/spec_parser.rs` is listed
+  - Update §Forbidden file changes to clarify: `spec_parser.rs` modifications limited to non-hardcoded-sensor-name additions (filename-stem check is generic)
+  - Bump points 5 → 6 with justification
+- F-LP4-HIGH-004 — propagate cyberint=`cookie_roundtrip`, claroty=`bearer_static` into AC-003 + AC-004 + AC-011 + Task 4/5 + file-list table
+- F-LP4-MED-001 — AC-001 line 230 incidents: change "(cursor)" → "(2-step pipeline)"
+- F-LP4-MED-002 — RG-09 description: explicitly name `SpecLoader::load_all()` or `parse_spec_directory()` as the driver
+- F-LP4-MED-003 — relax CrowdStrike request_count assertion
+- F-LP4-LOW-001 — clarify `unwrap()` in test bodies is permitted (or replace with `?`)
+
+Bump story v1.3 → v1.4. Bump STORY-INDEX v2.160 → v2.161.
+
+#### Step 4: STATE-MANAGER Dispatch (D-738 FB-IMPL-P4 closure burst, 245th consecutive single-commit)
+
+**Agent:** `vsdd-factory:state-manager`
+
+**Mission:** Commit ADR + PO + SW work + pass-4 closure record + STATE update as single commit.
+
+**Reports to write:**
+- `.factory/code-delivery/PLUGIN-MIGRATION-001-D/adversarial-review/PLUGIN-MIGRATION-001-D-fix-burst-4.md` — closure record per FB-1/2/3 precedent
+
+**STATE.md updates:**
+- v7.424 → v7.425
+- Increment fix_bursts count 3 → 4
+- Update current_step → pass-5 dispatch pending
+- D-738 decision row
+- ARCH-INDEX version bump if ADR added
+
+#### Step 5: LOCAL Adversary Pass-5 (Streak Target 0/3 → 1/3)
+
+**Agent:** `vsdd-factory:adversary`
+
+**Mission:** Fresh-context verification of FB-IMPL-P4 closures. Re-verify all pass-1/2/3/4 closures durable. Apply same policy rubric. Cross-check URLs against DTU routes AND fixture JSON paths.
+
+**Continue cascade until 3-CLEAN convergence per D-716 Option A.**
+
+---
+
+### §5. Open Items (Pending Beyond PLUGIN-MIGRATION-001-D Cascade)
+
+**From prior session (still open):**
+1. TD-PRISM-QUERY-CACHE-001 P2 — SEC-NEW-002 LRU eviction race
+2. TD-S-PLUGIN-PREREQ-E-001 P3 — QUERY_PHASE_STARTED cross-package nextest leak
+3. TD-S-PLUGIN-PREREQ-E-002 P3 — SIGTERM load-induced flake
+4. POL-31 enforcement hook implementation
+5. Drift items table (9 items, v1.0.0-greenfield)
+
+**From this session (process-gap items deferred to cycle-close):**
+1. F-010-equivalent: capabilities.md flat-table structure (no `§CAP-NNN` headings)
+2. F-012-equivalent: BC `introduced:` ISO date format vs POL-20 canonical (project-wide)
+3. O-002: VP-148 (and VP-PLUGIN-NNN siblings) indexed-only-no-file
+4. F-LP4-OBS-001 [process-gap]: POL-22 Phase C verification did not cross-check DTU clone routes in pass-1/2/3 — codification: "TOML-spec stories targeting DTU parity require dual code-grounding (production code + DTU routes)"
+
+**From this session (code-side tech-debt — becomes moot after PLUGIN-MIGRATION-001-A deletion):**
+1. Cyberint `auth_type_name()` returns "bearer_static" but adapter uses cookies — DELETED with adapter in 001-A
+2. Claroty `auth_type_name()` returns "cookie_roundtrip" but adapter uses bearer — DELETED with adapter in 001-A
+3. All 4 sensor adapter URL paths are wrong vs real APIs (latent bug) — DELETED with adapter in 001-A
+4. AuthType enum (`spec_parser.rs:29`) has 4 variants but `VALID_AUTH_TYPES` lists 5 (custom_via_plugin missing) — code-side, may need separate fix during 001-A
+
+**Pre-flight to flag for architect on resume:**
+- Missing DTU routes: CrowdStrike `incidents`, Claroty `/api/v1/assets` (vs DTU's `/api/v1/devices`), Armis `/api/v1/search` (vs DTU's `/api/v1/devices` + `/api/v1/alerts`). PO will surface in FB-IMPL-P4-PO; architect must decide whether DTU clones need extension or BC table mappings need reconciliation.
+
+---
+
+### §6. Resume Protocol for Next Session
+
+**Step 1:** Read STATE.md (v7.424) frontmatter + D-737 + D-736 decision rows.
+
+**Step 2:** Read SESSION-HANDOFF.md §RESUME SNAPSHOT 2026-05-20-EVE (this section) for full context.
+
+**Step 3:** Verify factory worktree health via `vsdd-factory:devops-engineer` running `factory-worktree-health` skill.
+
+**Step 4:** Verify develop@1bc56e3c unchanged + 0 open PRs.
+
+**Step 5:** Execute the FB-IMPL-P4 Dispatch Plan in §4 above in order:
+- Step 1: architect (new ADR for spec-grounding-vs-DTU)
+- Step 2: product-owner (FB-IMPL-P4-PO)
+- Step 3: story-writer (FB-IMPL-P4-SW)
+- Step 4: state-manager (D-738 closure burst)
+- Step 5: adversary (pass-5)
+
+**Step 6:** Continue cascade until 3-CLEAN convergence per BC-5.39.001 / D-716 Option A.
+
+**Critical context for the new session:**
+- User intent: plugin-system replaces hardcoded adapters; spec drives sensors against real APIs (DTU-modeled)
+- Standing user directive: "No pragmatic convergence. Fix all issues before build."
+- TD-VSDD-053 single-commit-per-burst: 244 consecutive maintained; protect the streak
+- NEVER push factory-artifacts. Local-only.
+- NEVER --no-verify.
+- D-716 Option A: strict 3-CLEAN regardless of asymptote signal
+- Decisions D-737 are LOCKED — do not re-litigate; just execute the plan
+
+---
+
+### §7. Critical Background for Fresh Session
+
+- This is the PLUGIN-MIGRATION-001 saga's first Wave-1 story (D = "Author 4 Production TOML Sensor Specs — Reverse-Engineered + DTU-Parity Tests")
+- 5 PREREQ stories all merged (S-PLUGIN-PREREQ-A/B/C/D/E)
+- After D ships, the unblocked downstream is: 001-E (CrowdStrike OAuth2 .prx WASM plugin) → 001-A (delete 4 hardcoded auth modules + replace init_registry_for_org) → 001-B (5 query-engine dispatch sites) → 001-C (4 OCSF mappers merge) → 001-F/G/H (Wave 2 cleanup)
+- The legacy adapters in `crates/prism-sensors/src/auth/{crowdstrike,claroty,cyberint,armis}.rs` are temporary scaffolding for parity testing in this story
+- After 001-A merges, the entire `crates/prism-sensors/src/auth/{sensor}.rs` modules are deleted; sensors run entirely from TOML through the plugin runtime
 - DO NOT apply SEC-NEW-002 LRU eviction fix as part of current PLUGIN-MIGRATION wave without explicit story anchor — tracked as TD-PRISM-QUERY-CACHE-001 P2; anchor is PLUGIN-MIGRATION-Wave-2 cleanup story TBD.
