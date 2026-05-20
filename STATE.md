@@ -1,7 +1,7 @@
 ---
 document_type: pipeline-state
 level: ops
-version: "7.414"
+version: "7.415"
 producer: state-manager
 timestamp: 2026-05-19T21:00:00Z
 inputs: []
@@ -16,7 +16,7 @@ repos: [poller-cobra, poller-express, poller-bear, poller-coaster, serveMyAPI, t
 safe_to_compact: false
 pre_compact_snapshot: "SESSION-HANDOFF.md §RESUME SNAPSHOT 2026-05-19"
 pre_compact_snapshot_at: "2026-05-19 (D-723 SESSION-HANDOFF.md §RESUME SNAPSHOT for /clear and fresh-session resume; BC-5.39.001 3-CLEAN LOCAL CONVERGENCE achieved at pass-16; PR #151 MERGED develop@80ebe794 2026-05-19)"
-current_step: "**D-727 STATE.md COMPACT COMPLETE** — PR #151 (S-PLUGIN-PREREQ-E) MERGED to develop@80ebe794 2026-05-19T18:06:44Z; PR-LEVEL adversary cascade BC-5.39.001 3-CLEAN CONVERGED passes 2-3-4 per D-716 Option A; POL-14 BC auto-promotions BC-2.01.016+BC-2.16.011+BC-2.16.012 draft→active; worktree .worktrees/S-PLUGIN-PREREQ-E force-removed (vp156 proptest seeds preserved offsite at /tmp/prism-vp156-regression-seeds-FOLLOWUP.txt); STATE.md compacted per safe_to_compact=true (D-723) — historical burst/adversary/checkpoint content extracted to cycles/wave-0-plugin-prereqs/; version 7.413→7.414; 234th consecutive single-commit per TD-VSDD-053; PREREQ-E LOCAL+PR-LEVEL+merge+cleanup COMPLETE; NEXT: restore vp156 proptest seeds via maintenance PR or PREREQ-F+ merge; continue Wave 0 dependency chain"
+current_step: "**D-728 POST-PREREQ-E CYCLE CLOSE COMPLETE** — 6-item consolidation burst: STORY-INDEX PREREQ-E draft→merged flip + 2 obs verdicts (F-P16-LOW-001 skipped consistent; F-P12-OBS-002 skipped canonical) + 2 new TD entries (E-001 nextest leak P3; E-002 SIGTERM flake P3) + POL-31 proposed (VP §Proof Harness Skeleton symbol validation); version 7.414→7.415; 235th consecutive single-commit per TD-VSDD-053; NEXT: restore vp156 proptest seeds + PREREQ-F"
 current_cycle: wave-0-plugin-prereqs
 feature_branch_head: "merged to 80ebe794 at 2026-05-19 (PR #151) — a4c048ce was final feature HEAD before squash-merge"
 pr_level_adversary_streak: "3/3 CONVERGED per BC-5.39.001 — passes 2/3/4 all CLEAN; PR #151 merged 2026-05-19; D-716 Option A standing satisfied"
@@ -54,8 +54,8 @@ user_directive_persistent: "No pragmatic convergence. Fix all issues before buil
 current_cycle_history: "wave-0-plugin-prereqs (PREREQ-E merged PR #151 2026-05-19); prior: wave-4-operations (active); wave-3-multi-tenant (COMPLETE)"
 bc_index_version: "5.20"
 vp_index_version: "1.76"
-story_index_version: "v2.154"
-policies_version: "1.28"
+story_index_version: "v2.155"
+policies_version: "1.29"
 total_stories: 150
 bc_count_corrected: 239
 subsystem_count: 22
@@ -79,7 +79,7 @@ historical_cycles: [phase-1-convergence, wave-3-multi-tenant, wave-4-operations]
 | **Language** | Rust |
 | **Target Workspace** | per-analyst stdio (MCP server) |
 | **Started** | 2026-04-13 |
-| **Last Updated** | 2026-05-19 (D-727 compact-state — PR #151 MERGED develop@80ebe794; STATE.md 7.413→7.414; 234th consecutive single-commit) |
+| **Last Updated** | 2026-05-19 (D-728 post-PREREQ-E cycle close — STORY-INDEX flip + 2 obs verdicts + 2 TD entries + POL-31; STATE.md 7.414→7.415; 235th consecutive single-commit) |
 | **Current Phase** | Wave 3 Tier-3 COMPLETE — **Wave 3-A 4 of 4 SHIPPED**; plugin migration: PREREQ-F + PREREQ-A + PREREQ-B + PREREQ-C + PREREQ-D + **PREREQ-E MERGED** (PR #151 80ebe794 2026-05-19T18:06:44Z); PREREQ-F next per Wave 0 dependency chain |
 | **Current Step** | D-727 STATE.md COMPACT COMPLETE. NEXT: restore vp156 proptest seeds + PREREQ-F. |
 
@@ -112,6 +112,7 @@ _D-721 and earlier archived to cycles/wave-0-plugin-prereqs/burst-log.md._
 | D-725 — **FB-PR-1 fix-burst closure — CI gap exposure (test-portability + semver-version-pin); architect Option 1 relocation; prism-spec-engine 0.8.0→0.9.0; just check 3681/3681 PASS. 232nd consecutive single-commit.** | state-manager | FB-PR-1 CLOSED | STATE v7.412; feature@a4c048ce; PR-LEVEL pass-1 report persisted; CI re-run awaited |
 | D-726 — **PR #151 MERGED + POST-MERGE BURST — PR #151 squash-merged develop@80ebe794; PR-LEVEL 3-CLEAN CONVERGED; POL-14 BC auto-promotions (3 BCs draft→active); BC-INDEX v5.19→v5.20; 233rd consecutive single-commit.** | state-manager | PR #151 MERGED | STATE v7.413; develop@80ebe794; PREREQ-E saga COMPLETE |
 | D-727 — **STATE.md COMPACT — safe_to_compact=true since D-723; 639 lines → lean; historical content extracted to cycles/wave-0-plugin-prereqs/ (burst-log + convergence-trajectory + session-checkpoints + lessons + blocking-issues-resolved); version 7.413→7.414; 234th consecutive single-commit.** | state-manager | COMPACT COMPLETE | STATE v7.414; cycles/wave-0-plugin-prereqs/ files created |
+| D-728 — **POST-PREREQ-E CYCLE CLOSE — STORY-INDEX PREREQ-E draft→merged flip + 2 obs skipped (F-P16-LOW-001 consistent; F-P12-OBS-002 canonical) + 2 new TDs (E-001 nextest leak P3; E-002 SIGTERM flake P3) + POL-31 proposed; policies.yaml v1.28→v1.29; STORY-INDEX v2.154→v2.155; tech-debt-register v2.19→v2.20; 235th consecutive single-commit.** | state-manager | CYCLE CLOSE COMPLETE | STATE v7.415; PREREQ-E carry-forwards resolved |
 
 ## Decisions Log
 
@@ -119,6 +120,7 @@ _D-001..D-046 archived: [cycles/phase-3-dtu-wave-2/decisions-archive-d001-d032.m
 
 | ID | Decision | Rationale | Phase | Date |
 |----|----------|-----------|-------|------|
+| D-728 | 2026-05-19 | state-manager | **POST-PREREQ-E CYCLE CLOSE BURST — STORY-INDEX flip + 2 obs closures + 2 TD entries + POL-31 codification.** Closes carry-forward items from PREREQ-E cycle (LOCAL + PR-LEVEL cascade): (a) STORY-INDEX row PREREQ-E draft→merged (missed in D-726); (b) F-P16-LOW-001 BC-INDEX row 221 asymmetry [verdict: SKIPPED — already consistent; v5.07 FB60 trailing-cell removal closed the class; BC-2.16.011 row follows dominant convention]; (c) F-P12-OBS-002 BC-2.16.012 TV plugin_name shorthand [verdict: SKIPPED — plugin_name IS the canonical ADR-026 D7 v1.23 field name; TV-BC-2.16.012-004 uses WriteToolInvalidationMap fields sensor_id + tool_name with no ambiguity]; (d) new TD-S-PLUGIN-PREREQ-E-001 cross-package nextest QUERY_PHASE_STARTED leak (P3); (e) new TD-S-PLUGIN-PREREQ-E-002 SIGTERM load-induced flake (P3, F-P7-OBS-001 closure); (f) POL-31 VP-Proof-Harness-Skeleton-Symbol-Validation codification proposed (id: 31; policies.yaml v1.28→v1.29). STATE.md v7.414→v7.415. 235th consecutive single-commit per TD-VSDD-053. | plugin-migration | 2026-05-19 | Decided by: state-manager (post-PREREQ-E cycle close consolidation burst). Status: APPROVED |
 | D-727 | 2026-05-19 | state-manager | **STATE.md COMPACT D-727 — safe_to_compact=true since D-723 + pre_compact_snapshot recorded; STATE.md slimmed from 644 lines to <200 lines per compact-state skill. Extractions to cycles/wave-0-plugin-prereqs/: adversary_streak + prereq_e_impl_adversary_streak frontmatter narratives → convergence-trajectory.md (87 spec passes + 16 impl passes + 4 PR-LEVEL passes); FB-IMPL-1..10 + FB-PR-1 burst details from Decisions Log D-700..D-726 → burst-log.md; stale session checkpoint (D-584 era) → session-checkpoints.md; lessons → lessons.md; blocking-issues-resolved.md (TD-VSDD-005 remains OPEN in STATE.md). Frontmatter cleaned: removed adversary_streak, prereq_e_impl_adversary_streak, prereq_e_adversary_streak blobs; removed prereq_e_impl_pass_*_sha and prereq_e_impl_fb_*_sha tracking fields; removed wave_4_phase_4_a_preflight YAML block (archived in git history). current_cycle updated wave-3-multi-tenant→wave-0-plugin-prereqs. safe_to_compact: true→false. version 7.413→7.414. 234th consecutive single-commit per TD-VSDD-053.** | plugin-migration | 2026-05-19 | Decided by: state-manager (compact-state skill D-727). Status: APPROVED |
 | D-726 | 2026-05-19 | state-manager | **PR #151 MERGED + POST-MERGE BOOKKEEPING + BC AUTO-PROMOTIONS (POL-14).** PR #151 (S-PLUGIN-PREREQ-E) squash-merged to develop@80ebe794 at 2026-05-19T18:06:44Z; PR-LEVEL adversary cascade BC-5.39.001 3-CLEAN CONVERGED across passes 2-3-4 per D-716 Option A standing; POL-14 BC auto-promotions: BC-2.01.016 v1.9→v1.10 draft→active + BC-2.16.011 v1.11→v1.12 draft→active + BC-2.16.012 v1.28→v1.29 draft→active + BC-2.16.004 v1.4→v1.5 status aligned removed; BC-INDEX v5.19→v5.20: active 225→228, draft 5→2, deprecated 1→0, removed 6→7; STATE.md v7.412→v7.413; 233rd consecutive single-commit per TD-VSDD-053. | plugin-migration | 2026-05-19 | Decided by: state-manager (post-merge burst). Status: APPROVED |
 | D-725 | 2026-05-19 | state-manager | **FB-PR-1 fix-burst closure — CI gap exposure + architect Option 1 relocation + version bump.** F-PR-1-001 ci-test-portability: test reads `.factory/error-taxonomy.md` at runtime — `.factory/` is orphan-branch worktree mount never shipped to CI; 3680/3681 fail on all 6 CI platforms. F-PR-1-002 semver-version-pin: cargo-semver-checks 3 `*_missing` failures on prism-spec-engine v0.8.0; 0.8.0→0.9.0. Architect Option 1: code-side stays in Rust test; spec-side relocated to `.factory/hooks/validate-error-taxonomy-retirement-annotations.sh`. just check 3681/3681 PASS. PO: BC-2.16.011 v1.10→v1.11 + story v1.50→v1.51. 232nd consecutive single-commit per TD-VSDD-053. | plugin-migration | 2026-05-19 | Decided by: state-manager (FB-PR-1 closure). Status: APPROVED |
@@ -182,16 +184,17 @@ Prior cycle history:
 
 ---
 
-## Session Resume Checkpoint (2026-05-19 — POST-PREREQ-E-MERGE-AND-COMPACT)
+## Session Resume Checkpoint (2026-05-19 — POST-PREREQ-E-CYCLE-CLOSE-D-728)
 
-_Previous checkpoint (2026-05-16-v7.287-d584-PREREQ-E-FB6-CLOSED) archived: [cycles/wave-0-plugin-prereqs/session-checkpoints.md](cycles/wave-0-plugin-prereqs/session-checkpoints.md)_
+_Previous checkpoint (2026-05-19-POST-PREREQ-E-MERGE-AND-COMPACT-D-727) archived: [cycles/wave-0-plugin-prereqs/session-checkpoints.md](cycles/wave-0-plugin-prereqs/session-checkpoints.md)_
 
-**STATE v7.414. D-727 COMPACT COMPLETE.** PR #151 (S-PLUGIN-PREREQ-E) MERGED to develop@80ebe794 at 2026-05-19T18:06:44Z. PR-LEVEL adversary cascade BC-5.39.001 3-CLEAN CONVERGED (passes 2/3/4). POL-14 BC auto-promotions complete. Worktree cleaned. STATE.md compacted.
+**STATE v7.415. D-728 CYCLE CLOSE COMPLETE.** PR #151 (S-PLUGIN-PREREQ-E) MERGED to develop@80ebe794. All PREREQ-E carry-forward items resolved in D-728 burst: STORY-INDEX row flipped draft→merged, 2 obs verdicts (skip), 2 TDs filed (P3), POL-31 proposed. STORY-INDEX v2.155. policies.yaml v1.29.
 
 **Open follow-ups:**
 1. vp156 proptest regression seeds preserved offsite at `/tmp/prism-vp156-regression-seeds-FOLLOWUP.txt` — restore via small maintenance PR or merge into next PREREQ-F+ work (file: `crates/prism-query/tests/vp156_write_tool_registration_uniqueness.proptest-regressions`)
 2. Drift items table above — cycle-close items per S-7.02 before convergence declared
 3. PREREQ-F is next per Wave 0 dependency chain
+4. POL-31 enforcement hook (validate-vp-proof-harness-skeleton-symbols.sh) implementation deferred to tooling sprint
 
 **Resume Protocol:**
 1. Read `.factory/SESSION-HANDOFF.md` §RESUME SNAPSHOT 2026-05-19 for full prior-session context

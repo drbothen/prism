@@ -23,8 +23,14 @@
 #                                   # here so the adversary knows HOW to verify them.
 
 metadata:
-  version: "1.28"
+  version: "1.29"
   changelog:
+    - version: "1.29"
+      date: 2026-05-19
+      burst: D-728-post-PREREQ-E-cycle-close
+      decision: D-728
+      findings: [F-P10-IMP-001, F-P10-OBS-002]
+      change: "Add POL-31 (vp_proof_harness_skeleton_symbol_validation). Codifies F-P10-IMP-001 + F-P10-OBS-002 cascade lesson from impl-pass-10: VP §Proof Harness Skeleton sections cite Rust symbols that must exist in the codebase. Citations drift when code refactors rename symbols without VP sweep. Two drift sites closed during PREREQ-E cascade: VP-153 AuthTypeInvalid + validate_auth_coherence (non-existent fn); VP-156 reset_for_test instead of reset_dynamic_registry_global. Status: proposed — enforcement hook (validate-vp-proof-harness-skeleton-symbols.sh) TBD. id: 31 (POL-30 referenced in BC artifacts but not formally registered in policies.yaml; POL-31 is next sequential registered entry)."
     - version: "1.28"
       date: 2026-05-17
       burst: FB75
@@ -669,3 +675,35 @@ policies:
       - "Step 8g (v1.26 amendment — CROSS-VALUE-CLASS SIDE-EFFECT BUMP DETECTION): When step 8d detects a self-induced source-of-truth frontmatter bump (e.g., ADR-026 frontmatter v1.22→v1.23 because step 8b advanced a pin INSIDE ADR-026 §D7 line 312), state-manager MUST enumerate ALL parallel value classes anchored to that source-of-truth artifact (e.g., ADR-026 anchors D3, D5, D7 — multiple distinct pin value classes) and re-grep workspace for EACH parallel value class's predecessor version. For each class with stale live-narrative hits, apply cross-workspace propagation sweep advancing to new source-of-truth version. Iterate via step 8e fixed-point until all parallel value classes converge. Closes F-LP85-HIGH-001 META class: FB71 fixed error-taxonomy class but left ADR-026 D7 pin class stale at v1.22 across 22 sites because step 8e only iterated within originating value class. D-695."
       - "Step 8h (v1.28 amendment — SAME-BURST DEPENDENT-ARTIFACT SELF-BUMP DETECTION): When step 8b/8c/8e/8g iteration applies pin advancement at a site INSIDE a non-source-of-truth artifact (e.g., FB73 PO sweep updated error-taxonomy lines 459+467 with ADR-026 D7 v1.22→v1.23 advancement), state-manager MUST detect whether THAT artifact's own frontmatter version field will bump as a §Changelog event (because PO is editing its body — triggering version increment per POL-26). If yes, enumerate the dependent artifact's version-pin as an ADDITIONAL parallel value class for cross-workspace sweep within the same iteration loop. Closes F-LP87-HIGH-001 META-class: FB73 closed F-LP85 by sweeping ADR-026 D7 v1.22→v1.23 but the sweep itself bumped error-taxonomy v1.37→v1.38 as §Changelog event, and step 8g's cross-value-class enumeration did NOT recognize this DEPENDENT-ARTIFACT-SELF-BUMP class. Sibling to step 8d but at WITHIN-BURST layer. D-697."
       - "Step 8i (v1.28 amendment — WITHIN-FILE SELF-CITE ENUMERATION): When step 8b/8c/8d/8e/8g/8h sweeps cite-pins for value class X (e.g., ADR-026 D7 pin) across external workspace, state-manager MUST ALSO grep the source-of-truth file Z (where X is declared/anchored) for SELF-CITES to X's predecessor pin values. Procedure: for source-of-truth artifact Z anchoring value class X with new version vN, grep `rg \"X v[predecessor]\" <path-to-Z>` and enumerate hits; for each hit, advance to vN within Z's body (NOT inside Z's §Changelog rows which are TD-VSDD-091 exempt). Closes F-LP87-HIGH-002 META-class: ADR-026 line 24 runtime_deliverables self-cite `(per D7 v1.16)` survived 7 architect-domain bursts because POL-29 step 8 enumerated EXTERNAL workspace siblings only — never the source-of-truth file's own frontmatter/body. D-697."
+
+  - id: 31
+    name: vp_proof_harness_skeleton_symbol_validation
+    description: |
+      VP files' §Proof Harness Skeleton sections cite Rust symbols (function names,
+      type names, test helper names) that must exist in the codebase. These citations
+      drift when code refactors rename or remove symbols without sweeping VP files.
+      Status: proposed — enforcement hook not yet implemented.
+    adopted: D-728-post-PREREQ-E-cycle-close-2026-05-19
+    severity: MEDIUM
+    enforced_by: [adversary-prompt, state-manager-pre-commit-hook-proposed]
+    scope: [vp]
+    lint_hook: null
+    references_source: "F-P10-IMP-001 + F-P10-OBS-002 (impl-pass-10 cascade)"
+    implementation_target: ".factory/hooks/validate-vp-proof-harness-skeleton-symbols.sh (TBD)"
+    rationale: |
+      Codified after F-P10-IMP-001 + F-P10-OBS-002 cascade impl-pass-10 closed two
+      drift sites during S-PLUGIN-PREREQ-E development:
+        - VP-153: §Proof Harness Skeleton cited validate_auth_coherence (function did
+          not exist in codebase; never implemented; closes F-P10-IMP-001).
+        - VP-156: §Proof Harness Skeleton cited reset_for_test (test helper renamed to
+          reset_dynamic_registry_global during PREREQ-D implementation; closes F-P10-OBS-002).
+      pr-pass-4 adversary recommended this as a process-gap codification target.
+      NOTE: POL-30 is referenced in BC artifacts (e.g., BC-2.16.012 §Changelog) but was
+      never formally registered in policies.yaml; POL-31 is the next sequential registered
+      entry. When POL-30 is formally registered, the sequential gap will be documented here.
+    verification_steps:
+      - "For each VP file in .factory/specs/verification-properties/ that contains a §Proof Harness Skeleton section, extract all Rust symbol references: function names (pattern: `fn ([a-z_][a-z0-9_]*)` and bare symbol names in prose), type names (pattern: `[A-Z][A-Za-z0-9]*` in code blocks), and test helper names."
+      - "For each extracted symbol, run `rg '<symbol>' crates/` to verify it exists in the codebase. Use word-boundary anchors to avoid false positives."
+      - "Flag any symbol that returns zero grep hits as a drift site. Record: VP file, line number, symbol name, context sentence."
+      - "Exemptions: symbols inside §Changelog rows (historical citations exempt per TD-VSDD-091); symbols prefixed with TODO markers (tracked drift, not undetected drift)."
+      - "Until the enforcement hook is implemented (lint_hook: null), adversary must manually apply this check during each adversarial pass that reviews VP files."
