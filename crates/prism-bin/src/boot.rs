@@ -1090,12 +1090,12 @@ pub async fn plugin_load_step_with_audit(
     // Per-plugin atomic loop: register all tools or roll back entirely.
     'plugin_loop: for (plugin_name, tools) in &plugin_tool_groups {
         for manifest_tool in tools {
-            let entry = prism_query::invalidation::WriteToolInvalidationMap {
-                tool_name: manifest_tool.tool_name.clone(),
-                source_ids: manifest_tool.source_ids.clone(),
-                sensor_id: prism_core::SensorId::from(manifest_tool.sensor_id.as_str()),
-                plugin_name: plugin_name.clone(),
-            };
+            let entry = prism_query::invalidation::WriteToolInvalidationMap::new(
+                manifest_tool.tool_name.clone(),
+                manifest_tool.source_ids.clone(),
+                prism_core::SensorId::from(manifest_tool.sensor_id.as_str()),
+                plugin_name.clone(),
+            );
             if let Err(reg_err) = prism_query::invalidation::register_write_tool(entry) {
                 // Fail-closed: rollback all write tools registered so far for this plugin
                 // (including those successfully registered in earlier iterations of this

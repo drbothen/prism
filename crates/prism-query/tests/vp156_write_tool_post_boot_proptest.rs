@@ -69,12 +69,12 @@ proptest! {
         // proptest cases in the same process.
         mark_query_phase_started();
 
-        let entry = WriteToolInvalidationMap {
-            tool_name: tool_name.clone(),
+        let entry = WriteToolInvalidationMap::new(
+            tool_name.clone(),
             source_ids,
-            sensor_id: SensorId::from(sensor_id_str.as_str()),
-            plugin_name: plugin_name.clone(),
-        };
+            SensorId::from(sensor_id_str.as_str()),
+            plugin_name.clone(),
+        );
 
         let result = register_write_tool(entry);
 

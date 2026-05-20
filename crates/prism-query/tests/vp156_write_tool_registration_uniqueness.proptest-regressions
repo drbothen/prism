@@ -1,0 +1,10 @@
+# Seeds for failure cases proptest has generated in the past. It is
+# automatically read and these particular cases re-run before any
+# novel cases are generated.
+#
+# It is recommended to check this file in to source control so that
+# everyone who runs the test benefits from these saved cases.
+cc b05de13ec7fd126ae55ffa734fe2ca482db14209cc7e28591d02bb9da0691902 # shrinks to tool_name = "a", plugin_name = "a", sensor_id_str = "a_", source_ids = ["a"]
+cc b7a02613b18abb0960a05f23828f73a6345ba37bdb5db75ece3d24c94475b7a4 # shrinks to tool_name = "a", plugin_name = "a", sensor_id_str = "a_", source_ids = ["a"]
+cc 66ca53837ff9a756d6dc1dee9f566ff0e0ff6391f0753828ba1ce11e4f732a6b # shrinks to tool_name = "a", plugin_name_a = "a", plugin_name_b = "a", sensor_id_str_a = "a_", sensor_id_str_b = "a", source_ids_a = ["a"], source_ids_b = ["a"]
+cc 66964e9569f4360a061d29a0300a89cad26f8be032655f91f8bf91329715eae9 # shrinks to (tool_name_a, tool_name_b) = ("a", "aa"), plugin_name_a = "a", plugin_name_b = "a", sensor_id_str = "a_", source_ids_a = ["a_830cle0_zs2"], source_ids_b = ["y1_2h58", "wdb0wf_gb_r3v3wno", "bf___6", "g_9bqiz75_7"]

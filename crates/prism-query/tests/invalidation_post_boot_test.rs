@@ -35,12 +35,12 @@ use prism_query::invalidation::{
 fn test_BC_2_07_004_post_boot_registration_returns_after_boot_not_poisoned() {
     mark_query_phase_started();
 
-    let entry = WriteToolInvalidationMap {
-        tool_name: "post_boot_integration_tool".to_string(),
-        source_ids: vec!["some_data".to_string()],
-        sensor_id: SensorId::from("late_plugin"),
-        plugin_name: "late_registrar".to_string(),
-    };
+    let entry = WriteToolInvalidationMap::new(
+        "post_boot_integration_tool",
+        vec!["some_data".to_string()],
+        SensorId::from("late_plugin"),
+        "late_registrar",
+    );
 
     let result = register_write_tool(entry);
     assert!(

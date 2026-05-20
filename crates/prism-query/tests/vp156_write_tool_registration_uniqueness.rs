@@ -127,12 +127,12 @@ proptest! {
         reset_query_phase_global();
         reset_dynamic_registry_global();
 
-        let entry = WriteToolInvalidationMap {
-            tool_name: tool_name.clone(),
+        let entry = WriteToolInvalidationMap::new(
+            tool_name.clone(),
             source_ids,
-            sensor_id: SensorId::from(sensor_id_str.as_str()),
+            SensorId::from(sensor_id_str.as_str()),
             plugin_name,
-        };
+        );
 
         let result = register_write_tool(entry);
 
@@ -191,23 +191,23 @@ proptest! {
         reset_dynamic_registry_global();
 
         // First registration — any entry with this tool_name must succeed.
-        let entry_a = WriteToolInvalidationMap {
-            tool_name: tool_name.clone(),
-            source_ids: source_ids_a,
-            sensor_id: SensorId::from(sensor_id_str_a.as_str()),
-            plugin_name: plugin_name_a,
-        };
+        let entry_a = WriteToolInvalidationMap::new(
+            tool_name.clone(),
+            source_ids_a,
+            SensorId::from(sensor_id_str_a.as_str()),
+            plugin_name_a,
+        );
         let first = register_write_tool(entry_a);
         prop_assume!(first.is_ok(), "first registration must succeed (precondition for duplicate test)");
 
         // Second registration with the SAME tool_name (but arbitrary other fields).
         // Per VP-156: uniqueness is keyed on tool_name alone.
-        let entry_b = WriteToolInvalidationMap {
-            tool_name: tool_name.clone(),
-            source_ids: source_ids_b,
-            sensor_id: SensorId::from(sensor_id_str_b.as_str()),
-            plugin_name: plugin_name_b,
-        };
+        let entry_b = WriteToolInvalidationMap::new(
+            tool_name.clone(),
+            source_ids_b,
+            SensorId::from(sensor_id_str_b.as_str()),
+            plugin_name_b,
+        );
         let second = register_write_tool(entry_b);
 
         // Must be Err — last-writer-wins is explicitly forbidden.
@@ -276,12 +276,12 @@ proptest! {
         reset_query_phase_global();
         reset_dynamic_registry_global();
 
-        let entry_a = WriteToolInvalidationMap {
-            tool_name: tool_name_a.clone(),
-            source_ids: source_ids_a,
-            sensor_id: SensorId::from(sensor_id_str.as_str()),
-            plugin_name: plugin_name_a,
-        };
+        let entry_a = WriteToolInvalidationMap::new(
+            tool_name_a.clone(),
+            source_ids_a,
+            SensorId::from(sensor_id_str.as_str()),
+            plugin_name_a,
+        );
         let result_a = register_write_tool(entry_a);
         prop_assert!(
             result_a.is_ok(),
@@ -290,12 +290,12 @@ proptest! {
             result_a.err()
         );
 
-        let entry_b = WriteToolInvalidationMap {
-            tool_name: tool_name_b.clone(),
-            source_ids: source_ids_b,
-            sensor_id: SensorId::from(sensor_id_str.as_str()),
-            plugin_name: plugin_name_b,
-        };
+        let entry_b = WriteToolInvalidationMap::new(
+            tool_name_b.clone(),
+            source_ids_b,
+            SensorId::from(sensor_id_str.as_str()),
+            plugin_name_b,
+        );
         let result_b = register_write_tool(entry_b);
         prop_assert!(
             result_b.is_ok(),
@@ -348,18 +348,18 @@ proptest! {
         reset_dynamic_registry_global();
 
         // Build two byte-identical entries (same all fields including tool_name).
-        let entry_first = WriteToolInvalidationMap {
-            tool_name: tool_name.clone(),
-            source_ids: source_ids.clone(),
-            sensor_id: SensorId::from(sensor_id_str.as_str()),
-            plugin_name: plugin_name.clone(),
-        };
-        let entry_second = WriteToolInvalidationMap {
-            tool_name: tool_name.clone(),
-            source_ids: source_ids.clone(),
-            sensor_id: SensorId::from(sensor_id_str.as_str()),
-            plugin_name: plugin_name.clone(),
-        };
+        let entry_first = WriteToolInvalidationMap::new(
+            tool_name.clone(),
+            source_ids.clone(),
+            SensorId::from(sensor_id_str.as_str()),
+            plugin_name.clone(),
+        );
+        let entry_second = WriteToolInvalidationMap::new(
+            tool_name.clone(),
+            source_ids.clone(),
+            SensorId::from(sensor_id_str.as_str()),
+            plugin_name.clone(),
+        );
 
         // First registration must succeed.
         let first = register_write_tool(entry_first);
