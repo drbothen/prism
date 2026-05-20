@@ -419,20 +419,21 @@ impl QueryCache {
 
         // Enforce per-partition bound synchronously before insert (DI-018).
         //
-        // Canonical lock-vs-moka pattern: collect entries to evict while holding
-        // the partition lock, drop the lock, then invalidate moka entries and
-        // decrement total_bytes outside the lock. See `invalidate_by_client` /
-        // `invalidate_by_prefix` for the same pattern. This avoids holding the
-        // partition mutex across potentially-blocking moka operations.
+        // Lock pattern: partition accounting (partition_keys mutation + total_bytes
+        // net adjustment for the new entry) happens inside the lock; moka invalidations
+        // for LRU-evicted entries happen outside the lock (to avoid holding the mutex
+        // across potentially-blocking moka operations). total_bytes decrements for LRU-
+        // evicted entries are applied outside the lock after moka invalidation.
         //
         // C10-001 fix: the net byte-change budget check factors in evicted_bytes so
         // that LRU eviction can free budget for the incoming entry. On rejection,
         // evicted entries are restored to partition_keys so the partition remains
         // consistent (no orphan moka entries, no inflated total_bytes).
         let mut evicted: Vec<(CacheKey, usize)> = Vec::new();
-        // CRITICAL-P8-001: capture the byte size of any pre-existing entry for this
-        // key so we can subtract it from total_bytes after the lock is released.
-        // The block returns dropped_size directly to avoid an unused-assignment lint.
+        // CRITICAL-P8-001 / FIX-OBS-007: capture the byte size of any pre-existing
+        // entry for this key AND apply the net byte change (sub old + add new) INSIDE
+        // the partition lock. This eliminates the concurrent-put race where T2's
+        // saturating_sub executes before T1's fetch_add, permanently undercounting.
         //
         // I9-002: The total byte budget check is performed INSIDE the partition lock
         // so that `existing_size` is known before deciding whether to reject. A
@@ -446,7 +447,7 @@ impl QueryCache {
         // O10-002: Eviction freed bytes are correctly subtracted from total_bytes
         // BEFORE the budget check via net_change semantics; orphan eviction-without-
         // invalidate is no longer possible (C10-001 closed).
-        let dropped_size: usize = {
+        {
             let mut counts = self.lock_partition_counts()?;
             let partition_keys = counts.entry(pk.clone()).or_default();
 
@@ -463,7 +464,7 @@ impl QueryCache {
             // Track the new key for this partition.
             // CR-014: if this key already exists (force_refresh / repeated-put path),
             // capture its stored byte size BEFORE retain so we can subtract it from
-            // total_bytes after the lock is released.
+            // total_bytes.
             // CRITICAL-P8-001: the previous code retained without capturing the old size,
             // causing monotonic total_bytes growth on repeated puts to the same key.
             let existing_size = partition_keys
@@ -505,19 +506,30 @@ impl QueryCache {
 
             partition_keys.retain(|(k, _)| k != &key);
             partition_keys.push((key.clone(), entry_size));
-            existing_size
-        }; // partition lock released here, before any moka operations
 
-        // Subtract the byte size of any previously tracked entry for this key.
-        // Must happen BEFORE fetch_add so total_bytes stays accurate.
-        // SEC-NEW-001: saturating_sub prevents usize underflow on unexpected double-remove.
-        if dropped_size > 0 {
-            let _ = self
-                .total_bytes
-                .fetch_update(Ordering::Relaxed, Ordering::Relaxed, |b| {
-                    Some(b.saturating_sub(dropped_size))
-                });
-        }
+            // FIX-OBS-007: apply the net byte change for this key replacement INSIDE
+            // the partition lock so that the subtraction-then-addition is serialized
+            // with respect to other concurrent puts to the same key.
+            //
+            // Root cause of the race: when T1 and T2 both start from an empty entry
+            // (existing_size = 0 for T1, existing_size = 512 for T2 after T1 pushes),
+            // T2 captures dropped_size = 512 under the lock, but T2's post-lock
+            // saturating_sub(512) executes before T1's post-lock fetch_add(512).
+            // saturating_sub(512) on total_bytes = 0 saturates to 0; then both threads
+            // call fetch_add(512), resulting in total_bytes = 1024 instead of 512.
+            //
+            // Fix: both the subtraction (existing entry credit) and addition (new entry
+            // cost) happen under the partition mutex, eliminating the interleaving window.
+            // SEC-NEW-001: saturating arithmetic to prevent underflow wrapping.
+            if existing_size > 0 {
+                let _ = self
+                    .total_bytes
+                    .fetch_update(Ordering::Relaxed, Ordering::Relaxed, |b| {
+                        Some(b.saturating_sub(existing_size))
+                    });
+            }
+            self.total_bytes.fetch_add(entry_size, Ordering::Relaxed);
+        }; // partition lock released here, before any moka operations
 
         // Invalidate evicted moka entries and decrement total_bytes outside the lock.
         for (evict_key, evicted_size) in &evicted {
@@ -539,9 +551,6 @@ impl QueryCache {
                         Some(current.saturating_sub(*evicted_size))
                     });
         }
-
-        // Update total byte count.
-        self.total_bytes.fetch_add(entry_size, Ordering::Relaxed);
 
         // I-1: log insert with diagnostic fields (entry size, TTL — no query string / PII).
         debug!(
