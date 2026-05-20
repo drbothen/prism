@@ -47,9 +47,11 @@ the reference output from the prior hardcoded Rust adapter path for the same raw
 per TS-PLUGIN-PARITY-001 canonicalization rules.
 
 The CrowdStrike two-step pipeline is the highest-risk parity case: the spec must orchestrate a
-QueryV2 step (GET `/detects/queries/detects/v1`) to retrieve detection IDs, then a PostEntities
-step (POST `/detects/entities/summaries/GET/v1`) batching those IDs (≤ 100 per batch, per
-CROWDSTRIKE_BATCH_SIZE). A single-step spec or incorrect variable forwarding breaks parity.
+QueryV2 step (GET `/queries/detections`) to retrieve detection IDs, then a PostEntities
+step (POST `/entities/detections/GET`) batching those IDs (≤ 100 per batch, per
+CROWDSTRIKE_BATCH_SIZE). URL patterns from `crowdstrike.rs:262,315`: `query_resource_ids`
+formats `"{base_url}/queries/{resource_type}"` and `fetch_entities` formats
+`"{base_url}/entities/{resource_type}/GET"`. A single-step spec or incorrect variable forwarding breaks parity.
 
 ---
 

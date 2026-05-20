@@ -1,9 +1,9 @@
 ---
 document_type: pipeline-state
 level: ops
-version: "7.421"
+version: "7.422"
 producer: state-manager
-timestamp: 2026-05-20T14:00:00Z
+timestamp: 2026-05-20T15:00:00Z
 inputs: []
 input-hash: "[live-state]"
 traces_to: ""
@@ -16,7 +16,7 @@ repos: [poller-cobra, poller-express, poller-bear, poller-coaster, serveMyAPI, t
 safe_to_compact: false
 pre_compact_snapshot: "SESSION-HANDOFF.md §RESUME SNAPSHOT 2026-05-20"
 pre_compact_snapshot_at: "2026-05-20 (D-730 SESSION-HANDOFF.md §RESUME SNAPSHOT for /clear and fresh-session resume; PR #151 + PR #152 merge cycle complete; consolidation sweep COMPLETE; safe_to_compact: false post-D-727 compact)"
-current_step: "D-734 FB-IMPL-P2 closure burst — BC-2.16.013 v1.2 + BC-2.16.001 v1.4 + BC-2.16.009 v1.4 + E-SPEC-017 + 8 findings closed (3H+3M+2L) + 1 code-side tech-debt surfaced (Cyberint auth_type_name label-vs-behavior); BC-INDEX v5.23; STORY-INDEX v2.159; error-taxonomy v1.41; STATE.md v7.421. 241st consecutive single-commit per TD-VSDD-053. streak 0/3. NEXT: LOCAL adversary pass-3 fresh-context (target streak 1/3)."
+current_step: "D-735 FB-IMPL-P3 closure burst — BC-2.16.013 v1.3 (4-sensor URL corrections: CrowdStrike /queries/{resource}+/entities/{resource}/GET; Claroty /api/v1/{resource}s no /xdome; Cyberint /api/{resource}s no /v1; Armis single /api/v1/search AQL-discriminated) + SpecLoader::parse phantom retirement (11 sites) + story v1.3 + pass-3 report; BC-INDEX v5.24; STORY-INDEX v2.160; STATE.md v7.422. 242nd consecutive single-commit per TD-VSDD-053. streak 0/3. NEXT: LOCAL adversary pass-4 fresh-context (target streak 1/3)."
 current_cycle: wave-0-plugin-prereqs
 feature_branch_head: "merged to 80ebe794 at 2026-05-19 (PR #151) — a4c048ce was final feature HEAD before squash-merge"
 pr_level_adversary_streak: "3/3 CONVERGED per BC-5.39.001 — passes 2/3/4 all CLEAN; PR #151 merged 2026-05-19; D-716 Option A standing satisfied"
@@ -52,11 +52,11 @@ vsdd_factory_version: "1.0.0-rc.18 (re-activated 2026-05-13T15:00:19Z; upgrade c
 workspace_test_count: 3681
 user_directive_persistent: "No pragmatic convergence. Fix all issues before build."
 current_cycle_history: "wave-0-plugin-prereqs (PREREQ-E merged PR #151 2026-05-19); prior: wave-4-operations (active); wave-3-multi-tenant (COMPLETE)"
-bc_index_version: "5.23"
+bc_index_version: "5.24"
 vp_index_version: "1.76"
-story_index_version: "v2.159"
-plugin_migration_001_d_local_adversary_passes: 2
-plugin_migration_001_d_local_fix_bursts: 2
+story_index_version: "v2.160"
+plugin_migration_001_d_local_adversary_passes: 3
+plugin_migration_001_d_local_fix_bursts: 3
 policies_version: "1.29"
 total_stories: 150
 bc_count_corrected: 240
@@ -81,9 +81,9 @@ historical_cycles: [phase-1-convergence, wave-3-multi-tenant, wave-4-operations]
 | **Language** | Rust |
 | **Target Workspace** | per-analyst stdio (MCP server) |
 | **Started** | 2026-04-13 |
-| **Last Updated** | 2026-05-20 (D-734 FB-IMPL-P2 closure burst; BC-2.16.013 v1.2 + BC-2.16.001 v1.4 + BC-2.16.009 v1.4 + E-SPEC-017 + story v1.2 + pass-2 report; BC-INDEX v5.23; STORY-INDEX v2.159; error-taxonomy v1.41; STATE.md v7.420→v7.421; 241st consecutive single-commit) |
+| **Last Updated** | 2026-05-20 (D-735 FB-IMPL-P3 closure burst; BC-2.16.013 v1.3 URL corrections (4 sensors) + SpecLoader::parse phantom retirement + story v1.3 + pass-3 report; BC-INDEX v5.24; STORY-INDEX v2.160; STATE.md v7.421→v7.422; 242nd consecutive single-commit) |
 | **Current Phase** | Wave 3 Tier-3 COMPLETE — **Wave 3-A 4 of 4 SHIPPED**; plugin migration: PREREQ-F + PREREQ-A + PREREQ-B + PREREQ-C + PREREQ-D + **PREREQ-E MERGED** (PR #151 80ebe794 2026-05-19T18:06:44Z); PREREQ-F next per Wave 0 dependency chain |
-| **Current Step** | D-734 FB-IMPL-P2 closure — BC-2.16.013 v1.2 (auth_type swap fixed; E-SPEC-017 new; fetch_page phantom fixed); 8 findings closed (3H+3M+2L); 1 code-side TD surfaced (Cyberint auth_type_name label-vs-behavior); streak 0/3. NEXT: LOCAL adversary pass-3 fresh-context (target 1/3). |
+| **Current Step** | D-735 FB-IMPL-P3 closure — BC-2.16.013 v1.3 (4-sensor URL corrections; SpecLoader::parse phantom retired); 6 findings closed (3C+2H+1M); 2 code-side TDs forwarded to cycle-close; streak 0/3. NEXT: LOCAL adversary pass-4 fresh-context (target 1/3). |
 
 ## Phase Progress
 
@@ -109,12 +109,10 @@ historical_cycles: [phase-1-convergence, wave-3-multi-tenant, wave-4-operations]
 
 | Step | Agent | Status | Output |
 |------|-------|--------|--------|
-_D-726 and earlier archived to cycles/wave-0-plugin-prereqs/burst-log.md._
-| D-728 — **POST-PREREQ-E CYCLE CLOSE — STORY-INDEX PREREQ-E draft→merged flip + 2 obs skipped + 2 new TDs + POL-31 proposed; policies.yaml v1.28→v1.29; STORY-INDEX v2.154→v2.155; 235th consecutive single-commit.** | state-manager | CYCLE CLOSE COMPLETE | STATE v7.415; PREREQ-E carry-forwards resolved |
-| D-729 — **PR #152 maintenance MERGED — vp156 seeds + WriteToolInvalidationMap #[non_exhaustive] 10-callsite sweep + cache race fix; CI 36/36 PASS; 236th consecutive single-commit.** | state-manager | PR #152 MERGED | STATE v7.416; develop@1bc56e3c |
-| D-732 — **PLUGIN-MIGRATION-001-D story-writer materialization — planned→draft v1.0; 819 lines; 13 ACs / 9 Red Gate tests; STORY-INDEX v2.156→v2.157; 239th consecutive single-commit.** | state-manager | STORY MATERIALIZED | STATE v7.419; NEXT: LOCAL adversary cascade (0/3) |
+_D-732 and earlier archived to cycles/wave-0-plugin-prereqs/burst-log.md._
 | D-733 — **FB-IMPL-P1 closure — BC-2.16.013 v1.0→v1.1 (F-001/F-002 DTU API + PipelineExecutor sig corrected; F-003 HS-013..018 created; F-004 E-SPEC-015 retired + E-SPEC-016→E-SPEC-009 reuse; F-006/F-007 phantom anchors fixed; O-001 grammar verified in-scope); story v1.0→v1.1 (F-001/F-002 4 ACs each; F-005 BC titles; F-008 subsystem comment; F-009/F-011 anchor citations); BC-INDEX v5.21→v5.22; STORY-INDEX v2.157→v2.158; HOLDOUT-INDEX v1.3→v1.4; pass-1 report + fix-burst-1 record persisted. 14 findings closed; 3 process-gap (F-010/F-012/O-002) deferred to cycle-close. Streak 0/3. 240th consecutive single-commit per TD-VSDD-053.** | state-manager | FB-IMPL-P1 CLOSED | STATE v7.420; NEXT: LOCAL adversary pass-2 (target 1/3) |
 | D-734 — **FB-IMPL-P2 closure — BC-2.16.013 v1.1→v1.2 (F-001 auth_type swap cyberint=bearer_static/claroty=cookie_roundtrip; F-002 E-SPEC-017 new for filename-stem mismatch; F-003 fetch_page phantom→SensorAdapter::fetch; F-004 ${query.aql}→${query.filter.aql}; F-005 line-number citations→symbol-names); BC-2.16.001 v1.3→v1.4 (E-SPEC-017 added); BC-2.16.009 v1.3→v1.4 (F-007 E-SPEC-002/003 enumerated; F-008 5-value auth_type set); error-taxonomy v1.40→v1.41 (E-SPEC-017 registered; E-SPEC-015/016 tombstones); BC-INDEX v5.22→v5.23; STORY-INDEX v2.158→v2.159; HS-013..018 updated (F-001 auth_type swap + F-006 epic_id); story v1.1→v1.2 (AC-002/003/004/011 auth_type + AC-011 5-value auth_type set); pass-2 report + fix-burst-2 record persisted. 8 findings closed (3H+3M+2L); 1 code-side TD surfaced (Cyberint auth_type_name label-vs-behavior). Streak 0/3. 241st consecutive single-commit per TD-VSDD-053.** | state-manager | FB-IMPL-P2 CLOSED | STATE v7.421; NEXT: LOCAL adversary pass-3 (target 1/3) |
+| D-735 — **FB-IMPL-P3 closure — BC-2.16.013 v1.2→v1.3 (F-LP3-CRIT-001 SpecLoader::parse phantom retired from 11 sites; F-LP3-CRIT-002 CrowdStrike URLs corrected to /queries/{resource}+/entities/{resource}/GET; F-LP3-CRIT-003 Claroty /xdome prefix stripped→/api/v1/{resource}s; F-LP3-HIGH-001 Cyberint /v1 segment removed→/api/{resource}s; F-LP3-HIGH-002 Armis single /api/v1/search AQL-discriminated); HS-013/014/017 updated; story v1.2→v1.3 (F-LP3-MED-001 OrgSlug AD-17 audit-allowlist cited; URL corrections propagated); BC-INDEX v5.23→v5.24; STORY-INDEX v2.159→v2.160; pass-3 report + fix-burst-3 closure record persisted. 6 findings closed (3C+2H+1M); 2 code-side TDs forwarded to cycle-close (O-4 AuthType variants; O-6 Claroty docstring). Streak 0/3 unchanged. 242nd consecutive single-commit per TD-VSDD-053.** | state-manager | FB-IMPL-P3 CLOSED | STATE v7.422; NEXT: LOCAL adversary pass-4 (target 1/3) |
 
 ## Decisions Log
 
@@ -122,6 +120,7 @@ _D-001..D-046 archived: [cycles/phase-3-dtu-wave-2/decisions-archive-d001-d032.m
 
 | ID | Decision | Rationale | Phase | Date |
 |----|----------|-----------|-------|------|
+| D-735 | 2026-05-20 | product-owner + story-writer + state-manager | **FB-IMPL-P3 closure burst — PLUGIN-MIGRATION-001-D pass-3 adversarial fix-burst complete.** 6 findings closed in-scope (3 CRITICAL + 2 HIGH + 1 MED) + 6 OBS noted; 2 code-side tech-debt forwarded to cycle-close (O-4 AuthType enum 4-variant vs VALID_AUTH_TYPES 5-string drift; O-6 Claroty docstring "Static bearer token" vs `auth_type_name()` `"cookie_roundtrip"` — parallel to Cyberint pattern from FB-IMPL-P2; both route to architect+implementer at cycle-close). PO scope: BC-2.16.013 v1.2→v1.3 (F-LP3-CRIT-001 `parse_spec_file` phantom retired at 11 sites → `SpecLoader::parse(toml_input: &str)` per spec_parser.rs:655; F-LP3-CRIT-002 CrowdStrike URL paths corrected → `/queries/{resource}` + `/entities/{resource}/GET` per crowdstrike.rs:262,315,369; F-LP3-CRIT-003 Claroty `/xdome/` prefix phantom stripped → canonical `/api/v1/{resource}s` per claroty.rs:244; F-LP3-HIGH-001 Cyberint `/v1/` segment removed → canonical `/api/{resource}s` per cyberint.rs:251; F-LP3-HIGH-002 Armis separate-alerts-endpoint phantom corrected → single `/api/v1/search` no trailing slash, AQL `in:{table}` discriminator per armis.rs:517,72,469); BC-INDEX v5.23→v5.24 (BC-2.16.013 entry updated to v1.3); HS-013 + HS-014 + HS-017 updated (parse_spec_file phantom retired; /xdome prefix stripped per claroty.rs). Story-writer scope: story v1.2→v1.3 (F-LP3-MED-001 OrgSlug::new_unchecked AC code samples updated — cite AD-017 audit-allowlist mechanism not Cargo feature gate per tenant.rs:97,84-86; URL corrections propagated across Task 3..6 descriptions); STORY-INDEX v2.159→v2.160. State-manager scope: local-pass-3.md + PLUGIN-MIGRATION-001-D-fix-burst-3.md persisted to code-delivery/PLUGIN-MIGRATION-001-D/adversarial-review/; STATE.md v7.421→v7.422; plugin_migration_001_d_local_adversary_passes 2→3; plugin_migration_001_d_local_fix_bursts 2→3; bc_index_version 5.23→5.24; story_index_version v2.159→v2.160. Novelty assessment HIGH — pass-3 surfaced complete URL drift cluster across all 4 sensors (path-correctness class not path-existence class) plus fresh parse_spec_file phantom surviving earlier sibling-sweeps; confirms fresh-context compounding value. Streak 0/3 unchanged — awaiting pass-4 fresh-context adversary. 242nd consecutive single-commit per TD-VSDD-053. | plugin-migration | 2026-05-20 | Decided by: product-owner (BC + HS fix) + story-writer (story fix) + state-manager (burst commit). Status: APPROVED |
 | D-734 | 2026-05-20 | product-owner + story-writer + state-manager | **FB-IMPL-P2 closure burst — PLUGIN-MIGRATION-001-D pass-2 adversarial fix-burst complete.** 8 findings closed in-scope (3 HIGH + 3 MED + 2 LOW) + 2 OBS noted; 1 code-side tech-debt surfaced (Cyberint `auth_type_name()` label-vs-behavior inconsistency — `cyberint.rs:8` header documents cookie-based auth but `auth_type_name()` returns `"bearer_static"`; forwarded to orchestrator for architect+implementer adjudication at cycle-close). PO scope: BC-2.16.013 v1.1→v1.2 (F-001 auth_type swap corrected — cyberint=bearer_static per `cyberint.rs:57-59`, claroty=cookie_roundtrip per `claroty.rs:63-65` + mod.rs:13-14 code-grounded; F-002 E-SPEC-017 new code "Sensor spec `sensor_id` does not match filename stem" registered in error-taxonomy.md v1.41 POL-1 append-only; F-003 `CrowdStrikeAdapter::fetch_page()` phantom corrected to `<SensorAdapter as fetch>(...)` per `crowdstrike.rs:391`; F-004 `${query.aql}` sibling-sweep miss corrected to `${query.filter.aql}`; F-005 line-number citations replaced with symbol-names per TD-VSDD-091; F-006 6 HS files `epic_id` aligned to `PLUGIN-MIGRATION-001`); BC-2.16.001 v1.3→v1.4 (§Error Conditions amended to cite E-SPEC-017); BC-2.16.009 v1.3→v1.4 (F-007 E-SPEC-002 + E-SPEC-003 enumerated in §Error Conditions; F-008 §Validation Rules updated to 5-value canonical auth_type set including `custom_via_plugin`); error-taxonomy.md v1.40→v1.41 (E-SPEC-017 row added; E-SPEC-015 RETIRED tombstone + E-SPEC-016 RETIRED tombstone per POL-1 append-only); BC-INDEX v5.22→v5.23; HOLDOUT-INDEX updated; HS-013..HS-018 all updated (auth_type swap + epic_id alignment). Story-writer scope: story v1.1→v1.2 (AC-002/003/004/011 auth_type labels corrected; AC-011 updated to 5-value auth_type set; Task descriptions + file-list propagated); STORY-INDEX v2.158→v2.159. State-manager scope: local-pass-2.md + PLUGIN-MIGRATION-001-D-fix-burst-2.md persisted to code-delivery/PLUGIN-MIGRATION-001-D/adversarial-review/; STATE.md v7.420→v7.421. Streak 0/3 unchanged — awaiting pass-3 fresh-context adversary. 241st consecutive single-commit per TD-VSDD-053. | plugin-migration | 2026-05-20 | Decided by: product-owner (BC + HS fix) + story-writer (story fix) + state-manager (burst commit). Status: APPROVED |
 | D-733 | 2026-05-20 | product-owner + story-writer + state-manager | **FB-IMPL-P1 closure burst — PLUGIN-MIGRATION-001-D pass-1 adversarial fix-burst complete.** 14 findings closed in-scope (5 HIGH + 3 MED + 4 LOW + 2 OBS); 3 process-gap deferrals forwarded to cycle-close (F-010 capabilities.md flat-table, F-012 BC introduced date format, O-002 VP-148 file absence). PO scope: BC-2.16.013 v1.0→v1.1 (real `BehavioralClone::start_on(bind, shutdown, tls)` API documented; 5-arg `PipelineExecutor::execute` signature corrected; 6 HS files HS-013..HS-018 created in sequential numbering per POL-1; E-SPEC-015 RETIRED + E-SPEC-016 repointed to E-SPEC-009 canonical; ADR-023 §Decision Rules — Rule N citations corrected; ADR-022 §C — Wiring Contracts — QueryEngine citation corrected; O-001 TOML grammar verification performed in-scope per production-grade default: `fan_out_batch_size` SUPPORTED, `${query.filter.aql}` SUPPORTED, `timestamp_format="multi"` + `timestamp_fallback_chain` NOT SUPPORTED with Option A/B implementer paths documented); HOLDOUT-INDEX v1.3→v1.4. Story-writer scope: story v1.0→v1.1 (4 ACs F-001 + 4 ACs F-002 rewritten against real API; BC titles table all 7 canonical; subsystem comment corrected to "Sensor Adapters"; AC-006 cite fixed; BC-2.16.002 §Postconditions Canonical Structured Event Catalog anchor fixed). State-manager scope: pass-1 report + fix-burst-1 closure record persisted to code-delivery/PLUGIN-MIGRATION-001-D/adversarial-review/. BC-INDEX v5.21→v5.22; STORY-INDEX v2.157→v2.158. Streak 0/3 unchanged — awaiting pass-2 fresh-context adversary. 240th consecutive single-commit per TD-VSDD-053. | plugin-migration | 2026-05-20 | Decided by: product-owner (BC + HS fix) + story-writer (story fix) + state-manager (burst commit). Status: APPROVED |
 | D-732 | 2026-05-20 | story-writer + state-manager | **PLUGIN-MIGRATION-001-D story-writer materialization burst — planned→draft v1.0.** Story-writer authored 819-line story spec file `.factory/stories/PLUGIN-MIGRATION-001-D-author-4-production-toml-sensor-specs.md` covering "Author 4 Production TOML Sensor Specs — Reverse-Engineered + DTU-Parity Tests" (Wave 1, first unblocked after PREREQ-A/B/C/D/E all merged). Story body bidirectionally traces 13 acceptance criteria (AC-001..AC-013) to 7 BC anchors (BC-2.01.013 + BC-2.01.016 + BC-2.16.001 + BC-2.16.002 + BC-2.16.009 + BC-2.16.012 + BC-2.16.013) + VP-148 (VP-PLUGIN-003). 9 Red Gate tests authored: 5 non-DTU run unconditionally (boot-loading, validation, two-step pipeline, plugin dispatch anti-regression, spec_id mismatch); 4 DTU parity tests `#[ignore]`d pending DTU clone environmental dependency (RG-04..RG-07 per sensor). 6 holdout scenarios (HS-MIGRATION-D-001..006: 4 positive parity + 2 negative: bundled spec validation rejection + spec_id/filename mismatch). subsystems [SS-01, SS-16]. depends_on [S-PLUGIN-PREREQ-A,B,C,D] (all merged). blocks [PLUGIN-MIGRATION-001-A,B,C,E]. STORY-INDEX v2.156→v2.157: row 399 status `planned → draft`, BC count `0(TBD) → 7` with anchor list, VP `-- → VP-148`, points `3(placeholder) → 5` (justified: 4 TOML spec files + 4 DTU parity harness scaffolding + 5 non-DTU tests + workspace gate). Production-grade default maintained — no TBD or TODO in spec; all 13 ACs lock-stepped to BCs. **Observation surfaced (non-blocking, adversarial cascade target):** BC-2.16.013 references "TS-PLUGIN-PARITY-001" — story-writer did not confirm TS document exists as separate artifact; cascade will resolve. Status remains `draft` (consistent with PREREQ-B/C/D precedent; promoted to `ready` after LOCAL 3-CLEAN convergence). 239th consecutive single-commit per TD-VSDD-053. | plugin-migration | 2026-05-20 | Decided by: story-writer (story materialization) + state-manager (burst commit). Status: APPROVED |
@@ -192,11 +191,11 @@ Prior cycle history:
 
 ---
 
-## Session Resume Checkpoint (2026-05-20 — D-734-FB-IMPL-P2-CLOSURE)
+## Session Resume Checkpoint (2026-05-20 — D-735-FB-IMPL-P3-CLOSURE)
 
-_Previous checkpoint (D-733-FB-IMPL-P1-CLOSURE) archived: [cycles/wave-0-plugin-prereqs/session-checkpoints.md](cycles/wave-0-plugin-prereqs/session-checkpoints.md)_
+_Previous checkpoint (D-734-FB-IMPL-P2-CLOSURE) archived: [cycles/wave-0-plugin-prereqs/session-checkpoints.md](cycles/wave-0-plugin-prereqs/session-checkpoints.md)_
 
-**STATE v7.421. D-734 FB-IMPL-P2 CLOSURE COMPLETE.** PO + story-writer fix-burst complete for PLUGIN-MIGRATION-001-D pass-2 adversarial review. 8 findings closed (3H+3M+2L); 1 code-side tech-debt surfaced (Cyberint auth_type_name label-vs-behavior inconsistency). BC-2.16.013 v1.2 (auth_type swap corrected code-grounded; E-SPEC-017 registered; fetch_page phantom fixed). BC-2.16.001 v1.4 + BC-2.16.009 v1.4. error-taxonomy v1.41. Story v1.2. BC-INDEX v5.23 (total 240, draft 3). STORY-INDEX v2.159. Streak 0/3 — pass-3 next. 241st consecutive single-commit per TD-VSDD-053.
+**STATE v7.422. D-735 FB-IMPL-P3 CLOSURE COMPLETE.** PO + story-writer fix-burst complete for PLUGIN-MIGRATION-001-D pass-3 adversarial review. 6 findings closed (3C+2H+1M); 2 code-side TDs forwarded to cycle-close (O-4 AuthType variants; O-6 Claroty docstring). BC-2.16.013 v1.3 (4-sensor URL corrections; SpecLoader::parse phantom retired from 11 sites). HS-013/014/017 updated. Story v1.3. BC-INDEX v5.24 (total 240, draft 3). STORY-INDEX v2.160. Streak 0/3 — pass-4 next. 242nd consecutive single-commit per TD-VSDD-053.
 
 **Open follow-ups:**
 1. TD-PRISM-QUERY-CACHE-001 P2 — SEC-NEW-002 LRU eviction outside-Mutex race; anchor: PLUGIN-MIGRATION-Wave-2
@@ -206,12 +205,14 @@ _Previous checkpoint (D-733-FB-IMPL-P1-CLOSURE) archived: [cycles/wave-0-plugin-
 5. Drift items table — S-7.02 cycle-close; all v1.0.0-greenfield due dates
 6. Process-gap F-010/F-012/O-002 — forwarded to cycle-close (architect + policies-steward adjudication)
 7. Code-side TD: Cyberint `auth_type_name()` label-vs-behavior inconsistency — forwarded to orchestrator for architect+implementer adjudication at PLUGIN-MIGRATION-001-D cycle-close
+8. Code-side TD: AuthType enum 4-variant vs VALID_AUTH_TYPES 5-string drift (spec_parser.rs) — route to architect+implementer at cycle-close (D-735)
+9. Code-side TD: Claroty docstring `claroty.rs:8` "Static bearer token" vs `auth_type_name()` `"cookie_roundtrip"` — route to architect+implementer at cycle-close (D-735)
 
 **Resume Protocol:**
 1. Read `.factory/SESSION-HANDOFF.md` §RESUME SNAPSHOT 2026-05-20 for full session context
-2. Read `.factory/STATE.md` (this file) — current_step D-734 + frontmatter pins (bc_index_version: 5.23, story_index_version: v2.159, bc_count_corrected: 240, error_taxonomy_version: 1.41)
+2. Read `.factory/STATE.md` (this file) — current_step D-735 + frontmatter pins (bc_index_version: 5.24, story_index_version: v2.160, bc_count_corrected: 240, error_taxonomy_version: 1.41)
 3. Check `develop_head: 1bc56e3c` — current develop after PR #152 (no new merges since)
 4. Verify 0 open PRs: `gh pr list --state open`
-5. Dispatch LOCAL adversary pass-3 fresh-context for PLUGIN-MIGRATION-001-D per BC-5.39.001 (streak 0/3 → target 1/3); use `vsdd-factory:adversarial-review` or `vsdd-factory:adversary` agent with policy rubric from `.factory/policies.yaml`
+5. Dispatch LOCAL adversary pass-4 fresh-context for PLUGIN-MIGRATION-001-D per BC-5.39.001 (streak 0/3 → target 1/3); use `vsdd-factory:adversarial-review` or `vsdd-factory:adversary` agent with policy rubric from `.factory/policies.yaml`
 
 _Agent routing: see CLAUDE.md §Agent Routing Table._

@@ -44,8 +44,10 @@ notes: "PLUGIN-MIGRATION-001-D holdout — Claroty POST-for-read polymorphic ID 
 Validates that `claroty.sensor.toml` + `PipelineExecutor` against the Claroty DTU clone produces
 OCSF-normalized output equivalent to the reference output from the prior hardcoded Rust adapter
 path, per TS-PLUGIN-PARITY-001. The Claroty `assets` table uses a POST-for-read pattern
-(POST `/xdome/api/v1/assets` with a JSON body to retrieve asset records), which is the
+(POST `/api/v1/assets` with a JSON body to retrieve asset records), which is the
 least-common pattern in the spec grammar and the highest risk for spec-authoring error.
+URL pattern from `claroty.rs:endpoint_from_spec()` (claroty.rs:238-244): strips `"claroty_"`
+prefix and prepends `"/api/v1/"` — NO `/xdome` prefix present in the production code.
 
 The polymorphic ID case (`ClarotyId` — integer or UUID string) is the primary edge case:
 the spec column must be typed `string` to handle both ID forms; the OCSF output must normalize
@@ -70,7 +72,7 @@ both forms correctly.
 
 **Expected Outcome:**
 - Parity verdict: PASS — `id` column value `"12345"` (string-normalized); matches reference
-- POST body correctly formed per `claroty.sensor.toml` step definition
+- POST body correctly formed per `claroty.sensor.toml` step definition targeting `/api/v1/assets`
 - Offset pagination advances correctly; `request_count >= 1`
 
 ### HS-014-02: Claroty Assets POST-for-Read — UUID String ID

@@ -1,7 +1,7 @@
 ---
 document_type: behavioral-contract
 level: L3
-version: "1.2"
+version: "1.3"
 status: draft
 producer: product-owner
 timestamp: 2026-05-20T00:00:00Z
@@ -111,29 +111,42 @@ Four production TOML sensor spec files are created at `crates/prism-sensors/spec
 
 - `crowdstrike.sensor.toml` — `sensor_id: "crowdstrike"`, `auth_type: "oauth2_client_credentials"`,
   base URL pattern `https://api.{cloud_region}.crowdstrike.com`, tables:
-  - `detections` — QueryV2 step (GET `/detects/queries/detects/v1`) → PostEntities step
-    (POST `/detects/entities/summaries/GET/v1`) with batch size ≤ 100 (CROWDSTRIKE_BATCH_SIZE)
-  - `devices` — QueryV2 step (GET `/devices/queries/devices/v1`) → PostEntities step
-    (POST `/devices/entities/devices/v1`) with batch size ≤ 100
-  - `incidents` — GET `/incidents/queries/incidents/v1` with cursor pagination
+  - `detections` — QueryV2 step (GET `/queries/detections`) → PostEntities step
+    (POST `/entities/detections/GET`) with batch size ≤ 100 (CROWDSTRIKE_BATCH_SIZE)
+  - `devices` — QueryV2 step (GET `/queries/devices`) → PostEntities step
+    (POST `/entities/devices/GET`) with batch size ≤ 100
+  - `incidents` — QueryV2 step (GET `/queries/incidents`) → PostEntities step
+    (POST `/entities/incidents/GET`) with batch size ≤ 100
+  URL patterns derived from `crowdstrike.rs`: `query_resource_ids` uses
+  `format!("{}/queries/{}", self.base_url, resource_type)` (crowdstrike.rs:262) and
+  `fetch_entities` uses `format!("{}/entities/{}/GET", self.base_url, resource_type)`
+  (crowdstrike.rs:315); `resource_type` is derived via `resource_type_from_spec()` which
+  strips `"crowdstrike_"` prefix and pluralizes (crowdstrike.rs:369-375).
   Each table's columns match the Arrow schema produced by the prior Rust adapter (BC-2.01.005
   field enumeration); OCSF field mappings reproduce the prior `CrowdStrikeAdapter::fetch()`
   (`SensorAdapter::fetch` trait method, `crowdstrike.rs`) normalization. Version: `"1.0.0"`. Rate limit hints: `requests_per_second: 10.0`.
 
 - `claroty.sensor.toml` — `sensor_id: "claroty"`, `auth_type: "cookie_roundtrip"`,
   base URL from instance_url, tables:
-  - `assets` — POST `/xdome/api/v1/assets` (POST-for-read pattern) with offset pagination
-  - `alerts` — POST `/xdome/api/v1/alerts` with offset pagination
-  - `audit_logs` — Claroty offset-based hybrid pagination via `paginate_claroty()` semantics
+  - `assets` — POST `/api/v1/assets` (POST-for-read pattern) with offset pagination
+  - `alerts` — POST `/api/v1/alerts` with offset pagination
+  - `audit_logs` — GET `/api/v1/audit_logs` via `paginate_claroty()` stream semantics
+  URL patterns derived from `claroty.rs:endpoint_from_spec()` (claroty.rs:238-244):
+  `"audit_logs"` → `"/api/v1/audit_logs"` (special case, claroty.rs:240-241); all other
+  tables strip `"claroty_"` prefix, pluralize, and prepend `"/api/v1/"` (claroty.rs:243-244).
+  NO `/xdome` prefix — that was a phantom; the code emits `/api/v1/{resource}s` directly.
   Polymorphic ID handling: `ClarotyId` (int or UUID string) expressed as column type `string`
   with OCSF `raw_extensions` passthrough. Version: `"1.0.0"`.
 
 - `cyberint.sensor.toml` — `sensor_id: "cyberint"`, `auth_type: "bearer_static"`,
   base URL from environment (`https://{environment}.cyberint.io`), tables:
-  - `alerts` — GET `/api/v1/alerts` with cursor pagination
-  - `incidents` — GET `/api/v1/incidents` (Cyberint DTU gap: parity tests in SKIP per
+  - `alerts` — GET `/api/alerts` with cursor pagination
+  - `incidents` — GET `/api/incidents` (Cyberint DTU gap: parity tests in SKIP per
     TS-PLUGIN-PARITY-001 Cyberint DTU Gap Note until DTU coverage of `incidents` pagination
     behavior is verified)
+  URL patterns derived from `cyberint.rs:endpoint_from_spec()` (cyberint.rs:244-251):
+  strips `"cyberint_"` prefix and pluralizes with `/api/` prefix (cyberint.rs:251:
+  `format!("/api/{resource}s")`). NO `/v1` segment — that was a phantom.
   Multi-format timestamp parsing (`parse_timestamp()`) is expressed via column `type: "datetime"`
   with a WASM transformer plugin for multi-format parsing (see O-001 Grammar Verification note
   in §Preconditions — `timestamp_format: "multi"` is NOT present in the current TOML grammar
@@ -141,11 +154,16 @@ Four production TOML sensor spec files are created at `crates/prism-sensors/spec
 
 - `armis.sensor.toml` — `sensor_id: "armis"`, `auth_type: "api_key"`,
   base URL from instance_url, tables:
-  - `devices` — GET `/api/v1/search/` with AQL passthrough via the `${query.filter.aql}`
-    interpolation variable (NOTE: the grammar uses `${query.filter.KEY}` not `${query.aql}`;
-    the AQL expression must be push-down filtered as `query_filters["aql"]` in `FetchContext`)
-    and page-based pagination
-  - `alerts` — GET `/api/v1/alerts/` with AQL forwarding and page pagination
+  - `devices` — GET `/api/v1/search` (NO trailing slash) with AQL parameter `aql=in:devices`
+    (default AQL derived from `DEFAULT_AQL_TEMPLATE = "in:{table}"` at armis.rs:72) or
+    verbatim spec-supplied AQL via the `${query.filter.aql}` interpolation variable.
+    Page-based pagination.
+  - `alerts` — GET `/api/v1/search` (same single endpoint; discriminated by AQL expression
+    `aql=in:alerts` default or spec-supplied AQL) with page-based pagination.
+  URL derived from `armis.rs:get_search()` (armis.rs:517):
+  `format!("{}/api/v1/search", self.instance_url)` — NO trailing slash. Both `devices` and
+  `alerts` tables call the SAME `/api/v1/search` endpoint; the resource type is differentiated
+  via the `aql` query parameter, not via separate endpoint paths.
   Timestamp fallback chain: `firstSeen` → `lastSeen` → `DateTime::now()` expressed via a
   WASM transformer plugin (see O-001 Grammar Verification note in §Preconditions —
   `timestamp_fallback_chain` is NOT present in the current TOML grammar and requires a grammar
@@ -176,8 +194,9 @@ For each `(sensor_id, table)` pair with non-SKIP status:
      ) -> anyhow::Result<SocketAddr>
      ```
      The returned `SocketAddr` is used to construct the test-override base URL.
-  2. Load the bundled TOML spec via `spec_parser::parse_spec_file()` pointing to the fixture
-     DTU base URL (overriding `base_url` via test-only config injection)
+  2. Load the bundled TOML spec via `SpecLoader::parse(toml_input: &str)` (spec_parser.rs:655)
+     — read the spec file content to a string, then parse via `SpecLoader::parse(&content)`;
+     override the spec's `base_url` field to the DTU `SocketAddr` via test-only config injection
   3. Execute `PipelineExecutor::execute()` with a `NullAuthProvider` (DTU does not validate tokens)
      or the DTU's mock auth provider:
      ```rust
@@ -278,7 +297,7 @@ never registered in error-taxonomy.md and does not exist as a runtime error.)
 | Cyberint alerts happy path | cyberint | DTU stub: 5 alert records with ISO-8601 timestamps | Parity PASS: timestamps normalized to UTC per Rule C; OCSF fields match |
 | Armis devices timestamp fallback | armis | DTU stub: device record with no `firstSeen` or `lastSeen` fields | Parity PASS by Rule C convention (both sides take fetch-time timestamp fallback path); WARN logged |
 | Armis AQL forwarding | armis | Query with custom AQL expression passed in `${query.filter.aql}` (caller sets `FetchContext::query_filters["aql"]`) | Parity PASS: DTU receives verbatim AQL expression in `aql` parameter; response matches reference |
-| Spec load validation — crowdstrike | crowdstrike | `crowdstrike.sensor.toml` passes through `spec_parser::parse_spec_file()` | `Ok(SensorSpec)` with `sensor_id == "crowdstrike"`, correct auth_type and table count |
+| Spec load validation — crowdstrike | crowdstrike | `crowdstrike.sensor.toml` content passed through `SpecLoader::parse(toml_input: &str)` (spec_parser.rs:655) | `Ok(SensorSpec)` with `sensor_id == "crowdstrike"`, correct auth_type and table count |
 | Empty SKIP — cyberint.incidents | cyberint | Parity test targeting `cyberint.incidents` table | Test returns SKIP with message "cyberint incidents DTU gap — see TS-PLUGIN-PARITY-001 Cyberint DTU Gap Note" |
 
 ## Verification Properties
@@ -330,6 +349,7 @@ PLUGIN-MIGRATION-001-D (implementing story; planned → draft after PO authoring
 
 | Version | Burst | Date | Author | Change |
 |---------|-------|------|--------|--------|
+| 1.3 | FB-IMPL-P3-PO fix-burst-3 | 2026-05-20 | product-owner | Closes pass-3 findings F-LP3-CRIT-001, F-LP3-CRIT-002, F-LP3-CRIT-003, F-LP3-HIGH-001, F-LP3-HIGH-002. F-LP3-CRIT-001: replaced phantom `spec_parser::parse_spec_file()` with `SpecLoader::parse(toml_input: &str)` in §Postconditions §2 step 2 and §Canonical Test Vectors (CODE-GROUNDED: spec_parser.rs:655). F-LP3-CRIT-002: corrected all CrowdStrike URL paths — `/detects/queries/detects/v1` etc. replaced with actual patterns from crowdstrike.rs:262,315: `/queries/{resource_type}` (QueryV2) and `/entities/{resource_type}/GET` (PostEntities); incidents table corrected to two-step (same pattern); URL derivation via `resource_type_from_spec()` (crowdstrike.rs:369-375) documented. F-LP3-CRIT-003: stripped `/xdome` prefix from all Claroty endpoints — actual pattern is `/api/v1/{resource}s` (claroty.rs:244); `/xdome` was never present in the code. F-LP3-HIGH-001: removed `/v1` segment from Cyberint endpoints — actual pattern is `/api/{resource}s` (cyberint.rs:251); no `/v1` in Cyberint URL construction. F-LP3-HIGH-002: corrected Armis endpoint — single `/api/v1/search` (no trailing slash, armis.rs:517) used for ALL queries including both `devices` and `alerts`; AQL discriminator `in:devices` / `in:alerts` via `DEFAULT_AQL_TEMPLATE` (armis.rs:72) documented; phantom per-resource endpoint paths removed. |
 | 1.2 | FB-IMPL-P2-PO fix-burst-2 | 2026-05-20 | product-owner | Closes pass-2 findings F-001, F-002, F-003, F-004, F-005. F-001: swapped auth_type strings in §Postconditions §1 — claroty=`cookie_roundtrip` (was `bearer_static`), cyberint=`bearer_static` (was `cookie_roundtrip`), matching `ClarotyAuth::auth_type_name()` = `"cookie_roundtrip"` and `CyberintAuth::auth_type_name()` = `"bearer_static"` per code-grounded verification of `crates/prism-sensors/src/auth/{claroty,cyberint}.rs`. F-002: corrected §Error Conditions — E-SPEC-009 row now accurately describes ONLY duplicate-sensor_id (not filename-stem mismatch); added E-SPEC-017 row for filename-stem-vs-sensor_id mismatch (newly registered in error-taxonomy.md v1.41 per POL-1 append-only). F-003: replaced phantom `CrowdStrikeAdapter::fetch_page()` (non-existent) with actual `SensorAdapter::fetch()` trait method in §Postconditions §1 and §2 (CODE-GROUNDED: `crowdstrike.rs` has `fetch()` at trait impl, no `fetch_page()`; all 4 sensors use the same `SensorAdapter::fetch()` entry point). F-004: corrected `${query.aql}` → `${query.filter.aql}` in §Canonical Test Vectors Armis AQL forwarding row. F-005 (TD-VSDD-091): replaced `spec_parser.rs:128` → `FetchStep::fan_out_batch_size field` and `pipeline.rs:246-250` → `PipelineExecutor::execute_impl query.filter.{k} step-vars seeding` in §Preconditions O-001 table. |
 | 1.1 | FB-IMPL-P1-PO fix-burst-1 | 2026-05-20 | product-owner | Closes pass-1 adversarial findings F-001/F-002/F-004/F-006/F-007/O-001. F-001: replaced fabricated `prism_dtu_{sensor}::server::spawn()` / `DtuHandle` API with actual `BehavioralClone::start_on(bind, shutdown, tls) -> anyhow::Result<SocketAddr>` trait (all 4 clones share via `prism_dtu_common::BehavioralClone`). F-002: replaced fabricated `PipelineExecutor::execute(spec, "<table_name>", &NullAuthProvider, ...)` with actual 5-arg signature `(spec: &SensorSpec, table: &TableSpec, context: &FetchContext, http_client: &reqwest::Client, auth_provider: &dyn AuthProvider) -> Result<PipelineResult, SpecEngineError>`. F-004: retired fabricated `E-SPEC-015` (parity FAIL is a test verdict, not a runtime error code) and replaced fabricated `E-SPEC-016` with `E-SPEC-009` (existing code already covers sensor_id/filename mismatch). F-006: corrected `ADR-023 §Rule 1` / `§Rule 3` phantom anchors to `ADR-023 §Decision Rules — Rule 1` / `§Decision Rules — Rule 3`. F-007: corrected `ADR-022 §C2` phantom anchor (C2 is in ADR-023, not ADR-022) to `ADR-023 §Architectural Constraints — C2`. O-001: added grammar verification table in §Preconditions confirming `fan_out_batch_size` SUPPORTED, `${query.filter.aql}` SUPPORTED (not `${query.aql}`), `timestamp_format = "multi"` NOT SUPPORTED, `timestamp_fallback_chain` NOT SUPPORTED — grammar extension or WASM plugin required as implementer prerequisite. Postconditions updated to reflect grammar gaps. |
 | 1.0 | D-731 PLUGIN-MIGRATION-001-D PO authoring | 2026-05-20 | product-owner | Initial draft — BC anchor for PLUGIN-MIGRATION-001-D; DTU-parity contract for VP-PLUGIN-003; authored from ADR-023 §Rule 3 + TS-PLUGIN-PARITY-001 + 4 sensor adapter source surveys |

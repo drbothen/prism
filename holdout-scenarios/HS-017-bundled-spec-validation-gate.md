@@ -63,11 +63,12 @@ the CI job would catch it.
 - This spec is NOT in the production specs directory; it is in a test-only fixture path
 
 **Steps:**
-1. Run spec validation: `spec_parser::parse_spec_file("crowdstrike-invalid.sensor.toml")`
+1. Run spec validation: read `crowdstrike-invalid.sensor.toml` to a string, then call
+   `SpecLoader::parse(toml_input: &str)` (spec_parser.rs:655)
 2. Collect returned error
 
 **Expected Outcome:**
-- Returns `Err(SpecEngineError)` — NOT `Ok(SensorSpec)`
+- Returns `Err(PrismError)` — NOT `Ok(SensorSpec)`
 - Error message contains `E-SPEC-002` (invalid column type)
 - CI job exits non-zero; bundled spec file cannot be committed without fix
 
@@ -78,7 +79,8 @@ the CI job would catch it.
   where `undefined_step` is not a declared step in the spec
 
 **Steps:**
-1. Run spec validation: `spec_parser::parse_spec_file("crowdstrike-undefined-var.sensor.toml")`
+1. Run spec validation: read `crowdstrike-undefined-var.sensor.toml` to a string, then call
+   `SpecLoader::parse(toml_input: &str)` (spec_parser.rs:655)
 2. Collect returned error
 
 **Expected Outcome:**
@@ -99,8 +101,8 @@ the CI job would catch it.
 ## Known-Good / Known-Problematic Corpus Note
 
 - **Known-good corpus:** All four production bundled specs (`crowdstrike.sensor.toml`,
-  `claroty.sensor.toml`, `cyberint.sensor.toml`, `armis.sensor.toml`) parsed through
-  `spec_parser::parse_spec_file()` — expected result: `Ok(SensorSpec)` for all four; zero
-  validation errors.
+  `claroty.sensor.toml`, `cyberint.sensor.toml`, `armis.sensor.toml`) each read to a string
+  and parsed through `SpecLoader::parse(toml_input: &str)` (spec_parser.rs:655) — expected
+  result: `Ok(SensorSpec)` for all four; zero validation errors.
 - **Known-problematic corpus:** The malformed test fixtures above — expected result: `Err`
   with specific E-SPEC-NNN codes; zero `Ok` returns.
