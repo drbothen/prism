@@ -44,12 +44,12 @@ fn test_BC_2_07_004_dynamic_write_tool_triggers_cache_invalidation() {
     // DYNAMIC_WRITE_TOOLS starts empty, QUERY_PHASE_STARTED starts false.
 
     // Register a dynamic write tool (simulates plugin registration at boot step 7.5).
-    let dyn_entry = WriteToolInvalidationMap {
-        tool_name: "dyn_plugin_write_tool".to_string(),
-        source_ids: vec!["dyn_data_source".to_string()],
-        sensor_id: SensorId::from("dyn_sensor"),
-        plugin_name: "dyn_test_plugin".to_string(),
-    };
+    let dyn_entry = WriteToolInvalidationMap::new(
+        "dyn_plugin_write_tool",
+        vec!["dyn_data_source".to_string()],
+        SensorId::from("dyn_sensor"),
+        "dyn_test_plugin",
+    );
     register_write_tool(dyn_entry).expect("dynamic write tool registration must succeed");
 
     // Populate the cache with an entry for the dynamic tool's source_id.

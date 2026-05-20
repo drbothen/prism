@@ -796,12 +796,12 @@ async fn test_BC_2_16_012_plugin_runtime_registers_write_tools_pre_query_phase()
 
     // Probe: re-registering the same tool names must return DuplicateWriteToolRegistration.
     // This proves the tools are present in the registry, not just counted.
-    let dup_result = register_write_tool(WriteToolInvalidationMap {
-        tool_name: "wt_plugin_action_one".to_string(),
-        source_ids: vec!["wt_source_alpha".to_string()],
-        sensor_id: prism_core::SensorId::from("wt_sensor"),
-        plugin_name: "write-tool-plugin".to_string(),
-    });
+    let dup_result = register_write_tool(WriteToolInvalidationMap::new(
+        "wt_plugin_action_one",
+        vec!["wt_source_alpha".to_string()],
+        prism_core::SensorId::from("wt_sensor"),
+        "write-tool-plugin",
+    ));
     assert!(
         dup_result.is_err(),
         "F-LP-IMPL-P1-002: re-registering a loaded write tool must fail with \
@@ -816,12 +816,12 @@ async fn test_BC_2_16_012_plugin_runtime_registers_write_tools_pre_query_phase()
     // Assert that QUERY_PHASE_STARTED is still false — registration happened pre-query-phase.
     // We verify this indirectly: register_write_tool on a NEW entry must succeed (not return
     // WriteToolRegistrationAfterBoot), proving the query phase flag was not flipped yet.
-    let new_entry_result = register_write_tool(WriteToolInvalidationMap {
-        tool_name: "wt_pre_phase_check_probe".to_string(),
-        source_ids: vec!["wt_probe_source".to_string()],
-        sensor_id: prism_core::SensorId::from("wt_probe_sensor"),
-        plugin_name: "test_probe".to_string(),
-    });
+    let new_entry_result = register_write_tool(WriteToolInvalidationMap::new(
+        "wt_pre_phase_check_probe",
+        vec!["wt_probe_source".to_string()],
+        prism_core::SensorId::from("wt_probe_sensor"),
+        "test_probe",
+    ));
     assert!(
         new_entry_result.is_ok(),
         "F-LP-IMPL-P1-002: registering a new write tool after plugin_load_step must succeed \
@@ -987,12 +987,12 @@ async fn test_BC_2_16_012_write_tool_reg_failure_rolls_back_plugin() {
     // Assertion 4: "clean_sibling_tool" must be registerable with DuplicateWriteToolRegistration
     // (proving it IS in the registry). Attempting to re-register it must fail with Duplicate.
     use prism_query::invalidation::{WriteToolInvalidationMap, register_write_tool};
-    let re_register = register_write_tool(WriteToolInvalidationMap {
-        tool_name: "clean_sibling_tool".to_string(),
-        source_ids: vec!["clean_source".to_string()],
-        sensor_id: prism_core::SensorId::from("clean_sensor"),
-        plugin_name: "clean-sibling-plugin".to_string(),
-    });
+    let re_register = register_write_tool(WriteToolInvalidationMap::new(
+        "clean_sibling_tool",
+        vec!["clean_source".to_string()],
+        prism_core::SensorId::from("clean_sensor"),
+        "clean-sibling-plugin",
+    ));
     assert!(
         re_register.is_err(),
         "F-LP-IMPL-P4-002: re-registering 'clean_sibling_tool' must fail with \
@@ -1002,12 +1002,12 @@ async fn test_BC_2_16_012_write_tool_reg_failure_rolls_back_plugin() {
 
     // Assertion 5: "dup_tool_alpha" must NOT be in the registry.
     // Attempting to register it must SUCCEED (not DuplicateWriteToolRegistration).
-    let register_dup = register_write_tool(WriteToolInvalidationMap {
-        tool_name: "dup_tool_alpha".to_string(),
-        source_ids: vec!["dup_source_probe".to_string()],
-        sensor_id: prism_core::SensorId::from("dup_sensor"),
-        plugin_name: "probe-plugin".to_string(),
-    });
+    let register_dup = register_write_tool(WriteToolInvalidationMap::new(
+        "dup_tool_alpha",
+        vec!["dup_source_probe".to_string()],
+        prism_core::SensorId::from("dup_sensor"),
+        "probe-plugin",
+    ));
     assert!(
         register_dup.is_ok(),
         "F-LP-IMPL-P4-002: registering 'dup_tool_alpha' (post-rollback) must succeed — \
@@ -1091,12 +1091,12 @@ async fn test_BC_2_16_012_write_tool_reg_failure_rolls_back_all_remaining_tools_
 
     // Pre-register "collider_tool" under a different plugin so that the 3-tool
     // plugin's "collider_tool" tool causes DuplicateWriteToolRegistration.
-    register_write_tool(WriteToolInvalidationMap {
-        tool_name: "collider_tool".to_string(),
-        source_ids: vec!["pre_source".to_string()],
-        sensor_id: prism_core::SensorId::from("pre_sensor"),
-        plugin_name: "pre-registered-plugin".to_string(),
-    })
+    register_write_tool(WriteToolInvalidationMap::new(
+        "collider_tool",
+        vec!["pre_source".to_string()],
+        prism_core::SensorId::from("pre_sensor"),
+        "pre-registered-plugin",
+    ))
     .expect("pre-registration must succeed");
 
     let count_after_prereg = dynamic_write_tool_count();
@@ -1135,12 +1135,12 @@ async fn test_BC_2_16_012_write_tool_reg_failure_rolls_back_all_remaining_tools_
 
     // Assertion 2: good_t1 NOT in registry (rolled back with plugin).
     // Probe: re-registering good_t1 must SUCCEED (not Duplicate), meaning it is absent.
-    let probe_good_t1 = register_write_tool(WriteToolInvalidationMap {
-        tool_name: "good_t1".to_string(),
-        source_ids: vec!["probe_source".to_string()],
-        sensor_id: prism_core::SensorId::from("three_tool_sensor"),
-        plugin_name: "probe-plugin".to_string(),
-    });
+    let probe_good_t1 = register_write_tool(WriteToolInvalidationMap::new(
+        "good_t1",
+        vec!["probe_source".to_string()],
+        prism_core::SensorId::from("three_tool_sensor"),
+        "probe-plugin",
+    ));
     assert!(
         probe_good_t1.is_ok(),
         "F-LP-IMPL-P6-001: 'good_t1' must NOT be in registry after plugin rollback \
@@ -1152,12 +1152,12 @@ async fn test_BC_2_16_012_write_tool_reg_failure_rolls_back_all_remaining_tools_
     // Pre-fix: good_t3 IS in registry (orphaned by loop-continuation bug).
     // Post-fix: good_t3 must be absent (loop stopped at rollback point).
     // Probe: re-registering good_t3 must SUCCEED (not Duplicate), meaning it is absent.
-    let probe_good_t3 = register_write_tool(WriteToolInvalidationMap {
-        tool_name: "good_t3".to_string(),
-        source_ids: vec!["probe_source_3".to_string()],
-        sensor_id: prism_core::SensorId::from("three_tool_sensor"),
-        plugin_name: "probe-plugin".to_string(),
-    });
+    let probe_good_t3 = register_write_tool(WriteToolInvalidationMap::new(
+        "good_t3",
+        vec!["probe_source_3".to_string()],
+        prism_core::SensorId::from("three_tool_sensor"),
+        "probe-plugin",
+    ));
     assert!(
         probe_good_t3.is_ok(),
         "F-LP-IMPL-P6-001: 'good_t3' must NOT be in registry after plugin rollback \
