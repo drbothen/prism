@@ -1,9 +1,9 @@
 ---
 document_type: pipeline-state
 level: ops
-version: "7.417"
+version: "7.418"
 producer: state-manager
-timestamp: 2026-05-19T21:00:00Z
+timestamp: 2026-05-20T12:00:00Z
 inputs: []
 input-hash: "[live-state]"
 traces_to: ""
@@ -16,7 +16,7 @@ repos: [poller-cobra, poller-express, poller-bear, poller-coaster, serveMyAPI, t
 safe_to_compact: false
 pre_compact_snapshot: "SESSION-HANDOFF.md §RESUME SNAPSHOT 2026-05-20"
 pre_compact_snapshot_at: "2026-05-20 (D-730 SESSION-HANDOFF.md §RESUME SNAPSHOT for /clear and fresh-session resume; PR #151 + PR #152 merge cycle complete; consolidation sweep COMPLETE; safe_to_compact: false post-D-727 compact)"
-current_step: "D-730 SESSION-HANDOFF.md §RESUME SNAPSHOT 2026-05-20 written — durable resume state for /clear and fresh-session restart. PR #151 (S-PLUGIN-PREREQ-E) + PR #152 (post-PREREQ-E maintenance + cache race fix) both merged to develop@1bc56e3c. PREREQ-E consolidation sweep COMPLETE. STATE.md v7.417. 237th consecutive single-commit per TD-VSDD-053. NEXT: PLUGIN-MIGRATION-001-D PO authoring (Wave 1 first unblocked story per dependency graph after PREREQ-A/B/C/D/E merge)."
+current_step: "D-731 PLUGIN-MIGRATION-001-D BC anchoring complete — product-owner authored BC-2.16.013 v1.0 (NEW, 265 lines) + anchored 6 existing BCs; BC-INDEX v5.20→v5.21 (total 239→240, draft 2→3); STORY-INDEX v2.155→v2.156 (PLUGIN-MIGRATION-001-D BC count 0(TBD)→7 with anchor list; status: PO authoring complete). STATE.md v7.418. 238th consecutive single-commit per TD-VSDD-053. NEXT: story-writer dispatch to materialize PLUGIN-MIGRATION-001-D story body (planned → draft) using 7 anchored BCs + VP-148."
 current_cycle: wave-0-plugin-prereqs
 feature_branch_head: "merged to 80ebe794 at 2026-05-19 (PR #151) — a4c048ce was final feature HEAD before squash-merge"
 pr_level_adversary_streak: "3/3 CONVERGED per BC-5.39.001 — passes 2/3/4 all CLEAN; PR #151 merged 2026-05-19; D-716 Option A standing satisfied"
@@ -52,12 +52,12 @@ vsdd_factory_version: "1.0.0-rc.18 (re-activated 2026-05-13T15:00:19Z; upgrade c
 workspace_test_count: 3681
 user_directive_persistent: "No pragmatic convergence. Fix all issues before build."
 current_cycle_history: "wave-0-plugin-prereqs (PREREQ-E merged PR #151 2026-05-19); prior: wave-4-operations (active); wave-3-multi-tenant (COMPLETE)"
-bc_index_version: "5.20"
+bc_index_version: "5.21"
 vp_index_version: "1.76"
-story_index_version: "v2.155"
+story_index_version: "v2.156"
 policies_version: "1.29"
 total_stories: 150
-bc_count_corrected: 239
+bc_count_corrected: 240
 subsystem_count: 22
 vp_count: 156
 prd_version: "1.10"
@@ -79,9 +79,9 @@ historical_cycles: [phase-1-convergence, wave-3-multi-tenant, wave-4-operations]
 | **Language** | Rust |
 | **Target Workspace** | per-analyst stdio (MCP server) |
 | **Started** | 2026-04-13 |
-| **Last Updated** | 2026-05-20 (D-730 SESSION-HANDOFF.md §RESUME SNAPSHOT 2026-05-20 written; STATE.md 7.416→7.417; 237th consecutive single-commit) |
+| **Last Updated** | 2026-05-20 (D-731 PLUGIN-MIGRATION-001-D BC anchoring burst; BC-INDEX v5.21, STORY-INDEX v2.156, BC-2.16.013 NEW; STATE.md 7.417→7.418; 238th consecutive single-commit) |
 | **Current Phase** | Wave 3 Tier-3 COMPLETE — **Wave 3-A 4 of 4 SHIPPED**; plugin migration: PREREQ-F + PREREQ-A + PREREQ-B + PREREQ-C + PREREQ-D + **PREREQ-E MERGED** (PR #151 80ebe794 2026-05-19T18:06:44Z); PREREQ-F next per Wave 0 dependency chain |
-| **Current Step** | D-730 SESSION-HANDOFF.md §RESUME SNAPSHOT 2026-05-20 written. NEXT: PLUGIN-MIGRATION-001-D PO authoring (Wave 1 first unblocked). |
+| **Current Step** | D-731 PLUGIN-MIGRATION-001-D BC anchoring complete (BC-2.16.013 NEW + 6 existing anchored; BC-INDEX v5.21; STORY-INDEX v2.156). NEXT: story-writer dispatch to materialize PLUGIN-MIGRATION-001-D story body (planned → draft). |
 
 ## Phase Progress
 
@@ -121,6 +121,7 @@ _D-001..D-046 archived: [cycles/phase-3-dtu-wave-2/decisions-archive-d001-d032.m
 
 | ID | Decision | Rationale | Phase | Date |
 |----|----------|-----------|-------|------|
+| D-731 | 2026-05-20 | product-owner + state-manager | **PLUGIN-MIGRATION-001-D BC anchoring burst — Wave 1 first-unblocked story PO authoring complete.** Product-owner authored BC anchor set for PLUGIN-MIGRATION-001-D ("Author 4 Production TOML Sensor Specs — Reverse-Engineered + DTU-Parity Tests") on fresh-session resume per D-730 §RESUME SNAPSHOT 2026-05-20 §6 Path A: (a) NEW BC-2.16.013 "Bundled Sensor Spec Authoring and DTU-Parity Verification" v1.0 draft authored (265 lines; primary contract for VP-PLUGIN-003 — DTU parity assertion that TOML+plugin path produces byte-identical OCSF output to deleted hardcoded Rust adapter path per sensor); (b) 6 existing BCs anchored to story (BC-2.01.013 active + BC-2.01.016 active + BC-2.16.001 draft + BC-2.16.002 active + BC-2.16.009 draft + BC-2.16.012 active); (c) BC-INDEX v5.20→v5.21 (BC-2.16.013 row inserted; frontmatter total 239→240, draft 2→3; changelog entry); (d) STORY-INDEX v2.155→v2.156 (PLUGIN-MIGRATION-001-D row BC count 0(TBD)→7 with anchor list; status annotation "PO authoring complete; ready for story-writer materialization (planned → draft)"; changelog entry). ZERO-DRIFT: PO confirmed no stale version pins remain across project after BC-INDEX v-bump (sibling-sweep per POL-2). Production-grade default maintained — no "TBD" or "TODO for architect" in any spec artifact; DTU-parity contract surface fully specified (preconditions, verdicts, edge cases, SKIP taxonomy, INV-PARITY-001 replacement-before-deletion invariant). 238th consecutive single-commit per TD-VSDD-053. | plugin-migration | 2026-05-20 | Decided by: product-owner (BC authoring) + state-manager (burst commit). Status: APPROVED |
 | D-730 | 2026-05-20 | state-manager | **SESSION-HANDOFF.md §RESUME SNAPSHOT 2026-05-20 — durable resume state for /clear.** Appended §RESUME SNAPSHOT 2026-05-20 to SESSION-HANDOFF.md covering full 2026-05-19/20 session: PR #151 (S-PLUGIN-PREREQ-E) merged to develop@80ebe794 + FB-PR-1 (CI gap + version bump) + PR-LEVEL 4 passes 3-CLEAN CONVERGED per BC-5.39.001 D-716 Option A; PR #152 (3-part maintenance: vp156 seeds + WriteToolInvalidationMap #[non_exhaustive] 10-callsite sweep + cache.rs put_with_ttl race fix) merged to develop@1bc56e3c + FB-PR-2 (description gap) + PR-LEVEL 4 passes 3-CLEAN CONVERGED; PREREQ-E consolidation sweep COMPLETE (stale worktrees cleaned, STORY-INDEX flipped, 2 obs closures, 2 TD entries, POL-31 codified); cache race root cause documented (total_bytes outside-Mutex); 18-callsite sibling-sweep precedent established for TD-VSDD-060 integration-test coverage; STATE.md v7.416→v7.417. pre_compact_snapshot pointer updated to §RESUME SNAPSHOT 2026-05-20. 237th consecutive single-commit per TD-VSDD-053. | plugin-migration | 2026-05-20 | Decided by: state-manager (durable resume snapshot burst). Status: APPROVED |
 | D-729 | 2026-05-20 | state-manager | **PR #152 maintenance squash-merge — vp156 seeds + WriteToolInvalidationMap #[non_exhaustive] + cache race fix.** PR #152 squash-merged to develop@1bc56e3c at 2026-05-20T14:10:02Z; PR-LEVEL adversary cascade BC-5.39.001 3-CLEAN converged across passes 2-3-4 per D-716 Option A standing; FB-PR-2 (orchestrator-applied) closed pass-1 BLOCKING F8 PR description gap via `gh pr edit` title + body update covering all 3 commit themes; 3-part maintenance scope: (i) vp156 proptest regression seeds restored at crates/prism-query/tests/vp156_write_tool_registration_uniqueness.proptest-regressions (4 shrinking cases accumulated during PREREQ-E cascade); (ii) WriteToolInvalidationMap `#[non_exhaustive]` + new `::new()` constructor + 10-callsite sibling-sweep (prism-bin: 3 sites; prism-query/tests/: 7 sites — 8 prior-discovered + 1 additional during fresh-context implementer dispatch revealed integration-test external-crate compilation requirement) + perimeter-violation compile-fail gate EXPECTED 31 → 32; (iii) cache race fix `Cache::put_with_ttl` `total_bytes` accounting moved inside the partition Mutex critical section closing OBS-007 same-key-concurrent-puts over-count race (test_p8_007_ec07030_concurrent_miss_final_state_consistent surfaced on PR #152 CI x86_64-unknown-linux-musl 1/2 runs same SHA); CI: 36/36 PASS across all platforms + semver + clippy + perimeter + fuzz + deny + audit; SEC-NEW-002 LRU eviction outside-the-lock race remains separately tracked as TD-PRISM-QUERY-CACHE-001 P2 (not closed by this PR); 236th consecutive single-commit per TD-VSDD-053. | plugin-migration | 2026-05-20 | Decided by: state-manager (post-PR-#152 bookkeeping burst). Status: APPROVED |
 | D-728 | 2026-05-19 | state-manager | **POST-PREREQ-E CYCLE CLOSE BURST — STORY-INDEX flip + 2 obs closures + 2 TD entries + POL-31 codification.** Closes carry-forward items from PREREQ-E cycle (LOCAL + PR-LEVEL cascade): (a) STORY-INDEX row PREREQ-E draft→merged (missed in D-726); (b) F-P16-LOW-001 BC-INDEX row 221 asymmetry [verdict: SKIPPED — already consistent; v5.07 FB60 trailing-cell removal closed the class; BC-2.16.011 row follows dominant convention]; (c) F-P12-OBS-002 BC-2.16.012 TV plugin_name shorthand [verdict: SKIPPED — plugin_name IS the canonical ADR-026 D7 v1.23 field name; TV-BC-2.16.012-004 uses WriteToolInvalidationMap fields sensor_id + tool_name with no ambiguity]; (d) new TD-S-PLUGIN-PREREQ-E-001 cross-package nextest QUERY_PHASE_STARTED leak (P3); (e) new TD-S-PLUGIN-PREREQ-E-002 SIGTERM load-induced flake (P3, F-P7-OBS-001 closure); (f) POL-31 VP-Proof-Harness-Skeleton-Symbol-Validation codification proposed (id: 31; policies.yaml v1.28→v1.29). STATE.md v7.414→v7.415. 235th consecutive single-commit per TD-VSDD-053. | plugin-migration | 2026-05-19 | Decided by: state-manager (post-PREREQ-E cycle close consolidation burst). Status: APPROVED |
@@ -187,11 +188,11 @@ Prior cycle history:
 
 ---
 
-## Session Resume Checkpoint (2026-05-20 — D-730-DURABLE-SNAPSHOT-FOR-CLEAR)
+## Session Resume Checkpoint (2026-05-20 — D-731-PLUGIN-MIGRATION-001-D-BC-ANCHORING)
 
-_Previous checkpoint (2026-05-20-POST-PR-152-MERGE-D-729) archived: [cycles/wave-0-plugin-prereqs/session-checkpoints.md](cycles/wave-0-plugin-prereqs/session-checkpoints.md)_
+_Previous checkpoint (D-730-DURABLE-SNAPSHOT-FOR-CLEAR) archived: [cycles/wave-0-plugin-prereqs/session-checkpoints.md](cycles/wave-0-plugin-prereqs/session-checkpoints.md)_
 
-**STATE v7.417. D-730 DURABLE SNAPSHOT WRITTEN.** SESSION-HANDOFF.md §RESUME SNAPSHOT 2026-05-20 appended covering full 2026-05-19/20 session. PR #151 (S-PLUGIN-PREREQ-E) merged develop@80ebe794 + PR #152 (3-part maintenance) merged develop@1bc56e3c. PREREQ-E consolidation sweep COMPLETE. pre_compact_snapshot pointer updated. 237th consecutive single-commit per TD-VSDD-053.
+**STATE v7.418. D-731 PLUGIN-MIGRATION-001-D BC ANCHORING COMPLETE.** Product-owner authored BC-2.16.013 v1.0 draft (265 lines; primary contract for VP-PLUGIN-003 DTU parity) + anchored 6 existing BCs to PLUGIN-MIGRATION-001-D. BC-INDEX v5.21 (total 240, draft 3). STORY-INDEX v2.156 (PLUGIN-MIGRATION-001-D BC count 7; PO authoring complete). 238th consecutive single-commit per TD-VSDD-053.
 
 **Open follow-ups:**
 1. TD-PRISM-QUERY-CACHE-001 P2 — SEC-NEW-002 LRU eviction outside-Mutex race; anchor: PLUGIN-MIGRATION-Wave-2
@@ -202,9 +203,9 @@ _Previous checkpoint (2026-05-20-POST-PR-152-MERGE-D-729) archived: [cycles/wave
 
 **Resume Protocol:**
 1. Read `.factory/SESSION-HANDOFF.md` §RESUME SNAPSHOT 2026-05-20 for full session context
-2. Read `.factory/STATE.md` (this file) — current_step D-730 + frontmatter pins
-3. Check `develop_head: 1bc56e3c` — current develop after PR #152
+2. Read `.factory/STATE.md` (this file) — current_step D-731 + frontmatter pins (bc_index_version: 5.21, story_index_version: v2.156, bc_count_corrected: 240)
+3. Check `develop_head: 1bc56e3c` — current develop after PR #152 (no new merges since)
 4. Verify 0 open PRs: `gh pr list --state open`
-5. Dispatch product-owner for PLUGIN-MIGRATION-001-D story authoring (Wave 1 first unblocked)
+5. Dispatch story-writer for PLUGIN-MIGRATION-001-D story body materialization (planned → draft) using 7 anchored BCs + VP-148
 
 _Agent routing: see CLAUDE.md §Agent Routing Table._

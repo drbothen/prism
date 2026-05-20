@@ -1,10 +1,10 @@
 ---
 document_type: story-index
 level: "L4"
-version: "v2.155"
+version: "v2.156"
 status: draft
-producer: state-manager
-timestamp: 2026-05-19T00:00:00Z
+producer: product-owner
+timestamp: 2026-05-20T00:00:00Z
 phase: 3
 total_stories: 150
 total_active_bcs: 222
@@ -396,7 +396,7 @@ pursuing maximum parallelism should schedule by topological layer, not wave numb
 | PLUGIN-MIGRATION-001-A | prism-sensors: Delete 4 Named Auth Modules + Re-exports + Replace init_registry_for_org [PLUGIN-MIGRATION Wave 1] [planned — gated on VP-PLUGIN-003 parity test pass for all 4 sensors] | prism-sensors,prism-bin | 0 (TBD) | -- | 3 | S-PLUGIN-PREREQ-A,S-PLUGIN-PREREQ-B,S-PLUGIN-PREREQ-C,S-PLUGIN-PREREQ-E,PLUGIN-MIGRATION-001-D,PLUGIN-MIGRATION-001-E |
 | PLUGIN-MIGRATION-001-B | prism-query: Convert 5 Sensor-Name Dispatch Sites to Spec-Catalog Lookup [PLUGIN-MIGRATION Wave 1] [planned] | prism-query | 0 (TBD) | -- | 3 | S-PLUGIN-PREREQ-A,S-PLUGIN-PREREQ-C,PLUGIN-MIGRATION-001-A |
 | PLUGIN-MIGRATION-001-C | prism-ocsf: Merge 4 Hardcoded Mappers → SpecDrivenMapper + .prx WASM Transformers [PLUGIN-MIGRATION Wave 1] [planned] | prism-ocsf,prism-spec-engine | 0 (TBD) | -- | 3 | S-PLUGIN-PREREQ-C,S-PLUGIN-PREREQ-D,PLUGIN-MIGRATION-001-A |
-| PLUGIN-MIGRATION-001-D | prism-sensors: Author 4 Production TOML Sensor Specs — Reverse-Engineered + DTU-Parity Tests [PLUGIN-MIGRATION Wave 1] [planned] | prism-sensors,prism-spec-engine | 0 (TBD) | -- | 3 | S-PLUGIN-PREREQ-A,S-PLUGIN-PREREQ-B,S-PLUGIN-PREREQ-C,S-PLUGIN-PREREQ-D |
+| PLUGIN-MIGRATION-001-D | prism-sensors: Author 4 Production TOML Sensor Specs — Reverse-Engineered + DTU-Parity Tests [PLUGIN-MIGRATION Wave 1] [planned — PO authoring complete D-731 2026-05-20; BC anchors set: BC-2.01.013+BC-2.01.016+BC-2.16.001+BC-2.16.002+BC-2.16.009+BC-2.16.012+BC-2.16.013(NEW); VPs: VP-148(VP-PLUGIN-003); ready for story-writer materialization (planned→draft)] | prism-sensors,prism-spec-engine | 7 (BC-2.01.013, BC-2.01.016, BC-2.16.001, BC-2.16.002, BC-2.16.009, BC-2.16.012, BC-2.16.013) | -- | 3 | S-PLUGIN-PREREQ-A,S-PLUGIN-PREREQ-B,S-PLUGIN-PREREQ-C,S-PLUGIN-PREREQ-D |
 | PLUGIN-MIGRATION-001-E | prism-spec-engine: CrowdStrike OAuth2 Refresh-on-401 as In-Repo .prx WASM Plugin [PLUGIN-MIGRATION Wave 1] [planned] | prism-spec-engine | 0 (TBD) | -- | 3 | S-PLUGIN-PREREQ-D,PLUGIN-MIGRATION-001-D |
 | PLUGIN-MIGRATION-001-F | test: Rewrite 10+ Sensor-Named Test Files + Compile-Fail Perimeter Test [PLUGIN-MIGRATION Wave 2] [planned] | prism-sensors,prism-query | 0 (TBD) | -- | 3 | PLUGIN-MIGRATION-001-A,PLUGIN-MIGRATION-001-B |
 | PLUGIN-MIGRATION-001-G | docs: Doc/ADR/BC Sweep — Generalize Sensor-Named Architecture Docs [PLUGIN-MIGRATION Wave 2] [planned] | .factory | 0 (TBD) | -- | 3 | PLUGIN-MIGRATION-001-A,PLUGIN-MIGRATION-001-B,PLUGIN-MIGRATION-001-C |
@@ -929,6 +929,7 @@ All 13 new DTU clones: Wave 0, 0 BCs, priority P0, depends_on: [S-6.06].
 
 | Version | Date | Summary |
 |---------|------|---------|
+| v2.156 | 2026-05-20 | D-731 PLUGIN-MIGRATION-001-D PO authoring: row 399 PLUGIN-MIGRATION-001-D BC anchors set — BC count 0(TBD)→7(BC-2.01.013+BC-2.01.016+BC-2.16.001+BC-2.16.002+BC-2.16.009+BC-2.16.012+BC-2.16.013[NEW]); VP anchor VP-148(VP-PLUGIN-003); status annotation updated "PO authoring complete; ready for story-writer materialization (planned→draft)". New BC-2.16.013 authored (1.0 draft). BC-INDEX v5.20→v5.21 (total_contracts 239→240, draft_contracts 2→3). STORY-INDEX v2.155→v2.156. |
 | v2.155 | 2026-05-19 | D-728 post-PREREQ-E cycle close: STORY-INDEX row 395 PREREQ-E draft→merged flip (missed in D-726); + closure of F-P16-LOW-001 BC-INDEX asymmetry (skipped — already consistent per v5.07 FB60 trailing-cell removal) + F-P12-OBS-002 BC-2.16.012 TV plugin_name shorthand (skipped — plugin_name IS canonical field name per ADR-026 D7 v1.23; no ambiguity) + 2 new TD entries (TD-S-PLUGIN-PREREQ-E-001 QUERY_PHASE_STARTED nextest leak, TD-S-PLUGIN-PREREQ-E-002 SIGTERM flake) + POL-31 VP-Proof-Harness-Skeleton-Symbol-Validation codification target. STATE.md v7.414→v7.415. |
 | v2.154 | 2026-05-19 | FB-PR-1 PO spec updates: STORY-INDEX row 395 PREREQ-E in-line summary cell synced v1.50 → v1.51 (FB-PR-1 AC-11 two-layer enforcement model per architect adjudication). STORY-INDEX v2.153→v2.154. |
 | v2.153 | 2026-05-18 | FB-IMPL-10 pass-13 MED closure: STORY-INDEX row 395 PREREQ-E in-line summary cell synced v1.49 → v1.50 (F-LP-IMPL-P13-MED-002 `modified:` field sync POL-27). STORY-INDEX v2.152→v2.153. |
