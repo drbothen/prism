@@ -43,7 +43,7 @@ total_scenarios: 81
 | HS-015 | [HS-015-cyberint-alerts-cursor-parity.md](HS-015-cyberint-alerts-cursor-parity.md) | Cyberint Alerts Cursor Parity | 3 | P0 | Multi-format timestamp parsing; SKIP verdict for incidents table |
 | HS-016 | [HS-016-armis-aql-timestamp-fallback-parity.md](HS-016-armis-aql-timestamp-fallback-parity.md) | Armis AQL + Timestamp Fallback Parity | 3 | P0 | AQL forwarding via `${query.filter.aql}`; fallback chain; WARN audit signal |
 | HS-017 | [HS-017-bundled-spec-validation-gate.md](HS-017-bundled-spec-validation-gate.md) | Bundled Spec Validation CI Gate | 2 | P0 | Negative: malformed specs rejected by BC-2.16.009 (E-SPEC-002, E-SPEC-003) |
-| HS-018 | [HS-018-spec-id-filename-mismatch-rejection.md](HS-018-spec-id-filename-mismatch-rejection.md) | Spec sensor_id / Filename Mismatch | 3 | P0 | Negative: sensor_id ≠ filename stem rejected at load time (E-SPEC-009) |
+| HS-018 | [HS-018-spec-id-filename-mismatch-rejection.md](HS-018-spec-id-filename-mismatch-rejection.md) | Spec sensor_id / Filename Mismatch | 3 | P0 | Negative: sensor_id ≠ filename stem rejected at load time (E-SPEC-017) |
 
 ---
 
@@ -226,8 +226,8 @@ total_scenarios: 81
 
 | ID | Title | Crates Tested |
 |----|-------|--------------|
-| HS-018-01 | Filename Stem Mismatch (crowdstrike.sensor.toml + sensor_id: "falcon") — E-SPEC-009 | prism-spec-engine |
-| HS-018-02 | Case Mismatch (crowdstrike.sensor.toml + sensor_id: "CrowdStrike") — E-SPEC-009 | prism-spec-engine |
+| HS-018-01 | Filename Stem Mismatch (crowdstrike.sensor.toml + sensor_id: "falcon") — E-SPEC-017 | prism-spec-engine |
+| HS-018-02 | Case Mismatch (crowdstrike.sensor.toml + sensor_id: "CrowdStrike") — E-SPEC-017 | prism-spec-engine |
 | HS-018-03 | Valid Convention (crowdstrike.sensor.toml + sensor_id: "crowdstrike") — Loads OK | prism-spec-engine |
 
 ---

@@ -1,7 +1,7 @@
 ---
 document_type: behavioral-contract
 level: L3
-version: "1.1"
+version: "1.2"
 status: draft
 producer: product-owner
 timestamp: 2026-05-20T00:00:00Z
@@ -67,8 +67,8 @@ The following four TOML grammar features were verified against the canonical imp
 
 | Field | Status | Evidence |
 |-------|--------|---------|
-| `fan_out_batch_size` on `FetchStep` | **SUPPORTED** | Present as `pub fan_out_batch_size: Option<u32>` in `FetchStep` struct (`spec_parser.rs:128`); handled by `fan_out_batches` in `pipeline.rs` |
-| `${query.filter.KEY}` interpolation | **SUPPORTED** | `FetchContext::query_filters: HashMap<String, String>` seeded into `step_vars` as `query.filter.{k}` (`pipeline.rs:246-250`); Armis AQL must use `${query.filter.aql}`, not the non-existent `${query.aql}` shorthand |
+| `fan_out_batch_size` on `FetchStep` | **SUPPORTED** | Present as `pub fan_out_batch_size: Option<u32>` in the `FetchStep` struct (`FetchStep::fan_out_batch_size` field); handled by `fan_out_batches` in the pipeline executor |
+| `${query.filter.KEY}` interpolation | **SUPPORTED** | `FetchContext::query_filters: HashMap<String, String>` seeded into `step_vars` via `PipelineExecutor::execute_impl` `query.filter.{k}` step-vars seeding; Armis AQL must use `${query.filter.aql}`, not the non-existent `${query.aql}` shorthand |
 | `timestamp_format = "multi"` | **NOT SUPPORTED — Grammar Extension Required** | No such field exists in `FetchStep`, `TableSpec`, `ColumnSpec`, or `SensorSpec` in `spec_parser.rs`. This extension is NOT declaratively expressible in the current TOML grammar. |
 | `timestamp_fallback_chain = [...]` | **NOT SUPPORTED — Grammar Extension Required** | No such field exists anywhere in `spec_parser.rs`. This extension is NOT declaratively expressible in the current TOML grammar. |
 
@@ -117,10 +117,10 @@ Four production TOML sensor spec files are created at `crates/prism-sensors/spec
     (POST `/devices/entities/devices/v1`) with batch size ≤ 100
   - `incidents` — GET `/incidents/queries/incidents/v1` with cursor pagination
   Each table's columns match the Arrow schema produced by the prior Rust adapter (BC-2.01.005
-  field enumeration); OCSF field mappings reproduce the prior `CrowdStrikeAdapter::fetch_page()`
-  normalization. Version: `"1.0.0"`. Rate limit hints: `requests_per_second: 10.0`.
+  field enumeration); OCSF field mappings reproduce the prior `CrowdStrikeAdapter::fetch()`
+  (`SensorAdapter::fetch` trait method, `crowdstrike.rs`) normalization. Version: `"1.0.0"`. Rate limit hints: `requests_per_second: 10.0`.
 
-- `claroty.sensor.toml` — `sensor_id: "claroty"`, `auth_type: "bearer_static"`,
+- `claroty.sensor.toml` — `sensor_id: "claroty"`, `auth_type: "cookie_roundtrip"`,
   base URL from instance_url, tables:
   - `assets` — POST `/xdome/api/v1/assets` (POST-for-read pattern) with offset pagination
   - `alerts` — POST `/xdome/api/v1/alerts` with offset pagination
@@ -128,7 +128,7 @@ Four production TOML sensor spec files are created at `crates/prism-sensors/spec
   Polymorphic ID handling: `ClarotyId` (int or UUID string) expressed as column type `string`
   with OCSF `raw_extensions` passthrough. Version: `"1.0.0"`.
 
-- `cyberint.sensor.toml` — `sensor_id: "cyberint"`, `auth_type: "cookie_roundtrip"`,
+- `cyberint.sensor.toml` — `sensor_id: "cyberint"`, `auth_type: "bearer_static"`,
   base URL from environment (`https://{environment}.cyberint.io`), tables:
   - `alerts` — GET `/api/v1/alerts` with cursor pagination
   - `incidents` — GET `/api/v1/incidents` (Cyberint DTU gap: parity tests in SKIP per
@@ -191,7 +191,10 @@ For each `(sensor_id, table)` pair with non-SKIP status:
      ) -> Result<PipelineResult, SpecEngineError>
      ```
   4. Execute the reference path: load the fixture payload from `prism-dtu-{sensor}/fixtures/parity/`
-     and apply the prior Rust adapter's normalization function to produce the reference OCSF output
+     and apply the prior Rust adapter's `SensorAdapter::fetch()` trait method (implemented as
+     `CrowdStrikeAdapter::fetch()`, `ClarotyAdapter::fetch()`, `CyberintAdapter::fetch()`, and
+     `ArmisAdapter::fetch()` respectively in `crates/prism-sensors/src/auth/{sensor}.rs`) to
+     produce the reference OCSF output
   5. Apply TS-PLUGIN-PARITY-001 Rules A–I canonicalization and compare
   6. Assert parity verdict is PASS or WARN (zero FAILs) for the test case
 
@@ -253,7 +256,8 @@ adapter path for all test cases:
 | Error | Condition | Behavior |
 |-------|-----------|----------|
 | `E-SPEC-001` | Bundled spec file fails BC-2.16.009 validation at CI time | CI fails; spec file must be corrected before merge; this is a pre-merge gate |
-| `E-SPEC-009` | Spec `sensor_id` does not match file name (e.g., `crowdstrike.sensor.toml` with `sensor_id: "falcon"`), OR duplicate `sensor_id` across two spec files | BC-2.16.001 rejects the offending file with `E-SPEC-009` per error-taxonomy.md. Bundled spec file naming convention is `{sensor_id}.sensor.toml`; `sensor_id` in the TOML must case-sensitively match the filename stem. (Previously cited as fabricated code `E-SPEC-016` — corrected to `E-SPEC-009` per F-004 fix-burst-1 FB-IMPL-P1-PO 2026-05-20.) |
+| `E-SPEC-009` | Duplicate `sensor_id` across two spec files (e.g., two files both declare `sensor_id: "crowdstrike"`) | BC-2.16.001 rejects the second file with `E-SPEC-009` per error-taxonomy.md; first file wins. E-SPEC-009 covers ONLY the duplicate-sensor_id case — it does NOT cover filename-stem-vs-sensor_id mismatch (see E-SPEC-017 below). |
+| `E-SPEC-017` | Spec `sensor_id` does not case-sensitively match the filename stem (e.g., `crowdstrike.sensor.toml` with `sensor_id: "falcon"`) | BC-2.16.001 rejects the offending file with `E-SPEC-017` per error-taxonomy.md v1.41. Bundled spec naming convention is `{sensor_id}.sensor.toml`; mismatch indicates a rename without sensor_id update or vice versa; reject at load time to prevent silent namespace drift. (Registered as new code E-SPEC-017 in FB-IMPL-P2-PO 2026-05-20 — prior pass-1 incorrectly cited E-SPEC-009 for this case; E-SPEC-009 has distinct duplicate-sensor_id semantics.) |
 
 **Note on parity FAIL verdict (test verdict, not runtime error):** A parity test FAIL verdict
 (where `PipelineExecutor` output does not match the reference OCSF output for a test case) is
@@ -273,7 +277,7 @@ never registered in error-taxonomy.md and does not exist as a runtime error.)
 | Claroty UUID string ID | claroty | DTU stub: asset record with `"id": "550e8400-e29b-41d4-a716-446655440000"` | Parity PASS: `id` column value `"550e8400-..."` matches reference |
 | Cyberint alerts happy path | cyberint | DTU stub: 5 alert records with ISO-8601 timestamps | Parity PASS: timestamps normalized to UTC per Rule C; OCSF fields match |
 | Armis devices timestamp fallback | armis | DTU stub: device record with no `firstSeen` or `lastSeen` fields | Parity PASS by Rule C convention (both sides take fetch-time timestamp fallback path); WARN logged |
-| Armis AQL forwarding | armis | Query with custom AQL expression passed in `${query.aql}` | Parity PASS: DTU receives verbatim AQL expression in `aql` parameter; response matches reference |
+| Armis AQL forwarding | armis | Query with custom AQL expression passed in `${query.filter.aql}` (caller sets `FetchContext::query_filters["aql"]`) | Parity PASS: DTU receives verbatim AQL expression in `aql` parameter; response matches reference |
 | Spec load validation — crowdstrike | crowdstrike | `crowdstrike.sensor.toml` passes through `spec_parser::parse_spec_file()` | `Ok(SensorSpec)` with `sensor_id == "crowdstrike"`, correct auth_type and table count |
 | Empty SKIP — cyberint.incidents | cyberint | Parity test targeting `cyberint.incidents` table | Test returns SKIP with message "cyberint incidents DTU gap — see TS-PLUGIN-PARITY-001 Cyberint DTU Gap Note" |
 
@@ -326,5 +330,6 @@ PLUGIN-MIGRATION-001-D (implementing story; planned → draft after PO authoring
 
 | Version | Burst | Date | Author | Change |
 |---------|-------|------|--------|--------|
+| 1.2 | FB-IMPL-P2-PO fix-burst-2 | 2026-05-20 | product-owner | Closes pass-2 findings F-001, F-002, F-003, F-004, F-005. F-001: swapped auth_type strings in §Postconditions §1 — claroty=`cookie_roundtrip` (was `bearer_static`), cyberint=`bearer_static` (was `cookie_roundtrip`), matching `ClarotyAuth::auth_type_name()` = `"cookie_roundtrip"` and `CyberintAuth::auth_type_name()` = `"bearer_static"` per code-grounded verification of `crates/prism-sensors/src/auth/{claroty,cyberint}.rs`. F-002: corrected §Error Conditions — E-SPEC-009 row now accurately describes ONLY duplicate-sensor_id (not filename-stem mismatch); added E-SPEC-017 row for filename-stem-vs-sensor_id mismatch (newly registered in error-taxonomy.md v1.41 per POL-1 append-only). F-003: replaced phantom `CrowdStrikeAdapter::fetch_page()` (non-existent) with actual `SensorAdapter::fetch()` trait method in §Postconditions §1 and §2 (CODE-GROUNDED: `crowdstrike.rs` has `fetch()` at trait impl, no `fetch_page()`; all 4 sensors use the same `SensorAdapter::fetch()` entry point). F-004: corrected `${query.aql}` → `${query.filter.aql}` in §Canonical Test Vectors Armis AQL forwarding row. F-005 (TD-VSDD-091): replaced `spec_parser.rs:128` → `FetchStep::fan_out_batch_size field` and `pipeline.rs:246-250` → `PipelineExecutor::execute_impl query.filter.{k} step-vars seeding` in §Preconditions O-001 table. |
 | 1.1 | FB-IMPL-P1-PO fix-burst-1 | 2026-05-20 | product-owner | Closes pass-1 adversarial findings F-001/F-002/F-004/F-006/F-007/O-001. F-001: replaced fabricated `prism_dtu_{sensor}::server::spawn()` / `DtuHandle` API with actual `BehavioralClone::start_on(bind, shutdown, tls) -> anyhow::Result<SocketAddr>` trait (all 4 clones share via `prism_dtu_common::BehavioralClone`). F-002: replaced fabricated `PipelineExecutor::execute(spec, "<table_name>", &NullAuthProvider, ...)` with actual 5-arg signature `(spec: &SensorSpec, table: &TableSpec, context: &FetchContext, http_client: &reqwest::Client, auth_provider: &dyn AuthProvider) -> Result<PipelineResult, SpecEngineError>`. F-004: retired fabricated `E-SPEC-015` (parity FAIL is a test verdict, not a runtime error code) and replaced fabricated `E-SPEC-016` with `E-SPEC-009` (existing code already covers sensor_id/filename mismatch). F-006: corrected `ADR-023 §Rule 1` / `§Rule 3` phantom anchors to `ADR-023 §Decision Rules — Rule 1` / `§Decision Rules — Rule 3`. F-007: corrected `ADR-022 §C2` phantom anchor (C2 is in ADR-023, not ADR-022) to `ADR-023 §Architectural Constraints — C2`. O-001: added grammar verification table in §Preconditions confirming `fan_out_batch_size` SUPPORTED, `${query.filter.aql}` SUPPORTED (not `${query.aql}`), `timestamp_format = "multi"` NOT SUPPORTED, `timestamp_fallback_chain` NOT SUPPORTED — grammar extension or WASM plugin required as implementer prerequisite. Postconditions updated to reflect grammar gaps. |
 | 1.0 | D-731 PLUGIN-MIGRATION-001-D PO authoring | 2026-05-20 | product-owner | Initial draft — BC anchor for PLUGIN-MIGRATION-001-D; DTU-parity contract for VP-PLUGIN-003; authored from ADR-023 §Rule 3 + TS-PLUGIN-PARITY-001 + 4 sensor adapter source surveys |

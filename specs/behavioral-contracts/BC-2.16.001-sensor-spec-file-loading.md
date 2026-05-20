@@ -1,7 +1,7 @@
 ---
 document_type: behavioral-contract
 level: L3
-version: "1.3"
+version: "1.4"
 status: draft
 producer: product-owner
 timestamp: 2026-04-13T12:00:00
@@ -84,7 +84,8 @@ loads but its tables are marked unavailable (DEC-036).
 |-------|-----------|----------|
 | `E-SPEC-001` | TOML parse errors | Structured error with file path, line number, and parse error message |
 | `E-SPEC-001` | Schema validation errors | Structured error with file path, TOML path to the invalid field, and corrective guidance (BC-2.16.009) |
-| `E-SPEC-009` | Duplicate sensor_id across spec files | Second file is rejected, first wins |
+| `E-SPEC-009` | Duplicate `sensor_id` across spec files (two files declare the same sensor_id) | Second file is rejected, first wins |
+| `E-SPEC-017` | Spec `sensor_id` does not case-sensitively match the filename stem (e.g., `crowdstrike.sensor.toml` with `sensor_id: "falcon"`) | File is rejected at load time; error includes filename and declared sensor_id. Enforces `{sensor_id}.sensor.toml` naming convention (INV-PARITY-002 in BC-2.16.013). |
 | `E-SPEC-004` | Duplicate table_name within a sensor | The spec file is rejected entirely |
 
 ## Edge Cases
@@ -125,6 +126,7 @@ See `.factory/specs/prd-supplements/test-vectors.md` for full canonical vectors.
 
 | Version | Burst | Date | Author | Change |
 |---------|-------|------|--------|--------|
+| 1.4 | FB-IMPL-P2-PO fix-burst-2 | 2026-05-20 | product-owner | F-002 closure (pass-2 adversarial, PO scope): Added E-SPEC-017 row to §Error Conditions — filename-stem-vs-sensor_id mismatch now has its own error code (registered in error-taxonomy.md v1.41). Clarified E-SPEC-009 row to make clear it covers ONLY duplicate-sensor_id, not filename-stem mismatch. BC-2.16.013 §Error Conditions v1.2 and HS-018 cite E-SPEC-017 consistently. |
 | 1.3 | pass-74-fix | 2026-04-20 | product-owner | Resolved (placeholder) row in ## Verification Properties per pass-74 VP-TBD decision matrix extension. |
 | 1.2 | pass-73-fix | 2026-04-20 | state-manager | Deterministic changelog reorder: sorted all rows to descending version order (pass-73 bash script). |
 | 1.1 | pre-build-sweep | 2026-04-20 | product-owner | Template-compliance sweep: added extracted_from/inputs/input-hash/traces_to frontmatter; added ## Description synthesized from body; added ## Invariants section; added ## Error Conditions (from inline error handling); added ## Canonical Test Vectors scaffolding; added ## Verification Properties cross-ref; added ## Changelog. |

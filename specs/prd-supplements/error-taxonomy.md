@@ -2,7 +2,7 @@
 document_type: prd-supplement
 level: L3
 section: "error-taxonomy"
-version: "1.40"
+version: "1.41"
 status: active
 producer: product-owner
 timestamp: 2026-05-16T00:00:00Z
@@ -384,6 +384,9 @@ Additional state errors beyond E-STATE-001 and E-STATE-002 (defined in the STATE
 | E-SPEC-012 | broken | validation | "auth_type for sensor '{sensor_id}' must be a single value; got: {value}. Valid values: oauth2_client_credentials, bearer_static, cookie_roundtrip, api_key, custom_via_plugin" | No | ADR-023 Rule 2, Rule A — a sensor spec declared `auth_type` as an array or declared a value outside the enumerated set. Cross-sensor auth-composition is rejected at spec-load time. Cites ADR-023 Rule 2. Credential value MUST NOT appear in the error message (AD-017). | BC-2.01.016 (Error Cases: E-SPEC-012) |
 | E-SPEC-013 | broken | validation | "auth method for sensor '{sensor_id}' declares {count} credential_refs; exactly one is required" | No | ADR-023 Rule 2, Rule B — a sensor spec's auth method section references more than one credential per auth method. Rejected at spec-load time before any credential resolution is attempted. Cites ADR-023 Rule 2. | BC-2.01.016 (Error Cases: E-SPEC-013) |
 | E-SPEC-014 | broken | validation | "credential type '{credential_type}' is incompatible with auth_type '{auth_type}' for sensor '{sensor_id}'" | No | ADR-023 Rule 2, Rule C — the resolved credential structural type does not match the declared `auth_type`. Rejected at credential-resolution time, before any HTTP request is issued. Credential VALUE MUST NOT appear in the error message (AD-017); only the structural type label is included. | BC-2.01.016 (Error Cases: E-SPEC-014) |
+| E-SPEC-015 | — | — | — | — | **RETIRED per append_only_numbering (DF-030). ID reserved; never reused.** |
+| E-SPEC-016 | — | — | — | — | **RETIRED per append_only_numbering (DF-030). ID reserved; never reused.** |
+| E-SPEC-017 | broken | validation | "Spec sensor_id '{sensor_id}' does not match filename stem '{filename_stem}' in spec file '{file}'" | No | Spec filename must follow `{sensor_id}.sensor.toml` convention. Mismatch indicates a rename without sensor_id update or vice versa; reject at load time to prevent silent identity drift (INV-PARITY-002). Distinct from E-SPEC-009 (duplicate sensor_id across files). BC-2.16.001 §Error Conditions; BC-2.16.013 §Error Conditions v1.2. Introduced FB-IMPL-P2-PO fix-burst-2 2026-05-20. |
 
 ## INFUSE: Infusion Errors
 
@@ -487,6 +490,7 @@ Additional state errors beyond E-STATE-001 and E-STATE-002 (defined in the STATE
 
 | Version | Burst | Date | Author | Change |
 |---------|-------|------|--------|--------|
+| 1.41 | FB-IMPL-P2-PO fix-burst-2 | 2026-05-20 | product-owner | F-002 closure (pass-2 adversarial): Registered E-SPEC-017 (broken, validation, "Spec sensor_id does not match filename stem") for filename-stem-vs-sensor_id mismatch. E-SPEC-009 covers ONLY duplicate-sensor_id; pass-1 incorrectly cited E-SPEC-009 for both cases. E-SPEC-015 and E-SPEC-016 retired-ID tombstone rows added per POL-1 append_only_numbering. BC-2.16.013 §Error Conditions, BC-2.16.001 §Error Conditions, and HS-018 updated to cite E-SPEC-017. |
 | 1.40 | pass-10-spec-hygiene | 2026-05-18 | product-owner | F-LP-IMPL-P10-SUG-001 closure (POL-29 step 8h/8i sibling propagation): catalog bullet cite-pins `(v1.21)` → `(v1.22)` at 2 live-narrative sites — E-PLUGIN-020 description (1 site) + E-PIPELINE-001 description (1 site). BC-2.16.002 catalog bullet label advanced from `(v1.21)` to `(v1.22)` per Option B adjudication; error-taxonomy must track the new canonical label. |
 | 1.39 | FB74 | 2026-05-18 | product-owner | Added E-PLUGIN-021 (WriteToolRegistryPoisoned) — S-PLUGIN-PREREQ-E F-LP-IMPL-P2-002 POL-29 transitive closure. New row inserted after E-PLUGIN-020 in PLUGIN section. Production construction site: invalidation.rs:138-145; recurrence SINGLE_PER_PROCESS_LIFETIME. |
 | 1.38 | FB73 | 2026-05-17 | product-owner | F-LP85-HIGH-001 closure (PO scope): ADR-026 D7 pin v1.22→v1.23 propagation at error-taxonomy lines 459 (E-PLUGIN-012), 467 (E-PLUGIN-020) (2 sites). Sibling files story v1.46 + BC-2.16.011 v1.10 + BC-2.16.012 v1.26 + BC-2.16.002 v1.31 (POL-30 Fork B preserved) + VP-156 v0.18 + HS-003 v1.15 swept in same burst. |

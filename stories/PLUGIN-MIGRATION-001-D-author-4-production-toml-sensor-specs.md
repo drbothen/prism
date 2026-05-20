@@ -6,7 +6,7 @@ wave: 1
 epic_id: PLUGIN-MIGRATION-001
 priority: P0
 status: draft
-version: "v1.1"
+version: "v1.2"
 level: "L4"
 producer: story-writer
 timestamp: "2026-05-20T00:00:00Z"
@@ -44,7 +44,7 @@ behavioral_contracts:
   - BC-2.16.012  # PluginRegistry Dispatch — the spec_parser.rs open dispatch path (INV-SPEC-PARSER-OPEN-001)
                  #   must handle the 4 new specs without hardcoded sensor name match arms; parity
                  #   AC asserts no dispatch regression vs the pre-TOML path
-  - BC-2.16.013  # Bundled Sensor Spec Authoring and DTU-Parity Verification (v1.1 FB-IMPL-P1-PO) —
+  - BC-2.16.013  # Bundled Sensor Spec Authoring and DTU-Parity Verification (v1.2 FB-IMPL-P2-PO) —
                  #   primary contract: 4 TOML files authored at crates/prism-sensors/specs/,
                  #   validated, DTU-parity tests authored per TS-PLUGIN-PARITY-001 Rules A–I,
                  #   INV-PARITY-001 replacement-before-deletion enforced
@@ -89,7 +89,7 @@ holdout_scenarios:
   - HS-015  # Cyberint alerts cursor pagination parity (DTU; incidents in SKIP)
   - HS-016  # Armis AQL forwarding + timestamp fallback parity (DTU)
   - HS-017  # Negative: bundled spec fails BC-2.16.009 validation at CI (must block merge)
-  - HS-018  # Negative: spec sensor_id/filename mismatch rejected at load time (E-SPEC-009)
+  - HS-018  # Negative: spec sensor_id/filename mismatch rejected at load time (E-SPEC-017)
 assumption_validations: []
 risk_mitigations:
   - "INV-PARITY-001 enforced structurally: PLUGIN-MIGRATION-001-A depends_on PLUGIN-MIGRATION-001-D in
@@ -156,8 +156,8 @@ behavioral continuity and without risk of silent OCSF regression.
 1. **Four bundled TOML sensor spec files** authored at `crates/prism-sensors/specs/`, each
    reverse-engineered from the corresponding Rust adapter in `crates/prism-sensors/src/auth/`:
    - `crowdstrike.sensor.toml` — OAuth2 client credentials; two-step QueryV2→PostEntities pipeline
-   - `claroty.sensor.toml` — bearer_static; POST-for-read offset pagination; polymorphic ID handling
-   - `cyberint.sensor.toml` — cookie_roundtrip; cursor-based alerts; incidents SKIP-noted
+   - `claroty.sensor.toml` — cookie_roundtrip; POST-for-read offset pagination; polymorphic ID handling
+   - `cyberint.sensor.toml` — bearer_static; cursor-based alerts; incidents SKIP-noted
    - `armis.sensor.toml` — api_key; AQL query forwarding; timestamp fallback chain
 
 2. **Spec validation CI gate**: all 4 specs pass BC-2.16.009 validation (no E-SPEC-001 errors)
@@ -181,9 +181,9 @@ behavioral continuity and without risk of silent OCSF regression.
 
 | BC ID | Version | Title | Subsystem | Role in This Story |
 |-------|---------|-------|-----------|-------------------|
-| BC-2.16.013 | 1.1 | Bundled Sensor Spec Authoring and DTU-Parity Verification — 4 Initial Sensors | SS-16 | **Primary delivery** — defines the 4 spec files, their content, the parity test structure, and INV-PARITY-001 replacement-before-deletion gate |
-| BC-2.16.001 | 1.3 | Sensor Spec File Loading — Parse TOML, Validate Schema, Register Tables | SS-16 | **Required** — specifies that `*.sensor.toml` files in `sensor_specs_dir` (here: `crates/prism-sensors/specs/`) are discovered, parsed, and registered at startup; virtual fields injected |
-| BC-2.16.009 | 1.3 | Spec File Validation — Schema Validation, Variable Reference Resolution, OCSF Field Validation | SS-16 | **Required** — all 4 bundled specs must pass all 5 validation rule categories; CI gate via dedicated integration test |
+| BC-2.16.013 | 1.2 | Bundled Sensor Spec Authoring and DTU-Parity Verification — 4 Initial Sensors | SS-16 | **Primary delivery** — defines the 4 spec files, their content, the parity test structure, and INV-PARITY-001 replacement-before-deletion gate |
+| BC-2.16.001 | 1.4 | Sensor Spec File Loading — Parse TOML, Validate Schema, Register Tables | SS-16 | **Required** — specifies that `*.sensor.toml` files in `sensor_specs_dir` (here: `crates/prism-sensors/specs/`) are discovered, parsed, and registered at startup; virtual fields injected |
+| BC-2.16.009 | 1.4 | Spec File Validation — Schema Validation, Variable Reference Resolution, OCSF Field Validation | SS-16 | **Required** — all 4 bundled specs must pass all 5 validation rule categories; CI gate via dedicated integration test |
 | BC-2.16.002 | 1.35 | Multi-Step Fetch Pipeline Execution — Sequential Steps with Variable Interpolation | SS-16 | **Required** — CrowdStrike QueryV2→PostEntities two-step pipeline exercised in parity test; PipelineExecutor drives the parity test harness |
 | BC-2.16.012 | 1.29 | PluginRegistry Dispatch in spec_parser.rs — Hardcoded Sensor Names Replaced with Registry Lookup | SS-16 | **Awareness + anti-regression** — the 4 new specs must flow through the open dispatch path (INV-SPEC-PARSER-OPEN-001); no new hardcoded sensor match arms introduced |
 | BC-2.01.013 | 1.6 | DataSource Trait Eliminates Per-Sensor Code Duplication | SS-01 | **Awareness** — the 4 TOML specs are the adapter implementations produced at runtime per the postconditions of this BC; no hand-written adapter code for TOML-expressible sensors |
@@ -221,7 +221,7 @@ them off as each Red Gate test passes.
 ### AC-001: `crowdstrike.sensor.toml` Exists and Parses (traces to BC-2.16.013 postcondition 1)
 
 `crates/prism-sensors/specs/crowdstrike.sensor.toml` exists with:
-- `sensor_id = "crowdstrike"` (matches filename per E-SPEC-009 / BC-2.16.013 §Error Conditions)
+- `sensor_id = "crowdstrike"` (matches filename per E-SPEC-017 / BC-2.16.001 v1.4 §Error Conditions)
 - `auth_type = "oauth2_client_credentials"`
 - `base_url` placeholder using `${env.CROWDSTRIKE_BASE_URL}` or parameterized via
   `cloud_region` template variable (implementer must verify the spec grammar supports this;
@@ -239,21 +239,21 @@ them off as each Red Gate test passes.
 ### AC-002: `claroty.sensor.toml` Exists and Parses (traces to BC-2.16.013 postcondition 1)
 
 `crates/prism-sensors/specs/claroty.sensor.toml` exists with:
-- `sensor_id = "claroty"`, `auth_type = "bearer_static"`
+- `sensor_id = "claroty"`, `auth_type = "cookie_roundtrip"`
 - Tables: `assets` (POST-for-read + offset), `alerts` (POST-for-read + offset), `audit_logs`
   (Claroty hybrid pagination via `paginate_claroty` semantics)
 - Polymorphic ID column: `id` with `type = "string"` and `ocsf_field` mapping
 - `version = "1.0.0"`
 
 `parse_spec_file("crates/prism-sensors/specs/claroty.sensor.toml")` returns `Ok(SensorSpec)`
-with `sensor_id == "claroty"`, `auth_type == BearerStatic`, `tables.len() == 3`.
+with `sensor_id == "claroty"`, `auth_type == CookieRoundtrip`, `tables.len() == 3`.
 
 (traces to BC-2.16.013 postcondition 1 — `claroty.sensor.toml` authored and parsed correctly)
 
 ### AC-003: `cyberint.sensor.toml` Exists and Parses (traces to BC-2.16.013 postcondition 1)
 
 `crates/prism-sensors/specs/cyberint.sensor.toml` exists with:
-- `sensor_id = "cyberint"`, `auth_type = "cookie_roundtrip"`
+- `sensor_id = "cyberint"`, `auth_type = "bearer_static"`
 - Tables: `alerts` (cursor pagination), `incidents` (noted as SKIP in parity test per
   EC-016-013-002 — spec file still exists and must parse; parity test is SKIP not absent)
 - Multi-format timestamp: `alerts.timestamp` column declares `type = "datetime"` with
@@ -261,7 +261,7 @@ with `sensor_id == "claroty"`, `auth_type == BearerStatic`, `tables.len() == 3`.
 - `version = "1.0.0"`
 
 `parse_spec_file("crates/prism-sensors/specs/cyberint.sensor.toml")` returns `Ok(SensorSpec)`
-with `sensor_id == "cyberint"`, `auth_type == CookieRoundtrip`, `tables.len() == 2`.
+with `sensor_id == "cyberint"`, `auth_type == BearerStatic`, `tables.len() == 2`.
 
 (traces to BC-2.16.013 postcondition 1 — `cyberint.sensor.toml` authored and parsed correctly)
 
@@ -440,13 +440,14 @@ Tagged `#[ignore = "requires prism-dtu-armis DTU clone"]` until S-6.10 merges.
 For each of the 4 bundled specs, the `auth_type` field value matches exactly one canonical
 SensorAuth auth-type string declared by the corresponding `auth_type_name()` implementation:
 - `crowdstrike`: `"oauth2_client_credentials"` (matches `CrowdStrikeAuth::auth_type_name()`)
-- `claroty`: `"bearer_static"` (matches `ClarotyAuth::auth_type_name()`)
-- `cyberint`: `"cookie_roundtrip"` (matches `CyberintAuth::auth_type_name()`)
+- `claroty`: `"cookie_roundtrip"` (matches `ClarotyAuth::auth_type_name()`)
+- `cyberint`: `"bearer_static"` (matches `CyberintAuth::auth_type_name()`)
 - `armis`: `"api_key"` (matches `ArmisAuth::auth_type_name()`)
 
 The `test_BC_2_16_009_validates_all_4_bundled_specs` test (AC-005) implicitly verifies this
 because BC-2.16.009 §Validation Rules 1 rejects `auth_type` values not in the canonical
-enumerated set {`oauth2_client_credentials`, `bearer_static`, `cookie_roundtrip`, `api_key`}.
+enumerated set {`oauth2_client_credentials`, `bearer_static`, `cookie_roundtrip`, `api_key`,
+`custom_via_plugin`} (per BC-2.16.009 v1.4).
 
 Additionally, the spec-parser's ADR-023 Rule 2 runtime enforcement (BC-2.01.016 INV-AUTH-OPEN-003)
 fires at spec-load time for any spec declaring a non-canonical auth_type — the 4 bundled specs
@@ -500,7 +501,7 @@ load-bearing behavioral assertions — no `assert!(true)` placeholders (TD-VSDD-
 | RG-06 | `test_BC_2_16_013_dtu_parity_cyberint` | `crates/prism-spec-engine/tests/parity/cyberint.rs` | Alerts parity PASS or WARN; incidents sub-test returns SKIP verdict (explicit SKIP assertion) | Yes (S-6.09); `#[ignore]` until DTU merges |
 | RG-07 | `test_BC_2_16_013_dtu_parity_armis` | `crates/prism-spec-engine/tests/parity/armis.rs` | AQL forwarding verified; timestamp fallback parity PASS by convention | Yes (S-6.10); `#[ignore]` until DTU merges |
 | RG-08 | `test_BC_2_16_012_plugin_dispatch_uses_spec_catalog_not_hardcoded_names` | `crates/prism-spec-engine/tests/bc_2_16_012_open_dispatch_bundled_specs.rs` | SensorSpec produced for crowdstrike.sensor.toml is byte-identical across two parse calls; grep gate asserts zero hardcoded sensor name match arms in spec_parser.rs | No |
-| RG-09 | `test_BC_2_16_013_spec_id_mismatch_rejected` | `crates/prism-spec-engine/tests/bc_2_16_013_spec_id_mismatch.rs` | A TOML file where `sensor_id != filename_stem` (e.g., file named `crowdstrike.sensor.toml` with `sensor_id = "falcon"`) is rejected with `E-SPEC-009`-equivalent at load time | No |
+| RG-09 | `test_BC_2_16_013_spec_id_mismatch_rejected` | `crates/prism-spec-engine/tests/bc_2_16_013_spec_id_mismatch.rs` | A TOML file where `sensor_id != filename_stem` (e.g., file named `crowdstrike.sensor.toml` with `sensor_id = "falcon"`) is rejected with `E-SPEC-017` at load time | No |
 
 **Total Red Gate tests: 9** (matches `red_gate_tests: 9` frontmatter field)
 
@@ -521,8 +522,8 @@ Verified status (authoritative — do NOT re-verify from memory):
 
 | Field | Status | Action for Implementer |
 |-------|--------|------------------------|
-| `fan_out_batch_size` on `FetchStep` | **SUPPORTED** — `pub fan_out_batch_size: Option<u32>` in `FetchStep` (`spec_parser.rs:128`) | Use directly in `crowdstrike.sensor.toml` |
-| `${query.filter.aql}` interpolation | **SUPPORTED** — `FetchContext::query_filters: HashMap<String, String>` seeded as `query.filter.{k}` in step_vars (`pipeline.rs:246-250`) | Use `${query.filter.aql}` in `armis.sensor.toml` path/body templates; caller must pass `query_filters["aql"]` in `FetchContext` |
+| `fan_out_batch_size` on `FetchStep` | **SUPPORTED** — `pub fan_out_batch_size: Option<u32>` in `FetchStep` (`FetchStep::fan_out_batch_size field`) | Use directly in `crowdstrike.sensor.toml` |
+| `${query.filter.aql}` interpolation | **SUPPORTED** — `FetchContext::query_filters: HashMap<String, String>` seeded as `query.filter.{k}` in step_vars (`PipelineExecutor::execute_impl query.filter.{key} step_vars seeding`) | Use `${query.filter.aql}` in `armis.sensor.toml` path/body templates; caller must pass `query_filters["aql"]` in `FetchContext` |
 | `timestamp_format = "multi"` | **NOT SUPPORTED** — no such field in `FetchStep`, `TableSpec`, `ColumnSpec`, or `SensorSpec` | Choose **Option A** (add `timestamp_format: Option<String>` to `ColumnSpec` via `#[serde(default)]`) OR **Option B** (WASM transformer plugin) before authoring `cyberint.sensor.toml`; document chosen option in a task comment |
 | `timestamp_fallback_chain = [...]` | **NOT SUPPORTED** — no such field in `spec_parser.rs` | Choose **Option A** (add `timestamp_fallback_chain: Option<Vec<String>>` to `TableSpec` or `ColumnSpec` via `#[serde(default)]`) OR **Option B** (WASM transformer plugin) before authoring `armis.sensor.toml`; document chosen option in a task comment |
 
@@ -559,13 +560,13 @@ Reverse-engineer from `crates/prism-sensors/src/auth/crowdstrike.rs` (read in fu
   - `devices.step1` GET `/devices/queries/devices/v1` (QueryV2)
   - `devices.step2` POST `/devices/entities/devices/v1` with IDs from step1
   - `incidents` GET `/incidents/queries/incidents/v1` cursor pagination
-- Column schema from `CrowdStrikeAdapter::fetch_page()` Arrow schema construction
+- Column schema from `<CrowdStrikeAdapter as SensorAdapter>::fetch(...)` Arrow schema construction
 - OCSF field mappings from prior normalization logic
 
 ### Task 4: Author `claroty.sensor.toml` (0.75 point)
 
 Reverse-engineer from `crates/prism-sensors/src/auth/claroty.rs` (read in full):
-- `auth_type = "bearer_static"`
+- `auth_type = "cookie_roundtrip"`
 - Endpoints: POST `/xdome/api/v1/assets`, POST `/xdome/api/v1/alerts`, `/api/v1/audit_logs`
 - POST-for-read pattern: use `method = "POST"` with body template
 - Offset pagination: `page_size = 100`
@@ -575,7 +576,7 @@ Reverse-engineer from `crates/prism-sensors/src/auth/claroty.rs` (read in full):
 ### Task 5: Author `cyberint.sensor.toml` (0.5 point)
 
 Reverse-engineer from `crates/prism-sensors/src/auth/cyberint.rs` (read in full):
-- `auth_type = "cookie_roundtrip"`; base URL from `${env.CYBERINT_ENVIRONMENT}`
+- `auth_type = "bearer_static"`; base URL from `${env.CYBERINT_ENVIRONMENT}`
 - `alerts`: GET `/api/v1/alerts`; cursor pagination; `timestamp_format = "multi"`
 - `incidents`: GET `/api/v1/incidents`; cursor pagination; note in spec comments that DTU gap
   means parity is SKIP per EC-016-013-002
@@ -610,7 +611,7 @@ Write RG-04, RG-05, RG-06, RG-07. These tests have `#[ignore]` so they compile a
 `#[ignore]` tag is the mechanism that prevents CI failure, not an incomplete test body.
 
 Use the `BehavioralClone::start_on("127.0.0.1:0".parse().unwrap(), None, None).await` pattern
-documented in BC-2.16.013 v1.1 §Postconditions §2 and confirmed from `prism-dtu-common/src/clone.rs`.
+documented in BC-2.16.013 v1.2 §Postconditions §2 and confirmed from `prism-dtu-common/src/clone.rs`.
 The returned `SocketAddr` is used to construct the DTU base URL for spec override.
 The `NullAuthProvider` must be imported or defined in the parity test harness (it exists in
 `prism-spec-engine` under `test-helpers` feature per the existing test suite convention).
@@ -665,12 +666,12 @@ Key lessons applicable to this story:
    error code (unlikely — specs should not need new codes), run TD-VSDD-060 sibling-sweep to
    update error-taxonomy.md in the same commit.
 
-6. **`sensor_id`/filename mismatch uses `E-SPEC-009` (confirmed during BC-2.16.013 v1.1 authoring).**
-   The previously cited `E-SPEC-016` was a fabricated code that does not exist in error-taxonomy.md.
-   BC-2.16.013 v1.1 §Error Conditions now correctly documents that `E-SPEC-009` (existing canonical
-   code for sensor_id/filename-stem mismatch) is emitted by BC-2.16.001 at spec-load time. The
-   implementer should verify the exact call site in `spec_parser.rs` and confirm `E-SPEC-009` is
-   the error variant returned — the BC is the authority, not any internal label.
+6. **`sensor_id`/filename mismatch uses `E-SPEC-017` (registered in error-taxonomy.md v1.41 during FB-IMPL-P2-PO).**
+   `E-SPEC-017` is the dedicated canonical code for `sensor_id`/filename-stem mismatch — emitted
+   by BC-2.16.001 v1.4 §Error Conditions at spec-load time. `E-SPEC-009` remains the canonical
+   code for duplicate `sensor_id` across multiple spec files (a distinct error condition). The
+   implementer must confirm `E-SPEC-017` is the error variant returned at the `spec_parser.rs`
+   filename-stem check site — BC-2.16.001 v1.4 is the authority.
 
 ---
 
@@ -682,7 +683,7 @@ The implementer MUST NOT violate any of these — violations are P0 findings in 
 | Rule | Source | Constraint |
 |------|--------|-----------|
 | Spec files at `crates/prism-sensors/specs/` | BC-2.16.013 postcondition 1 + ADR-023 §Rule 1 | Bundled spec canonical path. Do NOT place at `sensor-specs/`, `specs/`, or any other root-level directory. The path `crates/prism-sensors/specs/` is the canonical location per BC-2.16.013. |
-| File naming: `{sensor_id}.sensor.toml` | BC-2.16.013 §Error Conditions E-SPEC-009 | filename stem MUST match `sensor_id` field. `crowdstrike.sensor.toml` → `sensor_id = "crowdstrike"`. |
+| File naming: `{sensor_id}.sensor.toml` | BC-2.16.001 v1.4 §Error Conditions E-SPEC-017 | filename stem MUST match `sensor_id` field. `crowdstrike.sensor.toml` → `sensor_id = "crowdstrike"`. |
 | No new hardcoded sensor dispatch arms | BC-2.16.012 INV-SPEC-PARSER-OPEN-001 | After this story, `grep -rn '"crowdstrike"\|"cyberint"' crates/prism-spec-engine/src/spec_parser.rs` in dispatch-context code returns ZERO. |
 | `prism-spec-engine` MUST NOT depend on `arrow` or `datafusion` in production | `crates/prism-spec-engine/Cargo.toml` line 8 | DTU crates are `[dev-dependencies]` only. Arrow types visible in test code must be imported via `#[cfg(test)]` or test module guards. |
 | `NullAuthProvider` is test-helpers-gated | Existing convention in `prism-spec-engine` | Use `#[cfg(feature = "test-helpers")]` guard on `NullAuthProvider` usage in parity tests; the `prism-spec-engine = { path = ".", features = ["test-helpers"] }` dev-dep in `prism-spec-engine/Cargo.toml` (line 50) already enables this. |
@@ -719,8 +720,8 @@ Files to CREATE:
 | File | Action | Description |
 |------|--------|-------------|
 | `crates/prism-sensors/specs/crowdstrike.sensor.toml` | CREATE | CrowdStrike OAuth2 two-step pipeline spec |
-| `crates/prism-sensors/specs/claroty.sensor.toml` | CREATE | Claroty bearer_static POST-for-read spec |
-| `crates/prism-sensors/specs/cyberint.sensor.toml` | CREATE | Cyberint cookie_roundtrip cursor spec |
+| `crates/prism-sensors/specs/claroty.sensor.toml` | CREATE | Claroty cookie_roundtrip POST-for-read spec |
+| `crates/prism-sensors/specs/cyberint.sensor.toml` | CREATE | Cyberint bearer_static cursor spec |
 | `crates/prism-sensors/specs/armis.sensor.toml` | CREATE | Armis api_key AQL forwarding spec |
 | `crates/prism-spec-engine/tests/bc_2_16_001_bundled_spec_load.rs` | CREATE | RG-01: 4 specs load at boot |
 | `crates/prism-spec-engine/tests/bc_2_16_009_bundled_spec_validation.rs` | CREATE | RG-02: validation pipeline passes |
@@ -909,5 +910,6 @@ This story is DONE when ALL of the following are simultaneously true — no exce
 
 | Version | Date | Author | Change |
 |---------|------|--------|--------|
+| v1.2 | 2026-05-20 | story-writer | FB-IMPL-P2-SW (fix-burst-2, D-734): propagates PO changes from FB-IMPL-P2-PO — F-001 auth_type SWAP (claroty=cookie_roundtrip, cyberint=bearer_static per code-verified ClarotyAuth/CyberintAuth impls); F-002 E-SPEC-009→E-SPEC-017 for filename-stem mismatch in HS-018 comment, AC-001, RG-09, Architecture Compliance table, Previous Story Intelligence item 6; F-003 `fetch_page`→`<CrowdStrikeAdapter as SensorAdapter>::fetch(...)` in Task 3; F-005 line-number citations replaced with symbol names in Task 1 (`spec_parser.rs:128`→`FetchStep::fan_out_batch_size field`, `pipeline.rs:246-250`→`PipelineExecutor::execute_impl query.filter.{key} step_vars seeding`); BC version pins propagated (BC-2.16.013 1.1→1.2, BC-2.16.001 1.3→1.4, BC-2.16.009 1.3→1.4) in body BC table and all grep-verified pin sites; AC-011 5-value auth_type set expanded with `custom_via_plugin` per BC-2.16.009 v1.4; Task 9 BC-2.16.013 pin corrected to v1.2. |
 | v1.1 | 2026-05-20 | story-writer | FB-IMPL-P1-SW (fix-burst-1, D-733-pending): closes pass-1 adversarial findings F-001/F-002 (AC-007..010 rewritten with real `BehavioralClone::start_on` API + 5-arg `PipelineExecutor::execute` signature from `pipeline.rs`), F-005 (BC table titles corrected to full H1 per POL-7; BC-2.16.013 pin 1.0→1.1), F-008 (frontmatter comment "Sensor Adapter Layer" → "Sensor Adapters" per POL-6), F-009 (PG-LP11-001 anchor corrected to §Postconditions Canonical Structured Event Catalog), F-011 (AC-006 positional postcondition cite replaced with named-section cite). Cascade from PO: S-001 (BC-2.16.013 v-pin 1.0→1.1 throughout), S-002 (holdout scenarios HS-MIGRATION-D-001..006 → HS-013..HS-018 in frontmatter), S-003 (E-SPEC-015 references removed; E-SPEC-016 → E-SPEC-009 throughout; Previous Story Intelligence item 6 and AC-001 and Architecture Compliance table updated), S-004 (Task 1 rewritten with O-001 verified grammar status; Risk #1 rewritten with verified field statuses, no deferral language), S-005 (`${query.aql}` → `${query.filter.aql}` in AC-004, Task 6, and AC-010). Library table DTU clone API cite corrected. Task 9 start_on pattern corrected. |
 | v1.0 | 2026-05-20 | story-writer | Initial materialization at D-732. Authored from 7 BC anchors (BC-2.16.013 v1.0 NEW + 6 existing), VP-148, ADR-023, and 4 Rust adapter source surveys. 13 ACs, 9 Red Gate tests, 5 points, 6 holdout scenarios. |

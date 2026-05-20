@@ -112,3 +112,23 @@ The authoritative post-merge resume checkpoint is SESSION-HANDOFF.md §RESUME SN
 **Next workflow items at D-732:**
 1. Dispatch LOCAL adversarial cascade for PLUGIN-MIGRATION-001-D per BC-5.39.001 3-CLEAN (streak 0/3)
 2. Pass-1 resulted in 14 findings (5H+3M+4L+2O); FB-IMPL-P1 fix-burst dispatched (PO + story-writer)
+
+---
+
+## Session Resume Checkpoint (2026-05-20 — D-733-FB-IMPL-P1-CLOSURE)
+
+**Archived from STATE.md at D-734 FB-IMPL-P2 closure burst.**
+
+**STATE v7.420. D-733 FB-IMPL-P1 CLOSURE COMPLETE.** PO + story-writer fix-burst complete for PLUGIN-MIGRATION-001-D pass-1 adversarial review. 14 findings closed (5H+3M+4L+2O); 3 process-gap items deferred to cycle-close (F-010/F-012/O-002). BC-2.16.013 v1.1 (real DTU API + 5-arg PipelineExecutor sig + TOML grammar verified in-scope). Story v1.1 (4+4 AC rewrites + BC table + anchor fixes). 6 HS files created HS-013..HS-018. BC-INDEX v5.22 (total 240, draft 3). STORY-INDEX v2.158. Streak 0/3 — pass-2 next. 240th consecutive single-commit per TD-VSDD-053.
+
+**Open follow-ups at D-733:**
+1. TD-PRISM-QUERY-CACHE-001 P2 — SEC-NEW-002 LRU eviction outside-Mutex race; anchor: PLUGIN-MIGRATION-Wave-2
+2. TD-S-PLUGIN-PREREQ-E-001 P3 — QUERY_PHASE_STARTED cross-package nextest leak
+3. TD-S-PLUGIN-PREREQ-E-002 P3 — SIGTERM load-induced flake
+4. POL-31 enforcement hook (validate-vp-proof-harness-skeleton-symbols.sh) — implementation deferred to tooling sprint
+5. Drift items table — S-7.02 cycle-close; all v1.0.0-greenfield due dates
+6. Process-gap F-010/F-012/O-002 — forwarded to cycle-close (architect + policies-steward adjudication)
+
+**Next workflow items at D-733:**
+1. Dispatch LOCAL adversary pass-2 fresh-context for PLUGIN-MIGRATION-001-D per BC-5.39.001 (streak 0/3 → target 1/3)
+2. Pass-2 resulted in 10 findings (3H+3M+2L+2O); FB-IMPL-P2 fix-burst dispatched (PO + story-writer)

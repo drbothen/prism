@@ -5,7 +5,7 @@ id: "HS-018"
 category: "negative-validation"
 must_pass: true
 priority: P0
-epic_id: "E-PLUGIN-MIGRATION"
+epic_id: "PLUGIN-MIGRATION-001"
 version: "1.0"
 status: draft
 producer: product-owner
@@ -28,7 +28,7 @@ stale_reason: null
 retired: null
 assumption_source: null
 risk_source: null
-notes: "PLUGIN-MIGRATION-001-D holdout — negative: spec_id/filename mismatch rejected at load time (E-SPEC-009). Authored FB-IMPL-P1-PO fix-burst-1 2026-05-20."
+notes: "PLUGIN-MIGRATION-001-D holdout — negative: spec_id/filename mismatch rejected at load time (E-SPEC-017). Authored FB-IMPL-P1-PO fix-burst-1 2026-05-20. Corrected E-SPEC-009→E-SPEC-017 in FB-IMPL-P2-PO fix-burst-2 2026-05-20 (E-SPEC-009 covers duplicate-sensor_id only; filename-stem mismatch is E-SPEC-017 per error-taxonomy.md v1.41)."
 ---
 
 # HS-018: Negative — Spec sensor_id / Filename Mismatch Rejected at Load Time
@@ -36,14 +36,14 @@ notes: "PLUGIN-MIGRATION-001-D holdout — negative: spec_id/filename mismatch r
 **Group:** DTU Parity — Plugin Migration (PLUGIN-MIGRATION-001-D) — Negative Coverage
 **Date:** 2026-05-20
 **Priority:** P0
-**BC Anchor:** BC-2.16.013 §Error Conditions (E-SPEC-009), BC-2.16.001 §Postconditions
+**BC Anchor:** BC-2.16.013 §Error Conditions (E-SPEC-017), BC-2.16.001 §Postconditions
 
 ---
 
 ## Scenario
 
 Validates that a bundled sensor spec file where the `sensor_id` value does not case-sensitively
-match the filename stem is rejected at load time with `E-SPEC-009`. This enforces the
+match the filename stem is rejected at load time with `E-SPEC-017`. This enforces the
 `{sensor_id}.sensor.toml` naming convention (INV-PARITY-002) and prevents silent namespace
 collisions in the DataFusion table registry.
 
@@ -68,8 +68,9 @@ targets `crowdstrike.*`.
 2. Collect returned errors
 
 **Expected Outcome:**
-- The file is rejected with `E-SPEC-009` (or equivalent — E-SPEC-009 per error-taxonomy.md
-  covers both duplicate `sensor_id` AND filename mismatch per BC-2.16.013 §Error Conditions v1.1)
+- The file is rejected with `E-SPEC-017` per error-taxonomy.md v1.41 (filename-stem-vs-sensor_id
+  mismatch; distinct from `E-SPEC-009` which covers duplicate-sensor_id only per BC-2.16.013
+  §Error Conditions v1.2)
 - Error message names both the filename and the declared `sensor_id`
 - No partial registration: `falcon.*` tables are NOT registered in DataFusion
 - Other valid spec files in the directory continue loading (DI-030 partial-failure isolation)
@@ -85,7 +86,7 @@ targets `crowdstrike.*`.
 
 **Expected Outcome:**
 - File is rejected — `sensor_id` must case-sensitively match filename stem
-- `E-SPEC-009` (or equivalent validation error) returned
+- `E-SPEC-017` returned per error-taxonomy.md v1.41 (case-mismatch is a filename-stem-vs-sensor_id failure, not a duplicate-sensor_id; E-SPEC-009 does not apply here)
 - Production convention requires `sensor_id: "crowdstrike"` (all lowercase, matching filename)
 
 ### HS-018-03: Valid Convention (crowdstrike file, crowdstrike sensor_id)
@@ -116,6 +117,6 @@ targets `crowdstrike.*`.
 ## Known-Good / Known-Problematic Corpus Note
 
 - **Known-good corpus:** All four production bundled specs (filename stems match `sensor_id` in
-  each file) — expected: all four load without E-SPEC-009 rejection.
+  each file) — expected: all four load without E-SPEC-017 rejection.
 - **Known-problematic corpus:** Test fixture with `sensor_id` value differing from filename stem —
-  expected: E-SPEC-009 rejection, no partial registration.
+  expected: E-SPEC-017 rejection, no partial registration.

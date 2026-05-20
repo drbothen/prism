@@ -5,7 +5,7 @@ id: "HS-013"
 category: "dtu-parity"
 must_pass: true
 priority: P0
-epic_id: "E-PLUGIN-MIGRATION"
+epic_id: "PLUGIN-MIGRATION-001"
 version: "1.0"
 status: draft
 producer: product-owner
@@ -69,7 +69,8 @@ CROWDSTRIKE_BATCH_SIZE). A single-step spec or incorrect variable forwarding bre
 2. Load fixture: DTU returns 3 detection IDs from QueryV2, 3 full records from PostEntities
 3. Execute `PipelineExecutor::execute(spec, &detections_table, &context, &http_client, &null_auth)`
 4. Apply TS-PLUGIN-PARITY-001 Rules A–I canonicalization
-5. Compare spec-driven output against reference output from `CrowdStrikeAdapter::fetch_page()`
+5. Compare spec-driven output against reference output from `CrowdStrikeAdapter::fetch()`
+   (`SensorAdapter::fetch` trait method, `crates/prism-sensors/src/auth/crowdstrike.rs`)
    applied to the same fixture payload
 
 **Expected Outcome:**

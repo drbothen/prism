@@ -1,7 +1,7 @@
 ---
 document_type: behavioral-contract
 level: L3
-version: "1.3"
+version: "1.4"
 status: draft
 producer: product-owner
 timestamp: 2026-04-13T12:00:00
@@ -51,7 +51,7 @@ actionable correction. Warnings do not prevent loading; errors do.
 ### 1. Schema Validation
 - `sensor_id` must match `^[a-z][a-z0-9_-]*$` — same character set as client_id (BC-2.06.010)
 - `name` must be non-empty
-- `auth_type` must be one of: `oauth2_client_credentials`, `bearer_static`, `cookie_roundtrip`, `api_key`
+- `auth_type` must be one of: `oauth2_client_credentials`, `bearer_static`, `cookie_roundtrip`, `api_key`, `custom_via_plugin` — per `VALID_AUTH_TYPES` in `spec_parser.rs::validate_cross_composition` (5-value canonical set; `custom_via_plugin` permits external plugin-registered auth strategies per S-PLUGIN-PREREQ-E / ADR-026)
 - `base_url` must be a valid URL (parsed by `url::Url`)
 - `version` must be a valid semver string
 - Each table must have a non-empty `table_name` matching `[a-zA-Z0-9_]+`
@@ -102,7 +102,9 @@ actionable correction. Warnings do not prevent loading; errors do.
 |-------|-----------|----------|
 | `E-SPEC-001` | Schema or variable reference validation error (with TOML path and corrective guidance) | Spec rejected; all errors reported together |
 | `E-SPEC-001` | TOML parse error (syntax error in the file) | Spec rejected; parse error with line number |
-| `E-SPEC-009` | Duplicate sensor_id across spec files | Second file rejected; first wins |
+| `E-SPEC-002` | Invalid column type for a column in a sensor table (type not in: string, integer, float, boolean, datetime, json) | Spec rejected; error message includes sensor_id, table_name, column_name, and the invalid type value |
+| `E-SPEC-003` | Undefined variable reference `${step.field}` — step name does not exist, or forward reference to a step that has not yet executed | Spec rejected; error message names both the referencing step and the undefined step; forward-reference message distinguishes "not defined" from "not yet executed" |
+| `E-SPEC-009` | Duplicate `sensor_id` across spec files | Second file rejected; first wins |
 | `E-SPEC-004` | Duplicate table_name within a sensor | Spec file rejected entirely |
 
 ## Edge Cases
@@ -143,6 +145,7 @@ See `.factory/specs/prd-supplements/test-vectors.md` for full canonical vectors.
 
 | Version | Burst | Date | Author | Change |
 |---------|-------|------|--------|--------|
+| 1.4 | FB-IMPL-P2-PO fix-burst-2 | 2026-05-20 | product-owner | F-007 closure (pass-2 adversarial): Added E-SPEC-002 (invalid column type) and E-SPEC-003 (undefined variable reference) to §Error Conditions — both codes were present in error-taxonomy.md and exercised by HS-017 sub-scenarios but absent from this BC's error table (AI-built defect fixed in-scope per CLAUDE.md Canonical Principle Rule 4). F-008 closure: §Validation Rules 1 `auth_type` enumeration expanded from 4-value to 5-value set — added `custom_via_plugin` per `VALID_AUTH_TYPES` constant in `spec_parser.rs::validate_cross_composition` (CODE-GROUNDED: 5 values confirmed in source). |
 | 1.3 | pass-74-fix | 2026-04-20 | product-owner | Resolved (placeholder) row in ## Verification Properties per pass-74 VP-TBD decision matrix extension. |
 | 1.2 | pass-73-fix | 2026-04-20 | state-manager | Deterministic changelog reorder: sorted all rows to descending version order (pass-73 bash script). |
 | 1.1 | pre-build-sweep | 2026-04-20 | product-owner | Template-compliance sweep: added extracted_from/inputs/input-hash/traces_to frontmatter; added ## Description; added ## Invariants; added ## Error Conditions (normalized from inline Error Codes section); added ## Canonical Test Vectors; added ## Verification Properties; added ## Changelog. |

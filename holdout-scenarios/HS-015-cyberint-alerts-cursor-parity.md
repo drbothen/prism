@@ -5,7 +5,7 @@ id: "HS-015"
 category: "dtu-parity"
 must_pass: true
 priority: P0
-epic_id: "E-PLUGIN-MIGRATION"
+epic_id: "PLUGIN-MIGRATION-001"
 version: "1.0"
 status: draft
 producer: product-owner
