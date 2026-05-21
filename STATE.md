@@ -1,9 +1,9 @@
 ---
 document_type: pipeline-state
 level: ops
-version: "7.447"
+version: "7.448"
 producer: state-manager
-timestamp: 2026-05-21T14:00:00Z
+timestamp: 2026-05-21T19:35:32Z
 inputs: []
 input-hash: "[live-state]"
 traces_to: ""
@@ -13,16 +13,16 @@ phase: 3
 status: in_progress
 started: 2026-04-13
 repos: [poller-cobra, poller-express, poller-bear, poller-coaster, serveMyAPI, tally, axiathon, ocsf-proto-gen, mcp-claroty-xdome]
-safe_to_compact: true
+safe_to_compact: false
 pre_compact_snapshot: "SESSION-HANDOFF.md §RESUME SNAPSHOT 2026-05-21"
 pre_compact_snapshot_at: "2026-05-21 (D-760 SESSION-HANDOFF.md §RESUME SNAPSHOT 2026-05-21 for PLUGIN-MIGRATION-001-D LOCAL 3-CLEAN CONVERGENCE durability)"
-current_step: "D-760 closed. CONVERGED + DURABLE. Ready for /clear. NEXT session resumes TDD implementation phase per SESSION-HANDOFF §RESUME SNAPSHOT 2026-05-21 §4 dispatch plan."
+current_step: "PLUGIN-MIGRATION-001-D TDD phase IN-PROGRESS — worktree created (D-761). Awaiting test-writer Step 3 dispatch."
 current_cycle: wave-0-plugin-prereqs
 feature_branch_head: "merged to 80ebe794 at 2026-05-19 (PR #151) — a4c048ce was final feature HEAD before squash-merge"
 pr_level_adversary_streak: "3/3 CONVERGED per BC-5.39.001 — passes 2/3/4 all CLEAN; PR #151 merged 2026-05-19; D-716 Option A standing satisfied"
 pr_level_adversary_pass_count: 4
 feature_branch_remote_status: "deleted (squash-merged to develop@80ebe794; remote branch feature/S-PLUGIN-PREREQ-E removed by GitHub)"
-worktree_status: "S-PLUGIN-PREREQ-E + maintenance-post-PREREQ-E worktrees cleaned; only S-3.09 (FROZEN BUG-S309-PLUGIN) + W3-FIX-S307-001 (BLOCKED — scaffolding preserved at /tmp/prism-W3-FIX-S307-001-scaffolding-diff.patch for PLUGIN-MIGRATION-001-A reference) remain"
+worktree_status: "S-PLUGIN-PREREQ-E + maintenance-post-PREREQ-E worktrees cleaned; active: S-3.09 (FROZEN BUG-S309-PLUGIN) + W3-FIX-S307-001 (BLOCKED — scaffolding preserved at /tmp/prism-W3-FIX-S307-001-scaffolding-diff.patch for PLUGIN-MIGRATION-001-A reference) + PLUGIN-MIGRATION-001-D (ACTIVE — TDD phase; .worktrees/PLUGIN-MIGRATION-001-D/ branch feature/PLUGIN-MIGRATION-001-D from develop@1bc56e3c)"
 merged_at: 2026-05-19
 merged_via_pr: 151
 merged_via_sha: 80ebe794
@@ -90,9 +90,9 @@ historical_cycles: [phase-1-convergence, wave-3-multi-tenant, wave-4-operations]
 | **Language** | Rust |
 | **Target Workspace** | per-analyst stdio (MCP server) |
 | **Started** | 2026-04-13 |
-| **Last Updated** | 2026-05-21 (D-760 SESSION-HANDOFF §RESUME SNAPSHOT 2026-05-21 written for /clear durability; safe_to_compact=true; 267th consecutive) |
+| **Last Updated** | 2026-05-21 (D-761 PLUGIN-MIGRATION-001-D TDD phase start — worktree feature/PLUGIN-MIGRATION-001-D created from develop@1bc56e3c; 268th consecutive) |
 | **Current Phase** | Wave 3 Tier-3 COMPLETE — **Wave 3-A 4 of 4 SHIPPED**; plugin migration: PREREQ-F + PREREQ-A + PREREQ-B + PREREQ-C + PREREQ-D + **PREREQ-E MERGED** (PR #151 80ebe794 2026-05-19T18:06:44Z); PLUGIN-MIGRATION-001-D LOCAL SPEC CONVERGED — ready for TDD |
-| **Current Step** | D-760 closed. CONVERGED + DURABLE. Ready for /clear. NEXT session resumes TDD implementation phase per SESSION-HANDOFF §RESUME SNAPSHOT 2026-05-21 §4 dispatch plan. |
+| **Current Step** | PLUGIN-MIGRATION-001-D TDD phase IN-PROGRESS — worktree created (D-761). Awaiting test-writer Step 3 dispatch. |
 
 ## Phase Progress
 
@@ -139,6 +139,7 @@ _D-001..D-046 archived: [cycles/phase-3-dtu-wave-2/decisions-archive-d001-d032.m
 
 | ID | Decision | Rationale | Phase | Date |
 |----|----------|-----------|-------|------|
+| D-761 | 2026-05-21 | orchestrator | **PLUGIN-MIGRATION-001-D TDD phase started — feature worktree created at .worktrees/PLUGIN-MIGRATION-001-D/ on branch feature/PLUGIN-MIGRATION-001-D from develop@1bc56e3c. Per SESSION-HANDOFF §RESUME SNAPSHOT 2026-05-21 §4 Step 2 dispatch plan. Next: test-writer stubs + failing tests for 13 ACs / 9 RGs / 6 HS scenarios per BC-5.38.001 Red Gate. 268th consecutive single-commit per TD-VSDD-053.** | plugin-migration | 2026-05-21 | Decided by: orchestrator. Status: APPROVED |
 | D-760 | 2026-05-21 | state-manager (durable resume snapshot burst) | **SESSION-HANDOFF.md §RESUME SNAPSHOT 2026-05-21 — durable resume state for /clear before TDD implementation phase. Appended §RESUME SNAPSHOT 2026-05-21 covering full 2026-05-20/21 session arc: D-737 architectural decisions LOCKED + 22 adversary passes (P4-P25) + 19 fix-bursts (FB-IMPL-P4..P22) + 80 cumulative closures + 16 novel coherence-axis classes + D-747 user Path A architectural supersession + D-759 PLUGIN-MIGRATION-001-D LOCAL 3-CLEAN CONVERGENCE per BC-5.39.001. §1 Session arc table (D-737..D-759); §2 CONVERGENCE STATE; §3 D-747 Path A supersession context; §4 TDD Implementation Dispatch Plan (devops-engineer worktree → test-writer stubs+failing tests → implementer TDD green → adversary 3-CLEAN cascade → demo-recorder → pr-manager 9-step → state-manager post-merge); §5 Open items beyond 001-D + 10 S-7.02 codification candidates; §6 Resume protocol (7 steps); §7 Downstream Wave 1/2 chain. pre_compact_snapshot pointer updated to §RESUME SNAPSHOT 2026-05-21. safe_to_compact: true. STATE.md v7.446→v7.447. 267th consecutive single-commit per TD-VSDD-053.** | plugin-migration | 2026-05-21 | Decided by: state-manager (durable resume snapshot burst). Status: APPROVED |
 | D-759 | 2026-05-21 | orchestrator (cascade convergence acknowledged) + state-manager (CONVERGENCE burst commit) | **PLUGIN-MIGRATION-001-D LOCAL SPEC-LEVEL ADVERSARIAL CASCADE CONVERGED PER BC-5.39.001 3-CLEAN PROTOCOL. Three consecutive CLEAN passes (pass-23/24/25) per D-716 Option A standing. Zero findings across all 3 final passes; 80/80 cumulative closures verified durable; 16 novel coherence-axis classes codified for S-7.02. State-manager scope: pass-25 adversary report persisted + CONVERGENCE report written (PLUGIN-MIGRATION-001-D-convergence-report.md) + story v1.11→v1.12 status flipped `draft`→`ready` per PREREQ-B/C/D/E precedent + STORY-INDEX v2.169→v2.170 row 399 status reflected + STATE.md frontmatter sync. Cascade summary: 25 LOCAL adversary passes (P1 through P25); 19 fix-bursts (FB-IMPL-P1..P22 with P8/P18/P20 CLEAN-bookkeeping-no-fix); 80 cumulative closures; final converged spec set authorized for handoff to TDD implementation phase. Next: orchestrator dispatches implementer (test-writer → implementer) per VSDD per-story TDD pipeline. Story PLUGIN-MIGRATION-001-D is the first Wave-1 story of the plugin-migration saga; PLUGIN-MIGRATION-001-A (delete hardcoded adapters) follows after 001-D ships per ADR-028 §D6. 266th consecutive single-commit per TD-VSDD-053.** | plugin-migration | 2026-05-21 | Decided by: orchestrator (cascade convergence acknowledged) + state-manager (CONVERGENCE burst commit). Status: CONVERGED-APPROVED |
 | D-758 | 2026-05-21 | state-manager | **Pass-24 LOCAL adversary CLEAN bookkeeping burst — PLUGIN-MIGRATION-001-D fresh-context pass-24 against same spec set as pass-23 (no intervening fix-burst). **0 findings of any severity — SECOND CONSECUTIVE FULLY CLEAN PASS.** 80/80 cumulative closures verified DURABLE. POL-29 fixed-point clean across all 3 cite-pin pattern families (file-version, section-version, ADR-anchor-version). 17 axis probes executed (cumulative durability + pattern families + 14 explicit 17th-axis hunts) all CLEAN. Streak advances 1/3 → 2/3 per BC-5.39.001 / D-716 Option A. **ONE MORE CLEAN PASS (pass-25) NEEDED for 3-CLEAN CONVERGENCE.** No fix-burst dispatched. State-manager scope: persist local-pass-24.md + STATE.md frontmatter sync. 265th consecutive single-commit per TD-VSDD-053.** | plugin-migration | 2026-05-21 | Decided by: state-manager (clean-pass bookkeeping). Status: APPROVED |
@@ -239,7 +240,7 @@ Prior cycle history:
 
 _Previous checkpoint (D-752-PASS-18-CLEAN-STREAK-1-OF-3) archived: [cycles/wave-0-plugin-prereqs/session-checkpoints.md](cycles/wave-0-plugin-prereqs/session-checkpoints.md)_
 
-**STATE v7.447. D-760 DURABLE RESUME SNAPSHOT WRITTEN.** safe_to_compact=true. SESSION-HANDOFF.md §RESUME SNAPSHOT 2026-05-21 appended. PLUGIN-MIGRATION-001-D LOCAL spec cascade CONVERGED (3/3 per BC-5.39.001). Story v1.12 `ready`. 267th consecutive single-commit per TD-VSDD-053.
+**STATE v7.448. D-761 PLUGIN-MIGRATION-001-D TDD PHASE STARTED.** safe_to_compact=false. Worktree .worktrees/PLUGIN-MIGRATION-001-D/ created on branch feature/PLUGIN-MIGRATION-001-D from develop@1bc56e3c. 268th consecutive single-commit per TD-VSDD-053.
 
 **Convergence Summary:**
 - 25 LOCAL adversary passes (P1–P25); 19 fix-bursts; 80 cumulative closures; 16 novel coherence-axis classes
