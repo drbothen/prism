@@ -152,9 +152,11 @@ async fn test_BC_2_16_002_crowdstrike_batch_boundary_100_ids_one_batch() {
         .mount(&mock_server)
         .await;
 
-    let spec_content =
-        std::fs::read_to_string("crates/prism-sensors/specs/crowdstrike.sensor.toml")
-            .expect("crowdstrike.sensor.toml must be readable");
+    let spec_content = std::fs::read_to_string(
+        std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+            .join("../prism-sensors/specs/crowdstrike.sensor.toml"),
+    )
+    .expect("crowdstrike.sensor.toml must be readable");
     let mut spec = prism_spec_engine::spec_parser::SpecLoader::parse(&spec_content)
         .expect("crowdstrike.sensor.toml must parse");
     spec.base_url = mock_server.uri();

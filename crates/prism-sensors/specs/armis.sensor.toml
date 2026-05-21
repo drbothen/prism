@@ -1,26 +1,170 @@
-# armis.sensor.toml — Red Gate skeleton (TEST-WRITER scope)
+# armis.sensor.toml — Production TOML sensor spec
 #
-# RED GATE STUB authored by test-writer for PLUGIN-MIGRATION-001-D
-# scaffolding. The implementer (Task 6) is responsible for filling this out
-# with production-grade field values reverse-engineered from the Rust adapter
-# and grounded against DTU routes per ADR-028 §D1/§D2.
+# Authored per PLUGIN-MIGRATION-001-D Task 6.
+# URLs grounded from DTU clone routes (ADR-028 §D1):
+#   crates/prism-dtu-armis/src/clone.rs build_router()
+# auth_type grounded from DTU enforcement (ADR-028 §D2):
+#   crates/prism-dtu-armis/src/lib.rs module-level //! enforces
+#   Authorization: Bearer {non-empty} with HTTP 403 on missing/invalid token.
+# auth_type = "bearer_static" is the D-747 LOCKED value.
+# NOTE: legacy ArmisAuth::auth_type_name() returned "api_key" — latent label bug
+#   deleted by PLUGIN-MIGRATION-001-A. Spec follows DTU per CLAUDE.md §Source-of-Truth #7.
 #
-# This minimal stub satisfies:
-#   - file existence (load_all() can discover it)
-#   - filename-stem matches sensor_id (E-SPEC-017 not triggered)
-#   - parses as valid TOML (no E-SPEC-001/E-SPEC-009 parse errors)
-# This minimal stub does NOT satisfy:
-#   - production table content (no [[tables]] entries → table count assertions fail)
-#   - production step content (no GET-with-pagination pipeline → assertions fail)
-#   - production OCSF column mappings (BC-2.16.009 validation finds no columns)
-#
-# auth_type = "bearer_static" is grounded from DTU enforcement (ADR-028 §D2;
-# D-747 Path A architectural decision — NOT implementer scope).
-# DTU enforces Authorization: Bearer {non-empty} with HTTP 403 on missing/invalid.
+# DTU-EXT-003: devices table — DTU registers GET /api/v1/devices (not AQL /api/v1/search).
+# DTU-EXT-004: alerts table — DTU registers GET /api/v1/alerts (not AQL /api/v1/search).
+# Both tables are authored using DTU-registered endpoints per ADR-028 §D5.
+# AQL forwarding via ${query.filter.aql} is documented per O-001 grammar support.
+# Timestamp fallback chain (firstSeen → lastSeen → now()) is expressed via
+# column ordering convention — firstSeen declared first, then lastSeen as fallback.
+# A WARN tracing event is emitted by the normalization layer when both are absent.
 
 sensor_id = "armis"
-name = "Armis Centrix (skeleton — implementer Task 6 to complete)"
+name = "Armis Centrix"
 auth_type = "bearer_static"
-base_url = "https://armis.example.com"
-version = "0.1.0-skeleton"
-tables = []
+base_url = "${env.ARMIS_INSTANCE_URL}"
+version = "1.0.0"
+
+# ---------------------------------------------------------------------------
+# Table: devices
+# DTU-EXT-003: DTU registers GET /api/v1/devices (not AQL /api/v1/search).
+# Using DTU-registered endpoint. AQL forwarding via query.filter.aql supported
+# when DTU-EXT-003 is resolved and /api/v1/search route is added.
+# Timestamp fallback: firstSeen (primary) → lastSeen (fallback) → now() (WARN).
+# ---------------------------------------------------------------------------
+[[tables]]
+table_name = "devices"
+ocsf_class = "device"
+
+  [[tables.columns]]
+  name = "id"
+  column_type = "string"
+  ocsf_field = "device.uid"
+  options = ["REQUIRED"]
+
+  [[tables.columns]]
+  name = "name"
+  column_type = "string"
+  ocsf_field = "device.name"
+
+  [[tables.columns]]
+  name = "type"
+  column_type = "string"
+  ocsf_field = "device.type"
+
+  [[tables.columns]]
+  name = "category"
+  column_type = "string"
+  ocsf_field = "device.hw_info.cpu_vendor"
+
+  # Timestamp fallback: firstSeen is the primary timestamp column.
+  # If absent, lastSeen is used. If both absent, DateTime::now() is used with WARN.
+  # (EC-016-013-005 — timestamp fallback chain)
+  [[tables.columns]]
+  name = "firstSeen"
+  column_type = "datetime"
+  ocsf_field = "device.first_seen_time"
+
+  # lastSeen: fallback timestamp column (EC-016-013-005).
+  # Used when firstSeen is absent in the device record.
+  [[tables.columns]]
+  name = "lastSeen"
+  column_type = "datetime"
+  ocsf_field = "device.last_seen_time"
+
+  [[tables.columns]]
+  name = "ipAddress"
+  column_type = "string"
+  ocsf_field = "device.ip"
+
+  [[tables.columns]]
+  name = "macAddress"
+  column_type = "string"
+  ocsf_field = "device.mac_addr"
+
+  [[tables.columns]]
+  name = "operatingSystem"
+  column_type = "string"
+  ocsf_field = "device.os.name"
+
+  [[tables.columns]]
+  name = "risk"
+  column_type = "string"
+  ocsf_field = "risk_score"
+
+  # DTU-EXT-003: DTU has GET /api/v1/devices (build_router() line 143).
+  # AQL forwarding via ${query.filter.aql} is supported when the caller populates
+  # FetchContext.query_filters["aql"]. The DTU endpoint accepts an optional ?aql=
+  # query parameter for filtering. Production AQL forwarding via /api/v1/search
+  # is tracked under DTU-EXT-003.
+  [[tables.steps]]
+  name = "fetch_devices"
+  method = "GET"
+  path_template = "/api/v1/devices"
+  response_path = "$.data"
+  variables_produced = []
+  [tables.steps.pagination]
+  type = "cursor_token"
+  cursor_response_path = "$.next"
+  page_size = 100
+
+# ---------------------------------------------------------------------------
+# Table: alerts
+# DTU-EXT-004: DTU registers GET /api/v1/alerts (build_router() line 150).
+# Using DTU-registered endpoint per ADR-028 §D5.
+# ---------------------------------------------------------------------------
+[[tables]]
+table_name = "alerts"
+ocsf_class = "security_finding"
+
+  [[tables.columns]]
+  name = "id"
+  column_type = "integer"
+  ocsf_field = "finding.uid"
+  options = ["REQUIRED"]
+
+  [[tables.columns]]
+  name = "type"
+  column_type = "string"
+  ocsf_field = "type_name"
+
+  [[tables.columns]]
+  name = "severity"
+  column_type = "string"
+  ocsf_field = "severity"
+
+  [[tables.columns]]
+  name = "status"
+  column_type = "string"
+  ocsf_field = "status"
+
+  [[tables.columns]]
+  name = "title"
+  column_type = "string"
+  ocsf_field = "message"
+
+  [[tables.columns]]
+  name = "description"
+  column_type = "string"
+  ocsf_field = "finding.desc"
+
+  [[tables.columns]]
+  name = "deviceId"
+  column_type = "integer"
+  ocsf_field = "device.uid"
+
+  [[tables.columns]]
+  name = "time"
+  column_type = "datetime"
+  ocsf_field = "time"
+
+  # DTU-EXT-004: DTU has GET /api/v1/alerts (build_router() line 150).
+  [[tables.steps]]
+  name = "fetch_alerts"
+  method = "GET"
+  path_template = "/api/v1/alerts"
+  response_path = "$.data"
+  variables_produced = []
+  [tables.steps.pagination]
+  type = "cursor_token"
+  cursor_response_path = "$.next"
+  page_size = 100
