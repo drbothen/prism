@@ -200,6 +200,32 @@ pub struct ColumnSpec {
     /// Column options controlling query engine behavior.
     #[serde(default)]
     pub options: Vec<ColumnOptions>,
+    /// Ordered list of timestamp format names to try when parsing this column.
+    ///
+    /// Only meaningful when `column_type == ColumnType::Datetime`. Empty vec (default)
+    /// means the column is treated as a single well-known ISO 8601 string.
+    ///
+    /// Recognized format names (closed set per ADR-028 v1.9 §D8-C):
+    /// - `"iso8601"` — ISO 8601 / RFC 3339 string (e.g., `"2024-01-15T10:30:00Z"`)
+    /// - `"unix_epoch_seconds"` — integer Unix timestamp in seconds (e.g., `1705311000`)
+    /// - `"unix_epoch_millis"` — integer Unix timestamp in milliseconds
+    ///
+    /// Unrecognized names → `E-SPEC-001` validation error at load time (BC-2.16.009).
+    /// On all-formats parse failure → `E-SPEC-018` (`TimestampParseFailure`).
+    #[serde(default)]
+    pub timestamp_formats: Vec<String>,
+    /// Ordered list of source field names to try when the primary column field is null/absent.
+    ///
+    /// Only meaningful when `column_type == ColumnType::Datetime`. Empty vec (default) means
+    /// no fallback chain — a null primary field produces a null output column.
+    ///
+    /// The pipeline executor tries each field in order. If all chain fields are also null/absent,
+    /// falls back to `DateTime::now()` (UTC) and emits
+    /// `tracing::warn!(event_type = "timestamp.fallback_to_now", column = %col_name)`.
+    ///
+    /// BC-2.16.013 §O-001 Option A LOCKED; ADR-028 v1.9 §D8-B/C.
+    #[serde(default)]
+    pub timestamp_fallback_chain: Vec<String>,
 }
 
 impl Default for ColumnSpec {
@@ -216,6 +242,8 @@ impl Default for ColumnSpec {
             column_type: ColumnType::String,
             ocsf_field: None,
             options: vec![],
+            timestamp_formats: vec![],
+            timestamp_fallback_chain: vec![],
         }
     }
 }
@@ -236,6 +264,8 @@ impl ColumnSpec {
             column_type,
             ocsf_field,
             options,
+            timestamp_formats: vec![],
+            timestamp_fallback_chain: vec![],
         }
     }
 }
