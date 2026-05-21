@@ -86,6 +86,12 @@ ocsf_class = "security_finding"
 
   # Cursor-based pagination
   # DTU route: GET /api/v1/alerts (build_router() line 115)
+  # response_path: Cyberint DTU returns {"data": [...], "next_cursor": "..."} per routes/alerts.rs
+  # page_size: HIGH-004 verification — DTU AlertListParams only has cursor (no page_size field);
+  #   DTU ignores page_size in CI testing. Real Cyberint production API accepts page_size as a
+  #   cursor pagination hint per their REST API spec. page_size = 100 is kept as the forward-looking
+  #   contract (ADR-028 §D1: spec is source of truth; DTU extension tracks under DTU-EXT future story).
+  #   If future DTU extension confirms page_size is NOT accepted, remove this field.
   [[tables.steps]]
   name = "fetch_alerts"
   method = "GET"
