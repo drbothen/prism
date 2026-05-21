@@ -1,88 +1,26 @@
-# cyberint.sensor.toml — Cyberint sensor spec skeleton
+# cyberint.sensor.toml — Red Gate skeleton (TEST-WRITER scope)
 #
-# STUB: This is a minimal skeleton authored by the test-writer as part of the
-# PLUGIN-MIGRATION-001-D Red Gate scaffolding. The implementer (Task 5) is
-# responsible for filling this out with production-grade field values.
+# RED GATE STUB authored by test-writer for PLUGIN-MIGRATION-001-D
+# scaffolding. The implementer (Task 5) is responsible for filling this out
+# with production-grade field values reverse-engineered from the Rust adapter
+# and grounded against DTU routes per ADR-028 §D1/§D2.
 #
-# auth_type = "cookie_roundtrip" is grounded from DTU enforcement (ADR-028 §D2):
-#   crates/prism-dtu-cyberint/src/routes/alerts.rs::extract_session_token() extracts
-#   the cyberint_session cookie from the Cookie header.
-#   The legacy CyberintAuth::auth_type_name() returned "bearer_static" — latent label bug
-#   deleted by PLUGIN-MIGRATION-001-A. Spec follows DTU per CLAUDE.md §Source-of-Truth #7.
+# This minimal stub satisfies:
+#   - file existence (load_all() can discover it)
+#   - filename-stem matches sensor_id (E-SPEC-017 not triggered)
+#   - parses as valid TOML (no E-SPEC-001/E-SPEC-009 parse errors)
+# This minimal stub does NOT satisfy:
+#   - production table content (no [[tables]] entries → table count assertions fail)
+#   - production step content (no cursor-paginated pipeline → BC-2.16.009 assertions fail)
+#   - production OCSF column mappings (BC-2.16.009 validation finds no columns)
 #
-# URLs grounded from crates/prism-dtu-cyberint/src/clone.rs build_router() (ADR-028 §D1).
-# NOTE: Rust adapter used /api/alerts (no /v1) — that was a latent bug.
-#       DTU models real Cyberint API which uses /api/v1/alerts.
-#
-# Required by AC-003: sensor_id must match filename stem "cyberint" per BC-2.16.001 v1.5
+# auth_type = "cookie_roundtrip" is grounded from DTU enforcement (ADR-028 §D2;
+# D-747 Path A architectural decision — NOT implementer scope).
+# DTU extracts cyberint_session cookie in prism-dtu-cyberint::extract_session_token().
 
 sensor_id = "cyberint"
-name = "Cyberint"
+name = "Cyberint (skeleton — implementer Task 5 to complete)"
 auth_type = "cookie_roundtrip"
 base_url = "https://api.cyberint.example.com"
-version = "1.0.0"
-
-# ---------------------------------------------------------------------------
-# Table: alerts — GET with cursor pagination
-# URL: GET /api/v1/alerts (DTU build_router() line 115)
-# timestamp_format = "multi" is NOT supported in TOML grammar (O-001 Task 1 findings).
-# Implementer must choose Option A (grammar extension) or Option B (WASM plugin) for
-# multi-format timestamp parsing before filling this spec. See story Task 1 and Task 5.
-# STUB: Column schema and cursor config to be filled by implementer (Task 5)
-# ---------------------------------------------------------------------------
-[[tables]]
-table_name = "alerts"
-ocsf_class = "security_finding"
-
-  [[tables.columns]]
-  name = "id"
-  column_type = "string"
-  options = ["REQUIRED"]
-
-  [[tables.columns]]
-  name = "timestamp"
-  column_type = "datetime"
-  ocsf_field = "time"
-
-  [[tables.steps]]
-  name = "fetch_alerts"
-  method = "GET"
-  path_template = "/api/v1/alerts"
-  response_path = "$.alerts"
-  variables_produced = []
-
-  [tables.steps.pagination]
-  type = "cursor_token"
-  cursor_response_path = "$.next_cursor"
-  page_size = 100
-
-# ---------------------------------------------------------------------------
-# Table: incidents — cursor pagination; DTU gap per EC-016-013-002
-# Parity test for incidents is an explicit SKIP assertion (NOT #[ignore]).
-# The spec file still includes the table so it parses correctly.
-# STUB: Column schema to be filled by implementer (Task 5)
-# ---------------------------------------------------------------------------
-[[tables]]
-table_name = "incidents"
-ocsf_class = "security_finding"
-
-  [[tables.columns]]
-  name = "id"
-  column_type = "string"
-  options = ["REQUIRED"]
-
-  [[tables.columns]]
-  name = "timestamp"
-  column_type = "datetime"
-  ocsf_field = "time"
-
-  [[tables.steps]]
-  name = "fetch_incidents"
-  method = "GET"
-  path_template = "/api/v1/incidents"
-  response_path = "$.incidents"
-  variables_produced = []
-
-  [tables.steps.pagination]
-  type = "cursor_token"
-  cursor_response_path = "$.next_cursor"
+version = "0.1.0-skeleton"
+tables = []
