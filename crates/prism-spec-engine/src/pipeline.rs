@@ -1409,6 +1409,8 @@ mod execute_step_tests {
                     column_type: ColumnType::String,
                     ocsf_field: None,
                     options: vec![],
+                    timestamp_formats: vec![],
+                    timestamp_fallback_chain: vec![],
                 }],
                 vec![FetchStep {
                     name: step_name.to_string(),
@@ -1656,6 +1658,8 @@ mod execute_step_tests {
                     column_type: prism_core::ColumnType::String,
                     ocsf_field: None,
                     options: vec![],
+                    timestamp_formats: vec![],
+                    timestamp_fallback_chain: vec![],
                 }],
                 vec![FetchStep {
                     name: "fetch_items".to_string(),

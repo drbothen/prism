@@ -735,6 +735,41 @@ impl SpecLoader {
             });
         }
 
+        // BC-2.16.009 timestamp_formats validation gate (ADR-028 v1.9 §D8-C):
+        // timestamp_formats is a closed set: only these names are recognized.
+        // Unrecognized format names → E-SPEC-001 at load time.
+        const RECOGNIZED_TIMESTAMP_FORMATS: &[&str] =
+            &["iso8601", "unix_epoch_seconds", "unix_epoch_millis"];
+        for table in &spec.tables {
+            for col in &table.columns {
+                if col.column_type == ColumnType::Datetime {
+                    for fmt in &col.timestamp_formats {
+                        if !RECOGNIZED_TIMESTAMP_FORMATS.contains(&fmt.as_str()) {
+                            return Err(PrismError::Spec(SpecError {
+                                code: SpecErrorCode::ESpec001,
+                                message: format!(
+                                    "sensor '{}' table '{}' column '{}': unrecognized \
+                                     timestamp_formats entry '{}'. Recognized values: {}. \
+                                     (BC-2.16.009; ADR-028 v1.9 §D8-C)",
+                                    spec.sensor_id,
+                                    table.table_name,
+                                    col.name,
+                                    fmt,
+                                    RECOGNIZED_TIMESTAMP_FORMATS.join(", ")
+                                ),
+                                toml_path: Some(format!(
+                                    "sensor.tables[{}].columns[{}].timestamp_formats",
+                                    table.table_name, col.name
+                                )),
+                                file_path: None,
+                                line_number: None,
+                            }));
+                        }
+                    }
+                }
+            }
+        }
+
         Ok(spec)
     }
 

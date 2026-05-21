@@ -56,6 +56,8 @@ fn minimal_valid_spec() -> SensorSpec {
                 column_type: ColumnType::String,
                 ocsf_field: None,
                 options: vec![],
+                timestamp_formats: vec![],
+                timestamp_fallback_chain: vec![],
             }],
             steps: vec![FetchStep {
                 name: "fetch_alerts".to_string(),
@@ -144,6 +146,8 @@ fn inject_error_empty_table_no_steps(spec: &mut SensorSpec) {
             column_type: ColumnType::String,
             ocsf_field: None,
             options: vec![],
+            timestamp_formats: vec![],
+            timestamp_fallback_chain: vec![],
         }],
         steps: vec![], // violation: must have at least one step
         table_type: Default::default(),
@@ -172,6 +176,8 @@ fn inject_error_empty_table_name(spec: &mut SensorSpec) {
             column_type: ColumnType::String,
             ocsf_field: None,
             options: vec![],
+            timestamp_formats: vec![],
+            timestamp_fallback_chain: vec![],
         }],
         steps: vec![FetchStep {
             name: "fetch".to_string(),
@@ -246,6 +252,8 @@ fn build_spec_with_n_warnings_no_errors(n_warnings: usize) -> SensorSpec {
                 column_type: ColumnType::String,
                 ocsf_field: Some(format!("nonexistent.field_{i}")),
                 options: vec![],
+                timestamp_formats: vec![],
+                timestamp_fallback_chain: vec![],
             });
         }
     }
