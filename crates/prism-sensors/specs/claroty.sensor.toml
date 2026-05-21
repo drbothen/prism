@@ -10,6 +10,8 @@
 #   deleted by PLUGIN-MIGRATION-001-A. Spec follows DTU per CLAUDE.md §Source-of-Truth #7.
 #
 # POST-for-read pattern: alerts and audit_logs use method = "POST" with body template.
+# Pagination: OffsetLimit engine appends ?offset=N&limit=M to URL query params
+#   (pipeline.rs::build_paged_url_impl). Body template does NOT include pagination fields.
 # Polymorphic ID: id column uses column_type = "string" to handle int and UUID IDs
 #   (EC-016-013-004): JSON int IDs normalized to string at parser boundary.
 # No /xdome prefix anywhere (ADR-028 §D1 footnote).
@@ -77,12 +79,15 @@ ocsf_class = "security_finding"
 
   # POST-for-read step with offset pagination
   # DTU route: POST /api/v1/alerts (build_router() line 86)
+  # response_path: DTU returns {"alerts": [...], "total": N, "page": N} per routes/alerts.rs:47
+  # body_template: OffsetLimit pagination engine handles offset via URL query params
+  #   (pipeline.rs::build_paged_url_impl appends ?offset=N&limit=M). No body pagination field needed.
   [[tables.steps]]
   name = "fetch_alerts"
   method = "POST"
   path_template = "/api/v1/alerts"
-  body_template = '{"page": ${page_offset}, "size": 100}'
-  response_path = "$.objects"
+  body_template = '{"size": 100}'
+  response_path = "$.alerts"
   variables_produced = []
   [tables.steps.pagination]
   type = "offset_limit"
@@ -126,12 +131,17 @@ ocsf_class = "audit_activity"
   ocsf_field = "dst_resource.name"
 
   # POST-for-read step with offset pagination
+  # DTU gap: no /api/v1/audit_logs route in prism-dtu-claroty yet.
+  # response_path: forward-looking placeholder — real Claroty xDome API uses
+  #   {"audit_logs": [...]} response shape (consistent with per-resource wrapping convention).
+  # body_template: OffsetLimit pagination handles offset via URL params (not body fields).
+  #   ${page_offset} is NOT a valid step variable; removed per CRIT-002 (ADR-028 §D1).
   [[tables.steps]]
   name = "fetch_audit_logs"
   method = "POST"
   path_template = "/api/v1/audit_logs"
-  body_template = '{"page": ${page_offset}, "size": 100}'
-  response_path = "$.objects"
+  body_template = '{"size": 100}'
+  response_path = "$.audit_logs"
   variables_produced = []
   [tables.steps.pagination]
   type = "offset_limit"
