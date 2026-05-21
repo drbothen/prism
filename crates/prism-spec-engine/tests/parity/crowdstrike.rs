@@ -74,9 +74,17 @@ enum ParityVerdict {
     /// Byte-identical after canonicalization.
     Pass,
     /// Non-critical difference (e.g., null field in reference absent from actual per EC-016-013-007).
+    /// Used in #[ignore]'d test bodies — suppressed from dead_code analysis.
+    #[allow(dead_code)]
     Warn(String),
     /// Critical difference that blocks VP-148 verification.
     Fail(String),
+    /// Reference fixture is empty — fixture has not been recorded yet.
+    ///
+    /// Returns Error (not Warn) so an unrecorded fixture cannot silently pass as WARN when the
+    /// #[ignore] tag is removed. Prevents the silent-WARN masking pattern flagged by F-LP1-MED-003.
+    /// Record fixtures via TS-PLUGIN-PARITY-001 before removing the #[ignore] tag.
+    Error(String),
 }
 
 /// Compare actual OCSF records against reference fixture per TS-PLUGIN-PARITY-001.
@@ -95,11 +103,15 @@ fn compute_parity_verdict(
     };
 
     if reference_array.is_empty() {
-        // Placeholder fixture — DTU fixture not yet recorded (Task 10a).
-        // Return Warn so the test does not FAIL on the fixture gap alone.
-        return ParityVerdict::Warn(
-            "Reference fixture is empty — DTU fixture not yet recorded per Task 10a (ADR-028 §D3). \
-             Run recording procedure when S-6.07 merges."
+        // Reference fixture not yet recorded (Task 10a / ADR-028 §D3).
+        // Return Error (not Warn) — an unrecorded fixture must NOT silently pass as WARN once
+        // the #[ignore] tag is removed. The test MUST fail loudly until fixtures are recorded.
+        // Record procedure: start CrowdStrike DTU, run legacy adapter, commit OCSF output to
+        // prism-dtu-crowdstrike/fixtures/parity/reference-ocsf/detections.json.
+        return ParityVerdict::Error(
+            "reference OCSF fixture is empty — record fixtures via TS-PLUGIN-PARITY-001 \
+             before removing the #[ignore] tag. See ADR-028 §D3 for procedure. \
+             (F-LP1-MED-003: empty-fixture must not produce silent WARN)"
                 .to_string(),
         );
     }
@@ -265,4 +277,42 @@ async fn test_BC_2_16_013_dtu_parity_crowdstrike_batch_cap_100_ids() {
         "CrowdStrike pipeline must issue >= 2 requests; got {}",
         result.request_count
     );
+}
+
+// ---------------------------------------------------------------------------
+// F-LP1-MED-003 load-bearing unit test: empty-fixture → Error (NOT Warn)
+// ---------------------------------------------------------------------------
+
+/// F-LP1-MED-003 / TD-VSDD-059: empty reference fixture must return Error, not Warn.
+///
+/// This test is the load-bearing assertion that prevents `compute_parity_verdict`
+/// from silently returning WARN when given an empty fixture array. Without this test,
+/// the ERROR branch could be reverted to WARN and CI would not notice (since the DTU
+/// parity tests are #[ignore]'d). This test runs unconditionally in CI.
+///
+/// If this test fails after a code change, it means someone reverted the empty-fixture
+/// ERROR guard — restore `ParityVerdict::Error` in `compute_parity_verdict`.
+#[test]
+fn test_BC_2_16_013_compute_parity_verdict_empty_fixture_returns_error() {
+    let empty_reference = serde_json::Value::Array(vec![]);
+    let actual: Vec<serde_json::Value> = vec![];
+
+    let verdict = compute_parity_verdict(&actual, &empty_reference);
+
+    match verdict {
+        ParityVerdict::Error(msg) => {
+            assert!(
+                msg.contains("empty") || msg.contains("fixture"),
+                "Error message must describe the empty-fixture condition; got: {msg}"
+            );
+        }
+        ParityVerdict::Warn(_) => panic!(
+            "F-LP1-MED-003: compute_parity_verdict returned Warn for empty fixture — \
+             must return Error so unrecorded fixtures fail loudly when #[ignore] is removed"
+        ),
+        other => panic!(
+            "F-LP1-MED-003: compute_parity_verdict returned {other:?} for empty fixture — \
+             must return Error"
+        ),
+    }
 }

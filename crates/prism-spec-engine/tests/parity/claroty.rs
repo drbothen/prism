@@ -50,8 +50,16 @@ fn normalize_for_parity(value: &serde_json::Value) -> serde_json::Value {
 #[derive(Debug, PartialEq)]
 enum ParityVerdict {
     Pass,
+    /// Used in #[ignore]'d test bodies — suppressed from dead_code analysis.
+    #[allow(dead_code)]
     Warn(String),
     Fail(String),
+    /// Reference fixture is empty — fixture has not been recorded yet.
+    ///
+    /// Returns Error (not Warn) so an unrecorded fixture cannot silently pass as WARN when the
+    /// #[ignore] tag is removed. Prevents the silent-WARN masking pattern flagged by F-LP1-MED-003.
+    /// Record fixtures via TS-PLUGIN-PARITY-001 before removing the #[ignore] tag.
+    Error(String),
 }
 
 fn compute_parity_verdict(
@@ -64,9 +72,13 @@ fn compute_parity_verdict(
     };
 
     if reference_array.is_empty() {
-        return ParityVerdict::Warn(
-            "Reference fixture is empty — DTU fixture not yet recorded per Task 10a. \
-             Record procedure: start Claroty DTU, run legacy adapter, commit OCSF output."
+        // Return Error (not Warn) — an unrecorded fixture must NOT silently pass as WARN once
+        // the #[ignore] tag is removed. Record procedure: start Claroty DTU, run legacy adapter,
+        // commit OCSF output to prism-dtu-claroty/fixtures/parity/reference-ocsf/alerts.json.
+        return ParityVerdict::Error(
+            "reference OCSF fixture is empty — record fixtures via TS-PLUGIN-PARITY-001 \
+             before removing the #[ignore] tag. \
+             (F-LP1-MED-003: empty-fixture must not produce silent WARN)"
                 .to_string(),
         );
     }
@@ -226,5 +238,39 @@ async fn test_BC_2_16_013_dtu_parity_claroty_polymorphic_integer_id_normalized_t
                 id_val
             );
         }
+    }
+}
+
+// ---------------------------------------------------------------------------
+// F-LP1-MED-003 load-bearing unit test: empty-fixture → Error (NOT Warn)
+// ---------------------------------------------------------------------------
+
+/// F-LP1-MED-003 / TD-VSDD-059: empty reference fixture must return Error, not Warn.
+///
+/// Runs unconditionally in CI. If this test fails after a code change, it means
+/// someone reverted the empty-fixture ERROR guard — restore `ParityVerdict::Error` in
+/// `compute_parity_verdict`.
+#[test]
+fn test_BC_2_16_013_compute_parity_verdict_empty_fixture_returns_error() {
+    let empty_reference = serde_json::Value::Array(vec![]);
+    let actual: Vec<serde_json::Value> = vec![];
+
+    let verdict = compute_parity_verdict(&actual, &empty_reference);
+
+    match verdict {
+        ParityVerdict::Error(msg) => {
+            assert!(
+                msg.contains("empty") || msg.contains("fixture"),
+                "Error message must describe the empty-fixture condition; got: {msg}"
+            );
+        }
+        ParityVerdict::Warn(_) => panic!(
+            "F-LP1-MED-003: compute_parity_verdict returned Warn for empty fixture — \
+             must return Error so unrecorded fixtures fail loudly when #[ignore] is removed"
+        ),
+        other => panic!(
+            "F-LP1-MED-003: compute_parity_verdict returned {other:?} for empty fixture — \
+             must return Error"
+        ),
     }
 }
