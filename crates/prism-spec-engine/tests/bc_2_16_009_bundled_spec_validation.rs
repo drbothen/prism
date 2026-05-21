@@ -115,6 +115,31 @@ fn test_BC_2_16_009_validates_all_4_bundled_specs() {
                 }
             }
         }
+
+        // §Validation Rules 1 (STRENGTHENED — Part B Red Gate enforcement):
+        // Each bundled sensor must expose at least one table with at least one
+        // OCSF-mapped column. Skeleton stubs (tables = []) produce zero tables,
+        // causing this assertion to fail. Implementer Tasks 3-6 fill in
+        // production-grade tables → assertion passes.
+        //
+        // RED GATE: Fails until Tasks 3-6 add [[tables]] with column entries.
+        assert!(
+            !spec.tables.is_empty(),
+            "Sensor '{}' must expose at least one table after Tasks 3-6 fill the spec. \
+             Skeleton stubs have tables = [] which fails this assertion (BC-2.16.009 \
+             §Validation Rules 1 — content enforcement).",
+            sensor_id
+        );
+
+        // At least one column must be present across all tables.
+        let total_columns: usize = spec.tables.iter().map(|t| t.columns.len()).sum();
+        assert!(
+            total_columns > 0,
+            "Sensor '{}' must have at least one column across all tables (OCSF mapping \
+             requires column definitions). Skeleton has zero columns. \
+             Implementer Tasks 3-6 add column schemas (BC-2.16.009 §Validation Rules 3).",
+            sensor_id
+        );
     }
 }
 

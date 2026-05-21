@@ -65,11 +65,16 @@ fn test_BC_2_16_012_plugin_dispatch_uses_spec_catalog_not_hardcoded_names() {
 }
 
 /// RG-08 sub-assertion / AC-012:
-/// Parsing crowdstrike.sensor.toml twice produces byte-identical SensorSpec structs.
-/// Behavioral equivalence is preserved across multiple parse calls.
+/// Parsing crowdstrike.sensor.toml twice produces byte-identical SensorSpec structs
+/// with a NON-EMPTY table set. Behavioral equivalence is preserved across multiple
+/// parse calls, and the spec must be production-grade (not a skeleton stub).
 ///
 /// RED GATE: Fails until the crowdstrike.sensor.toml spec is production-grade
 /// (Tasks 3-5) and SpecLoader::parse() is deterministic for it.
+///
+/// STRENGTHENED (Part B): Added N > 0 precondition to ensure skeleton stubs
+/// (tables = []) cause this test to fail — idempotency over an empty table set
+/// is trivially true but meaningless as a Red Gate check.
 #[test]
 fn test_BC_2_16_012_spec_parse_is_idempotent_for_crowdstrike() {
     let content = std::fs::read_to_string(
@@ -82,6 +87,19 @@ fn test_BC_2_16_012_spec_parse_is_idempotent_for_crowdstrike() {
         SpecLoader::parse(&content).expect("crowdstrike.sensor.toml must parse on first call");
     let spec2 =
         SpecLoader::parse(&content).expect("crowdstrike.sensor.toml must parse on second call");
+
+    // STRENGTHENED: Idempotency assertion is meaningful ONLY when the spec has
+    // production-grade content (N > 0 tables). Skeleton stubs (tables = []) produce
+    // N = 0, which fails this precondition and correctly blocks the Red Gate.
+    //
+    // RED GATE: Fails here until implementer Task 3 adds [[tables]] to crowdstrike.sensor.toml.
+    assert!(
+        spec1.tables.len() > 0,
+        "CrowdStrike spec must have > 0 tables for idempotency to be a meaningful Red Gate check. \
+         Skeleton stub tables = [] produces 0 tables — implementer Task 3 must fill in \
+         the 3 production tables (detections, devices, incidents) per AC-001 \
+         (BC-2.16.012 INV-SPEC-PARSER-OPEN-001 idempotency gate)."
+    );
 
     // Behavioral equivalence: same sensor_id, auth_type, tables, version.
     assert_eq!(
@@ -120,8 +138,13 @@ fn test_BC_2_16_012_spec_parse_is_idempotent_for_crowdstrike() {
 
 /// AC-012 regression: The open dispatch path handles all 4 bundled specs.
 /// No spec should fail to parse due to a missing dispatch branch.
+/// Each spec must also expose >= 1 table after implementer Tasks 3-6 fill it.
 ///
 /// RED GATE: Fails until all 4 specs are production-grade.
+///
+/// STRENGTHENED (Part B): Added >= 1 table assertion per sensor so skeleton
+/// stubs (tables = []) cause this test to fail — parsing a skeleton successfully
+/// is not sufficient to verify open dispatch produces usable table registrations.
 #[test]
 fn test_BC_2_16_012_open_dispatch_handles_all_4_bundled_sensors() {
     let specs_dir = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../prism-sensors/specs");
@@ -153,6 +176,21 @@ fn test_BC_2_16_012_open_dispatch_handles_all_4_bundled_sensors() {
             *sensor_id,
             "Parsed sensor_id '{}' must match expected '{}'",
             spec.sensor_id,
+            sensor_id
+        );
+
+        // STRENGTHENED: Open dispatch is only meaningful when the spec exposes
+        // >= 1 table. Skeleton stubs (tables = []) parse successfully but produce
+        // zero tables, which means the open dispatch path has nothing to register.
+        //
+        // RED GATE: Fails here for each sensor until implementer Tasks 3-6
+        // add production [[tables]] entries.
+        assert!(
+            !spec.tables.is_empty(),
+            "Sensor '{}' must expose >= 1 table via open dispatch path (INV-SPEC-PARSER-OPEN-001). \
+             Skeleton stub tables = [] produces 0 tables — implementer Tasks 3-6 must fill in \
+             production-grade table definitions so the dispatch path has table registrations \
+             to forward (BC-2.16.012 AC-012).",
             sensor_id
         );
     }
