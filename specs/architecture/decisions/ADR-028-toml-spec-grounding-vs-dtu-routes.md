@@ -5,7 +5,7 @@ title: "TOML Spec URLs and auth_type Ground Against DTU Clone Routes (Real-API C
 status: Proposed
 date: "2026-05-20"
 modified: "2026-05-20"
-version: "1.5"
+version: "1.6"
 producer: architect
 subsystems_affected: [SS-01, SS-07, SS-16, SS-17]
 supersedes: ["ADR-026 §D3 (partial — auth_type_name() return values for Cyberint/Claroty/Armis non-CrowdStrike sensors)"]
@@ -22,7 +22,7 @@ wiring_deferred_to: null
 
 ## Status
 
-Proposed 2026-05-20, v1.0 (initial proposal version; current frontmatter v1.4 per §Changelog). Locks D-737 Decisions 1 and 4 as a durable architectural principle. Will be promoted to ACCEPTED after PLUGIN-MIGRATION-001-D LOCAL adversarial cascade reaches 3-CLEAN convergence per ADR-021 promotion lifecycle.
+Proposed 2026-05-20, v1.0 (initial proposal version; current frontmatter v1.6 per §Changelog). Locks D-737 Decisions 1 and 4 as a durable architectural principle. Will be promoted to ACCEPTED after PLUGIN-MIGRATION-001-D LOCAL adversarial cascade reaches 3-CLEAN convergence per ADR-021 promotion lifecycle.
 
 ---
 
@@ -136,7 +136,7 @@ Pass-5 adversarial review will surface these gaps as findings if not resolved be
    - `ArmisAuth::auth_type_name()` → `"bearer_static"` (corrected from `"api_key"`)
    - `CrowdStrikeAuth::auth_type_name()` → `"oauth2_client_credentials"` (unchanged; correct under both ADRs)
 2. **Amendment of Red Gate test** `crates/prism-sensors/src/auth/mod.rs::test_BC_2_01_016_003_four_auth_impls_minimal_diff_post_unsealing` to assert the new DTU-grounded values for Cyberint, Claroty, and Armis. The CrowdStrike assertion is unchanged.
-3. **Bidirectional supersession linkage:** ADR-026 §D3 receives `superseded_by:` linkage to ADR-028 (applied in the PLUGIN-MIGRATION-001-A merge burst per Action 2 of FB-IMPL-P13-ARCH).
+3. **Bidirectional supersession linkage:** ADR-026 §D3 received `superseded_by:` linkage to ADR-028 **(applied simultaneously with this §D6 authoring in FB-IMPL-P13-ARCH; reflected in ADR-026 v1.30 frontmatter)**.
 4. **Scope authority:** This expansion is in-scope for PLUGIN-MIGRATION-001-A under user Path A adjudication (D-747). The implementer and test-writer for PLUGIN-MIGRATION-001-A must treat §D6 as a binding constraint alongside the story's existing AC list.
 
 Until PLUGIN-MIGRATION-001-A merges, code in `crates/prism-sensors/src/auth/{cyberint,claroty,armis}.rs` continues to return the ADR-026 §D3 values; the Red Gate test asserts those legacy values. This is the LIVE contract through the migration window.
@@ -195,6 +195,7 @@ Until PLUGIN-MIGRATION-001-A merges, code in `crates/prism-sensors/src/auth/{cyb
 
 | Version | Date | Author | Summary |
 |---|---|---|---|
+| 1.6 | 2026-05-20 | architect | FB-IMPL-P14-ARCH: F-LP14-MED-002 closure — §Status self-cite "current frontmatter v1.4" advanced to "current frontmatter v1.6" (stale after v1.5 bump in P13; same defect class as F-LP10-LOW-001). F-LP14-MED-003 closure — §D6 Action 3 parenthetical rewritten: future-tense "applied in the PLUGIN-MIGRATION-001-A merge burst" replaced with realized past-tense "applied simultaneously with this §D6 authoring in FB-IMPL-P13-ARCH; reflected in ADR-026 v1.30 frontmatter". POL-29 self-verification greps: CLEAN. |
 | 1.5 | 2026-05-20 | architect | Pass-13 FB-IMPL-P13-ARCH per user Path A adjudication (D-747): `supersedes:` frontmatter field added (ADR-026 §D3 partial — non-CrowdStrike `auth_type_name()` returns). §D2 supersession prefix paragraph added: explicitly supersedes ADR-026 §D3 for Cyberint/Claroty/Armis `auth_type_name()` return values effective at PLUGIN-MIGRATION-001-A merge; CrowdStrike `"oauth2_client_credentials"` unchanged. New §D6 documents PLUGIN-MIGRATION-001-A scope expansion: rewrite three `Auth::auth_type_name()` returns to DTU-grounded values + amend Red Gate `test_BC_2_01_016_003` + bidirectional supersession linkage. F-LP13-HIGH-001 closure. |
 | 1.4 | 2026-05-20 | architect | Pass-7 FB-IMPL-P7 — §Context cyberint symbol-path mis-anchor corrected: `cyberint.rs::CyberintAuth::get_page` (HALLUCINATION — wrong type namespace; method belongs to `CyberintAdapter`, not `CyberintAuth`) → `cyberint.rs::CyberintAdapter::new()` (cookie-store `reqwest::Client::builder().cookie_store(true).build()` construction) + `::get_page()` consumption. Semantic claim corrected: cookie-store is BUILT in `CyberintAdapter::new()` (not "established in per-page fetch loop"). F-LP7-HIGH-001 closure. Root cause: FB-IMPL-P6 propagated wrong type namespace from pass-6 review without grep-verifying symbol against codebase. Going-forward discipline: ALL symbol-path anchor replacements MUST be grep-verified against `crates/` before commit (TD-VSDD-059 paper-fix variant; TD-VSDD-091 anti-volatile-pin). Pass-10 FB-IMPL-P10 — §Status historical-anchor disambiguation: "Proposed 2026-05-20, v1.0" → "Proposed 2026-05-20, v1.0 (initial proposal version; current frontmatter v1.4 per §Changelog)" to prevent reader confusion about current revision. F-LP10-LOW-001 closure (POL-29 body-frontmatter coherence axis). |
 | 1.3 | 2026-05-20 | architect | Pass-6 FB-IMPL-P6 — POL-25 expanded sibling-anti-pattern sweep. §D2 Armis row: `crates/prism-dtu-armis/src/lib.rs:16-17` → `crates/prism-dtu-armis/src/lib.rs` module-level `//!` doc-comment (Armis Centrix BearerStatic contract). §Context cyberint cite: `crates/prism-sensors/src/auth/cyberint.rs:155` → `::CyberintAuth::get_page` symbol path. TD-VSDD-091 anti-volatile-pin. F-LP6-LOW-001 closure (architect scope; PO + SW closing sibling sites in parallel bursts). |

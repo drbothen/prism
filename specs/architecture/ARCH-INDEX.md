@@ -1,7 +1,7 @@
 ---
 document_type: architecture-index
 level: L3
-version: "2.91"
+version: "2.92"
 status: draft
 producer: state-manager
 timestamp: 2026-05-20T00:00:00
@@ -91,10 +91,10 @@ deployment_topology: single-service  # planned — no service binary exists yet 
 | ADR-023 | Plugin-Only Sensor Architecture — TOML Specs as Declarative Baseline, .prx WASM for Non-Declarative Cases, Retired CustomAdapter Rust Trait | COMMITTED v1.19 | 2026-05-15 | decisions/ADR-023-plugin-only-sensor-architecture.md |
 | ADR-024 | ColumnType Canonical Naming — Domain-Level Variant Names for Sensor Schema API; prism-spec-engine Shadow Enum Retirement | ACCEPTED v1.0 | 2026-05-12 | decisions/ADR-024-column-type-canonical-naming.md |
 | ADR-025 | BC Lifecycle Field Canonical Scheme — Single status Field Governs; lifecycle Field Retired | ACCEPTED v1.0 | 2026-05-12 | decisions/ADR-025-bc-lifecycle-field-canonical-scheme.md |
-| ADR-026 | SensorAuth Trait Un-Sealing — Remove private::Sealed, Enable Plugin Auth Implementations | PROPOSED v1.30 | 2026-05-20 | decisions/ADR-026-sensorauth-unsealing.md |
+| ADR-026 | SensorAuth Trait Un-Sealing — Remove private::Sealed, Enable Plugin Auth Implementations | PROPOSED v1.31 | 2026-05-20 | decisions/ADR-026-sensorauth-unsealing.md |
 | ADR-026-AMENDMENT | ADR-026 Amendment: Rule C (E-SPEC-014) — Keyring Backend Scope Qualification (D-706) | APPROVED v1.0 | 2026-05-18 | decisions/ADR-026-AMENDMENT-rule-c-keyring-scope.md |
 | ADR-027 | CustomAdapter Rust Trait Same-Burst Removal — Perimeter Enforcement in Wave 1/A | PROPOSED v1.9 | 2026-05-17 | decisions/ADR-027-custom-adapter-deprecation-removal.md |
-| ADR-028 | TOML Spec URLs and auth_type Ground Against DTU Clone Routes (Real-API Canonical), Not Production Rust Adapter URLs | PROPOSED v1.5 | 2026-05-20 | decisions/ADR-028-toml-spec-grounding-vs-dtu-routes.md |
+| ADR-028 | TOML Spec URLs and auth_type Ground Against DTU Clone Routes (Real-API Canonical), Not Production Rust Adapter URLs | PROPOSED v1.6 | 2026-05-20 | decisions/ADR-028-toml-spec-grounding-vs-dtu-routes.md |
 
 ## Architecture Decisions
 
@@ -154,6 +154,7 @@ deployment_topology: single-service  # planned — no service binary exists yet 
 
 | Version | Pass | Date | Author | Change |
 |---------|------|------|--------|--------|
+| 2.92 | FB-IMPL-P14-ARCH | 2026-05-20 | architect | FB-IMPL-P14-ARCH 4-finding closure: ADR-026 in-line row v1.30→v1.31 (F-LP14-MED-001: v1.30 changelog row repositioned above v1.29 — ascending order restored; F-LP14-LOW-001: modified: field advanced 2026-05-18→2026-05-20 per POL-27). ADR-028 in-line row v1.5→v1.6 (F-LP14-MED-002: §Status self-cite "current frontmatter v1.4" advanced to "v1.6"; F-LP14-MED-003: §D6 Action 3 parenthetical rewritten — realized past-tense replaces future-tense deferral claim; ADR-026 v1.30 frontmatter already has superseded_by populated). ARCH-INDEX v2.91→v2.92. |
 | 2.91 | FB-IMPL-P13-ARCH | 2026-05-20 | architect | Pass-13 FB-IMPL-P13-ARCH F-LP13-HIGH-001 closure: ADR-028 in-line row v1.4→v1.5 (supersedes: ADR-026 §D3 partial added to frontmatter; §D2 supersession prefix paragraph + new §D6 PLUGIN-MIGRATION-001-A scope expansion; v1.5 changelog row). ADR-026 in-line row v1.29→v1.30 (superseded_by: ADR-028 §D2 partial added to frontmatter; §D3 supersession notice prefix; v1.30 changelog row). Bidirectional Supersedes/Superseded-by linkage established per CLAUDE.md Source-of-Truth Precedence #2 and user Path A adjudication (D-747). ARCH-INDEX v2.90→v2.91. |
 | 2.90 | FB-IMPL-P7 | 2026-05-20 | architect | F-LP7-HIGH-001 closure: ADR-028 in-line row v1.3→v1.4 (§Context cyberint symbol-path hallucination corrected — `CyberintAuth::get_page` (wrong type namespace) → `CyberintAdapter::new()` cookie-store builder + `::get_page()` consumption; semantic claim corrected: cookie-store BUILT in `new()` not "established in per-page fetch loop"). ARCH-INDEX v2.89→v2.90. |
 | 2.89 | FB-IMPL-P6 | 2026-05-20 | architect | F-LP6-LOW-001 closure (POL-25 sibling-anti-pattern sweep): ADR-028 in-line row v1.2→v1.3 (§D2 Armis row `lib.rs:16-17` → module-level `//!` doc-comment symbol anchor; §Context cyberint `cyberint.rs:155` → `::CyberintAuth::get_page` symbol path; TD-VSDD-091 anti-volatile-pin). ARCH-INDEX v2.88→v2.89. |
