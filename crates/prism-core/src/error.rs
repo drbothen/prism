@@ -910,6 +910,14 @@ pub enum SpecErrorCode {
     /// E.g., `crowdstrike.sensor.toml` with `sensor_id: "falcon"` → rejected at load time.
     /// Emitted by `SpecLoader::load_all()` only (has filename context); never by `SpecLoader::parse()`.
     ESpec017,
+    /// E-SPEC-018: `PipelineExecutor` failed to parse a `ColumnType::Datetime` column value
+    /// against any of the declared `timestamp_formats`. The formats list and raw value are
+    /// included in the `SpecError::message` for actionable correction.
+    /// Emitted during response-to-Arrow materialization when `ColumnSpec::timestamp_formats`
+    /// is non-empty and no format successfully parsed the field value.
+    /// BC-2.16.013 §O-001 (Option A grammar extension); ADR-028 v1.9 §D8-C;
+    /// error-taxonomy.md v1.44 E-SPEC-018.
+    ESpec018,
 }
 
 /// A structured spec validation or runtime error carrying an E-SPEC-* code,
