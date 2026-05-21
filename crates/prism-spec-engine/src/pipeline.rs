@@ -16,13 +16,14 @@
 use std::collections::HashMap;
 use std::time::Duration;
 
+use chrono::{DateTime, TimeZone, Utc};
 use percent_encoding::{NON_ALPHANUMERIC, utf8_percent_encode};
-use prism_core::OrgSlug;
+use prism_core::{ColumnType, OrgSlug};
 
 use crate::auth_provider::{AuthProvider, AuthToken};
 use crate::error::SpecEngineError;
 use crate::interpolation::{InterpolationContext, Interpolator};
-use crate::spec_parser::{FetchStep, PaginationConfig, SensorSpec, TableSpec};
+use crate::spec_parser::{ColumnSpec, FetchStep, PaginationConfig, SensorSpec, TableSpec};
 
 /// Maximum records materialised per pipeline execution (DI-019 / AC-8).
 const MAX_PIPELINE_RECORDS: usize = 10_000;
@@ -507,8 +508,22 @@ impl PipelineExecutor {
             }
         }
 
+        // ADR-028 §D8-B/C: normalize Datetime fields per column's timestamp_formats
+        // and timestamp_fallback_chain declarations before returning to caller.
+        let normalized_records =
+            normalize_timestamp_fields(&all_records, &table.columns).map_err(|e| {
+                tracing::error!(
+                    event_type = "timestamp_parse_failure",
+                    sensor_id = %spec.sensor_id,
+                    table_name = %table.table_name,
+                    error = %e,
+                    "timestamp normalization failed for pipeline result"
+                );
+                e
+            })?;
+
         Ok(PipelineResult {
-            records: all_records,
+            records: normalized_records,
             table_name: table.table_name.clone(),
             request_count,
             truncated,
@@ -1333,6 +1348,219 @@ fn find_fan_out_array(
             array_vars.into_iter().next()
         }
     }
+}
+
+// ---------------------------------------------------------------------------
+// PLUGIN-MIGRATION-001-D — ADR-028 §D8-B/C: timestamp normalization
+//
+// `normalize_timestamp_fields` processes the raw JSON records returned by a
+// pipeline step and applies timestamp parsing/normalization for all
+// `ColumnType::Datetime` columns that declare `timestamp_formats` or
+// `timestamp_fallback_chain`.
+//
+// Called in `execute_impl` before returning `PipelineResult`.
+//
+// Contract (ADR-028 v1.9 §D8-B/C):
+//   1. If `column.timestamp_formats.is_empty()`: default ISO 8601 parsing.
+//   2. If non-empty: try each format in order; first success wins.
+//   3. On all-formats failure (non-null, non-absent value): return
+//      `SpecEngineError::TimestampParseFailure` (maps to E-SPEC-018).
+//   4. If primary field is null/absent AND `column.timestamp_fallback_chain` is
+//      non-empty: try each fallback field in order.
+//   5. If all fallback fields are also null/absent: use `Utc::now()` and emit
+//      `tracing::warn!(event_type = "timestamp.fallback_to_now", column = %col_name)`.
+//
+// Output values are RFC 3339 / ISO 8601 strings (canonical wire format).
+// ---------------------------------------------------------------------------
+
+/// Parse a JSON value as an ISO 8601 / RFC 3339 datetime string.
+///
+/// Accepts `Value::String` only (ISO 8601 strings). Returns `None` on failure.
+fn try_parse_iso8601(value: &serde_json::Value) -> Option<DateTime<Utc>> {
+    match value {
+        serde_json::Value::String(s) => s.parse::<DateTime<Utc>>().ok(),
+        _ => None,
+    }
+}
+
+/// Parse a JSON value as Unix epoch seconds (i64 integer or numeric string).
+///
+/// Accepts `Value::Number` (integer) or `Value::String` (decimal integer string).
+/// Returns `None` on failure.
+fn try_parse_unix_epoch_seconds(value: &serde_json::Value) -> Option<DateTime<Utc>> {
+    let secs = match value {
+        serde_json::Value::Number(n) => n.as_i64()?,
+        serde_json::Value::String(s) => s.trim().parse::<i64>().ok()?,
+        _ => return None,
+    };
+    Utc.timestamp_opt(secs, 0).single()
+}
+
+/// Parse a JSON value as Unix epoch milliseconds (i64 integer or numeric string).
+///
+/// Accepts `Value::Number` (integer) or `Value::String` (decimal integer string).
+/// Returns `None` on failure.
+fn try_parse_unix_epoch_millis(value: &serde_json::Value) -> Option<DateTime<Utc>> {
+    let millis = match value {
+        serde_json::Value::Number(n) => n.as_i64()?,
+        serde_json::Value::String(s) => s.trim().parse::<i64>().ok()?,
+        _ => return None,
+    };
+    DateTime::from_timestamp_millis(millis)
+}
+
+/// Try to parse `value` using the named format. Returns `None` if the format name
+/// is unrecognized (guard: validation already rejected unrecognized names at load time
+/// per BC-2.16.009, so this branch is only hit for defensive completeness).
+fn try_format(fmt_name: &str, value: &serde_json::Value) -> Option<DateTime<Utc>> {
+    match fmt_name {
+        "iso8601" => try_parse_iso8601(value),
+        "unix_epoch_seconds" => try_parse_unix_epoch_seconds(value),
+        "unix_epoch_millis" => try_parse_unix_epoch_millis(value),
+        // Unrecognized format: treat as failure (validation should have caught this).
+        _ => None,
+    }
+}
+
+/// Effective format list: when `timestamp_formats` is empty, default to `["iso8601"]`
+/// for backward compatibility (ADR-028 §D8-B).
+fn effective_formats(formats: &[String]) -> Vec<&str> {
+    if formats.is_empty() {
+        vec!["iso8601"]
+    } else {
+        formats.iter().map(|s| s.as_str()).collect()
+    }
+}
+
+/// Try to parse `value` against the effective format list.
+///
+/// Returns `Some(DateTime<Utc>)` on first success, `None` if all formats fail.
+fn try_formats(formats: &[String], value: &serde_json::Value) -> Option<DateTime<Utc>> {
+    for fmt in effective_formats(formats) {
+        if let Some(dt) = try_format(fmt, value) {
+            return Some(dt);
+        }
+    }
+    None
+}
+
+/// Returns `true` if a JSON value is considered absent for timestamp fallback purposes.
+fn is_null_or_absent(value: Option<&serde_json::Value>) -> bool {
+    matches!(value, None | Some(serde_json::Value::Null))
+}
+
+/// Normalize `ColumnType::Datetime` fields in `records` according to each column's
+/// `timestamp_formats` and `timestamp_fallback_chain` declarations.
+///
+/// See module-level doc comment for the full contract.
+///
+/// # Errors
+///
+/// Returns `SpecEngineError::TimestampParseFailure` (E-SPEC-018) if a non-null
+/// datetime value fails all declared formats and there is no fallback chain.
+pub(crate) fn normalize_timestamp_fields(
+    records: &[serde_json::Value],
+    columns: &[ColumnSpec],
+) -> Result<Vec<serde_json::Value>, SpecEngineError> {
+    // Collect only Datetime columns — skip non-datetime columns entirely.
+    let datetime_cols: Vec<&ColumnSpec> = columns
+        .iter()
+        .filter(|c| c.column_type == ColumnType::Datetime)
+        .collect();
+
+    // Fast path: no datetime columns → return records unchanged.
+    if datetime_cols.is_empty() {
+        return Ok(records.to_vec());
+    }
+
+    let mut out = Vec::with_capacity(records.len());
+
+    for record in records {
+        let mut row = record.clone();
+
+        for col in &datetime_cols {
+            let primary_value = row.get(&col.name).cloned();
+            let primary_absent = is_null_or_absent(primary_value.as_ref());
+
+            if primary_absent {
+                // --- Fallback chain path ---
+                if col.timestamp_fallback_chain.is_empty() {
+                    // No fallback: leave null/absent as-is (existing behavior).
+                    continue;
+                }
+
+                // Try each fallback field in order.
+                let mut resolved: Option<DateTime<Utc>> = None;
+                for fb_field in &col.timestamp_fallback_chain {
+                    // Skip the primary field itself when it appears in the chain.
+                    let fb_value = row.get(fb_field.as_str());
+                    if is_null_or_absent(fb_value) {
+                        continue;
+                    }
+                    if let Some(dt) = try_formats(&col.timestamp_formats, fb_value.unwrap()) {
+                        resolved = Some(dt);
+                        break;
+                    }
+                }
+
+                match resolved {
+                    Some(dt) => {
+                        if let Some(obj) = row.as_object_mut() {
+                            obj.insert(
+                                col.name.clone(),
+                                serde_json::Value::String(dt.to_rfc3339()),
+                            );
+                        }
+                    }
+                    None => {
+                        // All fallbacks exhausted → use now().
+                        let now = Utc::now();
+                        tracing::warn!(
+                            event_type = "timestamp.fallback_to_now",
+                            column = %col.name,
+                            "all timestamp_fallback_chain fields are null/absent; \
+                             falling back to Utc::now() (ADR-028 §D8-B)"
+                        );
+                        if let Some(obj) = row.as_object_mut() {
+                            obj.insert(
+                                col.name.clone(),
+                                serde_json::Value::String(now.to_rfc3339()),
+                            );
+                        }
+                    }
+                }
+            } else {
+                // --- Primary field present and non-null ---
+                let value = primary_value.as_ref().unwrap();
+                match try_formats(&col.timestamp_formats, value) {
+                    Some(dt) => {
+                        if let Some(obj) = row.as_object_mut() {
+                            obj.insert(
+                                col.name.clone(),
+                                serde_json::Value::String(dt.to_rfc3339()),
+                            );
+                        }
+                    }
+                    None => {
+                        // All formats failed → E-SPEC-018.
+                        let formats = effective_formats(&col.timestamp_formats)
+                            .into_iter()
+                            .map(|s| s.to_string())
+                            .collect::<Vec<_>>();
+                        return Err(SpecEngineError::TimestampParseFailure {
+                            column: col.name.clone(),
+                            attempted_formats: formats,
+                            raw_value: value.to_string(),
+                        });
+                    }
+                }
+            }
+        }
+
+        out.push(row);
+    }
+
+    Ok(out)
 }
 
 // ---------------------------------------------------------------------------
@@ -2334,5 +2562,314 @@ mod proptest_extract_at_path {
             // The invariant: MUST NOT panic. Return type is always Ok(_) or Err(_).
             let _ = extract_at_path(&body, &path);
         }
+    }
+}
+
+// ---------------------------------------------------------------------------
+// PLUGIN-MIGRATION-001-D — BC-2.16.013 §O-001 — timestamp normalization unit tests
+//
+// ADR-028 v1.9 §D8-B/C: PipelineExecutor must honor `timestamp_formats` and
+// `timestamp_fallback_chain` on ColumnType::Datetime columns.
+//
+// These tests MUST FAIL before `normalize_timestamp_fields` is implemented,
+// then PASS after implementation (strict TDD per CLAUDE.md §TDD Inner Loop Discipline).
+// ---------------------------------------------------------------------------
+#[cfg(test)]
+mod timestamp_normalization_tests {
+    use prism_core::ColumnType;
+    use serde_json::json;
+
+    use super::normalize_timestamp_fields;
+    use crate::error::SpecEngineError;
+    use crate::spec_parser::ColumnSpec;
+
+    // -----------------------------------------------------------------------
+    // Helper: build a single-column Datetime ColumnSpec.
+    // -----------------------------------------------------------------------
+    fn datetime_col(
+        name: &str,
+        timestamp_formats: Vec<&str>,
+        timestamp_fallback_chain: Vec<&str>,
+    ) -> ColumnSpec {
+        ColumnSpec {
+            name: name.to_string(),
+            column_type: ColumnType::Datetime,
+            ocsf_field: None,
+            options: vec![],
+            timestamp_formats: timestamp_formats
+                .into_iter()
+                .map(|s| s.to_string())
+                .collect(),
+            timestamp_fallback_chain: timestamp_fallback_chain
+                .into_iter()
+                .map(|s| s.to_string())
+                .collect(),
+        }
+    }
+
+    // -----------------------------------------------------------------------
+    // test 1 — iso8601 only: explicit single-format list with ISO 8601 string
+    // -----------------------------------------------------------------------
+    /// BC-2.16.013 §O-001: column with timestamp_formats = ["iso8601"] + ISO 8601 value
+    /// → parses successfully; output value is ISO 8601 string (unchanged or normalized).
+    #[test]
+    fn test_BC_2_16_013_timestamp_formats_iso8601_only() {
+        let cols = vec![datetime_col("created_at", vec!["iso8601"], vec![])];
+        let records = vec![json!({"created_at": "2026-05-21T00:00:00Z"})];
+
+        let result = normalize_timestamp_fields(&records, &cols);
+        assert!(
+            result.is_ok(),
+            "iso8601 value must parse successfully; got: {:?}",
+            result.err()
+        );
+        let normalized = result.unwrap();
+        assert_eq!(normalized.len(), 1);
+        // Output must be a non-null string value.
+        let val = normalized[0]
+            .get("created_at")
+            .expect("created_at must be present");
+        assert!(
+            val.is_string(),
+            "normalized datetime must be a string; got: {val}"
+        );
+        let s = val.as_str().unwrap();
+        assert!(
+            s.contains("2026-05-21"),
+            "normalized ISO 8601 output must contain the original date; got: {s}"
+        );
+    }
+
+    // -----------------------------------------------------------------------
+    // test 2 — multi-format: first format fails, second succeeds (unix_epoch_seconds)
+    // -----------------------------------------------------------------------
+    /// BC-2.16.013 §O-001: column with timestamp_formats = ["iso8601", "unix_epoch_seconds"]
+    /// + numeric unix seconds value → parses successfully via second format.
+    #[test]
+    fn test_BC_2_16_013_timestamp_formats_multi_iso_then_unix_seconds() {
+        let cols = vec![datetime_col(
+            "created_at",
+            vec!["iso8601", "unix_epoch_seconds"],
+            vec![],
+        )];
+        // 1716249600 = 2024-05-21T00:00:00Z (unix seconds)
+        let records = vec![json!({"created_at": 1716249600_i64})];
+
+        let result = normalize_timestamp_fields(&records, &cols);
+        assert!(
+            result.is_ok(),
+            "unix_epoch_seconds value must parse on second format; got: {:?}",
+            result.err()
+        );
+        let normalized = result.unwrap();
+        let val = normalized[0]
+            .get("created_at")
+            .expect("created_at must be present");
+        assert!(
+            val.is_string(),
+            "normalized datetime must be a string; got: {val}"
+        );
+        let s = val.as_str().unwrap();
+        // 1716249600 = 2024-05-21T00:00:00Z
+        assert!(
+            s.contains("2024-05-21"),
+            "unix_epoch_seconds output must contain 2024-05-21; got: {s}"
+        );
+    }
+
+    // -----------------------------------------------------------------------
+    // test 3 — all formats fail → E-SPEC-018 error
+    // -----------------------------------------------------------------------
+    /// BC-2.16.013 §O-001: all declared formats fail → SpecEngineError::TimestampParseFailure
+    /// carrying E-SPEC-018 error code pattern.
+    #[test]
+    fn test_BC_2_16_013_timestamp_formats_all_fail_emits_E_SPEC_018() {
+        let cols = vec![datetime_col(
+            "created_at",
+            vec!["iso8601", "unix_epoch_seconds"],
+            vec![],
+        )];
+        let records = vec![json!({"created_at": "garbage-not-a-timestamp"})];
+
+        let result = normalize_timestamp_fields(&records, &cols);
+        assert!(result.is_err(), "garbage value must return Err");
+        let err = result.unwrap_err();
+        match &err {
+            SpecEngineError::TimestampParseFailure {
+                column,
+                attempted_formats,
+                ..
+            } => {
+                assert_eq!(column, "created_at", "error must cite column name");
+                assert!(
+                    attempted_formats.contains(&"iso8601".to_string()),
+                    "attempted_formats must include iso8601; got: {attempted_formats:?}"
+                );
+                assert!(
+                    attempted_formats.contains(&"unix_epoch_seconds".to_string()),
+                    "attempted_formats must include unix_epoch_seconds; got: {attempted_formats:?}"
+                );
+            }
+            other => panic!("expected TimestampParseFailure, got: {other:?}"),
+        }
+    }
+
+    // -----------------------------------------------------------------------
+    // test 4 — fallback chain: primary is null, fallback succeeds
+    // -----------------------------------------------------------------------
+    /// BC-2.16.013 §O-001: column with timestamp_fallback_chain = ["last_seen", "first_seen"]
+    /// + JSON record where primary field is null but first_seen has a valid value
+    /// → result uses first_seen's value.
+    #[test]
+    fn test_BC_2_16_013_timestamp_fallback_chain_uses_fallback() {
+        let cols = vec![ColumnSpec {
+            name: "last_seen".to_string(),
+            column_type: ColumnType::Datetime,
+            ocsf_field: None,
+            options: vec![],
+            timestamp_formats: vec![],
+            timestamp_fallback_chain: vec!["last_seen".to_string(), "first_seen".to_string()],
+        }];
+        // primary field "last_seen" is null; fallback "first_seen" has a value.
+        let records = vec![json!({"last_seen": null, "first_seen": "2026-05-21T00:00:00Z"})];
+
+        let result = normalize_timestamp_fields(&records, &cols);
+        assert!(
+            result.is_ok(),
+            "fallback chain must resolve via first_seen; got: {:?}",
+            result.err()
+        );
+        let normalized = result.unwrap();
+        let val = normalized[0]
+            .get("last_seen")
+            .expect("last_seen must be in output");
+        assert!(
+            val.is_string(),
+            "fallback-resolved datetime must be a string; got: {val}"
+        );
+        let s = val.as_str().unwrap();
+        assert!(
+            s.contains("2026-05-21"),
+            "fallback value must contain the first_seen date; got: {s}"
+        );
+    }
+
+    // -----------------------------------------------------------------------
+    // test 5 — fallback exhausts to now()
+    // -----------------------------------------------------------------------
+    /// BC-2.16.013 §O-001: all fallback fields are null/absent → result is approximately
+    /// now() (within ±10 seconds tolerance).
+    ///
+    /// Note: tracing::warn!(event_type = "timestamp.fallback_to_now") emission is the
+    /// behavioral contract per BC-2.16.002 v1.36 row 35. The BC catalog row is the
+    /// authoritative contract record; direct assertion of the emission from this unit
+    /// test would require tracing-test infrastructure not available in-scope.
+    #[test]
+    fn test_BC_2_16_013_timestamp_fallback_exhausts_to_now_emits_tracing_warn() {
+        use chrono::{DateTime, Utc};
+
+        let cols = vec![ColumnSpec {
+            name: "last_seen".to_string(),
+            column_type: ColumnType::Datetime,
+            ocsf_field: None,
+            options: vec![],
+            timestamp_formats: vec![],
+            timestamp_fallback_chain: vec!["last_seen".to_string(), "first_seen".to_string()],
+        }];
+        // Both primary and fallback are null.
+        let records = vec![json!({"last_seen": null, "first_seen": null})];
+
+        let before = Utc::now();
+        let result = normalize_timestamp_fields(&records, &cols);
+        let after = Utc::now();
+
+        assert!(
+            result.is_ok(),
+            "fallback-to-now must succeed (not error); got: {:?}",
+            result.err()
+        );
+        let normalized = result.unwrap();
+        let val = normalized[0]
+            .get("last_seen")
+            .expect("last_seen must be in output");
+        assert!(
+            val.is_string(),
+            "now() fallback must produce a string; got: {val}"
+        );
+        let s = val.as_str().unwrap();
+        let parsed: DateTime<Utc> = s.parse().expect("now() output must be valid RFC 3339");
+        let tolerance = chrono::Duration::seconds(10);
+        assert!(
+            parsed >= before - tolerance && parsed <= after + tolerance,
+            "now() fallback must be approximately current time; got: {parsed}, before: {before}"
+        );
+    }
+
+    // -----------------------------------------------------------------------
+    // test 6 — empty timestamp_formats defaults to ISO 8601 (backward compat)
+    // -----------------------------------------------------------------------
+    /// BC-2.16.013 §O-001: column with timestamp_formats = [] (default) + ISO 8601 value
+    /// → parses successfully (backward compatibility — same behavior as before this feature).
+    #[test]
+    fn test_BC_2_16_013_timestamp_formats_empty_defaults_to_iso8601() {
+        let cols = vec![ColumnSpec {
+            name: "event_time".to_string(),
+            column_type: ColumnType::Datetime,
+            ocsf_field: None,
+            options: vec![],
+            timestamp_formats: vec![],
+            timestamp_fallback_chain: vec![],
+        }];
+        let records = vec![json!({"event_time": "2026-05-21T00:00:00Z"})];
+
+        let result = normalize_timestamp_fields(&records, &cols);
+        assert!(
+            result.is_ok(),
+            "empty timestamp_formats + ISO 8601 value must parse; got: {:?}",
+            result.err()
+        );
+        let normalized = result.unwrap();
+        let val = normalized[0]
+            .get("event_time")
+            .expect("event_time must be present");
+        assert!(
+            val.is_string(),
+            "normalized datetime must be a string; got: {val}"
+        );
+        let s = val.as_str().unwrap();
+        assert!(
+            s.contains("2026-05-21"),
+            "ISO 8601 output must contain the original date; got: {s}"
+        );
+    }
+
+    // -----------------------------------------------------------------------
+    // test 7 — unix_epoch_millis variant
+    // -----------------------------------------------------------------------
+    /// BC-2.16.013 §O-001: column with timestamp_formats = ["unix_epoch_millis"]
+    /// + millisecond unix timestamp value → parses successfully.
+    #[test]
+    fn test_BC_2_16_013_timestamp_format_unix_epoch_millis_parses() {
+        let cols = vec![datetime_col("ts", vec!["unix_epoch_millis"], vec![])];
+        // 1716249600000 ms = 1716249600 s = 2024-05-21T00:00:00Z
+        let records = vec![json!({"ts": 1716249600000_i64})];
+
+        let result = normalize_timestamp_fields(&records, &cols);
+        assert!(
+            result.is_ok(),
+            "unix_epoch_millis must parse correctly; got: {:?}",
+            result.err()
+        );
+        let normalized = result.unwrap();
+        let val = normalized[0].get("ts").expect("ts must be present");
+        assert!(
+            val.is_string(),
+            "normalized datetime must be a string; got: {val}"
+        );
+        let s = val.as_str().unwrap();
+        assert!(
+            s.contains("2024-05-21"),
+            "unix_epoch_millis output must contain 2024-05-21; got: {s}"
+        );
     }
 }

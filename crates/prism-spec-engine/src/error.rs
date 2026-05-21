@@ -247,6 +247,33 @@ pub enum SpecEngineError {
          process restart required"
     )]
     WriteToolRegistryPoisoned,
+
+    // -------------------------------------------------------------------------
+    // PLUGIN-MIGRATION-001-D — ADR-028 §D8-B/C timestamp normalization errors
+    // -------------------------------------------------------------------------
+    /// E-SPEC-018: `PipelineExecutor` failed to parse a `ColumnType::Datetime` column value
+    /// against any of the declared `timestamp_formats`.
+    ///
+    /// Emitted during response-to-Arrow materialization when `ColumnSpec::timestamp_formats`
+    /// is non-empty and no format successfully parsed the field value.
+    ///
+    /// `column` is the `ColumnSpec.name` for operator diagnostics.
+    /// `attempted_formats` lists all format names tried, in declaration order.
+    ///
+    /// Maps to `prism_core::SpecErrorCode::ESpec018`.
+    /// BC-2.16.013 §O-001; ADR-028 v1.9 §D8-C; error-taxonomy.md v1.44 E-SPEC-018.
+    #[error(
+        "E-SPEC-018: failed to parse Datetime column '{column}' — \
+         all declared formats failed: {attempted_formats:?}"
+    )]
+    TimestampParseFailure {
+        /// Column name for operator diagnostics (the `ColumnSpec.name`).
+        column: String,
+        /// Format names attempted in declaration order, all of which failed.
+        attempted_formats: Vec<String>,
+        /// The raw JSON value that failed all formats (for actionable correction).
+        raw_value: String,
+    },
 }
 
 // ---------------------------------------------------------------------------
