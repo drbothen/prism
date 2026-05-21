@@ -1,9 +1,9 @@
 ---
 document_type: pipeline-state
 level: ops
-version: "7.443"
+version: "7.444"
 producer: state-manager
-timestamp: 2026-05-21T08:00:00Z
+timestamp: 2026-05-21T09:00:00Z
 inputs: []
 input-hash: "[live-state]"
 traces_to: ""
@@ -16,7 +16,7 @@ repos: [poller-cobra, poller-express, poller-bear, poller-coaster, serveMyAPI, t
 safe_to_compact: false
 pre_compact_snapshot: "SESSION-HANDOFF.md §RESUME SNAPSHOT 2026-05-20-EVE"
 pre_compact_snapshot_at: "2026-05-20 (D-737 SESSION-HANDOFF.md §RESUME SNAPSHOT 2026-05-20-EVE for PLUGIN-MIGRATION-001-D pass-4 decisions-locked durability)"
-current_step: "FB-IMPL-P22 closed; pass-23 dispatch pending"
+current_step: "Pass-23 CLEAN; streak 1/3; pass-24 dispatch pending"
 current_cycle: wave-0-plugin-prereqs
 feature_branch_head: "merged to 80ebe794 at 2026-05-19 (PR #151) — a4c048ce was final feature HEAD before squash-merge"
 pr_level_adversary_streak: "3/3 CONVERGED per BC-5.39.001 — passes 2/3/4 all CLEAN; PR #151 merged 2026-05-19; D-716 Option A standing satisfied"
@@ -55,9 +55,9 @@ current_cycle_history: "wave-0-plugin-prereqs (PREREQ-E merged PR #151 2026-05-1
 bc_index_version: "5.33"
 vp_index_version: "1.76"
 story_index_version: "v2.169"
-plugin_migration_001_d_local_adversary_passes: 22
+plugin_migration_001_d_local_adversary_passes: 23
 plugin_migration_001_d_local_fix_bursts: 19
-plugin_migration_001_d_status: "FB-IMPL-P22-CLOSED-STREAK-0-OF-3-AWAITING-PASS-23"
+plugin_migration_001_d_status: "PASS-23-CLEAN-STREAK-1-OF-3-AWAITING-PASS-24"
 architectural_decisions_locked:
   - "1 LOCKED Option-A: TOML spec URLs ground against DTU clone routes (real-API canonical), NOT production Rust adapter URLs (latent adapter bug becomes moot when 001-A deletes adapters)"
   - "2 LOCKED Option-B: Parity test loads reference OCSF from committed fixture JSON (crates/prism-dtu-{sensor}/fixtures/parity/reference-ocsf/<table>.json); no prism-sensors dev-dep on prism-spec-engine needed"
@@ -88,9 +88,9 @@ historical_cycles: [phase-1-convergence, wave-3-multi-tenant, wave-4-operations]
 | **Language** | Rust |
 | **Target Workspace** | per-analyst stdio (MCP server) |
 | **Started** | 2026-04-13 |
-| **Last Updated** | 2026-05-21 (D-756 FB-IMPL-P22 closure — HS-018 v1.3 + BC-2.16.013 v1.11 + story v1.11 + indices propagated; 263rd consecutive) |
+| **Last Updated** | 2026-05-21 (D-757 pass-23 FULLY CLEAN — streak 1/3; 16 axes all closed; 264th consecutive) |
 | **Current Phase** | Wave 3 Tier-3 COMPLETE — **Wave 3-A 4 of 4 SHIPPED**; plugin migration: PREREQ-F + PREREQ-A + PREREQ-B + PREREQ-C + PREREQ-D + **PREREQ-E MERGED** (PR #151 80ebe794 2026-05-19T18:06:44Z); PREREQ-F next per Wave 0 dependency chain |
-| **Current Step** | D-756 closed. FB-IMPL-P22 complete. Streak 0/3. Pass-23 dispatch next. 3 CLEAN passes needed for 3-CLEAN convergence. |
+| **Current Step** | D-757 closed. Pass-23 CLEAN. Streak 1/3 → pass-24 dispatch next. 2 more CLEAN passes for 3-CLEAN convergence. |
 
 ## Phase Progress
 
@@ -117,6 +117,7 @@ historical_cycles: [phase-1-convergence, wave-3-multi-tenant, wave-4-operations]
 | Step | Agent | Status | Output |
 |------|-------|--------|--------|
 _D-735 and earlier archived to cycles/wave-0-plugin-prereqs/burst-log.md. D-736..D-748 archived below._
+| D-757 — **Pass-23 LOCAL adversary CLEAN bookkeeping burst — PLUGIN-MIGRATION-001-D fresh-context pass-23 against ADR-028 v1.8 + BC-2.16.013 v1.11 + story v1.11 + STORY-INDEX v2.169 + indices propagated. **0 findings of any severity — first FULLY CLEAN pass after 14 passes of compounding fresh-context novelty.** 80/80 cumulative closures verified DURABLE. POL-29 fixed-point clean across all 3 cite-pin pattern families (file-version, section-version, same-line dual-format). All 16 known coherence-axes closed. Streak advances 0/3 → 1/3 per BC-5.39.001 / D-716 Option A. No fix-burst dispatched. State-manager scope: persist local-pass-23.md + STATE.md frontmatter sync. 2 more CLEAN passes needed for 3-CLEAN convergence. 264th consecutive single-commit per TD-VSDD-053.** | state-manager (clean-pass bookkeeping) | PASS-23-CLEAN APPROVED | STATE v7.444; NEXT: pass-24 adversary dispatch |
 | D-756 — **FB-IMPL-P22 closure burst — PLUGIN-MIGRATION-001-D pass-22 adversarial fix-burst complete. 1 MED closed + 1 OBS deferred to S-7.02. Pass-22 surfaced 16th novel coherence-axis class: 'same-line dual-format cite-pin escape' — pass-21 F-LP21-MED-001 closure stripped `§Error Conditions v1.2` cite-pin format on HS-018 lines 71/89 BUT did NOT sweep co-located `error-taxonomy.md v1.41` file-version cite-pin on same lines. PO scope: HS-018 v1.2→v1.3 (3 sites lines 31/71/89 error-taxonomy v1.41→v1.42); BC-2.16.013 v1.10→v1.11 (line 331 + chain propagation across 8 story sites); story v1.10→v1.11 (8 BC-2.16.013 sites + line 1003 error-taxonomy bump); BC-INDEX v5.32→v5.33; HOLDOUT-INDEX v1.11→v1.12; STORY-INDEX v2.168→v2.169 (row 399 BOTH header + embedded pin v1.11). Fixed-point reached in 1 iteration. Cumulative closures 79 → 80 across 19 fix-bursts. Streak 0/3. 263rd consecutive single-commit per TD-VSDD-053.** | state-manager | FB-IMPL-P22 CLOSED | STATE v7.443; NEXT: pass-23 adversary dispatch |
 | D-755 — **FB-IMPL-P21 closure burst — PLUGIN-MIGRATION-001-D pass-21 adversarial fix-burst complete. 1 MED finding closed (F-LP21-MED-001: section-versioned cite-pin `BC-2.16.013 §Error Conditions v1.2` at error-taxonomy.md line 389 + HS-018 line 73 — stripped stale `v1.2` section-pin → unversioned `§Error Conditions`). 15th coherence-axis class discovered: section-versioned cite-pin format escapes all prior POL-29 file-version-cite sweep predicates. Streak 1/3 → 0/3 reset. Cumulative closures 78 → 79 across 18 fix-bursts. 262nd consecutive single-commit per TD-VSDD-053.** | state-manager | FB-IMPL-P21 CLOSED | STATE v7.442; NEXT: pass-22 adversary dispatch |
 | D-754 — **Pass-20 LOCAL adversary CLEAN-with-observations bookkeeping burst — PLUGIN-MIGRATION-001-D fresh-context pass-20 against ADR-028 v1.8 + ARCH-INDEX v2.96 + BC-2.16.013 v1.10 + story v1.10 + STORY-INDEX v2.168 + all sibling indices descending. 78/78 cumulative closures DURABLE (10 spot-checked). 0 HIGH + 0 MED + 0 LOW + 1 OBS [process-gap]: F-LP20-OBS-001 INDEX files use `timestamp:` ambiguously without `modified:` field — routed to orchestrator codification. Non-blocking. Streak 0/3 → 1/3. Novelty TAPERED. 261st consecutive single-commit per TD-VSDD-053.** | state-manager | PASS-20 CLEAN | STATE v7.441; NEXT: pass-21 adversary dispatch |
@@ -134,6 +135,7 @@ _D-001..D-046 archived: [cycles/phase-3-dtu-wave-2/decisions-archive-d001-d032.m
 
 | ID | Decision | Rationale | Phase | Date |
 |----|----------|-----------|-------|------|
+| D-757 | 2026-05-21 | state-manager | **Pass-23 LOCAL adversary CLEAN bookkeeping burst — PLUGIN-MIGRATION-001-D fresh-context pass-23 against ADR-028 v1.8 + BC-2.16.013 v1.11 + story v1.11 + STORY-INDEX v2.169 + indices propagated. **0 findings of any severity — first FULLY CLEAN pass after 14 passes of compounding fresh-context novelty.** 80/80 cumulative closures verified DURABLE. POL-29 fixed-point clean across all 3 cite-pin pattern families (file-version, section-version, same-line dual-format). All 16 known coherence-axes closed. Streak advances 0/3 → 1/3 per BC-5.39.001 / D-716 Option A. No fix-burst dispatched. State-manager scope: persist local-pass-23.md + STATE.md frontmatter sync. 2 more CLEAN passes needed for 3-CLEAN convergence. 264th consecutive single-commit per TD-VSDD-053.** | plugin-migration | 2026-05-21 | Decided by: state-manager (clean-pass bookkeeping). Status: APPROVED |
 | D-756 | 2026-05-21 | product-owner + state-manager | **FB-IMPL-P22 closure burst — PLUGIN-MIGRATION-001-D pass-22 adversarial fix-burst complete. 1 MED closed + 1 OBS deferred to S-7.02. Pass-22 surfaced 16th novel coherence-axis class: 'same-line dual-format cite-pin escape' — pass-21 F-LP21-MED-001 closure stripped `§Error Conditions v1.2` cite-pin format on HS-018 lines 71/89 BUT did NOT sweep co-located `error-taxonomy.md v1.41` file-version cite-pin on same lines. PO scope: HS-018 v1.2→v1.3 (3 sites lines 31/71/89 error-taxonomy v1.41→v1.42); BC-2.16.013 v1.10→v1.11 (line 331 + chain propagation own-output stale class across 8 story sites); story v1.10→v1.11 (8 BC-2.16.013 sites + line 1003 error-taxonomy bump); BC-INDEX v5.32→v5.33; HOLDOUT-INDEX v1.11→v1.12; STORY-INDEX v2.168→v2.169 (row 399 BOTH header `**draft** v1.11` + embedded `BC-2.16.013(v1.11)`). Fixed-point reached in 1 iteration. State-manager scope: pass-22 adversary report persisted + fix-burst-22 closure record + 16th coherence-axis lesson codified. Cumulative closures 79 → 80 across 19 fix-bursts. Streak 0/3 (pass-23 fresh-context next). 16 novel coherence-axis classes total across passes 9-22. 263rd consecutive single-commit per TD-VSDD-053.** | plugin-migration | 2026-05-21 | Decided by: product-owner + state-manager. Status: APPROVED |
 | D-755 | 2026-05-21 | product-owner (closure) + state-manager (burst commit) | **FB-IMPL-P21 closure burst — PLUGIN-MIGRATION-001-D pass-21 adversarial fix-burst complete. 1 MED finding closed (F-LP21-MED-001). Pass-21 surfaced 15th novel coherence-axis class: 'section-versioned cite-pin format escapes file-version-cite sweep predicates' — `BC-2.16.013 §Error Conditions v1.2` cite-pin format at error-taxonomy.md line 389 + HS-018 line 73 was orthogonal to all prior POL-29 sweep grep predicates (which targeted file-version `<artifact> v1.X` only). Streak 1/3 → 0/3 reset. PO scope: error-taxonomy.md v1.41 → v1.42 (line 389 `§Error Conditions v1.2` → `§Error Conditions` — strip stale section-version pin, preserve historical anchor via 'Introduced FB-IMPL-P2-PO' clause); HS-018 v1.1 → v1.2 (line 73 same strip); HOLDOUT-INDEX v1.10 → v1.11. Workspace sibling sweep `§<section> v1.X` active-prose grep clean post-edits. State-manager scope: pass-21 adversary report persisted + fix-burst-21 closure record + 15th coherence-axis lesson codified. Cumulative closures 78 → 79 across 18 fix-bursts. Streak 0/3 (pass-22 fresh-context next). 15 novel coherence-axis classes total across passes 9-21. 262nd consecutive single-commit per TD-VSDD-053.** | plugin-migration | 2026-05-21 | Decided by: product-owner (closure) + state-manager (burst commit). Status: APPROVED |
 | D-754 | 2026-05-21 | state-manager (clean-pass bookkeeping) | **Pass-20 LOCAL adversary CLEAN-with-observations bookkeeping burst — PLUGIN-MIGRATION-001-D fresh-context pass-20 against ADR-028 v1.8 + ARCH-INDEX v2.96 + BC-2.16.013 v1.10 + story v1.10 + STORY-INDEX v2.168 + all sibling indices descending. 78/78 cumulative closures verified DURABLE (10 spot-checked). 0 HIGH + 0 MED + 0 LOW + 1 OBS [process-gap]: F-LP20-OBS-001 INDEX files (ARCH/BC/STORY/HOLDOUT/VP) use `timestamp:` ambiguously without `modified:` field — POL-27 amendment OR INDEX schema clarification candidate routed to orchestrator codification. Non-blocking. Streak advances 0/3 → 1/3 per BC-5.39.001 / D-716 Option A. No fix-burst dispatched. Novelty has TAPERED — spec content converged; remaining findings are schema-convention residue routable to S-7.02 codification track. State-manager scope: persist local-pass-20.md (adversary read-only) + STATE.md frontmatter sync. 14 novel coherence-axis classes total across passes 9-19; pass-20 surfaces no new class. 261st consecutive single-commit per TD-VSDD-053.** | plugin-migration | 2026-05-21 | Decided by: state-manager (clean-pass bookkeeping). Status: APPROVED |
