@@ -5,7 +5,7 @@ title: "TOML Spec URLs and auth_type Ground Against DTU Clone Routes (Real-API C
 status: Proposed
 date: "2026-05-20"
 modified: "2026-05-20"
-version: "1.7"
+version: "1.8"
 producer: architect
 subsystems_affected: [SS-01, SS-07, SS-16, SS-17]
 supersedes: ["ADR-026 §D3 (partial — auth_type_name() return values for Cyberint/Claroty/Armis non-CrowdStrike sensors)"]
@@ -22,7 +22,7 @@ wiring_deferred_to: null
 
 ## Status
 
-Proposed 2026-05-20, v1.0 (initial proposal version; current frontmatter v1.7 per §Changelog). Locks D-737 Decisions 1 and 4 as a durable architectural principle. Will be promoted to ACCEPTED after PLUGIN-MIGRATION-001-D LOCAL adversarial cascade reaches 3-CLEAN convergence per ADR-021 promotion lifecycle.
+Proposed 2026-05-20, v1.0 (initial proposal version; current frontmatter v1.8 per §Changelog). Locks D-737 Decisions 1 and 4 as a durable architectural principle. Will be promoted to ACCEPTED after PLUGIN-MIGRATION-001-D LOCAL adversarial cascade reaches 3-CLEAN convergence per ADR-021 promotion lifecycle.
 
 ---
 
@@ -141,6 +141,26 @@ Pass-5 adversarial review will surface these gaps as findings if not resolved be
 
 Until PLUGIN-MIGRATION-001-A merges, code in `crates/prism-sensors/src/auth/{cyberint,claroty,armis}.rs` continues to return the ADR-026 §D3 values; the Red Gate test asserts those legacy values. This is the LIVE contract through the migration window.
 
+### D7 — Per-File §Changelog Convention Lock
+
+**Adjudicated in FB-IMPL-P17-ARCH (2026-05-20), closing F-LP17-HIGH-002 (12th coherence-axis class: sample-biased sibling-convention closures).**
+
+Each ADR's §Changelog table ordering convention (ascending oldest-to-newest, or descending newest-to-oldest) is **locked at the ADR's authoring time**. Subsequent fix-bursts MUST preserve the file's existing order. POL-26 monotonic-ordering enforcement targets ROW POSITIONS within the established convention — it does not authorize flipping the convention itself.
+
+Project does NOT have a single canonical §Changelog direction. Observed per-file conventions:
+
+| ADR | Authoring Convention | Evidence |
+|-----|---------------------|---------|
+| ADR-019 | DESCENDING (newest top) | v0.4 at top, v0.1 at bottom |
+| ADR-022 | DESCENDING (newest top) | v1.12 top → v1.0 bottom; 6 explicit POL-26 "repaired to strict descending" enforcement records (D-611/D-628/D-635/D-659/D-670/D-671) |
+| ADR-026 | ASCENDING (oldest top) | v1.0 top → v1.32 bottom; POL-26 closures enforced ascending within this file |
+| ADR-027 | ASCENDING (oldest top) | v1.0 top → v1.9 bottom |
+| ADR-028 | DESCENDING (newest top) | v1.0 was sole row at authoring; each new row must be prepended above the previous |
+
+**FB-IMPL-P16-ARCH's ascending flip of ADR-028 was a sample-biased error.** It surveyed ADR-025/026/027 (three files, all ascending) without enumerating ADR-022's six-precedent DESCENDING enforcement chain. This erroneously concluded a project-wide ascending convention and flipped ADR-028. This v1.8 burst REVERTS that flip.
+
+**Rule:** Before closing any POL-26 or convention-alignment finding by claiming a "project convention," the closer MUST exhaustively enumerate ALL ADRs and their authoring conventions. Declaring a project-wide rule from a sample of fewer than all ADRs is a sample-biased sibling-convention closure — the 12th coherence-axis class.
+
 ---
 
 ## Consequences
@@ -195,11 +215,12 @@ Until PLUGIN-MIGRATION-001-A merges, code in `crates/prism-sensors/src/auth/{cyb
 
 | Version | Date | Author | Summary |
 |---|---|---|---|
-| 1.0 | 2026-05-20 | architect | Initial version — locks D-737 Decisions 1 and 4; enumerates 5 decision rules; documents 3 DTU gap follow-ups |
-| 1.1 | 2026-05-20 | architect | Pass-5 fix-burst — §D2 Armis row corrected from `"api_key"` (legacy adapter `auth_type_name()` return) to `"bearer_static"` (DTU `Authorization: Bearer` enforcement per `prism-dtu-armis/src/lib.rs:16-17`). The original v1.0 §D2 Armis row was itself the latent label bug §D2 was authored to immunize against — fresh-context adversary surfaced the contradiction. F-LP5-HIGH-001. |
-| 1.2 | 2026-05-20 | architect | Pass-5 fix-burst — §D2 Cyberint row symbol-anchored: `prism-dtu-cyberint/src/routes/alerts.rs:43-46` → `::extract_session_token()` per TD-VSDD-091. F-LP5-LOW-001 closure (POL-25 sibling sweep — BC-2.16.013/HS-015 already fixed by PO this burst). |
-| 1.3 | 2026-05-20 | architect | Pass-6 FB-IMPL-P6 — POL-25 expanded sibling-anti-pattern sweep. §D2 Armis row: `crates/prism-dtu-armis/src/lib.rs:16-17` → `crates/prism-dtu-armis/src/lib.rs` module-level `//!` doc-comment (Armis Centrix BearerStatic contract). §Context cyberint cite: `crates/prism-sensors/src/auth/cyberint.rs:155` → `::CyberintAuth::get_page` symbol path. TD-VSDD-091 anti-volatile-pin. F-LP6-LOW-001 closure (architect scope; PO + SW closing sibling sites in parallel bursts). |
-| 1.4 | 2026-05-20 | architect | Pass-7 FB-IMPL-P7 — §Context cyberint symbol-path mis-anchor corrected: `cyberint.rs::CyberintAuth::get_page` (HALLUCINATION — wrong type namespace; method belongs to `CyberintAdapter`, not `CyberintAuth`) → `cyberint.rs::CyberintAdapter::new()` (cookie-store `reqwest::Client::builder().cookie_store(true).build()` construction) + `::get_page()` consumption. Semantic claim corrected: cookie-store is BUILT in `CyberintAdapter::new()` (not "established in per-page fetch loop"). F-LP7-HIGH-001 closure. Root cause: FB-IMPL-P6 propagated wrong type namespace from pass-6 review without grep-verifying symbol against codebase. Going-forward discipline: ALL symbol-path anchor replacements MUST be grep-verified against `crates/` before commit (TD-VSDD-059 paper-fix variant; TD-VSDD-091 anti-volatile-pin). Pass-10 FB-IMPL-P10 — §Status historical-anchor disambiguation: "Proposed 2026-05-20, v1.0" → "Proposed 2026-05-20, v1.0 (initial proposal version; current frontmatter v1.4 per §Changelog)" to prevent reader confusion about current revision. F-LP10-LOW-001 closure (POL-29 body-frontmatter coherence axis). |
-| 1.5 | 2026-05-20 | architect | Pass-13 FB-IMPL-P13-ARCH per user Path A adjudication (D-747): `supersedes:` frontmatter field added (ADR-026 §D3 partial — non-CrowdStrike `auth_type_name()` returns). §D2 supersession prefix paragraph added: explicitly supersedes ADR-026 §D3 for Cyberint/Claroty/Armis `auth_type_name()` return values effective at PLUGIN-MIGRATION-001-A merge; CrowdStrike `"oauth2_client_credentials"` unchanged. New §D6 documents PLUGIN-MIGRATION-001-A scope expansion: rewrite three `Auth::auth_type_name()` returns to DTU-grounded values + amend Red Gate `test_BC_2_01_016_003` + bidirectional supersession linkage. F-LP13-HIGH-001 closure. |
-| 1.6 | 2026-05-20 | architect | FB-IMPL-P14-ARCH: F-LP14-MED-002 closure — §Status self-cite "current frontmatter v1.4" advanced to "current frontmatter v1.6" (stale after v1.5 bump in P13; same defect class as F-LP10-LOW-001). F-LP14-MED-003 closure — §D6 Action 3 parenthetical rewritten: future-tense "applied in the PLUGIN-MIGRATION-001-A merge burst" replaced with realized past-tense "applied simultaneously with this §D6 authoring in FB-IMPL-P13-ARCH; reflected in ADR-026 v1.30 frontmatter". POL-29 self-verification greps: CLEAN. |
+| 1.8 | 2026-05-20 | architect | Pass-17 FB-IMPL-P17-ARCH: §Changelog rows REVERTED to descending (project per-file convention locks at authoring; ADR-028 was authored at v1.0 with descending order). FB-IMPL-P16-ARCH's ascending flip was based on sample-biased 3-ADR enumeration that missed ADR-022's 6-precedent DESCENDING enforcement chain (D-611/D-628/D-635/D-659/D-670/D-671). F-LP17-HIGH-002 closure. 12th coherence-axis class (sample-biased sibling-convention closures) codified: convention closures MUST exhaustively enumerate ALL ADRs before declaring project rule. §D7 (Per-File §Changelog Convention Lock) added. §Status self-cite advanced to v1.8. |
 | 1.7 | 2026-05-20 | architect | Pass-16 FB-IMPL-P16-ARCH: §Changelog rows reordered descending→ascending to match project convention (ADR-026/025/027) per F-LP16-MED-001 (POL-26 sibling-asymmetric convention). Closes 9th coherence-axis class. Content of all prior rows preserved verbatim — only ordering changed. |
+| 1.6 | 2026-05-20 | architect | FB-IMPL-P14-ARCH: F-LP14-MED-002 closure — §Status self-cite "current frontmatter v1.4" advanced to "current frontmatter v1.6" (stale after v1.5 bump in P13; same defect class as F-LP10-LOW-001). F-LP14-MED-003 closure — §D6 Action 3 parenthetical rewritten: future-tense "applied in the PLUGIN-MIGRATION-001-A merge burst" replaced with realized past-tense "applied simultaneously with this §D6 authoring in FB-IMPL-P13-ARCH; reflected in ADR-026 v1.30 frontmatter". POL-29 self-verification greps: CLEAN. |
+| 1.5 | 2026-05-20 | architect | Pass-13 FB-IMPL-P13-ARCH per user Path A adjudication (D-747): `supersedes:` frontmatter field added (ADR-026 §D3 partial — non-CrowdStrike `auth_type_name()` returns). §D2 supersession prefix paragraph added: explicitly supersedes ADR-026 §D3 for Cyberint/Claroty/Armis `auth_type_name()` return values effective at PLUGIN-MIGRATION-001-A merge; CrowdStrike `"oauth2_client_credentials"` unchanged. New §D6 documents PLUGIN-MIGRATION-001-A scope expansion: rewrite three `Auth::auth_type_name()` returns to DTU-grounded values + amend Red Gate `test_BC_2_01_016_003` + bidirectional supersession linkage. F-LP13-HIGH-001 closure. |
+| 1.4 | 2026-05-20 | architect | Pass-7 FB-IMPL-P7 — §Context cyberint symbol-path mis-anchor corrected: `cyberint.rs::CyberintAuth::get_page` (HALLUCINATION — wrong type namespace; method belongs to `CyberintAdapter`, not `CyberintAuth`) → `cyberint.rs::CyberintAdapter::new()` (cookie-store `reqwest::Client::builder().cookie_store(true).build()` construction) + `::get_page()` consumption. Semantic claim corrected: cookie-store is BUILT in `CyberintAdapter::new()` (not "established in per-page fetch loop"). F-LP7-HIGH-001 closure. Root cause: FB-IMPL-P6 propagated wrong type namespace from pass-6 review without grep-verifying symbol against codebase. Going-forward discipline: ALL symbol-path anchor replacements MUST be grep-verified against `crates/` before commit (TD-VSDD-059 paper-fix variant; TD-VSDD-091 anti-volatile-pin). Pass-10 FB-IMPL-P10 — §Status historical-anchor disambiguation: "Proposed 2026-05-20, v1.0" → "Proposed 2026-05-20, v1.0 (initial proposal version; current frontmatter v1.4 per §Changelog)" to prevent reader confusion about current revision. F-LP10-LOW-001 closure (POL-29 body-frontmatter coherence axis). |
+| 1.3 | 2026-05-20 | architect | Pass-6 FB-IMPL-P6 — POL-25 expanded sibling-anti-pattern sweep. §D2 Armis row: `crates/prism-dtu-armis/src/lib.rs:16-17` → `crates/prism-dtu-armis/src/lib.rs` module-level `//!` doc-comment (Armis Centrix BearerStatic contract). §Context cyberint cite: `crates/prism-sensors/src/auth/cyberint.rs:155` → `::CyberintAuth::get_page` symbol path. TD-VSDD-091 anti-volatile-pin. F-LP6-LOW-001 closure (architect scope; PO + SW closing sibling sites in parallel bursts). |
+| 1.2 | 2026-05-20 | architect | Pass-5 fix-burst — §D2 Cyberint row symbol-anchored: `prism-dtu-cyberint/src/routes/alerts.rs:43-46` → `::extract_session_token()` per TD-VSDD-091. F-LP5-LOW-001 closure (POL-25 sibling sweep — BC-2.16.013/HS-015 already fixed by PO this burst). |
+| 1.1 | 2026-05-20 | architect | Pass-5 fix-burst — §D2 Armis row corrected from `"api_key"` (legacy adapter `auth_type_name()` return) to `"bearer_static"` (DTU `Authorization: Bearer` enforcement per `prism-dtu-armis/src/lib.rs:16-17`). The original v1.0 §D2 Armis row was itself the latent label bug §D2 was authored to immunize against — fresh-context adversary surfaced the contradiction. F-LP5-HIGH-001. |
+| 1.0 | 2026-05-20 | architect | Initial version — locks D-737 Decisions 1 and 4; enumerates 5 decision rules; documents 3 DTU gap follow-ups |

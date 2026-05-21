@@ -1,7 +1,7 @@
 ---
 document_type: behavioral-contract-index
 level: L3
-version: "5.31"
+version: "5.32"
 status: draft
 producer: product-owner
 timestamp: 2026-05-20T00:00:00Z
@@ -218,7 +218,7 @@ Phase 3-patch additions (2026-04-16): 22 new BCs added in Burst 1 to close trace
 | BC-2.16.010 | `list_sensor_specs` MCP Tool — List Loaded Sensor Specs with Table Schemas and Status | 16 - Spec Engine | CAP-029 | P0 | draft |
 | BC-2.16.011 | CustomAdapter Rust Trait Retirement — Removal of Trait, Registry, and All Call Sites | 16 - Spec Engine | CAP-029 | P0 | active (promoted draft→active D-726 per POL-14; anchor story S-PLUGIN-PREREQ-E merged PR #151 develop@80ebe794 2026-05-19) — v1.12 |
 | BC-2.16.012 | PluginRegistry Dispatch in spec_parser.rs — Hardcoded Sensor Names Replaced with Registry Lookup | 16 - Spec Engine | CAP-029 | P0 | active (promoted draft→active D-726 per POL-14; anchor story S-PLUGIN-PREREQ-E merged PR #151 develop@80ebe794 2026-05-19) — v1.29 |
-| BC-2.16.013 | Bundled Sensor Spec Authoring and DTU-Parity Verification — 4 Initial Sensors | 16 - Spec Engine | CAP-029 | P0 | draft (v1.9 FB-IMPL-P16-PO 2026-05-20 — F-LP16-MED-001 propagation closure: ADR-028 v1.6→v1.7 cite-pin sweep across 6 active-prose sites; POL-29 fixed-point per F-LP16-OBS-001) — v1.9 |
+| BC-2.16.013 | Bundled Sensor Spec Authoring and DTU-Parity Verification — 4 Initial Sensors | 16 - Spec Engine | CAP-029 | P0 | draft (v1.10 FB-IMPL-P17-PO 2026-05-20 — F-LP17-HIGH-002 propagation closure: ADR-028 v1.7→v1.8 cite-pin sweep across 6 active-prose sites; POL-29 fixed-point per F-LP16-OBS-001) — v1.10 |
 | BC-2.17.001 | Plugin Panic Isolation — Crashed Plugin Does Not Terminate Host Process | 17 - WASM Plugin Runtime | CAP-032 | P0 | active (POL-14 auto-promotion D-568 S-PLUGIN-PREREQ-D merge PR #149 ec90fe8f 2026-05-15) |
 | BC-2.17.002 | Plugin Sandbox — No Direct Filesystem or Network Access | 17 - WASM Plugin Runtime | CAP-032 | P0 | active (POL-14 auto-promotion D-568 S-PLUGIN-PREREQ-D merge PR #149 ec90fe8f 2026-05-15) |
 | BC-2.17.003 | Plugin Sandbox — Memory Limit Enforced Per Plugin Instance (default 64MB) | 17 - WASM Plugin Runtime | CAP-032 | P0 | active (POL-14 auto-promotion D-568 S-PLUGIN-PREREQ-D merge PR #149 ec90fe8f 2026-05-15) |
@@ -370,6 +370,8 @@ Phase 3-patch additions (2026-04-16): 22 new BCs added in Burst 1 to close trace
 - Subsystem 19: Infusion Enrichment Framework (AD-020, CAP-031)
 
 ### Change Log (Adversarial Review Fixes)
+
+**v5.32 (2026-05-20, FB-IMPL-P17-PO):** product-owner | BC-2.16.013 v1.9→v1.10 (F-LP17-HIGH-002 propagation closure: ADR-028 v1.7→v1.8 cite-pin sweep — 6 active-prose sites in §Architecture Anchors lines 375-379 and §Traceability ADR anchors line 403; POL-29 fixed-point per F-LP16-OBS-001 — architect FB-IMPL-P17-ARCH reverted ADR-028 §Changelog to descending + bumped v1.7→v1.8 + added §D7; cites bump only). BC-INDEX row 221 updated to v1.10. BC-INDEX v5.31→v5.32.
 
 **v5.31 (2026-05-20, FB-IMPL-P16-PO):** product-owner | BC-2.16.013 v1.8→v1.9 (F-LP16-MED-001 propagation closure: ADR-028 v1.6→v1.7 cite-pin sweep — 6 active-prose sites in §Architecture Anchors lines 375-379 and §Traceability ADR anchors line 403; POL-29 fixed-point per F-LP16-OBS-001 codification — same-burst sweep of architect bump's own stale-cite class; workspace grep confirmed clean). BC-INDEX row 221 updated to v1.9. BC-INDEX v5.30→v5.31.
 
