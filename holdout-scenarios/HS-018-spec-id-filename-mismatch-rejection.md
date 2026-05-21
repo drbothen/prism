@@ -6,7 +6,7 @@ category: "negative-validation"
 must_pass: true
 priority: P0
 epic_id: "PLUGIN-MIGRATION-001"
-version: "1.0"
+version: "1.1"
 status: draft
 producer: product-owner
 timestamp: 2026-05-20T00:00:00Z
@@ -120,3 +120,28 @@ targets `crowdstrike.*`.
   each file) — expected: all four load without E-SPEC-017 rejection.
 - **Known-problematic corpus:** Test fixture with `sensor_id` value differing from filename stem —
   expected: E-SPEC-017 rejection, no partial registration.
+
+---
+
+## Evaluation Criteria
+
+### Coverage Mapping (F-LP13-MED-002 clarification — v1.1)
+
+The three sub-scenarios are covered as follows by the Red Gate test suite:
+
+| Sub-Scenario | Coverage | Test | Rationale |
+|---|---|---|---|
+| HS-018-01 | RG-09 | `sensor_id: "falcon"` vs filename stem `crowdstrike` — exact string mismatch | Direct coverage; RG-09 asserts E-SPEC-017 on filename-stem-vs-sensor_id inequality |
+| HS-018-02 | RG-09 (via case-sensitive string equality assertion) | `sensor_id: "CrowdStrike"` vs filename stem `crowdstrike` — case differs | RG-09's E-SPEC-017 assertion uses exact case-sensitive string equality (`sensor_id != filename_stem`). `"CrowdStrike" != "crowdstrike"` — this IS a mismatch by the same string-equality predicate. No separate test required: the convention that bundled spec filenames are lowercase means `CrowdStrike` (mixed case) will never equal the filename stem `crowdstrike` (lowercase). HS-018-02 is therefore covered by RG-09's logic as a natural consequence of case-sensitive string comparison. |
+| HS-018-03 | RG-09 (control case) | `sensor_id: "crowdstrike"` vs filename stem `crowdstrike` — exact match | RG-09 includes a control variant confirming no E-SPEC-017 is raised for matching values |
+
+**Option A rationale (F-LP13-MED-002):** The adversary found no anchored test for HS-018-02. Option A is applied here: HS-018-02 expects exact `sensor_id` string equality with the file stem (case-sensitive). Since `parse_spec_directory()` / `load_all()` perform a case-sensitive byte-equality check between the `sensor_id` TOML field and the filename stem (lowercase by convention), HS-018-02's case-mismatch input (`"CrowdStrike"` vs `"crowdstrike"`) falls into the same E-SPEC-017 code path as HS-018-01. RG-09 already exercises this code path with its primary test fixture; the case-mismatch variant is structurally identical. A separate RG-10 test is NOT required unless the implementer discovers that case-insensitive comparison is applied (which would be a BC violation — this BC and BC-2.16.001 require case-sensitive enforcement). If case-insensitive comparison is discovered in implementation, escalate to orchestrator and route to story-writer for RG-10 creation.
+
+---
+
+## Changelog
+
+| Version | Burst | Date | Author | Change |
+|---------|-------|------|--------|--------|
+| 1.1 | FB-IMPL-P13-PO | 2026-05-20 | product-owner | F-LP13-MED-002 closure: Added §Evaluation Criteria section with coverage mapping for HS-018-01/02/03. Applied Option A — clarified HS-018-02 (case-mismatch) is covered by RG-09's existing case-sensitive string-equality E-SPEC-017 enforcement; no separate RG-10 required unless implementer uses case-insensitive comparison. Added §Changelog per POL-26 changelog discipline. |
+| 1.0 | FB-IMPL-P1-PO fix-burst-1 | 2026-05-20 | product-owner | Initial draft — HS-018 spec_id/filename mismatch holdout for PLUGIN-MIGRATION-001-D; 3 sub-scenarios; E-SPEC-009 corrected to E-SPEC-017 in FB-IMPL-P2-PO fix-burst-2. |

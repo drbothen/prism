@@ -5,11 +5,11 @@ title: "SensorAuth Trait Un-Sealing — Remove private::Sealed, Enable Plugin Au
 status: Proposed
 date: "2026-05-18"
 modified: "2026-05-18"
-version: "1.29"
+version: "1.30"
 producer: architect
 subsystems_affected: [SS-01, SS-07, SS-16, SS-17, SS-22]
 supersedes: null
-superseded_by: null
+superseded_by: ["ADR-028 §D2 (partial — non-CrowdStrike auth_type_name() return values for Cyberint/Claroty/Armis; effective at PLUGIN-MIGRATION-001-A merge)"]
 amends: ADR-023
 amended_by: ADR-026-AMENDMENT-rule-c-keyring-scope.md
 anchor_stories: [S-PLUGIN-PREREQ-E]
@@ -173,6 +173,10 @@ string)" rather than "ZERO changes to impl blocks." This is a named handoff (F-L
 joint finding); PO handles AC-2 + BC-2.01.016 §Postconditions in the parallel PO dispatch.
 
 ### D3 — Runtime cross-sensor auth-composition prevention (DI-012 replacement enforcement)
+
+**Superseded by ADR-028 §D2 (partial — non-CrowdStrike `auth_type_name()` return values; effective at PLUGIN-MIGRATION-001-A merge):** ADR-026 §D3 originally mandated the legacy `auth_type_name()` returns (`cyberint="bearer_static"`, `claroty="cookie_roundtrip"`, `armis="api_key"`). Pass-13 fresh-context adversary surfaced these as misaligned with the underlying DTU enforcement behavior. Per user Path A adjudication (D-747), ADR-028 §D2 supersedes these three values; ADR-028 §D6 documents the PLUGIN-MIGRATION-001-A scope expansion to rewrite the code and amend Red Gate test `test_BC_2_01_016_003_four_auth_impls_minimal_diff_post_unsealing`. CrowdStrike `"oauth2_client_credentials"` value remains correct under both ADRs.
+
+Until PLUGIN-MIGRATION-001-A merges, code in `crates/prism-sensors/src/auth/{cyberint,claroty,armis}.rs` continues to return the ADR-026 §D3 values; this is the LIVE contract through the migration window.
 
 The three runtime rules that replace compile-time sealing (ADR-023 Rule 2) are enforced by
 `prism-spec-engine`'s TOML load-time validation:
@@ -513,4 +517,5 @@ modes and security implications. The open trait approach reuses the existing typ
 | 1.26 | 2026-05-18 | architect | amended_by back-ref + §Status amendment note (closes F-LP-IMPL-P6-OBS-001 discoverability gap). Added `amended_by: ADR-026-AMENDMENT-rule-c-keyring-scope.md` to frontmatter; §Status note pointing to amendment doc + D-706 + §D3. |
 | 1.27 | 2026-05-18 | product-owner | F-LP-IMPL-P10-IMP-002 closure (PO scope): §D7 error code routing: added E-PLUGIN-021 (`SpecEngineError::WriteToolRegistryPoisoned`) alongside E-PLUGIN-020 (registration-after-boot). Both are fail-closed safety rails in the boot-time write-tool-registration path. E-PLUGIN-021 is constructed if the `RwLock` guarding `DYNAMIC_WRITE_TOOLS` is poisoned by a prior panic — operators should restart the process. Severity: broken (unrecoverable); recurrence: SINGLE_PER_PROCESS_LIFETIME. Sibling: BC-2.16.012 v1.28 (E-PLUGIN-021 row in §Error Cases + EC-016-012-006 in §Edge Cases) swept in same burst. |
 | 1.28 | 2026-05-18 | product-owner | POL-29 pass-11-spec-hygiene sibling-sweep: BC-2.16.002 cite-pin v1.34→v1.35 at §D7 line 333 (F-LP-IMPL-P11-HIGH-001 closure propagated BC-2.16.002 frontmatter defect fix; cite-pin must advance per POL-29 class (b)). |
+| 1.30 | 2026-05-20 | architect | Pass-13 FB-IMPL-P13-ARCH per user Path A adjudication (D-747): `superseded_by:` frontmatter field added (ADR-028 §D2 partial — non-CrowdStrike `auth_type_name()` returns for Cyberint/Claroty/Armis; effective at PLUGIN-MIGRATION-001-A merge). §D3 heading prefixed with explicit supersession notice: ADR-028 §D2 supersedes the legacy `auth_type_name()` return values (`cyberint="bearer_static"`, `claroty="cookie_roundtrip"`, `armis="api_key"`); migration window note added (live code continues to return ADR-026 §D3 values until 001-A merges). CrowdStrike `"oauth2_client_credentials"` unchanged. F-LP13-HIGH-001 closure. |
 | 1.29 | 2026-05-18 | architect | D-717 pass-12 spec-hygiene burst: (1) §Changelog rows v1.27/v1.28 reordered to ascending (F-LP-IMPL-P12-HIGH-001; POL-26 recurrence); (2) §D7 "Two new error codes" → "Three new error codes" + line 321 "Both codes (E-PLUGIN-012, E-PLUGIN-020)" → "Each of E-PLUGIN-012, E-PLUGIN-020, and E-PLUGIN-021" (F-LP-IMPL-P12-HIGH-002); (3) E-PLUGIN-021 bullet self-redundancy removed — "Additionally, E-PLUGIN-021..." sentence deleted, "operators should restart the process" incorporated into primary description (F-LP-IMPL-P12-HIGH-003). ZERO-NEW-DRIFT discipline. |

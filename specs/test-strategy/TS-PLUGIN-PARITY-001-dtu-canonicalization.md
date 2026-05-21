@@ -5,6 +5,7 @@ version: "1.1"
 status: draft
 producer: product-owner
 timestamp: 2026-05-11T00:00:00
+modified: "2026-05-20"
 phase: 0-F
 owners: [product-owner, test-writer]
 inputs:

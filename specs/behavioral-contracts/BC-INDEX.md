@@ -1,7 +1,7 @@
 ---
 document_type: behavioral-contract-index
 level: L3
-version: "5.28"
+version: "5.29"
 status: draft
 producer: product-owner
 timestamp: 2026-05-20T00:00:00Z
@@ -218,7 +218,7 @@ Phase 3-patch additions (2026-04-16): 22 new BCs added in Burst 1 to close trace
 | BC-2.16.010 | `list_sensor_specs` MCP Tool — List Loaded Sensor Specs with Table Schemas and Status | 16 - Spec Engine | CAP-029 | P0 | draft |
 | BC-2.16.011 | CustomAdapter Rust Trait Retirement — Removal of Trait, Registry, and All Call Sites | 16 - Spec Engine | CAP-029 | P0 | active (promoted draft→active D-726 per POL-14; anchor story S-PLUGIN-PREREQ-E merged PR #151 develop@80ebe794 2026-05-19) — v1.12 |
 | BC-2.16.012 | PluginRegistry Dispatch in spec_parser.rs — Hardcoded Sensor Names Replaced with Registry Lookup | 16 - Spec Engine | CAP-029 | P0 | active (promoted draft→active D-726 per POL-14; anchor story S-PLUGIN-PREREQ-E merged PR #151 develop@80ebe794 2026-05-19) — v1.29 |
-| BC-2.16.013 | Bundled Sensor Spec Authoring and DTU-Parity Verification — 4 Initial Sensors | 16 - Spec Engine | CAP-029 | P0 | draft (v1.6 FB-IMPL-P6-PO 2026-05-20 — Armis auth-grounding cite swept to module-level `//!` doc-comment anchor per TD-VSDD-091 + POL-25 sibling-anti-pattern sweep; v1.5 prior bumped Cyberint cite to `alerts.rs::extract_session_token()` symbol anchor) — v1.6 |
+| BC-2.16.013 | Bundled Sensor Spec Authoring and DTU-Parity Verification — 4 Initial Sensors | 16 - Spec Engine | CAP-029 | P0 | draft (v1.7 FB-IMPL-P13-PO 2026-05-20 — ADR-028 pin updated to v1.5; Claroty/Cyberint/Armis postcondition rows updated with ADR-028 §D2 supersession of ADR-026 §D3 (D-747) context per F-LP13-MED-002; §D6 scope anchor added) — v1.7 |
 | BC-2.17.001 | Plugin Panic Isolation — Crashed Plugin Does Not Terminate Host Process | 17 - WASM Plugin Runtime | CAP-032 | P0 | active (POL-14 auto-promotion D-568 S-PLUGIN-PREREQ-D merge PR #149 ec90fe8f 2026-05-15) |
 | BC-2.17.002 | Plugin Sandbox — No Direct Filesystem or Network Access | 17 - WASM Plugin Runtime | CAP-032 | P0 | active (POL-14 auto-promotion D-568 S-PLUGIN-PREREQ-D merge PR #149 ec90fe8f 2026-05-15) |
 | BC-2.17.003 | Plugin Sandbox — Memory Limit Enforced Per Plugin Instance (default 64MB) | 17 - WASM Plugin Runtime | CAP-032 | P0 | active (POL-14 auto-promotion D-568 S-PLUGIN-PREREQ-D merge PR #149 ec90fe8f 2026-05-15) |
@@ -370,6 +370,8 @@ Phase 3-patch additions (2026-04-16): 22 new BCs added in Burst 1 to close trace
 - Subsystem 19: Infusion Enrichment Framework (AD-020, CAP-031)
 
 ### Change Log (Adversarial Review Fixes)
+
+**v5.29 (2026-05-20, FB-IMPL-P13-PO):** product-owner | BC-2.16.013 v1.6→v1.7 (F-LP13-MED-002 ADR-028 v1.5 pin propagation): §Architecture Anchors updated to versioned ADR-028 v1.5 citations; §D6 anchor added (PLUGIN-MIGRATION-001-A auth migration scope); Claroty/Cyberint/Armis §Postconditions auth rows updated with ADR-028 §D2 supersession of ADR-026 §D3 (D-747) context. BC-INDEX row updated to v1.7. BC-INDEX v5.28→v5.29.
 
 **v5.28 (2026-05-20, FB-IMPL-P7 D-741):** state-manager | BC-2.16.013 row 221 in-line text bumped v1.5 → v1.6 (FB-IMPL-P6-PO content: Armis auth-grounding cite swept to module-level `//!` doc-comment anchor per TD-VSDD-091 + POL-25 sibling-anti-pattern sweep). Closes F-LP7-MED-001 POL-29 BC-INDEX in-line row drift. BC-INDEX v5.27→v5.28.
 

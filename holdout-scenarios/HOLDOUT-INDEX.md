@@ -1,7 +1,7 @@
 ---
 document_type: holdout-scenario-index
 level: L3
-version: "1.9"
+version: "1.10"
 status: draft
 producer: product-owner
 timestamp: 2026-05-20T00:00:00Z
@@ -43,7 +43,7 @@ total_scenarios: 81
 | HS-015 | [HS-015-cyberint-alerts-cursor-parity.md](HS-015-cyberint-alerts-cursor-parity.md) | Cyberint Alerts Cursor Parity | 3 | P0 | Multi-format timestamp parsing; SKIP verdict for incidents table; cookie_roundtrip auth; GET /api/v1/alerts |
 | HS-016 | [HS-016-armis-aql-timestamp-fallback-parity.md](HS-016-armis-aql-timestamp-fallback-parity.md) | Armis AQL + Timestamp Fallback Parity | 3 | P0 | AQL forwarding via `${query.filter.aql}`; fallback chain; WARN audit signal; bearer_static auth; DTU gaps DTU-EXT-003/004 noted |
 | HS-017 | [HS-017-bundled-spec-validation-gate.md](HS-017-bundled-spec-validation-gate.md) | Bundled Spec Validation CI Gate | 2 | P0 | Negative: malformed specs rejected by BC-2.16.009 (E-SPEC-002, E-SPEC-003) |
-| HS-018 | [HS-018-spec-id-filename-mismatch-rejection.md](HS-018-spec-id-filename-mismatch-rejection.md) | Spec sensor_id / Filename Mismatch | 3 | P0 | Negative: sensor_id ≠ filename stem rejected at load time (E-SPEC-017) |
+| HS-018 | [HS-018-spec-id-filename-mismatch-rejection.md](HS-018-spec-id-filename-mismatch-rejection.md) | Spec sensor_id / Filename Mismatch | 3 | P0 | Negative: sensor_id ≠ filename stem rejected at load time (E-SPEC-017); v1.1 adds §Evaluation Criteria confirming HS-018-02 covered by RG-09 case-sensitive string equality |
 
 ---
 
@@ -316,6 +316,7 @@ timestamp: 2026-05-20T00:00:00Z
 
 | Version | Burst | Date | Author | Change |
 |---------|-------|------|--------|--------|
+| 1.10 | FB-IMPL-P13-PO | 2026-05-20 | product-owner | F-LP13-MED-002 closure: HS-018 v1.0→v1.1 — added §Evaluation Criteria with coverage mapping for HS-018-01/02/03; applied Option A confirming HS-018-02 (case-mismatch) covered by RG-09 case-sensitive string equality enforcement; §Changelog added per POL-26. Summary row updated to note v1.1 coverage clarification. HOLDOUT-INDEX v1.9→v1.10. |
 | 1.9 | FB-IMPL-P12-PO | 2026-05-20 | product-owner | F-LP12-MED-002 closure: Backfilled missing v1.4 changelog row (HS-013..018 authoring, 75→81); corrected disambiguating prose at line 292 from "+6 HS files at v1.7" → "+6 HS files at v1.4" (HS-013..018 entered at v1.4, not v1.7). POL-26 changelog continuity discipline applied. HOLDOUT-INDEX v1.8→v1.9. |
 | 1.8 | FB-IMPL-P11-PO | 2026-05-20 | product-owner | F-LP11-MED-001 closure + proactive embedded-state-block sweep per S-7.02 lesson preview: State Checkpoint yaml block refreshed (total_scenarios 75→81, total_groups 12→13, p0_scenarios 59→65, timestamp 2026-05-04→2026-05-20, phase/step/plugin_migration fields added). Disambiguating prose block added before yaml. HOLDOUT-INDEX v1.7→v1.8. |
 | 1.7 | FB-IMPL-P6-PO fix-burst-6 | 2026-05-20 | product-owner | F-LP6-LOW-001 closure (TD-VSDD-091 POL-25 sweep): HS-016 v1.1→v1.2 — replaced line-pinned cite `lib.rs:16-17` with module-doc anchor `crates/prism-dtu-armis/src/lib.rs module documentation` in §Scenario auth note. HOLDOUT-INDEX v1.6→v1.7. |

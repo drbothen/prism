@@ -1,9 +1,9 @@
 ---
 document_type: pipeline-state
 level: ops
-version: "7.433"
+version: "7.434"
 producer: state-manager
-timestamp: 2026-05-20T23:30:00Z
+timestamp: 2026-05-20T23:45:00Z
 inputs: []
 input-hash: "[live-state]"
 traces_to: ""
@@ -16,7 +16,7 @@ repos: [poller-cobra, poller-express, poller-bear, poller-coaster, serveMyAPI, t
 safe_to_compact: false
 pre_compact_snapshot: "SESSION-HANDOFF.md §RESUME SNAPSHOT 2026-05-20-EVE"
 pre_compact_snapshot_at: "2026-05-20 (D-737 SESSION-HANDOFF.md §RESUME SNAPSHOT 2026-05-20-EVE for PLUGIN-MIGRATION-001-D pass-4 decisions-locked durability)"
-current_step: "FB-IMPL-P12 closed; pass-13 dispatch pending"
+current_step: "FB-IMPL-P13 closed; pass-14 dispatch pending"
 current_cycle: wave-0-plugin-prereqs
 feature_branch_head: "merged to 80ebe794 at 2026-05-19 (PR #151) — a4c048ce was final feature HEAD before squash-merge"
 pr_level_adversary_streak: "3/3 CONVERGED per BC-5.39.001 — passes 2/3/4 all CLEAN; PR #151 merged 2026-05-19; D-716 Option A standing satisfied"
@@ -52,17 +52,18 @@ vsdd_factory_version: "1.0.0-rc.18 (re-activated 2026-05-13T15:00:19Z; upgrade c
 workspace_test_count: 3681
 user_directive_persistent: "No pragmatic convergence. Fix all issues before build."
 current_cycle_history: "wave-0-plugin-prereqs (PREREQ-E merged PR #151 2026-05-19); prior: wave-4-operations (active); wave-3-multi-tenant (COMPLETE)"
-bc_index_version: "5.28"
+bc_index_version: "5.29"
 vp_index_version: "1.76"
-story_index_version: "v2.164"
-plugin_migration_001_d_local_adversary_passes: 12
-plugin_migration_001_d_local_fix_bursts: 11
-plugin_migration_001_d_status: "FB-IMPL-P12-CLOSED-STREAK-0-OF-3-AWAITING-PASS-13"
+story_index_version: "v2.165"
+plugin_migration_001_d_local_adversary_passes: 13
+plugin_migration_001_d_local_fix_bursts: 12
+plugin_migration_001_d_status: "FB-IMPL-P13-CLOSED-STREAK-0-OF-3-AWAITING-PASS-14"
 architectural_decisions_locked:
   - "1 LOCKED Option-A: TOML spec URLs ground against DTU clone routes (real-API canonical), NOT production Rust adapter URLs (latent adapter bug becomes moot when 001-A deletes adapters)"
   - "2 LOCKED Option-B: Parity test loads reference OCSF from committed fixture JSON (crates/prism-dtu-{sensor}/fixtures/parity/reference-ocsf/<table>.json); no prism-sensors dev-dep on prism-spec-engine needed"
   - "3 LOCKED Option-A: Expand PLUGIN-MIGRATION-001-D scope to include SpecErrorCode::ESpec017 variant in prism-core + filename-stem validation in spec_parser.rs::load_all (~half-day scope expansion); RG-09 + HS-018 remain in-scope"
   - "4 LOCKED Option-A: TOML auth_type declares REAL behavior (cyberint=cookie_roundtrip, claroty=bearer_static) per CLAUDE.md Source-of-Truth Precedence #7; legacy auth_type_name() strings are bugs in code 001-A deletes"
+  - "5 LOCKED Path-A (D-747): ADR-028 §D2 explicitly supersedes ADR-026 §D3 (partial — auth_type_name() return values for Cyberint/Claroty/Armis); PLUGIN-MIGRATION-001-A scope EXPANDS to include rewriting these auth_type_name() returns + amending Red Gate test_BC_2_01_016_003. CrowdStrike unchanged."
 policies_version: "1.29"
 total_stories: 150
 bc_count_corrected: 240
@@ -70,7 +71,7 @@ subsystem_count: 22
 vp_count: 156
 prd_version: "1.10"
 error_taxonomy_version: "1.41"
-arch_index_version: "2.90"
+arch_index_version: "2.91"
 verification_coverage_matrix_version: "1.42"
 verification_architecture_version: "1.41"
 historical_cycles: [phase-1-convergence, wave-3-multi-tenant, wave-4-operations]
@@ -87,9 +88,9 @@ historical_cycles: [phase-1-convergence, wave-3-multi-tenant, wave-4-operations]
 | **Language** | Rust |
 | **Target Workspace** | per-analyst stdio (MCP server) |
 | **Started** | 2026-04-13 |
-| **Last Updated** | 2026-05-20 (D-746 FB-IMPL-P12 closure — 3 findings closed (2M+1L); 4th novel coherence-axis class; 253rd consecutive) |
+| **Last Updated** | 2026-05-20 (D-747 FB-IMPL-P13 closure — 4 findings closed (1H+2M+1L); 6th novel coherence-axis class; 254th consecutive) |
 | **Current Phase** | Wave 3 Tier-3 COMPLETE — **Wave 3-A 4 of 4 SHIPPED**; plugin migration: PREREQ-F + PREREQ-A + PREREQ-B + PREREQ-C + PREREQ-D + **PREREQ-E MERGED** (PR #151 80ebe794 2026-05-19T18:06:44Z); PREREQ-F next per Wave 0 dependency chain |
-| **Current Step** | D-746 closed. FB-IMPL-P12 complete. Streak 0/3. Pass-13 dispatch next. |
+| **Current Step** | D-747 closed. FB-IMPL-P13 complete. Streak 0/3. Pass-14 dispatch next. |
 
 ## Phase Progress
 
@@ -115,7 +116,8 @@ historical_cycles: [phase-1-convergence, wave-3-multi-tenant, wave-4-operations]
 
 | Step | Agent | Status | Output |
 |------|-------|--------|--------|
-_D-735 and earlier archived to cycles/wave-0-plugin-prereqs/burst-log.md. D-736..D-740 archived below._
+_D-735 and earlier archived to cycles/wave-0-plugin-prereqs/burst-log.md. D-736..D-741 archived below._
+| D-747 — **FB-IMPL-P13 closure burst — PLUGIN-MIGRATION-001-D pass-13 adversarial fix-burst complete. 4 findings closed in-scope (1 HIGH + 2 MED + 1 LOW process-gap) per user Path A adjudication. Pass-13 surfaced 6th novel coherence-axis class: inter-ADR contradiction with shipped+tested code witness (ADR-026 §D3 mandates bearer_static/cookie_roundtrip/api_key for Cyberint/Claroty/Armis; ADR-028 §D2 calls them 'latent label bugs'; no Supersedes linkage; Red Gate test_BC_2_01_016_003 actively asserts ADR-026 values in develop@1bc56e3c). User D-747 Path A: ADR-028 explicitly supersedes ADR-026 §D3 partial. Architect: ADR-028 v1.4→v1.5 (§D2 supersession prefix; §D6 PLUGIN-MIGRATION-001-A scope expansion — auth_type_name() rewrites + RG test amendment); ADR-026 v1.29→v1.30 (Superseded-by ADR-028 §D2 partial; migration-window note); ARCH-INDEX v2.90→v2.91. PO: BC-2.16.013 v1.6→v1.7 (Architecture Anchors versioned + §Postconditions §1 annotated); BC-INDEX v5.28→v5.29; HS-018 v1.0→v1.1 (HS-018-02 covered by RG-09 byte-equality, Option A); HOLDOUT-INDEX v1.9→v1.10; TS-PLUGIN-PARITY-001 modified field added. SW: story v1.6→v1.7 (AC-001 incidents-table clarified; Task 3 mandates include-with-gap; ADR-028 §D6 footnotes in Task 4/5/6; BC-2.16.013 v1.7 pin swept 6 sites); STORY-INDEX v2.164→v2.165. Cumulative closures 59→63 across 13 fix-bursts. Streak 0/3→0/3. 254th consecutive single-commit per TD-VSDD-053.** | state-manager | FB-IMPL-P13 CLOSED | STATE v7.434; NEXT: pass-14 adversary dispatch |
 | D-746 — **FB-IMPL-P12 closure burst — PLUGIN-MIGRATION-001-D pass-12 adversarial fix-burst complete. 3 findings closed in-scope (2 MED + 1 LOW pending-intent). Pass-12 surfaced 4th novel coherence-axis class (POL-27 modified-vs-changelog-date sync on non-index files; POL-26 changelog continuity for cumulative-count documents). PO scope: (1) F-LP12-MED-001 — error-taxonomy.md `modified: 2026-05-18` → `2026-05-20`; (2) F-LP12-MED-002 — HOLDOUT-INDEX v1.4 changelog row backfilled + line 292 prose corrected; HOLDOUT-INDEX v1.8 → v1.9; (3) F-LP12-LOW-001 — STORY-INDEX row 399 narrative extended (FB-IMPL-P7/9-SW/10/11 closures appended); STORY-INDEX v2.163 → v2.164. State-manager scope: pass-12 report + fix-burst-12 record + POL extension proposals captured. Cumulative closures 56 → 59 across 12 fix-bursts. Streak 0/3 → 0/3. 253rd consecutive single-commit per TD-VSDD-053.** | state-manager | FB-IMPL-P12 CLOSED | STATE v7.433; NEXT: pass-13 adversary dispatch |
 | D-745 — **FB-IMPL-P11 closure burst — PLUGIN-MIGRATION-001-D pass-11 adversarial fix-burst complete. 1 MED finding closed in-scope (F-LP11-MED-001 HOLDOUT-INDEX State Checkpoint yaml block multi-field drift: total_scenarios 75→81, total_groups 12→13, p0_scenarios 59→65, timestamp 2026-05-04→2026-05-20, plugin_migration fields added/extended). Pass-11 verdict BLOCKED-soft; streak reset 1/3 → 0/3. PO scope: HOLDOUT-INDEX v1.7 → v1.8 (State Checkpoint refresh + disambiguating prose block). Proactive sweep of BC-INDEX/STORY-INDEX/ARCH-INDEX confirmed no embedded state blocks in those (HOLDOUT-INDEX-specific drift class). State-manager scope: local-pass-11.md persisted + fix-burst-11 closure record. Cumulative closures 55 → 56. S-7.02 lesson codified: embedded-state-block sweep policy candidate. 252nd consecutive single-commit per TD-VSDD-053.** | state-manager | FB-IMPL-P11 CLOSED | STATE v7.432; NEXT: pass-12 adversary dispatch |
 | D-742 — **Pass-8 LOCAL adversary CLEAN-with-observations bookkeeping burst — 0 HIGH + 0 MED + 0 LOW; 1 OBS (pre-existing deferred TD-VSDD-091 line-pin siblings → S-7.02, NOT introduced this pass). 53/53 cumulative closures durable; FB-IMPL-P7 zero new defects. Streak 0/3 → 1/3 per BC-5.39.001 / D-716 Option A. No fix-burst dispatched. State-manager scope: local-pass-8.md persisted + STATE.md frontmatter sync (pass count 7→8; status PASS-8-CLEAN-STREAK-1-OF-3-AWAITING-PASS-9). 249th consecutive single-commit per TD-VSDD-053.** | state-manager | PASS-8 CLEAN BOOKKEEPING | STATE v7.429; NEXT: pass-9 adversary dispatch |
@@ -128,6 +130,7 @@ _D-001..D-046 archived: [cycles/phase-3-dtu-wave-2/decisions-archive-d001-d032.m
 
 | ID | Decision | Rationale | Phase | Date |
 |----|----------|-----------|-------|------|
+| D-747 | 2026-05-20 | user (Path A architectural adjudication for F-LP13-HIGH-001) + architect (ADR-026/028 supersession linkage + 001-A scope expansion) + product-owner (BC/HS/TS fixes + ADR pin propagation) + story-writer (story v1.7 + AC/Task fix) + state-manager (burst commit) | **FB-IMPL-P13 closure burst — PLUGIN-MIGRATION-001-D pass-13 adversarial fix-burst complete. 4 findings closed in-scope (1 HIGH + 2 MED + 1 LOW process-gap) per user Path A adjudication. Pass-13 surfaced 6th novel coherence-axis class: inter-ADR contradiction with shipped+tested code witness (ADR-026 §D3 mandates 'bearer_static/cookie_roundtrip/api_key' for Cyberint/Claroty/Armis Auth::auth_type_name(); shipped in develop@1bc56e3c via PR #151; Red Gate test_BC_2_01_016_003 actively asserts these values; ADR-028 §D2 calls them 'latent label bugs' with no Supersedes linkage). User adjudicated Path A: ADR-028 explicitly supersedes ADR-026 §D3 with bidirectional linkage. Architect scope (F-LP13-HIGH-001 closure): ADR-028 v1.4→v1.5 (Supersedes ADR-026 §D3 partial; §D2 supersession prefix; new §D6 PLUGIN-MIGRATION-001-A scope expansion documenting auth_type_name() rewrites + Red Gate test_BC_2_01_016_003 amendment in 001-A scope); ADR-026 v1.29→v1.30 (Superseded-by ADR-028 §D2 partial; §D3 supersession prefix with migration-window note explaining live code holds ADR-026 §D3 values until 001-A merges); ARCH-INDEX v2.90→v2.91. PO scope: F-LP13-MED-002 closure — HS-018 v1.0→v1.1 (§Evaluation Criteria clarifies HS-018-02 case-mismatch covered by RG-09 byte-equality, Option A); HOLDOUT-INDEX v1.9→v1.10; F-LP13-LOW-001 closure — TS-PLUGIN-PARITY-001 frontmatter `modified: "2026-05-20"` added (POL-27 extension to changelog-bearing non-index files); ADR-028 v1.5 pin propagation into BC-2.16.013 v1.6→v1.7 (Architecture Anchors versioned + §Postconditions §1 Cyberint/Claroty/Armis rows annotated with supersession context); BC-INDEX v5.28→v5.29. SW scope: F-LP13-MED-001 closure — story v1.6→v1.7 (AC-001 incidents-table PASS criterion clarified; Task 3 mandates include-with-gap per ADR-028 §D5 not 'may omit'; Task 4/5/6 ADR-028 §D6 footnotes added; BC-2.16.013 v1.7 pin swept across 6 active-prose sites); STORY-INDEX v2.164→v2.165. State-manager scope: pass-13 adversary report persisted + fix-burst-13 closure record. Cumulative closures 59→63 across 13 fix-bursts. Lesson codified (S-7.02 candidate): Adversary must cross-check every ADR claim against ALL active ADRs (not just the one under review) and against shipped+tested code (third-party witness). Pattern observed: 6 novel coherence-axis classes found across passes 9/10/11/12/13 — orchestrator should consider formal policy extensions at next opportunity. Streak 0/3→0/3 (still reset; pass-14 fresh-context dispatch pending). 254th consecutive single-commit per TD-VSDD-053.** | plugin-migration | 2026-05-20 | Decided by: user (Path A architectural adjudication for F-LP13-HIGH-001) + architect (ADR-026/028 supersession linkage + 001-A scope expansion) + product-owner (BC/HS/TS fixes + ADR pin propagation) + story-writer (story v1.7 + AC/Task fix) + state-manager (burst commit). Status: APPROVED |
 | D-746 | 2026-05-20 | product-owner (3 closures) + state-manager (burst commit) | **FB-IMPL-P12 closure burst — PLUGIN-MIGRATION-001-D pass-12 adversarial fix-burst complete. 3 findings closed in-scope (2 MED + 1 LOW pending-intent). Pass-12 surfaced 4th novel coherence-axis class (POL-27 modified-vs-changelog-date sync on non-index files; POL-26 changelog continuity for cumulative-count documents). PO scope: (1) F-LP12-MED-001 — error-taxonomy.md `modified: 2026-05-18` → `2026-05-20` (POL-27 sync gap from FB-IMPL-P2-PO E-SPEC-017 registration burst not propagating modified field); (2) F-LP12-MED-002 — HOLDOUT-INDEX v1.4 changelog row backfilled for the 75→81 HS-013..018 authoring transition + line 292 prose corrected (`+6 HS files at v1.7` → `at v1.4`); HOLDOUT-INDEX v1.8 → v1.9; (3) F-LP12-LOW-001 — STORY-INDEX row 399 narrative extended (FB-IMPL-P7/9-SW/10/11 closures appended for full audit trail); STORY-INDEX v2.163 → v2.164. State-manager scope: pass-12 adversary report persisted + fix-burst-12 closure record + POL extension proposals captured. Cumulative closures 56 → 59 across 12 fix-bursts. Pattern observed: pass-9/10/11/12 each found a NEW novel coherence-axis class — orchestrator should consider formal policy extensions (POL-27 + POL-26 expansions) at next opportunity. Streak 0/3 → 0/3 (still reset; pass-13 fresh-context dispatch pending). 253rd consecutive single-commit per TD-VSDD-053.** | plugin-migration | 2026-05-20 | Decided by: product-owner (3 closures) + state-manager (burst commit). Status: APPROVED |
 | D-745 | 2026-05-20 | product-owner (HOLDOUT-INDEX) + state-manager (burst commit) | **FB-IMPL-P11 closure burst — PLUGIN-MIGRATION-001-D pass-11 adversarial fix-burst complete. 1 MED finding closed in-scope (F-LP11-MED-001 HOLDOUT-INDEX State Checkpoint yaml block multi-field drift: total_scenarios 75→81, total_groups 12→13, p0_scenarios 59→65, timestamp 2026-05-04→2026-05-20, plugin_migration fields added). Pass-11 verdict BLOCKED-soft; streak reset 1/3 → 0/3. Product-owner scope: HOLDOUT-INDEX v1.7 → v1.8 (State Checkpoint refresh + disambiguating prose block); proactive sweep of BC-INDEX/STORY-INDEX/ARCH-INDEX confirmed no embedded state blocks in those (class of drift HOLDOUT-INDEX-specific). State-manager scope: pass-11 adversary report persisted + fix-burst-11 closure record. Cumulative closures 55 → 56. Lesson codified (S-7.02 candidate): 'When any fix-burst modifies HOLDOUT-INDEX frontmatter or adds HS-NNN files, the same burst MUST update the ## State Checkpoint yaml block to match (total_scenarios, total_groups, p0_scenarios, timestamp, plugin_migration_*).' Body-frontmatter coherence axis extended over passes 9 (story body), 10 (ADR §Status), 11 (HOLDOUT-INDEX State Checkpoint) — 3 sibling discoveries across pass-9/10/11 demonstrate need for explicit POL on embedded-state-block sweeps. 252nd consecutive single-commit per TD-VSDD-053.** | plugin-migration | 2026-05-20 | Decided by: product-owner (HOLDOUT-INDEX) + state-manager (burst commit). Status: APPROVED |
 | D-744 | 2026-05-20 | architect (ADR-028 §Status edit) + state-manager (burst commit) | **FB-IMPL-P10 closure burst — PLUGIN-MIGRATION-001-D pass-10 adversarial fix-burst complete. 1 LOW pending-intent finding closed in-scope (F-LP10-LOW-001 ADR-028 §Status line 25 historical-anchor disambiguation per body-frontmatter coherence axis extended to ADR §Status by pass-10). Pass-10 verdict CLEAN-with-observations; streak 0/3 → 1/3 advanced; preserved through tiny architect text-clarification burst per S-7.01 LOW-pending-intent rule. Architect scope: ADR-028 §Status line 25 'Proposed 2026-05-20, v1.0' → 'Proposed 2026-05-20, v1.0 (initial proposal version; current frontmatter v1.4 per §Changelog)' (Option C — preserves historical anchor, adds disambiguator); §Changelog v1.4 row extended in-place with F-LP10-LOW-001 closure note. No ADR version bump (cosmetic clarification only). No ARCH-INDEX bump. State-manager scope: pass-10 adversary report persisted + fix-burst-10 closure record. Cumulative closures 54 → 55. Lesson codified (S-7.02 candidate): ADR §Status sections may use historical-anchor convention but MUST include current-version disambiguator. 251st consecutive single-commit per TD-VSDD-053.** | plugin-migration | 2026-05-20 | Decided by: architect (ADR-028 §Status edit) + state-manager (burst commit). Status: APPROVED |
@@ -210,29 +213,30 @@ Prior cycle history:
 
 ---
 
-## Session Resume Checkpoint (2026-05-20 — D-746-FB-IMPL-P12-CLOSED-STREAK-0-OF-3)
+## Session Resume Checkpoint (2026-05-20 — D-747-FB-IMPL-P13-CLOSED-STREAK-0-OF-3)
 
-_Previous checkpoint (D-742-PASS-8-CLEAN-STREAK-1-OF-3) archived: [cycles/wave-0-plugin-prereqs/session-checkpoints.md](cycles/wave-0-plugin-prereqs/session-checkpoints.md)_
+_Previous checkpoint (D-746-FB-IMPL-P12-CLOSED-STREAK-0-OF-3) archived: [cycles/wave-0-plugin-prereqs/session-checkpoints.md](cycles/wave-0-plugin-prereqs/session-checkpoints.md)_
 
-**STATE v7.433. D-746 FB-IMPL-P12 CLOSURE BURST COMPLETE.** 3 findings closed in-scope (2 MED + 1 LOW). local-pass-12.md persisted; fix-burst-12 closure record written. Cumulative closures 56 → 59 across 12 fix-bursts. Streak 0/3 → 0/3. 253rd consecutive single-commit per TD-VSDD-053.
+**STATE v7.434. D-747 FB-IMPL-P13 CLOSURE BURST COMPLETE.** 4 findings closed in-scope (1 HIGH + 2 MED + 1 LOW). local-pass-13.md persisted; fix-burst-13 closure record written. Cumulative closures 59 → 63 across 13 fix-bursts. Streak 0/3 → 0/3. 254th consecutive single-commit per TD-VSDD-053.
 
-**Pass-12 Summary (D-746):**
-- 0 HIGH + 2 MED + 1 LOW + 1 OBS findings
-- F-LP12-MED-001: error-taxonomy.md `modified: 2026-05-18` → `2026-05-20` (POL-27 sync gap on non-index file)
-- F-LP12-MED-002: HOLDOUT-INDEX v1.4 changelog row backfilled + line 292 prose corrected; v1.8 → v1.9
-- F-LP12-LOW-001: STORY-INDEX row 399 narrative extended (FB-IMPL-P7/9-SW/10/11 closures); v2.163 → v2.164
-- 4th novel coherence-axis class surfaced (passes 9/10/11/12 each found a new class)
-- POL-27 + POL-26 extension proposals captured in fix-burst-12 for orchestrator codification
+**Pass-13 Summary (D-747):**
+- 1 HIGH + 2 MED + 1 LOW + 0 OBS findings
+- F-LP13-HIGH-001: ADR-026 §D3 ↔ ADR-028 §D2 bidirectional supersession; ADR-028 v1.5 §D6 PLUGIN-MIGRATION-001-A scope expansion; ADR-026 v1.30; ARCH-INDEX v2.91 (user Path A D-747)
+- F-LP13-MED-001: Story AC-001 + Task 3 reconciled (include-with-gap mandate); BC-2.16.013 v1.7 pin swept 6 sites; story v1.7; STORY-INDEX v2.165
+- F-LP13-MED-002: HS-018 v1.1 (HS-018-02 covered by RG-09 byte-equality, Option A); HOLDOUT-INDEX v1.10
+- F-LP13-LOW-001: TS-PLUGIN-PARITY-001 modified field added; BC-2.16.013 v1.7 + BC-INDEX v5.29
+- 6th novel coherence-axis class: inter-ADR contradiction with shipped+tested code witness
+- S-7.02 codification candidate: Adversary must cross-check ADR claims against ALL active ADRs + shipped+tested code
 
 **Next Steps:**
-1. Dispatch adversary (fresh context, pass-13) against all 14 primary artifacts
+1. Dispatch adversary (fresh context, pass-14) against all 14 primary artifacts
 2. Target streak 0/3 → 1/3 per BC-5.39.001 / D-716 Option A
 3. Continue cascade until 3-CLEAN convergence
 
 **Resume Protocol:**
 1. Read `.factory/SESSION-HANDOFF.md` §RESUME SNAPSHOT 2026-05-20-EVE for full context
-2. Read `.factory/STATE.md` frontmatter + D-746 decision row
+2. Read `.factory/STATE.md` frontmatter + D-747 decision row
 3. Verify `develop_head: 1bc56e3c` unchanged + 0 open PRs
-4. Dispatch adversary pass-13
+4. Dispatch adversary pass-14
 
 _Agent routing: see CLAUDE.md §Agent Routing Table._

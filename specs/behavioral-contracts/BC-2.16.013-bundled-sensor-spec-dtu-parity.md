@@ -1,7 +1,7 @@
 ---
 document_type: behavioral-contract
 level: L3
-version: "1.6"
+version: "1.7"
 status: draft
 producer: product-owner
 timestamp: 2026-05-20T00:00:00Z
@@ -153,7 +153,9 @@ authentication enforcement behavior, which reflects the real third-party API's a
   `routes/alerts.rs`) enforces `Authorization: Bearer {non-empty}` header →
   `auth_type = "bearer_static"`. (The legacy `ClarotyAuth::auth_type_name()` incorrectly
   returned `"cookie_roundtrip"` — this is a latent label bug deleted by PLUGIN-MIGRATION-001-A.
-  Per ADR-028 §D2 and CLAUDE.md §Source-of-Truth Precedence #7, spec follows DTU, not adapter code.)
+  Per ADR-028 §D2 supersession of ADR-026 §D3 (D-747), this TOML value diverges from the live
+  `ClarotyAuth::auth_type_name()` return until PLUGIN-MIGRATION-001-A migrates the code per
+  ADR-028 §D6 scope. CLAUDE.md §Source-of-Truth Precedence #7 applies: spec follows DTU, not adapter code.)
 
 - `cyberint.sensor.toml` — `sensor_id: "cyberint"`, `auth_type: "cookie_roundtrip"`,
   base URL from environment (`https://{environment}.cyberint.io`), tables:
@@ -170,7 +172,9 @@ authentication enforcement behavior, which reflects the real third-party API's a
   enforces cookie-based session auth — extracts `cyberint_session` cookie from `Cookie` header
   → `auth_type = "cookie_roundtrip"`. (The legacy `CyberintAuth::auth_type_name()` incorrectly
   returned `"bearer_static"` — this is a latent label bug deleted by PLUGIN-MIGRATION-001-A.
-  Per ADR-028 §D2 and CLAUDE.md §Source-of-Truth Precedence #7, spec follows DTU, not adapter code.)
+  Per ADR-028 §D2 supersession of ADR-026 §D3 (D-747), this TOML value diverges from the live
+  `CyberintAuth::auth_type_name()` return until PLUGIN-MIGRATION-001-A migrates the code per
+  ADR-028 §D6 scope. CLAUDE.md §Source-of-Truth Precedence #7 applies: spec follows DTU, not adapter code.)
 
 - `armis.sensor.toml` — `sensor_id: "armis"`, `auth_type: "bearer_static"`,
   base URL from instance_url, tables:
@@ -189,7 +193,9 @@ authentication enforcement behavior, which reflects the real third-party API's a
   Auth grounded: Armis DTU (per `crates/prism-dtu-armis/src/lib.rs` module documentation) enforces
   `Authorization: Bearer {non-empty}` header with HTTP 403 on missing/invalid token
   (Armis Centrix API spec behavior) → `auth_type = "bearer_static"`. (The legacy
-  `ArmisAuth::auth_type_name()` returned `"api_key"` — per ADR-028 §D2, spec follows DTU.)
+  `ArmisAuth::auth_type_name()` returned `"api_key"` — per ADR-028 §D2 supersession of ADR-026 §D3
+  (D-747), this TOML value diverges from the live `ArmisAuth::auth_type_name()` return until
+  PLUGIN-MIGRATION-001-A migrates the code per ADR-028 §D6 scope. Spec follows DTU, not adapter code.)
 
 ### Known Gaps (DTU Extension Required — ADR-028 §D5)
 
@@ -366,10 +372,11 @@ never registered in error-taxonomy.md and does not exist as a runtime error.)
 
 ## Architecture Anchors
 
-- ADR-028 §D1 (URL grounding rule — TOML spec URL paths derived from DTU clone route registrations, not production Rust adapter code)
-- ADR-028 §D2 (auth_type grounding rule — TOML spec auth_type derived from DTU clone enforcement behavior, which reflects the real third-party API's auth contract)
-- ADR-028 §D3 (parity reference OCSF grounding rule — committed fixture JSON at `crates/prism-dtu-{sensor}/fixtures/parity/reference-ocsf/<table>.json`; no prism-sensors dev-dep required)
-- ADR-028 §D5 (DTU extension prerequisite — spec entry for a URL path with no DTU route registration is an architectural violation; DTU-EXT-001..004 identified)
+- ADR-028 v1.5 §D1 (URL grounding rule — TOML spec URL paths derived from DTU clone route registrations, not production Rust adapter code)
+- ADR-028 v1.5 §D2 (auth_type grounding rule — TOML spec auth_type derived from DTU clone enforcement behavior, which reflects the real third-party API's auth contract; §D2 supersedes ADR-026 §D3 per D-747)
+- ADR-028 v1.5 §D3 (parity reference OCSF grounding rule — committed fixture JSON at `crates/prism-dtu-{sensor}/fixtures/parity/reference-ocsf/<table>.json`; no prism-sensors dev-dep required)
+- ADR-028 v1.5 §D5 (DTU extension prerequisite — spec entry for a URL path with no DTU route registration is an architectural violation; DTU-EXT-001..004 identified)
+- ADR-028 v1.5 §D6 (scope expansion — PLUGIN-MIGRATION-001-A migrates live `*Auth::auth_type_name()` to match DTU-grounded auth_type values; auth divergence between TOML spec and live adapter return is intentional and tracked until 001-A merges)
 - ADR-023 §Decision Rules — Rule 3 (VP-PLUGIN-003 parity gate — replacement-before-deletion prerequisite)
 - ADR-023 §Decision Rules — Rule 1 (four initial sensors ship as pure TOML specs; no in-repo .prx plugin required for the four initial sensors; OCSF complex-transform plugins are a separate concern per Rule 1)
 - TS-PLUGIN-PARITY-001 (canonicalization rules for parity comparison: Rules A–I, Rule I fixture minimum, Cyberint DTU Gap Note)
@@ -393,13 +400,14 @@ PLUGIN-MIGRATION-001-D (implementing story; planned → draft after PO authoring
 | L2 Invariants | DI-008 (client scoping — specs do not cross client boundaries), DI-030 (partial-failure isolation — one spec failure does not block others), DI-012 (auth composition prevention — each spec declares exactly one auth_type) |
 | L2 Entities | SensorSpec, TableSpec, ColumnSpec, PipelineResult |
 | Priority | P0 |
-| ADR anchors | ADR-028 §D1 (URL grounding), §D2 (auth_type grounding), §D3 (fixture-JSON parity reference), §D5 (DTU extension prerequisite); ADR-023 §Decision Rules — Rule 1, §Decision Rules — Rule 3; ADR-023 §Architectural Constraints — C2; TS-PLUGIN-PARITY-001 Rules A–I |
+| ADR anchors | ADR-028 v1.5 §D1 (URL grounding), §D2 (auth_type grounding; supersedes ADR-026 §D3 per D-747), §D3 (fixture-JSON parity reference), §D5 (DTU extension prerequisite), §D6 (001-A auth migration scope); ADR-023 §Decision Rules — Rule 1, §Decision Rules — Rule 3; ADR-023 §Architectural Constraints — C2; TS-PLUGIN-PARITY-001 Rules A–I |
 | Subsystem | SS-16 (Spec Engine) |
 
 ## Changelog
 
 | Version | Burst | Date | Author | Change |
 |---------|-------|------|--------|--------|
+| 1.7 | FB-IMPL-P13-PO | 2026-05-20 | product-owner | Closes pass-13 findings F-LP13-MED-002 (propagate ADR-028 v1.5 pin): §Architecture Anchors updated from bare ADR-028 to versioned ADR-028 v1.5 citations throughout; §D6 anchor added (PLUGIN-MIGRATION-001-A auth migration scope). §Postconditions §1 Claroty, Cyberint, Armis auth-grounding sentences updated with ADR-028 §D2 supersession of ADR-026 §D3 (D-747) context — each row now explicitly notes TOML value diverges from live `*Auth::auth_type_name()` until PLUGIN-MIGRATION-001-A migrates per ADR-028 §D6. Traceability §ADR anchors row updated to v1.5 + §D6. |
 | 1.6 | FB-IMPL-P6-PO fix-burst-6 | 2026-05-20 | product-owner | Closes pass-6 finding F-LP6-LOW-001 (TD-VSDD-091 anti-volatile-pin sibling-asymmetric): replaced line-pinned cite `lib.rs:16-17` with module-doc anchor `crates/prism-dtu-armis/src/lib.rs module documentation` in §Postconditions §1 Armis auth-grounding sentence. POL-25 multi-cite sweep — HS-016 updated in same burst. ADR-028 §D2 row not modified (architect scope). |
 | 1.5 | FB-IMPL-P5-PO fix-burst-5 | 2026-05-20 | product-owner | Closes pass-5 finding F-LP5-LOW-001 (TD-VSDD-091 anti-volatile-pin): replaced line-pinned cite `alerts.rs:43-46` with symbol anchor `alerts.rs::extract_session_token()` in §Postconditions §1 cyberint auth-grounding sentence. POL-25 multi-cite sweep — HS-015 updated in same burst. ADR-028 §D2 row not modified (architect scope; already fixed in ADR-028 v1.1). |
 | 1.4 | FB-IMPL-P4-PO fix-burst-4 | 2026-05-20 | product-owner | Closes pass-4 findings F-LP4-HIGH-001 (URL re-grounding), F-LP4-HIGH-002 (fixture-JSON parity mechanism), F-LP4-HIGH-003 (E-SPEC-017 enforcement — see BC-2.16.001 v1.5), F-LP4-HIGH-004 (auth_type swap), F-LP4-MED-002 (RG-09 test driver clarification in test vector note), F-LP4-MED-003 (request_count fragility — relaxed to >= 2). F-LP4-HIGH-001: all sensor URL paths re-grounded against DTU clone route registrations per ADR-028 §D1 (CrowdStrike: `/detects/queries/detects/v1` + `/detects/entities/summaries/GET/v1`; devices: `/devices/queries/devices/v1` + `/devices/entities/devices/v2`; Cyberint alerts: `/api/v1/alerts`; Claroty alerts: `/api/v1/alerts`). F-LP4-HIGH-002: §Postconditions §2 step 4 rewritten — reference OCSF loaded from committed fixture JSON at `crates/prism-dtu-{sensor}/fixtures/parity/reference-ocsf/<table>.json`; comparison is byte-identical after canonical JSON serialization; no `prism-sensors` dev-dep; ADR-028 §D3 cited. F-LP4-HIGH-003: F-LP4-MED-002 closure: `SpecLoader::parse` lacks filename context; filename-stem validation requires `SpecLoader::load_all()` or `parse_spec_directory()`; noted in Canonical Test Vector row. F-LP4-HIGH-004: auth_type corrected to DTU-grounded values per ADR-028 §D2 — claroty=`bearer_static` (was `cookie_roundtrip`), cyberint=`cookie_roundtrip` (was `bearer_static`), armis=`bearer_static` (was `api_key`), crowdstrike=`oauth2_client_credentials` (unchanged). §Known Gaps section added with DTU-EXT-001..004 for orchestrator follow-up (CrowdStrike incidents, Claroty assets, Armis devices via AQL, Armis alerts via AQL). ADR-028 §D1/D2/D3/D5 cited in §inputs, §Architecture Anchors. Legacy adapter source files removed from §inputs — per ADR-028 §D4, adapter code is NOT a grounding reference. |
