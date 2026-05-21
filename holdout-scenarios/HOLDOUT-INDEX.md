@@ -1,7 +1,7 @@
 ---
 document_type: holdout-scenario-index
 level: L3
-version: "1.6"
+version: "1.7"
 status: draft
 producer: product-owner
 timestamp: 2026-05-20T00:00:00Z
@@ -312,6 +312,7 @@ timestamp: 2026-05-04T00:00:00Z
 
 | Version | Burst | Date | Author | Change |
 |---------|-------|------|--------|--------|
+| 1.7 | FB-IMPL-P6-PO fix-burst-6 | 2026-05-20 | product-owner | F-LP6-LOW-001 closure (TD-VSDD-091 POL-25 sweep): HS-016 v1.1→v1.2 — replaced line-pinned cite `lib.rs:16-17` with module-doc anchor `crates/prism-dtu-armis/src/lib.rs module documentation` in §Scenario auth note. HOLDOUT-INDEX v1.6→v1.7. |
 | 1.6 | FB-IMPL-P5-PO fix-burst-5 | 2026-05-20 | product-owner | F-LP5-LOW-001 closure (TD-VSDD-091 POL-25 sweep): HS-015 v1.1→v1.2 — replaced line-pinned cites `alerts.rs:43-46` with symbol anchor `alerts.rs::extract_session_token()` at two locations (§Scenario auth note, HS-015-01 Step 2). HOLDOUT-INDEX v1.5→v1.6. |
 | 1.5 | FB-IMPL-P4-PO fix-burst-4 | 2026-05-20 | product-owner | F-LP4-HIGH-001/F-LP4-HIGH-002/F-LP4-HIGH-004 closure: HS-013 v1.0→v1.1 (URL re-grounded to `/detects/queries/detects/v1`+`/detects/entities/summaries/GET/v1` per ADR-028 §D1; fixture reference at `prism-dtu-crowdstrike/fixtures/parity/reference-ocsf/detections.json` per ADR-028 §D3; request_count relaxed to >=2). HS-014 v1.0→v1.1 (auth corrected to `bearer_static` per ADR-028 §D2; scenario pivoted to `alerts` table at `POST /api/v1/alerts` per ADU gap note DTU-EXT-002; fixture reference added). HS-015 v1.0→v1.1 (auth corrected to `cookie_roundtrip` per ADR-028 §D2; URL corrected from `/api/alerts` to `/api/v1/alerts` per ADR-028 §D1; fixture reference added). HS-016 v1.0→v1.1 (auth corrected to `bearer_static` per ADR-028 §D2; DTU gap noted for AQL routes DTU-EXT-003/004; fixture reference added; bearer auth step added). |
 | 1.3 | wave4-holdout-authoring | 2026-05-04 | product-owner | D-216 closure (Phase 4.B wave gate unblock, D-219 first-wave-with-proper-holdouts): authored HS-009 (6 sub-scenarios, Scheduler Operations, must_pass: true), HS-010 (6 sub-scenarios, Detection & Alert Pipeline, must_pass: true), HS-011 (5 sub-scenarios, Case Management, must_pass: false), HS-012 (6 sub-scenarios, Action Delivery, must_pass: true). total_scenarios 52 → 75 (+23). total_groups 8 → 12. p0_scenarios 36 → 59. BC anchors drawn from BC-INDEX v4.32 (BC-2.12.001–010, BC-2.13.001–013, BC-2.14.001–012, BC-2.18.001–009). Repo Coverage Matrix extended with prism-operations, prism-storage, prism-audit columns. |

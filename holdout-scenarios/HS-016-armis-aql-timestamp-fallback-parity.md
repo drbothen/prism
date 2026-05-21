@@ -6,7 +6,7 @@ category: "dtu-parity"
 must_pass: true
 priority: P0
 epic_id: "PLUGIN-MIGRATION-001"
-version: "1.1"
+version: "1.2"
 status: draft
 producer: product-owner
 timestamp: 2026-05-20T00:00:00Z
@@ -46,7 +46,7 @@ OCSF output equivalent to the reference OCSF fixture, per TS-PLUGIN-PARITY-001.
 
 **Auth (ADR-028 §D2):** `armis.sensor.toml` declares `auth_type = "bearer_static"` — grounded
 against the Armis DTU's `Authorization: Bearer {non-empty}` header enforcement
-(`crates/prism-dtu-armis/src/lib.rs`:16-17 — HTTP 403 on missing/invalid token per Armis Centrix
+(per `crates/prism-dtu-armis/src/lib.rs` module documentation — HTTP 403 on missing/invalid token per Armis Centrix
 API spec). The legacy `ArmisAuth::auth_type_name()` return `"api_key"` was incorrect per DTU;
 deleted by 001-A.
 
@@ -144,3 +144,13 @@ Two Armis-specific risks are tested:
 - **Known-problematic corpus:** Armis DTU with `firstSeen` and `lastSeen` both absent — expected
   parity PASS by Rule C convention AND WARN emitted. If WARN is absent, the audit signal from
   the prior Rust adapter is lost — FAIL.
+
+---
+
+## Changelog
+
+| Version | Burst | Date | Author | Change |
+|---------|-------|------|--------|--------|
+| 1.2 | FB-IMPL-P6-PO fix-burst-6 | 2026-05-20 | product-owner | Closes pass-6 finding F-LP6-LOW-001 (TD-VSDD-091 anti-volatile-pin sibling-asymmetric): replaced line-pinned cite `lib.rs:16-17` with module-doc anchor `crates/prism-dtu-armis/src/lib.rs module documentation` in §Scenario auth note. POL-25 multi-cite sweep — BC-2.16.013 updated in same burst. HOLDOUT-INDEX v1.6→v1.7. |
+| 1.1 | FB-IMPL-P4-PO fix-burst-4 | 2026-05-20 | product-owner | auth corrected to `bearer_static` per ADR-028 §D2; DTU gap noted for AQL routes DTU-EXT-003/004; fixture reference added; bearer auth step added. |
+| 1.0 | D-731 PLUGIN-MIGRATION-001-D PO authoring | 2026-05-20 | product-owner | Initial draft — HS anchor for PLUGIN-MIGRATION-001-D; 3 sub-scenarios covering AQL forwarding, timestamp resolution, and timestamp fallback to now() with WARN audit signal. |

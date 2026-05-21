@@ -1,7 +1,7 @@
 ---
 document_type: behavioral-contract-index
 level: L3
-version: "5.26"
+version: "5.27"
 status: draft
 producer: product-owner
 timestamp: 2026-05-20T00:00:00Z
@@ -370,6 +370,8 @@ Phase 3-patch additions (2026-04-16): 22 new BCs added in Burst 1 to close trace
 - Subsystem 19: Infusion Enrichment Framework (AD-020, CAP-031)
 
 ### Change Log (Adversarial Review Fixes)
+
+**v5.27 (2026-05-20, FB-IMPL-P6-PO fix-burst-6):** product-owner | BC-2.16.013 v1.5→v1.6 (pass-6 F-LP6-LOW-001 TD-VSDD-091 sibling-asymmetric): Armis auth-grounding cite replaced — `lib.rs:16-17` → `crates/prism-dtu-armis/src/lib.rs module documentation` in §Postconditions §1 Armis auth-grounding sentence. POL-25 sweep: HS-016 v1.1→v1.2 updated in same burst. BC-INDEX v5.26→v5.27.
 
 **v5.26 (2026-05-20, FB-IMPL-P5-PO fix-burst-5):** product-owner | BC-2.16.013 v1.4→v1.5 (pass-5 F-LP5-LOW-001 TD-VSDD-091): Cyberint auth-grounding cite replaced — `alerts.rs:43-46` → `alerts.rs::extract_session_token()` (symbol anchor per TD-VSDD-091 anti-volatile-pin). POL-25 sweep: HS-015 v1.1→v1.2 updated in same burst. BC-2.16.001 `modified: null` → `"2026-05-20"` (POL-27 F-LP5-MED-002 closure — frontmatter-only, no version bump). BC-2.16.009 `modified: null` → `"2026-05-20"` (POL-27 sibling-sweep — v1.4 had 2026-05-20 Changelog entry). BC-INDEX v5.25→v5.26.
 

@@ -1,7 +1,7 @@
 ---
 document_type: behavioral-contract
 level: L3
-version: "1.5"
+version: "1.6"
 status: draft
 producer: product-owner
 timestamp: 2026-05-20T00:00:00Z
@@ -186,7 +186,7 @@ authentication enforcement behavior, which reflects the real third-party API's a
   extension or WASM plugin as a prerequisite). WARN emission when falling back to `now()`
   preserves the existing `tracing::warn!` audit signal.
   Version: `"1.0.0"`.
-  Auth grounded: Armis DTU (`crates/prism-dtu-armis/src/lib.rs`:16-17) enforces
+  Auth grounded: Armis DTU (per `crates/prism-dtu-armis/src/lib.rs` module documentation) enforces
   `Authorization: Bearer {non-empty}` header with HTTP 403 on missing/invalid token
   (Armis Centrix API spec behavior) → `auth_type = "bearer_static"`. (The legacy
   `ArmisAuth::auth_type_name()` returned `"api_key"` — per ADR-028 §D2, spec follows DTU.)
@@ -400,6 +400,7 @@ PLUGIN-MIGRATION-001-D (implementing story; planned → draft after PO authoring
 
 | Version | Burst | Date | Author | Change |
 |---------|-------|------|--------|--------|
+| 1.6 | FB-IMPL-P6-PO fix-burst-6 | 2026-05-20 | product-owner | Closes pass-6 finding F-LP6-LOW-001 (TD-VSDD-091 anti-volatile-pin sibling-asymmetric): replaced line-pinned cite `lib.rs:16-17` with module-doc anchor `crates/prism-dtu-armis/src/lib.rs module documentation` in §Postconditions §1 Armis auth-grounding sentence. POL-25 multi-cite sweep — HS-016 updated in same burst. ADR-028 §D2 row not modified (architect scope). |
 | 1.5 | FB-IMPL-P5-PO fix-burst-5 | 2026-05-20 | product-owner | Closes pass-5 finding F-LP5-LOW-001 (TD-VSDD-091 anti-volatile-pin): replaced line-pinned cite `alerts.rs:43-46` with symbol anchor `alerts.rs::extract_session_token()` in §Postconditions §1 cyberint auth-grounding sentence. POL-25 multi-cite sweep — HS-015 updated in same burst. ADR-028 §D2 row not modified (architect scope; already fixed in ADR-028 v1.1). |
 | 1.4 | FB-IMPL-P4-PO fix-burst-4 | 2026-05-20 | product-owner | Closes pass-4 findings F-LP4-HIGH-001 (URL re-grounding), F-LP4-HIGH-002 (fixture-JSON parity mechanism), F-LP4-HIGH-003 (E-SPEC-017 enforcement — see BC-2.16.001 v1.5), F-LP4-HIGH-004 (auth_type swap), F-LP4-MED-002 (RG-09 test driver clarification in test vector note), F-LP4-MED-003 (request_count fragility — relaxed to >= 2). F-LP4-HIGH-001: all sensor URL paths re-grounded against DTU clone route registrations per ADR-028 §D1 (CrowdStrike: `/detects/queries/detects/v1` + `/detects/entities/summaries/GET/v1`; devices: `/devices/queries/devices/v1` + `/devices/entities/devices/v2`; Cyberint alerts: `/api/v1/alerts`; Claroty alerts: `/api/v1/alerts`). F-LP4-HIGH-002: §Postconditions §2 step 4 rewritten — reference OCSF loaded from committed fixture JSON at `crates/prism-dtu-{sensor}/fixtures/parity/reference-ocsf/<table>.json`; comparison is byte-identical after canonical JSON serialization; no `prism-sensors` dev-dep; ADR-028 §D3 cited. F-LP4-HIGH-003: F-LP4-MED-002 closure: `SpecLoader::parse` lacks filename context; filename-stem validation requires `SpecLoader::load_all()` or `parse_spec_directory()`; noted in Canonical Test Vector row. F-LP4-HIGH-004: auth_type corrected to DTU-grounded values per ADR-028 §D2 — claroty=`bearer_static` (was `cookie_roundtrip`), cyberint=`cookie_roundtrip` (was `bearer_static`), armis=`bearer_static` (was `api_key`), crowdstrike=`oauth2_client_credentials` (unchanged). §Known Gaps section added with DTU-EXT-001..004 for orchestrator follow-up (CrowdStrike incidents, Claroty assets, Armis devices via AQL, Armis alerts via AQL). ADR-028 §D1/D2/D3/D5 cited in §inputs, §Architecture Anchors. Legacy adapter source files removed from §inputs — per ADR-028 §D4, adapter code is NOT a grounding reference. |
 | 1.3 | FB-IMPL-P3-PO fix-burst-3 | 2026-05-20 | product-owner | Closes pass-3 findings F-LP3-CRIT-001, F-LP3-CRIT-002, F-LP3-CRIT-003, F-LP3-HIGH-001, F-LP3-HIGH-002. F-LP3-CRIT-001: replaced phantom `spec_parser::parse_spec_file()` with `SpecLoader::parse(toml_input: &str)` in §Postconditions §2 step 2 and §Canonical Test Vectors (CODE-GROUNDED: spec_parser.rs:655). F-LP3-CRIT-002: corrected all CrowdStrike URL paths — `/detects/queries/detects/v1` etc. replaced with actual patterns from crowdstrike.rs:262,315: `/queries/{resource_type}` (QueryV2) and `/entities/{resource_type}/GET` (PostEntities); incidents table corrected to two-step (same pattern); URL derivation via `resource_type_from_spec()` (crowdstrike.rs:369-375) documented. F-LP3-CRIT-003: stripped `/xdome` prefix from all Claroty endpoints — actual pattern is `/api/v1/{resource}s` (claroty.rs:244); `/xdome` was never present in the code. F-LP3-HIGH-001: removed `/v1` segment from Cyberint endpoints — actual pattern is `/api/{resource}s` (cyberint.rs:251); no `/v1` in Cyberint URL construction. F-LP3-HIGH-002: corrected Armis endpoint — single `/api/v1/search` (no trailing slash, armis.rs:517) used for ALL queries including both `devices` and `alerts`; AQL discriminator `in:devices` / `in:alerts` via `DEFAULT_AQL_TEMPLATE` (armis.rs:72) documented; phantom per-resource endpoint paths removed. |
