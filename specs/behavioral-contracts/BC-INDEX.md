@@ -1,7 +1,7 @@
 ---
 document_type: behavioral-contract-index
 level: L3
-version: "5.34"
+version: "5.35"
 status: draft
 producer: product-owner
 timestamp: 2026-05-20T00:00:00Z
@@ -206,7 +206,7 @@ Phase 3-patch additions (2026-04-16): 22 new BCs added in Burst 1 to close trace
 | BC-2.15.009 | Context Decorator Injection — Auto-Inject Metadata into All Results | 15 - Storage Layer | CAP-026 | P0 | draft |
 | BC-2.15.010 | Decorator Three-Phase Model — Config-Time, Query-Time, Periodic | 15 - Storage Layer | CAP-026 | P0 | draft |
 | BC-2.15.011 | Internal Table Registration — RocksDB Domains as DataFusion Tables | 15 - Storage Layer | CAP-028 | P0 | draft |
-| BC-2.16.001 | Sensor Spec File Loading — Parse TOML, Validate Schema, Register Tables | 16 - Spec Engine | CAP-029 | P0 | draft — v1.5 (FB-IMPL-P4-PO 2026-05-20: E-SPEC-017 enforcement contract expanded — SpecErrorCode::ESpec017 in prism-core; load_all()/parse_spec_directory() emits, parse() does NOT; RG-09/HS-018 must use load_all() driver) |
+| BC-2.16.001 | Sensor Spec File Loading — Parse TOML, Validate Schema, Register Tables | 16 - Spec Engine | CAP-029 | P0 | draft — v1.6 (FB-IMPL-1-PO 2026-05-21: §Known Gaps added — KG-006-001 DEC-036 DataFusion-level unavailability marking is prism-query S-3.02 scope, not exercisable in prism-spec-engine; AC-006 parse-time PASS criterion scoped accordingly) |
 | BC-2.16.002 | Multi-Step Fetch Pipeline Execution — Sequential Steps with Variable Interpolation | 16 - Spec Engine | CAP-029 | P0 | active (promoted draft→active D-427 per POL-14; anchor story S-PLUGIN-PREREQ-B merged PR #143 develop@ae7e26c8 2026-05-12) — v1.35 |
 | BC-2.16.003 | Column-to-OCSF Mapping at Query Time — Map Sensor Columns to OCSF Fields Per Spec | 16 - Spec Engine | CAP-029 | P0 | draft |
 | BC-2.16.004 | ~~Rust Escape Hatch for Custom Adapters — Trait-Based Override When Config Is Insufficient~~ | 16 - Spec Engine | CAP-029 | P0 | removed (lifecycle_status: removed since PREREQ-E impl; status aligned at D-726 per POL-14 PR #151 merge) — v1.5 |
@@ -370,6 +370,8 @@ Phase 3-patch additions (2026-04-16): 22 new BCs added in Burst 1 to close trace
 - Subsystem 19: Infusion Enrichment Framework (AD-020, CAP-031)
 
 ### Change Log (Adversarial Review Fixes)
+
+**v5.35 (2026-05-21, FB-IMPL-1-PO):** product-owner | BC-2.16.001 v1.5→v1.6 (F-LP1-HIGH-005 closure Option a): §Known Gaps KG-006-001 added — DEC-036 DataFusion-level unavailability marking not exercisable in prism-spec-engine per AD-015; AC-006 PASS criterion scoped to parse-time only; gap closes in S-3.02. BC-INDEX row 209 updated to v1.6. BC-INDEX v5.34→v5.35.
 
 **v5.34 (2026-05-21, FB-IMPL-1):** architect | (D-FB-IMPL-1-OPT-A) BC-2.16.013 v1.11→v1.12 (§O-001 LOCKED Option A; E-SPEC-018 TimestampParseFailure registered in error-taxonomy.md v1.42→v1.43; documented-gap exception ADR-028 §D9; co-merge contract ADR-028 §D10; ADR-028 v1.8→v1.9 cite-pin sweep across 6 Architecture Anchors sites + Traceability row; Cyberint + Armis §Postconditions §1 updated from WASM-plugin language to Option A grammar). BC-INDEX row 221 updated to v1.12. BC-INDEX v5.33→v5.34.
 

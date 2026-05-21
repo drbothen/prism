@@ -1,7 +1,7 @@
 ---
 document_type: behavioral-contract
 level: L3
-version: "1.5"
+version: "1.6"
 status: draft
 producer: product-owner
 timestamp: 2026-04-13T12:00:00
@@ -11,7 +11,7 @@ subsystem: "SS-16"
 capability: "CAP-029"
 lifecycle_status: active
 introduced: cycle-1
-modified: "2026-05-20"
+modified: "2026-05-21"
 deprecated: null
 deprecated_by: null
 replacement: null
@@ -96,6 +96,12 @@ loads but its tables are marked unavailable (DEC-036).
 | Empty directory | sensor_specs_dir exists but contains no *.sensor.toml files | Zero spec-driven tables registered; no error |
 | Subdirectory in specs_dir | subdirectory present | Not recursively scanned; ignored |
 
+## Known Gaps
+
+| ID | Gap | Owner Story | Justification |
+|----|-----|-------------|---------------|
+| KG-006-001 | DEC-036 DataFusion-level unavailability marking untested at integration layer. The AC-006 parse-time assertion (`credential_refs.is_empty()`) verifies the spec loads without error, but the runtime behavior "tables marked unavailable at DataFusion catalog registration" is not exercised. Per AD-015, `prism-spec-engine` MUST NOT import DataFusion; catalog registration is `prism-query`'s responsibility. | S-3.02 (prism-query DataFusion catalog wiring) | Architectural boundary: `prism-spec-engine` exports descriptors only; the descriptor's `availability_status` field is consumed by `prism-query` at registration time, which is outside this story's crate boundary. The parse-time portion of DEC-036 is fully verified. |
+
 ## Canonical Test Vectors
 
 See `.factory/specs/prd-supplements/test-vectors.md` for full canonical vectors.
@@ -126,6 +132,7 @@ See `.factory/specs/prd-supplements/test-vectors.md` for full canonical vectors.
 
 | Version | Burst | Date | Author | Change |
 |---------|-------|------|--------|--------|
+| 1.6 | FB-IMPL-1-PO | 2026-05-21 | product-owner | F-LP1-HIGH-005 closure (Option a — narrow AC-006): Added §Known Gaps section with KG-006-001 — DEC-036 DataFusion-level unavailability marking is not exercisable in prism-spec-engine test harness due to AD-015 (prism-spec-engine MUST NOT import DataFusion; catalog registration is prism-query S-3.02 scope). The parse-time portion of DEC-036 (credential_refs.is_empty() on load) remains the in-scope PASS criterion for AC-006. Gap will close in S-3.02. |
 | 1.5 | FB-IMPL-P4-PO fix-burst-4 | 2026-05-20 | product-owner | F-LP4-HIGH-003 + F-LP4-MED-002 closure: Expanded E-SPEC-017 row with explicit enforcement contract — (1) `prism-core` exposes `SpecErrorCode::ESpec017` variant (D-737 Decision 3 scope expansion); (2) `SpecLoader::load_all()` / `parse_spec_directory()` emits E-SPEC-017 (has filename context); (3) `SpecLoader::parse(toml_input: &str)` does NOT emit E-SPEC-017 (no filename context); (4) RG-09 / HS-018 must use `load_all()` / `parse_spec_directory()` as test driver, not `parse()`. This closes F-LP4-MED-002 (RG-09 driver ambiguity) and F-LP4-HIGH-003 (enforcement scope gap). |
 | 1.4 | FB-IMPL-P2-PO fix-burst-2 | 2026-05-20 | product-owner | F-002 closure (pass-2 adversarial, PO scope): Added E-SPEC-017 row to §Error Conditions — filename-stem-vs-sensor_id mismatch now has its own error code (registered in error-taxonomy.md v1.41). Clarified E-SPEC-009 row to make clear it covers ONLY duplicate-sensor_id, not filename-stem mismatch. BC-2.16.013 §Error Conditions v1.2 and HS-018 cite E-SPEC-017 consistently. |
 | 1.3 | pass-74-fix | 2026-04-20 | product-owner | Resolved (placeholder) row in ## Verification Properties per pass-74 VP-TBD decision matrix extension. |
