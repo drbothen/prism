@@ -1,7 +1,7 @@
 ---
 document_type: behavioral-contract-index
 level: L3
-version: "5.35"
+version: "5.36"
 status: draft
 producer: product-owner
 timestamp: 2026-05-20T00:00:00Z
@@ -207,7 +207,7 @@ Phase 3-patch additions (2026-04-16): 22 new BCs added in Burst 1 to close trace
 | BC-2.15.010 | Decorator Three-Phase Model — Config-Time, Query-Time, Periodic | 15 - Storage Layer | CAP-026 | P0 | draft |
 | BC-2.15.011 | Internal Table Registration — RocksDB Domains as DataFusion Tables | 15 - Storage Layer | CAP-028 | P0 | draft |
 | BC-2.16.001 | Sensor Spec File Loading — Parse TOML, Validate Schema, Register Tables | 16 - Spec Engine | CAP-029 | P0 | draft — v1.6 (FB-IMPL-1-PO 2026-05-21: §Known Gaps added — KG-006-001 DEC-036 DataFusion-level unavailability marking is prism-query S-3.02 scope, not exercisable in prism-spec-engine; AC-006 parse-time PASS criterion scoped accordingly) |
-| BC-2.16.002 | Multi-Step Fetch Pipeline Execution — Sequential Steps with Variable Interpolation | 16 - Spec Engine | CAP-029 | P0 | active (promoted draft→active D-427 per POL-14; anchor story S-PLUGIN-PREREQ-B merged PR #143 develop@ae7e26c8 2026-05-12) — v1.35 |
+| BC-2.16.002 | Multi-Step Fetch Pipeline Execution — Sequential Steps with Variable Interpolation | 16 - Spec Engine | CAP-029 | P0 | active (promoted draft→active D-427 per POL-14; anchor story S-PLUGIN-PREREQ-B merged PR #143 develop@ae7e26c8 2026-05-12) — v1.36 |
 | BC-2.16.003 | Column-to-OCSF Mapping at Query Time — Map Sensor Columns to OCSF Fields Per Spec | 16 - Spec Engine | CAP-029 | P0 | draft |
 | BC-2.16.004 | ~~Rust Escape Hatch for Custom Adapters — Trait-Based Override When Config Is Insufficient~~ | 16 - Spec Engine | CAP-029 | P0 | removed (lifecycle_status: removed since PREREQ-E impl; status aligned at D-726 per POL-14 PR #151 merge) — v1.5 |
 | BC-2.16.005 | `reload_config` MCP Tool — Re-Read All Config Files, Validate, Atomic Swap, Notify | 16 - Spec Engine | CAP-030 | P1 | draft |
@@ -217,7 +217,7 @@ Phase 3-patch additions (2026-04-16): 22 new BCs added in Burst 1 to close trace
 | BC-2.16.009 | Spec File Validation — Schema Validation, Variable Reference Resolution, OCSF Field Validation | 16 - Spec Engine | CAP-029 | P0 | draft |
 | BC-2.16.010 | `list_sensor_specs` MCP Tool — List Loaded Sensor Specs with Table Schemas and Status | 16 - Spec Engine | CAP-029 | P0 | draft |
 | BC-2.16.011 | CustomAdapter Rust Trait Retirement — Removal of Trait, Registry, and All Call Sites | 16 - Spec Engine | CAP-029 | P0 | active (promoted draft→active D-726 per POL-14; anchor story S-PLUGIN-PREREQ-E merged PR #151 develop@80ebe794 2026-05-19) — v1.12 |
-| BC-2.16.012 | PluginRegistry Dispatch in spec_parser.rs — Hardcoded Sensor Names Replaced with Registry Lookup | 16 - Spec Engine | CAP-029 | P0 | active (promoted draft→active D-726 per POL-14; anchor story S-PLUGIN-PREREQ-E merged PR #151 develop@80ebe794 2026-05-19) — v1.29 |
+| BC-2.16.012 | PluginRegistry Dispatch in spec_parser.rs — Hardcoded Sensor Names Replaced with Registry Lookup | 16 - Spec Engine | CAP-029 | P0 | active (promoted draft→active D-726 per POL-14; anchor story S-PLUGIN-PREREQ-E merged PR #151 develop@80ebe794 2026-05-19) — v1.30 |
 | BC-2.16.013 | Bundled Sensor Spec Authoring and DTU-Parity Verification — 4 Initial Sensors | 16 - Spec Engine | CAP-029 | P0 | draft (v1.12 FB-IMPL-1 2026-05-21 — architect adjudication: §O-001 LOCKED Option A; E-SPEC-018 registered; co-merge contract §D10; documented-gap exception §D9) — v1.12 |
 | BC-2.17.001 | Plugin Panic Isolation — Crashed Plugin Does Not Terminate Host Process | 17 - WASM Plugin Runtime | CAP-032 | P0 | active (POL-14 auto-promotion D-568 S-PLUGIN-PREREQ-D merge PR #149 ec90fe8f 2026-05-15) |
 | BC-2.17.002 | Plugin Sandbox — No Direct Filesystem or Network Access | 17 - WASM Plugin Runtime | CAP-032 | P0 | active (POL-14 auto-promotion D-568 S-PLUGIN-PREREQ-D merge PR #149 ec90fe8f 2026-05-15) |
@@ -370,6 +370,8 @@ Phase 3-patch additions (2026-04-16): 22 new BCs added in Burst 1 to close trace
 - Subsystem 19: Infusion Enrichment Framework (AD-020, CAP-031)
 
 ### Change Log (Adversarial Review Fixes)
+
+**v5.36 (2026-05-21, FB-IMPL-1 PO):** product-owner | BC-2.16.002 in-line row 210 v1.35→v1.36 (FB-IMPL-1 routing gap closure: `timestamp.fallback_to_now` WARN event_type catalog row 35 added per ADR-028 v1.9 §D8-B Option A grammar contract; catalog count 34→35; catalog bullet label `(v1.22)` → `(v1.23)` per POL-30 Fork B; architect bumped BC-2.16.013 v1.11→v1.12 in same FB-IMPL-1 burst specifying the tracing emission but did not propagate to BC-2.16.002 catalog). POL-30 Fork B sibling-sweep: error-taxonomy v1.43→v1.44 (2 cite-pin sites: E-PLUGIN-020 + E-PIPELINE-001) + BC-2.16.012 in-line row 220 v1.29→v1.30 (3 cite-pin sites: §Postconditions line 84 ×2 + EC-016-012-005 line 110). BC-INDEX v5.35→v5.36.
 
 **v5.35 (2026-05-21, FB-IMPL-1-PO):** product-owner | BC-2.16.001 v1.5→v1.6 (F-LP1-HIGH-005 closure Option a): §Known Gaps KG-006-001 added — DEC-036 DataFusion-level unavailability marking not exercisable in prism-spec-engine per AD-015; AC-006 PASS criterion scoped to parse-time only; gap closes in S-3.02. BC-INDEX row 209 updated to v1.6. BC-INDEX v5.34→v5.35.
 
