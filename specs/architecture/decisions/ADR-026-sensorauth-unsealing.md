@@ -4,8 +4,8 @@ adr_id: "ADR-026"
 title: "SensorAuth Trait Un-Sealing — Remove private::Sealed, Enable Plugin Auth Implementations"
 status: Proposed
 date: "2026-05-18"
-modified: "2026-05-20"
-version: "1.32"
+modified: "2026-05-21"
+version: "1.33"
 producer: architect
 subsystems_affected: [SS-01, SS-07, SS-16, SS-17, SS-22]
 supersedes: null
@@ -333,7 +333,7 @@ invoked as the **first statement** of the step-8 function in `crates/prism-bin/s
 immediately before `QueryEngine::new()` is constructed) — this path returns
 `Err(SpecEngineError::WriteToolRegistrationAfterBoot)` instead of attempting the write.
 
-**Structured event field source specification (PG-LP11-001 + BC-2.16.002 v1.35 row 33):** The
+**Structured event field source specification (PG-LP11-001 + BC-2.16.002 v1.36 row 33):** The
 `WARN`-level `write_tool_registration_after_boot` tracing event carries three fields. Field
 source provenance:
 
@@ -521,3 +521,4 @@ modes and security implications. The open trait approach reuses the existing typ
 | 1.30 | 2026-05-20 | architect | Pass-13 FB-IMPL-P13-ARCH per user Path A adjudication (D-747): `superseded_by:` frontmatter field added (ADR-028 §D2 partial — non-CrowdStrike `auth_type_name()` returns for Cyberint/Claroty/Armis; effective at PLUGIN-MIGRATION-001-A merge). §D3 heading prefixed with explicit supersession notice: ADR-028 §D2 supersedes the legacy `auth_type_name()` return values (`cyberint="bearer_static"`, `claroty="cookie_roundtrip"`, `armis="api_key"`); migration window note added (live code continues to return ADR-026 §D3 values until 001-A merges). CrowdStrike `"oauth2_client_credentials"` unchanged. F-LP13-HIGH-001 closure. |
 | 1.31 | 2026-05-20 | architect | FB-IMPL-P14-ARCH: F-LP14-MED-001 closure — v1.30 row repositioned above v1.29 (ascending convention violated; POL-26 recurrence); F-LP14-LOW-001 closure — `modified:` field advanced to 2026-05-20 (POL-27; was stale at 2026-05-18 while latest changelog row dated 2026-05-20). |
 | 1.32 | 2026-05-20 | architect | Pass-15 FB-IMPL-P15-ARCH: §Status historical-anchor disambiguation (sibling-asymmetric closure-pattern propagation gap per F-LP15-HIGH-001 — ADR-028 §Status received this disambiguation in P10/P14 but ADR-026 §Status was never sibling-swept until now). §Status text updated to mirror ADR-028's pattern: "Proposed 2026-05-15, v1.0 (initial proposal version; current frontmatter v1.32 per §Changelog)". |
+| 1.33 | 2026-05-21 | architect | (D-FB-IMPL-1-ADR-026-PIN) BC-2.16.002 cite-pin advance v1.35→v1.36 per FB-IMPL-1 PO burst b3989982 catalog row addition. POL-29 sibling-sweep closure for ADR-026 within-file sites. No semantic change. |
