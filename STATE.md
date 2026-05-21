@@ -1,9 +1,9 @@
 ---
 document_type: pipeline-state
 level: ops
-version: "7.431"
+version: "7.432"
 producer: state-manager
-timestamp: 2026-05-20T22:30:00Z
+timestamp: 2026-05-20T23:00:00Z
 inputs: []
 input-hash: "[live-state]"
 traces_to: ""
@@ -16,7 +16,7 @@ repos: [poller-cobra, poller-express, poller-bear, poller-coaster, serveMyAPI, t
 safe_to_compact: false
 pre_compact_snapshot: "SESSION-HANDOFF.md §RESUME SNAPSHOT 2026-05-20-EVE"
 pre_compact_snapshot_at: "2026-05-20 (D-737 SESSION-HANDOFF.md §RESUME SNAPSHOT 2026-05-20-EVE for PLUGIN-MIGRATION-001-D pass-4 decisions-locked durability)"
-current_step: "FB-IMPL-P10 closed; pass-11 dispatch pending"
+current_step: "FB-IMPL-P11 closed; pass-12 dispatch pending"
 current_cycle: wave-0-plugin-prereqs
 feature_branch_head: "merged to 80ebe794 at 2026-05-19 (PR #151) — a4c048ce was final feature HEAD before squash-merge"
 pr_level_adversary_streak: "3/3 CONVERGED per BC-5.39.001 — passes 2/3/4 all CLEAN; PR #151 merged 2026-05-19; D-716 Option A standing satisfied"
@@ -55,9 +55,9 @@ current_cycle_history: "wave-0-plugin-prereqs (PREREQ-E merged PR #151 2026-05-1
 bc_index_version: "5.28"
 vp_index_version: "1.76"
 story_index_version: "v2.163"
-plugin_migration_001_d_local_adversary_passes: 10
-plugin_migration_001_d_local_fix_bursts: 9
-plugin_migration_001_d_status: "FB-IMPL-P10-CLOSED-STREAK-1-OF-3-AWAITING-PASS-11"
+plugin_migration_001_d_local_adversary_passes: 11
+plugin_migration_001_d_local_fix_bursts: 10
+plugin_migration_001_d_status: "FB-IMPL-P11-CLOSED-STREAK-0-OF-3-AWAITING-PASS-12"
 architectural_decisions_locked:
   - "1 LOCKED Option-A: TOML spec URLs ground against DTU clone routes (real-API canonical), NOT production Rust adapter URLs (latent adapter bug becomes moot when 001-A deletes adapters)"
   - "2 LOCKED Option-B: Parity test loads reference OCSF from committed fixture JSON (crates/prism-dtu-{sensor}/fixtures/parity/reference-ocsf/<table>.json); no prism-sensors dev-dep on prism-spec-engine needed"
@@ -87,9 +87,9 @@ historical_cycles: [phase-1-convergence, wave-3-multi-tenant, wave-4-operations]
 | **Language** | Rust |
 | **Target Workspace** | per-analyst stdio (MCP server) |
 | **Started** | 2026-04-13 |
-| **Last Updated** | 2026-05-20 (D-744 FB-IMPL-P10 closure — F-LP10-LOW-001 closed; streak 1/3; 251st consecutive) |
+| **Last Updated** | 2026-05-20 (D-745 FB-IMPL-P11 closure — F-LP11-MED-001 closed; streak reset 0/3; 252nd consecutive) |
 | **Current Phase** | Wave 3 Tier-3 COMPLETE — **Wave 3-A 4 of 4 SHIPPED**; plugin migration: PREREQ-F + PREREQ-A + PREREQ-B + PREREQ-C + PREREQ-D + **PREREQ-E MERGED** (PR #151 80ebe794 2026-05-19T18:06:44Z); PREREQ-F next per Wave 0 dependency chain |
-| **Current Step** | D-744 closed. FB-IMPL-P10 complete. Streak 0/3 → 1/3 advanced + preserved through cosmetic burst. Pass-11 dispatch next. |
+| **Current Step** | D-745 closed. FB-IMPL-P11 complete. Streak 1/3 → 0/3 reset. Pass-12 dispatch next. |
 
 ## Phase Progress
 
@@ -116,7 +116,7 @@ historical_cycles: [phase-1-convergence, wave-3-multi-tenant, wave-4-operations]
 | Step | Agent | Status | Output |
 |------|-------|--------|--------|
 _D-735 and earlier archived to cycles/wave-0-plugin-prereqs/burst-log.md. D-736..D-738 archived below._
-| D-739 — **FB-IMPL-P5 closure burst — 5 findings closed (1H+2M+2L) + 1 OBS deferred to S-7.02. ADR-028 v1.0→v1.1→v1.2 (architect: §D2 Armis bearer_static + cyberint symbol anchor); ARCH-INDEX v2.86→v2.87→v2.88. BC-2.16.001/009 modified field; BC-2.16.013 v1.4→v1.5; HS-015 v1.1→v1.2; BC-INDEX v5.25→v5.26; HOLDOUT-INDEX v1.5→v1.6 (PO). Story v1.4→v1.5 crates_touched+Task11+cyberint cite; STORY-INDEX v2.161→v2.162 (SW). Pass-5 adversary report persisted (read-only adversary). Streak 0/3 awaiting pass-6. 246th consecutive single-commit per TD-VSDD-053.** | state-manager | FB-IMPL-P5 CLOSED | STATE v7.426; NEXT: pass-6 adversary dispatch |
+| D-745 — **FB-IMPL-P11 closure burst — PLUGIN-MIGRATION-001-D pass-11 adversarial fix-burst complete. 1 MED finding closed in-scope (F-LP11-MED-001 HOLDOUT-INDEX State Checkpoint yaml block multi-field drift: total_scenarios 75→81, total_groups 12→13, p0_scenarios 59→65, timestamp 2026-05-04→2026-05-20, plugin_migration fields added/extended). Pass-11 verdict BLOCKED-soft; streak reset 1/3 → 0/3. PO scope: HOLDOUT-INDEX v1.7 → v1.8 (State Checkpoint refresh + disambiguating prose block). Proactive sweep of BC-INDEX/STORY-INDEX/ARCH-INDEX confirmed no embedded state blocks in those (HOLDOUT-INDEX-specific drift class). State-manager scope: local-pass-11.md persisted + fix-burst-11 closure record. Cumulative closures 55 → 56. S-7.02 lesson codified: embedded-state-block sweep policy candidate. 252nd consecutive single-commit per TD-VSDD-053.** | state-manager | FB-IMPL-P11 CLOSED | STATE v7.432; NEXT: pass-12 adversary dispatch |
 | D-740 — **FB-IMPL-P6 closure burst — 1 LOW closed (F-LP6-LOW-001 armis lib.rs line-cite → module-doc anchor at 5 sites + ADR-028 §Context cyberint.rs:155 → `::CyberintAuth::get_page` [symbol HALLUCINATED — corrected in D-741 FB-IMPL-P7]). ADR-028 v1.2→v1.3 + ARCH-INDEX v2.88→v2.89 (architect). BC-2.16.013 v1.5→v1.6 + HS-016 v1.1→v1.2 + BC-INDEX v5.26→v5.27 + HOLDOUT-INDEX v1.6→v1.7 (PO). Story v1.5→v1.6 + STORY-INDEX v2.162→v2.163 (SW). Pass-6 report persisted + fix-burst-6 record. Cumulative closures 50→51. Streak 0/3→1/3 (preserved through fix-burst per S-7.01). 247th consecutive single-commit per TD-VSDD-053.** | state-manager | FB-IMPL-P6 CLOSED | STATE v7.427; NEXT: pass-7 adversary dispatch |
 | D-741 — **FB-IMPL-P7 closure burst — 2 findings closed (1 HIGH + 1 MED) + 1 OBS deferred to S-7.02. F-LP7-HIGH-001: ADR-028 v1.3→v1.4 §Context `::CyberintAuth::get_page` HALLUCINATION → `CyberintAdapter::new()` (cookie-store reqwest::Client builder at cyberint.rs:109-112) + `::get_page()` (consumer at cyberint.rs:159) — grep-verified. ARCH-INDEX v2.89→v2.90 (architect). F-LP7-MED-001: BC-INDEX row 221 in-line v1.5→v1.6; BC-INDEX v5.27→v5.28 (state-manager). Additional state-manager scope: STATE.md mis-citation corrected; fix-burst-6 correction note added. Cumulative closures 51→53. Streak reset 1/3→0/3 (BLOCKED-soft). 248th consecutive single-commit per TD-VSDD-053.** | state-manager | FB-IMPL-P7 CLOSED | STATE v7.428; NEXT: pass-8 adversary dispatch |
 | D-742 — **Pass-8 LOCAL adversary CLEAN-with-observations bookkeeping burst — 0 HIGH + 0 MED + 0 LOW; 1 OBS (pre-existing deferred TD-VSDD-091 line-pin siblings → S-7.02, NOT introduced this pass). 53/53 cumulative closures durable; FB-IMPL-P7 zero new defects. Streak 0/3 → 1/3 per BC-5.39.001 / D-716 Option A. No fix-burst dispatched. State-manager scope: local-pass-8.md persisted + STATE.md frontmatter sync (pass count 7→8; status PASS-8-CLEAN-STREAK-1-OF-3-AWAITING-PASS-9). 249th consecutive single-commit per TD-VSDD-053.** | state-manager | PASS-8 CLEAN BOOKKEEPING | STATE v7.429; NEXT: pass-9 adversary dispatch |
@@ -129,6 +129,7 @@ _D-001..D-046 archived: [cycles/phase-3-dtu-wave-2/decisions-archive-d001-d032.m
 
 | ID | Decision | Rationale | Phase | Date |
 |----|----------|-----------|-------|------|
+| D-745 | 2026-05-20 | product-owner (HOLDOUT-INDEX) + state-manager (burst commit) | **FB-IMPL-P11 closure burst — PLUGIN-MIGRATION-001-D pass-11 adversarial fix-burst complete. 1 MED finding closed in-scope (F-LP11-MED-001 HOLDOUT-INDEX State Checkpoint yaml block multi-field drift: total_scenarios 75→81, total_groups 12→13, p0_scenarios 59→65, timestamp 2026-05-04→2026-05-20, plugin_migration fields added). Pass-11 verdict BLOCKED-soft; streak reset 1/3 → 0/3. Product-owner scope: HOLDOUT-INDEX v1.7 → v1.8 (State Checkpoint refresh + disambiguating prose block); proactive sweep of BC-INDEX/STORY-INDEX/ARCH-INDEX confirmed no embedded state blocks in those (class of drift HOLDOUT-INDEX-specific). State-manager scope: pass-11 adversary report persisted + fix-burst-11 closure record. Cumulative closures 55 → 56. Lesson codified (S-7.02 candidate): 'When any fix-burst modifies HOLDOUT-INDEX frontmatter or adds HS-NNN files, the same burst MUST update the ## State Checkpoint yaml block to match (total_scenarios, total_groups, p0_scenarios, timestamp, plugin_migration_*).' Body-frontmatter coherence axis extended over passes 9 (story body), 10 (ADR §Status), 11 (HOLDOUT-INDEX State Checkpoint) — 3 sibling discoveries across pass-9/10/11 demonstrate need for explicit POL on embedded-state-block sweeps. 252nd consecutive single-commit per TD-VSDD-053.** | plugin-migration | 2026-05-20 | Decided by: product-owner (HOLDOUT-INDEX) + state-manager (burst commit). Status: APPROVED |
 | D-744 | 2026-05-20 | architect (ADR-028 §Status edit) + state-manager (burst commit) | **FB-IMPL-P10 closure burst — PLUGIN-MIGRATION-001-D pass-10 adversarial fix-burst complete. 1 LOW pending-intent finding closed in-scope (F-LP10-LOW-001 ADR-028 §Status line 25 historical-anchor disambiguation per body-frontmatter coherence axis extended to ADR §Status by pass-10). Pass-10 verdict CLEAN-with-observations; streak 0/3 → 1/3 advanced; preserved through tiny architect text-clarification burst per S-7.01 LOW-pending-intent rule. Architect scope: ADR-028 §Status line 25 'Proposed 2026-05-20, v1.0' → 'Proposed 2026-05-20, v1.0 (initial proposal version; current frontmatter v1.4 per §Changelog)' (Option C — preserves historical anchor, adds disambiguator); §Changelog v1.4 row extended in-place with F-LP10-LOW-001 closure note. No ADR version bump (cosmetic clarification only). No ARCH-INDEX bump. State-manager scope: pass-10 adversary report persisted + fix-burst-10 closure record. Cumulative closures 54 → 55. Lesson codified (S-7.02 candidate): ADR §Status sections may use historical-anchor convention but MUST include current-version disambiguator. 251st consecutive single-commit per TD-VSDD-053.** | plugin-migration | 2026-05-20 | Decided by: architect (ADR-028 §Status edit) + state-manager (burst commit). Status: APPROVED |
 | D-743 | 2026-05-20 | story-writer (story line 132 + changelog) + state-manager (burst commit) | **FB-IMPL-P9 closure burst — PLUGIN-MIGRATION-001-D pass-9 adversarial fix-burst complete. 1 MED finding closed in-scope (F-LP9-MED-001 story body header v1.5 vs frontmatter v1.6 — POL-29 sibling-sweep gap from FB-IMPL-P6-SW partial-fix regression; survived 8 prior passes; fresh-context compounding caught it). Pass-9 verdict BLOCKED-soft; streak reset 1/3 → 0/3. Story-writer scope: single-line edit story line 132 v1.5 → v1.6 + §Changelog v1.6 row extended in-place with FB-IMPL-P9 closure note. POL-29 sibling-sweep grep clean (no other body-header drift). No frontmatter bump (story v1.6 canonical). No STORY-INDEX bump (row 399 already v1.6). State-manager scope: pass-9 adversary report persisted; fix-burst-9 closure record. Cumulative closures 53 → 54. Lesson codified: every fix-burst MUST sweep file body when frontmatter is changed; SW agent should grep `Version.*v[0-9]+\.[0-9]+` after every story version bump. 250th consecutive single-commit per TD-VSDD-053.** | plugin-migration | 2026-05-20 | Decided by: story-writer (story line 132 + changelog) + state-manager (burst commit). Status: APPROVED |
 | D-742 | 2026-05-20 | state-manager (clean-pass bookkeeping burst) | **Pass-8 LOCAL adversary CLEAN-with-observations bookkeeping burst — PLUGIN-MIGRATION-001-D fresh-context pass-8 against ADR-028 v1.4 + BC-2.16.013 v1.6 + story v1.6 (53 cumulative closures verified durable; FB-IMPL-P7 introduced ZERO new defects). 0 HIGH + 0 MED + 0 LOW; 1 OBS = continuation of F-LP6/7-OBS-001 deferred TD-VSDD-091 line-pin siblings already routed to S-7.02 codification (NOT introduced this pass; NOT blocking; 7 sites total). Streak advances 0/3 → 1/3 per BC-5.39.001 / D-716 Option A. No fix-burst dispatched. State-manager scope: persist local-pass-8.md adversary report (adversary lacked write access) + STATE.md frontmatter sync (pass count 7→8; status PASS-8-CLEAN-STREAK-1-OF-3-AWAITING-PASS-9). 249th consecutive single-commit per TD-VSDD-053.** | plugin-migration | 2026-05-20 | Decided by: state-manager (clean-pass bookkeeping burst). Status: APPROVED |

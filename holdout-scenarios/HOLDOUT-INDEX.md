@@ -1,7 +1,7 @@
 ---
 document_type: holdout-scenario-index
 level: L3
-version: "1.7"
+version: "1.8"
 status: draft
 producer: product-owner
 timestamp: 2026-05-20T00:00:00Z
@@ -289,29 +289,34 @@ Minimum acceptance: All P0 scenarios PASS. P1 scenarios at least PARTIAL.
 
 ## State Checkpoint
 
+> **Note:** This State Checkpoint reflects the cumulative HOLDOUT-INDEX state as of the most recent version bump. Frontmatter fields (`total_scenarios`, `total_groups`, `timestamp`) are the canonical source of truth; this block is a point-in-time snapshot for downstream tooling consumption. `total_scenarios` counts top-level HS-NNN groups (each HS file = one scenario unit) plus prior sub-scenario accumulation per the v1.3 baseline accounting (52 sub-scenarios → 75 at v1.3, +6 HS files at v1.7 = 81). Verify by frontmatter `total_scenarios:` for the authoritative count.
+
 ```yaml
 document: holdout-index
-phase: 0_and_4b
-step: 5_and_wave4
+phase: 0_and_4b_and_plugin_migration
+step: 5_and_wave4_and_prereq
 status: complete
-total_scenarios: 75
-total_groups: 12
-p0_scenarios: 59
+total_scenarios: 81
+total_groups: 13
+p0_scenarios: 65
 p1_scenarios: 16
 repos_covered: 9/9_brownfield_plus_3_greenfield
 critical_bugs_verified: 14
 wave4_groups_added: 4
 wave4_scenarios_added: 23
+plugin_migration_groups_added: 1
+plugin_migration_scenarios_added: 6
 wave4_must_pass_groups: 3
 wave4_conditional_pass_groups: 1
 d216_closure: true
-timestamp: 2026-05-04T00:00:00Z
+timestamp: 2026-05-20T00:00:00Z
 ```
 
 ## Changelog
 
 | Version | Burst | Date | Author | Change |
 |---------|-------|------|--------|--------|
+| 1.8 | FB-IMPL-P11-PO | 2026-05-20 | product-owner | F-LP11-MED-001 closure + proactive embedded-state-block sweep per S-7.02 lesson preview: State Checkpoint yaml block refreshed (total_scenarios 75→81, total_groups 12→13, p0_scenarios 59→65, timestamp 2026-05-04→2026-05-20, phase/step/plugin_migration fields added). Disambiguating prose block added before yaml. HOLDOUT-INDEX v1.7→v1.8. |
 | 1.7 | FB-IMPL-P6-PO fix-burst-6 | 2026-05-20 | product-owner | F-LP6-LOW-001 closure (TD-VSDD-091 POL-25 sweep): HS-016 v1.1→v1.2 — replaced line-pinned cite `lib.rs:16-17` with module-doc anchor `crates/prism-dtu-armis/src/lib.rs module documentation` in §Scenario auth note. HOLDOUT-INDEX v1.6→v1.7. |
 | 1.6 | FB-IMPL-P5-PO fix-burst-5 | 2026-05-20 | product-owner | F-LP5-LOW-001 closure (TD-VSDD-091 POL-25 sweep): HS-015 v1.1→v1.2 — replaced line-pinned cites `alerts.rs:43-46` with symbol anchor `alerts.rs::extract_session_token()` at two locations (§Scenario auth note, HS-015-01 Step 2). HOLDOUT-INDEX v1.5→v1.6. |
 | 1.5 | FB-IMPL-P4-PO fix-burst-4 | 2026-05-20 | product-owner | F-LP4-HIGH-001/F-LP4-HIGH-002/F-LP4-HIGH-004 closure: HS-013 v1.0→v1.1 (URL re-grounded to `/detects/queries/detects/v1`+`/detects/entities/summaries/GET/v1` per ADR-028 §D1; fixture reference at `prism-dtu-crowdstrike/fixtures/parity/reference-ocsf/detections.json` per ADR-028 §D3; request_count relaxed to >=2). HS-014 v1.0→v1.1 (auth corrected to `bearer_static` per ADR-028 §D2; scenario pivoted to `alerts` table at `POST /api/v1/alerts` per ADU gap note DTU-EXT-002; fixture reference added). HS-015 v1.0→v1.1 (auth corrected to `cookie_roundtrip` per ADR-028 §D2; URL corrected from `/api/alerts` to `/api/v1/alerts` per ADR-028 §D1; fixture reference added). HS-016 v1.0→v1.1 (auth corrected to `bearer_static` per ADR-028 §D2; DTU gap noted for AQL routes DTU-EXT-003/004; fixture reference added; bearer auth step added). |
