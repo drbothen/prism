@@ -1,7 +1,7 @@
 ---
 document_type: behavioral-contract
 level: L3
-version: "1.3"
+version: "1.4"
 status: draft
 producer: product-owner
 timestamp: 2026-05-20T00:00:00Z
@@ -22,11 +22,14 @@ inputs:
   - ".factory/specs/prd.md"
   - ".factory/specs/domain-spec/capabilities.md"
   - ".factory/specs/architecture/decisions/ADR-023-plugin-only-sensor-architecture.md"
+  - ".factory/specs/architecture/decisions/ADR-028-toml-spec-grounding-vs-dtu-routes.md"
   - ".factory/specs/test-strategy/TS-PLUGIN-PARITY-001-dtu-canonicalization.md"
-  - "crates/prism-sensors/src/auth/crowdstrike.rs"
-  - "crates/prism-sensors/src/auth/claroty.rs"
-  - "crates/prism-sensors/src/auth/cyberint.rs"
-  - "crates/prism-sensors/src/auth/armis.rs"
+  - "crates/prism-dtu-crowdstrike/src/routes/mod.rs"
+  - "crates/prism-dtu-claroty/src/clone.rs"
+  - "crates/prism-dtu-cyberint/src/clone.rs"
+  - "crates/prism-dtu-cyberint/src/routes/alerts.rs"
+  - "crates/prism-dtu-armis/src/clone.rs"
+  - "crates/prism-dtu-armis/src/lib.rs"
 input-hash: null
 traces_to:
   - "CAP-029"
@@ -107,69 +110,100 @@ must be notified for sub-story creation.
 
 ### 1. Spec Files Authored and Validated
 
-Four production TOML sensor spec files are created at `crates/prism-sensors/specs/`:
+Four production TOML sensor spec files are created at `crates/prism-sensors/specs/`.
+
+**Grounding authority (per ADR-028 §D1):** All URL paths are derived from DTU clone route
+registrations, not from the legacy Rust adapter code. The legacy adapters have simplified URL
+paths that do not match the real third-party APIs; they are deleted by PLUGIN-MIGRATION-001-A.
+**Grounding authority (per ADR-028 §D2):** All `auth_type` values are derived from DTU clone
+authentication enforcement behavior, which reflects the real third-party API's auth contract.
 
 - `crowdstrike.sensor.toml` — `sensor_id: "crowdstrike"`, `auth_type: "oauth2_client_credentials"`,
   base URL pattern `https://api.{cloud_region}.crowdstrike.com`, tables:
-  - `detections` — QueryV2 step (GET `/queries/detections`) → PostEntities step
-    (POST `/entities/detections/GET`) with batch size ≤ 100 (CROWDSTRIKE_BATCH_SIZE)
-  - `devices` — QueryV2 step (GET `/queries/devices`) → PostEntities step
-    (POST `/entities/devices/GET`) with batch size ≤ 100
-  - `incidents` — QueryV2 step (GET `/queries/incidents`) → PostEntities step
-    (POST `/entities/incidents/GET`) with batch size ≤ 100
-  URL patterns derived from `crowdstrike.rs`: `query_resource_ids` uses
-  `format!("{}/queries/{}", self.base_url, resource_type)` (crowdstrike.rs:262) and
-  `fetch_entities` uses `format!("{}/entities/{}/GET", self.base_url, resource_type)`
-  (crowdstrike.rs:315); `resource_type` is derived via `resource_type_from_spec()` which
-  strips `"crowdstrike_"` prefix and pluralizes (crowdstrike.rs:369-375).
+  - `detections` — QueryV2 step (GET `/detects/queries/detects/v1`) → PostEntities step
+    (POST `/detects/entities/summaries/GET/v1`) with batch size ≤ 100 (CROWDSTRIKE_BATCH_SIZE).
+    URL grounded: `crates/prism-dtu-crowdstrike/src/routes/mod.rs` route registrations
+    (lines 189, 193 per pass-4 adversarial ground truth; exact anchor:
+    `"/detects/queries/detects/v1"` and `"/detects/entities/summaries/GET/v1"`).
+  - `devices` — QueryV2 step (GET `/devices/queries/devices/v1`) → PostEntities step
+    (GET `/devices/entities/devices/v2`).
+    URL grounded: `crates/prism-dtu-crowdstrike/src/routes/mod.rs` (lines 197-198:
+    `"/devices/queries/devices/v1"` and `"/devices/entities/devices/v2"`).
+  - `incidents` — **See §Known Gaps: DTU-EXT-001.** No DTU route registered for incidents.
+    This table entry is deferred until the DTU clone is extended (ADR-028 §D5).
   Each table's columns match the Arrow schema produced by the prior Rust adapter (BC-2.01.005
   field enumeration); OCSF field mappings reproduce the prior `CrowdStrikeAdapter::fetch()`
-  (`SensorAdapter::fetch` trait method, `crowdstrike.rs`) normalization. Version: `"1.0.0"`. Rate limit hints: `requests_per_second: 10.0`.
+  (`SensorAdapter::fetch` trait method) normalization. Version: `"1.0.0"`. Rate limit hints: `requests_per_second: 10.0`.
+  Auth grounded: CrowdStrike DTU enforces OAuth2 token endpoint (`/oauth2/token` in
+  `crates/prism-dtu-crowdstrike/src/routes/mod.rs`) → `auth_type = "oauth2_client_credentials"`.
 
-- `claroty.sensor.toml` — `sensor_id: "claroty"`, `auth_type: "cookie_roundtrip"`,
+- `claroty.sensor.toml` — `sensor_id: "claroty"`, `auth_type: "bearer_static"`,
   base URL from instance_url, tables:
-  - `assets` — POST `/api/v1/assets` (POST-for-read pattern) with offset pagination
-  - `alerts` — POST `/api/v1/alerts` with offset pagination
-  - `audit_logs` — GET `/api/v1/audit_logs` via `paginate_claroty()` stream semantics
-  URL patterns derived from `claroty.rs:endpoint_from_spec()` (claroty.rs:238-244):
-  `"audit_logs"` → `"/api/v1/audit_logs"` (special case, claroty.rs:240-241); all other
-  tables strip `"claroty_"` prefix, pluralize, and prepend `"/api/v1/"` (claroty.rs:243-244).
-  NO `/xdome` prefix — that was a phantom; the code emits `/api/v1/{resource}s` directly.
+  - `assets` — **See §Known Gaps: DTU-EXT-002.** DTU has `/api/v1/devices`, not `/api/v1/assets`.
+    This table entry is deferred until the DTU clone is extended (ADR-028 §D5).
+  - `alerts` — POST `/api/v1/alerts` with offset pagination.
+    URL grounded: `crates/prism-dtu-claroty/src/clone.rs` `build_router()` (line 86:
+    `"/api/v1/alerts"` registered as POST route).
+  - `audit_logs` — GET `/api/v1/audit_logs` via offset pagination.
+    No DTU route registered — this table depends on DTU extension (see §Known Gaps).
+    NO `/xdome` prefix — the production Claroty xDome API does not use that path prefix.
   Polymorphic ID handling: `ClarotyId` (int or UUID string) expressed as column type `string`
   with OCSF `raw_extensions` passthrough. Version: `"1.0.0"`.
+  Auth grounded: Claroty DTU (`crates/prism-dtu-claroty/src/routes/devices.rs` and
+  `routes/alerts.rs`) enforces `Authorization: Bearer {non-empty}` header →
+  `auth_type = "bearer_static"`. (The legacy `ClarotyAuth::auth_type_name()` incorrectly
+  returned `"cookie_roundtrip"` — this is a latent label bug deleted by PLUGIN-MIGRATION-001-A.
+  Per ADR-028 §D2 and CLAUDE.md §Source-of-Truth Precedence #7, spec follows DTU, not adapter code.)
 
-- `cyberint.sensor.toml` — `sensor_id: "cyberint"`, `auth_type: "bearer_static"`,
+- `cyberint.sensor.toml` — `sensor_id: "cyberint"`, `auth_type: "cookie_roundtrip"`,
   base URL from environment (`https://{environment}.cyberint.io`), tables:
-  - `alerts` — GET `/api/alerts` with cursor pagination
-  - `incidents` — GET `/api/incidents` (Cyberint DTU gap: parity tests in SKIP per
-    TS-PLUGIN-PARITY-001 Cyberint DTU Gap Note until DTU coverage of `incidents` pagination
-    behavior is verified)
-  URL patterns derived from `cyberint.rs:endpoint_from_spec()` (cyberint.rs:244-251):
-  strips `"cyberint_"` prefix and pluralizes with `/api/` prefix (cyberint.rs:251:
-  `format!("/api/{resource}s")`). NO `/v1` segment — that was a phantom.
+  - `alerts` — GET `/api/v1/alerts` with cursor pagination.
+    URL grounded: `crates/prism-dtu-cyberint/src/clone.rs` `build_router()` (line 115:
+    `"/api/v1/alerts"` registered as GET route).
+  - `incidents` — Cyberint DTU gap: parity tests in SKIP per TS-PLUGIN-PARITY-001 Cyberint
+    DTU Gap Note until DTU coverage of `incidents` pagination behavior is verified.
   Multi-format timestamp parsing (`parse_timestamp()`) is expressed via column `type: "datetime"`
   with a WASM transformer plugin for multi-format parsing (see O-001 Grammar Verification note
   in §Preconditions — `timestamp_format: "multi"` is NOT present in the current TOML grammar
   and requires a grammar extension or WASM plugin as a prerequisite). Version: `"1.0.0"`.
+  Auth grounded: Cyberint DTU (`crates/prism-dtu-cyberint/src/routes/alerts.rs:43-46`)
+  enforces cookie-based session auth — extracts `cyberint_session` cookie from `Cookie` header
+  → `auth_type = "cookie_roundtrip"`. (The legacy `CyberintAuth::auth_type_name()` incorrectly
+  returned `"bearer_static"` — this is a latent label bug deleted by PLUGIN-MIGRATION-001-A.
+  Per ADR-028 §D2 and CLAUDE.md §Source-of-Truth Precedence #7, spec follows DTU, not adapter code.)
 
-- `armis.sensor.toml` — `sensor_id: "armis"`, `auth_type: "api_key"`,
+- `armis.sensor.toml` — `sensor_id: "armis"`, `auth_type: "bearer_static"`,
   base URL from instance_url, tables:
-  - `devices` — GET `/api/v1/search` (NO trailing slash) with AQL parameter `aql=in:devices`
-    (default AQL derived from `DEFAULT_AQL_TEMPLATE = "in:{table}"` at armis.rs:72) or
-    verbatim spec-supplied AQL via the `${query.filter.aql}` interpolation variable.
-    Page-based pagination.
-  - `alerts` — GET `/api/v1/search` (same single endpoint; discriminated by AQL expression
-    `aql=in:alerts` default or spec-supplied AQL) with page-based pagination.
-  URL derived from `armis.rs:get_search()` (armis.rs:517):
-  `format!("{}/api/v1/search", self.instance_url)` — NO trailing slash. Both `devices` and
-  `alerts` tables call the SAME `/api/v1/search` endpoint; the resource type is differentiated
-  via the `aql` query parameter, not via separate endpoint paths.
+  - `devices` — **See §Known Gaps: DTU-EXT-003.** DTU has `/api/v1/devices` (GET), not
+    `/api/v1/search` with AQL. This table entry is deferred pending DTU extension or
+    BC scope reconciliation (ADR-028 §D5).
+  - `alerts` — **See §Known Gaps: DTU-EXT-004.** DTU has `/api/v1/alerts` (GET), not
+    `/api/v1/search` with AQL. This table entry is deferred pending DTU extension or
+    BC scope reconciliation (ADR-028 §D5).
   Timestamp fallback chain: `firstSeen` → `lastSeen` → `DateTime::now()` expressed via a
   WASM transformer plugin (see O-001 Grammar Verification note in §Preconditions —
   `timestamp_fallback_chain` is NOT present in the current TOML grammar and requires a grammar
   extension or WASM plugin as a prerequisite). WARN emission when falling back to `now()`
   preserves the existing `tracing::warn!` audit signal.
   Version: `"1.0.0"`.
+  Auth grounded: Armis DTU (`crates/prism-dtu-armis/src/lib.rs`:16-17) enforces
+  `Authorization: Bearer {non-empty}` header with HTTP 403 on missing/invalid token
+  (Armis Centrix API spec behavior) → `auth_type = "bearer_static"`. (The legacy
+  `ArmisAuth::auth_type_name()` returned `"api_key"` — per ADR-028 §D2, spec follows DTU.)
+
+### Known Gaps (DTU Extension Required — ADR-028 §D5)
+
+Per ADR-028 §D5, a TOML spec entry for a URL path that has no corresponding DTU route
+registration is an architectural violation. The following gaps are identified, cataloged,
+and surfaced to the orchestrator for follow-up story creation. They are NOT blockers for
+PLUGIN-MIGRATION-001-D cascade convergence (pass-5 will independently verify status).
+
+| Gap ID | Sensor | Table | BC Entry | DTU Status | Recommended Resolution |
+|--------|--------|-------|----------|------------|----------------------|
+| DTU-EXT-001 | CrowdStrike | `incidents` | No DTU route registered | No incidents route in `prism-dtu-crowdstrike/src/routes/mod.rs` | Extend `prism-dtu-crowdstrike` with incidents routes in a follow-up story (Falcon Detects/Incidents API exists in real API) OR remove incidents table from 001-D BC scope |
+| DTU-EXT-002 | Claroty | `assets` | DTU has `/api/v1/devices`; BC had `/api/v1/assets` | `prism-dtu-claroty/src/clone.rs` line 85: `/api/v1/devices` registered | Extend `prism-dtu-claroty` with `/api/v1/assets` route OR reconcile that Claroty "assets" table maps to `/api/v1/devices` (table name vs endpoint may differ per xDome API) |
+| DTU-EXT-003 | Armis | `devices` | DTU has `/api/v1/devices` (GET); BC had `/api/v1/search` w/ AQL | `prism-dtu-armis/src/clone.rs` line 143: `/api/v1/devices` registered | Extend `prism-dtu-armis` with AQL-search endpoint OR split Armis `devices` table to use `/api/v1/devices` directly |
+| DTU-EXT-004 | Armis | `alerts` | DTU has `/api/v1/alerts` (GET); BC had `/api/v1/search` w/ AQL | `prism-dtu-armis/src/clone.rs` line 150: `/api/v1/alerts` registered | Extend `prism-dtu-armis` with AQL-search endpoint OR split Armis `alerts` table to use `/api/v1/alerts` directly |
 
 All four specs pass BC-2.16.009 validation (no schema errors, no variable reference errors)
 and are loaded by BC-2.16.001 at startup when `sensor_specs_dir` includes `crates/prism-sensors/specs/`.
@@ -209,12 +243,24 @@ For each `(sensor_id, table)` pair with non-SKIP status:
          auth_provider: &dyn AuthProvider,
      ) -> Result<PipelineResult, SpecEngineError>
      ```
-  4. Execute the reference path: load the fixture payload from `prism-dtu-{sensor}/fixtures/parity/`
-     and apply the prior Rust adapter's `SensorAdapter::fetch()` trait method (implemented as
-     `CrowdStrikeAdapter::fetch()`, `ClarotyAdapter::fetch()`, `CyberintAdapter::fetch()`, and
-     `ArmisAdapter::fetch()` respectively in `crates/prism-sensors/src/auth/{sensor}.rs`) to
-     produce the reference OCSF output
-  5. Apply TS-PLUGIN-PARITY-001 Rules A–I canonicalization and compare
+  4. Load reference OCSF output from committed fixture JSON at
+     `crates/prism-dtu-{sensor}/fixtures/parity/reference-ocsf/<table>.json`
+     (e.g., `crates/prism-dtu-crowdstrike/fixtures/parity/reference-ocsf/detections.json`).
+     Parse via `serde_json::from_str::<serde_json::Value>(&content)`.
+     **Fixture provenance:** recorded once by running the legacy adapter against the DTU clone
+     before PLUGIN-MIGRATION-001-A deletes the adapter — captures real-API-shaped responses,
+     not adapter-bug-simplified responses (per ADR-028 §D3). After 001-A deletes the adapters,
+     the committed fixture JSON is the permanent parity reference. Fixtures are NEVER
+     regenerated automatically at test runtime.
+     **No `prism-sensors` dev-dep on `prism-spec-engine`** — the fixture mechanism eliminates
+     any need to call `CrowdStrikeAdapter::fetch()` (etc.) from `prism-spec-engine` test code.
+     Story §Forbidden Dependencies (blocking `prism-sensors` as a `prism-spec-engine` dependency)
+     remains intact (per ADR-028 §D3).
+  5. Canonicalize both values: serialize to JSON with sorted keys, trim whitespace.
+     Apply TS-PLUGIN-PARITY-001 Rules A–I canonicalization and compare
+     plugin-output OCSF (from step 3 in-memory result) against reference OCSF
+     (from step 4 fixture JSON). Comparison is byte-identical after canonical
+     JSON serialization (sorted keys, whitespace-trimmed).
   6. Assert parity verdict is PASS or WARN (zero FAILs) for the test case
 
 - Minimum coverage per `(sensor_id, table)` pair: 3 real-sensor fixture cases + 3 synthesized cases
@@ -290,14 +336,14 @@ never registered in error-taxonomy.md and does not exist as a runtime error.)
 
 | Scenario | Sensor | Input | Expected Outcome |
 |----------|--------|-------|-----------------|
-| Happy-path CrowdStrike detections | crowdstrike | DTU stub: QueryV2 returns 3 detection IDs; PostEntities returns 3 full detection records | Parity PASS: spec-driven OCSF matches reference OCSF for all 3 detections; `request_count == 2` |
+| Happy-path CrowdStrike detections | crowdstrike | DTU stub: QueryV2 returns 3 detection IDs from `GET /detects/queries/detects/v1`; PostEntities returns 3 full records from `POST /detects/entities/summaries/GET/v1` | Parity PASS: spec-driven OCSF matches reference OCSF for all 3 detections; `request_count >= 2` (single-page QueryV2 assumption: exactly 2 if response fits one page; > 2 if QueryV2 paginates) |
 | CrowdStrike batch cap | crowdstrike | DTU stub: QueryV2 returns 100 detection IDs in one page | Parity PASS: spec produces one PostEntities batch of 100 (not 101+); `batch_size` cap respected |
 | Claroty integer ID | claroty | DTU stub: asset record with `"id": 12345` (integer) | Parity PASS: `id` column value `"12345"` (string-normalized) matches reference |
 | Claroty UUID string ID | claroty | DTU stub: asset record with `"id": "550e8400-e29b-41d4-a716-446655440000"` | Parity PASS: `id` column value `"550e8400-..."` matches reference |
-| Cyberint alerts happy path | cyberint | DTU stub: 5 alert records with ISO-8601 timestamps | Parity PASS: timestamps normalized to UTC per Rule C; OCSF fields match |
+| Cyberint alerts happy path | cyberint | DTU stub: 5 alert records from `GET /api/v1/alerts` with ISO-8601 timestamps; auth via `cyberint_session` cookie | Parity PASS: timestamps normalized to UTC per Rule C; OCSF fields match; reference loaded from `crates/prism-dtu-cyberint/fixtures/parity/reference-ocsf/alerts.json` |
 | Armis devices timestamp fallback | armis | DTU stub: device record with no `firstSeen` or `lastSeen` fields | Parity PASS by Rule C convention (both sides take fetch-time timestamp fallback path); WARN logged |
 | Armis AQL forwarding | armis | Query with custom AQL expression passed in `${query.filter.aql}` (caller sets `FetchContext::query_filters["aql"]`) | Parity PASS: DTU receives verbatim AQL expression in `aql` parameter; response matches reference |
-| Spec load validation — crowdstrike | crowdstrike | `crowdstrike.sensor.toml` content passed through `SpecLoader::parse(toml_input: &str)` (spec_parser.rs:655) | `Ok(SensorSpec)` with `sensor_id == "crowdstrike"`, correct auth_type and table count |
+| Spec load validation — crowdstrike | crowdstrike | `crowdstrike.sensor.toml` content passed through `SpecLoader::parse(toml_input: &str)` (spec_parser.rs:655) — NOTE: `SpecLoader::parse` has no filename context; filename-stem vs sensor_id validation requires `SpecLoader::load_all()` or `parse_spec_directory()` which supply the filename. See F-LP4-MED-002 closure in §Error Conditions note. | `Ok(SensorSpec)` with `sensor_id == "crowdstrike"`, `auth_type == "oauth2_client_credentials"`, correct table count (2 verified tables: detections, devices; incidents gated on DTU-EXT-001) |
 | Empty SKIP — cyberint.incidents | cyberint | Parity test targeting `cyberint.incidents` table | Test returns SKIP with message "cyberint incidents DTU gap — see TS-PLUGIN-PARITY-001 Cyberint DTU Gap Note" |
 
 ## Verification Properties
@@ -320,10 +366,15 @@ never registered in error-taxonomy.md and does not exist as a runtime error.)
 
 ## Architecture Anchors
 
+- ADR-028 §D1 (URL grounding rule — TOML spec URL paths derived from DTU clone route registrations, not production Rust adapter code)
+- ADR-028 §D2 (auth_type grounding rule — TOML spec auth_type derived from DTU clone enforcement behavior, which reflects the real third-party API's auth contract)
+- ADR-028 §D3 (parity reference OCSF grounding rule — committed fixture JSON at `crates/prism-dtu-{sensor}/fixtures/parity/reference-ocsf/<table>.json`; no prism-sensors dev-dep required)
+- ADR-028 §D5 (DTU extension prerequisite — spec entry for a URL path with no DTU route registration is an architectural violation; DTU-EXT-001..004 identified)
 - ADR-023 §Decision Rules — Rule 3 (VP-PLUGIN-003 parity gate — replacement-before-deletion prerequisite)
 - ADR-023 §Decision Rules — Rule 1 (four initial sensors ship as pure TOML specs; no in-repo .prx plugin required for the four initial sensors; OCSF complex-transform plugins are a separate concern per Rule 1)
 - TS-PLUGIN-PARITY-001 (canonicalization rules for parity comparison: Rules A–I, Rule I fixture minimum, Cyberint DTU Gap Note)
 - ADR-023 §Architectural Constraints — C2 (PipelineExecutor as the spec-driven execution engine, replacing the `Ok(Vec::new())` stub; real implementation in PLUGIN-PREREQ-B)
+- CLAUDE.md §Source-of-Truth Precedence #7 (spec wins on code-vs-spec conflict; legacy adapter URLs and auth_type_name() strings are bugs in code deleted by PLUGIN-MIGRATION-001-A)
 
 ## Story Anchor
 
@@ -342,13 +393,14 @@ PLUGIN-MIGRATION-001-D (implementing story; planned → draft after PO authoring
 | L2 Invariants | DI-008 (client scoping — specs do not cross client boundaries), DI-030 (partial-failure isolation — one spec failure does not block others), DI-012 (auth composition prevention — each spec declares exactly one auth_type) |
 | L2 Entities | SensorSpec, TableSpec, ColumnSpec, PipelineResult |
 | Priority | P0 |
-| ADR anchors | ADR-023 §Decision Rules — Rule 1, §Decision Rules — Rule 3; ADR-023 §Architectural Constraints — C2; TS-PLUGIN-PARITY-001 Rules A–I |
+| ADR anchors | ADR-028 §D1 (URL grounding), §D2 (auth_type grounding), §D3 (fixture-JSON parity reference), §D5 (DTU extension prerequisite); ADR-023 §Decision Rules — Rule 1, §Decision Rules — Rule 3; ADR-023 §Architectural Constraints — C2; TS-PLUGIN-PARITY-001 Rules A–I |
 | Subsystem | SS-16 (Spec Engine) |
 
 ## Changelog
 
 | Version | Burst | Date | Author | Change |
 |---------|-------|------|--------|--------|
+| 1.4 | FB-IMPL-P4-PO fix-burst-4 | 2026-05-20 | product-owner | Closes pass-4 findings F-LP4-HIGH-001 (URL re-grounding), F-LP4-HIGH-002 (fixture-JSON parity mechanism), F-LP4-HIGH-003 (E-SPEC-017 enforcement — see BC-2.16.001 v1.5), F-LP4-HIGH-004 (auth_type swap), F-LP4-MED-002 (RG-09 test driver clarification in test vector note), F-LP4-MED-003 (request_count fragility — relaxed to >= 2). F-LP4-HIGH-001: all sensor URL paths re-grounded against DTU clone route registrations per ADR-028 §D1 (CrowdStrike: `/detects/queries/detects/v1` + `/detects/entities/summaries/GET/v1`; devices: `/devices/queries/devices/v1` + `/devices/entities/devices/v2`; Cyberint alerts: `/api/v1/alerts`; Claroty alerts: `/api/v1/alerts`). F-LP4-HIGH-002: §Postconditions §2 step 4 rewritten — reference OCSF loaded from committed fixture JSON at `crates/prism-dtu-{sensor}/fixtures/parity/reference-ocsf/<table>.json`; comparison is byte-identical after canonical JSON serialization; no `prism-sensors` dev-dep; ADR-028 §D3 cited. F-LP4-HIGH-003: F-LP4-MED-002 closure: `SpecLoader::parse` lacks filename context; filename-stem validation requires `SpecLoader::load_all()` or `parse_spec_directory()`; noted in Canonical Test Vector row. F-LP4-HIGH-004: auth_type corrected to DTU-grounded values per ADR-028 §D2 — claroty=`bearer_static` (was `cookie_roundtrip`), cyberint=`cookie_roundtrip` (was `bearer_static`), armis=`bearer_static` (was `api_key`), crowdstrike=`oauth2_client_credentials` (unchanged). §Known Gaps section added with DTU-EXT-001..004 for orchestrator follow-up (CrowdStrike incidents, Claroty assets, Armis devices via AQL, Armis alerts via AQL). ADR-028 §D1/D2/D3/D5 cited in §inputs, §Architecture Anchors. Legacy adapter source files removed from §inputs — per ADR-028 §D4, adapter code is NOT a grounding reference. |
 | 1.3 | FB-IMPL-P3-PO fix-burst-3 | 2026-05-20 | product-owner | Closes pass-3 findings F-LP3-CRIT-001, F-LP3-CRIT-002, F-LP3-CRIT-003, F-LP3-HIGH-001, F-LP3-HIGH-002. F-LP3-CRIT-001: replaced phantom `spec_parser::parse_spec_file()` with `SpecLoader::parse(toml_input: &str)` in §Postconditions §2 step 2 and §Canonical Test Vectors (CODE-GROUNDED: spec_parser.rs:655). F-LP3-CRIT-002: corrected all CrowdStrike URL paths — `/detects/queries/detects/v1` etc. replaced with actual patterns from crowdstrike.rs:262,315: `/queries/{resource_type}` (QueryV2) and `/entities/{resource_type}/GET` (PostEntities); incidents table corrected to two-step (same pattern); URL derivation via `resource_type_from_spec()` (crowdstrike.rs:369-375) documented. F-LP3-CRIT-003: stripped `/xdome` prefix from all Claroty endpoints — actual pattern is `/api/v1/{resource}s` (claroty.rs:244); `/xdome` was never present in the code. F-LP3-HIGH-001: removed `/v1` segment from Cyberint endpoints — actual pattern is `/api/{resource}s` (cyberint.rs:251); no `/v1` in Cyberint URL construction. F-LP3-HIGH-002: corrected Armis endpoint — single `/api/v1/search` (no trailing slash, armis.rs:517) used for ALL queries including both `devices` and `alerts`; AQL discriminator `in:devices` / `in:alerts` via `DEFAULT_AQL_TEMPLATE` (armis.rs:72) documented; phantom per-resource endpoint paths removed. |
 | 1.2 | FB-IMPL-P2-PO fix-burst-2 | 2026-05-20 | product-owner | Closes pass-2 findings F-001, F-002, F-003, F-004, F-005. F-001: swapped auth_type strings in §Postconditions §1 — claroty=`cookie_roundtrip` (was `bearer_static`), cyberint=`bearer_static` (was `cookie_roundtrip`), matching `ClarotyAuth::auth_type_name()` = `"cookie_roundtrip"` and `CyberintAuth::auth_type_name()` = `"bearer_static"` per code-grounded verification of `crates/prism-sensors/src/auth/{claroty,cyberint}.rs`. F-002: corrected §Error Conditions — E-SPEC-009 row now accurately describes ONLY duplicate-sensor_id (not filename-stem mismatch); added E-SPEC-017 row for filename-stem-vs-sensor_id mismatch (newly registered in error-taxonomy.md v1.41 per POL-1 append-only). F-003: replaced phantom `CrowdStrikeAdapter::fetch_page()` (non-existent) with actual `SensorAdapter::fetch()` trait method in §Postconditions §1 and §2 (CODE-GROUNDED: `crowdstrike.rs` has `fetch()` at trait impl, no `fetch_page()`; all 4 sensors use the same `SensorAdapter::fetch()` entry point). F-004: corrected `${query.aql}` → `${query.filter.aql}` in §Canonical Test Vectors Armis AQL forwarding row. F-005 (TD-VSDD-091): replaced `spec_parser.rs:128` → `FetchStep::fan_out_batch_size field` and `pipeline.rs:246-250` → `PipelineExecutor::execute_impl query.filter.{k} step-vars seeding` in §Preconditions O-001 table. |
 | 1.1 | FB-IMPL-P1-PO fix-burst-1 | 2026-05-20 | product-owner | Closes pass-1 adversarial findings F-001/F-002/F-004/F-006/F-007/O-001. F-001: replaced fabricated `prism_dtu_{sensor}::server::spawn()` / `DtuHandle` API with actual `BehavioralClone::start_on(bind, shutdown, tls) -> anyhow::Result<SocketAddr>` trait (all 4 clones share via `prism_dtu_common::BehavioralClone`). F-002: replaced fabricated `PipelineExecutor::execute(spec, "<table_name>", &NullAuthProvider, ...)` with actual 5-arg signature `(spec: &SensorSpec, table: &TableSpec, context: &FetchContext, http_client: &reqwest::Client, auth_provider: &dyn AuthProvider) -> Result<PipelineResult, SpecEngineError>`. F-004: retired fabricated `E-SPEC-015` (parity FAIL is a test verdict, not a runtime error code) and replaced fabricated `E-SPEC-016` with `E-SPEC-009` (existing code already covers sensor_id/filename mismatch). F-006: corrected `ADR-023 §Rule 1` / `§Rule 3` phantom anchors to `ADR-023 §Decision Rules — Rule 1` / `§Decision Rules — Rule 3`. F-007: corrected `ADR-022 §C2` phantom anchor (C2 is in ADR-023, not ADR-022) to `ADR-023 §Architectural Constraints — C2`. O-001: added grammar verification table in §Preconditions confirming `fan_out_batch_size` SUPPORTED, `${query.filter.aql}` SUPPORTED (not `${query.aql}`), `timestamp_format = "multi"` NOT SUPPORTED, `timestamp_fallback_chain` NOT SUPPORTED — grammar extension or WASM plugin required as implementer prerequisite. Postconditions updated to reflect grammar gaps. |

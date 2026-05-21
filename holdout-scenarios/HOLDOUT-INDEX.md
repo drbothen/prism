@@ -1,7 +1,7 @@
 ---
 document_type: holdout-scenario-index
 level: L3
-version: "1.4"
+version: "1.5"
 status: draft
 producer: product-owner
 timestamp: 2026-05-20T00:00:00Z
@@ -40,8 +40,8 @@ total_scenarios: 81
 | HS-012 | [HS-012-action-delivery.md](HS-012-action-delivery.md) | Action Delivery | 6 | P0 | D-209 semaphore independence, VP-045 non-blocking, ADR-016 §2.5 discriminator FSM |
 | HS-013 | [HS-013-crowdstrike-dtu-parity.md](HS-013-crowdstrike-dtu-parity.md) | CrowdStrike DTU Parity | 2 | P0 | Two-step pipeline spec parity; batch cap at CROWDSTRIKE_BATCH_SIZE (100) |
 | HS-014 | [HS-014-claroty-post-for-read-parity.md](HS-014-claroty-post-for-read-parity.md) | Claroty POST-for-Read Parity | 2 | P0 | POST-for-read pattern; polymorphic ID (integer vs UUID string) normalization |
-| HS-015 | [HS-015-cyberint-alerts-cursor-parity.md](HS-015-cyberint-alerts-cursor-parity.md) | Cyberint Alerts Cursor Parity | 3 | P0 | Multi-format timestamp parsing; SKIP verdict for incidents table |
-| HS-016 | [HS-016-armis-aql-timestamp-fallback-parity.md](HS-016-armis-aql-timestamp-fallback-parity.md) | Armis AQL + Timestamp Fallback Parity | 3 | P0 | AQL forwarding via `${query.filter.aql}`; fallback chain; WARN audit signal |
+| HS-015 | [HS-015-cyberint-alerts-cursor-parity.md](HS-015-cyberint-alerts-cursor-parity.md) | Cyberint Alerts Cursor Parity | 3 | P0 | Multi-format timestamp parsing; SKIP verdict for incidents table; cookie_roundtrip auth; GET /api/v1/alerts |
+| HS-016 | [HS-016-armis-aql-timestamp-fallback-parity.md](HS-016-armis-aql-timestamp-fallback-parity.md) | Armis AQL + Timestamp Fallback Parity | 3 | P0 | AQL forwarding via `${query.filter.aql}`; fallback chain; WARN audit signal; bearer_static auth; DTU gaps DTU-EXT-003/004 noted |
 | HS-017 | [HS-017-bundled-spec-validation-gate.md](HS-017-bundled-spec-validation-gate.md) | Bundled Spec Validation CI Gate | 2 | P0 | Negative: malformed specs rejected by BC-2.16.009 (E-SPEC-002, E-SPEC-003) |
 | HS-018 | [HS-018-spec-id-filename-mismatch-rejection.md](HS-018-spec-id-filename-mismatch-rejection.md) | Spec sensor_id / Filename Mismatch | 3 | P0 | Negative: sensor_id ≠ filename stem rejected at load time (E-SPEC-017) |
 
@@ -189,15 +189,15 @@ total_scenarios: 81
 
 | ID | Title | Crates Tested |
 |----|-------|--------------|
-| HS-013-01 | CrowdStrike Detections Happy Path — 3 Detection Records, 2 HTTP Calls | prism-spec-engine, prism-dtu-crowdstrike |
-| HS-013-02 | CrowdStrike Batch Cap at CROWDSTRIKE_BATCH_SIZE (100 IDs, 1 PostEntities Batch) | prism-spec-engine, prism-dtu-crowdstrike |
+| HS-013-01 | CrowdStrike Detections Happy Path — 3 Detection Records, >=2 HTTP Calls (DTU routes: /detects/queries/detects/v1 + /detects/entities/summaries/GET/v1) | prism-spec-engine, prism-dtu-crowdstrike |
+| HS-013-02 | CrowdStrike Batch Cap at CROWDSTRIKE_BATCH_SIZE (100 IDs, 1 PostEntities Batch; DTU route: POST /detects/entities/summaries/GET/v1) | prism-spec-engine, prism-dtu-crowdstrike |
 
 ### HS-014: Claroty POST-for-Read Parity (P0) — PLUGIN-MIGRATION-001-D
 
 | ID | Title | Crates Tested |
 |----|-------|--------------|
-| HS-014-01 | Claroty Assets POST-for-Read — Integer ID Polymorphic Normalization | prism-spec-engine, prism-dtu-claroty |
-| HS-014-02 | Claroty Assets POST-for-Read — UUID String ID Polymorphic Normalization | prism-spec-engine, prism-dtu-claroty |
+| HS-014-01 | Claroty Alerts POST-for-Read — Integer ID Polymorphic Normalization (bearer_static auth; POST /api/v1/alerts) | prism-spec-engine, prism-dtu-claroty |
+| HS-014-02 | Claroty Alerts POST-for-Read — UUID String ID Polymorphic Normalization (bearer_static auth; POST /api/v1/alerts) | prism-spec-engine, prism-dtu-claroty |
 
 ### HS-015: Cyberint Alerts Cursor Parity (P0) — PLUGIN-MIGRATION-001-D
 
@@ -312,6 +312,7 @@ timestamp: 2026-05-04T00:00:00Z
 
 | Version | Burst | Date | Author | Change |
 |---------|-------|------|--------|--------|
+| 1.5 | FB-IMPL-P4-PO fix-burst-4 | 2026-05-20 | product-owner | F-LP4-HIGH-001/F-LP4-HIGH-002/F-LP4-HIGH-004 closure: HS-013 v1.0→v1.1 (URL re-grounded to `/detects/queries/detects/v1`+`/detects/entities/summaries/GET/v1` per ADR-028 §D1; fixture reference at `prism-dtu-crowdstrike/fixtures/parity/reference-ocsf/detections.json` per ADR-028 §D3; request_count relaxed to >=2). HS-014 v1.0→v1.1 (auth corrected to `bearer_static` per ADR-028 §D2; scenario pivoted to `alerts` table at `POST /api/v1/alerts` per ADU gap note DTU-EXT-002; fixture reference added). HS-015 v1.0→v1.1 (auth corrected to `cookie_roundtrip` per ADR-028 §D2; URL corrected from `/api/alerts` to `/api/v1/alerts` per ADR-028 §D1; fixture reference added). HS-016 v1.0→v1.1 (auth corrected to `bearer_static` per ADR-028 §D2; DTU gap noted for AQL routes DTU-EXT-003/004; fixture reference added; bearer auth step added). |
 | 1.3 | wave4-holdout-authoring | 2026-05-04 | product-owner | D-216 closure (Phase 4.B wave gate unblock, D-219 first-wave-with-proper-holdouts): authored HS-009 (6 sub-scenarios, Scheduler Operations, must_pass: true), HS-010 (6 sub-scenarios, Detection & Alert Pipeline, must_pass: true), HS-011 (5 sub-scenarios, Case Management, must_pass: false), HS-012 (6 sub-scenarios, Action Delivery, must_pass: true). total_scenarios 52 → 75 (+23). total_groups 8 → 12. p0_scenarios 36 → 59. BC anchors drawn from BC-INDEX v4.32 (BC-2.12.001–010, BC-2.13.001–013, BC-2.14.001–012, BC-2.18.001–009). Repo Coverage Matrix extended with prism-operations, prism-storage, prism-audit columns. |
 | 1.2 | pass-81-remediation | 2026-04-21 | product-owner | F81-006: Synced body "Total Scenarios" (53 → 52) and state checkpoint (total_scenarios: 53 → 52, p0_scenarios: 37 → 36). HS-001-05 was P0; body/checkpoint were stale vs frontmatter. |
 | 1.1 | pass-80-remediation | 2026-04-21 | product-owner | F80-006: HS-001-05 marked REMOVED — CAP-013 (xMP Envelope Delivery) is out of scope (REMOVED from capabilities.md). total_scenarios decremented 53 → 52. |

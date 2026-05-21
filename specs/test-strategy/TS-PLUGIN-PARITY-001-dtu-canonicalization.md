@@ -1,7 +1,7 @@
 ---
 document_type: test-strategy
 id: TS-PLUGIN-PARITY-001
-version: "1.0"
+version: "1.1"
 status: draft
 producer: product-owner
 timestamp: 2026-05-11T00:00:00
@@ -9,6 +9,7 @@ phase: 0-F
 owners: [product-owner, test-writer]
 inputs:
   - .factory/specs/architecture/decisions/ADR-023-plugin-only-sensor-architecture.md
+  - .factory/specs/architecture/decisions/ADR-028-toml-spec-grounding-vs-dtu-routes.md
   - .factory/specs/verification-properties/VP-INDEX.md
 input-hash: "[pending-recompute]"
 scheduled_amendment_in: null
@@ -28,8 +29,33 @@ corresponding DTU clone for the same input. This strategy document specifies exa
 
 These rules apply to the post-migration comparison between:
 - **Actual**: OCSF record produced by the spec-driven pipeline (TOML + optional WASM plugin)
-- **Reference**: OCSF record produced by the DTU clone behavioral fixture for the same raw
-  API response payload
+- **Reference**: OCSF record loaded from committed fixture JSON at
+  `crates/prism-dtu-{sensor}/fixtures/parity/reference-ocsf/<table>.json`
+  (per ADR-028 §D3 — fixtures recorded once from legacy adapter against DTU clone; not regenerated at test runtime)
+
+## Reference OCSF Fixture Mechanism (ADR-028 §D3)
+
+Parity tests load the reference OCSF output from committed fixture JSON files — NOT by calling
+the legacy Rust adapter at test runtime. This approach:
+
+1. Eliminates the `prism-sensors` dev-dep on `prism-spec-engine` (forbidden per story §Forbidden Dependencies)
+2. Produces a stable, reproducible reference that survives PLUGIN-MIGRATION-001-A adapter deletion
+3. Grounds the reference against real-API-shaped responses (fixtures recorded against DTU, which models real APIs)
+
+**Fixture path:** `crates/prism-dtu-{sensor}/fixtures/parity/reference-ocsf/<table>.json`
+- Example: `crates/prism-dtu-crowdstrike/fixtures/parity/reference-ocsf/detections.json`
+- Example: `crates/prism-dtu-claroty/fixtures/parity/reference-ocsf/alerts.json`
+- Example: `crates/prism-dtu-cyberint/fixtures/parity/reference-ocsf/alerts.json`
+- Example: `crates/prism-dtu-armis/fixtures/parity/reference-ocsf/devices.json`
+
+**Test loading:** `serde_json::from_str::<serde_json::Value>(&content)` where `content` is
+the fixture file read at test startup. Parse errors in the fixture JSON are a test authoring
+defect, not a parity failure.
+
+**Comparison:** After loading, both plugin-output OCSF (in-memory result from `PipelineExecutor::execute`)
+and reference OCSF (fixture JSON) are canonicalized: serialize to JSON with sorted keys, trim
+whitespace. Comparison is byte-identical after canonicalization, subject to TS-PLUGIN-PARITY-001
+Rules A–I tolerances (timestamps: Rule C ±1s; floats: Rule G 1e-6; arrays: Rule E multiset).
 
 ## Rule A — Field-by-Field Equality
 
@@ -113,15 +139,18 @@ produce PASS or WARN verdicts with zero FAILs.
 Parity test cases are sourced from two pools:
 
 1. **Real-sensor recordings**: Captured API response payloads from authenticated sessions
-   against the live sensor APIs during the Wave 1 migration window. Stored as fixtures in
-   `crates/prism-dtu-{sensor}/fixtures/parity/`. Each fixture includes the raw API response
-   and the reference OCSF output produced by the Rust adapter before deletion.
+   against the live sensor APIs during the Wave 1 migration window. Stored as raw API
+   response fixtures in `crates/prism-dtu-{sensor}/fixtures/parity/`. Reference OCSF
+   output for each recording is stored as committed fixture JSON at
+   `crates/prism-dtu-{sensor}/fixtures/parity/reference-ocsf/<table>.json` (recorded once
+   from the legacy adapter before PLUGIN-MIGRATION-001-A deletion; see ADR-028 §D3).
 
 2. **Synthesized cases**: Constructed to cover edge cases enumerated in the sensor BCs
    (e.g., null timestamps, unrecognized severity values, polymorphic IDs). Synthesized cases
    are generated deterministically from the DTU clone's generator infrastructure
    (`prism-dtu-common`). Synthesis covers at minimum: one happy-path case, one null-field
-   case, one unrecognized-enum case, and one empty-result case per sensor table.
+   case, one unrecognized-enum case, and one empty-result case per sensor table. Synthesized
+   reference OCSF is stored in the same `reference-ocsf/<table>.json` fixture file.
 
 Minimum coverage requirement: at least 3 real-sensor recordings AND at least 3 synthesized
 cases per `(sensor_id, table)` pair before VP-PLUGIN-003 is considered verified.
@@ -137,4 +166,5 @@ endpoint before authoring parity tests for that table. Until then, parity tests 
 
 | Version | Date | Author | Change |
 |---------|------|--------|--------|
+| 1.1 | 2026-05-20 | product-owner | FB-IMPL-P4-PO fix-burst-4: F-LP4-HIGH-002 closure. Added §Reference OCSF Fixture Mechanism section (ADR-028 §D3) — reference OCSF loaded from committed fixture JSON at `crates/prism-dtu-{sensor}/fixtures/parity/reference-ocsf/<table>.json`; test loading via `serde_json::from_str`; byte-identical comparison after canonical JSON serialization; eliminates prism-sensors dev-dep on prism-spec-engine. Expanded §Scope to cite ADR-028 §D3 fixture path. Expanded Rule I to include reference-ocsf fixture JSON in both real-sensor and synthesized case descriptions. Added ADR-028 to §inputs. |
 | 1.0 | 2026-05-11 | product-owner | Initial draft — PREREQ-F deliverable. Defines Rules A–I for VP-PLUGIN-003 DTU-parity evaluation per ADR-023 Rule 3. |

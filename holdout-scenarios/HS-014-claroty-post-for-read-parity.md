@@ -6,7 +6,7 @@ category: "dtu-parity"
 must_pass: true
 priority: P0
 epic_id: "PLUGIN-MIGRATION-001"
-version: "1.0"
+version: "1.1"
 status: draft
 producer: product-owner
 timestamp: 2026-05-20T00:00:00Z
@@ -42,12 +42,20 @@ notes: "PLUGIN-MIGRATION-001-D holdout — Claroty POST-for-read polymorphic ID 
 ## Scenario
 
 Validates that `claroty.sensor.toml` + `PipelineExecutor` against the Claroty DTU clone produces
-OCSF-normalized output equivalent to the reference output from the prior hardcoded Rust adapter
-path, per TS-PLUGIN-PARITY-001. The Claroty `assets` table uses a POST-for-read pattern
-(POST `/api/v1/assets` with a JSON body to retrieve asset records), which is the
-least-common pattern in the spec grammar and the highest risk for spec-authoring error.
-URL pattern from `claroty.rs:endpoint_from_spec()` (claroty.rs:238-244): strips `"claroty_"`
-prefix and prepends `"/api/v1/"` — NO `/xdome` prefix present in the production code.
+OCSF-normalized output equivalent to the reference OCSF fixture, per TS-PLUGIN-PARITY-001.
+
+**Auth (ADR-028 §D2):** `claroty.sensor.toml` declares `auth_type = "bearer_static"` — grounded
+against the Claroty DTU's `Authorization: Bearer {non-empty}` header enforcement
+(`crates/prism-dtu-claroty/src/routes/devices.rs` and `alerts.rs`). The legacy
+`ClarotyAuth::auth_type_name()` return `"cookie_roundtrip"` was a label bug; deleted by 001-A.
+
+**URL (ADR-028 §D1):** The Claroty `alerts` table uses `POST /api/v1/alerts` per DTU route
+registration (`crates/prism-dtu-claroty/src/clone.rs` line 86). Note: the Claroty `assets` table
+has a DTU gap (DTU-EXT-002 — DTU has `/api/v1/devices` not `/api/v1/assets`); this scenario
+covers `alerts` and pivots asset-table steps to reference the DTU-grounded `/api/v1/alerts` route.
+
+**Reference OCSF (ADR-028 §D3):** Reference loaded from committed fixture JSON at
+`crates/prism-dtu-claroty/fixtures/parity/reference-ocsf/alerts.json`.
 
 The polymorphic ID case (`ClarotyId` — integer or UUID string) is the primary edge case:
 the spec column must be typed `string` to handle both ID forms; the OCSF output must normalize
@@ -57,32 +65,36 @@ both forms correctly.
 
 ## Sub-Scenarios
 
-### HS-014-01: Claroty Assets POST-for-Read — Integer ID
+### HS-014-01: Claroty Alerts POST-for-Read — Integer ID (bearer_static auth)
 
 **Preconditions:**
 - `prism-dtu-claroty` DTU clone is running (started via `BehavioralClone::start_on`)
-- `claroty.sensor.toml` loaded and passes BC-2.16.009 validation
-- Fixture: asset record with `"id": 12345` (integer)
+- `claroty.sensor.toml` loaded and passes BC-2.16.009 validation; `auth_type = "bearer_static"`
+- Fixture: alert record with `"id": 12345` (integer) from DTU route `POST /api/v1/alerts`
+- Auth: requests include `Authorization: Bearer {token}` header (enforced by DTU)
 - Holdout evaluator has NOT seen the reference OCSF output before evaluation
 
 **Steps:**
 1. Start `ClarotyClone` via `BehavioralClone::start_on("127.0.0.1:0", shutdown, None)`
-2. Execute `PipelineExecutor::execute` for the `assets` table
-3. Apply TS-PLUGIN-PARITY-001 canonicalization
+2. Execute `PipelineExecutor::execute` for the `alerts` table (DTU route: `POST /api/v1/alerts`)
+3. Load reference OCSF from `crates/prism-dtu-claroty/fixtures/parity/reference-ocsf/alerts.json`
+   (per ADR-028 §D3)
+4. Apply TS-PLUGIN-PARITY-001 canonicalization
 
 **Expected Outcome:**
 - Parity verdict: PASS — `id` column value `"12345"` (string-normalized); matches reference
-- POST body correctly formed per `claroty.sensor.toml` step definition targeting `/api/v1/assets`
+- POST body correctly formed per `claroty.sensor.toml` step definition targeting `POST /api/v1/alerts`
+- Bearer auth header accepted by DTU (DTU enforces `Authorization: Bearer`)
 - Offset pagination advances correctly; `request_count >= 1`
 
-### HS-014-02: Claroty Assets POST-for-Read — UUID String ID
+### HS-014-02: Claroty Alerts POST-for-Read — UUID String ID (bearer_static auth)
 
 **Preconditions:**
 - Same as HS-014-01
-- Fixture: asset record with `"id": "550e8400-e29b-41d4-a716-446655440000"` (UUID string)
+- Fixture: alert record with `"id": "550e8400-e29b-41d4-a716-446655440000"` (UUID string)
 
 **Steps:**
-1. Same setup as HS-014-01 but with UUID-string-ID fixture
+1. Same setup as HS-014-01 but with UUID-string-ID fixture; auth bearer header included
 
 **Expected Outcome:**
 - Parity verdict: PASS — `id` column value `"550e8400-..."` matches reference

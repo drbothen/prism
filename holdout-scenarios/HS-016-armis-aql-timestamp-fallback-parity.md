@@ -6,7 +6,7 @@ category: "dtu-parity"
 must_pass: true
 priority: P0
 epic_id: "PLUGIN-MIGRATION-001"
-version: "1.0"
+version: "1.1"
 status: draft
 producer: product-owner
 timestamp: 2026-05-20T00:00:00Z
@@ -42,7 +42,22 @@ notes: "PLUGIN-MIGRATION-001-D holdout — Armis AQL forwarding + timestamp fall
 ## Scenario
 
 Validates that `armis.sensor.toml` + `PipelineExecutor` against the Armis DTU clone produces
-OCSF output equivalent to the reference hardcoded adapter path, per TS-PLUGIN-PARITY-001.
+OCSF output equivalent to the reference OCSF fixture, per TS-PLUGIN-PARITY-001.
+
+**Auth (ADR-028 §D2):** `armis.sensor.toml` declares `auth_type = "bearer_static"` — grounded
+against the Armis DTU's `Authorization: Bearer {non-empty}` header enforcement
+(`crates/prism-dtu-armis/src/lib.rs`:16-17 — HTTP 403 on missing/invalid token per Armis Centrix
+API spec). The legacy `ArmisAuth::auth_type_name()` return `"api_key"` was incorrect per DTU;
+deleted by 001-A.
+
+**URL / DTU Gap Note (ADR-028 §D1 + §D5):** Armis DTU has `/api/v1/devices` (GET) and
+`/api/v1/alerts` (GET) — NOT `/api/v1/search`. This scenario tests AQL forwarding against the
+DTU's actual device/alert routes. See BC-2.16.013 §Known Gaps DTU-EXT-003 and DTU-EXT-004 for
+the full gap analysis. The sub-scenarios below exercise the `devices` table against
+`GET /api/v1/devices` and verify AQL parameter forwarding via the DTU AQL log endpoint.
+
+**Reference OCSF (ADR-028 §D3):** Reference loaded from committed fixture JSON at
+`crates/prism-dtu-armis/fixtures/parity/reference-ocsf/devices.json`.
 
 Two Armis-specific risks are tested:
 
@@ -50,7 +65,7 @@ Two Armis-specific risks are tested:
    query parameter (`aql`). The spec must forward the caller's AQL expression verbatim via
    `${query.filter.aql}` interpolation (corrected from the non-existent `${query.aql}` per
    BC-2.16.013 §Preconditions O-001 Grammar Verification). The holdout evaluator verifies
-   the DTU clone received the verbatim AQL expression.
+   the DTU clone received the verbatim AQL expression via `GET /dtu/aql-log`.
 
 2. **Timestamp Fallback Chain:** `firstSeen` → `lastSeen` → `DateTime::now()` fallback
    is NOT declaratively expressible in the current TOML grammar (per BC-2.16.013 §Preconditions
@@ -72,8 +87,11 @@ Two Armis-specific risks are tested:
 
 **Steps:**
 1. Start `ArmisClone` via `BehavioralClone::start_on("127.0.0.1:0", shutdown, None)`
-2. Execute `PipelineExecutor::execute` for the `devices` table with the AQL context
-3. Check DTU AQL log (`GET /dtu/aql-log`) — Armis DTU records received AQL expressions
+2. Execute `PipelineExecutor::execute` for the `devices` table with the AQL context;
+   auth via `Authorization: Bearer {token}` header (bearer_static; DTU enforces 403 on missing token)
+3. Load reference OCSF from `crates/prism-dtu-armis/fixtures/parity/reference-ocsf/devices.json`
+   (per ADR-028 §D3)
+4. Check DTU AQL log (`GET /dtu/aql-log`) — Armis DTU records received AQL expressions
 
 **Expected Outcome:**
 - DTU AQL log contains the verbatim AQL expression `"in:devices timeFrame:\"1 Day\""`

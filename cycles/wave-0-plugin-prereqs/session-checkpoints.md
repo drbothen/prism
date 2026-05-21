@@ -132,3 +132,20 @@ The authoritative post-merge resume checkpoint is SESSION-HANDOFF.md §RESUME SN
 **Next workflow items at D-733:**
 1. Dispatch LOCAL adversary pass-2 fresh-context for PLUGIN-MIGRATION-001-D per BC-5.39.001 (streak 0/3 → target 1/3)
 2. Pass-2 resulted in 10 findings (3H+3M+2L+2O); FB-IMPL-P2 fix-burst dispatched (PO + story-writer)
+
+---
+
+## Session Resume Checkpoint (2026-05-20 — D-737-DECISIONS-LOCKED) — ARCHIVED
+
+**Archived from STATE.md at D-738 FB-IMPL-P4 closure burst.**
+
+**STATE v7.424. D-737 DECISIONS LOCKED + DURABLE RESUME SNAPSHOT.** User adjudicated all 4 architectural decisions from D-736 pass-4 BLOCKED-soft. All 4 confirmed production-grade-default recommendations. SESSION-HANDOFF.md §RESUME SNAPSHOT 2026-05-20-EVE written. 244th consecutive single-commit. Ready for FB-IMPL-P4 dispatch.
+
+**4 Architectural Decisions — LOCKED (D-737):**
+1. Decision 1 LOCKED Option A: TOML spec URLs ground against DTU clone routes (real-API canonical). Latent adapter URL bugs become moot when 001-A deletes adapters.
+2. Decision 2 LOCKED Option B: Parity test loads reference OCSF from committed fixture JSON (crates/prism-dtu-{sensor}/fixtures/parity/reference-ocsf/<table>.json). No prism-sensors dev-dep needed.
+3. Decision 3 LOCKED Option A: Expand scope ~half day — add SpecErrorCode::ESpec017 variant + filename-stem validation in spec_parser.rs::load_all. RG-09 + HS-018 remain in-scope.
+4. Decision 4 LOCKED Option A: TOML auth_type declares real behavior (cyberint=cookie_roundtrip, claroty=bearer_static). Spec wins per CLAUDE.md Source-of-Truth Precedence #7.
+
+**Next workflow items at D-737:**
+FB-IMPL-P4 dispatch: architect (ADR-028) → PO (BC re-grounding + fixture mechanism) → story-writer (AC re-spec + E-SPEC-017 tasks) → state-manager (D-738 closure) → adversary (pass-5).

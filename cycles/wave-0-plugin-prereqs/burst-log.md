@@ -484,3 +484,4 @@ Key decision milestones in this range:
 - D-460..D-432: S-PLUGIN-PREREQ-D adversary cascade (passes 1–11)
 - D-722: demo-recorder Step 5 complete for S-PLUGIN-PREREQ-E — 14 files; 13 ACs all evidenced; feature SHA dca98e4a; docs/demo-evidence/S-PLUGIN-PREREQ-E/INDEX.md + 13 AC files
 - D-725: FB-PR-1 fix-burst closure — CI gap exposure (test-portability + semver-version-pin); architect Option 1 relocation; prism-spec-engine 0.8.0→0.9.0; just check 3681/3681 PASS; 232nd consecutive single-commit; STATE v7.412; feature@a4c048ce
+- D-734: FB-IMPL-P2 closure — BC-2.16.013 v1.1→v1.2 (auth_type swap; E-SPEC-017 new; fetch_page phantom fixed; ${query.aql}→${query.filter.aql}; line-number→symbol-name citations); BC-2.16.001 v1.3→v1.4; BC-2.16.009 v1.3→v1.4; error-taxonomy v1.40→v1.41; story v1.1→v1.2. 8 findings closed (3H+3M+2L). Streak 0/3. 241st consecutive. STATE v7.421.

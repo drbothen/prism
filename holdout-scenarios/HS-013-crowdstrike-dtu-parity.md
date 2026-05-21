@@ -6,7 +6,7 @@ category: "dtu-parity"
 must_pass: true
 priority: P0
 epic_id: "PLUGIN-MIGRATION-001"
-version: "1.0"
+version: "1.1"
 status: draft
 producer: product-owner
 timestamp: 2026-05-20T00:00:00Z
@@ -47,11 +47,11 @@ the reference output from the prior hardcoded Rust adapter path for the same raw
 per TS-PLUGIN-PARITY-001 canonicalization rules.
 
 The CrowdStrike two-step pipeline is the highest-risk parity case: the spec must orchestrate a
-QueryV2 step (GET `/queries/detections`) to retrieve detection IDs, then a PostEntities
-step (POST `/entities/detections/GET`) batching those IDs (≤ 100 per batch, per
-CROWDSTRIKE_BATCH_SIZE). URL patterns from `crowdstrike.rs:262,315`: `query_resource_ids`
-formats `"{base_url}/queries/{resource_type}"` and `fetch_entities` formats
-`"{base_url}/entities/{resource_type}/GET"`. A single-step spec or incorrect variable forwarding breaks parity.
+QueryV2 step (GET `/detects/queries/detects/v1`) to retrieve detection IDs, then a PostEntities
+step (POST `/detects/entities/summaries/GET/v1`) batching those IDs (≤ 100 per batch, per
+CROWDSTRIKE_BATCH_SIZE). URLs grounded against DTU clone routes per ADR-028 §D1:
+`crates/prism-dtu-crowdstrike/src/routes/mod.rs` lines 189, 193. A single-step spec or
+incorrect variable forwarding breaks parity.
 
 ---
 
@@ -68,16 +68,17 @@ formats `"{base_url}/queries/{resource_type}"` and `fetch_entities` formats
 **Steps:**
 1. Start `CrowdstrikeClone` via `BehavioralClone::start_on("127.0.0.1:0", shutdown, None)`;
    override `crowdstrike.sensor.toml` `base_url` to the returned `SocketAddr`
-2. Load fixture: DTU returns 3 detection IDs from QueryV2, 3 full records from PostEntities
+2. Load fixture: DTU returns 3 detection IDs from `GET /detects/queries/detects/v1`,
+   3 full records from `POST /detects/entities/summaries/GET/v1` (DTU-grounded routes per ADR-028 §D1)
 3. Execute `PipelineExecutor::execute(spec, &detections_table, &context, &http_client, &null_auth)`
-4. Apply TS-PLUGIN-PARITY-001 Rules A–I canonicalization
-5. Compare spec-driven output against reference output from `CrowdStrikeAdapter::fetch()`
-   (`SensorAdapter::fetch` trait method, `crates/prism-sensors/src/auth/crowdstrike.rs`)
-   applied to the same fixture payload
+4. Load reference OCSF from committed fixture JSON at
+   `crates/prism-dtu-crowdstrike/fixtures/parity/reference-ocsf/detections.json`
+   (per ADR-028 §D3 — no `prism-sensors` dev-dep; fixture recorded once from legacy adapter against DTU)
+5. Apply TS-PLUGIN-PARITY-001 Rules A–I canonicalization; compare plugin output against fixture reference
 
 **Expected Outcome:**
 - Parity verdict: PASS for all 3 detection records
-- `request_count == 2` (one QueryV2 + one PostEntities)
+- `request_count >= 2` (one QueryV2 + one PostEntities minimum; > 2 if QueryV2 paginates)
 - OCSF mandatory fields present: `class_uid`, `severity_id`, `finding_info.uid`, `time`, `metadata`
 - Zero FAILs; WARN allowed per TS-PLUGIN-PARITY-001 Rule B (null vs absent)
 
@@ -89,13 +90,13 @@ formats `"{base_url}/queries/{resource_type}"` and `fetch_entities` formats
 
 **Steps:**
 1. Same setup as HS-013-01 but with 100-ID fixture
-2. Execute `PipelineExecutor::execute` for the `detections` table
-3. Verify batch boundary: PostEntities receives all 100 IDs in exactly one batch (not 101+)
+2. Execute `PipelineExecutor::execute` for the `detections` table (DTU routes: `/detects/queries/detects/v1` + `/detects/entities/summaries/GET/v1`)
+3. Verify batch boundary: PostEntities (`POST /detects/entities/summaries/GET/v1`) receives all 100 IDs in exactly one batch (not 101+)
 
 **Expected Outcome:**
 - Parity verdict: PASS — spec produces one PostEntities batch of exactly 100 records
 - `batch_size` cap of 100 respected; no batch exceeds CROWDSTRIKE_BATCH_SIZE
-- `request_count == 2` (one QueryV2 + one PostEntities with 100 IDs)
+- `request_count >= 2` (one QueryV2 + one PostEntities; exactly 2 for single-page QueryV2)
 
 ---
 
