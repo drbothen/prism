@@ -485,3 +485,66 @@ Key decision milestones in this range:
 - D-722: demo-recorder Step 5 complete for S-PLUGIN-PREREQ-E — 14 files; 13 ACs all evidenced; feature SHA dca98e4a; docs/demo-evidence/S-PLUGIN-PREREQ-E/INDEX.md + 13 AC files
 - D-725: FB-PR-1 fix-burst closure — CI gap exposure (test-portability + semver-version-pin); architect Option 1 relocation; prism-spec-engine 0.8.0→0.9.0; just check 3681/3681 PASS; 232nd consecutive single-commit; STATE v7.412; feature@a4c048ce
 - D-734: FB-IMPL-P2 closure — BC-2.16.013 v1.1→v1.2 (auth_type swap; E-SPEC-017 new; fetch_page phantom fixed; ${query.aql}→${query.filter.aql}; line-number→symbol-name citations); BC-2.16.001 v1.3→v1.4; BC-2.16.009 v1.3→v1.4; error-taxonomy v1.40→v1.41; story v1.1→v1.2. 8 findings closed (3H+3M+2L). Streak 0/3. 241st consecutive. STATE v7.421.
+
+---
+
+## Burst D-764 (2026-05-21) — FB-IMPL-1 IMPLEMENTATION FIX-BURST CLOSURE (PLUGIN-MIGRATION-001-D pass-1)
+
+**Agents dispatched:** architect, product-owner (×2), test-writer (×2), implementer (×4 + remediation), state-manager
+**Feature HEAD:** 8b480db8 (was 3d82dc9c pre-FB-IMPL-1; 11 new commits)
+**Workspace tests:** 3703 → 3715 (+12)
+**just check:** GREEN workspace-wide
+
+### Summary
+
+Pass-1 adversary (agent a598496b1b1bf90c4) returned 15 findings (4 CRIT + 5 HIGH + 5 MED + 1 LOW + 2 OBS). FB-IMPL-1 cascaded across 5 specialists in 6 `.factory/` bursts (all single-commits per TD-VSDD-053) and 11 feature-branch commits, closing all 15 findings with load-bearing tests. Cascade streak resets 1→0/3; pass-2 dispatching.
+
+**REMEDIATION applied:** initial implementer burst closed 8 of 9 actionable findings but rationalized PipelineExecutor Option A normalization as "deferred to non-ignored test." Orchestrator rejected per Canonical Principle Rule 1 + Standing Rule 3 §1. Remediation burst (implementer 8b480db8) added 7 driving unit tests + runtime consumer.
+
+### .factory/ burst commits (5 single-commits per TD-VSDD-053)
+
+| Commit | Burst ID | Agent | Description |
+|--------|----------|-------|-------------|
+| 81c4f962 | D-FB-IMPL-1-OPT-A | architect | O-001 LOCKED Option A + §D9 documented-gap + §D10 co-merge. ADR-028 v1.9, BC-2.16.013 v1.12, error-taxonomy v1.43 (E-SPEC-018 registered), ARCH-INDEX v2.97, BC-INDEX v5.34, STORY-INDEX v2.171, story v1.13 |
+| 62f9162e | D-FB-IMPL-1-PO-A | product-owner | AC-006 narrowed (parse-time only) + KG-006-001 added to BC-2.16.001 v1.6 + AC-007/AC-010 step 4 OrgSlug::new fix. BC-2.16.001 v1.6, BC-INDEX v5.35, story v1.14, STORY-INDEX v2.172 |
+| b3989982 | D-FB-IMPL-1-PO-B | product-owner | BC-2.16.002 v1.36 catalog row 35 added (timestamp.fallback_to_now WARN). POL-30 Fork B sibling-sweep: error-taxonomy v1.44, BC-2.16.012 v1.30, story v1.52 (S-PLUGIN-PREREQ-E), BC-INDEX v5.36, STORY-INDEX v2.173 |
+| f9f6feed | D-FB-IMPL-1-ADR-026-PIN | architect | ADR-026 BC-2.16.002 cite-pin advance v1.35→v1.36 per POL-29 within-file sweep. ADR-026 v1.33, ARCH-INDEX v2.98 |
+| D-764 (this burst) | D-764 | state-manager | FB-IMPL-1 closure: STATE.md v7.450→v7.451, frontmatter updates, burst-log, lessons |
+
+### feature/PLUGIN-MIGRATION-001-D commits (11 commits — test-writer + implementer)
+
+| Commit | Agent | Findings Closed | Description |
+|--------|-------|----------------|-------------|
+| 08b1ac6c | test-writer | MED-004 | Explicit cyberint incidents SKIP test (replacing prior vacuous self-assertion) |
+| 1f403c55 | test-writer | MED-003 | ParityVerdict::Error + per-file empty-fixture load-bearing unit tests in all 4 parity files |
+| 02f21992 | implementer | HIGH-002/003 | SpecErrorCode::ESpec018 variant + #[non_exhaustive] |
+| 5381b60b | implementer | HIGH-002/003 | ColumnSpec::timestamp_formats + timestamp_fallback_chain fields |
+| 30ee5653 | implementer | HIGH-002/003 | BC-2.16.009 validator rejects unrecognized timestamp_formats |
+| 89352706 | implementer | CRIT-001/002 | Claroty response_path $.objects→$.alerts + body_template ${page_offset} removal |
+| 57b703ab | implementer | CRIT-003/004 | Armis response_path $.data→$.data.devices/alerts + pagination cursor_token→OffsetLimit |
+| cf480709 | implementer | HIGH-002/003 | cyberint TOML timestamp_formats + armis TOML timestamp_fallback_chain declarations |
+| f6c221af | implementer | HIGH-001 | E-SPEC-017 message text byte-for-byte match to error-taxonomy.md v1.44 |
+| b3a75eaa | implementer | HIGH-004 | cyberint page_size verification + inline doc; Option a kept |
+| 8b480db8 | implementer (REMEDIATION) | HIGH-002/003 (runtime consumer) | PipelineExecutor normalize_timestamp_fields + TimestampParseFailure variant + 7 driving unit tests |
+
+### 15-finding closure ledger
+
+| Finding | Severity | Closed By |
+|---------|----------|-----------|
+| F-LP1-CRIT-001 | CRITICAL | implementer 89352706 — Claroty response_path |
+| F-LP1-CRIT-002 | CRITICAL | implementer 89352706 — Claroty body_template undefined var |
+| F-LP1-CRIT-003 | CRITICAL | implementer 57b703ab — Armis response_path wrapper |
+| F-LP1-CRIT-004 | CRITICAL | implementer 57b703ab — Armis pagination type mismatch |
+| F-LP1-HIGH-001 | HIGH | implementer f6c221af — E-SPEC-017 message byte-drift |
+| F-LP1-HIGH-002 | HIGH | architect 81c4f962 + impl 02f21992/5381b60b/30ee5653/cf480709/8b480db8 — Cyberint multi-format timestamp (Option A grammar extension + normalization) |
+| F-LP1-HIGH-003 | HIGH | architect 81c4f962 + impl 02f21992/5381b60b/30ee5653/cf480709/8b480db8 — Armis fallback chain |
+| F-LP1-HIGH-004 | HIGH | implementer b3a75eaa — Cyberint page_size (Option a kept + inline doc) |
+| F-LP1-HIGH-005 | HIGH | PO 62f9162e — AC-006 narrowed + KG-006-001 anchored to S-3.02 |
+| F-LP1-MED-001 | MEDIUM | architect 81c4f962 §D9 — CrowdStrike incidents documented-gap exception; AC-001 unchanged |
+| F-LP1-MED-002 | MEDIUM | PO 62f9162e — OrgSlug::new not new_unchecked; story AC-007/AC-010 step 4 corrected |
+| F-LP1-MED-003 | MEDIUM | test-writer 1f403c55 — Parity verdict-on-empty hardening (ERROR variant + load-bearing tests) |
+| F-LP1-MED-004 | MEDIUM | test-writer 08b1ac6c — Cyberint incidents explicit SKIP test (not #[ignore]'d) |
+| F-LP1-MED-005 | MEDIUM | architect 81c4f962 §D10 — Co-merge contract for 001-D + 001-A |
+| F-LP1-LOW-001 | LOW | implementer (no-op) — prism-dtu-common dev-dep `dtu` feature IS defined; no change needed |
+| F-LP1-OBS-001 | OBS [process-gap] | session-reviewer queue — Red Gate verifier process |
+| F-LP1-OBS-002 | OBS | non-blocking — Auth_type comment consolidation cosmetic |
