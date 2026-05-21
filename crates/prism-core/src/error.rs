@@ -888,6 +888,10 @@ pub enum PrismError {
 // ---------------------------------------------------------------------------
 
 /// E-SPEC-* error codes from BC-2.16.001, BC-2.16.002, BC-2.16.009.
+///
+/// `#[non_exhaustive]`: variants will be added as new spec validation rules are introduced.
+/// External match arms MUST include a wildcard `_ => {}` arm per CLAUDE.md §Conventions.
+#[non_exhaustive]
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum SpecErrorCode {
     /// E-SPEC-001: TOML parse error or schema/variable-reference validation error.
@@ -902,6 +906,10 @@ pub enum SpecErrorCode {
     ESpec010,
     /// E-SPEC-011: Write endpoint pipe_verb collides with reserved PrismQL keyword (BC-2.16.009, S-1.13).
     ESpec011,
+    /// E-SPEC-017: Spec `sensor_id` does not case-sensitively match the filename stem.
+    /// E.g., `crowdstrike.sensor.toml` with `sensor_id: "falcon"` → rejected at load time.
+    /// Emitted by `SpecLoader::load_all()` only (has filename context); never by `SpecLoader::parse()`.
+    ESpec017,
 }
 
 /// A structured spec validation or runtime error carrying an E-SPEC-* code,
@@ -1103,4 +1111,38 @@ pub enum PluginError {
          must be an integer <= {supported}"
     )]
     FormatVersionMissing { path: String, supported: u32 },
+}
+
+// ---------------------------------------------------------------------------
+// Tests — SpecErrorCode (Task 11, PLUGIN-MIGRATION-001-D)
+// ---------------------------------------------------------------------------
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// Task 11 unit test: ESpec017 variant constructor and Display (D-737 Decision 3).
+    ///
+    /// Verifies the new ESpec017 variant is constructable and displays correctly
+    /// via the SpecError Display impl (`#[error("spec error {code:?} at {toml_path:?}: {message}")]`).
+    #[test]
+    fn test_e_spec_017_variant_constructor_and_display() {
+        let err = SpecError {
+            code: SpecErrorCode::ESpec017,
+            message: "Sensor spec `falcon` does not match filename stem `crowdstrike`".to_string(),
+            toml_path: None,
+            file_path: Some("crowdstrike.sensor.toml".into()),
+            line_number: None,
+        };
+        assert_eq!(err.code, SpecErrorCode::ESpec017);
+        let display = format!("{err}");
+        assert!(
+            display.contains("ESpec017"),
+            "display must mention variant: {display}"
+        );
+        assert!(
+            display.contains("does not match filename stem"),
+            "display must include message: {display}"
+        );
+    }
 }

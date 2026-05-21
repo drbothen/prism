@@ -766,6 +766,30 @@ impl SpecLoader {
 
             match Self::parse(&content) {
                 Ok(spec) => {
+                    // BC-2.16.001 v1.5 §Error Conditions E-SPEC-017:
+                    // The filename stem must case-sensitively match the spec's sensor_id.
+                    // E.g., `crowdstrike.sensor.toml` → stem = "crowdstrike" → must match
+                    // sensor_id "crowdstrike". Generic check — no hardcoded sensor names
+                    // (BC-2.16.012 INV-SPEC-PARSER-OPEN-001).
+                    let stem = file_name
+                        .strip_suffix(".sensor.toml")
+                        .unwrap_or(&file_name)
+                        .to_string();
+                    if stem != spec.sensor_id {
+                        errors.push(PrismError::Spec(SpecError {
+                            code: SpecErrorCode::ESpec017,
+                            message: format!(
+                                "Sensor spec `{}` does not match filename stem `{}`; \
+                                 file must be named `{}.sensor.toml`",
+                                spec.sensor_id, stem, spec.sensor_id
+                            ),
+                            toml_path: None,
+                            file_path: Some(file_name.clone()),
+                            line_number: None,
+                        }));
+                        // DI-030: reject this spec, continue loading others
+                        continue;
+                    }
                     named_specs.push((file_name, spec));
                 }
                 Err(e) => {
