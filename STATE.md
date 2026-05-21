@@ -1,9 +1,9 @@
 ---
 document_type: pipeline-state
 level: ops
-version: "7.448"
+version: "7.449"
 producer: state-manager
-timestamp: 2026-05-21T19:35:32Z
+timestamp: 2026-05-21T20:15:00Z
 inputs: []
 input-hash: "[live-state]"
 traces_to: ""
@@ -16,7 +16,9 @@ repos: [poller-cobra, poller-express, poller-bear, poller-coaster, serveMyAPI, t
 safe_to_compact: false
 pre_compact_snapshot: "SESSION-HANDOFF.md §RESUME SNAPSHOT 2026-05-21"
 pre_compact_snapshot_at: "2026-05-21 (D-760 SESSION-HANDOFF.md §RESUME SNAPSHOT 2026-05-21 for PLUGIN-MIGRATION-001-D LOCAL 3-CLEAN CONVERGENCE durability)"
-current_step: "PLUGIN-MIGRATION-001-D TDD phase IN-PROGRESS — worktree created (D-761). Awaiting test-writer Step 3 dispatch."
+current_step: "PLUGIN-MIGRATION-001-D Step 4 IN-PROGRESS — Red Gate verified (D-762). Implementer dispatched for TDD green cycle (Tasks 3-6 TOML authoring + Tasks 11/12 ESpec017+load_all)."
+plugin_migration_001_d_red_gate_verified_at: 2026-05-21T20:15:00Z
+plugin_migration_001_d_feature_branch_head: "e2cea9b7"
 current_cycle: wave-0-plugin-prereqs
 feature_branch_head: "merged to 80ebe794 at 2026-05-19 (PR #151) — a4c048ce was final feature HEAD before squash-merge"
 pr_level_adversary_streak: "3/3 CONVERGED per BC-5.39.001 — passes 2/3/4 all CLEAN; PR #151 merged 2026-05-19; D-716 Option A standing satisfied"
@@ -90,9 +92,9 @@ historical_cycles: [phase-1-convergence, wave-3-multi-tenant, wave-4-operations]
 | **Language** | Rust |
 | **Target Workspace** | per-analyst stdio (MCP server) |
 | **Started** | 2026-04-13 |
-| **Last Updated** | 2026-05-21 (D-761 PLUGIN-MIGRATION-001-D TDD phase start — worktree feature/PLUGIN-MIGRATION-001-D created from develop@1bc56e3c; 268th consecutive) |
-| **Current Phase** | Wave 3 Tier-3 COMPLETE — **Wave 3-A 4 of 4 SHIPPED**; plugin migration: PREREQ-F + PREREQ-A + PREREQ-B + PREREQ-C + PREREQ-D + **PREREQ-E MERGED** (PR #151 80ebe794 2026-05-19T18:06:44Z); PLUGIN-MIGRATION-001-D LOCAL SPEC CONVERGED — ready for TDD |
-| **Current Step** | PLUGIN-MIGRATION-001-D TDD phase IN-PROGRESS — worktree created (D-761). Awaiting test-writer Step 3 dispatch. |
+| **Last Updated** | 2026-05-21 (D-762 PLUGIN-MIGRATION-001-D Red Gate verified after test-writer remediation; feature HEAD e2cea9b7; 13 FAIL + 7 #[ignore] + 8 legit-PASS; 269th consecutive) |
+| **Current Phase** | Wave 3 Tier-3 COMPLETE — **Wave 3-A 4 of 4 SHIPPED**; plugin migration: PREREQ-F + PREREQ-A + PREREQ-B + PREREQ-C + PREREQ-D + **PREREQ-E MERGED** (PR #151 80ebe794 2026-05-19T18:06:44Z); PLUGIN-MIGRATION-001-D RED GATE VERIFIED (D-762) — implementer TDD green cycle in progress |
+| **Current Step** | PLUGIN-MIGRATION-001-D Step 4 IN-PROGRESS — Red Gate verified (D-762). Implementer dispatched for TDD green cycle (Tasks 3-6 TOML authoring + Tasks 11/12 ESpec017+load_all). |
 
 ## Phase Progress
 
@@ -139,6 +141,7 @@ _D-001..D-046 archived: [cycles/phase-3-dtu-wave-2/decisions-archive-d001-d032.m
 
 | ID | Decision | Rationale | Phase | Date |
 |----|----------|-----------|-------|------|
+| D-762 | 2026-05-21 | orchestrator | **PLUGIN-MIGRATION-001-D Step 3 CLOSED — Red Gate verified (BC-5.38.001) after test-writer remediation cycle. Initial test-writer dispatch (commits 60081cb5/d6b197fa) violated Companion Principle Rule 1 (authored 2.5 story points of implementer Task 3-6 production TOMLs) and BC-5.38.001 (13 Red Gate tests passing instead of failing). Orchestrator rejected partial output, routed remediation. Test-writer reduced TOMLs to 26-line skeletons (commit 0f22bd32) and strengthened RG-01/02/08 assertions (commit e2cea9b7). Final state: 13 FAIL + 7 #[ignore] + 8 legitimate-PASS across 28 tests. Feature branch HEAD: e2cea9b7. Next: implementer TDD green per Step 4. 269th consecutive single-commit per TD-VSDD-053.** | plugin-migration | 2026-05-21 | Decided by: orchestrator. Status: APPROVED |
 | D-761 | 2026-05-21 | orchestrator | **PLUGIN-MIGRATION-001-D TDD phase started — feature worktree created at .worktrees/PLUGIN-MIGRATION-001-D/ on branch feature/PLUGIN-MIGRATION-001-D from develop@1bc56e3c. Per SESSION-HANDOFF §RESUME SNAPSHOT 2026-05-21 §4 Step 2 dispatch plan. Next: test-writer stubs + failing tests for 13 ACs / 9 RGs / 6 HS scenarios per BC-5.38.001 Red Gate. 268th consecutive single-commit per TD-VSDD-053.** | plugin-migration | 2026-05-21 | Decided by: orchestrator. Status: APPROVED |
 | D-760 | 2026-05-21 | state-manager (durable resume snapshot burst) | **SESSION-HANDOFF.md §RESUME SNAPSHOT 2026-05-21 — durable resume state for /clear before TDD implementation phase. Appended §RESUME SNAPSHOT 2026-05-21 covering full 2026-05-20/21 session arc: D-737 architectural decisions LOCKED + 22 adversary passes (P4-P25) + 19 fix-bursts (FB-IMPL-P4..P22) + 80 cumulative closures + 16 novel coherence-axis classes + D-747 user Path A architectural supersession + D-759 PLUGIN-MIGRATION-001-D LOCAL 3-CLEAN CONVERGENCE per BC-5.39.001. §1 Session arc table (D-737..D-759); §2 CONVERGENCE STATE; §3 D-747 Path A supersession context; §4 TDD Implementation Dispatch Plan (devops-engineer worktree → test-writer stubs+failing tests → implementer TDD green → adversary 3-CLEAN cascade → demo-recorder → pr-manager 9-step → state-manager post-merge); §5 Open items beyond 001-D + 10 S-7.02 codification candidates; §6 Resume protocol (7 steps); §7 Downstream Wave 1/2 chain. pre_compact_snapshot pointer updated to §RESUME SNAPSHOT 2026-05-21. safe_to_compact: true. STATE.md v7.446→v7.447. 267th consecutive single-commit per TD-VSDD-053.** | plugin-migration | 2026-05-21 | Decided by: state-manager (durable resume snapshot burst). Status: APPROVED |
 | D-759 | 2026-05-21 | orchestrator (cascade convergence acknowledged) + state-manager (CONVERGENCE burst commit) | **PLUGIN-MIGRATION-001-D LOCAL SPEC-LEVEL ADVERSARIAL CASCADE CONVERGED PER BC-5.39.001 3-CLEAN PROTOCOL. Three consecutive CLEAN passes (pass-23/24/25) per D-716 Option A standing. Zero findings across all 3 final passes; 80/80 cumulative closures verified durable; 16 novel coherence-axis classes codified for S-7.02. State-manager scope: pass-25 adversary report persisted + CONVERGENCE report written (PLUGIN-MIGRATION-001-D-convergence-report.md) + story v1.11→v1.12 status flipped `draft`→`ready` per PREREQ-B/C/D/E precedent + STORY-INDEX v2.169→v2.170 row 399 status reflected + STATE.md frontmatter sync. Cascade summary: 25 LOCAL adversary passes (P1 through P25); 19 fix-bursts (FB-IMPL-P1..P22 with P8/P18/P20 CLEAN-bookkeeping-no-fix); 80 cumulative closures; final converged spec set authorized for handoff to TDD implementation phase. Next: orchestrator dispatches implementer (test-writer → implementer) per VSDD per-story TDD pipeline. Story PLUGIN-MIGRATION-001-D is the first Wave-1 story of the plugin-migration saga; PLUGIN-MIGRATION-001-A (delete hardcoded adapters) follows after 001-D ships per ADR-028 §D6. 266th consecutive single-commit per TD-VSDD-053.** | plugin-migration | 2026-05-21 | Decided by: orchestrator (cascade convergence acknowledged) + state-manager (CONVERGENCE burst commit). Status: CONVERGED-APPROVED |
@@ -236,22 +239,26 @@ Prior cycle history:
 
 ---
 
-## Session Resume Checkpoint (2026-05-21 — D-760 DURABLE SNAPSHOT FOR /CLEAR)
+## Session Resume Checkpoint (2026-05-21 — D-762 RED GATE VERIFIED / STEP 4 IN PROGRESS)
 
-_Previous checkpoint (D-752-PASS-18-CLEAN-STREAK-1-OF-3) archived: [cycles/wave-0-plugin-prereqs/session-checkpoints.md](cycles/wave-0-plugin-prereqs/session-checkpoints.md)_
+_Previous checkpoint (D-760 DURABLE SNAPSHOT FOR /CLEAR) archived: [cycles/wave-0-plugin-prereqs/session-checkpoints.md](cycles/wave-0-plugin-prereqs/session-checkpoints.md)_
 
-**STATE v7.448. D-761 PLUGIN-MIGRATION-001-D TDD PHASE STARTED.** safe_to_compact=false. Worktree .worktrees/PLUGIN-MIGRATION-001-D/ created on branch feature/PLUGIN-MIGRATION-001-D from develop@1bc56e3c. 268th consecutive single-commit per TD-VSDD-053.
+**STATE v7.449. D-762 PLUGIN-MIGRATION-001-D RED GATE VERIFIED.** safe_to_compact=false. Feature branch feature/PLUGIN-MIGRATION-001-D HEAD: e2cea9b7. 269th consecutive single-commit per TD-VSDD-053.
+
+**Red Gate Final State (28 tests across 4 test functions):**
+- 13 FAILING (TOML-content driven; go green when implementer completes Tasks 3-6 / 11 / 12)
+- 7 #[ignore]'d (DTU-EXT-001..004 routes missing; future stories S-6.07..10 per BC-2.16.013 §Known Gaps)
+- 8 PASSING legitimately (inline TOML serde, D-747 auth_type verification, EC-016-013-002 behavior, RG-08 INV-SPEC-PARSER-OPEN-001 anti-pattern)
 
 **Convergence Summary:**
 - 25 LOCAL adversary passes (P1–P25); 19 fix-bursts; 80 cumulative closures; 16 novel coherence-axis classes
-- Streak 3/3 at passes P23/P24/P25 (0 findings each)
-- Factory HEAD at CONVERGENCE: 4c411a61 (D-759)
+- Feature branch: develop@1bc56e3c → 4 commits ahead (60081cb5 + d6b197fa + 0f22bd32 + e2cea9b7)
 
 **Resume Protocol:**
 1. Read `.factory/SESSION-HANDOFF.md` §RESUME SNAPSHOT 2026-05-21 for full context
-2. Read `.factory/STATE.md` frontmatter + D-759 + D-760 decision rows
+2. Read `.factory/STATE.md` frontmatter + D-762 decision row
 3. Verify factory worktree health via `vsdd-factory:devops-engineer` (BLOCKING)
-4. Verify `develop_head: 1bc56e3c` unchanged + 0 open PRs
-5. Execute TDD Implementation Dispatch Plan (§4 of §RESUME SNAPSHOT 2026-05-21)
+4. Verify feature branch HEAD is still e2cea9b7 (test-writer complete; implementer not yet started)
+5. Dispatch implementer for TDD green cycle: Tasks 3-6 (TOML authoring) + Tasks 11/12 (ESpec017 + load_all)
 
 _Agent routing: see CLAUDE.md §Agent Routing Table._

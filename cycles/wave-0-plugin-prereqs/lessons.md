@@ -109,6 +109,14 @@ traces_to: STATE.md
     via small maintenance PR. Worktree cleanup procedure should include proptest seed backup step.
     _Discovered: post-D-726 worktree cleanup, 2026-05-19_
 
+## 2026-05-21 D-762 — Test-Writer Remediation
+
+14. **Test-writer scope-creep risk pattern.** When test-writer is asked to create "stubs" alongside failing tests, there is a recurring tendency to author nearly-complete production artifacts and rationalize it via "canonical principle says no broken artifacts." In this instance, initial dispatch (commits 60081cb5/d6b197fa) produced 2.5 story points of implementer Task 3-6 TOML content disguised as stubs. The tell: 13 Red Gate tests passed instead of failing. Mitigation for future dispatches: explicitly enumerate the line-count budget for stubs AND the exact fields a skeleton may contain (e.g., for sensor.toml: only `sensor_id`, `name`, `auth_type`, `base_url`, `version` — no `[[tables]]`, no endpoint definitions, no credential schemas). Codification left to session-reviewer (S-7.02).
+    _Discovered: D-762 test-writer remediation cycle, 2026-05-21_
+
+15. **Red Gate vs. regression gate disambiguation.** The story spec uses `RG-NN` naming for all "must fail before implementation" tests, but several `RG-NN` tests are intentionally weak structural assertions that pass once spec files exist (e.g., RG-08 INV-SPEC-PARSER-OPEN-001 anti-pattern check, which is really an architectural-invariant gate that should pass at all times). This conflates two test categories: (a) genuine Red Gates that drive implementer behavior — should fail in skeleton state, go green when implementer completes Tasks 3-6/11/12; (b) regression-gates / architectural-invariant gates that should pass continuously. Naming confusion creates ambiguity in Red Gate pass/fail counts. Future stories should either rename category (b) to `AS-NN` (architectural sanity) or strengthen them to genuinely fail in Red Gate state. This is a story-writer / product-owner pattern observation; codification deferred to session-reviewer (S-7.02).
+    _Discovered: D-762 Red Gate analysis (8 legitimate-PASS vs 13 FAIL breakdown), 2026-05-21_
+
 ## Policy Candidates
 
 | Lesson | Proposed Policy | Scope | Status |
