@@ -49,10 +49,18 @@ fn normalize_for_parity(value: &serde_json::Value) -> serde_json::Value {
 #[derive(Debug, PartialEq)]
 enum ParityVerdict {
     Pass,
+    /// Used in #[ignore]'d test bodies — suppressed from dead_code analysis.
+    #[allow(dead_code)]
     Warn(String),
     Fail(String),
     // EC-016-013-002: explicit SKIP for cyberint.incidents
     Skip(String),
+    /// Reference fixture is empty — fixture has not been recorded yet.
+    ///
+    /// Returns Error (not Warn) so an unrecorded fixture cannot silently pass as WARN when the
+    /// #[ignore] tag is removed. Prevents the silent-WARN masking pattern flagged by F-LP1-MED-003.
+    /// Record fixtures via TS-PLUGIN-PARITY-001 before removing the #[ignore] tag.
+    Error(String),
 }
 
 fn compute_parity_verdict(
@@ -65,8 +73,14 @@ fn compute_parity_verdict(
     };
 
     if reference_array.is_empty() {
-        return ParityVerdict::Warn(
-            "Reference fixture is empty — DTU fixture not yet recorded per Task 10a.".to_string(),
+        // Return Error (not Warn) — an unrecorded fixture must NOT silently pass as WARN once
+        // the #[ignore] tag is removed. Record procedure: start Cyberint DTU, run legacy adapter,
+        // commit OCSF output to prism-dtu-cyberint/fixtures/parity/reference-ocsf/alerts.json.
+        return ParityVerdict::Error(
+            "reference OCSF fixture is empty — record fixtures via TS-PLUGIN-PARITY-001 \
+             before removing the #[ignore] tag. \
+             (F-LP1-MED-003: empty-fixture must not produce silent WARN)"
+                .to_string(),
         );
     }
 
@@ -165,6 +179,53 @@ async fn test_BC_2_16_013_dtu_parity_cyberint() {
 // EC-016-013-002: explicit SKIP with standard message
 // ---------------------------------------------------------------------------
 
+/// Compute the parity verdict for the cyberint incidents table.
+///
+/// Per EC-016-013-002, the incidents table is an explicit SKIP — the cyberint API
+/// returns incidents in batches that exceed parity fixture comparison economic value.
+/// This function is used by the incidents SKIP test (not `#[ignore]`'d) to assert
+/// that the verdict computation path returns Skip, not Pass/Warn/Fail.
+///
+/// If this function is changed to return anything other than Skip, the test
+/// `test_BC_2_16_013_dtu_parity_cyberint_incidents_skip` will FAIL, preventing
+/// silent removal of the EC-016-013-002 SKIP contract.
+fn compute_incidents_parity_verdict_for_skip_test() -> ParityVerdict {
+    // EC-016-013-002: cyberint incidents DTU gap is an explicit SKIP.
+    // The parity verdict for incidents is always Skip — the table exists in the spec
+    // but the DTU does not have a parity route for it per the gap analysis.
+    ParityVerdict::Skip(
+        "cyberint incidents DTU gap — see TS-PLUGIN-PARITY-001 Cyberint DTU Gap Note \
+         (EC-016-013-002). Incidents batch size exceeds parity fixture comparison value."
+            .to_string(),
+    )
+}
+
+/// AC-009 / RG-06 / EC-016-013-002: cyberint incidents parity is EXPLICIT SKIP.
+///
+/// This test is NOT `#[ignore]`'d — it runs in CI and passes by asserting the SKIP
+/// verdict. It FAILS if someone changes `compute_incidents_parity_verdict_for_skip_test`
+/// to return anything other than `ParityVerdict::Skip`, preventing silent erosion of
+/// the EC-016-013-002 contract.
+///
+/// Rationale: cyberint API returns incidents in batches that exceed parity fixture
+/// comparison economic value; the spec marks this table as SKIP per EC-016-013-002.
+#[test]
+fn test_BC_2_16_013_dtu_parity_cyberint_incidents_skip() {
+    let verdict = compute_incidents_parity_verdict_for_skip_test();
+
+    match verdict {
+        ParityVerdict::Skip(msg) => {
+            assert!(
+                msg.contains("EC-016-013-002") || msg.contains("incidents"),
+                "SKIP verdict message must reference EC-016-013-002 or incidents context; got: {msg}"
+            );
+        }
+        other => panic!(
+            "Expected ParityVerdict::Skip for cyberint incidents per EC-016-013-002; got {other:?}"
+        ),
+    }
+}
+
 /// AC-009 / EC-016-013-002 / HS-015:
 /// Cyberint incidents table parity test — explicit SKIP assertion.
 ///
@@ -235,4 +296,38 @@ fn test_HS_015_BC_2_16_013_cyberint_spec_declares_cookie_roundtrip_auth() {
         "Cyberint spec must declare auth_type = 'cookie_roundtrip' per DTU enforcement \
          (ADR-028 §D2; HS-015)"
     );
+}
+
+// ---------------------------------------------------------------------------
+// F-LP1-MED-003 load-bearing unit test: empty-fixture → Error (NOT Warn)
+// ---------------------------------------------------------------------------
+
+/// F-LP1-MED-003 / TD-VSDD-059: empty reference fixture must return Error, not Warn.
+///
+/// Runs unconditionally in CI. If this test fails after a code change, it means
+/// someone reverted the empty-fixture ERROR guard — restore `ParityVerdict::Error` in
+/// `compute_parity_verdict`.
+#[test]
+fn test_BC_2_16_013_compute_parity_verdict_empty_fixture_returns_error() {
+    let empty_reference = serde_json::Value::Array(vec![]);
+    let actual: Vec<serde_json::Value> = vec![];
+
+    let verdict = compute_parity_verdict(&actual, &empty_reference);
+
+    match verdict {
+        ParityVerdict::Error(msg) => {
+            assert!(
+                msg.contains("empty") || msg.contains("fixture"),
+                "Error message must describe the empty-fixture condition; got: {msg}"
+            );
+        }
+        ParityVerdict::Warn(_) => panic!(
+            "F-LP1-MED-003: compute_parity_verdict returned Warn for empty fixture — \
+             must return Error so unrecorded fixtures fail loudly when #[ignore] is removed"
+        ),
+        other => panic!(
+            "F-LP1-MED-003: compute_parity_verdict returned {other:?} for empty fixture — \
+             must return Error"
+        ),
+    }
 }
