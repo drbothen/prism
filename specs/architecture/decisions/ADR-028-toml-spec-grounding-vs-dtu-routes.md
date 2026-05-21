@@ -4,8 +4,8 @@ adr_id: "ADR-028"
 title: "TOML Spec URLs and auth_type Ground Against DTU Clone Routes (Real-API Canonical), Not Production Rust Adapter URLs"
 status: Proposed
 date: "2026-05-20"
-modified: "2026-05-20"
-version: "1.8"
+modified: "2026-05-21"
+version: "1.9"
 producer: architect
 subsystems_affected: [SS-01, SS-07, SS-16, SS-17]
 supersedes: ["ADR-026 §D3 (partial — auth_type_name() return values for Cyberint/Claroty/Armis non-CrowdStrike sensors)"]
@@ -22,7 +22,7 @@ wiring_deferred_to: null
 
 ## Status
 
-Proposed 2026-05-20, v1.0 (initial proposal version; current frontmatter v1.8 per §Changelog). Locks D-737 Decisions 1 and 4 as a durable architectural principle. Will be promoted to ACCEPTED after PLUGIN-MIGRATION-001-D LOCAL adversarial cascade reaches 3-CLEAN convergence per ADR-021 promotion lifecycle.
+Proposed 2026-05-20, v1.0 (initial proposal version; current frontmatter v1.9 per §Changelog). Locks D-737 Decisions 1 and 4 as a durable architectural principle. Will be promoted to ACCEPTED after PLUGIN-MIGRATION-001-D LOCAL adversarial cascade reaches 3-CLEAN convergence per ADR-021 promotion lifecycle.
 
 ---
 
@@ -161,6 +161,116 @@ Project does NOT have a single canonical §Changelog direction. Observed per-fil
 
 **Rule:** Before closing any POL-26 or convention-alignment finding by claiming a "project convention," the closer MUST exhaustively enumerate ALL ADRs and their authoring conventions. Declaring a project-wide rule from a sample of fewer than all ADRs is a sample-biased sibling-convention closure — the 12th coherence-axis class.
 
+### D8 — Timestamp Grammar Extension: Option A LOCKED (FB-IMPL-1, 2026-05-21)
+
+**Adjudicated in FB-IMPL-1 (D-FB-IMPL-1-OPT-A), closing F-LP1-HIGH-002/003.**
+
+BC-2.16.013 §O-001 LOCKED to **Option A (grammar extension)**. The WASM transformer plugin path (Option B) is NOT in scope for PLUGIN-MIGRATION-001-D. Rationale:
+
+1. **WASM transformer runtime does not yet exist.** BC-2.17.* governs the WASM plugin sandbox lifecycle, but no runtime exists for loading `.prx` column-transformer plugins from within `PipelineExecutor`. Choosing Option B would add an undeclared story dependency (the transformer loader) that is not yet scheduled.
+
+2. **Option A is fully bounded.** Adding `timestamp_formats: Vec<String>` and `timestamp_fallback_chain: Vec<String>` to `ColumnSpec` with `#[serde(default)]` is a self-contained grammar extension expressible in `spec_parser.rs`. No new crates, no WASM, no new story prerequisites.
+
+3. **Option A keeps specs human-readable.** The timestamps fields and fallback chain are visible and auditable in the TOML without an opaque binary blob reference.
+
+#### D8-A — Canonical Format List for Cyberint `created_at`
+
+DTU evidence (`crates/prism-dtu-cyberint/src/types.rs`): `Alert.created_at` is typed as `serde_json::Value` — it accepts any JSON value. Fixture coverage must include:
+
+| Format | Example | Notes |
+|--------|---------|-------|
+| ISO 8601 UTC | `"2024-01-15T10:30:00Z"` | Primary format; most common |
+| ISO 8601 with offset | `"2024-01-15T10:30:00+02:00"` | Cyberint sometimes emits timezone-offset form |
+| Unix epoch (integer) | `1705311000` | Legacy alert payloads use epoch seconds |
+
+The TOML spec declares: `timestamp_formats = ["iso8601", "unix_epoch_seconds"]` on the `created_at` column. The normalization layer (in `PipelineExecutor`) tries each format in order and uses the first successful parse. On all-formats failure: return `SpecEngineError::TimestampParseFailure` (error code `E-SPEC-018`, registered in error-taxonomy.md by this fix-burst's architect scope).
+
+#### D8-B — Canonical Fallback Chain for Armis Timestamp
+
+DTU evidence (`crates/prism-dtu-armis/src/types.rs`): `DeviceRecord` has `last_seen: Option<String>` (primary) and `first_seen: Option<String>` (secondary). Fixture fixture doc (`DeviceRecord` doc comment): `d-001` has `last_seen: null` and `first_seen: "2024-01-15T10:00:00Z"` to exercise the fallback.
+
+Canonical fallback chain (locked): `last_seen` → `first_seen` → `DateTime::now()` (fetch-time UTC).
+
+The TOML spec declares `timestamp_fallback_chain = ["last_seen", "first_seen"]` on the primary timestamp column. The normalization layer applies the chain in order; if all named columns are null/absent, falls back to `DateTime::now()` (fetch-time UTC). A `tracing::warn!` is emitted when the `now()` fallback is taken, preserving the existing audit signal (BC-2.16.013 §Postconditions §1 Armis).
+
+#### D8-C — Implementation Contract for Implementer
+
+The following grammar extension is in scope for PLUGIN-MIGRATION-001-D (no sub-story needed):
+
+**Field additions to `ColumnSpec` in `crates/prism-spec-engine/src/spec_parser.rs`:**
+
+```rust
+#[non_exhaustive]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct ColumnSpec {
+    pub name: String,
+    pub column_type: ColumnType,
+    pub ocsf_field: Option<String>,
+    #[serde(default)]
+    pub options: Vec<ColumnOptions>,
+    /// Ordered list of timestamp format names to try when parsing this column.
+    /// Only valid when `column_type == ColumnType::Datetime`.
+    /// Supported format names: `"iso8601"`, `"unix_epoch_seconds"`, `"unix_epoch_millis"`.
+    /// Empty vec (default) means the column is treated as a single well-known ISO 8601 string.
+    #[serde(default)]
+    pub timestamp_formats: Vec<String>,
+    /// Ordered list of source field names to try when the primary field is null/absent.
+    /// The pipeline executor tries each field in order; if all are null/absent, falls back to
+    /// `DateTime::now()` (UTC) and emits `tracing::warn!(event_type = "timestamp.fallback_to_now")`.
+    /// Only meaningful when `column_type == ColumnType::Datetime`.
+    /// Empty vec (default) means no fallback chain — null primary → null output column.
+    #[serde(default)]
+    pub timestamp_fallback_chain: Vec<String>,
+}
+```
+
+**Normalization layer — where in the pipeline:**
+
+The normalization runs inside `PipelineExecutor` during the response-to-Arrow materialization step (after HTTP response is parsed, before `PipelineResult` is returned). Specifically, per-column normalization is applied when materializing `ColumnType::Datetime` columns:
+
+1. If `timestamp_formats` is non-empty, iterate the formats in order; use the first successful parse result. On complete failure: emit `E-SPEC-018`.
+2. If `timestamp_fallback_chain` is non-empty and the primary field is null/absent: try each fallback field in order using the same `timestamp_formats` (or ISO 8601 default if formats is empty). If all fallback fields are also null/absent: use `DateTime::now()` UTC and emit `tracing::warn!(event_type = "timestamp.fallback_to_now", column = %col_name)`.
+
+**Default behavior (backward compatible):** Both fields default to empty `Vec` via `#[serde(default)]`. Existing TOML specs that do not declare these fields parse identically to current behavior (ISO 8601 expected, no fallback chain, no multi-format retry). This is a strictly additive grammar extension — no existing spec is invalidated.
+
+**Error code:** `E-SPEC-018` — `TimestampParseFailure` — added to error-taxonomy.md by this fix-burst. Emitted when `timestamp_formats` is non-empty and no format successfully parsed the field value. Existing `E-SPEC-NNN` codes are unchanged.
+
+**Validation gate (BC-2.16.009):** Add validation rule: if `timestamp_formats` contains unrecognized format names (not in `["iso8601", "unix_epoch_seconds", "unix_epoch_millis"]`), emit `E-SPEC-001` validation error at load time. Recognized format names are a closed set as of this ADR; additions require a new §D8 amendment.
+
+### D9 — Documented-Gap Entries in Spec Are Permitted with Explicit DTU-EXT-NNN Blocker Reference
+
+**Adjudicated in FB-IMPL-1 (D-FB-IMPL-1-MED-001), closing F-LP1-MED-001.**
+
+ADR-028 §D5 ("spec entry for a URL path that has no corresponding DTU route registration is an architectural violation") is clarified: this prohibition applies to **active** spec entries that the implementer intends to exercise in parity tests. It does NOT prohibit **documented-gap entries** that meet all three of:
+
+1. The spec table entry is explicitly marked in the TOML with an inline comment referencing the DTU-EXT-NNN gap ID (e.g., `# DTU-EXT-001: no DTU route registered; parity test is SKIP`).
+2. The corresponding parity test is unconditionally `#[ignore]`-tagged with the gap message per EC-016-013-006.
+3. The gap is catalogued in BC-2.16.013 §Known Gaps with the recommended resolution.
+
+Under this clarification, the CrowdStrike `incidents` table REMAINS in `crowdstrike.sensor.toml` as a documented-gap entry. Story AC-001's `tables.len() == 3` count (detections + devices + incidents) remains correct. The incidents table is architecturally forward-looking — the real Falcon Detects/Incidents API exists and is in scope for a follow-up DTU-EXT-001 story.
+
+**Architect-handoff note for PO (F-LP1-MED-001 AC amendment):** Story AC-001 already states `tables.len() == 3` with an explanation that incidents is DTU-EXT-001 gated. No AC text change is needed; the existing AC-001 PASS criterion note accurately describes the documented-gap behavior. PO need not amend AC-001.
+
+### D10 — Co-Merge Contract: PLUGIN-MIGRATION-001-D and PLUGIN-MIGRATION-001-A
+
+**Adjudicated in FB-IMPL-1 (D-FB-IMPL-1-MED-005), closing F-LP1-MED-005.**
+
+PLUGIN-MIGRATION-001-D spec declares Claroty `auth_type = "bearer_static"` (DTU-grounded, per §D2). The LIVE adapter until PLUGIN-MIGRATION-001-A merges returns `"cookie_roundtrip"` from `ClarotyAuth::auth_type_name()`. ADR-023 Rule 2 enforcement (INV-AUTH-OPEN-003 / BC-2.01.016) checks auth_type at spec-load; if the spec's declared `auth_type` does not match the registered SensorAuth implementation's `auth_type_name()`, `E-SPEC-012` is emitted.
+
+This creates a REAL runtime regression risk: anyone running `prism start` on a develop build that has PLUGIN-MIGRATION-001-D merged but NOT PLUGIN-MIGRATION-001-A merged will encounter `E-SPEC-012` on the Claroty sensor spec load.
+
+**Decision: Option (a) — Co-Merge Contract.**
+
+PLUGIN-MIGRATION-001-D and PLUGIN-MIGRATION-001-A MUST be deployed to production simultaneously. The story dependency graph is amended:
+
+- `PLUGIN-MIGRATION-001-D.blocks` gains: `PLUGIN-MIGRATION-001-A` (already present per INV-PARITY-001)
+- `PLUGIN-MIGRATION-001-D.postconditions` gains: explicit co-deploy annotation (see story §Postconditions amendment below)
+- `PLUGIN-MIGRATION-001-A.depends_on` gains: `PLUGIN-MIGRATION-001-D` (already structurally implied; made explicit)
+
+ADR-028 §D6 documents the auth migration window. §D10 closes the window by specifying that the production deployment MUST be atomic across both stories. Development and CI builds may have either story merged independently (CI does not run prism start with production credentials); the regression risk is PRODUCTION deployment only.
+
+Feature flags (Option b) are rejected: they add runtime branch complexity to solve a deployment-sequencing problem. The sequencing is already enforced by the story dependency graph and the co-merge contract stated here.
+
 ---
 
 ## Consequences
@@ -215,6 +325,7 @@ Project does NOT have a single canonical §Changelog direction. Observed per-fil
 
 | Version | Date | Author | Summary |
 |---|---|---|---|
+| 1.9 | 2026-05-21 | architect | (D-FB-IMPL-1-OPT-A) FB-IMPL-1 architect adjudication: §D8 LOCKS Option A (grammar extension) for BC-2.16.013 §O-001 — `timestamp_formats` + `timestamp_fallback_chain` fields added to `ColumnSpec`; Cyberint canonical formats iso8601+unix_epoch_seconds documented; Armis fallback chain `last_seen → first_seen → now()` locked; implementer contract for spec_parser.rs changes specified; E-SPEC-018 registered. §D9 clarifies §D5 documented-gap exception: incidents table REMAINS in crowdstrike.sensor.toml per documented-gap policy; AC-001 `tables.len() == 3` stands. §D10 co-merge contract: 001-D + 001-A MUST deploy to production simultaneously to prevent E-SPEC-012 regression on Claroty bearer_static vs live cookie_roundtrip; feature-flag Option b rejected; story §Postconditions annotated. |
 | 1.8 | 2026-05-20 | architect | Pass-17 FB-IMPL-P17-ARCH: §Changelog rows REVERTED to descending (project per-file convention locks at authoring; ADR-028 was authored at v1.0 with descending order). FB-IMPL-P16-ARCH's ascending flip was based on sample-biased 3-ADR enumeration that missed ADR-022's 6-precedent DESCENDING enforcement chain (D-611/D-628/D-635/D-659/D-670/D-671). F-LP17-HIGH-002 closure. 12th coherence-axis class (sample-biased sibling-convention closures) codified: convention closures MUST exhaustively enumerate ALL ADRs before declaring project rule. §D7 (Per-File §Changelog Convention Lock) added. §Status self-cite advanced to v1.8. |
 | 1.7 | 2026-05-20 | architect | Pass-16 FB-IMPL-P16-ARCH: §Changelog rows reordered descending→ascending to match project convention (ADR-026/025/027) per F-LP16-MED-001 (POL-26 sibling-asymmetric convention). Closes 9th coherence-axis class. Content of all prior rows preserved verbatim — only ordering changed. |
 | 1.6 | 2026-05-20 | architect | FB-IMPL-P14-ARCH: F-LP14-MED-002 closure — §Status self-cite "current frontmatter v1.4" advanced to "current frontmatter v1.6" (stale after v1.5 bump in P13; same defect class as F-LP10-LOW-001). F-LP14-MED-003 closure — §D6 Action 3 parenthetical rewritten: future-tense "applied in the PLUGIN-MIGRATION-001-A merge burst" replaced with realized past-tense "applied simultaneously with this §D6 authoring in FB-IMPL-P13-ARCH; reflected in ADR-026 v1.30 frontmatter". POL-29 self-verification greps: CLEAN. |

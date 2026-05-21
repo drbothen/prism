@@ -1,7 +1,7 @@
 ---
 document_type: behavioral-contract
 level: L3
-version: "1.11"
+version: "1.12"
 status: draft
 producer: product-owner
 timestamp: 2026-05-20T00:00:00Z
@@ -11,7 +11,7 @@ subsystem: "SS-16"
 capability: "CAP-029"
 lifecycle_status: draft
 introduced: "2026-05-20"
-modified: "2026-05-20"
+modified: "2026-05-21"
 deprecated: null
 deprecated_by: null
 replacement: null
@@ -63,7 +63,7 @@ MUST NOT proceed until VP-PLUGIN-003 is verified (green parity tests) for all 4 
 - `PluginRegistry` dispatch is wired in `spec_parser.rs` (BC-2.16.012 active).
 - The `CustomAdapter` Rust trait has been removed (BC-2.16.011 active; `lifecycle_status: removed`).
 
-### O-001 TOML Grammar Verification (FB-IMPL-P1-PO, 2026-05-20)
+### O-001 TOML Grammar Verification — LOCKED Option A (D-FB-IMPL-1-OPT-A, 2026-05-21)
 
 The following four TOML grammar features were verified against the canonical implementation at
 `crates/prism-spec-engine/src/spec_parser.rs` and `crates/prism-spec-engine/src/pipeline.rs`:
@@ -72,28 +72,38 @@ The following four TOML grammar features were verified against the canonical imp
 |-------|--------|---------|
 | `fan_out_batch_size` on `FetchStep` | **SUPPORTED** | Present as `pub fan_out_batch_size: Option<u32>` in the `FetchStep` struct (`FetchStep::fan_out_batch_size` field); handled by `fan_out_batches` in the pipeline executor |
 | `${query.filter.KEY}` interpolation | **SUPPORTED** | `FetchContext::query_filters: HashMap<String, String>` seeded into `step_vars` via `PipelineExecutor::execute_impl` `query.filter.{k}` step-vars seeding; Armis AQL must use `${query.filter.aql}`, not the non-existent `${query.aql}` shorthand |
-| `timestamp_format = "multi"` | **NOT SUPPORTED — Grammar Extension Required** | No such field exists in `FetchStep`, `TableSpec`, `ColumnSpec`, or `SensorSpec` in `spec_parser.rs`. This extension is NOT declaratively expressible in the current TOML grammar. |
-| `timestamp_fallback_chain = [...]` | **NOT SUPPORTED — Grammar Extension Required** | No such field exists anywhere in `spec_parser.rs`. This extension is NOT declaratively expressible in the current TOML grammar. |
+| `timestamp_formats: Vec<String>` | **IN-SCOPE EXTENSION — Option A LOCKED** | Not yet in `spec_parser.rs`. Must be added to `ColumnSpec` with `#[serde(default)]` as part of PLUGIN-MIGRATION-001-D per ADR-028 v1.9 §D8-C. See implementer contract below. |
+| `timestamp_fallback_chain: Vec<String>` | **IN-SCOPE EXTENSION — Option A LOCKED** | Not yet in `spec_parser.rs`. Must be added to `ColumnSpec` with `#[serde(default)]` as part of PLUGIN-MIGRATION-001-D per ADR-028 v1.9 §D8-C. See implementer contract below. |
 
-**Consequence:** The `cyberint.sensor.toml` multi-format timestamp behavior and `armis.sensor.toml`
-timestamp fallback chain behavior CANNOT be expressed declaratively in the current TOML grammar.
-Two prerequisite options exist:
+**O-001 LOCKED Option A — see ADR-028 v1.9 §D8.** The WASM transformer plugin path (Option B)
+is NOT in scope for PLUGIN-MIGRATION-001-D. The grammar extension (Option A) is in scope and
+MUST be implemented by the implementer in the same story. This is not a deferral.
 
-**Option A (Grammar Extension):** Add `timestamp_format` and `timestamp_fallback_chain` fields to
-`ColumnSpec` or `TableSpec` in `spec_parser.rs` as part of PLUGIN-MIGRATION-001-D or a dedicated
-sub-story `PLUGIN-MIGRATION-001-D.1`. If implemented in the main story, these fields must be
-deserialized via `#[serde(default)]` and handled in the pipeline executor.
+**Implementer contract (complete; no further adjudication needed):**
 
-**Option B (WASM Plugin):** Implement the timestamp parsing and fallback logic as an in-repo
-`.prx` WASM transformer plugin per ADR-023 §Decision Rules Rule 1 (complex transforms). The spec
-would reference the plugin via `(sensor_id, table)` dispatch in the SpecDrivenMapper.
+- Add `timestamp_formats: Vec<String>` and `timestamp_fallback_chain: Vec<String>` to `ColumnSpec`
+  in `crates/prism-spec-engine/src/spec_parser.rs`, both with `#[serde(default)]`.
+- Both fields default to empty `Vec` — backward compatible: existing TOML specs are unaffected.
+- `timestamp_formats` recognized values: `"iso8601"`, `"unix_epoch_seconds"`, `"unix_epoch_millis"`.
+  Unrecognized format names → `E-SPEC-001` validation error at load time (BC-2.16.009 gate).
+- `timestamp_fallback_chain` lists source field names to try when the primary column field is null.
+  After all chain fields are exhausted: use `DateTime::now()` UTC; emit
+  `tracing::warn!(event_type = "timestamp.fallback_to_now", column = %col_name)`.
+- On multi-format parse failure (all `timestamp_formats` tried, none succeeded): emit `E-SPEC-018`
+  (`TimestampParseFailure`) — registered in error-taxonomy.md by this fix-burst.
+- Normalization runs inside `PipelineExecutor` during response-to-Arrow materialization for
+  `ColumnType::Datetime` columns.
 
-The implementer MUST choose Option A or Option B and implement it before authoring the Cyberint
-and Armis TOML specs. This BC treats both as valid — the postcondition is that the spec produces
-parity output, not that it uses a specific grammar mechanism. **This is not a deferral —
-implementing the grammar extension or WASM plugin is in scope for PLUGIN-MIGRATION-001-D.**
-If the implementer discovers that the scope cannot be completed in one story, the orchestrator
-must be notified for sub-story creation.
+**Cyberint `created_at` canonical formats (DTU-grounded per ADR-028 v1.9 §D8-A):**
+`timestamp_formats = ["iso8601", "unix_epoch_seconds"]`. Cyberint DTU `Alert.created_at` is
+`serde_json::Value` (accepts ISO 8601, epoch seconds, or epoch milliseconds).
+
+**Armis timestamp fallback chain (DTU-grounded per ADR-028 v1.9 §D8-B):**
+`timestamp_fallback_chain = ["last_seen", "first_seen"]` on the primary timestamp column.
+DTU `DeviceRecord` has `last_seen: Option<String>` (primary) and `first_seen: Option<String>`
+(secondary). Fixture `d-001` has `last_seen: null` + `first_seen: "2024-01-15T10:00:00Z"` to
+exercise the fallback path. WARN emission when falling back to `now()` preserves the existing
+audit signal.
 
 - DTU clones for all 4 sensors are built and available in the test harness:
   - `prism-dtu-crowdstrike` (S-6.07): OAuth2 token endpoint + two-step Falcon API (QueryV2 + PostEntities)
@@ -164,10 +174,10 @@ authentication enforcement behavior, which reflects the real third-party API's a
     `"/api/v1/alerts"` registered as GET route).
   - `incidents` — Cyberint DTU gap: parity tests in SKIP per TS-PLUGIN-PARITY-001 Cyberint
     DTU Gap Note until DTU coverage of `incidents` pagination behavior is verified.
-  Multi-format timestamp parsing (`parse_timestamp()`) is expressed via column `type: "datetime"`
-  with a WASM transformer plugin for multi-format parsing (see O-001 Grammar Verification note
-  in §Preconditions — `timestamp_format: "multi"` is NOT present in the current TOML grammar
-  and requires a grammar extension or WASM plugin as a prerequisite). Version: `"1.0.0"`.
+  Multi-format timestamp parsing is expressed via column `type: "datetime"` with
+  `timestamp_formats = ["iso8601", "unix_epoch_seconds"]` on the `created_at` column
+  (O-001 LOCKED Option A per ADR-028 v1.9 §D8-A; grammar extension in `ColumnSpec` implemented
+  by this story's implementer). Version: `"1.0.0"`.
   Auth grounded: Cyberint DTU (`crates/prism-dtu-cyberint/src/routes/alerts.rs::extract_session_token()`)
   enforces cookie-based session auth — extracts `cyberint_session` cookie from `Cookie` header
   → `auth_type = "cookie_roundtrip"`. (The legacy `CyberintAuth::auth_type_name()` incorrectly
@@ -184,11 +194,11 @@ authentication enforcement behavior, which reflects the real third-party API's a
   - `alerts` — **See §Known Gaps: DTU-EXT-004.** DTU has `/api/v1/alerts` (GET), not
     `/api/v1/search` with AQL. This table entry is deferred pending DTU extension or
     BC scope reconciliation (ADR-028 §D5).
-  Timestamp fallback chain: `firstSeen` → `lastSeen` → `DateTime::now()` expressed via a
-  WASM transformer plugin (see O-001 Grammar Verification note in §Preconditions —
-  `timestamp_fallback_chain` is NOT present in the current TOML grammar and requires a grammar
-  extension or WASM plugin as a prerequisite). WARN emission when falling back to `now()`
-  preserves the existing `tracing::warn!` audit signal.
+  Timestamp fallback chain: `last_seen` → `first_seen` → `DateTime::now()` (UTC) expressed via
+  `timestamp_fallback_chain = ["last_seen", "first_seen"]` on the primary timestamp column
+  (O-001 LOCKED Option A per ADR-028 v1.9 §D8-B; `ColumnSpec::timestamp_fallback_chain` field
+  implemented by this story's implementer). WARN emission when falling back to `now()` preserves
+  the existing `tracing::warn!(event_type = "timestamp.fallback_to_now")` audit signal.
   Version: `"1.0.0"`.
   Auth grounded: Armis DTU (per `crates/prism-dtu-armis/src/lib.rs` module documentation) enforces
   `Authorization: Bearer {non-empty}` header with HTTP 403 on missing/invalid token
@@ -329,6 +339,7 @@ adapter path for all test cases:
 | `E-SPEC-001` | Bundled spec file fails BC-2.16.009 validation at CI time | CI fails; spec file must be corrected before merge; this is a pre-merge gate |
 | `E-SPEC-009` | Duplicate `sensor_id` across two spec files (e.g., two files both declare `sensor_id: "crowdstrike"`) | BC-2.16.001 rejects the second file with `E-SPEC-009` per error-taxonomy.md; first file wins. E-SPEC-009 covers ONLY the duplicate-sensor_id case — it does NOT cover filename-stem-vs-sensor_id mismatch (see E-SPEC-017 below). |
 | `E-SPEC-017` | Spec `sensor_id` does not case-sensitively match the filename stem (e.g., `crowdstrike.sensor.toml` with `sensor_id: "falcon"`) | BC-2.16.001 rejects the offending file with `E-SPEC-017` per error-taxonomy.md v1.42. Bundled spec naming convention is `{sensor_id}.sensor.toml`; mismatch indicates a rename without sensor_id update or vice versa; reject at load time to prevent silent namespace drift. (Registered as new code E-SPEC-017 in FB-IMPL-P2-PO 2026-05-20 — prior pass-1 incorrectly cited E-SPEC-009 for this case; E-SPEC-009 has distinct duplicate-sensor_id semantics.) |
+| `E-SPEC-018` | `ColumnSpec::timestamp_formats` is non-empty and no format successfully parsed the column value (multi-format timestamp parse failure) | `PipelineExecutor` emits `E-SPEC-018` (`TimestampParseFailure`) per error-taxonomy.md v1.43. Only emitted when `timestamp_formats` is explicitly set on a `ColumnType::Datetime` column; columns with empty `timestamp_formats` (default) use ISO 8601 exclusively and emit a different error on parse failure. Registered FB-IMPL-1 2026-05-21 per ADR-028 v1.9 §D8-C. |
 
 **Note on parity FAIL verdict (test verdict, not runtime error):** A parity test FAIL verdict
 (where `PipelineExecutor` output does not match the reference OCSF output for a test case) is
@@ -372,11 +383,14 @@ never registered in error-taxonomy.md and does not exist as a runtime error.)
 
 ## Architecture Anchors
 
-- ADR-028 v1.8 §D1 (URL grounding rule — TOML spec URL paths derived from DTU clone route registrations, not production Rust adapter code)
-- ADR-028 v1.8 §D2 (auth_type grounding rule — TOML spec auth_type derived from DTU clone enforcement behavior, which reflects the real third-party API's auth contract; §D2 supersedes ADR-026 §D3 per D-747)
-- ADR-028 v1.8 §D3 (parity reference OCSF grounding rule — committed fixture JSON at `crates/prism-dtu-{sensor}/fixtures/parity/reference-ocsf/<table>.json`; no prism-sensors dev-dep required)
-- ADR-028 v1.8 §D5 (DTU extension prerequisite — spec entry for a URL path with no DTU route registration is an architectural violation; DTU-EXT-001..004 identified)
-- ADR-028 v1.8 §D6 (scope expansion — PLUGIN-MIGRATION-001-A migrates live `*Auth::auth_type_name()` to match DTU-grounded auth_type values; auth divergence between TOML spec and live adapter return is intentional and tracked until 001-A merges)
+- ADR-028 v1.9 §D1 (URL grounding rule — TOML spec URL paths derived from DTU clone route registrations, not production Rust adapter code)
+- ADR-028 v1.9 §D2 (auth_type grounding rule — TOML spec auth_type derived from DTU clone enforcement behavior, which reflects the real third-party API's auth contract; §D2 supersedes ADR-026 §D3 per D-747)
+- ADR-028 v1.9 §D3 (parity reference OCSF grounding rule — committed fixture JSON at `crates/prism-dtu-{sensor}/fixtures/parity/reference-ocsf/<table>.json`; no prism-sensors dev-dep required)
+- ADR-028 v1.9 §D5 (DTU extension prerequisite — spec entry for a URL path with no DTU route registration is an architectural violation; DTU-EXT-001..004 identified; documented-gap exception per §D9)
+- ADR-028 v1.9 §D6 (scope expansion — PLUGIN-MIGRATION-001-A migrates live `*Auth::auth_type_name()` to match DTU-grounded auth_type values; auth divergence between TOML spec and live adapter return is intentional and tracked until 001-A merges)
+- ADR-028 v1.9 §D8 (O-001 LOCKED Option A — `ColumnSpec::timestamp_formats` + `ColumnSpec::timestamp_fallback_chain` grammar extension; Cyberint `["iso8601", "unix_epoch_seconds"]`; Armis `["last_seen", "first_seen"] → now()`; E-SPEC-018 registered)
+- ADR-028 v1.9 §D9 (documented-gap exception — incidents table retained in crowdstrike.sensor.toml as documented-gap entry; AC-001 `tables.len() == 3` stands)
+- ADR-028 v1.9 §D10 (co-merge contract — 001-D + 001-A must deploy to production simultaneously; E-SPEC-012 regression prevention for Claroty bearer_static vs live cookie_roundtrip)
 - ADR-023 §Decision Rules — Rule 3 (VP-PLUGIN-003 parity gate — replacement-before-deletion prerequisite)
 - ADR-023 §Decision Rules — Rule 1 (four initial sensors ship as pure TOML specs; no in-repo .prx plugin required for the four initial sensors; OCSF complex-transform plugins are a separate concern per Rule 1)
 - TS-PLUGIN-PARITY-001 (canonicalization rules for parity comparison: Rules A–I, Rule I fixture minimum, Cyberint DTU Gap Note)
@@ -400,7 +414,7 @@ PLUGIN-MIGRATION-001-D (implementing story; planned → draft after PO authoring
 | L2 Invariants | DI-008 (client scoping — specs do not cross client boundaries), DI-030 (partial-failure isolation — one spec failure does not block others), DI-012 (auth composition prevention — each spec declares exactly one auth_type) |
 | L2 Entities | SensorSpec, TableSpec, ColumnSpec, PipelineResult |
 | Priority | P0 |
-| ADR anchors | ADR-028 v1.8 §D1 (URL grounding), §D2 (auth_type grounding; supersedes ADR-026 §D3 per D-747), §D3 (fixture-JSON parity reference), §D5 (DTU extension prerequisite), §D6 (001-A auth migration scope); ADR-023 §Decision Rules — Rule 1, §Decision Rules — Rule 3; ADR-023 §Architectural Constraints — C2; TS-PLUGIN-PARITY-001 Rules A–I |
+| ADR anchors | ADR-028 v1.9 §D1 (URL grounding), §D2 (auth_type grounding; supersedes ADR-026 §D3 per D-747), §D3 (fixture-JSON parity reference), §D5 (DTU extension prerequisite; documented-gap exception per §D9), §D6 (001-A auth migration scope), §D8 (O-001 Option A LOCKED: timestamp_formats + timestamp_fallback_chain grammar extension), §D9 (documented-gap entries permitted with DTU-EXT-NNN blocker ref), §D10 (co-merge contract: 001-D + 001-A must deploy simultaneously); ADR-023 §Decision Rules — Rule 1, §Decision Rules — Rule 3; ADR-023 §Architectural Constraints — C2; TS-PLUGIN-PARITY-001 Rules A–I |
 | Subsystem | SS-16 (Spec Engine) |
 
 ## Changelog
@@ -408,6 +422,7 @@ PLUGIN-MIGRATION-001-D (implementing story; planned → draft after PO authoring
 | Version | Burst | Date | Author | Change |
 |---------|-------|------|--------|--------|
 | 1.11 | FB-IMPL-P22-PO | 2026-05-21 | product-owner | F-LP22-MED-001 closure (16th coherence-axis: same-line dual-format cite-pin escape): swept `error-taxonomy.md v1.41` → `v1.42` at 1 active-prose site (§Error Conditions E-SPEC-017 row line 331). BC-2.16.013 v1.10→v1.11. |
+| 1.12 | FB-IMPL-1 | 2026-05-21 | architect | (D-FB-IMPL-1-OPT-A) F-LP1-HIGH-002/003 closure: §O-001 LOCKED Option A — grammar extension in `ColumnSpec` (`timestamp_formats: Vec<String>` + `timestamp_fallback_chain: Vec<String>`, both `#[serde(default)]`). Full implementer contract specified: recognized formats, normalization pipeline location, backward compat, E-SPEC-018 registered. Cyberint canonical formats `["iso8601", "unix_epoch_seconds"]` documented (DTU-grounded). Armis fallback chain `["last_seen", "first_seen"] → now()` locked (DTU-grounded). §Postconditions §1 Cyberint + Armis rows updated: WASM plugin references replaced with Option A grammar. ADR-028 v1.8→v1.9 cite-pin sweep across 6 §Architecture Anchors sites (§D1/D2/D3/D5/D6) + §ADR anchors Traceability row. |
 | 1.10 | FB-IMPL-P17-PO | 2026-05-20 | product-owner | F-LP17-HIGH-002 propagation closure (POL-29 fixed-point per F-LP16-OBS-001): ADR-028 v1.7→v1.8 cite-pin sweep across 6 active-prose sites (lines 375-379, 403). Architect FB-IMPL-P17-ARCH reverted ADR-028 §Changelog to descending + bumped v1.7→v1.8 + added §D7 (Per-File Convention Lock rule); cites bump only, no structural change. |
 | 1.9 | FB-IMPL-P16-PO | 2026-05-20 | product-owner | F-LP16-MED-001 propagation closure (POL-29 fixed-point per F-LP16-OBS-001): ADR-028 v1.6→v1.7 cite-pin sweep across 6 active-prose sites (lines 375-379, 403). Same-burst sweep avoiding leak-into-next-pass per fixed-point iteration discipline. |
 | 1.8 | FB-IMPL-P15-PO | 2026-05-20 | product-owner | F-LP15-MED-001 closure: ADR-028 v1.5→v1.6 cite-pin sweep across 6 active-prose sites (lines 375-379, 403) + any other discovered sites. POL-29 cross-file sweep applied per F-LP15-OBS-001 process-gap (closure scope of this burst). |

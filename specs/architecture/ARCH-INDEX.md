@@ -1,7 +1,7 @@
 ---
 document_type: architecture-index
 level: L3
-version: "2.96"
+version: "2.97"
 status: draft
 producer: state-manager
 timestamp: 2026-05-20T00:00:00
@@ -94,7 +94,7 @@ deployment_topology: single-service  # planned — no service binary exists yet 
 | ADR-026 | SensorAuth Trait Un-Sealing — Remove private::Sealed, Enable Plugin Auth Implementations | PROPOSED v1.32 | 2026-05-20 | decisions/ADR-026-sensorauth-unsealing.md |
 | ADR-026-AMENDMENT | ADR-026 Amendment: Rule C (E-SPEC-014) — Keyring Backend Scope Qualification (D-706) | APPROVED v1.0 | 2026-05-18 | decisions/ADR-026-AMENDMENT-rule-c-keyring-scope.md |
 | ADR-027 | CustomAdapter Rust Trait Same-Burst Removal — Perimeter Enforcement in Wave 1/A | PROPOSED v1.9 | 2026-05-17 | decisions/ADR-027-custom-adapter-deprecation-removal.md |
-| ADR-028 | TOML Spec URLs and auth_type Ground Against DTU Clone Routes (Real-API Canonical), Not Production Rust Adapter URLs | PROPOSED v1.8 | 2026-05-20 | decisions/ADR-028-toml-spec-grounding-vs-dtu-routes.md |
+| ADR-028 | TOML Spec URLs and auth_type Ground Against DTU Clone Routes (Real-API Canonical), Not Production Rust Adapter URLs | PROPOSED v1.9 | 2026-05-21 | decisions/ADR-028-toml-spec-grounding-vs-dtu-routes.md |
 
 ## Architecture Decisions
 
@@ -154,6 +154,7 @@ deployment_topology: single-service  # planned — no service binary exists yet 
 
 | Version | Pass | Date | Author | Change |
 |---------|------|------|--------|--------|
+| 2.97 | FB-IMPL-1 | 2026-05-21 | architect | (D-FB-IMPL-1-OPT-A) ADR-028 in-line row v1.8→v1.9 (§D8/§D9/§D10 added; §Status self-cite advanced to v1.9; v1.9 row prepended at top per descending convention per §D7). ARCH-INDEX v2.96→v2.97. |
 | 2.96 | FB-IMPL-P19-SM | 2026-05-21 | state-manager | F-LP19-MED-001 closure: §Changelog rows v2.93/v2.94/v2.95 reordered to strict descending (v2.95→v2.94→v2.93). 9th+ POL-26 monotonic-ordering recurrence on ARCH-INDEX. Same-burst convention-lock violation introduced by FB-IMPL-P16-ARCH (v2.94 placed below v2.93) + missed by FB-IMPL-P17-ARCH (prepended v2.95 above but didn't repair v2.94 position). Detected by pass-19 fresh-context. 14th coherence-axis class codification candidate: "same-burst convention-lock violation in the codifying burst itself." ARCH-INDEX v2.95→v2.96. |
 | 2.95 | FB-IMPL-P17-ARCH | 2026-05-20 | architect | Pass-17 FB-IMPL-P17-ARCH F-LP17-HIGH-002 closure: ADR-028 in-line row v1.7→v1.8 (§Changelog REVERTED to descending per-file convention; §D7 Per-File §Changelog Convention Lock added; §Status self-cite advanced to v1.8; v1.8 row prepended at top). FB-IMPL-P16-ARCH's ascending flip reversed — sample-biased 3-ADR survey missed ADR-022's 6-precedent DESCENDING chain. 12th coherence-axis class codified. ARCH-INDEX v2.94→v2.95. |
 | 2.94 | FB-IMPL-P16-ARCH | 2026-05-20 | architect | Pass-16 FB-IMPL-P16-ARCH F-LP16-MED-001 closure: ADR-028 in-line row v1.6→v1.7 (§Changelog rows reordered descending→ascending per POL-26 sibling-asymmetric convention — matching ADR-026/025/027; §Status self-cite advanced to v1.7; v1.7 changelog row appended). Closes 9th coherence-axis class. ARCH-INDEX v2.93→v2.94. |

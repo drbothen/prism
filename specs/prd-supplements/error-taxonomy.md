@@ -2,7 +2,7 @@
 document_type: prd-supplement
 level: L3
 section: "error-taxonomy"
-version: "1.42"
+version: "1.43"
 status: active
 producer: product-owner
 timestamp: 2026-05-16T00:00:00Z
@@ -387,6 +387,7 @@ Additional state errors beyond E-STATE-001 and E-STATE-002 (defined in the STATE
 | E-SPEC-015 | — | — | — | — | **RETIRED per append_only_numbering (DF-030). ID reserved; never reused.** |
 | E-SPEC-016 | — | — | — | — | **RETIRED per append_only_numbering (DF-030). ID reserved; never reused.** |
 | E-SPEC-017 | broken | validation | "Spec sensor_id '{sensor_id}' does not match filename stem '{filename_stem}' in spec file '{file}'" | No | Spec filename must follow `{sensor_id}.sensor.toml` convention. Mismatch indicates a rename without sensor_id update or vice versa; reject at load time to prevent silent identity drift (INV-PARITY-002). Distinct from E-SPEC-009 (duplicate sensor_id across files). BC-2.16.001 §Error Conditions; BC-2.16.013 §Error Conditions. Introduced FB-IMPL-P2-PO fix-burst-2 2026-05-20. |
+| E-SPEC-018 | broken | validation | "Failed to parse timestamp for column '{column_name}' in sensor '{sensor_id}': tried formats [{formats}], value='{value}'" | No | Emitted by `PipelineExecutor` when a `ColumnType::Datetime` column declares `timestamp_formats` (non-empty) and no format successfully parsed the field value. The `formats` list in the message is the ordered list from `ColumnSpec::timestamp_formats`. BC-2.16.013 §O-001 (Option A grammar extension); ADR-028 v1.9 §D8-C. Introduced FB-IMPL-1 2026-05-21. |
 
 ## INFUSE: Infusion Errors
 
@@ -490,6 +491,7 @@ Additional state errors beyond E-STATE-001 and E-STATE-002 (defined in the STATE
 
 | Version | Burst | Date | Author | Change |
 |---------|-------|------|--------|--------|
+| 1.43 | FB-IMPL-1 | 2026-05-21 | architect | (D-FB-IMPL-1-OPT-A) Registered E-SPEC-018 (broken, validation, `TimestampParseFailure`) per ADR-028 v1.9 §D8-C and BC-2.16.013 §O-001 Option A LOCKED. Emitted by `PipelineExecutor` when `ColumnSpec::timestamp_formats` is non-empty and no format successfully parsed a `ColumnType::Datetime` column value. Append-only per POL-1; E-SPEC-018 ID is new (no retired predecessors to skip). |
 | 1.42 | FB-IMPL-P21-PO | 2026-05-21 | product-owner | F-LP21-MED-001 closure (15th coherence-axis: section-versioned cite-pin format): E-SPEC-017 row line 389 — stripped `v1.2` from `BC-2.16.013 §Error Conditions v1.2` → `BC-2.16.013 §Error Conditions` per Option A (unversioned style matching BC-2.16.001 §Error Conditions cite in same row). Historical anchor preserved by "Introduced FB-IMPL-P2-PO" clause. Sibling-sweep found 1 additional active-prose hit (HS-018 line 73); corrected in same burst. |
 | 1.41 | FB-IMPL-P2-PO fix-burst-2 | 2026-05-20 | product-owner | F-002 closure (pass-2 adversarial): Registered E-SPEC-017 (broken, validation, "Spec sensor_id does not match filename stem") for filename-stem-vs-sensor_id mismatch. E-SPEC-009 covers ONLY duplicate-sensor_id; pass-1 incorrectly cited E-SPEC-009 for both cases. E-SPEC-015 and E-SPEC-016 retired-ID tombstone rows added per POL-1 append_only_numbering. BC-2.16.013 §Error Conditions, BC-2.16.001 §Error Conditions, and HS-018 updated to cite E-SPEC-017. |
 | 1.40 | pass-10-spec-hygiene | 2026-05-18 | product-owner | F-LP-IMPL-P10-SUG-001 closure (POL-29 step 8h/8i sibling propagation): catalog bullet cite-pins `(v1.21)` → `(v1.22)` at 2 live-narrative sites — E-PLUGIN-020 description (1 site) + E-PIPELINE-001 description (1 site). BC-2.16.002 catalog bullet label advanced from `(v1.21)` to `(v1.22)` per Option B adjudication; error-taxonomy must track the new canonical label. |
