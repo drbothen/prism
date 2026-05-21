@@ -6,7 +6,7 @@ category: "negative-validation"
 must_pass: true
 priority: P0
 epic_id: "PLUGIN-MIGRATION-001"
-version: "1.1"
+version: "1.2"
 status: draft
 producer: product-owner
 timestamp: 2026-05-20T00:00:00Z
@@ -70,7 +70,7 @@ targets `crowdstrike.*`.
 **Expected Outcome:**
 - The file is rejected with `E-SPEC-017` per error-taxonomy.md v1.41 (filename-stem-vs-sensor_id
   mismatch; distinct from `E-SPEC-009` which covers duplicate-sensor_id only per BC-2.16.013
-  §Error Conditions v1.2)
+  §Error Conditions)
 - Error message names both the filename and the declared `sensor_id`
 - No partial registration: `falcon.*` tables are NOT registered in DataFusion
 - Other valid spec files in the directory continue loading (DI-030 partial-failure isolation)
@@ -143,5 +143,6 @@ The three sub-scenarios are covered as follows by the Red Gate test suite:
 
 | Version | Burst | Date | Author | Change |
 |---------|-------|------|--------|--------|
+| 1.2 | FB-IMPL-P21-PO | 2026-05-21 | product-owner | F-LP21-MED-001 closure (15th coherence-axis: section-versioned cite-pin format): HS-018-01 §Expected Outcome line 73 — stripped `v1.2` from `BC-2.16.013 §Error Conditions v1.2` → `BC-2.16.013 §Error Conditions` per Option A (unversioned style). Historical context preserved by error-taxonomy.md "Introduced FB-IMPL-P2-PO" clause and this changelog row. |
 | 1.1 | FB-IMPL-P13-PO | 2026-05-20 | product-owner | F-LP13-MED-002 closure: Added §Evaluation Criteria section with coverage mapping for HS-018-01/02/03. Applied Option A — clarified HS-018-02 (case-mismatch) is covered by RG-09's existing case-sensitive string-equality E-SPEC-017 enforcement; no separate RG-10 required unless implementer uses case-insensitive comparison. Added §Changelog per POL-26 changelog discipline. |
 | 1.0 | FB-IMPL-P1-PO fix-burst-1 | 2026-05-20 | product-owner | Initial draft — HS-018 spec_id/filename mismatch holdout for PLUGIN-MIGRATION-001-D; 3 sub-scenarios; E-SPEC-009 corrected to E-SPEC-017 in FB-IMPL-P2-PO fix-burst-2. |

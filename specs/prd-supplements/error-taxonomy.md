@@ -2,7 +2,7 @@
 document_type: prd-supplement
 level: L3
 section: "error-taxonomy"
-version: "1.41"
+version: "1.42"
 status: active
 producer: product-owner
 timestamp: 2026-05-16T00:00:00Z
@@ -386,7 +386,7 @@ Additional state errors beyond E-STATE-001 and E-STATE-002 (defined in the STATE
 | E-SPEC-014 | broken | validation | "credential type '{credential_type}' is incompatible with auth_type '{auth_type}' for sensor '{sensor_id}'" | No | ADR-023 Rule 2, Rule C — the resolved credential structural type does not match the declared `auth_type`. Rejected at credential-resolution time, before any HTTP request is issued. Credential VALUE MUST NOT appear in the error message (AD-017); only the structural type label is included. | BC-2.01.016 (Error Cases: E-SPEC-014) |
 | E-SPEC-015 | — | — | — | — | **RETIRED per append_only_numbering (DF-030). ID reserved; never reused.** |
 | E-SPEC-016 | — | — | — | — | **RETIRED per append_only_numbering (DF-030). ID reserved; never reused.** |
-| E-SPEC-017 | broken | validation | "Spec sensor_id '{sensor_id}' does not match filename stem '{filename_stem}' in spec file '{file}'" | No | Spec filename must follow `{sensor_id}.sensor.toml` convention. Mismatch indicates a rename without sensor_id update or vice versa; reject at load time to prevent silent identity drift (INV-PARITY-002). Distinct from E-SPEC-009 (duplicate sensor_id across files). BC-2.16.001 §Error Conditions; BC-2.16.013 §Error Conditions v1.2. Introduced FB-IMPL-P2-PO fix-burst-2 2026-05-20. |
+| E-SPEC-017 | broken | validation | "Spec sensor_id '{sensor_id}' does not match filename stem '{filename_stem}' in spec file '{file}'" | No | Spec filename must follow `{sensor_id}.sensor.toml` convention. Mismatch indicates a rename without sensor_id update or vice versa; reject at load time to prevent silent identity drift (INV-PARITY-002). Distinct from E-SPEC-009 (duplicate sensor_id across files). BC-2.16.001 §Error Conditions; BC-2.16.013 §Error Conditions. Introduced FB-IMPL-P2-PO fix-burst-2 2026-05-20. |
 
 ## INFUSE: Infusion Errors
 
@@ -490,6 +490,7 @@ Additional state errors beyond E-STATE-001 and E-STATE-002 (defined in the STATE
 
 | Version | Burst | Date | Author | Change |
 |---------|-------|------|--------|--------|
+| 1.42 | FB-IMPL-P21-PO | 2026-05-21 | product-owner | F-LP21-MED-001 closure (15th coherence-axis: section-versioned cite-pin format): E-SPEC-017 row line 389 — stripped `v1.2` from `BC-2.16.013 §Error Conditions v1.2` → `BC-2.16.013 §Error Conditions` per Option A (unversioned style matching BC-2.16.001 §Error Conditions cite in same row). Historical anchor preserved by "Introduced FB-IMPL-P2-PO" clause. Sibling-sweep found 1 additional active-prose hit (HS-018 line 73); corrected in same burst. |
 | 1.41 | FB-IMPL-P2-PO fix-burst-2 | 2026-05-20 | product-owner | F-002 closure (pass-2 adversarial): Registered E-SPEC-017 (broken, validation, "Spec sensor_id does not match filename stem") for filename-stem-vs-sensor_id mismatch. E-SPEC-009 covers ONLY duplicate-sensor_id; pass-1 incorrectly cited E-SPEC-009 for both cases. E-SPEC-015 and E-SPEC-016 retired-ID tombstone rows added per POL-1 append_only_numbering. BC-2.16.013 §Error Conditions, BC-2.16.001 §Error Conditions, and HS-018 updated to cite E-SPEC-017. |
 | 1.40 | pass-10-spec-hygiene | 2026-05-18 | product-owner | F-LP-IMPL-P10-SUG-001 closure (POL-29 step 8h/8i sibling propagation): catalog bullet cite-pins `(v1.21)` → `(v1.22)` at 2 live-narrative sites — E-PLUGIN-020 description (1 site) + E-PIPELINE-001 description (1 site). BC-2.16.002 catalog bullet label advanced from `(v1.21)` to `(v1.22)` per Option B adjudication; error-taxonomy must track the new canonical label. |
 | 1.39 | FB74 | 2026-05-18 | product-owner | Added E-PLUGIN-021 (WriteToolRegistryPoisoned) — S-PLUGIN-PREREQ-E F-LP-IMPL-P2-002 POL-29 transitive closure. New row inserted after E-PLUGIN-020 in PLUGIN section. Production construction site: invalidation.rs:138-145; recurrence SINGLE_PER_PROCESS_LIFETIME. |
