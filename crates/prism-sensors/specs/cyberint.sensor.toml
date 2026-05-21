@@ -16,8 +16,9 @@
 # incidents table: included as documented gap per EC-016-013-002. DTU has no incidents route.
 # Parity test returns explicit SKIP (NOT #[ignore]) per AC-009 spec.
 #
-# timestamp column: uses column_type = "datetime" — multi-format parsing is
-# handled at the normalization layer; no grammar extension required for basic datetime type.
+# timestamp column: created_at with timestamp_formats = ["iso8601", "unix_epoch_seconds"]
+# per ADR-028 v1.9 §D8-A Option A LOCKED (BC-2.16.013 §O-001). The normalization layer
+# in PipelineExecutor tries each format in order; on failure emits E-SPEC-018.
 
 sensor_id = "cyberint"
 name = "Cyberint"
@@ -61,14 +62,17 @@ ocsf_class = "security_finding"
   column_type = "string"
   ocsf_field = "status"
 
-  # Multi-format timestamp: Cyberint returns timestamps in multiple formats.
-  # column_type = "datetime" — normalization layer handles multi-format parsing.
-  # O-001 grammar extension option not required; datetime type is sufficient for the
-  # TOML grammar constraint (no timestamp_format = "multi" field needed in spec).
+  # Multi-format timestamp: Cyberint Alert.created_at is typed as serde_json::Value
+  # (per prism-dtu-cyberint/src/types.rs) — accepts ISO 8601, epoch seconds, or epoch millis.
+  # timestamp_formats declares the ordered parse chain per ADR-028 v1.9 §D8-A (Option A LOCKED):
+  #   1. iso8601     — ISO 8601 UTC "2024-01-15T10:30:00Z" (primary; most common)
+  #   2. unix_epoch_seconds — integer epoch (legacy alert payloads)
+  # On all-formats failure: emit E-SPEC-018 (TimestampParseFailure) per BC-2.16.013 §O-001.
   [[tables.columns]]
-  name = "timestamp"
+  name = "created_at"
   column_type = "datetime"
   ocsf_field = "time"
+  timestamp_formats = ["iso8601", "unix_epoch_seconds"]
 
   [[tables.columns]]
   name = "description"

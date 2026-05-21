@@ -38,8 +38,11 @@ version = "1.0.0"
 table_name = "devices"
 ocsf_class = "device"
 
+  # DeviceRecord fields per prism-dtu-armis/src/types.rs:
+  # device_id (String), name, ip_address, mac_address, device_type, manufacturer,
+  # os_name, os_version, risk_score, risk_factors, last_seen, first_seen, network_id, site, tags
   [[tables.columns]]
-  name = "id"
+  name = "device_id"
   column_type = "string"
   ocsf_field = "device.uid"
   options = ["REQUIRED"]
@@ -55,42 +58,44 @@ ocsf_class = "device"
   ocsf_field = "device.type"
 
   [[tables.columns]]
-  name = "category"
+  name = "manufacturer"
   column_type = "string"
   ocsf_field = "device.hw_info.cpu_vendor"
 
-  # Timestamp fallback: firstSeen is the primary timestamp column.
-  # If absent, lastSeen is used. If both absent, DateTime::now() is used with WARN.
-  # (EC-016-013-005 — timestamp fallback chain)
+  # Primary timestamp column: last_seen (may be null per DTU fixture d-001).
+  # timestamp_fallback_chain per ADR-028 v1.9 §D8-B (Option A LOCKED):
+  #   last_seen → first_seen → DateTime::now() UTC with tracing::warn!(event_type = "timestamp.fallback_to_now")
+  # DTU DeviceRecord: last_seen: Option<String> (primary), first_seen: Option<String> (secondary).
+  # Fixture d-001 has last_seen: null + first_seen: "2024-01-15T10:00:00Z" to exercise fallback path.
   [[tables.columns]]
-  name = "firstSeen"
+  name = "last_seen"
+  column_type = "datetime"
+  ocsf_field = "device.last_seen_time"
+  timestamp_fallback_chain = ["last_seen", "first_seen"]
+
+  # Secondary timestamp (fallback source — also stored as its own column for querying).
+  [[tables.columns]]
+  name = "first_seen"
   column_type = "datetime"
   ocsf_field = "device.first_seen_time"
 
-  # lastSeen: fallback timestamp column (EC-016-013-005).
-  # Used when firstSeen is absent in the device record.
   [[tables.columns]]
-  name = "lastSeen"
-  column_type = "datetime"
-  ocsf_field = "device.last_seen_time"
-
-  [[tables.columns]]
-  name = "ipAddress"
+  name = "ip_address"
   column_type = "string"
   ocsf_field = "device.ip"
 
   [[tables.columns]]
-  name = "macAddress"
+  name = "mac_address"
   column_type = "string"
   ocsf_field = "device.mac_addr"
 
   [[tables.columns]]
-  name = "operatingSystem"
+  name = "os_name"
   column_type = "string"
   ocsf_field = "device.os.name"
 
   [[tables.columns]]
-  name = "risk"
+  name = "risk_score"
   column_type = "string"
   ocsf_field = "risk_score"
 
@@ -123,16 +128,18 @@ ocsf_class = "device"
 table_name = "alerts"
 ocsf_class = "security_finding"
 
+  # AlertRecord fields per prism-dtu-armis/src/types.rs:
+  # alert_id (String), name (String), severity, status, policy_name, device_id, created_at, updated_at
   [[tables.columns]]
-  name = "id"
-  column_type = "integer"
+  name = "alert_id"
+  column_type = "string"
   ocsf_field = "finding.uid"
   options = ["REQUIRED"]
 
   [[tables.columns]]
-  name = "type"
+  name = "name"
   column_type = "string"
-  ocsf_field = "type_name"
+  ocsf_field = "message"
 
   [[tables.columns]]
   name = "severity"
@@ -145,24 +152,24 @@ ocsf_class = "security_finding"
   ocsf_field = "status"
 
   [[tables.columns]]
-  name = "title"
+  name = "policy_name"
   column_type = "string"
-  ocsf_field = "message"
+  ocsf_field = "type_name"
 
   [[tables.columns]]
-  name = "description"
+  name = "device_id"
   column_type = "string"
-  ocsf_field = "finding.desc"
-
-  [[tables.columns]]
-  name = "deviceId"
-  column_type = "integer"
   ocsf_field = "device.uid"
 
   [[tables.columns]]
-  name = "time"
+  name = "created_at"
   column_type = "datetime"
   ocsf_field = "time"
+
+  [[tables.columns]]
+  name = "updated_at"
+  column_type = "datetime"
+  ocsf_field = "end_time"
 
   # DTU-EXT-004: DTU has GET /api/v1/alerts (build_router() line 150).
   # response_path: DTU types.rs AlertsResponse { data: AlertsData { alerts: [...] } }
