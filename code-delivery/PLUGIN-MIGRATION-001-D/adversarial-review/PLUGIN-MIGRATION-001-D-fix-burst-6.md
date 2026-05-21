@@ -14,6 +14,8 @@ deferred_items: [F-LP6-OBS-001 process-gap — deferred to S-7.02 cycle-close co
 observed_only_items: [F-LP6-OBS-002 cumulative-durability summary — all 50 pass-1..5 closures verified durable; no action required]
 ---
 
+**Correction (FB-IMPL-P7 D-741):** Lines 25 and 62 of this fix-burst-6 closure record cite ADR-028 §Context closure evidence as `::CyberintAuth::get_page` symbol path. That symbol is a hallucination — pass-7 fresh-context adversary surfaced this as F-LP7-HIGH-001. Correct symbol path is `CyberintAdapter::new()` (cookie-store builder) + `::get_page()` (consumer). The closure record below preserves the historical record but the closure CLAIM is corrected here. ADR-028 v1.4 (FB-IMPL-P7) carries the correct symbol path.
+
 # PLUGIN-MIGRATION-001-D Fix-Burst-6 Closure
 
 ## Findings Closure Status

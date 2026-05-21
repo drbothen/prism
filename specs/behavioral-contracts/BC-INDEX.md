@@ -1,7 +1,7 @@
 ---
 document_type: behavioral-contract-index
 level: L3
-version: "5.27"
+version: "5.28"
 status: draft
 producer: product-owner
 timestamp: 2026-05-20T00:00:00Z
@@ -218,7 +218,7 @@ Phase 3-patch additions (2026-04-16): 22 new BCs added in Burst 1 to close trace
 | BC-2.16.010 | `list_sensor_specs` MCP Tool — List Loaded Sensor Specs with Table Schemas and Status | 16 - Spec Engine | CAP-029 | P0 | draft |
 | BC-2.16.011 | CustomAdapter Rust Trait Retirement — Removal of Trait, Registry, and All Call Sites | 16 - Spec Engine | CAP-029 | P0 | active (promoted draft→active D-726 per POL-14; anchor story S-PLUGIN-PREREQ-E merged PR #151 develop@80ebe794 2026-05-19) — v1.12 |
 | BC-2.16.012 | PluginRegistry Dispatch in spec_parser.rs — Hardcoded Sensor Names Replaced with Registry Lookup | 16 - Spec Engine | CAP-029 | P0 | active (promoted draft→active D-726 per POL-14; anchor story S-PLUGIN-PREREQ-E merged PR #151 develop@80ebe794 2026-05-19) — v1.29 |
-| BC-2.16.013 | Bundled Sensor Spec Authoring and DTU-Parity Verification — 4 Initial Sensors | 16 - Spec Engine | CAP-029 | P0 | draft (v1.5 FB-IMPL-P5-PO 2026-05-20 — Cyberint auth-grounding cite updated from line-pinned `alerts.rs:43-46` to symbol anchor `alerts.rs::extract_session_token()` per TD-VSDD-091 F-LP5-LOW-001; v1.4: all sensor URLs re-grounded against DTU clone routes per ADR-028 §D1; auth_types DTU-grounded per ADR-028 §D2; fixture-JSON parity mechanism per ADR-028 §D3; DTU-EXT-001..004 known gaps cataloged) — v1.5 |
+| BC-2.16.013 | Bundled Sensor Spec Authoring and DTU-Parity Verification — 4 Initial Sensors | 16 - Spec Engine | CAP-029 | P0 | draft (v1.6 FB-IMPL-P6-PO 2026-05-20 — Armis auth-grounding cite swept to module-level `//!` doc-comment anchor per TD-VSDD-091 + POL-25 sibling-anti-pattern sweep; v1.5 prior bumped Cyberint cite to `alerts.rs::extract_session_token()` symbol anchor) — v1.6 |
 | BC-2.17.001 | Plugin Panic Isolation — Crashed Plugin Does Not Terminate Host Process | 17 - WASM Plugin Runtime | CAP-032 | P0 | active (POL-14 auto-promotion D-568 S-PLUGIN-PREREQ-D merge PR #149 ec90fe8f 2026-05-15) |
 | BC-2.17.002 | Plugin Sandbox — No Direct Filesystem or Network Access | 17 - WASM Plugin Runtime | CAP-032 | P0 | active (POL-14 auto-promotion D-568 S-PLUGIN-PREREQ-D merge PR #149 ec90fe8f 2026-05-15) |
 | BC-2.17.003 | Plugin Sandbox — Memory Limit Enforced Per Plugin Instance (default 64MB) | 17 - WASM Plugin Runtime | CAP-032 | P0 | active (POL-14 auto-promotion D-568 S-PLUGIN-PREREQ-D merge PR #149 ec90fe8f 2026-05-15) |
@@ -370,6 +370,8 @@ Phase 3-patch additions (2026-04-16): 22 new BCs added in Burst 1 to close trace
 - Subsystem 19: Infusion Enrichment Framework (AD-020, CAP-031)
 
 ### Change Log (Adversarial Review Fixes)
+
+**v5.28 (2026-05-20, FB-IMPL-P7 D-741):** state-manager | BC-2.16.013 row 221 in-line text bumped v1.5 → v1.6 (FB-IMPL-P6-PO content: Armis auth-grounding cite swept to module-level `//!` doc-comment anchor per TD-VSDD-091 + POL-25 sibling-anti-pattern sweep). Closes F-LP7-MED-001 POL-29 BC-INDEX in-line row drift. BC-INDEX v5.27→v5.28.
 
 **v5.27 (2026-05-20, FB-IMPL-P6-PO fix-burst-6):** product-owner | BC-2.16.013 v1.5→v1.6 (pass-6 F-LP6-LOW-001 TD-VSDD-091 sibling-asymmetric): Armis auth-grounding cite replaced — `lib.rs:16-17` → `crates/prism-dtu-armis/src/lib.rs module documentation` in §Postconditions §1 Armis auth-grounding sentence. POL-25 sweep: HS-016 v1.1→v1.2 updated in same burst. BC-INDEX v5.26→v5.27.
 

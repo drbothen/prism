@@ -1,9 +1,9 @@
 ---
 document_type: pipeline-state
 level: ops
-version: "7.427"
+version: "7.428"
 producer: state-manager
-timestamp: 2026-05-20T19:30:00Z
+timestamp: 2026-05-20T20:00:00Z
 inputs: []
 input-hash: "[live-state]"
 traces_to: ""
@@ -16,7 +16,7 @@ repos: [poller-cobra, poller-express, poller-bear, poller-coaster, serveMyAPI, t
 safe_to_compact: false
 pre_compact_snapshot: "SESSION-HANDOFF.md §RESUME SNAPSHOT 2026-05-20-EVE"
 pre_compact_snapshot_at: "2026-05-20 (D-737 SESSION-HANDOFF.md §RESUME SNAPSHOT 2026-05-20-EVE for PLUGIN-MIGRATION-001-D pass-4 decisions-locked durability)"
-current_step: "D-740 closed. NEXT: pass-7 dispatch (fresh-context). Streak 1/3 — pass-7 CLEAN advances to 2/3 toward BC-5.39.001 3-CLEAN per D-716 Option A."
+current_step: "FB-IMPL-P7 closed; pass-8 dispatch pending"
 current_cycle: wave-0-plugin-prereqs
 feature_branch_head: "merged to 80ebe794 at 2026-05-19 (PR #151) — a4c048ce was final feature HEAD before squash-merge"
 pr_level_adversary_streak: "3/3 CONVERGED per BC-5.39.001 — passes 2/3/4 all CLEAN; PR #151 merged 2026-05-19; D-716 Option A standing satisfied"
@@ -52,12 +52,12 @@ vsdd_factory_version: "1.0.0-rc.18 (re-activated 2026-05-13T15:00:19Z; upgrade c
 workspace_test_count: 3681
 user_directive_persistent: "No pragmatic convergence. Fix all issues before build."
 current_cycle_history: "wave-0-plugin-prereqs (PREREQ-E merged PR #151 2026-05-19); prior: wave-4-operations (active); wave-3-multi-tenant (COMPLETE)"
-bc_index_version: "5.27"
+bc_index_version: "5.28"
 vp_index_version: "1.76"
 story_index_version: "v2.163"
-plugin_migration_001_d_local_adversary_passes: 6
-plugin_migration_001_d_local_fix_bursts: 6
-plugin_migration_001_d_status: "FB-IMPL-P6-CLOSED-STREAK-1-OF-3-AWAITING-PASS-7"
+plugin_migration_001_d_local_adversary_passes: 7
+plugin_migration_001_d_local_fix_bursts: 7
+plugin_migration_001_d_status: "FB-IMPL-P7-CLOSED-AWAITING-PASS-8"
 architectural_decisions_locked:
   - "1 LOCKED Option-A: TOML spec URLs ground against DTU clone routes (real-API canonical), NOT production Rust adapter URLs (latent adapter bug becomes moot when 001-A deletes adapters)"
   - "2 LOCKED Option-B: Parity test loads reference OCSF from committed fixture JSON (crates/prism-dtu-{sensor}/fixtures/parity/reference-ocsf/<table>.json); no prism-sensors dev-dep on prism-spec-engine needed"
@@ -70,7 +70,7 @@ subsystem_count: 22
 vp_count: 156
 prd_version: "1.10"
 error_taxonomy_version: "1.41"
-arch_index_version: "2.89"
+arch_index_version: "2.90"
 verification_coverage_matrix_version: "1.42"
 verification_architecture_version: "1.41"
 historical_cycles: [phase-1-convergence, wave-3-multi-tenant, wave-4-operations]
@@ -87,9 +87,9 @@ historical_cycles: [phase-1-convergence, wave-3-multi-tenant, wave-4-operations]
 | **Language** | Rust |
 | **Target Workspace** | per-analyst stdio (MCP server) |
 | **Started** | 2026-04-13 |
-| **Last Updated** | 2026-05-20 (D-740 FB-IMPL-P6 closure — ADR-028 v1.3 + BC-2.16.013 v1.6 + HS-016 v1.2 + story v1.6; armis line-cite symbol-anchor sweep; streak 1/3; 247th consecutive) |
+| **Last Updated** | 2026-05-20 (D-741 FB-IMPL-P7 closure — ADR-028 v1.4 (CyberintAuth::get_page hallucination → CyberintAdapter::new()+::get_page() grep-verified); BC-INDEX row 221 v1.6 + v5.28; STATE.md/fix-burst-6 propagation corrected; streak reset 1/3→0/3; 248th consecutive) |
 | **Current Phase** | Wave 3 Tier-3 COMPLETE — **Wave 3-A 4 of 4 SHIPPED**; plugin migration: PREREQ-F + PREREQ-A + PREREQ-B + PREREQ-C + PREREQ-D + **PREREQ-E MERGED** (PR #151 80ebe794 2026-05-19T18:06:44Z); PREREQ-F next per Wave 0 dependency chain |
-| **Current Step** | D-740 closed. NEXT: pass-7 dispatch (fresh-context). Streak 1/3 — pass-7 CLEAN advances to 2/3 toward BC-5.39.001 3-CLEAN per D-716 Option A. |
+| **Current Step** | FB-IMPL-P7 closed; pass-8 dispatch pending |
 
 ## Phase Progress
 
@@ -118,7 +118,8 @@ historical_cycles: [phase-1-convergence, wave-3-multi-tenant, wave-4-operations]
 _D-735 and earlier archived to cycles/wave-0-plugin-prereqs/burst-log.md. D-736..D-737 archived below._
 | D-738 — **FB-IMPL-P4 closure burst — 9 findings closed (4H+3M+1L+1OBS-deferred). ADR-028 PROPOSED v1.0 (architect). BC-2.16.013 v1.3→v1.4 + BC-2.16.001 v1.4→v1.5 + BC-INDEX v5.24→v5.25 + HOLDOUT-INDEX v1.4→v1.5 + HS-013/014/015/016 v1.1 + TS-PLUGIN-PARITY-001 v1.1 (PO). Story v1.3→v1.4 + Task 11/12/10a new (E-SPEC-017 code scope) + points 5→6 + STORY-INDEX v2.160→v2.161 (SW). ARCH-INDEX v2.85→v2.86. DTU-EXT-001..004 surfaced. Streak 0/3 awaiting pass-5. 245th consecutive single-commit per TD-VSDD-053.** | state-manager | FB-IMPL-P4 CLOSED | STATE v7.425; NEXT: pass-5 adversary dispatch |
 | D-739 — **FB-IMPL-P5 closure burst — 5 findings closed (1H+2M+2L) + 1 OBS deferred to S-7.02. ADR-028 v1.0→v1.1→v1.2 (architect: §D2 Armis bearer_static + cyberint symbol anchor); ARCH-INDEX v2.86→v2.87→v2.88. BC-2.16.001/009 modified field; BC-2.16.013 v1.4→v1.5; HS-015 v1.1→v1.2; BC-INDEX v5.25→v5.26; HOLDOUT-INDEX v1.5→v1.6 (PO). Story v1.4→v1.5 crates_touched+Task11+cyberint cite; STORY-INDEX v2.161→v2.162 (SW). Pass-5 adversary report persisted (read-only adversary). Streak 0/3 awaiting pass-6. 246th consecutive single-commit per TD-VSDD-053.** | state-manager | FB-IMPL-P5 CLOSED | STATE v7.426; NEXT: pass-6 adversary dispatch |
-| D-740 — **FB-IMPL-P6 closure burst — 1 LOW closed (F-LP6-LOW-001 armis lib.rs line-cite → module-doc anchor at 5 sites + ADR-028 §Context cyberint.rs:155 → `::CyberintAuth::get_page`). ADR-028 v1.2→v1.3 + ARCH-INDEX v2.88→v2.89 (architect). BC-2.16.013 v1.5→v1.6 + HS-016 v1.1→v1.2 + BC-INDEX v5.26→v5.27 + HOLDOUT-INDEX v1.6→v1.7 (PO). Story v1.5→v1.6 + STORY-INDEX v2.162→v2.163 (SW). Pass-6 report persisted + fix-burst-6 record. Cumulative closures 50→51. Streak 0/3→1/3 (preserved through fix-burst per S-7.01). 247th consecutive single-commit per TD-VSDD-053.** | state-manager | FB-IMPL-P6 CLOSED | STATE v7.427; NEXT: pass-7 adversary dispatch |
+| D-740 — **FB-IMPL-P6 closure burst — 1 LOW closed (F-LP6-LOW-001 armis lib.rs line-cite → module-doc anchor at 5 sites + ADR-028 §Context cyberint.rs:155 → `::CyberintAuth::get_page` [symbol HALLUCINATED — corrected in D-741 FB-IMPL-P7]). ADR-028 v1.2→v1.3 + ARCH-INDEX v2.88→v2.89 (architect). BC-2.16.013 v1.5→v1.6 + HS-016 v1.1→v1.2 + BC-INDEX v5.26→v5.27 + HOLDOUT-INDEX v1.6→v1.7 (PO). Story v1.5→v1.6 + STORY-INDEX v2.162→v2.163 (SW). Pass-6 report persisted + fix-burst-6 record. Cumulative closures 50→51. Streak 0/3→1/3 (preserved through fix-burst per S-7.01). 247th consecutive single-commit per TD-VSDD-053.** | state-manager | FB-IMPL-P6 CLOSED | STATE v7.427; NEXT: pass-7 adversary dispatch |
+| D-741 — **FB-IMPL-P7 closure burst — 2 findings closed (1 HIGH + 1 MED) + 1 OBS deferred to S-7.02. F-LP7-HIGH-001: ADR-028 v1.3→v1.4 §Context `::CyberintAuth::get_page` HALLUCINATION → `CyberintAdapter::new()` (cookie-store reqwest::Client builder at cyberint.rs:109-112) + `::get_page()` (consumer at cyberint.rs:159) — grep-verified. ARCH-INDEX v2.89→v2.90 (architect). F-LP7-MED-001: BC-INDEX row 221 in-line v1.5→v1.6; BC-INDEX v5.27→v5.28 (state-manager). Additional state-manager scope: STATE.md mis-citation corrected; fix-burst-6 correction note added. Cumulative closures 51→53. Streak reset 1/3→0/3 (BLOCKED-soft). 248th consecutive single-commit per TD-VSDD-053.** | state-manager | FB-IMPL-P7 CLOSED | STATE v7.428; NEXT: pass-8 adversary dispatch |
 
 ## Decisions Log
 
@@ -126,6 +127,7 @@ _D-001..D-046 archived: [cycles/phase-3-dtu-wave-2/decisions-archive-d001-d032.m
 
 | ID | Decision | Rationale | Phase | Date |
 |----|----------|-----------|-------|------|
+| D-741 | 2026-05-20 | architect (ADR-028 v1.4) + state-manager (BC-INDEX + STATE.md + fix-burst-6 corrections + D-741 burst commit) | **FB-IMPL-P7 closure burst — PLUGIN-MIGRATION-001-D pass-7 adversarial fix-burst complete. 2 actionable findings closed in-scope (1 HIGH + 1 MED) + 1 OBS deferred to S-7.02 (extend POL-25/TD-VSDD-091 closure procedure with mandatory grep-validation of replacement symbol anchors). Pass-7 verdict BLOCKED-soft; streak reset 1/3 → 0/3. F-LP7-HIGH-001: FB-IMPL-P6 introduced a HALLUCINATED symbol path `::CyberintAuth::get_page` into ADR-028 v1.3 §Context — symbol does NOT exist (CyberintAuth has only Debug + SensorAuth impls; get_page belongs to CyberintAdapter). Architect closed: ADR-028 v1.3 → v1.4 §Context cite corrected to `CyberintAdapter::new()` (cookie-store reqwest::Client::builder().cookie_store(true).build() construction at cyberint.rs:109-112) + `CyberintAdapter::get_page()` (consumer at cyberint.rs:159) — grep-verified against codebase BEFORE commit per TD-VSDD-059 paper-fix prevention. ARCH-INDEX v2.89 → v2.90. F-LP7-MED-001: BC-INDEX row 221 in-line text still described v1.5 state after BC-2.16.013 bumped to v1.6 in FB-IMPL-P6. State-manager closed: row 221 in-line text bumped to v1.6 (FB-IMPL-P6-PO armis module-doc anchor closure); BC-INDEX v5.27 → v5.28. Additional state-manager scope: STATE.md line 212 + fix-burst-6.md lines 25+62 mis-citation propagation corrected (correction note added to fix-burst-6 closure record). Cumulative closures 51 → 53. Lesson codified (S-7.02 candidate): TD-VSDD-091 / POL-25 closures by symbol-anchor replacement MUST grep-verify the replacement symbol exists in `crates/` before commit. Architect's FB-IMPL-P6 propagated wrong namespace from pass-6 review without verification — pass-7 caught the hallucination via direct code grounding. Going-forward discipline mandatory: EVERY replacement symbol path verified via `grep -rn '<symbol>' crates/`. 248th consecutive single-commit per TD-VSDD-053.** | plugin-migration | 2026-05-20 | Decided by: architect (ADR-028 v1.4) + state-manager (BC-INDEX + STATE.md + fix-burst-6 corrections + D-741 burst commit). Status: APPROVED |
 | D-740 | 2026-05-20 | architect (ADR-028 v1.3) + product-owner (BC-2.16.013 v1.6 + HS-016 v1.2 + indices) + story-writer (story v1.6 + STORY-INDEX v2.163) + state-manager (burst commit) | **FB-IMPL-P6 closure burst — PLUGIN-MIGRATION-001-D pass-6 adversarial fix-burst complete. 1 LOW finding closed in-scope (F-LP6-LOW-001 TD-VSDD-091 sibling-asymmetric anti-pattern sweep — pass-5 swept cyberint `alerts.rs:43-46` to symbol anchor but missed structurally identical armis `lib.rs:16-17` cite at 5 sibling sites + ADR-028 §Context cyberint.rs:155 cite). Pass-6 verdict CLEAN-with-observations (0 HIGH + 0 MED + 1 LOW (pending intent verification) + 2 OBS); streak advanced 0/3 → 1/3. Orchestrator adjudicated F-LP6-LOW-001 intent per user's standing 'No pragmatic convergence. Fix all issues before build.' directive — chose sweep. Architect scope: ADR-028 v1.2 → v1.3 (§D2 Armis cite `prism-dtu-armis/src/lib.rs:16-17` → module-level `//!` doc-comment Armis Centrix BearerStatic contract; §Context cyberint.rs:155 cite → `::CyberintAuth::get_page` symbol path per TD-VSDD-091); ARCH-INDEX v2.88 → v2.89. PO scope: BC-2.16.013 v1.5 → v1.6 (§Postconditions §1 Armis sentence module-doc anchor); HS-016 v1.1 → v1.2 (§Scenario auth note module-doc anchor); BC-INDEX v5.26 → v5.27; HOLDOUT-INDEX v1.6 → v1.7. Story-writer scope: story v1.5 → v1.6 (AC-011 + Task 6 Armis module-doc anchor; POL-23 BC-2.16.013 v1.5 → v1.6 pin sweep across 5 active-prose sites); STORY-INDEX v2.162 → v2.163. State-manager scope: pass-6 adversary report persisted + fix-burst-6 closure record. Cumulative closures 50 → 51. F-LP6-OBS-001 process-gap deferred to S-7.02 cycle-close codification (expand POL-25 from per-string sweep to per-anti-pattern-class sweep for sibling architectural layers). Streak 1/3 preserved through fix-burst — awaiting pass-7 fresh-context adversary toward BC-5.39.001 3-CLEAN per D-716 Option A. 247th consecutive single-commit per TD-VSDD-053.** | plugin-migration | 2026-05-20 | Decided by: architect (ADR-028 v1.3) + product-owner (BC-2.16.013 v1.6 + HS-016 v1.2 + indices) + story-writer (story v1.6 + STORY-INDEX v2.163) + state-manager (burst commit). Status: APPROVED |
 | D-739 | 2026-05-20 | architect (ADR-028 v1.1 + v1.2) + product-owner (BC modified + cyberint sweep) + story-writer (story v1.5 + cyberint propagation) + state-manager (burst commit) | **FB-IMPL-P5 closure burst — PLUGIN-MIGRATION-001-D pass-5 adversarial fix-burst complete. 5 findings closed in-scope (1 HIGH + 2 MED + 2 LOW) + 1 OBS deferred to S-7.02 cycle-close (process-gap codification: ADR-internal cross-row consistency check for source-of-truth grounding ADRs). Architect scope (two dispatches): ADR-028 v1.0 → v1.1 → v1.2 (§D2 Armis row `api_key` → `bearer_static` per `prism-dtu-armis/src/lib.rs:16-17` BearerStatic enforcement — the legacy `ArmisAuth::auth_type_name()` return `api_key` was itself the latent label bug §D2 was authored to immunize against; §D2 Cyberint cite symbol-anchored to `::extract_session_token()` per TD-VSDD-091); ARCH-INDEX v2.86 → v2.87 → v2.88. PO scope: BC-2.16.001 v1.5 + BC-2.16.009 v1.4 frontmatter `modified: "2026-05-20"` (POL-27 sibling sweep — BC-2.16.009 caught as bonus closure beyond adversary's HIGH-001 + MED-002 scope); BC-2.16.013 v1.4 → v1.5 (cyberint `extract_session_token` symbol anchor per TD-VSDD-091 + POL-25 multi-cite sweep); HS-015 v1.1 → v1.2 (same symbol anchor at 2 cites); BC-INDEX v5.25 → v5.26; HOLDOUT-INDEX v1.5 → v1.6. Story-writer scope: story v1.4 → v1.5 (crates_touched frontmatter add `prism-core` per POL-13 + STORY-INDEX agreement; Task 11 `#[non_exhaustive]` phrasing unconditional + investigation result: SpecErrorCode NOT in non-exhaustive-violation gate scope so EXPECTED stays 32; cyberint symbol anchor propagated to AC-011 + Task 5; BC-2.16.013 pin sweep v1.4 → v1.5 across 5 active-prose sites per POL-23); STORY-INDEX v2.161 → v2.162. State-manager scope: pass-5 adversary report persisted to disk (adversary lacked write access) + fix-burst-5 closure record. Streak 0/3 unchanged — awaiting pass-6 fresh-context adversary. F-LP5-OBS-001 process-gap deferred to S-7.02 cycle-close codification per orchestrator routing. 246th consecutive single-commit per TD-VSDD-053.** | plugin-migration | 2026-05-20 | Decided by: architect (ADR-028 v1.1 + v1.2) + product-owner (BC modified + cyberint sweep) + story-writer (story v1.5 + cyberint propagation) + state-manager (burst commit). Status: APPROVED |
 | D-738 | 2026-05-20 | architect (ADR-028) + product-owner (BC + HS + TS fix) + story-writer (story + new tasks for E-SPEC-017 code) + state-manager (burst commit) | **FB-IMPL-P4 closure burst — PLUGIN-MIGRATION-001-D pass-4 adversarial fix-burst complete. 9 findings closed in-scope (4 HIGH + 3 MED + 1 LOW + 1 OBS-deferred). Architect authored ADR-028 (TOML spec URLs and auth_type ground against DTU clone routes; PROPOSED v1.0). PO scope: BC-2.16.013 v1.3→v1.4 (URL re-grounding per DTU routes; fixture-JSON parity mechanism per ADR-028 §D3; auth_type swap claroty=bearer_static + cyberint=cookie_roundtrip + armis=bearer_static; §Known Gaps DTU-EXT-001..004), BC-2.16.001 v1.4→v1.5 (E-SPEC-017 enforcement contract: SpecLoader::load_all() emits, SpecLoader::parse() does not), BC-INDEX v5.24→v5.25, HOLDOUT-INDEX v1.4→v1.5, HS-013/014/015/016 v1.0→v1.1, TS-PLUGIN-PARITY-001 v1.0→v1.1. Story-writer scope: story v1.3→v1.4 (Task 11 new: SpecErrorCode::ESpec017 variant in crates/prism-core/src/error.rs:892; Task 12 new: filename-stem-vs-sensor_id check in crates/prism-spec-engine/src/spec_parser.rs::load_all at line 715; Task 10a new: one-time fixture JSON recording procedure; auth_type swap propagated; URL re-grounding propagated; AC-001 incidents 2-step pipeline; AC-007 request_count >=2 relaxation; RG-09 driver explicitly named SpecLoader::load_all; §Style Guidance unwrap()-permitted-in-tests clause; points 5→6 for half-day E-SPEC-017 code scope expansion), STORY-INDEX v2.160→v2.161. Architect scope: ADR-028 new PROPOSED v1.0; ARCH-INDEX v2.85→v2.86. Streak 0/3 unchanged — awaiting pass-5 fresh-context adversary. DTU-EXT-001..004 surfaced for orchestrator follow-up (DTU clone extension stories). 245th consecutive single-commit per TD-VSDD-053. | plugin-migration | 2026-05-20 | Decided by: architect (ADR-028) + product-owner (BC + HS + TS fix) + story-writer (story + new tasks for E-SPEC-017 code) + state-manager (burst commit). Status: APPROVED |
@@ -202,29 +204,28 @@ Prior cycle history:
 
 ---
 
-## Session Resume Checkpoint (2026-05-20 — D-740-FB-IMPL-P6-CLOSED)
+## Session Resume Checkpoint (2026-05-20 — D-741-FB-IMPL-P7-CLOSED)
 
-_Previous checkpoint (D-739-FB-IMPL-P5-CLOSED) archived: [cycles/wave-0-plugin-prereqs/session-checkpoints.md](cycles/wave-0-plugin-prereqs/session-checkpoints.md)_
+_Previous checkpoint (D-740-FB-IMPL-P6-CLOSED) archived: [cycles/wave-0-plugin-prereqs/session-checkpoints.md](cycles/wave-0-plugin-prereqs/session-checkpoints.md)_
 
-**STATE v7.427. D-740 FB-IMPL-P6 CLOSURE BURST COMPLETE.** All steps of FB-IMPL-P6 dispatch executed: architect (ADR-028 v1.3; ARCH-INDEX v2.89), PO (BC-2.16.013 v1.6 + HS-016 v1.2 + BC-INDEX v5.27 + HOLDOUT-INDEX v1.7), story-writer (story v1.6 + STORY-INDEX v2.163), state-manager (pass-6 report persisted + fix-burst-6 record + STATE v7.427). 247th consecutive single-commit. Streak 1/3. Ready for pass-7 adversary dispatch.
+**STATE v7.428. D-741 FB-IMPL-P7 CLOSURE BURST COMPLETE.** All steps of FB-IMPL-P7 dispatch executed: architect (ADR-028 v1.4; ARCH-INDEX v2.90), state-manager (BC-INDEX row 221 v1.6 + v5.28; STATE.md mis-citation corrected; fix-burst-6 correction note; local-pass-7.md + fix-burst-7.md written + STATE v7.428). 248th consecutive single-commit. Streak reset 1/3→0/3 (BLOCKED-soft). Ready for pass-8 adversary dispatch.
 
-**FB-IMPL-P6 Summary (D-740):**
-- 1 finding closed: 1 LOW (F-LP6-LOW-001 — TD-VSDD-091 armis `lib.rs:16-17` line-cite → module-doc anchor at 5 sibling sites; ADR-028 §Context cyberint.rs:155 → `::CyberintAuth::get_page` symbol path)
-- 1 OBS deferred: F-LP6-OBS-001 process-gap (POL-25 per-string vs per-anti-pattern sweep) → S-7.02 cycle-close codification
-- 1 OBS no-action: F-LP6-OBS-002 durability summary — all 50 prior closures verified durable
-- ADR-028 now at v1.3 (PROPOSED); ARCH-INDEX at v2.89
-- Streak advanced 0/3 → 1/3 (preserved through fix-burst per S-7.01 intent-adjudication semantics)
-- Cumulative closures: 51 across 6 fix-bursts
+**FB-IMPL-P7 Summary (D-741):**
+- 2 findings closed: 1 HIGH (F-LP7-HIGH-001 — hallucinated `::CyberintAuth::get_page` → `CyberintAdapter::new()` + `::get_page()` grep-verified; ADR-028 v1.3→v1.4; ARCH-INDEX v2.89→v2.90) + 1 MED (F-LP7-MED-001 — BC-INDEX row 221 in-line v1.5→v1.6; BC-INDEX v5.27→v5.28)
+- 1 OBS deferred: F-LP7-OBS-001 process-gap (TD-VSDD-059 paper-fix variant for unverified symbol anchors) → S-7.02 codification (extend POL-25/TD-VSDD-091 to require grep-validation of replacement symbols)
+- Propagation corrections: STATE.md line 212 mis-citation corrected; fix-burst-6.md correction note added at top
+- Streak reset 1/3 → 0/3 (BLOCKED-soft per BC-5.39.001)
+- Cumulative closures: 53 across 7 fix-bursts
 
 **Next Steps:**
-1. Dispatch adversary (fresh context, pass-7) against story v1.6 + BC-2.16.013 v1.6 + ADR-028 v1.3
-2. Target streak 1/3 → 2/3 per BC-5.39.001 / D-716 Option A
+1. Dispatch adversary (fresh context, pass-8) against story v1.6 + BC-2.16.013 v1.6 + ADR-028 v1.4
+2. Target streak 0/3 → 1/3 per BC-5.39.001 / D-716 Option A
 3. Continue cascade until 3-CLEAN convergence
 
 **Resume Protocol:**
 1. Read `.factory/SESSION-HANDOFF.md` §RESUME SNAPSHOT 2026-05-20-EVE for full context
-2. Read `.factory/STATE.md` frontmatter + D-740 decision row
+2. Read `.factory/STATE.md` frontmatter + D-741 decision row
 3. Verify `develop_head: 1bc56e3c` unchanged + 0 open PRs
-4. Dispatch adversary pass-7
+4. Dispatch adversary pass-8
 
 _Agent routing: see CLAUDE.md §Agent Routing Table._

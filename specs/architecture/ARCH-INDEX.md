@@ -1,7 +1,7 @@
 ---
 document_type: architecture-index
 level: L3
-version: "2.89"
+version: "2.90"
 status: draft
 producer: state-manager
 timestamp: 2026-05-20T00:00:00
@@ -94,7 +94,7 @@ deployment_topology: single-service  # planned — no service binary exists yet 
 | ADR-026 | SensorAuth Trait Un-Sealing — Remove private::Sealed, Enable Plugin Auth Implementations | PROPOSED v1.29 | 2026-05-18 | decisions/ADR-026-sensorauth-unsealing.md |
 | ADR-026-AMENDMENT | ADR-026 Amendment: Rule C (E-SPEC-014) — Keyring Backend Scope Qualification (D-706) | APPROVED v1.0 | 2026-05-18 | decisions/ADR-026-AMENDMENT-rule-c-keyring-scope.md |
 | ADR-027 | CustomAdapter Rust Trait Same-Burst Removal — Perimeter Enforcement in Wave 1/A | PROPOSED v1.9 | 2026-05-17 | decisions/ADR-027-custom-adapter-deprecation-removal.md |
-| ADR-028 | TOML Spec URLs and auth_type Ground Against DTU Clone Routes (Real-API Canonical), Not Production Rust Adapter URLs | PROPOSED v1.3 | 2026-05-20 | decisions/ADR-028-toml-spec-grounding-vs-dtu-routes.md |
+| ADR-028 | TOML Spec URLs and auth_type Ground Against DTU Clone Routes (Real-API Canonical), Not Production Rust Adapter URLs | PROPOSED v1.4 | 2026-05-20 | decisions/ADR-028-toml-spec-grounding-vs-dtu-routes.md |
 
 ## Architecture Decisions
 
@@ -154,6 +154,7 @@ deployment_topology: single-service  # planned — no service binary exists yet 
 
 | Version | Pass | Date | Author | Change |
 |---------|------|------|--------|--------|
+| 2.90 | FB-IMPL-P7 | 2026-05-20 | architect | F-LP7-HIGH-001 closure: ADR-028 in-line row v1.3→v1.4 (§Context cyberint symbol-path hallucination corrected — `CyberintAuth::get_page` (wrong type namespace) → `CyberintAdapter::new()` cookie-store builder + `::get_page()` consumption; semantic claim corrected: cookie-store BUILT in `new()` not "established in per-page fetch loop"). ARCH-INDEX v2.89→v2.90. |
 | 2.89 | FB-IMPL-P6 | 2026-05-20 | architect | F-LP6-LOW-001 closure (POL-25 sibling-anti-pattern sweep): ADR-028 in-line row v1.2→v1.3 (§D2 Armis row `lib.rs:16-17` → module-level `//!` doc-comment symbol anchor; §Context cyberint `cyberint.rs:155` → `::CyberintAuth::get_page` symbol path; TD-VSDD-091 anti-volatile-pin). ARCH-INDEX v2.88→v2.89. |
 | 2.88 | FB-IMPL-P5 | 2026-05-20 | architect | F-LP5-LOW-001 closure (POL-25 sibling sweep): ADR-028 in-line row v1.1→v1.2 (§D2 Cyberint row symbol-anchored: `prism-dtu-cyberint/src/routes/alerts.rs:43-46` → `::extract_session_token()` per TD-VSDD-091; BC-2.16.013/HS-015 already fixed by PO this burst). ARCH-INDEX v2.87→v2.88. |
 | 2.87 | FB-IMPL-P5 | 2026-05-20 | architect | F-LP5-HIGH-001 closure: ADR-028 in-line row v1.0→v1.1 (§D2 Armis row corrected from `"api_key"` to `"bearer_static"` — DTU `Authorization: Bearer` enforcement per `prism-dtu-armis/src/lib.rs:16-17`; original v1.0 row was the latent label bug §D2 was authored to prevent). ARCH-INDEX v2.86→v2.87. |

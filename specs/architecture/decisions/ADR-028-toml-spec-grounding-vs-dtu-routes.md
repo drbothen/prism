@@ -5,7 +5,7 @@ title: "TOML Spec URLs and auth_type Ground Against DTU Clone Routes (Real-API C
 status: Proposed
 date: "2026-05-20"
 modified: "2026-05-20"
-version: "1.3"
+version: "1.4"
 producer: architect
 subsystems_affected: [SS-01, SS-07, SS-16, SS-17]
 supersedes: null
@@ -50,7 +50,7 @@ During the LOCAL spec-level adversarial cascade for PLUGIN-MIGRATION-001-D, pass
 | CrowdStrike devices detail | `/entities/devices/GET` | `/devices/entities/devices/v2` |
 | Cyberint alerts | `/api/alerts` | `/api/v1/alerts` |
 
-In addition, the legacy Cyberint adapter declares `auth_type_name() -> "bearer_static"` but its actual HTTP flow uses cookie-based session auth (`reqwest` cookie store; per `crates/prism-sensors/src/auth/cyberint.rs::CyberintAuth::get_page` (cookie-store reqwest::Client usage in the per-page fetch loop)). The legacy Claroty adapter has the inverse problem: `auth_type_name() -> "cookie_roundtrip"` but uses `Authorization: Bearer` headers. These are latent label/behavior bugs in code that PLUGIN-MIGRATION-001-A deletes.
+In addition, the legacy Cyberint adapter declares `auth_type_name() -> "bearer_static"` but its actual HTTP flow uses cookie-based session auth (`reqwest` cookie store; per `crates/prism-sensors/src/auth/cyberint.rs::CyberintAdapter::new()` (cookie-store `reqwest::Client::builder().cookie_store(true).build()` construction; consumed by `CyberintAdapter::get_page()` in the per-page fetch loop)). The legacy Claroty adapter has the inverse problem: `auth_type_name() -> "cookie_roundtrip"` but uses `Authorization: Bearer` headers. These are latent label/behavior bugs in code that PLUGIN-MIGRATION-001-A deletes.
 
 ### DTU Clones as Real-API Models
 
@@ -178,6 +178,7 @@ Pass-5 adversarial review will surface these gaps as findings if not resolved be
 
 | Version | Date | Author | Summary |
 |---|---|---|---|
+| 1.4 | 2026-05-20 | architect | Pass-7 FB-IMPL-P7 — §Context cyberint symbol-path mis-anchor corrected: `cyberint.rs::CyberintAuth::get_page` (HALLUCINATION — wrong type namespace; method belongs to `CyberintAdapter`, not `CyberintAuth`) → `cyberint.rs::CyberintAdapter::new()` (cookie-store `reqwest::Client::builder().cookie_store(true).build()` construction) + `::get_page()` consumption. Semantic claim corrected: cookie-store is BUILT in `CyberintAdapter::new()` (not "established in per-page fetch loop"). F-LP7-HIGH-001 closure. Root cause: FB-IMPL-P6 propagated wrong type namespace from pass-6 review without grep-verifying symbol against codebase. Going-forward discipline: ALL symbol-path anchor replacements MUST be grep-verified against `crates/` before commit (TD-VSDD-059 paper-fix variant; TD-VSDD-091 anti-volatile-pin). |
 | 1.3 | 2026-05-20 | architect | Pass-6 FB-IMPL-P6 — POL-25 expanded sibling-anti-pattern sweep. §D2 Armis row: `crates/prism-dtu-armis/src/lib.rs:16-17` → `crates/prism-dtu-armis/src/lib.rs` module-level `//!` doc-comment (Armis Centrix BearerStatic contract). §Context cyberint cite: `crates/prism-sensors/src/auth/cyberint.rs:155` → `::CyberintAuth::get_page` symbol path. TD-VSDD-091 anti-volatile-pin. F-LP6-LOW-001 closure (architect scope; PO + SW closing sibling sites in parallel bursts). |
 | 1.2 | 2026-05-20 | architect | Pass-5 fix-burst — §D2 Cyberint row symbol-anchored: `prism-dtu-cyberint/src/routes/alerts.rs:43-46` → `::extract_session_token()` per TD-VSDD-091. F-LP5-LOW-001 closure (POL-25 sibling sweep — BC-2.16.013/HS-015 already fixed by PO this burst). |
 | 1.1 | 2026-05-20 | architect | Pass-5 fix-burst — §D2 Armis row corrected from `"api_key"` (legacy adapter `auth_type_name()` return) to `"bearer_static"` (DTU `Authorization: Bearer` enforcement per `prism-dtu-armis/src/lib.rs:16-17`). The original v1.0 §D2 Armis row was itself the latent label bug §D2 was authored to immunize against — fresh-context adversary surfaced the contradiction. F-LP5-HIGH-001. |
