@@ -843,10 +843,14 @@ impl SpecLoader {
                     if stem != spec.sensor_id {
                         errors.push(PrismError::Spec(SpecError {
                             code: SpecErrorCode::ESpec017,
+                            // error-taxonomy.md v1.44 E-SPEC-017 canonical message template
+                            // (POLICY 24: byte-for-byte match required):
+                            // "Spec sensor_id '{sensor_id}' does not match filename stem
+                            //  '{filename_stem}' in spec file '{file}'"
                             message: format!(
-                                "Sensor spec `{}` does not match filename stem `{}`; \
-                                 file must be named `{}.sensor.toml`",
-                                spec.sensor_id, stem, spec.sensor_id
+                                "Spec sensor_id '{}' does not match filename stem '{}' \
+                                 in spec file '{}'",
+                                spec.sensor_id, stem, file_name
                             ),
                             toml_path: None,
                             file_path: Some(file_name.clone()),
