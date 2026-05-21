@@ -14,9 +14,10 @@
 # DTU-EXT-004: alerts table — DTU registers GET /api/v1/alerts (not AQL /api/v1/search).
 # Both tables are authored using DTU-registered endpoints per ADR-028 §D5.
 # AQL forwarding via ${query.filter.aql} is documented per O-001 grammar support.
-# Timestamp fallback chain (firstSeen → lastSeen → now()) is expressed via
-# column ordering convention — firstSeen declared first, then lastSeen as fallback.
-# A WARN tracing event is emitted by the normalization layer when both are absent.
+# Timestamp fallback chain (last_seen → first_seen → now()) is expressed via
+# ColumnSpec::timestamp_fallback_chain on the primary timestamp column per ADR-028 §D8-B.
+# A tracing::warn! with event_type = "timestamp.fallback_to_now" is emitted by the
+# normalization layer when all chain fields are absent (BC-2.16.002 row 35).
 
 sensor_id = "armis"
 name = "Armis Centrix"
@@ -29,7 +30,9 @@ version = "1.0.0"
 # DTU-EXT-003: DTU registers GET /api/v1/devices (not AQL /api/v1/search).
 # Using DTU-registered endpoint. AQL forwarding via query.filter.aql supported
 # when DTU-EXT-003 is resolved and /api/v1/search route is added.
-# Timestamp fallback: firstSeen (primary) → lastSeen (fallback) → now() (WARN).
+# Timestamp fallback: lastSeen (primary) → firstSeen (fallback) → now() (WARN).
+# Per ADR-028 v1.9 §D8-B: canonical chain is last_seen → first_seen → now().
+# Expressed via timestamp_fallback_chain on the primary timestamp column.
 # ---------------------------------------------------------------------------
 [[tables]]
 table_name = "devices"
@@ -96,16 +99,20 @@ ocsf_class = "device"
   # FetchContext.query_filters["aql"]. The DTU endpoint accepts an optional ?aql=
   # query parameter for filtering. Production AQL forwarding via /api/v1/search
   # is tracked under DTU-EXT-003.
+  # response_path: DTU types.rs DevicesResponse { data: DevicesData { devices: [...] } }
+  #   → must extract at $.data.devices (not $.data which returns the DevicesData object).
+  # pagination: DTU routes/devices.rs uses page/size offset params (paginate_devices
+  #   with size.unwrap_or(25) default). No cursor/next field in response. Using OffsetLimit
+  #   per CRIT-004 fix (ADR-028 §D1 DTU-grounded pagination type).
   [[tables.steps]]
   name = "fetch_devices"
   method = "GET"
   path_template = "/api/v1/devices"
-  response_path = "$.data"
+  response_path = "$.data.devices"
   variables_produced = []
   [tables.steps.pagination]
-  type = "cursor_token"
-  cursor_response_path = "$.next"
-  page_size = 100
+  type = "offset_limit"
+  page_size = 25
 
 # ---------------------------------------------------------------------------
 # Table: alerts
@@ -158,13 +165,16 @@ ocsf_class = "security_finding"
   ocsf_field = "time"
 
   # DTU-EXT-004: DTU has GET /api/v1/alerts (build_router() line 150).
+  # response_path: DTU types.rs AlertsResponse { data: AlertsData { alerts: [...] } }
+  #   → must extract at $.data.alerts (not $.data which returns the AlertsData object).
+  # pagination: DTU uses offset-based pagination (consistent with devices endpoint).
+  #   No cursor/next field in AlertsResponse. Using OffsetLimit per CRIT-003/004 fix.
   [[tables.steps]]
   name = "fetch_alerts"
   method = "GET"
   path_template = "/api/v1/alerts"
-  response_path = "$.data"
+  response_path = "$.data.alerts"
   variables_produced = []
   [tables.steps.pagination]
-  type = "cursor_token"
-  cursor_response_path = "$.next"
-  page_size = 100
+  type = "offset_limit"
+  page_size = 25
