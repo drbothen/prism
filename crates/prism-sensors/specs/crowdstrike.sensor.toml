@@ -1,0 +1,134 @@
+# crowdstrike.sensor.toml — CrowdStrike Falcon sensor spec skeleton
+#
+# STUB: This is a minimal skeleton authored by the test-writer as part of the
+# PLUGIN-MIGRATION-001-D Red Gate scaffolding. The implementer (Task 3) is
+# responsible for filling this out with production-grade field values
+# reverse-engineered from the Rust adapter and grounded from the DTU routes.
+#
+# URLs MUST be grounded from:
+#   crates/prism-dtu-crowdstrike/src/routes/mod.rs (ADR-028 §D1)
+# auth_type is grounded from DTU enforcement (ADR-028 §D2).
+#
+# Required by AC-001: sensor_id must match filename stem "crowdstrike" per BC-2.16.001 v1.5
+# E-SPEC-017 (filename-stem mismatch check in SpecLoader::load_all).
+
+sensor_id = "crowdstrike"
+name = "CrowdStrike Falcon"
+auth_type = "oauth2_client_credentials"
+base_url = "https://api.crowdstrike.com"
+version = "1.0.0"
+
+[rate_limit_hints]
+requests_per_second = 10.0
+
+# ---------------------------------------------------------------------------
+# Table: detections — two-step QueryV2 → PostEntities pipeline
+# URL step 1: GET /detects/queries/detects/v1 (DTU routes/mod.rs line 189)
+# URL step 2: POST /detects/entities/summaries/GET/v1 (DTU routes/mod.rs line 193)
+# STUB: Column schema and full step definitions to be filled by implementer (Task 3)
+# ---------------------------------------------------------------------------
+[[tables]]
+table_name = "detections"
+ocsf_class = "security_finding"
+
+  [[tables.columns]]
+  name = "id"
+  column_type = "string"
+  options = ["REQUIRED"]
+
+  [[tables.columns]]
+  name = "created_timestamp"
+  column_type = "datetime"
+  ocsf_field = "time"
+
+  [[tables.steps]]
+  name = "query_detection_ids"
+  method = "GET"
+  path_template = "/detects/queries/detects/v1"
+  response_path = "$.resources"
+  variables_produced = ["detection_ids"]
+
+  [[tables.steps]]
+  name = "fetch_detections"
+  method = "POST"
+  path_template = "/detects/entities/summaries/GET/v1"
+  body_template = "{\"ids\": ${query_detection_ids.detection_ids}}"
+  response_path = "$.resources"
+  fan_out_batch_size = 100
+  variables_produced = []
+
+# ---------------------------------------------------------------------------
+# Table: devices — two-step QueryV2 → GetEntities pipeline
+# URL step 1: GET /devices/queries/devices/v1 (DTU routes/mod.rs line 197)
+# URL step 2: GET /devices/entities/devices/v2 (DTU routes/mod.rs line 198 — note v2 not v1)
+# STUB: Column schema and full step definitions to be filled by implementer (Task 3)
+# ---------------------------------------------------------------------------
+[[tables]]
+table_name = "devices"
+ocsf_class = "device_inventory"
+
+  [[tables.columns]]
+  name = "device_id"
+  column_type = "string"
+  options = ["REQUIRED"]
+
+  [[tables.columns]]
+  name = "first_seen"
+  column_type = "datetime"
+  ocsf_field = "time"
+
+  [[tables.steps]]
+  name = "query_device_ids"
+  method = "GET"
+  path_template = "/devices/queries/devices/v1"
+  response_path = "$.resources"
+  variables_produced = ["device_ids"]
+
+  [[tables.steps]]
+  name = "fetch_devices"
+  method = "GET"
+  path_template = "/devices/entities/devices/v2"
+  response_path = "$.resources"
+  fan_out_batch_size = 100
+  variables_produced = []
+
+# ---------------------------------------------------------------------------
+# Table: incidents — DTU-EXT-001 gap
+# No incidents route registered in DTU routes/mod.rs at time of authoring.
+# Per ADR-028 §D5: spec NEVER ahead of DTU; include as documented gap.
+# Parity test RG-04 does NOT exercise incidents in v1 cycle.
+# PLUGIN-MIGRATION-Wave-2 cleanup story extends DTU and enables incidents parity.
+# AC-001 tables.len() == 3 assertion confirms this table is present.
+# STUB: Step definitions use canonical 2-step-pipeline pattern pending DTU-EXT-001 resolution.
+# ---------------------------------------------------------------------------
+[[tables]]
+table_name = "incidents"
+ocsf_class = "security_finding"
+
+  [[tables.columns]]
+  name = "incident_id"
+  column_type = "string"
+  options = ["REQUIRED"]
+
+  [[tables.columns]]
+  name = "created_time"
+  column_type = "datetime"
+  ocsf_field = "time"
+
+  # DTU-EXT-001 gap: no DTU route for incidents queries endpoint at this time.
+  # Pattern follows canonical CrowdStrike 2-step-pipeline (queries → entities).
+  [[tables.steps]]
+  name = "query_incident_ids"
+  method = "GET"
+  path_template = "/incidents/queries/incidents/v1"
+  response_path = "$.resources"
+  variables_produced = ["incident_ids"]
+
+  [[tables.steps]]
+  name = "fetch_incidents"
+  method = "POST"
+  path_template = "/incidents/entities/incidents/GET/v1"
+  body_template = "{\"ids\": ${query_incident_ids.incident_ids}}"
+  response_path = "$.resources"
+  fan_out_batch_size = 100
+  variables_produced = []

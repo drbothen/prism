@@ -1,0 +1,82 @@
+# claroty.sensor.toml — Claroty xDome sensor spec skeleton
+#
+# STUB: This is a minimal skeleton authored by the test-writer as part of the
+# PLUGIN-MIGRATION-001-D Red Gate scaffolding. The implementer (Task 4) is
+# responsible for filling this out with production-grade field values.
+#
+# auth_type = "bearer_static" is grounded from DTU enforcement (ADR-028 §D2):
+#   crates/prism-dtu-claroty/src/routes/alerts.rs enforces Authorization: Bearer {non-empty}.
+#   The legacy ClarotyAuth::auth_type_name() returned "cookie_roundtrip" — latent label bug
+#   deleted by PLUGIN-MIGRATION-001-A. Spec follows DTU per CLAUDE.md §Source-of-Truth #7.
+#
+# URLs grounded from crates/prism-dtu-claroty/src/clone.rs build_router() (ADR-028 §D1).
+# NO /xdome prefix — DTU registers routes without it.
+#
+# Required by AC-002: sensor_id must match filename stem "claroty" per BC-2.16.001 v1.5
+
+sensor_id = "claroty"
+name = "Claroty xDome"
+auth_type = "bearer_static"
+base_url = "https://claroty.example.com"
+version = "1.0.0"
+
+# ---------------------------------------------------------------------------
+# Table: alerts — POST-for-read with offset pagination
+# URL: POST /api/v1/alerts (DTU build_router() line 86)
+# id column: type = "string" to handle polymorphic int/UUID ID (EC-016-013-004)
+# STUB: Column schema and pagination config to be filled by implementer (Task 4)
+# ---------------------------------------------------------------------------
+[[tables]]
+table_name = "alerts"
+ocsf_class = "security_finding"
+
+  [[tables.columns]]
+  name = "id"
+  column_type = "string"
+  options = ["REQUIRED"]
+
+  [[tables.columns]]
+  name = "timestamp"
+  column_type = "datetime"
+  ocsf_field = "time"
+
+  [[tables.steps]]
+  name = "fetch_alerts"
+  method = "POST"
+  path_template = "/api/v1/alerts"
+  response_path = "$.objects"
+  variables_produced = []
+
+  [tables.steps.pagination]
+  type = "offset_limit"
+  page_size = 100
+
+# ---------------------------------------------------------------------------
+# Table: audit_logs — GET with offset pagination
+# No DTU route registered yet — include as documented gap per ADR-028 §D5.
+# STUB: Column schema and pagination config to be filled by implementer (Task 4)
+# ---------------------------------------------------------------------------
+[[tables]]
+table_name = "audit_logs"
+ocsf_class = "audit_activity"
+
+  [[tables.columns]]
+  name = "id"
+  column_type = "string"
+  options = ["REQUIRED"]
+
+  [[tables.columns]]
+  name = "timestamp"
+  column_type = "datetime"
+  ocsf_field = "time"
+
+  [[tables.steps]]
+  name = "fetch_audit_logs"
+  method = "GET"
+  path_template = "/api/v1/audit_logs"
+  response_path = "$.objects"
+  variables_produced = []
+
+  [tables.steps.pagination]
+  type = "offset_limit"
+  page_size = 100
