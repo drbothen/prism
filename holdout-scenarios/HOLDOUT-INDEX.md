@@ -1,7 +1,7 @@
 ---
 document_type: holdout-scenario-index
 level: L3
-version: "1.8"
+version: "1.9"
 status: draft
 producer: product-owner
 timestamp: 2026-05-20T00:00:00Z
@@ -289,7 +289,7 @@ Minimum acceptance: All P0 scenarios PASS. P1 scenarios at least PARTIAL.
 
 ## State Checkpoint
 
-> **Note:** This State Checkpoint reflects the cumulative HOLDOUT-INDEX state as of the most recent version bump. Frontmatter fields (`total_scenarios`, `total_groups`, `timestamp`) are the canonical source of truth; this block is a point-in-time snapshot for downstream tooling consumption. `total_scenarios` counts top-level HS-NNN groups (each HS file = one scenario unit) plus prior sub-scenario accumulation per the v1.3 baseline accounting (52 sub-scenarios → 75 at v1.3, +6 HS files at v1.7 = 81). Verify by frontmatter `total_scenarios:` for the authoritative count.
+> **Note:** This State Checkpoint reflects the cumulative HOLDOUT-INDEX state as of the most recent version bump. Frontmatter fields (`total_scenarios`, `total_groups`, `timestamp`) are the canonical source of truth; this block is a point-in-time snapshot for downstream tooling consumption. `total_scenarios` counts top-level HS-NNN groups (each HS file = one scenario unit) plus prior sub-scenario accumulation per the v1.3 baseline accounting (52 sub-scenarios → 75 at v1.3, +6 HS files at v1.4 = 81). Verify by frontmatter `total_scenarios:` for the authoritative count.
 
 ```yaml
 document: holdout-index
@@ -316,10 +316,12 @@ timestamp: 2026-05-20T00:00:00Z
 
 | Version | Burst | Date | Author | Change |
 |---------|-------|------|--------|--------|
+| 1.9 | FB-IMPL-P12-PO | 2026-05-20 | product-owner | F-LP12-MED-002 closure: Backfilled missing v1.4 changelog row (HS-013..018 authoring, 75→81); corrected disambiguating prose at line 292 from "+6 HS files at v1.7" → "+6 HS files at v1.4" (HS-013..018 entered at v1.4, not v1.7). POL-26 changelog continuity discipline applied. HOLDOUT-INDEX v1.8→v1.9. |
 | 1.8 | FB-IMPL-P11-PO | 2026-05-20 | product-owner | F-LP11-MED-001 closure + proactive embedded-state-block sweep per S-7.02 lesson preview: State Checkpoint yaml block refreshed (total_scenarios 75→81, total_groups 12→13, p0_scenarios 59→65, timestamp 2026-05-04→2026-05-20, phase/step/plugin_migration fields added). Disambiguating prose block added before yaml. HOLDOUT-INDEX v1.7→v1.8. |
 | 1.7 | FB-IMPL-P6-PO fix-burst-6 | 2026-05-20 | product-owner | F-LP6-LOW-001 closure (TD-VSDD-091 POL-25 sweep): HS-016 v1.1→v1.2 — replaced line-pinned cite `lib.rs:16-17` with module-doc anchor `crates/prism-dtu-armis/src/lib.rs module documentation` in §Scenario auth note. HOLDOUT-INDEX v1.6→v1.7. |
 | 1.6 | FB-IMPL-P5-PO fix-burst-5 | 2026-05-20 | product-owner | F-LP5-LOW-001 closure (TD-VSDD-091 POL-25 sweep): HS-015 v1.1→v1.2 — replaced line-pinned cites `alerts.rs:43-46` with symbol anchor `alerts.rs::extract_session_token()` at two locations (§Scenario auth note, HS-015-01 Step 2). HOLDOUT-INDEX v1.5→v1.6. |
 | 1.5 | FB-IMPL-P4-PO fix-burst-4 | 2026-05-20 | product-owner | F-LP4-HIGH-001/F-LP4-HIGH-002/F-LP4-HIGH-004 closure: HS-013 v1.0→v1.1 (URL re-grounded to `/detects/queries/detects/v1`+`/detects/entities/summaries/GET/v1` per ADR-028 §D1; fixture reference at `prism-dtu-crowdstrike/fixtures/parity/reference-ocsf/detections.json` per ADR-028 §D3; request_count relaxed to >=2). HS-014 v1.0→v1.1 (auth corrected to `bearer_static` per ADR-028 §D2; scenario pivoted to `alerts` table at `POST /api/v1/alerts` per ADU gap note DTU-EXT-002; fixture reference added). HS-015 v1.0→v1.1 (auth corrected to `cookie_roundtrip` per ADR-028 §D2; URL corrected from `/api/alerts` to `/api/v1/alerts` per ADR-028 §D1; fixture reference added). HS-016 v1.0→v1.1 (auth corrected to `bearer_static` per ADR-028 §D2; DTU gap noted for AQL routes DTU-EXT-003/004; fixture reference added; bearer auth step added). |
+| 1.4 | FB-IMPL-P1-PO | 2026-05-20 | product-owner | Authored HS-013..HS-018 (6 new holdout scenarios for PLUGIN-MIGRATION-001-D: HS-013 CrowdStrike DTU parity, HS-014 Claroty POST-for-read parity, HS-015 Cyberint cookie cursor parity, HS-016 Armis AQL timestamp fallback parity, HS-017 bundled spec validation gate, HS-018 spec_id/filename mismatch rejection). total_scenarios 75 → 81; total_groups 12 → 13. |
 | 1.3 | wave4-holdout-authoring | 2026-05-04 | product-owner | D-216 closure (Phase 4.B wave gate unblock, D-219 first-wave-with-proper-holdouts): authored HS-009 (6 sub-scenarios, Scheduler Operations, must_pass: true), HS-010 (6 sub-scenarios, Detection & Alert Pipeline, must_pass: true), HS-011 (5 sub-scenarios, Case Management, must_pass: false), HS-012 (6 sub-scenarios, Action Delivery, must_pass: true). total_scenarios 52 → 75 (+23). total_groups 8 → 12. p0_scenarios 36 → 59. BC anchors drawn from BC-INDEX v4.32 (BC-2.12.001–010, BC-2.13.001–013, BC-2.14.001–012, BC-2.18.001–009). Repo Coverage Matrix extended with prism-operations, prism-storage, prism-audit columns. |
 | 1.2 | pass-81-remediation | 2026-04-21 | product-owner | F81-006: Synced body "Total Scenarios" (53 → 52) and state checkpoint (total_scenarios: 53 → 52, p0_scenarios: 37 → 36). HS-001-05 was P0; body/checkpoint were stale vs frontmatter. |
 | 1.1 | pass-80-remediation | 2026-04-21 | product-owner | F80-006: HS-001-05 marked REMOVED — CAP-013 (xMP Envelope Delivery) is out of scope (REMOVED from capabilities.md). total_scenarios decremented 53 → 52. |

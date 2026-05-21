@@ -6,7 +6,7 @@ version: "1.41"
 status: active
 producer: product-owner
 timestamp: 2026-05-16T00:00:00Z
-modified: 2026-05-18
+modified: "2026-05-20"
 phase: 1a
 origin: greenfield
 inputs: [".factory/specs/prd.md", ".factory/specs/behavioral-contracts/**"]
