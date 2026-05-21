@@ -1,7 +1,7 @@
 ---
 document_type: behavioral-contract
 level: L3
-version: "1.10"
+version: "1.11"
 status: draft
 producer: product-owner
 timestamp: 2026-05-20T00:00:00Z
@@ -328,7 +328,7 @@ adapter path for all test cases:
 |-------|-----------|----------|
 | `E-SPEC-001` | Bundled spec file fails BC-2.16.009 validation at CI time | CI fails; spec file must be corrected before merge; this is a pre-merge gate |
 | `E-SPEC-009` | Duplicate `sensor_id` across two spec files (e.g., two files both declare `sensor_id: "crowdstrike"`) | BC-2.16.001 rejects the second file with `E-SPEC-009` per error-taxonomy.md; first file wins. E-SPEC-009 covers ONLY the duplicate-sensor_id case — it does NOT cover filename-stem-vs-sensor_id mismatch (see E-SPEC-017 below). |
-| `E-SPEC-017` | Spec `sensor_id` does not case-sensitively match the filename stem (e.g., `crowdstrike.sensor.toml` with `sensor_id: "falcon"`) | BC-2.16.001 rejects the offending file with `E-SPEC-017` per error-taxonomy.md v1.41. Bundled spec naming convention is `{sensor_id}.sensor.toml`; mismatch indicates a rename without sensor_id update or vice versa; reject at load time to prevent silent namespace drift. (Registered as new code E-SPEC-017 in FB-IMPL-P2-PO 2026-05-20 — prior pass-1 incorrectly cited E-SPEC-009 for this case; E-SPEC-009 has distinct duplicate-sensor_id semantics.) |
+| `E-SPEC-017` | Spec `sensor_id` does not case-sensitively match the filename stem (e.g., `crowdstrike.sensor.toml` with `sensor_id: "falcon"`) | BC-2.16.001 rejects the offending file with `E-SPEC-017` per error-taxonomy.md v1.42. Bundled spec naming convention is `{sensor_id}.sensor.toml`; mismatch indicates a rename without sensor_id update or vice versa; reject at load time to prevent silent namespace drift. (Registered as new code E-SPEC-017 in FB-IMPL-P2-PO 2026-05-20 — prior pass-1 incorrectly cited E-SPEC-009 for this case; E-SPEC-009 has distinct duplicate-sensor_id semantics.) |
 
 **Note on parity FAIL verdict (test verdict, not runtime error):** A parity test FAIL verdict
 (where `PipelineExecutor` output does not match the reference OCSF output for a test case) is
@@ -407,6 +407,7 @@ PLUGIN-MIGRATION-001-D (implementing story; planned → draft after PO authoring
 
 | Version | Burst | Date | Author | Change |
 |---------|-------|------|--------|--------|
+| 1.11 | FB-IMPL-P22-PO | 2026-05-21 | product-owner | F-LP22-MED-001 closure (16th coherence-axis: same-line dual-format cite-pin escape): swept `error-taxonomy.md v1.41` → `v1.42` at 1 active-prose site (§Error Conditions E-SPEC-017 row line 331). BC-2.16.013 v1.10→v1.11. |
 | 1.10 | FB-IMPL-P17-PO | 2026-05-20 | product-owner | F-LP17-HIGH-002 propagation closure (POL-29 fixed-point per F-LP16-OBS-001): ADR-028 v1.7→v1.8 cite-pin sweep across 6 active-prose sites (lines 375-379, 403). Architect FB-IMPL-P17-ARCH reverted ADR-028 §Changelog to descending + bumped v1.7→v1.8 + added §D7 (Per-File Convention Lock rule); cites bump only, no structural change. |
 | 1.9 | FB-IMPL-P16-PO | 2026-05-20 | product-owner | F-LP16-MED-001 propagation closure (POL-29 fixed-point per F-LP16-OBS-001): ADR-028 v1.6→v1.7 cite-pin sweep across 6 active-prose sites (lines 375-379, 403). Same-burst sweep avoiding leak-into-next-pass per fixed-point iteration discipline. |
 | 1.8 | FB-IMPL-P15-PO | 2026-05-20 | product-owner | F-LP15-MED-001 closure: ADR-028 v1.5→v1.6 cite-pin sweep across 6 active-prose sites (lines 375-379, 403) + any other discovered sites. POL-29 cross-file sweep applied per F-LP15-OBS-001 process-gap (closure scope of this burst). |

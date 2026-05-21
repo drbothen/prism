@@ -6,7 +6,7 @@ wave: 1
 epic_id: PLUGIN-MIGRATION-001
 priority: P0
 status: draft
-version: "v1.10"
+version: "v1.11"
 level: "L4"
 producer: story-writer
 timestamp: "2026-05-20T00:00:00Z"
@@ -46,7 +46,7 @@ behavioral_contracts:
   - BC-2.16.012  # PluginRegistry Dispatch — the spec_parser.rs open dispatch path (INV-SPEC-PARSER-OPEN-001)
                  #   must handle the 4 new specs without hardcoded sensor name match arms; parity
                  #   AC asserts no dispatch regression vs the pre-TOML path
-  - BC-2.16.013  # Bundled Sensor Spec Authoring and DTU-Parity Verification (v1.10 FB-IMPL-P17-PO) —
+  - BC-2.16.013  # Bundled Sensor Spec Authoring and DTU-Parity Verification (v1.11 FB-IMPL-P22-PO) —
                  #   primary contract: 4 TOML files authored at crates/prism-sensors/specs/,
                  #   validated, DTU-parity tests authored per TS-PLUGIN-PARITY-001 Rules A–I,
                  #   URLs grounded from DTU clone routes (ADR-028 §D1), auth_type from DTU
@@ -129,7 +129,7 @@ inputs:
 
 **Story ID:** PLUGIN-MIGRATION-001-D  
 **Status:** draft  
-**Version:** v1.10  
+**Version:** v1.11  
 **Wave:** 1 (first unblocked Wave 1 story; all 5 PREREQ stories merged to develop@80ebe794)
 
 ---
@@ -189,7 +189,7 @@ behavioral continuity and without risk of silent OCSF regression.
 
 | BC ID | Version | Title | Subsystem | Role in This Story |
 |-------|---------|-------|-----------|-------------------|
-| BC-2.16.013 | 1.10 | Bundled Sensor Spec Authoring and DTU-Parity Verification — 4 Initial Sensors | SS-16 | **Primary delivery** — defines the 4 spec files, their content, the parity test structure (DTU-route-grounded URLs per ADR-028 §D1; fixture-JSON reference OCSF per ADR-028 §D3), and INV-PARITY-001 replacement-before-deletion gate |
+| BC-2.16.013 | 1.11 | Bundled Sensor Spec Authoring and DTU-Parity Verification — 4 Initial Sensors | SS-16 | **Primary delivery** — defines the 4 spec files, their content, the parity test structure (DTU-route-grounded URLs per ADR-028 §D1; fixture-JSON reference OCSF per ADR-028 §D3), and INV-PARITY-001 replacement-before-deletion gate |
 | BC-2.16.001 | 1.5 | Sensor Spec File Loading — Parse TOML, Validate Schema, Register Tables | SS-16 | **Required** — specifies that `*.sensor.toml` files in `sensor_specs_dir` (here: `crates/prism-sensors/specs/`) are discovered, parsed, and registered at startup; virtual fields injected; `load_all()` emits E-SPEC-017 on filename-stem/sensor_id mismatch |
 | BC-2.16.009 | 1.4 | Spec File Validation — Schema Validation, Variable Reference Resolution, OCSF Field Validation | SS-16 | **Required** — all 4 bundled specs must pass all 5 validation rule categories; CI gate via dedicated integration test |
 | BC-2.16.002 | 1.35 | Multi-Step Fetch Pipeline Execution — Sequential Steps with Variable Interpolation | SS-16 | **Required** — CrowdStrike QueryV2→PostEntities two-step pipeline exercised in parity test; PipelineExecutor drives the parity test harness |
@@ -312,7 +312,7 @@ returns `Ok(SensorSpec)` with `sensor_id == "cyberint"`, `auth_type == CookieRou
   gap: DTU has `/api/v1/alerts` GET, not AQL `/api/v1/search`; deferred per ADR-028 §D5)
   Note: both Armis tables are DTU-EXT gaps. The spec file is authored with documented gap entries
   per ADR-028 §D5. Parity tests are `#[ignore]`-tagged per EC-016-013-006 until DTU extension.
-  Orchestrator follow-up required (see §Known Gaps in BC-2.16.013 v1.10).
+  Orchestrator follow-up required (see §Known Gaps in BC-2.16.013 v1.11).
 - Timestamp fallback chain: `firstSeen` → `lastSeen` → `DateTime::now()` expressed via WASM
   transformer plugin (O-001: `timestamp_fallback_chain` is NOT in TOML grammar; requires
   grammar extension Option A or WASM plugin Option B per Task 1); WARN emission preserved
@@ -714,7 +714,7 @@ Base URL: `{instance_url}` from auth config — NO `/xdome` prefix anywhere
 PLUGIN-MIGRATION-001-A scope EXPANDS to include rewriting `ClarotyAuth::auth_type_name()` returns
 and amending Red Gate `test_BC_2_01_016_003`. Until PLUGIN-MIGRATION-001-A merges, the live
 `ClarotyAuth::auth_type_name()` return diverges from this spec's `auth_type` declaration; this
-divergence is documented in BC-2.16.013 v1.10 §Postconditions §1 supersession context.
+divergence is documented in BC-2.16.013 v1.11 §Postconditions §1 supersession context.
 
 ### Task 5: Author `cyberint.sensor.toml` (0.5 point)
 
@@ -741,7 +741,7 @@ Endpoints (grounded from DTU `build_router()` per ADR-028 §D1):
 PLUGIN-MIGRATION-001-A scope EXPANDS to include rewriting `CyberintAuth::auth_type_name()` returns
 and amending Red Gate `test_BC_2_01_016_003`. Until PLUGIN-MIGRATION-001-A merges, the live
 `CyberintAuth::auth_type_name()` return diverges from this spec's `auth_type` declaration; this
-divergence is documented in BC-2.16.013 v1.10 §Postconditions §1 supersession context.
+divergence is documented in BC-2.16.013 v1.11 §Postconditions §1 supersession context.
 
 ### Task 6: Author `armis.sensor.toml` (0.5 point)
 
@@ -765,7 +765,7 @@ Endpoints (grounded from DTU per ADR-028 §D1):
   `GET /api/v1/search` with AQL. Defer this table entry per ADR-028 §D5. If including in spec,
   use DTU-registered endpoint `GET /api/v1/alerts`; document gap vs AQL-search intent.
   Orchestrator follow-up required for both DTU-EXT-003 and DTU-EXT-004 (see §Known Gaps in
-  BC-2.16.013 v1.10 for resolution options).
+  BC-2.16.013 v1.11 for resolution options).
 
 Timestamp fallback chain: expressed via WASM transformer plugin (O-001: `timestamp_fallback_chain`
 is NOT in TOML grammar; choose Option A grammar extension or Option B WASM plugin per Task 1).
@@ -775,7 +775,7 @@ Fields: `firstSeen` → `lastSeen` → `DateTime::now()` with WARN emission.
 PLUGIN-MIGRATION-001-A scope EXPANDS to include rewriting `ArmisAuth::auth_type_name()` returns
 and amending Red Gate `test_BC_2_01_016_003`. Until PLUGIN-MIGRATION-001-A merges, the live
 `ArmisAuth::auth_type_name()` return diverges from this spec's `auth_type` declaration; this
-divergence is documented in BC-2.16.013 v1.10 §Postconditions §1 supersession context.
+divergence is documented in BC-2.16.013 v1.11 §Postconditions §1 supersession context.
 
 ### Task 7: Author Red Gate Tests — Non-DTU (0.5 point)
 
@@ -798,7 +798,7 @@ Write RG-04, RG-05, RG-06, RG-07. These tests have `#[ignore]` so they compile a
 `#[ignore]` tag is the mechanism that prevents CI failure, not an incomplete test body.
 
 Use the `BehavioralClone::start_on("127.0.0.1:0".parse().unwrap(), None, None).await` pattern
-documented in BC-2.16.013 v1.10 §Postconditions §2 and confirmed from `prism-dtu-common/src/clone.rs`.
+documented in BC-2.16.013 v1.11 §Postconditions §2 and confirmed from `prism-dtu-common/src/clone.rs`.
 The returned `SocketAddr` is used to construct the DTU base URL for spec override.
 The `NullAuthProvider` must be imported or defined in the parity test harness (it exists in
 `prism-spec-engine` under `test-helpers` feature per the existing test suite convention).
@@ -1000,7 +1000,7 @@ Key lessons applicable to this story:
    error code (unlikely — specs should not need new codes), run TD-VSDD-060 sibling-sweep to
    update error-taxonomy.md in the same commit.
 
-6. **`sensor_id`/filename mismatch uses `E-SPEC-017` (registered in error-taxonomy.md v1.41 during FB-IMPL-P2-PO).**
+6. **`sensor_id`/filename mismatch uses `E-SPEC-017` (registered in error-taxonomy.md v1.42; originally introduced at v1.41 during FB-IMPL-P2-PO).**
    `E-SPEC-017` is the dedicated canonical code for `sensor_id`/filename-stem mismatch — emitted
    by BC-2.16.001 v1.5 §Error Conditions at spec-load time. `E-SPEC-009` remains the canonical
    code for duplicate `sensor_id` across multiple spec files (a distinct error condition). The
@@ -1270,6 +1270,7 @@ This story is DONE when ALL of the following are simultaneously true — no exce
 
 | Version | Date | Author | Change |
 |---------|------|--------|--------|
+| v1.11 | 2026-05-21 | product-owner | FB-IMPL-P22-PO: F-LP22-MED-001 closure (16th coherence-axis: same-line dual-format cite-pin escape): (1) error-taxonomy.md v1.41→v1.42 sweep at Previous Story Intelligence item 6 (line 1003); (2) BC-2.16.013 v1.10→v1.11 cite-pin sweep across 8 active-prose sites (frontmatter comment, header version, body BC table version column, line 315 §Known Gaps, Task 4 Claroty supersession context, Task 5 Cyberint supersession context, Task 6 Armis resolution-options, Task 6 Armis supersession context x3, Task 9 BehavioralClone cite). Story v1.10→v1.11. STORY-INDEX v2.168→v2.169. |
 | v1.10 | 2026-05-20 | product-owner | FB-IMPL-P17-PO: F-LP17-HIGH-002 propagation closure (POL-29 fixed-point per F-LP16-OBS-001): BC-2.16.013 v1.9→v1.10 cite-pin sweep across 8 active-prose sites (frontmatter comment, header version, body BC table version column, line 315 §Known Gaps, Task 4 Claroty supersession context, Task 5 Cyberint supersession context, Task 6 Armis resolution-options, Task 6 Armis supersession context, Task 9 BehavioralClone cite). Architect FB-IMPL-P17-ARCH reverted ADR-028 §Changelog to descending + bumped v1.7→v1.8 + added §D7; cite bump propagated here per fixed-point discipline. STORY-INDEX v2.167→v2.168. |
 | v1.9 | 2026-05-20 | product-owner | FB-IMPL-P16-PO: F-LP16-MED-001 propagation closure (POL-29 fixed-point per F-LP16-OBS-001): BC-2.16.013 v1.8→v1.9 cite-pin sweep across 8 active-prose sites (frontmatter comment, header version, body BC table version column, AC-004 §Known Gaps, Task 4 Claroty supersession context, Task 5 Cyberint supersession context, Task 6 Armis resolution-options, Task 6 Armis supersession context x3, Task 9 BehavioralClone cite). Same-burst sweep per F-LP16-OBS-001 fixed-point discipline. STORY-INDEX v2.166→v2.167. |
 | v1.8 | 2026-05-20 | story-writer | FB-IMPL-P16-SW: F-LP16-HIGH-001 closure: BC-2.16.013 v1.7→v1.8 cite-pin sweep across 8 active-prose sites (lines 49, 192, 315, 717, 744, 768, 778, 801). POL-29 fixed-point iteration applied per F-LP16-OBS-001 process-gap codification — closing burst's OWN output stale class swept in same commit. STORY-INDEX v2.165→v2.166. |
