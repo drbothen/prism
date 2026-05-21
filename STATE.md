@@ -1,9 +1,9 @@
 ---
 document_type: pipeline-state
 level: ops
-version: "7.446"
+version: "7.447"
 producer: state-manager
-timestamp: 2026-05-21T12:00:00Z
+timestamp: 2026-05-21T14:00:00Z
 inputs: []
 input-hash: "[live-state]"
 traces_to: ""
@@ -13,10 +13,10 @@ phase: 3
 status: in_progress
 started: 2026-04-13
 repos: [poller-cobra, poller-express, poller-bear, poller-coaster, serveMyAPI, tally, axiathon, ocsf-proto-gen, mcp-claroty-xdome]
-safe_to_compact: false
-pre_compact_snapshot: "SESSION-HANDOFF.md §RESUME SNAPSHOT 2026-05-20-EVE"
-pre_compact_snapshot_at: "2026-05-20 (D-737 SESSION-HANDOFF.md §RESUME SNAPSHOT 2026-05-20-EVE for PLUGIN-MIGRATION-001-D pass-4 decisions-locked durability)"
-current_step: "PLUGIN-MIGRATION-001-D LOCAL 3-CLEAN CONVERGED; story status flipped ready; TDD implementation phase ready"
+safe_to_compact: true
+pre_compact_snapshot: "SESSION-HANDOFF.md §RESUME SNAPSHOT 2026-05-21"
+pre_compact_snapshot_at: "2026-05-21 (D-760 SESSION-HANDOFF.md §RESUME SNAPSHOT 2026-05-21 for PLUGIN-MIGRATION-001-D LOCAL 3-CLEAN CONVERGENCE durability)"
+current_step: "D-760 closed. CONVERGED + DURABLE. Ready for /clear. NEXT session resumes TDD implementation phase per SESSION-HANDOFF §RESUME SNAPSHOT 2026-05-21 §4 dispatch plan."
 current_cycle: wave-0-plugin-prereqs
 feature_branch_head: "merged to 80ebe794 at 2026-05-19 (PR #151) — a4c048ce was final feature HEAD before squash-merge"
 pr_level_adversary_streak: "3/3 CONVERGED per BC-5.39.001 — passes 2/3/4 all CLEAN; PR #151 merged 2026-05-19; D-716 Option A standing satisfied"
@@ -90,9 +90,9 @@ historical_cycles: [phase-1-convergence, wave-3-multi-tenant, wave-4-operations]
 | **Language** | Rust |
 | **Target Workspace** | per-analyst stdio (MCP server) |
 | **Started** | 2026-04-13 |
-| **Last Updated** | 2026-05-21 (D-759 PLUGIN-MIGRATION-001-D LOCAL 3-CLEAN CONVERGED; 25 passes, 19 fix-bursts, 80 closures; 266th consecutive) |
+| **Last Updated** | 2026-05-21 (D-760 SESSION-HANDOFF §RESUME SNAPSHOT 2026-05-21 written for /clear durability; safe_to_compact=true; 267th consecutive) |
 | **Current Phase** | Wave 3 Tier-3 COMPLETE — **Wave 3-A 4 of 4 SHIPPED**; plugin migration: PREREQ-F + PREREQ-A + PREREQ-B + PREREQ-C + PREREQ-D + **PREREQ-E MERGED** (PR #151 80ebe794 2026-05-19T18:06:44Z); PLUGIN-MIGRATION-001-D LOCAL SPEC CONVERGED — ready for TDD |
-| **Current Step** | D-759 closed. CONVERGED. Story status `ready`. Next: orchestrator handoff to TDD implementation phase (test-writer → implementer pipeline per per-story-delivery.md). |
+| **Current Step** | D-760 closed. CONVERGED + DURABLE. Ready for /clear. NEXT session resumes TDD implementation phase per SESSION-HANDOFF §RESUME SNAPSHOT 2026-05-21 §4 dispatch plan. |
 
 ## Phase Progress
 
@@ -139,6 +139,7 @@ _D-001..D-046 archived: [cycles/phase-3-dtu-wave-2/decisions-archive-d001-d032.m
 
 | ID | Decision | Rationale | Phase | Date |
 |----|----------|-----------|-------|------|
+| D-760 | 2026-05-21 | state-manager (durable resume snapshot burst) | **SESSION-HANDOFF.md §RESUME SNAPSHOT 2026-05-21 — durable resume state for /clear before TDD implementation phase. Appended §RESUME SNAPSHOT 2026-05-21 covering full 2026-05-20/21 session arc: D-737 architectural decisions LOCKED + 22 adversary passes (P4-P25) + 19 fix-bursts (FB-IMPL-P4..P22) + 80 cumulative closures + 16 novel coherence-axis classes + D-747 user Path A architectural supersession + D-759 PLUGIN-MIGRATION-001-D LOCAL 3-CLEAN CONVERGENCE per BC-5.39.001. §1 Session arc table (D-737..D-759); §2 CONVERGENCE STATE; §3 D-747 Path A supersession context; §4 TDD Implementation Dispatch Plan (devops-engineer worktree → test-writer stubs+failing tests → implementer TDD green → adversary 3-CLEAN cascade → demo-recorder → pr-manager 9-step → state-manager post-merge); §5 Open items beyond 001-D + 10 S-7.02 codification candidates; §6 Resume protocol (7 steps); §7 Downstream Wave 1/2 chain. pre_compact_snapshot pointer updated to §RESUME SNAPSHOT 2026-05-21. safe_to_compact: true. STATE.md v7.446→v7.447. 267th consecutive single-commit per TD-VSDD-053.** | plugin-migration | 2026-05-21 | Decided by: state-manager (durable resume snapshot burst). Status: APPROVED |
 | D-759 | 2026-05-21 | orchestrator (cascade convergence acknowledged) + state-manager (CONVERGENCE burst commit) | **PLUGIN-MIGRATION-001-D LOCAL SPEC-LEVEL ADVERSARIAL CASCADE CONVERGED PER BC-5.39.001 3-CLEAN PROTOCOL. Three consecutive CLEAN passes (pass-23/24/25) per D-716 Option A standing. Zero findings across all 3 final passes; 80/80 cumulative closures verified durable; 16 novel coherence-axis classes codified for S-7.02. State-manager scope: pass-25 adversary report persisted + CONVERGENCE report written (PLUGIN-MIGRATION-001-D-convergence-report.md) + story v1.11→v1.12 status flipped `draft`→`ready` per PREREQ-B/C/D/E precedent + STORY-INDEX v2.169→v2.170 row 399 status reflected + STATE.md frontmatter sync. Cascade summary: 25 LOCAL adversary passes (P1 through P25); 19 fix-bursts (FB-IMPL-P1..P22 with P8/P18/P20 CLEAN-bookkeeping-no-fix); 80 cumulative closures; final converged spec set authorized for handoff to TDD implementation phase. Next: orchestrator dispatches implementer (test-writer → implementer) per VSDD per-story TDD pipeline. Story PLUGIN-MIGRATION-001-D is the first Wave-1 story of the plugin-migration saga; PLUGIN-MIGRATION-001-A (delete hardcoded adapters) follows after 001-D ships per ADR-028 §D6. 266th consecutive single-commit per TD-VSDD-053.** | plugin-migration | 2026-05-21 | Decided by: orchestrator (cascade convergence acknowledged) + state-manager (CONVERGENCE burst commit). Status: CONVERGED-APPROVED |
 | D-758 | 2026-05-21 | state-manager | **Pass-24 LOCAL adversary CLEAN bookkeeping burst — PLUGIN-MIGRATION-001-D fresh-context pass-24 against same spec set as pass-23 (no intervening fix-burst). **0 findings of any severity — SECOND CONSECUTIVE FULLY CLEAN PASS.** 80/80 cumulative closures verified DURABLE. POL-29 fixed-point clean across all 3 cite-pin pattern families (file-version, section-version, ADR-anchor-version). 17 axis probes executed (cumulative durability + pattern families + 14 explicit 17th-axis hunts) all CLEAN. Streak advances 1/3 → 2/3 per BC-5.39.001 / D-716 Option A. **ONE MORE CLEAN PASS (pass-25) NEEDED for 3-CLEAN CONVERGENCE.** No fix-burst dispatched. State-manager scope: persist local-pass-24.md + STATE.md frontmatter sync. 265th consecutive single-commit per TD-VSDD-053.** | plugin-migration | 2026-05-21 | Decided by: state-manager (clean-pass bookkeeping). Status: APPROVED |
 | D-757 | 2026-05-21 | state-manager | **Pass-23 LOCAL adversary CLEAN bookkeeping burst — PLUGIN-MIGRATION-001-D fresh-context pass-23 against ADR-028 v1.8 + BC-2.16.013 v1.11 + story v1.11 + STORY-INDEX v2.169 + indices propagated. **0 findings of any severity — first FULLY CLEAN pass after 14 passes of compounding fresh-context novelty.** 80/80 cumulative closures verified DURABLE. POL-29 fixed-point clean across all 3 cite-pin pattern families (file-version, section-version, same-line dual-format). All 16 known coherence-axes closed. Streak advances 0/3 → 1/3 per BC-5.39.001 / D-716 Option A. No fix-burst dispatched. State-manager scope: persist local-pass-23.md + STATE.md frontmatter sync. 2 more CLEAN passes needed for 3-CLEAN convergence. 264th consecutive single-commit per TD-VSDD-053.** | plugin-migration | 2026-05-21 | Decided by: state-manager (clean-pass bookkeeping). Status: APPROVED |
@@ -234,28 +235,22 @@ Prior cycle history:
 
 ---
 
-## Session Resume Checkpoint (2026-05-21 — D-752-PASS-18-CLEAN-STREAK-1-OF-3)
+## Session Resume Checkpoint (2026-05-21 — D-760 DURABLE SNAPSHOT FOR /CLEAR)
 
-_Previous checkpoint (D-748-FB-IMPL-P14-CLOSED-STREAK-0-OF-3) archived: [cycles/wave-0-plugin-prereqs/session-checkpoints.md](cycles/wave-0-plugin-prereqs/session-checkpoints.md)_
+_Previous checkpoint (D-752-PASS-18-CLEAN-STREAK-1-OF-3) archived: [cycles/wave-0-plugin-prereqs/session-checkpoints.md](cycles/wave-0-plugin-prereqs/session-checkpoints.md)_
 
-**STATE v7.439. D-752 PASS-18 CLEAN-with-observations BOOKKEEPING COMPLETE.** 0 findings requiring fix. local-pass-18.md persisted. 77/77 cumulative closures durable. Streak 0/3 → 1/3. 259th consecutive single-commit per TD-VSDD-053.
+**STATE v7.447. D-760 DURABLE RESUME SNAPSHOT WRITTEN.** safe_to_compact=true. SESSION-HANDOFF.md §RESUME SNAPSHOT 2026-05-21 appended. PLUGIN-MIGRATION-001-D LOCAL spec cascade CONVERGED (3/3 per BC-5.39.001). Story v1.12 `ready`. 267th consecutive single-commit per TD-VSDD-053.
 
-**Pass-18 Summary (D-752):**
-- 0 HIGH + 0 MED + 0 LOW + 2 OBS [process-gap]
-- F-LP18-OBS-001: ADR-028 §D7 enumeration table samples 5 ADRs while codifying exhaustive enumeration (13th coherence-axis class: meta-recursive sample-bias) — routes to architect
-- F-LP18-OBS-002: 'POL-26 monotonic-ordering' used 81× workspace but not codified in policies.yaml — routes to orchestrator (amend POL-26 OR allocate POL-30)
-- 13 novel coherence-axis classes total found across passes 9-18
-- No fix-burst dispatched; both OBS non-blocking
-
-**Next Steps:**
-1. Dispatch adversary (fresh context, pass-19) against all primary artifacts
-2. Target streak 1/3 → 2/3 per BC-5.39.001 / D-716 Option A
-3. Continue cascade until 3-CLEAN convergence
+**Convergence Summary:**
+- 25 LOCAL adversary passes (P1–P25); 19 fix-bursts; 80 cumulative closures; 16 novel coherence-axis classes
+- Streak 3/3 at passes P23/P24/P25 (0 findings each)
+- Factory HEAD at CONVERGENCE: 4c411a61 (D-759)
 
 **Resume Protocol:**
-1. Read `.factory/SESSION-HANDOFF.md` §RESUME SNAPSHOT 2026-05-20-EVE for full context
-2. Read `.factory/STATE.md` frontmatter + D-752 decision row
-3. Verify `develop_head: 1bc56e3c` unchanged + 0 open PRs
-4. Dispatch adversary pass-19
+1. Read `.factory/SESSION-HANDOFF.md` §RESUME SNAPSHOT 2026-05-21 for full context
+2. Read `.factory/STATE.md` frontmatter + D-759 + D-760 decision rows
+3. Verify factory worktree health via `vsdd-factory:devops-engineer` (BLOCKING)
+4. Verify `develop_head: 1bc56e3c` unchanged + 0 open PRs
+5. Execute TDD Implementation Dispatch Plan (§4 of §RESUME SNAPSHOT 2026-05-21)
 
 _Agent routing: see CLAUDE.md §Agent Routing Table._

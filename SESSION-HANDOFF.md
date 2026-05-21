@@ -6151,3 +6151,200 @@ Bump story v1.3 → v1.4. Bump STORY-INDEX v2.160 → v2.161.
 - The legacy adapters in `crates/prism-sensors/src/auth/{crowdstrike,claroty,cyberint,armis}.rs` are temporary scaffolding for parity testing in this story
 - After 001-A merges, the entire `crates/prism-sensors/src/auth/{sensor}.rs` modules are deleted; sensors run entirely from TOML through the plugin runtime
 - DO NOT apply SEC-NEW-002 LRU eviction fix as part of current PLUGIN-MIGRATION wave without explicit story anchor — tracked as TD-PRISM-QUERY-CACHE-001 P2; anchor is PLUGIN-MIGRATION-Wave-2 cleanup story TBD.
+
+---
+
+## §RESUME SNAPSHOT 2026-05-21 (PLUGIN-MIGRATION-001-D LOCAL Spec Cascade CONVERGED — TDD Phase Pending)
+
+**Purpose:** Durable resume context for /clear and fresh-session restart. PLUGIN-MIGRATION-001-D LOCAL spec-level adversarial cascade has reached BC-5.39.001 3-CLEAN convergence (D-759). Story status flipped `draft`→`ready`. Next session dispatches TDD implementation phase per per-story-delivery.md.
+
+---
+
+### §1. This-Session Arc Summary (D-737 through D-759)
+
+| Burst | Scope | Outcome | Factory SHA |
+|---|---|---|---|
+| D-737 | Decisions locked + §RESUME SNAPSHOT 2026-05-20-EVE written | User adjudicated 4 architectural decisions (DTU routes, fixture JSON, E-SPEC-017 scope, auth_type canonical); durability commit; 244th consecutive | eee55f05 |
+| D-738 | FB-IMPL-P4 closure — 9 findings (4H+3M+1L+1OBS) | ADR-028 v1.0 PROPOSED authored; BC-2.16.013 v1.4 URL re-grounding + fixture JSON; story v1.4; 245th consecutive | (D-738) |
+| D-739 | FB-IMPL-P5 closure — 5 findings (1H+2M+2L) | ADR-028 v1.1→v1.2 Armis bearer_static fix (F-LP5-HIGH-001); cyberint symbol anchor; BC-2.16.001 v1.5 + BC-2.16.009 v1.4 modified sweep; story v1.5; 246th consecutive | (D-739) |
+| D-740 | FB-IMPL-P6 closure — 1L + streak advanced 0→1/3 | TD-VSDD-091 armis line-cite → module-doc sweep (F-LP6-LOW-001 per axis 9 codified); 247th consecutive | (D-740) |
+| D-741 | FB-IMPL-P7 closure — hallucinated symbol + BC-INDEX row sync | ADR-028 §Context hallucinated `::CyberintAuth::get_page` → `CyberintAdapter::get_page()` (F-LP7-HIGH-001); BC-INDEX v5.27→v5.28; streak reset 0/3; 248th consecutive | (D-741) |
+| D-742 | Pass-8 CLEAN bookkeeping | 0 findings; 1 OBS (TD-VSDD-091 deferred); streak 0→1/3; 249th consecutive | (D-742) |
+| D-743 | FB-IMPL-P9 closure — story body header drift | Story body header v1.5 vs frontmatter v1.6 (F-LP9-MED-001 POL-29 sibling-sweep gap from FB-IMPL-P6-SW); streak reset; 250th consecutive | (D-743) |
+| D-744 | FB-IMPL-P10 closure — ADR-028 §Status disambiguation | ADR-028 §Status historical-anchor disambiguator added; streak 0→1/3; 251st consecutive | (D-744) |
+| D-745 | FB-IMPL-P11 closure — HOLDOUT-INDEX State Checkpoint refresh | HOLDOUT-INDEX v1.7→v1.8 State Checkpoint yaml block multi-field drift closed; streak reset; 252nd consecutive | (D-745) |
+| D-746 | FB-IMPL-P12 closure — error-taxonomy modified + HOLDOUT-INDEX v1.4 backfill + STORY-INDEX narrative | error-taxonomy.md modified: 2026-05-18→2026-05-20; HOLDOUT-INDEX v1.8→v1.9 changelog backfill; STORY-INDEX row 399 narrative extended; streak reset; 253rd consecutive | (D-746) |
+| D-747 | FB-IMPL-P13 closure + USER PATH A — ADR-026↔ADR-028 supersession + 001-A scope expansion | User adjudicated F-LP13-HIGH-001 Path A: ADR-028 §D2 explicitly supersedes ADR-026 §D3 partial (bidirectional linkage); PLUGIN-MIGRATION-001-A scope EXPANDS; story v1.7; 254th consecutive | (D-747) |
+| D-748 | FB-IMPL-P14 closure — 4 ADR regression defects fixed | Immediate-recurrence-of-closed-defect-pattern (7th axis); ADR-026 v1.31 + ADR-028 v1.6; MANDATORY SELF-VERIFY protocol exercised; 255th consecutive | (D-748) |
+| D-749 | FB-IMPL-P15 closure — ADR-026 §Status sibling-asymmetric | ADR-026 v1.32 §Status disambiguator added (sibling-asymmetric propagation gap, 8th axis); BC-2.16.013 v1.8 cross-file POL-29 sweep; 256th consecutive | (D-749) |
+| D-750 | FB-IMPL-P16 closure — 4-dispatch fixed-point chain | 4-agent dispatch fixed-point (SW→ARCH→PO→PO); 9th+10th coherence axes; cumulative closures 70→73; 257th consecutive | (D-750) |
+| D-751 | FB-IMPL-P17 closure — ADR-028 §Changelog REVERTED descending + §D7 per-file lock | ADR-028 v1.7→v1.8 §Changelog REVERTED to descending; §D7 Per-File §Changelog Convention Lock rule authored; 11th+12th axes; cumulative 73→77; 258th consecutive | (D-751) |
+| D-752 | Pass-18 CLEAN bookkeeping | 0 findings (2 OBS non-blocking); streak 0→1/3; 13 axes total; 259th consecutive | (D-752) |
+| D-753 | FB-IMPL-P19 closure — ARCH-INDEX row reorder + sibling sweep | ARCH-INDEX §Changelog rows v2.93/v2.94/v2.95 reordered descending; 14th axis; TD-VSDD-060 exhaustive sibling-sweep all clean; cumulative 77→78; 260th consecutive | (D-753) |
+| D-754 | Pass-20 CLEAN bookkeeping | 0 findings (1 OBS non-blocking); streak 0→1/3; novelty TAPERED; 261st consecutive | (D-754) |
+| D-755 | FB-IMPL-P21 closure — section-versioned cite-pin | Section-versioned cite-pin escape 15th axis; error-taxonomy v1.42 + HS-018 v1.2; cumulative 78→79; streak reset; 262nd consecutive | (D-755) |
+| D-756 | FB-IMPL-P22 closure — same-line dual-format cite-pin | Same-line dual-format cite-pin escape 16th axis; HS-018 v1.3 + BC-2.16.013 v1.11 + story v1.11; cumulative 79→80; streak reset; 263rd consecutive | (D-756) |
+| D-757 | Pass-23 CLEAN bookkeeping — first fully-clean | 0 findings; all 16 axes verified closed; streak 0→1/3; 264th consecutive | (D-757) |
+| D-758 | Pass-24 CLEAN bookkeeping — second fully-clean | 0 findings; 17-axis probe suite all CLEAN; streak 1→2/3; 265th consecutive | (D-758) |
+| D-759 | CONVERGENCE 3/3 — story status flipped ready | Pass-25 CLEAN; BC-5.39.001 3-CLEAN satisfied; story v1.11→v1.12 status `draft`→`ready`; STORY-INDEX v2.169→v2.170; CONVERGENCE report written; 266th consecutive | 4c411a61 |
+| D-760 | Durable resume snapshot — this burst | §RESUME SNAPSHOT 2026-05-21 written; STATE.md v7.446→v7.447; safe_to_compact=true; 267th consecutive | (D-760) |
+
+**Session totals:** 267 consecutive single-commits per TD-VSDD-053. 22 adversary passes (P4 through P25). 19 fix-bursts (FB-IMPL-P4..P22, with P8/P18/P20 CLEAN-only). 80 cumulative closures. 16 novel coherence-axis classes.
+
+---
+
+### §2. CONVERGENCE STATE
+
+| Field | Value |
+|---|---|
+| Story PLUGIN-MIGRATION-001-D | v1.12 ready (was draft) |
+| BC-2.16.013 | v1.11 |
+| BC-2.16.001 | v1.5 |
+| BC-2.16.009 | v1.4 |
+| ADR-028 | PROPOSED v1.8 (descending §Changelog; §D7 per-file convention lock) |
+| ADR-026 | v1.32 (superseded_by ADR-028 §D2 partial) |
+| ARCH-INDEX | v2.96 |
+| BC-INDEX | v5.33 |
+| STORY-INDEX | v2.170 |
+| HOLDOUT-INDEX | v1.12 |
+| HS-018 | v1.3 |
+| TS-PLUGIN-PARITY-001 | v1.1 |
+| error-taxonomy.md | v1.42 |
+| STATE.md | v7.447 |
+| Factory HEAD | 4c411a61 (D-759 CONVERGENCE) — run `git -C .factory log -1 --format='%h %s'` for D-760 SHA |
+| Develop HEAD | 1bc56e3c (unchanged) |
+| Open PRs | 0 |
+| Active worktrees | main + .factory + .worktrees/S-3.09 (FROZEN BUG-S309-PLUGIN) + .worktrees/W3-FIX-S307-001 (BLOCKED — scaffolding preserved at /tmp/prism-W3-FIX-S307-001-scaffolding-diff.patch) |
+| Consecutive single-commits | 267 |
+| LOCAL streak | 3/3 CONVERGED per BC-5.39.001 |
+
+---
+
+### §3. User Decision Locked This Session — D-747 Path A (Architectural Supersession)
+
+ADR-028 §D2 explicitly supersedes ADR-026 §D3 partial (non-CrowdStrike auth_type_name() return values: cyberint=`cookie_roundtrip`, claroty=`bearer_static`, armis=`bearer_static` — DTU-grounded values). Bidirectional Supersedes/Superseded-by frontmatter linkage in both ADR files. PLUGIN-MIGRATION-001-A scope EXPANDS to:
+- Rewrite `Cyberint/Claroty/Armis` `Auth::auth_type_name()` return values
+- Amend Red Gate test `test_BC_2_01_016_003`
+
+CrowdStrike unchanged. Live code holds ADR-026 §D3 values until 001-A merges (migration-window contract per ADR-028 §D6).
+
+---
+
+### §4. Next Session Dispatch Plan — TDD Implementation Phase
+
+Story PLUGIN-MIGRATION-001-D is `ready` status. Per VSDD per-story TDD pipeline:
+
+#### Step 1: devops-engineer — factory-worktree-health check (BLOCKING pre-dispatch)
+
+Standard orchestrator pre-resume verification. Verify factory worktree health + .factory/ orphan branch state.
+
+#### Step 2: devops-engineer — Create feature worktree
+
+- Branch name: `feature/PLUGIN-MIGRATION-001-D`
+- Worktree path: `.worktrees/PLUGIN-MIGRATION-001-D/`
+- Base: `develop@1bc56e3c`
+
+#### Step 3: test-writer — Stubs + Failing Tests
+
+- Read story v1.12, BC-2.16.013 v1.11, BC-2.16.001 v1.5
+- Write stubs for: 4 TOML sensor specs (crowdstrike/claroty/cyberint/armis.sensor.toml), parity test harness, RG-01..RG-09 test scaffold
+- Write FAILING tests for: 13 ACs (AC-001..AC-013), 9 Red Gate tests (RG-01..RG-09), 6 HS scenarios (HS-013..HS-018)
+- Red Gate per BC-5.38.001: all tests MUST fail before implementation
+
+#### Step 4: implementer — TDD Green
+
+- Pick next failing test → write minimum code → make pass → micro-commit
+- Tasks per story §Task Breakdown (1-13 including Task 10a fixture recording, Task 11 SpecErrorCode::ESpec017, Task 12 SpecLoader::load_all filename-stem check)
+- Files to CREATE: 4 sensor.toml specs at `crates/prism-spec-engine/sensor_specs/`
+- Files to MODIFY: `crates/prism-core/src/error.rs` (add `SpecErrorCode::ESpec017` + `#[non_exhaustive]`), `crates/prism-spec-engine/src/spec_parser.rs` (add `load_all()` filename-stem check)
+- DTU parity tests: 4 sensor parity harnesses (RG-04..RG-07) — DTU-EXT-001..004 routes missing — handle via `#[ignore]` with documented rationale per BC-2.16.013 §Known Gaps
+
+#### Step 4.5: LOCAL adversary cascade per BC-5.39.001 (3-CLEAN convergence)
+
+Same protocol as the spec cascade just completed. Fresh-context adversary against implementation. Continue until 3 consecutive CLEAN.
+
+#### Step 5: demo-recorder — Per-AC demos
+
+13 demo recordings, one per AC; evidence to `docs/demo-evidence/PLUGIN-MIGRATION-001-D/`
+
+#### Step 6: pr-manager — 9-step PR cycle
+
+Create PR against `develop`, AI review dispatch, triage findings → fix routes, security review, convergence tracking, merge.
+
+#### Step 7: state-manager — Post-merge burst
+
+POL-14 BC auto-promotion (BC-2.16.013 v1.11 draft→active). Cycle close.
+
+---
+
+### §5. Open Items Beyond PLUGIN-MIGRATION-001-D
+
+**Pending tech-debt (no change from D-737-era pending list):**
+1. TD-PRISM-QUERY-CACHE-001 P2 — SEC-NEW-002 LRU eviction race (outside-Mutex total_bytes)
+2. TD-S-PLUGIN-PREREQ-E-001 P3 — nextest cross-package QUERY_PHASE_STARTED leak
+3. TD-S-PLUGIN-PREREQ-E-002 P3 — SIGTERM load-induced flake
+4. POL-31 enforcement hook implementation
+5. Drift items table (9 items, v1.0.0-greenfield)
+
+**S-7.02 codification candidates from this session's cascade (16 novel coherence-axes — defer to next policy-add burst):**
+1. POL-29 token-form enumeration (file-version + section-version + ADR-anchor-version)
+2. POL-29 fixed-point own-output stale class iteration
+3. ADR-028 §D7 Per-File §Changelog Convention Lock (already adopted via ADR-028)
+4. POL-26 monotonic-ordering canonicalization (currently folklore, 81 references)
+5. POL-27 extension to non-index files
+6. POL-26 changelog continuity for cumulative-count documents
+7. POL-29 same-line dual-format sweep
+8. TD-VSDD-060 exhaustive sibling-set enumeration (not sampled)
+9. INDEX frontmatter `timestamp:` vs `modified:` schema clarification
+10. Adversary must cross-check every ADR claim against ALL active ADRs + shipped+tested code witness
+
+---
+
+### §6. Resume Protocol for Next Session
+
+**Step 1:** Read STATE.md (v7.447) frontmatter + D-759 + D-760 decision rows.
+
+**Step 2:** Read SESSION-HANDOFF.md §RESUME SNAPSHOT 2026-05-21 (this section).
+
+**Step 3:** Verify factory worktree health via `vsdd-factory:devops-engineer` running `factory-worktree-health` skill (BLOCKING).
+
+**Step 4:** Verify `develop@1bc56e3c` unchanged + 0 open PRs.
+
+**Step 5:** Verify CONVERGENCE state matches §2 table above (story `ready`, BC-2.16.013 v1.11, STATE.md v7.447).
+
+**Step 6:** Execute TDD Implementation Dispatch Plan in §4 above:
+- Step 2: devops-engineer create worktree
+- Step 3: test-writer stubs + failing tests
+- Step 4: implementer TDD green
+- Step 4.5: adversary cascade 3-CLEAN
+- Step 5: demo-recorder per-AC
+- Step 6: pr-manager 9-step PR
+- Step 7: state-manager post-merge
+
+**Step 7:** Continue per VSDD per-story TDD pipeline until PR merges.
+
+**Critical context for the new session:**
+- User intent: plugin-system replaces hardcoded adapters; PLUGIN-MIGRATION-001-D is first Wave-1 story
+- Standing user directive: "No pragmatic convergence. Fix all issues before build."
+- TD-VSDD-053: 267 consecutive single-commits; protect the streak
+- NEVER push factory-artifacts. Local-only.
+- NEVER --no-verify.
+- BC-5.39.001: 3-CLEAN convergence per cascade
+- ADR-026↔ADR-028 LOCKED supersession per D-747 Path A
+- ADR-028 §D6: PLUGIN-MIGRATION-001-A scope expansion (auth_type_name() rewrites + Red Gate test amendment)
+- Decisions D-737 through D-760 are LOCKED — do not re-litigate
+
+---
+
+### §7. Critical Background for Fresh Session
+
+After PLUGIN-MIGRATION-001-D merges, the unblocked downstream chain:
+- PLUGIN-MIGRATION-001-E (CrowdStrike OAuth2 .prx WASM plugin)
+- PLUGIN-MIGRATION-001-A (delete 4 hardcoded auth modules + replace init_registry_for_org + rewrite auth_type_name() per ADR-028 §D6)
+- PLUGIN-MIGRATION-001-B (5 query-engine dispatch sites)
+- PLUGIN-MIGRATION-001-C (4 OCSF mappers merge)
+- PLUGIN-MIGRATION-001-F/G/H (Wave 2 cleanup)
+
+The legacy adapters in `crates/prism-sensors/src/auth/{crowdstrike,claroty,cyberint,armis}.rs` are temporary scaffolding for parity testing in this story. After 001-A merges, these modules are deleted; sensors run entirely from TOML through the plugin runtime.
+
+DO NOT apply SEC-NEW-002 LRU eviction fix as part of current PLUGIN-MIGRATION wave without explicit story anchor — tracked as TD-PRISM-QUERY-CACHE-001 P2; anchor is PLUGIN-MIGRATION-Wave-2 cleanup story TBD.
