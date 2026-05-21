@@ -5,8 +5,8 @@ title: "Author 4 Production TOML Sensor Specs — Reverse-Engineered + DTU-Parit
 wave: 1
 epic_id: PLUGIN-MIGRATION-001
 priority: P0
-status: draft
-version: "v1.11"
+status: ready
+version: "v1.12"
 level: "L4"
 producer: story-writer
 timestamp: "2026-05-20T00:00:00Z"
@@ -128,8 +128,8 @@ inputs:
 # PLUGIN-MIGRATION-001-D: Author 4 Production TOML Sensor Specs — Reverse-Engineered + DTU-Parity Tests
 
 **Story ID:** PLUGIN-MIGRATION-001-D  
-**Status:** draft  
-**Version:** v1.11  
+**Status:** ready  
+**Version:** v1.12  
 **Wave:** 1 (first unblocked Wave 1 story; all 5 PREREQ stories merged to develop@80ebe794)
 
 ---
@@ -1270,6 +1270,7 @@ This story is DONE when ALL of the following are simultaneously true — no exce
 
 | Version | Date | Author | Change |
 |---------|------|--------|--------|
+| v1.12 | 2026-05-21 | state-manager | D-759 CONVERGENCE burst: LOCAL spec-level adversarial cascade CONVERGED per BC-5.39.001 3-CLEAN protocol (pass-23/24/25 all CLEAN, streak 2/3 → 3/3 over factory SHAs 7fca3f5e→2938ac66→[D-759 commit]); story status flipped `draft`→`ready` per PREREQ-B/C/D/E precedent. Spec set authorized for handoff to TDD implementation phase. 25 LOCAL adversary passes; 19 fix-bursts; 80 cumulative closures; 16 novel coherence-axis classes codified for S-7.02. STORY-INDEX v2.169→v2.170. |
 | v1.11 | 2026-05-21 | product-owner | FB-IMPL-P22-PO: F-LP22-MED-001 closure (16th coherence-axis: same-line dual-format cite-pin escape): (1) error-taxonomy.md v1.41→v1.42 sweep at Previous Story Intelligence item 6 (line 1003); (2) BC-2.16.013 v1.10→v1.11 cite-pin sweep across 8 active-prose sites (frontmatter comment, header version, body BC table version column, line 315 §Known Gaps, Task 4 Claroty supersession context, Task 5 Cyberint supersession context, Task 6 Armis resolution-options, Task 6 Armis supersession context x3, Task 9 BehavioralClone cite). Story v1.10→v1.11. STORY-INDEX v2.168→v2.169. |
 | v1.10 | 2026-05-20 | product-owner | FB-IMPL-P17-PO: F-LP17-HIGH-002 propagation closure (POL-29 fixed-point per F-LP16-OBS-001): BC-2.16.013 v1.9→v1.10 cite-pin sweep across 8 active-prose sites (frontmatter comment, header version, body BC table version column, line 315 §Known Gaps, Task 4 Claroty supersession context, Task 5 Cyberint supersession context, Task 6 Armis resolution-options, Task 6 Armis supersession context, Task 9 BehavioralClone cite). Architect FB-IMPL-P17-ARCH reverted ADR-028 §Changelog to descending + bumped v1.7→v1.8 + added §D7; cite bump propagated here per fixed-point discipline. STORY-INDEX v2.167→v2.168. |
 | v1.9 | 2026-05-20 | product-owner | FB-IMPL-P16-PO: F-LP16-MED-001 propagation closure (POL-29 fixed-point per F-LP16-OBS-001): BC-2.16.013 v1.8→v1.9 cite-pin sweep across 8 active-prose sites (frontmatter comment, header version, body BC table version column, AC-004 §Known Gaps, Task 4 Claroty supersession context, Task 5 Cyberint supersession context, Task 6 Armis resolution-options, Task 6 Armis supersession context x3, Task 9 BehavioralClone cite). Same-burst sweep per F-LP16-OBS-001 fixed-point discipline. STORY-INDEX v2.166→v2.167. |
