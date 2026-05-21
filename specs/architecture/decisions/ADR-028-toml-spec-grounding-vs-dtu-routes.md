@@ -5,7 +5,7 @@ title: "TOML Spec URLs and auth_type Ground Against DTU Clone Routes (Real-API C
 status: Proposed
 date: "2026-05-20"
 modified: "2026-05-20"
-version: "1.0"
+version: "1.2"
 producer: architect
 subsystems_affected: [SS-01, SS-07, SS-16, SS-17]
 supersedes: null
@@ -81,10 +81,10 @@ Any spec artifact (BC, story, holdout scenario, test spec) that must cite an end
 
 TOML sensor spec `auth_type` values MUST be derived from DTU clone authentication enforcement behavior, which reflects the real third-party API's auth contract. The authoritative sources are the DTU clone middleware and handler implementations:
 
-- **Cyberint:** `crates/prism-dtu-cyberint/src/routes/alerts.rs:43-46` enforces cookie-based session auth (extracts `cyberint_session` cookie) → spec declares `auth_type = "cookie_roundtrip"`
+- **Cyberint:** `crates/prism-dtu-cyberint/src/routes/alerts.rs::extract_session_token()` enforces cookie-based session auth (extracts `cyberint_session` cookie) → spec declares `auth_type = "cookie_roundtrip"`
 - **Claroty:** `crates/prism-dtu-claroty/src/clone.rs` enforces `Authorization: Bearer` header → spec declares `auth_type = "bearer_static"`
 - **CrowdStrike:** OAuth2 client credentials flow per DTU enforcement → spec declares `auth_type = "oauth2_client_credentials"`
-- **Armis:** API key header per DTU enforcement → spec declares `auth_type = "api_key"`
+- **Armis:** Bearer token header per DTU enforcement (HTTP 403 on missing/invalid `Authorization: Bearer {non-empty}` per `crates/prism-dtu-armis/src/lib.rs:16-17`) → spec declares `auth_type = "bearer_static"`. Legacy `ArmisAuth::auth_type_name()` returns `"api_key"` — this is the latent label bug §D2 was authored to immunize against.
 
 Legacy `auth_type_name()` return strings in production Rust adapters are NOT a grounding reference. The observed code-vs-label inconsistencies (Cyberint adapter uses cookies but `auth_type_name()` returns `"bearer_static"`; Claroty adapter uses bearer but `auth_type_name()` returns `"cookie_roundtrip"`) are latent bugs in code deleted by PLUGIN-MIGRATION-001-A. No tech-debt entry is required for these bugs; they become moot at deletion.
 
@@ -178,4 +178,6 @@ Pass-5 adversarial review will surface these gaps as findings if not resolved be
 
 | Version | Date | Author | Summary |
 |---|---|---|---|
+| 1.2 | 2026-05-20 | architect | Pass-5 fix-burst — §D2 Cyberint row symbol-anchored: `prism-dtu-cyberint/src/routes/alerts.rs:43-46` → `::extract_session_token()` per TD-VSDD-091. F-LP5-LOW-001 closure (POL-25 sibling sweep — BC-2.16.013/HS-015 already fixed by PO this burst). |
+| 1.1 | 2026-05-20 | architect | Pass-5 fix-burst — §D2 Armis row corrected from `"api_key"` (legacy adapter `auth_type_name()` return) to `"bearer_static"` (DTU `Authorization: Bearer` enforcement per `prism-dtu-armis/src/lib.rs:16-17`). The original v1.0 §D2 Armis row was itself the latent label bug §D2 was authored to immunize against — fresh-context adversary surfaced the contradiction. F-LP5-HIGH-001. |
 | 1.0 | 2026-05-20 | architect | Initial version — locks D-737 Decisions 1 and 4; enumerates 5 decision rules; documents 3 DTU gap follow-ups |

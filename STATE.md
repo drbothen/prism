@@ -1,9 +1,9 @@
 ---
 document_type: pipeline-state
 level: ops
-version: "7.425"
+version: "7.426"
 producer: state-manager
-timestamp: 2026-05-20T16:00:00Z
+timestamp: 2026-05-20T18:30:00Z
 inputs: []
 input-hash: "[live-state]"
 traces_to: ""
@@ -16,7 +16,7 @@ repos: [poller-cobra, poller-express, poller-bear, poller-coaster, serveMyAPI, t
 safe_to_compact: false
 pre_compact_snapshot: "SESSION-HANDOFF.md §RESUME SNAPSHOT 2026-05-20-EVE"
 pre_compact_snapshot_at: "2026-05-20 (D-737 SESSION-HANDOFF.md §RESUME SNAPSHOT 2026-05-20-EVE for PLUGIN-MIGRATION-001-D pass-4 decisions-locked durability)"
-current_step: "D-738 closed. NEXT: pass-5 dispatch to adversary fresh-context for FB-IMPL-P4 verification + cascade toward BC-5.39.001 3-CLEAN per D-716 Option A."
+current_step: "D-739 closed. NEXT: pass-6 dispatch to adversary fresh-context for FB-IMPL-P5 verification + cascade toward BC-5.39.001 3-CLEAN per D-716 Option A."
 current_cycle: wave-0-plugin-prereqs
 feature_branch_head: "merged to 80ebe794 at 2026-05-19 (PR #151) — a4c048ce was final feature HEAD before squash-merge"
 pr_level_adversary_streak: "3/3 CONVERGED per BC-5.39.001 — passes 2/3/4 all CLEAN; PR #151 merged 2026-05-19; D-716 Option A standing satisfied"
@@ -52,12 +52,12 @@ vsdd_factory_version: "1.0.0-rc.18 (re-activated 2026-05-13T15:00:19Z; upgrade c
 workspace_test_count: 3681
 user_directive_persistent: "No pragmatic convergence. Fix all issues before build."
 current_cycle_history: "wave-0-plugin-prereqs (PREREQ-E merged PR #151 2026-05-19); prior: wave-4-operations (active); wave-3-multi-tenant (COMPLETE)"
-bc_index_version: "5.25"
+bc_index_version: "5.26"
 vp_index_version: "1.76"
-story_index_version: "v2.161"
-plugin_migration_001_d_local_adversary_passes: 4
-plugin_migration_001_d_local_fix_bursts: 4
-plugin_migration_001_d_status: "FB-IMPL-P4-CLOSED-AWAITING-PASS-5"
+story_index_version: "v2.162"
+plugin_migration_001_d_local_adversary_passes: 5
+plugin_migration_001_d_local_fix_bursts: 5
+plugin_migration_001_d_status: "FB-IMPL-P5-CLOSED-AWAITING-PASS-6"
 architectural_decisions_locked:
   - "1 LOCKED Option-A: TOML spec URLs ground against DTU clone routes (real-API canonical), NOT production Rust adapter URLs (latent adapter bug becomes moot when 001-A deletes adapters)"
   - "2 LOCKED Option-B: Parity test loads reference OCSF from committed fixture JSON (crates/prism-dtu-{sensor}/fixtures/parity/reference-ocsf/<table>.json); no prism-sensors dev-dep on prism-spec-engine needed"
@@ -70,7 +70,7 @@ subsystem_count: 22
 vp_count: 156
 prd_version: "1.10"
 error_taxonomy_version: "1.41"
-arch_index_version: "2.86"
+arch_index_version: "2.88"
 verification_coverage_matrix_version: "1.42"
 verification_architecture_version: "1.41"
 historical_cycles: [phase-1-convergence, wave-3-multi-tenant, wave-4-operations]
@@ -87,9 +87,9 @@ historical_cycles: [phase-1-convergence, wave-3-multi-tenant, wave-4-operations]
 | **Language** | Rust |
 | **Target Workspace** | per-analyst stdio (MCP server) |
 | **Started** | 2026-04-13 |
-| **Last Updated** | 2026-05-20 (D-738 FB-IMPL-P4 closure burst — ADR-028 PROPOSED v1.0 + BC-2.16.013 v1.4 + BC-2.16.001 v1.5 + story v1.4 + Task 11/12/10a new; 9 findings closed across 4 HIGH + 3 MED + 1 LOW + 1 OBS-deferred; DTU-EXT-001..004 surfaced; 245th consecutive single-commit) |
+| **Last Updated** | 2026-05-20 (D-739 FB-IMPL-P5 closure burst — ADR-028 v1.2 + BC-2.16.013 v1.5 + BC-2.16.001/009 modified field + story v1.5 + 5 findings closed (1H+2M+2L); 1 OBS deferred to S-7.02; 246th consecutive single-commit) |
 | **Current Phase** | Wave 3 Tier-3 COMPLETE — **Wave 3-A 4 of 4 SHIPPED**; plugin migration: PREREQ-F + PREREQ-A + PREREQ-B + PREREQ-C + PREREQ-D + **PREREQ-E MERGED** (PR #151 80ebe794 2026-05-19T18:06:44Z); PREREQ-F next per Wave 0 dependency chain |
-| **Current Step** | D-738 closed. NEXT: pass-5 dispatch to adversary fresh-context for FB-IMPL-P4 verification + cascade toward BC-5.39.001 3-CLEAN per D-716 Option A. |
+| **Current Step** | D-739 closed. NEXT: pass-6 dispatch to adversary fresh-context for FB-IMPL-P5 verification + cascade toward BC-5.39.001 3-CLEAN per D-716 Option A. |
 
 ## Phase Progress
 
@@ -115,11 +115,11 @@ historical_cycles: [phase-1-convergence, wave-3-multi-tenant, wave-4-operations]
 
 | Step | Agent | Status | Output |
 |------|-------|--------|--------|
-_D-734 and earlier archived to cycles/wave-0-plugin-prereqs/burst-log.md._
-| D-735 — **FB-IMPL-P3 closure — BC-2.16.013 v1.2→v1.3 (SpecLoader::parse phantom retired 11 sites; CrowdStrike/Claroty/Cyberint/Armis URL corrections per Rust adapter code — later revealed as WRONG grounding); story v1.2→v1.3; BC-INDEX v5.23→v5.24; STORY-INDEX v2.159→v2.160. 6 findings closed (3C+2H+1M). Streak 0/3 unchanged. 242nd consecutive.** | state-manager | FB-IMPL-P3 CLOSED | STATE v7.422 |
+_D-735 and earlier archived to cycles/wave-0-plugin-prereqs/burst-log.md._
 | D-736 — **Pass-4 BLOCKED-soft + ARCHITECTURAL-CHECKPOINT — 4 HIGH findings (URL grounding vs DTU routes; prism-sensors dev-dep contradiction; E-SPEC-017 no code; auth_type parity-defeating) + 3 MED + 1 LOW + 1 OBS. Cascade PAUSED 0/3. Pass-4 report persisted. 4 architectural decisions required. 243rd consecutive.** | adversary | BLOCKED-soft | STATE v7.423; awaiting user adjudication |
 | D-737 — **Decisions LOCKED (user adjudicated 4 architectural decisions: DTU-routes canonical; fixture JSON for parity reference; E-SPEC-017 in-scope code expansion; cyberint=cookie_roundtrip/claroty=bearer_static per spec-wins rule). SESSION-HANDOFF §RESUME SNAPSHOT 2026-05-20-EVE written. 244th consecutive single-commit per TD-VSDD-053.** | state-manager | DECISIONS LOCKED | STATE v7.424; NEXT: FB-IMPL-P4 dispatch |
 | D-738 — **FB-IMPL-P4 closure burst — 9 findings closed (4H+3M+1L+1OBS-deferred). ADR-028 PROPOSED v1.0 (architect). BC-2.16.013 v1.3→v1.4 + BC-2.16.001 v1.4→v1.5 + BC-INDEX v5.24→v5.25 + HOLDOUT-INDEX v1.4→v1.5 + HS-013/014/015/016 v1.1 + TS-PLUGIN-PARITY-001 v1.1 (PO). Story v1.3→v1.4 + Task 11/12/10a new (E-SPEC-017 code scope) + points 5→6 + STORY-INDEX v2.160→v2.161 (SW). ARCH-INDEX v2.85→v2.86. DTU-EXT-001..004 surfaced. Streak 0/3 awaiting pass-5. 245th consecutive single-commit per TD-VSDD-053.** | state-manager | FB-IMPL-P4 CLOSED | STATE v7.425; NEXT: pass-5 adversary dispatch |
+| D-739 — **FB-IMPL-P5 closure burst — 5 findings closed (1H+2M+2L) + 1 OBS deferred to S-7.02. ADR-028 v1.0→v1.1→v1.2 (architect: §D2 Armis bearer_static + cyberint symbol anchor); ARCH-INDEX v2.86→v2.87→v2.88. BC-2.16.001/009 modified field; BC-2.16.013 v1.4→v1.5; HS-015 v1.1→v1.2; BC-INDEX v5.25→v5.26; HOLDOUT-INDEX v1.5→v1.6 (PO). Story v1.4→v1.5 crates_touched+Task11+cyberint cite; STORY-INDEX v2.161→v2.162 (SW). Pass-5 adversary report persisted (read-only adversary). Streak 0/3 awaiting pass-6. 246th consecutive single-commit per TD-VSDD-053.** | state-manager | FB-IMPL-P5 CLOSED | STATE v7.426; NEXT: pass-6 adversary dispatch |
 
 ## Decisions Log
 
@@ -127,6 +127,7 @@ _D-001..D-046 archived: [cycles/phase-3-dtu-wave-2/decisions-archive-d001-d032.m
 
 | ID | Decision | Rationale | Phase | Date |
 |----|----------|-----------|-------|------|
+| D-739 | 2026-05-20 | architect (ADR-028 v1.1 + v1.2) + product-owner (BC modified + cyberint sweep) + story-writer (story v1.5 + cyberint propagation) + state-manager (burst commit) | **FB-IMPL-P5 closure burst — PLUGIN-MIGRATION-001-D pass-5 adversarial fix-burst complete. 5 findings closed in-scope (1 HIGH + 2 MED + 2 LOW) + 1 OBS deferred to S-7.02 cycle-close (process-gap codification: ADR-internal cross-row consistency check for source-of-truth grounding ADRs). Architect scope (two dispatches): ADR-028 v1.0 → v1.1 → v1.2 (§D2 Armis row `api_key` → `bearer_static` per `prism-dtu-armis/src/lib.rs:16-17` BearerStatic enforcement — the legacy `ArmisAuth::auth_type_name()` return `api_key` was itself the latent label bug §D2 was authored to immunize against; §D2 Cyberint cite symbol-anchored to `::extract_session_token()` per TD-VSDD-091); ARCH-INDEX v2.86 → v2.87 → v2.88. PO scope: BC-2.16.001 v1.5 + BC-2.16.009 v1.4 frontmatter `modified: "2026-05-20"` (POL-27 sibling sweep — BC-2.16.009 caught as bonus closure beyond adversary's HIGH-001 + MED-002 scope); BC-2.16.013 v1.4 → v1.5 (cyberint `extract_session_token` symbol anchor per TD-VSDD-091 + POL-25 multi-cite sweep); HS-015 v1.1 → v1.2 (same symbol anchor at 2 cites); BC-INDEX v5.25 → v5.26; HOLDOUT-INDEX v1.5 → v1.6. Story-writer scope: story v1.4 → v1.5 (crates_touched frontmatter add `prism-core` per POL-13 + STORY-INDEX agreement; Task 11 `#[non_exhaustive]` phrasing unconditional + investigation result: SpecErrorCode NOT in non-exhaustive-violation gate scope so EXPECTED stays 32; cyberint symbol anchor propagated to AC-011 + Task 5; BC-2.16.013 pin sweep v1.4 → v1.5 across 5 active-prose sites per POL-23); STORY-INDEX v2.161 → v2.162. State-manager scope: pass-5 adversary report persisted to disk (adversary lacked write access) + fix-burst-5 closure record. Streak 0/3 unchanged — awaiting pass-6 fresh-context adversary. F-LP5-OBS-001 process-gap deferred to S-7.02 cycle-close codification per orchestrator routing. 246th consecutive single-commit per TD-VSDD-053.** | plugin-migration | 2026-05-20 | Decided by: architect (ADR-028 v1.1 + v1.2) + product-owner (BC modified + cyberint sweep) + story-writer (story v1.5 + cyberint propagation) + state-manager (burst commit). Status: APPROVED |
 | D-738 | 2026-05-20 | architect (ADR-028) + product-owner (BC + HS + TS fix) + story-writer (story + new tasks for E-SPEC-017 code) + state-manager (burst commit) | **FB-IMPL-P4 closure burst — PLUGIN-MIGRATION-001-D pass-4 adversarial fix-burst complete. 9 findings closed in-scope (4 HIGH + 3 MED + 1 LOW + 1 OBS-deferred). Architect authored ADR-028 (TOML spec URLs and auth_type ground against DTU clone routes; PROPOSED v1.0). PO scope: BC-2.16.013 v1.3→v1.4 (URL re-grounding per DTU routes; fixture-JSON parity mechanism per ADR-028 §D3; auth_type swap claroty=bearer_static + cyberint=cookie_roundtrip + armis=bearer_static; §Known Gaps DTU-EXT-001..004), BC-2.16.001 v1.4→v1.5 (E-SPEC-017 enforcement contract: SpecLoader::load_all() emits, SpecLoader::parse() does not), BC-INDEX v5.24→v5.25, HOLDOUT-INDEX v1.4→v1.5, HS-013/014/015/016 v1.0→v1.1, TS-PLUGIN-PARITY-001 v1.0→v1.1. Story-writer scope: story v1.3→v1.4 (Task 11 new: SpecErrorCode::ESpec017 variant in crates/prism-core/src/error.rs:892; Task 12 new: filename-stem-vs-sensor_id check in crates/prism-spec-engine/src/spec_parser.rs::load_all at line 715; Task 10a new: one-time fixture JSON recording procedure; auth_type swap propagated; URL re-grounding propagated; AC-001 incidents 2-step pipeline; AC-007 request_count >=2 relaxation; RG-09 driver explicitly named SpecLoader::load_all; §Style Guidance unwrap()-permitted-in-tests clause; points 5→6 for half-day E-SPEC-017 code scope expansion), STORY-INDEX v2.160→v2.161. Architect scope: ADR-028 new PROPOSED v1.0; ARCH-INDEX v2.85→v2.86. Streak 0/3 unchanged — awaiting pass-5 fresh-context adversary. DTU-EXT-001..004 surfaced for orchestrator follow-up (DTU clone extension stories). 245th consecutive single-commit per TD-VSDD-053. | plugin-migration | 2026-05-20 | Decided by: architect (ADR-028) + product-owner (BC + HS + TS fix) + story-writer (story + new tasks for E-SPEC-017 code) + state-manager (burst commit). Status: APPROVED |
 | D-737 | 2026-05-20 | user + orchestrator + state-manager | **PLUGIN-MIGRATION-001-D pass-4 ARCHITECTURAL DECISIONS LOCKED + pre-clear durability burst.** User adjudicated 4 architectural decisions surfaced by D-736 pass-4 BLOCKED-soft checkpoint, confirming production-grade-default recommendations: (1) Decision-1 Option A — TOML spec URLs grounded against DTU clone routes (real-API canonical), NOT production Rust adapter URLs (which have latent bug at all 4 sensors — out-of-scope, becomes moot when 001-A deletes adapters); (2) Decision-2 Option B — parity test loads reference OCSF from committed fixture JSON (recorded from legacy adapter run against DTU clone), no `prism-sensors` dev-dep on `prism-spec-engine` required; (3) Decision-3 Option A — expand PLUGIN-MIGRATION-001-D scope to include `SpecErrorCode::ESpec017` variant in `prism-core` + filename-stem validation in `spec_parser.rs::load_all` (~half-day scope expansion), RG-09 + HS-018 remain in-scope per no-pragmatic-convergence directive; (4) Decision-4 Option A — TOML `auth_type` declares REAL behavior (cyberint=`cookie_roundtrip`, claroty=`bearer_static`) per CLAUDE.md Source-of-Truth Precedence #7 (spec wins on code-vs-spec conflict), legacy `auth_type_name()` string bugs become moot when 001-A deletes adapter code. User intent confirmed: PLUGIN-MIGRATION-001 deletes all hardcoded Rust adapters; spec-driven plugin path is the new world; adapters are temporary parity-reference scaffolding. SESSION-HANDOFF.md §RESUME SNAPSHOT 2026-05-20-EVE written for /clear durability. 244th consecutive single-commit per TD-VSDD-053. Status: DECISIONS-LOCKED; FB-IMPL-P4 dispatch pending fresh session. | plugin-migration | 2026-05-20 | Decided by: user (4 architectural adjudications) + orchestrator (recommendation framing) + state-manager (durability commit). Status: LOCKED-AND-DURABLE |
 | D-736 | 2026-05-20 | adversary + orchestrator | **PLUGIN-MIGRATION-001-D pass-4 BLOCKED-soft + ARCHITECTURAL-INPUT-REQUIRED checkpoint.** Pass-4 fresh-context adversary surfaced systemic regression from pass-3 closures: all 4 sensor URL paths in BC-2.16.013 v1.3 + production Rust adapter code are misaligned vs DTU clone routes (which model real third-party APIs). Parity tests RG-04..RG-07 would receive 404/401 against DTU clones as-specified. Plus 3 additional HIGH findings: prism-sensors dev-dep contradiction (AC requires; Forbidden Dependencies blocks); E-SPEC-017 enforcement scope gap (taxonomy registers code; no `SpecErrorCode::ESpec017` variant + no filename-stem check in spec_parser.rs::load_all); Cyberint/Claroty auth_type vs DTU enforcement mismatch (pass-2 "code TD" deferral inappropriate — actually parity-test-defeating). Plus 3 MED + 1 LOW + 1 OBS [process-gap]. ARCHITECTURAL DECISIONS REQUIRED before FB-IMPL-P4 dispatch: (1) which reference grounds BC spec contract (DTU routes / real API vs production Rust adapter as-built)? (2) authorize prism-sensors dev-dep in prism-spec-engine? (3) extend E-SPEC-017 enforcement in-scope vs defer RG-09? (4) Cyberint/Claroty auth_type_name() label semantics — code bug or spec bug? Cascade PAUSED at 0/3 streak pending human/architect adjudication. Pass-4 report persisted. 243rd consecutive single-commit per TD-VSDD-053. | plugin-migration | 2026-05-20 | Decided by: adversary (pass-4) + orchestrator (checkpoint surfacing). Status: AWAITING-HUMAN-ADJUDICATION |
@@ -201,27 +202,27 @@ Prior cycle history:
 
 ---
 
-## Session Resume Checkpoint (2026-05-20 — D-738-FB-IMPL-P4-CLOSED)
+## Session Resume Checkpoint (2026-05-20 — D-739-FB-IMPL-P5-CLOSED)
 
-_Previous checkpoint (D-737-DECISIONS-LOCKED) archived: [cycles/wave-0-plugin-prereqs/session-checkpoints.md](cycles/wave-0-plugin-prereqs/session-checkpoints.md)_
+_Previous checkpoint (D-738-FB-IMPL-P4-CLOSED) archived: [cycles/wave-0-plugin-prereqs/session-checkpoints.md](cycles/wave-0-plugin-prereqs/session-checkpoints.md)_
 
-**STATE v7.425. D-738 FB-IMPL-P4 CLOSURE BURST COMPLETE.** All 4 steps of FB-IMPL-P4 dispatch executed: architect (ADR-028 PROPOSED v1.0), PO (BC-2.16.013 v1.4 + BC-2.16.001 v1.5 + HS + TS), story-writer (story v1.4 + Task 11/12/10a + STORY-INDEX v2.161), state-manager (fix-burst-4 record + STATE v7.425). 245th consecutive single-commit. Ready for pass-5 adversary dispatch.
+**STATE v7.426. D-739 FB-IMPL-P5 CLOSURE BURST COMPLETE.** All steps of FB-IMPL-P5 dispatch executed: architect (ADR-028 v1.1 + v1.2; ARCH-INDEX v2.88), PO (BC-2.16.001/009 modified field + BC-2.16.013 v1.5 + HS-015 v1.2 + BC-INDEX v5.26 + HOLDOUT-INDEX v1.6), story-writer (story v1.5 + crates_touched + Task 11 + cyberint cite + STORY-INDEX v2.162), state-manager (pass-5 report persisted + fix-burst-5 record + STATE v7.426). 246th consecutive single-commit. Ready for pass-6 adversary dispatch.
 
-**FB-IMPL-P4 Summary (D-738):**
-- 9 findings closed: 4 HIGH (URL grounding, dev-dep contradiction, E-SPEC-017 scope, auth_type mismatch) + 3 MED + 1 LOW + 1 OBS-deferred
-- ADR-028 PROPOSED v1.0: TOML spec URLs/auth_type/parity reference ground against DTU clone routes
-- DTU-EXT-001..004 surfaced for orchestrator follow-up (DTU clone extension stories)
-- Streak remains 0/3 — awaiting pass-5 fresh-context adversary
+**FB-IMPL-P5 Summary (D-739):**
+- 5 findings closed: 1 HIGH (ADR-028 §D2 Armis api_key → bearer_static) + 2 MED (crates_touched POL-13; BC modified POL-27) + 2 LOW (cyberint symbol anchor POL-25; Task 11 unconditional phrasing)
+- 1 OBS deferred: F-LP5-OBS-001 process-gap → S-7.02 cycle-close codification
+- ADR-028 now at v1.2 (PROPOSED); ARCH-INDEX at v2.88
+- Streak remains 0/3 — awaiting pass-6 fresh-context adversary
 
 **Next Steps:**
-1. Dispatch adversary (fresh context, pass-5) against story v1.4 + BC-2.16.013 v1.4 + BC-2.16.001 v1.5 + ADR-028
+1. Dispatch adversary (fresh context, pass-6) against story v1.5 + BC-2.16.013 v1.5 + BC-2.16.001 v1.5 + ADR-028 v1.2
 2. Target streak 0/3 → 1/3 per BC-5.39.001 / D-716 Option A
 3. Continue cascade until 3-CLEAN convergence
 
 **Resume Protocol:**
 1. Read `.factory/SESSION-HANDOFF.md` §RESUME SNAPSHOT 2026-05-20-EVE for full context
-2. Read `.factory/STATE.md` frontmatter + D-738 decision row
+2. Read `.factory/STATE.md` frontmatter + D-739 decision row
 3. Verify `develop_head: 1bc56e3c` unchanged + 0 open PRs
-4. Dispatch adversary pass-5
+4. Dispatch adversary pass-6
 
 _Agent routing: see CLAUDE.md §Agent Routing Table._

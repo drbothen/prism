@@ -11,7 +11,7 @@ subsystem: "SS-16"
 capability: "CAP-029"
 lifecycle_status: active
 introduced: cycle-1
-modified: null
+modified: "2026-05-20"
 deprecated: null
 deprecated_by: null
 replacement: null

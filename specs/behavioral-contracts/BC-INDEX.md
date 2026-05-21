@@ -1,7 +1,7 @@
 ---
 document_type: behavioral-contract-index
 level: L3
-version: "5.25"
+version: "5.26"
 status: draft
 producer: product-owner
 timestamp: 2026-05-20T00:00:00Z
@@ -218,7 +218,7 @@ Phase 3-patch additions (2026-04-16): 22 new BCs added in Burst 1 to close trace
 | BC-2.16.010 | `list_sensor_specs` MCP Tool — List Loaded Sensor Specs with Table Schemas and Status | 16 - Spec Engine | CAP-029 | P0 | draft |
 | BC-2.16.011 | CustomAdapter Rust Trait Retirement — Removal of Trait, Registry, and All Call Sites | 16 - Spec Engine | CAP-029 | P0 | active (promoted draft→active D-726 per POL-14; anchor story S-PLUGIN-PREREQ-E merged PR #151 develop@80ebe794 2026-05-19) — v1.12 |
 | BC-2.16.012 | PluginRegistry Dispatch in spec_parser.rs — Hardcoded Sensor Names Replaced with Registry Lookup | 16 - Spec Engine | CAP-029 | P0 | active (promoted draft→active D-726 per POL-14; anchor story S-PLUGIN-PREREQ-E merged PR #151 develop@80ebe794 2026-05-19) — v1.29 |
-| BC-2.16.013 | Bundled Sensor Spec Authoring and DTU-Parity Verification — 4 Initial Sensors | 16 - Spec Engine | CAP-029 | P0 | draft (v1.4 FB-IMPL-P4-PO 2026-05-20 — all sensor URLs re-grounded against DTU clone routes per ADR-028 §D1 [CrowdStrike: /detects/queries/detects/v1 + /detects/entities/summaries/GET/v1; devices: /devices/queries/devices/v1 + /devices/entities/devices/v2; Cyberint alerts: /api/v1/alerts; Claroty alerts: /api/v1/alerts]; auth_types DTU-grounded per ADR-028 §D2 [claroty=bearer_static, cyberint=cookie_roundtrip, armis=bearer_static, crowdstrike=oauth2_client_credentials]; fixture-JSON parity mechanism per ADR-028 §D3; DTU-EXT-001..004 known gaps cataloged; request_count relaxed to >=2) — v1.4 |
+| BC-2.16.013 | Bundled Sensor Spec Authoring and DTU-Parity Verification — 4 Initial Sensors | 16 - Spec Engine | CAP-029 | P0 | draft (v1.5 FB-IMPL-P5-PO 2026-05-20 — Cyberint auth-grounding cite updated from line-pinned `alerts.rs:43-46` to symbol anchor `alerts.rs::extract_session_token()` per TD-VSDD-091 F-LP5-LOW-001; v1.4: all sensor URLs re-grounded against DTU clone routes per ADR-028 §D1; auth_types DTU-grounded per ADR-028 §D2; fixture-JSON parity mechanism per ADR-028 §D3; DTU-EXT-001..004 known gaps cataloged) — v1.5 |
 | BC-2.17.001 | Plugin Panic Isolation — Crashed Plugin Does Not Terminate Host Process | 17 - WASM Plugin Runtime | CAP-032 | P0 | active (POL-14 auto-promotion D-568 S-PLUGIN-PREREQ-D merge PR #149 ec90fe8f 2026-05-15) |
 | BC-2.17.002 | Plugin Sandbox — No Direct Filesystem or Network Access | 17 - WASM Plugin Runtime | CAP-032 | P0 | active (POL-14 auto-promotion D-568 S-PLUGIN-PREREQ-D merge PR #149 ec90fe8f 2026-05-15) |
 | BC-2.17.003 | Plugin Sandbox — Memory Limit Enforced Per Plugin Instance (default 64MB) | 17 - WASM Plugin Runtime | CAP-032 | P0 | active (POL-14 auto-promotion D-568 S-PLUGIN-PREREQ-D merge PR #149 ec90fe8f 2026-05-15) |
@@ -370,6 +370,8 @@ Phase 3-patch additions (2026-04-16): 22 new BCs added in Burst 1 to close trace
 - Subsystem 19: Infusion Enrichment Framework (AD-020, CAP-031)
 
 ### Change Log (Adversarial Review Fixes)
+
+**v5.26 (2026-05-20, FB-IMPL-P5-PO fix-burst-5):** product-owner | BC-2.16.013 v1.4→v1.5 (pass-5 F-LP5-LOW-001 TD-VSDD-091): Cyberint auth-grounding cite replaced — `alerts.rs:43-46` → `alerts.rs::extract_session_token()` (symbol anchor per TD-VSDD-091 anti-volatile-pin). POL-25 sweep: HS-015 v1.1→v1.2 updated in same burst. BC-2.16.001 `modified: null` → `"2026-05-20"` (POL-27 F-LP5-MED-002 closure — frontmatter-only, no version bump). BC-2.16.009 `modified: null` → `"2026-05-20"` (POL-27 sibling-sweep — v1.4 had 2026-05-20 Changelog entry). BC-INDEX v5.25→v5.26.
 
 **v5.25 (2026-05-20, FB-IMPL-P4-PO fix-burst-4):** product-owner | BC-2.16.013 v1.3→v1.4 (pass-4 F-LP4-HIGH-001/F-LP4-HIGH-002/F-LP4-HIGH-004/F-LP4-MED-003): URL re-grounding against DTU clone routes (ADR-028 §D1) — CrowdStrike detections `/detects/queries/detects/v1`+`/detects/entities/summaries/GET/v1`; devices `/devices/queries/devices/v1`+`/devices/entities/devices/v2`; Cyberint alerts `/api/v1/alerts`; Claroty alerts `/api/v1/alerts`. auth_type DTU-grounded (ADR-028 §D2) — claroty=`bearer_static`, cyberint=`cookie_roundtrip`, armis=`bearer_static`, crowdstrike=`oauth2_client_credentials` (unchanged). Fixture-JSON parity mechanism (ADR-028 §D3) — reference OCSF loaded from `crates/prism-dtu-{sensor}/fixtures/parity/reference-ocsf/<table>.json`; no prism-sensors dev-dep. §Known Gaps DTU-EXT-001..004 added. request_count relaxed to >=2. ADR-028 §D1/D2/D3/D4/D5 cited in §inputs + §Architecture Anchors. BC-2.16.001 v1.4→v1.5 (F-LP4-HIGH-003 + F-LP4-MED-002): E-SPEC-017 enforcement contract expanded with SpecErrorCode::ESpec017 variant in prism-core; load_all()/parse_spec_directory() emits, parse(toml_input) does NOT; RG-09/HS-018 must use load_all() driver. BC-INDEX v5.24→v5.25.
 

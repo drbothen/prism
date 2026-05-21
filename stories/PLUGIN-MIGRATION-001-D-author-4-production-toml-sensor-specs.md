@@ -6,12 +6,12 @@ wave: 1
 epic_id: PLUGIN-MIGRATION-001
 priority: P0
 status: draft
-version: "v1.4"
+version: "v1.5"
 level: "L4"
 producer: story-writer
 timestamp: "2026-05-20T00:00:00Z"
 modified: "2026-05-20"
-input-hash: "4e55025"
+input-hash: "1b815e4"
 traces_to: []
 cycle: "v1.0.0-greenfield"
 phase: 3
@@ -24,7 +24,7 @@ subsystems: [SS-01, SS-16]
 #   SS-01 (Sensor Adapters, prism-sensors) owns BC-2.01.013 (DataSource trait) and
 #   BC-2.01.016 (SensorAuth open trait). The 4 bundled TOML specs declare auth_type values that
 #   resolve through the SS-01 SensorAuth hierarchy and feed the DataSource dispatch chain.
-crates_touched: [prism-sensors, prism-spec-engine]
+crates_touched: [prism-sensors, prism-spec-engine, prism-core]
 target_module: prism-sensors
 capabilities: [CAP-029]
 behavioral_contracts:
@@ -46,7 +46,7 @@ behavioral_contracts:
   - BC-2.16.012  # PluginRegistry Dispatch — the spec_parser.rs open dispatch path (INV-SPEC-PARSER-OPEN-001)
                  #   must handle the 4 new specs without hardcoded sensor name match arms; parity
                  #   AC asserts no dispatch regression vs the pre-TOML path
-  - BC-2.16.013  # Bundled Sensor Spec Authoring and DTU-Parity Verification (v1.4 FB-IMPL-P4-PO) —
+  - BC-2.16.013  # Bundled Sensor Spec Authoring and DTU-Parity Verification (v1.5 FB-IMPL-P5-PO) —
                  #   primary contract: 4 TOML files authored at crates/prism-sensors/specs/,
                  #   validated, DTU-parity tests authored per TS-PLUGIN-PARITY-001 Rules A–I,
                  #   URLs grounded from DTU clone routes (ADR-028 §D1), auth_type from DTU
@@ -129,7 +129,7 @@ inputs:
 
 **Story ID:** PLUGIN-MIGRATION-001-D  
 **Status:** draft  
-**Version:** v1.4  
+**Version:** v1.5  
 **Wave:** 1 (first unblocked Wave 1 story; all 5 PREREQ stories merged to develop@80ebe794)
 
 ---
@@ -189,7 +189,7 @@ behavioral continuity and without risk of silent OCSF regression.
 
 | BC ID | Version | Title | Subsystem | Role in This Story |
 |-------|---------|-------|-----------|-------------------|
-| BC-2.16.013 | 1.4 | Bundled Sensor Spec Authoring and DTU-Parity Verification — 4 Initial Sensors | SS-16 | **Primary delivery** — defines the 4 spec files, their content, the parity test structure (DTU-route-grounded URLs per ADR-028 §D1; fixture-JSON reference OCSF per ADR-028 §D3), and INV-PARITY-001 replacement-before-deletion gate |
+| BC-2.16.013 | 1.5 | Bundled Sensor Spec Authoring and DTU-Parity Verification — 4 Initial Sensors | SS-16 | **Primary delivery** — defines the 4 spec files, their content, the parity test structure (DTU-route-grounded URLs per ADR-028 §D1; fixture-JSON reference OCSF per ADR-028 §D3), and INV-PARITY-001 replacement-before-deletion gate |
 | BC-2.16.001 | 1.5 | Sensor Spec File Loading — Parse TOML, Validate Schema, Register Tables | SS-16 | **Required** — specifies that `*.sensor.toml` files in `sensor_specs_dir` (here: `crates/prism-sensors/specs/`) are discovered, parsed, and registered at startup; virtual fields injected; `load_all()` emits E-SPEC-017 on filename-stem/sensor_id mismatch |
 | BC-2.16.009 | 1.4 | Spec File Validation — Schema Validation, Variable Reference Resolution, OCSF Field Validation | SS-16 | **Required** — all 4 bundled specs must pass all 5 validation rule categories; CI gate via dedicated integration test |
 | BC-2.16.002 | 1.35 | Multi-Step Fetch Pipeline Execution — Sequential Steps with Variable Interpolation | SS-16 | **Required** — CrowdStrike QueryV2→PostEntities two-step pipeline exercised in parity test; PipelineExecutor drives the parity test harness |
@@ -306,7 +306,7 @@ returns `Ok(SensorSpec)` with `sensor_id == "cyberint"`, `auth_type == CookieRou
   gap: DTU has `/api/v1/alerts` GET, not AQL `/api/v1/search`; deferred per ADR-028 §D5)
   Note: both Armis tables are DTU-EXT gaps. The spec file is authored with documented gap entries
   per ADR-028 §D5. Parity tests are `#[ignore]`-tagged per EC-016-013-006 until DTU extension.
-  Orchestrator follow-up required (see §Known Gaps in BC-2.16.013 v1.4).
+  Orchestrator follow-up required (see §Known Gaps in BC-2.16.013 v1.5).
 - Timestamp fallback chain: `firstSeen` → `lastSeen` → `DateTime::now()` expressed via WASM
   transformer plugin (O-001: `timestamp_fallback_chain` is NOT in TOML grammar; requires
   grammar extension Option A or WASM plugin Option B per Task 1); WARN emission preserved
@@ -543,7 +543,7 @@ implementation (which has latent label bugs corrected by PLUGIN-MIGRATION-001-A 
   `/oauth2/token`; matches `CrowdStrikeAuth::auth_type_name()` — no bug here)
 - `claroty`: `"bearer_static"` (DTU enforces `Authorization: Bearer {non-empty}` per
   `routes/alerts.rs`; `ClarotyAuth::auth_type_name()` incorrectly returned `"cookie_roundtrip"`)
-- `cyberint`: `"cookie_roundtrip"` (DTU enforces `cyberint_session` cookie at `routes/alerts.rs:43-46`;
+- `cyberint`: `"cookie_roundtrip"` (DTU enforces `cyberint_session` cookie at `routes/alerts.rs::extract_session_token()`;
   `CyberintAuth::auth_type_name()` incorrectly returned `"bearer_static"`)
 - `armis`: `"bearer_static"` (DTU enforces `Authorization: Bearer {non-empty}` per `lib.rs:16-17`
   with HTTP 403 on missing/invalid token; `ArmisAuth::auth_type_name()` returned `"api_key"`)
@@ -707,7 +707,7 @@ Ground URLs from DTU clone route registrations (per ADR-028 §D1). Read:
 - `crates/prism-sensors/src/auth/cyberint.rs` for column schema and pagination semantics only
 
 Auth (grounded from DTU per ADR-028 §D2):
-- `auth_type = "cookie_roundtrip"` (DTU `routes/alerts.rs:43-46` extracts `cyberint_session`
+- `auth_type = "cookie_roundtrip"` (DTU `routes/alerts.rs::extract_session_token()` extracts `cyberint_session`
   cookie from `Cookie` header → cookie-roundtrip auth flow; legacy `CyberintAuth::auth_type_name()`
   returned `"bearer_static"` — latent label bug deleted by PLUGIN-MIGRATION-001-A)
 - base URL from `${env.CYBERINT_ENVIRONMENT}` → `https://{environment}.cyberint.io`
@@ -741,7 +741,7 @@ Endpoints (grounded from DTU per ADR-028 §D1):
   `GET /api/v1/search` with AQL. Defer this table entry per ADR-028 §D5. If including in spec,
   use DTU-registered endpoint `GET /api/v1/alerts`; document gap vs AQL-search intent.
   Orchestrator follow-up required for both DTU-EXT-003 and DTU-EXT-004 (see §Known Gaps in
-  BC-2.16.013 v1.4 for resolution options).
+  BC-2.16.013 v1.5 for resolution options).
 
 Timestamp fallback chain: expressed via WASM transformer plugin (O-001: `timestamp_fallback_chain`
 is NOT in TOML grammar; choose Option A grammar extension or Option B WASM plugin per Task 1).
@@ -768,7 +768,7 @@ Write RG-04, RG-05, RG-06, RG-07. These tests have `#[ignore]` so they compile a
 `#[ignore]` tag is the mechanism that prevents CI failure, not an incomplete test body.
 
 Use the `BehavioralClone::start_on("127.0.0.1:0".parse().unwrap(), None, None).await` pattern
-documented in BC-2.16.013 v1.4 §Postconditions §2 and confirmed from `prism-dtu-common/src/clone.rs`.
+documented in BC-2.16.013 v1.5 §Postconditions §2 and confirmed from `prism-dtu-common/src/clone.rs`.
 The returned `SocketAddr` is used to construct the DTU base URL for spec override.
 The `NullAuthProvider` must be imported or defined in the parity test harness (it exists in
 `prism-spec-engine` under `test-helpers` feature per the existing test suite convention).
@@ -830,9 +830,21 @@ procedure. The implementer records fixtures when DTU clone stories merge.
 
 Confirmed location: `SpecErrorCode` enum lives at `crates/prism-core/src/error.rs:892` (verified
 by reading the file — `pub enum SpecErrorCode` declared there with variants `ESpec001`, `ESpec004`,
-`ESpec008`, `ESpec009`, `ESpec010`, `ESpec011`). The enum is NOT yet `#[non_exhaustive]` in the
-current codebase — check before adding the variant; if not marked, add `#[non_exhaustive]` per
-CLAUDE.md §Conventions (all public enum types require this).
+`ESpec008`, `ESpec009`, `ESpec010`, `ESpec011`). The enum currently lacks `#[non_exhaustive]`
+(verified at `crates/prism-core/src/error.rs::SpecErrorCode`).
+
+Add `#[non_exhaustive]` attribute to the `SpecErrorCode` enum in the same commit that adds the
+`ESpec017` variant. Adding any variant to a public enum without `#[non_exhaustive]` is a breaking
+change for downstream `match` arms. Per CLAUDE.md §Conventions, all public enum types in
+`prism-core`/`prism-spec-engine`/`prism-query` require `#[non_exhaustive]`.
+
+Note: `SpecErrorCode` is NOT within the scope of the `tests/external/non-exhaustive-violation/`
+compile-fail gate (that gate covers `prism_spec_engine` TOML-deserialized types, `prism_core::ColumnType`,
+`prism_core::ColumnOptions`, `prism_core::PluginError`, and `prism_query::invalidation::WriteToolInvalidationMap`
+— verified from `ci.yml` EXPECTED=32 annotation and `Cargo.toml` comments in that crate). Therefore
+do NOT bump the EXPECTED count in `ci.yml` — the `#[non_exhaustive]` annotation on `SpecErrorCode`
+is required per CLAUDE.md §Conventions but is enforced by the standard clippy + adversarial review
+path, not by the compile-fail gate count.
 
 **Add variant:**
 ```rust
@@ -871,9 +883,11 @@ mod tests {
 }
 ```
 
-**`#[non_exhaustive]` discipline:** If `SpecErrorCode` is already `#[non_exhaustive]`, the
-variant addition is non-breaking (external `match` arms already have wildcard `_`). If not yet
-marked, add `#[non_exhaustive]` in the same commit per CLAUDE.md §Conventions.
+**`#[non_exhaustive]` discipline:** `SpecErrorCode` currently lacks `#[non_exhaustive]` (verified).
+Add it unconditionally in the same commit as the `ESpec017` variant. External `match` arms on
+`SpecErrorCode` must include a wildcard `_ => {}` arm after this change — this is the correct
+production-grade outcome; any downstream code without the wildcard arm was already brittle to
+variant additions.
 
 ### Task 12: Add Filename-Stem-vs-`sensor_id` Check in `SpecLoader::load_all()` (D-737 Decision 3 / ~0.25 point)
 
@@ -1226,6 +1240,7 @@ This story is DONE when ALL of the following are simultaneously true — no exce
 
 | Version | Date | Author | Change |
 |---------|------|--------|--------|
+| v1.5 | 2026-05-20 | story-writer | FB-IMPL-P5-SW (fix-burst-5): closes 3 pass-5 findings. F-LP5-MED-001: `crates_touched` frontmatter updated `[prism-sensors, prism-spec-engine]` → `[prism-sensors, prism-spec-engine, prism-core]` (Task 11 modifies prism-core/src/error.rs; STORY-INDEX row 399 was already correct). F-LP5-LOW-002: Task 11 `#[non_exhaustive]` instruction rewritten from conditional ("check before… if not marked, add") to unconditional — `SpecErrorCode` verified to lack `#[non_exhaustive]` at `crates/prism-core/src/error.rs::SpecErrorCode`; instruction now mandates adding attribute in same commit as ESpec017 variant; investigation confirms `SpecErrorCode` is NOT within the `tests/external/non-exhaustive-violation/` gate scope (EXPECTED=32 unchanged). F-LP5-LOW-001: cyberint symbol anchor swept — `routes/alerts.rs:43-46` → `routes/alerts.rs::extract_session_token()` at 2 sites (AC-011 and Task 5). POL-23 BC version-bump sibling sweep: BC-2.16.013 v1.4 → v1.5 at all 5 active-prose sites (frontmatter comment, body BC table, lines 309/744/771). STORY-INDEX v2.161→v2.162. |
 | v1.4 | 2026-05-20 | story-writer | FB-IMPL-P4-SW (fix-burst-4, D-738-pending): propagates PO+architect changes from FB-IMPL-P4-PO (BC-2.16.013 v1.4, BC-2.16.001 v1.5) and ADR-028. F-LP4-HIGH-001: re-grounded URLs in Task 3 (CrowdStrike: `/detects/queries/detects/v1` + `/detects/entities/summaries/GET/v1` per DTU routes/mod.rs; devices `/devices/queries/devices/v1` + `/devices/entities/devices/v2`; incidents DTU-EXT-001 gap documented); Task 4 Claroty: `bearer_static` auth, `alerts` endpoint `/api/v1/alerts` from DTU, `assets` deferred (DTU-EXT-002); Task 5 Cyberint: `cookie_roundtrip` auth, `/api/v1/alerts` from DTU (NOT `/api/alerts`); Task 6 Armis: `bearer_static` auth, DTU-EXT-003/004 gaps documented. F-LP4-HIGH-002: AC-007..010 step 7 rewritten to load reference OCSF from committed fixture JSON (`crates/prism-dtu-{sensor}/fixtures/parity/reference-ocsf/<table>.json` per ADR-028 §D3); Task 10a added (record fixture JSON procedure); Task 10 amended (no `prism-sensors` dev-dep required); Forbidden Dependencies item 5 added (`prism-sensors` as dev-dep now explicitly blocked). F-LP4-HIGH-003: Task 11 added (`SpecErrorCode::ESpec017` variant in `crates/prism-core/src/error.rs`; confirmed location via read); Task 12 added (filename-stem check in `SpecLoader::load_all()` at `spec_parser.rs:715`; confirmed function name); §File Structure Requirements §Files to MODIFY updated with `prism-core/src/error.rs` + `spec_parser.rs`; §Forbidden file changes clarified; points 5→6 with justification. F-LP4-HIGH-004: auth_type propagated throughout — claroty `bearer_static` (was `cookie_roundtrip`), cyberint `cookie_roundtrip` (was `bearer_static`), armis `bearer_static` (was `api_key`) in Functional Summary (lines 160-162), AC-002/003/004, AC-011, Task 4/5/6, file-list table. F-LP4-MED-001: AC-001 incidents `(cursor)` → `(2-step pipeline — gated on DTU-EXT-001)`. F-LP4-MED-002: RG-09 renamed `test_BC_2_16_001_RG_09_filename_stem_mismatch_emits_E_SPEC_017`; driver explicitly named as `SpecLoader::load_all()` (NOT `SpecLoader::parse()`); BC-2.16.001 v1.5 §Error Conditions cited. F-LP4-MED-003: AC-007 `request_count >= 2` (relaxed from `== 2`); doc-comment added for single-page QueryV2 assumption. F-LP4-LOW-001: §Style Guidance section added (`.unwrap()` in test bodies is permitted per Rust test idiom; production code uses `?`). BC-2.16.013 pin v1.3→v1.4, BC-2.16.001 pin v1.4→v1.5 in frontmatter comments and body BC table. ADR-028 added to `inputs:` frontmatter and Token Budget. STORY-INDEX v2.160→v2.161. |
 | v1.3 | 2026-05-20 | story-writer | FB-IMPL-P3-SW (fix-burst-3, D-735-pending): propagates PO changes from FB-IMPL-P3-PO (BC-2.16.013 v1.3). F-LP3-CRIT-001: replaced 8 `spec_parser::parse_spec_file()` phantom citations with `SpecLoader::parse(toml_input: &str)` two-step pattern (`std::fs::read_to_string` + `SpecLoader::parse(&content)`) in AC-001..004 bodies and AC-007..010 step-2 load instructions (CODE-GROUNDED: spec_parser.rs:655). F-LP3-MED-001: updated 2 OrgSlug comments from `// test-helpers feature; NOT in production code` to `// audit-allowlisted in new_unchecked_audit.rs; production callers prohibited per AD-017` (AC-007 step 4, AC-010 step 4). F-LP3-CRIT-002: corrected CrowdStrike URL paths in Task 3 — replaced versioned DTU-specific paths (`/detects/queries/detects/v1`, `/detects/entities/summaries/GET/v1`, `/devices/queries/devices/v1`, `/devices/entities/devices/v1`, `/incidents/queries/incidents/v1`) with dynamic TOML-spec patterns per crowdstrike.rs:262,315,369-375: `GET /queries/{resource_type}` / `POST /entities/{resource_type}/GET`; incidents corrected to two-step (not cursor). F-LP3-CRIT-003: stripped `/xdome` prefix from Task 4 Claroty endpoints — replaced `POST /xdome/api/v1/assets`, `POST /xdome/api/v1/alerts` with `POST /api/v1/assets`, `POST /api/v1/alerts` per claroty.rs:238-244. F-LP3-HIGH-001: removed `/v1` segment from Task 5 Cyberint endpoints — `GET /api/v1/alerts` → `GET /api/alerts`, `GET /api/v1/incidents` → `GET /api/incidents` per cyberint.rs:244-251 `format!("/api/{resource}s")`. F-LP3-HIGH-002: corrected Task 6 Armis endpoints — `GET /api/v1/search/` (trailing slash) → `GET /api/v1/search` (no trailing slash per armis.rs:517); `GET /api/v1/alerts/` phantom removed — both `devices` and `alerts` use single `/api/v1/search` endpoint discriminated by AQL expression. BC-2.16.013 version pin v1.2→v1.3 in frontmatter comment, body BC table, Task 9 cite. STORY-INDEX v2.159→v2.160. |
 | v1.2 | 2026-05-20 | story-writer | FB-IMPL-P2-SW (fix-burst-2, D-734): propagates PO changes from FB-IMPL-P2-PO — F-001 auth_type SWAP (claroty=cookie_roundtrip, cyberint=bearer_static per code-verified ClarotyAuth/CyberintAuth impls); F-002 E-SPEC-009→E-SPEC-017 for filename-stem mismatch in HS-018 comment, AC-001, RG-09, Architecture Compliance table, Previous Story Intelligence item 6; F-003 `fetch_page`→`<CrowdStrikeAdapter as SensorAdapter>::fetch(...)` in Task 3; F-005 line-number citations replaced with symbol names in Task 1 (`spec_parser.rs:128`→`FetchStep::fan_out_batch_size field`, `pipeline.rs:246-250`→`PipelineExecutor::execute_impl query.filter.{key} step_vars seeding`); BC version pins propagated (BC-2.16.013 1.1→1.2, BC-2.16.001 1.3→1.4, BC-2.16.009 1.3→1.4) in body BC table and all grep-verified pin sites; AC-011 5-value auth_type set expanded with `custom_via_plugin` per BC-2.16.009 v1.4; Task 9 BC-2.16.013 pin corrected to v1.2. |

@@ -6,7 +6,7 @@ category: "dtu-parity"
 must_pass: true
 priority: P0
 epic_id: "PLUGIN-MIGRATION-001"
-version: "1.1"
+version: "1.2"
 status: draft
 producer: product-owner
 timestamp: 2026-05-20T00:00:00Z
@@ -45,8 +45,8 @@ Validates that `cyberint.sensor.toml` + `PipelineExecutor` against the Cyberint 
 produces OCSF output equivalent to the reference OCSF fixture, per TS-PLUGIN-PARITY-001.
 
 **Auth (ADR-028 §D2):** `cyberint.sensor.toml` declares `auth_type = "cookie_roundtrip"` —
-grounded against the Cyberint DTU's cookie enforcement (`crates/prism-dtu-cyberint/src/routes/alerts.rs:43-46`
-`extract_session_token()` extracting `cyberint_session` cookie). The legacy
+grounded against the Cyberint DTU's cookie enforcement (`crates/prism-dtu-cyberint/src/routes/alerts.rs::extract_session_token()`
+extracting `cyberint_session` cookie). The legacy
 `CyberintAuth::auth_type_name()` return `"bearer_static"` was a label bug; deleted by 001-A.
 
 **URL (ADR-028 §D1):** Cyberint `alerts` table uses `GET /api/v1/alerts` — grounded against
@@ -82,7 +82,7 @@ Gap Note; this scenario covers only the `alerts` table.
 **Steps:**
 1. Start `CyberintClone` via `BehavioralClone::start_on("127.0.0.1:0", shutdown, None)`
 2. Execute `PipelineExecutor::execute` for the `alerts` table via `GET /api/v1/alerts` with cursor pagination;
-   auth via `cyberint_session` cookie (cookie_roundtrip; DTU enforces cookie extraction at `alerts.rs:43-46`)
+   auth via `cyberint_session` cookie (cookie_roundtrip; DTU enforces cookie extraction at `alerts.rs::extract_session_token()`)
 3. Load reference OCSF from `crates/prism-dtu-cyberint/fixtures/parity/reference-ocsf/alerts.json`
    (per ADR-028 §D3)
 4. Apply TS-PLUGIN-PARITY-001 canonicalization (Rule C: timestamps within ±1s tolerance)
