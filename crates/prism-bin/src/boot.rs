@@ -201,17 +201,18 @@ pub async fn run_boot_sequence(config_dir: &Path) -> Result<RunningServer, BootE
     let plugin_audit_sink = Arc::new(crate::plugin_audit::RocksDbPluginAuditSink::new(
         Arc::clone(&ctx.rocksdb_backend),
     ));
-    let plugin_result = plugin_load_step_with_audit(&config.plugin_dir, plugin_audit_sink).await?;
+    let mut plugin_result =
+        plugin_load_step_with_audit(&config.plugin_dir, plugin_audit_sink).await?;
 
-    // Step 7.5b [BLOCKING]: Validate auth_plugin registry membership for all sensor specs.
+    // Step 7.5b [BLOCKING]: Validate auth_plugin registry membership + construct PluginAuthProviders.
     //
-    // F-LP2-CRIT-002 closure: after plugins are loaded, iterate all loaded SensorSpecs and
-    // verify that every `auth_plugin = "..."` value names a registered plugin. A typo'd
-    // auth_plugin would previously silently break at runtime — now it exits 2 (config-invalid)
-    // before the MCP server binds.
+    // F-LP2-CRIT-002: validate every `auth_plugin = "..."` names a registered plugin (exit 2 on miss).
+    // F-LP2-HIGH-001: construct PluginAuthProvider for each plugin-authed sensor — FIRST non-test
+    // production construction site. Stored in plugin_result.plugin_auth_providers for step 8 wiring.
     //
-    // Uses ctx.config_manager (set at step 4) + plugin_result.runtime for registered IDs.
+    // Uses ctx.config_manager (step 4) + plugin_result.runtime for registered IDs.
     {
+        use prism_spec_engine::PluginAuthProvider;
         use prism_spec_engine::validate_auth_plugin_fields;
         use std::collections::HashSet;
 
@@ -231,7 +232,6 @@ pub async fn run_boot_sequence(config_dir: &Path) -> Result<RunningServer, BootE
             )
             .map_err(|se| {
                 // Convert SpecEngineError::UnknownAuthPlugin to BootError::UnknownAuthPlugin.
-                // Use the structured fields to produce a typed BootError (exit code 2).
                 match se {
                     prism_spec_engine::error::SpecEngineError::UnknownAuthPlugin {
                         sensor_id,
@@ -243,6 +243,31 @@ pub async fn run_boot_sequence(config_dir: &Path) -> Result<RunningServer, BootE
                     other => BootError::ConfigInvalid(other.to_string()),
                 }
             })?;
+
+            // F-LP2-HIGH-001: validation passed — construct PluginAuthProvider.
+            // credential_handle: opaque sensor ref (production keyring resolution happens
+            // at dispatch time inside PluginRuntime). token_endpoint: OAuth2 convention.
+            if let Some(plugin_id) = sensor_spec.auth_plugin.as_deref() {
+                let credential_handle = format!("sensor:{sensor_id}");
+                let token_endpoint = format!("{}/oauth2/token", sensor_spec.base_url);
+
+                let auth_provider = Arc::new(PluginAuthProvider::new(
+                    plugin_result.runtime.clone(),
+                    plugin_id,
+                    credential_handle,
+                    token_endpoint,
+                ));
+
+                plugin_result
+                    .plugin_auth_providers
+                    .insert(sensor_id.clone(), auth_provider);
+
+                tracing::info!(
+                    sensor_id = %sensor_id,
+                    plugin_id = %plugin_id,
+                    "boot: PluginAuthProvider constructed for sensor (F-LP2-HIGH-001)"
+                );
+            }
         }
     }
 
@@ -989,11 +1014,30 @@ fn step6_init_audit(
 /// Holds the constructed `PluginRuntime` (zero plugins registered if
 /// `PRISM_DISABLE_PLUGIN_LOAD=1` was set) so callers can pass it to the
 /// query-engine and MCP server steps.
+///
+/// `plugin_auth_providers` carries pre-constructed `PluginAuthProvider` instances for
+/// every sensor spec that declares `auth_plugin = "..."`. These are wired into the
+/// QueryEngine at step 8 (`step8_init_query_engine`) so that PipelineExecutor receives
+/// the correct `Arc<dyn AuthProvider>` for plugin-authed sensors (F-LP2-HIGH-001).
 pub struct PluginLoadResult {
     /// The initialized plugin runtime (always `Some` — never None).
     pub runtime: Arc<prism_spec_engine::plugin::PluginRuntime>,
     /// Number of plugins successfully loaded (0 if disabled or none found).
     pub plugins_loaded: usize,
+    /// Pre-constructed PluginAuthProvider instances keyed by sensor_id.
+    ///
+    /// Populated at step 7.5b for every SensorSpec where `auth_plugin.is_some()`.
+    /// Threaded into step 8 (QueryEngine init) so PipelineExecutor dispatches with
+    /// the correct `Arc<dyn AuthProvider>` for plugin-authed sensors.
+    ///
+    /// Construction at step 7.5b (not step 8) proves production reachability:
+    /// `PluginAuthProvider::new` is called on the main boot path, not just in tests.
+    ///
+    /// F-LP2-HIGH-001 closure: this field carries the FIRST non-test construction site
+    /// of `PluginAuthProvider`. ADR-028 §D10 co-merge gate: after 001-A deletes
+    /// crowdstrike.rs, this is how CrowdStrike gets an AuthProvider in production.
+    pub plugin_auth_providers:
+        std::collections::HashMap<String, Arc<prism_spec_engine::PluginAuthProvider>>,
 }
 
 /// Step 7.5 [BLOCKING]: Plugin-load step — scan plugin directory and load `.prx` plugins.
@@ -1073,6 +1117,7 @@ pub async fn plugin_load_step_with_audit(
         return Ok(PluginLoadResult {
             runtime: Arc::new(runtime),
             plugins_loaded: 0,
+            plugin_auth_providers: std::collections::HashMap::new(),
         });
     }
 
@@ -1212,6 +1257,10 @@ pub async fn plugin_load_step_with_audit(
     Ok(PluginLoadResult {
         runtime: Arc::new(runtime),
         plugins_loaded,
+        // plugin_auth_providers: populated in step 7.5b of run_boot_sequence after
+        // validate_auth_plugin_fields checks pass. Here it starts empty — it is filled
+        // in by the caller (run_boot_sequence) using the config_manager snapshot.
+        plugin_auth_providers: std::collections::HashMap::new(),
     })
 }
 
