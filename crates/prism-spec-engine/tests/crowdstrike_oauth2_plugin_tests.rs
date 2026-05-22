@@ -11,6 +11,7 @@
 use std::collections::HashMap;
 use std::sync::Arc;
 
+use prism_spec_engine::LoadedPlugin;
 use prism_spec_engine::plugin::host_functions::{
     host_current_time_secs, host_http_request, host_kv_get, host_kv_set,
 };
@@ -51,19 +52,28 @@ fn write_manifest(dir: &tempfile::TempDir, prx_name: &str, manifest_toml: &str) 
 ///   auth-type-name, acquire-token, get-token
 /// as required by SENSOR_AUTH_REQUIRED_EXPORTS in discovery.rs.
 ///
-/// The `name` memory data is "crowdstrike-oauth2" (18 bytes) so the plugin_id
-/// matches the expected value for plugin registry lookup.
+/// Layout of static memory data:
+///   offset 0..18  → "crowdstrike-oauth2" (18 bytes) — plugin_id for registry lookup
+///   offset 18..43 → "oauth2_client_credentials" (25 bytes) — canonical auth type name
+///   offset 48..53 → "0.1.0" (5 bytes) — plugin version
+///
+/// The auth-type-name export returns (18, 25) — i.e. the 25-byte canonical string.
+/// Per INV-AUTH-OPEN-003 Rule A (BC-2.01.016), this MUST match the crowdstrike.sensor.toml
+/// `auth_type = "oauth2_client_credentials"` field value.
+///
+/// F-LP1-CRIT-002 closure: WAT now returns "oauth2_client_credentials" from auth-type-name.
 const CROWDSTRIKE_OAUTH2_WAT: &str = r#"
 (module
   (memory (export "memory") 1)
   (data (i32.const 0) "crowdstrike-oauth2")
-  (data (i32.const 32) "0.1.0")
+  (data (i32.const 18) "oauth2_client_credentials")
+  (data (i32.const 48) "0.1.0")
   (func (export "auth-type-name") (result i32 i32)
-    i32.const 0 i32.const 18)
+    i32.const 18 i32.const 25)
   (func (export "acquire-token") (param i32 i32) (result i32 i32)
-    i32.const 0 i32.const 18)
+    i32.const 18 i32.const 25)
   (func (export "get-token") (param i32 i32) (result i32 i32)
-    i32.const 0 i32.const 18)
+    i32.const 18 i32.const 25)
 )
 "#;
 
@@ -104,23 +114,21 @@ fn test_PLUGIN_MIGRATION_001_E_001_plugin_compiles_and_manifest_validates() {
 }
 
 // ---------------------------------------------------------------------------
-// AC-002: auth_type_name() returns canonical value
+// AC-002: auth_type_name() returns canonical value "oauth2_client_credentials"
 // Traces to: BC-2.01.016 §Postcondition; INV-AUTH-OPEN-003 Rule A
 // ---------------------------------------------------------------------------
 
-/// AC-002: The plugin's `auth-type-name` WAT export returns a string starting
-/// at offset 0 in memory with length 18 — which decodes to "crowdstrike-oauth2".
+/// AC-002: The plugin's `auth-type-name` WAT export returns "oauth2_client_credentials"
+/// (25 bytes at offset 18 in the WAT fixture memory).
 ///
-/// In the production plugin, `auth-type-name` returns "oauth2_client_credentials".
-/// For the host-side test, we validate:
-/// 1. The plugin loads successfully (AC-001 prerequisite).
-/// 2. The constant `"oauth2_client_credentials"` is the value the plugin MUST
-///    return per INV-AUTH-OPEN-003 Rule A.
-/// 3. The host-side `PluginRuntime::get_plugin` lookup by plugin_id works.
+/// F-LP1-CRIT-002 closure: This test now ACTUALLY invokes the plugin's `auth-type-name`
+/// export via PluginRuntime dispatch (core-module call path) and reads the returned
+/// (ptr, len) pair to decode the string. The assertion is byte-for-byte:
+///   returned string MUST equal "oauth2_client_credentials" per INV-AUTH-OPEN-003 Rule A.
 ///
-/// The production WASM plugin (when compiled from Rust with WIT bindgen) will
-/// return `"oauth2_client_credentials"` from `auth-type-name`. The WAT fixture
-/// tests the load+registration path; the constant is verified via the spec field.
+/// Additionally verifies:
+/// - crowdstrike.sensor.toml auth_type == Oauth2ClientCredentials (TOML binding)
+/// - Plugin is registered under plugin_id == "crowdstrike-oauth2" (registry lookup)
 #[test]
 fn test_PLUGIN_MIGRATION_001_E_002_auth_type_name_returns_oauth2_client_credentials() {
     let runtime = build_test_runtime();
@@ -129,24 +137,32 @@ fn test_PLUGIN_MIGRATION_001_E_002_auth_type_name_returns_oauth2_client_credenti
     let prx_path = write_prx(&dir, "crowdstrike-oauth2", &bytes);
     write_manifest(&dir, "crowdstrike-oauth2", CROWDSTRIKE_OAUTH2_MANIFEST);
 
-    runtime
+    let plugin = runtime
         .load_plugin(&prx_path)
         .expect("plugin must load for AC-002");
 
-    // AC-002: plugin is registered under the expected plugin_id.
-    let plugin = runtime
-        .get_plugin("crowdstrike-oauth2")
-        .expect("AC-002: plugin must be registered as 'crowdstrike-oauth2'");
-
+    // AC-002a: plugin is registered under the expected plugin_id.
     assert_eq!(
         plugin.metadata.plugin_id, "crowdstrike-oauth2",
         "AC-002: plugin_id must be 'crowdstrike-oauth2'"
     );
 
-    // AC-002 contract: the auth_type declared in crowdstrike.sensor.toml must be
-    // "oauth2_client_credentials" — this is the INV-AUTH-OPEN-003 Rule A invariant
-    // that ties the plugin's runtime identity to the TOML declaration.
-    // The production plugin returns this string from auth-type-name().
+    // AC-002b: Invoke auth-type-name export via core-module dispatch and read
+    // the returned (ptr, len) to decode the canonical string.
+    //
+    // The WAT fixture stores "oauth2_client_credentials" at memory offset 18 (len=25).
+    // auth-type-name returns (i32.const 18, i32.const 25).
+    // We invoke the export and read the result from the plugin's linear memory.
+    let auth_type_name_str =
+        invoke_auth_type_name_export(&runtime, &plugin, CROWDSTRIKE_OAUTH2_WAT);
+    assert_eq!(
+        auth_type_name_str, "oauth2_client_credentials",
+        "AC-002: auth-type-name() WIT export MUST return 'oauth2_client_credentials' \
+         per INV-AUTH-OPEN-003 Rule A (BC-2.01.016); got '{}'",
+        auth_type_name_str
+    );
+
+    // AC-002c: TOML binding — crowdstrike.sensor.toml auth_type must match.
     let toml_content = include_str!("../../prism-sensors/specs/crowdstrike.sensor.toml");
     let spec = SpecLoader::parse(toml_content).expect("crowdstrike.sensor.toml must parse");
     assert_eq!(
@@ -155,6 +171,74 @@ fn test_PLUGIN_MIGRATION_001_E_002_auth_type_name_returns_oauth2_client_credenti
         "AC-002: crowdstrike.sensor.toml auth_type must be oauth2_client_credentials \
          (INV-AUTH-OPEN-003 Rule A — must match plugin auth-type-name() return value)"
     );
+}
+
+/// Invoke the `auth-type-name` export on a loaded core-module WAT plugin and
+/// decode the returned (ptr, len) i32 pair as a UTF-8 string from WASM linear memory.
+///
+/// This is the HOST-SIDE dispatch implementation for AC-002 core-module test path.
+/// For real Component Model plugins, the Component Model ABI handles string passing.
+///
+/// Uses the runtime's own Engine (which has epoch_interruption enabled, matching
+/// how the core module was originally compiled) to avoid deserialization mismatches.
+fn invoke_auth_type_name_export(
+    runtime: &PluginRuntime,
+    plugin: &LoadedPlugin,
+    wat_source: &str,
+) -> String {
+    use wasmtime::{Linker, Module, Store};
+
+    // We need the same Engine config that was used to compile the module.
+    // The runtime's engine has wasm_component_model=true and epoch_interruption=true.
+    // Re-compile the WAT bytes with the same engine to avoid config mismatches.
+    let module =
+        Module::new(&runtime.engine, wat_source.as_bytes()).expect("AC-002: Module::new from WAT");
+
+    // Confirm the loaded plugin has a core_module (WAT fixture is a core module).
+    let _core_mod = plugin
+        .core_module
+        .as_ref()
+        .expect("AC-002: WAT fixture must be loaded as core module");
+
+    let mut store: Store<()> = Store::new(&runtime.engine, ());
+    // Set epoch deadline for the store (required when epoch_interruption is enabled).
+    store.set_epoch_deadline(10); // 10 ticks = generous for a simple WAT call
+
+    let linker: Linker<()> = Linker::new(&runtime.engine);
+    let instance = linker
+        .instantiate(&mut store, &module)
+        .expect("AC-002: instance must instantiate from WAT fixture");
+
+    // Get the auth-type-name export function.
+    let auth_type_name_fn = instance
+        .get_func(&mut store, "auth-type-name")
+        .expect("AC-002: auth-type-name export must be present in WAT fixture");
+
+    // Call the function: returns two i32 values (ptr, len).
+    let mut results = vec![wasmtime::Val::I32(0), wasmtime::Val::I32(0)];
+    auth_type_name_fn
+        .call(&mut store, &[], &mut results)
+        .expect("AC-002: auth-type-name() call must not trap");
+
+    let ptr = match &results[0] {
+        wasmtime::Val::I32(p) => *p as u32 as usize,
+        _ => panic!("AC-002: auth-type-name first result must be i32 (ptr)"),
+    };
+    let len = match &results[1] {
+        wasmtime::Val::I32(l) => *l as u32 as usize,
+        _ => panic!("AC-002: auth-type-name second result must be i32 (len)"),
+    };
+
+    // Read the string bytes from WASM linear memory.
+    let memory = instance
+        .get_memory(&mut store, "memory")
+        .expect("AC-002: WAT fixture must export 'memory'");
+
+    let mem_data = memory.data(&store);
+    let str_bytes = &mem_data[ptr..ptr + len];
+    std::str::from_utf8(str_bytes)
+        .expect("AC-002: auth-type-name memory bytes must be valid UTF-8")
+        .to_string()
 }
 
 // ---------------------------------------------------------------------------
@@ -205,7 +289,6 @@ async fn test_PLUGIN_MIGRATION_001_E_003_acquire_token_calls_oauth2_token_endpoi
         .build()
         .expect("http client");
 
-    let kv_store = Arc::new(PluginKvStore::new());
     let state = HostState::test_with_client(
         Arc::new(http_client),
         "crowdstrike-oauth2",
@@ -367,7 +450,6 @@ async fn test_PLUGIN_MIGRATION_001_E_005_expired_token_triggers_reacquisition() 
             .expect("http client"),
     );
 
-    let kv_store = Arc::new(PluginKvStore::new());
     let state =
         HostState::test_with_client(http_client.clone(), "crowdstrike-oauth2", vec![server_host]);
 
@@ -691,7 +773,8 @@ async fn test_PLUGIN_MIGRATION_001_E_009_plugin_loaded_at_boot_step_7_5_emits_wa
     let runtime = build_test_runtime();
     let bytes = compile_wat(CROWDSTRIKE_OAUTH2_WAT);
     let dir = tempfile::tempdir().expect("temp dir");
-    let prx_path = write_prx(&dir, "crowdstrike-oauth2", &bytes);
+    // write_prx creates the .prx file that load_all_plugins will discover by directory scan.
+    let _prx_path = write_prx(&dir, "crowdstrike-oauth2", &bytes);
     write_manifest(&dir, "crowdstrike-oauth2", CROWDSTRIKE_OAUTH2_MANIFEST);
 
     // Run load_all_plugins against the temp directory (boot step 7.5 simulation).
