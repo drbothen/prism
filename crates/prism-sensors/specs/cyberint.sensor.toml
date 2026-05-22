@@ -143,10 +143,16 @@ ocsf_class = "incident_finding"
   column_type = "string"
   ocsf_field = "status"
 
+  # Multi-format timestamp: consistent with alerts.created_at sibling column.
+  # F-LP3-MEDIUM-004: added timestamp_formats to match alerts table sibling.
+  # DTU has no incidents route (EC-016-013-002), but when implemented the created_at
+  # field is expected to match the Cyberint API time format pattern (ISO 8601 primary,
+  # unix_epoch_seconds legacy fallback). Using same chain as alerts.created_at.
   [[tables.columns]]
   name = "created_at"
   column_type = "datetime"
   ocsf_field = "time"
+  timestamp_formats = ["iso8601", "unix_epoch_seconds"]
 
   # EC-016-013-002: DTU gap — no incidents route. Using cursor pattern consistent
   # with alerts table. Parity test for this table is explicit SKIP per AC-009.
