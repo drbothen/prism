@@ -6,7 +6,7 @@ wave: 1
 epic_id: PLUGIN-MIGRATION-001
 priority: P0
 status: ready
-version: "v1.18"
+version: "v1.19"
 level: "L4"
 producer: story-writer
 timestamp: "2026-05-20T00:00:00Z"
@@ -1014,7 +1014,7 @@ Key lessons applicable to this story:
    error code (unlikely — specs should not need new codes), run TD-VSDD-060 sibling-sweep to
    update error-taxonomy.md in the same commit.
 
-6. **`sensor_id`/filename mismatch uses `E-SPEC-017` (registered in error-taxonomy.md v1.42; originally introduced at v1.41 during FB-IMPL-P2-PO).**
+6. **`sensor_id`/filename mismatch uses `E-SPEC-017` (registered in error-taxonomy.md v1.44; originally introduced at v1.41 during FB-IMPL-P2-PO).**
    `E-SPEC-017` is the dedicated canonical code for `sensor_id`/filename-stem mismatch — emitted
    by BC-2.16.001 v1.6 §Error Conditions at spec-load time. `E-SPEC-009` remains the canonical
    code for duplicate `sensor_id` across multiple spec files (a distinct error condition). The
@@ -1292,6 +1292,7 @@ This story is DONE when ALL of the following are simultaneously true — no exce
 
 | Version | Date | Author | Change |
 |---------|------|--------|--------|
+| v1.19 | 2026-05-21 | state-manager | FB-IMPL-9 closure of F-LP10-LOW-001 — story §Previous Story Intelligence line 1017 transitive cite-pin sweep: `registered in error-taxonomy.md v1.42` → `registered in error-taxonomy.md v1.44` per FB-IMPL-P22 PREREQ-E precedent + implementer current-authority code-comment pattern. Preserved `originally introduced at v1.41` historical-anchor phrasing (introduction event, not current-authority pin). 5th POL-29 axis recurrence (transitive cite-pin chain). STORY-INDEX v2.177→v2.178. |
 | v1.18 | 2026-05-21 | state-manager | FB-IMPL-8 closure of F-LP9-LOW-001 — story §Behavioral Contracts row 195 BC-2.16.002 table-cell cite-pin `| 1.36 |` → `| 1.37 |`. 4th cascade recurrence of POL-29 v1.19 step 8b variant-form enumeration discipline gap: PO commit a2ef75e1 grep used `BC-2.16.002 v1.36` pattern (v-prefix form) and correctly found 4 hits (3 immutable changelog rows + 1 ADR-026 architect-domain referral) but missed table-cell variant form `| 1.36 |` at line 195 (no `v` prefix, pipe syntax). FB-IMPL-8 ran all 5 variant-form greps workspace-wide; only this one LIVE-narrative site found. STORY-INDEX v2.176→v2.177. |
 | v1.17 | 2026-05-21 | state-manager | FB-IMPL-6 closure of F-LP6-LOW-001 — TD-VSDD-091 task-body line-cite sweep; replaced 7 `file.rs:NNN` cites with function-name anchors: 4× `spec_parser.rs:655` → `SpecLoader::parse()`, 1× `error.rs:892` → `pub enum SpecErrorCode in crates/prism-core/src/error.rs`, 1× `spec_parser.rs:715` → `SpecLoader::load_all() in crates/prism-spec-engine/src/spec_parser.rs`, 1× `at line ~768` → `inside SpecLoader::load_all`. Changelog cites (immutable historical rows) left intact per TD-VSDD-091 exempt class. STORY-INDEX v2.175→v2.176. |
 | v1.16 | 2026-05-21 | product-owner | FB-IMPL-5 PO: F-LP5-LOW-001 closure: in-paragraph cite-pin contradiction resolved — `BC-2.16.001 v1.5 is the authority` corrected to `BC-2.16.001 v1.6 is the authority` at line 1022 (line 1019 above already cited v1.6 §Error Conditions; the v1.5 reference was a missed within-paragraph sweep from BC-2.16.001 v1.5→v1.6 at commit 62f9162e). STORY-INDEX v2.174→v2.175. |

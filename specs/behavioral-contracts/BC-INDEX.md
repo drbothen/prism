@@ -1,7 +1,7 @@
 ---
 document_type: behavioral-contract-index
 level: L3
-version: "5.39"
+version: "5.40"
 status: draft
 producer: product-owner
 timestamp: 2026-05-20T00:00:00Z
@@ -218,7 +218,7 @@ Phase 3-patch additions (2026-04-16): 22 new BCs added in Burst 1 to close trace
 | BC-2.16.010 | `list_sensor_specs` MCP Tool — List Loaded Sensor Specs with Table Schemas and Status | 16 - Spec Engine | CAP-029 | P0 | draft |
 | BC-2.16.011 | CustomAdapter Rust Trait Retirement — Removal of Trait, Registry, and All Call Sites | 16 - Spec Engine | CAP-029 | P0 | active (promoted draft→active D-726 per POL-14; anchor story S-PLUGIN-PREREQ-E merged PR #151 develop@80ebe794 2026-05-19) — v1.12 |
 | BC-2.16.012 | PluginRegistry Dispatch in spec_parser.rs — Hardcoded Sensor Names Replaced with Registry Lookup | 16 - Spec Engine | CAP-029 | P0 | active (promoted draft→active D-726 per POL-14; anchor story S-PLUGIN-PREREQ-E merged PR #151 develop@80ebe794 2026-05-19) — v1.30 |
-| BC-2.16.013 | Bundled Sensor Spec Authoring and DTU-Parity Verification — 4 Initial Sensors | 16 - Spec Engine | CAP-029 | P0 | draft (v1.14 FB-IMPL-2 PO 2026-05-21 — null-primary passthrough contract (HIGH-006 Option a); §O-001 + §Postconditions §3 extended; no new error codes or tracing events) — v1.14 |
+| BC-2.16.013 | Bundled Sensor Spec Authoring and DTU-Parity Verification — 4 Initial Sensors | 16 - Spec Engine | CAP-029 | P0 | draft (v1.15 FB-IMPL-9 2026-05-21 — §Error Conditions transitive cite-pin sweep error-taxonomy.md v1.42/v1.43→v1.44; no semantic content change) — v1.15 |
 | BC-2.17.001 | Plugin Panic Isolation — Crashed Plugin Does Not Terminate Host Process | 17 - WASM Plugin Runtime | CAP-032 | P0 | active (POL-14 auto-promotion D-568 S-PLUGIN-PREREQ-D merge PR #149 ec90fe8f 2026-05-15) |
 | BC-2.17.002 | Plugin Sandbox — No Direct Filesystem or Network Access | 17 - WASM Plugin Runtime | CAP-032 | P0 | active (POL-14 auto-promotion D-568 S-PLUGIN-PREREQ-D merge PR #149 ec90fe8f 2026-05-15) |
 | BC-2.17.003 | Plugin Sandbox — Memory Limit Enforced Per Plugin Instance (default 64MB) | 17 - WASM Plugin Runtime | CAP-032 | P0 | active (POL-14 auto-promotion D-568 S-PLUGIN-PREREQ-D merge PR #149 ec90fe8f 2026-05-15) |
@@ -370,6 +370,8 @@ Phase 3-patch additions (2026-04-16): 22 new BCs added in Burst 1 to close trace
 - Subsystem 19: Infusion Enrichment Framework (AD-020, CAP-031)
 
 ### Change Log (Adversarial Review Fixes)
+
+**v5.40 (2026-05-21, FB-IMPL-9):** state-manager | BC-2.16.013 v1.14→v1.15 (F-LP10-LOW-001 closure — §Error Conditions lines 357-358 transitive cite-pin sweep: `error-taxonomy.md v1.42/v1.43` → `v1.44` per FB-IMPL-P22 PREREQ-E precedent + implementer current-authority pattern; 5th POL-29 axis recurrence transitive cite-pin chain; no semantic content change). BC-INDEX row 221 updated to v1.15. BC-INDEX v5.39→v5.40.
 
 **v5.39 (2026-05-21, FB-IMPL-5 PO):** product-owner | BC-2.16.002 in-line row 210 v1.36→v1.37 (F-LP5-MED-001 closure: row 112 anchor cite-pin `BC-2.16.013 v1.13` → `BC-2.16.013 v1.14`; sibling-sweep gap from PO commit 4d934f28 which bumped BC-2.16.013 to v1.14 but did not sweep BC-2.16.002 catalog row 35 anchor cite; POL-30 Fork B catalog bullet `(v1.23)` UNCHANGED). BC-INDEX v5.38→v5.39.
 

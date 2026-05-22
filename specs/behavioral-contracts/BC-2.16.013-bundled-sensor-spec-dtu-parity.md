@@ -1,7 +1,7 @@
 ---
 document_type: behavioral-contract
 level: L3
-version: "1.14"
+version: "1.15"
 status: draft
 producer: product-owner
 timestamp: 2026-05-20T00:00:00Z
@@ -11,7 +11,7 @@ subsystem: "SS-16"
 capability: "CAP-029"
 lifecycle_status: draft
 introduced: "2026-05-20"
-modified: "2026-05-21"  # v1.14 FB-IMPL-2 PO
+modified: "2026-05-21"  # v1.15 FB-IMPL-9
 deprecated: null
 deprecated_by: null
 replacement: null
@@ -354,8 +354,8 @@ adapter path for all test cases:
 |-------|-----------|----------|
 | `E-SPEC-001` | Bundled spec file fails BC-2.16.009 validation at CI time | CI fails; spec file must be corrected before merge; this is a pre-merge gate |
 | `E-SPEC-009` | Duplicate `sensor_id` across two spec files (e.g., two files both declare `sensor_id: "crowdstrike"`) | BC-2.16.001 rejects the second file with `E-SPEC-009` per error-taxonomy.md; first file wins. E-SPEC-009 covers ONLY the duplicate-sensor_id case — it does NOT cover filename-stem-vs-sensor_id mismatch (see E-SPEC-017 below). |
-| `E-SPEC-017` | Spec `sensor_id` does not case-sensitively match the filename stem (e.g., `crowdstrike.sensor.toml` with `sensor_id: "falcon"`) | BC-2.16.001 rejects the offending file with `E-SPEC-017` per error-taxonomy.md v1.42. Bundled spec naming convention is `{sensor_id}.sensor.toml`; mismatch indicates a rename without sensor_id update or vice versa; reject at load time to prevent silent namespace drift. (Registered as new code E-SPEC-017 in FB-IMPL-P2-PO 2026-05-20 — prior pass-1 incorrectly cited E-SPEC-009 for this case; E-SPEC-009 has distinct duplicate-sensor_id semantics.) |
-| `E-SPEC-018` | `ColumnSpec::timestamp_formats` is non-empty and no format successfully parsed the column value (multi-format timestamp parse failure) | `PipelineExecutor` emits `E-SPEC-018` (`TimestampParseFailure`) per error-taxonomy.md v1.43. Only emitted when `timestamp_formats` is explicitly set on a `ColumnType::Datetime` column; columns with empty `timestamp_formats` (default) use ISO 8601 exclusively and emit a different error on parse failure. Registered FB-IMPL-1 2026-05-21 per ADR-028 v1.10 §D8-C. |
+| `E-SPEC-017` | Spec `sensor_id` does not case-sensitively match the filename stem (e.g., `crowdstrike.sensor.toml` with `sensor_id: "falcon"`) | BC-2.16.001 rejects the offending file with `E-SPEC-017` per error-taxonomy.md v1.44. Bundled spec naming convention is `{sensor_id}.sensor.toml`; mismatch indicates a rename without sensor_id update or vice versa; reject at load time to prevent silent namespace drift. (Registered as new code E-SPEC-017 in FB-IMPL-P2-PO 2026-05-20 — prior pass-1 incorrectly cited E-SPEC-009 for this case; E-SPEC-009 has distinct duplicate-sensor_id semantics.) |
+| `E-SPEC-018` | `ColumnSpec::timestamp_formats` is non-empty and no format successfully parsed the column value (multi-format timestamp parse failure) | `PipelineExecutor` emits `E-SPEC-018` (`TimestampParseFailure`) per error-taxonomy.md v1.44. Only emitted when `timestamp_formats` is explicitly set on a `ColumnType::Datetime` column; columns with empty `timestamp_formats` (default) use ISO 8601 exclusively and emit a different error on parse failure. Registered FB-IMPL-1 2026-05-21 per ADR-028 v1.10 §D8-C. |
 
 **Note on parity FAIL verdict (test verdict, not runtime error):** A parity test FAIL verdict
 (where `PipelineExecutor` output does not match the reference OCSF output for a test case) is
@@ -438,6 +438,7 @@ PLUGIN-MIGRATION-001-D (implementing story; planned → draft after PO authoring
 | Version | Burst | Date | Author | Change |
 |---------|-------|------|--------|--------|
 | 1.11 | FB-IMPL-P22-PO | 2026-05-21 | product-owner | F-LP22-MED-001 closure (16th coherence-axis: same-line dual-format cite-pin escape): swept `error-taxonomy.md v1.41` → `v1.42` at 1 active-prose site (§Error Conditions E-SPEC-017 row line 331). BC-2.16.013 v1.10→v1.11. |
+| 1.15 | FB-IMPL-9 | 2026-05-21 | state-manager | F-LP10-LOW-001 closure — §Error Conditions lines 357-358 transitive cite-pin sweep: `error-taxonomy.md v1.42` → `v1.44` (E-SPEC-017 row) and `error-taxonomy.md v1.43` → `v1.44` (E-SPEC-018 row) per FB-IMPL-P22 PREREQ-E precedent + implementer current-authority code-comment pattern. 5th POL-29 axis recurrence (transitive cite-pin chain). No semantic content change. |
 | 1.14 | FB-IMPL-2 PO | 2026-05-21 | product-owner | F-LP2-HIGH-006 closure (Option a — document null-primary passthrough): §O-001 implementer contract extended with null-primary passthrough rule — when a Datetime column primary value is null/absent with empty `timestamp_fallback_chain`, the field passes through to Arrow as null with no audit signal; this is valid sensor data (Cyberint `Alert.created_at: serde_json::Value` accepts JSON `null` per DTU types.rs). §Postconditions §3 (Behavioral Fidelity Preserved) first bullet extended to document Arrow Datetime nullable contract. No new error codes, no new tracing events — documentation-only closure. No implementer handoff required. BC-2.16.013 v1.13→v1.14. |
 | 1.13 | FB-IMPL-2 | 2026-05-21 | architect | F-LP2-HIGH-004 closure (Option a): §O-001 Armis fallback chain corrected from `["last_seen", "first_seen"]` to `["first_seen"]` — the self-referential primary column name as first chain element is a semantic no-op; doc-comment "Skip the primary field itself" was false (no skip guard in code). Implementer must: (1) update `armis.sensor.toml` chain to `["first_seen"]`, (2) add defensive skip guard `if fb_field == &col.name { continue; }` in pipeline.rs fallback loop, (3) fix the false doc-comment at pipeline.rs:1495. ADR-028 v1.9→v1.10 §D8-B amended. F-LP2-MEDIUM-001 closure (Option b): DTU-EXT-005 added to §Known Gaps — `page_size` parameter removed from cyberint.sensor.toml per ADR-028 §D9 scope clarification (parameter-level projections not covered by documented-gap exception; `AlertListParams` struct at `crates/prism-dtu-cyberint/src/routes/alerts.rs:38-40` has no `page_size` field). §Architecture Anchors ADR-028 cite-pin advanced v1.9→v1.10 at §D8 + §D9 rows. §ADR anchors Traceability row updated. |
 | 1.12 | FB-IMPL-1 | 2026-05-21 | architect | (D-FB-IMPL-1-OPT-A) F-LP1-HIGH-002/003 closure: §O-001 LOCKED Option A — grammar extension in `ColumnSpec` (`timestamp_formats: Vec<String>` + `timestamp_fallback_chain: Vec<String>`, both `#[serde(default)]`). Full implementer contract specified: recognized formats, normalization pipeline location, backward compat, E-SPEC-018 registered. Cyberint canonical formats `["iso8601", "unix_epoch_seconds"]` documented (DTU-grounded). Armis fallback chain `["last_seen", "first_seen"] → now()` locked (DTU-grounded, corrected to `["first_seen"]` in v1.13). §Postconditions §1 Cyberint + Armis rows updated: WASM plugin references replaced with Option A grammar. ADR-028 v1.8→v1.9 cite-pin sweep across 6 §Architecture Anchors sites (§D1/D2/D3/D5/D6) + §ADR anchors Traceability row. |

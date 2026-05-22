@@ -1,7 +1,7 @@
 ---
 document_type: holdout-scenario-index
 level: L3
-version: "1.12"
+version: "1.13"
 status: draft
 producer: product-owner
 timestamp: 2026-05-20T00:00:00Z
@@ -43,7 +43,7 @@ total_scenarios: 81
 | HS-015 | [HS-015-cyberint-alerts-cursor-parity.md](HS-015-cyberint-alerts-cursor-parity.md) | Cyberint Alerts Cursor Parity | 3 | P0 | Multi-format timestamp parsing; SKIP verdict for incidents table; cookie_roundtrip auth; GET /api/v1/alerts |
 | HS-016 | [HS-016-armis-aql-timestamp-fallback-parity.md](HS-016-armis-aql-timestamp-fallback-parity.md) | Armis AQL + Timestamp Fallback Parity | 3 | P0 | AQL forwarding via `${query.filter.aql}`; fallback chain; WARN audit signal; bearer_static auth; DTU gaps DTU-EXT-003/004 noted |
 | HS-017 | [HS-017-bundled-spec-validation-gate.md](HS-017-bundled-spec-validation-gate.md) | Bundled Spec Validation CI Gate | 2 | P0 | Negative: malformed specs rejected by BC-2.16.009 (E-SPEC-002, E-SPEC-003) |
-| HS-018 | [HS-018-spec-id-filename-mismatch-rejection.md](HS-018-spec-id-filename-mismatch-rejection.md) | Spec sensor_id / Filename Mismatch | 3 | P0 | Negative: sensor_id ≠ filename stem rejected at load time (E-SPEC-017); v1.3 bumps error-taxonomy.md v1.41→v1.42 at 3 active-prose sites (F-LP22-MED-001) |
+| HS-018 | [HS-018-spec-id-filename-mismatch-rejection.md](HS-018-spec-id-filename-mismatch-rejection.md) | Spec sensor_id / Filename Mismatch | 3 | P0 | Negative: sensor_id ≠ filename stem rejected at load time (E-SPEC-017); v1.4 sweeps error-taxonomy.md v1.42→v1.44 at 3 active-prose sites (FB-IMPL-9 transitive cite-pin chain) |
 
 ---
 
@@ -316,6 +316,7 @@ timestamp: 2026-05-20T00:00:00Z
 
 | Version | Burst | Date | Author | Change |
 |---------|-------|------|--------|--------|
+| 1.13 | FB-IMPL-9 | 2026-05-21 | state-manager | FB-IMPL-9 transitive cite-pin sweep: HS-018 v1.3→v1.4 — swept `error-taxonomy.md v1.42` → `v1.44` at 3 active-prose sites (frontmatter notes, HS-018-01 §Expected Outcome, HS-018-02 §Expected Outcome). Additional discovery beyond pass-10 adversary enumeration. HOLDOUT-INDEX v1.12→v1.13. |
 | 1.12 | FB-IMPL-P22-PO | 2026-05-21 | product-owner | F-LP22-MED-001 closure (16th coherence-axis: same-line dual-format cite-pin escape): HS-018 v1.2→v1.3 — swept `error-taxonomy.md v1.41` → `v1.42` at 3 active-prose sites (frontmatter notes, HS-018-01 §Expected Outcome, HS-018-02 §Expected Outcome). Summary row updated. HOLDOUT-INDEX v1.11→v1.12. |
 | 1.11 | FB-IMPL-P21-PO | 2026-05-21 | product-owner | F-LP21-MED-001 closure (15th coherence-axis: section-versioned cite-pin format): HS-018 v1.1→v1.2 — stripped `v1.2` section-version pin from §Expected Outcome BC-2.16.013 cite per Option A. Summary row updated. HOLDOUT-INDEX v1.10→v1.11. |
 | 1.10 | FB-IMPL-P13-PO | 2026-05-20 | product-owner | F-LP13-MED-002 closure: HS-018 v1.0→v1.1 — added §Evaluation Criteria with coverage mapping for HS-018-01/02/03; applied Option A confirming HS-018-02 (case-mismatch) covered by RG-09 case-sensitive string equality enforcement; §Changelog added per POL-26. Summary row updated to note v1.1 coverage clarification. HOLDOUT-INDEX v1.9→v1.10. |
