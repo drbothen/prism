@@ -488,6 +488,56 @@ Key decision milestones in this range:
 
 ---
 
+## Burst D-765 (2026-05-21) — FB-IMPL-2 IMPLEMENTATION FIX-BURST CLOSURE (PLUGIN-MIGRATION-001-D pass-2)
+
+**Agents dispatched:** architect, product-owner, test-writer, implementer (×arch-handoffs), state-manager
+**Feature HEAD:** 475e70e9 (was 8b480db8 pre-FB-IMPL-2; 6 new commits)
+**Workspace tests:** 3715 → 3720 (+5)
+**just check:** GREEN workspace-wide
+
+### Summary
+
+Pass-2 adversary returned 13 findings (0 CRIT + 6 HIGH + 4 MED + 2 LOW + 1 OBS). FB-IMPL-2 cascaded across 4 specialists in 5 dispatches (2 .factory/ commits + D-765 closure + 6 feature-branch commits), closing 10/13 findings with load-bearing tests. 3 deferred per Canonical Principle Rule 3 with explicit human-direction-required gating. Cascade streak resets 1→0/3; pass-3 dispatching.
+
+### .factory/ burst commits (2 single-commits pre-D-765, per TD-VSDD-053)
+
+| Commit | Burst ID | Agent | Description |
+|--------|----------|-------|-------------|
+| eb714b3c | D-FB-IMPL-2-OPT-A | architect | HIGH-004 Option a (Armis fallback_chain ["first_seen"] only + defensive skip guard handoff) + MEDIUM-001 Option b (cyberint page_size strict §D1 removal handoff). ADR-028 v1.9→v1.10, BC-2.16.013 v1.12→v1.13, ARCH-INDEX v2.98→v2.99, BC-INDEX v5.36→v5.37, plus cite-pin sweeps. |
+| 4d934f28 | D-FB-IMPL-2-PO-A | product-owner | HIGH-006 Option a (BC-2.16.013 §O-001 null-primary passthrough documentation; Cyberint nulls are valid data per DTU types.rs) + MEDIUM-002 (8 active-prose cite-pin sites swept v1.12→v1.14 + body BC table BC-2.16.002 v1.35→v1.36). BC-2.16.013 v1.13→v1.14, BC-INDEX v5.37→v5.38, story v1.14→v1.15, STORY-INDEX v2.173→v2.174. |
+| D-765 (this burst) | D-765 | state-manager | FB-IMPL-2 closure: STATE.md v7.451→v7.452, frontmatter updates, burst-log, lessons. |
+
+### feature/PLUGIN-MIGRATION-001-D commits (6 commits — test-writer + implementer)
+
+| Commit | Agent | Findings Closed | Description |
+|--------|-------|----------------|-------------|
+| 174c2069 | test-writer | MEDIUM-003 | Regression-net vs Red Gate doc-comment clarification + clippy::doc_lazy_continuation incidental fix |
+| 7d03917c | implementer | HIGH-005 | BC-2.16.009 validator extended for non-Datetime columns + 4 unit tests |
+| 6ae464c3 | implementer | HIGH-002 + HIGH-001 | TimestampParseFailure variant extended with sensor_id; Display byte-for-byte match error-taxonomy.md v1.44; removed unregistered timestamp_parse_failure tracing::error! |
+| 3669abe1 | implementer | arch-handoff#1 + LOW-002 | Defensive skip guard in normalize_timestamp_fields + accurate doc-comment + load-bearing skip-guard unit test + armis chain ["first_seen"] only |
+| 60f88498 | implementer | HIGH-003 | cyberint alert_id ocsf_field finding.src_url→finding.uid |
+| 475e70e9 | implementer | arch-handoff#2 | cyberint page_size removed; DTU-EXT-005 inline comment |
+
+### 13-finding closure ledger
+
+| Finding | Severity | Closed By | Notes |
+|---------|----------|-----------|-------|
+| F-LP2-HIGH-001 | HIGH | implementer 6ae464c3 | Removed unregistered tracing::error! (? propagation IS the audit trail) |
+| F-LP2-HIGH-002 | HIGH | implementer 6ae464c3 | Display byte-for-byte match to error-taxonomy.md v1.44 + sensor_id plumbing |
+| F-LP2-HIGH-003 | HIGH | implementer 60f88498 | alert_id ocsf_field finding.src_url→finding.uid |
+| F-LP2-HIGH-004 | HIGH | architect eb714b3c + impl 3669abe1 | Drop redundant primary entry; defensive skip guard |
+| F-LP2-HIGH-005 | HIGH | implementer 7d03917c | Validator scope extension + 4 unit tests |
+| F-LP2-HIGH-006 | HIGH | PO 4d934f28 | BC-2.16.013 §O-001 null-primary documentation |
+| F-LP2-MEDIUM-001 | MEDIUM | architect eb714b3c + impl 475e70e9 | Strict §D1; remove page_size + DTU-EXT-005 |
+| F-LP2-MEDIUM-002 | MEDIUM | PO 4d934f28 | 8 active-prose cite-pin sites + body BC table sweep |
+| F-LP2-MEDIUM-003 | MEDIUM | test-writer 174c2069 | Regression-net vs Red Gate doc-comment clarification |
+| F-LP2-MEDIUM-004 | MEDIUM | DEFERRED | Story §Token Budget under-estimate; low-priority; defer to next story-writer touch |
+| F-LP2-LOW-001 | LOW | DEFERRED | ParityVerdict enum duplication across 4 parity files (DRY); defer to refactor |
+| F-LP2-LOW-002 | LOW | implementer 3669abe1 | Closed by arch-handoff#1 (skip guard + doc-comment correction) |
+| F-LP2-OBSERVATION-001 | OBS [process-gap] | session-reviewer queue | Adversary .factory/ worktree absolute-path tooling friction |
+
+---
+
 ## Burst D-764 (2026-05-21) — FB-IMPL-1 IMPLEMENTATION FIX-BURST CLOSURE (PLUGIN-MIGRATION-001-D pass-1)
 
 **Agents dispatched:** architect, product-owner (×2), test-writer (×2), implementer (×4 + remediation), state-manager
