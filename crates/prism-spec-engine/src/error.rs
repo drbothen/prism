@@ -276,6 +276,42 @@ pub enum SpecEngineError {
     },
 
     // -------------------------------------------------------------------------
+    // PLUGIN-MIGRATION-001-E F-LP2-MED-002 — structured plugin auth dispatch error
+    // -------------------------------------------------------------------------
+    /// Plugin auth dispatch failed with a structured `PluginError` (not a stringified message).
+    ///
+    /// F-LP2-MED-002 closure: replaces the prior `AuthAcquisitionFailed { detail: plugin_err.to_string() }`
+    /// pattern which discarded the structured `PluginError` type by stringifying it.
+    /// This variant preserves the structured error for machine-readable diagnosis and
+    /// allows callers to inspect the `plugin_error` type (e.g., `PluginError::SandboxViolation`
+    /// vs `PluginError::NotLoaded`) without parsing a string.
+    ///
+    /// Also closes the `client_id = "plugin-auth"` sentinel anti-pattern: the variant carries
+    /// `sensor_id` and `plugin_id` explicitly (the former provides the org context formerly
+    /// communicated by `client_id`).
+    ///
+    /// AD-017: `plugin_error` field MUST NOT contain credential values. `PluginError` variants
+    /// use sensor_id/plugin_id strings only — never credential handles or raw secrets.
+    ///
+    /// Story: PLUGIN-MIGRATION-001-E / F-LP2-MED-002
+    /// Traces to: BC-2.01.016 §Error Cases; error-taxonomy.md E-AUTH-001 / E-AUTH-002
+    #[error(
+        "plugin auth dispatch failed for sensor '{sensor_id}' via plugin '{plugin_id}': {plugin_error}"
+    )]
+    #[non_exhaustive]
+    AuthPluginDispatchFailed {
+        /// Sensor identity for diagnostics.
+        sensor_id: String,
+        /// The plugin_id that was dispatched (e.g., "crowdstrike-oauth2").
+        plugin_id: String,
+        /// Structured plugin error from PluginRuntime dispatch.
+        ///
+        /// Preserves the full structured type hierarchy for machine-readable diagnosis.
+        /// MUST NOT contain credential values (AD-017).
+        plugin_error: prism_core::PluginError,
+    },
+
+    // -------------------------------------------------------------------------
     // PLUGIN-MIGRATION-001-D — ADR-028 §D8-B/C timestamp normalization errors
     // -------------------------------------------------------------------------
     /// E-SPEC-018: `PipelineExecutor` failed to parse a `ColumnType::Datetime` column value

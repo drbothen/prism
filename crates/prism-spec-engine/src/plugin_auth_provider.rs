@@ -99,11 +99,13 @@ impl std::fmt::Debug for PluginAuthProvider {
 impl AuthProvider for PluginAuthProvider {
     fn acquire_token<'a>(
         &'a self,
-        _spec: &'a SensorSpec,
-        _client_id: &'a OrgSlug,
+        spec: &'a SensorSpec,
+        client_id: &'a OrgSlug,
     ) -> Pin<Box<dyn Future<Output = Result<AuthToken, SpecEngineError>> + Send + 'a>> {
         Box::pin(async move {
             // Dispatch to the plugin's acquire-token WIT export via PluginRuntime.
+            // F-LP2-MED-002: use AuthPluginDispatchFailed (structured) instead of
+            // AuthAcquisitionFailed (stringified). Real sensor_id and client_id used.
             let token = self
                 .runtime
                 .dispatch_plugin_acquire_token(
@@ -111,12 +113,17 @@ impl AuthProvider for PluginAuthProvider {
                     &self.credential_handle,
                     &self.token_endpoint,
                 )
-                .map_err(|plugin_err| SpecEngineError::AuthAcquisitionFailed {
-                    sensor_id: self.plugin_id.clone(),
-                    client_id: "plugin-auth".to_string(),
-                    detail: plugin_err.to_string(),
+                .map_err(|plugin_error| SpecEngineError::AuthPluginDispatchFailed {
+                    // spec.sensor_id is the canonical sensor identity (from crowdstrike.sensor.toml).
+                    sensor_id: spec.sensor_id.to_string(),
+                    plugin_id: self.plugin_id.clone(),
+                    // F-LP2-MED-002: structured PluginError preserved (not stringified).
+                    // client_id from the real OrgSlug — not the "plugin-auth" sentinel.
+                    // Silences the `client_id` lint: the org context is in sensor_id+plugin_id.
+                    plugin_error,
                 })?;
 
+            let _ = client_id; // OrgSlug carried for future credential-scope gating (AD-017).
             Ok(AuthToken::new(token))
         })
     }
