@@ -510,17 +510,12 @@ impl PipelineExecutor {
 
         // ADR-028 §D8-B/C: normalize Datetime fields per column's timestamp_formats
         // and timestamp_fallback_chain declarations before returning to caller.
+        // F-LP2-HIGH-001: removed redundant tracing::error!(event_type = "timestamp_parse_failure")
+        // — not registered in BC-2.16.002 catalog; ? propagation carries full context via
+        // SpecEngineError::TimestampParseFailure (E-SPEC-018) which includes sensor_id, column_name,
+        // attempted_formats, and raw value (error-taxonomy.md v1.44; PG-LP11-001).
         let normalized_records =
-            normalize_timestamp_fields(&all_records, &table.columns).map_err(|e| {
-                tracing::error!(
-                    event_type = "timestamp_parse_failure",
-                    sensor_id = %spec.sensor_id,
-                    table_name = %table.table_name,
-                    error = %e,
-                    "timestamp normalization failed for pipeline result"
-                );
-                e
-            })?;
+            normalize_timestamp_fields(&all_records, &table.columns, spec.sensor_id.as_str())?;
 
         Ok(PipelineResult {
             records: normalized_records,
@@ -1461,6 +1456,7 @@ fn is_null_or_absent(value: Option<&serde_json::Value>) -> bool {
 pub(crate) fn normalize_timestamp_fields(
     records: &[serde_json::Value],
     columns: &[ColumnSpec],
+    sensor_id: &str,
 ) -> Result<Vec<serde_json::Value>, SpecEngineError> {
     // Collect only Datetime columns — skip non-datetime columns entirely.
     let datetime_cols: Vec<&ColumnSpec> = columns
@@ -1548,9 +1544,10 @@ pub(crate) fn normalize_timestamp_fields(
                             .map(|s| s.to_string())
                             .collect::<Vec<_>>();
                         return Err(SpecEngineError::TimestampParseFailure {
-                            column: col.name.clone(),
+                            sensor_id: sensor_id.to_string(),
+                            column_name: col.name.clone(),
                             attempted_formats: formats,
-                            raw_value: value.to_string(),
+                            value: value.to_string(),
                         });
                     }
                 }
@@ -2617,7 +2614,7 @@ mod timestamp_normalization_tests {
         let cols = vec![datetime_col("created_at", vec!["iso8601"], vec![])];
         let records = vec![json!({"created_at": "2026-05-21T00:00:00Z"})];
 
-        let result = normalize_timestamp_fields(&records, &cols);
+        let result = normalize_timestamp_fields(&records, &cols, "test-sensor");
         assert!(
             result.is_ok(),
             "iso8601 value must parse successfully; got: {:?}",
@@ -2655,7 +2652,7 @@ mod timestamp_normalization_tests {
         // 1716249600 = 2024-05-21T00:00:00Z (unix seconds)
         let records = vec![json!({"created_at": 1716249600_i64})];
 
-        let result = normalize_timestamp_fields(&records, &cols);
+        let result = normalize_timestamp_fields(&records, &cols, "test-sensor");
         assert!(
             result.is_ok(),
             "unix_epoch_seconds value must parse on second format; got: {:?}",
@@ -2691,16 +2688,16 @@ mod timestamp_normalization_tests {
         )];
         let records = vec![json!({"created_at": "garbage-not-a-timestamp"})];
 
-        let result = normalize_timestamp_fields(&records, &cols);
+        let result = normalize_timestamp_fields(&records, &cols, "test-sensor");
         assert!(result.is_err(), "garbage value must return Err");
         let err = result.unwrap_err();
         match &err {
             SpecEngineError::TimestampParseFailure {
-                column,
+                column_name,
                 attempted_formats,
                 ..
             } => {
-                assert_eq!(column, "created_at", "error must cite column name");
+                assert_eq!(column_name, "created_at", "error must cite column name");
                 assert!(
                     attempted_formats.contains(&"iso8601".to_string()),
                     "attempted_formats must include iso8601; got: {attempted_formats:?}"
@@ -2733,7 +2730,7 @@ mod timestamp_normalization_tests {
         // primary field "last_seen" is null; fallback "first_seen" has a value.
         let records = vec![json!({"last_seen": null, "first_seen": "2026-05-21T00:00:00Z"})];
 
-        let result = normalize_timestamp_fields(&records, &cols);
+        let result = normalize_timestamp_fields(&records, &cols, "test-sensor");
         assert!(
             result.is_ok(),
             "fallback chain must resolve via first_seen; got: {:?}",
@@ -2780,7 +2777,7 @@ mod timestamp_normalization_tests {
         let records = vec![json!({"last_seen": null, "first_seen": null})];
 
         let before = Utc::now();
-        let result = normalize_timestamp_fields(&records, &cols);
+        let result = normalize_timestamp_fields(&records, &cols, "test-sensor");
         let after = Utc::now();
 
         assert!(
@@ -2822,7 +2819,7 @@ mod timestamp_normalization_tests {
         }];
         let records = vec![json!({"event_time": "2026-05-21T00:00:00Z"})];
 
-        let result = normalize_timestamp_fields(&records, &cols);
+        let result = normalize_timestamp_fields(&records, &cols, "test-sensor");
         assert!(
             result.is_ok(),
             "empty timestamp_formats + ISO 8601 value must parse; got: {:?}",
@@ -2854,7 +2851,7 @@ mod timestamp_normalization_tests {
         // 1716249600000 ms = 1716249600 s = 2024-05-21T00:00:00Z
         let records = vec![json!({"ts": 1716249600000_i64})];
 
-        let result = normalize_timestamp_fields(&records, &cols);
+        let result = normalize_timestamp_fields(&records, &cols, "test-sensor");
         assert!(
             result.is_ok(),
             "unix_epoch_millis must parse correctly; got: {:?}",

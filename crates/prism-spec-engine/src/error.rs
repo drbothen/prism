@@ -257,22 +257,25 @@ pub enum SpecEngineError {
     /// Emitted during response-to-Arrow materialization when `ColumnSpec::timestamp_formats`
     /// is non-empty and no format successfully parsed the field value.
     ///
-    /// `column` is the `ColumnSpec.name` for operator diagnostics.
-    /// `attempted_formats` lists all format names tried, in declaration order.
+    /// Field names match the canonical error-taxonomy.md v1.44 E-SPEC-018 template
+    /// byte-for-byte (F-LP2-HIGH-002; POLICY 24).
     ///
     /// Maps to `prism_core::SpecErrorCode::ESpec018`.
     /// BC-2.16.013 §O-001; ADR-028 v1.9 §D8-C; error-taxonomy.md v1.44 E-SPEC-018.
     #[error(
-        "E-SPEC-018: failed to parse Datetime column '{column}' — \
-         all declared formats failed: {attempted_formats:?}"
+        "Failed to parse timestamp for column '{column_name}' in sensor '{sensor_id}': \
+         tried formats [{}], value='{value}'",
+        attempted_formats.join(", ")
     )]
     TimestampParseFailure {
+        /// Sensor ID for operator diagnostics (added F-LP2-HIGH-002; POLICY 24).
+        sensor_id: String,
         /// Column name for operator diagnostics (the `ColumnSpec.name`).
-        column: String,
+        column_name: String,
         /// Format names attempted in declaration order, all of which failed.
         attempted_formats: Vec<String>,
         /// The raw JSON value that failed all formats (for actionable correction).
-        raw_value: String,
+        value: String,
     },
 }
 
