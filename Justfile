@@ -204,11 +204,16 @@ build-fixture-component_model_dispatch:
 # Story: PLUGIN-MIGRATION-001-E (F-LP1-MED-017 closure)
 build-plugin-crowdstrike-oauth2:
     @echo "Building crowdstrike-oauth2 plugin (wasm32-wasip1 → Component)"
+    # F-LP2-HIGH-003: fail-fast if wasi_snapshot_preview1.wasm is missing (required for --adapt).
+    test -f tests/fixtures/wasi_snapshot_preview1.wasm || \
+        (echo "ERROR: tests/fixtures/wasi_snapshot_preview1.wasm is missing (required for --adapt)"; exit 1)
     cargo build \
         -p crowdstrike-oauth2-plugin \
         --target wasm32-wasip1 \
         --release
-    @echo "Wrapping core module as WASM Component..."
+    @echo "Lifting to WASM Component via wasm-tools..."
+    # F-LP2-HIGH-003: try with --adapt (WASI reactor → Component) first, then bare wrap.
+    # Both paths must exit non-zero on failure — || exit 1 replaces the prior silent || echo "INFO".
     wasm-tools component new \
         target/wasm32-wasip1/release/crowdstrike_oauth2_plugin.wasm \
         --adapt wasi_snapshot_preview1=tests/fixtures/wasi_snapshot_preview1.wasm \
@@ -216,11 +221,18 @@ build-plugin-crowdstrike-oauth2:
         2>/dev/null || \
     wasm-tools component new \
         target/wasm32-wasip1/release/crowdstrike_oauth2_plugin.wasm \
-        -o crates/prism-spec-engine/plugins/crowdstrike-oauth2/crowdstrike-oauth2.prx
-    @echo "Validating Component..."
+        -o crates/prism-spec-engine/plugins/crowdstrike-oauth2/crowdstrike-oauth2.prx || \
+        (echo "ERROR: wasm-tools component new failed — build aborted"; exit 1)
+    @echo "Validating Component Model binary..."
+    # F-LP2-HIGH-003: validate exits non-zero on failure; positive assertion checks '(component'
+    # in wasm-tools print output. Both gates exit 1 on failure (no silent fallthrough).
     wasm-tools validate \
         --features=component-model \
-        crates/prism-spec-engine/plugins/crowdstrike-oauth2/crowdstrike-oauth2.prx && \
-    echo "PASS: crowdstrike-oauth2.prx is a valid WASM Component" || \
-    echo "INFO: core module produced (not yet lifted to Component Model — use wasm-tools component lift)"
+        crates/prism-spec-engine/plugins/crowdstrike-oauth2/crowdstrike-oauth2.prx || \
+        (echo "ERROR: crowdstrike-oauth2.prx failed Component Model validation"; exit 1)
+    wasm-tools print \
+        crates/prism-spec-engine/plugins/crowdstrike-oauth2/crowdstrike-oauth2.prx | \
+        grep -q '(component' || \
+        (echo "ERROR: crowdstrike-oauth2.prx is a core WASM module, not a Component"; exit 1)
+    @echo "PASS: crowdstrike-oauth2.prx is a valid WASM Component"
     @echo "Done: crates/prism-spec-engine/plugins/crowdstrike-oauth2/crowdstrike-oauth2.prx"
