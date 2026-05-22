@@ -1017,7 +1017,7 @@ Key lessons applicable to this story:
    error code (unlikely — specs should not need new codes), run TD-VSDD-060 sibling-sweep to
    update error-taxonomy.md in the same commit.
 
-6. **`sensor_id`/filename mismatch uses `E-SPEC-017` (registered in error-taxonomy.md v1.44; originally introduced at v1.41 during FB-IMPL-P2-PO).**
+6. **`sensor_id`/filename mismatch uses `E-SPEC-017` (registered in error-taxonomy.md v1.45; originally introduced at v1.41 during FB-IMPL-P2-PO).**
    `E-SPEC-017` is the dedicated canonical code for `sensor_id`/filename-stem mismatch — emitted
    by BC-2.16.001 v1.6 §Error Conditions at spec-load time. `E-SPEC-009` remains the canonical
    code for duplicate `sensor_id` across multiple spec files (a distinct error condition). The

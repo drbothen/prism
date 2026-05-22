@@ -2,11 +2,11 @@
 document_type: prd-supplement
 level: L3
 section: "error-taxonomy"
-version: "1.44"
+version: "1.45"
 status: active
 producer: product-owner
 timestamp: 2026-05-16T00:00:00Z
-modified: "2026-05-20"
+modified: "2026-05-22"
 phase: 1a
 origin: greenfield
 inputs: [".factory/specs/prd.md", ".factory/specs/behavioral-contracts/**"]
@@ -381,7 +381,7 @@ Additional state errors beyond E-STATE-001 and E-STATE-002 (defined in the STATE
 | E-SPEC-009 | broken | validation | "Duplicate sensor_id '{sensor_id}' across spec files '{file1}' and '{file2}'" | No | Two spec files declare the same sensor_id. First file wins, second is rejected. |
 | E-SPEC-010 | degraded | transient | "Variable interpolation failed: '${{{var}}}' resolved but field path '{path}' not found in response from step '{step}'" | Yes | Runtime variable resolution succeeded but the expected field path does not exist in the API response. Check API response structure. |
 | E-SPEC-011 | broken | validation | "Reserved keyword '{verb}' cannot be used as a write endpoint pipe_verb. Reserved: where, sort, limit, join, enrich, head" | No | Write endpoint pipe_verb collides with a PrismQL reserved keyword |
-| E-SPEC-012 | broken | validation | "auth_type for sensor '{sensor_id}' must be a single value; got: {value}. Valid values: oauth2_client_credentials, bearer_static, cookie_roundtrip, api_key, custom_via_plugin" | No | ADR-023 Rule 2, Rule A — a sensor spec declared `auth_type` as an array or declared a value outside the enumerated set. Cross-sensor auth-composition is rejected at spec-load time. Cites ADR-023 Rule 2. Credential value MUST NOT appear in the error message (AD-017). | BC-2.01.016 (Error Cases: E-SPEC-012) |
+| E-SPEC-012 | broken | validation | "auth_type for sensor '{sensor_id}' must be a single value; got: {value}. Valid values: oauth2_client_credentials, bearer_static, cookie_roundtrip, api_key, custom_via_plugin" OR "sensor '{sensor_id}' declares auth_plugin = '{plugin_id}' but that plugin is not registered in PluginRuntime" | No | ADR-023 Rule 2, Rule A — a sensor spec declared `auth_type` as an array or declared a value outside the enumerated set (AuthTypeCrossComposition variant); OR the `auth_plugin` field references a plugin_id not in PluginRuntime.registry at post-boot validation time (UnknownAuthPlugin variant — added PLUGIN-MIGRATION-001-E F-LP1-CRIT-003). Credential value MUST NOT appear in the error message (AD-017). | BC-2.01.016 (Error Cases: E-SPEC-012) |
 | E-SPEC-013 | broken | validation | "auth method for sensor '{sensor_id}' declares {count} credential_refs; exactly one is required" | No | ADR-023 Rule 2, Rule B — a sensor spec's auth method section references more than one credential per auth method. Rejected at spec-load time before any credential resolution is attempted. Cites ADR-023 Rule 2. | BC-2.01.016 (Error Cases: E-SPEC-013) |
 | E-SPEC-014 | broken | validation | "credential type '{credential_type}' is incompatible with auth_type '{auth_type}' for sensor '{sensor_id}'" | No | ADR-023 Rule 2, Rule C — the resolved credential structural type does not match the declared `auth_type`. Rejected at credential-resolution time, before any HTTP request is issued. Credential VALUE MUST NOT appear in the error message (AD-017); only the structural type label is included. | BC-2.01.016 (Error Cases: E-SPEC-014) |
 | E-SPEC-015 | — | — | — | — | **RETIRED per append_only_numbering (DF-030). ID reserved; never reused.** |
@@ -491,6 +491,7 @@ Additional state errors beyond E-STATE-001 and E-STATE-002 (defined in the STATE
 
 | Version | Burst | Date | Author | Change |
 |---------|-------|------|--------|--------|
+| 1.45 | PLUGIN-MIGRATION-001-E-FB-IMPL-1 | 2026-05-22 | implementer | F-LP1-CRIT-003 closure: Extended E-SPEC-012 row to cover second variant `UnknownAuthPlugin` — `auth_plugin` field in SensorSpec references a plugin_id not registered in PluginRuntime.registry at post-boot validation time. New `SpecEngineError::UnknownAuthPlugin { sensor_id, plugin_id }` variant added in `error.rs`. Validation function `validate_auth_plugin_registered()` added to `validation.rs`. E-SPEC-012 message column updated with second OR clause. Closes CRIT-003 and HIGH-008 (negative test added: `test_PLUGIN_MIGRATION_001_E_007b_unknown_auth_plugin_emits_e_spec_012`). |
 | 1.44 | FB-IMPL-1 | 2026-05-21 | product-owner | POL-30 Fork B catalog bullet cite-pin sweep: `(v1.22)` → `(v1.23)` at 2 live-narrative sites — E-PLUGIN-020 description (1 site) + E-PIPELINE-001 description (2 sites). BC-2.16.002 catalog bullet label advanced from `(v1.22)` to `(v1.23)` in same burst (addition of `timestamp.fallback_to_now` row 35 per ADR-028 v1.9 §D8-B). |
 | 1.43 | FB-IMPL-1 | 2026-05-21 | architect | (D-FB-IMPL-1-OPT-A) Registered E-SPEC-018 (broken, validation, `TimestampParseFailure`) per ADR-028 v1.9 §D8-C and BC-2.16.013 §O-001 Option A LOCKED. Emitted by `PipelineExecutor` when `ColumnSpec::timestamp_formats` is non-empty and no format successfully parsed a `ColumnType::Datetime` column value. Append-only per POL-1; E-SPEC-018 ID is new (no retired predecessors to skip). |
 | 1.42 | FB-IMPL-P21-PO | 2026-05-21 | product-owner | F-LP21-MED-001 closure (15th coherence-axis: section-versioned cite-pin format): E-SPEC-017 row line 389 — stripped `v1.2` from `BC-2.16.013 §Error Conditions v1.2` → `BC-2.16.013 §Error Conditions` per Option A (unversioned style matching BC-2.16.001 §Error Conditions cite in same row). Historical anchor preserved by "Introduced FB-IMPL-P2-PO" clause. Sibling-sweep found 1 additional active-prose hit (HS-018 line 73); corrected in same burst. |

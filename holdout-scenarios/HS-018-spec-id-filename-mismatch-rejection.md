@@ -28,7 +28,7 @@ stale_reason: null
 retired: null
 assumption_source: null
 risk_source: null
-notes: "PLUGIN-MIGRATION-001-D holdout — negative: spec_id/filename mismatch rejected at load time (E-SPEC-017). Authored FB-IMPL-P1-PO fix-burst-1 2026-05-20. Corrected E-SPEC-009→E-SPEC-017 in FB-IMPL-P2-PO fix-burst-2 2026-05-20 (E-SPEC-009 covers duplicate-sensor_id only; filename-stem mismatch is E-SPEC-017 per error-taxonomy.md v1.44)."
+notes: "PLUGIN-MIGRATION-001-D holdout — negative: spec_id/filename mismatch rejected at load time (E-SPEC-017). Authored FB-IMPL-P1-PO fix-burst-1 2026-05-20. Corrected E-SPEC-009→E-SPEC-017 in FB-IMPL-P2-PO fix-burst-2 2026-05-20 (E-SPEC-009 covers duplicate-sensor_id only; filename-stem mismatch is E-SPEC-017 per error-taxonomy.md v1.45)."
 ---
 
 # HS-018: Negative — Spec sensor_id / Filename Mismatch Rejected at Load Time
@@ -68,7 +68,7 @@ targets `crowdstrike.*`.
 2. Collect returned errors
 
 **Expected Outcome:**
-- The file is rejected with `E-SPEC-017` per error-taxonomy.md v1.44 (filename-stem-vs-sensor_id
+- The file is rejected with `E-SPEC-017` per error-taxonomy.md v1.45 (filename-stem-vs-sensor_id
   mismatch; distinct from `E-SPEC-009` which covers duplicate-sensor_id only per BC-2.16.013
   §Error Conditions)
 - Error message names both the filename and the declared `sensor_id`
@@ -86,7 +86,7 @@ targets `crowdstrike.*`.
 
 **Expected Outcome:**
 - File is rejected — `sensor_id` must case-sensitively match filename stem
-- `E-SPEC-017` returned per error-taxonomy.md v1.44 (case-mismatch is a filename-stem-vs-sensor_id failure, not a duplicate-sensor_id; E-SPEC-009 does not apply here)
+- `E-SPEC-017` returned per error-taxonomy.md v1.45 (case-mismatch is a filename-stem-vs-sensor_id failure, not a duplicate-sensor_id; E-SPEC-009 does not apply here)
 - Production convention requires `sensor_id: "crowdstrike"` (all lowercase, matching filename)
 
 ### HS-018-03: Valid Convention (crowdstrike file, crowdstrike sensor_id)
