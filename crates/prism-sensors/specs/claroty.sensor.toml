@@ -28,7 +28,7 @@ version = "1.0.0"
 # ---------------------------------------------------------------------------
 # Table: alerts
 # POST-for-read pattern; offset pagination (page_size = 100)
-# DTU route: POST /api/v1/alerts (build_router() line 86)
+# DTU route: POST /api/v1/alerts (crates/prism-dtu-claroty/src/clone.rs build_router())
 # ---------------------------------------------------------------------------
 [[tables]]
 table_name = "alerts"
@@ -78,15 +78,18 @@ ocsf_class = "security_finding"
   ocsf_field = "message"
 
   # POST-for-read step with offset pagination
-  # DTU route: POST /api/v1/alerts (build_router() line 86)
-  # response_path: DTU returns {"alerts": [...], "total": N, "page": N} per routes/alerts.rs:47
+  # DTU route: POST /api/v1/alerts (crates/prism-dtu-claroty/src/clone.rs build_router())
+  # response_path: DTU returns {"alerts": [...], "total": N, "page": N} per routes::alerts::list_alerts
   # body_template: OffsetLimit pagination engine handles offset via URL query params
   #   (pipeline.rs::build_paged_url_impl appends ?offset=N&limit=M). No body pagination field needed.
+  # F-LP3-HIGH-004: removed '{"size": 100}' from body_template. The OffsetLimit engine
+  #   appends ?offset=N&limit=M to URL — embedding a hardcoded size in the body conflicts
+  #   with URL-based page_size semantics. Using empty JSON object body instead.
   [[tables.steps]]
   name = "fetch_alerts"
   method = "POST"
   path_template = "/api/v1/alerts"
-  body_template = '{"size": 100}'
+  body_template = '{}'
   response_path = "$.alerts"
   variables_produced = []
   [tables.steps.pagination]
@@ -136,11 +139,13 @@ ocsf_class = "audit_activity"
   #   {"audit_logs": [...]} response shape (consistent with per-resource wrapping convention).
   # body_template: OffsetLimit pagination handles offset via URL params (not body fields).
   #   ${page_offset} is NOT a valid step variable; removed per CRIT-002 (ADR-028 §D1).
+  # F-LP3-HIGH-004: removed '{"size": 100}' from body_template (consistent with alerts fix).
+  #   OffsetLimit engine appends ?offset=N&limit=M to URL; body size would conflict.
   [[tables.steps]]
   name = "fetch_audit_logs"
   method = "POST"
   path_template = "/api/v1/audit_logs"
-  body_template = '{"size": 100}'
+  body_template = '{}'
   response_path = "$.audit_logs"
   variables_produced = []
   [tables.steps.pagination]
