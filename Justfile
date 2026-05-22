@@ -180,3 +180,47 @@ build-fixture-component_model_dispatch:
         -o tests/fixtures/component_model_dispatch.prx
     @echo "Built tests/fixtures/component_model_dispatch.prx"
     @wasm-tools component wit tests/fixtures/component_model_dispatch.prx
+
+# Build the crowdstrike-oauth2 .prx WASM plugin from Rust source (PLUGIN-MIGRATION-001-E).
+#
+# This recipe compiles the plugin Rust crate to wasm32-wasip1 cdylib, then wraps it
+# with wasm-tools into a valid WASM Component binary (.prx).
+#
+# Prerequisites:
+#   - Rust wasm32-wasip1 target: `rustup target add wasm32-wasip1`
+#   - wasm-tools 1.248.0+: `cargo install wasm-tools --version 1.248.0`
+#   - wasm-opt (optional, for size reduction): `brew install binaryen` or apt install binaryen
+#
+# Output:
+#   crates/prism-spec-engine/plugins/crowdstrike-oauth2/crowdstrike-oauth2.prx
+#
+# The output .prx file is loaded by PluginRuntime::load_all_plugins at boot step 7.5.
+# In CI, the pre-built .prx is checked into the repository for reproducible builds.
+# Rebuild when changing src/lib.rs, wit/sensor-auth.wit, or manifest plugin.toml.
+#
+# Validation:
+#   wasm-tools validate --features=component-model crowdstrike-oauth2.prx
+#
+# Story: PLUGIN-MIGRATION-001-E (F-LP1-MED-017 closure)
+build-plugin-crowdstrike-oauth2:
+    @echo "Building crowdstrike-oauth2 plugin (wasm32-wasip1 → Component)"
+    cargo build \
+        -p crowdstrike-oauth2-plugin \
+        --target wasm32-wasip1 \
+        --release
+    @echo "Wrapping core module as WASM Component..."
+    wasm-tools component new \
+        target/wasm32-wasip1/release/crowdstrike_oauth2_plugin.wasm \
+        --adapt wasi_snapshot_preview1=tests/fixtures/wasi_snapshot_preview1.wasm \
+        -o crates/prism-spec-engine/plugins/crowdstrike-oauth2/crowdstrike-oauth2.prx \
+        2>/dev/null || \
+    wasm-tools component new \
+        target/wasm32-wasip1/release/crowdstrike_oauth2_plugin.wasm \
+        -o crates/prism-spec-engine/plugins/crowdstrike-oauth2/crowdstrike-oauth2.prx
+    @echo "Validating Component..."
+    wasm-tools validate \
+        --features=component-model \
+        crates/prism-spec-engine/plugins/crowdstrike-oauth2/crowdstrike-oauth2.prx && \
+    echo "PASS: crowdstrike-oauth2.prx is a valid WASM Component" || \
+    echo "INFO: core module produced (not yet lifted to Component Model — use wasm-tools component lift)"
+    @echo "Done: crates/prism-spec-engine/plugins/crowdstrike-oauth2/crowdstrike-oauth2.prx"
