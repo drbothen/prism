@@ -2771,7 +2771,7 @@ mod timestamp_normalization_tests {
     /// now() (within ±10 seconds tolerance).
     ///
     /// Note: tracing::warn!(event_type = "timestamp.fallback_to_now") emission is the
-    /// behavioral contract per BC-2.16.002 v1.36 row 35. The BC catalog row is the
+    /// behavioral contract per BC-2.16.002 v1.37 row 35. The BC catalog row is the
     /// authoritative contract record; direct assertion of the emission from this unit
     /// test would require tracing-test infrastructure not available in-scope.
     #[test]
