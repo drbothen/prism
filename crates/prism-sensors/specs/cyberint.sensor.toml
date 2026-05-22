@@ -91,11 +91,11 @@ ocsf_class = "security_finding"
   # Cursor-based pagination
   # DTU route: GET /api/v1/alerts (build_router() line 115)
   # response_path: Cyberint DTU returns {"data": [...], "next_cursor": "..."} per routes/alerts.rs
-  # page_size: HIGH-004 verification — DTU AlertListParams only has cursor (no page_size field);
-  #   DTU ignores page_size in CI testing. Real Cyberint production API accepts page_size as a
-  #   cursor pagination hint per their REST API spec. page_size = 100 is kept as the forward-looking
-  #   contract (ADR-028 §D1: spec is source of truth; DTU extension tracks under DTU-EXT future story).
-  #   If future DTU extension confirms page_size is NOT accepted, remove this field.
+  # page_size: OMITTED — DTU AlertListParams has cursor field only (no page_size in the struct).
+  #   F-LP2-MEDIUM-001 (arch-handoff#2): page_size removed from this block. The DTU does not
+  #   accept page_size today; DTU extension DTU-EXT-005 tracks adding page_size support to
+  #   AlertListParams. Until DTU-EXT-005 lands, omitting page_size causes the pipeline to use
+  #   DTU defaults (no page_size query param appended). Re-add when DTU-EXT-005 is resolved.
   [[tables.steps]]
   name = "fetch_alerts"
   method = "GET"
@@ -105,7 +105,6 @@ ocsf_class = "security_finding"
   [tables.steps.pagination]
   type = "cursor_token"
   cursor_response_path = "$.next_cursor"
-  page_size = 100
 
 # ---------------------------------------------------------------------------
 # Table: incidents
@@ -146,6 +145,7 @@ ocsf_class = "incident_finding"
 
   # EC-016-013-002: DTU gap — no incidents route. Using cursor pattern consistent
   # with alerts table. Parity test for this table is explicit SKIP per AC-009.
+  # page_size: OMITTED — consistent with alerts table. DTU-EXT-005 tracks page_size addition.
   [[tables.steps]]
   name = "fetch_incidents"
   method = "GET"
@@ -155,4 +155,3 @@ ocsf_class = "incident_finding"
   [tables.steps.pagination]
   type = "cursor_token"
   cursor_response_path = "$.next_cursor"
-  page_size = 100
