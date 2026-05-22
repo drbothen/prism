@@ -1,0 +1,20 @@
+[package]
+name = "crowdstrike-oauth2-plugin"
+version = "0.1.0"
+edition = "2024"
+description = "CrowdStrike OAuth2 client-credentials auth as an in-repo .prx WASM plugin (PLUGIN-MIGRATION-001-E)"
+
+# This crate is a WASM guest — compiled to wasm32-wasip1 or wasm32-unknown-unknown.
+# It MUST NOT depend on prism-sensors (circular dep) or reqwest (HTTP via host_http_request).
+# Credential handling uses opaque handles — no secrecy crate (WASM compat constraints).
+
+[lib]
+crate-type = ["cdylib", "lib"]
+
+[dependencies]
+# JSON parsing for OAuth2 token response (access_token, expires_in).
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+
+[features]
+# No features — production-grade default applies to all builds.

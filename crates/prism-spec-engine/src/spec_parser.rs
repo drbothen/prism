@@ -404,6 +404,23 @@ pub struct SensorSpec {
     /// that predate this field.
     #[serde(default)]
     pub credential_refs: Vec<CredentialRef>,
+    /// Optional plugin ID for authentication routing (PLUGIN-MIGRATION-001-E).
+    ///
+    /// When `Some(plugin_id)`, the spec engine routes authentication for this sensor
+    /// through the named `.prx` WASM plugin rather than through the built-in Rust
+    /// adapter. The plugin must be registered in `PluginRuntime.registry` at spec-load
+    /// time (AC-007); an unregistered plugin_id emits `E-SPEC-012`.
+    ///
+    /// Example (crowdstrike.sensor.toml `[auth]` section):
+    ///   `auth_plugin = "crowdstrike-oauth2"`
+    ///
+    /// `#[serde(default)]` ensures backward-compatible parsing: TOML files without
+    /// this field parse as `None` (no plugin auth routing). No existing sensor TOML
+    /// files break when this field is absent.
+    ///
+    /// Traces to: BC-2.01.016 §Plugin-Implementable Auth; BC-2.17.007 manifest gate.
+    #[serde(default)]
+    pub auth_plugin: Option<String>,
 }
 
 impl Default for SensorSpec {
@@ -430,6 +447,7 @@ impl Default for SensorSpec {
             rate_limit_hints: None,
             version: "1.0.0".to_string(),
             credential_refs: vec![],
+            auth_plugin: None,
         }
     }
 }
@@ -477,6 +495,7 @@ impl SensorSpec {
             rate_limit_hints,
             version: version.into(),
             credential_refs,
+            auth_plugin: None,
         }
     }
 }

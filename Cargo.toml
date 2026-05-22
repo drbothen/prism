@@ -30,6 +30,9 @@ members = [
     "crates/prism-ocsf",
     "crates/prism-security",
     "crates/prism-spec-engine",
+    # PLUGIN-MIGRATION-001-E: in-repo .prx WASM plugin for CrowdStrike OAuth2 auth.
+    # Compiled as cdylib for wasm32 target; included in workspace for cargo check.
+    "crates/prism-spec-engine/plugins/crowdstrike-oauth2",
     "crates/prism-sensors",
     "crates/prism-storage",
     "crates/prism-audit",

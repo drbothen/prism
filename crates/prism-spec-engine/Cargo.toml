@@ -209,3 +209,12 @@ required-features = ["test-helpers"]
 name = "parity_armis"
 path = "tests/parity/armis.rs"
 required-features = ["test-helpers"]
+
+# PLUGIN-MIGRATION-001-E: Red Gate tests 1-10 for CrowdStrike OAuth2 .prx WASM plugin.
+# Tests 1-6,8-10 call todo!() (Red Gate failing); tests 7 + task1_backward_compat will
+# pass once the SensorSpec::auth_plugin field and TOML amendment are in place.
+# required-features: test-helpers (HostState constructors, NullAuthProvider)
+[[test]]
+name = "crowdstrike_oauth2_plugin_tests"
+path = "tests/crowdstrike_oauth2_plugin_tests.rs"
+required-features = ["test-helpers"]
