@@ -21,6 +21,37 @@ order (newest first) per POL-26.
 
 ---
 
+## Burst D-770 (2026-05-21) — FB-IMPL-7 CLOSED — pass-7 first CLEAN-per-criterion; 1 LOW swept per no-pragmatic-convergence
+
+**Agents dispatched:** implementer (feature branch — 55b4f72d), state-manager (.factory/ — D-770 combined burst)
+**Feature commits:** 55b4f72d (implementer F-LP7-LOW-001; single-line doc-comment cite-pin pipeline.rs:2774 BC-2.16.002 v1.36→v1.37)
+**Files touched (.factory/):** STATE.md (v7.456→v7.457), cycles/wave-0-plugin-prereqs/burst-log.md, cycles/wave-0-plugin-prereqs/lessons.md
+**Versions bumped:** STATE.md v7.456→v7.457
+
+### Summary
+
+Pass-7 returned 0 CRIT / 0 HIGH / 0 MED / 1 LOW / 1 OBS + 14 positive verifications. **First CLEAN-per-criterion pass** in the PLUGIN-MIGRATION-001-D LOCAL impl cascade — lenient criterion satisfied (0 CRIT+HIGH+MED). Per Canonical Principle "no pragmatic convergence," the LOW was swept rather than accepted under the lenient criterion.
+
+**F-LP7-LOW-001 (CLOSED — implementer 55b4f72d):** `pipeline.rs:2774` test-doc cite-pin referenced BC-2.16.002 v1.36 but the version advanced to v1.37 during FB-IMPL-5 PO burst (4d934f28). Root cause: FB-IMPL-5 PO sibling-sweep ran across `.factory/` only; `crates/` doc-comment cite-pins were outside PO routing scope. Single-line fix advancing the cite-pin to v1.37.
+
+**F-LP7-OBS-001 [process-gap] (captured — session-reviewer):** POL-29 step 8f sibling-sweep scope should explicitly include `crates/**/*.rs` when bumping BC frontmatter version, even for no-op content bumps. Codification deferred to session-reviewer (routing: process-gap not implementer-actionable in-burst).
+
+### Convergence criterion note
+
+Pass-7 revealed two operating convergence definitions in this cascade:
+- **Lenient** (≥0 CRIT+HIGH+MED → CLEAN flag): adversary correctly marked CLEAN: yes
+- **Strict** (zero findings any severity → streak advances): orchestrator honored strict interpretation per BC-5.39.001 + no-pragmatic-convergence directive
+
+Streak remains 0/3. Pass-8 dispatching against HEAD 55b4f72d — STRONG CLEAN expected.
+
+### Workspace gate
+`just check` 3724/3724 PASS unchanged (doc-comment-only change cannot regress Rust tests).
+
+### Cascade trajectory
+15 (pass-1) → 13 (pass-2) → 10 (pass-3) → 2 (pass-4) → 3 (pass-5) → 1 (pass-6) → 1 (pass-7) — deep asymptote; pass-7 first CLEAN-per-criterion.
+
+---
+
 ## Burst D-769 (2026-05-21) — FB-IMPL-6 CLOSED — 1 LOW finding (TD-VSDD-091 task-body line-cites); best cascade result yet
 
 **Agents dispatched:** state-manager (.factory/ — D-769 combined burst)
