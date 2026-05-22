@@ -21,6 +21,43 @@ order (newest first) per POL-26.
 
 ---
 
+## Burst D-771 (2026-05-21) — pass-8 CLEAN-ZERO — first TRUE convergence pass; streak 0/3→1/3
+
+**Agents dispatched:** adversary (agent a0b2ed17335e90dc0, read-only), state-manager (.factory/ — D-771 bookkeeping burst)
+**Feature commits:** NONE — feature branch HEAD 55b4f72d UNCHANGED (pass-8 was read-only review)
+**Files touched (.factory/):** STATE.md (v7.457→v7.458), cycles/wave-0-plugin-prereqs/burst-log.md, cycles/wave-0-plugin-prereqs/lessons.md
+**Versions bumped:** STATE.md v7.457→v7.458
+
+### Summary
+
+Pass-8 returned **ZERO findings of any severity** — no CRIT, no HIGH, no MED, no LOW, no OBS. First TRUE convergence pass in the PLUGIN-MIGRATION-001-D LOCAL impl cascade. Per BC-5.39.001 strict interpretation, streak advances **0/3 → 1/3**.
+
+Adversary's own framing: "Findings decay 15→13→10→2→3→1→1→0 confirms convergence-by-content rather than convergence-by-fatigue." 13 verification probes ALL PASSED:
+
+1. POL-29 sibling-sweep: zero stale version pins in live narrative
+2. TOML↔DTU column type cross-check: all 4 sensors clean
+3. ADR-028 §D8 Option A end-to-end: ColumnSpec→validator (3 stages)→normalize_timestamp_fields→tracing emission, fully wired
+4. POL-24 byte-fidelity for E-SPEC-017: matches error-taxonomy.md v1.44
+5. POL-24 byte-fidelity for E-SPEC-018: matches + pinned by unit test
+6. Tracing event_type catalog: only `timestamp.fallback_to_now` new; registered as BC-2.16.002 v1.37 row 35
+7. POL-12 stub residue: no `todo!()`/`unimplemented!()` in production paths added by branch
+8. POL-21 phantom anchors: §D8-A/B/C, §O-001, row 35 all resolve
+9. POL-22 named-entity existence: all cited Rust symbols verified in code
+10. TD-VSDD-091 anti-volatile-pin: story body sweep complete; only changelog exempt remains
+11. TD-VSDD-059 paper-fix detection: all new tests load-bearing
+12. #[non_exhaustive] discipline: SpecErrorCode + SpecEngineError clean; CI EXPECTED=32 unchanged
+13. Story↔BC↔test traceability: RG-09 + ESpec017 + bc_2_16_013_spec_id_mismatch.rs all aligned
+
+### Workspace gate
+
+`just check` 3724/3724 PASS unchanged (pass-8 was read-only; no code changes).
+
+### Cascade trajectory
+
+15 (pass-1) → 13 (pass-2) → 10 (pass-3) → 2 (pass-4) → 3 (pass-5) → 1 (pass-6) → 1 (pass-7) → **0 (pass-8)** — TRUE CONVERGENCE signal.
+
+---
+
 ## Burst D-770 (2026-05-21) — FB-IMPL-7 CLOSED — pass-7 first CLEAN-per-criterion; 1 LOW swept per no-pragmatic-convergence
 
 **Agents dispatched:** implementer (feature branch — 55b4f72d), state-manager (.factory/ — D-770 combined burst)
