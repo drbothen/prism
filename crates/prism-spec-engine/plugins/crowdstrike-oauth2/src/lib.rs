@@ -249,6 +249,7 @@ mod host_impl {
 ///
 /// # Example
 /// ```
+/// use crowdstrike_oauth2_plugin::auth_type_name;
 /// assert_eq!(auth_type_name(), "oauth2_client_credentials");
 /// ```
 pub fn auth_type_name() -> &'static str {
