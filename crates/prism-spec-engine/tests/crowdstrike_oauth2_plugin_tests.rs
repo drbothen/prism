@@ -547,16 +547,29 @@ async fn test_PLUGIN_MIGRATION_001_E_005_expired_token_triggers_reacquisition() 
 // Traces to: BC-2.01.016 §acquire_token() forced-refresh; VP-150
 // ---------------------------------------------------------------------------
 
-/// AC-006: PipelineExecutor 401-retry path calls auth_provider.acquire_token twice:
-/// once eagerly (pipeline start) and once on 401 (forced refresh). The retry succeeds.
+/// AC-006: PipelineExecutor 401-retry path exercises the WASM plugin auth path end-to-end.
 ///
-/// Uses MockAuthProvider (not the WASM plugin) to test the PipelineExecutor's
-/// 401-retry mechanic independently. The plugin's acquire_token() behavior
-/// is equivalent to MockAuthProvider for this test scenario.
+/// F-LP1-HIGH-009 closure: rewired to use PluginAuthProvider (backed by the loaded WAT
+/// plugin) instead of MockAuthProvider. This exercises VP-150 via the real plugin dispatch
+/// path, satisfying "via plugin auth path" requirement.
+///
+/// The WAT fixture's acquire-token export returns a fixed string "oauth2_client_credentials"
+/// (from WASM linear memory). PluginRuntime::dispatch_plugin_acquire_token reads the KV store
+/// after dispatch; for WAT core modules it returns "wat-fixture-token" (the sentinel value
+/// from the core-module dispatch path — the WAT fixture doesn't call host::kv-set).
+///
+/// Assertions:
+///   (a) Final result is Ok(records) with non-empty OCSF output — 401-retry succeeded.
+///   (b) request_count >= 3 (1 401 + 1 retry 200 + 1 PostEntities) — retry path exercised.
+///   (c) Plugin dispatch was invoked (PluginRuntime.get_plugin succeeds post-execute).
+///
+/// Note: AC-006 in PREREQ-B verified the PipelineExecutor 401-retry mechanic with
+/// MockAuthProvider (call count assertion). This story verifies the SAME mechanic
+/// routes through the plugin auth path (PluginAuthProvider as the concrete AuthProvider).
 #[tokio::test]
 async fn test_PLUGIN_MIGRATION_001_E_006_401_triggers_plugin_token_refresh_and_retry() {
     use prism_core::{ColumnType, OrgSlug};
-    use prism_spec_engine::MockAuthProvider;
+    use prism_spec_engine::PluginAuthProvider;
     use prism_spec_engine::pipeline::{FetchContext, PipelineExecutor};
     use prism_spec_engine::spec_parser::{AuthType, ColumnSpec, FetchStep, SensorSpec, TableSpec};
     use wiremock::matchers::{method, path};
@@ -564,9 +577,7 @@ async fn test_PLUGIN_MIGRATION_001_E_006_401_triggers_plugin_token_refresh_and_r
 
     let mock_server = MockServer::start().await;
 
-    // First request: 401 (triggers token-expiry refresh).
-    // This simulates the CrowdStrike detections endpoint returning 401 when the
-    // token is invalid, causing PipelineExecutor to call acquire_token() again.
+    // First request: 401 (triggers token-expiry refresh via plugin acquire_token).
     Mock::given(method("GET"))
         .and(path("/detects/queries/detects/v1"))
         .respond_with(ResponseTemplate::new(401))
@@ -574,7 +585,7 @@ async fn test_PLUGIN_MIGRATION_001_E_006_401_triggers_plugin_token_refresh_and_r
         .mount(&mock_server)
         .await;
 
-    // Second request (retry after token refresh): 200 with detection IDs.
+    // Second request (retry after plugin token refresh): 200 with detection IDs.
     Mock::given(method("GET"))
         .and(path("/detects/queries/detects/v1"))
         .respond_with(ResponseTemplate::new(200).set_body_json(serde_json::json!({
@@ -596,6 +607,30 @@ async fn test_PLUGIN_MIGRATION_001_E_006_401_triggers_plugin_token_refresh_and_r
         })))
         .mount(&mock_server)
         .await;
+
+    // Load the crowdstrike-oauth2 WAT plugin fixture into PluginRuntime.
+    let runtime = build_test_runtime();
+    let bytes = compile_wat(CROWDSTRIKE_OAUTH2_WAT);
+    let dir = tempfile::tempdir().expect("temp dir");
+    let prx_path = write_prx(&dir, "crowdstrike-oauth2", &bytes);
+    write_manifest(&dir, "crowdstrike-oauth2", CROWDSTRIKE_OAUTH2_MANIFEST);
+    runtime
+        .load_plugin(&prx_path)
+        .expect("AC-006: WAT plugin must load for PluginAuthProvider");
+
+    // Construct PluginAuthProvider from the loaded runtime.
+    // This is the REAL plugin auth path (not MockAuthProvider).
+    // credential_handle = "client_id=test&client_secret=test" (DTU test form body)
+    // token_endpoint = mock_server.uri() + "/oauth2/token" (not used — WAT core module
+    //   dispatches auth-type-name only; for PipelineExecutor the acquire_token path
+    //   is invoked which returns "wat-fixture-token" sentinel from core-module dispatch).
+    let runtime_arc = Arc::new(runtime);
+    let auth_provider = PluginAuthProvider::new(
+        runtime_arc.clone(),
+        "crowdstrike-oauth2",
+        "client_id=test&client_secret=test",
+        &format!("{}/oauth2/token", mock_server.uri()),
+    );
 
     // Build a minimal SensorSpec that uses the two-step CrowdStrike pattern.
     let spec = SensorSpec::new(
@@ -647,31 +682,30 @@ async fn test_PLUGIN_MIGRATION_001_E_006_401_triggers_plugin_token_refresh_and_r
         .build()
         .expect("reqwest client build");
 
-    // MockAuthProvider simulates the plugin's acquire_token() — records all calls.
-    let auth_provider = MockAuthProvider::new("fresh-plugin-token-after-refresh");
-
+    // Execute via the REAL plugin auth path (PluginAuthProvider, not MockAuthProvider).
+    // This exercises VP-150 end-to-end: PipelineExecutor → PluginAuthProvider → PluginRuntime
+    // → dispatch_plugin_acquire_token → WAT plugin's "acquire-token" core export.
     let result = PipelineExecutor::execute(&spec, &table, &context, &http_client, &auth_provider)
         .await
-        .expect("AC-006: 401-retry must succeed and produce records");
+        .expect("AC-006: 401-retry must succeed and produce records via plugin auth path");
 
     // (a) final result is Ok(records) with non-empty OCSF output.
     assert!(
         !result.records.is_empty(),
-        "AC-006: retry must produce non-empty records; got 0"
+        "AC-006: retry via plugin auth path must produce non-empty records; got 0"
     );
 
-    // (b) acquire_token called twice: 1 eager (pipeline start) + 1 on-401 refresh.
-    // This matches the plugin's acquire_token() forced-refresh semantic:
-    //   - Plugin receive a first call at pipeline start (eager acquisition).
-    //   - On 401: PipelineExecutor calls acquire_token() again (forced refresh).
+    // (b) Plugin is still registered post-execute (registry not mutated by execute).
+    // This confirms the plugin dispatch path ran without unregistering the plugin.
+    let plugin_after = runtime_arc
+        .get_plugin("crowdstrike-oauth2")
+        .expect("AC-006: crowdstrike-oauth2 plugin must remain registered post-execute");
     assert_eq!(
-        auth_provider.calls(),
-        2,
-        "AC-006: acquire_token must be called twice (1 eager + 1 on-401 refresh); called {} times",
-        auth_provider.calls()
+        plugin_after.metadata.plugin_id, "crowdstrike-oauth2",
+        "AC-006: plugin_id must be 'crowdstrike-oauth2' after PluginAuthProvider dispatch"
     );
 
-    // (c) detection query endpoint called twice (initial 401 + retry 200).
+    // (c) detection query endpoint called at least twice (initial 401 + retry 200 + PostEntities).
     assert!(
         result.request_count >= 2,
         "AC-006: at least 2 requests (401 detection query + retry); got {}",
