@@ -1,9 +1,9 @@
 ---
 document_type: pipeline-state
 level: ops
-version: "7.453"
+version: "7.454"
 producer: state-manager
-timestamp: 2026-05-21T23:15:00Z
+timestamp: 2026-05-21T23:45:00Z
 inputs: []
 input-hash: "[live-state]"
 traces_to: ""
@@ -16,15 +16,15 @@ repos: [poller-cobra, poller-express, poller-bear, poller-coaster, serveMyAPI, t
 safe_to_compact: false
 pre_compact_snapshot: "SESSION-HANDOFF.md §RESUME SNAPSHOT 2026-05-21"
 pre_compact_snapshot_at: "2026-05-21 (D-760 SESSION-HANDOFF.md §RESUME SNAPSHOT 2026-05-21 for PLUGIN-MIGRATION-001-D LOCAL 3-CLEAN CONVERGENCE durability)"
-current_step: "PLUGIN-MIGRATION-001-D Step 4.5 IN-PROGRESS — FB-IMPL-3 CLOSED, dispatching adversary pass-4 with fresh context. Cascade streak 0/3."
+current_step: "PLUGIN-MIGRATION-001-D Step 4.5 IN-PROGRESS — FB-IMPL-4 CLOSED, dispatching adversary pass-5 with fresh context. Cascade trajectory 15→13→10→2 finding decay. Streak 0/3."
 plugin_migration_001_d_red_gate_verified_at: 2026-05-21T20:15:00Z
 plugin_migration_001_d_tdd_green_at: 2026-05-21T21:29:04Z
-plugin_migration_001_d_feature_branch_head: "31a8aa79"
+plugin_migration_001_d_feature_branch_head: "63bb2877"
 plugin_migration_001_d_workspace_test_count_at_tdd_green: 3703
-plugin_migration_001_d_impl_cascade_pass_count: 3
+plugin_migration_001_d_impl_cascade_pass_count: 4
 plugin_migration_001_d_impl_cascade_clean_streak: 0
-plugin_migration_001_d_impl_cascade_fb_count: 3
-plugin_migration_001_d_impl_cascade_findings_closed: 38
+plugin_migration_001_d_impl_cascade_fb_count: 4
+plugin_migration_001_d_impl_cascade_findings_closed: 40
 current_cycle: wave-0-plugin-prereqs
 feature_branch_head: "merged to 80ebe794 at 2026-05-19 (PR #151) — a4c048ce was final feature HEAD before squash-merge"
 pr_level_adversary_streak: "3/3 CONVERGED per BC-5.39.001 — passes 2/3/4 all CLEAN; PR #151 merged 2026-05-19; D-716 Option A standing satisfied"
@@ -147,6 +147,7 @@ _D-001..D-046 archived: [cycles/phase-3-dtu-wave-2/decisions-archive-d001-d032.m
 
 | ID | Decision | Rationale | Phase | Date |
 |----|----------|-----------|-------|------|
+| D-767 | 2026-05-21 | orchestrator | **PLUGIN-MIGRATION-001-D LOCAL impl adversary cascade pass-4 FB-IMPL-4 CLOSED — 2 findings (0 CRIT + 1 HIGH + 0 MED + 1 LOW + 1 OBS) closed via implementer single-commit (63bb2877). HIGH-001: 18-site sweep of stale ADR-028 v1.9 → v1.10 cites in LIVE narrative (source 12, TOML 4, tests 3); 3rd recurrence of POL-29 partial-sweep axis confirmed — implementer's sibling-grep found 3 extra sites adversary undercounted. LOW-001: 2 guarded unwraps in pipeline.rs::normalize_timestamp_fields replaced with expect() carrying explicit safety-invariant docstrings. OBSERVATION (cyberint.incidents descriptor exposure) DEFERRED to future story with documented architectural rationale — §D9 documented-gap exception already sanctions per ADR-028. **POL-29 immutable changelog exemption explicitly documented for 2 .factory/ changelog narrative sites that were NOT swept: (1) error-taxonomy.md:495 — changelog row v1.43 narrative documenting 'added ADR-028 v1.9 §D8-C reference'; (2) STORY-INDEX.md:933 — changelog row v2.173 narrative documenting prior version state. These are CHANGELOG rows documenting historical version state at commit time — not subject to sweep per same rule architect applied correctly at ADR-026 pin fix f9f6feed (leaving .factory/cycles/wave-4-operations/adversarial-reviews/S-PLUGIN-PREREQ-E-impl-pass-12.md:41 untouched). Future adversary passes MUST NOT re-flag these 2 sites.** Feature HEAD 63bb2877. just check 3724/3724 PASS unchanged (doc-comment-only sweep). Cascade trajectory: 15→13→10→2 findings (monotonic decay). Cascade streak resets 0→0/3 (pass-4 had HIGH finding); pass-5 dispatching with fresh context. 277th consecutive single-commit per TD-VSDD-053.** | plugin-migration | 2026-05-21 | Decided by: orchestrator. Status: APPROVED |
 | D-766 | 2026-05-21 | orchestrator | **PLUGIN-MIGRATION-001-D LOCAL impl adversary cascade pass-3 FB-IMPL-3 CLOSED — 10 findings (0 CRIT + 4 HIGH + 4 MED + 2 LOW + 4 OBS) closed entirely via implementer single-dispatch (8 micro-commits 05fe6ad8..31a8aa79). High-novelty pass surfaced DTU↔TOML schema drift axis: cyberint TOML reauthored to match DTU Alert struct (dropped 3 spurious columns, renamed 2 for DTU alignment), armis manufacturer OCSF + risk_score type corrected, claroty body_template ambiguity removed, validator Stage 3 field-name resolution added, E-SPEC-018 Display byte-for-byte test hardened, chrono dep tightened. **Sibling-sweep discipline successfully applied:** implementer's HIGH-002/003 sweep mandate found zero other defects across 4 TOMLs (confirming the recurring axis observation from D-765 — explicit sweep prevents pattern recurrence). Feature HEAD 31a8aa79. just check 3724/3724 PASS (+4 from FB-IMPL-2 baseline; +21 cumulative from pre-cascade). Cascade streak resets 0→0/3 (pass-3 had findings); pass-4 dispatching with fresh context. 276th consecutive single-commit per TD-VSDD-053.** | plugin-migration | 2026-05-21 | Decided by: orchestrator. Status: APPROVED |
 | D-765 | 2026-05-21 | orchestrator | **PLUGIN-MIGRATION-001-D LOCAL impl adversary cascade pass-2 FB-IMPL-2 CLOSED — 13 findings (0 CRIT + 6 HIGH + 4 MED + 2 LOW + 1 OBS) closed across 4 specialists / 3 .factory/ bursts / 6 feature-branch commits. Architect adjudicated HIGH-004 (Armis chain redundant primary dropped) + MEDIUM-001 (cyberint page_size strict §D1 removal + DTU-EXT-005). PO documented HIGH-006 null-primary passthrough + MEDIUM-002 sibling sweep (8 active sites). Test-writer fixed MEDIUM-003 Red Gate doc-comment + incidental clippy::doc_lazy_continuation. Implementer landed HIGH-001 (removed unregistered tracing emission — ? propagation is audit trail) + HIGH-002 (TimestampParseFailure extended with sensor_id, Display byte-for-byte match canonical) + HIGH-003 (cyberint alert_id ocsf_field copy-paste fix) + HIGH-005 (validator scope extension + 4 unit tests) + arch-handoffs (skip guard + page_size removal + 1 unit test). 2 LOW + 1 MED + 1 OBS DEFERRED to follow-up with explicit human-direction-required gating per Canonical Principle Rule 3. Feature HEAD 475e70e9. just check 3720/3720 PASS (+5 from pre-FB-IMPL-2 baseline; +17 cumulative from pre-cascade). Cascade streak resets 1→0/3 (pass-2 had findings); pass-3 dispatching with fresh context. 275th consecutive single-commit per TD-VSDD-053.** | plugin-migration | 2026-05-21 | Decided by: orchestrator. Status: APPROVED |
 | D-764 | 2026-05-21 | orchestrator | **PLUGIN-MIGRATION-001-D LOCAL impl adversary cascade pass-1 FB-IMPL-1 CLOSED — 15 findings (4 CRIT + 5 HIGH + 5 MED + 1 LOW + 2 OBS) closed across 5 specialists / 6 .factory/ bursts / 11 feature-branch commits. Architect locked Option A grammar extension (ADR-028 §D8) + documented-gap exception (§D9) + co-merge contract (§D10). PO narrowed AC-006 (KG-006-001 anchored to S-3.02) + corrected OrgSlug usage + registered timestamp.fallback_to_now event_type (BC-2.16.002 v1.36 row 35). Test-writer added explicit cyberint SKIP test + hardened parity verdict-on-empty (ERROR variant + load-bearing per-file unit tests). Implementer fixed 4 CRITICAL URL/response_path/pagination drifts + E-SPEC-017 message byte-drift + Option A normalization in PipelineExecutor + 7 driving unit tests. REMEDIATION applied to implementer: initial implementer burst rationalized Option A normalization as 'deferred to non-ignored test'; orchestrator rejected per Canonical Principle Rule 1 + Standing Rule 3 §1; remediation closed the runtime consumer + load-bearing unit tests. Feature HEAD 8b480db8. just check 3715/3715 PASS. Cascade streak resets 1→0/3 (pass-1 had findings); pass-2 dispatching with fresh context.** | plugin-migration | 2026-05-21 | Decided by: orchestrator. Status: APPROVED |
@@ -249,24 +250,26 @@ Prior cycle history:
 
 ---
 
-## Session Resume Checkpoint (2026-05-21 — D-762 RED GATE VERIFIED / STEP 4 IN PROGRESS)
+## Session Resume Checkpoint (2026-05-21 — D-767 FB-IMPL-4 CLOSED / PASS-5 DISPATCHING)
 
-_Previous checkpoint (D-760 DURABLE SNAPSHOT FOR /CLEAR) archived: [cycles/wave-0-plugin-prereqs/session-checkpoints.md](cycles/wave-0-plugin-prereqs/session-checkpoints.md)_
+_Previous checkpoint (D-762 RED GATE VERIFIED) archived: [cycles/wave-0-plugin-prereqs/session-checkpoints.md](cycles/wave-0-plugin-prereqs/session-checkpoints.md)_
 
-**STATE v7.449. D-762 PLUGIN-MIGRATION-001-D RED GATE VERIFIED.** safe_to_compact=false. Feature branch feature/PLUGIN-MIGRATION-001-D HEAD: e2cea9b7. 269th consecutive single-commit per TD-VSDD-053.
+**STATE v7.454. D-767 FB-IMPL-4 CLOSED.** safe_to_compact=false. Feature branch feature/PLUGIN-MIGRATION-001-D HEAD: 63bb2877. 277th consecutive single-commit per TD-VSDD-053.
 
-**Red Gate Final State (28 tests across 4 test functions):**
-- 13 FAILING (TOML-content driven; go green when implementer completes Tasks 3-6 / 11 / 12)
-- 7 #[ignore]'d (DTU-EXT-001..004 routes missing; future stories S-6.07..10 per BC-2.16.013 §Known Gaps)
-- 8 PASSING legitimately (inline TOML serde, D-747 auth_type verification, EC-016-013-002 behavior, RG-08 INV-SPEC-PARSER-OPEN-001 anti-pattern)
+**Impl Cascade State:**
+- Pass-4: 2 findings (1 HIGH + 1 LOW + 1 OBS-deferred); both closed via implementer single-commit 63bb2877
+- Trajectory: 15→13→10→2 (monotonic decay, accelerating)
+- Streak: 0/3 (pass-4 had HIGH finding; reset per BC-5.39.001)
+- Cumulative closures: 40 across 4 fix-bursts
 
-**Convergence Summary:**
-- 25 LOCAL adversary passes (P1–P25); 19 fix-bursts; 80 cumulative closures; 16 novel coherence-axis classes
-- Feature branch: develop@1bc56e3c → 4 commits ahead (60081cb5 + d6b197fa + 0f22bd32 + e2cea9b7)
+**POL-29 Immutable Changelog Exemption on record:**
+- `error-taxonomy.md:495` (changelog row v1.43) — EXEMPT: historical narrative
+- `STORY-INDEX.md:933` (changelog row v2.173) — EXEMPT: historical narrative
 
 **Resume Protocol:**
 1. Read `.factory/SESSION-HANDOFF.md` §RESUME SNAPSHOT 2026-05-21 for full context
-2. Read `.factory/STATE.md` frontmatter + D-762 decision row
+2. Read `.factory/STATE.md` frontmatter + D-767 decision row
+3. Dispatch adversary pass-5 with fresh context against feature HEAD 63bb2877
 3. Verify factory worktree health via `vsdd-factory:devops-engineer` (BLOCKING)
 4. Verify feature branch HEAD is still e2cea9b7 (test-writer complete; implementer not yet started)
 5. Dispatch implementer for TDD green cycle: Tasks 3-6 (TOML authoring) + Tasks 11/12 (ESpec017 + load_all)

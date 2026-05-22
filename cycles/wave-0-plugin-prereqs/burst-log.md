@@ -21,6 +21,40 @@ order (newest first) per POL-26.
 
 ---
 
+## Burst D-767 (2026-05-21) — FB-IMPL-4 CLOSED — 2 findings (1 HIGH + 1 LOW)
+
+**Agents dispatched:** implementer (feature branch), state-manager (.factory/)
+**Feature commits:** 63bb2877 (implementer FB-IMPL-4; single commit covering both findings)
+**Files touched (feature branch):** crates/ (12 source files), TOML specs (4), tests (3) — 18 total live narrative sites swept
+**Versions bumped:** STATE.md v7.453→v7.454
+
+### Summary
+
+Pass-4 surfaced 2 actionable findings (massive decay from 10→2 vs pass-3 — lowest since cascade began). Both closed in a single implementer commit (63bb2877). Cascade streak remains 0/3 (pass-4 had HIGH finding per BC-5.39.001).
+
+**F-LP4-HIGH-001 (CLOSED):** 18 sites swept ADR-028 v1.9 → v1.10 across LIVE narrative (source 12, TOML 4, tests 3). Adversary undercounted by 3 — implementer's sibling-grep (`grep -rn "ADR-028 v1\.9" crates/`) found extras. Grep returned ZERO matches after sweep. This is the 3rd recurrence of the POL-29 partial-sweep axis in this cascade.
+
+**F-LP4-LOW-001 (CLOSED):** Both guarded unwraps in `pipeline.rs::normalize_timestamp_fields` replaced with `expect()` carrying explicit safety-invariant docstrings explaining why the invariant holds at that call site.
+
+**F-LP4-OBSERVATION-001 (DEFERRED):** cyberint.incidents descriptor exposure — non-blocking; §D9 documented-gap exception already sanctions per ADR-028; suggested `descriptor_status` field improvement added to backlog observations. Deferred to future story.
+
+### POL-29 Immutable Changelog Exemption (explicitly documented)
+
+The adversary's pass-4 report listed 17 stale sites. Implementer correctly swept 15 cited + 3 sibling-grep extras = 18 LIVE narrative sites. The 2 `.factory/` sites the adversary listed were NOT swept and are explicitly exempted:
+
+- `error-taxonomy.md:495` — Changelog row v1.43 narrative: "added ADR-028 v1.9 §D8-C reference". This documents what was true when v1.43 was authored; the reference was correct at that commit time.
+- `STORY-INDEX.md:933` — Changelog row v2.173 narrative documenting prior version state.
+
+These are CHANGELOG rows documenting historical version state at commit time. Per POL-29 immutable closure-record exemption — same rule architect applied correctly at ADR-026 pin fix commit f9f6feed (leaving `.factory/cycles/wave-4-operations/adversarial-reviews/S-PLUGIN-PREREQ-E-impl-pass-12.md:41` untouched). Future adversary passes MUST NOT re-flag these 2 sites.
+
+### Workspace gate
+`just check` 3724/3724 PASS (unchanged from FB-IMPL-3 baseline; doc-comment-only sweep added no new tests).
+
+### Cascade trajectory
+15 (pass-1) → 13 (pass-2) → 10 (pass-3) → 2 (pass-4) — monotonic decay with acceleration.
+
+---
+
 ## Burst D-726 (2026-05-19) — PR #151 MERGED + POST-MERGE BOOKKEEPING
 
 **Agents dispatched:** state-manager
