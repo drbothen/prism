@@ -1355,7 +1355,7 @@ fn find_fan_out_array(
 //
 // Called in `execute_impl` before returning `PipelineResult`.
 //
-// Contract (ADR-028 v1.9 §D8-B/C):
+// Contract (ADR-028 v1.10 §D8-B/C):
 //   1. If `column.timestamp_formats.is_empty()`: default ISO 8601 parsing.
 //   2. If non-empty: try each format in order; first success wins.
 //   3. On all-formats failure (non-null, non-absent value): return
@@ -1501,7 +1501,10 @@ pub(crate) fn normalize_timestamp_fields(
                     if is_null_or_absent(fb_value) {
                         continue;
                     }
-                    if let Some(dt) = try_formats(&col.timestamp_formats, fb_value.unwrap()) {
+                    let fb_value_inner = fb_value.expect(
+                        "fb_value: guaranteed Some — is_null_or_absent check above continues if None",
+                    );
+                    if let Some(dt) = try_formats(&col.timestamp_formats, fb_value_inner) {
                         resolved = Some(dt);
                         break;
                     }
@@ -1535,7 +1538,9 @@ pub(crate) fn normalize_timestamp_fields(
                 }
             } else {
                 // --- Primary field present and non-null ---
-                let value = primary_value.as_ref().unwrap();
+                let value = primary_value.as_ref().expect(
+                    "primary_value: guaranteed Some — primary_absent guard above routed to absent-branch if None",
+                );
                 match try_formats(&col.timestamp_formats, value) {
                     Some(dt) => {
                         if let Some(obj) = row.as_object_mut() {
@@ -2573,7 +2578,7 @@ mod proptest_extract_at_path {
 // ---------------------------------------------------------------------------
 // PLUGIN-MIGRATION-001-D — BC-2.16.013 §O-001 — timestamp normalization unit tests
 //
-// ADR-028 v1.9 §D8-B/C: PipelineExecutor must honor `timestamp_formats` and
+// ADR-028 v1.10 §D8-B/C: PipelineExecutor must honor `timestamp_formats` and
 // `timestamp_fallback_chain` on ColumnType::Datetime columns.
 //
 // These tests MUST FAIL before `normalize_timestamp_fields` is implemented,

@@ -205,7 +205,7 @@ pub struct ColumnSpec {
     /// Only meaningful when `column_type == ColumnType::Datetime`. Empty vec (default)
     /// means the column is treated as a single well-known ISO 8601 string.
     ///
-    /// Recognized format names (closed set per ADR-028 v1.9 §D8-C):
+    /// Recognized format names (closed set per ADR-028 v1.10 §D8-C):
     /// - `"iso8601"` — ISO 8601 / RFC 3339 string (e.g., `"2024-01-15T10:30:00Z"`)
     /// - `"unix_epoch_seconds"` — integer Unix timestamp in seconds (e.g., `1705311000`)
     /// - `"unix_epoch_millis"` — integer Unix timestamp in milliseconds
@@ -223,7 +223,7 @@ pub struct ColumnSpec {
     /// falls back to `DateTime::now()` (UTC) and emits
     /// `tracing::warn!(event_type = "timestamp.fallback_to_now", column = %col_name)`.
     ///
-    /// BC-2.16.013 §O-001 Option A LOCKED; ADR-028 v1.9 §D8-B/C.
+    /// BC-2.16.013 §O-001 Option A LOCKED; ADR-028 v1.10 §D8-B/C.
     #[serde(default)]
     pub timestamp_fallback_chain: Vec<String>,
 }
@@ -735,7 +735,7 @@ impl SpecLoader {
             });
         }
 
-        // BC-2.16.009 timestamp_formats validation gate (ADR-028 v1.9 §D8-C):
+        // BC-2.16.009 timestamp_formats validation gate (ADR-028 v1.10 §D8-C):
         // timestamp_formats is a closed set: only these names are recognized.
         // Unrecognized format names → E-SPEC-001 at load time.
         // Stage 1 (F-LP2-HIGH-005): timestamp_formats / timestamp_fallback_chain are only
@@ -755,7 +755,7 @@ impl SpecLoader {
                             "sensor '{}' table '{}' column '{}': timestamp_formats or \
                              timestamp_fallback_chain declared on a '{:?}' column; \
                              these fields are only valid on Datetime columns \
-                             (BC-2.16.009; ADR-028 v1.9 §D8-C)",
+                             (BC-2.16.009; ADR-028 v1.10 §D8-C)",
                             spec.sensor_id, table.table_name, col.name, col.column_type,
                         ),
                         toml_path: Some(format!(
@@ -777,7 +777,7 @@ impl SpecLoader {
                                 message: format!(
                                     "sensor '{}' table '{}' column '{}': unrecognized \
                                      timestamp_formats entry '{}'. Recognized values: {}. \
-                                     (BC-2.16.009; ADR-028 v1.9 §D8-C)",
+                                     (BC-2.16.009; ADR-028 v1.10 §D8-C)",
                                     spec.sensor_id,
                                     table.table_name,
                                     col.name,
@@ -820,7 +820,7 @@ impl SpecLoader {
                                 "sensor '{}' table '{}' column '{}': \
                                  timestamp_fallback_chain references unknown field '{}'. \
                                  Known columns on table '{}': [{}]. \
-                                 (BC-2.16.009; ADR-028 v1.9 §D8-B)",
+                                 (BC-2.16.009; ADR-028 v1.10 §D8-B)",
                                 spec.sensor_id,
                                 table.table_name,
                                 col.name,
@@ -1130,7 +1130,7 @@ impl SpecLoader {
 // ---------------------------------------------------------------------------
 // F-LP2-HIGH-005 — validator rejects timestamp_formats / timestamp_fallback_chain
 // on non-Datetime columns.
-// BC-2.16.009; ADR-028 v1.9 §D8-C.
+// BC-2.16.009; ADR-028 v1.10 §D8-C.
 // ---------------------------------------------------------------------------
 #[cfg(test)]
 mod timestamp_column_type_validation_tests {

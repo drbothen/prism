@@ -261,7 +261,7 @@ pub enum SpecEngineError {
     /// byte-for-byte (F-LP2-HIGH-002; POLICY 24).
     ///
     /// Maps to `prism_core::SpecErrorCode::ESpec018`.
-    /// BC-2.16.013 §O-001; ADR-028 v1.9 §D8-C; error-taxonomy.md v1.44 E-SPEC-018.
+    /// BC-2.16.013 §O-001; ADR-028 v1.10 §D8-C; error-taxonomy.md v1.44 E-SPEC-018.
     #[error(
         "Failed to parse timestamp for column '{column_name}' in sensor '{sensor_id}': \
          tried formats [{}], value='{value}'",

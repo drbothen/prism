@@ -915,7 +915,7 @@ pub enum SpecErrorCode {
     /// included in the `SpecError::message` for actionable correction.
     /// Emitted during response-to-Arrow materialization when `ColumnSpec::timestamp_formats`
     /// is non-empty and no format successfully parsed the field value.
-    /// BC-2.16.013 §O-001 (Option A grammar extension); ADR-028 v1.9 §D8-C;
+    /// BC-2.16.013 §O-001 (Option A grammar extension); ADR-028 v1.10 §D8-C;
     /// error-taxonomy.md v1.44 E-SPEC-018.
     ESpec018,
 }

@@ -294,7 +294,7 @@ ocsf_class = "security_finding"
 /// Load-bearing test per TD-VSDD-059: this test provides the structural assertion
 /// that the Stage 3 validator gate is active and not merely doc-commented away.
 ///
-/// BC-2.16.009; ADR-028 v1.9 §D8-B; F-LP3-MEDIUM-001.
+/// BC-2.16.009; ADR-028 v1.10 §D8-B; F-LP3-MEDIUM-001.
 #[test]
 fn test_validation_rejects_timestamp_fallback_chain_unknown_field() {
     let toml = r#"
@@ -339,7 +339,7 @@ ocsf_class = "device"
 /// must be accepted. The defensive skip guard in normalize_timestamp_fields handles self-refs at
 /// runtime; Stage 3 must not reject them.
 ///
-/// BC-2.16.009; ADR-028 v1.9 §D8-B; F-LP3-MEDIUM-001.
+/// BC-2.16.009; ADR-028 v1.10 §D8-B; F-LP3-MEDIUM-001.
 #[test]
 fn test_validation_accepts_timestamp_fallback_chain_with_self_reference() {
     let toml = r#"
@@ -383,7 +383,7 @@ ocsf_class = "device"
 /// This is the positive case: the armis.sensor.toml 'last_seen' → 'first_seen' chain is valid
 /// because 'first_seen' exists on the same table.
 ///
-/// BC-2.16.009; ADR-028 v1.9 §D8-B; F-LP3-MEDIUM-001.
+/// BC-2.16.009; ADR-028 v1.10 §D8-B; F-LP3-MEDIUM-001.
 #[test]
 fn test_validation_accepts_timestamp_fallback_chain_with_existing_sibling_field() {
     let toml = r#"
