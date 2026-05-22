@@ -24,6 +24,10 @@ workspace = true
 # "Do NOT pin new library versions in the plugin crate" (F-LP1-MED-013 closure).
 serde = { workspace = true, features = ["derive"] }
 serde_json = { workspace = true }
+# F-LP2-HIGH-002: WASM guest binding generator — replaces manual #[link] extern blocks
+# with type-safe bindings generated from wit/sensor-auth.wit. Active on wasm32 targets;
+# native builds use the #[cfg(not(target_arch = "wasm32"))] stub module.
+wit-bindgen = { workspace = true }
 
 [features]
 # No features — production-grade default applies to all builds.

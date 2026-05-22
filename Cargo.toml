@@ -50,6 +50,10 @@ members = [
 [workspace.dependencies]
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
+# F-LP2-HIGH-002: WASM guest binding generator for crowdstrike-oauth2 plugin.
+# Replaces manual #[link] extern blocks with type-safe macro-generated bindings.
+# Version pinned to the entry already in Cargo.lock (wasmtime transitive dep).
+wit-bindgen = "0.51.0"
 
 [workspace.lints.clippy]
 await_holding_lock = "deny"
