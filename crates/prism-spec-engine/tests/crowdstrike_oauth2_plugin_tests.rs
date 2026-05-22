@@ -596,13 +596,20 @@ async fn test_PLUGIN_MIGRATION_001_E_006_401_triggers_plugin_token_refresh_and_r
         .await;
 
     // Second request (retry after plugin token refresh): 200 with detection IDs.
+    // F-LP2-MED-003: assert the retry carries `Authorization: Bearer wat-fixture-token`
+    // (the token returned by dispatch_plugin_acquire_token for WAT core-module path).
+    // .expect(1) proves exactly 1 retry was issued after the 401 (not 0, not 2+).
     Mock::given(method("GET"))
         .and(path("/detects/queries/detects/v1"))
+        .and(wiremock::matchers::header(
+            "Authorization",
+            "Bearer wat-fixture-token",
+        ))
         .respond_with(ResponseTemplate::new(200).set_body_json(serde_json::json!({
             "resources": ["detect-id-001", "detect-id-002"],
             "meta": {"total": 2}
         })))
-        .up_to_n_times(1)
+        .expect(1) // F-LP2-MED-003: exactly 1 retry (not 0, not 2+)
         .mount(&mock_server)
         .await;
 
@@ -715,10 +722,14 @@ async fn test_PLUGIN_MIGRATION_001_E_006_401_triggers_plugin_token_refresh_and_r
         "AC-006: plugin_id must be 'crowdstrike-oauth2' after PluginAuthProvider dispatch"
     );
 
-    // (c) detection query endpoint called at least twice (initial 401 + retry 200 + PostEntities).
+    // (c) F-LP2-MED-003: detection query endpoint called at least 3 times
+    // (1 initial 401 + 1 retry 200 with `Bearer wat-fixture-token` + 1 PostEntities).
+    // The wiremock .expect(1) on the retry mock above verifies exactly 1 retry with
+    // the correct token. wiremock verifies in Drop when mock_server goes out of scope.
     assert!(
-        result.request_count >= 2,
-        "AC-006: at least 2 requests (401 detection query + retry); got {}",
+        result.request_count >= 3,
+        "AC-006: at least 3 requests (401 + retry with Bearer wat-fixture-token + PostEntities); \
+         got {}",
         result.request_count
     );
 }
