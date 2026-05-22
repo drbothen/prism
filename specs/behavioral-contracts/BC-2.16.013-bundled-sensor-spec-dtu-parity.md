@@ -1,17 +1,17 @@
 ---
 document_type: behavioral-contract
 level: L3
-version: "1.15"
-status: draft
+version: "1.16"
+status: active
 producer: product-owner
 timestamp: 2026-05-20T00:00:00Z
 phase: 1a
 origin: brownfield
 subsystem: "SS-16"
 capability: "CAP-029"
-lifecycle_status: draft
+lifecycle_status: active
 introduced: "2026-05-20"
-modified: "2026-05-21"  # v1.15 FB-IMPL-9
+modified: "2026-05-22"  # v1.16 POL-14 auto-promotion PR #153
 deprecated: null
 deprecated_by: null
 replacement: null
@@ -437,6 +437,7 @@ PLUGIN-MIGRATION-001-D (implementing story; planned → draft after PO authoring
 
 | Version | Burst | Date | Author | Change |
 |---------|-------|------|--------|--------|
+| 1.16 | D-776-post-merge | 2026-05-22 | state-manager | POL-14 auto-promotion at merge: PR #153 (PLUGIN-MIGRATION-001-D) squash-merged to develop@3f2de889 at 2026-05-22T09:05:47Z; status draft→active, lifecycle_status draft→active. |
 | 1.11 | FB-IMPL-P22-PO | 2026-05-21 | product-owner | F-LP22-MED-001 closure (16th coherence-axis: same-line dual-format cite-pin escape): swept `error-taxonomy.md v1.41` → `v1.42` at 1 active-prose site (§Error Conditions E-SPEC-017 row line 331). BC-2.16.013 v1.10→v1.11. |
 | 1.15 | FB-IMPL-9 | 2026-05-21 | state-manager | F-LP10-LOW-001 closure — §Error Conditions lines 357-358 transitive cite-pin sweep: `error-taxonomy.md v1.42` → `v1.44` (E-SPEC-017 row) and `error-taxonomy.md v1.43` → `v1.44` (E-SPEC-018 row) per FB-IMPL-P22 PREREQ-E precedent + implementer current-authority code-comment pattern. 5th POL-29 axis recurrence (transitive cite-pin chain). No semantic content change. |
 | 1.14 | FB-IMPL-2 PO | 2026-05-21 | product-owner | F-LP2-HIGH-006 closure (Option a — document null-primary passthrough): §O-001 implementer contract extended with null-primary passthrough rule — when a Datetime column primary value is null/absent with empty `timestamp_fallback_chain`, the field passes through to Arrow as null with no audit signal; this is valid sensor data (Cyberint `Alert.created_at: serde_json::Value` accepts JSON `null` per DTU types.rs). §Postconditions §3 (Behavioral Fidelity Preserved) first bullet extended to document Arrow Datetime nullable contract. No new error codes, no new tracing events — documentation-only closure. No implementer handoff required. BC-2.16.013 v1.13→v1.14. |

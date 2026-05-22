@@ -795,3 +795,11 @@ Pass-1 adversary (agent a598496b1b1bf90c4) returned 15 findings (4 CRIT + 5 HIGH
 | F-LP3-LOW-001 | LOW | implementer 31a8aa79 (TD-VSDD-091 TOML sweep) |
 | F-LP3-LOW-002 | LOW | implementer 31a8aa79 (DTU citation phrasing) |
 | 4 OBSERVATIONs | non-blocking | Three positive confirmations (skip-guard load-bearing, empty-fixture tests load-bearing, #[non_exhaustive] discipline) + 1 process-gap (validator pattern) — noted in lessons; no further action this burst |
+
+---
+
+### D-748 — FB-IMPL-P14 closure burst (archived from STATE.md Current Phase Steps 2026-05-22 D-776 burst)
+
+| Step | Agent | Status | Output |
+|------|-------|--------|--------|
+| D-748 — **FB-IMPL-P14 closure burst — PLUGIN-MIGRATION-001-D pass-14 adversarial fix-burst complete. 4 findings closed in-scope (3 MED + 1 LOW). Pass-14 surfaced 7th novel coherence-axis class: 'immediate-recurrence-of-closed-defect-pattern' — FB-IMPL-P13-ARCH closure of F-LP13-HIGH-001 regressed pass-10 F-LP10-LOW-001 (ADR-028 §Status self-cite) + pass-12 F-LP-IMPL-P12-HIGH-001 (ADR-026 §Changelog monotonic) within 2 days on SAME files. Architect scope: ADR-026 v1.30 → v1.31 (§Changelog v1.29/v1.30 row swap ascending; new v1.31 row; modified: 2026-05-18→2026-05-20); ADR-028 v1.5 → v1.6 (§Status self-cite 'current frontmatter v1.4'→'v1.6'; §D6 Action 3 parenthetical rewrite realized state); ARCH-INDEX v2.91 → v2.92. MANDATORY SELF-VERIFY PROTOCOL exercised: 4 greps post-edit returned clean. Cumulative closures 63 → 67 across 13 fix-bursts. Streak 0/3 → 0/3. 255th consecutive single-commit per TD-VSDD-053.** | state-manager | FB-IMPL-P14 CLOSED | STATE v7.435; NEXT: pass-15 adversary dispatch |

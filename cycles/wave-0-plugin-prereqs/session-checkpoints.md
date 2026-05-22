@@ -168,3 +168,26 @@ _Archived to session-checkpoints.md by FB-IMPL-11 D-775 burst 2026-05-22._
 - `error-taxonomy.md:495` (changelog row v1.43) — EXEMPT: historical narrative
 - `STORY-INDEX.md:933` (changelog row v2.173) — EXEMPT: historical narrative
 - Story changelog rows containing `spec_parser.rs:NNN` cites — EXEMPT: historical narrative per TD-VSDD-091
+
+---
+
+## Archived Checkpoint: 2026-05-22 D-775 CASCADE EXIT per USER OPTION B
+
+_Archived to session-checkpoints.md by D-776 post-merge burst 2026-05-22._
+
+**STATE v7.462. D-775 CASCADE EXIT — CONVERGED-WITH-CODIFICATION-QUEUE per USER OPTION B 2026-05-22.** safe_to_compact=true. Feature branch feature/PLUGIN-MIGRATION-001-D HEAD: 55b4f72d (unchanged — FB-IMPL-11 is .factory/-only). 287th consecutive single-commit per TD-VSDD-053.
+
+**Final Impl Cascade State:**
+- 12 adversary passes total (pass-1..pass-12). 11 fix-bursts (FB-IMPL-1..FB-IMPL-11). 49 cumulative findings closed.
+- Trajectory: 15→13→10→2→3→1→1→0→1→1→1→(pass-12 decision point)
+- 7 distinct POL-29 axis recurrences. All PURELY documentation-pin-propagation (no semantic/runtime risk).
+- Code correctness verified CLEAN since pass-8 (zero substantive findings all subsequent passes).
+- Workspace tests: 3724/3724 GREEN (+43 net new since baseline 3681 at TDD-green).
+
+**Cascade Exit Rationale (Option B):**
+USER OPTION B accepted 2026-05-22. Code IS production-grade. 35+ lessons.md entries form codification queue for session-reviewer. "No pragmatic convergence" principle preserved for CODE correctness. POL-29 axes were documentation hygiene only.
+
+**Next actions (at time of archival — now superseded by D-776 post-merge state):**
+- PR #153 merged — post-merge burst (D-776) completed.
+- session-reviewer dispatch pending (codification queue lessons.md 14-37+38).
+- PLUGIN-MIGRATION-001-A start per ADR-028 §D10.

@@ -1,7 +1,7 @@
 ---
 document_type: behavioral-contract
 level: L3
-version: "1.38"
+version: "1.39"
 status: active
 producer: product-owner
 timestamp: 2026-05-21T00:00:00Z
@@ -11,7 +11,7 @@ subsystem: "SS-16"
 capability: "CAP-029"
 lifecycle_status: active
 introduced: cycle-1
-modified: 2026-05-21
+modified: 2026-05-22
 deprecated: ~
 deprecated_by: ~
 replacement: null
@@ -172,6 +172,7 @@ See `.factory/specs/prd-supplements/test-vectors.md` for full canonical vectors.
 
 | Version | Burst | Date | Author | Change |
 |---------|-------|------|--------|--------|
+| 1.39 | D-776-post-merge | 2026-05-22 | state-manager | POL-14 verification (no-op confirm): PR #153 (PLUGIN-MIGRATION-001-D) squash-merged to develop@3f2de889 at 2026-05-22T09:05:47Z; status already active — idempotent confirm per POL-14. |
 | 1.38 | FB-IMPL-10 | 2026-05-21 | state-manager | F-LP11-MED-001 closure (6th POL-29 axis recurrence — 2nd-order propagation gap): row 112 Anchor cite-pin advanced `BC-2.16.013 v1.14` → `BC-2.16.013 v1.15` (FB-IMPL-9 bumped BC-2.16.013 frontmatter v1.14→v1.15 as side-effect of §Error Conditions cite sweep; BC-2.16.002 row 112 Anchor was not swept in that burst — 2nd-order propagation gap). No catalog-content structural change (no new rows, no event_type changes); POL-30 Fork B catalog bullet label `(v1.23)` UNCHANGED. BC-INDEX v5.40→v5.41. |
 | 1.37 | FB-IMPL-5 PO | 2026-05-21 | product-owner | F-LP5-MED-001 closure: row 112 anchor cite-pin advanced `BC-2.16.013 v1.13` → `BC-2.16.013 v1.14` (BC-2.16.013 is now v1.14 per PO commit 4d934f28; the BC-2.16.002 catalog row was not swept in that burst — closing sibling-sweep gap per TD-VSDD-060 + POL-29 step 8f). No catalog-content structural change (no new rows, no event_type changes); POL-30 Fork B catalog bullet label `(v1.23)` UNCHANGED. BC-INDEX v5.38→v5.39. |
 | 1.36 | FB-IMPL-1 | 2026-05-21 | product-owner | Add `timestamp.fallback_to_now` WARN event_type catalog row per ADR-028 v1.9 §D8-B Option A grammar contract (PLUGIN-MIGRATION-001-D). Architect bumped BC-2.16.013 v1.11→v1.12 specifying the tracing emission but did not propagate to BC-2.16.002 catalog in same burst — closing the routing gap pre-implementer dispatch to prevent adversarial pass-2 finding per CLAUDE.md §Conventions structured event catalog discipline. Catalog count 34→35; catalog bullet label advanced `(v1.22)` → `(v1.23)` per POL-30 Fork B canonical rule (new row = catalog-content structural change). |

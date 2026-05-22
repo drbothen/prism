@@ -1,7 +1,7 @@
 ---
 document_type: behavioral-contract
 level: L3
-version: "1.6"
+version: "1.7"
 status: active
 producer: product-owner
 timestamp: 2026-04-14T05:00:00
@@ -19,7 +19,7 @@ extracted_from: ".factory/specs/prd.md"
 scheduled_amendment_in: ADR-023
 amendment_lifecycle: pending
 introduced: cycle-1
-modified: "2026-05-11"
+modified: "2026-05-22"
 deprecated: null
 deprecated_by: null
 replacement: null
@@ -110,6 +110,7 @@ naming convention (e.g., `crowdstrike_alert`, `armis_device`).
 
 | Version | Burst | Date | Author | Change |
 |---------|-------|------|--------|--------|
+| 1.7 | D-776-post-merge | 2026-05-22 | state-manager | POL-14 verification (no-op confirm): PR #153 (PLUGIN-MIGRATION-001-D) squash-merged to develop@3f2de889 at 2026-05-22T09:05:47Z; status already active (promoted draft→active D-398 per POL-14 PR #142) — idempotent confirm. |
 | 1.6 | D-398-post-merge | 2026-05-11 | state-manager | Status promoted draft→active per POL-14 (anchor story S-PLUGIN-PREREQ-A merged at develop@90d7c80f via PR #142, squash-merged 2026-05-11T16:37:14Z). lifecycle_status was already active; status frontmatter now matches. |
 | 1.5 | pass-6-closures | 2026-05-11 | product-owner | S-PLUGIN-PREREQ-A pass-6 closure (F-LP6-MED-002): added Adapter Identity Method postcondition block documenting SensorAdapter::sensor_type() → SensorId canonical adapter identity accessor, name-preservation rationale through S-PLUGIN-PREREQ-A keystone migration, SensorId construction convention, and sealed-by-convention provenance (DI-012 v1.6 amendment). Closes story anchor claim that BC body "drives the open dispatch requirement." |
 | 1.4 | prereq-f | 2026-05-11 | product-owner | ADR-023 v1.17 PREREQ-F amendment: removed sealed-trait language; replaced with spec-driven adapter pattern where implementations are produced from TOML SensorSpec declarations at runtime; replaced compile-time SensorAuth sealing with three runtime cross-sensor auth-composition rejection rules per ADR-023 Rule 2; updated Error Cases, Edge Cases, Canonical Test Vectors, and Verification Properties accordingly. DI-012 reference updated to reflect amended runtime enforcement. |

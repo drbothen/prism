@@ -168,7 +168,7 @@ ARTIFACT STATE AFTER D-540 (UNCHANGED FROM D-539 — no spec edits):
 DURABLE PIN BLOCK (CURRENT STATE — D-580 — DURABLE PRE-/CLEAR RESUME SNAPSHOT — 86th consecutive single-commit — STRATEGIC DECISION PENDING)
 ═══════════════════════════════════════════════════════════════════════
 
-- develop HEAD: 1bc56e3c (current develop — PR #152 squash-merge 2026-05-20; D-731 SHA-currency sweep updated this pin; D-730 §RESUME SNAPSHOT 2026-05-20 is authoritative current state)
+- develop HEAD: 3f2de889 (current develop — PR #153 squash-merge 2026-05-22; D-776 SHA-currency sweep updated this pin; D-776 §RESUME SNAPSHOT 2026-05-22 is authoritative current state)
 - factory-artifacts: run `git -C .factory log -1 --format=’%H’` (per TD-VSDD-053; D-579 is this commit)
 - feature_branch_head: no active feature branch (spec-authoring-only burst; develop unchanged at a5ab742c)
 - feature_branch_remote_status: no feature branch (spec-only burst; develop@a5ab742c unchanged)
@@ -6387,25 +6387,29 @@ DO NOT apply SEC-NEW-002 LRU eviction fix as part of current PLUGIN-MIGRATION wa
 |---|---|
 | Story PLUGIN-MIGRATION-001-D | v1.21 ready (status `ready`; not yet merged — pending PR) |
 | BC-2.16.013 | v1.15 |
-| BC-2.16.001 | v1.6 |
-| BC-2.16.002 | v1.38 |
-| BC-2.16.009 | v1.4 (unchanged since spec cascade) |
+| BC-2.16.001 | v1.7 (POL-14 D-776 draft→active) |
+| BC-2.16.002 | v1.39 (POL-14 D-776 idempotent confirm) |
+| BC-2.16.009 | v1.5 (POL-14 D-776 draft→active) |
 | ADR-028 | v1.10 |
 | ADR-026 | v1.34 |
 | error-taxonomy.md | v1.44 (includes E-SPEC-017 + E-SPEC-018) |
 | ARCH-INDEX | v2.100 |
-| BC-INDEX | v5.41 |
-| STORY-INDEX | v2.180 |
+| BC-INDEX | v5.42 (POL-14 D-776 promotions) |
+| STORY-INDEX | v2.181 (PLUGIN-MIGRATION-001-D done) |
 | HS-018 | v1.4 |
 | HOLDOUT-INDEX | v1.13 |
-| STATE.md | v7.462 |
-| Factory HEAD | run `git -C .factory log -1 --format='%h %s'` (D-775 commit) |
-| Develop HEAD | 1bc56e3c (unchanged since cascade start) |
-| Feature branch | feature/PLUGIN-MIGRATION-001-D HEAD 55b4f72d (35 commits ahead of develop@1bc56e3c) |
+| STATE.md | v7.463 |
+| Factory HEAD | run `git -C .factory log -1 --format='%h %s'` (D-776 commit) |
+| Develop HEAD | 3f2de889 (PR #153 PLUGIN-MIGRATION-001-D squash-merge 2026-05-22T09:05:47Z) |
+| Feature branch | MERGED + DELETED — feature/PLUGIN-MIGRATION-001-D merged via PR #153 develop@3f2de889 |
 | Open PRs | 0 |
 | Workspace test count | 3724/3724 GREEN (+43 net new since baseline 3681 at TDD-green) |
-| LOCAL impl cascade | CONVERGED-WITH-CODIFICATION-QUEUE per USER OPTION B 2026-05-22 |
-| Consecutive single-commits | 287 |
+| PLUGIN-MIGRATION-001-D | MERGED PR #153 develop@3f2de889 2026-05-22T09:05:47Z |
+| POL-14 BC promotions | BC-2.16.013/001/009 draft→active; BC-2.16.002/012 + BC-2.01.013/016 idempotent confirms |
+| STATE.md | v7.463 |
+| BC-INDEX | v5.42 |
+| STORY-INDEX | v2.181 |
+| Consecutive single-commits | 288 |
 
 ---
 
@@ -6507,10 +6511,11 @@ Story may already exist in `.factory/stories/` — verify before authoring.
 
 ### §6. Resume Protocol for Next Session
 
-1. Read STATE.md (v7.462) frontmatter + D-775 decision row
+1. Read STATE.md (v7.463) frontmatter + D-776 decision row
 2. Read SESSION-HANDOFF.md §RESUME SNAPSHOT 2026-05-22 (this section)
 3. Verify factory worktree health via `vsdd-factory:devops-engineer` running `factory-worktree-health` skill (BLOCKING)
-4. Verify `develop@1bc56e3c` unchanged + 0 open PRs + `feature/PLUGIN-MIGRATION-001-D` HEAD `55b4f72d`
-5. Execute Next Session Dispatch Plan §4 above starting with Step 2 (demo-recorder)
+4. Verify `develop@3f2de889` + 0 open PRs + feature/PLUGIN-MIGRATION-001-D worktree DELETED
+5. Dispatch session-reviewer with codification queue: `cycles/wave-0-plugin-prereqs/lessons.md` entries 14-37+38
+6. Begin PLUGIN-MIGRATION-001-A per ADR-028 §D10 co-merge contract
 
 _Agent routing: see CLAUDE.md §Agent Routing Table._

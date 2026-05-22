@@ -1,7 +1,7 @@
 ---
 document_type: behavioral-contract
 level: L3
-version: "1.10"
+version: "1.11"
 status: active
 producer: product-owner
 timestamp: 2026-05-16T12:00:00Z
@@ -11,7 +11,7 @@ subsystem: "SS-01"
 capability: "CAP-001"
 lifecycle_status: active
 introduced: "2026-05-15"
-modified: "2026-05-19"
+modified: "2026-05-22"
 deprecated: ~
 deprecated_by: ~
 replacement: ~
@@ -168,6 +168,7 @@ S-PLUGIN-PREREQ-E
 
 | Version | Burst | Date | Author | Change |
 |---------|-------|------|--------|--------|
+| 1.11 | D-776-post-merge | 2026-05-22 | state-manager | POL-14 verification (no-op confirm): PR #153 (PLUGIN-MIGRATION-001-D) squash-merged to develop@3f2de889 at 2026-05-22T09:05:47Z; status already active (promoted draft→active D-726 per POL-14 PR #151) — idempotent confirm. |
 | 1.10 | D-726-post-merge | 2026-05-19 | state-manager | POL-14 auto-promotion at merge: PR #151 (S-PLUGIN-PREREQ-E) squash-merged to develop@80ebe794 at 2026-05-19T18:06:44Z; PR-LEVEL adversary cascade BC-5.39.001 3-CLEAN CONVERGED; status draft→active, lifecycle_status draft→active. |
 | 1.9 | FB-IMPL-4 | 2026-05-18 | state-manager | D-707: §Error Cases E-SPEC-014 Behavior cell: backend qualification appended (D-706 architect adjudication text mechanically applied) — Rule C fires only when credential backend exposes shape metadata via `CredentialRefProbe::probe()` returning `Some(shape)`; current keyring backend returns `Ok(None)`; production enforcement deferred to PLUGIN-MIGRATION-001-A; test-fixture `ShapedProbe` + VP-153 proptest provide regression coverage in PREREQ-E scope. Closes F-LP-IMPL-P5-001 spec-amendment route. |
 | 1.8 | FB51 | 2026-05-17 | product-owner | F-LP63-MED-001 closure: §Preconditions lines 54-55 PLUGIN-AUDIT-001 HIGH-3 mis-anchored citation corrected to Option (a) split provenance — publication-history routed to ADR-023 Rule 5 (correct source per ADR-027 Context lines 48-49); dead-code claim routed to PLUGIN-AUDIT-001 HIGH-3 (correct source); restores bidirectional traceability. |

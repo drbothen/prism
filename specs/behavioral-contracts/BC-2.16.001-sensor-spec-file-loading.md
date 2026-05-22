@@ -1,8 +1,8 @@
 ---
 document_type: behavioral-contract
 level: L3
-version: "1.6"
-status: draft
+version: "1.7"
+status: active
 producer: product-owner
 timestamp: 2026-04-13T12:00:00
 phase: 1a
@@ -11,7 +11,7 @@ subsystem: "SS-16"
 capability: "CAP-029"
 lifecycle_status: active
 introduced: cycle-1
-modified: "2026-05-21"
+modified: "2026-05-22"
 deprecated: null
 deprecated_by: null
 replacement: null
@@ -132,6 +132,7 @@ See `.factory/specs/prd-supplements/test-vectors.md` for full canonical vectors.
 
 | Version | Burst | Date | Author | Change |
 |---------|-------|------|--------|--------|
+| 1.7 | D-776-post-merge | 2026-05-22 | state-manager | POL-14 auto-promotion at merge: PR #153 (PLUGIN-MIGRATION-001-D) squash-merged to develop@3f2de889 at 2026-05-22T09:05:47Z; status draft→active (lifecycle_status was already active). |
 | 1.6 | FB-IMPL-1-PO | 2026-05-21 | product-owner | F-LP1-HIGH-005 closure (Option a — narrow AC-006): Added §Known Gaps section with KG-006-001 — DEC-036 DataFusion-level unavailability marking is not exercisable in prism-spec-engine test harness due to AD-015 (prism-spec-engine MUST NOT import DataFusion; catalog registration is prism-query S-3.02 scope). The parse-time portion of DEC-036 (credential_refs.is_empty() on load) remains the in-scope PASS criterion for AC-006. Gap will close in S-3.02. |
 | 1.5 | FB-IMPL-P4-PO fix-burst-4 | 2026-05-20 | product-owner | F-LP4-HIGH-003 + F-LP4-MED-002 closure: Expanded E-SPEC-017 row with explicit enforcement contract — (1) `prism-core` exposes `SpecErrorCode::ESpec017` variant (D-737 Decision 3 scope expansion); (2) `SpecLoader::load_all()` / `parse_spec_directory()` emits E-SPEC-017 (has filename context); (3) `SpecLoader::parse(toml_input: &str)` does NOT emit E-SPEC-017 (no filename context); (4) RG-09 / HS-018 must use `load_all()` / `parse_spec_directory()` as test driver, not `parse()`. This closes F-LP4-MED-002 (RG-09 driver ambiguity) and F-LP4-HIGH-003 (enforcement scope gap). |
 | 1.4 | FB-IMPL-P2-PO fix-burst-2 | 2026-05-20 | product-owner | F-002 closure (pass-2 adversarial, PO scope): Added E-SPEC-017 row to §Error Conditions — filename-stem-vs-sensor_id mismatch now has its own error code (registered in error-taxonomy.md v1.41). Clarified E-SPEC-009 row to make clear it covers ONLY duplicate-sensor_id, not filename-stem mismatch. BC-2.16.013 §Error Conditions v1.2 and HS-018 cite E-SPEC-017 consistently. |
