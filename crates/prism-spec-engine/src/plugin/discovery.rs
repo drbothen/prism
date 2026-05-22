@@ -263,6 +263,10 @@ pub(crate) fn load_plugin_from_bytes(
         // Default-deny: discovery.rs does not parse manifests (that is load_all_plugins scope).
         // Callers that need allowlist enforcement should use PluginRuntime::load_all_plugins.
         allowed_urls: vec![],
+        // F-LP2-CRIT-001: each plugin gets its own persistent KV store Arc, created at load time.
+        // All dispatches for this plugin will clone this Arc — ensuring the token cache survives
+        // across separate dispatch calls (AC-004 "token cached within TTL").
+        kv_store: std::sync::Arc::new(crate::plugin::loader::PluginKvStore::new()),
     })
 }
 

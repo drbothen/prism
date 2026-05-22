@@ -665,7 +665,15 @@ impl PluginRuntime {
             ),
             ("token_endpoint".to_string(), token_endpoint.to_string()),
         ]);
-        let host_state = self.make_host_state(plugin_id, &config, plugin.allowed_urls.clone());
+        // F-LP2-CRIT-001: clone the plugin's persistent kv_store Arc — do NOT construct a fresh
+        // PluginKvStore::new() here. All dispatches for the same plugin share the same instance
+        // so the token cache survives across calls (AC-004 "token cached within TTL").
+        let host_state = self.make_host_state(
+            plugin_id,
+            &config,
+            plugin.kv_store.clone(),
+            plugin.allowed_urls.clone(),
+        );
 
         // Core module path (WAT fixtures used in tests).
         if let Some(ref core_mod) = plugin.core_module {
@@ -753,6 +761,12 @@ impl PluginRuntime {
 
     /// Build a `HostState` for a new plugin call store.
     ///
+    /// `kv_store` is the per-plugin persistent KV store from `LoadedPlugin.kv_store`
+    /// (F-LP2-CRIT-001): callers MUST pass `plugin.kv_store.clone()` so that all
+    /// dispatches for the same plugin share the SAME Arc<PluginKvStore> instance.
+    /// This enables the token cache (host::kv-set / host::kv-get) to survive across
+    /// separate dispatch calls, satisfying AC-004 "token cached within TTL".
+    ///
     /// `allowed_urls` is the per-plugin allowlist parsed from the manifest (AC-7 / AC-17).
     /// An empty Vec means default-deny (no outbound HTTP allowed). The function is pure:
     /// it receives `Arc<reqwest::Client>` via `Arc::clone` (no I/O, no construction).
@@ -763,12 +777,13 @@ impl PluginRuntime {
         &self,
         plugin_id: &str,
         config: &PluginConfigMap,
+        kv_store: Arc<PluginKvStore>,
         allowed_urls: Vec<String>,
     ) -> HostState {
         HostState {
             http_client: self.http_client.clone(),
             config: Arc::new(config.clone()),
-            kv_store: Arc::new(PluginKvStore::new()),
+            kv_store,
             plugin_id: plugin_id.to_string(),
             allowed_urls,
             // Sentinel — overwritten by create_store() before ResourceLimiter registration.
@@ -800,7 +815,13 @@ impl PluginRuntime {
         }
 
         // Component Model path (true .prx with lifted exports).
-        let host_state = self.make_host_state(plugin_id, config, plugin.allowed_urls.clone());
+        // F-LP2-CRIT-001: clone the plugin's persistent kv_store Arc.
+        let host_state = self.make_host_state(
+            plugin_id,
+            config,
+            plugin.kv_store.clone(),
+            plugin.allowed_urls.clone(),
+        );
         let mut store = create_store(
             &self.engine,
             host_state,
@@ -877,7 +898,13 @@ impl PluginRuntime {
         }
 
         // Component Model path.
-        let host_state = self.make_host_state(plugin_id, config, plugin.allowed_urls.clone());
+        // F-LP2-CRIT-001: clone the plugin's persistent kv_store Arc.
+        let host_state = self.make_host_state(
+            plugin_id,
+            config,
+            plugin.kv_store.clone(),
+            plugin.allowed_urls.clone(),
+        );
         let mut store = create_store(
             &self.engine,
             host_state,

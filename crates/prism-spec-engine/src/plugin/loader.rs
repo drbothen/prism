@@ -96,6 +96,15 @@ pub struct LoadedPlugin {
     /// Empty Vec = default-deny (no outbound HTTP). Stored here so `enrich_single`,
     /// `enrich_batch`, and other callers can pass it to `make_host_state()`.
     pub allowed_urls: Vec<String>,
+    /// Per-plugin persistent KV store (F-LP2-CRIT-001).
+    ///
+    /// Carried on `LoadedPlugin` so that every dispatch for the same plugin shares
+    /// the SAME `Arc<PluginKvStore>` — enabling the token cache to survive across
+    /// calls. `make_host_state` clones this Arc instead of constructing a fresh
+    /// `PluginKvStore::new()` on every call.
+    ///
+    /// Invariant: always `Arc::new(PluginKvStore::new())` at load time; never replaced.
+    pub kv_store: Arc<PluginKvStore>,
 }
 
 /// Thread-safe host state passed to every plugin invocation via `wasmtime::Store`.
