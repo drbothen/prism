@@ -1,7 +1,7 @@
 ---
 document_type: behavioral-contract-index
 level: L3
-version: "5.37"
+version: "5.38"
 status: draft
 producer: product-owner
 timestamp: 2026-05-20T00:00:00Z
@@ -218,7 +218,7 @@ Phase 3-patch additions (2026-04-16): 22 new BCs added in Burst 1 to close trace
 | BC-2.16.010 | `list_sensor_specs` MCP Tool — List Loaded Sensor Specs with Table Schemas and Status | 16 - Spec Engine | CAP-029 | P0 | draft |
 | BC-2.16.011 | CustomAdapter Rust Trait Retirement — Removal of Trait, Registry, and All Call Sites | 16 - Spec Engine | CAP-029 | P0 | active (promoted draft→active D-726 per POL-14; anchor story S-PLUGIN-PREREQ-E merged PR #151 develop@80ebe794 2026-05-19) — v1.12 |
 | BC-2.16.012 | PluginRegistry Dispatch in spec_parser.rs — Hardcoded Sensor Names Replaced with Registry Lookup | 16 - Spec Engine | CAP-029 | P0 | active (promoted draft→active D-726 per POL-14; anchor story S-PLUGIN-PREREQ-E merged PR #151 develop@80ebe794 2026-05-19) — v1.30 |
-| BC-2.16.013 | Bundled Sensor Spec Authoring and DTU-Parity Verification — 4 Initial Sensors | 16 - Spec Engine | CAP-029 | P0 | draft (v1.13 FB-IMPL-2 2026-05-21 — architect adjudication: Armis fallback chain corrected to `["first_seen"]`; DTU-EXT-005 page_size; ADR-028 v1.10) — v1.13 |
+| BC-2.16.013 | Bundled Sensor Spec Authoring and DTU-Parity Verification — 4 Initial Sensors | 16 - Spec Engine | CAP-029 | P0 | draft (v1.14 FB-IMPL-2 PO 2026-05-21 — null-primary passthrough contract (HIGH-006 Option a); §O-001 + §Postconditions §3 extended; no new error codes or tracing events) — v1.14 |
 | BC-2.17.001 | Plugin Panic Isolation — Crashed Plugin Does Not Terminate Host Process | 17 - WASM Plugin Runtime | CAP-032 | P0 | active (POL-14 auto-promotion D-568 S-PLUGIN-PREREQ-D merge PR #149 ec90fe8f 2026-05-15) |
 | BC-2.17.002 | Plugin Sandbox — No Direct Filesystem or Network Access | 17 - WASM Plugin Runtime | CAP-032 | P0 | active (POL-14 auto-promotion D-568 S-PLUGIN-PREREQ-D merge PR #149 ec90fe8f 2026-05-15) |
 | BC-2.17.003 | Plugin Sandbox — Memory Limit Enforced Per Plugin Instance (default 64MB) | 17 - WASM Plugin Runtime | CAP-032 | P0 | active (POL-14 auto-promotion D-568 S-PLUGIN-PREREQ-D merge PR #149 ec90fe8f 2026-05-15) |
@@ -370,6 +370,8 @@ Phase 3-patch additions (2026-04-16): 22 new BCs added in Burst 1 to close trace
 - Subsystem 19: Infusion Enrichment Framework (AD-020, CAP-031)
 
 ### Change Log (Adversarial Review Fixes)
+
+**v5.38 (2026-05-21, FB-IMPL-2 PO):** product-owner | BC-2.16.013 v1.13→v1.14 (F-LP2-HIGH-006 Option a: null-primary passthrough contract documented in §O-001 implementer contract + §Postconditions §3; Cyberint `Alert.created_at: serde_json::Value` accepts JSON null — null primary with empty fallback chain passes through to Arrow as null with no audit signal; this is valid sensor data, not an error; no new error codes or tracing events; documentation-only closure). BC-INDEX row 221 updated to v1.14. BC-INDEX v5.37→v5.38.
 
 **v5.37 (2026-05-21, FB-IMPL-2):** architect | BC-2.16.013 v1.12→v1.13 (F-LP2-HIGH-004 Option a: Armis `timestamp_fallback_chain` corrected from `["last_seen","first_seen"]` to `["first_seen"]` — self-referential primary column in chain is semantic no-op; false doc-comment fixed; implementer skip-guard required in pipeline.rs. F-LP2-MEDIUM-001 Option b: DTU-EXT-005 added to §Known Gaps — `page_size` removed from cyberint.sensor.toml pagination block; `AlertListParams` struct has no `page_size` field. ADR-028 v1.9→v1.10 §D8-B + §D9 amended). BC-INDEX row 221 updated to v1.13. BC-INDEX v5.36→v5.37.
 

@@ -1,7 +1,7 @@
 ---
 document_type: behavioral-contract
 level: L3
-version: "1.13"
+version: "1.14"
 status: draft
 producer: product-owner
 timestamp: 2026-05-20T00:00:00Z
@@ -11,7 +11,7 @@ subsystem: "SS-16"
 capability: "CAP-029"
 lifecycle_status: draft
 introduced: "2026-05-20"
-modified: "2026-05-21"  # v1.13 FB-IMPL-2
+modified: "2026-05-21"  # v1.14 FB-IMPL-2 PO
 deprecated: null
 deprecated_by: null
 replacement: null
@@ -91,6 +91,16 @@ MUST be implemented by the implementer in the same story. This is not a deferral
   `tracing::warn!(event_type = "timestamp.fallback_to_now", column = %col_name)`.
 - On multi-format parse failure (all `timestamp_formats` tried, none succeeded): emit `E-SPEC-018`
   (`TimestampParseFailure`) — registered in error-taxonomy.md by this fix-burst.
+- **Null-primary passthrough (HIGH-006 adjudication, FB-IMPL-2 PO, Option a):** When a
+  `ColumnType::Datetime` column's primary value is null/absent AND `timestamp_fallback_chain`
+  is empty (the default), the field passes through to Arrow output as null with no audit signal
+  emitted. This is the legitimate path for sensors where null timestamps represent valid data
+  (e.g., Cyberint `created_at: null` for alerts in draft/pending state; DTU `Alert.created_at`
+  is `serde_json::Value` which accepts JSON `null`). Null is NOT an error in this case — it is
+  valid sensor data. Sensors that REQUIRE non-null timestamps MUST declare a non-empty
+  `timestamp_fallback_chain`; the chain-exhaustion `DateTime::now()` UTC fallback (with WARN
+  emission) handles the "never allow null" contract. The E-SPEC-018 parse-failure path applies
+  only when `timestamp_formats` is non-empty and all named formats fail to parse a non-null value.
 - Normalization runs inside `PipelineExecutor` during response-to-Arrow materialization for
   `ColumnType::Datetime` columns.
 
@@ -294,7 +304,10 @@ For each `(sensor_id, table)` pair with non-SKIP status:
 
 The OCSF output of the spec-driven path is semantically equivalent to the prior hardcoded
 adapter path for all test cases:
-- Arrow schema column names and types match (string/integer/float/boolean/datetime/json)
+- Arrow schema column names and types match (string/integer/float/boolean/datetime/json); Arrow
+  Datetime columns are nullable — when sensor data supplies a null primary timestamp with no
+  fallback chain, the Arrow field contains null. This is correct and expected for sensors where
+  null timestamps are valid data (see §Preconditions O-001 null-primary passthrough rule).
 - Virtual fields `sensor = "{sensor_id}"` and `source = "{table_name}"` are injected
   (BC-2.16.001 postcondition)
 - OCSF field mappings from `ocsf_field` entries reproduce the prior per-adapter normalization
@@ -425,6 +438,7 @@ PLUGIN-MIGRATION-001-D (implementing story; planned → draft after PO authoring
 | Version | Burst | Date | Author | Change |
 |---------|-------|------|--------|--------|
 | 1.11 | FB-IMPL-P22-PO | 2026-05-21 | product-owner | F-LP22-MED-001 closure (16th coherence-axis: same-line dual-format cite-pin escape): swept `error-taxonomy.md v1.41` → `v1.42` at 1 active-prose site (§Error Conditions E-SPEC-017 row line 331). BC-2.16.013 v1.10→v1.11. |
+| 1.14 | FB-IMPL-2 PO | 2026-05-21 | product-owner | F-LP2-HIGH-006 closure (Option a — document null-primary passthrough): §O-001 implementer contract extended with null-primary passthrough rule — when a Datetime column primary value is null/absent with empty `timestamp_fallback_chain`, the field passes through to Arrow as null with no audit signal; this is valid sensor data (Cyberint `Alert.created_at: serde_json::Value` accepts JSON `null` per DTU types.rs). §Postconditions §3 (Behavioral Fidelity Preserved) first bullet extended to document Arrow Datetime nullable contract. No new error codes, no new tracing events — documentation-only closure. No implementer handoff required. BC-2.16.013 v1.13→v1.14. |
 | 1.13 | FB-IMPL-2 | 2026-05-21 | architect | F-LP2-HIGH-004 closure (Option a): §O-001 Armis fallback chain corrected from `["last_seen", "first_seen"]` to `["first_seen"]` — the self-referential primary column name as first chain element is a semantic no-op; doc-comment "Skip the primary field itself" was false (no skip guard in code). Implementer must: (1) update `armis.sensor.toml` chain to `["first_seen"]`, (2) add defensive skip guard `if fb_field == &col.name { continue; }` in pipeline.rs fallback loop, (3) fix the false doc-comment at pipeline.rs:1495. ADR-028 v1.9→v1.10 §D8-B amended. F-LP2-MEDIUM-001 closure (Option b): DTU-EXT-005 added to §Known Gaps — `page_size` parameter removed from cyberint.sensor.toml per ADR-028 §D9 scope clarification (parameter-level projections not covered by documented-gap exception; `AlertListParams` struct at `crates/prism-dtu-cyberint/src/routes/alerts.rs:38-40` has no `page_size` field). §Architecture Anchors ADR-028 cite-pin advanced v1.9→v1.10 at §D8 + §D9 rows. §ADR anchors Traceability row updated. |
 | 1.12 | FB-IMPL-1 | 2026-05-21 | architect | (D-FB-IMPL-1-OPT-A) F-LP1-HIGH-002/003 closure: §O-001 LOCKED Option A — grammar extension in `ColumnSpec` (`timestamp_formats: Vec<String>` + `timestamp_fallback_chain: Vec<String>`, both `#[serde(default)]`). Full implementer contract specified: recognized formats, normalization pipeline location, backward compat, E-SPEC-018 registered. Cyberint canonical formats `["iso8601", "unix_epoch_seconds"]` documented (DTU-grounded). Armis fallback chain `["last_seen", "first_seen"] → now()` locked (DTU-grounded, corrected to `["first_seen"]` in v1.13). §Postconditions §1 Cyberint + Armis rows updated: WASM plugin references replaced with Option A grammar. ADR-028 v1.8→v1.9 cite-pin sweep across 6 §Architecture Anchors sites (§D1/D2/D3/D5/D6) + §ADR anchors Traceability row. |
 | 1.10 | FB-IMPL-P17-PO | 2026-05-20 | product-owner | F-LP17-HIGH-002 propagation closure (POL-29 fixed-point per F-LP16-OBS-001): ADR-028 v1.7→v1.8 cite-pin sweep across 6 active-prose sites (lines 375-379, 403). Architect FB-IMPL-P17-ARCH reverted ADR-028 §Changelog to descending + bumped v1.7→v1.8 + added §D7 (Per-File Convention Lock rule); cites bump only, no structural change. |
