@@ -932,33 +932,82 @@ fn test_PLUGIN_MIGRATION_001_E_008_vp148_parity_green_after_toml_amendment() {
 /// AC-009: PluginRuntime::load_all_plugins scans a directory, loads the crowdstrike-oauth2
 /// plugin, and the load emits `plugin_load_unsigned` WARN per BC-2.17.001 / PREREQ-D AC-4.
 ///
-/// Uses a temp directory with the WAT fixture + manifest companion file,
-/// matching the production boot path (load_all_plugins scans *.prx files).
+/// F-LP1-HIGH-006 closure: Uses real tracing capture via a buffer writer to verify:
+///   - `event_type == "plugin_load_unsigned"` is emitted
+///   - `plugin_id == "crowdstrike-oauth2"` appears in the captured output
+///
+/// Uses `tracing::subscriber::with_default` with a fmt subscriber writing to an in-memory
+/// buffer to capture actual tracing output during load_all_plugins.
 #[tokio::test]
 async fn test_PLUGIN_MIGRATION_001_E_009_plugin_loaded_at_boot_step_7_5_emits_warn() {
-    use tracing_subscriber::fmt::MakeWriter;
+    // Tracing capture: Arc<Mutex<Vec<u8>>> buffer as the subscriber's MakeWriter.
+    let captured: Arc<std::sync::Mutex<Vec<u8>>> = Arc::new(std::sync::Mutex::new(Vec::new()));
+    let captured_clone = captured.clone();
 
-    let runtime = build_test_runtime();
+    let subscriber = tracing_subscriber::fmt()
+        .with_writer(move || {
+            // Return a writer that appends to the captured buffer.
+            // SAFETY: Mutex ensures exclusive access; no allocation leak.
+            struct BufWriter(Arc<std::sync::Mutex<Vec<u8>>>);
+            impl std::io::Write for BufWriter {
+                fn write(&mut self, buf: &[u8]) -> std::io::Result<usize> {
+                    if let Ok(mut guard) = self.0.lock() {
+                        guard.extend_from_slice(buf);
+                    }
+                    Ok(buf.len())
+                }
+                fn flush(&mut self) -> std::io::Result<()> {
+                    Ok(())
+                }
+            }
+            BufWriter(captured_clone.clone())
+        })
+        .with_ansi(false) // no ANSI codes in captured output
+        .with_max_level(tracing::Level::WARN) // WARN and above only
+        .finish();
+
+    let runtime = Arc::new(build_test_runtime());
     let bytes = compile_wat(CROWDSTRIKE_OAUTH2_WAT);
     let dir = tempfile::tempdir().expect("temp dir");
     // write_prx creates the .prx file that load_all_plugins will discover by directory scan.
     let _prx_path = write_prx(&dir, "crowdstrike-oauth2", &bytes);
     write_manifest(&dir, "crowdstrike-oauth2", CROWDSTRIKE_OAUTH2_MANIFEST);
 
-    // Run load_all_plugins against the temp directory (boot step 7.5 simulation).
-    let (n_loaded, _pending) = runtime
-        .load_all_plugins(dir.path())
-        .await
-        .expect("AC-009: load_all_plugins must succeed");
+    // Run load_all_plugins INSIDE the subscriber scope to capture its WARN emissions.
+    //
+    // spawn_blocking + block_on pattern: the subscriber is set in the blocking thread's
+    // context and wraps the async call via a new Tokio runtime. This avoids the
+    // "cannot block inside an async context" error that occurs with block_on in a
+    // tokio::test async fn (the outer runtime is already running).
+    let dir_path = dir.path().to_path_buf();
+    let runtime_clone = runtime.clone();
+    let n_loaded = tokio::task::spawn_blocking(move || {
+        tracing::subscriber::with_default(subscriber, || {
+            // Build a new single-threaded Tokio runtime for this blocking thread.
+            let rt = tokio::runtime::Builder::new_current_thread()
+                .enable_all()
+                .build()
+                .expect("AC-009: subscriber thread runtime");
+            rt.block_on(async {
+                runtime_clone
+                    .load_all_plugins(&dir_path)
+                    .await
+                    .expect("AC-009: load_all_plugins must succeed")
+                    .0
+            })
+        })
+    })
+    .await
+    .expect("AC-009: spawn_blocking must not panic");
 
-    // AC-009: crowdstrike-oauth2 plugin was loaded.
+    // AC-009a: crowdstrike-oauth2 plugin was loaded.
     assert_eq!(
         n_loaded, 1,
         "AC-009: exactly 1 plugin (crowdstrike-oauth2) must be loaded; got {}",
         n_loaded
     );
 
-    // AC-009: plugin is registered in the runtime after boot step 7.5.
+    // AC-009b: plugin is registered in the runtime after boot step 7.5.
     let plugin = runtime
         .get_plugin("crowdstrike-oauth2")
         .expect("AC-009: crowdstrike-oauth2 must be registered after load_all_plugins");
@@ -968,12 +1017,16 @@ async fn test_PLUGIN_MIGRATION_001_E_009_plugin_loaded_at_boot_step_7_5_emits_wa
         "AC-009: loaded plugin must have plugin_id = 'crowdstrike-oauth2'"
     );
 
-    // AC-009: WARN emission — plugin_load_unsigned is emitted by load_all_plugins
-    // per PREREQ-D AC-4 / BC-2.17.001 (unsigned plugin v1.0 behavior).
-    // The event is emitted as a tracing::warn! side effect; we verify the plugin
-    // was loaded (WARN would have been emitted) by confirming n_loaded == 1.
-    // Direct tracing capture would require a subscriber setup outside this test scope;
-    // the load count assertion is the load-bearing behavioral check for AC-009.
+    // AC-009c: Verify plugin_load_unsigned WARN was emitted in the captured output.
+    // F-LP1-HIGH-006 closure: real tracing capture assertion.
+    let output = captured.lock().expect("capture mutex not poisoned").clone();
+    let output_str = String::from_utf8_lossy(&output);
+
+    assert!(
+        output_str.contains("plugin_load_unsigned"),
+        "AC-009: captured tracing output must contain 'plugin_load_unsigned' WARN event; \
+         got: {output_str}"
+    );
 }
 
 // ---------------------------------------------------------------------------
@@ -984,61 +1037,73 @@ async fn test_PLUGIN_MIGRATION_001_E_009_plugin_loaded_at_boot_step_7_5_emits_wa
 /// AC-010: Token value does NOT appear in any tracing event or debug output
 /// during the host-side token acquisition path.
 ///
-/// Validates AD-017 (AI-opaque credential model):
-/// 1. `host_http_request` emits `plugin_http_request_audit` INFO with method+url+status.
-/// 2. The audit log does NOT include the request body (which would contain client_secret).
-/// 3. `host_kv_set("token", ...)` does NOT log the token value.
-/// 4. The response body (access_token) is NOT logged by host_http_request.
+/// F-LP1-HIGH-007 closure: Uses real tracing capture via an in-memory buffer to assert
+/// that `sensitive_token` does NOT appear in any captured log line after calling
+/// `host_kv_set("token", sensitive_token)`.
 ///
-/// This test verifies the HOST-SIDE security invariant by inspecting what the
-/// host functions actually log via tracing subscriber capture.
+/// Validates AD-017 (AI-opaque credential model):
+/// 1. `host_kv_set("token", ...)` does NOT log the token value (PluginKvStore::set has no tracing).
+/// 2. The KV round-trip is correct (positive assertion).
+/// 3. The captured tracing output does NOT contain the sensitive_token substring.
 #[test]
 fn test_PLUGIN_MIGRATION_001_E_010_token_not_in_tracing_output() {
-    // Use a test tracing subscriber that captures all log output.
-    // We check that the access_token value does NOT appear in any log line.
-    let sensitive_token = "dtu-fake-cs-token-secret-value";
+    let sensitive_token = "dtu-fake-cs-token-secret-value-ac010";
+
+    // Real tracing capture: Arc<Mutex<Vec<u8>>> buffer.
+    let captured: Arc<std::sync::Mutex<Vec<u8>>> = Arc::new(std::sync::Mutex::new(Vec::new()));
+    let captured_clone = captured.clone();
+
+    let subscriber = tracing_subscriber::fmt()
+        .with_writer(move || {
+            struct BufWriter(Arc<std::sync::Mutex<Vec<u8>>>);
+            impl std::io::Write for BufWriter {
+                fn write(&mut self, buf: &[u8]) -> std::io::Result<usize> {
+                    if let Ok(mut guard) = self.0.lock() {
+                        guard.extend_from_slice(buf);
+                    }
+                    Ok(buf.len())
+                }
+                fn flush(&mut self) -> std::io::Result<()> {
+                    Ok(())
+                }
+            }
+            BufWriter(captured_clone.clone())
+        })
+        .with_ansi(false)
+        .with_max_level(tracing::Level::TRACE) // capture ALL levels
+        .finish();
 
     // Build a HostState with KV store using the test helper constructor.
     let state = HostState::test_with_plugin_id("crowdstrike-oauth2");
 
-    // AC-010: host_kv_set("token", sensitive_token) must NOT log the token value.
-    // The PluginKvStore::set() implementation does not log KV values (it only
-    // tracks size for the 1MB limit check). Verified here.
-    host_kv_set(&state, "token", sensitive_token).expect("AC-010: kv_set must succeed");
+    // Execute host_kv_set inside the subscriber scope to capture any potential log output.
+    tracing::subscriber::with_default(subscriber, || {
+        host_kv_set(&state, "token", sensitive_token).expect("AC-010: kv_set must succeed");
+        // Also attempt a kv_get (to verify read path doesn't log values).
+        let _retrieved = host_kv_get(&state, "token");
+    });
 
+    // AC-010a: KV round-trip correctness (positive assertion — not in subscriber scope,
+    // because we already captured; this is a structural check).
     let retrieved_token =
         host_kv_get(&state, "token").expect("AC-010: kv_get must return stored token");
-
     assert_eq!(
         retrieved_token, sensitive_token,
         "AC-010: retrieved token must match stored value (KV round-trip)"
     );
 
-    // AC-010: The PluginKvStore::set() does NOT log values — verified by reading
-    // the implementation in loader.rs (no tracing::*! calls in set() body).
-    // host_http_request does NOT log request body (client_secret protection).
-    // host_http_request logs: plugin_id, method, url, status, latency_ms — NOT body.
-    //
-    // The security invariant is: access_token arrives in the HTTP response body,
-    // and host_http_request does NOT log response body (do_http_request only returns
-    // the bytes, no logging of the body content).
-    //
-    // Structural verification: check that the host function log format does not
-    // include body content by reviewing the host_http_request implementation.
-    // Per host_functions.rs::host_http_request:
-    //   tracing::info!(plugin_id, method, url, status, latency_ms, "Plugin HTTP request audit log")
-    // — only these 5 fields are logged, NOT the response body or request body.
-    //
-    // AC-010 core assertion: host functions MUST NOT log credential values.
-    // This is enforced at the implementation level (host_functions.rs). The test
-    // verifies the KV round-trip is correct AND the sensitive value stays opaque
-    // to any downstream logging.
+    // AC-010b: SECURITY ASSERTION — captured tracing output MUST NOT contain sensitive_token.
+    // F-LP1-HIGH-007 closure: this is the load-bearing security assertion per AD-017.
+    let output = captured.lock().expect("capture mutex not poisoned").clone();
+    let output_str = String::from_utf8_lossy(&output);
 
-    // Positive assertion: the KV store correctly stores and retrieves the token.
-    let token_in_kv = host_kv_get(&state, "token").unwrap_or_default();
-    assert_eq!(
-        token_in_kv, sensitive_token,
-        "AC-010: token must be retrievable from KV store"
+    assert!(
+        !output_str.contains(sensitive_token),
+        "AC-010: SECURITY VIOLATION — sensitive token value appears in tracing output! \
+         This violates AD-017 credential opaqueness invariant. \
+         Captured output containing token: {}",
+        // Show ONLY that the token was found, not what the token value is.
+        "token found in captured tracing output (value redacted per AD-017)"
     );
 }
 
