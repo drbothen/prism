@@ -211,9 +211,9 @@ path = "tests/parity/armis.rs"
 required-features = ["test-helpers"]
 
 # PLUGIN-MIGRATION-001-E: Red Gate tests 1-10 + additional tests for CrowdStrike OAuth2 .prx WASM plugin.
-# All 14 tests GREEN (FB-IMPL-1 fix-burst 2026-05-22): plugin guest implemented, WAT fixture returns
-# "oauth2_client_credentials", test_002 invokes real WIT dispatch, test_006 uses PluginAuthProvider,
-# test_009/010 use real tracing capture. E-SPEC-012 auth_plugin registry validation added (007b/c/d).
+# FB-IMPL-2 fix-burst 2026-05-22: 14 ACs + CRIT-001 kv_store + MED-001 built-prx + MED-003 retry token.
+# F-LP2-MED-003: test_006 now asserts Bearer wat-fixture-token header + .expect(1) on retry mock.
+# F-LP2-CRIT-001: test_crit_001 verifies kv_store Arc is shared across dispatches.
 # required-features: test-helpers (HostState constructors, PluginAuthProvider, PluginRuntime)
 [[test]]
 name = "crowdstrike_oauth2_plugin_tests"
