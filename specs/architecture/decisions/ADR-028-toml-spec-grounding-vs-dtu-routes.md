@@ -4,8 +4,8 @@ adr_id: "ADR-028"
 title: "TOML Spec URLs and auth_type Ground Against DTU Clone Routes (Real-API Canonical), Not Production Rust Adapter URLs"
 status: Proposed
 date: "2026-05-20"
-modified: "2026-05-21"
-version: "1.9"
+modified: "2026-05-21"  # v1.10 FB-IMPL-2
+version: "1.10"
 producer: architect
 subsystems_affected: [SS-01, SS-07, SS-16, SS-17]
 supersedes: ["ADR-026 §D3 (partial — auth_type_name() return values for Cyberint/Claroty/Armis non-CrowdStrike sensors)"]
@@ -22,7 +22,7 @@ wiring_deferred_to: null
 
 ## Status
 
-Proposed 2026-05-20, v1.0 (initial proposal version; current frontmatter v1.9 per §Changelog). Locks D-737 Decisions 1 and 4 as a durable architectural principle. Will be promoted to ACCEPTED after PLUGIN-MIGRATION-001-D LOCAL adversarial cascade reaches 3-CLEAN convergence per ADR-021 promotion lifecycle.
+Proposed 2026-05-20, v1.0 (initial proposal version; current frontmatter v1.10 per §Changelog). Locks D-737 Decisions 1 and 4 as a durable architectural principle. Will be promoted to ACCEPTED after PLUGIN-MIGRATION-001-D LOCAL adversarial cascade reaches 3-CLEAN convergence per ADR-021 promotion lifecycle.
 
 ---
 
@@ -187,11 +187,13 @@ The TOML spec declares: `timestamp_formats = ["iso8601", "unix_epoch_seconds"]` 
 
 #### D8-B — Canonical Fallback Chain for Armis Timestamp
 
-DTU evidence (`crates/prism-dtu-armis/src/types.rs`): `DeviceRecord` has `last_seen: Option<String>` (primary) and `first_seen: Option<String>` (secondary). Fixture fixture doc (`DeviceRecord` doc comment): `d-001` has `last_seen: null` and `first_seen: "2024-01-15T10:00:00Z"` to exercise the fallback.
+DTU evidence (`crates/prism-dtu-armis/src/types.rs`): `DeviceRecord` has `last_seen: Option<String>` (primary) and `first_seen: Option<String>` (secondary). Fixture doc (`DeviceRecord` doc comment): `d-001` has `last_seen: null` and `first_seen: "2024-01-15T10:00:00Z"` to exercise the fallback.
 
-Canonical fallback chain (locked): `last_seen` → `first_seen` → `DateTime::now()` (fetch-time UTC).
+Canonical fallback chain (locked, v1.10 amendment per F-LP2-HIGH-004): `first_seen` → `DateTime::now()` (fetch-time UTC).
 
-The TOML spec declares `timestamp_fallback_chain = ["last_seen", "first_seen"]` on the primary timestamp column. The normalization layer applies the chain in order; if all named columns are null/absent, falls back to `DateTime::now()` (fetch-time UTC). A `tracing::warn!` is emitted when the `now()` fallback is taken, preserving the existing audit signal (BC-2.16.013 §Postconditions §1 Armis).
+**Amendment rationale (FB-IMPL-2):** The original §D8-B locked chain listed `["last_seen", "first_seen"]`. Listing the primary column name (`last_seen`) as the first chain entry is a semantic no-op: the fallback chain executes ONLY when `last_seen` is already confirmed null/absent, so re-fetching `last_seen` from the same row yields the same null. The doc-comment "Skip the primary field itself when it appears in the chain" at pipeline.rs:1495 was false — no such skip existed. The correct canonical chain is `["first_seen"]` only. The pipeline MUST also add a defensive skip guard (`if fb_field == &col.name { continue; }`) to protect against future TOML authors who mistakenly include the primary column in the chain.
+
+The TOML spec declares `timestamp_fallback_chain = ["first_seen"]` on the primary `last_seen` column. The normalization layer applies the chain in order; if all named columns are null/absent, falls back to `DateTime::now()` (fetch-time UTC). A `tracing::warn!` is emitted when the `now()` fallback is taken, preserving the existing audit signal (BC-2.16.013 §Postconditions §1 Armis).
 
 #### D8-C — Implementation Contract for Implementer
 
@@ -239,13 +241,15 @@ The normalization runs inside `PipelineExecutor` during the response-to-Arrow ma
 
 ### D9 — Documented-Gap Entries in Spec Are Permitted with Explicit DTU-EXT-NNN Blocker Reference
 
-**Adjudicated in FB-IMPL-1 (D-FB-IMPL-1-MED-001), closing F-LP1-MED-001.**
+**Adjudicated in FB-IMPL-1 (D-FB-IMPL-1-MED-001), closing F-LP1-MED-001. Scope boundary clarified in FB-IMPL-2 (F-LP2-MEDIUM-001).**
 
 ADR-028 §D5 ("spec entry for a URL path that has no corresponding DTU route registration is an architectural violation") is clarified: this prohibition applies to **active** spec entries that the implementer intends to exercise in parity tests. It does NOT prohibit **documented-gap entries** that meet all three of:
 
 1. The spec table entry is explicitly marked in the TOML with an inline comment referencing the DTU-EXT-NNN gap ID (e.g., `# DTU-EXT-001: no DTU route registered; parity test is SKIP`).
 2. The corresponding parity test is unconditionally `#[ignore]`-tagged with the gap message per EC-016-013-006.
 3. The gap is catalogued in BC-2.16.013 §Known Gaps with the recommended resolution.
+
+**§D9 scope boundary (FB-IMPL-2 clarification — F-LP2-MEDIUM-001):** The documented-gap exception covers **table-level gaps** (an entire table endpoint has no DTU route). It does NOT cover **parameter-level projections** — query parameters or pagination fields declared in TOML that the DTU route struct does not accept. A parameter with no DTU validation backing is not a "documented gap" under §D9; it is a spec overclaim under §D1 and must be removed until a DTU-EXT-NNN entry provides the corresponding DTU route/struct extension. Concretely: `page_size = 100` in `cyberint.sensor.toml` pagination block is removed (see implementer handoff below) because `AlertListParams` in `crates/prism-dtu-cyberint/src/routes/alerts.rs` has no `page_size` field. DTU-EXT-005 is registered in BC-2.16.013 §Known Gaps to track the future DTU extension.
 
 Under this clarification, the CrowdStrike `incidents` table REMAINS in `crowdstrike.sensor.toml` as a documented-gap entry. Story AC-001's `tables.len() == 3` count (detections + devices + incidents) remains correct. The incidents table is architecturally forward-looking — the real Falcon Detects/Incidents API exists and is in scope for a follow-up DTU-EXT-001 story.
 
@@ -325,6 +329,7 @@ Feature flags (Option b) are rejected: they add runtime branch complexity to sol
 
 | Version | Date | Author | Summary |
 |---|---|---|---|
+| 1.10 | 2026-05-21 | architect | FB-IMPL-2 architect adjudication: §D8-B AMENDED — canonical Armis fallback chain corrected from `["last_seen", "first_seen"]` to `["first_seen"]` (F-LP2-HIGH-004: `last_seen` self-reference is a semantic no-op; false doc-comment "Skip the primary field itself" had no code implementation; implementer must add defensive skip guard `if fb_field == &col.name { continue; }` and fix doc-comment). §D9 SCOPE CLARIFIED — documented-gap exception covers table-level gaps only, NOT parameter-level projections; `page_size = 100` in cyberint.sensor.toml removed per §D1 (`AlertListParams` struct has no `page_size` field confirmed at alerts.rs:38-40); DTU-EXT-005 registered in BC-2.16.013 §Known Gaps (F-LP2-MEDIUM-001). §Status self-cite advanced to v1.10. BC-2.16.013 v1.12→v1.13. |
 | 1.9 | 2026-05-21 | architect | (D-FB-IMPL-1-OPT-A) FB-IMPL-1 architect adjudication: §D8 LOCKS Option A (grammar extension) for BC-2.16.013 §O-001 — `timestamp_formats` + `timestamp_fallback_chain` fields added to `ColumnSpec`; Cyberint canonical formats iso8601+unix_epoch_seconds documented; Armis fallback chain `last_seen → first_seen → now()` locked; implementer contract for spec_parser.rs changes specified; E-SPEC-018 registered. §D9 clarifies §D5 documented-gap exception: incidents table REMAINS in crowdstrike.sensor.toml per documented-gap policy; AC-001 `tables.len() == 3` stands. §D10 co-merge contract: 001-D + 001-A MUST deploy to production simultaneously to prevent E-SPEC-012 regression on Claroty bearer_static vs live cookie_roundtrip; feature-flag Option b rejected; story §Postconditions annotated. |
 | 1.8 | 2026-05-20 | architect | Pass-17 FB-IMPL-P17-ARCH: §Changelog rows REVERTED to descending (project per-file convention locks at authoring; ADR-028 was authored at v1.0 with descending order). FB-IMPL-P16-ARCH's ascending flip was based on sample-biased 3-ADR enumeration that missed ADR-022's 6-precedent DESCENDING enforcement chain (D-611/D-628/D-635/D-659/D-670/D-671). F-LP17-HIGH-002 closure. 12th coherence-axis class (sample-biased sibling-convention closures) codified: convention closures MUST exhaustively enumerate ALL ADRs before declaring project rule. §D7 (Per-File §Changelog Convention Lock) added. §Status self-cite advanced to v1.8. |
 | 1.7 | 2026-05-20 | architect | Pass-16 FB-IMPL-P16-ARCH: §Changelog rows reordered descending→ascending to match project convention (ADR-026/025/027) per F-LP16-MED-001 (POL-26 sibling-asymmetric convention). Closes 9th coherence-axis class. Content of all prior rows preserved verbatim — only ordering changed. |

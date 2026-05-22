@@ -1278,7 +1278,7 @@ This story is DONE when ALL of the following are simultaneously true — no exce
 12. The squash-merge commit to `develop` passes `lefthook` pre-push hooks
     (`just check` including `fmt`, `clippy`, `nextest`, `crate-layout`).
 
-13. **Co-merge contract (ADR-028 v1.9 §D10, D-FB-IMPL-1-MED-005):** This story's spec declares
+13. **Co-merge contract (ADR-028 v1.10 §D10, D-FB-IMPL-1-MED-005):** This story's spec declares
     Claroty `auth_type = "bearer_static"` (DTU-grounded). Until PLUGIN-MIGRATION-001-A merges
     (which rewrites `ClarotyAuth::auth_type_name()` from `"cookie_roundtrip"` to `"bearer_static"`),
     loading this TOML spec in a production runtime will trigger `E-SPEC-012` (auth_type mismatch)
