@@ -1,9 +1,9 @@
 ---
 document_type: pipeline-state
 level: ops
-version: "7.455"
+version: "7.456"
 producer: state-manager
-timestamp: 2026-05-21T23:59:00Z
+timestamp: 2026-05-21T23:59:30Z
 inputs: []
 input-hash: "[live-state]"
 traces_to: ""
@@ -16,15 +16,15 @@ repos: [poller-cobra, poller-express, poller-bear, poller-coaster, serveMyAPI, t
 safe_to_compact: false
 pre_compact_snapshot: "SESSION-HANDOFF.md §RESUME SNAPSHOT 2026-05-21"
 pre_compact_snapshot_at: "2026-05-21 (D-760 SESSION-HANDOFF.md §RESUME SNAPSHOT 2026-05-21 for PLUGIN-MIGRATION-001-D LOCAL 3-CLEAN CONVERGENCE durability)"
-current_step: "PLUGIN-MIGRATION-001-D Step 4.5 IN-PROGRESS — FB-IMPL-5 CLOSED. Dispatching adversary pass-6 with fresh context. Trajectory 15→13→10→2→3 strong asymptote convergence signal."
+current_step: "PLUGIN-MIGRATION-001-D Step 4.5 IN-PROGRESS — FB-IMPL-6 CLOSED. Dispatching adversary pass-7. Trajectory 15→13→10→2→3→1 best cascade result yet."
 plugin_migration_001_d_red_gate_verified_at: 2026-05-21T20:15:00Z
 plugin_migration_001_d_tdd_green_at: 2026-05-21T21:29:04Z
 plugin_migration_001_d_feature_branch_head: "6a0ca01e"
 plugin_migration_001_d_workspace_test_count_at_tdd_green: 3703
-plugin_migration_001_d_impl_cascade_pass_count: 5
+plugin_migration_001_d_impl_cascade_pass_count: 6
 plugin_migration_001_d_impl_cascade_clean_streak: 0
-plugin_migration_001_d_impl_cascade_fb_count: 5
-plugin_migration_001_d_impl_cascade_findings_closed: 43
+plugin_migration_001_d_impl_cascade_fb_count: 6
+plugin_migration_001_d_impl_cascade_findings_closed: 44
 current_cycle: wave-0-plugin-prereqs
 feature_branch_head: "merged to 80ebe794 at 2026-05-19 (PR #151) — a4c048ce was final feature HEAD before squash-merge"
 pr_level_adversary_streak: "3/3 CONVERGED per BC-5.39.001 — passes 2/3/4 all CLEAN; PR #151 merged 2026-05-19; D-716 Option A standing satisfied"
@@ -98,7 +98,7 @@ historical_cycles: [phase-1-convergence, wave-3-multi-tenant, wave-4-operations]
 | **Language** | Rust |
 | **Target Workspace** | per-analyst stdio (MCP server) |
 | **Started** | 2026-04-13 |
-| **Last Updated** | 2026-05-21 (D-768 FB-IMPL-5 CLOSED; feature HEAD 6a0ca01e; 3724/3724 PASS unchanged; pass-5 first zero-HIGH; cascade trajectory 15→13→10→2→3; 280th consecutive) |
+| **Last Updated** | 2026-05-21 (D-769 FB-IMPL-6 CLOSED; feature HEAD 6a0ca01e UNCHANGED; 3724/3724 PASS unchanged; pass-6 best result 0 CRIT/HIGH/MED; cascade trajectory 15→13→10→2→3→1; 281st consecutive) |
 | **Current Phase** | Wave 3 Tier-3 COMPLETE — **Wave 3-A 4 of 4 SHIPPED**; plugin migration: PREREQ-F + PREREQ-A + PREREQ-B + PREREQ-C + PREREQ-D + **PREREQ-E MERGED** (PR #151 80ebe794 2026-05-19T18:06:44Z); PLUGIN-MIGRATION-001-D TDD GREEN (D-763) — Step 4.5 LOCAL impl adversary cascade in progress |
 | **Current Step** | PLUGIN-MIGRATION-001-D Step 4.5 IN-PROGRESS — LOCAL implementation adversary cascade BC-5.39.001 entered (pass-1 dispatched). Target: 3 consecutive CLEAN passes. |
 
@@ -147,6 +147,7 @@ _D-001..D-046 archived: [cycles/phase-3-dtu-wave-2/decisions-archive-d001-d032.m
 
 | ID | Decision | Rationale | Phase | Date |
 |----|----------|-----------|-------|------|
+| D-769 | 2026-05-21 | orchestrator | **PLUGIN-MIGRATION-001-D LOCAL impl adversary cascade pass-6 FB-IMPL-6 CLOSED — 1 LOW finding (F-LP6-LOW-001 TD-VSDD-091 task-body line-cites) swept via combined state-manager narrative-hygiene burst. Pass-6 result was 0 CRIT/0 HIGH/0 MED/1 LOW/0 OBS + 14 positive verifications — best cascade result yet (first zero-MED + 2nd zero-HIGH). Per Canonical Principle 'no pragmatic convergence,' swept the LOW rather than accept. Story v1.16→v1.17 + STORY-INDEX v2.175→v2.176 + 7 line-cite sites replaced with function-name anchors per TD-VSDD-091. Feature branch HEAD unchanged at 6a0ca01e (sweep is .factory/-only narrative hygiene). Cascade trajectory: 15→13→10→2→3→1 (deep asymptote convergence). Cascade streak resets 0→0/3 (pass-6 had LOW finding strictly interpreted). Pass-7 dispatching with fresh context — expected CLEAN under TD-VSDD-091 compliance. 281st consecutive single-commit per TD-VSDD-053.** | plugin-migration | 2026-05-21 | Decided by: orchestrator. Status: APPROVED |
 | D-768 | 2026-05-21 | orchestrator | **PLUGIN-MIGRATION-001-D LOCAL impl adversary cascade pass-5 FB-IMPL-5 CLOSED — 3 findings (0 CRIT + 0 HIGH + 1 MED + 2 LOW) + 10 positive OBSERVATIONs. **First zero-HIGH pass** confirms structural correctness; remaining findings are POL-29 propagation hygiene only. FB-IMPL-5 routed across 3 specialists: PO commit a2ef75e1 closed MED-001 (BC-2.16.002 row 112 anchor cite-pin BC-2.16.013 v1.13→v1.14) + LOW-001 (story line 1022 BC-2.16.001 v1.5→v1.6 in-paragraph contradiction); architect commit c1aae7fe closed cascading ADR-026:336 cite-pin (BC-2.16.002 v1.36→v1.37); implementer commit 6a0ca01e closed LOW-002 (4 source-code cite-pins BC-2.16.001 v1.5→v1.6 swept across spec_parser.rs:904 + bc_2_16_013_spec_id_mismatch.rs:2/25/74). 2nd recurrence of 'PO BC bump → architect ADR pin cascade' micro-pattern (1st was f9f6feed). 10 positive observations: E-SPEC-017/018 byte-fidelity verified; tracing catalog discipline clean; #[non_exhaustive] discipline OK across 4 modified types; no POL-12 stub residue; defensive skip-guard load-bearing; DTU cross-check all 4 TOMLs clean; chrono dep correct; HTTP 30s timeouts applied. Feature HEAD 6a0ca01e. just check 3724/3724 GREEN unchanged (doc-comment-only sweeps). Cascade trajectory: 15→13→10→2→3 (1 MED + 2 LOW). Cascade streak resets 0→0/3 (pass-5 had MED finding); pass-6 dispatching with fresh context — STRONG CLEAN signal expected per asymptote trajectory. 280th consecutive single-commit per TD-VSDD-053.** | plugin-migration | 2026-05-21 | Decided by: orchestrator. Status: APPROVED |
 | D-767 | 2026-05-21 | orchestrator | **PLUGIN-MIGRATION-001-D LOCAL impl adversary cascade pass-4 FB-IMPL-4 CLOSED — 2 findings (0 CRIT + 1 HIGH + 0 MED + 1 LOW + 1 OBS) closed via implementer single-commit (63bb2877). HIGH-001: 18-site sweep of stale ADR-028 v1.9 → v1.10 cites in LIVE narrative (source 12, TOML 4, tests 3); 3rd recurrence of POL-29 partial-sweep axis confirmed — implementer's sibling-grep found 3 extra sites adversary undercounted. LOW-001: 2 guarded unwraps in pipeline.rs::normalize_timestamp_fields replaced with expect() carrying explicit safety-invariant docstrings. OBSERVATION (cyberint.incidents descriptor exposure) DEFERRED to future story with documented architectural rationale — §D9 documented-gap exception already sanctions per ADR-028. **POL-29 immutable changelog exemption explicitly documented for 2 .factory/ changelog narrative sites that were NOT swept: (1) error-taxonomy.md:495 — changelog row v1.43 narrative documenting 'added ADR-028 v1.9 §D8-C reference'; (2) STORY-INDEX.md:933 — changelog row v2.173 narrative documenting prior version state. These are CHANGELOG rows documenting historical version state at commit time — not subject to sweep per same rule architect applied correctly at ADR-026 pin fix f9f6feed (leaving .factory/cycles/wave-4-operations/adversarial-reviews/S-PLUGIN-PREREQ-E-impl-pass-12.md:41 untouched). Future adversary passes MUST NOT re-flag these 2 sites.** Feature HEAD 63bb2877. just check 3724/3724 PASS unchanged (doc-comment-only sweep). Cascade trajectory: 15→13→10→2 findings (monotonic decay). Cascade streak resets 0→0/3 (pass-4 had HIGH finding); pass-5 dispatching with fresh context. 277th consecutive single-commit per TD-VSDD-053.** | plugin-migration | 2026-05-21 | Decided by: orchestrator. Status: APPROVED |
 | D-766 | 2026-05-21 | orchestrator | **PLUGIN-MIGRATION-001-D LOCAL impl adversary cascade pass-3 FB-IMPL-3 CLOSED — 10 findings (0 CRIT + 4 HIGH + 4 MED + 2 LOW + 4 OBS) closed entirely via implementer single-dispatch (8 micro-commits 05fe6ad8..31a8aa79). High-novelty pass surfaced DTU↔TOML schema drift axis: cyberint TOML reauthored to match DTU Alert struct (dropped 3 spurious columns, renamed 2 for DTU alignment), armis manufacturer OCSF + risk_score type corrected, claroty body_template ambiguity removed, validator Stage 3 field-name resolution added, E-SPEC-018 Display byte-for-byte test hardened, chrono dep tightened. **Sibling-sweep discipline successfully applied:** implementer's HIGH-002/003 sweep mandate found zero other defects across 4 TOMLs (confirming the recurring axis observation from D-765 — explicit sweep prevents pattern recurrence). Feature HEAD 31a8aa79. just check 3724/3724 PASS (+4 from FB-IMPL-2 baseline; +21 cumulative from pre-cascade). Cascade streak resets 0→0/3 (pass-3 had findings); pass-4 dispatching with fresh context. 276th consecutive single-commit per TD-VSDD-053.** | plugin-migration | 2026-05-21 | Decided by: orchestrator. Status: APPROVED |
@@ -251,28 +252,28 @@ Prior cycle history:
 
 ---
 
-## Session Resume Checkpoint (2026-05-21 — D-767 FB-IMPL-4 CLOSED / PASS-5 DISPATCHING)
+## Session Resume Checkpoint (2026-05-21 — D-769 FB-IMPL-6 CLOSED / PASS-7 DISPATCHING)
 
-_Previous checkpoint (D-762 RED GATE VERIFIED) archived: [cycles/wave-0-plugin-prereqs/session-checkpoints.md](cycles/wave-0-plugin-prereqs/session-checkpoints.md)_
+_Previous checkpoint (D-767 FB-IMPL-4 CLOSED) archived: [cycles/wave-0-plugin-prereqs/session-checkpoints.md](cycles/wave-0-plugin-prereqs/session-checkpoints.md)_
 
-**STATE v7.454. D-767 FB-IMPL-4 CLOSED.** safe_to_compact=false. Feature branch feature/PLUGIN-MIGRATION-001-D HEAD: 63bb2877. 277th consecutive single-commit per TD-VSDD-053.
+**STATE v7.456. D-769 FB-IMPL-6 CLOSED.** safe_to_compact=false. Feature branch feature/PLUGIN-MIGRATION-001-D HEAD: 6a0ca01e (UNCHANGED — FB-IMPL-6 was .factory/-only narrative hygiene). 281st consecutive single-commit per TD-VSDD-053.
 
 **Impl Cascade State:**
-- Pass-4: 2 findings (1 HIGH + 1 LOW + 1 OBS-deferred); both closed via implementer single-commit 63bb2877
-- Trajectory: 15→13→10→2 (monotonic decay, accelerating)
-- Streak: 0/3 (pass-4 had HIGH finding; reset per BC-5.39.001)
-- Cumulative closures: 40 across 4 fix-bursts
+- Pass-6: 1 finding (1 LOW F-LP6-LOW-001 TD-VSDD-091 task-body line-cites); swept via state-manager narrative-hygiene burst
+- Trajectory: 15→13→10→2→3→1 (best result yet — first zero-MED pass, 2nd zero-HIGH pass)
+- Streak: 0/3 (pass-6 had LOW finding; reset per BC-5.39.001 strict interpretation)
+- Cumulative closures: 44 across 6 fix-bursts
+- Story: PLUGIN-MIGRATION-001-D v1.17; STORY-INDEX v2.176
 
 **POL-29 Immutable Changelog Exemption on record:**
 - `error-taxonomy.md:495` (changelog row v1.43) — EXEMPT: historical narrative
 - `STORY-INDEX.md:933` (changelog row v2.173) — EXEMPT: historical narrative
+- Story changelog rows (lines 1295-1310) containing `spec_parser.rs:NNN` cites — EXEMPT: historical narrative per TD-VSDD-091
 
 **Resume Protocol:**
 1. Read `.factory/SESSION-HANDOFF.md` §RESUME SNAPSHOT 2026-05-21 for full context
-2. Read `.factory/STATE.md` frontmatter + D-767 decision row
-3. Dispatch adversary pass-5 with fresh context against feature HEAD 63bb2877
-3. Verify factory worktree health via `vsdd-factory:devops-engineer` (BLOCKING)
-4. Verify feature branch HEAD is still e2cea9b7 (test-writer complete; implementer not yet started)
-5. Dispatch implementer for TDD green cycle: Tasks 3-6 (TOML authoring) + Tasks 11/12 (ESpec017 + load_all)
+2. Read `.factory/STATE.md` frontmatter + D-769 decision row
+3. Dispatch adversary pass-7 with fresh context against feature HEAD 6a0ca01e
+4. Expected CLEAN under TD-VSDD-091 compliance (all 7 live-prose line-cites replaced with function-name anchors)
 
 _Agent routing: see CLAUDE.md §Agent Routing Table._

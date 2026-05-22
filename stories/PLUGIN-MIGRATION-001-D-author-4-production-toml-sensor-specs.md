@@ -6,7 +6,7 @@ wave: 1
 epic_id: PLUGIN-MIGRATION-001
 priority: P0
 status: ready
-version: "v1.16"
+version: "v1.17"
 level: "L4"
 producer: story-writer
 timestamp: "2026-05-20T00:00:00Z"
@@ -384,7 +384,7 @@ by the story that wires `prism-query` DataFusion catalog registration (S-3.02 sc
    let dtu_base_url = format!("http://{}", bound_addr);
    ```
 2. Load `crowdstrike.sensor.toml` content and parse via `SpecLoader::parse(&content)`
-   (`crates/prism-spec-engine/src/spec_parser.rs:655`); override `base_url` in the
+   (`SpecLoader::parse()` in `crates/prism-spec-engine/src/spec_parser.rs`); override `base_url` in the
    loaded `SensorSpec` with `dtu_base_url` via test-only config injection (or read the spec with a
    test config that sets `base_url` to the DTU address).
 3. Resolve the `detections` table spec: `spec.tables.iter().find(|t| t.table_name == "detections").unwrap()`.
@@ -446,7 +446,7 @@ assertion still holds. Doc-comment on the assertion: `// single-page QueryV2 ass
        .await.expect("Claroty DTU clone failed to start");
    let dtu_base_url = format!("http://{}", bound_addr);
    ```
-2. Load `claroty.sensor.toml` content and parse via `SpecLoader::parse(&content)` (`spec_parser.rs:655`) with `base_url` overridden to `dtu_base_url`.
+2. Load `claroty.sensor.toml` content and parse via `SpecLoader::parse(&content)` (`SpecLoader::parse()`) with `base_url` overridden to `dtu_base_url`.
 3. Resolve the `alerts` table: `spec.tables.iter().find(|t| t.table_name == "alerts").unwrap()`.
    (Note: `assets` table is deferred — DTU-EXT-002: Claroty DTU has `/api/v1/devices`, not
    `/api/v1/assets`. Parity test pivots to `alerts` which has a DTU route at `/api/v1/alerts`
@@ -481,7 +481,7 @@ Tagged `#[ignore = "requires prism-dtu-claroty DTU clone"]` until S-6.08 merges.
        .await.expect("Cyberint DTU clone failed to start");
    let dtu_base_url = format!("http://{}", bound_addr);
    ```
-2. Load `cyberint.sensor.toml` content and parse via `SpecLoader::parse(&content)` (`spec_parser.rs:655`) with `base_url` overridden to `dtu_base_url`.
+2. Load `cyberint.sensor.toml` content and parse via `SpecLoader::parse(&content)` (`SpecLoader::parse()`) with `base_url` overridden to `dtu_base_url`.
 3. Resolve the `alerts` table: `spec.tables.iter().find(|t| t.table_name == "alerts").unwrap()`.
    URL grounded: DTU registers `GET /api/v1/alerts` at `crates/prism-dtu-cyberint/src/clone.rs`
    `build_router()` line 115 (per ADR-028 §D1). Spec TOML uses `"/api/v1/alerts"` (NOT `/api/alerts`
@@ -521,7 +521,7 @@ Tagged `#[ignore = "requires prism-dtu-cyberint DTU clone"]` (alerts test only) 
        .await.expect("Armis DTU clone failed to start");
    let dtu_base_url = format!("http://{}", bound_addr);
    ```
-2. Load `armis.sensor.toml` content and parse via `SpecLoader::parse(&content)` (`spec_parser.rs:655`) with `base_url` overridden to `dtu_base_url`.
+2. Load `armis.sensor.toml` content and parse via `SpecLoader::parse(&content)` (`SpecLoader::parse()`) with `base_url` overridden to `dtu_base_url`.
 3. Resolve the `devices` table: `spec.tables.iter().find(|t| t.table_name == "devices").unwrap()`.
    Note: DTU-EXT-003 gap — Armis DTU has `GET /api/v1/devices` (not `/api/v1/search` with AQL).
    Parity test is `#[ignore]`-tagged per EC-016-013-006 until DTU extension merges and
@@ -872,8 +872,8 @@ procedure. The implementer records fixtures when DTU clone stories merge.
 
 **File:** `crates/prism-core/src/error.rs`
 
-Confirmed location: `SpecErrorCode` enum lives at `crates/prism-core/src/error.rs:892` (verified
-by reading the file — `pub enum SpecErrorCode` declared there with variants `ESpec001`, `ESpec004`,
+Confirmed location: `SpecErrorCode` enum is declared as `pub enum SpecErrorCode` in `crates/prism-core/src/error.rs` (verified
+by reading the file — variants `ESpec001`, `ESpec004`,
 `ESpec008`, `ESpec009`, `ESpec010`, `ESpec011`). The enum currently lacks `#[non_exhaustive]`
 (verified at `crates/prism-core/src/error.rs::SpecErrorCode`).
 
@@ -937,11 +937,11 @@ variant additions.
 
 **File:** `crates/prism-spec-engine/src/spec_parser.rs`
 
-**Function:** `SpecLoader::load_all()` — confirmed at `spec_parser.rs:715` (verified by reading
+**Function:** `SpecLoader::load_all()` in `crates/prism-spec-engine/src/spec_parser.rs` (verified by reading
 the file). This function receives the file path context; it reads the `.sensor.toml` files from
 disk, parses them via `Self::parse(&content)`, and collects descriptors + errors.
 
-**Logic to add** (after `Self::parse(&content)` returns `Ok(spec)` at line ~768):
+**Logic to add** (after `Self::parse(&content)` returns `Ok(spec)` inside `SpecLoader::load_all`):
 ```rust
 // BC-2.16.001 v1.6 §Error Conditions E-SPEC-017:
 // The filename stem must case-sensitively match the spec's sensor_id.
@@ -1292,6 +1292,7 @@ This story is DONE when ALL of the following are simultaneously true — no exce
 
 | Version | Date | Author | Change |
 |---------|------|--------|--------|
+| v1.17 | 2026-05-21 | state-manager | FB-IMPL-6 closure of F-LP6-LOW-001 — TD-VSDD-091 task-body line-cite sweep; replaced 7 `file.rs:NNN` cites with function-name anchors: 4× `spec_parser.rs:655` → `SpecLoader::parse()`, 1× `error.rs:892` → `pub enum SpecErrorCode in crates/prism-core/src/error.rs`, 1× `spec_parser.rs:715` → `SpecLoader::load_all() in crates/prism-spec-engine/src/spec_parser.rs`, 1× `at line ~768` → `inside SpecLoader::load_all`. Changelog cites (immutable historical rows) left intact per TD-VSDD-091 exempt class. STORY-INDEX v2.175→v2.176. |
 | v1.16 | 2026-05-21 | product-owner | FB-IMPL-5 PO: F-LP5-LOW-001 closure: in-paragraph cite-pin contradiction resolved — `BC-2.16.001 v1.5 is the authority` corrected to `BC-2.16.001 v1.6 is the authority` at line 1022 (line 1019 above already cited v1.6 §Error Conditions; the v1.5 reference was a missed within-paragraph sweep from BC-2.16.001 v1.5→v1.6 at commit 62f9162e). STORY-INDEX v2.174→v2.175. |
 | v1.15 | 2026-05-21 | product-owner | FB-IMPL-2 PO: F-LP2-HIGH-006 closure (Option a) + F-LP2-MEDIUM-002 closure. (1) BC-2.16.013 v1.13→v1.14 cite-pin sweep across 8 active-prose sites (frontmatter comment line 49, body BC table line 192, line 315 §Known Gaps, line 731 Task 4 Claroty supersession context, line 758 Task 5 Cyberint supersession context, line 782 Task 6 Armis resolution-options, line 792 Task 6 Armis supersession context, line 815 Task 9 BehavioralClone cite). (2) BC-2.16.002 body BC table row v1.35→v1.36 (MEDIUM-002: architect's eb714b3c did not sweep this row; FB-IMPL-1 PO bumped BC-2.16.002 from v1.35→v1.36 but the story body row was not swept in that burst). Story v1.14→v1.15. STORY-INDEX v2.173→v2.174. |
 | v1.14 | 2026-05-21 | product-owner | FB-IMPL-1-PO: (1) F-LP1-HIGH-005 — AC-006 narrowed (Option a): empty-credential PASS criterion scoped to parse-time `credential_refs.is_empty()` only; DEC-036 DataFusion-level unavailability marking declared §Known Gap KG-006-001 (out of scope per AD-015 — prism-spec-engine MUST NOT import DataFusion; catalog registration is prism-query S-3.02 scope); BC-2.16.001 §Known Gaps added (v1.5→v1.6). (2) F-LP1-MED-002 — AC-007 step 4 and AC-010 step 4 OrgSlug::new_unchecked → OrgSlug::new (Option a): "test-org" satisfies ^[a-zA-Z0-9_-]{1,64}$; new_unchecked forbidden in this context per CLAUDE.md §Forbidden patterns; tests already use OrgSlug::new(); story aligned to match. STORY-INDEX v2.171→v2.172. |

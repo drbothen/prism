@@ -21,6 +21,37 @@ order (newest first) per POL-26.
 
 ---
 
+## Burst D-769 (2026-05-21) — FB-IMPL-6 CLOSED — 1 LOW finding (TD-VSDD-091 task-body line-cites); best cascade result yet
+
+**Agents dispatched:** state-manager (.factory/ — D-769 combined burst)
+**Feature commits:** NONE — feature branch HEAD 6a0ca01e UNCHANGED (burst is .factory/-only narrative hygiene)
+**Files touched (.factory/):** stories/PLUGIN-MIGRATION-001-D-author-4-production-toml-sensor-specs.md (v1.16→v1.17; 7 line-cite sites swept), stories/STORY-INDEX.md (v2.175→v2.176), STATE.md (v7.455→v7.456), cycles/wave-0-plugin-prereqs/burst-log.md, cycles/wave-0-plugin-prereqs/lessons.md
+**Versions bumped:** STATE.md v7.455→v7.456; story v1.16→v1.17; STORY-INDEX v2.175→v2.176
+
+### Summary
+
+Pass-6 returned 0 CRIT / 0 HIGH / 0 MED / 1 LOW / 0 OBS + 14 positive verifications. **Best cascade result yet** — first zero-MED pass (combined with 2nd zero-HIGH pass). The single LOW finding (F-LP6-LOW-001) flagged 7 task-body `file.rs:NNN` line-cite pins as TD-VSDD-091 violations. These were correct at story-authoring time but decayed as cascade fix-bursts shifted source-code line numbers.
+
+Per Canonical Principle "no pragmatic convergence," the LOW was swept rather than accepted.
+
+**F-LP6-LOW-001 (CLOSED — state-manager narrative-hygiene sweep):** 7 line-cite sites in live task prose replaced with function-name anchors:
+- 4× `spec_parser.rs:655` → `SpecLoader::parse()` (lines 387, 449, 484, 524)
+- 1× `error.rs:892` → `pub enum SpecErrorCode in crates/prism-core/src/error.rs` (line 875)
+- 1× `spec_parser.rs:715` → `SpecLoader::load_all() in crates/prism-spec-engine/src/spec_parser.rs` (line 940)
+- 1× `at line ~768` → `inside SpecLoader::load_all` (line 944)
+
+Changelog rows (lines 1295-1310) containing historical `spec_parser.rs:NNN` cites were LEFT INTACT — immutable historical records, exempt per TD-VSDD-091.
+
+**Routing note:** combined single-commit approach used per architect precedent (f9f6feed + c1aae7fe) allowing state-manager to handle small mechanical narrative-hygiene sweeps for closure purposes. No scope-feels-wrong concern raised — the 7 site substitutions are purely mechanical (line numbers → function names), not content authoring.
+
+### Workspace gate
+`just check` 3724/3724 PASS unchanged (.factory/-only changes cannot regress Rust tests).
+
+### Cascade trajectory
+15 (pass-1) → 13 (pass-2) → 10 (pass-3) → 2 (pass-4) → 3 (pass-5) → 1 (pass-6) — deep asymptote; TD-VSDD-091 compliance sweep as final closure action before pass-7.
+
+---
+
 ## Burst D-768 (2026-05-21) — FB-IMPL-5 CLOSED — 3 findings (1 MED + 2 LOW); first zero-HIGH pass
 
 **Agents dispatched:** product-owner (.factory/ — a2ef75e1), architect (.factory/ — c1aae7fe), implementer (feature branch — 6a0ca01e), state-manager (.factory/ — D-768)
