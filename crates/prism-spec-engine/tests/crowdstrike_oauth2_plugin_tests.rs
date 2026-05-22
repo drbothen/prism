@@ -1224,3 +1224,65 @@ fn test_PLUGIN_MIGRATION_001_E_crit_001_kv_store_arc_shared_across_dispatches() 
         cached_token
     );
 }
+
+// ---------------------------------------------------------------------------
+// F-LP2-MED-001: Integration test for just-built .prx artifact
+// Traces to: PLUGIN-MIGRATION-001-E F-LP2-MED-001 closure
+// ---------------------------------------------------------------------------
+
+/// F-LP2-MED-001: Load the pre-built crowdstrike-oauth2.prx artifact via PluginRuntime.
+///
+/// This test exercises the full plugin load path for the actual .prx binary produced by
+/// `just build-plugin-crowdstrike-oauth2`. It verifies that the .prx:
+/// 1. Loads without error (WIT validation passes)
+/// 2. Manifest is correctly parsed (plugin_id = "crowdstrike-oauth2")
+/// 3. plugin_id is registered in PluginRuntime after load
+///
+/// # Why #[ignore]
+///
+/// This test requires the .prx to be pre-built via `just build-plugin-crowdstrike-oauth2`.
+/// The .prx is NOT rebuilt automatically by cargo test. CI runs this test in a dedicated
+/// job that first runs `just build-plugin-crowdstrike-oauth2` then un-ignores this test
+/// (via `cargo nextest run ... -- --include-ignored`).
+///
+/// Story citation for un-ignore: PLUGIN-MIGRATION-001-E (follow-up: add to CI job after
+/// wasm32-wasip1 toolchain is available in the pipeline, story S-PLUGIN-CI-001).
+///
+/// Per SID-1: the cited blocking dependency is SPECIFIC (wasm32-wasip1 toolchain + story ID).
+/// This is NOT a permanent ignore — it will be activated when CI adds the WASM build step.
+#[test]
+#[ignore = "requires pre-built .prx from `just build-plugin-crowdstrike-oauth2`; \
+            un-ignored in CI job with wasm32-wasip1 toolchain (S-PLUGIN-CI-001)"]
+fn test_PLUGIN_MIGRATION_001_E_med_001_built_prx_loads_via_plugin_runtime() {
+    let prx_path = std::path::Path::new(
+        "crates/prism-spec-engine/plugins/crowdstrike-oauth2/crowdstrike-oauth2.prx",
+    );
+
+    assert!(
+        prx_path.exists(),
+        "F-LP2-MED-001: crowdstrike-oauth2.prx must exist at {path} — run \
+         `just build-plugin-crowdstrike-oauth2` first",
+        path = prx_path.display()
+    );
+
+    let runtime = build_test_runtime();
+
+    let plugin = runtime
+        .load_plugin(prx_path)
+        .expect("F-LP2-MED-001: built crowdstrike-oauth2.prx must load without error");
+
+    assert_eq!(
+        plugin.metadata.plugin_id, "crowdstrike-oauth2",
+        "F-LP2-MED-001: plugin_id must be 'crowdstrike-oauth2' after load; got '{}'",
+        plugin.metadata.plugin_id
+    );
+
+    // Verify registered in runtime after load_plugin.
+    let registered = runtime.list_plugins();
+    assert!(
+        registered.contains(&"crowdstrike-oauth2".to_string()),
+        "F-LP2-MED-001: plugin must be registered in PluginRuntime after load; \
+         registered: {:?}",
+        registered
+    );
+}
