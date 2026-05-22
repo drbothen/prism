@@ -21,6 +21,35 @@ order (newest first) per POL-26.
 
 ---
 
+## Burst D-768 (2026-05-21) — FB-IMPL-5 CLOSED — 3 findings (1 MED + 2 LOW); first zero-HIGH pass
+
+**Agents dispatched:** product-owner (.factory/ — a2ef75e1), architect (.factory/ — c1aae7fe), implementer (feature branch — 6a0ca01e), state-manager (.factory/ — D-768)
+**Feature commits:** 6a0ca01e (implementer LOW-002; 4 source-code cite-pins BC-2.16.001 v1.5→v1.6)
+**Files touched (feature branch):** crates/prism-spec-engine/src/spec_parser.rs:904, crates/prism-spec-engine/tests/external/bc_2_16_013_spec_id_mismatch.rs:2/25/74 — doc-comment-only sweeps
+**Versions bumped:** STATE.md v7.454→v7.455; BC-2.16.002 v1.36→v1.37; BC-INDEX v5.38→v5.39; story v1.15→v1.16; STORY-INDEX v2.174→v2.175; ADR-026 v1.33→v1.34; ARCH-INDEX v2.99→v2.100
+
+### Summary
+
+Pass-5 surfaced 3 findings (0 CRIT / 0 HIGH / 1 MED / 2 LOW) + 10 positive observations confirming structural correctness. **First zero-HIGH pass** in the PLUGIN-MIGRATION-001-D LOCAL impl cascade. All 3 findings are POL-29 propagation hygiene (cite-pin sweeps), not semantic correctness defects.
+
+**F-LP5-MED-001 (CLOSED — PO a2ef75e1):** BC-2.16.002 row 112 anchor cite-pin advanced BC-2.16.013 v1.13→v1.14. PO sibling-sweep found ADR-026:336 needed architect routing — correctly surfaced without in-scope fix.
+
+**F-LP5-LOW-001 (CLOSED — PO a2ef75e1):** Story line 1022 in-paragraph BC-2.16.001 v1.5→v1.6 contradiction resolved.
+
+**F-LP5-LOW-002 (CLOSED — implementer 6a0ca01e):** 4 source-code cite-pins BC-2.16.001 v1.5→v1.6 advanced per advance-to-current convention across spec_parser.rs:904 + bc_2_16_013_spec_id_mismatch.rs:2/25/74.
+
+**ADR-026:336 cascade (CLOSED — architect c1aae7fe):** PO grep-sweep found ADR-026:336 cite-pin BC-2.16.002 v1.36→v1.37; architect advanced ADR-026 v1.33→v1.34 + ARCH-INDEX v2.99→v2.100. 2nd recurrence of 'PO BC bump → architect ADR pin cascade' micro-pattern (1st was f9f6feed).
+
+**10 positive OBSERVATIONs (non-blocking):** E-SPEC-017/018 byte-fidelity verified; tracing catalog discipline clean; #[non_exhaustive] discipline OK across 4 modified types; no POL-12 stub residue; defensive skip-guard load-bearing; DTU cross-check all 4 TOMLs clean; chrono dep correct; HTTP 30s timeouts applied.
+
+### Workspace gate
+`just check` 3724/3724 PASS unchanged (doc-comment-only sweeps cannot regress tests).
+
+### Cascade trajectory
+15 (pass-1) → 13 (pass-2) → 10 (pass-3) → 2 (pass-4) → 3 (pass-5) — asymptote signal; all remaining findings are propagation hygiene.
+
+---
+
 ## Burst D-767 (2026-05-21) — FB-IMPL-4 CLOSED — 2 findings (1 HIGH + 1 LOW)
 
 **Agents dispatched:** implementer (feature branch), state-manager (.factory/)
