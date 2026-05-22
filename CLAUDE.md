@@ -197,6 +197,26 @@ These project-specific operational rules layer onto the canonical principle. Rec
 - **TD-VSDD-060 — Sibling-site sweep on value changes.** When changing a function signature, constant, or canonical identifier, grep for ALL callsites in the same crate (and adjacent crates if `pub`) before committing.
 - **TD-VSDD-091 — Anti-volatile-pin.** Narrative spec content must cite function names + behavioral anchors, NOT `file.rs:NNN` line numbers (which decay on subsequent diffs). Justified citations (Red Gate test tables, AC source-of-truth tables, pass-report changelogs) excepted.
 - **BC-5.39.001 — 3-CLEAN convergence protocol.** Adversarial cascades require three consecutive clean passes for convergence; any finding resets the streak to 0/3. Applies to both LOCAL and PR-LEVEL cascades.
+
+  **Strict vs PR-Merge Convergence Disambiguation** (amendment 2026-05-22, D-779):
+
+  The CLEAN status reported by the adversary at the end of each pass has TWO INTERPRETATIONS:
+
+  - **CLEAN (strict)** — ZERO findings of ANY severity (CRIT + HIGH + MED + LOW + OBS + PROCESS-GAP). This is the criterion required for **streak advancement** under BC-5.39.001 3-CLEAN. The 3-CLEAN streak advances only when 3 consecutive passes are CLEAN (strict).
+
+  - **CLEAN (PR-merge)** — ZERO findings of CRIT + HIGH + MED severity (LOW/OBS/PROCESS-GAP findings present but non-blocking). This is a PR-merge-gate threshold ONLY; it does NOT advance the 3-CLEAN streak.
+
+  **Adversary CLEAN reports MUST specify both criteria explicitly.** Recommended report format:
+
+  ```
+  CLEAN (strict): yes/no
+  CLEAN (PR-merge): yes/no
+  ```
+
+  **Orchestrator dispatch decisions** for fix-bursts use the STRICT criterion. If CLEAN(strict)=no, orchestrator dispatches a fix-burst regardless of CLEAN(PR-merge) status.
+
+  **Rationale:** This disambiguation eliminates the cascade-internal mismatch where adversary CLEAN flag and orchestrator dispatch decision operated on different interpretations of the same flag. Evidence: PLUGIN-MIGRATION-001-D cascade passes 7-9; session-review-2026-05-22.md D-777 proposal B1; lessons 28, 31, 33 in cycles/wave-0-plugin-prereqs/lessons.md.
+
 - **TD-FACTORY-HOOK-BYPASS-001 P0** — Use Edit/Write tools ONLY for `.factory/` mutations. NEVER use Python/sed/echo bypass. Enforced by POL-3.
 - **POL-14 — Auto-promotion at merge.** When a story's PR merges, BCs in `behavioral_contracts` frontmatter auto-promote `draft → active`. State-manager runs this transition.
 
@@ -268,6 +288,57 @@ If this principle conflicts with a vsdd-factory agent prompt, skill, or rule, th
 If you are an AI agent and you are uncertain whether the production-grade default applies in a specific case, the answer is YES. The principle is the default. Ask only if you have a concrete reason to suspect this case is an exception.
 
 If you are a human reviewing this file and you want to change the principle, edit this file and commit. The principle becomes whatever this file says.
+
+---
+
+## Standing Adversary Probes & Implementer Disciplines
+
+These are project-local standing rules layered onto the upstream vsdd-factory agent prompts. Source: session-review-2026-05-22 D-777 codification of PLUGIN-MIGRATION-001-D Option B exit lessons (entries 16, 17, 19, 24 in `cycles/wave-0-plugin-prereqs/lessons.md`).
+
+### SAP-1 — Adversary standing probe: tracing emission catalog completeness
+
+For EVERY adversarial pass on stories or PRs touching `crates/**/*.rs`:
+
+1. Grep `event_type =` across the entire `crates/` workspace (not just changed files): `rg 'event_type\s*=' crates/ --type rust`
+2. For each `event_type` value found, verify a corresponding row exists in BC-2.16.002 §Postconditions (Canonical Structured Event Catalog) with full field schema, audit role, and recurrence policy
+3. Tracing emission WITHOUT a catalog row = **P1 finding** per CLAUDE.md §Conventions structured event catalog discipline
+4. Same-commit catalog row required for emissions added in branch
+5. Removal of an emission (e.g., replaced by `?` propagation) does NOT require a new catalog row — `?` propagation provides audit trail without catalog overhead (D-765 precedent)
+
+Source: PLUGIN-MIGRATION-001-D pass-2 FB-IMPL-1 + FB-IMPL-2 (2 recurrences); lessons 16, 19.
+
+### SAP-2 — Adversary standing probe: DTU↔TOML schema parity (sensor-spec stories)
+
+For ANY adversarial pass on stories or PRs touching `.prism/specs/sensors/*.toml` or equivalent sensor TOML specs:
+
+1. For each TOML spec modified, read the corresponding DTU clone's source:
+   - `crates/prism-dtu-<sensor>/src/types.rs` (response struct definitions)
+   - `crates/prism-dtu-<sensor>/src/routes/<table>.rs` (route + response shape per table)
+2. For EVERY column declared in the TOML `[[tables]]` blocks:
+   - Verify the column name matches a field in the DTU types.rs response struct for that table
+   - Verify the TOML column type matches the DTU Rust type (String↔String, Integer↔i64/u64, Float↔f64, Boolean↔bool, Datetime↔chrono DateTime)
+3. **Column in TOML with no DTU equivalent → P1 CRITICAL** (runtime normalization will silently produce empty/wrong data)
+4. **Field in DTU with no TOML column → MEDIUM** (missing coverage, not a runtime crash)
+5. Adversary MUST read crates/prism-dtu-{sensor}/src/types.rs and crates/prism-dtu-{sensor}/src/routes/{table}.rs — do NOT rely on story descriptions of the schema
+
+Source: PLUGIN-MIGRATION-001-D pass-3 FB-IMPL-3 (4 CRITICAL findings caught by this probe); lesson 24.
+
+### SID-1 — Implementer discipline: no-ignored-test rationalization prohibition
+
+When no failing test drives a spec-required behavior because integration tests are `#[ignore]`'d (e.g., DTU/external-service dependency):
+
+1. This is NOT justification to defer the behavior
+2. The correct response: add a unit test in the production module's `#[cfg(test)] mod tests` block that drives the behavior WITHOUT the external dependency (mock or stub at the dependency boundary)
+3. The unit test must actually exercise the production code path
+4. `#[ignore]`'d integration test must include a code comment citing the blocking dependency (e.g., `// DTU-EXT-001: requires DTU clone running; ungated in CI after 001-A deploys`)
+5. "Deferred to non-ignored test" is ONLY valid if a SPECIFIC story ID and SPECIFIC test name are cited in the deferral
+6. Implementer must self-check this before declaring a Red Gate test pass via a non-#[ignore]'d substitute
+
+Source: PLUGIN-MIGRATION-001-D pass-1 FB-IMPL-1 D-764 orchestrator rejection + remediation cycle adding 7 unit tests; lesson 17.
+
+### Conflict with upstream agent prompts
+
+If the upstream vsdd-factory adversary or implementer agent prompt defines a probe / discipline that contradicts SAP-1, SAP-2, or SID-1, the project-local rule wins for prism. Upstream canonicalization tracked in `drbothen/vsdd-factory` issue tracker.
 
 ---
 
