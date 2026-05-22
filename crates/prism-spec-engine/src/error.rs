@@ -284,11 +284,11 @@ pub enum SpecEngineError {
     /// Emitted during response-to-Arrow materialization when `ColumnSpec::timestamp_formats`
     /// is non-empty and no format successfully parsed the field value.
     ///
-    /// Field names match the canonical error-taxonomy.md v1.44 E-SPEC-018 template
+    /// Field names match the canonical error-taxonomy.md v1.45 E-SPEC-018 template
     /// byte-for-byte (F-LP2-HIGH-002; POLICY 24).
     ///
     /// Maps to `prism_core::SpecErrorCode::ESpec018`.
-    /// BC-2.16.013 §O-001; ADR-028 v1.10 §D8-C; error-taxonomy.md v1.44 E-SPEC-018.
+    /// BC-2.16.013 §O-001; ADR-028 v1.10 §D8-C; error-taxonomy.md v1.45 E-SPEC-018.
     #[error(
         "Failed to parse timestamp for column '{column_name}' in sensor '{sensor_id}': \
          tried formats [{}], value='{value}'",
@@ -314,7 +314,7 @@ pub enum SpecEngineError {
 mod tests {
     use super::*;
 
-    /// F-LP3-MEDIUM-003: E-SPEC-018 Display must match error-taxonomy.md v1.44 template
+    /// F-LP3-MEDIUM-003: E-SPEC-018 Display must match error-taxonomy.md v1.45 template
     /// byte-for-byte (POLICY 24). This test pins the format string to prevent silent drift.
     ///
     /// Template: "Failed to parse timestamp for column '{column_name}' in sensor '{sensor_id}':
@@ -335,7 +335,7 @@ mod tests {
                         tried formats [iso8601, unix_epoch_seconds], value='not_a_timestamp'";
         assert_eq!(
             display, expected,
-            "E-SPEC-018 Display must match error-taxonomy.md v1.44 template byte-for-byte \
+            "E-SPEC-018 Display must match error-taxonomy.md v1.45 template byte-for-byte \
              (POLICY 24). Got:\n  {display:?}\nExpected:\n  {expected:?}"
         );
     }
