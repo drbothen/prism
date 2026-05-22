@@ -1,9 +1,9 @@
 ---
 document_type: pipeline-state
 level: ops
-version: "7.460"
+version: "7.461"
 producer: state-manager
-timestamp: 2026-05-22T04:22:52Z
+timestamp: 2026-05-21T12:00:00Z
 inputs: []
 input-hash: "[live-state]"
 traces_to: ""
@@ -16,15 +16,15 @@ repos: [poller-cobra, poller-express, poller-bear, poller-coaster, serveMyAPI, t
 safe_to_compact: false
 pre_compact_snapshot: "SESSION-HANDOFF.md §RESUME SNAPSHOT 2026-05-21"
 pre_compact_snapshot_at: "2026-05-21 (D-760 SESSION-HANDOFF.md §RESUME SNAPSHOT 2026-05-21 for PLUGIN-MIGRATION-001-D LOCAL 3-CLEAN CONVERGENCE durability)"
-current_step: "PLUGIN-MIGRATION-001-D Step 4.5 IN-PROGRESS — FB-IMPL-9 CLOSED. 5th POL-29 axis recurrence captured. Streak 0/3. Dispatching pass-11."
+current_step: "PLUGIN-MIGRATION-001-D Step 4.5 IN-PROGRESS — FB-IMPL-10 CLOSED with 2nd-order propagation discipline. 6th POL-29 axis recurrence captured. Streak 0/3. Pass-12 = DECISION POINT."
 plugin_migration_001_d_red_gate_verified_at: 2026-05-21T20:15:00Z
 plugin_migration_001_d_tdd_green_at: 2026-05-21T21:29:04Z
 plugin_migration_001_d_feature_branch_head: "55b4f72d"
 plugin_migration_001_d_workspace_test_count_at_tdd_green: 3703
-plugin_migration_001_d_impl_cascade_pass_count: 10
+plugin_migration_001_d_impl_cascade_pass_count: 11
 plugin_migration_001_d_impl_cascade_clean_streak: 0
-plugin_migration_001_d_impl_cascade_fb_count: 9
-plugin_migration_001_d_impl_cascade_findings_closed: 47
+plugin_migration_001_d_impl_cascade_fb_count: 10
+plugin_migration_001_d_impl_cascade_findings_closed: 48
 current_cycle: wave-0-plugin-prereqs
 feature_branch_head: "merged to 80ebe794 at 2026-05-19 (PR #151) — a4c048ce was final feature HEAD before squash-merge"
 pr_level_adversary_streak: "3/3 CONVERGED per BC-5.39.001 — passes 2/3/4 all CLEAN; PR #151 merged 2026-05-19; D-716 Option A standing satisfied"
@@ -60,9 +60,9 @@ vsdd_factory_version: "1.0.0-rc.18 (re-activated 2026-05-13T15:00:19Z; upgrade c
 workspace_test_count: 3724
 user_directive_persistent: "No pragmatic convergence. Fix all issues before build."
 current_cycle_history: "wave-0-plugin-prereqs (PREREQ-E merged PR #151 2026-05-19); prior: wave-4-operations (active); wave-3-multi-tenant (COMPLETE)"
-bc_index_version: "5.40"
+bc_index_version: "5.41"
 vp_index_version: "1.76"
-story_index_version: "v2.178"
+story_index_version: "v2.179"
 plugin_migration_001_d_local_adversary_passes: 25
 plugin_migration_001_d_local_fix_bursts: 19
 plugin_migration_001_d_status: "LOCAL-3-CLEAN-CONVERGED-READY-FOR-TDD"
@@ -98,7 +98,7 @@ historical_cycles: [phase-1-convergence, wave-3-multi-tenant, wave-4-operations]
 | **Language** | Rust |
 | **Target Workspace** | per-analyst stdio (MCP server) |
 | **Started** | 2026-04-13 |
-| **Last Updated** | 2026-05-21 (D-771 pass-8 CLEAN-ZERO — first true convergence pass, zero findings any severity; all 13 verification probes passed; trajectory 15→13→10→2→3→1→1→0; streak 0/3→1/3; 283rd consecutive) |
+| **Last Updated** | 2026-05-21 (D-774 FB-IMPL-10 — 6th POL-29 axis recurrence 2nd-order propagation gap; 9-site BC-2.16.013 v1.14→v1.15 sweep + PROACTIVE 2nd-order grep found BC-2.16.002 table-cell; trajectory 15→13→10→2→3→1→1→0→1→1→1; streak 0/3; 286th consecutive) |
 | **Current Phase** | Wave 3 Tier-3 COMPLETE — **Wave 3-A 4 of 4 SHIPPED**; plugin migration: PREREQ-F + PREREQ-A + PREREQ-B + PREREQ-C + PREREQ-D + **PREREQ-E MERGED** (PR #151 80ebe794 2026-05-19T18:06:44Z); PLUGIN-MIGRATION-001-D TDD GREEN (D-763) — Step 4.5 LOCAL impl adversary cascade in progress |
 | **Current Step** | PLUGIN-MIGRATION-001-D Step 4.5 IN-PROGRESS — LOCAL implementation adversary cascade BC-5.39.001 entered (pass-1 dispatched). Target: 3 consecutive CLEAN passes. |
 
@@ -147,6 +147,7 @@ _D-001..D-046 archived: [cycles/phase-3-dtu-wave-2/decisions-archive-d001-d032.m
 
 | ID | Decision | Rationale | Phase | Date |
 |----|----------|-----------|-------|------|
+| D-774 | 2026-05-21 | orchestrator | **PLUGIN-MIGRATION-001-D LOCAL impl adversary cascade pass-11 FB-IMPL-10 CLOSED — 1 MED (F-LP11-MED-001) + 1 OBS (F-LP11-OBS-001 [process-gap]) closed via state-manager combined burst with PROACTIVE 2nd-order propagation grep discipline. **6th POL-29 axis recurrence** = 2nd-order propagation gap; FB-IMPL-9 bumped BC-2.16.013 v1.14→v1.15 as side-effect but did not propagate to 9 downstream LIVE sites (8 story body + 1 BC-2.16.002:112). FB-IMPL-10 swept the 9 sites PLUS proactively ran 2nd-order grep on ALL newly-bumped frontmatter (BC-2.16.002 v1.37→v1.38 found story line 195 `| 1.37 |` → `| 1.38 |` as additional LIVE site). Line 49 frontmatter comment `(v1.14 FB-IMPL-2 PO)` confirmed EXEMPT (historical authorship anchor). Total sites swept: 10 (9 BC-2.16.013 v1.14→v1.15 + 1 BC-2.16.002 table-cell v1.37→v1.38). Bumps: BC-2.16.002 v1.37→v1.38; BC-INDEX v5.40→v5.41; story v1.19→v1.20; STORY-INDEX v2.178→v2.179. Trajectory: 15→13→10→2→3→1→1→0→1→1→1. Feature HEAD unchanged at 55b4f72d. Streak resets 0→0/3. Pass-12 dispatching with fresh context — DECISION POINT: if CLEAN-ZERO, strict convergence achieved; if 7th POL-29 recurrence, user escalation to Option A vs Option B. 286th consecutive single-commit per TD-VSDD-053.** | plugin-migration | 2026-05-21 | Decided by: orchestrator. Status: APPROVED |
 | D-773 | 2026-05-21 | orchestrator | **PLUGIN-MIGRATION-001-D LOCAL impl adversary cascade pass-10 FB-IMPL-9 CLOSED — 1 LOW (F-LP10-LOW-001 transitive cite-pin chain `per error-taxonomy.md v1.42/v1.43` sites swept to v1.44 per FB-IMPL-P22 PREREQ-E precedent + implementer current-authority code-comment pattern) + 1 OBS (process-gap, 5th POL-29 axis recurrence codification candidate) closed via state-manager combined burst. 6 sites swept total: BC-2.16.013 lines 357/358 (3 primary) + HS-018 lines 31/71/89 (3 additional discovered by grep sweep per task instruction). BC-2.16.013 v1.14→v1.15, BC-INDEX v5.39→v5.40, story v1.18→v1.19, STORY-INDEX v2.177→v2.178, HS-018 v1.3→v1.4, HOLDOUT-INDEX v1.12→v1.13. **5th POL-29 axis recurrence:** transitive cite-pin chain drift (artifact A bumps independently after artifact B cited it; B's cite-pins should sweep on each A bump). Trajectory: 15→13→10→2→3→1→1→0→1→1. Feature HEAD unchanged at 55b4f72d. Streak resets 0→0/3. Pass-11 dispatching with fresh context. 285th consecutive single-commit per TD-VSDD-053.** | plugin-migration | 2026-05-21 | Decided by: orchestrator. Status: APPROVED |
 | D-772 | 2026-05-21 | orchestrator | **PLUGIN-MIGRATION-001-D LOCAL impl adversary cascade pass-9 FB-IMPL-8 CLOSED — 1 LOW (F-LP9-LOW-001 story line 195 BC-2.16.002 v1.36→v1.37 table-cell sweep) closed via state-manager combined burst. **4th cascade recurrence of POL-29 sibling-sweep partial-application axis** — root cause: PO commit a2ef75e1 grep used `BC-2.16.002 v1.36` pattern with `v` prefix, missed table-cell variant `| 1.36 |`. POL-29 v1.19 step 8b already mandates per-variant enumeration; first-application discipline gap. FB-IMPL-8 ran EVERY variant-form grep workspace-wide (5 variants: v-prefix, table-cell pipe, bare near BC-2.16.002, backtick-quoted, row-cite). Only story line 195 was LIVE-narrative; all other hits were exempt (decision log historical narrative, immutable cycles/ pass reports). Trajectory: 15→13→10→2→3→1→1→0→1 (slight regression from pass-8 zero-findings; same axis recurring). Feature HEAD unchanged at 55b4f72d. Streak resets 1→0/3. Pass-10 dispatching with fresh context. 284th consecutive single-commit per TD-VSDD-053.** | plugin-migration | 2026-05-21 | Decided by: orchestrator. Status: APPROVED |
 | D-771 | 2026-05-21 | orchestrator | **PLUGIN-MIGRATION-001-D LOCAL impl adversary cascade pass-8 CLEAN-ZERO-FINDINGS — first TRUE convergence pass (no LOW, no OBS, no findings of any severity). All 13 verification probes passed: (1) POL-29 sibling-sweep zero stale version pins in live narrative; (2) TOML↔DTU column type cross-check all 4 sensors clean; (3) ADR-028 §D8 Option A end-to-end ColumnSpec→validator (3 stages)→normalize_timestamp_fields→tracing emission fully wired; (4) POL-24 byte-fidelity E-SPEC-017 matches error-taxonomy.md v1.44; (5) POL-24 byte-fidelity E-SPEC-018 matches + pinned by unit test; (6) tracing event_type catalog only `timestamp.fallback_to_now` new registered as BC-2.16.002 v1.37 row 35; (7) POL-12 stub residue no `todo!()`/`unimplemented!()` in production paths; (8) POL-21 phantom anchors §D8-A/B/C + §O-001 + row 35 all resolve; (9) POL-22 named-entity existence all cited Rust symbols verified in code; (10) TD-VSDD-091 anti-volatile-pin story body sweep complete; (11) TD-VSDD-059 paper-fix detection all new tests load-bearing; (12) #[non_exhaustive] discipline SpecErrorCode + SpecEngineError clean CI EXPECTED=32 unchanged; (13) story↔BC↔test traceability RG-09 + ESpec017 + bc_2_16_013_spec_id_mismatch.rs all aligned. Trajectory: 15→13→10→2→3→1→1→**0**. Adversary framing: 'convergence-by-content rather than convergence-by-fatigue.' Feature HEAD unchanged at 55b4f72d (pass-8 read-only). **STREAK ADVANCES 0/3 → 1/3** per BC-5.39.001 strict interpretation. Pass-9 dispatching with fresh context; target 2/3. 283rd consecutive single-commit per TD-VSDD-053.** | plugin-migration | 2026-05-21 | Decided by: orchestrator. Status: APPROVED |
