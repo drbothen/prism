@@ -901,7 +901,7 @@ impl SpecLoader {
 
             match Self::parse(&content) {
                 Ok(spec) => {
-                    // BC-2.16.001 v1.5 §Error Conditions E-SPEC-017:
+                    // BC-2.16.001 v1.6 §Error Conditions E-SPEC-017:
                     // The filename stem must case-sensitively match the spec's sensor_id.
                     // E.g., `crowdstrike.sensor.toml` → stem = "crowdstrike" → must match
                     // sensor_id "crowdstrike". Generic check — no hardcoded sensor names
