@@ -619,6 +619,40 @@ fn is_semver_like(version: &str) -> bool {
     segments.iter().all(|s| s.parse::<u64>().is_ok())
 }
 
+/// Validate that a `SensorSpec.auth_plugin` field references a registered plugin.
+///
+/// When `spec.auth_plugin = Some(plugin_id)`, this function checks `registered_plugin_ids`
+/// for membership. If absent, returns `SpecEngineError::UnknownAuthPlugin` (E-SPEC-012 extended).
+///
+/// ## Call site
+///
+/// This function is called AFTER `PluginRuntime::load_all_plugins` has populated the registry.
+/// In boot.rs step 7.5, after plugins are loaded, iterate over all loaded SensorSpecs and call
+/// this validator to reject specs that reference unloaded plugins.
+///
+/// ## Why separate from parse()
+///
+/// `SpecLoader::parse` is a pure TOML-to-struct function with no access to `PluginRuntime`.
+/// Registry membership can only be validated after boot step 7.5 completes. This function
+/// is the post-boot validation gate for `auth_plugin` fields (F-LP1-CRIT-003).
+///
+/// Story: PLUGIN-MIGRATION-001-E / F-LP1-CRIT-003 / F-LP1-HIGH-008
+/// Traces to: BC-2.01.016 §Error Cases; ADR-028 §D2; error-taxonomy.md E-SPEC-012
+pub fn validate_auth_plugin_registered(
+    spec: &SensorSpec,
+    registered_plugin_ids: &std::collections::HashSet<String>,
+) -> Result<(), crate::error::SpecEngineError> {
+    if let Some(plugin_id) = spec.auth_plugin.as_deref()
+        && !registered_plugin_ids.contains(plugin_id)
+    {
+        return Err(crate::error::SpecEngineError::UnknownAuthPlugin {
+            sensor_id: spec.sensor_id.to_string(),
+            plugin_id: plugin_id.to_string(),
+        });
+    }
+    Ok(())
+}
+
 #[cfg(test)]
 mod truncate_at_char_boundary_tests {
     use super::truncate_at_char_boundary;

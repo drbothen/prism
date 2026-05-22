@@ -707,6 +707,140 @@ fn test_PLUGIN_MIGRATION_001_E_007_crowdstrike_toml_declares_auth_plugin() {
 }
 
 // ---------------------------------------------------------------------------
+// AC-007b: Unknown auth_plugin emits E-SPEC-012 (F-LP1-CRIT-003 / F-LP1-HIGH-008)
+// Traces to: BC-2.01.016 §Error Cases; ADR-028 §D2; CRIT-003 closure
+// ---------------------------------------------------------------------------
+
+/// Negative test: a typo'd `auth_plugin` (not registered in PluginRuntime) must emit
+/// `SpecEngineError::UnknownAuthPlugin` via `validate_auth_plugin_registered`.
+///
+/// F-LP1-CRIT-003 closure: before this fix, `auth_plugin = "typo-oauth2"` would silently
+/// parse and only fail at runtime (post-001-A, after crowdstrike.rs is deleted).
+/// Now, `validate_auth_plugin_registered` gates on registry membership at boot time.
+///
+/// F-LP1-HIGH-008 closure: adds the missing negative test case.
+#[test]
+fn test_PLUGIN_MIGRATION_001_E_007b_unknown_auth_plugin_emits_e_spec_012() {
+    use prism_spec_engine::validate_auth_plugin_registered;
+
+    // Parse a SensorSpec with a typo'd auth_plugin.
+    let toml_with_typo = r#"
+sensor_id = "crowdstrike-test"
+name = "CrowdStrike Test"
+auth_type = "oauth2_client_credentials"
+auth_plugin = "typo-oauth2"
+base_url = "https://api.crowdstrike.com"
+version = "1.0.0"
+
+[[tables]]
+table_name = "detections"
+ocsf_class = "security_finding"
+
+  [[tables.columns]]
+  name = "detection_id"
+  column_type = "string"
+
+  [[tables.steps]]
+  name = "query_ids"
+  method = "GET"
+  path_template = "/detects/queries/detects/v1"
+  response_path = "$.resources"
+  variables_produced = []
+"#;
+
+    let spec = prism_spec_engine::spec_parser::SpecLoader::parse(toml_with_typo)
+        .expect("typo'd auth_plugin must parse — validation is separate from parsing");
+
+    // Registry contains only the real plugin, not the typo'd one.
+    let mut registered = std::collections::HashSet::new();
+    registered.insert("crowdstrike-oauth2".to_string());
+
+    let result = validate_auth_plugin_registered(&spec, &registered);
+
+    assert!(
+        result.is_err(),
+        "validate_auth_plugin_registered must return Err for unregistered auth_plugin"
+    );
+
+    let err = result.expect_err("must be Err");
+    let err_str = err.to_string();
+
+    assert!(
+        err_str.contains("E-SPEC-012"),
+        "error must contain E-SPEC-012 error code; got: {err_str}"
+    );
+    assert!(
+        err_str.contains("typo-oauth2"),
+        "error must contain the typo'd plugin_id; got: {err_str}"
+    );
+    assert!(
+        err_str.contains("crowdstrike-test"),
+        "error must contain the sensor_id; got: {err_str}"
+    );
+}
+
+/// Positive test: `validate_auth_plugin_registered` returns Ok when auth_plugin is registered.
+#[test]
+fn test_PLUGIN_MIGRATION_001_E_007c_registered_auth_plugin_passes_validation() {
+    use prism_spec_engine::validate_auth_plugin_registered;
+
+    let toml_content = include_str!("../../prism-sensors/specs/crowdstrike.sensor.toml");
+    let spec = prism_spec_engine::spec_parser::SpecLoader::parse(toml_content)
+        .expect("crowdstrike.sensor.toml must parse");
+
+    let mut registered = std::collections::HashSet::new();
+    registered.insert("crowdstrike-oauth2".to_string());
+
+    let result = validate_auth_plugin_registered(&spec, &registered);
+    assert!(
+        result.is_ok(),
+        "validate_auth_plugin_registered must return Ok when auth_plugin is registered; got: {:?}",
+        result.err()
+    );
+}
+
+/// Positive test: `validate_auth_plugin_registered` returns Ok when auth_plugin is None
+/// (backward compat with sensors that don't use plugin auth).
+#[test]
+fn test_PLUGIN_MIGRATION_001_E_007d_no_auth_plugin_field_passes_validation() {
+    use prism_spec_engine::validate_auth_plugin_registered;
+
+    let toml_no_plugin = r#"
+sensor_id = "test-sensor"
+name = "Test Sensor"
+auth_type = "api_key"
+base_url = "https://api.example.com"
+version = "1.0.0"
+
+[[tables]]
+table_name = "items"
+ocsf_class = "security_finding"
+
+  [[tables.columns]]
+  name = "id"
+  column_type = "string"
+
+  [[tables.steps]]
+  name = "fetch"
+  method = "GET"
+  path_template = "/items"
+  response_path = "$.resources"
+  variables_produced = []
+"#;
+
+    let spec = prism_spec_engine::spec_parser::SpecLoader::parse(toml_no_plugin)
+        .expect("TOML without auth_plugin must parse");
+
+    // Empty registry — should still pass since auth_plugin is None.
+    let registered = std::collections::HashSet::new();
+    let result = validate_auth_plugin_registered(&spec, &registered);
+    assert!(
+        result.is_ok(),
+        "validate_auth_plugin_registered must return Ok when auth_plugin is None (backward compat)"
+    );
+}
+
+// ---------------------------------------------------------------------------
 // AC-008: VP-148 parity test remains GREEN after TOML amendment
 // Traces to: BC-2.16.013 §INV-PARITY-001; VP-148
 // ---------------------------------------------------------------------------

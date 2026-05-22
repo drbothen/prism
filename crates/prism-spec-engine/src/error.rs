@@ -249,6 +249,33 @@ pub enum SpecEngineError {
     WriteToolRegistryPoisoned,
 
     // -------------------------------------------------------------------------
+    // PLUGIN-MIGRATION-001-E — auth_plugin registry-membership validation error
+    // -------------------------------------------------------------------------
+    /// E-SPEC-012 (extended): `auth_plugin` field references a plugin_id that is not
+    /// registered in the `PluginRuntime` registry at spec-load time.
+    ///
+    /// This is the "unknown auth plugin" variant of E-SPEC-012 (which also covers
+    /// `auth_type` outside the closed enumeration — `AuthTypeCrossComposition`).
+    /// The error code E-SPEC-012 is shared between the two cases per error-taxonomy.md.
+    ///
+    /// Example: `auth_plugin = "typo-oauth2"` where only `"crowdstrike-oauth2"` is loaded.
+    /// A typo'd `auth_plugin` would silently fail in production after 001-A merges.
+    ///
+    /// Story: PLUGIN-MIGRATION-001-E / F-LP1-CRIT-003 / HIGH-008
+    /// Traces to: BC-2.01.016 §Error Cases; ADR-028 §D2; CRIT-003 closure
+    #[error(
+        "E-SPEC-012: sensor '{sensor_id}' declares auth_plugin = '{plugin_id}' \
+         but that plugin is not registered in PluginRuntime — \
+         ensure the plugin .prx file is present in the plugin directory at boot step 7.5"
+    )]
+    UnknownAuthPlugin {
+        /// Sensor ID for operator diagnostics.
+        sensor_id: String,
+        /// The unrecognized plugin_id from the TOML `auth_plugin` field.
+        plugin_id: String,
+    },
+
+    // -------------------------------------------------------------------------
     // PLUGIN-MIGRATION-001-D — ADR-028 §D8-B/C timestamp normalization errors
     // -------------------------------------------------------------------------
     /// E-SPEC-018: `PipelineExecutor` failed to parse a `ColumnType::Datetime` column value
