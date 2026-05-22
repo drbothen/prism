@@ -1486,9 +1486,17 @@ pub(crate) fn normalize_timestamp_fields(
                 }
 
                 // Try each fallback field in order.
+                // F-LP2-arch-handoff#1 + LOW-002: defensive skip guard — if a fallback chain
+                // entry matches the primary column name itself, it yields the same null/absent value
+                // already confirmed above. Skip it to avoid wasting an iteration (and to guard
+                // against TOML authors who accidentally include the primary in the chain, e.g.,
+                // `timestamp_fallback_chain = ["last_seen", "first_seen"]` on the `last_seen` column).
                 let mut resolved: Option<DateTime<Utc>> = None;
                 for fb_field in &col.timestamp_fallback_chain {
-                    // Skip the primary field itself when it appears in the chain.
+                    if fb_field == &col.name {
+                        // Primary field confirmed absent above — skip the redundant chain entry.
+                        continue;
+                    }
                     let fb_value = row.get(fb_field.as_str());
                     if is_null_or_absent(fb_value) {
                         continue;
@@ -2867,6 +2875,54 @@ mod timestamp_normalization_tests {
         assert!(
             s.contains("2024-05-21"),
             "unix_epoch_millis output must contain 2024-05-21; got: {s}"
+        );
+    }
+
+    // -----------------------------------------------------------------------
+    // test 8 — skip guard: primary name appears in fallback_chain (F-LP2-arch-handoff#1)
+    // -----------------------------------------------------------------------
+    /// BC-2.16.013 §O-001 + F-LP2-HIGH-004 code side:
+    /// Column `last_seen` with `timestamp_fallback_chain = ["last_seen", "first_seen"]`.
+    /// Primary `last_seen` is null. The skip guard prevents the chain entry that
+    /// matches the primary column from being consulted a second time (it would yield
+    /// the same absent value). `first_seen` provides the resolved value.
+    ///
+    /// This is a DEFENSIVE contract test — even though the armis TOML was corrected
+    /// to `["first_seen"]` only, the skip guard must protect against future TOML authors
+    /// who accidentally include the primary column name in the chain.
+    #[test]
+    fn test_BC_2_16_013_timestamp_fallback_chain_skips_primary_self_reference() {
+        let cols = vec![ColumnSpec {
+            name: "last_seen".to_string(),
+            column_type: ColumnType::Datetime,
+            ocsf_field: None,
+            options: vec![],
+            timestamp_formats: vec![],
+            // Deliberately includes the primary column name as first chain entry
+            // to exercise the skip guard.
+            timestamp_fallback_chain: vec!["last_seen".to_string(), "first_seen".to_string()],
+        }];
+        // last_seen is null; first_seen has a valid value.
+        let records = vec![json!({"last_seen": null, "first_seen": "2026-05-21T00:00:00Z"})];
+
+        let result = normalize_timestamp_fields(&records, &cols, "test-sensor");
+        assert!(
+            result.is_ok(),
+            "skip guard must allow resolution via first_seen when last_seen is in chain; got: {:?}",
+            result.err()
+        );
+        let normalized = result.unwrap();
+        let val = normalized[0]
+            .get("last_seen")
+            .expect("last_seen must be in output");
+        assert!(
+            val.is_string(),
+            "skip-guarded fallback must produce a string; got: {val}"
+        );
+        let s = val.as_str().unwrap();
+        assert!(
+            s.contains("2026-05-21"),
+            "resolved value must contain the first_seen date; got: {s}"
         );
     }
 }

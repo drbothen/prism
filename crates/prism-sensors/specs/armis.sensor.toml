@@ -15,7 +15,10 @@
 # Both tables are authored using DTU-registered endpoints per ADR-028 §D5.
 # AQL forwarding via ${query.filter.aql} is documented per O-001 grammar support.
 # Timestamp fallback chain (last_seen → first_seen → now()) is expressed via
-# ColumnSpec::timestamp_fallback_chain on the primary timestamp column per ADR-028 §D8-B.
+# ColumnSpec::timestamp_fallback_chain = ["first_seen"] on the primary timestamp column per ADR-028 §D8-B.
+# F-LP2-HIGH-004 (arch-handoff#1): chain is ["first_seen"] only — primary column is checked first
+# by the normalization layer; self-referential entries yield the same absent value and are skipped
+# by the defensive guard in normalize_timestamp_fields (pipeline.rs).
 # A tracing::warn! with event_type = "timestamp.fallback_to_now" is emitted by the
 # normalization layer when all chain fields are absent (BC-2.16.002 row 35).
 
@@ -67,11 +70,15 @@ ocsf_class = "device"
   #   last_seen → first_seen → DateTime::now() UTC with tracing::warn!(event_type = "timestamp.fallback_to_now")
   # DTU DeviceRecord: last_seen: Option<String> (primary), first_seen: Option<String> (secondary).
   # Fixture d-001 has last_seen: null + first_seen: "2024-01-15T10:00:00Z" to exercise fallback path.
+  # F-LP2-HIGH-004 (arch-handoff#1): removed redundant "last_seen" entry from chain —
+  #   the primary column is always checked first by normalize_timestamp_fields; a self-referential
+  #   chain entry yields the same absent value already confirmed. Chain = ["first_seen"] only.
+  #   The defensive skip guard in pipeline.rs still protects against accidental re-introduction.
   [[tables.columns]]
   name = "last_seen"
   column_type = "datetime"
   ocsf_field = "device.last_seen_time"
-  timestamp_fallback_chain = ["last_seen", "first_seen"]
+  timestamp_fallback_chain = ["first_seen"]
 
   # Secondary timestamp (fallback source — also stored as its own column for querying).
   [[tables.columns]]
