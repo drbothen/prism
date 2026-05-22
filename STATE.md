@@ -1,9 +1,9 @@
 ---
 document_type: pipeline-state
 level: ops
-version: "7.452"
+version: "7.453"
 producer: state-manager
-timestamp: 2026-05-21T22:30:00Z
+timestamp: 2026-05-21T23:15:00Z
 inputs: []
 input-hash: "[live-state]"
 traces_to: ""
@@ -16,15 +16,15 @@ repos: [poller-cobra, poller-express, poller-bear, poller-coaster, serveMyAPI, t
 safe_to_compact: false
 pre_compact_snapshot: "SESSION-HANDOFF.md §RESUME SNAPSHOT 2026-05-21"
 pre_compact_snapshot_at: "2026-05-21 (D-760 SESSION-HANDOFF.md §RESUME SNAPSHOT 2026-05-21 for PLUGIN-MIGRATION-001-D LOCAL 3-CLEAN CONVERGENCE durability)"
-current_step: "PLUGIN-MIGRATION-001-D Step 4.5 IN-PROGRESS — FB-IMPL-2 CLOSED, dispatching adversary pass-3 with fresh context. Cascade streak 0/3."
+current_step: "PLUGIN-MIGRATION-001-D Step 4.5 IN-PROGRESS — FB-IMPL-3 CLOSED, dispatching adversary pass-4 with fresh context. Cascade streak 0/3."
 plugin_migration_001_d_red_gate_verified_at: 2026-05-21T20:15:00Z
 plugin_migration_001_d_tdd_green_at: 2026-05-21T21:29:04Z
-plugin_migration_001_d_feature_branch_head: "475e70e9"
+plugin_migration_001_d_feature_branch_head: "31a8aa79"
 plugin_migration_001_d_workspace_test_count_at_tdd_green: 3703
-plugin_migration_001_d_impl_cascade_pass_count: 2
+plugin_migration_001_d_impl_cascade_pass_count: 3
 plugin_migration_001_d_impl_cascade_clean_streak: 0
-plugin_migration_001_d_impl_cascade_fb_count: 2
-plugin_migration_001_d_impl_cascade_findings_closed: 28
+plugin_migration_001_d_impl_cascade_fb_count: 3
+plugin_migration_001_d_impl_cascade_findings_closed: 38
 current_cycle: wave-0-plugin-prereqs
 feature_branch_head: "merged to 80ebe794 at 2026-05-19 (PR #151) — a4c048ce was final feature HEAD before squash-merge"
 pr_level_adversary_streak: "3/3 CONVERGED per BC-5.39.001 — passes 2/3/4 all CLEAN; PR #151 merged 2026-05-19; D-716 Option A standing satisfied"
@@ -57,7 +57,7 @@ dtu_strategy_decided: 2026-04-20
 policy_registry_source_of_truth: .factory/policies.yaml
 develop_head: "1bc56e3c"
 vsdd_factory_version: "1.0.0-rc.18 (re-activated 2026-05-13T15:00:19Z; upgrade chain rc.11 → rc.16 2026-05-10 → rc.18 2026-05-13)"
-workspace_test_count: 3720
+workspace_test_count: 3724
 user_directive_persistent: "No pragmatic convergence. Fix all issues before build."
 current_cycle_history: "wave-0-plugin-prereqs (PREREQ-E merged PR #151 2026-05-19); prior: wave-4-operations (active); wave-3-multi-tenant (COMPLETE)"
 bc_index_version: "5.33"
@@ -98,7 +98,7 @@ historical_cycles: [phase-1-convergence, wave-3-multi-tenant, wave-4-operations]
 | **Language** | Rust |
 | **Target Workspace** | per-analyst stdio (MCP server) |
 | **Started** | 2026-04-13 |
-| **Last Updated** | 2026-05-21 (D-765 FB-IMPL-2 CLOSED; feature HEAD 475e70e9; 3720/3720 PASS (+5); pass-2→pass-3 streak 0/3; 275th consecutive) |
+| **Last Updated** | 2026-05-21 (D-766 FB-IMPL-3 CLOSED; feature HEAD 31a8aa79; 3724/3724 PASS (+4); pass-3→pass-4 streak 0/3; 276th consecutive) |
 | **Current Phase** | Wave 3 Tier-3 COMPLETE — **Wave 3-A 4 of 4 SHIPPED**; plugin migration: PREREQ-F + PREREQ-A + PREREQ-B + PREREQ-C + PREREQ-D + **PREREQ-E MERGED** (PR #151 80ebe794 2026-05-19T18:06:44Z); PLUGIN-MIGRATION-001-D TDD GREEN (D-763) — Step 4.5 LOCAL impl adversary cascade in progress |
 | **Current Step** | PLUGIN-MIGRATION-001-D Step 4.5 IN-PROGRESS — LOCAL implementation adversary cascade BC-5.39.001 entered (pass-1 dispatched). Target: 3 consecutive CLEAN passes. |
 
@@ -147,6 +147,7 @@ _D-001..D-046 archived: [cycles/phase-3-dtu-wave-2/decisions-archive-d001-d032.m
 
 | ID | Decision | Rationale | Phase | Date |
 |----|----------|-----------|-------|------|
+| D-766 | 2026-05-21 | orchestrator | **PLUGIN-MIGRATION-001-D LOCAL impl adversary cascade pass-3 FB-IMPL-3 CLOSED — 10 findings (0 CRIT + 4 HIGH + 4 MED + 2 LOW + 4 OBS) closed entirely via implementer single-dispatch (8 micro-commits 05fe6ad8..31a8aa79). High-novelty pass surfaced DTU↔TOML schema drift axis: cyberint TOML reauthored to match DTU Alert struct (dropped 3 spurious columns, renamed 2 for DTU alignment), armis manufacturer OCSF + risk_score type corrected, claroty body_template ambiguity removed, validator Stage 3 field-name resolution added, E-SPEC-018 Display byte-for-byte test hardened, chrono dep tightened. **Sibling-sweep discipline successfully applied:** implementer's HIGH-002/003 sweep mandate found zero other defects across 4 TOMLs (confirming the recurring axis observation from D-765 — explicit sweep prevents pattern recurrence). Feature HEAD 31a8aa79. just check 3724/3724 PASS (+4 from FB-IMPL-2 baseline; +21 cumulative from pre-cascade). Cascade streak resets 0→0/3 (pass-3 had findings); pass-4 dispatching with fresh context. 276th consecutive single-commit per TD-VSDD-053.** | plugin-migration | 2026-05-21 | Decided by: orchestrator. Status: APPROVED |
 | D-765 | 2026-05-21 | orchestrator | **PLUGIN-MIGRATION-001-D LOCAL impl adversary cascade pass-2 FB-IMPL-2 CLOSED — 13 findings (0 CRIT + 6 HIGH + 4 MED + 2 LOW + 1 OBS) closed across 4 specialists / 3 .factory/ bursts / 6 feature-branch commits. Architect adjudicated HIGH-004 (Armis chain redundant primary dropped) + MEDIUM-001 (cyberint page_size strict §D1 removal + DTU-EXT-005). PO documented HIGH-006 null-primary passthrough + MEDIUM-002 sibling sweep (8 active sites). Test-writer fixed MEDIUM-003 Red Gate doc-comment + incidental clippy::doc_lazy_continuation. Implementer landed HIGH-001 (removed unregistered tracing emission — ? propagation is audit trail) + HIGH-002 (TimestampParseFailure extended with sensor_id, Display byte-for-byte match canonical) + HIGH-003 (cyberint alert_id ocsf_field copy-paste fix) + HIGH-005 (validator scope extension + 4 unit tests) + arch-handoffs (skip guard + page_size removal + 1 unit test). 2 LOW + 1 MED + 1 OBS DEFERRED to follow-up with explicit human-direction-required gating per Canonical Principle Rule 3. Feature HEAD 475e70e9. just check 3720/3720 PASS (+5 from pre-FB-IMPL-2 baseline; +17 cumulative from pre-cascade). Cascade streak resets 1→0/3 (pass-2 had findings); pass-3 dispatching with fresh context. 275th consecutive single-commit per TD-VSDD-053.** | plugin-migration | 2026-05-21 | Decided by: orchestrator. Status: APPROVED |
 | D-764 | 2026-05-21 | orchestrator | **PLUGIN-MIGRATION-001-D LOCAL impl adversary cascade pass-1 FB-IMPL-1 CLOSED — 15 findings (4 CRIT + 5 HIGH + 5 MED + 1 LOW + 2 OBS) closed across 5 specialists / 6 .factory/ bursts / 11 feature-branch commits. Architect locked Option A grammar extension (ADR-028 §D8) + documented-gap exception (§D9) + co-merge contract (§D10). PO narrowed AC-006 (KG-006-001 anchored to S-3.02) + corrected OrgSlug usage + registered timestamp.fallback_to_now event_type (BC-2.16.002 v1.36 row 35). Test-writer added explicit cyberint SKIP test + hardened parity verdict-on-empty (ERROR variant + load-bearing per-file unit tests). Implementer fixed 4 CRITICAL URL/response_path/pagination drifts + E-SPEC-017 message byte-drift + Option A normalization in PipelineExecutor + 7 driving unit tests. REMEDIATION applied to implementer: initial implementer burst rationalized Option A normalization as 'deferred to non-ignored test'; orchestrator rejected per Canonical Principle Rule 1 + Standing Rule 3 §1; remediation closed the runtime consumer + load-bearing unit tests. Feature HEAD 8b480db8. just check 3715/3715 PASS. Cascade streak resets 1→0/3 (pass-1 had findings); pass-2 dispatching with fresh context.** | plugin-migration | 2026-05-21 | Decided by: orchestrator. Status: APPROVED |
 | D-763 | 2026-05-21 | orchestrator | **PLUGIN-MIGRATION-001-D Step 4 CLOSED — TDD green cycle complete; implementer delivered Tasks 3-6 (4 production TOML specs: crowdstrike/cyberint/claroty/armis, 138-196 lines each) + Task 11 (SpecErrorCode::ESpec017 variant + #[non_exhaustive] sweep + unit test in prism-core/src/error.rs) + Task 12 (SpecLoader::load_all filename-stem-vs-sensor_id check emitting E-SPEC-017) + Task 10a (fixture dir READMEs; no JSON yet — DTU-EXT-001..004 routes missing per BC-2.16.013 §Known Gaps). 3 implementer commits (d5ae974f + 06502474 + 3d82dc9c) on top of 4 test-writer commits; feature HEAD 3d82dc9c (7 total commits ahead of develop@1bc56e3c). just check 3703/3703 PASS workspace-wide (+22 net new tests; was 3681). All 13 originally-failing tests + 3 compile-fail tests now PASS; 8 DTU-blocked tests remain #[ignore] per BC-2.16.013 §Known Gaps; 8 legit-passing tests still pass. Implementer self-audit: all 10 checklist items confirmed (no MVP rationalizations, no Claude attribution, no --no-verify, no TD additions, no new BCs, lefthook PASS on every commit). Step 4.5 LOCAL adversary cascade per BC-5.39.001 BEGIN. 270th consecutive single-commit per TD-VSDD-053.** | plugin-migration | 2026-05-21 | Decided by: orchestrator. Status: APPROVED |

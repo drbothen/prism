@@ -598,3 +598,38 @@ Pass-1 adversary (agent a598496b1b1bf90c4) returned 15 findings (4 CRIT + 5 HIGH
 | F-LP1-LOW-001 | LOW | implementer (no-op) — prism-dtu-common dev-dep `dtu` feature IS defined; no change needed |
 | F-LP1-OBS-001 | OBS [process-gap] | session-reviewer queue — Red Gate verifier process |
 | F-LP1-OBS-002 | OBS | non-blocking — Auth_type comment consolidation cosmetic |
+
+---
+
+## D-766 — FB-IMPL-3 (2026-05-21)
+
+**Summary:** Pass-3 LOCAL implementation adversary cascade FB-IMPL-3 CLOSED. 10 findings (0 CRIT + 4 HIGH + 4 MED + 2 LOW + 4 OBS) closed entirely via implementer single-dispatch (8 micro-commits). High-novelty pass surfaced DTU↔TOML schema drift as a productive adversarial probe axis. Sibling-sweep discipline explicitly mandated by orchestrator brief — implementer confirmed zero other defects across all 4 TOMLs. Feature HEAD 31a8aa79. just check 3724/3724 PASS (+4 from FB-IMPL-2 baseline; +21 cumulative from pre-cascade baseline 3703). Cascade streak 0/3.
+
+### feature/PLUGIN-MIGRATION-001-D commits (8 micro-commits — implementer single-dispatch)
+
+| Commit | Agent | Findings Closed | Description |
+|--------|-------|----------------|-------------|
+| 05fe6ad8 | implementer | HIGH-001 | cyberint TOML reauthored — dropped id/description/source_url, renamed source/title, promoted alert_id to single REQUIRED finding.uid; affected_assets array column deferred with documented architectural constraint |
+| 94bfe59a | implementer | HIGH-002 + HIGH-003 | armis manufacturer ocsf_field cpu_vendor→vendor_name; risk_score column_type string→integer; sibling-sweep verified zero other defects across all 4 TOMLs |
+| 1daf9767 | implementer | HIGH-004 | claroty body_template `{}` empty; URL pagination canonical |
+| f9765f2a | implementer | MEDIUM-001 | BC-2.16.009 Stage 3 timestamp_fallback_chain field-name resolution + 3 unit tests |
+| a7b7d05e | implementer | MEDIUM-002 | chrono dep default-features=false; build surface hygiene |
+| 687cc235 | implementer | MEDIUM-003 | load-bearing E-SPEC-018 Display byte-for-byte template match test; POLICY 24 hardened |
+| 2d3caaa4 | implementer | MEDIUM-004 | cyberint.incidents.created_at sibling-sweep timestamp_formats |
+| 31a8aa79 | implementer | LOW-001 + LOW-002 | TOML line-number citations sweep per TD-VSDD-091; cyberint citation phrasing DTU-explicit per ADR-028 §D1 |
+
+### 10-finding closure ledger
+
+| Finding | Severity | Closed By |
+|---------|----------|-----------|
+| F-LP3-HIGH-001 | HIGH | implementer 05fe6ad8 (cyberint reauthored to match DTU Alert struct) |
+| F-LP3-HIGH-002 | HIGH | implementer 94bfe59a (manufacturer OCSF + workspace-wide sibling sweep) |
+| F-LP3-HIGH-003 | HIGH | implementer 94bfe59a (risk_score type + workspace-wide sibling sweep) |
+| F-LP3-HIGH-004 | HIGH | implementer 1daf9767 (claroty body_template Option a) |
+| F-LP3-MEDIUM-001 | MEDIUM | implementer f9765f2a (validator Stage 3 + 3 tests) |
+| F-LP3-MEDIUM-002 | MEDIUM | implementer a7b7d05e (chrono dep) |
+| F-LP3-MEDIUM-003 | MEDIUM | implementer 687cc235 (E-SPEC-018 test) |
+| F-LP3-MEDIUM-004 | MEDIUM | implementer 2d3caaa4 (cyberint incidents sibling) |
+| F-LP3-LOW-001 | LOW | implementer 31a8aa79 (TD-VSDD-091 TOML sweep) |
+| F-LP3-LOW-002 | LOW | implementer 31a8aa79 (DTU citation phrasing) |
+| 4 OBSERVATIONs | non-blocking | Three positive confirmations (skip-guard load-bearing, empty-fixture tests load-bearing, #[non_exhaustive] discipline) + 1 process-gap (validator pattern) — noted in lessons; no further action this burst |
