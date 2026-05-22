@@ -11,7 +11,8 @@
 #   deleted by PLUGIN-MIGRATION-001-A. Spec follows DTU per CLAUDE.md §Source-of-Truth #7.
 #
 # URL correction: Rust adapter used /api/alerts (no /v1) — latent bug.
-# DTU models real Cyberint API: /api/v1/alerts. Spec follows DTU per CLAUDE.md §Source-of-Truth #7.
+# DTU-grounded per ADR-028 §D1: crates/prism-dtu-cyberint/src/clone.rs build_router()
+#   registers /api/v1/alerts. Real third-party API verification deferred to DTU-validator.
 #
 # incidents table: included as documented gap per EC-016-013-002. DTU has no incidents route.
 # Parity test returns explicit SKIP (NOT #[ignore]) per AC-009 spec.
@@ -29,27 +30,34 @@ version = "1.0.0"
 # ---------------------------------------------------------------------------
 # Table: alerts
 # GET with cursor pagination
-# DTU route: GET /api/v1/alerts (build_router() line 115)
-# URL correction: real Cyberint API uses /api/v1/alerts, not /api/alerts
+# DTU route: GET /api/v1/alerts (crates/prism-dtu-cyberint/src/clone.rs build_router())
+# DTU-grounded per ADR-028 §D1: DTU-grounded per ADR-028 §D1: real third-party API
+#   verification deferred to DTU-validator.
+# F-LP3-HIGH-001: reauthored to match DTU Alert struct exactly (8 fields):
+#   alert_id, title, severity, status, created_at, source, type, affected_assets.
+#   Removed spurious 'id' (DTU never emits it) and 'source_url' (no such DTU field).
+#   'description' → 'title'; 'source_url' → 'source'.
+#   'affected_assets' (Vec<serde_json::Value>) deferred: array column type is not yet
+#   supported in the column grammar — track as future story when Array ColumnType lands.
 # ---------------------------------------------------------------------------
 [[tables]]
 table_name = "alerts"
 ocsf_class = "security_finding"
 
-  [[tables.columns]]
-  name = "id"
-  column_type = "string"
-  ocsf_field = "finding.uid"
-  options = ["REQUIRED"]
-
   # alert_id is Cyberint's native alert identifier (the field used for status transitions
   # in the Cyberint API and DTU). Maps to finding.uid as the vendor-native security finding ID.
-  # F-LP2-HIGH-003: corrected from copy-paste error (was finding.src_url, semantically incoherent).
   # DTU Alert struct field: alert_id: String (see prism-dtu-cyberint/src/types.rs).
   [[tables.columns]]
   name = "alert_id"
   column_type = "string"
   ocsf_field = "finding.uid"
+  options = ["REQUIRED"]
+
+  # DTU Alert.title: human-readable alert title. Maps to OCSF finding.title.
+  [[tables.columns]]
+  name = "title"
+  column_type = "string"
+  ocsf_field = "finding.title"
 
   [[tables.columns]]
   name = "type"
@@ -78,19 +86,16 @@ ocsf_class = "security_finding"
   ocsf_field = "time"
   timestamp_formats = ["iso8601", "unix_epoch_seconds"]
 
+  # DTU Alert.source: vendor name string (e.g., "crowdstrike", "threatintel").
+  # Maps to OCSF metadata.product.vendor_name — the vendor that produced the finding.
   [[tables.columns]]
-  name = "description"
+  name = "source"
   column_type = "string"
-  ocsf_field = "message"
-
-  [[tables.columns]]
-  name = "source_url"
-  column_type = "string"
-  ocsf_field = "src_url"
+  ocsf_field = "metadata.product.vendor_name"
 
   # Cursor-based pagination
-  # DTU route: GET /api/v1/alerts (build_router() line 115)
-  # response_path: Cyberint DTU returns {"data": [...], "next_cursor": "..."} per routes/alerts.rs
+  # DTU route: GET /api/v1/alerts (crates/prism-dtu-cyberint/src/clone.rs build_router())
+  # response_path: Cyberint DTU returns {"data": [...], "next_cursor": "..."} per routes::alerts::list_alerts
   # page_size: OMITTED — DTU AlertListParams has cursor field only (no page_size in the struct).
   #   F-LP2-MEDIUM-001 (arch-handoff#2): page_size removed from this block. The DTU does not
   #   accept page_size today; DTU extension DTU-EXT-005 tracks adding page_size support to
