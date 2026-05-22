@@ -1,12 +1,12 @@
 ---
 document_type: story-index
 level: "L4"
-version: "v2.181"
+version: "v2.182"
 status: draft
 producer: product-owner
-timestamp: 2026-05-20T00:00:00Z
+timestamp: 2026-05-22T00:00:00Z
 phase: 3
-total_stories: 150
+total_stories: 151
 total_active_bcs: 222
 # 230 total registered (222 active + 6 removed + 2 retired) — stories cover active BCs only
 total_vps_assigned: 145
@@ -20,7 +20,7 @@ Phase 3 decomposes the Prism platform into 113 implementation stories spanning 7
 waves. Stories are organized by crate and ordered topologically so that no story begins
 before its dependencies are complete.
 
-- **Total stories:** 150 (76 through Wave 2 + 37 Wave 3 Multi-Tenant stories: S-3.0.01/02 + S-3.1.01–07 + S-3.2.01–08 + S-3.3.01–06 + S-3.4.01–05 + S-3.5.01 + S-3.6.01/02 + S-3.7.00–05 + 3 E-3.5 devx merged: W3-FIX-WIN/LEFTHOOK/CI-001 + 6 Wave 3.1 fix stories: W3-FIX-SEC-001/002/003 + W3-FIX-CODE-001/002/003 + 1 Wave 3.1 impl-phase story: S-3.1.06-ImplPhase + 2 Wave 3.2 fix stories: W3-FIX-CREDS-001 + W3-FIX-CODE-004 + 2 Wave 3.3 fix stories: W3-FIX-SEC-004 + W3-FIX-CODE-005 + 2 Wave 3.4 fix stories: W3-FIX-SEC-005 + W3-FIX-CODE-006 + 7 E-CLEANUP-02 Runtime Reality stories: S-WAVE5-PREP-01 + S-3.02-FOLLOWUP-RUNTIME + W3-FIX-S307-001/002 + S-1.12-FOLLOWUP + S-1.14-REDO + S-5.01-FOLLOWUP-MCP-BOOT + 14 PLUGIN-MIGRATION stories: S-PLUGIN-PREREQ-F/A/B/C/D/E + PLUGIN-MIGRATION-001-A/B/C/D/E/F/G/H [planned, D-333/D-334])
+- **Total stories:** 151 (76 through Wave 2 + 37 Wave 3 Multi-Tenant stories: S-3.0.01/02 + S-3.1.01–07 + S-3.2.01–08 + S-3.3.01–06 + S-3.4.01–05 + S-3.5.01 + S-3.6.01/02 + S-3.7.00–05 + 3 E-3.5 devx merged: W3-FIX-WIN/LEFTHOOK/CI-001 + 6 Wave 3.1 fix stories: W3-FIX-SEC-001/002/003 + W3-FIX-CODE-001/002/003 + 1 Wave 3.1 impl-phase story: S-3.1.06-ImplPhase + 2 Wave 3.2 fix stories: W3-FIX-CREDS-001 + W3-FIX-CODE-004 + 2 Wave 3.3 fix stories: W3-FIX-SEC-004 + W3-FIX-CODE-005 + 2 Wave 3.4 fix stories: W3-FIX-SEC-005 + W3-FIX-CODE-006 + 7 E-CLEANUP-02 Runtime Reality stories: S-WAVE5-PREP-01 + S-3.02-FOLLOWUP-RUNTIME + W3-FIX-S307-001/002 + S-1.12-FOLLOWUP + S-1.14-REDO + S-5.01-FOLLOWUP-MCP-BOOT + 14 PLUGIN-MIGRATION stories: S-PLUGIN-PREREQ-F/A/B/C/D/E + PLUGIN-MIGRATION-001-A/B/C/D/E/F/G/H [planned, D-333/D-334] + 1 maintenance story: S-MAINT-POL29-HOOK-001 [planned, D-780])
 - **Total waves:** 7 (Wave 0 expanded to 16 stories: devops + DTU infrastructure)
 - **BCs covered:** 230 total registered (222 active per BC-INDEX.md v4.32; 200 Wave 1-2 BCs + 22 new Wave 3 BCs: BC-3.1.001–004, BC-3.2.001–005, BC-3.3.001–004, BC-3.4.001–004, BC-3.5.001–002, BC-3.6.001–002, BC-3.7.001; at v0.2+ draft status; BC-3.3.004 is a distinct contract from BC-3.3.001 per PO rename in Phase 3.A consistency-validator pass)
 - **VPs assigned:** 145 (30 Kani proofs, 86 proptests, 4 unit_tests, 6 fuzz targets, 19 integration tests)
@@ -401,6 +401,7 @@ pursuing maximum parallelism should schedule by topological layer, not wave numb
 | PLUGIN-MIGRATION-001-F | test: Rewrite 10+ Sensor-Named Test Files + Compile-Fail Perimeter Test [PLUGIN-MIGRATION Wave 2] [planned] | prism-sensors,prism-query | 0 (TBD) | -- | 3 | PLUGIN-MIGRATION-001-A,PLUGIN-MIGRATION-001-B |
 | PLUGIN-MIGRATION-001-G | docs: Doc/ADR/BC Sweep — Generalize Sensor-Named Architecture Docs [PLUGIN-MIGRATION Wave 2] [planned] | .factory | 0 (TBD) | -- | 3 | PLUGIN-MIGRATION-001-A,PLUGIN-MIGRATION-001-B,PLUGIN-MIGRATION-001-C |
 | PLUGIN-MIGRATION-001-H | .factory: Story Supersession — Mark S-2.06/S-2.07/W3-FIX-S307-001/S-3.1.06-ImplPhase Superseded [PLUGIN-MIGRATION Wave 2] [planned] | .factory | 0 (TBD) | -- | 3 | PLUGIN-MIGRATION-001-A |
+| S-MAINT-POL29-HOOK-001 | Implement validate-cite-pin-completeness.sh — POL-29 step-8 mechanization [maintenance] [planned P2 — source: session-review D-777 Group E lint hook recommendation] | maintenance | 0 (TBD) | -- | tbd | -- |
 
 [*] S-5.10 is in the `prism-audit` crate — note that all other Wave 5 stories are in `prism-mcp`. This is intentional: audit trail forwarding belongs to the audit subsystem by BC-2.05.011, but the Wave 5 slot reflects its topological dependency on S-2.04 (Wave 2 anchor).
 
@@ -929,6 +930,7 @@ All 13 new DTU clones: Wave 0, 0 BCs, priority P0, depends_on: [S-6.06].
 
 | Version | Date | Summary |
 |---------|------|---------|
+| v2.182 | 2026-05-22 | v2.181 → v2.182 2026-05-22 — S-MAINT-POL29-HOOK-001 stub registered (planned status; source: session-review D-777 Group E lint hook recommendation). total_stories 150→151. D-780 codification COMPLETE. |
 | v2.181 | 2026-05-22 | D-776-post-merge (state-manager): row 399 PLUGIN-MIGRATION-001-D status **ready**→**done** — PR #153 squash-merged to develop@3f2de889 2026-05-22T09:05:47Z. 9-step PR lifecycle complete: CI GREEN 6-platform; security review CLEAN; code review APPROVE; PR-LEVEL adversary cascade CONVERGED; all 5 PREREQ PRs merged. POL-14 BC auto-promotions: BC-2.16.013 + BC-2.16.001 + BC-2.16.009 draft→active; BC-2.16.002 + BC-2.16.012 + BC-2.01.013 + BC-2.01.016 idempotent confirm. BC-INDEX v5.41→v5.42. STATE.md v7.462→v7.463. STORY-INDEX v2.180→v2.181. |
 | v2.180 | 2026-05-22 | FB-IMPL-11 (state-manager): row 399 PLUGIN-MIGRATION-001-D v1.20→v1.21 — F-LP12-MED-001 closure: story body header line 132 self-2nd-order propagation sweep `v1.14`→`v1.21` (7th POL-29 axis recurrence — self-dimension: body header cited stale `v1.14` while frontmatter was already `v1.21`). USER OPTION B DECISION 2026-05-22: cascade exits CONVERGED-WITH-CODIFICATION-QUEUE. D-775 recorded. STATE.md v7.461→v7.462. safe_to_compact=true. STORY-INDEX v2.179→v2.180. |
 | v2.179 | 2026-05-21 | FB-IMPL-10 (state-manager): row 399 PLUGIN-MIGRATION-001-D v1.19→v1.20 — F-LP11-MED-001 closure: 9-site BC-2.16.013 v1.14→v1.15 sweep (6th POL-29 axis recurrence — 2nd-order propagation gap). 7 story body sites swept + BC-2.16.002 row 112 Anchor + story §Behavioral Contracts table-cell `| 1.37 |` → `| 1.38 |` (found by PROACTIVE 2nd-order propagation grep on BC-2.16.002 v1.37). BC-2.16.002 v1.37→v1.38. BC-INDEX v5.40→v5.41. STORY-INDEX v2.178→v2.179. |
