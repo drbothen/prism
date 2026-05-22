@@ -4,7 +4,7 @@
 # URLs grounded from DTU clone routes (ADR-028 §D1):
 #   crates/prism-dtu-cyberint/src/clone.rs build_router()
 # auth_type grounded from DTU enforcement (ADR-028 §D2):
-#   DTU routes/alerts.rs::extract_session_token() extracts cyberint_session cookie
+#   DTU routes::alerts::extract_session_token() extracts cyberint_session cookie
 #   → cookie-roundtrip auth flow.
 # auth_type = "cookie_roundtrip" is the D-747 LOCKED value.
 # NOTE: legacy CyberintAuth::auth_type_name() returned "bearer_static" — latent label bug
