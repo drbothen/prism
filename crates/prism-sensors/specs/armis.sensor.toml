@@ -60,10 +60,13 @@ ocsf_class = "device"
   column_type = "string"
   ocsf_field = "device.type"
 
+  # DTU DeviceRecord.manufacturer: the device OEM (Cisco, HP, etc.) — NOT the CPU silicon vendor.
+  # F-LP3-HIGH-002: corrected from copy-paste defect (was device.hw_info.cpu_vendor, semantically wrong).
+  # OCSF device.hw_info.vendor_name is the hardware OEM vendor, distinct from cpu_vendor (CPU chip maker).
   [[tables.columns]]
   name = "manufacturer"
   column_type = "string"
-  ocsf_field = "device.hw_info.cpu_vendor"
+  ocsf_field = "device.hw_info.vendor_name"
 
   # Primary timestamp column: last_seen (may be null per DTU fixture d-001).
   # timestamp_fallback_chain per ADR-028 v1.9 §D8-B (Option A LOCKED):
@@ -101,20 +104,23 @@ ocsf_class = "device"
   column_type = "string"
   ocsf_field = "device.os.name"
 
+  # DTU DeviceRecord.risk_score: Option<u32> — JSON integer 0–100.
+  # F-LP3-HIGH-003: corrected from string (type mismatch; Arrow materialization would coerce/reject).
+  # column_type = "integer" matches DTU u32 emission and prism_core::column::ColumnType::Integer (ADR-024).
   [[tables.columns]]
   name = "risk_score"
-  column_type = "string"
+  column_type = "integer"
   ocsf_field = "risk_score"
 
-  # DTU-EXT-003: DTU has GET /api/v1/devices (build_router() line 143).
+  # DTU-EXT-003: DTU has GET /api/v1/devices (crates/prism-dtu-armis/src/clone.rs build_router()).
   # AQL forwarding via ${query.filter.aql} is supported when the caller populates
   # FetchContext.query_filters["aql"]. The DTU endpoint accepts an optional ?aql=
   # query parameter for filtering. Production AQL forwarding via /api/v1/search
   # is tracked under DTU-EXT-003.
   # response_path: DTU types.rs DevicesResponse { data: DevicesData { devices: [...] } }
   #   → must extract at $.data.devices (not $.data which returns the DevicesData object).
-  # pagination: DTU routes/devices.rs uses page/size offset params (paginate_devices
-  #   with size.unwrap_or(25) default). No cursor/next field in response. Using OffsetLimit
+  # pagination: DTU routes::devices::paginate_devices uses page/size offset params
+  #   (size.unwrap_or(25) default). No cursor/next field in response. Using OffsetLimit
   #   per CRIT-004 fix (ADR-028 §D1 DTU-grounded pagination type).
   [[tables.steps]]
   name = "fetch_devices"
@@ -128,7 +134,7 @@ ocsf_class = "device"
 
 # ---------------------------------------------------------------------------
 # Table: alerts
-# DTU-EXT-004: DTU registers GET /api/v1/alerts (build_router() line 150).
+# DTU-EXT-004: DTU registers GET /api/v1/alerts (crates/prism-dtu-armis/src/clone.rs build_router()).
 # Using DTU-registered endpoint per ADR-028 §D5.
 # ---------------------------------------------------------------------------
 [[tables]]
@@ -178,7 +184,7 @@ ocsf_class = "security_finding"
   column_type = "datetime"
   ocsf_field = "end_time"
 
-  # DTU-EXT-004: DTU has GET /api/v1/alerts (build_router() line 150).
+  # DTU-EXT-004: DTU has GET /api/v1/alerts (crates/prism-dtu-armis/src/clone.rs build_router()).
   # response_path: DTU types.rs AlertsResponse { data: AlertsData { alerts: [...] } }
   #   → must extract at $.data.alerts (not $.data which returns the AlertsData object).
   # pagination: DTU uses offset-based pagination (consistent with devices endpoint).
