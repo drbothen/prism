@@ -738,10 +738,37 @@ impl SpecLoader {
         // BC-2.16.009 timestamp_formats validation gate (ADR-028 v1.9 §D8-C):
         // timestamp_formats is a closed set: only these names are recognized.
         // Unrecognized format names → E-SPEC-001 at load time.
+        // Stage 1 (F-LP2-HIGH-005): timestamp_formats / timestamp_fallback_chain are only
+        // valid on Datetime columns — reject any non-Datetime column that declares them.
         const RECOGNIZED_TIMESTAMP_FORMATS: &[&str] =
             &["iso8601", "unix_epoch_seconds", "unix_epoch_millis"];
         for table in &spec.tables {
             for col in &table.columns {
+                // Stage 1: reject timestamp fields on non-Datetime columns.
+                if col.column_type != ColumnType::Datetime
+                    && (!col.timestamp_formats.is_empty()
+                        || !col.timestamp_fallback_chain.is_empty())
+                {
+                    return Err(PrismError::Spec(SpecError {
+                        code: SpecErrorCode::ESpec001,
+                        message: format!(
+                            "sensor '{}' table '{}' column '{}': timestamp_formats or \
+                             timestamp_fallback_chain declared on a '{:?}' column; \
+                             these fields are only valid on Datetime columns \
+                             (BC-2.16.009; ADR-028 v1.9 §D8-C)",
+                            spec.sensor_id, table.table_name, col.name, col.column_type,
+                        ),
+                        toml_path: Some(format!(
+                            "sensor.tables[{}].columns[{}]",
+                            table.table_name, col.name
+                        )),
+                        file_path: None,
+                        line_number: None,
+                    }));
+                }
+
+                // Stage 2: for Datetime columns, validate that each named format is in the
+                // recognized closed set.
                 if col.column_type == ColumnType::Datetime {
                     for fmt in &col.timestamp_formats {
                         if !RECOGNIZED_TIMESTAMP_FORMATS.contains(&fmt.as_str()) {
@@ -1054,5 +1081,130 @@ impl SpecLoader {
         }
 
         Ok(())
+    }
+}
+
+// ---------------------------------------------------------------------------
+// F-LP2-HIGH-005 — validator rejects timestamp_formats / timestamp_fallback_chain
+// on non-Datetime columns.
+// BC-2.16.009; ADR-028 v1.9 §D8-C.
+// ---------------------------------------------------------------------------
+#[cfg(test)]
+mod timestamp_column_type_validation_tests {
+    use prism_core::PrismError;
+
+    use super::SpecLoader;
+
+    /// Minimal valid sensor TOML with a single column (no credential_refs, no timestamp fields).
+    /// Sensors with 0 credential_refs are valid at parse time (Rule B only applies when ≥ 2).
+    const MINIMAL_TOML_BASE: &str = r#"
+sensor_id = "test"
+name = "Test Sensor"
+auth_type = "bearer_static"
+base_url = "https://example.com"
+version = "1.0.0"
+
+[[tables]]
+table_name = "events"
+ocsf_class = "security_finding"
+
+  [[tables.columns]]
+  name = "REPLACE_COL"
+  column_type = "REPLACE_TYPE"
+REPLACE_TIMESTAMP_FIELDS
+  [[tables.steps]]
+  name = "fetch"
+  method = "GET"
+  path_template = "/api/v1/events"
+  response_path = "$.data"
+  variables_produced = []
+  [tables.steps.pagination]
+  type = "none"
+"#;
+
+    /// F-LP2-HIGH-005 negative: timestamp_formats on a String column → E-SPEC-001.
+    #[test]
+    fn test_validation_rejects_timestamp_formats_on_string_column() {
+        let toml = MINIMAL_TOML_BASE
+            .replace("REPLACE_COL", "alert_id")
+            .replace("REPLACE_TYPE", "string")
+            .replace(
+                "REPLACE_TIMESTAMP_FIELDS",
+                "  timestamp_formats = [\"iso8601\"]\n",
+            );
+        let err = SpecLoader::parse(&toml)
+            .expect_err("String column with timestamp_formats must fail validation");
+        match err {
+            PrismError::Spec(se) => {
+                let msg = &se.message;
+                assert!(
+                    msg.contains("alert_id"),
+                    "must cite column name; got: {msg}"
+                );
+                assert!(
+                    msg.contains("timestamp_formats"),
+                    "must mention timestamp_formats; got: {msg}"
+                );
+                assert!(
+                    msg.contains("Datetime"),
+                    "must mention Datetime restriction; got: {msg}"
+                );
+            }
+            other => panic!("expected PrismError::Spec, got: {other:?}"),
+        }
+    }
+
+    /// F-LP2-HIGH-005 negative: timestamp_fallback_chain on an Integer column → E-SPEC-001.
+    #[test]
+    fn test_validation_rejects_timestamp_fallback_chain_on_integer_column() {
+        let toml = MINIMAL_TOML_BASE
+            .replace("REPLACE_COL", "count")
+            .replace("REPLACE_TYPE", "integer")
+            .replace(
+                "REPLACE_TIMESTAMP_FIELDS",
+                "  timestamp_fallback_chain = [\"other_field\"]\n",
+            );
+        let err = SpecLoader::parse(&toml)
+            .expect_err("Integer column with timestamp_fallback_chain must fail validation");
+        match err {
+            PrismError::Spec(se) => {
+                let msg = &se.message;
+                assert!(msg.contains("count"), "must cite column name; got: {msg}");
+                assert!(
+                    msg.contains("timestamp_fallback_chain"),
+                    "must mention timestamp_fallback_chain; got: {msg}"
+                );
+            }
+            other => panic!("expected PrismError::Spec, got: {other:?}"),
+        }
+    }
+
+    /// F-LP2-HIGH-005 positive: Datetime column with timestamp_formats → validation passes.
+    #[test]
+    fn test_validation_accepts_timestamp_formats_on_datetime_column() {
+        let toml = MINIMAL_TOML_BASE
+            .replace("REPLACE_COL", "created_at")
+            .replace("REPLACE_TYPE", "datetime")
+            .replace(
+                "REPLACE_TIMESTAMP_FIELDS",
+                "  timestamp_formats = [\"iso8601\", \"unix_epoch_seconds\"]\n",
+            );
+        assert!(
+            SpecLoader::parse(&toml).is_ok(),
+            "Datetime column with recognized timestamp_formats must pass validation"
+        );
+    }
+
+    /// F-LP2-HIGH-005 backward-compat: String column with no timestamp fields → validation passes.
+    #[test]
+    fn test_validation_accepts_empty_timestamp_fields_on_string_column() {
+        let toml = MINIMAL_TOML_BASE
+            .replace("REPLACE_COL", "alert_id")
+            .replace("REPLACE_TYPE", "string")
+            .replace("REPLACE_TIMESTAMP_FIELDS", "");
+        assert!(
+            SpecLoader::parse(&toml).is_ok(),
+            "String column with empty timestamp fields must pass validation (backward compat)"
+        );
     }
 }
