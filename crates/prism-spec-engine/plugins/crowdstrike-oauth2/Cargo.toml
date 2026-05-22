@@ -11,10 +11,19 @@ description = "CrowdStrike OAuth2 client-credentials auth as an in-repo .prx WAS
 [lib]
 crate-type = ["cdylib", "lib"]
 
+# Inheriting workspace lints (MED-012 closure).
+# Note: unwrap_used and expect_used are denied by workspace lints; the plugin code
+# uses panics only in stub paths (native build, tests) which are acceptable.
+# The #[cfg(test)] module uses .expect() which is acceptable in test paths.
+[lints]
+workspace = true
+
 [dependencies]
 # JSON parsing for OAuth2 token response (access_token, expires_in).
-serde = { version = "1", features = ["derive"] }
-serde_json = "1"
+# Using workspace-inherited versions per story Library and Framework Requirements
+# "Do NOT pin new library versions in the plugin crate" (F-LP1-MED-013 closure).
+serde = { workspace = true, features = ["derive"] }
+serde_json = { workspace = true }
 
 [features]
 # No features — production-grade default applies to all builds.

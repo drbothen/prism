@@ -44,6 +44,13 @@ members = [
 # NOTE: dtu feature declared per-crate starting with S-6.06 (prism-dtu-common).
 # NO [features] at workspace root — per v1.4 spec.
 
+# Workspace-shared dependencies — WASM guest plugin crates inherit via { workspace = true }.
+# Only deps shared by plugin crates live here to avoid forcing all crates to use workspace pins.
+# (PLUGIN-MIGRATION-001-E F-LP1-MED-013: crowdstrike-oauth2 plugin uses serde via workspace)
+[workspace.dependencies]
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+
 [workspace.lints.clippy]
 await_holding_lock = "deny"
 unwrap_used = "deny"

@@ -1,4 +1,5 @@
-#![allow(non_snake_case, dead_code, unused_imports)]
+#![allow(non_snake_case, dead_code)]
+// unused_imports removed: F-LP1-MED-016 closure — imports are all used after FB-IMPL-1 cleanup.
 //! PLUGIN-MIGRATION-001-E Red Gate Tests (AC-001 through AC-010).
 //!
 //! Test strategy: tests drive the HOST-SIDE plugin runtime API + host functions.
