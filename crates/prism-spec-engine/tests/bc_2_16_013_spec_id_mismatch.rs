@@ -32,6 +32,7 @@ use prism_spec_engine::spec_parser::SpecLoader;
 /// RED GATE: Fails until:
 ///   - Task 11: SpecErrorCode::ESpec017 variant added to prism-core/src/error.rs
 ///   - Task 12: filename-stem check added to SpecLoader::load_all()
+///
 /// Without Task 11, this test fails to compile (ESpec017 variant does not exist).
 /// Without Task 12, load_all() does not emit E-SPEC-017 and the assertion fails.
 #[test]
@@ -167,12 +168,24 @@ ocsf_class = "security_finding"
     );
 }
 
-/// HS-018 negative: Correct filename/sensor_id pair must NOT emit E-SPEC-017.
-/// A file crowdstrike.sensor.toml with sensor_id = "crowdstrike" must load without mismatch error.
+/// HS-018 / RG-09 (regression net — NOT a Red Gate per BC-5.38.001):
 ///
-/// RED GATE: This test currently PASSES with the skeleton spec because E-SPEC-017
-/// is not yet implemented. It becomes a regression test after Task 11 + Task 12.
-/// Behavior: correct pairing must NOT produce E-SPEC-017 (false positive prevention).
+/// FALSE-POSITIVE GUARD for the E-SPEC-017 (filename-stem-vs-sensor_id) validator added
+/// by implementer Tasks 11+12. A spec with `sensor_id = "crowdstrike"` in a file named
+/// `crowdstrike.sensor.toml` MUST NOT trigger E-SPEC-017 — the validator only fires on
+/// actual mismatches.
+///
+/// Discipline: this is a regression test, NOT a Red Gate. Red Gate tests (BC-5.38.001)
+/// must FAIL before the implementer makes them pass; this test PASSES in both the
+/// Red Gate state (no validator exists yet, so no false-positive is possible) AND in the
+/// implemented state (validator correctly distinguishes match from mismatch). The actual
+/// Red Gate tests in this file are tests #1 and #2 above — those reference
+/// `SpecErrorCode::ESpec017` which fails to compile until Task 11 lands, and asserts the
+/// mismatch error is emitted which fails until Task 12 adds the filename-stem check.
+///
+/// POLICY 16 alignment: this test is NOT an inverted-polarity test. It does not assert
+/// that production code panics with a stub message. It asserts the correct-input case
+/// (matching filename stem and sensor_id) produces no E-SPEC-017 error.
 #[test]
 fn test_HS_018_BC_2_16_001_correct_filename_sensor_id_pair_no_error() {
     let dir = tempfile::tempdir().expect("tempdir creation must succeed");
