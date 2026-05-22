@@ -200,6 +200,32 @@ pub struct ColumnSpec {
     /// Column options controlling query engine behavior.
     #[serde(default)]
     pub options: Vec<ColumnOptions>,
+    /// Ordered list of timestamp format names to try when parsing this column.
+    ///
+    /// Only meaningful when `column_type == ColumnType::Datetime`. Empty vec (default)
+    /// means the column is treated as a single well-known ISO 8601 string.
+    ///
+    /// Recognized format names (closed set per ADR-028 v1.10 §D8-C):
+    /// - `"iso8601"` — ISO 8601 / RFC 3339 string (e.g., `"2024-01-15T10:30:00Z"`)
+    /// - `"unix_epoch_seconds"` — integer Unix timestamp in seconds (e.g., `1705311000`)
+    /// - `"unix_epoch_millis"` — integer Unix timestamp in milliseconds
+    ///
+    /// Unrecognized names → `E-SPEC-001` validation error at load time (BC-2.16.009).
+    /// On all-formats parse failure → `E-SPEC-018` (`TimestampParseFailure`).
+    #[serde(default)]
+    pub timestamp_formats: Vec<String>,
+    /// Ordered list of source field names to try when the primary column field is null/absent.
+    ///
+    /// Only meaningful when `column_type == ColumnType::Datetime`. Empty vec (default) means
+    /// no fallback chain — a null primary field produces a null output column.
+    ///
+    /// The pipeline executor tries each field in order. If all chain fields are also null/absent,
+    /// falls back to `DateTime::now()` (UTC) and emits
+    /// `tracing::warn!(event_type = "timestamp.fallback_to_now", column = %col_name)`.
+    ///
+    /// BC-2.16.013 §O-001 Option A LOCKED; ADR-028 v1.10 §D8-B/C.
+    #[serde(default)]
+    pub timestamp_fallback_chain: Vec<String>,
 }
 
 impl Default for ColumnSpec {
@@ -216,6 +242,8 @@ impl Default for ColumnSpec {
             column_type: ColumnType::String,
             ocsf_field: None,
             options: vec![],
+            timestamp_formats: vec![],
+            timestamp_fallback_chain: vec![],
         }
     }
 }
@@ -236,6 +264,8 @@ impl ColumnSpec {
             column_type,
             ocsf_field,
             options,
+            timestamp_formats: vec![],
+            timestamp_fallback_chain: vec![],
         }
     }
 }
@@ -705,6 +735,111 @@ impl SpecLoader {
             });
         }
 
+        // BC-2.16.009 timestamp_formats validation gate (ADR-028 v1.10 §D8-C):
+        // timestamp_formats is a closed set: only these names are recognized.
+        // Unrecognized format names → E-SPEC-001 at load time.
+        // Stage 1 (F-LP2-HIGH-005): timestamp_formats / timestamp_fallback_chain are only
+        // valid on Datetime columns — reject any non-Datetime column that declares them.
+        const RECOGNIZED_TIMESTAMP_FORMATS: &[&str] =
+            &["iso8601", "unix_epoch_seconds", "unix_epoch_millis"];
+        for table in &spec.tables {
+            for col in &table.columns {
+                // Stage 1: reject timestamp fields on non-Datetime columns.
+                if col.column_type != ColumnType::Datetime
+                    && (!col.timestamp_formats.is_empty()
+                        || !col.timestamp_fallback_chain.is_empty())
+                {
+                    return Err(PrismError::Spec(SpecError {
+                        code: SpecErrorCode::ESpec001,
+                        message: format!(
+                            "sensor '{}' table '{}' column '{}': timestamp_formats or \
+                             timestamp_fallback_chain declared on a '{:?}' column; \
+                             these fields are only valid on Datetime columns \
+                             (BC-2.16.009; ADR-028 v1.10 §D8-C)",
+                            spec.sensor_id, table.table_name, col.name, col.column_type,
+                        ),
+                        toml_path: Some(format!(
+                            "sensor.tables[{}].columns[{}]",
+                            table.table_name, col.name
+                        )),
+                        file_path: None,
+                        line_number: None,
+                    }));
+                }
+
+                // Stage 2: for Datetime columns, validate that each named format is in the
+                // recognized closed set.
+                if col.column_type == ColumnType::Datetime {
+                    for fmt in &col.timestamp_formats {
+                        if !RECOGNIZED_TIMESTAMP_FORMATS.contains(&fmt.as_str()) {
+                            return Err(PrismError::Spec(SpecError {
+                                code: SpecErrorCode::ESpec001,
+                                message: format!(
+                                    "sensor '{}' table '{}' column '{}': unrecognized \
+                                     timestamp_formats entry '{}'. Recognized values: {}. \
+                                     (BC-2.16.009; ADR-028 v1.10 §D8-C)",
+                                    spec.sensor_id,
+                                    table.table_name,
+                                    col.name,
+                                    fmt,
+                                    RECOGNIZED_TIMESTAMP_FORMATS.join(", ")
+                                ),
+                                toml_path: Some(format!(
+                                    "sensor.tables[{}].columns[{}].timestamp_formats",
+                                    table.table_name, col.name
+                                )),
+                                file_path: None,
+                                line_number: None,
+                            }));
+                        }
+                    }
+                }
+            }
+        }
+
+        // Stage 3 (F-LP3-MEDIUM-001): timestamp_fallback_chain field-name resolution gate
+        // (BC-2.16.009). Each name in timestamp_fallback_chain must resolve to an actual
+        // column on the same table. Self-references (fb_name == col.name) are allowed —
+        // the defensive skip guard in normalize_timestamp_fields handles them at runtime.
+        // Unknown names → E-SPEC-001 at load time.
+        for table in &spec.tables {
+            let column_names: std::collections::HashSet<&str> =
+                table.columns.iter().map(|c| c.name.as_str()).collect();
+            for col in &table.columns {
+                for fb_name in &col.timestamp_fallback_chain {
+                    // Self-reference: allowed — skip-guard in normalize handles it.
+                    if fb_name == &col.name {
+                        continue;
+                    }
+                    if !column_names.contains(fb_name.as_str()) {
+                        let mut known: Vec<&str> = column_names.iter().copied().collect();
+                        known.sort_unstable();
+                        return Err(PrismError::Spec(SpecError {
+                            code: SpecErrorCode::ESpec001,
+                            message: format!(
+                                "sensor '{}' table '{}' column '{}': \
+                                 timestamp_fallback_chain references unknown field '{}'. \
+                                 Known columns on table '{}': [{}]. \
+                                 (BC-2.16.009; ADR-028 v1.10 §D8-B)",
+                                spec.sensor_id,
+                                table.table_name,
+                                col.name,
+                                fb_name,
+                                table.table_name,
+                                known.join(", "),
+                            ),
+                            toml_path: Some(format!(
+                                "sensor.tables[{}].columns[{}].timestamp_fallback_chain",
+                                table.table_name, col.name,
+                            )),
+                            file_path: None,
+                            line_number: None,
+                        }));
+                    }
+                }
+            }
+        }
+
         Ok(spec)
     }
 
@@ -766,6 +901,34 @@ impl SpecLoader {
 
             match Self::parse(&content) {
                 Ok(spec) => {
+                    // BC-2.16.001 v1.6 §Error Conditions E-SPEC-017:
+                    // The filename stem must case-sensitively match the spec's sensor_id.
+                    // E.g., `crowdstrike.sensor.toml` → stem = "crowdstrike" → must match
+                    // sensor_id "crowdstrike". Generic check — no hardcoded sensor names
+                    // (BC-2.16.012 INV-SPEC-PARSER-OPEN-001).
+                    let stem = file_name
+                        .strip_suffix(".sensor.toml")
+                        .unwrap_or(&file_name)
+                        .to_string();
+                    if stem != spec.sensor_id {
+                        errors.push(PrismError::Spec(SpecError {
+                            code: SpecErrorCode::ESpec017,
+                            // error-taxonomy.md v1.44 E-SPEC-017 canonical message template
+                            // (POLICY 24: byte-for-byte match required):
+                            // "Spec sensor_id '{sensor_id}' does not match filename stem
+                            //  '{filename_stem}' in spec file '{file}'"
+                            message: format!(
+                                "Spec sensor_id '{}' does not match filename stem '{}' \
+                                 in spec file '{}'",
+                                spec.sensor_id, stem, file_name
+                            ),
+                            toml_path: None,
+                            file_path: Some(file_name.clone()),
+                            line_number: None,
+                        }));
+                        // DI-030: reject this spec, continue loading others
+                        continue;
+                    }
                     named_specs.push((file_name, spec));
                 }
                 Err(e) => {
@@ -961,5 +1124,130 @@ impl SpecLoader {
         }
 
         Ok(())
+    }
+}
+
+// ---------------------------------------------------------------------------
+// F-LP2-HIGH-005 — validator rejects timestamp_formats / timestamp_fallback_chain
+// on non-Datetime columns.
+// BC-2.16.009; ADR-028 v1.10 §D8-C.
+// ---------------------------------------------------------------------------
+#[cfg(test)]
+mod timestamp_column_type_validation_tests {
+    use prism_core::PrismError;
+
+    use super::SpecLoader;
+
+    /// Minimal valid sensor TOML with a single column (no credential_refs, no timestamp fields).
+    /// Sensors with 0 credential_refs are valid at parse time (Rule B only applies when ≥ 2).
+    const MINIMAL_TOML_BASE: &str = r#"
+sensor_id = "test"
+name = "Test Sensor"
+auth_type = "bearer_static"
+base_url = "https://example.com"
+version = "1.0.0"
+
+[[tables]]
+table_name = "events"
+ocsf_class = "security_finding"
+
+  [[tables.columns]]
+  name = "REPLACE_COL"
+  column_type = "REPLACE_TYPE"
+REPLACE_TIMESTAMP_FIELDS
+  [[tables.steps]]
+  name = "fetch"
+  method = "GET"
+  path_template = "/api/v1/events"
+  response_path = "$.data"
+  variables_produced = []
+  [tables.steps.pagination]
+  type = "none"
+"#;
+
+    /// F-LP2-HIGH-005 negative: timestamp_formats on a String column → E-SPEC-001.
+    #[test]
+    fn test_validation_rejects_timestamp_formats_on_string_column() {
+        let toml = MINIMAL_TOML_BASE
+            .replace("REPLACE_COL", "alert_id")
+            .replace("REPLACE_TYPE", "string")
+            .replace(
+                "REPLACE_TIMESTAMP_FIELDS",
+                "  timestamp_formats = [\"iso8601\"]\n",
+            );
+        let err = SpecLoader::parse(&toml)
+            .expect_err("String column with timestamp_formats must fail validation");
+        match err {
+            PrismError::Spec(se) => {
+                let msg = &se.message;
+                assert!(
+                    msg.contains("alert_id"),
+                    "must cite column name; got: {msg}"
+                );
+                assert!(
+                    msg.contains("timestamp_formats"),
+                    "must mention timestamp_formats; got: {msg}"
+                );
+                assert!(
+                    msg.contains("Datetime"),
+                    "must mention Datetime restriction; got: {msg}"
+                );
+            }
+            other => panic!("expected PrismError::Spec, got: {other:?}"),
+        }
+    }
+
+    /// F-LP2-HIGH-005 negative: timestamp_fallback_chain on an Integer column → E-SPEC-001.
+    #[test]
+    fn test_validation_rejects_timestamp_fallback_chain_on_integer_column() {
+        let toml = MINIMAL_TOML_BASE
+            .replace("REPLACE_COL", "count")
+            .replace("REPLACE_TYPE", "integer")
+            .replace(
+                "REPLACE_TIMESTAMP_FIELDS",
+                "  timestamp_fallback_chain = [\"other_field\"]\n",
+            );
+        let err = SpecLoader::parse(&toml)
+            .expect_err("Integer column with timestamp_fallback_chain must fail validation");
+        match err {
+            PrismError::Spec(se) => {
+                let msg = &se.message;
+                assert!(msg.contains("count"), "must cite column name; got: {msg}");
+                assert!(
+                    msg.contains("timestamp_fallback_chain"),
+                    "must mention timestamp_fallback_chain; got: {msg}"
+                );
+            }
+            other => panic!("expected PrismError::Spec, got: {other:?}"),
+        }
+    }
+
+    /// F-LP2-HIGH-005 positive: Datetime column with timestamp_formats → validation passes.
+    #[test]
+    fn test_validation_accepts_timestamp_formats_on_datetime_column() {
+        let toml = MINIMAL_TOML_BASE
+            .replace("REPLACE_COL", "created_at")
+            .replace("REPLACE_TYPE", "datetime")
+            .replace(
+                "REPLACE_TIMESTAMP_FIELDS",
+                "  timestamp_formats = [\"iso8601\", \"unix_epoch_seconds\"]\n",
+            );
+        assert!(
+            SpecLoader::parse(&toml).is_ok(),
+            "Datetime column with recognized timestamp_formats must pass validation"
+        );
+    }
+
+    /// F-LP2-HIGH-005 backward-compat: String column with no timestamp fields → validation passes.
+    #[test]
+    fn test_validation_accepts_empty_timestamp_fields_on_string_column() {
+        let toml = MINIMAL_TOML_BASE
+            .replace("REPLACE_COL", "alert_id")
+            .replace("REPLACE_TYPE", "string")
+            .replace("REPLACE_TIMESTAMP_FIELDS", "");
+        assert!(
+            SpecLoader::parse(&toml).is_ok(),
+            "String column with empty timestamp fields must pass validation (backward compat)"
+        );
     }
 }
