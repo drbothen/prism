@@ -42,7 +42,11 @@ reqwest = { version = "0.12", features = ["json", "rustls-tls", "gzip", "deflate
 bincode = "2"
 anyhow = "1"
 # ADR-028 §D8-B/C — multi-format timestamp parsing in PipelineExecutor normalization
-chrono = { version = "0.4", features = ["serde"] }
+# F-LP3-MEDIUM-002: default-features=false to control build surface.
+#   "clock" provides DateTime::now() UTC (Option A fallback timestamp).
+#   "serde" provides Serialize/Deserialize derive.
+#   Excludes default-on "std" (redundant for our use), "iana-time-zone" (bloat).
+chrono = { version = "0.4", default-features = false, features = ["clock", "serde"] }
 
 [dev-dependencies]
 # Self-referential dep to enable test-helpers feature for integration test binaries.
