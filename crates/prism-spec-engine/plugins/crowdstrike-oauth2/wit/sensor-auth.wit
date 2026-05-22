@@ -56,6 +56,15 @@ interface host {
     /// Set a value in the plugin's KV store (scoped by plugin_id).
     /// Returns Err(error_message) if 1MB KV limit is exceeded.
     kv-set: func(key: string, value: string) -> result<_, string>;
+
+    /// Return the current wall-clock time as Unix seconds (u64).
+    ///
+    /// Used for token TTL management: store `expires_at = current-time-secs() + expires_in - 30`
+    /// and check `current-time-secs() < expires_at` on get-token calls.
+    ///
+    /// PLUGIN-MIGRATION-001-E Known Gap resolution: added in-scope (CRIT-004 / MED-015).
+    /// Registered by host_functions.rs::register_host_functions as "current-time-secs".
+    current-time-secs: func() -> u64;
 }
 
 /// Auth error variants returned by acquire-token and get-token.
