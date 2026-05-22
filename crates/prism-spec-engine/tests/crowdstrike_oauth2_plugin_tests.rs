@@ -24,8 +24,17 @@ use prism_spec_engine::spec_parser::SpecLoader;
 // ---------------------------------------------------------------------------
 
 /// Build a test `PluginRuntime` (NoOpPluginAuditSink).
+///
+/// Uses reqwest::Client::builder().timeout(30s) per CLAUDE.md Forbidden patterns
+/// (TD-S-PLUGIN-PREREQ-B-005 closure — F-LP1-HIGH-011).
 fn build_test_runtime() -> PluginRuntime {
-    PluginRuntime::new(reqwest::Client::new()).expect("PluginRuntime::new must succeed")
+    PluginRuntime::new(
+        reqwest::Client::builder()
+            .timeout(std::time::Duration::from_secs(30))
+            .build()
+            .expect("reqwest Client::build must succeed"),
+    )
+    .expect("PluginRuntime::new must succeed")
 }
 
 /// Compile WAT source to WASM bytes.
