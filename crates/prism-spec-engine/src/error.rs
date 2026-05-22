@@ -247,6 +247,36 @@ pub enum SpecEngineError {
          process restart required"
     )]
     WriteToolRegistryPoisoned,
+
+    // -------------------------------------------------------------------------
+    // PLUGIN-MIGRATION-001-D — ADR-028 §D8-B/C timestamp normalization errors
+    // -------------------------------------------------------------------------
+    /// E-SPEC-018: `PipelineExecutor` failed to parse a `ColumnType::Datetime` column value
+    /// against any of the declared `timestamp_formats`.
+    ///
+    /// Emitted during response-to-Arrow materialization when `ColumnSpec::timestamp_formats`
+    /// is non-empty and no format successfully parsed the field value.
+    ///
+    /// Field names match the canonical error-taxonomy.md v1.44 E-SPEC-018 template
+    /// byte-for-byte (F-LP2-HIGH-002; POLICY 24).
+    ///
+    /// Maps to `prism_core::SpecErrorCode::ESpec018`.
+    /// BC-2.16.013 §O-001; ADR-028 v1.10 §D8-C; error-taxonomy.md v1.44 E-SPEC-018.
+    #[error(
+        "Failed to parse timestamp for column '{column_name}' in sensor '{sensor_id}': \
+         tried formats [{}], value='{value}'",
+        attempted_formats.join(", ")
+    )]
+    TimestampParseFailure {
+        /// Sensor ID for operator diagnostics (added F-LP2-HIGH-002; POLICY 24).
+        sensor_id: String,
+        /// Column name for operator diagnostics (the `ColumnSpec.name`).
+        column_name: String,
+        /// Format names attempted in declaration order, all of which failed.
+        attempted_formats: Vec<String>,
+        /// The raw JSON value that failed all formats (for actionable correction).
+        value: String,
+    },
 }
 
 // ---------------------------------------------------------------------------
@@ -256,6 +286,32 @@ pub enum SpecEngineError {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    /// F-LP3-MEDIUM-003: E-SPEC-018 Display must match error-taxonomy.md v1.44 template
+    /// byte-for-byte (POLICY 24). This test pins the format string to prevent silent drift.
+    ///
+    /// Template: "Failed to parse timestamp for column '{column_name}' in sensor '{sensor_id}':
+    ///             tried formats [{formats}], value='{raw_value}'"
+    ///
+    /// Any change to the Display impl that breaks this test is a POLICY 24 violation
+    /// requiring an error-taxonomy.md version bump and synchronized test update.
+    #[test]
+    fn test_E_SPEC_018_display_matches_error_taxonomy_template_byte_for_byte() {
+        let err = SpecEngineError::TimestampParseFailure {
+            sensor_id: "cyberint".to_string(),
+            column_name: "created_at".to_string(),
+            attempted_formats: vec!["iso8601".to_string(), "unix_epoch_seconds".to_string()],
+            value: "not_a_timestamp".to_string(),
+        };
+        let display = err.to_string();
+        let expected = "Failed to parse timestamp for column 'created_at' in sensor 'cyberint': \
+                        tried formats [iso8601, unix_epoch_seconds], value='not_a_timestamp'";
+        assert_eq!(
+            display, expected,
+            "E-SPEC-018 Display must match error-taxonomy.md v1.44 template byte-for-byte \
+             (POLICY 24). Got:\n  {display:?}\nExpected:\n  {expected:?}"
+        );
+    }
 
     /// F-LP2-LOW-001: `AuthAcquisitionFailed` variant is constructible and its
     /// Display output includes sensor_id and client_id for operator diagnostics.

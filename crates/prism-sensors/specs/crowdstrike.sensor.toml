@@ -1,0 +1,196 @@
+# crowdstrike.sensor.toml — Production TOML sensor spec
+#
+# Authored per PLUGIN-MIGRATION-001-D Task 3.
+# URLs grounded from DTU clone routes (ADR-028 §D1):
+#   crates/prism-dtu-crowdstrike/src/routes/mod.rs build_router()
+# auth_type grounded from DTU enforcement (ADR-028 §D2):
+#   DTU OAuth2 token endpoint at /oauth2/token enforces oauth2_client_credentials.
+# auth_type = "oauth2_client_credentials" is the D-747 LOCKED value.
+#
+# Two-step pipeline pattern:
+#   Step 1 (QueryV2): GET /detects/queries/detects/v1 → produces array of IDs
+#   Step 2 (PostEntities): POST /detects/entities/summaries/GET/v1 → fan_out batch on IDs
+# fan_out_batch_size = 100 per CROWDSTRIKE_BATCH_SIZE constant in adapter.
+
+sensor_id = "crowdstrike"
+name = "CrowdStrike Falcon"
+auth_type = "oauth2_client_credentials"
+base_url = "https://api.crowdstrike.com"
+version = "1.0.0"
+
+[rate_limit_hints]
+requests_per_second = 10.0
+
+# ---------------------------------------------------------------------------
+# Table: detections
+# Two-step QueryV2 → PostEntities pipeline (DTU-grounded routes)
+# ---------------------------------------------------------------------------
+[[tables]]
+table_name = "detections"
+ocsf_class = "security_finding"
+
+  [[tables.columns]]
+  name = "id"
+  column_type = "string"
+  ocsf_field = "finding.uid"
+  options = ["REQUIRED"]
+
+  [[tables.columns]]
+  name = "created_timestamp"
+  column_type = "datetime"
+  ocsf_field = "time"
+
+  [[tables.columns]]
+  name = "status"
+  column_type = "string"
+  ocsf_field = "status"
+
+  [[tables.columns]]
+  name = "severity"
+  column_type = "string"
+  ocsf_field = "severity"
+
+  [[tables.columns]]
+  name = "device_id"
+  column_type = "string"
+  ocsf_field = "device.uid"
+
+  [[tables.columns]]
+  name = "tactic"
+  column_type = "string"
+  ocsf_field = "attack.tactic.name"
+
+  [[tables.columns]]
+  name = "technique"
+  column_type = "string"
+  ocsf_field = "attack.technique.name"
+
+  # Step 1: QueryV2 — GET detection IDs
+  # DTU route: GET /detects/queries/detects/v1 (mod.rs line ~189)
+  [[tables.steps]]
+  name = "query_detection_ids"
+  method = "GET"
+  path_template = "/detects/queries/detects/v1"
+  response_path = "$.resources"
+  variables_produced = ["detection_ids"]
+
+  # Step 2: PostEntities — POST IDs to get full detection records
+  # DTU route: POST /detects/entities/summaries/GET/v1 (mod.rs line ~193)
+  # fan_out_batch_size = 100 per CROWDSTRIKE_BATCH_SIZE (capped by API limit)
+  [[tables.steps]]
+  name = "fetch_detections"
+  method = "POST"
+  path_template = "/detects/entities/summaries/GET/v1"
+  body_template = '{"ids": ${query_detection_ids}}'
+  response_path = "$.resources"
+  variables_produced = []
+  fan_out_batch_size = 100
+
+# ---------------------------------------------------------------------------
+# Table: devices
+# Two-step QueryV2 → GetEntities pipeline (DTU-grounded routes)
+# ---------------------------------------------------------------------------
+[[tables]]
+table_name = "devices"
+ocsf_class = "device"
+
+  [[tables.columns]]
+  name = "device_id"
+  column_type = "string"
+  ocsf_field = "device.uid"
+  options = ["REQUIRED"]
+
+  [[tables.columns]]
+  name = "hostname"
+  column_type = "string"
+  ocsf_field = "device.hostname"
+
+  [[tables.columns]]
+  name = "platform_name"
+  column_type = "string"
+  ocsf_field = "device.os.name"
+
+  [[tables.columns]]
+  name = "status"
+  column_type = "string"
+  ocsf_field = "status"
+
+  [[tables.columns]]
+  name = "first_seen"
+  column_type = "datetime"
+  ocsf_field = "device.first_seen_time"
+
+  [[tables.columns]]
+  name = "last_seen"
+  column_type = "datetime"
+  ocsf_field = "device.last_seen_time"
+
+  # Step 1: QueryV2 — GET device IDs
+  # DTU route: GET /devices/queries/devices/v1 (mod.rs line ~197)
+  [[tables.steps]]
+  name = "query_device_ids"
+  method = "GET"
+  path_template = "/devices/queries/devices/v1"
+  response_path = "$.resources"
+  variables_produced = ["device_ids"]
+
+  # Step 2: GetEntities — GET full device records by ID
+  # DTU route: GET /devices/entities/devices/v2 (mod.rs line ~198 — v2, not v1)
+  [[tables.steps]]
+  name = "fetch_devices"
+  method = "GET"
+  path_template = "/devices/entities/devices/v2"
+  response_path = "$.resources"
+  variables_produced = []
+  fan_out_batch_size = 100
+
+# ---------------------------------------------------------------------------
+# Table: incidents
+# DTU-EXT-001 gap: Incidents route not yet registered in prism-dtu-crowdstrike.
+# Spec is authored per ADR-028 §D5 (spec never ahead of DTU — include as
+# documented gap). Parity test RG-04 does NOT exercise incidents in v1 cycle.
+# Follow-up work tracked under DTU-EXT-001.
+# ---------------------------------------------------------------------------
+[[tables]]
+table_name = "incidents"
+ocsf_class = "incident_finding"
+
+  [[tables.columns]]
+  name = "incident_id"
+  column_type = "string"
+  ocsf_field = "finding.uid"
+  options = ["REQUIRED"]
+
+  [[tables.columns]]
+  name = "created"
+  column_type = "datetime"
+  ocsf_field = "time"
+
+  [[tables.columns]]
+  name = "status"
+  column_type = "string"
+  ocsf_field = "status"
+
+  [[tables.columns]]
+  name = "severity"
+  column_type = "string"
+  ocsf_field = "severity"
+
+  # Step 1: QueryV2 — GET incident IDs
+  # DTU-EXT-001: no incidents route in prism-dtu-crowdstrike yet.
+  # Using canonical CrowdStrike 2-step pattern per ADR-028 §D5.
+  [[tables.steps]]
+  name = "query_incident_ids"
+  method = "GET"
+  path_template = "/incidents/queries/incidents/v1"
+  response_path = "$.resources"
+  variables_produced = ["incident_ids"]
+
+  # Step 2: GetEntities — GET full incident records
+  [[tables.steps]]
+  name = "fetch_incidents"
+  method = "GET"
+  path_template = "/incidents/entities/incidents/GET/v1"
+  response_path = "$.resources"
+  variables_produced = []
+  fan_out_batch_size = 100

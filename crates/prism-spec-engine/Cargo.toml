@@ -41,6 +41,12 @@ notify = "7"
 reqwest = { version = "0.12", features = ["json", "rustls-tls", "gzip", "deflate", "brotli"], default-features = false }
 bincode = "2"
 anyhow = "1"
+# ADR-028 §D8-B/C — multi-format timestamp parsing in PipelineExecutor normalization
+# F-LP3-MEDIUM-002: default-features=false to control build surface.
+#   "clock" provides DateTime::now() UTC (Option A fallback timestamp).
+#   "serde" provides Serialize/Deserialize derive.
+#   Excludes default-on "std" (redundant for our use), "iana-time-zone" (bloat).
+chrono = { version = "0.4", default-features = false, features = ["clock", "serde"] }
 
 [dev-dependencies]
 # Self-referential dep to enable test-helpers feature for integration test binaries.
@@ -59,6 +65,14 @@ wiremock = "0.6"
 flate2 = "1"
 # tracing-subscriber: structured log capture for audit-log regression tests.
 tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+# PLUGIN-MIGRATION-001-D: DTU clones as dev-dependencies for parity tests (Task 10).
+# Production dep FORBIDDEN — these are test-infrastructure crates only (§Forbidden Dependencies).
+# Architecture compliance: prism-spec-engine MUST NOT have production deps on DTU crates.
+prism-dtu-crowdstrike = { path = "../prism-dtu-crowdstrike", features = ["dtu"] }
+prism-dtu-claroty = { path = "../prism-dtu-claroty", features = ["dtu"] }
+prism-dtu-cyberint = { path = "../prism-dtu-cyberint", features = ["dtu"] }
+prism-dtu-armis = { path = "../prism-dtu-armis", features = ["dtu"] }
+prism-dtu-common = { path = "../prism-dtu-common", features = ["dtu"] }
 
 [features]
 default = []
@@ -142,3 +156,56 @@ required-features = ["test-helpers"]
 [[test]]
 name = "vp153_sensorauth_cross_composition"
 path = "tests/vp153_sensorauth_cross_composition.rs"
+
+# PLUGIN-MIGRATION-001-D: RG-01 / AC-006 — bundled spec file loading
+[[test]]
+name = "bc_2_16_001_bundled_spec_load"
+path = "tests/bc_2_16_001_bundled_spec_load.rs"
+
+# PLUGIN-MIGRATION-001-D: RG-02 / AC-005 — bundled spec validation pipeline
+[[test]]
+name = "bc_2_16_009_bundled_spec_validation"
+path = "tests/bc_2_16_009_bundled_spec_validation.rs"
+
+# PLUGIN-MIGRATION-001-D: RG-03 / AC-007 — CrowdStrike two-step pipeline (wiremock)
+# required-features: NullAuthProvider (test-helpers feature-gated)
+[[test]]
+name = "bc_2_16_002_crowdstrike_two_step"
+path = "tests/bc_2_16_002_crowdstrike_two_step.rs"
+required-features = ["test-helpers"]
+
+# PLUGIN-MIGRATION-001-D: RG-08 / AC-012 — open dispatch + grep gate
+[[test]]
+name = "bc_2_16_012_open_dispatch_bundled_specs"
+path = "tests/bc_2_16_012_open_dispatch_bundled_specs.rs"
+
+# PLUGIN-MIGRATION-001-D: RG-09 / HS-018 — sensor_id/filename mismatch → E-SPEC-017
+[[test]]
+name = "bc_2_16_013_spec_id_mismatch"
+path = "tests/bc_2_16_013_spec_id_mismatch.rs"
+
+# PLUGIN-MIGRATION-001-D: RG-04 / HS-013 — CrowdStrike DTU parity (#[ignore] until S-6.07)
+# required-features: test-helpers (NullAuthProvider) + dtu (CrowdstrikeClone)
+[[test]]
+name = "parity_crowdstrike"
+path = "tests/parity/crowdstrike.rs"
+required-features = ["test-helpers"]
+
+# PLUGIN-MIGRATION-001-D: RG-05 / HS-014 — Claroty DTU parity (#[ignore] until S-6.08)
+[[test]]
+name = "parity_claroty"
+path = "tests/parity/claroty.rs"
+required-features = ["test-helpers"]
+
+# PLUGIN-MIGRATION-001-D: RG-06 / HS-015 — Cyberint DTU parity (#[ignore] until S-6.09)
+# incidents sub-test is NOT #[ignore] — explicit SKIP assertion per EC-016-013-002
+[[test]]
+name = "parity_cyberint"
+path = "tests/parity/cyberint.rs"
+required-features = ["test-helpers"]
+
+# PLUGIN-MIGRATION-001-D: RG-07 / HS-016 — Armis DTU parity (#[ignore] until S-6.10)
+[[test]]
+name = "parity_armis"
+path = "tests/parity/armis.rs"
+required-features = ["test-helpers"]

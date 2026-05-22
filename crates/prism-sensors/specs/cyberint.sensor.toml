@@ -1,0 +1,168 @@
+# cyberint.sensor.toml — Production TOML sensor spec
+#
+# Authored per PLUGIN-MIGRATION-001-D Task 5.
+# URLs grounded from DTU clone routes (ADR-028 §D1):
+#   crates/prism-dtu-cyberint/src/clone.rs build_router()
+# auth_type grounded from DTU enforcement (ADR-028 §D2):
+#   DTU routes::alerts::extract_session_token() extracts cyberint_session cookie
+#   → cookie-roundtrip auth flow.
+# auth_type = "cookie_roundtrip" is the D-747 LOCKED value.
+# NOTE: legacy CyberintAuth::auth_type_name() returned "bearer_static" — latent label bug
+#   deleted by PLUGIN-MIGRATION-001-A. Spec follows DTU per CLAUDE.md §Source-of-Truth #7.
+#
+# URL correction: Rust adapter used /api/alerts (no /v1) — latent bug.
+# DTU-grounded per ADR-028 §D1: crates/prism-dtu-cyberint/src/clone.rs build_router()
+#   registers /api/v1/alerts. Real third-party API verification deferred to DTU-validator.
+#
+# incidents table: included as documented gap per EC-016-013-002. DTU has no incidents route.
+# Parity test returns explicit SKIP (NOT #[ignore]) per AC-009 spec.
+#
+# timestamp column: created_at with timestamp_formats = ["iso8601", "unix_epoch_seconds"]
+# per ADR-028 v1.10 §D8-A Option A LOCKED (BC-2.16.013 §O-001). The normalization layer
+# in PipelineExecutor tries each format in order; on failure emits E-SPEC-018.
+
+sensor_id = "cyberint"
+name = "Cyberint"
+auth_type = "cookie_roundtrip"
+base_url = "https://${env.CYBERINT_ENVIRONMENT}.cyberint.io"
+version = "1.0.0"
+
+# ---------------------------------------------------------------------------
+# Table: alerts
+# GET with cursor pagination
+# DTU route: GET /api/v1/alerts (crates/prism-dtu-cyberint/src/clone.rs build_router())
+# DTU-grounded per ADR-028 §D1: DTU-grounded per ADR-028 §D1: real third-party API
+#   verification deferred to DTU-validator.
+# F-LP3-HIGH-001: reauthored to match DTU Alert struct exactly (8 fields):
+#   alert_id, title, severity, status, created_at, source, type, affected_assets.
+#   Removed spurious 'id' (DTU never emits it) and 'source_url' (no such DTU field).
+#   'description' → 'title'; 'source_url' → 'source'.
+#   'affected_assets' (Vec<serde_json::Value>) deferred: array column type is not yet
+#   supported in the column grammar — track as future story when Array ColumnType lands.
+# ---------------------------------------------------------------------------
+[[tables]]
+table_name = "alerts"
+ocsf_class = "security_finding"
+
+  # alert_id is Cyberint's native alert identifier (the field used for status transitions
+  # in the Cyberint API and DTU). Maps to finding.uid as the vendor-native security finding ID.
+  # DTU Alert struct field: alert_id: String (see prism-dtu-cyberint/src/types.rs).
+  [[tables.columns]]
+  name = "alert_id"
+  column_type = "string"
+  ocsf_field = "finding.uid"
+  options = ["REQUIRED"]
+
+  # DTU Alert.title: human-readable alert title. Maps to OCSF finding.title.
+  [[tables.columns]]
+  name = "title"
+  column_type = "string"
+  ocsf_field = "finding.title"
+
+  [[tables.columns]]
+  name = "type"
+  column_type = "string"
+  ocsf_field = "type_name"
+
+  [[tables.columns]]
+  name = "severity"
+  column_type = "string"
+  ocsf_field = "severity"
+
+  [[tables.columns]]
+  name = "status"
+  column_type = "string"
+  ocsf_field = "status"
+
+  # Multi-format timestamp: Cyberint Alert.created_at is typed as serde_json::Value
+  # (per prism-dtu-cyberint/src/types.rs) — accepts ISO 8601, epoch seconds, or epoch millis.
+  # timestamp_formats declares the ordered parse chain per ADR-028 v1.10 §D8-A (Option A LOCKED):
+  #   1. iso8601     — ISO 8601 UTC "2024-01-15T10:30:00Z" (primary; most common)
+  #   2. unix_epoch_seconds — integer epoch (legacy alert payloads)
+  # On all-formats failure: emit E-SPEC-018 (TimestampParseFailure) per BC-2.16.013 §O-001.
+  [[tables.columns]]
+  name = "created_at"
+  column_type = "datetime"
+  ocsf_field = "time"
+  timestamp_formats = ["iso8601", "unix_epoch_seconds"]
+
+  # DTU Alert.source: vendor name string (e.g., "crowdstrike", "threatintel").
+  # Maps to OCSF metadata.product.vendor_name — the vendor that produced the finding.
+  [[tables.columns]]
+  name = "source"
+  column_type = "string"
+  ocsf_field = "metadata.product.vendor_name"
+
+  # Cursor-based pagination
+  # DTU route: GET /api/v1/alerts (crates/prism-dtu-cyberint/src/clone.rs build_router())
+  # response_path: Cyberint DTU returns {"data": [...], "next_cursor": "..."} per routes::alerts::list_alerts
+  # page_size: OMITTED — DTU AlertListParams has cursor field only (no page_size in the struct).
+  #   F-LP2-MEDIUM-001 (arch-handoff#2): page_size removed from this block. The DTU does not
+  #   accept page_size today; DTU extension DTU-EXT-005 tracks adding page_size support to
+  #   AlertListParams. Until DTU-EXT-005 lands, omitting page_size causes the pipeline to use
+  #   DTU defaults (no page_size query param appended). Re-add when DTU-EXT-005 is resolved.
+  [[tables.steps]]
+  name = "fetch_alerts"
+  method = "GET"
+  path_template = "/api/v1/alerts"
+  response_path = "$.data"
+  variables_produced = []
+  [tables.steps.pagination]
+  type = "cursor_token"
+  cursor_response_path = "$.next_cursor"
+
+# ---------------------------------------------------------------------------
+# Table: incidents
+# DTU gap — EC-016-013-002: no incidents route in prism-dtu-cyberint.
+# Spec is authored per ADR-028 §D5 (spec never ahead of DTU — include as
+# documented gap with cursor pagination pattern matching alerts).
+# Parity test returns explicit SKIP (NOT #[ignore]) per AC-009.
+# ---------------------------------------------------------------------------
+[[tables]]
+table_name = "incidents"
+ocsf_class = "incident_finding"
+
+  [[tables.columns]]
+  name = "id"
+  column_type = "string"
+  ocsf_field = "finding.uid"
+  options = ["REQUIRED"]
+
+  [[tables.columns]]
+  name = "type"
+  column_type = "string"
+  ocsf_field = "type_name"
+
+  [[tables.columns]]
+  name = "severity"
+  column_type = "string"
+  ocsf_field = "severity"
+
+  [[tables.columns]]
+  name = "status"
+  column_type = "string"
+  ocsf_field = "status"
+
+  # Multi-format timestamp: consistent with alerts.created_at sibling column.
+  # F-LP3-MEDIUM-004: added timestamp_formats to match alerts table sibling.
+  # DTU has no incidents route (EC-016-013-002), but when implemented the created_at
+  # field is expected to match the Cyberint API time format pattern (ISO 8601 primary,
+  # unix_epoch_seconds legacy fallback). Using same chain as alerts.created_at.
+  [[tables.columns]]
+  name = "created_at"
+  column_type = "datetime"
+  ocsf_field = "time"
+  timestamp_formats = ["iso8601", "unix_epoch_seconds"]
+
+  # EC-016-013-002: DTU gap — no incidents route. Using cursor pattern consistent
+  # with alerts table. Parity test for this table is explicit SKIP per AC-009.
+  # page_size: OMITTED — consistent with alerts table. DTU-EXT-005 tracks page_size addition.
+  [[tables.steps]]
+  name = "fetch_incidents"
+  method = "GET"
+  path_template = "/api/v1/incidents"
+  response_path = "$.data"
+  variables_produced = []
+  [tables.steps.pagination]
+  type = "cursor_token"
+  cursor_response_path = "$.next_cursor"
