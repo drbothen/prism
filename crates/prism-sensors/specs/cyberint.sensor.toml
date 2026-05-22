@@ -42,10 +42,14 @@ ocsf_class = "security_finding"
   ocsf_field = "finding.uid"
   options = ["REQUIRED"]
 
+  # alert_id is Cyberint's native alert identifier (the field used for status transitions
+  # in the Cyberint API and DTU). Maps to finding.uid as the vendor-native security finding ID.
+  # F-LP2-HIGH-003: corrected from copy-paste error (was finding.src_url, semantically incoherent).
+  # DTU Alert struct field: alert_id: String (see prism-dtu-cyberint/src/types.rs).
   [[tables.columns]]
   name = "alert_id"
   column_type = "string"
-  ocsf_field = "finding.src_url"
+  ocsf_field = "finding.uid"
 
   [[tables.columns]]
   name = "type"
