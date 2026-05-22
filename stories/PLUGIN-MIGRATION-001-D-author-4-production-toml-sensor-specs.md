@@ -6,7 +6,7 @@ wave: 1
 epic_id: PLUGIN-MIGRATION-001
 priority: P0
 status: ready
-version: "v1.15"
+version: "v1.16"
 level: "L4"
 producer: story-writer
 timestamp: "2026-05-20T00:00:00Z"
@@ -1019,7 +1019,7 @@ Key lessons applicable to this story:
    by BC-2.16.001 v1.6 §Error Conditions at spec-load time. `E-SPEC-009` remains the canonical
    code for duplicate `sensor_id` across multiple spec files (a distinct error condition). The
    implementer must confirm `E-SPEC-017` is the error variant returned at the `spec_parser.rs`
-   filename-stem check site — BC-2.16.001 v1.5 is the authority.
+   filename-stem check site — BC-2.16.001 v1.6 is the authority.
 
 ---
 
@@ -1292,6 +1292,7 @@ This story is DONE when ALL of the following are simultaneously true — no exce
 
 | Version | Date | Author | Change |
 |---------|------|--------|--------|
+| v1.16 | 2026-05-21 | product-owner | FB-IMPL-5 PO: F-LP5-LOW-001 closure: in-paragraph cite-pin contradiction resolved — `BC-2.16.001 v1.5 is the authority` corrected to `BC-2.16.001 v1.6 is the authority` at line 1022 (line 1019 above already cited v1.6 §Error Conditions; the v1.5 reference was a missed within-paragraph sweep from BC-2.16.001 v1.5→v1.6 at commit 62f9162e). STORY-INDEX v2.174→v2.175. |
 | v1.15 | 2026-05-21 | product-owner | FB-IMPL-2 PO: F-LP2-HIGH-006 closure (Option a) + F-LP2-MEDIUM-002 closure. (1) BC-2.16.013 v1.13→v1.14 cite-pin sweep across 8 active-prose sites (frontmatter comment line 49, body BC table line 192, line 315 §Known Gaps, line 731 Task 4 Claroty supersession context, line 758 Task 5 Cyberint supersession context, line 782 Task 6 Armis resolution-options, line 792 Task 6 Armis supersession context, line 815 Task 9 BehavioralClone cite). (2) BC-2.16.002 body BC table row v1.35→v1.36 (MEDIUM-002: architect's eb714b3c did not sweep this row; FB-IMPL-1 PO bumped BC-2.16.002 from v1.35→v1.36 but the story body row was not swept in that burst). Story v1.14→v1.15. STORY-INDEX v2.173→v2.174. |
 | v1.14 | 2026-05-21 | product-owner | FB-IMPL-1-PO: (1) F-LP1-HIGH-005 — AC-006 narrowed (Option a): empty-credential PASS criterion scoped to parse-time `credential_refs.is_empty()` only; DEC-036 DataFusion-level unavailability marking declared §Known Gap KG-006-001 (out of scope per AD-015 — prism-spec-engine MUST NOT import DataFusion; catalog registration is prism-query S-3.02 scope); BC-2.16.001 §Known Gaps added (v1.5→v1.6). (2) F-LP1-MED-002 — AC-007 step 4 and AC-010 step 4 OrgSlug::new_unchecked → OrgSlug::new (Option a): "test-org" satisfies ^[a-zA-Z0-9_-]{1,64}$; new_unchecked forbidden in this context per CLAUDE.md §Forbidden patterns; tests already use OrgSlug::new(); story aligned to match. STORY-INDEX v2.171→v2.172. |
 | v1.13 | 2026-05-21 | architect | (D-FB-IMPL-1-OPT-A, D-FB-IMPL-1-MED-001, D-FB-IMPL-1-MED-005) FB-IMPL-1 architect adjudication: (1) BC-2.16.013 v1.11→v1.12 cite-pin sweep across 8 active-prose sites (frontmatter comment line 51, body BC table line 192, line 315 §Known Gaps, line 717/744/768/778 Task supersession contexts, line 801 BehavioralClone cite). (2) ADR-028 v1.8→v1.9 cite already swept by BC amendment. (3) §Done criteria item 13 added: co-merge contract (ADR-028 v1.9 §D10) — production deploy of 001-D requires simultaneous 001-A deploy to prevent E-SPEC-012 regression on Claroty bearer_static. (4) story version v1.12→v1.13. |

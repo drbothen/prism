@@ -1,7 +1,7 @@
 ---
 document_type: behavioral-contract-index
 level: L3
-version: "5.38"
+version: "5.39"
 status: draft
 producer: product-owner
 timestamp: 2026-05-20T00:00:00Z
@@ -207,7 +207,7 @@ Phase 3-patch additions (2026-04-16): 22 new BCs added in Burst 1 to close trace
 | BC-2.15.010 | Decorator Three-Phase Model — Config-Time, Query-Time, Periodic | 15 - Storage Layer | CAP-026 | P0 | draft |
 | BC-2.15.011 | Internal Table Registration — RocksDB Domains as DataFusion Tables | 15 - Storage Layer | CAP-028 | P0 | draft |
 | BC-2.16.001 | Sensor Spec File Loading — Parse TOML, Validate Schema, Register Tables | 16 - Spec Engine | CAP-029 | P0 | draft — v1.6 (FB-IMPL-1-PO 2026-05-21: §Known Gaps added — KG-006-001 DEC-036 DataFusion-level unavailability marking is prism-query S-3.02 scope, not exercisable in prism-spec-engine; AC-006 parse-time PASS criterion scoped accordingly) |
-| BC-2.16.002 | Multi-Step Fetch Pipeline Execution — Sequential Steps with Variable Interpolation | 16 - Spec Engine | CAP-029 | P0 | active (promoted draft→active D-427 per POL-14; anchor story S-PLUGIN-PREREQ-B merged PR #143 develop@ae7e26c8 2026-05-12) — v1.36 |
+| BC-2.16.002 | Multi-Step Fetch Pipeline Execution — Sequential Steps with Variable Interpolation | 16 - Spec Engine | CAP-029 | P0 | active (promoted draft→active D-427 per POL-14; anchor story S-PLUGIN-PREREQ-B merged PR #143 develop@ae7e26c8 2026-05-12) — v1.37 |
 | BC-2.16.003 | Column-to-OCSF Mapping at Query Time — Map Sensor Columns to OCSF Fields Per Spec | 16 - Spec Engine | CAP-029 | P0 | draft |
 | BC-2.16.004 | ~~Rust Escape Hatch for Custom Adapters — Trait-Based Override When Config Is Insufficient~~ | 16 - Spec Engine | CAP-029 | P0 | removed (lifecycle_status: removed since PREREQ-E impl; status aligned at D-726 per POL-14 PR #151 merge) — v1.5 |
 | BC-2.16.005 | `reload_config` MCP Tool — Re-Read All Config Files, Validate, Atomic Swap, Notify | 16 - Spec Engine | CAP-030 | P1 | draft |
@@ -370,6 +370,8 @@ Phase 3-patch additions (2026-04-16): 22 new BCs added in Burst 1 to close trace
 - Subsystem 19: Infusion Enrichment Framework (AD-020, CAP-031)
 
 ### Change Log (Adversarial Review Fixes)
+
+**v5.39 (2026-05-21, FB-IMPL-5 PO):** product-owner | BC-2.16.002 in-line row 210 v1.36→v1.37 (F-LP5-MED-001 closure: row 112 anchor cite-pin `BC-2.16.013 v1.13` → `BC-2.16.013 v1.14`; sibling-sweep gap from PO commit 4d934f28 which bumped BC-2.16.013 to v1.14 but did not sweep BC-2.16.002 catalog row 35 anchor cite; POL-30 Fork B catalog bullet `(v1.23)` UNCHANGED). BC-INDEX v5.38→v5.39.
 
 **v5.38 (2026-05-21, FB-IMPL-2 PO):** product-owner | BC-2.16.013 v1.13→v1.14 (F-LP2-HIGH-006 Option a: null-primary passthrough contract documented in §O-001 implementer contract + §Postconditions §3; Cyberint `Alert.created_at: serde_json::Value` accepts JSON null — null primary with empty fallback chain passes through to Arrow as null with no audit signal; this is valid sensor data, not an error; no new error codes or tracing events; documentation-only closure). BC-INDEX row 221 updated to v1.14. BC-INDEX v5.37→v5.38.
 
