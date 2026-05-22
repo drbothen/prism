@@ -19,6 +19,12 @@ pub const INFUSION_REQUIRED_EXPORTS: &[&str] = &["name", "version", "enrich-sing
 pub const ACTION_REQUIRED_EXPORTS: &[&str] =
     &["name", "version", "fire-alert", "fire-case", "fire-report"];
 
+/// Required WIT exports for a sensor-auth plugin (`prism:sensor-auth-plugin`).
+///
+/// PLUGIN-MIGRATION-001-E: crowdstrike-oauth2 plugin exports these functions
+/// per BC-2.17.006 WIT validation gate.
+pub const SENSOR_AUTH_REQUIRED_EXPORTS: &[&str] = &["auth-type-name", "acquire-token", "get-token"];
+
 /// Validate that a compiled WASM Component implements a recognized Prism WIT interface.
 ///
 /// Checks for the presence of required exports (`name`, `version`, and the primary
@@ -33,7 +39,7 @@ pub fn validate_wit_interface(
     component_exports: &[&str],
     path: &str,
 ) -> Result<PluginType, PluginError> {
-    // Try each plugin type in order: infusion, sensor, action.
+    // Try each plugin type in order: infusion, sensor, action, sensor-auth.
     // A component satisfies a type if it has ALL required exports for that type.
 
     // Check infusion first (most common).
@@ -48,21 +54,33 @@ pub fn validate_wit_interface(
     if find_missing_export(component_exports, ACTION_REQUIRED_EXPORTS).is_none() {
         return Ok(PluginType::Action);
     }
+    // Check sensor-auth (PLUGIN-MIGRATION-001-E / BC-2.17.006).
+    // Sensor-auth plugins export auth-type-name, acquire-token, get-token
+    // WITHOUT the name/version exports required by the other plugin types.
+    if find_missing_export(component_exports, SENSOR_AUTH_REQUIRED_EXPORTS).is_none() {
+        return Ok(PluginType::SensorAuth);
+    }
 
     // None matched. Return error naming the first missing export from the best-match type.
     // Best match = type with the highest count of present exports.
-    // Tie-break: prefer infusion > sensor > action (infusion is most common).
+    // Tie-break: prefer infusion > sensor > action > sensor-auth (infusion is most common).
     let infusion_matches = count_matches(component_exports, INFUSION_REQUIRED_EXPORTS);
     let sensor_matches = count_matches(component_exports, SENSOR_REQUIRED_EXPORTS);
     let action_matches = count_matches(component_exports, ACTION_REQUIRED_EXPORTS);
+    let sensor_auth_matches = count_matches(component_exports, SENSOR_AUTH_REQUIRED_EXPORTS);
 
-    let missing_export = if infusion_matches >= sensor_matches && infusion_matches >= action_matches
+    let missing_export = if infusion_matches >= sensor_matches
+        && infusion_matches >= action_matches
+        && infusion_matches >= sensor_auth_matches
     {
         find_missing_export(component_exports, INFUSION_REQUIRED_EXPORTS).unwrap_or("enrich-single")
-    } else if sensor_matches >= action_matches {
+    } else if sensor_matches >= action_matches && sensor_matches >= sensor_auth_matches {
         find_missing_export(component_exports, SENSOR_REQUIRED_EXPORTS).unwrap_or("fetch-page")
-    } else {
+    } else if action_matches >= sensor_auth_matches {
         find_missing_export(component_exports, ACTION_REQUIRED_EXPORTS).unwrap_or("fire-alert")
+    } else {
+        find_missing_export(component_exports, SENSOR_AUTH_REQUIRED_EXPORTS)
+            .unwrap_or("auth-type-name")
     };
 
     Err(PluginError::InvalidInterface {

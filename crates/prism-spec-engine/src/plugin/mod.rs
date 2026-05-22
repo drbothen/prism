@@ -45,12 +45,23 @@ pub const PLUGIN_HTTP_CLIENT_TIMEOUT_SECS: u64 = 30;
 /// `E-PLUGIN-014 FormatVersionExceeded`.
 pub const CURRENT_SUPPORTED_VERSION: u32 = 1;
 
-/// The three Prism plugin types recognised by WIT validation.
+/// The Prism plugin types recognised by WIT validation.
+///
+/// `SensorAuth` is added for PLUGIN-MIGRATION-001-E: OAuth2 client-credentials
+/// authentication plugins that export `auth-type-name`, `acquire-token`, and
+/// `get-token` per BC-2.17.006 WIT validation gate.
+#[non_exhaustive]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum PluginType {
     Sensor,
     Infusion,
     Action,
+    /// Sensor authentication plugin (e.g., crowdstrike-oauth2).
+    ///
+    /// Required exports: `auth-type-name`, `acquire-token`, `get-token`.
+    /// Registered with PluginRuntime and dispatched from the spec-engine
+    /// auth path when SensorSpec.auth_plugin is Some.
+    SensorAuth,
 }
 
 /// Context for action plugin `fire-alert` calls.
