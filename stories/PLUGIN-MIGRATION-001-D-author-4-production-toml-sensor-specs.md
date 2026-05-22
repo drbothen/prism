@@ -6,7 +6,7 @@ wave: 1
 epic_id: PLUGIN-MIGRATION-001
 priority: P0
 status: ready
-version: "v1.20"
+version: "v1.21"
 level: "L4"
 producer: story-writer
 timestamp: "2026-05-20T00:00:00Z"
@@ -129,7 +129,7 @@ inputs:
 
 **Story ID:** PLUGIN-MIGRATION-001-D  
 **Status:** ready  
-**Version:** v1.14  
+**Version:** v1.21  
 **Wave:** 1 (first unblocked Wave 1 story; all 5 PREREQ stories merged to develop@80ebe794)
 
 ---
@@ -1292,6 +1292,7 @@ This story is DONE when ALL of the following are simultaneously true — no exce
 
 | Version | Date | Author | Change |
 |---------|------|--------|--------|
+| v1.21 | 2026-05-22 | state-manager | FB-IMPL-11 closure of F-LP12-MED-001 — story body header line 132 self-2nd-order propagation sweep v1.14→v1.21 (7th POL-29 axis recurrence — NEW self-dimension: story body header cited stale frontmatter version `v1.14` despite story being at `v1.21`). USER OPTION B DECISION 2026-05-22 accepted: cascade exits with CONVERGED-WITH-CODIFICATION-QUEUE for 7 POL-29 axes captured in lessons.md entries 14-37+38. STORY-INDEX v2.179→v2.180. |
 | v1.20 | 2026-05-21 | state-manager | FB-IMPL-10 closure of F-LP11-MED-001 — 9-site BC-2.16.013 v1.14→v1.15 sweep (6th POL-29 axis recurrence — 2nd-order propagation gap): (1) body BC table line 192 `| 1.14 |` → `| 1.15 |`; (2) line 315 §Known Gaps cite `v1.14` → `v1.15`; (3) line 731 Task 4 Claroty supersession context `v1.14` → `v1.15`; (4) line 758 Task 5 Cyberint supersession context `v1.14` → `v1.15`; (5) line 782 Task 6 Armis resolution-options `v1.14` → `v1.15`; (6) line 792 Task 6 Armis supersession context `v1.14` → `v1.15`; (7) line 815 Task 9 BehavioralClone cite `v1.14` → `v1.15`; (8) BC-2.16.002 row 112 Anchor `v1.14` → `v1.15` (same burst). Line 49 frontmatter comment `(v1.14 FB-IMPL-2 PO)` EXEMPT (historical authorship anchor). PROACTIVE 2nd-order propagation grep ran: BC-2.16.002 v1.37 downstream sweep found story line 195 `| 1.37 |` → `| 1.38 |` (1 additional LIVE site); story v1.19→v1.20. STORY-INDEX v2.178→v2.179. |
 | v1.19 | 2026-05-21 | state-manager | FB-IMPL-9 closure of F-LP10-LOW-001 — story §Previous Story Intelligence line 1017 transitive cite-pin sweep: `registered in error-taxonomy.md v1.42` → `registered in error-taxonomy.md v1.44` per FB-IMPL-P22 PREREQ-E precedent + implementer current-authority code-comment pattern. Preserved `originally introduced at v1.41` historical-anchor phrasing (introduction event, not current-authority pin). 5th POL-29 axis recurrence (transitive cite-pin chain). STORY-INDEX v2.177→v2.178. |
 | v1.18 | 2026-05-21 | state-manager | FB-IMPL-8 closure of F-LP9-LOW-001 — story §Behavioral Contracts row 195 BC-2.16.002 table-cell cite-pin `| 1.36 |` → `| 1.37 |`. 4th cascade recurrence of POL-29 v1.19 step 8b variant-form enumeration discipline gap: PO commit a2ef75e1 grep used `BC-2.16.002 v1.36` pattern (v-prefix form) and correctly found 4 hits (3 immutable changelog rows + 1 ADR-026 architect-domain referral) but missed table-cell variant form `| 1.36 |` at line 195 (no `v` prefix, pipe syntax). FB-IMPL-8 ran all 5 variant-form greps workspace-wide; only this one LIVE-narrative site found. STORY-INDEX v2.176→v2.177. |

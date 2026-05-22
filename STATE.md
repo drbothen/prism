@@ -1,9 +1,9 @@
 ---
 document_type: pipeline-state
 level: ops
-version: "7.461"
+version: "7.462"
 producer: state-manager
-timestamp: 2026-05-21T12:00:00Z
+timestamp: 2026-05-22T00:00:00Z
 inputs: []
 input-hash: "[live-state]"
 traces_to: ""
@@ -13,18 +13,21 @@ phase: 3
 status: in_progress
 started: 2026-04-13
 repos: [poller-cobra, poller-express, poller-bear, poller-coaster, serveMyAPI, tally, axiathon, ocsf-proto-gen, mcp-claroty-xdome]
-safe_to_compact: false
-pre_compact_snapshot: "SESSION-HANDOFF.md §RESUME SNAPSHOT 2026-05-21"
-pre_compact_snapshot_at: "2026-05-21 (D-760 SESSION-HANDOFF.md §RESUME SNAPSHOT 2026-05-21 for PLUGIN-MIGRATION-001-D LOCAL 3-CLEAN CONVERGENCE durability)"
-current_step: "PLUGIN-MIGRATION-001-D Step 4.5 IN-PROGRESS — FB-IMPL-10 CLOSED with 2nd-order propagation discipline. 6th POL-29 axis recurrence captured. Streak 0/3. Pass-12 = DECISION POINT."
+safe_to_compact: true
+pre_compact_snapshot: "SESSION-HANDOFF.md §RESUME SNAPSHOT 2026-05-22"
+pre_compact_snapshot_at: "2026-05-22 (D-775 SESSION-HANDOFF.md §RESUME SNAPSHOT 2026-05-22 for cascade-exit durability)"
+current_step: "PLUGIN-MIGRATION-001-D LOCAL impl cascade EXIT per USER OPTION B 2026-05-22. CONVERGED-WITH-CODIFICATION-QUEUE. Next: Task #7 demo-recorder."
 plugin_migration_001_d_red_gate_verified_at: 2026-05-21T20:15:00Z
 plugin_migration_001_d_tdd_green_at: 2026-05-21T21:29:04Z
 plugin_migration_001_d_feature_branch_head: "55b4f72d"
 plugin_migration_001_d_workspace_test_count_at_tdd_green: 3703
 plugin_migration_001_d_impl_cascade_pass_count: 11
 plugin_migration_001_d_impl_cascade_clean_streak: 0
-plugin_migration_001_d_impl_cascade_fb_count: 10
-plugin_migration_001_d_impl_cascade_findings_closed: 48
+plugin_migration_001_d_impl_cascade_fb_count: 11
+plugin_migration_001_d_impl_cascade_findings_closed: 49
+plugin_migration_001_d_impl_cascade_status: "CONVERGED-WITH-CODIFICATION-QUEUE per USER OPTION B 2026-05-22"
+plugin_migration_001_d_pol29_axis_recurrences: 7
+plugin_migration_001_d_codification_queue: ".factory/cycles/wave-0-plugin-prereqs/lessons.md entries 14-37+38"
 current_cycle: wave-0-plugin-prereqs
 feature_branch_head: "merged to 80ebe794 at 2026-05-19 (PR #151) — a4c048ce was final feature HEAD before squash-merge"
 pr_level_adversary_streak: "3/3 CONVERGED per BC-5.39.001 — passes 2/3/4 all CLEAN; PR #151 merged 2026-05-19; D-716 Option A standing satisfied"
@@ -62,7 +65,7 @@ user_directive_persistent: "No pragmatic convergence. Fix all issues before buil
 current_cycle_history: "wave-0-plugin-prereqs (PREREQ-E merged PR #151 2026-05-19); prior: wave-4-operations (active); wave-3-multi-tenant (COMPLETE)"
 bc_index_version: "5.41"
 vp_index_version: "1.76"
-story_index_version: "v2.179"
+story_index_version: "v2.180"
 plugin_migration_001_d_local_adversary_passes: 25
 plugin_migration_001_d_local_fix_bursts: 19
 plugin_migration_001_d_status: "LOCAL-3-CLEAN-CONVERGED-READY-FOR-TDD"
@@ -98,7 +101,7 @@ historical_cycles: [phase-1-convergence, wave-3-multi-tenant, wave-4-operations]
 | **Language** | Rust |
 | **Target Workspace** | per-analyst stdio (MCP server) |
 | **Started** | 2026-04-13 |
-| **Last Updated** | 2026-05-21 (D-774 FB-IMPL-10 — 6th POL-29 axis recurrence 2nd-order propagation gap; 9-site BC-2.16.013 v1.14→v1.15 sweep + PROACTIVE 2nd-order grep found BC-2.16.002 table-cell; trajectory 15→13→10→2→3→1→1→0→1→1→1; streak 0/3; 286th consecutive) |
+| **Last Updated** | 2026-05-22 (D-775 FB-IMPL-11 — 7th POL-29 axis recurrence self-2nd-order propagation: line 132 body header `v1.14`→`v1.21`; USER OPTION B DECISION: cascade CONVERGED-WITH-CODIFICATION-QUEUE; story v1.20→v1.21; safe_to_compact=true; 287th consecutive) |
 | **Current Phase** | Wave 3 Tier-3 COMPLETE — **Wave 3-A 4 of 4 SHIPPED**; plugin migration: PREREQ-F + PREREQ-A + PREREQ-B + PREREQ-C + PREREQ-D + **PREREQ-E MERGED** (PR #151 80ebe794 2026-05-19T18:06:44Z); PLUGIN-MIGRATION-001-D TDD GREEN (D-763) — Step 4.5 LOCAL impl adversary cascade in progress |
 | **Current Step** | PLUGIN-MIGRATION-001-D Step 4.5 IN-PROGRESS — LOCAL implementation adversary cascade BC-5.39.001 entered (pass-1 dispatched). Target: 3 consecutive CLEAN passes. |
 
@@ -147,6 +150,7 @@ _D-001..D-046 archived: [cycles/phase-3-dtu-wave-2/decisions-archive-d001-d032.m
 
 | ID | Decision | Rationale | Phase | Date |
 |----|----------|-----------|-------|------|
+| D-775 | 2026-05-22 | orchestrator | **PLUGIN-MIGRATION-001-D LOCAL impl adversary cascade CONVERGED-WITH-CODIFICATION-QUEUE per USER OPTION B DECISION 2026-05-22.** Pass-12 surfaced 7th POL-29 axis recurrence (self-2nd-order propagation — story body line 132 stale `v1.14` vs frontmatter `v1.21`). User adjudicated Option A (continue strict cascade) vs Option B (accept-with-codification + exit), choosing B. Rationale: (1) code correctness verified since pass-8 ZERO-findings + all subsequent passes confirm; (2) tests load-bearing 3724/3724 +43 net; (3) spec semantics byte-fidelity verified; (4) the 7 POL-29 recurrences are PURELY documentation-pin-propagation (no semantic/runtime risk); (5) 35+ lessons.md entries form structural codification queue for session-reviewer; (6) user goal is live MCP+DTU+OCSF demo, critical path 001-D PR + 001-A + 001-B + 001-C; (7) diminishing returns on cascade vs opportunity cost on demo path; (8) 'no pragmatic convergence' was about CORRECTNESS — code IS production-grade. FB-IMPL-11 sweeps line 132 (still production-grade default for the open finding) + extends self-2nd-order discipline. Story v1.20→v1.21. STORY-INDEX v2.179→v2.180. Feature HEAD unchanged at 55b4f72d. **CASCADE EXIT.** Next: Tasks #7 (demo-recorder per-AC test-pass evidence) + #8 (pr-manager 9-step PR lifecycle) + #9 (post-merge POL-14 BC auto-promotion + cycle close). Then 001-A for live-MCP critical path. 287th consecutive single-commit per TD-VSDD-053. | plugin-migration | 2026-05-22 | Decided by: orchestrator (USER OPTION B). Status: APPROVED (USER) |
 | D-774 | 2026-05-21 | orchestrator | **PLUGIN-MIGRATION-001-D LOCAL impl adversary cascade pass-11 FB-IMPL-10 CLOSED — 1 MED (F-LP11-MED-001) + 1 OBS (F-LP11-OBS-001 [process-gap]) closed via state-manager combined burst with PROACTIVE 2nd-order propagation grep discipline. **6th POL-29 axis recurrence** = 2nd-order propagation gap; FB-IMPL-9 bumped BC-2.16.013 v1.14→v1.15 as side-effect but did not propagate to 9 downstream LIVE sites (8 story body + 1 BC-2.16.002:112). FB-IMPL-10 swept the 9 sites PLUS proactively ran 2nd-order grep on ALL newly-bumped frontmatter (BC-2.16.002 v1.37→v1.38 found story line 195 `| 1.37 |` → `| 1.38 |` as additional LIVE site). Line 49 frontmatter comment `(v1.14 FB-IMPL-2 PO)` confirmed EXEMPT (historical authorship anchor). Total sites swept: 10 (9 BC-2.16.013 v1.14→v1.15 + 1 BC-2.16.002 table-cell v1.37→v1.38). Bumps: BC-2.16.002 v1.37→v1.38; BC-INDEX v5.40→v5.41; story v1.19→v1.20; STORY-INDEX v2.178→v2.179. Trajectory: 15→13→10→2→3→1→1→0→1→1→1. Feature HEAD unchanged at 55b4f72d. Streak resets 0→0/3. Pass-12 dispatching with fresh context — DECISION POINT: if CLEAN-ZERO, strict convergence achieved; if 7th POL-29 recurrence, user escalation to Option A vs Option B. 286th consecutive single-commit per TD-VSDD-053.** | plugin-migration | 2026-05-21 | Decided by: orchestrator. Status: APPROVED |
 | D-773 | 2026-05-21 | orchestrator | **PLUGIN-MIGRATION-001-D LOCAL impl adversary cascade pass-10 FB-IMPL-9 CLOSED — 1 LOW (F-LP10-LOW-001 transitive cite-pin chain `per error-taxonomy.md v1.42/v1.43` sites swept to v1.44 per FB-IMPL-P22 PREREQ-E precedent + implementer current-authority code-comment pattern) + 1 OBS (process-gap, 5th POL-29 axis recurrence codification candidate) closed via state-manager combined burst. 6 sites swept total: BC-2.16.013 lines 357/358 (3 primary) + HS-018 lines 31/71/89 (3 additional discovered by grep sweep per task instruction). BC-2.16.013 v1.14→v1.15, BC-INDEX v5.39→v5.40, story v1.18→v1.19, STORY-INDEX v2.177→v2.178, HS-018 v1.3→v1.4, HOLDOUT-INDEX v1.12→v1.13. **5th POL-29 axis recurrence:** transitive cite-pin chain drift (artifact A bumps independently after artifact B cited it; B's cite-pins should sweep on each A bump). Trajectory: 15→13→10→2→3→1→1→0→1→1. Feature HEAD unchanged at 55b4f72d. Streak resets 0→0/3. Pass-11 dispatching with fresh context. 285th consecutive single-commit per TD-VSDD-053.** | plugin-migration | 2026-05-21 | Decided by: orchestrator. Status: APPROVED |
 | D-772 | 2026-05-21 | orchestrator | **PLUGIN-MIGRATION-001-D LOCAL impl adversary cascade pass-9 FB-IMPL-8 CLOSED — 1 LOW (F-LP9-LOW-001 story line 195 BC-2.16.002 v1.36→v1.37 table-cell sweep) closed via state-manager combined burst. **4th cascade recurrence of POL-29 sibling-sweep partial-application axis** — root cause: PO commit a2ef75e1 grep used `BC-2.16.002 v1.36` pattern with `v` prefix, missed table-cell variant `| 1.36 |`. POL-29 v1.19 step 8b already mandates per-variant enumeration; first-application discipline gap. FB-IMPL-8 ran EVERY variant-form grep workspace-wide (5 variants: v-prefix, table-cell pipe, bare near BC-2.16.002, backtick-quoted, row-cite). Only story line 195 was LIVE-narrative; all other hits were exempt (decision log historical narrative, immutable cycles/ pass reports). Trajectory: 15→13→10→2→3→1→1→0→1 (slight regression from pass-8 zero-findings; same axis recurring). Feature HEAD unchanged at 55b4f72d. Streak resets 1→0/3. Pass-10 dispatching with fresh context. 284th consecutive single-commit per TD-VSDD-053.** | plugin-migration | 2026-05-21 | Decided by: orchestrator. Status: APPROVED |
@@ -257,27 +261,28 @@ Prior cycle history:
 
 ---
 
-## Session Resume Checkpoint (2026-05-21 — D-770 FB-IMPL-7 CLOSED / PASS-8 DISPATCHING)
+## Session Resume Checkpoint (2026-05-22 — D-775 CASCADE EXIT per USER OPTION B)
 
-_Previous checkpoint (D-769 FB-IMPL-6 CLOSED) archived: [cycles/wave-0-plugin-prereqs/session-checkpoints.md](cycles/wave-0-plugin-prereqs/session-checkpoints.md)_
+_Previous checkpoint (D-770 FB-IMPL-7 CLOSED) archived: [cycles/wave-0-plugin-prereqs/session-checkpoints.md](cycles/wave-0-plugin-prereqs/session-checkpoints.md)_
 
-**STATE v7.457. D-770 FB-IMPL-7 CLOSED.** safe_to_compact=false. Feature branch feature/PLUGIN-MIGRATION-001-D HEAD: 55b4f72d (implementer single-line commit — pipeline.rs:2774 test-doc cite-pin BC-2.16.002 v1.36→v1.37). 282nd consecutive single-commit per TD-VSDD-053.
+**STATE v7.462. D-775 CASCADE EXIT — CONVERGED-WITH-CODIFICATION-QUEUE per USER OPTION B 2026-05-22.** safe_to_compact=true. Feature branch feature/PLUGIN-MIGRATION-001-D HEAD: 55b4f72d (unchanged — FB-IMPL-11 is .factory/-only). 287th consecutive single-commit per TD-VSDD-053.
 
-**Impl Cascade State:**
-- Pass-7: 1 finding (1 LOW F-LP7-LOW-001 pipeline.rs:2774 test-doc cite BC-2.16.002 v1.36→v1.37); 1 OBS F-LP7-OBS-001 [process-gap] POL-29 step 8f crates/ scope; swept via implementer 55b4f72d
-- Trajectory: 15→13→10→2→3→1→1 (deep asymptote; pass-7 was first CLEAN-per-criterion)
-- Streak: 0/3 (pass-7 had LOW finding; reset per BC-5.39.001 strict interpretation)
-- Cumulative closures: 45 across 7 fix-bursts
+**Final Impl Cascade State:**
+- 12 adversary passes total (pass-1..pass-12). 11 fix-bursts (FB-IMPL-1..FB-IMPL-11). 49 cumulative findings closed.
+- Trajectory: 15→13→10→2→3→1→1→0→1→1→1→(pass-12 decision point)
+- 7 distinct POL-29 axis recurrences. All PURELY documentation-pin-propagation (no semantic/runtime risk).
+- Code correctness verified CLEAN since pass-8 (zero substantive findings all subsequent passes).
+- Workspace tests: 3724/3724 GREEN (+43 net new since baseline 3681 at TDD-green).
 
-**POL-29 Immutable Changelog Exemption on record:**
-- `error-taxonomy.md:495` (changelog row v1.43) — EXEMPT: historical narrative
-- `STORY-INDEX.md:933` (changelog row v2.173) — EXEMPT: historical narrative
-- Story changelog rows containing `spec_parser.rs:NNN` cites — EXEMPT: historical narrative per TD-VSDD-091
+**Cascade Exit Rationale (Option B):**
+USER OPTION B accepted 2026-05-22. Code IS production-grade. 35+ lessons.md entries form codification queue for session-reviewer. Opportunity cost on demo path justified exit after 7 POL-29 recurrences. "No pragmatic convergence" principle preserved for CODE correctness — code is correct. POL-29 axes were documentation hygiene only.
 
-**Resume Protocol:**
-1. Read `.factory/SESSION-HANDOFF.md` §RESUME SNAPSHOT 2026-05-21 for full context
-2. Read `.factory/STATE.md` frontmatter + D-770 decision row
-3. Dispatch adversary pass-8 with fresh context against feature HEAD 55b4f72d
-4. Expected STRONG CLEAN — all known POL-29 sweep gaps now closed (crates/ cite-pins swept)
+**Next actions on resume:**
+1. Read `.factory/SESSION-HANDOFF.md` §RESUME SNAPSHOT 2026-05-22 for full context
+2. Verify factory worktree health (devops-engineer factory-worktree-health — BLOCKING)
+3. Task #7: demo-recorder per-AC test-pass evidence → docs/demo-evidence/PLUGIN-MIGRATION-001-D/
+4. Task #8: pr-manager 9-step PR lifecycle (feature/PLUGIN-MIGRATION-001-D → develop)
+5. Task #9: post-merge state-manager (POL-14 BC auto-promotion + cycle close + session-reviewer dispatch)
+6. Begin PLUGIN-MIGRATION-001-A (ADR-028 §D10 co-merge contract)
 
 _Agent routing: see CLAUDE.md §Agent Routing Table._

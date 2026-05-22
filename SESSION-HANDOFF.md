@@ -6348,3 +6348,169 @@ After PLUGIN-MIGRATION-001-D merges, the unblocked downstream chain:
 The legacy adapters in `crates/prism-sensors/src/auth/{crowdstrike,claroty,cyberint,armis}.rs` are temporary scaffolding for parity testing in this story. After 001-A merges, these modules are deleted; sensors run entirely from TOML through the plugin runtime.
 
 DO NOT apply SEC-NEW-002 LRU eviction fix as part of current PLUGIN-MIGRATION wave without explicit story anchor — tracked as TD-PRISM-QUERY-CACHE-001 P2; anchor is PLUGIN-MIGRATION-Wave-2 cleanup story TBD.
+
+---
+
+## §RESUME SNAPSHOT 2026-05-22 (PLUGIN-MIGRATION-001-D LOCAL Cascade EXIT — Option B Accept-with-Codification)
+
+**Purpose:** Durable resume context for /clear and fresh-session restart. PLUGIN-MIGRATION-001-D LOCAL impl adversary cascade marked CONVERGED-WITH-CODIFICATION-QUEUE per user Option B decision 2026-05-22 at pass-12 DECISION POINT (after 7 POL-29 axis recurrences). Next session dispatches Task #7 (demo-recorder) → Task #8 (pr-manager PR) → Task #9 (post-merge).
+
+---
+
+### §1. This-Session Arc Summary (D-761 through D-775)
+
+| Burst | Scope | Outcome | Factory SHA |
+|---|---|---|---|
+| D-761 | TDD phase started — feature worktree created | Branch feature/PLUGIN-MIGRATION-001-D from develop@1bc56e3c; 268th consecutive | (D-761) |
+| D-762 | Step 3 CLOSED — Red Gate verified (BC-5.38.001) | Test-writer remediation cycle: 13 FAIL + 7 ignore + 8 pass; 269th consecutive | (D-762) |
+| D-763 | TDD GREEN | Implementer all 13 ACs green; 3724/3724 tests GREEN; feature HEAD 55b4f72d; 270th-281st consecutive (multiple implementer commits) | 55b4f72d |
+| D-764 | LOCAL impl cascade started — pass-1 dispatched | 15 findings (pass-1); trajectory: 15; 282nd consecutive | (D-764) |
+| D-765 | FB-IMPL-1 — PO+implementer closures | F-LP1-HIGH-005 AC-006 narrowed + F-LP1-MED-002 OrgSlug::new; BC-2.16.001 v1.5→v1.6; story v1.13→v1.14→v1.15; (D-765) |
+| D-766 | FB-IMPL-2 — PO + architect closures | TOML column types, BC-2.16.013 v1.14; story v1.15 | (D-766) |
+| D-767 | FB-IMPL-3 — implementer TOML fixes | 12 findings closed; TOML column/auth corrections; (D-767) |
+| D-768 | FB-IMPL-4 — PO BC narrative | BC-2.16.013 v1.14 §Postconditions §3 extended; (D-768) |
+| D-769 | FB-IMPL-5+6 — TD-VSDD-091 + in-paragraph cite-pin | 7 task-body line-cite → fn-name; BC-2.16.001 v1.5→v1.6 in-paragraph fix; story v1.16→v1.17; (D-769) |
+| D-770 | FB-IMPL-7 — implementer crates/ cite-pin | pipeline.rs:2774 BC-2.16.002 v1.36→v1.37; feature HEAD 55b4f72d (final); 282nd consecutive | (D-770) |
+| D-771 | Pass-8 CLEAN-ZERO | 0 findings; all 13 probes clean; streak 0→1/3; 283rd consecutive | (D-771) |
+| D-772 | FB-IMPL-8 — POL-29 4th recurrence | BC-2.16.002 table-cell `| 1.36 |` → `| 1.37 |`; story v1.17→v1.18; streak reset; 284th consecutive | (D-772) |
+| D-773 | FB-IMPL-9 — POL-29 5th recurrence (transitive chain) | error-taxonomy.md v1.42→v1.44 transitive cite-pins; story v1.18→v1.19; 285th consecutive | (D-773) |
+| D-774 | FB-IMPL-10 — POL-29 6th recurrence (2nd-order propagation) | 9-site BC-2.16.013 v1.14→v1.15 sweep + PROACTIVE 2nd-order grep; story v1.19→v1.20; 286th consecutive | (D-774) |
+| D-775 | FB-IMPL-11 + CASCADE EXIT — POL-29 7th recurrence (self-2nd-order) | Line 132 body header `v1.14`→`v1.21`; USER OPTION B DECISION; cascade CONVERGED-WITH-CODIFICATION-QUEUE; story v1.20→v1.21; safe_to_compact=true; 287th consecutive | (D-775) |
+
+**Session totals:** 287 consecutive single-commits per TD-VSDD-053. 12 adversary passes (pass-1..pass-12). 11 fix-bursts (FB-IMPL-1..FB-IMPL-11). 49 cumulative findings closed. 7 distinct POL-29 axis recurrences captured.
+
+---
+
+### §2. CONVERGENCE STATE (Cascade Exit per Option B)
+
+| Field | Value |
+|---|---|
+| Story PLUGIN-MIGRATION-001-D | v1.21 ready (status `ready`; not yet merged — pending PR) |
+| BC-2.16.013 | v1.15 |
+| BC-2.16.001 | v1.6 |
+| BC-2.16.002 | v1.38 |
+| BC-2.16.009 | v1.4 (unchanged since spec cascade) |
+| ADR-028 | v1.10 |
+| ADR-026 | v1.34 |
+| error-taxonomy.md | v1.44 (includes E-SPEC-017 + E-SPEC-018) |
+| ARCH-INDEX | v2.100 |
+| BC-INDEX | v5.41 |
+| STORY-INDEX | v2.180 |
+| HS-018 | v1.4 |
+| HOLDOUT-INDEX | v1.13 |
+| STATE.md | v7.462 |
+| Factory HEAD | run `git -C .factory log -1 --format='%h %s'` (D-775 commit) |
+| Develop HEAD | 1bc56e3c (unchanged since cascade start) |
+| Feature branch | feature/PLUGIN-MIGRATION-001-D HEAD 55b4f72d (35 commits ahead of develop@1bc56e3c) |
+| Open PRs | 0 |
+| Workspace test count | 3724/3724 GREEN (+43 net new since baseline 3681 at TDD-green) |
+| LOCAL impl cascade | CONVERGED-WITH-CODIFICATION-QUEUE per USER OPTION B 2026-05-22 |
+| Consecutive single-commits | 287 |
+
+---
+
+### §3. USER OPTION B DECISION 2026-05-22 — Cascade Exit Rationale
+
+User adjudicated Option A (continue strict cascade) vs Option B (accept-with-codification + exit) after pass-12 surfaced 7th POL-29 axis recurrence. Option B accepted.
+
+Eight-point rationale:
+1. Code correctness verified since pass-8 ZERO-findings + all subsequent passes confirm
+2. Tests load-bearing 3724/3724 GREEN, +43 net new since baseline 3681
+3. Spec semantics verified byte-fidelity (BCs, ADRs, error-taxonomy)
+4. The 7 POL-29 recurrences are PURELY documentation-pin-propagation (no semantic/runtime risk)
+5. 35+ lessons.md entries form structural codification queue for session-reviewer adjudication
+6. User goal is live MCP+DTU+OCSF demo; critical path is 001-D PR + 001-A + 001-B + 001-C
+7. Diminishing returns on cascade vs opportunity cost on demo path
+8. "No pragmatic convergence" was about CORRECTNESS — the code IS production-grade
+
+**Key codification candidates queued for session-reviewer (full text in cycles/wave-0-plugin-prereqs/lessons.md entries 14-37+38):**
+
+1. **Tracing emission without BC-2.16.002 catalog row** (2 occurrences) — adversary standing probe + implementer agent prompt amendment
+2. **Implementer "deferred to non-ignored test" rationalization** (1 occurrence) — implementer agent prompt amendment
+3. **DTU↔TOML schema parity probe** (productive new probe axis) — adversary standing probe checklist amendment
+4. **PO BC bump → architect ADR cite cascade** (2 occurrences) — PO scope expansion or routing rule
+5. **POL-29 step 8f crates/ scope incompleteness** (1 occurrence) — POL-29 amendment
+6. **POL-29 variant-form enumeration discipline** (1 occurrence) — POL-29 amendment
+7. **POL-29 transitive cite-pin chain** (1 occurrence) — POL-29 v1.20 amendment
+8. **POL-29 2nd-order propagation** (1 occurrence) — POL-29 amendment
+9. **POL-29 self-2nd-order propagation** (1 occurrence) — POL-29 v1.21 amendment (body header cites stale frontmatter version)
+
+---
+
+### §4. Next Session Dispatch Plan
+
+#### Step 1: devops-engineer — factory-worktree-health (BLOCKING)
+
+Standard orchestrator pre-resume verification. Run `vsdd-factory:factory-worktree-health` skill. Must PASS before any further dispatch.
+
+#### Step 2: Task #7 — demo-recorder (per-AC test-pass evidence strategy)
+
+Per user-approved 2026-05-21 decision, demo-recorder documents test evidence for each AC. Evidence stored at `docs/demo-evidence/PLUGIN-MIGRATION-001-D/` per POLICY 10. Strategy:
+
+- AC-001..004: `test_BC_2_16_001_loads_4_bundled_specs_at_boot` + per-sensor table-count tests
+- AC-005: `test_BC_2_16_009_validates_all_4_bundled_specs`
+- AC-006: `test_BC_2_16_001_empty_credential_scenario_not_an_error` + KG-006-001 reference
+- AC-007..010: `#[ignore]` source evidence + DTU-EXT-001..004 gap docs (BC-2.16.013 §Known Gaps)
+- AC-011: `test_BC_2_16_001_bundled_specs_declare_correct_auth_types`
+- AC-012: `test_BC_2_16_012_plugin_dispatch_uses_spec_catalog_not_hardcoded_names`
+- AC-013: `just check` 3724/3724 captured
+
+#### Step 3: Task #8 — pr-manager 9-step PR lifecycle
+
+Open PR `feature/PLUGIN-MIGRATION-001-D` → develop. Standard 9-step process:
+1. PR creation with story context + mermaid diagrams + BC traceability
+2. PR-LEVEL adversary cascade (SEPARATE from this LOCAL cascade; fresh context; should be faster given LOCAL converged)
+3. Security review
+4. Convergence tracking
+5. Squash-merge
+
+Note: ADR-028 §D10 co-merge contract — 001-D requires simultaneous 001-A deployment for production. The PR merges now; production deployment is gated on 001-A.
+
+#### Step 4: Task #9 — post-merge state-manager
+
+- POL-14 BC auto-promotion: BC-2.16.013 v1.15 + BC-2.16.001 v1.6 + BC-2.16.002 v1.38 + BC-2.16.009 v1.4 + BC-2.16.012 + BC-2.01.013 + BC-2.01.016 — all in story `behavioral_contracts:` frontmatter — flip `draft` → `active`
+- Cycle close: wave-0-plugin-prereqs bookkeeping (cycle-manifest update)
+- session-reviewer dispatch with codification queue (lessons.md entries 14-37+38)
+
+#### Step 5: Begin PLUGIN-MIGRATION-001-A
+
+After 001-D merges. Per ADR-028 §D10 co-merge contract: 001-A must deploy simultaneously with 001-D. 001-A scope:
+- Delete 4 hardcoded auth modules (`crates/prism-sensors/src/auth/{crowdstrike,claroty,cyberint,armis}.rs`)
+- Replace `init_registry_for_org` implementation
+- Rewrite `auth_type_name()` return values for Cyberint/Claroty/Armis per ADR-028 §D6
+- Amend Red Gate test `test_BC_2_01_016_003`
+
+Story may already exist in `.factory/stories/` — verify before authoring.
+
+#### Step 6: Then 001-B → 001-C → live demo
+
+- 001-B: query-engine dispatch wiring (prism-query 5 sites)
+- 001-C: OCSF mappers (4 sensors)
+- 001-E: CrowdStrike OAuth2 .prx WASM plugin (parallel with A-C)
+- After A+B+C: live MCP+DTU+OCSF demo
+
+---
+
+### §5. Critical Context for New Session
+
+- **USER DECISION 2026-05-22: Option B accepted** — do NOT re-litigate; cascade is EXIT not 3-CLEAN streak
+- **"No pragmatic convergence" still applies for CODE correctness** — the 49 closures fixed all substantive defects; the 7 POL-29 axes were documentation pin propagation only; the principle is preserved
+- **001-D LOCAL cascade is EXIT** — not 3-CLEAN streak completion; the PR-LEVEL cascade (Task #8) is a SEPARATE cascade with its own streak
+- **35+1 lessons.md codification entries** are STRUCTURAL DELIVERABLES for session-reviewer at PR-close
+- **DTU-EXT-001..004 gaps** in BC-2.16.013 §Known Gaps are LEGITIMATE deferrals (DTU clones for crowdstrike/claroty/armis incidents tables don't exist yet; tracked via S-6.07..10)
+- **POL-14 auto-promotion at merge** will flip BCs from `draft` to `active` — state-manager handles post-merge
+- **ADR-028 §D10 co-merge contract** — 001-A required before production deploy; the PR merge is fine; only production deployment waits
+- **The live MCP+DTU+OCSF demo goal** needs 001-A + 001-B + 001-C beyond this story
+- **Architectural decisions LOCKED** (STATE.md `architectural_decisions_locked:` field) — do not re-adjudicate without human direction
+
+---
+
+### §6. Resume Protocol for Next Session
+
+1. Read STATE.md (v7.462) frontmatter + D-775 decision row
+2. Read SESSION-HANDOFF.md §RESUME SNAPSHOT 2026-05-22 (this section)
+3. Verify factory worktree health via `vsdd-factory:devops-engineer` running `factory-worktree-health` skill (BLOCKING)
+4. Verify `develop@1bc56e3c` unchanged + 0 open PRs + `feature/PLUGIN-MIGRATION-001-D` HEAD `55b4f72d`
+5. Execute Next Session Dispatch Plan §4 above starting with Step 2 (demo-recorder)
+
+_Agent routing: see CLAUDE.md §Agent Routing Table._

@@ -149,3 +149,22 @@ The authoritative post-merge resume checkpoint is SESSION-HANDOFF.md §RESUME SN
 
 **Next workflow items at D-737:**
 FB-IMPL-P4 dispatch: architect (ADR-028) → PO (BC re-grounding + fixture mechanism) → story-writer (AC re-spec + E-SPEC-017 tasks) → state-manager (D-738 closure) → adversary (pass-5).
+
+---
+
+## Archived Checkpoint: 2026-05-21 D-770 FB-IMPL-7 CLOSED / PASS-8 DISPATCHING
+
+_Archived to session-checkpoints.md by FB-IMPL-11 D-775 burst 2026-05-22._
+
+**STATE v7.457. D-770 FB-IMPL-7 CLOSED.** safe_to_compact=false. Feature branch feature/PLUGIN-MIGRATION-001-D HEAD: 55b4f72d (implementer single-line commit — pipeline.rs:2774 test-doc cite-pin BC-2.16.002 v1.36→v1.37). 282nd consecutive single-commit per TD-VSDD-053.
+
+**Impl Cascade State:**
+- Pass-7: 1 finding (1 LOW F-LP7-LOW-001 pipeline.rs:2774 test-doc cite BC-2.16.002 v1.36→v1.37); 1 OBS F-LP7-OBS-001 [process-gap] POL-29 step 8f crates/ scope; swept via implementer 55b4f72d
+- Trajectory: 15→13→10→2→3→1→1 (deep asymptote; pass-7 was first CLEAN-per-criterion)
+- Streak: 0/3 (pass-7 had LOW finding; reset per BC-5.39.001 strict interpretation)
+- Cumulative closures: 45 across 7 fix-bursts
+
+**POL-29 Immutable Changelog Exemption on record:**
+- `error-taxonomy.md:495` (changelog row v1.43) — EXEMPT: historical narrative
+- `STORY-INDEX.md:933` (changelog row v2.173) — EXEMPT: historical narrative
+- Story changelog rows containing `spec_parser.rs:NNN` cites — EXEMPT: historical narrative per TD-VSDD-091
