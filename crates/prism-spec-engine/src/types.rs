@@ -182,6 +182,17 @@ pub struct SensorSpec {
     /// declare `[[credential_refs]]` sections will have their refs validated here.
     #[serde(default)]
     pub credential_refs: Vec<CredentialRef>,
+
+    /// Optional WASM sensor-auth plugin ID (F-LP2-CRIT-002 / PLUGIN-MIGRATION-001-E).
+    ///
+    /// When `Some(plugin_id)`, the boot sequence validates that a plugin with that ID
+    /// was successfully loaded at step 7.5 (`validate_auth_plugin_registered`). A typo'd
+    /// or missing plugin causes `BootError::UnknownAuthPlugin` (exit 2, config-invalid).
+    ///
+    /// Maps to `auth_plugin = "..."` in the sensor TOML spec. `None` = no plugin auth
+    /// (backward-compatible default — existing sensors without this field continue to work).
+    #[serde(default)]
+    pub auth_plugin: Option<String>,
 }
 
 impl Default for SensorSpec {
@@ -197,6 +208,7 @@ impl Default for SensorSpec {
             source_path: String::new(),
             mode: DtuMode::default(),
             credential_refs: vec![],
+            auth_plugin: None,
         }
     }
 }
@@ -228,6 +240,7 @@ impl SensorSpec {
             source_path: source_path.into(),
             mode: DtuMode::default(),
             credential_refs: vec![],
+            auth_plugin: None, // F-LP2-CRIT-002: default to no plugin auth
         }
     }
 }

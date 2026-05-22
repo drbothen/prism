@@ -94,6 +94,24 @@ pub enum BootError {
     /// Maps to exit code 3.
     #[error("sensor-fail: {0}")]
     SensorFail(String),
+
+    /// Sensor spec declares `auth_plugin` that is not registered in PluginRuntime.
+    ///
+    /// F-LP2-CRIT-002 closure (paper-fix of F-LP1-CRIT-003): a typo'd `auth_plugin` value
+    /// now causes boot to exit code 2 (config-invalid) instead of silently breaking at
+    /// runtime when the plugin dispatch is first attempted.
+    ///
+    /// Maps to exit code 2 per ADR-022 §A config-invalid class.
+    /// Anchors: E-SPEC-012 (SpecEngineError::UnknownAuthPlugin); F-LP1-CRIT-003; F-LP2-CRIT-002.
+    #[error(
+        "E-SPEC-012: sensor '{sensor_id}' declares auth_plugin = '{plugin_id}' \
+         but no plugin with that id was loaded — check plugin_dir for '{plugin_id}.prx' \
+         or correct the auth_plugin field in the sensor spec (F-LP2-CRIT-002)"
+    )]
+    UnknownAuthPlugin {
+        sensor_id: String,
+        plugin_id: String,
+    },
 }
 
 impl BootError {
@@ -103,7 +121,9 @@ impl BootError {
             BootError::ConfigInvalid(_)
             | BootError::OrgRegistryFailed(_)
             | BootError::CredentialRefInvalid(_)
-            | BootError::AuthTypeCredentialMismatch { .. } => EXIT_CONFIG_INVALID,
+            | BootError::AuthTypeCredentialMismatch { .. }
+            // F-LP2-CRIT-002: typo'd auth_plugin = config-invalid → exit 2.
+            | BootError::UnknownAuthPlugin { .. } => EXIT_CONFIG_INVALID,
             BootError::CredentialPermissionDenied(_) => EXIT_PERMISSION_DENIED,
             BootError::AuditInitFailed(_) | BootError::InternalError(_) => EXIT_INTERNAL_ERROR,
             BootError::SensorFail(_) => crate::exit_codes::EXIT_SENSOR_FAIL,
@@ -129,6 +149,10 @@ pub struct BootContext {
     /// Threaded into step 7.5 (`plugin_load_step`) so the `RocksDbPluginAuditSink`
     /// can write durable audit entries for each unsigned plugin load (HIGH-002 / AC-4).
     pub rocksdb_backend: Arc<prism_storage::rocksdb_backend::RocksDbBackend>,
+    /// ConfigManager from step 4 — threaded into step 7.5 validation so that
+    /// `validate_auth_plugin_registered` can check all loaded SensorSpecs against the
+    /// plugin registry after `load_all_plugins` completes (F-LP2-CRIT-002).
+    pub config_manager: Arc<arc_swap::ArcSwap<prism_spec_engine::config_manager::ConfigManager>>,
 }
 
 // ---------------------------------------------------------------------------
@@ -177,7 +201,50 @@ pub async fn run_boot_sequence(config_dir: &Path) -> Result<RunningServer, BootE
     let plugin_audit_sink = Arc::new(crate::plugin_audit::RocksDbPluginAuditSink::new(
         Arc::clone(&ctx.rocksdb_backend),
     ));
-    let _plugin_result = plugin_load_step_with_audit(&config.plugin_dir, plugin_audit_sink).await?;
+    let plugin_result = plugin_load_step_with_audit(&config.plugin_dir, plugin_audit_sink).await?;
+
+    // Step 7.5b [BLOCKING]: Validate auth_plugin registry membership for all sensor specs.
+    //
+    // F-LP2-CRIT-002 closure: after plugins are loaded, iterate all loaded SensorSpecs and
+    // verify that every `auth_plugin = "..."` value names a registered plugin. A typo'd
+    // auth_plugin would previously silently break at runtime — now it exits 2 (config-invalid)
+    // before the MCP server binds.
+    //
+    // Uses ctx.config_manager (set at step 4) + plugin_result.runtime for registered IDs.
+    {
+        use prism_spec_engine::validate_auth_plugin_fields;
+        use std::collections::HashSet;
+
+        let registered_ids: HashSet<String> =
+            plugin_result.runtime.list_plugins().into_iter().collect();
+
+        let cm_guard = ctx.config_manager.load();
+        let cm = &**cm_guard;
+        let snapshot_guard = cm.load();
+        let snapshot = &**snapshot_guard;
+
+        for (sensor_id, sensor_spec) in &snapshot.sensor_specs {
+            validate_auth_plugin_fields(
+                sensor_id,
+                sensor_spec.auth_plugin.as_deref(),
+                &registered_ids,
+            )
+            .map_err(|se| {
+                // Convert SpecEngineError::UnknownAuthPlugin to BootError::UnknownAuthPlugin.
+                // Use the structured fields to produce a typed BootError (exit code 2).
+                match se {
+                    prism_spec_engine::error::SpecEngineError::UnknownAuthPlugin {
+                        sensor_id,
+                        plugin_id,
+                    } => BootError::UnknownAuthPlugin {
+                        sensor_id,
+                        plugin_id,
+                    },
+                    other => BootError::ConfigInvalid(other.to_string()),
+                }
+            })?;
+        }
+    }
 
     // Step 7 [BLOCKING]: Storage + internal-tables provider init.
     // Positioned AFTER step 7.5 — plugin-load does not depend on storage tables.
@@ -348,6 +415,9 @@ pub async fn boot_to_step_6(config_dir: &Path) -> Result<BootContext, BootError>
     Ok(BootContext {
         config_dir: config_dir.to_path_buf(),
         rocksdb_backend: audit_backend,
+        // F-LP2-CRIT-002: thread config_manager into BootContext so that run_boot_sequence
+        // can validate auth_plugin registry membership after plugins are loaded at step 7.5.
+        config_manager,
     })
 }
 

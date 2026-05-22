@@ -1181,3 +1181,104 @@ async fn test_BC_2_16_012_write_tool_reg_failure_rolls_back_all_remaining_tools_
     reset_query_phase_global();
     reset_dynamic_registry_global();
 }
+
+// ---------------------------------------------------------------------------
+// F-LP2-CRIT-002: BootError::UnknownAuthPlugin exits with code 2
+// Traces to: ADR-022 §A config-invalid class; F-LP2-CRIT-002 closure
+// ---------------------------------------------------------------------------
+
+/// F-LP2-CRIT-002 unit test: `BootError::UnknownAuthPlugin` exit code is 2.
+///
+/// The fix: after plugins are loaded at step 7.5, boot.rs now iterates all loaded
+/// SensorSpecs and calls `validate_auth_plugin_fields` for each. A typo'd or missing
+/// `auth_plugin` produces `BootError::UnknownAuthPlugin` which maps to exit code 2
+/// (config-invalid per ADR-022 §A) before the MCP server binds.
+///
+/// This test verifies:
+/// 1. `BootError::UnknownAuthPlugin` has exit_code() == EXIT_CONFIG_INVALID (2).
+/// 2. The Display message contains sensor_id and plugin_id for diagnostics.
+///
+/// Wire-up verification: `BootError::UnknownAuthPlugin` is produced by the
+/// `validate_auth_plugin_fields` call in `run_boot_sequence` step 7.5b (boot.rs).
+/// Reached at runtime when all of: config loads, plugins load, a SensorSpec declares
+/// `auth_plugin = "..."` with an unregistered plugin ID.
+#[test]
+fn test_boot_error_unknown_auth_plugin_exits_code_2() {
+    use prism_bin::boot::BootError;
+
+    // Construct the error variant directly (unit test — proves variant exists + correct exit code).
+    let err = BootError::UnknownAuthPlugin {
+        sensor_id: "crowdstrike".to_string(),
+        plugin_id: "crowdstirke-oauth2".to_string(), // intentional typo
+    };
+
+    assert_eq!(
+        err.exit_code(),
+        2,
+        "BootError::UnknownAuthPlugin must exit code 2 (config-invalid per ADR-022 §A); \
+         got {}",
+        err.exit_code()
+    );
+
+    let display = err.to_string();
+    assert!(
+        display.contains("crowdstrike"),
+        "BootError::UnknownAuthPlugin Display must contain sensor_id; got: {}",
+        display
+    );
+    assert!(
+        display.contains("crowdstirke-oauth2"),
+        "BootError::UnknownAuthPlugin Display must contain plugin_id for diagnostics; got: {}",
+        display
+    );
+}
+
+/// F-LP2-CRIT-002: validate_auth_plugin_fields returns Err for unregistered plugin.
+///
+/// Verifies that the helper used by boot.rs step 7.5b correctly rejects a sensor spec
+/// that declares `auth_plugin = "typo-plugin"` when "typo-plugin" is NOT in the registry.
+///
+/// Wire-up: `validate_auth_plugin_fields` is called in `run_boot_sequence` step 7.5b;
+/// the error is mapped to `BootError::UnknownAuthPlugin` → exit 2.
+#[test]
+fn test_validate_auth_plugin_fields_rejects_unregistered_plugin() {
+    use std::collections::HashSet;
+
+    let registered: HashSet<String> = ["crowdstrike-oauth2".to_string()].into_iter().collect();
+
+    // Typo'd plugin_id — NOT in the registry.
+    let result = prism_spec_engine::validate_auth_plugin_fields(
+        "crowdstrike",
+        Some("crowdstirke-oauth2"), // typo
+        &registered,
+    );
+
+    assert!(
+        result.is_err(),
+        "validate_auth_plugin_fields must return Err for unregistered plugin_id; got Ok"
+    );
+
+    let err_msg = result.unwrap_err().to_string();
+    assert!(
+        err_msg.contains("crowdstirke-oauth2"),
+        "Error must name the unknown plugin_id for diagnostics; got: {}",
+        err_msg
+    );
+}
+
+/// F-LP2-CRIT-002: validate_auth_plugin_fields returns Ok when auth_plugin is None.
+///
+/// Backward-compatibility: sensors without `auth_plugin` must not fail validation.
+#[test]
+fn test_validate_auth_plugin_fields_passes_when_no_auth_plugin() {
+    use std::collections::HashSet;
+
+    let registered: HashSet<String> = HashSet::new(); // empty — no plugins loaded
+
+    let result = prism_spec_engine::validate_auth_plugin_fields("crowdstrike", None, &registered);
+
+    assert!(
+        result.is_ok(),
+        "validate_auth_plugin_fields must return Ok when auth_plugin is None (backward compat)"
+    );
+}

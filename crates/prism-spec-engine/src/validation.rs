@@ -642,11 +642,31 @@ pub fn validate_auth_plugin_registered(
     spec: &SensorSpec,
     registered_plugin_ids: &std::collections::HashSet<String>,
 ) -> Result<(), crate::error::SpecEngineError> {
-    if let Some(plugin_id) = spec.auth_plugin.as_deref()
+    validate_auth_plugin_fields(
+        &spec.sensor_id,
+        spec.auth_plugin.as_deref(),
+        registered_plugin_ids,
+    )
+}
+
+/// Validate auth_plugin membership by raw fields.
+///
+/// Companion to `validate_auth_plugin_registered` — accepts `sensor_id` and `auth_plugin`
+/// as primitive refs rather than `spec_parser::SensorSpec`. Used by boot.rs step 7.5b to
+/// validate `types::SensorSpec` entries from the ConfigSnapshot (F-LP2-CRIT-002 closure).
+///
+/// Story: PLUGIN-MIGRATION-001-E / F-LP2-CRIT-002
+/// Traces to: BC-2.01.016 §Error Cases; ADR-028 §D2; error-taxonomy.md E-SPEC-012
+pub fn validate_auth_plugin_fields(
+    sensor_id: &str,
+    auth_plugin: Option<&str>,
+    registered_plugin_ids: &std::collections::HashSet<String>,
+) -> Result<(), crate::error::SpecEngineError> {
+    if let Some(plugin_id) = auth_plugin
         && !registered_plugin_ids.contains(plugin_id)
     {
         return Err(crate::error::SpecEngineError::UnknownAuthPlugin {
-            sensor_id: spec.sensor_id.to_string(),
+            sensor_id: sensor_id.to_string(),
             plugin_id: plugin_id.to_string(),
         });
     }
