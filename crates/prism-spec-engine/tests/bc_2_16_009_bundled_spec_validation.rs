@@ -282,3 +282,145 @@ ocsf_class = "security_finding"
          (BC-2.16.009 §Validation Rules 1 non-empty; HS-017 validation gate)"
     );
 }
+
+// ---------------------------------------------------------------------------
+// Stage 3 (F-LP3-MEDIUM-001): timestamp_fallback_chain field-name resolution
+// BC-2.16.009 — names in fallback chain must resolve to actual columns on same table.
+// ---------------------------------------------------------------------------
+
+/// Stage 3 gate: timestamp_fallback_chain referencing a non-existent column name
+/// must be rejected with E-SPEC-001 at load time.
+///
+/// Load-bearing test per TD-VSDD-059: this test provides the structural assertion
+/// that the Stage 3 validator gate is active and not merely doc-commented away.
+///
+/// BC-2.16.009; ADR-028 v1.9 §D8-B; F-LP3-MEDIUM-001.
+#[test]
+fn test_validation_rejects_timestamp_fallback_chain_unknown_field() {
+    let toml = r#"
+sensor_id = "armis-test"
+name = "Armis Test"
+auth_type = "bearer_static"
+base_url = "https://api.example.com"
+version = "1.0.0"
+
+[[tables]]
+table_name = "devices"
+ocsf_class = "device"
+
+  [[tables.columns]]
+  name = "last_seen"
+  column_type = "datetime"
+  ocsf_field = "device.last_seen_time"
+  timestamp_fallback_chain = ["nonexistent_field"]
+
+  [[tables.steps]]
+  name = "fetch"
+  method = "GET"
+  path_template = "/api/v1/devices"
+  response_path = "$.data.devices"
+  variables_produced = []
+"#;
+
+    let result = SpecLoader::parse(toml);
+    assert!(
+        result.is_err(),
+        "timestamp_fallback_chain referencing unknown field 'nonexistent_field' must be \
+         rejected with E-SPEC-001 (BC-2.16.009 Stage 3; F-LP3-MEDIUM-001)"
+    );
+    let err_msg = format!("{:?}", result.unwrap_err());
+    assert!(
+        err_msg.contains("nonexistent_field") && err_msg.contains("timestamp_fallback_chain"),
+        "Error message must cite the unknown field name and fallback chain location; got: {err_msg}"
+    );
+}
+
+/// Stage 3 gate: a timestamp_fallback_chain entry that is a self-reference (col.name == fb_name)
+/// must be accepted. The defensive skip guard in normalize_timestamp_fields handles self-refs at
+/// runtime; Stage 3 must not reject them.
+///
+/// BC-2.16.009; ADR-028 v1.9 §D8-B; F-LP3-MEDIUM-001.
+#[test]
+fn test_validation_accepts_timestamp_fallback_chain_with_self_reference() {
+    let toml = r#"
+sensor_id = "test-self-ref"
+name = "Test Self Ref"
+auth_type = "bearer_static"
+base_url = "https://api.example.com"
+version = "1.0.0"
+
+[[tables]]
+table_name = "devices"
+ocsf_class = "device"
+
+  [[tables.columns]]
+  name = "last_seen"
+  column_type = "datetime"
+  ocsf_field = "device.last_seen_time"
+  timestamp_fallback_chain = ["last_seen"]
+
+  [[tables.steps]]
+  name = "fetch"
+  method = "GET"
+  path_template = "/api/v1/devices"
+  response_path = "$.data"
+  variables_produced = []
+"#;
+
+    let result = SpecLoader::parse(toml);
+    assert!(
+        result.is_ok(),
+        "timestamp_fallback_chain self-reference (col.name == fb_name) must be accepted — \
+         skip guard in normalize_timestamp_fields handles it at runtime. \
+         BC-2.16.009 Stage 3; F-LP3-MEDIUM-001. Error: {:?}",
+        result.err()
+    );
+}
+
+/// Stage 3 gate: a timestamp_fallback_chain entry that references an existing sibling column
+/// on the same table must be accepted.
+///
+/// This is the positive case: the armis.sensor.toml 'last_seen' → 'first_seen' chain is valid
+/// because 'first_seen' exists on the same table.
+///
+/// BC-2.16.009; ADR-028 v1.9 §D8-B; F-LP3-MEDIUM-001.
+#[test]
+fn test_validation_accepts_timestamp_fallback_chain_with_existing_sibling_field() {
+    let toml = r#"
+sensor_id = "test-sibling"
+name = "Test Sibling Fallback"
+auth_type = "bearer_static"
+base_url = "https://api.example.com"
+version = "1.0.0"
+
+[[tables]]
+table_name = "devices"
+ocsf_class = "device"
+
+  [[tables.columns]]
+  name = "last_seen"
+  column_type = "datetime"
+  ocsf_field = "device.last_seen_time"
+  timestamp_fallback_chain = ["first_seen"]
+
+  [[tables.columns]]
+  name = "first_seen"
+  column_type = "datetime"
+  ocsf_field = "device.first_seen_time"
+
+  [[tables.steps]]
+  name = "fetch"
+  method = "GET"
+  path_template = "/api/v1/devices"
+  response_path = "$.data"
+  variables_produced = []
+"#;
+
+    let result = SpecLoader::parse(toml);
+    assert!(
+        result.is_ok(),
+        "timestamp_fallback_chain referencing an existing sibling column must be accepted. \
+         BC-2.16.009 Stage 3; F-LP3-MEDIUM-001. Error: {:?}",
+        result.err()
+    );
+}

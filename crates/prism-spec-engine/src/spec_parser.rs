@@ -797,6 +797,49 @@ impl SpecLoader {
             }
         }
 
+        // Stage 3 (F-LP3-MEDIUM-001): timestamp_fallback_chain field-name resolution gate
+        // (BC-2.16.009). Each name in timestamp_fallback_chain must resolve to an actual
+        // column on the same table. Self-references (fb_name == col.name) are allowed —
+        // the defensive skip guard in normalize_timestamp_fields handles them at runtime.
+        // Unknown names → E-SPEC-001 at load time.
+        for table in &spec.tables {
+            let column_names: std::collections::HashSet<&str> =
+                table.columns.iter().map(|c| c.name.as_str()).collect();
+            for col in &table.columns {
+                for fb_name in &col.timestamp_fallback_chain {
+                    // Self-reference: allowed — skip-guard in normalize handles it.
+                    if fb_name == &col.name {
+                        continue;
+                    }
+                    if !column_names.contains(fb_name.as_str()) {
+                        let mut known: Vec<&str> = column_names.iter().copied().collect();
+                        known.sort_unstable();
+                        return Err(PrismError::Spec(SpecError {
+                            code: SpecErrorCode::ESpec001,
+                            message: format!(
+                                "sensor '{}' table '{}' column '{}': \
+                                 timestamp_fallback_chain references unknown field '{}'. \
+                                 Known columns on table '{}': [{}]. \
+                                 (BC-2.16.009; ADR-028 v1.9 §D8-B)",
+                                spec.sensor_id,
+                                table.table_name,
+                                col.name,
+                                fb_name,
+                                table.table_name,
+                                known.join(", "),
+                            ),
+                            toml_path: Some(format!(
+                                "sensor.tables[{}].columns[{}].timestamp_fallback_chain",
+                                table.table_name, col.name,
+                            )),
+                            file_path: None,
+                            line_number: None,
+                        }));
+                    }
+                }
+            }
+        }
+
         Ok(spec)
     }
 
