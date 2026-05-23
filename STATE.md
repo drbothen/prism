@@ -1,9 +1,9 @@
 ---
 document_type: pipeline-state
 level: ops
-version: "7.494"
+version: "7.495"
 producer: state-manager
-timestamp: 2026-05-23T15:00:00Z
+timestamp: 2026-05-23T18:00:00Z
 inputs: []
 input-hash: "[live-state]"
 traces_to: ""
@@ -14,9 +14,9 @@ status: in_progress
 started: 2026-04-13
 repos: [poller-cobra, poller-express, poller-bear, poller-coaster, serveMyAPI, tally, axiathon, ocsf-proto-gen, mcp-claroty-xdome]
 safe_to_compact: true
-pre_compact_snapshot: "SESSION-HANDOFF.md §RESUME SNAPSHOT 2026-05-23-MULTI-TENANT-OVERLAY-DESIGN"
-pre_compact_snapshot_at: "2026-05-23 (D-807 multi-tenant sensor overlay design 4-burst VSDD sequence complete; ADR-029 proposed; S-CONFIG-MULTI-TENANT-OVERRIDE-001 draft; human approval gate pending)"
-current_step: "VSDD multi-tenant sensor endpoint override design — FULL 4-BURST SEQUENCE COMPLETE. Burst 1 Research a44d5c2b; Burst 2 ADR-029 3bcc5a15; Burst 3 5 BCs + ADR sweep b1fd0e4b; Burst 4 story S-CONFIG-MULTI-TENANT-OVERRIDE-001 (this commit). Design is READY for HUMAN APPROVAL GATE. ADR-029 status: proposed (advances to accepted on human approval). 5 BCs status: draft (advance to active on first story merge). Story status: draft (v0.1, 7 ACs SID-1 §5 compliant, wave-0 prereq parallel to S-PLUGIN-CI-001). NEXT (after human approval): orchestrator dispatches deliver-story workflow on S-CONFIG-MULTI-TENANT-OVERRIDE-001, OR resumes PLUGIN-MIGRATION-001-E demo-recorder + push + pr-manager 9-step PR lifecycle (per original D-802 plan). Resume snapshot refreshed for /clear-durability."
+pre_compact_snapshot: "SESSION-HANDOFF.md §RESUME SNAPSHOT 2026-05-23-PATH-C-DUAL-WORKTREE"
+pre_compact_snapshot_at: "2026-05-23 (D-808 ADR-029 ACCEPTED; Path C dual-worktree parallel implementation locked; state-final for /clear-resume)"
+current_step: "ADR-029 ACCEPTED (human approval 2026-05-23). User directs Path C — parallel implementation: (1) PLUGIN-MIGRATION-001-E demo-recorder + push + pr-manager 9-step PR lifecycle in existing .worktrees/PLUGIN-MIGRATION-001-E/, (2) S-CONFIG-MULTI-TENANT-OVERRIDE-001 deliver-story workflow in NEW .worktrees/S-CONFIG-MULTI-TENANT-OVERRIDE-001/ (to be created from develop@f19575ff). Both wave-0 prereqs ship independently. STATE READY FOR /clear-AND-RESUME with §RESUME SNAPSHOT 2026-05-23-PATH-C-DUAL-WORKTREE pointing at parallel dispatch plan."
 pending_design_decision_research_artifact: ".factory/research/multi-tenant-sensor-endpoint-overrides-2026-05-23.md"
 pending_design_decision_topic: "multi-tenant per-org sensor endpoint overrides"
 plugin_migration_001_e_local_adversary_passes: 12
@@ -97,7 +97,10 @@ subsystem_count: 22
 vp_count: 156
 prd_version: "1.10"
 error_taxonomy_version: "1.49"
-arch_index_version: "2.101"
+arch_index_version: "2.102"
+path_c_locked_at: "2026-05-23"
+path_c_worktree_1: ".worktrees/PLUGIN-MIGRATION-001-E (CONVERGED; next: demo-recorder)"
+path_c_worktree_2: ".worktrees/S-CONFIG-MULTI-TENANT-OVERRIDE-001 (to be created; next: deliver-story workflow)"
 verification_coverage_matrix_version: "1.42"
 verification_architecture_version: "1.41"
 historical_cycles: [phase-1-convergence, wave-3-multi-tenant, wave-4-operations]
@@ -157,6 +160,7 @@ _D-001..D-046 archived: [cycles/phase-3-dtu-wave-2/decisions-archive-d001-d032.m
 
 | ID | Decision | Rationale | Phase | Date |
 |----|----------|-----------|-------|------|
+| D-808 | 2026-05-23 | ADR-029 ACCEPTED (human approval per user directive 2026-05-23). Status: Proposed → Accepted, v1.1 → v1.2, ARCH-INDEX v2.101 → v2.102. User directs Path C: parallel implementation of (a) PLUGIN-MIGRATION-001-E delivery completion (demo-recorder + push + pr-manager 9-step PR cycle in existing .worktrees/PLUGIN-MIGRATION-001-E/ feature HEAD 9e412c83) AND (b) S-CONFIG-MULTI-TENANT-OVERRIDE-001 implementation (deliver-story workflow in NEW worktree .worktrees/S-CONFIG-MULTI-TENANT-OVERRIDE-001/ to be created from develop@f19575ff). Both wave-0 prereqs ship independently — no conflicting code surfaces (plugin code + auth vs spec_parser + overlay loading). 5 BCs BC-2.06.012-016 still status: draft (advance to active on S-CONFIG-MULTI-TENANT-OVERRIDE-001 first PR merge per POL-14). State ready for /clear-and-resume. | state-manager (human-approval) |
 | D-807 | 2026-05-23 | VSDD multi-tenant sensor endpoint overrides — FULL 4-BURST DESIGN SEQUENCE COMPLETE. Burst 4/4 Story-writer drafted S-CONFIG-MULTI-TENANT-OVERRIDE-001 v0.1 status: draft. 7 ACs all SID-1 §5 compliant with specific Red Gate test names: AC-001 overlay discovery + merge, AC-002 scalar-only enforcement (E-SPEC-021 with 2 sibling variants), AC-003 ResolvedSensorSpec at fanout, AC-004 OrgRegistry cross-validation, AC-005 error taxonomy templates, AC-006 backcompat (no customers/ dir), AC-007 integration (two-org-overlays-distinct-spec). Subsystems SS-06 (primary, BC owner) + SS-16 (secondary, spec_parser extension). Traces to ADR-029 + BC-2.06.012-016. Wave-0 prereq parallel to S-PLUGIN-CI-001. STORY-INDEX v2.184 → v2.185, total_stories 152 → 153. Design package READY FOR HUMAN APPROVAL GATE (ADR-029 status proposed). On approval: deliver-story workflow dispatch OR resume PLUGIN-MIGRATION-001-E demo-recorder + PR lifecycle. | story-writer |
 | D-806 | 2026-05-23 | VSDD multi-tenant sensor endpoint overrides — Burst 3/4 Product-Owner COMPLETE. 5 NEW BCs in SS-06 (Client Configuration) subsystem: BC-2.06.012 per-tenant overlay loading + merge semantics, BC-2.06.013 scalar-only overlay enforcement (boot-time rejection of [[tables]] in overlay), BC-2.06.014 instance identity resolution (org_id, sensor_id) → ResolvedSensorSpec at fanout, BC-2.06.015 OrgRegistry cross-validation (unknown overlay dir = E-SPEC-022 boot hard error), BC-2.06.016 error taxonomy for override violations (E-SPEC-019 through E-SPEC-023 canonical messages). All status: draft, lifecycle_status: draft, traces_to ADR-029. **Notable PO catch:** ADR-029 draft cited error codes E-SPEC-018-022 but E-SPEC-018 was already allocated in error-taxonomy.md v1.43 to TimestampParseFailure (ADR-028/BC-2.16.013). PO shifted to E-SPEC-019-023 in BC-2.06.016 + asserted precedence per Source-of-Truth Precedence Rule #3. State-manager swept ADR-029 v1.0 → v1.1 in same atomic burst (POL-29 within-FB sibling-sync) to eliminate ADR-vs-BC drift. BC-INDEX v5.46→v5.47, total_contracts 240→245, draft_contracts 2→7. Cross-cutting deps: BC-2.06.015 needs BC-2.21.001 OrgRegistry init at boot step 3 (already guaranteed by ADR-022 §B boot sequence); BC-2.06.013 gates BC-2.06.012 merge path; BC-2.06.014 is boot-time-producer/query-time-consumer of BC-2.06.012's ResolvedSensorSpec map. | product-owner |
 | D-805 | 2026-05-23 | VSDD multi-tenant sensor endpoint overrides — Burst 2/4 Architect COMPLETE. ADR-029 drafted (status: proposed). Decision: hybrid option (e) Sensor Instance with Per-Org Composition Directory. Layout: global TYPE specs unchanged at crates/prism-sensors/specs/<sensor>.sensor.toml; per-org INSTANCE overlays at crates/prism-sensors/specs/customers/<org>/<sensor>.sensor.toml declare SCALAR tunables only (base_url, rate_limit_hints) — NO [[tables]] schema overrides (would be E-SPEC-020 boot hard error per Rust config-rs array-REPLACE-not-MERGE constraint). New error codes E-SPEC-018 through E-SPEC-022. ADR-029 cross-references ADR-022 (Arc-DI plumbing, unchanged) + ADR-028 (plugin migration auth flow, unchanged). 5 NEW BCs identified for product-owner Burst 3: overlay loading semantics, scalar-only enforcement, instance identity at fanout, OrgRegistry cross-validation, error taxonomy entries. Suggested story ID S-CONFIG-MULTI-TENANT-OVERRIDE-001 (wave-0 prereq, parallel S-PLUGIN-CI-001). ARCH-INDEX v2.100→v2.101. | architect ADR-029 |
@@ -304,22 +308,21 @@ Prior cycle history:
 
 ---
 
-## Session Resume Checkpoint (2026-05-22 — D-776 PLUGIN-MIGRATION-001-D MERGED PR #153)
+## Session Resume Checkpoint (2026-05-23 — D-808 ADR-029 ACCEPTED; Path C dual-worktree locked)
 
-_Previous checkpoint (D-775 CASCADE EXIT per USER OPTION B) archived: [cycles/wave-0-plugin-prereqs/session-checkpoints.md](cycles/wave-0-plugin-prereqs/session-checkpoints.md)_
+_Previous checkpoint (D-776 PLUGIN-MIGRATION-001-D MERGED PR #153) archived: [cycles/wave-0-plugin-prereqs/session-checkpoints.md](cycles/wave-0-plugin-prereqs/session-checkpoints.md)_
 
-**STATE v7.463. D-776 POST-MERGE BURST — PLUGIN-MIGRATION-001-D MERGED via PR #153 develop@3f2de889 2026-05-22T09:05:47Z.** safe_to_compact=true. Feature branch + worktree cleaned. 288th consecutive single-commit per TD-VSDD-053.
+**STATE v7.495. D-808 ADR-029 ACCEPTED — Path C dual-worktree parallel implementation locked.** safe_to_compact=true. ADR-029 status: Proposed → Accepted v1.2 (human approval). ARCH-INDEX v2.101 → v2.102.
 
-**Merge Summary:**
-- PR #153 squash-merged develop@1bc56e3c → develop@3f2de889 2026-05-22T09:05:47Z.
-- 9-step PR lifecycle COMPLETE: CI GREEN (6-platform), security CLEAN, code review APPROVE, PR-LEVEL adversary CONVERGED.
-- POL-14 BC auto-promotions: 3 new active (BC-2.16.013/001/009), 4 idempotent confirms (BC-2.16.002/012, BC-2.01.013/016).
-- BC-INDEX v5.41→v5.42; STORY-INDEX v2.180→v2.181.
-- ADR-028 §D10 co-merge contract acknowledged: production deployment gated on PLUGIN-MIGRATION-001-A.
+**Path C Summary:**
+- Stream 1: PLUGIN-MIGRATION-001-E — existing .worktrees/PLUGIN-MIGRATION-001-E/, feature HEAD 9e412c83, LOCAL cascade CONVERGED. Next: demo-recorder + push + pr-manager 9-step PR cycle.
+- Stream 2: S-CONFIG-MULTI-TENANT-OVERRIDE-001 — NEW worktree to create from develop@f19575ff. Next: deliver-story workflow (stubs → tests → TDD → LOCAL adversary → demo → PR).
+- No code surface conflicts between streams. POL-14 BC auto-promotion (BC-2.06.012-016 draft → active) on stream 2 first PR merge.
 
 **Next actions on resume:**
-1. Read `.factory/SESSION-HANDOFF.md` §RESUME SNAPSHOT 2026-05-22 for full context
-2. Dispatch session-reviewer with codification queue: `.factory/cycles/wave-0-plugin-prereqs/lessons.md` entries 14-37+38 (35+ lessons from PLUGIN-MIGRATION-001-D LOCAL impl cascade)
-3. Begin PLUGIN-MIGRATION-001-A per ADR-028 §D10 co-merge contract (devops-engineer worktree → TDD pipeline)
+1. Read `.factory/SESSION-HANDOFF.md` §RESUME SNAPSHOT 2026-05-23-PATH-C-DUAL-WORKTREE
+2. Run `vsdd-factory:factory-worktree-health` (BLOCKING preflight)
+3. Verify develop@f19575ff + feature/PLUGIN-MIGRATION-001-E HEAD 9e412c83
+4. Dispatch Stream 1 (demo-recorder in .worktrees/PLUGIN-MIGRATION-001-E/) AND Stream 2 (worktree-create + deliver-story) in parallel
 
 _Agent routing: see CLAUDE.md §Agent Routing Table._

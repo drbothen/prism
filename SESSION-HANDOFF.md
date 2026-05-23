@@ -6861,3 +6861,86 @@ Per project's worktree pattern for parallel story work — both stories can be i
 _Cascade discipline lessons accumulated this session: 5 NEW standing axes + paper-fix-re-detection discipline (D-799) + ADR-vs-BC sibling-sweep at design phase (D-806)._
 
 _Cascade convergence per BC-5.39.001. Next phase: demo-recorder + push + pr-manager 9-step PR lifecycle (with PR-LEVEL adversary cascade)._
+
+## §RESUME SNAPSHOT 2026-05-23-PATH-C-DUAL-WORKTREE (ADR-029 ACCEPTED; parallel implementation locked)
+
+**Purpose:** Final pre-/clear snapshot. ADR-029 ACCEPTED (D-808, human approval). User locked Path C: parallel implementation in two worktrees. Supersedes §RESUME SNAPSHOT 2026-05-23-MULTI-TENANT-OVERLAY-DESIGN as the most-recent durable checkpoint. Both prior snapshots remain valid historical anchors.
+
+### §1. State at /clear
+
+| Artifact | State |
+|---|---|
+| ADR-029 | **Accepted** v1.2 (D-808 human approval) |
+| 5 BCs BC-2.06.012-016 | draft (auto-promote to active on S-CONFIG-MULTI-TENANT-OVERRIDE-001 first PR merge per POL-14) |
+| S-CONFIG-MULTI-TENANT-OVERRIDE-001 | v0.1 draft — READY for deliver-story workflow |
+| PLUGIN-MIGRATION-001-E | CONVERGED (D-802); feature HEAD `9e412c83` — READY for demo-recorder + push + pr-manager |
+| Develop HEAD | `f19575ff` (unchanged) |
+| Factory-artifacts HEAD | latest state-manager commit (this burst) |
+| BC-INDEX | v5.47 |
+| STORY-INDEX | v2.185 |
+| ARCH-INDEX | v2.102 |
+| error-taxonomy | v1.49 (E-SPEC-019-023 land WITH S-CONFIG-MULTI-TENANT-OVERRIDE-001 implementation, not now) |
+| total_stories | 153 |
+
+### §2. Path C — Parallel Implementation Dispatch Plan
+
+#### Stream 1: Complete PLUGIN-MIGRATION-001-E delivery
+
+Existing worktree at `.worktrees/PLUGIN-MIGRATION-001-E/`. Feature HEAD `9e412c83`. LOCAL adversary cascade CONVERGED.
+
+**Next session steps:**
+1. factory-worktree-health (BLOCKING preflight)
+2. Verify feature HEAD unchanged + develop unchanged
+3. Dispatch `vsdd-factory:demo-recorder` for 11 ACs at `docs/demo-evidence/PLUGIN-MIGRATION-001-E/` (POL-10 story-scoped)
+4. Push `feature/PLUGIN-MIGRATION-001-E` to origin
+5. Dispatch `vsdd-factory:pr-manager` for 9-step PR lifecycle to develop
+   - PR-LEVEL adversary cascade is SEPARATE from LOCAL — fresh context, fresh 3-CLEAN streak required
+6. Post-merge: POL-14 BC auto-promotion (state-manager)
+
+#### Stream 2: S-CONFIG-MULTI-TENANT-OVERRIDE-001 implementation
+
+NEW worktree to be created. Story v0.1 draft. 7 ACs with SID-1 §5 compliant Red Gate test names.
+
+**Next session steps:**
+1. Create worktree: `git -C /Users/jmagady/Dev/prism worktree add .worktrees/S-CONFIG-MULTI-TENANT-OVERRIDE-001 -b feature/S-CONFIG-MULTI-TENANT-OVERRIDE-001 develop`
+2. Dispatch `vsdd-factory:deliver-story` workflow on S-CONFIG-MULTI-TENANT-OVERRIDE-001. The skill orchestrates:
+   - stub-architect: generate compilable stubs for the story's file list (`SensorInstanceOverlay`, `ResolvedSensorSpec`, extended `SpecLoader::load_all`, etc.)
+   - test-writer: red-gate failing tests for all 7 ACs
+   - implementer: TDD green for each AC
+   - LOCAL adversary cascade (BC-5.39.001 3-CLEAN strict — minimum 3 consecutive CLEAN passes)
+   - demo-recorder per-AC
+   - push + pr-manager
+3. Story is wave-0 prereq parallel to S-PLUGIN-CI-001 + PLUGIN-MIGRATION-001-E; no merge ordering constraint
+
+### §3. Parallelism Discipline
+
+The two streams use SEPARATE worktrees pointing at SEPARATE feature branches both rooted at develop@f19575ff. They will NOT conflict:
+
+| Stream | Code surface |
+|---|---|
+| PLUGIN-MIGRATION-001-E | `crates/prism-spec-engine/plugins/crowdstrike-oauth2/` + `crates/prism-spec-engine/src/plugin/` + `crates/prism-core/src/error.rs` (PluginError) |
+| S-CONFIG-MULTI-TENANT-OVERRIDE-001 | `crates/prism-spec-engine/src/spec_parser.rs` (overlay loading extension) + `crates/prism-sensors/specs/customers/` (NEW directory + fixtures) + `crates/prism-bin/src/boot.rs` step 4 |
+
+`.factory/` artifact commits go to single `factory-artifacts` branch (one mount at `.factory/`) — state-manager bursts must serialize but rarely. If both streams have simultaneous state-manager activity, the second burst waits for the first. Single-commit-per-burst (TD-VSDD-053) is preserved per stream.
+
+### §4. CRITICAL NOTES FOR RESUME
+
+- **No human approval gate remaining for ADR-029.** Implementation may begin immediately on Stream 2.
+- **Path discipline:** READ THE WORKTREE PATH (`/Users/jmagady/Dev/prism/.worktrees/<story-id>/...`) — never develop-baseline (`/Users/jmagady/Dev/prism/crates/...`).
+- **Paper-fix re-detection discipline (D-799):** when implementers report a closure containing a specific macro/assertion/code, orchestrator MUST independently grep for the claimed change before persisting state-manager burst. Trust-but-verify.
+- **POL-29 sibling-sweep (D-806):** when bumping BC/ADR/error-taxonomy versions, sweep BOTH `.factory/` AND `crates/` scope. Demonstrated in this design session (E-SPEC-018 collision catch).
+- **5 NEW standing cascade axes** from PLUGIN-MIGRATION-001-E cascade apply to ALL future stories: structural-coverage verification, EC-test-vs-spec fidelity (test-body), spec-emission existence (inverse SAP-1), deferral-citation specificity (SID-1 §5), test-assertion sibling-symmetry, test-as-paper-fix in test code (POL-11), error-variant semantic fidelity, BC catalog format-specifier accuracy, correction-burst orphan sweep, emission reachability under all dispatch branches.
+- **Deferred system-level finding** carries forward: DF-001 armis.rs SAP-1 catalog gap → phase-5 system-wide audit; does NOT block any per-story PR.
+- **3 worktrees currently:** PLUGIN-MIGRATION-001-E (active stream 1), S-3.09 (FROZEN BUG-S309-PLUGIN), W3-FIX-S307-001 (BLOCKED — superseded by 001-A). DO NOT touch the frozen/blocked worktrees. NEW worktree S-CONFIG-MULTI-TENANT-OVERRIDE-001 (stream 2) to be created.
+
+### §5. Resume Protocol
+
+1. Read STATE.md frontmatter (v7.495 + path_c_* fields)
+2. Read this §RESUME SNAPSHOT 2026-05-23-PATH-C-DUAL-WORKTREE
+3. Optionally read prior snapshots for historical context
+4. Run `vsdd-factory:factory-worktree-health` skill (BLOCKING preflight)
+5. Verify develop@f19575ff + feature/PLUGIN-MIGRATION-001-E HEAD 9e412c83
+6. Dispatch Stream 1 (demo-recorder) AND Stream 2 (worktree-create + deliver-story) in parallel
+7. State-manager handles serialization of factory-artifacts commits across streams
+
+_Final session terminus: 2026-05-23. Cascade discipline lessons accumulated: 5 NEW standing axes + paper-fix-re-detection (D-799) + ADR-vs-BC sibling-sweep (D-806). State durable for /clear._

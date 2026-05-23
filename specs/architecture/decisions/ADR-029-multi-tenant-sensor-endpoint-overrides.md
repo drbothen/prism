@@ -2,10 +2,10 @@
 document_type: adr
 adr_id: "ADR-029"
 title: "Multi-Tenant Sensor Endpoint Overrides — Hybrid Sensor Instance with Per-Org Composition Directory"
-status: Proposed
+status: Accepted
 date: "2026-05-23"
 modified: "2026-05-23"
-version: "1.1"
+version: "1.2"
 producer: architect
 subsystems_affected: [SS-01, SS-06, SS-16, SS-21]
 supersedes: null
@@ -25,7 +25,7 @@ wiring_deferred_to: null
 
 ## Status
 
-Proposed 2026-05-23, v1.0. Locks D-803 architectural-clarification decisions. Will be promoted to ACCEPTED after story `S-CONFIG-MULTI-TENANT-OVERRIDE-001` reaches LOCAL adversarial 3-CLEAN convergence per ADR-021 promotion lifecycle.
+Accepted 2026-05-23, v1.2 (human approval). Locks D-803 architectural-clarification decisions. Implementation proceeds via story `S-CONFIG-MULTI-TENANT-OVERRIDE-001` in parallel with `PLUGIN-MIGRATION-001-E` per user directive (Path C, 2026-05-23 session).
 
 ---
 
@@ -358,3 +358,4 @@ BC IDs are provisional (`6.XX`); product-owner assigns canonical sequential IDs 
 |---------|------|------|--------|--------|
 | 1.0 | D-803 | 2026-05-23 | architect | Initial proposal. Locks D-803 Decisions 1 + 2. ADR-029 registered in ARCH-INDEX v2.101. |
 | 1.1 | D-806 | 2026-05-23 | state-manager (POL-29 within-FB sibling-sync) | E-SPEC code range shifted from 018–022 to 019–023. PO caught E-SPEC-018 collision with already-allocated `TimestampParseFailure` (ADR-028/BC-2.16.013) during BC drafting (BC-2.06.016). PO shifted BCs to 019–023; state-manager swept all 14 ADR-029 occurrences of the old draft codes in the same atomic burst to eliminate ADR-vs-BC drift. Source-of-Truth Precedence Rule #3 (BC-2.06.016) governs implementer. |
+| 1.2 | D-808 | 2026-05-23 | state-manager (human-approval per user directive) | Status: Proposed → Accepted. User explicitly approved hybrid option (e) and directed Path C (parallel implementation in two worktrees alongside PLUGIN-MIGRATION-001-E delivery). ADR-029 now unblocks the deliver-story workflow on S-CONFIG-MULTI-TENANT-OVERRIDE-001. |
