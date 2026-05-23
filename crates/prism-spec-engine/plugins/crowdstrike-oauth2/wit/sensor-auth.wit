@@ -12,23 +12,25 @@
 //   host::get-config    — config map lookup
 //   host::log           — structured logging forwarded to tracing
 
+// sensor-auth.wit — WIT interface for sensor authentication plugins.
+//
+// Story: PLUGIN-MIGRATION-001-E
+// Traces to: BC-2.01.016 §Postcondition, BC-2.17.006 WIT validation gate.
+//
+// This interface must be exported by the crowdstrike-oauth2 plugin. The host
+// validates these exports at load time via PluginRuntime::load_plugin (AC-001).
+//
+// Host functions (imported by the plugin guest):
+//   host::http-request  — outbound HTTP via allowlisted reqwest::Client (AC-7)
+//   host::kv-get / kv-set — per-plugin persistent KV store (PluginKvStore)
+//   host::get-config    — config map lookup
+//   host::log           — structured logging forwarded to tracing
+//
+// WIT syntax note (wit-bindgen 0.51+): record, enum, and variant types must be
+// defined inside an interface block. Types shared between interfaces are defined
+// in the interface that owns them and re-exported via `use` in consumers.
+
 package prism:crowdstrike-oauth2@0.1.0;
-
-/// HTTP response returned by host::http-request.
-record http-response {
-    status: u16,
-    headers: list<tuple<string, string>>,
-    body: list<u8>,
-}
-
-/// Log level enum for host::log.
-enum log-level {
-    trace,
-    debug,
-    info,
-    warn,
-    error,
-}
 
 /// Host interface imported by the plugin guest.
 ///
@@ -36,6 +38,32 @@ enum log-level {
 /// Plugin guest code calls these to perform I/O; the host enforces
 /// allowlists, timeouts, and KV size limits.
 interface host {
+    /// HTTP response returned by http-request.
+    record http-response {
+        status: u16,
+        headers: list<tuple<string, string>>,
+        body: list<u8>,
+    }
+
+    /// Log level for the log() host function.
+    enum log-level {
+        trace,
+        debug,
+        info,
+        warn,
+        error,
+    }
+
+    /// Auth error variants returned by acquire-token and get-token.
+    variant auth-error {
+        /// POST /oauth2/token returned 4xx with invalid client credentials.
+        invalid-credentials,
+        /// Token response was not valid JSON or missing required fields.
+        response-parse(string),
+        /// KV store limit exceeded; token cannot be cached.
+        internal(string),
+    }
+
     /// Issue an HTTP request. URL host must be in plugin's allowed_urls.
     http-request: func(
         method: string,
@@ -67,22 +95,12 @@ interface host {
     current-time-secs: func() -> u64;
 }
 
-/// Auth error variants returned by acquire-token and get-token.
-variant auth-error {
-    /// POST /oauth2/token returned 4xx with invalid client credentials.
-    invalid-credentials,
-    /// Token response was not valid JSON or missing required fields.
-    response-parse(string),
-    /// KV store limit exceeded; token cannot be cached.
-    internal(string),
-}
-
 /// SensorAuth WIT interface exported by this plugin.
 ///
 /// BC-2.17.006: these exports must be present for WIT validation to pass.
 /// BC-2.01.016: auth-type-name() must return "oauth2_client_credentials".
 interface sensor-auth {
-    use host.{http-response, auth-error};
+    use host.{auth-error};
 
     /// Return the canonical auth type name.
     ///

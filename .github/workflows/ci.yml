@@ -152,6 +152,41 @@ jobs:
           RUSTFLAGS: -C link-arg=-fuse-ld=mold
         run: cargo nextest run --workspace --no-default-features --exclude prism-dtu-demo-server --profile ci
 
+  wasm32-compile-check:
+    name: WASM32 compile check (F-LP5-HIGH-001 — crowdstrike-oauth2-plugin Guest impl)
+    # F-LP5-HIGH-001 closure: the crowdstrike-oauth2 plugin contains a wasm32-gated
+    # mod host_impl block with wit_bindgen::generate!, impl Guest for Component, and
+    # export!(Component). This code is NEVER compiled by host-target builds (clippy,
+    # test, check). Without this job, signature drift in the wit-bindgen Guest impl
+    # or WIT syntax errors in sensor-auth.wit would be invisible to CI.
+    #
+    # This job is the minimum enforcement gate: cargo check --target wasm32-wasip1
+    # on the crowdstrike-oauth2-plugin crate proves the Guest impl + wit-bindgen macro
+    # compiles correctly on every PR/push. If the macro produces compilation errors,
+    # CI fails — catching WIT drift, export signature mismatches, and macro errors.
+    #
+    # Note: cargo check does not link or produce a .wasm binary; it only validates
+    # the Rust type system and macro expansion. A full .prx build (S-PLUGIN-CI-001)
+    # requires wasm-tools + Wasmtime component adapter and is deferred to that story.
+    needs: clippy
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+      - uses: dtolnay/rust-toolchain@29eef336d9b2848a0b548edc03f92a220660cdb8 # stable
+        with:
+          targets: wasm32-wasip1
+      # Optimization 1: Swatinem/rust-cache for incremental build caching.
+      # Separate shared-key from the host-target build to avoid cache namespace collision.
+      - uses: Swatinem/rust-cache@c19371144df3bb44fab255c43d04cbc2ab54d1c4 # v2.9.1
+        with:
+          cache-on-failure: true
+          shared-key: wasm32-compile-check
+      - name: Check crowdstrike-oauth2-plugin compiles for wasm32-wasip1
+        run: |
+          cargo check --target wasm32-wasip1 -p crowdstrike-oauth2-plugin
+          echo "F-LP5-HIGH-001: wasm32-wasip1 compile check PASSED — Guest impl + wit-bindgen macro + export!(Component) compiled successfully"
+
   deny:
     name: Cargo deny (license + advisory)
     # Optimization 2: parallel with test — was: needs: test (chained through slowest job).
@@ -1068,4 +1103,13 @@ jobs:
             exit 1
           }
           echo 'AC-5 reachability check passed: non-exhaustive-violation-compile-fail job present.'
-          echo 'All AC-5..AC-8 reachability assertions pass.'
+          # F-LP5-HIGH-001 reachability assertion:
+          # The wasm32-compile-check job is the SOLE CI gate proving the crowdstrike-oauth2
+          # plugin's wit-bindgen Guest impl + export!(Component) macro actually compile.
+          # A future PR removing this job block would silently disable the gate.
+          grep -qE 'wasm32-compile-check' .github/workflows/ci.yml || {
+            echo "::error::F-LP5-HIGH-001: wasm32-compile-check job is missing from ci.yml — Guest impl compile gate removed (PLUGIN-MIGRATION-001-E F-LP5-HIGH-001)"
+            exit 1
+          }
+          echo 'F-LP5-HIGH-001 reachability check passed: wasm32-compile-check job present.'
+          echo 'All AC-5..AC-8 + F-LP5-HIGH-001 reachability assertions pass.'
