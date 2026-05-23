@@ -29,5 +29,12 @@ serde_json = { workspace = true }
 # native builds use the #[cfg(not(target_arch = "wasm32"))] stub module.
 wit-bindgen = { workspace = true }
 
+[dev-dependencies]
+# Tracing subscriber for capturing tracing events in unit tests.
+# Only used in cfg(test) paths — not compiled into the WASM guest binary.
+# Version pins match prism-spec-engine Cargo.toml (no workspace.dependencies for tracing).
+tracing-subscriber = { version = "0.3", features = ["fmt", "env-filter"] }
+tracing = "0.1"
+
 [features]
 # No features — production-grade default applies to all builds.

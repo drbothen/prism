@@ -213,8 +213,13 @@ mod host_impl {
                     "token_endpoint absent from host config (EC-006)".to_string(),
                 ))
             })?;
-            super::acquire_token(&super::WasmHost, &credential_handle, &token_endpoint)
-                .map_err(to_wit_auth_error)
+            super::acquire_token(
+                &super::WasmHost,
+                super::plugin_name(),
+                &credential_handle,
+                &token_endpoint,
+            )
+            .map_err(to_wit_auth_error)
         }
 
         /// Get a cached or freshly-acquired token.
@@ -229,8 +234,13 @@ mod host_impl {
                     "token_endpoint absent from host config (EC-006)".to_string(),
                 ))
             })?;
-            super::get_token(&super::WasmHost, &credential_handle, &token_endpoint)
-                .map_err(to_wit_auth_error)
+            super::get_token(
+                &super::WasmHost,
+                super::plugin_name(),
+                &credential_handle,
+                &token_endpoint,
+            )
+            .map_err(to_wit_auth_error)
         }
     }
 
@@ -346,6 +356,48 @@ pub fn auth_type_name() -> &'static str {
     "oauth2_client_credentials"
 }
 
+/// Emit `plugin.auth_token_parse_error` tracing event when `acquire_token` encounters
+/// an `AuthError::ResponseParse` condition.
+///
+/// Gated under `#[cfg(test)]` for native builds:
+///   - `tracing` is a dev-dependency only — not available in non-test native builds or in
+///     the WASM guest binary. The `#[cfg(test)]` gate ensures the tracing macro is only
+///     compiled when the tracing dev-dependency is available.
+///   - On wasm32 production: the no-op stub below fires (WASM guest does not ship tracing).
+///     Host-side logging via `PluginRuntime::dispatch_plugin_acquire_token` handles audit
+///     observability in the production path.
+///   - On native test builds: emits the structured event so that the capturing-subscriber
+///     unit test (`test_dispatch_plugin_acquire_token_response_parse_emits_audit_event`)
+///     can assert it fires.
+///
+/// BC-2.16.002 Canonical Structured Event Catalog row 37 (PLUGIN-MIGRATION-001-E F-LP7-MED-001).
+/// Fields: `plugin_id: %str`, `error: %display`.
+/// Audit role: error. Recurrence: one per plugin auth token parse failure (no rate limiting).
+#[cfg(test)]
+fn emit_auth_token_parse_error(plugin_id: &str, error: &AuthError) {
+    tracing::error!(
+        event_type = "plugin.auth_token_parse_error",
+        plugin_id = %plugin_id,
+        error = %error,
+        "plugin auth token JSON parse failed"
+    );
+}
+
+/// No-op stub for non-test builds (native cargo check + wasm32 production).
+/// The WASM guest does not ship tracing as a production dependency.
+/// Native non-test builds (cargo check, cargo clippy) also use this stub.
+/// `#[allow(dead_code)]`: this stub is compiled in `#[cfg(any(target_arch = "wasm32", test))]`
+/// functions but is always present at the module level. The `cfg(not(test))` guard means
+/// the call sites are `cfg(test)` only — linter correctly sees this as unused in non-test
+/// compilation; the allow is justified (stub exists for API consistency, not dead code elimination).
+#[cfg(not(test))]
+#[allow(dead_code)]
+fn emit_auth_token_parse_error(_plugin_id: &str, _error: &AuthError) {
+    // no-op: tracing not available in non-test builds of this crate.
+    // Host-side (PluginRuntime::dispatch_plugin_acquire_token) handles audit logging
+    // in the production dispatch path.
+}
+
 /// Force-acquire a fresh OAuth2 token by calling POST /oauth2/token.
 ///
 /// Gated under `#[cfg(any(target_arch = "wasm32", test))]`:
@@ -367,6 +419,12 @@ pub fn auth_type_name() -> &'static str {
 /// Error cases:
 ///   - 401 response → AuthError::InvalidCredentials (EC-001).
 ///   - Non-JSON or missing access_token → AuthError::ResponseParse (EC-002, EC-003).
+///     On EC-002/EC-003 (any ResponseParse branch), emits:
+///     `tracing::error!(event_type = "plugin.auth_token_parse_error", plugin_id, error)`
+///     per BC-2.16.002 Canonical Structured Event Catalog (PLUGIN-MIGRATION-001-E F-LP7-MED-001).
+///     This emission is gated under `#[cfg(not(target_arch = "wasm32"))]` (native/test only)
+///     because `tracing` is a dev-dependency in the WASM guest crate — the wasm32 production
+///     path relies on host-side logging via the host dispatch tracing infrastructure.
 ///   - expires_in missing or zero → default TTL 1799s per CrowdStrikeAdapter::acquire_token
 ///     `unwrap_or(1799)` semantics (EC-004).
 ///   - KV store full → AuthError::Internal("kv_store size limit exceeded") (EC-005).
@@ -379,6 +437,7 @@ pub fn auth_type_name() -> &'static str {
 #[cfg(any(target_arch = "wasm32", test))]
 pub(crate) fn acquire_token(
     host: &impl HostInterface,
+    plugin_id: &str,
     credential_handle: &str,
     token_endpoint: &str,
 ) -> Result<String, AuthError> {
@@ -397,24 +456,34 @@ pub(crate) fn acquire_token(
 
     // Non-2xx → parse error (EC-002).
     if response.status < 200 || response.status >= 300 {
-        return Err(AuthError::ResponseParse(format!(
-            "token endpoint returned HTTP {}",
-            response.status
-        )));
+        let err =
+            AuthError::ResponseParse(format!("token endpoint returned HTTP {}", response.status));
+        emit_auth_token_parse_error(plugin_id, &err);
+        return Err(err);
     }
 
     // Parse JSON body for access_token + expires_in.
     // F-LP2-HIGH-005 closure: use checked from_utf8 (not unchecked) — defense-in-depth.
-    let body_str = std::str::from_utf8(&response.body)
-        .map_err(|e| AuthError::ResponseParse(format!("invalid UTF-8 in response body: {e}")))?;
+    let body_str = std::str::from_utf8(&response.body).map_err(|e| {
+        let err = AuthError::ResponseParse(format!("invalid UTF-8 in response body: {e}"));
+        emit_auth_token_parse_error(plugin_id, &err);
+        err
+    })?;
 
-    let json: serde_json::Value =
-        serde_json::from_str(body_str).map_err(|e| AuthError::ResponseParse(e.to_string()))?;
+    let json: serde_json::Value = serde_json::from_str(body_str).map_err(|e| {
+        let err = AuthError::ResponseParse(e.to_string());
+        emit_auth_token_parse_error(plugin_id, &err);
+        err
+    })?;
 
     let access_token = json
         .get("access_token")
         .and_then(|v| v.as_str())
-        .ok_or_else(|| AuthError::ResponseParse("missing access_token field".to_string()))?
+        .ok_or_else(|| {
+            let err = AuthError::ResponseParse("missing access_token field".to_string());
+            emit_auth_token_parse_error(plugin_id, &err);
+            err
+        })?
         .to_string();
 
     // expires_in: default 1799s when missing or zero (EC-004 — matches CrowdStrikeAdapter semantics).
@@ -442,7 +511,7 @@ pub(crate) fn acquire_token(
 /// Steps (AC-004, AC-005):
 ///   1. Read expires_at_secs from KV via host.kv_get("expires_at_secs").
 ///   2. If present and current_time_secs() < expires_at_secs → return cached token.
-///   3. Otherwise → fall through to acquire_token(host, credential_handle, token_endpoint).
+///   3. Otherwise → fall through to acquire_token(host, plugin_id, credential_handle, token_endpoint).
 ///
 /// TTL check: expires_at_secs was written as `token_issue_unix + expires_in - 30`.
 /// The 30-second buffer matches CachedToken::is_valid() semantics in the legacy adapter.
@@ -451,6 +520,7 @@ pub(crate) fn acquire_token(
 #[cfg(any(target_arch = "wasm32", test))]
 pub(crate) fn get_token(
     host: &impl HostInterface,
+    plugin_id: &str,
     credential_handle: &str,
     token_endpoint: &str,
 ) -> Result<String, AuthError> {
@@ -470,7 +540,7 @@ pub(crate) fn get_token(
     }
 
     // Cache miss or stale — acquire fresh token.
-    acquire_token(host, credential_handle, token_endpoint)
+    acquire_token(host, plugin_id, credential_handle, token_endpoint)
 }
 
 // ---------------------------------------------------------------------------
@@ -693,6 +763,7 @@ mod tests {
 
         let result = acquire_token(
             &host,
+            "crowdstrike-oauth2",
             "client_id=id&client_secret=secret",
             "https://example.com/oauth2/token",
         );
@@ -732,6 +803,7 @@ mod tests {
 
         let result = acquire_token(
             &host,
+            "crowdstrike-oauth2",
             "client_id=id&client_secret=secret",
             "https://example.com/oauth2/token",
         );
@@ -772,6 +844,7 @@ mod tests {
 
         let result = acquire_token(
             &host,
+            "crowdstrike-oauth2",
             "client_id=id&client_secret=secret",
             "https://example.com/oauth2/token",
         );
@@ -790,7 +863,8 @@ mod tests {
 
     /// EC-003: Token response is missing `access_token` field → AuthError::ResponseParse.
     ///
-    /// Asserts variant match with detail "missing access_token field".
+    /// Asserts: (a) variant match with detail "missing access_token field",
+    /// (b) no token cached (mirrors EC-001 and EC-002 no-cache invariant per spec EC-003 row).
     #[test]
     fn test_acquire_token_EC_003_missing_access_token_returns_response_parse() {
         let mut host = MockHost::new(1_000_000);
@@ -798,6 +872,7 @@ mod tests {
 
         let result = acquire_token(
             &host,
+            "crowdstrike-oauth2",
             "client_id=id&client_secret=secret",
             "https://example.com/oauth2/token",
         );
@@ -806,6 +881,15 @@ mod tests {
             matches!(&result, Err(AuthError::ResponseParse(msg)) if msg.contains("missing access_token")),
             "EC-003: missing access_token MUST return AuthError::ResponseParse('missing access_token field'), got: {:?}",
             result
+        );
+        // F-LP7-LOW-001 closure: sibling-symmetry with EC-001 and EC-002 no-cache assertions.
+        // Production code short-circuits before any kv_set call when access_token is absent,
+        // but a regression moving access_token extraction after kv_set would not be caught
+        // without this assertion. Mirrors pattern in test_acquire_token_EC_001_* and test_acquire_token_EC_002_*.
+        assert_eq!(
+            host.kv_store.borrow().get("token"),
+            None,
+            "EC-003: token MUST NOT be cached when access_token field is missing"
         );
     }
 
@@ -825,6 +909,7 @@ mod tests {
 
         let result = acquire_token(
             &host,
+            "crowdstrike-oauth2",
             "client_id=id&client_secret=secret",
             "https://example.com/oauth2/token",
         );
@@ -878,6 +963,7 @@ mod tests {
 
         let result = acquire_token(
             &host,
+            "crowdstrike-oauth2",
             "client_id=id&client_secret=secret",
             "https://example.com/oauth2/token",
         );
@@ -919,6 +1005,7 @@ mod tests {
 
         let result = acquire_token(
             &host,
+            "crowdstrike-oauth2",
             "client_id=id&client_secret=secret",
             "https://example.com/oauth2/token",
         );
@@ -949,6 +1036,7 @@ mod tests {
 
         let result = get_token(
             &host,
+            "crowdstrike-oauth2",
             "client_id=id&client_secret=secret",
             "https://example.com/oauth2/token",
         );
@@ -979,6 +1067,7 @@ mod tests {
 
         let result = get_token(
             &host,
+            "crowdstrike-oauth2",
             "client_id=id&client_secret=secret",
             "https://example.com/oauth2/token",
         );
@@ -1016,6 +1105,7 @@ mod tests {
 
         let result = get_token(
             &host,
+            "crowdstrike-oauth2",
             "client_id=id&client_secret=secret",
             "https://example.com/oauth2/token",
         );
@@ -1046,7 +1136,12 @@ mod tests {
         host.push_http_response(200, r#"{"access_token": "tok-xyz", "expires_in": 3600}"#);
 
         let credential_handle = "client_id=my-id&client_secret=my-secret";
-        let _ = acquire_token(&host, credential_handle, "https://example.com/oauth2/token");
+        let _ = acquire_token(
+            &host,
+            "crowdstrike-oauth2",
+            credential_handle,
+            "https://example.com/oauth2/token",
+        );
 
         assert_eq!(host.http_call_count(), 1, "exactly one HTTP call expected");
         let body = host.http_call_body(0);
@@ -1057,6 +1152,88 @@ mod tests {
         assert!(
             body.contains("client_id=my-id"),
             "form body MUST contain the credential_handle prefix, got: {body:?}"
+        );
+    }
+
+    // -------------------------------------------------------------------------
+    // F-LP7-MED-001 closure: capturing-subscriber test for plugin.auth_token_parse_error
+    // -------------------------------------------------------------------------
+
+    /// F-LP7-MED-001 closure: `acquire_token` emits `plugin.auth_token_parse_error` tracing
+    /// event when the OAuth2 token endpoint returns HTTP 200 with invalid JSON (EC-002 scenario).
+    ///
+    /// Uses `tracing::subscriber::with_default` with an in-memory buffer to capture
+    /// tracing output and assert the structured event fired with the expected fields.
+    ///
+    /// Assertions:
+    ///   (a) `event_type` field value `"plugin.auth_token_parse_error"` present in captured output.
+    ///   (b) `plugin_id` field non-empty and contains "crowdstrike-oauth2" in captured output.
+    ///   (c) The result is `Err(AuthError::ResponseParse(...))` — emission fires before propagation.
+    ///
+    /// BC-2.16.002 Canonical Structured Event Catalog row 37 audit-observability assertion.
+    /// Cross-reference: PLUGIN-MIGRATION-001-E EC-002; story spec EC-002 "host logs event_type".
+    #[test]
+    fn test_dispatch_plugin_acquire_token_response_parse_emits_audit_event() {
+        use std::sync::Arc;
+
+        // Tracing capture: Arc<Mutex<Vec<u8>>> buffer as the subscriber's MakeWriter.
+        let captured: Arc<std::sync::Mutex<Vec<u8>>> = Arc::new(std::sync::Mutex::new(Vec::new()));
+        let captured_clone = captured.clone();
+
+        struct BufWriter(Arc<std::sync::Mutex<Vec<u8>>>);
+        impl std::io::Write for BufWriter {
+            fn write(&mut self, buf: &[u8]) -> std::io::Result<usize> {
+                if let Ok(mut guard) = self.0.lock() {
+                    guard.extend_from_slice(buf);
+                }
+                Ok(buf.len())
+            }
+            fn flush(&mut self) -> std::io::Result<()> {
+                Ok(())
+            }
+        }
+
+        let subscriber = tracing_subscriber::fmt()
+            .with_writer(move || BufWriter(captured_clone.clone()))
+            .with_ansi(false)
+            .with_max_level(tracing::Level::ERROR)
+            .finish();
+
+        // Run acquire_token with invalid JSON response INSIDE the subscriber scope.
+        // EC-002 scenario: HTTP 200 with syntactically invalid JSON triggers ResponseParse.
+        let result = tracing::subscriber::with_default(subscriber, || {
+            let mut host = MockHost::new(1_000_000);
+            host.push_http_response(200, "this is not JSON {["); // invalid JSON → ResponseParse
+            acquire_token(
+                &host,
+                "crowdstrike-oauth2",
+                "client_id=id&client_secret=secret",
+                "https://example.com/oauth2/token",
+            )
+        });
+
+        // Assertion (c): result is Err(ResponseParse) — the emission must fire before propagation.
+        assert!(
+            matches!(&result, Err(AuthError::ResponseParse(_))),
+            "F-LP7-MED-001: EC-002 path MUST return AuthError::ResponseParse; got: {:?}",
+            result
+        );
+
+        let output = captured.lock().expect("capture mutex not poisoned").clone();
+        let output_str = String::from_utf8_lossy(&output);
+
+        // Assertion (a): event_type field "plugin.auth_token_parse_error" present.
+        assert!(
+            output_str.contains("plugin.auth_token_parse_error"),
+            "F-LP7-MED-001: captured tracing output MUST contain 'plugin.auth_token_parse_error' \
+             event_type (BC-2.16.002 row 37); got output: {output_str}"
+        );
+
+        // Assertion (b): plugin_id field non-empty and contains plugin name.
+        assert!(
+            output_str.contains("crowdstrike-oauth2"),
+            "F-LP7-MED-001: captured tracing output MUST contain plugin_id 'crowdstrike-oauth2'; \
+             got output: {output_str}"
         );
     }
 }
