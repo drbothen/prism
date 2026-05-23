@@ -1,9 +1,9 @@
 ---
 document_type: pipeline-state
 level: ops
-version: "7.480"
+version: "7.481"
 producer: state-manager
-timestamp: 2026-05-23T08:00:00Z
+timestamp: 2026-05-23T12:00:00Z
 inputs: []
 input-hash: "[live-state]"
 traces_to: ""
@@ -16,7 +16,7 @@ repos: [poller-cobra, poller-express, poller-bear, poller-coaster, serveMyAPI, t
 safe_to_compact: true
 pre_compact_snapshot: "SESSION-HANDOFF.md §RESUME SNAPSHOT 2026-05-22-PLUGIN-E"
 pre_compact_snapshot_at: "2026-05-22 (D-788 PLUGIN-MIGRATION-001-E pass-4 CLEAN, streak 1/3)"
-current_step: "PLUGIN-MIGRATION-001-E LOCAL pass-7: 3 sub-HIGH findings (0 CRIT, 0 HIGH, 2 MED, 1 LOW). Severity high-water remains 0 HIGH for 2 consecutive passes. NEW sub-dimensions of EC-test-vs-spec fidelity axis: spec-emission existence (F-LP7-MED-001 EC-002 promises tracing event that code doesn't emit), deferral-citation specificity (F-LP7-MED-002 EC-006..009 violate SID-1 §5), sibling-test-assertion symmetry (F-LP7-LOW-001 EC-003 missing no-token-cached assertion). Streak stays 0/3. NEXT: dispatch FB-IMPL-6."
+current_step: "S-PLUGIN-CI-001 story stub created (status: draft, version v0.1, 3 ACs with specific Red Gate test names). Closes 3 PLUGIN-MIGRATION-001-E deferrals: EC-006 boot-with-missing-prx, EC-009 double-401-AuthRefreshFailed, MED-001 #[ignore] removal. Enables F-LP7-MED-002 closure (SID-1 §5 deferral specificity). NEXT: dispatch implementer FB-IMPL-6 with full SID-1-compliant citations."
 plugin_migration_001_e_local_adversary_passes: 7
 plugin_migration_001_e_status: "LOCAL pass-7: 3 findings (0 CRIT, 0 HIGH, 2 MED, 1 LOW). Cascade in refinement phase — structural defects extinct, fidelity sub-dimensions remain. Streak stays 0/3. FB-IMPL-6 dispatch pending."
 plugin_migration_001_e_local_fix_bursts: 5
@@ -70,7 +70,7 @@ user_directive_persistent: "No pragmatic convergence. Fix all issues before buil
 current_cycle_history: "wave-0-plugin-prereqs (PREREQ-E merged PR #151 2026-05-19); prior: wave-4-operations (active); wave-3-multi-tenant (COMPLETE)"
 bc_index_version: "5.42"
 vp_index_version: "1.76"
-story_index_version: "v2.183"
+story_index_version: "v2.184"
 plugin_migration_001_d_local_adversary_passes: 25
 plugin_migration_001_d_local_fix_bursts: 19
 plugin_migration_001_d_status: "MERGED via PR #153 develop@3f2de889 2026-05-22"
@@ -86,7 +86,7 @@ architectural_decisions_locked:
   - "4 LOCKED Option-A: TOML auth_type declares REAL behavior (cyberint=cookie_roundtrip, claroty=bearer_static) per CLAUDE.md Source-of-Truth Precedence #7; legacy auth_type_name() strings are bugs in code 001-A deletes"
   - "5 LOCKED Path-A (D-747): ADR-028 §D2 explicitly supersedes ADR-026 §D3 (partial — auth_type_name() return values for Cyberint/Claroty/Armis); PLUGIN-MIGRATION-001-A scope EXPANDS to include rewriting these auth_type_name() returns + amending Red Gate test_BC_2_01_016_003. CrowdStrike unchanged."
 policies_version: "1.30"
-total_stories: 151
+total_stories: 152
 bc_count_corrected: 240
 subsystem_count: 22
 vp_count: 156
@@ -152,6 +152,7 @@ _D-001..D-046 archived: [cycles/phase-3-dtu-wave-2/decisions-archive-d001-d032.m
 
 | ID | Decision | Rationale | Phase | Date |
 |----|----------|-----------|-------|------|
+| D-794 | 2026-05-23 | S-PLUGIN-CI-001 story stub created to satisfy SID-1 §5 deferral specificity for PLUGIN-MIGRATION-001-E EC-006 + EC-009 + MED-001 #[ignore]. Story has 3 ACs with specific Red Gate test names. Scope: wasm-tools CI toolchain + production .prx artifact + end-to-end plugin integration tests (EC-006 boot-with-missing-prx, EC-009 double-401-AuthRefreshFailed). STORY-INDEX v2.183→v2.184, total_stories 151→152. | story stub creation |
 | D-793 | 2026-05-23 | adversary (LOCAL pass-7) + state-manager (pass-persistence burst) | **PLUGIN-MIGRATION-001-E LOCAL pass-7: 3 sub-HIGH findings exposing NEW sub-dimensions of EC-test-vs-spec fidelity axis. F-LP7-MED-001 (spec EC-002 names tracing `event_type="plugin.auth_token_parse_error"` that exists in zero code paths — inverse SAP-1). F-LP7-MED-002 (EC-006..009 deferral citations violate SID-1 §5 specificity — plural-vague "integration tests" with no story ID or test name). F-LP7-LOW-001 (EC-003 missing the no-token-cached assertion that EC-001+002 both include). Severity high-water 0 HIGH for 2 consecutive passes. Decay trajectory: 20→12→3→0→2→3→3. Streak stays 0/3. CLEAN(strict)=NO, CLEAN(PR-merge)=NO. FB-IMPL-6 dispatch pending. Report at cycles/wave-0-plugin-prereqs/PLUGIN-MIGRATION-001-E/local-pass-7.md. STATE v7.479→v7.480.** | adversary pass-7 | 2026-05-23 | Decided by: adversary (LOCAL pass-7) + state-manager (pass-persistence burst). Status: PASS-7-PERSISTED, STREAK-STAYS-0/3, FB-IMPL-6-PENDING |
 | D-792 | 2026-05-23 | state-manager (FB-IMPL-5 closure burst) | **FB-IMPL-5 closed all 3 pass-6 findings. EC-test-vs-spec fidelity gap closed for EC-002 (new invalid-JSON test + non-2xx renamed) and EC-004 (new zero-expires_in test). POL-29 sibling-sweep gap closed: 3 sibling WIT files (sensor-plugin, infusion-plugin, action-plugin) restructured to move type declarations inside interface blocks, mirroring the FB-IMPL-4 fix to sensor-auth.wit. Story spec v1.1→v1.2. Feature HEAD 639d89e1 → 7702ea78. Workspace tests 3760 → 3762 (+2). just check PASS. STATE v7.478→v7.479.** | FB-IMPL-5 | 2026-05-23 | Decided by: state-manager (FB-IMPL-5 closure burst). Status: FB-IMPL-5 CLOSED |
 | D-791 | 2026-05-22 | adversary (LOCAL pass-6) + state-manager (pass-persistence burst) | **PLUGIN-MIGRATION-001-E LOCAL pass-6: 3 sub-HIGH findings. Severity dropped from 2 HIGH (pass-5) to 0 HIGH. NEW axis: EC-test-vs-spec fidelity — tests named test_acquire_token_EC_NNN_* may exercise different scenarios than the story spec's EC-NNN row names (EC-002 case: spec says 200+invalid-JSON, test does 503). Sibling-WIT-file sweep gap (POL-29): 3 sibling WIT files carry the same top-level-types anti-pattern that broke sensor-auth.wit in pass-5. F-LP6-MED-001: EC-002 spec-test drift — test covers non-2xx 503, spec names 200+invalid-JSON; serde_json parse branch unexercised. F-LP6-MED-002: prism-sensor-plugin.wit + prism-infusion-plugin.wit + prism-action-plugin.wit carry top-level type declarations illegal in wit-bindgen 0.51+; latent defect (not compiled yet). F-LP6-LOW-001: EC-004 test covers missing-expires_in only; zero-expires_in case unexercised. Streak stays 0/3. CLEAN(strict)=NO, CLEAN(PR-merge)=NO. FB-IMPL-5 dispatch pending (~30min: 1 new test + rename + story EC-table fix + 3-WIT structural fix + 1 sibling test). Report at cycles/wave-0-plugin-prereqs/PLUGIN-MIGRATION-001-E/local-pass-6.md. STATE v7.477→v7.478.** | adversary pass-6 | 2026-05-22 | Decided by: adversary (LOCAL pass-6) + state-manager (pass-persistence burst). Status: PASS-6-PERSISTED, STREAK-STAYS-0/3, FB-IMPL-5-PENDING |
