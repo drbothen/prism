@@ -1450,18 +1450,36 @@ fn test_F_LP7_MED_001_host_dispatch_acquire_token_kv_miss_emits_audit_event() {
 
     match result {
         None => {
-            // Component Model WAT not supported or WIT validation mismatch.
-            // This is a test-infrastructure gap, not a production code failure.
-            // Document as a known limitation (Component Model component creation
-            // requires full WAT Component Model syntax support in the `wat` crate).
+            // F-LP8-MED-001 closure: convert silent-pass None arm to hard panic.
             //
-            // F-LP7-MED-001 is still verified by the unconditional host code path:
-            // the emission is in production code with no #[cfg(test)] gate.
-            // The guest-level test (test_dispatch_plugin_acquire_token_response_parse_emits_audit_event)
-            // in crowdstrike-oauth2-plugin tests confirms the per-error-variant emission.
-            eprintln!(
-                "F-LP7-MED-001 host test: Component Model WAT fixture path unavailable; \
-                 emission verified by code inspection (unconditional in dispatch_plugin_acquire_token)"
+            // This test returned None in two infrastructure failure paths:
+            //   (a) `wat::parse_str` fails on Component Model WAT syntax
+            //   (b) `runtime.load_plugin` fails with WIT validation mismatch
+            //
+            // The `eprintln!` + silent return caused the test to PASS without exercising
+            // ANY production code path — a paper-fix pattern (TD-VSDD-059, POL-11 in test code).
+            //
+            // Production-grade closure: panic here so the test signals a clear infrastructure
+            // failure rather than a misleading PASS. When this test infrastructure gap is
+            // resolved (wasm-tools Component Model WAT + WIT-lifted exports), this panic
+            // will no longer fire and the test will exercise the full dispatch path.
+            //
+            // The LOAD-BEARING host-emission unit test is:
+            //   `test_F_LP7_MED_001_host_emit_acquire_token_parse_error_fires_unconditionally`
+            //   at `prism-spec-engine/src/plugin/mod.rs`
+            // which directly calls `emit_acquire_token_parse_error_and_fail` without WAT
+            // infrastructure and verifies BC-2.16.002 row 37 host-side emission.
+            //
+            // F-LP8-MED-001 + F-LP8-LOW-003 closure (PLUGIN-MIGRATION-001-E pass-8).
+            panic!(
+                "F-LP8-MED-001: integration test infrastructure unavailable — \
+                 Component Model WAT parse or load_plugin failed. \
+                 The host emission load-bearing claim cannot be verified without infrastructure. \
+                 Fix the wat crate version pin (Component Model WAT support) OR add \
+                 #[ignore] with S-PLUGIN-CI-001 AC-001 citation OR delete this test \
+                 (the unit test `test_F_LP7_MED_001_host_emit_acquire_token_parse_error_fires_unconditionally` \
+                 at `plugin/mod.rs` is the canonical load-bearing test). \
+                 Test PASS == actually exercised production path."
             );
         }
         Some(dispatch_result) => {
