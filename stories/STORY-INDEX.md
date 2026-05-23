@@ -1,12 +1,12 @@
 ---
 document_type: story-index
 level: "L4"
-version: "v2.184"
+version: "v2.185"
 status: draft
 producer: story-writer
 timestamp: 2026-05-23T00:00:00Z
 phase: 3
-total_stories: 152
+total_stories: 153
 total_active_bcs: 222
 # 230 total registered (222 active + 6 removed + 2 retired) — stories cover active BCs only
 total_vps_assigned: 145
@@ -20,8 +20,9 @@ Phase 3 decomposes the Prism platform into 113 implementation stories spanning 7
 waves. Stories are organized by crate and ordered topologically so that no story begins
 before its dependencies are complete.
 
+- **S-CONFIG-MULTI-TENANT-OVERRIDE-001 stub registration (2026-05-23):** S-CONFIG-MULTI-TENANT-OVERRIDE-001 authored as a draft stub (v0.1; 8 pts; 5 BCs: BC-2.06.012/013/014/015/016; no VPs yet; wave-0 prereq; subsystems SS-06+SS-16; depends_on S-WAVE5-PREP-01; blocks PLUGIN-MIGRATION-001-F; parallel to S-PLUGIN-CI-001). Implements ADR-029 hybrid sensor instance with per-org composition directory. 7 ACs with Red Gate test names per SID-1 §5: AC-001 (test_BC_2_06_012_overlay_discovered_and_merged), AC-002 (test_BC_2_06_013_tables_in_overlay_rejects_with_e_spec_021), AC-003 (test_BC_2_06_014_resolved_spec_overlays_base_url), AC-004 (test_BC_2_06_015_unknown_org_dir_aborts_boot_with_e_spec_022), AC-005 (test_BC_2_06_016_error_messages_match_canonical_templates), AC-006 (test_BC_2_06_012_backcompat_no_customers_dir_uses_type_spec_only), AC-007 (test_S_CONFIG_MULTI_TENANT_OVERRIDE_001_007_two_org_overlays_produce_distinct_resolved_specs). BC Traceability Matrix rows added: BC-2.06.012–016 → S-CONFIG-MULTI-TENANT-OVERRIDE-001. Full Story List row inserted after S-MAINT-POL29-HOOK-001. total_stories 152→153. STORY-INDEX v2.184→v2.185.
 - **S-PLUGIN-CI-001 stub registration (2026-05-23):** S-PLUGIN-CI-001 authored as a draft stub (v0.1; 5 pts; 4 BCs: BC-2.17.001/006/007+BC-2.22.001; VP-150; depends_on PLUGIN-MIGRATION-001-E). Closes 3 PLUGIN-MIGRATION-001-E SID-1 §5 deferrals: EC-006 → AC-002 (`test_S_PLUGIN_CI_001_002_missing_prx_at_boot_continues_with_error_log`), EC-009 → AC-003 (`test_S_PLUGIN_CI_001_003_double_401_returns_auth_refresh_failed`), MED-001 `#[ignore]` removal → AC-001 (`test_PLUGIN_MIGRATION_001_E_med_001_built_prx_loads_via_plugin_runtime`). Full Story List row inserted after PLUGIN-MIGRATION-001-E. total_stories 151→152. STORY-INDEX v2.183→v2.184.
-- **Total stories:** 152 (76 through Wave 2 + 37 Wave 3 Multi-Tenant stories: S-3.0.01/02 + S-3.1.01–07 + S-3.2.01–08 + S-3.3.01–06 + S-3.4.01–05 + S-3.5.01 + S-3.6.01/02 + S-3.7.00–05 + 3 E-3.5 devx merged: W3-FIX-WIN/LEFTHOOK/CI-001 + 6 Wave 3.1 fix stories: W3-FIX-SEC-001/002/003 + W3-FIX-CODE-001/002/003 + 1 Wave 3.1 impl-phase story: S-3.1.06-ImplPhase + 2 Wave 3.2 fix stories: W3-FIX-CREDS-001 + W3-FIX-CODE-004 + 2 Wave 3.3 fix stories: W3-FIX-SEC-004 + W3-FIX-CODE-005 + 2 Wave 3.4 fix stories: W3-FIX-SEC-005 + W3-FIX-CODE-006 + 7 E-CLEANUP-02 Runtime Reality stories: S-WAVE5-PREP-01 + S-3.02-FOLLOWUP-RUNTIME + W3-FIX-S307-001/002 + S-1.12-FOLLOWUP + S-1.14-REDO + S-5.01-FOLLOWUP-MCP-BOOT + 14 PLUGIN-MIGRATION stories: S-PLUGIN-PREREQ-F/A/B/C/D/E + PLUGIN-MIGRATION-001-A/B/C/D/E/F/G/H [planned, D-333/D-334] + 1 maintenance story: S-MAINT-POL29-HOOK-001 [planned, D-780] + 1 plugin CI toolchain story: S-PLUGIN-CI-001 [draft])
+- **Total stories:** 153 (76 through Wave 2 + 37 Wave 3 Multi-Tenant stories: S-3.0.01/02 + S-3.1.01–07 + S-3.2.01–08 + S-3.3.01–06 + S-3.4.01–05 + S-3.5.01 + S-3.6.01/02 + S-3.7.00–05 + 3 E-3.5 devx merged: W3-FIX-WIN/LEFTHOOK/CI-001 + 6 Wave 3.1 fix stories: W3-FIX-SEC-001/002/003 + W3-FIX-CODE-001/002/003 + 1 Wave 3.1 impl-phase story: S-3.1.06-ImplPhase + 2 Wave 3.2 fix stories: W3-FIX-CREDS-001 + W3-FIX-CODE-004 + 2 Wave 3.3 fix stories: W3-FIX-SEC-004 + W3-FIX-CODE-005 + 2 Wave 3.4 fix stories: W3-FIX-SEC-005 + W3-FIX-CODE-006 + 7 E-CLEANUP-02 Runtime Reality stories: S-WAVE5-PREP-01 + S-3.02-FOLLOWUP-RUNTIME + W3-FIX-S307-001/002 + S-1.12-FOLLOWUP + S-1.14-REDO + S-5.01-FOLLOWUP-MCP-BOOT + 14 PLUGIN-MIGRATION stories: S-PLUGIN-PREREQ-F/A/B/C/D/E + PLUGIN-MIGRATION-001-A/B/C/D/E/F/G/H [planned, D-333/D-334] + 1 maintenance story: S-MAINT-POL29-HOOK-001 [planned, D-780] + 1 plugin CI toolchain story: S-PLUGIN-CI-001 [draft] + 1 multi-tenant endpoint override story: S-CONFIG-MULTI-TENANT-OVERRIDE-001 [draft])
 - **Total waves:** 7 (Wave 0 expanded to 16 stories: devops + DTU infrastructure)
 - **BCs covered:** 230 total registered (222 active per BC-INDEX.md v4.32; 200 Wave 1-2 BCs + 22 new Wave 3 BCs: BC-3.1.001–004, BC-3.2.001–005, BC-3.3.001–004, BC-3.4.001–004, BC-3.5.001–002, BC-3.6.001–002, BC-3.7.001; at v0.2+ draft status; BC-3.3.004 is a distinct contract from BC-3.3.001 per PO rename in Phase 3.A consistency-validator pass)
 - **VPs assigned:** 145 (30 Kani proofs, 86 proptests, 4 unit_tests, 6 fuzz targets, 19 integration tests)
@@ -404,6 +405,7 @@ pursuing maximum parallelism should schedule by topological layer, not wave numb
 | PLUGIN-MIGRATION-001-G | docs: Doc/ADR/BC Sweep — Generalize Sensor-Named Architecture Docs [PLUGIN-MIGRATION Wave 2] [planned] | .factory | 0 (TBD) | -- | 3 | PLUGIN-MIGRATION-001-A,PLUGIN-MIGRATION-001-B,PLUGIN-MIGRATION-001-C |
 | PLUGIN-MIGRATION-001-H | .factory: Story Supersession — Mark S-2.06/S-2.07/W3-FIX-S307-001/S-3.1.06-ImplPhase Superseded [PLUGIN-MIGRATION Wave 2] [planned] | .factory | 0 (TBD) | -- | 3 | PLUGIN-MIGRATION-001-A |
 | S-MAINT-POL29-HOOK-001 | Implement validate-cite-pin-completeness.sh — POL-29 step-8 mechanization [maintenance] [planned P2 — source: session-review D-777 Group E lint hook recommendation] | maintenance | 0 (TBD) | -- | tbd | -- |
+| S-CONFIG-MULTI-TENANT-OVERRIDE-001 | prism-spec-engine/prism-bin: Per-Org Sensor Endpoint Overlay Loading — ADR-029 Hybrid Sensor Instance with Per-Org Composition Directory [wave-0 prereq; draft] | prism-spec-engine,prism-bin,prism-core,prism-sensors | 5 (BC-2.06.012, BC-2.06.013, BC-2.06.014, BC-2.06.015, BC-2.06.016) | -- | 8 | S-WAVE5-PREP-01 |
 
 [*] S-5.10 is in the `prism-audit` crate — note that all other Wave 5 stories are in `prism-mcp`. This is intentional: audit trail forwarding belongs to the audit subsystem by BC-2.05.011, but the Wave 5 slot reflects its topological dependency on S-2.04 (Wave 2 anchor).
 
@@ -486,6 +488,12 @@ Every active BC maps to the story that implements it.
 | BC-2.06.008 | S-5.05 |
 | BC-2.06.009 | S-5.05 |
 | BC-2.06.010 | S-5.05 |
+| BC-2.06.011 | S-WAVE5-PREP-01 |
+| BC-2.06.012 | S-CONFIG-MULTI-TENANT-OVERRIDE-001 |
+| BC-2.06.013 | S-CONFIG-MULTI-TENANT-OVERRIDE-001 |
+| BC-2.06.014 | S-CONFIG-MULTI-TENANT-OVERRIDE-001 |
+| BC-2.06.015 | S-CONFIG-MULTI-TENANT-OVERRIDE-001 |
+| BC-2.06.016 | S-CONFIG-MULTI-TENANT-OVERRIDE-001 |
 | BC-2.07.001 | S-3.05 |
 | BC-2.07.002 | S-3.05 |
 | BC-2.07.003 | S-3.05 |
@@ -932,6 +940,7 @@ All 13 new DTU clones: Wave 0, 0 BCs, priority P0, depends_on: [S-6.06].
 
 | Version | Date | Summary |
 |---------|------|---------|
+| v2.185 | 2026-05-23 | S-CONFIG-MULTI-TENANT-OVERRIDE-001 stub registration (story-writer): stub authored (v0.1, draft, 8 pts, 5 BCs [BC-2.06.012+013+014+015+016], no VPs yet, wave-0 prereq, subsystems SS-06+SS-16, depends_on S-WAVE5-PREP-01, blocks PLUGIN-MIGRATION-001-F). Implements ADR-029 hybrid sensor instance with per-org composition directory. 7 ACs with Red Gate test names per SID-1 §5. BC Traceability Matrix +5 rows (BC-2.06.012–016) + BC-2.06.011 backfill row (S-WAVE5-PREP-01). total_stories 152→153. |
 | v2.184 | 2026-05-23 | S-PLUGIN-CI-001 stub registration (story-writer): S-PLUGIN-CI-001 stub authored (v0.1, draft, 5 pts, 4 BCs [BC-2.17.001+006+007+BC-2.22.001], VP-150, depends_on PLUGIN-MIGRATION-001-E). Closes 3 PLUGIN-MIGRATION-001-E deferrals per SID-1 §5: EC-006 (AC-002: test_S_PLUGIN_CI_001_002_missing_prx_at_boot_continues_with_error_log), EC-009 (AC-003: test_S_PLUGIN_CI_001_003_double_401_returns_auth_refresh_failed), MED-001 #[ignore] removal (AC-001: test_PLUGIN_MIGRATION_001_E_med_001_built_prx_loads_via_plugin_runtime). total_stories 151→152. |
 | v2.183 | 2026-05-22 | v2.182 → v2.183 2026-05-22 — PLUGIN-MIGRATION-001-A row materialized (planned→ready, BCs 0→4 [BC-2.01.016+013+2.16.012+3.2.001], VP-148, AC-006 GATED-ON-001-E) + PLUGIN-MIGRATION-001-E row materialized (planned→ready, BCs 0→7 [BC-2.01.016+013+2.16.013+2.17.001+006+007+2.22.001], VP-148+150, depends_on extended to include S-PLUGIN-PREREQ-E). Source: D-781 dual parallel story authoring per user decision 2026-05-22. |
 | v2.182 | 2026-05-22 | v2.181 → v2.182 2026-05-22 — S-MAINT-POL29-HOOK-001 stub registered (planned status; source: session-review D-777 Group E lint hook recommendation). total_stories 150→151. D-780 codification COMPLETE. |

@@ -6761,4 +6761,103 @@ S-PLUGIN-CI-001 is a stub (v0.1, draft, 3 ACs). When the team is ready, dispatch
 
 _Agent routing: see CLAUDE.md §Agent Routing Table._
 
+---
+
+## §RESUME SNAPSHOT 2026-05-23-MULTI-TENANT-OVERLAY-DESIGN (S-CONFIG-MULTI-TENANT-OVERRIDE-001 design complete; HUMAN APPROVAL GATE pending)
+
+**Purpose:** Durable resume context for /clear after the multi-tenant sensor endpoint override design VSDD sequence. Supersedes §RESUME SNAPSHOT 2026-05-23-PLUGIN-E-CONVERGED as the most-recent durable checkpoint. PLUGIN-MIGRATION-001-E LOCAL convergence (D-802) is still durable but a parallel design workstream completed mid-session.
+
+### §1. This-Session-Continuation Arc (post-CONVERGENCE)
+
+| Burst | Scope | Outcome | Factory SHA |
+|---|---|---|---|
+| Snapshot refresh | §RESUME SNAPSHOT 2026-05-23-PLUGIN-E-CONVERGED written for durable /clear-resume | safe-to-compact | `c078c7a9` |
+| User architecture question (D-803) | "How does Armis tie to client? How do I add another Armis for next client?" — surfaced per-tenant endpoint parameterization gap | architectural gap acknowledged | (in-conversation; no commit) |
+| User direction | Follow full VSDD process: research → architect ADR → product-owner BCs → story-writer stub | 4-burst sequence approved | (in-conversation) |
+| Burst 1/4 Research | research-agent recommends hybrid option (e) "Sensor Instance with Per-Org Composition Directory" (Telegraf/OTel/Vector/Datadog/Fluent Bit industry pattern) | `.factory/research/multi-tenant-sensor-endpoint-overrides-2026-05-23.md` | `a44d5c2b` |
+| Burst 2/4 Architect | ADR-029 drafted status: proposed; decision hybrid (e); ARCH-INDEX v2.100→v2.101; 5 NEW BCs identified for PO | `.factory/specs/architecture/decisions/ADR-029-...md` | `3bcc5a15` |
+| Burst 3/4 Product-Owner | 5 BCs drafted (BC-2.06.012-016) in SS-06 subsystem; PO caught E-SPEC-018 collision (already TimestampParseFailure); shifted to E-SPEC-019-023; ADR-029 swept v1.0→v1.1 same atomic burst | BC-INDEX v5.46→v5.47 + 5 new BCs + ADR-029 sweep | `b1fd0e4b` |
+| Burst 4/4 Story-writer | S-CONFIG-MULTI-TENANT-OVERRIDE-001 v0.1 status: draft; 7 ACs SID-1 §5 compliant; STORY-INDEX v2.184→v2.185; total_stories 152→153 | this commit | THIS-COMMIT |
+
+### §2. CONVERGENCE + DESIGN-COMPLETE STATE
+
+| Field | Value |
+|---|---|
+| PLUGIN-MIGRATION-001-E LOCAL cascade | CONVERGED per BC-5.39.001 3-CLEAN STRICT (D-802); feature HEAD `9e412c83`; awaiting demo-recorder + PR |
+| Develop HEAD | `f19575ff` (unchanged through entire session) |
+| S-PLUGIN-CI-001 | v0.1 status: draft (created earlier this session; closes PLUGIN-MIGRATION-001-E EC-006/EC-009/MED-001 deferrals) |
+| S-CONFIG-MULTI-TENANT-OVERRIDE-001 | v0.1 status: draft (NEW; this design sequence) |
+| ADR-029 | v1.1 status: PROPOSED (awaits human approval gate) |
+| BCs BC-2.06.012-016 | v1.0 status: draft (advance to active on first story merge per POL-14) |
+| BC-INDEX | v5.47 |
+| STORY-INDEX | v2.185 |
+| total_stories | 153 |
+| ARCH-INDEX | v2.101 |
+| error-taxonomy | v1.49 (note: E-SPEC-019-023 will land WITH the implementation story merge, not now) |
+
+### §3. HUMAN APPROVAL GATE (BLOCKING)
+
+The user must explicitly approve ADR-029 (status: proposed → accepted) before implementation begins. Approval review checklist:
+
+1. **Decision soundness** — does hybrid option (e) match the user's intent (their intuition was option (a) per-org TOML override; (e) is a refinement adding "scalar-only" discipline + sensor-instance naming convention).
+2. **Error code allocation** — E-SPEC-019 through E-SPEC-023 OK? Collision with E-SPEC-018 (TimestampParseFailure) caught and avoided by PO.
+3. **5 BCs coverage** — do the 5 BCs decompose the decision correctly? Any contract missing?
+4. **Story scope** — 7 ACs feel right-sized for a wave-0 prereq? Any AC over-/under-scoped?
+5. **Wave placement** — wave-0 prereq parallel to S-PLUGIN-CI-001 OR different wave?
+6. **Sibling-WIT cleanup** — should this story include the per-tenant overlay for all 4 sensor types (armis, crowdstrike, claroty, cyberint) or just one canonical example?
+
+### §4. NEXT SESSION DISPATCH PLAN (multiple paths)
+
+#### Path A — Resume PLUGIN-MIGRATION-001-E delivery (original plan per D-802)
+
+If user prioritizes shipping the converged story first:
+1. factory-worktree-health (BLOCKING preflight)
+2. Verify develop@f19575ff + feature/PLUGIN-MIGRATION-001-E @ 9e412c83
+3. Dispatch demo-recorder per-AC for 11 ACs at docs/demo-evidence/PLUGIN-MIGRATION-001-E/
+4. Push feature branch
+5. pr-manager 9-step PR lifecycle (PR-LEVEL adversary cascade fresh 3-CLEAN required)
+6. Post-merge POL-14 BC promotions
+
+#### Path B — Begin S-CONFIG-MULTI-TENANT-OVERRIDE-001 implementation
+
+If user wants the multi-tenant design implemented BEFORE PLUGIN-MIGRATION-001-E ships:
+1. Human approval of ADR-029 (status proposed → accepted via architect or human directive)
+2. Architect updates ADR-029 frontmatter + appends approval row to changelog
+3. Worktree create: `git worktree add .worktrees/S-CONFIG-MULTI-TENANT-OVERRIDE-001 feature/S-CONFIG-MULTI-TENANT-OVERRIDE-001 develop`
+4. Dispatch deliver-story workflow on S-CONFIG-MULTI-TENANT-OVERRIDE-001 (stubs → failing tests → TDD → LOCAL adversary cascade → demo → PR)
+
+#### Path C — Both in parallel (different worktrees)
+
+Per project's worktree pattern for parallel story work — both stories can be implemented in parallel since they don't conflict (PLUGIN-MIGRATION-001-E touches plugin code + sensor specs; S-CONFIG-MULTI-TENANT-OVERRIDE-001 touches spec_parser + new overlay loading). User decision.
+
+### §5. KEY CONTEXT NUGGETS (post-CONVERGENCE)
+
+- **The architectural gap surfaced organically.** User asked "how does Armis tie to client?" during architecture-clarification post-PLUGIN-MIGRATION-001-E convergence (D-803). The investigation revealed the per-tenant endpoint parameterization gap. Per Canonical Principle Rule 4 ("AI-built defects are AI's responsibility to fix"), the right default was the full VSDD process (not defer to tech-debt-register). User explicitly directed full VSDD process.
+- **5-tool industry convergence on the same pattern.** Research (Burst 1) found Telegraf, OTel Collector, Vector, Datadog Agent, Fluent Bit all use the same "named instance + include directory" pattern. ADR-029 hybrid option (e) is industry-convergent.
+- **PO caught a real E-code collision.** ADR-029 draft cited E-SPEC-018-022; PO read error-taxonomy.md v1.43 and discovered E-SPEC-018 already allocated (TimestampParseFailure, ADR-028/BC-2.16.013). Shifted to E-SPEC-019-023; state-manager swept ADR-029 v1.0→v1.1 in same atomic burst (POL-29 sibling-sync). This is the cascade discipline working as designed at design-phase level.
+- **Backwards compatibility preserved.** AC-006 explicitly guarantees existing single-tenant prism deployments (NO `customers/` directory) continue to work unchanged.
+- **No new dependencies on PLUGIN-MIGRATION-001-E.** S-CONFIG-MULTI-TENANT-OVERRIDE-001 is wave-0 prereq parallel to S-PLUGIN-CI-001. Both stories can ship independently of PLUGIN-MIGRATION-001-E.
+
+### §6. CRITICAL NOTES FOR RESUME
+
+- **Develop HEAD `f19575ff` unchanged** — verify before any further dispatch.
+- **PLUGIN-MIGRATION-001-E feature HEAD `9e412c83`** — verify; this story is CONVERGED, ready for demo-recorder.
+- **ADR-029 status: PROPOSED** — implementation must NOT begin until human approves (status proposed → accepted). Architect updates the status field.
+- **5 BCs status: draft** — promote to active per POL-14 automatically when S-CONFIG-MULTI-TENANT-OVERRIDE-001 first PR merges (state-manager handles).
+- **E-SPEC-019-023 error codes ALLOCATED but not yet IN error-taxonomy.md** — will be added during the implementation story (BC-2.06.016 promises the canonical messages). Don't double-allocate.
+- **Path discipline for any code investigation**: worktree path `.worktrees/<story-id>/...` NOT develop-baseline.
+- **3 paper-fix recurrences caught this session** (F-LP7-MED-001, F-LP8-MED-001, F-LP9-HIGH-001). Discipline D-799 still applies: orchestrator MUST independently grep for claimed code changes after implementer reports.
+
+### §7. Resume Protocol
+
+1. Read STATE.md frontmatter (v7.494)
+2. Read this §RESUME SNAPSHOT 2026-05-23-MULTI-TENANT-OVERLAY-DESIGN
+3. Optionally read §RESUME SNAPSHOT 2026-05-23-PLUGIN-E-CONVERGED for PLUGIN-MIGRATION-001-E context
+4. Run `vsdd-factory:factory-worktree-health` skill (BLOCKING preflight)
+5. Verify SHAs: develop@f19575ff + feature/PLUGIN-MIGRATION-001-E @ 9e412c83
+6. Ask human which path to take (A: demo-recorder for converged story, B: implement multi-tenant overlay, or C: both in parallel)
+7. Dispatch accordingly
+
+_Cascade discipline lessons accumulated this session: 5 NEW standing axes + paper-fix-re-detection discipline (D-799) + ADR-vs-BC sibling-sweep at design phase (D-806)._
+
 _Cascade convergence per BC-5.39.001. Next phase: demo-recorder + push + pr-manager 9-step PR lifecycle (with PR-LEVEL adversary cascade)._
