@@ -1349,3 +1349,266 @@ async fn test_plugin_auth_provider_construction_production_api() {
          map should be populated by step 7.5b with sensor specs that have auth_plugin set"
     );
 }
+
+// ---------------------------------------------------------------------------
+// F-LP3-MED-001 + F-LP2-HIGH-001 retroactive paper-fix closure:
+// Behavioral tests for validate_and_construct_auth_providers (step 7.5b logic).
+//
+// The prior inline code was wired into production but had NO behavioral test driving
+// the iteration semantics. These 4 tests close the TD-VSDD-059 paper-fix gap.
+// ---------------------------------------------------------------------------
+
+/// WAT fixture for sensor-auth plugins (crowdstrike-oauth2 interface).
+///
+/// Exports: auth-type-name, acquire-token, get-token per SENSOR_AUTH_REQUIRED_EXPORTS.
+/// Used to load a "crowdstrike-oauth2" plugin into PluginRuntime for step 7.5b testing.
+const SENSOR_AUTH_BOOT_WAT: &str = r#"
+(module
+  (memory (export "memory") 1)
+  (data (i32.const 0) "crowdstrike-oauth2")
+  (data (i32.const 18) "oauth2_client_credentials")
+  (data (i32.const 48) "0.1.0")
+  (func (export "auth-type-name") (result i32 i32)
+    i32.const 18 i32.const 25)
+  (func (export "acquire-token") (param i32 i32) (result i32 i32)
+    i32.const 18 i32.const 25)
+  (func (export "get-token") (param i32 i32) (result i32 i32)
+    i32.const 18 i32.const 25)
+)
+"#;
+
+/// Manifest for the sensor-auth WAT fixture.
+const SENSOR_AUTH_MANIFEST: &str = r#"
+name = "crowdstrike-oauth2"
+version = "0.1.0"
+format_version = 1
+allowed_urls = ["api.crowdstrike.com", "localhost"]
+"#;
+
+/// Build a ConfigSnapshot with the given sensors.
+///
+/// Each entry is (sensor_id, base_url, auth_plugin).
+fn make_config_snapshot(
+    sensors: &[(&str, &str, Option<&str>)],
+) -> prism_spec_engine::types::ConfigSnapshot {
+    let mut snapshot = prism_spec_engine::types::ConfigSnapshot::empty();
+    for (sensor_id, base_url, auth_plugin) in sensors {
+        let mut spec = prism_spec_engine::types::SensorSpec::new_hot_reload(
+            *sensor_id,
+            "Test Sensor",
+            "1.0.0",
+            "oauth2_client_credentials",
+            *base_url,
+            vec![],
+            "deadbeef",
+            "/tmp/test.toml",
+        );
+        spec.auth_plugin = auth_plugin.map(|s| s.to_string());
+        snapshot.sensor_specs.insert(sensor_id.to_string(), spec);
+    }
+    snapshot
+}
+
+/// Build a PluginRuntime with the sensor-auth WAT fixture loaded as "crowdstrike-oauth2".
+///
+/// Async because `load_all_plugins` is async; callers must be `#[tokio::test]`.
+async fn build_runtime_with_crowdstrike_plugin() -> Arc<prism_spec_engine::plugin::PluginRuntime> {
+    let http_client = reqwest::Client::builder()
+        .timeout(std::time::Duration::from_secs(30))
+        .build()
+        .expect("reqwest client");
+    let runtime = prism_spec_engine::plugin::PluginRuntime::new(http_client)
+        .expect("PluginRuntime::new must succeed");
+    let runtime = Arc::new(runtime);
+
+    let bytes = compile_wat(SENSOR_AUTH_BOOT_WAT);
+    let dir = tempfile::tempdir().expect("tempdir");
+    write_prx(&dir, "crowdstrike-oauth2", &bytes);
+    write_manifest(&dir, "crowdstrike-oauth2", SENSOR_AUTH_MANIFEST);
+
+    runtime
+        .load_all_plugins(dir.path())
+        .await
+        .expect("load_all_plugins must succeed");
+
+    // Leak dir so plugin files stay on disk for the duration of the test.
+    // (TempDir drops the directory on drop; we need it to persist.)
+    std::mem::forget(dir);
+    runtime
+}
+
+/// F-LP3-MED-001 / F-LP2-HIGH-001 behavioral test — happy path.
+///
+/// ConfigSnapshot with one sensor (sensor_id="crowdstrike", auth_plugin=Some("crowdstrike-oauth2")),
+/// PluginRuntime with "crowdstrike-oauth2" loaded via WAT fixture →
+/// returned HashMap has exactly one entry mapping "crowdstrike" → Arc<PluginAuthProvider>
+/// with plugin_id="crowdstrike-oauth2".
+///
+/// This exercises the ITERATION SEMANTICS of step 7.5b (not just the API surface).
+/// Wire-up: validate_and_construct_auth_providers called by run_boot_sequence step 7.5b.
+#[tokio::test]
+async fn test_validate_and_construct_auth_providers_happy_path() {
+    use prism_bin::boot::validate_and_construct_auth_providers;
+
+    let runtime = build_runtime_with_crowdstrike_plugin().await;
+    let snapshot = make_config_snapshot(&[(
+        "crowdstrike",
+        "https://api.crowdstrike.com",
+        Some("crowdstrike-oauth2"),
+    )]);
+
+    let result = validate_and_construct_auth_providers(&snapshot, &runtime);
+    assert!(
+        result.is_ok(),
+        "F-LP3-MED-001 happy: must return Ok for valid sensor+plugin combo; got {:?}",
+        result.err()
+    );
+
+    let providers = result.unwrap();
+    assert_eq!(
+        providers.len(),
+        1,
+        "F-LP3-MED-001 happy: exactly 1 provider expected for 1 sensor with auth_plugin; \
+         got {}",
+        providers.len()
+    );
+
+    let provider = providers
+        .get("crowdstrike")
+        .expect("F-LP3-MED-001 happy: provider must be keyed by sensor_id 'crowdstrike'");
+
+    assert_eq!(
+        provider.plugin_id(),
+        "crowdstrike-oauth2",
+        "F-LP3-MED-001 happy: provider.plugin_id() must be 'crowdstrike-oauth2'; \
+         got '{}'",
+        provider.plugin_id()
+    );
+}
+
+/// F-LP3-MED-001 — inverse/typo case.
+///
+/// ConfigSnapshot with sensor_id="crowdstrike", auth_plugin=Some("crowdstirke-oauth2") (typo),
+/// PluginRuntime with "crowdstrike-oauth2" (correct) loaded →
+/// returns Err(BootError::UnknownAuthPlugin) with correct sensor_id and plugin_id fields.
+///
+/// This exercises the VALIDATION path and error propagation of validate_and_construct_auth_providers.
+#[tokio::test]
+async fn test_validate_and_construct_auth_providers_typo_returns_error() {
+    use prism_bin::boot::{BootError, validate_and_construct_auth_providers};
+
+    let runtime = build_runtime_with_crowdstrike_plugin().await;
+    let snapshot = make_config_snapshot(&[(
+        "crowdstrike",
+        "https://api.crowdstrike.com",
+        Some("crowdstirke-oauth2"), // typo — not registered
+    )]);
+
+    let result = validate_and_construct_auth_providers(&snapshot, &runtime);
+    assert!(
+        result.is_err(),
+        "F-LP3-MED-001 typo: must return Err for unregistered plugin_id; got Ok"
+    );
+
+    match result.unwrap_err() {
+        BootError::UnknownAuthPlugin {
+            sensor_id,
+            plugin_id,
+        } => {
+            assert_eq!(
+                sensor_id, "crowdstrike",
+                "F-LP3-MED-001 typo: error.sensor_id must be 'crowdstrike'; got '{}'",
+                sensor_id
+            );
+            assert_eq!(
+                plugin_id, "crowdstirke-oauth2",
+                "F-LP3-MED-001 typo: error.plugin_id must be the typo'd id; got '{}'",
+                plugin_id
+            );
+        }
+        other => panic!(
+            "F-LP3-MED-001 typo: expected BootError::UnknownAuthPlugin; got {:?}",
+            other
+        ),
+    }
+}
+
+/// F-LP3-MED-001 — empty case.
+///
+/// ConfigSnapshot with no sensors having auth_plugin → returns empty HashMap.
+/// Verifies that sensors without auth_plugin are excluded from the output map.
+#[tokio::test]
+async fn test_validate_and_construct_auth_providers_empty_returns_empty_map() {
+    use prism_bin::boot::validate_and_construct_auth_providers;
+
+    let runtime = build_runtime_with_crowdstrike_plugin().await;
+    // No sensors with auth_plugin set.
+    let snapshot = make_config_snapshot(&[
+        ("crowdstrike", "https://api.crowdstrike.com", None),
+        ("armis", "https://api.armis.com", None),
+    ]);
+
+    let result = validate_and_construct_auth_providers(&snapshot, &runtime);
+    assert!(
+        result.is_ok(),
+        "F-LP3-MED-001 empty: no auth_plugin sensors must return Ok; got {:?}",
+        result.err()
+    );
+
+    let providers = result.unwrap();
+    assert!(
+        providers.is_empty(),
+        "F-LP3-MED-001 empty: HashMap must be empty when no sensors have auth_plugin; \
+         got {} entries",
+        providers.len()
+    );
+}
+
+/// F-LP3-MED-001 — mixed case.
+///
+/// ConfigSnapshot with 2 sensors: "crowdstrike" (auth_plugin=Some("crowdstrike-oauth2"))
+/// and "armis" (auth_plugin=None). PluginRuntime with "crowdstrike-oauth2" loaded.
+/// Returns HashMap with exactly 1 entry (for "crowdstrike"; "armis" excluded).
+///
+/// This verifies the `auth_plugin.is_some()` gate inside validate_and_construct_auth_providers
+/// — a missed gate would include "armis" in the map.
+#[tokio::test]
+async fn test_validate_and_construct_auth_providers_mixed_sensors_one_with_auth_plugin() {
+    use prism_bin::boot::validate_and_construct_auth_providers;
+
+    let runtime = build_runtime_with_crowdstrike_plugin().await;
+    let snapshot = make_config_snapshot(&[
+        (
+            "crowdstrike",
+            "https://api.crowdstrike.com",
+            Some("crowdstrike-oauth2"),
+        ),
+        ("armis", "https://api.armis.com", None),
+    ]);
+
+    let result = validate_and_construct_auth_providers(&snapshot, &runtime);
+    assert!(
+        result.is_ok(),
+        "F-LP3-MED-001 mixed: must return Ok when one sensor has valid auth_plugin; got {:?}",
+        result.err()
+    );
+
+    let providers = result.unwrap();
+    assert_eq!(
+        providers.len(),
+        1,
+        "F-LP3-MED-001 mixed: exactly 1 provider expected (for 'crowdstrike'); \
+         got {} entries: {:?}",
+        providers.len(),
+        providers.keys().collect::<Vec<_>>()
+    );
+
+    assert!(
+        providers.contains_key("crowdstrike"),
+        "F-LP3-MED-001 mixed: 'crowdstrike' must be in the providers map"
+    );
+    assert!(
+        !providers.contains_key("armis"),
+        "F-LP3-MED-001 mixed: 'armis' must NOT be in the providers map (no auth_plugin)"
+    );
+}

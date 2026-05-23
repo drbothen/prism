@@ -159,6 +159,79 @@ pub struct BootContext {
 // Boot sequence entry points
 // ---------------------------------------------------------------------------
 
+// Step 7.5b pure function — extracted for testability (F-LP3-MED-001 closure)
+/// Validate `auth_plugin` registry membership for all sensors in `snapshot` and
+/// construct a `PluginAuthProvider` for each sensor that declares `auth_plugin`.
+///
+/// This is the pure business logic extracted from `run_boot_sequence` step 7.5b
+/// (F-LP3-MED-001 closure: the prior inline code was wired but had no behavioral test —
+/// any iteration bug, wrong key, or missed `auth_plugin.is_some()` check would be silent).
+///
+/// # Parameters
+///
+/// - `snapshot`: config snapshot with all sensor specs (from config_manager).
+/// - `runtime`: the initialized `PluginRuntime` that holds registered plugin IDs.
+///
+/// # Returns
+///
+/// `Ok(HashMap<sensor_id, Arc<PluginAuthProvider>>)` — one entry per sensor spec with
+/// `auth_plugin.is_some()`. Sensors without `auth_plugin` are absent from the map.
+///
+/// `Err(BootError::UnknownAuthPlugin)` — if any sensor references a plugin_id not
+/// registered in `runtime`. Exit code: `EXIT_CONFIG_INVALID` (ADR-022 §A exit table).
+///
+/// # Production caller
+///
+/// `run_boot_sequence` step 7.5b (boot.rs) — only production construction site for
+/// `PluginAuthProvider`. After ADR-028 §D10 co-merge (001-A), this is how CrowdStrike
+/// gets its `Arc<dyn AuthProvider>` in production (F-LP2-HIGH-001).
+pub fn validate_and_construct_auth_providers(
+    snapshot: &prism_spec_engine::types::ConfigSnapshot,
+    runtime: &Arc<prism_spec_engine::plugin::PluginRuntime>,
+) -> Result<std::collections::HashMap<String, Arc<prism_spec_engine::PluginAuthProvider>>, BootError>
+{
+    use prism_spec_engine::PluginAuthProvider;
+    use prism_spec_engine::validate_auth_plugin_fields;
+    use std::collections::{HashMap, HashSet};
+
+    let registered_ids: HashSet<String> = runtime.list_plugins().into_iter().collect();
+    let mut providers: HashMap<String, Arc<PluginAuthProvider>> = HashMap::new();
+
+    for (sensor_id, sensor_spec) in &snapshot.sensor_specs {
+        validate_auth_plugin_fields(
+            sensor_id,
+            sensor_spec.auth_plugin.as_deref(),
+            &registered_ids,
+        )
+        .map_err(|se| match se {
+            prism_spec_engine::error::SpecEngineError::UnknownAuthPlugin {
+                sensor_id,
+                plugin_id,
+            } => BootError::UnknownAuthPlugin {
+                sensor_id,
+                plugin_id,
+            },
+            other => BootError::ConfigInvalid(other.to_string()),
+        })?;
+
+        if let Some(plugin_id) = sensor_spec.auth_plugin.as_deref() {
+            let credential_handle = format!("sensor:{sensor_id}");
+            let token_endpoint = format!("{}/oauth2/token", sensor_spec.base_url);
+
+            let auth_provider = Arc::new(PluginAuthProvider::new(
+                Arc::clone(runtime),
+                plugin_id,
+                credential_handle,
+                token_endpoint,
+            ));
+
+            providers.insert(sensor_id.clone(), auth_provider);
+        }
+    }
+
+    Ok(providers)
+}
+
 /// Execute the full 11-step boot sequence (steps 1–11).
 ///
 /// Steps 1–6 are blocking and must complete in order (BC-2.22.001 sequencing
@@ -209,66 +282,30 @@ pub async fn run_boot_sequence(config_dir: &Path) -> Result<RunningServer, BootE
     // F-LP2-CRIT-002: validate every `auth_plugin = "..."` names a registered plugin (exit 2 on miss).
     // F-LP2-HIGH-001: construct PluginAuthProvider for each plugin-authed sensor — FIRST non-test
     // production construction site. Stored in plugin_result.plugin_auth_providers for step 8 wiring.
+    // F-LP3-MED-001: iteration logic extracted into `validate_and_construct_auth_providers` for
+    // behavioral testability — the inline block was wired code but had no behavioral test driving
+    // the iteration semantics (TD-VSDD-059 paper-fix pattern closed here).
     //
     // Uses ctx.config_manager (step 4) + plugin_result.runtime for registered IDs.
     {
-        use prism_spec_engine::PluginAuthProvider;
-        use prism_spec_engine::validate_auth_plugin_fields;
-        use std::collections::HashSet;
-
-        let registered_ids: HashSet<String> =
-            plugin_result.runtime.list_plugins().into_iter().collect();
-
         let cm_guard = ctx.config_manager.load();
         let cm = &**cm_guard;
         let snapshot_guard = cm.load();
         let snapshot = &**snapshot_guard;
 
-        for (sensor_id, sensor_spec) in &snapshot.sensor_specs {
-            validate_auth_plugin_fields(
-                sensor_id,
-                sensor_spec.auth_plugin.as_deref(),
-                &registered_ids,
-            )
-            .map_err(|se| {
-                // Convert SpecEngineError::UnknownAuthPlugin to BootError::UnknownAuthPlugin.
-                match se {
-                    prism_spec_engine::error::SpecEngineError::UnknownAuthPlugin {
-                        sensor_id,
-                        plugin_id,
-                    } => BootError::UnknownAuthPlugin {
-                        sensor_id,
-                        plugin_id,
-                    },
-                    other => BootError::ConfigInvalid(other.to_string()),
-                }
-            })?;
+        let providers = validate_and_construct_auth_providers(snapshot, &plugin_result.runtime)?;
 
-            // F-LP2-HIGH-001: validation passed — construct PluginAuthProvider.
-            // credential_handle: opaque sensor ref (production keyring resolution happens
-            // at dispatch time inside PluginRuntime). token_endpoint: OAuth2 convention.
-            if let Some(plugin_id) = sensor_spec.auth_plugin.as_deref() {
-                let credential_handle = format!("sensor:{sensor_id}");
-                let token_endpoint = format!("{}/oauth2/token", sensor_spec.base_url);
-
-                let auth_provider = Arc::new(PluginAuthProvider::new(
-                    plugin_result.runtime.clone(),
-                    plugin_id,
-                    credential_handle,
-                    token_endpoint,
-                ));
-
-                plugin_result
-                    .plugin_auth_providers
-                    .insert(sensor_id.clone(), auth_provider);
-
-                tracing::info!(
-                    sensor_id = %sensor_id,
-                    plugin_id = %plugin_id,
-                    "boot: PluginAuthProvider constructed for sensor (F-LP2-HIGH-001)"
-                );
-            }
+        for (sensor_id, auth_provider) in &providers {
+            let plugin_id = auth_provider.plugin_id();
+            tracing::info!(
+                sensor_id = %sensor_id,
+                plugin_id = %plugin_id,
+                event_type = "plugin_auth_provider_constructed",
+                "boot: PluginAuthProvider constructed for sensor"
+            );
         }
+
+        plugin_result.plugin_auth_providers = providers;
     }
 
     // Step 7 [BLOCKING]: Storage + internal-tables provider init.
