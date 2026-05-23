@@ -1,7 +1,7 @@
 ---
 document_type: pipeline-state
 level: ops
-version: "7.474"
+version: "7.475"
 producer: state-manager
 timestamp: 2026-05-22T00:00:00Z
 inputs: []
@@ -14,14 +14,14 @@ status: in_progress
 started: 2026-04-13
 repos: [poller-cobra, poller-express, poller-bear, poller-coaster, serveMyAPI, tally, axiathon, ocsf-proto-gen, mcp-claroty-xdome]
 safe_to_compact: true
-pre_compact_snapshot: "SESSION-HANDOFF.md §RESUME SNAPSHOT 2026-05-22"
-pre_compact_snapshot_at: "2026-05-22 (D-775 SESSION-HANDOFF.md §RESUME SNAPSHOT 2026-05-22 for cascade-exit durability)"
-current_step: "PLUGIN-MIGRATION-001-E FB-IMPL-3 closed (3 pass-3 + 1 paper-fix retroactive). Decay 20→12→3. Streak 0/3. NEXT: pass-4 adversary dispatch (streak attempt 1/3)."
-plugin_migration_001_e_local_adversary_passes: 3
-plugin_migration_001_e_status: "FB-IMPL-3 CLOSED — 3 pass-3 findings + 1 retroactive paper-fix; feature HEAD 1d06a4bf→d7ec60a7; workspace 3751 (3749 GREEN + 2 pre-existing flakes); BC-2.16.002 v1.38→v1.40; trajectory 20→12→3 decay; ready for pass-4"
+pre_compact_snapshot: "SESSION-HANDOFF.md §RESUME SNAPSHOT 2026-05-22-PLUGIN-E"
+pre_compact_snapshot_at: "2026-05-22 (D-788 PLUGIN-MIGRATION-001-E pass-4 CLEAN, streak 1/3)"
+current_step: "PLUGIN-MIGRATION-001-E pass-4 CLEAN — streak 1/3 per B1 strict criterion. Decay 20→12→3→0 confirms convergence. NEXT: pass-5 adversary (streak attempt 2/3). RESUME SNAPSHOT written for /clear durability."
+plugin_migration_001_e_local_adversary_passes: 4
+plugin_migration_001_e_status: "LOCAL pass-4 CLEAN — 0 findings. Decay 20→12→3→0. Streak 0/3→1/3. PAPER-FIX PATTERN BROKEN. Pass-5 + pass-6 needed for 3/3 strict convergence."
 plugin_migration_001_e_local_fix_bursts: 3
 plugin_migration_001_e_local_findings_closed: 34
-plugin_migration_001_e_local_adversary_clean_streak: 0
+plugin_migration_001_e_local_adversary_clean_streak: 1
 plugin_migration_001_d_red_gate_verified_at: 2026-05-21T20:15:00Z
 plugin_migration_001_d_tdd_green_at: 2026-05-21T21:29:04Z
 plugin_migration_001_d_feature_branch_head: "55b4f72d"
@@ -109,9 +109,9 @@ historical_cycles: [phase-1-convergence, wave-3-multi-tenant, wave-4-operations]
 | **Language** | Rust |
 | **Target Workspace** | per-analyst stdio (MCP server) |
 | **Started** | 2026-04-13 |
-| **Last Updated** | 2026-05-22 (D-787 PLUGIN-MIGRATION-001-E FB-IMPL-3: all 3 pass-3 findings closed + 1 retroactive paper-fix; feature HEAD d7ec60a7; decay 20→12→3; STATE v7.473→v7.474) |
+| **Last Updated** | 2026-05-22 (D-788 PLUGIN-MIGRATION-001-E pass-4 CLEAN — 0 findings, streak 1/3, decay 20→12→3→0; RESUME SNAPSHOT written; STATE v7.474→v7.475) |
 | **Current Phase** | Wave 3 Tier-3 COMPLETE — **Wave 3-A 4 of 4 SHIPPED**; plugin migration: PREREQ-F + PREREQ-A + PREREQ-B + PREREQ-C + PREREQ-D + PREREQ-E + **PLUGIN-MIGRATION-001-D MERGED** (PR #153 3f2de889 2026-05-22T09:05:47Z); ADR-028 §D10 co-merge gate now structurally satisfiable (FB-IMPL-2 wired); production deployment gated on PLUGIN-MIGRATION-001-A |
-| **Current Step** | D-787 PLUGIN-MIGRATION-001-E FB-IMPL-3 closed: all 3 pass-3 findings + 1 retroactive F-LP2-HIGH-001 paper-fix. F-LP3-HIGH-001: wit-bindgen Guest impl + export!(Component) + Justfile grep verification. F-LP3-MED-001: validate_and_construct_auth_providers extracted + 4 behavioral tests. F-LP3-LOW-001: event_type added + BC-2.16.002 row 36 v1.38→v1.40. Workspace 3747→3751. Decay 20→12→3. Streak 0/3. NEXT: pass-4 adversary (streak attempt 1/3). |
+| **Current Step** | D-788 PLUGIN-MIGRATION-001-E LOCAL pass-4 CLEAN — 0 findings. CLEAN(strict)=YES, CLEAN(PR-merge)=YES. Streak 0/3→1/3. Part A all pass-3 closures DURABLE (0 regressions, 0 paper-fixes — recurring paper-fix pattern BROKEN). Part B 0 NEW findings. Decay 20→12→3→0. RESUME SNAPSHOT written for /clear durability. NEXT: pass-5 adversary (streak attempt 2/3). |
 
 ## Phase Progress
 
@@ -152,6 +152,7 @@ _D-001..D-046 archived: [cycles/phase-3-dtu-wave-2/decisions-archive-d001-d032.m
 
 | ID | Decision | Rationale | Phase | Date |
 |----|----------|-----------|-------|------|
+| D-788 | 2026-05-22 | adversary (LOCAL pass-4) + state-manager (clean-pass + resume-snapshot burst) | **PLUGIN-MIGRATION-001-E LOCAL adversary pass-4 CLEAN — 0 findings, CLEAN(strict)=YES, CLEAN(PR-merge)=YES. Streak 0/3 → 1/3 per B1 strict criterion. Part A verified all pass-3 closures DURABLE with load-bearing tests (no regressions, no paper-fixes — recurring paper-fix pattern BROKEN). Part B 0 NEW findings. Decay trajectory 20→12→3→0 confirms convergence. validate_and_construct_auth_providers extracted pure function + 4 behavioral tests (happy/typo/empty/mixed) make the recurring step 7.5b paper-fix structurally impossible to recur. wit-bindgen Guest impl + export!(Component) verified present; manual *_export wrappers verified deleted. BC-2.16.002 row 36 verified complete schema. POL-29 v1.29 step 8f sweep clean. SESSION-HANDOFF §RESUME SNAPSHOT 2026-05-22-PLUGIN-E written for /clear durability. STATE v7.474→v7.475; safe_to_compact=true. NEXT: pass-5 (streak attempt 2/3) — orchestrator recommends fresh-session continuation given conversation token budget. Report at cycles/wave-0-plugin-prereqs/PLUGIN-MIGRATION-001-E/local-pass-4.md.** | plugin-migration | 2026-05-22 | Decided by: adversary (LOCAL pass-4) + state-manager (clean-pass + resume-snapshot burst). Status: PASS-4-CLEAN, STREAK 1/3, RESUME-READY |
 | D-787 | 2026-05-22 | implementer (FB-IMPL-3) + state-manager (closure burst) | **PLUGIN-MIGRATION-001-E FB-IMPL-3 CLOSURE BURST: all 3 actionable pass-3 findings CLOSED + 1 retroactive F-LP2-HIGH-001 paper-fix CLOSED. F-LP3-HIGH-001: wit-bindgen Guest impl + export!(Component) added; manual *_export wrappers deleted; Justfile recipe extended with export grep verification. F-LP3-MED-001 + F-LP2-HIGH-001 retroactive: validate_and_construct_auth_providers pure function extracted from step 7.5b; 4 behavioral tests (happy/typo/empty/mixed) added — actual iteration semantics tested. F-LP3-LOW-001: boot.rs:265 event_type=plugin_auth_provider_constructed added + BC-2.16.002 row 36 registered v1.38→v1.40; POL-29 v1.29 step 8f sibling-sweep across 3 files (error-taxonomy, PREREQ-E story, BC-2.16.012, BC-INDEX). Workspace 3747→3751 (+4 tests; 2 pre-existing PREREQ-E SIGTERM/RocksDB proptest flakes outside modified crates). Feature HEAD 1d06a4bf→d7ec60a7. Factory commit 4ca67d07 (BC-2.16.002 bump) already landed. Decay trajectory 20→12→3 (encouraging). STATE v7.473→v7.474. Streak 0/3 (fix-burst doesn't advance). NEXT: pass-4 adversary — streak attempt 1/3. Closure report at cycles/wave-0-plugin-prereqs/PLUGIN-MIGRATION-001-E/fix-burst-3.md.** | plugin-migration | 2026-05-22 | Decided by: implementer (FB-IMPL-3) + state-manager (closure burst). Status: FB-IMPL-3 CLOSED |
 | D-786 | 2026-05-22 | adversary (LOCAL pass-3) + state-manager | **PLUGIN-MIGRATION-001-E LOCAL adversary pass-3: 3 NEW findings (1 HIGH + 1 MED + 1 LOW). Trajectory 20→12→3 (encouraging decay; severity AND count declining). F-LP3-HIGH-001: wit-bindgen rework rewired host IMPORTS but EXPORTS still hand-rolled core-module ABI (`*_export` snake_case functions with manual `((ptr << 32) | len)` packing). discovery.rs requires kebab-case sensor-auth exports — built .prx will fail validate_wit_interface (E-PLUGIN-001); only #[ignore]'d MED-001 test would catch this. F-LP3-MED-001: step 7.5b iteration logic wired but has no production-path integration test (run_boot_sequence panics at step 7 todo!); HIGH-001 closure has wired-code but structural-not-behavioral test (recurring TD-VSDD-059 paper-fix risk). F-LP3-LOW-001: boot.rs:265 plugin_auth_provider tracing emission missing event_type field. CLEAN(strict)=NO. Streak 0/3. Report at cycles/wave-0-plugin-prereqs/PLUGIN-MIGRATION-001-E/local-pass-3.md. STATE v7.472→v7.473. User authorized FB-IMPL-3 continue 2026-05-22. NEXT: implementer FB-IMPL-3.** | plugin-migration | 2026-05-22 | Decided by: adversary (LOCAL pass-3) + state-manager. Status: PASS-3-PERSISTED, FB-IMPL-3-PENDING |
 | D-785 | 2026-05-22 | implementer (FB-IMPL-2) + state-manager (closure burst) | **PLUGIN-MIGRATION-001-E FB-IMPL-2 CLOSURE BURST: all 12 actionable pass-2 findings CLOSED in scope across 9 micro-commits + 2 FB-IMPL-1 paper-fix gaps retroactively wired (CRIT-002 validate_auth_plugin_fields now called at boot.rs step 7.5b; HIGH-001 Arc<PluginAuthProvider> now constructed at boot.rs step 7.5b). F-LP2-CRIT-001: LoadedPlugin gains Arc<PluginKvStore>; 3 production callers (dispatch_plugin_acquire_token, enrich_single, enrich_batch). F-LP2-HIGH-002: real wit-bindgen 0.51.0 wired; "for now" MVP-deferral language removed. F-LP2-HIGH-003: Justfile recipe hardened. ADR-028 §D10 co-merge gate now STRUCTURALLY SATISFIABLE (PluginAuthProvider production-construction site verified). Workspace 3742→3747 GREEN. Feature HEAD 319263ff→1d06a4bf. Wire-up verification protocol applied to every closure (production caller documented). STATE v7.471→v7.472. Streak 0/3. NEXT: pass-3 adversary dispatch — streak attempt 1/3. Closure report at cycles/wave-0-plugin-prereqs/PLUGIN-MIGRATION-001-E/fix-burst-2.md.** | plugin-migration | 2026-05-22 | Decided by: implementer (FB-IMPL-2) + state-manager (closure burst). Status: FB-IMPL-2 CLOSED |

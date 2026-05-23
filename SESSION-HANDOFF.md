@@ -6519,3 +6519,110 @@ Story may already exist in `.factory/stories/` — verify before authoring.
 6. Begin PLUGIN-MIGRATION-001-A per ADR-028 §D10 co-merge contract
 
 _Agent routing: see CLAUDE.md §Agent Routing Table._
+
+---
+
+## §RESUME SNAPSHOT 2026-05-22-PLUGIN-E (PLUGIN-MIGRATION-001-E pass-4 CLEAN — streak 1/3)
+
+**Purpose:** Durable resume context for /clear and fresh-session restart. PLUGIN-MIGRATION-001-E LOCAL adversary cascade reached pass-4 CLEAN with streak 1/3. Two more clean passes (pass-5 → 2/3, pass-6 → 3/3) needed for BC-5.39.001 3-CLEAN strict convergence. Next session resumes with adversary pass-5 dispatch.
+
+### §1. This-Session Arc Summary
+
+| Burst | Scope | Outcome | Factory SHA |
+|---|---|---|---|
+| Resume + worktree health | PASS | Pre-flight clean | — |
+| Task #7 (001-D demo-recorder) | 8 evidence files | docs/demo-evidence/PLUGIN-MIGRATION-001-D/ | feature: cfb53c93 |
+| Task #8 (001-D PR #153 9-step) | MERGED to develop@3f2de889 | All gates passed | — |
+| Task #9 (001-D post-merge) | POL-14 BC promotions, BC-INDEX bug caught | 5 BCs draft→active | factory: c226c3d7 |
+| Session-reviewer | 14 actionable proposals | session-review-2026-05-22.md | factory: d88d0f8e |
+| 5 P1 codifications (A1+B1+C1+C2+C3) | POL-29 v1.28→v1.29 + SAP-1/SAP-2/SID-1 in CLAUDE.md | All applied | factory: 761e8359 + cc1d8f64; develop: f19575ff |
+| S-MAINT-POL29-HOOK-001 stub | maintenance story registered | story stub created | factory: 8ba2850b + 69352b5b |
+| 001-A + 001-E story authoring (parallel) | 9 ACs + 11 ACs respectively | both ready | factory: e62ee028 + 08a55331 + 453af7f9 |
+| 001-E worktree create | feature/PLUGIN-MIGRATION-001-E from develop@f19575ff | mounted | — |
+| 001-E stubs | 9 new files, cargo check passes | b2ef84f4 | — |
+| 001-E TDD (single-commit, paper-fix exposed) | All 11 ACs green via host-side tests | f632e732 | — |
+| 001-E pass-1 (20 findings) | 4 CRIT + 7 HIGH + 6 MED + 1 LOW + PROCESS-GAP + OBS | local-pass-1.md | factory: b1ebeac6 |
+| 001-E FB-IMPL-1 (19 closures + 2 paper-fixes embedded) | 12 micro-commits | 08f68054 | factory: a9e453a9 |
+| 001-E pass-2 (12 findings + 2 paper-fix detections) | 2 CRIT + 5 HIGH + 3 MED + 1 LOW + OBS | local-pass-2.md | factory: 159033fa |
+| 001-E FB-IMPL-2 (12 closures + 2 retroactive paper-fix wire-ups) | 9 micro-commits | 1d06a4bf | factory: 990b66a4 |
+| 001-E pass-3 (3 findings + 1 paper-fix detection) | 0 CRIT + 1 HIGH + 1 MED + 1 LOW | local-pass-3.md | factory: dfe3b071 |
+| 001-E FB-IMPL-3 (3 closures + 1 retroactive paper-fix correction) | 3 micro-commits + BC-2.16.002 bump | d7ec60a7 | factory: 4ca67d07 + 0594e2ca |
+| 001-E pass-4 CLEAN — streak 1/3 | 0 findings, decay 20→12→3→0 | local-pass-4.md | factory: THIS-COMMIT |
+
+### §2. CONVERGENCE STATE
+
+| Field | Value |
+|---|---|
+| Story PLUGIN-MIGRATION-001-E | v1.0 ready (not yet merged — pending streak 3/3 + demo + PR) |
+| Feature branch | feature/PLUGIN-MIGRATION-001-E HEAD `d7ec60a7` (~50+ commits ahead of develop) |
+| Develop HEAD | `f19575ff` (unchanged since cascade start) |
+| Story PLUGIN-MIGRATION-001-A | v1.0 ready (authored 2026-05-22; GATED on 001-E merge per ADR-028 §D10) |
+| BC-2.16.002 | v1.40 |
+| BC-INDEX | v5.43 |
+| error-taxonomy.md | v1.46 |
+| LOCAL adversary cascade | pass-4 CLEAN, streak 1/3 |
+| Decay trajectory | 20 → 12 → 3 → 0 |
+| Workspace test count | 3751 (3749 GREEN + 2 pre-existing PREREQ-E SIGTERM/RocksDB proptest flakes outside modified crates) |
+| `just check` | PASSES |
+
+### §3. NEXT SESSION DISPATCH PLAN
+
+#### Step 1: factory-worktree-health (BLOCKING)
+
+Run `vsdd-factory:factory-worktree-health` skill. Must PASS before any further dispatch.
+
+#### Step 2: LOCAL adversary pass-5 (streak attempt 1/3 → 2/3)
+
+Dispatch adversary with fresh context against feature HEAD `d7ec60a7`:
+- Part A: spot-check pass-3 + pass-4 durability (random 50% of closures)
+- Part B: NEW findings probe — focus on edges of the freshly-extracted validate_and_construct_auth_providers function + wit-bindgen guest export coverage + cross-tenant token isolation in PluginKvStore (the Arc<KvStore> sharing introduced in FB-IMPL-2 CRIT-001)
+- Convergence: CLEAN(strict) → streak advances to 2/3
+- Reference reports: cycles/wave-0-plugin-prereqs/PLUGIN-MIGRATION-001-E/local-pass-{1,2,3,4}.md + fix-burst-{1,2,3}.md
+
+#### Step 3: LOCAL adversary pass-6 (streak attempt 2/3 → 3/3)
+
+Same protocol. CLEAN → 3-CLEAN CONVERGED.
+
+#### Step 4: Demo-recorder per-AC evidence
+
+After 3-CLEAN. Per-AC test-pass evidence at docs/demo-evidence/PLUGIN-MIGRATION-001-E/ for all 11 ACs.
+
+#### Step 5: PR-manager 9-step lifecycle (001-E PR)
+
+Standard process; PR-LEVEL adversary cascade is SEPARATE from LOCAL (fresh context, new 3-CLEAN streak).
+
+#### Step 6: Post-merge
+
+POL-14 BC auto-promotion for 7 anchored BCs. State-manager handles.
+
+#### Step 7: Begin 001-A TDD
+
+After 001-E merges, dispatch 001-A TDD cascade (deliver-story skill). 001-A's AC-006 [GATED-ON-001-E] can now proceed (001-E merged means CrowdStrike module deletion safe).
+
+### §4. KEY CONTEXT NUGGETS
+
+- **User authorized continue twice in this session** (2026-05-22 Options 2 then 2 again at pass-2 and pass-3). Pass-4 CLEAN was the natural checkpoint moment.
+- **Paper-fix pattern BROKEN at pass-4** — the validate_and_construct_auth_providers pure-function extraction + behavioral tests structurally prevent the recurring "wired code, structural-only tests" anti-pattern.
+- **5 P1 session-review codifications already applied** (A1 POL-29 step 8f + B1 BC-5.39.001 strict/lenient + C1/C2/C3 SAP-1/SAP-2/SID-1 in CLAUDE.md). 9 codification items queued for future maintenance burst.
+- **001-A authored in parallel with 001-E** at user request; 001-A's AC-006 is [GATED-ON-001-E] explicitly. 001-A awaits 001-E merge before TDD.
+- **OQ-001 still open**: BC-5.39.001 inline-vs-standalone structural question (non-blocking).
+- **2 pre-existing PREREQ-E SIGTERM/RocksDB proptest flakes** under PROPTEST_CASES=100 — outside modified crates; acceptable per existing AC-013 precedent (001-D had similar test_BC_2_10_010 flake).
+
+### §5. CRITICAL NOTES FOR RESUME
+
+- **Develop HEAD `f19575ff` unchanged** since cascade start. If develop has moved, surface as BLOCKER.
+- **Feature branch `feature/PLUGIN-MIGRATION-001-E` HEAD `d7ec60a7`** — verify before dispatching adversary.
+- **3 worktrees active**: PLUGIN-MIGRATION-001-E (this cascade), S-3.09 (FROZEN BUG-S309-PLUGIN), W3-FIX-S307-001 (BLOCKED — superseded by 001-A). Do NOT touch the other two.
+- **POL-29 v1.29 step 8f**: when state-manager bumps any BC/ADR/error-taxonomy version, sibling-sweep BOTH `.factory/` AND `crates/` scope.
+- **B1 strict-vs-PR-merge convergence criterion** in adversary reports: CLEAN(strict) = zero findings ANY severity; only that advances streak. CLEAN(PR-merge) = zero CRIT+HIGH+MED.
+- **State-manager LAST in every burst** per orchestrator rule.
+
+### §6. Resume Protocol
+
+1. Read STATE.md frontmatter (v7.475)
+2. Read this §RESUME SNAPSHOT 2026-05-22-PLUGIN-E section
+3. Run `vsdd-factory:factory-worktree-health` skill (BLOCKING)
+4. Verify `develop@f19575ff` unchanged + feature `feature/PLUGIN-MIGRATION-001-E` HEAD `d7ec60a7`
+5. Dispatch adversary pass-5 per §3 Step 2
+
+_Agent routing: see CLAUDE.md §Agent Routing Table._
