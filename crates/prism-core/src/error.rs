@@ -1119,6 +1119,29 @@ pub enum PluginError {
          must be an integer <= {supported}"
     )]
     FormatVersionMissing { path: String, supported: u32 },
+
+    /// E-PLUGIN-022: Plugin acquire-token dispatch completed but no token was cached in KV store
+    /// (BC-2.16.002 row 37 — host-observable symptom of guest `AuthError::ResponseParse` or
+    /// missing `kv_set` call).
+    ///
+    /// This is a **runtime-behavioral failure**, not a compilation failure. The WASM Component
+    /// Model binary compiled and was instantiated successfully; the guest's `acquire-token`
+    /// function was dispatched successfully (no trap, no timeout); but after dispatch, the KV
+    /// store has no "token" entry — indicating the guest either:
+    ///   - returned `AuthError::ResponseParse` (invalid JSON, missing `access_token` field), or
+    ///   - called `kv_set` with a key other than "token", or
+    ///   - returned without calling `kv_set` at all.
+    ///
+    /// Operators searching for token-parse failures should grep for `E-PLUGIN-022`, NOT
+    /// `E-PLUGIN-008` (which is a compilation failure). The structured tracing event
+    /// `plugin.auth_token_parse_error` (BC-2.16.002 row 37) is emitted by the host BEFORE
+    /// this error is returned. Cross-reference: PLUGIN-MIGRATION-001-E EC-002, EC-003;
+    /// F-LP8-MED-002 closure.
+    #[error(
+        "plugin '{plugin_id}' acquire-token dispatch completed but no token was cached in \
+         KV store (guest AuthError::ResponseParse or missing kv_set call): {message}"
+    )]
+    AuthTokenNotCached { plugin_id: String, message: String },
 }
 
 // ---------------------------------------------------------------------------

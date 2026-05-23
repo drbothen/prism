@@ -642,7 +642,7 @@ impl PluginRuntime {
     /// # Errors
     ///
     /// Returns `PluginError::NotLoaded` if `plugin_id` is not in the registry.
-    /// Returns `PluginError::CompilationFailed` (or similar) if the WASM call fails.
+    /// Returns `PluginError::AuthTokenNotCached` (E-PLUGIN-022) if the WASM call fails.
     ///
     /// Story: PLUGIN-MIGRATION-001-E / HIGH-010
     /// Traces to: BC-2.01.016 §Postcondition; VP-150 end-to-end auth dispatch
@@ -1122,9 +1122,15 @@ pub(crate) fn emit_acquire_token_parse_error_and_fail(
                  (guest AuthError::ResponseParse or missing kv_set call)",
         "plugin auth token JSON parse failed"
     );
-    Err(PluginError::CompilationFailed {
-        path: plugin_id.to_string(),
-        message: "plugin acquire-token dispatch succeeded but token not found in KV store"
+    // F-LP8-MED-002: return AuthTokenNotCached (E-PLUGIN-022) — NOT CompilationFailed
+    // (E-PLUGIN-008). The WASM binary compiled and was dispatched successfully; this is a
+    // runtime-behavioral failure (guest did not cache a token), not a compilation failure.
+    // Using CompilationFailed caused operator triage confusion: `journalctl | grep E-PLUGIN-008`
+    // would mix token-parse errors with real compilation failures.
+    Err(PluginError::AuthTokenNotCached {
+        plugin_id: plugin_id.to_string(),
+        message: "acquire-token dispatch completed but no token was cached in KV store \
+                  (guest AuthError::ResponseParse or missing kv_set call)"
             .to_string(),
     })
 }
@@ -1414,6 +1420,30 @@ mod tests {
             "F-LP7-MED-001: emission MUST include plugin_id 'crowdstrike-oauth2'; \
              got: {output_str}"
         );
+
+        // Assertion (d): F-LP8-MED-002 — function returns AuthTokenNotCached (not CompilationFailed).
+        // LOAD-BEARING: this assertion FAILS until PluginError::AuthTokenNotCached variant is added
+        // and emit_acquire_token_parse_error_and_fail is updated to return it.
+        // The runtime-behavioral failure (token not cached after successful dispatch) MUST NOT
+        // reuse CompilationFailed (E-PLUGIN-008: binary compilation failure — different semantics).
+        match result {
+            Err(PluginError::AuthTokenNotCached { ref plugin_id, .. }) => {
+                assert_eq!(
+                    plugin_id, "crowdstrike-oauth2",
+                    "F-LP8-MED-002: AuthTokenNotCached plugin_id MUST match the input plugin_id"
+                );
+            }
+            Err(other) => {
+                panic!(
+                    "F-LP8-MED-002: emit_acquire_token_parse_error_and_fail MUST return \
+                     PluginError::AuthTokenNotCached, got: {:?}",
+                    other
+                );
+            }
+            Ok(_) => {
+                panic!("F-LP8-MED-002: emit_acquire_token_parse_error_and_fail MUST return Err");
+            }
+        }
     }
 
     /// F-LP7-MED-001 CORRECTION (integration test #[ignore]):
