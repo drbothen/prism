@@ -1,7 +1,7 @@
 ---
 document_type: behavioral-contract-index
 level: L3
-version: "5.45"
+version: "5.46"
 status: draft
 producer: product-owner
 timestamp: 2026-05-23T00:00:00Z
@@ -207,7 +207,7 @@ Phase 3-patch additions (2026-04-16): 22 new BCs added in Burst 1 to close trace
 | BC-2.15.010 | Decorator Three-Phase Model — Config-Time, Query-Time, Periodic | 15 - Storage Layer | CAP-026 | P0 | draft |
 | BC-2.15.011 | Internal Table Registration — RocksDB Domains as DataFusion Tables | 15 - Storage Layer | CAP-028 | P0 | draft |
 | BC-2.16.001 | Sensor Spec File Loading — Parse TOML, Validate Schema, Register Tables | 16 - Spec Engine | CAP-029 | P0 | active (promoted draft→active D-776 per POL-14; anchor story PLUGIN-MIGRATION-001-D merged PR #153 develop@3f2de889 2026-05-22) — v1.7 |
-| BC-2.16.002 | Multi-Step Fetch Pipeline Execution — Sequential Steps with Variable Interpolation | 16 - Spec Engine | CAP-029 | P0 | active (promoted draft→active D-427 per POL-14; anchor story S-PLUGIN-PREREQ-B merged PR #143 develop@ae7e26c8 2026-05-12) — v1.42 |
+| BC-2.16.002 | Multi-Step Fetch Pipeline Execution — Sequential Steps with Variable Interpolation | 16 - Spec Engine | CAP-029 | P0 | active (promoted draft→active D-427 per POL-14; anchor story S-PLUGIN-PREREQ-B merged PR #143 develop@ae7e26c8 2026-05-12) — v1.43 |
 | BC-2.16.003 | Column-to-OCSF Mapping at Query Time — Map Sensor Columns to OCSF Fields Per Spec | 16 - Spec Engine | CAP-029 | P0 | draft |
 | BC-2.16.004 | ~~Rust Escape Hatch for Custom Adapters — Trait-Based Override When Config Is Insufficient~~ | 16 - Spec Engine | CAP-029 | P0 | removed (lifecycle_status: removed since PREREQ-E impl; status aligned at D-726 per POL-14 PR #151 merge) — v1.5 |
 | BC-2.16.005 | `reload_config` MCP Tool — Re-Read All Config Files, Validate, Atomic Swap, Notify | 16 - Spec Engine | CAP-030 | P1 | draft |
@@ -370,6 +370,8 @@ Phase 3-patch additions (2026-04-16): 22 new BCs added in Burst 1 to close trace
 - Subsystem 19: Infusion Enrichment Framework (AD-020, CAP-031)
 
 ### Change Log (Adversarial Review Fixes)
+
+**v5.46 (2026-05-23, FB-IMPL-7 PLUGIN-MIGRATION-001-E):** implementer | BC-2.16.002 in-line row 210 v1.42→v1.43 (F-LP8-MED-002 + F-LP8-MED-003 closure — pass-8 FB-IMPL-7: row 37 fields cell `%display` annotation removed (literal string, not Display-formatted type); `plugin_id` annotation clarified; return variant noted as `PluginError::AuthTokenNotCached (E-PLUGIN-022)` not `CompilationFailed`). BC-INDEX v5.45→v5.46.
 
 **v5.45 (2026-05-23, FB-IMPL-6-CORRECTION PLUGIN-MIGRATION-001-E):** implementer | BC-2.16.002 in-line row 210 v1.41→v1.42 (F-LP7-MED-001 CORRECTION burst: paper-fix resolved — emission moved from `#[cfg(test)]-gated guest helper` to unconditional host function `emit_acquire_token_parse_error_and_fail` in `crates/prism-spec-engine/src/plugin/mod.rs`; row 37 emission site + fields updated to reflect host path; guest `acquire_token`+`get_token` signatures reverted to remove `plugin_id: &str`; guest capturing-subscriber test replaced with `test_acquire_token_EC_002_returns_response_parse_no_token_cached`; new load-bearing host unit test `test_F_LP7_MED_001_host_emit_acquire_token_parse_error_fires_unconditionally` + `#[ignore]`'d integration test for S-PLUGIN-CI-001). BC-INDEX v5.44→v5.45.
 

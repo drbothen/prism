@@ -1,9 +1,9 @@
 ---
 document_type: pipeline-state
 level: ops
-version: "7.483"
+version: "7.484"
 producer: state-manager
-timestamp: 2026-05-23T15:30:00Z
+timestamp: 2026-05-23T16:00:00Z
 inputs: []
 input-hash: "[live-state]"
 traces_to: ""
@@ -16,11 +16,11 @@ repos: [poller-cobra, poller-express, poller-bear, poller-coaster, serveMyAPI, t
 safe_to_compact: true
 pre_compact_snapshot: "SESSION-HANDOFF.md §RESUME SNAPSHOT 2026-05-22-PLUGIN-E"
 pre_compact_snapshot_at: "2026-05-22 (D-788 PLUGIN-MIGRATION-001-E pass-4 CLEAN, streak 1/3)"
-current_step: "PLUGIN-MIGRATION-001-E LOCAL pass-8: 7 findings (0 CRIT, 0 HIGH, 4 MED, 2 LOW, 1 OBS) — UPTICK from pass-7's 3, fresh-context novelty resurgence. NEW sub-dims: test-as-paper-fix (F-LP8-MED-001 integration test silent-fallback), error-variant semantic fidelity (F-LP8-MED-002 CompilationFailed for non-compilation), spec format-specifier accuracy (F-LP8-MED-003), correction-burst orphan sweep (F-LP8-MED-004 duplicate EC-002 test), emission reachability (F-LP8-LOW-001 WAT-fixture short-circuit). Severity high-water 0 HIGH for 3 passes. Streak stays 0/3. NEXT: dispatch FB-IMPL-7."
+current_step: "PLUGIN-MIGRATION-001-E FB-IMPL-7 CLOSED all 7 pass-8 findings (6 by implementer in 3 commits + 1 OBS by orchestrator). Implementer stalled on final verify (watchdog 600s); orchestrator re-ran just check independently — PASS. New E-PLUGIN-022 PluginError::AuthTokenNotCached variant introduced (distinct from E-PLUGIN-008 CompilationFailed for operator triage accuracy). BC-2.16.002 v1.42→v1.43, BC-INDEX v5.45→v5.46, error-taxonomy v1.46→v1.48. Feature HEAD 657762c7→95c1d89a. cargo nextest list --workspace = 3503 tests authoritative. NEXT: adversary pass-9 (streak attempt 0/3 → 1/3)."
 plugin_migration_001_e_local_adversary_passes: 8
-plugin_migration_001_e_status: "LOCAL pass-8: 7 findings — novelty UPTICK from fresh-context analysis of FB-IMPL-6 correction. Severity 0 CRIT/0 HIGH/4 MED/2 LOW/1 OBS. Streak stays 0/3. FB-IMPL-7 dispatch pending."
-plugin_migration_001_e_local_fix_bursts: 6
-plugin_migration_001_e_local_findings_closed: 42
+plugin_migration_001_e_status: "FB-IMPL-7 closed all 7 pass-8 findings. Feature HEAD 95c1d89a. New E-PLUGIN-022 variant. BC-2.16.002 v1.43, BC-INDEX v5.46, error-taxonomy v1.48. Pass-9 dispatch pending."
+plugin_migration_001_e_local_fix_bursts: 7
+plugin_migration_001_e_local_findings_closed: 49
 plugin_migration_001_e_local_adversary_clean_streak: 0
 plugin_migration_001_d_red_gate_verified_at: 2026-05-21T20:15:00Z
 plugin_migration_001_d_tdd_green_at: 2026-05-21T21:29:04Z
@@ -65,10 +65,10 @@ dtu_strategy_decided: 2026-04-20
 policy_registry_source_of_truth: .factory/policies.yaml
 develop_head: "f19575ff"
 vsdd_factory_version: "1.0.0-rc.18 (re-activated 2026-05-13T15:00:19Z; upgrade chain rc.11 → rc.16 2026-05-10 → rc.18 2026-05-13)"
-workspace_test_count: 3518
+workspace_test_count: 3503
 user_directive_persistent: "No pragmatic convergence. Fix all issues before build."
 current_cycle_history: "wave-0-plugin-prereqs (PREREQ-E merged PR #151 2026-05-19); prior: wave-4-operations (active); wave-3-multi-tenant (COMPLETE)"
-bc_index_version: "5.45"
+bc_index_version: "5.46"
 vp_index_version: "1.76"
 story_index_version: "v2.184"
 plugin_migration_001_d_local_adversary_passes: 25
@@ -91,7 +91,7 @@ bc_count_corrected: 240
 subsystem_count: 22
 vp_count: 156
 prd_version: "1.10"
-error_taxonomy_version: "1.47"
+error_taxonomy_version: "1.48"
 arch_index_version: "2.96"
 verification_coverage_matrix_version: "1.42"
 verification_architecture_version: "1.41"
@@ -152,6 +152,7 @@ _D-001..D-046 archived: [cycles/phase-3-dtu-wave-2/decisions-archive-d001-d032.m
 
 | ID | Decision | Rationale | Phase | Date |
 |----|----------|-----------|-------|------|
+| D-797 | 2026-05-23 | FB-IMPL-7 closed all 7 pass-8 findings via 3 implementer feature-branch commits (a02589f2 + cc8b0961 + 95c1d89a) + orchestrator OBS handling. Notable: new PluginError::AuthTokenNotCached variant (E-PLUGIN-022) explicitly distinguished from E-PLUGIN-008 CompilationFailed for operator audit triage accuracy (operators searching for token-parse failures now find them at E-PLUGIN-022, not mixed in with real compilation failures). Implementer watchdog-stalled at final just check verify; orchestrator re-ran independently — PASS. Test-count delta (3762↔3518↔3503) confirmed as counting artifact (just check includes nextest + doctests + compile-fail + proptest enumeration; cargo nextest list = 3503 authoritative). Feature HEAD 95c1d89a. | FB-IMPL-7 + orchestrator OBS | 2026-05-23 | Decided by: state-manager (FB-IMPL-7 closure burst). Status: FB-IMPL-7 CLOSED — all 7 pass-8 findings resolved |
 | D-796 | 2026-05-23 | adversary (LOCAL pass-8) + state-manager (pass-persistence burst) | PLUGIN-MIGRATION-001-E LOCAL pass-8: 7 findings UPTICK from pass-7's 3. Fresh-context novelty resurgence — every pass continues to find new patterns near apparent convergence. F-LP8-MED-001 catches the FB-IMPL-6 CORRECTION integration test silently passing when WAT Component Model parse fails (test-as-paper-fix; POL-11 axis in test code). F-LP8-MED-002 catches emit_acquire_token_parse_error_and_fail returning PluginError::CompilationFailed for a non-compilation runtime failure (operator audit triage accuracy gap). F-LP8-MED-003 catches BC-2.16.002 row 37 %display annotation mismatched with literal-string emission. F-LP8-MED-004 catches duplicate EC-002 tests in lib.rs (FB-IMPL-6 CORRECTION orphan sweep gap). Severity high-water 0 HIGH for 3 passes. Streak stays 0/3. CLEAN(strict)=NO, CLEAN(PR-merge)=NO. FB-IMPL-7 dispatch pending. | adversary pass-8 | 2026-05-23 | Decided by: adversary (LOCAL pass-8) + state-manager (pass-persistence burst). Status: PASS-8-PERSISTED, STREAK-STAYS-0/3, FB-IMPL-7-PENDING |
 | D-795 | 2026-05-23 | state-manager (FB-IMPL-6 closure burst with correction) | FB-IMPL-6 closed all 3 pass-7 findings (F-LP7-MED-001 + F-LP7-MED-002 + F-LP7-LOW-001) via 2 commits (e56e6f97 + 657762c7). Notable: PAPER-FIX CAUGHT PRE-PERSISTENCE — original FB-IMPL-6 placed `plugin.auth_token_parse_error` emission in GUEST gated #[cfg(test)] with #[cfg(not(test))] no-op stub. Wasm32 guest has no tracing subscriber; production builds emitted nothing. Orchestrator structural-coverage axis (pass-5 standing) caught the defect before factory-artifacts persistence; implementer correction relocated emission to HOST unconditional `emit_acquire_token_parse_error_and_fail` in `prism-spec-engine/src/plugin/mod.rs::dispatch_plugin_acquire_token`. BC-2.16.002 v1.40→v1.42 with row 37 emission-site correction + catalog header (v1.25)→(v1.26). BC-INDEX v5.43→v5.45. The cascade's standing structural-coverage axis is validated by its own catch. Feature HEAD 657762c7. Workspace 3518 tests authoritative (prior 3762 was counting artifact between just check orchestration and bare cargo nextest). | FB-IMPL-6 with correction |
 | D-794 | 2026-05-23 | S-PLUGIN-CI-001 story stub created to satisfy SID-1 §5 deferral specificity for PLUGIN-MIGRATION-001-E EC-006 + EC-009 + MED-001 #[ignore]. Story has 3 ACs with specific Red Gate test names. Scope: wasm-tools CI toolchain + production .prx artifact + end-to-end plugin integration tests (EC-006 boot-with-missing-prx, EC-009 double-401-AuthRefreshFailed). STORY-INDEX v2.183→v2.184, total_stories 151→152. | story stub creation |
