@@ -6626,3 +6626,139 @@ After 001-E merges, dispatch 001-A TDD cascade (deliver-story skill). 001-A's AC
 5. Dispatch adversary pass-5 per §3 Step 2
 
 _Agent routing: see CLAUDE.md §Agent Routing Table._
+
+## §RESUME SNAPSHOT 2026-05-23-PLUGIN-E-CONVERGED (PLUGIN-MIGRATION-001-E LOCAL cascade CONVERGED — ready for demo-recorder + PR)
+
+**Purpose:** Durable resume context for /clear and fresh-session restart. PLUGIN-MIGRATION-001-E LOCAL adversary cascade has CONVERGED per BC-5.39.001 3-CLEAN STRICT. Next session resumes with demo-recorder per-AC evidence dispatch.
+
+### §1. This-Session Arc Summary (2026-05-22 → 2026-05-23)
+
+| Burst | Scope | Outcome | Factory SHA |
+|---|---|---|---|
+| Pipeline-resume preflight | factory-worktree-health PASS | safe to resume | — |
+| Adversary pass-5 | 2 HIGH findings (paper-fix recurrences); structural-coverage axis introduced | local-pass-5.md | `3f20af7c` |
+| FB-IMPL-4 (closes pass-5 HIGHs) | Real wit-bindgen WIT-syntax bug fix in sensor-auth.wit + wasm32-compile-check CI job + HostInterface trait + MockHost + 9 behavioral tests for EC-001..EC-005 + cache paths | feature `639d89e1`; factory `c37969ec` |
+| Adversary pass-6 | 3 sub-HIGH; EC-test-vs-spec fidelity axis introduced | `5300cf23` |
+| FB-IMPL-5 | EC-002 test fidelity (invalid_json scenario) + 3 sibling WIT files restructured + EC-004 zero-case test + story spec v1.1→v1.2 | feature `7702ea78`; factory `3e09510c` |
+| Adversary pass-7 | 3 sub-HIGH; 3 NEW fidelity sub-dimensions (spec-emission existence, deferral-citation specificity, test-assertion sibling-symmetry) | `122739c8` |
+| Story-writer + state-manager | S-PLUGIN-CI-001 story stub created (v0.1, draft, 3 ACs: wasm-tools toolchain + .prx + EC-006/EC-009 integration) | factory `69b95e40` |
+| FB-IMPL-6 ORIGINAL | F-LP7-MED-001 emission placed in GUEST gated #[cfg(test)] — PAPER-FIX | feature `e56e6f97` |
+| FB-IMPL-6 CORRECTION | Orchestrator caught paper-fix pre-persistence via structural-coverage axis; relocated emission to HOST `emit_acquire_token_parse_error_and_fail` unconditional | feature `657762c7`; factory `515e8247` |
+| Adversary pass-8 | 7 findings (novelty resurgence); 5 NEW sub-dimensions of fidelity axis (test-as-paper-fix POL-11 in test code, error-variant semantic fidelity, BC catalog format-specifier accuracy, correction-burst orphan sweep, emission reachability under all branches) | `f5e105e0` |
+| FB-IMPL-7 | 3 implementer commits closing 6 findings + new E-PLUGIN-022 PluginError::AuthTokenNotCached variant (distinguishes from E-PLUGIN-008 CompilationFailed) + integration test None-arm panic + EC-006..009 SID-1 §5 citations + duplicate test deletion + WAT-fixture #[cfg(not(...))] panic guard + #[ignore] tightening. BC-2.16.002 v1.43, BC-INDEX v5.46, error-taxonomy v1.48. Implementer stalled at final just check (600s watchdog); all 3 commits had landed before stall; orchestrator re-ran just check independently — PASS. | feature `95c1d89a`; factory `9f3d1be5` |
+| Adversary pass-9 | 6 findings, 1 HIGH paper-fix detection (F-LP9-HIGH-001: claimed debug_assert! absent from code — 3rd paper-fix recurrence in cascade). Severity high-water regressed to HIGH. New cascade discipline: orchestrator MUST independently grep for claimed code changes after implementer reports. | `7450a421` |
+| FB-IMPL-8 | F-LP9-HIGH-001 closed with REAL `#[cfg(not(any(test, feature = "test-helpers")))] panic!(...)` at plugin/mod.rs:710-718 (deviation from specified assert!(cfg!(test)) is sound: clippy::assertions_on_constants rejects assert-on-cfg-constants; integration tests use test-helpers feature not cfg(test)). F-LP9-MED-003 error-taxonomy v1.49 trigger-conflation clarification (implementer self-committed at factory SHA 23e7c672). F-LP9-MED-001 story spec frontmatter v1.2→v1.3 synced. F-LP9-MED-002/LOW-001/OBS-001 orchestrator-adjudicated. Orchestrator independently verified all closures. | feature `9e412c83`; factory `23e7c672` + `bb92a317` |
+| Adversary pass-10 | FIRST CLEAN(strict) of cascade. 0 findings. Streak ADVANCES 0/3 → 1/3. Decay terminus 0. | `8a36be94` |
+| Adversary pass-11 | 2ND CONSECUTIVE CLEAN(strict). 0 findings. Streak ADVANCES 1/3 → 2/3. All 16 standing axes verified PASS via fresh-context independent grep. | `71890378` |
+| Adversary pass-12 | 3RD CONSECUTIVE CLEAN(strict). 0 findings. Streak ADVANCES 2/3 → **3/3 CONVERGED** per BC-5.39.001. Decay 0→0→0. | `66d1c9f5` |
+| State-manager (this burst) | §RESUME SNAPSHOT 2026-05-23-PLUGIN-E-CONVERGED written for durable /clear-resume | THIS-COMMIT |
+
+### §2. CONVERGENCE STATE
+
+| Field | Value |
+|---|---|
+| Story PLUGIN-MIGRATION-001-E | v1.3 — LOCAL CONVERGED; ready for demo-recorder + push + PR |
+| Feature branch | `feature/PLUGIN-MIGRATION-001-E` HEAD `9e412c83` (9 commits ahead of develop) |
+| Develop HEAD | `f19575ff` (unchanged through this entire session) |
+| Story S-PLUGIN-CI-001 | v0.1 status=draft — NEW stub created this session; closes PLUGIN-MIGRATION-001-E EC-006 + EC-009 + MED-001 #[ignore] deferrals |
+| BC-2.16.002 (Structured Event Catalog) | v1.43 (row 37 plugin.auth_token_parse_error added) |
+| BC-INDEX | v5.46 |
+| error-taxonomy.md | v1.49 (E-PLUGIN-022 AuthTokenNotCached added) |
+| LOCAL adversary cascade status | **CONVERGED** per BC-5.39.001 3-CLEAN STRICT |
+| Cascade arc | 12 adversary passes / 8 fix-bursts / 55 findings closed / 3 paper-fix recurrences detected+corrected |
+| Decay trajectory | 20 → 12 → 3 → 0(false) → 2 → 3 → 3 → 7 → 6 → 0 → 0 → 0 |
+| Standing axes | 16 (5 NEW sub-dimensions surfaced during this cascade) |
+| Workspace test count | 3503 GREEN (authoritative via cargo nextest list --workspace) |
+| `just check` | PASSES on feature HEAD `9e412c83` |
+
+### §3. NEXT SESSION DISPATCH PLAN
+
+#### Step 1: factory-worktree-health (BLOCKING preflight)
+
+Run `vsdd-factory:factory-worktree-health` skill. Must PASS before any further dispatch. Verify:
+- `.factory/` worktree mounted on `factory-artifacts` branch
+- Working tree clean
+- Local ahead of remote (factory-artifacts is local-only per project policy)
+- Feature `feature/PLUGIN-MIGRATION-001-E` worktree at `.worktrees/PLUGIN-MIGRATION-001-E/` healthy
+
+#### Step 2: SHA verification
+
+Verify:
+- `git -C /Users/jmagady/Dev/prism rev-parse develop` == `f19575ff` (if changed, surface as BLOCKER and consider rebasing feature branch)
+- `git -C /Users/jmagady/Dev/prism/.worktrees/PLUGIN-MIGRATION-001-E rev-parse HEAD` == `9e412c83` (must be unchanged since pass-12 CONVERGENCE)
+
+#### Step 3: Confirm CONVERGENCE state
+
+Read `/Users/jmagady/Dev/prism/.factory/cycles/wave-0-plugin-prereqs/PLUGIN-MIGRATION-001-E/local-pass-12.md`. Verify the "LOCAL CASCADE CONVERGED" declaration at the top.
+
+#### Step 4: Demo-recorder per-AC evidence
+
+Dispatch `vsdd-factory:demo-recorder` for PLUGIN-MIGRATION-001-E.
+
+Scope: record evidence for each of the 11 ACs at `docs/demo-evidence/PLUGIN-MIGRATION-001-E/`. The story spec at `/Users/jmagady/Dev/prism/.factory/stories/PLUGIN-MIGRATION-001-E-crowdstrike-oauth2-refresh-on-401-prx-wasm-plugin.md` enumerates the ACs (read AC-001 through AC-011 plus the Red Gate test names for each).
+
+Demo-evidence directory must be created at `docs/demo-evidence/PLUGIN-MIGRATION-001-E/` per POL-10 (demo_evidence_story_scoped; HIGH severity). Use per-AC subdirectories or per-AC files matching the existing PLUGIN-MIGRATION-001-D pattern (see `docs/demo-evidence/PLUGIN-MIGRATION-001-D/` for reference).
+
+#### Step 5: Push feature branch to origin
+
+After demo-evidence committed, push `feature/PLUGIN-MIGRATION-001-E` to origin via devops-engineer or direct git push.
+
+#### Step 6: PR-manager 9-step PR lifecycle
+
+Dispatch `vsdd-factory:pr-manager` with the standard 9-step protocol against develop. This includes a PR-LEVEL adversary cascade (SEPARATE from LOCAL — fresh context, fresh 3-CLEAN streak required per BC-5.39.001). The PR-LEVEL cascade may surface system-level findings not visible at LOCAL scope.
+
+#### Step 7: Post-merge bookkeeping
+
+After PR merges:
+- POL-14 BC auto-promotion: BCs in `behavioral_contracts:` frontmatter of PLUGIN-MIGRATION-001-E story auto-promote `draft → active`. State-manager handles.
+- DF-001 deferred finding (`aql_query_execution` + `aql_query_rejected` SAP-1 catalog gap in armis.rs) carries forward to phase-5 system-wide SAP-1 audit (does NOT block this story's merge).
+- MED-001 `#[ignore]` continues to cite S-PLUGIN-CI-001 AC-001 until S-PLUGIN-CI-001 lands; this is correct SID-1 §5 deferral discipline.
+
+#### Step 8 (optional, post-merge): Begin S-PLUGIN-CI-001 cascade
+
+S-PLUGIN-CI-001 is a stub (v0.1, draft, 3 ACs). When the team is ready, dispatch the deliver-story workflow against it. The story closes 3 deferrals from PLUGIN-MIGRATION-001-E + provides the .prx CI infrastructure for future plugin stories.
+
+### §4. KEY CONTEXT NUGGETS
+
+- **Cascade discovered 3 paper-fix recurrences during this session.** Pattern: implementer doc-comments fix intent without landing load-bearing code. Caught at increasing depth: F-LP7-MED-001 by orchestrator pre-persistence (structural-coverage axis pass-5), F-LP8-MED-001 by adversary pass-8, F-LP9-HIGH-001 by adversary pass-9 (slipped through orchestrator because implementer stalled mid-verify). New cascade discipline D-799: orchestrator MUST independently grep for claimed code changes after implementer reports — not just trust the report or re-run build gates.
+- **Real defect discovered by cascade:** wit-bindgen 0.51+ rejects top-level type declarations (sensor-auth.wit had `record http-response`, `enum log-level`, `variant auth-error` outside any `interface` block). The pass-3 F-LP3-HIGH-001 "Guest impl present" closure had NEVER compiled — `#[cfg(target_arch = "wasm32")]` gating hid the failure. Pass-5 structural-coverage axis caught this via the `wasm32-compile-check` CI job (added by FB-IMPL-4).
+- **New error variant E-PLUGIN-022 PluginError::AuthTokenNotCached** introduced to distinguish runtime-behavioral failures from E-PLUGIN-008 CompilationFailed for operator audit triage accuracy. Trigger-conflation note in error-taxonomy.md v1.49 explicitly documents that the host cannot distinguish guest-AuthError::ResponseParse from guest-missing-kv_set at runtime; operator action is identical for both.
+- **F-LP9-HIGH-001 closure pattern (D-799):** `#[cfg(not(any(test, feature = "test-helpers")))] panic!(...)` at `prism-spec-engine/src/plugin/mod.rs:710-718`. Deviation from initial `assert!(cfg!(test))` spec is sound: clippy::assertions_on_constants rejects assertions-on-cfg-constants; integration test binaries use the `test-helpers` feature not `cfg(test)`. The cfg-attribute pattern correctly excludes both unit-test AND integration-test builds.
+- **DF-001 deferred system-level finding** (carried forward to phase-5): `aql_query_execution` + `aql_query_rejected` tracing emissions at `crates/prism-sensors/src/auth/armis.rs:434, 449` lack BC-2.16.002 catalog rows. PRE-EXISTING on develop@f19575ff; outside `crates_touched` for PLUGIN-MIGRATION-001-E. Does NOT block per-story convergence per BC-5.39.002 PC2.
+- **5 NEW standing cascade axes operationalized this session:**
+  - P5 structural-coverage verification
+  - P6 EC-test-vs-spec fidelity (test-body dimension)
+  - P7-A spec-emission existence (inverse SAP-1)
+  - P7-B deferral-citation specificity (SID-1 §5)
+  - P7-C test-assertion sibling-symmetry
+  - P8 test-as-paper-fix in test code (POL-11)
+  - P8 error-variant semantic fidelity
+  - P8 BC catalog format-specifier accuracy
+  - P8 correction-burst orphan sweep
+  - P8 emission reachability under all dispatch branches
+  - D-799 orchestrator-independent-verify discipline (paper-fix re-detection)
+- **3 worktrees active**: `.worktrees/PLUGIN-MIGRATION-001-E/` (CONVERGED; this story), `.worktrees/S-3.09/` (FROZEN — BUG-S309-PLUGIN), `.worktrees/W3-FIX-S307-001/` (BLOCKED — superseded by PLUGIN-MIGRATION-001-A). DO NOT touch the other two.
+
+### §5. CRITICAL NOTES FOR RESUME
+
+- **Develop HEAD `f19575ff` unchanged** since cascade start 2026-05-22. If develop has moved, surface as BLOCKER and consider rebasing feature `9e412c83` before PR.
+- **Feature branch `feature/PLUGIN-MIGRATION-001-E` HEAD `9e412c83`** — verify before any further dispatch. If changed (unexpected), surface as BLOCKER.
+- **State-manager LAST in every burst** per orchestrator rule.
+- **Path discipline:** READ THE WORKTREE PATH `/Users/jmagady/Dev/prism/.worktrees/PLUGIN-MIGRATION-001-E/...` NOT develop-baseline `/Users/jmagady/Dev/prism/crates/...`. Pass-10 adversary nearly false-flagged a 4th paper-fix from path-scope error; CLAUDE.md system-reminder injection alerted them.
+- **Paper-fix re-detection discipline (D-799):** when an implementer reports a closure containing a specific macro/assertion/code, orchestrator MUST independently `grep` for the claimed change before persisting state-manager burst. Do NOT trust the report alone. Do NOT only re-run build gates (a paper-fix closure can pass build gates).
+- **POL-29 within-burst sibling-sweep:** when bumping any BC/ADR/error-taxonomy version, sibling-sweep BOTH `.factory/` AND `crates/` scope for cite-pin references.
+- **Demo-recorder POL-10 enforcement:** evidence MUST live under `docs/demo-evidence/PLUGIN-MIGRATION-001-E/` (per-story-scoped); flat `docs/demo-evidence/*.md` files collide across stories.
+- **PR-LEVEL adversary cascade is SEPARATE from LOCAL**: fresh context, fresh 3-CLEAN streak required. Different perimeter (cross-crate visibility). May surface system-level findings not visible at LOCAL scope.
+
+### §6. Resume Protocol
+
+1. Read STATE.md frontmatter (v7.490)
+2. Read this §RESUME SNAPSHOT 2026-05-23-PLUGIN-E-CONVERGED section
+3. Run `vsdd-factory:factory-worktree-health` skill (BLOCKING preflight)
+4. Verify `develop@f19575ff` unchanged + feature `feature/PLUGIN-MIGRATION-001-E` HEAD `9e412c83`
+5. Read `local-pass-12.md` and verify "LOCAL CASCADE CONVERGED" declaration
+6. Dispatch `vsdd-factory:demo-recorder` per §3 Step 4
+
+_Agent routing: see CLAUDE.md §Agent Routing Table._
+
+_Cascade convergence per BC-5.39.001. Next phase: demo-recorder + push + pr-manager 9-step PR lifecycle (with PR-LEVEL adversary cascade)._
