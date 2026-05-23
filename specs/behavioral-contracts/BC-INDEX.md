@@ -1,10 +1,10 @@
 ---
 document_type: behavioral-contract-index
 level: L3
-version: "5.43"
+version: "5.45"
 status: draft
 producer: product-owner
-timestamp: 2026-05-22T00:00:00Z
+timestamp: 2026-05-23T00:00:00Z
 phase: 3.A
 total_contracts: 240
 active_contracts: 231
@@ -207,7 +207,7 @@ Phase 3-patch additions (2026-04-16): 22 new BCs added in Burst 1 to close trace
 | BC-2.15.010 | Decorator Three-Phase Model — Config-Time, Query-Time, Periodic | 15 - Storage Layer | CAP-026 | P0 | draft |
 | BC-2.15.011 | Internal Table Registration — RocksDB Domains as DataFusion Tables | 15 - Storage Layer | CAP-028 | P0 | draft |
 | BC-2.16.001 | Sensor Spec File Loading — Parse TOML, Validate Schema, Register Tables | 16 - Spec Engine | CAP-029 | P0 | active (promoted draft→active D-776 per POL-14; anchor story PLUGIN-MIGRATION-001-D merged PR #153 develop@3f2de889 2026-05-22) — v1.7 |
-| BC-2.16.002 | Multi-Step Fetch Pipeline Execution — Sequential Steps with Variable Interpolation | 16 - Spec Engine | CAP-029 | P0 | active (promoted draft→active D-427 per POL-14; anchor story S-PLUGIN-PREREQ-B merged PR #143 develop@ae7e26c8 2026-05-12) — v1.40 |
+| BC-2.16.002 | Multi-Step Fetch Pipeline Execution — Sequential Steps with Variable Interpolation | 16 - Spec Engine | CAP-029 | P0 | active (promoted draft→active D-427 per POL-14; anchor story S-PLUGIN-PREREQ-B merged PR #143 develop@ae7e26c8 2026-05-12) — v1.42 |
 | BC-2.16.003 | Column-to-OCSF Mapping at Query Time — Map Sensor Columns to OCSF Fields Per Spec | 16 - Spec Engine | CAP-029 | P0 | draft |
 | BC-2.16.004 | ~~Rust Escape Hatch for Custom Adapters — Trait-Based Override When Config Is Insufficient~~ | 16 - Spec Engine | CAP-029 | P0 | removed (lifecycle_status: removed since PREREQ-E impl; status aligned at D-726 per POL-14 PR #151 merge) — v1.5 |
 | BC-2.16.005 | `reload_config` MCP Tool — Re-Read All Config Files, Validate, Atomic Swap, Notify | 16 - Spec Engine | CAP-030 | P1 | draft |
@@ -217,7 +217,7 @@ Phase 3-patch additions (2026-04-16): 22 new BCs added in Burst 1 to close trace
 | BC-2.16.009 | Spec File Validation — Schema Validation, Variable Reference Resolution, OCSF Field Validation | 16 - Spec Engine | CAP-029 | P0 | active (promoted draft→active D-776 per POL-14; anchor story PLUGIN-MIGRATION-001-D merged PR #153 develop@3f2de889 2026-05-22) — v1.5 |
 | BC-2.16.010 | `list_sensor_specs` MCP Tool — List Loaded Sensor Specs with Table Schemas and Status | 16 - Spec Engine | CAP-029 | P0 | draft |
 | BC-2.16.011 | CustomAdapter Rust Trait Retirement — Removal of Trait, Registry, and All Call Sites | 16 - Spec Engine | CAP-029 | P0 | active (promoted draft→active D-726 per POL-14; anchor story S-PLUGIN-PREREQ-E merged PR #151 develop@80ebe794 2026-05-19) — v1.12 |
-| BC-2.16.012 | PluginRegistry Dispatch in spec_parser.rs — Hardcoded Sensor Names Replaced with Registry Lookup | 16 - Spec Engine | CAP-029 | P0 | active (promoted draft→active D-726 per POL-14; anchor story S-PLUGIN-PREREQ-E merged PR #151 develop@80ebe794 2026-05-19) — v1.31 |
+| BC-2.16.012 | PluginRegistry Dispatch in spec_parser.rs — Hardcoded Sensor Names Replaced with Registry Lookup | 16 - Spec Engine | CAP-029 | P0 | active (promoted draft→active D-726 per POL-14; anchor story S-PLUGIN-PREREQ-E merged PR #151 develop@80ebe794 2026-05-19) — v1.33 |
 | BC-2.16.013 | Bundled Sensor Spec Authoring and DTU-Parity Verification — 4 Initial Sensors | 16 - Spec Engine | CAP-029 | P0 | active (promoted draft→active D-776 per POL-14; anchor story PLUGIN-MIGRATION-001-D merged PR #153 develop@3f2de889 2026-05-22) — v1.16 |
 | BC-2.17.001 | Plugin Panic Isolation — Crashed Plugin Does Not Terminate Host Process | 17 - WASM Plugin Runtime | CAP-032 | P0 | active (POL-14 auto-promotion D-568 S-PLUGIN-PREREQ-D merge PR #149 ec90fe8f 2026-05-15) |
 | BC-2.17.002 | Plugin Sandbox — No Direct Filesystem or Network Access | 17 - WASM Plugin Runtime | CAP-032 | P0 | active (POL-14 auto-promotion D-568 S-PLUGIN-PREREQ-D merge PR #149 ec90fe8f 2026-05-15) |
@@ -370,6 +370,10 @@ Phase 3-patch additions (2026-04-16): 22 new BCs added in Burst 1 to close trace
 - Subsystem 19: Infusion Enrichment Framework (AD-020, CAP-031)
 
 ### Change Log (Adversarial Review Fixes)
+
+**v5.45 (2026-05-23, FB-IMPL-6-CORRECTION PLUGIN-MIGRATION-001-E):** implementer | BC-2.16.002 in-line row 210 v1.41→v1.42 (F-LP7-MED-001 CORRECTION burst: paper-fix resolved — emission moved from `#[cfg(test)]-gated guest helper` to unconditional host function `emit_acquire_token_parse_error_and_fail` in `crates/prism-spec-engine/src/plugin/mod.rs`; row 37 emission site + fields updated to reflect host path; guest `acquire_token`+`get_token` signatures reverted to remove `plugin_id: &str`; guest capturing-subscriber test replaced with `test_acquire_token_EC_002_returns_response_parse_no_token_cached`; new load-bearing host unit test `test_F_LP7_MED_001_host_emit_acquire_token_parse_error_fires_unconditionally` + `#[ignore]`'d integration test for S-PLUGIN-CI-001). BC-INDEX v5.44→v5.45.
+
+**v5.44 (2026-05-23, FB-IMPL-6 PLUGIN-MIGRATION-001-E):** implementer | BC-2.16.002 in-line row 210 v1.40→v1.41 (F-LP7-MED-001 + F-LP7-LOW-001 closure: `plugin.auth_token_parse_error` ERROR event row 37 added; catalog count 36→37; catalog bullet label `(v1.24)` → `(v1.25)` per POL-30 Fork B canonical rule; `acquire_token` + `get_token` signatures updated to accept `plugin_id: &str`; capturing-subscriber test added; EC-003 no-token-cached assertion added). POL-30 Fork B sibling-sweep: error-taxonomy v1.46→v1.47 (3 cite-pin sites: E-PLUGIN-020 + E-PIPELINE-001 ×2) + BC-2.16.012 in-line row 220 v1.31→v1.33 (3 cite-pin sites: §Postconditions line 84 ×2 + EC-016-012-005 line 110). BC-INDEX v5.43→v5.44.
 
 **v5.43 (2026-05-22, FB-IMPL-3 PLUGIN-MIGRATION-001-E):** implementer | BC-2.16.002 in-line row 210 v1.39→v1.40 (F-LP3-LOW-001 closure: `plugin_auth_provider_constructed` INFO event row 36 added; catalog count 35→36; catalog bullet label `(v1.23)` → `(v1.24)` per POL-30 Fork B canonical rule). POL-29 v1.29 step 8f sibling-sweep: error-taxonomy v1.45→v1.46 (3 sites: E-PLUGIN-020 + E-PIPELINE-001 ×2); S-PLUGIN-PREREQ-E story v1.52→v1.53 (5 sites: lines 219, 311, 363, 438, 439). BC-INDEX v5.42→v5.43.
 

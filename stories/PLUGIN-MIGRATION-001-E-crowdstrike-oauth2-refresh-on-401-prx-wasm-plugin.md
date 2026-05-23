@@ -6,7 +6,7 @@ wave: 1
 epic_id: PLUGIN-MIGRATION-001
 priority: P0
 status: ready
-version: "v1.2"
+version: "v1.3"
 level: "L4"
 producer: story-writer
 timestamp: "2026-05-22T00:00:00Z"
@@ -476,10 +476,10 @@ satisfied for any new public types (per CLAUDE.md conventions).
 | EC-003 | Token response is missing `access_token` field | Plugin returns `AuthError::ResponseParse` with detail "missing access_token field"; no token cached | `test_acquire_token_EC_003_missing_access_token_returns_response_parse` |
 | EC-004 | Token response `expires_in` field is missing or zero | Plugin defaults to 1799 seconds TTL (matching legacy `CrowdStrikeAdapter::acquire_token` `unwrap_or(1799)` semantics); token is cached | `test_acquire_token_EC_004_missing_expires_in_defaults_to_1799`, `test_acquire_token_EC_004_zero_expires_in_defaults_to_1799` |
 | EC-005 | KV store at 1MB limit when trying to cache a new token | Plugin returns `AuthError::Internal("kv_store size limit exceeded")`; query fails with structured error; no silent truncation | `test_acquire_token_EC_005_kv_set_error_propagates` |
-| EC-006 | Plugin binary is missing from expected path at boot | `PluginRuntime::load_plugin` fails; boot step 7.5 emits ERROR and continues (plugin unavailable, not a fatal boot failure per PREREQ-D AC-3 semantics) | wasm32 Guest impl / WAT-fixture / integration tests (not closed in FB-IMPL-4) |
-| EC-007 | Plugin loaded but WIT validation fails (wrong export signature) | `PluginRuntime::load_plugin` returns `Err(PluginError::WitValidationFailed)`; plugin not registered; boot continues | wasm32 Guest impl / WAT-fixture / integration tests (not closed in FB-IMPL-4) |
-| EC-008 | `host_http_request()` to `/oauth2/token` is rejected by allowlist (wrong host) | Host returns `Err(PluginError::SandboxViolation)`; plugin returns `AuthError::Internal`; no token acquired | wasm32 Guest impl / WAT-fixture / integration tests (not closed in FB-IMPL-4) |
-| EC-009 | Double 401: both initial request and refresh request return 401 | PipelineExecutor's `issue_request_with_retry` propagates `SpecEngineError::AuthRefreshFailed` (AC-5 of PREREQ-B; unchanged behavior) | wasm32 Guest impl / WAT-fixture / integration tests (not closed in FB-IMPL-4) |
+| EC-006 | Plugin binary is missing from expected path at boot | `PluginRuntime::load_plugin` fails; boot step 7.5 emits ERROR and continues (plugin unavailable, not a fatal boot failure per PREREQ-D AC-3 semantics) | Deferred to S-PLUGIN-CI-001 AC-002 → `test_S_PLUGIN_CI_001_002_missing_prx_at_boot_continues_with_error_log` (requires CI-built .prx artifact and boot sequence; unit test exercises missing-.prx path without subprocess overhead per S-PLUGIN-CI-001 §AC-002 design) |
+| EC-007 | Plugin loaded but WIT validation fails (wrong export signature) | `PluginRuntime::load_plugin` returns `Err(PluginError::InvalidInterface)`; plugin not registered; boot continues | `test_BC_2_17_006_ac7_invalid_wit_returns_e_plugin_001` (plugin_tests.rs) — asserts `Err(PluginError::InvalidInterface { .. })` on load; `test_BC_2_17_006_ac7_invariant_plugin_not_registered_after_invalid_wit` (plugin_tests.rs) — asserts plugin absent from registry after WIT failure |
+| EC-008 | `host_http_request()` to `/oauth2/token` is rejected by allowlist (wrong host) | Host returns HTTP 403 from allowlist gate; plugin receives error response and returns `AuthError::Internal`; no token acquired | `test_BC_2_17_002_ec17_url_not_in_allowlist_returns_403` (plugin_tests.rs) — asserts HTTP 403 when URL not in per-plugin allowlist (same mechanism as OAuth2 token endpoint rejection; `test_BC_2_17_002_ec17_007_http_request_empty_allowlist_blocked` exercises empty allowlist = default-deny case) |
+| EC-009 | Double 401: both initial request and refresh request return 401 | PipelineExecutor's `issue_request_with_retry` propagates `SpecEngineError::AuthRefreshFailed` (AC-5 of PREREQ-B; unchanged behavior) | Deferred to S-PLUGIN-CI-001 AC-003 → `test_S_PLUGIN_CI_001_003_double_401_returns_auth_refresh_failed` (requires real .prx artifact wired as auth provider through PipelineExecutor integration path; cannot be driven without CI-built .prx per S-PLUGIN-CI-001 §AC-003 design) |
 
 **Defense-in-depth note (FB-IMPL-5):** `test_acquire_token_non_2xx_returns_response_parse` covers the case where the token endpoint returns a non-2xx status other than 401 (e.g. HTTP 503). This exercises the status-check branch BEFORE JSON parsing — a separate code path from EC-002 (200 + invalid JSON). Non-2xx is not a named EC row because it is primarily a defense-in-depth path (the production CrowdStrike OAuth2 endpoint rarely returns non-401 errors); EC-002 is the operationally more likely scenario where a proxy or WAF returns 200 with an error body.
 
@@ -740,4 +740,6 @@ stories merged independently; the regression risk is PRODUCTION deployment.
 
 | Version | Date | Author | Change |
 |---------|------|--------|--------|
+| v1.3 | 2026-05-23 | implementer | F-LP7-MED-002 closure (FB-IMPL-6): EC-006/007/008/009 "Test Reference" column updated to SID-1 §5-compliant specific citations. EC-006: deferred to S-PLUGIN-CI-001 AC-002 → `test_S_PLUGIN_CI_001_002_missing_prx_at_boot_continues_with_error_log`. EC-007: cite `test_BC_2_17_006_ac7_invalid_wit_returns_e_plugin_001` + `test_BC_2_17_006_ac7_invariant_plugin_not_registered_after_invalid_wit` (plugin_tests.rs). EC-008: cite `test_BC_2_17_002_ec17_url_not_in_allowlist_returns_403` + `test_BC_2_17_002_ec17_007_http_request_empty_allowlist_blocked` (plugin_tests.rs). EC-009: deferred to S-PLUGIN-CI-001 AC-003 → `test_S_PLUGIN_CI_001_003_double_401_returns_auth_refresh_failed`. Removed plural-vague "wasm32 Guest impl / WAT-fixture / integration tests (not closed in FB-IMPL-4)" phrasing from all 4 rows. |
+| v1.2 | 2026-05-23 | implementer | FB-IMPL-5 closure (pass-6): EC-002 test renamed from `test_acquire_token_EC_002_invalid_json_returns_response_parse`; story spec updated to v1.2 with FB-IMPL-5 changes. |
 | v1.0 | 2026-05-22 | story-writer | Initial authoring — full sprint-ready story per dispatch 2026-05-22 |

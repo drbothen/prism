@@ -1,9 +1,9 @@
 ---
 document_type: pipeline-state
 level: ops
-version: "7.481"
+version: "7.482"
 producer: state-manager
-timestamp: 2026-05-23T12:00:00Z
+timestamp: 2026-05-23T14:00:00Z
 inputs: []
 input-hash: "[live-state]"
 traces_to: ""
@@ -16,11 +16,11 @@ repos: [poller-cobra, poller-express, poller-bear, poller-coaster, serveMyAPI, t
 safe_to_compact: true
 pre_compact_snapshot: "SESSION-HANDOFF.md §RESUME SNAPSHOT 2026-05-22-PLUGIN-E"
 pre_compact_snapshot_at: "2026-05-22 (D-788 PLUGIN-MIGRATION-001-E pass-4 CLEAN, streak 1/3)"
-current_step: "S-PLUGIN-CI-001 story stub created (status: draft, version v0.1, 3 ACs with specific Red Gate test names). Closes 3 PLUGIN-MIGRATION-001-E deferrals: EC-006 boot-with-missing-prx, EC-009 double-401-AuthRefreshFailed, MED-001 #[ignore] removal. Enables F-LP7-MED-002 closure (SID-1 §5 deferral specificity). NEXT: dispatch implementer FB-IMPL-6 with full SID-1-compliant citations."
+current_step: "PLUGIN-MIGRATION-001-E FB-IMPL-6 CLOSED all 3 pass-7 findings (2 commits: e56e6f97 original + 657762c7 correction). Paper-fix caught pre-persistence by orchestrator structural-coverage axis: emission was in GUEST gated #[cfg(test)] — wasm32 has no subscriber, production builds emitted nothing. Correction: emission relocated to HOST unconditional `emit_acquire_token_parse_error_and_fail` called from `dispatch_plugin_acquire_token`. BC-2.16.002 v1.40→v1.42, BC-INDEX v5.43→v5.45. Story spec v1.2→v1.3 with SID-1 §5 citations. Feature HEAD 7702ea78 → 657762c7. just check PASS, 3518 tests. NEXT: adversary pass-8 (streak attempt 0/3 → 1/3)."
 plugin_migration_001_e_local_adversary_passes: 7
-plugin_migration_001_e_status: "LOCAL pass-7: 3 findings (0 CRIT, 0 HIGH, 2 MED, 1 LOW). Cascade in refinement phase — structural defects extinct, fidelity sub-dimensions remain. Streak stays 0/3. FB-IMPL-6 dispatch pending."
-plugin_migration_001_e_local_fix_bursts: 5
-plugin_migration_001_e_local_findings_closed: 39
+plugin_migration_001_e_status: "FB-IMPL-6 (with correction) closed all 3 pass-7 findings. Feature HEAD 657762c7. Paper-fix caught pre-persistence (guest #[cfg(test)] emission → host unconditional). BC-2.16.002 v1.42, BC-INDEX v5.45, story spec v1.3. Pass-8 dispatch pending."
+plugin_migration_001_e_local_fix_bursts: 6
+plugin_migration_001_e_local_findings_closed: 42
 plugin_migration_001_e_local_adversary_clean_streak: 0
 plugin_migration_001_d_red_gate_verified_at: 2026-05-21T20:15:00Z
 plugin_migration_001_d_tdd_green_at: 2026-05-21T21:29:04Z
@@ -65,10 +65,10 @@ dtu_strategy_decided: 2026-04-20
 policy_registry_source_of_truth: .factory/policies.yaml
 develop_head: "f19575ff"
 vsdd_factory_version: "1.0.0-rc.18 (re-activated 2026-05-13T15:00:19Z; upgrade chain rc.11 → rc.16 2026-05-10 → rc.18 2026-05-13)"
-workspace_test_count: 3762
+workspace_test_count: 3518
 user_directive_persistent: "No pragmatic convergence. Fix all issues before build."
 current_cycle_history: "wave-0-plugin-prereqs (PREREQ-E merged PR #151 2026-05-19); prior: wave-4-operations (active); wave-3-multi-tenant (COMPLETE)"
-bc_index_version: "5.42"
+bc_index_version: "5.45"
 vp_index_version: "1.76"
 story_index_version: "v2.184"
 plugin_migration_001_d_local_adversary_passes: 25
@@ -91,7 +91,7 @@ bc_count_corrected: 240
 subsystem_count: 22
 vp_count: 156
 prd_version: "1.10"
-error_taxonomy_version: "1.45"
+error_taxonomy_version: "1.47"
 arch_index_version: "2.96"
 verification_coverage_matrix_version: "1.42"
 verification_architecture_version: "1.41"
@@ -152,6 +152,7 @@ _D-001..D-046 archived: [cycles/phase-3-dtu-wave-2/decisions-archive-d001-d032.m
 
 | ID | Decision | Rationale | Phase | Date |
 |----|----------|-----------|-------|------|
+| D-795 | 2026-05-23 | state-manager (FB-IMPL-6 closure burst with correction) | FB-IMPL-6 closed all 3 pass-7 findings (F-LP7-MED-001 + F-LP7-MED-002 + F-LP7-LOW-001) via 2 commits (e56e6f97 + 657762c7). Notable: PAPER-FIX CAUGHT PRE-PERSISTENCE — original FB-IMPL-6 placed `plugin.auth_token_parse_error` emission in GUEST gated #[cfg(test)] with #[cfg(not(test))] no-op stub. Wasm32 guest has no tracing subscriber; production builds emitted nothing. Orchestrator structural-coverage axis (pass-5 standing) caught the defect before factory-artifacts persistence; implementer correction relocated emission to HOST unconditional `emit_acquire_token_parse_error_and_fail` in `prism-spec-engine/src/plugin/mod.rs::dispatch_plugin_acquire_token`. BC-2.16.002 v1.40→v1.42 with row 37 emission-site correction + catalog header (v1.25)→(v1.26). BC-INDEX v5.43→v5.45. The cascade's standing structural-coverage axis is validated by its own catch. Feature HEAD 657762c7. Workspace 3518 tests authoritative (prior 3762 was counting artifact between just check orchestration and bare cargo nextest). | FB-IMPL-6 with correction |
 | D-794 | 2026-05-23 | S-PLUGIN-CI-001 story stub created to satisfy SID-1 §5 deferral specificity for PLUGIN-MIGRATION-001-E EC-006 + EC-009 + MED-001 #[ignore]. Story has 3 ACs with specific Red Gate test names. Scope: wasm-tools CI toolchain + production .prx artifact + end-to-end plugin integration tests (EC-006 boot-with-missing-prx, EC-009 double-401-AuthRefreshFailed). STORY-INDEX v2.183→v2.184, total_stories 151→152. | story stub creation |
 | D-793 | 2026-05-23 | adversary (LOCAL pass-7) + state-manager (pass-persistence burst) | **PLUGIN-MIGRATION-001-E LOCAL pass-7: 3 sub-HIGH findings exposing NEW sub-dimensions of EC-test-vs-spec fidelity axis. F-LP7-MED-001 (spec EC-002 names tracing `event_type="plugin.auth_token_parse_error"` that exists in zero code paths — inverse SAP-1). F-LP7-MED-002 (EC-006..009 deferral citations violate SID-1 §5 specificity — plural-vague "integration tests" with no story ID or test name). F-LP7-LOW-001 (EC-003 missing the no-token-cached assertion that EC-001+002 both include). Severity high-water 0 HIGH for 2 consecutive passes. Decay trajectory: 20→12→3→0→2→3→3. Streak stays 0/3. CLEAN(strict)=NO, CLEAN(PR-merge)=NO. FB-IMPL-6 dispatch pending. Report at cycles/wave-0-plugin-prereqs/PLUGIN-MIGRATION-001-E/local-pass-7.md. STATE v7.479→v7.480.** | adversary pass-7 | 2026-05-23 | Decided by: adversary (LOCAL pass-7) + state-manager (pass-persistence burst). Status: PASS-7-PERSISTED, STREAK-STAYS-0/3, FB-IMPL-6-PENDING |
 | D-792 | 2026-05-23 | state-manager (FB-IMPL-5 closure burst) | **FB-IMPL-5 closed all 3 pass-6 findings. EC-test-vs-spec fidelity gap closed for EC-002 (new invalid-JSON test + non-2xx renamed) and EC-004 (new zero-expires_in test). POL-29 sibling-sweep gap closed: 3 sibling WIT files (sensor-plugin, infusion-plugin, action-plugin) restructured to move type declarations inside interface blocks, mirroring the FB-IMPL-4 fix to sensor-auth.wit. Story spec v1.1→v1.2. Feature HEAD 639d89e1 → 7702ea78. Workspace tests 3760 → 3762 (+2). just check PASS. STATE v7.478→v7.479.** | FB-IMPL-5 | 2026-05-23 | Decided by: state-manager (FB-IMPL-5 closure burst). Status: FB-IMPL-5 CLOSED |
