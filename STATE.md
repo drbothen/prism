@@ -1,9 +1,9 @@
 ---
 document_type: pipeline-state
 level: ops
-version: "7.492"
+version: "7.493"
 producer: state-manager
-timestamp: 2026-05-23T12:00:00Z
+timestamp: 2026-05-23T14:00:00Z
 inputs: []
 input-hash: "[live-state]"
 traces_to: ""
@@ -16,7 +16,7 @@ repos: [poller-cobra, poller-express, poller-bear, poller-coaster, serveMyAPI, t
 safe_to_compact: true
 pre_compact_snapshot: "SESSION-HANDOFF.md §RESUME SNAPSHOT 2026-05-23-PLUGIN-E-CONVERGED"
 pre_compact_snapshot_at: "2026-05-23 (D-802 PLUGIN-MIGRATION-001-E LOCAL cascade CONVERGED per BC-5.39.001 3-CLEAN STRICT; pass-12 3rd consecutive CLEAN; next: demo-recorder per-AC + pr-manager)"
-current_step: "VSDD multi-tenant sensor endpoint override design — Burst 2/4 (Architect ADR) COMPLETE. ADR-029 drafted at .factory/specs/architecture/decisions/ADR-029-multi-tenant-sensor-endpoint-overrides.md (status: proposed). Decision: hybrid option (e) — global <sensor>.sensor.toml declares TYPE+schema; customers/<org>/<sensor>.sensor.toml overlays declare SCALAR tunables only (base_url, rate_limit_hints); [[tables]] in overlay = E-SPEC-020 boot hard error. Architect identified 5 NEW BCs needed + suggested story ID S-CONFIG-MULTI-TENANT-OVERRIDE-001 (wave-0 prereq, parallel to S-PLUGIN-CI-001). ARCH-INDEX v2.100→v2.101. NEXT: Burst 3/4 — product-owner drafts the 5 NEW BCs."
+current_step: "VSDD multi-tenant sensor endpoint override design — Burst 3/4 (Product-Owner BCs) COMPLETE. 5 NEW BCs drafted: BC-2.06.012 (overlay loading + merge), BC-2.06.013 (scalar-only enforcement), BC-2.06.014 (instance identity at fanout), BC-2.06.015 (OrgRegistry cross-validation), BC-2.06.016 (error taxonomy). All status: draft, traces_to: ADR-029. PO caught E-SPEC-018 collision (already allocated to TimestampParseFailure ADR-028/BC-2.16.013); error codes shifted to E-SPEC-019–023; ADR-029 swept to match (v1.0 → v1.1). BC-INDEX v5.46 → v5.47 (245 total_contracts, 7 draft_contracts, SS-06 16 BCs). NEXT: Burst 4/4 — story-writer drafts S-CONFIG-MULTI-TENANT-OVERRIDE-001 stub anchored to ADR-029 + 5 new BCs."
 pending_design_decision_research_artifact: ".factory/research/multi-tenant-sensor-endpoint-overrides-2026-05-23.md"
 pending_design_decision_topic: "multi-tenant per-org sensor endpoint overrides"
 plugin_migration_001_e_local_adversary_passes: 12
@@ -73,7 +73,7 @@ vsdd_factory_version: "1.0.0-rc.18 (re-activated 2026-05-13T15:00:19Z; upgrade c
 workspace_test_count: 3503
 user_directive_persistent: "No pragmatic convergence. Fix all issues before build."
 current_cycle_history: "wave-0-plugin-prereqs (PREREQ-E merged PR #151 2026-05-19); prior: wave-4-operations (active); wave-3-multi-tenant (COMPLETE)"
-bc_index_version: "5.46"
+bc_index_version: "5.47"
 vp_index_version: "1.76"
 story_index_version: "v2.184"
 plugin_migration_001_d_local_adversary_passes: 25
@@ -92,7 +92,7 @@ architectural_decisions_locked:
   - "5 LOCKED Path-A (D-747): ADR-028 §D2 explicitly supersedes ADR-026 §D3 (partial — auth_type_name() return values for Cyberint/Claroty/Armis); PLUGIN-MIGRATION-001-A scope EXPANDS to include rewriting these auth_type_name() returns + amending Red Gate test_BC_2_01_016_003. CrowdStrike unchanged."
 policies_version: "1.30"
 total_stories: 152
-bc_count_corrected: 240
+bc_count_corrected: 245
 subsystem_count: 22
 vp_count: 156
 prd_version: "1.10"
@@ -157,6 +157,7 @@ _D-001..D-046 archived: [cycles/phase-3-dtu-wave-2/decisions-archive-d001-d032.m
 
 | ID | Decision | Rationale | Phase | Date |
 |----|----------|-----------|-------|------|
+| D-806 | 2026-05-23 | VSDD multi-tenant sensor endpoint overrides — Burst 3/4 Product-Owner COMPLETE. 5 NEW BCs in SS-06 (Client Configuration) subsystem: BC-2.06.012 per-tenant overlay loading + merge semantics, BC-2.06.013 scalar-only overlay enforcement (boot-time rejection of [[tables]] in overlay), BC-2.06.014 instance identity resolution (org_id, sensor_id) → ResolvedSensorSpec at fanout, BC-2.06.015 OrgRegistry cross-validation (unknown overlay dir = E-SPEC-022 boot hard error), BC-2.06.016 error taxonomy for override violations (E-SPEC-019 through E-SPEC-023 canonical messages). All status: draft, lifecycle_status: draft, traces_to ADR-029. **Notable PO catch:** ADR-029 draft cited error codes E-SPEC-018-022 but E-SPEC-018 was already allocated in error-taxonomy.md v1.43 to TimestampParseFailure (ADR-028/BC-2.16.013). PO shifted to E-SPEC-019-023 in BC-2.06.016 + asserted precedence per Source-of-Truth Precedence Rule #3. State-manager swept ADR-029 v1.0 → v1.1 in same atomic burst (POL-29 within-FB sibling-sync) to eliminate ADR-vs-BC drift. BC-INDEX v5.46→v5.47, total_contracts 240→245, draft_contracts 2→7. Cross-cutting deps: BC-2.06.015 needs BC-2.21.001 OrgRegistry init at boot step 3 (already guaranteed by ADR-022 §B boot sequence); BC-2.06.013 gates BC-2.06.012 merge path; BC-2.06.014 is boot-time-producer/query-time-consumer of BC-2.06.012's ResolvedSensorSpec map. | product-owner |
 | D-805 | 2026-05-23 | VSDD multi-tenant sensor endpoint overrides — Burst 2/4 Architect COMPLETE. ADR-029 drafted (status: proposed). Decision: hybrid option (e) Sensor Instance with Per-Org Composition Directory. Layout: global TYPE specs unchanged at crates/prism-sensors/specs/<sensor>.sensor.toml; per-org INSTANCE overlays at crates/prism-sensors/specs/customers/<org>/<sensor>.sensor.toml declare SCALAR tunables only (base_url, rate_limit_hints) — NO [[tables]] schema overrides (would be E-SPEC-020 boot hard error per Rust config-rs array-REPLACE-not-MERGE constraint). New error codes E-SPEC-018 through E-SPEC-022. ADR-029 cross-references ADR-022 (Arc-DI plumbing, unchanged) + ADR-028 (plugin migration auth flow, unchanged). 5 NEW BCs identified for product-owner Burst 3: overlay loading semantics, scalar-only enforcement, instance identity at fanout, OrgRegistry cross-validation, error taxonomy entries. Suggested story ID S-CONFIG-MULTI-TENANT-OVERRIDE-001 (wave-0 prereq, parallel S-PLUGIN-CI-001). ARCH-INDEX v2.100→v2.101. | architect ADR-029 |
 | D-804 | 2026-05-23 | VSDD multi-tenant sensor endpoint overrides — Burst 1/4 Research COMPLETE. Artifact: .factory/research/multi-tenant-sensor-endpoint-overrides-2026-05-23.md. Recommends hybrid option (e) "Sensor Instance with Per-Org Composition Directory" — refinement of user's option (a) intuition: global <sensor>.sensor.toml declares TYPE+schema; customers/<org>/<sensor>.sensor.toml overlays declare per-tenant INSTANCES with SCALAR overrides only (base_url, rate_limit_hints), NO [[tables]] schema overrides. Mirrors 5-tool industry convergence (Telegraf [[inputs.http]] alias, OTel otlp/tenant_a, Vector component IDs, Datadog conf.d, Fluent Bit). Key finding: option (c) credential-encoded base URL has ZERO industry analogs (universally anti-pattern); option (a) raw inherits Helm/Kustomize array-replace footgun (config-rs/figment Rust crates confirm TOML arrays REPLACE not merge). Drives PLUGIN-MIGRATION-001-E architecture-clarification gap (D-803). NEXT: Burst 2/4 architect drafts ADR-NNN. | research-agent |
 | D-803 | 2026-05-23 | Durable §RESUME SNAPSHOT 2026-05-23-PLUGIN-E-CONVERGED written in SESSION-HANDOFF.md. State ready for /clear and fresh-session restart. Snapshot includes §1 this-session arc (16 bursts from pass-5 through CONVERGENCE), §2 convergence state (feature HEAD 9e412c83, BC-2.16.002 v1.43, BC-INDEX v5.46, error-taxonomy v1.49, story v1.3), §3 next-session dispatch plan (factory-worktree-health → SHA verify → demo-recorder per-AC for 11 ACs → push → pr-manager 9-step PR lifecycle → post-merge POL-14), §4 key context nuggets (3 paper-fix recurrences caught, wit-bindgen WIT-syntax real bug discovered, E-PLUGIN-022 variant, 5 NEW standing axes operationalized), §5 critical resume notes (path discipline, D-799 paper-fix-re-detection discipline, POL-10 demo evidence story-scoping, PR-LEVEL adversary cascade is fresh 3-CLEAN), §6 resume protocol (6 steps). DF-001 armis.rs SAP-1 carried forward to phase-5. | session-durability snapshot |

@@ -1,14 +1,14 @@
 ---
 document_type: behavioral-contract-index
 level: L3
-version: "5.46"
+version: "5.47"
 status: draft
 producer: product-owner
 timestamp: 2026-05-23T00:00:00Z
 phase: 3.A
-total_contracts: 240
+total_contracts: 245
 active_contracts: 231
-draft_contracts: 2
+draft_contracts: 7
 deprecated_contracts: 0
 removed_contracts: 7
 retired_contracts: 2
@@ -16,10 +16,10 @@ retired_contracts: 2
 
 # Behavioral Contract Index
 
-Flat index of all 240 behavioral contracts for Prism (240 total files, 231 active, 2 draft, 0 deprecated, 7 removed, 2 retired), organized by BC ID. Note: 5 prior index-only reserved entries (BC-2.07.007/008/009/010, BC-2.14.011) were dropped — they never had corresponding files.
+Flat index of all 245 behavioral contracts for Prism (245 total files, 231 active, 7 draft, 0 deprecated, 7 removed, 2 retired), organized by BC ID. Note: 5 prior index-only reserved entries (BC-2.07.007/008/009/010, BC-2.14.011) were dropped — they never had corresponding files.
 
 **Note on `total_contracts`:** This count represents unique BC identifiers ever filed
-(active + draft + deprecated + removed + retired = 231 + 2 + 0 + 7 + 2 = 242; note 2 additional were promoted here). Five prior index-only reserved entries
+(active + draft + deprecated + removed + retired = 231 + 7 + 0 + 7 + 2 = 247; note 2 additional were promoted here). 5 new BCs (BC-2.06.012–016) added in D-803 burst-3 for ADR-029 multi-tenant sensor endpoint overrides. Five prior index-only reserved entries
 (BC-2.07.007/008/009/010, BC-2.14.011) were dropped in v4.8 because they never had
 corresponding files — they are NOT counted in `total_contracts` and remain only in the
 historical references section below. Counts are derived from workspace enumeration of
@@ -108,6 +108,11 @@ Phase 3-patch additions (2026-04-16): 22 new BCs added in Burst 1 to close trace
 | BC-2.06.009 | Config Reload Triggers notifications/tools/list_changed | 06 - Client Configuration | CAP-009 | P0 | draft |
 | BC-2.06.010 | Client ID Validation Enforces Allowed Character Set | 06 - Client Configuration | CAP-009 | P0 | draft |
 | BC-2.06.011 | ConfigManager Initialization — prism.toml Schema Validation at Process Start | 06 - Client Configuration | CAP-009 | P0 | draft |
+| BC-2.06.012 | Per-Tenant Overlay Loading and Merge Semantics | 06 - Client Configuration | CAP-009 | P0 | draft |
+| BC-2.06.013 | Scalar-Only Overlay Enforcement — Boot-Time Rejection of Schema Fields in Overlay Files | 06 - Client Configuration | CAP-009 | P0 | draft |
+| BC-2.06.014 | Instance Identity Resolution at Fanout — (org_id, sensor_id) Tuple Resolves to ResolvedSensorSpec | 06 - Client Configuration | CAP-009 | P0 | draft |
+| BC-2.06.015 | OrgRegistry Cross-Validation at Boot — Unknown Overlay Directory Triggers E-SPEC-022 | 06 - Client Configuration | CAP-009 | P0 | draft |
+| BC-2.06.016 | Error Taxonomy for Per-Org Overlay Override Violations (E-SPEC-019 through E-SPEC-023) | 06 - Client Configuration | CAP-009 | P0 | draft |
 | BC-2.07.001 | Internal Ephemeral Pagination Token Structure | 07 - Adapter Pagination & Response Cache | CAP-011 | P0 | draft |
 | BC-2.07.002 | Internal Pagination Token Lifecycle — Forward Progress, Timeout, and Cleanup | 07 - Adapter Pagination & Response Cache | CAP-011 | P0 | draft |
 | BC-2.07.003 | Query Engine Sensor-Fetch Cache with Configurable TTL | 07 - Adapter Pagination & Response Cache | CAP-014 | P1 | draft |
@@ -318,7 +323,7 @@ Phase 3-patch additions (2026-04-16): 22 new BCs added in Burst 1 to close trace
 | 03 - Credential Management | 13 | 13 | 0 | 0 | 0 |
 | 04 - Feature Flags | 15 | 9 | 6 | 0 | 0 |
 | 05 - Audit Trail | 12 | 12 | 0 | 0 | 0 |
-| 06 - Client Configuration | 10 | 10 | 0 | 0 | 0 |
+| 06 - Client Configuration | 16 | 16 | 0 | 0 | 0 |
 | 07 - Adapter Pagination & Response Cache | 6 | 2 | 4 | 0 | 0 |
 | 08 - Sensor Health | 9 | 0 | 9 | 0 | 0 |
 | 09 - Prompt Injection Defense | 8 | 8 | 0 | 0 | 0 |
@@ -370,6 +375,8 @@ Phase 3-patch additions (2026-04-16): 22 new BCs added in Burst 1 to close trace
 - Subsystem 19: Infusion Enrichment Framework (AD-020, CAP-031)
 
 ### Change Log (Adversarial Review Fixes)
+
+**v5.47 (2026-05-23, D-803 burst-3):** product-owner | ADR-029 Burst 3 handoff: 5 new BCs drafted for multi-tenant sensor endpoint override feature. BC-2.06.012 (per-tenant overlay loading + merge semantics), BC-2.06.013 (scalar-only overlay enforcement — boot-time rejection of `[[tables]]` and unrecognized fields), BC-2.06.014 (instance identity resolution at fanout — `(org_id, sensor_id)` → `ResolvedSensorSpec`), BC-2.06.015 (OrgRegistry cross-validation at boot — unknown slug dir triggers E-SPEC-022), BC-2.06.016 (error taxonomy for override violations — E-SPEC-019 through E-SPEC-023 with ADR-029 draft E-SPEC-018–022 collision resolved; E-SPEC-018 already allocated to ADR-028 TimestampParseFailure). All 5 BCs are `status: draft`, `lifecycle_status: draft`. Subsystem SS-06 count: 11→16. total_contracts 240→245. draft_contracts 2→7. BC-INDEX v5.46→v5.47.
 
 **v5.46 (2026-05-23, FB-IMPL-7 PLUGIN-MIGRATION-001-E):** implementer | BC-2.16.002 in-line row 210 v1.42→v1.43 (F-LP8-MED-002 + F-LP8-MED-003 closure — pass-8 FB-IMPL-7: row 37 fields cell `%display` annotation removed (literal string, not Display-formatted type); `plugin_id` annotation clarified; return variant noted as `PluginError::AuthTokenNotCached (E-PLUGIN-022)` not `CompilationFailed`). BC-INDEX v5.45→v5.46.
 

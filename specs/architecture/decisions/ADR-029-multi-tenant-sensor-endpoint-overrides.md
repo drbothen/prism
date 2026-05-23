@@ -5,7 +5,7 @@ title: "Multi-Tenant Sensor Endpoint Overrides — Hybrid Sensor Instance with P
 status: Proposed
 date: "2026-05-23"
 modified: "2026-05-23"
-version: "1.0"
+version: "1.1"
 producer: architect
 subsystems_affected: [SS-01, SS-06, SS-16, SS-21]
 supersedes: null
@@ -203,7 +203,7 @@ requests_per_second = 5.0
 # Optional: per-org request timeout override (scalar).
 # timeout_secs = 45
 
-# FORBIDDEN in overlay files (boot-time hard error E-SPEC-020):
+# FORBIDDEN in overlay files (boot-time hard error E-SPEC-021):
 # [[tables]]   ← schema lives at TYPE level only
 ```
 
@@ -233,11 +233,11 @@ Step 4 of the boot sequence (`step4_load_sensor_specs`) is extended to:
 1. Load all TYPE specs from `<sensor_specs_dir>/*.sensor.toml` (existing behavior).
 2. Walk `<sensor_specs_dir>/customers/` subdirectory tree, collecting per-org overlay files.
 3. For each overlay file:
-   a. Verify `extends` references a loaded TYPE spec (E-SPEC-018: unknown sensor type).
-   b. Verify `instance_id` matches the `{sensor}@{org}` convention (E-SPEC-019: malformed instance_id).
-   c. Verify the directory name matches a registered `OrgRegistry` slug (E-SPEC-021: unknown org slug).
-   d. Reject any overlay containing `[[tables]]` blocks (E-SPEC-020: schema override forbidden).
-   e. Verify no unknown scalar fields (E-SPEC-022: unrecognized overlay field).
+   a. Verify `extends` references a loaded TYPE spec (E-SPEC-019: unknown sensor type).
+   b. Verify `instance_id` matches the `{sensor}@{org}` convention (E-SPEC-020: malformed instance_id).
+   c. Verify the directory name matches a registered `OrgRegistry` slug (E-SPEC-022: unknown org slug).
+   d. Reject any overlay containing `[[tables]]` blocks (E-SPEC-021: schema override forbidden).
+   e. Verify no unknown scalar fields (E-SPEC-023: unrecognized overlay field).
 4. Produce a `ResolvedSensorSpec` for each `(org_slug, sensor_id)` pair found.
 
 Boot fails (exit code 2 per ADR-022 §A) if any overlay fails validation. The fail-fast policy mirrors the existing credential validation at step 5.
@@ -273,15 +273,15 @@ Boot fails (exit code 2 per ADR-022 §A) if any overlay fails validation. The fa
 
 ### New Error Codes
 
-The following error codes are added to `.factory/specs/prd-supplements/error-taxonomy.md` (to be drafted by product-owner in Burst 3):
+The following error codes are added to `.factory/specs/prd-supplements/error-taxonomy.md` (drafted by product-owner in Burst 3; see BC-2.06.016 for canonical definitions). **Note:** E-SPEC-018 is already allocated to `TimestampParseFailure` (ADR-028/BC-2.16.013). The codes below reflect the final allocation shifted +1 from ADR-029 v1.0 draft (E-SPEC-018–022 → E-SPEC-019–023). BC-2.06.016 §INV-ERR-005 and §Source-of-Truth Precedence govern the implementer.
 
 | Code | Condition | Severity |
 |------|-----------|----------|
-| E-SPEC-018 | Per-org overlay `extends` references an unknown sensor TYPE | FATAL (boot) |
-| E-SPEC-019 | `instance_id` does not match `{sensor}@{org}` convention | FATAL (boot) |
-| E-SPEC-020 | Per-org overlay contains `[[tables]]` blocks (schema override forbidden) | FATAL (boot) |
-| E-SPEC-021 | Overlay directory `customers/<slug>/` references unknown org slug | FATAL (boot) |
-| E-SPEC-022 | Overlay file contains unrecognized scalar field | FATAL (boot) |
+| E-SPEC-019 | Per-org overlay `extends` references an unknown sensor TYPE | FATAL (boot) |
+| E-SPEC-020 | `instance_id` does not match `{sensor}@{org}` convention | FATAL (boot) |
+| E-SPEC-021 | Per-org overlay contains `[[tables]]` blocks (schema override forbidden) | FATAL (boot) |
+| E-SPEC-022 | Overlay directory `customers/<slug>/` references unknown org slug | FATAL (boot) |
+| E-SPEC-023 | Overlay file contains unrecognized scalar field | FATAL (boot) |
 
 ### Existing Sensor TYPE Specs
 
@@ -296,8 +296,8 @@ CrowdStrike and Cyberint require no overlay mechanism — their `base_url` value
 | Risk | Severity | Mitigation |
 |------|----------|------------|
 | Stale per-org overlay after global TYPE schema bump | MEDIUM | Boot validator: emit `WARN` if overlay file mtime is older than TYPE file mtime (pattern from Datadog Agent drift detection) |
-| `[[tables]]` footgun in overlay silently loses schema | HIGH → MITIGATED | Boot-time hard reject: E-SPEC-020. No runtime exposure possible |
-| Overlay references nonexistent org slug (typo in directory name) | MEDIUM | Boot-time cross-check against OrgRegistry (E-SPEC-021). Fail-fast at boot |
+| `[[tables]]` footgun in overlay silently loses schema | HIGH → MITIGATED | Boot-time hard reject: E-SPEC-021. No runtime exposure possible |
+| Overlay references nonexistent org slug (typo in directory name) | MEDIUM | Boot-time cross-check against OrgRegistry (E-SPEC-022). Fail-fast at boot |
 | AI agent or analyst confuses `armis` (TYPE) with `armis@acme` (INSTANCE) in queries | LOW | PrismQL parser rejects unscoped sensor refs when multiple instances exist ("ambiguous sensor reference — use `armis@<org>`") |
 | Per-org overlay files multiply linearly with tenants | LOW | Accepted industry trade-off (Telegraf, Datadog accept it); mitigated by `prism org add` CLI scaffolding |
 | `prism config show --sensor armis@acme` needs provenance rendering | LOW | `prism config show` renders effective merged spec with per-field provenance; pattern from `helm get values` |
@@ -311,13 +311,13 @@ The following BCs are needed in the `SS-06` (Client Configuration) subsystem. Pr
 
 1. **BC-6.XX.001 — Per-Tenant Overlay Loading and Merge Semantics:** Postcondition: for each `customers/<org>/<sensor>.sensor.toml` found at boot, a `ResolvedSensorSpec` is produced by merging overlay scalars onto TYPE spec. Tables, auth_type, and sensor_id are inherited from TYPE unchanged.
 
-2. **BC-6.XX.002 — Per-Tenant Overlay Boot Validation (Scalar-Only):** Postcondition: any overlay containing `[[tables]]` blocks triggers E-SPEC-020 and aborts boot (exit 2). Any overlay whose `extends` value does not match a loaded TYPE triggers E-SPEC-018 and aborts boot.
+2. **BC-6.XX.002 — Per-Tenant Overlay Boot Validation (Scalar-Only):** Postcondition: any overlay containing `[[tables]]` blocks triggers E-SPEC-021 and aborts boot (exit 2). Any overlay whose `extends` value does not match a loaded TYPE triggers E-SPEC-019 and aborts boot.
 
 3. **BC-6.XX.003 — Instance Identity Resolution at Fanout:** Postcondition: for a query targeting `(org_id, sensor_id)`, the fanout engine resolves the `ResolvedSensorSpec` at dispatch time; `base_url` in the resolved spec is the overlay value if present, otherwise the TYPE default.
 
-4. **BC-6.XX.004 — Org-Registry Cross-Validation at Boot:** Postcondition: every `customers/<slug>/` directory whose `<slug>` does not correspond to a registered `OrgRegistry` entry triggers E-SPEC-021 and aborts boot (exit 2).
+4. **BC-6.XX.004 — Org-Registry Cross-Validation at Boot:** Postcondition: every `customers/<slug>/` directory whose `<slug>` does not correspond to a registered `OrgRegistry` entry triggers E-SPEC-022 and aborts boot (exit 2).
 
-5. **BC-6.XX.005 — Error Taxonomy Entries for Override Violations:** Defines E-SPEC-018 through E-SPEC-022 with canonical messages, field context, and recoverable/non-recoverable classification.
+5. **BC-6.XX.005 — Error Taxonomy Entries for Override Violations:** Defines E-SPEC-019 through E-SPEC-023 with canonical messages, field context, and recoverable/non-recoverable classification.
 
 BC IDs are provisional (`6.XX`); product-owner assigns canonical sequential IDs consistent with the BC-INDEX.
 
@@ -330,7 +330,7 @@ BC IDs are provisional (`6.XX`); product-owner assigns canonical sequential IDs 
 **Scope:** One story covering:
 - `SensorInstanceOverlay` and `ResolvedSensorSpec` types in prism-spec-engine
 - `SpecLoader::load_all` extension for `customers/` traversal + overlay merge
-- Boot step 4 extension with overlay validation (E-SPEC-018 through E-SPEC-022)
+- Boot step 4 extension with overlay validation (E-SPEC-019 through E-SPEC-023)
 - Fanout resolution wiring: `(org_id, sensor_id)` → `ResolvedSensorSpec`
 - Test fixtures: `customers/acme/armis.sensor.toml` + `customers/contoso/armis.sensor.toml`
 - Red Gate: existing single-tenant Armis integration tests pass unchanged
@@ -345,7 +345,7 @@ BC IDs are provisional (`6.XX`); product-owner assigns canonical sequential IDs 
 ## Follow-Up Actions
 
 - `crates/prism-sensors/specs/customers/.gitkeep` — add to repo so directory is tracked
-- Error taxonomy: add E-SPEC-018 through E-SPEC-022 (product-owner Burst 3)
+- Error taxonomy: add E-SPEC-019 through E-SPEC-023 (product-owner Burst 3; E-SPEC-018 already allocated to TimestampParseFailure per ADR-028/BC-2.16.013)
 - CI fixtures: per-tenant overlay files for Armis and Claroty (test-writer, `S-CONFIG-MULTI-TENANT-OVERRIDE-001`)
 - `armis.sensor.toml` and `claroty.sensor.toml` TYPE specs: update `base_url` comments to document per-org override path (implementer, same story)
 - `prism config show` CLI: provenance-aware rendering (story `S-CONFIG-MULTI-TENANT-OVERRIDE-002`)
@@ -357,3 +357,4 @@ BC IDs are provisional (`6.XX`); product-owner assigns canonical sequential IDs 
 | Version | Pass | Date | Author | Change |
 |---------|------|------|--------|--------|
 | 1.0 | D-803 | 2026-05-23 | architect | Initial proposal. Locks D-803 Decisions 1 + 2. ADR-029 registered in ARCH-INDEX v2.101. |
+| 1.1 | D-806 | 2026-05-23 | state-manager (POL-29 within-FB sibling-sync) | E-SPEC code range shifted from 018–022 to 019–023. PO caught E-SPEC-018 collision with already-allocated `TimestampParseFailure` (ADR-028/BC-2.16.013) during BC drafting (BC-2.06.016). PO shifted BCs to 019–023; state-manager swept all 14 ADR-029 occurrences of the old draft codes in the same atomic burst to eliminate ADR-vs-BC drift. Source-of-Truth Precedence Rule #3 (BC-2.06.016) governs implementer. |
