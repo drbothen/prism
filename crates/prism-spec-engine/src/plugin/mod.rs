@@ -693,6 +693,29 @@ impl PluginRuntime {
         // for any binary with Component Model magic — the only path into this arm requires
         // a WAT core-module binary, which is only provided by test helpers.
         if let Some(ref core_mod) = plugin.core_module {
+            // F-LP9-HIGH-001 + F-LP8-LOW-001 re-closure (F-LP9-OBS-001: assert! not debug_assert!).
+            // Production invariant: this branch is only reachable in test or test-helpers builds.
+            // If reached in a production binary (without test-helpers feature), a .prx artifact
+            // has a WAT core-module header instead of Component Model magic [0x0d,0x00,0x01,0x00],
+            // indicating either a corrupted/tampered artifact or a programming error in plugin
+            // construction.
+            //
+            // Implementation: use #[cfg] conditional compilation (not assert!(cfg!())) because
+            // clippy::assertions_on_constants rejects assert!(cfg!(...)) — cfg!() is a compile-time
+            // constant so clippy correctly identifies the assertion as trivially true or false.
+            // Instead: the panic is compiled-in ONLY in non-test, non-test-helpers builds; in
+            // test/test-helpers builds the block is not present (the WAT path is exercised by tests).
+            // Integration test binaries compile library code with the test-helpers feature enabled
+            // (self-referential dev-dependency in Cargo.toml), so the panic is absent there too.
+            #[cfg(not(any(test, feature = "test-helpers")))]
+            panic!(
+                "core_module path is test-only; production plugins MUST be Component Model. \
+                 Reaching this branch in a production binary (without test-helpers feature) \
+                 indicates either: \
+                 (a) a corrupted or tampered .prx artifact with WAT core-module magic bytes, or \
+                 (b) a programming error constructing a core_module = Some(_) plugin outside \
+                 test infrastructure. F-LP8-LOW-001 + F-LP9-HIGH-001 closure."
+            );
             // Core module WAT fixture: call "acquire-token" export.
             // The WAT fixture returns a hardcoded string (e.g., "crowdstrike-oauth2").
             // For real WASM Components, the Component Model dispatch path below runs.
