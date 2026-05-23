@@ -6,7 +6,7 @@ wave: 1
 epic_id: PLUGIN-MIGRATION-001
 priority: P0
 status: ready
-version: "v1.0"
+version: "v1.1"
 level: "L4"
 producer: story-writer
 timestamp: "2026-05-22T00:00:00Z"
@@ -469,17 +469,17 @@ satisfied for any new public types (per CLAUDE.md conventions).
 
 ## Edge Cases
 
-| ID | Description | Expected Behavior |
-|----|-------------|-------------------|
-| EC-001 | `POST /oauth2/token` returns HTTP 401 (invalid client credentials) | Plugin returns `AuthError::InvalidCredentials`; PipelineExecutor propagates as `SpecEngineError::AuthRefreshFailed`; no token cached |
-| EC-002 | `POST /oauth2/token` returns HTTP 200 but response body is not valid JSON | Plugin returns `AuthError::ResponseParse`; host logs `tracing::error!(event_type = "plugin.auth_token_parse_error")`; no token cached |
-| EC-003 | Token response is missing `access_token` field | Plugin returns `AuthError::ResponseParse` with detail "missing access_token field"; no token cached |
-| EC-004 | Token response `expires_in` field is missing or zero | Plugin defaults to 1799 seconds TTL (matching legacy `CrowdStrikeAdapter::acquire_token` `unwrap_or(1799)` semantics); token is cached |
-| EC-005 | KV store at 1MB limit when trying to cache a new token | Plugin returns `AuthError::Internal("kv_store size limit exceeded")`; query fails with structured error; no silent truncation |
-| EC-006 | Plugin binary is missing from expected path at boot | `PluginRuntime::load_plugin` fails; boot step 7.5 emits ERROR and continues (plugin unavailable, not a fatal boot failure per PREREQ-D AC-3 semantics) |
-| EC-007 | Plugin loaded but WIT validation fails (wrong export signature) | `PluginRuntime::load_plugin` returns `Err(PluginError::WitValidationFailed)`; plugin not registered; boot continues |
-| EC-008 | `host_http_request()` to `/oauth2/token` is rejected by allowlist (wrong host) | Host returns `Err(PluginError::SandboxViolation)`; plugin returns `AuthError::Internal`; no token acquired |
-| EC-009 | Double 401: both initial request and refresh request return 401 | PipelineExecutor's `issue_request_with_retry` propagates `SpecEngineError::AuthRefreshFailed` (AC-5 of PREREQ-B; unchanged behavior) |
+| ID | Description | Expected Behavior | Test Reference |
+|----|-------------|-------------------|----------------|
+| EC-001 | `POST /oauth2/token` returns HTTP 401 (invalid client credentials) | Plugin returns `AuthError::InvalidCredentials`; PipelineExecutor propagates as `SpecEngineError::AuthRefreshFailed`; no token cached | `test_acquire_token_EC_001_401_returns_invalid_credentials` |
+| EC-002 | `POST /oauth2/token` returns HTTP 200 but response body is not valid JSON | Plugin returns `AuthError::ResponseParse`; host logs `tracing::error!(event_type = "plugin.auth_token_parse_error")`; no token cached | `test_acquire_token_EC_002_non_2xx_returns_response_parse` |
+| EC-003 | Token response is missing `access_token` field | Plugin returns `AuthError::ResponseParse` with detail "missing access_token field"; no token cached | `test_acquire_token_EC_003_missing_access_token_returns_response_parse` |
+| EC-004 | Token response `expires_in` field is missing or zero | Plugin defaults to 1799 seconds TTL (matching legacy `CrowdStrikeAdapter::acquire_token` `unwrap_or(1799)` semantics); token is cached | `test_acquire_token_EC_004_missing_expires_in_defaults_to_1799` |
+| EC-005 | KV store at 1MB limit when trying to cache a new token | Plugin returns `AuthError::Internal("kv_store size limit exceeded")`; query fails with structured error; no silent truncation | `test_acquire_token_EC_005_kv_set_error_propagates` |
+| EC-006 | Plugin binary is missing from expected path at boot | `PluginRuntime::load_plugin` fails; boot step 7.5 emits ERROR and continues (plugin unavailable, not a fatal boot failure per PREREQ-D AC-3 semantics) | wasm32 Guest impl / WAT-fixture / integration tests (not closed in FB-IMPL-4) |
+| EC-007 | Plugin loaded but WIT validation fails (wrong export signature) | `PluginRuntime::load_plugin` returns `Err(PluginError::WitValidationFailed)`; plugin not registered; boot continues | wasm32 Guest impl / WAT-fixture / integration tests (not closed in FB-IMPL-4) |
+| EC-008 | `host_http_request()` to `/oauth2/token` is rejected by allowlist (wrong host) | Host returns `Err(PluginError::SandboxViolation)`; plugin returns `AuthError::Internal`; no token acquired | wasm32 Guest impl / WAT-fixture / integration tests (not closed in FB-IMPL-4) |
+| EC-009 | Double 401: both initial request and refresh request return 401 | PipelineExecutor's `issue_request_with_retry` propagates `SpecEngineError::AuthRefreshFailed` (AC-5 of PREREQ-B; unchanged behavior) | wasm32 Guest impl / WAT-fixture / integration tests (not closed in FB-IMPL-4) |
 
 ---
 
