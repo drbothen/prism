@@ -9,8 +9,8 @@ status: ready
 version: "v1.3"
 level: "L4"
 producer: story-writer
-timestamp: "2026-05-22T00:00:00Z"
-modified: "2026-05-22"
+timestamp: "2026-05-23T00:00:00Z"
+modified: "2026-05-23"
 tdd_mode: strict
 subsystems: [SS-01, SS-16, SS-17]
 # Subsystem anchor justifications:
@@ -128,7 +128,7 @@ phase: 3
 
 **Story ID:** PLUGIN-MIGRATION-001-E
 **Status:** ready
-**Version:** v1.2
+**Version:** v1.3
 **Wave:** 1 (blocked on PLUGIN-MIGRATION-001-D; D merged via PR #153 2026-05-22)
 
 ---

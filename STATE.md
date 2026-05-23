@@ -1,9 +1,9 @@
 ---
 document_type: pipeline-state
 level: ops
-version: "7.485"
+version: "7.486"
 producer: state-manager
-timestamp: 2026-05-23T17:00:00Z
+timestamp: 2026-05-23T18:00:00Z
 inputs: []
 input-hash: "[live-state]"
 traces_to: ""
@@ -16,11 +16,11 @@ repos: [poller-cobra, poller-express, poller-bear, poller-coaster, serveMyAPI, t
 safe_to_compact: true
 pre_compact_snapshot: "SESSION-HANDOFF.md §RESUME SNAPSHOT 2026-05-22-PLUGIN-E"
 pre_compact_snapshot_at: "2026-05-22 (D-788 PLUGIN-MIGRATION-001-E pass-4 CLEAN, streak 1/3)"
-current_step: "PLUGIN-MIGRATION-001-E LOCAL pass-9: 6 findings — F-LP9-HIGH-001 PAPER-FIX detected in FB-IMPL-7 F-LP8-LOW-001 closure (claimed debug_assert! cfg!(test) absent from code; only doc-comments narrate intent). 3rd paper-fix recurrence in cascade. Severity high-water REGRESSED to HIGH after 3 passes of 0 HIGH. F-LP9-MED-001 story frontmatter stale modified-date. F-LP9-MED-002 modified-date staleness class across 10+ files. F-LP9-MED-003 E-PLUGIN-022 message conflates two operator-triage signals. F-LP9-LOW-001 orphan comment. F-LP9-OBS-001 debug_assert vs assert evaluation. NEXT: dispatch FB-IMPL-8 with explicit anti-paper-fix discipline + orchestrator-independent verification of debug_assert claim."
+current_step: "PLUGIN-MIGRATION-001-E FB-IMPL-8 CLOSED all 6 pass-9 findings. F-LP9-HIGH-001 closed with REAL load-bearing code (#[cfg(not(any(test, feature=test-helpers)))] panic! at plugin/mod.rs:710-718). Orchestrator independently verified macro call present — paper-fix-re-detection discipline applied. F-LP9-MED-001 story frontmatter synced v1.2→v1.3. F-LP9-MED-003 error-taxonomy v1.48→v1.49 trigger-conflation clarification. Feature HEAD 95c1d89a→9e412c83. Severity high-water restored to 0 HIGH. NEXT: adversary pass-10 (streak attempt 0/3 → 1/3)."
 plugin_migration_001_e_local_adversary_passes: 9
-plugin_migration_001_e_status: "LOCAL pass-9: 6 findings, 1 HIGH paper-fix detection on FB-IMPL-7 closure. 3rd cascade paper-fix recurrence. Severity high-water regressed to HIGH. Streak stays 0/3. FB-IMPL-8 pending."
-plugin_migration_001_e_local_fix_bursts: 7
-plugin_migration_001_e_local_findings_closed: 49
+plugin_migration_001_e_status: "FB-IMPL-8 closed all 6 pass-9 findings via 1 implementer feature commit (9e412c83) + 1 implementer factory commit (23e7c672) + this state-manager burst (story sync + fix-burst-8.md). F-LP9-HIGH-001 closure verified real (not paper-fix). Severity high-water 0 HIGH restored. Pass-10 pending."
+plugin_migration_001_e_local_fix_bursts: 8
+plugin_migration_001_e_local_findings_closed: 55
 plugin_migration_001_e_local_adversary_clean_streak: 0
 plugin_migration_001_d_red_gate_verified_at: 2026-05-21T20:15:00Z
 plugin_migration_001_d_tdd_green_at: 2026-05-21T21:29:04Z
@@ -91,7 +91,7 @@ bc_count_corrected: 240
 subsystem_count: 22
 vp_count: 156
 prd_version: "1.10"
-error_taxonomy_version: "1.48"
+error_taxonomy_version: "1.49"
 arch_index_version: "2.96"
 verification_coverage_matrix_version: "1.42"
 verification_architecture_version: "1.41"
@@ -152,6 +152,7 @@ _D-001..D-046 archived: [cycles/phase-3-dtu-wave-2/decisions-archive-d001-d032.m
 
 | ID | Decision | Rationale | Phase | Date |
 |----|----------|-----------|-------|------|
+| D-799 | 2026-05-23 | FB-IMPL-8 closed all 6 pass-9 findings. F-LP9-HIGH-001 closed with REAL `#[cfg(not(any(test, feature=test-helpers)))] panic!(...)` at plugin/mod.rs:710-718 — NOT a 4th paper-fix recurrence (orchestrator independently verified the macro call is present in code, not just doc comments). Implementer deviated from specified `assert!(cfg!(test))` pattern for sound technical reasons (clippy::assertions_on_constants rejects assert on cfg-constants; integration test binaries use test-helpers feature not cfg(test)). F-LP9-MED-003 error-taxonomy v1.48→v1.49 trigger-conflation clarification (implementer self-committed at factory SHA 23e7c672). F-LP9-MED-001 story frontmatter v1.2→v1.3 synced this burst. F-LP9-MED-002/LOW-001/OBS-001 orchestrator-adjudicated. Severity high-water restored to 0 HIGH after pass-9 regression. Feature HEAD 9e412c83. New cascade discipline: orchestrator must independently grep for claimed code changes after implementer reports — paper-fix re-detection. | FB-IMPL-8 + orchestrator paper-fix re-detection discipline |
 | D-798 | 2026-05-23 | PLUGIN-MIGRATION-001-E LOCAL pass-9: 6 findings, 1 HIGH paper-fix (F-LP9-HIGH-001). FB-IMPL-7 claimed `debug_assert!(cfg!(test), ...)` was added to WAT-fixture branch entry at `prism-spec-engine/src/plugin/mod.rs:695` for F-LP8-LOW-001 closure — `rg debug_assert crates/prism-spec-engine/` returns ZERO matches. Only doc-comment narrative describes intent. 3rd paper-fix recurrence in cascade (F-LP7-MED-001 guest #[cfg(test)] gate + F-LP8-MED-001 silent eprintln + F-LP9-HIGH-001 absent debug_assert). Implementer stalled mid-verification (watchdog) and orchestrator did NOT independently grep for the macro call when verifying just check — process lesson: when paper-fix history shows in finding lineage, orchestrator MUST independently verify the load-bearing code change, not just re-run build gates. Severity high-water REGRESSED to HIGH after 3 passes of 0 HIGH. Also surfaces F-LP9-MED-001 story spec frontmatter stale-modified-date + F-LP9-MED-003 E-PLUGIN-022 trigger conflation (recursive application of F-LP8-MED-002 fidelity axis). | adversary pass-9 + paper-fix detection |
 | D-797 | 2026-05-23 | FB-IMPL-7 closed all 7 pass-8 findings via 3 implementer feature-branch commits (a02589f2 + cc8b0961 + 95c1d89a) + orchestrator OBS handling. Notable: new PluginError::AuthTokenNotCached variant (E-PLUGIN-022) explicitly distinguished from E-PLUGIN-008 CompilationFailed for operator audit triage accuracy (operators searching for token-parse failures now find them at E-PLUGIN-022, not mixed in with real compilation failures). Implementer watchdog-stalled at final just check verify; orchestrator re-ran independently — PASS. Test-count delta (3762↔3518↔3503) confirmed as counting artifact (just check includes nextest + doctests + compile-fail + proptest enumeration; cargo nextest list = 3503 authoritative). Feature HEAD 95c1d89a. | FB-IMPL-7 + orchestrator OBS | 2026-05-23 | Decided by: state-manager (FB-IMPL-7 closure burst). Status: FB-IMPL-7 CLOSED — all 7 pass-8 findings resolved |
 | D-796 | 2026-05-23 | adversary (LOCAL pass-8) + state-manager (pass-persistence burst) | PLUGIN-MIGRATION-001-E LOCAL pass-8: 7 findings UPTICK from pass-7's 3. Fresh-context novelty resurgence — every pass continues to find new patterns near apparent convergence. F-LP8-MED-001 catches the FB-IMPL-6 CORRECTION integration test silently passing when WAT Component Model parse fails (test-as-paper-fix; POL-11 axis in test code). F-LP8-MED-002 catches emit_acquire_token_parse_error_and_fail returning PluginError::CompilationFailed for a non-compilation runtime failure (operator audit triage accuracy gap). F-LP8-MED-003 catches BC-2.16.002 row 37 %display annotation mismatched with literal-string emission. F-LP8-MED-004 catches duplicate EC-002 tests in lib.rs (FB-IMPL-6 CORRECTION orphan sweep gap). Severity high-water 0 HIGH for 3 passes. Streak stays 0/3. CLEAN(strict)=NO, CLEAN(PR-merge)=NO. FB-IMPL-7 dispatch pending. | adversary pass-8 | 2026-05-23 | Decided by: adversary (LOCAL pass-8) + state-manager (pass-persistence burst). Status: PASS-8-PERSISTED, STREAK-STAYS-0/3, FB-IMPL-7-PENDING |
