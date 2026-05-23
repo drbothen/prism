@@ -518,9 +518,11 @@ pub fn plugin_version() -> &'static str {
 //
 // Test coverage:
 //   EC-001 → test_acquire_token_EC_001_401_returns_invalid_credentials
-//   EC-002 → test_acquire_token_EC_002_non_2xx_returns_response_parse
+//   EC-002 → test_acquire_token_EC_002_invalid_json_returns_response_parse  (200 + invalid JSON)
+//   EC-002 → test_acquire_token_non_2xx_returns_response_parse              (defense-in-depth: non-2xx)
 //   EC-003 → test_acquire_token_EC_003_missing_access_token_returns_response_parse
 //   EC-004 → test_acquire_token_EC_004_missing_expires_in_defaults_to_1799
+//   EC-004 → test_acquire_token_EC_004_zero_expires_in_defaults_to_1799
 //   EC-005 → test_acquire_token_EC_005_kv_set_error_propagates
 //   cache  → test_get_token_cache_hit_returns_cached_value
 //   cache  → test_get_token_cache_miss_calls_acquire_token
@@ -713,12 +715,58 @@ mod tests {
         );
     }
 
-    /// EC-002: POST /oauth2/token returns non-2xx (e.g. 503) → AuthError::ResponseParse.
+    /// EC-002: POST /oauth2/token returns HTTP 200 but body is not valid JSON →
+    /// AuthError::ResponseParse.
+    ///
+    /// This is the spec'd EC-002 scenario: the token endpoint returns a success status
+    /// code but the response body cannot be parsed as JSON. The serde_json::from_str
+    /// error branch is exercised (separate from the non-2xx status branch).
+    ///
+    /// Asserts: (a) variant-level match on AuthError::ResponseParse, (b) error detail
+    /// contains a serde-json parse indication, (c) no token cached.
+    #[test]
+    fn test_acquire_token_EC_002_invalid_json_returns_response_parse() {
+        let mut host = MockHost::new(1_000_000);
+        // HTTP 200 with syntactically invalid JSON body — triggers serde_json::from_str error.
+        host.push_http_response(200, "this is not JSON {[");
+
+        let result = acquire_token(
+            &host,
+            "client_id=id&client_secret=secret",
+            "https://example.com/oauth2/token",
+        );
+
+        assert!(
+            matches!(&result, Err(AuthError::ResponseParse(_))),
+            "EC-002: 200 + invalid JSON body MUST return AuthError::ResponseParse, got: {:?}",
+            result
+        );
+        // Verify the error detail contains serde-json parse information (not just an empty string).
+        if let Err(AuthError::ResponseParse(detail)) = &result {
+            assert!(
+                !detail.is_empty(),
+                "EC-002: ResponseParse detail MUST be non-empty (serde_json error description)"
+            );
+        }
+        assert_eq!(
+            host.kv_store.borrow().get("token"),
+            None,
+            "EC-002: token MUST NOT be cached when JSON parsing fails"
+        );
+    }
+
+    /// Defense-in-depth: POST /oauth2/token returns non-2xx (e.g. 503) →
+    /// AuthError::ResponseParse.
+    ///
+    /// Note: This test covers a SEPARATE defense-in-depth path from EC-002. The spec's EC-002
+    /// scenario is "200 + invalid JSON" (see test_acquire_token_EC_002_invalid_json_returns_response_parse).
+    /// Non-2xx status is handled by the status-check branch BEFORE JSON parsing — a distinct
+    /// code path worth covering but not the named EC-002 scenario.
     ///
     /// Asserts variant match with detail string containing the status code.
     /// Asserts no KV-set occurred (token must not be cached on error response).
     #[test]
-    fn test_acquire_token_EC_002_non_2xx_returns_response_parse() {
+    fn test_acquire_token_non_2xx_returns_response_parse() {
         let mut host = MockHost::new(1_000_000);
         host.push_http_response(503, "Service Unavailable");
 
@@ -730,13 +778,13 @@ mod tests {
 
         assert!(
             matches!(&result, Err(AuthError::ResponseParse(msg)) if msg.contains("503")),
-            "EC-002: non-2xx response MUST return AuthError::ResponseParse with status code, got: {:?}",
+            "non-2xx response MUST return AuthError::ResponseParse with status code, got: {:?}",
             result
         );
         assert_eq!(
             host.kv_store.borrow().get("token"),
             None,
-            "EC-002: token MUST NOT be cached on non-2xx response"
+            "non-2xx: token MUST NOT be cached on non-2xx response"
         );
     }
 
@@ -803,6 +851,60 @@ mod tests {
         assert_eq!(
             stored_expires_at, expected_expires_at,
             "EC-004: expires_at_secs MUST equal now({now}) + 1799 - 30 = {expected_expires_at}, got {stored_expires_at}"
+        );
+    }
+
+    /// EC-004 (zero case): `expires_in` field is zero → defaults to 1799s TTL.
+    ///
+    /// Story spec EC-004: "Token response `expires_in` field is missing **or zero**".
+    /// The `.filter(|&v| v > 0).unwrap_or(1799)` chain handles both cases:
+    ///   - missing: `and_then` returns None → unwrap_or fires
+    ///   - zero: filter rejects v==0 → unwrap_or fires
+    ///
+    /// A regression removing `.filter(|&v| v > 0)` would compile clean and pass all other
+    /// tests. Zero `expires_in` would produce `expires_at = now + 0.saturating_sub(30) = now`,
+    /// immediately stale → infinite token-refresh loops in production.
+    ///
+    /// Asserts expires_at_secs == now + 1799 - 30 (== now + 1769), same as the missing case.
+    #[test]
+    fn test_acquire_token_EC_004_zero_expires_in_defaults_to_1799() {
+        let now: u64 = 1_000_000;
+        let mut host = MockHost::new(now);
+        // expires_in is present but zero — must trigger .filter(|&v| v > 0) rejection.
+        host.push_http_response(
+            200,
+            r#"{"access_token": "tok-abc", "token_type": "bearer", "expires_in": 0}"#,
+        );
+
+        let result = acquire_token(
+            &host,
+            "client_id=id&client_secret=secret",
+            "https://example.com/oauth2/token",
+        );
+
+        assert!(
+            result.is_ok(),
+            "EC-004 (zero): zero expires_in must succeed (defaults to 1799s TTL), got: {:?}",
+            result
+        );
+        assert_eq!(
+            result.unwrap(),
+            "tok-abc",
+            "EC-004 (zero): returned token must match access_token field"
+        );
+
+        let expected_expires_at = now + 1799u64.saturating_sub(30); // = now + 1769
+        let stored_expires_at: u64 = host
+            .kv_store
+            .borrow()
+            .get("expires_at_secs")
+            .expect("EC-004 (zero): expires_at_secs must be set in KV store")
+            .parse()
+            .expect("EC-004 (zero): expires_at_secs must be a valid u64");
+        assert_eq!(
+            stored_expires_at, expected_expires_at,
+            "EC-004 (zero): expires_at_secs MUST equal now({now}) + 1799 - 30 = {expected_expires_at} \
+             (zero expires_in MUST be treated same as missing), got {stored_expires_at}"
         );
     }
 
