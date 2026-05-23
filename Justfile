@@ -235,4 +235,21 @@ build-plugin-crowdstrike-oauth2:
         grep -q '(component' || \
         (echo "ERROR: crowdstrike-oauth2.prx is a core WASM module, not a Component"; exit 1)
     @echo "PASS: crowdstrike-oauth2.prx is a valid WASM Component"
+    # F-LP3-HIGH-001: verify all 3 required WIT sensor-auth exports are present in the component.
+    # wit-bindgen's export!(Component) must emit auth-type-name, acquire-token, get-token
+    # as kebab-case WIT export names (validate_wit_interface requires these; discovery.rs:26).
+    wasm-tools print \
+        crates/prism-spec-engine/plugins/crowdstrike-oauth2/crowdstrike-oauth2.prx | \
+        grep -E '(auth-type-name|acquire-token|get-token)' | \
+        grep -qE 'auth-type-name' || \
+        (echo "ERROR: auth-type-name export absent from crowdstrike-oauth2.prx"; exit 1)
+    wasm-tools print \
+        crates/prism-spec-engine/plugins/crowdstrike-oauth2/crowdstrike-oauth2.prx | \
+        grep -qE 'acquire-token' || \
+        (echo "ERROR: acquire-token export absent from crowdstrike-oauth2.prx"; exit 1)
+    wasm-tools print \
+        crates/prism-spec-engine/plugins/crowdstrike-oauth2/crowdstrike-oauth2.prx | \
+        grep -qE 'get-token' || \
+        (echo "ERROR: get-token export absent from crowdstrike-oauth2.prx"; exit 1)
+    @echo "PASS: crowdstrike-oauth2.prx has all 3 required sensor-auth WIT exports"
     @echo "Done: crates/prism-spec-engine/plugins/crowdstrike-oauth2/crowdstrike-oauth2.prx"

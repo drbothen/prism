@@ -100,26 +100,28 @@ pub struct HttpResponse {
 //   Tests use WAT fixtures, not this native lib build.
 // ---------------------------------------------------------------------------
 
-/// WASM target: wit-bindgen-generated host function bindings.
+/// WASM target: wit-bindgen-generated host function bindings AND Component Model export wiring.
 ///
 /// The `wit_bindgen::generate!` macro reads `wit/sensor-auth.wit` and generates:
 /// - Safe Rust wrappers for all host-imported functions (http-request, kv-get,
 ///   kv-set, current-time-secs, get-config, log)
 /// - The Component Model ABI — no manual (status << 32 | len) encoding
+/// - The `exports::prism::crowdstrike_oauth2::sensor_auth::Guest` trait that the
+///   plugin must implement (F-LP3-HIGH-001 closure: was missing, causing WIT
+///   validation failure in `validate_wit_interface` — kebab-case exports absent)
 ///
 /// F-LP2-HIGH-002 closure: replaces the prior manual #[link] extern "C" blocks.
+/// F-LP3-HIGH-001 closure: adds `impl Guest for Component` + `export!(Component)`.
 #[cfg(target_arch = "wasm32")]
 mod host_impl {
+    use super::AuthError;
     use super::HttpResponse;
 
-    // wit-bindgen generates host function wrappers from the WIT spec.
-    // The generated code is placed in a `bindings` module inside this cfg block.
+    // wit-bindgen generates host function wrappers AND export trait from the WIT spec.
+    // The generated code is placed at the current module scope.
     wit_bindgen::generate!({
         world: "crowdstrike-oauth2",
         path: "wit/sensor-auth.wit",
-        // Only generate bindings; the export trait is implemented separately
-        // via the existing #[unsafe(no_mangle)] export functions below.
-        // skip_mut_forwarding_impls: true ensures we get the raw generated fns.
     });
 
     /// Issue POST via the wit-bindgen-generated host::http-request.
@@ -159,6 +161,83 @@ mod host_impl {
     pub fn get_config(key: &str) -> Option<String> {
         prism::crowdstrike_oauth2::host::get_config(key)
     }
+
+    /// Convert our crate-level `AuthError` to the wit-bindgen-generated
+    /// `exports::prism::crowdstrike_oauth2::sensor_auth::AuthError` variant.
+    fn to_wit_auth_error(
+        e: AuthError,
+    ) -> exports::prism::crowdstrike_oauth2::sensor_auth::AuthError {
+        use exports::prism::crowdstrike_oauth2::sensor_auth::AuthError as WitAuthError;
+        match e {
+            AuthError::InvalidCredentials => WitAuthError::InvalidCredentials,
+            AuthError::ResponseParse(msg) => WitAuthError::ResponseParse(msg),
+            AuthError::Internal(msg) => WitAuthError::Internal(msg),
+        }
+    }
+
+    /// Component Model export implementation.
+    ///
+    /// F-LP3-HIGH-001 closure: `wit_bindgen::generate!` with `export sensor-auth` in the WIT
+    /// world generates an `exports::prism::crowdstrike_oauth2::sensor_auth::Guest` trait.
+    /// The plugin MUST implement this trait and register via `export!(Component)` so that
+    /// wit-bindgen emits the properly named kebab-case WIT exports (`auth-type-name`,
+    /// `acquire-token`, `get-token`) instead of the hand-rolled snake_case `*_export`
+    /// wrappers that compile to the wrong export names and fail `validate_wit_interface`.
+    ///
+    /// Production caller: `PluginRuntime::dispatch_plugin_acquire_token` (mod.rs:720)
+    /// which calls `get_func(&mut store, "acquire-token")` — the kebab-case name is
+    /// required for this lookup to succeed on the Component Model path.
+    struct Component;
+
+    impl exports::prism::crowdstrike_oauth2::sensor_auth::Guest for Component {
+        /// Return the canonical auth type name.
+        ///
+        /// MUST return "oauth2_client_credentials" per INV-AUTH-OPEN-003 Rule A (BC-2.01.016).
+        fn auth_type_name() -> String {
+            super::auth_type_name().to_string()
+        }
+
+        /// Force-acquire a fresh OAuth2 token (bypass KV cache).
+        ///
+        /// Reads `token_endpoint` from host config map (`get-config("token_endpoint")`),
+        /// then delegates to `super::acquire_token`. The WIT interface takes only
+        /// `credential-handle` (not `token_endpoint` directly); the endpoint is
+        /// configuration-managed by the host per the plugin config map.
+        ///
+        /// EC-006: absent `token_endpoint` in config → `AuthError::Internal`.
+        fn acquire_token(
+            credential_handle: String,
+        ) -> Result<String, exports::prism::crowdstrike_oauth2::sensor_auth::AuthError> {
+            let token_endpoint = get_config("token_endpoint").ok_or_else(|| {
+                to_wit_auth_error(AuthError::Internal(
+                    "token_endpoint absent from host config (EC-006)".to_string(),
+                ))
+            })?;
+            super::acquire_token(&credential_handle, &token_endpoint).map_err(to_wit_auth_error)
+        }
+
+        /// Get a cached or freshly-acquired token.
+        ///
+        /// Reads `token_endpoint` from host config map (`get-config("token_endpoint")`),
+        /// then delegates to `super::get_token`.
+        fn get_token(
+            credential_handle: String,
+        ) -> Result<String, exports::prism::crowdstrike_oauth2::sensor_auth::AuthError> {
+            let token_endpoint = get_config("token_endpoint").ok_or_else(|| {
+                to_wit_auth_error(AuthError::Internal(
+                    "token_endpoint absent from host config (EC-006)".to_string(),
+                ))
+            })?;
+            super::get_token(&credential_handle, &token_endpoint).map_err(to_wit_auth_error)
+        }
+    }
+
+    // Register Component as the export implementation.
+    // wit-bindgen emits properly named kebab-case WIT export symbols:
+    //   auth-type-name, acquire-token, get-token
+    // These are the names that PluginRuntime::dispatch_plugin_acquire_token looks up
+    // via get_func(&mut store, "acquire-token") on the Component Model path.
+    export!(Component);
 }
 
 /// Native target: stub implementations gated under `#[cfg(test)]` to prove
@@ -351,112 +430,21 @@ pub fn get_token(credential_handle: &str, token_endpoint: &str) -> Result<String
 }
 
 // ---------------------------------------------------------------------------
-// WASM export entrypoints (called by the host via WIT/core-module dispatch)
+// WASM export entrypoints
+//
+// F-LP3-HIGH-001 closure: The prior hand-rolled `*_export` functions (auth_type_name_export,
+// acquire_token_export, get_token_export) compiled to snake_case WASM export names, which
+// do NOT match the kebab-case names required by `validate_wit_interface` (discovery.rs:26):
+//   SENSOR_AUTH_REQUIRED_EXPORTS = ["auth-type-name", "acquire-token", "get-token"]
+//
+// These hand-rolled wrappers are DELETED. The WIT exports are now generated by
+// `wit_bindgen::generate!` + `impl Guest for Component` + `export!(Component)` inside
+// `host_impl` (see above). wit-bindgen emits properly named kebab-case WASM export symbols.
+//
+// Production callers:
+//   - PluginRuntime::dispatch_plugin_acquire_token (mod.rs:720): get_func(&mut store, "acquire-token")
+//   - PluginRuntime::load_plugin (mod.rs:208): validate_wit_interface checks all 3 exports
 // ---------------------------------------------------------------------------
-
-/// WASM export: `auth-type-name` (WIT sensor-auth interface).
-///
-/// The host's PluginRuntime dispatches to this export when calling
-/// `call_auth_type_name()` (or equivalent WIT call path).
-///
-/// Returns (ptr, len) packed into u64, pointing to the canonical string
-/// "oauth2_client_credentials" stored in WASM static memory.
-/// AC-002: must return "oauth2_client_credentials" (25 bytes).
-///
-/// # Safety
-///
-/// The function is marked `unsafe` because it is called from WASM host dispatch
-/// (a raw extern "C" FFI boundary). The function body itself only reads static memory.
-#[cfg(target_arch = "wasm32")]
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn auth_type_name_export() -> u64 {
-    let s = auth_type_name();
-    let ptr = s.as_ptr() as u32;
-    let len = s.len() as u32;
-    // Pack (ptr << 32 | len) for core-module ABI compatibility with WAT fixtures.
-    ((ptr as u64) << 32) | (len as u64)
-}
-
-/// WASM export: `acquire-token` (WIT sensor-auth interface).
-///
-/// Called by the host on 401 retry path (VP-150 end-to-end).
-/// Must bypass KV cache — always force a fresh POST /oauth2/token.
-///
-/// ABI: takes credential_handle and token_endpoint as (ptr, len) pairs.
-/// Returns ok=1 on success (token cached in KV), err=0 on failure.
-///
-/// # Safety
-///
-/// `cred_ptr` and `url_ptr` must be valid WASM linear memory pointers with the
-/// lengths `cred_len` and `url_len` respectively. The WASM host guarantees this
-/// constraint; violating it causes undefined behavior per Rust slice invariants.
-#[cfg(target_arch = "wasm32")]
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn acquire_token_export(
-    cred_ptr: *const u8,
-    cred_len: usize,
-    url_ptr: *const u8,
-    url_len: usize,
-) -> u64 {
-    // F-LP2-HIGH-005 closure: use checked from_utf8 — not from_utf8_unchecked.
-    // Defense-in-depth: WASM linear memory validity does not imply UTF-8 validity.
-    let credential_handle =
-        match std::str::from_utf8(unsafe { std::slice::from_raw_parts(cred_ptr, cred_len) }) {
-            Ok(s) => s,
-            Err(_) => return 0u64, // invalid UTF-8 from host → return err=0
-        };
-    let token_endpoint =
-        match std::str::from_utf8(unsafe { std::slice::from_raw_parts(url_ptr, url_len) }) {
-            Ok(s) => s,
-            Err(_) => return 0u64, // invalid UTF-8 from host → return err=0
-        };
-
-    match acquire_token(credential_handle, token_endpoint) {
-        Ok(_token) => {
-            // Return ok=1 (token was cached via host_kv_set; caller reads it via kv_get)
-            1u64
-        }
-        Err(_e) => {
-            // Return err=0
-            0u64
-        }
-    }
-}
-
-/// WASM export: `get-token` (WIT sensor-auth interface).
-///
-/// Called by the host on pre-request token lookup (cache-first path).
-///
-/// # Safety
-///
-/// `cred_ptr` and `url_ptr` must be valid WASM linear memory pointers with the
-/// lengths `cred_len` and `url_len` respectively. The WASM host guarantees this
-/// constraint; violating it causes undefined behavior per Rust slice invariants.
-#[cfg(target_arch = "wasm32")]
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn get_token_export(
-    cred_ptr: *const u8,
-    cred_len: usize,
-    url_ptr: *const u8,
-    url_len: usize,
-) -> u64 {
-    // F-LP2-HIGH-005 closure: checked UTF-8 decode (not unchecked).
-    let credential_handle =
-        match std::str::from_utf8(unsafe { std::slice::from_raw_parts(cred_ptr, cred_len) }) {
-            Ok(s) => s,
-            Err(_) => return 0u64,
-        };
-    let token_endpoint =
-        match std::str::from_utf8(unsafe { std::slice::from_raw_parts(url_ptr, url_len) }) {
-            Ok(s) => s,
-            Err(_) => return 0u64,
-        };
-
-    match get_token(credential_handle, token_endpoint) {
-        Ok(_token) => 1u64,
-        Err(_e) => 0u64,
-    }
-}
 
 // ---------------------------------------------------------------------------
 // WAT-compatible exports for WIT validation compatibility
