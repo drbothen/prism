@@ -1,9 +1,9 @@
 ---
 document_type: pipeline-state
 level: ops
-version: "7.479"
+version: "7.480"
 producer: state-manager
-timestamp: 2026-05-23T00:00:00Z
+timestamp: 2026-05-23T08:00:00Z
 inputs: []
 input-hash: "[live-state]"
 traces_to: ""
@@ -16,9 +16,9 @@ repos: [poller-cobra, poller-express, poller-bear, poller-coaster, serveMyAPI, t
 safe_to_compact: true
 pre_compact_snapshot: "SESSION-HANDOFF.md §RESUME SNAPSHOT 2026-05-22-PLUGIN-E"
 pre_compact_snapshot_at: "2026-05-22 (D-788 PLUGIN-MIGRATION-001-E pass-4 CLEAN, streak 1/3)"
-current_step: "PLUGIN-MIGRATION-001-E FB-IMPL-5 CLOSED all 3 pass-6 findings. F-LP6-MED-001 EC-002 invalid-JSON test + non-2xx rename + story spec v1.2. F-LP6-MED-002 all 3 sibling WIT files restructured (top-level types→interface, mirroring sensor-auth.wit pattern). F-LP6-LOW-001 EC-004 zero-expires_in test. Feature HEAD 639d89e1 → 7702ea78. just check PASS, 3762 tests (+2). NEXT: adversary pass-7 (streak attempt 0/3 → 1/3)."
-plugin_migration_001_e_local_adversary_passes: 6
-plugin_migration_001_e_status: "FB-IMPL-5 closed all 3 pass-6 findings. Feature HEAD 7702ea78. Sibling-WIT files swept (3 files restructured). EC-002 fidelity + EC-004 zero-case tests added. Story spec v1.1 → v1.2. Pass-7 dispatch pending."
+current_step: "PLUGIN-MIGRATION-001-E LOCAL pass-7: 3 sub-HIGH findings (0 CRIT, 0 HIGH, 2 MED, 1 LOW). Severity high-water remains 0 HIGH for 2 consecutive passes. NEW sub-dimensions of EC-test-vs-spec fidelity axis: spec-emission existence (F-LP7-MED-001 EC-002 promises tracing event that code doesn't emit), deferral-citation specificity (F-LP7-MED-002 EC-006..009 violate SID-1 §5), sibling-test-assertion symmetry (F-LP7-LOW-001 EC-003 missing no-token-cached assertion). Streak stays 0/3. NEXT: dispatch FB-IMPL-6."
+plugin_migration_001_e_local_adversary_passes: 7
+plugin_migration_001_e_status: "LOCAL pass-7: 3 findings (0 CRIT, 0 HIGH, 2 MED, 1 LOW). Cascade in refinement phase — structural defects extinct, fidelity sub-dimensions remain. Streak stays 0/3. FB-IMPL-6 dispatch pending."
 plugin_migration_001_e_local_fix_bursts: 5
 plugin_migration_001_e_local_findings_closed: 39
 plugin_migration_001_e_local_adversary_clean_streak: 0
@@ -152,6 +152,7 @@ _D-001..D-046 archived: [cycles/phase-3-dtu-wave-2/decisions-archive-d001-d032.m
 
 | ID | Decision | Rationale | Phase | Date |
 |----|----------|-----------|-------|------|
+| D-793 | 2026-05-23 | adversary (LOCAL pass-7) + state-manager (pass-persistence burst) | **PLUGIN-MIGRATION-001-E LOCAL pass-7: 3 sub-HIGH findings exposing NEW sub-dimensions of EC-test-vs-spec fidelity axis. F-LP7-MED-001 (spec EC-002 names tracing `event_type="plugin.auth_token_parse_error"` that exists in zero code paths — inverse SAP-1). F-LP7-MED-002 (EC-006..009 deferral citations violate SID-1 §5 specificity — plural-vague "integration tests" with no story ID or test name). F-LP7-LOW-001 (EC-003 missing the no-token-cached assertion that EC-001+002 both include). Severity high-water 0 HIGH for 2 consecutive passes. Decay trajectory: 20→12→3→0→2→3→3. Streak stays 0/3. CLEAN(strict)=NO, CLEAN(PR-merge)=NO. FB-IMPL-6 dispatch pending. Report at cycles/wave-0-plugin-prereqs/PLUGIN-MIGRATION-001-E/local-pass-7.md. STATE v7.479→v7.480.** | adversary pass-7 | 2026-05-23 | Decided by: adversary (LOCAL pass-7) + state-manager (pass-persistence burst). Status: PASS-7-PERSISTED, STREAK-STAYS-0/3, FB-IMPL-6-PENDING |
 | D-792 | 2026-05-23 | state-manager (FB-IMPL-5 closure burst) | **FB-IMPL-5 closed all 3 pass-6 findings. EC-test-vs-spec fidelity gap closed for EC-002 (new invalid-JSON test + non-2xx renamed) and EC-004 (new zero-expires_in test). POL-29 sibling-sweep gap closed: 3 sibling WIT files (sensor-plugin, infusion-plugin, action-plugin) restructured to move type declarations inside interface blocks, mirroring the FB-IMPL-4 fix to sensor-auth.wit. Story spec v1.1→v1.2. Feature HEAD 639d89e1 → 7702ea78. Workspace tests 3760 → 3762 (+2). just check PASS. STATE v7.478→v7.479.** | FB-IMPL-5 | 2026-05-23 | Decided by: state-manager (FB-IMPL-5 closure burst). Status: FB-IMPL-5 CLOSED |
 | D-791 | 2026-05-22 | adversary (LOCAL pass-6) + state-manager (pass-persistence burst) | **PLUGIN-MIGRATION-001-E LOCAL pass-6: 3 sub-HIGH findings. Severity dropped from 2 HIGH (pass-5) to 0 HIGH. NEW axis: EC-test-vs-spec fidelity — tests named test_acquire_token_EC_NNN_* may exercise different scenarios than the story spec's EC-NNN row names (EC-002 case: spec says 200+invalid-JSON, test does 503). Sibling-WIT-file sweep gap (POL-29): 3 sibling WIT files carry the same top-level-types anti-pattern that broke sensor-auth.wit in pass-5. F-LP6-MED-001: EC-002 spec-test drift — test covers non-2xx 503, spec names 200+invalid-JSON; serde_json parse branch unexercised. F-LP6-MED-002: prism-sensor-plugin.wit + prism-infusion-plugin.wit + prism-action-plugin.wit carry top-level type declarations illegal in wit-bindgen 0.51+; latent defect (not compiled yet). F-LP6-LOW-001: EC-004 test covers missing-expires_in only; zero-expires_in case unexercised. Streak stays 0/3. CLEAN(strict)=NO, CLEAN(PR-merge)=NO. FB-IMPL-5 dispatch pending (~30min: 1 new test + rename + story EC-table fix + 3-WIT structural fix + 1 sibling test). Report at cycles/wave-0-plugin-prereqs/PLUGIN-MIGRATION-001-E/local-pass-6.md. STATE v7.477→v7.478.** | adversary pass-6 | 2026-05-22 | Decided by: adversary (LOCAL pass-6) + state-manager (pass-persistence burst). Status: PASS-6-PERSISTED, STREAK-STAYS-0/3, FB-IMPL-5-PENDING |
 | D-790 | 2026-05-22 | implementer (FB-IMPL-4) + state-manager (closure burst) | **FB-IMPL-4 closed pass-5 HIGH findings. Notable: F-LP5-HIGH-001 surfaced an ACTUAL wit-bindgen WIT-syntax bug — `sensor-auth.wit` top-level types `record`/`enum`/`variant` are illegal in wit-bindgen 0.51+; the F-LP3-HIGH-001 "closure" had never compiled. Structural-coverage axis (introduced pass-5) caught what file-presence checks could not. Real CI gate (`wasm32-compile-check` job) + variant-matching unit tests now prevent recurrence. F-LP5-HIGH-002: HostInterface trait + WasmHost + MockHost + 9 behavioral tests (EC-001..EC-005 + cache-hit/miss/empty-token paths). All tests variant-matching (no bare is_err()/is_ok()). Feature HEAD d7ec60a7 → 639d89e1. Workspace tests 3751 → 3760 (+9 net). just check PASS. STATE v7.476 → v7.477.** | FB-IMPL-4 | 2026-05-22 | Decided by: implementer (FB-IMPL-4) + state-manager (closure burst). Status: FB-IMPL-4 CLOSED |
