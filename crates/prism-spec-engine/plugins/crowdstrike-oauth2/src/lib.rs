@@ -1072,59 +1072,10 @@ mod tests {
             "form body MUST contain the credential_handle prefix, got: {body:?}"
         );
     }
-
-    // -------------------------------------------------------------------------
-    // F-LP7-MED-001 closure: capturing-subscriber test for plugin.auth_token_parse_error
-    // -------------------------------------------------------------------------
-
-    /// F-LP7-MED-001 closure: `acquire_token` emits `plugin.auth_token_parse_error` tracing
-    /// event when the OAuth2 token endpoint returns HTTP 200 with invalid JSON (EC-002 scenario).
-    ///
-    /// Uses `tracing::subscriber::with_default` with an in-memory buffer to capture
-    /// tracing output and assert the structured event fired with the expected fields.
-    ///
-    /// Assertions:
-    ///   (a) `event_type` field value `"plugin.auth_token_parse_error"` present in captured output.
-    ///   (b) `plugin_id` field non-empty and contains "crowdstrike-oauth2" in captured output.
-    ///   (c) The result is `Err(AuthError::ResponseParse(...))` — emission fires before propagation.
-    ///
-    /// BC-2.16.002 Canonical Structured Event Catalog row 37 audit-observability assertion.
-    /// Cross-reference: PLUGIN-MIGRATION-001-E EC-002; story spec EC-002 "host logs event_type".
-    /// F-LP7-MED-001 (CORRECTION): Guest `acquire_token` returns `AuthError::ResponseParse`
-    /// on EC-002 (invalid JSON body). The GUEST does NOT emit tracing events — the HOST does.
-    ///
-    /// This test is retained to verify:
-    ///   (a) EC-002 scenario correctly returns `Err(AuthError::ResponseParse(_))`
-    ///   (b) The guest returns without caching a token (prerequisite for host emission)
-    ///
-    /// The host-side `plugin.auth_token_parse_error` emission is tested separately in
-    /// `prism-spec-engine` `plugin::tests::test_F_LP7_MED_001_host_emit_acquire_token_parse_error_fires_unconditionally`.
-    ///
-    /// Previous name: `test_dispatch_plugin_acquire_token_response_parse_emits_audit_event`.
-    /// Renamed during F-LP7-MED-001 CORRECTION to reflect corrected semantics.
-    #[test]
-    fn test_acquire_token_EC_002_returns_response_parse_no_token_cached() {
-        let mut host = MockHost::new(1_000_000);
-        host.push_http_response(200, "this is not JSON {["); // invalid JSON → ResponseParse
-
-        let result = acquire_token(
-            &host,
-            "client_id=id&client_secret=secret",
-            "https://example.com/oauth2/token",
-        );
-
-        // Assertion (a): EC-002 path returns AuthError::ResponseParse.
-        assert!(
-            matches!(&result, Err(AuthError::ResponseParse(_))),
-            "F-LP7-MED-001: EC-002 path MUST return AuthError::ResponseParse; got: {:?}",
-            result
-        );
-
-        // Assertion (b): no token was cached (prerequisite for host-side emission).
-        assert_eq!(
-            host.kv_store.borrow().get("token"),
-            None,
-            "F-LP7-MED-001: token MUST NOT be cached when EC-002 (invalid JSON) fires"
-        );
-    }
 }
+// F-LP8-MED-004 closure (PLUGIN-MIGRATION-001-E pass-8): removed duplicate EC-002 test
+// `test_acquire_token_EC_002_returns_response_parse_no_token_cached` orphaned by
+// FB-IMPL-6 CORRECTION signature revert. Canonical EC-002 test remains at
+// `test_acquire_token_EC_002_invalid_json_returns_response_parse` (line ~731).
+// The duplicate was a strict subset of the canonical test; its removal reduces
+// sibling-symmetry confusion and eliminates TD-VSDD-060 orphan sweep gap.

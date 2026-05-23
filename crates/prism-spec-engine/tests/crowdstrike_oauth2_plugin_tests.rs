@@ -1331,7 +1331,18 @@ fn test_PLUGIN_MIGRATION_001_E_med_001_built_prx_loads_via_plugin_runtime() {
 /// BC-2.16.002 Canonical Structured Event Catalog row 37 host-side audit assertion.
 /// Load-bearing: removing the host emission from `dispatch_plugin_acquire_token` would
 /// cause this test to fail (output_str.contains assertion fires).
+///
+/// F-LP8-MED-001 closure: converted `None =>` arm to hard `panic!` (no longer a paper-fix
+/// silent-pass). The test is `#[ignore]`'d because Component Model WAT support in the `wat`
+/// crate is unavailable in this environment — the `wat::parse_str("(component ...)")` call
+/// fails, triggering the panic. Un-ignored when S-PLUGIN-CI-001 AC-001 brings the Component
+/// Model WAT infrastructure. The CANONICAL load-bearing test is the unit test
+/// `test_F_LP7_MED_001_host_emit_acquire_token_parse_error_fires_unconditionally` at
+/// `plugin/mod.rs` — it runs unconditionally without WAT infrastructure.
 #[test]
+#[ignore = "requires Component Model WAT parse support in `wat` crate; \
+            un-ignored via S-PLUGIN-CI-001 AC-001 \
+            (test_PLUGIN_MIGRATION_001_E_med_001_built_prx_loads_via_plugin_runtime)"]
 fn test_F_LP7_MED_001_host_dispatch_acquire_token_kv_miss_emits_audit_event() {
     // This test requires Component Model WAT syntax to produce a true component binary
     // (not a core module). The wasmtime Component Model WAT format uses "(component ...)".

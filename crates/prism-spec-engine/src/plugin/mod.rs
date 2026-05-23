@@ -675,7 +675,23 @@ impl PluginRuntime {
             plugin.allowed_urls.clone(),
         );
 
-        // Core module path (WAT fixtures used in tests).
+        // Core module path (WAT fixtures — TEST-ONLY path; NEVER reachable from production load).
+        //
+        // F-LP8-LOW-001 closure: LOUDLY document test-only semantics. This branch is
+        // structurally gated by `discovery.rs`: `core_module` is only `Some(...)` when
+        // the binary's 4-byte magic header is a WAT core-module header (NOT Component Model
+        // magic `[0x0d, 0x00, 0x01, 0x00]`). Production `.prx` files MUST be Component Model
+        // binaries; WAT core-module bytes are only valid as test inputs.
+        //
+        // Emission reachability note: `plugin.auth_token_parse_error` (BC-2.16.002 row 37)
+        // is emitted ONLY from the Component Model path below, NOT from this WAT path.
+        // This is intentional — WAT fixture plugins short-circuit to a sentinel token return.
+        // The unit test `test_F_LP7_MED_001_host_emit_acquire_token_parse_error_fires_unconditionally`
+        // exercises the emission function directly without WAT infrastructure.
+        //
+        // Production invariant: `discovery::load_plugin_from_bytes` sets `core_module = None`
+        // for any binary with Component Model magic — the only path into this arm requires
+        // a WAT core-module binary, which is only provided by test helpers.
         if let Some(ref core_mod) = plugin.core_module {
             // Core module WAT fixture: call "acquire-token" export.
             // The WAT fixture returns a hardcoded string (e.g., "crowdstrike-oauth2").
@@ -1463,8 +1479,9 @@ mod tests {
     /// BC-2.16.002 row 37 — end-to-end host-side emission integration test.
     /// F-LP7-MED-001 CORRECTION burst (2026-05-23).
     #[test]
-    #[ignore = "requires pre-built crowdstrike-oauth2.prx from `just build-plugin-crowdstrike-oauth2`; \
-                un-ignored in CI with wasm32-wasip1 toolchain (S-PLUGIN-CI-001)"]
+    #[ignore = "requires pre-built crowdstrike-oauth2.prx from S-PLUGIN-CI-001 AC-001 \
+                (test_PLUGIN_MIGRATION_001_E_med_001_built_prx_loads_via_plugin_runtime un-ignored \
+                via wasm32-wasip1 toolchain + wasm-tools)"]
     fn test_F_LP7_MED_001_host_dispatch_acquire_token_component_model_path_emits_audit_event() {
         // This test will be implemented when the pre-built .prx is available.
         // The unit test above (emit_acquire_token_parse_error_fires_unconditionally)
