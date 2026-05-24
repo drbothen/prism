@@ -38,6 +38,7 @@ wiremock = "0.6"
 futures = "0.3"
 prism-storage = { path = "../prism-storage", version = "0.1.0", features = ["test-utils"] }
 proptest = "1"
+tempfile = "3"
 
 # S-3.07 — BC-2.04.001 compile-time write feature gates (deny-by-default per DI-003).
 # Each sensor's write code is gated behind a separate Cargo feature.
