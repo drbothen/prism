@@ -284,6 +284,7 @@ mod helpers {
             max_records,
             Arc::new(StubCredentialResolver),
             None,
+            None,
         )
     }
 }
@@ -667,6 +668,7 @@ async fn test_AC_6_cross_client_query_all_scope_fans_out() {
         Arc::new(helpers::StubCredentialResolver),
         org_registry,
         storage as Arc<dyn prism_storage::backend::RocksStorageBackend>,
+        Arc::new(std::collections::HashMap::new()),
     );
 
     // clients: None = ALL scope — both orgs fanned out.
@@ -913,6 +915,7 @@ async fn test_HIGH_3_audit_read_capability_gate_deny() {
         Arc::new(helpers::StubCredentialResolver),
         org_registry,
         storage as Arc<dyn prism_storage::backend::RocksStorageBackend>,
+        Arc::new(std::collections::HashMap::new()),
     );
 
     // No capabilities — AuditRead NOT granted.
@@ -961,6 +964,7 @@ async fn test_HIGH_3_audit_read_capability_gate_allow() {
         Arc::new(helpers::StubCredentialResolver),
         org_registry,
         storage as Arc<dyn prism_storage::backend::RocksStorageBackend>,
+        Arc::new(std::collections::HashMap::new()),
     );
 
     // AuditRead capability granted — must succeed.
@@ -1021,6 +1025,7 @@ async fn test_HIGH_4_internal_table_virtual_fields_present() {
         Arc::new(helpers::StubCredentialResolver),
         org_registry,
         storage as Arc<dyn prism_storage::backend::RocksStorageBackend>,
+        Arc::new(std::collections::HashMap::new()),
     );
 
     let options = QueryOptions {
@@ -1192,6 +1197,7 @@ async fn test_CRIT_1_internal_table_queryable_through_execute() {
         Arc::new(helpers::StubCredentialResolver),
         org_registry,
         storage as Arc<dyn prism_storage::backend::RocksStorageBackend>,
+        Arc::new(std::collections::HashMap::new()),
     );
 
     let options = QueryOptions {
@@ -1271,6 +1277,7 @@ async fn test_HIGH_2_audit_entry_bincode_deserialization() {
         Arc::new(helpers::StubCredentialResolver),
         org_registry,
         storage as Arc<dyn prism_storage::backend::RocksStorageBackend>,
+        Arc::new(std::collections::HashMap::new()),
     );
 
     let options = QueryOptions {
@@ -1421,6 +1428,7 @@ async fn test_LP2_CRIT_1_subquery_in_where_blocked_without_audit_read() {
         Arc::new(helpers::StubCredentialResolver),
         org_registry,
         storage as Arc<dyn prism_storage::backend::RocksStorageBackend>,
+        Arc::new(std::collections::HashMap::new()),
     );
 
     // No AuditRead capability — subquery references prism_audit.
@@ -1487,6 +1495,7 @@ async fn test_LP2_CRIT_1_with_audit_read_capability_subquery_allowed() {
         Arc::new(helpers::StubCredentialResolver),
         org_registry,
         storage as Arc<dyn prism_storage::backend::RocksStorageBackend>,
+        Arc::new(std::collections::HashMap::new()),
     );
 
     // AuditRead granted — should NOT be rejected at the capability gate.
@@ -1553,6 +1562,7 @@ async fn test_LP2_CRIT_1_having_subquery_blocked_without_audit_read() {
         Arc::new(helpers::StubCredentialResolver),
         org_registry,
         storage as Arc<dyn prism_storage::backend::RocksStorageBackend>,
+        Arc::new(std::collections::HashMap::new()),
     );
 
     let options = QueryOptions {
@@ -1845,6 +1855,7 @@ async fn test_LP2_MED_2_cache_key_includes_filters() {
                 10_000,
                 Arc::new(helpers::StubCredentialResolver),
                 None,
+                None,
             )
         }
     };
@@ -2077,6 +2088,7 @@ async fn test_AC_timeout_returns_query_timeout_error() {
         Arc::new(helpers::StubCredentialResolver),
         org_registry,
         storage as Arc<dyn prism_storage::backend::RocksStorageBackend>,
+        Arc::new(std::collections::HashMap::new()),
     );
 
     let options = QueryOptions {
