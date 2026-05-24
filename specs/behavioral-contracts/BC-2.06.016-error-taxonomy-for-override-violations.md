@@ -2,7 +2,7 @@
 document_type: behavioral-contract
 level: L3
 bc_id: "BC-2.06.016"
-version: "1.1"
+version: "1.2"
 status: draft
 lifecycle_status: draft
 producer: product-owner
@@ -12,7 +12,7 @@ origin: greenfield
 subsystem: "SS-06"
 capability: "CAP-009"
 introduced: "2026-05-23"
-modified: "2026-05-23"
+modified: "2026-05-24"
 deprecated: null
 deprecated_by: null
 replacement: null
@@ -105,7 +105,7 @@ When an override violation occurs, the operator observes:
 | Category | validation |
 | Exit code | 2 |
 | Retryable | No |
-| Message template | `"Per-org overlay '{file}' declares instance_id='{actual}' but expected '{sensor_id}@{org_slug}' (derived from filename and parent directory). Rename or correct the instance_id field."` |
+| Message template | `"Per-org overlay '{file}' declares instance_id='{actual}' but expected '{expected}' (derived from filename and parent directory). Rename or correct the instance_id field."` |
 | Suggestion | `"Set instance_id to '{sensor_id}@{org_slug}' where '{sensor_id}' matches the filename stem and '{org_slug}' matches the parent directory name."` |
 | BC enforcement | BC-2.06.012 §Error Conditions; BC-2.06.013 §Error Conditions |
 
@@ -233,3 +233,4 @@ S-CONFIG-MULTI-TENANT-OVERRIDE-001 (to-be-created)
 |---------|-------|------|--------|--------|
 | 1.0 | D-803 burst-3 | 2026-05-23 | product-owner | Initial draft per ADR-029 Burst 3 handoff. Resolved E-SPEC-018 collision with ADR-028 TimestampParseFailure (error-taxonomy.md v1.43); allocated E-SPEC-019–023 instead of ADR-029 draft E-SPEC-018–022. All sibling BCs (BC-2.06.012, BC-2.06.013, BC-2.06.015) updated to cite the final codes. |
 | 1.1 | D-803 burst-4 | 2026-05-23 | product-owner | Fix E-SPEC-021 message template and suggestion text to remove infeasible `{extends_value}` interpolation. Structural `[[tables]]` check in overlay.rs fires BEFORE TOML deserialization into `SensorInstanceOverlay`, so `overlay.extends` has not been read and `{extends_value}` is unknown at that point. Corrected suggestion now directs operators to the TYPE spec in `crates/prism-sensors/specs/<sensor>.sensor.toml` using generic `<sensor>` placeholder instead. Also corrected E-SPEC-023 suggestion (same class of defect — `{extends_value}` also infeasible there since the code takes only `file_path`, `instance_id`, and `field_name`). Message template for E-SPEC-021 updated to match `make_e_spec_021_tables_in_overlay` exact emission: "...Table schema must be declared in the TYPE spec only." (no `{extends_value}.sensor.toml`). 3-way alignment confirmed: BC body ↔ taxonomy row ↔ code emission. taxonomy E-SPEC-021 row already correct (uses `<sensor>.sensor.toml` generic form); no taxonomy edit needed. POL-29 sweep: no `{extends_value}` references remain in BC-2.06.016 body; E-SPEC-019 and E-SPEC-023 references to `{extends_value}` in other rows are legitimate (E-SPEC-019 fires after deserialization; E-SPEC-023 suggestion was also fixed this burst). |
+| 1.2 | F-LP5-MED-001 | 2026-05-24 | product-owner | Fix E-SPEC-020 Message template placeholder drift: `{sensor_id}@{org_slug}` → `{expected}` in line 108 to match canonical error-taxonomy.md line 392 authority text. Same drift class as F-LP4-MED-002 (BC-2.06.013 E-SPEC-023 `{field}` → `{field_name}`); F-LP5-MED-001 was a sibling-sweep gap in fix-burst 5 — burst swept BC-2.06.013 and BC-2.06.015 but missed BC-2.06.016 line 108 for the E-SPEC-020 row (POL-25 sibling-sweep gap). Scope decision: line 109 Suggestion field also uses `{sensor_id}@{org_slug}` but is deferred to architect adjudication under F-LP5-LOW-002 (whether Suggestion is BC-authoritative or taxonomy-derived); left untouched this burst. POL-29 sweep result: 9 matches of `{sensor_id}@{org_slug}` found across .factory/; all non-target matches are LEGITIMATE LITERAL USE (convention description in table cells, log span field doc, story body documentation, taxonomy changelog narrative) — no additional sibling drifts. 4-way alignment after fix: BC-2.06.016 line 108 ↔ taxonomy line 392 MATCH; code emission (`make_e_spec_020_instance_id_mismatch`) not yet authored (story pre-implementation); test vectors unchanged (use `{expected}` indirectly via "expected 'armis@acme'" literal). |
