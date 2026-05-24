@@ -78,13 +78,13 @@ traces_to: convergence-trajectory.md
 > "Separator drift — BC-2.06.013 §Postconditions used colon where canonical template uses em-dash (F-LP4-MED-001)"
 
 **Bullet (1) — after (byte-quoted from BC-2.06.013 v1.1 changelog):**
-> "Separator/form drift — BC-2.06.013 §Postconditions E-SPEC-021 message at line 73 used semicolon-separated paraphrase ('Remove [[tables]] and declare schema in the TYPE spec only') vs canonical period-separated form ('Table schema must be declared in the TYPE spec only') — per BC-2.06.013 v1.1 changelog: 'F-LP4-MED-001: E-SPEC-021 message at line 73 — replaced paraphrase (semicolon-separated, "Remove [[tables]] and declare schema in the TYPE spec only") with canonical (period-separated, "Table schema must be declared in the TYPE spec only")'"
+> "Separator/form drift — BC-2.06.013 §Postconditions E-SPEC-021 message at line 73 used semicolon-separated paraphrase ('Remove [[tables]] and declare schema in the TYPE spec only') vs canonical period-separated form ('Table schema must be declared in the TYPE spec only') — per BC-2.06.013 v1.1 changelog: 'F-LP4-MED-001: E-SPEC-021 message at line 73 — replaced paraphrase (semicolon-separated, "Remove [[tables]] and declare schema in the TYPE spec only") with canonical (period-separated, "Table schema must be declared in the TYPE spec only").'"
 
 **Bullet (2) — before (WRONG paraphrase):**
 > "Placeholder name drift — BC-2.06.013 §Error Cases used `{overlay_path}` vs canonical `{file}` (F-LP4-MED-002)"
 
 **Bullet (2) — after (byte-quoted from BC-2.06.013 v1.1 changelog):**
-> "Placeholder name drift — BC-2.06.013 §Error Cases E-SPEC-023 message at line 82 used `{field}` placeholder, lowercase 'allowed fields are:', no sub-fields clause vs canonical `{field_name}` placeholder, 'Allowed overlay fields are:', '(with sub-fields: requests_per_second, burst_size)' appended — per BC-2.06.013 v1.1 changelog: 'F-LP4-MED-002: E-SPEC-023 message at line 82 — replaced paraphrase (`{field}` placeholder, lowercase "allowed fields are:", no sub-fields clause) with canonical (`{field_name}` placeholder, "Allowed overlay fields are:", "(with sub-fields: requests_per_second, burst_size)" appended)'"
+> "Placeholder name drift — BC-2.06.013 §Error Cases E-SPEC-023 message at line 82 used `{field}` placeholder, lowercase 'allowed fields are:', no sub-fields clause vs canonical `{field_name}` placeholder, 'Allowed overlay fields are:', '(with sub-fields: requests_per_second, burst_size)' appended — per BC-2.06.013 v1.1 changelog: 'F-LP4-MED-002: E-SPEC-023 message at line 82 — replaced paraphrase (`{field}` placeholder, lowercase "allowed fields are:", no sub-fields clause) with canonical (`{field_name}` placeholder, "Allowed overlay fields are:", "(with sub-fields: requests_per_second, burst_size)" appended).'"
 
 **Meta-correction header removed:** Entry 41 header previously had "[CODIFIED — NOTE: original entry 41 text contained OBS-LP5-001 paraphrase drift...]" prefix. This meta-correction is now folded into the bullet corrections; header reverts to clean "[process-gap] [CODIFIED]" without a self-referential note.
 
