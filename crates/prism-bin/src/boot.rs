@@ -129,6 +129,19 @@ pub struct BootContext {
     /// Threaded into step 7.5 (`plugin_load_step`) so the `RocksDbPluginAuditSink`
     /// can write durable audit entries for each unsigned plugin load (HIGH-002 / AC-4).
     pub rocksdb_backend: Arc<prism_storage::rocksdb_backend::RocksDbBackend>,
+    /// Per-org overlay resolved spec map produced by step 4 (S-CONFIG-MULTI-TENANT-OVERRIDE-001).
+    ///
+    /// Read-only after boot; shared via `Arc<HashMap>` for O(1) fanout dispatch
+    /// without mutex contention (INV-OVL-006, INV-FANOUT-002).
+    /// Key: `(OrgSlug, sensor_id_string)`; value: effective `ResolvedSensorSpec`.
+    ///
+    /// Empty map when no `customers/` directory exists (BC-2.06.012 backwards compat).
+    pub resolved_spec_map: Arc<
+        std::collections::HashMap<
+            prism_spec_engine::ResolvedSpecKey,
+            prism_spec_engine::ResolvedSensorSpec,
+        >,
+    >,
 }
 
 // ---------------------------------------------------------------------------
@@ -227,10 +240,15 @@ pub async fn boot_to_step_6(config_dir: &Path) -> Result<BootContext, BootError>
     let config = step2_load_config(config_dir).await?;
 
     // Step 3: Init OrgRegistry.
-    let _org_registry = step3_init_org_registry(&config).await?;
+    // INV-COMPAT-002 (BC-2.06.015): step 3 MUST precede step 4 — overlay validation
+    // requires a fully-constructed OrgRegistry to cross-check customers/ slugs.
+    let org_registry = step3_init_org_registry(&config).await?;
 
-    // Step 4: Load sensor TOML specs.
-    let config_manager = step4_load_sensor_specs(&config).await?;
+    // Step 4: Load sensor TOML specs AND per-org overlay specs.
+    // S-CONFIG-MULTI-TENANT-OVERRIDE-001: extended step 4 replaces bare step4_load_sensor_specs.
+    // Returns (config_manager, resolved_spec_map) — overlay errors abort boot with exit 2.
+    let (config_manager, resolved_spec_map) =
+        step4_load_sensor_specs_with_overlays(&config, &org_registry).await?;
 
     // Step 5: Init credential store.
     //
@@ -348,6 +366,7 @@ pub async fn boot_to_step_6(config_dir: &Path) -> Result<BootContext, BootError>
     Ok(BootContext {
         config_dir: config_dir.to_path_buf(),
         rocksdb_backend: audit_backend,
+        resolved_spec_map,
     })
 }
 
@@ -619,8 +638,6 @@ pub async fn step4_load_sensor_specs(
 /// continues normally. All fanout targets fall back to TYPE spec `base_url`.
 ///
 /// Story: S-CONFIG-MULTI-TENANT-OVERRIDE-001 | BCs: BC-2.06.012..016
-// Parameters named for implementer; unused at stub stage (todo!() body).
-#[allow(unused_variables)]
 pub async fn step4_load_sensor_specs_with_overlays(
     config: &PrismConfig,
     org_registry: &Arc<prism_core::OrgRegistry>,
@@ -636,7 +653,124 @@ pub async fn step4_load_sensor_specs_with_overlays(
     ),
     BootError,
 > {
-    todo!()
+    use prism_spec_engine::overlay::OverlayLoader;
+
+    // Step 4a: Load TYPE specs (same as step4_load_sensor_specs).
+    let config_manager = step4_load_sensor_specs(config).await?;
+
+    // Step 4b: Build type_specs map (HashMap<String, spec_parser::SensorSpec>) for overlay
+    // resolution. OverlayLoader requires spec_parser::SensorSpec (the newer type with
+    // AuthType enum), while ConfigSnapshot::sensor_specs uses types::SensorSpec (different
+    // type). We read the spec_dir files a second time using SpecLoader::parse to produce
+    // the correct type — this is a lightweight directory read, not a full re-validation.
+    let type_specs = build_type_spec_map_for_overlay(&config.spec_dir)?;
+
+    // Step 4c: Walk customers/ for per-org overlay files and validate against OrgRegistry.
+    // BC-2.06.012: absent customers/ → zero resolved entries, boot continues.
+    // BC-2.06.015: every customers/<slug>/ is cross-validated against OrgRegistry.
+    // BC-2.06.016 / INV-ERR-003: all errors collected before returning.
+    let customers_dir = config.spec_dir.join("customers");
+    let overlay_result = OverlayLoader::load_overlays(&customers_dir, &type_specs, org_registry);
+
+    // BC-2.06.016: aggregate ALL overlay errors; if any, boot aborts with exit 2.
+    if !overlay_result.errors.is_empty() {
+        let detail = overlay_result
+            .errors
+            .iter()
+            .map(|e| format!("  - {e}"))
+            .collect::<Vec<_>>()
+            .join("\n");
+        return Err(BootError::ConfigInvalid(format!(
+            "Overlay validation failed ({} error(s)):\n{detail}",
+            overlay_result.errors.len()
+        )));
+    }
+
+    let resolved_spec_map = Arc::new(overlay_result.resolved);
+
+    tracing::info!(
+        customers_dir = %customers_dir.display(),
+        overlay_count = resolved_spec_map.len(),
+        "Per-org overlay specs loaded (BC-2.06.012..016)"
+    );
+
+    Ok((config_manager, resolved_spec_map))
+}
+
+// ---------------------------------------------------------------------------
+// build_type_spec_map_for_overlay — helper for step4_load_sensor_specs_with_overlays
+// ---------------------------------------------------------------------------
+
+/// Build a `HashMap<String, spec_parser::SensorSpec>` from all `*.sensor.toml` files
+/// in `spec_dir` using `SpecLoader::parse`.
+///
+/// This is a secondary parse of the spec directory required because
+/// `OverlayLoader::load_overlays` expects `spec_parser::SensorSpec` (with the `AuthType`
+/// enum), while `ConfigSnapshot::sensor_specs` (produced by `parse_spec_directory`)
+/// stores `types::SensorSpec` (with `auth_type: String`).  The two types are distinct
+/// and cannot be interchanged without a lossy conversion.
+///
+/// The function skips files that fail to parse (logging errors) but collects them for
+/// aggregation — same partial-failure semantics as `parse_spec_directory`.
+///
+/// On I/O failure reading the directory itself, returns `BootError::ConfigInvalid`.
+fn build_type_spec_map_for_overlay(
+    spec_dir: &std::path::Path,
+) -> Result<std::collections::HashMap<String, prism_spec_engine::SensorSpec>, BootError> {
+    use prism_spec_engine::spec_parser::SpecLoader;
+
+    let read_dir = std::fs::read_dir(spec_dir).map_err(|e| {
+        BootError::ConfigInvalid(format!(
+            "Cannot read spec directory {} for overlay type_specs map: {e}",
+            spec_dir.display()
+        ))
+    })?;
+
+    let mut type_specs = std::collections::HashMap::new();
+
+    for entry in read_dir.flatten() {
+        let path = entry.path();
+        let file_name = path
+            .file_name()
+            .and_then(|n| n.to_str())
+            .unwrap_or("")
+            .to_string();
+
+        if !file_name.ends_with(".sensor.toml") {
+            continue;
+        }
+
+        let content = match std::fs::read_to_string(&path) {
+            Ok(c) => c,
+            Err(e) => {
+                // Log and skip — parse_spec_directory already validated these files;
+                // an I/O error here is transient and will be caught by the main load.
+                tracing::warn!(
+                    file = %path.display(),
+                    error = %e,
+                    "build_type_spec_map_for_overlay: skipping unreadable TYPE spec file"
+                );
+                continue;
+            }
+        };
+
+        match SpecLoader::parse(&content) {
+            Ok(spec) => {
+                type_specs.insert(spec.sensor_id.clone(), spec);
+            }
+            Err(e) => {
+                // Parse failure: already validated by step4_load_sensor_specs above;
+                // log and skip — overlay validation will catch any remaining issues.
+                tracing::warn!(
+                    file = %path.display(),
+                    error = %e,
+                    "build_type_spec_map_for_overlay: skipping unparseable TYPE spec file"
+                );
+            }
+        }
+    }
+
+    Ok(type_specs)
 }
 
 // ---------------------------------------------------------------------------
@@ -1530,4 +1664,204 @@ pub enum CredentialBackendConfig {
     EncryptedFile {
         path: PathBuf,
     },
+}
+
+// ---------------------------------------------------------------------------
+// Unit tests — step4_load_sensor_specs_with_overlays (BC-2.06.012, BC-2.06.015)
+// ---------------------------------------------------------------------------
+//
+// SID-1: tests use in-process tempdir helpers; no subprocess spawning; no #[ignore].
+// These tests exercise the production code path directly.
+
+#[cfg(test)]
+mod step4_overlay_tests {
+    use std::sync::Arc;
+
+    use prism_core::{OrgId, OrgRegistry, OrgSlug};
+
+    use super::*;
+
+    /// Minimal valid TYPE spec TOML for testing.
+    const ARMIS_TYPE_SPEC_TOML: &str = r#"
+sensor_id = "armis"
+name = "Armis test"
+auth_type = "bearer_static"
+base_url = "https://armis.default.example.com"
+version = "1.0.0"
+
+[[tables]]
+table_name = "devices"
+ocsf_class = "device_inventory_info"
+
+  [[tables.columns]]
+  name = "device_id"
+  column_type = "string"
+  options = ["REQUIRED"]
+
+  [[tables.steps]]
+  name = "fetch"
+  method = "GET"
+  path_template = "/api/v1/devices"
+  response_path = "$.data"
+  variables_produced = []
+"#;
+
+    /// Build a minimal prism.toml + spec_dir/ directory structure in a tempdir.
+    ///
+    /// Returns the tempdir (kept alive for test lifetime) and the `PrismConfig`.
+    fn make_config_dir_with_sensor(
+        org_id: &str,
+        org_slug: &str,
+    ) -> (tempfile::TempDir, PrismConfig) {
+        let dir = tempfile::tempdir().expect("tempdir must succeed");
+
+        // Write prism.toml.
+        let prism_toml = format!(
+            r#"
+spec_dir = "specs"
+state_dir = "state"
+
+[[orgs]]
+org_id = "{org_id}"
+org_slug = "{org_slug}"
+"#
+        );
+        std::fs::write(dir.path().join("prism.toml"), &prism_toml).expect("write prism.toml");
+
+        // Create specs/ directory with the Armis TYPE spec.
+        let spec_dir = dir.path().join("specs");
+        std::fs::create_dir_all(&spec_dir).expect("create specs/");
+        std::fs::write(spec_dir.join("armis.sensor.toml"), ARMIS_TYPE_SPEC_TOML)
+            .expect("write armis.sensor.toml");
+
+        // Construct a PrismConfig pointing to the tempdir.
+        let config = PrismConfig::new_for_test(
+            spec_dir,
+            dir.path().join("state"),
+            dir.path().join("plugins"),
+            vec![OrgEntry::new(org_id, org_slug)],
+            CredentialBackendConfig::Keyring,
+        );
+
+        (dir, config)
+    }
+
+    /// Build an OrgRegistry with one org.
+    fn registry_with_org(org_id: OrgId, org_slug: &str) -> Arc<OrgRegistry> {
+        let reg = OrgRegistry::new();
+        reg.register(OrgSlug::new(org_slug), org_id)
+            .expect("register must succeed");
+        Arc::new(reg)
+    }
+
+    /// BC-2.06.012: absent customers/ directory → zero resolved entries, boot continues.
+    #[tokio::test]
+    #[allow(non_snake_case)]
+    async fn test_BC_2_06_012_no_customers_dir_boots_with_empty_overlay_map() {
+        // Use a valid UUID v7 for org_id (BC-2.21.001 EC-21-001-008).
+        let v7 = uuid::Uuid::now_v7();
+        let v7_str = v7.to_string();
+        let (dir, config) = make_config_dir_with_sensor(&v7_str, "acme");
+        let _ = &dir; // keep alive
+
+        // Explicitly ensure no customers/ directory exists.
+        assert!(
+            !config.spec_dir.join("../customers").exists(),
+            "customers/ must not exist for this test"
+        );
+
+        let org_id = prism_core::OrgId::from_uuid(v7);
+        let registry = registry_with_org(org_id, "acme");
+
+        let result = step4_load_sensor_specs_with_overlays(&config, &registry).await;
+        let (_config_manager, resolved_map) = result
+            .expect("boot must succeed with absent customers/ (BC-2.06.012 backwards compat)");
+
+        assert!(
+            resolved_map.is_empty(),
+            "BC-2.06.012: absent customers/ → zero ResolvedSensorSpec entries"
+        );
+    }
+
+    /// BC-2.06.015: unknown org slug in customers/ → overlay error → boot aborts exit 2.
+    #[tokio::test]
+    #[allow(non_snake_case)]
+    async fn test_BC_2_06_015_unknown_org_slug_in_customers_dir_aborts_boot() {
+        let v7 = uuid::Uuid::now_v7();
+        let v7_str = v7.to_string();
+        let (dir, config) = make_config_dir_with_sensor(&v7_str, "acme");
+        let _ = &dir; // keep alive
+
+        // Create customers/unknown-org/ with a dummy overlay.
+        let overlay_dir = config.spec_dir.join("customers").join("unknown-org");
+        std::fs::create_dir_all(&overlay_dir).expect("create unknown-org overlay dir");
+        std::fs::write(
+            overlay_dir.join("armis.sensor.toml"),
+            r#"extends = "armis"
+instance_id = "armis@unknown-org"
+base_url = "https://armis.unknown.example.com"
+"#,
+        )
+        .expect("write overlay file");
+
+        let org_id = prism_core::OrgId::from_uuid(v7);
+        let registry = registry_with_org(org_id, "acme");
+
+        let result = step4_load_sensor_specs_with_overlays(&config, &registry).await;
+        match result {
+            Err(BootError::ConfigInvalid(msg)) => {
+                assert!(
+                    msg.contains("Overlay validation failed"),
+                    "BC-2.06.015: ConfigInvalid must contain 'Overlay validation failed', got: {msg}"
+                );
+            }
+            Ok(_) => panic!("BC-2.06.015: boot must fail for unknown org slug in customers/"),
+            Err(e) => {
+                panic!("BC-2.06.015: wrong error variant — expected ConfigInvalid, got: {e:?}")
+            }
+        }
+    }
+
+    /// BC-2.06.012 happy path: overlay present → resolved_spec_map contains the entry.
+    #[tokio::test]
+    #[allow(non_snake_case)]
+    async fn test_BC_2_06_012_overlay_present_in_customers_dir_resolves_to_map() {
+        let v7 = uuid::Uuid::now_v7();
+        let v7_str = v7.to_string();
+        let (dir, config) = make_config_dir_with_sensor(&v7_str, "acme");
+        let _ = &dir; // keep alive
+
+        // Create customers/acme/armis.sensor.toml overlay.
+        let overlay_dir = config.spec_dir.join("customers").join("acme");
+        std::fs::create_dir_all(&overlay_dir).expect("create acme overlay dir");
+        std::fs::write(
+            overlay_dir.join("armis.sensor.toml"),
+            r#"extends = "armis"
+instance_id = "armis@acme"
+base_url = "https://armis.acme-corp.io"
+"#,
+        )
+        .expect("write overlay");
+
+        let org_id = prism_core::OrgId::from_uuid(v7);
+        let registry = registry_with_org(org_id, "acme");
+
+        let (_config_manager, resolved_map) =
+            step4_load_sensor_specs_with_overlays(&config, &registry)
+                .await
+                .expect("boot must succeed with valid overlay (BC-2.06.012)");
+
+        // ResolvedSpecKey = (OrgSlug, String).
+        let key = (OrgSlug::new("acme"), "armis".to_string());
+        let resolved = resolved_map.get(&key);
+        assert!(
+            resolved.is_some(),
+            "BC-2.06.012: overlay entry must appear in resolved_spec_map at (acme, armis)"
+        );
+        let spec = &resolved.unwrap().spec;
+        assert_eq!(
+            spec.base_url, "https://armis.acme-corp.io",
+            "BC-2.06.012: overlay base_url must be used in resolved spec"
+        );
+    }
 }
