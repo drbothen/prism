@@ -321,3 +321,33 @@ traces_to: STATE.md
 
     **Process pattern for future cascades:** When a cascade reaches 3 consecutive CLEAN(PR-merge) passes with (a) zero CRIT/HIGH/MED/LOW since pass-N-3, (b) feature HEAD unchanged for 5+ passes, (c) all remaining OBS findings are META bookkeeping with a registered forward story anchor, the orchestrator SHOULD surface Option B to the user. The user's production-grade directive applies to feature-level correctness, not to infinite cascade iteration on state-manager workflow meta-gaps. Presenting Option B is not a "defer" pattern — it is correct-agent-routing (forward the META bookkeeping work to its registered story).
     _Discovered: D-822, S-CONFIG-MULTI-TENANT-OVERRIDE-001 Option B exit, 2026-05-24._
+
+## 2026-05-24 D-823 — Cross-Reviewer Finding Asymmetry (PR-LEVEL adversary scope gap)
+
+50. **[process-gap] [codified] PR-LEVEL adversary must explicitly verify that the production CONSUMER of an injected value READS it — not merely that the plumbing exists. Security reviewers have consistently caught this gap at the adapter-internal layer that adversary missed.**
+
+    **Pattern instance (PR #155 SEC-001):** The `base_url` field in the multi-tenant overlay was correctly injected into `SensorSpec` at the spec-engine layer. The adversary verified the plumbing path (overlay → ResolvedSensorSpec → dispatch) and reported CLEAN(PR-merge). The security reviewer examined the adapter layer and found that the CrowdStrike + Cyberint + Claroty adapter constructors read `base_url` from their hardcoded default or environment variable, NOT from the `SensorSpec.base_url` field. Result: multi-tenant base_url override was structurally wired but functionally inert — the injected value was never consumed. This is SEC-001 CRIT: multi-tenant routing is a NO-OP at the adapter boundary.
+
+    **Recurring class identification:** This is the third manifestation of the same paper-fix class:
+    - **F-LP2-CRIT-001** (S-CONFIG LOCAL pass-2): Arc-DI plumbing was present in the type definition but the constructors did not wire the Arc through — the dependency was declared but not threaded.
+    - **PR #154 SEC-001** (PLUGIN-MIGRATION-001-E PR-LEVEL security pass-1): credential_handle injection was wired to PluginConfigMap but the OAuth2 client constructor read from a hardcoded env var, not from the injected map. Closed in fix-burst at a759d2b0 via ADR-028 §D11 Option C.
+    - **PR #155 SEC-001** (S-CONFIG PR-LEVEL security pass-1): base_url override was wired through spec-engine but adapter constructors ignored it.
+    
+    Common root cause: the injection was structural (type system accepted it) but the downstream consumer had a pre-existing code path that bypassed the injected value. Adversary probes typically verify "does the value flow to the correct type/field" but stop short of "does the production code path that uses that type/field actually READ the injected value at runtime."
+
+    **Codification — new SAP for PR-LEVEL adversary:**
+    
+    For every PR-LEVEL adversary pass on stories where a NEW value is injected into an existing type (especially sensor adapters, plugin constructors, Arc-DI parameters, configuration maps):
+    
+    1. Identify every production code path that consumes the type containing the injected field
+    2. For each consumption site: verify the site reads the injected field, NOT a hardcoded alternative (env var, constant, default constructor parameter, pre-existing member)
+    3. Write the verification as a grep for the FIELD NAME at each consumption site — absence means the injection is bypassed
+    4. "Value is present in the struct" is INSUFFICIENT. "Value is read at the specific call site that needs it" is the required verification
+    
+    Absence of consumption = paper-fix class finding regardless of plumbing correctness.
+
+    **Why security catches this and adversary misses it:** Security reviewers approach from "what could an attacker exploit" and naturally ask "what happens if the value is wrong/injected/poisoned at runtime" — which forces them to trace the runtime consumption path. Adversary reviewers approach from "does the code match the spec" and verify structural plumbing matches BC intent, which stops at structural correctness. Both views are required; neither alone is sufficient for injection-style plumbing.
+
+    **Concrete future SAP addition:** Add to CLAUDE.md §Standing Adversary Probes: SAP-3 — for every injected field on a type passed to an existing production code path, verify at least one of: (a) grep shows the field is read at the consumption site, or (b) a unit test asserts different injected values produce different behavior at the adapter boundary (not at the spec-engine level). Either is sufficient; absence of both is a CRIT finding.
+
+    _Discovered: D-823, PR #155 S-CONFIG-MULTI-TENANT-OVERRIDE-001 PR-LEVEL security pass-1 SEC-001, 2026-05-24. Recurring class confirmed across F-LP2-CRIT-001 + PR #154 SEC-001 + PR #155 SEC-001 + PR #155 HIGH-001._

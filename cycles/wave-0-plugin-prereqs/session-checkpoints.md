@@ -191,3 +191,24 @@ USER OPTION B accepted 2026-05-22. Code IS production-grade. 35+ lessons.md entr
 - PR #153 merged — post-merge burst (D-776) completed.
 - session-reviewer dispatch pending (codification queue lessons.md 14-37+38).
 - PLUGIN-MIGRATION-001-A start per ADR-028 §D10.
+
+---
+
+## Archived Checkpoint: D-808 ADR-029 ACCEPTED; Path C dual-worktree locked (2026-05-23)
+
+_Archived from STATE.md Session Resume Checkpoint by D-823 burst 2026-05-24._
+
+**STATE v7.495. D-808 ADR-029 ACCEPTED — Path C dual-worktree parallel implementation locked.** safe_to_compact=true. ADR-029 status: Proposed → Accepted v1.2 (human approval). ARCH-INDEX v2.101 → v2.102.
+
+**Path C Summary:**
+- Stream 1: PLUGIN-MIGRATION-001-E — existing .worktrees/PLUGIN-MIGRATION-001-E/, feature HEAD 9e412c83, LOCAL cascade CONVERGED. Next: demo-recorder + push + pr-manager 9-step PR cycle.
+- Stream 2: S-CONFIG-MULTI-TENANT-OVERRIDE-001 — NEW worktree to create from develop@f19575ff. Next: deliver-story workflow (stubs → tests → TDD → LOCAL adversary → demo → PR).
+- No code surface conflicts between streams. POL-14 BC auto-promotion (BC-2.06.012-016 draft → active) on stream 2 first PR merge.
+
+**Next actions (at time of archival):**
+1. Read SESSION-HANDOFF.md §RESUME SNAPSHOT 2026-05-23-PATH-C-DUAL-WORKTREE
+2. Run vsdd-factory:factory-worktree-health (BLOCKING preflight)
+3. Verify develop@f19575ff + feature/PLUGIN-MIGRATION-001-E HEAD 9e412c83
+4. Dispatch Stream 1 (demo-recorder) AND Stream 2 (worktree-create + deliver-story) in parallel
+
+_Superseded by D-823 checkpoint (PR-LEVEL dual-stream 2026-05-24)._

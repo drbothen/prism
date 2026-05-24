@@ -7017,4 +7017,147 @@ _Final session terminus: 2026-05-23. Cascade discipline lessons accumulated: 5 N
 5. Dispatch demo-recorder for S-CONFIG-MULTI-TENANT-OVERRIDE-001 all 7 ACs
 6. Push + pr-manager 9-step lifecycle
 
+_Final session terminus: 2026-05-24T18:00Z. S-CONFIG-MULTI-TENANT-OVERRIDE-001 LOCAL adversary cascade CONVERGED via Option B exit. 13 passes / 13 fix-bursts / 25 findings closed / 15 META axes → S-MAINT-POL29-HOOK-001 / lesson 49 codified._
+
+---
+
+## §RESUME SNAPSHOT 2026-05-24-CLEAR-CHECKPOINT-BOTH-PRS (dual-stream PR-LEVEL; D-823)
+
+**Purpose:** Durable checkpoint for /clear-and-resume covering BOTH PR #154 (PLUGIN-MIGRATION-001-E) and PR #155 (S-CONFIG-MULTI-TENANT-OVERRIDE-001) at their current PR-LEVEL phases. Supersedes §RESUME SNAPSHOT 2026-05-24-S-CONFIG-OPTION-B-EXIT as the most-recent durable checkpoint. Both prior snapshots remain valid historical context.
+
+**Headline:** Both PRs are at PR-LEVEL review phase. They are at DIFFERENT stages and require DIFFERENT next steps. Stream 1 (PR #154) has a committed fix-burst waiting for CI. Stream 2 (PR #155) has pass-1 complete but fix-burst not yet dispatched.
+
+---
+
+### §1. Stream 1 — PR #154 PLUGIN-MIGRATION-001-E
+
+| Artifact | State |
+|---|---|
+| Story | PLUGIN-MIGRATION-001-E |
+| PR URL | https://github.com/drbothen/prism/pull/154 |
+| LOCAL cascade | CONVERGED (pass-12, 3-CLEAN strict; 55 findings closed; 8 fix-bursts; D-802) |
+| Feature HEAD at PR creation | `9e412c83` |
+| Feature HEAD after PR-LEVEL fix-burst | `a759d2b0` |
+| Remote push status | PUSHED to origin/feature/PLUGIN-MIGRATION-001-E at a759d2b0 (~16:23 CDT 2026-05-24, after 19-min just check) |
+| CI status on a759d2b0 | PENDING — re-running; check before dispatching pass-2 |
+| PR-LEVEL adversary pass-1 | 3 findings: 1 HIGH F-PR154-P1-HIGH-001 (Component Model dispatch ABI — WIT interface used wrong idiom for resource method dispatch) + 1 MED (test coverage gap on error path) + 1 LOW (story frontmatter count) |
+| PR-LEVEL security pass-1 | 5 findings: SEC-001 CRIT (credential_handle resolved to hardcoded env var in OAuth2 client constructor, bypassing injection; ADR-028 §D11 mandates host-side resolution via prism_credentials::resolve_credential) + 1 HIGH + 2 MED + 1 OBS |
+| PR-LEVEL pr-reviewer pass-1 | 15 findings (covered Component Model ABI, credential wiring, test coverage, naming, error messages) |
+| Fix-burst status | ALL 23 findings (3+5+15) CLOSED in single fix-burst at a759d2b0 |
+| ADR-028 §D11 Option C | COMMITTED at factory-artifacts `dced2268` — locking: host resolves credential_handle → client_id + client_secret via prism_credentials::resolve_credential; PluginConfigMap injection before dispatch_plugin_acquire_token call |
+| PR-LEVEL pass count | 1 (pass-1 complete; pass-2 pending CI green) |
+| Fresh 3-CLEAN streak | 0/3 (fix-burst committed; pass-2 not yet run) |
+| Worktree | `.worktrees/PLUGIN-MIGRATION-001-E` at a759d2b0 — DO NOT TOUCH on resume |
+
+**Next steps for Stream 1:**
+1. Check CI status on a759d2b0 at https://github.com/drbothen/prism/pull/154
+2. If CI GREEN: dispatch PR-LEVEL adversary pass-2 + pr-reviewer pass-2 + security pass-2 (fresh 3-CLEAN strict streak required per CLAUDE.md)
+3. If CI RED: read failure logs; dispatch implementer fix; push; repeat
+
+---
+
+### §2. Stream 2 — PR #155 S-CONFIG-MULTI-TENANT-OVERRIDE-001
+
+| Artifact | State |
+|---|---|
+| Story | S-CONFIG-MULTI-TENANT-OVERRIDE-001 |
+| PR URL | https://github.com/drbothen/prism/pull/155 |
+| LOCAL cascade | CONVERGED via Option B exit at pass-13 (D-822; 25 findings closed; 13 fix-bursts) |
+| Feature HEAD | `515fdc2e` (AC-005 include_str!() fixture CI-portability fix) |
+| Remote push status | PUSHED to origin/feature/S-CONFIG-MULTI-TENANT-OVERRIDE-001 at 515fdc2e (~15:35 CDT 2026-05-24) |
+| CI status on 515fdc2e | GREEN — all 36 jobs pass |
+| PR-LEVEL adversary pass-1 | 2 findings: 1 LOW (fixture sync) + 1 OBS (EC-016-005 untested boundary) — adversary reported CLEAN(PR-merge)=YES |
+| PR-LEVEL security pass-1 | 6 findings: SEC-001 CRIT + SEC-002 HIGH + 2 MED + 1 LOW + 1 OBS |
+| PR-LEVEL pr-reviewer pass-1 | 11 findings: F-PR155-HIGH-001 (timeout_secs paper-fix — field present in struct but not read by HTTP client builder) + 5 MED + 4 LOW + 1 OBS |
+| CROSS-REVIEWER NOTE | Security contradicted adversary CLEAN(PR-merge) — security found SEC-001 CRIT at deeper adapter layer. Per Lesson 50: adversary verified plumbing-to-SensorSpec; security verified adapter consumption. Both needed. |
+| SEC-001 critical context | base_url in per-org overlay is correctly wired to SensorSpec at spec-engine layer, but CrowdStrike/Cyberint/Claroty adapter constructors read base_url from hardcoded default/env var, NOT from SensorSpec.base_url. Multi-tenant routing is functionally inert at the adapter boundary. |
+| Consolidated findings | 1 CRIT + 2 HIGH + 6 MED + 5 LOW + 3 OBS (across all 3 reviewers) |
+| User authorization | Option A strict — fix ALL 17 consolidated findings before PR can merge |
+| No hanging tests | Confirmed — no integration tests are blocked/hanging for PR #155 |
+| Fix-burst status | NOT YET DISPATCHED — pending implementer dispatch on resume |
+| PR-LEVEL pass count | 1 (pass-1 complete; fix-burst pending; pass-2 after fix-burst+push) |
+| Fresh 3-CLEAN streak | 0/3 (pass-1 findings; fix-burst not started) |
+| Worktree | `.worktrees/S-CONFIG-MULTI-TENANT-OVERRIDE-001` at 515fdc2e — DO NOT TOUCH on resume (implementer dispatches to this worktree) |
+
+**PR #155 fix-burst dispatch instructions (Option A strict):**
+
+Dispatch implementer to `.worktrees/S-CONFIG-MULTI-TENANT-OVERRIDE-001` to close ALL 17 consolidated findings:
+
+1. **SEC-001 CRIT** — wire adapter constructors to read `SensorSpec.base_url` (override when present, fall back to default when absent); affects CrowdStrike + Cyberint + Claroty adapter init paths
+2. **F-PR155-HIGH-001** — `timeout_secs` field is present in overlay type but HttpClient builder does not apply it; wire timeout to reqwest builder (`.timeout(Duration::from_secs(overlay.timeout_secs))`)
+3. **SEC-002 HIGH** — symlink-following in overlay file discovery; add `path.symlink_metadata()` check before reading
+4. Remaining 14 MED+LOW+OBS per full review-findings document
+
+After fix-burst: push origin; dispatch pass-2 reviewers (adversary + security + pr-reviewer).
+
+---
+
+### §3. Factory-Artifacts State at /clear
+
+| Field | Value |
+|---|---|
+| Factory-artifacts HEAD | Run `git -C .factory log -1 --format='%h %s'` (authoritative; not cited here per TD-VSDD-053) |
+| Most recent bursts | D-823 (this checkpoint) → dced2268 (ADR-028 §D11) → 9d24e51c (S-CONFIG OPTION B EXIT) → d7fb614b (fix-burst 13) |
+| STATE.md version | v7.510 |
+| develop HEAD | `f19575ff` (unchanged) |
+| BC-INDEX | v5.51 |
+| STORY-INDEX | v2.188 |
+| error-taxonomy | v1.52 |
+| Lessons learned | 50 entries (lesson 50 = cross-reviewer finding asymmetry) |
+
+---
+
+### §4. Critical Decisions in Flight
+
+| Decision | Status | Where recorded |
+|----------|--------|----------------|
+| ADR-028 §D11 Option C — credential substitution model | COMMITTED at `dced2268` | `.factory/specs/architecture/adr/ADR-028-*.md` |
+| S-CONFIG META backlog (15 axes) → S-MAINT-POL29-HOOK-001 | FORWARD-ANCHORED (Option B exit D-822) | `cycles/wave-0-plugin-prereqs/lessons.md` lessons 41-49 |
+| User Option A standing for all gates | CONSISTENT PATTERN throughout session | `STATE.md` frontmatter + D-NNN decisions |
+| User Option B at S-CONFIG pass-13 META asymptote | D-822; ONE-TIME exception per BC-5.39.001 D-779 disambiguation | `cycles/wave-0-plugin-prereqs/s-config-option-b-exit.md` |
+| PR-LEVEL adversary must verify consumer, not just plumbing | Lesson 50; proposed SAP-3 | `cycles/wave-0-plugin-prereqs/lessons.md` lesson 50 |
+
+---
+
+### §5. Active Worktrees — DO NOT TOUCH on resume
+
+| Worktree | Branch | HEAD | Status |
+|---------|--------|------|--------|
+| `.worktrees/PLUGIN-MIGRATION-001-E` | feature/PLUGIN-MIGRATION-001-E | `a759d2b0` | PR-LEVEL fix-burst committed; CI pending |
+| `.worktrees/S-CONFIG-MULTI-TENANT-OVERRIDE-001` | feature/S-CONFIG-MULTI-TENANT-OVERRIDE-001 | `515fdc2e` | CI GREEN; fix-burst pending |
+| `.worktrees/S-3.09` | feature/S-3.09 | (frozen) | FROZEN — BUG-S309-PLUGIN; do not touch |
+| `.worktrees/W3-FIX-S307-001` | feature/W3-FIX-S307-001 | (blocked) | BLOCKED — scaffolding preserved at /tmp/prism-W3-FIX-S307-001-scaffolding-diff.patch |
+
+---
+
+### §6. Cross-Stream Notes
+
+**Recurring paper-fix class — MONITOR:**
+The SEC-001 pattern (value wired into type but not consumed at production call site) has appeared in EVERY PR-LEVEL security review so far:
+- S-CONFIG LOCAL pass-2: F-LP2-CRIT-001 (Arc-DI plumbing declared but not threaded through constructors)
+- PR #154 security pass-1: SEC-001 (credential_handle wired but OAuth2 client read from hardcoded env var)
+- PR #155 security pass-1: SEC-001 (base_url wired to SensorSpec but adapter constructors read from default)
+- PR #155 pr-reviewer pass-1: F-PR155-HIGH-001 (timeout_secs field present but HTTP client builder doesn't apply it)
+
+**Root cause:** All instances share the same structure: a NEW field is correctly added to a struct, and the injection plumbing is structurally sound, but the EXISTING production code that uses the struct was not updated to READ the new field. The struct accepts the value; the consumer ignores it.
+
+**Lesson 50 SAP-3 proposal:** For every PR where a new field is added to a type used by an existing production code path, the PR-LEVEL adversary must grep for the field name at every consumption site and verify it is READ, not just present.
+
+**Tasks checkpoint:** The session accumulated 50+ tasks via TaskCreate/TaskUpdate. These tasks MAY be lost on /clear. STATE.md (v7.510) is the authoritative resume source. Do not rely on task list survival.
+
+---
+
+### §7. Resume Protocol (6 steps)
+
+1. Read `STATE.md` frontmatter — v7.510; `pr_154_*` and `pr_155_*` fields are the authoritative stream state
+2. Read this §RESUME SNAPSHOT 2026-05-24-CLEAR-CHECKPOINT-BOTH-PRS for full context
+3. Run `vsdd-factory:factory-worktree-health` (BLOCKING preflight — verify both worktrees healthy)
+4. **Stream 1 (PR #154):** Check CI status at https://github.com/drbothen/prism/pull/154
+   - CI GREEN: dispatch PR-LEVEL adversary pass-2 + pr-reviewer pass-2 + security pass-2
+   - CI RED: read failure logs; dispatch implementer for CI fix; push; wait for CI
+5. **Stream 2 (PR #155):** Dispatch implementer for consolidated fix-burst (Option A strict; 1C+2H+6M+5L+3OBS); after fix-burst push origin + dispatch pass-2 reviewers
+6. Both streams are INDEPENDENT — can run in parallel (different worktrees, no code surface overlap)
+
+_Session terminus: 2026-05-24T18:00Z. Both PRs at PR-LEVEL phase-1. D-823 durable checkpoint committed. Safe to /clear._
+
 _Final session terminus: 2026-05-24. S-CONFIG-MULTI-TENANT-OVERRIDE-001 LOCAL adversary cascade CONVERGED via Option B exit. 13 passes / 13 fix-bursts / 25 findings closed / 15 META axes → S-MAINT-POL29-HOOK-001 / lesson 49 codified._

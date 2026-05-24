@@ -1,9 +1,9 @@
 ---
 document_type: pipeline-state
 level: ops
-version: "7.509"
+version: "7.510"
 producer: state-manager
-timestamp: 2026-05-24T12:00:00Z
+timestamp: 2026-05-24T18:00:00Z
 inputs: []
 input-hash: "[live-state]"
 traces_to: ""
@@ -16,24 +16,54 @@ repos: [poller-cobra, poller-express, poller-bear, poller-coaster, serveMyAPI, t
 safe_to_compact: true
 pre_compact_snapshot: "SESSION-HANDOFF.md §RESUME SNAPSHOT 2026-05-23-PATH-C-DUAL-WORKTREE"
 pre_compact_snapshot_at: "2026-05-23 (D-808 ADR-029 ACCEPTED; Path C dual-worktree parallel implementation locked; state-final for /clear-resume)"
-current_step: "D-822 S-CONFIG-MULTI-TENANT-OVERRIDE-001 LOCAL adversary CASCADE CONVERGED via USER OPTION B EXIT at pass-13 (D-779 disambiguation: 3 consecutive CLEAN(PR-merge) passes 11+12+13; 13 passes / 13 fix-bursts / 25 findings closed; 15 META axes → S-MAINT-POL29-HOOK-001; F-LP13-OBS-001/002/003 carried forward). STATE v7.508→v7.509. NEXT: demo-recorder per-AC + push + pr-manager 9-step lifecycle."
-s_config_status: "OPTION B EXIT — CLEAN(PR-merge) CONVERGED per BC-5.39.001 D-779 disambiguation; 3 consecutive PR-merge-CLEAN passes (11-13); 15 axes carried forward to S-MAINT-POL29-HOOK-001"
+current_step: "D-823 durable /clear-and-resume checkpoint (2026-05-24). PR #154 PLUGIN-MIGRATION-001-E: PR-LEVEL fix-burst committed at a759d2b0 + pushed; CI re-running; NEXT = wait for CI green then PR-LEVEL adversary pass 2 + pr-reviewer 2 + security pass 2. PR #155 S-CONFIG: CI GREEN at 515fdc2e; PR-LEVEL pass-1 complete (1 CRIT + 2 HIGH + 6 MED + 5 LOW + 3 OBS consolidated); user authorized Option A strict fix-burst; NEXT = dispatch implementer for consolidated fix-burst. Lesson 50 [process-gap] [codified]: cross-reviewer finding asymmetry — security caught adapter-layer NO-OP that adversary missed. STATE v7.509→v7.510."
+s_config_status: "PR-LEVEL pass-1 COMPLETE; CI GREEN at 515fdc2e; user authorized Option A strict fix-burst; NEXT: dispatch implementer for consolidated fix-burst (1 CRIT + 2 HIGH + 6 MED + 5 LOW + 3 OBS across 3 reviewers); LOCAL cascade: OPTION B EXIT CONVERGED"
 s_config_converged_at_pass: 13
 s_config_converged_at: "2026-05-24"
 s_config_local_total_findings_closed: 25
 s_config_local_adversary_passes: 13
 s_config_local_fix_bursts: 13
 s_config_meta_backlog_anchor: "S-MAINT-POL29-HOOK-001 axes 1-15 (lessons 41-49 + axis-15 candidate from F-LP13-OBS-001)"
+pr_155_pr_number: 155
+pr_155_url: "https://github.com/drbothen/prism/pull/155"
+pr_155_feature_head: "515fdc2e"
+pr_155_remote_pushed_at: "2026-05-24 ~15:35 CDT"
+pr_155_ci_status: "GREEN — all 36 jobs pass on 515fdc2e"
+pr_155_pr_level_adversary_pass_count: 1
+pr_155_pr_level_adversary_status: "pass-1: 2 findings (1 LOW fixture sync + 1 OBS EC-016-005 untested); CLEAN(PR-merge)=YES per adversary — BUT security contradicted at deeper layer (SEC-001 CRIT missed by adversary)"
+pr_155_pr_level_security_critical_findings: "SEC-001 CRIT: base_url NO-OP at adapter layer — multi-tenant routing functionally inert (same paper-fix class as F-LP2-CRIT-001 + PR #154 SEC-001). security caught what adversary missed."
+pr_155_pr_level_pr_reviewer_findings_total: 11
+pr_155_pr_level_pr_reviewer_findings_detail: "1 HIGH F-PR155-HIGH-001 timeout_secs paper-fix + 5 MED + 4 LOW + 1 OBS"
+pr_155_pr_level_total_consolidated: "1 CRIT (SEC-001) + 2 HIGH (F-PR155-HIGH-001 + SEC-002 symlink) + 6 MED (size limit + log injection + 3 pr-reviewer MEDs + 1 adversary LOW promoted) + 5 LOW + 3 OBS — consolidated across 3 reviewers"
+pr_155_option_a_authorized: true
+pr_155_option_a_note: "User authorized Option A strict fix-burst for ALL 17 consolidated findings per 2026-05-24 session"
+pr_155_no_hanging_integration_tests: true
+pr_155_open_dispatches: "dispatch implementer for consolidated fix-burst; NO hanging integration tests; after fix-burst push origin + dispatch pass 2 reviewers"
+pr_155_cross_reviewer_asymmetry_lesson: "lesson 50 — adversary verified plumbing-to-input but not adapter-internal consumption; security caught SEC-001 at deeper adapter layer. PR-LEVEL adversary scope must include: verify production consumer of injected value READS it, not just that the value is injected."
 pending_design_decision_research_artifact: ".factory/research/multi-tenant-sensor-endpoint-overrides-2026-05-23.md"
 pending_design_decision_topic: "multi-tenant per-org sensor endpoint overrides"
 plugin_migration_001_e_local_adversary_passes: 12
-plugin_migration_001_e_status: "LOCAL CASCADE CONVERGED per BC-5.39.001 3-CLEAN STRICT. Pass-12 = 3rd consecutive CLEAN strict. Feature HEAD 9e412c83. Exits to demo-recorder + pr-manager stages. DF-001 armis.rs SAP-1 deferred to phase-5 (pre-existing, out-of-perimeter)."
+plugin_migration_001_e_status: "PR-LEVEL fix-burst COMMITTED at a759d2b0; pushed to origin 2026-05-24; CI re-running. NEXT: wait for CI green then dispatch PR-LEVEL adversary pass 2 + pr-reviewer pass 2 + security pass 2."
 plugin_migration_001_e_local_fix_bursts: 8
 plugin_migration_001_e_local_findings_closed: 55
 plugin_migration_001_e_local_adversary_clean_streak: 3
 plugin_migration_001_e_local_converged_at: "2026-05-23"
 plugin_migration_001_e_local_converged_at_pass: 12
 plugin_migration_001_e_local_total_findings_closed: 55
+pr_154_pr_number: 154
+pr_154_url: "https://github.com/drbothen/prism/pull/154"
+pr_154_feature_head: "a759d2b0"
+pr_154_remote_pushed_at: "2026-05-24"
+pr_154_pr_level_adversary_pass_count: 1
+pr_154_pr_level_adversary_findings_total: 3
+pr_154_pr_level_adversary_findings_detail: "1 HIGH F-PR154-P1-HIGH-001 (Component Model dispatch ABI) + 1 MED test coverage + 1 LOW frontmatter count — ALL closed in fix-burst at a759d2b0"
+pr_154_pr_level_security_findings_total: 5
+pr_154_pr_level_security_findings_detail: "SEC-001 CRIT + 4 others (1 HIGH + 2 MED + 1 OBS) — ALL actionable findings closed in fix-burst at a759d2b0"
+pr_154_pr_level_pr_reviewer_findings_total: 15
+pr_154_pr_level_pr_reviewer_findings_detail: "15 findings closed in fix-burst at a759d2b0 (included ADR-028 §D11 Option C credential substitution — architect adjudication committed at factory-artifacts dced2268)"
+pr_154_adr_028_d11_option_c: "COMMITTED at factory-artifacts dced2268 — host resolves credential_handle via prism_credentials::resolve_credential before dispatch_plugin_acquire_token"
+pr_154_ci_status: "PENDING — re-running on a759d2b0 after 2026-05-24 push; check CI before dispatching pass 2 reviewers"
+pr_154_open_dispatches: "1) monitor CI on a759d2b0; 2) if green: dispatch PR-LEVEL adversary pass 2 + pr-reviewer pass 2 + security pass 2 (fresh 3-CLEAN streak begins)"
 plugin_migration_001_d_red_gate_verified_at: 2026-05-21T20:15:00Z
 plugin_migration_001_d_tdd_green_at: 2026-05-21T21:29:04Z
 plugin_migration_001_d_feature_branch_head: "55b4f72d"
@@ -124,9 +154,9 @@ historical_cycles: [phase-1-convergence, wave-3-multi-tenant, wave-4-operations]
 | **Language** | Rust |
 | **Target Workspace** | per-analyst stdio (MCP server) |
 | **Started** | 2026-04-13 |
-| **Last Updated** | 2026-05-24 (D-822 S-CONFIG-MULTI-TENANT-OVERRIDE-001 OPTION B EXIT — cascade CONVERGED at CLEAN(PR-merge) per BC-5.39.001 D-779 disambiguation; 3 consecutive PR-merge-CLEAN passes (11, 12, 13); 13 passes / 13 fix-bursts / 25 findings closed (2 CRIT + 2 HIGH + 9 MED + 8 LOW); 15 META axes → S-MAINT-POL29-HOOK-001; lesson 49 [process-gap] [codified]; STATE v7.508→v7.509) |
+| **Last Updated** | 2026-05-24 (D-823 durable /clear-and-resume checkpoint — PR #154 PLUGIN-MIGRATION-001-E fix-burst at a759d2b0 pushed/CI-pending; PR #155 S-CONFIG CI GREEN at 515fdc2e / pass-1 complete / Option A fix-burst authorized; lesson 50 [process-gap] [codified] cross-reviewer asymmetry; STATE v7.509→v7.510) |
 | **Current Phase** | Wave 3 Tier-3 COMPLETE — **Wave 3-A 4 of 4 SHIPPED**; plugin migration: PREREQ-F + PREREQ-A + PREREQ-B + PREREQ-C + PREREQ-D + PREREQ-E + **PLUGIN-MIGRATION-001-D MERGED** (PR #153 3f2de889 2026-05-22T09:05:47Z); ADR-028 §D10 co-merge gate now structurally satisfiable (FB-IMPL-2 wired); production deployment gated on PLUGIN-MIGRATION-001-A |
-| **Current Step** | D-822 S-CONFIG-MULTI-TENANT-OVERRIDE-001 LOCAL adversary CASCADE CONVERGED via USER OPTION B EXIT at pass-13. 3 consecutive CLEAN(PR-merge) passes (11, 12, 13) confirmed. Feature HEAD d600f7f4 stable for 5+ passes. 25 findings closed (2 CRIT + 2 HIGH + 9 MED + 8 LOW). 15 META axes → S-MAINT-POL29-HOOK-001. F-LP13-OBS-001/002/003 + axis-15 candidate carried forward. Lesson 49 [process-gap] [codified]. STATE v7.508→v7.509. NEXT: demo-recorder per-AC evidence for all 7 ACs, then push, then pr-manager 9-step lifecycle. |
+| **Current Step** | D-823 /clear-and-resume durable checkpoint — DUAL-STREAM PR-LEVEL work. Stream 1 PR #154: PR-LEVEL fix-burst at a759d2b0 pushed; CI re-running. Stream 2 PR #155: CI GREEN at 515fdc2e; PR-LEVEL pass-1 complete; user authorized Option A strict; fix-burst pending implementer dispatch. Lesson 50 [codified] cross-reviewer asymmetry. STATE v7.509→v7.510. |
 
 ## Phase Progress
 
@@ -155,6 +185,7 @@ historical_cycles: [phase-1-convergence, wave-3-multi-tenant, wave-4-operations]
 |------|-------|--------|--------|
 _D-735 and earlier archived to cycles/wave-0-plugin-prereqs/burst-log.md. D-736..D-748 archived to cycles/wave-0-plugin-prereqs/burst-log.md (D-748 archived D-776 burst 2026-05-22). D-749..D-755 archived to cycles/wave-0-plugin-prereqs/burst-log.md (D-777 burst 2026-05-22). D-756..D-757 archived to cycles/wave-0-plugin-prereqs/burst-log.md (D-778/D-779 bursts 2026-05-22). D-758..D-759 archived to cycles/wave-0-plugin-prereqs/burst-log.md (D-780 burst 2026-05-22). D-759 archived to cycles/wave-0-plugin-prereqs/burst-log.md (D-781 burst 2026-05-22). D-777 archived to cycles/wave-0-plugin-prereqs/burst-log.md (D-782 burst 2026-05-22). D-778 archived to cycles/wave-0-plugin-prereqs/burst-log.md (D-783 burst 2026-05-22). D-779 archived to cycles/wave-0-plugin-prereqs/burst-log.md (D-784 burst 2026-05-22). D-780 archived to cycles/wave-0-plugin-prereqs/burst-log.md (D-785 burst 2026-05-22). D-781 archived to cycles/wave-0-plugin-prereqs/burst-log.md (D-786 burst 2026-05-22). D-786 archived to cycles/wave-0-plugin-prereqs/burst-log.md (D-787 burst 2026-05-22). D-782..D-784 archived to cycles/wave-0-plugin-prereqs/burst-log.md (D-790 burst 2026-05-22). D-785 archived to cycles/wave-0-plugin-prereqs/burst-log.md (D-809 burst 2026-05-23). D-787 archived to cycles/wave-0-plugin-prereqs/burst-log.md (D-810 burst 2026-05-24). D-788 archived to cycles/wave-0-plugin-prereqs/burst-log.md (D-811 burst 2026-05-24). D-789 archived to cycles/wave-0-plugin-prereqs/burst-log.md (D-812 burst 2026-05-24). D-790..D-812 archived to cycles/wave-0-plugin-prereqs/burst-log.md (D-816 burst 2026-05-24). D-812 archived to cycles/wave-0-plugin-prereqs/burst-log.md (D-817 burst 2026-05-24)._
 _D-819 archived to cycles/wave-0-plugin-prereqs/burst-log.md (D-820 burst 2026-05-24). D-820 archived to cycles/wave-0-plugin-prereqs/burst-log.md (D-821 burst 2026-05-24). D-821 archived to cycles/wave-0-plugin-prereqs/burst-log.md (D-822 burst 2026-05-24)._
+| D-823 — **/clear-and-resume durable checkpoint — DUAL-STREAM PR-LEVEL work (TD-VSDD-053 single-commit).** PR #154 PLUGIN-MIGRATION-001-E: PR-LEVEL fix-burst committed at a759d2b0 + pushed to origin; CI re-running; pass-1 findings: 1 HIGH (F-PR154-P1-HIGH-001 Component Model dispatch ABI) + 1 MED + 1 LOW (adversary); 5 findings (SEC-001 CRIT + 1 HIGH + 2 MED + 1 OBS — security); 15 findings (pr-reviewer); ALL closed in fix-burst. ADR-028 §D11 Option C committed at factory-artifacts dced2268. PR #155 S-CONFIG-MULTI-TENANT-OVERRIDE-001: feature HEAD 515fdc2e; CI GREEN (all 36 jobs); PR-LEVEL pass-1 complete; consolidated findings = 1 CRIT (SEC-001 base_url NO-OP at adapter layer) + 2 HIGH + 6 MED + 5 LOW + 3 OBS across 3 reviewers; user authorized Option A strict fix-burst. Lesson 50 [process-gap] [codified]: cross-reviewer finding asymmetry — PR-LEVEL adversary verified plumbing-to-input but NOT adapter-internal consumption; security caught SEC-001 at deeper adapter layer; recurring class with F-LP2-CRIT-001 + PR #154 + PR #155. convergence-trajectory.md PR-LEVEL pass-1 entries for both streams appended. SESSION-HANDOFF.md §RESUME SNAPSHOT 2026-05-24-CLEAR-CHECKPOINT-BOTH-PRS appended. STATE v7.509→v7.510.** | state-manager (D-823 /clear checkpoint) | CHECKPOINT COMMITTED | NEXT: (1) PR #154 — monitor CI on a759d2b0; on green dispatch pass 2 reviewers; (2) PR #155 — dispatch implementer consolidated fix-burst. |
 | D-822 — **S-CONFIG-MULTI-TENANT-OVERRIDE-001 OPTION B EXIT — CASCADE CONVERGED (TD-VSDD-053 single-commit). Pass-13 CLEAN(PR-merge)=YES: 0 CRIT + 0 HIGH + 0 MED + 0 LOW + 3 OBS (F-LP13-OBS-001/002/003 all META bookkeeping axis-15 candidates). 3 consecutive CLEAN(PR-merge) passes (11, 12, 13) achieved. Feature HEAD d600f7f4 stable since pass-8. User authorized Option B exit per BC-5.39.001 D-779 disambiguation. 13 passes / 13 fix-bursts / 25 findings closed (2 CRIT + 2 HIGH + 9 MED + 8 LOW). 15 META axes → S-MAINT-POL29-HOOK-001. s-config-pass-13.md + s-config-option-b-exit.md archived. Lesson 49 [process-gap] [codified]: User Option B exit precedent — adversarial cascade convergence at CLEAN(PR-merge) when META asymptote empirically confirmed. convergence-trajectory.md §Cascade Status (Total passes 12→13, CASCADE STATUS → CONVERGED); §Trajectory pass-13 + OPTION B EXIT rows appended; §Fix-burst Log Option B exit row appended. STATE v7.508→v7.509.** | state-manager (Option B exit + D-822) | OPTION B EXIT — CASCADE CONVERGED | NEXT: demo-recorder per-AC evidence for all 7 ACs + push + pr-manager 9-step lifecycle. |
 | D-819 — **S-CONFIG fix-burst-11 close F-LP10-MED-001 + OBS-LP10-001 (TD-VSDD-053 single-commit). lessons.md lesson 44 `_Discovered:_` footer moved to canonical position (after lesson 44 body, before D-818 section header — 6th-gen within-artifact recurrence). Lesson 45 scope extended: axes b (lesson-entry section structure) + c (arithmetic-claim verification) added. Lesson 46 [process-gap] [codified] under `## 2026-05-24 D-819`. fix-burst-10.md line 75 arithmetic-claim corrected: 4 hits → 6 hits (lines 335/339/359/360/361/375). convergence-trajectory.md §Cascade Status (Total passes 9→10, Total fix-bursts 10→11, Cumulative findings 22→23, Feature HEAD fix-burst-9→fix-burst-11); §Trajectory pass-10 + fix-burst-11 rows appended; §Fix-burst Log fix-burst-11 row appended. s-config-pass-10.md + s-config-fix-burst-11.md archived. Pre-commit whole-artifact + structural sibling-sweep PASS. STATE v7.505→v7.506.** | state-manager (fix-burst-11 closure) | FIX-BURST-11 CLOSED | PASS-11 BLOCKED (2 OBS). |
 | D-818 — **S-CONFIG fix-burst-10 close F-LP9-MED-001 (within-artifact sibling-sweep corrective, TD-VSDD-053 single-commit). convergence-trajectory.md §Cascade Status table (4 stale rows: fix-burst-8→fix-burst-9, Total passes 7→9, Total fix-bursts 8→10, Cumulative findings closed 20→22); §Fix-burst Log (fix-burst-9 + fix-burst-10 rows appended); §Trajectory (pass-9 + fix-burst-10 rows appended). Mandatory whole-artifact grep sweep: all stale values absent, all new values present, cross-table counts consistent. s-config-pass-9.md + s-config-fix-burst-10.md archived. Lesson 45 [process-gap] [codified]. STATE v7.504→v7.505.** | state-manager (fix-burst-10 closure) | FIX-BURST-10 CLOSED | NEXT: LOCAL adversary pass-10 (streak attempt 0/3→1/3). |
@@ -168,6 +199,7 @@ _D-001..D-046 archived: [cycles/phase-3-dtu-wave-2/decisions-archive-d001-d032.m
 
 | ID | Decision | Rationale | Phase | Date |
 |----|----------|-----------|-------|------|
+| D-823 | 2026-05-24 | **Durable /clear-and-resume checkpoint (TD-VSDD-053 single-commit). Dual-stream PR-LEVEL work captured.** Stream 1 PR #154 PLUGIN-MIGRATION-001-E: feature HEAD a759d2b0 pushed to origin; PR-LEVEL pass-1 complete — 3+5+15=23 total findings across adversary (1H+1M+1L) + security (1C+1H+2M+1OBS) + pr-reviewer (15); ALL closed in fix-burst at a759d2b0; ADR-028 §D11 Option C committed at factory-artifacts dced2268; CI re-running; NEXT = wait for CI green then dispatch pass 2 reviewers. Stream 2 PR #155 S-CONFIG-MULTI-TENANT-OVERRIDE-001: feature HEAD 515fdc2e; CI GREEN (36/36); PR-LEVEL pass-1 complete — consolidated 1 CRIT + 2 HIGH + 6 MED + 5 LOW + 3 OBS across 3 reviewers; user authorized Option A strict fix-burst; SEC-001 = base_url NO-OP at adapter layer (multi-tenant routing functionally inert — same paper-fix class as F-LP2-CRIT-001 + PR #154 SEC-001); adversary missed SEC-001 (verified plumbing-to-input only; security caught adapter-internal consumption gap at deeper layer); NEXT = dispatch implementer consolidated fix-burst. Lesson 50 [process-gap] [codified]: cross-reviewer finding asymmetry — PR-LEVEL adversary scope must include "verify production consumer of injected value READS it", not just "verify value is injected". Recurring class: F-LP2-CRIT-001 + PR #154 SEC-001 + PR #155 SEC-001 + HIGH-001. SESSION-HANDOFF.md §RESUME SNAPSHOT 2026-05-24-CLEAR-CHECKPOINT-BOTH-PRS appended. convergence-trajectory.md PR-LEVEL pass-1 entries for both streams appended. STATE v7.509→v7.510. | state-manager (D-823 durable checkpoint) |
 | D-822 | 2026-05-24 | **S-CONFIG-MULTI-TENANT-OVERRIDE-001 LOCAL adversary cascade CONVERGED via USER OPTION B EXIT — pass-13 CLEAN(PR-merge)=YES (3 consecutive CLEAN(PR-merge): passes 11+12+13); 13 passes / 13 fix-bursts / 25 findings closed (2 CRIT + 2 HIGH + 9 MED + 8 LOW); 15 META axes → S-MAINT-POL29-HOOK-001; F-LP13-OBS-001/002/003 + axis-15 candidate carried forward per Canonical Principle Rule 3; lesson 49 [process-gap] [codified]; TD-VSDD-053 single-commit.** User authorized Option B exit per BC-5.39.001 D-779 PR-merge disambiguation: (1) feature HEAD d600f7f4 unchanged for 5+ passes; (2) 3 consecutive CLEAN(PR-merge) achieved; (3) remaining findings are bookkeeping META-class only (zero semantic/runtime risk); (4) CLAUDE.md Boundaries clause — production-grade default satisfied; (5) 15 META axes have registered forward anchor S-MAINT-POL29-HOOK-001 per Canonical Principle Rule 3. Cascade summary: pass-1 baseline → passes 2–7 real implementation defects (2 CRIT + 2 HIGH + 9 MED + 8 LOW closed) → passes 8–10 LOW/MED bookkeeping meta-gaps → passes 11–13 OBS-only META bookkeeping (3 consecutive CLEAN(PR-merge)). cycle-artifacts: s-config-pass-13.md + s-config-option-b-exit.md archived. convergence-trajectory.md §Cascade Status (Total passes 12→13, STATUS → CONVERGED); §Trajectory pass-13 + OPTION B EXIT rows appended; §Fix-burst Log Option B exit row appended. STATE v7.508→v7.509. NEXT: demo-recorder per-AC evidence for all 7 ACs, then push, then pr-manager 9-step lifecycle. | state-manager (User Option B exit authorization) |
 | D-821 | 2026-05-24 | **S-CONFIG fix-burst-13 — closes F-LP12-OBS-001 + F-LP12-OBS-002 + F-LP12-OBS-003 + F-LP12-OBS-004; lesson 48 [process-gap] [codified] (axis-14 scratch-prose discipline + axis-12 5th-gen META-recurrence; TD-VSDD-053 single-commit).** F-LP12-OBS-001 CLOSED: fix-burst-11.md §After block + fix-burst-12.md §After block line numbers corrected to FINAL post-burst-13 values (8 hits at 336/349/369/370/371/372/374/391) via rigorous axis-12 sequence — all convergence-trajectory.md edits applied FIRST (pass-12 + fix-burst-13 rows + §Cascade Status 11→12/12→13), greps re-run AFTER; original fix-burst-12 predictions were off by 2 because state-manager skipped the "Streak | 0/3" row. F-LP12-OBS-002 CLOSED: fix-burst-12.md §Pre-commit verification sweep + §Cascade Status sibling-sweep corrected from 346/347/348 to FINAL 347/348/349. F-LP12-OBS-003 CLOSED (axis-14 codification): fix-burst-12.md lines 117–136 scratch prose removed (5 markers: "Wait — re-checking", "CORRECTION to axis-13 scope", "Revised axis-13 statement", "Filed correction to §Accounting Conventions", "REMEDIATION:"); authoritative §Accounting Conventions Arithmetic Correction section preserved intact. F-LP12-OBS-004 CLOSED: lessons.md lesson 47 line 295 "MED+ convention" corrected to "CRIT+HIGH+MED+LOW-inclusive convention"; SESSION-HANDOFF.md Factory-artifacts HEAD reference updated D-819→D-821. Lesson 48 [process-gap] [codified]: axis-14 = published cycle artifacts MUST be final-state-only (no scratch prose); axis-12 META-recurrence 5th generation acknowledged; 14 axes total enumerated. convergence-trajectory.md §Cascade Status (Total passes 11→12, Total fix-bursts 12→13, Feature HEAD ref fix-burst-12→fix-burst-13); §Trajectory pass-12 + fix-burst-13 rows appended; §Fix-burst Log fix-burst-13 row appended. Cumulative findings closed: 23 (unchanged — pass-12 OBS-only per axis-13 convention). STATE v7.507→v7.508. Pass-13 next (streak attempt 0/3→1/3). | state-manager (fix-burst-13 closure) |
 | D-820 | 2026-05-24 | **S-CONFIG fix-burst-12 — closes F-LP11-OBS-001 + F-LP11-OBS-002; lesson 47 [process-gap] [codified] (axis-12 + axis-13); TD-VSDD-053 single-commit.** F-LP11-OBS-001 CLOSED: s-config-fix-burst-11.md OBS-LP10-001 CORRECTIVE section cited pre-burst line numbers (335, 339, 359, 360, 361, 375) for `grep -n "fix-burst-9"` in convergence-trajectory.md; these were stale POST-burst because fix-burst-11 inserted the §Accounting Conventions section (+13 lines), shifting all subsequent line numbers. META-recurrence class: axis-11 (arithmetic-claim verification) violated inside its own codification burst. Root cause: the grep was run PRE-edit, not POST-edit. Fix via axis-12 discipline: all convergence-trajectory.md edits applied FIRST (§Accounting Conventions header + pass-11/fix-burst-12 rows + §Cascade Status + §Fix-burst Log); greps re-run AFTER; fix-burst-11.md updated with FINAL post-burst-12 values (8 hits at lines 334/348/368/369/370/371/373/388). F-LP11-OBS-002 CLOSED: convergence-trajectory.md §Cumulative findings closed convention was relied upon implicitly but never documented. §Accounting Conventions header section added explicitly stating: CRIT+HIGH+MED+LOW count toward cumulative; OBS+PROCESS-GAP do NOT; §Trajectory "Findings" includes ALL severities; OBS-only bursts (e.g., fix-burst-12) noted explicitly as "0 closed" in Delta (axis-13 codification — LOW counts, verified by cascade arithmetic: cumulative 23 includes LOW findings from pass-3 F-LP3-LOW-001 and pass-8 F-LP8-LOW-001). Lesson 47 [process-gap] [codified]: axis-12 = re-verify all arithmetic claims AFTER all edits applied; axis-13 = OBS+PG excluded from cumulative, LOW included. 13 axes total enumerated across passes 1–11. STATE v7.506→v7.507. Pass-12 next (streak attempt 0/3→1/3). | state-manager (fix-burst-12 closure) |
@@ -330,21 +362,36 @@ Prior cycle history:
 
 ---
 
-## Session Resume Checkpoint (2026-05-23 — D-808 ADR-029 ACCEPTED; Path C dual-worktree locked)
+## Session Resume Checkpoint (2026-05-24 — D-823 /clear-and-resume durable checkpoint; dual-stream PR-LEVEL)
 
-_Previous checkpoint (D-776 PLUGIN-MIGRATION-001-D MERGED PR #153) archived: [cycles/wave-0-plugin-prereqs/session-checkpoints.md](cycles/wave-0-plugin-prereqs/session-checkpoints.md)_
+_Previous checkpoint (D-808 ADR-029 ACCEPTED; Path C dual-worktree locked) archived: [cycles/wave-0-plugin-prereqs/session-checkpoints.md](cycles/wave-0-plugin-prereqs/session-checkpoints.md)_
 
-**STATE v7.495. D-808 ADR-029 ACCEPTED — Path C dual-worktree parallel implementation locked.** safe_to_compact=true. ADR-029 status: Proposed → Accepted v1.2 (human approval). ARCH-INDEX v2.101 → v2.102.
+**STATE v7.510. D-823 durable /clear-and-resume checkpoint — both PRs at distinct phases.** safe_to_compact=false.
 
-**Path C Summary:**
-- Stream 1: PLUGIN-MIGRATION-001-E — existing .worktrees/PLUGIN-MIGRATION-001-E/, feature HEAD 9e412c83, LOCAL cascade CONVERGED. Next: demo-recorder + push + pr-manager 9-step PR cycle.
-- Stream 2: S-CONFIG-MULTI-TENANT-OVERRIDE-001 — NEW worktree to create from develop@f19575ff. Next: deliver-story workflow (stubs → tests → TDD → LOCAL adversary → demo → PR).
-- No code surface conflicts between streams. POL-14 BC auto-promotion (BC-2.06.012-016 draft → active) on stream 2 first PR merge.
+**Stream 1 — PR #154 PLUGIN-MIGRATION-001-E:**
+- Feature HEAD: `a759d2b0` (PR-LEVEL fix-burst; pushed to origin 2026-05-24)
+- PR URL: https://github.com/drbothen/prism/pull/154
+- PR-LEVEL pass-1: 3+5+15=23 findings ALL closed in fix-burst. ADR-028 §D11 Option C: `dced2268`
+- CI status: PENDING (re-running on a759d2b0)
+- NEXT: wait for CI green; then dispatch PR-LEVEL adversary pass 2 + pr-reviewer pass 2 + security pass 2
+
+**Stream 2 — PR #155 S-CONFIG-MULTI-TENANT-OVERRIDE-001:**
+- Feature HEAD: `515fdc2e` (AC-005 fixture CI-portability fix; pushed to origin 2026-05-24)
+- PR URL: https://github.com/drbothen/prism/pull/155
+- CI status: GREEN (36/36 jobs)
+- PR-LEVEL pass-1 complete: 1 CRIT + 2 HIGH + 6 MED + 5 LOW + 3 OBS (consolidated across 3 reviewers)
+- KEY: SEC-001 CRIT = base_url NO-OP at adapter layer (multi-tenant routing functionally inert)
+- User authorized Option A strict fix-burst
+- NEXT: dispatch implementer for consolidated fix-burst; then push + pass 2 reviewers
+
+**Critical cross-stream lesson:**
+- Lesson 50 [codified]: adversary missed SEC-001 because it verified plumbing-to-input but not adapter-internal consumption. Security caught it. Recurring paper-fix class: F-LP2-CRIT-001, PR #154 SEC-001, PR #155 SEC-001+HIGH-001. PR-LEVEL adversary MUST include: "verify production consumer of injected value READS it."
 
 **Next actions on resume:**
-1. Read `.factory/SESSION-HANDOFF.md` §RESUME SNAPSHOT 2026-05-23-PATH-C-DUAL-WORKTREE
+1. Read SESSION-HANDOFF.md §RESUME SNAPSHOT 2026-05-24-CLEAR-CHECKPOINT-BOTH-PRS (full detail)
 2. Run `vsdd-factory:factory-worktree-health` (BLOCKING preflight)
-3. Verify develop@f19575ff + feature/PLUGIN-MIGRATION-001-E HEAD 9e412c83
-4. Dispatch Stream 1 (demo-recorder in .worktrees/PLUGIN-MIGRATION-001-E/) AND Stream 2 (worktree-create + deliver-story) in parallel
+3. Check PR #154 CI status on a759d2b0 — if green, dispatch pass 2 reviewers; if not, monitor
+4. Dispatch PR #155 implementer consolidated fix-burst per Option A strict (1C+2H+6M+5L+3OBS)
+5. Both streams are independent; run in parallel
 
 _Agent routing: see CLAUDE.md §Agent Routing Table._

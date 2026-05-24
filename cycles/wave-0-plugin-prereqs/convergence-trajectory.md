@@ -400,6 +400,80 @@ Extracted from STATE.md frontmatter (pass/burst SHA history):
 
 ---
 
+## PLUGIN-MIGRATION-001-E PR-LEVEL Cascade (PR #154)
+
+### Status: IN PROGRESS — Pass 1 complete; fix-burst committed; CI pending
+
+| Field | Value |
+|-------|-------|
+| Story | PLUGIN-MIGRATION-001-E |
+| PR number | 154 |
+| PR URL | https://github.com/drbothen/prism/pull/154 |
+| Feature HEAD before pass-1 | `9e412c83` (LOCAL cascade converged) |
+| Feature HEAD after fix-burst | `a759d2b0` (PR-LEVEL fix-burst — 23 findings closed) |
+| ADR-028 §D11 Option C | factory-artifacts `dced2268` |
+| PR-LEVEL pass count | 1 |
+| CI status on a759d2b0 | PENDING (re-running after 2026-05-24 push) |
+| Streak | 0/3 (pass-1 fix-burst committed; pass-2 pending CI green) |
+
+### PR-LEVEL Cascade Trajectory
+
+| Pass | Reviewer | Date | Findings | Key findings | CLEAN(strict) | CLEAN(PR-merge) | Streak | Status |
+|------|----------|------|----------|-------------|---------------|-----------------|--------|--------|
+| pr-pass-1 (adversary) | adversary | 2026-05-24 | 3 | F-PR154-P1-HIGH-001 Component Model dispatch ABI + 1 MED + 1 LOW | NO | NO | 0/3 | CLOSED in fix-burst |
+| pr-pass-1 (security) | security-reviewer | 2026-05-24 | 5 | SEC-001 CRIT credential_handle bypass + 1 HIGH + 2 MED + 1 OBS | NO | NO | 0/3 | CLOSED in fix-burst |
+| pr-pass-1 (pr-reviewer) | pr-reviewer | 2026-05-24 | 15 | 15 findings covering Component Model ABI, auth wiring, test coverage | NO | NO | 0/3 | CLOSED in fix-burst |
+| fix-burst (pass-1) | implementer | 2026-05-24 | — | All 23 findings closed; ADR-028 §D11 Option C wired | — | — | 0/3 | COMMITTED a759d2b0; pushed |
+
+### Notes
+- ADR-028 §D11 Option C: host resolves `credential_handle` via `prism_credentials::resolve_credential` and injects into `PluginConfigMap` before `dispatch_plugin_acquire_token` call. Architect adjudication committed at factory-artifacts `dced2268`.
+- Lesson 50 cross-reviewer asymmetry class: SEC-001 caught credential bypass that adversary missed (adversary verified injection plumbing; security verified production consumer read). SAP-3 proposed for future PR-LEVEL adversary dispatches.
+- NEXT: wait for CI green on a759d2b0, then dispatch pass-2 reviewers (fresh 3-CLEAN streak begin).
+
+---
+
+## S-CONFIG-MULTI-TENANT-OVERRIDE-001 PR-LEVEL Cascade (PR #155)
+
+### Status: IN PROGRESS — Pass 1 complete; fix-burst PENDING (implementer not yet dispatched)
+
+| Field | Value |
+|-------|-------|
+| Story | S-CONFIG-MULTI-TENANT-OVERRIDE-001 |
+| PR number | 155 |
+| PR URL | https://github.com/drbothen/prism/pull/155 |
+| Feature HEAD at PR creation | `515fdc2e` (AC-005 fixture CI-portability fix) |
+| LOCAL cascade exit | Option B at pass-13 (CONVERGED) |
+| CI status on 515fdc2e | GREEN (all 36 jobs) |
+| PR-LEVEL pass count | 1 |
+| User authorization | Option A strict for fix-burst |
+| Streak | 0/3 (pass-1 findings; fix-burst pending) |
+
+### PR-LEVEL Cascade Trajectory
+
+| Pass | Reviewer | Date | Findings | Key findings | CLEAN(strict) | CLEAN(PR-merge) | Streak | Status |
+|------|----------|------|----------|-------------|---------------|-----------------|--------|--------|
+| pr-pass-1 (adversary) | adversary | 2026-05-24 | 2 | 1 LOW fixture sync + 1 OBS EC-016-005 untested | CLEAN(PR-merge)=YES per adversary | YES | 1/3 per adversary | SUPERSEDED — security contradiction |
+| pr-pass-1 (security) | security-reviewer | 2026-05-24 | 6 | SEC-001 CRIT base_url NO-OP at adapter layer + SEC-002 HIGH symlink + 2 MED + 1 LOW + 1 OBS | NO | NO | 0/3 | OPEN — fix-burst pending |
+| pr-pass-1 (pr-reviewer) | pr-reviewer | 2026-05-24 | 11 | F-PR155-HIGH-001 timeout_secs paper-fix + 5 MED + 4 LOW + 1 OBS | NO | NO | 0/3 | OPEN — fix-burst pending |
+
+### Consolidated Finding Count (pass-1 — all 3 reviewers)
+
+| Severity | Count | Key examples |
+|----------|-------|-------------|
+| CRIT | 1 | SEC-001: base_url override is NO-OP at adapter layer (multi-tenant routing inert) |
+| HIGH | 2 | F-PR155-HIGH-001 timeout_secs paper-fix; SEC-002 symlink-following |
+| MED | 6 | Size limit; log injection; 3 pr-reviewer MEDs; 1 adversary LOW promoted |
+| LOW | 5 | Pre-existing timeout; URL scheme; fixture sync; 2 others |
+| OBS | 3 | EC-016-005 untested; URL scheme; 1 other |
+| **Total** | **17** | User authorized Option A strict fix-burst for all 17 |
+
+### Notes
+- **SEC-001 critical context:** adversary reported CLEAN(PR-merge) after pass-1. Security reviewer contradicted by examining the adapter layer and finding base_url is NOT consumed at the CrowdStrike/Cyberint/Claroty adapter constructors — they read from hardcoded defaults. This is the lesson 50 cross-reviewer asymmetry class: adversary verified plumbing-to-SensorSpec; security verified adapter consumption. Both views needed.
+- **NO hanging integration tests:** User explicitly confirmed no integration tests are blocked/hanging for PR #155.
+- **NEXT:** dispatch implementer for consolidated fix-burst (Option A strict); push origin; dispatch pass-2 reviewers.
+
+---
+
 ## Summary Statistics — PREREQ-E Complete
 
 | Metric | Value |
