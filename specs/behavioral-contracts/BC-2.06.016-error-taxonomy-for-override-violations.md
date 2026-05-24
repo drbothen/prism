@@ -2,7 +2,7 @@
 document_type: behavioral-contract
 level: L3
 bc_id: "BC-2.06.016"
-version: "1.2"
+version: "1.3"
 status: draft
 lifecycle_status: draft
 producer: product-owner
@@ -157,9 +157,15 @@ When an override violation occurs, the operator observes:
 - INV-ERR-002: Error messages MUST NOT include credential values. `base_url` values from
   the overlay may appear in error messages (they are endpoint URLs, not credentials per
   AD-017). `extends` values, `instance_id` values, and field names may appear.
-- INV-ERR-003: Multiple violations in the same boot are reported together (multi-error
-  aggregation pattern per BC-2.06.005). Boot does not stop at the first error — all
-  overlay files are scanned and all errors collected before emitting the final error report.
+- INV-ERR-003: Multiple violations across overlay files in the same boot are reported
+  together (multi-error aggregation pattern per BC-2.06.005). Boot does not stop at the
+  first error — all overlay files are scanned and all violations collected before emitting
+  the final error report. Within a single overlay file, structural errors (E-SPEC-021,
+  E-SPEC-023) suppress semantic checks (E-SPEC-019, E-SPEC-020) for that file: once
+  structural errors are detected, the file's TOML deserialization is skipped and semantic
+  field checks cannot run. Structural and semantic errors from DIFFERENT overlay files
+  within the same boot are still all collected and emitted together. See EC-016-005 for
+  the canonical within-file suppression edge case.
 - INV-ERR-004: Error code IDs are append-only (DF-030). E-SPEC-019 through E-SPEC-023
   are permanently allocated to these violation classes and are never reused for other purposes.
 - INV-ERR-005: The error code shift (ADR-029 draft → final) is recorded in the Changelog
@@ -173,8 +179,9 @@ When an override violation occurs, the operator observes:
 |----|-------------|-------------------|
 | EC-016-001 | E-SPEC-021 and E-SPEC-023 both fire on same overlay | Both errors collected; multi-error report shows both codes; boot fails |
 | EC-016-002 | E-SPEC-022 fires for dir AND E-SPEC-021 fires for a file within it | E-SPEC-022 is a directory-level check; E-SPEC-021 is a file-level check; both collected |
-| EC-016-003 | All five error codes fire in the same boot | Multi-error boot failure report lists all five; each with file path and suggestion |
+| EC-016-003 | All five error codes fire in the same boot — each from a DIFFERENT overlay file or directory | Multi-error boot failure report lists all five codes; each entry has its own file path and suggestion. E-SPEC-019 and E-SPEC-020 originate from files that passed structural checks (no `[[tables]]` or unrecognized fields); E-SPEC-021 and E-SPEC-023 originate from structurally invalid files; E-SPEC-022 originates from the directory scan. All five are collected across the file set before the final error report is emitted. |
 | EC-016-004 | E-SPEC-019: `extends` value is a valid TYPE but with wrong case | `E-SPEC-019` fires (sensor_id matching is case-sensitive per BC-2.16.001 §Error Conditions E-SPEC-017 precedent) |
+| EC-016-005 | Same overlay file contains `[[tables]]` (structural, E-SPEC-021) AND an `extends` value that references an unknown TYPE (semantic, E-SPEC-019) | Only E-SPEC-021 is reported for this file; E-SPEC-019 is NOT reported. The structural check (`[[tables]]` detection) runs on the raw TOML Value before deserialization into `SensorInstanceOverlay`. When structural errors are found, `validate_overlay_toml` returns early without deserializing, so `overlay.extends` is never read and the E-SPEC-019 check cannot execute. This is correct-by-design: deserialization requires structural validity. Operator action: fix the structural error (remove `[[tables]]`) first, then re-run to surface any remaining semantic errors. Implementation canonical site: `validate_overlay_toml` structural-check early-return in `prism-spec-engine/src/overlay.rs`. |
 
 ## Canonical Test Vectors
 
@@ -234,3 +241,4 @@ S-CONFIG-MULTI-TENANT-OVERRIDE-001 (to-be-created)
 | 1.0 | D-803 burst-3 | 2026-05-23 | product-owner | Initial draft per ADR-029 Burst 3 handoff. Resolved E-SPEC-018 collision with ADR-028 TimestampParseFailure (error-taxonomy.md v1.43); allocated E-SPEC-019–023 instead of ADR-029 draft E-SPEC-018–022. All sibling BCs (BC-2.06.012, BC-2.06.013, BC-2.06.015) updated to cite the final codes. |
 | 1.1 | D-803 burst-4 | 2026-05-23 | product-owner | Fix E-SPEC-021 message template and suggestion text to remove infeasible `{extends_value}` interpolation. Structural `[[tables]]` check in overlay.rs fires BEFORE TOML deserialization into `SensorInstanceOverlay`, so `overlay.extends` has not been read and `{extends_value}` is unknown at that point. Corrected suggestion now directs operators to the TYPE spec in `crates/prism-sensors/specs/<sensor>.sensor.toml` using generic `<sensor>` placeholder instead. Also corrected E-SPEC-023 suggestion (same class of defect — `{extends_value}` also infeasible there since the code takes only `file_path`, `instance_id`, and `field_name`). Message template for E-SPEC-021 updated to match `make_e_spec_021_tables_in_overlay` exact emission: "...Table schema must be declared in the TYPE spec only." (no `{extends_value}.sensor.toml`). 3-way alignment confirmed: BC body ↔ taxonomy row ↔ code emission. taxonomy E-SPEC-021 row already correct (uses `<sensor>.sensor.toml` generic form); no taxonomy edit needed. POL-29 sweep: no `{extends_value}` references remain in BC-2.06.016 body; E-SPEC-019 and E-SPEC-023 references to `{extends_value}` in other rows are legitimate (E-SPEC-019 fires after deserialization; E-SPEC-023 suggestion was also fixed this burst). |
 | 1.2 | F-LP5-MED-001 | 2026-05-24 | product-owner | Fix E-SPEC-020 Message template placeholder drift: `{sensor_id}@{org_slug}` → `{expected}` in line 108 to match canonical error-taxonomy.md line 392 authority text. Same drift class as F-LP4-MED-002 (BC-2.06.013 E-SPEC-023 `{field}` → `{field_name}`); F-LP5-MED-001 was a sibling-sweep gap in fix-burst 5 — burst swept BC-2.06.013 and BC-2.06.015 but missed BC-2.06.016 line 108 for the E-SPEC-020 row (POL-25 sibling-sweep gap). Scope decision: line 109 Suggestion field also uses `{sensor_id}@{org_slug}` but is deferred to architect adjudication under F-LP5-LOW-002 (whether Suggestion is BC-authoritative or taxonomy-derived); left untouched this burst. POL-29 sweep result: 9 matches of `{sensor_id}@{org_slug}` found across .factory/; all non-target matches are LEGITIMATE LITERAL USE (convention description in table cells, log span field doc, story body documentation, taxonomy changelog narrative) — no additional sibling drifts. 4-way alignment after fix: BC-2.06.016 line 108 ↔ taxonomy line 392 MATCH; code emission (`make_e_spec_020_instance_id_mismatch`) not yet authored (story pre-implementation); test vectors unchanged (use `{expected}` indirectly via "expected 'armis@acme'" literal). |
+| 1.3 | F-LP6-LOW-002 | 2026-05-24 | product-owner | Clarify EC-016-003 cross-file aggregation scope; add EC-016-005 within-file structural-suppresses-semantic boundary; expand INV-ERR-003. F-LP6-LOW-002 identified ambiguity: EC-016-003 "all five error codes fire in the same boot" was silent on whether codes could originate from the same file or required multiple files. Code analysis of `validate_overlay_toml` structural-check early-return (lines 524-527, `prism-spec-engine/src/overlay.rs`) confirmed: structural errors (E-SPEC-021/E-SPEC-023) cause an early-return before deserialization, making E-SPEC-019/E-SPEC-020 unreachable for the same file. Early-return is correct-by-design (semantic checks require successful deserialization). Fix: EC-016-003 amended to specify "each from a DIFFERENT overlay file or directory" and explain which codes are structural vs semantic. New EC-016-005 documents the within-file suppression case explicitly with operator guidance ("fix structural error first, re-run to surface semantic errors"). INV-ERR-003 expanded to describe cross-file aggregation vs within-file suppression. Option A chosen per fix decision: documentation alignment with sound code design; no impl change. POL-29 sibling-sweep: (1) EC-016-003 references in other .factory/ files all reference BC-2.01.016's EC-016-003 (a distinct BC); no conflicting narrative to update. (2) "All five error codes" phrase appears only in this BC. (3) No prior "structural-suppresses-semantic" documentation found; EC-016-005 is the canonical first definition. |
