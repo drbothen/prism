@@ -6777,7 +6777,8 @@ _Agent routing: see CLAUDE.md §Agent Routing Table._
 | Burst 1/4 Research | research-agent recommends hybrid option (e) "Sensor Instance with Per-Org Composition Directory" (Telegraf/OTel/Vector/Datadog/Fluent Bit industry pattern) | `.factory/research/multi-tenant-sensor-endpoint-overrides-2026-05-23.md` | `a44d5c2b` |
 | Burst 2/4 Architect | ADR-029 drafted status: proposed; decision hybrid (e); ARCH-INDEX v2.100→v2.101; 5 NEW BCs identified for PO | `.factory/specs/architecture/decisions/ADR-029-...md` | `3bcc5a15` |
 | Burst 3/4 Product-Owner | 5 BCs drafted (BC-2.06.012-016) in SS-06 subsystem; PO caught E-SPEC-018 collision (already TimestampParseFailure); shifted to E-SPEC-019-023; ADR-029 swept v1.0→v1.1 same atomic burst | BC-INDEX v5.46→v5.47 + 5 new BCs + ADR-029 sweep | `b1fd0e4b` |
-| Burst 4/4 Story-writer | S-CONFIG-MULTI-TENANT-OVERRIDE-001 v0.1 status: draft; 7 ACs SID-1 §5 compliant; STORY-INDEX v2.184→v2.185; total_stories 152→153 | this commit | THIS-COMMIT |
+| Burst 4/4 Story-writer | S-CONFIG-MULTI-TENANT-OVERRIDE-001 v0.1 status: draft; 7 ACs SID-1 §5 compliant; STORY-INDEX v2.184→v2.185; total_stories 152→153 | this commit | `b7b4ee76` (D-809 burst) |
+| D-810 fix-burst-3 closure | S-CONFIG pass-2 5 findings; fix-burst-3 CLOSED CRIT-001+HIGH-001+MED-001+MED-002; F-LP2-LOW-001 deferred to S-SPEC-TYPE-UNIFICATION-001 (Wave 4); STORY-INDEX v2.185→v2.186; total_stories 153→154 | STATE v7.497 | `(this burst)` |
 
 ### §2. CONVERGENCE + DESIGN-COMPLETE STATE
 
@@ -6790,10 +6791,11 @@ _Agent routing: see CLAUDE.md §Agent Routing Table._
 | ADR-029 | v1.1 status: PROPOSED (awaits human approval gate) |
 | BCs BC-2.06.012-016 | BC-2.06.016 v1.1 (PO fix E-SPEC-021/023 suggestion); others v1.0 status: draft (advance to active on first story merge per POL-14) |
 | BC-INDEX | v5.48 |
-| STORY-INDEX | v2.185 |
-| total_stories | 153 |
+| STORY-INDEX | v2.186 |
+| total_stories | 154 |
 | ARCH-INDEX | v2.101 |
 | error-taxonomy | v1.51 (E-SPEC-019-023 rows landed at v1.50; BC-2.06.016 v1.1 suggestion alignment at v1.51 — ALREADY IN taxonomy, NOT deferred to implementation) |
+| S-SPEC-TYPE-UNIFICATION-001 | v0.1 status: draft (Wave 4; deferred from S-CONFIG fix-burst-3 F-LP2-LOW-001; depends_on S-CONFIG-MULTI-TENANT-OVERRIDE-001) |
 
 ### §3. HUMAN APPROVAL GATE (BLOCKING)
 
@@ -6875,12 +6877,13 @@ _Cascade convergence per BC-5.39.001. Next phase: demo-recorder + push + pr-mana
 | S-CONFIG-MULTI-TENANT-OVERRIDE-001 | v0.1 draft — READY for deliver-story workflow |
 | PLUGIN-MIGRATION-001-E | CONVERGED (D-802); feature HEAD `9e412c83` — READY for demo-recorder + push + pr-manager |
 | Develop HEAD | `f19575ff` (unchanged) |
-| Factory-artifacts HEAD | latest state-manager commit (this burst) |
+| Factory-artifacts HEAD | D-810 burst (this commit) |
 | BC-INDEX | v5.48 |
-| STORY-INDEX | v2.185 |
+| STORY-INDEX | v2.186 |
 | ARCH-INDEX | v2.102 |
 | error-taxonomy | v1.51 (E-SPEC-019-023 rows ALREADY LANDED at v1.50; BC-2.06.016 suggestion alignment at v1.51 — NO longer deferred to implementation) |
-| total_stories | 153 |
+| total_stories | 154 |
+| S-SPEC-TYPE-UNIFICATION-001 | v0.1 draft — Wave 4; deferred F-LP2-LOW-001 from S-CONFIG fix-burst-3; depends_on S-CONFIG-MULTI-TENANT-OVERRIDE-001 |
 
 ### §2. Path C — Parallel Implementation Dispatch Plan
 

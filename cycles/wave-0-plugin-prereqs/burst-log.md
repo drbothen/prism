@@ -812,6 +812,55 @@ Pass-1 adversary (agent a598496b1b1bf90c4) returned 15 findings (4 CRIT + 5 HIGH
 
 ---
 
+### D-787 — PLUGIN-MIGRATION-001-E FB-IMPL-3 closure (archived from STATE.md Current Phase Steps 2026-05-24 D-810 burst)
+
+| Step | Agent | Status | Output |
+|------|-------|--------|--------|
+| D-787 — **PLUGIN-MIGRATION-001-E FB-IMPL-3 CLOSURE BURST: all 3 actionable pass-3 findings CLOSED + 1 retroactive F-LP2-HIGH-001 paper-fix CLOSED. F-LP3-HIGH-001: wit-bindgen Guest impl + export!(Component) added; manual *_export wrappers deleted; Justfile recipe extended with `wasm-tools print | grep -E '(auth-type-name|acquire-token|get-token)'` export verification. F-LP3-MED-001 + F-LP2-HIGH-001 retroactive: validate_and_construct_auth_providers pure function extracted from step 7.5b; 4 behavioral tests (happy/typo/empty/mixed) added. F-LP3-LOW-001: boot.rs:265 event_type=plugin_auth_provider_constructed added + BC-2.16.002 row 36 registered. Workspace 3747→3751. Feature HEAD 1d06a4bf→d7ec60a7. STATE v7.473→v7.474.** | implementer (FB-IMPL-3) + state-manager (closure burst) | FB-IMPL-3 CLOSED | NEXT: pass-4 adversary. |
+
+---
+
+### D-810 — S-CONFIG fix-burst-3 closure + S-SPEC-TYPE-UNIFICATION-001 registration (2026-05-24)
+
+**Burst type:** State-manager post-fix-burst-3 propagation — S-CONFIG-MULTI-TENANT-OVERRIDE-001 LOCAL adversary cascade pass-2 closure
+
+**Feature branch HEAD at fix-burst-3 completion:** `d613e8f3`
+
+**Adversary cascade state:**
+- Pass-1: pass-1 findings count pending (pre-fix-burst-3 baseline)
+- Pass-2: 5 findings — F-LP2-CRIT-001 + F-LP2-HIGH-001 + F-LP2-MED-001 + F-LP2-MED-002 + F-LP2-LOW-001
+- Fix-burst-3: CLOSED CRIT-001 + HIGH-001 + MED-001 + MED-002 (4/5 findings); 4 commits on feature branch
+- F-LP2-LOW-001 DEFERRED to S-SPEC-TYPE-UNIFICATION-001 per SID-1 §5 concrete anchor
+- Streak: 0/3 (pass-3 is next attempt 0/3 → 1/3)
+
+**Fix-burst-3 details:**
+- F-LP2-CRIT-001 CLOSED: Arc-DI plumbing added through 4 crates (prism-spec-engine + prism-core + prism-bin + prism-sensors). OverlayLoader wired via Arc<dyn OverlayLoaderTrait> per ADR-022.
+- F-LP2-HIGH-001 CLOSED: (details per implementer report on feature branch).
+- F-LP2-MED-001 CLOSED: E-SPEC-023 verbatim error message string added to story AC-005 acceptance criterion body.
+- F-LP2-MED-002 CLOSED: EXPECTED=32→35 sweep in `ci.yml` non_exhaustive compile-fail gate (3 new #[non_exhaustive] types added by S-CONFIG implementation: SensorInstanceOverlay, ResolvedSensorSpec, OrgOverlayMap).
+- F-LP2-LOW-001 DEFERRED: per-boot duplicate parsing exposure (types::SensorSpec vs spec_parser::SensorSpec dual-type pattern introduced by build_type_spec_map_for_overlay helper). Root cause is type proliferation — fixed in S-SPEC-TYPE-UNIFICATION-001.
+
+**S-SPEC-TYPE-UNIFICATION-001 registration:**
+- Story file: `.factory/stories/S-SPEC-TYPE-UNIFICATION-001-retire-types-SensorSpec-in-favor-of-spec-parser-SensorSpec.md`
+- Wave 4, 6 pts, P1, status: draft
+- BCs: BC-2.16.001 + BC-2.06.012 (co-implementer with S-CONFIG-MULTI-TENANT-OVERRIDE-001)
+- depends_on: S-CONFIG-MULTI-TENANT-OVERRIDE-001 (introduces the duplicate helper this story deletes)
+- Traces to: F-LP2-LOW-001 + plugin-system-audit-2026-05-08.md:115
+
+**Files modified in this burst:**
+- `.factory/STATE.md` — version 7.496→7.497, story_index_version v2.185→v2.186, total_stories 153→154, D-810 row added to Current Phase Steps + Decisions Log, D-787 archived
+- `.factory/stories/STORY-INDEX.md` — version v2.185→v2.186, total_stories 153→154, S-SPEC-TYPE-UNIFICATION-001 Full Story List row inserted, BC Traceability Matrix BC-2.06.012 + BC-2.16.001 updated, prose changelog + tabular changelog entries added
+- `.factory/SESSION-HANDOFF.md` — 4 live-state table references updated (2 snapshots: MULTI-TENANT §2 + PATH-C §1); D-810 arc row added to §1 table; S-SPEC-TYPE-UNIFICATION-001 row added to §2 tables
+- `.factory/cycles/wave-0-plugin-prereqs/burst-log.md` — D-787 archived + this D-810 burst narrative appended
+
+**POL-29 sibling sweep result:**
+- `story_index_version v2.185`: found in STATE.md (updated) + SESSION-HANDOFF.md (2 snapshots, both updated). Historical changelog rows in cycle files left intact (immutable records).
+- `total_stories 153`: found in STATE.md (updated) + SESSION-HANDOFF.md (2 snapshots, both updated). Historical changelog rows in STORY-INDEX left intact (immutable point-in-time snapshots per v1.53 change-log policy).
+- `EXPECTED=32`: no live-state references in .factory/ (code change on feature branch by implementer; not in spec artifacts).
+- Sweep of crates/ for version citations: none expected or found.
+
+---
+
 ### D-748 — FB-IMPL-P14 closure burst (archived from STATE.md Current Phase Steps 2026-05-22 D-776 burst)
 
 | Step | Agent | Status | Output |

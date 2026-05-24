@@ -322,6 +322,41 @@ Extracted from STATE.md frontmatter (pass/burst SHA history):
 
 ---
 
+---
+
+## S-CONFIG-MULTI-TENANT-OVERRIDE-001 — LOCAL Adversary Cascade (IN PROGRESS)
+
+### Cascade Status
+
+| Field | Value |
+|-------|-------|
+| Story | S-CONFIG-MULTI-TENANT-OVERRIDE-001 |
+| Feature branch | feature/S-CONFIG-MULTI-TENANT-OVERRIDE-001 |
+| Feature HEAD at fix-burst-3 completion | `d613e8f3` |
+| Streak | 0/3 |
+| Total passes | 2 (pass-3 next) |
+| Total fix-bursts | 3 |
+| Cumulative findings closed | 4 (from pass-2; pass-1 count pending) |
+
+### Trajectory
+
+| Pass | Findings | Delta | Severity | Notes |
+|------|----------|-------|----------|-------|
+| pass-1 | (count pending) | n/a | n/a | Baseline pass after TDD green at e62ce5e9 |
+| pass-2 | 5 | n/a | 1 CRIT + 1 HIGH + 2 MED + 1 LOW | F-LP2-CRIT-001 Arc-DI plumbing; F-LP2-HIGH-001; F-LP2-MED-001 E-SPEC-023 verbatim; F-LP2-MED-002 EXPECTED=32→35; F-LP2-LOW-001 type proliferation |
+| fix-burst-3 | — | -4 closed | CRIT+HIGH+2×MED closed | F-LP2-LOW-001 deferred to S-SPEC-TYPE-UNIFICATION-001 (Wave 4; SID-1 §5) |
+| pass-3 | pending | — | — | First streak attempt 0/3→1/3 |
+
+### Fix-burst Log
+
+| Fix-burst | Feature HEAD | Findings Closed |
+|-----------|-------------|-----------------|
+| fix-burst-1 | (pre-pass-1) | (pass-1 findings) |
+| fix-burst-2 | (pre-pass-2) | (pass-1 findings) |
+| fix-burst-3 | d613e8f3 | F-LP2-CRIT-001 + F-LP2-HIGH-001 + F-LP2-MED-001 + F-LP2-MED-002 |
+
+---
+
 ## Summary Statistics — PREREQ-E Complete
 
 | Metric | Value |
