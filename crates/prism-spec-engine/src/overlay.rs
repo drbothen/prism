@@ -514,10 +514,8 @@ impl OverlayLoader {
                 if field_name == "tables" {
                     continue;
                 }
-                let instance_id_for_msg = format!("{}@{}", expected_sensor_id, expected_org_slug);
                 validation_errors.push(make_e_spec_023_unrecognized_field(
                     overlay_file_path,
-                    &instance_id_for_msg,
                     field_name,
                 ));
             }
@@ -686,21 +684,20 @@ pub fn make_e_spec_021_tables_in_overlay(file_path: &str, instance_id: &str) -> 
 
 /// Build the E-SPEC-023 error for an unrecognized field in an overlay file.
 ///
-/// Canonical message template (BC-2.06.016 §Error Catalog):
-/// "Per-org overlay '{file}' contains unrecognized field '{field}'. Only scalar
-/// tunables are permitted in overlay files (ADR-029)."
-pub fn make_e_spec_023_unrecognized_field(
-    file_path: &str,
-    instance_id: &str,
-    field_name: &str,
-) -> PrismError {
+/// Canonical message template (BC-2.06.016 §Error Catalog line 148):
+/// "Per-org overlay '{file}' contains unrecognized field '{field_name}'. Allowed overlay
+/// fields are: extends, instance_id, base_url, timeout_secs, rate_limit_hints (with
+/// sub-fields: requests_per_second, burst_size)."
+///
+/// Note: NO trailing `Instance: '…'` — that suffix is not in the BC canonical template
+/// (POL-24 verbatim enforcement; F-LP2-MED-001).
+pub fn make_e_spec_023_unrecognized_field(file_path: &str, field_name: &str) -> PrismError {
     PrismError::Spec(SpecError {
         code: SpecErrorCode::ESpec023,
         message: format!(
             "Per-org overlay '{file_path}' contains unrecognized field '{field_name}'. \
              Allowed overlay fields are: extends, instance_id, base_url, timeout_secs, \
-             rate_limit_hints (with sub-fields: requests_per_second, burst_size). \
-             Instance: '{instance_id}'."
+             rate_limit_hints (with sub-fields: requests_per_second, burst_size)."
         ),
         toml_path: Some(field_name.to_string()),
         file_path: Some(file_path.to_string()),
