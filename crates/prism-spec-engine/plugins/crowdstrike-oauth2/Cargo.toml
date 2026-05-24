@@ -3,6 +3,9 @@ name = "crowdstrike-oauth2-plugin"
 version = "0.1.0"
 edition = "2024"
 description = "CrowdStrike OAuth2 client-credentials auth as an in-repo .prx WASM plugin (PLUGIN-MIGRATION-001-E)"
+license = "MIT"
+# WASM plugin — not for crates.io publication (loaded as in-repo .prx artifact)
+publish = false
 
 # This crate is a WASM guest — compiled to wasm32-wasip1 or wasm32-unknown-unknown.
 # It MUST NOT depend on prism-sensors (circular dep) or reqwest (HTTP via host_http_request).
