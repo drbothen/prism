@@ -56,7 +56,7 @@ use crate::spec_parser::{RateLimitHints, SensorSpec};
 ///
 /// `#[non_exhaustive]`: forward-compat — new tunable scalar fields may be added
 /// without a semver bump.  External callers MUST NOT construct this struct
-/// directly; use the TOML deserialization path via `SpecLoader::load_all_with_overlays`.
+/// directly; use the TOML deserialization path via `OverlayLoader::load_overlays`.
 #[non_exhaustive]
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct SensorInstanceOverlay {
@@ -124,7 +124,7 @@ pub struct OverlayProvenance {
 
 /// A `SensorSpec` with per-org scalar overrides merged in.
 ///
-/// Produced at boot by `SpecLoader::load_all_with_overlays` for each
+/// Produced at boot by `OverlayLoader::load_overlays` for each
 /// `(org_slug, sensor_id)` pair that has a `customers/<org_slug>/<sensor_id>.sensor.toml`
 /// overlay file.
 ///
@@ -138,7 +138,7 @@ pub struct OverlayProvenance {
 /// The `provenance` field records which scalar fields were overridden.
 ///
 /// After boot, this map is read-only (INV-OVL-006); the fanout engine accesses it
-/// via `Arc<HashMap<(OrgSlug, SensorId), ResolvedSensorSpec>>` with no mutex on
+/// via `Arc<HashMap<ResolvedSpecKey, ResolvedSensorSpec>>` with no mutex on
 /// the hot path (INV-FANOUT-002).
 ///
 /// `#[non_exhaustive]`: forward-compat for future provenance fields.
@@ -291,34 +291,35 @@ impl OverlayLoader {
 
         // BC-2.06.015: cross-check each org directory against OrgRegistry.
         // Collect E-SPEC-022 errors for ALL unregistered slugs before continuing.
-        for (slug_str, org_dir_path) in &org_dirs {
+        // Track which slugs are registered so we can still scan their files below.
+        let mut slug_registered_map: Vec<bool> = Vec::with_capacity(org_dirs.len());
+        for (slug_str, _org_dir_path) in &org_dirs {
             let org_slug = OrgSlug::new(slug_str.as_str());
 
-            let slug_registered = if org_slug.is_ok() {
+            let is_registered = if org_slug.is_ok() {
                 org_registry.resolve(&org_slug).is_some()
             } else {
                 false
             };
 
-            if !slug_registered {
+            if !is_registered {
                 // BC-2.06.015 failure path: unknown org slug directory.
                 let dir_display = format!("customers/{slug_str}/");
-                errors.push(Self::e_spec_022_unknown_org_slug(
-                    &dir_display,
-                    slug_str,
-                    &org_dir_path.display().to_string(),
-                ));
+                errors.push(Self::e_spec_022_unknown_org_slug(&dir_display, slug_str));
             }
+
+            slug_registered_map.push(is_registered);
         }
 
-        // INV-SCALAR-003: if any E-SPEC-022 errors, abort the walk (fail-fast on
-        // unregistered slug per BC-2.06.015 §Invariants INV-COMPAT-003 pattern).
-        if !errors.is_empty() {
-            return OverlayLoadResult { resolved, errors };
-        }
-
-        // Walk each registered org directory and load overlay files.
-        for (slug_str, org_dir_path) in &org_dirs {
+        // EC-016-002: continue scanning ALL directories (registered AND unregistered)
+        // to collect any E-SPEC-021/023 errors within them.  BC-2.06.016 requires
+        // BOTH directory-level errors (E-SPEC-022) AND file-level errors (E-SPEC-021/023)
+        // to be collected before returning — removing the early-return guard here.
+        //
+        // Walk each org directory and load overlay files.
+        for ((slug_str, org_dir_path), is_registered) in
+            org_dirs.iter().zip(slug_registered_map.iter())
+        {
             let org_slug = OrgSlug::new(slug_str.as_str());
 
             // Enumerate .sensor.toml files within this org dir.
@@ -371,8 +372,36 @@ impl OverlayLoader {
                 ) {
                     Ok(overlay) => {
                         // BC-2.06.012: merge overlay scalars onto TYPE spec.
-                        let type_spec = type_specs.get(sensor_id)
-                            .expect("validate_overlay_toml guarantees extends resolves to a loaded TYPE spec");
+                        // Only insert into resolved map when the slug is registered
+                        // (EC-016-002: unregistered directories are scanned for file-level
+                        // errors but their overlays are NOT merged into resolved).
+                        if !is_registered {
+                            // E-SPEC-022 was already emitted for this slug above.
+                            // Do not insert into resolved; continue to collect file-level errors.
+                            continue;
+                        }
+
+                        // validate_overlay_toml (check 4 — E-SPEC-019) guarantees that
+                        // overlay.extends names a loaded TYPE spec when Ok(...) is returned.
+                        // The defensive arm below is unreachable in correct flow but guards
+                        // against future refactors that relax the validate_overlay_toml
+                        // invariant (OBS-001 / CLAUDE.md §Forbidden patterns: no .expect()).
+                        let type_spec = match type_specs.get(sensor_id) {
+                            Some(ts) => ts,
+                            None => {
+                                // This arm is logically unreachable: validate_overlay_toml
+                                // returns Err(E-SPEC-019) when extends is unresolvable.
+                                // Emit an error and skip this overlay to avoid a silent gap.
+                                errors.push(PrismError::Internal {
+                                    detail: format!(
+                                        "internal: overlay '{overlay_file_path}' passed validation \
+                                         but TYPE spec '{sensor_id}' not found in type_specs map; \
+                                         this is a bug — E-SPEC-019 check should have caught this"
+                                    ),
+                                });
+                                continue;
+                            }
+                        };
 
                         let resolved_spec = Self::merge_overlay_onto_type_spec(
                             type_spec,
@@ -617,11 +646,7 @@ impl OverlayLoader {
     /// "Per-org overlay directory 'customers/{slug}/' references org slug '{slug}' which
     /// is not registered in OrgRegistry. Check for typos or register the org in
     /// prism.toml [[orgs]]."
-    pub fn e_spec_022_unknown_org_slug(
-        customers_dir_name: &str,
-        slug: &str,
-        _overlay_file: &str,
-    ) -> PrismError {
+    pub fn e_spec_022_unknown_org_slug(customers_dir_name: &str, slug: &str) -> PrismError {
         PrismError::Spec(SpecError {
             code: SpecErrorCode::ESpec022,
             message: format!(
@@ -634,29 +659,6 @@ impl OverlayLoader {
             line_number: None,
         })
     }
-}
-
-// ---------------------------------------------------------------------------
-// Helper: detect [[tables]] in raw TOML string
-// ---------------------------------------------------------------------------
-
-/// Returns `true` if the TOML string contains any `[[tables]]` array-of-table
-/// declarations (a proxy for BC-2.06.013 INV-SCALAR-004 detection).
-///
-/// Used by `validate_overlay_toml` before full deserialization so the rejection
-/// error (E-SPEC-021) can be emitted before serde parses the value.
-///
-/// This is a heuristic line-scan — it matches `[[tables]]` as a standalone
-/// TOML header line.  A deserialization-level check is the authoritative gate;
-/// this function provides an early-exit path for the common case.
-pub fn raw_toml_contains_tables_header(toml_str: &str) -> bool {
-    // Check whether the TOML value contains a "tables" key (any shape).
-    // The authoritative check is performed in validate_overlay_toml via toml::Value parsing.
-    // This heuristic is used for early-exit logging only.
-    toml_str.lines().any(|line| {
-        let trimmed = line.trim();
-        trimmed == "[[tables]]" || trimmed.starts_with("[[tables.")
-    })
 }
 
 // ---------------------------------------------------------------------------
