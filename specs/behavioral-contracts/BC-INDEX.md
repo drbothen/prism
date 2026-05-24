@@ -1,7 +1,7 @@
 ---
 document_type: behavioral-contract-index
 level: L3
-version: "5.49"
+version: "5.50"
 status: draft
 producer: product-owner
 timestamp: 2026-05-24T00:00:00Z
@@ -112,7 +112,7 @@ Phase 3-patch additions (2026-04-16): 22 new BCs added in Burst 1 to close trace
 | BC-2.06.013 | Scalar-Only Overlay Enforcement — Boot-Time Rejection of Schema Fields in Overlay Files | 06 - Client Configuration | CAP-009 | P0 | draft — v1.1 |
 | BC-2.06.014 | Instance Identity Resolution at Fanout — (org_id, sensor_id) Tuple Resolves to ResolvedSensorSpec | 06 - Client Configuration | CAP-009 | P0 | draft |
 | BC-2.06.015 | OrgRegistry Cross-Validation at Boot — Unknown Overlay Directory Triggers E-SPEC-022 | 06 - Client Configuration | CAP-009 | P0 | draft — v1.1 |
-| BC-2.06.016 | Error Taxonomy for Per-Org Overlay Override Violations (E-SPEC-019 through E-SPEC-023) | 06 - Client Configuration | CAP-009 | P0 | draft |
+| BC-2.06.016 | Error Taxonomy for Per-Org Overlay Override Violations (E-SPEC-019 through E-SPEC-023) | 06 - Client Configuration | CAP-009 | P0 | draft — v1.2 |
 | BC-2.07.001 | Internal Ephemeral Pagination Token Structure | 07 - Adapter Pagination & Response Cache | CAP-011 | P0 | draft |
 | BC-2.07.002 | Internal Pagination Token Lifecycle — Forward Progress, Timeout, and Cleanup | 07 - Adapter Pagination & Response Cache | CAP-011 | P0 | draft |
 | BC-2.07.003 | Query Engine Sensor-Fetch Cache with Configurable TTL | 07 - Adapter Pagination & Response Cache | CAP-014 | P1 | draft |
@@ -376,7 +376,9 @@ Phase 3-patch additions (2026-04-16): 22 new BCs added in Burst 1 to close trace
 
 ### Change Log (Adversarial Review Fixes)
 
-**v5.49 (2026-05-24, D-812 fix-burst-5 closure burst):** state-manager | BC-2.06.013 v1.0→v1.1 (F-LP4-MED-001 + F-LP4-MED-002 closed: §Postconditions canonical E-SPEC-020 template separator drift corrected + §Error Cases table `{overlay_path}` placeholder name drift corrected to canonical `{file}`; PO dispatch 6585f846) + BC-2.06.015 v1.0→v1.1 (F-LP4-MED-003 closed: §Postconditions E-SPEC-022 paraphrase corrected — omitted `sensor_id` field restored + capitalization drift corrected; same PO dispatch 6585f846). Root cause: pass-4 [process-gap] finding — POL-29 step 3a sweep was scoped to original canonical-error-message-template target string only; BC bodies paraphrased templates with separator/placeholder/capitalization/omission drift not caught by target-string grep alone. No count changes (BC-2.06.013 + BC-2.06.015 already registered at v5.47). BC-INDEX v5.48→v5.49.
+**v5.50 (2026-05-24, D-814 fix-burst-6 closure burst):** state-manager | BC-2.06.016 v1.1→v1.2 (F-LP5-MED-001 closed: E-SPEC-020 Message template placeholder drift corrected — `{sensor_id}@{org_slug}` → `{expected}` at BC-2.06.016 line 108 to match canonical error-taxonomy.md line 392; PO dispatch 513ee6b8). POL-29 sweep: 9 matches of `{sensor_id}@{org_slug}` found across .factory/; all non-target matches are legitimate literal use (convention description in table cells, log span field doc, story body documentation, taxonomy changelog narrative) — zero additional sibling drifts. No BC count changes. BC-INDEX v5.49→v5.50.
+
+**v5.49 (2026-05-24, D-812 fix-burst-5 closure burst):** state-manager | BC-2.06.013 v1.0→v1.1 (F-LP4-MED-001 closed: E-SPEC-021 message at line 73 — replaced paraphrase semicolon-separated form with canonical period-separated form per BC-2.06.013 v1.1 changelog; F-LP4-MED-002 closed: E-SPEC-023 message at line 82 — replaced paraphrase `{field}` placeholder with canonical `{field_name}` per BC-2.06.013 v1.1 changelog; PO dispatch 6585f846) + BC-2.06.015 v1.0→v1.1 (F-LP4-MED-003 closed: E-SPEC-022 message at line 69 — replaced paraphrase with canonical per BC-2.06.015 v1.1 changelog; same PO dispatch 6585f846). Root cause: pass-4 [process-gap] finding — POL-29 step 3a sweep was scoped to original canonical-error-message-template target string only; BC bodies paraphrased templates with separator/placeholder/capitalization/omission drift not caught by target-string grep alone. No count changes (BC-2.06.013 + BC-2.06.015 already registered at v5.47). BC-INDEX v5.48→v5.49.
 
 **v5.48 (2026-05-23, D-809 state-propagation burst):** state-manager | BC-2.06.016 v1.0→v1.1: product-owner fixed E-SPEC-021 suggestion text in BC body — original v1.0 suggestion included `{extends_value}` interpolation (infeasible: structural pre-deserialization check fires before `extends` field is parsed; code cannot know the value at E-SPEC-021 time); suggestion rewritten to use generic `<sensor>` placeholder and point to canonical path `crates/prism-sensors/specs/<sensor>.sensor.toml`. BC-2.06.016 also corrected E-SPEC-023 suggestion (same class — `{extends_value}` infeasible). 3-way alignment CONFIRMED: BC body (v1.1) ↔ error-taxonomy.md row (v1.50 data, unchanged) ↔ `make_e_spec_021_tables_in_overlay` code emission. Error taxonomy version advanced v1.49→v1.51 in same PO burst (E-SPEC-019-023 rows at v1.50 + E-SPEC-021/023 BC-suggestion alignment at v1.51). No BC table-row count changes (BC-2.06.016 was already registered at v5.47). BC-INDEX v5.47→v5.48.
 

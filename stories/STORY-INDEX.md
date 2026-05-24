@@ -1,7 +1,7 @@
 ---
 document_type: story-index
 level: "L4"
-version: "v2.187"
+version: "v2.188"
 status: draft
 producer: state-manager
 timestamp: 2026-05-24T00:00:00Z
@@ -407,7 +407,7 @@ pursuing maximum parallelism should schedule by topological layer, not wave numb
 | PLUGIN-MIGRATION-001-G | docs: Doc/ADR/BC Sweep — Generalize Sensor-Named Architecture Docs [PLUGIN-MIGRATION Wave 2] [planned] | .factory | 0 (TBD) | -- | 3 | PLUGIN-MIGRATION-001-A,PLUGIN-MIGRATION-001-B,PLUGIN-MIGRATION-001-C |
 | PLUGIN-MIGRATION-001-H | .factory: Story Supersession — Mark S-2.06/S-2.07/W3-FIX-S307-001/S-3.1.06-ImplPhase Superseded [PLUGIN-MIGRATION Wave 2] [planned] | .factory | 0 (TBD) | -- | 3 | PLUGIN-MIGRATION-001-A |
 | S-MAINT-POL29-HOOK-001 | Implement validate-cite-pin-completeness.sh — POL-29 step-8 mechanization [maintenance] [planned P2 — source: session-review D-777 Group E lint hook recommendation] | maintenance | 0 (TBD) | -- | tbd | S-POL-29-CANONICAL-TEMPLATE-REGISTRY-001 |
-| S-POL-29-CANONICAL-TEMPLATE-REGISTRY-001 | POL-29 Canonical Error-Message-Template Registry — Variant-Form Enumeration for Paraphrase Drift Detection [maintenance] [planned P2 — resolves [process-gap] F-LP4-MED-001/002/003/004; architect commit 18746995] | .factory/policies.yaml,.factory/specs/prd-supplements/error-taxonomy.md | 0 | -- | 2 | -- |
+| S-POL-29-CANONICAL-TEMPLATE-REGISTRY-001 | POL-29 Canonical Error-Message-Template Registry — Variant-Form Enumeration for Paraphrase Drift Detection [maintenance] [planned P2 — v0.2; resolves [process-gap] F-LP4-MED-001/002/003/004; AC-006 Suggestion authority added (F-LP5-LOW-002 architect adjudication); architect commits 18746995 + 4ef6c650] | .factory/policies.yaml,.factory/specs/prd-supplements/error-taxonomy.md | 0 | -- | 2 | -- |
 | S-CONFIG-MULTI-TENANT-OVERRIDE-001 | prism-spec-engine/prism-bin: Per-Org Sensor Endpoint Overlay Loading — ADR-029 Hybrid Sensor Instance with Per-Org Composition Directory [wave-0 prereq; draft] | prism-spec-engine,prism-bin,prism-core,prism-sensors | 5 (BC-2.06.012, BC-2.06.013, BC-2.06.014, BC-2.06.015, BC-2.06.016) | -- | 8 | S-WAVE5-PREP-01 |
 | S-SPEC-TYPE-UNIFICATION-001 | prism-core/prism-spec-engine/prism-bin: Retire types::SensorSpec — Unify on spec_parser::SensorSpec as Canonical [Wave 4; draft — deferred from S-CONFIG fix-burst-3 F-LP2-LOW-001; SID-1 §5 anchor] | prism-core,prism-spec-engine,prism-bin | 2 (BC-2.16.001, BC-2.06.012) | -- | 6 | S-CONFIG-MULTI-TENANT-OVERRIDE-001 |
 
@@ -944,6 +944,7 @@ All 13 new DTU clones: Wave 0, 0 BCs, priority P0, depends_on: [S-6.06].
 
 | Version | Date | Summary |
 |---------|------|---------|
+| v2.188 | 2026-05-24 | S-POL-29-CANONICAL-TEMPLATE-REGISTRY-001 v0.1→v0.2 (state-manager, D-814): F-LP5-LOW-002 closed via architect adjudication (Option B — 4ef6c650). AC-006 added: Suggestion field source-of-truth adjudicated — BC-2.06.016 `Suggestion` rows canonical for operator-facing remediation guidance; taxonomy description-prose sub-clauses informative-only (not competing authority). Story row updated to reflect v0.2 + AC count 5→6. STORY-INDEX v2.187→v2.188. |
 | v2.187 | 2026-05-24 | S-POL-29-CANONICAL-TEMPLATE-REGISTRY-001 registration (state-manager, D-813): story registered (v0.1, planned, 2 pts, P2, maintenance wave, depends_on [], blocks S-MAINT-POL29-HOOK-001, Platform Engineering, no BCs/VPs/crates). Resolves [process-gap] F-LP4-MED-001/002/003/004 (4 recurrences of canonical error-message-template paraphrase drift). Architect commit 18746995. S-MAINT-POL29-HOOK-001 depends_on updated to include S-POL-29-CANONICAL-TEMPLATE-REGISTRY-001 (missed in architect commit; corrected in this burst). Full Story List +1 row after S-MAINT-POL29-HOOK-001. total_stories 154→155. |
 | v2.186 | 2026-05-24 | S-SPEC-TYPE-UNIFICATION-001 registration (state-manager): story registered (v0.1, draft, 6 pts, 2 BCs [BC-2.16.001+BC-2.06.012], no VPs, Wave 4, depends_on S-CONFIG-MULTI-TENANT-OVERRIDE-001, crates prism-core+prism-spec-engine+prism-bin). Deferred from S-CONFIG fix-burst-3 F-LP2-LOW-001 per SID-1 §5 (concrete anchor: S-SPEC-TYPE-UNIFICATION-001 + S-CONFIG must merge first). Full Story List +1 row after S-CONFIG-MULTI-TENANT-OVERRIDE-001. BC Traceability Matrix: BC-2.06.012 += S-SPEC-TYPE-UNIFICATION-001; BC-2.16.001 += S-SPEC-TYPE-UNIFICATION-001. total_stories 153→154. |
 | v2.185 | 2026-05-23 | S-CONFIG-MULTI-TENANT-OVERRIDE-001 stub registration (story-writer): stub authored (v0.1, draft, 8 pts, 5 BCs [BC-2.06.012+013+014+015+016], no VPs yet, wave-0 prereq, subsystems SS-06+SS-16, depends_on S-WAVE5-PREP-01, blocks PLUGIN-MIGRATION-001-F). Implements ADR-029 hybrid sensor instance with per-org composition directory. 7 ACs with Red Gate test names per SID-1 §5. BC Traceability Matrix +5 rows (BC-2.06.012–016) + BC-2.06.011 backfill row (S-WAVE5-PREP-01). total_stories 152→153. |

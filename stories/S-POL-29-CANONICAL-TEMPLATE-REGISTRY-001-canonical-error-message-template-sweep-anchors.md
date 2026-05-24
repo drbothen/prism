@@ -294,8 +294,8 @@ No TDD cycle needed (no code changes). Adversary pass-1 is the convergence gate.
 |------------|------|---------|-----------|---------|
 | F-LP2-MED-002 | S-CONFIG pass-2 | S-CONFIG-MULTI-TENANT-OVERRIDE-001 | fix-burst-3 story-writer | EXPECTED=32 citation in story body not swept |
 | F-LP3-MED-001 | S-CONFIG pass-3 | S-CONFIG-MULTI-TENANT-OVERRIDE-001 | fix-burst-4 PO bd9ef119 | E-SPEC-023 description body (line 395) not swept by message_template-scoped grep |
-| F-LP4-MED-001 | S-CONFIG pass-4 | S-CONFIG-MULTI-TENANT-OVERRIDE-001 | fix-burst-5 PO 6585f846 | BC-2.06.013 §Postconditions separator drift (colon vs em-dash) for E-SPEC-020 |
-| F-LP4-MED-002 | S-CONFIG pass-4 | S-CONFIG-MULTI-TENANT-OVERRIDE-001 | fix-burst-5 PO 6585f846 | BC-2.06.013 §Error Cases placeholder name drift (`{overlay_path}` vs `{file}`) |
+| F-LP4-MED-001 | S-CONFIG pass-4 | S-CONFIG-MULTI-TENANT-OVERRIDE-001 | fix-burst-5 PO 6585f846 | BC-2.06.013 §Postconditions E-SPEC-021 paraphrase drift: semicolon-separated form vs canonical period-separated form ("Table schema must be declared in the TYPE spec only") per BC-2.06.013 v1.1 changelog [OBS-LP5-001 correction] |
+| F-LP4-MED-002 | S-CONFIG pass-4 | S-CONFIG-MULTI-TENANT-OVERRIDE-001 | fix-burst-5 PO 6585f846 | BC-2.06.013 §Error Cases E-SPEC-023 placeholder name drift: `{field}` vs canonical `{field_name}` per BC-2.06.013 v1.1 changelog [OBS-LP5-001 correction] |
 | F-LP4-MED-003 | S-CONFIG pass-4 | S-CONFIG-MULTI-TENANT-OVERRIDE-001 | fix-burst-5 PO 6585f846 | BC-2.06.015 E-SPEC-022 omitted `sensor_id` field + capitalization drift |
 | F-LP4-MED-004 | S-CONFIG pass-4 | S-CONFIG-MULTI-TENANT-OVERRIDE-001 | fix-burst-5 story-writer 872f5a63 | S-CONFIG story body E-SPEC-020 shortened form (omission drift) |
 | F-LP5-LOW-002 | S-CONFIG pass-5 | S-CONFIG-MULTI-TENANT-OVERRIDE-001 | architect adjudication 2026-05-24 (Option B) | BC-2.06.016 Suggestion rows vs taxonomy description-prose suggestion clauses — source-of-truth adjudicated: BC-2.06.016 canonical for Suggestion field; taxonomy description-prose does not constitute a competing Suggestion authority |

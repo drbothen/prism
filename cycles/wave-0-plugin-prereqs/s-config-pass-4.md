@@ -24,8 +24,8 @@ traces_to: convergence-trajectory.md
 
 | ID | Severity | Category | Description |
 |----|----------|----------|-------------|
-| F-LP4-MED-001 | MEDIUM | [process-gap] | BC-2.06.013 body canonical error-message template in §Postconditions — paraphrase form using separator drift (colon instead of em-dash) from the E-SPEC-020 canonical template in error-taxonomy.md |
-| F-LP4-MED-002 | MEDIUM | [process-gap] | BC-2.06.013 body §Error Cases table — E-SPEC-020 `message_template` string uses placeholder name drift (`{overlay_path}` vs canonical `{file}`) |
+| F-LP4-MED-001 | MEDIUM | [process-gap] | BC-2.06.013 §Postconditions E-SPEC-021 message paraphrase drift: semicolon-separated form ("Remove [[tables]] and declare schema in the TYPE spec only") vs canonical period-separated form ("Table schema must be declared in the TYPE spec only") per error-taxonomy.md line 393 [OBS-LP5-001: corrected per BC-2.06.013 v1.1 changelog: "F-LP4-MED-001: E-SPEC-021 message at line 73 — replaced paraphrase (semicolon-separated...) with canonical (period-separated...)"] |
+| F-LP4-MED-002 | MEDIUM | [process-gap] | BC-2.06.013 §Error Cases E-SPEC-023 message placeholder name drift: `{field}` vs canonical `{field_name}` per error-taxonomy.md line 395 [OBS-LP5-001: corrected per BC-2.06.013 v1.1 changelog: "F-LP4-MED-002: E-SPEC-023 message at line 82 — replaced paraphrase (`{field}` placeholder...) with canonical (`{field_name}` placeholder...)"] |
 | F-LP4-MED-003 | MEDIUM | [process-gap] | BC-2.06.015 body §Postconditions — E-SPEC-022 error message paraphrase omits `sensor_id` field from canonical template; capitalization drift |
 | F-LP4-MED-004 | MEDIUM | [process-gap] | S-CONFIG-MULTI-TENANT-OVERRIDE-001 story body task descriptions cite E-SPEC-020 error message using a shortened form that omits the `overlay_fields` enumeration from the canonical template |
 
@@ -40,7 +40,7 @@ traces_to: convergence-trajectory.md
 ## Fix-burst Routing
 
 Fix-burst 5 dispatched:
-- **PO** (6585f846): BC-2.06.013 v1.0→v1.1 (F-LP4-MED-001 + F-LP4-MED-002 closed — canonical template sweep in §Postconditions + §Error Cases table) + BC-2.06.015 v1.0→v1.1 (F-LP4-MED-003 closed — E-SPEC-022 paraphrase brought to canonical form)
+- **PO** (6585f846): BC-2.06.013 v1.0→v1.1 (F-LP4-MED-001 closed: E-SPEC-021 message semicolon→period canonical form; F-LP4-MED-002 closed: E-SPEC-023 message `{field}`→`{field_name}` canonical placeholder) + BC-2.06.015 v1.0→v1.1 (F-LP4-MED-003 closed: E-SPEC-022 paraphrase replaced with canonical per BC-2.06.015 v1.1 changelog)
 - **Story-writer** (872f5a63): S-CONFIG story body EXPECTED=35 sweep + E-SPEC-020 canonical form in task descriptions (F-LP4-MED-004 closed)
 - **Story-writer sibling sweep** (ba69dcea): PLUGIN-MIGRATION-001-E story body EXPECTED=35 sweep (POL-29 sibling-sweep — same class of citation gap identified in adjacent story)
 

@@ -332,11 +332,11 @@ Extracted from STATE.md frontmatter (pass/burst SHA history):
 |-------|-------|
 | Story | S-CONFIG-MULTI-TENANT-OVERRIDE-001 |
 | Feature branch | feature/S-CONFIG-MULTI-TENANT-OVERRIDE-001 |
-| Feature HEAD at fix-burst-5 completion | `5c11fc7b` (unchanged — fix-burst 5 was .factory/-only) |
+| Feature HEAD at fix-burst-6 completion | `3416eea6` (implementer 3416eea6 overlay.rs doc-comment; prior fix-burst-5 HEAD was 5c11fc7b) |
 | Streak | 0/3 |
-| Total passes | 4 (pass-5 next) |
-| Total fix-bursts | 5 |
-| Cumulative findings closed | 10 (4 from pass-2 via fix-burst-3 + 2 from pass-3 via fix-burst-4 + 4 from pass-4 via fix-burst-5) |
+| Total passes | 5 (pass-6 next) |
+| Total fix-bursts | 6 |
+| Cumulative findings closed | 13 (4 from pass-2 via fix-burst-3 + 2 from pass-3 via fix-burst-4 + 4 from pass-4 via fix-burst-5 + 3 from pass-5 via fix-burst-6) |
 
 ### Trajectory
 
@@ -347,9 +347,10 @@ Extracted from STATE.md frontmatter (pass/burst SHA history):
 | fix-burst-3 | — | -4 closed | CRIT+HIGH+2×MED closed | F-LP2-LOW-001 deferred to S-SPEC-TYPE-UNIFICATION-001 (Wave 4; SID-1 §5) |
 | pass-3 | 2 | -3 from pass-2 | 0 CRIT + 0 HIGH + 1 MED + 1 LOW | F-LP3-MED-001 taxonomy line 395 POL-25 sibling-sweep miss (E-SPEC-023 infeasible Instance placeholder at secondary cite site); F-LP3-LOW-001 AC-005 hardcoded literal vs canonical-source read |
 | fix-burst-4 | — | -2 closed | MED+LOW closed | PO bd9ef119 taxonomy v1.51→v1.52; test-writer 5c11fc7b AC-005 byte-compare + negative-test. Streak stays 0/3. |
-| pass-4 | 4 | -2 from pass-3 | 0 CRIT + 0 HIGH + 4 MED | F-LP4-MED-001/002 BC-2.06.013 canonical template separator/placeholder drift; F-LP4-MED-003 BC-2.06.015 E-SPEC-022 paraphrase drift; F-LP4-MED-004 story body E-SPEC-020 omission drift. All [process-gap] class. |
-| fix-burst-5 | — | -4 closed | 4 MED closed | PO 6585f846 BC-2.06.013 v1.1 + BC-2.06.015 v1.1; story-writer 872f5a63 S-CONFIG body; story-writer sibling ba69dcea PLUGIN-MIGRATION-001-E body. Streak stays 0/3. |
-| pass-5 | pending | — | — | First streak attempt 0/3→1/3 (dispatch pending — fix-burst 5 closed all 4 MED) |
+| pass-4 | 4 | -2 from pass-3 | 0 CRIT + 0 HIGH + 4 MED | F-LP4-MED-001 BC-2.06.013 E-SPEC-021 paraphrase: semicolon-separated vs canonical period-separated [OBS-LP5-001 corrected per BC-2.06.013 v1.1 changelog]; F-LP4-MED-002 BC-2.06.013 E-SPEC-023 placeholder `{field}` vs canonical `{field_name}` [OBS-LP5-001 corrected]; F-LP4-MED-003 BC-2.06.015 E-SPEC-022 paraphrase "Register the org..." vs canonical "Check for typos or register..." per BC-2.06.015 v1.1 changelog; F-LP4-MED-004 story body E-SPEC-020 omission drift. All [process-gap] class. |
+| fix-burst-5 | — | -4 closed | 4 MED closed | PO 6585f846: BC-2.06.013 v1.0→v1.1 (E-SPEC-021 semicolon→period canonical + E-SPEC-023 `{field}`→`{field_name}` canonical) + BC-2.06.015 v1.0→v1.1 (E-SPEC-022 paraphrase→canonical per v1.1 changelog). Story-writer 872f5a63 S-CONFIG body; story-writer sibling ba69dcea PLUGIN-MIGRATION-001-E body. Streak stays 0/3. |
+| pass-5 | 3 | -1 from pass-4 | 0 CRIT + 0 HIGH + 1 MED + 1 LOW + 1 LOW | F-LP5-MED-001 BC-2.06.016 E-SPEC-020 placeholder `{sensor_id}@{org_slug}` vs canonical `{expected}` (sibling-sweep gap — fix-burst-5 swept BC-2.06.013+015 but missed BC-2.06.016 line 108); F-LP5-LOW-001 overlay.rs 3 doc-comment forward-pointers cite wrong function names; F-LP5-LOW-002 BC-2.06.016 Suggestion field vs taxonomy description-prose — source-of-truth adjudicated (architect Option B: BC-2.06.016 canonical). Feature HEAD 5c11fc7b (unchanged — pass is read-only). Streak 0/3 → 0/3 (BLOCKED). |
+| fix-burst-6 | — | -3 closed | 1 MED + 1 LOW + 1 LOW closed | PO 513ee6b8: BC-2.06.016 v1.1→v1.2 (F-LP5-MED-001: `{sensor_id}@{org_slug}`→`{expected}` per BC-2.06.016 v1.2 changelog). Implementer 3416eea6: overlay.rs doc-comment forward-pointer fixes (F-LP5-LOW-001). Architect 4ef6c650: S-POL-29 v0.1→v0.2 AC-006 Suggestion authority adjudication (F-LP5-LOW-002 Option B). OBS-LP5-001 state-manager narrative correction (this burst): s-config-pass-4.md + convergence-trajectory.md pass-4 row + S-POL-29 §Originating Findings byte-sourced from BC changelogs. BC-INDEX v5.49→v5.50. STORY-INDEX v2.187→v2.188. Feature HEAD 5c11fc7b→3416eea6. Streak stays 0/3. |
 
 ### Fix-burst Log
 
@@ -359,6 +360,8 @@ Extracted from STATE.md frontmatter (pass/burst SHA history):
 | fix-burst-2 | (pre-pass-2) | (pass-1 findings) |
 | fix-burst-3 | d613e8f3 | F-LP2-CRIT-001 + F-LP2-HIGH-001 + F-LP2-MED-001 + F-LP2-MED-002 |
 | fix-burst-4 | 5c11fc7b (test-writer) / bd9ef119 (PO taxonomy) | F-LP3-MED-001 + F-LP3-LOW-001 |
+| fix-burst-5 | 5c11fc7b (test-writer AC-005 byte-compare) / 6585f846 (PO BC-2.06.013+015) / 872f5a63 (story-writer S-CONFIG body) / ba69dcea (story-writer sibling PREREQ-E body) | F-LP4-MED-001 + F-LP4-MED-002 + F-LP4-MED-003 + F-LP4-MED-004 |
+| fix-burst-6 | 513ee6b8 (PO BC-2.06.016 v1.2) / 3416eea6 (implementer overlay.rs) / 4ef6c650 (architect S-POL-29 v0.2) + state-manager OBS-LP5-001 correction | F-LP5-MED-001 + F-LP5-LOW-001 + F-LP5-LOW-002 |
 
 ---
 
