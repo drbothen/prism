@@ -640,10 +640,8 @@ impl OverlayLoader {
 
     /// Build the canonical E-SPEC-022 error for an unknown org slug directory.
     ///
-    /// Message template (BC-2.06.016 canonical form, INV-ERR-002):
-    /// "Per-org overlay directory 'customers/{slug}/' references org slug '{slug}' which
-    /// is not registered in OrgRegistry. Check for typos or register the org in
-    /// prism.toml [[orgs]]."
+    /// Canonical message template per `.factory/specs/prd-supplements/error-taxonomy.md`
+    /// row E-SPEC-022. The `format!` body below produces the exact emission text.
     pub fn e_spec_022_unknown_org_slug(customers_dir_name: &str, slug: &str) -> PrismError {
         PrismError::Spec(SpecError {
             code: SpecErrorCode::ESpec022,
@@ -683,13 +681,8 @@ pub fn make_e_spec_021_tables_in_overlay(file_path: &str, instance_id: &str) -> 
 
 /// Build the E-SPEC-023 error for an unrecognized field in an overlay file.
 ///
-/// Canonical message template (BC-2.06.016 §Error Catalog line 148):
-/// "Per-org overlay '{file}' contains unrecognized field '{field_name}'. Allowed overlay
-/// fields are: extends, instance_id, base_url, timeout_secs, rate_limit_hints (with
-/// sub-fields: requests_per_second, burst_size)."
-///
-/// Note: NO trailing `Instance: '…'` — that suffix is not in the BC canonical template
-/// (POL-24 verbatim enforcement; F-LP2-MED-001).
+/// Canonical message template per `.factory/specs/prd-supplements/error-taxonomy.md`
+/// row E-SPEC-023. The `format!` body below produces the exact emission text.
 pub fn make_e_spec_023_unrecognized_field(file_path: &str, field_name: &str) -> PrismError {
     PrismError::Spec(SpecError {
         code: SpecErrorCode::ESpec023,
