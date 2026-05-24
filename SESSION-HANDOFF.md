@@ -6792,8 +6792,8 @@ _Agent routing: see CLAUDE.md §Agent Routing Table._
 | ADR-029 | v1.1 status: PROPOSED (awaits human approval gate) |
 | BCs BC-2.06.012-016 | BC-2.06.013 v1.1 + BC-2.06.015 v1.1 (PO 6585f846 canonical template sweep); BC-2.06.016 v1.1 (PO fix E-SPEC-021/023 suggestion); others v1.0 status: draft (advance to active on first story merge per POL-14) |
 | BC-INDEX | v5.49 |
-| STORY-INDEX | v2.186 |
-| total_stories | 154 |
+| STORY-INDEX | v2.187 |
+| total_stories | 155 |
 | ARCH-INDEX | v2.101 |
 | error-taxonomy | v1.52 (E-SPEC-019-023 rows landed at v1.50; BC-2.06.016 v1.1 suggestion alignment at v1.51; E-SPEC-023 line 395 infeasible Instance placeholder removed at v1.52 per F-LP3-MED-001) |
 | S-SPEC-TYPE-UNIFICATION-001 | v0.1 status: draft (Wave 4; deferred from S-CONFIG fix-burst-3 F-LP2-LOW-001; depends_on S-CONFIG-MULTI-TENANT-OVERRIDE-001) |
@@ -6880,10 +6880,10 @@ _Cascade convergence per BC-5.39.001. Next phase: demo-recorder + push + pr-mana
 | Develop HEAD | `f19575ff` (unchanged) |
 | Factory-artifacts HEAD | D-812 burst (this commit) |
 | BC-INDEX | v5.49 |
-| STORY-INDEX | v2.186 |
+| STORY-INDEX | v2.187 |
 | ARCH-INDEX | v2.102 |
 | error-taxonomy | v1.52 (E-SPEC-019-023 rows ALREADY LANDED at v1.50; BC-2.06.016 suggestion alignment at v1.51; E-SPEC-023 line 395 infeasible Instance placeholder removed at v1.52 per F-LP3-MED-001 POL-25 sweep) |
-| total_stories | 154 |
+| total_stories | 155 |
 | S-SPEC-TYPE-UNIFICATION-001 | v0.1 draft — Wave 4; deferred F-LP2-LOW-001 from S-CONFIG fix-burst-3; depends_on S-CONFIG-MULTI-TENANT-OVERRIDE-001 |
 
 ### §2. Path C — Parallel Implementation Dispatch Plan

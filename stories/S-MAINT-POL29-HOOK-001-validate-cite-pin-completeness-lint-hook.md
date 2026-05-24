@@ -25,7 +25,12 @@ capabilities: []
 behavioral_contracts: []
 # BC status: pending PO authorship
 verification_properties: []
-depends_on: []
+depends_on:
+  - S-POL-29-CANONICAL-TEMPLATE-REGISTRY-001  # The lint hook's paraphrase-drift detection
+                                               # (axis class 8) requires the variant-form registry
+                                               # defined in this story as its grep-anchor input.
+                                               # (AC-005 of S-POL-29-CANONICAL-TEMPLATE-REGISTRY-001;
+                                               # corrected in D-813 — missed in architect commit 18746995)
 blocks: []
 points: tbd
 estimated_days: tbd
