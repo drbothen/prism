@@ -332,11 +332,11 @@ Extracted from STATE.md frontmatter (pass/burst SHA history):
 |-------|-------|
 | Story | S-CONFIG-MULTI-TENANT-OVERRIDE-001 |
 | Feature branch | feature/S-CONFIG-MULTI-TENANT-OVERRIDE-001 |
-| Feature HEAD at fix-burst-3 completion | `d613e8f3` |
+| Feature HEAD at fix-burst-4 completion | `5c11fc7b` |
 | Streak | 0/3 |
-| Total passes | 2 (pass-3 next) |
-| Total fix-bursts | 3 |
-| Cumulative findings closed | 4 (from pass-2; pass-1 count pending) |
+| Total passes | 3 (pass-4 next) |
+| Total fix-bursts | 4 |
+| Cumulative findings closed | 6 (4 from pass-2 via fix-burst-3 + 2 from pass-3 via fix-burst-4) |
 
 ### Trajectory
 
@@ -345,7 +345,9 @@ Extracted from STATE.md frontmatter (pass/burst SHA history):
 | pass-1 | (count pending) | n/a | n/a | Baseline pass after TDD green at e62ce5e9 |
 | pass-2 | 5 | n/a | 1 CRIT + 1 HIGH + 2 MED + 1 LOW | F-LP2-CRIT-001 Arc-DI plumbing; F-LP2-HIGH-001; F-LP2-MED-001 E-SPEC-023 verbatim; F-LP2-MED-002 EXPECTED=32→35; F-LP2-LOW-001 type proliferation |
 | fix-burst-3 | — | -4 closed | CRIT+HIGH+2×MED closed | F-LP2-LOW-001 deferred to S-SPEC-TYPE-UNIFICATION-001 (Wave 4; SID-1 §5) |
-| pass-3 | pending | — | — | First streak attempt 0/3→1/3 |
+| pass-3 | 2 | -3 from pass-2 | 0 CRIT + 0 HIGH + 1 MED + 1 LOW | F-LP3-MED-001 taxonomy line 395 POL-25 sibling-sweep miss (E-SPEC-023 infeasible Instance placeholder at secondary cite site); F-LP3-LOW-001 AC-005 hardcoded literal vs canonical-source read |
+| fix-burst-4 | — | -2 closed | MED+LOW closed | PO bd9ef119 taxonomy v1.51→v1.52; test-writer 5c11fc7b AC-005 byte-compare + negative-test. Streak stays 0/3. |
+| pass-4 | pending | — | — | First streak attempt 0/3→1/3 (dispatch pending) |
 
 ### Fix-burst Log
 
@@ -354,6 +356,7 @@ Extracted from STATE.md frontmatter (pass/burst SHA history):
 | fix-burst-1 | (pre-pass-1) | (pass-1 findings) |
 | fix-burst-2 | (pre-pass-2) | (pass-1 findings) |
 | fix-burst-3 | d613e8f3 | F-LP2-CRIT-001 + F-LP2-HIGH-001 + F-LP2-MED-001 + F-LP2-MED-002 |
+| fix-burst-4 | 5c11fc7b (test-writer) / bd9ef119 (PO taxonomy) | F-LP3-MED-001 + F-LP3-LOW-001 |
 
 ---
 

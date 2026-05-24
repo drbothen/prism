@@ -861,6 +861,45 @@ Pass-1 adversary (agent a598496b1b1bf90c4) returned 15 findings (4 CRIT + 5 HIGH
 
 ---
 
+### D-811 — S-CONFIG fix-burst-4 closure + pass-3 archive (2026-05-24)
+
+**Burst type:** State-manager post-fix-burst-4 propagation — S-CONFIG-MULTI-TENANT-OVERRIDE-001 LOCAL adversary cascade pass-3 closure
+
+**Feature branch HEAD at fix-burst-4 completion:** `5c11fc7b`
+
+**Adversary cascade state:**
+- Pass-3: 2 findings — F-LP3-MED-001 (taxonomy line 395 POL-25 sibling-sweep miss) + F-LP3-LOW-001 (AC-005 hardcoded literal vs canonical-source read)
+- Fix-burst-4: CLOSED both findings
+  - Sub-burst A (PO bd9ef119): F-LP3-MED-001 — error-taxonomy.md v1.51→v1.52, E-SPEC-023 line 395 infeasible `Instance: '{instance_id}'` removed from description body
+  - Sub-burst B (test-writer 5c11fc7b): F-LP3-LOW-001 — AC-005 test rewrites to read canonical taxonomy + byte-compare + negative-test assertion
+- Streak: 0/3 (fix-burst does not advance); pass-4 next (first streak attempt 0/3→1/3)
+
+**Fix-burst-4 details:**
+- F-LP3-MED-001 CLOSED: POL-25 sibling-sweep miss at error-taxonomy.md line 395. Fix-burst-3 had removed the infeasible `Instance: '{instance_id}'` placeholder from the E-SPEC-023 `message_template` field but not from the prose `description` body at line 395. PO bd9ef119 swept the description body. Taxonomy v1.51→v1.52.
+- F-LP3-LOW-001 CLOSED: AC-005 test no longer uses hardcoded Rust string literal for E-SPEC-023 expected message. Test-writer 5c11fc7b rewrote AC-005 to load error-taxonomy.md at runtime, extract canonical template, byte-compare, and verify negative for non-canonical variant.
+
+**State-manager scope:**
+- `.factory/STATE.md` — version 7.497→7.498, error_taxonomy_version "1.51"→"1.52", current_step + Last Updated updated, D-811 row added to Current Phase Steps + Decisions Log, D-788 archived, D-810 `(this burst)` SHA resolved to c4ece7d7
+- `.factory/SESSION-HANDOFF.md` — 3 live-state error-taxonomy v1.51 references updated to v1.52 (§PLUGIN-E-CONVERGED §2 line 6666, §MULTI-TENANT §2 line 6797, §PATH-C §1 line 6884); D-810 SHA resolved to c4ece7d7; D-811 arc row added
+- `.factory/cycles/wave-0-plugin-prereqs/convergence-trajectory.md` — pass-3 trajectory row + fix-burst-4 log row + cascade metadata updated (total passes 2→3, fix-bursts 3→4, cumulative closed 4→6)
+- `.factory/cycles/wave-0-plugin-prereqs/s-config-pass-3.md` — new pass-3 adversary report
+- `.factory/cycles/wave-0-plugin-prereqs/s-config-fix-burst-4.md` — new fix-burst-4 closure record
+- `.factory/cycles/wave-0-plugin-prereqs/lessons.md` — entry 40 appended (POL-25 citation-site sibling-sweep discipline)
+- `.factory/cycles/wave-0-plugin-prereqs/burst-log.md` — D-788 archived + this D-811 burst narrative
+
+**D-788 archived from STATE.md Current Phase Steps (D-811 burst 2026-05-24):**
+
+| Step | Agent | Status | Output |
+|------|-------|--------|--------|
+| D-788 — **PLUGIN-MIGRATION-001-E LOCAL adversary pass-4 CLEAN. Streak 0/3 → 1/3. Report at cycles/wave-0-plugin-prereqs/PLUGIN-MIGRATION-001-E/local-pass-4.md.** | adversary (LOCAL pass-4) + state-manager | PASS-4-CLEAN, STREAK 1/3 | NEXT: pass-5 adversary. |
+
+**POL-29 sibling sweep result:**
+- `error_taxonomy_version "1.51"`: found in STATE.md (updated to "1.52"). SESSION-HANDOFF.md: 3 live-state rows updated. Historical rows in burst-log, adversarial reviews, and session-checkpoints: left intact (immutable records).
+- `error-taxonomy v1.51` in crates/: 0 live-state references found. The feature branch crates/ may contain compile-time `include_str!` reads but these reference the file content, not the version string.
+- Sweep of archived cycle files for stale pass-2/pass-3/fix-burst-3 "in-progress" narrative: convergence-trajectory.md updated to REMEDIATED status; burst-log.md narrative is historical (immutable record).
+
+---
+
 ### D-748 — FB-IMPL-P14 closure burst (archived from STATE.md Current Phase Steps 2026-05-22 D-776 burst)
 
 | Step | Agent | Status | Output |

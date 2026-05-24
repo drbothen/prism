@@ -6663,7 +6663,7 @@ _Agent routing: see CLAUDE.md §Agent Routing Table._
 | Story S-PLUGIN-CI-001 | v0.1 status=draft — NEW stub created this session; closes PLUGIN-MIGRATION-001-E EC-006 + EC-009 + MED-001 #[ignore] deferrals |
 | BC-2.16.002 (Structured Event Catalog) | v1.43 (row 37 plugin.auth_token_parse_error added) |
 | BC-INDEX | v5.46 |
-| error-taxonomy.md | v1.51 (E-PLUGIN-022 AuthTokenNotCached added at v1.49; E-SPEC-019-023 overlay boot errors added at v1.50; BC-2.06.016 suggestion alignment at v1.51) |
+| error-taxonomy.md | v1.52 (E-PLUGIN-022 AuthTokenNotCached added at v1.49; E-SPEC-019-023 overlay boot errors added at v1.50; BC-2.06.016 suggestion alignment at v1.51; E-SPEC-023 line 395 infeasible Instance placeholder removed at v1.52 per F-LP3-MED-001 POL-25 sweep) |
 | LOCAL adversary cascade status | **CONVERGED** per BC-5.39.001 3-CLEAN STRICT |
 | Cascade arc | 12 adversary passes / 8 fix-bursts / 55 findings closed / 3 paper-fix recurrences detected+corrected |
 | Decay trajectory | 20 → 12 → 3 → 0(false) → 2 → 3 → 3 → 7 → 6 → 0 → 0 → 0 |
@@ -6778,7 +6778,8 @@ _Agent routing: see CLAUDE.md §Agent Routing Table._
 | Burst 2/4 Architect | ADR-029 drafted status: proposed; decision hybrid (e); ARCH-INDEX v2.100→v2.101; 5 NEW BCs identified for PO | `.factory/specs/architecture/decisions/ADR-029-...md` | `3bcc5a15` |
 | Burst 3/4 Product-Owner | 5 BCs drafted (BC-2.06.012-016) in SS-06 subsystem; PO caught E-SPEC-018 collision (already TimestampParseFailure); shifted to E-SPEC-019-023; ADR-029 swept v1.0→v1.1 same atomic burst | BC-INDEX v5.46→v5.47 + 5 new BCs + ADR-029 sweep | `b1fd0e4b` |
 | Burst 4/4 Story-writer | S-CONFIG-MULTI-TENANT-OVERRIDE-001 v0.1 status: draft; 7 ACs SID-1 §5 compliant; STORY-INDEX v2.184→v2.185; total_stories 152→153 | this commit | `b7b4ee76` (D-809 burst) |
-| D-810 fix-burst-3 closure | S-CONFIG pass-2 5 findings; fix-burst-3 CLOSED CRIT-001+HIGH-001+MED-001+MED-002; F-LP2-LOW-001 deferred to S-SPEC-TYPE-UNIFICATION-001 (Wave 4); STORY-INDEX v2.185→v2.186; total_stories 153→154 | STATE v7.497 | `(this burst)` |
+| D-810 fix-burst-3 closure | S-CONFIG pass-2 5 findings; fix-burst-3 CLOSED CRIT-001+HIGH-001+MED-001+MED-002; F-LP2-LOW-001 deferred to S-SPEC-TYPE-UNIFICATION-001 (Wave 4); STORY-INDEX v2.185→v2.186; total_stories 153→154 | STATE v7.497 | `c4ece7d7` |
+| D-811 fix-burst-4 closure | S-CONFIG pass-3 2 findings; fix-burst-4 CLOSED F-LP3-MED-001+F-LP3-LOW-001; error_taxonomy v1.51→v1.52 (PO bd9ef119); AC-005 test byte-compare (test-writer 5c11fc7b); pass-3 archived; pass-4 next (streak 0/3) | STATE v7.498 | `(this burst)` |
 
 ### §2. CONVERGENCE + DESIGN-COMPLETE STATE
 
@@ -6794,7 +6795,7 @@ _Agent routing: see CLAUDE.md §Agent Routing Table._
 | STORY-INDEX | v2.186 |
 | total_stories | 154 |
 | ARCH-INDEX | v2.101 |
-| error-taxonomy | v1.51 (E-SPEC-019-023 rows landed at v1.50; BC-2.06.016 v1.1 suggestion alignment at v1.51 — ALREADY IN taxonomy, NOT deferred to implementation) |
+| error-taxonomy | v1.52 (E-SPEC-019-023 rows landed at v1.50; BC-2.06.016 v1.1 suggestion alignment at v1.51; E-SPEC-023 line 395 infeasible Instance placeholder removed at v1.52 per F-LP3-MED-001) |
 | S-SPEC-TYPE-UNIFICATION-001 | v0.1 status: draft (Wave 4; deferred from S-CONFIG fix-burst-3 F-LP2-LOW-001; depends_on S-CONFIG-MULTI-TENANT-OVERRIDE-001) |
 
 ### §3. HUMAN APPROVAL GATE (BLOCKING)
@@ -6881,7 +6882,7 @@ _Cascade convergence per BC-5.39.001. Next phase: demo-recorder + push + pr-mana
 | BC-INDEX | v5.48 |
 | STORY-INDEX | v2.186 |
 | ARCH-INDEX | v2.102 |
-| error-taxonomy | v1.51 (E-SPEC-019-023 rows ALREADY LANDED at v1.50; BC-2.06.016 suggestion alignment at v1.51 — NO longer deferred to implementation) |
+| error-taxonomy | v1.52 (E-SPEC-019-023 rows ALREADY LANDED at v1.50; BC-2.06.016 suggestion alignment at v1.51; E-SPEC-023 line 395 infeasible Instance placeholder removed at v1.52 per F-LP3-MED-001 POL-25 sweep) |
 | total_stories | 154 |
 | S-SPEC-TYPE-UNIFICATION-001 | v0.1 draft — Wave 4; deferred F-LP2-LOW-001 from S-CONFIG fix-burst-3; depends_on S-CONFIG-MULTI-TENANT-OVERRIDE-001 |
 
