@@ -6,11 +6,11 @@ wave: 1
 epic_id: PLUGIN-MIGRATION-001
 priority: P0
 status: ready
-version: "v1.3"
+version: "v1.4"
 level: "L4"
 producer: story-writer
 timestamp: "2026-05-23T00:00:00Z"
-modified: "2026-05-23"
+modified: "2026-05-24"
 tdd_mode: strict
 subsystems: [SS-01, SS-16, SS-17]
 # Subsystem anchor justifications:
@@ -128,7 +128,7 @@ phase: 3
 
 **Story ID:** PLUGIN-MIGRATION-001-E
 **Status:** ready
-**Version:** v1.3
+**Version:** v1.4
 **Wave:** 1 (blocked on PLUGIN-MIGRATION-001-D; D merged via PR #153 2026-05-22)
 
 ---
@@ -629,7 +629,7 @@ Extracted from `architecture/module-decomposition.md` and relevant ADRs. Violati
 |------|--------|-------------|
 | No `prism-sensors` dev-dep on `prism-spec-engine` in non-test code | ADR-028 §D3; 001-D §Forbidden Dependencies | Build-time: `cargo metadata` check in CI |
 | Plugin WASM binary compiled to `wasm32-wasi` or `wasm32-unknown-unknown` component target | BC-2.17.006 WIT validation requires Component Model ABI | `cargo build --target wasm32-...` CI step |
-| `#[non_exhaustive]` on all public structs/enums in the plugin crate's host-facing API surface | CLAUDE.md conventions; prism-spec-engine compile-fail gate count is 32+ (EXPECTED=32 in ci.yml) | `tests/external/non-exhaustive-violation/` compile-fail gate |
+| `#[non_exhaustive]` on all public structs/enums in the plugin crate's host-facing API surface | CLAUDE.md conventions; prism-spec-engine compile-fail gate count is 35+ (EXPECTED=35 in ci.yml) | `tests/external/non-exhaustive-violation/` compile-fail gate |
 | `allowed_urls` in plugin manifest must be explicit `Vec<String>` — not empty unless plugin makes no outbound calls | BC-2.17.007 postcondition; PREREQ-D AC-7 default-deny | WIT manifest validator at load time |
 | OAuth2 `client_secret` value MUST NOT appear in any `tracing::*!` event or `Debug` impl | AD-017 AI-opaque credential model | AC-010 Red Gate Test 10 |
 | No `println!` in production plugin code | CLAUDE.md conventions | `clippy::print_stdout` lint |
@@ -740,6 +740,7 @@ stories merged independently; the regression risk is PRODUCTION deployment.
 
 | Version | Date | Author | Change |
 |---------|------|--------|--------|
+| v1.4 | 2026-05-24 | story-writer | F-LP4-MED-004 sibling-finding closure: Architecture Compliance Rules row — `EXPECTED=32` → `EXPECTED=35` in ci.yml reference (POL-29 sibling-sweep of 872f5a63 which swept the same stale reference in S-CONFIG-MULTI-TENANT-OVERRIDE-001 story body). Single occurrence at line 632. Authoritative source: `.github/workflows/ci.yml:581`. |
 | v1.3 | 2026-05-23 | implementer | F-LP7-MED-002 closure (FB-IMPL-6): EC-006/007/008/009 "Test Reference" column updated to SID-1 §5-compliant specific citations. EC-006: deferred to S-PLUGIN-CI-001 AC-002 → `test_S_PLUGIN_CI_001_002_missing_prx_at_boot_continues_with_error_log`. EC-007: cite `test_BC_2_17_006_ac7_invalid_wit_returns_e_plugin_001` + `test_BC_2_17_006_ac7_invariant_plugin_not_registered_after_invalid_wit` (plugin_tests.rs). EC-008: cite `test_BC_2_17_002_ec17_url_not_in_allowlist_returns_403` + `test_BC_2_17_002_ec17_007_http_request_empty_allowlist_blocked` (plugin_tests.rs). EC-009: deferred to S-PLUGIN-CI-001 AC-003 → `test_S_PLUGIN_CI_001_003_double_401_returns_auth_refresh_failed`. Removed plural-vague "wasm32 Guest impl / WAT-fixture / integration tests (not closed in FB-IMPL-4)" phrasing from all 4 rows. |
 | v1.2 | 2026-05-23 | implementer | FB-IMPL-5 closure (pass-6): EC-002 test renamed from `test_acquire_token_EC_002_invalid_json_returns_response_parse`; story spec updated to v1.2 with FB-IMPL-5 changes. |
 | v1.0 | 2026-05-22 | story-writer | Initial authoring — full sprint-ready story per dispatch 2026-05-22 |
