@@ -558,3 +558,73 @@ pub fn error_to_retry_metadata(error: &SensorError, attempts: u32) -> RetryMetad
 // silence unused import warning for warn! macro path — used in todo impls
 #[allow(unused_imports)]
 use tracing::error;
+
+// ---------------------------------------------------------------------------
+// S-CONFIG-MULTI-TENANT-OVERRIDE-001 — Per-org overlay resolution (ADR-029)
+// ---------------------------------------------------------------------------
+
+/// Resolve the effective `SensorSpec` for a `FanOutTarget` given the boot-time
+/// `ResolvedSensorSpec` map (BC-2.06.014 — Instance Identity Resolution at Fanout).
+///
+/// # Case A (overlay exists)
+/// `OrgRegistry.slug_for(org_id)` resolves to `OrgSlug`; the map is looked up at
+/// `(org_slug, sensor_id)` in O(1); the returned `SensorSpec` uses the overlay
+/// `base_url`.  Instance identity is `"{sensor_id}@{org_slug}"`.
+///
+/// # Case B (no overlay)
+/// Map lookup returns `None`; the fanout target uses the TYPE spec `base_url`.
+/// Instance identity is the bare `sensor_id`.
+///
+/// # Performance contract (INV-FANOUT-002)
+/// O(1) map lookup; NO filesystem I/O; NO blocking.  The map is read-only
+/// after boot (`Arc<HashMap<...>>`; no mutex on the hot path).
+///
+/// # CredentialResolver contract (INV-FANOUT-001)
+/// `CredentialResolver` is NOT consulted here — credential lookup continues
+/// by `(org_id, sensor_id)` independently of endpoint resolution.
+///
+/// Story: S-CONFIG-MULTI-TENANT-OVERRIDE-001 | BC-2.06.014
+// All parameters named for the implementer; unused at stub stage (todo!() body).
+#[allow(unused_variables)]
+pub fn resolve_spec_for_fanout(
+    target: &FanOutTarget,
+    org_registry: &prism_core::OrgRegistry,
+    resolved_spec_map: &std::collections::HashMap<
+        prism_spec_engine::ResolvedSpecKey,
+        prism_spec_engine::ResolvedSensorSpec,
+    >,
+) -> SensorSpec {
+    todo!()
+}
+
+/// Fan out sensor fetches with per-org endpoint overlay resolution (ADR-029).
+///
+/// Extends `fan_out()` with per-org `ResolvedSensorSpec` lookup before dispatch.
+/// For each target, `resolve_spec_for_fanout` is called to select the effective
+/// `SensorSpec` (overlay base_url for Case A, TYPE spec for Case B).
+///
+/// The `resolved_spec_map` is the boot-time map produced by
+/// `SpecLoader::load_all_with_overlays`.  It is passed as an `Arc<HashMap>` to
+/// share the read-only map across concurrent fan-out tasks without contention
+/// (INV-OVL-006, INV-FANOUT-002).
+///
+/// All other behaviour (semaphore limits, partial failure, tracing) is identical
+/// to `fan_out()` (BC-2.01.002, BC-2.01.010).
+///
+/// Story: S-CONFIG-MULTI-TENANT-OVERRIDE-001 | BC-2.06.014
+// All parameters named for the implementer; unused at stub stage (todo!() body).
+#[allow(unused_variables)]
+pub async fn fan_out_with_overlay_map(
+    targets: Vec<FanOutTarget>,
+    registry: Arc<AdapterRegistry>,
+    credentials: Arc<dyn CredentialResolver>,
+    org_registry: Arc<prism_core::OrgRegistry>,
+    resolved_spec_map: Arc<
+        std::collections::HashMap<
+            prism_spec_engine::ResolvedSpecKey,
+            prism_spec_engine::ResolvedSensorSpec,
+        >,
+    >,
+) -> Result<FanOutResult, SensorError> {
+    todo!()
+}

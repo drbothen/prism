@@ -918,6 +918,41 @@ pub enum SpecErrorCode {
     /// BC-2.16.013 §O-001 (Option A grammar extension); ADR-028 v1.10 §D8-C;
     /// error-taxonomy.md v1.44 E-SPEC-018.
     ESpec018,
+    /// E-SPEC-019: Per-org overlay `extends` field references a sensor TYPE spec that does
+    /// not exist in the loaded TYPE spec set. Boot hard error (exit 2).
+    /// BC-2.06.016 §Error Catalog E-SPEC-019; ADR-029 §Decision.
+    /// Example message: "Per-org overlay 'customers/acme/foo.sensor.toml' extends 'foo'
+    /// which is not a loaded sensor TYPE spec."
+    ESpec019,
+    /// E-SPEC-020: Per-org overlay `instance_id` field does not match the canonical
+    /// `{sensor_id}@{org_slug}` pattern derived from the filename stem and parent directory.
+    /// Boot hard error (exit 2). BC-2.06.016 §Error Catalog E-SPEC-020; ADR-029 §Decision.
+    /// Example message: "Per-org overlay 'customers/acme/armis.sensor.toml' instance_id
+    /// 'wrong@value' does not match expected 'armis@acme'."
+    ESpec020,
+    /// E-SPEC-021: Per-org overlay file contains `[[tables]]` blocks, which are forbidden.
+    /// Schema overrides are not permitted in overlay files — the TYPE spec defines the
+    /// canonical schema for all tenants (INV-OVL-001). Boot hard error (exit 2).
+    /// BC-2.06.016 §Error Catalog E-SPEC-021; ADR-029 §Decision Drivers (TOML array-replace).
+    /// Example message: "Per-org overlay 'customers/acme/armis.sensor.toml' for instance
+    /// 'armis@acme' contains [[tables]] blocks. Schema overrides are forbidden in overlay
+    /// files (ADR-029)."
+    ESpec021,
+    /// E-SPEC-022: The `customers/<slug>/` directory name references an org slug that is
+    /// not registered in `OrgRegistry`. Boot hard error (exit 2).
+    /// BC-2.06.016 §Error Catalog E-SPEC-022; BC-2.06.015 postcondition failure path.
+    /// Example message: "Per-org overlay directory 'customers/unknown-org/' references org
+    /// slug 'unknown-org' which is not registered in OrgRegistry. Check for typos or
+    /// register the org in prism.toml [[orgs]]."
+    ESpec022,
+    /// E-SPEC-023: Per-org overlay file contains an unrecognized scalar field. Only the
+    /// allowed overlay fields are permitted: `extends`, `instance_id`, `base_url`,
+    /// `timeout_secs`, `rate_limit_hints` (and its sub-fields). Boot hard error (exit 2).
+    /// BC-2.06.016 §Error Catalog E-SPEC-023; BC-2.06.013 (scalar-only overlay enforcement).
+    /// Example message: "Per-org overlay 'customers/acme/armis.sensor.toml' contains
+    /// unrecognized field 'auth_type'. Only scalar tunables are permitted in overlay files
+    /// (ADR-029)."
+    ESpec023,
 }
 
 /// A structured spec validation or runtime error carrying an E-SPEC-* code,
