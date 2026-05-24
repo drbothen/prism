@@ -855,6 +855,565 @@ secret_key  = "s3cr3t"
 }
 
 // ---------------------------------------------------------------------------
+// F-LP1-HIGH-002 (EC-016-001): Multi-error aggregation — [[tables]] AND unrecognized
+// field in same overlay file both collected (INV-ERR-003, BC-2.06.016)
+// BC-2.06.016 §EC-016-001
+// ---------------------------------------------------------------------------
+
+/// Test for F-LP1-HIGH-002 / BC-2.06.016 EC-016-001.
+///
+/// Scenario: a single overlay file contains BOTH a `[[tables]]` block AND an
+/// unrecognized field (`auth_type = "oauth2_client_credentials"`).
+///
+/// The existing `test_BC_2_06_016_error_messages_match_canonical_templates` only
+/// triggers each error code in isolated scopes. This test verifies the cross-field
+/// aggregation invariant: INV-ERR-003 requires ALL errors to be collected before
+/// returning, not stop at the first one.
+///
+/// Asserts:
+/// - `result.errors` contains E-SPEC-021 (tables in overlay).
+/// - `result.errors` ALSO contains E-SPEC-023 (unrecognized field `auth_type`).
+/// - Both are present simultaneously in a single `load_overlays` call for one file.
+#[test]
+fn test_BC_2_06_016_EC_016_001_tables_and_unrecognized_field_both_collected() {
+    let dir = tempfile::tempdir().expect("tempdir must succeed");
+    let customers_dir = dir.path().join("customers");
+
+    // Overlay with BOTH [[tables]] AND an unrecognized field.
+    write_file(
+        dir.path(),
+        "customers/acme/armis.sensor.toml",
+        r#"
+extends     = "armis"
+instance_id = "armis@acme"
+base_url    = "https://armis.acme-corp.io"
+auth_type   = "oauth2_client_credentials"
+
+[[tables]]
+table_name = "forbidden_schema_override"
+ocsf_class = "device_inventory_info"
+"#,
+    );
+
+    let type_specs = type_specs_with_armis();
+    let registry = registry_with_acme();
+
+    let result = OverlayLoader::load_overlays(&customers_dir, &type_specs, &registry);
+
+    // Must have errors — the overlay is invalid on two independent counts.
+    assert!(
+        !result.errors.is_empty(),
+        "EC-016-001: overlay with both [[tables]] and unrecognized field must produce errors"
+    );
+
+    // BC-2.06.016 INV-ERR-003: E-SPEC-021 collected.
+    let has_e_spec_021 = result.errors.iter().any(|e| {
+        if let PrismError::Spec(se) = e {
+            matches!(se.code, SpecErrorCode::ESpec021)
+        } else {
+            false
+        }
+    });
+    assert!(
+        has_e_spec_021,
+        "EC-016-001: E-SPEC-021 (tables in overlay) must be present; errors: {:?}",
+        result.errors
+    );
+
+    // BC-2.06.016 INV-ERR-003: E-SPEC-023 collected SIMULTANEOUSLY with E-SPEC-021.
+    let has_e_spec_023 = result.errors.iter().any(|e| {
+        if let PrismError::Spec(se) = e {
+            matches!(se.code, SpecErrorCode::ESpec023)
+        } else {
+            false
+        }
+    });
+    assert!(
+        has_e_spec_023,
+        "EC-016-001: E-SPEC-023 (unrecognized field 'auth_type') must ALSO be present \
+         simultaneously with E-SPEC-021; errors: {:?}",
+        result.errors
+    );
+
+    // Nothing resolved — the overlay file is invalid.
+    assert!(
+        result.resolved.is_empty(),
+        "EC-016-001: invalid overlay must not produce a resolved entry; resolved keys: {:?}",
+        result.resolved.keys().collect::<Vec<_>>()
+    );
+}
+
+// ---------------------------------------------------------------------------
+// F-LP1-HIGH-001 associated test (EC-016-002): unregistered org slug AND [[tables]]
+// in the same file — both E-SPEC-022 and E-SPEC-021 collected simultaneously.
+// BC-2.06.016 §EC-016-002
+// ---------------------------------------------------------------------------
+
+/// Test for F-LP1-HIGH-001 EC-016-002 / BC-2.06.016.
+///
+/// Scenario: `customers/stale-corp/armis.sensor.toml` exists.
+/// - `stale-corp` is NOT in OrgRegistry → E-SPEC-022 (unknown org slug).
+/// - The overlay file also contains a `[[tables]]` block → E-SPEC-021.
+///
+/// After the implementer's F-LP1-HIGH-001 fix removed the early-return guard,
+/// `load_overlays` continues scanning files inside unregistered directories.
+/// This test verifies BOTH errors are collected from a single file under an
+/// unregistered directory.
+///
+/// Asserts:
+/// - `result.errors` contains E-SPEC-022 (unregistered slug `stale-corp`).
+/// - `result.errors` ALSO contains E-SPEC-021 (tables in overlay file).
+/// - `result.resolved` is empty (unregistered orgs never produce resolved entries).
+#[test]
+fn test_BC_2_06_016_EC_016_002_unknown_org_and_tables_both_collected() {
+    let dir = tempfile::tempdir().expect("tempdir must succeed");
+    let customers_dir = dir.path().join("customers");
+
+    // File under unregistered org directory with an additional [[tables]] violation.
+    write_file(
+        dir.path(),
+        "customers/stale-corp/armis.sensor.toml",
+        r#"
+extends     = "armis"
+instance_id = "armis@stale-corp"
+base_url    = "https://armis.stale.io"
+
+[[tables]]
+table_name = "forbidden_schema"
+ocsf_class = "device_inventory_info"
+"#,
+    );
+
+    let type_specs = type_specs_with_armis();
+    // Registry has only "acme" — "stale-corp" is NOT registered.
+    let registry = registry_with_acme();
+
+    let result = OverlayLoader::load_overlays(&customers_dir, &type_specs, &registry);
+
+    // E-SPEC-022: unregistered slug "stale-corp".
+    let has_e_spec_022 = result.errors.iter().any(|e| {
+        if let PrismError::Spec(se) = e {
+            matches!(se.code, SpecErrorCode::ESpec022)
+        } else {
+            false
+        }
+    });
+    assert!(
+        has_e_spec_022,
+        "EC-016-002: E-SPEC-022 (unknown org slug 'stale-corp') must be present; \
+         errors: {:?}",
+        result.errors
+    );
+
+    // E-SPEC-021: [[tables]] in the overlay file under the unregistered directory.
+    let has_e_spec_021 = result.errors.iter().any(|e| {
+        if let PrismError::Spec(se) = e {
+            matches!(se.code, SpecErrorCode::ESpec021)
+        } else {
+            false
+        }
+    });
+    assert!(
+        has_e_spec_021,
+        "EC-016-002: E-SPEC-021 (tables in overlay) must ALSO be present simultaneously \
+         with E-SPEC-022 (post F-LP1-HIGH-001 fix, early-return guard removed); \
+         errors: {:?}",
+        result.errors
+    );
+
+    // BC-2.06.016 EC-016-002: unregistered orgs never appear in resolved map.
+    assert!(
+        result.resolved.is_empty(),
+        "EC-016-002: unregistered org overlay must never be inserted into resolved map; \
+         resolved keys: {:?}",
+        result.resolved.keys().collect::<Vec<_>>()
+    );
+}
+
+// ---------------------------------------------------------------------------
+// F-LP1-HIGH-002 (EC-016-003): All five error codes in same boot scenario
+// BC-2.06.016 §EC-016-003 — INV-ERR-003 multi-file, multi-error aggregation
+// ---------------------------------------------------------------------------
+
+/// Test for F-LP1-HIGH-002 / BC-2.06.016 EC-016-003.
+///
+/// Scenario: five overlay files across two org directories, each triggering one of
+/// the five canonical error codes (E-SPEC-019..E-SPEC-023) in a single
+/// `load_overlays` call.
+///
+/// Layout:
+/// - `customers/unknown-org/crowdstrike.sensor.toml`  — E-SPEC-022 (unregistered slug)
+///   with `[[tables]]` — this file also emits E-SPEC-021 as a simultaneous file-level error.
+/// - `customers/acme/bad-extends.sensor.toml`         — E-SPEC-019 (unknown TYPE spec)
+/// - `customers/acme/armis.sensor.toml`               — E-SPEC-020 (instance_id mismatch)
+/// - `customers/acme/claroty.sensor.toml`             — E-SPEC-021 (tables in overlay)
+/// - `customers/acme/vectra.sensor.toml`              — E-SPEC-023 (unrecognized field)
+///
+/// Asserts:
+/// - `result.errors` contains ALL five codes (E-SPEC-019 through E-SPEC-023).
+/// - Error count ≥ 5 (may be more if a file triggers multiple codes).
+/// - `result.resolved` is empty (any error makes the entire boot invalid per INV-ERR-003).
+#[test]
+fn test_BC_2_06_016_EC_016_003_all_five_codes_in_same_boot() {
+    let dir = tempfile::tempdir().expect("tempdir must succeed");
+    let customers_dir = dir.path().join("customers");
+
+    // E-SPEC-022: unregistered slug "unknown-org" → E-SPEC-022.
+    // Also contains [[tables]] → E-SPEC-021 is also collected for this file.
+    write_file(
+        dir.path(),
+        "customers/unknown-org/crowdstrike.sensor.toml",
+        r#"
+extends     = "armis"
+instance_id = "crowdstrike@unknown-org"
+base_url    = "https://cs.unknown.io"
+
+[[tables]]
+table_name = "forbidden"
+ocsf_class = "device_inventory_info"
+"#,
+    );
+
+    // E-SPEC-019: extends references "nonexistent_sensor" which has no TYPE spec.
+    write_file(
+        dir.path(),
+        "customers/acme/bad-extends.sensor.toml",
+        r#"
+extends     = "nonexistent_sensor"
+instance_id = "bad-extends@acme"
+base_url    = "https://example.com"
+"#,
+    );
+
+    // E-SPEC-020: instance_id "armis@wrongorg" does not match expected "armis@acme".
+    write_file(
+        dir.path(),
+        "customers/acme/armis.sensor.toml",
+        r#"
+extends     = "armis"
+instance_id = "armis@wrongorg"
+base_url    = "https://armis.acme-corp.io"
+"#,
+    );
+
+    // E-SPEC-021: [[tables]] block present in overlay for a registered org.
+    write_file(
+        dir.path(),
+        "customers/acme/claroty.sensor.toml",
+        r#"
+extends     = "armis"
+instance_id = "claroty@acme"
+base_url    = "https://claroty.acme.io"
+
+[[tables]]
+table_name = "forbidden_schema"
+ocsf_class = "device_inventory_info"
+"#,
+    );
+
+    // E-SPEC-023: unrecognized field "secret_key" in overlay.
+    write_file(
+        dir.path(),
+        "customers/acme/vectra.sensor.toml",
+        r#"
+extends     = "armis"
+instance_id = "vectra@acme"
+base_url    = "https://vectra.acme.io"
+secret_key  = "s3cr3t"
+"#,
+    );
+
+    let type_specs = type_specs_with_armis();
+    // Registry has only "acme" — "unknown-org" is NOT registered.
+    let registry = registry_with_acme();
+
+    let result = OverlayLoader::load_overlays(&customers_dir, &type_specs, &registry);
+
+    // Must have errors — every file triggers at least one.
+    assert!(
+        !result.errors.is_empty(),
+        "EC-016-003: mixed-error boot scenario must produce errors; got none"
+    );
+
+    let check_code = |code: SpecErrorCode| -> bool {
+        result.errors.iter().any(|e| {
+            if let PrismError::Spec(se) = e {
+                se.code == code
+            } else {
+                false
+            }
+        })
+    };
+
+    assert!(
+        check_code(SpecErrorCode::ESpec019),
+        "EC-016-003: E-SPEC-019 (unknown extends) must appear; errors: {:?}",
+        result.errors
+    );
+    assert!(
+        check_code(SpecErrorCode::ESpec020),
+        "EC-016-003: E-SPEC-020 (instance_id mismatch) must appear; errors: {:?}",
+        result.errors
+    );
+    assert!(
+        check_code(SpecErrorCode::ESpec021),
+        "EC-016-003: E-SPEC-021 (tables in overlay) must appear; errors: {:?}",
+        result.errors
+    );
+    assert!(
+        check_code(SpecErrorCode::ESpec022),
+        "EC-016-003: E-SPEC-022 (unregistered slug) must appear; errors: {:?}",
+        result.errors
+    );
+    assert!(
+        check_code(SpecErrorCode::ESpec023),
+        "EC-016-003: E-SPEC-023 (unrecognized field) must appear; errors: {:?}",
+        result.errors
+    );
+
+    // At minimum 5 distinct errors (may be more — unknown-org file also triggers E-SPEC-021).
+    assert!(
+        result.errors.len() >= 5,
+        "EC-016-003: at least 5 errors expected across all five violation types; \
+         got: {} — errors: {:?}",
+        result.errors.len(),
+        result.errors
+    );
+
+    // INV-ERR-003: any error → entire resolved map is empty.
+    assert!(
+        result.resolved.is_empty(),
+        "EC-016-003: when ANY overlay error occurs, resolved map must be empty (INV-ERR-003); \
+         resolved keys: {:?}",
+        result.resolved.keys().collect::<Vec<_>>()
+    );
+}
+
+// ---------------------------------------------------------------------------
+// F-LP1-MED-002: rate_limit_hints overlay merge (requests_per_second, burst_size)
+// BC-2.06.012 AC-001 scalar merge — rate_limit_hints tunables
+// Edge case: EC-012-005
+// ---------------------------------------------------------------------------
+
+/// Test for F-LP1-MED-002 / BC-2.06.012 EC-012-005.
+///
+/// Scenario: overlay sets `rate_limit_hints.requests_per_second = 5.0` only
+/// (without setting base_url or burst_size). Verifies:
+/// - merged spec uses the TYPE spec base_url unchanged (no base_url in overlay).
+/// - merged spec `rate_limit_hints.requests_per_second` equals overlay value (5.0).
+/// - `provenance.rps_from_overlay` is `true`.
+/// - `provenance.base_url_from_overlay` is `false` (base_url came from TYPE spec).
+///
+/// Also exercises independent `burst_size` merging:
+/// - Second overlay sets only `rate_limit_hints.burst_size = 20`.
+/// - Merged spec `rate_limit_hints.burst_size` equals 20.
+/// - `provenance.burst_size_from_overlay` is `true`.
+/// - `provenance.rps_from_overlay` is `false` (rps came from TYPE spec, which is None).
+#[test]
+fn test_BC_2_06_012_EC_012_005_rate_limit_overlay_merge() {
+    let type_spec = armis_type_spec();
+
+    // --- Case A: overlay sets requests_per_second only --- //
+    {
+        let dir = tempfile::tempdir().expect("tempdir must succeed");
+        let customers_dir = dir.path().join("customers");
+
+        write_file(
+            dir.path(),
+            "customers/acme/armis.sensor.toml",
+            r#"
+extends     = "armis"
+instance_id = "armis@acme"
+
+[rate_limit_hints]
+requests_per_second = 5.0
+"#,
+        );
+
+        let type_specs = type_specs_with_armis();
+        let registry = registry_with_acme();
+        let result = OverlayLoader::load_overlays(&customers_dir, &type_specs, &registry);
+
+        assert!(
+            result.errors.is_empty(),
+            "EC-012-005 Case A: rate_limit_hints overlay must produce no errors; got: {:?}",
+            result.errors
+        );
+
+        let key = (OrgSlug::new("acme"), "armis".to_string());
+        assert!(
+            result.resolved.contains_key(&key),
+            "EC-012-005 Case A: resolved map must contain (acme, armis)"
+        );
+        let resolved = &result.resolved[&key];
+
+        // base_url unchanged from TYPE spec (no base_url in overlay).
+        assert_eq!(
+            resolved.spec.base_url, type_spec.base_url,
+            "EC-012-005 Case A: base_url must remain TYPE spec default when not in overlay"
+        );
+        assert!(
+            !resolved.provenance.base_url_from_overlay,
+            "EC-012-005 Case A: provenance.base_url_from_overlay must be false"
+        );
+
+        // requests_per_second merged from overlay.
+        let rls = resolved
+            .spec
+            .rate_limit_hints
+            .as_ref()
+            .expect("rate_limit_hints must be Some after overlay merge");
+        assert_eq!(
+            rls.requests_per_second,
+            Some(5.0),
+            "EC-012-005 Case A: merged spec requests_per_second must equal overlay value 5.0"
+        );
+        assert!(
+            resolved.provenance.rps_from_overlay,
+            "EC-012-005 Case A: provenance.rps_from_overlay must be true"
+        );
+
+        // burst_size not in overlay → None (TYPE spec had no rate_limit_hints).
+        assert_eq!(
+            rls.burst_size, None,
+            "EC-012-005 Case A: burst_size not in overlay must remain None"
+        );
+        assert!(
+            !resolved.provenance.burst_size_from_overlay,
+            "EC-012-005 Case A: provenance.burst_size_from_overlay must be false"
+        );
+    }
+
+    // --- Case B: overlay sets burst_size only (independent scalar merging) --- //
+    {
+        let dir = tempfile::tempdir().expect("tempdir must succeed");
+        let customers_dir = dir.path().join("customers");
+
+        write_file(
+            dir.path(),
+            "customers/acme/armis.sensor.toml",
+            r#"
+extends     = "armis"
+instance_id = "armis@acme"
+
+[rate_limit_hints]
+burst_size = 20
+"#,
+        );
+
+        let type_specs = type_specs_with_armis();
+        let registry = registry_with_acme();
+        let result = OverlayLoader::load_overlays(&customers_dir, &type_specs, &registry);
+
+        assert!(
+            result.errors.is_empty(),
+            "EC-012-005 Case B: burst_size-only overlay must produce no errors; got: {:?}",
+            result.errors
+        );
+
+        let key = (OrgSlug::new("acme"), "armis".to_string());
+        let resolved = &result.resolved[&key];
+
+        let rls = resolved
+            .spec
+            .rate_limit_hints
+            .as_ref()
+            .expect("rate_limit_hints must be Some after burst_size overlay merge");
+
+        // burst_size merged from overlay.
+        assert_eq!(
+            rls.burst_size,
+            Some(20),
+            "EC-012-005 Case B: merged spec burst_size must equal overlay value 20"
+        );
+        assert!(
+            resolved.provenance.burst_size_from_overlay,
+            "EC-012-005 Case B: provenance.burst_size_from_overlay must be true"
+        );
+
+        // requests_per_second not in overlay → None (TYPE spec had no rate_limit_hints).
+        assert_eq!(
+            rls.requests_per_second, None,
+            "EC-012-005 Case B: requests_per_second not in overlay must remain None"
+        );
+        assert!(
+            !resolved.provenance.rps_from_overlay,
+            "EC-012-005 Case B: provenance.rps_from_overlay must be false"
+        );
+    }
+}
+
+// ---------------------------------------------------------------------------
+// F-LP1-MED-002: timeout_secs overlay merge with provenance tracking
+// BC-2.06.012 AC-001 scalar merge — timeout_secs tunable
+// ---------------------------------------------------------------------------
+
+/// Test for F-LP1-MED-002 / BC-2.06.012 — timeout_secs overlay merge.
+///
+/// Scenario: overlay sets `timeout_secs = 60`. Verifies:
+/// - `provenance.timeout_secs_from_overlay` is `true`.
+/// - `result.errors` is empty (valid overlay).
+/// - `result.resolved` contains the (acme, armis) entry.
+///
+/// Note: `SensorSpec` does not have a `timeout_secs` field — the value is stored
+/// only in provenance metadata for later retrieval by the HTTP client wiring layer
+/// (follow-up story S-CONFIG-MULTI-TENANT-OVERRIDE-002). This test verifies the
+/// provenance tracking path per BC-2.06.012 postcondition.
+#[test]
+fn test_BC_2_06_012_timeout_secs_overlay_merge_with_provenance() {
+    let dir = tempfile::tempdir().expect("tempdir must succeed");
+    let customers_dir = dir.path().join("customers");
+
+    write_file(
+        dir.path(),
+        "customers/acme/armis.sensor.toml",
+        r#"
+extends     = "armis"
+instance_id = "armis@acme"
+base_url    = "https://armis.acme-corp.io"
+timeout_secs = 60
+"#,
+    );
+
+    let type_specs = type_specs_with_armis();
+    let registry = registry_with_acme();
+
+    let result = OverlayLoader::load_overlays(&customers_dir, &type_specs, &registry);
+
+    assert!(
+        result.errors.is_empty(),
+        "timeout_secs overlay must produce no errors; got: {:?}",
+        result.errors
+    );
+
+    let key = (OrgSlug::new("acme"), "armis".to_string());
+    assert!(
+        result.resolved.contains_key(&key),
+        "timeout_secs overlay must produce a resolved entry for (acme, armis)"
+    );
+
+    let resolved = &result.resolved[&key];
+
+    // BC-2.06.012 postcondition: provenance.timeout_secs_from_overlay must be true.
+    assert!(
+        resolved.provenance.timeout_secs_from_overlay,
+        "provenance.timeout_secs_from_overlay must be true when overlay sets timeout_secs; \
+         provenance: {:?}",
+        resolved.provenance
+    );
+
+    // base_url from overlay (also set in this overlay).
+    assert_eq!(
+        resolved.spec.base_url, "https://armis.acme-corp.io",
+        "base_url must be from overlay when set alongside timeout_secs"
+    );
+    assert!(
+        resolved.provenance.base_url_from_overlay,
+        "provenance.base_url_from_overlay must be true when overlay also sets base_url"
+    );
+}
+
+// ---------------------------------------------------------------------------
 // AC-006: Backwards compatibility — no customers/ directory → zero overlays
 // BC-2.06.012 postcondition: absent customers/ dir → zero entries; boot succeeds
 // Edge cases: EC-012-001 (absent dir) + EC-012-002 (.gitkeep only)
