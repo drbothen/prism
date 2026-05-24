@@ -332,11 +332,11 @@ Extracted from STATE.md frontmatter (pass/burst SHA history):
 |-------|-------|
 | Story | S-CONFIG-MULTI-TENANT-OVERRIDE-001 |
 | Feature branch | feature/S-CONFIG-MULTI-TENANT-OVERRIDE-001 |
-| Feature HEAD at fix-burst-8 completion | `d600f7f4` (unchanged — fix-burst-8 is state-manager only; no code changes) |
+| Feature HEAD at fix-burst-9 completion | `d600f7f4` (unchanged — fix-burst-9 is state-manager only; no code changes) |
 | Streak | 0/3 |
-| Total passes | 7 (pass-8 next) |
-| Total fix-bursts | 8 |
-| Cumulative findings closed | 20 (4 from pass-2 via fix-burst-3 + 2 from pass-3 via fix-burst-4 + 4 from pass-4 via fix-burst-5 + 3 from pass-5 via fix-burst-6 + 4 from pass-6 via fix-burst-7 + 3 from pass-7 via fix-burst-8) |
+| Total passes | 9 (pass-10 next) |
+| Total fix-bursts | 10 |
+| Cumulative findings closed | 22 (4 from pass-2 via fix-burst-3 + 2 from pass-3 via fix-burst-4 + 4 from pass-4 via fix-burst-5 + 3 from pass-5 via fix-burst-6 + 4 from pass-6 via fix-burst-7 + 3 from pass-7 via fix-burst-8 + 1 from pass-8 via fix-burst-9 + 1 from pass-9 via fix-burst-10) |
 
 ### Trajectory
 
@@ -357,6 +357,8 @@ Extracted from STATE.md frontmatter (pass/burst SHA history):
 | fix-burst-8 | — | -3 closed | 1 MED CORRECTIVE + 1 LOW + 1 LOW closed | State-manager D-816 byte-equality corrective: s-config-fix-burst-7.md lines 81+87 periods removed from inner quotes (3 strings, 4 sites total); lessons.md entry 41 periods removed from 6 inner-quote instances; byte-diff verified against BC-2.06.013 v1.1 §Changelog line 200 before commit (F-LP7-MED-001 CORRECTIVE). D-815 section header inserted before entry 43 (F-LP7-LOW-001). Entries reordered 41→42→43→44 (F-LP7-LOW-002). Lesson 44 [process-gap] [codified] appended. STATE v7.502→v7.503. Streak stays 0/3. Pass-8 next (streak attempt 0/3→1/3). |
 | pass-8 | 1 | n/a | 0 CRIT + 0 HIGH + 0 MED + 1 LOW | F-LP8-LOW-001 [process-gap]: 4 sites in s-config-fix-burst-7.md (lines 81+87) and lessons.md entry 41 bullets (1)+(2) drop sentence-terminal period from claimed byte-quotes of BC-2.06.013 v1.1 §Changelog line 200 — `).` pattern (close-paren + terminal period) was omitted, leaving `)'"` or `)"` instead of `).'"` or `)."`. 4th-generation OBS-LP5-001 recurrence; previously unenumerated sub-axis of byte-equality drift (sentence-terminal punctuation). Feature HEAD d600f7f4 (read-only). CLEAN(strict)=NO, CLEAN(PR-merge)=YES. Streak 0/3→0/3 (BLOCKED). Fix-burst-9 dispatch. |
 | fix-burst-9 | — | -1 closed | 1 LOW CORRECTIVE closed | State-manager D-817 (TD-VSDD-053 single-commit): sentence-terminal periods restored at 4 sites (s-config-fix-burst-7.md lines 81+87; lessons.md entry 41 bullets (1)+(2)). Byte-diff verified against BC-2.06.013 v1.1 §Changelog line 200 before commit — all 4 restored forms now byte-equal to source `).` sentence terminator. Lesson 44 scope extended: sentence-terminal punctuation after closing parentheses + whitespace + markdown markup added as explicit sub-axes of byte-equality discipline. STATE v7.503→v7.504. Streak stays 0/3. Pass-9 next (streak attempt 0/3→1/3). |
+| pass-9 | 1 | n/a | 0 CRIT + 0 HIGH + 1 MED + 0 LOW | F-LP9-MED-001 [process-gap]: convergence-trajectory.md §Cascade Status table stale (4 rows referencing fix-burst-8 not fix-burst-9, Total passes 7 not 9, Total fix-bursts 8 not 10, Cumulative findings closed 20 not 22); §Fix-burst Log table missing fix-burst-9 and fix-burst-10 rows; §Trajectory subtable missing pass-9 and fix-burst-10 rows. 5th-generation recurrence of POL-25 within-artifact sibling-sweep — fix-burst-9 updated §Trajectory subtable only, missed §Cascade Status + §Fix-burst Log sibling tables in the same file. Feature HEAD d600f7f4 (read-only). CLEAN(strict)=NO, CLEAN(PR-merge)=YES. Streak 0/3→0/3 (BLOCKED). Fix-burst-10 dispatch. |
+| fix-burst-10 | — | -1 closed | 1 MED CORRECTIVE closed | State-manager D-818 (TD-VSDD-053 single-commit): §Cascade Status table updated (fix-burst-8→fix-burst-9, Total passes 7→9, Total fix-bursts 8→10, Cumulative findings closed 20→22); §Fix-burst Log rows fix-burst-9 + fix-burst-10 appended; §Trajectory pass-9 + fix-burst-10 rows appended. Mandatory whole-artifact sibling-sweep executed before commit — grep verified stale values GONE from all 3 tables. Lesson 45 [process-gap] [codified] appended. STATE v7.504→v7.505. Streak stays 0/3. Pass-10 next (streak attempt 0/3→1/3). |
 
 ### Fix-burst Log
 
@@ -370,6 +372,8 @@ Extracted from STATE.md frontmatter (pass/burst SHA history):
 | fix-burst-6 | 513ee6b8 (PO BC-2.06.016 v1.2) / 3416eea6 (implementer overlay.rs) / 4ef6c650 (architect S-POL-29 v0.2) + state-manager OBS-LP5-001 correction | F-LP5-MED-001 + F-LP5-LOW-001 + F-LP5-LOW-002 |
 | fix-burst-7 | 455f9fbb (PO BC-2.06.016 v1.3) / d600f7f4 (implementer overlay.rs 2 sibling sites) + state-manager D-815 corrective (F-LP6-MED-001+MED-002) | F-LP6-MED-001 CORRECTIVE + F-LP6-MED-002 CORRECTIVE + F-LP6-LOW-001 + F-LP6-LOW-002 |
 | fix-burst-8 | d600f7f4 (feature HEAD unchanged — state-manager only) | F-LP7-MED-001 CORRECTIVE + F-LP7-LOW-001 + F-LP7-LOW-002 |
+| fix-burst-9 | d600f7f4 (feature HEAD unchanged — state-manager only) | F-LP8-LOW-001 |
+| fix-burst-10 | d600f7f4 (feature HEAD unchanged — state-manager only) | F-LP9-MED-001 |
 
 ---
 
